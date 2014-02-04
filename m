@@ -1,585 +1,356 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f51.google.com (mail-ee0-f51.google.com [74.125.83.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 180B36B0044
-	for <linux-mm@kvack.org>; Mon,  3 Feb 2014 19:58:48 -0500 (EST)
-Received: by mail-ee0-f51.google.com with SMTP id b57so4007719eek.10
-        for <linux-mm@kvack.org>; Mon, 03 Feb 2014 16:58:48 -0800 (PST)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id d8si38639501eeh.158.2014.02.03.16.58.47
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 03 Feb 2014 16:58:47 -0800 (PST)
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 08/10] mm: thrash detection-based file cache sizing
-Date: Mon,  3 Feb 2014 19:53:40 -0500
-Message-Id: <1391475222-1169-9-git-send-email-hannes@cmpxchg.org>
-In-Reply-To: <1391475222-1169-1-git-send-email-hannes@cmpxchg.org>
-References: <1391475222-1169-1-git-send-email-hannes@cmpxchg.org>
+Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com [209.85.160.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D1CB6B0035
+	for <linux-mm@kvack.org>; Mon,  3 Feb 2014 20:09:19 -0500 (EST)
+Received: by mail-pb0-f54.google.com with SMTP id uo5so7780643pbc.13
+        for <linux-mm@kvack.org>; Mon, 03 Feb 2014 17:09:19 -0800 (PST)
+Received: from LGEAMRELO01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
+        by mx.google.com with ESMTP id tq5si22473505pac.124.2014.02.03.17.09.15
+        for <linux-mm@kvack.org>;
+        Mon, 03 Feb 2014 17:09:18 -0800 (PST)
+Date: Tue, 4 Feb 2014 10:09:17 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH v10 00/16] Volatile Ranges v10
+Message-ID: <20140204010917.GA3481@bbox>
+References: <1388646744-15608-1-git-send-email-minchan@kernel.org>
+ <20140129000359.GZ6963@cmpxchg.org>
+ <20140129051102.GA11786@bbox>
+ <20140131164901.GG6963@cmpxchg.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140131164901.GG6963@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Bob Liu <bob.liu@oracle.com>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Luigi Semenzato <semenzato@google.com>, Mel Gorman <mgorman@suse.de>, Metin Doslu <metin@citusdata.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan.kim@gmail.com>, Ozgun Erdogan <ozgun@citusdata.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Roman Gushchin <klamm@yandex-team.ru>, Ryan Mallon <rmallon@gmail.com>, Tejun Heo <tj@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Michel Lespinasse <walken@google.com>, John Stultz <john.stultz@linaro.org>, Dhaval Giani <dhaval.giani@gmail.com>, "H. Peter Anvin" <hpa@zytor.com>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Dave Chinner <david@fromorbit.com>, Neil Brown <neilb@suse.de>, Andrea Righi <andrea@betterlinux.com>, Andrea Arcangeli <aarcange@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Rob Clark <robdclark@gmail.com>, Jason Evans <je@fb.com>
 
-The VM maintains cached filesystem pages on two types of lists.  One
-list holds the pages recently faulted into the cache, the other list
-holds pages that have been referenced repeatedly on that first list.
-The idea is to prefer reclaiming young pages over those that have
-shown to benefit from caching in the past.  We call the recently used
-list "inactive list" and the frequently used list "active list".
+On Fri, Jan 31, 2014 at 11:49:01AM -0500, Johannes Weiner wrote:
+> On Wed, Jan 29, 2014 at 02:11:02PM +0900, Minchan Kim wrote:
+> > It's interesting timing, I posted this patch Yew Year's Day
+> > and receives indepth design review Lunar New Year's Day. :)
+> > It's almost 0-day review. :)
+> 
+> That's the only way I can do 0-day reviews ;)
+> 
+> > On Tue, Jan 28, 2014 at 07:03:59PM -0500, Johannes Weiner wrote:
+> > > Hello Minchan,
+> > > 
+> > > On Thu, Jan 02, 2014 at 04:12:08PM +0900, Minchan Kim wrote:
+> > > > Hey all,
+> > > > 
+> > > > Happy New Year!
+> > > > 
+> > > > I know it's bad timing to send this unfamiliar large patchset for
+> > > > review but hope there are some guys with freshed-brain in new year
+> > > > all over the world. :)
+> > > > And most important thing is that before I dive into lots of testing,
+> > > > I'd like to make an agreement on design issues and others
+> > > > 
+> > > > o Syscall interface
+> > > 
+> > > Why do we need another syscall for this?  Can't we extend madvise to
+> > 
+> > Yeb. I should have written the reason. Early versions in this patchset
+> > had used madvise with VMA handling but it was terrible performance for
+> > ebizzy workload by mmap_sem's downside lock due to merging/split VMA.
+> > Even it was worse than old so I gave up the VMA approach.
+> > 
+> > You could see the difference.
+> > https://lkml.org/lkml/2013/10/8/63
+> 
+> So the compared kernels are 4 releases apart and the test happened
+> inside a VM.  It's also not really apparent from that link what the
+> tested workload is doing.  We first have to agree that it's doing
+> nothing that could be avoided.  E.g. we wouldn't introduce an
+> optimized version of write() because an application that writes 4G at
+> one byte per call is having problems.
 
-Currently, the VM aims for a 1:1 ratio between the lists, which is the
-"perfect" trade-off between the ability to *protect* frequently used
-pages and the ability to *detect* frequently used pages.  This means
-that working set changes bigger than half of cache memory go
-undetected and thrash indefinitely, whereas working sets bigger than
-half of cache memory are unprotected against used-once streams that
-don't even need caching.
+About ebizzy workload, the process allocates several chunks then,
+threads start to alloc own chunk and *copy( the content from random
+chunk which was one of preallocated chunk to own chunk.
+It means lots of threads are page-faulting so mmap_sem write-side
+lock is really critical point for performance.
+(I don't know ebizzy is really good for real practice but at least,
+several papers and benchmark suites have used it so we couldn't
+ignore. And per-thread allocator are really popular these days)
 
-Historically, every reclaim scan of the inactive list also took a
-smaller number of pages from the tail of the active list and moved
-them to the head of the inactive list.  This model gave established
-working sets more gracetime in the face of temporary use-once streams,
-but ultimately was not significantly better than a FIFO policy and
-still thrashed cache based on eviction speed, rather than actual
-demand for cache.
+With VMA approach, we need mmap_sem write-side lock twice to mark/unmark
+VM_VOLATILE in vma->vm_flags so with my experiment, the performance was
+terrible as I said on link.
 
-This patch solves one half of the problem by decoupling the ability to
-detect working set changes from the inactive list size.  By
-maintaining a history of recently evicted file pages it can detect
-frequently used pages with an arbitrarily small inactive list size,
-and subsequently apply pressure on the active list based on actual
-demand for cache, not just overall eviction speed.
+I don't think the situation of current kernel would be better than old.
+And virtulization is really important technique thesedays so we couldn't
+ignore that although I tested it on VM for convenience. If you want,
+I surely can test it on bare box.
 
-Every zone maintains a counter that tracks inactive list aging speed.
-When a page is evicted, a snapshot of this counter is stored in the
-now-empty page cache radix tree slot.  On refault, the minimum access
-distance of the page can be assessed, to evaluate whether the page
-should be part of the active list or not.
+> 
+> The vroot lock has the same locking granularity as mmap_sem.  Why is
+> mmap_sem more contended in this test?
 
-This fixes the VM's blindness towards working set changes in excess of
-the inactive list.  And it's the foundation to further improve the
-protection ability and reduce the minimum inactive list size of 50%.
+It seems above explanation is enough.
 
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-Reviewed-by: Rik van Riel <riel@redhat.com>
-Reviewed-by: Minchan Kim <minchan@kernel.org>
-Reviewed-by: Bob Liu <bob.liu@oracle.com>
----
- include/linux/mmzone.h |   5 +
- include/linux/swap.h   |   5 +
- mm/Makefile            |   2 +-
- mm/filemap.c           |  61 ++++++++----
- mm/swap.c              |   2 +
- mm/vmscan.c            |  24 ++++-
- mm/vmstat.c            |   2 +
- mm/workingset.c        | 253 +++++++++++++++++++++++++++++++++++++++++++++++++
- 8 files changed, 331 insertions(+), 23 deletions(-)
- create mode 100644 mm/workingset.c
+> 
+> > > take MADV_VOLATILE, MADV_NONVOLATILE, and return -ENOMEM if something
+> > > in the range was purged?
+> > 
+> > In that case, -ENOMEM would have duplicated meaning "Purged" and "Out
+> > of memory so failed in the middle of the system call processing" and
+> > later could be a problem so we need to return value to indicate
+> > how many bytes are succeeded so far so it means we need additional
+> > out parameter. But yes, we can solve it by modifying semantic and
+> > behavior (ex, as you said below, we could just unmark volatile
+> > successfully if user pass (offset, len) consistent with marked volatile
+> > ranges. (IOW, if we give up overlapping/subrange marking/unmakring
+> > usecase. I expect it makes code simple further).
+> > It's request from John so If he is okay, I'm no problem.
+> 
+> Yes, I don't insist on using madvise.  And it's too early to decide on
+> an interface before we haven't fully nailed the semantics and features.
+> 
+> > > > o Not bind with vma split/merge logic to prevent mmap_sem cost and
+> > > > o Not bind with vma split/merge logic to avoid vm_area_struct memory
+> > > >   footprint.
+> > > 
+> > > VMAs are there to track attributes of memory ranges.  Duplicating
+> > > large parts of their functionality and co-maintaining both structures
+> > > on create, destroy, split, and merge means duplicate code and complex
+> > > interactions.
+> > > 
+> > > 1. You need to define semantics and coordinate what happens when the
+> > >    vma underlying a volatile range changes.
+> > > 
+> > >    Either you have to strictly co-maintain both range objects, or you
+> > >    have weird behavior like volatily outliving a vma and then applying
+> > >    to a separate vma created in its place.
+> > > 
+> > >    Userspace won't get this right, and even in the kernel this is
+> > >    error prone and adds a lot to the complexity of vma management.
+> > 
+> > Current semantic is following as,
+> > Vma handling logic in mm doesn't need to know vrange handling because
+> > vrange's internal logic always checks validity of the vma but
+> > one thing to do in vma logic is only clearing old volatile ranges
+> > on creating new vma.
+> > (Look at  [PATCH v10 02/16] vrange: Clear volatility on new mmaps)
+> > Acutally I don't like the idea and suggested following as.
+> > https://git.kernel.org/cgit/linux/kernel/git/minchan/linux.git/commit/?h=vrange-working&id=821f58333b381fd88ee7f37fd9c472949756c74e
+> > But John didn't like it. I guess if VMA size is really matter,
+> > maybe we can embedded the flag into somewhere field of
+> > vma(ex, vm_file LSB?)
+> 
+> It's not entirely clear to me how the per-VMA variable can work like
+> that when vmas can merge and split by other means (mprotect e.g.)
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 5f2052c83154..b4bdeb411a4d 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -142,6 +142,8 @@ enum zone_stat_item {
- 	NUMA_LOCAL,		/* allocation from local node */
- 	NUMA_OTHER,		/* allocation from other node */
- #endif
-+	WORKINGSET_REFAULT,
-+	WORKINGSET_ACTIVATE,
- 	NR_ANON_TRANSPARENT_HUGEPAGES,
- 	NR_FREE_CMA_PAGES,
- 	NR_VM_ZONE_STAT_ITEMS };
-@@ -392,6 +394,9 @@ struct zone {
- 	spinlock_t		lru_lock;
- 	struct lruvec		lruvec;
- 
-+	/* Evictions & activations on the inactive file list */
-+	atomic_long_t		inactive_age;
-+
- 	unsigned long		pages_scanned;	   /* since last reclaim */
- 	unsigned long		flags;		   /* zone flags, see below */
- 
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index 46ba0c6c219f..b83cf61403ed 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -260,6 +260,11 @@ struct swap_list_t {
- 	int next;	/* swapfile to be used next */
- };
- 
-+/* linux/mm/workingset.c */
-+void *workingset_eviction(struct address_space *mapping, struct page *page);
-+bool workingset_refault(void *shadow);
-+void workingset_activation(struct page *page);
-+
- /* linux/mm/page_alloc.c */
- extern unsigned long totalram_pages;
- extern unsigned long totalreserve_pages;
-diff --git a/mm/Makefile b/mm/Makefile
-index 310c90a09264..cdd741519ee0 100644
---- a/mm/Makefile
-+++ b/mm/Makefile
-@@ -17,7 +17,7 @@ obj-y			:= filemap.o mempool.o oom_kill.o fadvise.o \
- 			   util.o mmzone.o vmstat.o backing-dev.o \
- 			   mm_init.o mmu_context.o percpu.o slab_common.o \
- 			   compaction.o balloon_compaction.o \
--			   interval_tree.o list_lru.o $(mmu-y)
-+			   interval_tree.o list_lru.o workingset.o $(mmu-y)
- 
- obj-y += init-mm.o
- 
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 18f80d418f83..33ceebf4d577 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -469,7 +469,7 @@ int replace_page_cache_page(struct page *old, struct page *new, gfp_t gfp_mask)
- EXPORT_SYMBOL_GPL(replace_page_cache_page);
- 
- static int page_cache_tree_insert(struct address_space *mapping,
--				  struct page *page)
-+				  struct page *page, void **shadowp)
- {
- 	void **slot;
- 	int error;
-@@ -484,6 +484,8 @@ static int page_cache_tree_insert(struct address_space *mapping,
- 		radix_tree_replace_slot(slot, page);
- 		mapping->nrshadows--;
- 		mapping->nrpages++;
-+		if (shadowp)
-+			*shadowp = p;
- 		return 0;
- 	}
- 	error = radix_tree_insert(&mapping->page_tree, page->index, page);
-@@ -492,18 +494,10 @@ static int page_cache_tree_insert(struct address_space *mapping,
- 	return error;
- }
- 
--/**
-- * add_to_page_cache_locked - add a locked page to the pagecache
-- * @page:	page to add
-- * @mapping:	the page's address_space
-- * @offset:	page index
-- * @gfp_mask:	page allocation mode
-- *
-- * This function is used to add a page to the pagecache. It must be locked.
-- * This function does not add the page to the LRU.  The caller must do that.
-- */
--int add_to_page_cache_locked(struct page *page, struct address_space *mapping,
--		pgoff_t offset, gfp_t gfp_mask)
-+static int __add_to_page_cache_locked(struct page *page,
-+				      struct address_space *mapping,
-+				      pgoff_t offset, gfp_t gfp_mask,
-+				      void **shadowp)
- {
- 	int error;
- 
-@@ -526,7 +520,7 @@ int add_to_page_cache_locked(struct page *page, struct address_space *mapping,
- 	page->index = offset;
- 
- 	spin_lock_irq(&mapping->tree_lock);
--	error = page_cache_tree_insert(mapping, page);
-+	error = page_cache_tree_insert(mapping, page, shadowp);
- 	radix_tree_preload_end();
- 	if (unlikely(error))
- 		goto err_insert;
-@@ -542,16 +536,49 @@ err_insert:
- 	page_cache_release(page);
- 	return error;
- }
-+
-+/**
-+ * add_to_page_cache_locked - add a locked page to the pagecache
-+ * @page:	page to add
-+ * @mapping:	the page's address_space
-+ * @offset:	page index
-+ * @gfp_mask:	page allocation mode
-+ *
-+ * This function is used to add a page to the pagecache. It must be locked.
-+ * This function does not add the page to the LRU.  The caller must do that.
-+ */
-+int add_to_page_cache_locked(struct page *page, struct address_space *mapping,
-+		pgoff_t offset, gfp_t gfp_mask)
-+{
-+	return __add_to_page_cache_locked(page, mapping, offset,
-+					  gfp_mask, NULL);
-+}
- EXPORT_SYMBOL(add_to_page_cache_locked);
- 
- int add_to_page_cache_lru(struct page *page, struct address_space *mapping,
- 				pgoff_t offset, gfp_t gfp_mask)
- {
-+	void *shadow = NULL;
- 	int ret;
- 
--	ret = add_to_page_cache(page, mapping, offset, gfp_mask);
--	if (ret == 0)
--		lru_cache_add_file(page);
-+	__set_page_locked(page);
-+	ret = __add_to_page_cache_locked(page, mapping, offset,
-+					 gfp_mask, &shadow);
-+	if (unlikely(ret))
-+		__clear_page_locked(page);
-+	else {
-+		/*
-+		 * The page might have been evicted from cache only
-+		 * recently, in which case it should be activated like
-+		 * any other repeatedly accessed page.
-+		 */
-+		if (shadow && workingset_refault(shadow)) {
-+			SetPageActive(page);
-+			workingset_activation(page);
-+		} else
-+			ClearPageActive(page);
-+		lru_cache_add(page);
-+	}
- 	return ret;
- }
- EXPORT_SYMBOL_GPL(add_to_page_cache_lru);
-diff --git a/mm/swap.c b/mm/swap.c
-index 20c267b52914..8573c710d261 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -574,6 +574,8 @@ void mark_page_accessed(struct page *page)
- 		else
- 			__lru_cache_activate_page(page);
- 		ClearPageReferenced(page);
-+		if (page_is_file_cache(page))
-+			workingset_activation(page);
- 	} else if (!PageReferenced(page)) {
- 		SetPageReferenced(page);
- 	}
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 63712938169b..a3fa590ad32a 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -523,7 +523,8 @@ static pageout_t pageout(struct page *page, struct address_space *mapping,
-  * Same as remove_mapping, but if the page is removed from the mapping, it
-  * gets returned with a refcount of 0.
-  */
--static int __remove_mapping(struct address_space *mapping, struct page *page)
-+static int __remove_mapping(struct address_space *mapping, struct page *page,
-+			    bool reclaimed)
- {
- 	BUG_ON(!PageLocked(page));
- 	BUG_ON(mapping != page_mapping(page));
-@@ -569,10 +570,23 @@ static int __remove_mapping(struct address_space *mapping, struct page *page)
- 		swapcache_free(swap, page);
- 	} else {
- 		void (*freepage)(struct page *);
-+		void *shadow = NULL;
- 
- 		freepage = mapping->a_ops->freepage;
--
--		__delete_from_page_cache(page, NULL);
-+		/*
-+		 * Remember a shadow entry for reclaimed file cache in
-+		 * order to detect refaults, thus thrashing, later on.
-+		 *
-+		 * But don't store shadows in an address space that is
-+		 * already exiting.  This is not just an optizimation,
-+		 * inode reclaim needs to empty out the radix tree or
-+		 * the nodes are lost.  Don't plant shadows behind its
-+		 * back.
-+		 */
-+		if (reclaimed && page_is_file_cache(page) &&
-+		    !mapping_exiting(mapping))
-+			shadow = workingset_eviction(mapping, page);
-+		__delete_from_page_cache(page, shadow);
- 		spin_unlock_irq(&mapping->tree_lock);
- 		mem_cgroup_uncharge_cache_page(page);
- 
-@@ -595,7 +609,7 @@ cannot_free:
-  */
- int remove_mapping(struct address_space *mapping, struct page *page)
- {
--	if (__remove_mapping(mapping, page)) {
-+	if (__remove_mapping(mapping, page, false)) {
- 		/*
- 		 * Unfreezing the refcount with 1 rather than 2 effectively
- 		 * drops the pagecache ref for us without requiring another
-@@ -1065,7 +1079,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 			}
- 		}
- 
--		if (!mapping || !__remove_mapping(mapping, page))
-+		if (!mapping || !__remove_mapping(mapping, page, true))
- 			goto keep_locked;
- 
- 		/*
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 72496140ac08..c95634e0c098 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -770,6 +770,8 @@ const char * const vmstat_text[] = {
- 	"numa_local",
- 	"numa_other",
- #endif
-+	"workingset_refault",
-+	"workingset_activate",
- 	"nr_anon_transparent_hugepages",
- 	"nr_free_cma",
- 	"nr_dirty_threshold",
-diff --git a/mm/workingset.c b/mm/workingset.c
-new file mode 100644
-index 000000000000..8a6c7cff4923
---- /dev/null
-+++ b/mm/workingset.c
-@@ -0,0 +1,253 @@
-+/*
-+ * Workingset detection
-+ *
-+ * Copyright (C) 2013 Red Hat, Inc., Johannes Weiner
-+ */
-+
-+#include <linux/memcontrol.h>
-+#include <linux/writeback.h>
-+#include <linux/pagemap.h>
-+#include <linux/atomic.h>
-+#include <linux/module.h>
-+#include <linux/swap.h>
-+#include <linux/fs.h>
-+#include <linux/mm.h>
-+
-+/*
-+ *		Double CLOCK lists
-+ *
-+ * Per zone, two clock lists are maintained for file pages: the
-+ * inactive and the active list.  Freshly faulted pages start out at
-+ * the head of the inactive list and page reclaim scans pages from the
-+ * tail.  Pages that are accessed multiple times on the inactive list
-+ * are promoted to the active list, to protect them from reclaim,
-+ * whereas active pages are demoted to the inactive list when the
-+ * active list grows too big.
-+ *
-+ *   fault ------------------------+
-+ *                                 |
-+ *              +--------------+   |            +-------------+
-+ *   reclaim <- |   inactive   | <-+-- demotion |    active   | <--+
-+ *              +--------------+                +-------------+    |
-+ *                     |                                           |
-+ *                     +-------------- promotion ------------------+
-+ *
-+ *
-+ *		Access frequency and refault distance
-+ *
-+ * A workload is thrashing when its pages are frequently used but they
-+ * are evicted from the inactive list every time before another access
-+ * would have promoted them to the active list.
-+ *
-+ * In cases where the average access distance between thrashing pages
-+ * is bigger than the size of memory there is nothing that can be
-+ * done - the thrashing set could never fit into memory under any
-+ * circumstance.
-+ *
-+ * However, the average access distance could be bigger than the
-+ * inactive list, yet smaller than the size of memory.  In this case,
-+ * the set could fit into memory if it weren't for the currently
-+ * active pages - which may be used more, hopefully less frequently:
-+ *
-+ *      +-memory available to cache-+
-+ *      |                           |
-+ *      +-inactive------+-active----+
-+ *  a b | c d e f g h i | J K L M N |
-+ *      +---------------+-----------+
-+ *
-+ * It is prohibitively expensive to accurately track access frequency
-+ * of pages.  But a reasonable approximation can be made to measure
-+ * thrashing on the inactive list, after which refaulting pages can be
-+ * activated optimistically to compete with the existing active pages.
-+ *
-+ * Approximating inactive page access frequency - Observations:
-+ *
-+ * 1. When a page is accessed for the first time, it is added to the
-+ *    head of the inactive list, slides every existing inactive page
-+ *    towards the tail by one slot, and pushes the current tail page
-+ *    out of memory.
-+ *
-+ * 2. When a page is accessed for the second time, it is promoted to
-+ *    the active list, shrinking the inactive list by one slot.  This
-+ *    also slides all inactive pages that were faulted into the cache
-+ *    more recently than the activated page towards the tail of the
-+ *    inactive list.
-+ *
-+ * Thus:
-+ *
-+ * 1. The sum of evictions and activations between any two points in
-+ *    time indicate the minimum number of inactive pages accessed in
-+ *    between.
-+ *
-+ * 2. Moving one inactive page N page slots towards the tail of the
-+ *    list requires at least N inactive page accesses.
-+ *
-+ * Combining these:
-+ *
-+ * 1. When a page is finally evicted from memory, the number of
-+ *    inactive pages accessed while the page was in cache is at least
-+ *    the number of page slots on the inactive list.
-+ *
-+ * 2. In addition, measuring the sum of evictions and activations (E)
-+ *    at the time of a page's eviction, and comparing it to another
-+ *    reading (R) at the time the page faults back into memory tells
-+ *    the minimum number of accesses while the page was not cached.
-+ *    This is called the refault distance.
-+ *
-+ * Because the first access of the page was the fault and the second
-+ * access the refault, we combine the in-cache distance with the
-+ * out-of-cache distance to get the complete minimum access distance
-+ * of this page:
-+ *
-+ *      NR_inactive + (R - E)
-+ *
-+ * And knowing the minimum access distance of a page, we can easily
-+ * tell if the page would be able to stay in cache assuming all page
-+ * slots in the cache were available:
-+ *
-+ *   NR_inactive + (R - E) <= NR_inactive + NR_active
-+ *
-+ * which can be further simplified to
-+ *
-+ *   (R - E) <= NR_active
-+ *
-+ * Put into words, the refault distance (out-of-cache) can be seen as
-+ * a deficit in inactive list space (in-cache).  If the inactive list
-+ * had (R - E) more page slots, the page would not have been evicted
-+ * in between accesses, but activated instead.  And on a full system,
-+ * the only thing eating into inactive list space is active pages.
-+ *
-+ *
-+ *		Activating refaulting pages
-+ *
-+ * All that is known about the active list is that the pages have been
-+ * accessed more than once in the past.  This means that at any given
-+ * time there is actually a good chance that pages on the active list
-+ * are no longer in active use.
-+ *
-+ * So when a refault distance of (R - E) is observed and there are at
-+ * least (R - E) active pages, the refaulting page is activated
-+ * optimistically in the hope that (R - E) active pages are actually
-+ * used less frequently than the refaulting page - or even not used at
-+ * all anymore.
-+ *
-+ * If this is wrong and demotion kicks in, the pages which are truly
-+ * used more frequently will be reactivated while the less frequently
-+ * used once will be evicted from memory.
-+ *
-+ * But if this is right, the stale pages will be pushed out of memory
-+ * and the used pages get to stay in cache.
-+ *
-+ *
-+ *		Implementation
-+ *
-+ * For each zone's file LRU lists, a counter for inactive evictions
-+ * and activations is maintained (zone->inactive_age).
-+ *
-+ * On eviction, a snapshot of this counter (along with some bits to
-+ * identify the zone) is stored in the now empty page cache radix tree
-+ * slot of the evicted page.  This is called a shadow entry.
-+ *
-+ * On cache misses for which there are shadow entries, an eligible
-+ * refault distance will immediately activate the refaulting page.
-+ */
-+
-+static void *pack_shadow(unsigned long eviction, struct zone *zone)
-+{
-+	eviction = (eviction << NODES_SHIFT) | zone_to_nid(zone);
-+	eviction = (eviction << ZONES_SHIFT) | zone_idx(zone);
-+	eviction = (eviction << RADIX_TREE_EXCEPTIONAL_SHIFT);
-+
-+	return (void *)(eviction | RADIX_TREE_EXCEPTIONAL_ENTRY);
-+}
-+
-+static void unpack_shadow(void *shadow,
-+			  struct zone **zone,
-+			  unsigned long *distance)
-+{
-+	unsigned long entry = (unsigned long)shadow;
-+	unsigned long eviction;
-+	unsigned long refault;
-+	unsigned long mask;
-+	int zid, nid;
-+
-+	entry >>= RADIX_TREE_EXCEPTIONAL_SHIFT;
-+	zid = entry & ((1UL << ZONES_SHIFT) - 1);
-+	entry >>= ZONES_SHIFT;
-+	nid = entry & ((1UL << NODES_SHIFT) - 1);
-+	entry >>= NODES_SHIFT;
-+	eviction = entry;
-+
-+	*zone = NODE_DATA(nid)->node_zones + zid;
-+
-+	refault = atomic_long_read(&(*zone)->inactive_age);
-+	mask = ~0UL >> (NODES_SHIFT + ZONES_SHIFT +
-+			RADIX_TREE_EXCEPTIONAL_SHIFT);
-+	/*
-+	 * The unsigned subtraction here gives an accurate distance
-+	 * across inactive_age overflows in most cases.
-+	 *
-+	 * There is a special case: usually, shadow entries have a
-+	 * short lifetime and are either refaulted or reclaimed along
-+	 * with the inode before they get too old.  But it is not
-+	 * impossible for the inactive_age to lap a shadow entry in
-+	 * the field, which can then can result in a false small
-+	 * refault distance, leading to a false activation should this
-+	 * old entry actually refault again.  However, earlier kernels
-+	 * used to deactivate unconditionally with *every* reclaim
-+	 * invocation for the longest time, so the occasional
-+	 * inappropriate activation leading to pressure on the active
-+	 * list is not a problem.
-+	 */
-+	*distance = (refault - eviction) & mask;
-+}
-+
-+/**
-+ * workingset_eviction - note the eviction of a page from memory
-+ * @mapping: address space the page was backing
-+ * @page: the page being evicted
-+ *
-+ * Returns a shadow entry to be stored in @mapping->page_tree in place
-+ * of the evicted @page so that a later refault can be detected.
-+ */
-+void *workingset_eviction(struct address_space *mapping, struct page *page)
-+{
-+	struct zone *zone = page_zone(page);
-+	unsigned long eviction;
-+
-+	eviction = atomic_long_inc_return(&zone->inactive_age);
-+	return pack_shadow(eviction, zone);
-+}
-+
-+/**
-+ * workingset_refault - evaluate the refault of a previously evicted page
-+ * @shadow: shadow entry of the evicted page
-+ *
-+ * Calculates and evaluates the refault distance of the previously
-+ * evicted page in the context of the zone it was allocated in.
-+ *
-+ * Returns %true if the page should be activated, %false otherwise.
-+ */
-+bool workingset_refault(void *shadow)
-+{
-+	unsigned long refault_distance;
-+	struct zone *zone;
-+
-+	unpack_shadow(shadow, &zone, &refault_distance);
-+	inc_zone_state(zone, WORKINGSET_REFAULT);
-+
-+	if (refault_distance <= zone_page_state(zone, NR_ACTIVE_FILE)) {
-+		inc_zone_state(zone, WORKINGSET_ACTIVATE);
-+		return true;
-+	}
-+	return false;
-+}
-+
-+/**
-+ * workingset_activation - note a page activation
-+ * @page: page that is being activated
-+ */
-+void workingset_activation(struct page *page)
-+{
-+	atomic_long_inc(&page_zone(page)->inactive_age);
-+}
+I don't get it. What's problem in mprotect?
+If mprotect try to merge puerged VMA and none-purged VMA,
+it couldn't be merged.
+If mprotect splits on purged VMA, both VMAs should have purged
+state.
+You are concerning of false-postive report?
+
+> 
+> > > 2. If page reclaim discards a page from the upper end of a a range,
+> > >    you mark the whole range as purged.  If the user later marks the
+> > >    lower half of the range as non-volatile, the syscall will report
+> > >    purged=1 even though all requested pages are still there.
+> > 
+> > True, The assumption is that basically, user should have a range
+> > per object but we gives flexibility for user to handle subranges
+> > of a volatile range so it might report false positive as you said.
+> > In that case, please user can use mincore(2) for accuracy if he
+> > want so he has flexiblity but lose performance a bit.
+> > It's a tradeoff, IMO.
+> 
+> Look, we can't present a syscall that takes an exact range of bytes
+> and then return results that are not applicable to this range at all.
+> 
+> We can not make performance trade-offs that compromise the semantics
+> of the interface, and then recommend using an unrelated system call
+> that takes the same byte range but somehow gets it right.
+
+Fair enough.
+
+> 
+> > >    The only way to make these semantics clean is either
+> > > 
+> > >      a) have vrange() return a range ID so that only full ranges can
+> > >      later be marked non-volatile, or
+> > 
+> > > 
+> > >      b) remember individual page purges so that sub-range changes can
+> > >      properly report them
+> > > 
+> > >    I don't like a) much because it's somewhat arbitrarily more
+> > >    restrictive than madvise, mprotect, mmap/munmap etc.  And for b),
+> > >    the straight-forward solution would be to put purge-cookies into
+> > >    the page tables to properly report purges in subrange changes, but
+> > >    that would be even more coordination between vmas, page tables, and
+> > >    the ad-hoc vranges.
+> > 
+> > Agree but I don't want to put a accuracy of defalut vrange syscall.
+> > Page table lookup needs mmap_sem and O(N) cost so I'm afraid it would
+> > make userland folks hesitant using this system call.
+> 
+> If userspace sees nothing but cost in this system call, nothing but a
+> voluntary donation for the common good of the system, then it does not
+> matter how cheap this is, nobody will use it.  Why would they?  Even
+> if it's a lightweight call, they still have to implement a mechanism
+> for regenerating content etc.  It's still an investment to make, so
+> there has to be a personal benefit or it's flawed from the beginning.
+> 
+> So why do applications want to use it?
+
+In case of general allocator, sometime, madvise(DONTNEED) is really harmful
+due to page-fault+allocation+zeroing
+
+> 
+> > > 3. Page reclaim usually happens on individual pages until an
+> > >    allocation can be satisfied, but the shrinker purges entire ranges.
+> > 
+> > Strictly speaking, not entire rangeS but entire A range.
+> > This recent patchset bails out if we discard as much as VM want.
+> > 
+> > > 
+> > >    Should it really take out an entire 1G volatile range even though 4
+> > >    pages would have been enough to satisfy an allocation?  Sure, we
+> > >    assume a range represents an single "object" and userspace would
+> > >    have to regenerate the whole thing with only one page missing, but
+> > >    there is still a massive difference in page frees, faults, and
+> > >    allocations.
+> > 
+> > That's why I wanted to introduce full and partial purging flag as system
+> > call argument.
+> 
+> I just wonder why we would anything but partial purging.
+
+I thought volatile pages are a not first class citizens.
+I'd like to evict volatile pages firstly insead of working set.
+Yes, it's really difficult to find when we should evict them so
+that's one of reason why I introduced 09/16, where I just used
+DER_PRIOIRTY - 2 for detecting memory pressure but it could be
+changed easily with more smart algorithm in future.
+Otherwise, we could deactivate volatile pages in tail of inactive LRU
+when system call is called but it adds more time with write mmap_sem
+so I'm not sure.
+
+> 
+> > > There needs to be a *really* good argument why VMAs are not enough for
+> > > this purpose.  I would really like to see anon volatility implemented
+> > 
+> > Strictly speaking, volatile ranges has two goals.
+> > 
+> > 1. Avoid unncessary swapping or OOM if system has lots of volatile memory
+> > 2. Give advanced free rather than madvise(DONTNEED)
+> 
+> Aren't they the same goal?  Giving applications a cheap way to
+> relinquish unused memory.  If there is memory pressure, well, it was
+> unused anyway.  If there isn't, the memory range can be reused without
+> another mmap() and page faults.
+
+Goal is same but implemtation should be different.
+In case of 2, we should really avoid write mmap_sem.
+
+> 
+> > First goal is very clear so I don't need to say again
+> > but it seems second goal isn't clear so that I try elaborate it a bit.
+> > 
+> > Current allocators really hates frequent calling munmap which is big
+> > performance overhead if other threads are allocating new address
+> > space or are faulting existing address space so they have used
+> > madvise(DONTNEED) as optimization so at least, faulting threads
+> > works well in parallel. It's better but allocators couldn't use
+> > madvise(DONTNEED) frequently because it still prevent other thread's
+> > allocation of new address space for a long time(becuase the overhead
+> > of the system call is O(vma_size(vma)).
+> 
+> My suggestion of clearing dirty bits off of page table ranges would
+> require only read-side mmap_sem.
+
+So, you are suggesting the approach which doesn't mark/unmark VM_VOLATILE
+in vma->vm_flags?
+
+> 
+> > Volatile ranges system call never don't need to hold write-side mmap_sem
+> > and the execution time is almost O(log(nr_range))) and if we follow your
+> > suggestion(ie, vrange returns ID), it's O(1). It's better.
+> 
+> I already wrote that to John: what if you have an array of objects and
+> want to mark them all volatile, but then come back for individual
+> objects in the array?  If vrange() creates a single range and returns
+> an ID, you can't do this, unless you call vrange() for every single
+> object first.
+> 
+> O(1) is great, but we are duplicating VMA functionality, anon reclaim
+> functionality, have all these strange interactions, and a very
+> restricted interface.
+
+I agree with your concern and that's why I tried volatile ranges
+with VMA approach in earier versions but it was terrible for allocators. :(
+
+> 
+> We have to make trade-offs here and I don't want to have all this
+> complexity if there isn't a really solid reason for it.
+> 
+> > Another concern is that some of people want to handle range
+> > fine-granularity, maybe worst case, PAGE_SIZE, in that case
+> > so many VMA could be created if purging happens sparsely so it would
+> > be really memory concern.
+> 
+> That's also no problem if we implement it based on dirty page table
+> bits.
+
+Still, marking/unmarking VM_VOLATILE is really problem.
+
+> 
+> > > as a VMA attribute, and have regular reclaim decide based on rmap of
+> > > individual pages whether it needs to swap or purge.  Something like
+> > > this:
+> > > 
+> > > MADV_VOLATILE:
+> > >   split vma if necessary
+> > >   set VM_VOLATILE
+> > > 
+> > > MADV_NONVOLATILE:
+> > >   clear VM_VOLATILE
+> > >   merge vma if possible
+> > >   pte walk to check for pmd_purged()/pte_purged()
+> > >   return any_purged
+> > 
+> > It could make system call really slow so allocator people really
+> > would be reluctant to use it.
+> 
+> So what do they do instead?  munmap() and refault the pages?  Or sit
+> on a bunch of unused memory and get killed by the OOM killer?  Or wait
+> on IO while their unused pages are swapped in and out?
+
+The more I discuss with you, the more I convince that we should
+separate normal volatile ranges's usecase and allocators's one.
+Allocator doesn't need to look back purged ranges so it would
+be unnecesary unmarking VM_VOLATILE and even it doen't need to
+mark VM_VOLATILE of vma. If so, it's really same semantic with
+MADV_FREE. Although MADV_FREE is O(#pages), it wouldn't be big
+overhead as you said because trend are huge pages and it doen't
+need to require mmap_sem write-side lock.
+As bonus point, if we take the usecase out from volatile semantics,
+we're okay to put more overhead into vrange syscall so it turns
+out VMA approach would be good and everyone is happy?
+
+Still problem I am concerning that WHEN we should evict volatile
+pages which are second class citizens?
+
+Thanks for the comment, Hannes!
+
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
 -- 
-1.8.5.3
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
