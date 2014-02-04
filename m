@@ -1,106 +1,182 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f174.google.com (mail-lb0-f174.google.com [209.85.217.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 9BA5F6B0035
-	for <linux-mm@kvack.org>; Tue,  4 Feb 2014 09:50:13 -0500 (EST)
-Received: by mail-lb0-f174.google.com with SMTP id l4so6469870lbv.19
-        for <linux-mm@kvack.org>; Tue, 04 Feb 2014 06:50:12 -0800 (PST)
-Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id g9si3270752lam.108.2014.02.04.06.50.11
+Received: from mail-we0-f172.google.com (mail-we0-f172.google.com [74.125.82.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 7AA8A6B0035
+	for <linux-mm@kvack.org>; Tue,  4 Feb 2014 09:52:13 -0500 (EST)
+Received: by mail-we0-f172.google.com with SMTP id p61so4291514wes.3
+        for <linux-mm@kvack.org>; Tue, 04 Feb 2014 06:52:12 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id wg1si12159839wjb.115.2014.02.04.06.52.11
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 04 Feb 2014 06:50:11 -0800 (PST)
-Message-ID: <52F0FE17.1050109@parallels.com>
-Date: Tue, 4 Feb 2014 18:49:59 +0400
-From: Vladimir Davydov <vdavydov@parallels.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 04 Feb 2014 06:52:12 -0800 (PST)
+Date: Tue, 4 Feb 2014 15:52:10 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 3/8] memcg, slab: never try to merge memcg caches
+Message-ID: <20140204145210.GH4890@dhcp22.suse.cz>
+References: <cover.1391356789.git.vdavydov@parallels.com>
+ <27c4e7d7fb6b788b66995d2523225ef2dcbc6431.1391356789.git.vdavydov@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/8] memcg: export kmemcg cache id via cgroup fs
-References: <cover.1391356789.git.vdavydov@parallels.com> <570a97e4dfaded0939a9ddbea49055019dcc5803.1391356789.git.vdavydov@parallels.com> <20140204144033.GE4890@dhcp22.suse.cz>
-In-Reply-To: <20140204144033.GE4890@dhcp22.suse.cz>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <27c4e7d7fb6b788b66995d2523225ef2dcbc6431.1391356789.git.vdavydov@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
+To: Vladimir Davydov <vdavydov@parallels.com>
 Cc: akpm@linux-foundation.org, rientjes@google.com, penberg@kernel.org, cl@linux.com, glommer@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@openvz.org
 
-On 02/04/2014 06:40 PM, Michal Hocko wrote:
-> On Sun 02-02-14 20:33:46, Vladimir Davydov wrote:
->> Per-memcg kmem caches are named as follows:
->>
->>   <global-cache-name>(<cgroup-kmem-id>:<cgroup-name>)
->>
->> where <cgroup-kmem-id> is the unique id of the memcg the cache belongs
->> to, <cgroup-name> is the relative name of the memcg on the cgroup fs.
->> Cache names are exposed to userspace for debugging purposes (e.g. via
->> sysfs in case of slub or via dmesg).
-> If this is only for debugging purposes then it shouldn't pollute regular
-> memcg cgroupfs namespace.
->
->> Using relative names makes it impossible in general (in case the cgroup
->> hierarchy is not flat) to find out which memcg a particular cache
->> belongs to, because <cgroup-kmem-id> is not known to the user. Since
->> using absolute cgroup names would be an overkill,
-> I do not consider it an overkill. We are using the full path when
-> dumping OOM information so I do not see any reason this should be any
-> different.
+On Sun 02-02-14 20:33:48, Vladimir Davydov wrote:
+> Suppose we are creating memcg cache A that could be merged with cache B
+> of the same memcg. Since any memcg cache has the same parameters as its
+> parent cache, parent caches PA and PB of memcg caches A and B must be
+> mergeable too. That means PA was merged with PB on creation or vice
+> versa, i.e. PA = PB. From that it follows that A = B, and we couldn't
+> even try to create cache B, because it already exists - a contradiction.
 
-When we dump information, we simply print the cgroup path to dmesg and
-forget about it while the memcg cache's name will leave at least until
-the memcg is destroyed. Basically that means PATH_MAX *
-NR_KMEM_ACTIVE_MEMCGS * NR_SLAB_CACHES memory overhead at max.
+I cannot tell I understand the above but I am totally not sure about the
+statement bellow.
 
-Anyway, I decided to drop this patch, so please see version 2 of this
-patchset (you must be in CC):
+> So let's remove unused code responsible for merging memcg caches.
 
-https://lkml.org/lkml/2014/2/3/268
+How come the code was unused? find_mergeable called cache_match_memcg...
 
-Thanks.
+> Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
+> ---
+>  mm/slab.h        |   21 ++++-----------------
+>  mm/slab_common.c |    8 +++++---
+>  mm/slub.c        |   19 +++++++++----------
+>  3 files changed, 18 insertions(+), 30 deletions(-)
+> 
+> diff --git a/mm/slab.h b/mm/slab.h
+> index 8184a7cde272..3045316b7c9d 100644
+> --- a/mm/slab.h
+> +++ b/mm/slab.h
+> @@ -55,12 +55,12 @@ extern void create_boot_cache(struct kmem_cache *, const char *name,
+>  struct mem_cgroup;
+>  #ifdef CONFIG_SLUB
+>  struct kmem_cache *
+> -__kmem_cache_alias(struct mem_cgroup *memcg, const char *name, size_t size,
+> -		   size_t align, unsigned long flags, void (*ctor)(void *));
+> +__kmem_cache_alias(const char *name, size_t size, size_t align,
+> +		   unsigned long flags, void (*ctor)(void *));
+>  #else
+>  static inline struct kmem_cache *
+> -__kmem_cache_alias(struct mem_cgroup *memcg, const char *name, size_t size,
+> -		   size_t align, unsigned long flags, void (*ctor)(void *))
+> +__kmem_cache_alias(const char *name, size_t size, size_t align,
+> +		   unsigned long flags, void (*ctor)(void *))
+>  { return NULL; }
+>  #endif
+>  
+> @@ -119,13 +119,6 @@ static inline bool is_root_cache(struct kmem_cache *s)
+>  	return !s->memcg_params || s->memcg_params->is_root_cache;
+>  }
+>  
+> -static inline bool cache_match_memcg(struct kmem_cache *cachep,
+> -				     struct mem_cgroup *memcg)
+> -{
+> -	return (is_root_cache(cachep) && !memcg) ||
+> -				(cachep->memcg_params->memcg == memcg);
+> -}
+> -
+>  static inline void memcg_bind_pages(struct kmem_cache *s, int order)
+>  {
+>  	if (!is_root_cache(s))
+> @@ -204,12 +197,6 @@ static inline bool is_root_cache(struct kmem_cache *s)
+>  	return true;
+>  }
+>  
+> -static inline bool cache_match_memcg(struct kmem_cache *cachep,
+> -				     struct mem_cgroup *memcg)
+> -{
+> -	return true;
+> -}
+> -
+>  static inline void memcg_bind_pages(struct kmem_cache *s, int order)
+>  {
+>  }
+> diff --git a/mm/slab_common.c b/mm/slab_common.c
+> index 152d9b118b7a..a75834bb966d 100644
+> --- a/mm/slab_common.c
+> +++ b/mm/slab_common.c
+> @@ -200,9 +200,11 @@ kmem_cache_create_memcg(struct mem_cgroup *memcg, const char *name, size_t size,
+>  	 */
+>  	flags &= CACHE_CREATE_MASK;
+>  
+> -	s = __kmem_cache_alias(memcg, name, size, align, flags, ctor);
+> -	if (s)
+> -		goto out_unlock;
+> +	if (!memcg) {
+> +		s = __kmem_cache_alias(name, size, align, flags, ctor);
+> +		if (s)
+> +			goto out_unlock;
+> +	}
+>  
+>  	err = -ENOMEM;
+>  	s = kmem_cache_zalloc(kmem_cache, GFP_KERNEL);
+> diff --git a/mm/slub.c b/mm/slub.c
+> index 2b1a6970e46f..962abfdfde06 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -3686,9 +3686,8 @@ static int slab_unmergeable(struct kmem_cache *s)
+>  	return 0;
+>  }
+>  
+> -static struct kmem_cache *find_mergeable(struct mem_cgroup *memcg, size_t size,
+> -		size_t align, unsigned long flags, const char *name,
+> -		void (*ctor)(void *))
+> +static struct kmem_cache *find_mergeable(size_t size, size_t align,
+> +		unsigned long flags, const char *name, void (*ctor)(void *))
+>  {
+>  	struct kmem_cache *s;
+>  
+> @@ -3707,11 +3706,14 @@ static struct kmem_cache *find_mergeable(struct mem_cgroup *memcg, size_t size,
+>  		if (slab_unmergeable(s))
+>  			continue;
+>  
+> +		if (!is_root_cache(s))
+> +			continue;
+> +
+>  		if (size > s->size)
+>  			continue;
+>  
+>  		if ((flags & SLUB_MERGE_SAME) != (s->flags & SLUB_MERGE_SAME))
+> -				continue;
+> +			continue;
+>  		/*
+>  		 * Check if alignment is compatible.
+>  		 * Courtesy of Adrian Drzewiecki
+> @@ -3722,21 +3724,18 @@ static struct kmem_cache *find_mergeable(struct mem_cgroup *memcg, size_t size,
+>  		if (s->size - size >= sizeof(void *))
+>  			continue;
+>  
+> -		if (!cache_match_memcg(s, memcg))
+> -			continue;
+> -
+>  		return s;
+>  	}
+>  	return NULL;
+>  }
+>  
+>  struct kmem_cache *
+> -__kmem_cache_alias(struct mem_cgroup *memcg, const char *name, size_t size,
+> -		   size_t align, unsigned long flags, void (*ctor)(void *))
+> +__kmem_cache_alias(const char *name, size_t size, size_t align,
+> +		   unsigned long flags, void (*ctor)(void *))
+>  {
+>  	struct kmem_cache *s;
+>  
+> -	s = find_mergeable(memcg, size, align, flags, name, ctor);
+> +	s = find_mergeable(size, align, flags, name, ctor);
+>  	if (s) {
+>  		s->refcount++;
+>  		/*
+> -- 
+> 1.7.10.4
+> 
 
->
->> let's fix this by
->> exporting the id of kmem-active memcg via cgroup fs file
->> "memory.kmem.id".
->>
->> Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
-> Nacked-by: Michal Hocko <mhocko@suse.cz>
->
->> ---
->>  mm/memcontrol.c |   12 ++++++++++++
->>  1 file changed, 12 insertions(+)
->>
->> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
->> index 53385cd4e6f0..91d242707404 100644
->> --- a/mm/memcontrol.c
->> +++ b/mm/memcontrol.c
->> @@ -3113,6 +3113,14 @@ int memcg_cache_id(struct mem_cgroup *memcg)
->>  	return memcg ? memcg->kmemcg_id : -1;
->>  }
->>  
->> +static s64 mem_cgroup_cache_id_read(struct cgroup_subsys_state *css,
->> +				    struct cftype *cft)
->> +{
->> +	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
->> +
->> +	return memcg_can_account_kmem(memcg) ? memcg_cache_id(memcg) : -1;
->> +}
->> +
->>  static size_t memcg_caches_array_size(int num_groups)
->>  {
->>  	ssize_t size;
->> @@ -6301,6 +6309,10 @@ static struct cftype mem_cgroup_files[] = {
->>  #endif
->>  #ifdef CONFIG_MEMCG_KMEM
->>  	{
->> +		.name = "kmem.id",
->> +		.read_s64 = mem_cgroup_cache_id_read,
->> +	},
->> +	{
->>  		.name = "kmem.limit_in_bytes",
->>  		.private = MEMFILE_PRIVATE(_KMEM, RES_LIMIT),
->>  		.write_string = mem_cgroup_write,
->> -- 
->> 1.7.10.4
->>
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
