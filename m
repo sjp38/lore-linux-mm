@@ -1,52 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f171.google.com (mail-ea0-f171.google.com [209.85.215.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 6EF496B0035
-	for <linux-mm@kvack.org>; Tue,  4 Feb 2014 02:17:20 -0500 (EST)
-Received: by mail-ea0-f171.google.com with SMTP id f15so4124021eak.2
-        for <linux-mm@kvack.org>; Mon, 03 Feb 2014 23:17:19 -0800 (PST)
-Received: from ofcsgdbm.dwd.de (ofcsgdbm.dwd.de. [141.38.3.245])
-        by mx.google.com with ESMTP id w5si18472359eef.172.2014.02.03.23.17.18
-        for <linux-mm@kvack.org>;
-        Mon, 03 Feb 2014 23:17:19 -0800 (PST)
-Received: from localhost (localhost [127.0.0.1])
-	by ofcsgdn3.dwd.de (Postfix) with ESMTP id AA58953E64
-	for <linux-mm@kvack.org>; Tue,  4 Feb 2014 07:17:18 +0000 (UTC)
-Received: from ofcsgdn3.dwd.de ([127.0.0.1])
-	by localhost (ofcsgdn3.csg.lan [127.0.0.1]) (amavisd-new, port 10024)
-	with LMTP id YShJR67qoOk7 for <linux-mm@kvack.org>;
-	Tue,  4 Feb 2014 07:17:18 +0000 (UTC)
-Date: Tue, 4 Feb 2014 07:17:18 +0000 (GMT)
-From: Holger Kiehl <Holger.Kiehl@dwd.de>
-Subject: Re: Need help in bug in isolate_migratepages_range
-In-Reply-To: <alpine.DEB.2.02.1402031602060.10778@chino.kir.corp.google.com>
-Message-ID: <alpine.LRH.2.02.1402040713220.13901@diagnostix.dwd.de>
-References: <alpine.LRH.2.02.1401312037340.6630@diagnostix.dwd.de> <20140203122052.GC2495@dhcp22.suse.cz> <alpine.LRH.2.02.1402031426510.13382@diagnostix.dwd.de> <20140203162036.GJ2495@dhcp22.suse.cz> <52EFC93D.3030106@suse.cz>
- <alpine.DEB.2.02.1402031602060.10778@chino.kir.corp.google.com>
+Received: from mail-oa0-f52.google.com (mail-oa0-f52.google.com [209.85.219.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 8BAC86B0035
+	for <linux-mm@kvack.org>; Tue,  4 Feb 2014 02:27:17 -0500 (EST)
+Received: by mail-oa0-f52.google.com with SMTP id i4so9208831oah.25
+        for <linux-mm@kvack.org>; Mon, 03 Feb 2014 23:27:17 -0800 (PST)
+Received: from e33.co.us.ibm.com (e33.co.us.ibm.com. [32.97.110.151])
+        by mx.google.com with ESMTPS id f6si11136767obr.33.2014.02.03.23.27.16
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 03 Feb 2014 23:27:16 -0800 (PST)
+Received: from /spool/local
+	by e33.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <nacc@linux.vnet.ibm.com>;
+	Tue, 4 Feb 2014 00:27:16 -0700
+Received: from b03cxnp08027.gho.boulder.ibm.com (b03cxnp08027.gho.boulder.ibm.com [9.17.130.19])
+	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id 8EE013E4003E
+	for <linux-mm@kvack.org>; Tue,  4 Feb 2014 00:27:12 -0700 (MST)
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by b03cxnp08027.gho.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s147QnZe983546
+	for <linux-mm@kvack.org>; Tue, 4 Feb 2014 08:26:54 +0100
+Received: from d03av02.boulder.ibm.com (localhost [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s147QqdP015997
+	for <linux-mm@kvack.org>; Tue, 4 Feb 2014 00:26:52 -0700
+Date: Mon, 3 Feb 2014 23:26:30 -0800
+From: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
+Subject: Re: [PATCH] slub: Don't throw away partial remote slabs if there is
+ no local memory
+Message-ID: <20140204072630.GB10101@linux.vnet.ibm.com>
+References: <alpine.DEB.2.02.1401241301120.10968@chino.kir.corp.google.com>
+ <20140124232902.GB30361@linux.vnet.ibm.com>
+ <alpine.DEB.2.02.1401241543100.18620@chino.kir.corp.google.com>
+ <20140125001643.GA25344@linux.vnet.ibm.com>
+ <alpine.DEB.2.02.1401241618500.20466@chino.kir.corp.google.com>
+ <20140125011041.GB25344@linux.vnet.ibm.com>
+ <20140127055805.GA2471@lge.com>
+ <20140128182947.GA1591@linux.vnet.ibm.com>
+ <20140203230026.GA15383@linux.vnet.ibm.com>
+ <alpine.DEB.2.10.1402032138070.17997@nuc>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII; format=flowed
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.10.1402032138070.17997@nuc>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.cz>, linux-kernel <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org
+To: Christoph Lameter <cl@linux.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Han Pingtian <hanpt@linux.vnet.ibm.com>, penberg@kernel.org, linux-mm@kvack.org, paulus@samba.org, Anton Blanchard <anton@samba.org>, mpm@selenic.com, linuxppc-dev@lists.ozlabs.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-On Mon, 3 Feb 2014, David Rientjes wrote:
+On 03.02.2014 [21:38:36 -0600], Christoph Lameter wrote:
+> On Mon, 3 Feb 2014, Nishanth Aravamudan wrote:
+> 
+> > So what's the status of this patch? Christoph, do you think this is fine
+> > as it is?
+> 
+> Certainly enabling CONFIG_MEMORYLESS_NODES is the right thing to do and I
+> already acked the patch.
 
-> On Mon, 3 Feb 2014, Vlastimil Babka wrote:
->
->> It seems to come from balloon_page_movable() and its test page_count(page) ==
->> 1.
->>
->
-> Hmm, I think it might be because compound_head() == NULL here.  Holger,
-> this looks like a race condition when allocating a compound page, did you
-> only see it once or is it actually reproducible?
->
-No, this only happened once. It is not reproducable, the system was running
-for four days without problems. And before this kernel, five years without
-any problems.
+Yes, sorry for my lack of clarity. I meant Joonsoo's latest patch for
+the $SUBJECT issue.
 
 Thanks,
-Holger
+Nish
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
