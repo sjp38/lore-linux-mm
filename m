@@ -1,93 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id BC7CA6B0038
-	for <linux-mm@kvack.org>; Tue,  4 Feb 2014 15:44:04 -0500 (EST)
-Received: by mail-pd0-f178.google.com with SMTP id y13so8691603pdi.37
-        for <linux-mm@kvack.org>; Tue, 04 Feb 2014 12:44:04 -0800 (PST)
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-        by mx.google.com with ESMTPS id pg10si10666948pbb.354.2014.02.04.12.44.03
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 04 Feb 2014 12:44:03 -0800 (PST)
-Received: by mail-pa0-f50.google.com with SMTP id kp14so9049832pab.9
-        for <linux-mm@kvack.org>; Tue, 04 Feb 2014 12:44:03 -0800 (PST)
-From: Sebastian Capella <sebastian.capella@linaro.org>
-Subject: [PATCH v7 3/3] PM / Hibernate: use name_to_dev_t to parse resume
-Date: Tue,  4 Feb 2014 12:43:51 -0800
-Message-Id: <1391546631-7715-4-git-send-email-sebastian.capella@linaro.org>
-In-Reply-To: <1391546631-7715-1-git-send-email-sebastian.capella@linaro.org>
+Received: from mail-ig0-f177.google.com (mail-ig0-f177.google.com [209.85.213.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 37D636B0035
+	for <linux-mm@kvack.org>; Tue,  4 Feb 2014 16:21:14 -0500 (EST)
+Received: by mail-ig0-f177.google.com with SMTP id k19so9649232igc.4
+        for <linux-mm@kvack.org>; Tue, 04 Feb 2014 13:21:14 -0800 (PST)
+Received: from smtprelay.hostedemail.com (smtprelay0112.hostedemail.com. [216.40.44.112])
+        by mx.google.com with ESMTP id ax4si34734320icc.129.2014.02.04.13.21.13
+        for <linux-mm@kvack.org>;
+        Tue, 04 Feb 2014 13:21:13 -0800 (PST)
+Message-ID: <1391548862.2538.34.camel@joe-AO722>
+Subject: Re: [PATCH v7 2/3] trivial: PM / Hibernate: clean up checkpatch in
+ hibernate.c
+From: Joe Perches <joe@perches.com>
+Date: Tue, 04 Feb 2014 13:21:02 -0800
+In-Reply-To: <1391546631-7715-3-git-send-email-sebastian.capella@linaro.org>
 References: <1391546631-7715-1-git-send-email-sebastian.capella@linaro.org>
+	 <1391546631-7715-3-git-send-email-sebastian.capella@linaro.org>
+Content-Type: text/plain; charset="ISO-8859-1"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-pm@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org
-Cc: Sebastian Capella <sebastian.capella@linaro.org>, Pavel Machek <pavel@ucw.cz>, Len Brown <len.brown@intel.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>
+To: Sebastian Capella <sebastian.capella@linaro.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-pm@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, Pavel Machek <pavel@ucw.cz>, Len Brown <len.brown@intel.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>
 
-Use the name_to_dev_t call to parse the device name echo'd to
-to /sys/power/resume.  This imitates the method used in hibernate.c
-in software_resume, and allows the resume partition to be specified
-using other equivalent device formats as well.  By allowing
-/sys/debug/resume to accept the same syntax as the resume=device
-parameter, we can parse the resume=device in the init script and
-use the resume device directly from the kernel command line.
+On Tue, 2014-02-04 at 12:43 -0800, Sebastian Capella wrote:
+> Checkpatch reports several warnings in hibernate.c
+> printk use removed, long lines wrapped, whitespace cleanup,
+> extend short msleeps, while loops on two lines.
+[]
+> diff --git a/kernel/power/hibernate.c b/kernel/power/hibernate.c
+[]
+> @@ -765,7 +762,7 @@ static int software_resume(void)
+>  	if (isdigit(resume_file[0]) && resume_wait) {
+>  		int partno;
+>  		while (!get_gendisk(swsusp_resume_device, &partno))
+> -			msleep(10);
+> +			msleep(20);
 
-Signed-off-by: Sebastian Capella <sebastian.capella@linaro.org>
-Cc: Pavel Machek <pavel@ucw.cz>
-Cc: Len Brown <len.brown@intel.com>
-Cc: "Rafael J. Wysocki" <rjw@rjwysocki.net>
----
- kernel/power/hibernate.c |   33 +++++++++++++++++----------------
- 1 file changed, 17 insertions(+), 16 deletions(-)
+What good is changing this from 10 to 20?
 
-diff --git a/kernel/power/hibernate.c b/kernel/power/hibernate.c
-index cd1e30c..3abd192 100644
---- a/kernel/power/hibernate.c
-+++ b/kernel/power/hibernate.c
-@@ -970,26 +970,27 @@ static ssize_t resume_show(struct kobject *kobj, struct kobj_attribute *attr,
- static ssize_t resume_store(struct kobject *kobj, struct kobj_attribute *attr,
- 			    const char *buf, size_t n)
- {
--	unsigned int maj, min;
- 	dev_t res;
--	int ret = -EINVAL;
-+	char *name = kstrdup_trimnl(buf, GFP_KERNEL);
- 
--	if (sscanf(buf, "%u:%u", &maj, &min) != 2)
--		goto out;
-+	if (name == NULL)
-+		return -ENOMEM;
- 
--	res = MKDEV(maj,min);
--	if (maj != MAJOR(res) || min != MINOR(res))
--		goto out;
-+	res = name_to_dev_t(name);
- 
--	lock_system_sleep();
--	swsusp_resume_device = res;
--	unlock_system_sleep();
--	pr_info("PM: Starting manual resume from disk\n");
--	noresume = 0;
--	software_resume();
--	ret = n;
-- out:
--	return ret;
-+	if (res != 0) {
-+		lock_system_sleep();
-+		swsusp_resume_device = res;
-+		unlock_system_sleep();
-+		pr_info("PM: Starting manual resume from disk\n");
-+		noresume = 0;
-+		software_resume();
-+	} else {
-+		n = -EINVAL;
-+	}
-+
-+	kfree(name);
-+	return n;
- }
- 
- power_attr(resume);
--- 
-1.7.9.5
+> @@ -776,8 +773,9 @@ static int software_resume(void)
+>  		wait_for_device_probe();
+>  
+>  		if (resume_wait) {
+> -			while ((swsusp_resume_device = name_to_dev_t(resume_file)) == 0)
+> -				msleep(10);
+> +			while ((swsusp_resume_device =
+> +					name_to_dev_t(resume_file)) == 0)
+> +				msleep(20);
+
+here too.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
