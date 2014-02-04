@@ -1,107 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D5496B0035
-	for <linux-mm@kvack.org>; Tue,  4 Feb 2014 17:37:36 -0500 (EST)
-Received: by mail-pa0-f49.google.com with SMTP id hz1so9000484pad.8
-        for <linux-mm@kvack.org>; Tue, 04 Feb 2014 14:37:36 -0800 (PST)
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-        by mx.google.com with ESMTPS id l8si26352558pao.210.2014.02.04.14.37.35
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 344766B0038
+	for <linux-mm@kvack.org>; Tue,  4 Feb 2014 17:48:33 -0500 (EST)
+Received: by mail-pa0-f50.google.com with SMTP id kp14so9146491pab.37
+        for <linux-mm@kvack.org>; Tue, 04 Feb 2014 14:48:32 -0800 (PST)
+Received: from mail-pb0-x234.google.com (mail-pb0-x234.google.com [2607:f8b0:400e:c01::234])
+        by mx.google.com with ESMTPS id cf2si15619725pad.227.2014.02.04.14.48.31
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 04 Feb 2014 14:37:35 -0800 (PST)
-Received: by mail-pa0-f46.google.com with SMTP id rd3so9144640pab.33
-        for <linux-mm@kvack.org>; Tue, 04 Feb 2014 14:37:35 -0800 (PST)
-Content-Type: text/plain; charset="utf-8"
-MIME-Version: 1.0
-Content-Transfer-Encoding: quoted-printable
-From: Sebastian Capella <sebastian.capella@linaro.org>
-In-Reply-To: <9487103.2jnJmCRm9n@vostro.rjw.lan>
-References: <1391546631-7715-1-git-send-email-sebastian.capella@linaro.org>
- <1391546631-7715-3-git-send-email-sebastian.capella@linaro.org>
- <9487103.2jnJmCRm9n@vostro.rjw.lan>
-Message-ID: <20140204223733.30015.23993@capellas-linux>
-Subject: Re: [PATCH v7 2/3] trivial: PM / Hibernate: clean up checkpatch in
- hibernate.c
-Date: Tue, 04 Feb 2014 14:37:33 -0800
+        Tue, 04 Feb 2014 14:48:31 -0800 (PST)
+Received: by mail-pb0-f52.google.com with SMTP id jt11so9077776pbb.39
+        for <linux-mm@kvack.org>; Tue, 04 Feb 2014 14:48:31 -0800 (PST)
+Message-ID: <1391554110.10160.3.camel@edumazet-glaptop2.roam.corp.google.com>
+Subject: Re: [PATCH] fdtable: Avoid triggering OOMs from alloc_fdmem
+From: Eric Dumazet <eric.dumazet@gmail.com>
+Date: Tue, 04 Feb 2014 14:48:30 -0800
+In-Reply-To: <87r47ik8ou.fsf@xmission.com>
+References: <87r47jsb2p.fsf@xmission.com>
+	 <1391530721.4301.8.camel@edumazet-glaptop2.roam.corp.google.com>
+	 <871tzirdwf.fsf@xmission.com>
+	 <1391539464.10160.1.camel@edumazet-glaptop2.roam.corp.google.com>
+	 <87r47ik8ou.fsf@xmission.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Rafael J. Wysocki" <rjw@rjwysocki.net>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-pm@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, Pavel Machek <pavel@ucw.cz>, Len Brown <len.brown@intel.com>
+To: "Eric W. Biederman" <ebiederm@xmission.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
 
-Quoting Rafael J. Wysocki (2014-02-04 13:36:29)
-> Well, this isn't a trivial patch.
+On Tue, 2014-02-04 at 10:57 -0800, Eric W. Biederman wrote:
 
-I'll remove the trivial, thanks!
+> As I have heard it described one tcp connection per small requestion,
+> and someone goofed and started creating new connections when the server
+> was bogged down.  But since all of the requests and replies were small I
+> don't expect even TCP would allocate more than a 4KiB page in that
+> worload.
 
-Quoting Rafael J. Wysocki (2014-02-04 13:36:29)
-> On Tuesday, February 04, 2014 12:43:50 PM Sebastian Capella wrote:
-> > +     while (1)
-> > +             ;
-> Please remove this change from the patch.  I don't care about checkpatch
-> complaining here.
-> > +     while (1)
-> > +             ;
-> Same here.
+Right, small writes uses regular skb (no page fragments).
 
-Will do, thanks!
+> 
+> I had oodles of 4KiB and 8KiB pages.  What size of memory allocation did
+> you see failing?  
 
-> > @@ -765,7 +762,7 @@ static int software_resume(void)
-> >       if (isdigit(resume_file[0]) && resume_wait) {
-> >               int partno;
-> >               while (!get_gendisk(swsusp_resume_device, &partno))
-> > -                     msleep(10);
-> > +                     msleep(20);
-> =
+We got some reports of order-3 allocations failing.
 
-> That's the reason why it is not trivial.
-> =
-
-> First, the change being made doesn't belong in this patch.
-
-Thanks I'll separate it if it remains.
-
-> Second, what's the problem with the original value?
-
-The warning from checkpatch implies that it's misleading to
-msleep < 20ms since msleep is using msec_to_jiffies + 1 for
-the duration.  In any case, this is polling for devices discovery to
-complete.  It is used when resumewait is specified on the command
-line telling hibernate to wait for the resume device to appear.
-
-> > -static ssize_t image_size_show(struct kobject *kobj, struct kobj_attri=
-bute *attr,
-> > +static ssize_t image_size_show(struct kobject *kobj,
-> > +                            struct kobj_attribute *attr,
-> Why can't you leave the code as is here?
-> > -static ssize_t image_size_store(struct kobject *kobj, struct kobj_attr=
-ibute *attr,
-> > +static ssize_t image_size_store(struct kobject *kobj,
-> > +                             struct kobj_attribute *attr,
-> And here?
-
-Purely long line cleanup. (>80 colunms)
-
-> >  static int __init resumedelay_setup(char *str)
-> >  {
-> > -     resume_delay =3D simple_strtoul(str, NULL, 0);
-> > +     int ret =3D kstrtoint(str, 0, &resume_delay);
-> > +     /* mask must_check warn; on failure, leaves resume_delay unchange=
-d */
-> > +     (void)ret;
-> =
-
-> And that's not a trivial change surely?
-
-I'll include this and the msleep as a separate, non-trivial checkpatch
-cleanup patch if the changes remain after this discussion.
-
-> =
-
-> And why didn't you do (void)kstrtoint(str, 0, &resume_delay); instead?
-
-Better thanks!
-
-Sebastian
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
