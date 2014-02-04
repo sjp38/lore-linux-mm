@@ -1,120 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 86EE06B003D
-	for <linux-mm@kvack.org>; Tue,  4 Feb 2014 11:18:47 -0500 (EST)
-Received: by mail-pd0-f180.google.com with SMTP id x10so8432953pdj.11
-        for <linux-mm@kvack.org>; Tue, 04 Feb 2014 08:18:47 -0800 (PST)
-Received: from mail-pb0-x22c.google.com (mail-pb0-x22c.google.com [2607:f8b0:400e:c01::22c])
-        by mx.google.com with ESMTPS id eb3si25213598pbc.296.2014.02.04.08.18.46
+Received: from mail-ea0-f182.google.com (mail-ea0-f182.google.com [209.85.215.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 249AE6B0036
+	for <linux-mm@kvack.org>; Tue,  4 Feb 2014 11:29:49 -0500 (EST)
+Received: by mail-ea0-f182.google.com with SMTP id r15so4560059ead.27
+        for <linux-mm@kvack.org>; Tue, 04 Feb 2014 08:29:48 -0800 (PST)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id h44si27494382eew.164.2014.02.04.08.29.47
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 04 Feb 2014 08:18:46 -0800 (PST)
-Received: by mail-pb0-f44.google.com with SMTP id rq2so8611809pbb.17
-        for <linux-mm@kvack.org>; Tue, 04 Feb 2014 08:18:45 -0800 (PST)
-Message-ID: <1391530721.4301.8.camel@edumazet-glaptop2.roam.corp.google.com>
-Subject: Re: [PATCH] fdtable: Avoid triggering OOMs from alloc_fdmem
-From: Eric Dumazet <eric.dumazet@gmail.com>
-Date: Tue, 04 Feb 2014 08:18:41 -0800
-In-Reply-To: <87r47jsb2p.fsf@xmission.com>
-References: <87r47jsb2p.fsf@xmission.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
-Mime-Version: 1.0
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 04 Feb 2014 08:29:48 -0800 (PST)
+Date: Tue, 4 Feb 2014 11:29:39 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH -v2 4/6] memcg: make sure that memcg is not offline when
+ charging
+Message-ID: <20140204162939.GP6963@cmpxchg.org>
+References: <1391520540-17436-1-git-send-email-mhocko@suse.cz>
+ <1391520540-17436-5-git-send-email-mhocko@suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1391520540-17436-5-git-send-email-mhocko@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Eric W. Biederman" <ebiederm@xmission.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, David Rientjes <rientjes@google.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On Mon, 2014-02-03 at 21:26 -0800, Eric W. Biederman wrote:
-> Recently due to a spike in connections per second memcached on 3
-> separate boxes triggered the OOM killer from accept.  At the time the
-> OOM killer was triggered there was 4GB out of 36GB free in zone 1. The
-> problem was that alloc_fdtable was allocating an order 3 page (32KiB) to
-> hold a bitmap, and there was sufficient fragmentation that the largest
-> page available was 8KiB.
+On Tue, Feb 04, 2014 at 02:28:58PM +0100, Michal Hocko wrote:
+> The current charge path might race with memcg offlining because holding
+> css reference doesn't neither prevent from task move to a different
+> group nor stop css offline. When a charging task is the last one in the
+> group and it is moved to a different group in the middle of the charge
+> the old memcg might get offlined. As a result res counter might be
+> charged after mem_cgroup_reparent_charges (called from memcg css_offline
+> callback) and so the charge would never be freed. This has been worked
+> around by 96f1c58d8534 (mm: memcg: fix race condition between memcg
+> teardown and swapin) which tries to catch such a leaked charges later
+> during css_free. It is more optimal to heal this race in the long term
+> though.
 > 
-> I find the logic that PAGE_ALLOC_COSTLY_ORDER can't fail pretty dubious
-> but I do agree that order 3 allocations are very likely to succeed.
+> In order to make this raceless we have to check that the memcg is online
+> and res_counter_charge in the same RCU read section. The online check can
+> be done simply by calling css_tryget & css_put which are now wrapped
+> into mem_cgroup_is_online helper.
 > 
-> There are always pathologies where order > 0 allocations can fail when
-> there are copious amounts of free memory available.  Using the pigeon
-> hole principle it is easy to show that it requires 1 page more than 50%
-> of the pages being free to guarantee an order 1 (8KiB) allocation will
-> succeed, 1 page more than 75% of the pages being free to guarantee an
-> order 2 (16KiB) allocation will succeed and 1 page more than 87.5% of
-> the pages being free to guarantee an order 3 allocate will succeed.
+> Callers are then updated to retry with a new memcg which is associated
+> with the current mm. There always has to be a valid memcg encountered
+> sooner or later because task had to be moved to a valid and online
+> cgroup.
 > 
-> A server churning memory with a lot of small requests and replies like
-> memcached is a common case that if anything can will skew the odds
-> against large pages being available.
+> The only exception is mem_cgroup_do_precharge which should never see
+> this race because it is called from cgroup {can_}attach callbacks and so
+> the whole cgroup cannot go away.
 > 
-> Therefore let's not give external applications a practical way to kill
-> linux server applications, and specify __GFP_NORETRY to the kmalloc in
-> alloc_fdmem.  Unless I am misreading the code and by the time the code
-> reaches should_alloc_retry in __alloc_pages_slowpath (where
-> __GFP_NORETRY becomes signification).  We have already tried everything
-> reasonable to allocate a page and the only thing left to do is wait.  So
-> not waiting and falling back to vmalloc immediately seems like the
-> reasonable thing to do even if there wasn't a chance of triggering the
-> OOM killer.
-> 
-> Cc: stable@vger.kernel.org
-> Signed-off-by: "Eric W. Biederman" <ebiederm@xmission.com>
+> Signed-off-by: Michal Hocko <mhocko@suse.cz>
 > ---
->  fs/file.c |    2 +-
->  1 files changed, 1 insertions(+), 1 deletions(-)
-> 
-> diff --git a/fs/file.c b/fs/file.c
-> index 771578b33fb6..db25c2bdfe46 100644
-> --- a/fs/file.c
-> +++ b/fs/file.c
-> @@ -34,7 +34,7 @@ static void *alloc_fdmem(size_t size)
->  	 * vmalloc() if the allocation size will be considered "large" by the VM.
->  	 */
->  	if (size <= (PAGE_SIZE << PAGE_ALLOC_COSTLY_ORDER)) {
-> -		void *data = kmalloc(size, GFP_KERNEL|__GFP_NOWARN);
-> +		void *data = kmalloc(size, GFP_KERNEL|__GFP_NOWARN|__GFP_NORETRY);
->  		if (data != NULL)
->  			return data;
->  	}
+>  mm/memcontrol.c | 70 +++++++++++++++++++++++++++++++++++++++++++++++++++++----
+>  1 file changed, 66 insertions(+), 4 deletions(-)
 
-Hi Eric
+Maybe we should remove the XXX if it makes you think we should change
+the current situation by any means necessary.  This patch is not an
+improvement.
 
-I wrote yesterday a similar patch adding __GFP_NORETRY in following
-paths. I feel that alloc_fdmem() is only a part of the problem ;)
+I put the XXX there so that we one day maybe refactor the code in a
+clean fashion where try_get_mem_cgroup_from_whatever() is in the same
+rcu section as the first charge attempt.  On failure, reclaim, and do
+the lookup again.
 
-What do you think, should we merge our changes or have distinct
-patches ?
+Also, this problem only exists on swapin, where the memcg is looked up
+from an auxilliary data structure and not the current task, so maybe
+that would be an angle to look for a clean solution.
 
-diff --git a/net/core/sock.c b/net/core/sock.c
-index 0c127dcdf6a8..5b6a9431b017 100644
---- a/net/core/sock.c
-+++ b/net/core/sock.c
-@@ -1775,7 +1775,9 @@ struct sk_buff *sock_alloc_send_pskb(struct sock *sk, unsigned long header_len,
- 			while (order) {
- 				if (npages >= 1 << order) {
- 					page = alloc_pages(sk->sk_allocation |
--							   __GFP_COMP | __GFP_NOWARN,
-+							   __GFP_COMP |
-+							   __GFP_NOWARN |
-+							   __GFP_NORETRY,
- 							   order);
- 					if (page)
- 						goto fill_page;
-@@ -1845,7 +1847,7 @@ bool skb_page_frag_refill(unsigned int sz, struct page_frag *pfrag, gfp_t prio)
- 		gfp_t gfp = prio;
- 
- 		if (order)
--			gfp |= __GFP_COMP | __GFP_NOWARN;
-+			gfp |= __GFP_COMP | __GFP_NOWARN | __GFP_NORETRY;
- 		pfrag->page = alloc_pages(gfp, order);
- 		if (likely(pfrag->page)) {
- 			pfrag->offset = 0;
-
-
-
-
-
+Either way, the problem is currently fixed with a *oneliner*.  Unless
+the alternative solution is inherent in a clean rework of the code to
+match cgroup core lifetime management, I don't see any reason to move
+away from the status quo.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
