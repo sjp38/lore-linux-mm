@@ -1,60 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f179.google.com (mail-we0-f179.google.com [74.125.82.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 604A96B003D
-	for <linux-mm@kvack.org>; Tue,  4 Feb 2014 11:42:46 -0500 (EST)
-Received: by mail-we0-f179.google.com with SMTP id q58so4469857wes.10
-        for <linux-mm@kvack.org>; Tue, 04 Feb 2014 08:42:45 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id fu7si12561461wjb.118.2014.02.04.08.42.44
+Received: from mail-qc0-f181.google.com (mail-qc0-f181.google.com [209.85.216.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 280096B0035
+	for <linux-mm@kvack.org>; Tue,  4 Feb 2014 11:59:02 -0500 (EST)
+Received: by mail-qc0-f181.google.com with SMTP id e9so14143677qcy.12
+        for <linux-mm@kvack.org>; Tue, 04 Feb 2014 08:59:01 -0800 (PST)
+Received: from mail-qc0-x22f.google.com (mail-qc0-x22f.google.com [2607:f8b0:400d:c01::22f])
+        by mx.google.com with ESMTPS id o46si18154497qgo.158.2014.02.04.08.59.01
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 04 Feb 2014 08:42:45 -0800 (PST)
-Date: Tue, 4 Feb 2014 17:42:43 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH -v2 5/6] memcg, kmem: clean up memcg parameter handling
-Message-ID: <20140204164243.GQ4890@dhcp22.suse.cz>
-References: <1391520540-17436-1-git-send-email-mhocko@suse.cz>
- <1391520540-17436-6-git-send-email-mhocko@suse.cz>
- <20140204163210.GQ6963@cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140204163210.GQ6963@cmpxchg.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 04 Feb 2014 08:59:01 -0800 (PST)
+Received: by mail-qc0-f175.google.com with SMTP id x13so13829331qcv.20
+        for <linux-mm@kvack.org>; Tue, 04 Feb 2014 08:59:01 -0800 (PST)
+From: kosaki.motohiro@gmail.com
+Subject: [PATCH] __set_page_dirty uses spin_lock_irqsave instead of spin_lock_irq
+Date: Tue,  4 Feb 2014 11:58:54 -0500
+Message-Id: <1391533134-2234-1-git-send-email-kosaki.motohiro@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-On Tue 04-02-14 11:32:10, Johannes Weiner wrote:
-> On Tue, Feb 04, 2014 at 02:28:59PM +0100, Michal Hocko wrote:
-> > memcg_kmem_newpage_charge doesn't always set the given memcg parameter.
-> 
-> lol, I really don't get your patch order...
+From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
-Ok, Ok, I've encountered this mess while double checking #2 and was too
-lazy to rebasing again. I will move it to the front for the merge.
+To use spin_{un}lock_irq is dangerous if caller disabled interrupt.
+spin_lock_irqsave is a safer alternative. Luckily, now there is no
+caller that has such usage but it would be nice to fix.
 
-> > Some early escape paths skip setting *memcg while
-> > __memcg_kmem_newpage_charge down the call chain sets *memcg even if no
-> > memcg is charged due to other escape paths.
-> > 
-> > The current code is correct because the memcg is initialized to NULL
-> > at the highest level in __alloc_pages_nodemask but this all is very
-> > confusing and error prone. Let's make the semantic clear and move the
-> > memcg parameter initialization to the highest level of kmem accounting
-> > (memcg_kmem_newpage_charge).
-> > 
-> > Signed-off-by: Michal Hocko <mhocko@suse.cz>
-> 
-> Patch looks good, though.
-> 
-> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+Reported-by: David Rientjes rientjes@google.com>
+Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+---
+ fs/buffer.c |    6 ++++--
+ 1 files changed, 4 insertions(+), 2 deletions(-)
 
-Thanks!
-
+diff --git a/fs/buffer.c b/fs/buffer.c
+index 651dba1..27265a8 100644
+--- a/fs/buffer.c
++++ b/fs/buffer.c
+@@ -654,14 +654,16 @@ EXPORT_SYMBOL(mark_buffer_dirty_inode);
+ static void __set_page_dirty(struct page *page,
+ 		struct address_space *mapping, int warn)
+ {
+-	spin_lock_irq(&mapping->tree_lock);
++	unsigned long flags;
++
++	spin_lock_irqsave(&mapping->tree_lock, flags);
+ 	if (page->mapping) {	/* Race with truncate? */
+ 		WARN_ON_ONCE(warn && !PageUptodate(page));
+ 		account_page_dirtied(page, mapping);
+ 		radix_tree_tag_set(&mapping->page_tree,
+ 				page_index(page), PAGECACHE_TAG_DIRTY);
+ 	}
+-	spin_unlock_irq(&mapping->tree_lock);
++	spin_unlock_irqrestore(&mapping->tree_lock, flags);
+ 	__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
+ }
+ 
 -- 
-Michal Hocko
-SUSE Labs
+1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
