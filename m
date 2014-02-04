@@ -1,75 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f50.google.com (mail-wg0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 389D66B0036
-	for <linux-mm@kvack.org>; Tue,  4 Feb 2014 11:03:39 -0500 (EST)
-Received: by mail-wg0-f50.google.com with SMTP id l18so13171399wgh.5
-        for <linux-mm@kvack.org>; Tue, 04 Feb 2014 08:03:38 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i2si12410656wja.155.2014.02.04.08.03.37
+Received: from mail-lb0-f182.google.com (mail-lb0-f182.google.com [209.85.217.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 96CF66B0035
+	for <linux-mm@kvack.org>; Tue,  4 Feb 2014 11:04:41 -0500 (EST)
+Received: by mail-lb0-f182.google.com with SMTP id w7so6655895lbi.13
+        for <linux-mm@kvack.org>; Tue, 04 Feb 2014 08:04:40 -0800 (PST)
+Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
+        by mx.google.com with ESMTPS id ya3si12990216lbb.11.2014.02.04.08.04.39
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 04 Feb 2014 08:03:37 -0800 (PST)
-Date: Tue, 4 Feb 2014 17:03:36 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v2 3/7] memcg, slab: separate memcg vs root cache
- creation paths
-Message-ID: <20140204160336.GL4890@dhcp22.suse.cz>
-References: <cover.1391441746.git.vdavydov@parallels.com>
- <81a403327163facea2b4c7b720fdc0ef62dd1dbf.1391441746.git.vdavydov@parallels.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 04 Feb 2014 08:04:39 -0800 (PST)
+Message-ID: <52F10F95.4050204@parallels.com>
+Date: Tue, 4 Feb 2014 20:04:37 +0400
+From: Vladimir Davydov <vdavydov@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <81a403327163facea2b4c7b720fdc0ef62dd1dbf.1391441746.git.vdavydov@parallels.com>
+Subject: Re: [PATCH 3/8] memcg, slab: never try to merge memcg caches
+References: <cover.1391356789.git.vdavydov@parallels.com> <27c4e7d7fb6b788b66995d2523225ef2dcbc6431.1391356789.git.vdavydov@parallels.com> <20140204145210.GH4890@dhcp22.suse.cz> <52F1004B.90307@parallels.com> <20140204151145.GI4890@dhcp22.suse.cz> <52F106D7.3060802@parallels.com> <CAA6-i6p0xPFxPpdM5Q_0Y_HZDdeLO1j4_SDPdZiiPXOZS8dg_g@mail.gmail.com>
+In-Reply-To: <CAA6-i6p0xPFxPpdM5Q_0Y_HZDdeLO1j4_SDPdZiiPXOZS8dg_g@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: akpm@linux-foundation.org, rientjes@google.com, penberg@kernel.org, cl@linux.com, glommer@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@openvz.org
+To: Glauber Costa <glommer@gmail.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, devel@openvz.org
 
-On Mon 03-02-14 19:54:38, Vladimir Davydov wrote:
-> Memcg-awareness turned kmem_cache_create() into a dirty interweaving of
-> memcg-only and except-for-memcg calls. To clean this up, let's create a
-> separate function handling memcg caches creation. Although this will
-> result in the two functions having several hunks of practically the same
-> code, I guess this is the case when readability fully covers the cost of
-> code duplication.
+On 02/04/2014 07:43 PM, Glauber Costa wrote:
+> On Tue, Feb 4, 2014 at 7:27 PM, Vladimir Davydov <vdavydov@parallels.com> wrote:
+>> On 02/04/2014 07:11 PM, Michal Hocko wrote:
+>>> On Tue 04-02-14 18:59:23, Vladimir Davydov wrote:
+>>>> On 02/04/2014 06:52 PM, Michal Hocko wrote:
+>>>>> On Sun 02-02-14 20:33:48, Vladimir Davydov wrote:
+>>>>>> Suppose we are creating memcg cache A that could be merged with cache B
+>>>>>> of the same memcg. Since any memcg cache has the same parameters as its
+>>>>>> parent cache, parent caches PA and PB of memcg caches A and B must be
+>>>>>> mergeable too. That means PA was merged with PB on creation or vice
+>>>>>> versa, i.e. PA = PB. From that it follows that A = B, and we couldn't
+>>>>>> even try to create cache B, because it already exists - a contradiction.
+>>>>> I cannot tell I understand the above but I am totally not sure about the
+>>>>> statement bellow.
+>>>>>
+>>>>>> So let's remove unused code responsible for merging memcg caches.
+>>>>> How come the code was unused? find_mergeable called cache_match_memcg...
+>>>> Oh, sorry for misleading comment. I mean the code handling merging of
+>>>> per-memcg caches is useless, AFAIU: if we find an alias for a per-memcg
+>>>> cache on kmem_cache_create_memcg(), the parent of the found alias must
+>>>> be the same as the parent_cache passed to kmem_cache_create_memcg(), but
+>>>> if it were so, we would never proceed to the memcg cache creation,
+>>>> because the cache we want to create already exists.
+>>> I am still not sure I understand this correctly. So the outcome of this
+>>> patch is that compatible caches of different memcgs can be merged
+>>> together? Sorry if this is a stupid question but I am not that familiar
+>>> with this area much I am just seeing that cache_match_memcg goes away
+>>> and my understanding of the function is that it should prevent from
+>>> different memcg's caches merging.
+>> Let me try to explain how I understand it.
+>>
+>> What is cache merging/aliasing? When we create a cache
+>> (kmem_cache_create()), we first try to find a compatible cache that
+>> already exists and can handle requests from the new cache. If it is, we
+>> do not create any new caches, instead we simply increment the old cache
+>> refcount and return it.
+>>
+>> What about memcgs? Currently, it operates in the same way, i.e. on memcg
+>> cache creation we also try to find a compatible cache of the same memcg
+>> first. But if there were such a cache, they parents would have been
+>> merged (i.e. it would be the same cache). That means we would not even
+>> get to this memcg cache creation, because it already exists. That's why
+>> the code handling memcg caches merging seems pointless to me.
+>>
+> IIRC, this may not always hold. Some of the properties are configurable via
+> sysfs, and it might be that you haven't merged two parent caches because they
+> properties differ, but would be fine merging the child caches.
+>
+> If all properties we check are compile-time parameters, then it should be okay.
 
-I don't know. The code is apparently cleaner because calling a function
-with NULL memcg just to go via several if (memcg) branches is ugly as
-hell. But having a duplicated function like this calls for a problem
-later.
+AFAIK, we decide if a cache should be merged only basing on its internal
+parameters, such as size, ctor, flags, align (see find_mergeable()), but
+they are the same for root and memcg caches.
 
-Would it be possible to split kmem_cache_create into memcg independant
-part and do the rest in a single memcg branch?
- 
-> Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
-> ---
->  include/linux/memcontrol.h |   14 ++---
->  include/linux/slab.h       |    9 ++-
->  mm/memcontrol.c            |   16 ++----
->  mm/slab_common.c           |  130 ++++++++++++++++++++++++++------------------
->  4 files changed, 90 insertions(+), 79 deletions(-)
-> 
-> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> index 84e4801fc36c..de79a9617e09 100644
-> --- a/include/linux/memcontrol.h
-> +++ b/include/linux/memcontrol.h
-> @@ -500,8 +500,8 @@ int memcg_cache_id(struct mem_cgroup *memcg);
->  
->  char *memcg_create_cache_name(struct mem_cgroup *memcg,
->  			      struct kmem_cache *root_cache);
-> -int memcg_alloc_cache_params(struct mem_cgroup *memcg, struct kmem_cache *s,
-> -			     struct kmem_cache *root_cache);
-> +int memcg_alloc_cache_params(struct kmem_cache *s,
-> +		struct mem_cgroup *memcg, struct kmem_cache *root_cache);
+The only way to disable slub merging is via the "slub_nomerge" kernel
+parameter, so it is impossible to get a situation when parents can not
+be merged, while children can.
 
-Why is the parameters ordering changed? It really doesn't help
-review the patch. Also what does `s' stand for and can we use a more
-descriptive name, please?
+The only point of concern may be so called boot caches
+(create_boot_cache()), which are forcefully not allowed to be merged by
+setting refcount = -1. There are actually only two of them kmem_cache
+and kmem_cache_node used for internal slub allocations. I guess it was
+done preliminary, and we should not merge them for memcgs neither.
 
-[...]
--- 
-Michal Hocko
-SUSE Labs
+To sum it up, if a particular root cache is allowed to be merged, it was
+allowed to be merged since its creation and all its children caches are
+also allowed to be merged. If merging was not allowed for a root cache
+when it was created, we should not merge its children caches.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
