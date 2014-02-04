@@ -1,73 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f41.google.com (mail-pb0-f41.google.com [209.85.160.41])
-	by kanga.kvack.org (Postfix) with ESMTP id A97186B0039
-	for <linux-mm@kvack.org>; Mon,  3 Feb 2014 19:18:27 -0500 (EST)
-Received: by mail-pb0-f41.google.com with SMTP id up15so7762458pbc.28
-        for <linux-mm@kvack.org>; Mon, 03 Feb 2014 16:18:27 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id cf2si11577246pad.227.2014.02.03.16.18.23
-        for <linux-mm@kvack.org>;
-        Mon, 03 Feb 2014 16:18:26 -0800 (PST)
-Date: Mon, 3 Feb 2014 16:18:21 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 3/8] mm, hugetlb: fix race in region tracking
-Message-Id: <20140203161821.85b6754226ce7feaadc37810@linux-foundation.org>
-In-Reply-To: <1390958378.11839.37.camel@buesod1.americas.hpqcorp.net>
-References: <1390794746-16755-1-git-send-email-davidlohr@hp.com>
-	<1390794746-16755-4-git-send-email-davidlohr@hp.com>
-	<1390856576-ud1qp3fm-mutt-n-horiguchi@ah.jp.nec.com>
-	<1390859042.27421.4.camel@buesod1.americas.hpqcorp.net>
-	<1390874021-48f5mo0m-mutt-n-horiguchi@ah.jp.nec.com>
-	<1390876457.27421.19.camel@buesod1.americas.hpqcorp.net>
-	<1390955806-ljm7w9nq-mutt-n-horiguchi@ah.jp.nec.com>
-	<1390958378.11839.37.camel@buesod1.americas.hpqcorp.net>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-ee0-f54.google.com (mail-ee0-f54.google.com [74.125.83.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C6856B0035
+	for <linux-mm@kvack.org>; Mon,  3 Feb 2014 19:58:36 -0500 (EST)
+Received: by mail-ee0-f54.google.com with SMTP id e53so3992758eek.27
+        for <linux-mm@kvack.org>; Mon, 03 Feb 2014 16:58:36 -0800 (PST)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id k3si38652353eep.120.2014.02.03.16.58.35
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 03 Feb 2014 16:58:35 -0800 (PST)
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: [patch 03/10] lib: radix-tree: radix_tree_delete_item()
+Date: Mon,  3 Feb 2014 19:53:35 -0500
+Message-Id: <1391475222-1169-4-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <1391475222-1169-1-git-send-email-hannes@cmpxchg.org>
+References: <1391475222-1169-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <davidlohr@hp.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, iamjoonsoo.kim@lge.com, riel@redhat.com, mgorman@suse.de, mhocko@suse.cz, aneesh.kumar@linux.vnet.ibm.com, kamezawa.hiroyu@jp.fujitsu.com, hughd@google.com, david@gibson.dropbear.id.au, js1304@gmail.com, liwanp@linux.vnet.ibm.com, dhillf@gmail.com, rientjes@google.com, aswin@hp.com, scott.norton@hp.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Bob Liu <bob.liu@oracle.com>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Luigi Semenzato <semenzato@google.com>, Mel Gorman <mgorman@suse.de>, Metin Doslu <metin@citusdata.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan.kim@gmail.com>, Ozgun Erdogan <ozgun@citusdata.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Roman Gushchin <klamm@yandex-team.ru>, Ryan Mallon <rmallon@gmail.com>, Tejun Heo <tj@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Tue, 28 Jan 2014 17:19:38 -0800 Davidlohr Bueso <davidlohr@hp.com> wrote:
+Provide a function that does not just delete an entry at a given
+index, but also allows passing in an expected item.  Delete only if
+that item is still located at the specified index.
 
-> On Tue, 2014-01-28 at 19:36 -0500, Naoya Horiguchi wrote:
-> > On Mon, Jan 27, 2014 at 06:34:17PM -0800, Davidlohr Bueso wrote:
-> [...]
-> > > > If this retry is really essential for the fix, please comment the reason
-> > > > both in patch description and inline comment. It's very important for
-> > > > future code maintenance.
-> > > 
-> > > So we locate the corresponding region in the reserve map, and if we are
-> > > below the current region, then we allocate a new one. Since we dropped
-> > > the lock to allocate memory, we have to make sure that we still need the
-> > > new region and that we don't race with the new status of the reservation
-> > > map. This is the whole point of the retry, and I don't see it being
-> > > suboptimal.
-> > 
-> > I'm afraid that you don't explain why you need drop the lock for memory
-> > allocation. Are you saying that this unlocking comes from the difference
-> > between rwsem and spin lock?
-> 
-> Because you cannot go to sleep while holding a spinlock, which is
-> exactly what kmalloc(GFP_KERNEL) can do. We *might* get a way with it
-> with GFP_ATOMIC, I dunno, but I certainly prefer this approach better.
+This is handy when lockless tree traversals want to delete entries as
+well because they don't have to do an second, locked lookup to verify
+the slot has not changed under them before deleting the entry.
 
-yup.  You could do
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+Reviewed-by: Minchan Kim <minchan@kernel.org>
+Reviewed-by: Rik van Riel <riel@redhat.com>
+---
+ include/linux/radix-tree.h |  1 +
+ lib/radix-tree.c           | 31 +++++++++++++++++++++++++++----
+ 2 files changed, 28 insertions(+), 4 deletions(-)
 
-	foo = kmalloc(size, GFP_NOWAIT);
-	if (!foo) {
-		spin_unlock(...);
-		foo = kmalloc(size, GFP_KERNEL);
-		if (!foo)
-			...
-		spin_lock(...);
-	}
-
-that avoids the lock/unlock once per allocation.  But it also increases
-the lock's average hold times....
-
-		
+diff --git a/include/linux/radix-tree.h b/include/linux/radix-tree.h
+index 403940787be1..1bf0a9c388d9 100644
+--- a/include/linux/radix-tree.h
++++ b/include/linux/radix-tree.h
+@@ -219,6 +219,7 @@ static inline void radix_tree_replace_slot(void **pslot, void *item)
+ int radix_tree_insert(struct radix_tree_root *, unsigned long, void *);
+ void *radix_tree_lookup(struct radix_tree_root *, unsigned long);
+ void **radix_tree_lookup_slot(struct radix_tree_root *, unsigned long);
++void *radix_tree_delete_item(struct radix_tree_root *, unsigned long, void *);
+ void *radix_tree_delete(struct radix_tree_root *, unsigned long);
+ unsigned int
+ radix_tree_gang_lookup(struct radix_tree_root *root, void **results,
+diff --git a/lib/radix-tree.c b/lib/radix-tree.c
+index 7811ed3b4e70..f442e3243607 100644
+--- a/lib/radix-tree.c
++++ b/lib/radix-tree.c
+@@ -1335,15 +1335,18 @@ static inline void radix_tree_shrink(struct radix_tree_root *root)
+ }
+ 
+ /**
+- *	radix_tree_delete    -    delete an item from a radix tree
++ *	radix_tree_delete_item    -    delete an item from a radix tree
+  *	@root:		radix tree root
+  *	@index:		index key
++ *	@item:		expected item
+  *
+- *	Remove the item at @index from the radix tree rooted at @root.
++ *	Remove @item at @index from the radix tree rooted at @root.
+  *
+- *	Returns the address of the deleted item, or NULL if it was not present.
++ *	Returns the address of the deleted item, or NULL if it was not present
++ *	or the entry at the given @index was not @item.
+  */
+-void *radix_tree_delete(struct radix_tree_root *root, unsigned long index)
++void *radix_tree_delete_item(struct radix_tree_root *root,
++			     unsigned long index, void *item)
+ {
+ 	struct radix_tree_node *node = NULL;
+ 	struct radix_tree_node *slot = NULL;
+@@ -1378,6 +1381,11 @@ void *radix_tree_delete(struct radix_tree_root *root, unsigned long index)
+ 	if (slot == NULL)
+ 		goto out;
+ 
++	if (item && slot != item) {
++		slot = NULL;
++		goto out;
++	}
++
+ 	/*
+ 	 * Clear all tags associated with the item to be deleted.
+ 	 * This way of doing it would be inefficient, but seldom is any set.
+@@ -1422,6 +1430,21 @@ void *radix_tree_delete(struct radix_tree_root *root, unsigned long index)
+ out:
+ 	return slot;
+ }
++EXPORT_SYMBOL(radix_tree_delete_item);
++
++/**
++ *	radix_tree_delete    -    delete an item from a radix tree
++ *	@root:		radix tree root
++ *	@index:		index key
++ *
++ *	Remove the item at @index from the radix tree rooted at @root.
++ *
++ *	Returns the address of the deleted item, or NULL if it was not present.
++ */
++void *radix_tree_delete(struct radix_tree_root *root, unsigned long index)
++{
++	return radix_tree_delete_item(root, index, NULL);
++}
+ EXPORT_SYMBOL(radix_tree_delete);
+ 
+ /**
+-- 
+1.8.5.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
