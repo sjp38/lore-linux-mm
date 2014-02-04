@@ -1,173 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f44.google.com (mail-pb0-f44.google.com [209.85.160.44])
-	by kanga.kvack.org (Postfix) with ESMTP id D0ADE6B0035
-	for <linux-mm@kvack.org>; Mon,  3 Feb 2014 21:45:07 -0500 (EST)
-Received: by mail-pb0-f44.google.com with SMTP id rq2so7844843pbb.17
-        for <linux-mm@kvack.org>; Mon, 03 Feb 2014 18:45:07 -0800 (PST)
-Received: from mail-pa0-x236.google.com (mail-pa0-x236.google.com [2607:f8b0:400e:c03::236])
-        by mx.google.com with ESMTPS id m1si22708704pbe.28.2014.02.03.18.45.06
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 03 Feb 2014 18:45:06 -0800 (PST)
-Received: by mail-pa0-f54.google.com with SMTP id fa1so7838081pad.41
-        for <linux-mm@kvack.org>; Mon, 03 Feb 2014 18:45:06 -0800 (PST)
-Date: Mon, 3 Feb 2014 18:44:20 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [patch] mm, compaction: avoid isolating pinned pages
-In-Reply-To: <alpine.DEB.2.02.1402030231590.31061@chino.kir.corp.google.com>
-Message-ID: <alpine.LSU.2.11.1402031800280.29005@eggly.anvils>
-References: <alpine.DEB.2.02.1402012145510.2593@chino.kir.corp.google.com> <20140203095329.GH6732@suse.de> <alpine.DEB.2.02.1402030231590.31061@chino.kir.corp.google.com>
+Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 11D306B0035
+	for <linux-mm@kvack.org>; Mon,  3 Feb 2014 21:47:13 -0500 (EST)
+Received: by mail-pd0-f176.google.com with SMTP id w10so7592598pde.21
+        for <linux-mm@kvack.org>; Mon, 03 Feb 2014 18:47:12 -0800 (PST)
+Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
+        by mx.google.com with ESMTP id m1si22673198pbe.268.2014.02.03.18.47.10
+        for <linux-mm@kvack.org>;
+        Mon, 03 Feb 2014 18:47:11 -0800 (PST)
+Date: Tue, 4 Feb 2014 11:47:07 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH v2] mm/zswap: add writethrough option
+Message-ID: <20140204024707.GC3481@bbox>
+References: <1387459407-29342-1-git-send-email-ddstreet@ieee.org>
+ <1390831279-5525-1-git-send-email-ddstreet@ieee.org>
+ <20140203150835.f55fd427d0ebb0c2943f266b@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140203150835.f55fd427d0ebb0c2943f266b@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Dan Streetman <ddstreet@ieee.org>, Seth Jennings <sjennings@variantweb.net>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Bob Liu <bob.liu@oracle.com>, Weijie Yang <weijie.yang@samsung.com>, Shirish Pargaonkar <spargaonkar@suse.com>, Mel Gorman <mgorman@suse.de>
 
-On Mon, 3 Feb 2014, David Rientjes wrote:
-> On Mon, 3 Feb 2014, Mel Gorman wrote:
+Hello Andrew,
+
+On Mon, Feb 03, 2014 at 03:08:35PM -0800, Andrew Morton wrote:
+> On Mon, 27 Jan 2014 09:01:19 -0500 Dan Streetman <ddstreet@ieee.org> wrote:
 > 
-> > > Page migration will fail for memory that is pinned in memory with, for
-> > > example, get_user_pages().  In this case, it is unnecessary to take
-> > > zone->lru_lock or isolating the page and passing it to page migration
-> > > which will ultimately fail.
-> > > 
-> > > This is a racy check, the page can still change from under us, but in
-> > > that case we'll just fail later when attempting to move the page.
-> > > 
-> > > This avoids very expensive memory compaction when faulting transparent
-> > > hugepages after pinning a lot of memory with a Mellanox driver.
-> > > 
-> > > On a 128GB machine and pinning ~120GB of memory, before this patch we
-> > > see the enormous disparity in the number of page migration failures
-> > > because of the pinning (from /proc/vmstat):
-
-120GB of memory on the active/inactive lrus but longterm pinned,
-that's quite worrying: not just a great waste of time for compaction,
-but for page reclaim also.  I suppose a fairly easy way around it would
-be for the driver to use mlock too, moving them all to unevictable lru.
-
-But in general, you may well  be right that, racy as this isolation/
-migration procedure necessarily is, in the face of longterm pinning it
-may make more sense to test page_count before proceding to isolation
-rather than only after in migration.  We always took the view that it's
-better to give up only at the last moment, but that may be a bad bet.
-
-> > > 
-> > > compact_blocks_moved 7609
-> > > compact_pages_moved 3431
-> > > compact_pagemigrate_failed 133219
-> > > compact_stall 13
-> > > 
-> > > After the patch, it is much more efficient:
-> > > 
-> > > compact_blocks_moved 7998
-> > > compact_pages_moved 6403
-> > > compact_pagemigrate_failed 3
-> > > compact_stall 15
-> > > 
-> > > Signed-off-by: David Rientjes <rientjes@google.com>
-> > > ---
-> > >  mm/compaction.c | 8 ++++++++
-> > >  1 file changed, 8 insertions(+)
-> > > 
-> > > diff --git a/mm/compaction.c b/mm/compaction.c
-> > > --- a/mm/compaction.c
-> > > +++ b/mm/compaction.c
-> > > @@ -578,6 +578,14 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
-> > >  			continue;
-> > >  		}
-> > >  
-> > > +		/*
-> > > +		 * Migration will fail if an anonymous page is pinned in memory,
-> > > +		 * so avoid taking zone->lru_lock and isolating it unnecessarily
-> > > +		 * in an admittedly racy check.
-> > > +		 */
-> > > +		if (!page_mapping(page) && page_count(page))
-> > > +			continue;
-> > > +
+> > Currently, zswap is writeback cache; stored pages are not sent
+> > to swap disk, and when zswap wants to evict old pages it must
+> > first write them back to swap cache/disk manually.  This avoids
+> > swap out disk I/O up front, but only moves that disk I/O to
+> > the writeback case (for pages that are evicted), and adds the
+> > overhead of having to uncompress the evicted pages and the
+> > need for an additional free page (to store the uncompressed page).
 > > 
-> > Are you sure about this? The page_count check migration does is this
+> > This optionally changes zswap to writethrough cache by enabling
+> > frontswap_writethrough() before registering, so that any
+> > successful page store will also be written to swap disk.  The
+> > default remains writeback.  To enable writethrough, the param
+> > zswap.writethrough=1 must be used at boot.
 > > 
-> >         int expected_count = 1 + extra_count;
-> >         if (!mapping) {
-> >                 if (page_count(page) != expected_count)
-> >                         return -EAGAIN;
-> >                 return MIGRATEPAGE_SUCCESS;
-> >         }
+> > Whether writeback or writethrough will provide better performance
+> > depends on many factors including disk I/O speed/throughput,
+> > CPU speed(s), system load, etc.  In most cases it is likely
+> > that writeback has better performance than writethrough before
+> > zswap is full, but after zswap fills up writethrough has
+> > better performance than writeback.
 > > 
-> >         spin_lock_irq(&mapping->tree_lock);
+> > The reason to add this option now is, first to allow any zswap
+> > user to be able to test using writethrough to determine if they
+> > get better performance than using writeback, and second to allow
+> > future updates to zswap, such as the possibility of dynamically
+> > switching between writeback and writethrough.
 > > 
-> >         pslot = radix_tree_lookup_slot(&mapping->page_tree,
-> >                                         page_index(page));
+> > ...
+> >
+> > Based on specjbb testing on my laptop, the results for both writeback
+> > and writethrough are better than not using zswap at all, but writeback
+> > does seem to be better than writethrough while zswap isn't full.  Once
+> > it fills up, performance for writethrough is essentially close to not
+> > using zswap, while writeback seems to be worse than not using zswap.
+> > However, I think more testing on a wider span of systems and conditions
+> > is needed.  Additionally, I'm not sure that specjbb is measuring true
+> > performance under fully loaded cpu conditions, so additional cpu load
+> > might need to be added or specjbb parameters modified (I took the
+> > values from the 4 "warehouses" test run).
 > > 
-> >         expected_count += 1 + page_has_private(page);
+> > In any case though, I think having writethrough as an option is still
+> > useful.  More changes could be made, such as changing from writeback
+> > to writethrough based on the zswap % full.  And the patch doesn't
+> > change default behavior - writethrough must be specifically enabled.
 > > 
-> > Migration expects and can migrate pages with no mapping and a page count
-> > but you are now skipping them. I think you may have intended to split
-> > migrations page count into a helper or copy the logic.
+> > The %-ized numbers I got from specjbb on average, using the default
+> > 20% max_pool_percent and varying the amount of heap used as shown:
 > > 
+> > ram | no zswap | writeback | writethrough
+> > 75     93.08     100         96.90
+> > 87     96.58     95.58       96.72
+> > 100    92.29     89.73       86.75
+> > 112    63.80     38.66       19.66
+> > 125    4.79      29.90       15.75
+> > 137    4.99      4.50        4.75
+> > 150    4.28      4.62        5.01
+> > 162    5.20      2.94        4.66
+> > 175    5.71      2.11        4.84
 > 
-> Thanks for taking a look!
+> Changelog is very useful, thanks for taking the time.
 > 
-> The patch is correct, it just shows my lack of a complete commit message 
-
-I don't think so.  I agree with Mel that you should be reconsidering
-those tests that migrate_page_move_mapping() makes, but remembering that
-it's called at a stage between try_to_unmap() and remove_migration_ptes(),
-when page_mapcount has been brought down to 0 - not the case here.
-
-> which I'm struggling with recently.  In the case that this is addressing, 
-> get_user_pages() already gives page_count(page) == 1, then 
-
-But get_user_pages() brings the pages into user address space (if not
-already there), page_mapcount 1 and page_count 1, and does an additional
-pin on the page, page_count 2.  Or if it's a page_mapping page (perhaps
-even PageAnon in SwapCache) there's another +1; if page_has_buffers
-another +1; mapped into more user address spaces, +more.
-
-Your	if (!page_mapping(page) && page_count(page))
-		continue;
-is letting through any Anon SwapCache pages (probably no great concern
-in your 120GB example; but I don't understand why you want to special-
-case Anon anyway, beyond your specific testcase); and refusing to
-isolate all those unpinned anonymous pages mapped into userspace which
-migration is perfectly capable of migrating.  If 120GB out of 128GB is
-pinned, that won't be a significant proportion, and of course your
-change saves a lot of wasted time and lock contention; but for most
-people it's a considerable proportion of their memory, and needs to
-be migratable.
-
-I think Joonsoo is making the same point (though I disagree with the
-test he suggested); but I've not yet read the latest mails under a
-separate subject (" fix" appended).
-
-Hugh
-
-> __isolate_lru_page() does another get_page() that is dropped in 
-> putback_lru_page() after the call into migrate_pages().  So in the code 
-> you quote above we always have page_count(page) == 2 and
-> expected_count == 1.
+> It does sound like the feature is of marginal benefit.  Is "zswap
+> filled up" an interesting or useful case to optimize?
 > 
-> So what we desperately need to do is avoid isolating any page where 
-> page_count(page) is non-zero and !page_mapping(page) and do that before 
-> the get_page() in __isolate_lru_page() because we want to avoid taking 
-> zone->lru_lock.  On my 128GB machine filled with ~120GB of pinned memory 
-> for the driver, this lock gets highly contended under compaction and even 
-> reclaim if the rest of userspace is using a lot of memory.
+> otoh the addition is pretty simple and we can later withdraw the whole
+> thing without breaking anyone's systems.
 > 
-> It's not really relevant to the commit message, but I found that if all 
-> that ~120GB is faulted and I manually invoke compaction with the procfs 
-> trigger (with my fix to do cc.ignore_skip_hint = true), this lock gets 
-> taken ~450,000 times and only 0.05% of isolated pages are actually 
-> successfully migrated.
-> 
-> Deferred compaction will certainly help for compaction that isn't induced 
-> via procfs, but we've encountered massive amounts of lock contention in 
-> this path and extremely low success to failure ratios of page migration on 
-> average of 2-3 out of 60 runs and the fault path really does grind to a 
-> halt without this patch (or simply doing MADV_NOHUGEPAGE before the driver 
-> does ib_umem_get() for 120GB of memory, but we want those hugepages!).
+> What do people think?
+
+IMHO, Using overcommiting memory and swap, it's really thing
+we shold optimize once we decided to use writeback of zswap.
+
+But I don't think writethrough isn't ideal solution for
+that case where zswap is full. Sometime, just dynamic disabling
+of zswap might be better due to reducing unnecessary
+comp/decomp overhead.
+
+Dan said that it's good to have because someuser might find
+right example we didn't find in future. Although I'm not a
+huge fan of such justification for merging the patch(I tempted
+my patches several time with such claim), I don't object it
+(Actually, I have an idea to make zswap's writethough useful but
+it isn't related to this topic) any more if we could withdraw
+easily if it turns out a obstacle for future enhace.
+
+Thanks.
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
