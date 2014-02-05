@@ -1,59 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f45.google.com (mail-pb0-f45.google.com [209.85.160.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 44B486B003C
-	for <linux-mm@kvack.org>; Tue,  4 Feb 2014 19:02:43 -0500 (EST)
-Received: by mail-pb0-f45.google.com with SMTP id un15so9099529pbc.18
-        for <linux-mm@kvack.org>; Tue, 04 Feb 2014 16:02:42 -0800 (PST)
-Received: from mail-pb0-x230.google.com (mail-pb0-x230.google.com [2607:f8b0:400e:c01::230])
-        by mx.google.com with ESMTPS id fb4si2036725pbb.292.2014.02.04.16.02.42
+Received: from mail-pb0-f53.google.com (mail-pb0-f53.google.com [209.85.160.53])
+	by kanga.kvack.org (Postfix) with ESMTP id DA8BB6B003B
+	for <linux-mm@kvack.org>; Tue,  4 Feb 2014 19:06:40 -0500 (EST)
+Received: by mail-pb0-f53.google.com with SMTP id md12so9140367pbc.40
+        for <linux-mm@kvack.org>; Tue, 04 Feb 2014 16:06:40 -0800 (PST)
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+        by mx.google.com with ESMTPS id fb4si2048571pbb.82.2014.02.04.16.06.39
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 04 Feb 2014 16:02:42 -0800 (PST)
-Received: by mail-pb0-f48.google.com with SMTP id rr13so9112748pbb.21
-        for <linux-mm@kvack.org>; Tue, 04 Feb 2014 16:02:42 -0800 (PST)
-Date: Tue, 4 Feb 2014 16:02:39 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch] mm, page_alloc: make first_page visible before PageTail
-In-Reply-To: <alpine.LRH.2.02.1402040713220.13901@diagnostix.dwd.de>
-Message-ID: <alpine.DEB.2.02.1402041557380.10140@chino.kir.corp.google.com>
-References: <alpine.LRH.2.02.1401312037340.6630@diagnostix.dwd.de> <20140203122052.GC2495@dhcp22.suse.cz> <alpine.LRH.2.02.1402031426510.13382@diagnostix.dwd.de> <20140203162036.GJ2495@dhcp22.suse.cz> <52EFC93D.3030106@suse.cz>
- <alpine.DEB.2.02.1402031602060.10778@chino.kir.corp.google.com> <alpine.LRH.2.02.1402040713220.13901@diagnostix.dwd.de>
+        Tue, 04 Feb 2014 16:06:39 -0800 (PST)
+Received: by mail-pa0-f52.google.com with SMTP id bj1so9186637pad.25
+        for <linux-mm@kvack.org>; Tue, 04 Feb 2014 16:06:39 -0800 (PST)
+Content-Type: text/plain; charset="utf-8"
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
+From: Sebastian Capella <sebastian.capella@linaro.org>
+In-Reply-To: <1593382.PUxxx0NMeh@vostro.rjw.lan>
+References: <1391546631-7715-1-git-send-email-sebastian.capella@linaro.org>
+ <20140204223733.30015.23993@capellas-linux>
+ <20140204232222.31169.83206@capellas-linux>
+ <1593382.PUxxx0NMeh@vostro.rjw.lan>
+Message-ID: <20140205000642.6803.8182@capellas-linux>
+Subject: Re: [PATCH v7 2/3] trivial: PM / Hibernate: clean up checkpatch in
+ hibernate.c
+Date: Tue, 04 Feb 2014 16:06:42 -0800
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Holger Kiehl <Holger.Kiehl@dwd.de>
-Cc: Christoph Lameter <cl@linux.com>, Rafael Aquini <aquini@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Rafael J. Wysocki" <rjw@rjwysocki.net>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-pm@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, Pavel Machek <pavel@ucw.cz>, Len Brown <len.brown@intel.com>
 
-Commit bf6bddf1924e ("mm: introduce compaction and migration for ballooned 
-pages") introduces page_count(page) into memory compaction which 
-dereferences page->first_page if PageTail(page).
+Quoting Rafael J. Wysocki (2014-02-04 16:03:29)
+> On Tuesday, February 04, 2014 03:22:22 PM Sebastian Capella wrote:
+> > Quoting Sebastian Capella (2014-02-04 14:37:33)
+> > > Quoting Rafael J. Wysocki (2014-02-04 13:36:29)
+> > > > >  static int __init resumedelay_setup(char *str)
+> > > > >  {
+> > > > > -     resume_delay =3D simple_strtoul(str, NULL, 0);
+> > > > > +     int ret =3D kstrtoint(str, 0, &resume_delay);
+> > > > > +     /* mask must_check warn; on failure, leaves resume_delay un=
+changed */
+> > > > > +     (void)ret;
+> > =
 
-Introduce a store memory barrier to ensure page->first_page is properly 
-initialized so that code that does page_count(page) on pages off the lru 
-always have a valid p->first_page.
+> > One unintended consequence of this change is that it'll now accept a
+> > negative integer parameter.
+> =
 
-Reported-by: Holger Kiehl <Holger.Kiehl@dwd.de>
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- mm/page_alloc.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+> Well, what about using kstrtouint(), then?
+I was thinking of doing something like:
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -369,9 +369,10 @@ void prep_compound_page(struct page *page, unsigned long order)
- 	__SetPageHead(page);
- 	for (i = 1; i < nr_pages; i++) {
- 		struct page *p = page + i;
--		__SetPageTail(p);
- 		set_page_count(p, 0);
- 		p->first_page = page;
-+		smp_wmb();
-+		__SetPageTail(p);
- 	}
- }
- 
+	int delay, res;
+	res =3D kstrtoint(str, 0, &delay);
+	if (!res && delay >=3D 0)
+		resume_delay =3D delay;
+	return 1;
+
+> Well, kstrtoint() is used in some security-sensitive places AFAICS, so it
+> really is better to check its return value in general.  The __must_check
+> reminds people about that.
+
+Thanks!
+
+Sebastian
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
