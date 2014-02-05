@@ -1,53 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 731466B0037
+Received: from mail-qc0-f180.google.com (mail-qc0-f180.google.com [209.85.216.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B7DF6B003A
 	for <linux-mm@kvack.org>; Tue,  4 Feb 2014 19:14:10 -0500 (EST)
-Received: by mail-pd0-f174.google.com with SMTP id z10so8865995pdj.19
+Received: by mail-qc0-f180.google.com with SMTP id i17so14784749qcy.25
         for <linux-mm@kvack.org>; Tue, 04 Feb 2014 16:14:10 -0800 (PST)
-Received: from mail-pb0-x230.google.com (mail-pb0-x230.google.com [2607:f8b0:400e:c01::230])
-        by mx.google.com with ESMTPS id va10si26554917pbc.338.2014.02.04.16.14.09
+Received: from e7.ny.us.ibm.com (e7.ny.us.ibm.com. [32.97.182.137])
+        by mx.google.com with ESMTPS id d69si19193533qge.138.2014.02.04.16.14.09
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 04 Feb 2014 16:14:09 -0800 (PST)
-Received: by mail-pb0-f48.google.com with SMTP id rr13so9189551pbb.35
-        for <linux-mm@kvack.org>; Tue, 04 Feb 2014 16:14:09 -0800 (PST)
-Date: Tue, 4 Feb 2014 16:14:07 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch] mm, page_alloc: make first_page visible before
- PageTail
-In-Reply-To: <20140204160641.8f5d369eeb2d0318618d6d5f@linux-foundation.org>
-Message-ID: <alpine.DEB.2.02.1402041613450.14962@chino.kir.corp.google.com>
-References: <alpine.LRH.2.02.1401312037340.6630@diagnostix.dwd.de> <20140203122052.GC2495@dhcp22.suse.cz> <alpine.LRH.2.02.1402031426510.13382@diagnostix.dwd.de> <20140203162036.GJ2495@dhcp22.suse.cz> <52EFC93D.3030106@suse.cz>
- <alpine.DEB.2.02.1402031602060.10778@chino.kir.corp.google.com> <alpine.LRH.2.02.1402040713220.13901@diagnostix.dwd.de> <alpine.DEB.2.02.1402041557380.10140@chino.kir.corp.google.com> <20140204160641.8f5d369eeb2d0318618d6d5f@linux-foundation.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 04 Feb 2014 16:14:10 -0800 (PST)
+Received: from /spool/local
+	by e7.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <nacc@linux.vnet.ibm.com>;
+	Tue, 4 Feb 2014 19:14:09 -0500
+Received: from b01cxnp22036.gho.pok.ibm.com (b01cxnp22036.gho.pok.ibm.com [9.57.198.26])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 3822138C8059
+	for <linux-mm@kvack.org>; Tue,  4 Feb 2014 19:14:06 -0500 (EST)
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by b01cxnp22036.gho.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s150E6rm3735916
+	for <linux-mm@kvack.org>; Wed, 5 Feb 2014 00:14:06 GMT
+Received: from d01av02.pok.ibm.com (localhost [127.0.0.1])
+	by d01av02.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s150E5a2030508
+	for <linux-mm@kvack.org>; Tue, 4 Feb 2014 19:14:06 -0500
+Date: Tue, 4 Feb 2014 16:13:52 -0800
+From: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
+Subject: Re: [PATCH] slub: Don't throw away partial remote slabs if there is
+ no local memory
+Message-ID: <20140205001352.GC10101@linux.vnet.ibm.com>
+References: <alpine.DEB.2.02.1401241543100.18620@chino.kir.corp.google.com>
+ <20140125001643.GA25344@linux.vnet.ibm.com>
+ <alpine.DEB.2.02.1401241618500.20466@chino.kir.corp.google.com>
+ <20140125011041.GB25344@linux.vnet.ibm.com>
+ <20140127055805.GA2471@lge.com>
+ <20140128182947.GA1591@linux.vnet.ibm.com>
+ <20140203230026.GA15383@linux.vnet.ibm.com>
+ <alpine.DEB.2.10.1402032138070.17997@nuc>
+ <20140204072630.GB10101@linux.vnet.ibm.com>
+ <alpine.DEB.2.10.1402041436150.11222@nuc>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.10.1402041436150.11222@nuc>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Holger Kiehl <Holger.Kiehl@dwd.de>, Christoph Lameter <cl@linux.com>, Rafael Aquini <aquini@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Christoph Lameter <cl@linux.com>
+Cc: Han Pingtian <hanpt@linux.vnet.ibm.com>, mpm@selenic.com, penberg@kernel.org, linux-mm@kvack.org, paulus@samba.org, Anton Blanchard <anton@samba.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linuxppc-dev@lists.ozlabs.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-On Tue, 4 Feb 2014, Andrew Morton wrote:
-
-> > Commit bf6bddf1924e ("mm: introduce compaction and migration for ballooned 
-> > pages") introduces page_count(page) into memory compaction which 
-> > dereferences page->first_page if PageTail(page).
-> > 
-> > Introduce a store memory barrier to ensure page->first_page is properly 
-> > initialized so that code that does page_count(page) on pages off the lru 
-> > always have a valid p->first_page.
+On 04.02.2014 [14:39:32 -0600], Christoph Lameter wrote:
+> On Mon, 3 Feb 2014, Nishanth Aravamudan wrote:
 > 
-> Could we have a code comment please?  Even checkpatch knows this rule!
+> > Yes, sorry for my lack of clarity. I meant Joonsoo's latest patch for
+> > the $SUBJECT issue.
 > 
+> Hmmm... I am not sure that this is a general solution. The fallback to
+> other nodes can not only occur because a node has no memory as his patch
+> assumes.
 
-Ok.
+Thanks, Christoph. I see your point.
 
-> > Reported-by: Holger Kiehl <Holger.Kiehl@dwd.de>
-> 
-> What did Holger report?
-> 
+Something in this area would be nice, though, as it does produce a
+fairly significant bump in the slab usage on our test system.
 
-A once-in-five-years NULL pointer dereference on the aforementioned 
-page_count(page).
+> If the target node allocation fails (for whatever reason) then I would
+> recommend for simplicities sake to change the target node to
+> NUMA_NO_NODE and just take whatever is in the current cpu slab. A more
+> complex solution would be to look through partial lists in increasing
+> distance to find a partially used slab that is reasonable close to the
+> current node. Slab has logic like that in fallback_alloc(). Slubs
+> get_any_partial() function does something close to what you want.
+
+I apologize for my own ignorance, but I'm having trouble following.
+Anton's original patch did fallback to the current cpu slab, but I'm not
+sure any NUMA_NO_NODE change is necessary there. At the point we're
+deactivating the slab (in the current code, in __slab_alloc()), we have
+successfully allocated from somewhere, it's just not on the node we
+expected to be on.
+
+So perhaps you are saying to make a change lower in the code? I'm not
+sure where it makes sense to change the target node in that case. I'd
+appreciate any guidance you can give.
+
+Thanks,
+Nish
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
