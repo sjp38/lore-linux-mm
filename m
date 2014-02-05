@@ -1,19 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f169.google.com (mail-we0-f169.google.com [74.125.82.169])
-	by kanga.kvack.org (Postfix) with ESMTP id A04306B0036
-	for <linux-mm@kvack.org>; Wed,  5 Feb 2014 11:29:44 -0500 (EST)
-Received: by mail-we0-f169.google.com with SMTP id t61so477760wes.0
-        for <linux-mm@kvack.org>; Wed, 05 Feb 2014 08:29:44 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v4si15397535wjz.106.2014.02.05.08.29.42
+Received: from mail-qc0-f180.google.com (mail-qc0-f180.google.com [209.85.216.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 29CE06B0035
+	for <linux-mm@kvack.org>; Wed,  5 Feb 2014 11:30:59 -0500 (EST)
+Received: by mail-qc0-f180.google.com with SMTP id i17so990500qcy.39
+        for <linux-mm@kvack.org>; Wed, 05 Feb 2014 08:30:58 -0800 (PST)
+Received: from mail-qa0-x22b.google.com (mail-qa0-x22b.google.com [2607:f8b0:400d:c00::22b])
+        by mx.google.com with ESMTPS id fy9si20978668qab.53.2014.02.05.08.30.36
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 05 Feb 2014 08:29:43 -0800 (PST)
-Date: Wed, 5 Feb 2014 17:29:41 +0100
-From: Michal Hocko <mhocko@suse.cz>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 05 Feb 2014 08:30:36 -0800 (PST)
+Received: by mail-qa0-f43.google.com with SMTP id o15so880611qap.2
+        for <linux-mm@kvack.org>; Wed, 05 Feb 2014 08:30:35 -0800 (PST)
+Date: Wed, 5 Feb 2014 11:30:32 -0500
+From: Tejun Heo <tj@kernel.org>
 Subject: Re: [PATCH -v2 4/6] memcg: make sure that memcg is not offline when
  charging
-Message-ID: <20140205162941.GF2425@dhcp22.suse.cz>
+Message-ID: <20140205162701.GB2786@htj.dyndns.org>
 References: <1391520540-17436-1-git-send-email-mhocko@suse.cz>
  <1391520540-17436-5-git-send-email-mhocko@suse.cz>
  <20140204162939.GP6963@cmpxchg.org>
@@ -26,45 +28,38 @@ Content-Disposition: inline
 In-Reply-To: <20140205161940.GE2425@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On Wed 05-02-14 17:19:40, Michal Hocko wrote:
-> On Wed 05-02-14 10:28:21, Johannes Weiner wrote:
-[...]
-> > I thought more about this and talked to Tejun as well.  He told me
-> > that the rcu grace period between disabling tryget and calling
-> > css_offline() is currently an implementation detail of the refcounter
-> > that css uses, but it's not a guarantee.  So my initial idea of
-> > reworking memcg to do css_tryget() and res_counter_charge() in the
-> > same rcu section is no longer enough to synchronize against offlining.
-> > We can forget about that.
-> > 
-> > On the other hand, memcg holds a css reference only while an actual
-> > controller reference is being established (res_counter_charge), then
-> > drops it.  This means that once css_tryget() is disabled, we only need
-> > to wait for the css refcounter to hit 0 to know for sure that no new
-> > charges can show up and reparent_charges() is safe to run, right?
-> > 
+Hello, Michal.
+
+On Wed, Feb 05, 2014 at 05:19:40PM +0100, Michal Hocko wrote:
 > > Well, css_free() is the callback invoked when the ref counter hits 0,
 > > and that is a guarantee.  From a memcg perspective, it's the right
 > > place to do reparenting, not css_offline().
 > 
 > OK, it seems I've totally misunderstood what is the purpose of
 > css_offline. My understanding was that any attempt to css_tryget will
+
+Heh, the semantics have changed significantly during the past year.
+It started as something pretty unusual (synchronous ref draining on
+rmdir) and took some iterations to reach the current design and we
+still don't have any proper documentation, so misunderstanding
+probably is inevitable, sorry.  :)
+
 > fail when css_offline starts. I will read through Tejun's email as well
 > and think about it some more.
 
-OK, so css_tryget fails at the time of css_offline but there is no rcu
-guarantee which we rely on. This means that css_offline is of very
-limitted use for us. Pages which are swapped out are not reachable for
-reparent and so we still might have a lot of references to css. Whether
-it makes much sense to call reparent only for the swapcache is
-questionable. We are still relying on some task to release that memory
-while it lives in other memcg.
+Yes, css_tryget() is guaranteed to fail once css_offline() starts.
+This is to help ref draining so that controllers have a scalable way
+to reliably decide when to say no to new usages.  Please note that
+css_get() is still allowed even after css_offline() (of course as long
+as the caller already has a ref).
+
+Thanks!
+
 -- 
-Michal Hocko
-SUSE Labs
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
