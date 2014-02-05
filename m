@@ -1,97 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 470066B0035
-	for <linux-mm@kvack.org>; Wed,  5 Feb 2014 11:29:12 -0500 (EST)
-Received: by mail-wg0-f49.google.com with SMTP id a1so470908wgh.16
-        for <linux-mm@kvack.org>; Wed, 05 Feb 2014 08:29:11 -0800 (PST)
-Received: from relay.sgi.com (relay2.sgi.com. [192.48.179.30])
-        by mx.google.com with ESMTP id d8si50790083eeh.137.2014.02.05.08.29.09
-        for <linux-mm@kvack.org>;
-        Wed, 05 Feb 2014 08:29:10 -0800 (PST)
-From: Nathan Zimmer <nzimmer@sgi.com>
-Subject: [RFC] Move the memory_notifier out of the memory_hotplug lock
-Date: Wed,  5 Feb 2014 10:29:03 -0600
-Message-Id: <1391617743-150518-1-git-send-email-nzimmer@sgi.com>
+Received: from mail-we0-f169.google.com (mail-we0-f169.google.com [74.125.82.169])
+	by kanga.kvack.org (Postfix) with ESMTP id A04306B0036
+	for <linux-mm@kvack.org>; Wed,  5 Feb 2014 11:29:44 -0500 (EST)
+Received: by mail-we0-f169.google.com with SMTP id t61so477760wes.0
+        for <linux-mm@kvack.org>; Wed, 05 Feb 2014 08:29:44 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id v4si15397535wjz.106.2014.02.05.08.29.42
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 05 Feb 2014 08:29:43 -0800 (PST)
+Date: Wed, 5 Feb 2014 17:29:41 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH -v2 4/6] memcg: make sure that memcg is not offline when
+ charging
+Message-ID: <20140205162941.GF2425@dhcp22.suse.cz>
+References: <1391520540-17436-1-git-send-email-mhocko@suse.cz>
+ <1391520540-17436-5-git-send-email-mhocko@suse.cz>
+ <20140204162939.GP6963@cmpxchg.org>
+ <20140205133834.GB2425@dhcp22.suse.cz>
+ <20140205152821.GY6963@cmpxchg.org>
+ <20140205161940.GE2425@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140205161940.GE2425@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Nathan Zimmer <nzimmer@sgi.com>, Andrew Morton <akpm@linux-foundation.org>, Tang Chen <tangchen@cn.fujitsu.com>, Wen Congyang <wency@cn.fujitsu.com>, Toshi Kani <toshi.kani@hp.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Xishi Qiu <qiuxishi@huawei.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, David Rientjes <rientjes@google.com>, Jiang Liu <liuj97@gmail.com>, Hedi Berriche <hedi@sgi.com>, Mike Travis <travis@sgi.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-There are a few spots where we call memory_notifier. This doesn't need to be
-done under lock since memory_notify is just a blocking_notifier_call_chain
-with it's own locking mechanism.
+On Wed 05-02-14 17:19:40, Michal Hocko wrote:
+> On Wed 05-02-14 10:28:21, Johannes Weiner wrote:
+[...]
+> > I thought more about this and talked to Tejun as well.  He told me
+> > that the rcu grace period between disabling tryget and calling
+> > css_offline() is currently an implementation detail of the refcounter
+> > that css uses, but it's not a guarantee.  So my initial idea of
+> > reworking memcg to do css_tryget() and res_counter_charge() in the
+> > same rcu section is no longer enough to synchronize against offlining.
+> > We can forget about that.
+> > 
+> > On the other hand, memcg holds a css reference only while an actual
+> > controller reference is being established (res_counter_charge), then
+> > drops it.  This means that once css_tryget() is disabled, we only need
+> > to wait for the css refcounter to hit 0 to know for sure that no new
+> > charges can show up and reparent_charges() is safe to run, right?
+> > 
+> > Well, css_free() is the callback invoked when the ref counter hits 0,
+> > and that is a guarantee.  From a memcg perspective, it's the right
+> > place to do reparenting, not css_offline().
+> 
+> OK, it seems I've totally misunderstood what is the purpose of
+> css_offline. My understanding was that any attempt to css_tryget will
+> fail when css_offline starts. I will read through Tejun's email as well
+> and think about it some more.
 
-This RFC is a follow on to the one I submitted earlier.
-(move register_memory_resource out of the lock_memory_hotplug, commit ac13c46)
-Most of our time is being spend under the memory hotplug lock in particular
-online_pages() so it makes sense to move out everything that can be easily
-moved out.
-
-However perf pointed me to a spot to work on, setup_zone_migrate_reserve.
-In fact most of the time is spent there.  Since that is going to require
-more reading and time I will start by whittling out some easy pieces.
-
-cc: Andrew Morton <akpm@linux-foundation.org>
-cc: Tang Chen <tangchen@cn.fujitsu.com>
-cc: Wen Congyang <wency@cn.fujitsu.com>
-cc: Toshi Kani <toshi.kani@hp.com>
-cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-cc: Xishi Qiu <qiuxishi@huawei.com>
-cc: Cody P Schafer <cody@linux.vnet.ibm.com>
-cc: "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>
-cc: David Rientjes <rientjes@google.com>
-cc: Jiang Liu <liuj97@gmail.com>
-Cc: Hedi Berriche <hedi@sgi.com>
-Cc: Mike Travis <travis@sgi.com>
-linux-mm@kvack.org (open list:MEMORY MANAGEMENT)
-linux-kernel@vger.kernel.org (open list)
-
----
- mm/memory_hotplug.c | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
-
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 62a0cd1..a3cbd14 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -985,12 +985,12 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
- 		if (need_zonelists_rebuild)
- 			zone_pcp_reset(zone);
- 		mutex_unlock(&zonelists_mutex);
-+		unlock_memory_hotplug();
- 		printk(KERN_DEBUG "online_pages [mem %#010llx-%#010llx] failed\n",
- 		       (unsigned long long) pfn << PAGE_SHIFT,
- 		       (((unsigned long long) pfn + nr_pages)
- 			    << PAGE_SHIFT) - 1);
- 		memory_notify(MEM_CANCEL_ONLINE, &arg);
--		unlock_memory_hotplug();
- 		return ret;
- 	}
- 
-@@ -1016,9 +1016,10 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
- 
- 	writeback_set_ratelimit();
- 
-+	unlock_memory_hotplug();
-+
- 	if (onlined_pages)
- 		memory_notify(MEM_ONLINE, &arg);
--	unlock_memory_hotplug();
- 
- 	return 0;
- }
-@@ -1601,8 +1602,8 @@ repeat:
- 	vm_total_pages = nr_free_pagecache_pages();
- 	writeback_set_ratelimit();
- 
--	memory_notify(MEM_OFFLINE, &arg);
- 	unlock_memory_hotplug();
-+	memory_notify(MEM_OFFLINE, &arg);
- 	return 0;
- 
- failed_removal:
+OK, so css_tryget fails at the time of css_offline but there is no rcu
+guarantee which we rely on. This means that css_offline is of very
+limitted use for us. Pages which are swapped out are not reachable for
+reparent and so we still might have a lot of references to css. Whether
+it makes much sense to call reparent only for the swapcache is
+questionable. We are still relying on some task to release that memory
+while it lives in other memcg.
 -- 
-1.8.2.1
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
