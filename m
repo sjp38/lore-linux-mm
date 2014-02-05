@@ -1,51 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f48.google.com (mail-pb0-f48.google.com [209.85.160.48])
-	by kanga.kvack.org (Postfix) with ESMTP id EE89F6B0037
-	for <linux-mm@kvack.org>; Wed,  5 Feb 2014 14:25:38 -0500 (EST)
-Received: by mail-pb0-f48.google.com with SMTP id rr13so764140pbb.21
-        for <linux-mm@kvack.org>; Wed, 05 Feb 2014 11:25:38 -0800 (PST)
-Received: from mail-pa0-x22b.google.com (mail-pa0-x22b.google.com [2607:f8b0:400e:c03::22b])
-        by mx.google.com with ESMTPS id sj5si30094971pab.342.2014.02.05.11.25.37
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 05 Feb 2014 11:25:38 -0800 (PST)
-Received: by mail-pa0-f43.google.com with SMTP id rd3so734946pab.16
-        for <linux-mm@kvack.org>; Wed, 05 Feb 2014 11:25:37 -0800 (PST)
-Date: Wed, 5 Feb 2014 11:25:35 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [slub] WARNING: CPU: 1 PID: 1 at mm/slub.c:992
- deactivate_slab()
-In-Reply-To: <20140205112449.GB18849@localhost>
-Message-ID: <alpine.DEB.2.02.1402051123520.5616@chino.kir.corp.google.com>
-References: <20140205072558.GC9379@localhost> <alpine.DEB.2.02.1402050009200.7839@chino.kir.corp.google.com> <20140205112449.GB18849@localhost>
-MIME-Version: 1.0
+Received: from mail-ig0-f182.google.com (mail-ig0-f182.google.com [209.85.213.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 1317B6B0037
+	for <linux-mm@kvack.org>; Wed,  5 Feb 2014 14:28:07 -0500 (EST)
+Received: by mail-ig0-f182.google.com with SMTP id uy17so4163228igb.3
+        for <linux-mm@kvack.org>; Wed, 05 Feb 2014 11:28:06 -0800 (PST)
+Received: from qmta10.westchester.pa.mail.comcast.net (qmta10.westchester.pa.mail.comcast.net. [2001:558:fe14:43:76:96:62:17])
+        by mx.google.com with ESMTP id i4si30077694pad.199.2014.02.05.11.28.04
+        for <linux-mm@kvack.org>;
+        Wed, 05 Feb 2014 11:28:05 -0800 (PST)
+Date: Wed, 5 Feb 2014 13:28:03 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH] slub: Don't throw away partial remote slabs if there is
+ no local memory
+In-Reply-To: <20140205001352.GC10101@linux.vnet.ibm.com>
+Message-ID: <alpine.DEB.2.10.1402051312430.21661@nuc>
+References: <alpine.DEB.2.02.1401241543100.18620@chino.kir.corp.google.com> <20140125001643.GA25344@linux.vnet.ibm.com> <alpine.DEB.2.02.1401241618500.20466@chino.kir.corp.google.com> <20140125011041.GB25344@linux.vnet.ibm.com> <20140127055805.GA2471@lge.com>
+ <20140128182947.GA1591@linux.vnet.ibm.com> <20140203230026.GA15383@linux.vnet.ibm.com> <alpine.DEB.2.10.1402032138070.17997@nuc> <20140204072630.GB10101@linux.vnet.ibm.com> <alpine.DEB.2.10.1402041436150.11222@nuc>
+ <20140205001352.GC10101@linux.vnet.ibm.com>
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Fengguang Wu <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
+Cc: Han Pingtian <hanpt@linux.vnet.ibm.com>, mpm@selenic.com, penberg@kernel.org, linux-mm@kvack.org, paulus@samba.org, Anton Blanchard <anton@samba.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linuxppc-dev@lists.ozlabs.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-On Wed, 5 Feb 2014, Fengguang Wu wrote:
+On Tue, 4 Feb 2014, Nishanth Aravamudan wrote:
 
-> > I think this is the inlined add_full() and should be fixed with 
-> > http://marc.info/?l=linux-kernel&m=139147105027693 that has been added to 
-> > the -mm tree and should now be in next.  Is this patch included for this 
-> > kernel?
-> 
-> Hi David,
-> 
-> According to the bisect log, linux-next 20140204 is bad, but it does
-> not yet include your fix.
-> 
-> git bisect  bad 38dbfb59d1175ef458d006556061adeaa8751b72  # 23:16      0-      2  Linus 3.14-rc1
-> git bisect  bad cdd263faccc2184e685573968dae5dd34758e322  # 23:34      1-      3  Add linux-next specific files for 20140204
-> 
+> > If the target node allocation fails (for whatever reason) then I would
+> > recommend for simplicities sake to change the target node to
+> > NUMA_NO_NODE and just take whatever is in the current cpu slab. A more
+> > complex solution would be to look through partial lists in increasing
+> > distance to find a partially used slab that is reasonable close to the
+> > current node. Slab has logic like that in fallback_alloc(). Slubs
+> > get_any_partial() function does something close to what you want.
+>
+> I apologize for my own ignorance, but I'm having trouble following.
+> Anton's original patch did fallback to the current cpu slab, but I'm not
+> sure any NUMA_NO_NODE change is necessary there. At the point we're
+> deactivating the slab (in the current code, in __slab_alloc()), we have
+> successfully allocated from somewhere, it's just not on the node we
+> expected to be on.
 
-Ah, that's because the patch didn't go through Pekka's slab tree but went 
-into -mm instead so we have to wait for another -mm.  However, the traces 
-from linux-next-20140204 that you provided indicate it's the same problem 
-and should be fixed with that patch, so let's wait for another mmotm to be 
-released.
+Right so if we are ignoring the node then the simplest thing to do is to
+not deactivate the current cpu slab but to take an object from it.
+
+> So perhaps you are saying to make a change lower in the code? I'm not
+> sure where it makes sense to change the target node in that case. I'd
+> appreciate any guidance you can give.
+
+This not an easy thing to do. If the current slab is not the right node
+but would be the node from which the page allocator would be returning
+memory then the current slab can still be allocated from. If the fallback
+is to another node then the current cpu slab needs to be deactivated and
+the allocation from that node needs to proceeed. Have a look at
+fallback_alloc() in the slab allocator.
+
+A allocation attempt from the page allocator can be restricted to a
+specific node through GFP_THIS_NODE.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
