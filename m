@@ -1,31 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id E6AD46B0035
-	for <linux-mm@kvack.org>; Wed,  5 Feb 2014 17:18:53 -0500 (EST)
-Received: by mail-pa0-f44.google.com with SMTP id kq14so900636pab.3
-        for <linux-mm@kvack.org>; Wed, 05 Feb 2014 14:18:53 -0800 (PST)
-Received: from e23smtp07.au.ibm.com (e23smtp07.au.ibm.com. [202.81.31.140])
-        by mx.google.com with ESMTPS id gx4si30528789pbc.291.2014.02.05.14.18.51
+Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com [209.85.160.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E2D86B0036
+	for <linux-mm@kvack.org>; Wed,  5 Feb 2014 17:18:59 -0500 (EST)
+Received: by mail-pb0-f54.google.com with SMTP id uo5so930876pbc.41
+        for <linux-mm@kvack.org>; Wed, 05 Feb 2014 14:18:58 -0800 (PST)
+Received: from e28smtp01.in.ibm.com (e28smtp01.in.ibm.com. [122.248.162.1])
+        by mx.google.com with ESMTPS id q6si30517740pbf.64.2014.02.05.14.18.57
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 05 Feb 2014 14:18:52 -0800 (PST)
+        Wed, 05 Feb 2014 14:18:58 -0800 (PST)
 Received: from /spool/local
-	by e23smtp07.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp01.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <srivatsa.bhat@linux.vnet.ibm.com>;
-	Thu, 6 Feb 2014 08:18:47 +1000
-Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
-	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 3E9932BB0054
-	for <linux-mm@kvack.org>; Thu,  6 Feb 2014 09:18:44 +1100 (EST)
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s15LxNIf65142788
-	for <linux-mm@kvack.org>; Thu, 6 Feb 2014 08:59:23 +1100
-Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s15MIg3l018179
-	for <linux-mm@kvack.org>; Thu, 6 Feb 2014 09:18:43 +1100
+	Thu, 6 Feb 2014 03:48:55 +0530
+Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 9CA321258054
+	for <linux-mm@kvack.org>; Thu,  6 Feb 2014 03:50:42 +0530 (IST)
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s15MIkI557344200
+	for <linux-mm@kvack.org>; Thu, 6 Feb 2014 03:48:46 +0530
+Received: from d28av05.in.ibm.com (localhost [127.0.0.1])
+	by d28av05.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s15MIp19018842
+	for <linux-mm@kvack.org>; Thu, 6 Feb 2014 03:48:52 +0530
 From: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
-Subject: [PATCH 48/51] mm, vmstat: Fix CPU hotplug callback registration
-Date: Thu, 06 Feb 2014 03:43:23 +0530
-Message-ID: <20140205221322.19080.63386.stgit@srivatsabhat.in.ibm.com>
+Subject: [PATCH 49/51] mm, zswap: Fix CPU hotplug callback registration
+Date: Thu, 06 Feb 2014 03:43:37 +0530
+Message-ID: <20140205221336.19080.49754.stgit@srivatsabhat.in.ibm.com>
 In-Reply-To: <20140205220251.19080.92336.stgit@srivatsabhat.in.ibm.com>
 References: <20140205220251.19080.92336.stgit@srivatsabhat.in.ibm.com>
 MIME-Version: 1.0
@@ -34,7 +34,7 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: paulus@samba.org, oleg@redhat.com, rusty@rustcorp.com.au, peterz@infradead.org, tglx@linutronix.de, akpm@linux-foundation.org
-Cc: mingo@kernel.org, paulmck@linux.vnet.ibm.com, tj@kernel.org, walken@google.com, ego@linux.vnet.ibm.com, linux@arm.linux.org.uk, linux-kernel@vger.kernel.org, srivatsa.bhat@linux.vnet.ibm.com, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Toshi Kani <toshi.kani@hp.com>, Dave Hansen <dave@sr71.net>, linux-mm@kvack.org"Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
+Cc: mingo@kernel.org, paulmck@linux.vnet.ibm.com, tj@kernel.org, walken@google.com, ego@linux.vnet.ibm.com, linux@arm.linux.org.uk, linux-kernel@vger.kernel.org, srivatsa.bhat@linux.vnet.ibm.com, linux-mm@kvack.org"Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
 
 Subsystems that want to register CPU hotplug callbacks, as well as perform
 initialization for the CPUs that are already online, often do it as shown
@@ -67,46 +67,42 @@ registration is:
 	cpu_maps_update_done();
 
 
-Fix the vmstat code in the MM subsystem by using this latter form of callback
-registration.
+Fix the zswap code by using this latter form of callback registration.
 
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Lameter <cl@linux.com>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-Cc: Cody P Schafer <cody@linux.vnet.ibm.com>
-Cc: Toshi Kani <toshi.kani@hp.com>
-Cc: Dave Hansen <dave@sr71.net>
 Cc: linux-mm@kvack.org
 Signed-off-by: Srivatsa S. Bhat <srivatsa.bhat@linux.vnet.ibm.com>
 ---
 
- mm/vmstat.c |    6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+ mm/zswap.c |    8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
 
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 7249614..70668ba 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -1290,14 +1290,14 @@ static int __init setup_vmstat(void)
- #ifdef CONFIG_SMP
- 	int cpu;
- 
--	register_cpu_notifier(&vmstat_notifier);
-+	cpu_maps_update_begin();
-+	__register_cpu_notifier(&vmstat_notifier);
+diff --git a/mm/zswap.c b/mm/zswap.c
+index e55bab9..681fa3f 100644
+--- a/mm/zswap.c
++++ b/mm/zswap.c
+@@ -387,18 +387,18 @@ static int zswap_cpu_init(void)
+ {
+ 	unsigned long cpu;
  
 -	get_online_cpus();
- 	for_each_online_cpu(cpu) {
- 		start_cpu_timer(cpu);
- 		node_set_state(cpu_to_node(cpu), N_CPU);
- 	}
++	cpu_maps_update_begin();
+ 	for_each_online_cpu(cpu)
+ 		if (__zswap_cpu_notifier(CPU_UP_PREPARE, cpu) != NOTIFY_OK)
+ 			goto cleanup;
+-	register_cpu_notifier(&zswap_cpu_notifier_block);
+-	put_online_cpus();
++	__register_cpu_notifier(&zswap_cpu_notifier_block);
++	cpu_maps_update_done();
+ 	return 0;
+ 
+ cleanup:
+ 	for_each_online_cpu(cpu)
+ 		__zswap_cpu_notifier(CPU_UP_CANCELED, cpu);
 -	put_online_cpus();
 +	cpu_maps_update_done();
- #endif
- #ifdef CONFIG_PROC_FS
- 	proc_create("buddyinfo", S_IRUGO, NULL, &fragmentation_file_operations);
+ 	return -ENOMEM;
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
