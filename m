@@ -1,366 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f180.google.com (mail-we0-f180.google.com [74.125.82.180])
-	by kanga.kvack.org (Postfix) with ESMTP id AF9F36B0031
-	for <linux-mm@kvack.org>; Wed,  5 Feb 2014 09:28:23 -0500 (EST)
-Received: by mail-we0-f180.google.com with SMTP id u57so352969wes.11
-        for <linux-mm@kvack.org>; Wed, 05 Feb 2014 06:28:23 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id lm2si15201767wjb.40.2014.02.05.06.28.21
+Received: from mail-la0-f50.google.com (mail-la0-f50.google.com [209.85.215.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 548C56B0035
+	for <linux-mm@kvack.org>; Wed,  5 Feb 2014 10:18:33 -0500 (EST)
+Received: by mail-la0-f50.google.com with SMTP id ec20so439377lab.9
+        for <linux-mm@kvack.org>; Wed, 05 Feb 2014 07:18:32 -0800 (PST)
+Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
+        by mx.google.com with ESMTPS id ya3si15185785lbb.161.2014.02.05.07.18.21
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 05 Feb 2014 06:28:22 -0800 (PST)
-Date: Wed, 5 Feb 2014 15:28:20 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 3/3] Kconfig: organize memory-related config options
-Message-ID: <20140205142820.GD2425@dhcp22.suse.cz>
-References: <20140102202014.CA206E9B@viggo.jf.intel.com>
- <20140102202017.9D167747@viggo.jf.intel.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 05 Feb 2014 07:18:21 -0800 (PST)
+Date: Wed, 5 Feb 2014 19:18:18 +0400
+From: Andrew Vagin <avagin@parallels.com>
+Subject: Thread overran stack, or stack corrupted on 3.13.0
+Message-ID: <20140205151817.GA28502@paralelels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="koi8-r"
 Content-Disposition: inline
-In-Reply-To: <20140102202017.9D167747@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu 02-01-14 12:20:17, Dave Hansen wrote:
-> 
-> From: Dave Hansen <dave.hansen@linux.intel.com>
-> 
-> This continues in a series of patches to clean up the
-> configuration menus.  I believe they've become really hard to
-> navigate and there are some simple things we can do to make
-> things easier to find.
-> 
-> This creates a "Memory Options" menu and moves some things like
-> swap and slab configuration under them.  It also moves SLUB_DEBUG
-> to the debugging menu.
-> 
-> After this patch, the menu has the following options:
-> 
->   [ ] Memory placement aware NUMA scheduler
->   [*] Enable VM event counters for /proc/vmstat
->   [ ] Disable heap randomization
->   [*] Support for paging of anonymous memory (swap)
->       Choose SLAB allocator (SLUB (Unqueued Allocator))
->   [*] SLUB per cpu partial cache
->   [*] SLUB: attempt to use double-cmpxchg operations
+Hello All,
 
-Is there any reason to keep them in init/Kconfig rather than
-mm/Kconfig? It would sound like a logical place to have them all, no?
+My test server crashed a few days ago. The kernel was built from Linus'
+git without any additional changes. I don't know how to reproduce this
+bug.
 
-> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-> Cc: linux-mm@kvack.org
-> ---
-> 
->  linux.git-davehans/init/Kconfig     |  243 ++++++++++++++++++------------------
->  linux.git-davehans/mm/Kconfig.debug |   11 +
->  2 files changed, 135 insertions(+), 119 deletions(-)
-> 
-> diff -puN init/Kconfig~organize-memory-config-options init/Kconfig
-> --- linux.git/init/Kconfig~organize-memory-config-options	2014-01-02 11:24:20.925790194 -0800
-> +++ linux.git-davehans/init/Kconfig	2014-01-02 11:24:20.931790464 -0800
-> @@ -208,16 +208,6 @@ config DEFAULT_HOSTNAME
->  	  but you may wish to use a different default here to make a minimal
->  	  system more usable with less configuration.
->  
-> -config SWAP
-> -	bool "Support for paging of anonymous memory (swap)"
-> -	depends on MMU && BLOCK
-> -	default y
-> -	help
-> -	  This option allows you to choose whether you want to have support
-> -	  for so called swap devices or swap files in your kernel that are
-> -	  used to provide more virtual memory than the actual RAM present
-> -	  in your computer.  If unsure say Y.
-> -
->  config SYSVIPC
->  	bool "System V IPC"
->  	---help---
-> @@ -760,6 +750,130 @@ endchoice
->  
->  endmenu # "RCU Subsystem"
->  
-> +menu "Memory Options"
-> +
-> +config NUMA_BALANCING
-> +	bool "Memory placement aware NUMA scheduler"
-> +	depends on ARCH_SUPPORTS_NUMA_BALANCING
-> +	depends on !ARCH_WANT_NUMA_VARIABLE_LOCALITY
-> +	depends on SMP && NUMA && MIGRATION
-> +	help
-> +	  This option adds support for automatic NUMA aware memory/task placement.
-> +	  The mechanism is quite primitive and is based on migrating memory when
-> +	  it has references to the node the task is running on.
-> +
-> +	  This system will be inactive on UMA systems.
-> +
-> +config VM_EVENT_COUNTERS
-> +	default y
-> +	bool "Enable VM event counters for /proc/vmstat" if EXPERT
-> +	help
-> +	  VM event counters are needed for event counts to be shown.
-> +	  This option allows the disabling of the VM event counters
-> +	  on EXPERT systems.  /proc/vmstat will only show page counts
-> +	  if VM event counters are disabled.
-> +
-> +config COMPAT_BRK
-> +	bool "Disable heap randomization"
-> +	default y
-> +	help
-> +	  Randomizing heap placement makes heap exploits harder, but it
-> +	  also breaks ancient binaries (including anything libc5 based).
-> +	  This option changes the bootup default to heap randomization
-> +	  disabled, and can be overridden at runtime by setting
-> +	  /proc/sys/kernel/randomize_va_space to 2.
-> +
-> +	  On non-ancient distros (post-2000 ones) N is usually a safe choice.
-> +
-> +config SWAP
-> +	bool "Support for paging of anonymous memory (swap)"
-> +	depends on MMU && BLOCK
-> +	default y
-> +	help
-> +	  This option allows you to choose whether you want to have support
-> +	  for so called swap devices or swap files in your kernel that are
-> +	  used to provide more virtual memory than the actual RAM present
-> +	  in your computer.  If unsure say Y.
-> +
-> +choice
-> +	prompt "Choose SLAB allocator"
-> +	default SLUB
-> +	help
-> +	   This option allows to select a slab allocator.
-> +
-> +config SLAB
-> +	bool "SLAB"
-> +	help
-> +	  The regular slab allocator that is established and known to work
-> +	  well in all environments. It organizes cache hot objects in
-> +	  per cpu and per node queues.
-> +
-> +config SLUB
-> +	bool "SLUB (Unqueued Allocator)"
-> +	help
-> +	   SLUB is a slab allocator that minimizes cache line usage
-> +	   instead of managing queues of cached objects (SLAB approach).
-> +	   Per cpu caching is realized using slabs of objects instead
-> +	   of queues of objects. SLUB can use memory efficiently
-> +	   and has enhanced diagnostics. SLUB is the default choice for
-> +	   a slab allocator.
-> +
-> +config SLOB
-> +	depends on EXPERT
-> +	bool "SLOB (Simple Allocator)"
-> +	help
-> +	   SLOB replaces the stock allocator with a drastically simpler
-> +	   allocator. SLOB is generally more space efficient but
-> +	   does not perform as well on large systems.
-> +
-> +endchoice
-> +
-> +config SLUB_CPU_PARTIAL
-> +	default y
-> +	depends on SLUB && SMP
-> +	bool "SLUB per cpu partial cache"
-> +	help
-> +	  Per cpu partial caches accellerate objects allocation and freeing
-> +	  that is local to a processor at the price of more indeterminism
-> +	  in the latency of the free. On overflow these caches will be cleared
-> +	  which requires the taking of locks that may cause latency spikes.
-> +	  Typically one would choose no for a realtime system.
-> +
-> +config SLUB_ATTEMPT_CMPXCHG_DOUBLE
-> +	default y
-> +	depends on SLUB && HAVE_CMPXCHG_DOUBLE
-> +	bool "SLUB: attempt to use double-cmpxchg operations"
-> +	help
-> +	  Some CPUs support instructions that let you do a large double-word
-> +	  atomic cmpxchg operation.  This keeps the SLUB fastpath from
-> +	  needing to disable interrupts.
-> +
-> +	  If you are unsure, say y.
-> +
-> +config MMAP_ALLOW_UNINITIALIZED
-> +	bool "Allow mmapped anonymous memory to be uninitialized"
-> +	depends on EXPERT && !MMU
-> +	default n
-> +	help
-> +	  Normally, and according to the Linux spec, anonymous memory obtained
-> +	  from mmap() has it's contents cleared before it is passed to
-> +	  userspace.  Enabling this config option allows you to request that
-> +	  mmap() skip that if it is given an MAP_UNINITIALIZED flag, thus
-> +	  providing a huge performance boost.  If this option is not enabled,
-> +	  then the flag will be ignored.
-> +
-> +	  This is taken advantage of by uClibc's malloc(), and also by
-> +	  ELF-FDPIC binfmt's brk and stack allocator.
-> +
-> +	  Because of the obvious security issues, this option should only be
-> +	  enabled on embedded devices where you control what is run in
-> +	  userspace.  Since that isn't generally a problem on no-MMU systems,
-> +	  it is normally safe to say Y here.
-> +
-> +	  See Documentation/nommu-mmap.txt for more information.
-> +
-> +endmenu # "Memory Optionse
-> +
->  config IKCONFIG
->  	tristate "Kernel .config support"
->  	---help---
-> @@ -840,18 +954,6 @@ config NUMA_BALANCING_DEFAULT_ENABLED
->  	  If set, automatic NUMA balancing will be enabled if running on a NUMA
->  	  machine.
->  
-> -config NUMA_BALANCING
-> -	bool "Memory placement aware NUMA scheduler"
-> -	depends on ARCH_SUPPORTS_NUMA_BALANCING
-> -	depends on !ARCH_WANT_NUMA_VARIABLE_LOCALITY
-> -	depends on SMP && NUMA && MIGRATION
-> -	help
-> -	  This option adds support for automatic NUMA aware memory/task placement.
-> -	  The mechanism is quite primitive and is based on migrating memory when
-> -	  it has references to the node the task is running on.
-> -
-> -	  This system will be inactive on UMA systems.
-> -
->  menuconfig CGROUPS
->  	boolean "Control Group support"
->  	depends on EVENTFD
-> @@ -1529,103 +1631,6 @@ config DEBUG_PERF_USE_VMALLOC
->  
->  endmenu
->  
-> -config VM_EVENT_COUNTERS
-> -	default y
-> -	bool "Enable VM event counters for /proc/vmstat" if EXPERT
-> -	help
-> -	  VM event counters are needed for event counts to be shown.
-> -	  This option allows the disabling of the VM event counters
-> -	  on EXPERT systems.  /proc/vmstat will only show page counts
-> -	  if VM event counters are disabled.
-> -
-> -config SLUB_DEBUG
-> -	default y
-> -	bool "Enable SLUB debugging support" if EXPERT
-> -	depends on SLUB && SYSFS
-> -	help
-> -	  SLUB has extensive debug support features. Disabling these can
-> -	  result in significant savings in code size. This also disables
-> -	  SLUB sysfs support. /sys/slab will not exist and there will be
-> -	  no support for cache validation etc.
-> -
-> -config COMPAT_BRK
-> -	bool "Disable heap randomization"
-> -	default y
-> -	help
-> -	  Randomizing heap placement makes heap exploits harder, but it
-> -	  also breaks ancient binaries (including anything libc5 based).
-> -	  This option changes the bootup default to heap randomization
-> -	  disabled, and can be overridden at runtime by setting
-> -	  /proc/sys/kernel/randomize_va_space to 2.
-> -
-> -	  On non-ancient distros (post-2000 ones) N is usually a safe choice.
-> -
-> -choice
-> -	prompt "Choose SLAB allocator"
-> -	default SLUB
-> -	help
-> -	   This option allows to select a slab allocator.
-> -
-> -config SLAB
-> -	bool "SLAB"
-> -	help
-> -	  The regular slab allocator that is established and known to work
-> -	  well in all environments. It organizes cache hot objects in
-> -	  per cpu and per node queues.
-> -
-> -config SLUB
-> -	bool "SLUB (Unqueued Allocator)"
-> -	help
-> -	   SLUB is a slab allocator that minimizes cache line usage
-> -	   instead of managing queues of cached objects (SLAB approach).
-> -	   Per cpu caching is realized using slabs of objects instead
-> -	   of queues of objects. SLUB can use memory efficiently
-> -	   and has enhanced diagnostics. SLUB is the default choice for
-> -	   a slab allocator.
-> -
-> -config SLOB
-> -	depends on EXPERT
-> -	bool "SLOB (Simple Allocator)"
-> -	help
-> -	   SLOB replaces the stock allocator with a drastically simpler
-> -	   allocator. SLOB is generally more space efficient but
-> -	   does not perform as well on large systems.
-> -
-> -endchoice
-> -
-> -config SLUB_CPU_PARTIAL
-> -	default y
-> -	depends on SLUB && SMP
-> -	bool "SLUB per cpu partial cache"
-> -	help
-> -	  Per cpu partial caches accellerate objects allocation and freeing
-> -	  that is local to a processor at the price of more indeterminism
-> -	  in the latency of the free. On overflow these caches will be cleared
-> -	  which requires the taking of locks that may cause latency spikes.
-> -	  Typically one would choose no for a realtime system.
-> -
-> -config MMAP_ALLOW_UNINITIALIZED
-> -	bool "Allow mmapped anonymous memory to be uninitialized"
-> -	depends on EXPERT && !MMU
-> -	default n
-> -	help
-> -	  Normally, and according to the Linux spec, anonymous memory obtained
-> -	  from mmap() has it's contents cleared before it is passed to
-> -	  userspace.  Enabling this config option allows you to request that
-> -	  mmap() skip that if it is given an MAP_UNINITIALIZED flag, thus
-> -	  providing a huge performance boost.  If this option is not enabled,
-> -	  then the flag will be ignored.
-> -
-> -	  This is taken advantage of by uClibc's malloc(), and also by
-> -	  ELF-FDPIC binfmt's brk and stack allocator.
-> -
-> -	  Because of the obvious security issues, this option should only be
-> -	  enabled on embedded devices where you control what is run in
-> -	  userspace.  Since that isn't generally a problem on no-MMU systems,
-> -	  it is normally safe to say Y here.
-> -
-> -	  See Documentation/nommu-mmap.txt for more information.
-> -
->  config PROFILING
->  	bool "Profiling support"
->  	help
-> diff -puN mm/Kconfig.debug~organize-memory-config-options mm/Kconfig.debug
-> --- linux.git/mm/Kconfig.debug~organize-memory-config-options	2014-01-02 11:24:20.927790284 -0800
-> +++ linux.git-davehans/mm/Kconfig.debug	2014-01-02 11:24:20.931790464 -0800
-> @@ -27,3 +27,14 @@ config PAGE_POISONING
->  config PAGE_GUARD
->  	bool
->  	select WANT_PAGE_DEBUG_FLAGS
-> +
-> +config SLUB_DEBUG
-> +	default y
-> +	bool "Enable SLUB debugging support" if EXPERT
-> +	depends on SLUB && SYSFS
-> +	help
-> +	  SLUB has extensive debug support features. Disabling these can
-> +	  result in significant savings in code size. This also disables
-> +	  SLUB sysfs support. /sys/slab will not exist and there will be
-> +	  no support for cache validation etc.
-> +
-> _
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
-Michal Hocko
-SUSE Labs
+[532284.563576] BUG: unable to handle kernel paging request at 0000000035c83420
+[532284.564086] IP: [<ffffffff810caf17>] cpuacct_charge+0x97/0x1e0
+[532284.564086] PGD 116369067 PUD 116368067 PMD 0
+[532284.564086] Thread overran stack, or stack corrupted
+[532284.564086] Oops: 0000 [#1] SMP
+[532284.564086] Modules linked in: veth binfmt_misc ip6table_filter ip6_tables tun netlink_diag af_packet_diag udp_diag tcp_diag inet_diag unix_diag bridge stp llc btrfs libcrc32c xor raid6_pq microcode i2c_piix4 joydev virtio_balloon virtio_net pcspkr i2c_core virtio_blk virtio_pci virtio_ring virtio floppy
+[532284.564086] CPU: 2 PID: 2487 Comm: cat Not tainted 3.13.0 #160
+[532284.564086] Hardware name: Red Hat KVM, BIOS 0.5.1 01/01/2007
+[532284.564086] task: ffff8800cdb60000 ti: ffff8801167ee000 task.ti: ffff8801167ee000
+[532284.564086] RIP: 0010:[<ffffffff810caf17>]  [<ffffffff810caf17>] cpuacct_charge+0x97/0x1e0
+[532284.564086] RSP: 0018:ffff8801167ee638  EFLAGS: 00010002
+[532284.564086] RAX: 000000000000e540 RBX: 000000000006086c RCX: 000000000000000f
+[532284.564086] RDX: ffffffff81c4e960 RSI: ffffffff81c50640 RDI: 0000000000000046
+[532284.564086] RBP: ffff8801167ee668 R08: 0000000000000003 R09: 0000000000000001
+[532284.564086] R10: 0000000000000001 R11: 0000000000000004 R12: ffff8800cdb60000
+[532284.564086] R13: 00000000167ee038 R14: ffff8800db3576d8 R15: 000080ee26ec7dcf
+[532284.564086] FS:  00007fc30ecc7740(0000) GS:ffff88011b200000(0000) knlGS:0000000000000000
+[532284.564086] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+[532284.564086] CR2: 0000000035c83420 CR3: 000000011f966000 CR4: 00000000000006e0
+[532284.564086] Stack:
+[532284.564086]  ffffffff810cae80 ffff880100000014 ffff8800db333480 000000000006086c
+[532284.564086]  ffff8800cdb60068 ffff8800cdb60000 ffff8801167ee6a8 ffffffff810b948f
+[532284.564086]  ffff8801167ee698 ffff8800cdb60068 ffff8800db333480 0000000000000001
+[532284.564086] Call Trace:
+[532284.564086]  [<ffffffff810cae80>] ? cpuacct_css_alloc+0xb0/0xb0
+[532284.564086]  [<ffffffff810b948f>] update_curr+0x13f/0x220
+[532284.564086]  [<ffffffff810bfeb4>] dequeue_entity+0x24/0x5b0
+[532284.564086]  [<ffffffff8101ea59>] ? sched_clock+0x9/0x10
+[532284.564086]  [<ffffffff810c0489>] dequeue_task_fair+0x49/0x430
+[532284.564086]  [<ffffffff810acbb3>] dequeue_task+0x73/0x90
+[532284.564086]  [<ffffffff810acbf3>] deactivate_task+0x23/0x30
+[532284.564086]  [<ffffffff81745b11>] __schedule+0x501/0x960
+[532284.564086]  [<ffffffff817460b9>] schedule+0x29/0x70
+[532284.564086]  [<ffffffff81744eac>] schedule_timeout+0x14c/0x2a0
+[532284.564086]  [<ffffffff810835f0>] ? del_timer+0x70/0x70
+[532284.564086]  [<ffffffff8174b7d0>] ? _raw_spin_unlock_irqrestore+0x40/0x80
+[532284.564086]  [<ffffffff8174547f>] io_schedule_timeout+0x9f/0x100
+[532284.564086]  [<ffffffff810d16dd>] ? trace_hardirqs_on+0xd/0x10
+[532284.564086]  [<ffffffff81182b22>] mempool_alloc+0x152/0x180
+[532284.564086]  [<ffffffff810c56e0>] ? bit_waitqueue+0xd0/0xd0
+[532284.564086]  [<ffffffff810558c7>] ? kvm_clock_read+0x27/0x40
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
