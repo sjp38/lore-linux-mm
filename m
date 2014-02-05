@@ -1,99 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id A9A766B0035
-	for <linux-mm@kvack.org>; Wed,  5 Feb 2014 17:17:29 -0500 (EST)
-Received: by mail-pd0-f181.google.com with SMTP id y10so896826pdj.40
-        for <linux-mm@kvack.org>; Wed, 05 Feb 2014 14:17:29 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id gx4si30574554pbc.51.2014.02.05.14.17.28
-        for <linux-mm@kvack.org>;
-        Wed, 05 Feb 2014 14:17:28 -0800 (PST)
-Date: Wed, 5 Feb 2014 14:17:26 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 01/10] mm: vmstat: fix UP zone state accounting
-Message-Id: <20140205141726.e474d52258e0a09418ba1018@linux-foundation.org>
-In-Reply-To: <1391475222-1169-2-git-send-email-hannes@cmpxchg.org>
-References: <1391475222-1169-1-git-send-email-hannes@cmpxchg.org>
-	<1391475222-1169-2-git-send-email-hannes@cmpxchg.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id E6AD46B0035
+	for <linux-mm@kvack.org>; Wed,  5 Feb 2014 17:18:53 -0500 (EST)
+Received: by mail-pa0-f44.google.com with SMTP id kq14so900636pab.3
+        for <linux-mm@kvack.org>; Wed, 05 Feb 2014 14:18:53 -0800 (PST)
+Received: from e23smtp07.au.ibm.com (e23smtp07.au.ibm.com. [202.81.31.140])
+        by mx.google.com with ESMTPS id gx4si30528789pbc.291.2014.02.05.14.18.51
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 05 Feb 2014 14:18:52 -0800 (PST)
+Received: from /spool/local
+	by e23smtp07.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <srivatsa.bhat@linux.vnet.ibm.com>;
+	Thu, 6 Feb 2014 08:18:47 +1000
+Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 3E9932BB0054
+	for <linux-mm@kvack.org>; Thu,  6 Feb 2014 09:18:44 +1100 (EST)
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s15LxNIf65142788
+	for <linux-mm@kvack.org>; Thu, 6 Feb 2014 08:59:23 +1100
+Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s15MIg3l018179
+	for <linux-mm@kvack.org>; Thu, 6 Feb 2014 09:18:43 +1100
+From: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
+Subject: [PATCH 48/51] mm, vmstat: Fix CPU hotplug callback registration
+Date: Thu, 06 Feb 2014 03:43:23 +0530
+Message-ID: <20140205221322.19080.63386.stgit@srivatsabhat.in.ibm.com>
+In-Reply-To: <20140205220251.19080.92336.stgit@srivatsabhat.in.ibm.com>
+References: <20140205220251.19080.92336.stgit@srivatsabhat.in.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Bob Liu <bob.liu@oracle.com>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Luigi Semenzato <semenzato@google.com>, Mel Gorman <mgorman@suse.de>, Metin Doslu <metin@citusdata.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan.kim@gmail.com>, Ozgun Erdogan <ozgun@citusdata.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Roman Gushchin <klamm@yandex-team.ru>, Ryan Mallon <rmallon@gmail.com>, Tejun Heo <tj@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: paulus@samba.org, oleg@redhat.com, rusty@rustcorp.com.au, peterz@infradead.org, tglx@linutronix.de, akpm@linux-foundation.org
+Cc: mingo@kernel.org, paulmck@linux.vnet.ibm.com, tj@kernel.org, walken@google.com, ego@linux.vnet.ibm.com, linux@arm.linux.org.uk, linux-kernel@vger.kernel.org, srivatsa.bhat@linux.vnet.ibm.com, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Toshi Kani <toshi.kani@hp.com>, Dave Hansen <dave@sr71.net>, linux-mm@kvack.org"Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
 
-On Mon,  3 Feb 2014 19:53:33 -0500 Johannes Weiner <hannes@cmpxchg.org> wrote:
+Subsystems that want to register CPU hotplug callbacks, as well as perform
+initialization for the CPUs that are already online, often do it as shown
+below:
 
-> Fengguang Wu's build testing spotted problems with inc_zone_state()
-> and dec_zone_state() on UP configurations in out-of-tree patches.
-> 
-> inc_zone_state() is declared but not defined, dec_zone_state() is
-> missing entirely.
-> 
-> Just like with *_zone_page_state(), they can be defined like their
-> preemption-unsafe counterparts on UP.
+	get_online_cpus();
 
-um,
+	for_each_online_cpu(cpu)
+		init_cpu(cpu);
 
-In file included from include/linux/mm.h:876,
-                 from include/linux/suspend.h:8,
-                 from arch/x86/kernel/asm-offsets.c:12:
-include/linux/vmstat.h: In function '__inc_zone_page_state':
-include/linux/vmstat.h:228: error: implicit declaration of function '__inc_zone_state'
-include/linux/vmstat.h: In function '__dec_zone_page_state':
-include/linux/vmstat.h:234: error: implicit declaration of function '__dec_zone_state'
-include/linux/vmstat.h: At top level:
-include/linux/vmstat.h:245: warning: conflicting types for '__inc_zone_state'
-include/linux/vmstat.h:245: error: static declaration of '__inc_zone_state' follows non-static declaration
-include/linux/vmstat.h:228: note: previous implicit declaration of '__inc_zone_state' was here
-include/linux/vmstat.h:251: warning: conflicting types for '__dec_zone_state'
-include/linux/vmstat.h:251: error: static declaration of '__dec_zone_state' follows non-static declaration
-include/linux/vmstat.h:234: note: previous implicit declaration of '__dec_zone_state' was here
+	register_cpu_notifier(&foobar_cpu_notifier);
 
-I shuffled them around:
+	put_online_cpus();
 
---- a/include/linux/vmstat.h~mm-vmstat-fix-up-zone-state-accounting-fix
-+++ a/include/linux/vmstat.h
-@@ -214,6 +214,18 @@ static inline void __mod_zone_page_state
- 	zone_page_state_add(delta, zone, item);
- }
+This is wrong, since it is prone to ABBA deadlocks involving the
+cpu_add_remove_lock and the cpu_hotplug.lock (when running concurrently
+with CPU hotplug operations).
+
+Instead, the correct and race-free way of performing the callback
+registration is:
+
+	cpu_maps_update_begin();
+
+	for_each_online_cpu(cpu)
+		init_cpu(cpu);
+
+	/* Note the use of the double underscored version of the API */
+	__register_cpu_notifier(&foobar_cpu_notifier);
+
+	cpu_maps_update_done();
+
+
+Fix the vmstat code in the MM subsystem by using this latter form of callback
+registration.
+
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Lameter <cl@linux.com>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Cc: Cody P Schafer <cody@linux.vnet.ibm.com>
+Cc: Toshi Kani <toshi.kani@hp.com>
+Cc: Dave Hansen <dave@sr71.net>
+Cc: linux-mm@kvack.org
+Signed-off-by: Srivatsa S. Bhat <srivatsa.bhat@linux.vnet.ibm.com>
+---
+
+ mm/vmstat.c |    6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 7249614..70668ba 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -1290,14 +1290,14 @@ static int __init setup_vmstat(void)
+ #ifdef CONFIG_SMP
+ 	int cpu;
  
-+static inline void __inc_zone_state(struct zone *zone, enum zone_stat_item item)
-+{
-+	atomic_long_inc(&zone->vm_stat[item]);
-+	atomic_long_inc(&vm_stat[item]);
-+}
-+
-+static inline void __dec_zone_state(struct zone *zone, enum zone_stat_item item)
-+{
-+	atomic_long_dec(&zone->vm_stat[item]);
-+	atomic_long_dec(&vm_stat[item]);
-+}
-+
- static inline void __inc_zone_page_state(struct page *page,
- 			enum zone_stat_item item)
- {
-@@ -234,18 +246,6 @@ static inline void __dec_zone_page_state
- #define dec_zone_page_state __dec_zone_page_state
- #define mod_zone_page_state __mod_zone_page_state
+-	register_cpu_notifier(&vmstat_notifier);
++	cpu_maps_update_begin();
++	__register_cpu_notifier(&vmstat_notifier);
  
--static inline void __inc_zone_state(struct zone *zone, enum zone_stat_item item)
--{
--	atomic_long_inc(&zone->vm_stat[item]);
--	atomic_long_inc(&vm_stat[item]);
--}
--
--static inline void __dec_zone_state(struct zone *zone, enum zone_stat_item item)
--{
--	atomic_long_dec(&zone->vm_stat[item]);
--	atomic_long_dec(&vm_stat[item]);
--}
--
- #define inc_zone_state __inc_zone_state
- #define dec_zone_state __dec_zone_state
- 
-_
+-	get_online_cpus();
+ 	for_each_online_cpu(cpu) {
+ 		start_cpu_timer(cpu);
+ 		node_set_state(cpu_to_node(cpu), N_CPU);
+ 	}
+-	put_online_cpus();
++	cpu_maps_update_done();
+ #endif
+ #ifdef CONFIG_PROC_FS
+ 	proc_create("buddyinfo", S_IRUGO, NULL, &fragmentation_file_operations);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
