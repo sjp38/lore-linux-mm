@@ -1,61 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f182.google.com (mail-ig0-f182.google.com [209.85.213.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 1317B6B0037
-	for <linux-mm@kvack.org>; Wed,  5 Feb 2014 14:28:07 -0500 (EST)
-Received: by mail-ig0-f182.google.com with SMTP id uy17so4163228igb.3
-        for <linux-mm@kvack.org>; Wed, 05 Feb 2014 11:28:06 -0800 (PST)
-Received: from qmta10.westchester.pa.mail.comcast.net (qmta10.westchester.pa.mail.comcast.net. [2001:558:fe14:43:76:96:62:17])
-        by mx.google.com with ESMTP id i4si30077694pad.199.2014.02.05.11.28.04
-        for <linux-mm@kvack.org>;
-        Wed, 05 Feb 2014 11:28:05 -0800 (PST)
-Date: Wed, 5 Feb 2014 13:28:03 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH] slub: Don't throw away partial remote slabs if there is
- no local memory
-In-Reply-To: <20140205001352.GC10101@linux.vnet.ibm.com>
-Message-ID: <alpine.DEB.2.10.1402051312430.21661@nuc>
-References: <alpine.DEB.2.02.1401241543100.18620@chino.kir.corp.google.com> <20140125001643.GA25344@linux.vnet.ibm.com> <alpine.DEB.2.02.1401241618500.20466@chino.kir.corp.google.com> <20140125011041.GB25344@linux.vnet.ibm.com> <20140127055805.GA2471@lge.com>
- <20140128182947.GA1591@linux.vnet.ibm.com> <20140203230026.GA15383@linux.vnet.ibm.com> <alpine.DEB.2.10.1402032138070.17997@nuc> <20140204072630.GB10101@linux.vnet.ibm.com> <alpine.DEB.2.10.1402041436150.11222@nuc>
- <20140205001352.GC10101@linux.vnet.ibm.com>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-qa0-f42.google.com (mail-qa0-f42.google.com [209.85.216.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 06A3B6B0035
+	for <linux-mm@kvack.org>; Wed,  5 Feb 2014 15:06:19 -0500 (EST)
+Received: by mail-qa0-f42.google.com with SMTP id k4so1340676qaq.15
+        for <linux-mm@kvack.org>; Wed, 05 Feb 2014 12:06:19 -0800 (PST)
+Received: from mail1.windriver.com (mail1.windriver.com. [147.11.146.13])
+        by mx.google.com with ESMTPS id h49si21486306qgf.9.2014.02.05.12.06.18
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 05 Feb 2014 12:06:18 -0800 (PST)
+From: Paul Gortmaker <paul.gortmaker@windriver.com>
+Subject: [v2.6.34-stable 111/213] x86/mm: Check if PUD is large when validating a kernel address
+Date: Wed, 5 Feb 2014 15:01:06 -0500
+Message-ID: <1391630568-49251-112-git-send-email-paul.gortmaker@windriver.com>
+In-Reply-To: <1391630568-49251-1-git-send-email-paul.gortmaker@windriver.com>
+References: <1391630568-49251-1-git-send-email-paul.gortmaker@windriver.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
-Cc: Han Pingtian <hanpt@linux.vnet.ibm.com>, mpm@selenic.com, penberg@kernel.org, linux-mm@kvack.org, paulus@samba.org, Anton Blanchard <anton@samba.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linuxppc-dev@lists.ozlabs.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
+To: stable@vger.kernel.org, linux-kernel@vger.kernel.org
+Cc: Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, Paul Gortmaker <paul.gortmaker@windriver.com>
 
-On Tue, 4 Feb 2014, Nishanth Aravamudan wrote:
+From: Mel Gorman <mgorman@suse.de>
 
-> > If the target node allocation fails (for whatever reason) then I would
-> > recommend for simplicities sake to change the target node to
-> > NUMA_NO_NODE and just take whatever is in the current cpu slab. A more
-> > complex solution would be to look through partial lists in increasing
-> > distance to find a partially used slab that is reasonable close to the
-> > current node. Slab has logic like that in fallback_alloc(). Slubs
-> > get_any_partial() function does something close to what you want.
->
-> I apologize for my own ignorance, but I'm having trouble following.
-> Anton's original patch did fallback to the current cpu slab, but I'm not
-> sure any NUMA_NO_NODE change is necessary there. At the point we're
-> deactivating the slab (in the current code, in __slab_alloc()), we have
-> successfully allocated from somewhere, it's just not on the node we
-> expected to be on.
+                   -------------------
+    This is a commit scheduled for the next v2.6.34 longterm release.
+    http://git.kernel.org/?p=linux/kernel/git/paulg/longterm-queue-2.6.34.git
+    If you see a problem with using this for longterm, please comment.
+                   -------------------
 
-Right so if we are ignoring the node then the simplest thing to do is to
-not deactivate the current cpu slab but to take an object from it.
+commit 0ee364eb316348ddf3e0dfcd986f5f13f528f821 upstream.
 
-> So perhaps you are saying to make a change lower in the code? I'm not
-> sure where it makes sense to change the target node in that case. I'd
-> appreciate any guidance you can give.
+A user reported the following oops when a backup process reads
+/proc/kcore:
 
-This not an easy thing to do. If the current slab is not the right node
-but would be the node from which the page allocator would be returning
-memory then the current slab can still be allocated from. If the fallback
-is to another node then the current cpu slab needs to be deactivated and
-the allocation from that node needs to proceeed. Have a look at
-fallback_alloc() in the slab allocator.
+ BUG: unable to handle kernel paging request at ffffbb00ff33b000
+ IP: [<ffffffff8103157e>] kern_addr_valid+0xbe/0x110
+ [...]
 
-A allocation attempt from the page allocator can be restricted to a
-specific node through GFP_THIS_NODE.
+ Call Trace:
+  [<ffffffff811b8aaa>] read_kcore+0x17a/0x370
+  [<ffffffff811ad847>] proc_reg_read+0x77/0xc0
+  [<ffffffff81151687>] vfs_read+0xc7/0x130
+  [<ffffffff811517f3>] sys_read+0x53/0xa0
+  [<ffffffff81449692>] system_call_fastpath+0x16/0x1b
+
+Investigation determined that the bug triggered when reading
+system RAM at the 4G mark. On this system, that was the first
+address using 1G pages for the virt->phys direct mapping so the
+PUD is pointing to a physical address, not a PMD page.
+
+The problem is that the page table walker in kern_addr_valid() is
+not checking pud_large() and treats the physical address as if
+it was a PMD.  If it happens to look like pmd_none then it'll
+silently fail, probably returning zeros instead of real data. If
+the data happens to look like a present PMD though, it will be
+walked resulting in the oops above.
+
+This patch adds the necessary pud_large() check.
+
+Unfortunately the problem was not readily reproducible and now
+they are running the backup program without accessing
+/proc/kcore so the patch has not been validated but I think it
+makes sense.
+
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+Reviewed-by: Rik van Riel <riel@redhat.coM>
+Reviewed-by: Michal Hocko <mhocko@suse.cz>
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-mm@kvack.org
+Link: http://lkml.kernel.org/r/20130211145236.GX21389@suse.de
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
+Signed-off-by: Paul Gortmaker <paul.gortmaker@windriver.com>
+---
+ arch/x86/include/asm/pgtable.h | 5 +++++
+ arch/x86/mm/init_64.c          | 3 +++
+ 2 files changed, 8 insertions(+)
+
+diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+index a34c785c5a63..321d24d6a924 100644
+--- a/arch/x86/include/asm/pgtable.h
++++ b/arch/x86/include/asm/pgtable.h
+@@ -132,6 +132,11 @@ static inline unsigned long pmd_pfn(pmd_t pmd)
+ 	return (pmd_val(pmd) & PTE_PFN_MASK) >> PAGE_SHIFT;
+ }
+ 
++static inline unsigned long pud_pfn(pud_t pud)
++{
++	return (pud_val(pud) & PTE_PFN_MASK) >> PAGE_SHIFT;
++}
++
+ #define pte_page(pte)	pfn_to_page(pte_pfn(pte))
+ 
+ static inline int pmd_large(pmd_t pte)
+diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+index ee41bba315d1..3cd243b8b01d 100644
+--- a/arch/x86/mm/init_64.c
++++ b/arch/x86/mm/init_64.c
+@@ -864,6 +864,9 @@ int kern_addr_valid(unsigned long addr)
+ 	if (pud_none(*pud))
+ 		return 0;
+ 
++	if (pud_large(*pud))
++		return pfn_valid(pud_pfn(*pud));
++
+ 	pmd = pmd_offset(pud, addr);
+ 	if (pmd_none(*pmd))
+ 		return 0;
+-- 
+1.8.5.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
