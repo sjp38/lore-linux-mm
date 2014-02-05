@@ -1,99 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f176.google.com (mail-ig0-f176.google.com [209.85.213.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 6164E6B0035
-	for <linux-mm@kvack.org>; Tue,  4 Feb 2014 18:45:54 -0500 (EST)
-Received: by mail-ig0-f176.google.com with SMTP id j1so10022143iga.3
-        for <linux-mm@kvack.org>; Tue, 04 Feb 2014 15:45:54 -0800 (PST)
-Received: from smtprelay.hostedemail.com (smtprelay0246.hostedemail.com. [216.40.44.246])
-        by mx.google.com with ESMTP id mg9si36088245icc.11.2014.02.04.15.45.53
+Received: from mail-ea0-f172.google.com (mail-ea0-f172.google.com [209.85.215.172])
+	by kanga.kvack.org (Postfix) with ESMTP id F3FCB6B0038
+	for <linux-mm@kvack.org>; Tue,  4 Feb 2014 18:49:00 -0500 (EST)
+Received: by mail-ea0-f172.google.com with SMTP id l9so3112903eaj.3
+        for <linux-mm@kvack.org>; Tue, 04 Feb 2014 15:49:00 -0800 (PST)
+Received: from v094114.home.net.pl (v094114.home.net.pl. [79.96.170.134])
+        by mx.google.com with SMTP id s6si45664358eel.14.2014.02.04.15.48.59
         for <linux-mm@kvack.org>;
-        Tue, 04 Feb 2014 15:45:53 -0800 (PST)
-Message-ID: <1391557549.2538.39.camel@joe-AO722>
-Subject: Re: [PATCH v7 2/3] trivial: PM / Hibernate: clean up checkpatch in
- hibernate.c
-From: Joe Perches <joe@perches.com>
-Date: Tue, 04 Feb 2014 15:45:49 -0800
-In-Reply-To: <20140204220534.28287.21049@capellas-linux>
-References: <1391546631-7715-1-git-send-email-sebastian.capella@linaro.org>
-	 <1391546631-7715-3-git-send-email-sebastian.capella@linaro.org>
-	 <1391548862.2538.34.camel@joe-AO722>
-	 <20140204220534.28287.21049@capellas-linux>
-Content-Type: text/plain; charset="ISO-8859-1"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        Tue, 04 Feb 2014 15:48:59 -0800 (PST)
+From: "Rafael J. Wysocki" <rjw@rjwysocki.net>
+Subject: Re: [PATCH v7 2/3] trivial: PM / Hibernate: clean up checkpatch in hibernate.c
+Date: Wed, 05 Feb 2014 01:03:29 +0100
+Message-ID: <1593382.PUxxx0NMeh@vostro.rjw.lan>
+In-Reply-To: <20140204232222.31169.83206@capellas-linux>
+References: <1391546631-7715-1-git-send-email-sebastian.capella@linaro.org> <20140204223733.30015.23993@capellas-linux> <20140204232222.31169.83206@capellas-linux>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7Bit
+Content-Type: text/plain; charset="utf-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Sebastian Capella <sebastian.capella@linaro.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-pm@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, Pavel Machek <pavel@ucw.cz>, Len Brown <len.brown@intel.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-pm@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, Pavel Machek <pavel@ucw.cz>, Len Brown <len.brown@intel.com>
 
-On Tue, 2014-02-04 at 14:05 -0800, Sebastian Capella wrote:
-> Quoting Joe Perches (2014-02-04 13:21:02)
-> > On Tue, 2014-02-04 at 12:43 -0800, Sebastian Capella wrote:
-> > > Checkpatch reports several warnings in hibernate.c
-> > > printk use removed, long lines wrapped, whitespace cleanup,
-> > > extend short msleeps, while loops on two lines.
-> > []
-> > > diff --git a/kernel/power/hibernate.c b/kernel/power/hibernate.c
-> > []
-> > > @@ -765,7 +762,7 @@ static int software_resume(void)
-> > >       if (isdigit(resume_file[0]) && resume_wait) {
-> > >               int partno;
-> > >               while (!get_gendisk(swsusp_resume_device, &partno))
-> > > -                     msleep(10);
-> > > +                     msleep(20);
-> > 
-> > What good is changing this from 10 to 20?
-> > 
-> > > @@ -776,8 +773,9 @@ static int software_resume(void)
-> > >               wait_for_device_probe();
-> > >  
-> > >               if (resume_wait) {
-> > > -                     while ((swsusp_resume_device = name_to_dev_t(resume_file)) == 0)
-> > > -                             msleep(10);
-> > > +                     while ((swsusp_resume_device =
-> > > +                                     name_to_dev_t(resume_file)) == 0)
-> > > +                             msleep(20);
-> > 
-> > here too.
+On Tuesday, February 04, 2014 03:22:22 PM Sebastian Capella wrote:
+> Quoting Sebastian Capella (2014-02-04 14:37:33)
+> > Quoting Rafael J. Wysocki (2014-02-04 13:36:29)
+> > > >  static int __init resumedelay_setup(char *str)
+> > > >  {
+> > > > -     resume_delay = simple_strtoul(str, NULL, 0);
+> > > > +     int ret = kstrtoint(str, 0, &resume_delay);
+> > > > +     /* mask must_check warn; on failure, leaves resume_delay unchanged */
+> > > > +     (void)ret;
 > 
-> Thanks Joe!
+> One unintended consequence of this change is that it'll now accept a
+> negative integer parameter.
+
+Well, what about using kstrtouint(), then?
+
+> I'll rework this to have the same behavior as before.
 > 
-> I'm happy to make whatever change is best.  I just ran into one
-> checkpatch warning around a printk I indented and figured I'd try to get
-> them all if I could.
+> BTW, one question, is the __must_check really needed on kstrtoint?
+> Wouldn't it be acceptable to rely on kstrtoint to not update resume_delay
+> if it's unable to parse an integer out of the string?  Couldn't that be
+> a sufficient effect without requiring checking the return?
 
-Shutting up checkpatch for the sake of shutting of
-checkpatch is sometimes not the right thing to do.
+Well, kstrtoint() is used in some security-sensitive places AFAICS, so it
+really is better to check its return value in general.  The __must_check
+reminds people about that.
 
-> The delays in question didn't appear timing critical as both are looping
-> waiting for device discovery to complete.  They're only enabled when using
-> the resumewait command line parameter.
+Thanks!
 
-Any time it happens faster doesn't hurt and
-can therefore could resume faster no?
-
-> Is this an incorrect checkpatch warning?  The message from checkpatch
-> implies using msleep for smaller values can be misleading.
-
-That's true, but it doesn't mean it's required
-to change the code.
-
->   - Why not msleep for (1ms - 20ms)?                               
->     Explained originally here:                               
->       http://lkml.org/lkml/2007/8/3/250                
->     msleep(1~20) may not do what the caller intends, and     
->     will often sleep longer (~20 ms actual sleep for any     
->     value given in the 1~20ms range). In many cases this     
->     is not the desired behavior. 
-> 
-> When I look at kernel/timers.c in my current kernel, I see msleep is
-> using msecs_to_jiffies + 1, and on my current platform this appears to
-> be ~20msec as the jiffies are 10ms.
-
-And on platforms where HZ is 1000, it's
-still slightly faster.
-
-I'd just leave it alone.
+-- 
+I speak only for myself.
+Rafael J. Wysocki, Intel Open Source Technology Center.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
