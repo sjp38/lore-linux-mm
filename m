@@ -1,160 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 567356B0037
-	for <linux-mm@kvack.org>; Wed,  5 Feb 2014 17:19:40 -0500 (EST)
-Received: by mail-pa0-f53.google.com with SMTP id lj1so891722pab.26
-        for <linux-mm@kvack.org>; Wed, 05 Feb 2014 14:19:40 -0800 (PST)
-Received: from mail-pa0-x232.google.com (mail-pa0-x232.google.com [2607:f8b0:400e:c03::232])
-        by mx.google.com with ESMTPS id bq5si30607532pbb.18.2014.02.05.14.19.34
+Received: from mail-pb0-f48.google.com (mail-pb0-f48.google.com [209.85.160.48])
+	by kanga.kvack.org (Postfix) with ESMTP id AC6EB6B0035
+	for <linux-mm@kvack.org>; Wed,  5 Feb 2014 17:50:57 -0500 (EST)
+Received: by mail-pb0-f48.google.com with SMTP id rr13so965497pbb.35
+        for <linux-mm@kvack.org>; Wed, 05 Feb 2014 14:50:57 -0800 (PST)
+Received: from mail-pd0-x233.google.com (mail-pd0-x233.google.com [2607:f8b0:400e:c02::233])
+        by mx.google.com with ESMTPS id x3si30680347pbk.53.2014.02.05.14.50.56
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 05 Feb 2014 14:19:34 -0800 (PST)
-Received: by mail-pa0-f50.google.com with SMTP id kp14so903464pab.9
-        for <linux-mm@kvack.org>; Wed, 05 Feb 2014 14:19:34 -0800 (PST)
-Date: Wed, 5 Feb 2014 14:19:32 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: Thread overran stack, or stack corrupted on 3.13.0
-In-Reply-To: <20140205221013.GA8794@paralelels.com>
-Message-ID: <alpine.DEB.2.02.1402051418140.18942@chino.kir.corp.google.com>
-References: <20140205151817.GA28502@paralelels.com> <alpine.DEB.2.02.1402051323100.14325@chino.kir.corp.google.com> <20140205221013.GA8794@paralelels.com>
+        Wed, 05 Feb 2014 14:50:56 -0800 (PST)
+Received: by mail-pd0-f179.google.com with SMTP id fp1so543238pdb.38
+        for <linux-mm@kvack.org>; Wed, 05 Feb 2014 14:50:56 -0800 (PST)
+Date: Wed, 5 Feb 2014 14:50:08 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: mm: BUG in do_huge_pmd_wp_page
+In-Reply-To: <52F27F1C.10601@oracle.com>
+Message-ID: <alpine.LSU.2.11.1402051416220.4008@eggly.anvils>
+References: <51559150.3040407@oracle.com> <20130410080202.GB21292@blaptop> <5166CEDD.9050301@oracle.com> <20130411151323.89D40E0085@blue.fi.intel.com> <5166D355.2060103@oracle.com> <20130424154607.60e9b9895539eb5668d2f505@linux-foundation.org>
+ <5179CF8F.7000702@oracle.com> <20130426020101.GA21162@redhat.com> <52F05827.1040401@oracle.com> <alpine.LSU.2.11.1402031949450.29601@eggly.anvils> <52F27F1C.10601@oracle.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Vagin <avagin@parallels.com>, Kent Overstreet <kmo@daterainc.com>, Jens Axboe <axboe@kernel.dk>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: Hugh Dickins <hughd@google.com>, Dave Jones <davej@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Minchan Kim <minchan@kernel.org>, David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Mel Gorman <mgorman@suse.de>, linux-mm <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Thu, 6 Feb 2014, Andrew Vagin wrote:
-
-> [532284.563576] BUG: unable to handle kernel paging request at 0000000035c83420
-> [532284.564086] IP: [<ffffffff810caf17>] cpuacct_charge+0x97/0x1e0
-> [532284.564086] PGD 116369067 PUD 116368067 PMD 0
-> [532284.564086] Thread overran stack, or stack corrupted
-> [532284.564086] Oops: 0000 [#1] SMP
-> [532284.564086] Modules linked in: veth binfmt_misc ip6table_filter ip6_tables tun netlink_diag af_packet_diag udp_diag tcp_diag inet_diag unix_diag bridge stp llc btrfs libcrc32c xor raid6_pq microcode i2c_piix4 joydev virtio_balloon virtio_net pcspkr i2c_core virtio_blk virtio_pci virtio_ring virtio floppy
-> [532284.564086] CPU: 2 PID: 2487 Comm: cat Not tainted 3.13.0 #160
-> [532284.564086] Hardware name: Red Hat KVM, BIOS 0.5.1 01/01/2007
-> [532284.564086] task: ffff8800cdb60000 ti: ffff8801167ee000 task.ti: ffff8801167ee000
-> [532284.564086] RIP: 0010:[<ffffffff810caf17>]  [<ffffffff810caf17>] cpuacct_charge+0x97/0x1e0
-> [532284.564086] RSP: 0018:ffff8801167ee638  EFLAGS: 00010002
-> [532284.564086] RAX: 000000000000e540 RBX: 000000000006086c RCX: 000000000000000f
-> [532284.564086] RDX: ffffffff81c4e960 RSI: ffffffff81c50640 RDI: 0000000000000046
-> [532284.564086] RBP: ffff8801167ee668 R08: 0000000000000003 R09: 0000000000000001
-> [532284.564086] R10: 0000000000000001 R11: 0000000000000004 R12: ffff8800cdb60000
-> [532284.564086] R13: 00000000167ee038 R14: ffff8800db3576d8 R15: 000080ee26ec7dcf
-> [532284.564086] FS:  00007fc30ecc7740(0000) GS:ffff88011b200000(0000) knlGS:0000000000000000
-> [532284.564086] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-> [532284.564086] CR2: 0000000035c83420 CR3: 000000011f966000 CR4: 00000000000006e0
-> [532284.564086] Stack:
-> [532284.564086]  ffffffff810cae80 ffff880100000014 ffff8800db333480 000000000006086c
-> [532284.564086]  ffff8800cdb60068 ffff8800cdb60000 ffff8801167ee6a8 ffffffff810b948f
-> [532284.564086]  ffff8801167ee698 ffff8800cdb60068 ffff8800db333480 0000000000000001
-> [532284.564086] Call Trace:
-> [532284.564086]  [<ffffffff810cae80>] ? cpuacct_css_alloc+0xb0/0xb0
-> [532284.564086]  [<ffffffff810b948f>] update_curr+0x13f/0x220
-> [532284.564086]  [<ffffffff810bfeb4>] dequeue_entity+0x24/0x5b0
-> [532284.564086]  [<ffffffff8101ea59>] ? sched_clock+0x9/0x10
-> [532284.564086]  [<ffffffff810c0489>] dequeue_task_fair+0x49/0x430
-> [532284.564086]  [<ffffffff810acbb3>] dequeue_task+0x73/0x90
-> [532284.564086]  [<ffffffff810acbf3>] deactivate_task+0x23/0x30
-> [532284.564086]  [<ffffffff81745b11>] __schedule+0x501/0x960
-> [532284.564086]  [<ffffffff817460b9>] schedule+0x29/0x70
-> [532284.564086]  [<ffffffff81744eac>] schedule_timeout+0x14c/0x2a0
-> [532284.564086]  [<ffffffff810835f0>] ? del_timer+0x70/0x70
-> [532284.564086]  [<ffffffff8174b7d0>] ? _raw_spin_unlock_irqrestore+0x40/0x80
-> [532284.564086]  [<ffffffff8174547f>] io_schedule_timeout+0x9f/0x100
-> [532284.564086]  [<ffffffff810d16dd>] ? trace_hardirqs_on+0xd/0x10
-> [532284.564086]  [<ffffffff81182b22>] mempool_alloc+0x152/0x180
-> [532284.564086]  [<ffffffff810c56e0>] ? bit_waitqueue+0xd0/0xd0
-> [532284.564086]  [<ffffffff810558c7>] ? kvm_clock_read+0x27/0x40
-> [532284.564086]  [<ffffffff8123c89b>] bio_alloc_bioset+0x10b/0x1e0
-> [532284.564086]  [<ffffffff811c2f00>] ? end_swap_bio_read+0xc0/0xc0
-> [532284.564086]  [<ffffffff811c2f00>] ? end_swap_bio_read+0xc0/0xc0
-> [532284.564086]  [<ffffffff811c2810>] get_swap_bio+0x30/0x90
-> [532284.564086]  [<ffffffff811c2f00>] ? end_swap_bio_read+0xc0/0xc0
-> [532284.564086]  [<ffffffff811c2aa0>] __swap_writepage+0x150/0x230
-> [532284.564086]  [<ffffffff8174b83b>] ? _raw_spin_unlock+0x2b/0x40
-> [532284.564086]  [<ffffffff811c43b3>] ? page_swapcount+0x53/0x70
-> [532284.564086]  [<ffffffff811c2bc3>] swap_writepage+0x43/0x90
-> [532284.564086]  [<ffffffff81194faf>] shrink_page_list+0x6cf/0xaa0
-> [532284.564086]  [<ffffffff81196022>] shrink_inactive_list+0x1c2/0x5b0
-> [532284.564086]  [<ffffffff810d1c59>] ? __lock_acquire+0x249/0x1800
-> [532284.564086]  [<ffffffff81196a75>] shrink_lruvec+0x335/0x600
-> [532284.564086]  [<ffffffff811ecd45>] ? mem_cgroup_iter+0x1f5/0x510
-> [532284.564086]  [<ffffffff81196dd6>] shrink_zone+0x96/0x1d0
-> [532284.564086]  [<ffffffff81197853>] do_try_to_free_pages+0x103/0x600
-> [532284.564086]  [<ffffffff81184b2f>] ? zone_watermark_ok+0x1f/0x30
-> [532284.564086]  [<ffffffff8119811c>] try_to_free_pages+0xdc/0x230
-> [532284.564086]  [<ffffffff81187dfd>] ? drain_pages+0xad/0xe0
-> [532284.564086]  [<ffffffff8118ad94>] __alloc_pages_nodemask+0xa14/0xc90
-> [532284.564086]  [<ffffffff810b5d35>] ? sched_clock_local+0x25/0x90
-> [532284.564086]  [<ffffffff811d1f36>] alloc_pages_current+0x126/0x200
-> [532284.564086]  [<ffffffff811d97f5>] ? new_slab+0x2e5/0x390
-> [532284.564086]  [<ffffffff811d97dd>] ? new_slab+0x2cd/0x390
-> [532284.564086]  [<ffffffff811d97f5>] new_slab+0x2e5/0x390
-> [532284.564086]  [<ffffffff811dc553>] __slab_alloc+0x3f3/0x700
-> [532284.564086]  [<ffffffff811dd0ff>] ? kmem_cache_alloc+0x27f/0x2a0
-> [532284.564086]  [<ffffffff810b5e58>] ? sched_clock_cpu+0xb8/0x110
-> [532284.564086]  [<ffffffff811828c5>] ? mempool_alloc_slab+0x15/0x20
-> [532284.564086]  [<ffffffff811e98ae>] ? rcu_read_unlock+0x2e/0x70
-> [532284.564086]  [<ffffffff811f06e8>] ? __memcg_kmem_get_cache+0x58/0x2b0
-> [532284.564086]  [<ffffffff811dd0ff>] kmem_cache_alloc+0x27f/0x2a0
-> [532284.564086]  [<ffffffff811828c5>] ? mempool_alloc_slab+0x15/0x20
-> [532284.564086]  [<ffffffff811828c5>] mempool_alloc_slab+0x15/0x20
-> [532284.564086]  [<ffffffff81182a30>] mempool_alloc+0x60/0x180
-> [532284.564086]  [<ffffffff8123c89b>] bio_alloc_bioset+0x10b/0x1e0
-> [532284.564086]  [<ffffffff8124366b>] mpage_alloc+0x3b/0xa0
-> [532284.564086]  [<ffffffff81243b69>] do_mpage_readpage+0x329/0x650
-> [532284.564086]  [<ffffffff8117fa5f>] ? add_to_page_cache_locked+0x10f/0x200
-> [532284.564086]  [<ffffffff81243fe9>] mpage_readpages+0xe9/0x140
-> [532284.564086]  [<ffffffff81296f10>] ? ext4_get_block_write+0x20/0x20
-> [532284.564086]  [<ffffffff81296f10>] ? ext4_get_block_write+0x20/0x20
-> [532284.564086]  [<ffffffff81295877>] ext4_readpages+0x47/0x60
-> [532284.564086]  [<ffffffff8118e918>] __do_page_cache_readahead+0x2c8/0x370
-> [532284.564086]  [<ffffffff8118e76b>] ? __do_page_cache_readahead+0x11b/0x370
-> [532284.564086]  [<ffffffff810b5e58>] ? sched_clock_cpu+0xb8/0x110
-> [532284.564086]  [<ffffffff81180aa0>] ? find_get_pages_tag+0x330/0x330
-> [532284.564086]  [<ffffffff8118e9e1>] ra_submit+0x21/0x30
-> [532284.564086]  [<ffffffff811814e2>] filemap_fault+0x372/0x480
-> [532284.564086]  [<ffffffff811afdf2>] __do_fault+0x72/0x5c0
-> [532284.564086]  [<ffffffff811b06e6>] handle_mm_fault+0x3a6/0xf10
-> [532284.564086]  [<ffffffff8174fc2f>] ? __do_page_fault+0x14f/0x530
-> [532284.564086]  [<ffffffff8174fca1>] __do_page_fault+0x1c1/0x530
-> [532284.564086]  [<ffffffff8101ea59>] ? sched_clock+0x9/0x10
-> [532284.564086]  [<ffffffff810b5d35>] ? sched_clock_local+0x25/0x90
-> [532284.564086]  [<ffffffff810b5e58>] ? sched_clock_cpu+0xb8/0x110
-> [532284.564086]  [<ffffffff810ccd4d>] ? trace_hardirqs_off+0xd/0x10
-> [532284.564086]  [<ffffffff810b5f1f>] ? local_clock+0x6f/0x80
-> [532284.564086]  [<ffffffff810d0c55>] ? lock_release_holdtime+0x35/0x1a0
-> [532284.564086]  [<ffffffff81393bbd>] ? trace_hardirqs_off_thunk+0x3a/0x3c
-> [532284.564086]  [<ffffffff817501ae>] do_page_fault+0xe/0x10
-> [532284.564086]  [<ffffffff8174c078>] page_fault+0x28/0x30
-> [532284.564086]  [<ffffffff81393e42>] ? __clear_user+0x42/0x70
-> [532284.564086]  [<ffffffff81393e21>] ? __clear_user+0x21/0x70
-> [532284.564086]  [<ffffffff81393ea8>] clear_user+0x38/0x40
-> [532284.564086]  [<ffffffff8125dbfd>] padzero+0x2d/0x40
-> [532284.564086]  [<ffffffff8125e7ea>] load_elf_binary+0x8ca/0x1d40
-> [532284.564086]  [<ffffffff810b5e58>] ? sched_clock_cpu+0xb8/0x110
-> [532284.564086]  [<ffffffff810d0c55>] ? lock_release_holdtime+0x35/0x1a0
-> [532284.564086]  [<ffffffff810558c7>] ? kvm_clock_read+0x27/0x40
-> [532284.564086]  [<ffffffff8101ea59>] ? sched_clock+0x9/0x10
-> [532284.564086]  [<ffffffff810b5d35>] ? sched_clock_local+0x25/0x90
-> [532284.564086]  [<ffffffff81203fd3>] search_binary_handler+0xb3/0x1c0
-> [532284.564086]  [<ffffffff8109bdf0>] ? get_pid_task+0x120/0x120
-> [532284.564086]  [<ffffffff81205ecd>] do_execve_common+0x71d/0x990
-> [532284.564086]  [<ffffffff81205e14>] ? do_execve_common+0x664/0x990
-> [532284.564086]  [<ffffffff81206207>] do_execve+0x37/0x40
-> [532284.564086]  [<ffffffff8120624d>] SyS_execve+0x3d/0x60
-> [532284.564086]  [<ffffffff81755759>] stub_execve+0x69/0xa0
-> [532284.564086] Code: 00 00 e8 5d 03 02 00 85 c0 74 0d 80 3d e6 bc c2 00 00 0f 84 d4 00 00 00 49 8b 56 48 4d 63 ed 0f 1f 44 00 00 48 8b 82 b8 00 00 00 <4a> 03 04 ed 60 32 d1 81 48 01 18 48 8b 52 40 48 85 d2 75 e5 e8
-> [532284.564086] RIP  [<ffffffff810caf17>] cpuacct_charge+0x97/0x1e0
-> [532284.564086]  RSP <ffff8801167ee638>
-> [532284.564086] CR2: 0000000035c83420
+On Wed, 5 Feb 2014, Sasha Levin wrote:
+> On 02/03/2014 10:59 PM, Hugh Dickins wrote:
+> > On Mon, 3 Feb 2014, Sasha Levin wrote:
+> > > 
+> > > [  762.701278] BUG: unable to handle kernel paging request at
+> > > ffff88009eae6000
+> > > [  762.702462] IP: [<ffffffff81ae8455>] copy_page_rep+0x5/0x10
+> > > [  762.710135] Call Trace:
+> > > [  762.710135]  [<ffffffff81298995>] ? copy_user_huge_page+0x1a5/0x210
+> > > [  762.710135]  [<ffffffff812d7260>] do_huge_pmd_wp_page+0x3d0/0x650
+> > > [  762.710135]  [<ffffffff811a308e>] ? put_lock_stats+0xe/0x30
+> > > [  762.710135]  [<ffffffff8129b511>] __handle_mm_fault+0x2b1/0x3d0
+> > > [  762.710135]  [<ffffffff8129b763>] handle_mm_fault+0x133/0x1c0
+> > > [  762.710135]  [<ffffffff8129bcf8>] __get_user_pages+0x438/0x630
+> > > [  762.710135]  [<ffffffff811a308e>] ? put_lock_stats+0xe/0x30
+> > > [  762.710135]  [<ffffffff8129cfc4>] __mlock_vma_pages_range+0xd4/0xe0
+> > > [  762.710135]  [<ffffffff8129d0e0>] __mm_populate+0x110/0x190
+> > > [  762.710135]  [<ffffffff8129dcd0>] SyS_mlockall+0x160/0x1b0
+> > > [  762.710135]  [<ffffffff84450650>] tracesys+0xdd/0xe2
+> > 
+> > Here's what I suggested about that one in eecc1e426d68
+> > "thp: fix copy_page_rep GPF by testing is_huge_zero_pmd once only":
+> > Note: this is not the same issue as trinity's DEBUG_PAGEALLOC BUG
+> > in copy_page_rep with RSI: ffff88009c422000, reported by Sasha Levin
+> > in https://lkml.org/lkml/2013/3/29/103.  I believe that one is due
+> > to the source page being split, and a tail page freed, while copy
+> > is in progress; and not a problem without DEBUG_PAGEALLOC, since
+> > the pmd_same check will prevent a miscopy from being made visible.
+> > 
+> > It could be fixed by additional locking, or by taking an additional
+> > reference on every tail page, in the DEBUG_PAGEALLOC case (we wouldn't
+> > want to add to the overhead in the normal case).  I didn't feel very
+> > motivated to uglify the code in that way just for DEBUG_PAGEALLOC and
+> > trinity: if it only comes up once in seven months, I'm inclined to
+> > live with it myself, but you may have a different perspective.
 > 
+> Either something changed in the kernel or in trinity, but I'm now hitting it
+> 3-4 times a day.
 > 
+> I've been trying to look at the code to understand the issue you've
+> described, but I can't pinpoint the exact location where that happen.
+> 
+> Could you please point me to the relevant code sections?
 
-Looks like bio_alloc_bioset() recursion.  Adding Kent Overstreet and Jens 
-for ideas.
+I'm not sure which part of it is unclear.
+
+copy_page_rep (arch/x86/lib/copy_page_64.S) is what copy_user_huge_page
+(mm/memory.c) ends up calling, when it's invoked from do_huge_pmd_wp_page
+(mm/huge_memory.c).  At this point we hold down_read of this mm's mmap_sem,
+and a get_page on the head of the THP; but we don't have down_write or
+page_table_lock or compound_lock or anon_vma lock, some of which might
+prevent concurrent THP splitting (I say "some" and "might" because I've
+not gone back to check precisely which are actually relevant here: THP
+locking rules are not the simplest...).
+
+Do you accept that the THP might be split while we're copying?  And if
+that happens, then, for example, there might be a WP fault from another
+thread to one of the 4k pages it gets split into, which results in that
+particular 4k page being freed after it's been copied (I'm thinking its
+refcount demands that it be copied at the time of the fault, but then
+the additional ref gets freed - a fork proceeds to exec and frees it,
+for example).
+
+When the page is freed, free_pages_prepare (mm/page_alloc.c) calls
+kernel_map_pages (arch/x86/mm/pageattr.c if CONFIG_DEBUG_PAGEALLOC) to
+unmap the freed page from kernel virtual address space (__set_pages_np).
+Hence "unable to handle kernel paging request" when copy_page_rep
+reaches that part of what used to be the THP.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
