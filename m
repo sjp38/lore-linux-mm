@@ -1,67 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id A9EAA6B003B
-	for <linux-mm@kvack.org>; Tue,  4 Feb 2014 19:02:39 -0500 (EST)
-Received: by mail-pd0-f169.google.com with SMTP id v10so8950796pde.0
-        for <linux-mm@kvack.org>; Tue, 04 Feb 2014 16:02:39 -0800 (PST)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.11.231])
-        by mx.google.com with ESMTPS id a6si26563838pao.70.2014.02.04.16.02.38
+Received: from mail-pb0-f45.google.com (mail-pb0-f45.google.com [209.85.160.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 44B486B003C
+	for <linux-mm@kvack.org>; Tue,  4 Feb 2014 19:02:43 -0500 (EST)
+Received: by mail-pb0-f45.google.com with SMTP id un15so9099529pbc.18
+        for <linux-mm@kvack.org>; Tue, 04 Feb 2014 16:02:42 -0800 (PST)
+Received: from mail-pb0-x230.google.com (mail-pb0-x230.google.com [2607:f8b0:400e:c01::230])
+        by mx.google.com with ESMTPS id fb4si2036725pbb.292.2014.02.04.16.02.42
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 04 Feb 2014 16:02:38 -0800 (PST)
-From: Laura Abbott <lauraa@codeaurora.org>
-Subject: [PATCHv2 1/2] mm/memblock: add memblock_get_current_limit
-Date: Tue,  4 Feb 2014 16:02:30 -0800
-Message-Id: <1391558551-31395-2-git-send-email-lauraa@codeaurora.org>
-In-Reply-To: <1391558551-31395-1-git-send-email-lauraa@codeaurora.org>
-References: <1391558551-31395-1-git-send-email-lauraa@codeaurora.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 04 Feb 2014 16:02:42 -0800 (PST)
+Received: by mail-pb0-f48.google.com with SMTP id rr13so9112748pbb.21
+        for <linux-mm@kvack.org>; Tue, 04 Feb 2014 16:02:42 -0800 (PST)
+Date: Tue, 4 Feb 2014 16:02:39 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch] mm, page_alloc: make first_page visible before PageTail
+In-Reply-To: <alpine.LRH.2.02.1402040713220.13901@diagnostix.dwd.de>
+Message-ID: <alpine.DEB.2.02.1402041557380.10140@chino.kir.corp.google.com>
+References: <alpine.LRH.2.02.1401312037340.6630@diagnostix.dwd.de> <20140203122052.GC2495@dhcp22.suse.cz> <alpine.LRH.2.02.1402031426510.13382@diagnostix.dwd.de> <20140203162036.GJ2495@dhcp22.suse.cz> <52EFC93D.3030106@suse.cz>
+ <alpine.DEB.2.02.1402031602060.10778@chino.kir.corp.google.com> <alpine.LRH.2.02.1402040713220.13901@diagnostix.dwd.de>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
-Cc: Laura Abbott <lauraa@codeaurora.org>, linux-kernel@vger.kernel.org, Leif Lindholm <leif.lindholm@linaro.org>, Grygorii Strashko <grygorii.strashko@ti.com>, Catalin Marinas <catalin.marinas@arm.com>, Rob Herring <robherring2@gmail.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <will.deacon@arm.com>, Nicolas Pitre <nicolas.pitre@linaro.org>, Santosh Shilimkar <santosh.shilimkar@ti.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Holger Kiehl <Holger.Kiehl@dwd.de>
+Cc: Christoph Lameter <cl@linux.com>, Rafael Aquini <aquini@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Appart from setting the limit of memblock, it's also useful to be able
-to get the limit to avoid recalculating it every time. Add the function
-to do so.
+Commit bf6bddf1924e ("mm: introduce compaction and migration for ballooned 
+pages") introduces page_count(page) into memory compaction which 
+dereferences page->first_page if PageTail(page).
 
-Signed-off-by: Laura Abbott <lauraa@codeaurora.org>
+Introduce a store memory barrier to ensure page->first_page is properly 
+initialized so that code that does page_count(page) on pages off the lru 
+always have a valid p->first_page.
+
+Reported-by: Holger Kiehl <Holger.Kiehl@dwd.de>
+Signed-off-by: David Rientjes <rientjes@google.com>
 ---
- include/linux/memblock.h |    2 ++
- mm/memblock.c            |    5 +++++
- 2 files changed, 7 insertions(+), 0 deletions(-)
+ mm/page_alloc.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
 
-diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-index 1ef6636..8a20a51 100644
---- a/include/linux/memblock.h
-+++ b/include/linux/memblock.h
-@@ -252,6 +252,8 @@ static inline void memblock_dump_all(void)
- void memblock_set_current_limit(phys_addr_t limit);
- 
- 
-+phys_addr_t memblock_get_current_limit(void);
-+
- /*
-  * pfn conversion functions
-  *
-diff --git a/mm/memblock.c b/mm/memblock.c
-index 87d21a6..3820e29 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -1404,6 +1404,11 @@ void __init_memblock memblock_set_current_limit(phys_addr_t limit)
- 	memblock.current_limit = limit;
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -369,9 +369,10 @@ void prep_compound_page(struct page *page, unsigned long order)
+ 	__SetPageHead(page);
+ 	for (i = 1; i < nr_pages; i++) {
+ 		struct page *p = page + i;
+-		__SetPageTail(p);
+ 		set_page_count(p, 0);
+ 		p->first_page = page;
++		smp_wmb();
++		__SetPageTail(p);
+ 	}
  }
  
-+phys_addr_t __init_memblock memblock_get_current_limit(void)
-+{
-+	return memblock.current_limit;
-+}
-+
- static void __init_memblock memblock_dump(struct memblock_type *type, char *name)
- {
- 	unsigned long long base, size;
--- 
-The Qualcomm Innovation Center, Inc. is a member of the Code Aurora Forum,
-hosted by The Linux Foundation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
