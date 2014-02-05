@@ -1,111 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f172.google.com (mail-ea0-f172.google.com [209.85.215.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F3316B0031
-	for <linux-mm@kvack.org>; Tue,  4 Feb 2014 20:54:41 -0500 (EST)
-Received: by mail-ea0-f172.google.com with SMTP id l9so3138958eaj.3
-        for <linux-mm@kvack.org>; Tue, 04 Feb 2014 17:54:40 -0800 (PST)
+Received: from mail-ee0-f41.google.com (mail-ee0-f41.google.com [74.125.83.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A1816B0031
+	for <linux-mm@kvack.org>; Tue,  4 Feb 2014 21:02:59 -0500 (EST)
+Received: by mail-ee0-f41.google.com with SMTP id e51so2394282eek.14
+        for <linux-mm@kvack.org>; Tue, 04 Feb 2014 18:02:58 -0800 (PST)
 Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id b7si3268612eez.176.2014.02.04.17.54.39
+        by mx.google.com with ESMTPS id w1si33507767eeo.23.2014.02.04.18.02.57
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 04 Feb 2014 17:54:40 -0800 (PST)
-Date: Tue, 4 Feb 2014 20:53:52 -0500
+        Tue, 04 Feb 2014 18:02:58 -0800 (PST)
+Date: Tue, 4 Feb 2014 21:02:22 -0500
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 10/10] mm: keep page cache radix tree nodes in check
-Message-ID: <20140205015352.GW6963@cmpxchg.org>
+Subject: Re: [patch 00/10] mm: thrash detection-based file cache sizing v9
+Message-ID: <20140205020222.GX6963@cmpxchg.org>
 References: <1391475222-1169-1-git-send-email-hannes@cmpxchg.org>
- <1391475222-1169-11-git-send-email-hannes@cmpxchg.org>
- <20140204150756.d7f46af4385026ce61c89c55@linux-foundation.org>
+ <20140204151424.d08301233c1f1801f43498b1@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140204150756.d7f46af4385026ce61c89c55@linux-foundation.org>
+In-Reply-To: <20140204151424.d08301233c1f1801f43498b1@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Bob Liu <bob.liu@oracle.com>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Luigi Semenzato <semenzato@google.com>, Mel Gorman <mgorman@suse.de>, Metin Doslu <metin@citusdata.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan.kim@gmail.com>, Ozgun Erdogan <ozgun@citusdata.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Roman Gushchin <klamm@yandex-team.ru>, Ryan Mallon <rmallon@gmail.com>, Tejun Heo <tj@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Tue, Feb 04, 2014 at 03:07:56PM -0800, Andrew Morton wrote:
-> On Mon,  3 Feb 2014 19:53:42 -0500 Johannes Weiner <hannes@cmpxchg.org> wrote:
+On Tue, Feb 04, 2014 at 03:14:24PM -0800, Andrew Morton wrote:
+> On Mon,  3 Feb 2014 19:53:32 -0500 Johannes Weiner <hannes@cmpxchg.org> wrote:
 > 
-> > Previously, page cache radix tree nodes were freed after reclaim
-> > emptied out their page pointers.  But now reclaim stores shadow
-> > entries in their place, which are only reclaimed when the inodes
-> > themselves are reclaimed.  This is problematic for bigger files that
-> > are still in use after they have a significant amount of their cache
-> > reclaimed, without any of those pages actually refaulting.  The shadow
-> > entries will just sit there and waste memory.  In the worst case, the
-> > shadow entries will accumulate until the machine runs out of memory.
+> > o Fix vmstat build problems on UP (Fengguang Wu's build bot)
 > > 
-> > To get this under control, the VM will track radix tree nodes
-> > exclusively containing shadow entries on a per-NUMA node list.
-> > Per-NUMA rather than global because we expect the radix tree nodes
-> > themselves to be allocated node-locally and we want to reduce
-> > cross-node references of otherwise independent cache workloads.  A
-> > simple shrinker will then reclaim these nodes on memory pressure.
-
-    ^^^^^^^^^^^^^^^
-> > A few things need to be stored in the radix tree node to implement the
-> > shadow node LRU and allow tree deletions coming from the list:
+> > o Clarify why optimistic radix_tree_node->private_list link checking
+> >   is safe without holding the list_lru lock (Dave Chinner)
 > > 
-> > 1. There is no index available that would describe the reverse path
-> >    from the node up to the tree root, which is needed to perform a
-> >    deletion.  To solve this, encode in each node its offset inside the
-> >    parent.  This can be stored in the unused upper bits of the same
-> >    member that stores the node's height at no extra space cost.
+> > o Assert locking balance when the list_lru isolator says it dropped
+> >   the list lock (Dave Chinner)
 > > 
-> > 2. The number of shadow entries needs to be counted in addition to the
-> >    regular entries, to quickly detect when the node is ready to go to
-> >    the shadow node LRU list.  The current entry count is an unsigned
-> >    int but the maximum number of entries is 64, so a shadow counter
-> >    can easily be stored in the unused upper bits.
+> > o Remove remnant of a manual reclaim counter in the shadow isolator,
+> >   the list_lru-provided accounting is accurate now that we added
+> >   LRU_REMOVED_RETRY (Dave Chinner)
 > > 
-> > 3. Tree modification needs tree lock and tree root, which are located
-> >    in the address space, so store an address_space backpointer in the
-> >    node.  The parent pointer of the node is in a union with the 2-word
-> >    rcu_head, so the backpointer comes at no extra cost as well.
+> > o Set an object limit for the shadow shrinker instead of messing with
+> >   its seeks setting.  The configured seeks define how pressure applied
+> >   to pages translates to pressure on the object pool, in itself it is
+> >   not enough to replace proper object valuation to classify expired
+> >   and in-use objects.  Shadow nodes contain up to 64 shadow entries
+> >   from different/alternating zones that have their own atomic age
+> >   counter, so determining if a node is overall expired is crazy
+> >   expensive.  Instead, use an object limit above which nodes are very
+> >   likely to be expired.
 > > 
-> > 4. The node needs to be linked to an LRU list, which requires a list
-> >    head inside the node.  This does increase the size of the node, but
-> >    it does not change the number of objects that fit into a slab page.
+> > o __pagevec_lookup and __find_get_pages kerneldoc fixes (Minchan Kim)
+> > 
+> > o radix_tree_node->count accessors for pages and shadows (Minchan Kim)
+> > 
+> > o Rebase to v3.14-rc1 and add review tags
 > 
-> changelog forgot to mention that this reclaim is performed via a
-> shrinker...
+> An earlier version caused a 24-byte inode bloatage.  That appears to
+> have been reduced to 8 bytes, yes?  What was done there?
 
-Uhm...  see above? :)
+Instead of inodes, the shrinker now directly tracks radix tree nodes
+that contain only shadow entries.  So the 16 bytes for the list_head
+are now in struct radix_tree_node, but due to different slab packing
+it didn't increase memory consumption.
 
-> How expensive is that list walk in scan_shadow_nodes()?  I assume in
-> the best case it will bale out after nr_to_scan iterations?
+> > 69 files changed, 1438 insertions(+), 462 deletions(-)
+> 
+> omigod
 
-Yes, it scans sc->nr_to_scan radix tree nodes, cleans their pointers,
-and frees them.
-
-I ran a worst-case scenario on an 8G machine that creates one 8T
-sparse file and faults one page per 64-page radix tree node, i.e. one
-node per sparse file fault at CPU speed.  The profile:
-
-     1       9.21%     radixblow  [kernel.kallsyms]   [k] memset
-     2       7.23%     radixblow  [kernel.kallsyms]   [k] do_mpage_readpage
-     3       4.76%     radixblow  [kernel.kallsyms]   [k] copy_user_generic_string
-     4       3.85%     radixblow  [kernel.kallsyms]   [k] __radix_tree_lookup
-     5       3.32%       kswapd0  [kernel.kallsyms]   [k] shadow_lru_isolate
-     6       2.92%     radixblow  [kernel.kallsyms]   [k] get_page_from_freelist
-     7       2.81%       kswapd0  [kernel.kallsyms]   [k] __delete_from_page_cache
-     8       2.50%     radixblow  [kernel.kallsyms]   [k] radix_tree_node_ctor
-     9       1.79%     radixblow  [kernel.kallsyms]   [k] _raw_spin_lock_irq
-    10       1.70%       kswapd0  [kernel.kallsyms]   [k] __mem_cgroup_uncharge_common
-
-Same scenario with 4 pages per 64-page radix tree node:
-
-    13       1.39%       kswapd0  [kernel.kallsyms]   [k] shadow_lru_isolate
-
-16 pages per 64-page node:
-
-    75       0.20%       kswapd0  [kernel.kallsyms]   [k] shadow_lru_isolate
-
-So I doubt this will bother anyone, especially since most use-once
-streamers should have a better population density and populate cache
-at disk speed, not CPU speed.
+Most of it is comments and Minchan's accessor functions.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
