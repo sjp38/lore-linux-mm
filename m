@@ -1,72 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f50.google.com (mail-la0-f50.google.com [209.85.215.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 548C56B0035
-	for <linux-mm@kvack.org>; Wed,  5 Feb 2014 10:18:33 -0500 (EST)
-Received: by mail-la0-f50.google.com with SMTP id ec20so439377lab.9
-        for <linux-mm@kvack.org>; Wed, 05 Feb 2014 07:18:32 -0800 (PST)
-Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id ya3si15185785lbb.161.2014.02.05.07.18.21
+Received: from mail-ee0-f51.google.com (mail-ee0-f51.google.com [74.125.83.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E1486B0035
+	for <linux-mm@kvack.org>; Wed,  5 Feb 2014 10:28:37 -0500 (EST)
+Received: by mail-ee0-f51.google.com with SMTP id b57so305924eek.10
+        for <linux-mm@kvack.org>; Wed, 05 Feb 2014 07:28:36 -0800 (PST)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id w5si28729639eef.235.2014.02.05.07.28.35
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 05 Feb 2014 07:18:21 -0800 (PST)
-Date: Wed, 5 Feb 2014 19:18:18 +0400
-From: Andrew Vagin <avagin@parallels.com>
-Subject: Thread overran stack, or stack corrupted on 3.13.0
-Message-ID: <20140205151817.GA28502@paralelels.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 05 Feb 2014 07:28:36 -0800 (PST)
+Date: Wed, 5 Feb 2014 10:28:21 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH -v2 4/6] memcg: make sure that memcg is not offline when
+ charging
+Message-ID: <20140205152821.GY6963@cmpxchg.org>
+References: <1391520540-17436-1-git-send-email-mhocko@suse.cz>
+ <1391520540-17436-5-git-send-email-mhocko@suse.cz>
+ <20140204162939.GP6963@cmpxchg.org>
+ <20140205133834.GB2425@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="koi8-r"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20140205133834.GB2425@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-Hello All,
+On Wed, Feb 05, 2014 at 02:38:34PM +0100, Michal Hocko wrote:
+> On Tue 04-02-14 11:29:39, Johannes Weiner wrote:
+> [...]
+> > Maybe we should remove the XXX if it makes you think we should change
+> > the current situation by any means necessary.  This patch is not an
+> > improvement.
+> >
+> > I put the XXX there so that we one day maybe refactor the code in a
+> > clean fashion where try_get_mem_cgroup_from_whatever() is in the same
+> > rcu section as the first charge attempt.  On failure, reclaim, and do
+> > the lookup again.
+> 
+> I wouldn't be opposed to such a cleanup. It is not that simple, though.
+>
+> > Also, this problem only exists on swapin, where the memcg is looked up
+> > from an auxilliary data structure and not the current task, so maybe
+> > that would be an angle to look for a clean solution.
+> 
+> I am not so sure about that. Task could have been moved to a different
+> group basically anytime it was outside of rcu_read_lock section (which
+> means most of the time). And so the group might get removed and we are
+> in the very same situation.
+> 
+> > Either way, the problem is currently fixed 
+> 
+> OK, my understanding (and my ack was based on that) was that we needed
+> a simple and safe fix for the stable trees and we would have something
+> more appropriate later on. Preventing from the race sounds like a more
+> appropriate and a better technical solution to me. So I would rather ask
+> why to keep a workaround in place. Does it add any risk?
+> Especially when we basically abuse the 2 stage cgroup removal. All the
+> charges should be cleared out after css_offline.
 
-My test server crashed a few days ago. The kernel was built from Linus'
-git without any additional changes. I don't know how to reproduce this
-bug.
+I thought more about this and talked to Tejun as well.  He told me
+that the rcu grace period between disabling tryget and calling
+css_offline() is currently an implementation detail of the refcounter
+that css uses, but it's not a guarantee.  So my initial idea of
+reworking memcg to do css_tryget() and res_counter_charge() in the
+same rcu section is no longer enough to synchronize against offlining.
+We can forget about that.
 
-[532284.563576] BUG: unable to handle kernel paging request at 0000000035c83420
-[532284.564086] IP: [<ffffffff810caf17>] cpuacct_charge+0x97/0x1e0
-[532284.564086] PGD 116369067 PUD 116368067 PMD 0
-[532284.564086] Thread overran stack, or stack corrupted
-[532284.564086] Oops: 0000 [#1] SMP
-[532284.564086] Modules linked in: veth binfmt_misc ip6table_filter ip6_tables tun netlink_diag af_packet_diag udp_diag tcp_diag inet_diag unix_diag bridge stp llc btrfs libcrc32c xor raid6_pq microcode i2c_piix4 joydev virtio_balloon virtio_net pcspkr i2c_core virtio_blk virtio_pci virtio_ring virtio floppy
-[532284.564086] CPU: 2 PID: 2487 Comm: cat Not tainted 3.13.0 #160
-[532284.564086] Hardware name: Red Hat KVM, BIOS 0.5.1 01/01/2007
-[532284.564086] task: ffff8800cdb60000 ti: ffff8801167ee000 task.ti: ffff8801167ee000
-[532284.564086] RIP: 0010:[<ffffffff810caf17>]  [<ffffffff810caf17>] cpuacct_charge+0x97/0x1e0
-[532284.564086] RSP: 0018:ffff8801167ee638  EFLAGS: 00010002
-[532284.564086] RAX: 000000000000e540 RBX: 000000000006086c RCX: 000000000000000f
-[532284.564086] RDX: ffffffff81c4e960 RSI: ffffffff81c50640 RDI: 0000000000000046
-[532284.564086] RBP: ffff8801167ee668 R08: 0000000000000003 R09: 0000000000000001
-[532284.564086] R10: 0000000000000001 R11: 0000000000000004 R12: ffff8800cdb60000
-[532284.564086] R13: 00000000167ee038 R14: ffff8800db3576d8 R15: 000080ee26ec7dcf
-[532284.564086] FS:  00007fc30ecc7740(0000) GS:ffff88011b200000(0000) knlGS:0000000000000000
-[532284.564086] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-[532284.564086] CR2: 0000000035c83420 CR3: 000000011f966000 CR4: 00000000000006e0
-[532284.564086] Stack:
-[532284.564086]  ffffffff810cae80 ffff880100000014 ffff8800db333480 000000000006086c
-[532284.564086]  ffff8800cdb60068 ffff8800cdb60000 ffff8801167ee6a8 ffffffff810b948f
-[532284.564086]  ffff8801167ee698 ffff8800cdb60068 ffff8800db333480 0000000000000001
-[532284.564086] Call Trace:
-[532284.564086]  [<ffffffff810cae80>] ? cpuacct_css_alloc+0xb0/0xb0
-[532284.564086]  [<ffffffff810b948f>] update_curr+0x13f/0x220
-[532284.564086]  [<ffffffff810bfeb4>] dequeue_entity+0x24/0x5b0
-[532284.564086]  [<ffffffff8101ea59>] ? sched_clock+0x9/0x10
-[532284.564086]  [<ffffffff810c0489>] dequeue_task_fair+0x49/0x430
-[532284.564086]  [<ffffffff810acbb3>] dequeue_task+0x73/0x90
-[532284.564086]  [<ffffffff810acbf3>] deactivate_task+0x23/0x30
-[532284.564086]  [<ffffffff81745b11>] __schedule+0x501/0x960
-[532284.564086]  [<ffffffff817460b9>] schedule+0x29/0x70
-[532284.564086]  [<ffffffff81744eac>] schedule_timeout+0x14c/0x2a0
-[532284.564086]  [<ffffffff810835f0>] ? del_timer+0x70/0x70
-[532284.564086]  [<ffffffff8174b7d0>] ? _raw_spin_unlock_irqrestore+0x40/0x80
-[532284.564086]  [<ffffffff8174547f>] io_schedule_timeout+0x9f/0x100
-[532284.564086]  [<ffffffff810d16dd>] ? trace_hardirqs_on+0xd/0x10
-[532284.564086]  [<ffffffff81182b22>] mempool_alloc+0x152/0x180
-[532284.564086]  [<ffffffff810c56e0>] ? bit_waitqueue+0xd0/0xd0
-[532284.564086]  [<ffffffff810558c7>] ? kvm_clock_read+0x27/0x40
+On the other hand, memcg holds a css reference only while an actual
+controller reference is being established (res_counter_charge), then
+drops it.  This means that once css_tryget() is disabled, we only need
+to wait for the css refcounter to hit 0 to know for sure that no new
+charges can show up and reparent_charges() is safe to run, right?
+
+Well, css_free() is the callback invoked when the ref counter hits 0,
+and that is a guarantee.  From a memcg perspective, it's the right
+place to do reparenting, not css_offline().
+
+Here is the only exception to the above: swapout records maintain
+permanent css references, so they prevent css_free() from running.
+For that reason alone we should run one optimistic reparenting in
+css_offline() to make sure one swap record does not pin gigabytes of
+pages in an offlined cgroup, which is unreachable for reclaim.  But
+the reparenting for *correctness* is in css_free(), not css_offline().
+
+We should be changing the comments.  The code is already correct.
+
+> > Unless the alternative solution is inherent in a clean rework of the
+> > code to match cgroup core lifetime management, I don't see any reason
+> > to move away from the status quo.
+> 
+> To be honest this sounds like a weak reasoning to refuse a real fix
+> which replaces a workaround.
+> 
+> This is a second attempt to fix the actual race that you are dismissing
+> which is really surprising to me. Especially when the workaround is an
+> ugly hack.
+
+IMO it was always functionally correct, just something that could have
+been done cleaner from a design POV.  That's why I refused every
+alternative solution that made the code worse instead of better.
+
+But looks like it also makes perfect sense from a design POV, so
+it's all moot now.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
