@@ -1,73 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f41.google.com (mail-ee0-f41.google.com [74.125.83.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A1816B0031
-	for <linux-mm@kvack.org>; Tue,  4 Feb 2014 21:02:59 -0500 (EST)
-Received: by mail-ee0-f41.google.com with SMTP id e51so2394282eek.14
-        for <linux-mm@kvack.org>; Tue, 04 Feb 2014 18:02:58 -0800 (PST)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id w1si33507767eeo.23.2014.02.04.18.02.57
+Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 9ABC16B0031
+	for <linux-mm@kvack.org>; Tue,  4 Feb 2014 21:45:01 -0500 (EST)
+Received: by mail-pd0-f173.google.com with SMTP id y10so8992310pdj.18
+        for <linux-mm@kvack.org>; Tue, 04 Feb 2014 18:45:01 -0800 (PST)
+Received: from mail-pb0-x235.google.com (mail-pb0-x235.google.com [2607:f8b0:400e:c01::235])
+        by mx.google.com with ESMTPS id eb3si26988889pbc.206.2014.02.04.18.45.00
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 04 Feb 2014 18:02:58 -0800 (PST)
-Date: Tue, 4 Feb 2014 21:02:22 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 00/10] mm: thrash detection-based file cache sizing v9
-Message-ID: <20140205020222.GX6963@cmpxchg.org>
-References: <1391475222-1169-1-git-send-email-hannes@cmpxchg.org>
- <20140204151424.d08301233c1f1801f43498b1@linux-foundation.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 04 Feb 2014 18:45:00 -0800 (PST)
+Received: by mail-pb0-f53.google.com with SMTP id md12so9272733pbc.12
+        for <linux-mm@kvack.org>; Tue, 04 Feb 2014 18:45:00 -0800 (PST)
+Date: Tue, 4 Feb 2014 18:44:58 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch v2] mm, compaction: avoid isolating pinned pages
+In-Reply-To: <alpine.DEB.2.02.1402031848290.15032@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.02.1402041842100.14045@chino.kir.corp.google.com>
+References: <alpine.DEB.2.02.1402012145510.2593@chino.kir.corp.google.com> <20140203095329.GH6732@suse.de> <alpine.DEB.2.02.1402030231590.31061@chino.kir.corp.google.com> <20140204000237.GA17331@lge.com> <alpine.DEB.2.02.1402031610090.10778@chino.kir.corp.google.com>
+ <20140204015332.GA14779@lge.com> <alpine.DEB.2.02.1402031755440.26347@chino.kir.corp.google.com> <20140204021533.GA14924@lge.com> <alpine.DEB.2.02.1402031848290.15032@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140204151424.d08301233c1f1801f43498b1@linux-foundation.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Bob Liu <bob.liu@oracle.com>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Luigi Semenzato <semenzato@google.com>, Mel Gorman <mgorman@suse.de>, Metin Doslu <metin@citusdata.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan.kim@gmail.com>, Ozgun Erdogan <ozgun@citusdata.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Roman Gushchin <klamm@yandex-team.ru>, Ryan Mallon <rmallon@gmail.com>, Tejun Heo <tj@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Feb 04, 2014 at 03:14:24PM -0800, Andrew Morton wrote:
-> On Mon,  3 Feb 2014 19:53:32 -0500 Johannes Weiner <hannes@cmpxchg.org> wrote:
-> 
-> > o Fix vmstat build problems on UP (Fengguang Wu's build bot)
-> > 
-> > o Clarify why optimistic radix_tree_node->private_list link checking
-> >   is safe without holding the list_lru lock (Dave Chinner)
-> > 
-> > o Assert locking balance when the list_lru isolator says it dropped
-> >   the list lock (Dave Chinner)
-> > 
-> > o Remove remnant of a manual reclaim counter in the shadow isolator,
-> >   the list_lru-provided accounting is accurate now that we added
-> >   LRU_REMOVED_RETRY (Dave Chinner)
-> > 
-> > o Set an object limit for the shadow shrinker instead of messing with
-> >   its seeks setting.  The configured seeks define how pressure applied
-> >   to pages translates to pressure on the object pool, in itself it is
-> >   not enough to replace proper object valuation to classify expired
-> >   and in-use objects.  Shadow nodes contain up to 64 shadow entries
-> >   from different/alternating zones that have their own atomic age
-> >   counter, so determining if a node is overall expired is crazy
-> >   expensive.  Instead, use an object limit above which nodes are very
-> >   likely to be expired.
-> > 
-> > o __pagevec_lookup and __find_get_pages kerneldoc fixes (Minchan Kim)
-> > 
-> > o radix_tree_node->count accessors for pages and shadows (Minchan Kim)
-> > 
-> > o Rebase to v3.14-rc1 and add review tags
-> 
-> An earlier version caused a 24-byte inode bloatage.  That appears to
-> have been reduced to 8 bytes, yes?  What was done there?
+Page migration will fail for memory that is pinned in memory with, for
+example, get_user_pages().  In this case, it is unnecessary to take
+zone->lru_lock or isolating the page and passing it to page migration
+which will ultimately fail.
 
-Instead of inodes, the shrinker now directly tracks radix tree nodes
-that contain only shadow entries.  So the 16 bytes for the list_head
-are now in struct radix_tree_node, but due to different slab packing
-it didn't increase memory consumption.
+This is a racy check, the page can still change from under us, but in
+that case we'll just fail later when attempting to move the page.
 
-> > 69 files changed, 1438 insertions(+), 462 deletions(-)
-> 
-> omigod
+This avoids very expensive memory compaction when faulting transparent
+hugepages after pinning a lot of memory with a Mellanox driver.
 
-Most of it is comments and Minchan's accessor functions.
+On a 128GB machine and pinning ~120GB of memory, before this patch we
+see the enormous disparity in the number of page migration failures
+because of the pinning (from /proc/vmstat):
+
+	compact_pages_moved 8450
+	compact_pagemigrate_failed 15614415
+
+0.05% of pages isolated are successfully migrated and explicitly 
+triggering memory compaction takes 102 seconds.  After the patch:
+
+	compact_pages_moved 9197
+	compact_pagemigrate_failed 7
+
+99.9% of pages isolated are now successfully migrated in this 
+configuration and memory compaction takes less than one second.
+
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ v2: address page count issue per Joonsoo
+
+ mm/compaction.c | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/mm/compaction.c b/mm/compaction.c
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -578,6 +578,15 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
+ 			continue;
+ 		}
+ 
++		/*
++		 * Migration will fail if an anonymous page is pinned in memory,
++		 * so avoid taking lru_lock and isolating it unnecessarily in an
++		 * admittedly racy check.
++		 */
++		if (!page_mapping(page) &&
++		    page_count(page) > page_mapcount(page))
++			continue;
++
+ 		/* Check if it is ok to still hold the lock */
+ 		locked = compact_checklock_irqsave(&zone->lru_lock, &flags,
+ 								locked, cc);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
