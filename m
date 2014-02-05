@@ -1,85 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 689E46B0035
-	for <linux-mm@kvack.org>; Tue,  4 Feb 2014 19:24:12 -0500 (EST)
-Received: by mail-pa0-f47.google.com with SMTP id kp14so9172683pab.34
-        for <linux-mm@kvack.org>; Tue, 04 Feb 2014 16:24:12 -0800 (PST)
-Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-        by mx.google.com with ESMTPS id xu6si26656852pab.51.2014.02.04.16.24.10
+Received: from mail-oa0-f44.google.com (mail-oa0-f44.google.com [209.85.219.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 09A1C6B0031
+	for <linux-mm@kvack.org>; Tue,  4 Feb 2014 19:32:21 -0500 (EST)
+Received: by mail-oa0-f44.google.com with SMTP id g12so10845119oah.3
+        for <linux-mm@kvack.org>; Tue, 04 Feb 2014 16:32:20 -0800 (PST)
+Received: from g4t0014.houston.hp.com (g4t0014.houston.hp.com. [15.201.24.17])
+        by mx.google.com with ESMTPS id pp9si13005777obc.89.2014.02.04.16.32.20
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 04 Feb 2014 16:24:11 -0800 (PST)
-Received: by mail-pd0-f178.google.com with SMTP id y13so8959588pdi.9
-        for <linux-mm@kvack.org>; Tue, 04 Feb 2014 16:24:10 -0800 (PST)
-Content-Type: text/plain; charset="utf-8"
-MIME-Version: 1.0
-Content-Transfer-Encoding: quoted-printable
-From: Sebastian Capella <sebastian.capella@linaro.org>
-In-Reply-To: <2342041.V7doIJk0XQ@vostro.rjw.lan>
-References: <1391546631-7715-1-git-send-email-sebastian.capella@linaro.org>
- <1593382.PUxxx0NMeh@vostro.rjw.lan> <20140205000642.6803.8182@capellas-linux>
- <2342041.V7doIJk0XQ@vostro.rjw.lan>
-Message-ID: <20140205002413.7648.33035@capellas-linux>
-Subject: Re: [PATCH v7 2/3] trivial: PM / Hibernate: clean up checkpatch in
- hibernate.c
-Date: Tue, 04 Feb 2014 16:24:13 -0800
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 04 Feb 2014 16:32:20 -0800 (PST)
+Message-ID: <1391560337.2501.0.camel@buesod1.americas.hpqcorp.net>
+Subject: Re: [patch] mm, hugetlb: mark some bootstrap functions as __init
+From: Davidlohr Bueso <davidlohr@hp.com>
+Date: Tue, 04 Feb 2014 16:32:17 -0800
+In-Reply-To: <alpine.DEB.2.02.1402041612120.14962@chino.kir.corp.google.com>
+References: <alpine.DEB.2.02.1402041612120.14962@chino.kir.corp.google.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Rafael J. Wysocki" <rjw@rjwysocki.net>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-pm@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, Pavel Machek <pavel@ucw.cz>, Len Brown <len.brown@intel.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Quoting Rafael J. Wysocki (2014-02-04 16:28:13)
-> On Tuesday, February 04, 2014 04:06:42 PM Sebastian Capella wrote:
-> > Quoting Rafael J. Wysocki (2014-02-04 16:03:29)
-> > > On Tuesday, February 04, 2014 03:22:22 PM Sebastian Capella wrote:
-> > > > Quoting Sebastian Capella (2014-02-04 14:37:33)
-> > > > > Quoting Rafael J. Wysocki (2014-02-04 13:36:29)
-> > > > > > >  static int __init resumedelay_setup(char *str)
-> > > > > > >  {
-> > > > > > > -     resume_delay =3D simple_strtoul(str, NULL, 0);
-> > > > > > > +     int ret =3D kstrtoint(str, 0, &resume_delay);
-> > > > > > > +     /* mask must_check warn; on failure, leaves resume_dela=
-y unchanged */
-> > > > > > > +     (void)ret;
-> > > > =
+On Tue, 2014-02-04 at 16:13 -0800, David Rientjes wrote:
+> Both prep_compound_huge_page() and prep_compound_gigantic_page() are only
+> called at bootstrap and can be marked as __init.
+> 
+> The __SetPageTail(page) in prep_compound_gigantic_page() happening before
+> page->first_page is initialized is not concerning since this is
+> bootstrap.
+> 
+> Signed-off-by: David Rientjes <rientjes@google.com>
 
-> > > > One unintended consequence of this change is that it'll now accept a
-> > > > negative integer parameter.
-> > > =
-
-> > > Well, what about using kstrtouint(), then?
-> > I was thinking of doing something like:
-> > =
-
-> >       int delay, res;
-> >       res =3D kstrtoint(str, 0, &delay);
-> >       if (!res && delay >=3D 0)
-> >               resume_delay =3D delay;
-> >       return 1;
-> =
-
-> It uses simple_strtoul() for a reason.  You can change the type of resume=
-_delay
-> to match, but the basic question is:
-> =
-
-> Why exactly do you want to change that thing?
-
-This entire patch is a result of a single checkpatch warning from a printk
-that I indented.
-
-I was hoping to be helpful by removing all of the warnings from this
-file, since I was going to have a separate cleanup patch for the printk.
-
-I can see this is not a good direction.
-
-Would it be better also to leave the file's printks as they were and drop
-the cleanup patch completely?
-
-Thanks,
-
-Sebastian
-
+Reviewed-by: Davidlohr Bueso <davidlohr@hp.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
