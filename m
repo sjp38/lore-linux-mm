@@ -1,63 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f51.google.com (mail-pb0-f51.google.com [209.85.160.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 47E186B0031
-	for <linux-mm@kvack.org>; Tue,  4 Feb 2014 19:22:56 -0500 (EST)
-Received: by mail-pb0-f51.google.com with SMTP id un15so9096000pbc.24
-        for <linux-mm@kvack.org>; Tue, 04 Feb 2014 16:22:55 -0800 (PST)
-Received: from mail-pb0-x22f.google.com (mail-pb0-x22f.google.com [2607:f8b0:400e:c01::22f])
-        by mx.google.com with ESMTPS id l8si26621913pao.152.2014.02.04.16.22.55
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 689E46B0035
+	for <linux-mm@kvack.org>; Tue,  4 Feb 2014 19:24:12 -0500 (EST)
+Received: by mail-pa0-f47.google.com with SMTP id kp14so9172683pab.34
+        for <linux-mm@kvack.org>; Tue, 04 Feb 2014 16:24:12 -0800 (PST)
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+        by mx.google.com with ESMTPS id xu6si26656852pab.51.2014.02.04.16.24.10
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 04 Feb 2014 16:22:55 -0800 (PST)
-Received: by mail-pb0-f47.google.com with SMTP id rp16so9123719pbb.6
-        for <linux-mm@kvack.org>; Tue, 04 Feb 2014 16:22:55 -0800 (PST)
-Date: Tue, 4 Feb 2014 16:22:53 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch v2] mm, page_alloc: make first_page visible before PageTail
-In-Reply-To: <alpine.DEB.2.02.1402041613450.14962@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.02.1402041621350.14962@chino.kir.corp.google.com>
-References: <alpine.LRH.2.02.1401312037340.6630@diagnostix.dwd.de> <20140203122052.GC2495@dhcp22.suse.cz> <alpine.LRH.2.02.1402031426510.13382@diagnostix.dwd.de> <20140203162036.GJ2495@dhcp22.suse.cz> <52EFC93D.3030106@suse.cz>
- <alpine.DEB.2.02.1402031602060.10778@chino.kir.corp.google.com> <alpine.LRH.2.02.1402040713220.13901@diagnostix.dwd.de> <alpine.DEB.2.02.1402041557380.10140@chino.kir.corp.google.com> <20140204160641.8f5d369eeb2d0318618d6d5f@linux-foundation.org>
- <alpine.DEB.2.02.1402041613450.14962@chino.kir.corp.google.com>
+        Tue, 04 Feb 2014 16:24:11 -0800 (PST)
+Received: by mail-pd0-f178.google.com with SMTP id y13so8959588pdi.9
+        for <linux-mm@kvack.org>; Tue, 04 Feb 2014 16:24:10 -0800 (PST)
+Content-Type: text/plain; charset="utf-8"
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
+From: Sebastian Capella <sebastian.capella@linaro.org>
+In-Reply-To: <2342041.V7doIJk0XQ@vostro.rjw.lan>
+References: <1391546631-7715-1-git-send-email-sebastian.capella@linaro.org>
+ <1593382.PUxxx0NMeh@vostro.rjw.lan> <20140205000642.6803.8182@capellas-linux>
+ <2342041.V7doIJk0XQ@vostro.rjw.lan>
+Message-ID: <20140205002413.7648.33035@capellas-linux>
+Subject: Re: [PATCH v7 2/3] trivial: PM / Hibernate: clean up checkpatch in
+ hibernate.c
+Date: Tue, 04 Feb 2014 16:24:13 -0800
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Holger Kiehl <Holger.Kiehl@dwd.de>
-Cc: Christoph Lameter <cl@linux.com>, Rafael Aquini <aquini@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Rafael J. Wysocki" <rjw@rjwysocki.net>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-pm@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, Pavel Machek <pavel@ucw.cz>, Len Brown <len.brown@intel.com>
 
-Commit bf6bddf1924e ("mm: introduce compaction and migration for ballooned
-pages") introduces page_count(page) into memory compaction which
-dereferences page->first_page if PageTail(page).
+Quoting Rafael J. Wysocki (2014-02-04 16:28:13)
+> On Tuesday, February 04, 2014 04:06:42 PM Sebastian Capella wrote:
+> > Quoting Rafael J. Wysocki (2014-02-04 16:03:29)
+> > > On Tuesday, February 04, 2014 03:22:22 PM Sebastian Capella wrote:
+> > > > Quoting Sebastian Capella (2014-02-04 14:37:33)
+> > > > > Quoting Rafael J. Wysocki (2014-02-04 13:36:29)
+> > > > > > >  static int __init resumedelay_setup(char *str)
+> > > > > > >  {
+> > > > > > > -     resume_delay =3D simple_strtoul(str, NULL, 0);
+> > > > > > > +     int ret =3D kstrtoint(str, 0, &resume_delay);
+> > > > > > > +     /* mask must_check warn; on failure, leaves resume_dela=
+y unchanged */
+> > > > > > > +     (void)ret;
+> > > > =
 
-Introduce a store memory barrier to ensure page->first_page is properly
-initialized so that code that does page_count(page) on pages off the lru
-always have a valid p->first_page.
+> > > > One unintended consequence of this change is that it'll now accept a
+> > > > negative integer parameter.
+> > > =
 
-Reported-by: Holger Kiehl <Holger.Kiehl@dwd.de>
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- v2: with commentary, per checkpatch
+> > > Well, what about using kstrtouint(), then?
+> > I was thinking of doing something like:
+> > =
 
- mm/page_alloc.c | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+> >       int delay, res;
+> >       res =3D kstrtoint(str, 0, &delay);
+> >       if (!res && delay >=3D 0)
+> >               resume_delay =3D delay;
+> >       return 1;
+> =
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -369,9 +369,11 @@ void prep_compound_page(struct page *page, unsigned long order)
- 	__SetPageHead(page);
- 	for (i = 1; i < nr_pages; i++) {
- 		struct page *p = page + i;
--		__SetPageTail(p);
- 		set_page_count(p, 0);
- 		p->first_page = page;
-+		/* Make sure p->first_page is always valid for PageTail() */
-+		smp_wmb();
-+		__SetPageTail(p);
- 	}
- }
- 
+> It uses simple_strtoul() for a reason.  You can change the type of resume=
+_delay
+> to match, but the basic question is:
+> =
+
+> Why exactly do you want to change that thing?
+
+This entire patch is a result of a single checkpatch warning from a printk
+that I indented.
+
+I was hoping to be helpful by removing all of the warnings from this
+file, since I was going to have a separate cleanup patch for the printk.
+
+I can see this is not a good direction.
+
+Would it be better also to leave the file's printks as they were and drop
+the cleanup patch completely?
+
+Thanks,
+
+Sebastian
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
