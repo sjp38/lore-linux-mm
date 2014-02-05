@@ -1,57 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f42.google.com (mail-pb0-f42.google.com [209.85.160.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 36C6A6B0035
-	for <linux-mm@kvack.org>; Wed,  5 Feb 2014 18:01:04 -0500 (EST)
-Received: by mail-pb0-f42.google.com with SMTP id jt11so979922pbb.15
-        for <linux-mm@kvack.org>; Wed, 05 Feb 2014 15:01:03 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id eb3si30643417pbd.287.2014.02.05.15.01.02
+Received: from mail-yk0-f178.google.com (mail-yk0-f178.google.com [209.85.160.178])
+	by kanga.kvack.org (Postfix) with ESMTP id BC2926B0035
+	for <linux-mm@kvack.org>; Wed,  5 Feb 2014 18:10:41 -0500 (EST)
+Received: by mail-yk0-f178.google.com with SMTP id 79so2893638ykr.9
+        for <linux-mm@kvack.org>; Wed, 05 Feb 2014 15:10:41 -0800 (PST)
+Received: from relay.sgi.com (relay3.sgi.com. [192.48.152.1])
+        by mx.google.com with ESMTP id q48si24854635yhb.127.2014.02.05.15.10.41
         for <linux-mm@kvack.org>;
-        Wed, 05 Feb 2014 15:01:03 -0800 (PST)
-Date: Wed, 5 Feb 2014 15:01:01 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v7 1/3] mm: add kstrdup_trimnl function
-Message-Id: <20140205150101.f6fbe53db7d30a09854a5c5c@linux-foundation.org>
-In-Reply-To: <20140205225552.16730.1677@capellas-linux>
-References: <1391546631-7715-1-git-send-email-sebastian.capella@linaro.org>
-	<1391546631-7715-2-git-send-email-sebastian.capella@linaro.org>
-	<20140205135052.4066b67689cbf47c551d30a9@linux-foundation.org>
-	<20140205225552.16730.1677@capellas-linux>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        Wed, 05 Feb 2014 15:10:41 -0800 (PST)
+Message-ID: <52F2C4F0.6080608@sgi.com>
+Date: Wed, 5 Feb 2014 17:10:40 -0600
+From: Nathan Zimmer <nzimmer@sgi.com>
+MIME-Version: 1.0
+Subject: Re: [RFC] Move the memory_notifier out of the memory_hotplug lock
+References: <1391617743-150518-1-git-send-email-nzimmer@sgi.com> <alpine.DEB.2.02.1402051217520.5616@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.02.1402051217520.5616@chino.kir.corp.google.com>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sebastian Capella <sebastian.capella@linaro.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-pm@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, Michel Lespinasse <walken@google.com>, Shaohua Li <shli@kernel.org>, Jerome Marchand <jmarchan@redhat.com>, Mikulas Patocka <mpatocka@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Joe Perches <joe@perches.com>, David Rientjes <rientjes@google.com>, Alexey Dobriyan <adobriyan@gmail.com>, Pavel Machek <pavel@ucw.cz>
+To: David Rientjes <rientjes@google.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Tang Chen <tangchen@cn.fujitsu.com>, Wen Congyang <wency@cn.fujitsu.com>, Toshi Kani <toshi.kani@hp.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Xishi Qiu <qiuxishi@huawei.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, Jiang Liu <liuj97@gmail.com>, Hedi Berriche <hedi@sgi.com>, Mike Travis <travis@sgi.com>
 
-On Wed, 05 Feb 2014 14:55:52 -0800 Sebastian Capella <sebastian.capella@linaro.org> wrote:
+On 02/05/2014 02:29 PM, David Rientjes wrote:
+> On Wed, 5 Feb 2014, Nathan Zimmer wrote:
+>
+>> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+>> index 62a0cd1..a3cbd14 100644
+>> --- a/mm/memory_hotplug.c
+>> +++ b/mm/memory_hotplug.c
+>> @@ -985,12 +985,12 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
+>>   		if (need_zonelists_rebuild)
+>>   			zone_pcp_reset(zone);
+>>   		mutex_unlock(&zonelists_mutex);
+>> +		unlock_memory_hotplug();
+>>   		printk(KERN_DEBUG "online_pages [mem %#010llx-%#010llx] failed\n",
+>>   		       (unsigned long long) pfn << PAGE_SHIFT,
+>>   		       (((unsigned long long) pfn + nr_pages)
+>>   			    << PAGE_SHIFT) - 1);
+>>   		memory_notify(MEM_CANCEL_ONLINE, &arg);
+>> -		unlock_memory_hotplug();
+>>   		return ret;
+>>   	}
+>>   
+>> @@ -1016,9 +1016,10 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
+>>   
+>>   	writeback_set_ratelimit();
+>>   
+>> +	unlock_memory_hotplug();
+>> +
+>>   	if (onlined_pages)
+>>   		memory_notify(MEM_ONLINE, &arg);
+>> -	unlock_memory_hotplug();
+>>   
+>>   	return 0;
+>>   }
+> That looks a little problematic, what happens if a nid is being brought
+> online and a registered callback does something like allocate resources
+> for the arg->status_change_nid and the above two hunks of this patch end
+> up racing?
+>
+> Before, a registered callback would be guaranteed to see either a
+> MEMORY_CANCEL_ONLINE or MEMORY_ONLINE after it has already done
+> MEMORY_GOING_ONLINE.
+>
+> With your patch, we could race and see one cpu doing MEMORY_GOING_ONLINE,
+> another cpu doing MEMORY_GOING_ONLINE, and then MEMORY_ONLINE and
+> MEMORY_CANCEL_ONLINE in either order.
+>
+> So I think this patch will break most registered callbacks that actually
+> depend on lock_memory_hotplug(), it's a coarse lock for that reason.
 
-> Quoting Andrew Morton (2014-02-05 13:50:52)
-> > On Tue,  4 Feb 2014 12:43:49 -0800 Sebastian Capella <sebastian.capella@linaro.org> wrote:
-> > 
-> > > kstrdup_trimnl creates a duplicate of the passed in
-> > > null-terminated string.  If a trailing newline is found, it
-> > > is removed before duplicating.  This is useful for strings
-> > > coming from sysfs that often include trailing whitespace due to
-> > > user input.
-> > 
-> > hm, why?  I doubt if any caller of this wants to retain leading and/or
-> > trailing spaces and/or tabs.
-> 
-> Hi Andrew,
-> 
-> I agree the common case doesn't usually need leading or trailing whitespace.
-> 
-> Pavel and others pointed out that a valid filename could contain
-> newlines/whitespace at any position.
+Since the argument being passed in is the pfn and size it would be an issue
+only if two threads attepted to online the same piece of memory. Right?
 
-The number of cases in which we provide the kernel with a filename via
-sysfs will be very very small, or zero.
+That seems very unlikely but if it can happen it needs to be protected against.
 
-If we can go through existing code and find at least a few sites which
-can usefully employ kstrdup_trimnl() then fine, we have evidence.  But
-I doubt if we can do that?
+Nate
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
