@@ -1,80 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 34CB26B0035
-	for <linux-mm@kvack.org>; Thu,  6 Feb 2014 18:48:26 -0500 (EST)
-Received: by mail-pa0-f50.google.com with SMTP id kp14so2375660pab.23
-        for <linux-mm@kvack.org>; Thu, 06 Feb 2014 15:48:25 -0800 (PST)
-Received: from mail-pa0-x22a.google.com (mail-pa0-x22a.google.com [2607:f8b0:400e:c03::22a])
-        by mx.google.com with ESMTPS id n8si2757019pax.73.2014.02.06.15.48.24
+Received: from mail-pb0-f51.google.com (mail-pb0-f51.google.com [209.85.160.51])
+	by kanga.kvack.org (Postfix) with ESMTP id CC2A06B0036
+	for <linux-mm@kvack.org>; Thu,  6 Feb 2014 18:48:50 -0500 (EST)
+Received: by mail-pb0-f51.google.com with SMTP id un15so2450609pbc.24
+        for <linux-mm@kvack.org>; Thu, 06 Feb 2014 15:48:50 -0800 (PST)
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+        by mx.google.com with ESMTPS id yy4si2720448pbc.219.2014.02.06.15.48.48
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 06 Feb 2014 15:48:24 -0800 (PST)
-Received: by mail-pa0-f42.google.com with SMTP id kl14so2404167pab.1
-        for <linux-mm@kvack.org>; Thu, 06 Feb 2014 15:48:24 -0800 (PST)
-Date: Thu, 6 Feb 2014 15:48:22 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [RFC PATCH V5] mm readahead: Fix readahead fail for no local
- memory and limit readahead pages
-In-Reply-To: <20140206152219.45c2039e5092c8ea1c31fd38@linux-foundation.org>
-Message-ID: <alpine.DEB.2.02.1402061537180.3441@chino.kir.corp.google.com>
-References: <1390388025-1418-1-git-send-email-raghavendra.kt@linux.vnet.ibm.com> <20140206145105.27dec37b16f24e4ac5fd90ce@linux-foundation.org> <alpine.DEB.2.02.1402061456290.31828@chino.kir.corp.google.com>
- <20140206152219.45c2039e5092c8ea1c31fd38@linux-foundation.org>
+        Thu, 06 Feb 2014 15:48:49 -0800 (PST)
+Received: by mail-pa0-f46.google.com with SMTP id rd3so2389243pab.33
+        for <linux-mm@kvack.org>; Thu, 06 Feb 2014 15:48:48 -0800 (PST)
+Content-Type: text/plain; charset="utf-8"
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
+From: Sebastian Capella <sebastian.capella@linaro.org>
+In-Reply-To: <20140205150101.f6fbe53db7d30a09854a5c5c@linux-foundation.org>
+References: <1391546631-7715-1-git-send-email-sebastian.capella@linaro.org>
+ <1391546631-7715-2-git-send-email-sebastian.capella@linaro.org>
+ <20140205135052.4066b67689cbf47c551d30a9@linux-foundation.org>
+ <20140205225552.16730.1677@capellas-linux>
+ <20140205150101.f6fbe53db7d30a09854a5c5c@linux-foundation.org>
+Message-ID: <20140206234846.10826.57970@capellas-linux>
+Subject: Re: [PATCH v7 1/3] mm: add kstrdup_trimnl function
+Date: Thu, 06 Feb 2014 15:48:46 -0800
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, Fengguang Wu <fengguang.wu@intel.com>, David Cohen <david.a.cohen@linux.intel.com>, Al Viro <viro@zeniv.linux.org.uk>, Damien Ramonda <damien.ramonda@intel.com>, Jan Kara <jack@suse.cz>, Linus <torvalds@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-pm@vger.kernel.org, linaro-kernel@lists.linaro.org, patches@linaro.org, Michel Lespinasse <walken@google.com>, Shaohua Li <shli@kernel.org>, Jerome Marchand <jmarchan@redhat.com>, Mikulas Patocka <mpatocka@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Joe Perches <joe@perches.com>, David Rientjes <rientjes@google.com>, Alexey Dobriyan <adobriyan@gmail.com>, Pavel Machek <pavel@ucw.cz>
 
-On Thu, 6 Feb 2014, Andrew Morton wrote:
+Quoting Andrew Morton (2014-02-05 15:01:01)
+> On Wed, 05 Feb 2014 14:55:52 -0800 Sebastian Capella <sebastian.capella@l=
+inaro.org> wrote:
+> =
 
-> On Thu, 6 Feb 2014 14:58:21 -0800 (PST) David Rientjes <rientjes@google.com> wrote:
-> 
-> > > > +#define MAX_REMOTE_READAHEAD   4096UL
-> > > >  /*
-> > > >   * Given a desired number of PAGE_CACHE_SIZE readahead pages, return a
-> > > >   * sensible upper limit.
-> > > >   */
-> > > >  unsigned long max_sane_readahead(unsigned long nr)
-> > > >  {
-> > > > -	return min(nr, (node_page_state(numa_node_id(), NR_INACTIVE_FILE)
-> > > > -		+ node_page_state(numa_node_id(), NR_FREE_PAGES)) / 2);
-> > > > +	unsigned long local_free_page;
-> > > > +	int nid;
-> > > > +
-> > > > +	nid = numa_node_id();
-> > 
-> > If you're intending this to be cached for your calls into 
-> > node_page_state() you need nid = ACCESS_ONCE(numa_node_id()).
-> 
-> ugh.  That's too subtle and we didn't even document it.
-> 
-> We could put the ACCESS_ONCE inside numa_node_id() I assume but we
-> still have the same problem as smp_processor_id(): the numa_node_id()
-> return value is wrong as soon as you obtain it if running preemptibly. 
-> 
-> We could plaster Big Fat Warnings all over the place or we could treat
-> numa_node_id() and derivatives in the same way as smp_processor_id()
-> (which is a huge pain).  Or something else, but we've left a big hand
-> grenade here and Raghavendra won't be the last one to pull the pin?
-> 
+> > Quoting Andrew Morton (2014-02-05 13:50:52)
+> > > On Tue,  4 Feb 2014 12:43:49 -0800 Sebastian Capella <sebastian.capel=
+la@linaro.org> wrote:
+> > > =
 
-Normally it wouldn't matter because there's no significant downside to it 
-racing, things like mempolicies which use numa_node_id() extensively would 
-result in, oops, a page allocation on the wrong node.
+> > > > kstrdup_trimnl creates a duplicate of the passed in
+> > > > null-terminated string.  If a trailing newline is found, it
+> > > > is removed before duplicating.  This is useful for strings
+> > > > coming from sysfs that often include trailing whitespace due to
+> > > > user input.
+> > > =
 
-This stands out to me, though, because you're expecting the calculation to 
-be correct for a specific node.
+> > > hm, why?  I doubt if any caller of this wants to retain leading and/or
+> > > trailing spaces and/or tabs.
+> > =
 
-The patch is still wrong, though, it should just do
+> > Hi Andrew,
+> > =
 
-	int node = ACCESS_ONCE(numa_mem_id());
-	return min(nr, (node_page_state(node, NR_INACTIVE_FILE) +
-		        node_page_state(node, NR_FREE_PAGES)) / 2);
+> > I agree the common case doesn't usually need leading or trailing whites=
+pace.
+> > =
 
-since we want to readahead based on the cpu's local node, the comment 
-saying we're reading ahead onto "remote memory" is wrong since a 
-memoryless node has local affinity to numa_mem_id().
+> > Pavel and others pointed out that a valid filename could contain
+> > newlines/whitespace at any position.
+> =
+
+> The number of cases in which we provide the kernel with a filename via
+> sysfs will be very very small, or zero.
+> =
+
+> If we can go through existing code and find at least a few sites which
+> can usefully employ kstrdup_trimnl() then fine, we have evidence.  But
+> I doubt if we can do that?
+Hi Andrew,
+
+I went through all of the store functions I could find and, though I
+found a lot of examples handling \n, I found no other examples
+specifically parsing filenames.  Most deal with integers.  Those parsing
+commands often use sysfs_streq or otherwise are doing some custom
+behavior that wouldn't suit a utility function.
+
+For my purposes, it looks like v2 of the patch seems like the best
+starting point based on all of the feedback I've received.  So I'm
+moving back to a custom solution for parsing this input.  Unless
+someone objects or has comments, I'll post something like the
+function below.
+
+static ssize_t resume_store(struct kobject *kobj, struct kobj_attribute *at=
+tr,
+			    const char *buf, size_t n)
+{
+	dev_t res;
+	int len =3D n;
+	char *name;
+
+	if (len && buf[len-1] =3D=3D '\n')
+		len--;
+	name =3D kstrndup(buf, len, GFP_KERNEL);
+	if (!name)
+		return -ENOMEM;
+
+	res =3D name_to_dev_t(name);
+	kfree(name);
+	if (!res)
+		return -EINVAL;
+
+	lock_system_sleep();
+	swsusp_resume_device =3D res;
+	unlock_system_sleep();
+	printk(KERN_INFO "PM: Starting manual resume from disk\n");
+	noresume =3D 0;
+	software_resume();
+	return n;
+}
+
+
+Thanks,
+
+Sebastian
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
