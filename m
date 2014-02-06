@@ -1,242 +1,144 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id B51736B0035
-	for <linux-mm@kvack.org>; Thu,  6 Feb 2014 18:27:49 -0500 (EST)
-Received: by mail-pa0-f45.google.com with SMTP id lf10so2358889pab.32
-        for <linux-mm@kvack.org>; Thu, 06 Feb 2014 15:27:49 -0800 (PST)
-Received: from mail-pb0-x233.google.com (mail-pb0-x233.google.com [2607:f8b0:400e:c01::233])
-        by mx.google.com with ESMTPS id ef2si2580974pbb.71.2014.02.06.14.24.20
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 06 Feb 2014 14:24:50 -0800 (PST)
-Received: by mail-pb0-f51.google.com with SMTP id un15so2366017pbc.10
-        for <linux-mm@kvack.org>; Thu, 06 Feb 2014 14:24:20 -0800 (PST)
-Date: Thu, 6 Feb 2014 14:18:24 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: mmotm 2014-02-05 list_lru_add lockdep splat
-In-Reply-To: <20140206164136.GC6963@cmpxchg.org>
-Message-ID: <alpine.LSU.2.11.1402061413330.27968@eggly.anvils>
-References: <alpine.LSU.2.11.1402051944210.27326@eggly.anvils> <20140206164136.GC6963@cmpxchg.org>
+Received: from mail-ig0-f178.google.com (mail-ig0-f178.google.com [209.85.213.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 74ED36B0035
+	for <linux-mm@kvack.org>; Thu,  6 Feb 2014 18:30:41 -0500 (EST)
+Received: by mail-ig0-f178.google.com with SMTP id uq10so783370igb.5
+        for <linux-mm@kvack.org>; Thu, 06 Feb 2014 15:30:41 -0800 (PST)
+Received: from relay.sgi.com (relay1.sgi.com. [192.48.179.29])
+        by mx.google.com with ESMTP id lq7si3582871igb.12.2014.02.06.08.09.41
+        for <linux-mm@kvack.org>;
+        Thu, 06 Feb 2014 08:10:11 -0800 (PST)
+Date: Thu, 6 Feb 2014 10:09:39 -0600
+From: Nathan Zimmer <nzimmer@sgi.com>
+Subject: Re: [RFC] Move the memory_notifier out of the memory_hotplug lock
+Message-ID: <20140206160939.GA107343@asylum.americas.sgi.com>
+References: <1391617743-150518-1-git-send-email-nzimmer@sgi.com> <alpine.DEB.2.02.1402051217520.5616@chino.kir.corp.google.com> <52F2C4F0.6080608@sgi.com> <alpine.DEB.2.02.1402051512490.24489@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.02.1402051512490.24489@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Nathan Zimmer <nzimmer@sgi.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Tang Chen <tangchen@cn.fujitsu.com>, Wen Congyang <wency@cn.fujitsu.com>, Toshi Kani <toshi.kani@hp.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Xishi Qiu <qiuxishi@huawei.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, Jiang Liu <liuj97@gmail.com>, Hedi Berriche <hedi@sgi.com>, Mike Travis <travis@sgi.com>
 
-On Thu, 6 Feb 2014, Johannes Weiner wrote:
-> On Wed, Feb 05, 2014 at 07:50:10PM -0800, Hugh Dickins wrote:
-> > ======================================================
-> > [ INFO: SOFTIRQ-safe -> SOFTIRQ-unsafe lock order detected ]
-> > 3.14.0-rc1-mm1 #1 Not tainted
-> > ------------------------------------------------------
-> > kswapd0/48 [HC0[0]:SC0[0]:HE0:SE1] is trying to acquire:
-> >  (&(&lru->node[i].lock)->rlock){+.+.-.}, at: [<ffffffff81117064>] list_lru_add+0x80/0xf4
+On Wed, Feb 05, 2014 at 03:20:07PM -0800, David Rientjes wrote:
+> On Wed, 5 Feb 2014, Nathan Zimmer wrote:
+> 
+> > > That looks a little problematic, what happens if a nid is being brought
+> > > online and a registered callback does something like allocate resources
+> > > for the arg->status_change_nid and the above two hunks of this patch end
+> > > up racing?
+> > > 
+> > > Before, a registered callback would be guaranteed to see either a
+> > > MEMORY_CANCEL_ONLINE or MEMORY_ONLINE after it has already done
+> > > MEMORY_GOING_ONLINE.
+> > > 
+> > > With your patch, we could race and see one cpu doing MEMORY_GOING_ONLINE,
+> > > another cpu doing MEMORY_GOING_ONLINE, and then MEMORY_ONLINE and
+> > > MEMORY_CANCEL_ONLINE in either order.
+> > > 
+> > > So I think this patch will break most registered callbacks that actually
+> > > depend on lock_memory_hotplug(), it's a coarse lock for that reason.
 > > 
-> > s already holding:
-> >  (&(&mapping->tree_lock)->rlock){..-.-.}, at: [<ffffffff81108c63>] __remove_mapping+0x3b/0x12d
-> > which would create a new lock dependency:
-> >  (&(&mapping->tree_lock)->rlock){..-.-.} -> (&(&lru->node[i].lock)->rlock){+.+.-.}
-> 
-> Thanks for the report.  The first time I saw this on my own machine, I
-> misinterpreted it as a false positive (could have sworn the "possible
-> unsafe scenario" section looked different, too).
-> 
-> Looking at it again, there really is a deadlock scenario when the
-> shadow shrinker races with a page cache insertion or deletion and is
-> interrupted by the IO completion handler while holding the list_lru
-> lock:
-> 
-> >  Possible interrupt unsafe locking scenario:
+> > Since the argument being passed in is the pfn and size it would be an issue
+> > only if two threads attepted to online the same piece of memory. Right?
 > > 
-> >        CPU0                    CPU1
-> >        ----                    ----
-> >   lock(&(&lru->node[i].lock)->rlock);
-> >                                local_irq_disable();
-> >                                lock(&(&mapping->tree_lock)->rlock);
-> >                                lock(&(&lru->node[i].lock)->rlock);
-> >   <Interrupt>
-> >     lock(&(&mapping->tree_lock)->rlock);
 > 
-> Could you please try with the following patch?
+> No, I'm referring to registered callbacks that provide a resource for 
+> arg->status_change_nid.  An example would be the callbacks I added to the 
+> slub allocator in slab_memory_callback().  If we are now able to get a 
+> racy MEM_GOING_ONLINE -> MEM_GOING_ONLINE -> MEM_ONLINE -> 
+> MEM_CANCEL_ONLINE, which is possible with your patch _and_ the node being 
+> successfully onlined at the end, then we get a NULL pointer dereference 
+> because the kmem_cache_node for each slab cache has been freed.
+> 
+Ok I think I see now.  In my testing I had only been onlining parts of nodes.
+So all nodes were already had at least some memory online from the beginning.
 
-Sure, that fixes it for me (with one trivial correction appended), thanks.
-But don't imagine I've given it anything as demanding as thought!
+> > That seems very unlikely but if it can happen it needs to be protected
+> > against.
+> > 
+> 
+> The protection for registered memory online or offline callbacks is 
+> lock_memory_hotplug() which is eliminated with your patch, the locking for 
+> memory_notify() that you're citing is irrelevant.
 
-Hugh
+Would the race still exist if we left the position of the locks alone and 
+broke it up by nid, something like this?
 
-> 
-> ---
-> From: Johannes Weiner <hannes@cmpxchg.org>
-> Subject: [patch] mm: keep page cache radix tree nodes in check fix
-> 
-> Hugh Dickin reports the following lockdep splat:
-> 
-> ======================================================
-> [ INFO: SOFTIRQ-safe -> SOFTIRQ-unsafe lock order detected ]
-> 3.14.0-rc1-mm1 #1 Not tainted
-> ------------------------------------------------------
-> kswapd0/48 [HC0[0]:SC0[0]:HE0:SE1] is trying to acquire:
->  (&(&lru->node[i].lock)->rlock){+.+.-.}, at: [<ffffffff81117064>] list_lru_add+0x80/0xf4
-> 
-> s already holding:
->  (&(&mapping->tree_lock)->rlock){..-.-.}, at: [<ffffffff81108c63>] __remove_mapping+0x3b/0x12d
-> which would create a new lock dependency:
->  (&(&mapping->tree_lock)->rlock){..-.-.} -> (&(&lru->node[i].lock)->rlock){+.+.-.}
-> 
-> lru->node[i].lock nests inside the mapping->tree_lock when page cache
-> insertions and deletions add or remove radix tree nodes to the shadow
-> LRU list.
-> 
-> However, paths that only hold the IRQ-unsafe lru->node[i].lock, like
-> the shadow shrinker, can be interrupted at any time by the IO
-> completion handler, which in turn acquires the mapping->tree_lock.
-> This is a simple locking order inversion and can deadlock like so:
-> 
-> CPU#0: shadow shrinker          CPU#1: page cache modification
-> lru->node[i].lock
->                                 mapping->tree_lock
->                                 lru->node[i].lock
-> <interrupt>
-> mapping->tree_lock
-> 
-> Make the shadow lru->node[i].lock IRQ-safe to remove the order
-> dictated by interruption.  This slightly increases the IRQ-disabled
-> section in the shadow shrinker, but it still drops all locks and
-> enables IRQ after every reclaimed shadow radix tree node.
-> 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> ---
->  include/linux/list_lru.h |  6 +++++-
->  mm/list_lru.c            |  4 +++-
->  mm/workingset.c          | 24 ++++++++++++++++++++----
->  3 files changed, 28 insertions(+), 6 deletions(-)
-> 
-> diff --git a/include/linux/list_lru.h b/include/linux/list_lru.h
-> index b02fc233eadd..f3434533fbf8 100644
-> --- a/include/linux/list_lru.h
-> +++ b/include/linux/list_lru.h
-> @@ -34,7 +34,11 @@ struct list_lru {
->  };
->  
->  void list_lru_destroy(struct list_lru *lru);
-> -int list_lru_init(struct list_lru *lru);
-> +int list_lru_init_key(struct list_lru *lru, struct lock_class_key *key);
-> +static inline int list_lru_init(struct list_lru *lru)
-> +{
-> +	return list_lru_init_key(lru, NULL);
-> +}
->  
->  /**
->   * list_lru_add: add an element to the lru list's tail
-> diff --git a/mm/list_lru.c b/mm/list_lru.c
-> index 7f5b73e2513b..2a5b8fd45669 100644
-> --- a/mm/list_lru.c
-> +++ b/mm/list_lru.c
-> @@ -124,7 +124,7 @@ restart:
->  }
->  EXPORT_SYMBOL_GPL(list_lru_walk_node);
->  
-> -int list_lru_init(struct list_lru *lru)
-> +int list_lru_init_key(struct list_lru *lru, struct lock_class_key *key)
->  {
->  	int i;
->  	size_t size = sizeof(*lru->node) * nr_node_ids;
-> @@ -136,6 +136,8 @@ int list_lru_init(struct list_lru *lru)
->  	nodes_clear(lru->active_nodes);
->  	for (i = 0; i < nr_node_ids; i++) {
->  		spin_lock_init(&lru->node[i].lock);
-> +		if (key)
-> +			lockdep_set_class(&lru->node[i].lock, key);
->  		INIT_LIST_HEAD(&lru->node[i].list);
->  		lru->node[i].nr_items = 0;
->  	}
-> diff --git a/mm/workingset.c b/mm/workingset.c
-> index 33429c7ddec5..20aa16754305 100644
-> --- a/mm/workingset.c
-> +++ b/mm/workingset.c
-> @@ -273,7 +273,10 @@ static unsigned long count_shadow_nodes(struct shrinker *shrinker,
->  	unsigned long max_nodes;
->  	unsigned long pages;
->  
-> +	local_irq_disable();
->  	shadow_nodes = list_lru_count_node(&workingset_shadow_nodes, sc->nid);
-> +	local_irq_enable();
-> +
->  	pages = node_present_pages(sc->nid);
->  	/*
->  	 * Active cache pages are limited to 50% of memory, and shadow
-> @@ -322,7 +325,7 @@ static enum lru_status shadow_lru_isolate(struct list_head *item,
->  	mapping = node->private_data;
->  
->  	/* Coming from the list, invert the lock order */
-> -	if (!spin_trylock_irq(&mapping->tree_lock)) {
-> +	if (!spin_trylock(&mapping->tree_lock)) {
->  		spin_unlock(lru_lock);
->  		ret = LRU_RETRY;
->  		goto out;
-> @@ -355,10 +358,12 @@ static enum lru_status shadow_lru_isolate(struct list_head *item,
->  	if (!__radix_tree_delete_node(&mapping->page_tree, node))
->  		BUG();
->  
-> -	spin_unlock_irq(&mapping->tree_lock);
-> +	spin_unlock(&mapping->tree_lock);
->  	ret = LRU_REMOVED_RETRY;
->  out:
-> +	local_irq_enable();
->  	cond_resched();
-> +	local_irq_disable();
->  	spin_lock(lru_lock);
->  	return ret;
->  }
-> @@ -366,8 +371,13 @@ out:
->  static unsigned long scan_shadow_nodes(struct shrinker *shrinker,
->  				       struct shrink_control *sc)
->  {
-> -	return list_lru_walk_node(&workingset_shadow_nodes, sc->nid,
-> +	unsigned long ret;
-> +
-> +	local_irq_disable();
-> +	ret =  list_lru_walk_node(&workingset_shadow_nodes, sc->nid,
->  				  shadow_lru_isolate, NULL, &sc->nr_to_scan);
-> +	local_irq_enable();
-> +	return ret;
->  }
->  
->  static struct shrinker workingset_shadow_shrinker = {
-> @@ -377,11 +387,17 @@ static struct shrinker workingset_shadow_shrinker = {
->  	.flags = SHRINKER_NUMA_AWARE,
->  };
->  
-> +/*
-> + * Our list_lru->lock is IRQ-safe as it nests inside the IRQ-safe
-> + * mapping->tree_lock.
-> + */
-> +static struct lock_class_key shadow_nodes_key;
-> +
->  static int __init workingset_init(void)
->  {
->  	int ret;
->  
-> -	ret = list_lru_init(&workingset_shadow_nodes);
-> +	ret = list_lru_init_key(&workingset_shadow_nodes, &shadow_nodes_key);
->  	if (ret)
->  		goto err;
->  	ret = register_shrinker(&workingset_shadow_shrinker);
-> -- 
-> 1.8.5.3
 
---- hannes/mm/list_lru.c	2014-02-06 08:50:25.104032277 -0800
-+++ hughd/mm/list_lru.c	2014-02-06 08:58:36.884043965 -0800
-@@ -143,7 +143,7 @@ int list_lru_init_key(struct list_lru *l
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index ee37657..e797e21 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -913,7 +913,9 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
+ 	int ret;
+ 	struct memory_notify arg;
+ 
+-	lock_memory_hotplug();
++	nid = page_to_nid(pfn_to_page(pfn));
++
++	lock_memory_hotplug(nid);
+ 	/*
+ 	 * This doesn't need a lock to do pfn_to_page().
+ 	 * The section can't be removed here because of the
+@@ -923,19 +925,19 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
+ 
+ 	if ((zone_idx(zone) > ZONE_NORMAL || online_type == ONLINE_MOVABLE) &&
+ 	    !can_online_high_movable(zone)) {
+-		unlock_memory_hotplug();
++		unlock_memory_hotplug(nid);
+ 		return -1;
  	}
+ 
+ 	if (online_type == ONLINE_KERNEL && zone_idx(zone) == ZONE_MOVABLE) {
+ 		if (move_pfn_range_left(zone - 1, zone, pfn, pfn + nr_pages)) {
+-			unlock_memory_hotplug();
++			unlock_memory_hotplug(nid);
+ 			return -1;
+ 		}
+ 	}
+ 	if (online_type == ONLINE_MOVABLE && zone_idx(zone) == ZONE_MOVABLE - 1) {
+ 		if (move_pfn_range_right(zone, zone + 1, pfn, pfn + nr_pages)) {
+-			unlock_memory_hotplug();
++			unlock_memory_hotplug(nid);
+ 			return -1;
+ 		}
+ 	}
+@@ -947,13 +949,11 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
+ 	arg.nr_pages = nr_pages;
+ 	node_states_check_changes_online(nr_pages, zone, &arg);
+ 
+-	nid = page_to_nid(pfn_to_page(pfn));
+-
+ 	ret = memory_notify(MEM_GOING_ONLINE, &arg);
+ 	ret = notifier_to_errno(ret);
+ 	if (ret) {
+ 		memory_notify(MEM_CANCEL_ONLINE, &arg);
+-		unlock_memory_hotplug();
++		unlock_memory_hotplug(nid);
+ 		return ret;
+ 	}
+ 	/*
+@@ -978,7 +978,7 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
+ 		       (((unsigned long long) pfn + nr_pages)
+ 			    << PAGE_SHIFT) - 1);
+ 		memory_notify(MEM_CANCEL_ONLINE, &arg);
+-		unlock_memory_hotplug();
++		unlock_memory_hotplug(nid);
+ 		return ret;
+ 	}
+ 
+@@ -1006,7 +1006,7 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
+ 
+ 	if (onlined_pages)
+ 		memory_notify(MEM_ONLINE, &arg);
+-	unlock_memory_hotplug();
++	unlock_memory_hotplug(nid);
+ 
  	return 0;
  }
--EXPORT_SYMBOL_GPL(list_lru_init);
-+EXPORT_SYMBOL_GPL(list_lru_init_key);
- 
- void list_lru_destroy(struct list_lru *lru)
- {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
