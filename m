@@ -1,74 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id BE7C56B0035
-	for <linux-mm@kvack.org>; Thu,  6 Feb 2014 03:07:00 -0500 (EST)
-Received: by mail-pd0-f180.google.com with SMTP id x10so1406466pdj.11
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 163FA6B0037
+	for <linux-mm@kvack.org>; Thu,  6 Feb 2014 03:07:01 -0500 (EST)
+Received: by mail-pd0-f181.google.com with SMTP id y10so1391269pdj.40
         for <linux-mm@kvack.org>; Thu, 06 Feb 2014 00:07:00 -0800 (PST)
 Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
-        by mx.google.com with ESMTP id l8si150020pao.152.2014.02.06.00.06.58
+        by mx.google.com with ESMTP id yg10si181085pbc.32.2014.02.06.00.06.58
         for <linux-mm@kvack.org>;
         Thu, 06 Feb 2014 00:06:59 -0800 (PST)
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: [RFC PATCH 2/3] topology: support node_numa_mem() for determining the fallback node
-Date: Thu,  6 Feb 2014 17:07:05 +0900
-Message-Id: <1391674026-20092-2-git-send-email-iamjoonsoo.kim@lge.com>
-In-Reply-To: <1391674026-20092-1-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [RFC PATCH 1/3] slub: search partial list on numa_mem_id(), instead of numa_node_id()
+Date: Thu,  6 Feb 2014 17:07:04 +0900
+Message-Id: <1391674026-20092-1-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <20140206020757.GC5433@linux.vnet.ibm.com>
 References: <20140206020757.GC5433@linux.vnet.ibm.com>
- <1391674026-20092-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
 Cc: David Rientjes <rientjes@google.com>, Han Pingtian <hanpt@linux.vnet.ibm.com>, penberg@kernel.org, linux-mm@kvack.org, paulus@samba.org, Anton Blanchard <anton@samba.org>, mpm@selenic.com, Christoph Lameter <cl@linux.com>, linuxppc-dev@lists.ozlabs.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
+Currently, if allocation constraint to node is NUMA_NO_NODE, we search
+a partial slab on numa_node_id() node. This doesn't work properly on the
+system having memoryless node, since it can have no memory on that node and
+there must be no partial slab on that node.
+
+On that node, page allocation always fallback to numa_mem_id() first. So
+searching a partial slab on numa_node_id() in that case is proper solution
+for memoryless node case.
+
 Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-diff --git a/include/linux/topology.h b/include/linux/topology.h
-index 12ae6ce..a6d5438 100644
---- a/include/linux/topology.h
-+++ b/include/linux/topology.h
-@@ -233,11 +233,20 @@ static inline int numa_node_id(void)
-  * Use the accessor functions set_numa_mem(), numa_mem_id() and cpu_to_mem().
-  */
- DECLARE_PER_CPU(int, _numa_mem_);
-+int _node_numa_mem_[MAX_NUMNODES];
- 
- #ifndef set_numa_mem
- static inline void set_numa_mem(int node)
+diff --git a/mm/slub.c b/mm/slub.c
+index 545a170..cc1f995 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -1698,7 +1698,7 @@ static void *get_partial(struct kmem_cache *s, gfp_t flags, int node,
+ 		struct kmem_cache_cpu *c)
  {
- 	this_cpu_write(_numa_mem_, node);
-+	_node_numa_mem_[numa_node_id()] = node;
-+}
-+#endif
-+
-+#ifndef get_numa_mem
-+static inline int get_numa_mem(int node)
-+{
-+	return _node_numa_mem_[node];
- }
- #endif
+ 	void *object;
+-	int searchnode = (node == NUMA_NO_NODE) ? numa_node_id() : node;
++	int searchnode = (node == NUMA_NO_NODE) ? numa_mem_id() : node;
  
-@@ -260,6 +269,7 @@ static inline int cpu_to_mem(int cpu)
- static inline void set_cpu_numa_mem(int cpu, int node)
- {
- 	per_cpu(_numa_mem_, cpu) = node;
-+	_node_numa_mem_[numa_node_id()] = node;
- }
- #endif
- 
-@@ -273,6 +283,13 @@ static inline int numa_mem_id(void)
- }
- #endif
- 
-+#ifndef get_numa_mem
-+static inline int get_numa_mem(int node)
-+{
-+	return node;
-+}
-+#endif
-+
- #ifndef cpu_to_mem
- static inline int cpu_to_mem(int cpu)
- {
+ 	object = get_partial_node(s, get_node(s, searchnode), c, flags);
+ 	if (object || node != NUMA_NO_NODE)
 -- 
 1.7.9.5
 
