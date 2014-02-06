@@ -1,83 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 955C26B0035
-	for <linux-mm@kvack.org>; Thu,  6 Feb 2014 05:03:05 -0500 (EST)
-Received: by mail-pd0-f175.google.com with SMTP id w10so1512868pde.20
-        for <linux-mm@kvack.org>; Thu, 06 Feb 2014 02:03:05 -0800 (PST)
-Received: from song.cn.fujitsu.com ([222.73.24.84])
-        by mx.google.com with ESMTP id ez5si512090pab.193.2014.02.06.02.03.02
-        for <linux-mm@kvack.org>;
-        Thu, 06 Feb 2014 02:03:04 -0800 (PST)
-Message-ID: <52F35E71.3030105@cn.fujitsu.com>
-Date: Thu, 06 Feb 2014 18:05:37 +0800
-From: Tang Chen <tangchen@cn.fujitsu.com>
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A28E6B0035
+	for <linux-mm@kvack.org>; Thu,  6 Feb 2014 05:12:39 -0500 (EST)
+Received: by mail-wi0-f173.google.com with SMTP id hn9so1430054wib.0
+        for <linux-mm@kvack.org>; Thu, 06 Feb 2014 02:12:38 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id q6si246293wjx.41.2014.02.06.02.12.37
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 06 Feb 2014 02:12:37 -0800 (PST)
+Date: Thu, 6 Feb 2014 10:12:30 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH RESEND part2 v2 1/8] x86: get pg_data_t's memory from
+ other node
+Message-ID: <20140206101230.GA21345@suse.de>
+References: <529D3FC0.6000403@cn.fujitsu.com>
+ <529D4048.9070000@cn.fujitsu.com>
+ <20140116171112.GB24740@suse.de>
+ <52DCD065.7040408@cn.fujitsu.com>
+ <20140120151409.GU4963@suse.de>
 MIME-Version: 1.0
-Subject: Re: WARNING: at arch/x86/kernel/smpboot.c:324 topology_sane()
-References: <20140206094428.GC17971@localhost>
-In-Reply-To: <20140206094428.GC17971@localhost>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20140120151409.GU4963@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Fengguang Wu <fengguang.wu@intel.com>
-Cc: Wen Congyang <wency@cn.fujitsu.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Tang Chen <imtangchen@gmail.com>, Tang Chen <tangchen@cn.fujitsu.com>
+To: Tang Chen <tangchen@cn.fujitsu.com>
+Cc: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Len Brown <lenb@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Toshi Kani <toshi.kani@hp.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Thomas Renninger <trenn@suse.de>, Yinghai Lu <yinghai@kernel.org>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Taku Izumi <izumi.taku@jp.fujitsu.com>, Minchan Kim <minchan@kernel.org>, "mina86@mina86.com" <mina86@mina86.com>, "gong.chen@linux.intel.com" <gong.chen@linux.intel.com>, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, "lwoodman@redhat.com" <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, "jweiner@redhat.com" <jweiner@redhat.com>, Prarit Bhargava <prarit@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Chen Tang <imtangchen@gmail.com>, Zhang Yanfei <zhangyanfei.yes@gmail.com>
 
-On 02/06/2014 05:44 PM, Fengguang Wu wrote:
-> Hi Tang,
->
-> We noticed the below warning and the first bad commit is
->
-> commit e8d1955258091e4c92d5a975ebd7fd8a98f5d30f
-> Author:     Tang Chen<tangchen@cn.fujitsu.com>
-> AuthorDate: Fri Feb 22 16:33:44 2013 -0800
-> Commit:     Linus Torvalds<torvalds@linux-foundation.org>
-> CommitDate: Sat Feb 23 17:50:14 2013 -0800
->
->      acpi, memory-hotplug: parse SRAT before memblock is ready
+Any comment on this or are the issues just going to be waved away?
 
-Hi Wu,
+On Mon, Jan 20, 2014 at 03:14:09PM +0000, Mel Gorman wrote:
+> On Mon, Jan 20, 2014 at 03:29:41PM +0800, Tang Chen wrote:
+> > Hi Mel,
+> > 
+> > On 01/17/2014 01:11 AM, Mel Gorman wrote:
+> > >On Tue, Dec 03, 2013 at 10:22:00AM +0800, Zhang Yanfei wrote:
+> > >>From: Yasuaki Ishimatsu<isimatu.yasuaki@jp.fujitsu.com>
+> > >>
+> > >>If system can create movable node which all memory of the node is allocated
+> > >>as ZONE_MOVABLE, setup_node_data() cannot allocate memory for the node's
+> > >>pg_data_t. So, invoke memblock_alloc_nid(...MAX_NUMNODES) again to retry when
+> > >>the first allocation fails. Otherwise, the system could failed to boot.
+> > >>(We don't use memblock_alloc_try_nid() to retry because in this function,
+> > >>if the allocation fails, it will panic the system.)
+> > >>
+> > >
+> > >This implies that it is possible to ahve a configuration with a big ratio
+> > >difference between Normal:Movable memory. In such configurations there
+> > >would be a risk that the system will reclaim heavily or go OOM because
+> > >the kernrel cannot allocate memory due to a relatively small Normal
+> > >zone. What protects against that? Is the user ever warned if the ratio
+> > >between Normal:Movable very high?
+> > 
+> > For now, there is no way protecting against this. But on a modern
+> > server, it won't be
+> > that easy running out of memory when booting, I think.
+> > 
+> 
+> 
+> Booting is a basic functional requirement and I'm more concerned about the
+> behaviour of the kernel when the machine is running.  If the kernel trashes
+> heavily or goes OOM when a workload starts then the fact the machine booted
+> is not much comfort.
+> 
+> > The current implementation will set any node the kernel resides in
+> > as unhotpluggable,
+> > which means normal zone here. And for nowadays server, especially
+> > memory hotplug server,
+> > each node would have at least 16GB memory, which is enough for the
+> > kernel to boot.
+> > 
+> 
+> Again, booting is fine but least say it's an 8-node machine then that
+> implies the Normal:Movable ratio will be 1:8. All page table pages, inode,
+> dentries etc will have to fit in that 1/8th of memory with all the associated
+> costs including remote access penalties.  In extreme cases it may not be
+> possible to use all of memory because the management structures cannot be
+> allocated. Users may want the option of adjusting what this ratio is so
+> they can unplug some memory while not completely sacrificing performance.
+> 
+> Minimally, the kernel should print a big fat warning if the ratio is equal
+> or more than 1:3 Normal:Movable. That ratio selection is arbitrary. I do not
+> recall ever seeing any major Normal:Highmem bugs on 4G 32-bit machines so it
+> is a conservative choice. The last Normal:Highmem bug I remember was related
+> to a 16G 32-bit machine (https://bugzilla.kernel.org/show_bug.cgi?id=42578)
+> a 1:15 ratio feels very optimistic for a very large machine.
+> 
+> > We can add a patch to make it return to the original path if we run
+> > out of memory,
+> > which means turn off the functionality and warn users in log.
+> > 
+> > How do you think ?
+> > 
+> 
+> I think that will allow the machine to boot but that there still will be a
+> large number of bugs filed with these machines due to high Normal:Movable
+> ratios. The shape of the bug reports will be similar to the Normal:Highmem
+> ratio bugs that existed years ago.
+> 
+> > > The movable_node boot parameter still
+> > >turns the feature on and off, there appears to be no way of controlling
+> > >the ratio of memory other than booting with the minimum amount of memory
+> > >and manually hot-adding the sections to set the appropriate ratio.
+> > 
+> > For now, yes. We expect firmware and hardware to give the basic
+> > ratio (how much memory
+> > is hotpluggable), and the user decides how to arrange the memory
+> > (decide the size of
+> > normal zone and movable zone).
+> > 
+> 
+> There seems to be big gaps in the configuration options here. The user
+> can either ask it to be automatically assigned and have no control of
+> the ratio or manually hot-add the memory which is a relatively heavy
+> administrative burden.
+> 
+> I think they should be warned if the ratio is high and have an option of
+> specifying a ratio manually even if that means that additional nodes
+> will not be hot-removable.
+> 
+> This is all still a kludge around the fact that node memory hot-remove
+> did not try and cope with full migration by breaking some of the 1:1
+> virt:phys mapping assumptions when hot-remove was enabled.
+> 
+> -- 
+> Mel Gorman
+> SUSE Labs
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-This patch has been droped a long time ago. It is not in the latest kernel.
-
-Now the memory hotplug implementation is done in a different way.
-
-Thanks.
-
-
->
->   arch/x86/kernel/setup.c | 13 +++++++++----
->   arch/x86/mm/numa.c      |  6 ++++--
->   drivers/acpi/numa.c     | 23 +++++++++++++----------
->   include/linux/acpi.h    |  8 ++++++++
->   4 files changed, 34 insertions(+), 16 deletions(-)
->
-> [    0.845092] smpboot: Booting Node   1, Processors  #1
-> [    0.864812] masked ExtINT on CPU#1
-> [    0.868706] CPU1: Thermal LVT vector (0xfa) already installed
-> [    0.875158] ------------[ cut here ]------------
-> [    0.880330] WARNING: at arch/x86/kernel/smpboot.c:324 topology_sane.isra.2+0x6b/0x7c()
-> [    0.891505] Hardware name: S2600CP
-> [    0.895314] sched: CPU #1's llc-sibling CPU #0 is not on the same node! [node: 1 != 0]. Ignoring dependency.
->
-> [    0.906295] Modules linked in:
-> [    0.909927] Pid: 0, comm: swapper/1 Not tainted 3.8.0-06530-ge8d1955 #1
-> [    0.917314] Call Trace:
-> [    0.920055]  [<ffffffff81970409>] ? topology_sane.isra.2+0x6b/0x7c
-> [    0.926963]  [<ffffffff810bcd5d>] warn_slowpath_common+0x81/0x99
-> [    0.933667]  [<ffffffff810bcdc1>] warn_slowpath_fmt+0x4c/0x4e
-> [    0.940092]  [<ffffffff8196b565>] ? calibrate_delay+0xae/0x4ba
-> [    0.946612]  [<ffffffff810508ea>] ? __mcheck_cpu_init_timer+0x4a/0x4f
-> [    0.953799]  [<ffffffff81970409>] topology_sane.isra.2+0x6b/0x7c
-> [    0.960509]  [<ffffffff819706e0>] set_cpu_sibling_map+0x28c/0x43a
-> [    0.967308]  [<ffffffff81970a3c>] start_secondary+0x1ae/0x276
-> [    0.973742] ---[ end trace db722b2086ba6d20 ]---
-> [    0.999234]  OK
-> [    1.001655] smpboot: Booting Node   0, Processors  #2
->
-> Full dmesg and kconfig are attached.
->
-> Thanks,
-> Fengguang
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
