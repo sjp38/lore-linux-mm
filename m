@@ -1,66 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f42.google.com (mail-la0-f42.google.com [209.85.215.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 4694A6B0036
-	for <linux-mm@kvack.org>; Thu,  6 Feb 2014 19:45:48 -0500 (EST)
-Received: by mail-la0-f42.google.com with SMTP id hr13so2141433lab.1
-        for <linux-mm@kvack.org>; Thu, 06 Feb 2014 16:45:47 -0800 (PST)
-Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id l9si770356lbd.134.2014.02.06.07.39.09
+Received: from mail-ob0-f178.google.com (mail-ob0-f178.google.com [209.85.214.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A23F6B0037
+	for <linux-mm@kvack.org>; Thu,  6 Feb 2014 19:46:41 -0500 (EST)
+Received: by mail-ob0-f178.google.com with SMTP id wn1so3230076obc.9
+        for <linux-mm@kvack.org>; Thu, 06 Feb 2014 16:46:41 -0800 (PST)
+Received: from e39.co.us.ibm.com (e39.co.us.ibm.com. [32.97.110.160])
+        by mx.google.com with ESMTPS id ti9si1065391obc.75.2014.02.06.11.00.20
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Feb 2014 07:39:39 -0800 (PST)
-Message-ID: <52F3AC9A.7050600@parallels.com>
-Date: Thu, 6 Feb 2014 19:39:06 +0400
-From: Vladimir Davydov <vdavydov@parallels.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 06 Feb 2014 11:00:50 -0800 (PST)
+Received: from /spool/local
+	by e39.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <postmaster@d01av03.pok.ibm.com>;
+	Thu, 6 Feb 2014 12:00:19 -0700
+Received: from b01cxnp22035.gho.pok.ibm.com (b01cxnp22035.gho.pok.ibm.com [9.57.198.25])
+	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id DD81EC9003E
+	for <linux-mm@kvack.org>; Thu,  6 Feb 2014 14:00:13 -0500 (EST)
+Message-Id: <201402061900.s16J0Fn4011119@d01av03.pok.ibm.com>
+From: "postmaster@localhost" <postmaster@d01av03.pok.ibm.com>
+Content-Type: text/plain;
+	charset="us-ascii"
+Subject: IMSS Security settings violation
+Content-Transfer-Encoding: base64
+Date: Thu, 06 Feb 2014 14:00:14 -0500
 MIME-Version: 1.0
-Subject: Re: [PATCH 3/8] memcg, slab: never try to merge memcg caches
-References: <cover.1391356789.git.vdavydov@parallels.com> <27c4e7d7fb6b788b66995d2523225ef2dcbc6431.1391356789.git.vdavydov@parallels.com> <20140204145210.GH4890@dhcp22.suse.cz> <52F1004B.90307@parallels.com> <20140204151145.GI4890@dhcp22.suse.cz> <52F106D7.3060802@parallels.com> <20140206140707.GF20269@dhcp22.suse.cz> <52F39916.2040603@parallels.com> <20140206152944.GG20269@dhcp22.suse.cz>
-In-Reply-To: <20140206152944.GG20269@dhcp22.suse.cz>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: akpm@linux-foundation.org, rientjes@google.com, penberg@kernel.org, cl@linux.com, glommer@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@openvz.org
+To: root@d01av03.pok.ibm.com, NotificationRecipients <NotificationRecipients@d01av03.pok.ibm.com>
 
-On 02/06/2014 07:29 PM, Michal Hocko wrote:
-> On Thu 06-02-14 18:15:50, Vladimir Davydov wrote:
->> On 02/06/2014 06:07 PM, Michal Hocko wrote:
->>> On Tue 04-02-14 19:27:19, Vladimir Davydov wrote:
->>> [...]
->>>> What does this patch change? Actually, it introduces no functional
->>>> changes - it only remove the code trying to find an alias for a memcg
->>>> cache, because it will fail anyway. So this is rather a cleanup.
->>> But this also means that two different memcgs might share the same cache
->>> and so the pages for that cache, no?
->> No, because in this patch I explicitly forbid to merge memcg caches by
->> this hunk:
->>
->> @@ -200,9 +200,11 @@ kmem_cache_create_memcg(struct mem_cgroup *memcg,
->> const char *name, size_t size,
->>       */
->>      flags &= CACHE_CREATE_MASK;
->>  
->> -    s = __kmem_cache_alias(memcg, name, size, align, flags, ctor);
->> -    if (s)
->> -        goto out_unlock;
->> +    if (!memcg) {
->> +        s = __kmem_cache_alias(name, size, align, flags, ctor);
->> +        if (s)
->> +            goto out_unlock;
->> +    }
-> Ohh, that was the missing part. Thanks and sorry I have missed it.
-
-Never mind.
-
-> Maybe it is worth mentioning in the changelog?
-
-Hmm, changelog? This hunk was there from the very beginning :-/
-
-Anyway, I'm going to expand this patch's comment, because it's too short
-and difficult to understand.
-
-Thanks.
+SW50ZXJTY2FuIE1lc3NhZ2luZyBTZWN1cml0eSBTdWl0ZSBoYXMgZGV0ZWN0ZWQgYSBtZXNzYWdl
+IHdoaWNoIHZpb2xhdGVkIHRoZSBzZWN1cml0eSBzZXR0aW5ncyBjb25maWd1cmVkIGluIFBvbGlj
+eSA+IFNjYW5uaW5nIEV4Y2VwdGlvbnMuIFRoZSBtZXNzYWdlIHdhcyBkZWxldGVkLiBZb3UgY2Fu
+IGZpbmQgb3V0IG1vcmUgYWJvdXQgdGhpcyBldmVudCBieSBxdWVyeWluZyB0aGUgUG9saWN5IEV2
+ZW50IGxvZ3MgZm9yIFNjYW5uaW5nIGV4Y2VwdGlvbnMuDQoNCk1lc3NhZ2UgZGV0YWlsczoNClNl
+bmRlcjogbmFjY0BsaW51eC52bmV0LmlibS5jb20NClJlY2lwaWVudDogbGludXgtbW1Aa3ZhY2su
+b3JnDQpTdWJqZWN0OiBSZTogW1BBVENIXSBzbHViOiBEb24ndCB0aHJvdyBhd2F5IHBhcnRpYWwg
+cmVtb3RlIHNsYWJzIGlmIHRoZXJlIGlzIG5vIGxvY2FsIG1lbW9yeQ0KTWVzc2FnZSBJRDogPDIw
+MTQwMjA2MTg1OTU1LkdBNzg0NUBsaW51eC52bmV0LmlibS5jb20+DQpBdHRhY2htZW50OiByZXN1
+bHRzLnRhci5iejINCg0KVG8gZnVydGhlciBkZXRhaWxzIGFib3V0IGF0dGFjaG1lbnQgdGhyZXNo
+b2xkcywgcGxlYXNlIHJlZmVyIHRvIGh0dHA6Ly9kMDJudGNsMDIuaWJtLmNvbS9Db250ZW50L1Zp
+ZXcvYmZhMzljNWQtYzBhNy00MzVmLWE4N2MtZTU4YWRmOTBjYzgyL3NpemVfbGltaXRfd2hlbl9z
+ZW5kaW5nX21haWw=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
