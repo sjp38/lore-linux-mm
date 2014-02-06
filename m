@@ -1,90 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 115D56B0035
-	for <linux-mm@kvack.org>; Thu,  6 Feb 2014 05:23:13 -0500 (EST)
-Received: by mail-pd0-f182.google.com with SMTP id v10so1527236pde.13
-        for <linux-mm@kvack.org>; Thu, 06 Feb 2014 02:23:13 -0800 (PST)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id fl7si560252pad.258.2014.02.06.02.23.12
-        for <linux-mm@kvack.org>;
-        Thu, 06 Feb 2014 02:23:13 -0800 (PST)
-Date: Thu, 6 Feb 2014 18:23:11 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: Re: WARNING: at arch/x86/kernel/smpboot.c:324 topology_sane()
-Message-ID: <20140206102311.GA24615@localhost>
-References: <20140206094428.GC17971@localhost>
- <52F35E71.3030105@cn.fujitsu.com>
+Received: from mail-we0-f180.google.com (mail-we0-f180.google.com [74.125.82.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 2570C6B0035
+	for <linux-mm@kvack.org>; Thu,  6 Feb 2014 05:29:18 -0500 (EST)
+Received: by mail-we0-f180.google.com with SMTP id u57so1155052wes.11
+        for <linux-mm@kvack.org>; Thu, 06 Feb 2014 02:29:17 -0800 (PST)
+Received: from mail-we0-x22f.google.com (mail-we0-x22f.google.com [2a00:1450:400c:c03::22f])
+        by mx.google.com with ESMTPS id w15si783119wie.79.2014.02.06.02.29.16
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 06 Feb 2014 02:29:16 -0800 (PST)
+Received: by mail-we0-f175.google.com with SMTP id q59so1130742wes.20
+        for <linux-mm@kvack.org>; Thu, 06 Feb 2014 02:29:16 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <52F35E71.3030105@cn.fujitsu.com>
+In-Reply-To: <alpine.DEB.2.02.1402060041040.21148@chino.kir.corp.google.com>
+References: <20140206020757.GC5433@linux.vnet.ibm.com>
+	<1391674026-20092-1-git-send-email-iamjoonsoo.kim@lge.com>
+	<1391674026-20092-2-git-send-email-iamjoonsoo.kim@lge.com>
+	<alpine.DEB.2.02.1402060041040.21148@chino.kir.corp.google.com>
+Date: Thu, 6 Feb 2014 19:29:16 +0900
+Message-ID: <CAAmzW4PXkdpNi5pZ=4BzdXNvqTEAhcuw-x0pWidqrxzdePxXxA@mail.gmail.com>
+Subject: Re: [RFC PATCH 2/3] topology: support node_numa_mem() for determining
+ the fallback node
+From: Joonsoo Kim <js1304@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tang Chen <tangchen@cn.fujitsu.com>
-Cc: Wen Congyang <wency@cn.fujitsu.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Tang Chen <imtangchen@gmail.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Nishanth Aravamudan <nacc@linux.vnet.ibm.com>, Han Pingtian <hanpt@linux.vnet.ibm.com>, Pekka Enberg <penberg@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Paul Mackerras <paulus@samba.org>, Anton Blanchard <anton@samba.org>, Matt Mackall <mpm@selenic.com>, Christoph Lameter <cl@linux.com>, linuxppc-dev@lists.ozlabs.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-On Thu, Feb 06, 2014 at 06:05:37PM +0800, Tang Chen wrote:
-> On 02/06/2014 05:44 PM, Fengguang Wu wrote:
-> >Hi Tang,
-> >
-> >We noticed the below warning and the first bad commit is
-> >
-> >commit e8d1955258091e4c92d5a975ebd7fd8a98f5d30f
-> >Author:     Tang Chen<tangchen@cn.fujitsu.com>
-> >AuthorDate: Fri Feb 22 16:33:44 2013 -0800
-> >Commit:     Linus Torvalds<torvalds@linux-foundation.org>
-> >CommitDate: Sat Feb 23 17:50:14 2013 -0800
-> >
-> >     acpi, memory-hotplug: parse SRAT before memblock is ready
-> 
-> Hi Wu,
-> 
-> This patch has been droped a long time ago. It is not in the latest kernel.
-> 
-> Now the memory hotplug implementation is done in a different way.
+2014-02-06 David Rientjes <rientjes@google.com>:
+> On Thu, 6 Feb 2014, Joonsoo Kim wrote:
+>
+>> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+>>
+>
+> I may be misunderstanding this patch and there's no help because there's
+> no changelog.
 
-Great, and sorry for the noise! Yeah it's bisected between two old
-kernels, I should have checked latest mainline kernel before reporting it.
+Sorry about that.
+I made this patch just for testing. :)
+Thanks for looking this.
 
-Thanks,
-Fengguang
+>> diff --git a/include/linux/topology.h b/include/linux/topology.h
+>> index 12ae6ce..a6d5438 100644
+>> --- a/include/linux/topology.h
+>> +++ b/include/linux/topology.h
+>> @@ -233,11 +233,20 @@ static inline int numa_node_id(void)
+>>   * Use the accessor functions set_numa_mem(), numa_mem_id() and cpu_to_mem().
+>>   */
+>>  DECLARE_PER_CPU(int, _numa_mem_);
+>> +int _node_numa_mem_[MAX_NUMNODES];
+>>
+>>  #ifndef set_numa_mem
+>>  static inline void set_numa_mem(int node)
+>>  {
+>>       this_cpu_write(_numa_mem_, node);
+>> +     _node_numa_mem_[numa_node_id()] = node;
+>> +}
+>> +#endif
+>> +
+>> +#ifndef get_numa_mem
+>> +static inline int get_numa_mem(int node)
+>> +{
+>> +     return _node_numa_mem_[node];
+>>  }
+>>  #endif
+>>
+>> @@ -260,6 +269,7 @@ static inline int cpu_to_mem(int cpu)
+>>  static inline void set_cpu_numa_mem(int cpu, int node)
+>>  {
+>>       per_cpu(_numa_mem_, cpu) = node;
+>> +     _node_numa_mem_[numa_node_id()] = node;
+>
+> The intention seems to be that _node_numa_mem_[X] for a node X will return
+> a node Y with memory that has the nearest distance?  In other words,
+> caching the value returned by local_memory_node(X)?
 
-> >  arch/x86/kernel/setup.c | 13 +++++++++----
-> >  arch/x86/mm/numa.c      |  6 ++++--
-> >  drivers/acpi/numa.c     | 23 +++++++++++++----------
-> >  include/linux/acpi.h    |  8 ++++++++
-> >  4 files changed, 34 insertions(+), 16 deletions(-)
-> >
-> >[    0.845092] smpboot: Booting Node   1, Processors  #1
-> >[    0.864812] masked ExtINT on CPU#1
-> >[    0.868706] CPU1: Thermal LVT vector (0xfa) already installed
-> >[    0.875158] ------------[ cut here ]------------
-> >[    0.880330] WARNING: at arch/x86/kernel/smpboot.c:324 topology_sane.isra.2+0x6b/0x7c()
-> >[    0.891505] Hardware name: S2600CP
-> >[    0.895314] sched: CPU #1's llc-sibling CPU #0 is not on the same node! [node: 1 != 0]. Ignoring dependency.
-> >
-> >[    0.906295] Modules linked in:
-> >[    0.909927] Pid: 0, comm: swapper/1 Not tainted 3.8.0-06530-ge8d1955 #1
-> >[    0.917314] Call Trace:
-> >[    0.920055]  [<ffffffff81970409>] ? topology_sane.isra.2+0x6b/0x7c
-> >[    0.926963]  [<ffffffff810bcd5d>] warn_slowpath_common+0x81/0x99
-> >[    0.933667]  [<ffffffff810bcdc1>] warn_slowpath_fmt+0x4c/0x4e
-> >[    0.940092]  [<ffffffff8196b565>] ? calibrate_delay+0xae/0x4ba
-> >[    0.946612]  [<ffffffff810508ea>] ? __mcheck_cpu_init_timer+0x4a/0x4f
-> >[    0.953799]  [<ffffffff81970409>] topology_sane.isra.2+0x6b/0x7c
-> >[    0.960509]  [<ffffffff819706e0>] set_cpu_sibling_map+0x28c/0x43a
-> >[    0.967308]  [<ffffffff81970a3c>] start_secondary+0x1ae/0x276
-> >[    0.973742] ---[ end trace db722b2086ba6d20 ]---
-> >[    0.999234]  OK
-> >[    1.001655] smpboot: Booting Node   0, Processors  #2
-> >
-> >Full dmesg and kconfig are attached.
-> >
-> >Thanks,
-> >Fengguang
+Yes, you are right.
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> That doesn't seem to be what it's doing since numa_node_id() is the node
+> of the cpu that current is running on so this ends up getting initialized
+> to whatever local_memory_node(cpu_to_node(cpu)) is for the last bit set in
+> cpu_possible_mask.
+
+Yes, I made a mistake.
+Thanks for pointer.
+I fix it and attach v2.
+Now I'm out of office, so I'm not sure this second version is correct :(
+
+Thanks.
+
+----------8<--------------
