@@ -1,120 +1,198 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oa0-f49.google.com (mail-oa0-f49.google.com [209.85.219.49])
-	by kanga.kvack.org (Postfix) with ESMTP id E149A6B0035
-	for <linux-mm@kvack.org>; Thu,  6 Feb 2014 03:01:46 -0500 (EST)
-Received: by mail-oa0-f49.google.com with SMTP id i7so1889568oag.36
-        for <linux-mm@kvack.org>; Thu, 06 Feb 2014 00:01:46 -0800 (PST)
-Received: from song.cn.fujitsu.com ([222.73.24.84])
-        by mx.google.com with ESMTP id l8si85899pao.326.2014.02.06.00.01.41
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id AA3BB6B0035
+	for <linux-mm@kvack.org>; Thu,  6 Feb 2014 03:04:16 -0500 (EST)
+Received: by mail-pd0-f172.google.com with SMTP id p10so1397968pdj.31
+        for <linux-mm@kvack.org>; Thu, 06 Feb 2014 00:04:16 -0800 (PST)
+Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
+        by mx.google.com with ESMTP id ez5si91865pab.338.2014.02.06.00.04.13
         for <linux-mm@kvack.org>;
-        Thu, 06 Feb 2014 00:01:44 -0800 (PST)
-Message-ID: <52F34200.1010102@cn.fujitsu.com>
-Date: Thu, 06 Feb 2014 16:04:16 +0800
-From: Tang Chen <tangchen@cn.fujitsu.com>
+        Thu, 06 Feb 2014 00:04:14 -0800 (PST)
+Date: Thu, 6 Feb 2014 17:04:18 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH] slub: Don't throw away partial remote slabs if there is
+ no local memory
+Message-ID: <20140206080418.GA19913@lge.com>
+References: <alpine.DEB.2.10.1401201612340.28048@nuc>
+ <52e1d960.2715420a.3569.1013SMTPIN_ADDED_BROKEN@mx.google.com>
+ <52e1da8f.86f7440a.120f.25f3SMTPIN_ADDED_BROKEN@mx.google.com>
+ <alpine.DEB.2.10.1401240946530.12886@nuc>
+ <alpine.DEB.2.02.1401241301120.10968@chino.kir.corp.google.com>
+ <20140124232902.GB30361@linux.vnet.ibm.com>
+ <alpine.DEB.2.02.1401241543100.18620@chino.kir.corp.google.com>
+ <20140125001643.GA25344@linux.vnet.ibm.com>
+ <alpine.DEB.2.02.1401241618500.20466@chino.kir.corp.google.com>
+ <20140206020757.GC5433@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: __set_page_dirty_nobuffers uses spin_lock_irqseve
- instead of spin_lock_irq
-References: <1391446195-9457-1-git-send-email-kosaki.motohiro@gmail.com>
-In-Reply-To: <1391446195-9457-1-git-send-email-kosaki.motohiro@gmail.com>
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140206020757.GC5433@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kosaki.motohiro@gmail.com
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <jweiner@redhat.com>, stable@vger.kernel.org
+To: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
+Cc: David Rientjes <rientjes@google.com>, Han Pingtian <hanpt@linux.vnet.ibm.com>, penberg@kernel.org, linux-mm@kvack.org, paulus@samba.org, Anton Blanchard <anton@samba.org>, mpm@selenic.com, Christoph Lameter <cl@linux.com>, linuxppc-dev@lists.ozlabs.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
+On Wed, Feb 05, 2014 at 06:07:57PM -0800, Nishanth Aravamudan wrote:
+> On 24.01.2014 [16:25:58 -0800], David Rientjes wrote:
+> > On Fri, 24 Jan 2014, Nishanth Aravamudan wrote:
+> > 
+> > > Thank you for clarifying and providing  a test patch. I ran with this on
+> > > the system showing the original problem, configured to have 15GB of
+> > > memory.
+> > > 
+> > > With your patch after boot:
+> > > 
+> > > MemTotal:       15604736 kB
+> > > MemFree:         8768192 kB
+> > > Slab:            3882560 kB
+> > > SReclaimable:     105408 kB
+> > > SUnreclaim:      3777152 kB
+> > > 
+> > > With Anton's patch after boot:
+> > > 
+> > > MemTotal:       15604736 kB
+> > > MemFree:        11195008 kB
+> > > Slab:            1427968 kB
+> > > SReclaimable:     109184 kB
+> > > SUnreclaim:      1318784 kB
+> > > 
+> > > 
+> > > I know that's fairly unscientific, but the numbers are reproducible. 
+> > > 
+> > 
+> > I don't think the goal of the discussion is to reduce the amount of slab 
+> > allocated, but rather get the most local slab memory possible by use of 
+> > kmalloc_node().  When a memoryless node is being passed to kmalloc_node(), 
+> > which is probably cpu_to_node() for a cpu bound to a node without memory, 
+> > my patch is allocating it on the most local node; Anton's patch is 
+> > allocating it on whatever happened to be the cpu slab.
+> > 
+> > > > diff --git a/mm/slub.c b/mm/slub.c
+> > > > --- a/mm/slub.c
+> > > > +++ b/mm/slub.c
+> > > > @@ -2278,10 +2278,14 @@ redo:
+> > > > 
+> > > >  	if (unlikely(!node_match(page, node))) {
+> > > >  		stat(s, ALLOC_NODE_MISMATCH);
+> > > > -		deactivate_slab(s, page, c->freelist);
+> > > > -		c->page = NULL;
+> > > > -		c->freelist = NULL;
+> > > > -		goto new_slab;
+> > > > +		if (unlikely(!node_present_pages(node)))
+> > > > +			node = numa_mem_id();
+> > > > +		if (!node_match(page, node)) {
+> > > > +			deactivate_slab(s, page, c->freelist);
+> > > > +			c->page = NULL;
+> > > > +			c->freelist = NULL;
+> > > > +			goto new_slab;
+> > > > +		}
+> > > 
+> > > Semantically, and please correct me if I'm wrong, this patch is saying
+> > > if we have a memoryless node, we expect the page's locality to be that
+> > > of numa_mem_id(), and we still deactivate the slab if that isn't true.
+> > > Just wanting to make sure I understand the intent.
+> > > 
+> > 
+> > Yeah, the default policy should be to fallback to local memory if the node 
+> > passed is memoryless.
+> > 
+> > > What I find odd is that there are only 2 nodes on this system, node 0
+> > > (empty) and node 1. So won't numa_mem_id() always be 1? And every page
+> > > should be coming from node 1 (thus node_match() should always be true?)
+> > > 
+> > 
+> > The nice thing about slub is its debugging ability, what is 
+> > /sys/kernel/slab/cache/objects showing in comparison between the two 
+> > patches?
+> 
+> Ok, I finally got around to writing a script that compares the objects
+> output from both kernels.
+> 
+> log1 is with CONFIG_HAVE_MEMORYLESS_NODES on, my kthread locality patch
+> and Joonsoo's patch.
+> 
+> log2 is with CONFIG_HAVE_MEMORYLESS_NODES on, my kthread locality patch
+> and Anton's patch.
+> 
+> slab                           objects    objects   percent
+>                                log1       log2      change
+> -----------------------------------------------------------
+> :t-0000104                     71190      85680      20.353982 %
+> UDP                            4352       3392       22.058824 %
+> inode_cache                    54302      41923      22.796582 %
+> fscache_cookie_jar             3276       2457       25.000000 %
+> :t-0000896                     438        292        33.333333 %
+> :t-0000080                     310401     195323     37.073978 %
+> ext4_inode_cache               335        201        40.000000 %
+> :t-0000192                     89408      128898     44.168307 %
+> :t-0000184                     151300     81880      45.882353 %
+> :t-0000512                     49698      73648      48.191074 %
+> :at-0000192                    242867     120948     50.199904 %
+> xfs_inode                      34350      15221      55.688501 %
+> :t-0016384                     11005      17257      56.810541 %
+> proc_inode_cache               103868     34717      66.575846 %
+> tw_sock_TCP                    768        256        66.666667 %
+> :t-0004096                     15240      25672      68.451444 %
+> nfs_inode_cache                1008       315        68.750000 %
+> :t-0001024                     14528      24720      70.154185 %
+> :t-0032768                     655        1312       100.305344%
+> :t-0002048                     14242      30720      115.700042%
+> :t-0000640                     1020       2550       150.000000%
+> :t-0008192                     10005      27905      178.910545%
+> 
+> FWIW, the configuration of this LPAR has slightly changed. It is now configured
+> for maximally 400 CPUs, of which 200 are present. The result is that even with
+> Joonsoo's patch (log1 above), we OOM pretty easily and Anton's slab usage
+> script reports:
+> 
+> slab                                   mem     objs    slabs
+>                                       used   active   active
+> ------------------------------------------------------------
+> kmalloc-512                        1182 MB    2.03%  100.00%
+> kmalloc-192                        1182 MB    1.38%  100.00%
+> kmalloc-16384                       966 MB   17.66%  100.00%
+> kmalloc-4096                        353 MB   15.92%  100.00%
+> kmalloc-8192                        259 MB   27.28%  100.00%
+> kmalloc-32768                       207 MB    9.86%  100.00%
+> 
+> In comparison (log2 above):
+> 
+> slab                                   mem     objs    slabs
+>                                       used   active   active
+> ------------------------------------------------------------
+> kmalloc-16384                       273 MB   98.76%  100.00%
+> kmalloc-8192                        225 MB   98.67%  100.00%
+> pgtable-2^11                        114 MB  100.00%  100.00%
+> pgtable-2^12                        109 MB  100.00%  100.00%
+> kmalloc-4096                        104 MB   98.59%  100.00%
+> 
+> I appreciate all the help so far, if anyone has any ideas how best to
+> proceed further, or what they'd like debugged more, I'm happy to get
+> this fixed. We're hitting this on a couple of different systems and I'd
+> like to find a good resolution to the problem.
 
-Hi,
+Hello,
 
-Tested-by: Tang Chen <tangchen@cn.fujitsu.com>
+I have no memoryless system, so, to debug it, I need your help. :)
+First, please let me know node information on your system.
 
-Have tested this patch, and the problem is fixed.
+I'm preparing 3 another patches which are nearly same with previous patch,
+but slightly different approach. Could you test them on your system?
+I will send them soon.
+
+And I think that same problem exists if CONFIG_SLAB is enabled. Could you
+confirm that?
+
+And, could you confirm that your system's numa_mem_id() is properly set?
+And, could you confirm that node_present_pages() test works properly?
+And, with my patches, could you give me more information on slub stat?
+For this, you need to enable CONFIG_SLUB_STATS. Then please send me all the
+slub stat on /proc/sys/kernel/debug/slab.
+
+Sorry for too many request.
+If it bothers you too much, please ignore it :)
 
 Thanks.
-
-On 02/04/2014 12:49 AM, kosaki.motohiro@gmail.com wrote:
-> From: KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>
->
-> During aio stress test, we observed the following lockdep warning.
-> This mean AIO+numa_balancing is currently deadlockable.
->
-> The problem is, aio_migratepage disable interrupt, but __set_page_dirty_nobuffers
-> unintentionally enable it again.
->
-> Generally, all helper function should use spin_lock_irqsave()
-> instead of spin_lock_irq() because they don't know caller at all.
->
-> [  599.843948] other info that might help us debug this:
-> [  599.873748]  Possible unsafe locking scenario:
-> [  599.873748]
-> [  599.900902]        CPU0
-> [  599.912701]        ----
-> [  599.924929]   lock(&(&ctx->completion_lock)->rlock);
-> [  599.950299]<Interrupt>
-> [  599.962576]     lock(&(&ctx->completion_lock)->rlock);
-> [  599.985771]
-> [  599.985771]  *** DEADLOCK ***
->
-> [  600.375623]  [<ffffffff81678d3c>] dump_stack+0x19/0x1b
-> [  600.398769]  [<ffffffff816731aa>] print_usage_bug+0x1f7/0x208
-> [  600.425092]  [<ffffffff810df370>] ? print_shortest_lock_dependencies+0x1d0/0x1d0
-> [  600.458981]  [<ffffffff810e08dd>] mark_lock+0x21d/0x2a0
-> [  600.482910]  [<ffffffff810e0a19>] mark_held_locks+0xb9/0x140
-> [  600.508956]  [<ffffffff8168201c>] ? _raw_spin_unlock_irq+0x2c/0x50
-> [  600.536825]  [<ffffffff810e0ba5>] trace_hardirqs_on_caller+0x105/0x1d0
-> [  600.566861]  [<ffffffff810e0c7d>] trace_hardirqs_on+0xd/0x10
-> [  600.593210]  [<ffffffff8168201c>] _raw_spin_unlock_irq+0x2c/0x50
-> [  600.620599]  [<ffffffff8117f72c>] __set_page_dirty_nobuffers+0x8c/0xf0
-> [  600.649992]  [<ffffffff811d1094>] migrate_page_copy+0x434/0x540
-> [  600.676635]  [<ffffffff8123f5b1>] aio_migratepage+0xb1/0x140
-> [  600.703126]  [<ffffffff811d126d>] move_to_new_page+0x7d/0x230
-> [  600.729022]  [<ffffffff811d1b45>] migrate_pages+0x5e5/0x700
-> [  600.754705]  [<ffffffff811d0070>] ? buffer_migrate_lock_buffers+0xb0/0xb0
-> [  600.785784]  [<ffffffff811d29cc>] migrate_misplaced_page+0xbc/0xf0
-> [  600.814029]  [<ffffffff8119eb62>] do_numa_page+0x102/0x190
-> [  600.839182]  [<ffffffff8119ee31>] handle_pte_fault+0x241/0x970
-> [  600.865875]  [<ffffffff811a0345>] handle_mm_fault+0x265/0x370
-> [  600.892071]  [<ffffffff81686d82>] __do_page_fault+0x172/0x5a0
-> [  600.918065]  [<ffffffff81682cd8>] ? retint_swapgs+0x13/0x1b
-> [  600.943493]  [<ffffffff816871ca>] do_page_fault+0x1a/0x70
-> [  600.968081]  [<ffffffff81682ff8>] page_fault+0x28/0x30
->
-> Signed-off-by: KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>
-> Cc: Larry Woodman<lwoodman@redhat.com>
-> Cc: Rik van Riel<riel@redhat.com>
-> Cc: Johannes Weiner<jweiner@redhat.com>
-> Cc: stable@vger.kernel.org
-> ---
->   mm/page-writeback.c |    5 +++--
->   1 files changed, 3 insertions(+), 2 deletions(-)
->
-> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-> index 2d30e2c..7106cb1 100644
-> --- a/mm/page-writeback.c
-> +++ b/mm/page-writeback.c
-> @@ -2173,11 +2173,12 @@ int __set_page_dirty_nobuffers(struct page *page)
->   	if (!TestSetPageDirty(page)) {
->   		struct address_space *mapping = page_mapping(page);
->   		struct address_space *mapping2;
-> +		unsigned long flags;
->
->   		if (!mapping)
->   			return 1;
->
-> -		spin_lock_irq(&mapping->tree_lock);
-> +		spin_lock_irqsave(&mapping->tree_lock, flags);
->   		mapping2 = page_mapping(page);
->   		if (mapping2) { /* Race with truncate? */
->   			BUG_ON(mapping2 != mapping);
-> @@ -2186,7 +2187,7 @@ int __set_page_dirty_nobuffers(struct page *page)
->   			radix_tree_tag_set(&mapping->page_tree,
->   				page_index(page), PAGECACHE_TAG_DIRTY);
->   		}
-> -		spin_unlock_irq(&mapping->tree_lock);
-> +		spin_unlock_irqrestore(&mapping->tree_lock, flags);
->   		if (mapping->host) {
->   			/* !PageAnon&&  !swapper_space */
->   			__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
