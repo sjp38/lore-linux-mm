@@ -1,64 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f46.google.com (mail-pb0-f46.google.com [209.85.160.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B4EA6B0037
-	for <linux-mm@kvack.org>; Thu,  6 Feb 2014 18:57:15 -0500 (EST)
-Received: by mail-pb0-f46.google.com with SMTP id um1so2470957pbc.33
-        for <linux-mm@kvack.org>; Thu, 06 Feb 2014 15:57:14 -0800 (PST)
-Received: from mail-pb0-x22d.google.com (mail-pb0-x22d.google.com [2607:f8b0:400e:c01::22d])
-        by mx.google.com with ESMTPS id tq5si2745989pac.182.2014.02.06.15.57.11
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 621A96B0035
+	for <linux-mm@kvack.org>; Thu,  6 Feb 2014 18:58:21 -0500 (EST)
+Received: by mail-pd0-f175.google.com with SMTP id w10so2363461pde.6
+        for <linux-mm@kvack.org>; Thu, 06 Feb 2014 15:58:21 -0800 (PST)
+Received: from mail-pb0-x229.google.com (mail-pb0-x229.google.com [2607:f8b0:400e:c01::229])
+        by mx.google.com with ESMTPS id if4si2789735pbc.16.2014.02.06.15.58.19
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 06 Feb 2014 15:57:12 -0800 (PST)
-Received: by mail-pb0-f45.google.com with SMTP id un15so2444148pbc.18
-        for <linux-mm@kvack.org>; Thu, 06 Feb 2014 15:57:11 -0800 (PST)
-Date: Thu, 6 Feb 2014 15:56:01 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH] cgroup: use an ordered workqueue for cgroup destruction
-Message-ID: <alpine.LSU.2.11.1402061541560.31342@eggly.anvils>
+        Thu, 06 Feb 2014 15:58:19 -0800 (PST)
+Received: by mail-pb0-f41.google.com with SMTP id up15so2461521pbc.28
+        for <linux-mm@kvack.org>; Thu, 06 Feb 2014 15:58:19 -0800 (PST)
+Date: Thu, 6 Feb 2014 15:58:17 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [RFC PATCH V5] mm readahead: Fix readahead fail for no local
+ memory and limit readahead pages
+In-Reply-To: <alpine.DEB.2.02.1402061537180.3441@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.02.1402061557210.5061@chino.kir.corp.google.com>
+References: <1390388025-1418-1-git-send-email-raghavendra.kt@linux.vnet.ibm.com> <20140206145105.27dec37b16f24e4ac5fd90ce@linux-foundation.org> <alpine.DEB.2.02.1402061456290.31828@chino.kir.corp.google.com> <20140206152219.45c2039e5092c8ea1c31fd38@linux-foundation.org>
+ <alpine.DEB.2.02.1402061537180.3441@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Filipe Brandenburger <filbranden@google.com>, Li Zefan <lizefan@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, Markus Blank-Burian <burian@muenster.de>, Shawn Bohrer <shawn.bohrer@gmail.com>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, Fengguang Wu <fengguang.wu@intel.com>, David Cohen <david.a.cohen@linux.intel.com>, Al Viro <viro@zeniv.linux.org.uk>, Damien Ramonda <damien.ramonda@intel.com>, Jan Kara <jack@suse.cz>, Linus <torvalds@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Sometimes the cleanup after memcg hierarchy testing gets stuck in
-mem_cgroup_reparent_charges(), unable to bring non-kmem usage down to 0.
+On Thu, 6 Feb 2014, David Rientjes wrote:
 
-There may turn out to be several causes, but a major cause is this: the
-workitem to offline parent can get run before workitem to offline child;
-parent's mem_cgroup_reparent_charges() circles around waiting for the
-child's pages to be reparented to its lrus, but it's holding cgroup_mutex
-which prevents the child from reaching its mem_cgroup_reparent_charges().
+> > > > > +#define MAX_REMOTE_READAHEAD   4096UL
 
-Just use an ordered workqueue for cgroup_destroy_wq.
+> Normally it wouldn't matter because there's no significant downside to it 
+> racing, things like mempolicies which use numa_node_id() extensively would 
+> result in, oops, a page allocation on the wrong node.
+> 
+> This stands out to me, though, because you're expecting the calculation to 
+> be correct for a specific node.
+> 
+> The patch is still wrong, though, it should just do
+> 
+> 	int node = ACCESS_ONCE(numa_mem_id());
+> 	return min(nr, (node_page_state(node, NR_INACTIVE_FILE) +
+> 		        node_page_state(node, NR_FREE_PAGES)) / 2);
+> 
+> since we want to readahead based on the cpu's local node, the comment 
+> saying we're reading ahead onto "remote memory" is wrong since a 
+> memoryless node has local affinity to numa_mem_id().
+> 
 
-Fixes: e5fca243abae ("cgroup: use a dedicated workqueue for cgroup destruction")
-Suggested-by: Filipe Brandenburger <filbranden@google.com>
-Signed-off-by: Hugh Dickins <hughd@google.com>
-Cc: stable@vger.kernel.org # 3.10+
----
-
- kernel/cgroup.c |    4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
-
---- 3.14-rc1/kernel/cgroup.c	2014-02-02 18:49:07.737302111 -0800
-+++ linux/kernel/cgroup.c	2014-02-06 15:20:35.548904965 -0800
-@@ -4845,12 +4845,12 @@ static int __init cgroup_wq_init(void)
- 	/*
- 	 * There isn't much point in executing destruction path in
- 	 * parallel.  Good chunk is serialized with cgroup_mutex anyway.
--	 * Use 1 for @max_active.
-+	 * Must be ordered to make sure parent is offlined after children.
- 	 *
- 	 * We would prefer to do this in cgroup_init() above, but that
- 	 * is called before init_workqueues(): so leave this until after.
- 	 */
--	cgroup_destroy_wq = alloc_workqueue("cgroup_destroy", 0, 1);
-+	cgroup_destroy_wq = alloc_ordered_workqueue("cgroup_destroy", 0);
- 	BUG_ON(!cgroup_destroy_wq);
- 
- 	/*
+Oops, forgot about the MAX_REMOTE_READAHEAD which needs to be factored in 
+as well, but this handles the bound on local node's statistics.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
