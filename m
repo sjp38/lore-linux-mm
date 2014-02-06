@@ -1,81 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f48.google.com (mail-ee0-f48.google.com [74.125.83.48])
-	by kanga.kvack.org (Postfix) with ESMTP id D95E06B0035
-	for <linux-mm@kvack.org>; Thu,  6 Feb 2014 18:45:22 -0500 (EST)
-Received: by mail-ee0-f48.google.com with SMTP id t10so1192030eei.35
-        for <linux-mm@kvack.org>; Thu, 06 Feb 2014 15:45:22 -0800 (PST)
-Received: from mail-ee0-x22f.google.com (mail-ee0-x22f.google.com [2a00:1450:4013:c00::22f])
-        by mx.google.com with ESMTPS id t5si3431367eeo.169.2014.02.06.10.17.45
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 34CB26B0035
+	for <linux-mm@kvack.org>; Thu,  6 Feb 2014 18:48:26 -0500 (EST)
+Received: by mail-pa0-f50.google.com with SMTP id kp14so2375660pab.23
+        for <linux-mm@kvack.org>; Thu, 06 Feb 2014 15:48:25 -0800 (PST)
+Received: from mail-pa0-x22a.google.com (mail-pa0-x22a.google.com [2607:f8b0:400e:c03::22a])
+        by mx.google.com with ESMTPS id n8si2757019pax.73.2014.02.06.15.48.24
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 06 Feb 2014 10:18:15 -0800 (PST)
-Received: by mail-ee0-f47.google.com with SMTP id d49so1062109eek.6
-        for <linux-mm@kvack.org>; Thu, 06 Feb 2014 10:17:45 -0800 (PST)
-Date: Thu, 6 Feb 2014 19:17:35 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v2 3/7] memcg, slab: separate memcg vs root cache
- creation paths
-Message-ID: <20140206181735.GA2137@dhcp22.suse.cz>
-References: <cover.1391441746.git.vdavydov@parallels.com>
- <81a403327163facea2b4c7b720fdc0ef62dd1dbf.1391441746.git.vdavydov@parallels.com>
- <20140204160336.GL4890@dhcp22.suse.cz>
- <52F13D3C.801@parallels.com>
- <20140206164135.GK20269@dhcp22.suse.cz>
- <52F3C293.3060400@parallels.com>
+        Thu, 06 Feb 2014 15:48:24 -0800 (PST)
+Received: by mail-pa0-f42.google.com with SMTP id kl14so2404167pab.1
+        for <linux-mm@kvack.org>; Thu, 06 Feb 2014 15:48:24 -0800 (PST)
+Date: Thu, 6 Feb 2014 15:48:22 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [RFC PATCH V5] mm readahead: Fix readahead fail for no local
+ memory and limit readahead pages
+In-Reply-To: <20140206152219.45c2039e5092c8ea1c31fd38@linux-foundation.org>
+Message-ID: <alpine.DEB.2.02.1402061537180.3441@chino.kir.corp.google.com>
+References: <1390388025-1418-1-git-send-email-raghavendra.kt@linux.vnet.ibm.com> <20140206145105.27dec37b16f24e4ac5fd90ce@linux-foundation.org> <alpine.DEB.2.02.1402061456290.31828@chino.kir.corp.google.com>
+ <20140206152219.45c2039e5092c8ea1c31fd38@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <52F3C293.3060400@parallels.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: akpm@linux-foundation.org, rientjes@google.com, penberg@kernel.org, cl@linux.com, glommer@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@openvz.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, Fengguang Wu <fengguang.wu@intel.com>, David Cohen <david.a.cohen@linux.intel.com>, Al Viro <viro@zeniv.linux.org.uk>, Damien Ramonda <damien.ramonda@intel.com>, Jan Kara <jack@suse.cz>, Linus <torvalds@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu 06-02-14 21:12:51, Vladimir Davydov wrote:
-> On 02/06/2014 08:41 PM, Michal Hocko wrote:
-[...]
-> >> +int kmem_cache_create_memcg(struct mem_cgroup *memcg, struct kmem_cache *cachep)
-> >>  {
-> >> -	return kmem_cache_create_memcg(NULL, name, size, align, flags, ctor, NULL);
-> >> +	struct kmem_cache *s;
-> >> +	int err;
-> >> +
-> >> +	get_online_cpus();
-> >> +	mutex_lock(&slab_mutex);
-> >> +
-> >> +	/*
-> >> +	 * Since per-memcg caches are created asynchronously on first
-> >> +	 * allocation (see memcg_kmem_get_cache()), several threads can try to
-> >> +	 * create the same cache, but only one of them may succeed.
-> >> +	 */
-> >> +	err = -EEXIST;
-> > Does it make any sense to report the error here? If we are racing then at
-> > least on part wins and the work is done.
+On Thu, 6 Feb 2014, Andrew Morton wrote:
+
+> On Thu, 6 Feb 2014 14:58:21 -0800 (PST) David Rientjes <rientjes@google.com> wrote:
 > 
-> Yeah, you're perfectly right. It's better to return 0 here.
-
-Why not void?
-
-> > We should probably warn about errors which prevent from accounting but
-> > I do not think there is much more we can do so returning an error code
-> > from this function seems pointless. memcg_create_cache_work_func ignores
-> > the return value anyway.
+> > > > +#define MAX_REMOTE_READAHEAD   4096UL
+> > > >  /*
+> > > >   * Given a desired number of PAGE_CACHE_SIZE readahead pages, return a
+> > > >   * sensible upper limit.
+> > > >   */
+> > > >  unsigned long max_sane_readahead(unsigned long nr)
+> > > >  {
+> > > > -	return min(nr, (node_page_state(numa_node_id(), NR_INACTIVE_FILE)
+> > > > -		+ node_page_state(numa_node_id(), NR_FREE_PAGES)) / 2);
+> > > > +	unsigned long local_free_page;
+> > > > +	int nid;
+> > > > +
+> > > > +	nid = numa_node_id();
+> > 
+> > If you're intending this to be cached for your calls into 
+> > node_page_state() you need nid = ACCESS_ONCE(numa_node_id()).
 > 
-> I do not think warnings are appropriate here, because it is not actually
-> an error if we are short on memory and can't do proper memcg accounting
-> due to this. Perhaps, we'd better add fail counters for memcg cache
-> creations and/or accounting to the root cache instead of memcg's one.
-> That would be useful for debugging. I'm not sure though.
+> ugh.  That's too subtle and we didn't even document it.
+> 
+> We could put the ACCESS_ONCE inside numa_node_id() I assume but we
+> still have the same problem as smp_processor_id(): the numa_node_id()
+> return value is wrong as soon as you obtain it if running preemptibly. 
+> 
+> We could plaster Big Fat Warnings all over the place or we could treat
+> numa_node_id() and derivatives in the same way as smp_processor_id()
+> (which is a huge pain).  Or something else, but we've left a big hand
+> grenade here and Raghavendra won't be the last one to pull the pin?
+> 
 
-warn on once per memcg would be probably sufficient but it would still
-be great if an admin could see that a memcg is not accounted although it
-is supposed to be. Scanning all the memcgs might be really impractical.
-We do not fail allocations needed for those object in the real life now
-but we shouldn't rely on that.
+Normally it wouldn't matter because there's no significant downside to it 
+racing, things like mempolicies which use numa_node_id() extensively would 
+result in, oops, a page allocation on the wrong node.
 
--- 
-Michal Hocko
-SUSE Labs
+This stands out to me, though, because you're expecting the calculation to 
+be correct for a specific node.
+
+The patch is still wrong, though, it should just do
+
+	int node = ACCESS_ONCE(numa_mem_id());
+	return min(nr, (node_page_state(node, NR_INACTIVE_FILE) +
+		        node_page_state(node, NR_FREE_PAGES)) / 2);
+
+since we want to readahead based on the cpu's local node, the comment 
+saying we're reading ahead onto "remote memory" is wrong since a 
+memoryless node has local affinity to numa_mem_id().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
