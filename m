@@ -1,66 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E6DA6B0035
-	for <linux-mm@kvack.org>; Thu,  6 Feb 2014 18:33:11 -0500 (EST)
-Received: by mail-pa0-f41.google.com with SMTP id fa1so2371650pad.28
-        for <linux-mm@kvack.org>; Thu, 06 Feb 2014 15:33:10 -0800 (PST)
-Received: from mail-pa0-x22a.google.com (mail-pa0-x22a.google.com [2607:f8b0:400e:c03::22a])
-        by mx.google.com with ESMTPS id ef2si2369551pbb.101.2014.02.06.12.52.13
+Received: from mail-yh0-f47.google.com (mail-yh0-f47.google.com [209.85.213.47])
+	by kanga.kvack.org (Postfix) with ESMTP id A52E06B0035
+	for <linux-mm@kvack.org>; Thu,  6 Feb 2014 18:38:14 -0500 (EST)
+Received: by mail-yh0-f47.google.com with SMTP id c41so2411527yho.34
+        for <linux-mm@kvack.org>; Thu, 06 Feb 2014 15:38:14 -0800 (PST)
+Received: from mail-qa0-x22f.google.com (mail-qa0-x22f.google.com [2607:f8b0:400d:c00::22f])
+        by mx.google.com with ESMTPS id d67si1251312qgf.75.2014.02.06.10.15.43
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 06 Feb 2014 12:52:43 -0800 (PST)
-Received: by mail-pa0-f42.google.com with SMTP id kl14so2217921pab.1
-        for <linux-mm@kvack.org>; Thu, 06 Feb 2014 12:52:13 -0800 (PST)
-Date: Thu, 6 Feb 2014 12:52:11 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [RFC PATCH 2/3] topology: support node_numa_mem() for determining
- the fallback node
-In-Reply-To: <CAAmzW4PXkdpNi5pZ=4BzdXNvqTEAhcuw-x0pWidqrxzdePxXxA@mail.gmail.com>
-Message-ID: <alpine.DEB.2.02.1402061248450.9567@chino.kir.corp.google.com>
-References: <20140206020757.GC5433@linux.vnet.ibm.com> <1391674026-20092-1-git-send-email-iamjoonsoo.kim@lge.com> <1391674026-20092-2-git-send-email-iamjoonsoo.kim@lge.com> <alpine.DEB.2.02.1402060041040.21148@chino.kir.corp.google.com>
- <CAAmzW4PXkdpNi5pZ=4BzdXNvqTEAhcuw-x0pWidqrxzdePxXxA@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        Thu, 06 Feb 2014 10:16:13 -0800 (PST)
+Received: by mail-qa0-f47.google.com with SMTP id j5so3342699qaq.6
+        for <linux-mm@kvack.org>; Thu, 06 Feb 2014 10:15:43 -0800 (PST)
+From: William Roberts <bill.c.roberts@gmail.com>
+Subject: [PATCH v5 1/3] mm: Create utility function for accessing a tasks commandline value
+Date: Thu,  6 Feb 2014 10:15:26 -0800
+Message-Id: <1391710528-23481-1-git-send-email-wroberts@tresys.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <js1304@gmail.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Nishanth Aravamudan <nacc@linux.vnet.ibm.com>, Han Pingtian <hanpt@linux.vnet.ibm.com>, Pekka Enberg <penberg@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Paul Mackerras <paulus@samba.org>, Anton Blanchard <anton@samba.org>, Matt Mackall <mpm@selenic.com>, Christoph Lameter <cl@linux.com>, linuxppc-dev@lists.ozlabs.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
+To: linux-audit@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, rgb@redhat.com, viro@zeniv.linux.org.uk, akpm@linux-foundation.org, sds@tycho.nsa.gov
+Cc: William Roberts <wroberts@tresys.com>
 
-On Thu, 6 Feb 2014, Joonsoo Kim wrote:
+introduce get_cmdline() for retreiving the value of a processes
+proc/self/cmdline value.
 
-> From bf691e7eb07f966e3aed251eaeb18f229ee32d1f Mon Sep 17 00:00:00 2001
-> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> Date: Thu, 6 Feb 2014 17:07:05 +0900
-> Subject: [RFC PATCH 2/3 v2] topology: support node_numa_mem() for
-> determining the
->  fallback node
-> 
-> We need to determine the fallback node in slub allocator if the allocation
-> target node is memoryless node. Without it, the SLUB wrongly select
-> the node which has no memory and can't use a partial slab, because of node
-> mismatch. Introduced function, node_numa_mem(X), will return
-> a node Y with memory that has the nearest distance. If X is memoryless
-> node, it will return nearest distance node, but, if
-> X is normal node, it will return itself.
-> 
-> We will use this function in following patch to determine the fallback
-> node.
-> 
+Acked-by: David Rientjes <rientjes@google.com>
+Acked-by: Stephen Smalley <sds@tycho.nsa.gov>
 
-I like the approach and it may fix the problem today, but it may not be 
-sufficient in the future: nodes may not only be memoryless but they may 
-also be cpuless.  It's possible that a node can only have I/O, networking, 
-or storage devices and we can define affinity for them that is remote from 
-every cpu and/or memory by the ACPI specification.
+Signed-off-by: William Roberts <wroberts@tresys.com>
+---
+ include/linux/mm.h |    1 +
+ mm/util.c          |   48 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 49 insertions(+)
 
-It seems like a better approach would be to do this when a node is brought 
-online and determine the fallback node based not on the zonelists as you 
-do here but rather on locality (such as through a SLIT if provided, see 
-node_distance()).
-
-Also, the names aren't very descriptive: {get,set}_numa_mem() doesn't make 
-a lot of sense in generic code.  I'd suggest something like 
-node_to_mem_node().
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index f28f46e..db89a94 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1175,6 +1175,7 @@ void account_page_writeback(struct page *page);
+ int set_page_dirty(struct page *page);
+ int set_page_dirty_lock(struct page *page);
+ int clear_page_dirty_for_io(struct page *page);
++int get_cmdline(struct task_struct *task, char *buffer, int buflen);
+ 
+ /* Is the vma a continuation of the stack vma above it? */
+ static inline int vma_growsdown(struct vm_area_struct *vma, unsigned long addr)
+diff --git a/mm/util.c b/mm/util.c
+index a24aa22..8122710 100644
+--- a/mm/util.c
++++ b/mm/util.c
+@@ -445,6 +445,54 @@ unsigned long vm_commit_limit(void)
+ 	return allowed;
+ }
+ 
++/**
++ * get_cmdline() - copy the cmdline value to a buffer.
++ * @task:     the task whose cmdline value to copy.
++ * @buffer:   the buffer to copy to.
++ * @buflen:   the length of the buffer. Larger cmdline values are truncated
++ *            to this length.
++ * Returns the size of the cmdline field copied. Note that the copy does
++ * not guarantee an ending NULL byte.
++ */
++int get_cmdline(struct task_struct *task, char *buffer, int buflen)
++{
++	int res = 0;
++	unsigned int len;
++	struct mm_struct *mm = get_task_mm(task);
++	if (!mm)
++		goto out;
++	if (!mm->arg_end)
++		goto out_mm;	/* Shh! No looking before we're done */
++
++	len = mm->arg_end - mm->arg_start;
++
++	if (len > buflen)
++		len = buflen;
++
++	res = access_process_vm(task, mm->arg_start, buffer, len, 0);
++
++	/*
++	 * If the nul at the end of args has been overwritten, then
++	 * assume application is using setproctitle(3).
++	 */
++	if (res > 0 && buffer[res-1] != '\0' && len < buflen) {
++		len = strnlen(buffer, res);
++		if (len < res) {
++			res = len;
++		} else {
++			len = mm->env_end - mm->env_start;
++			if (len > buflen - res)
++				len = buflen - res;
++			res += access_process_vm(task, mm->env_start,
++						 buffer+res, len, 0);
++			res = strnlen(buffer, res);
++		}
++	}
++out_mm:
++	mmput(mm);
++out:
++	return res;
++}
+ 
+ /* Tracepoints definitions. */
+ EXPORT_TRACEPOINT_SYMBOL(kmalloc);
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
