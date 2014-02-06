@@ -1,67 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f52.google.com (mail-qa0-f52.google.com [209.85.216.52])
-	by kanga.kvack.org (Postfix) with ESMTP id E9AB36B0035
-	for <linux-mm@kvack.org>; Thu,  6 Feb 2014 18:04:23 -0500 (EST)
-Received: by mail-qa0-f52.google.com with SMTP id j15so3914244qaq.25
-        for <linux-mm@kvack.org>; Thu, 06 Feb 2014 15:04:23 -0800 (PST)
-Received: from qmta01.emeryville.ca.mail.comcast.net (qmta01.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:16])
-        by mx.google.com with ESMTP id w9si1136334qgw.23.2014.02.06.09.30.22
-        for <linux-mm@kvack.org>;
-        Thu, 06 Feb 2014 09:30:52 -0800 (PST)
-Date: Thu, 6 Feb 2014 11:30:20 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [RFC PATCH 3/3] slub: fallback to get_numa_mem() node if we want
- to allocate on memoryless node
-In-Reply-To: <1391674026-20092-3-git-send-email-iamjoonsoo.kim@lge.com>
-Message-ID: <alpine.DEB.2.10.1402061127001.5348@nuc>
-References: <20140206020757.GC5433@linux.vnet.ibm.com> <1391674026-20092-1-git-send-email-iamjoonsoo.kim@lge.com> <1391674026-20092-3-git-send-email-iamjoonsoo.kim@lge.com>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-we0-f182.google.com (mail-we0-f182.google.com [74.125.82.182])
+	by kanga.kvack.org (Postfix) with ESMTP id CF63B6B0036
+	for <linux-mm@kvack.org>; Thu,  6 Feb 2014 18:04:27 -0500 (EST)
+Received: by mail-we0-f182.google.com with SMTP id u57so1813008wes.13
+        for <linux-mm@kvack.org>; Thu, 06 Feb 2014 15:04:27 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id jc15si180089wic.62.2014.02.06.10.48.45
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 06 Feb 2014 10:49:15 -0800 (PST)
+Message-ID: <52F3D912.4020607@suse.cz>
+Date: Thu, 06 Feb 2014 19:48:50 +0100
+From: Vlastimil Babka <vbabka@suse.cz>
+MIME-Version: 1.0
+Subject: Re: [patch v2] mm, compaction: avoid isolating pinned pages
+References: <alpine.DEB.2.02.1402012145510.2593@chino.kir.corp.google.com> <20140203095329.GH6732@suse.de> <alpine.DEB.2.02.1402030231590.31061@chino.kir.corp.google.com> <20140204000237.GA17331@lge.com> <alpine.DEB.2.02.1402031610090.10778@chino.kir.corp.google.com> <20140204015332.GA14779@lge.com> <alpine.DEB.2.02.1402031755440.26347@chino.kir.corp.google.com> <20140204021533.GA14924@lge.com> <alpine.DEB.2.02.1402031848290.15032@chino.kir.corp.google.com> <alpine.DEB.2.02.1402041842100.14045@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.02.1402041842100.14045@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Han Pingtian <hanpt@linux.vnet.ibm.com>, penberg@kernel.org, linux-mm@kvack.org, paulus@samba.org, Anton Blanchard <anton@samba.org>, mpm@selenic.com, linuxppc-dev@lists.ozlabs.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
+To: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, 6 Feb 2014, Joonsoo Kim wrote:
-
-> diff --git a/mm/slub.c b/mm/slub.c
-> index cc1f995..c851f82 100644
-> --- a/mm/slub.c
-> +++ b/mm/slub.c
-> @@ -1700,6 +1700,14 @@ static void *get_partial(struct kmem_cache *s, gfp_t flags, int node,
->  	void *object;
->  	int searchnode = (node == NUMA_NO_NODE) ? numa_mem_id() : node;
+On 5.2.2014 3:44, David Rientjes wrote:
+> Page migration will fail for memory that is pinned in memory with, for
+> example, get_user_pages().  In this case, it is unnecessary to take
+> zone->lru_lock or isolating the page and passing it to page migration
+> which will ultimately fail.
 >
-> +	if (node == NUMA_NO_NODE)
-> +		searchnode = numa_mem_id();
-> +	else {
-> +		searchnode = node;
-> +		if (!node_present_pages(node))
-
-This check wouild need to be something that checks for other contigencies
-in the page allocator as well. A simple solution would be to actually run
-a GFP_THIS_NODE alloc to see if you can grab a page from the proper node.
-If that fails then fallback. See how fallback_alloc() does it in slab.
-
-> +			searchnode = get_numa_mem(node);
-> +	}
-
-> @@ -2277,11 +2285,18 @@ static void *__slab_alloc(struct kmem_cache *s, gfp_t gfpflags, int node,
->  redo:
+> This is a racy check, the page can still change from under us, but in
+> that case we'll just fail later when attempting to move the page.
 >
->  	if (unlikely(!node_match(page, node))) {
-> -		stat(s, ALLOC_NODE_MISMATCH);
-> -		deactivate_slab(s, page, c->freelist);
-> -		c->page = NULL;
-> -		c->freelist = NULL;
-> -		goto new_slab;
-> +		int searchnode = node;
+> This avoids very expensive memory compaction when faulting transparent
+> hugepages after pinning a lot of memory with a Mellanox driver.
+>
+> On a 128GB machine and pinning ~120GB of memory, before this patch we
+> see the enormous disparity in the number of page migration failures
+> because of the pinning (from /proc/vmstat):
+>
+> 	compact_pages_moved 8450
+> 	compact_pagemigrate_failed 15614415
+>
+> 0.05% of pages isolated are successfully migrated and explicitly
+> triggering memory compaction takes 102 seconds.  After the patch:
+>
+> 	compact_pages_moved 9197
+> 	compact_pagemigrate_failed 7
+>
+> 99.9% of pages isolated are now successfully migrated in this
+> configuration and memory compaction takes less than one second.
+>
+> Signed-off-by: David Rientjes <rientjes@google.com>
+> ---
+>   v2: address page count issue per Joonsoo
+>
+>   mm/compaction.c | 9 +++++++++
+>   1 file changed, 9 insertions(+)
+>
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -578,6 +578,15 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
+>   			continue;
+>   		}
+>   
+> +		/*
+> +		 * Migration will fail if an anonymous page is pinned in memory,
+> +		 * so avoid taking lru_lock and isolating it unnecessarily in an
+> +		 * admittedly racy check.
+> +		 */
+> +		if (!page_mapping(page) &&
+> +		    page_count(page) > page_mapcount(page))
+> +			continue;
 > +
-> +		if (node != NUMA_NO_NODE && !node_present_pages(node))
 
-Same issue here. I would suggest not deactivating the slab and first check
-if the node has no pages. If so then just take an object from the current
-cpu slab. If that is not available do an allcoation from the indicated
-node and take whatever the page allocator gave you.
+Hm this page_count() seems it could substantially increase the chance of 
+race with prep_compound_page that your patch "mm, page_alloc: make 
+first_page visible before PageTail" tries to fix :)
+
+>   		/* Check if it is ok to still hold the lock */
+>   		locked = compact_checklock_irqsave(&zone->lru_lock, &flags,
+>   								locked, cc);
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
