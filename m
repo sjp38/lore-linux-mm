@@ -1,198 +1,219 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f50.google.com (mail-wg0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 8CCE66B0036
-	for <linux-mm@kvack.org>; Thu,  6 Feb 2014 18:53:18 -0500 (EST)
-Received: by mail-wg0-f50.google.com with SMTP id l18so1809884wgh.5
-        for <linux-mm@kvack.org>; Thu, 06 Feb 2014 15:53:17 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id pl10si18851wic.8.2014.02.06.08.41.36
+Received: from mail-yh0-f52.google.com (mail-yh0-f52.google.com [209.85.213.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E9426B0035
+	for <linux-mm@kvack.org>; Thu,  6 Feb 2014 18:56:24 -0500 (EST)
+Received: by mail-yh0-f52.google.com with SMTP id a41so2403990yho.11
+        for <linux-mm@kvack.org>; Thu, 06 Feb 2014 15:56:24 -0800 (PST)
+Received: from mail-qc0-x234.google.com (mail-qc0-x234.google.com [2607:f8b0:400d:c01::234])
+        by mx.google.com with ESMTPS id x4si1231763qad.172.2014.02.06.10.16.01
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 06 Feb 2014 08:42:06 -0800 (PST)
-Date: Thu, 6 Feb 2014 17:41:35 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v2 3/7] memcg, slab: separate memcg vs root cache
- creation paths
-Message-ID: <20140206164135.GK20269@dhcp22.suse.cz>
-References: <cover.1391441746.git.vdavydov@parallels.com>
- <81a403327163facea2b4c7b720fdc0ef62dd1dbf.1391441746.git.vdavydov@parallels.com>
- <20140204160336.GL4890@dhcp22.suse.cz>
- <52F13D3C.801@parallels.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <52F13D3C.801@parallels.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 06 Feb 2014 10:16:31 -0800 (PST)
+Received: by mail-qc0-f180.google.com with SMTP id i17so3883774qcy.11
+        for <linux-mm@kvack.org>; Thu, 06 Feb 2014 10:16:00 -0800 (PST)
+From: William Roberts <bill.c.roberts@gmail.com>
+Subject: [PATCH v5 3/3] audit: Audit proc/<pid>/cmdline aka proctitle
+Date: Thu,  6 Feb 2014 10:15:28 -0800
+Message-Id: <1391710528-23481-3-git-send-email-wroberts@tresys.com>
+In-Reply-To: <1391710528-23481-1-git-send-email-wroberts@tresys.com>
+References: <1391710528-23481-1-git-send-email-wroberts@tresys.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: akpm@linux-foundation.org, rientjes@google.com, penberg@kernel.org, cl@linux.com, glommer@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@openvz.org
+To: linux-audit@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, rgb@redhat.com, viro@zeniv.linux.org.uk, akpm@linux-foundation.org, sds@tycho.nsa.gov
+Cc: William Roberts <wroberts@tresys.com>
 
-On Tue 04-02-14 23:19:24, Vladimir Davydov wrote:
-> On 02/04/2014 08:03 PM, Michal Hocko wrote:
-> > On Mon 03-02-14 19:54:38, Vladimir Davydov wrote:
-> >> Memcg-awareness turned kmem_cache_create() into a dirty interweaving of
-> >> memcg-only and except-for-memcg calls. To clean this up, let's create a
-> >> separate function handling memcg caches creation. Although this will
-> >> result in the two functions having several hunks of practically the same
-> >> code, I guess this is the case when readability fully covers the cost of
-> >> code duplication.
-> > I don't know. The code is apparently cleaner because calling a function
-> > with NULL memcg just to go via several if (memcg) branches is ugly as
-> > hell. But having a duplicated function like this calls for a problem
-> > later.
-> >
-> > Would it be possible to split kmem_cache_create into memcg independant
-> > part and do the rest in a single memcg branch?
-> 
-> May be, something like the patch attached?
-> 
-> >  
-> >> Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
-> >> ---
-> >>  include/linux/memcontrol.h |   14 ++---
-> >>  include/linux/slab.h       |    9 ++-
-> >>  mm/memcontrol.c            |   16 ++----
-> >>  mm/slab_common.c           |  130 ++++++++++++++++++++++++++------------------
-> >>  4 files changed, 90 insertions(+), 79 deletions(-)
-> >>
-> >> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> >> index 84e4801fc36c..de79a9617e09 100644
-> >> --- a/include/linux/memcontrol.h
-> >> +++ b/include/linux/memcontrol.h
-> >> @@ -500,8 +500,8 @@ int memcg_cache_id(struct mem_cgroup *memcg);
-> >>  
-> >>  char *memcg_create_cache_name(struct mem_cgroup *memcg,
-> >>  			      struct kmem_cache *root_cache);
-> >> -int memcg_alloc_cache_params(struct mem_cgroup *memcg, struct kmem_cache *s,
-> >> -			     struct kmem_cache *root_cache);
-> >> +int memcg_alloc_cache_params(struct kmem_cache *s,
-> >> +		struct mem_cgroup *memcg, struct kmem_cache *root_cache);
-> > Why is the parameters ordering changed? It really doesn't help
-> > review the patch.
-> 
-> Oh, this is because seeing something like
-> 
-> memcg_alloc_cache_params(NULL, s, NULL);
-> 
-> hurts my brain :-) I prefer to have NULLs in the end.
+During an audit event, cache and print the value of the process's
+proctitle value (proc/<pid>/cmdline). This is useful in situations
+where processes are started via fork'd virtual machines where the
+comm field is incorrect. Often times, setting the comm field still
+is insufficient as the comm width is not very wide and most
+virtual machine "package names" do not fit. Also, during execution,
+many threads have their comm field set as well. By tying it back to
+the global cmdline value for the process, audit records will be more
+complete in systems with these properties. An example of where this
+is useful and applicable is in the realm of Android. With Android,
+their is no fork/exec for VM instances. The bare, preloaded Dalvik
+VM listens for a fork and specialize request. When this request comes
+in, the VM forks, and the loads the specific application (specializing).
+This was done to take advantage of COW and to not require a load of
+basic packages by the VM on very app spawn. When this spawn occurs,
+the package name is set via setproctitle() and shows up in procfs.
+Many of these package names are longer then 16 bytes, the historical
+width of task->comm. Having the cmdline in the audit records will
+couple the application back to the record directly. Also, on my
+Debian development box, some audit records were more useful then
+what was printed under comm.
 
-the function still allocates parameters for the given memcg and cache
-and needs a reference to root cache so the ordering kind of makes sense
-to me.
+The cached proctitle is tied to the life-cycle of the audit_context
+structure and is built on demand.
+
+Proctitle is controllable by userspace, and thus should not be trusted.
+It is meant as an aid to assist in debugging. The proctitle event is
+emitted during syscall audits, and can be filtered with auditctl.
+
+Example:
+type=AVC msg=audit(1391217013.924:386): avc:  denied  { getattr } for  pid=1971 comm="mkdir" name="/" dev="selinuxfs" ino=1 scontext=system_u:system_r:consolekit_t:s0-s0:c0.c255 tcontext=system_u:object_r:security_t:s0 tclass=filesystem
+type=SYSCALL msg=audit(1391217013.924:386): arch=c000003e syscall=137 success=yes exit=0 a0=7f019dfc8bd7 a1=7fffa6aed2c0 a2=fffffffffff4bd25 a3=7fffa6aed050 items=0 ppid=1967 pid=1971 auid=4294967295 uid=0 gid=0 euid=0 suid=0 fsuid=0 egid=0 sgid=0 fsgid=0 tty=(none) ses=4294967295 comm="mkdir" exe="/bin/mkdir" subj=system_u:system_r:consolekit_t:s0-s0:c0.c255 key=(null)
+type=UNKNOWN[1327] msg=audit(1391217013.924:386):  proctitle=6D6B646972002D70002F7661722F72756E2F636F6E736F6C65
+
+Signed-off-by: William Roberts <wroberts@tresys.com>
+---
+ include/uapi/linux/audit.h |    1 +
+ kernel/audit.h             |    6 ++++
+ kernel/auditsc.c           |   67 ++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 74 insertions(+)
+
+diff --git a/include/uapi/linux/audit.h b/include/uapi/linux/audit.h
+index 2d48fe1..4315ee9 100644
+--- a/include/uapi/linux/audit.h
++++ b/include/uapi/linux/audit.h
+@@ -109,6 +109,7 @@
+ #define AUDIT_NETFILTER_PKT	1324	/* Packets traversing netfilter chains */
+ #define AUDIT_NETFILTER_CFG	1325	/* Netfilter chain modifications */
+ #define AUDIT_SECCOMP		1326	/* Secure Computing event */
++#define AUDIT_PROCTITLE		1327	/* Proctitle emit event */
  
-> > Also what does `s' stand for and can we use a more
-> > descriptive name, please?
-> 
-> Yes, we can call it `cachep', but it would be too long :-/
-> 
-> `s' is the common name for a kmem_cache throughout mm/sl[au]b.c so I
-> guess it fits here. However, this function certainly needs a comment - I
-> guess I'll do it along with swapping the function parameters in a
-> separate patch.
-
-Yes, it seems that self explaining `s' is spread all over the place.
-
-> From 55f0916c794ad25a8bf45566f6d333bea956e0d4 Mon Sep 17 00:00:00 2001
-> From: Vladimir Davydov <vdavydov@parallels.com>
-> Date: Mon, 3 Feb 2014 19:18:22 +0400
-> Subject: [PATCH] memcg, slab: separate memcg vs root cache creation paths
-> 
-> Memcg-awareness turned kmem_cache_create() into a dirty interweaving of
-> memcg-only and except-for-memcg calls. To clean this up, let's create a
-> separate function handling memcg caches creation. Although this will
-> result in the two functions having several hunks of practically the same
-> code, I guess this is the case when readability fully covers the cost of
-> code duplication.
-> 
-> Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
-
-This looks better. The naming could still be little bit better because
-do_kmem_cache_create suggests that no memcg is involved but it at least
-reduced all the code duplication and nasty if(memcg) parts.
-
-Few minor comments bellow
-
-> ---
->  include/linux/slab.h |    9 ++-
->  mm/memcontrol.c      |   12 +---
->  mm/slab_common.c     |  174 +++++++++++++++++++++++++++-----------------------
->  3 files changed, 101 insertions(+), 94 deletions(-)
-> 
-> diff --git a/include/linux/slab.h b/include/linux/slab.h
-> index 9260abdd67df..e8c95d0bb879 100644
-> --- a/include/linux/slab.h
-> +++ b/include/linux/slab.h
-> @@ -113,11 +113,10 @@ void __init kmem_cache_init(void);
->  int slab_is_available(void);
->  
->  struct kmem_cache *kmem_cache_create(const char *, size_t, size_t,
-> -			unsigned long,
-> -			void (*)(void *));
-> -struct kmem_cache *
-> -kmem_cache_create_memcg(struct mem_cgroup *, const char *, size_t, size_t,
-> -			unsigned long, void (*)(void *), struct kmem_cache *);
-> +				     unsigned long, void (*)(void *));
-
-It is quite confusing when you mix formatting changes with other ones.
-
-[...]
-> diff --git a/mm/slab_common.c b/mm/slab_common.c
-> index 11857abf7057..6bee919ece80 100644
-> --- a/mm/slab_common.c
-> +++ b/mm/slab_common.c
-[...]
-> +int kmem_cache_create_memcg(struct mem_cgroup *memcg, struct kmem_cache *cachep)
->  {
-> -	return kmem_cache_create_memcg(NULL, name, size, align, flags, ctor, NULL);
-> +	struct kmem_cache *s;
-> +	int err;
-> +
-> +	get_online_cpus();
-> +	mutex_lock(&slab_mutex);
-> +
-> +	/*
-> +	 * Since per-memcg caches are created asynchronously on first
-> +	 * allocation (see memcg_kmem_get_cache()), several threads can try to
-> +	 * create the same cache, but only one of them may succeed.
-> +	 */
-> +	err = -EEXIST;
-
-Does it make any sense to report the error here? If we are racing then at
-least on part wins and the work is done.
-We should probably warn about errors which prevent from accounting but
-I do not think there is much more we can do so returning an error code
-from this function seems pointless. memcg_create_cache_work_func ignores
-the return value anyway.
-
-> +	if (cache_from_memcg_idx(cachep, memcg_cache_id(memcg)))
-> +		goto out_unlock;
-> +
-> +	s = do_kmem_cache_create(memcg_create_cache_name(memcg, cachep),
-> +			cachep->object_size, cachep->size, cachep->align,
-> +			cachep->flags & ~SLAB_PANIC, cachep->ctor,
-> +			memcg, cachep);
-> +	err = IS_ERR(s) ? PTR_ERR(s) : 0;
-> +	if (!err)
-> +		s->allocflags |= __GFP_KMEMCG;
-> +
-> +out_unlock:
-> +	mutex_unlock(&slab_mutex);
-> +	put_online_cpus();
-> +	return err;
->  }
-> -EXPORT_SYMBOL(kmem_cache_create);
-> +#endif /* CONFIG_MEMCG_KMEM */
->  
->  void kmem_cache_destroy(struct kmem_cache *s)
->  {
-> -- 
-> 1.7.10.4
-> 
-
-
+ #define AUDIT_AVC		1400	/* SE Linux avc denial or grant */
+ #define AUDIT_SELINUX_ERR	1401	/* Internal SE Linux Errors */
+diff --git a/kernel/audit.h b/kernel/audit.h
+index 57cc64d..38c967d 100644
+--- a/kernel/audit.h
++++ b/kernel/audit.h
+@@ -106,6 +106,11 @@ struct audit_names {
+ 	bool			should_free;
+ };
+ 
++struct audit_proctitle {
++	int	len;	/* length of the cmdline field. */
++	char	*value;	/* the cmdline field */
++};
++
+ /* The per-task audit context. */
+ struct audit_context {
+ 	int		    dummy;	/* must be the first element */
+@@ -202,6 +207,7 @@ struct audit_context {
+ 		} execve;
+ 	};
+ 	int fds[2];
++	struct audit_proctitle proctitle;
+ 
+ #if AUDIT_DEBUG
+ 	int		    put_count;
+diff --git a/kernel/auditsc.c b/kernel/auditsc.c
+index 10176cd..e342eb0 100644
+--- a/kernel/auditsc.c
++++ b/kernel/auditsc.c
+@@ -68,6 +68,7 @@
+ #include <linux/capability.h>
+ #include <linux/fs_struct.h>
+ #include <linux/compat.h>
++#include <linux/ctype.h>
+ 
+ #include "audit.h"
+ 
+@@ -79,6 +80,9 @@
+ /* no execve audit message should be longer than this (userspace limits) */
+ #define MAX_EXECVE_AUDIT_LEN 7500
+ 
++/* max length to print of cmdline/proctitle value during audit */
++#define MAX_PROCTITLE_AUDIT_LEN 128
++
+ /* number of audit rules */
+ int audit_n_rules;
+ 
+@@ -842,6 +846,13 @@ static inline struct audit_context *audit_get_context(struct task_struct *tsk,
+ 	return context;
+ }
+ 
++static inline void audit_proctitle_free(struct audit_context *context)
++{
++	kfree(context->proctitle.value);
++	context->proctitle.value = NULL;
++	context->proctitle.len = 0;
++}
++
+ static inline void audit_free_names(struct audit_context *context)
+ {
+ 	struct audit_names *n, *next;
+@@ -955,6 +966,7 @@ static inline void audit_free_context(struct audit_context *context)
+ 	audit_free_aux(context);
+ 	kfree(context->filterkey);
+ 	kfree(context->sockaddr);
++	audit_proctitle_free(context);
+ 	kfree(context);
+ }
+ 
+@@ -1271,6 +1283,59 @@ static void show_special(struct audit_context *context, int *call_panic)
+ 	audit_log_end(ab);
+ }
+ 
++static inline int audit_proctitle_rtrim(char *proctitle, int len)
++{
++	char *end = proctitle + len - 1;
++	while (end > proctitle && !isprint(*end))
++		end--;
++
++	/* catch the case where proctitle is only 1 non-print character */
++	len = end - proctitle + 1;
++	len -= isprint(proctitle[len-1]) == 0;
++	return len;
++}
++
++static void audit_log_proctitle(struct task_struct *tsk,
++			 struct audit_context *context)
++{
++	int res;
++	char *buf;
++	char *msg = "(null)";
++	int len = strlen(msg);
++	struct audit_buffer *ab;
++
++	ab = audit_log_start(context, GFP_KERNEL, AUDIT_PROCTITLE);
++	if (!ab)
++		return;	/* audit_panic or being filtered */
++
++	audit_log_format(ab, "proctitle=");
++
++	/* Not  cached */
++	if (!context->proctitle.value) {
++		buf = kmalloc(MAX_PROCTITLE_AUDIT_LEN, GFP_KERNEL);
++		if (!buf)
++			goto out;
++		/* Historically called this from procfs naming */
++		res = get_cmdline(tsk, buf, MAX_PROCTITLE_AUDIT_LEN);
++		if (res == 0) {
++			kfree(buf);
++			goto out;
++		}
++		res = audit_proctitle_rtrim(buf, res);
++		if (res == 0) {
++			kfree(buf);
++			goto out;
++		}
++		context->proctitle.value = buf;
++		context->proctitle.len = res;
++	}
++	msg = context->proctitle.value;
++	len = context->proctitle.len;
++out:
++	audit_log_n_untrustedstring(ab, msg, len);
++	audit_log_end(ab);
++}
++
+ static void audit_log_exit(struct audit_context *context, struct task_struct *tsk)
+ {
+ 	int i, call_panic = 0;
+@@ -1388,6 +1453,8 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
+ 		audit_log_name(context, n, NULL, i++, &call_panic);
+ 	}
+ 
++	audit_log_proctitle(tsk, context);
++
+ 	/* Send end of event record to help user space know we are finished */
+ 	ab = audit_log_start(context, GFP_KERNEL, AUDIT_EOE);
+ 	if (ab)
 -- 
-Michal Hocko
-SUSE Labs
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
