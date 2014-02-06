@@ -1,59 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com [209.85.160.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E07B6B0036
-	for <linux-mm@kvack.org>; Thu,  6 Feb 2014 18:22:22 -0500 (EST)
-Received: by mail-pb0-f54.google.com with SMTP id uo5so2442465pbc.27
-        for <linux-mm@kvack.org>; Thu, 06 Feb 2014 15:22:22 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id n8si2701571pax.73.2014.02.06.15.22.20
-        for <linux-mm@kvack.org>;
-        Thu, 06 Feb 2014 15:22:21 -0800 (PST)
-Date: Thu, 6 Feb 2014 15:22:19 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC PATCH V5] mm readahead: Fix readahead fail for no local
- memory and limit readahead pages
-Message-Id: <20140206152219.45c2039e5092c8ea1c31fd38@linux-foundation.org>
-In-Reply-To: <alpine.DEB.2.02.1402061456290.31828@chino.kir.corp.google.com>
-References: <1390388025-1418-1-git-send-email-raghavendra.kt@linux.vnet.ibm.com>
-	<20140206145105.27dec37b16f24e4ac5fd90ce@linux-foundation.org>
-	<alpine.DEB.2.02.1402061456290.31828@chino.kir.corp.google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 179406B0037
+	for <linux-mm@kvack.org>; Thu,  6 Feb 2014 18:23:18 -0500 (EST)
+Received: by mail-wi0-f174.google.com with SMTP id f8so327081wiw.13
+        for <linux-mm@kvack.org>; Thu, 06 Feb 2014 15:23:18 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id a1si630008wjb.33.2014.02.06.06.07.08
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 06 Feb 2014 06:07:38 -0800 (PST)
+Date: Thu, 6 Feb 2014 15:07:07 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 3/8] memcg, slab: never try to merge memcg caches
+Message-ID: <20140206140707.GF20269@dhcp22.suse.cz>
+References: <cover.1391356789.git.vdavydov@parallels.com>
+ <27c4e7d7fb6b788b66995d2523225ef2dcbc6431.1391356789.git.vdavydov@parallels.com>
+ <20140204145210.GH4890@dhcp22.suse.cz>
+ <52F1004B.90307@parallels.com>
+ <20140204151145.GI4890@dhcp22.suse.cz>
+ <52F106D7.3060802@parallels.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <52F106D7.3060802@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, Fengguang Wu <fengguang.wu@intel.com>, David Cohen <david.a.cohen@linux.intel.com>, Al Viro <viro@zeniv.linux.org.uk>, Damien Ramonda <damien.ramonda@intel.com>, Jan Kara <jack@suse.cz>, Linus <torvalds@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: akpm@linux-foundation.org, rientjes@google.com, penberg@kernel.org, cl@linux.com, glommer@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@openvz.org
 
-On Thu, 6 Feb 2014 14:58:21 -0800 (PST) David Rientjes <rientjes@google.com> wrote:
+On Tue 04-02-14 19:27:19, Vladimir Davydov wrote:
+[...]
+> What does this patch change? Actually, it introduces no functional
+> changes - it only remove the code trying to find an alias for a memcg
+> cache, because it will fail anyway. So this is rather a cleanup.
 
-> > > +#define MAX_REMOTE_READAHEAD   4096UL
-> > >  /*
-> > >   * Given a desired number of PAGE_CACHE_SIZE readahead pages, return a
-> > >   * sensible upper limit.
-> > >   */
-> > >  unsigned long max_sane_readahead(unsigned long nr)
-> > >  {
-> > > -	return min(nr, (node_page_state(numa_node_id(), NR_INACTIVE_FILE)
-> > > -		+ node_page_state(numa_node_id(), NR_FREE_PAGES)) / 2);
-> > > +	unsigned long local_free_page;
-> > > +	int nid;
-> > > +
-> > > +	nid = numa_node_id();
-> 
-> If you're intending this to be cached for your calls into 
-> node_page_state() you need nid = ACCESS_ONCE(numa_node_id()).
+But this also means that two different memcgs might share the same cache
+and so the pages for that cache, no? Actually it would depend on timing
+because a new page would be chaged for the current allocator.
 
-ugh.  That's too subtle and we didn't even document it.
-
-We could put the ACCESS_ONCE inside numa_node_id() I assume but we
-still have the same problem as smp_processor_id(): the numa_node_id()
-return value is wrong as soon as you obtain it if running preemptibly. 
-
-We could plaster Big Fat Warnings all over the place or we could treat
-numa_node_id() and derivatives in the same way as smp_processor_id()
-(which is a huge pain).  Or something else, but we've left a big hand
-grenade here and Raghavendra won't be the last one to pull the pin?
+cachep->memcg_params->memcg == memcg would prevent from such a merge
+previously AFAICS, or am I still confused?
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
