@@ -1,38 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f182.google.com (mail-qc0-f182.google.com [209.85.216.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 28FD96B0037
-	for <linux-mm@kvack.org>; Thu,  6 Feb 2014 18:06:40 -0500 (EST)
-Received: by mail-qc0-f182.google.com with SMTP id c9so4539805qcz.13
-        for <linux-mm@kvack.org>; Thu, 06 Feb 2014 15:06:40 -0800 (PST)
-Received: from qmta08.emeryville.ca.mail.comcast.net (qmta08.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:80])
-        by mx.google.com with ESMTP id t101si1071319qge.101.2014.02.06.09.25.32
-        for <linux-mm@kvack.org>;
-        Thu, 06 Feb 2014 09:26:03 -0800 (PST)
-Date: Thu, 6 Feb 2014 11:25:29 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH] slub: Don't throw away partial remote slabs if there is
- no local memory
-In-Reply-To: <20140206020833.GD5433@linux.vnet.ibm.com>
-Message-ID: <alpine.DEB.2.10.1402061124540.5348@nuc>
-References: <alpine.DEB.2.02.1401241618500.20466@chino.kir.corp.google.com> <20140125011041.GB25344@linux.vnet.ibm.com> <20140127055805.GA2471@lge.com> <20140128182947.GA1591@linux.vnet.ibm.com> <20140203230026.GA15383@linux.vnet.ibm.com>
- <alpine.DEB.2.10.1402032138070.17997@nuc> <20140204072630.GB10101@linux.vnet.ibm.com> <alpine.DEB.2.10.1402041436150.11222@nuc> <20140205001352.GC10101@linux.vnet.ibm.com> <alpine.DEB.2.10.1402051312430.21661@nuc>
- <20140206020833.GD5433@linux.vnet.ibm.com>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-lb0-f170.google.com (mail-lb0-f170.google.com [209.85.217.170])
+	by kanga.kvack.org (Postfix) with ESMTP id C453A6B0037
+	for <linux-mm@kvack.org>; Thu,  6 Feb 2014 18:08:16 -0500 (EST)
+Received: by mail-lb0-f170.google.com with SMTP id u14so2065299lbd.1
+        for <linux-mm@kvack.org>; Thu, 06 Feb 2014 15:08:16 -0800 (PST)
+Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
+        by mx.google.com with ESMTPS id mq2si821881lbb.32.2014.02.06.07.58.17
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 06 Feb 2014 07:58:47 -0800 (PST)
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: [PATCH RFC] slub: do not drop slab_mutex for sysfs_slab_{add,remove}
+Date: Thu, 6 Feb 2014 19:58:13 +0400
+Message-ID: <1391702294-27289-1-git-send-email-vdavydov@parallels.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
-Cc: Han Pingtian <hanpt@linux.vnet.ibm.com>, mpm@selenic.com, penberg@kernel.org, linux-mm@kvack.org, paulus@samba.org, Anton Blanchard <anton@samba.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linuxppc-dev@lists.ozlabs.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
+To: cl@linux.com, penberg@kernel.org
+Cc: akpm@linux-foundation.org, rientjes@google.com, mhocko@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org, devel@openvz.org
 
-On Wed, 5 Feb 2014, Nishanth Aravamudan wrote:
+When creating/destroying a kmem cache, we do a lot of work holding the
+slab_mutex, but we drop it for sysfs_slab_{add,remove} for some reason.
+Since __kmem_cache_create and __kmem_cache_shutdown are extremely rare,
+I propose to simplify locking by calling sysfs_slab_{add,remove} w/o
+dropping the slab_mutex.
 
-> > Right so if we are ignoring the node then the simplest thing to do is to
-> > not deactivate the current cpu slab but to take an object from it.
->
-> Ok, that's what Anton's patch does, I believe. Are you ok with that
-> patch as it is?
+I'm interested in this, because when creating a memcg cache I need the
+slab_mutex locked until the cache is fully initialized and registered to
+the memcg subsys (memcg_cache_register() is called). If this is not
+true, I get races when several threads try to create a cache for the
+same memcg.  An alternative fix for my problem would be moving
+sysfs_slab_{add,remove} after the slab_mutex is dropped, but I'd like to
+try the shortest path first.
 
-No. Again his patch only works if the node is memoryless not if there are
-other issues that prevent allocation from that node.
+Any objections to this?
+
+Thanks.
+---
+ mm/slub.c |   15 +--------------
+ 1 file changed, 1 insertion(+), 14 deletions(-)
+
+diff --git a/mm/slub.c b/mm/slub.c
+index 3d3a8a7a0f8c..6f4393892d2d 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -3229,19 +3229,8 @@ int __kmem_cache_shutdown(struct kmem_cache *s)
+ {
+ 	int rc = kmem_cache_close(s);
+ 
+-	if (!rc) {
+-		/*
+-		 * We do the same lock strategy around sysfs_slab_add, see
+-		 * __kmem_cache_create. Because this is pretty much the last
+-		 * operation we do and the lock will be released shortly after
+-		 * that in slab_common.c, we could just move sysfs_slab_remove
+-		 * to a later point in common code. We should do that when we
+-		 * have a common sysfs framework for all allocators.
+-		 */
+-		mutex_unlock(&slab_mutex);
++	if (!rc)
+ 		sysfs_slab_remove(s);
+-		mutex_lock(&slab_mutex);
+-	}
+ 
+ 	return rc;
+ }
+@@ -3772,9 +3761,7 @@ int __kmem_cache_create(struct kmem_cache *s, unsigned long flags)
+ 		return 0;
+ 
+ 	memcg_propagate_slab_attrs(s);
+-	mutex_unlock(&slab_mutex);
+ 	err = sysfs_slab_add(s);
+-	mutex_lock(&slab_mutex);
+ 
+ 	if (err)
+ 		kmem_cache_close(s);
+-- 
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
