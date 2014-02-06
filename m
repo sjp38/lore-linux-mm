@@ -1,46 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f43.google.com (mail-pb0-f43.google.com [209.85.160.43])
-	by kanga.kvack.org (Postfix) with ESMTP id DBD256B0035
-	for <linux-mm@kvack.org>; Thu,  6 Feb 2014 01:35:46 -0500 (EST)
-Received: by mail-pb0-f43.google.com with SMTP id md12so1367699pbc.30
-        for <linux-mm@kvack.org>; Wed, 05 Feb 2014 22:35:46 -0800 (PST)
-Received: from fgwmail6.fujitsu.co.jp (fgwmail6.fujitsu.co.jp. [192.51.44.36])
-        by mx.google.com with ESMTPS id x3si31761632pbk.293.2014.02.05.22.35.45
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 05 Feb 2014 22:35:45 -0800 (PST)
-Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
-	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 34CE13EE0BD
-	for <linux-mm@kvack.org>; Thu,  6 Feb 2014 15:35:44 +0900 (JST)
-Received: from smail (m3 [127.0.0.1])
-	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 25E4645DEB7
-	for <linux-mm@kvack.org>; Thu,  6 Feb 2014 15:35:44 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (s3.gw.nic.fujitsu.com [10.0.50.93])
-	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0DA1145DEB5
-	for <linux-mm@kvack.org>; Thu,  6 Feb 2014 15:35:44 +0900 (JST)
-Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id F2D361DB803B
-	for <linux-mm@kvack.org>; Thu,  6 Feb 2014 15:35:43 +0900 (JST)
-Received: from g01jpfmpwkw02.exch.g01.fujitsu.local (g01jpfmpwkw02.exch.g01.fujitsu.local [10.0.193.56])
-	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 611FF1DB8040
-	for <linux-mm@kvack.org>; Thu,  6 Feb 2014 15:35:43 +0900 (JST)
-Message-ID: <52F32D19.7030107@jp.fujitsu.com>
-Date: Thu, 6 Feb 2014 15:35:05 +0900
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Received: from mail-oa0-f49.google.com (mail-oa0-f49.google.com [209.85.219.49])
+	by kanga.kvack.org (Postfix) with ESMTP id E149A6B0035
+	for <linux-mm@kvack.org>; Thu,  6 Feb 2014 03:01:46 -0500 (EST)
+Received: by mail-oa0-f49.google.com with SMTP id i7so1889568oag.36
+        for <linux-mm@kvack.org>; Thu, 06 Feb 2014 00:01:46 -0800 (PST)
+Received: from song.cn.fujitsu.com ([222.73.24.84])
+        by mx.google.com with ESMTP id l8si85899pao.326.2014.02.06.00.01.41
+        for <linux-mm@kvack.org>;
+        Thu, 06 Feb 2014 00:01:44 -0800 (PST)
+Message-ID: <52F34200.1010102@cn.fujitsu.com>
+Date: Thu, 06 Feb 2014 16:04:16 +0800
+From: Tang Chen <tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
 Subject: Re: [PATCH] mm: __set_page_dirty_nobuffers uses spin_lock_irqseve
  instead of spin_lock_irq
 References: <1391446195-9457-1-git-send-email-kosaki.motohiro@gmail.com>
 In-Reply-To: <1391446195-9457-1-git-send-email-kosaki.motohiro@gmail.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
 Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: kosaki.motohiro@gmail.com
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <jweiner@redhat.com>, stable@vger.kernel.org
 
-(2014/02/04 1:49), kosaki.motohiro@gmail.com wrote:
-> From: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+
+Hi,
+
+Tested-by: Tang Chen <tangchen@cn.fujitsu.com>
+
+Have tested this patch, and the problem is fixed.
+
+Thanks.
+
+On 02/04/2014 12:49 AM, kosaki.motohiro@gmail.com wrote:
+> From: KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>
 >
 > During aio stress test, we observed the following lockdep warning.
 > This mean AIO+numa_balancing is currently deadlockable.
@@ -57,7 +50,7 @@ Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org,
 > [  599.900902]        CPU0
 > [  599.912701]        ----
 > [  599.924929]   lock(&(&ctx->completion_lock)->rlock);
-> [  599.950299]   <Interrupt>
+> [  599.950299]<Interrupt>
 > [  599.962576]     lock(&(&ctx->completion_lock)->rlock);
 > [  599.985771]
 > [  599.985771]  *** DEADLOCK ***
@@ -86,22 +79,12 @@ Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org,
 > [  600.943493]  [<ffffffff816871ca>] do_page_fault+0x1a/0x70
 > [  600.968081]  [<ffffffff81682ff8>] page_fault+0x28/0x30
 >
-> Signed-off-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Cc: Larry Woodman <lwoodman@redhat.com>
-> Cc: Rik van Riel <riel@redhat.com>
-> Cc: Johannes Weiner <jweiner@redhat.com>
+> Signed-off-by: KOSAKI Motohiro<kosaki.motohiro@jp.fujitsu.com>
+> Cc: Larry Woodman<lwoodman@redhat.com>
+> Cc: Rik van Riel<riel@redhat.com>
+> Cc: Johannes Weiner<jweiner@redhat.com>
 > Cc: stable@vger.kernel.org
 > ---
-
-Tested-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-
-Thank you for posting the patch.
-The same issue occurred on my box. And I confirmed that the issue
-disappeared by the patch.
-
-Thanks,
-Yasuaki Ishimatsu
-
 >   mm/page-writeback.c |    5 +++--
 >   1 files changed, 3 insertions(+), 2 deletions(-)
 >
@@ -130,10 +113,8 @@ Yasuaki Ishimatsu
 > -		spin_unlock_irq(&mapping->tree_lock);
 > +		spin_unlock_irqrestore(&mapping->tree_lock, flags);
 >   		if (mapping->host) {
->   			/* !PageAnon && !swapper_space */
+>   			/* !PageAnon&&  !swapper_space */
 >   			__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
->
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
