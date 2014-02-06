@@ -1,55 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 621A96B0035
-	for <linux-mm@kvack.org>; Thu,  6 Feb 2014 18:58:21 -0500 (EST)
-Received: by mail-pd0-f175.google.com with SMTP id w10so2363461pde.6
-        for <linux-mm@kvack.org>; Thu, 06 Feb 2014 15:58:21 -0800 (PST)
-Received: from mail-pb0-x229.google.com (mail-pb0-x229.google.com [2607:f8b0:400e:c01::229])
-        by mx.google.com with ESMTPS id if4si2789735pbc.16.2014.02.06.15.58.19
+Received: from mail-we0-f177.google.com (mail-we0-f177.google.com [74.125.82.177])
+	by kanga.kvack.org (Postfix) with ESMTP id B4C6D6B0035
+	for <linux-mm@kvack.org>; Thu,  6 Feb 2014 19:32:25 -0500 (EST)
+Received: by mail-we0-f177.google.com with SMTP id t61so1784041wes.8
+        for <linux-mm@kvack.org>; Thu, 06 Feb 2014 16:32:25 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id o5si1265234wij.24.2014.02.06.07.29.45
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 06 Feb 2014 15:58:19 -0800 (PST)
-Received: by mail-pb0-f41.google.com with SMTP id up15so2461521pbc.28
-        for <linux-mm@kvack.org>; Thu, 06 Feb 2014 15:58:19 -0800 (PST)
-Date: Thu, 6 Feb 2014 15:58:17 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [RFC PATCH V5] mm readahead: Fix readahead fail for no local
- memory and limit readahead pages
-In-Reply-To: <alpine.DEB.2.02.1402061537180.3441@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.02.1402061557210.5061@chino.kir.corp.google.com>
-References: <1390388025-1418-1-git-send-email-raghavendra.kt@linux.vnet.ibm.com> <20140206145105.27dec37b16f24e4ac5fd90ce@linux-foundation.org> <alpine.DEB.2.02.1402061456290.31828@chino.kir.corp.google.com> <20140206152219.45c2039e5092c8ea1c31fd38@linux-foundation.org>
- <alpine.DEB.2.02.1402061537180.3441@chino.kir.corp.google.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 06 Feb 2014 07:30:15 -0800 (PST)
+Date: Thu, 6 Feb 2014 16:29:44 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 3/8] memcg, slab: never try to merge memcg caches
+Message-ID: <20140206152944.GG20269@dhcp22.suse.cz>
+References: <cover.1391356789.git.vdavydov@parallels.com>
+ <27c4e7d7fb6b788b66995d2523225ef2dcbc6431.1391356789.git.vdavydov@parallels.com>
+ <20140204145210.GH4890@dhcp22.suse.cz>
+ <52F1004B.90307@parallels.com>
+ <20140204151145.GI4890@dhcp22.suse.cz>
+ <52F106D7.3060802@parallels.com>
+ <20140206140707.GF20269@dhcp22.suse.cz>
+ <52F39916.2040603@parallels.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <52F39916.2040603@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, Fengguang Wu <fengguang.wu@intel.com>, David Cohen <david.a.cohen@linux.intel.com>, Al Viro <viro@zeniv.linux.org.uk>, Damien Ramonda <damien.ramonda@intel.com>, Jan Kara <jack@suse.cz>, Linus <torvalds@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: akpm@linux-foundation.org, rientjes@google.com, penberg@kernel.org, cl@linux.com, glommer@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, devel@openvz.org
 
-On Thu, 6 Feb 2014, David Rientjes wrote:
+On Thu 06-02-14 18:15:50, Vladimir Davydov wrote:
+> On 02/06/2014 06:07 PM, Michal Hocko wrote:
+> > On Tue 04-02-14 19:27:19, Vladimir Davydov wrote:
+> > [...]
+> >> What does this patch change? Actually, it introduces no functional
+> >> changes - it only remove the code trying to find an alias for a memcg
+> >> cache, because it will fail anyway. So this is rather a cleanup.
+> > But this also means that two different memcgs might share the same cache
+> > and so the pages for that cache, no?
+> 
+> No, because in this patch I explicitly forbid to merge memcg caches by
+> this hunk:
+> 
+> @@ -200,9 +200,11 @@ kmem_cache_create_memcg(struct mem_cgroup *memcg,
+> const char *name, size_t size,
+>       */
+>      flags &= CACHE_CREATE_MASK;
+>  
+> -    s = __kmem_cache_alias(memcg, name, size, align, flags, ctor);
+> -    if (s)
+> -        goto out_unlock;
+> +    if (!memcg) {
+> +        s = __kmem_cache_alias(name, size, align, flags, ctor);
+> +        if (s)
+> +            goto out_unlock;
+> +    }
 
-> > > > > +#define MAX_REMOTE_READAHEAD   4096UL
-
-> Normally it wouldn't matter because there's no significant downside to it 
-> racing, things like mempolicies which use numa_node_id() extensively would 
-> result in, oops, a page allocation on the wrong node.
-> 
-> This stands out to me, though, because you're expecting the calculation to 
-> be correct for a specific node.
-> 
-> The patch is still wrong, though, it should just do
-> 
-> 	int node = ACCESS_ONCE(numa_mem_id());
-> 	return min(nr, (node_page_state(node, NR_INACTIVE_FILE) +
-> 		        node_page_state(node, NR_FREE_PAGES)) / 2);
-> 
-> since we want to readahead based on the cpu's local node, the comment 
-> saying we're reading ahead onto "remote memory" is wrong since a 
-> memoryless node has local affinity to numa_mem_id().
-> 
-
-Oops, forgot about the MAX_REMOTE_READAHEAD which needs to be factored in 
-as well, but this handles the bound on local node's statistics.
+Ohh, that was the missing part. Thanks and sorry I have missed it. Maybe
+it is worth mentioning in the changelog?
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
