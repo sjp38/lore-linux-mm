@@ -1,60 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 6AA4C6B0031
-	for <linux-mm@kvack.org>; Fri,  7 Feb 2014 16:15:32 -0500 (EST)
-Received: by mail-pa0-f51.google.com with SMTP id ld10so3713500pab.10
-        for <linux-mm@kvack.org>; Fri, 07 Feb 2014 13:15:32 -0800 (PST)
-Received: from mail-pa0-x22a.google.com (mail-pa0-x22a.google.com [2607:f8b0:400e:c03::22a])
-        by mx.google.com with ESMTPS id oq9si6400531pac.93.2014.02.07.13.15.31
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 07 Feb 2014 13:15:31 -0800 (PST)
-Received: by mail-pa0-f42.google.com with SMTP id kl14so3699216pab.15
-        for <linux-mm@kvack.org>; Fri, 07 Feb 2014 13:15:31 -0800 (PST)
-Date: Fri, 7 Feb 2014 13:15:29 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 9/9] mm: Remove ifdef condition in include/linux/mm.h
-In-Reply-To: <20140207210705.GB13604@jtriplet-mobl1>
-Message-ID: <alpine.DEB.2.02.1402071314180.4212@chino.kir.corp.google.com>
-References: <a7658fc8f2ab015bffe83de1448cc3db79d2a9fc.1391167128.git.rashika.kheria@gmail.com> <63adb3b97f2869d4c7e76d17ef4aa76b8cf599f3.1391167128.git.rashika.kheria@gmail.com> <alpine.DEB.2.02.1402071304080.4212@chino.kir.corp.google.com>
- <20140207210705.GB13604@jtriplet-mobl1>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-we0-f181.google.com (mail-we0-f181.google.com [74.125.82.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 30A9F6B0036
+	for <linux-mm@kvack.org>; Fri,  7 Feb 2014 16:16:29 -0500 (EST)
+Received: by mail-we0-f181.google.com with SMTP id w61so2658483wes.40
+        for <linux-mm@kvack.org>; Fri, 07 Feb 2014 13:16:28 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id ur6si2979036wjc.38.2014.02.07.13.16.26
+        for <linux-mm@kvack.org>;
+        Fri, 07 Feb 2014 13:16:27 -0800 (PST)
+Date: Fri, 07 Feb 2014 16:16:04 -0500
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Message-ID: <52f54d2b.26ecc20a.61cb.2eccSMTPIN_ADDED_BROKEN@mx.google.com>
+Subject: [PATCH] mm/memory-failure.c: move refcount only in
+ !MF_COUNT_INCREASED
+Mime-Version: 1.0
+Content-Type: text/plain;
+ charset=iso-2022-jp
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Josh Triplett <josh@joshtriplett.org>
-Cc: Rashika Kheria <rashika.kheria@gmail.com>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jiang Liu <jiang.liu@huawei.com>, Michel Lespinasse <walken@google.com>, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org
+Cc: Andi Kleen <andi@firstfloor.org>, Andrew Morton <akpm@linux-foundation.org>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, gong.chen@linux.intel.com, linux-mm@kvack.org, Naoya Horiguchi <nao.horiguchi@gmail.com>
 
-On Fri, 7 Feb 2014, Josh Triplett wrote:
+# Resending due to sending failure. Sorry if you received twice.
+---
+mce-test detected a test failure when injecting error to a thp tail page.
+This is because we take page refcount of the tail page in madvise_hwpoison()
+while the fix in commit a3e0f9e47d5e ("mm/memory-failure.c: transfer page
+count from head page to tail page after split thp") assumes that we always
+take refcount on the head page.
 
-> > > diff --git a/include/linux/mm.h b/include/linux/mm.h
-> > > index 1cedd00..5f8348f 100644
-> > > --- a/include/linux/mm.h
-> > > +++ b/include/linux/mm.h
-> > > @@ -1589,10 +1589,8 @@ static inline int __early_pfn_to_nid(unsigned long pfn)
-> > >  #else
-> > >  /* please see mm/page_alloc.c */
-> > >  extern int __meminit early_pfn_to_nid(unsigned long pfn);
-> > > -#ifdef CONFIG_HAVE_ARCH_EARLY_PFN_TO_NID
-> > >  /* there is a per-arch backend function. */
-> > >  extern int __meminit __early_pfn_to_nid(unsigned long pfn);
-> > > -#endif /* CONFIG_HAVE_ARCH_EARLY_PFN_TO_NID */
-> > >  #endif
-> > >  
-> > >  extern void set_dma_reserve(unsigned long new_dma_reserve);
-> > 
-> > Wouldn't it be better to just declare the __early_pfn_to_nid() in 
-> > mm/page_alloc.c to be static?
-> 
-> Won't that break the ability to override that function in
-> architecture-specific code (as arch/ia64/mm/numa.c does)?
-> 
+When a real memory error happens we take refcount on the head page where
+memory_failure() is called without MF_COUNT_INCREASED set, so it seems to me
+that testing memory error on thp tail page using madvise makes little sense.
 
-Why?  CONFIG_HAVE_ARCH_EARLY_PFN_TO_NID should define where this function 
-is defined so ia64 should have it set and the definition which I'm 
-suggesting be static is only compiled when this is undefined in 
-mm/page_alloc.c.  I'm not sure why we'd want to be messing with the 
-declaration?
+This patch cancels moving refcount in !MF_COUNT_INCREASED for valid testing.
+
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: stable@vger.kernel.org # 3.9+: a3e0f9e47d5e
+---
+ mm/memory-failure.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git v3.14-rc1.orig/mm/memory-failure.c v3.14-rc1/mm/memory-failure.c
+index ab55d489eb05..16886ddb6ab4 100644
+--- v3.14-rc1.orig/mm/memory-failure.c
++++ v3.14-rc1/mm/memory-failure.c
+@@ -1042,8 +1042,10 @@ static int hwpoison_user_mappings(struct page *p, unsigned long pfn,
+ 			 * to it. Similarly, page lock is shifted.
+ 			 */
+ 			if (hpage != p) {
+-				put_page(hpage);
+-				get_page(p);
++				if (!(flags && MF_COUNT_INCREASED)) {
++					put_page(hpage);
++					get_page(p);
++				}
+ 				lock_page(p);
+ 				unlock_page(hpage);
+ 				*hpagep = p;
+-- 
+1.8.5.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
