@@ -1,62 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id DFC0D6B0031
-	for <linux-mm@kvack.org>; Fri,  7 Feb 2014 15:52:35 -0500 (EST)
-Received: by mail-pd0-f175.google.com with SMTP id w10so3617343pde.34
-        for <linux-mm@kvack.org>; Fri, 07 Feb 2014 12:52:35 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id i8si6323376pav.190.2014.02.07.12.52.34
-        for <linux-mm@kvack.org>;
-        Fri, 07 Feb 2014 12:52:34 -0800 (PST)
-Date: Fri, 7 Feb 2014 12:52:33 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: mmotm 2014-02-05 list_lru_add lockdep splat
-Message-Id: <20140207125233.4b84482453da6a656ff427dd@linux-foundation.org>
-In-Reply-To: <20140206164136.GC6963@cmpxchg.org>
-References: <alpine.LSU.2.11.1402051944210.27326@eggly.anvils>
-	<20140206164136.GC6963@cmpxchg.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id DAC806B0036
+	for <linux-mm@kvack.org>; Fri,  7 Feb 2014 15:55:25 -0500 (EST)
+Received: by mail-pa0-f46.google.com with SMTP id rd3so3694190pab.33
+        for <linux-mm@kvack.org>; Fri, 07 Feb 2014 12:55:25 -0800 (PST)
+Received: from mail-pa0-x22a.google.com (mail-pa0-x22a.google.com [2607:f8b0:400e:c03::22a])
+        by mx.google.com with ESMTPS id d4si6323295pao.215.2014.02.07.12.55.24
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 07 Feb 2014 12:55:24 -0800 (PST)
+Received: by mail-pa0-f42.google.com with SMTP id kl14so3680042pab.15
+        for <linux-mm@kvack.org>; Fri, 07 Feb 2014 12:55:24 -0800 (PST)
+Date: Fri, 7 Feb 2014 12:55:22 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 6/9] mm: Mark function as static in memcontrol.c
+In-Reply-To: <0dbbc0fe4360069993ef8a9ca179f30482610270.1391167128.git.rashika.kheria@gmail.com>
+Message-ID: <alpine.DEB.2.02.1402071254410.4212@chino.kir.corp.google.com>
+References: <a7658fc8f2ab015bffe83de1448cc3db79d2a9fc.1391167128.git.rashika.kheria@gmail.com> <0dbbc0fe4360069993ef8a9ca179f30482610270.1391167128.git.rashika.kheria@gmail.com>
+MIME-Version: 1.0
+Content-Type: MULTIPART/MIXED; BOUNDARY="531381512-204402537-1391806523=:4212"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Rashika Kheria <rashika.kheria@gmail.com>
+Cc: linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, josh@joshtriplett.org
 
-On Thu, 6 Feb 2014 11:41:36 -0500 Johannes Weiner <hannes@cmpxchg.org> wrote:
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
 
+--531381512-204402537-1391806523=:4212
+Content-Type: TEXT/PLAIN; charset=UTF-8
+Content-Transfer-Encoding: 8BIT
+
+On Fri, 7 Feb 2014, Rashika Kheria wrote:
+
+> Mark function as static in memcontrol.c because it is not used outside
+> this file.
 > 
-> Make the shadow lru->node[i].lock IRQ-safe to remove the order
-> dictated by interruption.  This slightly increases the IRQ-disabled
-> section in the shadow shrinker, but it still drops all locks and
-> enables IRQ after every reclaimed shadow radix tree node.
+> This also eliminates the following warning in memcontrol.c:
+> mm/memcontrol.c:3089:5: warning: no previous prototype for a??memcg_update_cache_sizesa?? [-Wmissing-prototypes]
 > 
-> ...
->
-> --- a/mm/workingset.c
-> +++ b/mm/workingset.c
-> @@ -273,7 +273,10 @@ static unsigned long count_shadow_nodes(struct shrinker *shrinker,
->  	unsigned long max_nodes;
->  	unsigned long pages;
->  
-> +	local_irq_disable();
->  	shadow_nodes = list_lru_count_node(&workingset_shadow_nodes, sc->nid);
-> +	local_irq_enable();
+> Signed-off-by: Rashika Kheria <rashika.kheria@gmail.com>
+> Reviewed-by: Josh Triplett <josh@joshtriplett.org>
 
-This is a bit ugly-looking.
-
-A reader will look at that and wonder why the heck we're disabling
-interrupts here.  Against what?  Is there some way in which we can
-clarify this?
-
-Perhaps adding list_lru_count_node_irq[save] and
-list_lru_walk_node_irq[save] would be better - is it reasonable to
-assume this is the only caller of the list_lru code which will ever
-want irq-safe treatment?
-
-This is all somewhat a side-effect of list_lru implementing its own
-locking rather than requiring caller-provided locking.  It's always a
-mistake.
+memcg_update_cache_sizes() was removed in commit d6441637709b ("memcg: 
+rework memcg_update_kmem_limit synchronization") for 3.14-rc1.
+--531381512-204402537-1391806523=:4212--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
