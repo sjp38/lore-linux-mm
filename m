@@ -1,67 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f51.google.com (mail-ee0-f51.google.com [74.125.83.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 002576B0031
-	for <linux-mm@kvack.org>; Fri,  7 Feb 2014 13:58:18 -0500 (EST)
-Received: by mail-ee0-f51.google.com with SMTP id b57so1722694eek.24
-        for <linux-mm@kvack.org>; Fri, 07 Feb 2014 10:58:18 -0800 (PST)
-Received: from order.stressinduktion.org (order.stressinduktion.org. [87.106.68.36])
-        by mx.google.com with ESMTPS id w2si9952242eeg.70.2014.02.07.10.58.17
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 07 Feb 2014 10:58:17 -0800 (PST)
-Date: Fri, 7 Feb 2014 19:58:16 +0100
-From: Hannes Frederic Sowa <hannes@stressinduktion.org>
-Subject: Re: [BUG] at include/linux/page-flags.h:415 (PageTransHuge)
-Message-ID: <20140207185816.GA7764@order.stressinduktion.org>
-References: <52D03A9E.2030309@iogearbox.net> <20140110222248.4e8419ca.akpm@linux-foundation.org> <52D147F1.3040803@iogearbox.net> <52D3BCE9.4020405@suse.cz> <52D3D060.1010301@iogearbox.net> <52D69AB4.6000309@suse.cz> <52D6B213.4020602@iogearbox.net> <52EBB5E6.8010007@suse.cz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <52EBB5E6.8010007@suse.cz>
+Received: from mail-we0-f175.google.com (mail-we0-f175.google.com [74.125.82.175])
+	by kanga.kvack.org (Postfix) with ESMTP id A3FB86B0031
+	for <linux-mm@kvack.org>; Fri,  7 Feb 2014 14:30:56 -0500 (EST)
+Received: by mail-we0-f175.google.com with SMTP id q59so2648448wes.34
+        for <linux-mm@kvack.org>; Fri, 07 Feb 2014 11:30:56 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id em8si2813635wjd.147.2014.02.07.11.30.54
+        for <linux-mm@kvack.org>;
+        Fri, 07 Feb 2014 11:30:55 -0800 (PST)
+Message-ID: <52F53425.7060308@redhat.com>
+Date: Fri, 07 Feb 2014 14:29:41 -0500
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [patch] drop_caches: add some documentation and info message
+References: <1391794851-11412-1-git-send-email-hannes@cmpxchg.org> <52F51E19.9000406@redhat.com> <20140207181332.GG6963@cmpxchg.org>
+In-Reply-To: <20140207181332.GG6963@cmpxchg.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Daniel Borkmann <borkmann@iogearbox.net>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, Michel Lespinasse <walken@google.com>, linux-mm <linux-mm@kvack.org>, Jared Hulbert <jaredeh@gmail.com>, netdev <netdev@vger.kernel.org>, Thomas Hellstrom <thellstrom@vmware.com>, John David Anglin <dave.anglin@bell.net>, HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Carsten Otte <cotte@de.ibm.com>, Peter Zijlstra <peterz@infradead.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave@sr71.net>, Michal Hocko <mhocko@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi!
+On 02/07/2014 01:13 PM, Johannes Weiner wrote:
 
-On Fri, Jan 31, 2014 at 03:40:38PM +0100, Vlastimil Babka wrote:
-> From: Vlastimil Babka <vbabka@suse.cz>
-> Date: Fri, 31 Jan 2014 11:50:21 +0100
-> Subject: [PATCH] mm: include VM_MIXEDMAP flag in the VM_SPECIAL list to avoid
->  m(un)locking
-> 
-> Daniel Borkmann reported a bug with VM_BUG_ON assertions failing where
-> munlock_vma_pages_range() thinks it's unexpectedly in the middle of a THP page.
-> This can be reproduced in tools/testing/selftests/net/ by running make and
-> then ./psock_tpacket.
-> 
-> The problem is that an order=2 compound page (allocated by
-> alloc_one_pg_vec_page() is part of the munlocked VM_MIXEDMAP vma (mapped by
-> packet_mmap()) and mistaken for a THP page and assumed to be order=9.
-> 
-> The checks for THP in munlock came with commit ff6a6da60b89 ("mm: accelerate
-> munlock() treatment of THP pages"), i.e. since 3.9, but did not trigger a bug.
-> It just makes munlock_vma_pages_range() skip such compound pages until the next
-> 512-pages-aligned page, when it encounters a head page. This is however not a
-> problem for vma's where mlocking has no effect anyway, but it can distort the
-> accounting.
-> Since commit 7225522bb ("mm: munlock: batch non-THP page isolation and
-> munlock+putback using pagevec") this can trigger a VM_BUG_ON in PageTransHuge()
-> check.
-> 
-> This patch fixes the issue by adding VM_MIXEDMAP flag to VM_SPECIAL - a list of
-> flags that make vma's non-mlockable and non-mergeable. The reasoning is that
-> VM_MIXEDMAP vma's are similar to VM_PFNMAP, which is already on the VM_SPECIAL
-> list, and both are intended for non-LRU pages where mlocking makes no sense
-> anyway.
+>> Would it be better to print this after the operation
+>> has completed?
+>
+> It would make more sense grammatically :-) Either way is fine with me,
+> updated below to inform after the fact.
 
-I also ran into this problem and wanted to ask what the status of this
-patch is? Does it need further testing? I can surely help with that. ;)
+Well, in principle the operation could take an arbitrarily
+long time, so there are some minor concerns besides
+grammatical correctness, too :)
 
-Thanks,
+Thanks for updating the patch.
 
-  Hannes
+> ---
+> From: Dave Hansen <dave@linux.vnet.ibm.com>
+> Date: Fri, 12 Oct 2012 14:30:54 +0200
+> Subject: [patch] drop_caches: add some documentation and info message
+
+> Dropping caches is a very drastic and disruptive operation that is
+> good for debugging and running tests, but if it creates bug reports
+> from production use, kernel developers should be aware of its use.
+>
+> Add a bit more documentation about it, and add a little KERN_NOTICE.
+>
+> [akpm@linux-foundation.org: checkpatch fixes]
+> Signed-off-by: Dave Hansen <dave@linux.vnet.ibm.com>
+> Signed-off-by: Michal Hocko <mhocko@suse.cz>
+> Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+
+Reviewed-by: Rik van Riel <riel@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
