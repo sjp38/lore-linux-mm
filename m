@@ -1,158 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f45.google.com (mail-ee0-f45.google.com [74.125.83.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 74FD36B0031
-	for <linux-mm@kvack.org>; Fri,  7 Feb 2014 13:13:47 -0500 (EST)
-Received: by mail-ee0-f45.google.com with SMTP id b15so1673136eek.18
-        for <linux-mm@kvack.org>; Fri, 07 Feb 2014 10:13:46 -0800 (PST)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id s6si9710011eel.140.2014.02.07.10.13.45
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 07 Feb 2014 10:13:45 -0800 (PST)
-Date: Fri, 7 Feb 2014 13:13:32 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch] drop_caches: add some documentation and info message
-Message-ID: <20140207181332.GG6963@cmpxchg.org>
-References: <1391794851-11412-1-git-send-email-hannes@cmpxchg.org>
- <52F51E19.9000406@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <52F51E19.9000406@redhat.com>
+Received: from mail-qc0-f179.google.com (mail-qc0-f179.google.com [209.85.216.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 47F5F6B0031
+	for <linux-mm@kvack.org>; Fri,  7 Feb 2014 13:51:12 -0500 (EST)
+Received: by mail-qc0-f179.google.com with SMTP id e16so6579473qcx.24
+        for <linux-mm@kvack.org>; Fri, 07 Feb 2014 10:51:11 -0800 (PST)
+Received: from qmta04.emeryville.ca.mail.comcast.net (qmta04.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:40])
+        by mx.google.com with ESMTP id t101si4178230qge.151.2014.02.07.10.51.10
+        for <linux-mm@kvack.org>;
+        Fri, 07 Feb 2014 10:51:10 -0800 (PST)
+Date: Fri, 7 Feb 2014 12:51:07 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [RFC PATCH 2/3] topology: support node_numa_mem() for determining
+ the fallback node
+In-Reply-To: <alpine.DEB.2.10.1402071150090.15168@nuc>
+Message-ID: <alpine.DEB.2.10.1402071245040.20246@nuc>
+References: <20140206020757.GC5433@linux.vnet.ibm.com> <1391674026-20092-1-git-send-email-iamjoonsoo.kim@lge.com> <1391674026-20092-2-git-send-email-iamjoonsoo.kim@lge.com> <alpine.DEB.2.02.1402060041040.21148@chino.kir.corp.google.com>
+ <CAAmzW4PXkdpNi5pZ=4BzdXNvqTEAhcuw-x0pWidqrxzdePxXxA@mail.gmail.com> <alpine.DEB.2.02.1402061248450.9567@chino.kir.corp.google.com> <20140207054819.GC28952@lge.com> <alpine.DEB.2.10.1402071150090.15168@nuc>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave@sr71.net>, Michal Hocko <mhocko@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: David Rientjes <rientjes@google.com>, Nishanth Aravamudan <nacc@linux.vnet.ibm.com>, Han Pingtian <hanpt@linux.vnet.ibm.com>, Pekka Enberg <penberg@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Paul Mackerras <paulus@samba.org>, Anton Blanchard <anton@samba.org>, Matt Mackall <mpm@selenic.com>, linuxppc-dev@lists.ozlabs.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-On Fri, Feb 07, 2014 at 12:55:37PM -0500, Rik van Riel wrote:
-> On 02/07/2014 12:40 PM, Johannes Weiner wrote:
-> 
-> >@@ -59,6 +60,9 @@ int drop_caches_sysctl_handler(ctl_table *table, int write,
-> >  	if (ret)
-> >  		return ret;
-> >  	if (write) {
-> >+		printk_ratelimited(KERN_INFO "%s (%d): dropped kernel caches: %d\n",
-> >+				   current->comm, task_pid_nr(current),
-> >+				   sysctl_drop_caches);
-> >  		if (sysctl_drop_caches & 1)
-> >  			iterate_supers(drop_pagecache_sb, NULL);
-> >  		if (sysctl_drop_caches & 2)
-> >
-> 
-> Would it be better to print this after the operation
-> has completed?
+Here is a draft of a patch to make this work with memoryless nodes.
 
-It would make more sense grammatically :-) Either way is fine with me,
-updated below to inform after the fact.
+The first thing is that we modify node_match to also match if we hit an
+empty node. In that case we simply take the current slab if its there.
 
----
-From: Dave Hansen <dave@linux.vnet.ibm.com>
-Date: Fri, 12 Oct 2012 14:30:54 +0200
-Subject: [patch] drop_caches: add some documentation and info message
+If there is no current slab then a regular allocation occurs with the
+memoryless node. The page allocator will fallback to a possible node and
+that will become the current slab. Next alloc from a memoryless node
+will then use that slab.
 
-There is plenty of anecdotal evidence and a load of blog posts
-suggesting that using "drop_caches" periodically keeps your system
-running in "tip top shape".  Perhaps adding some kernel documentation
-will increase the amount of accurate data on its use.
+For that we also add some tracking of allocations on nodes that were not
+satisfied using the empty_node[] array. A successful alloc on a node
+clears that flag.
 
-If we are not shrinking caches effectively, then we have real bugs.
-Using drop_caches will simply mask the bugs and make them harder to
-find, but certainly does not fix them, nor is it an appropriate
-"workaround" to limit the size of the caches.  On the contrary, there
-have been bug reports on issues that turned out to be misguided use of
-cache dropping.
+I would rather avoid the empty_node[] array since its global and there may
+be thread specific allocation restrictions but it would be expensive to do
+an allocation attempt via the page allocator to make sure that there is
+really no page available from the page allocator.
 
-Dropping caches is a very drastic and disruptive operation that is
-good for debugging and running tests, but if it creates bug reports
-from production use, kernel developers should be aware of its use.
-
-Add a bit more documentation about it, and add a little KERN_NOTICE.
-
-[akpm@linux-foundation.org: checkpatch fixes]
-Signed-off-by: Dave Hansen <dave@linux.vnet.ibm.com>
-Signed-off-by: Michal Hocko <mhocko@suse.cz>
-Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
----
- Documentation/sysctl/vm.txt | 33 +++++++++++++++++++++++++++------
- fs/drop_caches.c            |  4 ++++
- 2 files changed, 31 insertions(+), 6 deletions(-)
-
-diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
-index d614a9b6a280..36278c610a5f 100644
---- a/Documentation/sysctl/vm.txt
-+++ b/Documentation/sysctl/vm.txt
-@@ -175,18 +175,39 @@ Setting this to zero disables periodic writeback altogether.
- 
- drop_caches
- 
--Writing to this will cause the kernel to drop clean caches, dentries and
--inodes from memory, causing that memory to become free.
-+Writing to this will cause the kernel to drop clean caches, as well as
-+reclaimable slab objects like dentries and inodes.  Once dropped, their
-+memory becomes free.
- 
- To free pagecache:
- 	echo 1 > /proc/sys/vm/drop_caches
--To free dentries and inodes:
-+To free reclaimable slab objects (includes dentries and inodes):
- 	echo 2 > /proc/sys/vm/drop_caches
--To free pagecache, dentries and inodes:
-+To free slab objects and pagecache:
- 	echo 3 > /proc/sys/vm/drop_caches
- 
--As this is a non-destructive operation and dirty objects are not freeable, the
--user should run `sync' first.
-+This is a non-destructive operation and will not free any dirty objects.
-+To increase the number of objects freed by this operation, the user may run
-+`sync' prior to writing to /proc/sys/vm/drop_caches.  This will minimize the
-+number of dirty objects on the system and create more candidates to be
-+dropped.
-+
-+This file is not a means to control the growth of the various kernel caches
-+(inodes, dentries, pagecache, etc...)  These objects are automatically
-+reclaimed by the kernel when memory is needed elsewhere on the system.
-+
-+Use of this file can cause performance problems.  Since it discards cached
-+objects, it may cost a significant amount of I/O and CPU to recreate the
-+dropped objects, especially if they were under heavy use.  Because of this,
-+use outside of a testing or debugging environment is not recommended.
-+
-+You may see informational messages in your kernel log when this file is
-+used:
-+
-+	cat (1234): dropped kernel caches: 3
-+
-+These are informational only.  They do not mean that anything is wrong
-+with your system.
- 
- ==============================================================
- 
-diff --git a/fs/drop_caches.c b/fs/drop_caches.c
-index 9fd702f5bfb2..02ae3386e08f 100644
---- a/fs/drop_caches.c
-+++ b/fs/drop_caches.c
-@@ -5,6 +5,7 @@
- #include <linux/kernel.h>
- #include <linux/mm.h>
- #include <linux/fs.h>
-+#include <linux/ratelimit.h>
- #include <linux/writeback.h>
- #include <linux/sysctl.h>
- #include <linux/gfp.h>
-@@ -63,6 +64,9 @@ int drop_caches_sysctl_handler(ctl_table *table, int write,
- 			iterate_supers(drop_pagecache_sb, NULL);
- 		if (sysctl_drop_caches & 2)
- 			drop_slab();
-+		printk_ratelimited(KERN_INFO "%s (%d): dropped kernel caches: %d\n",
-+				   current->comm, task_pid_nr(current),
-+				   sysctl_drop_caches);
- 	}
- 	return 0;
+Index: linux/mm/slub.c
+===================================================================
+--- linux.orig/mm/slub.c	2014-02-03 13:19:22.896853227 -0600
++++ linux/mm/slub.c	2014-02-07 12:44:49.311494806 -0600
+@@ -132,6 +132,8 @@ static inline bool kmem_cache_has_cpu_pa
+ #endif
  }
--- 
-1.8.5.3
+
++static int empty_node[MAX_NUMNODES];
++
+ /*
+  * Issues still to be resolved:
+  *
+@@ -1405,16 +1407,22 @@ static struct page *new_slab(struct kmem
+ 	void *last;
+ 	void *p;
+ 	int order;
++	int alloc_node;
+
+ 	BUG_ON(flags & GFP_SLAB_BUG_MASK);
+
+ 	page = allocate_slab(s,
+ 		flags & (GFP_RECLAIM_MASK | GFP_CONSTRAINT_MASK), node);
+-	if (!page)
++	if (!page) {
++		if (node != NUMA_NO_NODE)
++			empty_node[node] = 1;
+ 		goto out;
++	}
+
+ 	order = compound_order(page);
+-	inc_slabs_node(s, page_to_nid(page), page->objects);
++	alloc_node = page_to_nid(page);
++	empty_node[alloc_node] = 0;
++	inc_slabs_node(s, alloc_node, page->objects);
+ 	memcg_bind_pages(s, order);
+ 	page->slab_cache = s;
+ 	__SetPageSlab(page);
+@@ -1712,7 +1720,7 @@ static void *get_partial(struct kmem_cac
+ 		struct kmem_cache_cpu *c)
+ {
+ 	void *object;
+-	int searchnode = (node == NUMA_NO_NODE) ? numa_node_id() : node;
++	int searchnode = (node == NUMA_NO_NODE) ? numa_mem_id() : node;
+
+ 	object = get_partial_node(s, get_node(s, searchnode), c, flags);
+ 	if (object || node != NUMA_NO_NODE)
+@@ -2107,8 +2115,25 @@ static void flush_all(struct kmem_cache
+ static inline int node_match(struct page *page, int node)
+ {
+ #ifdef CONFIG_NUMA
+-	if (!page || (node != NUMA_NO_NODE && page_to_nid(page) != node))
++	int page_node;
++
++	/* No data means no match */
++	if (!page)
+ 		return 0;
++
++	/* Node does not matter. Therefore anything is a match */
++	if (node == NUMA_NO_NODE)
++		return 1;
++
++	/* Did we hit the requested node ? */
++	page_node = page_to_nid(page);
++	if (page_node == node)
++		return 1;
++
++	/* If the node has available data then we can use it. Mismatch */
++	return !empty_node[page_node];
++
++	/* Target node empty so just take anything */
+ #endif
+ 	return 1;
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
