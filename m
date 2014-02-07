@@ -1,47 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f49.google.com (mail-qa0-f49.google.com [209.85.216.49])
-	by kanga.kvack.org (Postfix) with ESMTP id CEE4E6B0031
-	for <linux-mm@kvack.org>; Fri,  7 Feb 2014 12:54:01 -0500 (EST)
-Received: by mail-qa0-f49.google.com with SMTP id w8so5708810qac.22
-        for <linux-mm@kvack.org>; Fri, 07 Feb 2014 09:54:01 -0800 (PST)
-Received: from qmta08.emeryville.ca.mail.comcast.net (qmta08.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:80])
-        by mx.google.com with ESMTP id jj3si1803337qcb.67.2014.02.07.09.53.59
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 9CF746B0031
+	for <linux-mm@kvack.org>; Fri,  7 Feb 2014 12:56:45 -0500 (EST)
+Received: by mail-wi0-f174.google.com with SMTP id f8so1093144wiw.7
+        for <linux-mm@kvack.org>; Fri, 07 Feb 2014 09:56:45 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id g15si1856353wiw.22.2014.02.07.09.56.43
         for <linux-mm@kvack.org>;
-        Fri, 07 Feb 2014 09:54:00 -0800 (PST)
-Date: Fri, 7 Feb 2014 11:53:57 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [RFC PATCH 2/3] topology: support node_numa_mem() for determining
- the fallback node
-In-Reply-To: <20140207054819.GC28952@lge.com>
-Message-ID: <alpine.DEB.2.10.1402071150090.15168@nuc>
-References: <20140206020757.GC5433@linux.vnet.ibm.com> <1391674026-20092-1-git-send-email-iamjoonsoo.kim@lge.com> <1391674026-20092-2-git-send-email-iamjoonsoo.kim@lge.com> <alpine.DEB.2.02.1402060041040.21148@chino.kir.corp.google.com>
- <CAAmzW4PXkdpNi5pZ=4BzdXNvqTEAhcuw-x0pWidqrxzdePxXxA@mail.gmail.com> <alpine.DEB.2.02.1402061248450.9567@chino.kir.corp.google.com> <20140207054819.GC28952@lge.com>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        Fri, 07 Feb 2014 09:56:44 -0800 (PST)
+Message-ID: <52F51E19.9000406@redhat.com>
+Date: Fri, 07 Feb 2014 12:55:37 -0500
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [patch] drop_caches: add some documentation and info message
+References: <1391794851-11412-1-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <1391794851-11412-1-git-send-email-hannes@cmpxchg.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: David Rientjes <rientjes@google.com>, Nishanth Aravamudan <nacc@linux.vnet.ibm.com>, Han Pingtian <hanpt@linux.vnet.ibm.com>, Pekka Enberg <penberg@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Paul Mackerras <paulus@samba.org>, Anton Blanchard <anton@samba.org>, Matt Mackall <mpm@selenic.com>, linuxppc-dev@lists.ozlabs.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
+To: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Dave Hansen <dave@sr71.net>, Michal Hocko <mhocko@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, 7 Feb 2014, Joonsoo Kim wrote:
+On 02/07/2014 12:40 PM, Johannes Weiner wrote:
 
-> >
-> > It seems like a better approach would be to do this when a node is brought
-> > online and determine the fallback node based not on the zonelists as you
-> > do here but rather on locality (such as through a SLIT if provided, see
-> > node_distance()).
+> @@ -59,6 +60,9 @@ int drop_caches_sysctl_handler(ctl_table *table, int write,
+>   	if (ret)
+>   		return ret;
+>   	if (write) {
+> +		printk_ratelimited(KERN_INFO "%s (%d): dropped kernel caches: %d\n",
+> +				   current->comm, task_pid_nr(current),
+> +				   sysctl_drop_caches);
+>   		if (sysctl_drop_caches & 1)
+>   			iterate_supers(drop_pagecache_sb, NULL);
+>   		if (sysctl_drop_caches & 2)
 >
-> Hmm...
-> I guess that zonelist is base on locality. Zonelist is generated using
-> node_distance(), so I think that it reflects locality. But, I'm not expert
-> on NUMA, so please let me know what I am missing here :)
 
-The next node can be found by going through the zonelist of a node and
-checking for available memory. See fallback_alloc().
-
-There is a function node_distance() that determines the relative
-performance of a memory access from one to the other node.
-The building of the fallback list for every node in build_zonelists()
-relies on that.
+Would it be better to print this after the operation
+has completed?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
