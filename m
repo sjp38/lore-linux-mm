@@ -1,50 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f41.google.com (mail-pb0-f41.google.com [209.85.160.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A0706B0036
-	for <linux-mm@kvack.org>; Fri,  7 Feb 2014 15:49:56 -0500 (EST)
-Received: by mail-pb0-f41.google.com with SMTP id up15so3739925pbc.14
-        for <linux-mm@kvack.org>; Fri, 07 Feb 2014 12:49:56 -0800 (PST)
-Received: from mail-pb0-x230.google.com (mail-pb0-x230.google.com [2607:f8b0:400e:c01::230])
-        by mx.google.com with ESMTPS id oq9si6288837pac.296.2014.02.07.12.49.54
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 07 Feb 2014 12:49:55 -0800 (PST)
-Received: by mail-pb0-f48.google.com with SMTP id rr13so3727954pbb.21
-        for <linux-mm@kvack.org>; Fri, 07 Feb 2014 12:49:54 -0800 (PST)
-Date: Fri, 7 Feb 2014 12:49:53 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 5/9] mm: Mark functions as static in migrate.c
-In-Reply-To: <2f62d7bb34ad1797b2990524239d4de90f8073a4.1391167128.git.rashika.kheria@gmail.com>
-Message-ID: <alpine.DEB.2.02.1402071249420.4212@chino.kir.corp.google.com>
-References: <a7658fc8f2ab015bffe83de1448cc3db79d2a9fc.1391167128.git.rashika.kheria@gmail.com> <2f62d7bb34ad1797b2990524239d4de90f8073a4.1391167128.git.rashika.kheria@gmail.com>
-MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="531381512-1629610436-1391806194=:4212"
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id DFC0D6B0031
+	for <linux-mm@kvack.org>; Fri,  7 Feb 2014 15:52:35 -0500 (EST)
+Received: by mail-pd0-f175.google.com with SMTP id w10so3617343pde.34
+        for <linux-mm@kvack.org>; Fri, 07 Feb 2014 12:52:35 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id i8si6323376pav.190.2014.02.07.12.52.34
+        for <linux-mm@kvack.org>;
+        Fri, 07 Feb 2014 12:52:34 -0800 (PST)
+Date: Fri, 7 Feb 2014 12:52:33 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: mmotm 2014-02-05 list_lru_add lockdep splat
+Message-Id: <20140207125233.4b84482453da6a656ff427dd@linux-foundation.org>
+In-Reply-To: <20140206164136.GC6963@cmpxchg.org>
+References: <alpine.LSU.2.11.1402051944210.27326@eggly.anvils>
+	<20140206164136.GC6963@cmpxchg.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rashika Kheria <rashika.kheria@gmail.com>
-Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Ingo Molnar <mingo@kernel.org>, linux-mm@kvack.org, josh@joshtriplett.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-  This message is in MIME format.  The first part should be readable text,
-  while the remaining parts are likely unreadable without MIME-aware tools.
+On Thu, 6 Feb 2014 11:41:36 -0500 Johannes Weiner <hannes@cmpxchg.org> wrote:
 
---531381512-1629610436-1391806194=:4212
-Content-Type: TEXT/PLAIN; charset=UTF-8
-Content-Transfer-Encoding: 8BIT
-
-On Fri, 7 Feb 2014, Rashika Kheria wrote:
-
-> Mark functions as static in migrate.c because they are not used outside
-> this file.
 > 
-> This eliminates the following warnings in mm/migrate.c:
-> mm/migrate.c:1595:6: warning: no previous prototype for a??numamigrate_update_ratelimita?? [-Wmissing-prototypes]
-> mm/migrate.c:1619:5: warning: no previous prototype for a??numamigrate_isolate_pagea?? [-Wmissing-prototypes]
+> Make the shadow lru->node[i].lock IRQ-safe to remove the order
+> dictated by interruption.  This slightly increases the IRQ-disabled
+> section in the shadow shrinker, but it still drops all locks and
+> enables IRQ after every reclaimed shadow radix tree node.
 > 
-> Signed-off-by: Rashika Kheria <rashika.kheria@gmail.com>
-> Reviewed-by: Josh Triplett <josh@joshtriplett.org>
+> ...
+>
+> --- a/mm/workingset.c
+> +++ b/mm/workingset.c
+> @@ -273,7 +273,10 @@ static unsigned long count_shadow_nodes(struct shrinker *shrinker,
+>  	unsigned long max_nodes;
+>  	unsigned long pages;
+>  
+> +	local_irq_disable();
+>  	shadow_nodes = list_lru_count_node(&workingset_shadow_nodes, sc->nid);
+> +	local_irq_enable();
 
-Acked-by: David Rientjes <rientjes@google.com>
---531381512-1629610436-1391806194=:4212--
+This is a bit ugly-looking.
+
+A reader will look at that and wonder why the heck we're disabling
+interrupts here.  Against what?  Is there some way in which we can
+clarify this?
+
+Perhaps adding list_lru_count_node_irq[save] and
+list_lru_walk_node_irq[save] would be better - is it reasonable to
+assume this is the only caller of the list_lru code which will ever
+want irq-safe treatment?
+
+This is all somewhat a side-effect of list_lru implementing its own
+locking rather than requiring caller-provided locking.  It's always a
+mistake.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
