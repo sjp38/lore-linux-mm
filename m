@@ -1,76 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D31B6B0031
-	for <linux-mm@kvack.org>; Fri,  7 Feb 2014 15:31:33 -0500 (EST)
-Received: by mail-pd0-f179.google.com with SMTP id fp1so3217437pdb.38
-        for <linux-mm@kvack.org>; Fri, 07 Feb 2014 12:31:33 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id q5si6313632pae.27.2014.02.07.12.31.30
-        for <linux-mm@kvack.org>;
-        Fri, 07 Feb 2014 12:31:31 -0800 (PST)
-Date: Fri, 7 Feb 2014 12:31:29 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch] drop_caches: add some documentation and info message
-Message-Id: <20140207123129.84f9fb0aaf32f0e09c78851a@linux-foundation.org>
-In-Reply-To: <20140207181332.GG6963@cmpxchg.org>
-References: <1391794851-11412-1-git-send-email-hannes@cmpxchg.org>
-	<52F51E19.9000406@redhat.com>
-	<20140207181332.GG6963@cmpxchg.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-qc0-f170.google.com (mail-qc0-f170.google.com [209.85.216.170])
+	by kanga.kvack.org (Postfix) with ESMTP id F2D986B0031
+	for <linux-mm@kvack.org>; Fri,  7 Feb 2014 15:35:13 -0500 (EST)
+Received: by mail-qc0-f170.google.com with SMTP id e9so6999797qcy.1
+        for <linux-mm@kvack.org>; Fri, 07 Feb 2014 12:35:13 -0800 (PST)
+Received: from mail-qc0-x235.google.com (mail-qc0-x235.google.com [2607:f8b0:400d:c01::235])
+        by mx.google.com with ESMTPS id l7si4441254qgl.140.2014.02.07.12.35.12
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 07 Feb 2014 12:35:12 -0800 (PST)
+Received: by mail-qc0-f181.google.com with SMTP id e9so6838059qcy.40
+        for <linux-mm@kvack.org>; Fri, 07 Feb 2014 12:35:12 -0800 (PST)
+Date: Fri, 7 Feb 2014 15:35:08 -0500
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH] cgroup: use an ordered workqueue for cgroup destruction
+Message-ID: <20140207203508.GC8833@htj.dyndns.org>
+References: <alpine.LSU.2.11.1402061541560.31342@eggly.anvils>
+ <20140207140402.GA3304@htj.dyndns.org>
+ <alpine.LSU.2.11.1402071130250.333@eggly.anvils>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.11.1402071130250.333@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Rik van Riel <riel@redhat.com>, Dave Hansen <dave@sr71.net>, Michal Hocko <mhocko@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Filipe Brandenburger <filbranden@google.com>, Li Zefan <lizefan@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, Markus Blank-Burian <burian@muenster.de>, Shawn Bohrer <shawn.bohrer@gmail.com>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, 7 Feb 2014 13:13:32 -0500 Johannes Weiner <hannes@cmpxchg.org> wrote:
+Hello, Hugh.
 
-> @@ -63,6 +64,9 @@ int drop_caches_sysctl_handler(ctl_table *table, int write,
->  			iterate_supers(drop_pagecache_sb, NULL);
->  		if (sysctl_drop_caches & 2)
->  			drop_slab();
-> +		printk_ratelimited(KERN_INFO "%s (%d): dropped kernel caches: %d\n",
-> +				   current->comm, task_pid_nr(current),
-> +				   sysctl_drop_caches);
->  	}
->  	return 0;
->  }
+On Fri, Feb 07, 2014 at 12:20:44PM -0800, Hugh Dickins wrote:
+> > But even with offline being called outside cgroup_mutex, IIRC, the
+> > described problem would still be able to deadlock as long as the tree
+> > depth is deeper than max concurrency level of the destruction
+> > workqueue.  Sure, we can give it large enough number but it's
+> > generally nasty.
+> 
+> You worry me there: I certainly don't want to be introducing new
+> deadlocks.  You understand workqueues much better than most of us: I'm
+> not sure what "max concurrency level of the destruction workqueue" is,
+> but it sounds uncomfortably like an ordered workqueue's max_active 1.
 
-My concern with this is that there may be people whose
-other-party-provided software uses drop_caches.  Their machines will
-now sit there emitting log messages and there's nothing they can do
-about it, apart from whining at their vendors.
+Ooh, max_active is always a finite number.  The only reason we usually
+don't worry about it is because they are large enough for the existing
+dependency chains to cause deadlocks.  The theoretical problem with
+cgroup is that the dependency chain can grow arbitrarily long and
+multiple removals along different subhierarchies can overlap which
+means that there can be multiple long dependency chains among work
+items.  The probability would be extremely low but deadlock might be
+possible even with relatively high max_active.
 
+Besides, the reason we reduced max_active in the first place was
+because destruction work items tend to just stack up without any
+actual concurrency benefits, so increasing concurrncy level seems a
+bit nasty to me (but probably a lot of those traffic jam was from
+cgroup_mutex and once we take that out of the picture, it could become
+fine).
 
-We could do something like this?
+> You don't return to this concern in the following mails of the thread:
+> did you later decide that it actually won't be a problem?  I'll assume
+> so for the moment, since you took the patch, but please reassure me.
 
---- a/fs/drop_caches.c~drop_caches-add-some-documentation-and-info-message-fix
-+++ a/fs/drop_caches.c
-@@ -60,13 +60,17 @@ int drop_caches_sysctl_handler(ctl_table
- 	if (ret)
- 		return ret;
- 	if (write) {
-+		static int stfu;
-+
- 		if (sysctl_drop_caches & 1)
- 			iterate_supers(drop_pagecache_sb, NULL);
- 		if (sysctl_drop_caches & 2)
- 			drop_slab();
--		printk_ratelimited(KERN_INFO "%s (%d): dropped kernel caches: %d\n",
--				   current->comm, task_pid_nr(current),
--				   sysctl_drop_caches);
-+		stfu |= sysctl_drop_caches & 4;
-+		if (!stfu)
-+			pr_info_ratelimited("%s (%d): dropped kernel caches: %d\n",
-+					   current->comm, task_pid_nr(current),
-+					   sysctl_drop_caches);
- 	}
- 	return 0;
- }
-_
+I was just worrying about a different solution where we take
+css_offline invocation outside of cgroup_mutex and bumping up
+max_active.  There's nothing to worry about your patch.  Sorry about
+not being clear.  :)
 
-(note switch to pr_info_ratelimited)
+> > One thing I don't get is why memcg has such reverse dependency at all.
+> > Why does the parent wait for its descendants to do something during
+> > offline?  Shouldn't it be able to just bail and let whatever
+> > descendant which is stil busy propagate things upwards?  That's a
+> > usual pattern we use to tree shutdowns anyway.  Would that be nasty to
+> > implement in memcg?
+> 
+> I've no idea how nasty it would be to change memcg around, but Michal
+> and Hannes appear very open to doing so.  I do think that memcg's current
+> expectation is very reasonable: it's perfectly normal that a rmdir cannot
+> succeed until the directory is empty, and to depend upon that fact; but
+> the use of workqueue made some things asynchronous which were not before,
+> which has led to some surprises.
+
+Maybe.  The thing is that ->css_offline() isn't really comparable to
+rmdir.  ->css_free() is and is fully ordered through refcnts as one
+would expect.  Whether ->css_offline() should be ordered similarly so
+that the parent's offline is called iff all its children finished
+offlining, I'm not sure.  Maybe it'd be something nice to have but I
+kinda wanna keep the offline hook and its usages simple and limited.
+It's not where the actual destruction should happen.  It's just a
+notification to get ready.
+
+Looks like Johannes's patch is headed towards that direction - moving
+destruction from ->css_offline to ->css_free(), so if that works out,
+I think we should be good for the time being.
+
+Thanks!
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
