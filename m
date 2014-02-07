@@ -1,102 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f170.google.com (mail-qc0-f170.google.com [209.85.216.170])
-	by kanga.kvack.org (Postfix) with ESMTP id F2D986B0031
-	for <linux-mm@kvack.org>; Fri,  7 Feb 2014 15:35:13 -0500 (EST)
-Received: by mail-qc0-f170.google.com with SMTP id e9so6999797qcy.1
-        for <linux-mm@kvack.org>; Fri, 07 Feb 2014 12:35:13 -0800 (PST)
-Received: from mail-qc0-x235.google.com (mail-qc0-x235.google.com [2607:f8b0:400d:c01::235])
-        by mx.google.com with ESMTPS id l7si4441254qgl.140.2014.02.07.12.35.12
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 298A86B0031
+	for <linux-mm@kvack.org>; Fri,  7 Feb 2014 15:41:43 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id fa1so3655807pad.14
+        for <linux-mm@kvack.org>; Fri, 07 Feb 2014 12:41:42 -0800 (PST)
+Received: from mail-pb0-x22e.google.com (mail-pb0-x22e.google.com [2607:f8b0:400e:c01::22e])
+        by mx.google.com with ESMTPS id ez5si6324658pab.77.2014.02.07.12.41.40
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 07 Feb 2014 12:35:12 -0800 (PST)
-Received: by mail-qc0-f181.google.com with SMTP id e9so6838059qcy.40
-        for <linux-mm@kvack.org>; Fri, 07 Feb 2014 12:35:12 -0800 (PST)
-Date: Fri, 7 Feb 2014 15:35:08 -0500
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH] cgroup: use an ordered workqueue for cgroup destruction
-Message-ID: <20140207203508.GC8833@htj.dyndns.org>
-References: <alpine.LSU.2.11.1402061541560.31342@eggly.anvils>
- <20140207140402.GA3304@htj.dyndns.org>
- <alpine.LSU.2.11.1402071130250.333@eggly.anvils>
+        Fri, 07 Feb 2014 12:41:41 -0800 (PST)
+Received: by mail-pb0-f46.google.com with SMTP id um1so3749044pbc.33
+        for <linux-mm@kvack.org>; Fri, 07 Feb 2014 12:41:40 -0800 (PST)
+Date: Fri, 7 Feb 2014 12:41:38 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [RFC PATCH V5] mm readahead: Fix readahead fail for no local
+ memory and limit readahead pages
+In-Reply-To: <52F4B8A4.70405@linux.vnet.ibm.com>
+Message-ID: <alpine.DEB.2.02.1402071239301.4212@chino.kir.corp.google.com>
+References: <1390388025-1418-1-git-send-email-raghavendra.kt@linux.vnet.ibm.com> <20140206145105.27dec37b16f24e4ac5fd90ce@linux-foundation.org> <alpine.DEB.2.02.1402061456290.31828@chino.kir.corp.google.com> <20140206152219.45c2039e5092c8ea1c31fd38@linux-foundation.org>
+ <alpine.DEB.2.02.1402061537180.3441@chino.kir.corp.google.com> <alpine.DEB.2.02.1402061557210.5061@chino.kir.corp.google.com> <52F4B8A4.70405@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1402071130250.333@eggly.anvils>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Filipe Brandenburger <filbranden@google.com>, Li Zefan <lizefan@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, Markus Blank-Burian <burian@muenster.de>, Shawn Bohrer <shawn.bohrer@gmail.com>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Fengguang Wu <fengguang.wu@intel.com>, David Cohen <david.a.cohen@linux.intel.com>, Al Viro <viro@zeniv.linux.org.uk>, Damien Ramonda <damien.ramonda@intel.com>, Jan Kara <jack@suse.cz>, Linus <torvalds@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hello, Hugh.
+On Fri, 7 Feb 2014, Raghavendra K T wrote:
 
-On Fri, Feb 07, 2014 at 12:20:44PM -0800, Hugh Dickins wrote:
-> > But even with offline being called outside cgroup_mutex, IIRC, the
-> > described problem would still be able to deadlock as long as the tree
-> > depth is deeper than max concurrency level of the destruction
-> > workqueue.  Sure, we can give it large enough number but it's
-> > generally nasty.
+> So following discussion TODO for my patch is:
 > 
-> You worry me there: I certainly don't want to be introducing new
-> deadlocks.  You understand workqueues much better than most of us: I'm
-> not sure what "max concurrency level of the destruction workqueue" is,
-> but it sounds uncomfortably like an ordered workqueue's max_active 1.
-
-Ooh, max_active is always a finite number.  The only reason we usually
-don't worry about it is because they are large enough for the existing
-dependency chains to cause deadlocks.  The theoretical problem with
-cgroup is that the dependency chain can grow arbitrarily long and
-multiple removals along different subhierarchies can overlap which
-means that there can be multiple long dependency chains among work
-items.  The probability would be extremely low but deadlock might be
-possible even with relatively high max_active.
-
-Besides, the reason we reduced max_active in the first place was
-because destruction work items tend to just stack up without any
-actual concurrency benefits, so increasing concurrncy level seems a
-bit nasty to me (but probably a lot of those traffic jam was from
-cgroup_mutex and once we take that out of the picture, it could become
-fine).
-
-> You don't return to this concern in the following mails of the thread:
-> did you later decide that it actually won't be a problem?  I'll assume
-> so for the moment, since you took the patch, but please reassure me.
-
-I was just worrying about a different solution where we take
-css_offline invocation outside of cgroup_mutex and bumping up
-max_active.  There's nothing to worry about your patch.  Sorry about
-not being clear.  :)
-
-> > One thing I don't get is why memcg has such reverse dependency at all.
-> > Why does the parent wait for its descendants to do something during
-> > offline?  Shouldn't it be able to just bail and let whatever
-> > descendant which is stil busy propagate things upwards?  That's a
-> > usual pattern we use to tree shutdowns anyway.  Would that be nasty to
-> > implement in memcg?
+> 1) Update the changelog with user visible impact of the patch.
+> (Andrew's suggestion)
+> 2) Add ACCESS_ONCE to numa_node_id().
+> 3) Change the "readahead into remote memory" part of the documentation
+> which is misleading.
 > 
-> I've no idea how nasty it would be to change memcg around, but Michal
-> and Hannes appear very open to doing so.  I do think that memcg's current
-> expectation is very reasonable: it's perfectly normal that a rmdir cannot
-> succeed until the directory is empty, and to depend upon that fact; but
-> the use of workqueue made some things asynchronous which were not before,
-> which has led to some surprises.
+> ( I feel no need to add numa_mem_id() since we would specifically limit
+> the readahead with MAX_REMOTE_READAHEAD in memoryless cpu cases).
+> 
 
-Maybe.  The thing is that ->css_offline() isn't really comparable to
-rmdir.  ->css_free() is and is fully ordered through refcnts as one
-would expect.  Whether ->css_offline() should be ordered similarly so
-that the parent's offline is called iff all its children finished
-offlining, I'm not sure.  Maybe it'd be something nice to have but I
-kinda wanna keep the offline hook and its usages simple and limited.
-It's not where the actual destruction should happen.  It's just a
-notification to get ready.
-
-Looks like Johannes's patch is headed towards that direction - moving
-destruction from ->css_offline to ->css_free(), so if that works out,
-I think we should be good for the time being.
-
-Thanks!
-
--- 
-tejun
+I don't understand what you're saying, numa_mem_id() is local memory to 
+current's cpu.  When a node consists only of cpus and not memory it is not 
+true that all memory is then considered remote, you won't find that in any 
+specification that defines memory affinity including the ACPI spec.  I can 
+trivially define all cpus on my system to be on memoryless nodes and 
+having that affect readahead behavior when, in fact, there is affinity 
+would be ridiculous.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
