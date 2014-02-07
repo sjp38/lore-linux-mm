@@ -1,46 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 35E1C6B0031
-	for <linux-mm@kvack.org>; Fri,  7 Feb 2014 16:06:49 -0500 (EST)
-Received: by mail-pa0-f53.google.com with SMTP id lj1so3660427pab.26
-        for <linux-mm@kvack.org>; Fri, 07 Feb 2014 13:06:48 -0800 (PST)
-Received: from mail-pa0-x22c.google.com (mail-pa0-x22c.google.com [2607:f8b0:400e:c03::22c])
-        by mx.google.com with ESMTPS id wm3si6394456pab.49.2014.02.07.13.06.47
+Received: from mail-qc0-f178.google.com (mail-qc0-f178.google.com [209.85.216.178])
+	by kanga.kvack.org (Postfix) with ESMTP id C31806B0036
+	for <linux-mm@kvack.org>; Fri,  7 Feb 2014 16:07:14 -0500 (EST)
+Received: by mail-qc0-f178.google.com with SMTP id m20so6852952qcx.37
+        for <linux-mm@kvack.org>; Fri, 07 Feb 2014 13:07:14 -0800 (PST)
+Received: from relay5-d.mail.gandi.net (relay5-d.mail.gandi.net. [2001:4b98:c:538::197])
+        by mx.google.com with ESMTPS id 8si4493467qak.162.2014.02.07.13.07.14
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 07 Feb 2014 13:06:48 -0800 (PST)
-Received: by mail-pa0-f44.google.com with SMTP id kq14so3699546pab.3
-        for <linux-mm@kvack.org>; Fri, 07 Feb 2014 13:06:47 -0800 (PST)
-Date: Fri, 7 Feb 2014 13:06:00 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH] cgroup: use an ordered workqueue for cgroup
- destruction
-In-Reply-To: <20140207203508.GC8833@htj.dyndns.org>
-Message-ID: <alpine.LSU.2.11.1402071300300.926@eggly.anvils>
-References: <alpine.LSU.2.11.1402061541560.31342@eggly.anvils> <20140207140402.GA3304@htj.dyndns.org> <alpine.LSU.2.11.1402071130250.333@eggly.anvils> <20140207203508.GC8833@htj.dyndns.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 07 Feb 2014 13:07:14 -0800 (PST)
+Date: Fri, 7 Feb 2014 13:07:05 -0800
+From: Josh Triplett <josh@joshtriplett.org>
+Subject: Re: [PATCH 9/9] mm: Remove ifdef condition in include/linux/mm.h
+Message-ID: <20140207210705.GB13604@jtriplet-mobl1>
+References: <a7658fc8f2ab015bffe83de1448cc3db79d2a9fc.1391167128.git.rashika.kheria@gmail.com>
+ <63adb3b97f2869d4c7e76d17ef4aa76b8cf599f3.1391167128.git.rashika.kheria@gmail.com>
+ <alpine.DEB.2.02.1402071304080.4212@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.02.1402071304080.4212@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Hugh Dickins <hughd@google.com>, Filipe Brandenburger <filbranden@google.com>, Li Zefan <lizefan@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, Markus Blank-Burian <burian@muenster.de>, Shawn Bohrer <shawn.bohrer@gmail.com>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: Rashika Kheria <rashika.kheria@gmail.com>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Jiang Liu <jiang.liu@huawei.com>, Michel Lespinasse <walken@google.com>, linux-mm@kvack.org
 
-On Fri, 7 Feb 2014, Tejun Heo wrote:
-> On Fri, Feb 07, 2014 at 12:20:44PM -0800, Hugh Dickins wrote:
+On Fri, Feb 07, 2014 at 01:04:47PM -0800, David Rientjes wrote:
+> On Fri, 7 Feb 2014, Rashika Kheria wrote:
 > 
-> > You don't return to this concern in the following mails of the thread:
-> > did you later decide that it actually won't be a problem?  I'll assume
-> > so for the moment, since you took the patch, but please reassure me.
+> > diff --git a/include/linux/mm.h b/include/linux/mm.h
+> > index 1cedd00..5f8348f 100644
+> > --- a/include/linux/mm.h
+> > +++ b/include/linux/mm.h
+> > @@ -1589,10 +1589,8 @@ static inline int __early_pfn_to_nid(unsigned long pfn)
+> >  #else
+> >  /* please see mm/page_alloc.c */
+> >  extern int __meminit early_pfn_to_nid(unsigned long pfn);
+> > -#ifdef CONFIG_HAVE_ARCH_EARLY_PFN_TO_NID
+> >  /* there is a per-arch backend function. */
+> >  extern int __meminit __early_pfn_to_nid(unsigned long pfn);
+> > -#endif /* CONFIG_HAVE_ARCH_EARLY_PFN_TO_NID */
+> >  #endif
+> >  
+> >  extern void set_dma_reserve(unsigned long new_dma_reserve);
 > 
-> I was just worrying about a different solution where we take
-> css_offline invocation outside of cgroup_mutex and bumping up
-> max_active.  There's nothing to worry about your patch.  Sorry about
-> not being clear.  :)
+> Wouldn't it be better to just declare the __early_pfn_to_nid() in 
+> mm/page_alloc.c to be static?
 
-Thanks a lot for your detailed and admirably responsive explanations.
-You were looking ahead, I see that now, and I'm gratefully reassured :)
+Won't that break the ability to override that function in
+architecture-specific code (as arch/ia64/mm/numa.c does)?
 
-Hugh
+- Josh Triplett
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
