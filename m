@@ -1,84 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f181.google.com (mail-we0-f181.google.com [74.125.82.181])
-	by kanga.kvack.org (Postfix) with ESMTP id A280D6B0031
-	for <linux-mm@kvack.org>; Fri,  7 Feb 2014 10:45:36 -0500 (EST)
-Received: by mail-we0-f181.google.com with SMTP id w61so2348311wes.26
-        for <linux-mm@kvack.org>; Fri, 07 Feb 2014 07:45:36 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id lp8si1652691wic.73.2014.02.07.07.45.34
-        for <linux-mm@kvack.org>;
-        Fri, 07 Feb 2014 07:45:35 -0800 (PST)
-Date: Fri, 7 Feb 2014 13:45:24 -0200
-From: Rafael Aquini <aquini@redhat.com>
+Received: from mail-wg0-f54.google.com (mail-wg0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 51E776B0031
+	for <linux-mm@kvack.org>; Fri,  7 Feb 2014 11:21:36 -0500 (EST)
+Received: by mail-wg0-f54.google.com with SMTP id x13so2383103wgg.33
+        for <linux-mm@kvack.org>; Fri, 07 Feb 2014 08:21:35 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id n5si2546563wjw.76.2014.02.07.08.21.34
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 07 Feb 2014 08:21:34 -0800 (PST)
+Date: Fri, 7 Feb 2014 16:21:31 +0000
+From: Mel Gorman <mgorman@suse.de>
 Subject: Re: [PATCH] mm: fix page leak at nfs_symlink()
-Message-ID: <20140207154523.GB30718@localhost.localdomain>
+Message-ID: <20140207162131.GY6732@suse.de>
 References: <f4b3dc07dfa55bf7931de36b03aa9ef7e3ff0490.1391785222.git.aquini@redhat.com>
- <20140207103924.25ec5baa@tlielax.poochiereds.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20140207103924.25ec5baa@tlielax.poochiereds.net>
+In-Reply-To: <f4b3dc07dfa55bf7931de36b03aa9ef7e3ff0490.1391785222.git.aquini@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jeff Layton <jlayton@redhat.com>
-Cc: linux-kernel@vger.kernel.org, trond.myklebust@primarydata.com, jstancek@redhat.com, mgorman@suse.de, riel@redhat.com, linux-nfs@vger.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org
+To: Rafael Aquini <aquini@redhat.com>
+Cc: linux-kernel@vger.kernel.org, trond.myklebust@primarydata.com, jstancek@redhat.com, jlayton@redhat.com, riel@redhat.com, linux-nfs@vger.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org
 
-On Fri, Feb 07, 2014 at 10:39:24AM -0500, Jeff Layton wrote:
-> On Fri,  7 Feb 2014 13:19:54 -0200
-> Rafael Aquini <aquini@redhat.com> wrote:
+On Fri, Feb 07, 2014 at 01:19:54PM -0200, Rafael Aquini wrote:
+> Changes committed by "a0b8cab3 mm: remove lru parameter from
+> __pagevec_lru_add and remove parts of pagevec API" have introduced
+> a call to add_to_page_cache_lru() which causes a leak in nfs_symlink() 
+> as now the page gets an extra refcount that is not dropped.
 > 
-> > Changes committed by "a0b8cab3 mm: remove lru parameter from
-> > __pagevec_lru_add and remove parts of pagevec API" have introduced
-> > a call to add_to_page_cache_lru() which causes a leak in nfs_symlink() 
-> > as now the page gets an extra refcount that is not dropped.
-> > 
-> > Jan Stancek observed and reported the leak effect while running test8 from
-> > Connectathon Testsuite. After several iterations over the test case,
-> > which creates several symlinks on a NFS mountpoint, the test system was
-> > quickly getting into an out-of-memory scenario.
-> > 
-> > This patch fixes the page leak by dropping that extra refcount 
-> > add_to_page_cache_lru() is grabbing. 
-> > 
-> > Signed-off-by: Jan Stancek <jstancek@redhat.com>
-> > Signed-off-by: Rafael Aquini <aquini@redhat.com>
-> > ---
-> >  fs/nfs/dir.c | 5 +++++
-> >  1 file changed, 5 insertions(+)
-> > 
-> > diff --git a/fs/nfs/dir.c b/fs/nfs/dir.c
-> > index be38b57..4a48fe4 100644
-> > --- a/fs/nfs/dir.c
-> > +++ b/fs/nfs/dir.c
-> > @@ -1846,6 +1846,11 @@ int nfs_symlink(struct inode *dir, struct dentry *dentry, const char *symname)
-> >  							GFP_KERNEL)) {
-> >  		SetPageUptodate(page);
-> >  		unlock_page(page);
-> > +		/*
-> > +		 * add_to_page_cache_lru() grabs an extra page refcount.
-> > +		 * Drop it here to avoid leaking this page later.
-> > +		 */
-> > +		page_cache_release(page);
-> >  	} else
-> >  		__free_page(page);
-> >  
+> Jan Stancek observed and reported the leak effect while running test8 from
+> Connectathon Testsuite. After several iterations over the test case,
+> which creates several symlinks on a NFS mountpoint, the test system was
+> quickly getting into an out-of-memory scenario.
 > 
-> Looks reasonable as an interim fix and should almost certainly go to
-> stable.
+> This patch fixes the page leak by dropping that extra refcount 
+> add_to_page_cache_lru() is grabbing. 
 > 
-> Longer term, I think it would be best from an API standpoint to fix
-> add_to_page_cache_lru not to take this extra reference (or to have it
-> drop it itself) and fix up the callers accordingly. That seems like a
-> trap for the unwary...
->
+> Signed-off-by: Jan Stancek <jstancek@redhat.com>
+> Signed-off-by: Rafael Aquini <aquini@redhat.com>
 
-100% agreed. I'll look into the long term approach you suggested, but as
-you mentioned, the interim fix is the reasonable thing to go with now, for
-mainline and stable.
+Thanks.
 
-Thanks for looking into it Jeff.
+Acked-by: Mel Gorman <mgorman@suse.de>
 
--- Rafael 
+It should be cc'd for stable for 3.11 and later kernels.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
