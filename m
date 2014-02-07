@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f54.google.com (mail-ee0-f54.google.com [74.125.83.54])
-	by kanga.kvack.org (Postfix) with ESMTP id CB9866B003B
-	for <linux-mm@kvack.org>; Fri,  7 Feb 2014 12:04:41 -0500 (EST)
-Received: by mail-ee0-f54.google.com with SMTP id e53so1671169eek.27
-        for <linux-mm@kvack.org>; Fri, 07 Feb 2014 09:04:41 -0800 (PST)
+Received: from mail-ea0-f177.google.com (mail-ea0-f177.google.com [209.85.215.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 817B46B003C
+	for <linux-mm@kvack.org>; Fri,  7 Feb 2014 12:04:43 -0500 (EST)
+Received: by mail-ea0-f177.google.com with SMTP id n15so1708485ead.8
+        for <linux-mm@kvack.org>; Fri, 07 Feb 2014 09:04:43 -0800 (PST)
 Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id v48si9329237eeo.209.2014.02.07.09.04.40
+        by mx.google.com with ESMTPS id w2si9377551eeg.133.2014.02.07.09.04.42
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 07 Feb 2014 09:04:40 -0800 (PST)
+        Fri, 07 Feb 2014 09:04:42 -0800 (PST)
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 6/8] memcg: get_mem_cgroup_from_mm()
-Date: Fri,  7 Feb 2014 12:04:23 -0500
-Message-Id: <1391792665-21678-7-git-send-email-hannes@cmpxchg.org>
+Subject: [patch 7/8] memcg: do not replicate get_mem_cgroup_from_mm in __mem_cgroup_try_charge
+Date: Fri,  7 Feb 2014 12:04:24 -0500
+Message-Id: <1391792665-21678-8-git-send-email-hannes@cmpxchg.org>
 In-Reply-To: <1391792665-21678-1-git-send-email-hannes@cmpxchg.org>
 References: <1391792665-21678-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
@@ -20,73 +20,95 @@ List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@suse.cz>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Instead of returning NULL from try_get_mem_cgroup_from_mm() when the
-mm owner is exiting, just return root_mem_cgroup.  This makes sense
-for all callsites and gets rid of some of them having to fallback
-manually.
+From: Michal Hocko <mhocko@suse.cz>
 
+__mem_cgroup_try_charge duplicates get_mem_cgroup_from_mm for charges
+which came without a memcg. The only reason seems to be a tiny
+optimization when css_tryget is not called if the charge can be
+consumed from the stock. Nevertheless css_tryget is very cheap since
+it has been reworked to use per-cpu counting so this optimization
+doesn't give us anything these days.
+
+So let's drop the code duplication so that the code is more readable.
+
+Signed-off-by: Michal Hocko <mhocko@suse.cz>
 Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 ---
- mm/memcontrol.c | 18 ++++--------------
- 1 file changed, 4 insertions(+), 14 deletions(-)
+ mm/memcontrol.c | 50 ++++++--------------------------------------------
+ 1 file changed, 6 insertions(+), 44 deletions(-)
 
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 689fffdee471..37946635655c 100644
+index 37946635655c..9eabe4473649 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -1071,7 +1071,7 @@ struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p)
- 	return mem_cgroup_from_css(task_css(p, mem_cgroup_subsys_id));
- }
- 
--struct mem_cgroup *try_get_mem_cgroup_from_mm(struct mm_struct *mm)
-+struct mem_cgroup *get_mem_cgroup_from_mm(struct mm_struct *mm)
- {
- 	struct mem_cgroup *memcg = NULL;
- 
-@@ -1079,7 +1079,7 @@ struct mem_cgroup *try_get_mem_cgroup_from_mm(struct mm_struct *mm)
- 	do {
- 		memcg = mem_cgroup_from_task(rcu_dereference(mm->owner));
- 		if (unlikely(!memcg))
--			break;
-+			memcg = root_mem_cgroup;
- 	} while (!css_tryget(&memcg->css));
- 	rcu_read_unlock();
- 	return memcg;
-@@ -1475,7 +1475,7 @@ bool task_in_mem_cgroup(struct task_struct *task,
- 
- 	p = find_lock_task_mm(task);
- 	if (p) {
--		curr = try_get_mem_cgroup_from_mm(p->mm);
-+		curr = get_mem_cgroup_from_mm(p->mm);
- 		task_unlock(p);
+@@ -2731,52 +2731,14 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
+ again:
+ 	if (*ptr) { /* css should be a valid one */
+ 		memcg = *ptr;
+-		if (mem_cgroup_is_root(memcg))
+-			goto done;
+-		if (consume_stock(memcg, nr_pages))
+-			goto done;
+ 		css_get(&memcg->css);
  	} else {
- 		/*
-@@ -1489,8 +1489,6 @@ bool task_in_mem_cgroup(struct task_struct *task,
- 			css_get(&curr->css);
- 		rcu_read_unlock();
- 	}
--	if (!curr)
--		return false;
- 	/*
- 	 * We should check use_hierarchy of "memcg" not "curr". Because checking
- 	 * use_hierarchy of "curr" here make this function true if hierarchy is
-@@ -3649,15 +3647,7 @@ __memcg_kmem_newpage_charge(gfp_t gfp, struct mem_cgroup **_memcg, int order)
- 	if (!current->mm || current->memcg_kmem_skip_account)
- 		return true;
- 
--	memcg = try_get_mem_cgroup_from_mm(current->mm);
+-		struct task_struct *p;
 -
--	/*
--	 * very rare case described in mem_cgroup_from_task. Unfortunately there
--	 * isn't much we can do without complicating this too much, and it would
--	 * be gfp-dependent anyway. Just let it go
--	 */
--	if (unlikely(!memcg))
--		return true;
-+	memcg = get_mem_cgroup_from_mm(current->mm);
+-		rcu_read_lock();
+-		p = rcu_dereference(mm->owner);
+-		/*
+-		 * Because we don't have task_lock(), "p" can exit.
+-		 * In that case, "memcg" can point to root or p can be NULL with
+-		 * race with swapoff. Then, we have small risk of mis-accouning.
+-		 * But such kind of mis-account by race always happens because
+-		 * we don't have cgroup_mutex(). It's overkill and we allo that
+-		 * small race, here.
+-		 * (*) swapoff at el will charge against mm-struct not against
+-		 * task-struct. So, mm->owner can be NULL.
+-		 */
+-		memcg = mem_cgroup_from_task(p);
+-		if (!memcg)
+-			memcg = root_mem_cgroup;
+-		if (mem_cgroup_is_root(memcg)) {
+-			rcu_read_unlock();
+-			goto done;
+-		}
+-		if (consume_stock(memcg, nr_pages)) {
+-			/*
+-			 * It seems dagerous to access memcg without css_get().
+-			 * But considering how consume_stok works, it's not
+-			 * necessary. If consume_stock success, some charges
+-			 * from this memcg are cached on this cpu. So, we
+-			 * don't need to call css_get()/css_tryget() before
+-			 * calling consume_stock().
+-			 */
+-			rcu_read_unlock();
+-			goto done;
+-		}
+-		/* after here, we may be blocked. we need to get refcnt */
+-		if (!css_tryget(&memcg->css)) {
+-			rcu_read_unlock();
+-			goto again;
+-		}
+-		rcu_read_unlock();
++		memcg = get_mem_cgroup_from_mm(mm);
+ 	}
++	if (mem_cgroup_is_root(memcg))
++		goto done;
++	if (consume_stock(memcg, nr_pages))
++		goto done;
  
- 	if (!memcg_can_account_kmem(memcg)) {
- 		css_put(&memcg->css);
+ 	do {
+ 		bool invoke_oom = oom && !nr_oom_retries;
+@@ -2812,8 +2774,8 @@ again:
+ 
+ 	if (batch > nr_pages)
+ 		refill_stock(memcg, batch - nr_pages);
+-	css_put(&memcg->css);
+ done:
++	css_put(&memcg->css);
+ 	*ptr = memcg;
+ 	return 0;
+ nomem:
 -- 
 1.8.5.3
 
