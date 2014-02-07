@@ -1,79 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f178.google.com (mail-ob0-f178.google.com [209.85.214.178])
-	by kanga.kvack.org (Postfix) with ESMTP id D28796B0031
-	for <linux-mm@kvack.org>; Fri,  7 Feb 2014 05:36:37 -0500 (EST)
-Received: by mail-ob0-f178.google.com with SMTP id wn1so3748806obc.37
-        for <linux-mm@kvack.org>; Fri, 07 Feb 2014 02:36:37 -0800 (PST)
-Received: from e28smtp03.in.ibm.com (e28smtp03.in.ibm.com. [122.248.162.3])
-        by mx.google.com with ESMTPS id iz10si2250500obb.130.2014.02.07.02.36.34
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id B776A6B0031
+	for <linux-mm@kvack.org>; Fri,  7 Feb 2014 07:01:59 -0500 (EST)
+Received: by mail-pa0-f44.google.com with SMTP id kq14so3104146pab.3
+        for <linux-mm@kvack.org>; Fri, 07 Feb 2014 04:01:59 -0800 (PST)
+Received: from mail-pd0-x236.google.com (mail-pd0-x236.google.com [2607:f8b0:400e:c02::236])
+        by mx.google.com with ESMTPS id va10si4825782pbc.128.2014.02.07.04.01.57
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 07 Feb 2014 02:36:36 -0800 (PST)
-Received: from /spool/local
-	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <raghavendra.kt@linux.vnet.ibm.com>;
-	Fri, 7 Feb 2014 16:06:30 +0530
-Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
-	by d28dlp02.in.ibm.com (Postfix) with ESMTP id D6090394005C
-	for <linux-mm@kvack.org>; Fri,  7 Feb 2014 16:06:25 +0530 (IST)
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s17AaE6V35062004
-	for <linux-mm@kvack.org>; Fri, 7 Feb 2014 16:06:14 +0530
-Received: from d28av04.in.ibm.com (localhost [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s17AaMLW008664
-	for <linux-mm@kvack.org>; Fri, 7 Feb 2014 16:06:23 +0530
-Message-ID: <52F4B8A4.70405@linux.vnet.ibm.com>
-Date: Fri, 07 Feb 2014 16:12:44 +0530
-From: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 07 Feb 2014 04:01:58 -0800 (PST)
+Received: by mail-pd0-f182.google.com with SMTP id v10so3089915pde.27
+        for <linux-mm@kvack.org>; Fri, 07 Feb 2014 04:01:57 -0800 (PST)
+Date: Fri, 7 Feb 2014 17:31:52 +0530
+From: Rashika Kheria <rashika.kheria@gmail.com>
+Subject: [PATCH 1/9] mm: Mark function as static in compaction.c
+Message-ID: <a7658fc8f2ab015bffe83de1448cc3db79d2a9fc.1391167128.git.rashika.kheria@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH V5] mm readahead: Fix readahead fail for no local
- memory and limit readahead pages
-References: <1390388025-1418-1-git-send-email-raghavendra.kt@linux.vnet.ibm.com> <20140206145105.27dec37b16f24e4ac5fd90ce@linux-foundation.org> <alpine.DEB.2.02.1402061456290.31828@chino.kir.corp.google.com> <20140206152219.45c2039e5092c8ea1c31fd38@linux-foundation.org> <alpine.DEB.2.02.1402061537180.3441@chino.kir.corp.google.com> <alpine.DEB.2.02.1402061557210.5061@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.02.1402061557210.5061@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Fengguang Wu <fengguang.wu@intel.com>, David Cohen <david.a.cohen@linux.intel.com>, Al Viro <viro@zeniv.linux.org.uk>, Damien Ramonda <damien.ramonda@intel.com>, Jan Kara <jack@suse.cz>, Linus <torvalds@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-kernel@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, josh@joshtriplett.org
 
-On 02/07/2014 05:28 AM, David Rientjes wrote:
-> On Thu, 6 Feb 2014, David Rientjes wrote:
->
->>>>>> +#define MAX_REMOTE_READAHEAD   4096UL
->
->> Normally it wouldn't matter because there's no significant downside to it
->> racing, things like mempolicies which use numa_node_id() extensively would
->> result in, oops, a page allocation on the wrong node.
->>
->> This stands out to me, though, because you're expecting the calculation to
->> be correct for a specific node.
->>
->> The patch is still wrong, though, it should just do
->>
->> 	int node = ACCESS_ONCE(numa_mem_id());
->> 	return min(nr, (node_page_state(node, NR_INACTIVE_FILE) +
->> 		        node_page_state(node, NR_FREE_PAGES)) / 2);
->>
->> since we want to readahead based on the cpu's local node, the comment
->> saying we're reading ahead onto "remote memory" is wrong since a
->> memoryless node has local affinity to numa_mem_id().
->>
->
-> Oops, forgot about the MAX_REMOTE_READAHEAD which needs to be factored in
-> as well, but this handles the bound on local node's statistics.
->
+Mark function as static in compaction.c because it is not used outside
+this file.
 
-So following discussion TODO for my patch is:
+This eliminates the following warning from mm/compaction.c:
+mm/compaction.c:1190:9: warning: no previous prototype for a??sysfs_compact_nodea?? [-Wmissing-prototypes
 
-1) Update the changelog with user visible impact of the patch.
-(Andrew's suggestion)
-2) Add ACCESS_ONCE to numa_node_id().
-3) Change the "readahead into remote memory" part of the documentation
-which is misleading.
+Signed-off-by: Rashika Kheria <rashika.kheria@gmail.com>
+Reviewed-by: Josh Triplett <josh@joshtriplett.org>
+---
+ mm/compaction.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-( I feel no need to add numa_mem_id() since we would specifically limit
-the readahead with MAX_REMOTE_READAHEAD in memoryless cpu cases).
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 805165b..a21f540 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -1187,7 +1187,7 @@ int sysctl_extfrag_handler(struct ctl_table *table, int write,
+ }
+ 
+ #if defined(CONFIG_SYSFS) && defined(CONFIG_NUMA)
+-ssize_t sysfs_compact_node(struct device *dev,
++static ssize_t sysfs_compact_node(struct device *dev,
+ 			struct device_attribute *attr,
+ 			const char *buf, size_t count)
+ {
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
