@@ -1,120 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f179.google.com (mail-qc0-f179.google.com [209.85.216.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 47F5F6B0031
-	for <linux-mm@kvack.org>; Fri,  7 Feb 2014 13:51:12 -0500 (EST)
-Received: by mail-qc0-f179.google.com with SMTP id e16so6579473qcx.24
-        for <linux-mm@kvack.org>; Fri, 07 Feb 2014 10:51:11 -0800 (PST)
-Received: from qmta04.emeryville.ca.mail.comcast.net (qmta04.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:40])
-        by mx.google.com with ESMTP id t101si4178230qge.151.2014.02.07.10.51.10
-        for <linux-mm@kvack.org>;
-        Fri, 07 Feb 2014 10:51:10 -0800 (PST)
-Date: Fri, 7 Feb 2014 12:51:07 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [RFC PATCH 2/3] topology: support node_numa_mem() for determining
- the fallback node
-In-Reply-To: <alpine.DEB.2.10.1402071150090.15168@nuc>
-Message-ID: <alpine.DEB.2.10.1402071245040.20246@nuc>
-References: <20140206020757.GC5433@linux.vnet.ibm.com> <1391674026-20092-1-git-send-email-iamjoonsoo.kim@lge.com> <1391674026-20092-2-git-send-email-iamjoonsoo.kim@lge.com> <alpine.DEB.2.02.1402060041040.21148@chino.kir.corp.google.com>
- <CAAmzW4PXkdpNi5pZ=4BzdXNvqTEAhcuw-x0pWidqrxzdePxXxA@mail.gmail.com> <alpine.DEB.2.02.1402061248450.9567@chino.kir.corp.google.com> <20140207054819.GC28952@lge.com> <alpine.DEB.2.10.1402071150090.15168@nuc>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-ee0-f51.google.com (mail-ee0-f51.google.com [74.125.83.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 002576B0031
+	for <linux-mm@kvack.org>; Fri,  7 Feb 2014 13:58:18 -0500 (EST)
+Received: by mail-ee0-f51.google.com with SMTP id b57so1722694eek.24
+        for <linux-mm@kvack.org>; Fri, 07 Feb 2014 10:58:18 -0800 (PST)
+Received: from order.stressinduktion.org (order.stressinduktion.org. [87.106.68.36])
+        by mx.google.com with ESMTPS id w2si9952242eeg.70.2014.02.07.10.58.17
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 07 Feb 2014 10:58:17 -0800 (PST)
+Date: Fri, 7 Feb 2014 19:58:16 +0100
+From: Hannes Frederic Sowa <hannes@stressinduktion.org>
+Subject: Re: [BUG] at include/linux/page-flags.h:415 (PageTransHuge)
+Message-ID: <20140207185816.GA7764@order.stressinduktion.org>
+References: <52D03A9E.2030309@iogearbox.net> <20140110222248.4e8419ca.akpm@linux-foundation.org> <52D147F1.3040803@iogearbox.net> <52D3BCE9.4020405@suse.cz> <52D3D060.1010301@iogearbox.net> <52D69AB4.6000309@suse.cz> <52D6B213.4020602@iogearbox.net> <52EBB5E6.8010007@suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <52EBB5E6.8010007@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: David Rientjes <rientjes@google.com>, Nishanth Aravamudan <nacc@linux.vnet.ibm.com>, Han Pingtian <hanpt@linux.vnet.ibm.com>, Pekka Enberg <penberg@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Paul Mackerras <paulus@samba.org>, Anton Blanchard <anton@samba.org>, Matt Mackall <mpm@selenic.com>, linuxppc-dev@lists.ozlabs.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Daniel Borkmann <borkmann@iogearbox.net>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, Michel Lespinasse <walken@google.com>, linux-mm <linux-mm@kvack.org>, Jared Hulbert <jaredeh@gmail.com>, netdev <netdev@vger.kernel.org>, Thomas Hellstrom <thellstrom@vmware.com>, John David Anglin <dave.anglin@bell.net>, HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>, Konstantin Khlebnikov <khlebnikov@openvz.org>, Carsten Otte <cotte@de.ibm.com>, Peter Zijlstra <peterz@infradead.org>
 
-Here is a draft of a patch to make this work with memoryless nodes.
+Hi!
 
-The first thing is that we modify node_match to also match if we hit an
-empty node. In that case we simply take the current slab if its there.
+On Fri, Jan 31, 2014 at 03:40:38PM +0100, Vlastimil Babka wrote:
+> From: Vlastimil Babka <vbabka@suse.cz>
+> Date: Fri, 31 Jan 2014 11:50:21 +0100
+> Subject: [PATCH] mm: include VM_MIXEDMAP flag in the VM_SPECIAL list to avoid
+>  m(un)locking
+> 
+> Daniel Borkmann reported a bug with VM_BUG_ON assertions failing where
+> munlock_vma_pages_range() thinks it's unexpectedly in the middle of a THP page.
+> This can be reproduced in tools/testing/selftests/net/ by running make and
+> then ./psock_tpacket.
+> 
+> The problem is that an order=2 compound page (allocated by
+> alloc_one_pg_vec_page() is part of the munlocked VM_MIXEDMAP vma (mapped by
+> packet_mmap()) and mistaken for a THP page and assumed to be order=9.
+> 
+> The checks for THP in munlock came with commit ff6a6da60b89 ("mm: accelerate
+> munlock() treatment of THP pages"), i.e. since 3.9, but did not trigger a bug.
+> It just makes munlock_vma_pages_range() skip such compound pages until the next
+> 512-pages-aligned page, when it encounters a head page. This is however not a
+> problem for vma's where mlocking has no effect anyway, but it can distort the
+> accounting.
+> Since commit 7225522bb ("mm: munlock: batch non-THP page isolation and
+> munlock+putback using pagevec") this can trigger a VM_BUG_ON in PageTransHuge()
+> check.
+> 
+> This patch fixes the issue by adding VM_MIXEDMAP flag to VM_SPECIAL - a list of
+> flags that make vma's non-mlockable and non-mergeable. The reasoning is that
+> VM_MIXEDMAP vma's are similar to VM_PFNMAP, which is already on the VM_SPECIAL
+> list, and both are intended for non-LRU pages where mlocking makes no sense
+> anyway.
 
-If there is no current slab then a regular allocation occurs with the
-memoryless node. The page allocator will fallback to a possible node and
-that will become the current slab. Next alloc from a memoryless node
-will then use that slab.
+I also ran into this problem and wanted to ask what the status of this
+patch is? Does it need further testing? I can surely help with that. ;)
 
-For that we also add some tracking of allocations on nodes that were not
-satisfied using the empty_node[] array. A successful alloc on a node
-clears that flag.
+Thanks,
 
-I would rather avoid the empty_node[] array since its global and there may
-be thread specific allocation restrictions but it would be expensive to do
-an allocation attempt via the page allocator to make sure that there is
-really no page available from the page allocator.
-
-Index: linux/mm/slub.c
-===================================================================
---- linux.orig/mm/slub.c	2014-02-03 13:19:22.896853227 -0600
-+++ linux/mm/slub.c	2014-02-07 12:44:49.311494806 -0600
-@@ -132,6 +132,8 @@ static inline bool kmem_cache_has_cpu_pa
- #endif
- }
-
-+static int empty_node[MAX_NUMNODES];
-+
- /*
-  * Issues still to be resolved:
-  *
-@@ -1405,16 +1407,22 @@ static struct page *new_slab(struct kmem
- 	void *last;
- 	void *p;
- 	int order;
-+	int alloc_node;
-
- 	BUG_ON(flags & GFP_SLAB_BUG_MASK);
-
- 	page = allocate_slab(s,
- 		flags & (GFP_RECLAIM_MASK | GFP_CONSTRAINT_MASK), node);
--	if (!page)
-+	if (!page) {
-+		if (node != NUMA_NO_NODE)
-+			empty_node[node] = 1;
- 		goto out;
-+	}
-
- 	order = compound_order(page);
--	inc_slabs_node(s, page_to_nid(page), page->objects);
-+	alloc_node = page_to_nid(page);
-+	empty_node[alloc_node] = 0;
-+	inc_slabs_node(s, alloc_node, page->objects);
- 	memcg_bind_pages(s, order);
- 	page->slab_cache = s;
- 	__SetPageSlab(page);
-@@ -1712,7 +1720,7 @@ static void *get_partial(struct kmem_cac
- 		struct kmem_cache_cpu *c)
- {
- 	void *object;
--	int searchnode = (node == NUMA_NO_NODE) ? numa_node_id() : node;
-+	int searchnode = (node == NUMA_NO_NODE) ? numa_mem_id() : node;
-
- 	object = get_partial_node(s, get_node(s, searchnode), c, flags);
- 	if (object || node != NUMA_NO_NODE)
-@@ -2107,8 +2115,25 @@ static void flush_all(struct kmem_cache
- static inline int node_match(struct page *page, int node)
- {
- #ifdef CONFIG_NUMA
--	if (!page || (node != NUMA_NO_NODE && page_to_nid(page) != node))
-+	int page_node;
-+
-+	/* No data means no match */
-+	if (!page)
- 		return 0;
-+
-+	/* Node does not matter. Therefore anything is a match */
-+	if (node == NUMA_NO_NODE)
-+		return 1;
-+
-+	/* Did we hit the requested node ? */
-+	page_node = page_to_nid(page);
-+	if (page_node == node)
-+		return 1;
-+
-+	/* If the node has available data then we can use it. Mismatch */
-+	return !empty_node[page_node];
-+
-+	/* Target node empty so just take anything */
- #endif
- 	return 1;
- }
+  Hannes
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
