@@ -1,173 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f174.google.com (mail-we0-f174.google.com [74.125.82.174])
-	by kanga.kvack.org (Postfix) with ESMTP id A88EB6B0037
-	for <linux-mm@kvack.org>; Sat,  8 Feb 2014 06:56:11 -0500 (EST)
-Received: by mail-we0-f174.google.com with SMTP id x55so3060187wes.33
-        for <linux-mm@kvack.org>; Sat, 08 Feb 2014 03:56:11 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id wv8si3826891wjb.32.2014.02.08.03.56.09
-        for <linux-mm@kvack.org>;
-        Sat, 08 Feb 2014 03:56:10 -0800 (PST)
-Date: Sat, 8 Feb 2014 09:55:57 -0200
-From: Rafael Aquini <aquini@redhat.com>
-Subject: Re: [patch] drop_caches: add some documentation and info message
-Message-ID: <20140208115556.GB25841@localhost.localdomain>
-References: <1391794851-11412-1-git-send-email-hannes@cmpxchg.org>
- <52F51E19.9000406@redhat.com>
- <20140207181332.GG6963@cmpxchg.org>
+Received: from mail-vb0-f47.google.com (mail-vb0-f47.google.com [209.85.212.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 07BE26B0037
+	for <linux-mm@kvack.org>; Sat,  8 Feb 2014 12:56:11 -0500 (EST)
+Received: by mail-vb0-f47.google.com with SMTP id p6so3558949vbe.6
+        for <linux-mm@kvack.org>; Sat, 08 Feb 2014 09:56:11 -0800 (PST)
+Received: from mail-ve0-f171.google.com (mail-ve0-f171.google.com [209.85.128.171])
+        by mx.google.com with ESMTPS id at8si2727874vec.37.2014.02.08.09.56.09
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Sat, 08 Feb 2014 09:56:09 -0800 (PST)
+Received: by mail-ve0-f171.google.com with SMTP id pa12so3752419veb.2
+        for <linux-mm@kvack.org>; Sat, 08 Feb 2014 09:56:09 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140207181332.GG6963@cmpxchg.org>
+In-Reply-To: <52F66641.4040405@gentoo.org>
+References: <CALCETrWu6wvb4M7UwOdqxNUfSmKV2eZ96qMufAQPF7cJD1oz2w@mail.gmail.com>
+ <20140207195555.GA18916@nautica> <CALCETrWZvz85hxPGYhgHoF4yp06QkP4SxWQBSxFqmTyCqhE3LA@mail.gmail.com>
+ <52F66641.4040405@gentoo.org>
+From: Andy Lutomirski <luto@amacapital.net>
+Date: Sat, 8 Feb 2014 09:55:48 -0800
+Message-ID: <CALCETrVrnX6gWNBOdVTbLZKYWXRWiOYFNgLb0+Sk-bqXsbPc7Q@mail.gmail.com>
+Subject: Re: [V9fs-developer] finit_module broken on 9p because kernel_read
+ doesn't work?
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave@sr71.net>, Michal Hocko <mhocko@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Richard Yao <ryao@gentoo.org>
+Cc: Dominique Martinet <dominique.martinet@cea.fr>, Will Deacon <will.deacon@arm.com>, V9FS Developers <v9fs-developer@lists.sourceforge.net>, Eric Van Hensbergen <ericvh@gmail.com>, Ron Minnich <rminnich@sandia.gov>, Latchesar Ionkov <lucho@ionkov.net>, Rusty Russell <rusty@rustcorp.com.au>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Fri, Feb 07, 2014 at 01:13:32PM -0500, Johannes Weiner wrote:
-> On Fri, Feb 07, 2014 at 12:55:37PM -0500, Rik van Riel wrote:
-> > On 02/07/2014 12:40 PM, Johannes Weiner wrote:
-> > 
-> > >@@ -59,6 +60,9 @@ int drop_caches_sysctl_handler(ctl_table *table, int write,
-> > >  	if (ret)
-> > >  		return ret;
-> > >  	if (write) {
-> > >+		printk_ratelimited(KERN_INFO "%s (%d): dropped kernel caches: %d\n",
-> > >+				   current->comm, task_pid_nr(current),
-> > >+				   sysctl_drop_caches);
-> > >  		if (sysctl_drop_caches & 1)
-> > >  			iterate_supers(drop_pagecache_sb, NULL);
-> > >  		if (sysctl_drop_caches & 2)
-> > >
-> > 
-> > Would it be better to print this after the operation
-> > has completed?
-> 
-> It would make more sense grammatically :-) Either way is fine with me,
-> updated below to inform after the fact.
-> 
-> ---
-> From: Dave Hansen <dave@linux.vnet.ibm.com>
-> Date: Fri, 12 Oct 2012 14:30:54 +0200
-> Subject: [patch] drop_caches: add some documentation and info message
-> 
-> There is plenty of anecdotal evidence and a load of blog posts
-> suggesting that using "drop_caches" periodically keeps your system
-> running in "tip top shape".  Perhaps adding some kernel documentation
-> will increase the amount of accurate data on its use.
-> 
-> If we are not shrinking caches effectively, then we have real bugs.
-> Using drop_caches will simply mask the bugs and make them harder to
-> find, but certainly does not fix them, nor is it an appropriate
-> "workaround" to limit the size of the caches.  On the contrary, there
-> have been bug reports on issues that turned out to be misguided use of
-> cache dropping.
-> 
-> Dropping caches is a very drastic and disruptive operation that is
-> good for debugging and running tests, but if it creates bug reports
-> from production use, kernel developers should be aware of its use.
-> 
-> Add a bit more documentation about it, and add a little KERN_NOTICE.
-> 
-> [akpm@linux-foundation.org: checkpatch fixes]
-> Signed-off-by: Dave Hansen <dave@linux.vnet.ibm.com>
-> Signed-off-by: Michal Hocko <mhocko@suse.cz>
-> Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> ---
->  Documentation/sysctl/vm.txt | 33 +++++++++++++++++++++++++++------
->  fs/drop_caches.c            |  4 ++++
->  2 files changed, 31 insertions(+), 6 deletions(-)
-> 
-> diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
-> index d614a9b6a280..36278c610a5f 100644
-> --- a/Documentation/sysctl/vm.txt
-> +++ b/Documentation/sysctl/vm.txt
-> @@ -175,18 +175,39 @@ Setting this to zero disables periodic writeback altogether.
->  
->  drop_caches
->  
-> -Writing to this will cause the kernel to drop clean caches, dentries and
-> -inodes from memory, causing that memory to become free.
-> +Writing to this will cause the kernel to drop clean caches, as well as
-> +reclaimable slab objects like dentries and inodes.  Once dropped, their
-> +memory becomes free.
->  
->  To free pagecache:
->  	echo 1 > /proc/sys/vm/drop_caches
-> -To free dentries and inodes:
-> +To free reclaimable slab objects (includes dentries and inodes):
->  	echo 2 > /proc/sys/vm/drop_caches
-> -To free pagecache, dentries and inodes:
-> +To free slab objects and pagecache:
->  	echo 3 > /proc/sys/vm/drop_caches
->  
-> -As this is a non-destructive operation and dirty objects are not freeable, the
-> -user should run `sync' first.
-> +This is a non-destructive operation and will not free any dirty objects.
-> +To increase the number of objects freed by this operation, the user may run
-> +`sync' prior to writing to /proc/sys/vm/drop_caches.  This will minimize the
-> +number of dirty objects on the system and create more candidates to be
-> +dropped.
-> +
-> +This file is not a means to control the growth of the various kernel caches
-> +(inodes, dentries, pagecache, etc...)  These objects are automatically
-> +reclaimed by the kernel when memory is needed elsewhere on the system.
-> +
-> +Use of this file can cause performance problems.  Since it discards cached
-> +objects, it may cost a significant amount of I/O and CPU to recreate the
-> +dropped objects, especially if they were under heavy use.  Because of this,
-> +use outside of a testing or debugging environment is not recommended.
-> +
-> +You may see informational messages in your kernel log when this file is
-> +used:
-> +
-> +	cat (1234): dropped kernel caches: 3
-> +
-> +These are informational only.  They do not mean that anything is wrong
-> +with your system.
->  
->  ==============================================================
->  
-> diff --git a/fs/drop_caches.c b/fs/drop_caches.c
-> index 9fd702f5bfb2..02ae3386e08f 100644
-> --- a/fs/drop_caches.c
-> +++ b/fs/drop_caches.c
-> @@ -5,6 +5,7 @@
->  #include <linux/kernel.h>
->  #include <linux/mm.h>
->  #include <linux/fs.h>
-> +#include <linux/ratelimit.h>
->  #include <linux/writeback.h>
->  #include <linux/sysctl.h>
->  #include <linux/gfp.h>
-> @@ -63,6 +64,9 @@ int drop_caches_sysctl_handler(ctl_table *table, int write,
->  			iterate_supers(drop_pagecache_sb, NULL);
->  		if (sysctl_drop_caches & 2)
->  			drop_slab();
-> +		printk_ratelimited(KERN_INFO "%s (%d): dropped kernel caches: %d\n",
+On Sat, Feb 8, 2014 at 9:15 AM, Richard Yao <ryao@gentoo.org> wrote:
+> On 02/08/2014 01:51 AM, Andy Lutomirski wrote:
+>> On Fri, Feb 7, 2014 at 11:55 AM, Dominique Martinet
+>> <dominique.martinet@cea.fr> wrote:
+>>Hi,
+>>>
+>>> Andy Lutomirski wrote on Fri, Feb 07, 2014:
+>>>> I can't get modules to load from 9p.  The problem seems to be that a call like:
+>>>>
+>>>> kernel_read(f.file, 0, (char *)(info->hdr),, 115551);
+>>>>
+>>>> is filling the buffer with mostly zeros (or, more likely, just doing
+>>>> nothing at all).  The call is in module.c, and the fs is mounted with:
+>>>>
+>>>> mount -t 9p -o ro,version=9p2000.L,trans=virtio,access=any hostroot /newroot/
+>>>>
+>>>> This is really easy to test: grab a copy of virtme
+>>>> (https://git.kernel.org/cgit/utils/kernel/virtme/virtme.git/), build
+>>>> an appropriate kernel, and run it with virtme-runkernel.  Then try to
+>>>> insmod any module built for that kernel.  It won't work.
+>>>>
+>>>> Oddly, running executables from the same fs works, and *copying* a
+>>>> module to tmpfs and insmoding it there also works.
+>>>>
+>>>> I'm kind of at a loss debugging this myself.  I'd expect that if
+>>>> kernel_read were that broken on 9p, then I'd see more obvious
+>>>> problems.
+>>>>
+>>>> This problem exists in at least 3.12 and a recent -linus tree.
+>>>
+>>> That's been reported a couple of times[1] since two months ago, there's a
+>>> fix that might or might or might not make it in the tree (Eric?) there:
+>>> http://www.spinics.net/lists/linux-virtualization/msg21716.html
+>>>
+>>> I'm pretty confident that will do it for you, but would be good to hear
+>>> you confirm it again :)
+>>
+>> That fixes it for me.  I think it can't be a module address in
+>> finit_module, though -- it's an intermediate vmalloc buffer.  It
+>> could, however (in principle) be an address in module data, so the
+>> full check is probably good.
+>>
+>> Can one of you send this to Linus and tag it for -stable?  I can
+>> trigger this bug without getting an OOPS, which means that 9p is
+>> overwriting random memory, which puts it in the category of rather bad
+>> bugs.  I suspect that this is because I don't have
+>> CONFIG_DEBUG_VIRTUAL set.
+>>
+>> (I can't immediately spot any code that would trigger this from user
+>> space without being root, so it's probably not a security bug.)
+>>
+>> --Andy
+>>
+>
+> I have already submitted it for inclusion a couple of times.
+>
+> The first time was my first time doing any sort of Linux patch
+> submission. At the time, I was unaware of ./scripts/get_maintainer.pl
+> and sent the patch to only a subset of the correct people. Consequently,
+> it was not submitted properly for acceptance by the subsystem maintainer.
+>
+> The second time was a week ago. I had taken advice from Greg
+> Koah-Hartman to use ./scripts/get_maintainer.pl to determine the correct
+> recipients. It was initially accepted by the subsystem maintainer and
+> then rejected. This patch uses is_vmalloc_or_module_addr(), which is not
+> exported for use in kernel modules. Using it causes a build failure when
+> CONFIG_NET_9P_VIRTIO=m is set in .config.
+>
+> I will make a third attempt to mainline this over the next week. Later
+> today, I will submit a patch exporting is_vmalloc_or_module_addr().
+> After it has been accepted into mainline, I will resubmit this patch,
+> which should then be accepted. This should bring this patch into Linus'
+> tree sometime in the next few weeks.
 
-Just a nitpick here: 
- s/printk_ratelimited(KERN_INFO ...)/pr_info_ratelimited(...)
+I would consider asking some mm people (cc'd) how this is supposed to
+work -- that is, what the appropriate way of mapping a kernel virtual
+address to a struct page is.
 
+I suspect that the answer might be unpleasant: what happens if the
+address is neither in the linear map nor in vmalloc space?  For
+example, it could be ioremapped.  (I have no idea under what useful
+conditions the 9pnet code wants to zero-copy a buffer, but I suspect
+that there are exactly zero performance-critical users of kernel_read
+and kernel_write.  Presumably this is for skbs or something.)  I
+suspect that the right fix is to just fall back to non-zero-copy if
+the page is neither vmalloc'd nor linear-mapped, which should be
+doable without new exports.
 
-Acked-by: Rafael Aquini <aquini@redhat.com>
-
-
-> +				   current->comm, task_pid_nr(current),
-> +				   sysctl_drop_caches);
->  	}
->  	return 0;
->  }
-> -- 
-> 1.8.5.3
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+--Andy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
