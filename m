@@ -1,117 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oa0-f47.google.com (mail-oa0-f47.google.com [209.85.219.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 76E4D6B005A
-	for <linux-mm@kvack.org>; Sat,  8 Feb 2014 14:43:23 -0500 (EST)
-Received: by mail-oa0-f47.google.com with SMTP id m1so5765070oag.20
-        for <linux-mm@kvack.org>; Sat, 08 Feb 2014 11:43:23 -0800 (PST)
-Received: from mail-oa0-x22f.google.com (mail-oa0-x22f.google.com [2607:f8b0:4003:c02::22f])
-        by mx.google.com with ESMTPS id p8si4919989oeq.56.2014.02.08.11.43.22
+Received: from mail-oa0-f43.google.com (mail-oa0-f43.google.com [209.85.219.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 097AB6B0062
+	for <linux-mm@kvack.org>; Sat,  8 Feb 2014 14:49:27 -0500 (EST)
+Received: by mail-oa0-f43.google.com with SMTP id h16so5848029oag.16
+        for <linux-mm@kvack.org>; Sat, 08 Feb 2014 11:49:26 -0800 (PST)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id bx5si4931941oec.39.2014.02.08.11.49.26
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sat, 08 Feb 2014 11:43:22 -0800 (PST)
-Received: by mail-oa0-f47.google.com with SMTP id m1so5793117oag.34
-        for <linux-mm@kvack.org>; Sat, 08 Feb 2014 11:43:22 -0800 (PST)
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Sat, 08 Feb 2014 11:49:26 -0800 (PST)
+Message-ID: <52F6898A.50101@oracle.com>
+Date: Sat, 08 Feb 2014 14:46:18 -0500
+From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-Reply-To: for.poige+linux@gmail.com
-From: Igor Podlesny <for.poige+linux@gmail.com>
-Date: Sun, 9 Feb 2014 03:42:52 +0800
-Message-ID: <CA+sTkh7LzDSvhDyYX2Ybi=Z32OuJoK_F1VVHEBsW5Ly-4wa8Bg@mail.gmail.com>
-Subject: Re: That greedy Linux VM cache
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: mm: shm: hang in shmem_fallocate
+References: <52AE7B10.2080201@oracle.com>
+In-Reply-To: <52AE7B10.2080201@oracle.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 3 February 2014 18:55, Michal Hocko <mhocko@suse.cz> wrote:
-> [Adding linux-mm to the CC]
-
-[...]
-
-> This means that the page has to be written back in order to be dropped.
-> How much dirty memory you have (comparing to the total size of the page
-> cache)?
-
-   Not too many. May be you missed that part, but I said, that disk is
-being mostly READ, NOT written.
-   I also said, that READing is going from system partition (it was Btrfs).
-
-> What does your /proc/sys/vm/dirty_ratio say?
-
-   10
-
-> How fast is your storage?
-
-   Was 5400 HDD, today I installed SSD.
-
-> Also, is this 32b or 64b system?
-
-   Kernel is x86_64 or sometimes 32, userspace is 32 -- full x86_64
-setup is simply not usable on 2 GiB,
-you can run just one program, like in MS-DOS era. :) (I'd give a try
-to x32, but alas, it's not really ready yet.)
-
->>    * How to analyze it? slabtop doesn't mention even 100 MiB of slab
+On 12/15/2013 11:01 PM, Sasha Levin wrote:
+> Hi all,
 >
-> snapshoting /proc/meminfo and /proc/vmstat every second or two while
-> your load is bad might tell us more.
->
->>    * Why that's possible?
->
-> That is hard to tell withou some numbers. But it might be possible that
-> you are seeing the same issue as reported and fixed here:
-> http://marc.info/?l=linux-kernel&m=139060103406327&w=2
+> While fuzzing with trinity inside a KVM tools guest running latest -next, I've noticed that
+> quite often there's a hang happening inside shmem_fallocate. There are several processes stuck
+> trying to acquire inode->i_mutex (for more than 2 minutes), while the process that holds it has
+> the following stack trace:
 
-   No, there's no such amount of dirty data.
+[snip]
 
-> Especially when you are using tmpfs (e.g. as a backing storage for /tmp)
+This still happens. For the record, here's a better trace:
 
-   I use it, yeah, but it has ridiculously low occupied space ~ 1--2 MiB.
+[  507.124903] CPU: 60 PID: 10864 Comm: trinity-c173 Tainted: G        W 
+3.14.0-rc1-next-20140207-sasha-00007-g03959f6-dirty #2
+[  507.124903] task: ffff8801f1e38000 ti: ffff8801f1e40000 task.ti: ffff8801f1e40000
+[  507.124903] RIP: 0010:[<ffffffff81ae924f>]  [<ffffffff81ae924f>] __delay+0xf/0x20
+[  507.124903] RSP: 0000:ffff8801f1e418a8  EFLAGS: 00000202
+[  507.124903] RAX: 0000000000000001 RBX: ffff880524cf9f40 RCX: 00000000e9adc2c3
+[  507.124903] RDX: 000000000000010f RSI: ffffffff8129813c RDI: 00000000ffffffff
+[  507.124903] RBP: ffff8801f1e418a8 R08: 0000000000000000 R09: 0000000000000000
+[  507.124903] R10: 0000000000000001 R11: 0000000000000000 R12: 00000000000affe0
+[  507.124903] R13: 0000000086c42710 R14: ffff8801f1e41998 R15: ffff8801f1e41ac8
+[  507.124903] FS:  00007ff708073700(0000) GS:ffff88052b400000(0000) knlGS:0000000000000000
+[  507.124903] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+[  507.124903] CR2: 000000000089d010 CR3: 00000001f1e2c000 CR4: 00000000000006e0
+[  507.124903] DR0: 0000000000696000 DR1: 0000000000000000 DR2: 0000000000000000
+[  507.124903] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000600
+[  507.124903] Stack:
+[  507.124903]  ffff8801f1e418d8 ffffffff811af053 ffff880524cf9f40 ffff880524cf9f40
+[  507.124903]  ffff880524cf9f58 ffff8807275b1000 ffff8801f1e41908 ffffffff84447580
+[  507.124903]  ffffffff8129813c ffffffff811ea882 00003ffffffff000 00007ff705eb2000
+[  507.124903] Call Trace:
+[  507.124903]  [<ffffffff811af053>] do_raw_spin_lock+0xe3/0x170
+[  507.124903]  [<ffffffff84447580>] _raw_spin_lock+0x60/0x80
+[  507.124903]  [<ffffffff8129813c>] ? zap_pte_range+0xec/0x580
+[  507.124903]  [<ffffffff811ea882>] ? smp_call_function_single+0x242/0x270
+[  507.124903]  [<ffffffff8129813c>] zap_pte_range+0xec/0x580
+[  507.124903]  [<ffffffff810ca710>] ? flush_tlb_mm_range+0x280/0x280
+[  507.124903]  [<ffffffff81adbd67>] ? cpumask_next_and+0xa7/0xd0
+[  507.124903]  [<ffffffff810ca710>] ? flush_tlb_mm_range+0x280/0x280
+[  507.124903]  [<ffffffff812989ce>] unmap_page_range+0x3fe/0x410
+[  507.124903]  [<ffffffff81298ae1>] unmap_single_vma+0x101/0x120
+[  507.124903]  [<ffffffff81298cb9>] zap_page_range_single+0x119/0x160
+[  507.124903]  [<ffffffff811a87b8>] ? trace_hardirqs_on+0x8/0x10
+[  507.124903]  [<ffffffff812ddb8a>] ? memcg_check_events+0x7a/0x170
+[  507.124903]  [<ffffffff81298d73>] ? unmap_mapping_range+0x73/0x180
+[  507.124903]  [<ffffffff81298dfe>] unmap_mapping_range+0xfe/0x180
+[  507.124903]  [<ffffffff812790c7>] truncate_inode_page+0x37/0x90
+[  507.124903]  [<ffffffff812861aa>] shmem_undo_range+0x6aa/0x770
+[  507.124903]  [<ffffffff81298e68>] ? unmap_mapping_range+0x168/0x180
+[  507.124903]  [<ffffffff81286288>] shmem_truncate_range+0x18/0x40
+[  507.124903]  [<ffffffff81286599>] shmem_fallocate+0x99/0x2f0
+[  507.124903]  [<ffffffff8129487e>] ? madvise_vma+0xde/0x1c0
+[  507.124903]  [<ffffffff811aa5d2>] ? __lock_release+0x1e2/0x200
+[  507.124903]  [<ffffffff812ee006>] do_fallocate+0x126/0x170
+[  507.124903]  [<ffffffff81294894>] madvise_vma+0xf4/0x1c0
+[  507.124903]  [<ffffffff81294ae8>] SyS_madvise+0x188/0x250
+[  507.124903]  [<ffffffff84452450>] tracesys+0xdd/0xe2
+[  507.124903] Code: 66 66 66 66 90 48 c7 05 a4 66 04 05 e0 92 ae 81 c9 c3 66 2e 0f 1f 84 00 00 00 
+00 00 55 48 89 e5 66 66 66 66 90 ff 15 89 66 04 05 <c9> c3 66 66 66 66 66 66 2e 0f 1f 84 00 00 00 00 
+00 55 48 8d 04
 
-   *** Okay, so I've said I decided to try SSD. The issue stays
-absolutely the same and is seen even more clearer: when swappiness is
-0, Btrfs-endio is heating up processor constantly taking almost all
-CPU resources (storage is fast, CPU's saturated), but when I set it
-higher, thus allowing to swap, it helps -- ~ 250 MiB got swapped out
-(quickly -- SSD rules) and the system became responsive again. As
-previously it didn't try to reduce cache at all. I never saw it to be
-even 250 MiB, always higher (~ 25 % of RAM). So, actually it's better
-using swappiness = 100 in these circumstances.
+I'm still trying to figure it out. To me it seems like a series of calls to shmem_truncate_range() 
+takes so long that one of the tasks triggers a hung task. We don't actually hang in any specific
+shmem_truncate_range() for too long though.
 
-   I think the problem should be easily reproducible -- kernel allows
-you to limit available RAM. ;)
 
-   P. S. The only thing's left as a theory is "Intel Corporation
-Mobile GM965/GL960 Integrated Graphics Controller" with i915 kernel
-module. I don't know much about it, but it should have had bitten a
-good part of system RAM, right? Since it's Ubuntu, there's compiz by
-default and pmap -d `pgrep compiz` shows lots of similar lines:
-
-...
-e0344000      20 rw-s- 0000000102e33000 000:00005 card0
-e0479000      56 rw-s- 0000000102bf4000 000:00005 card0
-e0487000      48 rw-s- 0000000102be8000 000:00005 card0
-e0493000      56 rw-s- 0000000102bda000 000:00005 card0
-e04a1000      56 rw-s- 0000000102bcc000 000:00005 card0
-e04af000      48 rw-s- 0000000102bc0000 000:00005 card0
-e04bb000      56 rw-s- 0000000102bb2000 000:00005 card0
-e04c9000      48 rw-s- 0000000102d64000 000:00005 card0
-e04d5000     192 rw-s- 0000000102ce5000 000:00005 card0
-e0505000      80 rw-s- 0000000102de7000 000:00005 card0
-e0519000      20 rw-s- 0000000102ccc000 000:00005 card0
-e051e000     160 rw-s- 0000000102ca4000 000:00005 card0
-e0546000      20 rw-s- 0000000102c9f000 000:00005 card0
-e054b000      48 rw-s- 0000000102c93000 000:00005 card0
-e0557000      20 rw-s- 0000000102c8e000 000:00005 card0
-e055c000      20 rw-s- 0000000102c89000 000:00005 card0
-...
-
-   I have a suspicion... (I also dislike the sizes of those mappings)
-... that a valuable amount of that "cached memory" can be related to
-this i915. How can I check it?...
-
--- 
-End of message. Next message?
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
