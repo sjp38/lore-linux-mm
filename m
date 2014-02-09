@@ -1,94 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id EB6D76B0031
-	for <linux-mm@kvack.org>; Sat,  8 Feb 2014 19:35:04 -0500 (EST)
-Received: by mail-pd0-f176.google.com with SMTP id w10so4644749pde.7
-        for <linux-mm@kvack.org>; Sat, 08 Feb 2014 16:35:04 -0800 (PST)
-Received: from smtp.gentoo.org (dev.gentoo.org. [2001:470:ea4a:1:214:c2ff:fe64:b2d3])
-        by mx.google.com with ESMTPS id q5si10115592pae.56.2014.02.08.16.35.03
+Received: from mail-ob0-f169.google.com (mail-ob0-f169.google.com [209.85.214.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 38BF96B0031
+	for <linux-mm@kvack.org>; Sat,  8 Feb 2014 21:00:13 -0500 (EST)
+Received: by mail-ob0-f169.google.com with SMTP id wo20so5836516obc.28
+        for <linux-mm@kvack.org>; Sat, 08 Feb 2014 18:00:12 -0800 (PST)
+Received: from e31.co.us.ibm.com (e31.co.us.ibm.com. [32.97.110.149])
+        by mx.google.com with ESMTPS id rk9si5282629obb.51.2014.02.08.18.00.11
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 08 Feb 2014 16:35:03 -0800 (PST)
-Message-ID: <52F6CD33.80607@gentoo.org>
-Date: Sat, 08 Feb 2014 19:34:59 -0500
-From: Richard Yao <ryao@gentoo.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Sat, 08 Feb 2014 18:00:12 -0800 (PST)
+Received: from /spool/local
+	by e31.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
+	Sat, 8 Feb 2014 19:00:11 -0700
+Received: from b03cxnp08025.gho.boulder.ibm.com (b03cxnp08025.gho.boulder.ibm.com [9.17.130.17])
+	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 91DC11FF001B
+	for <linux-mm@kvack.org>; Sat,  8 Feb 2014 19:00:08 -0700 (MST)
+Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
+	by b03cxnp08025.gho.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s192089u31260778
+	for <linux-mm@kvack.org>; Sun, 9 Feb 2014 03:00:08 +0100
+Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id s1923S1i009209
+	for <linux-mm@kvack.org>; Sat, 8 Feb 2014 19:03:29 -0700
+Date: Sat, 8 Feb 2014 18:00:04 -0800
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: Memory allocator semantics
+Message-ID: <20140209020004.GY4250@linux.vnet.ibm.com>
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <20140102203320.GA27615@linux.vnet.ibm.com>
+ <52F60699.8010204@iki.fi>
 MIME-Version: 1.0
-Subject: Re: [V9fs-developer] finit_module broken on 9p because kernel_read
- doesn't work?
-References: <CALCETrWu6wvb4M7UwOdqxNUfSmKV2eZ96qMufAQPF7cJD1oz2w@mail.gmail.com> <20140207195555.GA18916@nautica> <CALCETrWZvz85hxPGYhgHoF4yp06QkP4SxWQBSxFqmTyCqhE3LA@mail.gmail.com> <52F66641.4040405@gentoo.org> <CALCETrVrnX6gWNBOdVTbLZKYWXRWiOYFNgLb0+Sk-bqXsbPc7Q@mail.gmail.com> <52F671D0.1060907@gentoo.org> <CALCETrW5Uh9VgYo6vKVWZtK_yVxEyL6B3V2a2HVxY6H+3dSrRQ@mail.gmail.com> <52F68299.1040305@gentoo.org> <CALCETrUOPPSb9cOgz1NMqR63Y=kXL1r8nw_WnPyZqTAuweLuaA@mail.gmail.com> <52F68528.30104@gentoo.org> <CALCETrUNgNyMd1CqdmePKxw1+eA-ixKx0=3MvL8Prw7CNOPA9g@mail.gmail.com>
-In-Reply-To: <CALCETrUNgNyMd1CqdmePKxw1+eA-ixKx0=3MvL8Prw7CNOPA9g@mail.gmail.com>
-Content-Type: multipart/signed; micalg=pgp-sha1;
- protocol="application/pgp-signature";
- boundary="wXEtDWek31gA6pWJMPI1kXrGJIn8hqMoE"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <52F60699.8010204@iki.fi>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: Dominique Martinet <dominique.martinet@cea.fr>, Will Deacon <will.deacon@arm.com>, V9FS Developers <v9fs-developer@lists.sourceforge.net>, Eric Van Hensbergen <ericvh@gmail.com>, Ron Minnich <rminnich@sandia.gov>, Latchesar Ionkov <lucho@ionkov.net>, Rusty Russell <rusty@rustcorp.com.au>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Pekka Enberg <penberg@iki.fi>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, cl@linux-foundation.org, penberg@kernel.org, mpm@selenic.com
 
-This is an OpenPGP/MIME signed message (RFC 4880 and 3156)
---wXEtDWek31gA6pWJMPI1kXrGJIn8hqMoE
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
+On Sat, Feb 08, 2014 at 12:27:37PM +0200, Pekka Enberg wrote:
+> Hi Paul,
+> 
+> On 01/02/2014 10:33 PM, Paul E. McKenney wrote:
+> > From what I can see, the Linux-kernel's SLAB, SLOB, and SLUB memory
+> >allocators would deal with the following sort of race:
+> >
+> >A.	CPU 0: r1 = kmalloc(...); ACCESS_ONCE(gp) = r1;
+> >
+> >	CPU 1: r2 = ACCESS_ONCE(gp); if (r2) kfree(r2);
+> >
+> >However, my guess is that this should be considered an accident of the
+> >current implementation rather than a feature.  The reason for this is
+> >that I cannot see how you would usefully do (A) above without also allowing
+> >(B) and (C) below, both of which look to me to be quite destructive:
+> >
+> >B.	CPU 0: r1 = kmalloc(...);  ACCESS_ONCE(shared_x) = r1;
+> >
+> >         CPU 1: r2 = ACCESS_ONCE(shared_x); if (r2) kfree(r2);
+> >
+> >	CPU 2: r3 = ACCESS_ONCE(shared_x); if (r3) kfree(r3);
+> >
+> >	This results in the memory being on two different freelists.
+> >
+> >C.      CPU 0: r1 = kmalloc(...);  ACCESS_ONCE(shared_x) = r1;
+> >
+> >	CPU 1: r2 = ACCESS_ONCE(shared_x); r2->a = 1; r2->b = 2;
+> >
+> >	CPU 2: r3 = ACCESS_ONCE(shared_x); if (r3) kfree(r3);
+> >
+> >	CPU 3: r4 = kmalloc(...);  r4->s = 3; r4->t = 4;
+> >
+> >	This results in the memory being used by two different CPUs,
+> >	each of which believe that they have sole access.
+> >
+> >But I thought I should ask the experts.
+> >
+> >So, am I correct that kernel hackers are required to avoid "drive-by"
+> >kfree()s of kmalloc()ed memory?
+> 
+> So to be completely honest, I don't understand what is the race in
+> (A) that concerns the *memory allocator*.  I also don't what the
+> memory allocator can do in (B) and (C) which look like double-free
+> and use-after-free, respectively, to me. :-)
 
-On 02/08/2014 02:54 PM, Andy Lutomirski wrote:
-> On Sat, Feb 8, 2014 at 11:27 AM, Richard Yao <ryao@gentoo.org> wrote:
->> On 02/08/2014 02:20 PM, Andy Lutomirski wrote:
->>> Are we looking at the same patch?
->>>
->>> + if (is_vmalloc_or_module_addr(data))
->>> + pages[index++] =3D vmalloc_to_page(data);
->>>
->>> if (is_vmalloc_or_module_addr(data) && !is_vmalloc_addr(data)), the
->>> vmalloc_to_page(data) sounds unhealthy.
->>>
->>> --Andy
->>>
->>
->> Mainline loads all Linux kernel modules into virtual memory. No
->> architecture is known to me where this is not the case.
->>
->=20
-> Hmm.  I stand corrected.  vmalloc_to_page is safe on module addresses.
->=20
-> --Andy
->=20
+>From what I can see, (A) works by accident, but is kind of useless because
+you allocate and free the memory without touching it.  (B) and (C) are the
+lightest touches I could imagine, and as you say, both are bad.  So I
+believe that it is reasonable to prohibit (A).
 
-I also stand corrected. After you poked me on this, I sent this patch
-with a second patch to export is_vmalloc_or_module_addr() to Linus
-Torvalds, who wrote is_vmalloc_or_module_addr(). He provided a very
-concise explanation why is_vmalloc_addr() is not only safe, but preferabl=
-e:
+Or is there some use for (A) that I am missing?
 
-https://lkml.org/lkml/2014/2/8/272
-
-I have resubmitted it with that change. I expect it to be merged soon.
-
-
---wXEtDWek31gA6pWJMPI1kXrGJIn8hqMoE
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2.0.22 (GNU/Linux)
-Comment: Using GnuPG with Thunderbird - http://www.enigmail.net/
-
-iQIcBAEBAgAGBQJS9s05AAoJECDuEZm+6Exk3MAP/3y5XlU0+kMVGHljNaGvZ08L
-8RHksmyO8/FB6tdcMU7wTjJ8Ar8ksU+IAo5Bk/dXexEGsUk2e4PQvj9xEoseOCnD
-/jDs5TGdRw5nb52SwWVRWy1/uFXQwB5y4GJqbpOcxmYwXxib7Y/e7J3+UxobKQVe
-LImtVecNeIDdl7E0ZCxW5tmOrayxC3Zt2d0xt1kGUZNRISFGXJgORYGanpNcXf+p
-OT3+YZHd2mJQwOB9xR0YetxFNUOYdCwt04R+eKqvLi4hd5cE2veYOwHaPO/8TREv
-nhbFhZStKC4Ymd/PyQLqvrfIVb0fxtbTzRKLnnPnUmrkxcVS+gtpkdRYN1PNdyJp
-y+8aIWFbQcHEs+5TKrKW3TdI+SZLk3Jd0oIYPyuodKGWSLHXUPly5RYwqxeKI0M3
-zSw4uQjKdGCL79omwBEBpyGLZrv+P/r2yu/hSjSJHx1idLJaGAdOgajCQtB6cVdf
-KSJ6tEGC14rsBY2qa3H3dKd7Ag4ilwYkDpgTuSTU1LiXhWfsvY3QEsYrBIUAXtA6
-RLbyqDkKFtXkQzEUjMU6XWwW+mqbSzwpntra8/R8QGt6MAT0j9z/p0NyvLfu4UMN
-5I/L4GLwHDaP4Up5o11BkTrTlPWfXbxucwEbTJpBUbhrmI+YTNkceoVrHy+Mt7kw
-QIjST0nmy+RjBRxyCe/6
-=9u6t
------END PGP SIGNATURE-----
-
---wXEtDWek31gA6pWJMPI1kXrGJIn8hqMoE--
+							Thanx, Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
