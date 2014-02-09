@@ -1,76 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f78.google.com (mail-pb0-f78.google.com [209.85.160.78])
-	by kanga.kvack.org (Postfix) with ESMTP id 7FD136B0031
-	for <linux-mm@kvack.org>; Sun,  9 Feb 2014 09:14:28 -0500 (EST)
-Received: by mail-pb0-f78.google.com with SMTP id jt11so25859pbb.1
-        for <linux-mm@kvack.org>; Sun, 09 Feb 2014 06:14:27 -0800 (PST)
-Received: from out4-smtp.messagingengine.com (out4-smtp.messagingengine.com. [66.111.4.28])
-        by mx.google.com with ESMTPS id va10si8168057pbc.308.2014.02.08.02.27.39
+Received: from mail-we0-f178.google.com (mail-we0-f178.google.com [74.125.82.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 4538C6B0031
+	for <linux-mm@kvack.org>; Sun,  9 Feb 2014 12:35:14 -0500 (EST)
+Received: by mail-we0-f178.google.com with SMTP id q59so3573121wes.37
+        for <linux-mm@kvack.org>; Sun, 09 Feb 2014 09:35:13 -0800 (PST)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id k3si21216214eep.36.2014.02.09.09.35.12
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 08 Feb 2014 02:27:40 -0800 (PST)
-Received: from compute4.internal (compute4.nyi.mail.srv.osa [10.202.2.44])
-	by gateway1.nyi.mail.srv.osa (Postfix) with ESMTP id 110A520C7F
-	for <linux-mm@kvack.org>; Sat,  8 Feb 2014 05:27:39 -0500 (EST)
-Message-ID: <52F60699.8010204@iki.fi>
-Date: Sat, 08 Feb 2014 12:27:37 +0200
-From: Pekka Enberg <penberg@iki.fi>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Sun, 09 Feb 2014 09:35:12 -0800 (PST)
+Date: Sun, 9 Feb 2014 12:34:18 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 02/10] fs: cachefiles: use add_to_page_cache_lru()
+Message-ID: <20140209173418.GH4407@cmpxchg.org>
+References: <1391475222-1169-1-git-send-email-hannes@cmpxchg.org>
+ <1391475222-1169-3-git-send-email-hannes@cmpxchg.org>
+ <20140208114334.GA25841@localhost.localdomain>
 MIME-Version: 1.0
-Subject: Re: Memory allocator semantics
-References: <20140102203320.GA27615@linux.vnet.ibm.com>
-In-Reply-To: <20140102203320.GA27615@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140208114334.GA25841@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: paulmck@linux.vnet.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: cl@linux-foundation.org, penberg@kernel.org, mpm@selenic.com
+To: Rafael Aquini <aquini@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Bob Liu <bob.liu@oracle.com>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Luigi Semenzato <semenzato@google.com>, Mel Gorman <mgorman@suse.de>, Metin Doslu <metin@citusdata.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan.kim@gmail.com>, Ozgun Erdogan <ozgun@citusdata.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Roman Gushchin <klamm@yandex-team.ru>, Ryan Mallon <rmallon@gmail.com>, Tejun Heo <tj@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Hi Paul,
+On Sat, Feb 08, 2014 at 09:43:35AM -0200, Rafael Aquini wrote:
+> On Mon, Feb 03, 2014 at 07:53:34PM -0500, Johannes Weiner wrote:
+> > This code used to have its own lru cache pagevec up until a0b8cab3
+> > ("mm: remove lru parameter from __pagevec_lru_add and remove parts of
+> > pagevec API").  Now it's just add_to_page_cache() followed by
+> > lru_cache_add(), might as well use add_to_page_cache_lru() directly.
+> >
+> 
+> Just a heads-up, here: take a look at https://lkml.org/lkml/2014/2/7/587
 
-On 01/02/2014 10:33 PM, Paul E. McKenney wrote:
->  From what I can see, the Linux-kernel's SLAB, SLOB, and SLUB memory
-> allocators would deal with the following sort of race:
->
-> A.	CPU 0: r1 = kmalloc(...); ACCESS_ONCE(gp) = r1;
->
-> 	CPU 1: r2 = ACCESS_ONCE(gp); if (r2) kfree(r2);
->
-> However, my guess is that this should be considered an accident of the
-> current implementation rather than a feature.  The reason for this is
-> that I cannot see how you would usefully do (A) above without also allowing
-> (B) and (C) below, both of which look to me to be quite destructive:
->
-> B.	CPU 0: r1 = kmalloc(...);  ACCESS_ONCE(shared_x) = r1;
->
->          CPU 1: r2 = ACCESS_ONCE(shared_x); if (r2) kfree(r2);
->
-> 	CPU 2: r3 = ACCESS_ONCE(shared_x); if (r3) kfree(r3);
->
-> 	This results in the memory being on two different freelists.
->
-> C.      CPU 0: r1 = kmalloc(...);  ACCESS_ONCE(shared_x) = r1;
->
-> 	CPU 1: r2 = ACCESS_ONCE(shared_x); r2->a = 1; r2->b = 2;
->
-> 	CPU 2: r3 = ACCESS_ONCE(shared_x); if (r3) kfree(r3);
->
-> 	CPU 3: r4 = kmalloc(...);  r4->s = 3; r4->t = 4;
->
-> 	This results in the memory being used by two different CPUs,
-> 	each of which believe that they have sole access.
->
-> But I thought I should ask the experts.
->
-> So, am I correct that kernel hackers are required to avoid "drive-by"
-> kfree()s of kmalloc()ed memory?
+Ah, yes.  That patch replaced a private pagevec, which consumes the
+references you pass in, with add_to_page_cache_lru(), which gets its
+own references.
 
-So to be completely honest, I don't understand what is the race in (A) 
-that concerns the *memory allocator*.  I also don't what the memory 
-allocator can do in (B) and (C) which look like double-free and 
-use-after-free, respectively, to me. :-)
+My patch changes
 
-                       Pekka
+    add_to_page_cache()
+    lru_cache_add()
+
+to
+
+    add_to_page_cache_lru()
+      add_to_page_cache()
+      lru_cache_add()
+
+so the refcounting does not change for the caller.
+
+Thanks for pointing it out, though, it never hurts to double check
+stuff like that.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
