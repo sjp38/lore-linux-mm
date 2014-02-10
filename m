@@ -1,101 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f50.google.com (mail-pb0-f50.google.com [209.85.160.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D30A6B0031
-	for <linux-mm@kvack.org>; Mon, 10 Feb 2014 01:00:21 -0500 (EST)
-Received: by mail-pb0-f50.google.com with SMTP id rq2so5800391pbb.23
-        for <linux-mm@kvack.org>; Sun, 09 Feb 2014 22:00:21 -0800 (PST)
-Received: from song.cn.fujitsu.com ([222.73.24.84])
-        by mx.google.com with ESMTP id tq3si14012667pab.38.2014.02.09.22.00.18
-        for <linux-mm@kvack.org>;
-        Sun, 09 Feb 2014 22:00:20 -0800 (PST)
-Message-ID: <52F86745.2060204@cn.fujitsu.com>
-Date: Mon, 10 Feb 2014 13:44:37 +0800
-From: Tang Chen <tangchen@cn.fujitsu.com>
+Received: from mail-pb0-f43.google.com (mail-pb0-f43.google.com [209.85.160.43])
+	by kanga.kvack.org (Postfix) with ESMTP id D1B566B0031
+	for <linux-mm@kvack.org>; Mon, 10 Feb 2014 03:15:35 -0500 (EST)
+Received: by mail-pb0-f43.google.com with SMTP id md12so5955898pbc.30
+        for <linux-mm@kvack.org>; Mon, 10 Feb 2014 00:15:35 -0800 (PST)
+Received: from e28smtp08.in.ibm.com (e28smtp08.in.ibm.com. [122.248.162.8])
+        by mx.google.com with ESMTPS id cf2si14401984pad.198.2014.02.10.00.15.33
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 10 Feb 2014 00:15:34 -0800 (PST)
+Received: from /spool/local
+	by e28smtp08.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <raghavendra.kt@linux.vnet.ibm.com>;
+	Mon, 10 Feb 2014 13:45:30 +0530
+Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
+	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 76B22E0058
+	for <linux-mm@kvack.org>; Mon, 10 Feb 2014 13:48:45 +0530 (IST)
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s1A8FQLN28115198
+	for <linux-mm@kvack.org>; Mon, 10 Feb 2014 13:45:27 +0530
+Received: from d28av01.in.ibm.com (localhost [127.0.0.1])
+	by d28av01.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s1A8FOFM008299
+	for <linux-mm@kvack.org>; Mon, 10 Feb 2014 13:45:25 +0530
+Message-ID: <52F88C16.70204@linux.vnet.ibm.com>
+Date: Mon, 10 Feb 2014 13:51:42 +0530
+From: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH RESEND part2 v2 1/8] x86: get pg_data_t's memory from
- other node
-References: <529D3FC0.6000403@cn.fujitsu.com> <529D4048.9070000@cn.fujitsu.com> <20140116171112.GB24740@suse.de> <52DCD065.7040408@cn.fujitsu.com> <20140120151409.GU4963@suse.de> <20140206101230.GA21345@suse.de>
-In-Reply-To: <20140206101230.GA21345@suse.de>
+Subject: Re: [RFC PATCH V5] mm readahead: Fix readahead fail for no local
+ memory and limit readahead pages
+References: <1390388025-1418-1-git-send-email-raghavendra.kt@linux.vnet.ibm.com> <20140206145105.27dec37b16f24e4ac5fd90ce@linux-foundation.org> <alpine.DEB.2.02.1402061456290.31828@chino.kir.corp.google.com> <20140206152219.45c2039e5092c8ea1c31fd38@linux-foundation.org> <alpine.DEB.2.02.1402061537180.3441@chino.kir.corp.google.com> <alpine.DEB.2.02.1402061557210.5061@chino.kir.corp.google.com> <52F4B8A4.70405@linux.vnet.ibm.com> <alpine.DEB.2.02.1402071239301.4212@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.02.1402071239301.4212@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset=ISO-8859-15; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Len Brown <lenb@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Toshi Kani <toshi.kani@hp.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Thomas Renninger <trenn@suse.de>, Yinghai Lu <yinghai@kernel.org>, Jiang Liu <jiang.liu@huawei.com>, Wen Congyang <wency@cn.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Taku Izumi <izumi.taku@jp.fujitsu.com>, Minchan Kim <minchan@kernel.org>, "mina86@mina86.com" <mina86@mina86.com>, "gong.chen@linux.intel.com" <gong.chen@linux.intel.com>, Vasilis Liaskovitis <vasilis.liaskovitis@profitbricks.com>, "lwoodman@redhat.com" <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, "jweiner@redhat.com" <jweiner@redhat.com>, Prarit Bhargava <prarit@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Chen Tang <imtangchen@gmail.com>, Zhang Yanfei <zhangyanfei.yes@gmail.com>, Tang Chen <tangchen@cn.fujitsu.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Fengguang Wu <fengguang.wu@intel.com>, David Cohen <david.a.cohen@linux.intel.com>, Al Viro <viro@zeniv.linux.org.uk>, Damien Ramonda <damien.ramonda@intel.com>, Jan Kara <jack@suse.cz>, Linus <torvalds@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi Mel,
-
-On 02/06/2014 06:12 PM, Mel Gorman wrote:
-> Any comment on this or are the issues just going to be waved away?
-
-Sorry for the delay.
-
+On 02/08/2014 02:11 AM, David Rientjes wrote:
+> On Fri, 7 Feb 2014, Raghavendra K T wrote:
+>> 3) Change the "readahead into remote memory" part of the documentation
+>> which is misleading.
+>>
+>> ( I feel no need to add numa_mem_id() since we would specifically limit
+>> the readahead with MAX_REMOTE_READAHEAD in memoryless cpu cases).
+>>
 >
-......
->> Again, booting is fine but least say it's an 8-node machine then that
->> implies the Normal:Movable ratio will be 1:8. All page table pages, inode,
->> dentries etc will have to fit in that 1/8th of memory with all the associated
->> costs including remote access penalties.  In extreme cases it may not be
->> possible to use all of memory because the management structures cannot be
->> allocated. Users may want the option of adjusting what this ratio is so
->> they can unplug some memory while not completely sacrificing performance.
->>
->> Minimally, the kernel should print a big fat warning if the ratio is equal
->> or more than 1:3 Normal:Movable. That ratio selection is arbitrary. I do not
->> recall ever seeing any major Normal:Highmem bugs on 4G 32-bit machines so it
->> is a conservative choice. The last Normal:Highmem bug I remember was related
->> to a 16G 32-bit machine (https://bugzilla.kernel.org/show_bug.cgi?id=42578)
->> a 1:15 ratio feels very optimistic for a very large machine.
-......
->>>
->>> For now, yes. We expect firmware and hardware to give the basic
->>> ratio (how much memory
->>> is hotpluggable), and the user decides how to arrange the memory
->>> (decide the size of
->>> normal zone and movable zone).
->>>
->>
->> There seems to be big gaps in the configuration options here. The user
->> can either ask it to be automatically assigned and have no control of
->> the ratio or manually hot-add the memory which is a relatively heavy
->> administrative burden.
+> I don't understand what you're saying, numa_mem_id() is local memory to
+> current's cpu.  When a node consists only of cpus and not memory it is not
+> true that all memory is then considered remote, you won't find that in any
+> specification that defines memory affinity including the ACPI spec.  I can
+> trivially define all cpus on my system to be on memoryless nodes and
+> having that affect readahead behavior when, in fact, there is affinity
+> would be ridiculous.
+>
+As you rightly pointed , I 'll drop remote memory term and use
+something like  :
 
-Yes.
+"* Ensure readahead success on a memoryless node cpu. But we limit
+  * the readahead to 4k pages to avoid trashing page cache." ..
 
-1. Automatically assigning is done by movable_node boot option, which is 
-the
-    main work of this patch-set. It depends on SRAT (firmware).
+Regarding ACCESS_ONCE, since we will have to add
+inside the function and still there is nothing that could prevent us
+getting run on different cpu with a different node (as Andrew ponted), I 
+have not included in current patch that I am posting.
+Moreover this case is hopefully not fatal since it is just a hint for 
+readahead we can do.
 
-2. Manually assigning has been done since 2012, by the following patch-set.
+So there are many possible implementation:
+(1) use numa_mem_id(), apply freepage limit  and use 4k page limit for 
+all case
+(Jan had reservation about this case)
 
-    https://lkml.org/lkml/2012/8/6//113
+(2)for normal case:    use free memory calculation and do not apply 4k
+     limit (no change).
+    for memoryless cpu case:  use numa_mem_id for more accurate
+     calculation of limit and also apply 4k limit.
 
-    This patch-set allowed users to online memory as normal or movable. 
-But it
-    is not that easy to use. So, I also think an user space tool is needed.
-    And I'm planing to do this recently.
+(3) for normal case:   use free memory calculation and do not apply 4k
+     limit (no change).
+     for memoryless case: apply 4k page limit
 
->>
->> I think they should be warned if the ratio is high and have an option of
->> specifying a ratio manually even if that means that additional nodes
->> will not be hot-removable.
+(4) use numa_mem_id() and apply only free page limit..
 
-I think this is easy to do, provide an option for users to specify a
-Normal:Movable ratio. This is not phys addr, and it is easy to use.
+So, I ll be resending the patch with changelog and comment changes
+based on your and Andrew's feedback (type (3) implementation).
 
->>
->> This is all still a kludge around the fact that node memory hot-remove
->> did not try and cope with full migration by breaking some of the 1:1
->> virt:phys mapping assumptions when hot-remove was enabled.
 
-I also said before, the implementation now can only be a temporary
-solution for memory hotplug since it would take us a lot of time to
-deal with 1:1 mapping thing.
 
-But about "breaking some of the 1:1 mapping", would you please give me
-any hint of it ?  I want to do it too, but I cannot see where to start.
-
-Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
