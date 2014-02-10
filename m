@@ -1,132 +1,275 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f53.google.com (mail-pb0-f53.google.com [209.85.160.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 8CCFE6B0031
-	for <linux-mm@kvack.org>; Sun,  9 Feb 2014 19:24:21 -0500 (EST)
-Received: by mail-pb0-f53.google.com with SMTP id md12so5508941pbc.12
-        for <linux-mm@kvack.org>; Sun, 09 Feb 2014 16:24:21 -0800 (PST)
-Received: from LGEMRELSE1Q.lge.com (LGEMRELSE1Q.lge.com. [156.147.1.111])
-        by mx.google.com with ESMTP id i4si13252781pad.54.2014.02.09.16.24.19
-        for <linux-mm@kvack.org>;
-        Sun, 09 Feb 2014 16:24:20 -0800 (PST)
-Date: Mon, 10 Feb 2014 09:24:26 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 0/5] compaction related commits
-Message-ID: <20140210002426.GA12049@lge.com>
-References: <1391749726-28910-1-git-send-email-iamjoonsoo.kim@lge.com>
- <52F4A3F2.1050809@suse.cz>
+Received: from mail-pb0-f52.google.com (mail-pb0-f52.google.com [209.85.160.52])
+	by kanga.kvack.org (Postfix) with ESMTP id B1D4B6B0031
+	for <linux-mm@kvack.org>; Sun,  9 Feb 2014 19:26:50 -0500 (EST)
+Received: by mail-pb0-f52.google.com with SMTP id jt11so5541211pbb.11
+        for <linux-mm@kvack.org>; Sun, 09 Feb 2014 16:26:50 -0800 (PST)
+Received: from fgwmail6.fujitsu.co.jp (fgwmail6.fujitsu.co.jp. [192.51.44.36])
+        by mx.google.com with ESMTPS id ui8si13238080pac.119.2014.02.09.16.26.49
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Sun, 09 Feb 2014 16:26:49 -0800 (PST)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail6.fujitsu.co.jp (Postfix) with ESMTP id 24E4D3EE0BD
+	for <linux-mm@kvack.org>; Mon, 10 Feb 2014 09:26:48 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 1389945DE65
+	for <linux-mm@kvack.org>; Mon, 10 Feb 2014 09:26:48 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.nic.fujitsu.com [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id D609145DE60
+	for <linux-mm@kvack.org>; Mon, 10 Feb 2014 09:26:47 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id C812FE08003
+	for <linux-mm@kvack.org>; Mon, 10 Feb 2014 09:26:47 +0900 (JST)
+Received: from g01jpfmpwkw03.exch.g01.fujitsu.local (g01jpfmpwkw03.exch.g01.fujitsu.local [10.0.193.57])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 77264E08005
+	for <linux-mm@kvack.org>; Mon, 10 Feb 2014 09:26:47 +0900 (JST)
+Message-ID: <52F81C5D.6010601@jp.fujitsu.com>
+Date: Mon, 10 Feb 2014 09:25:01 +0900
+From: "Mizuma, Masayoshi" <m.mizuma@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <52F4A3F2.1050809@suse.cz>
+Subject: mm: memcg: A infinite loop in __handle_mm_fault()
+Content-Type: text/plain; charset="ISO-2022-JP"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, cgroups@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, Feb 07, 2014 at 10:14:26AM +0100, Vlastimil Babka wrote:
-> On 02/07/2014 06:08 AM, Joonsoo Kim wrote:
-> > This patchset is related to the compaction.
-> > 
-> > patch 1 fixes contrary implementation of the purpose of compaction.
-> > patch 2~4 are for optimization.
-> > patch 5 is just for clean-up.
-> > 
-> > I tested this patchset with stress-highalloc benchmark on Mel's mmtest
-> > and cannot find any regression in terms of success rate. And I find
-> > much reduced system time. Below is result of 3 runs.
-> 
-> What was the memory size? Mel told me this test shouldn't be run with more than 4GB.
+Hi,
 
-Yep, I know!
-My system is 4GB quad core system.
+This is a bug report for memory cgroup hang up.
+I reproduced this using 3.14-rc1 but I couldn't in 3.7.
 
-> > * Before
-> > time :: stress-highalloc 3276.26 user 740.52 system 1664.79 elapsed
-> > time :: stress-highalloc 3640.71 user 771.32 system 1633.83 elapsed
-> > time :: stress-highalloc 3691.64 user 775.44 system 1638.05 elapsed
-> > 
-> > avg system: 1645 s
-> > 
-> > * After
-> > time :: stress-highalloc 3225.51 user 732.40 system 1542.76 elapsed
-> > time :: stress-highalloc 3524.31 user 749.63 system 1512.88 elapsed
-> > time :: stress-highalloc 3610.55 user 757.20 system 1505.70 elapsed
-> > 
-> > avg system: 1519 s
-> > 
-> > That is 7% reduced system time.
+When I ran a program (see below) under a limit of memcg, the process hanged up.
+Using kprobe trace, I detected the hangup in __handle_mm_fault().
+do_huge_pmd_wp_page(), which is called by __handle_mm_fault(), always returns
+VM_FAULT_OOM, so it repeats goto retry and the task can't be killed.
+--------------------------------------------------
+static int __handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+                             unsigned long address, unsigned int flags)
+{Hi all,
 
-Oops, It should be elapsed time ;)
+This is a bug report for memory cgroup hang up.
+I reproduced this using 3.14-rc1 but I couldn't in 3.7.
 
-> Why not post the whole compare-mmtests output? There are more metrics in there and extra
-> eyes never hurt.
-> 
+When I ran a program (see below) under a limit of memcg, the process hangs up.
+Using kprobe trace, I detected the hangup in __handle_mm_fault().
+do_huge_pmd_wp_page(), which is called by __handle_mm_fault(), always returns
+VM_FAULT_OOM but the task can't be killed.
+It seems to be in infinite loop and the process is never killed.
 
-Reason is that I can't average the result of 10 runs easily, since I'm not
-familiar to mmtest. Do you share your method to get the average of 10 runs?
-Anyway, I did it manually and below is the average result of 10 runs.
+--------------------------------------------------
+static int __handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+                             unsigned long address, unsigned int flags)
+{
+...
+retry:
+        pgd = pgd_offset(mm, address);
+...
+                        if (dirty && !pmd_write(orig_pmd)) {
+                                ret = do_huge_pmd_wp_page(mm, vma, address, pmd,
+                                                          orig_pmd);
+                                /*
+                                 * If COW results in an oom, the huge pmd will
+                                 * have been split, so retry the fault on the
+                                 * pte for a smaller charge.
+                                 */
+                                if (unlikely(ret & VM_FAULT_OOM))
+                                        goto retry;
+--------------------------------------------------
 
-compaction-base+ is based on 3.13.0 with Vlastimil's recent fixes.
-compaction-fix+ has this patch series on top of compaction-base+.
+[Step to reproduce]
 
-Thanks.
-							
-stress-highalloc	
-			3.13.0			3.13.0
-			compaction-base+	compaction-fix+
-Success 1		14.10				15.00
-Success 2		20.20				20.00
-Success 3		68.30				73.40
-																			
-			3.13.0			3.13.0
-			compaction-base+	compaction-fix+
-User			3486.02				3437.13
-System			757.92				741.15
-Elapsed			1638.52				1488.32
-																			
-			3.13.0			3.13.0
-			compaction-base+	compaction-fix+
-Minor Faults 			172591561		167116621
-Major Faults 			     984		     859
-Swap Ins 			     743		     653
-Swap Outs 			    3657		    3535
-Direct pages scanned 		  129742		  127344
-Kswapd pages scanned 		 1852277		 1817825
-Kswapd pages reclaimed 		 1838000		 1804212
-Direct pages reclaimed 		  129719		  127327
-Kswapd efficiency 		     98%		     98%
-Kswapd velocity 		1130.066		1221.296
-Direct efficiency 		     99%		     99%
-Direct velocity 		  79.367		  85.585
-Percentage direct scans 	      6%		      6%
-Zone normal velocity 		 231.829		 246.097
-Zone dma32 velocity 		 972.589		1055.158
-Zone dma velocity 		   5.015		   5.626
-Page writes by reclaim 		    6287		    6534
-Page writes file 		    2630		    2999
-Page writes anon 		    3657		    3535
-Page reclaim immediate 		    2187		    2080
-Sector Reads 			 2917808		 2877336
-Sector Writes 			11477891		11206722
-Page rescued immediate 		       0		       0
-Slabs scanned 			 2214118		 2168524
-Direct inode steals 		   12181		    9788
-Kswapd inode steals 		  144830		  132109
-Kswapd skipped wait 		       0		       0
-THP fault alloc 		       0		       0
-THP collapse alloc 		       0		       0
-THP splits 			       0		       0
-THP fault fallback 		       0		       0
-THP collapse fail 		       0		       0
-Compaction stalls 		     738		     714
-Compaction success 		     194		     207
-Compaction failures 		     543		     507
-Page migrate success 		 1806083		 1464014
-Page migrate failure 		       0		       0
-Compaction pages isolated 	 3873329	 	 3162974
-Compaction migrate scanned 	74594862	 	59874420
-Compaction free scanned 	125888854	 	110868637
-Compaction cost 		    2469		    1998
+1. Set memory cgroup as follows:
+
+--------------------------------------------------
+# mkdir /sys/fs/cgroup/memory/test
+# echo "6M" > /sys/fs/cgroup/memory/test/memory.limit_in_bytes
+# echo "6M" > /sys/fs/cgroup/memory/test/memory.memsw.limit_in_bytes 
+--------------------------------------------------
+
+2. Ran the following process (test.c).
+
+test.c:
+--------------------------------------------------
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#define SIZE 4*1024*1024
+#define HUGE 2*1024*1024
+#define PAGESIZE 4096
+#define NUM SIZE/PAGESIZE
+
+int main(void)
+{
+	char *a;
+	char *c;
+	int i;
+
+	/* wait until set cgroup limits */
+	sleep(1);
+
+	posix_memalign((void **)&a, HUGE, SIZE);
+	posix_memalign((void **)&c, HUGE, SIZE);
+
+	for (i = 0; i<NUM; i++) {
+		*(a + i * PAGESIZE) = *(c + i * PAGESIZE);
+	}
+
+	for (i = 0; i<NUM; i++) {
+		*(c + i * PAGESIZE) = *(a + i * PAGESIZE);
+	}
+
+	free(a);
+	free(c);
+	return 0;
+}
+--------------------------------------------------
+
+3. Add it to memory cgroup.
+--------------------------------------------------
+# ./test &
+# echo $! > /sys/fs/cgroup/memory/test/tasks
+--------------------------------------------------
+
+Then, the process will hangup.
+I checked the infinit loop by using kprobetrace.
+
+Setting of kprobetrace:
+--------------------------------------------------
+# echo 'p:do_huge_pmd_wp_page do_huge_pmd_wp_page address=%dx' > /sys/kernel/debug/tracing/kprobe_events
+# echo 'r:do_huge_pmd_wp_page_r do_huge_pmd_wp_page ret=$retval' >> /sys/kernel/debug/tracing/kprobe_events
+# echo 'r:mem_cgroup_newpage_charge mem_cgroup_newpage_charge ret=$retval' >> /sys/kernel/debug/tracing/kprobe_events
+# echo 'r:mem_cgroup_charge_common mem_cgroup_charge_common ret=$retval' >> /sys/kernel/debug/tracing/kprobe_events
+# echo 'r:__mem_cgroup_try_charge __mem_cgroup_try_charge ret=$retval' >> /sys/kernel/debug/tracing/kprobe_events
+# echo 1 > /sys/kernel/debug/tracing/events/kprobes/do_huge_pmd_wp_page/enable
+# echo 1 > /sys/kernel/debug/tracing/events/kprobes/do_huge_pmd_wp_page_r/enable
+# echo 1 > /sys/kernel/debug/tracing/events/kprobes/mem_cgroup_newpage_charge/enable
+# echo 1 > /sys/kernel/debug/tracing/events/kprobes/mem_cgroup_charge_common/enable
+# echo 1 > /sys/kernel/debug/tracing/events/kprobes/__mem_cgroup_try_charge/enable
+--------------------------------------------------
+
+The result:
+--------------------------------------------------
+test-2721  [001] dN..  2530.635679: do_huge_pmd_wp_page: (do_huge_pmd_wp_page+0x0/0xa90) address=0x7f55a4400000
+test-2721  [001] dN..  2530.635723: __mem_cgroup_try_charge: (mem_cgroup_charge_common+0x4a/0xa0 <- __mem_cgroup_try_charge) ret=0xfffffff4
+test-2721  [001] dN..  2530.635724: mem_cgroup_charge_common: (mem_cgroup_newpage_charge+0x26/0x30 <- mem_cgroup_charge_common) ret=0xfffffff4
+test-2721  [001] dN..  2530.635725: mem_cgroup_newpage_charge: (do_huge_pmd_wp_page+0x125/0xa90 <- mem_cgroup_newpage_charge) ret=0xfffffff4
+test-2721  [001] dN..  2530.635733: do_huge_pmd_wp_page_r: (handle_mm_fault+0x19e/0x4b0 <- do_huge_pmd_wp_page) ret=0x1
+test-2721  [001] dN..  2530.635735: do_huge_pmd_wp_page: (do_huge_pmd_wp_page+0x0/0xa90) address=0x7f55a4400000
+test-2721  [001] dN..  2530.635761: __mem_cgroup_try_charge: (mem_cgroup_charge_common+0x4a/0xa0 <- __mem_cgroup_try_charge) ret=0xfffffff4
+test-2721  [001] dN..  2530.635761: mem_cgroup_charge_common: (mem_cgroup_newpage_charge+0x26/0x30 <- mem_cgroup_charge_common) ret=0xfffffff4
+test-2721  [001] dN..  2530.635762: mem_cgroup_newpage_charge: (do_huge_pmd_wp_page+0x125/0xa90 <- mem_cgroup_newpage_charge) ret=0xfffffff4
+test-2721  [001] dN..  2530.635768: do_huge_pmd_wp_page_r: (handle_mm_fault+0x19e/0x4b0 <- do_huge_pmd_wp_page) ret=0x1
+(...repeat...)
+--------------------------------------------------
+
+Regards,
+Masayoshi Mizuma <m.mizuma@jp.fujitsu.com>
+...
+retry:
+        pgd = pgd_offset(mm, address);
+...
+                        if (dirty && !pmd_write(orig_pmd)) {
+                                ret = do_huge_pmd_wp_page(mm, vma, address, pmd,
+                                                          orig_pmd);
+                                /*
+                                 * If COW results in an oom, the huge pmd will
+                                 * have been split, so retry the fault on the
+                                 * pte for a smaller charge.
+                                 */
+                                if (unlikely(ret & VM_FAULT_OOM))
+                                        goto retry;
+--------------------------------------------------
+
+[Step to reproduce]
+
+1. Set memory cgroup as follows:
+
+--------------------------------------------------
+# mkdir /sys/fs/cgroup/memory/test
+# echo "6M" > /sys/fs/cgroup/memory/test/memory.limit_in_bytes
+# echo "6M" > /sys/fs/cgroup/memory/test/memory.memsw.limit_in_bytes 
+--------------------------------------------------
+
+2. Ran the following process (test.c).
+
+test.c:
+--------------------------------------------------
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#define SIZE 4*1024*1024
+#define HUGE 2*1024*1024
+#define PAGESIZE 4096
+#define NUM SIZE/PAGESIZE
+
+int main(void)
+{
+	char *a;
+	char *c;
+	int i;
+
+	/* wait until set cgroup limits */
+	sleep(1);
+
+	posix_memalign((void **)&a, HUGE, SIZE);
+	posix_memalign((void **)&c, HUGE, SIZE);
+
+	for (i = 0; i<NUM; i++) {
+		*(a + i * PAGESIZE) = *(c + i * PAGESIZE);
+	}
+
+	for (i = 0; i<NUM; i++) {
+		*(c + i * PAGESIZE) = *(a + i * PAGESIZE);
+	}
+
+	free(a);
+	free(c);
+	return 0;
+}
+--------------------------------------------------
+
+3. Add it to memory cgroup.
+--------------------------------------------------
+# ./test &
+# echo $! > /sys/fs/cgroup/memory/test/tasks
+--------------------------------------------------
+
+Then, the process will hangup.
+I checked the infinit loop by using kprobetrace.
+
+Setting of kprobetrace:
+--------------------------------------------------
+# echo 'p:do_huge_pmd_wp_page do_huge_pmd_wp_page address=%dx' > /sys/kernel/debug/tracing/kprobe_events
+# echo 'r:do_huge_pmd_wp_page_r do_huge_pmd_wp_page ret=$retval' >> /sys/kernel/debug/tracing/kprobe_events
+# echo 'r:mem_cgroup_newpage_charge mem_cgroup_newpage_charge ret=$retval' >> /sys/kernel/debug/tracing/kprobe_events
+# echo 'r:mem_cgroup_charge_common mem_cgroup_charge_common ret=$retval' >> /sys/kernel/debug/tracing/kprobe_events
+# echo 'r:__mem_cgroup_try_charge __mem_cgroup_try_charge ret=$retval' >> /sys/kernel/debug/tracing/kprobe_events
+# echo 1 > /sys/kernel/debug/tracing/events/kprobes/do_huge_pmd_wp_page/enable
+# echo 1 > /sys/kernel/debug/tracing/events/kprobes/do_huge_pmd_wp_page_r/enable
+# echo 1 > /sys/kernel/debug/tracing/events/kprobes/mem_cgroup_newpage_charge/enable
+# echo 1 > /sys/kernel/debug/tracing/events/kprobes/mem_cgroup_charge_common/enable
+# echo 1 > /sys/kernel/debug/tracing/events/kprobes/__mem_cgroup_try_charge/enable
+--------------------------------------------------
+
+The result:
+--------------------------------------------------
+test-2721  [001] dN..  2530.635679: do_huge_pmd_wp_page: (do_huge_pmd_wp_page+0x0/0xa90) address=0x7f55a4400000
+test-2721  [001] dN..  2530.635723: __mem_cgroup_try_charge: (mem_cgroup_charge_common+0x4a/0xa0 <- __mem_cgroup_try_charge) ret=0xfffffff4
+test-2721  [001] dN..  2530.635724: mem_cgroup_charge_common: (mem_cgroup_newpage_charge+0x26/0x30 <- mem_cgroup_charge_common) ret=0xfffffff4
+test-2721  [001] dN..  2530.635725: mem_cgroup_newpage_charge: (do_huge_pmd_wp_page+0x125/0xa90 <- mem_cgroup_newpage_charge) ret=0xfffffff4
+test-2721  [001] dN..  2530.635733: do_huge_pmd_wp_page_r: (handle_mm_fault+0x19e/0x4b0 <- do_huge_pmd_wp_page) ret=0x1
+test-2721  [001] dN..  2530.635735: do_huge_pmd_wp_page: (do_huge_pmd_wp_page+0x0/0xa90) address=0x7f55a4400000
+test-2721  [001] dN..  2530.635761: __mem_cgroup_try_charge: (mem_cgroup_charge_common+0x4a/0xa0 <- __mem_cgroup_try_charge) ret=0xfffffff4
+test-2721  [001] dN..  2530.635761: mem_cgroup_charge_common: (mem_cgroup_newpage_charge+0x26/0x30 <- mem_cgroup_charge_common) ret=0xfffffff4
+test-2721  [001] dN..  2530.635762: mem_cgroup_newpage_charge: (do_huge_pmd_wp_page+0x125/0xa90 <- mem_cgroup_newpage_charge) ret=0xfffffff4
+test-2721  [001] dN..  2530.635768: do_huge_pmd_wp_page_r: (handle_mm_fault+0x19e/0x4b0 <- do_huge_pmd_wp_page) ret=0x1
+(...repeat...)
+--------------------------------------------------
+
+Regards,
+Masayoshi Mizuma <m.mizuma@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
