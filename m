@@ -1,86 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f171.google.com (mail-yk0-f171.google.com [209.85.160.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 172A76B0031
-	for <linux-mm@kvack.org>; Mon, 10 Feb 2014 16:11:29 -0500 (EST)
-Received: by mail-yk0-f171.google.com with SMTP id q9so8703560ykb.2
-        for <linux-mm@kvack.org>; Mon, 10 Feb 2014 13:11:28 -0800 (PST)
-Received: from fujitsu25.fnanic.fujitsu.com (fujitsu25.fnanic.fujitsu.com. [192.240.6.15])
-        by mx.google.com with ESMTPS id g10si11527977yhn.159.2014.02.10.13.11.28
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 49FA36B0031
+	for <linux-mm@kvack.org>; Mon, 10 Feb 2014 16:35:40 -0500 (EST)
+Received: by mail-pa0-f52.google.com with SMTP id bj1so6762716pad.11
+        for <linux-mm@kvack.org>; Mon, 10 Feb 2014 13:35:39 -0800 (PST)
+Received: from mail-pa0-x22e.google.com (mail-pa0-x22e.google.com [2607:f8b0:400e:c03::22e])
+        by mx.google.com with ESMTPS id b4si5068303pbe.178.2014.02.10.13.35.39
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 10 Feb 2014 13:11:28 -0800 (PST)
-From: Motohiro Kosaki <Motohiro.Kosaki@us.fujitsu.com>
-Date: Mon, 10 Feb 2014 13:11:15 -0800
-Subject: RE: [patch] drop_caches: add some documentation and info message
-Message-ID: <6B2BA408B38BA1478B473C31C3D2074E2DD2208E1C@SV-EXCHANGE1.Corp.FC.LOCAL>
-References: <1391794851-11412-1-git-send-email-hannes@cmpxchg.org>
-	<52F51E19.9000406@redhat.com>	<20140207181332.GG6963@cmpxchg.org>
-	<20140207123129.84f9fb0aaf32f0e09c78851a@linux-foundation.org>
-	<20140207212601.GI6963@cmpxchg.org>
- <20140210125102.86de67241664da038676af7d@linux-foundation.org>
-In-Reply-To: <20140210125102.86de67241664da038676af7d@linux-foundation.org>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 10 Feb 2014 13:35:39 -0800 (PST)
+Received: by mail-pa0-f46.google.com with SMTP id rd3so6703368pab.19
+        for <linux-mm@kvack.org>; Mon, 10 Feb 2014 13:35:38 -0800 (PST)
+Date: Mon, 10 Feb 2014 13:35:35 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [RFC PATCH V5] mm readahead: Fix readahead fail for no local
+ memory and limit readahead pages
+In-Reply-To: <52F8C556.6090006@linux.vnet.ibm.com>
+Message-ID: <alpine.DEB.2.02.1402101333160.15624@chino.kir.corp.google.com>
+References: <1390388025-1418-1-git-send-email-raghavendra.kt@linux.vnet.ibm.com> <20140206145105.27dec37b16f24e4ac5fd90ce@linux-foundation.org> <alpine.DEB.2.02.1402061456290.31828@chino.kir.corp.google.com> <20140206152219.45c2039e5092c8ea1c31fd38@linux-foundation.org>
+ <alpine.DEB.2.02.1402061537180.3441@chino.kir.corp.google.com> <alpine.DEB.2.02.1402061557210.5061@chino.kir.corp.google.com> <52F4B8A4.70405@linux.vnet.ibm.com> <alpine.DEB.2.02.1402071239301.4212@chino.kir.corp.google.com> <52F88C16.70204@linux.vnet.ibm.com>
+ <alpine.DEB.2.02.1402100200420.30650@chino.kir.corp.google.com> <52F8C556.6090006@linux.vnet.ibm.com>
 MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>
-Cc: Rik van Riel <riel@redhat.com>, Dave Hansen <dave@sr71.net>, Michal Hocko <mhocko@suse.cz>, Motohiro Kosaki JP <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Fengguang Wu <fengguang.wu@intel.com>, David Cohen <david.a.cohen@linux.intel.com>, Al Viro <viro@zeniv.linux.org.uk>, Damien Ramonda <damien.ramonda@intel.com>, Jan Kara <jack@suse.cz>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
+On Mon, 10 Feb 2014, Raghavendra K T wrote:
 
+> So I understood that you are suggesting implementations like below
+> 
+> 1) I do not have problem with the below approach, I could post this in
+> next version.
+> ( But this did not include 4k limit Linus mentioned to apply)
+> 
+> unsigned long max_sane_readahead(unsigned long nr)
+> {
+>         unsigned long local_free_page;
+>         int nid;
+> 
+>         nid = numa_mem_id();
+> 
+>         /*
+>          * We sanitize readahead size depending on free memory in
+>          * the local node.
+>          */
+>         local_free_page = node_page_state(nid, NR_INACTIVE_FILE)
+>                           + node_page_state(nid, NR_FREE_PAGES);
+>         return min(nr, local_free_page / 2);
+> }
+> 
+> 2) I did not go for below because Honza (Jan Kara) had some
+> concerns for 4k limit for normal case, and since I am not
+> the expert, I was waiting for opinions.
+> 
+> unsigned long max_sane_readahead(unsigned long nr)
+> {
+>         unsigned long local_free_page, sane_nr;
+>         int nid;
+> 
+>         nid = numa_mem_id();
+> 	/* limit the max readahead to 4k pages */
+> 	sane_nr = min(nr, MAX_REMOTE_READAHEAD);
+> 
+>         /*
+>          * We sanitize readahead size depending on free memory in
+>          * the local node.
+>          */
+>         local_free_page = node_page_state(nid, NR_INACTIVE_FILE)
+>                           + node_page_state(nid, NR_FREE_PAGES);
+>         return min(sane_nr, local_free_page / 2);
+> }
+> 
 
-> -----Original Message-----
-> From: Andrew Morton [mailto:akpm@linux-foundation.org]
-> Sent: Tuesday, February 11, 2014 5:51 AM
-> To: Johannes Weiner
-> Cc: Rik van Riel; Dave Hansen; Michal Hocko; Motohiro Kosaki JP; KAMEZAWA
-> Hiroyuki; linux-mm@kvack.org; linux-kernel@vger.kernel.org
-> Subject: Re: [patch] drop_caches: add some documentation and info
-> message
->=20
-> On Fri, 7 Feb 2014 16:26:01 -0500 Johannes Weiner <hannes@cmpxchg.org>
-> wrote:
->=20
-> > On Fri, Feb 07, 2014 at 12:31:29PM -0800, Andrew Morton wrote:
-> > > On Fri, 7 Feb 2014 13:13:32 -0500 Johannes Weiner
-> <hannes@cmpxchg.org> wrote:
-> > >
-> > > > @@ -63,6 +64,9 @@ int drop_caches_sysctl_handler(ctl_table *table,
-> int write,
-> > > >  			iterate_supers(drop_pagecache_sb, NULL);
-> > > >  		if (sysctl_drop_caches & 2)
-> > > >  			drop_slab();
-> > > > +		printk_ratelimited(KERN_INFO "%s (%d): dropped kernel
-> caches: %d\n",
-> > > > +				   current->comm, task_pid_nr(current),
-> > > > +				   sysctl_drop_caches);
-> > > >  	}
-> > > >  	return 0;
-> > > >  }
-> > >
-> > > My concern with this is that there may be people whose
-> > > other-party-provided software uses drop_caches.  Their machines will
-> > > now sit there emitting log messages and there's nothing they can do
-> > > about it, apart from whining at their vendors.
-> >
-> > Ironically, we have a customer that is complaining that we currently
-> > do not log these events, and they want to know who in their stack is
-> > being idiotic.
->=20
-> Right.  But if we release a kernel which goes blah on every write to
-> drop_caches, that customer has logs full of blahs which they are now tota=
-lly
-> uninterested in.
-
-Please let me know if I misunderstand something. This patch uses KERN_INFO.
-Then, any log shouldn't be emitted by default.
-
-Moreover, if someone change syslog log level to INFO, they are going to see
-much prenty annoying and too much logs even if we reject this patch.
-
-
-
+I have no opinion on the 4KB pages, either of the above is just fine.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
