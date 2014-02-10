@@ -1,83 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 63BCA6B0031
-	for <linux-mm@kvack.org>; Sun,  9 Feb 2014 19:46:23 -0500 (EST)
-Received: by mail-pd0-f182.google.com with SMTP id v10so5455672pde.27
-        for <linux-mm@kvack.org>; Sun, 09 Feb 2014 16:46:22 -0800 (PST)
-Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
-        by mx.google.com with ESMTP id eb3si13217377pbc.356.2014.02.09.16.46.19
+Received: from mail-pb0-f47.google.com (mail-pb0-f47.google.com [209.85.160.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F5B26B0031
+	for <linux-mm@kvack.org>; Sun,  9 Feb 2014 20:09:36 -0500 (EST)
+Received: by mail-pb0-f47.google.com with SMTP id rp16so5533002pbb.6
+        for <linux-mm@kvack.org>; Sun, 09 Feb 2014 17:09:36 -0800 (PST)
+Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
+        by mx.google.com with ESMTP id d4si13304745pao.186.2014.02.09.17.09.30
         for <linux-mm@kvack.org>;
-        Sun, 09 Feb 2014 16:46:22 -0800 (PST)
-Date: Mon, 10 Feb 2014 09:46:26 +0900
+        Sun, 09 Feb 2014 17:09:35 -0800 (PST)
+Date: Mon, 10 Feb 2014 10:09:36 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 4/5] mm/compaction: check pageblock suitability once per
- pageblock
-Message-ID: <20140210004626.GC12049@lge.com>
-References: <1391749726-28910-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1391749726-28910-5-git-send-email-iamjoonsoo.kim@lge.com>
- <52F4B5AA.2040006@suse.cz>
+Subject: Re: [RFC PATCH 2/3] topology: support node_numa_mem() for
+ determining the fallback node
+Message-ID: <20140210010936.GA12574@lge.com>
+References: <20140206020757.GC5433@linux.vnet.ibm.com>
+ <1391674026-20092-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1391674026-20092-2-git-send-email-iamjoonsoo.kim@lge.com>
+ <alpine.DEB.2.02.1402060041040.21148@chino.kir.corp.google.com>
+ <CAAmzW4PXkdpNi5pZ=4BzdXNvqTEAhcuw-x0pWidqrxzdePxXxA@mail.gmail.com>
+ <alpine.DEB.2.02.1402061248450.9567@chino.kir.corp.google.com>
+ <20140207054819.GC28952@lge.com>
+ <alpine.DEB.2.02.1402080154140.9668@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <52F4B5AA.2040006@suse.cz>
+In-Reply-To: <alpine.DEB.2.02.1402080154140.9668@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>, Han Pingtian <hanpt@linux.vnet.ibm.com>, Pekka Enberg <penberg@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Paul Mackerras <paulus@samba.org>, Anton Blanchard <anton@samba.org>, Matt Mackall <mpm@selenic.com>, Christoph Lameter <cl@linux.com>, linuxppc-dev@lists.ozlabs.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-On Fri, Feb 07, 2014 at 11:30:02AM +0100, Vlastimil Babka wrote:
-> On 02/07/2014 06:08 AM, Joonsoo Kim wrote:
-> > isolation_suitable() and migrate_async_suitable() is used to be sure
-> > that this pageblock range is fine to be migragted. It isn't needed to
-> > call it on every page. Current code do well if not suitable, but, don't
-> > do well when suitable. It re-check it on every valid pageblock.
-> > This patch fix this situation by updating last_pageblock_nr.
+On Sat, Feb 08, 2014 at 01:57:39AM -0800, David Rientjes wrote:
+> On Fri, 7 Feb 2014, Joonsoo Kim wrote:
 > 
-> It took me a while to understand that the problem with migrate_async_suitable() was the
-> lack of last_pageblock_nr updates (when the code doesn't go through next_pageblock:
-> label), while the problem with isolation_suitable() was the lack of doing the test only
-> when last_pageblock_nr != pageblock_nr (so two different things). How bout making it
-> clearer in the changelog by replacing the paragraph above with something like:
+> > > It seems like a better approach would be to do this when a node is brought 
+> > > online and determine the fallback node based not on the zonelists as you 
+> > > do here but rather on locality (such as through a SLIT if provided, see 
+> > > node_distance()).
+> > 
+> > Hmm...
+> > I guess that zonelist is base on locality. Zonelist is generated using
+> > node_distance(), so I think that it reflects locality. But, I'm not expert
+> > on NUMA, so please let me know what I am missing here :)
+> > 
+> 
+> The zonelist is, yes, but I'm talking about memoryless and cpuless nodes.  
+> If your solution is going to become the generic kernel API that determines 
+> what node has local memory for a particular node, then it will have to 
+> support all definitions of node.  That includes nodes that consist solely 
+> of I/O, chipsets, networking, or storage devices.  These nodes may not 
+> have memory or cpus, so doing it as part of onlining cpus isn't going to 
+> be generic enough.  You want a node_to_mem_node() API for all possible 
+> node types (the possible node types listed above are straight from the 
+> ACPI spec).  For 99% of people, node_to_mem_node(X) is always going to be 
+> X and we can optimize for that, but any solution that relies on cpu online 
+> is probably shortsighted right now.
+> 
+> I think it would be much better to do this as a part of setting a node to 
+> be online.
 
-Really nice!!
-Sorry for bad description and thanks for taking time to understand it.
+Okay. I got your point.
+I will change it to rely on node online if this patch is really needed.
 
-> 
-> <snip>
-> isolation_suitable() and migrate_async_suitable() is used to be sure
-> that this pageblock range is fine to be migragted. It isn't needed to
-> call it on every page. Current code do well if not suitable, but, don't
-> do well when suitable.
-> 
-> 1) It re-checks isolation_suitable() on each page of a pageblock that was already
-> estabilished as suitable.
-> 2) It re-checks migrate_async_suitable() on each page of a pageblock that was not entered
-> through the next_pageblock: label, because last_pageblock_nr is not otherwise updated.
-> 
-> This patch fixes situation by 1) calling isolation_suitable() only once per pageblock and
-> 2) always updating last_pageblock_nr to the pageblock that was just checked.
-> </snip>
-> 
-> > Additionally, move PageBuddy() check after pageblock unit check,
-> > since pageblock check is the first thing we should do and makes things
-> > more simple.
-> 
-> You should also do this, since it becomes redundant and might only confuse people:
-> 
->  next_pageblock:
->                  low_pfn = ALIGN(low_pfn + 1, pageblock_nr_pages) - 1;
-> -                last_pageblock_nr = pageblock_nr;
-> 
-
-Okay.
-
-> > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> 
-> With the above resolved, consider the patch to be
-> 
-> Acked-by: Vlastimil Babka <vbabka@suse.cz>
-
-I will do it.
 Thanks!
 
 --
