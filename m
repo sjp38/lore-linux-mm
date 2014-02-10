@@ -1,92 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f50.google.com (mail-ee0-f50.google.com [74.125.83.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A46B6B0031
-	for <linux-mm@kvack.org>; Mon, 10 Feb 2014 12:28:08 -0500 (EST)
-Received: by mail-ee0-f50.google.com with SMTP id d17so3067036eek.37
-        for <linux-mm@kvack.org>; Mon, 10 Feb 2014 09:28:07 -0800 (PST)
+Received: from mail-ea0-f172.google.com (mail-ea0-f172.google.com [209.85.215.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D34D6B0037
+	for <linux-mm@kvack.org>; Mon, 10 Feb 2014 12:28:09 -0500 (EST)
+Received: by mail-ea0-f172.google.com with SMTP id l9so2657184eaj.17
+        for <linux-mm@kvack.org>; Mon, 10 Feb 2014 09:28:08 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id f45si27351690eep.194.2014.02.10.09.28.06
+        by mx.google.com with ESMTP id d8si27328443eeh.221.2014.02.10.09.28.06
         for <linux-mm@kvack.org>;
-        Mon, 10 Feb 2014 09:28:06 -0800 (PST)
+        Mon, 10 Feb 2014 09:28:07 -0800 (PST)
 From: Luiz Capitulino <lcapitulino@redhat.com>
-Subject: [PATCH 1/4] memblock: memblock_virt_alloc_internal(): alloc from specified node only
-Date: Mon, 10 Feb 2014 12:27:45 -0500
-Message-Id: <1392053268-29239-2-git-send-email-lcapitulino@redhat.com>
-In-Reply-To: <1392053268-29239-1-git-send-email-lcapitulino@redhat.com>
-References: <1392053268-29239-1-git-send-email-lcapitulino@redhat.com>
+Subject: [PATCH 0/4] hugetlb: add hugepagesnid= command-line option
+Date: Mon, 10 Feb 2014 12:27:44 -0500
+Message-Id: <1392053268-29239-1-git-send-email-lcapitulino@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, mtosatti@redhat.com, mgorman@suse.de, aarcange@redhat.com, andi@firstfloor.org, riel@redhat.com
 
-From: Luiz capitulino <lcapitulino@redhat.com>
+HugeTLB command-line option hugepages= allows the user to specify how many
+huge pages should be allocated at boot. On NUMA systems, this argument
+automatically distributes huge pages allocation among nodes, which can
+be undesirable.
 
-If an allocation from the node specified by the nid argument fails,
-memblock_virt_alloc_internal() automatically tries to allocate memory
-from other nodes.
+The hugepagesnid= option introduced by this commit allows the user
+to specify which NUMA nodes should be used to allocate boot-time HugeTLB
+pages. For example, hugepagesnid=0,2,2G will allocate two 2G huge pages
+from node 0 only. More details on patch 3/4 and patch 4/4.
 
-This is fine is the caller don't care which node is going to allocate
-the memory. However, there are cases where the caller wants memory to
-be allocated from the specified node only. If that's not possible, then
-memblock_virt_alloc_internal() should just fail.
+Luiz capitulino (4):
+  memblock: memblock_virt_alloc_internal(): alloc from specified node
+    only
+  memblock: add memblock_virt_alloc_nid_nopanic()
+  hugetlb: add hugepagesnid= command-line option
+  hugetlb: hugepagesnid=: add 1G huge page support
 
-This commit adds a new flags argument to memblock_virt_alloc_internal()
-where the caller can control this behavior.
+ Documentation/kernel-parameters.txt |   8 +++
+ arch/x86/mm/hugetlbpage.c           |  35 ++++++++++++
+ include/linux/bootmem.h             |   4 ++
+ include/linux/hugetlb.h             |   2 +
+ mm/hugetlb.c                        | 103 ++++++++++++++++++++++++++++++++++++
+ mm/memblock.c                       |  41 ++++++++++++--
+ 6 files changed, 190 insertions(+), 3 deletions(-)
 
-Signed-off-by: Luiz capitulino <lcapitulino@redhat.com>
----
- mm/memblock.c | 10 +++++++---
- 1 file changed, 7 insertions(+), 3 deletions(-)
-
-diff --git a/mm/memblock.c b/mm/memblock.c
-index 39a31e7..b0c7b2e 100644
---- a/mm/memblock.c
-+++ b/mm/memblock.c
-@@ -1028,6 +1028,8 @@ phys_addr_t __init memblock_alloc_try_nid(phys_addr_t size, phys_addr_t align, i
- 	return memblock_alloc_base(size, align, MEMBLOCK_ALLOC_ACCESSIBLE);
- }
- 
-+#define ALLOC_SPECIFIED_NODE_ONLY 0x1
-+
- /**
-  * memblock_virt_alloc_internal - allocate boot memory block
-  * @size: size of memory block to be allocated in bytes
-@@ -1058,7 +1060,7 @@ phys_addr_t __init memblock_alloc_try_nid(phys_addr_t size, phys_addr_t align, i
- static void * __init memblock_virt_alloc_internal(
- 				phys_addr_t size, phys_addr_t align,
- 				phys_addr_t min_addr, phys_addr_t max_addr,
--				int nid)
-+				int nid, unsigned int flags)
- {
- 	phys_addr_t alloc;
- 	void *ptr;
-@@ -1085,6 +1087,8 @@ again:
- 					    nid);
- 	if (alloc)
- 		goto done;
-+	else if (flags & ALLOC_SPECIFIED_NODE_ONLY)
-+		goto error;
- 
- 	if (nid != NUMA_NO_NODE) {
- 		alloc = memblock_find_in_range_node(size, align, min_addr,
-@@ -1145,7 +1149,7 @@ void * __init memblock_virt_alloc_try_nid_nopanic(
- 		     __func__, (u64)size, (u64)align, nid, (u64)min_addr,
- 		     (u64)max_addr, (void *)_RET_IP_);
- 	return memblock_virt_alloc_internal(size, align, min_addr,
--					     max_addr, nid);
-+					     max_addr, nid, 0);
- }
- 
- /**
-@@ -1177,7 +1181,7 @@ void * __init memblock_virt_alloc_try_nid(
- 		     __func__, (u64)size, (u64)align, nid, (u64)min_addr,
- 		     (u64)max_addr, (void *)_RET_IP_);
- 	ptr = memblock_virt_alloc_internal(size, align,
--					   min_addr, max_addr, nid);
-+					   min_addr, max_addr, nid, 0);
- 	if (ptr)
- 		return ptr;
- 
 -- 
 1.8.1.4
 
