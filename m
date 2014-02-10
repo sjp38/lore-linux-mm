@@ -1,158 +1,182 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id BCBB66B0031
-	for <linux-mm@kvack.org>; Mon, 10 Feb 2014 07:20:00 -0500 (EST)
-Received: by mail-pd0-f175.google.com with SMTP id w10so5992447pde.6
-        for <linux-mm@kvack.org>; Mon, 10 Feb 2014 04:20:00 -0800 (PST)
-Received: from e23smtp01.au.ibm.com (e23smtp01.au.ibm.com. [202.81.31.143])
-        by mx.google.com with ESMTPS id gj4si15200252pac.234.2014.02.10.04.19.51
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 10 Feb 2014 04:19:52 -0800 (PST)
-Received: from /spool/local
-	by e23smtp01.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <raghavendra.kt@linux.vnet.ibm.com>;
-	Mon, 10 Feb 2014 22:19:47 +1000
-Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
-	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 05F193578052
-	for <linux-mm@kvack.org>; Mon, 10 Feb 2014 23:19:44 +1100 (EST)
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s1AC09cx459074
-	for <linux-mm@kvack.org>; Mon, 10 Feb 2014 23:00:09 +1100
-Received: from d23av02.au.ibm.com (localhost [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s1ACJhGg012441
-	for <linux-mm@kvack.org>; Mon, 10 Feb 2014 23:19:43 +1100
-Message-ID: <52F8C556.6090006@linux.vnet.ibm.com>
-Date: Mon, 10 Feb 2014 17:55:58 +0530
-From: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Subject: Re: [RFC PATCH V5] mm readahead: Fix readahead fail for no local
- memory and limit readahead pages
-References: <1390388025-1418-1-git-send-email-raghavendra.kt@linux.vnet.ibm.com> <20140206145105.27dec37b16f24e4ac5fd90ce@linux-foundation.org> <alpine.DEB.2.02.1402061456290.31828@chino.kir.corp.google.com> <20140206152219.45c2039e5092c8ea1c31fd38@linux-foundation.org> <alpine.DEB.2.02.1402061537180.3441@chino.kir.corp.google.com> <alpine.DEB.2.02.1402061557210.5061@chino.kir.corp.google.com> <52F4B8A4.70405@linux.vnet.ibm.com> <alpine.DEB.2.02.1402071239301.4212@chino.kir.corp.google.com> <52F88C16.70204@linux.vnet.ibm.com> <alpine.DEB.2.02.1402100200420.30650@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.02.1402100200420.30650@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 8bit
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id B7A036B0031
+	for <linux-mm@kvack.org>; Mon, 10 Feb 2014 07:57:01 -0500 (EST)
+Received: by mail-pd0-f182.google.com with SMTP id v10so6122941pde.27
+        for <linux-mm@kvack.org>; Mon, 10 Feb 2014 04:57:01 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id bq5si15336488pbb.198.2014.02.10.04.57.00
+        for <linux-mm@kvack.org>;
+        Mon, 10 Feb 2014 04:57:00 -0800 (PST)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+In-Reply-To: <20140210111928.GA7117@dhcp22.suse.cz>
+References: <52F81C5D.6010601@jp.fujitsu.com>
+ <20140210111928.GA7117@dhcp22.suse.cz>
+Subject: Re: mm: memcg: A infinite loop in __handle_mm_fault()
+Content-Transfer-Encoding: 7bit
+Message-Id: <20140210125655.4AB48E0090@blue.fi.intel.com>
+Date: Mon, 10 Feb 2014 14:56:55 +0200 (EET)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Fengguang Wu <fengguang.wu@intel.com>, David Cohen <david.a.cohen@linux.intel.com>, Al Viro <viro@zeniv.linux.org.uk>, Damien Ramonda <damien.ramonda@intel.com>, Jan Kara <jack@suse.cz>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: "Mizuma, Masayoshi" <m.mizuma@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On 02/10/2014 03:35 PM, David Rientjes wrote:
-> On Mon, 10 Feb 2014, Raghavendra K T wrote:
->
->> As you rightly pointed , I 'll drop remote memory term and use
->> something like  :
->>
->> "* Ensure readahead success on a memoryless node cpu. But we limit
->>   * the readahead to 4k pages to avoid trashing page cache." ..
->>
->
-> I don't know how to proceed here after pointing it out twice, I'm afraid.
->
-> numa_mem_id() is local memory for a memoryless node.  node_present_pages()
-> has no place in your patch.
+Michal Hocko wrote:
+> [CCing Kirill]
+> 
+> On Mon 10-02-14 09:25:01, Mizuma, Masayoshi wrote:
+> > Hi,
+> 
+> Hi,
+> 
+> > This is a bug report for memory cgroup hang up.
+> > I reproduced this using 3.14-rc1 but I couldn't in 3.7.
+> > 
+> > When I ran a program (see below) under a limit of memcg, the process hanged up.
+> > Using kprobe trace, I detected the hangup in __handle_mm_fault().
+> > do_huge_pmd_wp_page(), which is called by __handle_mm_fault(), always returns
+> > VM_FAULT_OOM, so it repeats goto retry and the task can't be killed.
+> 
+> Thanks a lot for this very good report. I would bet the issue is related
+> to the THP zero page.
+> 
+> __handle_mm_fault retry loop for VM_FAULT_OOM from do_huge_pmd_wp_page
+> expects that the pmd is marked for splitting so that it can break out
+> and retry the fault. This is not the case for THP zero page though.
+> do_huge_pmd_wp_page checks is_huge_zero_pmd and goes to allocate a new
+> huge page which will succeed in your case because you are hitting memcg
+> limit not the global memory pressure. But then a new page is charged by
+> mem_cgroup_newpage_charge which fails. An existing page is then split
+> and we are returning VM_FAULT_OOM. But we do not have page initialized
+> in that path because page = pmd_page(orig_pmd) is called after
+> is_huge_zero_pmd check.
+> 
+> I am not familiar with THP zero page code much but I guess splitting
+> such a zero page is not a way to go. Instead we should simply drop the
+> zero page and retry the fault. I would assume that one of
+> do_huge_pmd_wp_zero_page_fallback or do_huge_pmd_wp_page_fallback should
+> do the trick but both of them try to charge new page(s) before the
+> current zero page is uncharged. That makes it prone to the same issue
+> AFAICS.
+> 
+> But may be Kirill has a better idea.
 
-Hi David,  I am happy to see your pointer reg. numa_mem_id(). I did not
-meant to be ignoring/offensive .. sorry if conversation thought to be so.
+Your analysis looks accurate. Although I was not able to reproduce
+hang up.
 
-So I understood that you are suggesting implementations like below
+The problem with do_huge_pmd_wp_zero_page_fallback() that it can return
+VM_FAULT_OOM if it failed to allocate new *small* page, so it's real OOM.
 
-1) I do not have problem with the below approach, I could post this in
-next version.
-( But this did not include 4k limit Linus mentioned to apply)
+Untested patch below tries to fix. Masayoshi, could you test.
 
-unsigned long max_sane_readahead(unsigned long nr)
-{
-         unsigned long local_free_page;
-         int nid;
+BTW, Michal, I've triggered sleep-in-atomic bug in
+mem_cgroup_print_oom_info():
 
-         nid = numa_mem_id();
+[    2.386563] Task in /test killed as a result of limit of /test
+[    2.387326] memory: usage 10240kB, limit 10240kB, failcnt 51
+[    2.388098] memory+swap: usage 10240kB, limit 10240kB, failcnt 0
+[    2.388861] kmem: usage 0kB, limit 18014398509481983kB, failcnt 0
+[    2.389640] Memory cgroup stats for /test:
+[    2.390178] BUG: sleeping function called from invalid context at /home/space/kas/git/public/linux/kernel/cpu.c:68
+[    2.391516] in_atomic(): 1, irqs_disabled(): 0, pid: 66, name: memcg_test
+[    2.392416] 2 locks held by memcg_test/66:
+[    2.392945]  #0:  (memcg_oom_lock#2){+.+...}, at: [<ffffffff81131014>] pagefault_out_of_memory+0x14/0x90
+[    2.394233]  #1:  (oom_info_lock){+.+...}, at: [<ffffffff81197b2a>] mem_cgroup_print_oom_info+0x2a/0x390
+[    2.395496] CPU: 2 PID: 66 Comm: memcg_test Not tainted 3.14.0-rc1-dirty #745
+[    2.396536] Hardware name: QEMU Standard PC (Q35 + ICH9, 2009), BIOS Bochs 01/01/2011
+[    2.397540]  ffffffff81a3cc90 ffff88081d26dba0 ffffffff81776ea3 0000000000000000
+[    2.398541]  ffff88081d26dbc8 ffffffff8108418a 0000000000000000 ffff88081d15c000
+[    2.399533]  0000000000000000 ffff88081d26dbd8 ffffffff8104f6bc ffff88081d26dc10
+[    2.400588] Call Trace:
+[    2.400908]  [<ffffffff81776ea3>] dump_stack+0x4d/0x66
+[    2.401578]  [<ffffffff8108418a>] __might_sleep+0x16a/0x210
+[    2.402295]  [<ffffffff8104f6bc>] get_online_cpus+0x1c/0x60
+[    2.403005]  [<ffffffff8118fb67>] mem_cgroup_read_stat+0x27/0xb0
+[    2.403769]  [<ffffffff81197d60>] mem_cgroup_print_oom_info+0x260/0x390
+[    2.404653]  [<ffffffff8177314e>] dump_header+0x88/0x251
+[    2.405342]  [<ffffffff810a3bfd>] ? trace_hardirqs_on+0xd/0x10
+[    2.406098]  [<ffffffff81130618>] oom_kill_process+0x258/0x3d0
+[    2.406833]  [<ffffffff81198746>] mem_cgroup_oom_synchronize+0x656/0x6c0
+[    2.407674]  [<ffffffff811973a0>] ? mem_cgroup_charge_common+0xd0/0xd0
+[    2.408553]  [<ffffffff81131014>] pagefault_out_of_memory+0x14/0x90
+[    2.409354]  [<ffffffff817712f7>] mm_fault_error+0x91/0x189
+[    2.410069]  [<ffffffff81783eae>] __do_page_fault+0x48e/0x580
+[    2.410791]  [<ffffffff8108f656>] ? local_clock+0x16/0x30
+[    2.411467]  [<ffffffff810a3bfd>] ? trace_hardirqs_on+0xd/0x10
+[    2.412248]  [<ffffffff8177f6fc>] ? _raw_spin_unlock_irq+0x2c/0x40
+[    2.413039]  [<ffffffff8108312b>] ? finish_task_switch+0x7b/0x100
+[    2.413821]  [<ffffffff813b954a>] ? trace_hardirqs_off_thunk+0x3a/0x3c
+[    2.414652]  [<ffffffff81783fae>] do_page_fault+0xe/0x10
+[    2.415330]  [<ffffffff81780552>] page_fault+0x22/0x30
 
-         /*
-          * We sanitize readahead size depending on free memory in
-          * the local node.
-          */
-         local_free_page = node_page_state(nid, NR_INACTIVE_FILE)
-                           + node_page_state(nid, NR_FREE_PAGES);
-         return min(nr, local_free_page / 2);
-}
-
-2) I did not go for below because Honza (Jan Kara) had some
-concerns for 4k limit for normal case, and since I am not
-the expert, I was waiting for opinions.
-
-unsigned long max_sane_readahead(unsigned long nr)
-{
-         unsigned long local_free_page, sane_nr;
-         int nid;
-
-         nid = numa_mem_id();
-	/* limit the max readahead to 4k pages */
-	sane_nr = min(nr, MAX_REMOTE_READAHEAD);
-
-         /*
-          * We sanitize readahead size depending on free memory in
-          * the local node.
-          */
-         local_free_page = node_page_state(nid, NR_INACTIVE_FILE)
-                           + node_page_state(nid, NR_FREE_PAGES);
-         return min(sane_nr, local_free_page / 2);
-}
-
->
->> Regarding ACCESS_ONCE, since we will have to add
->> inside the function and still there is nothing that could prevent us
->> getting run on different cpu with a different node (as Andrew ponted), I have
->> not included in current patch that I am posting.
->> Moreover this case is hopefully not fatal since it is just a hint for
->> readahead we can do.
->>
->
-> I have no idea why you think the ACCESS_ONCE() is a problem.  It's relying
-> on gcc's implementation to ensure that the equation is done only for one
-> node.  It has absolutely nothing to do with the fact that the process may
-> be moved to another cpu upon returning or even immediately after the
-> calculation is done.  Is it possible that node0 has 80% of memory free and
-> node1 has 80% of memory inactive?  Well, then your equation doesn't work
-> quite so well if the process moves.
->
-> There is no downside whatsoever to using it, I have no idea why you think
-> it's better without it.
-
-I have no problem introducing ACESSS_ONCE too. But I skipped only
-after I got the below error.
-
-mm/readahead.c: In function ?max_sane_readahead?:
-mm/readahead.c:246: error: lvalue required as unary ?&? operand
-
->
->> So there are many possible implementation:
->> (1) use numa_mem_id(), apply freepage limit  and use 4k page limit for all
->> case
->> (Jan had reservation about this case)
->>
->> (2)for normal case:    use free memory calculation and do not apply 4k
->>      limit (no change).
->>     for memoryless cpu case:  use numa_mem_id for more accurate
->>      calculation of limit and also apply 4k limit.
->>
->> (3) for normal case:   use free memory calculation and do not apply 4k
->>      limit (no change).
->>      for memoryless case: apply 4k page limit
->>
->> (4) use numa_mem_id() and apply only free page limit..
->>
->> So, I ll be resending the patch with changelog and comment changes
->> based on your and Andrew's feedback (type (3) implementation).
->>
->
-> It's frustrating to have to say something three times.  Ask yourself what
-> happens if ALL NODES WITH CPUS DO NOT HAVE MEMORY?
->
-
-True, this is the reason why we could go for implementation (1) I posted
-above. It was just that I did not want to float a new version without
-knowing whether Andrew was expecting new patch or change log updates.
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 82166bf974e1..974eb9eea2c0 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1166,8 +1166,10 @@ alloc:
+ 		} else {
+ 			ret = do_huge_pmd_wp_page_fallback(mm, vma, address,
+ 					pmd, orig_pmd, page, haddr);
+-			if (ret & VM_FAULT_OOM)
++			if (ret & VM_FAULT_OOM) {
+ 				split_huge_page(page);
++				ret |= VM_FAULT_FALLBACK;
++			}
+ 			put_page(page);
+ 		}
+ 		count_vm_event(THP_FAULT_FALLBACK);
+@@ -1179,9 +1181,12 @@ alloc:
+ 		if (page) {
+ 			split_huge_page(page);
+ 			put_page(page);
++			ret |= VM_FAULT_FALLBACK;
++		} else {
++			ret = do_huge_pmd_wp_zero_page_fallback(mm, vma,
++					address, pmd, orig_pmd, haddr);
+ 		}
+ 		count_vm_event(THP_FAULT_FALLBACK);
+-		ret |= VM_FAULT_OOM;
+ 		goto out;
+ 	}
+ 
+diff --git a/mm/memory.c b/mm/memory.c
+index be6a0c0d4ae0..3b57b7864667 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -3703,7 +3703,6 @@ static int __handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	if (unlikely(is_vm_hugetlb_page(vma)))
+ 		return hugetlb_fault(mm, vma, address, flags);
+ 
+-retry:
+ 	pgd = pgd_offset(mm, address);
+ 	pud = pud_alloc(mm, pgd, address);
+ 	if (!pud)
+@@ -3741,20 +3740,13 @@ retry:
+ 			if (dirty && !pmd_write(orig_pmd)) {
+ 				ret = do_huge_pmd_wp_page(mm, vma, address, pmd,
+ 							  orig_pmd);
+-				/*
+-				 * If COW results in an oom, the huge pmd will
+-				 * have been split, so retry the fault on the
+-				 * pte for a smaller charge.
+-				 */
+-				if (unlikely(ret & VM_FAULT_OOM))
+-					goto retry;
+-				return ret;
++				if (!(ret & VM_FAULT_FALLBACK))
++					return ret;
+ 			} else {
+ 				huge_pmd_set_accessed(mm, vma, address, pmd,
+ 						      orig_pmd, dirty);
++				return 0;
+ 			}
+-
+-			return 0;
+ 		}
+ 	}
+ 
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
