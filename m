@@ -1,46 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id D56236B0031
-	for <linux-mm@kvack.org>; Mon, 10 Feb 2014 18:06:17 -0500 (EST)
-Received: by mail-pa0-f51.google.com with SMTP id ld10so6827356pab.24
-        for <linux-mm@kvack.org>; Mon, 10 Feb 2014 15:06:17 -0800 (PST)
+Received: from mail-pb0-f44.google.com (mail-pb0-f44.google.com [209.85.160.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 994536B0031
+	for <linux-mm@kvack.org>; Mon, 10 Feb 2014 18:13:57 -0500 (EST)
+Received: by mail-pb0-f44.google.com with SMTP id rq2so6929188pbb.3
+        for <linux-mm@kvack.org>; Mon, 10 Feb 2014 15:13:57 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id zk9si16835146pac.318.2014.02.10.15.06.16
+        by mx.google.com with ESMTP id fl7si16856914pad.229.2014.02.10.15.13.56
         for <linux-mm@kvack.org>;
-        Mon, 10 Feb 2014 15:06:16 -0800 (PST)
-Date: Mon, 10 Feb 2014 15:06:14 -0800
+        Mon, 10 Feb 2014 15:13:56 -0800 (PST)
+Date: Mon, 10 Feb 2014 15:13:54 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2] mm/zswap: add writethrough option
-Message-Id: <20140210150614.c6a1b20553803da5f81acb72@linux-foundation.org>
-In-Reply-To: <CALZtONAFF3F4j0KQX=ineJ1cOVEWJSGSe3V=Ja4x=3NguFAFMQ@mail.gmail.com>
-References: <1387459407-29342-1-git-send-email-ddstreet@ieee.org>
-	<1390831279-5525-1-git-send-email-ddstreet@ieee.org>
-	<20140203150835.f55fd427d0ebb0c2943f266b@linux-foundation.org>
-	<CALZtONAFF3F4j0KQX=ineJ1cOVEWJSGSe3V=Ja4x=3NguFAFMQ@mail.gmail.com>
+Subject: Re: [PATCH 0/4] hugetlb: add hugepagesnid= command-line option
+Message-Id: <20140210151354.68fe414f81335d4ce0e4c550@linux-foundation.org>
+In-Reply-To: <1392053268-29239-1-git-send-email-lcapitulino@redhat.com>
+References: <1392053268-29239-1-git-send-email-lcapitulino@redhat.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Streetman <ddstreet@ieee.org>
-Cc: Seth Jennings <sjennings@variantweb.net>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Bob Liu <bob.liu@oracle.com>, Minchan Kim <minchan@kernel.org>, Weijie Yang <weijie.yang@samsung.com>, Shirish Pargaonkar <spargaonkar@suse.com>, Mel Gorman <mgorman@suse.de>
+To: Luiz Capitulino <lcapitulino@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, mtosatti@redhat.com, mgorman@suse.de, aarcange@redhat.com, andi@firstfloor.org, riel@redhat.com
 
-On Mon, 10 Feb 2014 14:05:14 -0500 Dan Streetman <ddstreet@ieee.org> wrote:
+On Mon, 10 Feb 2014 12:27:44 -0500 Luiz Capitulino <lcapitulino@redhat.com> wrote:
 
-> >
-> > It does sound like the feature is of marginal benefit.  Is "zswap
-> > filled up" an interesting or useful case to optimize?
-> >
-> > otoh the addition is pretty simple and we can later withdraw the whole
-> > thing without breaking anyone's systems.
+> HugeTLB command-line option hugepages= allows the user to specify how many
+> huge pages should be allocated at boot. On NUMA systems, this argument
+> automatically distributes huge pages allocation among nodes, which can
+> be undesirable.
+
+Grumble.  "can be undesirable" is the entire reason for the entire
+patchset.  We need far, far more detail than can be conveyed in three
+words, please!
+
+> The hugepagesnid= option introduced by this commit allows the user
+> to specify which NUMA nodes should be used to allocate boot-time HugeTLB
+> pages. For example, hugepagesnid=0,2,2G will allocate two 2G huge pages
+> from node 0 only. More details on patch 3/4 and patch 4/4.
 > 
-> ping...
-> 
-> you still thinking about this or is it a reject for now?
-
-I'm not seeing a compelling case for merging it and Minchan sounded
-rather unconvinced.  Perhaps we should park it until/unless a more
-solid need is found?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
