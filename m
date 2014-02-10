@@ -1,57 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D0DB6B0031
-	for <linux-mm@kvack.org>; Sun,  9 Feb 2014 20:21:56 -0500 (EST)
-Received: by mail-pa0-f42.google.com with SMTP id kl14so5506751pab.15
-        for <linux-mm@kvack.org>; Sun, 09 Feb 2014 17:21:56 -0800 (PST)
-Received: from LGEAMRELO01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
-        by mx.google.com with ESMTP id i8si13295367pav.335.2014.02.09.17.21.55
+	by kanga.kvack.org (Postfix) with ESMTP id 05D726B0031
+	for <linux-mm@kvack.org>; Sun,  9 Feb 2014 20:29:11 -0500 (EST)
+Received: by mail-pa0-f42.google.com with SMTP id kl14so5515133pab.29
+        for <linux-mm@kvack.org>; Sun, 09 Feb 2014 17:29:11 -0800 (PST)
+Received: from LGEMRELSE1Q.lge.com (LGEMRELSE1Q.lge.com. [156.147.1.111])
+        by mx.google.com with ESMTP id bf5si13339130pad.233.2014.02.09.17.29.10
         for <linux-mm@kvack.org>;
-        Sun, 09 Feb 2014 17:21:56 -0800 (PST)
-Date: Mon, 10 Feb 2014 10:22:03 +0900
+        Sun, 09 Feb 2014 17:29:11 -0800 (PST)
+Date: Mon, 10 Feb 2014 10:29:18 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [RFC PATCH 3/3] slub: fallback to get_numa_mem() node if we want
- to allocate on memoryless node
-Message-ID: <20140210012203.GC12574@lge.com>
+Subject: Re: [RFC PATCH 2/3] topology: support node_numa_mem() for
+ determining the fallback node
+Message-ID: <20140210012918.GD12574@lge.com>
 References: <20140206020757.GC5433@linux.vnet.ibm.com>
  <1391674026-20092-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1391674026-20092-3-git-send-email-iamjoonsoo.kim@lge.com>
- <alpine.DEB.2.10.1402061127001.5348@nuc>
- <20140207054119.GA28952@lge.com>
- <alpine.DEB.2.10.1402071147390.15168@nuc>
+ <1391674026-20092-2-git-send-email-iamjoonsoo.kim@lge.com>
+ <alpine.DEB.2.02.1402060041040.21148@chino.kir.corp.google.com>
+ <CAAmzW4PXkdpNi5pZ=4BzdXNvqTEAhcuw-x0pWidqrxzdePxXxA@mail.gmail.com>
+ <alpine.DEB.2.02.1402061248450.9567@chino.kir.corp.google.com>
+ <20140207054819.GC28952@lge.com>
+ <alpine.DEB.2.10.1402071150090.15168@nuc>
+ <alpine.DEB.2.10.1402071245040.20246@nuc>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1402071147390.15168@nuc>
+In-Reply-To: <alpine.DEB.2.10.1402071245040.20246@nuc>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Christoph Lameter <cl@linux.com>
-Cc: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Han Pingtian <hanpt@linux.vnet.ibm.com>, penberg@kernel.org, linux-mm@kvack.org, paulus@samba.org, Anton Blanchard <anton@samba.org>, mpm@selenic.com, linuxppc-dev@lists.ozlabs.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Cc: David Rientjes <rientjes@google.com>, Nishanth Aravamudan <nacc@linux.vnet.ibm.com>, Han Pingtian <hanpt@linux.vnet.ibm.com>, Pekka Enberg <penberg@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Paul Mackerras <paulus@samba.org>, Anton Blanchard <anton@samba.org>, Matt Mackall <mpm@selenic.com>, linuxppc-dev@lists.ozlabs.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-On Fri, Feb 07, 2014 at 11:49:57AM -0600, Christoph Lameter wrote:
-> On Fri, 7 Feb 2014, Joonsoo Kim wrote:
+On Fri, Feb 07, 2014 at 12:51:07PM -0600, Christoph Lameter wrote:
+> Here is a draft of a patch to make this work with memoryless nodes.
 > 
-> > > This check wouild need to be something that checks for other contigencies
-> > > in the page allocator as well. A simple solution would be to actually run
-> > > a GFP_THIS_NODE alloc to see if you can grab a page from the proper node.
-> > > If that fails then fallback. See how fallback_alloc() does it in slab.
-> > >
-> >
-> > Hello, Christoph.
-> >
-> > This !node_present_pages() ensure that allocation on this node cannot succeed.
-> > So we can directly use numa_mem_id() here.
-> 
-> Yes of course we can use numa_mem_id().
-> 
-> But the check is only for not having any memory at all on a node. There
-> are other reason for allocations to fail on a certain node. The node could
-> have memory that cannot be reclaimed, all dirty, beyond certain
-> thresholds, not in the current set of allowed nodes etc etc.
+> The first thing is that we modify node_match to also match if we hit an
+> empty node. In that case we simply take the current slab if its there.
 
-Yes. There are many other cases, but I prefer that we think them separately.
-Maybe they needs another approach. For now, to solve memoryless node problem,
-my solution is enough and safe.
+Why not inspecting whether we can get the page on the best node such as
+numa_mem_id() node?
+
+> 
+> If there is no current slab then a regular allocation occurs with the
+> memoryless node. The page allocator will fallback to a possible node and
+> that will become the current slab. Next alloc from a memoryless node
+> will then use that slab.
+> 
+> For that we also add some tracking of allocations on nodes that were not
+> satisfied using the empty_node[] array. A successful alloc on a node
+> clears that flag.
+> 
+> I would rather avoid the empty_node[] array since its global and there may
+> be thread specific allocation restrictions but it would be expensive to do
+> an allocation attempt via the page allocator to make sure that there is
+> really no page available from the page allocator.
+> 
+> Index: linux/mm/slub.c
+> ===================================================================
+> --- linux.orig/mm/slub.c	2014-02-03 13:19:22.896853227 -0600
+> +++ linux/mm/slub.c	2014-02-07 12:44:49.311494806 -0600
+> @@ -132,6 +132,8 @@ static inline bool kmem_cache_has_cpu_pa
+>  #endif
+>  }
+> 
+> +static int empty_node[MAX_NUMNODES];
+> +
+>  /*
+>   * Issues still to be resolved:
+>   *
+> @@ -1405,16 +1407,22 @@ static struct page *new_slab(struct kmem
+>  	void *last;
+>  	void *p;
+>  	int order;
+> +	int alloc_node;
+> 
+>  	BUG_ON(flags & GFP_SLAB_BUG_MASK);
+> 
+>  	page = allocate_slab(s,
+>  		flags & (GFP_RECLAIM_MASK | GFP_CONSTRAINT_MASK), node);
+> -	if (!page)
+> +	if (!page) {
+> +		if (node != NUMA_NO_NODE)
+> +			empty_node[node] = 1;
+>  		goto out;
+> +	}
+
+empty_node cannot be set on memoryless node, since page allocation would
+succeed on different node.
 
 Thanks.
 
