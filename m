@@ -1,87 +1,303 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id DD4876B0031
-	for <linux-mm@kvack.org>; Mon, 10 Feb 2014 05:05:48 -0500 (EST)
-Received: by mail-pd0-f173.google.com with SMTP id y10so5898932pdj.4
-        for <linux-mm@kvack.org>; Mon, 10 Feb 2014 02:05:48 -0800 (PST)
-Received: from mail-pb0-x235.google.com (mail-pb0-x235.google.com [2607:f8b0:400e:c01::235])
-        by mx.google.com with ESMTPS id yh9si14789329pab.121.2014.02.10.02.05.47
+Received: from mail-ee0-f42.google.com (mail-ee0-f42.google.com [74.125.83.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 58EAE6B0031
+	for <linux-mm@kvack.org>; Mon, 10 Feb 2014 06:19:35 -0500 (EST)
+Received: by mail-ee0-f42.google.com with SMTP id b15so2842679eek.15
+        for <linux-mm@kvack.org>; Mon, 10 Feb 2014 03:19:34 -0800 (PST)
+Received: from mail-ea0-x22b.google.com (mail-ea0-x22b.google.com [2a00:1450:4013:c01::22b])
+        by mx.google.com with ESMTPS id h9si25519140eev.210.2014.02.10.03.19.33
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 10 Feb 2014 02:05:47 -0800 (PST)
-Received: by mail-pb0-f53.google.com with SMTP id md12so6035008pbc.40
-        for <linux-mm@kvack.org>; Mon, 10 Feb 2014 02:05:47 -0800 (PST)
-Date: Mon, 10 Feb 2014 02:05:43 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [RFC PATCH V5] mm readahead: Fix readahead fail for no local
- memory and limit readahead pages
-In-Reply-To: <52F88C16.70204@linux.vnet.ibm.com>
-Message-ID: <alpine.DEB.2.02.1402100200420.30650@chino.kir.corp.google.com>
-References: <1390388025-1418-1-git-send-email-raghavendra.kt@linux.vnet.ibm.com> <20140206145105.27dec37b16f24e4ac5fd90ce@linux-foundation.org> <alpine.DEB.2.02.1402061456290.31828@chino.kir.corp.google.com> <20140206152219.45c2039e5092c8ea1c31fd38@linux-foundation.org>
- <alpine.DEB.2.02.1402061537180.3441@chino.kir.corp.google.com> <alpine.DEB.2.02.1402061557210.5061@chino.kir.corp.google.com> <52F4B8A4.70405@linux.vnet.ibm.com> <alpine.DEB.2.02.1402071239301.4212@chino.kir.corp.google.com>
- <52F88C16.70204@linux.vnet.ibm.com>
+        Mon, 10 Feb 2014 03:19:33 -0800 (PST)
+Received: by mail-ea0-f171.google.com with SMTP id f15so2903086eak.2
+        for <linux-mm@kvack.org>; Mon, 10 Feb 2014 03:19:32 -0800 (PST)
+Date: Mon, 10 Feb 2014 12:19:28 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: mm: memcg: A infinite loop in __handle_mm_fault()
+Message-ID: <20140210111928.GA7117@dhcp22.suse.cz>
+References: <52F81C5D.6010601@jp.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <52F81C5D.6010601@jp.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Fengguang Wu <fengguang.wu@intel.com>, David Cohen <david.a.cohen@linux.intel.com>, Al Viro <viro@zeniv.linux.org.uk>, Damien Ramonda <damien.ramonda@intel.com>, Jan Kara <jack@suse.cz>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Mizuma, Masayoshi" <m.mizuma@jp.fujitsu.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <bsingharora@gmail.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Mon, 10 Feb 2014, Raghavendra K T wrote:
+[CCing Kirill]
 
-> As you rightly pointed , I 'll drop remote memory term and use
-> something like  :
+On Mon 10-02-14 09:25:01, Mizuma, Masayoshi wrote:
+> Hi,
+
+Hi,
+
+> This is a bug report for memory cgroup hang up.
+> I reproduced this using 3.14-rc1 but I couldn't in 3.7.
 > 
-> "* Ensure readahead success on a memoryless node cpu. But we limit
->  * the readahead to 4k pages to avoid trashing page cache." ..
-> 
+> When I ran a program (see below) under a limit of memcg, the process hanged up.
+> Using kprobe trace, I detected the hangup in __handle_mm_fault().
+> do_huge_pmd_wp_page(), which is called by __handle_mm_fault(), always returns
+> VM_FAULT_OOM, so it repeats goto retry and the task can't be killed.
 
-I don't know how to proceed here after pointing it out twice, I'm afraid.
+Thanks a lot for this very good report. I would bet the issue is related
+to the THP zero page.
 
-numa_mem_id() is local memory for a memoryless node.  node_present_pages() 
-has no place in your patch.
+__handle_mm_fault retry loop for VM_FAULT_OOM from do_huge_pmd_wp_page
+expects that the pmd is marked for splitting so that it can break out
+and retry the fault. This is not the case for THP zero page though.
+do_huge_pmd_wp_page checks is_huge_zero_pmd and goes to allocate a new
+huge page which will succeed in your case because you are hitting memcg
+limit not the global memory pressure. But then a new page is charged by
+mem_cgroup_newpage_charge which fails. An existing page is then split
+and we are returning VM_FAULT_OOM. But we do not have page initialized
+in that path because page = pmd_page(orig_pmd) is called after
+is_huge_zero_pmd check.
 
-> Regarding ACCESS_ONCE, since we will have to add
-> inside the function and still there is nothing that could prevent us
-> getting run on different cpu with a different node (as Andrew ponted), I have
-> not included in current patch that I am posting.
-> Moreover this case is hopefully not fatal since it is just a hint for
-> readahead we can do.
-> 
+I am not familiar with THP zero page code much but I guess splitting
+such a zero page is not a way to go. Instead we should simply drop the
+zero page and retry the fault. I would assume that one of
+do_huge_pmd_wp_zero_page_fallback or do_huge_pmd_wp_page_fallback should
+do the trick but both of them try to charge new page(s) before the
+current zero page is uncharged. That makes it prone to the same issue
+AFAICS.
 
-I have no idea why you think the ACCESS_ONCE() is a problem.  It's relying 
-on gcc's implementation to ensure that the equation is done only for one 
-node.  It has absolutely nothing to do with the fact that the process may 
-be moved to another cpu upon returning or even immediately after the 
-calculation is done.  Is it possible that node0 has 80% of memory free and 
-node1 has 80% of memory inactive?  Well, then your equation doesn't work 
-quite so well if the process moves.
+But may be Kirill has a better idea.
 
-There is no downside whatsoever to using it, I have no idea why you think 
-it's better without it.
+> --------------------------------------------------
+> static int __handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+>                              unsigned long address, unsigned int flags)
+> {Hi all,
+> 
+> This is a bug report for memory cgroup hang up.
+> I reproduced this using 3.14-rc1 but I couldn't in 3.7.
+> 
+> When I ran a program (see below) under a limit of memcg, the process hangs up.
+> Using kprobe trace, I detected the hangup in __handle_mm_fault().
+> do_huge_pmd_wp_page(), which is called by __handle_mm_fault(), always returns
+> VM_FAULT_OOM but the task can't be killed.
+> It seems to be in infinite loop and the process is never killed.
+> 
+> --------------------------------------------------
+> static int __handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+>                              unsigned long address, unsigned int flags)
+> {
+> ...
+> retry:
+>         pgd = pgd_offset(mm, address);
+> ...
+>                         if (dirty && !pmd_write(orig_pmd)) {
+>                                 ret = do_huge_pmd_wp_page(mm, vma, address, pmd,
+>                                                           orig_pmd);
+>                                 /*
+>                                  * If COW results in an oom, the huge pmd will
+>                                  * have been split, so retry the fault on the
+>                                  * pte for a smaller charge.
+>                                  */
+>                                 if (unlikely(ret & VM_FAULT_OOM))
+>                                         goto retry;
+> --------------------------------------------------
+> 
+> [Step to reproduce]
+> 
+> 1. Set memory cgroup as follows:
+> 
+> --------------------------------------------------
+> # mkdir /sys/fs/cgroup/memory/test
+> # echo "6M" > /sys/fs/cgroup/memory/test/memory.limit_in_bytes
+> # echo "6M" > /sys/fs/cgroup/memory/test/memory.memsw.limit_in_bytes 
+> --------------------------------------------------
+> 
+> 2. Ran the following process (test.c).
+> 
+> test.c:
+> --------------------------------------------------
+> #include <stdio.h>
+> #include <stdlib.h>
+> #include <unistd.h>
+> #define SIZE 4*1024*1024
+> #define HUGE 2*1024*1024
+> #define PAGESIZE 4096
+> #define NUM SIZE/PAGESIZE
+> 
+> int main(void)
+> {
+> 	char *a;
+> 	char *c;
+> 	int i;
+> 
+> 	/* wait until set cgroup limits */
+> 	sleep(1);
+> 
+> 	posix_memalign((void **)&a, HUGE, SIZE);
+> 	posix_memalign((void **)&c, HUGE, SIZE);
+> 
+> 	for (i = 0; i<NUM; i++) {
+> 		*(a + i * PAGESIZE) = *(c + i * PAGESIZE);
+> 	}
+> 
+> 	for (i = 0; i<NUM; i++) {
+> 		*(c + i * PAGESIZE) = *(a + i * PAGESIZE);
+> 	}
+> 
+> 	free(a);
+> 	free(c);
+> 	return 0;
+> }
+> --------------------------------------------------
+> 
+> 3. Add it to memory cgroup.
+> --------------------------------------------------
+> # ./test &
+> # echo $! > /sys/fs/cgroup/memory/test/tasks
+> --------------------------------------------------
+> 
+> Then, the process will hangup.
+> I checked the infinit loop by using kprobetrace.
+> 
+> Setting of kprobetrace:
+> --------------------------------------------------
+> # echo 'p:do_huge_pmd_wp_page do_huge_pmd_wp_page address=%dx' > /sys/kernel/debug/tracing/kprobe_events
+> # echo 'r:do_huge_pmd_wp_page_r do_huge_pmd_wp_page ret=$retval' >> /sys/kernel/debug/tracing/kprobe_events
+> # echo 'r:mem_cgroup_newpage_charge mem_cgroup_newpage_charge ret=$retval' >> /sys/kernel/debug/tracing/kprobe_events
+> # echo 'r:mem_cgroup_charge_common mem_cgroup_charge_common ret=$retval' >> /sys/kernel/debug/tracing/kprobe_events
+> # echo 'r:__mem_cgroup_try_charge __mem_cgroup_try_charge ret=$retval' >> /sys/kernel/debug/tracing/kprobe_events
+> # echo 1 > /sys/kernel/debug/tracing/events/kprobes/do_huge_pmd_wp_page/enable
+> # echo 1 > /sys/kernel/debug/tracing/events/kprobes/do_huge_pmd_wp_page_r/enable
+> # echo 1 > /sys/kernel/debug/tracing/events/kprobes/mem_cgroup_newpage_charge/enable
+> # echo 1 > /sys/kernel/debug/tracing/events/kprobes/mem_cgroup_charge_common/enable
+> # echo 1 > /sys/kernel/debug/tracing/events/kprobes/__mem_cgroup_try_charge/enable
+> --------------------------------------------------
+> 
+> The result:
+> --------------------------------------------------
+> test-2721  [001] dN..  2530.635679: do_huge_pmd_wp_page: (do_huge_pmd_wp_page+0x0/0xa90) address=0x7f55a4400000
+> test-2721  [001] dN..  2530.635723: __mem_cgroup_try_charge: (mem_cgroup_charge_common+0x4a/0xa0 <- __mem_cgroup_try_charge) ret=0xfffffff4
+> test-2721  [001] dN..  2530.635724: mem_cgroup_charge_common: (mem_cgroup_newpage_charge+0x26/0x30 <- mem_cgroup_charge_common) ret=0xfffffff4
+> test-2721  [001] dN..  2530.635725: mem_cgroup_newpage_charge: (do_huge_pmd_wp_page+0x125/0xa90 <- mem_cgroup_newpage_charge) ret=0xfffffff4
+> test-2721  [001] dN..  2530.635733: do_huge_pmd_wp_page_r: (handle_mm_fault+0x19e/0x4b0 <- do_huge_pmd_wp_page) ret=0x1
+> test-2721  [001] dN..  2530.635735: do_huge_pmd_wp_page: (do_huge_pmd_wp_page+0x0/0xa90) address=0x7f55a4400000
+> test-2721  [001] dN..  2530.635761: __mem_cgroup_try_charge: (mem_cgroup_charge_common+0x4a/0xa0 <- __mem_cgroup_try_charge) ret=0xfffffff4
+> test-2721  [001] dN..  2530.635761: mem_cgroup_charge_common: (mem_cgroup_newpage_charge+0x26/0x30 <- mem_cgroup_charge_common) ret=0xfffffff4
+> test-2721  [001] dN..  2530.635762: mem_cgroup_newpage_charge: (do_huge_pmd_wp_page+0x125/0xa90 <- mem_cgroup_newpage_charge) ret=0xfffffff4
+> test-2721  [001] dN..  2530.635768: do_huge_pmd_wp_page_r: (handle_mm_fault+0x19e/0x4b0 <- do_huge_pmd_wp_page) ret=0x1
+> (...repeat...)
+> --------------------------------------------------
+> 
+> Regards,
+> Masayoshi Mizuma <m.mizuma@jp.fujitsu.com>
+> ...
+> retry:
+>         pgd = pgd_offset(mm, address);
+> ...
+>                         if (dirty && !pmd_write(orig_pmd)) {
+>                                 ret = do_huge_pmd_wp_page(mm, vma, address, pmd,
+>                                                           orig_pmd);
+>                                 /*
+>                                  * If COW results in an oom, the huge pmd will
+>                                  * have been split, so retry the fault on the
+>                                  * pte for a smaller charge.
+>                                  */
+>                                 if (unlikely(ret & VM_FAULT_OOM))
+>                                         goto retry;
+> --------------------------------------------------
+> 
+> [Step to reproduce]
+> 
+> 1. Set memory cgroup as follows:
+> 
+> --------------------------------------------------
+> # mkdir /sys/fs/cgroup/memory/test
+> # echo "6M" > /sys/fs/cgroup/memory/test/memory.limit_in_bytes
+> # echo "6M" > /sys/fs/cgroup/memory/test/memory.memsw.limit_in_bytes 
+> --------------------------------------------------
+> 
+> 2. Ran the following process (test.c).
+> 
+> test.c:
+> --------------------------------------------------
+> #include <stdio.h>
+> #include <stdlib.h>
+> #include <unistd.h>
+> #define SIZE 4*1024*1024
+> #define HUGE 2*1024*1024
+> #define PAGESIZE 4096
+> #define NUM SIZE/PAGESIZE
+> 
+> int main(void)
+> {
+> 	char *a;
+> 	char *c;
+> 	int i;
+> 
+> 	/* wait until set cgroup limits */
+> 	sleep(1);
+> 
+> 	posix_memalign((void **)&a, HUGE, SIZE);
+> 	posix_memalign((void **)&c, HUGE, SIZE);
+> 
+> 	for (i = 0; i<NUM; i++) {
+> 		*(a + i * PAGESIZE) = *(c + i * PAGESIZE);
+> 	}
+> 
+> 	for (i = 0; i<NUM; i++) {
+> 		*(c + i * PAGESIZE) = *(a + i * PAGESIZE);
+> 	}
+> 
+> 	free(a);
+> 	free(c);
+> 	return 0;
+> }
+> --------------------------------------------------
+> 
+> 3. Add it to memory cgroup.
+> --------------------------------------------------
+> # ./test &
+> # echo $! > /sys/fs/cgroup/memory/test/tasks
+> --------------------------------------------------
+> 
+> Then, the process will hangup.
+> I checked the infinit loop by using kprobetrace.
+> 
+> Setting of kprobetrace:
+> --------------------------------------------------
+> # echo 'p:do_huge_pmd_wp_page do_huge_pmd_wp_page address=%dx' > /sys/kernel/debug/tracing/kprobe_events
+> # echo 'r:do_huge_pmd_wp_page_r do_huge_pmd_wp_page ret=$retval' >> /sys/kernel/debug/tracing/kprobe_events
+> # echo 'r:mem_cgroup_newpage_charge mem_cgroup_newpage_charge ret=$retval' >> /sys/kernel/debug/tracing/kprobe_events
+> # echo 'r:mem_cgroup_charge_common mem_cgroup_charge_common ret=$retval' >> /sys/kernel/debug/tracing/kprobe_events
+> # echo 'r:__mem_cgroup_try_charge __mem_cgroup_try_charge ret=$retval' >> /sys/kernel/debug/tracing/kprobe_events
+> # echo 1 > /sys/kernel/debug/tracing/events/kprobes/do_huge_pmd_wp_page/enable
+> # echo 1 > /sys/kernel/debug/tracing/events/kprobes/do_huge_pmd_wp_page_r/enable
+> # echo 1 > /sys/kernel/debug/tracing/events/kprobes/mem_cgroup_newpage_charge/enable
+> # echo 1 > /sys/kernel/debug/tracing/events/kprobes/mem_cgroup_charge_common/enable
+> # echo 1 > /sys/kernel/debug/tracing/events/kprobes/__mem_cgroup_try_charge/enable
+> --------------------------------------------------
+> 
+> The result:
+> --------------------------------------------------
+> test-2721  [001] dN..  2530.635679: do_huge_pmd_wp_page: (do_huge_pmd_wp_page+0x0/0xa90) address=0x7f55a4400000
+> test-2721  [001] dN..  2530.635723: __mem_cgroup_try_charge: (mem_cgroup_charge_common+0x4a/0xa0 <- __mem_cgroup_try_charge) ret=0xfffffff4
+> test-2721  [001] dN..  2530.635724: mem_cgroup_charge_common: (mem_cgroup_newpage_charge+0x26/0x30 <- mem_cgroup_charge_common) ret=0xfffffff4
+> test-2721  [001] dN..  2530.635725: mem_cgroup_newpage_charge: (do_huge_pmd_wp_page+0x125/0xa90 <- mem_cgroup_newpage_charge) ret=0xfffffff4
+> test-2721  [001] dN..  2530.635733: do_huge_pmd_wp_page_r: (handle_mm_fault+0x19e/0x4b0 <- do_huge_pmd_wp_page) ret=0x1
+> test-2721  [001] dN..  2530.635735: do_huge_pmd_wp_page: (do_huge_pmd_wp_page+0x0/0xa90) address=0x7f55a4400000
+> test-2721  [001] dN..  2530.635761: __mem_cgroup_try_charge: (mem_cgroup_charge_common+0x4a/0xa0 <- __mem_cgroup_try_charge) ret=0xfffffff4
+> test-2721  [001] dN..  2530.635761: mem_cgroup_charge_common: (mem_cgroup_newpage_charge+0x26/0x30 <- mem_cgroup_charge_common) ret=0xfffffff4
+> test-2721  [001] dN..  2530.635762: mem_cgroup_newpage_charge: (do_huge_pmd_wp_page+0x125/0xa90 <- mem_cgroup_newpage_charge) ret=0xfffffff4
+> test-2721  [001] dN..  2530.635768: do_huge_pmd_wp_page_r: (handle_mm_fault+0x19e/0x4b0 <- do_huge_pmd_wp_page) ret=0x1
+> (...repeat...)
+> --------------------------------------------------
+> 
+> Regards,
+> Masayoshi Mizuma <m.mizuma@jp.fujitsu.com>
+> --
+> To unsubscribe from this list: send the line "unsubscribe cgroups" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
 
-> So there are many possible implementation:
-> (1) use numa_mem_id(), apply freepage limit  and use 4k page limit for all
-> case
-> (Jan had reservation about this case)
-> 
-> (2)for normal case:    use free memory calculation and do not apply 4k
->     limit (no change).
->    for memoryless cpu case:  use numa_mem_id for more accurate
->     calculation of limit and also apply 4k limit.
-> 
-> (3) for normal case:   use free memory calculation and do not apply 4k
->     limit (no change).
->     for memoryless case: apply 4k page limit
-> 
-> (4) use numa_mem_id() and apply only free page limit..
-> 
-> So, I ll be resending the patch with changelog and comment changes
-> based on your and Andrew's feedback (type (3) implementation).
-> 
-
-It's frustrating to have to say something three times.  Ask yourself what 
-happens if ALL NODES WITH CPUS DO NOT HAVE MEMORY?
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
