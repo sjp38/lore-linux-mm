@@ -1,152 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f181.google.com (mail-we0-f181.google.com [74.125.82.181])
-	by kanga.kvack.org (Postfix) with ESMTP id E92016B0037
-	for <linux-mm@kvack.org>; Mon, 10 Feb 2014 08:33:46 -0500 (EST)
-Received: by mail-we0-f181.google.com with SMTP id w61so4273950wes.12
-        for <linux-mm@kvack.org>; Mon, 10 Feb 2014 05:33:46 -0800 (PST)
-Received: from mail-wg0-x22a.google.com (mail-wg0-x22a.google.com [2a00:1450:400c:c00::22a])
-        by mx.google.com with ESMTPS id je10si6815566wic.13.2014.02.10.05.33.43
+Received: from mail-wg0-f53.google.com (mail-wg0-f53.google.com [74.125.82.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 26CE96B0037
+	for <linux-mm@kvack.org>; Mon, 10 Feb 2014 08:48:13 -0500 (EST)
+Received: by mail-wg0-f53.google.com with SMTP id y10so4221630wgg.20
+        for <linux-mm@kvack.org>; Mon, 10 Feb 2014 05:48:12 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id c8si6830559wix.16.2014.02.10.05.48.10
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 10 Feb 2014 05:33:43 -0800 (PST)
-Received: by mail-wg0-f42.google.com with SMTP id l18so2544922wgh.5
-        for <linux-mm@kvack.org>; Mon, 10 Feb 2014 05:33:43 -0800 (PST)
-Date: Mon, 10 Feb 2014 14:33:40 +0100
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 10 Feb 2014 05:48:11 -0800 (PST)
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: That greedy Linux VM cache
-Message-ID: <20140210133340.GE7117@dhcp22.suse.cz>
-References: <CA+sTkh7LzDSvhDyYX2Ybi=Z32OuJoK_F1VVHEBsW5Ly-4wa8Bg@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CA+sTkh7LzDSvhDyYX2Ybi=Z32OuJoK_F1VVHEBsW5Ly-4wa8Bg@mail.gmail.com>
+Subject: [PATCH] memcg: change oom_info_lock to mutex
+Date: Mon, 10 Feb 2014 14:48:02 +0100
+Message-Id: <1392040082-14303-1-git-send-email-mhocko@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Igor Podlesny <for.poige+linux@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On Sun 09-02-14 03:42:52, Igor Podlesny wrote:
-> On 3 February 2014 18:55, Michal Hocko <mhocko@suse.cz> wrote:
-> > [Adding linux-mm to the CC]
-> 
-> [...]
-> 
-> > This means that the page has to be written back in order to be dropped.
-> > How much dirty memory you have (comparing to the total size of the page
-> > cache)?
-> 
->    Not too many. May be you missed that part, but I said, that disk is
-> being mostly READ, NOT written.
->    I also said, that READing is going from system partition (it was Btrfs).
-> 
-> > What does your /proc/sys/vm/dirty_ratio say?
-> 
->    10
+Kirill has reported the following:
+[    2.386563] Task in /test killed as a result of limit of /test
+[    2.387326] memory: usage 10240kB, limit 10240kB, failcnt 51
+[    2.388098] memory+swap: usage 10240kB, limit 10240kB, failcnt 0
+[    2.388861] kmem: usage 0kB, limit 18014398509481983kB, failcnt 0
+[    2.389640] Memory cgroup stats for /test:
+[    2.390178] BUG: sleeping function called from invalid context at /home/space/kas/git/public/linux/kernel/cpu.c:68
+[    2.391516] in_atomic(): 1, irqs_disabled(): 0, pid: 66, name: memcg_test
+[    2.392416] 2 locks held by memcg_test/66:
+[    2.392945]  #0:  (memcg_oom_lock#2){+.+...}, at: [<ffffffff81131014>] pagefault_out_of_memory+0x14/0x90
+[    2.394233]  #1:  (oom_info_lock){+.+...}, at: [<ffffffff81197b2a>] mem_cgroup_print_oom_info+0x2a/0x390
+[    2.395496] CPU: 2 PID: 66 Comm: memcg_test Not tainted 3.14.0-rc1-dirty #745
+[    2.396536] Hardware name: QEMU Standard PC (Q35 + ICH9, 2009), BIOS Bochs 01/01/2011
+[    2.397540]  ffffffff81a3cc90 ffff88081d26dba0 ffffffff81776ea3 0000000000000000
+[    2.398541]  ffff88081d26dbc8 ffffffff8108418a 0000000000000000 ffff88081d15c000
+[    2.399533]  0000000000000000 ffff88081d26dbd8 ffffffff8104f6bc ffff88081d26dc10
+[    2.400588] Call Trace:
+[    2.400908]  [<ffffffff81776ea3>] dump_stack+0x4d/0x66
+[    2.401578]  [<ffffffff8108418a>] __might_sleep+0x16a/0x210
+[    2.402295]  [<ffffffff8104f6bc>] get_online_cpus+0x1c/0x60
+[    2.403005]  [<ffffffff8118fb67>] mem_cgroup_read_stat+0x27/0xb0
+[    2.403769]  [<ffffffff81197d60>] mem_cgroup_print_oom_info+0x260/0x390
+[    2.404653]  [<ffffffff8177314e>] dump_header+0x88/0x251
+[    2.405342]  [<ffffffff810a3bfd>] ? trace_hardirqs_on+0xd/0x10
+[    2.406098]  [<ffffffff81130618>] oom_kill_process+0x258/0x3d0
+[    2.406833]  [<ffffffff81198746>] mem_cgroup_oom_synchronize+0x656/0x6c0
+[    2.407674]  [<ffffffff811973a0>] ? mem_cgroup_charge_common+0xd0/0xd0
+[    2.408553]  [<ffffffff81131014>] pagefault_out_of_memory+0x14/0x90
+[    2.409354]  [<ffffffff817712f7>] mm_fault_error+0x91/0x189
+[    2.410069]  [<ffffffff81783eae>] __do_page_fault+0x48e/0x580
+[    2.410791]  [<ffffffff8108f656>] ? local_clock+0x16/0x30
+[    2.411467]  [<ffffffff810a3bfd>] ? trace_hardirqs_on+0xd/0x10
+[    2.412248]  [<ffffffff8177f6fc>] ? _raw_spin_unlock_irq+0x2c/0x40
+[    2.413039]  [<ffffffff8108312b>] ? finish_task_switch+0x7b/0x100
+[    2.413821]  [<ffffffff813b954a>] ? trace_hardirqs_off_thunk+0x3a/0x3c
+[    2.414652]  [<ffffffff81783fae>] do_page_fault+0xe/0x10
+[    2.415330]  [<ffffffff81780552>] page_fault+0x22/0x30
 
-With 2G of RAM this shouldn't be a lot. And definitely shouldn't make a
-problem with SSD.
+which complains that mem_cgroup_read_stat cannot be called from an
+atomic context but mem_cgroup_print_oom_info takes a spinlock.
+Change oom_info_lock to a mutex.
 
-> > How fast is your storage?
-> 
->    Was 5400 HDD, today I installed SSD.
-> 
-> > Also, is this 32b or 64b system?
-> 
->    Kernel is x86_64 or sometimes 32, userspace is 32 -- full x86_64
-> setup is simply not usable on 2 GiB,
+This has been introduced by 947b3dd1a84b (memcg, oom: lock
+mem_cgroup_print_oom_info).
 
-Which is unexpected on its own. We have many systems with comparable
-and much less memory as well running just fine. You haven't posted any
-numbers yet so it is still not clear where is the bottleneck on your
-system.
+Reported-by: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Signed-off-by: Michal Hocko <mhocko@suse.cz>
+---
+ mm/memcontrol.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
 
-> you can run just one program, like in MS-DOS era. :) (I'd give a try
-> to x32, but alas, it's not really ready yet.)
-> 
-> >>    * How to analyze it? slabtop doesn't mention even 100 MiB of slab
-> >
-> > snapshoting /proc/meminfo and /proc/vmstat every second or two while
-> > your load is bad might tell us more.
-> >
-> >>    * Why that's possible?
-> >
-> > That is hard to tell withou some numbers. But it might be possible that
-> > you are seeing the same issue as reported and fixed here:
-> > http://marc.info/?l=linux-kernel&m=139060103406327&w=2
-> 
->    No, there's no such amount of dirty data.
-
-OK, then I would check whether this is fs related. You said that you've
-tried xfs or something else with similar results?
-
-> > Especially when you are using tmpfs (e.g. as a backing storage for /tmp)
-> 
->    I use it, yeah, but it has ridiculously low occupied space ~ 1--2 MiB.
-> 
->    *** Okay, so I've said I decided to try SSD. The issue stays
-> absolutely the same and is seen even more clearer: when swappiness is
-> 0, Btrfs-endio is heating up processor constantly taking almost all
-> CPU resources (storage is fast, CPU's saturated), but when I set it
-> higher, thus allowing to swap, it helps -- ~ 250 MiB got swapped out
-> (quickly -- SSD rules) and the system became responsive again. As
-> previously it didn't try to reduce cache at all. I never saw it to be
-> even 250 MiB, always higher (~ 25 % of RAM). So, actually it's better
-> using swappiness = 100 in these circumstances.
-
-Hmm, so the swapping is fast enough while the page cache backed by the
-storage is slow. I guess both the swap partition and fs are backed by
-the same storage, right?
-Do you have a sufficient free space on the filesystem?
-
->    I think the problem should be easily reproducible -- kernel allows
-> you to limit available RAM. ;)
-> 
->    P. S. The only thing's left as a theory is "Intel Corporation
-> Mobile GM965/GL960 Integrated Graphics Controller" with i915 kernel
-> module. I don't know much about it, but it should have had bitten a
-> good part of system RAM, right?
-
-How much memory? I vaguely remember that i915 had very aggressive
-reclaiming logic which led to some stalls during reclaim. I cannot seem
-to find any reference right now.
-
-Btw. Are you using vanilla kernel?
-
-> Since it's Ubuntu, there's compiz by
-> default and pmap -d `pgrep compiz` shows lots of similar lines:
-
-It would be good to reduce problem space by disabling compiz.
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 19d5d4274e22..55e6731ebcd5 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1687,7 +1687,7 @@ void mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
+ 	 * protects memcg_name and makes sure that parallel ooms do not
+ 	 * interleave
+ 	 */
+-	static DEFINE_SPINLOCK(oom_info_lock);
++	static DEFINE_MUTEX(oom_info_lock);
+ 	struct cgroup *task_cgrp;
+ 	struct cgroup *mem_cgrp;
+ 	static char memcg_name[PATH_MAX];
+@@ -1698,7 +1698,7 @@ void mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
+ 	if (!p)
+ 		return;
  
-> ...
-> e0344000      20 rw-s- 0000000102e33000 000:00005 card0
-> e0479000      56 rw-s- 0000000102bf4000 000:00005 card0
-> e0487000      48 rw-s- 0000000102be8000 000:00005 card0
-> e0493000      56 rw-s- 0000000102bda000 000:00005 card0
-> e04a1000      56 rw-s- 0000000102bcc000 000:00005 card0
-> e04af000      48 rw-s- 0000000102bc0000 000:00005 card0
-> e04bb000      56 rw-s- 0000000102bb2000 000:00005 card0
-> e04c9000      48 rw-s- 0000000102d64000 000:00005 card0
-> e04d5000     192 rw-s- 0000000102ce5000 000:00005 card0
-> e0505000      80 rw-s- 0000000102de7000 000:00005 card0
-> e0519000      20 rw-s- 0000000102ccc000 000:00005 card0
-> e051e000     160 rw-s- 0000000102ca4000 000:00005 card0
-> e0546000      20 rw-s- 0000000102c9f000 000:00005 card0
-> e054b000      48 rw-s- 0000000102c93000 000:00005 card0
-> e0557000      20 rw-s- 0000000102c8e000 000:00005 card0
-> e055c000      20 rw-s- 0000000102c89000 000:00005 card0
-> ...
-> 
->    I have a suspicion... (I also dislike the sizes of those mappings)
-
-The mappings do not seem to be too big (the biggest one has 160kB)...
-
-> ... that a valuable amount of that "cached memory" can be related to
-> this i915. How can I check it?...
-
-I am not sure I understand what you are asking about.
+-	spin_lock(&oom_info_lock);
++	mutex_lock(&oom_info_lock);
+ 	rcu_read_lock();
+ 
+ 	mem_cgrp = memcg->css.cgroup;
+@@ -1767,7 +1767,7 @@ done:
+ 
+ 		pr_cont("\n");
+ 	}
+-	spin_unlock(&oom_info_lock);
++	mutex_unlock(&oom_info_lock);
+ }
+ 
+ /*
 -- 
-Michal Hocko
-SUSE Labs
+1.9.rc1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
