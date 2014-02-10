@@ -1,72 +1,225 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f176.google.com (mail-ie0-f176.google.com [209.85.223.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 4DE556B0031
-	for <linux-mm@kvack.org>; Mon, 10 Feb 2014 18:26:21 -0500 (EST)
-Received: by mail-ie0-f176.google.com with SMTP id tp5so4050880ieb.21
-        for <linux-mm@kvack.org>; Mon, 10 Feb 2014 15:26:21 -0800 (PST)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id i18si21381171igt.30.2014.02.10.15.20.17
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 10 Feb 2014 15:20:17 -0800 (PST)
-Message-ID: <52F95E90.3030402@oracle.com>
-Date: Mon, 10 Feb 2014 18:19:44 -0500
-From: Sasha Levin <sasha.levin@oracle.com>
-MIME-Version: 1.0
-Subject: Re: [RFC 1/2] mm: additional page lock debugging
-References: <1388281504-11453-1-git-send-email-sasha.levin@oracle.com> <20131230114317.GA8117@node.dhcp.inet.fi> <52C1A06B.4070605@oracle.com> <20131230224808.GA11674@node.dhcp.inet.fi> <52C2385A.8020608@oracle.com> <20131231162636.GD16438@laptop.programming.kicks-ass.net> <52C2F3DC.2020106@oracle.com> <20140106100408.GC31570@twins.programming.kicks-ass.net>
-In-Reply-To: <20140106100408.GC31570@twins.programming.kicks-ass.net>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Received: from mail-pb0-f43.google.com (mail-pb0-f43.google.com [209.85.160.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A86C6B0036
+	for <linux-mm@kvack.org>; Mon, 10 Feb 2014 18:27:32 -0500 (EST)
+Received: by mail-pb0-f43.google.com with SMTP id md12so6927976pbc.30
+        for <linux-mm@kvack.org>; Mon, 10 Feb 2014 15:27:32 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id yy4si16867339pbc.309.2014.02.10.15.27.31
+        for <linux-mm@kvack.org>;
+        Mon, 10 Feb 2014 15:27:31 -0800 (PST)
+Date: Mon, 10 Feb 2014 15:27:29 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 3/4] hugetlb: add hugepagesnid= command-line option
+Message-Id: <20140210152729.737a5dca5db0ba7f9f9291ac@linux-foundation.org>
+In-Reply-To: <1392053268-29239-4-git-send-email-lcapitulino@redhat.com>
+References: <1392053268-29239-1-git-send-email-lcapitulino@redhat.com>
+	<1392053268-29239-4-git-send-email-lcapitulino@redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, akpm@linux-foundation.org, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@kernel.org>
+To: Luiz Capitulino <lcapitulino@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, mtosatti@redhat.com, mgorman@suse.de, aarcange@redhat.com, andi@firstfloor.org, riel@redhat.com
 
->> This triggers two problems:
->>
->>   - lockdep complains about deadlock since we try to lock another page while one is already
->> locked. I can clear that by allowing page locks to nest within each other, but that seems
->> wrong and we'll miss actual deadlock cases.
+On Mon, 10 Feb 2014 12:27:47 -0500 Luiz Capitulino <lcapitulino@redhat.com> wrote:
+
+> From: Luiz capitulino <lcapitulino@redhat.com>
+> 
+> The HugeTLB command-line option hugepages= allow the user to specify
+> how many huge pages should be allocated at boot-time. On NUMA systems,
+> this option will try to automatically distribute the allocation equally
+> among nodes. For example, if you have a 2-node NUMA system and allocates
+> 200 huge pages, than hugepages= will try to allocate 100 huge pages from
+> node0 and 100 from node1.
+> 
+> The hugepagesnid= option introduced by this commit allows the user
+> to specify the nodes from which huge pages are allocated. For example,
+> if you have a 2-node NUMA system and want 300 2M huge pages to be
+> allocated from node1, you could do:
+> 
+>  hugepagesnid=1,300,2M
+> 
+> Or, say you want node0 to allocate 100 huge pages and node1 to
+> allocate 200 huge pages, you do:
+> 
+>  hugepagesnid=0,100,2M hugepagesnid=1,200,1M
+> 
+> This commit adds support only for 2M huge pages, next commit will
+> add support for 1G huge pages.
+> 
+> ...
 >
-> Right,.. I think we can cobble something together like requiring we
-> always lock pages in pfn order or somesuch.
+> --- a/arch/x86/mm/hugetlbpage.c
+> +++ b/arch/x86/mm/hugetlbpage.c
+> @@ -188,4 +188,39 @@ static __init int setup_hugepagesz(char *opt)
+>  	return 1;
+>  }
+>  __setup("hugepagesz=", setup_hugepagesz);
+> +
+> +static __init int setup_hugepagesnid(char *opt)
+> +{
+> +	unsigned long order, ps, nid, nr_pages;
+> +	char size_str[3];
+> +
+> +	size_str[2] = '\0';
+> +	if (sscanf(opt, "%lu,%lu,%c%c",
+> +			&nid, &nr_pages, &size_str[0], &size_str[1]) < 4) {
+> +		printk(KERN_ERR "hugepagesnid: failed to parse arguments\n");
+> +			return 0;
+> +	}
+
+This will blow up if passed size=16M.  We can expect that powerpc (at
+least) will want to copy (or generalise) this code.  It would be better
+to avoid such restrictions at the outset.
+
+> +	if (!nr_pages) {
+> +		printk(KERN_ERR
+> +			"hugepagesnid: zero number of pages, ignoring\n");
+
+The code contains rather a lot of these awkward wordwraps.  Try using
+pr_err() and you'll find the result quite pleasing!
+
+> +		return 0;
+> +	}
+> +
+> +	ps = memparse(size_str, NULL);
+> +	if (ps == PMD_SIZE) {
+> +		order = PMD_SHIFT - PAGE_SHIFT;
+> +	} else if (ps == PUD_SIZE && cpu_has_gbpages) {
+> +		order = PUD_SHIFT - PAGE_SHIFT;
+> +	} else {
+> +		printk(KERN_ERR "hugepagesnid: Unsupported page size %lu M\n",
+> +			ps >> 20);
+> +		return 0;
+> +	}
+> +
+> +	hugetlb_add_nrpages_nid(order, nid, nr_pages);
+> +	return 1;
+> +}
+> +__setup("hugepagesnid=", setup_hugepagesnid);
+> +
+>  #endif
 >
-
-Sorry, I went ahead to dig into mm/lockdep based on your comments and noticed I forgot to reply
-to this mail.
-
-Getting them to lock in pfn order seems to be a bit of a mess since we need to keep the free
-lists sorted. I didn't find a nice way of doing it without having to do insertion sort which slows
-everything down.
-
->>   - We may leave back to userspace with pages still locked. This is valid behaviour but lockdep
->> doesn't like that.
+> ...
 >
-> Where do we actually do this? BTW its not only lockdep not liking that,
-> Linus was actually a big fan of that check.
->
-> ISTR there being some filesystem freezer issues with that too, where the
-> freeze ioctl would return to userspace with 'locks' held and that's
-> cobbled around (or maybe gone by now -- who knows).
->
-> My initial guess would be that this is AIO/DIO again, those two seem to
-> be responsible for the majority of ugly around there.
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -46,6 +46,7 @@ __initdata LIST_HEAD(huge_boot_pages);
+>  static struct hstate * __initdata parsed_hstate;
+>  static unsigned long __initdata default_hstate_max_huge_pages;
+>  static unsigned long __initdata default_hstate_size;
+> +static unsigned long __initdata boot_alloc_nodes[HUGE_MAX_HSTATE][MAX_NUMNODES];
+>  
+>  /*
+>   * Protects updates to hugepage_freelists, hugepage_activelist, nr_huge_pages,
+> @@ -1348,6 +1349,50 @@ static void __init hugetlb_hstate_alloc_pages(struct hstate *h)
+>  	h->max_huge_pages = i;
+>  }
+>  
+> +static unsigned long __init alloc_huge_pages_nid(struct hstate *h,
+> +						int nid,
+> +						unsigned long nr_pages)
+> +{
+> +	unsigned long i;
+> +	struct page *page;
+> +
+> +	for (i = 0; i < nr_pages; i++) {
+> +		page = alloc_fresh_huge_page_node(h, nid);
+> +		if (!page) {
+> +			count_vm_event(HTLB_BUDDY_PGALLOC_FAIL);
+> +			break;
+> +		}
+> +		count_vm_event(HTLB_BUDDY_PGALLOC);
+> +	}
+> +
+> +	return i;
+> +}
+> +
+> +static unsigned long __init alloc_huge_pages_nodes(struct hstate *h)
+> +{
+> +	unsigned long i, *entry, ret = 0;
+> +
+> +	for (i = 0; i < MAX_NUMNODES; i++) {
+> +		entry = &boot_alloc_nodes[hstate_index(h)][i];
+> +		if (*entry > 0)
+> +			ret += alloc_huge_pages_nid(h, i, *entry);
+> +	}
+> +
+> +	return ret;
+> +}
+> +
+> +static void __init hugetlb_init_hstates_nodes(void)
+> +{
+> +	struct hstate *h;
+> +	unsigned long ret;
+> +
+> +	for_each_hstate(h)
+> +		if (h->order < MAX_ORDER) {
+> +			ret = alloc_huge_pages_nodes(h);
+> +			h->max_huge_pages += ret;
+> +		}
+> +}
 
-Indeed, the block layer has multiple "violations". In the AIO case, we lock pages in one task
-and leave back to userspace, and those pages get unlocked by a completion thread which runs at
-some point later.
+The patch adds code to mm/hugetlb.c which only x86 will use.  I guess
+that's OK medium-term if we expect other architectures will use it. 
+But if other architectures use it, setup_hugepagesnid() was in the wrong
+directory.
 
-Right now I gave up on getting lockdep fully integrated in, and am trying to fix as many of these 
-issues as possible by detecting trivial cases and fixing those. I feel that adding lockdep in at
-this point is way more complex than what we need done. We don't really need lockdep to detect pretty
-trivial cases of double locking on the very same lock...
+Can I ask that you poke the ppc/arm/ia64/etc people, see whether they
+will adpot this?  Explaining the overall justification better in [patch
+0/n] would help this discussion!
 
-When we got rid of everything we can easily spot, lockdep should move in to detect anything more
-complex.
+>  static void __init hugetlb_init_hstates(void)
+>  {
+>  	struct hstate *h;
+> @@ -1966,6 +2011,7 @@ static int __init hugetlb_init(void)
+>  		default_hstate.max_huge_pages = default_hstate_max_huge_pages;
+>  
+>  	hugetlb_init_hstates();
+> +	hugetlb_init_hstates_nodes();
+>  	gather_bootmem_prealloc();
+>  	report_hugepages();
+>  
+> @@ -2005,6 +2051,37 @@ void __init hugetlb_add_hstate(unsigned order)
+>  	parsed_hstate = h;
+>  }
+>  
+> +void __init hugetlb_add_nrpages_nid(unsigned order, unsigned long nid,
+> +				unsigned long nr_pages)
 
-Thanks,
-Sasha
+Using an unsigned long for a NUMA node ID is overkill, surely.
+
+> +{
+> +	struct hstate *h;
+> +	unsigned long *p;
+> +
+> +	if (parsed_hstate) {
+> +		printk(KERN_WARNING
+> +			"hugepagesnid: hugepagesz= specified, ignoring\n");
+> +		return;
+> +	}
+> +
+> +	for_each_hstate(h)
+> +		if (h->order == order)
+> +			break;
+> +
+> +	if (h->order != order) {
+> +		hugetlb_add_hstate(order);
+> +		parsed_hstate = NULL;
+> +	}
+> +
+> +	p = &boot_alloc_nodes[hstate_index(h)][nid];
+> +	if (*p != 0) {
+> +		printk(KERN_WARNING
+> +			"hugepagesnid: node %lu already specified, ignoring\n", nid);
+> +		return;
+> +	}
+> +
+> +	*p = nr_pages;
+> +}
+> +
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
