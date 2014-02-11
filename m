@@ -1,44 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f50.google.com (mail-la0-f50.google.com [209.85.215.50])
-	by kanga.kvack.org (Postfix) with ESMTP id AA5A26B0039
-	for <linux-mm@kvack.org>; Tue, 11 Feb 2014 11:53:53 -0500 (EST)
-Received: by mail-la0-f50.google.com with SMTP id ec20so6071365lab.37
-        for <linux-mm@kvack.org>; Tue, 11 Feb 2014 08:53:52 -0800 (PST)
+Received: from mail-lb0-f181.google.com (mail-lb0-f181.google.com [209.85.217.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 0248B6B0039
+	for <linux-mm@kvack.org>; Tue, 11 Feb 2014 12:00:12 -0500 (EST)
+Received: by mail-lb0-f181.google.com with SMTP id z11so5076275lbi.40
+        for <linux-mm@kvack.org>; Tue, 11 Feb 2014 09:00:12 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w4si10357414lal.37.2014.02.11.08.53.50
+        by mx.google.com with ESMTPS id ov7si10351104lbb.175.2014.02.11.09.00.10
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 11 Feb 2014 08:53:52 -0800 (PST)
-Date: Tue, 11 Feb 2014 17:53:49 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH -mm v15 00/13] kmemcg shrinkers
-Message-ID: <20140211165349.GQ11946@dhcp22.suse.cz>
-References: <cover.1391624021.git.vdavydov@parallels.com>
- <52FA3E8E.2080601@parallels.com>
+        Tue, 11 Feb 2014 09:00:11 -0800 (PST)
+Date: Tue, 11 Feb 2014 17:00:06 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 1/3] powerpc: mm: Add new set flag argument to pte/pmd
+ update function
+Message-ID: <20140211170006.GK6732@suse.de>
+References: <1392114895-14997-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+ <1392114895-14997-2-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <52FA3E8E.2080601@parallels.com>
+In-Reply-To: <1392114895-14997-2-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: dchinner@redhat.com, hannes@cmpxchg.org, akpm@linux-foundation.org, glommer@gmail.com, rientjes@google.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, devel@openvz.org
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: benh@kernel.crashing.org, paulus@samba.org, riel@redhat.com, mpe@ellerman.id.au, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
 
-On Tue 11-02-14 19:15:26, Vladimir Davydov wrote:
-> Hi Michal, Johannes, David,
+On Tue, Feb 11, 2014 at 04:04:53PM +0530, Aneesh Kumar K.V wrote:
+> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 > 
-> Could you please take a look at this if you have time? Without your
-> review, it'll never get committed.
+> We will use this later to set the _PAGE_NUMA bit.
+> 
+> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 
-Yes, it is on my todo list. I could barely catch up with discussions on
-the previous versions and felt that David was quite concerned about some
-high level decisions. I have to check, re-read whether there are still
-there.
+Acked-by: Mel Gorman <mgorman@suse.de>
 
-I am sorry that it takes so long but I am really busy with internal
-things recently.
 -- 
-Michal Hocko
+Mel Gorman
 SUSE Labs
 
 --
