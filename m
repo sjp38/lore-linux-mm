@@ -1,49 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 758F26B0031
-	for <linux-mm@kvack.org>; Tue, 11 Feb 2014 03:50:26 -0500 (EST)
-Received: by mail-pa0-f53.google.com with SMTP id lj1so7326967pab.26
-        for <linux-mm@kvack.org>; Tue, 11 Feb 2014 00:50:26 -0800 (PST)
-Received: from mail-pa0-x229.google.com (mail-pa0-x229.google.com [2607:f8b0:400e:c03::229])
-        by mx.google.com with ESMTPS id qx4si18242970pbc.75.2014.02.11.00.50.25
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
+	by kanga.kvack.org (Postfix) with ESMTP id AE2886B0031
+	for <linux-mm@kvack.org>; Tue, 11 Feb 2014 04:20:23 -0500 (EST)
+Received: by mail-wi0-f181.google.com with SMTP id hi5so3874351wib.8
+        for <linux-mm@kvack.org>; Tue, 11 Feb 2014 01:20:22 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id ei5si8055936wib.82.2014.02.11.01.20.20
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 11 Feb 2014 00:50:25 -0800 (PST)
-Received: by mail-pa0-f41.google.com with SMTP id fa1so7409744pad.0
-        for <linux-mm@kvack.org>; Tue, 11 Feb 2014 00:50:25 -0800 (PST)
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 11 Feb 2014 01:20:21 -0800 (PST)
+Date: Tue, 11 Feb 2014 09:20:17 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 1/4] memblock: memblock_virt_alloc_internal(): alloc from
+ specified node only
+Message-ID: <20140211092017.GG6732@suse.de>
+References: <1392053268-29239-1-git-send-email-lcapitulino@redhat.com>
+ <1392053268-29239-2-git-send-email-lcapitulino@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20140209020004.GY4250@linux.vnet.ibm.com>
-References: <20140102203320.GA27615@linux.vnet.ibm.com>
-	<52F60699.8010204@iki.fi>
-	<20140209020004.GY4250@linux.vnet.ibm.com>
-Date: Tue, 11 Feb 2014 10:50:24 +0200
-Message-ID: <CAOJsxLHs890eypzfnNj4ff1zqy_=bC8FA7B0YYbcZQF_c_wSog@mail.gmail.com>
-Subject: Re: Memory allocator semantics
-From: Pekka Enberg <penberg@kernel.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1392053268-29239-2-git-send-email-lcapitulino@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Paul McKenney <paulmck@linux.vnet.ibm.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux-foundation.org>, Matt Mackall <mpm@selenic.com>
+To: Luiz Capitulino <lcapitulino@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, mtosatti@redhat.com, aarcange@redhat.com, andi@firstfloor.org, riel@redhat.com
 
-Hi Paul,
+On Mon, Feb 10, 2014 at 12:27:45PM -0500, Luiz Capitulino wrote:
+> From: Luiz capitulino <lcapitulino@redhat.com>
+> 
+> If an allocation from the node specified by the nid argument fails,
+> memblock_virt_alloc_internal() automatically tries to allocate memory
+> from other nodes.
+> 
+> This is fine is the caller don't care which node is going to allocate
+> the memory. However, there are cases where the caller wants memory to
+> be allocated from the specified node only. If that's not possible, then
+> memblock_virt_alloc_internal() should just fail.
+> 
+> This commit adds a new flags argument to memblock_virt_alloc_internal()
+> where the caller can control this behavior.
+> 
+> Signed-off-by: Luiz capitulino <lcapitulino@redhat.com>
+> ---
+>  mm/memblock.c | 10 +++++++---
+>  1 file changed, 7 insertions(+), 3 deletions(-)
+> 
+> diff --git a/mm/memblock.c b/mm/memblock.c
+> index 39a31e7..b0c7b2e 100644
+> --- a/mm/memblock.c
+> +++ b/mm/memblock.c
+> @@ -1028,6 +1028,8 @@ phys_addr_t __init memblock_alloc_try_nid(phys_addr_t size, phys_addr_t align, i
+>  	return memblock_alloc_base(size, align, MEMBLOCK_ALLOC_ACCESSIBLE);
+>  }
+>  
+> +#define ALLOC_SPECIFIED_NODE_ONLY 0x1
+> +
 
-On Sun, Feb 9, 2014 at 4:00 AM, Paul E. McKenney
-<paulmck@linux.vnet.ibm.com> wrote:
-> From what I can see, (A) works by accident, but is kind of useless because
-> you allocate and free the memory without touching it.  (B) and (C) are the
-> lightest touches I could imagine, and as you say, both are bad.  So I
-> believe that it is reasonable to prohibit (A).
->
-> Or is there some use for (A) that I am missing?
+It's not a perfect fit but you could use gfp_t and GFP_THISNODE. The
+meaning of the flag is recognised and while you are not using it with a
+page allocator, we already use GFP flags with the slab allocator without
+confusion.
 
-So again, there's nothing in (A) that the memory allocator is
-concerned about.  kmalloc() makes no guarantees whatsoever about the
-visibility of "r1" across CPUs.  If you're saying that there's an
-implicit barrier between kmalloc() and kfree(), that's an unintended
-side-effect, not a design decision AFAICT.
-
-                                 Pekka
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
