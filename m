@@ -1,237 +1,237 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f170.google.com (mail-qc0-f170.google.com [209.85.216.170])
-	by kanga.kvack.org (Postfix) with ESMTP id C05596B0037
-	for <linux-mm@kvack.org>; Tue, 11 Feb 2014 11:32:44 -0500 (EST)
-Received: by mail-qc0-f170.google.com with SMTP id e9so13586869qcy.29
-        for <linux-mm@kvack.org>; Tue, 11 Feb 2014 08:32:44 -0800 (PST)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id f91si12775874qge.98.2014.02.11.08.32.43
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 11 Feb 2014 08:32:44 -0800 (PST)
-From: Sasha Levin <sasha.levin@oracle.com>
-Subject: [PATCH] mm: remove read_cache_page_async
-Date: Tue, 11 Feb 2014 11:32:09 -0500
-Message-Id: <1392136329-21946-1-git-send-email-sasha.levin@oracle.com>
+Received: from mail-ea0-f178.google.com (mail-ea0-f178.google.com [209.85.215.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 352D36B0037
+	for <linux-mm@kvack.org>; Tue, 11 Feb 2014 11:36:42 -0500 (EST)
+Received: by mail-ea0-f178.google.com with SMTP id a15so3787725eae.37
+        for <linux-mm@kvack.org>; Tue, 11 Feb 2014 08:36:41 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id 43si33154424eeh.178.2014.02.11.08.36.39
+        for <linux-mm@kvack.org>;
+        Tue, 11 Feb 2014 08:36:40 -0800 (PST)
+Date: Tue, 11 Feb 2014 11:36:29 -0500
+From: Richard Guy Briggs <rgb@redhat.com>
+Subject: Re: [PATCH v5 3/3] audit: Audit proc/<pid>/cmdline aka proctitle
+Message-ID: <20140211163629.GM18807@madcap2.tricolour.ca>
+References: <1391710528-23481-1-git-send-email-wroberts@tresys.com>
+ <1391710528-23481-3-git-send-email-wroberts@tresys.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1391710528-23481-3-git-send-email-wroberts@tresys.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: dwmw2@infradead.org, akpm@linux-foundation.org
-Cc: viro@zeniv.linux.org.uk, linux-kernel@vger.kernel.org, linux-mtd@lists.infradead.org, linux-mm@kvack.org, Sasha Levin <sasha.levin@oracle.com>
+To: William Roberts <bill.c.roberts@gmail.com>
+Cc: linux-audit@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, viro@zeniv.linux.org.uk, akpm@linux-foundation.org, sds@tycho.nsa.gov, William Roberts <wroberts@tresys.com>
 
-This patch removes read_cache_page_async() which wasn't really needed anywhere
-and simplifies the code around it a bit.
+On 14/02/06, William Roberts wrote:
+> During an audit event, cache and print the value of the process's
+> proctitle value (proc/<pid>/cmdline). This is useful in situations
+> where processes are started via fork'd virtual machines where the
+> comm field is incorrect. Often times, setting the comm field still
+> is insufficient as the comm width is not very wide and most
+> virtual machine "package names" do not fit. Also, during execution,
+> many threads have their comm field set as well. By tying it back to
+> the global cmdline value for the process, audit records will be more
+> complete in systems with these properties. An example of where this
+> is useful and applicable is in the realm of Android. With Android,
+> their is no fork/exec for VM instances. The bare, preloaded Dalvik
+> VM listens for a fork and specialize request. When this request comes
+> in, the VM forks, and the loads the specific application (specializing).
+> This was done to take advantage of COW and to not require a load of
+> basic packages by the VM on very app spawn. When this spawn occurs,
+> the package name is set via setproctitle() and shows up in procfs.
+> Many of these package names are longer then 16 bytes, the historical
+> width of task->comm. Having the cmdline in the audit records will
+> couple the application back to the record directly. Also, on my
+> Debian development box, some audit records were more useful then
+> what was printed under comm.
+> 
+> The cached proctitle is tied to the life-cycle of the audit_context
+> structure and is built on demand.
+> 
+> Proctitle is controllable by userspace, and thus should not be trusted.
+> It is meant as an aid to assist in debugging. The proctitle event is
+> emitted during syscall audits, and can be filtered with auditctl.
+> 
+> Example:
+> type=AVC msg=audit(1391217013.924:386): avc:  denied  { getattr } for  pid=1971 comm="mkdir" name="/" dev="selinuxfs" ino=1 scontext=system_u:system_r:consolekit_t:s0-s0:c0.c255 tcontext=system_u:object_r:security_t:s0 tclass=filesystem
+> type=SYSCALL msg=audit(1391217013.924:386): arch=c000003e syscall=137 success=yes exit=0 a0=7f019dfc8bd7 a1=7fffa6aed2c0 a2=fffffffffff4bd25 a3=7fffa6aed050 items=0 ppid=1967 pid=1971 auid=4294967295 uid=0 gid=0 euid=0 suid=0 fsuid=0 egid=0 sgid=0 fsgid=0 tty=(none) ses=4294967295 comm="mkdir" exe="/bin/mkdir" subj=system_u:system_r:consolekit_t:s0-s0:c0.c255 key=(null)
+> type=UNKNOWN[1327] msg=audit(1391217013.924:386):  proctitle=6D6B646972002D70002F7661722F72756E2F636F6E736F6C65
+> 
+> Signed-off-by: William Roberts <wroberts@tresys.com>
 
-read_cache_page_async() is useful when we want to read a page into the cache
-without waiting for it to complete. This happens when the appropriate callback
-'filler' doesn't complete it's read operation and releases the page lock
-immediately, and instead queues a different completion routine to do that.
-This never actually happened anywhere in the code.
+Signed-off-by: Richard Guy Briggs <rgb@redhat.com>
 
-read_cache_page_async() had 3 different callers:
+Though, I would prefer to see the size of the proctitle copy buffer
+dynamically allocated based on the size of the original rather than
+pinned at 128.
 
- - read_cache_page() which is the sync version, it would just wait for
-the requested read to complete using wait_on_page_read().
- - JFFS2 would call it from jffs2_gc_fetch_page(), but the filler function
-it supplied doesn't do any async reads, and would complete before the
-filler function returns - making it actually a sync read.
- - CRAMFS would call it using the read_mapping_page_async() wrapper, with
-a similar story to JFFS2 - the filler function doesn't do anything that
-reminds async reads and would always complete before the filler function
-returns.
+> ---
+>  include/uapi/linux/audit.h |    1 +
+>  kernel/audit.h             |    6 ++++
+>  kernel/auditsc.c           |   67 ++++++++++++++++++++++++++++++++++++++++++++
+>  3 files changed, 74 insertions(+)
+> 
+> diff --git a/include/uapi/linux/audit.h b/include/uapi/linux/audit.h
+> index 2d48fe1..4315ee9 100644
+> --- a/include/uapi/linux/audit.h
+> +++ b/include/uapi/linux/audit.h
+> @@ -109,6 +109,7 @@
+>  #define AUDIT_NETFILTER_PKT	1324	/* Packets traversing netfilter chains */
+>  #define AUDIT_NETFILTER_CFG	1325	/* Netfilter chain modifications */
+>  #define AUDIT_SECCOMP		1326	/* Secure Computing event */
+> +#define AUDIT_PROCTITLE		1327	/* Proctitle emit event */
+>  
+>  #define AUDIT_AVC		1400	/* SE Linux avc denial or grant */
+>  #define AUDIT_SELINUX_ERR	1401	/* Internal SE Linux Errors */
+> diff --git a/kernel/audit.h b/kernel/audit.h
+> index 57cc64d..38c967d 100644
+> --- a/kernel/audit.h
+> +++ b/kernel/audit.h
+> @@ -106,6 +106,11 @@ struct audit_names {
+>  	bool			should_free;
+>  };
+>  
+> +struct audit_proctitle {
+> +	int	len;	/* length of the cmdline field. */
+> +	char	*value;	/* the cmdline field */
+> +};
+> +
+>  /* The per-task audit context. */
+>  struct audit_context {
+>  	int		    dummy;	/* must be the first element */
+> @@ -202,6 +207,7 @@ struct audit_context {
+>  		} execve;
+>  	};
+>  	int fds[2];
+> +	struct audit_proctitle proctitle;
+>  
+>  #if AUDIT_DEBUG
+>  	int		    put_count;
+> diff --git a/kernel/auditsc.c b/kernel/auditsc.c
+> index 10176cd..e342eb0 100644
+> --- a/kernel/auditsc.c
+> +++ b/kernel/auditsc.c
+> @@ -68,6 +68,7 @@
+>  #include <linux/capability.h>
+>  #include <linux/fs_struct.h>
+>  #include <linux/compat.h>
+> +#include <linux/ctype.h>
+>  
+>  #include "audit.h"
+>  
+> @@ -79,6 +80,9 @@
+>  /* no execve audit message should be longer than this (userspace limits) */
+>  #define MAX_EXECVE_AUDIT_LEN 7500
+>  
+> +/* max length to print of cmdline/proctitle value during audit */
+> +#define MAX_PROCTITLE_AUDIT_LEN 128
+> +
+>  /* number of audit rules */
+>  int audit_n_rules;
+>  
+> @@ -842,6 +846,13 @@ static inline struct audit_context *audit_get_context(struct task_struct *tsk,
+>  	return context;
+>  }
+>  
+> +static inline void audit_proctitle_free(struct audit_context *context)
+> +{
+> +	kfree(context->proctitle.value);
+> +	context->proctitle.value = NULL;
+> +	context->proctitle.len = 0;
+> +}
+> +
+>  static inline void audit_free_names(struct audit_context *context)
+>  {
+>  	struct audit_names *n, *next;
+> @@ -955,6 +966,7 @@ static inline void audit_free_context(struct audit_context *context)
+>  	audit_free_aux(context);
+>  	kfree(context->filterkey);
+>  	kfree(context->sockaddr);
+> +	audit_proctitle_free(context);
+>  	kfree(context);
+>  }
+>  
+> @@ -1271,6 +1283,59 @@ static void show_special(struct audit_context *context, int *call_panic)
+>  	audit_log_end(ab);
+>  }
+>  
+> +static inline int audit_proctitle_rtrim(char *proctitle, int len)
+> +{
+> +	char *end = proctitle + len - 1;
+> +	while (end > proctitle && !isprint(*end))
+> +		end--;
+> +
+> +	/* catch the case where proctitle is only 1 non-print character */
+> +	len = end - proctitle + 1;
+> +	len -= isprint(proctitle[len-1]) == 0;
+> +	return len;
+> +}
+> +
+> +static void audit_log_proctitle(struct task_struct *tsk,
+> +			 struct audit_context *context)
+> +{
+> +	int res;
+> +	char *buf;
+> +	char *msg = "(null)";
+> +	int len = strlen(msg);
+> +	struct audit_buffer *ab;
+> +
+> +	ab = audit_log_start(context, GFP_KERNEL, AUDIT_PROCTITLE);
+> +	if (!ab)
+> +		return;	/* audit_panic or being filtered */
+> +
+> +	audit_log_format(ab, "proctitle=");
+> +
+> +	/* Not  cached */
+> +	if (!context->proctitle.value) {
+> +		buf = kmalloc(MAX_PROCTITLE_AUDIT_LEN, GFP_KERNEL);
+> +		if (!buf)
+> +			goto out;
+> +		/* Historically called this from procfs naming */
+> +		res = get_cmdline(tsk, buf, MAX_PROCTITLE_AUDIT_LEN);
+> +		if (res == 0) {
+> +			kfree(buf);
+> +			goto out;
+> +		}
+> +		res = audit_proctitle_rtrim(buf, res);
+> +		if (res == 0) {
+> +			kfree(buf);
+> +			goto out;
+> +		}
+> +		context->proctitle.value = buf;
+> +		context->proctitle.len = res;
+> +	}
+> +	msg = context->proctitle.value;
+> +	len = context->proctitle.len;
+> +out:
+> +	audit_log_n_untrustedstring(ab, msg, len);
+> +	audit_log_end(ab);
+> +}
+> +
+>  static void audit_log_exit(struct audit_context *context, struct task_struct *tsk)
+>  {
+>  	int i, call_panic = 0;
+> @@ -1388,6 +1453,8 @@ static void audit_log_exit(struct audit_context *context, struct task_struct *ts
+>  		audit_log_name(context, n, NULL, i++, &call_panic);
+>  	}
+>  
+> +	audit_log_proctitle(tsk, context);
+> +
+>  	/* Send end of event record to help user space know we are finished */
+>  	ab = audit_log_start(context, GFP_KERNEL, AUDIT_EOE);
+>  	if (ab)
+> -- 
+> 1.7.9.5
+> 
 
-To sum it up, the code in mm/filemap.c never took advantage of having
-read_cache_page_async(). While there are filler callbacks that do async
-reads (such as the block one), we always called it with the read_cache_page().
+- RGB
 
-This patch adds a mandatory wait for read to complete when adding a new
-page to the cache, and removes read_cache_page_async() and it's wrappers.
-
-Signed-off-by: Sasha Levin <sasha.levin@oracle.com>
----
- fs/cramfs/inode.c       |    3 +-
- fs/jffs2/fs.c           |    2 +-
- include/linux/pagemap.h |   10 -------
- mm/filemap.c            |   64 +++++++++++++++++------------------------------
- 4 files changed, 25 insertions(+), 54 deletions(-)
-
-diff --git a/fs/cramfs/inode.c b/fs/cramfs/inode.c
-index 06610cf..a1f801c 100644
---- a/fs/cramfs/inode.c
-+++ b/fs/cramfs/inode.c
-@@ -195,8 +195,7 @@ static void *cramfs_read(struct super_block *sb, unsigned int offset, unsigned i
- 		struct page *page = NULL;
- 
- 		if (blocknr + i < devsize) {
--			page = read_mapping_page_async(mapping, blocknr + i,
--									NULL);
-+			page = read_mapping_page(mapping, blocknr + i, NULL);
- 			/* synchronous error? */
- 			if (IS_ERR(page))
- 				page = NULL;
-diff --git a/fs/jffs2/fs.c b/fs/jffs2/fs.c
-index 5e36504..601afd1 100644
---- a/fs/jffs2/fs.c
-+++ b/fs/jffs2/fs.c
-@@ -690,7 +690,7 @@ unsigned char *jffs2_gc_fetch_page(struct jffs2_sb_info *c,
- 	struct inode *inode = OFNI_EDONI_2SFFJ(f);
- 	struct page *pg;
- 
--	pg = read_cache_page_async(inode->i_mapping, offset >> PAGE_CACHE_SHIFT,
-+	pg = read_cache_page(inode->i_mapping, offset >> PAGE_CACHE_SHIFT,
- 			     (void *)jffs2_do_readpage_unlock, inode);
- 	if (IS_ERR(pg))
- 		return (void *)pg;
-diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
-index e772973..4f591df 100644
---- a/include/linux/pagemap.h
-+++ b/include/linux/pagemap.h
-@@ -289,8 +289,6 @@ static inline struct page *grab_cache_page(struct address_space *mapping,
- 
- extern struct page * grab_cache_page_nowait(struct address_space *mapping,
- 				pgoff_t index);
--extern struct page * read_cache_page_async(struct address_space *mapping,
--				pgoff_t index, filler_t *filler, void *data);
- extern struct page * read_cache_page(struct address_space *mapping,
- 				pgoff_t index, filler_t *filler, void *data);
- extern struct page * read_cache_page_gfp(struct address_space *mapping,
-@@ -298,14 +296,6 @@ extern struct page * read_cache_page_gfp(struct address_space *mapping,
- extern int read_cache_pages(struct address_space *mapping,
- 		struct list_head *pages, filler_t *filler, void *data);
- 
--static inline struct page *read_mapping_page_async(
--				struct address_space *mapping,
--				pgoff_t index, void *data)
--{
--	filler_t *filler = (filler_t *)mapping->a_ops->readpage;
--	return read_cache_page_async(mapping, index, filler, data);
--}
--
- static inline struct page *read_mapping_page(struct address_space *mapping,
- 				pgoff_t index, void *data)
- {
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 8d44788..0ad619d 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -2130,6 +2130,18 @@ int generic_file_readonly_mmap(struct file * file, struct vm_area_struct * vma)
- EXPORT_SYMBOL(generic_file_mmap);
- EXPORT_SYMBOL(generic_file_readonly_mmap);
- 
-+static struct page *wait_on_page_read(struct page *page)
-+{
-+	if (!IS_ERR(page)) {
-+		wait_on_page_locked(page);
-+		if (!PageUptodate(page)) {
-+			page_cache_release(page);
-+			page = ERR_PTR(-EIO);
-+		}
-+	}
-+	return page;
-+}
-+
- static struct page *__read_cache_page(struct address_space *mapping,
- 				pgoff_t index,
- 				int (*filler)(void *, struct page *),
-@@ -2156,6 +2168,8 @@ repeat:
- 		if (err < 0) {
- 			page_cache_release(page);
- 			page = ERR_PTR(err);
-+		} else {
-+			page = wait_on_page_read(page);
- 		}
- 	}
- 	return page;
-@@ -2192,6 +2206,10 @@ retry:
- 	if (err < 0) {
- 		page_cache_release(page);
- 		return ERR_PTR(err);
-+	} else {
-+		page = wait_on_page_read(page);
-+		if (IS_ERR(page))
-+			return page;
- 	}
- out:
- 	mark_page_accessed(page);
-@@ -2199,40 +2217,25 @@ out:
- }
- 
- /**
-- * read_cache_page_async - read into page cache, fill it if needed
-+ * read_cache_page - read into page cache, fill it if needed
-  * @mapping:	the page's address_space
-  * @index:	the page index
-  * @filler:	function to perform the read
-  * @data:	first arg to filler(data, page) function, often left as NULL
-  *
-- * Same as read_cache_page, but don't wait for page to become unlocked
-- * after submitting it to the filler.
-- *
-  * Read into the page cache. If a page already exists, and PageUptodate() is
-- * not set, try to fill the page but don't wait for it to become unlocked.
-+ * not set, try to fill the page and wait for it to become unlocked.
-  *
-  * If the page does not get brought uptodate, return -EIO.
-  */
--struct page *read_cache_page_async(struct address_space *mapping,
-+struct page *read_cache_page(struct address_space *mapping,
- 				pgoff_t index,
- 				int (*filler)(void *, struct page *),
- 				void *data)
- {
- 	return do_read_cache_page(mapping, index, filler, data, mapping_gfp_mask(mapping));
- }
--EXPORT_SYMBOL(read_cache_page_async);
--
--static struct page *wait_on_page_read(struct page *page)
--{
--	if (!IS_ERR(page)) {
--		wait_on_page_locked(page);
--		if (!PageUptodate(page)) {
--			page_cache_release(page);
--			page = ERR_PTR(-EIO);
--		}
--	}
--	return page;
--}
-+EXPORT_SYMBOL(read_cache_page);
- 
- /**
-  * read_cache_page_gfp - read into page cache, using specified page allocation flags.
-@@ -2251,31 +2254,10 @@ struct page *read_cache_page_gfp(struct address_space *mapping,
- {
- 	filler_t *filler = (filler_t *)mapping->a_ops->readpage;
- 
--	return wait_on_page_read(do_read_cache_page(mapping, index, filler, NULL, gfp));
-+	return do_read_cache_page(mapping, index, filler, NULL, gfp);
- }
- EXPORT_SYMBOL(read_cache_page_gfp);
- 
--/**
-- * read_cache_page - read into page cache, fill it if needed
-- * @mapping:	the page's address_space
-- * @index:	the page index
-- * @filler:	function to perform the read
-- * @data:	first arg to filler(data, page) function, often left as NULL
-- *
-- * Read into the page cache. If a page already exists, and PageUptodate() is
-- * not set, try to fill the page then wait for it to become unlocked.
-- *
-- * If the page does not get brought uptodate, return -EIO.
-- */
--struct page *read_cache_page(struct address_space *mapping,
--				pgoff_t index,
--				int (*filler)(void *, struct page *),
--				void *data)
--{
--	return wait_on_page_read(read_cache_page_async(mapping, index, filler, data));
--}
--EXPORT_SYMBOL(read_cache_page);
--
- static size_t __iovec_copy_from_user_inatomic(char *vaddr,
- 			const struct iovec *iov, size_t base, size_t bytes)
- {
--- 
-1.7.2.5
+--
+Richard Guy Briggs <rbriggs@redhat.com>
+Senior Software Engineer, Kernel Security, AMER ENG Base Operating Systems, Red Hat
+Remote, Ottawa, Canada
+Voice: +1.647.777.2635, Internal: (81) 32635, Alt: +1.613.693.0684x3545
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
