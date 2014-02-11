@@ -1,108 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 8F3E76B0036
-	for <linux-mm@kvack.org>; Tue, 11 Feb 2014 04:21:05 -0500 (EST)
-Received: by mail-pa0-f44.google.com with SMTP id kq14so7396839pab.17
-        for <linux-mm@kvack.org>; Tue, 11 Feb 2014 01:21:05 -0800 (PST)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id of8si18332965pbc.103.2014.02.11.01.21.00
+Received: from mail-we0-f182.google.com (mail-we0-f182.google.com [74.125.82.182])
+	by kanga.kvack.org (Postfix) with ESMTP id E43436B0031
+	for <linux-mm@kvack.org>; Tue, 11 Feb 2014 04:25:22 -0500 (EST)
+Received: by mail-we0-f182.google.com with SMTP id u57so5315948wes.13
+        for <linux-mm@kvack.org>; Tue, 11 Feb 2014 01:25:22 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id v4si9072762wjz.106.2014.02.11.01.25.21
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 11 Feb 2014 01:21:03 -0800 (PST)
-Message-ID: <52F9EB40.1030703@huawei.com>
-Date: Tue, 11 Feb 2014 17:20:00 +0800
-From: Jianguo Wu <wujianguo@huawei.com>
+        Tue, 11 Feb 2014 01:25:21 -0800 (PST)
+Date: Tue, 11 Feb 2014 09:25:14 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 0/4] hugetlb: add hugepagesnid= command-line option
+Message-ID: <20140211092514.GH6732@suse.de>
+References: <1392053268-29239-1-git-send-email-lcapitulino@redhat.com>
+ <alpine.DEB.2.02.1402101851190.3447@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Subject: [PATCH] ARM: mm: support big-endian page tables
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.02.1402101851190.3447@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux@arm.linux.org.uk
-Cc: will.deacon@arm.com, ben.dooks@codethink.co.uk, gregkh@linuxfoundation.org, Catalin Marinas <catalin.marinas@arm.com>, Li
- Zefan <lizefan@huawei.com>, Wang Nan <wangnan0@huawei.com>, linux-arm-kernel@lists.infradead.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Luiz Capitulino <lcapitulino@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, mtosatti@redhat.com, Andrea Arcangeli <aarcange@redhat.com>, Andi Kleen <andi@firstfloor.org>, Rik van Riel <riel@redhat.com>
 
-When enable LPAE and big-endian in a hisilicon board, while specify
-mem=384M mem=512M@7680M, will get bad page state:
+On Mon, Feb 10, 2014 at 06:54:20PM -0800, David Rientjes wrote:
+> On Mon, 10 Feb 2014, Luiz Capitulino wrote:
+> 
+> > HugeTLB command-line option hugepages= allows the user to specify how many
+> > huge pages should be allocated at boot. On NUMA systems, this argument
+> > automatically distributes huge pages allocation among nodes, which can
+> > be undesirable.
+> > 
+> 
+> And when hugepages can no longer be allocated on a node because it is too 
+> small, the remaining hugepages are distributed over nodes with memory 
+> available, correct?
+> 
+> > The hugepagesnid= option introduced by this commit allows the user
+> > to specify which NUMA nodes should be used to allocate boot-time HugeTLB
+> > pages. For example, hugepagesnid=0,2,2G will allocate two 2G huge pages
+> > from node 0 only. More details on patch 3/4 and patch 4/4.
+> > 
+> 
+> Strange, it would seem better to just reserve as many hugepages as you 
+> want so that you get the desired number on each node and then free the 
+> ones you don't need at runtime.
+> 
 
-Freeing unused kernel memory: 180K (c0466000 - c0493000)
-BUG: Bad page state in process init  pfn:fa442
-page:c7749840 count:0 mapcount:-1 mapping:  (null) index:0x0
-page flags: 0x40000400(reserved)
-Modules linked in:
-CPU: 0 PID: 1 Comm: init Not tainted 3.10.27+ #66
-[<c000f5f0>] (unwind_backtrace+0x0/0x11c) from [<c000cbc4>] (show_stack+0x10/0x14)
-[<c000cbc4>] (show_stack+0x10/0x14) from [<c009e448>] (bad_page+0xd4/0x104)
-[<c009e448>] (bad_page+0xd4/0x104) from [<c009e520>] (free_pages_prepare+0xa8/0x14c)
-[<c009e520>] (free_pages_prepare+0xa8/0x14c) from [<c009f8ec>] (free_hot_cold_page+0x18/0xf0)
-[<c009f8ec>] (free_hot_cold_page+0x18/0xf0) from [<c00b5444>] (handle_pte_fault+0xcf4/0xdc8)
-[<c00b5444>] (handle_pte_fault+0xcf4/0xdc8) from [<c00b6458>] (handle_mm_fault+0xf4/0x120)
-[<c00b6458>] (handle_mm_fault+0xf4/0x120) from [<c0013754>] (do_page_fault+0xfc/0x354)
-[<c0013754>] (do_page_fault+0xfc/0x354) from [<c0008400>] (do_DataAbort+0x2c/0x90)
-[<c0008400>] (do_DataAbort+0x2c/0x90) from [<c0008fb4>] (__dabt_usr+0x34/0x40)
+Or take a stab at allocating 1G pages at runtime. It would require
+finding properly aligned 1Gs worth of contiguous MAX_ORDER_NR_PAGES at
+runtime. I would expect it would only work very early in the lifetime of
+the system but if the user is willing to use kernel parameters to
+allocate them then it should not be an issue.
 
-The bad pfn:fa442 is not system memory(mem=384M mem=512M@7680M), after debugging,
-I find in page fault handler, will get wrong pfn from pte just after set pte,
-as follow:
-do_anonymous_page()
-{
-	...
-	set_pte_at(mm, address, page_table, entry);
-	
-	//debug code
-	pfn = pte_pfn(entry);
-	pr_info("pfn:0x%lx, pte:0x%llx\n", pfn, pte_val(entry));
-
-	//read out the pte just set
-	new_pte = pte_offset_map(pmd, address);
-	new_pfn = pte_pfn(*new_pte);
-	pr_info("new pfn:0x%lx, new pte:0x%llx\n", pfn, pte_val(entry));
-	...
-}
-
-pfn:   0x1fa4f5,     pte:0xc00001fa4f575f
-new_pfn:0xfa4f5, new_pte:0xc00000fa4f5f5f	//new pfn/pte is wrong.
-
-The bug is happened in cpu_v7_set_pte_ext(ptep, pte):
-when pte is 64-bit, for little-endian, will store low 32-bit in r2,
-high 32-bit in r3; for big-endian, will store low 32-bit in r3,
-high 32-bit in r2, this will cause wrong pfn stored in pte,
-so we should exchange r2 and r3 for big-endian.
-
-Signed-off-by: Jianguo Wu <wujianguo@huawei.com>
----
- arch/arm/mm/proc-v7-3level.S |   10 ++++++++++
- 1 files changed, 10 insertions(+), 0 deletions(-)
-
-diff --git a/arch/arm/mm/proc-v7-3level.S b/arch/arm/mm/proc-v7-3level.S
-index 6ba4bd9..71b3892 100644
---- a/arch/arm/mm/proc-v7-3level.S
-+++ b/arch/arm/mm/proc-v7-3level.S
-@@ -65,6 +65,15 @@ ENDPROC(cpu_v7_switch_mm)
-  */
- ENTRY(cpu_v7_set_pte_ext)
- #ifdef CONFIG_MMU
-+#ifdef CONFIG_CPU_ENDIAN_BE8
-+	tst	r3, #L_PTE_VALID
-+	beq	1f
-+	tst	r2, #1 << (57 - 32)		@ L_PTE_NONE
-+	bicne	r3, #L_PTE_VALID
-+	bne	1f
-+	tst	r2, #1 << (55 - 32)		@ L_PTE_DIRTY
-+	orreq	r3, #L_PTE_RDONLY
-+#else
- 	tst	r2, #L_PTE_VALID
- 	beq	1f
- 	tst	r3, #1 << (57 - 32)		@ L_PTE_NONE
-@@ -72,6 +81,7 @@ ENTRY(cpu_v7_set_pte_ext)
- 	bne	1f
- 	tst	r3, #1 << (55 - 32)		@ L_PTE_DIRTY
- 	orreq	r2, #L_PTE_RDONLY
-+#endif
- 1:	strd	r2, r3, [r0]
- 	ALT_SMP(W(nop))
- 	ALT_UP (mcr	p15, 0, r0, c7, c10, 1)		@ flush_pte
--- 1.7.1 
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
