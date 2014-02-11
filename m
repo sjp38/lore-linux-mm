@@ -1,52 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f46.google.com (mail-bk0-f46.google.com [209.85.214.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A8686B0031
-	for <linux-mm@kvack.org>; Tue, 11 Feb 2014 17:49:38 -0500 (EST)
-Received: by mail-bk0-f46.google.com with SMTP id r7so2440842bkg.33
-        for <linux-mm@kvack.org>; Tue, 11 Feb 2014 14:49:38 -0800 (PST)
-Received: from mail-bk0-x235.google.com (mail-bk0-x235.google.com [2a00:1450:4008:c01::235])
-        by mx.google.com with ESMTPS id qw9si14368450bkb.1.2014.02.11.14.49.35
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 11 Feb 2014 14:49:36 -0800 (PST)
-Received: by mail-bk0-f53.google.com with SMTP id my13so2400385bkb.40
-        for <linux-mm@kvack.org>; Tue, 11 Feb 2014 14:49:35 -0800 (PST)
+Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 9194A6B0031
+	for <linux-mm@kvack.org>; Tue, 11 Feb 2014 18:12:15 -0500 (EST)
+Received: by mail-pd0-f176.google.com with SMTP id w10so8137644pde.21
+        for <linux-mm@kvack.org>; Tue, 11 Feb 2014 15:12:15 -0800 (PST)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id sj5si20443849pab.255.2014.02.11.15.12.06
+        for <linux-mm@kvack.org>;
+        Tue, 11 Feb 2014 15:12:07 -0800 (PST)
+Date: Tue, 11 Feb 2014 16:12:11 -0700 (MST)
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [PATCH v5 19/22] ext4: Add XIP functionality
+In-Reply-To: <CF1FF3EB.24114%matthew.r.wilcox@intel.com>
+Message-ID: <alpine.OSX.2.00.1402111536290.55274@scrumpy>
+References: <cover.1389779961.git.matthew.r.wilcox@intel.com> <CF1FF3EB.24114%matthew.r.wilcox@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20140210150614.c6a1b20553803da5f81acb72@linux-foundation.org>
-References: <1387459407-29342-1-git-send-email-ddstreet@ieee.org>
- <1390831279-5525-1-git-send-email-ddstreet@ieee.org> <20140203150835.f55fd427d0ebb0c2943f266b@linux-foundation.org>
- <CALZtONAFF3F4j0KQX=ineJ1cOVEWJSGSe3V=Ja4x=3NguFAFMQ@mail.gmail.com> <20140210150614.c6a1b20553803da5f81acb72@linux-foundation.org>
-From: Dan Streetman <ddstreet@ieee.org>
-Date: Tue, 11 Feb 2014 17:49:15 -0500
-Message-ID: <CALZtONAHNzvOmNgY99i+QJcZFqdtxEgdmCck8h37vwYxfGTQPg@mail.gmail.com>
-Subject: Re: [PATCH v2] mm/zswap: add writethrough option
-Content-Type: text/plain; charset=UTF-8
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Seth Jennings <sjennings@variantweb.net>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Bob Liu <bob.liu@oracle.com>, Minchan Kim <minchan@kernel.org>, Weijie Yang <weijie.yang@samsung.com>, Shirish Pargaonkar <spargaonkar@suse.com>, Mel Gorman <mgorman@suse.de>
+To: Matthew Wilcox <matthew.r.wilcox@intel.com>
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org, Ross Zwisler <ross.zwisler@linux.intel.com>
 
-On Mon, Feb 10, 2014 at 6:06 PM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> On Mon, 10 Feb 2014 14:05:14 -0500 Dan Streetman <ddstreet@ieee.org> wrote:
->
->> >
->> > It does sound like the feature is of marginal benefit.  Is "zswap
->> > filled up" an interesting or useful case to optimize?
->> >
->> > otoh the addition is pretty simple and we can later withdraw the whole
->> > thing without breaking anyone's systems.
->>
->> ping...
->>
->> you still thinking about this or is it a reject for now?
->
-> I'm not seeing a compelling case for merging it and Minchan sounded
-> rather unconvinced.  Perhaps we should park it until/unless a more
-> solid need is found?
+On Wed, 15 Jan 2014, Matthew Wilcox wrote:
+> From: Ross Zwisler <ross.zwisler@linux.intel.com>
+> 
+> This is a port of the XIP functionality found in the current version of
+> ext2.
+> 
+> Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+> Reviewed-by: Andreas Dilger <andreas.dilger@intel.com>
+> [heavily tweaked]
+> Signed-off-by: Matthew Wilcox <matthew.r.wilcox@intel.com>
 
+...
 
-Sounds good.  I'll bring it back up if I find some solid need for it.  Thanks!
+> diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
+> index c767666..8b73d77 100644
+> --- a/fs/ext4/inode.c
+> +++ b/fs/ext4/inode.c
+> @@ -663,6 +663,18 @@ found:
+>  			WARN_ON(1);
+>  		}
+>  
+> +		/* this is probably wrong for ext4.  unlike ext2, ext4 supports
+> +		 * uninitialised extents, so we should probably be hooking
+> +		 * into the "make it initialised" code instead. */
+> +		if (IS_XIP(inode)) {
+
+With the very first version of this patch the above logic seemed to work
+correctly, zeroing blocks as we allocated them.  With the current XIP
+infrastructure based tightly on direct IO this ends up being wrong because in
+some cases we can call ext4_map_blocks() twice for a given block.  
+
+A quick userland test program that creates a new file, truncates it up to 4k
+and then does a partial block write will end up giving you a file filled with
+all zeros.  This is because we zero the data before the write, do the write,
+and then zero again, overwriting the data.  The second call to
+ext4_map_blocks() happens via ext4_ext_direct_IO =>
+ext4_convert_unwritten_extents() => ext4_map_blocks().
+
+We can know in ext4_map_blocks() that we are being called after a write has
+already completed by looking at the flags.  One solution to get around this
+double-zeroing would be to change the above test to:
+
++                 if (IS_XIP(inode) && !(flags & EXT4_GET_BLOCKS_CONVERT)) {
+
+This fixes the tests I've been able to come up with, but I'm not certain it's
+the correct fix for the long term.  It seems wasteful to zero the blocks we're
+allocating, just to have the zeros overwritten immediately by a write.  Maybe
+a cleaner way would be to try and zero the unwritten bits inside of
+ext4_convert_unwritten_extents(), or somewhere similar?
+
+It's worth noting that I don't think the direct I/O path has this kind of
+logic because they don't allow partial block writes.  The regular I/O path
+knows to zero unwritten space based on the BH_New flag, as set via the
+set_buffer_new() call in ext4_da_map_blocks().  This is a pretty different I/O
+path, though, so I'm not sure how much we can borrow for the XIP code.
+
+Thoughts on the correct fix?
+
+- Ross
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
