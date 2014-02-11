@@ -1,44 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-lb0-f178.google.com (mail-lb0-f178.google.com [209.85.217.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B2666B0031
-	for <linux-mm@kvack.org>; Tue, 11 Feb 2014 12:07:28 -0500 (EST)
-Received: by mail-lb0-f178.google.com with SMTP id u14so6089569lbd.37
-        for <linux-mm@kvack.org>; Tue, 11 Feb 2014 09:07:28 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 01C336B0037
+	for <linux-mm@kvack.org>; Tue, 11 Feb 2014 12:10:40 -0500 (EST)
+Received: by mail-lb0-f178.google.com with SMTP id u14so6257387lbd.9
+        for <linux-mm@kvack.org>; Tue, 11 Feb 2014 09:10:40 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id kj3si10397586lbc.39.2014.02.11.09.07.26
+        by mx.google.com with ESMTPS id 6si10378077laq.175.2014.02.11.09.10.38
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 11 Feb 2014 09:07:27 -0800 (PST)
-Date: Tue, 11 Feb 2014 17:07:24 +0000
+        Tue, 11 Feb 2014 09:10:39 -0800 (PST)
+Date: Tue, 11 Feb 2014 17:10:35 +0000
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 3/3] mm: Use ptep/pmdp_set_numa for updating _PAGE_NUMA
- bit
-Message-ID: <20140211170724.GM6732@suse.de>
-References: <1392114895-14997-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
- <1392114895-14997-4-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH 0/4] hugetlb: add hugepagesnid= command-line option
+Message-ID: <20140211171035.GN6732@suse.de>
+References: <1392053268-29239-1-git-send-email-lcapitulino@redhat.com>
+ <alpine.DEB.2.02.1402101851190.3447@chino.kir.corp.google.com>
+ <20140211092514.GH6732@suse.de>
+ <20140211152629.GA28210@amt.cnet>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1392114895-14997-4-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+In-Reply-To: <20140211152629.GA28210@amt.cnet>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: benh@kernel.crashing.org, paulus@samba.org, riel@redhat.com, mpe@ellerman.id.au, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
+To: Marcelo Tosatti <mtosatti@redhat.com>
+Cc: David Rientjes <rientjes@google.com>, Luiz Capitulino <lcapitulino@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Andi Kleen <andi@firstfloor.org>, Rik van Riel <riel@redhat.com>
 
-On Tue, Feb 11, 2014 at 04:04:55PM +0530, Aneesh Kumar K.V wrote:
-> From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+On Tue, Feb 11, 2014 at 01:26:29PM -0200, Marcelo Tosatti wrote:
+> > Or take a stab at allocating 1G pages at runtime. It would require
+> > finding properly aligned 1Gs worth of contiguous MAX_ORDER_NR_PAGES at
+> > runtime. I would expect it would only work very early in the lifetime of
+> > the system but if the user is willing to use kernel parameters to
+> > allocate them then it should not be an issue.
 > 
-> Archs like ppc64 doesn't do tlb flush in set_pte/pmd functions. ppc64 also doesn't implement
-> flush_tlb_range. ppc64 require the tlb flushing to be batched within ptl locks. The reason
-> to do that is to ensure that the hash page table is in sync with linux page table.
-> We track the hpte index in linux pte and if we clear them without flushing hash and drop the
-> ptl lock, we can have another cpu update the pte and can end up with double hash. We also want
-> to keep set_pte_at simpler by not requiring them to do hash flush for performance reason.
-> Hence cannot use them while updating _PAGE_NUMA bit. Add new functions for marking pte/pmd numa
+> Can be an improvement on top of the current patchset? Certain use-cases
+> require allocation guarantees (even if that requires kernel parameters).
 > 
-> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 
-Acked-by: Mel Gorman <mgorman@suse.de>
+Sure, they're not mutually exclusive. It would just avoid the need to
+create a new kernel parameter and use the existing interfaces.
 
 -- 
 Mel Gorman
