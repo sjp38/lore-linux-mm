@@ -1,54 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 885CE6B0031
-	for <linux-mm@kvack.org>; Mon, 10 Feb 2014 21:54:23 -0500 (EST)
-Received: by mail-pd0-f173.google.com with SMTP id y10so6917637pdj.32
-        for <linux-mm@kvack.org>; Mon, 10 Feb 2014 18:54:23 -0800 (PST)
-Received: from mail-pa0-x22b.google.com (mail-pa0-x22b.google.com [2607:f8b0:400e:c03::22b])
-        by mx.google.com with ESMTPS id gj4si17343079pac.118.2014.02.10.18.54.22
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 10 Feb 2014 18:54:22 -0800 (PST)
-Received: by mail-pa0-f43.google.com with SMTP id rd3so7046565pab.2
-        for <linux-mm@kvack.org>; Mon, 10 Feb 2014 18:54:22 -0800 (PST)
-Date: Mon, 10 Feb 2014 18:54:20 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 0/4] hugetlb: add hugepagesnid= command-line option
-In-Reply-To: <1392053268-29239-1-git-send-email-lcapitulino@redhat.com>
-Message-ID: <alpine.DEB.2.02.1402101851190.3447@chino.kir.corp.google.com>
-References: <1392053268-29239-1-git-send-email-lcapitulino@redhat.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-pb0-f51.google.com (mail-pb0-f51.google.com [209.85.160.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 71E146B0037
+	for <linux-mm@kvack.org>; Mon, 10 Feb 2014 22:06:10 -0500 (EST)
+Received: by mail-pb0-f51.google.com with SMTP id un15so7132952pbc.38
+        for <linux-mm@kvack.org>; Mon, 10 Feb 2014 19:06:10 -0800 (PST)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id b4si5750583pbe.328.2014.02.10.19.06.09
+        for <linux-mm@kvack.org>;
+        Mon, 10 Feb 2014 19:06:09 -0800 (PST)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [RFC, PATCH 0/2] mm: map few pages around fault address if they are in page cache
+Date: Tue, 11 Feb 2014 05:05:55 +0200
+Message-Id: <1392087957-15730-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Luiz Capitulino <lcapitulino@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, mtosatti@redhat.com, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Andi Kleen <andi@firstfloor.org>, Rik van Riel <riel@redhat.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>
+Cc: Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Mon, 10 Feb 2014, Luiz Capitulino wrote:
+Okay, it's RFC only. I haven't stabilize it yet. And it's 5 AM...
 
-> HugeTLB command-line option hugepages= allows the user to specify how many
-> huge pages should be allocated at boot. On NUMA systems, this argument
-> automatically distributes huge pages allocation among nodes, which can
-> be undesirable.
-> 
+It kind of work on small test-cases in kvm, but hung my laptop shortly
+after boot. So no benchmark data.
 
-And when hugepages can no longer be allocated on a node because it is too 
-small, the remaining hugepages are distributed over nodes with memory 
-available, correct?
+The patches are on top of mine __do_fault() cleanup.
 
-> The hugepagesnid= option introduced by this commit allows the user
-> to specify which NUMA nodes should be used to allocate boot-time HugeTLB
-> pages. For example, hugepagesnid=0,2,2G will allocate two 2G huge pages
-> from node 0 only. More details on patch 3/4 and patch 4/4.
-> 
+The idea is to minimize number of minor page faults by mapping pages around
+the fault address if they are already in page cache.
 
-Strange, it would seem better to just reserve as many hugepages as you 
-want so that you get the desired number on each node and then free the 
-ones you don't need at runtime.
+With the patches we try to map up to 32 pages (subject to change) on read
+page fault. Later can extended to write page faults to shared mappings if
+works well.
 
-That probably doesn't work because we can't free very large hugepages that 
-are reserved at boot, would fixing that issue reduce the need for this 
-patchset?
+The pages must be on the same page table so we can change all ptes under
+one lock.
+
+I tried to avoid additional latency, so we don't wait page to get ready,
+just skip to the next one.
+
+The only place where we can get stuck for relatively long time is
+do_async_mmap_readahead(): it allocates pages and submits IO. We can't
+just skip readahead, otherwise it will stop working and we will get miss
+all the time. On other hand keeping do_async_mmap_readahead() there will
+probably break readahead heuristics: interleaving access looks as
+sequential.
+
+Any comments are welcome.
+
+Kirill A. Shutemov (2):
+  mm: extend ->fault interface to fault in few pages around fault
+    address
+  mm: implement FAULT_FLAG_AROUND in filemap_fault()
+
+ include/linux/mm.h | 24 +++++++++++++++++
+ mm/filemap.c       | 77 +++++++++++++++++++++++++++++++++++++++++++++++++++---
+ mm/memory.c        | 61 +++++++++++++++++++++++++++++++++++++-----
+ 3 files changed, 152 insertions(+), 10 deletions(-)
+
+-- 
+1.8.5.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
