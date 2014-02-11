@@ -1,48 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f178.google.com (mail-lb0-f178.google.com [209.85.217.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 01C336B0037
-	for <linux-mm@kvack.org>; Tue, 11 Feb 2014 12:10:40 -0500 (EST)
-Received: by mail-lb0-f178.google.com with SMTP id u14so6257387lbd.9
-        for <linux-mm@kvack.org>; Tue, 11 Feb 2014 09:10:40 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 6si10378077laq.175.2014.02.11.09.10.38
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 11 Feb 2014 09:10:39 -0800 (PST)
-Date: Tue, 11 Feb 2014 17:10:35 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 0/4] hugetlb: add hugepagesnid= command-line option
-Message-ID: <20140211171035.GN6732@suse.de>
-References: <1392053268-29239-1-git-send-email-lcapitulino@redhat.com>
- <alpine.DEB.2.02.1402101851190.3447@chino.kir.corp.google.com>
- <20140211092514.GH6732@suse.de>
- <20140211152629.GA28210@amt.cnet>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20140211152629.GA28210@amt.cnet>
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 5BA726B0037
+	for <linux-mm@kvack.org>; Tue, 11 Feb 2014 12:24:32 -0500 (EST)
+Received: by mail-pa0-f46.google.com with SMTP id rd3so7979578pab.33
+        for <linux-mm@kvack.org>; Tue, 11 Feb 2014 09:24:32 -0800 (PST)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id m8si19654087pbq.269.2014.02.11.09.24.29
+        for <linux-mm@kvack.org>;
+        Tue, 11 Feb 2014 09:24:31 -0800 (PST)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCH] mm, thp: fix infinite loop on memcg OOM
+Date: Tue, 11 Feb 2014 19:24:11 +0200
+Message-Id: <1392139451-15446-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marcelo Tosatti <mtosatti@redhat.com>
-Cc: David Rientjes <rientjes@google.com>, Luiz Capitulino <lcapitulino@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Andi Kleen <andi@firstfloor.org>, Rik van Riel <riel@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: m.mizuma@jp.fujitsu.com, mhocko@suse.cz, aarcange@redhat.com, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Tue, Feb 11, 2014 at 01:26:29PM -0200, Marcelo Tosatti wrote:
-> > Or take a stab at allocating 1G pages at runtime. It would require
-> > finding properly aligned 1Gs worth of contiguous MAX_ORDER_NR_PAGES at
-> > runtime. I would expect it would only work very early in the lifetime of
-> > the system but if the user is willing to use kernel parameters to
-> > allocate them then it should not be an issue.
-> 
-> Can be an improvement on top of the current patchset? Certain use-cases
-> require allocation guarantees (even if that requires kernel parameters).
-> 
+Masayoshi Mizuma has reported bug with hung of application under memcg
+limit. It happens on write-protection fault to huge zero page
 
-Sure, they're not mutually exclusive. It would just avoid the need to
-create a new kernel parameter and use the existing interfaces.
+If we successfully allocate huge page to replace zero page, but hit
+memcg limit we need to split zero page with split_huge_page_pmd() and
+fallback to small pages.
 
+Other part problem is that VM_FAULT_OOM has special meaning in
+do_huge_pmd_wp_page() context. __handle_mm_fault() expects the page to
+be split if it see VM_FAULT_OOM and it will will retry page fault
+handling. It causes infinite loop if the page was not split.
+
+do_huge_pmd_wp_zero_page_fallback() can return VM_FAULT_OOM if it failed
+to allocat one small page, so fallback to small pages will not help.
+
+The solution for this part is to replace VM_FAULT_OOM with
+VM_FAULT_FALLBACK is fallback required.
+
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Reported-by: Masayoshi Mizuma <m.mizuma@jp.fujitsu.com>
+---
+ mm/huge_memory.c |  9 ++++++---
+ mm/memory.c      | 14 +++-----------
+ 2 files changed, 9 insertions(+), 14 deletions(-)
+
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 82166bf974e1..65a88bef8694 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1166,8 +1166,10 @@ alloc:
+ 		} else {
+ 			ret = do_huge_pmd_wp_page_fallback(mm, vma, address,
+ 					pmd, orig_pmd, page, haddr);
+-			if (ret & VM_FAULT_OOM)
++			if (ret & VM_FAULT_OOM) {
+ 				split_huge_page(page);
++				ret |= VM_FAULT_FALLBACK;
++			}
+ 			put_page(page);
+ 		}
+ 		count_vm_event(THP_FAULT_FALLBACK);
+@@ -1179,9 +1181,10 @@ alloc:
+ 		if (page) {
+ 			split_huge_page(page);
+ 			put_page(page);
+-		}
++		} else
++			split_huge_page_pmd(vma, address, pmd);
++		ret |= VM_FAULT_FALLBACK;
+ 		count_vm_event(THP_FAULT_FALLBACK);
+-		ret |= VM_FAULT_OOM;
+ 		goto out;
+ 	}
+ 
+diff --git a/mm/memory.c b/mm/memory.c
+index be6a0c0d4ae0..3b57b7864667 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -3703,7 +3703,6 @@ static int __handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	if (unlikely(is_vm_hugetlb_page(vma)))
+ 		return hugetlb_fault(mm, vma, address, flags);
+ 
+-retry:
+ 	pgd = pgd_offset(mm, address);
+ 	pud = pud_alloc(mm, pgd, address);
+ 	if (!pud)
+@@ -3741,20 +3740,13 @@ retry:
+ 			if (dirty && !pmd_write(orig_pmd)) {
+ 				ret = do_huge_pmd_wp_page(mm, vma, address, pmd,
+ 							  orig_pmd);
+-				/*
+-				 * If COW results in an oom, the huge pmd will
+-				 * have been split, so retry the fault on the
+-				 * pte for a smaller charge.
+-				 */
+-				if (unlikely(ret & VM_FAULT_OOM))
+-					goto retry;
+-				return ret;
++				if (!(ret & VM_FAULT_FALLBACK))
++					return ret;
+ 			} else {
+ 				huge_pmd_set_accessed(mm, vma, address, pmd,
+ 						      orig_pmd, dirty);
++				return 0;
+ 			}
+-
+-			return 0;
+ 		}
+ 	}
+ 
 -- 
-Mel Gorman
-SUSE Labs
+1.8.5.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
