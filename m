@@ -1,234 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E0896B0037
-	for <linux-mm@kvack.org>; Tue, 11 Feb 2014 05:35:23 -0500 (EST)
-Received: by mail-pd0-f181.google.com with SMTP id y10so7311326pdj.40
-        for <linux-mm@kvack.org>; Tue, 11 Feb 2014 02:35:22 -0800 (PST)
-Received: from e28smtp03.in.ibm.com (e28smtp03.in.ibm.com. [122.248.162.3])
-        by mx.google.com with ESMTPS id q5si18553490pae.56.2014.02.11.02.35.19
+Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
+	by kanga.kvack.org (Postfix) with ESMTP id BAA866B003D
+	for <linux-mm@kvack.org>; Tue, 11 Feb 2014 05:40:31 -0500 (EST)
+Received: by mail-wi0-f175.google.com with SMTP id hm4so3990252wib.14
+        for <linux-mm@kvack.org>; Tue, 11 Feb 2014 02:40:31 -0800 (PST)
+Received: from ducie-dc1.codethink.co.uk (ducie-dc1.codethink.co.uk. [37.128.190.40])
+        by mx.google.com with ESMTPS id r9si8415860wij.9.2014.02.11.02.40.29
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 11 Feb 2014 02:35:21 -0800 (PST)
-Received: from /spool/local
-	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Tue, 11 Feb 2014 16:05:09 +0530
-Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
-	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 1760E394005B
-	for <linux-mm@kvack.org>; Tue, 11 Feb 2014 16:05:08 +0530 (IST)
-Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s1BAZ3il23003190
-	for <linux-mm@kvack.org>; Tue, 11 Feb 2014 16:05:04 +0530
-Received: from d28av02.in.ibm.com (localhost [127.0.0.1])
-	by d28av02.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s1BAZ6TY031390
-	for <linux-mm@kvack.org>; Tue, 11 Feb 2014 16:05:06 +0530
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [PATCH 1/3] powerpc: mm: Add new set flag argument to pte/pmd update function
-Date: Tue, 11 Feb 2014 16:04:53 +0530
-Message-Id: <1392114895-14997-2-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-In-Reply-To: <1392114895-14997-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-References: <1392114895-14997-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+        (version=TLSv1.1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 11 Feb 2014 02:40:30 -0800 (PST)
+Message-ID: <52F9FE1A.6000607@codethink.co.uk>
+Date: Tue, 11 Feb 2014 10:40:26 +0000
+From: Ben Dooks <ben.dooks@codethink.co.uk>
+MIME-Version: 1.0
+Subject: Re: [PATCH] ARM: mm: support big-endian page tables
+References: <52F9EB40.1030703@huawei.com>
+In-Reply-To: <52F9EB40.1030703@huawei.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: benh@kernel.crashing.org, paulus@samba.org, riel@redhat.com, mgorman@suse.de, mpe@ellerman.id.au
-Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+To: Jianguo Wu <wujianguo@huawei.com>
+Cc: linux@arm.linux.org.uk, will.deacon@arm.com, gregkh@linuxfoundation.org, Catalin Marinas <catalin.marinas@arm.com>, Li Zefan <lizefan@huawei.com>, Wang Nan <wangnan0@huawei.com>, linux-arm-kernel@lists.infradead.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+On 11/02/14 09:20, Jianguo Wu wrote:
+> When enable LPAE and big-endian in a hisilicon board, while specify
+> mem=384M mem=512M@7680M, will get bad page state:
+>
+> Freeing unused kernel memory: 180K (c0466000 - c0493000)
+> BUG: Bad page state in process init  pfn:fa442
+> page:c7749840 count:0 mapcount:-1 mapping:  (null) index:0x0
+> page flags: 0x40000400(reserved)
+> Modules linked in:
+> CPU: 0 PID: 1 Comm: init Not tainted 3.10.27+ #66
+> [<c000f5f0>] (unwind_backtrace+0x0/0x11c) from [<c000cbc4>] (show_stack+0x10/0x14)
+> [<c000cbc4>] (show_stack+0x10/0x14) from [<c009e448>] (bad_page+0xd4/0x104)
+> [<c009e448>] (bad_page+0xd4/0x104) from [<c009e520>] (free_pages_prepare+0xa8/0x14c)
+> [<c009e520>] (free_pages_prepare+0xa8/0x14c) from [<c009f8ec>] (free_hot_cold_page+0x18/0xf0)
+> [<c009f8ec>] (free_hot_cold_page+0x18/0xf0) from [<c00b5444>] (handle_pte_fault+0xcf4/0xdc8)
+> [<c00b5444>] (handle_pte_fault+0xcf4/0xdc8) from [<c00b6458>] (handle_mm_fault+0xf4/0x120)
+> [<c00b6458>] (handle_mm_fault+0xf4/0x120) from [<c0013754>] (do_page_fault+0xfc/0x354)
+> [<c0013754>] (do_page_fault+0xfc/0x354) from [<c0008400>] (do_DataAbort+0x2c/0x90)
+> [<c0008400>] (do_DataAbort+0x2c/0x90) from [<c0008fb4>] (__dabt_usr+0x34/0x40)
+>
+> The bad pfn:fa442 is not system memory(mem=384M mem=512M@7680M), after debugging,
+> I find in page fault handler, will get wrong pfn from pte just after set pte,
+> as follow:
+> do_anonymous_page()
+> {
+> 	...
+> 	set_pte_at(mm, address, page_table, entry);
+> 	
+> 	//debug code
+> 	pfn = pte_pfn(entry);
+> 	pr_info("pfn:0x%lx, pte:0x%llx\n", pfn, pte_val(entry));
+>
+> 	//read out the pte just set
+> 	new_pte = pte_offset_map(pmd, address);
+> 	new_pfn = pte_pfn(*new_pte);
+> 	pr_info("new pfn:0x%lx, new pte:0x%llx\n", pfn, pte_val(entry));
+> 	...
+> }
 
-We will use this later to set the _PAGE_NUMA bit.
+Thanks, must have missed tickling this one.
 
-Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
----
- arch/powerpc/include/asm/hugetlb.h       |  2 +-
- arch/powerpc/include/asm/pgtable-ppc64.h | 26 +++++++++++++++-----------
- arch/powerpc/mm/pgtable_64.c             | 12 +++++++-----
- arch/powerpc/mm/subpage-prot.c           |  2 +-
- 4 files changed, 24 insertions(+), 18 deletions(-)
+>
+> pfn:   0x1fa4f5,     pte:0xc00001fa4f575f
+> new_pfn:0xfa4f5, new_pte:0xc00000fa4f5f5f	//new pfn/pte is wrong.
+>
+> The bug is happened in cpu_v7_set_pte_ext(ptep, pte):
+> when pte is 64-bit, for little-endian, will store low 32-bit in r2,
+> high 32-bit in r3; for big-endian, will store low 32-bit in r3,
+> high 32-bit in r2, this will cause wrong pfn stored in pte,
+> so we should exchange r2 and r3 for big-endian.
+>
+> Signed-off-by: Jianguo Wu <wujianguo@huawei.com>
+> ---
+>   arch/arm/mm/proc-v7-3level.S |   10 ++++++++++
+>   1 files changed, 10 insertions(+), 0 deletions(-)
+>
+> diff --git a/arch/arm/mm/proc-v7-3level.S b/arch/arm/mm/proc-v7-3level.S
+> index 6ba4bd9..71b3892 100644
+> --- a/arch/arm/mm/proc-v7-3level.S
+> +++ b/arch/arm/mm/proc-v7-3level.S
+> @@ -65,6 +65,15 @@ ENDPROC(cpu_v7_switch_mm)
+>    */
+>   ENTRY(cpu_v7_set_pte_ext)
+>   #ifdef CONFIG_MMU
+> +#ifdef CONFIG_CPU_ENDIAN_BE8
+> +	tst	r3, #L_PTE_VALID
+> +	beq	1f
+> +	tst	r2, #1 << (57 - 32)		@ L_PTE_NONE
+> +	bicne	r3, #L_PTE_VALID
+> +	bne	1f
+> +	tst	r2, #1 << (55 - 32)		@ L_PTE_DIRTY
+> +	orreq	r3, #L_PTE_RDONLY
+> +#else
+>   	tst	r2, #L_PTE_VALID
+>   	beq	1f
+>   	tst	r3, #1 << (57 - 32)		@ L_PTE_NONE
+> @@ -72,6 +81,7 @@ ENTRY(cpu_v7_set_pte_ext)
+>   	bne	1f
+>   	tst	r3, #1 << (55 - 32)		@ L_PTE_DIRTY
+>   	orreq	r2, #L_PTE_RDONLY
+> +#endif
+>   1:	strd	r2, r3, [r0]
+>   	ALT_SMP(W(nop))
+>   	ALT_UP (mcr	p15, 0, r0, c7, c10, 1)		@ flush_pte
+> -- 1.7.1
 
-diff --git a/arch/powerpc/include/asm/hugetlb.h b/arch/powerpc/include/asm/hugetlb.h
-index d750336b171d..623f2971ce0e 100644
---- a/arch/powerpc/include/asm/hugetlb.h
-+++ b/arch/powerpc/include/asm/hugetlb.h
-@@ -127,7 +127,7 @@ static inline pte_t huge_ptep_get_and_clear(struct mm_struct *mm,
- 					    unsigned long addr, pte_t *ptep)
- {
- #ifdef CONFIG_PPC64
--	return __pte(pte_update(mm, addr, ptep, ~0UL, 1));
-+	return __pte(pte_update(mm, addr, ptep, ~0UL, 0, 1));
- #else
- 	return __pte(pte_update(ptep, ~0UL, 0));
- #endif
-diff --git a/arch/powerpc/include/asm/pgtable-ppc64.h b/arch/powerpc/include/asm/pgtable-ppc64.h
-index bc141c950b1e..eb9261024f51 100644
---- a/arch/powerpc/include/asm/pgtable-ppc64.h
-+++ b/arch/powerpc/include/asm/pgtable-ppc64.h
-@@ -195,6 +195,7 @@ extern void hpte_need_flush(struct mm_struct *mm, unsigned long addr,
- static inline unsigned long pte_update(struct mm_struct *mm,
- 				       unsigned long addr,
- 				       pte_t *ptep, unsigned long clr,
-+				       unsigned long set,
- 				       int huge)
- {
- #ifdef PTE_ATOMIC_UPDATES
-@@ -205,14 +206,15 @@ static inline unsigned long pte_update(struct mm_struct *mm,
- 	andi.	%1,%0,%6\n\
- 	bne-	1b \n\
- 	andc	%1,%0,%4 \n\
-+	or	%1,%1,%7\n\
- 	stdcx.	%1,0,%3 \n\
- 	bne-	1b"
- 	: "=&r" (old), "=&r" (tmp), "=m" (*ptep)
--	: "r" (ptep), "r" (clr), "m" (*ptep), "i" (_PAGE_BUSY)
-+	: "r" (ptep), "r" (clr), "m" (*ptep), "i" (_PAGE_BUSY), "r" (set)
- 	: "cc" );
- #else
- 	unsigned long old = pte_val(*ptep);
--	*ptep = __pte(old & ~clr);
-+	*ptep = __pte((old & ~clr) | set);
- #endif
- 	/* huge pages use the old page table lock */
- 	if (!huge)
-@@ -231,9 +233,9 @@ static inline int __ptep_test_and_clear_young(struct mm_struct *mm,
- {
- 	unsigned long old;
- 
--       	if ((pte_val(*ptep) & (_PAGE_ACCESSED | _PAGE_HASHPTE)) == 0)
-+	if ((pte_val(*ptep) & (_PAGE_ACCESSED | _PAGE_HASHPTE)) == 0)
- 		return 0;
--	old = pte_update(mm, addr, ptep, _PAGE_ACCESSED, 0);
-+	old = pte_update(mm, addr, ptep, _PAGE_ACCESSED, 0, 0);
- 	return (old & _PAGE_ACCESSED) != 0;
- }
- #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
-@@ -252,7 +254,7 @@ static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr,
- 	if ((pte_val(*ptep) & _PAGE_RW) == 0)
- 		return;
- 
--	pte_update(mm, addr, ptep, _PAGE_RW, 0);
-+	pte_update(mm, addr, ptep, _PAGE_RW, 0, 0);
- }
- 
- static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
-@@ -261,7 +263,7 @@ static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
- 	if ((pte_val(*ptep) & _PAGE_RW) == 0)
- 		return;
- 
--	pte_update(mm, addr, ptep, _PAGE_RW, 1);
-+	pte_update(mm, addr, ptep, _PAGE_RW, 0, 1);
- }
- 
- /*
-@@ -284,14 +286,14 @@ static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
- static inline pte_t ptep_get_and_clear(struct mm_struct *mm,
- 				       unsigned long addr, pte_t *ptep)
- {
--	unsigned long old = pte_update(mm, addr, ptep, ~0UL, 0);
-+	unsigned long old = pte_update(mm, addr, ptep, ~0UL, 0, 0);
- 	return __pte(old);
- }
- 
- static inline void pte_clear(struct mm_struct *mm, unsigned long addr,
- 			     pte_t * ptep)
- {
--	pte_update(mm, addr, ptep, ~0UL, 0);
-+	pte_update(mm, addr, ptep, ~0UL, 0, 0);
- }
- 
- 
-@@ -506,7 +508,9 @@ extern int pmdp_set_access_flags(struct vm_area_struct *vma,
- 
- extern unsigned long pmd_hugepage_update(struct mm_struct *mm,
- 					 unsigned long addr,
--					 pmd_t *pmdp, unsigned long clr);
-+					 pmd_t *pmdp,
-+					 unsigned long clr,
-+					 unsigned long set);
- 
- static inline int __pmdp_test_and_clear_young(struct mm_struct *mm,
- 					      unsigned long addr, pmd_t *pmdp)
-@@ -515,7 +519,7 @@ static inline int __pmdp_test_and_clear_young(struct mm_struct *mm,
- 
- 	if ((pmd_val(*pmdp) & (_PAGE_ACCESSED | _PAGE_HASHPTE)) == 0)
- 		return 0;
--	old = pmd_hugepage_update(mm, addr, pmdp, _PAGE_ACCESSED);
-+	old = pmd_hugepage_update(mm, addr, pmdp, _PAGE_ACCESSED, 0);
- 	return ((old & _PAGE_ACCESSED) != 0);
- }
- 
-@@ -542,7 +546,7 @@ static inline void pmdp_set_wrprotect(struct mm_struct *mm, unsigned long addr,
- 	if ((pmd_val(*pmdp) & _PAGE_RW) == 0)
- 		return;
- 
--	pmd_hugepage_update(mm, addr, pmdp, _PAGE_RW);
-+	pmd_hugepage_update(mm, addr, pmdp, _PAGE_RW, 0);
- }
- 
- #define __HAVE_ARCH_PMDP_SPLITTING_FLUSH
-diff --git a/arch/powerpc/mm/pgtable_64.c b/arch/powerpc/mm/pgtable_64.c
-index 65b7b65e8708..62bf5e8e78da 100644
---- a/arch/powerpc/mm/pgtable_64.c
-+++ b/arch/powerpc/mm/pgtable_64.c
-@@ -510,7 +510,8 @@ int pmdp_set_access_flags(struct vm_area_struct *vma, unsigned long address,
- }
- 
- unsigned long pmd_hugepage_update(struct mm_struct *mm, unsigned long addr,
--				  pmd_t *pmdp, unsigned long clr)
-+				  pmd_t *pmdp, unsigned long clr,
-+				  unsigned long set)
- {
- 
- 	unsigned long old, tmp;
-@@ -526,14 +527,15 @@ unsigned long pmd_hugepage_update(struct mm_struct *mm, unsigned long addr,
- 		andi.	%1,%0,%6\n\
- 		bne-	1b \n\
- 		andc	%1,%0,%4 \n\
-+		or	%1,%1,%7\n\
- 		stdcx.	%1,0,%3 \n\
- 		bne-	1b"
- 	: "=&r" (old), "=&r" (tmp), "=m" (*pmdp)
--	: "r" (pmdp), "r" (clr), "m" (*pmdp), "i" (_PAGE_BUSY)
-+	: "r" (pmdp), "r" (clr), "m" (*pmdp), "i" (_PAGE_BUSY), "r" (set)
- 	: "cc" );
- #else
- 	old = pmd_val(*pmdp);
--	*pmdp = __pmd(old & ~clr);
-+	*pmdp = __pmd((old & ~clr) | set);
- #endif
- 	if (old & _PAGE_HASHPTE)
- 		hpte_do_hugepage_flush(mm, addr, pmdp);
-@@ -708,7 +710,7 @@ void set_pmd_at(struct mm_struct *mm, unsigned long addr,
- void pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
- 		     pmd_t *pmdp)
- {
--	pmd_hugepage_update(vma->vm_mm, address, pmdp, _PAGE_PRESENT);
-+	pmd_hugepage_update(vma->vm_mm, address, pmdp, _PAGE_PRESENT, 0);
- }
- 
- /*
-@@ -835,7 +837,7 @@ pmd_t pmdp_get_and_clear(struct mm_struct *mm,
- 	unsigned long old;
- 	pgtable_t *pgtable_slot;
- 
--	old = pmd_hugepage_update(mm, addr, pmdp, ~0UL);
-+	old = pmd_hugepage_update(mm, addr, pmdp, ~0UL, 0);
- 	old_pmd = __pmd(old);
- 	/*
- 	 * We have pmd == none and we are holding page_table_lock.
-diff --git a/arch/powerpc/mm/subpage-prot.c b/arch/powerpc/mm/subpage-prot.c
-index a770df2dae70..6c0b1f5f8d2c 100644
---- a/arch/powerpc/mm/subpage-prot.c
-+++ b/arch/powerpc/mm/subpage-prot.c
-@@ -78,7 +78,7 @@ static void hpte_flush_range(struct mm_struct *mm, unsigned long addr,
- 	pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
- 	arch_enter_lazy_mmu_mode();
- 	for (; npages > 0; --npages) {
--		pte_update(mm, addr, pte, 0, 0);
-+		pte_update(mm, addr, pte, 0, 0, 0);
- 		addr += PAGE_SIZE;
- 		++pte;
- 	}
+If possible can we avoid large #ifdef blocks here?
+
+Two ideas are
+
+ARM_LE(tst r2, #L_PTE_VALID)
+ARM_BE(tst r3, #L_PTE_VALID)
+
+or change r2, r3 pair to say rlow, rhi and
+
+#ifdef  CONFIG_CPU_ENDIAN_BE8
+#define rlow r3
+#define rhi r2
+#else
+#define rlow r2
+#define rhi r3
+#endif
+
+
+
 -- 
-1.8.3.2
+Ben Dooks				http://www.codethink.co.uk/
+Senior Engineer				Codethink - Providing Genius
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
