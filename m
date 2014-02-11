@@ -1,65 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oa0-f46.google.com (mail-oa0-f46.google.com [209.85.219.46])
-	by kanga.kvack.org (Postfix) with ESMTP id B2ECA6B0031
-	for <linux-mm@kvack.org>; Tue, 11 Feb 2014 07:09:22 -0500 (EST)
-Received: by mail-oa0-f46.google.com with SMTP id n16so8971376oag.5
-        for <linux-mm@kvack.org>; Tue, 11 Feb 2014 04:09:22 -0800 (PST)
-Received: from e34.co.us.ibm.com (e34.co.us.ibm.com. [32.97.110.152])
-        by mx.google.com with ESMTPS id ns8si9401660obc.22.2014.02.11.04.09.21
+Received: from mail-oa0-f52.google.com (mail-oa0-f52.google.com [209.85.219.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 47EFD6B0031
+	for <linux-mm@kvack.org>; Tue, 11 Feb 2014 07:14:32 -0500 (EST)
+Received: by mail-oa0-f52.google.com with SMTP id i4so9107358oah.11
+        for <linux-mm@kvack.org>; Tue, 11 Feb 2014 04:14:31 -0800 (PST)
+Received: from e37.co.us.ibm.com (e37.co.us.ibm.com. [32.97.110.158])
+        by mx.google.com with ESMTPS id kb7si9393084oeb.128.2014.02.11.04.14.31
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 11 Feb 2014 04:09:21 -0800 (PST)
+        Tue, 11 Feb 2014 04:14:31 -0800 (PST)
 Received: from /spool/local
-	by e34.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e37.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Tue, 11 Feb 2014 05:09:21 -0700
-Received: from b03cxnp08025.gho.boulder.ibm.com (b03cxnp08025.gho.boulder.ibm.com [9.17.130.17])
-	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id D2D6919D8036
-	for <linux-mm@kvack.org>; Tue, 11 Feb 2014 05:09:17 -0700 (MST)
+	Tue, 11 Feb 2014 05:14:30 -0700
+Received: from b03cxnp08028.gho.boulder.ibm.com (b03cxnp08028.gho.boulder.ibm.com [9.17.130.20])
+	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id C59C519D8042
+	for <linux-mm@kvack.org>; Tue, 11 Feb 2014 05:14:27 -0700 (MST)
 Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
-	by b03cxnp08025.gho.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s1BC9Icm10420730
-	for <linux-mm@kvack.org>; Tue, 11 Feb 2014 13:09:18 +0100
+	by b03cxnp08028.gho.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s1BCES6s8782258
+	for <linux-mm@kvack.org>; Tue, 11 Feb 2014 13:14:28 +0100
 Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id s1BCCdm0005162
-	for <linux-mm@kvack.org>; Tue, 11 Feb 2014 05:12:39 -0700
-Date: Tue, 11 Feb 2014 04:09:16 -0800
+	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id s1BCHnwY020738
+	for <linux-mm@kvack.org>; Tue, 11 Feb 2014 05:17:49 -0700
+Date: Tue, 11 Feb 2014 04:14:26 -0800
 From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 Subject: Re: Memory allocator semantics
-Message-ID: <20140211120915.GP4250@linux.vnet.ibm.com>
+Message-ID: <20140211121426.GQ4250@linux.vnet.ibm.com>
 Reply-To: paulmck@linux.vnet.ibm.com
 References: <20140102203320.GA27615@linux.vnet.ibm.com>
  <52F60699.8010204@iki.fi>
- <20140209020004.GY4250@linux.vnet.ibm.com>
- <CAOJsxLHs890eypzfnNj4ff1zqy_=bC8FA7B0YYbcZQF_c_wSog@mail.gmail.com>
+ <alpine.DEB.2.10.1402101304110.17517@nuc>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAOJsxLHs890eypzfnNj4ff1zqy_=bC8FA7B0YYbcZQF_c_wSog@mail.gmail.com>
+In-Reply-To: <alpine.DEB.2.10.1402101304110.17517@nuc>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux-foundation.org>, Matt Mackall <mpm@selenic.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@iki.fi>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, penberg@kernel.org, mpm@selenic.com
 
-On Tue, Feb 11, 2014 at 10:50:24AM +0200, Pekka Enberg wrote:
-> Hi Paul,
+On Mon, Feb 10, 2014 at 01:07:58PM -0600, Christoph Lameter wrote:
+> On Sat, 8 Feb 2014, Pekka Enberg wrote:
 > 
-> On Sun, Feb 9, 2014 at 4:00 AM, Paul E. McKenney
-> <paulmck@linux.vnet.ibm.com> wrote:
-> > From what I can see, (A) works by accident, but is kind of useless because
-> > you allocate and free the memory without touching it.  (B) and (C) are the
-> > lightest touches I could imagine, and as you say, both are bad.  So I
-> > believe that it is reasonable to prohibit (A).
-> >
-> > Or is there some use for (A) that I am missing?
+> > So to be completely honest, I don't understand what is the race in (A) that
+> > concerns the *memory allocator*.  I also don't what the memory allocator can
+> > do in (B) and (C) which look like double-free and use-after-free,
+> > respectively, to me. :-)
 > 
-> So again, there's nothing in (A) that the memory allocator is
-> concerned about.  kmalloc() makes no guarantees whatsoever about the
-> visibility of "r1" across CPUs.  If you're saying that there's an
-> implicit barrier between kmalloc() and kfree(), that's an unintended
-> side-effect, not a design decision AFAICT.
+> Well it seems to be some academic mind game to me.
+> 
+> Does an invocation of the allocator have barrier semantics or not?
 
-Thank you.  That was what I suspected, and I believe that it is a
-completely reasonable response to (A).
+In case (A), I don't see why the allocator should have barrier semantics
+from kmalloc() to a matching kfree().  I would argue that any needed
+barrier semantics must be provided by the caller.
+
+In contrast, from kfree() to a kmalloc() returning some of the kfree()ed
+memory, I believe the kfree()/kmalloc() implementation must do any needed
+synchronization and ordering.  But that is a different set of examples,
+for example, this one:
+
+	CPU 0			CPU 1
+	p->a = 42;		q = kmalloc(...); /* returning p */
+	kfree(p);		q->a = 5;
+				BUG_ON(q->a != 5);
+
+Unlike the situation with (A), (B), and (C), in this case I believe
+that it is kfree()'s and kmalloc()'s responsibility to ensure that
+the BUG_ON() never triggers.
+
+Make sense?
 
 							Thanx, Paul
 
