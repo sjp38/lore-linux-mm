@@ -1,72 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 897BB6B0031
-	for <linux-mm@kvack.org>; Tue, 11 Feb 2014 02:20:28 -0500 (EST)
-Received: by mail-pd0-f169.google.com with SMTP id v10so7186084pde.0
-        for <linux-mm@kvack.org>; Mon, 10 Feb 2014 23:20:28 -0800 (PST)
-Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [119.145.14.64])
-        by mx.google.com with ESMTPS id n8si17928383pax.334.2014.02.10.23.20.25
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 10 Feb 2014 23:20:27 -0800 (PST)
-Message-ID: <52F9CE72.30303@huawei.com>
-Date: Tue, 11 Feb 2014 15:17:06 +0800
-From: Xishi Qiu <qiuxishi@huawei.com>
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 3AB256B0031
+	for <linux-mm@kvack.org>; Tue, 11 Feb 2014 02:42:03 -0500 (EST)
+Received: by mail-pd0-f182.google.com with SMTP id v10so7240097pde.27
+        for <linux-mm@kvack.org>; Mon, 10 Feb 2014 23:42:02 -0800 (PST)
+Received: from LGEAMRELO02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
+        by mx.google.com with ESMTP id mj6si17999048pab.304.2014.02.10.23.42.01
+        for <linux-mm@kvack.org>;
+        Mon, 10 Feb 2014 23:42:02 -0800 (PST)
+Date: Tue, 11 Feb 2014 16:42:00 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [RFC PATCH 2/3] topology: support node_numa_mem() for
+ determining the fallback node
+Message-ID: <20140211074159.GB27870@lge.com>
+References: <20140206020757.GC5433@linux.vnet.ibm.com>
+ <1391674026-20092-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1391674026-20092-2-git-send-email-iamjoonsoo.kim@lge.com>
+ <alpine.DEB.2.02.1402060041040.21148@chino.kir.corp.google.com>
+ <CAAmzW4PXkdpNi5pZ=4BzdXNvqTEAhcuw-x0pWidqrxzdePxXxA@mail.gmail.com>
+ <alpine.DEB.2.02.1402061248450.9567@chino.kir.corp.google.com>
+ <20140207054819.GC28952@lge.com>
+ <alpine.DEB.2.10.1402071150090.15168@nuc>
+ <alpine.DEB.2.10.1402071245040.20246@nuc>
+ <20140210191321.GD1558@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: add a new command-line kmemcheck value
-References: <52C2811C.4090907@huawei.com> <CAOMGZ=GOR_i9ixvHeHwfDN1wwwSQzFNFGa4qLZMhWWNzx0p8mw@mail.gmail.com> <52C4C216.3070607@huawei.com> <CAOMGZ=HhWoRYMQtqQu73X21eZJAO7fETxOnW=9ZWMkwr9dCPFA@mail.gmail.com> <52DF1D59.8090803@huawei.com>
-In-Reply-To: <52DF1D59.8090803@huawei.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140210191321.GD1558@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vegard Nossum <vegard.nossum@gmail.com>
-Cc: Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Vegard
- Nossum <vegardno@ifi.uio.no>, Pekka Enberg <penberg@kernel.org>, Mel Gorman <mgorman@suse.de>, wangnan0@huawei.com, the arch/x86 maintainers <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Xishi Qiu <qiuxishi@huawei.com>
+To: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
+Cc: Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Han Pingtian <hanpt@linux.vnet.ibm.com>, Pekka Enberg <penberg@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Paul Mackerras <paulus@samba.org>, Anton Blanchard <anton@samba.org>, Matt Mackall <mpm@selenic.com>, linuxppc-dev@lists.ozlabs.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-On 2014/1/22 9:22, Xishi Qiu wrote:
-
+On Mon, Feb 10, 2014 at 11:13:21AM -0800, Nishanth Aravamudan wrote:
+> Hi Christoph,
 > 
-> Hi Vegard,
+> On 07.02.2014 [12:51:07 -0600], Christoph Lameter wrote:
+> > Here is a draft of a patch to make this work with memoryless nodes.
+> > 
+> > The first thing is that we modify node_match to also match if we hit an
+> > empty node. In that case we simply take the current slab if its there.
+> > 
+> > If there is no current slab then a regular allocation occurs with the
+> > memoryless node. The page allocator will fallback to a possible node and
+> > that will become the current slab. Next alloc from a memoryless node
+> > will then use that slab.
+> > 
+> > For that we also add some tracking of allocations on nodes that were not
+> > satisfied using the empty_node[] array. A successful alloc on a node
+> > clears that flag.
+> > 
+> > I would rather avoid the empty_node[] array since its global and there may
+> > be thread specific allocation restrictions but it would be expensive to do
+> > an allocation attempt via the page allocator to make sure that there is
+> > really no page available from the page allocator.
 > 
-> In some scenes, user want to check memory dynamicly, this "dynamically" 
-> means we can turn on/off the feature at boottime, not runtime. Without 
-> this patch, if user want to use this feature, he should change config 
-> and build the kernel, then reboot. This is impossilbe if user has no 
-> kernel code or he don't know how to build the kernel.
+> With this patch on our test system (I pulled out the numa_mem_id()
+> change, since you Acked Joonsoo's already), on top of 3.13.0 + my
+> kthread locality change + CONFIG_HAVE_MEMORYLESS_NODES + Joonsoo's RFC
+> patch 1):
 > 
-> boottime: kmemcheck=0/1/2/3 (command-line)
-> runtime: kmemcheck=0/1/2 (/proc/sys/kernel/kmemcheck)
+> MemTotal:        8264704 kB
+> MemFree:         5924608 kB
+> ...
+> Slab:            1402496 kB
+> SReclaimable:     102848 kB
+> SUnreclaim:      1299648 kB
 > 
-> The main different between kmemcheck=0 and 3 is the used memory. Kmemcheck 
-> will use about twice as much memory as normal.
+> And Anton's slabusage reports:
 > 
-> Thanks,
-> Xishi Qiu
+> slab                                   mem     objs    slabs
+>                                       used   active   active
+> ------------------------------------------------------------
+> kmalloc-16384                       207 MB   98.60%  100.00%
+> task_struct                         134 MB   97.82%  100.00%
+> kmalloc-8192                        117 MB  100.00%  100.00%
+> pgtable-2^12                        111 MB  100.00%  100.00%
+> pgtable-2^10                        104 MB  100.00%  100.00%
 > 
-> --
+> For comparison, Anton's patch applied at the same point in the series:
+> 
+> meminfo:
+> 
+> MemTotal:        8264704 kB
+> MemFree:         4150464 kB
+> ...
+> Slab:            1590336 kB
+> SReclaimable:     208768 kB
+> SUnreclaim:      1381568 kB
+> 
+> slabusage:
+> 
+> slab                                   mem     objs    slabs
+>                                       used   active   active
+> ------------------------------------------------------------
+> kmalloc-16384                       227 MB   98.63%  100.00%
+> kmalloc-8192                        130 MB  100.00%  100.00%
+> task_struct                         129 MB   97.73%  100.00%
+> pgtable-2^12                        112 MB  100.00%  100.00%
+> pgtable-2^10                        106 MB  100.00%  100.00%
+> 
+> 
+> Consider this patch:
+> 
+> Acked-by: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
+> Tested-by: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
 
-Hi Vegard,
+Hello,
 
-What do you think of this feature? 
+I still think that there is another problem.
+Your report about CONFIG_SLAB said that SLAB uses just 200MB.
+Below is your previous report.
 
-Add a command-line "kmemcheck=3", then the kernel runs as the same as CONFIG_KMEMCHECK=off
-even CONFIG_KMEMCHECK is turn on. "kmemcheck=0/1/2" is the same as originally. 
-In another word, "kmemcheck=3" is the same as:
-1) turn off CONFIG_KMEMCHECK
-2) rebuild the kernel
-3) reboot
-The different between kmemcheck=0 and 3 is the used memory and nr_cpus.
-Also kmemcheck=0 can used in runtime, and kmemcheck=3 is only used in boot.
+  Ok, with your patches applied and CONFIG_SLAB enabled:
 
-I think this feature can help users to debug the kernel quickly, It is no 
-need to open CONFIG_KMEMCHECK and rebuild it. Especially sometimes users don't
-have the kernel source code or the code is different from www.kernel.org.
-e.g. some private features were added to the kernel source code, and usually 
-users can not have the source code. 
+  MemTotal:        8264640 kB
+  MemFree:         7119680 kB
+  Slab:             207232 kB
+  SReclaimable:      32896 kB
+  SUnreclaim:       174336 kB
 
-Thanks,
-Xishi Qiu
+The number on CONFIG_SLUB with these patches tell us that SLUB uses 1.4GB.
+There is large difference on slab usage.
+
+And, I should note that number of active objects on slabinfo can be wrong
+on some situation, since it doesn't consider cpu slab (and cpu partial slab).
+
+I recommend to confirm page_to_nid() and other things as I mentioned earlier.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
