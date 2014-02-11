@@ -1,31 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 48B316B0031
-	for <linux-mm@kvack.org>; Tue, 11 Feb 2014 05:35:15 -0500 (EST)
-Received: by mail-pa0-f45.google.com with SMTP id lf10so7438389pab.18
-        for <linux-mm@kvack.org>; Tue, 11 Feb 2014 02:35:14 -0800 (PST)
-Received: from e28smtp06.in.ibm.com (e28smtp06.in.ibm.com. [122.248.162.6])
-        by mx.google.com with ESMTPS id rx8si18540680pac.76.2014.02.11.02.35.11
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 2DECC6B0036
+	for <linux-mm@kvack.org>; Tue, 11 Feb 2014 05:35:22 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id fa1so7516650pad.28
+        for <linux-mm@kvack.org>; Tue, 11 Feb 2014 02:35:21 -0800 (PST)
+Received: from e28smtp09.in.ibm.com (e28smtp09.in.ibm.com. [122.248.162.9])
+        by mx.google.com with ESMTPS id ek3si18495417pbd.325.2014.02.11.02.35.15
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 11 Feb 2014 02:35:13 -0800 (PST)
+        Tue, 11 Feb 2014 02:35:20 -0800 (PST)
 Received: from /spool/local
-	by e28smtp06.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Tue, 11 Feb 2014 16:05:09 +0530
-Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
-	by d28dlp03.in.ibm.com (Postfix) with ESMTP id C798C1258054
-	for <linux-mm@kvack.org>; Tue, 11 Feb 2014 16:07:01 +0530 (IST)
+	Tue, 11 Feb 2014 16:05:11 +0530
+Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
+	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 7C699394004E
+	for <linux-mm@kvack.org>; Tue, 11 Feb 2014 16:05:07 +0530 (IST)
 Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s1BAZ3Es60555298
-	for <linux-mm@kvack.org>; Tue, 11 Feb 2014 16:05:04 +0530
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s1BAZ9gx48562400
+	for <linux-mm@kvack.org>; Tue, 11 Feb 2014 16:05:09 +0530
 Received: from d28av02.in.ibm.com (localhost [127.0.0.1])
-	by d28av02.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s1BAZ6os031397
+	by d28av02.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s1BAZ639031400
 	for <linux-mm@kvack.org>; Tue, 11 Feb 2014 16:05:06 +0530
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [PATCH 2/3] mm: dirty accountable change only apply to non prot numa case
-Date: Tue, 11 Feb 2014 16:04:54 +0530
-Message-Id: <1392114895-14997-3-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+Subject: [PATCH 3/3] mm: Use ptep/pmdp_set_numa for updating _PAGE_NUMA bit
+Date: Tue, 11 Feb 2014 16:04:55 +0530
+Message-Id: <1392114895-14997-4-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 In-Reply-To: <1392114895-14997-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 References: <1392114895-14997-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -35,54 +35,151 @@ Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, "Aneesh Kumar K.V" <anees
 
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-So move it within the if loop
+Archs like ppc64 doesn't do tlb flush in set_pte/pmd functions. ppc64 also doesn't implement
+flush_tlb_range. ppc64 require the tlb flushing to be batched within ptl locks. The reason
+to do that is to ensure that the hash page table is in sync with linux page table.
+We track the hpte index in linux pte and if we clear them without flushing hash and drop the
+ptl lock, we can have another cpu update the pte and can end up with double hash. We also want
+to keep set_pte_at simpler by not requiring them to do hash flush for performance reason.
+Hence cannot use them while updating _PAGE_NUMA bit. Add new functions for marking pte/pmd numa
 
 Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 ---
- mm/mprotect.c | 21 +++++++--------------
- 1 file changed, 7 insertions(+), 14 deletions(-)
+ arch/powerpc/include/asm/pgtable.h | 22 ++++++++++++++++++++++
+ include/asm-generic/pgtable.h      | 24 ++++++++++++++++++++++++
+ mm/huge_memory.c                   |  9 ++-------
+ mm/mprotect.c                      |  4 +---
+ 4 files changed, 49 insertions(+), 10 deletions(-)
 
+diff --git a/arch/powerpc/include/asm/pgtable.h b/arch/powerpc/include/asm/pgtable.h
+index f83b6f3e1b39..3ebb188c3ff5 100644
+--- a/arch/powerpc/include/asm/pgtable.h
++++ b/arch/powerpc/include/asm/pgtable.h
+@@ -75,12 +75,34 @@ static inline pte_t pte_mknuma(pte_t pte)
+ 	return pte;
+ }
+ 
++#define ptep_set_numa ptep_set_numa
++static inline void ptep_set_numa(struct mm_struct *mm, unsigned long addr,
++				 pte_t *ptep)
++{
++	if ((pte_val(*ptep) & _PAGE_PRESENT) == 0)
++		VM_BUG_ON(1);
++
++	pte_update(mm, addr, ptep, _PAGE_PRESENT, _PAGE_NUMA, 0);
++	return;
++}
++
+ #define pmd_numa pmd_numa
+ static inline int pmd_numa(pmd_t pmd)
+ {
+ 	return pte_numa(pmd_pte(pmd));
+ }
+ 
++#define pmdp_set_numa pmdp_set_numa
++static inline void pmdp_set_numa(struct mm_struct *mm, unsigned long addr,
++				 pmd_t *pmdp)
++{
++	if ((pmd_val(*pmdp) & _PAGE_PRESENT) == 0)
++		VM_BUG_ON(1);
++
++	pmd_hugepage_update(mm, addr, pmdp, _PAGE_PRESENT, _PAGE_NUMA);
++	return;
++}
++
+ #define pmd_mknonnuma pmd_mknonnuma
+ static inline pmd_t pmd_mknonnuma(pmd_t pmd)
+ {
+diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
+index 8e4f41d9af4d..93fdb5315a0d 100644
+--- a/include/asm-generic/pgtable.h
++++ b/include/asm-generic/pgtable.h
+@@ -669,6 +669,18 @@ static inline int pmd_numa(pmd_t pmd)
+ }
+ #endif
+ 
++#ifndef pmdp_set_numa
++static inline void pmdp_set_numa(struct mm_struct *mm, unsigned long addr,
++				 pmd_t *pmdp)
++{
++	pmd_t pmd = *pmdp;
++
++	pmd = pmd_mknuma(entry);
++	set_pmd_at(mm, addr, pmdp, pmd);
++	return;
++}
++#endif
++
+ /*
+  * pte/pmd_mknuma sets the _PAGE_ACCESSED bitflag automatically
+  * because they're called by the NUMA hinting minor page fault. If we
+@@ -701,6 +713,18 @@ static inline pte_t pte_mknuma(pte_t pte)
+ }
+ #endif
+ 
++#ifndef ptep_set_numa
++static inline void ptep_set_numa(struct mm_struct *mm, unsigned long addr,
++				 pte_t *ptep)
++{
++	pte_t ptent = *ptep;
++
++	ptent = pte_mknuma(ptent);
++	set_pte_at(mm, addr, ptep, ptent);
++	return;
++}
++#endif
++
+ #ifndef pmd_mknuma
+ static inline pmd_t pmd_mknuma(pmd_t pmd)
+ {
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 82166bf974e1..da23eb96779f 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1545,6 +1545,7 @@ int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
+ 				entry = pmd_mknonnuma(entry);
+ 			entry = pmd_modify(entry, newprot);
+ 			ret = HPAGE_PMD_NR;
++			set_pmd_at(mm, addr, pmd, entry);
+ 			BUG_ON(pmd_write(entry));
+ 		} else {
+ 			struct page *page = pmd_page(*pmd);
+@@ -1557,16 +1558,10 @@ int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
+ 			 */
+ 			if (!is_huge_zero_page(page) &&
+ 			    !pmd_numa(*pmd)) {
+-				entry = *pmd;
+-				entry = pmd_mknuma(entry);
++				pmdp_set_numa(mm, addr, pmd);
+ 				ret = HPAGE_PMD_NR;
+ 			}
+ 		}
+-
+-		/* Set PMD if cleared earlier */
+-		if (ret == HPAGE_PMD_NR)
+-			set_pmd_at(mm, addr, pmd, entry);
+-
+ 		spin_unlock(ptl);
+ 	}
+ 
 diff --git a/mm/mprotect.c b/mm/mprotect.c
-index 7332c1785744..33eab902f10e 100644
+index 33eab902f10e..769a67a15803 100644
 --- a/mm/mprotect.c
 +++ b/mm/mprotect.c
-@@ -58,6 +58,13 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
- 				if (pte_numa(ptent))
- 					ptent = pte_mknonnuma(ptent);
- 				ptent = pte_modify(ptent, newprot);
-+				/*
-+				 * Avoid taking write faults for pages we
-+				 * know to be dirty.
-+				 */
-+				if (dirty_accountable && pte_dirty(ptent))
-+					ptent = pte_mkwrite(ptent);
-+				ptep_modify_prot_commit(mm, addr, pte, ptent);
- 				updated = true;
+@@ -69,12 +69,10 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
  			} else {
  				struct page *page;
-@@ -72,22 +79,8 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+ 
+-				ptent = *pte;
+ 				page = vm_normal_page(vma, addr, oldpte);
+ 				if (page && !PageKsm(page)) {
+ 					if (!pte_numa(oldpte)) {
+-						ptent = pte_mknuma(ptent);
+-						set_pte_at(mm, addr, pte, ptent);
++						ptep_set_numa(mm, addr, pte);
+ 						updated = true;
  					}
  				}
- 			}
--
--			/*
--			 * Avoid taking write faults for pages we know to be
--			 * dirty.
--			 */
--			if (dirty_accountable && pte_dirty(ptent)) {
--				ptent = pte_mkwrite(ptent);
--				updated = true;
--			}
--
- 			if (updated)
- 				pages++;
--
--			/* Only !prot_numa always clears the pte */
--			if (!prot_numa)
--				ptep_modify_prot_commit(mm, addr, pte, ptent);
- 		} else if (IS_ENABLED(CONFIG_MIGRATION) && !pte_file(oldpte)) {
- 			swp_entry_t entry = pte_to_swp_entry(oldpte);
- 
 -- 
 1.8.3.2
 
