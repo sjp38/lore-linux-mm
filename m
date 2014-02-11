@@ -1,136 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
-	by kanga.kvack.org (Postfix) with ESMTP id BAA866B003D
-	for <linux-mm@kvack.org>; Tue, 11 Feb 2014 05:40:31 -0500 (EST)
-Received: by mail-wi0-f175.google.com with SMTP id hm4so3990252wib.14
-        for <linux-mm@kvack.org>; Tue, 11 Feb 2014 02:40:31 -0800 (PST)
-Received: from ducie-dc1.codethink.co.uk (ducie-dc1.codethink.co.uk. [37.128.190.40])
-        by mx.google.com with ESMTPS id r9si8415860wij.9.2014.02.11.02.40.29
+Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com [209.85.160.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 199E06B003D
+	for <linux-mm@kvack.org>; Tue, 11 Feb 2014 05:46:42 -0500 (EST)
+Received: by mail-pb0-f54.google.com with SMTP id uo5so7556660pbc.13
+        for <linux-mm@kvack.org>; Tue, 11 Feb 2014 02:46:41 -0800 (PST)
+Received: from mail-pb0-x232.google.com (mail-pb0-x232.google.com [2607:f8b0:400e:c01::232])
+        by mx.google.com with ESMTPS id ay1si18564917pbd.246.2014.02.11.02.46.40
         for <linux-mm@kvack.org>
-        (version=TLSv1.1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 11 Feb 2014 02:40:30 -0800 (PST)
-Message-ID: <52F9FE1A.6000607@codethink.co.uk>
-Date: Tue, 11 Feb 2014 10:40:26 +0000
-From: Ben Dooks <ben.dooks@codethink.co.uk>
-MIME-Version: 1.0
-Subject: Re: [PATCH] ARM: mm: support big-endian page tables
-References: <52F9EB40.1030703@huawei.com>
-In-Reply-To: <52F9EB40.1030703@huawei.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 11 Feb 2014 02:46:41 -0800 (PST)
+Received: by mail-pb0-f50.google.com with SMTP id rq2so7601651pbb.9
+        for <linux-mm@kvack.org>; Tue, 11 Feb 2014 02:46:40 -0800 (PST)
+From: SeongJae Park <sj38.park@gmail.com>
+Subject: [PATCH 1/2] mm/zswap: fix trivial typo and arrange indentation
+Date: Tue, 11 Feb 2014 19:46:29 +0900
+Message-Id: <1392115590-15260-1-git-send-email-sj38.park@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jianguo Wu <wujianguo@huawei.com>
-Cc: linux@arm.linux.org.uk, will.deacon@arm.com, gregkh@linuxfoundation.org, Catalin Marinas <catalin.marinas@arm.com>, Li Zefan <lizefan@huawei.com>, Wang Nan <wangnan0@huawei.com>, linux-arm-kernel@lists.infradead.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: sjenning@linux.vnet.ibm.com, trivial@kernel.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, SeongJae Park <sj38.park@gmail.com>
 
-On 11/02/14 09:20, Jianguo Wu wrote:
-> When enable LPAE and big-endian in a hisilicon board, while specify
-> mem=384M mem=512M@7680M, will get bad page state:
->
-> Freeing unused kernel memory: 180K (c0466000 - c0493000)
-> BUG: Bad page state in process init  pfn:fa442
-> page:c7749840 count:0 mapcount:-1 mapping:  (null) index:0x0
-> page flags: 0x40000400(reserved)
-> Modules linked in:
-> CPU: 0 PID: 1 Comm: init Not tainted 3.10.27+ #66
-> [<c000f5f0>] (unwind_backtrace+0x0/0x11c) from [<c000cbc4>] (show_stack+0x10/0x14)
-> [<c000cbc4>] (show_stack+0x10/0x14) from [<c009e448>] (bad_page+0xd4/0x104)
-> [<c009e448>] (bad_page+0xd4/0x104) from [<c009e520>] (free_pages_prepare+0xa8/0x14c)
-> [<c009e520>] (free_pages_prepare+0xa8/0x14c) from [<c009f8ec>] (free_hot_cold_page+0x18/0xf0)
-> [<c009f8ec>] (free_hot_cold_page+0x18/0xf0) from [<c00b5444>] (handle_pte_fault+0xcf4/0xdc8)
-> [<c00b5444>] (handle_pte_fault+0xcf4/0xdc8) from [<c00b6458>] (handle_mm_fault+0xf4/0x120)
-> [<c00b6458>] (handle_mm_fault+0xf4/0x120) from [<c0013754>] (do_page_fault+0xfc/0x354)
-> [<c0013754>] (do_page_fault+0xfc/0x354) from [<c0008400>] (do_DataAbort+0x2c/0x90)
-> [<c0008400>] (do_DataAbort+0x2c/0x90) from [<c0008fb4>] (__dabt_usr+0x34/0x40)
->
-> The bad pfn:fa442 is not system memory(mem=384M mem=512M@7680M), after debugging,
-> I find in page fault handler, will get wrong pfn from pte just after set pte,
-> as follow:
-> do_anonymous_page()
-> {
-> 	...
-> 	set_pte_at(mm, address, page_table, entry);
-> 	
-> 	//debug code
-> 	pfn = pte_pfn(entry);
-> 	pr_info("pfn:0x%lx, pte:0x%llx\n", pfn, pte_val(entry));
->
-> 	//read out the pte just set
-> 	new_pte = pte_offset_map(pmd, address);
-> 	new_pfn = pte_pfn(*new_pte);
-> 	pr_info("new pfn:0x%lx, new pte:0x%llx\n", pfn, pte_val(entry));
-> 	...
-> }
+Signed-off-by: SeongJae Park <sj38.park@gmail.com>
+---
+ mm/zswap.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-Thanks, must have missed tickling this one.
-
->
-> pfn:   0x1fa4f5,     pte:0xc00001fa4f575f
-> new_pfn:0xfa4f5, new_pte:0xc00000fa4f5f5f	//new pfn/pte is wrong.
->
-> The bug is happened in cpu_v7_set_pte_ext(ptep, pte):
-> when pte is 64-bit, for little-endian, will store low 32-bit in r2,
-> high 32-bit in r3; for big-endian, will store low 32-bit in r3,
-> high 32-bit in r2, this will cause wrong pfn stored in pte,
-> so we should exchange r2 and r3 for big-endian.
->
-> Signed-off-by: Jianguo Wu <wujianguo@huawei.com>
-> ---
->   arch/arm/mm/proc-v7-3level.S |   10 ++++++++++
->   1 files changed, 10 insertions(+), 0 deletions(-)
->
-> diff --git a/arch/arm/mm/proc-v7-3level.S b/arch/arm/mm/proc-v7-3level.S
-> index 6ba4bd9..71b3892 100644
-> --- a/arch/arm/mm/proc-v7-3level.S
-> +++ b/arch/arm/mm/proc-v7-3level.S
-> @@ -65,6 +65,15 @@ ENDPROC(cpu_v7_switch_mm)
->    */
->   ENTRY(cpu_v7_set_pte_ext)
->   #ifdef CONFIG_MMU
-> +#ifdef CONFIG_CPU_ENDIAN_BE8
-> +	tst	r3, #L_PTE_VALID
-> +	beq	1f
-> +	tst	r2, #1 << (57 - 32)		@ L_PTE_NONE
-> +	bicne	r3, #L_PTE_VALID
-> +	bne	1f
-> +	tst	r2, #1 << (55 - 32)		@ L_PTE_DIRTY
-> +	orreq	r3, #L_PTE_RDONLY
-> +#else
->   	tst	r2, #L_PTE_VALID
->   	beq	1f
->   	tst	r3, #1 << (57 - 32)		@ L_PTE_NONE
-> @@ -72,6 +81,7 @@ ENTRY(cpu_v7_set_pte_ext)
->   	bne	1f
->   	tst	r3, #1 << (55 - 32)		@ L_PTE_DIRTY
->   	orreq	r2, #L_PTE_RDONLY
-> +#endif
->   1:	strd	r2, r3, [r0]
->   	ALT_SMP(W(nop))
->   	ALT_UP (mcr	p15, 0, r0, c7, c10, 1)		@ flush_pte
-> -- 1.7.1
-
-If possible can we avoid large #ifdef blocks here?
-
-Two ideas are
-
-ARM_LE(tst r2, #L_PTE_VALID)
-ARM_BE(tst r3, #L_PTE_VALID)
-
-or change r2, r3 pair to say rlow, rhi and
-
-#ifdef  CONFIG_CPU_ENDIAN_BE8
-#define rlow r3
-#define rhi r2
-#else
-#define rlow r2
-#define rhi r3
-#endif
-
-
-
+diff --git a/mm/zswap.c b/mm/zswap.c
+index e55bab9..5b22453 100644
+--- a/mm/zswap.c
++++ b/mm/zswap.c
+@@ -160,14 +160,14 @@ static void zswap_comp_exit(void)
+  * rbnode - links the entry into red-black tree for the appropriate swap type
+  * refcount - the number of outstanding reference to the entry. This is needed
+  *            to protect against premature freeing of the entry by code
+- *            concurent calls to load, invalidate, and writeback.  The lock
++ *            concurrent calls to load, invalidate, and writeback.  The lock
+  *            for the zswap_tree structure that contains the entry must
+  *            be held while changing the refcount.  Since the lock must
+  *            be held, there is no reason to also make refcount atomic.
+  * offset - the swap offset for the entry.  Index into the red-black tree.
+  * handle - zsmalloc allocation handle that stores the compressed page data
+  * length - the length in bytes of the compressed page data.  Needed during
+- *           decompression
++ *          decompression
+  */
+ struct zswap_entry {
+ 	struct rb_node rbnode;
 -- 
-Ben Dooks				http://www.codethink.co.uk/
-Senior Engineer				Codethink - Providing Genius
+1.8.1.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
