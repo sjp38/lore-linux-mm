@@ -1,36 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f176.google.com (mail-qc0-f176.google.com [209.85.216.176])
-	by kanga.kvack.org (Postfix) with ESMTP id D7AD06B0035
-	for <linux-mm@kvack.org>; Tue, 11 Feb 2014 13:43:39 -0500 (EST)
-Received: by mail-qc0-f176.google.com with SMTP id e16so13499973qcx.21
-        for <linux-mm@kvack.org>; Tue, 11 Feb 2014 10:43:39 -0800 (PST)
-Received: from qmta14.emeryville.ca.mail.comcast.net (qmta14.emeryville.ca.mail.comcast.net. [2001:558:fe2d:44:76:96:27:212])
-        by mx.google.com with ESMTP id s22si13135343qge.16.2014.02.11.10.43.38
+Received: from mail-qa0-f43.google.com (mail-qa0-f43.google.com [209.85.216.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D86F6B0037
+	for <linux-mm@kvack.org>; Tue, 11 Feb 2014 13:45:32 -0500 (EST)
+Received: by mail-qa0-f43.google.com with SMTP id o15so12229764qap.16
+        for <linux-mm@kvack.org>; Tue, 11 Feb 2014 10:45:32 -0800 (PST)
+Received: from qmta08.emeryville.ca.mail.comcast.net (qmta08.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:80])
+        by mx.google.com with ESMTP id d67si13116101qgf.25.2014.02.11.10.45.31
         for <linux-mm@kvack.org>;
-        Tue, 11 Feb 2014 10:43:38 -0800 (PST)
-Date: Tue, 11 Feb 2014 12:43:35 -0600 (CST)
+        Tue, 11 Feb 2014 10:45:31 -0800 (PST)
+Date: Tue, 11 Feb 2014 12:45:28 -0600 (CST)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: Memory allocator semantics
-In-Reply-To: <CAOJsxLHs890eypzfnNj4ff1zqy_=bC8FA7B0YYbcZQF_c_wSog@mail.gmail.com>
-Message-ID: <alpine.DEB.2.10.1402111242380.28186@nuc>
-References: <20140102203320.GA27615@linux.vnet.ibm.com> <52F60699.8010204@iki.fi> <20140209020004.GY4250@linux.vnet.ibm.com> <CAOJsxLHs890eypzfnNj4ff1zqy_=bC8FA7B0YYbcZQF_c_wSog@mail.gmail.com>
+Subject: Re: [RFC PATCH 2/3] topology: support node_numa_mem() for determining
+ the fallback node
+In-Reply-To: <20140210012918.GD12574@lge.com>
+Message-ID: <alpine.DEB.2.10.1402111244381.28186@nuc>
+References: <20140206020757.GC5433@linux.vnet.ibm.com> <1391674026-20092-1-git-send-email-iamjoonsoo.kim@lge.com> <1391674026-20092-2-git-send-email-iamjoonsoo.kim@lge.com> <alpine.DEB.2.02.1402060041040.21148@chino.kir.corp.google.com>
+ <CAAmzW4PXkdpNi5pZ=4BzdXNvqTEAhcuw-x0pWidqrxzdePxXxA@mail.gmail.com> <alpine.DEB.2.02.1402061248450.9567@chino.kir.corp.google.com> <20140207054819.GC28952@lge.com> <alpine.DEB.2.10.1402071150090.15168@nuc> <alpine.DEB.2.10.1402071245040.20246@nuc>
+ <20140210012918.GD12574@lge.com>
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: Paul McKenney <paulmck@linux.vnet.ibm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Matt Mackall <mpm@selenic.com>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: David Rientjes <rientjes@google.com>, Nishanth Aravamudan <nacc@linux.vnet.ibm.com>, Han Pingtian <hanpt@linux.vnet.ibm.com>, Pekka Enberg <penberg@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Paul Mackerras <paulus@samba.org>, Anton Blanchard <anton@samba.org>, Matt Mackall <mpm@selenic.com>, linuxppc-dev@lists.ozlabs.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-On Tue, 11 Feb 2014, Pekka Enberg wrote:
+On Mon, 10 Feb 2014, Joonsoo Kim wrote:
 
-> So again, there's nothing in (A) that the memory allocator is
-> concerned about.  kmalloc() makes no guarantees whatsoever about the
-> visibility of "r1" across CPUs.  If you're saying that there's an
-> implicit barrier between kmalloc() and kfree(), that's an unintended
-> side-effect, not a design decision AFAICT.
+> On Fri, Feb 07, 2014 at 12:51:07PM -0600, Christoph Lameter wrote:
+> > Here is a draft of a patch to make this work with memoryless nodes.
+> >
+> > The first thing is that we modify node_match to also match if we hit an
+> > empty node. In that case we simply take the current slab if its there.
+>
+> Why not inspecting whether we can get the page on the best node such as
+> numa_mem_id() node?
 
-I am not sure that this side effect necessarily happens. The SLUB fastpath
-does not disable interrupts and only uses a cmpxchg without lock
-semantics.
+Its expensive to do so.
+
+> empty_node cannot be set on memoryless node, since page allocation would
+> succeed on different node.
+
+Ok then we need to add a check for being on the rignt node there too.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
