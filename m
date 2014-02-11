@@ -1,48 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f171.google.com (mail-qc0-f171.google.com [209.85.216.171])
-	by kanga.kvack.org (Postfix) with ESMTP id B39676B0031
-	for <linux-mm@kvack.org>; Tue, 11 Feb 2014 15:39:59 -0500 (EST)
-Received: by mail-qc0-f171.google.com with SMTP id n7so13877261qcx.2
-        for <linux-mm@kvack.org>; Tue, 11 Feb 2014 12:39:59 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id a3si13369942qam.186.2014.02.11.12.39.57
-        for <linux-mm@kvack.org>;
-        Tue, 11 Feb 2014 12:39:57 -0800 (PST)
-Date: Tue, 11 Feb 2014 18:15:57 -0200
-From: Marcelo Tosatti <mtosatti@redhat.com>
-Subject: Re: [PATCH 0/4] hugetlb: add hugepagesnid= command-line option
-Message-ID: <20140211201557.GA16281@amt.cnet>
-References: <1392053268-29239-1-git-send-email-lcapitulino@redhat.com>
- <alpine.DEB.2.02.1402101851190.3447@chino.kir.corp.google.com>
- <20140211092514.GH6732@suse.de>
- <20140211152629.GA28210@amt.cnet>
- <20140211171035.GN6732@suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140211171035.GN6732@suse.de>
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 8A7306B0031
+	for <linux-mm@kvack.org>; Tue, 11 Feb 2014 16:14:34 -0500 (EST)
+Received: by mail-pd0-f181.google.com with SMTP id y10so7953191pdj.26
+        for <linux-mm@kvack.org>; Tue, 11 Feb 2014 13:14:34 -0800 (PST)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.11.231])
+        by mx.google.com with ESMTPS id if4si20168312pbc.346.2014.02.11.13.14.32
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 11 Feb 2014 13:14:33 -0800 (PST)
+From: Laura Abbott <lauraa@codeaurora.org>
+Subject: [PATCHv3 0/2] Remove ARM meminfo
+Date: Tue, 11 Feb 2014 13:14:23 -0800
+Message-Id: <1392153265-14439-1-git-send-email-lauraa@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: David Rientjes <rientjes@google.com>, Luiz Capitulino <lcapitulino@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Andi Kleen <andi@firstfloor.org>, Rik van Riel <riel@redhat.com>
+To: Russell King <linux@arm.linux.org.uk>, linux-arm-kernel@lists.infradead.org
+Cc: Laura Abbott <lauraa@codeaurora.org>, linux-kernel@vger.kernel.org, Leif Lindholm <leif.lindholm@linaro.org>, Grygorii Strashko <grygorii.strashko@ti.com>, Catalin Marinas <catalin.marinas@arm.com>, Rob Herring <robherring2@gmail.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <will.deacon@arm.com>, Nicolas Pitre <nicolas.pitre@linaro.org>, Santosh Shilimkar <santosh.shilimkar@ti.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Courtney Cavin <courtney.cavin@sonymobile.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Grant Likely <grant.likely@secretlab.ca>
 
-On Tue, Feb 11, 2014 at 05:10:35PM +0000, Mel Gorman wrote:
-> On Tue, Feb 11, 2014 at 01:26:29PM -0200, Marcelo Tosatti wrote:
-> > > Or take a stab at allocating 1G pages at runtime. It would require
-> > > finding properly aligned 1Gs worth of contiguous MAX_ORDER_NR_PAGES at
-> > > runtime. I would expect it would only work very early in the lifetime of
-> > > the system but if the user is willing to use kernel parameters to
-> > > allocate them then it should not be an issue.
-> > 
-> > Can be an improvement on top of the current patchset? Certain use-cases
-> > require allocation guarantees (even if that requires kernel parameters).
-> > 
-> 
-> Sure, they're not mutually exclusive. It would just avoid the need to
-> create a new kernel parameter and use the existing interfaces.
+Hi,
 
-Yes, the problem is there is no guarantee is there?
+This is v3 of the patch to remove meminfo from arm and use memblock
+directly. Testing an
 
+Thanks,
+Laura
+
+
+v3: Fixed compilation issue for CONFIG_SPARSEMEM. Fixed several typos
+in spitz.c. Removed early_init_dt_add_memory_arch per Grant's suggestion.
+
+v2: Implemented full commandline support for mem@addr
+
+Laura Abbott (2):
+  mm/memblock: add memblock_get_current_limit
+  arm: Get rid of meminfo
+
+ arch/arm/include/asm/mach/arch.h         |    4 +-
+ arch/arm/include/asm/memblock.h          |    3 +-
+ arch/arm/include/asm/setup.h             |   23 ------
+ arch/arm/kernel/atags_parse.c            |    5 +-
+ arch/arm/kernel/devtree.c                |    5 --
+ arch/arm/kernel/setup.c                  |   30 ++------
+ arch/arm/mach-clps711x/board-clep7312.c  |    7 +-
+ arch/arm/mach-clps711x/board-edb7211.c   |   10 +--
+ arch/arm/mach-clps711x/board-p720t.c     |    2 +-
+ arch/arm/mach-footbridge/cats-hw.c       |    2 +-
+ arch/arm/mach-footbridge/netwinder-hw.c  |    2 +-
+ arch/arm/mach-msm/board-halibut.c        |    6 --
+ arch/arm/mach-msm/board-mahimahi.c       |   13 +---
+ arch/arm/mach-msm/board-msm7x30.c        |    3 +-
+ arch/arm/mach-msm/board-sapphire.c       |   13 ++--
+ arch/arm/mach-msm/board-trout.c          |    8 +--
+ arch/arm/mach-orion5x/common.c           |    3 +-
+ arch/arm/mach-orion5x/common.h           |    3 +-
+ arch/arm/mach-pxa/cm-x300.c              |    3 +-
+ arch/arm/mach-pxa/corgi.c                |   10 +--
+ arch/arm/mach-pxa/eseries.c              |    9 +--
+ arch/arm/mach-pxa/poodle.c               |    8 +--
+ arch/arm/mach-pxa/spitz.c                |    8 +--
+ arch/arm/mach-pxa/tosa.c                 |    8 +--
+ arch/arm/mach-realview/core.c            |   11 +--
+ arch/arm/mach-realview/core.h            |    3 +-
+ arch/arm/mach-realview/realview_pb1176.c |    8 +--
+ arch/arm/mach-realview/realview_pbx.c    |   17 ++---
+ arch/arm/mach-s3c24xx/mach-smdk2413.c    |    8 +--
+ arch/arm/mach-s3c24xx/mach-vstms.c       |    8 +--
+ arch/arm/mach-sa1100/assabet.c           |    2 +-
+ arch/arm/mm/init.c                       |   67 +++++++-----------
+ arch/arm/mm/mmu.c                        |  115 +++++++++---------------------
+ include/linux/memblock.h                 |    2 +
+ mm/memblock.c                            |    5 ++
+ 35 files changed, 143 insertions(+), 291 deletions(-)
+
+-- 
+The Qualcomm Innovation Center, Inc. is a member of the Code Aurora Forum,
+hosted by The Linux Foundation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
