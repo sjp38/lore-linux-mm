@@ -1,90 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 14D916B0031
-	for <linux-mm@kvack.org>; Tue, 11 Feb 2014 02:12:29 -0500 (EST)
-Received: by mail-pa0-f49.google.com with SMTP id hz1so7257837pad.36
-        for <linux-mm@kvack.org>; Mon, 10 Feb 2014 23:12:28 -0800 (PST)
-Received: from LGEMRELSE1Q.lge.com (LGEMRELSE1Q.lge.com. [156.147.1.111])
-        by mx.google.com with ESMTP id b4si6332999pbe.118.2014.02.10.23.12.27
-        for <linux-mm@kvack.org>;
-        Mon, 10 Feb 2014 23:12:28 -0800 (PST)
-Date: Tue, 11 Feb 2014 16:12:25 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 1/5] mm/compaction: disallow high-order page for
- migration target
-Message-ID: <20140211071225.GA27870@lge.com>
-References: <1391749726-28910-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1391749726-28910-2-git-send-email-iamjoonsoo.kim@lge.com>
- <20140210132634.GE6732@suse.de>
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 897BB6B0031
+	for <linux-mm@kvack.org>; Tue, 11 Feb 2014 02:20:28 -0500 (EST)
+Received: by mail-pd0-f169.google.com with SMTP id v10so7186084pde.0
+        for <linux-mm@kvack.org>; Mon, 10 Feb 2014 23:20:28 -0800 (PST)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [119.145.14.64])
+        by mx.google.com with ESMTPS id n8si17928383pax.334.2014.02.10.23.20.25
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 10 Feb 2014 23:20:27 -0800 (PST)
+Message-ID: <52F9CE72.30303@huawei.com>
+Date: Tue, 11 Feb 2014 15:17:06 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140210132634.GE6732@suse.de>
+Subject: Re: [PATCH] mm: add a new command-line kmemcheck value
+References: <52C2811C.4090907@huawei.com> <CAOMGZ=GOR_i9ixvHeHwfDN1wwwSQzFNFGa4qLZMhWWNzx0p8mw@mail.gmail.com> <52C4C216.3070607@huawei.com> <CAOMGZ=HhWoRYMQtqQu73X21eZJAO7fETxOnW=9ZWMkwr9dCPFA@mail.gmail.com> <52DF1D59.8090803@huawei.com>
+In-Reply-To: <52DF1D59.8090803@huawei.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Vegard Nossum <vegard.nossum@gmail.com>
+Cc: Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Vegard
+ Nossum <vegardno@ifi.uio.no>, Pekka Enberg <penberg@kernel.org>, Mel Gorman <mgorman@suse.de>, wangnan0@huawei.com, the arch/x86 maintainers <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Xishi Qiu <qiuxishi@huawei.com>
 
-On Mon, Feb 10, 2014 at 01:26:34PM +0000, Mel Gorman wrote:
-> On Fri, Feb 07, 2014 at 02:08:42PM +0900, Joonsoo Kim wrote:
-> > Purpose of compaction is to get a high order page. Currently, if we find
-> > high-order page while searching migration target page, we break it to
-> > order-0 pages and use them as migration target. It is contrary to purpose
-> > of compaction, so disallow high-order page to be used for
-> > migration target.
-> > 
-> > Additionally, clean-up logic in suitable_migration_target() to simply.
-> > There is no functional changes from this clean-up.
-> > 
-> > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> > 
-> > diff --git a/mm/compaction.c b/mm/compaction.c
-> > index 3a91a2e..bbe1260 100644
-> > --- a/mm/compaction.c
-> > +++ b/mm/compaction.c
-> > @@ -217,21 +217,12 @@ static inline bool compact_trylock_irqsave(spinlock_t *lock,
-> >  /* Returns true if the page is within a block suitable for migration to */
-> >  static bool suitable_migration_target(struct page *page)
-> >  {
-> > -	int migratetype = get_pageblock_migratetype(page);
-> > -
-> > -	/* Don't interfere with memory hot-remove or the min_free_kbytes blocks */
-> > -	if (migratetype == MIGRATE_RESERVE)
-> > -		return false;
-> > -
-> 
-> Why is this check removed? The reservation blocks are preserved as
-> short-lived high-order atomic allocations depend on them.
-
-Hello,
-
-After disallowing high-order page to be used for migration target,
-we only allow pages from movable or CMA pageblock for migration target on
-migrate_async_suitable() check. So checking whether page comes from reserve or
-isolate pageblock is useless.
+On 2014/1/22 9:22, Xishi Qiu wrote:
 
 > 
-> > -	if (is_migrate_isolate(migratetype))
-> > -		return false;
-> > -
+> Hi Vegard,
 > 
-> Why is this check removed?
+> In some scenes, user want to check memory dynamicly, this "dynamically" 
+> means we can turn on/off the feature at boottime, not runtime. Without 
+> this patch, if user want to use this feature, he should change config 
+> and build the kernel, then reboot. This is impossilbe if user has no 
+> kernel code or he don't know how to build the kernel.
 > 
-> > -	/* If the page is a large free page, then allow migration */
-> > +	/* If the page is a large free page, then disallow migration */
-> >  	if (PageBuddy(page) && page_order(page) >= pageblock_order)
-> > -		return true;
-> > +		return false;
-> >  
+> boottime: kmemcheck=0/1/2/3 (command-line)
+> runtime: kmemcheck=0/1/2 (/proc/sys/kernel/kmemcheck)
 > 
-> The reason why this was originally allowed was to allow pageblocks that were
-> marked MIGRATE_UNMOVABLE or MIGRATE_RECLAIMABLE to be used as compaction
-> targets. However, compaction should not even be running if this is the
-> case so the change makes sense.
+> The main different between kmemcheck=0 and 3 is the used memory. Kmemcheck 
+> will use about twice as much memory as normal.
+> 
+> Thanks,
+> Xishi Qiu
+> 
+> --
 
-Okay!
+Hi Vegard,
 
-Thanks.
+What do you think of this feature? 
+
+Add a command-line "kmemcheck=3", then the kernel runs as the same as CONFIG_KMEMCHECK=off
+even CONFIG_KMEMCHECK is turn on. "kmemcheck=0/1/2" is the same as originally. 
+In another word, "kmemcheck=3" is the same as:
+1) turn off CONFIG_KMEMCHECK
+2) rebuild the kernel
+3) reboot
+The different between kmemcheck=0 and 3 is the used memory and nr_cpus.
+Also kmemcheck=0 can used in runtime, and kmemcheck=3 is only used in boot.
+
+I think this feature can help users to debug the kernel quickly, It is no 
+need to open CONFIG_KMEMCHECK and rebuild it. Especially sometimes users don't
+have the kernel source code or the code is different from www.kernel.org.
+e.g. some private features were added to the kernel source code, and usually 
+users can not have the source code. 
+
+Thanks,
+Xishi Qiu
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
