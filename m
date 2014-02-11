@@ -1,102 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f181.google.com (mail-ea0-f181.google.com [209.85.215.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 19FDC6B0031
-	for <linux-mm@kvack.org>; Tue, 11 Feb 2014 12:59:02 -0500 (EST)
-Received: by mail-ea0-f181.google.com with SMTP id k10so1657320eaj.40
-        for <linux-mm@kvack.org>; Tue, 11 Feb 2014 09:59:02 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id w5si33621141eef.46.2014.02.11.09.59.00
-        for <linux-mm@kvack.org>;
-        Tue, 11 Feb 2014 09:59:01 -0800 (PST)
-Date: Tue, 11 Feb 2014 11:30:27 -0500
-From: Richard Guy Briggs <rgb@redhat.com>
-Subject: Re: [PATCH v5 2/3] proc: Update get proc_pid_cmdline() to use mm.h
- helpers
-Message-ID: <20140211163027.GL18807@madcap2.tricolour.ca>
-References: <1391710528-23481-1-git-send-email-wroberts@tresys.com>
- <1391710528-23481-2-git-send-email-wroberts@tresys.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1391710528-23481-2-git-send-email-wroberts@tresys.com>
+Received: from mail-qc0-f173.google.com (mail-qc0-f173.google.com [209.85.216.173])
+	by kanga.kvack.org (Postfix) with ESMTP id A11E36B0031
+	for <linux-mm@kvack.org>; Tue, 11 Feb 2014 13:12:09 -0500 (EST)
+Received: by mail-qc0-f173.google.com with SMTP id i8so13351178qcq.4
+        for <linux-mm@kvack.org>; Tue, 11 Feb 2014 10:12:09 -0800 (PST)
+Received: from mail-qa0-x236.google.com (mail-qa0-x236.google.com [2607:f8b0:400d:c00::236])
+        by mx.google.com with ESMTPS id q2si13030396qaq.115.2014.02.11.10.12.07
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 11 Feb 2014 10:12:08 -0800 (PST)
+Received: by mail-qa0-f54.google.com with SMTP id i13so12318844qae.13
+        for <linux-mm@kvack.org>; Tue, 11 Feb 2014 10:12:07 -0800 (PST)
+From: William Roberts <bill.c.roberts@gmail.com>
+Subject: [PATCH v7 1/3] mm: Create utility function for accessing a tasks commandline value
+Date: Tue, 11 Feb 2014 10:11:59 -0800
+Message-Id: <1392142321-16217-1-git-send-email-wroberts@tresys.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: William Roberts <bill.c.roberts@gmail.com>
-Cc: linux-audit@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, viro@zeniv.linux.org.uk, akpm@linux-foundation.org, sds@tycho.nsa.gov, William Roberts <wroberts@tresys.com>
+To: linux-audit@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, rgb@redhat.com, viro@zeniv.linux.org.uk, akpm@linux-foundation.org, sds@tycho.nsa.gov
+Cc: William Roberts <wroberts@tresys.com>
 
-On 14/02/06, William Roberts wrote:
-> Re-factor proc_pid_cmdline() to use get_cmdline() helper
-> from mm.h.
-> 
-> Acked-by: David Rientjes <rientjes@google.com>
-> Acked-by: Stephen Smalley <sds@tycho.nsa.gov>
+introduce get_cmdline() for retreiving the value of a processes
+proc/self/cmdline value.
 
+Acked-by: David Rientjes <rientjes@google.com>
+Acked-by: Stephen Smalley <sds@tycho.nsa.gov>
 Acked-by: Richard Guy Briggs <rgb@redhat.com>
 
-> Signed-off-by: William Roberts <wroberts@tresys.com>
-> ---
->  fs/proc/base.c |   36 ++----------------------------------
->  1 file changed, 2 insertions(+), 34 deletions(-)
-> 
-> diff --git a/fs/proc/base.c b/fs/proc/base.c
-> index 5150706..f0c5927 100644
-> --- a/fs/proc/base.c
-> +++ b/fs/proc/base.c
-> @@ -200,41 +200,9 @@ static int proc_root_link(struct dentry *dentry, struct path *path)
->  	return result;
->  }
->  
-> -static int proc_pid_cmdline(struct task_struct *task, char * buffer)
-> +static int proc_pid_cmdline(struct task_struct *task, char *buffer)
->  {
-> -	int res = 0;
-> -	unsigned int len;
-> -	struct mm_struct *mm = get_task_mm(task);
-> -	if (!mm)
-> -		goto out;
-> -	if (!mm->arg_end)
-> -		goto out_mm;	/* Shh! No looking before we're done */
-> -
-> - 	len = mm->arg_end - mm->arg_start;
-> - 
-> -	if (len > PAGE_SIZE)
-> -		len = PAGE_SIZE;
-> - 
-> -	res = access_process_vm(task, mm->arg_start, buffer, len, 0);
-> -
-> -	// If the nul at the end of args has been overwritten, then
-> -	// assume application is using setproctitle(3).
-> -	if (res > 0 && buffer[res-1] != '\0' && len < PAGE_SIZE) {
-> -		len = strnlen(buffer, res);
-> -		if (len < res) {
-> -		    res = len;
-> -		} else {
-> -			len = mm->env_end - mm->env_start;
-> -			if (len > PAGE_SIZE - res)
-> -				len = PAGE_SIZE - res;
-> -			res += access_process_vm(task, mm->env_start, buffer+res, len, 0);
-> -			res = strnlen(buffer, res);
-> -		}
-> -	}
-> -out_mm:
-> -	mmput(mm);
-> -out:
-> -	return res;
-> +	return get_cmdline(task, buffer, PAGE_SIZE);
->  }
->  
->  static int proc_pid_auxv(struct task_struct *task, char *buffer)
-> -- 
-> 1.7.9.5
-> 
+Signed-off-by: William Roberts <wroberts@tresys.com>
+---
+ include/linux/mm.h |    1 +
+ mm/util.c          |   48 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 49 insertions(+)
 
-- RGB
-
---
-Richard Guy Briggs <rbriggs@redhat.com>
-Senior Software Engineer, Kernel Security, AMER ENG Base Operating Systems, Red Hat
-Remote, Ottawa, Canada
-Voice: +1.647.777.2635, Internal: (81) 32635, Alt: +1.613.693.0684x3545
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index f28f46e..db89a94 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1175,6 +1175,7 @@ void account_page_writeback(struct page *page);
+ int set_page_dirty(struct page *page);
+ int set_page_dirty_lock(struct page *page);
+ int clear_page_dirty_for_io(struct page *page);
++int get_cmdline(struct task_struct *task, char *buffer, int buflen);
+ 
+ /* Is the vma a continuation of the stack vma above it? */
+ static inline int vma_growsdown(struct vm_area_struct *vma, unsigned long addr)
+diff --git a/mm/util.c b/mm/util.c
+index a24aa22..8122710 100644
+--- a/mm/util.c
++++ b/mm/util.c
+@@ -445,6 +445,54 @@ unsigned long vm_commit_limit(void)
+ 	return allowed;
+ }
+ 
++/**
++ * get_cmdline() - copy the cmdline value to a buffer.
++ * @task:     the task whose cmdline value to copy.
++ * @buffer:   the buffer to copy to.
++ * @buflen:   the length of the buffer. Larger cmdline values are truncated
++ *            to this length.
++ * Returns the size of the cmdline field copied. Note that the copy does
++ * not guarantee an ending NULL byte.
++ */
++int get_cmdline(struct task_struct *task, char *buffer, int buflen)
++{
++	int res = 0;
++	unsigned int len;
++	struct mm_struct *mm = get_task_mm(task);
++	if (!mm)
++		goto out;
++	if (!mm->arg_end)
++		goto out_mm;	/* Shh! No looking before we're done */
++
++	len = mm->arg_end - mm->arg_start;
++
++	if (len > buflen)
++		len = buflen;
++
++	res = access_process_vm(task, mm->arg_start, buffer, len, 0);
++
++	/*
++	 * If the nul at the end of args has been overwritten, then
++	 * assume application is using setproctitle(3).
++	 */
++	if (res > 0 && buffer[res-1] != '\0' && len < buflen) {
++		len = strnlen(buffer, res);
++		if (len < res) {
++			res = len;
++		} else {
++			len = mm->env_end - mm->env_start;
++			if (len > buflen - res)
++				len = buflen - res;
++			res += access_process_vm(task, mm->env_start,
++						 buffer+res, len, 0);
++			res = strnlen(buffer, res);
++		}
++	}
++out_mm:
++	mmput(mm);
++out:
++	return res;
++}
+ 
+ /* Tracepoints definitions. */
+ EXPORT_TRACEPOINT_SYMBOL(kmalloc);
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
