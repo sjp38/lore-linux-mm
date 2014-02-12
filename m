@@ -1,236 +1,270 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 6CE6E6B003A
-	for <linux-mm@kvack.org>; Tue, 11 Feb 2014 22:44:00 -0500 (EST)
-Received: by mail-pa0-f48.google.com with SMTP id kx10so8561808pab.21
-        for <linux-mm@kvack.org>; Tue, 11 Feb 2014 19:44:00 -0800 (PST)
-Received: from e28smtp07.in.ibm.com (e28smtp07.in.ibm.com. [122.248.162.7])
-        by mx.google.com with ESMTPS id m8si21065269pbq.359.2014.02.11.19.43.56
+Received: from mail-pb0-f52.google.com (mail-pb0-f52.google.com [209.85.160.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 67A006B003A
+	for <linux-mm@kvack.org>; Tue, 11 Feb 2014 22:45:17 -0500 (EST)
+Received: by mail-pb0-f52.google.com with SMTP id jt11so8632046pbb.25
+        for <linux-mm@kvack.org>; Tue, 11 Feb 2014 19:45:17 -0800 (PST)
+Received: from fgwmail5.fujitsu.co.jp (fgwmail5.fujitsu.co.jp. [192.51.44.35])
+        by mx.google.com with ESMTPS id r7si21104065pbk.117.2014.02.11.19.45.15
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 11 Feb 2014 19:43:59 -0800 (PST)
-Received: from /spool/local
-	by e28smtp07.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Wed, 12 Feb 2014 09:13:54 +0530
-Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
-	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 3EA951258053
-	for <linux-mm@kvack.org>; Wed, 12 Feb 2014 09:15:45 +0530 (IST)
-Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s1C3hjmc48759036
-	for <linux-mm@kvack.org>; Wed, 12 Feb 2014 09:13:45 +0530
-Received: from d28av01.in.ibm.com (localhost [127.0.0.1])
-	by d28av01.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s1C3hnct020064
-	for <linux-mm@kvack.org>; Wed, 12 Feb 2014 09:13:50 +0530
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [PATCH V2 1/3] powerpc: mm: Add new set flag argument to pte/pmd update function
-Date: Wed, 12 Feb 2014 09:13:36 +0530
-Message-Id: <1392176618-23667-2-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-In-Reply-To: <1392176618-23667-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-References: <1392176618-23667-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+        Tue, 11 Feb 2014 19:45:16 -0800 (PST)
+Received: from m3.gw.fujitsu.co.jp (unknown [10.0.50.73])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 4E7083EE1A4
+	for <linux-mm@kvack.org>; Wed, 12 Feb 2014 12:45:14 +0900 (JST)
+Received: from smail (m3 [127.0.0.1])
+	by outgoing.m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 3F17845DEF4
+	for <linux-mm@kvack.org>; Wed, 12 Feb 2014 12:45:14 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (s3.gw.nic.fujitsu.com [10.0.50.93])
+	by m3.gw.fujitsu.co.jp (Postfix) with ESMTP id 2622645DEF6
+	for <linux-mm@kvack.org>; Wed, 12 Feb 2014 12:45:14 +0900 (JST)
+Received: from s3.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id 0D2771DB8047
+	for <linux-mm@kvack.org>; Wed, 12 Feb 2014 12:45:14 +0900 (JST)
+Received: from g01jpfmpwyt01.exch.g01.fujitsu.local (g01jpfmpwyt01.exch.g01.fujitsu.local [10.128.193.38])
+	by s3.gw.fujitsu.co.jp (Postfix) with ESMTP id A8F3C1DB803E
+	for <linux-mm@kvack.org>; Wed, 12 Feb 2014 12:45:13 +0900 (JST)
+Message-ID: <52FAEE24.8090509@jp.fujitsu.com>
+Date: Wed, 12 Feb 2014 12:44:36 +0900
+From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 3/4] hugetlb: add hugepagesnid= command-line option
+References: <1392053268-29239-1-git-send-email-lcapitulino@redhat.com> <1392053268-29239-4-git-send-email-lcapitulino@redhat.com>
+In-Reply-To: <1392053268-29239-4-git-send-email-lcapitulino@redhat.com>
+Content-Type: text/plain; charset="ISO-2022-JP"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: benh@kernel.crashing.org, paulus@samba.org, riel@redhat.com, mgorman@suse.de, mpe@ellerman.id.au
-Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+To: Luiz Capitulino <lcapitulino@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, mtosatti@redhat.com, mgorman@suse.de, aarcange@redhat.com, andi@firstfloor.org, riel@redhat.com
 
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+(2014/02/11 2:27), Luiz Capitulino wrote:
+> From: Luiz capitulino <lcapitulino@redhat.com>
+> 
+> The HugeTLB command-line option hugepages= allow the user to specify
+> how many huge pages should be allocated at boot-time. On NUMA systems,
+> this option will try to automatically distribute the allocation equally
+> among nodes. For example, if you have a 2-node NUMA system and allocates
+> 200 huge pages, than hugepages= will try to allocate 100 huge pages from
+> node0 and 100 from node1.
+> 
+> The hugepagesnid= option introduced by this commit allows the user
+> to specify the nodes from which huge pages are allocated. For example,
+> if you have a 2-node NUMA system and want 300 2M huge pages to be
+> allocated from node1, you could do:
+> 
+>   hugepagesnid=1,300,2M
+> 
+> Or, say you want node0 to allocate 100 huge pages and node1 to
+> allocate 200 huge pages, you do:
+> 
+>   hugepagesnid=0,100,2M hugepagesnid=1,200,1M
+> 
+> This commit adds support only for 2M huge pages, next commit will
+> add support for 1G huge pages.
+> 
+> Signed-off-by: Luiz Capitulino <lcapitulino@redhat.com>
+> ---
+>   Documentation/kernel-parameters.txt |  8 ++++
+>   arch/x86/mm/hugetlbpage.c           | 35 +++++++++++++++++
+>   include/linux/hugetlb.h             |  2 +
+>   mm/hugetlb.c                        | 77 +++++++++++++++++++++++++++++++++++++
+>   4 files changed, 122 insertions(+)
+> 
+> diff --git a/Documentation/kernel-parameters.txt b/Documentation/kernel-parameters.txt
+> index 7116fda..3cbe950 100644
+> --- a/Documentation/kernel-parameters.txt
+> +++ b/Documentation/kernel-parameters.txt
+> @@ -1125,6 +1125,14 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
+>   			registers.  Default set by CONFIG_HPET_MMAP_DEFAULT.
+>   
+>   	hugepages=	[HW,X86-32,IA-64] HugeTLB pages to allocate at boot.
+> +	hugepagesnid= [X86-64] HugeTLB pages to allocate at boot on a NUMA system.
+> +				Format: <nid>,<nrpages>,<size>
+> +				nid: NUMA node id to allocate pages from
+> +				nrpages: number of huge pages to allocate
+> +				size: huge pages size (see hugepagsz below)
+> +			This argument can be specified multiple times for different
+> +			NUMA nodes, but it shouldn't be mixed with hugepages= and
+> +			hugepagesz=.
+>   	hugepagesz=	[HW,IA-64,PPC,X86-64] The size of the HugeTLB pages.
+>   			On x86-64 and powerpc, this option can be specified
+>   			multiple times interleaved with hugepages= to reserve
+> diff --git a/arch/x86/mm/hugetlbpage.c b/arch/x86/mm/hugetlbpage.c
+> index 8c9f647..91c5c98 100644
+> --- a/arch/x86/mm/hugetlbpage.c
+> +++ b/arch/x86/mm/hugetlbpage.c
+> @@ -188,4 +188,39 @@ static __init int setup_hugepagesz(char *opt)
+>   	return 1;
+>   }
+>   __setup("hugepagesz=", setup_hugepagesz);
+> +
+> +static __init int setup_hugepagesnid(char *opt)
+> +{
+> +	unsigned long order, ps, nid, nr_pages;
+> +	char size_str[3];
+> +
+> +	size_str[2] = '\0';
+> +	if (sscanf(opt, "%lu,%lu,%c%c",
+> +			&nid, &nr_pages, &size_str[0], &size_str[1]) < 4) {
+> +		printk(KERN_ERR "hugepagesnid: failed to parse arguments\n");
+> +			return 0;
+> +	}
+> +
+> +	if (!nr_pages) {
+> +		printk(KERN_ERR
+> +			"hugepagesnid: zero number of pages, ignoring\n");
+> +		return 0;
+> +	}
+> +
+> +	ps = memparse(size_str, NULL);
+> +	if (ps == PMD_SIZE) {
+> +		order = PMD_SHIFT - PAGE_SHIFT;
+> +	} else if (ps == PUD_SIZE && cpu_has_gbpages) {
+> +		order = PUD_SHIFT - PAGE_SHIFT;
+> +	} else {
+> +		printk(KERN_ERR "hugepagesnid: Unsupported page size %lu M\n",
+> +			ps >> 20);
+> +		return 0;
+> +	}
 
-We will use this later to set the _PAGE_NUMA bit.
+You must check that nid is valid or not. When nid is MAX_NUMNODES or more,
+hugetlb_add_nrpages_nid() sets nr_pages to wrong memory region.
 
-Acked-by: Mel Gorman <mgorman@suse.de>
-Acked-by: Rik van Riel <riel@redhat.com>
-Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
----
- arch/powerpc/include/asm/hugetlb.h       |  2 +-
- arch/powerpc/include/asm/pgtable-ppc64.h | 26 +++++++++++++++-----------
- arch/powerpc/mm/pgtable_64.c             | 12 +++++++-----
- arch/powerpc/mm/subpage-prot.c           |  2 +-
- 4 files changed, 24 insertions(+), 18 deletions(-)
+Thanks,
+Yasuaki Ishimatsu
 
-diff --git a/arch/powerpc/include/asm/hugetlb.h b/arch/powerpc/include/asm/hugetlb.h
-index d750336b171d..623f2971ce0e 100644
---- a/arch/powerpc/include/asm/hugetlb.h
-+++ b/arch/powerpc/include/asm/hugetlb.h
-@@ -127,7 +127,7 @@ static inline pte_t huge_ptep_get_and_clear(struct mm_struct *mm,
- 					    unsigned long addr, pte_t *ptep)
- {
- #ifdef CONFIG_PPC64
--	return __pte(pte_update(mm, addr, ptep, ~0UL, 1));
-+	return __pte(pte_update(mm, addr, ptep, ~0UL, 0, 1));
- #else
- 	return __pte(pte_update(ptep, ~0UL, 0));
- #endif
-diff --git a/arch/powerpc/include/asm/pgtable-ppc64.h b/arch/powerpc/include/asm/pgtable-ppc64.h
-index bc141c950b1e..eb9261024f51 100644
---- a/arch/powerpc/include/asm/pgtable-ppc64.h
-+++ b/arch/powerpc/include/asm/pgtable-ppc64.h
-@@ -195,6 +195,7 @@ extern void hpte_need_flush(struct mm_struct *mm, unsigned long addr,
- static inline unsigned long pte_update(struct mm_struct *mm,
- 				       unsigned long addr,
- 				       pte_t *ptep, unsigned long clr,
-+				       unsigned long set,
- 				       int huge)
- {
- #ifdef PTE_ATOMIC_UPDATES
-@@ -205,14 +206,15 @@ static inline unsigned long pte_update(struct mm_struct *mm,
- 	andi.	%1,%0,%6\n\
- 	bne-	1b \n\
- 	andc	%1,%0,%4 \n\
-+	or	%1,%1,%7\n\
- 	stdcx.	%1,0,%3 \n\
- 	bne-	1b"
- 	: "=&r" (old), "=&r" (tmp), "=m" (*ptep)
--	: "r" (ptep), "r" (clr), "m" (*ptep), "i" (_PAGE_BUSY)
-+	: "r" (ptep), "r" (clr), "m" (*ptep), "i" (_PAGE_BUSY), "r" (set)
- 	: "cc" );
- #else
- 	unsigned long old = pte_val(*ptep);
--	*ptep = __pte(old & ~clr);
-+	*ptep = __pte((old & ~clr) | set);
- #endif
- 	/* huge pages use the old page table lock */
- 	if (!huge)
-@@ -231,9 +233,9 @@ static inline int __ptep_test_and_clear_young(struct mm_struct *mm,
- {
- 	unsigned long old;
- 
--       	if ((pte_val(*ptep) & (_PAGE_ACCESSED | _PAGE_HASHPTE)) == 0)
-+	if ((pte_val(*ptep) & (_PAGE_ACCESSED | _PAGE_HASHPTE)) == 0)
- 		return 0;
--	old = pte_update(mm, addr, ptep, _PAGE_ACCESSED, 0);
-+	old = pte_update(mm, addr, ptep, _PAGE_ACCESSED, 0, 0);
- 	return (old & _PAGE_ACCESSED) != 0;
- }
- #define __HAVE_ARCH_PTEP_TEST_AND_CLEAR_YOUNG
-@@ -252,7 +254,7 @@ static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr,
- 	if ((pte_val(*ptep) & _PAGE_RW) == 0)
- 		return;
- 
--	pte_update(mm, addr, ptep, _PAGE_RW, 0);
-+	pte_update(mm, addr, ptep, _PAGE_RW, 0, 0);
- }
- 
- static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
-@@ -261,7 +263,7 @@ static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
- 	if ((pte_val(*ptep) & _PAGE_RW) == 0)
- 		return;
- 
--	pte_update(mm, addr, ptep, _PAGE_RW, 1);
-+	pte_update(mm, addr, ptep, _PAGE_RW, 0, 1);
- }
- 
- /*
-@@ -284,14 +286,14 @@ static inline void huge_ptep_set_wrprotect(struct mm_struct *mm,
- static inline pte_t ptep_get_and_clear(struct mm_struct *mm,
- 				       unsigned long addr, pte_t *ptep)
- {
--	unsigned long old = pte_update(mm, addr, ptep, ~0UL, 0);
-+	unsigned long old = pte_update(mm, addr, ptep, ~0UL, 0, 0);
- 	return __pte(old);
- }
- 
- static inline void pte_clear(struct mm_struct *mm, unsigned long addr,
- 			     pte_t * ptep)
- {
--	pte_update(mm, addr, ptep, ~0UL, 0);
-+	pte_update(mm, addr, ptep, ~0UL, 0, 0);
- }
- 
- 
-@@ -506,7 +508,9 @@ extern int pmdp_set_access_flags(struct vm_area_struct *vma,
- 
- extern unsigned long pmd_hugepage_update(struct mm_struct *mm,
- 					 unsigned long addr,
--					 pmd_t *pmdp, unsigned long clr);
-+					 pmd_t *pmdp,
-+					 unsigned long clr,
-+					 unsigned long set);
- 
- static inline int __pmdp_test_and_clear_young(struct mm_struct *mm,
- 					      unsigned long addr, pmd_t *pmdp)
-@@ -515,7 +519,7 @@ static inline int __pmdp_test_and_clear_young(struct mm_struct *mm,
- 
- 	if ((pmd_val(*pmdp) & (_PAGE_ACCESSED | _PAGE_HASHPTE)) == 0)
- 		return 0;
--	old = pmd_hugepage_update(mm, addr, pmdp, _PAGE_ACCESSED);
-+	old = pmd_hugepage_update(mm, addr, pmdp, _PAGE_ACCESSED, 0);
- 	return ((old & _PAGE_ACCESSED) != 0);
- }
- 
-@@ -542,7 +546,7 @@ static inline void pmdp_set_wrprotect(struct mm_struct *mm, unsigned long addr,
- 	if ((pmd_val(*pmdp) & _PAGE_RW) == 0)
- 		return;
- 
--	pmd_hugepage_update(mm, addr, pmdp, _PAGE_RW);
-+	pmd_hugepage_update(mm, addr, pmdp, _PAGE_RW, 0);
- }
- 
- #define __HAVE_ARCH_PMDP_SPLITTING_FLUSH
-diff --git a/arch/powerpc/mm/pgtable_64.c b/arch/powerpc/mm/pgtable_64.c
-index 65b7b65e8708..62bf5e8e78da 100644
---- a/arch/powerpc/mm/pgtable_64.c
-+++ b/arch/powerpc/mm/pgtable_64.c
-@@ -510,7 +510,8 @@ int pmdp_set_access_flags(struct vm_area_struct *vma, unsigned long address,
- }
- 
- unsigned long pmd_hugepage_update(struct mm_struct *mm, unsigned long addr,
--				  pmd_t *pmdp, unsigned long clr)
-+				  pmd_t *pmdp, unsigned long clr,
-+				  unsigned long set)
- {
- 
- 	unsigned long old, tmp;
-@@ -526,14 +527,15 @@ unsigned long pmd_hugepage_update(struct mm_struct *mm, unsigned long addr,
- 		andi.	%1,%0,%6\n\
- 		bne-	1b \n\
- 		andc	%1,%0,%4 \n\
-+		or	%1,%1,%7\n\
- 		stdcx.	%1,0,%3 \n\
- 		bne-	1b"
- 	: "=&r" (old), "=&r" (tmp), "=m" (*pmdp)
--	: "r" (pmdp), "r" (clr), "m" (*pmdp), "i" (_PAGE_BUSY)
-+	: "r" (pmdp), "r" (clr), "m" (*pmdp), "i" (_PAGE_BUSY), "r" (set)
- 	: "cc" );
- #else
- 	old = pmd_val(*pmdp);
--	*pmdp = __pmd(old & ~clr);
-+	*pmdp = __pmd((old & ~clr) | set);
- #endif
- 	if (old & _PAGE_HASHPTE)
- 		hpte_do_hugepage_flush(mm, addr, pmdp);
-@@ -708,7 +710,7 @@ void set_pmd_at(struct mm_struct *mm, unsigned long addr,
- void pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
- 		     pmd_t *pmdp)
- {
--	pmd_hugepage_update(vma->vm_mm, address, pmdp, _PAGE_PRESENT);
-+	pmd_hugepage_update(vma->vm_mm, address, pmdp, _PAGE_PRESENT, 0);
- }
- 
- /*
-@@ -835,7 +837,7 @@ pmd_t pmdp_get_and_clear(struct mm_struct *mm,
- 	unsigned long old;
- 	pgtable_t *pgtable_slot;
- 
--	old = pmd_hugepage_update(mm, addr, pmdp, ~0UL);
-+	old = pmd_hugepage_update(mm, addr, pmdp, ~0UL, 0);
- 	old_pmd = __pmd(old);
- 	/*
- 	 * We have pmd == none and we are holding page_table_lock.
-diff --git a/arch/powerpc/mm/subpage-prot.c b/arch/powerpc/mm/subpage-prot.c
-index a770df2dae70..6c0b1f5f8d2c 100644
---- a/arch/powerpc/mm/subpage-prot.c
-+++ b/arch/powerpc/mm/subpage-prot.c
-@@ -78,7 +78,7 @@ static void hpte_flush_range(struct mm_struct *mm, unsigned long addr,
- 	pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
- 	arch_enter_lazy_mmu_mode();
- 	for (; npages > 0; --npages) {
--		pte_update(mm, addr, pte, 0, 0);
-+		pte_update(mm, addr, pte, 0, 0, 0);
- 		addr += PAGE_SIZE;
- 		++pte;
- 	}
--- 
-1.8.3.2
+> +
+> +	hugetlb_add_nrpages_nid(order, nid, nr_pages);
+> +	return 1;
+> +}
+> +__setup("hugepagesnid=", setup_hugepagesnid);
+> +
+>   #endif
+> diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+> index 8c43cc4..aae2f9b 100644
+> --- a/include/linux/hugetlb.h
+> +++ b/include/linux/hugetlb.h
+> @@ -274,6 +274,8 @@ struct page *alloc_huge_page_noerr(struct vm_area_struct *vma,
+>   int __init alloc_bootmem_huge_page(struct hstate *h);
+>   
+>   void __init hugetlb_add_hstate(unsigned order);
+> +void __init hugetlb_add_nrpages_nid(unsigned order, unsigned long nid,
+> +				unsigned long nr_pages);
+>   struct hstate *size_to_hstate(unsigned long size);
+>   
+>   #ifndef HUGE_MAX_HSTATE
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index c01cb9f..439c3b7 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -46,6 +46,7 @@ __initdata LIST_HEAD(huge_boot_pages);
+>   static struct hstate * __initdata parsed_hstate;
+>   static unsigned long __initdata default_hstate_max_huge_pages;
+>   static unsigned long __initdata default_hstate_size;
+> +static unsigned long __initdata boot_alloc_nodes[HUGE_MAX_HSTATE][MAX_NUMNODES];
+>   
+>   /*
+>    * Protects updates to hugepage_freelists, hugepage_activelist, nr_huge_pages,
+> @@ -1348,6 +1349,50 @@ static void __init hugetlb_hstate_alloc_pages(struct hstate *h)
+>   	h->max_huge_pages = i;
+>   }
+>   
+> +static unsigned long __init alloc_huge_pages_nid(struct hstate *h,
+> +						int nid,
+> +						unsigned long nr_pages)
+> +{
+> +	unsigned long i;
+> +	struct page *page;
+> +
+> +	for (i = 0; i < nr_pages; i++) {
+> +		page = alloc_fresh_huge_page_node(h, nid);
+> +		if (!page) {
+> +			count_vm_event(HTLB_BUDDY_PGALLOC_FAIL);
+> +			break;
+> +		}
+> +		count_vm_event(HTLB_BUDDY_PGALLOC);
+> +	}
+> +
+> +	return i;
+> +}
+> +
+> +static unsigned long __init alloc_huge_pages_nodes(struct hstate *h)
+> +{
+> +	unsigned long i, *entry, ret = 0;
+> +
+> +	for (i = 0; i < MAX_NUMNODES; i++) {
+> +		entry = &boot_alloc_nodes[hstate_index(h)][i];
+> +		if (*entry > 0)
+> +			ret += alloc_huge_pages_nid(h, i, *entry);
+> +	}
+> +
+> +	return ret;
+> +}
+> +
+> +static void __init hugetlb_init_hstates_nodes(void)
+> +{
+> +	struct hstate *h;
+> +	unsigned long ret;
+> +
+> +	for_each_hstate(h)
+> +		if (h->order < MAX_ORDER) {
+> +			ret = alloc_huge_pages_nodes(h);
+> +			h->max_huge_pages += ret;
+> +		}
+> +}
+> +
+>   static void __init hugetlb_init_hstates(void)
+>   {
+>   	struct hstate *h;
+> @@ -1966,6 +2011,7 @@ static int __init hugetlb_init(void)
+>   		default_hstate.max_huge_pages = default_hstate_max_huge_pages;
+>   
+>   	hugetlb_init_hstates();
+> +	hugetlb_init_hstates_nodes();
+>   	gather_bootmem_prealloc();
+>   	report_hugepages();
+>   
+> @@ -2005,6 +2051,37 @@ void __init hugetlb_add_hstate(unsigned order)
+>   	parsed_hstate = h;
+>   }
+>   
+> +void __init hugetlb_add_nrpages_nid(unsigned order, unsigned long nid,
+> +				unsigned long nr_pages)
+> +{
+> +	struct hstate *h;
+> +	unsigned long *p;
+> +
+> +	if (parsed_hstate) {
+> +		printk(KERN_WARNING
+> +			"hugepagesnid: hugepagesz= specified, ignoring\n");
+> +		return;
+> +	}
+> +
+> +	for_each_hstate(h)
+> +		if (h->order == order)
+> +			break;
+> +
+> +	if (h->order != order) {
+> +		hugetlb_add_hstate(order);
+> +		parsed_hstate = NULL;
+> +	}
+> +
+> +	p = &boot_alloc_nodes[hstate_index(h)][nid];
+> +	if (*p != 0) {
+> +		printk(KERN_WARNING
+> +			"hugepagesnid: node %lu already specified, ignoring\n", nid);
+> +		return;
+> +	}
+> +
+> +	*p = nr_pages;
+> +}
+> +
+>   static int __init hugetlb_nrpages_setup(char *s)
+>   {
+>   	unsigned long *mhp;
+> 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
