@@ -1,38 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f179.google.com (mail-we0-f179.google.com [74.125.82.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 1AE2C6B0031
-	for <linux-mm@kvack.org>; Wed, 12 Feb 2014 05:58:19 -0500 (EST)
-Received: by mail-we0-f179.google.com with SMTP id q58so5630338wes.24
-        for <linux-mm@kvack.org>; Wed, 12 Feb 2014 02:58:18 -0800 (PST)
+Received: from mail-we0-f181.google.com (mail-we0-f181.google.com [74.125.82.181])
+	by kanga.kvack.org (Postfix) with ESMTP id C20776B0036
+	for <linux-mm@kvack.org>; Wed, 12 Feb 2014 06:00:20 -0500 (EST)
+Received: by mail-we0-f181.google.com with SMTP id w61so5554208wes.26
+        for <linux-mm@kvack.org>; Wed, 12 Feb 2014 03:00:20 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id wv8si2946026wjb.32.2014.02.12.02.58.16
+        by mx.google.com with ESMTPS id j20si812396wiw.85.2014.02.12.03.00.18
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 12 Feb 2014 02:58:17 -0800 (PST)
-Date: Wed, 12 Feb 2014 10:58:11 +0000
+        Wed, 12 Feb 2014 03:00:19 -0800 (PST)
+Date: Wed, 12 Feb 2014 11:00:14 +0000
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [patch 02/10] fs: cachefiles: use add_to_page_cache_lru()
-Message-ID: <20140212105811.GP6732@suse.de>
+Subject: Re: [patch 03/10] lib: radix-tree: radix_tree_delete_item()
+Message-ID: <20140212110014.GQ6732@suse.de>
 References: <1391475222-1169-1-git-send-email-hannes@cmpxchg.org>
- <1391475222-1169-3-git-send-email-hannes@cmpxchg.org>
+ <1391475222-1169-4-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1391475222-1169-3-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <1391475222-1169-4-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Johannes Weiner <hannes@cmpxchg.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Bob Liu <bob.liu@oracle.com>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Luigi Semenzato <semenzato@google.com>, Metin Doslu <metin@citusdata.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan.kim@gmail.com>, Ozgun Erdogan <ozgun@citusdata.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Roman Gushchin <klamm@yandex-team.ru>, Ryan Mallon <rmallon@gmail.com>, Tejun Heo <tj@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Mon, Feb 03, 2014 at 07:53:34PM -0500, Johannes Weiner wrote:
-> This code used to have its own lru cache pagevec up until a0b8cab3
-> ("mm: remove lru parameter from __pagevec_lru_add and remove parts of
-> pagevec API").  Now it's just add_to_page_cache() followed by
-> lru_cache_add(), might as well use add_to_page_cache_lru() directly.
+On Mon, Feb 03, 2014 at 07:53:35PM -0500, Johannes Weiner wrote:
+> Provide a function that does not just delete an entry at a given
+> index, but also allows passing in an expected item.  Delete only if
+> that item is still located at the specified index.
+> 
+> This is handy when lockless tree traversals want to delete entries as
+> well because they don't have to do an second, locked lookup to verify
+> the slot has not changed under them before deleting the entry.
 > 
 > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> Reviewed-by: Rik van Riel <riel@redhat.com>
 > Reviewed-by: Minchan Kim <minchan@kernel.org>
+> Reviewed-by: Rik van Riel <riel@redhat.com>
 
 Acked-by: Mel Gorman <mgorman@suse.de>
 
