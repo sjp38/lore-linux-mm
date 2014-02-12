@@ -1,40 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f170.google.com (mail-ea0-f170.google.com [209.85.215.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 350196B0031
-	for <linux-mm@kvack.org>; Tue, 11 Feb 2014 21:37:15 -0500 (EST)
-Received: by mail-ea0-f170.google.com with SMTP id g15so2312138eak.1
-        for <linux-mm@kvack.org>; Tue, 11 Feb 2014 18:37:14 -0800 (PST)
-Received: from one.firstfloor.org (one.firstfloor.org. [193.170.194.197])
-        by mx.google.com with ESMTPS id x43si35818029eey.103.2014.02.11.18.37.12
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 3949F6B0031
+	for <linux-mm@kvack.org>; Tue, 11 Feb 2014 22:43:58 -0500 (EST)
+Received: by mail-pa0-f43.google.com with SMTP id rd3so8604435pab.30
+        for <linux-mm@kvack.org>; Tue, 11 Feb 2014 19:43:57 -0800 (PST)
+Received: from e28smtp05.in.ibm.com (e28smtp05.in.ibm.com. [122.248.162.5])
+        by mx.google.com with ESMTPS id oq9si21081935pac.151.2014.02.11.19.43.55
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 11 Feb 2014 18:37:13 -0800 (PST)
-Date: Wed, 12 Feb 2014 03:37:11 +0100
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH 0/4] hugetlb: add hugepagesnid= command-line option
-Message-ID: <20140212023711.GT11821@two.firstfloor.org>
-References: <1392053268-29239-1-git-send-email-lcapitulino@redhat.com>
- <20140211211732.GS11821@two.firstfloor.org>
- <20140211163108.3136d55a@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140211163108.3136d55a@redhat.com>
+        Tue, 11 Feb 2014 19:43:56 -0800 (PST)
+Received: from /spool/local
+	by e28smtp05.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Wed, 12 Feb 2014 09:13:53 +0530
+Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
+	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 01BD0E0059
+	for <linux-mm@kvack.org>; Wed, 12 Feb 2014 09:17:10 +0530 (IST)
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s1C3hq999699682
+	for <linux-mm@kvack.org>; Wed, 12 Feb 2014 09:13:52 +0530
+Received: from d28av01.in.ibm.com (localhost [127.0.0.1])
+	by d28av01.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s1C3hn6r020050
+	for <linux-mm@kvack.org>; Wed, 12 Feb 2014 09:13:49 +0530
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: [PATCH V2 0/3]  powerpc: Fix random application crashes with NUMA_BALANCING enabled
+Date: Wed, 12 Feb 2014 09:13:35 +0530
+Message-Id: <1392176618-23667-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Luiz Capitulino <lcapitulino@redhat.com>
-Cc: Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, mtosatti@redhat.com, mgorman@suse.de, aarcange@redhat.com, riel@redhat.com
+To: benh@kernel.crashing.org, paulus@samba.org, riel@redhat.com, mgorman@suse.de, mpe@ellerman.id.au
+Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
 
-> The real syntax is hugepagesnid=nid,nr-pages,size. Which looks straightforward
-> to me. I honestly can't think of anything better than that, but I'm open for
-> suggestions.
+Hello,
 
-hugepages_node=nid:nr-pages:size,... ? 
+This patch series fix random application crashes observed on ppc64 with numa
+balancing enabled. Without the patch we see crashes like
 
--Andi
+anacron[14551]: unhandled signal 11 at 0000000000000041 nip 000000003cfd54b4 lr 000000003cfd5464 code 30001
+anacron[14599]: unhandled signal 11 at 0000000000000041 nip 000000003efc54b4 lr 000000003efc5464 code 30001
 
--- 
-ak@linux.intel.com -- Speaking for myself only.
+Changes from V1:
+* Build fix for CONFIG_NUMA_BALANCING disabled
+
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
