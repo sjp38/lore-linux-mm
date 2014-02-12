@@ -1,256 +1,187 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f45.google.com (mail-pb0-f45.google.com [209.85.160.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D42A6B0035
-	for <linux-mm@kvack.org>; Wed, 12 Feb 2014 16:27:04 -0500 (EST)
-Received: by mail-pb0-f45.google.com with SMTP id un15so9833745pbc.32
-        for <linux-mm@kvack.org>; Wed, 12 Feb 2014 13:27:03 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id x3si23894765pbk.233.2014.02.12.13.26.56
-        for <linux-mm@kvack.org>;
-        Wed, 12 Feb 2014 13:26:56 -0800 (PST)
-Subject: [RFC][PATCH] mm: ksm: add MAP_MERGEABLE mmap() as a KSM shortcut
-From: Dave Hansen <dave@sr71.net>
-Date: Wed, 12 Feb 2014 13:26:30 -0800
-Message-Id: <20140212212630.E5DFB494@viggo.jf.intel.com>
+Received: from mail-bk0-f41.google.com (mail-bk0-f41.google.com [209.85.214.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 45CBC6B0035
+	for <linux-mm@kvack.org>; Wed, 12 Feb 2014 17:01:35 -0500 (EST)
+Received: by mail-bk0-f41.google.com with SMTP id na10so2821925bkb.14
+        for <linux-mm@kvack.org>; Wed, 12 Feb 2014 14:01:34 -0800 (PST)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id cg6si46567bkc.161.2014.02.12.14.01.32
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 12 Feb 2014 14:01:32 -0800 (PST)
+Date: Wed, 12 Feb 2014 17:01:10 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH -mm v15 00/13] kmemcg shrinkers
+Message-ID: <20140212220110.GN6963@cmpxchg.org>
+References: <cover.1391624021.git.vdavydov@parallels.com>
+ <52FA3E8E.2080601@parallels.com>
+ <20140211201946.GI4407@cmpxchg.org>
+ <52FBB7F7.4050005@parallels.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <52FBB7F7.4050005@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Dave Hansen <dave@sr71.net>, arjan@linux.intel.com, andi.kleen@intel.com
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: dchinner@redhat.com, mhocko@suse.cz, akpm@linux-foundation.org, glommer@gmail.com, rientjes@google.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, devel@openvz.org
 
+On Wed, Feb 12, 2014 at 10:05:43PM +0400, Vladimir Davydov wrote:
+> On 02/12/2014 12:19 AM, Johannes Weiner wrote:
+> > On Tue, Feb 11, 2014 at 07:15:26PM +0400, Vladimir Davydov wrote:
+> >> Hi Michal, Johannes, David,
+> >>
+> >> Could you please take a look at this if you have time? Without your
+> >> review, it'll never get committed.
+> > There is simply no review bandwidth for new features as long as we are
+> > fixing fundamental bugs in memcg.
+> >
+> >> On 02/05/2014 10:39 PM, Vladimir Davydov wrote:
+> >>> Hi,
+> >>>
+> >>> This is the 15th iteration of Glauber Costa's patch-set implementing slab
+> >>> shrinking on memcg pressure. The main idea is to make the list_lru structure
+> >>> used by most FS shrinkers per-memcg. When adding or removing an element from a
+> >>> list_lru, we use the page information to figure out which memcg it belongs to
+> >>> and relay it to the appropriate list. This allows scanning kmem objects
+> >>> accounted to different memcgs independently.
+> >>>
+> >>> Please note that this patch-set implements slab shrinking only when we hit the
+> >>> user memory limit so that kmem allocations will still fail if we are below the
+> >>> user memory limit, but close to the kmem limit. I am going to fix this in a
+> >>> separate patch-set, but currently it is only worthwhile setting the kmem limit
+> >>> to be greater than the user mem limit just to enable per-memcg slab accounting
+> >>> and reclaim.
+> >>>
+> >>> The patch-set is based on top of v3.14-rc1-mmots-2014-02-04-16-48 (there are
+> >>> some vmscan cleanups that I need committed there) and organized as follows:
+> >>>  - patches 1-4 introduce some minor changes to memcg needed for this set;
+> >>>  - patches 5-7 prepare fs for per-memcg list_lru;
+> >>>  - patch 8 implement kmemcg reclaim core;
+> >>>  - patch 9 make list_lru per-memcg and patch 10 marks sb shrinker memcg-aware;
+> >>>  - patch 10 is trivial - it issues shrinkers on memcg destruction;
+> >>>  - patches 12 and 13 introduce shrinking of dead kmem caches to facilitate
+> >>>    memcg destruction.
+> > In the context of the ongoing discussions about charge reparenting I
+> > was curious how you deal with charges becoming unreclaimable after a
+> > memcg has been offlined.
+> >
+> > Patch #11 drops all charged objects at offlining by just invoking
+> > shrink_slab() in a loop until "only a few" (10) objects are remaining.
+> > How long is this going to take?  And why is it okay to destroy these
+> > caches when somebody else might still be using them?
+> 
+> IMHO, on container destruction we have to drop as many objects accounted
+> to this container as we can, because otherwise any container will be
+> able to get access to any number of unaccounted objects by fetching them
+> and then rebooting.
 
-We are starting to see substantial amounts (seconds) of latency
-being incurred by users of mmap_sem in the worst case.  It is
-very common to see them spike up in to the tens-of-ms range.  Any
-acquisition, especially for write, is a potential problem.
+They're accounted to and subject to the limit of the parent.  I don't
+see how this is different than page cache.
 
-The aggravating factor here is that we have been encouraging
-folks to be "polite" to the VM and do things like: call
-MADV_DONTNEED, unmap when you're done using things, and use KSM.
-All of these things take mmap_sem().  JVMs are starting to put
-nuggets like this in their generic malloc() functions:
+> > That still leaves you with the free objects that slab caches retain
+> > for allocation efficiency, so now you put all dead memcgs in the
+> > system on a global list, and on a vmpressure event on root_mem_cgroup
+> > you walk the global list and drain the freelist of all remaining
+> > caches.
+> >
+> > This is a lot of complexity and scalability problems for less than
+> > desirable behavior.
+> >
+> > Please think about how we can properly reparent kmemcg charges during
+> > memcg teardown.  That would simplify your code immensely and help
+> > clean up this unholy mess of css pinning.
+> >
+> > Slab caches are already collected in the memcg and on destruction
+> > could be reassigned to the parent.  Kmemcg uncharge from slab freeing
+> > would have to be updated to use the memcg from the cache, not from the
+> > individual page, but I don't see why this wouldn't work right now.
+> 
+> I don't think I understand what you mean by reassigning slab caches to
+> the parent.
+>
+> If you mean moving all pages (slabs) from the cache of the memcg being
+> destroyed to the corresponding root cache (or the parent memcg's cache)
+> and then destroying the memcg's cache, I don't think this is feasible,
+> because slub free's fast path is lockless, so AFAIU we can't remove a
+> partial slab from a cache w/o risking to race with kmem_cache_free.
+> 
+> If you mean clearing all pointers from the memcg's cache to the memcg
+> (changing them to the parent or root memcg), then AFAIU this won't solve
+> the problem with "dangling" caches - we will still have to shrink them
+> on vmpressure. So although this would allow us to put the reference to
+> the memcg from kmem caches on memcg's death, it wouldn't simplify the
+> code at all, in fact, it would even make it more complicated, because we
+> would have to handle various corner cases like reparenting vs
+> list_lru_{add,remove}.
 
-	addr = mmap(foo_bytes, ...);
-	madvise(MADV_MERGABLE, addr, foo_bytes);
+I think we have different concepts of what's complicated.  There is an
+existing model of what to do with left-over cache memory when a cgroup
+is destroyed, which is reparenting.  The rough steps will be the same,
+the object lifetime will be the same, the css refcounting will be the
+same, the user-visible behavior will be the same.  Any complexity from
+charge vs. reparent races will be contained to a few lines of code.
 
-That means that every single malloc() call does at _least_ two
-write acquisitions of mmap_sem.  We can try to batch these things
-in userspace more, of course, but this is becoming a very common
-pattern.  We should allow a shortcut.
+Weird refcounting tricks during offline, trashing kmem caches instead
+of moving them to the parent like other memory, a global list of dead
+memcgs and sudden freelist thrashing on a vmpressure event, that's what
+adds complexity and what makes this code unpredictable, fragile, and
+insanely hard to work with.  It's not acceptable.
 
-I'm a little concerned that we might be in the middle of
-constructing the VMA when we make the decision to set
-VM_MERGEABLE and miss one of the "bad" flags.  I've sprinkled a
-few VM_BUG_ON()s to watch out for any cases where we've missed
-something.  I turned this on for _every_ VMA to test it, and it
-hasn't blown up yet.
+By reparenting I meant reassigning the memcg cache parameter pointer
+from the slab cache such that it points to the parent.  This should be
+an atomic operation.  All css lookups already require RCU (I think slab
+does not follow this yet because we guarantee that css reference, but
+it should be changed).  So switch the cache param pointer, insert an
+RCU graceperiod to wait for all the ongoing charges and uncharges until
+nobody sees the memcg anymore, then safely reparent all the remaining
+memcg objects to the parent.  Maybe individually, maybe we can just
+splice the lists to the parent's list_lru lists.
 
-There are probably some other ways to do this.  We could have
-prctl, or some kind of boot option, or even something analogous
-to the transparent-huge-page 'always' option (as opposed to
-madvise()).  We could even extend madvise() for this kind of
-thing.  We could allow MADV_MERGEABLE to be specified for
-unmapped areas in _advance_ for when brk() or mmap() is called
-on them.
+I'm not sure I understand how the dangling cache problem pertains to
+this, isn't this an entirely separate issue?
 
-Applying transactional memory to mmap_sem would probably also
-help out here a lot.
+> > Charged thread stack pages could be reassigned when the task itself is
+> > migrated out of a cgroup.
+> 
+> Thread info pages are only a part of the problem. If a process kmalloc's
+> an object of size >= KMALLOC_MAX_CACHE_SIZE, it will be given a compound
+> page accounted to kmemcg, and we won't be able to find this page given
+> the memcg it is accounted to (except for walking the whole page range).
+> Thus we will have to organize those pages in per-memcg lists, won't we?
+> Again, even more complexity.
 
-Cc: arjan@linux.intel.com
-Cc: Andi Kleen <andi.kleen@intel.com>
+Why do we track them in the first place?  We don't track any random
+page allocation, so we shouldn't track kmalloc() that falls back to the
+page allocator.  In fact we shouldn't track any random slab allocation.
 
----
+The types of allocations we primarily want to track are the ones that
+directly scale with user behavior.  This is a finite set, which on a
+global level is covered mostly by ulimits.  After all, an unprivileged
+user interfering with other users is not a new problem and existed long
+before memcg.
 
- b/Documentation/vm/ksm.txt        |    5 +++-
- b/include/linux/ksm.h             |   13 +++++++++++
- b/include/uapi/asm-generic/mman.h |    1 
- b/mm/ksm.c                        |   43 +++++++++++++++++++++++---------------
- b/mm/mmap.c                       |   13 +++++++++++
- 5 files changed, 58 insertions(+), 17 deletions(-)
+It was a mistake to provide __GFP_KMEMCG and allow charging any random
+allocation, without giving memcg the means to actually manage that
+memory.  I don't see that such flexibility even needed, and it clearly
+hurts us now.  It was a choice we made to keep things simple in the
+beginning, before we knew how all this is going to turn out.  We should
+rectify this mistake before building on top of it.
 
-diff -puN include/uapi/asm-generic/mman.h~mmap-flag-for-ksm include/uapi/asm-generic/mman.h
---- a/include/uapi/asm-generic/mman.h~mmap-flag-for-ksm	2014-02-12 13:13:15.496938731 -0800
-+++ b/include/uapi/asm-generic/mman.h	2014-02-12 13:13:15.502939003 -0800
-@@ -12,6 +12,7 @@
- #define MAP_NONBLOCK	0x10000		/* do not block on IO */
- #define MAP_STACK	0x20000		/* give out an address that is best suited for process/thread stacks */
- #define MAP_HUGETLB	0x40000		/* create a huge page mapping */
-+#define MAP_MERGEABLE	0x80000		/* mark mapping as mergeable by KSM */
- 
- /* Bits [26:31] are reserved, see mman-common.h for MAP_HUGETLB usage */
- 
-diff -puN mm/mmap.c~mmap-flag-for-ksm mm/mmap.c
---- a/mm/mmap.c~mmap-flag-for-ksm	2014-02-12 13:13:15.497938776 -0800
-+++ b/mm/mmap.c	2014-02-12 13:20:33.725852533 -0800
-@@ -36,6 +36,7 @@
- #include <linux/sched/sysctl.h>
- #include <linux/notifier.h>
- #include <linux/memory.h>
-+#include <linux/ksm.h>
- 
- #include <asm/uaccess.h>
- #include <asm/cacheflush.h>
-@@ -1361,6 +1362,18 @@ unsigned long do_mmap_pgoff(struct file
- 			vm_flags |= VM_NORESERVE;
- 	}
- 
-+	/*
-+	 * This *must* happen after all the other vm_flags have
-+	 * been set, but before we make the decision about
-+	 * whether this vma can be merged with another.
-+	 */
-+	if ((flags & MAP_MERGEABLE) && ksm_can_handle_vma(vm_flags)) {
-+		int err = ksm_enter_if_new(mm);
-+		if (err)
-+			return err;
-+		vm_flags |= VM_MERGEABLE;
-+	}
-+
- 	addr = mmap_region(file, addr, len, vm_flags, pgoff);
- 	if (!IS_ERR_VALUE(addr) &&
- 	    ((vm_flags & VM_LOCKED) ||
-diff -puN mm/ksm.c~mmap-flag-for-ksm mm/ksm.c
---- a/mm/ksm.c~mmap-flag-for-ksm	2014-02-12 13:13:15.498938822 -0800
-+++ b/mm/ksm.c	2014-02-12 13:20:33.726852579 -0800
-@@ -419,6 +419,7 @@ static struct vm_area_struct *find_merge
- 		return NULL;
- 	if (!(vma->vm_flags & VM_MERGEABLE) || !vma->anon_vma)
- 		return NULL;
-+	VM_BUG_ON(!ksm_can_handle_vma(vma->vm_flags));
- 	return vma;
- }
- 
-@@ -785,6 +786,7 @@ static int unmerge_and_remove_all_rmap_i
- 				break;
- 			if (!(vma->vm_flags & VM_MERGEABLE) || !vma->anon_vma)
- 				continue;
-+			VM_BUG_ON(!ksm_can_handle_vma(vma->vm_flags));
- 			err = unmerge_ksm_pages(vma,
- 						vma->vm_start, vma->vm_end);
- 			if (err)
-@@ -1024,6 +1026,7 @@ static int try_to_merge_one_page(struct
- 
- 	if (!(vma->vm_flags & VM_MERGEABLE))
- 		goto out;
-+	VM_BUG_ON(!ksm_can_handle_vma(vma->vm_flags));
- 	if (PageTransCompound(page) && page_trans_compound_anon_split(page))
- 		goto out;
- 	BUG_ON(PageTransCompound(page));
-@@ -1607,6 +1610,7 @@ next_mm:
- 	for (; vma; vma = vma->vm_next) {
- 		if (!(vma->vm_flags & VM_MERGEABLE))
- 			continue;
-+		VM_BUG_ON(!ksm_can_handle_vma(vma->vm_flags));
- 		if (ksm_scan.address < vma->vm_start)
- 			ksm_scan.address = vma->vm_start;
- 		if (!vma->anon_vma)
-@@ -1736,6 +1740,25 @@ static int ksm_scan_thread(void *nothing
- 	return 0;
- }
- 
-+int ksm_can_handle_vma(unsigned long vm_flags)
-+{
-+	/*
-+	 * Be somewhat over-protective for now!
-+	 */
-+	if (vm_flags & (VM_MERGEABLE | VM_SHARED    | VM_MAYSHARE   |
-+			VM_PFNMAP    | VM_IO        | VM_DONTEXPAND |
-+			VM_HUGETLB   | VM_NONLINEAR | VM_MIXEDMAP))
-+		return 0;		/* just ignore the advice */
-+
-+#ifdef VM_SAO
-+	if (*m_flags & VM_SAO)
-+		return 0;
-+#endif
-+
-+	return 1;
-+}
-+
-+
- int ksm_madvise(struct vm_area_struct *vma, unsigned long start,
- 		unsigned long end, int advice, unsigned long *vm_flags)
- {
-@@ -1744,24 +1767,12 @@ int ksm_madvise(struct vm_area_struct *v
- 
- 	switch (advice) {
- 	case MADV_MERGEABLE:
--		/*
--		 * Be somewhat over-protective for now!
--		 */
--		if (*vm_flags & (VM_MERGEABLE | VM_SHARED  | VM_MAYSHARE   |
--				 VM_PFNMAP    | VM_IO      | VM_DONTEXPAND |
--				 VM_HUGETLB | VM_NONLINEAR | VM_MIXEDMAP))
--			return 0;		/* just ignore the advice */
--
--#ifdef VM_SAO
--		if (*vm_flags & VM_SAO)
-+		if (!ksm_can_handle_vma(*vm_flags))
- 			return 0;
--#endif
- 
--		if (!test_bit(MMF_VM_MERGEABLE, &mm->flags)) {
--			err = __ksm_enter(mm);
--			if (err)
--				return err;
--		}
-+		err = ksm_enter_if_new(mm);
-+		if (err)
-+			return err;
- 
- 		*vm_flags |= VM_MERGEABLE;
- 		break;
-diff -puN include/linux/ksm.h~mmap-flag-for-ksm include/linux/ksm.h
---- a/include/linux/ksm.h~mmap-flag-for-ksm	2014-02-12 13:13:15.499938868 -0800
-+++ b/include/linux/ksm.h	2014-02-12 13:13:15.504939095 -0800
-@@ -29,6 +29,13 @@ static inline int ksm_fork(struct mm_str
- 	return 0;
- }
- 
-+static inline int ksm_enter_if_new(struct mm_struct *mm)
-+{
-+	if (test_bit(!MMF_VM_MERGEABLE, &mm->flags))
-+		return __ksm_enter(mm);
-+	return 0;
-+}
-+
- static inline void ksm_exit(struct mm_struct *mm)
- {
- 	if (test_bit(MMF_VM_MERGEABLE, &mm->flags))
-@@ -75,6 +82,7 @@ struct page *ksm_might_need_to_copy(stru
- 
- int rmap_walk_ksm(struct page *page, struct rmap_walk_control *rwc);
- void ksm_migrate_page(struct page *newpage, struct page *oldpage);
-+int ksm_can_handle_vma(unsigned long vm_flags);
- 
- #else  /* !CONFIG_KSM */
- 
-@@ -91,6 +99,11 @@ static inline int PageKsm(struct page *p
- {
- 	return 0;
- }
-+
-+static inline int ksm_can_handle_vma(unsigned long vm_flags)
-+{
-+	return 0;
-+}
- 
- #ifdef CONFIG_MMU
- static inline int ksm_madvise(struct vm_area_struct *vma, unsigned long start,
-diff -puN Documentation/vm/ksm.txt~mmap-flag-for-ksm Documentation/vm/ksm.txt
---- a/Documentation/vm/ksm.txt~mmap-flag-for-ksm	2014-02-12 13:13:15.500938913 -0800
-+++ b/Documentation/vm/ksm.txt	2014-02-12 13:13:15.504939095 -0800
-@@ -22,7 +22,10 @@ are swapped back in: ksmd must rediscove
- 
- KSM only operates on those areas of address space which an application
- has advised to be likely candidates for merging, by using the madvise(2)
--system call: int madvise(addr, length, MADV_MERGEABLE).
-+system call: int madvise(addr, length, MADV_MERGEABLE).  As a shortcut,
-+an application may also specify MAP_MERGEABLE to the mmap() system call.
-+This will have the same effect that calling mmap() followed by madvise()
-+would have had.
- 
- The app may call int madvise(addr, length, MADV_UNMERGEABLE) to cancel
- that advice and restore unshared pages: whereupon KSM unmerges whatever
-_
+Here is the much bigger issue behind this:
+
+Memcg should be a thin layer of accounting and limiting between the VM
+and cgroup core code, but look at the line count.  It's more code than
+all of the page reclaim logic combined, including the page replacement
+algorithm, rmap, LRU list handling - all of which already include a
+good deal of memcg specifics.  It's the same size as the scheduler
+core, which includes the entire cpu cgroup controller.  And all this
+other code is of better quality and has more eyes on it than memcg.
+
+Please demonstrate that you try to see the bigger picture behind memcg
+and make an effort to keep things simple beyond the code you introduce
+and the niche you care about, otherwise I'm not willing to take any
+patches from you that don't straight-up delete stuff.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
