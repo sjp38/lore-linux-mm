@@ -1,138 +1,158 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E3CD6B0035
-	for <linux-mm@kvack.org>; Wed, 12 Feb 2014 18:07:44 -0500 (EST)
-Received: by mail-pa0-f52.google.com with SMTP id bj1so9861694pad.25
-        for <linux-mm@kvack.org>; Wed, 12 Feb 2014 15:07:43 -0800 (PST)
-Received: from mail-pa0-x22e.google.com (mail-pa0-x22e.google.com [2607:f8b0:400e:c03::22e])
-        by mx.google.com with ESMTPS id xk2si24083515pab.216.2014.02.12.15.07.13
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 12 Feb 2014 15:07:13 -0800 (PST)
-Received: by mail-pa0-f46.google.com with SMTP id rd3so9792602pab.5
-        for <linux-mm@kvack.org>; Wed, 12 Feb 2014 15:07:13 -0800 (PST)
-Date: Wed, 12 Feb 2014 15:06:26 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: [PATCH 2/2] cgroup: bring back kill_cnt to order css destruction
-In-Reply-To: <alpine.LSU.2.11.1402121417230.5029@eggly.anvils>
-Message-ID: <alpine.LSU.2.11.1402121504150.5029@eggly.anvils>
-References: <alpine.LSU.2.11.1402061541560.31342@eggly.anvils> <20140207164321.GE6963@cmpxchg.org> <alpine.LSU.2.11.1402121417230.5029@eggly.anvils>
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E99B6B0035
+	for <linux-mm@kvack.org>; Wed, 12 Feb 2014 18:53:51 -0500 (EST)
+Received: by mail-pa0-f47.google.com with SMTP id kp14so9942774pab.20
+        for <linux-mm@kvack.org>; Wed, 12 Feb 2014 15:53:51 -0800 (PST)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id b4si12582137pbe.58.2014.02.12.15.53.49
+        for <linux-mm@kvack.org>;
+        Wed, 12 Feb 2014 15:53:50 -0800 (PST)
+Date: Wed, 12 Feb 2014 16:53:53 -0700 (MST)
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [PATCH v5 06/22] Treat XIP like O_DIRECT
+In-Reply-To: <CF215477.24281%matthew.r.wilcox@intel.com>
+Message-ID: <alpine.OSX.2.00.1402121640310.60058@scrumpy>
+References: <cover.1389779961.git.matthew.r.wilcox@intel.com> <CF215477.24281%matthew.r.wilcox@intel.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>, Michal Hocko <mhocko@suse.cz>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Filipe Brandenburger <filbranden@google.com>, Li Zefan <lizefan@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, Markus Blank-Burian <burian@muenster.de>, Shawn Bohrer <shawn.bohrer@gmail.com>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Matthew Wilcox <matthew.r.wilcox@intel.com>
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org
 
-Sometimes the cleanup after memcg hierarchy testing gets stuck in
-mem_cgroup_reparent_charges(), unable to bring non-kmem usage down to 0.
+On Wed, 15 Jan 2014, Matthew Wilcox wrote:
+> Instead of separate read and write methods, use the generic AIO
+> infrastructure.  In addition to giving us support for AIO, this adds
+> the locking between read() and truncate() that was missing.
+> 
+> Signed-off-by: Matthew Wilcox <matthew.r.wilcox@intel.com>
 
-There may turn out to be several causes, but a major cause is this: the
-workitem to offline parent can get run before workitem to offline child;
-parent's mem_cgroup_reparent_charges() circles around waiting for the
-child's pages to be reparented to its lrus, but it's holding cgroup_mutex
-which prevents the child from reaching its mem_cgroup_reparent_charges().
+...
 
-Further testing showed that an ordered workqueue for cgroup_destroy_wq
-is not always good enough: percpu_ref_kill_and_confirm's call_rcu_sched
-stage on the way can mess up the order before reaching the workqueue.
+> +static ssize_t xip_io(int rw, struct inode *inode, const struct iovec
+> *iov,
+> +			loff_t start, loff_t end, unsigned nr_segs,
+> +			get_block_t get_block, struct buffer_head *bh)
+> +{
+> +	ssize_t retval = 0;
+> +	unsigned seg = 0;
+> +	unsigned len;
+> +	unsigned copied = 0;
+> +	loff_t offset = start;
+> +	loff_t max = start;
+> +	void *addr;
+> +	bool hole = false;
+> +
+> +	while (offset < end) {
+> +		void __user *buf = iov[seg].iov_base + copied;
+> +
+> +		if (max == offset) {
+> +			sector_t block = offset >> inode->i_blkbits;
+> +			long size;
+> +			memset(bh, 0, sizeof(*bh));
+> +			bh->b_size = ALIGN(end - offset, PAGE_SIZE);
+> +			retval = get_block(inode, block, bh, rw == WRITE);
+> +			if (retval)
+> +				break;
+> +			if (buffer_mapped(bh)) {
+> +				retval = xip_get_addr(inode, bh, &addr);
+> +				if (retval < 0)
+> +					break;
+> +				addr += offset - (block << inode->i_blkbits);
+> +				hole = false;
+> +				size = retval;
+> +			} else {
+> +				if (rw == WRITE) {
+> +					retval = -EIO;
+> +					break;
+> +				}
+> +				addr = NULL;
+> +				hole = true;
+> +				size = bh->b_size;
+> +			}
+> +			max = offset + size;
+> +		}
+> +
+> +		len = min_t(unsigned, iov[seg].iov_len - copied, max - offset);
+> +
+> +		if (rw == WRITE)
+> +			len -= __copy_from_user_nocache(addr, buf, len);
+> +		else if (!hole)
+> +			len -= __copy_to_user(buf, addr, len);
+> +		else
+> +			len -= __clear_user(buf, len);
+> +
+> +		if (!len)
+> +			break;
+> +
+> +		offset += len;
+> +		copied += len;
+> +		if (copied == iov[seg].iov_len) {
+> +			seg++;
+> +			copied = 0;
+> +		}
+> +	}
+> +
+> +	return (offset == start) ? retval : offset - start;
+> +}
 
-Instead bring back v3.11's css kill_cnt, repurposing it to make sure
-that offline_css() is not called for parent before it has been called
-for all children.
+xip_io() as it is currently written has an issue where reads can go beyond
+inode->i_size.  A quick test to show this issue is:
 
-Fixes: e5fca243abae ("cgroup: use a dedicated workqueue for cgroup destruction")
-Signed-off-by: Hugh Dickins <hughd@google.com>
-Reviewed-by: Filipe Brandenburger <filbranden@google.com>
-Cc: stable@vger.kernel.org # v3.10+ (but will need extra care)
----
-This is an alternative to Filipe's 1/2: there's no need for both,
-but each has its merits.  I prefer Filipe's, which is much easier to
-understand: this one made more sense in v3.11, when it was just a matter
-of extending the use of css_kill_cnt; but might be preferred if offlining
-children before parent is thought to be a good idea generally.
+	create a new file
+	write to the file for 1/2 a block
+	seek back to 0
+	read for a full block
 
- include/linux/cgroup.h |    3 +++
- kernel/cgroup.c        |   21 +++++++++++++++++++++
- 2 files changed, 24 insertions(+)
+The read in this case will return 4096, the length of the full block that was
+requested.  It should return 2048, reading just the data that was written.
 
---- 3.14-rc2/include/linux/cgroup.h	2014-02-02 18:49:07.033302094 -0800
-+++ linux/include/linux/cgroup.h	2014-02-11 15:59:22.720393186 -0800
-@@ -79,6 +79,9 @@ struct cgroup_subsys_state {
- 
- 	unsigned long flags;
- 
-+	/* ensure children are offlined before parent */
-+	atomic_t kill_cnt;
-+
- 	/* percpu_ref killing and RCU release */
- 	struct rcu_head rcu_head;
- 	struct work_struct destroy_work;
---- 3.14-rc2/kernel/cgroup.c	2014-02-02 18:49:07.737302111 -0800
-+++ linux/kernel/cgroup.c	2014-02-11 15:57:56.000391125 -0800
-@@ -175,6 +175,7 @@ static int need_forkexit_callback __read
- 
- static struct cftype cgroup_base_files[];
- 
-+static void css_killed_ref_fn(struct percpu_ref *ref);
- static void cgroup_destroy_css_killed(struct cgroup *cgrp);
- static int cgroup_destroy_locked(struct cgroup *cgrp);
- static int cgroup_addrm_files(struct cgroup *cgrp, struct cftype cfts[],
-@@ -4043,6 +4044,7 @@ static void init_css(struct cgroup_subsy
- 	css->cgroup = cgrp;
- 	css->ss = ss;
- 	css->flags = 0;
-+	atomic_set(&css->kill_cnt, 1);
- 
- 	if (cgrp->parent)
- 		css->parent = cgroup_css(cgrp->parent, ss);
-@@ -4292,6 +4294,7 @@ static void css_killed_work_fn(struct wo
+The issue is that we do have a full block allocated in ext4, we do have it
+available via XIP via xip_get_addr(), and the only extra check that we
+currently have is a check against iov_len.  iov_len in this case is 4096, so
+no one stops us from doing a full block read.
+
+Here is a quick patch that fixes this issue:
+
+diff --git a/fs/xip.c b/fs/xip.c
+index e902593..1608f29 100644
+--- a/fs/xip.c
++++ b/fs/xip.c
+@@ -91,13 +91,16 @@ static ssize_t xip_io(int rw, struct inode *inode, const struct
  {
- 	struct cgroup_subsys_state *css =
- 		container_of(work, struct cgroup_subsys_state, destroy_work);
-+	struct cgroup_subsys_state *parent = css->parent;
- 	struct cgroup *cgrp = css->cgroup;
+        ssize_t retval = 0;
+        unsigned seg = 0;
+-       unsigned len;
++       unsigned len, total_len;
+        unsigned copied = 0;
+        loff_t offset = start;
+        loff_t max = start;
+        void *addr;
+        bool hole = false;
  
- 	mutex_lock(&cgroup_mutex);
-@@ -4320,6 +4323,12 @@ static void css_killed_work_fn(struct wo
- 	 * destruction happens only after all css's are released.
- 	 */
- 	css_put(css);
++       end = min(end, inode->i_size);
++       total_len = end - start;
 +
-+	/*
-+	 * Put the parent's kill_cnt reference from kill_css(), and
-+	 * schedule its ->css_offline() if all children are now offline.
-+	 */
-+	css_killed_ref_fn(&parent->refcnt);
- }
+        while (offset < end) {
+                void __user *buf = iov[seg].iov_base + copied;
  
- /* css kill confirmation processing requires process context, bounce */
-@@ -4328,6 +4337,9 @@ static void css_killed_ref_fn(struct per
- 	struct cgroup_subsys_state *css =
- 		container_of(ref, struct cgroup_subsys_state, refcnt);
+@@ -136,6 +139,7 @@ static ssize_t xip_io(int rw, struct inode *inode, const struct
+                }
  
-+	if (!atomic_dec_and_test(&css->kill_cnt))
-+		return;
-+
- 	INIT_WORK(&css->destroy_work, css_killed_work_fn);
- 	queue_work(cgroup_destroy_wq, &css->destroy_work);
- }
-@@ -4362,6 +4374,15 @@ static void kill_css(struct cgroup_subsy
- 	 * css is confirmed to be seen as killed on all CPUs.
- 	 */
- 	percpu_ref_kill_and_confirm(&css->refcnt, css_killed_ref_fn);
-+
-+	/*
-+	 * Make sure that ->css_offline() will not be called for parent
-+	 * before it has been called for all children: this ordering
-+	 * requirement is important for memcg, where parent's offline
-+	 * might wait for a child's, leading to deadlock.
-+	 */
-+	atomic_inc(&css->parent->kill_cnt);
-+	css_killed_ref_fn(&css->refcnt);
- }
+                len = min_t(unsigned, iov[seg].iov_len - copied, max - offset);
++               len = min(len, total_len);
  
- /**
+                if (rw == WRITE)
+                        len -= __copy_from_user_nocache(addr, buf, len);
+@@ -149,6 +153,7 @@ static ssize_t xip_io(int rw, struct inode *inode, const struct
+ 
+                offset += len;
+                copied += len;
++               total_len -= len;
+                if (copied == iov[seg].iov_len) {
+                        seg++;
+                        copied = 0;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
