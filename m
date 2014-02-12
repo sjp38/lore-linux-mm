@@ -1,312 +1,191 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 890906B0031
-	for <linux-mm@kvack.org>; Wed, 12 Feb 2014 00:39:56 -0500 (EST)
-Received: by mail-pa0-f52.google.com with SMTP id bj1so8709150pad.25
-        for <linux-mm@kvack.org>; Tue, 11 Feb 2014 21:39:56 -0800 (PST)
-Received: from LGEAMRELO02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
-        by mx.google.com with ESMTP id q6si21338712pbf.334.2014.02.11.21.39.54
-        for <linux-mm@kvack.org>;
-        Tue, 11 Feb 2014 21:39:55 -0800 (PST)
-Date: Wed, 12 Feb 2014 14:39:56 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 01/11] pagewalk: update page table walker core
-Message-ID: <20140212053956.GA2912@lge.com>
-References: <1392068676-30627-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1392068676-30627-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+Received: from mail-lb0-f175.google.com (mail-lb0-f175.google.com [209.85.217.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C1126B0031
+	for <linux-mm@kvack.org>; Wed, 12 Feb 2014 01:55:54 -0500 (EST)
+Received: by mail-lb0-f175.google.com with SMTP id p9so6763043lbv.34
+        for <linux-mm@kvack.org>; Tue, 11 Feb 2014 22:55:53 -0800 (PST)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [119.145.14.64])
+        by mx.google.com with ESMTPS id ov7si11898118lbb.145.2014.02.11.22.55.49
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 11 Feb 2014 22:55:52 -0800 (PST)
+Message-ID: <52FB1AAA.9030108@huawei.com>
+Date: Wed, 12 Feb 2014 14:54:34 +0800
+From: Jianguo Wu <wujianguo@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1392068676-30627-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH] ARM: mm: support big-endian page tables
+References: <52F9EB40.1030703@huawei.com> <52F9FE1A.6000607@codethink.co.uk>
+In-Reply-To: <52F9FE1A.6000607@codethink.co.uk>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, Cliff Wickman <cpw@sgi.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@parallels.com>, Rik van Riel <riel@redhat.com>, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org
+To: Ben Dooks <ben.dooks@codethink.co.uk>
+Cc: linux@arm.linux.org.uk, will.deacon@arm.com, gregkh@linuxfoundation.org, Catalin Marinas <catalin.marinas@arm.com>, Li
+ Zefan <lizefan@huawei.com>, Wang Nan <wangnan0@huawei.com>, linux-arm-kernel@lists.infradead.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Mon, Feb 10, 2014 at 04:44:26PM -0500, Naoya Horiguchi wrote:
-> This patch updates mm/pagewalk.c to make code less complex and more maintenable.
-> The basic idea is unchanged and there's no userspace visible effect.
-> 
-> Most of existing callback functions need access to vma to handle each entry.
-> So we had better add a new member vma in struct mm_walk instead of using
-> mm_walk->private, which makes code simpler.
-> 
-> One problem in current page table walker is that we check vma in pgd loop.
-> Historically this was introduced to support hugetlbfs in the strange manner.
-> It's better and cleaner to do the vma check outside pgd loop.
-> 
-> Another problem is that many users of page table walker now use only
-> pmd_entry(), although it does both pmd-walk and pte-walk. This makes code
-> duplication and fluctuation among callers, which worsens the maintenability.
-> 
-> One difficulty of code sharing is that the callers want to determine
-> whether they try to walk over a specific vma or not in their own way.
-> To solve this, this patch introduces test_walk() callback.
-> 
-> When we try to use multiple callbacks in different levels, skip control is
-> also important. For example we have thp enabled in normal configuration, and
-> we are interested in doing some work for a thp. But sometimes we want to
-> split it and handle as normal pages, and in another time user would handle
-> both at pmd level and pte level.
-> What we need is that when we've done pmd_entry() we want to decide whether
-> to go down to pte level handling based on the pmd_entry()'s result. So this
-> patch introduces a skip control flag in mm_walk.
-> We can't use the returned value for this purpose, because we already
-> defined the meaning of whole range of returned values (>0 is to terminate
-> page table walk in caller's specific manner, =0 is to continue to walk,
-> and <0 is to abort the walk in the general manner.)
-> 
-> ChangeLog v5:
-> - fix build error ("mm/pagewalk.c:201: error: 'hmask' undeclared")
-> 
-> ChangeLog v4:
-> - add more comment
-> - remove verbose variable in walk_page_test()
-> - rename skip_check to skip_lower_level_walking
-> - rebased onto mmotm-2014-01-09-16-23
-> 
-> ChangeLog v3:
-> - rebased onto v3.13-rc3-mmots-2013-12-10-16-38
-> 
-> ChangeLog v2:
-> - rebase onto mmots
-> - add pte_none() check in walk_pte_range()
-> - add cond_sched() in walk_hugetlb_range()
-> - add skip_check()
-> - do VM_PFNMAP check only when ->test_walk() is not defined (because some
->   caller could handle VM_PFNMAP vma. copy_page_range() is an example.)
-> - use do-while condition (addr < end) instead of (addr != end)
-> 
-> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> ---
->  include/linux/mm.h |  18 ++-
->  mm/pagewalk.c      | 352 +++++++++++++++++++++++++++++++++--------------------
->  2 files changed, 235 insertions(+), 135 deletions(-)
-> 
-> diff --git v3.14-rc2.orig/include/linux/mm.h v3.14-rc2/include/linux/mm.h
-> index f28f46eade6a..4d0bc01de43c 100644
-> --- v3.14-rc2.orig/include/linux/mm.h
-> +++ v3.14-rc2/include/linux/mm.h
-> @@ -1067,10 +1067,18 @@ void unmap_vmas(struct mmu_gather *tlb, struct vm_area_struct *start_vma,
->   * @pte_entry: if set, called for each non-empty PTE (4th-level) entry
->   * @pte_hole: if set, called for each hole at all levels
->   * @hugetlb_entry: if set, called for each hugetlb entry
-> - *		   *Caution*: The caller must hold mmap_sem() if @hugetlb_entry
-> - * 			      is used.
-> + * @test_walk: caller specific callback function to determine whether
-> + *             we walk over the current vma or not. A positive returned
-> + *             value means "do page table walk over the current vma,"
-> + *             and a negative one means "abort current page table walk
-> + *             right now." 0 means "skip the current vma."
-> + * @mm:        mm_struct representing the target process of page table walk
-> + * @vma:       vma currently walked
-> + * @skip:      internal control flag which is set when we skip the lower
-> + *             level entries.
-> + * @private:   private data for callbacks' use
->   *
-> - * (see walk_page_range for more details)
-> + * (see the comment on walk_page_range() for more details)
->   */
->  struct mm_walk {
->  	int (*pgd_entry)(pgd_t *pgd, unsigned long addr,
-> @@ -1086,7 +1094,11 @@ struct mm_walk {
->  	int (*hugetlb_entry)(pte_t *pte, unsigned long hmask,
->  			     unsigned long addr, unsigned long next,
->  			     struct mm_walk *walk);
-> +	int (*test_walk)(unsigned long addr, unsigned long next,
-> +			struct mm_walk *walk);
->  	struct mm_struct *mm;
-> +	struct vm_area_struct *vma;
-> +	int skip;
->  	void *private;
->  };
->  
-> diff --git v3.14-rc2.orig/mm/pagewalk.c v3.14-rc2/mm/pagewalk.c
-> index 2beeabf502c5..4770558feea8 100644
-> --- v3.14-rc2.orig/mm/pagewalk.c
-> +++ v3.14-rc2/mm/pagewalk.c
-> @@ -3,29 +3,58 @@
->  #include <linux/sched.h>
->  #include <linux/hugetlb.h>
->  
-> -static int walk_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
-> -			  struct mm_walk *walk)
-> +/*
-> + * Check the current skip status of page table walker.
-> + *
-> + * Here what I mean by skip is to skip lower level walking, and that was
-> + * determined for each entry independently. For example, when walk_pmd_range
-> + * handles a pmd_trans_huge we don't have to walk over ptes under that pmd,
-> + * and the skipping does not affect the walking over ptes under other pmds.
-> + * That's why we reset @walk->skip after tested.
-> + */
-> +static bool skip_lower_level_walking(struct mm_walk *walk)
-> +{
-> +	if (walk->skip) {
-> +		walk->skip = 0;
-> +		return true;
-> +	}
-> +	return false;
-> +}
-> +
-> +static int walk_pte_range(pmd_t *pmd, unsigned long addr,
-> +				unsigned long end, struct mm_walk *walk)
->  {
-> +	struct mm_struct *mm = walk->mm;
->  	pte_t *pte;
-> +	pte_t *orig_pte;
-> +	spinlock_t *ptl;
->  	int err = 0;
->  
-> -	pte = pte_offset_map(pmd, addr);
-> -	for (;;) {
-> +	orig_pte = pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
-> +	do {
-> +		if (pte_none(*pte)) {
-> +			if (walk->pte_hole)
-> +				err = walk->pte_hole(addr, addr + PAGE_SIZE,
-> +							walk);
-> +			if (err)
-> +				break;
-> +			continue;
+On 2014/2/11 18:40, Ben Dooks wrote:
 
-Hello, Naoya.
+> On 11/02/14 09:20, Jianguo Wu wrote:
+>> When enable LPAE and big-endian in a hisilicon board, while specify
+>> mem=384M mem=512M@7680M, will get bad page state:
+>>
+>> Freeing unused kernel memory: 180K (c0466000 - c0493000)
+>> BUG: Bad page state in process init  pfn:fa442
+>> page:c7749840 count:0 mapcount:-1 mapping:  (null) index:0x0
+>> page flags: 0x40000400(reserved)
+>> Modules linked in:
+>> CPU: 0 PID: 1 Comm: init Not tainted 3.10.27+ #66
+>> [<c000f5f0>] (unwind_backtrace+0x0/0x11c) from [<c000cbc4>] (show_stack+0x10/0x14)
+>> [<c000cbc4>] (show_stack+0x10/0x14) from [<c009e448>] (bad_page+0xd4/0x104)
+>> [<c009e448>] (bad_page+0xd4/0x104) from [<c009e520>] (free_pages_prepare+0xa8/0x14c)
+>> [<c009e520>] (free_pages_prepare+0xa8/0x14c) from [<c009f8ec>] (free_hot_cold_page+0x18/0xf0)
+>> [<c009f8ec>] (free_hot_cold_page+0x18/0xf0) from [<c00b5444>] (handle_pte_fault+0xcf4/0xdc8)
+>> [<c00b5444>] (handle_pte_fault+0xcf4/0xdc8) from [<c00b6458>] (handle_mm_fault+0xf4/0x120)
+>> [<c00b6458>] (handle_mm_fault+0xf4/0x120) from [<c0013754>] (do_page_fault+0xfc/0x354)
+>> [<c0013754>] (do_page_fault+0xfc/0x354) from [<c0008400>] (do_DataAbort+0x2c/0x90)
+>> [<c0008400>] (do_DataAbort+0x2c/0x90) from [<c0008fb4>] (__dabt_usr+0x34/0x40)
+>>
+>> The bad pfn:fa442 is not system memory(mem=384M mem=512M@7680M), after debugging,
+>> I find in page fault handler, will get wrong pfn from pte just after set pte,
+>> as follow:
+>> do_anonymous_page()
+>> {
+>>     ...
+>>     set_pte_at(mm, address, page_table, entry);
+>>     
+>>     //debug code
+>>     pfn = pte_pfn(entry);
+>>     pr_info("pfn:0x%lx, pte:0x%llx\n", pfn, pte_val(entry));
+>>
+>>     //read out the pte just set
+>>     new_pte = pte_offset_map(pmd, address);
+>>     new_pfn = pte_pfn(*new_pte);
+>>     pr_info("new pfn:0x%lx, new pte:0x%llx\n", pfn, pte_val(entry));
+>>     ...
+>> }
+> 
+> Thanks, must have missed tickling this one.
+> 
+>>
+>> pfn:   0x1fa4f5,     pte:0xc00001fa4f575f
+>> new_pfn:0xfa4f5, new_pte:0xc00000fa4f5f5f    //new pfn/pte is wrong.
+>>
+>> The bug is happened in cpu_v7_set_pte_ext(ptep, pte):
+>> when pte is 64-bit, for little-endian, will store low 32-bit in r2,
+>> high 32-bit in r3; for big-endian, will store low 32-bit in r3,
+>> high 32-bit in r2, this will cause wrong pfn stored in pte,
+>> so we should exchange r2 and r3 for big-endian.
+>>
+>> Signed-off-by: Jianguo Wu <wujianguo@huawei.com>
+>> ---
+>>   arch/arm/mm/proc-v7-3level.S |   10 ++++++++++
+>>   1 files changed, 10 insertions(+), 0 deletions(-)
+>>
+>> diff --git a/arch/arm/mm/proc-v7-3level.S b/arch/arm/mm/proc-v7-3level.S
+>> index 6ba4bd9..71b3892 100644
+>> --- a/arch/arm/mm/proc-v7-3level.S
+>> +++ b/arch/arm/mm/proc-v7-3level.S
+>> @@ -65,6 +65,15 @@ ENDPROC(cpu_v7_switch_mm)
+>>    */
+>>   ENTRY(cpu_v7_set_pte_ext)
+>>   #ifdef CONFIG_MMU
+>> +#ifdef CONFIG_CPU_ENDIAN_BE8
+>> +    tst    r3, #L_PTE_VALID
+>> +    beq    1f
+>> +    tst    r2, #1 << (57 - 32)        @ L_PTE_NONE
+>> +    bicne    r3, #L_PTE_VALID
+>> +    bne    1f
+>> +    tst    r2, #1 << (55 - 32)        @ L_PTE_DIRTY
+>> +    orreq    r3, #L_PTE_RDONLY
+>> +#else
+>>       tst    r2, #L_PTE_VALID
+>>       beq    1f
+>>       tst    r3, #1 << (57 - 32)        @ L_PTE_NONE
+>> @@ -72,6 +81,7 @@ ENTRY(cpu_v7_set_pte_ext)
+>>       bne    1f
+>>       tst    r3, #1 << (55 - 32)        @ L_PTE_DIRTY
+>>       orreq    r2, #L_PTE_RDONLY
+>> +#endif
+>>   1:    strd    r2, r3, [r0]
+>>       ALT_SMP(W(nop))
+>>       ALT_UP (mcr    p15, 0, r0, c7, c10, 1)        @ flush_pte
+>> -- 1.7.1
+> 
+> If possible can we avoid large #ifdef blocks here?
+> 
+> Two ideas are
+> 
+> ARM_LE(tst r2, #L_PTE_VALID)
+> ARM_BE(tst r3, #L_PTE_VALID)
+> 
+> or change r2, r3 pair to say rlow, rhi and
+> 
+> #ifdef  CONFIG_CPU_ENDIAN_BE8
+> #define rlow r3
+> #define rhi r2
+> #else
+> #define rlow r2
+> #define rhi r3
+> #endif
+> 
 
-I know that this is too late for review, but I have some opinion about this.
+Hi Ben,
+Thanks for your suggestion, how about this?
 
-How about removing walk->pte_hole() function pointer and related code on generic
-walker? walk->pte_hole() is only used by task_mmu.c and maintaining pte_hole code
-only for task_mmu.c just give us maintanance overhead and bad readability on
-generic code. With removing it, we can get more simpler generic walker.
+Signed-off-by: Jianguo Wu <wujianguo@huawei.com>
+---
+ arch/arm/mm/proc-v7-3level.S |   18 +++++++++++++-----
+ 1 files changed, 13 insertions(+), 5 deletions(-)
 
-We can implement it without pte_hole() on generic walker like as below.
+diff --git a/arch/arm/mm/proc-v7-3level.S b/arch/arm/mm/proc-v7-3level.S
+index 01a719e..22e3ad6 100644
+--- a/arch/arm/mm/proc-v7-3level.S
++++ b/arch/arm/mm/proc-v7-3level.S
+@@ -64,6 +64,14 @@ ENTRY(cpu_v7_switch_mm)
+ 	mov	pc, lr
+ ENDPROC(cpu_v7_switch_mm)
+ 
++#ifdef __ARMEB__
++#define rl r3
++#define rh r2
++#else
++#define rl r2
++#define rh r3
++#endif
++
+ /*
+  * cpu_v7_set_pte_ext(ptep, pte)
+  *
+@@ -73,13 +81,13 @@ ENDPROC(cpu_v7_switch_mm)
+  */
+ ENTRY(cpu_v7_set_pte_ext)
+ #ifdef CONFIG_MMU
+-	tst	r2, #L_PTE_VALID
++	tst	rl, #L_PTE_VALID
+ 	beq	1f
+-	tst	r3, #1 << (57 - 32)		@ L_PTE_NONE
+-	bicne	r2, #L_PTE_VALID
++	tst	rh, #1 << (57 - 32)		@ L_PTE_NONE
++	bicne	rl, #L_PTE_VALID
+ 	bne	1f
+-	tst	r3, #1 << (55 - 32)		@ L_PTE_DIRTY
+-	orreq	r2, #L_PTE_RDONLY
++	tst	rh, #1 << (55 - 32)		@ L_PTE_DIRTY
++	orreq	rl, #L_PTE_RDONLY
+ 1:	strd	r2, r3, [r0]
+ 	ALT_SMP(W(nop))
+ 	ALT_UP (mcr	p15, 0, r0, c7, c10, 1)		@ flush_pte
+-- 
+1.7.1
 
-  walk->dont_skip_hole = 1
-  if (pte_none(*pte) && !walk->dont_skip_hole)
-  	  continue;
+Thanks,
+Jianguo Wu
 
-  call proper entry callback function which can handle pte_hole cases.
+> 
+> 
 
-> +		}
-> +		/*
-> +		 * Callers should have their own way to handle swap entries
-> +		 * in walk->pte_entry().
-> +		 */
->  		err = walk->pte_entry(pte, addr, addr + PAGE_SIZE, walk);
->  		if (err)
->  		       break;
-> -		addr += PAGE_SIZE;
-> -		if (addr == end)
-> -			break;
-> -		pte++;
-> -	}
-> -
-> -	pte_unmap(pte);
-> -	return err;
-> +	} while (pte++, addr += PAGE_SIZE, addr < end);
-> +	pte_unmap_unlock(orig_pte, ptl);
-> +	cond_resched();
-> +	return addr == end ? 0 : err;
->  }
->  
-> -static int walk_pmd_range(pud_t *pud, unsigned long addr, unsigned long end,
-> -			  struct mm_walk *walk)
-> +static int walk_pmd_range(pud_t *pud, unsigned long addr,
-> +				unsigned long end, struct mm_walk *walk)
->  {
->  	pmd_t *pmd;
->  	unsigned long next;
-> @@ -35,6 +64,7 @@ static int walk_pmd_range(pud_t *pud, unsigned long addr, unsigned long end,
->  	do {
->  again:
->  		next = pmd_addr_end(addr, end);
-> +
->  		if (pmd_none(*pmd)) {
->  			if (walk->pte_hole)
->  				err = walk->pte_hole(addr, next, walk);
-> @@ -42,35 +72,32 @@ static int walk_pmd_range(pud_t *pud, unsigned long addr, unsigned long end,
->  				break;
->  			continue;
->  		}
-> -		/*
-> -		 * This implies that each ->pmd_entry() handler
-> -		 * needs to know about pmd_trans_huge() pmds
-> -		 */
-> -		if (walk->pmd_entry)
-> -			err = walk->pmd_entry(pmd, addr, next, walk);
-> -		if (err)
-> -			break;
->  
-> -		/*
-> -		 * Check this here so we only break down trans_huge
-> -		 * pages when we _need_ to
-> -		 */
-> -		if (!walk->pte_entry)
-> -			continue;
-> +		if (walk->pmd_entry) {
-> +			err = walk->pmd_entry(pmd, addr, next, walk);
-> +			if (skip_lower_level_walking(walk))
-> +				continue;
-> +			if (err)
-> +				break;
-> +		}
->  
-> -		split_huge_page_pmd_mm(walk->mm, addr, pmd);
-> -		if (pmd_none_or_trans_huge_or_clear_bad(pmd))
-> -			goto again;
-> -		err = walk_pte_range(pmd, addr, next, walk);
-> -		if (err)
-> -			break;
-> -	} while (pmd++, addr = next, addr != end);
-> +		if (walk->pte_entry) {
-> +			if (walk->vma) {
-> +				split_huge_page_pmd(walk->vma, addr, pmd);
-> +				if (pmd_trans_unstable(pmd))
-> +					goto again;
-> +			}
-> +			err = walk_pte_range(pmd, addr, next, walk);
-> +			if (err)
-> +				break;
-> +		}
-> +	} while (pmd++, addr = next, addr < end);
->  
->  	return err;
->  }
->  
-> -static int walk_pud_range(pgd_t *pgd, unsigned long addr, unsigned long end,
-> -			  struct mm_walk *walk)
-> +static int walk_pud_range(pgd_t *pgd, unsigned long addr,
-> +				unsigned long end, struct mm_walk *walk)
->  {
->  	pud_t *pud;
->  	unsigned long next;
-> @@ -79,6 +106,7 @@ static int walk_pud_range(pgd_t *pgd, unsigned long addr, unsigned long end,
->  	pud = pud_offset(pgd, addr);
->  	do {
->  		next = pud_addr_end(addr, end);
-> +
->  		if (pud_none_or_clear_bad(pud)) {
->  			if (walk->pte_hole)
->  				err = walk->pte_hole(addr, next, walk);
-> @@ -86,13 +114,58 @@ static int walk_pud_range(pgd_t *pgd, unsigned long addr, unsigned long end,
->  				break;
->  			continue;
->  		}
-> -		if (walk->pud_entry)
-> +
-> +		if (walk->pud_entry) {
->  			err = walk->pud_entry(pud, addr, next, walk);
-> -		if (!err && (walk->pmd_entry || walk->pte_entry))
-> +			if (skip_lower_level_walking(walk))
-> +				continue;
-> +			if (err)
-> +				break;
 
-Why do you check skip_lower_level_walking() prior to err check?
-I look through all patches roughly and find that this doesn't cause any problem,
-since err is 0 whenver walk->skip = 1. But, checking err first would be better.
-
-Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
