@@ -1,187 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f41.google.com (mail-bk0-f41.google.com [209.85.214.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 45CBC6B0035
-	for <linux-mm@kvack.org>; Wed, 12 Feb 2014 17:01:35 -0500 (EST)
-Received: by mail-bk0-f41.google.com with SMTP id na10so2821925bkb.14
-        for <linux-mm@kvack.org>; Wed, 12 Feb 2014 14:01:34 -0800 (PST)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id cg6si46567bkc.161.2014.02.12.14.01.32
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 12 Feb 2014 14:01:32 -0800 (PST)
-Date: Wed, 12 Feb 2014 17:01:10 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH -mm v15 00/13] kmemcg shrinkers
-Message-ID: <20140212220110.GN6963@cmpxchg.org>
-References: <cover.1391624021.git.vdavydov@parallels.com>
- <52FA3E8E.2080601@parallels.com>
- <20140211201946.GI4407@cmpxchg.org>
- <52FBB7F7.4050005@parallels.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <52FBB7F7.4050005@parallels.com>
+Received: from mail-qc0-f179.google.com (mail-qc0-f179.google.com [209.85.216.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 3625B6B0035
+	for <linux-mm@kvack.org>; Wed, 12 Feb 2014 17:16:16 -0500 (EST)
+Received: by mail-qc0-f179.google.com with SMTP id e16so16351719qcx.38
+        for <linux-mm@kvack.org>; Wed, 12 Feb 2014 14:16:15 -0800 (PST)
+Received: from qmta12.emeryville.ca.mail.comcast.net (qmta12.emeryville.ca.mail.comcast.net. [2001:558:fe2d:44:76:96:27:227])
+        by mx.google.com with ESMTP id t7si16384474qav.4.2014.02.12.14.16.14
+        for <linux-mm@kvack.org>;
+        Wed, 12 Feb 2014 14:16:14 -0800 (PST)
+Date: Wed, 12 Feb 2014 16:16:11 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [RFC PATCH 2/3] topology: support node_numa_mem() for determining
+ the fallback node
+In-Reply-To: <20140211074159.GB27870@lge.com>
+Message-ID: <alpine.DEB.2.10.1402121612270.8183@nuc>
+References: <20140206020757.GC5433@linux.vnet.ibm.com> <1391674026-20092-1-git-send-email-iamjoonsoo.kim@lge.com> <1391674026-20092-2-git-send-email-iamjoonsoo.kim@lge.com> <alpine.DEB.2.02.1402060041040.21148@chino.kir.corp.google.com>
+ <CAAmzW4PXkdpNi5pZ=4BzdXNvqTEAhcuw-x0pWidqrxzdePxXxA@mail.gmail.com> <alpine.DEB.2.02.1402061248450.9567@chino.kir.corp.google.com> <20140207054819.GC28952@lge.com> <alpine.DEB.2.10.1402071150090.15168@nuc> <alpine.DEB.2.10.1402071245040.20246@nuc>
+ <20140210191321.GD1558@linux.vnet.ibm.com> <20140211074159.GB27870@lge.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: dchinner@redhat.com, mhocko@suse.cz, akpm@linux-foundation.org, glommer@gmail.com, rientjes@google.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, devel@openvz.org
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Han Pingtian <hanpt@linux.vnet.ibm.com>, Pekka Enberg <penberg@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Paul Mackerras <paulus@samba.org>, Anton Blanchard <anton@samba.org>, Matt Mackall <mpm@selenic.com>, linuxppc-dev@lists.ozlabs.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-On Wed, Feb 12, 2014 at 10:05:43PM +0400, Vladimir Davydov wrote:
-> On 02/12/2014 12:19 AM, Johannes Weiner wrote:
-> > On Tue, Feb 11, 2014 at 07:15:26PM +0400, Vladimir Davydov wrote:
-> >> Hi Michal, Johannes, David,
-> >>
-> >> Could you please take a look at this if you have time? Without your
-> >> review, it'll never get committed.
-> > There is simply no review bandwidth for new features as long as we are
-> > fixing fundamental bugs in memcg.
-> >
-> >> On 02/05/2014 10:39 PM, Vladimir Davydov wrote:
-> >>> Hi,
-> >>>
-> >>> This is the 15th iteration of Glauber Costa's patch-set implementing slab
-> >>> shrinking on memcg pressure. The main idea is to make the list_lru structure
-> >>> used by most FS shrinkers per-memcg. When adding or removing an element from a
-> >>> list_lru, we use the page information to figure out which memcg it belongs to
-> >>> and relay it to the appropriate list. This allows scanning kmem objects
-> >>> accounted to different memcgs independently.
-> >>>
-> >>> Please note that this patch-set implements slab shrinking only when we hit the
-> >>> user memory limit so that kmem allocations will still fail if we are below the
-> >>> user memory limit, but close to the kmem limit. I am going to fix this in a
-> >>> separate patch-set, but currently it is only worthwhile setting the kmem limit
-> >>> to be greater than the user mem limit just to enable per-memcg slab accounting
-> >>> and reclaim.
-> >>>
-> >>> The patch-set is based on top of v3.14-rc1-mmots-2014-02-04-16-48 (there are
-> >>> some vmscan cleanups that I need committed there) and organized as follows:
-> >>>  - patches 1-4 introduce some minor changes to memcg needed for this set;
-> >>>  - patches 5-7 prepare fs for per-memcg list_lru;
-> >>>  - patch 8 implement kmemcg reclaim core;
-> >>>  - patch 9 make list_lru per-memcg and patch 10 marks sb shrinker memcg-aware;
-> >>>  - patch 10 is trivial - it issues shrinkers on memcg destruction;
-> >>>  - patches 12 and 13 introduce shrinking of dead kmem caches to facilitate
-> >>>    memcg destruction.
-> > In the context of the ongoing discussions about charge reparenting I
-> > was curious how you deal with charges becoming unreclaimable after a
-> > memcg has been offlined.
-> >
-> > Patch #11 drops all charged objects at offlining by just invoking
-> > shrink_slab() in a loop until "only a few" (10) objects are remaining.
-> > How long is this going to take?  And why is it okay to destroy these
-> > caches when somebody else might still be using them?
-> 
-> IMHO, on container destruction we have to drop as many objects accounted
-> to this container as we can, because otherwise any container will be
-> able to get access to any number of unaccounted objects by fetching them
-> and then rebooting.
+Here is another patch with some fixes. The additional logic is only
+compiled in if CONFIG_HAVE_MEMORYLESS_NODES is set.
 
-They're accounted to and subject to the limit of the parent.  I don't
-see how this is different than page cache.
+Subject: slub: Memoryless node support
 
-> > That still leaves you with the free objects that slab caches retain
-> > for allocation efficiency, so now you put all dead memcgs in the
-> > system on a global list, and on a vmpressure event on root_mem_cgroup
-> > you walk the global list and drain the freelist of all remaining
-> > caches.
-> >
-> > This is a lot of complexity and scalability problems for less than
-> > desirable behavior.
-> >
-> > Please think about how we can properly reparent kmemcg charges during
-> > memcg teardown.  That would simplify your code immensely and help
-> > clean up this unholy mess of css pinning.
-> >
-> > Slab caches are already collected in the memcg and on destruction
-> > could be reassigned to the parent.  Kmemcg uncharge from slab freeing
-> > would have to be updated to use the memcg from the cache, not from the
-> > individual page, but I don't see why this wouldn't work right now.
-> 
-> I don't think I understand what you mean by reassigning slab caches to
-> the parent.
->
-> If you mean moving all pages (slabs) from the cache of the memcg being
-> destroyed to the corresponding root cache (or the parent memcg's cache)
-> and then destroying the memcg's cache, I don't think this is feasible,
-> because slub free's fast path is lockless, so AFAIU we can't remove a
-> partial slab from a cache w/o risking to race with kmem_cache_free.
-> 
-> If you mean clearing all pointers from the memcg's cache to the memcg
-> (changing them to the parent or root memcg), then AFAIU this won't solve
-> the problem with "dangling" caches - we will still have to shrink them
-> on vmpressure. So although this would allow us to put the reference to
-> the memcg from kmem caches on memcg's death, it wouldn't simplify the
-> code at all, in fact, it would even make it more complicated, because we
-> would have to handle various corner cases like reparenting vs
-> list_lru_{add,remove}.
+Support memoryless nodes by tracking which allocations are failing.
+Allocations targeted to the nodes without memory fall back to the
+current available per cpu objects and if that is not available will
+create a new slab using the page allocator to fallback from the
+memoryless node to some other node.
 
-I think we have different concepts of what's complicated.  There is an
-existing model of what to do with left-over cache memory when a cgroup
-is destroyed, which is reparenting.  The rough steps will be the same,
-the object lifetime will be the same, the css refcounting will be the
-same, the user-visible behavior will be the same.  Any complexity from
-charge vs. reparent races will be contained to a few lines of code.
+Signed-off-by: Christoph Lameter <cl@linux.com>
 
-Weird refcounting tricks during offline, trashing kmem caches instead
-of moving them to the parent like other memory, a global list of dead
-memcgs and sudden freelist thrashing on a vmpressure event, that's what
-adds complexity and what makes this code unpredictable, fragile, and
-insanely hard to work with.  It's not acceptable.
+Index: linux/mm/slub.c
+===================================================================
+--- linux.orig/mm/slub.c	2014-02-12 16:07:48.957869570 -0600
++++ linux/mm/slub.c	2014-02-12 16:09:22.198928260 -0600
+@@ -134,6 +134,10 @@ static inline bool kmem_cache_has_cpu_pa
+ #endif
+ }
 
-By reparenting I meant reassigning the memcg cache parameter pointer
-from the slab cache such that it points to the parent.  This should be
-an atomic operation.  All css lookups already require RCU (I think slab
-does not follow this yet because we guarantee that css reference, but
-it should be changed).  So switch the cache param pointer, insert an
-RCU graceperiod to wait for all the ongoing charges and uncharges until
-nobody sees the memcg anymore, then safely reparent all the remaining
-memcg objects to the parent.  Maybe individually, maybe we can just
-splice the lists to the parent's list_lru lists.
++#ifdef CONFIG_HAVE_MEMORYLESS_NODES
++static nodemask_t empty_nodes;
++#endif
++
+ /*
+  * Issues still to be resolved:
+  *
+@@ -1405,16 +1409,28 @@ static struct page *new_slab(struct kmem
+ 	void *last;
+ 	void *p;
+ 	int order;
++	int alloc_node;
 
-I'm not sure I understand how the dangling cache problem pertains to
-this, isn't this an entirely separate issue?
+ 	BUG_ON(flags & GFP_SLAB_BUG_MASK);
 
-> > Charged thread stack pages could be reassigned when the task itself is
-> > migrated out of a cgroup.
-> 
-> Thread info pages are only a part of the problem. If a process kmalloc's
-> an object of size >= KMALLOC_MAX_CACHE_SIZE, it will be given a compound
-> page accounted to kmemcg, and we won't be able to find this page given
-> the memcg it is accounted to (except for walking the whole page range).
-> Thus we will have to organize those pages in per-memcg lists, won't we?
-> Again, even more complexity.
+ 	page = allocate_slab(s,
+ 		flags & (GFP_RECLAIM_MASK | GFP_CONSTRAINT_MASK), node);
+-	if (!page)
++	if (!page) {
++#ifdef CONFIG_HAVE_MEMORYLESS_NODES
++		if (node != NUMA_NO_NODE)
++			node_set(node, empty_nodes);
++#endif
+ 		goto out;
++	}
 
-Why do we track them in the first place?  We don't track any random
-page allocation, so we shouldn't track kmalloc() that falls back to the
-page allocator.  In fact we shouldn't track any random slab allocation.
+ 	order = compound_order(page);
+-	inc_slabs_node(s, page_to_nid(page), page->objects);
++	alloc_node = page_to_nid(page);
++#ifdef CONFIG_HAVE_MEMORYLESS_NODES
++	node_clear(alloc_node, empty_nodes);
++	if (node != NUMA_NO_NODE && alloc_node != node)
++		node_set(node, empty_nodes);
++#endif
++	inc_slabs_node(s, alloc_node, page->objects);
+ 	memcg_bind_pages(s, order);
+ 	page->slab_cache = s;
+ 	__SetPageSlab(page);
+@@ -1722,7 +1738,7 @@ static void *get_partial(struct kmem_cac
+ 		struct kmem_cache_cpu *c)
+ {
+ 	void *object;
+-	int searchnode = (node == NUMA_NO_NODE) ? numa_node_id() : node;
++	int searchnode = (node == NUMA_NO_NODE) ? numa_mem_id() : node;
 
-The types of allocations we primarily want to track are the ones that
-directly scale with user behavior.  This is a finite set, which on a
-global level is covered mostly by ulimits.  After all, an unprivileged
-user interfering with other users is not a new problem and existed long
-before memcg.
-
-It was a mistake to provide __GFP_KMEMCG and allow charging any random
-allocation, without giving memcg the means to actually manage that
-memory.  I don't see that such flexibility even needed, and it clearly
-hurts us now.  It was a choice we made to keep things simple in the
-beginning, before we knew how all this is going to turn out.  We should
-rectify this mistake before building on top of it.
-
-Here is the much bigger issue behind this:
-
-Memcg should be a thin layer of accounting and limiting between the VM
-and cgroup core code, but look at the line count.  It's more code than
-all of the page reclaim logic combined, including the page replacement
-algorithm, rmap, LRU list handling - all of which already include a
-good deal of memcg specifics.  It's the same size as the scheduler
-core, which includes the entire cpu cgroup controller.  And all this
-other code is of better quality and has more eyes on it than memcg.
-
-Please demonstrate that you try to see the bigger picture behind memcg
-and make an effort to keep things simple beyond the code you introduce
-and the niche you care about, otherwise I'm not willing to take any
-patches from you that don't straight-up delete stuff.
+ 	object = get_partial_node(s, get_node(s, searchnode), c, flags);
+ 	if (object || node != NUMA_NO_NODE)
+@@ -2117,8 +2133,19 @@ static void flush_all(struct kmem_cache
+ static inline int node_match(struct page *page, int node)
+ {
+ #ifdef CONFIG_NUMA
+-	if (!page || (node != NUMA_NO_NODE && page_to_nid(page) != node))
++	int page_node = page_to_nid(page);
++
++	if (!page)
+ 		return 0;
++
++	if (node != NUMA_NO_NODE) {
++#ifdef CONFIG_HAVE_MEMORYLESS_NODES
++		if (node_isset(node, empty_nodes))
++			return 1;
++#endif
++		if (page_node != node)
++			return 0;
++	}
+ #endif
+ 	return 1;
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
