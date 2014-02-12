@@ -1,140 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f52.google.com (mail-qa0-f52.google.com [209.85.216.52])
-	by kanga.kvack.org (Postfix) with ESMTP id DB32D6B0031
-	for <linux-mm@kvack.org>; Wed, 12 Feb 2014 10:40:51 -0500 (EST)
-Received: by mail-qa0-f52.google.com with SMTP id j15so14070482qaq.39
-        for <linux-mm@kvack.org>; Wed, 12 Feb 2014 07:40:51 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id l52si15508900qge.135.2014.02.12.07.40.50
-        for <linux-mm@kvack.org>;
-        Wed, 12 Feb 2014 07:40:50 -0800 (PST)
-Date: Wed, 12 Feb 2014 10:40:36 -0500
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <52fb9602.37618c0a.a2aa.fffffd78SMTPIN_ADDED_BROKEN@mx.google.com>
-In-Reply-To: <20140212053956.GA2912@lge.com>
-References: <1392068676-30627-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1392068676-30627-2-git-send-email-n-horiguchi@ah.jp.nec.com>
- <20140212053956.GA2912@lge.com>
-Subject: Re: [PATCH 01/11] pagewalk: update page table walker core
-Mime-Version: 1.0
-Content-Type: text/plain;
- charset=iso-2022-jp
-Content-Transfer-Encoding: 7bit
+Received: from mail-we0-f182.google.com (mail-we0-f182.google.com [74.125.82.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E9356B0031
+	for <linux-mm@kvack.org>; Wed, 12 Feb 2014 11:59:31 -0500 (EST)
+Received: by mail-we0-f182.google.com with SMTP id u57so6344091wes.27
+        for <linux-mm@kvack.org>; Wed, 12 Feb 2014 08:59:30 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id cp4si1848116wib.20.2014.02.12.08.59.28
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 12 Feb 2014 08:59:29 -0800 (PST)
+Date: Wed, 12 Feb 2014 17:59:27 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] mm, thp: fix infinite loop on memcg OOM
+Message-ID: <20140212165927.GE28085@dhcp22.suse.cz>
+References: <1392139451-15446-1-git-send-email-kirill.shutemov@linux.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <1392139451-15446-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, Cliff Wickman <cpw@sgi.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@parallels.com>, Rik van Riel <riel@redhat.com>, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, m.mizuma@jp.fujitsu.com, aarcange@redhat.com, linux-mm@kvack.org
 
-Hi Joonsoo,
-
-On Wed, Feb 12, 2014 at 02:39:56PM +0900, Joonsoo Kim wrote:
-...
-> > diff --git v3.14-rc2.orig/mm/pagewalk.c v3.14-rc2/mm/pagewalk.c
-> > index 2beeabf502c5..4770558feea8 100644
-> > --- v3.14-rc2.orig/mm/pagewalk.c
-> > +++ v3.14-rc2/mm/pagewalk.c
-> > @@ -3,29 +3,58 @@
-> >  #include <linux/sched.h>
-> >  #include <linux/hugetlb.h>
-> >  
-> > -static int walk_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
-> > -			  struct mm_walk *walk)
-> > +/*
-> > + * Check the current skip status of page table walker.
-> > + *
-> > + * Here what I mean by skip is to skip lower level walking, and that was
-> > + * determined for each entry independently. For example, when walk_pmd_range
-> > + * handles a pmd_trans_huge we don't have to walk over ptes under that pmd,
-> > + * and the skipping does not affect the walking over ptes under other pmds.
-> > + * That's why we reset @walk->skip after tested.
-> > + */
-> > +static bool skip_lower_level_walking(struct mm_walk *walk)
-> > +{
-> > +	if (walk->skip) {
-> > +		walk->skip = 0;
-> > +		return true;
-> > +	}
-> > +	return false;
-> > +}
-> > +
-> > +static int walk_pte_range(pmd_t *pmd, unsigned long addr,
-> > +				unsigned long end, struct mm_walk *walk)
-> >  {
-> > +	struct mm_struct *mm = walk->mm;
-> >  	pte_t *pte;
-> > +	pte_t *orig_pte;
-> > +	spinlock_t *ptl;
-> >  	int err = 0;
-> >  
-> > -	pte = pte_offset_map(pmd, addr);
-> > -	for (;;) {
-> > +	orig_pte = pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
-> > +	do {
-> > +		if (pte_none(*pte)) {
-> > +			if (walk->pte_hole)
-> > +				err = walk->pte_hole(addr, addr + PAGE_SIZE,
-> > +							walk);
-> > +			if (err)
-> > +				break;
-> > +			continue;
+On Tue 11-02-14 19:24:11, Kirill A. Shutemov wrote:
+> Masayoshi Mizuma has reported bug with hung of application under memcg
+> limit. It happens on write-protection fault to huge zero page
 > 
-> Hello, Naoya.
+> If we successfully allocate huge page to replace zero page, but hit
+> memcg limit we need to split zero page with split_huge_page_pmd() and
+> fallback to small pages.
 > 
-> I know that this is too late for review, but I have some opinion about this.
+> Other part problem is that VM_FAULT_OOM has special meaning in
+> do_huge_pmd_wp_page() context. __handle_mm_fault() expects the page to
+> be split if it see VM_FAULT_OOM and it will will retry page fault
+> handling. It causes infinite loop if the page was not split.
 > 
-> How about removing walk->pte_hole() function pointer and related code on generic
-> walker? walk->pte_hole() is only used by task_mmu.c and maintaining pte_hole code
-> only for task_mmu.c just give us maintanance overhead and bad readability on
-> generic code. With removing it, we can get more simpler generic walker.
-
-Yes, this can be possible, I think.
-
-> We can implement it without pte_hole() on generic walker like as below.
+> do_huge_pmd_wp_zero_page_fallback() can return VM_FAULT_OOM if it failed
+> to allocat one small page, so fallback to small pages will not help.
 > 
->   walk->dont_skip_hole = 1
->   if (pte_none(*pte) && !walk->dont_skip_hole)
->   	  continue;
-
-Currently walk->pte_hole can be called also by walk_p(g|u|m)d_range(),
-so this ->dont_skip_hole switch had better be controlled by caller
-(i.e. pagemap_read()).
-
->   call proper entry callback function which can handle pte_hole cases.
-
-yes, we can do hole handling in each level of callbacks.
-
-Now I'm preparing next series of cleanup patches following this patchset.
-So I'll add a patch implementing this idea on it.
-
-...
-> > @@ -86,13 +114,58 @@ static int walk_pud_range(pgd_t *pgd, unsigned long addr, unsigned long end,
-> >  				break;
-> >  			continue;
-> >  		}
-> > -		if (walk->pud_entry)
-> > +
-> > +		if (walk->pud_entry) {
-> >  			err = walk->pud_entry(pud, addr, next, walk);
-> > -		if (!err && (walk->pmd_entry || walk->pte_entry))
-> > +			if (skip_lower_level_walking(walk))
-> > +				continue;
-> > +			if (err)
-> > +				break;
+> The solution for this part is to replace VM_FAULT_OOM with
+> VM_FAULT_FALLBACK is fallback required.
 > 
-> Why do you check skip_lower_level_walking() prior to err check?
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Reported-by: Masayoshi Mizuma <m.mizuma@jp.fujitsu.com>
 
-No specific reason. I assumed that the callback (walk->pud_entry() in this
-example) shouldn't do both of setting walk->skip and returning non-zero value
-at one time. I'll add comment about that.
+FWIW
+Reviewed-by: Michal Hocko <mhocko@suse.cz>
 
-> I look through all patches roughly and find that this doesn't cause any problem,
-> since err is 0 whenver walk->skip = 1. But, checking err first would be better.
+> ---
+>  mm/huge_memory.c |  9 ++++++---
+>  mm/memory.c      | 14 +++-----------
+>  2 files changed, 9 insertions(+), 14 deletions(-)
+> 
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index 82166bf974e1..65a88bef8694 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -1166,8 +1166,10 @@ alloc:
+>  		} else {
+>  			ret = do_huge_pmd_wp_page_fallback(mm, vma, address,
+>  					pmd, orig_pmd, page, haddr);
+> -			if (ret & VM_FAULT_OOM)
+> +			if (ret & VM_FAULT_OOM) {
+>  				split_huge_page(page);
+> +				ret |= VM_FAULT_FALLBACK;
+> +			}
+>  			put_page(page);
+>  		}
+>  		count_vm_event(THP_FAULT_FALLBACK);
+> @@ -1179,9 +1181,10 @@ alloc:
+>  		if (page) {
+>  			split_huge_page(page);
+>  			put_page(page);
+> -		}
+> +		} else
+> +			split_huge_page_pmd(vma, address, pmd);
+> +		ret |= VM_FAULT_FALLBACK;
+>  		count_vm_event(THP_FAULT_FALLBACK);
+> -		ret |= VM_FAULT_OOM;
+>  		goto out;
+>  	}
+>  
+> diff --git a/mm/memory.c b/mm/memory.c
+> index be6a0c0d4ae0..3b57b7864667 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -3703,7 +3703,6 @@ static int __handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+>  	if (unlikely(is_vm_hugetlb_page(vma)))
+>  		return hugetlb_fault(mm, vma, address, flags);
+>  
+> -retry:
+>  	pgd = pgd_offset(mm, address);
+>  	pud = pud_alloc(mm, pgd, address);
+>  	if (!pud)
+> @@ -3741,20 +3740,13 @@ retry:
+>  			if (dirty && !pmd_write(orig_pmd)) {
+>  				ret = do_huge_pmd_wp_page(mm, vma, address, pmd,
+>  							  orig_pmd);
+> -				/*
+> -				 * If COW results in an oom, the huge pmd will
+> -				 * have been split, so retry the fault on the
+> -				 * pte for a smaller charge.
+> -				 */
+> -				if (unlikely(ret & VM_FAULT_OOM))
+> -					goto retry;
+> -				return ret;
+> +				if (!(ret & VM_FAULT_FALLBACK))
+> +					return ret;
+>  			} else {
+>  				huge_pmd_set_accessed(mm, vma, address, pmd,
+>  						      orig_pmd, dirty);
+> +				return 0;
+>  			}
+> -
+> -			return 0;
+>  		}
+>  	}
+>  
+> -- 
+> 1.8.5.2
+> 
 
-I agree, it looks safer (we can avoid misbehavior like Null pointer access.)
-I'll add it in next patchset. Thank you very much.
-
-Naoya
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
