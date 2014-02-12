@@ -1,970 +1,328 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f180.google.com (mail-we0-f180.google.com [74.125.82.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 7EC176B0031
-	for <linux-mm@kvack.org>; Wed, 12 Feb 2014 09:01:01 -0500 (EST)
-Received: by mail-we0-f180.google.com with SMTP id u57so6050888wes.11
-        for <linux-mm@kvack.org>; Wed, 12 Feb 2014 06:01:00 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id eh10si1301515wib.58.2014.02.12.06.00.59
+Received: from mail-oa0-f46.google.com (mail-oa0-f46.google.com [209.85.219.46])
+	by kanga.kvack.org (Postfix) with ESMTP id C92516B0031
+	for <linux-mm@kvack.org>; Wed, 12 Feb 2014 09:14:54 -0500 (EST)
+Received: by mail-oa0-f46.google.com with SMTP id n16so10885692oag.5
+        for <linux-mm@kvack.org>; Wed, 12 Feb 2014 06:14:54 -0800 (PST)
+Received: from comal.ext.ti.com (comal.ext.ti.com. [198.47.26.152])
+        by mx.google.com with ESMTPS id us4si11983795obc.5.2014.02.12.06.14.53
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 12 Feb 2014 06:00:59 -0800 (PST)
-Date: Wed, 12 Feb 2014 14:00:52 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [patch 5/9] mm + fs: prepare for non-page entries in page cache
- radix trees
-Message-ID: <20140212140052.GT6732@suse.de>
-References: <1389377443-11755-1-git-send-email-hannes@cmpxchg.org>
- <1389377443-11755-6-git-send-email-hannes@cmpxchg.org>
+        Wed, 12 Feb 2014 06:14:53 -0800 (PST)
+Message-ID: <52FB8E91.8030400@ti.com>
+Date: Wed, 12 Feb 2014 17:09:05 +0200
+From: Grygorii Strashko <grygorii.strashko@ti.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1389377443-11755-6-git-send-email-hannes@cmpxchg.org>
+Subject: Re: [PATCHv3 2/2] arm: Get rid of meminfo
+References: <1392153265-14439-1-git-send-email-lauraa@codeaurora.org> <1392153265-14439-3-git-send-email-lauraa@codeaurora.org>
+In-Reply-To: <1392153265-14439-3-git-send-email-lauraa@codeaurora.org>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Andrea Arcangeli <aarcange@redhat.com>, Bob Liu <bob.liu@oracle.com>, Christoph Hellwig <hch@infradead.org>, Dave Chinner <david@fromorbit.com>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Luigi Semenzato <semenzato@google.com>, Metin Doslu <metin@citusdata.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan.kim@gmail.com>, Ozgun Erdogan <ozgun@citusdata.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Roman Gushchin <klamm@yandex-team.ru>, Ryan Mallon <rmallon@gmail.com>, Tejun Heo <tj@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Laura Abbott <lauraa@codeaurora.org>, Russell King <linux@arm.linux.org.uk>, David Brown <davidb@codeaurora.org>, Daniel Walker <dwalker@fifo99.com>, Jason Cooper <jason@lakedaemon.net>, Andrew Lunn <andrew@lunn.ch>, Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>, Eric Miao <eric.y.miao@gmail.com>, Haojian Zhuang <haojian.zhuang@gmail.com>, Ben Dooks <ben-linux@fluff.org>, Kukjin Kim <kgene.kim@samsung.com>, linux-arm-kernel@lists.infradead.org
+Cc: linux-kernel@vger.kernel.org, linux-arm-msm@vger.kernel.org, Leif Lindholm <leif.lindholm@linaro.org>, Catalin Marinas <catalin.marinas@arm.com>, Rob Herring <robherring2@gmail.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <will.deacon@arm.com>, Nicolas Pitre <nicolas.pitre@linaro.org>, Santosh Shilimkar <santosh.shilimkar@ti.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Courtney Cavin <courtney.cavin@sonymobile.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Grant Likely <grant.likely@secretlab.ca>
 
-On Fri, Jan 10, 2014 at 01:10:39PM -0500, Johannes Weiner wrote:
-> shmem mappings already contain exceptional entries where swap slot
-> information is remembered.
+Hi Laura,
+
+On 02/11/2014 11:14 PM, Laura Abbott wrote:
+> memblock is now fully integrated into the kernel and is the prefered
+> method for tracking memory. Rather than reinvent the wheel with
+> meminfo, migrate to using memblock directly instead of meminfo as
+> an intermediate.
 > 
-> To be able to store eviction information for regular page cache,
-> prepare every site dealing with the radix trees directly to handle
-> entries other than pages.
-> 
-> The common lookup functions will filter out non-page entries and
-> return NULL for page cache holes, just as before.  But provide a raw
-> version of the API which returns non-page entries as well, and switch
-> shmem over to use it.
-> 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> Acked-by: Jason Cooper <jason@lakedaemon.net>
+> Acked-by: Catalin Marinas <catalin.marinas@arm.com>
+> Acked-by: Santosh Shilimkar <santosh.shilimkar@ti.com>
+> Tested-by: Leif Lindholm <leif.lindholm@linaro.org>
+> Signed-off-by: Laura Abbott <lauraa@codeaurora.org>
+> ---
+>   arch/arm/include/asm/mach/arch.h         |    4 +-
+>   arch/arm/include/asm/memblock.h          |    3 +-
+>   arch/arm/include/asm/setup.h             |   23 ------
+>   arch/arm/kernel/atags_parse.c            |    5 +-
+>   arch/arm/kernel/devtree.c                |    5 --
+>   arch/arm/kernel/setup.c                  |   30 ++------
+>   arch/arm/mach-clps711x/board-clep7312.c  |    7 +-
+>   arch/arm/mach-clps711x/board-edb7211.c   |   10 +--
+>   arch/arm/mach-clps711x/board-p720t.c     |    2 +-
+>   arch/arm/mach-footbridge/cats-hw.c       |    2 +-
+>   arch/arm/mach-footbridge/netwinder-hw.c  |    2 +-
+>   arch/arm/mach-msm/board-halibut.c        |    6 --
+>   arch/arm/mach-msm/board-mahimahi.c       |   13 +---
+>   arch/arm/mach-msm/board-msm7x30.c        |    3 +-
+>   arch/arm/mach-msm/board-sapphire.c       |   13 ++--
+>   arch/arm/mach-msm/board-trout.c          |    8 +--
+>   arch/arm/mach-orion5x/common.c           |    3 +-
+>   arch/arm/mach-orion5x/common.h           |    3 +-
+>   arch/arm/mach-pxa/cm-x300.c              |    3 +-
+>   arch/arm/mach-pxa/corgi.c                |   10 +--
+>   arch/arm/mach-pxa/eseries.c              |    9 +--
+>   arch/arm/mach-pxa/poodle.c               |    8 +--
+>   arch/arm/mach-pxa/spitz.c                |    8 +--
+>   arch/arm/mach-pxa/tosa.c                 |    8 +--
+>   arch/arm/mach-realview/core.c            |   11 +--
+>   arch/arm/mach-realview/core.h            |    3 +-
+>   arch/arm/mach-realview/realview_pb1176.c |    8 +--
+>   arch/arm/mach-realview/realview_pbx.c    |   17 ++---
+>   arch/arm/mach-s3c24xx/mach-smdk2413.c    |    8 +--
+>   arch/arm/mach-s3c24xx/mach-vstms.c       |    8 +--
+>   arch/arm/mach-sa1100/assabet.c           |    2 +-
+>   arch/arm/mm/init.c                       |   67 +++++++-----------
+>   arch/arm/mm/mmu.c                        |  115 +++++++++---------------------
 
-I know I'm really late in the game here and this isn't even a proper
-review. It's just a glancing through my inbox trying to reduce the mess
-before going offline.
+The arch/arm/mm/nommu.c has to be updated too :)
 
-> diff --git a/fs/btrfs/compression.c b/fs/btrfs/compression.c
-> index 6aad98cb343f..c88316587900 100644
-> --- a/fs/btrfs/compression.c
-> +++ b/fs/btrfs/compression.c
-> @@ -474,7 +474,7 @@ static noinline int add_ra_bio_pages(struct inode *inode,
->  		rcu_read_lock();
->  		page = radix_tree_lookup(&mapping->page_tree, pg_index);
->  		rcu_read_unlock();
-> -		if (page) {
-> +		if (page && !radix_tree_exceptional_entry(page)) {
->  			misses++;
->  			if (misses > 4)
->  				break;
+[...]
 
-For unrelated reasons this raises a red flag for me. The block of code
-looks very similar to find_or_create_page except it uses different locking
-for reasons that are not very obvious at first glance.  It's also a little
-similar to normal readahead but different enough that they cannot easily
-share code. The similarities are close enough to wonder why btrfs had
-to be special here and it now looks worse when they have to deal with
-exceptional entries.
+I've tested your change on keystone (with some additional printouts in sanity_check_meminfo())
+and got following results:
 
-It's something for the btrfs people I guess.
+- without your change + HIGHMEM=ON
+[    0.000000] ==== memblock_limit0x00000000af800000, arm_lowmem_limit0x00000000af800000 high_memoryef800000 vmalloc_limit0x00000000af800000
 
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index 8b6e55ee8855..c09ef3ae55bc 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -906,6 +906,14 @@ extern void show_free_areas(unsigned int flags);
->  extern bool skip_free_areas_node(unsigned int flags, int nid);
->  
->  int shmem_zero_setup(struct vm_area_struct *);
-> +#ifdef CONFIG_SHMEM
-> +bool shmem_mapping(struct address_space *mapping);
-> +#else
-> +static inline bool shmem_mapping(struct address_space *mapping)
-> +{
-> +	return false;
-> +}
-> +#endif
->  
->  extern int can_do_mlock(void);
->  extern int user_shm_lock(size_t, struct user_struct *);
-> diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
-> index c73130c607c4..b6854b7c58cb 100644
-> --- a/include/linux/pagemap.h
-> +++ b/include/linux/pagemap.h
-> @@ -248,12 +248,15 @@ pgoff_t page_cache_next_hole(struct address_space *mapping,
->  pgoff_t page_cache_prev_hole(struct address_space *mapping,
->  			     pgoff_t index, unsigned long max_scan);
->  
-> -extern struct page * find_get_page(struct address_space *mapping,
-> -				pgoff_t index);
-> -extern struct page * find_lock_page(struct address_space *mapping,
-> -				pgoff_t index);
-> -extern struct page * find_or_create_page(struct address_space *mapping,
-> -				pgoff_t index, gfp_t gfp_mask);
-> +struct page *__find_get_page(struct address_space *mapping, pgoff_t offset);
-> +struct page *find_get_page(struct address_space *mapping, pgoff_t offset);
-> +struct page *__find_lock_page(struct address_space *mapping, pgoff_t offset);
-> +struct page *find_lock_page(struct address_space *mapping, pgoff_t offset);
-> +struct page *find_or_create_page(struct address_space *mapping, pgoff_t index,
-> +				 gfp_t gfp_mask);
-> +unsigned __find_get_pages(struct address_space *mapping, pgoff_t start,
-> +			  unsigned int nr_pages, struct page **pages,
-> +			  pgoff_t *indices);
+ - without your change + HIGHMEM=OFF
+[    0.000000] Truncating RAM at 80000000-bfffffff to -af7fffff (vmalloc region overlap).
+[    0.000000] ==== memblock_limit0x00000000af800000, arm_lowmem_limit0x00000000af800000 high_memoryef800000 vmalloc_limit0x00000000af800000
 
-When I see foo() and __foo() in a header, my first assumption is that
-__foo() is a version of foo() that assumes the necesssary locks are
-already held. If I see it within a C file, my second assumption will be
-that it's an internal helper. Here __find_get_page is not returning just
-a page. It's returning a page or a shadow entry if they exist and that may
-cause some confusion. Consider renaming __find_get_page to find_get_entry()
-to give a hint to the reader they should be looking out for either pages
-or shadow entries. It still makes sense for find_lock_entry -- if it's a
-page, then it'll return locked etc
+- with your change + HIGHMEM=ON
+[    0.000000] ==== memblock_limit0x00000000af800000, arm_lowmem_limit0x00000000af800000 high_memoryef800000 vmalloc_limit0x00000000af800000
 
->  unsigned find_get_pages(struct address_space *mapping, pgoff_t start,
->  			unsigned int nr_pages, struct page **pages);
->  unsigned find_get_pages_contig(struct address_space *mapping, pgoff_t start,
-> diff --git a/include/linux/pagevec.h b/include/linux/pagevec.h
-> index e4dbfab37729..3c6b8b1e945b 100644
-> --- a/include/linux/pagevec.h
-> +++ b/include/linux/pagevec.h
-> @@ -22,6 +22,9 @@ struct pagevec {
->  
->  void __pagevec_release(struct pagevec *pvec);
->  void __pagevec_lru_add(struct pagevec *pvec);
-> +unsigned __pagevec_lookup(struct pagevec *pvec, struct address_space *mapping,
-> +			  pgoff_t start, unsigned nr_pages, pgoff_t *indices);
-> +void pagevec_remove_exceptionals(struct pagevec *pvec);
->  unsigned pagevec_lookup(struct pagevec *pvec, struct address_space *mapping,
->  		pgoff_t start, unsigned nr_pages);
->  unsigned pagevec_lookup_tag(struct pagevec *pvec,
-> diff --git a/include/linux/shmem_fs.h b/include/linux/shmem_fs.h
-> index 30aa0dc60d75..deb49609cd36 100644
-> --- a/include/linux/shmem_fs.h
-> +++ b/include/linux/shmem_fs.h
-> @@ -49,6 +49,7 @@ extern struct file *shmem_file_setup(const char *name,
->  					loff_t size, unsigned long flags);
->  extern int shmem_zero_setup(struct vm_area_struct *);
->  extern int shmem_lock(struct file *file, int lock, struct user_struct *user);
-> +extern bool shmem_mapping(struct address_space *mapping);
->  extern void shmem_unlock_mapping(struct address_space *mapping);
->  extern struct page *shmem_read_mapping_page_gfp(struct address_space *mapping,
->  					pgoff_t index, gfp_t gfp_mask);
-> diff --git a/mm/filemap.c b/mm/filemap.c
-> index 0746b7a4658f..23eb3be27205 100644
-> --- a/mm/filemap.c
-> +++ b/mm/filemap.c
-> @@ -446,6 +446,29 @@ int replace_page_cache_page(struct page *old, struct page *new, gfp_t gfp_mask)
->  }
->  EXPORT_SYMBOL_GPL(replace_page_cache_page);
->  
-> +static int page_cache_tree_insert(struct address_space *mapping,
-> +				  struct page *page)
-> +{
+- with your change + HIGHMEM=OFF
+[    0.000000] Truncating RAM at 0x0000000080000000-0x00000000c0000000 to -0x0000000010800000
+                                                                          ^printout changed
+[    0.000000] ==== memblock_limit0x00000000af800000, arm_lowmem_limit0x00000000af800000 high_memoryef800000 vmalloc_limit0x00000000af800000
 
-Nothing here on the locking rules for the function although the existing
-docs here are poor. Everyone knows you need the mapping lock and page lock
-here, right?
+Keystone mem defined as: from@0x80000000 size@0x40000000 (LPAE=OFF)
 
-> +	void **slot;
-> +	int error;
-> +
-> +	slot = radix_tree_lookup_slot(&mapping->page_tree, page->index);
-> +	if (slot) {
-> +		void *p;
-> +
-> +		p = radix_tree_deref_slot_protected(slot, &mapping->tree_lock);
-> +		if (!radix_tree_exceptional_entry(p))
-> +			return -EEXIST;
-> +		radix_tree_replace_slot(slot, page);
-> +		mapping->nrpages++;
-> +		return 0;
-> +	}
-> +	error = radix_tree_insert(&mapping->page_tree, page->index, page);
-> +	if (!error)
-> +		mapping->nrpages++;
-> +	return error;
-> +}
-> +
->  /**
->   * add_to_page_cache_locked - add a locked page to the pagecache
->   * @page:	page to add
-> @@ -480,11 +503,10 @@ int add_to_page_cache_locked(struct page *page, struct address_space *mapping,
->  	page->index = offset;
->  
->  	spin_lock_irq(&mapping->tree_lock);
-> -	error = radix_tree_insert(&mapping->page_tree, offset, page);
-> +	error = page_cache_tree_insert(mapping, page);
->  	radix_tree_preload_end();
->  	if (unlikely(error))
->  		goto err_insert;
-> -	mapping->nrpages++;
->  	__inc_zone_page_state(page, NR_FILE_PAGES);
->  	spin_unlock_irq(&mapping->tree_lock);
->  	trace_mm_filemap_add_to_page_cache(page);
-> @@ -712,7 +734,10 @@ pgoff_t page_cache_next_hole(struct address_space *mapping,
->  	unsigned long i;
->  
->  	for (i = 0; i < max_scan; i++) {
-> -		if (!radix_tree_lookup(&mapping->page_tree, index))
-> +		struct page *page;
-> +
-> +		page = radix_tree_lookup(&mapping->page_tree, index);
-> +		if (!page || radix_tree_exceptional_entry(page))
->  			break;
->  		index++;
->  		if (index == 0)
-> @@ -750,7 +775,10 @@ pgoff_t page_cache_prev_hole(struct address_space *mapping,
->  	unsigned long i;
->  
->  	for (i = 0; i < max_scan; i++) {
-> -		if (!radix_tree_lookup(&mapping->page_tree, index))
-> +		struct page *page;
-> +
-> +		page = radix_tree_lookup(&mapping->page_tree, index);
-> +		if (!page || radix_tree_exceptional_entry(page))
->  			break;
->  		index--;
->  		if (index == ULONG_MAX)
-> @@ -762,14 +790,19 @@ pgoff_t page_cache_prev_hole(struct address_space *mapping,
->  EXPORT_SYMBOL(page_cache_prev_hole);
->  
->  /**
-> - * find_get_page - find and get a page reference
-> + * __find_get_page - find and get a page reference
+As result, i have few comments regarding sanity_check_meminfo() changes as I think there are
+some issues &side effects changes at least in printouts - see below.
 
-This comment will be out of date when it could be returning shadow
-entries
-
->   * @mapping: the address_space to search
->   * @offset: the page index
->   *
-> - * Is there a pagecache struct page at the given (mapping, offset) tuple?
-> - * If yes, increment its refcount and return it; if no, return NULL.
-> + * Looks up the page cache slot at @mapping & @offset.  If there is a
-> + * page cache page, it is returned with an increased refcount.
-> + *
-> + * If the slot holds a shadow entry of a previously evicted page, it
-> + * is returned.
-> + *
-
-That's not true yet but who cares. Anyone doing a git blame of the history
-will need to search around the area anyway.
-
-> + * Otherwise, %NULL is returned.
->   */
-> -struct page *find_get_page(struct address_space *mapping, pgoff_t offset)
-> +struct page *__find_get_page(struct address_space *mapping, pgoff_t offset)
->  {
->  	void **pagep;
->  	struct page *page;
-> @@ -810,24 +843,49 @@ out:
->  
->  	return page;
->  }
-> +EXPORT_SYMBOL(__find_get_page);
-> +
-> +/**
-> + * find_get_page - find and get a page reference
-> + * @mapping: the address_space to search
-> + * @offset: the page index
-> + *
-> + * Looks up the page cache slot at @mapping & @offset.  If there is a
-> + * page cache page, it is returned with an increased refcount.
-> + *
-> + * Otherwise, %NULL is returned.
-> + */
-> +struct page *find_get_page(struct address_space *mapping, pgoff_t offset)
-> +{
-> +	struct page *page = __find_get_page(mapping, offset);
-> +
-> +	if (radix_tree_exceptional_entry(page))
-> +		page = NULL;
-> +	return page;
-> +}
->  EXPORT_SYMBOL(find_get_page);
->  
->  /**
-> - * find_lock_page - locate, pin and lock a pagecache page
-> + * __find_lock_page - locate, pin and lock a pagecache page
->   * @mapping: the address_space to search
->   * @offset: the page index
->   *
-> - * Locates the desired pagecache page, locks it, increments its reference
-> - * count and returns its address.
-> + * Looks up the page cache slot at @mapping & @offset.  If there is a
-> + * page cache page, it is returned locked and with an increased
-> + * refcount.
-> + *
-> + * If the slot holds a shadow entry of a previously evicted page, it
-> + * is returned.
-> + *
-> + * Otherwise, %NULL is returned.
->   *
-> - * Returns zero if the page was not present. find_lock_page() may sleep.
-> + * __find_lock_page() may sleep.
->   */
-> -struct page *find_lock_page(struct address_space *mapping, pgoff_t offset)
-> +struct page *__find_lock_page(struct address_space *mapping, pgoff_t offset)
->  {
->  	struct page *page;
+>   	memblock_reserve(__pa(_sdata), _end - _sdata);
+> @@ -413,54 +397,53 @@ free_memmap(unsigned long start_pfn, unsigned long end_pfn)
+>   /*
+>    * The mem_map array can get very big.  Free the unused area of the memory map.
+>    */
+> -static void __init free_unused_memmap(struct meminfo *mi)
+> +static void __init free_unused_memmap(void)
+>   {
+> -	unsigned long bank_start, prev_bank_end = 0;
+> -	unsigned int i;
+> +	unsigned long start, prev_end = 0;
+> +	struct memblock_region *reg;
+>   
+>   	/*
+>   	 * This relies on each bank being in address order.
+>   	 * The banks are sorted previously in bootmem_init().
+>   	 */
+> -	for_each_bank(i, mi) {
+> -		struct membank *bank = &mi->bank[i];
 > -
->  repeat:
+> -		bank_start = bank_pfn_start(bank);
+> +	for_each_memblock(memory, reg) {
+> +		start = __phys_to_pfn(reg->base);
 
-Unnecessary whitespace change.
+memblock_region_memory_base_pfn() can be used here.
 
-> -	page = find_get_page(mapping, offset);
-> +	page = __find_get_page(mapping, offset);
->  	if (page && !radix_tree_exception(page)) {
->  		lock_page(page);
->  		/* Has the page been truncated? */
+>   
+>   #ifdef CONFIG_SPARSEMEM
+>   		/*
+>   		 * Take care not to free memmap entries that don't exist
+>   		 * due to SPARSEMEM sections which aren't present.
+>   		 */
+> -		bank_start = min(bank_start,
+> -				 ALIGN(prev_bank_end, PAGES_PER_SECTION));
+> +		start = min(start,
+> +				 ALIGN(prev_end, PAGES_PER_SECTION));
+>   #else
+>   		/*
+>   		 * Align down here since the VM subsystem insists that the
+>   		 * memmap entries are valid from the bank start aligned to
+>   		 * MAX_ORDER_NR_PAGES.
+>   		 */
+> -		bank_start = round_down(bank_start, MAX_ORDER_NR_PAGES);
+> +		start = round_down(start, MAX_ORDER_NR_PAGES);
+>   #endif
+>   		/*
+>   		 * If we had a previous bank, and there is a space
+>   		 * between the current bank and the previous, free it.
+>   		 */
+> -		if (prev_bank_end && prev_bank_end < bank_start)
+> -			free_memmap(prev_bank_end, bank_start);
+> +		if (prev_end && prev_end < start)
+> +			free_memmap(prev_end, start);
+>   
+>   		/*
+>   		 * Align up here since the VM subsystem insists that the
+>   		 * memmap entries are valid from the bank end aligned to
+>   		 * MAX_ORDER_NR_PAGES.
+>   		 */
+> -		prev_bank_end = ALIGN(bank_pfn_end(bank), MAX_ORDER_NR_PAGES);
+> +		prev_end = ALIGN(start + __phys_to_pfn(reg->size),
 
-Just as an example, if this was find_get_entry() it would be a lot
-clearer that the return value may or may not be a page.
+I think, start + __phys_to_pfn(reg->size) can be replaced by
+memblock_region_memory_end_pfn().
 
-> @@ -840,6 +898,29 @@ repeat:
->  	}
->  	return page;
->  }
-> +EXPORT_SYMBOL(__find_lock_page);
-> +
-> +/**
-> + * find_lock_page - locate, pin and lock a pagecache page
-> + * @mapping: the address_space to search
-> + * @offset: the page index
-> + *
-> + * Looks up the page cache slot at @mapping & @offset.  If there is a
-> + * page cache page, it is returned locked and with an increased
-> + * refcount.
-> + *
-> + * Otherwise, %NULL is returned.
-> + *
-> + * find_lock_page() may sleep.
-> + */
-> +struct page *find_lock_page(struct address_space *mapping, pgoff_t offset)
-> +{
-> +	struct page *page = __find_lock_page(mapping, offset);
-> +
-> +	if (radix_tree_exceptional_entry(page))
-> +		page = NULL;
-> +	return page;
-> +}
->  EXPORT_SYMBOL(find_lock_page);
->  
->  /**
-> @@ -848,16 +929,18 @@ EXPORT_SYMBOL(find_lock_page);
->   * @index: the page's index into the mapping
->   * @gfp_mask: page allocation mode
->   *
-> - * Locates a page in the pagecache.  If the page is not present, a new page
-> - * is allocated using @gfp_mask and is added to the pagecache and to the VM's
-> - * LRU list.  The returned page is locked and has its reference count
-> - * incremented.
-> + * Looks up the page cache slot at @mapping & @offset.  If there is a
-> + * page cache page, it is returned locked and with an increased
-> + * refcount.
->   *
-> - * find_or_create_page() may sleep, even if @gfp_flags specifies an atomic
-> - * allocation!
-> + * If the page is not present, a new page is allocated using @gfp_mask
-> + * and added to the page cache and the VM's LRU list.  The page is
-> + * returned locked and with an increased refcount.
->   *
-> - * find_or_create_page() returns the desired page's address, or zero on
-> - * memory exhaustion.
-> + * On memory exhaustion, %NULL is returned.
-> + *
-> + * find_or_create_page() may sleep, even if @gfp_flags specifies an
-> + * atomic allocation!
->   */
->  struct page *find_or_create_page(struct address_space *mapping,
->  		pgoff_t index, gfp_t gfp_mask)
-> @@ -890,6 +973,73 @@ repeat:
->  EXPORT_SYMBOL(find_or_create_page);
->  
->  /**
-> + * __find_get_pages - gang pagecache lookup
-> + * @mapping:	The address_space to search
-> + * @start:	The starting page index
-> + * @nr_pages:	The maximum number of pages
-> + * @pages:	Where the resulting pages are placed
-> + *
-> + * __find_get_pages() will search for and return a group of up to
-> + * @nr_pages pages in the mapping.  The pages are placed at @pages.
-> + * __find_get_pages() takes a reference against the returned pages.
-> + *
-> + * The search returns a group of mapping-contiguous pages with ascending
-> + * indexes.  There may be holes in the indices due to not-present pages.
-> + *
-> + * Any shadow entries of evicted pages are included in the returned
-> + * array.
-> + *
-> + * __find_get_pages() returns the number of pages and shadow entries
-> + * which were found.
-> + */
-> +unsigned __find_get_pages(struct address_space *mapping,
-> +			  pgoff_t start, unsigned int nr_pages,
-> +			  struct page **pages, pgoff_t *indices)
-> +{
-> +	void **slot;
-> +	unsigned int ret = 0;
-> +	struct radix_tree_iter iter;
-> +
-> +	if (!nr_pages)
-> +		return 0;
-> +
-> +	rcu_read_lock();
-> +restart:
-> +	radix_tree_for_each_slot(slot, &mapping->page_tree, &iter, start) {
-> +		struct page *page;
-> +repeat:
-> +		page = radix_tree_deref_slot(slot);
-> +		if (unlikely(!page))
-> +			continue;
-> +		if (radix_tree_exception(page)) {
-> +			if (radix_tree_deref_retry(page))
-> +				goto restart;
-> +			/*
-> +			 * Otherwise, we must be storing a swap entry
-> +			 * here as an exceptional entry: so return it
-> +			 * without attempting to raise page count.
-> +			 */
-> +			goto export;
-> +		}
-
-There is a non-obvious API hazard here that should be called out in
-the function description. shmem was the previous gang lookup user and
-it knew that there would be swap entries and removed them if necessary
-with shmem_deswap_pagevec. It was internal to shmem.c so it could deal
-with the complexity. Now that you are making it a generic function it
-should clearly explain that exceptional entries can be returned and
-pagevec_remove_exceptionals should be used to remove them if necessary
-or else split the helper in two to return just pages or both pages and
-exceptional entries.
-
-> +		if (!page_cache_get_speculative(page))
-> +			goto repeat;
-> +
-> +		/* Has the page moved? */
-> +		if (unlikely(page != *slot)) {
-> +			page_cache_release(page);
-> +			goto repeat;
-> +		}
-> +export:
-> +		indices[ret] = iter.index;
-> +		pages[ret] = page;
-> +		if (++ret == nr_pages)
-> +			break;
-> +	}
-> +	rcu_read_unlock();
-> +	return ret;
-> +}
-> +
-> +/**
->   * find_get_pages - gang pagecache lookup
->   * @mapping:	The address_space to search
->   * @start:	The starting page index
-> diff --git a/mm/mincore.c b/mm/mincore.c
-> index da2be56a7b8f..ad411ec86a55 100644
-> --- a/mm/mincore.c
-> +++ b/mm/mincore.c
-> @@ -70,13 +70,21 @@ static unsigned char mincore_page(struct address_space *mapping, pgoff_t pgoff)
->  	 * any other file mapping (ie. marked !present and faulted in with
->  	 * tmpfs's .fault). So swapped out tmpfs mappings are tested here.
->  	 */
-> -	page = find_get_page(mapping, pgoff);
->  #ifdef CONFIG_SWAP
-> -	/* shmem/tmpfs may return swap: account for swapcache page too. */
-> -	if (radix_tree_exceptional_entry(page)) {
-> -		swp_entry_t swap = radix_to_swp_entry(page);
-> -		page = find_get_page(swap_address_space(swap), swap.val);
-> -	}
-> +	if (shmem_mapping(mapping)) {
-> +		page = __find_get_page(mapping, pgoff);
-> +		/*
-> +		 * shmem/tmpfs may return swap: account for swapcache
-> +		 * page too.
-> +		 */
-> +		if (radix_tree_exceptional_entry(page)) {
-> +			swp_entry_t swp = radix_to_swp_entry(page);
-> +			page = find_get_page(swap_address_space(swp), swp.val);
-> +		}
-> +	} else
-> +		page = find_get_page(mapping, pgoff);
-> +#else
-> +	page = find_get_page(mapping, pgoff);
->  #endif
->  	if (page) {
->  		present = PageUptodate(page);
-> diff --git a/mm/readahead.c b/mm/readahead.c
-> index 9eeeeda4ac0e..912c00358112 100644
-> --- a/mm/readahead.c
-> +++ b/mm/readahead.c
-> @@ -179,7 +179,7 @@ __do_page_cache_readahead(struct address_space *mapping, struct file *filp,
->  		rcu_read_lock();
->  		page = radix_tree_lookup(&mapping->page_tree, page_offset);
->  		rcu_read_unlock();
-> -		if (page)
-> +		if (page && !radix_tree_exceptional_entry(page))
->  			continue;
->  
->  		page = page_cache_alloc_readahead(mapping);
-
-Maybe just think hunk can be split out and shared with btrfs to avoid it
-dealing with exceptional entries although I've no good suggestions on what
-you'd call it.
-
-> diff --git a/mm/shmem.c b/mm/shmem.c
-> index 7c67249d6f28..1f4b65f7b831 100644
-> --- a/mm/shmem.c
-> +++ b/mm/shmem.c
-> @@ -329,56 +329,6 @@ static void shmem_delete_from_page_cache(struct page *page, void *radswap)
->  }
->  
->  /*
-> - * Like find_get_pages, but collecting swap entries as well as pages.
-> - */
-> -static unsigned shmem_find_get_pages_and_swap(struct address_space *mapping,
-> -					pgoff_t start, unsigned int nr_pages,
-> -					struct page **pages, pgoff_t *indices)
-> -{
-> -	void **slot;
-> -	unsigned int ret = 0;
-> -	struct radix_tree_iter iter;
+> +				 MAX_ORDER_NR_PAGES);
+>   	}
+>   
+>   #ifdef CONFIG_SPARSEMEM
+> -	if (!IS_ALIGNED(prev_bank_end, PAGES_PER_SECTION))
+> -		free_memmap(prev_bank_end,
+> -			    ALIGN(prev_bank_end, PAGES_PER_SECTION));
+> +	if (!IS_ALIGNED(prev_end, PAGES_PER_SECTION))
+> +		free_memmap(prev_end,
+> +			    ALIGN(prev_end, PAGES_PER_SECTION));
+>   #endif
+>   }
+>   
+> @@ -536,7 +519,7 @@ void __init mem_init(void)
+>   	set_max_mapnr(pfn_to_page(max_pfn) - mem_map);
+>   
+>   	/* this will put all unused low memory onto the freelists */
+> -	free_unused_memmap(&meminfo);
+> +	free_unused_memmap();
+>   	free_all_bootmem();
+>   
+>   #ifdef CONFIG_SA1111
+> diff --git a/arch/arm/mm/mmu.c b/arch/arm/mm/mmu.c
+> index 4f08c13..23433ef 100644
+> --- a/arch/arm/mm/mmu.c
+> +++ b/arch/arm/mm/mmu.c
+> @@ -1046,74 +1046,44 @@ phys_addr_t arm_lowmem_limit __initdata = 0;
+>   void __init sanity_check_meminfo(void)
+>   {
+>   	phys_addr_t memblock_limit = 0;
+> -	int i, j, highmem = 0;
+> +	int highmem = 0;
+>   	phys_addr_t vmalloc_limit = __pa(vmalloc_min - 1) + 1;
+> +	struct memblock_region *reg;
+>   
+> -	for (i = 0, j = 0; i < meminfo.nr_banks; i++) {
+> -		struct membank *bank = &meminfo.bank[j];
+> -		phys_addr_t size_limit;
 > -
-> -	if (!nr_pages)
-> -		return 0;
-> -
-> -	rcu_read_lock();
-> -restart:
-> -	radix_tree_for_each_slot(slot, &mapping->page_tree, &iter, start) {
-> -		struct page *page;
-> -repeat:
-> -		page = radix_tree_deref_slot(slot);
-> -		if (unlikely(!page))
+> -		*bank = meminfo.bank[i];
+> -		size_limit = bank->size;
+> +	for_each_memblock(memory, reg) {
+> +		phys_addr_t block_start = reg->base;
+> +		phys_addr_t block_end = reg->base + reg->size;
+> +		phys_addr_t size_limit = reg->size;
+>   
+> -		if (bank->start >= vmalloc_limit)
+> +		if (reg->base >= vmalloc_limit)
+>   			highmem = 1;
+>   		else
+> -			size_limit = vmalloc_limit - bank->start;
+> +			size_limit = vmalloc_limit - reg->base;
+>   
+> -		bank->highmem = highmem;
+>   
+> -#ifdef CONFIG_HIGHMEM
+> -		/*
+> -		 * Split those memory banks which are partially overlapping
+> -		 * the vmalloc area greatly simplifying things later.
+> -		 */
+> -		if (!highmem && bank->size > size_limit) {
+> -			if (meminfo.nr_banks >= NR_BANKS) {
+> -				printk(KERN_CRIT "NR_BANKS too low, "
+> -						 "ignoring high memory\n");
+> -			} else {
+> -				memmove(bank + 1, bank,
+> -					(meminfo.nr_banks - i) * sizeof(*bank));
+> -				meminfo.nr_banks++;
+> -				i++;
+> -				bank[1].size -= size_limit;
+> -				bank[1].start = vmalloc_limit;
+> -				bank[1].highmem = highmem = 1;
+> -				j++;
+> +		if (!IS_ENABLED(CONFIG_HIGHMEM) || cache_is_vipt_aliasing()) {
+> +
+> +			if (highmem) {
+> +				pr_notice("Ignoring ram at %pa-%pa (!CONFIG_HIGHMEM)\n",
+> +					&block_start, &block_end);
+> +				memblock_remove(block_start, block_end);
+
+The wrong size is used here, should be => memblock_remove(block_start, reg->size);
+or => memblock_remove(block_start, size_limit);
+
+> +				continue;
+>   			}
+> -			bank->size = size_limit;
+> -		}
+> -#else
+> -		/*
+> -		 * Highmem banks not allowed with !CONFIG_HIGHMEM.
+> -		 */
+> -		if (highmem) {
+> -			printk(KERN_NOTICE "Ignoring RAM at %.8llx-%.8llx "
+> -			       "(!CONFIG_HIGHMEM).\n",
+> -			       (unsigned long long)bank->start,
+> -			       (unsigned long long)bank->start + bank->size - 1);
 > -			continue;
-> -		if (radix_tree_exception(page)) {
-> -			if (radix_tree_deref_retry(page))
-> -				goto restart;
-> -			/*
-> -			 * Otherwise, we must be storing a swap entry
-> -			 * here as an exceptional entry: so return it
-> -			 * without attempting to raise page count.
-> -			 */
-> -			goto export;
 > -		}
-> -		if (!page_cache_get_speculative(page))
-> -			goto repeat;
-> -
-> -		/* Has the page moved? */
-> -		if (unlikely(page != *slot)) {
-> -			page_cache_release(page);
-> -			goto repeat;
-> -		}
-> -export:
-> -		indices[ret] = iter.index;
-> -		pages[ret] = page;
-> -		if (++ret == nr_pages)
-> -			break;
-> -	}
-> -	rcu_read_unlock();
-> -	return ret;
-> -}
-> -
-> -/*
->   * Remove swap entry from radix tree, free the swap and its page cache.
->   */
->  static int shmem_free_swap(struct address_space *mapping,
-> @@ -396,21 +346,6 @@ static int shmem_free_swap(struct address_space *mapping,
->  }
->  
->  /*
-> - * Pagevec may contain swap entries, so shuffle up pages before releasing.
-> - */
-> -static void shmem_deswap_pagevec(struct pagevec *pvec)
-> -{
-> -	int i, j;
-> -
-> -	for (i = 0, j = 0; i < pagevec_count(pvec); i++) {
-> -		struct page *page = pvec->pages[i];
-> -		if (!radix_tree_exceptional_entry(page))
-> -			pvec->pages[j++] = page;
-> -	}
-> -	pvec->nr = j;
-> -}
-> -
-> -/*
->   * SysV IPC SHM_UNLOCK restore Unevictable pages to their evictable lists.
->   */
->  void shmem_unlock_mapping(struct address_space *mapping)
-> @@ -428,12 +363,12 @@ void shmem_unlock_mapping(struct address_space *mapping)
->  		 * Avoid pagevec_lookup(): find_get_pages() returns 0 as if it
->  		 * has finished, if it hits a row of PAGEVEC_SIZE swap entries.
->  		 */
-> -		pvec.nr = shmem_find_get_pages_and_swap(mapping, index,
-> +		pvec.nr = __find_get_pages(mapping, index,
->  					PAGEVEC_SIZE, pvec.pages, indices);
->  		if (!pvec.nr)
->  			break;
->  		index = indices[pvec.nr - 1] + 1;
-> -		shmem_deswap_pagevec(&pvec);
-> +		pagevec_remove_exceptionals(&pvec);
->  		check_move_unevictable_pages(pvec.pages, pvec.nr);
->  		pagevec_release(&pvec);
->  		cond_resched();
-> @@ -465,9 +400,9 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
->  	pagevec_init(&pvec, 0);
->  	index = start;
->  	while (index < end) {
-> -		pvec.nr = shmem_find_get_pages_and_swap(mapping, index,
-> -				min(end - index, (pgoff_t)PAGEVEC_SIZE),
-> -							pvec.pages, indices);
-> +		pvec.nr = __find_get_pages(mapping, index,
-> +			min(end - index, (pgoff_t)PAGEVEC_SIZE),
-> +			pvec.pages, indices);
->  		if (!pvec.nr)
->  			break;
->  		mem_cgroup_uncharge_start();
-> @@ -496,7 +431,7 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
->  			}
->  			unlock_page(page);
->  		}
-> -		shmem_deswap_pagevec(&pvec);
-> +		pagevec_remove_exceptionals(&pvec);
->  		pagevec_release(&pvec);
->  		mem_cgroup_uncharge_end();
->  		cond_resched();
-> @@ -534,9 +469,10 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
->  	index = start;
->  	for ( ; ; ) {
->  		cond_resched();
-> -		pvec.nr = shmem_find_get_pages_and_swap(mapping, index,
+>   
+> -		/*
+> -		 * Check whether this memory bank would partially overlap
+> -		 * the vmalloc area.
+> -		 */
+> -		if (bank->size > size_limit) {
+> -			printk(KERN_NOTICE "Truncating RAM at %.8llx-%.8llx "
+> -			       "to -%.8llx (vmalloc region overlap).\n",
+> -			       (unsigned long long)bank->start,
+> -			       (unsigned long long)bank->start + bank->size - 1,
+> -			       (unsigned long long)bank->start + size_limit - 1);
+> -			bank->size = size_limit;
+> +			if (reg->size > size_limit) {
+> +				phys_addr_t overlap_size = reg->size - size_limit;
 > +
-> +		pvec.nr = __find_get_pages(mapping, index,
->  				min(end - index, (pgoff_t)PAGEVEC_SIZE),
-> -							pvec.pages, indices);
-> +				pvec.pages, indices);
->  		if (!pvec.nr) {
->  			if (index == start || unfalloc)
->  				break;
-> @@ -544,7 +480,7 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
->  			continue;
->  		}
->  		if ((index == start || unfalloc) && indices[0] >= end) {
-> -			shmem_deswap_pagevec(&pvec);
-> +			pagevec_remove_exceptionals(&pvec);
->  			pagevec_release(&pvec);
->  			break;
->  		}
-> @@ -573,7 +509,7 @@ static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
->  			}
->  			unlock_page(page);
->  		}
-> -		shmem_deswap_pagevec(&pvec);
-> +		pagevec_remove_exceptionals(&pvec);
->  		pagevec_release(&pvec);
->  		mem_cgroup_uncharge_end();
->  		index++;
-> @@ -1081,7 +1017,7 @@ static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
->  		return -EFBIG;
->  repeat:
->  	swap.val = 0;
-> -	page = find_lock_page(mapping, index);
-> +	page = __find_lock_page(mapping, index);
->  	if (radix_tree_exceptional_entry(page)) {
->  		swap = radix_to_swp_entry(page);
->  		page = NULL;
-> @@ -1418,6 +1354,11 @@ static struct inode *shmem_get_inode(struct super_block *sb, const struct inode
->  	return inode;
->  }
->  
-> +bool shmem_mapping(struct address_space *mapping)
-> +{
-> +	return mapping->backing_dev_info == &shmem_backing_dev_info;
-> +}
-> +
->  #ifdef CONFIG_TMPFS
->  static const struct inode_operations shmem_symlink_inode_operations;
->  static const struct inode_operations shmem_short_symlink_operations;
-> @@ -1730,7 +1671,7 @@ static pgoff_t shmem_seek_hole_data(struct address_space *mapping,
->  	pagevec_init(&pvec, 0);
->  	pvec.nr = 1;		/* start small: we may be there already */
->  	while (!done) {
-> -		pvec.nr = shmem_find_get_pages_and_swap(mapping, index,
-> +		pvec.nr = __find_get_pages(mapping, index,
->  					pvec.nr, pvec.pages, indices);
->  		if (!pvec.nr) {
->  			if (whence == SEEK_DATA)
-> @@ -1757,7 +1698,7 @@ static pgoff_t shmem_seek_hole_data(struct address_space *mapping,
->  				break;
->  			}
->  		}
-> -		shmem_deswap_pagevec(&pvec);
-> +		pagevec_remove_exceptionals(&pvec);
->  		pagevec_release(&pvec);
->  		pvec.nr = PAGEVEC_SIZE;
->  		cond_resched();
-> diff --git a/mm/swap.c b/mm/swap.c
-> index 759c3caf44bd..f624e5b4b724 100644
-> --- a/mm/swap.c
-> +++ b/mm/swap.c
-> @@ -894,6 +894,53 @@ EXPORT_SYMBOL(__pagevec_lru_add);
->  
->  /**
->   * pagevec_lookup - gang pagecache lookup
-> + * @pvec:	Where the resulting entries are placed
-> + * @mapping:	The address_space to search
-> + * @start:	The starting entry index
-> + * @nr_pages:	The maximum number of entries
-> + *
-> + * pagevec_lookup() will search for and return a group of up to
-> + * @nr_pages pages and shadow entries in the mapping.  All entries are
-> + * placed in @pvec.  pagevec_lookup() takes a reference against actual
-> + * pages in @pvec.
-> + *
-> + * The search returns a group of mapping-contiguous entries with
-> + * ascending indexes.  There may be holes in the indices due to
-> + * not-present entries.
-> + *
-> + * pagevec_lookup() returns the number of entries which were found.
-> + */
-> +unsigned __pagevec_lookup(struct pagevec *pvec, struct address_space *mapping,
-> +			  pgoff_t start, unsigned nr_pages, pgoff_t *indices)
-> +{
-> +	pvec->nr = __find_get_pages(mapping, start, nr_pages,
-> +				    pvec->pages, indices);
-> +	return pagevec_count(pvec);
-> +}
-> +
-> +/**
-> + * pagevec_remove_exceptionals - pagevec exceptionals pruning
-> + * @pvec:	The pagevec to prune
-> + *
-> + * __pagevec_lookup() fills both pages and exceptional radix tree
-> + * entries into the pagevec.  This function prunes all exceptionals
-> + * from @pvec without leaving holes, so that it can be passed on to
-> + * other pagevec operations.
-> + */
-> +void pagevec_remove_exceptionals(struct pagevec *pvec)
-> +{
-> +	int i, j;
-> +
-> +	for (i = 0, j = 0; i < pagevec_count(pvec); i++) {
-> +		struct page *page = pvec->pages[i];
-> +		if (!radix_tree_exceptional_entry(page))
-> +			pvec->pages[j++] = page;
-> +	}
-> +	pvec->nr = j;
-> +}
-> +
-> +/**
-> + * pagevec_lookup - gang pagecache lookup
->   * @pvec:	Where the resulting pages are placed
->   * @mapping:	The address_space to search
->   * @start:	The starting page index
-> diff --git a/mm/truncate.c b/mm/truncate.c
-> index 353b683afd6e..b0f4d4bee8ab 100644
-> --- a/mm/truncate.c
-> +++ b/mm/truncate.c
-> @@ -22,6 +22,22 @@
->  #include <linux/cleancache.h>
->  #include "internal.h"
->  
-> +static void clear_exceptional_entry(struct address_space *mapping,
-> +				    pgoff_t index, void *entry)
-> +{
-> +	/* Handled by shmem itself */
-> +	if (shmem_mapping(mapping))
-> +		return;
-> +
-> +	spin_lock_irq(&mapping->tree_lock);
-> +	/*
-> +	 * Regular page slots are stabilized by the page lock even
-> +	 * without the tree itself locked.  These unlocked entries
-> +	 * need verification under the tree lock.
-> +	 */
-> +	radix_tree_delete_item(&mapping->page_tree, index, entry);
-> +	spin_unlock_irq(&mapping->tree_lock);
-> +}
->  
->  /**
->   * do_invalidatepage - invalidate part or all of a page
-> @@ -208,6 +224,7 @@ void truncate_inode_pages_range(struct address_space *mapping,
->  	unsigned int	partial_start;	/* inclusive */
->  	unsigned int	partial_end;	/* exclusive */
->  	struct pagevec	pvec;
-> +	pgoff_t		indices[PAGEVEC_SIZE];
->  	pgoff_t		index;
->  	int		i;
->  
-> @@ -238,17 +255,23 @@ void truncate_inode_pages_range(struct address_space *mapping,
->  
->  	pagevec_init(&pvec, 0);
->  	index = start;
-> -	while (index < end && pagevec_lookup(&pvec, mapping, index,
-> -			min(end - index, (pgoff_t)PAGEVEC_SIZE))) {
-> +	while (index < end && __pagevec_lookup(&pvec, mapping, index,
-> +			min(end - index, (pgoff_t)PAGEVEC_SIZE),
-> +			indices)) {
->  		mem_cgroup_uncharge_start();
->  		for (i = 0; i < pagevec_count(&pvec); i++) {
->  			struct page *page = pvec.pages[i];
->  
->  			/* We rely upon deletion not changing page->index */
-> -			index = page->index;
-> +			index = indices[i];
->  			if (index >= end)
->  				break;
->  
-> +			if (radix_tree_exceptional_entry(page)) {
-> +				clear_exceptional_entry(mapping, index, page);
-> +				continue;
-> +			}
-> +
->  			if (!trylock_page(page))
->  				continue;
->  			WARN_ON(page->index != index);
-> @@ -259,6 +282,7 @@ void truncate_inode_pages_range(struct address_space *mapping,
->  			truncate_inode_page(mapping, page);
->  			unlock_page(page);
->  		}
-> +		pagevec_remove_exceptionals(&pvec);
->  		pagevec_release(&pvec);
->  		mem_cgroup_uncharge_end();
->  		cond_resched();
-> @@ -307,14 +331,15 @@ void truncate_inode_pages_range(struct address_space *mapping,
->  	index = start;
->  	for ( ; ; ) {
->  		cond_resched();
-> -		if (!pagevec_lookup(&pvec, mapping, index,
-> -			min(end - index, (pgoff_t)PAGEVEC_SIZE))) {
-> +		if (!__pagevec_lookup(&pvec, mapping, index,
-> +			min(end - index, (pgoff_t)PAGEVEC_SIZE),
-> +			indices)) {
->  			if (index == start)
->  				break;
->  			index = start;
->  			continue;
->  		}
-> -		if (index == start && pvec.pages[0]->index >= end) {
-> +		if (index == start && indices[0] >= end) {
->  			pagevec_release(&pvec);
->  			break;
->  		}
-> @@ -323,16 +348,22 @@ void truncate_inode_pages_range(struct address_space *mapping,
->  			struct page *page = pvec.pages[i];
->  
->  			/* We rely upon deletion not changing page->index */
-> -			index = page->index;
-> +			index = indices[i];
->  			if (index >= end)
->  				break;
->  
-> +			if (radix_tree_exceptional_entry(page)) {
-> +				clear_exceptional_entry(mapping, index, page);
-> +				continue;
-> +			}
-> +
->  			lock_page(page);
->  			WARN_ON(page->index != index);
->  			wait_on_page_writeback(page);
->  			truncate_inode_page(mapping, page);
->  			unlock_page(page);
->  		}
-> +		pagevec_remove_exceptionals(&pvec);
->  		pagevec_release(&pvec);
->  		mem_cgroup_uncharge_end();
->  		index++;
-> @@ -375,6 +406,7 @@ EXPORT_SYMBOL(truncate_inode_pages);
->  unsigned long invalidate_mapping_pages(struct address_space *mapping,
->  		pgoff_t start, pgoff_t end)
->  {
-> +	pgoff_t indices[PAGEVEC_SIZE];
->  	struct pagevec pvec;
->  	pgoff_t index = start;
->  	unsigned long ret;
-> @@ -390,17 +422,23 @@ unsigned long invalidate_mapping_pages(struct address_space *mapping,
->  	 */
->  
->  	pagevec_init(&pvec, 0);
-> -	while (index <= end && pagevec_lookup(&pvec, mapping, index,
-> -			min(end - index, (pgoff_t)PAGEVEC_SIZE - 1) + 1)) {
-> +	while (index <= end && __pagevec_lookup(&pvec, mapping, index,
-> +			min(end - index, (pgoff_t)PAGEVEC_SIZE - 1) + 1,
-> +			indices)) {
->  		mem_cgroup_uncharge_start();
->  		for (i = 0; i < pagevec_count(&pvec); i++) {
->  			struct page *page = pvec.pages[i];
->  
->  			/* We rely upon deletion not changing page->index */
-> -			index = page->index;
-> +			index = indices[i];
->  			if (index > end)
->  				break;
->  
-> +			if (radix_tree_exceptional_entry(page)) {
-> +				clear_exceptional_entry(mapping, index, page);
-> +				continue;
-> +			}
-> +
->  			if (!trylock_page(page))
->  				continue;
->  			WARN_ON(page->index != index);
-> @@ -414,6 +452,7 @@ unsigned long invalidate_mapping_pages(struct address_space *mapping,
->  				deactivate_page(page);
->  			count += ret;
->  		}
-> +		pagevec_remove_exceptionals(&pvec);
->  		pagevec_release(&pvec);
->  		mem_cgroup_uncharge_end();
->  		cond_resched();
-> @@ -481,6 +520,7 @@ static int do_launder_page(struct address_space *mapping, struct page *page)
->  int invalidate_inode_pages2_range(struct address_space *mapping,
->  				  pgoff_t start, pgoff_t end)
->  {
-> +	pgoff_t indices[PAGEVEC_SIZE];
->  	struct pagevec pvec;
->  	pgoff_t index;
->  	int i;
-> @@ -491,17 +531,23 @@ int invalidate_inode_pages2_range(struct address_space *mapping,
->  	cleancache_invalidate_inode(mapping);
->  	pagevec_init(&pvec, 0);
->  	index = start;
-> -	while (index <= end && pagevec_lookup(&pvec, mapping, index,
-> -			min(end - index, (pgoff_t)PAGEVEC_SIZE - 1) + 1)) {
-> +	while (index <= end && __pagevec_lookup(&pvec, mapping, index,
-> +			min(end - index, (pgoff_t)PAGEVEC_SIZE - 1) + 1,
-> +			indices)) {
->  		mem_cgroup_uncharge_start();
->  		for (i = 0; i < pagevec_count(&pvec); i++) {
->  			struct page *page = pvec.pages[i];
->  
->  			/* We rely upon deletion not changing page->index */
-> -			index = page->index;
-> +			index = indices[i];
->  			if (index > end)
->  				break;
->  
-> +			if (radix_tree_exceptional_entry(page)) {
-> +				clear_exceptional_entry(mapping, index, page);
-> +				continue;
-> +			}
-> +
->  			lock_page(page);
->  			WARN_ON(page->index != index);
->  			if (page->mapping != mapping) {
-> @@ -539,6 +585,7 @@ int invalidate_inode_pages2_range(struct address_space *mapping,
->  				ret = ret2;
->  			unlock_page(page);
->  		}
-> +		pagevec_remove_exceptionals(&pvec);
->  		pagevec_release(&pvec);
->  		mem_cgroup_uncharge_end();
->  		cond_resched();
+> +				pr_notice("Truncating RAM at %pa-%pa to -%pa",
+> +					&block_start, &block_end, &overlap_size);
 
--- 
-Mel Gorman
-SUSE Labs
+Pls, change it back to show new RAM limit instead of size.
+pr_notice("Truncating RAM at %pa-%pa to -%pa",
+				&block_start, &block_end, &vmalloc_limit);
+
+
+> +				memblock_remove(vmalloc_limit, overlap_size);
+> +				block_end = vmalloc_limit;
+> +			}
+>   		}
+> -#endif
+> -		if (!bank->highmem) {
+> -			phys_addr_t bank_end = bank->start + bank->size;
+>   
+> -			if (bank_end > arm_lowmem_limit)
+> -				arm_lowmem_limit = bank_end;
+> +		if (!highmem) {
+> +			if (block_end > arm_lowmem_limit)
+> +				arm_lowmem_limit = reg->base + size_limit;
+> +
+
+if !highmem then size_limit will be calculated as vmalloc_limit - reg->base
+which in turn can be greater than reg->size. So, arm_lowmem_limit can point on
+non existent memory address.
+
+Seems, it should be:
+  arm_lowmem_limit = block_end;
+
+>   
+>   			/*
+>   			 * Find the first non-section-aligned page, and point
+> @@ -1129,35 +1099,16 @@ void __init sanity_check_meminfo(void)
+>   			 * occurs before any free memory is mapped.
+>   			 */
+>   			if (!memblock_limit) {
+> -				if (!IS_ALIGNED(bank->start, SECTION_SIZE))
+> -					memblock_limit = bank->start;
+> -				else if (!IS_ALIGNED(bank_end, SECTION_SIZE))
+> -					memblock_limit = bank_end;
+[...]
+
+Thanks for your patience :)
+
+Regards,
+-grygorii
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
