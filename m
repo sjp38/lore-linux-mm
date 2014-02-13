@@ -1,78 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 0DBE06B0035
-	for <linux-mm@kvack.org>; Thu, 13 Feb 2014 05:42:35 -0500 (EST)
-Received: by mail-wi0-f177.google.com with SMTP id e4so8307718wiv.10
-        for <linux-mm@kvack.org>; Thu, 13 Feb 2014 02:42:35 -0800 (PST)
+Received: from mail-we0-f175.google.com (mail-we0-f175.google.com [74.125.82.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 99FEA6B0035
+	for <linux-mm@kvack.org>; Thu, 13 Feb 2014 09:23:57 -0500 (EST)
+Received: by mail-we0-f175.google.com with SMTP id q59so7401592wes.6
+        for <linux-mm@kvack.org>; Thu, 13 Feb 2014 06:23:57 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w4si799553wja.116.2014.02.13.02.42.34
+        by mx.google.com with ESMTPS id l15si1569723wiv.10.2014.02.13.06.23.54
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 13 Feb 2014 02:42:34 -0800 (PST)
-Date: Thu, 13 Feb 2014 10:42:31 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH] mm: swap: Use swapfiles in priority order
-Message-ID: <20140213104231.GX6732@suse.de>
+        Thu, 13 Feb 2014 06:23:55 -0800 (PST)
+Date: Thu, 13 Feb 2014 15:23:55 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 1/2] memcg: fix endless loop in __mem_cgroup_iter_next
+Message-ID: <20140213142355.GB11986@dhcp22.suse.cz>
+References: <alpine.LSU.2.11.1402121717420.5917@eggly.anvils>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.11.1402121717420.5917@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Greg Thelen <gthelen@google.com>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-According to the swapon documentation
+On Wed 12-02-14 17:26:46, Hugh Dickins wrote:
+> Commit 0eef615665ed ("memcg: fix css reference leak and endless loop in
+> mem_cgroup_iter") got the interaction with the commit a few before it
+> d8ad30559715 ("mm/memcg: iteration skip memcgs not yet fully initialized")
+> slightly wrong, and we didn't notice at the time.
+> 
+> It's elusive, and harder to get than the original, but for a couple of
+> days before rc1, I several times saw a endless loop similar to that
+> supposedly being fixed.
+> 
+> This time it was a tighter loop in __mem_cgroup_iter_next(): because we
+> can get here when our root has already been offlined, and the ordering
+> of conditions was such that we then just cycled around forever.
+> 
+> Fixes: 0eef615665ed ("memcg: fix css reference leak and endless loop in mem_cgroup_iter")
+> Signed-off-by: Hugh Dickins <hughd@google.com>
+> Cc: stable@vger.kernel.org # 3.12+
 
-	Swap  pages  are  allocated  from  areas  in priority order,
-	highest priority first.  For areas with different priorities, a
-	higher-priority area is exhausted before using a lower-priority area.
+You are right of course. This is really embarrassing. I should have
+noticed this when porting my original patch on top of yours.
 
-A user reported that the reality is different. When multiple swap files
-are enabled and a memory consumer started, the swap files are consumed in
-pairs after the highest priority file is exhausted. Early in the lifetime
-of the test, swapfile consumptions looks like
+Acked-by: Michal Hocko <mhocko@suse.cz>
 
-Filename                                Type            Size    Used    Priority
-/testswap1                              file            100004  100004  8
-/testswap2                              file            100004  23764   7
-/testswap3                              file            100004  23764   6
-/testswap4                              file            100004  0       5
-/testswap5                              file            100004  0       4
-/testswap6                              file            100004  0       3
-/testswap7                              file            100004  0       2
-/testswap8                              file            100004  0       1
+Thanks!
 
-This patch fixes the swap_list search in get_swap_page to use the swap files
-in the correct order. When applied the swap file consumptions looks like
+> ---
+> Of course I'd have preferred to send this before that commit went through
+> to -stable, but priorities kept preempting; I did wonder whether to ask
+> GregKH to delay it, but decided it's not serious enough to trouble him,
+> just go with the flow of stable fixing stable.
+> 
+>  mm/memcontrol.c |    4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+> 
+> --- 3.14-rc2/mm/memcontrol.c	2014-02-02 18:49:07.897302115 -0800
+> +++ linux/mm/memcontrol.c	2014-02-12 11:55:02.836035004 -0800
+> @@ -1127,8 +1127,8 @@ skip_node:
+>  	 * skipping css reference should be safe.
+>  	 */
+>  	if (next_css) {
+> -		if ((next_css->flags & CSS_ONLINE) &&
+> -				(next_css == &root->css || css_tryget(next_css)))
+> +		if ((next_css == &root->css) ||
+> +		    ((next_css->flags & CSS_ONLINE) && css_tryget(next_css)))
+>  			return mem_cgroup_from_css(next_css);
+>  
+>  		prev_css = next_css;
 
-Filename				Type		Size	Used	Priority
-/testswap1                              file		100004	100004	8
-/testswap2                              file		100004	100004	7
-/testswap3                              file		100004	29372	6
-/testswap4                              file		100004	0	5
-/testswap5                              file		100004	0	4
-/testswap6                              file		100004	0	3
-/testswap7                              file		100004	0	2
-/testswap8                              file		100004	0	1
-
-Signed-off-by: Mel Gorman <mgorman@suse.de>
----
- mm/swapfile.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 4a7f7e6..6d0ac2b 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -651,7 +651,7 @@ swp_entry_t get_swap_page(void)
- 		goto noswap;
- 	atomic_long_dec(&nr_swap_pages);
- 
--	for (type = swap_list.next; type >= 0 && wrapped < 2; type = next) {
-+	for (type = swap_list.head; type >= 0 && wrapped < 2; type = next) {
- 		hp_index = atomic_xchg(&highest_priority_index, -1);
- 		/*
- 		 * highest_priority_index records current highest priority swap
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
