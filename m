@@ -1,158 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E99B6B0035
-	for <linux-mm@kvack.org>; Wed, 12 Feb 2014 18:53:51 -0500 (EST)
-Received: by mail-pa0-f47.google.com with SMTP id kp14so9942774pab.20
-        for <linux-mm@kvack.org>; Wed, 12 Feb 2014 15:53:51 -0800 (PST)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id b4si12582137pbe.58.2014.02.12.15.53.49
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 09FE86B0035
+	for <linux-mm@kvack.org>; Wed, 12 Feb 2014 19:00:30 -0500 (EST)
+Received: by mail-pd0-f179.google.com with SMTP id fp1so9329009pdb.38
+        for <linux-mm@kvack.org>; Wed, 12 Feb 2014 16:00:30 -0800 (PST)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id pk8si24226777pab.126.2014.02.12.16.00.23
         for <linux-mm@kvack.org>;
-        Wed, 12 Feb 2014 15:53:50 -0800 (PST)
-Date: Wed, 12 Feb 2014 16:53:53 -0700 (MST)
+        Wed, 12 Feb 2014 16:00:29 -0800 (PST)
+Date: Wed, 12 Feb 2014 17:00:00 -0700 (MST)
 From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH v5 06/22] Treat XIP like O_DIRECT
-In-Reply-To: <CF215477.24281%matthew.r.wilcox@intel.com>
-Message-ID: <alpine.OSX.2.00.1402121640310.60058@scrumpy>
-References: <cover.1389779961.git.matthew.r.wilcox@intel.com> <CF215477.24281%matthew.r.wilcox@intel.com>
+Subject: Re: [PATCH v5 19/22] ext4: Add XIP functionality
+In-Reply-To: <alpine.OSX.2.00.1402111536290.55274@scrumpy>
+Message-ID: <alpine.OSX.2.00.1402121654410.60058@scrumpy>
+References: <cover.1389779961.git.matthew.r.wilcox@intel.com> <CF1FF3EB.24114%matthew.r.wilcox@intel.com> <alpine.OSX.2.00.1402111536290.55274@scrumpy>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org
+To: Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org, david@fromorbit.com
 
-On Wed, 15 Jan 2014, Matthew Wilcox wrote:
-> Instead of separate read and write methods, use the generic AIO
-> infrastructure.  In addition to giving us support for AIO, this adds
-> the locking between read() and truncate() that was missing.
+On Tue, 11 Feb 2014, Ross Zwisler wrote:
+> On Wed, 15 Jan 2014, Matthew Wilcox wrote:
+> > From: Ross Zwisler <ross.zwisler@linux.intel.com>
+> > 
+> > This is a port of the XIP functionality found in the current version of
+> > ext2.
+> > 
+> > Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+> > Reviewed-by: Andreas Dilger <andreas.dilger@intel.com>
+> > [heavily tweaked]
+> > Signed-off-by: Matthew Wilcox <matthew.r.wilcox@intel.com>
 > 
-> Signed-off-by: Matthew Wilcox <matthew.r.wilcox@intel.com>
+> ...
+> 
+> > diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
+> > index c767666..8b73d77 100644
+> > --- a/fs/ext4/inode.c
+> > +++ b/fs/ext4/inode.c
+> > @@ -663,6 +663,18 @@ found:
+> >  			WARN_ON(1);
+> >  		}
+> >  
+> > +		/* this is probably wrong for ext4.  unlike ext2, ext4 supports
+> > +		 * uninitialised extents, so we should probably be hooking
+> > +		 * into the "make it initialised" code instead. */
+> > +		if (IS_XIP(inode)) {
+> 
+> With the very first version of this patch the above logic seemed to work
+> correctly, zeroing blocks as we allocated them.  With the current XIP
+> infrastructure based tightly on direct IO this ends up being wrong because in
+> some cases we can call ext4_map_blocks() twice for a given block.  
+> 
+> A quick userland test program that creates a new file, truncates it up to 4k
+> and then does a partial block write will end up giving you a file filled with
+> all zeros.  This is because we zero the data before the write, do the write,
+> and then zero again, overwriting the data.  The second call to
+> ext4_map_blocks() happens via ext4_ext_direct_IO =>
+> ext4_convert_unwritten_extents() => ext4_map_blocks().
+> 
+> We can know in ext4_map_blocks() that we are being called after a write has
+> already completed by looking at the flags.  One solution to get around this
+> double-zeroing would be to change the above test to:
+> 
+> +                 if (IS_XIP(inode) && !(flags & EXT4_GET_BLOCKS_CONVERT)) {
+> 
+> This fixes the tests I've been able to come up with, but I'm not certain it's
+> the correct fix for the long term.  It seems wasteful to zero the blocks we're
+> allocating, just to have the zeros overwritten immediately by a write.  Maybe
+> a cleaner way would be to try and zero the unwritten bits inside of
+> ext4_convert_unwritten_extents(), or somewhere similar?
+> 
+> It's worth noting that I don't think the direct I/O path has this kind of
+> logic because they don't allow partial block writes.  The regular I/O path
+> knows to zero unwritten space based on the BH_New flag, as set via the
+> set_buffer_new() call in ext4_da_map_blocks().  This is a pretty different I/O
+> path, though, so I'm not sure how much we can borrow for the XIP code.
+> 
+> Thoughts on the correct fix?
+> 
+> - Ross
 
-...
+It looks like Dave Chinner outlined a way to deal with this in response to the
+"[PATCH v5 00/22] Rewrite XIP code and add XIP support to ext4" mail.
 
-> +static ssize_t xip_io(int rw, struct inode *inode, const struct iovec
-> *iov,
-> +			loff_t start, loff_t end, unsigned nr_segs,
-> +			get_block_t get_block, struct buffer_head *bh)
-> +{
-> +	ssize_t retval = 0;
-> +	unsigned seg = 0;
-> +	unsigned len;
-> +	unsigned copied = 0;
-> +	loff_t offset = start;
-> +	loff_t max = start;
-> +	void *addr;
-> +	bool hole = false;
-> +
-> +	while (offset < end) {
-> +		void __user *buf = iov[seg].iov_base + copied;
-> +
-> +		if (max == offset) {
-> +			sector_t block = offset >> inode->i_blkbits;
-> +			long size;
-> +			memset(bh, 0, sizeof(*bh));
-> +			bh->b_size = ALIGN(end - offset, PAGE_SIZE);
-> +			retval = get_block(inode, block, bh, rw == WRITE);
-> +			if (retval)
-> +				break;
-> +			if (buffer_mapped(bh)) {
-> +				retval = xip_get_addr(inode, bh, &addr);
-> +				if (retval < 0)
-> +					break;
-> +				addr += offset - (block << inode->i_blkbits);
-> +				hole = false;
-> +				size = retval;
-> +			} else {
-> +				if (rw == WRITE) {
-> +					retval = -EIO;
-> +					break;
-> +				}
-> +				addr = NULL;
-> +				hole = true;
-> +				size = bh->b_size;
-> +			}
-> +			max = offset + size;
-> +		}
-> +
-> +		len = min_t(unsigned, iov[seg].iov_len - copied, max - offset);
-> +
-> +		if (rw == WRITE)
-> +			len -= __copy_from_user_nocache(addr, buf, len);
-> +		else if (!hole)
-> +			len -= __copy_to_user(buf, addr, len);
-> +		else
-> +			len -= __clear_user(buf, len);
-> +
-> +		if (!len)
-> +			break;
-> +
-> +		offset += len;
-> +		copied += len;
-> +		if (copied == iov[seg].iov_len) {
-> +			seg++;
-> +			copied = 0;
-> +		}
-> +	}
-> +
-> +	return (offset == start) ? retval : offset - start;
-> +}
+I'll try and implement things as Dave has described (zero full blocks in the
+case of xip_fault() and mark extents as written, use buffer_new(bh) to zero
+edges for normal I/O) and send out code or questions as I have them.
 
-xip_io() as it is currently written has an issue where reads can go beyond
-inode->i_size.  A quick test to show this issue is:
-
-	create a new file
-	write to the file for 1/2 a block
-	seek back to 0
-	read for a full block
-
-The read in this case will return 4096, the length of the full block that was
-requested.  It should return 2048, reading just the data that was written.
-
-The issue is that we do have a full block allocated in ext4, we do have it
-available via XIP via xip_get_addr(), and the only extra check that we
-currently have is a check against iov_len.  iov_len in this case is 4096, so
-no one stops us from doing a full block read.
-
-Here is a quick patch that fixes this issue:
-
-diff --git a/fs/xip.c b/fs/xip.c
-index e902593..1608f29 100644
---- a/fs/xip.c
-+++ b/fs/xip.c
-@@ -91,13 +91,16 @@ static ssize_t xip_io(int rw, struct inode *inode, const struct
- {
-        ssize_t retval = 0;
-        unsigned seg = 0;
--       unsigned len;
-+       unsigned len, total_len;
-        unsigned copied = 0;
-        loff_t offset = start;
-        loff_t max = start;
-        void *addr;
-        bool hole = false;
- 
-+       end = min(end, inode->i_size);
-+       total_len = end - start;
-+
-        while (offset < end) {
-                void __user *buf = iov[seg].iov_base + copied;
- 
-@@ -136,6 +139,7 @@ static ssize_t xip_io(int rw, struct inode *inode, const struct
-                }
- 
-                len = min_t(unsigned, iov[seg].iov_len - copied, max - offset);
-+               len = min(len, total_len);
- 
-                if (rw == WRITE)
-                        len -= __copy_from_user_nocache(addr, buf, len);
-@@ -149,6 +153,7 @@ static ssize_t xip_io(int rw, struct inode *inode, const struct
- 
-                offset += len;
-                copied += len;
-+               total_len -= len;
-                if (copied == iov[seg].iov_len) {
-                        seg++;
-                        copied = 0;
+- Ross
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
