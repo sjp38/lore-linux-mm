@@ -1,181 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f173.google.com (mail-we0-f173.google.com [74.125.82.173])
-	by kanga.kvack.org (Postfix) with ESMTP id AF5A46B0036
-	for <linux-mm@kvack.org>; Thu, 13 Feb 2014 11:12:48 -0500 (EST)
-Received: by mail-we0-f173.google.com with SMTP id x48so1989335wes.4
+Received: from mail-we0-f175.google.com (mail-we0-f175.google.com [74.125.82.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 26C896B0036
+	for <linux-mm@kvack.org>; Thu, 13 Feb 2014 11:12:49 -0500 (EST)
+Received: by mail-we0-f175.google.com with SMTP id q59so7767466wes.34
         for <linux-mm@kvack.org>; Thu, 13 Feb 2014 08:12:48 -0800 (PST)
-Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com. [195.75.94.109])
-        by mx.google.com with ESMTPS id w7si1567297wjw.100.2014.02.13.08.12.45
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id cd16si1822532wib.35.2014.02.13.08.12.46
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 13 Feb 2014 08:12:45 -0800 (PST)
-Received: from /spool/local
-	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <ehrhardt@linux.vnet.ibm.com>;
-	Thu, 13 Feb 2014 16:12:45 -0000
-Received: from b06cxnps4076.portsmouth.uk.ibm.com (d06relay13.portsmouth.uk.ibm.com [9.149.109.198])
-	by d06dlp03.portsmouth.uk.ibm.com (Postfix) with ESMTP id 6FD791B08066
-	for <linux-mm@kvack.org>; Thu, 13 Feb 2014 16:12:17 +0000 (GMT)
-Received: from d06av11.portsmouth.uk.ibm.com (d06av11.portsmouth.uk.ibm.com [9.149.37.252])
-	by b06cxnps4076.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s1DGCUpd1114520
-	for <linux-mm@kvack.org>; Thu, 13 Feb 2014 16:12:30 GMT
-Received: from d06av11.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av11.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s1DGCfhp030703
-	for <linux-mm@kvack.org>; Thu, 13 Feb 2014 09:12:41 -0700
-Message-ID: <52FCEEF8.6000108@linux.vnet.ibm.com>
-Date: Thu, 13 Feb 2014 17:12:40 +0100
-From: Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>
+        Thu, 13 Feb 2014 08:12:46 -0800 (PST)
+Date: Thu, 13 Feb 2014 17:12:46 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [RFC 0/4] memcg: Low-limit reclaim
+Message-ID: <20140213161246.GG11986@dhcp22.suse.cz>
+References: <1386771355-21805-1-git-send-email-mhocko@suse.cz>
+ <52E24956.3000007@yandex-team.ru>
+ <20140129182259.GA6711@dhcp22.suse.cz>
+ <877g90cy6j.wl%klamm@yandex-team.ru>
 MIME-Version: 1.0
-Subject: Re: [Resend] Puzzling behaviour with multiple swap targets
-References: <52D9248F.6030901@linux.vnet.ibm.com> <20140120010533.GA24605@kernel.org> <52DCE44D.9020501@linux.vnet.ibm.com> <52E7D12E.4070703@linux.vnet.ibm.com>
-In-Reply-To: <52E7D12E.4070703@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <877g90cy6j.wl%klamm@yandex-team.ru>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shli@kernel.org>
-Cc: linux-mm@kvack.org, Christian Borntraeger <borntraeger@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Eberhard Pasch <epasch@de.ibm.com>
+To: Roman Gushchin <klamm@yandex-team.ru>
+Cc: linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, LKML <linux-kernel@vger.kernel.org>, Ying Han <yinghan@google.com>, Hugh Dickins <hughd@google.com>, Michel Lespinasse <walken@google.com>, Greg Thelen <gthelen@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>
 
-Hi,
-regarding another issue I was working together with Mel Gorman and I can 
-now confirm that his patch https://lkml.org/lkml/2014/2/13/181
-also fixes the issue discussed in this thread.
+On Wed 12-02-14 16:28:36, Roman Gushchin wrote:
+> Hi, Michal!
+> 
+> Sorry for a long reply.
+> 
+> At Wed, 29 Jan 2014 19:22:59 +0100,
+> Michal Hocko wrote:
+> > > As you can remember, I've proposed to introduce low limits about a year ago.
+> > > 
+> > > We had a small discussion at that time: http://marc.info/?t=136195226600004 .
+> > 
+> > yes I remember that discussion and vaguely remember the proposed
+> > approach. I really wanted to prevent from introduction of a new knob but
+> > things evolved differently than I planned since then and it turned out
+> > that the knew knob is unavoidable. That's why I came with this approach
+> > which is quite different from yours AFAIR.
+> >  
+> > > Since that time we intensively use low limits in our production
+> > > (on thousands of machines). So, I'm very interested to merge this
+> > > functionality into upstream.
+> > 
+> > Have you tried to use this implementation? Would this work as well?
+> > My very vague recollection of your patch is that it didn't cover both
+> > global and target reclaims and it didn't fit into the reclaim very
+> > naturally it used its own scaling method. I will have to refresh my
+> > memory though.
+> 
+> IMHO, the main problem of your implementation is the following: 
+> the number of reclaimed pages is not limited at all,
+> if cgroup is over it's low memory limit. So, a significant number 
+> of pages can be reclaimed, even if the memory usage is only a bit 
+> (e.g. one page) above the low limit.
 
-Thereby I want to encourage you to review and if appropriate pick Mels 
-patch fixing not only the issue he described but also this one.
+Yes but this is the same problem as with the regular reclaim.
+We do not have any guarantee that we will reclaim only the required
+amount of memory. As the reclaim priority falls down we can overreclaim.
+The global reclaim tries to avoid this problem by keeping the priority
+as high as possible. And the target reclaim is not a big deal because we
+are limiting the number of reclaimed pages to the swap cluster.
 
-On 28/01/14 16:47, Christian Ehrhardt wrote:
-> On 20/01/14 09:54, Christian Ehrhardt wrote:
->> On 20/01/14 02:05, Shaohua Li wrote:
->>> On Fri, Jan 17, 2014 at 01:39:43PM +0100, Christian Ehrhardt wrote:
-> [...]
->>>
->>> Is the swap disk a SSD? If not, there is no point to partition the
->>> disk. Do you
->>> see any changes in iostat in the bad/good case, for example, request
->>> size,
->>> iodepth?
->>
->> Hi,
->> I use normal disks and SSDs or even the special s390 ramdisks - I agree
->> that partitioning makes no sense in a real case, but it doesn't matter
->> atm. I just partition to better show the effect that "more swap targets
->> -> less throughput" - and partitioning makes it easy for me to guarantee
->> that the HW ressources serving that I/O stay the same.
->>
->> IOstat and such things don't report very significant changes regarding
->> I/O depth. Sizes are more interesting with the bad case having slightly
->> more (16%) read I/Os and dropping average request size from 14.62 to
->> 11.89. Along with that goes a drop in read request merges of 28%.
->>
->> But I don't see how a workload that is random in memory would create
->> significantly better/worse chances for request merging depending on the
->> case if the disk is partitioned more or less often.
->> On the read path swap doesn't care about iterating disks, it just goes
->> by associated swap extends -> offsets to the disk.
->> And I thought in a random load that should be purely random and hit each
->> partition in e.g. the 4 partition case just by 25%.
->> I checked some blocktraces I had and can confirm as expected each got an
->> equal share.
->>
->>> There is one patch can avoid swapin reads more than swapout for random
->>> case,
->>> but still not in upstream yet. You can try it here:
->>> https://git.kernel.org/cgit/linux/kernel/git/next/linux-next.git/commit/mm/swap_state.c?id=5d19b04a2dae73382fb607f16e2acfb594d1c63f
->>>
->>>
->>
->> Great suggestion - it sounds very interesting to me, I'll give it a try
->> in a few days since I'm out Tue/Wed.
->
-> I had already a patch prepared and successfully tested that allows to
-> configure page cluster for read/write separately from userspace. That
-> worked well but would require an admin to configure the "right" value
-> for his system.
-> Since that fails with so much kernel tunables and would also not be
-> adaptive if the behaviour changes over time I very much prefer your
-> solution to it.
-> That is why I tried to verify your patch in my environment with at least
-> some of the cases I used recently for swap analysis and improvement.
->
-> The environment has 10G of real memory and drives a working set of 12.5Gb.
-> So just a slight 1.25:1 overcommit (While s390 often runs in higher
-> overcommits for most of the linux Swap issues so far 1.25:1 was enough
-> to trigger and produced more reliable results).
-> To swap I use 8x16G xpram devices which one can imagine as SSDs at main
-> memory speed (good to make forecasts how ssds might behave in a few years).
->
-> I compared a 3.10 kernel (I know a bit old already, but I knew that my
-> env works fine with it) with and without the patch for swap readahead
-> scaling.
->
-> All memory is initially completely faulted in (memset) and thne warmed
-> up with two full sweeps of the entire working set following the current
-> workload configuration.
-> The unit reported is MB/s the workload can achieve in its
-> (overcommitted) memory being an average of 2 runs for 5 minutes each (+
-> the init and warmup as described).
-> (Noise is usually ~+/-5%, maybe a bit more in non exclusive runs like
-> this when other things are on the machine)
->
-> Memory Access is done via memcpy in either direction (R/W) with
-> alternating sizes of:
-> 5% 65536 bytes
-> 5%  8192 bytes
-> 90% 4096 bytes
->
-> Further abbreviations
-> PC = the currently configured page cluster size (0,3,5)
-> M - Multi threaded (=32)
-> S - Single threaded
-> Seq/Rnd - Sequential/Random
->
->                        No Swap RA   With Swap RA     Diff
-> PC0-M-Rnd        ~=     10732.97        9891.87   -7.84%
-> PC0-M-Seq        ~=     10780.56       10587.76   -1.79%
-> PC0-S-Rnd        ~=      2010.47        2067.51    2.84%
-> PC0-S-Seq        ~=      1783.74        1834.28    2.83%
-> PC3-M-Rnd        ~=     10745.19       10990.90    2.29%
-> PC3-M-Seq        ~=     11792.67       11107.79   -5.81%
-> PC3-S-Rnd        ~=      1301.28        2017.61   55.05%
-> PC3-S-Seq        ~=      1664.40        1637.72   -1.60%
-> PC5-M-Rnd        ~=      7568.56       10733.60   41.82%
-> PC5-M-Seq        ~=          n/a       11208.40      n/a
-> PC5-S-Rnd        ~=       608.48        2052.17  237.26%
-> PC5-S-Seq        ~=      1604.97        1685.65    5.03%
-> (for and PC5-M-Seq I ran out of time, but the remaining results are
-> interesting enough already)
->
-> I like what I see, there is nothing significantly out of the noise range
-> which shouldn't be.
-> The Page Cluster 0 cases didn't show an effect as expected.
-> For page cluster 3 the multithreaded cases have hidden the impact to TP
-> due to the fact that then just another thread can continue.
-> But I checked sar data and see that PC3-M-Rnd has avoided about 50% of
-> swapins while staying at equal throughput (1000k vs 500k pswpin/s).
-> Other than that Random loads had the biggest improvements matching what
-> I had with splitting up read/write page-cluster size.
-> Eventually with page cluster 5 even the multi threaded cases start to
-> show benefits of the readahead scaling code.
-> In all that time sequential cases didn't change a lot.
->
-> So I think that test worked fine. I see there were some discussion son
-> the form of the implementation, but in terms of results I really like it
-> as far as I had time to check it out.
->
->
->
-> *** Context switch ***
->
-> Now back to my original question about why swapping to multiple targets
-> makes things slower.
-> Your patch helps there a but as the Workload with the biggest issue was
-> a random workload and I knew that with pagecluster set to zero the loss
-> of efficiency with those multiple swap targets is stopped.
-> But I consider that only a fix of the symptom and would love if one
-> comes up with an idea actually *why* things get worse with more swap
-> targets.
->
+I do not see this as a practical problem of the low_limit though,
+because it protects those that are below the limit not above. Small
+fluctuation around the limit should be tolerable.
+
+> In my case, this problem is solved by scaling the number of scanned pages.
+> 
+> I think, an ideal solution is to limit the number of reclaimed pages by 
+> low limit excess value. This allows to discard my scaling code, but save
+> the strict semantics of low limit under memory pressure. The main problem 
+> here is how to balance scanning pressure between cgroups and LRUs.
+> 
+> Maybe, we should calculate the number of pages to scan in a LRU based on
+> the low limit excess value instead of number of pages...
+
+I do not like it much and I expect other mm people to feel similar. We
+already have scanning scaling based on the priority. Adding a new
+variable into the picture will make the whole thing only more
+complicated without a very good reason for it.
+
+[...]
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
