@@ -1,92 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f48.google.com (mail-qa0-f48.google.com [209.85.216.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 7ED6A6B0035
-	for <linux-mm@kvack.org>; Thu, 13 Feb 2014 16:42:20 -0500 (EST)
-Received: by mail-qa0-f48.google.com with SMTP id f11so16904182qae.21
-        for <linux-mm@kvack.org>; Thu, 13 Feb 2014 13:42:20 -0800 (PST)
-Received: from e9.ny.us.ibm.com (e9.ny.us.ibm.com. [32.97.182.139])
-        by mx.google.com with ESMTPS id p70si2206088qga.195.2014.02.13.13.42.19
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 13 Feb 2014 13:42:20 -0800 (PST)
-Received: from /spool/local
-	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <nacc@linux.vnet.ibm.com>;
-	Thu, 13 Feb 2014 16:42:19 -0500
-Received: from b01cxnp22034.gho.pok.ibm.com (b01cxnp22034.gho.pok.ibm.com [9.57.198.24])
-	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id 21302C90043
-	for <linux-mm@kvack.org>; Thu, 13 Feb 2014 16:42:15 -0500 (EST)
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by b01cxnp22034.gho.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s1DLgHog57933860
-	for <linux-mm@kvack.org>; Thu, 13 Feb 2014 21:42:18 GMT
-Received: from d01av02.pok.ibm.com (localhost [127.0.0.1])
-	by d01av02.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s1DLgGSl032022
-	for <linux-mm@kvack.org>; Thu, 13 Feb 2014 16:42:17 -0500
-Date: Thu, 13 Feb 2014 13:42:11 -0800
-From: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
-Subject: Re: [RFC PATCH V5] mm readahead: Fix readahead fail for no local
- memory and limit readahead pages
-Message-ID: <20140213214211.GC12409@linux.vnet.ibm.com>
-References: <alpine.DEB.2.02.1402061557210.5061@chino.kir.corp.google.com>
- <52F4B8A4.70405@linux.vnet.ibm.com>
- <alpine.DEB.2.02.1402071239301.4212@chino.kir.corp.google.com>
- <52F88C16.70204@linux.vnet.ibm.com>
- <alpine.DEB.2.02.1402100200420.30650@chino.kir.corp.google.com>
- <52F8C556.6090006@linux.vnet.ibm.com>
- <alpine.DEB.2.02.1402101333160.15624@chino.kir.corp.google.com>
- <52FC6F2A.30905@linux.vnet.ibm.com>
- <alpine.DEB.2.02.1402130003320.11689@chino.kir.corp.google.com>
- <20140213130643.0cf5fb083056cdd159d1aac4@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from mail-qc0-f180.google.com (mail-qc0-f180.google.com [209.85.216.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 31F786B0031
+	for <linux-mm@kvack.org>; Thu, 13 Feb 2014 17:09:27 -0500 (EST)
+Received: by mail-qc0-f180.google.com with SMTP id i17so19172958qcy.11
+        for <linux-mm@kvack.org>; Thu, 13 Feb 2014 14:09:26 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id y3si2306570qas.12.2014.02.13.14.09.26
+        for <linux-mm@kvack.org>;
+        Thu, 13 Feb 2014 14:09:26 -0800 (PST)
+Date: Thu, 13 Feb 2014 17:09:05 -0500
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Message-ID: <52fd4296.c383e00a.50b5.02e4SMTPIN_ADDED_BROKEN@mx.google.com>
+In-Reply-To: <52FC22DA.9010002@huawei.com>
+References: <52FC22DA.9010002@huawei.com>
+Subject: Re: [3.10.x-stable] process accidentally killed by mce because of
+ huge page migration
+Mime-Version: 1.0
+Content-Type: text/plain;
+ charset=iso-2022-jp
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20140213130643.0cf5fb083056cdd159d1aac4@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: David Rientjes <rientjes@google.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, Fengguang Wu <fengguang.wu@intel.com>, David Cohen <david.a.cohen@linux.intel.com>, Al Viro <viro@zeniv.linux.org.uk>, Damien Ramonda <damien.ramonda@intel.com>, Jan Kara <jack@suse.cz>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Anton Blanchard <anton@samba.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+To: Xishi Qiu <qiuxishi@huawei.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, kirill.shutemov@linux.intel.com, hughd@google.com, Linux MM <linux-mm@kvack.org>, Li Zefan <lizefan@huawei.com>, Wang Nan <wangnan0@huawei.com>
 
-On 13.02.2014 [13:06:43 -0800], Andrew Morton wrote:
-> On Thu, 13 Feb 2014 00:05:31 -0800 (PST) David Rientjes <rientjes@google.com> wrote:
+Hi Xishi,
+
+On Thu, Feb 13, 2014 at 09:41:46AM +0800, Xishi Qiu wrote:
+> Hi Naoya or Greg,
 > 
-> > On Thu, 13 Feb 2014, Raghavendra K T wrote:
-> > 
-> > > I was able to test (1) implementation on the system where readahead problem
-> > > occurred. Unfortunately it did not help.
-> > > 
-> > > Reason seem to be that CONFIG_HAVE_MEMORYLESS_NODES dependency of
-> > > numa_mem_id(). The PPC machine I am facing problem has topology like
-> > > this:
-> > > 
-> > > numactl -H
-> > > ---------
-> > > available: 2 nodes (0-1)
-> > > node 0 cpus: 0 1 2 3 4 5 6 7 12 13 14 15 16 17 18 19 20 21 22 23 24 25
-> > > ...
-> > > node 0 size: 0 MB
-> > > node 0 free: 0 MB
-> > > node 1 cpus: 8 9 10 11 32 33 34 35 ...
-> > > node 1 size: 8071 MB
-> > > node 1 free: 2479 MB
-> > > node distances:
-> > > node   0   1
-> > >   0:  10  20
-> > >   1:  20  10
-> > > 
-> > > So it seems numa_mem_id() does not help for all the configs..
-> > > Am I missing something ?
-> > > 
-> > 
-> > You need the patch from http://marc.info/?l=linux-mm&m=139093411119013 
-> > first.
+> We found a bug in 3.10.x.
+> 1) use sysfs interface soft_offline_page() to migrate a huge page.
+> 2) the hpage become free after migrate_huge_page().
+> 3) the free hpage is alloced and used by process A.
+> 4) hwpoison flag is set by set_page_hwpoison_huge_page()
+> 5) mce find this poisoned page.
+> 6) process A was killed.
+> 7) other processes which use this page will be killed too.
 > 
-> That (un-signed-off) powerpc patch appears to be moribund.  What's up?
+> I tested this bug, one process keeps allocating huge page, and I 
+> use sysfs interface to soft offline a huge page, then received:
+> "MCE: Killing UCP:2717 due to hardware memory corruption fault at 8200034"
+> 
+> Upstream kernel is free from this bug because of these two commits:
+> 
+> f15bdfa802bfa5eb6b4b5a241b97ec9fa1204a35
+> mm/memory-failure.c: fix memory leak in successful soft offlining
 
-Gah, thanks for catching that Andrew, not sure what went wrong. I've
-appended my S-o-b. I've asked Ben to take a look, but I think he's still
-catching up on his queue after travelling.
+Correct. Although this problem is not about memory leak, this patch
+moves unset_migratetype_isolate(), which is important to avoid the race.
 
--Nish
+> c8721bbbdd36382de51cd6b7a56322e0acca2414
+> mm: memory-hotplug: enable memory hotplug to handle hugepage
+
+The problem is that we accidentally have a hwpoisoned hugepage in free
+hugepage list. It could happend in the the following scenario:
+
+        process A                           process B
+
+  migrate_huge_page
+  put_page (old hugepage)
+    linked to free hugepage list
+                                     hugetlb_fault
+                                       hugetlb_no_page
+                                         alloc_huge_page
+                                           dequeue_huge_page_vma
+                                             dequeue_huge_page_node
+                                               (steal hwpoisoned hugepage)
+  set_page_hwpoison_huge_page
+  dequeue_hwpoisoned_huge_page
+    (fail to dequeue)
+
+In upstream, we avoid the race by making dequeue_huge_page_node refuse
+to use hugepages with MIGRATE_ISOLATE set. But this depends on the fact
+that we set MIGRATE_ISOLATE on hugepage under migration. This is not
+the case in current stable-3.10.
+
+> The latter is not a bug fix and it's too big, the following patch
+> can fix this bug.
+> 
+> What do you think? Use the simple fix or backport the big patch?
+
+I definitely agree to your suggestion. Please feel free to add the above
+explanation in the patch description with
+Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+
+Thanks,
+Naoya
+
+> Thanks,
+> Xishi Qiu
+> 
+> 
+> Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+> ---
+>  mm/hugetlb.c |   11 +++++++++--
+>  1 files changed, 9 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index 7c5eb85..6cb5b3b 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -21,6 +21,7 @@
+>  #include <linux/rmap.h>
+>  #include <linux/swap.h>
+>  #include <linux/swapops.h>
+> +#include <linux/page-isolation.h>
+>  
+>  #include <asm/page.h>
+>  #include <asm/pgtable.h>
+> @@ -517,9 +518,15 @@ static struct page *dequeue_huge_page_node(struct hstate *h, int nid)
+>  {
+>  	struct page *page;
+>  
+> -	if (list_empty(&h->hugepage_freelists[nid]))
+> +	list_for_each_entry(page, &h->hugepage_freelists[nid], lru)
+> +		if (!is_migrate_isolate_page(page))
+> +			break;
+> +	/*
+> +	 * if 'non-isolated free hugepage' not found on the list,
+> +	 * the allocation fails.
+> +	 */
+> +	if (&h->hugepage_freelists[nid] == &page->lru)
+>  		return NULL;
+> -	page = list_entry(h->hugepage_freelists[nid].next, struct page, lru);
+>  	list_move(&page->lru, &h->hugepage_activelist);
+>  	set_page_refcounted(page);
+>  	h->free_huge_pages--;
+> -- 
+> 1.7.1 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
