@@ -1,63 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f41.google.com (mail-qa0-f41.google.com [209.85.216.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 69FC06B0031
-	for <linux-mm@kvack.org>; Fri, 14 Feb 2014 12:30:56 -0500 (EST)
-Received: by mail-qa0-f41.google.com with SMTP id w8so18922707qac.0
-        for <linux-mm@kvack.org>; Fri, 14 Feb 2014 09:30:56 -0800 (PST)
-Received: from e36.co.us.ibm.com (e36.co.us.ibm.com. [32.97.110.154])
-        by mx.google.com with ESMTPS id j4si4321822qao.24.2014.02.14.09.30.54
+Received: from mail-pb0-f53.google.com (mail-pb0-f53.google.com [209.85.160.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 197456B0031
+	for <linux-mm@kvack.org>; Fri, 14 Feb 2014 13:08:28 -0500 (EST)
+Received: by mail-pb0-f53.google.com with SMTP id md12so12543505pbc.26
+        for <linux-mm@kvack.org>; Fri, 14 Feb 2014 10:08:27 -0800 (PST)
+Received: from mailout2.samsung.com (mailout2.samsung.com. [203.254.224.25])
+        by mx.google.com with ESMTPS id gx4si6630464pbc.21.2014.02.14.10.08.25
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 14 Feb 2014 09:30:55 -0800 (PST)
-Received: from /spool/local
-	by e36.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Fri, 14 Feb 2014 10:30:54 -0700
-Received: from b03cxnp07028.gho.boulder.ibm.com (b03cxnp07028.gho.boulder.ibm.com [9.17.130.15])
-	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id ED5243E4003F
-	for <linux-mm@kvack.org>; Fri, 14 Feb 2014 10:30:51 -0700 (MST)
-Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
-	by b03cxnp07028.gho.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s1EHUOqN3080582
-	for <linux-mm@kvack.org>; Fri, 14 Feb 2014 18:30:24 +0100
-Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id s1EHYEhw011354
-	for <linux-mm@kvack.org>; Fri, 14 Feb 2014 10:34:14 -0700
-Date: Fri, 14 Feb 2014 09:30:39 -0800
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: Memory allocator semantics
-Message-ID: <20140214173038.GR4250@linux.vnet.ibm.com>
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <20140102203320.GA27615@linux.vnet.ibm.com>
- <52F60699.8010204@iki.fi>
- <20140209020004.GY4250@linux.vnet.ibm.com>
- <CAOJsxLHs890eypzfnNj4ff1zqy_=bC8FA7B0YYbcZQF_c_wSog@mail.gmail.com>
- <alpine.DEB.2.10.1402111242380.28186@nuc>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1402111242380.28186@nuc>
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Fri, 14 Feb 2014 10:08:25 -0800 (PST)
+Received: from epcpsbgm2.samsung.com (epcpsbgm2 [203.254.230.27])
+ by mailout2.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0N0Z001M2ZPZVQ40@mailout2.samsung.com> for
+ linux-mm@kvack.org; Sat, 15 Feb 2014 03:08:23 +0900 (KST)
+From: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+Subject: [RFC][PATCH] mm/page_alloc: fix freeing of MIGRATE_RESERVE migratetype
+ pages
+Date: Fri, 14 Feb 2014 19:08:18 +0100
+Message-id: <1995877.GHAxfnIsTj@amdc1032>
+MIME-version: 1.0
+Content-transfer-encoding: 7Bit
+Content-type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Matt Mackall <mpm@selenic.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Hugh Dickins <hughd@google.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Yong-Taek Lee <ytk.lee@samsung.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Feb 11, 2014 at 12:43:35PM -0600, Christoph Lameter wrote:
-> On Tue, 11 Feb 2014, Pekka Enberg wrote:
-> 
-> > So again, there's nothing in (A) that the memory allocator is
-> > concerned about.  kmalloc() makes no guarantees whatsoever about the
-> > visibility of "r1" across CPUs.  If you're saying that there's an
-> > implicit barrier between kmalloc() and kfree(), that's an unintended
-> > side-effect, not a design decision AFAICT.
-> 
-> I am not sure that this side effect necessarily happens. The SLUB fastpath
-> does not disable interrupts and only uses a cmpxchg without lock
-> semantics.
 
-That tells me what I need to know.  Users should definitely not try a
-"drive-by kfree()" of something that was concurrently allocated.  ;-)
+Pages allocated from MIGRATE_RESERVE migratetype pageblocks
+are not freed back to MIGRATE_RESERVE migratetype free
+lists in free_pcppages_bulk() if we got to that function
+through drain_[zone_]pages() or __zone_pcp_update().
+The freeing through free_hot_cold_page() is okay because
+freepage migratetype is set to pageblock migratetype before
+calling free_pcppages_bulk().  If pages of MIGRATE_RESERVE
+migratetype end up on the free lists of other migratetype
+whole Reserved pageblock may be later changed to the other
+migratetype in __rmqueue_fallback() and it will be never
+changed back to be a Reserved pageblock.  Fix the issue by
+preserving freepage migratetype as a pageblock migratetype
+(instead of overriding it to the requested migratetype)
+for MIGRATE_RESERVE migratetype pages in rmqueue_bulk().
 
-							Thanx, Paul
+The problem was introduced in v2.6.31 by commit ed0ae21
+("page allocator: do not call get_pageblock_migratetype()
+more than necessary").
+
+Signed-off-by: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+Reported-by: Yong-Taek Lee <ytk.lee@samsung.com>
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: Hugh Dickins <hughd@google.com>
+---
+ include/linux/mmzone.h |    5 +++++
+ mm/page_alloc.c        |   10 +++++++---
+ 2 files changed, 12 insertions(+), 3 deletions(-)
+
+Index: b/include/linux/mmzone.h
+===================================================================
+--- a/include/linux/mmzone.h	2014-02-14 18:59:08.177837747 +0100
++++ b/include/linux/mmzone.h	2014-02-14 18:59:09.077837731 +0100
+@@ -63,6 +63,11 @@ enum {
+ 	MIGRATE_TYPES
+ };
+ 
++static inline bool is_migrate_reserve(int migratetype)
++{
++	return unlikely(migratetype == MIGRATE_RESERVE);
++}
++
+ #ifdef CONFIG_CMA
+ #  define is_migrate_cma(migratetype) unlikely((migratetype) == MIGRATE_CMA)
+ #else
+Index: b/mm/page_alloc.c
+===================================================================
+--- a/mm/page_alloc.c	2014-02-14 18:59:08.185837746 +0100
++++ b/mm/page_alloc.c	2014-02-14 18:59:09.077837731 +0100
+@@ -1174,7 +1174,7 @@ static int rmqueue_bulk(struct zone *zon
+ 			unsigned long count, struct list_head *list,
+ 			int migratetype, int cold)
+ {
+-	int mt = migratetype, i;
++	int mt, i;
+ 
+ 	spin_lock(&zone->lock);
+ 	for (i = 0; i < count; ++i) {
+@@ -1195,9 +1195,13 @@ static int rmqueue_bulk(struct zone *zon
+ 			list_add(&page->lru, list);
+ 		else
+ 			list_add_tail(&page->lru, list);
++		mt = get_pageblock_migratetype(page);
+ 		if (IS_ENABLED(CONFIG_CMA)) {
+-			mt = get_pageblock_migratetype(page);
+-			if (!is_migrate_cma(mt) && !is_migrate_isolate(mt))
++			if (!is_migrate_cma(mt) && !is_migrate_isolate(mt) &&
++			    !is_migrate_reserve(mt))
++				mt = migratetype;
++		} else {
++			if (!is_migrate_reserve(mt))
+ 				mt = migratetype;
+ 		}
+ 		set_freepage_migratetype(page, mt);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
