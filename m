@@ -1,57 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f174.google.com (mail-qc0-f174.google.com [209.85.216.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 83D4B6B0031
-	for <linux-mm@kvack.org>; Fri, 14 Feb 2014 00:42:02 -0500 (EST)
-Received: by mail-qc0-f174.google.com with SMTP id x13so19132597qcv.19
-        for <linux-mm@kvack.org>; Thu, 13 Feb 2014 21:42:02 -0800 (PST)
-Received: from gate.crashing.org (gate.crashing.org. [63.228.1.57])
-        by mx.google.com with ESMTPS id mm10si1325556qcb.97.2014.02.13.21.42.00
+Received: from mail-qa0-f41.google.com (mail-qa0-f41.google.com [209.85.216.41])
+	by kanga.kvack.org (Postfix) with ESMTP id D2E186B0031
+	for <linux-mm@kvack.org>; Fri, 14 Feb 2014 00:47:33 -0500 (EST)
+Received: by mail-qa0-f41.google.com with SMTP id w8so17779330qac.28
+        for <linux-mm@kvack.org>; Thu, 13 Feb 2014 21:47:33 -0800 (PST)
+Received: from e8.ny.us.ibm.com (e8.ny.us.ibm.com. [32.97.182.138])
+        by mx.google.com with ESMTPS id b4si946407qch.50.2014.02.13.21.47.33
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 13 Feb 2014 21:42:00 -0800 (PST)
-Message-ID: <1392356501.3835.217.camel@pasglop>
-Subject: Re: [PATCH V2 0/3]  powerpc: Fix random application crashes with
- NUMA_BALANCING enabled
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Date: Fri, 14 Feb 2014 16:41:41 +1100
-In-Reply-To: <20140213150639.2b9124797ac4975b6119f6f0@linux-foundation.org>
-References: 
-	<1392176618-23667-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
-	 <20140213150639.2b9124797ac4975b6119f6f0@linux-foundation.org>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        Thu, 13 Feb 2014 21:47:33 -0800 (PST)
+Received: from /spool/local
+	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <nacc@linux.vnet.ibm.com>;
+	Fri, 14 Feb 2014 00:47:33 -0500
+Received: from b01cxnp22034.gho.pok.ibm.com (b01cxnp22034.gho.pok.ibm.com [9.57.198.24])
+	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id 1E604C9003E
+	for <linux-mm@kvack.org>; Fri, 14 Feb 2014 00:47:28 -0500 (EST)
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by b01cxnp22034.gho.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s1E5lVe92031990
+	for <linux-mm@kvack.org>; Fri, 14 Feb 2014 05:47:31 GMT
+Received: from d01av02.pok.ibm.com (localhost [127.0.0.1])
+	by d01av02.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s1E5lUfo027891
+	for <linux-mm@kvack.org>; Fri, 14 Feb 2014 00:47:30 -0500
+Date: Thu, 13 Feb 2014 21:47:24 -0800
+From: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
+Subject: Re: [RFC PATCH V5] mm readahead: Fix readahead fail for no local
+ memory and limit readahead pages
+Message-ID: <20140214054724.GA24329@linux.vnet.ibm.com>
+References: <52F4B8A4.70405@linux.vnet.ibm.com>
+ <alpine.DEB.2.02.1402071239301.4212@chino.kir.corp.google.com>
+ <52F88C16.70204@linux.vnet.ibm.com>
+ <alpine.DEB.2.02.1402100200420.30650@chino.kir.corp.google.com>
+ <52F8C556.6090006@linux.vnet.ibm.com>
+ <alpine.DEB.2.02.1402101333160.15624@chino.kir.corp.google.com>
+ <52FC6F2A.30905@linux.vnet.ibm.com>
+ <alpine.DEB.2.02.1402130003320.11689@chino.kir.corp.google.com>
+ <52FC98A6.1000701@linux.vnet.ibm.com>
+ <alpine.DEB.2.02.1402131416430.13899@chino.kir.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.02.1402131416430.13899@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, paulus@samba.org, riel@redhat.com, mgorman@suse.de, mpe@ellerman.id.au, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Fengguang Wu <fengguang.wu@intel.com>, David Cohen <david.a.cohen@linux.intel.com>, Al Viro <viro@zeniv.linux.org.uk>, Damien Ramonda <damien.ramonda@intel.com>, Jan Kara <jack@suse.cz>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, 2014-02-13 at 15:06 -0800, Andrew Morton wrote:
-> On Wed, 12 Feb 2014 09:13:35 +0530 "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
+On 13.02.2014 [14:41:04 -0800], David Rientjes wrote:
+> On Thu, 13 Feb 2014, Raghavendra K T wrote:
 > 
-> > Hello,
+> > Thanks David, unfortunately even after applying that patch, I do not see
+> > the improvement.
 > > 
-> > This patch series fix random application crashes observed on ppc64 with numa
-> > balancing enabled. Without the patch we see crashes like
-> > 
-> > anacron[14551]: unhandled signal 11 at 0000000000000041 nip 000000003cfd54b4 lr 000000003cfd5464 code 30001
-> > anacron[14599]: unhandled signal 11 at 0000000000000041 nip 000000003efc54b4 lr 000000003efc5464 code 30001
+> > Interestingly numa_mem_id() seem to still return the value of a
+> > memoryless node.
+> > May be  per cpu _numa_mem_ values are not set properly. Need to dig out ....
 > > 
 > 
-> Random application crashes are bad.  Which kernel version(s) do you think
-> need fixing here?
+> I believe ppc will be relying on __build_all_zonelists() to set 
+> numa_mem_id() to be the proper node, and that relies on the ordering of 
+> the zonelist built for the memoryless node.  It would be very strange if 
+> local_memory_node() is returning a memoryless node because it is the first 
+> zone for node_zonelist(GFP_KERNEL) (why would a memoryless node be on the 
+> zonelist at all?).
 > 
-> I grabbed the patches but would like to hear from Ben (or something
-> approximating him) before doing anything with them, please.
+> I think the real problem is that build_all_zonelists() is only called at 
+> init when the boot cpu is online so it's only setting numa_mem_id() 
+> properly for the boot cpu.  Does it return a node with memory if you 
+> toggle /proc/sys/vm/numa_zonelist_order?  Do
+> 
+> 	echo node > /proc/sys/vm/numa_zonelist_order
+> 	echo zone > /proc/sys/vm/numa_zonelist_order
+> 	echo default > /proc/sys/vm/numa_zonelist_order
+> 
+> and check if it returns the proper value at either point.  This will force 
+> build_all_zonelists() and numa_mem_id() to point to the proper node since 
+> all cpus are now online.
 
-Ah good. Did you grab v2 ? v1 had a compile breakage. I was about to
-send them to Linus today as well but then got distracted by a sick
-child, so I'm happy for you to pick them up and send them to the
-boss :-)
+Yep, after massaging the code to allow CONFIG_USE_PERCPU_NUMA_NODE_ID,
+you're right that the memory node is wrong. The cpu node is right (they
+are all on node 0), but that could be lucky. The memory node is right
+for the boot cpu. I did notice that some CPUs now think the cpu node is
+1, which is wrong.
 
-Cheers,
-Ben.
+> So the prerequisite for CONFIG_HAVE_MEMORYLESS_NODES is that there is an 
+> arch-specific set_numa_mem() that makes this mapping correct like ia64 
+> does.  If that's the case, then it's (1) completely undocumented and (2) 
+> Nishanth's patch is incomplete because anything that adds 
+> CONFIG_HAVE_MEMORYLESS_NODES needs to do the proper set_numa_mem() for it 
+> to be any different than numa_node_id().
 
+I'll work on getting the set_numa_mem() and set_numa_node() correct for
+powerpc.
+
+Thanks,
+Nish
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
