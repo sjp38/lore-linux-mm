@@ -1,102 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 649366B0031
-	for <linux-mm@kvack.org>; Fri, 14 Feb 2014 10:10:27 -0500 (EST)
-Received: by mail-wi0-f172.google.com with SMTP id e4so562671wiv.11
-        for <linux-mm@kvack.org>; Fri, 14 Feb 2014 07:10:26 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id k10si4114348wjb.29.2014.02.14.07.10.24
-        for <linux-mm@kvack.org>;
-        Fri, 14 Feb 2014 07:10:25 -0800 (PST)
-Date: Fri, 14 Feb 2014 10:09:58 -0500
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <52fe31e1.ca0ac20a.5647.5e12SMTPIN_ADDED_BROKEN@mx.google.com>
-In-Reply-To: <20140214130450.GA14755@localhost>
-References: <52fdd350.dwn4aII31EyWlDq9%fengguang.wu@intel.com>
- <20140214130450.GA14755@localhost>
-Subject: [PATCH] fs/proc/task_mmu.c: assume non-NULL vma in pagemap_hugetlb()
- (Re: [mmotm:master 97/220] fs/proc/task_mmu.c:1042 pagemap_hugetlb() error: we
- previously assumed 'vma' could be null (see line 1037))
-Mime-Version: 1.0
-Content-Type: text/plain;
- charset=iso-2022-jp
-Content-Transfer-Encoding: 7bit
+Received: from mail-qa0-f41.google.com (mail-qa0-f41.google.com [209.85.216.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 69FC06B0031
+	for <linux-mm@kvack.org>; Fri, 14 Feb 2014 12:30:56 -0500 (EST)
+Received: by mail-qa0-f41.google.com with SMTP id w8so18922707qac.0
+        for <linux-mm@kvack.org>; Fri, 14 Feb 2014 09:30:56 -0800 (PST)
+Received: from e36.co.us.ibm.com (e36.co.us.ibm.com. [32.97.110.154])
+        by mx.google.com with ESMTPS id j4si4321822qao.24.2014.02.14.09.30.54
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 14 Feb 2014 09:30:55 -0800 (PST)
+Received: from /spool/local
+	by e36.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
+	Fri, 14 Feb 2014 10:30:54 -0700
+Received: from b03cxnp07028.gho.boulder.ibm.com (b03cxnp07028.gho.boulder.ibm.com [9.17.130.15])
+	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id ED5243E4003F
+	for <linux-mm@kvack.org>; Fri, 14 Feb 2014 10:30:51 -0700 (MST)
+Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
+	by b03cxnp07028.gho.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s1EHUOqN3080582
+	for <linux-mm@kvack.org>; Fri, 14 Feb 2014 18:30:24 +0100
+Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id s1EHYEhw011354
+	for <linux-mm@kvack.org>; Fri, 14 Feb 2014 10:34:14 -0700
+Date: Fri, 14 Feb 2014 09:30:39 -0800
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: Memory allocator semantics
+Message-ID: <20140214173038.GR4250@linux.vnet.ibm.com>
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <20140102203320.GA27615@linux.vnet.ibm.com>
+ <52F60699.8010204@iki.fi>
+ <20140209020004.GY4250@linux.vnet.ibm.com>
+ <CAOJsxLHs890eypzfnNj4ff1zqy_=bC8FA7B0YYbcZQF_c_wSog@mail.gmail.com>
+ <alpine.DEB.2.10.1402111242380.28186@nuc>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.10.1402111242380.28186@nuc>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Fengguang Wu <fengguang.wu@intel.com>
-Cc: kbuild-all@01.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Matt Mackall <mpm@selenic.com>
 
-Hi Fengguang,
-
-On Fri, Feb 14, 2014 at 09:04:50PM +0800, Fengguang Wu wrote:
-...
-> FYI, there are new smatch warnings show up in
+On Tue, Feb 11, 2014 at 12:43:35PM -0600, Christoph Lameter wrote:
+> On Tue, 11 Feb 2014, Pekka Enberg wrote:
 > 
-> tree:   git://git.cmpxchg.org/linux-mmotm.git master
-> head:   0363f94bc1c9b81f23ee7d2446331eb288568ea7
-> commit: 81272031cc2831a3d1abb3c681f1188aa36a1454 [97/220] pagewalk: remove argument hmask from hugetlb_entry()
+> > So again, there's nothing in (A) that the memory allocator is
+> > concerned about.  kmalloc() makes no guarantees whatsoever about the
+> > visibility of "r1" across CPUs.  If you're saying that there's an
+> > implicit barrier between kmalloc() and kfree(), that's an unintended
+> > side-effect, not a design decision AFAICT.
 > 
-> fs/proc/task_mmu.c:1042 pagemap_hugetlb() error: we previously assumed 'vma' could be null (see line 1037)
-> 
-> vim +/vma +1042 fs/proc/task_mmu.c
-> 
-> d9104d1c Cyrill Gorcunov       2013-09-11  1031  	int flags2;
-> 16fbdce6 Konstantin Khlebnikov 2012-05-10  1032  	pagemap_entry_t pme;
-> 81272031 Naoya Horiguchi       2014-02-13  1033  	unsigned long hmask;
-> 5dc37642 Naoya Horiguchi       2009-12-14  1034  
-> d9104d1c Cyrill Gorcunov       2013-09-11  1035  	WARN_ON_ONCE(!vma);
-> d9104d1c Cyrill Gorcunov       2013-09-11  1036  
-> d9104d1c Cyrill Gorcunov       2013-09-11 @1037  	if (vma && (vma->vm_flags & VM_SOFTDIRTY))
-> d9104d1c Cyrill Gorcunov       2013-09-11  1038  		flags2 = __PM_SOFT_DIRTY;
-> d9104d1c Cyrill Gorcunov       2013-09-11  1039  	else
-> d9104d1c Cyrill Gorcunov       2013-09-11  1040  		flags2 = 0;
-> d9104d1c Cyrill Gorcunov       2013-09-11  1041  
-> 21a2f342 Naoya Horiguchi       2014-02-13 @1042  	hmask = huge_page_mask(hstate_vma(vma));
-> 5dc37642 Naoya Horiguchi       2009-12-14  1043  	for (; addr != end; addr += PAGE_SIZE) {
-> 116354d1 Naoya Horiguchi       2010-04-06  1044  		int offset = (addr & ~hmask) >> PAGE_SHIFT;
-> d9104d1c Cyrill Gorcunov       2013-09-11  1045  		huge_pte_to_pagemap_entry(&pme, pm, *pte, offset, flags2);
+> I am not sure that this side effect necessarily happens. The SLUB fastpath
+> does not disable interrupts and only uses a cmpxchg without lock
+> semantics.
 
-Thanks for reporting, here is a patch.
-We never have NULL vma in pagemap_hugetlb(), I added the BUG_ON check.
+That tells me what I need to know.  Users should definitely not try a
+"drive-by kfree()" of something that was concurrently allocated.  ;-)
 
-Thanks,
-Naoya Horiguchi
----
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Date: Fri, 14 Feb 2014 09:35:06 -0500
-Subject: [PATCH] fs/proc/task_mmu.c: assume non-NULL vma in pagemap_hugetlb()
-
-Fengguang reported smatch error about potential NULL pointer access.
-
-In updated page table walker, we never run ->hugetlb_entry() callback
-on the address without vma. This is because __walk_page_range() checks
-it in advance. So we can assume non-NULL vma in pagemap_hugetlb().
-
-Reported-by: Fengguang Wu <fengguang.wu@intel.com>
-Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
----
- fs/proc/task_mmu.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
-
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index f819d0d4a0e8..69aed7192254 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -1032,9 +1032,9 @@ static int pagemap_hugetlb(pte_t *pte, unsigned long addr, unsigned long end,
- 	pagemap_entry_t pme;
- 	unsigned long hmask;
- 
--	WARN_ON_ONCE(!vma);
-+	BUG_ON(!vma);
- 
--	if (vma && (vma->vm_flags & VM_SOFTDIRTY))
-+	if (vma->vm_flags & VM_SOFTDIRTY)
- 		flags2 = __PM_SOFT_DIRTY;
- 	else
- 		flags2 = 0;
--- 
-1.8.5.3
+							Thanx, Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
