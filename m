@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	by kanga.kvack.org (Postfix) with ESMTP id A46AC6B0031
-	for <linux-mm@kvack.org>; Thu, 13 Feb 2014 20:02:43 -0500 (EST)
-Received: by mail-wi0-f173.google.com with SMTP id hn9so9480776wib.12
-        for <linux-mm@kvack.org>; Thu, 13 Feb 2014 17:02:43 -0800 (PST)
+Received: from mail-ee0-f42.google.com (mail-ee0-f42.google.com [74.125.83.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 265A16B0035
+	for <linux-mm@kvack.org>; Thu, 13 Feb 2014 20:02:45 -0500 (EST)
+Received: by mail-ee0-f42.google.com with SMTP id b15so5387657eek.29
+        for <linux-mm@kvack.org>; Thu, 13 Feb 2014 17:02:44 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id lr14si54280wic.0.2014.02.13.17.02.40
+        by mx.google.com with ESMTP id x43si7419694eey.166.2014.02.13.17.02.43
         for <linux-mm@kvack.org>;
-        Thu, 13 Feb 2014 17:02:42 -0800 (PST)
+        Thu, 13 Feb 2014 17:02:43 -0800 (PST)
 From: Luiz Capitulino <lcapitulino@redhat.com>
-Subject: [PATCH 1/4] memblock: memblock_virt_alloc_internal(): add __GFP_THISNODE flag support
-Date: Thu, 13 Feb 2014 20:02:05 -0500
-Message-Id: <1392339728-13487-2-git-send-email-lcapitulino@redhat.com>
+Subject: [PATCH 2/4] memblock: add memblock_virt_alloc_nid_nopanic()
+Date: Thu, 13 Feb 2014 20:02:06 -0500
+Message-Id: <1392339728-13487-3-git-send-email-lcapitulino@redhat.com>
 In-Reply-To: <1392339728-13487-1-git-send-email-lcapitulino@redhat.com>
 References: <1392339728-13487-1-git-send-email-lcapitulino@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -21,83 +21,74 @@ Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, mtosatti@redhat.com
 
 From: Luiz capitulino <lcapitulino@redhat.com>
 
-Currently, if an allocation from the node specified by the nid argument
-fails, memblock_virt_alloc_internal() automatically tries to allocate memory
-from other nodes.
+This function tries to allocate memory from the specified node only (vs.
+falling back to other nodes).
 
-This is fine if the caller don't care about which node is going to allocate
-the memory. However, there are cases where the caller wants memory to be
-allocated from the specified node only. If that's not possible, then
-memblock_virt_alloc_internal() should just fail.
-
-This commit adds a new flags argument to memblock_virt_alloc_internal()
-where the caller can control this behavior. The flags argument is of type
-gfp_t, so that we can (re-)use the __GFP_THISNODE definition.
+This is going to be used by HugeTLB boot-time allocation code in next
+commits.
 
 Signed-off-by: Luiz capitulino <lcapitulino@redhat.com>
 ---
- mm/memblock.c | 14 +++++++++++---
- 1 file changed, 11 insertions(+), 3 deletions(-)
+ include/linux/bootmem.h |  4 ++++
+ mm/memblock.c           | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 34 insertions(+)
 
+diff --git a/include/linux/bootmem.h b/include/linux/bootmem.h
+index db51fe4..6961b11 100644
+--- a/include/linux/bootmem.h
++++ b/include/linux/bootmem.h
+@@ -153,6 +153,10 @@ extern void *__alloc_bootmem_low_node(pg_data_t *pgdat,
+ void *memblock_virt_alloc_try_nid_nopanic(phys_addr_t size,
+ 		phys_addr_t align, phys_addr_t min_addr,
+ 		phys_addr_t max_addr, int nid);
++void * __init memblock_virt_alloc_nid_nopanic(
++				phys_addr_t size, phys_addr_t align,
++				phys_addr_t min_addr, phys_addr_t max_addr,
++				int nid);
+ void *memblock_virt_alloc_try_nid(phys_addr_t size, phys_addr_t align,
+ 		phys_addr_t min_addr, phys_addr_t max_addr, int nid);
+ void __memblock_free_early(phys_addr_t base, phys_addr_t size);
 diff --git a/mm/memblock.c b/mm/memblock.c
-index 39a31e7..f3821ef 100644
+index f3821ef..2a5d72e 100644
 --- a/mm/memblock.c
 +++ b/mm/memblock.c
-@@ -1035,12 +1035,18 @@ phys_addr_t __init memblock_alloc_try_nid(phys_addr_t size, phys_addr_t align, i
-  * @min_addr: the lower bound of the memory region to allocate (phys address)
-  * @max_addr: the upper bound of the memory region to allocate (phys address)
-  * @nid: nid of the free area to find, %NUMA_NO_NODE for any node
-+ * @flags: control how memory is allocated
-  *
-  * The @min_addr limit is dropped if it can not be satisfied and the allocation
-  * will fall back to memory below @min_addr. Also, allocation may fall back
-  * to any node in the system if the specified node can not
-  * hold the requested memory.
-  *
-+ * The @flags argument is one of:
-+ *
-+ * %__GFP_THISNODE: memory is allocated from the node specified by @nid only.
-+ * 	If that fails, an error is returned
-+ *
-  * The allocation is performed from memory region limited by
-  * memblock.current_limit if @max_addr == %BOOTMEM_ALLOC_ACCESSIBLE.
-  *
-@@ -1058,7 +1064,7 @@ phys_addr_t __init memblock_alloc_try_nid(phys_addr_t size, phys_addr_t align, i
- static void * __init memblock_virt_alloc_internal(
- 				phys_addr_t size, phys_addr_t align,
- 				phys_addr_t min_addr, phys_addr_t max_addr,
--				int nid)
-+				int nid, gfp_t flags)
- {
- 	phys_addr_t alloc;
- 	void *ptr;
-@@ -1085,6 +1091,8 @@ again:
- 					    nid);
- 	if (alloc)
- 		goto done;
-+	if (flags & __GFP_THISNODE)
-+		goto error;
- 
- 	if (nid != NUMA_NO_NODE) {
- 		alloc = memblock_find_in_range_node(size, align, min_addr,
-@@ -1145,7 +1153,7 @@ void * __init memblock_virt_alloc_try_nid_nopanic(
- 		     __func__, (u64)size, (u64)align, nid, (u64)min_addr,
- 		     (u64)max_addr, (void *)_RET_IP_);
- 	return memblock_virt_alloc_internal(size, align, min_addr,
--					     max_addr, nid);
-+					     max_addr, nid, 0);
+@@ -1157,6 +1157,36 @@ void * __init memblock_virt_alloc_try_nid_nopanic(
  }
  
  /**
-@@ -1177,7 +1185,7 @@ void * __init memblock_virt_alloc_try_nid(
- 		     __func__, (u64)size, (u64)align, nid, (u64)min_addr,
- 		     (u64)max_addr, (void *)_RET_IP_);
- 	ptr = memblock_virt_alloc_internal(size, align,
--					   min_addr, max_addr, nid);
-+					   min_addr, max_addr, nid, 0);
- 	if (ptr)
- 		return ptr;
- 
++ * memblock_virt_alloc_nid_nopanic - allocate boot memory block from
++ * specified node
++ * @size: size of memory block to be allocated in bytes
++ * @align: alignment of the region and block's size
++ * @min_addr: the lower bound of the memory region from where the allocation
++ *	  is preferred (phys address)
++ * @max_addr: the upper bound of the memory region from where the allocation
++ *	      is preferred (phys address), or %BOOTMEM_ALLOC_ACCESSIBLE to
++ *	      allocate only from memory limited by memblock.current_limit value
++ * @nid: nid of the free area to find, %NUMA_NO_NODE for any node
++ *
++ * This function tries to allocate memory from @nid only. It @nid doesn't
++ * have enough memory, this function returns failure.
++ *
++ * RETURNS:
++ * Virtual address of allocated memory block on success, NULL on failure.
++ */
++void * __init memblock_virt_alloc_nid_nopanic(
++				phys_addr_t size, phys_addr_t align,
++				phys_addr_t min_addr, phys_addr_t max_addr,
++				int nid)
++{
++	memblock_dbg("%s: %llu bytes align=0x%llx nid=%d from=0x%llx max_addr=0x%llx %pF\n",
++		     __func__, (u64)size, (u64)align, nid, (u64)min_addr,
++		     (u64)max_addr, (void *)_RET_IP_);
++	return memblock_virt_alloc_internal(size, align, min_addr,
++					     max_addr, nid, __GFP_THISNODE);
++}
++
++/**
+  * memblock_virt_alloc_try_nid - allocate boot memory block with panicking
+  * @size: size of memory block to be allocated in bytes
+  * @align: alignment of the region and block's size
 -- 
 1.8.1.4
 
