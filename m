@@ -1,109 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id EC4886B0036
-	for <linux-mm@kvack.org>; Fri, 14 Feb 2014 03:06:05 -0500 (EST)
-Received: by mail-pd0-f180.google.com with SMTP id x10so11579869pdj.25
-        for <linux-mm@kvack.org>; Fri, 14 Feb 2014 00:06:05 -0800 (PST)
-Received: from e28smtp07.in.ibm.com (e28smtp07.in.ibm.com. [122.248.162.7])
-        by mx.google.com with ESMTPS id bp2si4842301pab.214.2014.02.14.00.06.03
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 875E36B0031
+	for <linux-mm@kvack.org>; Fri, 14 Feb 2014 05:17:47 -0500 (EST)
+Received: by mail-wi0-f171.google.com with SMTP id cc10so301559wib.10
+        for <linux-mm@kvack.org>; Fri, 14 Feb 2014 02:17:46 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id iy12si729502wic.81.2014.02.14.02.17.45
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 14 Feb 2014 00:06:05 -0800 (PST)
-Received: from /spool/local
-	by e28smtp07.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <srivatsa.bhat@linux.vnet.ibm.com>;
-	Fri, 14 Feb 2014 13:36:00 +0530
-Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
-	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 10EA51258055
-	for <linux-mm@kvack.org>; Fri, 14 Feb 2014 13:37:53 +0530 (IST)
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s1E85nPF65404994
-	for <linux-mm@kvack.org>; Fri, 14 Feb 2014 13:35:49 +0530
-Received: from d28av04.in.ibm.com (localhost [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s1E85umh016911
-	for <linux-mm@kvack.org>; Fri, 14 Feb 2014 13:35:56 +0530
-From: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
-Subject: [PATCH v2 50/52] mm, zswap: Fix CPU hotplug callback registration
-Date: Fri, 14 Feb 2014 13:30:33 +0530
-Message-ID: <20140214080033.22701.40216.stgit@srivatsabhat.in.ibm.com>
-In-Reply-To: <20140214074750.22701.47330.stgit@srivatsabhat.in.ibm.com>
-References: <20140214074750.22701.47330.stgit@srivatsabhat.in.ibm.com>
+        Fri, 14 Feb 2014 02:17:45 -0800 (PST)
+Date: Fri, 14 Feb 2014 10:17:42 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH] mm: swap: Use swapfiles in priority order
+Message-ID: <20140214101742.GY6732@suse.de>
+References: <20140213104231.GX6732@suse.de>
+ <CAL1ERfNKX+o9dk5Qg77R3HQ_VLYiEL7mU0Tm_HqtSm9ixTW5fg@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <CAL1ERfNKX+o9dk5Qg77R3HQ_VLYiEL7mU0Tm_HqtSm9ixTW5fg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: paulus@samba.org, oleg@redhat.com, mingo@kernel.org, rusty@rustcorp.com.au, peterz@infradead.org, tglx@linutronix.de, akpm@linux-foundation.org
-Cc: paulmck@linux.vnet.ibm.com, tj@kernel.org, walken@google.com, ego@linux.vnet.ibm.com, linux@arm.linux.org.uk, rjw@rjwysocki.net, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, srivatsa.bhat@linux.vnet.ibm.com, linux-mm@kvack.org"Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
+To: Weijie Yang <weijie.yang.kh@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Subsystems that want to register CPU hotplug callbacks, as well as perform
-initialization for the CPUs that are already online, often do it as shown
-below:
+On Thu, Feb 13, 2014 at 11:58:05PM +0800, Weijie Yang wrote:
+> On Thu, Feb 13, 2014 at 6:42 PM, Mel Gorman <mgorman@suse.de> wrote:
+> > According to the swapon documentation
+> >
+> >         Swap  pages  are  allocated  from  areas  in priority order,
+> >         highest priority first.  For areas with different priorities, a
+> >         higher-priority area is exhausted before using a lower-priority area.
+> >
+> > A user reported that the reality is different. When multiple swap files
+> > are enabled and a memory consumer started, the swap files are consumed in
+> > pairs after the highest priority file is exhausted. Early in the lifetime
+> > of the test, swapfile consumptions looks like
+> >
+> > Filename                                Type            Size    Used    Priority
+> > /testswap1                              file            100004  100004  8
+> > /testswap2                              file            100004  23764   7
+> > /testswap3                              file            100004  23764   6
+> > /testswap4                              file            100004  0       5
+> > /testswap5                              file            100004  0       4
+> > /testswap6                              file            100004  0       3
+> > /testswap7                              file            100004  0       2
+> > /testswap8                              file            100004  0       1
+> >
+> > This patch fixes the swap_list search in get_swap_page to use the swap files
+> > in the correct order. When applied the swap file consumptions looks like
+> >
+> > Filename                                Type            Size    Used    Priority
+> > /testswap1                              file            100004  100004  8
+> > /testswap2                              file            100004  100004  7
+> > /testswap3                              file            100004  29372   6
+> > /testswap4                              file            100004  0       5
+> > /testswap5                              file            100004  0       4
+> > /testswap6                              file            100004  0       3
+> > /testswap7                              file            100004  0       2
+> > /testswap8                              file            100004  0       1
+> >
+> > Signed-off-by: Mel Gorman <mgorman@suse.de>
+> > ---
+> >  mm/swapfile.c | 2 +-
+> >  1 file changed, 1 insertion(+), 1 deletion(-)
+> >
+> > diff --git a/mm/swapfile.c b/mm/swapfile.c
+> > index 4a7f7e6..6d0ac2b 100644
+> > --- a/mm/swapfile.c
+> > +++ b/mm/swapfile.c
+> > @@ -651,7 +651,7 @@ swp_entry_t get_swap_page(void)
+> >                 goto noswap;
+> >         atomic_long_dec(&nr_swap_pages);
+> >
+> > -       for (type = swap_list.next; type >= 0 && wrapped < 2; type = next) {
+> > +       for (type = swap_list.head; type >= 0 && wrapped < 2; type = next) {
+> 
+> Does it lead to a "schlemiel the painter's algorithm"?
+> (please forgive my rude words, but I can't find a precise word to describe it
+> because English is not my native language. My apologize.)
+> 
+> How about modify it like this?
+> 
 
-	get_online_cpus();
+I blindly applied your version without review to see how it behaved and
+found it uses every second swapfile like this
 
-	for_each_online_cpu(cpu)
-		init_cpu(cpu);
+Filename                                Type            Size    Used    Priority
+/testswap1                              file            100004  100004  8
+/testswap2                              file            100004  16      7
+/testswap3                              file            100004  100004  6
+/testswap4                              file            100004  8       5
+/testswap5                              file            100004  100004  4
+/testswap6                              file            100004  8       3
+/testswap7                              file            100004  100004  2
+/testswap8                              file            100004  23504   1
 
-	register_cpu_notifier(&foobar_cpu_notifier);
+I admit I did not review the swap priority search algorithm in detail
+because the fix superficially looked straight forward but this
+alternative is not the answer either.
 
-	put_online_cpus();
-
-This is wrong, since it is prone to ABBA deadlocks involving the
-cpu_add_remove_lock and the cpu_hotplug.lock (when running concurrently
-with CPU hotplug operations).
-
-Instead, the correct and race-free way of performing the callback
-registration is:
-
-	cpu_notifier_register_begin();
-
-	for_each_online_cpu(cpu)
-		init_cpu(cpu);
-
-	/* Note the use of the double underscored version of the API */
-	__register_cpu_notifier(&foobar_cpu_notifier);
-
-	cpu_notifier_register_done();
-
-
-Fix the zswap code by using this latter form of callback registration.
-
-Cc: Ingo Molnar <mingo@kernel.org>
-Cc: linux-mm@kvack.org
-Signed-off-by: Srivatsa S. Bhat <srivatsa.bhat@linux.vnet.ibm.com>
----
-
- mm/zswap.c |    8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
-
-diff --git a/mm/zswap.c b/mm/zswap.c
-index e55bab9..d7337fb 100644
---- a/mm/zswap.c
-+++ b/mm/zswap.c
-@@ -387,18 +387,18 @@ static int zswap_cpu_init(void)
- {
- 	unsigned long cpu;
- 
--	get_online_cpus();
-+	cpu_notifier_register_begin();
- 	for_each_online_cpu(cpu)
- 		if (__zswap_cpu_notifier(CPU_UP_PREPARE, cpu) != NOTIFY_OK)
- 			goto cleanup;
--	register_cpu_notifier(&zswap_cpu_notifier_block);
--	put_online_cpus();
-+	__register_cpu_notifier(&zswap_cpu_notifier_block);
-+	cpu_notifier_register_done();
- 	return 0;
- 
- cleanup:
- 	for_each_online_cpu(cpu)
- 		__zswap_cpu_notifier(CPU_UP_CANCELED, cpu);
--	put_online_cpus();
-+	cpu_notifier_register_done();
- 	return -ENOMEM;
- }
- 
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
