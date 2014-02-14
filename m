@@ -1,72 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f43.google.com (mail-qa0-f43.google.com [209.85.216.43])
-	by kanga.kvack.org (Postfix) with ESMTP id DCF716B0031
-	for <linux-mm@kvack.org>; Fri, 14 Feb 2014 13:27:13 -0500 (EST)
-Received: by mail-qa0-f43.google.com with SMTP id o15so19001013qap.30
-        for <linux-mm@kvack.org>; Fri, 14 Feb 2014 10:27:13 -0800 (PST)
-Received: from qmta02.emeryville.ca.mail.comcast.net (qmta02.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:24])
-        by mx.google.com with ESMTP id r61si1166139qga.89.2014.02.14.10.27.13
-        for <linux-mm@kvack.org>;
-        Fri, 14 Feb 2014 10:27:13 -0800 (PST)
-Date: Fri, 14 Feb 2014 12:27:10 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 2/9] slab: makes clear_obj_pfmemalloc() just return store
- masked value
-In-Reply-To: <1392361043-22420-3-git-send-email-iamjoonsoo.kim@lge.com>
-Message-ID: <alpine.DEB.2.10.1402141225460.12887@nuc>
-References: <1392361043-22420-1-git-send-email-iamjoonsoo.kim@lge.com> <1392361043-22420-3-git-send-email-iamjoonsoo.kim@lge.com>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id B65546B0031
+	for <linux-mm@kvack.org>; Fri, 14 Feb 2014 13:34:30 -0500 (EST)
+Received: by mail-pd0-f181.google.com with SMTP id y10so12234808pdj.40
+        for <linux-mm@kvack.org>; Fri, 14 Feb 2014 10:34:30 -0800 (PST)
+Received: from mailout1.samsung.com (mailout1.samsung.com. [203.254.224.24])
+        by mx.google.com with ESMTPS id r3si6675297pbh.160.2014.02.14.10.34.27
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Fri, 14 Feb 2014 10:34:28 -0800 (PST)
+Received: from epcpsbgm1.samsung.com (epcpsbgm1 [203.254.230.26])
+ by mailout1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0N10007AO0XDC910@mailout1.samsung.com> for
+ linux-mm@kvack.org; Sat, 15 Feb 2014 03:34:25 +0900 (KST)
+From: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+Subject: [RFC][PATCH v2] mm/page_alloc: fix freeing of MIGRATE_RESERVE
+ migratetype pages
+Date: Fri, 14 Feb 2014 19:34:17 +0100
+Message-id: <42197912.c6v2hLDCey@amdc1032>
+MIME-version: 1.0
+Content-transfer-encoding: 7Bit
+Content-type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Hugh Dickins <hughd@google.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Yong-Taek Lee <ytk.lee@samsung.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, 14 Feb 2014, Joonsoo Kim wrote:
+Pages allocated from MIGRATE_RESERVE migratetype pageblocks
+are not freed back to MIGRATE_RESERVE migratetype free
+lists in free_pcppages_bulk()->__free_one_page() if we got
+to free_pcppages_bulk() through drain_[zone_]pages().
+The freeing through free_hot_cold_page() is okay because
+freepage migratetype is set to pageblock migratetype before
+calling free_pcppages_bulk().  If pages of MIGRATE_RESERVE
+migratetype end up on the free lists of other migratetype
+whole Reserved pageblock may be later changed to the other
+migratetype in __rmqueue_fallback() and it will be never
+changed back to be a Reserved pageblock.  Fix the issue by
+preserving freepage migratetype as a pageblock migratetype
+(instead of overriding it to the requested migratetype)
+for MIGRATE_RESERVE migratetype pages in rmqueue_bulk().
 
-> clear_obj_pfmemalloc() takes the pointer to the object pointer as argument
-> to store masked value back into this address.
-> But this is useless, since we don't use this stored value anymore.
-> All we need is just masked value. So makes clear_obj_pfmemalloc()
-> just return masked value.
+The problem was introduced in v2.6.31 by commit ed0ae21
+("page allocator: do not call get_pageblock_migratetype()
+more than necessary").
 
-Could this be a bit more compact?
+Signed-off-by: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+Reported-by: Yong-Taek Lee <ytk.lee@samsung.com>
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: Hugh Dickins <hughd@google.com>
+---
+v2:
+- updated patch description, there is no __zone_pcp_update()
+  in newer kernels
 
-> @@ -215,9 +215,9 @@ static inline void set_obj_pfmemalloc(void **objp)
->  	return;
->  }
->
-> -static inline void clear_obj_pfmemalloc(void **objp)
-> +static inline void *clear_obj_pfmemalloc(void *objp)
->  {
-> -	*objp = (void *)((unsigned long)*objp & ~SLAB_OBJ_PFMEMALLOC);
-> +	return (void *)((unsigned long)objp & ~SLAB_OBJ_PFMEMALLOC);
->  }
+ include/linux/mmzone.h |    5 +++++
+ mm/page_alloc.c        |   10 +++++++---
+ 2 files changed, 12 insertions(+), 3 deletions(-)
 
-I dont think you need the (void *) cast here.
-
->  /*
-> @@ -810,7 +810,7 @@ static void *__ac_get_obj(struct kmem_cache *cachep, struct array_cache *ac,
->  		struct kmem_cache_node *n;
->
->  		if (gfp_pfmemalloc_allowed(flags)) {
-> -			clear_obj_pfmemalloc(&objp);
-> +			objp = clear_obj_pfmemalloc(objp);
->  			return objp;
->  		}
-
-No need for objp. Just "return clear_obj_....
-
-
-> @@ -833,7 +833,7 @@ static void *__ac_get_obj(struct kmem_cache *cachep, struct array_cache *ac,
->  		if (!list_empty(&n->slabs_free) && force_refill) {
->  			struct page *page = virt_to_head_page(objp);
->  			ClearPageSlabPfmemalloc(page);
-> -			clear_obj_pfmemalloc(&objp);
-> +			objp = clear_obj_pfmemalloc(objp);
->  			recheck_pfmemalloc_active(cachep, ac);
->  			return objp;
-
-Same here?
+Index: b/include/linux/mmzone.h
+===================================================================
+--- a/include/linux/mmzone.h	2014-02-14 18:59:08.177837747 +0100
++++ b/include/linux/mmzone.h	2014-02-14 18:59:09.077837731 +0100
+@@ -63,6 +63,11 @@ enum {
+ 	MIGRATE_TYPES
+ };
+ 
++static inline bool is_migrate_reserve(int migratetype)
++{
++	return unlikely(migratetype == MIGRATE_RESERVE);
++}
++
+ #ifdef CONFIG_CMA
+ #  define is_migrate_cma(migratetype) unlikely((migratetype) == MIGRATE_CMA)
+ #else
+Index: b/mm/page_alloc.c
+===================================================================
+--- a/mm/page_alloc.c	2014-02-14 18:59:08.185837746 +0100
++++ b/mm/page_alloc.c	2014-02-14 18:59:09.077837731 +0100
+@@ -1174,7 +1174,7 @@ static int rmqueue_bulk(struct zone *zon
+ 			unsigned long count, struct list_head *list,
+ 			int migratetype, int cold)
+ {
+-	int mt = migratetype, i;
++	int mt, i;
+ 
+ 	spin_lock(&zone->lock);
+ 	for (i = 0; i < count; ++i) {
+@@ -1195,9 +1195,13 @@ static int rmqueue_bulk(struct zone *zon
+ 			list_add(&page->lru, list);
+ 		else
+ 			list_add_tail(&page->lru, list);
++		mt = get_pageblock_migratetype(page);
+ 		if (IS_ENABLED(CONFIG_CMA)) {
+-			mt = get_pageblock_migratetype(page);
+-			if (!is_migrate_cma(mt) && !is_migrate_isolate(mt))
++			if (!is_migrate_cma(mt) && !is_migrate_isolate(mt) &&
++			    !is_migrate_reserve(mt))
++				mt = migratetype;
++		} else {
++			if (!is_migrate_reserve(mt))
+ 				mt = migratetype;
+ 		}
+ 		set_freepage_migratetype(page, mt);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
