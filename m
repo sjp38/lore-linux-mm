@@ -1,100 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f41.google.com (mail-qa0-f41.google.com [209.85.216.41])
-	by kanga.kvack.org (Postfix) with ESMTP id D2E186B0031
-	for <linux-mm@kvack.org>; Fri, 14 Feb 2014 00:47:33 -0500 (EST)
-Received: by mail-qa0-f41.google.com with SMTP id w8so17779330qac.28
-        for <linux-mm@kvack.org>; Thu, 13 Feb 2014 21:47:33 -0800 (PST)
-Received: from e8.ny.us.ibm.com (e8.ny.us.ibm.com. [32.97.182.138])
-        by mx.google.com with ESMTPS id b4si946407qch.50.2014.02.13.21.47.33
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id EE82E6B0031
+	for <linux-mm@kvack.org>; Fri, 14 Feb 2014 01:42:35 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id fa1so11927571pad.0
+        for <linux-mm@kvack.org>; Thu, 13 Feb 2014 22:42:35 -0800 (PST)
+Received: from mailout3.samsung.com (mailout3.samsung.com. [203.254.224.33])
+        by mx.google.com with ESMTPS id bp2si4603591pab.156.2014.02.13.22.42.34
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 13 Feb 2014 21:47:33 -0800 (PST)
-Received: from /spool/local
-	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <nacc@linux.vnet.ibm.com>;
-	Fri, 14 Feb 2014 00:47:33 -0500
-Received: from b01cxnp22034.gho.pok.ibm.com (b01cxnp22034.gho.pok.ibm.com [9.57.198.24])
-	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id 1E604C9003E
-	for <linux-mm@kvack.org>; Fri, 14 Feb 2014 00:47:28 -0500 (EST)
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by b01cxnp22034.gho.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s1E5lVe92031990
-	for <linux-mm@kvack.org>; Fri, 14 Feb 2014 05:47:31 GMT
-Received: from d01av02.pok.ibm.com (localhost [127.0.0.1])
-	by d01av02.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s1E5lUfo027891
-	for <linux-mm@kvack.org>; Fri, 14 Feb 2014 00:47:30 -0500
-Date: Thu, 13 Feb 2014 21:47:24 -0800
-From: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
-Subject: Re: [RFC PATCH V5] mm readahead: Fix readahead fail for no local
- memory and limit readahead pages
-Message-ID: <20140214054724.GA24329@linux.vnet.ibm.com>
-References: <52F4B8A4.70405@linux.vnet.ibm.com>
- <alpine.DEB.2.02.1402071239301.4212@chino.kir.corp.google.com>
- <52F88C16.70204@linux.vnet.ibm.com>
- <alpine.DEB.2.02.1402100200420.30650@chino.kir.corp.google.com>
- <52F8C556.6090006@linux.vnet.ibm.com>
- <alpine.DEB.2.02.1402101333160.15624@chino.kir.corp.google.com>
- <52FC6F2A.30905@linux.vnet.ibm.com>
- <alpine.DEB.2.02.1402130003320.11689@chino.kir.corp.google.com>
- <52FC98A6.1000701@linux.vnet.ibm.com>
- <alpine.DEB.2.02.1402131416430.13899@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.02.1402131416430.13899@chino.kir.corp.google.com>
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Thu, 13 Feb 2014 22:42:34 -0800 (PST)
+Received: from epcpsbgm1.samsung.com (epcpsbgm1 [203.254.230.26])
+ by mailout3.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0N0Z00EN63YVPE00@mailout3.samsung.com> for
+ linux-mm@kvack.org; Fri, 14 Feb 2014 15:42:31 +0900 (KST)
+From: Weijie Yang <weijie.yang@samsung.com>
+Subject: [PATCH V2 1/2] mm/vmscan: restore sc->gfp_mask after promoting it to
+ __GFP_HIGHMEM
+Date: Fri, 14 Feb 2014 14:41:33 +0800
+Message-id: <000101cf294f$eef39610$ccdac230$%yang@samsung.com>
+MIME-version: 1.0
+Content-type: text/plain; charset=UTF-8
+Content-transfer-encoding: 7bit
+Content-language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Fengguang Wu <fengguang.wu@intel.com>, David Cohen <david.a.cohen@linux.intel.com>, Al Viro <viro@zeniv.linux.org.uk>, Damien Ramonda <damien.ramonda@intel.com>, Jan Kara <jack@suse.cz>, Linus Torvalds <torvalds@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: 'Mel Gorman' <mgorman@suse.de>
+Cc: 'Andrew Morton' <akpm@linux-foundation.org>, riel@redhat.com, 'Minchan Kim' <minchan@kernel.org>, weijie.yang.kh@gmail.com, 'Linux-MM' <linux-mm@kvack.org>, 'linux-kernel' <linux-kernel@vger.kernel.org>
 
-On 13.02.2014 [14:41:04 -0800], David Rientjes wrote:
-> On Thu, 13 Feb 2014, Raghavendra K T wrote:
-> 
-> > Thanks David, unfortunately even after applying that patch, I do not see
-> > the improvement.
-> > 
-> > Interestingly numa_mem_id() seem to still return the value of a
-> > memoryless node.
-> > May be  per cpu _numa_mem_ values are not set properly. Need to dig out ....
-> > 
-> 
-> I believe ppc will be relying on __build_all_zonelists() to set 
-> numa_mem_id() to be the proper node, and that relies on the ordering of 
-> the zonelist built for the memoryless node.  It would be very strange if 
-> local_memory_node() is returning a memoryless node because it is the first 
-> zone for node_zonelist(GFP_KERNEL) (why would a memoryless node be on the 
-> zonelist at all?).
-> 
-> I think the real problem is that build_all_zonelists() is only called at 
-> init when the boot cpu is online so it's only setting numa_mem_id() 
-> properly for the boot cpu.  Does it return a node with memory if you 
-> toggle /proc/sys/vm/numa_zonelist_order?  Do
-> 
-> 	echo node > /proc/sys/vm/numa_zonelist_order
-> 	echo zone > /proc/sys/vm/numa_zonelist_order
-> 	echo default > /proc/sys/vm/numa_zonelist_order
-> 
-> and check if it returns the proper value at either point.  This will force 
-> build_all_zonelists() and numa_mem_id() to point to the proper node since 
-> all cpus are now online.
+We promote sc->gfp_mask to __GFP_HIGHMEM to forcibly scan highmem if
+there are too many buffer_heads pinning highmem. see: cc715d99e5
 
-Yep, after massaging the code to allow CONFIG_USE_PERCPU_NUMA_NODE_ID,
-you're right that the memory node is wrong. The cpu node is right (they
-are all on node 0), but that could be lucky. The memory node is right
-for the boot cpu. I did notice that some CPUs now think the cpu node is
-1, which is wrong.
+This patch restores sc->gfp_mask to its caller original value after
+finishing the scan job, to avoid the impact on other invocations from
+its upper caller, such as vmpressure_prio(), shrink_slab().
 
-> So the prerequisite for CONFIG_HAVE_MEMORYLESS_NODES is that there is an 
-> arch-specific set_numa_mem() that makes this mapping correct like ia64 
-> does.  If that's the case, then it's (1) completely undocumented and (2) 
-> Nishanth's patch is incomplete because anything that adds 
-> CONFIG_HAVE_MEMORYLESS_NODES needs to do the proper set_numa_mem() for it 
-> to be any different than numa_node_id().
+Signed-off-by: Weijie Yang <weijie.yang@samsung.com>
+---
+Changes since v1:
+	- use orig_mask to record the caller's orininal mask and restore
+	 it after finishing scan, according to Riel's suggestion.
 
-I'll work on getting the set_numa_mem() and set_numa_node() correct for
-powerpc.
+V1: https://lkml.org/lkml/2014/2/12/764
 
-Thanks,
-Nish
+ mm/vmscan.c |    7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index a9c74b4..da0a87c 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2298,6 +2298,7 @@ static bool shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
+ 	unsigned long nr_soft_reclaimed;
+ 	unsigned long nr_soft_scanned;
+ 	bool aborted_reclaim = false;
++	gfp_t orig_mask = sc->gfp_mask;
+ 
+ 	/*
+ 	 * If the number of buffer_heads in the machine exceeds the maximum
+@@ -2354,6 +2355,12 @@ static bool shrink_zones(struct zonelist *zonelist, struct scan_control *sc)
+ 		shrink_zone(zone, sc);
+ 	}
+ 
++	/*
++	 * restore to original mask to avoid the impact on its caller
++	 * if we promote it to __GFP_HIGHMEM.
++	 */
++	sc->gfp_mask = orig_mask;
++
+ 	return aborted_reclaim;
+ }
+ 
+-- 
+1.7.10.4
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
