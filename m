@@ -1,73 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 580836B0031
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 9DC806B0031
 	for <linux-mm@kvack.org>; Fri, 14 Feb 2014 01:57:27 -0500 (EST)
-Received: by mail-pa0-f48.google.com with SMTP id kx10so11814763pab.21
-        for <linux-mm@kvack.org>; Thu, 13 Feb 2014 22:57:26 -0800 (PST)
+Received: by mail-pa0-f46.google.com with SMTP id rd3so11837704pab.19
+        for <linux-mm@kvack.org>; Thu, 13 Feb 2014 22:57:27 -0800 (PST)
 Received: from LGEAMRELO01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
-        by mx.google.com with ESMTP id i8si4655249pav.132.2014.02.13.22.57.25
+        by mx.google.com with ESMTP id to9si4662117pbc.125.2014.02.13.22.57.25
         for <linux-mm@kvack.org>;
         Thu, 13 Feb 2014 22:57:26 -0800 (PST)
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: [PATCH 0/9] clean-up and remove lockdep annotation in SLAB
-Date: Fri, 14 Feb 2014 15:57:14 +0900
-Message-Id: <1392361043-22420-1-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH 2/9] slab: makes clear_obj_pfmemalloc() just return store masked value
+Date: Fri, 14 Feb 2014 15:57:16 +0900
+Message-Id: <1392361043-22420-3-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <1392361043-22420-1-git-send-email-iamjoonsoo.kim@lge.com>
+References: <1392361043-22420-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@kernel.org>
 Cc: Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-This patchset does some clean-up and tries to remove lockdep annotation.
+clear_obj_pfmemalloc() takes the pointer to the object pointer as argument
+to store masked value back into this address.
+But this is useless, since we don't use this stored value anymore.
+All we need is just masked value. So makes clear_obj_pfmemalloc()
+just return masked value.
 
-Patches 1~3 are just for really really minor improvement.
-Patches 4~9 are for clean-up and removing lockdep annotation.
+Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-There are two cases that lockdep annotation is needed in SLAB.
-1) holding two node locks
-2) holding two array cache(alien cache) locks
-
-I looked at the code and found that we can avoid these cases without
-any negative effect.
-
-1) occurs if freeing object makes new free slab and we decide to
-destroy it. Although we don't need to hold the lock during destroying
-a slab, current code do that. Destroying a slab without holding the lock
-would help the reduction of the lock contention. To do it, I change the
-implementation that new free slab is destroyed after releasing the lock.
-
-2) occurs on similar situation. When we free object from non-local node,
-we put this object to alien cache with holding the alien cache lock.
-If alien cache is full, we try to flush alien cache to proper node cache,
-and, in this time, new free slab could be made. Destroying it would be
-started and we will free metadata object which comes from another node.
-In this case, we need another node's alien cache lock to free object.
-This forces us to hold two array cache locks and then we need lockdep
-annotation although they are always different locks and deadlock cannot
-be possible. To prevent this situation, I use same way as 1).
-
-In this way, we can avoid 1) and 2) cases, and then, can remove lockdep
-annotation. As short stat noted, this makes SLAB code much simpler.
-
-This patchset is based on slab/next branch on Pekka's git tree.
-git://git.kernel.org/pub/scm/linux/kernel/git/penberg/linux.git
-
-Thanks.
-
-Joonsoo Kim (9):
-  slab: add unlikely macro to help compiler
-  slab: makes clear_obj_pfmemalloc() just return store masked value
-  slab: move up code to get kmem_cache_node in free_block()
-  slab: defer slab_destroy in free_block()
-  slab: factor out initialization of arracy cache
-  slab: introduce alien_cache
-  slab: use the lock on alien_cache, instead of the lock on array_cache
-  slab: destroy a slab without holding any alien cache lock
-  slab: remove a useless lockdep annotation
-
- mm/slab.c |  384 ++++++++++++++++++++++---------------------------------------
- mm/slab.h |    2 +-
- 2 files changed, 138 insertions(+), 248 deletions(-)
-
+diff --git a/mm/slab.c b/mm/slab.c
+index 5906f8f..6d17cad 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -215,9 +215,9 @@ static inline void set_obj_pfmemalloc(void **objp)
+ 	return;
+ }
+ 
+-static inline void clear_obj_pfmemalloc(void **objp)
++static inline void *clear_obj_pfmemalloc(void *objp)
+ {
+-	*objp = (void *)((unsigned long)*objp & ~SLAB_OBJ_PFMEMALLOC);
++	return (void *)((unsigned long)objp & ~SLAB_OBJ_PFMEMALLOC);
+ }
+ 
+ /*
+@@ -810,7 +810,7 @@ static void *__ac_get_obj(struct kmem_cache *cachep, struct array_cache *ac,
+ 		struct kmem_cache_node *n;
+ 
+ 		if (gfp_pfmemalloc_allowed(flags)) {
+-			clear_obj_pfmemalloc(&objp);
++			objp = clear_obj_pfmemalloc(objp);
+ 			return objp;
+ 		}
+ 
+@@ -833,7 +833,7 @@ static void *__ac_get_obj(struct kmem_cache *cachep, struct array_cache *ac,
+ 		if (!list_empty(&n->slabs_free) && force_refill) {
+ 			struct page *page = virt_to_head_page(objp);
+ 			ClearPageSlabPfmemalloc(page);
+-			clear_obj_pfmemalloc(&objp);
++			objp = clear_obj_pfmemalloc(objp);
+ 			recheck_pfmemalloc_active(cachep, ac);
+ 			return objp;
+ 		}
+@@ -3365,8 +3365,7 @@ static void free_block(struct kmem_cache *cachep, void **objpp, int nr_objects,
+ 		void *objp;
+ 		struct page *page;
+ 
+-		clear_obj_pfmemalloc(&objpp[i]);
+-		objp = objpp[i];
++		objp = clear_obj_pfmemalloc(objpp[i]);
+ 
+ 		page = virt_to_head_page(objp);
+ 		n = cachep->node[node];
 -- 
 1.7.9.5
 
