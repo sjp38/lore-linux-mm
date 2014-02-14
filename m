@@ -1,83 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f44.google.com (mail-la0-f44.google.com [209.85.215.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B0706B0031
-	for <linux-mm@kvack.org>; Thu, 13 Feb 2014 20:53:06 -0500 (EST)
-Received: by mail-la0-f44.google.com with SMTP id hr13so8957408lab.3
-        for <linux-mm@kvack.org>; Thu, 13 Feb 2014 17:53:05 -0800 (PST)
-Received: from mail-lb0-x229.google.com (mail-lb0-x229.google.com [2a00:1450:4010:c04::229])
-        by mx.google.com with ESMTPS id kv5si5084504lbc.36.2014.02.13.17.53.03
+Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com [209.85.160.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 591AB6B0031
+	for <linux-mm@kvack.org>; Thu, 13 Feb 2014 21:33:59 -0500 (EST)
+Received: by mail-pb0-f54.google.com with SMTP id uo5so11705074pbc.13
+        for <linux-mm@kvack.org>; Thu, 13 Feb 2014 18:33:59 -0800 (PST)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
+        by mx.google.com with ESMTPS id cb2si1151538pbb.184.2014.02.13.18.33.56
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 13 Feb 2014 17:53:04 -0800 (PST)
-Received: by mail-lb0-f169.google.com with SMTP id q8so9049326lbi.28
-        for <linux-mm@kvack.org>; Thu, 13 Feb 2014 17:53:03 -0800 (PST)
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 13 Feb 2014 18:33:58 -0800 (PST)
+Message-ID: <52FD807F.5010105@huawei.com>
+Date: Fri, 14 Feb 2014 10:33:35 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-From: Pradeep Sawlani <pradeep.sawlani@gmail.com>
-Date: Thu, 13 Feb 2014 17:52:43 -0800
-Message-ID: <CAMrOTPgBtANS_ryRjan0-dTL97U7eRvtf3dCsss=Kn+Uk89fuA@mail.gmail.com>
-Subject: KSM on Android
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: [PATCH 3.10.x] mm: fix process accidentally killed by mce because
+ of huge page migration
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: hughd@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: surim@lab126.com, ieidus@redhat.com
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: kirill.shutemov@linux.intel.com, hughd@google.com, Linux MM <linux-mm@kvack.org>, stable@vger.kernel.org, Xishi Qiu <qiuxishi@huawei.com>, Li Zefan <lizefan@huawei.com>, Andrew Morton <akpm@linux-foundation.org>
 
-Re-sending this in plain text format (Apologies)
+Hi Naoya or Greg,
 
-Hello,
+We found a bug in 3.10.x.
+The problem is that we accidentally have a hwpoisoned hugepage in free
+hugepage list. It could happend in the the following scenario:
 
-In pursuit of saving memory on Android, I started experimenting with
-Kernel Same Page Merging(KSM).
-Number of pages shared because of KSM is reported by
-/sys/kernel/mm/pages_sharing.
-Documentation/vm/ksm.txt explains this as:
+        process A                           process B
 
-"pages_sharing    - how many more sites are sharing them i.e. how much saved"
+  migrate_huge_page
+  put_page (old hugepage)
+    linked to free hugepage list
+                                     hugetlb_fault
+                                       hugetlb_no_page
+                                         alloc_huge_page
+                                           dequeue_huge_page_vma
+                                             dequeue_huge_page_node
+                                               (steal hwpoisoned hugepage)
+  set_page_hwpoison_huge_page
+  dequeue_hwpoisoned_huge_page
+    (fail to dequeue)
 
-After enabling KSM on Android device, this number was reported as 19666 pages.
-Obvious optimization is to find out source of sharing and see if we
-can avoid duplicate pages at first place.
-In order to collect the data needed, It needed few
-modifications(trace_printk) statement in mm/ksm.c.
-Data should be collected from second cycle because that's when ksm
-starts merging
-pages. First KSM cycle is only used to calculate the checksum, pages
-are added to
-unstable tree and eventually moved to stable tree after this.
+I tested this bug, one process keeps allocating huge page, and I 
+use sysfs interface to soft offline a huge page, then received:
+"MCE: Killing UCP:2717 due to hardware memory corruption fault at 8200034"
 
-After analyzing data from second KSM cycle, few things which stood out:
-1.  In the same cycle, KSM can scan same page multiple times. Scanning
-a page involves
-    comparing page with pages in stable tree, if no match is found
-checksum is calculated.
-    From the look of it, it seems to be cpu intensive operation and
-impacts dcache as well.
+Upstream kernel is free from this bug because of these two commits:
 
-2.  Same page which is already shared by multiple process can be
-replaced by KSM page.
-    In this case, let say a particular page is mapped 24 times and is
-replaced by KSM page then
-    eventually all 24 entries will point to KSM page. pages_sharing
-will account for all 24 pages.
-    so pages _sharing does not actually report amount of memory saved.
->From the above example actual
-    savings is one page.
+f15bdfa802bfa5eb6b4b5a241b97ec9fa1204a35
+mm/memory-failure.c: fix memory leak in successful soft offlining
 
-Both cases happen very often with Android because of its architecture
-- Zygote spawning(fork) multiple
-applications. To calculate actual savings, we should account for same
-page(pfn)replaced by same KSM page only once.
-In the case 2 example, page_sharing should account only one page.
-After recalculating memory saving comes out to be 8602 pages (~34MB).
+c8721bbbdd36382de51cd6b7a56322e0acca2414
+mm: memory-hotplug: enable memory hotplug to handle hugepage
 
-I am trying to find out right solution to fix pages_sharing and
-eventually optimize KSM to scan page
-once even if it is mapped multiple times.
+The first one, although the problem is about memory leak, this patch
+moves unset_migratetype_isolate(), which is important to avoid the race.
+The latter is not a bug fix and it's too big, so I rewrite a small one.
 
-Comments?
+The following patch can fix this bug.(please apply f15bdfa802bf first)
 
-Thanks,
-Pradeep
+
+Signed-off-by: Xishi Qiu <qiuxishi@huawei.com>
+Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+---
+ mm/hugetlb.c |   11 +++++++++--
+ 1 files changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 7c5eb85..6cb5b3b 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -21,6 +21,7 @@
+ #include <linux/rmap.h>
+ #include <linux/swap.h>
+ #include <linux/swapops.h>
++#include <linux/page-isolation.h>
+ 
+ #include <asm/page.h>
+ #include <asm/pgtable.h>
+@@ -517,9 +518,15 @@ static struct page *dequeue_huge_page_node(struct hstate *h, int nid)
+ {
+ 	struct page *page;
+ 
+-	if (list_empty(&h->hugepage_freelists[nid]))
++	list_for_each_entry(page, &h->hugepage_freelists[nid], lru)
++		if (!is_migrate_isolate_page(page))
++			break;
++	/*
++	 * if 'non-isolated free hugepage' not found on the list,
++	 * the allocation fails.
++	 */
++	if (&h->hugepage_freelists[nid] == &page->lru)
+ 		return NULL;
+-	page = list_entry(h->hugepage_freelists[nid].next, struct page, lru);
+ 	list_move(&page->lru, &h->hugepage_activelist);
+ 	set_page_refcounted(page);
+ 	h->free_huge_pages--;
+-- 
+1.7.1 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
