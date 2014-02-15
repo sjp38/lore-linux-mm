@@ -1,79 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f43.google.com (mail-pb0-f43.google.com [209.85.160.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F4106B0031
-	for <linux-mm@kvack.org>; Fri, 14 Feb 2014 23:12:26 -0500 (EST)
-Received: by mail-pb0-f43.google.com with SMTP id md12so13161242pbc.30
-        for <linux-mm@kvack.org>; Fri, 14 Feb 2014 20:12:26 -0800 (PST)
-Received: from mail-pb0-f73.google.com (mail-pb0-f73.google.com [209.85.160.73])
-        by mx.google.com with ESMTPS id vw10si7866417pbc.137.2014.02.14.20.12.22
+Received: from mail-la0-f48.google.com (mail-la0-f48.google.com [209.85.215.48])
+	by kanga.kvack.org (Postfix) with ESMTP id EF9D06B0031
+	for <linux-mm@kvack.org>; Sat, 15 Feb 2014 01:40:44 -0500 (EST)
+Received: by mail-la0-f48.google.com with SMTP id mc6so9943765lab.35
+        for <linux-mm@kvack.org>; Fri, 14 Feb 2014 22:40:44 -0800 (PST)
+Received: from mail-lb0-x233.google.com (mail-lb0-x233.google.com [2a00:1450:4010:c04::233])
+        by mx.google.com with ESMTPS id q5si11983479lbr.71.2014.02.14.22.40.42
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 14 Feb 2014 20:12:24 -0800 (PST)
-Received: by mail-pb0-f73.google.com with SMTP id rq2so1595961pbb.0
-        for <linux-mm@kvack.org>; Fri, 14 Feb 2014 20:12:22 -0800 (PST)
-From: Derek Basehore <dbasehore@chromium.org>
-Subject: [PATCH] backing_dev: Fix hung task on sync
-Date: Fri, 14 Feb 2014 20:12:17 -0800
-Message-Id: <1392437537-27392-1-git-send-email-dbasehore@chromium.org>
+        Fri, 14 Feb 2014 22:40:42 -0800 (PST)
+Received: by mail-lb0-f179.google.com with SMTP id l4so10061288lbv.10
+        for <linux-mm@kvack.org>; Fri, 14 Feb 2014 22:40:42 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <CAMrOTPgBtANS_ryRjan0-dTL97U7eRvtf3dCsss=Kn+Uk89fuA@mail.gmail.com>
+References: <CAMrOTPgBtANS_ryRjan0-dTL97U7eRvtf3dCsss=Kn+Uk89fuA@mail.gmail.com>
+From: Pradeep Sawlani <pradeep.sawlani@gmail.com>
+Date: Fri, 14 Feb 2014 22:40:21 -0800
+Message-ID: <CAMrOTPgbDt16Tg-REvhzVKHZacVrphPBPxjkEMa=64TJjyZBLA@mail.gmail.com>
+Subject: Re: KSM on Android
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-Cc: Alexander Viro <viro@zento.linux.org.uk>, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Darrick J. Wong" <darrick.wong@oracle.com>, Derek Basehore <dbasehore@chromium.org>, Kees Cook <keescook@chromium.org>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, bleung@chromium.org, sonnyrao@chromium.org, semenzato@chromium.org
+To: Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: surim@lab126.com, Izik Eidus <izik.eidus@ravellosystems.com>
 
-bdi_wakeup_thread_delayed used the mod_delayed_work function to schedule work
-to writeback dirty inodes. The problem with this is that it can delay work that
-is scheduled for immediate execution, such as the work from sync_inodes_sb.
-This can happen since mod_delayed_work can now steal work from a work_queue.
-This fixes the problem by using queue_delayed_work instead. This is a
-regression from the move to the bdi workqueue design.
+> Re-sending this in plain text format (Apologies)
+>
+> Hello,
+>
+> In pursuit of saving memory on Android, I started experimenting with
+> Kernel Same Page Merging(KSM).
+> Number of pages shared because of KSM is reported by
+> /sys/kernel/mm/pages_sharing.
+> Documentation/vm/ksm.txt explains this as:
+>
+> "pages_sharing    - how many more sites are sharing them i.e. how much saved"
+>
+> After enabling KSM on Android device, this number was reported as 19666 pages.
+> Obvious optimization is to find out source of sharing and see if we
+> can avoid duplicate pages at first place.
+> In order to collect the data needed, It needed few
+> modifications(trace_printk) statement in mm/ksm.c.
+> Data should be collected from second cycle because that's when ksm
+> starts merging
+> pages. First KSM cycle is only used to calculate the checksum, pages
+> are added to
+> unstable tree and eventually moved to stable tree after this.
+>
+> After analyzing data from second KSM cycle, few things which stood out:
+> 1.  In the same cycle, KSM can scan same page multiple times. Scanning
+> a page involves
+>     comparing page with pages in stable tree, if no match is found
+> checksum is calculated.
+>     From the look of it, it seems to be cpu intensive operation and
+> impacts dcache as well.
+>
+> 2.  Same page which is already shared by multiple process can be
+> replaced by KSM page.
+>     In this case, let say a particular page is mapped 24 times and is
+> replaced by KSM page then
+>     eventually all 24 entries will point to KSM page. pages_sharing
+> will account for all 24 pages.
+>     so pages _sharing does not actually report amount of memory saved.
+> From the above example actual
+>     savings is one page.
+>
+> Both cases happen very often with Android because of its architecture
+> - Zygote spawning(fork) multiple
+> applications. To calculate actual savings, we should account for same
+> page(pfn)replaced by same KSM page only once.
+> In the case 2 example, page_sharing should account only one page.
+> After recalculating memory saving comes out to be 8602 pages (~34MB).
+>
+> I am trying to find out right solution to fix pages_sharing and
+> eventually optimize KSM to scan page
+> once even if it is mapped multiple times.
+>
+> Comments?
+>
+Correct Izik's email address.
 
-The reason that this causes a problem is that laptop-mode will change the
-delay, dirty_writeback_centisecs, to 60000 (10 minutes) by default. In the case
-that bdi_wakeup_thread_delayed races with sync_inodes_sb, sync will be stopped
-for 10 minutes and trigger a hung task. Even if dirty_writeback_centisecs is
-not long enough to cause a hung task, we still don't want to delay sync for
-that long.
-
-For the same reason, this also changes bdi_writeback_workfn to immediately
-queue the work again in the case that the work_list is not empty. The same
-problem can happen if the sync work is run on the rescue worker.
-
-Signed-off-by: Derek Basehore <dbasehore@chromium.org>
----
- fs/fs-writeback.c | 5 +++--
- mm/backing-dev.c  | 2 +-
- 2 files changed, 4 insertions(+), 3 deletions(-)
-
-diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
-index e0259a1..95b7b8c 100644
---- a/fs/fs-writeback.c
-+++ b/fs/fs-writeback.c
-@@ -1047,8 +1047,9 @@ void bdi_writeback_workfn(struct work_struct *work)
- 		trace_writeback_pages_written(pages_written);
- 	}
- 
--	if (!list_empty(&bdi->work_list) ||
--	    (wb_has_dirty_io(wb) && dirty_writeback_interval))
-+	if (!list_empty(&bdi->work_list))
-+		mod_delayed_work(bdi_wq, &wb->dwork, 0);
-+	else if (wb_has_dirty_io(wb) && dirty_writeback_interval)
- 		queue_delayed_work(bdi_wq, &wb->dwork,
- 			msecs_to_jiffies(dirty_writeback_interval * 10));
- 
-diff --git a/mm/backing-dev.c b/mm/backing-dev.c
-index ce682f7..3fde024 100644
---- a/mm/backing-dev.c
-+++ b/mm/backing-dev.c
-@@ -294,7 +294,7 @@ void bdi_wakeup_thread_delayed(struct backing_dev_info *bdi)
- 	unsigned long timeout;
- 
- 	timeout = msecs_to_jiffies(dirty_writeback_interval * 10);
--	mod_delayed_work(bdi_wq, &bdi->wb.dwork, timeout);
-+	queue_delayed_work(bdi_wq, &bdi->wb.dwork, timeout);
- }
- 
- /*
--- 
-1.9.0.rc1.175.g0b1dcb5
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
