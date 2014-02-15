@@ -1,89 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f173.google.com (mail-ea0-f173.google.com [209.85.215.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 5E6926B0031
-	for <linux-mm@kvack.org>; Fri, 14 Feb 2014 23:02:30 -0500 (EST)
-Received: by mail-ea0-f173.google.com with SMTP id d10so6131886eaj.32
-        for <linux-mm@kvack.org>; Fri, 14 Feb 2014 20:02:29 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id b7si15503362eez.134.2014.02.14.20.02.28
-        for <linux-mm@kvack.org>;
-        Fri, 14 Feb 2014 20:02:28 -0800 (PST)
-Date: Fri, 14 Feb 2014 22:58:10 -0500
-From: Luiz Capitulino <lcapitulino@redhat.com>
-Subject: Re: [PATCH 4/4] hugetlb: add hugepages_node= command-line option
-Message-ID: <20140214225810.57e854cb@redhat.com>
-In-Reply-To: <alpine.DEB.2.02.1402141511200.13935@chino.kir.corp.google.com>
-References: <1392339728-13487-1-git-send-email-lcapitulino@redhat.com>
-	<1392339728-13487-5-git-send-email-lcapitulino@redhat.com>
-	<alpine.DEB.2.02.1402141511200.13935@chino.kir.corp.google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-pb0-f43.google.com (mail-pb0-f43.google.com [209.85.160.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F4106B0031
+	for <linux-mm@kvack.org>; Fri, 14 Feb 2014 23:12:26 -0500 (EST)
+Received: by mail-pb0-f43.google.com with SMTP id md12so13161242pbc.30
+        for <linux-mm@kvack.org>; Fri, 14 Feb 2014 20:12:26 -0800 (PST)
+Received: from mail-pb0-f73.google.com (mail-pb0-f73.google.com [209.85.160.73])
+        by mx.google.com with ESMTPS id vw10si7866417pbc.137.2014.02.14.20.12.22
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 14 Feb 2014 20:12:24 -0800 (PST)
+Received: by mail-pb0-f73.google.com with SMTP id rq2so1595961pbb.0
+        for <linux-mm@kvack.org>; Fri, 14 Feb 2014 20:12:22 -0800 (PST)
+From: Derek Basehore <dbasehore@chromium.org>
+Subject: [PATCH] backing_dev: Fix hung task on sync
+Date: Fri, 14 Feb 2014 20:12:17 -0800
+Message-Id: <1392437537-27392-1-git-send-email-dbasehore@chromium.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, mtosatti@redhat.com, mgorman@suse.de, aarcange@redhat.com, andi@firstfloor.org, riel@redhat.com, davidlohr@hp.com, isimatu.yasuaki@jp.fujitsu.com, yinghai@kernel.org
+Cc: Alexander Viro <viro@zento.linux.org.uk>, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Darrick J. Wong" <darrick.wong@oracle.com>, Derek Basehore <dbasehore@chromium.org>, Kees Cook <keescook@chromium.org>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, bleung@chromium.org, sonnyrao@chromium.org, semenzato@chromium.org
 
-On Fri, 14 Feb 2014 15:14:22 -0800 (PST)
-David Rientjes <rientjes@google.com> wrote:
+bdi_wakeup_thread_delayed used the mod_delayed_work function to schedule work
+to writeback dirty inodes. The problem with this is that it can delay work that
+is scheduled for immediate execution, such as the work from sync_inodes_sb.
+This can happen since mod_delayed_work can now steal work from a work_queue.
+This fixes the problem by using queue_delayed_work instead. This is a
+regression from the move to the bdi workqueue design.
 
-> On Thu, 13 Feb 2014, Luiz Capitulino wrote:
-> 
-> > From: Luiz capitulino <lcapitulino@redhat.com>
-> > 
-> > The HugeTLB command-line option hugepages= allows a user to specify how
-> > many huge pages should be allocated at boot. This option is needed because
-> > it improves reliability when allocating 1G huge pages, which are better
-> > allocated as early as possible due to fragmentation.
-> > 
-> > However, hugepages= has a limitation. On NUMA systems, hugepages= will
-> > automatically distribute memory allocation equally among nodes. For
-> > example, if you have a 2-node NUMA system and allocate 200 huge pages,
-> > than hugepages= will try to allocate 100 huge pages from node0 and 100
-> > from node1.
-> > 
-> > This is very unflexible, as it doesn't allow you to specify which nodes
-> > the huge pages should be allocated from. For example, there are use-cases
-> > where the user wants to specify that a 1GB huge page should be allocated
-> > from node 2 or that 300 2MB huge pages should be allocated from node 0.
-> > 
-> > The hugepages_node= command-line option introduced by this commit allows
-> > just that.
-> > 
-> > The syntax is:
-> > 
-> >   hugepages_node=nid:nr_pages:size,...
-> > 
-> 
-> Again, I think this syntax is horrendous and doesn't couple well with the 
-> other hugepage-related kernel command line options.  We already have 
-> hugepages= and hugepagesz= which you can interleave on the command line to 
-> get 100 2M hugepages and 10 1GB hugepages, for example.
-> 
-> This patchset is simply introducing another variable to the matter: the 
-> node that the hugepages should be allocated on.  So just introduce a 
-> hugepagesnode= parameter to couple with the others so you can do
-> 
-> 	hugepagesz=<size> hugepagesnode=<nid> hugepages=<#>
+The reason that this causes a problem is that laptop-mode will change the
+delay, dirty_writeback_centisecs, to 60000 (10 minutes) by default. In the case
+that bdi_wakeup_thread_delayed races with sync_inodes_sb, sync will be stopped
+for 10 minutes and trigger a hung task. Even if dirty_writeback_centisecs is
+not long enough to cause a hung task, we still don't want to delay sync for
+that long.
 
-That was my first try but it turned out really bad. First, for every node
-you specify you need three options. So, if you want to setup memory for
-three nodes you'll need to specify nine options. And it gets worse, because
-hugepagesz= and hugepages= have strict ordering (which is a mistake, IMHO) so
-you have to specify them in the right order otherwise things don't work as
-expected and you have no idea why (have been there myself).
+For the same reason, this also changes bdi_writeback_workfn to immediately
+queue the work again in the case that the work_list is not empty. The same
+problem can happen if the sync work is run on the rescue worker.
 
-IMO, hugepages_node=<nid>:<nr_pages>:<size>,... is good enough. It's concise,
-and don't depend on any other option to function. Also, there are lots of other
-kernel command-line options that require you to specify multiple fields, so
-it's not like hugepages_node= is totally different in that regard.
+Signed-off-by: Derek Basehore <dbasehore@chromium.org>
+---
+ fs/fs-writeback.c | 5 +++--
+ mm/backing-dev.c  | 2 +-
+ 2 files changed, 4 insertions(+), 3 deletions(-)
 
-> 
-> instead of having completely confusing interfaces where you want to do 
-> hugepages_node=1:1:1G for a 1GB hugepage on page 1 (and try remembering 
-> which "1" means what, yuck) and "hugepagesz=1GB hugepages=1" if you're 
-> indifferent to the node.
-> 
+diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
+index e0259a1..95b7b8c 100644
+--- a/fs/fs-writeback.c
++++ b/fs/fs-writeback.c
+@@ -1047,8 +1047,9 @@ void bdi_writeback_workfn(struct work_struct *work)
+ 		trace_writeback_pages_written(pages_written);
+ 	}
+ 
+-	if (!list_empty(&bdi->work_list) ||
+-	    (wb_has_dirty_io(wb) && dirty_writeback_interval))
++	if (!list_empty(&bdi->work_list))
++		mod_delayed_work(bdi_wq, &wb->dwork, 0);
++	else if (wb_has_dirty_io(wb) && dirty_writeback_interval)
+ 		queue_delayed_work(bdi_wq, &wb->dwork,
+ 			msecs_to_jiffies(dirty_writeback_interval * 10));
+ 
+diff --git a/mm/backing-dev.c b/mm/backing-dev.c
+index ce682f7..3fde024 100644
+--- a/mm/backing-dev.c
++++ b/mm/backing-dev.c
+@@ -294,7 +294,7 @@ void bdi_wakeup_thread_delayed(struct backing_dev_info *bdi)
+ 	unsigned long timeout;
+ 
+ 	timeout = msecs_to_jiffies(dirty_writeback_interval * 10);
+-	mod_delayed_work(bdi_wq, &bdi->wb.dwork, timeout);
++	queue_delayed_work(bdi_wq, &bdi->wb.dwork, timeout);
+ }
+ 
+ /*
+-- 
+1.9.0.rc1.175.g0b1dcb5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
