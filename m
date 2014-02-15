@@ -1,187 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f49.google.com (mail-pb0-f49.google.com [209.85.160.49])
-	by kanga.kvack.org (Postfix) with ESMTP id A07596B0031
-	for <linux-mm@kvack.org>; Sat, 15 Feb 2014 03:47:31 -0500 (EST)
-Received: by mail-pb0-f49.google.com with SMTP id up15so13201567pbc.8
-        for <linux-mm@kvack.org>; Sat, 15 Feb 2014 00:47:31 -0800 (PST)
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
-        by mx.google.com with ESMTPS id ez5si8397910pab.251.2014.02.15.00.47.28
+Received: from mail-pb0-f42.google.com (mail-pb0-f42.google.com [209.85.160.42])
+	by kanga.kvack.org (Postfix) with ESMTP id BE6826B0031
+	for <linux-mm@kvack.org>; Sat, 15 Feb 2014 05:06:42 -0500 (EST)
+Received: by mail-pb0-f42.google.com with SMTP id jt11so13415634pbb.29
+        for <linux-mm@kvack.org>; Sat, 15 Feb 2014 02:06:42 -0800 (PST)
+Received: from mail-pb0-x22d.google.com (mail-pb0-x22d.google.com [2607:f8b0:400e:c01::22d])
+        by mx.google.com with ESMTPS id fu1si8613872pbc.104.2014.02.15.02.06.41
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sat, 15 Feb 2014 00:47:30 -0800 (PST)
-Message-ID: <52FF2967.3050404@huawei.com>
-Date: Sat, 15 Feb 2014 16:46:31 +0800
-From: Jianguo Wu <wujianguo@huawei.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Sat, 15 Feb 2014 02:06:41 -0800 (PST)
+Received: by mail-pb0-f45.google.com with SMTP id un15so13396342pbc.32
+        for <linux-mm@kvack.org>; Sat, 15 Feb 2014 02:06:41 -0800 (PST)
+Date: Sat, 15 Feb 2014 02:06:38 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 4/4] hugetlb: add hugepages_node= command-line option
+In-Reply-To: <20140214225810.57e854cb@redhat.com>
+Message-ID: <alpine.DEB.2.02.1402150159540.28883@chino.kir.corp.google.com>
+References: <1392339728-13487-1-git-send-email-lcapitulino@redhat.com> <1392339728-13487-5-git-send-email-lcapitulino@redhat.com> <alpine.DEB.2.02.1402141511200.13935@chino.kir.corp.google.com> <20140214225810.57e854cb@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] ARM: mm: support big-endian page tables
-References: <52F9EB40.1030703@huawei.com> <52F9FE1A.6000607@codethink.co.uk> <52FB1AAA.9030108@huawei.com>
-In-Reply-To: <52FB1AAA.9030108@huawei.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ben Dooks <ben.dooks@codethink.co.uk>
-Cc: linux@arm.linux.org.uk, will.deacon@arm.com, gregkh@linuxfoundation.org, Catalin Marinas <catalin.marinas@arm.com>, Li
- Zefan <lizefan@huawei.com>, Wang Nan <wangnan0@huawei.com>, linux-arm-kernel@lists.infradead.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Luiz Capitulino <lcapitulino@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, mtosatti@redhat.com, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Andi Kleen <andi@firstfloor.org>, Rik van Riel <riel@redhat.com>, davidlohr@hp.com, isimatu.yasuaki@jp.fujitsu.com, yinghai@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Ping...
+On Fri, 14 Feb 2014, Luiz Capitulino wrote:
 
-On 2014/2/12 14:54, Jianguo Wu wrote:
-
-> On 2014/2/11 18:40, Ben Dooks wrote:
+> > Again, I think this syntax is horrendous and doesn't couple well with the 
+> > other hugepage-related kernel command line options.  We already have 
+> > hugepages= and hugepagesz= which you can interleave on the command line to 
+> > get 100 2M hugepages and 10 1GB hugepages, for example.
+> > 
+> > This patchset is simply introducing another variable to the matter: the 
+> > node that the hugepages should be allocated on.  So just introduce a 
+> > hugepagesnode= parameter to couple with the others so you can do
+> > 
+> > 	hugepagesz=<size> hugepagesnode=<nid> hugepages=<#>
 > 
->> On 11/02/14 09:20, Jianguo Wu wrote:
->>> When enable LPAE and big-endian in a hisilicon board, while specify
->>> mem=384M mem=512M@7680M, will get bad page state:
->>>
->>> Freeing unused kernel memory: 180K (c0466000 - c0493000)
->>> BUG: Bad page state in process init  pfn:fa442
->>> page:c7749840 count:0 mapcount:-1 mapping:  (null) index:0x0
->>> page flags: 0x40000400(reserved)
->>> Modules linked in:
->>> CPU: 0 PID: 1 Comm: init Not tainted 3.10.27+ #66
->>> [<c000f5f0>] (unwind_backtrace+0x0/0x11c) from [<c000cbc4>] (show_stack+0x10/0x14)
->>> [<c000cbc4>] (show_stack+0x10/0x14) from [<c009e448>] (bad_page+0xd4/0x104)
->>> [<c009e448>] (bad_page+0xd4/0x104) from [<c009e520>] (free_pages_prepare+0xa8/0x14c)
->>> [<c009e520>] (free_pages_prepare+0xa8/0x14c) from [<c009f8ec>] (free_hot_cold_page+0x18/0xf0)
->>> [<c009f8ec>] (free_hot_cold_page+0x18/0xf0) from [<c00b5444>] (handle_pte_fault+0xcf4/0xdc8)
->>> [<c00b5444>] (handle_pte_fault+0xcf4/0xdc8) from [<c00b6458>] (handle_mm_fault+0xf4/0x120)
->>> [<c00b6458>] (handle_mm_fault+0xf4/0x120) from [<c0013754>] (do_page_fault+0xfc/0x354)
->>> [<c0013754>] (do_page_fault+0xfc/0x354) from [<c0008400>] (do_DataAbort+0x2c/0x90)
->>> [<c0008400>] (do_DataAbort+0x2c/0x90) from [<c0008fb4>] (__dabt_usr+0x34/0x40)
->>>
->>> The bad pfn:fa442 is not system memory(mem=384M mem=512M@7680M), after debugging,
->>> I find in page fault handler, will get wrong pfn from pte just after set pte,
->>> as follow:
->>> do_anonymous_page()
->>> {
->>>     ...
->>>     set_pte_at(mm, address, page_table, entry);
->>>     
->>>     //debug code
->>>     pfn = pte_pfn(entry);
->>>     pr_info("pfn:0x%lx, pte:0x%llx\n", pfn, pte_val(entry));
->>>
->>>     //read out the pte just set
->>>     new_pte = pte_offset_map(pmd, address);
->>>     new_pfn = pte_pfn(*new_pte);
->>>     pr_info("new pfn:0x%lx, new pte:0x%llx\n", pfn, pte_val(entry));
->>>     ...
->>> }
->>
->> Thanks, must have missed tickling this one.
->>
->>>
->>> pfn:   0x1fa4f5,     pte:0xc00001fa4f575f
->>> new_pfn:0xfa4f5, new_pte:0xc00000fa4f5f5f    //new pfn/pte is wrong.
->>>
->>> The bug is happened in cpu_v7_set_pte_ext(ptep, pte):
->>> when pte is 64-bit, for little-endian, will store low 32-bit in r2,
->>> high 32-bit in r3; for big-endian, will store low 32-bit in r3,
->>> high 32-bit in r2, this will cause wrong pfn stored in pte,
->>> so we should exchange r2 and r3 for big-endian.
->>>
->>> Signed-off-by: Jianguo Wu <wujianguo@huawei.com>
->>> ---
->>>   arch/arm/mm/proc-v7-3level.S |   10 ++++++++++
->>>   1 files changed, 10 insertions(+), 0 deletions(-)
->>>
->>> diff --git a/arch/arm/mm/proc-v7-3level.S b/arch/arm/mm/proc-v7-3level.S
->>> index 6ba4bd9..71b3892 100644
->>> --- a/arch/arm/mm/proc-v7-3level.S
->>> +++ b/arch/arm/mm/proc-v7-3level.S
->>> @@ -65,6 +65,15 @@ ENDPROC(cpu_v7_switch_mm)
->>>    */
->>>   ENTRY(cpu_v7_set_pte_ext)
->>>   #ifdef CONFIG_MMU
->>> +#ifdef CONFIG_CPU_ENDIAN_BE8
->>> +    tst    r3, #L_PTE_VALID
->>> +    beq    1f
->>> +    tst    r2, #1 << (57 - 32)        @ L_PTE_NONE
->>> +    bicne    r3, #L_PTE_VALID
->>> +    bne    1f
->>> +    tst    r2, #1 << (55 - 32)        @ L_PTE_DIRTY
->>> +    orreq    r3, #L_PTE_RDONLY
->>> +#else
->>>       tst    r2, #L_PTE_VALID
->>>       beq    1f
->>>       tst    r3, #1 << (57 - 32)        @ L_PTE_NONE
->>> @@ -72,6 +81,7 @@ ENTRY(cpu_v7_set_pte_ext)
->>>       bne    1f
->>>       tst    r3, #1 << (55 - 32)        @ L_PTE_DIRTY
->>>       orreq    r2, #L_PTE_RDONLY
->>> +#endif
->>>   1:    strd    r2, r3, [r0]
->>>       ALT_SMP(W(nop))
->>>       ALT_UP (mcr    p15, 0, r0, c7, c10, 1)        @ flush_pte
->>> -- 1.7.1
->>
->> If possible can we avoid large #ifdef blocks here?
->>
->> Two ideas are
->>
->> ARM_LE(tst r2, #L_PTE_VALID)
->> ARM_BE(tst r3, #L_PTE_VALID)
->>
->> or change r2, r3 pair to say rlow, rhi and
->>
->> #ifdef  CONFIG_CPU_ENDIAN_BE8
->> #define rlow r3
->> #define rhi r2
->> #else
->> #define rlow r2
->> #define rhi r3
->> #endif
->>
-> 
-> Hi Ben,
-> Thanks for your suggestion, how about this?
-> 
-> Signed-off-by: Jianguo Wu <wujianguo@huawei.com>
-> ---
->  arch/arm/mm/proc-v7-3level.S |   18 +++++++++++++-----
->  1 files changed, 13 insertions(+), 5 deletions(-)
-> 
-> diff --git a/arch/arm/mm/proc-v7-3level.S b/arch/arm/mm/proc-v7-3level.S
-> index 01a719e..22e3ad6 100644
-> --- a/arch/arm/mm/proc-v7-3level.S
-> +++ b/arch/arm/mm/proc-v7-3level.S
-> @@ -64,6 +64,14 @@ ENTRY(cpu_v7_switch_mm)
->  	mov	pc, lr
->  ENDPROC(cpu_v7_switch_mm)
->  
-> +#ifdef __ARMEB__
-> +#define rl r3
-> +#define rh r2
-> +#else
-> +#define rl r2
-> +#define rh r3
-> +#endif
-> +
->  /*
->   * cpu_v7_set_pte_ext(ptep, pte)
->   *
-> @@ -73,13 +81,13 @@ ENDPROC(cpu_v7_switch_mm)
->   */
->  ENTRY(cpu_v7_set_pte_ext)
->  #ifdef CONFIG_MMU
-> -	tst	r2, #L_PTE_VALID
-> +	tst	rl, #L_PTE_VALID
->  	beq	1f
-> -	tst	r3, #1 << (57 - 32)		@ L_PTE_NONE
-> -	bicne	r2, #L_PTE_VALID
-> +	tst	rh, #1 << (57 - 32)		@ L_PTE_NONE
-> +	bicne	rl, #L_PTE_VALID
->  	bne	1f
-> -	tst	r3, #1 << (55 - 32)		@ L_PTE_DIRTY
-> -	orreq	r2, #L_PTE_RDONLY
-> +	tst	rh, #1 << (55 - 32)		@ L_PTE_DIRTY
-> +	orreq	rl, #L_PTE_RDONLY
->  1:	strd	r2, r3, [r0]
->  	ALT_SMP(W(nop))
->  	ALT_UP (mcr	p15, 0, r0, c7, c10, 1)		@ flush_pte
+> That was my first try but it turned out really bad. First, for every node
+> you specify you need three options.
 
+Just like you need two options today to specify a number of hugepages of a 
+particular non-default size.  You only need to use hugepagesz= or 
+hugepagenode= if you want a non-default size or a specify a particular 
+node.
 
+> So, if you want to setup memory for
+> three nodes you'll need to specify nine options.
+
+And you currently need six if you want to specify three different hugepage 
+sizes (?).  But who really specifies three different hugepage sizes on the 
+command line that are needed to be reserved at boot?
+
+If that's really the usecase, it seems like you want the old 
+CONFIG_PAGE_SHIFT patch.
+
+> And it gets worse, because
+> hugepagesz= and hugepages= have strict ordering (which is a mistake, IMHO) so
+> you have to specify them in the right order otherwise things don't work as
+> expected and you have no idea why (have been there myself).
+> 
+
+How is that difficult?  hugepages= is the "noun", hugepagesz= is the 
+"adjective".  hugepages=100 hugepagesz=1G hugepages=4 makes perfect sense 
+to me, and I actually don't allocate hugepages on the command line, nor 
+have I looked at Documentation/kernel-parameters.txt to check if I'm 
+constructing it correctly.  It just makes sense and once you learn it it's 
+just natural.
+
+> IMO, hugepages_node=<nid>:<nr_pages>:<size>,... is good enough. It's concise,
+> and don't depend on any other option to function. Also, there are lots of other
+> kernel command-line options that require you to specify multiple fields, so
+> it's not like hugepages_node= is totally different in that regard.
+> 
+
+I doubt Andrew is going to want a completely different format for hugepage 
+allocations that want to specify a node and have to deal with people who 
+say hugepages_node=2:1:1G and constantly have to lookup if it's 2 
+hugepages on node 1 or 1 hugepage on node 2.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
