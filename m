@@ -1,85 +1,150 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vc0-f175.google.com (mail-vc0-f175.google.com [209.85.220.175])
-	by kanga.kvack.org (Postfix) with ESMTP id DDEDB6B0031
-	for <linux-mm@kvack.org>; Sat, 15 Feb 2014 06:07:56 -0500 (EST)
-Received: by mail-vc0-f175.google.com with SMTP id ij19so9927171vcb.6
-        for <linux-mm@kvack.org>; Sat, 15 Feb 2014 03:07:56 -0800 (PST)
-Received: from mail-ve0-x231.google.com (mail-ve0-x231.google.com [2607:f8b0:400c:c01::231])
-        by mx.google.com with ESMTPS id si7si2821540vdc.50.2014.02.15.03.07.55
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id C9F066B0031
+	for <linux-mm@kvack.org>; Sat, 15 Feb 2014 18:28:20 -0500 (EST)
+Received: by mail-pd0-f172.google.com with SMTP id p10so13459165pdj.3
+        for <linux-mm@kvack.org>; Sat, 15 Feb 2014 15:28:20 -0800 (PST)
+Received: from mail-pb0-x22a.google.com (mail-pb0-x22a.google.com [2607:f8b0:400e:c01::22a])
+        by mx.google.com with ESMTPS id xf4si10234738pab.46.2014.02.15.15.28.19
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sat, 15 Feb 2014 03:07:55 -0800 (PST)
-Received: by mail-ve0-f177.google.com with SMTP id jz11so10394407veb.36
-        for <linux-mm@kvack.org>; Sat, 15 Feb 2014 03:07:55 -0800 (PST)
+        Sat, 15 Feb 2014 15:28:19 -0800 (PST)
+Received: by mail-pb0-f42.google.com with SMTP id jt11so13917242pbb.1
+        for <linux-mm@kvack.org>; Sat, 15 Feb 2014 15:28:19 -0800 (PST)
+Date: Sat, 15 Feb 2014 15:27:29 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: KSM on Android
+In-Reply-To: <CAMrOTPgBtANS_ryRjan0-dTL97U7eRvtf3dCsss=Kn+Uk89fuA@mail.gmail.com>
+Message-ID: <alpine.LSU.2.11.1402151344340.8605@eggly.anvils>
+References: <CAMrOTPgBtANS_ryRjan0-dTL97U7eRvtf3dCsss=Kn+Uk89fuA@mail.gmail.com>
 MIME-Version: 1.0
-Date: Sat, 15 Feb 2014 13:07:54 +0200
-Message-ID: <CA+ydwtpXTcfcx246_ZEUtKeBQtOfS4CHdRnHO2id1P89E95a+w@mail.gmail.com>
-Subject: BUG: Bad page state in process trinity-c19
-From: Tommi Rantala <tt.rantala@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux Kernel <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Dave Jones <davej@redhat.com>, trinity@vger.kernel.org
+To: Pradeep Sawlani <pradeep.sawlani@gmail.com>
+Cc: Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, surim@lab126.com, Izik Eidus <izik.eidus@ravellosystems.com>, Dave Hansen <dave@sr71.net>, Arjan van de Ven <arjan@linux.intel.com>
 
-Hello,
+On Thu, 13 Feb 2014, Pradeep Sawlani wrote:
+> Re-sending this in plain text format (Apologies)
+> 
+> Hello,
+> 
+> In pursuit of saving memory on Android, I started experimenting with
+> Kernel Same Page Merging(KSM).
+> Number of pages shared because of KSM is reported by
+> /sys/kernel/mm/pages_sharing.
+> Documentation/vm/ksm.txt explains this as:
+> 
+> "pages_sharing    - how many more sites are sharing them i.e. how much saved"
+> 
+> After enabling KSM on Android device, this number was reported as 19666 pages.
+> Obvious optimization is to find out source of sharing and see if we
+> can avoid duplicate pages at first place.
+> In order to collect the data needed, It needed few
+> modifications(trace_printk) statement in mm/ksm.c.
+> Data should be collected from second cycle because that's when ksm
+> starts merging
+> pages. First KSM cycle is only used to calculate the checksum, pages
+> are added to
+> unstable tree and eventually moved to stable tree after this.
+> 
+> After analyzing data from second KSM cycle, few things which stood out:
+> 1.  In the same cycle, KSM can scan same page multiple times. Scanning
+> a page involves
+>     comparing page with pages in stable tree, if no match is found
+> checksum is calculated.
+>     From the look of it, it seems to be cpu intensive operation and
+> impacts dcache as well.
 
-Hit the following bug while fuzzing with trinity. I can see that Dave
-reported similar bad page state problems for 3.13-rc4, but this one
-does not seem to be AIO related.
+Yes.
 
-https://lkml.org/lkml/2013/12/18/932
+Of course you can adjust /sys/kernel/mm/ksm tunables to make it more
+or less cpu and dcache intensive, and correspondingly more or less
+effective in combining memory; but that's not really your interest.
 
-Tommi
+> 
+> 2.  Same page which is already shared by multiple process can be
+> replaced by KSM page.
+>     In this case, let say a particular page is mapped 24 times and is
+> replaced by KSM page then
+>     eventually all 24 entries will point to KSM page. pages_sharing
+> will account for all 24 pages.
+>     so pages _sharing does not actually report amount of memory saved.
+> From the above example actual
+>     savings is one page.
 
+Yes.
 
-BUG: Bad page state in process trinity-c19  pfn:2429e
-page:ffffea000090a780 count:0 mapcount:0 mapping:ffff88003a018758 index:0xed
-page flags: 0x100000000000008(uptodate)
-page dumped because: non-NULL mapping
-CPU: 1 PID: 28094 Comm: trinity-c19 Not tainted 3.14.0-rc2-00209-g45f7fdc #1
-Hardware name: Hewlett-Packard HP Compaq dc5750 Small Form
-Factor/0A64h, BIOS 786E3 v02.10 01/25/2007
- ffffffff828f4590 ffff880054591758 ffffffff82363c9d ffffea000090a780
- ffff880054591780 ffffffff8235d165 ffffea000090a780 0000000000000000
- ffffea000090a780 ffff8800545917d8 ffffffff8121a010 ffffffff828f457f
-Call Trace:
- [<ffffffff82363c9d>] dump_stack+0x4d/0x66
- [<ffffffff8235d165>] bad_page+0xd5/0xf2
- [<ffffffff8121a010>] free_pages_prepare+0x1f0/0x2b0
- [<ffffffff8121b00b>] free_hot_cold_page+0x3b/0x150
- [<ffffffff8121b22e>] free_hot_cold_page_list+0x10e/0x190
- [<ffffffff81221fec>] release_pages+0x1dc/0x210
- [<ffffffff812220f3>] pagevec_lru_move_fn+0xd3/0xf0
- [<ffffffff81220910>] ? __put_single_page+0x20/0x20
- [<ffffffff81222692>] __pagevec_lru_add+0x12/0x20
- [<ffffffff81222886>] __lru_cache_add+0x66/0x90
- [<ffffffff812228e5>] lru_cache_add+0x35/0x40
- [<ffffffff81226dda>] putback_lru_page+0x4a/0xd0
- [<ffffffff8126b98b>] migrate_pages+0x84b/0x880
- [<ffffffff81238130>] ? isolate_freepages_block+0x440/0x440
- [<ffffffff812391e9>] compact_zone+0x249/0x770
- [<ffffffff812399f6>] compact_zone_order+0xb6/0xf0
- [<ffffffff810a00c1>] ? native_send_call_func_single_ipi+0x31/0x40
- [<ffffffff81239ae2>] try_to_compact_pages+0xb2/0x110
- [<ffffffff8235d2ce>] __alloc_pages_direct_compact+0xa5/0x1b5
- [<ffffffff8235db18>] __alloc_pages_slowpath+0x73a/0x79e
- [<ffffffff81179f6d>] ? sched_clock_local+0x1d/0x90
- [<ffffffff8121cf26>] __alloc_pages_nodemask+0x226/0x3b0
- [<ffffffff8126004f>] alloc_pages_vma+0x16f/0x1e0
- [<ffffffff81270958>] ? do_huge_pmd_anonymous_page+0x218/0x3f0
- [<ffffffff81270958>] do_huge_pmd_anonymous_page+0x218/0x3f0
- [<ffffffff81240617>] handle_mm_fault+0x1d7/0x320
- [<ffffffff810b0db0>] __do_page_fault+0x4d0/0x540
- [<ffffffff811919b5>] ? trace_hardirqs_on_caller+0x185/0x220
- [<ffffffff81191a5d>] ? trace_hardirqs_on+0xd/0x10
- [<ffffffff8237d327>] ? _raw_spin_unlock_irq+0x27/0x40
- [<ffffffff8116dcd1>] ? finish_task_switch+0x81/0x130
- [<ffffffff8116dc93>] ? finish_task_switch+0x43/0x130
- [<ffffffff81546e5d>] ? trace_hardirqs_off_thunk+0x3a/0x3c
- [<ffffffff810b0e49>] do_page_fault+0x9/0x10
- [<ffffffff8237e438>] page_fault+0x28/0x30
-Disabling lock debugging due to kernel taint
+KSM was created mainly to support KVM, where forking is not an issue,
+I think.  I do remember fixing it early on, to stop it from converting
+every forked page to a KSM page.  But you're right that once there is
+a stable KSM page of particular content, forked instances of a page of
+the same content will be peeled off one by one to be shared with the
+KSM page, and the pages_sharing count claim more has been saved than
+is actually so.
+
+The easy fix to that is to remove "i.e. how much saved" from the
+Documentation, or better, to qualify it by your point on forking.
+But again, that's not really your interest.
+
+Coming up with a supportable alternative or fix to pages_sharing:
+it's not obvious to me how to go about that - whether or not to
+decrement the count once a write COWs off an instance of the page.
+Presumably it could be done, but at cost of recording more info in the
+rmap_items: I doubt it would be worth the extra memory and processing.
+
+Easier and less consuming might be to provide a running statistic of
+the average page_mapcount of pages being shared into stable.  Or even
+a tunable to refuse sharing into stable above a certain mapcount,
+which could be set to 1 or something higher (or 0 for no limit).
+
+> 
+> Both cases happen very often with Android because of its architecture
+> - Zygote spawning(fork) multiple
+> applications. To calculate actual savings, we should account for same
+> page(pfn)replaced by same KSM page only once.
+> In the case 2 example, page_sharing should account only one page.
+> After recalculating memory saving comes out to be 8602 pages (~34MB).
+> 
+> I am trying to find out right solution to fix pages_sharing and
+> eventually optimize KSM to scan page
+> once even if it is mapped multiple times.
+
+To scan page once (each cycle) even if it is mapped multiple times:
+that does sound a useful enhancement to make for the Android case
+you describe.  I see two sides to that.
+
+One is mapping the replacement page into all sites at the same time.
+That sounds doable, but without actually attempting to do it, I'm
+not at all sure.  It's interesting that try_to_merge_with_ksm_page()
+works on one rmap_item and down_reads the corresponding mmap_sem,
+but try_to_merge_one_page() itself does not use the rmap_item.
+Lots to think about there: most particularly, what is that mmap_sem
+protecting here?  Because it would not be protecting the other
+instances that you replace.
+
+Something it does protect is VM_MERGEABLE in vma->vm_flags: it's
+a nuisance that VM_MERGEABLE might not be set in some of the vmas
+sharing this page.
+
+(By the way, if break_cow() poses a problem for you - break_cow()
+being KSM's easy answer for backtracking, just COW back to ordinary
+anon page if something goes wrong - and I've a feeling it might,
+I do have a patch from a year ago which I never had time to write
+up and complete testing on, which eliminates its use.)
+
+The other side is cmp_and_merge_page() skipping a page which has
+already been scanned this cycle via another mapping.  I think
+the easiest way to accomplish that would be with two pageflags,
+using alternate flag each cycle.  But we certainly don't have
+two pageflags to spare on 32-bit, and I doubt it on 64-bit:
+everyone wants to use that space.  However, you could easily
+prototype it that way, to measure the savings and judge whether
+it's worth going further.
+
+Good luck.  Interesting work, but I can't find time for it.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
