@@ -1,170 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id EA9FF6B003B
-	for <linux-mm@kvack.org>; Sat, 15 Feb 2014 21:53:05 -0500 (EST)
-Received: by mail-pd0-f172.google.com with SMTP id p10so13476277pdj.17
-        for <linux-mm@kvack.org>; Sat, 15 Feb 2014 18:53:05 -0800 (PST)
-Received: from mail-pb0-x22f.google.com (mail-pb0-x22f.google.com [2607:f8b0:400e:c01::22f])
-        by mx.google.com with ESMTPS id bf5si10494644pad.233.2014.02.15.18.53.04
+Received: from mail-la0-f49.google.com (mail-la0-f49.google.com [209.85.215.49])
+	by kanga.kvack.org (Postfix) with ESMTP id CF7006B003D
+	for <linux-mm@kvack.org>; Sat, 15 Feb 2014 21:59:11 -0500 (EST)
+Received: by mail-la0-f49.google.com with SMTP id y1so10260891lam.36
+        for <linux-mm@kvack.org>; Sat, 15 Feb 2014 18:59:11 -0800 (PST)
+Received: from mail-la0-x235.google.com (mail-la0-x235.google.com [2a00:1450:4010:c03::235])
+        by mx.google.com with ESMTPS id my6si16529657lbb.172.2014.02.15.18.59.07
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sat, 15 Feb 2014 18:53:04 -0800 (PST)
-Received: by mail-pb0-f47.google.com with SMTP id rp16so13836791pbb.6
-        for <linux-mm@kvack.org>; Sat, 15 Feb 2014 18:53:04 -0800 (PST)
-Date: Sat, 15 Feb 2014 18:52:07 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 2/2] memcg: barriers to see memcgs as fully initialized
-In-Reply-To: <20140213145314.GC11986@dhcp22.suse.cz>
-Message-ID: <alpine.LSU.2.11.1402151752530.9356@eggly.anvils>
-References: <alpine.LSU.2.11.1402121717420.5917@eggly.anvils> <alpine.LSU.2.11.1402121727050.5917@eggly.anvils> <20140213145314.GC11986@dhcp22.suse.cz>
+        Sat, 15 Feb 2014 18:59:08 -0800 (PST)
+Received: by mail-la0-f53.google.com with SMTP id e16so10187101lan.40
+        for <linux-mm@kvack.org>; Sat, 15 Feb 2014 18:59:07 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <loom.20140214T135753-812@post.gmane.org>
+References: <20140213104231.GX6732@suse.de>
+	<CAL1ERfNKX+o9dk5Qg77R3HQ_VLYiEL7mU0Tm_HqtSm9ixTW5fg@mail.gmail.com>
+	<loom.20140214T135753-812@post.gmane.org>
+Date: Sun, 16 Feb 2014 10:59:06 +0800
+Message-ID: <CABdxLJHS5kw0rpD=+77iQtc6PMeRXoWnh-nh5VzjjfGHJ5wLGQ@mail.gmail.com>
+Subject: Re: [PATCH] mm: swap: Use swapfiles in priority order
+From: Weijie Yang <weijieut@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Greg Thelen <gthelen@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org
 
-On Thu, 13 Feb 2014, Michal Hocko wrote:
-> On Wed 12-02-14 17:29:09, Hugh Dickins wrote:
-> > Commit d8ad30559715 ("mm/memcg: iteration skip memcgs not yet fully
-> > initialized") is not bad, but Greg Thelen asks "Are barriers needed?"
-> > 
-> > Yes, I'm afraid so: this makes it a little heavier than the original,
-> > but there's no point in guaranteeing that mem_cgroup_iter() returns only
-> > fully initialized memcgs, if we don't guarantee that the initialization
-> > is visible.
-> > 
-> > If we move online_css()'s setting CSS_ONLINE after rcu_assign_pointer()
-> > (I don't see why not), we can reasonably rely on the smp_wmb() in that.
-> > But I can't find a pre-existing barrier at the mem_cgroup_iter() end,
-> > so add an smp_rmb() where __mem_cgroup_iter_next() returns non-NULL.
-> > 
-> > Fixes: d8ad30559715 ("mm/memcg: iteration skip memcgs not yet fully initialized")
-> > Signed-off-by: Hugh Dickins <hughd@google.com>
-> > Cc: stable@vger.kernel.org # 3.12+
-> > ---
-> > I'd have been happier not to have to add this patch: maybe you can see
-> > a better placement, or a way we can avoid this altogether.
-> 
-> I don't know. I have thought about this again and I really do not see
-> why we have to provide such a guarantee, to be honest.
-> 
-> Such a half initialized memcg wouldn't see its hierarchical parent
-> properly (including inheritted attributes) and it wouldn't have kmem
-> fully initialized. But it also wouldn't have any tasks in it IIRC so it
-> shouldn't matter much.
-> 
-> So I really don't know whether this all is worth all the troubles. 
-> I am not saying your patch is wrong (although I am not sure whether
-> css->flags vs. subsystem css association ordering is relevant and
-> ae7f164a09408 changelog didn't help me much) and it made sense when
-> you proposed it back then but the additional ordering requirements
-> complicates the thing.
+ On Fri, Feb 14, 2014 at 9:10 PM, Christian Ehrhardt
+<ehrhardt@linux.vnet.ibm.com> wrote:
+> Weijie Yang <weijie.yang.kh <at> gmail.com> writes:
+>
+>>
+>> On Thu, Feb 13, 2014 at 6:42 PM, Mel Gorman <mgorman <at> suse.de> wrote:
+> [...]
+>> > -       for (type = swap_list.next; type >= 0 && wrapped < 2; type = next) {
+>> > +       for (type = swap_list.head; type >= 0 && wrapped < 2; type = next) {
+>>
+> [...]
+>> Does it lead to a "schlemiel the painter's algorithm"?
+>> (please forgive my rude words, but I can't find a precise word to describe it
+>>
+>> How about modify it like this?
+>>
+> [...]
+>> - next = swap_list.head;
+>> + next = type;
+> [...]
+>
+> Hi,
+> unfortunately withou studying the code more thoroughly I'm not even sure if
+> you meant you code to extend or replace Mels patch.
+>
+> To be sure about your intention.  You refered to algorithm scaling because
+> you were afraid the new code would scan the full list all the time right ?
+>
+> But simply letting the machines give a try for both options I can now
+> qualify both.
+>
+> Just your patch creates a behaviour of jumping over priorities (see the
+> following example), so I hope you meant combining both patches.
+> With that in mind the patch I eventually tested the combined patch looking
+> like this:
 
-Your feelings match mine exactly: nice enough when it was just a matter
-of testing a flag, but rather a bore to have to go adding barriers.
-And Tejun didn't like it either, would prefer the barriers to be
-internal to memcg, if we really need them.
+Hi Christian,
 
-No surprise: it's why I made it an easily skippable 2/2.
-Let's forget this patch - but I still don't want to remove the
-CSS_ONLINE check, not yet anyway.
+My patch is not appropriate, so there is no need to combine it with Mel's patch.
 
-At the time I added that check, I only had out-of-tree changes
-and lockdep weirdness in support of it.  I did spend a little time
-yesterday looking to see if there's a stronger case, thought I'd
-found one, but looking again don't see it - I think I was muddling
-stats with RES_USAGE.
+What I worried about Mel's patch is not only the search efficiency,
+actually it has
+negligible impact on system, but also the following scenario:
 
-The kind of case I was looking for was stats gathering doing a
-res_counter_read_u64() inside a for_each_mem_cgroup() loop.  On
-a 32-bit kernel, res_counter_read_u64() has to use the spinlock
-which is not initialized until mem_cgroup_css_online().  Which
-it should manage with unadorned ticket lock, but then the unlock
-might race with its initialization (I'm not sure how that will
-then behave).  But actually I don't think stats gathering ever
-does iterative res_counter_reads (and there may be good design
-reasons why that would never make sense).
+If two swapfiles have the same priority, in ordinary semantic, they
+should be used
+in balance. But with Mel's patch, it will always get the free
+swap_entry from the
+swap_list.head in priority order, I worry it could break the balance.
 
-Now I do see the existing mem_cgroup_soft_reclaim() doing a 
-res_counter_soft_limit_excess() in a mem_cgroup_iter() loop:
-I guess that is vulnerable, even on 64-bit, and a lot safer
-with the CSS_ONLINE check, even lacking barriers.
+I think you can test this scenario if you have available test machines.
 
-I'm thinking that we'd be safer if those res_counters
-initialized in mem_cgroup_css_online() could be initialized in
-mem_cgroup_css_alloc(), then updated in mem_cgroup_css_online();
-but I don't think res_counter.c offers that option today,
-not to change parent (or could parent be set from the start?
-maybe that gets into races with setting use_hierarchy).
+Appreciate for your done.
 
-I haven't looked into what memcg_init_kmem() gets up to,
-and whether that's safe before it's initialized.
-
-Not something urgent I'm intending to rush into, and please don't
-feel you need rush to respond, these are just thoughts for later:
-let's move away from the CSS_ONLINE check and barriers, and
-towards having the struct mem_cgroup sensibly initialized earlier.
-
-Hugh
-
-> 
-> I will keep thinking about that.
-> 
-> >  kernel/cgroup.c |    8 +++++++-
-> >  mm/memcontrol.c |   11 +++++++++--
-> >  2 files changed, 16 insertions(+), 3 deletions(-)
-> > 
-> > --- 3.14-rc2+/kernel/cgroup.c	2014-02-02 18:49:07.737302111 -0800
-> > +++ linux/kernel/cgroup.c	2014-02-12 11:59:52.804041895 -0800
-> > @@ -4063,9 +4063,15 @@ static int online_css(struct cgroup_subs
-> >  	if (ss->css_online)
-> >  		ret = ss->css_online(css);
-> >  	if (!ret) {
-> > -		css->flags |= CSS_ONLINE;
-> >  		css->cgroup->nr_css++;
-> >  		rcu_assign_pointer(css->cgroup->subsys[ss->subsys_id], css);
-> > +		/*
-> > +		 * Set CSS_ONLINE after rcu_assign_pointer(), so that its
-> > +		 * smp_wmb() will guarantee that those seeing CSS_ONLINE
-> > +		 * can see the initialization done in ss->css_online() - if
-> > +		 * they provide an smp_rmb(), as in __mem_cgroup_iter_next().
-> > +		 */
-> > +		css->flags |= CSS_ONLINE;
-> >  	}
-> >  	return ret;
-> >  }
-> > --- 3.14-rc2+/mm/memcontrol.c	2014-02-12 11:55:02.836035004 -0800
-> > +++ linux/mm/memcontrol.c	2014-02-12 11:59:52.804041895 -0800
-> > @@ -1128,9 +1128,16 @@ skip_node:
-> >  	 */
-> >  	if (next_css) {
-> >  		if ((next_css == &root->css) ||
-> > -		    ((next_css->flags & CSS_ONLINE) && css_tryget(next_css)))
-> > +		    ((next_css->flags & CSS_ONLINE) && css_tryget(next_css))) {
-> > +			/*
-> > +			 * Ensure that all memcg initialization, done before
-> > +			 * CSS_ONLINE was set, will be visible to our caller.
-> > +			 * This matches the smp_wmb() in online_css()'s
-> > +			 * rcu_assign_pointer(), before it set CSS_ONLINE.
-> > +			 */
-> > +			smp_rmb();
-> >  			return mem_cgroup_from_css(next_css);
-> > -
-> > +		}
-> >  		prev_css = next_css;
-> >  		goto skip_node;
-> >  	}
-> > 
-> > --
-> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> > the body to majordomo@kvack.org.  For more info on Linux MM,
-> > see: http://www.linux-mm.org/ .
-> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
-> -- 
-> Michal Hocko
-> SUSE Labs
+> diff --git a/mm/swapfile.c b/mm/swapfile.c
+> index 612a7c9..53a3873 100644
+> --- a/mm/swapfile.c
+> +++ b/mm/swapfile.c
+> @@ -650,7 +650,7 @@ swp_entry_t get_swap_page(void)
+>                 goto noswap;
+>         atomic_long_dec(&nr_swap_pages);
+>
+> -       for (type = swap_list.next; type >= 0 && wrapped < 2; type = next) {
+> +       for (type = swap_list.head; type >= 0 && wrapped < 2; type = next) {
+>                 hp_index = atomic_xchg(&highest_priority_index, -1);
+>                 /*
+>                  * highest_priority_index records current highest priority swap
+> @@ -675,7 +675,7 @@ swp_entry_t get_swap_page(void)
+>                 next = si->next;
+>                 if (next < 0 ||
+>                     (!wrapped && si->prio != swap_info[next]->prio)) {
+> -                       next = swap_list.head;
+> +                       next = type;
+>                         wrapped++;
+>                 }
+>
+>
+> At least for the two different cases we identified to fix with it the new
+> code works as well:
+> I) incrementing swap now in proper priority order
+> Filename                                Type            Size    Used    Priority
+> /testswap1                              file            100004  100004  8
+> /testswap2                              file            100004  100004  7
+> /testswap3                              file            100004  100004  6
+> /testswap4                              file            100004  100004  5
+> /testswap5                              file            100004  100004  4
+> /testswap6                              file            100004  68764   3
+> /testswap7                              file            100004  0       2
+> /testswap8                              file            100004  0       1
+>
+> II) comparing a memory based block device "as one" vs "split into 8 pieces"
+> as swap target(s).
+> Like with Mels patch alone I'm able to achieve 1.5G/s TP on the
+> overcommitted memory no matter how much swap targets I split it into.
+>
+> So while I can't speak for the logical correctness of your addition to the
+> patch at least in terms of effectiveness it seems fine.
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
