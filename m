@@ -1,110 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f170.google.com (mail-ob0-f170.google.com [209.85.214.170])
-	by kanga.kvack.org (Postfix) with ESMTP id C921E6B0031
-	for <linux-mm@kvack.org>; Mon, 17 Feb 2014 14:28:12 -0500 (EST)
-Received: by mail-ob0-f170.google.com with SMTP id va2so17614205obc.29
-        for <linux-mm@kvack.org>; Mon, 17 Feb 2014 11:28:12 -0800 (PST)
-Received: from e35.co.us.ibm.com (e35.co.us.ibm.com. [32.97.110.153])
-        by mx.google.com with ESMTPS id eo3si10030758oeb.13.2014.02.17.11.28.10
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 17 Feb 2014 11:28:11 -0800 (PST)
-Received: from /spool/local
-	by e35.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <nacc@linux.vnet.ibm.com>;
-	Mon, 17 Feb 2014 12:28:10 -0700
-Received: from b03cxnp07028.gho.boulder.ibm.com (b03cxnp07028.gho.boulder.ibm.com [9.17.130.15])
-	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 1FF281FF003E
-	for <linux-mm@kvack.org>; Mon, 17 Feb 2014 12:28:08 -0700 (MST)
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by b03cxnp07028.gho.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s1HJRc1C64618710
-	for <linux-mm@kvack.org>; Mon, 17 Feb 2014 20:27:38 +0100
-Received: from d03av02.boulder.ibm.com (localhost [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s1HJS7mv027954
-	for <linux-mm@kvack.org>; Mon, 17 Feb 2014 12:28:07 -0700
-Date: Mon, 17 Feb 2014 11:28:03 -0800
-From: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
-Subject: Re: [RFC PATCH V5] mm readahead: Fix readahead fail for no local
- memory and limit readahead pages
-Message-ID: <20140217192803.GA14586@linux.vnet.ibm.com>
-References: <52F8C556.6090006@linux.vnet.ibm.com>
- <alpine.DEB.2.02.1402101333160.15624@chino.kir.corp.google.com>
- <52FC6F2A.30905@linux.vnet.ibm.com>
- <alpine.DEB.2.02.1402130003320.11689@chino.kir.corp.google.com>
- <52FC98A6.1000701@linux.vnet.ibm.com>
- <alpine.DEB.2.02.1402131416430.13899@chino.kir.corp.google.com>
- <20140214001438.GB1651@linux.vnet.ibm.com>
- <CA+55aFwH8BqyLSqyLL7g-08nOtnOrJ9vKj4ebiSqrxc5ooEjLw@mail.gmail.com>
- <20140214043235.GA21999@linux.vnet.ibm.com>
- <alpine.DEB.2.02.1402140244330.12099@chino.kir.corp.google.com>
+Received: from mail-ee0-f54.google.com (mail-ee0-f54.google.com [74.125.83.54])
+	by kanga.kvack.org (Postfix) with ESMTP id F25556B0031
+	for <linux-mm@kvack.org>; Mon, 17 Feb 2014 14:50:07 -0500 (EST)
+Received: by mail-ee0-f54.google.com with SMTP id e53so7244240eek.41
+        for <linux-mm@kvack.org>; Mon, 17 Feb 2014 11:50:07 -0800 (PST)
+Received: from jenni2.inet.fi (mta-out.inet.fi. [195.156.147.13])
+        by mx.google.com with ESMTP id w5si34368547eef.172.2014.02.17.11.50.05
+        for <linux-mm@kvack.org>;
+        Mon, 17 Feb 2014 11:50:06 -0800 (PST)
+Date: Mon, 17 Feb 2014 21:49:55 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [RFC, PATCHv2 0/2] mm: map few pages around fault address if
+ they are in page cache
+Message-ID: <20140217194955.GA30908@node.dhcp.inet.fi>
+References: <1392662333-25470-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <CA+55aFwz+36NOk=uanDvii7zn46-s1kpMT1Lt=C0hhhn9v6w-Q@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.02.1402140244330.12099@chino.kir.corp.google.com>
+In-Reply-To: <CA+55aFwz+36NOk=uanDvii7zn46-s1kpMT1Lt=C0hhhn9v6w-Q@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Fengguang Wu <fengguang.wu@intel.com>, David Cohen <david.a.cohen@linux.intel.com>, Al Viro <viro@zeniv.linux.org.uk>, Damien Ramonda <damien.ramonda@intel.com>, Jan Kara <jack@suse.cz>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Dave Chinner <david@fromorbit.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On 14.02.2014 [02:54:06 -0800], David Rientjes wrote:
-> On Thu, 13 Feb 2014, Nishanth Aravamudan wrote:
+On Mon, Feb 17, 2014 at 11:01:58AM -0800, Linus Torvalds wrote:
+> On Mon, Feb 17, 2014 at 10:38 AM, Kirill A. Shutemov
+> <kirill.shutemov@linux.intel.com> wrote:
+> >
+> > Now we have ->fault_nonblock() to ask filesystem for a page, if it's
+> > reachable without blocking. We request one page a time. It's not terribly
+> > efficient and I will probably re-think the interface once again to expose
+> > iterator or something...
 > 
-> > There is an open issue on powerpc with memoryless nodes (inasmuch as we
-> > can have them, but the kernel doesn't support it properly). There is a
-> > separate discussion going on on linuxppc-dev about what is necessary for
-> > CONFIG_HAVE_MEMORYLESS_NODES to be supported.
-> > 
+> Hmm. Yeah, clearly this isn't working, since the real workloads all
+> end up looking like
 > 
-> Yeah, and this is causing problems with the slub allocator as well.
+> >        115,493,976      minor-faults                                                  ( +-  0.00% ) [100.00%]
+> >       59.686645587 seconds time elapsed                                          ( +-  0.30% )
+>  becomes
+> >         47,428,068      minor-faults                                                  ( +-  0.00% ) [100.00%]
+> >       60.241766430 seconds time elapsed                                          ( +-  0.85% )
 > 
-> > Apologies for hijacking the thread, my comments below were purely about
-> > the memoryless node support, not about readahead specifically.
-> > 
+> and
 > 
-> Neither you nor Raghavendra have any reason to apologize to anybody.  
-> Memoryless node support on powerpc isn't working very well right now and 
-> you're trying to fix it, that fix is needed both in this thread and in 
-> your fixes for slub.  It's great to see both of you working hard on your 
-> platform to make it work the best.
+> >        268,039,365      minor-faults                                                 [100.00%]
+> >      132.830612471 seconds time elapsed
+> becomes
+> >        193,550,437      minor-faults                                                 [100.00%]
+> >      132.851823758 seconds time elapsed
 > 
-> I think what you'll need to do in addition to your 
-> CONFIG_HAVE_MEMORYLESS_NODE fix, which is obviously needed, is to enable 
-> CONFIG_USE_PERCPU_NUMA_NODE_ID for the same NUMA configurations and then 
-> use set_numa_node() or set_cpu_numa_node() to properly store the mapping 
-> between cpu and node rather than numa_cpu_lookup_table.  Then you should 
-> be able to do away with your own implementation of cpu_to_node().
+> and
 > 
-> After that, I think it should be as simple as doing
+> >          4,967,540      minor-faults                                                  ( +-  0.06% ) [100.00%]
+> >       27.215434226 seconds time elapsed                                          ( +-  0.18% )
+> becomes
+> >          2,285,563      minor-faults                                                  ( +-  0.26% ) [100.00%]
+> >       27.292854546 seconds time elapsed                                          ( +-  0.29% )
 > 
-> 	set_numa_node(cpu_to_node(cpu));
-> 	set_numa_mem(local_memory_node(cpu_to_node(cpu)));
+> ie it shows a clear reduction in faults, but the added costs clearly
+> eat up any wins and it all becomes (just _slightly_) slower.
 > 
-> probably before taking vector_lock in smp_callin().  The cpu-to-node 
-> mapping should be done much earlier in boot while the nodes are being 
-> initialized, I don't think there should be any problem there.
+> Sad.
+> 
+> I do wonder if we really need to lock the pages we fault in. We lock
+> them in order to test for being up-to-date and still mapped. The
+> up-to-date check we don't really need to worry about: that we can test
+> without locking by just reading "page->flags" atomically and verifying
+> that it's uptodate and not locked.
+> 
+> The other reason to lock the page is:
+> 
+>  - for anonymous pages we need the lock for rmap, so the VM generally
+> always locks the page. But that's not an issue for file-backed pages:
+> the "rmap" for a filebacked page is just the page mapcount and the
+> cgroup statistics, and those don't need the page lock.
+> 
+>  - the whole truncation/unmapping thing
+> 
+> So the complex part is racing with truncate/unmapping the page. But
+> since we hold the page table lock, I *think* what we should be able to
+> do is:
+> 
+>  - increment the page _mapcount (iow, do "page_add_file_rmap()"
+> early). This guarantees that any *subsequent* unmap activity on this
+> page will walk the file mapping lists, and become serialized by the
+> page table lock we hold.
+> 
+>  - mb_after_atomic_inc() (this is generally free)
+> 
+>  - test that the page is still unlocked and uptodate, and the page
+> mapping still points to our page.
+> 
+>  - if that is true, we're all good, we can use the page, otherwise we
+> decrement the mapcount (page_remove_rmap()) and skip the page.
+> 
+> Hmm? Doing something like this means that we would never lock the
+> pages we prefault, and you can go back to your gang lookup rather than
+> that "one page at a time". And the race case is basically never going
+> to trigger.
+> 
+> Comments?
 
-vector_lock/smp_callin are ia64 specific things, I believe? I think the
-equivalent is just in start_secondary() for powerpc? (which in fact is
-what calls smp_callin on powerpc).
+Sounds reasonable to me. I'll take a closer look tomorrow.
 
-Here is what I'm running into now:
+But it could be safer to keep locking in place and reduce lookup cost by
+exposing something like ->fault_iter_init() and ->fault_iter_next(). It
+will still return one page a time, but it will keep radix-tree context
+around for cheaper next-page lookup.
 
-setup_arch ->
-	do_init_bootmem ->
-		cpu_numa_callback ->
-			numa_setup_cpu ->
-				map_cpu_to_node -> 
-					update_numa_cpu_lookup_table
-
-Which current updates the powerpc specific numa_cpu_lookup_table. I
-would like to update that function to use set_cpu_numa_node() and
-set_cpu_numa_mem(), but local_memory_node() is not yet functional
-because build_all_zonelists is called later in start_kernel. Would it
-make sense for first_zones_zonelist() to return NUMA_NO_NODE if we
-don't have a zone?
-
-Thanks,
-Nish
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
