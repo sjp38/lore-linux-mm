@@ -1,30 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D2EA6B0031
-	for <linux-mm@kvack.org>; Mon, 17 Feb 2014 12:18:02 -0500 (EST)
-Received: by mail-pa0-f42.google.com with SMTP id kl14so15566598pab.29
-        for <linux-mm@kvack.org>; Mon, 17 Feb 2014 09:18:02 -0800 (PST)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id xf4si15453122pab.133.2014.02.17.09.18.00
+Received: from mail-yh0-f46.google.com (mail-yh0-f46.google.com [209.85.213.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 75AFA6B0031
+	for <linux-mm@kvack.org>; Mon, 17 Feb 2014 13:34:36 -0500 (EST)
+Received: by mail-yh0-f46.google.com with SMTP id v1so14373324yhn.33
+        for <linux-mm@kvack.org>; Mon, 17 Feb 2014 10:34:36 -0800 (PST)
+Received: from collaborate-mta1.arm.com (fw-tnat.austin.arm.com. [217.140.110.23])
+        by mx.google.com with ESMTP id w63si16762173yhj.37.2014.02.17.10.34.35
         for <linux-mm@kvack.org>;
-        Mon, 17 Feb 2014 09:18:01 -0800 (PST)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-In-Reply-To: <1392064866-11840-8-git-send-email-kirill.shutemov@linux.intel.com>
-References: <1392064866-11840-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1392064866-11840-8-git-send-email-kirill.shutemov@linux.intel.com>
-Subject: RE: [PATCH 7/8] mm: consolidate code to call vm_ops->page_mkwrite()
-Content-Transfer-Encoding: 7bit
-Message-Id: <20140217171756.EFF82E0090@blue.fi.intel.com>
-Date: Mon, 17 Feb 2014 19:17:56 +0200 (EET)
+        Mon, 17 Feb 2014 10:34:35 -0800 (PST)
+Date: Mon, 17 Feb 2014 18:34:28 +0000
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: Recent 3.x kernels: Memory leak causing OOMs
+Message-ID: <20140217183428.GA8687@arm.com>
+References: <20140216200503.GN30257@n2100.arm.linux.org.uk>
+ <20140216214354.GA12947@thunk.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140216214354.GA12947@thunk.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, linux-mm@kvack.org
+To: Theodore Ts'o <tytso@mit.edu>
+Cc: Russell King - ARM Linux <linux@arm.linux.org.uk>, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org
 
-Hi Andrew,
+On Sun, Feb 16, 2014 at 04:43:54PM -0500, Theodore Ts'o wrote:
+> On Sun, Feb 16, 2014 at 08:05:04PM +0000, Russell King - ARM Linux wrote:
+> > I have another machine which OOM'd a week ago with plenty of unused swap
+> > - it uses ext3 on raid1 and is a more busy system.  That took 41 days
+> > to show, and upon reboot, it got a kernel with kmemleak enabled.  So far,
+> > after 7 days, kmemleak has found nothing at all.
+> 
+> If kmemleak doesn't show anything, then presumably it's not a leak of
+> the slab object.  Does /proc/meminfo show anything interesting?  Maybe
+> it's a page getting leaked (which wouldn't be noticed by kmemleak)
 
-I forgot to set VM_FAULT_LOCKED bit in do_page_mkwrite() return code, if
-we lock the page in do_page_mkwrite(). It triggers deadlock, if
-->page_mkwrite doesn't take page lock on its own.
+Kmemleak also doesn't notice leaked objects that are added to a list for
+example (still referenced). Maybe /proc/slabinfo would give some clues.
 
-Please replace orignal patch with the patch below.
+-- 
+Catalin
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
