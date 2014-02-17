@@ -1,48 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 970216B0031
-	for <linux-mm@kvack.org>; Mon, 17 Feb 2014 02:00:44 -0500 (EST)
-Received: by mail-pd0-f176.google.com with SMTP id w10so14455013pde.21
-        for <linux-mm@kvack.org>; Sun, 16 Feb 2014 23:00:44 -0800 (PST)
-Received: from LGEMRELSE1Q.lge.com (LGEMRELSE1Q.lge.com. [156.147.1.111])
-        by mx.google.com with ESMTP id fu1si13694511pbc.284.2014.02.16.23.00.41
-        for <linux-mm@kvack.org>;
-        Sun, 16 Feb 2014 23:00:43 -0800 (PST)
-Date: Mon, 17 Feb 2014 16:00:51 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [RFC PATCH 2/3] topology: support node_numa_mem() for
- determining the fallback node
-Message-ID: <20140217070051.GE3468@lge.com>
-References: <1391674026-20092-2-git-send-email-iamjoonsoo.kim@lge.com>
- <alpine.DEB.2.02.1402060041040.21148@chino.kir.corp.google.com>
- <CAAmzW4PXkdpNi5pZ=4BzdXNvqTEAhcuw-x0pWidqrxzdePxXxA@mail.gmail.com>
- <alpine.DEB.2.02.1402061248450.9567@chino.kir.corp.google.com>
- <20140207054819.GC28952@lge.com>
- <alpine.DEB.2.10.1402071150090.15168@nuc>
- <alpine.DEB.2.10.1402071245040.20246@nuc>
- <20140210191321.GD1558@linux.vnet.ibm.com>
- <20140211074159.GB27870@lge.com>
- <20140213065137.GA10860@linux.vnet.ibm.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 6BC2C6B0031
+	for <linux-mm@kvack.org>; Mon, 17 Feb 2014 02:07:48 -0500 (EST)
+Received: by mail-pd0-f176.google.com with SMTP id w10so14478631pde.7
+        for <linux-mm@kvack.org>; Sun, 16 Feb 2014 23:07:48 -0800 (PST)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
+        by mx.google.com with ESMTPS id fu1si13708263pbc.344.2014.02.16.23.07.42
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Sun, 16 Feb 2014 23:07:46 -0800 (PST)
+Message-ID: <5301B4AF.1040305@huawei.com>
+Date: Mon, 17 Feb 2014 15:05:19 +0800
+From: Jianguo Wu <wujianguo@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140213065137.GA10860@linux.vnet.ibm.com>
+Subject: [PATCH v2] ARM: mm: support big-endian page tables
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
-Cc: Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Han Pingtian <hanpt@linux.vnet.ibm.com>, Pekka Enberg <penberg@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Paul Mackerras <paulus@samba.org>, Anton Blanchard <anton@samba.org>, Matt Mackall <mpm@selenic.com>, linuxppc-dev@lists.ozlabs.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
+To: linux@arm.linux.org.uk
+Cc: Ben Dooks <ben.dooks@codethink.co.uk>, will.deacon@arm.com, gregkh@linuxfoundation.org, Catalin Marinas <catalin.marinas@arm.com>, Li
+ Zefan <lizefan@huawei.com>, Wang Nan <wangnan0@huawei.com>, linux-arm-kernel@lists.infradead.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Wed, Feb 12, 2014 at 10:51:37PM -0800, Nishanth Aravamudan wrote:
-> Hi Joonsoo,
-> Also, given that only ia64 and (hopefuly soon) ppc64 can set
-> CONFIG_HAVE_MEMORYLESS_NODES, does that mean x86_64 can't have
-> memoryless nodes present? Even with fakenuma? Just curious.
+When enable LPAE and big-endian in a hisilicon board, while specify
+mem=384M mem=512M@7680M, will get bad page state:
 
-I don't know, because I'm not expert on NUMA system :)
-At first glance, fakenuma can't be used for testing
-CONFIG_HAVE_MEMORYLESS_NODES. Maybe some modification is needed.
+Freeing unused kernel memory: 180K (c0466000 - c0493000)
+BUG: Bad page state in process init  pfn:fa442
+page:c7749840 count:0 mapcount:-1 mapping:  (null) index:0x0
+page flags: 0x40000400(reserved)
+Modules linked in:
+CPU: 0 PID: 1 Comm: init Not tainted 3.10.27+ #66
+[<c000f5f0>] (unwind_backtrace+0x0/0x11c) from [<c000cbc4>] (show_stack+0x10/0x14)
+[<c000cbc4>] (show_stack+0x10/0x14) from [<c009e448>] (bad_page+0xd4/0x104)
+[<c009e448>] (bad_page+0xd4/0x104) from [<c009e520>] (free_pages_prepare+0xa8/0x14c)
+[<c009e520>] (free_pages_prepare+0xa8/0x14c) from [<c009f8ec>] (free_hot_cold_page+0x18/0xf0)
+[<c009f8ec>] (free_hot_cold_page+0x18/0xf0) from [<c00b5444>] (handle_pte_fault+0xcf4/0xdc8)
+[<c00b5444>] (handle_pte_fault+0xcf4/0xdc8) from [<c00b6458>] (handle_mm_fault+0xf4/0x120)
+[<c00b6458>] (handle_mm_fault+0xf4/0x120) from [<c0013754>] (do_page_fault+0xfc/0x354)
+[<c0013754>] (do_page_fault+0xfc/0x354) from [<c0008400>] (do_DataAbort+0x2c/0x90)
+[<c0008400>] (do_DataAbort+0x2c/0x90) from [<c0008fb4>] (__dabt_usr+0x34/0x40)
 
-Thanks.
+The bad pfn:fa442 is not system memory(mem=384M mem=512M@7680M), after debugging,
+I find in page fault handler, will get wrong pfn from pte just after set pte,
+as follow:
+do_anonymous_page()
+{
+	...
+	set_pte_at(mm, address, page_table, entry);
+	
+	//debug code
+	pfn = pte_pfn(entry);
+	pr_info("pfn:0x%lx, pte:0x%llx\n", pfn, pte_val(entry));
+
+	//read out the pte just set
+	new_pte = pte_offset_map(pmd, address);
+	new_pfn = pte_pfn(*new_pte);
+	pr_info("new pfn:0x%lx, new pte:0x%llx\n", pfn, pte_val(entry));
+	...
+}
+
+pfn:   0x1fa4f5,     pte:0xc00001fa4f575f
+new_pfn:0xfa4f5, new_pte:0xc00000fa4f5f5f	//new pfn/pte is wrong.
+
+The bug is happened in cpu_v7_set_pte_ext(ptep, pte):
+when pte is 64-bit, for little-endian, will store low 32-bit in r2,
+high 32-bit in r3; for big-endian, will store low 32-bit in r3,
+high 32-bit in r2, this will cause wrong pfn stored in pte,
+so we should exchange r2 and r3 for big-endian.
+
+Signed-off-by: Jianguo Wu <wujianguo@huawei.com>
+---
+ arch/arm/mm/proc-v7-3level.S |   18 +++++++++++++-----
+ 1 files changed, 13 insertions(+), 5 deletions(-)
+
+diff --git a/arch/arm/mm/proc-v7-3level.S b/arch/arm/mm/proc-v7-3level.S
+index 01a719e..22e3ad6 100644
+--- a/arch/arm/mm/proc-v7-3level.S
++++ b/arch/arm/mm/proc-v7-3level.S
+@@ -64,6 +64,14 @@ ENTRY(cpu_v7_switch_mm)
+ 	mov	pc, lr
+ ENDPROC(cpu_v7_switch_mm)
+ 
++#ifdef __ARMEB__
++#define rl r3
++#define rh r2
++#else
++#define rl r2
++#define rh r3
++#endif
++
+ /*
+  * cpu_v7_set_pte_ext(ptep, pte)
+  *
+@@ -73,13 +81,13 @@ ENDPROC(cpu_v7_switch_mm)
+  */
+ ENTRY(cpu_v7_set_pte_ext)
+ #ifdef CONFIG_MMU
+-	tst	r2, #L_PTE_VALID
++	tst	rl, #L_PTE_VALID
+ 	beq	1f
+-	tst	r3, #1 << (57 - 32)		@ L_PTE_NONE
+-	bicne	r2, #L_PTE_VALID
++	tst	rh, #1 << (57 - 32)		@ L_PTE_NONE
++	bicne	rl, #L_PTE_VALID
+ 	bne	1f
+-	tst	r3, #1 << (55 - 32)		@ L_PTE_DIRTY
+-	orreq	r2, #L_PTE_RDONLY
++	tst	rh, #1 << (55 - 32)		@ L_PTE_DIRTY
++	orreq	rl, #L_PTE_RDONLY
+ 1:	strd	r2, r3, [r0]
+ 	ALT_SMP(W(nop))
+ 	ALT_UP (mcr	p15, 0, r0, c7, c10, 1)		@ flush_pte
+-- 
+1.7.1
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
