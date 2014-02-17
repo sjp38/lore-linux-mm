@@ -1,58 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f173.google.com (mail-we0-f173.google.com [74.125.82.173])
-	by kanga.kvack.org (Postfix) with ESMTP id C1F306B0031
-	for <linux-mm@kvack.org>; Mon, 17 Feb 2014 16:10:04 -0500 (EST)
-Received: by mail-we0-f173.google.com with SMTP id x48so5293282wes.4
-        for <linux-mm@kvack.org>; Mon, 17 Feb 2014 13:10:04 -0800 (PST)
-Received: from pandora.arm.linux.org.uk (pandora.arm.linux.org.uk. [2001:4d48:ad52:3201:214:fdff:fe10:1be6])
-        by mx.google.com with ESMTPS id qa8si9826129wic.27.2014.02.17.13.10.00
+Received: from mail-ve0-f170.google.com (mail-ve0-f170.google.com [209.85.128.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A9906B0031
+	for <linux-mm@kvack.org>; Mon, 17 Feb 2014 17:57:24 -0500 (EST)
+Received: by mail-ve0-f170.google.com with SMTP id cz12so13051120veb.29
+        for <linux-mm@kvack.org>; Mon, 17 Feb 2014 14:57:24 -0800 (PST)
+Received: from mail-vc0-x22b.google.com (mail-vc0-x22b.google.com [2607:f8b0:400c:c03::22b])
+        by mx.google.com with ESMTPS id sg4si4875397vcb.86.2014.02.17.14.57.23
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 17 Feb 2014 13:10:01 -0800 (PST)
-Date: Mon, 17 Feb 2014 21:09:54 +0000
-From: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Subject: Re: Recent 3.x kernels: Memory leak causing OOMs
-Message-ID: <20140217210954.GA21483@n2100.arm.linux.org.uk>
-References: <20140216200503.GN30257@n2100.arm.linux.org.uk> <alpine.DEB.2.02.1402161406120.26926@chino.kir.corp.google.com> <20140216225000.GO30257@n2100.arm.linux.org.uk> <1392670951.24429.10.camel@sakura.staff.proxad.net>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 17 Feb 2014 14:57:23 -0800 (PST)
+Received: by mail-vc0-f171.google.com with SMTP id le5so12394135vcb.16
+        for <linux-mm@kvack.org>; Mon, 17 Feb 2014 14:57:23 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1392670951.24429.10.camel@sakura.staff.proxad.net>
+In-Reply-To: <20140214074305.GF5160@quack.suse.cz>
+References: <52F88C16.70204@linux.vnet.ibm.com>
+	<alpine.DEB.2.02.1402100200420.30650@chino.kir.corp.google.com>
+	<52F8C556.6090006@linux.vnet.ibm.com>
+	<alpine.DEB.2.02.1402101333160.15624@chino.kir.corp.google.com>
+	<52FC6F2A.30905@linux.vnet.ibm.com>
+	<alpine.DEB.2.02.1402130003320.11689@chino.kir.corp.google.com>
+	<52FC98A6.1000701@linux.vnet.ibm.com>
+	<alpine.DEB.2.02.1402131416430.13899@chino.kir.corp.google.com>
+	<20140214001438.GB1651@linux.vnet.ibm.com>
+	<CA+55aFwH8BqyLSqyLL7g-08nOtnOrJ9vKj4ebiSqrxc5ooEjLw@mail.gmail.com>
+	<20140214074305.GF5160@quack.suse.cz>
+Date: Mon, 17 Feb 2014 14:57:23 -0800
+Message-ID: <CA+55aFxeCM_GTzVBQMbk0eKY7+eeA1ngF6RFZ0O=PbuNs_FMxg@mail.gmail.com>
+Subject: Re: [RFC PATCH V5] mm readahead: Fix readahead fail for no local
+ memory and limit readahead pages
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Maxime Bizon <mbizon@freebox.fr>
-Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org
+To: Jan Kara <jack@suse.cz>
+Cc: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Fengguang Wu <fengguang.wu@intel.com>, David Cohen <david.a.cohen@linux.intel.com>, Al Viro <viro@zeniv.linux.org.uk>, Damien Ramonda <damien.ramonda@intel.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Mon, Feb 17, 2014 at 10:02:31PM +0100, Maxime Bizon wrote:
-> 
-> On Sun, 2014-02-16 at 22:50 +0000, Russell King - ARM Linux wrote:
-> 
-> > http://www.home.arm.linux.org.uk/~rmk/misc/log-20140208.txt
-> 
-> [<c0064ce0>] (__alloc_pages_nodemask+0x0/0x694) from [<c022273c>] (sk_page_frag_refill+0x78/0x108)
-> [<c02226c4>] (sk_page_frag_refill+0x0/0x108) from [<c026a3a4>] (tcp_sendmsg+0x654/0xd1c)  r6:00000520 r5:c277bae0 r4:c68f37c0
-> [<c0269d50>] (tcp_sendmsg+0x0/0xd1c) from [<c028ca9c>] (inet_sendmsg+0x64/0x70)
-> 
-> FWIW I had OOMs with the exact same backtrace on kirkwood platform
-> (512MB RAM), but sorry I don't have the full dump anymore.
-> 
-> I found a slow leaking process, and since I fixed that leak I now have
-> uptime better than 7 days, *but* there was definitely some memory left
-> when the OOM happened, so it appears to be related to fragmentation.
+On Thu, Feb 13, 2014 at 11:43 PM, Jan Kara <jack@suse.cz> wrote:
+>
+>   max_sane_readahead() is also used for limiting amount of readahead for
+> [fm]advice(2) WILLNEED and that is used e.g. by a dynamic linker to preload
+> shared libraries into memory. So I'm convinced this usecase *will* notice
+> the change - effectively we limit preloading of shared libraries to the
+> first 512KB in the file but libraries get accessed in a rather random manner.
+>
+> Maybe limits for WILLNEED and for standard readahead should be different.
+> It makes sence to me and people seem to keep forgetting that
+> max_sane_readahead() limits also WILLNEED preloading.
 
-However, that's a side effect, not the cause - and a patch has been
-merged to fix that OOM - but that doesn't explain where most of the
-memory has gone!
+Good point. But it's probably overly complex to have two different
+limits. The "512kB" thing was entirely random - the only real issue is
+that it should be small enough that it won't be a problem on any
+reasonable current machines, and big enough to get perfectly fine IO
+patterns unless your IO subsystem sucks so bad that it's not even
+worth worrying about.
 
-I'm presently waiting for the machine to OOM again (it's probably going
-to be something like another month) at which point I'll grab the files
-people have been mentioning (/proc/meminfo, /proc/vmallocinfo,
-/proc/slabinfo etc.)
+If we just add a third requirement that it be "big enough that
+reasonable uses of [fm]advice() will work well enough", then your
+shared library example might well be grounds for saying "let's just do
+2MB instead". That's still small enough that it won't really hurt any
+modern machines.
 
--- 
-FTTC broadband for 0.8mile line: 5.8Mbps down 500kbps up.  Estimation
-in database were 13.1 to 19Mbit for a good line, about 7.5+ for a bad.
-Estimate before purchase was "up to 13.2Mbit".
+And if it means that WILLNEED won't necessarily always read the whole
+file for big files - well, we never guaranteed that to begin with.
+
+                                Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
