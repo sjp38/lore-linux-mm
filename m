@@ -1,241 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F4EE6B0036
-	for <linux-mm@kvack.org>; Mon, 17 Feb 2014 13:39:11 -0500 (EST)
-Received: by mail-pd0-f175.google.com with SMTP id w10so15231768pde.20
-        for <linux-mm@kvack.org>; Mon, 17 Feb 2014 10:39:10 -0800 (PST)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id n8si15677428pax.15.2014.02.17.10.39.09
-        for <linux-mm@kvack.org>;
-        Mon, 17 Feb 2014 10:39:10 -0800 (PST)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 2/2] mm: implement ->fault_nonblock() for page cache
-Date: Mon, 17 Feb 2014 20:38:53 +0200
-Message-Id: <1392662333-25470-3-git-send-email-kirill.shutemov@linux.intel.com>
+Received: from mail-ve0-f175.google.com (mail-ve0-f175.google.com [209.85.128.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 52A1C6B0031
+	for <linux-mm@kvack.org>; Mon, 17 Feb 2014 14:01:59 -0500 (EST)
+Received: by mail-ve0-f175.google.com with SMTP id c14so12597535vea.34
+        for <linux-mm@kvack.org>; Mon, 17 Feb 2014 11:01:58 -0800 (PST)
+Received: from mail-vc0-x236.google.com (mail-vc0-x236.google.com [2607:f8b0:400c:c03::236])
+        by mx.google.com with ESMTPS id y3si4687153vdo.19.2014.02.17.11.01.58
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 17 Feb 2014 11:01:58 -0800 (PST)
+Received: by mail-vc0-f182.google.com with SMTP id id10so11935413vcb.41
+        for <linux-mm@kvack.org>; Mon, 17 Feb 2014 11:01:58 -0800 (PST)
+MIME-Version: 1.0
 In-Reply-To: <1392662333-25470-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1392662333-25470-1-git-send-email-kirill.shutemov@linux.intel.com>
+Date: Mon, 17 Feb 2014 11:01:58 -0800
+Message-ID: <CA+55aFwz+36NOk=uanDvii7zn46-s1kpMT1Lt=C0hhhn9v6w-Q@mail.gmail.com>
+Subject: Re: [RFC, PATCHv2 0/2] mm: map few pages around fault address if they
+ are in page cache
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>
-Cc: Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Dave Chinner <david@fromorbit.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-filemap_fault_nonblock() is generic implementation of ->fault_nonblock()
-for filesystems who uses page cache.
+On Mon, Feb 17, 2014 at 10:38 AM, Kirill A. Shutemov
+<kirill.shutemov@linux.intel.com> wrote:
+>
+> Now we have ->fault_nonblock() to ask filesystem for a page, if it's
+> reachable without blocking. We request one page a time. It's not terribly
+> efficient and I will probably re-think the interface once again to expose
+> iterator or something...
 
-It should be safe to use filemap_fault_nonblock() for ->fault_nonblock()
-if filesystem use filemap_fault() for ->fault().
+Hmm. Yeah, clearly this isn't working, since the real workloads all
+end up looking like
 
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
----
- fs/9p/vfs_file.c  |  2 ++
- fs/btrfs/file.c   |  1 +
- fs/cifs/file.c    |  1 +
- fs/ext4/file.c    |  1 +
- fs/f2fs/file.c    |  1 +
- fs/fuse/file.c    |  1 +
- fs/gfs2/file.c    |  1 +
- fs/nfs/file.c     |  1 +
- fs/nilfs2/file.c  |  1 +
- fs/ubifs/file.c   |  1 +
- fs/xfs/xfs_file.c |  1 +
- mm/filemap.c      | 35 +++++++++++++++++++++++++++++++++++
- 12 files changed, 47 insertions(+)
+>        115,493,976      minor-faults                                                  ( +-  0.00% ) [100.00%]
+>       59.686645587 seconds time elapsed                                          ( +-  0.30% )
+ becomes
+>         47,428,068      minor-faults                                                  ( +-  0.00% ) [100.00%]
+>       60.241766430 seconds time elapsed                                          ( +-  0.85% )
 
-diff --git a/fs/9p/vfs_file.c b/fs/9p/vfs_file.c
-index a16b0ff497ca..a7f7e41bec37 100644
---- a/fs/9p/vfs_file.c
-+++ b/fs/9p/vfs_file.c
-@@ -832,6 +832,7 @@ static void v9fs_mmap_vm_close(struct vm_area_struct *vma)
- 
- static const struct vm_operations_struct v9fs_file_vm_ops = {
- 	.fault = filemap_fault,
-+	.fault_nonblock = filemap_fault_nonblock,
- 	.page_mkwrite = v9fs_vm_page_mkwrite,
- 	.remap_pages = generic_file_remap_pages,
- };
-@@ -839,6 +840,7 @@ static const struct vm_operations_struct v9fs_file_vm_ops = {
- static const struct vm_operations_struct v9fs_mmap_file_vm_ops = {
- 	.close = v9fs_mmap_vm_close,
- 	.fault = filemap_fault,
-+	.fault_nonblock = filemap_fault_nonblock,
- 	.page_mkwrite = v9fs_vm_page_mkwrite,
- 	.remap_pages = generic_file_remap_pages,
- };
-diff --git a/fs/btrfs/file.c b/fs/btrfs/file.c
-index 0165b8672f09..13523a63e1f3 100644
---- a/fs/btrfs/file.c
-+++ b/fs/btrfs/file.c
-@@ -1993,6 +1993,7 @@ out:
- 
- static const struct vm_operations_struct btrfs_file_vm_ops = {
- 	.fault		= filemap_fault,
-+	.fault_nonblock	= filemap_fault_nonblock,
- 	.page_mkwrite	= btrfs_page_mkwrite,
- 	.remap_pages	= generic_file_remap_pages,
- };
-diff --git a/fs/cifs/file.c b/fs/cifs/file.c
-index 755584684f6c..71aff75e067c 100644
---- a/fs/cifs/file.c
-+++ b/fs/cifs/file.c
-@@ -3094,6 +3094,7 @@ cifs_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
- 
- static struct vm_operations_struct cifs_file_vm_ops = {
- 	.fault = filemap_fault,
-+	.fault_nonblock = filemap_fault_nonblock,
- 	.page_mkwrite = cifs_page_mkwrite,
- 	.remap_pages = generic_file_remap_pages,
- };
-diff --git a/fs/ext4/file.c b/fs/ext4/file.c
-index 1a5073959f32..182ae5543a1d 100644
---- a/fs/ext4/file.c
-+++ b/fs/ext4/file.c
-@@ -200,6 +200,7 @@ ext4_file_write(struct kiocb *iocb, const struct iovec *iov,
- 
- static const struct vm_operations_struct ext4_file_vm_ops = {
- 	.fault		= filemap_fault,
-+	.fault_nonblock	= filemap_fault_nonblock,
- 	.page_mkwrite   = ext4_page_mkwrite,
- 	.remap_pages	= generic_file_remap_pages,
- };
-diff --git a/fs/f2fs/file.c b/fs/f2fs/file.c
-index 0dfcef53a6ed..7c48fd2eb99c 100644
---- a/fs/f2fs/file.c
-+++ b/fs/f2fs/file.c
-@@ -84,6 +84,7 @@ out:
- 
- static const struct vm_operations_struct f2fs_file_vm_ops = {
- 	.fault		= filemap_fault,
-+	.fault_nonblock	= filemap_fault_nonblock,
- 	.page_mkwrite	= f2fs_vm_page_mkwrite,
- 	.remap_pages	= generic_file_remap_pages,
- };
-diff --git a/fs/fuse/file.c b/fs/fuse/file.c
-index 77bcc303c3ae..e95e52ec7bc2 100644
---- a/fs/fuse/file.c
-+++ b/fs/fuse/file.c
-@@ -1940,6 +1940,7 @@ static int fuse_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
- static const struct vm_operations_struct fuse_file_vm_ops = {
- 	.close		= fuse_vma_close,
- 	.fault		= filemap_fault,
-+	.fault_nonblock	= filemap_fault_nonblock,
- 	.page_mkwrite	= fuse_page_mkwrite,
- 	.remap_pages	= generic_file_remap_pages,
- };
-diff --git a/fs/gfs2/file.c b/fs/gfs2/file.c
-index efc078f0ee4e..7c4b2f096ac8 100644
---- a/fs/gfs2/file.c
-+++ b/fs/gfs2/file.c
-@@ -494,6 +494,7 @@ out:
- 
- static const struct vm_operations_struct gfs2_vm_ops = {
- 	.fault = filemap_fault,
-+	.fault_nonblock = filemap_fault_nonblock,
- 	.page_mkwrite = gfs2_page_mkwrite,
- 	.remap_pages = generic_file_remap_pages,
- };
-diff --git a/fs/nfs/file.c b/fs/nfs/file.c
-index 5bb790a69c71..8fbe80168d1f 100644
---- a/fs/nfs/file.c
-+++ b/fs/nfs/file.c
-@@ -617,6 +617,7 @@ out:
- 
- static const struct vm_operations_struct nfs_file_vm_ops = {
- 	.fault = filemap_fault,
-+	.fault_nonblock = filemap_fault_nonblock,
- 	.page_mkwrite = nfs_vm_page_mkwrite,
- 	.remap_pages = generic_file_remap_pages,
- };
-diff --git a/fs/nilfs2/file.c b/fs/nilfs2/file.c
-index 08fdb77852ac..adc4aa07d7d8 100644
---- a/fs/nilfs2/file.c
-+++ b/fs/nilfs2/file.c
-@@ -134,6 +134,7 @@ static int nilfs_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
- 
- static const struct vm_operations_struct nilfs_file_vm_ops = {
- 	.fault		= filemap_fault,
-+	.fault_nonblock	= filemap_fault_nonblock,
- 	.page_mkwrite	= nilfs_page_mkwrite,
- 	.remap_pages	= generic_file_remap_pages,
- };
-diff --git a/fs/ubifs/file.c b/fs/ubifs/file.c
-index 123c79b7261e..f27c4c401a3f 100644
---- a/fs/ubifs/file.c
-+++ b/fs/ubifs/file.c
-@@ -1538,6 +1538,7 @@ out_unlock:
- 
- static const struct vm_operations_struct ubifs_file_vm_ops = {
- 	.fault        = filemap_fault,
-+	.fault_nonblock = filemap_fault_nonblock,
- 	.page_mkwrite = ubifs_vm_page_mkwrite,
- 	.remap_pages = generic_file_remap_pages,
- };
-diff --git a/fs/xfs/xfs_file.c b/fs/xfs/xfs_file.c
-index 64b48eade91d..bc619150c960 100644
---- a/fs/xfs/xfs_file.c
-+++ b/fs/xfs/xfs_file.c
-@@ -1465,6 +1465,7 @@ const struct file_operations xfs_dir_file_operations = {
- 
- static const struct vm_operations_struct xfs_file_vm_ops = {
- 	.fault		= filemap_fault,
-+	.fault_nonblock	= filemap_fault_nonblock,
- 	.page_mkwrite	= xfs_vm_page_mkwrite,
- 	.remap_pages	= generic_file_remap_pages,
- };
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 7a13f6ac5421..7b7c9c600544 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -1726,6 +1726,40 @@ page_not_uptodate:
- }
- EXPORT_SYMBOL(filemap_fault);
- 
-+void filemap_fault_nonblock(struct vm_area_struct *vma, struct vm_fault *vmf)
-+{
-+	struct file *file = vma->vm_file;
-+	struct address_space *mapping = file->f_mapping;
-+	pgoff_t size;
-+	struct page *page;
-+
-+	page = find_get_page(mapping, vmf->pgoff);
-+	if (!page)
-+		return;
-+	if (PageReadahead(page) || PageHWPoison(page))
-+		goto put;
-+	if (!trylock_page(page))
-+		goto put;
-+	/* Truncated? */
-+	if (unlikely(page->mapping != mapping))
-+		goto unlock;
-+	if (unlikely(!PageUptodate(page)))
-+		goto unlock;
-+	size = (i_size_read(mapping->host) + PAGE_CACHE_SIZE - 1)
-+		>> PAGE_CACHE_SHIFT;
-+	if (unlikely(page->index >= size))
-+		goto unlock;
-+	if (file->f_ra.mmap_miss > 0)
-+		file->f_ra.mmap_miss--;
-+	vmf->page = page;
-+	return;
-+unlock:
-+	unlock_page(page);
-+put:
-+	put_page(page);
-+}
-+EXPORT_SYMBOL(filemap_fault_nonblock);
-+
- int filemap_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
- {
- 	struct page *page = vmf->page;
-@@ -1755,6 +1789,7 @@ EXPORT_SYMBOL(filemap_page_mkwrite);
- 
- const struct vm_operations_struct generic_file_vm_ops = {
- 	.fault		= filemap_fault,
-+	.fault_nonblock	= filemap_fault_nonblock,
- 	.page_mkwrite	= filemap_page_mkwrite,
- 	.remap_pages	= generic_file_remap_pages,
- };
--- 
-1.9.0.rc3
+and
+
+>        268,039,365      minor-faults                                                 [100.00%]
+>      132.830612471 seconds time elapsed
+becomes
+>        193,550,437      minor-faults                                                 [100.00%]
+>      132.851823758 seconds time elapsed
+
+and
+
+>          4,967,540      minor-faults                                                  ( +-  0.06% ) [100.00%]
+>       27.215434226 seconds time elapsed                                          ( +-  0.18% )
+becomes
+>          2,285,563      minor-faults                                                  ( +-  0.26% ) [100.00%]
+>       27.292854546 seconds time elapsed                                          ( +-  0.29% )
+
+ie it shows a clear reduction in faults, but the added costs clearly
+eat up any wins and it all becomes (just _slightly_) slower.
+
+Sad.
+
+I do wonder if we really need to lock the pages we fault in. We lock
+them in order to test for being up-to-date and still mapped. The
+up-to-date check we don't really need to worry about: that we can test
+without locking by just reading "page->flags" atomically and verifying
+that it's uptodate and not locked.
+
+The other reason to lock the page is:
+
+ - for anonymous pages we need the lock for rmap, so the VM generally
+always locks the page. But that's not an issue for file-backed pages:
+the "rmap" for a filebacked page is just the page mapcount and the
+cgroup statistics, and those don't need the page lock.
+
+ - the whole truncation/unmapping thing
+
+So the complex part is racing with truncate/unmapping the page. But
+since we hold the page table lock, I *think* what we should be able to
+do is:
+
+ - increment the page _mapcount (iow, do "page_add_file_rmap()"
+early). This guarantees that any *subsequent* unmap activity on this
+page will walk the file mapping lists, and become serialized by the
+page table lock we hold.
+
+ - mb_after_atomic_inc() (this is generally free)
+
+ - test that the page is still unlocked and uptodate, and the page
+mapping still points to our page.
+
+ - if that is true, we're all good, we can use the page, otherwise we
+decrement the mapcount (page_remove_rmap()) and skip the page.
+
+Hmm? Doing something like this means that we would never lock the
+pages we prefault, and you can go back to your gang lookup rather than
+that "one page at a time". And the race case is basically never going
+to trigger.
+
+Comments?
+
+                  Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
