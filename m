@@ -1,95 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f173.google.com (mail-we0-f173.google.com [74.125.82.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D96C6B0031
-	for <linux-mm@kvack.org>; Mon, 17 Feb 2014 04:21:00 -0500 (EST)
-Received: by mail-we0-f173.google.com with SMTP id x48so4663804wes.4
-        for <linux-mm@kvack.org>; Mon, 17 Feb 2014 01:20:59 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q5si9912216wjq.135.2014.02.17.01.20.58
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 17 Feb 2014 01:20:58 -0800 (PST)
-Date: Mon, 17 Feb 2014 10:20:54 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH] backing_dev: Fix hung task on sync
-Message-ID: <20140217092054.GA3686@quack.suse.cz>
-References: <1392437537-27392-1-git-send-email-dbasehore@chromium.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1392437537-27392-1-git-send-email-dbasehore@chromium.org>
+Received: from mail-wg0-f54.google.com (mail-wg0-f54.google.com [74.125.82.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C4686B0031
+	for <linux-mm@kvack.org>; Mon, 17 Feb 2014 08:57:31 -0500 (EST)
+Received: by mail-wg0-f54.google.com with SMTP id l18so2243802wgh.33
+        for <linux-mm@kvack.org>; Mon, 17 Feb 2014 05:57:31 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id vg1si10771864wjc.43.2014.02.17.05.57.30
+        for <linux-mm@kvack.org>;
+        Mon, 17 Feb 2014 05:57:30 -0800 (PST)
+Date: Mon, 17 Feb 2014 08:56:22 -0500
+From: Luiz Capitulino <lcapitulino@redhat.com>
+Subject: Re: [PATCH 4/4] hugetlb: add hugepages_node= command-line option
+Message-ID: <20140217085622.39b39cac@redhat.com>
+In-Reply-To: <alpine.DEB.2.02.1402150159540.28883@chino.kir.corp.google.com>
+References: <1392339728-13487-1-git-send-email-lcapitulino@redhat.com>
+	<1392339728-13487-5-git-send-email-lcapitulino@redhat.com>
+	<alpine.DEB.2.02.1402141511200.13935@chino.kir.corp.google.com>
+	<20140214225810.57e854cb@redhat.com>
+	<alpine.DEB.2.02.1402150159540.28883@chino.kir.corp.google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Derek Basehore <dbasehore@chromium.org>
-Cc: Alexander Viro <viro@zento.linux.org.uk>, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Darrick J. Wong" <darrick.wong@oracle.com>, Kees Cook <keescook@chromium.org>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, bleung@chromium.org, sonnyrao@chromium.org, semenzato@chromium.org
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, mtosatti@redhat.com, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Andi Kleen <andi@firstfloor.org>, Rik van Riel <riel@redhat.com>, davidlohr@hp.com, isimatu.yasuaki@jp.fujitsu.com, yinghai@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri 14-02-14 20:12:17, Derek Basehore wrote:
-> bdi_wakeup_thread_delayed used the mod_delayed_work function to schedule work
-> to writeback dirty inodes. The problem with this is that it can delay work that
-> is scheduled for immediate execution, such as the work from sync_inodes_sb.
-> This can happen since mod_delayed_work can now steal work from a work_queue.
-> This fixes the problem by using queue_delayed_work instead. This is a
-> regression from the move to the bdi workqueue design.
-> 
-> The reason that this causes a problem is that laptop-mode will change the
-> delay, dirty_writeback_centisecs, to 60000 (10 minutes) by default. In the case
-> that bdi_wakeup_thread_delayed races with sync_inodes_sb, sync will be stopped
-> for 10 minutes and trigger a hung task. Even if dirty_writeback_centisecs is
-> not long enough to cause a hung task, we still don't want to delay sync for
-> that long.
-> 
-> For the same reason, this also changes bdi_writeback_workfn to immediately
-> queue the work again in the case that the work_list is not empty. The same
-> problem can happen if the sync work is run on the rescue worker.
-  The patch looks good. You can add:
-Reviewed-by: Jan Kara <jack@suse.cz>
+On Sat, 15 Feb 2014 02:06:38 -0800 (PST)
+David Rientjes <rientjes@google.com> wrote:
 
-  I'd also suggest to push this to stable kernels.
+> On Fri, 14 Feb 2014, Luiz Capitulino wrote:
+> 
+> > > Again, I think this syntax is horrendous and doesn't couple well with the 
+> > > other hugepage-related kernel command line options.  We already have 
+> > > hugepages= and hugepagesz= which you can interleave on the command line to 
+> > > get 100 2M hugepages and 10 1GB hugepages, for example.
+> > > 
+> > > This patchset is simply introducing another variable to the matter: the 
+> > > node that the hugepages should be allocated on.  So just introduce a 
+> > > hugepagesnode= parameter to couple with the others so you can do
+> > > 
+> > > 	hugepagesz=<size> hugepagesnode=<nid> hugepages=<#>
+> > 
+> > That was my first try but it turned out really bad. First, for every node
+> > you specify you need three options.
+> 
+> Just like you need two options today to specify a number of hugepages of a 
+> particular non-default size.  You only need to use hugepagesz= or 
+> hugepagenode= if you want a non-default size or a specify a particular 
+> node.
+> 
+> > So, if you want to setup memory for
+> > three nodes you'll need to specify nine options.
+> 
+> And you currently need six if you want to specify three different hugepage 
+> sizes (?).  But who really specifies three different hugepage sizes on the 
+> command line that are needed to be reserved at boot?
 
-								Honza
+hugepages= and hugepages_node= are similar, but have different semantics.
 
+hugepagesz= and hugepages= create a pool of huge pages of the specified size.
+This means that the number of times you specify those options are limited by
+the number of different huge pages sizes an arch supports. For x86_64 for
+example, this limit is two so one would not specify those options more than
+two times. And this doesn't count default_hugepagesz=, which allows you to
+drop one hugepagesz= option.
+
+hugepages_node= allows you to allocate huge pages per node, so the number of
+times you can specify this option is limited by the number of nodes. Also,
+hugepages_node= create the pools, if necessary (at least one will be). For
+this reason I think it makes a lot of sense to have different options.
+
+> If that's really the usecase, it seems like you want the old 
+> CONFIG_PAGE_SHIFT patch.
 > 
-> Signed-off-by: Derek Basehore <dbasehore@chromium.org>
-> ---
->  fs/fs-writeback.c | 5 +++--
->  mm/backing-dev.c  | 2 +-
->  2 files changed, 4 insertions(+), 3 deletions(-)
+> > And it gets worse, because
+> > hugepagesz= and hugepages= have strict ordering (which is a mistake, IMHO) so
+> > you have to specify them in the right order otherwise things don't work as
+> > expected and you have no idea why (have been there myself).
+> > 
 > 
-> diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
-> index e0259a1..95b7b8c 100644
-> --- a/fs/fs-writeback.c
-> +++ b/fs/fs-writeback.c
-> @@ -1047,8 +1047,9 @@ void bdi_writeback_workfn(struct work_struct *work)
->  		trace_writeback_pages_written(pages_written);
->  	}
->  
-> -	if (!list_empty(&bdi->work_list) ||
-> -	    (wb_has_dirty_io(wb) && dirty_writeback_interval))
-> +	if (!list_empty(&bdi->work_list))
-> +		mod_delayed_work(bdi_wq, &wb->dwork, 0);
-> +	else if (wb_has_dirty_io(wb) && dirty_writeback_interval)
->  		queue_delayed_work(bdi_wq, &wb->dwork,
->  			msecs_to_jiffies(dirty_writeback_interval * 10));
->  
-> diff --git a/mm/backing-dev.c b/mm/backing-dev.c
-> index ce682f7..3fde024 100644
-> --- a/mm/backing-dev.c
-> +++ b/mm/backing-dev.c
-> @@ -294,7 +294,7 @@ void bdi_wakeup_thread_delayed(struct backing_dev_info *bdi)
->  	unsigned long timeout;
->  
->  	timeout = msecs_to_jiffies(dirty_writeback_interval * 10);
-> -	mod_delayed_work(bdi_wq, &bdi->wb.dwork, timeout);
-> +	queue_delayed_work(bdi_wq, &bdi->wb.dwork, timeout);
->  }
->  
->  /*
-> -- 
-> 1.9.0.rc1.175.g0b1dcb5
+> How is that difficult?  hugepages= is the "noun", hugepagesz= is the 
+> "adjective".  hugepages=100 hugepagesz=1G hugepages=4 makes perfect sense 
+> to me, and I actually don't allocate hugepages on the command line, nor 
+> have I looked at Documentation/kernel-parameters.txt to check if I'm 
+> constructing it correctly.  It just makes sense and once you learn it it's 
+> just natural.
 > 
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+> > IMO, hugepages_node=<nid>:<nr_pages>:<size>,... is good enough. It's concise,
+> > and don't depend on any other option to function. Also, there are lots of other
+> > kernel command-line options that require you to specify multiple fields, so
+> > it's not like hugepages_node= is totally different in that regard.
+> > 
+> 
+> I doubt Andrew is going to want a completely different format for hugepage 
+> allocations that want to specify a node and have to deal with people who 
+> say hugepages_node=2:1:1G and constantly have to lookup if it's 2 
+> hugepages on node 1 or 1 hugepage on node 2.
+
+Andrew?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
