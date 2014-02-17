@@ -1,51 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f50.google.com (mail-pb0-f50.google.com [209.85.160.50])
-	by kanga.kvack.org (Postfix) with ESMTP id A51086B0031
-	for <linux-mm@kvack.org>; Mon, 17 Feb 2014 01:11:54 -0500 (EST)
-Received: by mail-pb0-f50.google.com with SMTP id rq2so14863332pbb.23
-        for <linux-mm@kvack.org>; Sun, 16 Feb 2014 22:11:54 -0800 (PST)
-Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
-        by mx.google.com with ESMTP id x3si13577998pbk.293.2014.02.16.22.11.51
+Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 123CE6B0031
+	for <linux-mm@kvack.org>; Mon, 17 Feb 2014 01:14:55 -0500 (EST)
+Received: by mail-pd0-f180.google.com with SMTP id x10so14475846pdj.39
+        for <linux-mm@kvack.org>; Sun, 16 Feb 2014 22:14:55 -0800 (PST)
+Received: from LGEMRELSE1Q.lge.com (LGEMRELSE1Q.lge.com. [156.147.1.111])
+        by mx.google.com with ESMTP id sd3si13602351pbb.222.2014.02.16.22.14.52
         for <linux-mm@kvack.org>;
-        Sun, 16 Feb 2014 22:11:53 -0800 (PST)
-Date: Mon, 17 Feb 2014 15:12:01 +0900
+        Sun, 16 Feb 2014 22:14:53 -0800 (PST)
+Date: Mon, 17 Feb 2014 15:15:02 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 9/9] slab: remove a useless lockdep annotation
-Message-ID: <20140217061201.GA3468@lge.com>
+Subject: Re: [PATCH 2/9] slab: makes clear_obj_pfmemalloc() just return store
+ masked value
+Message-ID: <20140217061502.GB3468@lge.com>
 References: <1392361043-22420-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1392361043-22420-10-git-send-email-iamjoonsoo.kim@lge.com>
- <alpine.DEB.2.10.1402141248560.12887@nuc>
+ <1392361043-22420-3-git-send-email-iamjoonsoo.kim@lge.com>
+ <alpine.DEB.2.10.1402141225460.12887@nuc>
+ <alpine.DEB.2.02.1402141516540.13935@chino.kir.corp.google.com>
+ <alpine.DEB.2.10.1402141824300.5204@nuc>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1402141248560.12887@nuc>
+In-Reply-To: <alpine.DEB.2.10.1402141824300.5204@nuc>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: David Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Feb 14, 2014 at 12:49:57PM -0600, Christoph Lameter wrote:
-> On Fri, 14 Feb 2014, Joonsoo Kim wrote:
+On Fri, Feb 14, 2014 at 06:26:15PM -0600, Christoph Lameter wrote:
+> On Fri, 14 Feb 2014, David Rientjes wrote:
 > 
-> > @@ -921,7 +784,7 @@ static int transfer_objects(struct array_cache *to,
-> >  static inline struct alien_cache **alloc_alien_cache(int node,
-> >  						int limit, gfp_t gfp)
-> >  {
-> > -	return (struct alien_cache **)BAD_ALIEN_MAGIC;
-> > +	return NULL;
-> >  }
+> > Yeah, you don't need it, but don't you think it makes the code more
+> > readable?  Otherwise this is going to be just doing
 > >
+> > 	return (unsigned long)objp & ~SLAB_OBJ_PFMEMALLOC;
+> >
+> > and you gotta figure out the function type to understand it's returned as
 > 
-> Why change the BAD_ALIEN_MAGIC?
+> Isnt there something like PTR_ALIGN() for this case that would make it
+> more readable?
 
-Hello, Christoph.
-
-BAD_ALIEN_MAGIC is only checked by slab_set_lock_classes(). We remove this
-function in this patch, so returning BAD_ALIEN_MAGIC is useless.
-And, in fact, BAD_ALIEN_MAGIC is already useless, because alloc_alien_cache()
-can't be called on !CONFIG_NUMA. This function is called if use_alien_caches
-is positive, but on !CONFIG_NUMA, use_alien_caches is always 0. So we don't
-have any chance to meet this BAD_ALIEN_MAGIC in runtime.
+I can't find what you want.
+I agree with David's opinion and want to keep patch as is.
 
 Thanks.
 
