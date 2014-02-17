@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 474796B0031
-	for <linux-mm@kvack.org>; Mon, 17 Feb 2014 01:52:50 -0500 (EST)
-Received: by mail-pd0-f173.google.com with SMTP id y10so14466647pdj.4
-        for <linux-mm@kvack.org>; Sun, 16 Feb 2014 22:52:49 -0800 (PST)
-Received: from LGEAMRELO02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
-        by mx.google.com with ESMTP id yt9si13675120pab.236.2014.02.16.22.52.47
+Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 970216B0031
+	for <linux-mm@kvack.org>; Mon, 17 Feb 2014 02:00:44 -0500 (EST)
+Received: by mail-pd0-f176.google.com with SMTP id w10so14455013pde.21
+        for <linux-mm@kvack.org>; Sun, 16 Feb 2014 23:00:44 -0800 (PST)
+Received: from LGEMRELSE1Q.lge.com (LGEMRELSE1Q.lge.com. [156.147.1.111])
+        by mx.google.com with ESMTP id fu1si13694511pbc.284.2014.02.16.23.00.41
         for <linux-mm@kvack.org>;
-        Sun, 16 Feb 2014 22:52:48 -0800 (PST)
-Date: Mon, 17 Feb 2014 15:52:57 +0900
+        Sun, 16 Feb 2014 23:00:43 -0800 (PST)
+Date: Mon, 17 Feb 2014 16:00:51 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 Subject: Re: [RFC PATCH 2/3] topology: support node_numa_mem() for
  determining the fallback node
-Message-ID: <20140217065257.GD3468@lge.com>
+Message-ID: <20140217070051.GE3468@lge.com>
 References: <1391674026-20092-2-git-send-email-iamjoonsoo.kim@lge.com>
  <alpine.DEB.2.02.1402060041040.21148@chino.kir.corp.google.com>
  <CAAmzW4PXkdpNi5pZ=4BzdXNvqTEAhcuw-x0pWidqrxzdePxXxA@mail.gmail.com>
@@ -22,53 +22,25 @@ References: <1391674026-20092-2-git-send-email-iamjoonsoo.kim@lge.com>
  <alpine.DEB.2.10.1402071245040.20246@nuc>
  <20140210191321.GD1558@linux.vnet.ibm.com>
  <20140211074159.GB27870@lge.com>
- <alpine.DEB.2.10.1402121612270.8183@nuc>
+ <20140213065137.GA10860@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1402121612270.8183@nuc>
+In-Reply-To: <20140213065137.GA10860@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Han Pingtian <hanpt@linux.vnet.ibm.com>, Pekka Enberg <penberg@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Paul Mackerras <paulus@samba.org>, Anton Blanchard <anton@samba.org>, Matt Mackall <mpm@selenic.com>, linuxppc-dev@lists.ozlabs.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
+To: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
+Cc: Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Han Pingtian <hanpt@linux.vnet.ibm.com>, Pekka Enberg <penberg@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Paul Mackerras <paulus@samba.org>, Anton Blanchard <anton@samba.org>, Matt Mackall <mpm@selenic.com>, linuxppc-dev@lists.ozlabs.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-On Wed, Feb 12, 2014 at 04:16:11PM -0600, Christoph Lameter wrote:
-> Here is another patch with some fixes. The additional logic is only
-> compiled in if CONFIG_HAVE_MEMORYLESS_NODES is set.
-> 
-> Subject: slub: Memoryless node support
-> 
-> Support memoryless nodes by tracking which allocations are failing.
+On Wed, Feb 12, 2014 at 10:51:37PM -0800, Nishanth Aravamudan wrote:
+> Hi Joonsoo,
+> Also, given that only ia64 and (hopefuly soon) ppc64 can set
+> CONFIG_HAVE_MEMORYLESS_NODES, does that mean x86_64 can't have
+> memoryless nodes present? Even with fakenuma? Just curious.
 
-I still don't understand why this tracking is needed.
-All we need for allcation targeted to memoryless node is to fallback proper
-node, that it, numa_mem_id() node of targeted node. My previous patch
-implements it and use proper fallback node on every allocation code path.
-Why this tracking is needed? Please elaborate more on this.
-
-> Allocations targeted to the nodes without memory fall back to the
-> current available per cpu objects and if that is not available will
-> create a new slab using the page allocator to fallback from the
-> memoryless node to some other node.
-> 
-> Signed-off-by: Christoph Lameter <cl@linux.com>
-> 
-> @@ -1722,7 +1738,7 @@ static void *get_partial(struct kmem_cac
->  		struct kmem_cache_cpu *c)
->  {
->  	void *object;
-> -	int searchnode = (node == NUMA_NO_NODE) ? numa_node_id() : node;
-> +	int searchnode = (node == NUMA_NO_NODE) ? numa_mem_id() : node;
-> 
->  	object = get_partial_node(s, get_node(s, searchnode), c, flags);
->  	if (object || node != NUMA_NO_NODE)
-
-This isn't enough.
-Consider that allcation targeted to memoryless node.
-get_partial_node() always fails even if there are some partial slab on
-memoryless node's neareast node.
-We should fallback to some proper node in this case, since there is no slab
-on memoryless node.
+I don't know, because I'm not expert on NUMA system :)
+At first glance, fakenuma can't be used for testing
+CONFIG_HAVE_MEMORYLESS_NODES. Maybe some modification is needed.
 
 Thanks.
 
