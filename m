@@ -1,44 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f44.google.com (mail-pb0-f44.google.com [209.85.160.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 8FCDC6B0031
-	for <linux-mm@kvack.org>; Mon, 17 Feb 2014 01:23:18 -0500 (EST)
-Received: by mail-pb0-f44.google.com with SMTP id rq2so14881860pbb.17
-        for <linux-mm@kvack.org>; Sun, 16 Feb 2014 22:23:18 -0800 (PST)
-Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
-        by mx.google.com with ESMTP id vb2si13653656pbc.7.2014.02.16.22.23.15
+Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 474796B0031
+	for <linux-mm@kvack.org>; Mon, 17 Feb 2014 01:52:50 -0500 (EST)
+Received: by mail-pd0-f173.google.com with SMTP id y10so14466647pdj.4
+        for <linux-mm@kvack.org>; Sun, 16 Feb 2014 22:52:49 -0800 (PST)
+Received: from LGEAMRELO02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
+        by mx.google.com with ESMTP id yt9si13675120pab.236.2014.02.16.22.52.47
         for <linux-mm@kvack.org>;
-        Sun, 16 Feb 2014 22:23:17 -0800 (PST)
-Date: Mon, 17 Feb 2014 15:23:24 +0900
+        Sun, 16 Feb 2014 22:52:48 -0800 (PST)
+Date: Mon, 17 Feb 2014 15:52:57 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 3/9] slab: move up code to get kmem_cache_node in
- free_block()
-Message-ID: <20140217062324.GC3468@lge.com>
-References: <1392361043-22420-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1392361043-22420-4-git-send-email-iamjoonsoo.kim@lge.com>
- <alpine.DEB.2.02.1402141518400.13935@chino.kir.corp.google.com>
+Subject: Re: [RFC PATCH 2/3] topology: support node_numa_mem() for
+ determining the fallback node
+Message-ID: <20140217065257.GD3468@lge.com>
+References: <1391674026-20092-2-git-send-email-iamjoonsoo.kim@lge.com>
+ <alpine.DEB.2.02.1402060041040.21148@chino.kir.corp.google.com>
+ <CAAmzW4PXkdpNi5pZ=4BzdXNvqTEAhcuw-x0pWidqrxzdePxXxA@mail.gmail.com>
+ <alpine.DEB.2.02.1402061248450.9567@chino.kir.corp.google.com>
+ <20140207054819.GC28952@lge.com>
+ <alpine.DEB.2.10.1402071150090.15168@nuc>
+ <alpine.DEB.2.10.1402071245040.20246@nuc>
+ <20140210191321.GD1558@linux.vnet.ibm.com>
+ <20140211074159.GB27870@lge.com>
+ <alpine.DEB.2.10.1402121612270.8183@nuc>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.02.1402141518400.13935@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.10.1402121612270.8183@nuc>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <cl@linux.com>
+Cc: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Han Pingtian <hanpt@linux.vnet.ibm.com>, Pekka Enberg <penberg@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Paul Mackerras <paulus@samba.org>, Anton Blanchard <anton@samba.org>, Matt Mackall <mpm@selenic.com>, linuxppc-dev@lists.ozlabs.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-On Fri, Feb 14, 2014 at 03:19:02PM -0800, David Rientjes wrote:
-> On Fri, 14 Feb 2014, Joonsoo Kim wrote:
+On Wed, Feb 12, 2014 at 04:16:11PM -0600, Christoph Lameter wrote:
+> Here is another patch with some fixes. The additional logic is only
+> compiled in if CONFIG_HAVE_MEMORYLESS_NODES is set.
 > 
-> > node isn't changed, so we don't need to retreive this structure
-> > everytime we move the object. Maybe compiler do this optimization,
-> > but making it explicitly is better.
-> > 
+> Subject: slub: Memoryless node support
 > 
-> Would it be possible to make it const struct kmem_cache_node *n then?
+> Support memoryless nodes by tracking which allocations are failing.
 
-Hello, David.
+I still don't understand why this tracking is needed.
+All we need for allcation targeted to memoryless node is to fallback proper
+node, that it, numa_mem_id() node of targeted node. My previous patch
+implements it and use proper fallback node on every allocation code path.
+Why this tracking is needed? Please elaborate more on this.
 
-Yes, it is possible.
-If I send v2, I will change it.
+> Allocations targeted to the nodes without memory fall back to the
+> current available per cpu objects and if that is not available will
+> create a new slab using the page allocator to fallback from the
+> memoryless node to some other node.
+> 
+> Signed-off-by: Christoph Lameter <cl@linux.com>
+> 
+> @@ -1722,7 +1738,7 @@ static void *get_partial(struct kmem_cac
+>  		struct kmem_cache_cpu *c)
+>  {
+>  	void *object;
+> -	int searchnode = (node == NUMA_NO_NODE) ? numa_node_id() : node;
+> +	int searchnode = (node == NUMA_NO_NODE) ? numa_mem_id() : node;
+> 
+>  	object = get_partial_node(s, get_node(s, searchnode), c, flags);
+>  	if (object || node != NUMA_NO_NODE)
+
+This isn't enough.
+Consider that allcation targeted to memoryless node.
+get_partial_node() always fails even if there are some partial slab on
+memoryless node's neareast node.
+We should fallback to some proper node in this case, since there is no slab
+on memoryless node.
 
 Thanks.
 
