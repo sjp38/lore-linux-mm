@@ -1,118 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 380F46B0031
-	for <linux-mm@kvack.org>; Mon, 17 Feb 2014 02:50:54 -0500 (EST)
-Received: by mail-wi0-f182.google.com with SMTP id f8so2075400wiw.9
-        for <linux-mm@kvack.org>; Sun, 16 Feb 2014 23:50:53 -0800 (PST)
-Received: from mail-wg0-x243.google.com (mail-wg0-x243.google.com [2a00:1450:400c:c00::243])
-        by mx.google.com with ESMTPS id hu4si9691723wjb.92.2014.02.16.23.50.52
+Received: from mail-we0-f173.google.com (mail-we0-f173.google.com [74.125.82.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D96C6B0031
+	for <linux-mm@kvack.org>; Mon, 17 Feb 2014 04:21:00 -0500 (EST)
+Received: by mail-we0-f173.google.com with SMTP id x48so4663804wes.4
+        for <linux-mm@kvack.org>; Mon, 17 Feb 2014 01:20:59 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id q5si9912216wjq.135.2014.02.17.01.20.58
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sun, 16 Feb 2014 23:50:52 -0800 (PST)
-Received: by mail-wg0-f67.google.com with SMTP id n12so1054511wgh.2
-        for <linux-mm@kvack.org>; Sun, 16 Feb 2014 23:50:52 -0800 (PST)
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 17 Feb 2014 01:20:58 -0800 (PST)
+Date: Mon, 17 Feb 2014 10:20:54 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH] backing_dev: Fix hung task on sync
+Message-ID: <20140217092054.GA3686@quack.suse.cz>
+References: <1392437537-27392-1-git-send-email-dbasehore@chromium.org>
 MIME-Version: 1.0
-Date: Mon, 17 Feb 2014 15:50:52 +0800
-Message-ID: <CAGbhdVxwWOyfEzF-fcYpyBCpi2g9Jtz-8Hfzf6=3rGk6Z+dFRg@mail.gmail.com>
-Subject: page->mapping invalid issue
-From: Lisa Du <chunlingdu1@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1392437537-27392-1-git-send-email-dbasehore@chromium.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Derek Basehore <dbasehore@chromium.org>
+Cc: Alexander Viro <viro@zento.linux.org.uk>, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Darrick J. Wong" <darrick.wong@oracle.com>, Kees Cook <keescook@chromium.org>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, bleung@chromium.org, sonnyrao@chromium.org, semenzato@chromium.org
 
-Hi, All
-   Recently I met a kernel panic issue which shows that one
-page->mapping already invalid.
-   This issue is hard to reproduce but we met over 4 times, for
-example in below case, the page->mapping already change to other
-usage. In other cases, we also met the page->mapping was changed to
-free_area. We are using kernel v3.4. Compaction and ZRAM swap was
-configured.
-   I know when anon_vma and anon_vma_chain first used/enabled in
-kenrel2.6.34 also met such issue, but last fixed by below patch and
-further optimization patches.
-   I send out this mail and wondering if anyone else ever met such
-issue?  Any suspicion point? Any suggestion or comment is appreciated.
-Thanks a lot!
+On Fri 14-02-14 20:12:17, Derek Basehore wrote:
+> bdi_wakeup_thread_delayed used the mod_delayed_work function to schedule work
+> to writeback dirty inodes. The problem with this is that it can delay work that
+> is scheduled for immediate execution, such as the work from sync_inodes_sb.
+> This can happen since mod_delayed_work can now steal work from a work_queue.
+> This fixes the problem by using queue_delayed_work instead. This is a
+> regression from the move to the bdi workqueue design.
+> 
+> The reason that this causes a problem is that laptop-mode will change the
+> delay, dirty_writeback_centisecs, to 60000 (10 minutes) by default. In the case
+> that bdi_wakeup_thread_delayed races with sync_inodes_sb, sync will be stopped
+> for 10 minutes and trigger a hung task. Even if dirty_writeback_centisecs is
+> not long enough to cause a hung task, we still don't want to delay sync for
+> that long.
+> 
+> For the same reason, this also changes bdi_writeback_workfn to immediately
+> queue the work again in the case that the work_list is not empty. The same
+> problem can happen if the sync work is run on the rescue worker.
+  The patch looks good. You can add:
+Reviewed-by: Jan Kara <jack@suse.cz>
 
-commit ea90002b0fa7bdee86ec22eba1d951f30bf043a6
-Author: Linus Torvalds <torvalds@linux-foundation.org>
-Date:   Mon Apr 12 12:44:29 2010 -0700
+  I'd also suggest to push this to stable kernels.
 
-    anonvma: when setting up page->mapping, we need to pick the _oldest_ anonvma
+								Honza
 
-commit 288468c334e98aacbb7e2fb8bde6bc1adcd55e05
-Author: Andrea Arcangeli <aarcange@redhat.com>
-Date:   Mon Aug 9 17:19:09 2010 -0700
-
-    rmap: always use anon_vma root pointer
-
-
- crash> struct page.mapping 0xc2364de0
-  mapping = 0xd21a1601
-   This address 0xd21a1600 is in Binder_2's stack range! It should be
-from anon_vma slab.
-crash> kmem 0xd21a1601
-    PID: 32202
-COMMAND: "Binder_2"
-   TASK: e426b000  [THREAD_INFO: d21a0000]
-    CPU: 1
-  STATE: TASK_INTERRUPTIBLE
-
-  PAGE    PHYSICAL   MAPPING    INDEX CNT FLAGS
-c2343420  121a1000         0         0  0 0
-
-[14789.905700] c0 68 (kcompcached) Internal error: : 1 [#1] PREEMPT SMP ARM
-[14789.905792] c0 68 (kcompcached) Modules linked in: sd8xxx mlan
-usimeventk cidatattydev gs_diag diag ccinetdev cci_datastub citty
-msocketk seh cploaddev geu galcore
-[14789.907165] c0 68 (kcompcached) CPU: 0    Tainted: G    B   W
-(3.4.5-2289913 #2)
-[14789.907348] c0 68 (kcompcached) PC is at mutex_trylock+0x10/0x6c
-[14789.907531] c0 68 (kcompcached) LR is at page_lock_anon_vma+0x3c/0x154
-[14789.907623] c0 68 (kcompcached) pc : [<c05e99c4>]    lr :
-[<c01c4b00>]    psr: 60000013
-[14789.907623] c0 68 (kcompcached) sp : eb299d30  ip : 00000000  fp : 00000000
-[14789.907958] c0 68 (kcompcached) r10: eb299e58  r9 : eb299dc4  r8 : eb298000
-[14789.908050] c0 68 (kcompcached) r7 : c2364de0  r6 : ff05060b  r5 :
-d21a1600  r4 : d21a1601
-[14789.908233] c0 68 (kcompcached) r3 : ff05060b  r2 : 00000000  r1 :
-00000001  r0 : ff05060b
-[14789.908386] c0 68 (kcompcached) Flags: nZCv  IRQs on  FIQs on  Mode
-SVC_32  ISA ARM  Segment kernel
-[14789.908508] c0 68 (kcompcached) Control: 10c53c7d  Table: 2afe404a
-DAC: 00000015
-
-
-[14790.002593] c0 68 (kcompcached) [<c05e99c4>]
-(mutex_trylock+0x10/0x6c) from [<c01c4b00>]
-(page_lock_anon_vma+0x3c/0x154)
-[14790.002777] c0 68 (kcompcached) [<c01c4b00>]
-(page_lock_anon_vma+0x3c/0x154) from [<c01c4dbc>]
-(page_referenced+0x6c/0x200)
-[14790.002990] c0 68 (kcompcached) [<c01c4dbc>]
-(page_referenced+0x6c/0x200) from [<c01ad188>]
-(shrink_page_list+0x160/0x868)
-[14790.003173] c0 68 (kcompcached) [<c01ad188>]
-(shrink_page_list+0x160/0x868) from [<c01addb0>]
-(shrink_inactive_list+0x210/0x4b4)
-[14790.003356] c0 68 (kcompcached) [<c01addb0>]
-(shrink_inactive_list+0x210/0x4b4) from [<c01ae3ac>]
-(shrink_mem_cgroup_zone+0x358/0x4e0)
-[14790.003540] c0 68 (kcompcached) [<c01ae3ac>]
-(shrink_mem_cgroup_zone+0x358/0x4e0) from [<c01af13c>]
-(shrink_zones+0x148/0x194)
-[14790.003753] c0 68 (kcompcached) [<c01af13c>]
-(shrink_zones+0x148/0x194) from [<c01af24c>]
-(rtcc_reclaim_pages+0xc4/0x204)
-[14790.003936] c0 68 (kcompcached) [<c01af24c>]
-(rtcc_reclaim_pages+0xc4/0x204) from [<c0458438>]
-(do_compcache+0x6c/0xb0)
-[14790.004119] c0 68 (kcompcached) [<c0458438>]
-(do_compcache+0x6c/0xb0) from [<c0153acc>] (kthread+0x80/0x8c)
-[14790.004333] c0 68 (kcompcached) [<c0153acc>] (kthread+0x80/0x8c)
-from [<c010ebf8>] (kernel_thread_exit+0x0/0x8)
+> 
+> Signed-off-by: Derek Basehore <dbasehore@chromium.org>
+> ---
+>  fs/fs-writeback.c | 5 +++--
+>  mm/backing-dev.c  | 2 +-
+>  2 files changed, 4 insertions(+), 3 deletions(-)
+> 
+> diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
+> index e0259a1..95b7b8c 100644
+> --- a/fs/fs-writeback.c
+> +++ b/fs/fs-writeback.c
+> @@ -1047,8 +1047,9 @@ void bdi_writeback_workfn(struct work_struct *work)
+>  		trace_writeback_pages_written(pages_written);
+>  	}
+>  
+> -	if (!list_empty(&bdi->work_list) ||
+> -	    (wb_has_dirty_io(wb) && dirty_writeback_interval))
+> +	if (!list_empty(&bdi->work_list))
+> +		mod_delayed_work(bdi_wq, &wb->dwork, 0);
+> +	else if (wb_has_dirty_io(wb) && dirty_writeback_interval)
+>  		queue_delayed_work(bdi_wq, &wb->dwork,
+>  			msecs_to_jiffies(dirty_writeback_interval * 10));
+>  
+> diff --git a/mm/backing-dev.c b/mm/backing-dev.c
+> index ce682f7..3fde024 100644
+> --- a/mm/backing-dev.c
+> +++ b/mm/backing-dev.c
+> @@ -294,7 +294,7 @@ void bdi_wakeup_thread_delayed(struct backing_dev_info *bdi)
+>  	unsigned long timeout;
+>  
+>  	timeout = msecs_to_jiffies(dirty_writeback_interval * 10);
+> -	mod_delayed_work(bdi_wq, &bdi->wb.dwork, timeout);
+> +	queue_delayed_work(bdi_wq, &bdi->wb.dwork, timeout);
+>  }
+>  
+>  /*
+> -- 
+> 1.9.0.rc1.175.g0b1dcb5
+> 
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
