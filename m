@@ -1,66 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f49.google.com (mail-pb0-f49.google.com [209.85.160.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C2F66B003A
-	for <linux-mm@kvack.org>; Mon, 17 Feb 2014 18:23:19 -0500 (EST)
-Received: by mail-pb0-f49.google.com with SMTP id up15so15897311pbc.36
-        for <linux-mm@kvack.org>; Mon, 17 Feb 2014 15:23:18 -0800 (PST)
-Received: from mail-pa0-x22c.google.com (mail-pa0-x22c.google.com [2607:f8b0:400e:c03::22c])
-        by mx.google.com with ESMTPS id n8si16207119pax.247.2014.02.17.15.23.18
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 17 Feb 2014 15:23:18 -0800 (PST)
-Received: by mail-pa0-f44.google.com with SMTP id kq14so15872400pab.17
-        for <linux-mm@kvack.org>; Mon, 17 Feb 2014 15:23:18 -0800 (PST)
-Date: Mon, 17 Feb 2014 15:23:16 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 4/4] hugetlb: add hugepages_node= command-line option
-In-Reply-To: <20140217085622.39b39cac@redhat.com>
-Message-ID: <alpine.DEB.2.02.1402171518080.25724@chino.kir.corp.google.com>
-References: <1392339728-13487-1-git-send-email-lcapitulino@redhat.com> <1392339728-13487-5-git-send-email-lcapitulino@redhat.com> <alpine.DEB.2.02.1402141511200.13935@chino.kir.corp.google.com> <20140214225810.57e854cb@redhat.com>
- <alpine.DEB.2.02.1402150159540.28883@chino.kir.corp.google.com> <20140217085622.39b39cac@redhat.com>
+Received: from mail-pb0-f51.google.com (mail-pb0-f51.google.com [209.85.160.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 4CDC36B0031
+	for <linux-mm@kvack.org>; Mon, 17 Feb 2014 20:28:54 -0500 (EST)
+Received: by mail-pb0-f51.google.com with SMTP id un15so16083601pbc.10
+        for <linux-mm@kvack.org>; Mon, 17 Feb 2014 17:28:53 -0800 (PST)
+Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [2001:44b8:8060:ff02:300:1:6:6])
+        by mx.google.com with ESMTP id ui8si16465302pac.61.2014.02.17.17.28.52
+        for <linux-mm@kvack.org>;
+        Mon, 17 Feb 2014 17:28:53 -0800 (PST)
+Date: Tue, 18 Feb 2014 12:27:53 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: 3.14-rc2 XFS backtrace because irqs_disabled.
+Message-ID: <20140218012753.GG13997@dastard>
+References: <20140212004403.GA17129@redhat.com>
+ <20140212010941.GM18016@ZenIV.linux.org.uk>
+ <CA+55aFwoWT-0A_KTkXMkNqOy8hc=YmouTMBgWUD_z+8qYPphjA@mail.gmail.com>
+ <20140212040358.GA25327@redhat.com>
+ <20140212042215.GN18016@ZenIV.linux.org.uk>
+ <20140212054043.GB13997@dastard>
+ <CA+55aFxy2t7bnCUc-DhhxYxsZ0+GwL9GuQXRYtE_VzqZusmB9A@mail.gmail.com>
+ <20140212071829.GE13997@dastard>
+ <20140214002427.GN13997@dastard>
+ <CA+55aFx=i6dbzCUZ6TwCMqniyS4C=tJx9+72p=EA+dU8Vn=2jQ@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CA+55aFx=i6dbzCUZ6TwCMqniyS4C=tJx9+72p=EA+dU8Vn=2jQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Luiz Capitulino <lcapitulino@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, mtosatti@redhat.com, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Andi Kleen <andi@firstfloor.org>, Rik van Riel <riel@redhat.com>, davidlohr@hp.com, isimatu.yasuaki@jp.fujitsu.com, yinghai@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: linux-mm <linux-mm@kvack.org>, Al Viro <viro@zeniv.linux.org.uk>, Dave Jones <davej@redhat.com>, Eric Sandeen <sandeen@sandeen.net>, Linux Kernel <linux-kernel@vger.kernel.org>, xfs@oss.sgi.com
 
-On Mon, 17 Feb 2014, Luiz Capitulino wrote:
-
-> hugepages= and hugepages_node= are similar, but have different semantics.
+On Sat, Feb 15, 2014 at 03:50:29PM -0800, Linus Torvalds wrote:
+> [ Added linux-mm to the participants list ]
 > 
-> hugepagesz= and hugepages= create a pool of huge pages of the specified size.
-> This means that the number of times you specify those options are limited by
-> the number of different huge pages sizes an arch supports. For x86_64 for
-> example, this limit is two so one would not specify those options more than
-> two times. And this doesn't count default_hugepagesz=, which allows you to
-> drop one hugepagesz= option.
+> On Thu, Feb 13, 2014 at 4:24 PM, Dave Chinner <david@fromorbit.com> wrote:
+> >
+> > Dave, the patch below should chop off the stack usage from
+> > xfs_log_force_lsn() issuing IO by deferring it to the CIL workqueue.
+> > Can you given this a run?
 > 
-> hugepages_node= allows you to allocate huge pages per node, so the number of
-> times you can specify this option is limited by the number of nodes. Also,
-> hugepages_node= create the pools, if necessary (at least one will be). For
-> this reason I think it makes a lot of sense to have different options.
+> Ok, so DaveJ confirmed that DaveC's patch fixes his issue (damn,
+> people, your parents were some seriously boring people, were they not?
+> We've got too many Dave's around),
+
+It's an exclusive club - we have 'kernel hacker Dave' reunions in
+bars around the world. We should get some tshirts made up....  :)
+
+> but DaveC earlier pointed out that
+> pretty much any memory allocation path can end up using 3kB of stack
+> even without XFS being involved.
 > 
+> Which does bring up the question whether we should look (once more) at
+> the VM direct-reclaim path, and try to avoid GFP_FS/IO direct
+> reclaim..
 
-I understand you may want to add as much code as you can to the boot code 
-so that you can parse all this information in short-form, and it's 
-understood that it's possible to specify a different number of varying 
-hugepage sizes on individual nodes, but let's come back down to reality 
-here.
+We do that mostly already, but GFP_KERNEL allows swap IO and that's
+where the deepest stack I saw came from.
 
-Lacking from your entire patchset is a specific example of what you want 
-to do.  So I think we're all guessing what exactly your usecase is and we 
-aren't getting any help.  Are you really suggesting that a customer wants 
-to allocate 4 1GB hugepages on node 0, 12 2MB hugepages on node 0, 6 1GB 
-hugepages on node 1, 24 2MB hugepages on node 1, 2 1GB hugepages on node 
-2, 100 2MB hugepages on node 3, etc?  Please.
+Even if we don't allow IO at all, we're still going to see stack
+usage of 2-2.5k in direct reclaim. e.g.  invalidate a page and enter
+the rmap code.  The rmap is protected by a mutex, so if we fail to
+get that we have about 1.2k of stack consumed from there and that is
+on top of the the allocator/reclaim that has already consumes ~1k of
+stack...
 
-If that's actually the usecase then I'll renew my objection to the entire 
-patchset and say you want to add the ability to dynamically allocate 1GB 
-pages and free them at runtime early in initscripts.  If something is 
-going to be added to init code in the kernel then it better be trivial 
-since all this can be duplicated in userspace if you really want to be 
-fussy about it.
+> Direct reclaim historically used to be an important throttling
+> mechanism, and I used to not be a fan of trying to avoid direct
+> reclaim. But the stack depth issue really looks to be pretty bad, and
+> I think we've gotten better at throttling explicitly, so..
+> 
+> I *think* we already limit filesystem writeback to just kswapd (in
+> shrink_page_list()), but DaveC posted a backtrace that goes through
+> do_try_to_free_pages() to shrink_slab(), and through there to the
+> filesystem and then IO. That looked like a disaster.
+
+Right, that's an XFS problem, and I'm working on fixing it. The
+Patch I sent to DaveJ fixes the worst case, but I need to make it
+completely IO-less while still retaining the throttling the IO gives
+us.
+
+> And that's because (if I read things right) shrink_page_list() limits
+> filesystem page writeback to kswapd, but not swap pages. Which I think
+> probably made more sense back in the days than it does now (I
+> certainly *hope* that swapping is less important today than it was,
+> say, ten years ago)
+> 
+> So I'm wondering whether we should remove that page_is_file_cache()
+> check from shrink_page_list()?
+
+The thing is, the stack usage from the swap IO path is pretty well
+bound - it's just the worst case stack of issuing IO. We know it
+won't recurse into direct reclaim, so mempool allocation and
+blocking is all we need to consider. Compare that to a filesystem
+which may need to allocate extents and hence do transactions and
+split btrees and read metadata and allocate large amounts of memory
+even before it gets to the IO layers.
+
+Hence I suspect that we could do a simple thing like only allow swap
+if there's more than half the stack available in the current reclaim
+context. Because, let's face it, if the submit_bio path is consuming
+more than half the available stack then we're totally screwed from a
+filesystem perspective....
+
+> And then there is that whole shrink_slab() case...
+
+I think with shrinkers we just need to be more careful. The XFS
+behaviour is all my fault, and I should have known better that to
+design code that requires IO in the direct reclaim path. :/
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
