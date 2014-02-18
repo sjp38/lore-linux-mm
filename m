@@ -1,99 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f180.google.com (mail-qc0-f180.google.com [209.85.216.180])
-	by kanga.kvack.org (Postfix) with ESMTP id A09606B0035
-	for <linux-mm@kvack.org>; Tue, 18 Feb 2014 17:55:52 -0500 (EST)
-Received: by mail-qc0-f180.google.com with SMTP id i17so26612590qcy.39
-        for <linux-mm@kvack.org>; Tue, 18 Feb 2014 14:55:52 -0800 (PST)
-Received: from mail-qa0-x233.google.com (mail-qa0-x233.google.com [2607:f8b0:400d:c00::233])
-        by mx.google.com with ESMTPS id j10si11409884qas.11.2014.02.18.14.55.52
+Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id DA71C6B0031
+	for <linux-mm@kvack.org>; Tue, 18 Feb 2014 18:07:45 -0500 (EST)
+Received: by mail-wg0-f49.google.com with SMTP id y10so3747326wgg.28
+        for <linux-mm@kvack.org>; Tue, 18 Feb 2014 15:07:45 -0800 (PST)
+Received: from pandora.arm.linux.org.uk (pandora.arm.linux.org.uk. [2001:4d48:ad52:3201:214:fdff:fe10:1be6])
+        by mx.google.com with ESMTPS id gx8si13630303wib.71.2014.02.18.15.07.44
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 18 Feb 2014 14:55:52 -0800 (PST)
-Received: by mail-qa0-f51.google.com with SMTP id f11so24073089qae.38
-        for <linux-mm@kvack.org>; Tue, 18 Feb 2014 14:55:52 -0800 (PST)
-Date: Tue, 18 Feb 2014 17:55:48 -0500
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH] backing_dev: Fix hung task on sync
-Message-ID: <20140218225548.GI31892@mtj.dyndns.org>
-References: <1392437537-27392-1-git-send-email-dbasehore@chromium.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 18 Feb 2014 15:07:44 -0800 (PST)
+Date: Tue, 18 Feb 2014 23:07:11 +0000
+From: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Subject: Re: [PATCHv4 2/2] arm: Get rid of meminfo
+Message-ID: <20140218230710.GO21483@n2100.arm.linux.org.uk>
+References: <1392761733-32628-1-git-send-email-lauraa@codeaurora.org> <1392761733-32628-3-git-send-email-lauraa@codeaurora.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1392437537-27392-1-git-send-email-dbasehore@chromium.org>
+In-Reply-To: <1392761733-32628-3-git-send-email-lauraa@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Derek Basehore <dbasehore@chromium.org>
-Cc: Alexander Viro <viro@zento.linux.org.uk>, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Darrick J. Wong" <darrick.wong@oracle.com>, Kees Cook <keescook@chromium.org>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, bleung@chromium.org, sonnyrao@chromium.org, semenzato@chromium.org
+To: Laura Abbott <lauraa@codeaurora.org>
+Cc: David Brown <davidb@codeaurora.org>, Daniel Walker <dwalker@fifo99.com>, Jason Cooper <jason@lakedaemon.net>, Andrew Lunn <andrew@lunn.ch>, Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>, Eric Miao <eric.y.miao@gmail.com>, Haojian Zhuang <haojian.zhuang@gmail.com>, Ben Dooks <ben-linux@fluff.org>, Kukjin Kim <kgene.kim@samsung.com>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-arm-msm@vger.kernel.org, Leif Lindholm <leif.lindholm@linaro.org>, Grygorii Strashko <grygorii.strashko@ti.com>, Catalin Marinas <catalin.marinas@arm.com>, Rob Herring <robherring2@gmail.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <will.deacon@arm.com>, Nicolas Pitre <nicolas.pitre@linaro.org>, Santosh Shilimkar <santosh.shilimkar@ti.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Courtney Cavin <courtney.cavin@sonymobile.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Grant Likely <grant.likely@secretlab.ca>
 
-Hello,
+On Tue, Feb 18, 2014 at 02:15:33PM -0800, Laura Abbott wrote:
+> memblock is now fully integrated into the kernel and is the prefered
+> method for tracking memory. Rather than reinvent the wheel with
+> meminfo, migrate to using memblock directly instead of meminfo as
+> an intermediate.
 
-On Fri, Feb 14, 2014 at 08:12:17PM -0800, Derek Basehore wrote:
-> bdi_wakeup_thread_delayed used the mod_delayed_work function to schedule work
-> to writeback dirty inodes. The problem with this is that it can delay work that
-> is scheduled for immediate execution, such as the work from sync_inodes_sb.
-> This can happen since mod_delayed_work can now steal work from a work_queue.
-> This fixes the problem by using queue_delayed_work instead. This is a
-> regression from the move to the bdi workqueue design.
-> 
-> The reason that this causes a problem is that laptop-mode will change the
-> delay, dirty_writeback_centisecs, to 60000 (10 minutes) by default. In the case
-> that bdi_wakeup_thread_delayed races with sync_inodes_sb, sync will be stopped
-> for 10 minutes and trigger a hung task. Even if dirty_writeback_centisecs is
-> not long enough to cause a hung task, we still don't want to delay sync for
-> that long.
-
-Oops.
-
-> For the same reason, this also changes bdi_writeback_workfn to immediately
-> queue the work again in the case that the work_list is not empty. The same
-> problem can happen if the sync work is run on the rescue worker.
-> 
-> Signed-off-by: Derek Basehore <dbasehore@chromium.org>
-> ---
->  fs/fs-writeback.c | 5 +++--
->  mm/backing-dev.c  | 2 +-
->  2 files changed, 4 insertions(+), 3 deletions(-)
-> 
-> diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
-> index e0259a1..95b7b8c 100644
-> --- a/fs/fs-writeback.c
-> +++ b/fs/fs-writeback.c
-> @@ -1047,8 +1047,9 @@ void bdi_writeback_workfn(struct work_struct *work)
->  		trace_writeback_pages_written(pages_written);
->  	}
+>  #define NR_BANKS	CONFIG_ARM_NR_BANKS
 >  
-> -	if (!list_empty(&bdi->work_list) ||
-> -	    (wb_has_dirty_io(wb) && dirty_writeback_interval))
-> +	if (!list_empty(&bdi->work_list))
-> +		mod_delayed_work(bdi_wq, &wb->dwork, 0);
-> +	else if (wb_has_dirty_io(wb) && dirty_writeback_interval)
->  		queue_delayed_work(bdi_wq, &wb->dwork,
->  			msecs_to_jiffies(dirty_writeback_interval * 10));
+> -struct membank {
+> -	phys_addr_t start;
+> -	phys_addr_t size;
+> -	unsigned int highmem;
+> -};
+> -
+> -struct meminfo {
+> -	int nr_banks;
+> -	struct membank bank[NR_BANKS];
+> -};
 
-Can you please add some comments explaining why the specific variants
-are being used here?
-
-> diff --git a/mm/backing-dev.c b/mm/backing-dev.c
-> index ce682f7..3fde024 100644
-> --- a/mm/backing-dev.c
-> +++ b/mm/backing-dev.c
-> @@ -294,7 +294,7 @@ void bdi_wakeup_thread_delayed(struct backing_dev_info *bdi)
->  	unsigned long timeout;
->  
->  	timeout = msecs_to_jiffies(dirty_writeback_interval * 10);
-> -	mod_delayed_work(bdi_wq, &bdi->wb.dwork, timeout);
-> +	queue_delayed_work(bdi_wq, &bdi->wb.dwork, timeout);
-
-and here?
-
-Hmmm.... but doesn't this create an opposite problem?  Now a flush
-queued for an earlier time may be overridden by something scheduled
-later, no?
-
-Thanks.
+Doesn't this make NR_BANKS (and CONFIG_ARM_NR_BANKS) unused?
 
 -- 
-tejun
+FTTC broadband for 0.8mile line: 5.8Mbps down 500kbps up.  Estimation
+in database were 13.1 to 19Mbit for a good line, about 7.5+ for a bad.
+Estimate before purchase was "up to 13.2Mbit".
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
