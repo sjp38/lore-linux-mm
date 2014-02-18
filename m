@@ -1,48 +1,145 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f51.google.com (mail-qa0-f51.google.com [209.85.216.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 601FE6B0031
-	for <linux-mm@kvack.org>; Tue, 18 Feb 2014 11:57:13 -0500 (EST)
-Received: by mail-qa0-f51.google.com with SMTP id f11so23470054qae.38
-        for <linux-mm@kvack.org>; Tue, 18 Feb 2014 08:57:13 -0800 (PST)
-Received: from qmta13.emeryville.ca.mail.comcast.net (qmta13.emeryville.ca.mail.comcast.net. [2001:558:fe2d:44:76:96:27:243])
-        by mx.google.com with ESMTP id a8si10661930qak.80.2014.02.18.08.57.12
-        for <linux-mm@kvack.org>;
-        Tue, 18 Feb 2014 08:57:12 -0800 (PST)
-Date: Tue, 18 Feb 2014 10:57:09 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [RFC PATCH 2/3] topology: support node_numa_mem() for determining
- the fallback node
-In-Reply-To: <20140217070051.GE3468@lge.com>
-Message-ID: <alpine.DEB.2.10.1402181051560.1291@nuc>
-References: <1391674026-20092-2-git-send-email-iamjoonsoo.kim@lge.com> <alpine.DEB.2.02.1402060041040.21148@chino.kir.corp.google.com> <CAAmzW4PXkdpNi5pZ=4BzdXNvqTEAhcuw-x0pWidqrxzdePxXxA@mail.gmail.com> <alpine.DEB.2.02.1402061248450.9567@chino.kir.corp.google.com>
- <20140207054819.GC28952@lge.com> <alpine.DEB.2.10.1402071150090.15168@nuc> <alpine.DEB.2.10.1402071245040.20246@nuc> <20140210191321.GD1558@linux.vnet.ibm.com> <20140211074159.GB27870@lge.com> <20140213065137.GA10860@linux.vnet.ibm.com>
- <20140217070051.GE3468@lge.com>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-qa0-f46.google.com (mail-qa0-f46.google.com [209.85.216.46])
+	by kanga.kvack.org (Postfix) with ESMTP id B619D6B0031
+	for <linux-mm@kvack.org>; Tue, 18 Feb 2014 12:22:20 -0500 (EST)
+Received: by mail-qa0-f46.google.com with SMTP id k15so10354090qaq.19
+        for <linux-mm@kvack.org>; Tue, 18 Feb 2014 09:22:20 -0800 (PST)
+Received: from e7.ny.us.ibm.com (e7.ny.us.ibm.com. [32.97.182.137])
+        by mx.google.com with ESMTPS id fy9si10750997qab.5.2014.02.18.09.22.19
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 18 Feb 2014 09:22:19 -0800 (PST)
+Received: from /spool/local
+	by e7.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <nacc@linux.vnet.ibm.com>;
+	Tue, 18 Feb 2014 12:22:19 -0500
+Received: from b01cxnp22033.gho.pok.ibm.com (b01cxnp22033.gho.pok.ibm.com [9.57.198.23])
+	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id 65E17C90041
+	for <linux-mm@kvack.org>; Tue, 18 Feb 2014 12:22:12 -0500 (EST)
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by b01cxnp22033.gho.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s1IHMF499961924
+	for <linux-mm@kvack.org>; Tue, 18 Feb 2014 17:22:15 GMT
+Received: from d01av04.pok.ibm.com (localhost [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s1IHMESc002820
+	for <linux-mm@kvack.org>; Tue, 18 Feb 2014 12:22:14 -0500
+Date: Tue, 18 Feb 2014 09:22:10 -0800
+From: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
+Subject: Re: [RFC PATCH 2/3] topology: support node_numa_mem() for
+ determining the fallback node
+Message-ID: <20140218172209.GC31998@linux.vnet.ibm.com>
+References: <1391674026-20092-2-git-send-email-iamjoonsoo.kim@lge.com>
+ <alpine.DEB.2.02.1402060041040.21148@chino.kir.corp.google.com>
+ <CAAmzW4PXkdpNi5pZ=4BzdXNvqTEAhcuw-x0pWidqrxzdePxXxA@mail.gmail.com>
+ <alpine.DEB.2.02.1402061248450.9567@chino.kir.corp.google.com>
+ <20140207054819.GC28952@lge.com>
+ <alpine.DEB.2.10.1402071150090.15168@nuc>
+ <alpine.DEB.2.10.1402071245040.20246@nuc>
+ <20140210191321.GD1558@linux.vnet.ibm.com>
+ <20140211074159.GB27870@lge.com>
+ <alpine.DEB.2.10.1402121612270.8183@nuc>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.10.1402121612270.8183@nuc>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Han Pingtian <hanpt@linux.vnet.ibm.com>, Pekka Enberg <penberg@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Paul Mackerras <paulus@samba.org>, Anton Blanchard <anton@samba.org>, Matt Mackall <mpm@selenic.com>, linuxppc-dev@lists.ozlabs.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Han Pingtian <hanpt@linux.vnet.ibm.com>, Pekka Enberg <penberg@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Paul Mackerras <paulus@samba.org>, Anton Blanchard <anton@samba.org>, Matt Mackall <mpm@selenic.com>, linuxppc-dev@lists.ozlabs.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-On Mon, 17 Feb 2014, Joonsoo Kim wrote:
+On 12.02.2014 [16:16:11 -0600], Christoph Lameter wrote:
+> Here is another patch with some fixes. The additional logic is only
+> compiled in if CONFIG_HAVE_MEMORYLESS_NODES is set.
+> 
+> Subject: slub: Memoryless node support
+> 
+> Support memoryless nodes by tracking which allocations are failing.
+> Allocations targeted to the nodes without memory fall back to the
+> current available per cpu objects and if that is not available will
+> create a new slab using the page allocator to fallback from the
+> memoryless node to some other node.
+> 
+> Signed-off-by: Christoph Lameter <cl@linux.com>
 
-> On Wed, Feb 12, 2014 at 10:51:37PM -0800, Nishanth Aravamudan wrote:
-> > Hi Joonsoo,
-> > Also, given that only ia64 and (hopefuly soon) ppc64 can set
-> > CONFIG_HAVE_MEMORYLESS_NODES, does that mean x86_64 can't have
-> > memoryless nodes present? Even with fakenuma? Just curious.
+Tested-by: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
+Acked-by: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
 
-x86_64 currently does not support memoryless nodes otherwise it would
-have set CONFIG_HAVE_MEMORYLESS_NODES in the kconfig. Memoryless nodes are
-a bit strange given that the NUMA paradigm is to have NUMA nodes (meaning
-memory) with processors. MEMORYLESS nodes means that we have a fake NUMA
-node without memory but just processors. Not very efficient. Not sure why
-people use these configurations.
-
-> I don't know, because I'm not expert on NUMA system :)
-> At first glance, fakenuma can't be used for testing
-> CONFIG_HAVE_MEMORYLESS_NODES. Maybe some modification is needed.
-
-Well yeah. You'd have to do some mods to enable that testing.
+> Index: linux/mm/slub.c
+> ===================================================================
+> --- linux.orig/mm/slub.c	2014-02-12 16:07:48.957869570 -0600
+> +++ linux/mm/slub.c	2014-02-12 16:09:22.198928260 -0600
+> @@ -134,6 +134,10 @@ static inline bool kmem_cache_has_cpu_pa
+>  #endif
+>  }
+> 
+> +#ifdef CONFIG_HAVE_MEMORYLESS_NODES
+> +static nodemask_t empty_nodes;
+> +#endif
+> +
+>  /*
+>   * Issues still to be resolved:
+>   *
+> @@ -1405,16 +1409,28 @@ static struct page *new_slab(struct kmem
+>  	void *last;
+>  	void *p;
+>  	int order;
+> +	int alloc_node;
+> 
+>  	BUG_ON(flags & GFP_SLAB_BUG_MASK);
+> 
+>  	page = allocate_slab(s,
+>  		flags & (GFP_RECLAIM_MASK | GFP_CONSTRAINT_MASK), node);
+> -	if (!page)
+> +	if (!page) {
+> +#ifdef CONFIG_HAVE_MEMORYLESS_NODES
+> +		if (node != NUMA_NO_NODE)
+> +			node_set(node, empty_nodes);
+> +#endif
+>  		goto out;
+> +	}
+> 
+>  	order = compound_order(page);
+> -	inc_slabs_node(s, page_to_nid(page), page->objects);
+> +	alloc_node = page_to_nid(page);
+> +#ifdef CONFIG_HAVE_MEMORYLESS_NODES
+> +	node_clear(alloc_node, empty_nodes);
+> +	if (node != NUMA_NO_NODE && alloc_node != node)
+> +		node_set(node, empty_nodes);
+> +#endif
+> +	inc_slabs_node(s, alloc_node, page->objects);
+>  	memcg_bind_pages(s, order);
+>  	page->slab_cache = s;
+>  	__SetPageSlab(page);
+> @@ -1722,7 +1738,7 @@ static void *get_partial(struct kmem_cac
+>  		struct kmem_cache_cpu *c)
+>  {
+>  	void *object;
+> -	int searchnode = (node == NUMA_NO_NODE) ? numa_node_id() : node;
+> +	int searchnode = (node == NUMA_NO_NODE) ? numa_mem_id() : node;
+> 
+>  	object = get_partial_node(s, get_node(s, searchnode), c, flags);
+>  	if (object || node != NUMA_NO_NODE)
+> @@ -2117,8 +2133,19 @@ static void flush_all(struct kmem_cache
+>  static inline int node_match(struct page *page, int node)
+>  {
+>  #ifdef CONFIG_NUMA
+> -	if (!page || (node != NUMA_NO_NODE && page_to_nid(page) != node))
+> +	int page_node = page_to_nid(page);
+> +
+> +	if (!page)
+>  		return 0;
+> +
+> +	if (node != NUMA_NO_NODE) {
+> +#ifdef CONFIG_HAVE_MEMORYLESS_NODES
+> +		if (node_isset(node, empty_nodes))
+> +			return 1;
+> +#endif
+> +		if (page_node != node)
+> +			return 0;
+> +	}
+>  #endif
+>  	return 1;
+>  }
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
