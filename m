@@ -1,103 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f45.google.com (mail-qg0-f45.google.com [209.85.192.45])
-	by kanga.kvack.org (Postfix) with ESMTP id E02FB6B0036
-	for <linux-mm@kvack.org>; Mon, 17 Feb 2014 20:31:08 -0500 (EST)
-Received: by mail-qg0-f45.google.com with SMTP id j5so5995495qga.4
-        for <linux-mm@kvack.org>; Mon, 17 Feb 2014 17:31:08 -0800 (PST)
-Received: from e9.ny.us.ibm.com (e9.ny.us.ibm.com. [32.97.182.139])
-        by mx.google.com with ESMTPS id l40si9396857qga.107.2014.02.17.17.31.08
+Received: from mail-ob0-f171.google.com (mail-ob0-f171.google.com [209.85.214.171])
+	by kanga.kvack.org (Postfix) with ESMTP id E64946B0031
+	for <linux-mm@kvack.org>; Tue, 18 Feb 2014 00:47:40 -0500 (EST)
+Received: by mail-ob0-f171.google.com with SMTP id wp4so18060855obc.2
+        for <linux-mm@kvack.org>; Mon, 17 Feb 2014 21:47:40 -0800 (PST)
+Received: from g5t0008.atlanta.hp.com (g5t0008.atlanta.hp.com. [15.192.0.45])
+        by mx.google.com with ESMTPS id jb8si10708286obb.131.2014.02.17.21.47.40
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 17 Feb 2014 17:31:08 -0800 (PST)
-Received: from /spool/local
-	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <nacc@linux.vnet.ibm.com>;
-	Mon, 17 Feb 2014 20:31:08 -0500
-Received: from b01cxnp23034.gho.pok.ibm.com (b01cxnp23034.gho.pok.ibm.com [9.57.198.29])
-	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id E464A38C8045
-	for <linux-mm@kvack.org>; Mon, 17 Feb 2014 20:31:05 -0500 (EST)
-Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
-	by b01cxnp23034.gho.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s1I1V5Jm6029658
-	for <linux-mm@kvack.org>; Tue, 18 Feb 2014 01:31:05 GMT
-Received: from d01av02.pok.ibm.com (localhost [127.0.0.1])
-	by d01av02.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s1I1V5PG012410
-	for <linux-mm@kvack.org>; Mon, 17 Feb 2014 20:31:05 -0500
-Date: Mon, 17 Feb 2014 17:31:00 -0800
-From: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
-Subject: Re: [RFC PATCH V5] mm readahead: Fix readahead fail for no local
- memory and limit readahead pages
-Message-ID: <20140218013100.GA31998@linux.vnet.ibm.com>
-References: <52FC6F2A.30905@linux.vnet.ibm.com>
- <alpine.DEB.2.02.1402130003320.11689@chino.kir.corp.google.com>
- <52FC98A6.1000701@linux.vnet.ibm.com>
- <alpine.DEB.2.02.1402131416430.13899@chino.kir.corp.google.com>
- <20140214001438.GB1651@linux.vnet.ibm.com>
- <CA+55aFwH8BqyLSqyLL7g-08nOtnOrJ9vKj4ebiSqrxc5ooEjLw@mail.gmail.com>
- <20140214043235.GA21999@linux.vnet.ibm.com>
- <alpine.DEB.2.02.1402140244330.12099@chino.kir.corp.google.com>
- <20140217192803.GA14586@linux.vnet.ibm.com>
- <alpine.DEB.2.02.1402171501001.25724@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.02.1402171501001.25724@chino.kir.corp.google.com>
+        Mon, 17 Feb 2014 21:47:40 -0800 (PST)
+Message-ID: <1392702456.2468.4.camel@buesod1.americas.hpqcorp.net>
+Subject: Re: [PATCH 4/4] hugetlb: add hugepages_node= command-line option
+From: Davidlohr Bueso <davidlohr@hp.com>
+Date: Mon, 17 Feb 2014 21:47:36 -0800
+In-Reply-To: <alpine.DEB.2.02.1402150159540.28883@chino.kir.corp.google.com>
+References: <1392339728-13487-1-git-send-email-lcapitulino@redhat.com>
+	 <1392339728-13487-5-git-send-email-lcapitulino@redhat.com>
+	 <alpine.DEB.2.02.1402141511200.13935@chino.kir.corp.google.com>
+	 <20140214225810.57e854cb@redhat.com>
+	 <alpine.DEB.2.02.1402150159540.28883@chino.kir.corp.google.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: David Rientjes <rientjes@google.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Fengguang Wu <fengguang.wu@intel.com>, David Cohen <david.a.cohen@linux.intel.com>, Al Viro <viro@zeniv.linux.org.uk>, Damien Ramonda <damien.ramonda@intel.com>, Jan Kara <jack@suse.cz>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+Cc: Luiz Capitulino <lcapitulino@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, mtosatti@redhat.com, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Andi Kleen <andi@firstfloor.org>, Rik van Riel <riel@redhat.com>, isimatu.yasuaki@jp.fujitsu.com, yinghai@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 17.02.2014 [15:14:06 -0800], David Rientjes wrote:
-> On Mon, 17 Feb 2014, Nishanth Aravamudan wrote:
+On Sat, 2014-02-15 at 02:06 -0800, David Rientjes wrote:
+> On Fri, 14 Feb 2014, Luiz Capitulino wrote:
 > 
-> > Here is what I'm running into now:
+> > > Again, I think this syntax is horrendous and doesn't couple well with the 
+> > > other hugepage-related kernel command line options.  We already have 
+> > > hugepages= and hugepagesz= which you can interleave on the command line to 
+> > > get 100 2M hugepages and 10 1GB hugepages, for example.
+> > > 
+> > > This patchset is simply introducing another variable to the matter: the 
+> > > node that the hugepages should be allocated on.  So just introduce a 
+> > > hugepagesnode= parameter to couple with the others so you can do
+> > > 
+> > > 	hugepagesz=<size> hugepagesnode=<nid> hugepages=<#>
 > > 
-> > setup_arch ->
-> > 	do_init_bootmem ->
-> > 		cpu_numa_callback ->
-> > 			numa_setup_cpu ->
-> > 				map_cpu_to_node -> 
-> > 					update_numa_cpu_lookup_table
-> > 
-> > Which current updates the powerpc specific numa_cpu_lookup_table. I
-> > would like to update that function to use set_cpu_numa_node() and
-> > set_cpu_numa_mem(), but local_memory_node() is not yet functional
-> > because build_all_zonelists is called later in start_kernel. Would it
-> > make sense for first_zones_zonelist() to return NUMA_NO_NODE if we
-> > don't have a zone?
+> > That was my first try but it turned out really bad. First, for every node
+> > you specify you need three options.
+> 
+> Just like you need two options today to specify a number of hugepages of a 
+> particular non-default size.  You only need to use hugepagesz= or 
+> hugepagenode= if you want a non-default size or a specify a particular 
+> node.
+> 
+> > So, if you want to setup memory for
+> > three nodes you'll need to specify nine options.
+> 
+> And you currently need six if you want to specify three different hugepage 
+> sizes (?).  But who really specifies three different hugepage sizes on the 
+> command line that are needed to be reserved at boot?
+> 
+> If that's really the usecase, it seems like you want the old 
+> CONFIG_PAGE_SHIFT patch.
+> 
+> > And it gets worse, because
+> > hugepagesz= and hugepages= have strict ordering (which is a mistake, IMHO) so
+> > you have to specify them in the right order otherwise things don't work as
+> > expected and you have no idea why (have been there myself).
 > > 
 > 
-> Hmm, I don't think we'll want to modify the generic first_zones_zonelist() 
-> for a special case that is only true during boot.  Instead, would it make 
-> sense to modify numa_setup_cpu() to use the generic cpu_to_node() instead 
-> of using a powerpc mapping and then do the set_cpu_numa_mem() after 
-> paging_init() when the zonelists will have been built and zones without 
-> present pages are properly excluded?
+> How is that difficult?  hugepages= is the "noun", hugepagesz= is the 
+> "adjective".  hugepages=100 hugepagesz=1G hugepages=4 makes perfect sense 
+> to me, and I actually don't allocate hugepages on the command line, nor 
+> have I looked at Documentation/kernel-parameters.txt to check if I'm 
+> constructing it correctly.  It just makes sense and once you learn it it's 
+> just natural.
 
-Sorry, I was unclear in my e-mail. I meant to modify
-local_memory_node(), not first_zones_zonelist(). Well, it only needs the
-following, I think?
+This can get annoying _really_ fast for larger systems.
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index e3758a0..5de4337 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3650,6 +3650,8 @@ int local_memory_node(int node)
-                                   gfp_zone(GFP_KERNEL),
-                                   NULL,
-                                   &zone);
-+       if (!zone)
-+               return NUMA_NO_NODE;
-        return zone->node;
- }
- #endif
+> > IMO, hugepages_node=<nid>:<nr_pages>:<size>,... is good enough. It's concise,
+> > and don't depend on any other option to function. Also, there are lots of other
+> > kernel command-line options that require you to specify multiple fields, so
+> > it's not like hugepages_node= is totally different in that regard.
+> > 
 
-I think that condition should only happen during boot -- maybe even
-deserving of an unlikely, but I don't think the above is considered a
-hot-path. If the above isn't palatable, I can look into your suggestion
-instead.
+Agreed.
 
-Thanks,
-Nish
+> 
+> I doubt Andrew is going to want a completely different format for hugepage 
+> allocations that want to specify a node and have to deal with people who 
+> say hugepages_node=2:1:1G and constantly have to lookup if it's 2 
+> hugepages on node 1 or 1 hugepage on node 2.
+
+I guess most users won't even be aware of this new parameter and those
+who really care will have the choice.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
