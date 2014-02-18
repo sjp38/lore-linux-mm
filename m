@@ -1,69 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vc0-f171.google.com (mail-vc0-f171.google.com [209.85.220.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 577536B003B
-	for <linux-mm@kvack.org>; Tue, 18 Feb 2014 13:28:12 -0500 (EST)
-Received: by mail-vc0-f171.google.com with SMTP id le5so13739303vcb.30
-        for <linux-mm@kvack.org>; Tue, 18 Feb 2014 10:28:12 -0800 (PST)
-Received: from mail-vc0-x236.google.com (mail-vc0-x236.google.com [2607:f8b0:400c:c03::236])
-        by mx.google.com with ESMTPS id sm10si5734633vec.119.2014.02.18.10.28.11
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 18 Feb 2014 10:28:11 -0800 (PST)
-Received: by mail-vc0-f182.google.com with SMTP id id10so13257074vcb.41
-        for <linux-mm@kvack.org>; Tue, 18 Feb 2014 10:28:11 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20140218180730.C2552E0090@blue.fi.intel.com>
+Received: from mail-pb0-f46.google.com (mail-pb0-f46.google.com [209.85.160.46])
+	by kanga.kvack.org (Postfix) with ESMTP id C7C4B6B0035
+	for <linux-mm@kvack.org>; Tue, 18 Feb 2014 13:53:39 -0500 (EST)
+Received: by mail-pb0-f46.google.com with SMTP id um1so17211322pbc.33
+        for <linux-mm@kvack.org>; Tue, 18 Feb 2014 10:53:39 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id gz8si19188467pac.114.2014.02.18.10.53.26
+        for <linux-mm@kvack.org>;
+        Tue, 18 Feb 2014 10:53:34 -0800 (PST)
+Date: Tue, 18 Feb 2014 13:53:23 -0500
+From: Matthew Wilcox <willy@linux.intel.com>
+Subject: Re: [RFC, PATCHv2 0/2] mm: map few pages around fault address if
+ they are in page cache
+Message-ID: <20140218185323.GB5744@linux.intel.com>
 References: <1392662333-25470-1-git-send-email-kirill.shutemov@linux.intel.com>
-	<CA+55aFwz+36NOk=uanDvii7zn46-s1kpMT1Lt=C0hhhn9v6w-Q@mail.gmail.com>
-	<20140218175900.8CF90E0090@blue.fi.intel.com>
-	<20140218180730.C2552E0090@blue.fi.intel.com>
-Date: Tue, 18 Feb 2014 10:28:11 -0800
-Message-ID: <CA+55aFwEAYhhUijNUf1dRppzh=+5QfXTAdGQe8D_mJH77tPHug@mail.gmail.com>
-Subject: Re: [RFC, PATCHv2 0/2] mm: map few pages around fault address if they
- are in page cache
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8
+ <CA+55aFwz+36NOk=uanDvii7zn46-s1kpMT1Lt=C0hhhn9v6w-Q@mail.gmail.com>
+ <53035FE2.4080300@redhat.com>
+ <100D68C7BA14664A8938383216E40DE04062DEA1@FMSMSX114.amr.corp.intel.com>
+ <CA+55aFzqZ2S==NyWG67hNV1YsY-oXLjLvCR0JeiHGJOfnoGJBg@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CA+55aFzqZ2S==NyWG67hNV1YsY-oXLjLvCR0JeiHGJOfnoGJBg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Dave Chinner <david@fromorbit.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Dave Chinner <david@fromorbit.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Tue, Feb 18, 2014 at 10:07 AM, Kirill A. Shutemov
-<kirill.shutemov@linux.intel.com> wrote:
->
-> Patch is wrong. Correct one is below.
+On Tue, Feb 18, 2014 at 10:02:26AM -0800, Linus Torvalds wrote:
+> On Tue, Feb 18, 2014 at 6:15 AM, Wilcox, Matthew R
+> <matthew.r.wilcox@intel.com> wrote:
+> > We don't really need to lock all the pages being returned to protect
+> > against truncate.  We only need to lock the one at the highest index,
+> > and check i_size while that lock is held since truncate_inode_pages_range()
+> > will block on any page that is locked.
+> >
+> > We're still vulnerable to holepunches, but there's no locking currently
+> > between holepunches and truncate, so we're no worse off now.
+> 
+> It's not "holepunches and truncate", it's "holepunches and page
+> mapping", and I do think we currently serialize the two - the whole
+> "check page->mapping still being non-NULL" before mapping it while
+> having the page locked does that.
 
-Hmm. I don't hate this. Looking through it, it's fairly simple
-conceptually, and the code isn't that complex either. I can live with
-this.
+Yes, I did mean "holepunches and page faults".  But here's the race I see:
 
-I think it's a bit odd how you pass both "max_pgoff" and "nr_pages" to
-the fault-around function, though. In fact, I'd consider that a bug.
-Passing in "FAULT_AROUND_PAGES" is just wrong, since the code cannot -
-and in fact *must* not - actually fault in that many pages, since the
-starting/ending address can be limited by other things.
+Process A			Process B
+ext4_fallocate()
+ext4_punch_hole()
+filemap_write_and_wait_range()
+mutex_lock(&inode->i_mutex);
+truncate_pagecache_range()
+unmap_mapping_range()
+				__do_fault()
+				filemap_fault()
+				lock_page_or_retry()
+				(page->mapping == mapping at this point)
+				set_pte_at()
+				unlock_page()
+truncate_inode_pages_range()
+(now the pte is pointing at a page that
+ is no longer attached to this file)
+mutex_unlock(&inode->i_mutex);
 
-So I think that part of the code is bogus. You need to remove
-nr_pages, because any use of it is just incorrect. I don't think it
-can actually matter, since the max_pgoff checks are more restrictive,
-but if you think it can matter please explain how and why it wouldn't
-be a major bug?
+Would we solve the problem by putting in a second call to
+unmap_mapping_range() after calling truncate_inode_pages_range() in
+truncate_pagecache_range(), like truncate_pagecache() does?
 
-Apart from that, I'd really like to see numbers for different ranges
-of FAULT_AROUND_ORDER, because I think 5 is pretty high, but on the
-whole I don't find this horrible, and you still lock the page so it
-doesn't involve any new rules. I'm not hugely happy with another raw
-radix-tree user, but it's not horrible.
+> Besides, that per-page locking should serialize against truncate too.
+> No, there is no "global" serialization, but there *is* exactly that
+> page-level serialization where both truncation and hole punching end
+> up making sure that the page no longer exists in the page cache and
+> isn't mapped.
 
-Btw, is the "radix_tree_deref_retry(page) -> goto restart" really
-necessary? I'd be almost more inclined to just make it just do a
-"break;" to break out of the loop and stop doing anything clever at
-all.
-
-IOW, from a quick look there's a couple of small details I don't like
-that look odd, but ..
-
-                Linus
+What I'm suggesting is going back to Kirill's earlier patch, but only
+locking the page with the highest index instead of all of the pages.
+truncate() will block on that page and then we'll notice that some or
+all of the other pages are also now past i_size and give up.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
