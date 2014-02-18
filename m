@@ -1,164 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f174.google.com (mail-we0-f174.google.com [74.125.82.174])
-	by kanga.kvack.org (Postfix) with ESMTP id B75806B0039
-	for <linux-mm@kvack.org>; Tue, 18 Feb 2014 10:27:40 -0500 (EST)
-Received: by mail-we0-f174.google.com with SMTP id w61so5976248wes.5
-        for <linux-mm@kvack.org>; Tue, 18 Feb 2014 07:27:40 -0800 (PST)
-Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
-        by mx.google.com with ESMTPS id gj10si12397406wib.86.2014.02.18.07.27.39
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 18 Feb 2014 07:27:39 -0800 (PST)
-Received: by mail-wi0-f174.google.com with SMTP id f8so3616798wiw.1
-        for <linux-mm@kvack.org>; Tue, 18 Feb 2014 07:27:39 -0800 (PST)
-From: Steve Capper <steve.capper@linaro.org>
-Subject: [PATCH 5/5] arm: mm: Add Transparent HugePage support for non-LPAE
-Date: Tue, 18 Feb 2014 15:27:15 +0000
-Message-Id: <1392737235-27286-6-git-send-email-steve.capper@linaro.org>
-In-Reply-To: <1392737235-27286-1-git-send-email-steve.capper@linaro.org>
-References: <1392737235-27286-1-git-send-email-steve.capper@linaro.org>
+Received: from mail-qc0-f178.google.com (mail-qc0-f178.google.com [209.85.216.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 6AAE26B0031
+	for <linux-mm@kvack.org>; Tue, 18 Feb 2014 11:21:14 -0500 (EST)
+Received: by mail-qc0-f178.google.com with SMTP id m20so25620837qcx.37
+        for <linux-mm@kvack.org>; Tue, 18 Feb 2014 08:21:14 -0800 (PST)
+Received: from qmta13.emeryville.ca.mail.comcast.net (qmta13.emeryville.ca.mail.comcast.net. [2001:558:fe2d:44:76:96:27:243])
+        by mx.google.com with ESMTP id y8si4628424qci.75.2014.02.18.08.21.13
+        for <linux-mm@kvack.org>;
+        Tue, 18 Feb 2014 08:21:13 -0800 (PST)
+Date: Tue, 18 Feb 2014 10:21:10 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH 9/9] slab: remove a useless lockdep annotation
+In-Reply-To: <20140217061201.GA3468@lge.com>
+Message-ID: <alpine.DEB.2.10.1402181019550.28591@nuc>
+References: <1392361043-22420-1-git-send-email-iamjoonsoo.kim@lge.com> <1392361043-22420-10-git-send-email-iamjoonsoo.kim@lge.com> <alpine.DEB.2.10.1402141248560.12887@nuc> <20140217061201.GA3468@lge.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-arm-kernel@lists.infradead.org, linux@arm.linux.org.uk, linux-mm@kvack.org
-Cc: will.deacon@arm.com, catalin.marinas@arm.com, arnd@arndb.de, dsaxena@linaro.org, robherring2@gmail.com, Steve Capper <steve.capper@linaro.org>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Much of the required code for THP has been implemented in the
-earlier non-LPAE HugeTLB patch.
+On Mon, 17 Feb 2014, Joonsoo Kim wrote:
 
-One more domain bit is used (to store whether or not the THP is
-splitting).
+> > Why change the BAD_ALIEN_MAGIC?
+>
+> Hello, Christoph.
+>
+> BAD_ALIEN_MAGIC is only checked by slab_set_lock_classes(). We remove this
+> function in this patch, so returning BAD_ALIEN_MAGIC is useless.
 
-Some THP helper functions are defined; and we have to re-define
-pmd_page such that it distinguishes between page tables and
-sections.
+Its not useless. The point is if there is a pointer deref then we will see
+this as a pointer value and know that it is realted to alien cache
+processing.
 
-Signed-off-by: Steve Capper <steve.capper@linaro.org>
----
- arch/arm/Kconfig                      |  2 +-
- arch/arm/include/asm/pgtable-2level.h | 32 ++++++++++++++++++++++++++++++++
- arch/arm/include/asm/pgtable-3level.h |  1 +
- arch/arm/include/asm/pgtable.h        |  2 --
- arch/arm/include/asm/tlb.h            |  3 +++
- 5 files changed, 37 insertions(+), 3 deletions(-)
+> And, in fact, BAD_ALIEN_MAGIC is already useless, because alloc_alien_cache()
+> can't be called on !CONFIG_NUMA. This function is called if use_alien_caches
+> is positive, but on !CONFIG_NUMA, use_alien_caches is always 0. So we don't
+> have any chance to meet this BAD_ALIEN_MAGIC in runtime.
 
-diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
-index 58b17b1..48dc4b5 100644
---- a/arch/arm/Kconfig
-+++ b/arch/arm/Kconfig
-@@ -1820,7 +1820,7 @@ config SYS_SUPPORTS_HUGETLBFS
- 
- config HAVE_ARCH_TRANSPARENT_HUGEPAGE
-        def_bool y
--       depends on ARM_LPAE
-+       depends on SYS_SUPPORTS_HUGETLBFS
- 
- config ARCH_WANT_GENERAL_HUGETLB
- 	def_bool y
-diff --git a/arch/arm/include/asm/pgtable-2level.h b/arch/arm/include/asm/pgtable-2level.h
-index 1fb2050..0882d77 100644
---- a/arch/arm/include/asm/pgtable-2level.h
-+++ b/arch/arm/include/asm/pgtable-2level.h
-@@ -211,6 +211,7 @@ static inline pmd_t *pmd_offset(pud_t *pud, unsigned long addr)
-  */
- #define PMD_DSECT_DIRTY		(_AT(pmdval_t, 1) << 5)
- #define PMD_DSECT_AF		(_AT(pmdval_t, 1) << 6)
-+#define PMD_DSECT_SPLITTING	(_AT(pmdval_t, 1) << 7)
- 
- #define PMD_BIT_FUNC(fn,op) \
- static inline pmd_t pmd_##fn(pmd_t pmd) { pmd_val(pmd) op; return pmd; }
-@@ -235,6 +236,16 @@ extern pgprot_t get_huge_pgprot(pgprot_t newprot);
- 
- #define pfn_pmd(pfn,prot) __pmd(__pfn_to_phys(pfn) | pgprot_val(prot));
- #define mk_pmd(page,prot) pfn_pmd(page_to_pfn(page),get_huge_pgprot(prot));
-+#define pmd_mkhuge(pmd)	(pmd)
-+
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+#define pmd_trans_splitting(pmd)       (pmd_val(pmd) & PMD_DSECT_SPLITTING)
-+#define pmd_trans_huge(pmd)            (pmd_thp_or_huge(pmd))
-+#else
-+static inline int pmd_trans_huge(pmd_t pmd);
-+#endif
-+
-+#define pmd_mknotpresent(pmd)  (__pmd(0))
- 
- PMD_BIT_FUNC(mkdirty, |= PMD_DSECT_DIRTY);
- PMD_BIT_FUNC(mkwrite, |= PMD_SECT_AP_WRITE);
-@@ -242,6 +253,8 @@ PMD_BIT_FUNC(wrprotect,	&= ~PMD_SECT_AP_WRITE);
- PMD_BIT_FUNC(mknexec,	|= PMD_SECT_XN);
- PMD_BIT_FUNC(rmprotnone, |= PMD_TYPE_SECT);
- PMD_BIT_FUNC(mkyoung, |= PMD_DSECT_AF);
-+PMD_BIT_FUNC(mkold, &= ~PMD_DSECT_AF);
-+PMD_BIT_FUNC(mksplitting, |= PMD_DSECT_SPLITTING);
- 
- #define pmd_young(pmd)			(pmd_val(pmd) & PMD_DSECT_AF)
- #define pmd_write(pmd)			(pmd_val(pmd) & PMD_SECT_AP_WRITE)
-@@ -282,6 +295,25 @@ static inline pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
- 	return pmd;
- }
- 
-+static inline int has_transparent_hugepage(void)
-+{
-+	return 1;
-+}
-+
-+static inline struct page *pmd_page(pmd_t pmd)
-+{
-+	/*
-+	 * for a section, we need to mask off more of the pmd
-+	 * before looking up the page as it is a section descriptor.
-+	 *
-+	 * pmd_page only gets sections from the thp code.
-+	 */
-+	if (pmd_trans_huge(pmd))
-+		return (phys_to_page(pmd_val(pmd) & HPAGE_MASK));
-+
-+	return phys_to_page(pmd_val(pmd) & PHYS_MASK);
-+}
-+
- #endif /* __ASSEMBLY__ */
- 
- #endif /* _ASM_PGTABLE_2LEVEL_H */
-diff --git a/arch/arm/include/asm/pgtable-3level.h b/arch/arm/include/asm/pgtable-3level.h
-index c1c8b37..aa2683f 100644
---- a/arch/arm/include/asm/pgtable-3level.h
-+++ b/arch/arm/include/asm/pgtable-3level.h
-@@ -211,6 +211,7 @@ static inline pmd_t *pmd_offset(pud_t *pud, unsigned long addr)
- 
- #define pmd_hugewillfault(pmd)	(!pmd_young(pmd) || !pmd_write(pmd))
- #define pmd_thp_or_huge(pmd)	(pmd_val(pmd) && !(pmd_val(pmd) & PMD_TABLE_BIT))
-+#define pmd_page(pmd)		pfn_to_page(__phys_to_pfn(pmd_val(pmd) & PHYS_MASK))
- 
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
- #define pmd_trans_huge(pmd)	(pmd_val(pmd) && !(pmd_val(pmd) & PMD_TABLE_BIT))
-diff --git a/arch/arm/include/asm/pgtable.h b/arch/arm/include/asm/pgtable.h
-index 9cc40bc..3675c63 100644
---- a/arch/arm/include/asm/pgtable.h
-+++ b/arch/arm/include/asm/pgtable.h
-@@ -189,8 +189,6 @@ static inline pte_t *pmd_page_vaddr(pmd_t pmd)
- 	return __va(pmd_val(pmd) & PHYS_MASK & (s32)PAGE_MASK);
- }
- 
--#define pmd_page(pmd)		pfn_to_page(__phys_to_pfn(pmd_val(pmd) & PHYS_MASK))
--
- #ifndef CONFIG_HIGHPTE
- #define __pte_map(pmd)		pmd_page_vaddr(*(pmd))
- #define __pte_unmap(pte)	do { } while (0)
-diff --git a/arch/arm/include/asm/tlb.h b/arch/arm/include/asm/tlb.h
-index b2498e6..77037d9 100644
---- a/arch/arm/include/asm/tlb.h
-+++ b/arch/arm/include/asm/tlb.h
-@@ -218,6 +218,9 @@ static inline void
- tlb_remove_pmd_tlb_entry(struct mmu_gather *tlb, pmd_t *pmdp, unsigned long addr)
- {
- 	tlb_add_flush(tlb, addr);
-+#ifndef CONFIG_ARM_LPAE
-+	tlb_add_flush(tlb, addr + SZ_1M);
-+#endif
- }
- 
- #define pte_free_tlb(tlb, ptep, addr)	__pte_free_tlb(tlb, ptep, addr)
--- 
-1.8.1.4
+Maybe it no longer serves a point. But note that caches may not be
+populated because processors/nodes are not up yet.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
