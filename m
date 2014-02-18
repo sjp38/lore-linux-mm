@@ -1,64 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f172.google.com (mail-ob0-f172.google.com [209.85.214.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A7B96B0031
-	for <linux-mm@kvack.org>; Tue, 18 Feb 2014 05:28:08 -0500 (EST)
-Received: by mail-ob0-f172.google.com with SMTP id vb8so18325009obc.17
-        for <linux-mm@kvack.org>; Tue, 18 Feb 2014 02:28:07 -0800 (PST)
-Received: from mail-ob0-x22d.google.com (mail-ob0-x22d.google.com [2607:f8b0:4003:c01::22d])
-        by mx.google.com with ESMTPS id eo3si11191826oeb.13.2014.02.18.02.28.07
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D3086B0031
+	for <linux-mm@kvack.org>; Tue, 18 Feb 2014 06:59:00 -0500 (EST)
+Received: by mail-pa0-f53.google.com with SMTP id lj1so16625175pab.12
+        for <linux-mm@kvack.org>; Tue, 18 Feb 2014 03:58:59 -0800 (PST)
+Received: from e23smtp02.au.ibm.com (e23smtp02.au.ibm.com. [202.81.31.144])
+        by mx.google.com with ESMTPS id zk9si18060917pac.347.2014.02.18.03.58.58
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 18 Feb 2014 02:28:07 -0800 (PST)
-Received: by mail-ob0-f173.google.com with SMTP id vb8so18523579obc.32
-        for <linux-mm@kvack.org>; Tue, 18 Feb 2014 02:28:07 -0800 (PST)
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 18 Feb 2014 03:58:59 -0800 (PST)
+Received: from /spool/local
+	by e23smtp02.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <raghavendra.kt@linux.vnet.ibm.com>;
+	Tue, 18 Feb 2014 21:58:53 +1000
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
+	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 158252CE8055
+	for <linux-mm@kvack.org>; Tue, 18 Feb 2014 22:58:50 +1100 (EST)
+Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s1IBwYgY10486260
+	for <linux-mm@kvack.org>; Tue, 18 Feb 2014 22:58:36 +1100
+Received: from d23av04.au.ibm.com (localhost [127.0.0.1])
+	by d23av04.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s1IBwlGx000933
+	for <linux-mm@kvack.org>; Tue, 18 Feb 2014 22:58:47 +1100
+Message-ID: <53034C66.90707@linux.vnet.ibm.com>
+Date: Tue, 18 Feb 2014 17:34:54 +0530
+From: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <53017544.90908@huawei.com>
-References: <53017544.90908@huawei.com>
-Date: Tue, 18 Feb 2014 11:28:06 +0100
-Message-ID: <CAOMGZ=Ht22+KuYwmGcJB4gkiu3EpFfj1EFoAF7Mtd7WvjXwJ3A@mail.gmail.com>
-Subject: Re: [PATCH V2] mm: add a new command-line kmemcheck value
-From: Vegard Nossum <vegard.nossum@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH V6 ] mm readahead: Fix readahead fail for memoryless cpu
+ and limit readahead pages
+References: <1392708338-19685-1-git-send-email-raghavendra.kt@linux.vnet.ibm.com> <20140218094920.GB29660@quack.suse.cz>
+In-Reply-To: <20140218094920.GB29660@quack.suse.cz>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>
-Cc: Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Vegard Nossum <vegardno@ifi.uio.no>, Pekka Enberg <penberg@kernel.org>, Mel Gorman <mgorman@suse.de>, the arch/x86 maintainers <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Li Zefan <lizefan@huawei.com>
+To: Jan Kara <jack@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Fengguang Wu <fengguang.wu@intel.com>, David Cohen <david.a.cohen@linux.intel.com>, Al Viro <viro@zeniv.linux.org.uk>, Damien Ramonda <damien.ramonda@intel.com>, rientjes@google.com, Linus <torvalds@linux-foundation.org>, nacc@linux.vnet.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 17 February 2014 03:34, Xishi Qiu <qiuxishi@huawei.com> wrote:
-> If we want to debug the kernel memory, we should turn on CONFIG_KMEMCHECK
-> and rebuild the kernel. This always takes a long time and sometimes
-> impossible, e.g. users don't have the kernel source code or the code
-> is different from "www.kernel.org" (private features may be added to the
-> kernel, and usually users can not get the whole code).
+On 02/18/2014 03:19 PM, Jan Kara wrote:
+> On Tue 18-02-14 12:55:38, Raghavendra K T wrote:
+>> Currently max_sane_readahead() returns zero on the cpu having no local memory node
+>> which leads to readahead failure. Fix the readahead failure by returning
+>> minimum of (requested pages, 512). Users running application on a memory-less cpu
+>> which needs readahead such as streaming application see considerable boost in the
+>> performance.
+>>
+>> Result:
+>> fadvise experiment with FADV_WILLNEED on a PPC machine having memoryless CPU
+>> with 1GB testfile ( 12 iterations) yielded around 46.66% improvement.
+>>
+>> fadvise experiment with FADV_WILLNEED on a x240 machine with 1GB testfile
+>> 32GB* 4G RAM  numa machine ( 12 iterations) showed no impact on the normal
+>> NUMA cases w/ patch.
+>    Can you try one more thing please? Compare startup time of some big
+> executable (Firefox or LibreOffice come to my mind) for the patched and
+> normal kernel on a machine which wasn't hit by this NUMA issue. And don't
+> forget to do "echo 3 >/proc/sys/vm/drop_caches" before each test to flush
+> the caches. If this doesn't show significant differences, I'm OK with the
+> patch.
 >
-> This patch adds a new command-line "kmemcheck=3", then the kernel will run
-> as the same as CONFIG_KMEMCHECK=off even CONFIG_KMEMCHECK is turn on.
-> "kmemcheck=0/1/2" is the same as originally. This means we can always turn
-> on CONFIG_KMEMCHECK, and use "kmemcheck=3" to control it on/off with out
-> rebuild the kernel.
->
-> In another word, "kmemcheck=3" is equivalent:
-> 1) turn off CONFIG_KMEMCHECK
-> 2) rebuild the kernel
-> 3) reboot
->
-> The different between kmemcheck=0 and 3 is the used memory and nr_cpus.
-> Also kmemcheck=0 can used in runtime, and kmemcheck=3 is only used in boot.
-> boottime: kmemcheck=0/1/2/3 (command-line)
-> runtime: kmemcheck=0/1/2 (/proc/sys/kernel/kmemcheck)
 
-This is not the right way to do what you want.
+Thanks Honza, I checked with firefox (starting to particular point)..
+I do not see any difference. Both the case took around 14sec.
 
-The behaviour that we want is:
-
- - CONFIG_KMEMCHECK=y + kmemcheck=0 (boot parameter) should have a
-minimal runtime impact and not limit the number of CPUs
- - CONFIG_KMEMCHECK=y + kmemcheck=1 should limit the number of CPUs during boot
- - setting kmemcheck to 1 via /proc/sys/kernel/kmemcheck should
-probably return an error if more than 1 CPU is online
-
-
-Vegard
+  ( some time it is even faster.. may be because we do not do free page 
+calculation?. )
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
