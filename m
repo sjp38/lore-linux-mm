@@ -1,113 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f52.google.com (mail-qa0-f52.google.com [209.85.216.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 904B26B0039
-	for <linux-mm@kvack.org>; Tue, 18 Feb 2014 17:13:06 -0500 (EST)
-Received: by mail-qa0-f52.google.com with SMTP id j15so23880896qaq.25
-        for <linux-mm@kvack.org>; Tue, 18 Feb 2014 14:13:06 -0800 (PST)
-Received: from shelob.surriel.com (shelob.surriel.com. [2002:4a5c:3b41:1:216:3eff:fe57:7f4])
-        by mx.google.com with ESMTPS id b79si11197227qge.129.2014.02.18.14.13.05
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 9DCBB6B0031
+	for <linux-mm@kvack.org>; Tue, 18 Feb 2014 17:15:40 -0500 (EST)
+Received: by mail-pa0-f46.google.com with SMTP id rd3so17186335pab.5
+        for <linux-mm@kvack.org>; Tue, 18 Feb 2014 14:15:40 -0800 (PST)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.11.231])
+        by mx.google.com with ESMTPS id fu1si19650843pbc.194.2014.02.18.14.15.39
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 18 Feb 2014 14:13:05 -0800 (PST)
-From: riel@redhat.com
-Subject: [PATCH -mm 3/3] move mmu notifier call from change_protection to change_pmd_range
-Date: Tue, 18 Feb 2014 17:12:46 -0500
-Message-Id: <1392761566-24834-4-git-send-email-riel@redhat.com>
-In-Reply-To: <1392761566-24834-1-git-send-email-riel@redhat.com>
-References: <1392761566-24834-1-git-send-email-riel@redhat.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 18 Feb 2014 14:15:39 -0800 (PST)
+From: Laura Abbott <lauraa@codeaurora.org>
+Subject: [PATCHv4 0/2] Remove ARM meminfo
+Date: Tue, 18 Feb 2014 14:15:31 -0800
+Message-Id: <1392761733-32628-1-git-send-email-lauraa@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: kvm@vger.kernel.org, linux-mm@kvack.org, peterz@infradead.org, chegu_vinod@hp.com, aarcange@redhat.com, akpm@linux-foundation.org
+To: Russell King <linux@arm.linux.org.uk>, linux-arm-kernel@lists.infradead.org
+Cc: Laura Abbott <lauraa@codeaurora.org>, linux-kernel@vger.kernel.org, Leif Lindholm <leif.lindholm@linaro.org>, Grygorii Strashko <grygorii.strashko@ti.com>, Catalin Marinas <catalin.marinas@arm.com>, Rob Herring <robherring2@gmail.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <will.deacon@arm.com>, Nicolas Pitre <nicolas.pitre@linaro.org>, Santosh Shilimkar <santosh.shilimkar@ti.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Courtney Cavin <courtney.cavin@sonymobile.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Grant Likely <grant.likely@secretlab.ca>
 
-From: Rik van Riel <riel@redhat.com>
+Hi,
 
-The NUMA scanning code can end up iterating over many gigabytes
-of unpopulated memory, especially in the case of a freshly started
-KVM guest with lots of memory.
+This is v4 of meminfo removal to fix a few additional issues.
+Review/test away.
 
-This results in the mmu notifier code being called even when
-there are no mapped pages in a virtual address range. The amount
-of time wasted can be enough to trigger soft lockup warnings
-with very large KVM guests.
+Thanks,
+Laura
 
-This patch moves the mmu notifier call to the pmd level, which
-represents 1GB areas of memory on x86-64. Furthermore, the mmu
-notifier code is only called from the address in the PMD where
-present mappings are first encountered.
 
-The hugetlbfs code is left alone for now; hugetlb mappings are
-not relocatable, and as such are left alone by the NUMA code,
-and should never trigger this problem to begin with.
+v4: Added nommu support. Fixed issues with !HIGHMEM per Grygorii Strashko.
 
-Signed-off-by: Rik van Riel <riel@redhat.com>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Reported-by: Xing Gang <gang.xing@hp.com>
-Tested-by: Chegu Vinod <chegu_vinod@hp.com>
----
- mm/mprotect.c | 20 ++++++++++++++++----
- 1 file changed, 16 insertions(+), 4 deletions(-)
+v3: Fixed compilation issue for CONFIG_SPARSEMEM. Fixed several typos
+in spitz.c. Removed early_init_dt_add_memory_arch per Grant's suggestion.
 
-diff --git a/mm/mprotect.c b/mm/mprotect.c
-index 6006c05..44850ee 100644
---- a/mm/mprotect.c
-+++ b/mm/mprotect.c
-@@ -109,9 +109,11 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
- 		pgprot_t newprot, int dirty_accountable, int prot_numa)
- {
- 	pmd_t *pmd;
-+	struct mm_struct *mm = vma->vm_mm;
- 	unsigned long next;
- 	unsigned long pages = 0;
- 	unsigned long nr_huge_updates = 0;
-+	unsigned long mni_start = 0;
- 
- 	pmd = pmd_offset(pud, addr);
- 	do {
-@@ -120,6 +122,13 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
- 		next = pmd_addr_end(addr, end);
- 		if (!pmd_trans_huge(*pmd) && pmd_none_or_clear_bad(pmd))
- 				continue;
-+
-+		/* invoke the mmu notifier if the pmd is populated */
-+		if (!mni_start) {
-+			mni_start = addr;
-+			mmu_notifier_invalidate_range_start(mm, mni_start, end);
-+		}
-+
- 		if (pmd_trans_huge(*pmd)) {
- 			if (next - addr != HPAGE_PMD_SIZE)
- 				split_huge_page_pmd(vma, addr, pmd);
-@@ -143,6 +152,9 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
- 		pages += this_pages;
- 	} while (pmd++, addr = next, addr != end);
- 
-+	if (mni_start)
-+		mmu_notifier_invalidate_range_end(mm, mni_start, end);
-+
- 	if (nr_huge_updates)
- 		count_vm_numa_events(NUMA_HUGE_PTE_UPDATES, nr_huge_updates);
- 	return pages;
-@@ -205,12 +217,12 @@ unsigned long change_protection(struct vm_area_struct *vma, unsigned long start,
- 	struct mm_struct *mm = vma->vm_mm;
- 	unsigned long pages;
- 
--	mmu_notifier_invalidate_range_start(mm, start, end);
--	if (is_vm_hugetlb_page(vma))
-+	if (is_vm_hugetlb_page(vma)) {
-+		mmu_notifier_invalidate_range_start(mm, start, end);
- 		pages = hugetlb_change_protection(vma, start, end, newprot);
--	else
-+		mmu_notifier_invalidate_range_end(mm, start, end);
-+	} else
- 		pages = change_protection_range(vma, start, end, newprot, dirty_accountable, prot_numa);
--	mmu_notifier_invalidate_range_end(mm, start, end);
- 
- 	return pages;
- }
+v2: Implemented full commandline support for mem@addr
+
+
+
+Laura Abbott (2):
+  mm/memblock: add memblock_get_current_limit
+  arm: Get rid of meminfo
+
+ arch/arm/include/asm/mach/arch.h         |    4 +-
+ arch/arm/include/asm/memblock.h          |    3 +-
+ arch/arm/include/asm/setup.h             |   23 ------
+ arch/arm/kernel/atags_parse.c            |    5 +-
+ arch/arm/kernel/devtree.c                |    5 --
+ arch/arm/kernel/setup.c                  |   30 ++------
+ arch/arm/mach-clps711x/board-clep7312.c  |    7 +-
+ arch/arm/mach-clps711x/board-edb7211.c   |   10 +--
+ arch/arm/mach-clps711x/board-p720t.c     |    2 +-
+ arch/arm/mach-footbridge/cats-hw.c       |    2 +-
+ arch/arm/mach-footbridge/netwinder-hw.c  |    2 +-
+ arch/arm/mach-msm/board-halibut.c        |    6 --
+ arch/arm/mach-msm/board-mahimahi.c       |   13 +---
+ arch/arm/mach-msm/board-msm7x30.c        |    3 +-
+ arch/arm/mach-msm/board-sapphire.c       |   13 ++--
+ arch/arm/mach-msm/board-trout.c          |    8 +--
+ arch/arm/mach-orion5x/common.c           |    3 +-
+ arch/arm/mach-orion5x/common.h           |    3 +-
+ arch/arm/mach-pxa/cm-x300.c              |    3 +-
+ arch/arm/mach-pxa/corgi.c                |   10 +--
+ arch/arm/mach-pxa/eseries.c              |    9 +--
+ arch/arm/mach-pxa/poodle.c               |    8 +--
+ arch/arm/mach-pxa/spitz.c                |    8 +--
+ arch/arm/mach-pxa/tosa.c                 |    8 +--
+ arch/arm/mach-realview/core.c            |   11 +--
+ arch/arm/mach-realview/core.h            |    3 +-
+ arch/arm/mach-realview/realview_pb1176.c |    8 +--
+ arch/arm/mach-realview/realview_pbx.c    |   17 ++---
+ arch/arm/mach-s3c24xx/mach-smdk2413.c    |    8 +--
+ arch/arm/mach-s3c24xx/mach-vstms.c       |    8 +--
+ arch/arm/mach-sa1100/assabet.c           |    2 +-
+ arch/arm/mm/init.c                       |   67 +++++++-----------
+ arch/arm/mm/mmu.c                        |  115 +++++++++---------------------
+ arch/arm/mm/nommu.c                      |   66 +++++++++--------
+ include/linux/memblock.h                 |    2 +
+ mm/memblock.c                            |    5 ++
+ 36 files changed, 179 insertions(+), 321 deletions(-)
+
 -- 
-1.8.5.3
+The Qualcomm Innovation Center, Inc. is a member of the Code Aurora Forum,
+hosted by The Linux Foundation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
