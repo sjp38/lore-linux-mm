@@ -1,44 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f174.google.com (mail-qc0-f174.google.com [209.85.216.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 73A666B0031
-	for <linux-mm@kvack.org>; Tue, 18 Feb 2014 16:49:26 -0500 (EST)
-Received: by mail-qc0-f174.google.com with SMTP id x13so26577349qcv.33
-        for <linux-mm@kvack.org>; Tue, 18 Feb 2014 13:49:26 -0800 (PST)
-Received: from qmta14.emeryville.ca.mail.comcast.net (qmta14.emeryville.ca.mail.comcast.net. [2001:558:fe2d:44:76:96:27:212])
-        by mx.google.com with ESMTP id e60si11143844qgf.82.2014.02.18.13.49.25
+Received: from mail-ea0-f171.google.com (mail-ea0-f171.google.com [209.85.215.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 84EBE6B0031
+	for <linux-mm@kvack.org>; Tue, 18 Feb 2014 17:08:33 -0500 (EST)
+Received: by mail-ea0-f171.google.com with SMTP id f15so8145661eak.16
+        for <linux-mm@kvack.org>; Tue, 18 Feb 2014 14:08:32 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id v48si43040188eeo.146.2014.02.18.14.08.29
         for <linux-mm@kvack.org>;
-        Tue, 18 Feb 2014 13:49:25 -0800 (PST)
-Date: Tue, 18 Feb 2014 15:49:22 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [RFC PATCH 2/3] topology: support node_numa_mem() for determining
- the fallback node
-In-Reply-To: <20140218210923.GA28170@linux.vnet.ibm.com>
-Message-ID: <alpine.DEB.2.10.1402181547210.3973@nuc>
-References: <20140207054819.GC28952@lge.com> <alpine.DEB.2.10.1402071150090.15168@nuc> <alpine.DEB.2.10.1402071245040.20246@nuc> <20140210191321.GD1558@linux.vnet.ibm.com> <20140211074159.GB27870@lge.com> <20140213065137.GA10860@linux.vnet.ibm.com>
- <20140217070051.GE3468@lge.com> <alpine.DEB.2.10.1402181051560.1291@nuc> <20140218172832.GD31998@linux.vnet.ibm.com> <alpine.DEB.2.10.1402181356120.2910@nuc> <20140218210923.GA28170@linux.vnet.ibm.com>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        Tue, 18 Feb 2014 14:08:30 -0800 (PST)
+Date: Tue, 18 Feb 2014 17:00:27 -0500
+From: Luiz Capitulino <lcapitulino@redhat.com>
+Subject: [PATCH] fs/proc/meminfo: meminfo_proc_show(): fix typo in comment
+Message-ID: <20140218170027.00bcf592@redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Han Pingtian <hanpt@linux.vnet.ibm.com>, Pekka Enberg <penberg@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Paul Mackerras <paulus@samba.org>, Anton Blanchard <anton@samba.org>, Matt Mackall <mpm@selenic.com>, linuxppc-dev@lists.ozlabs.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, riel@redhat.com, akpm@linux-foundation.org, james.leddy@redhat.com
 
-On Tue, 18 Feb 2014, Nishanth Aravamudan wrote:
+It should read "reclaimable slab" and not "reclaimable swap".
 
-> We use the topology provided by the hypervisor, it does actually reflect
-> where CPUs and memory are, and their corresponding performance/NUMA
-> characteristics.
+Signed-off-by: Luiz Capitulino <lcapitulino@redhat.com>
+---
+ fs/proc/meminfo.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-And so there are actually nodes without memory that have processors?
-Can the hypervisor or the linux arch code be convinced to ignore nodes
-without memory or assign a sane default node to processors?
-
-> > Ok then also move the memory of the local node somewhere?
->
-> This happens below the OS, we don't control the hypervisor's decisions.
-> I'm not sure if that's what you are suggesting.
-
-You could also do this from the powerpc arch code by sanitizing the
-processor / node information that is then used by Linux.
+diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
+index 136e548..7445af0 100644
+--- a/fs/proc/meminfo.c
++++ b/fs/proc/meminfo.c
+@@ -73,7 +73,7 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
+ 	available += pagecache;
+ 
+ 	/*
+-	 * Part of the reclaimable swap consists of items that are in use,
++	 * Part of the reclaimable slab consists of items that are in use,
+ 	 * and cannot be freed. Cap this estimate at the low watermark.
+ 	 */
+ 	available += global_page_state(NR_SLAB_RECLAIMABLE) -
+-- 
+1.8.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
