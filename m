@@ -1,53 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ve0-f182.google.com (mail-ve0-f182.google.com [209.85.128.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 430F66B0035
-	for <linux-mm@kvack.org>; Tue, 18 Feb 2014 14:07:10 -0500 (EST)
-Received: by mail-ve0-f182.google.com with SMTP id jy13so14276858veb.27
-        for <linux-mm@kvack.org>; Tue, 18 Feb 2014 11:07:09 -0800 (PST)
-Received: from mail-ve0-x230.google.com (mail-ve0-x230.google.com [2607:f8b0:400c:c01::230])
-        by mx.google.com with ESMTPS id t4si5763441vcz.133.2014.02.18.11.07.09
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 18 Feb 2014 11:07:09 -0800 (PST)
-Received: by mail-ve0-f176.google.com with SMTP id jx11so6516844veb.7
-        for <linux-mm@kvack.org>; Tue, 18 Feb 2014 11:07:09 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20140218185323.GB5744@linux.intel.com>
-References: <1392662333-25470-1-git-send-email-kirill.shutemov@linux.intel.com>
-	<CA+55aFwz+36NOk=uanDvii7zn46-s1kpMT1Lt=C0hhhn9v6w-Q@mail.gmail.com>
-	<53035FE2.4080300@redhat.com>
-	<100D68C7BA14664A8938383216E40DE04062DEA1@FMSMSX114.amr.corp.intel.com>
-	<CA+55aFzqZ2S==NyWG67hNV1YsY-oXLjLvCR0JeiHGJOfnoGJBg@mail.gmail.com>
-	<20140218185323.GB5744@linux.intel.com>
-Date: Tue, 18 Feb 2014 11:07:09 -0800
-Message-ID: <CA+55aFySHoOkTUDVpWPxq9PZtwXKxhS=Wz757fM7oyQazfKpfw@mail.gmail.com>
-Subject: Re: [RFC, PATCHv2 0/2] mm: map few pages around fault address if they
- are in page cache
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 036EA6B0031
+	for <linux-mm@kvack.org>; Tue, 18 Feb 2014 14:30:12 -0500 (EST)
+Received: by mail-pd0-f170.google.com with SMTP id p10so16674539pdj.29
+        for <linux-mm@kvack.org>; Tue, 18 Feb 2014 11:30:12 -0800 (PST)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id va10si19294163pbc.128.2014.02.18.11.30.10
+        for <linux-mm@kvack.org>;
+        Tue, 18 Feb 2014 11:30:10 -0800 (PST)
+Subject: [RFC][PATCH 1/6] x86: mm: clean up tlb flushing code
+From: Dave Hansen <dave@sr71.net>
+Date: Tue, 18 Feb 2014 11:30:09 -0800
+References: <20140218193008.CA410E17@viggo.jf.intel.com>
+In-Reply-To: <20140218193008.CA410E17@viggo.jf.intel.com>
+Message-Id: <20140218193009.14C1765F@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@linux.intel.com>
-Cc: "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Dave Chinner <david@fromorbit.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, ak@linux.intel.com, alex.shi@linaro.org, kirill.shutemov@linux.intel.com, mgorman@suse.de, tim.c.chen@linux.intel.com, x86@kernel.org, peterz@infradead.org, Dave Hansen <dave@sr71.net>
 
-On Tue, Feb 18, 2014 at 10:53 AM, Matthew Wilcox <willy@linux.intel.com> wrote:
->
-> Yes, I did mean "holepunches and page faults".  But here's the race I see:
 
-Hmm. With truncate, we should be protected by i_size being changed
-first (iirc - I didn't actually check), but I think you're right that
-hole punching might race with a page being mapped at the same time.
+From: Dave Hansen <dave.hansen@linux.intel.com>
 
-> What I'm suggesting is going back to Kirill's earlier patch, but only
-> locking the page with the highest index instead of all of the pages.
-> truncate() will block on that page and then we'll notice that some or
-> all of the other pages are also now past i_size and give up.
+The
 
-Actually, Kirill's latest patch seems to solve the problem with
-locking - by simply never locking more than one page at a time. So I
-guess it's all moot at least wrt the page preload..
+	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
 
-          Linus
+line of code is not exactly the easiest to audit, especially when
+it ends up at two different indentation levels.  This eliminates
+one of the the copy-n-paste versions.  It also gives us a unified
+exit point for each path through this function.  We need this in
+a minute for our tracepoint.
+
+
+Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+---
+
+ b/arch/x86/mm/tlb.c |   23 +++++++++++------------
+ 1 file changed, 11 insertions(+), 12 deletions(-)
+
+diff -puN arch/x86/mm/tlb.c~simplify-tlb-code arch/x86/mm/tlb.c
+--- a/arch/x86/mm/tlb.c~simplify-tlb-code	2014-02-18 10:59:35.521325070 -0800
++++ b/arch/x86/mm/tlb.c	2014-02-18 10:59:35.529325436 -0800
+@@ -161,23 +161,24 @@ void flush_tlb_current_task(void)
+ void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
+ 				unsigned long end, unsigned long vmflag)
+ {
++	int need_flush_others_all = 1;
+ 	unsigned long addr;
+ 	unsigned act_entries, tlb_entries = 0;
+ 	unsigned long nr_base_pages;
+ 
+ 	preempt_disable();
+ 	if (current->active_mm != mm)
+-		goto flush_all;
++		goto out;
+ 
+ 	if (!current->mm) {
+ 		leave_mm(smp_processor_id());
+-		goto flush_all;
++		goto out;
+ 	}
+ 
+ 	if (end == TLB_FLUSH_ALL || tlb_flushall_shift == -1
+ 					|| vmflag & VM_HUGETLB) {
+ 		local_flush_tlb();
+-		goto flush_all;
++		goto out;
+ 	}
+ 
+ 	/* In modern CPU, last level tlb used for both data/ins */
+@@ -196,22 +197,20 @@ void flush_tlb_mm_range(struct mm_struct
+ 		count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
+ 		local_flush_tlb();
+ 	} else {
++		need_flush_others_all = 0;
+ 		/* flush range by one by one 'invlpg' */
+ 		for (addr = start; addr < end;	addr += PAGE_SIZE) {
+ 			count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ONE);
+ 			__flush_tlb_single(addr);
+ 		}
+-
+-		if (cpumask_any_but(mm_cpumask(mm),
+-				smp_processor_id()) < nr_cpu_ids)
+-			flush_tlb_others(mm_cpumask(mm), mm, start, end);
+-		preempt_enable();
+-		return;
+ 	}
+-
+-flush_all:
++out:
++	if (need_flush_others_all) {
++		start = 0UL;
++		end = TLB_FLUSH_ALL;
++	}
+ 	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
+-		flush_tlb_others(mm_cpumask(mm), mm, 0UL, TLB_FLUSH_ALL);
++		flush_tlb_others(mm_cpumask(mm), mm, start, end);
+ 	preempt_enable();
+ }
+ 
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
