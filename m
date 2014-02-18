@@ -1,50 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f171.google.com (mail-ea0-f171.google.com [209.85.215.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 84EBE6B0031
-	for <linux-mm@kvack.org>; Tue, 18 Feb 2014 17:08:33 -0500 (EST)
-Received: by mail-ea0-f171.google.com with SMTP id f15so8145661eak.16
-        for <linux-mm@kvack.org>; Tue, 18 Feb 2014 14:08:32 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id v48si43040188eeo.146.2014.02.18.14.08.29
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 91FD96B0031
+	for <linux-mm@kvack.org>; Tue, 18 Feb 2014 17:12:08 -0500 (EST)
+Received: by mail-pd0-f175.google.com with SMTP id w10so16670448pde.6
+        for <linux-mm@kvack.org>; Tue, 18 Feb 2014 14:12:08 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id x3si19650899pbk.263.2014.02.18.14.12.07
         for <linux-mm@kvack.org>;
-        Tue, 18 Feb 2014 14:08:30 -0800 (PST)
-Date: Tue, 18 Feb 2014 17:00:27 -0500
-From: Luiz Capitulino <lcapitulino@redhat.com>
-Subject: [PATCH] fs/proc/meminfo: meminfo_proc_show(): fix typo in comment
-Message-ID: <20140218170027.00bcf592@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Tue, 18 Feb 2014 14:12:07 -0800 (PST)
+Subject: Patch "mm: fix process accidentally killed by mce because of huge page migration" has been added to the 3.10-stable tree
+From: <gregkh@linuxfoundation.org>
+Date: Tue, 18 Feb 2014 14:13:32 -0800
+In-Reply-To: <52FD807F.5010105@huawei.com>
+Message-ID: <13927616123106@kroah.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ANSI_X3.4-1968
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, riel@redhat.com, akpm@linux-foundation.org, james.leddy@redhat.com
+To: qiuxishi@huawei.com, akpm@linux-foundation.org, gregkh@linuxfoundation.org, hughd@google.com, kirill.shutemov@linux.intel.com, linux-mm@kvack.org, lizefan@huawei.com, n-horiguchi@ah.jp.nec.com, stable@vger.kernel.org
+Cc: stable-commits@vger.kernel.org
 
-It should read "reclaimable slab" and not "reclaimable swap".
 
-Signed-off-by: Luiz Capitulino <lcapitulino@redhat.com>
----
- fs/proc/meminfo.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+This is a note to let you know that I've just added the patch titled
 
-diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
-index 136e548..7445af0 100644
---- a/fs/proc/meminfo.c
-+++ b/fs/proc/meminfo.c
-@@ -73,7 +73,7 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
- 	available += pagecache;
- 
- 	/*
--	 * Part of the reclaimable swap consists of items that are in use,
-+	 * Part of the reclaimable slab consists of items that are in use,
- 	 * and cannot be freed. Cap this estimate at the low watermark.
- 	 */
- 	available += global_page_state(NR_SLAB_RECLAIMABLE) -
--- 
-1.8.1.4
+    mm: fix process accidentally killed by mce because of huge page migration
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+to the 3.10-stable tree which can be found at:
+    http://www.kernel.org/git/?p=linux/kernel/git/stable/stable-queue.git;a=summary
+
+The filename of the patch is:
+     mm-fix-process-accidentally-killed-by-mce-because-of-huge-page-migration.patch
+and it can be found in the queue-3.10 subdirectory.
+
+If you, or anyone else, feels it should not be added to the stable tree,
+please let <stable@vger.kernel.org> know about it.
