@@ -1,101 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C4E16B003B
-	for <linux-mm@kvack.org>; Tue, 18 Feb 2014 14:30:19 -0500 (EST)
-Received: by mail-pa0-f44.google.com with SMTP id kq14so17121040pab.17
-        for <linux-mm@kvack.org>; Tue, 18 Feb 2014 11:30:19 -0800 (PST)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id va10si19294163pbc.128.2014.02.18.11.30.18
+Received: from mail-qc0-f180.google.com (mail-qc0-f180.google.com [209.85.216.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 5BD426B0031
+	for <linux-mm@kvack.org>; Tue, 18 Feb 2014 14:58:24 -0500 (EST)
+Received: by mail-qc0-f180.google.com with SMTP id i17so26756700qcy.11
+        for <linux-mm@kvack.org>; Tue, 18 Feb 2014 11:58:24 -0800 (PST)
+Received: from qmta06.emeryville.ca.mail.comcast.net (qmta06.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:56])
+        by mx.google.com with ESMTP id j10si11062550qas.43.2014.02.18.11.58.23
         for <linux-mm@kvack.org>;
-        Tue, 18 Feb 2014 11:30:18 -0800 (PST)
-Subject: [RFC][PATCH 6/6] x86: mm: set TLB flush tunable to sane value
-From: Dave Hansen <dave@sr71.net>
-Date: Tue, 18 Feb 2014 11:30:17 -0800
-References: <20140218193008.CA410E17@viggo.jf.intel.com>
-In-Reply-To: <20140218193008.CA410E17@viggo.jf.intel.com>
-Message-Id: <20140218193017.ECDF1089@viggo.jf.intel.com>
+        Tue, 18 Feb 2014 11:58:23 -0800 (PST)
+Date: Tue, 18 Feb 2014 13:58:20 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [RFC PATCH 2/3] topology: support node_numa_mem() for determining
+ the fallback node
+In-Reply-To: <20140218172832.GD31998@linux.vnet.ibm.com>
+Message-ID: <alpine.DEB.2.10.1402181356120.2910@nuc>
+References: <CAAmzW4PXkdpNi5pZ=4BzdXNvqTEAhcuw-x0pWidqrxzdePxXxA@mail.gmail.com> <alpine.DEB.2.02.1402061248450.9567@chino.kir.corp.google.com> <20140207054819.GC28952@lge.com> <alpine.DEB.2.10.1402071150090.15168@nuc> <alpine.DEB.2.10.1402071245040.20246@nuc>
+ <20140210191321.GD1558@linux.vnet.ibm.com> <20140211074159.GB27870@lge.com> <20140213065137.GA10860@linux.vnet.ibm.com> <20140217070051.GE3468@lge.com> <alpine.DEB.2.10.1402181051560.1291@nuc> <20140218172832.GD31998@linux.vnet.ibm.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, ak@linux.intel.com, alex.shi@linaro.org, kirill.shutemov@linux.intel.com, mgorman@suse.de, tim.c.chen@linux.intel.com, x86@kernel.org, peterz@infradead.org, Dave Hansen <dave@sr71.net>
+To: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Han Pingtian <hanpt@linux.vnet.ibm.com>, Pekka Enberg <penberg@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Paul Mackerras <paulus@samba.org>, Anton Blanchard <anton@samba.org>, Matt Mackall <mpm@selenic.com>, linuxppc-dev@lists.ozlabs.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
+On Tue, 18 Feb 2014, Nishanth Aravamudan wrote:
 
-From: Dave Hansen <dave.hansen@linux.intel.com>
+>
+> Well, on powerpc, with the hypervisor providing the resources and the
+> topology, you can have cpuless and memoryless nodes. I'm not sure how
+> "fake" the NUMA is -- as I think since the resources are virtualized to
+> be one system, it's logically possible that the actual topology of the
+> resources can be CPUs from physical node 0 and memory from physical node
+> 2. I would think with KVM on a sufficiently large (physically NUMA
+> x86_64) and loaded system, one could cause the same sort of
+> configuration to occur for a guest?
 
-Now that we have some shiny new tracepoints, we can actually
-figure out what the heck is going on.
+Ok but since you have a virtualized environment: Why not provide a fake
+home node with fake memory that could be anywhere? This would avoid the
+whole problem of supporting such a config at the kernel level.
 
-During a kernel compile, 60% of the flush_tlb_mm_range() calls
-are for a single page.  It breaks down like this:
+Do not have a fake node that has no memory.
 
- size   percent  percent<=
-  V        V        V
-GLOBAL:   2.20%   2.20% avg cycles:  2283
-     1:  56.92%  59.12% avg cycles:  1276
-     2:  13.78%  72.90% avg cycles:  1505
-     3:   8.26%  81.16% avg cycles:  1880
-     4:   7.41%  88.58% avg cycles:  2447
-     5:   1.73%  90.31% avg cycles:  2358
-     6:   1.32%  91.63% avg cycles:  2563
-     7:   1.14%  92.77% avg cycles:  2862
-     8:   0.62%  93.39% avg cycles:  3542
-     9:   0.08%  93.47% avg cycles:  3289
-    10:   0.43%  93.90% avg cycles:  3570
-    11:   0.20%  94.10% avg cycles:  3767
-    12:   0.08%  94.18% avg cycles:  3996
-    13:   0.03%  94.20% avg cycles:  4077
-    14:   0.02%  94.23% avg cycles:  4836
-    15:   0.04%  94.26% avg cycles:  5699
-    16:   0.06%  94.32% avg cycles:  5041
-    17:   0.57%  94.89% avg cycles:  5473
-    18:   0.02%  94.91% avg cycles:  5396
-    19:   0.03%  94.95% avg cycles:  5296
-    20:   0.02%  94.96% avg cycles:  6749
-    21:   0.18%  95.14% avg cycles:  6225
-    22:   0.01%  95.15% avg cycles:  6393
-    23:   0.01%  95.16% avg cycles:  6861
-    24:   0.12%  95.28% avg cycles:  6912
-    25:   0.05%  95.32% avg cycles:  7190
-    26:   0.01%  95.33% avg cycles:  7793
-    27:   0.01%  95.34% avg cycles:  7833
-    28:   0.01%  95.35% avg cycles:  8253
-    29:   0.08%  95.42% avg cycles:  8024
-    30:   0.03%  95.45% avg cycles:  9670
-    31:   0.01%  95.46% avg cycles:  8949
-    32:   0.01%  95.46% avg cycles:  9350
-    33:   3.11%  98.57% avg cycles:  8534
-    34:   0.02%  98.60% avg cycles: 10977
-    35:   0.02%  98.62% avg cycles: 11400
+> In any case, these configurations happen fairly often on long-running
+> (not rebooted) systems as LPARs are created/destroyed, resources are
+> DLPAR'd in and out of LPARs, etc.
 
-We get in to dimishing returns pretty quickly.  On pre-IvyBridge
-CPUs, we used to set the limit at 8 pages, and it was set at 128
-on IvyBrige.  That 128 number looks pretty silly considering that
-less than 0.5% of the flushes are that large.
+Ok then also move the memory of the local node somewhere?
 
-The previous code tried to size this number based on the size of
-the TLB.  Good idea, but it's error-prone, needs maintenance
-(which it didn't get up to now), and probably would not matter in
-practice much.
+> I might look into it, as it might have sped up testing these changes.
 
-Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
----
-
- b/arch/x86/mm/tlb.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff -puN arch/x86/mm/tlb.c~set-tunable-to-sane-value arch/x86/mm/tlb.c
---- a/arch/x86/mm/tlb.c~set-tunable-to-sane-value	2014-02-18 11:05:37.304813166 -0800
-+++ b/arch/x86/mm/tlb.c	2014-02-18 11:05:37.306813257 -0800
-@@ -166,7 +166,7 @@ void flush_tlb_current_task(void)
- }
- 
- /* in units of pages */
--unsigned long tlb_single_page_flush_ceiling = 5;
-+unsigned long tlb_single_page_flush_ceiling = 33;
- void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
- 				unsigned long end, unsigned long vmflag)
- {
-_
+I guess that will be necessary in order to support the memoryless nodes
+long term.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
