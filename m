@@ -1,81 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f177.google.com (mail-yk0-f177.google.com [209.85.160.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 73C896B0031
-	for <linux-mm@kvack.org>; Tue, 18 Feb 2014 17:54:33 -0500 (EST)
-Received: by mail-yk0-f177.google.com with SMTP id q200so35113467ykb.8
-        for <linux-mm@kvack.org>; Tue, 18 Feb 2014 14:54:33 -0800 (PST)
-Received: from mail-qg0-f46.google.com (mail-qg0-f46.google.com [209.85.192.46])
-        by mx.google.com with ESMTPS id h35si24520947yhq.140.2014.02.18.14.54.32
+Received: from mail-qc0-f180.google.com (mail-qc0-f180.google.com [209.85.216.180])
+	by kanga.kvack.org (Postfix) with ESMTP id A09606B0035
+	for <linux-mm@kvack.org>; Tue, 18 Feb 2014 17:55:52 -0500 (EST)
+Received: by mail-qc0-f180.google.com with SMTP id i17so26612590qcy.39
+        for <linux-mm@kvack.org>; Tue, 18 Feb 2014 14:55:52 -0800 (PST)
+Received: from mail-qa0-x233.google.com (mail-qa0-x233.google.com [2607:f8b0:400d:c00::233])
+        by mx.google.com with ESMTPS id j10si11409884qas.11.2014.02.18.14.55.52
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 18 Feb 2014 14:54:32 -0800 (PST)
-Received: by mail-qg0-f46.google.com with SMTP id e89so8018056qgf.5
-        for <linux-mm@kvack.org>; Tue, 18 Feb 2014 14:54:32 -0800 (PST)
-Date: Tue, 18 Feb 2014 17:54:30 -0500 (EST)
-From: Nicolas Pitre <nicolas.pitre@linaro.org>
-Subject: Re: [PATCHv4 1/2] mm/memblock: add memblock_get_current_limit
-In-Reply-To: <1392761733-32628-2-git-send-email-lauraa@codeaurora.org>
-Message-ID: <alpine.LFD.2.11.1402181754030.17677@knanqh.ubzr>
-References: <1392761733-32628-1-git-send-email-lauraa@codeaurora.org> <1392761733-32628-2-git-send-email-lauraa@codeaurora.org>
+        Tue, 18 Feb 2014 14:55:52 -0800 (PST)
+Received: by mail-qa0-f51.google.com with SMTP id f11so24073089qae.38
+        for <linux-mm@kvack.org>; Tue, 18 Feb 2014 14:55:52 -0800 (PST)
+Date: Tue, 18 Feb 2014 17:55:48 -0500
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH] backing_dev: Fix hung task on sync
+Message-ID: <20140218225548.GI31892@mtj.dyndns.org>
+References: <1392437537-27392-1-git-send-email-dbasehore@chromium.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1392437537-27392-1-git-send-email-dbasehore@chromium.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <lauraa@codeaurora.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, Leif Lindholm <leif.lindholm@linaro.org>, Grygorii Strashko <grygorii.strashko@ti.com>, Catalin Marinas <catalin.marinas@arm.com>, Rob Herring <robherring2@gmail.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <will.deacon@arm.com>, Santosh Shilimkar <santosh.shilimkar@ti.com>
+To: Derek Basehore <dbasehore@chromium.org>
+Cc: Alexander Viro <viro@zento.linux.org.uk>, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Darrick J. Wong" <darrick.wong@oracle.com>, Kees Cook <keescook@chromium.org>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, bleung@chromium.org, sonnyrao@chromium.org, semenzato@chromium.org
 
-On Tue, 18 Feb 2014, Laura Abbott wrote:
+Hello,
 
-> Apart from setting the limit of memblock, it's also useful to be able
-> to get the limit to avoid recalculating it every time. Add the function
-> to do so.
+On Fri, Feb 14, 2014 at 08:12:17PM -0800, Derek Basehore wrote:
+> bdi_wakeup_thread_delayed used the mod_delayed_work function to schedule work
+> to writeback dirty inodes. The problem with this is that it can delay work that
+> is scheduled for immediate execution, such as the work from sync_inodes_sb.
+> This can happen since mod_delayed_work can now steal work from a work_queue.
+> This fixes the problem by using queue_delayed_work instead. This is a
+> regression from the move to the bdi workqueue design.
 > 
-> Acked-by: Catalin Marinas <catalin.marinas@arm.com>
-> Acked-by: Santosh Shilimkar <santosh.shilimkar@ti.com>
-> Acked-by: Andrew Morton <akpm@linux-foundation.org>
-> Signed-off-by: Laura Abbott <lauraa@codeaurora.org>
+> The reason that this causes a problem is that laptop-mode will change the
+> delay, dirty_writeback_centisecs, to 60000 (10 minutes) by default. In the case
+> that bdi_wakeup_thread_delayed races with sync_inodes_sb, sync will be stopped
+> for 10 minutes and trigger a hung task. Even if dirty_writeback_centisecs is
+> not long enough to cause a hung task, we still don't want to delay sync for
+> that long.
 
-Acked-by: Nicolas Pitre <nico@linaro.org>
+Oops.
 
-
+> For the same reason, this also changes bdi_writeback_workfn to immediately
+> queue the work again in the case that the work_list is not empty. The same
+> problem can happen if the sync work is run on the rescue worker.
+> 
+> Signed-off-by: Derek Basehore <dbasehore@chromium.org>
 > ---
->  include/linux/memblock.h |    2 ++
->  mm/memblock.c            |    5 +++++
->  2 files changed, 7 insertions(+), 0 deletions(-)
+>  fs/fs-writeback.c | 5 +++--
+>  mm/backing-dev.c  | 2 +-
+>  2 files changed, 4 insertions(+), 3 deletions(-)
 > 
-> diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-> index 1ef6636..8a20a51 100644
-> --- a/include/linux/memblock.h
-> +++ b/include/linux/memblock.h
-> @@ -252,6 +252,8 @@ static inline void memblock_dump_all(void)
->  void memblock_set_current_limit(phys_addr_t limit);
+> diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
+> index e0259a1..95b7b8c 100644
+> --- a/fs/fs-writeback.c
+> +++ b/fs/fs-writeback.c
+> @@ -1047,8 +1047,9 @@ void bdi_writeback_workfn(struct work_struct *work)
+>  		trace_writeback_pages_written(pages_written);
+>  	}
 >  
+> -	if (!list_empty(&bdi->work_list) ||
+> -	    (wb_has_dirty_io(wb) && dirty_writeback_interval))
+> +	if (!list_empty(&bdi->work_list))
+> +		mod_delayed_work(bdi_wq, &wb->dwork, 0);
+> +	else if (wb_has_dirty_io(wb) && dirty_writeback_interval)
+>  		queue_delayed_work(bdi_wq, &wb->dwork,
+>  			msecs_to_jiffies(dirty_writeback_interval * 10));
+
+Can you please add some comments explaining why the specific variants
+are being used here?
+
+> diff --git a/mm/backing-dev.c b/mm/backing-dev.c
+> index ce682f7..3fde024 100644
+> --- a/mm/backing-dev.c
+> +++ b/mm/backing-dev.c
+> @@ -294,7 +294,7 @@ void bdi_wakeup_thread_delayed(struct backing_dev_info *bdi)
+>  	unsigned long timeout;
 >  
-> +phys_addr_t memblock_get_current_limit(void);
-> +
->  /*
->   * pfn conversion functions
->   *
-> diff --git a/mm/memblock.c b/mm/memblock.c
-> index 39a31e7..7fe5354 100644
-> --- a/mm/memblock.c
-> +++ b/mm/memblock.c
-> @@ -1407,6 +1407,11 @@ void __init_memblock memblock_set_current_limit(phys_addr_t limit)
->  	memblock.current_limit = limit;
->  }
->  
-> +phys_addr_t __init_memblock memblock_get_current_limit(void)
-> +{
-> +	return memblock.current_limit;
-> +}
-> +
->  static void __init_memblock memblock_dump(struct memblock_type *type, char *name)
->  {
->  	unsigned long long base, size;
-> -- 
-> The Qualcomm Innovation Center, Inc. is a member of the Code Aurora Forum,
-> hosted by The Linux Foundation
-> 
+>  	timeout = msecs_to_jiffies(dirty_writeback_interval * 10);
+> -	mod_delayed_work(bdi_wq, &bdi->wb.dwork, timeout);
+> +	queue_delayed_work(bdi_wq, &bdi->wb.dwork, timeout);
+
+and here?
+
+Hmmm.... but doesn't this create an opposite problem?  Now a flush
+queued for an earlier time may be overridden by something scheduled
+later, no?
+
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
