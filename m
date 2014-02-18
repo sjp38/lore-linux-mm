@@ -1,90 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oa0-f45.google.com (mail-oa0-f45.google.com [209.85.219.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 8ECE46B0036
-	for <linux-mm@kvack.org>; Tue, 18 Feb 2014 12:36:51 -0500 (EST)
-Received: by mail-oa0-f45.google.com with SMTP id i11so19702778oag.18
-        for <linux-mm@kvack.org>; Tue, 18 Feb 2014 09:36:51 -0800 (PST)
-Received: from e34.co.us.ibm.com (e34.co.us.ibm.com. [32.97.110.152])
-        by mx.google.com with ESMTPS id jb8si12295987obb.53.2014.02.18.09.36.50
+Received: from mail-vc0-f177.google.com (mail-vc0-f177.google.com [209.85.220.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 229E76B0039
+	for <linux-mm@kvack.org>; Tue, 18 Feb 2014 12:51:45 -0500 (EST)
+Received: by mail-vc0-f177.google.com with SMTP id if11so13183807vcb.22
+        for <linux-mm@kvack.org>; Tue, 18 Feb 2014 09:51:44 -0800 (PST)
+Received: from mail-ve0-x233.google.com (mail-ve0-x233.google.com [2607:f8b0:400c:c01::233])
+        by mx.google.com with ESMTPS id t20si5714176vek.79.2014.02.18.09.51.44
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 18 Feb 2014 09:36:50 -0800 (PST)
-Received: from /spool/local
-	by e34.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <nacc@linux.vnet.ibm.com>;
-	Tue, 18 Feb 2014 10:36:50 -0700
-Received: from b03cxnp07029.gho.boulder.ibm.com (b03cxnp07029.gho.boulder.ibm.com [9.17.130.16])
-	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id 3AA193E4003E
-	for <linux-mm@kvack.org>; Tue, 18 Feb 2014 10:36:47 -0700 (MST)
-Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
-	by b03cxnp07029.gho.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s1IFY9S311534788
-	for <linux-mm@kvack.org>; Tue, 18 Feb 2014 16:34:09 +0100
-Received: from d03av02.boulder.ibm.com (localhost [127.0.0.1])
-	by d03av02.boulder.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s1IHakTS003697
-	for <linux-mm@kvack.org>; Tue, 18 Feb 2014 10:36:47 -0700
-Date: Tue, 18 Feb 2014 09:28:33 -0800
-From: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
-Subject: Re: [RFC PATCH 2/3] topology: support node_numa_mem() for
- determining the fallback node
-Message-ID: <20140218172832.GD31998@linux.vnet.ibm.com>
-References: <CAAmzW4PXkdpNi5pZ=4BzdXNvqTEAhcuw-x0pWidqrxzdePxXxA@mail.gmail.com>
- <alpine.DEB.2.02.1402061248450.9567@chino.kir.corp.google.com>
- <20140207054819.GC28952@lge.com>
- <alpine.DEB.2.10.1402071150090.15168@nuc>
- <alpine.DEB.2.10.1402071245040.20246@nuc>
- <20140210191321.GD1558@linux.vnet.ibm.com>
- <20140211074159.GB27870@lge.com>
- <20140213065137.GA10860@linux.vnet.ibm.com>
- <20140217070051.GE3468@lge.com>
- <alpine.DEB.2.10.1402181051560.1291@nuc>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 18 Feb 2014 09:51:44 -0800 (PST)
+Received: by mail-ve0-f179.google.com with SMTP id jx11so13576300veb.24
+        for <linux-mm@kvack.org>; Tue, 18 Feb 2014 09:51:44 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1402181051560.1291@nuc>
+In-Reply-To: <53035FE2.4080300@redhat.com>
+References: <1392662333-25470-1-git-send-email-kirill.shutemov@linux.intel.com>
+	<CA+55aFwz+36NOk=uanDvii7zn46-s1kpMT1Lt=C0hhhn9v6w-Q@mail.gmail.com>
+	<53035FE2.4080300@redhat.com>
+Date: Tue, 18 Feb 2014 09:51:44 -0800
+Message-ID: <CA+55aFxxRjw7gi0ahjyydAvEPK+ASk_ORt+r7OyA0TUFS0O94Q@mail.gmail.com>
+Subject: Re: [RFC, PATCHv2 0/2] mm: map few pages around fault address if they
+ are in page cache
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Han Pingtian <hanpt@linux.vnet.ibm.com>, Pekka Enberg <penberg@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Paul Mackerras <paulus@samba.org>, Anton Blanchard <anton@samba.org>, Matt Mackall <mpm@selenic.com>, linuxppc-dev@lists.ozlabs.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Dave Chinner <david@fromorbit.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On 18.02.2014 [10:57:09 -0600], Christoph Lameter wrote:
-> On Mon, 17 Feb 2014, Joonsoo Kim wrote:
-> 
-> > On Wed, Feb 12, 2014 at 10:51:37PM -0800, Nishanth Aravamudan wrote:
-> > > Hi Joonsoo,
-> > > Also, given that only ia64 and (hopefuly soon) ppc64 can set
-> > > CONFIG_HAVE_MEMORYLESS_NODES, does that mean x86_64 can't have
-> > > memoryless nodes present? Even with fakenuma? Just curious.
-> 
-> x86_64 currently does not support memoryless nodes otherwise it would
-> have set CONFIG_HAVE_MEMORYLESS_NODES in the kconfig. Memoryless nodes are
-> a bit strange given that the NUMA paradigm is to have NUMA nodes (meaning
-> memory) with processors. MEMORYLESS nodes means that we have a fake NUMA
-> node without memory but just processors. Not very efficient. Not sure why
-> people use these configurations.
+On Tue, Feb 18, 2014 at 5:28 AM, Rik van Riel <riel@redhat.com> wrote:
+>
+> What would the direct io code do when it runs into a page with
+> elevated mapcount, but for which a mapping cannot be found yet?
 
-Well, on powerpc, with the hypervisor providing the resources and the
-topology, you can have cpuless and memoryless nodes. I'm not sure how
-"fake" the NUMA is -- as I think since the resources are virtualized to
-be one system, it's logically possible that the actual topology of the
-resources can be CPUs from physical node 0 and memory from physical node
-2. I would think with KVM on a sufficiently large (physically NUMA
-x86_64) and loaded system, one could cause the same sort of
-configuration to occur for a guest?
+Actually, you cannot get into that situation, since the definition of
+"found" is that you have to follow the page tables (remember: this is
+a *file* mapping, not an anonymous one, so you don't actually have an
+rmap list, you have the inode mapping list).
 
-In any case, these configurations happen fairly often on long-running
-(not rebooted) systems as LPARs are created/destroyed, resources are
-DLPAR'd in and out of LPARs, etc.
+And since we hold the page table lock, you cannot actually get to the
+point where you see that it's not mapped yet. See?
 
-> > I don't know, because I'm not expert on NUMA system :)
-> > At first glance, fakenuma can't be used for testing
-> > CONFIG_HAVE_MEMORYLESS_NODES. Maybe some modification is needed.
-> 
-> Well yeah. You'd have to do some mods to enable that testing.
+That said:
 
-I might look into it, as it might have sped up testing these changes.
+> Looking at the code, it looks like the above scheme could cause
+> some trouble with invalidate_inode_pages2_range(), which has
+> the following sequence:
+>
+>                         if (page_mapped(page)) {
+>                                 ... unmap page
+>                         }
+>                         BUG_ON(page_mapped(page));
 
-Thanks,
-Nish
+The BUG_ON() itself could trigger, because it could race with us
+optimistically trying to increment the page mapping code. And yes, we
+might have to remove that.
+
+But the actual "unmap page" logic should not be able to ever see any
+difference.
+
+See my argument?
+
+              Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
