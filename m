@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 812196B003A
-	for <linux-mm@kvack.org>; Tue, 18 Feb 2014 14:30:18 -0500 (EST)
-Received: by mail-pd0-f181.google.com with SMTP id y10so16462290pdj.26
-        for <linux-mm@kvack.org>; Tue, 18 Feb 2014 11:30:18 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id fu1si19279565pbc.224.2014.02.18.11.30.17
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C4E16B003B
+	for <linux-mm@kvack.org>; Tue, 18 Feb 2014 14:30:19 -0500 (EST)
+Received: by mail-pa0-f44.google.com with SMTP id kq14so17121040pab.17
+        for <linux-mm@kvack.org>; Tue, 18 Feb 2014 11:30:19 -0800 (PST)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id va10si19294163pbc.128.2014.02.18.11.30.18
         for <linux-mm@kvack.org>;
-        Tue, 18 Feb 2014 11:30:17 -0800 (PST)
-Subject: [RFC][PATCH 5/6] x86: mm: new tunable for single vs full TLB flush
+        Tue, 18 Feb 2014 11:30:18 -0800 (PST)
+Subject: [RFC][PATCH 6/6] x86: mm: set TLB flush tunable to sane value
 From: Dave Hansen <dave@sr71.net>
-Date: Tue, 18 Feb 2014 11:30:16 -0800
+Date: Tue, 18 Feb 2014 11:30:17 -0800
 References: <20140218193008.CA410E17@viggo.jf.intel.com>
 In-Reply-To: <20140218193008.CA410E17@viggo.jf.intel.com>
-Message-Id: <20140218193016.1C3C2BAA@viggo.jf.intel.com>
+Message-Id: <20140218193017.ECDF1089@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
@@ -22,153 +22,79 @@ Cc: linux-mm@kvack.org, ak@linux.intel.com, alex.shi@linaro.org, kirill.shutemov
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-Most of the logic here is in the documentation file.  Please take
-a look at it.
+Now that we have some shiny new tracepoints, we can actually
+figure out what the heck is going on.
 
-I know we've come full-circle here back to a tunable, but this
-new one is *WAY* simpler.  I challenge anyone to describe in one
-sentence how the old one worked.  Here's the way the new one
-works:
+During a kernel compile, 60% of the flush_tlb_mm_range() calls
+are for a single page.  It breaks down like this:
 
-	If we are flushing more pages than the ceiling, we use
-	the full flush, otherwise we use invlpg.
+ size   percent  percent<=
+  V        V        V
+GLOBAL:   2.20%   2.20% avg cycles:  2283
+     1:  56.92%  59.12% avg cycles:  1276
+     2:  13.78%  72.90% avg cycles:  1505
+     3:   8.26%  81.16% avg cycles:  1880
+     4:   7.41%  88.58% avg cycles:  2447
+     5:   1.73%  90.31% avg cycles:  2358
+     6:   1.32%  91.63% avg cycles:  2563
+     7:   1.14%  92.77% avg cycles:  2862
+     8:   0.62%  93.39% avg cycles:  3542
+     9:   0.08%  93.47% avg cycles:  3289
+    10:   0.43%  93.90% avg cycles:  3570
+    11:   0.20%  94.10% avg cycles:  3767
+    12:   0.08%  94.18% avg cycles:  3996
+    13:   0.03%  94.20% avg cycles:  4077
+    14:   0.02%  94.23% avg cycles:  4836
+    15:   0.04%  94.26% avg cycles:  5699
+    16:   0.06%  94.32% avg cycles:  5041
+    17:   0.57%  94.89% avg cycles:  5473
+    18:   0.02%  94.91% avg cycles:  5396
+    19:   0.03%  94.95% avg cycles:  5296
+    20:   0.02%  94.96% avg cycles:  6749
+    21:   0.18%  95.14% avg cycles:  6225
+    22:   0.01%  95.15% avg cycles:  6393
+    23:   0.01%  95.16% avg cycles:  6861
+    24:   0.12%  95.28% avg cycles:  6912
+    25:   0.05%  95.32% avg cycles:  7190
+    26:   0.01%  95.33% avg cycles:  7793
+    27:   0.01%  95.34% avg cycles:  7833
+    28:   0.01%  95.35% avg cycles:  8253
+    29:   0.08%  95.42% avg cycles:  8024
+    30:   0.03%  95.45% avg cycles:  9670
+    31:   0.01%  95.46% avg cycles:  8949
+    32:   0.01%  95.46% avg cycles:  9350
+    33:   3.11%  98.57% avg cycles:  8534
+    34:   0.02%  98.60% avg cycles: 10977
+    35:   0.02%  98.62% avg cycles: 11400
+
+We get in to dimishing returns pretty quickly.  On pre-IvyBridge
+CPUs, we used to set the limit at 8 pages, and it was set at 128
+on IvyBrige.  That 128 number looks pretty silly considering that
+less than 0.5% of the flushes are that large.
+
+The previous code tried to size this number based on the size of
+the TLB.  Good idea, but it's error-prone, needs maintenance
+(which it didn't get up to now), and probably would not matter in
+practice much.
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 ---
 
- b/Documentation/x86/tlb.txt |   64 ++++++++++++++++++++++++++++++++++++++++++++
- b/arch/x86/mm/tlb.c         |   47 +++++++++++++++++++++++++++++++-
- 2 files changed, 110 insertions(+), 1 deletion(-)
+ b/arch/x86/mm/tlb.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff -puN arch/x86/mm/tlb.c~new-tunable-for-single-vs-full-tlb-flush arch/x86/mm/tlb.c
---- a/arch/x86/mm/tlb.c~new-tunable-for-single-vs-full-tlb-flush	2014-02-18 10:59:39.420502826 -0800
-+++ b/arch/x86/mm/tlb.c	2014-02-18 10:59:39.427503145 -0800
-@@ -167,7 +167,6 @@ void flush_tlb_current_task(void)
+diff -puN arch/x86/mm/tlb.c~set-tunable-to-sane-value arch/x86/mm/tlb.c
+--- a/arch/x86/mm/tlb.c~set-tunable-to-sane-value	2014-02-18 11:05:37.304813166 -0800
++++ b/arch/x86/mm/tlb.c	2014-02-18 11:05:37.306813257 -0800
+@@ -166,7 +166,7 @@ void flush_tlb_current_task(void)
+ }
  
  /* in units of pages */
- unsigned long tlb_single_page_flush_ceiling = 5;
--
+-unsigned long tlb_single_page_flush_ceiling = 5;
++unsigned long tlb_single_page_flush_ceiling = 33;
  void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
  				unsigned long end, unsigned long vmflag)
  {
-@@ -267,3 +266,49 @@ void flush_tlb_kernel_range(unsigned lon
- 		on_each_cpu(do_kernel_range_flush, &info, 1);
- 	}
- }
-+
-+static ssize_t tlbflush_read_file(struct file *file, char __user *user_buf,
-+			     size_t count, loff_t *ppos)
-+{
-+	char buf[32];
-+	unsigned int len;
-+
-+	len = sprintf(buf, "%ld\n", tlb_single_page_flush_ceiling);
-+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
-+}
-+
-+static ssize_t tlbflush_write_file(struct file *file,
-+		 const char __user *user_buf, size_t count, loff_t *ppos)
-+{
-+	char buf[32];
-+	ssize_t len;
-+	int ceiling;
-+
-+	len = min(count, sizeof(buf) - 1);
-+	if (copy_from_user(buf, user_buf, len))
-+		return -EFAULT;
-+
-+	buf[len] = '\0';
-+	if (kstrtoint(buf, 0, &ceiling))
-+		return -EINVAL;
-+
-+	if (ceiling < 0)
-+		return -EINVAL;
-+
-+	tlb_single_page_flush_ceiling = ceiling;
-+	return count;
-+}
-+
-+static const struct file_operations fops_tlbflush = {
-+	.read = tlbflush_read_file,
-+	.write = tlbflush_write_file,
-+	.llseek = default_llseek,
-+};
-+
-+static int __init create_tlb_single_page_flush_ceiling(void)
-+{
-+	debugfs_create_file("tlb_single_page_flush_ceiling", S_IRUSR | S_IWUSR,
-+			    arch_debugfs_dir, NULL, &fops_tlbflush);
-+	return 0;
-+}
-+late_initcall(create_tlb_single_page_flush_ceiling);
-diff -puN /dev/null Documentation/x86/tlb.txt
---- /dev/null	2014-01-15 16:08:30.019511980 -0800
-+++ b/Documentation/x86/tlb.txt	2014-02-18 10:59:39.427503145 -0800
-@@ -0,0 +1,64 @@
-+When the kernel unmaps or modified the attributes of a range of
-+memory, it has two choices:
-+ 1. Flush the entire TLB with a two-instruction sequence.  This is
-+    a quick operation, but it causes collateral damage: TLB entries
-+    from areas other than the one we are trying to flush will be
-+    destroyed and must be refilled later, at some cost.
-+ 2. Use the invlpg instruction to invalidate a single page at a
-+    time.  This could potentialy cost many more instructions, but
-+    it is a much more precise operation, causing no collateral
-+    damage to other TLB entries.
-+
-+Which method to do depends on a few things:
-+ 1. The size of the flush being performed.  A flush of the entire
-+    address space is obviously better performed by flushing the
-+    entire TLB than doing 2^48/PAGE_SIZE invlpg calls.
-+ 2. The contents of the TLB.  If the TLB is empty, then there will
-+    be no collateral damage caused by doing the global flush, and
-+    all of the invlpg calls will have ended up being wasted work.
-+    Whether or not the range being flushed was in the TLB matters
-+    as well.
-+ 3. The size of the TLB.  The larger the TLB, the more collateral
-+    damage we do with a full flush.  So, the larger the TLB, the
-+    more attrative invlpg looks.
-+ 4. The microarchitecture.  The TLB has become a multi-level
-+    cache on modern CPUs, and the global flushes have become more
-+    expensive relative to single-page flushes.
-+
-+There is obviously no way the kernel can know all these things,
-+especially the contents of the TLB during a given flush.  The
-+sizes of the flush will vary greatly depending on the workload as
-+well.  There is essentially no "right" point to choose.
-+
-+If you believe that invlpg is being called too often, you can
-+lower the tunable:
-+
-+	/sys/debug/kernel/x86/tlb_single_page_flush_ceiling
-+
-+This will cause us to do the global flush for more cases.
-+Lowering it to 0 will disable the use of invlpg.
-+
-+You might see invlpg inside of flush_tlb_mm_range() show up in
-+profiles, or you can use the trace_tlb_flush() tracepoints. to
-+determine how long the flush operations are taking.
-+
-+Essentially, you are balancing the cycles you spend doing invlpg
-+with the cycles that you spend refilling the TLB later.
-+
-+You can measure how expensive TLB refills are by using
-+performance counters and 'perf stat', like this:
-+
-+perf stat -e
-+	cpu/event=0x8,umask=0x84,name=dtlb_load_misses_walk_duration/,
-+	cpu/event=0x8,umask=0x82,name=dtlb_load_misses_walk_completed/,
-+	cpu/event=0x49,umask=0x4,name=dtlb_store_misses_walk_duration/,
-+	cpu/event=0x49,umask=0x2,name=dtlb_store_misses_walk_completed/,
-+	cpu/event=0x85,umask=0x4,name=itlb_misses_walk_duration/,
-+	cpu/event=0x85,umask=0x2,name=itlb_misses_walk_completed/
-+
-+That works on an IvyBridge-era CPU (i5-3320M).  Different CPUs
-+may have differently-named counters, but they should at least
-+be there in some form.  You can use pmu-tools 'ocperf list'
-+(https://github.com/andikleen/pmu-tools) to find the right
-+counters for a given CPU.
-+
 _
 
 --
