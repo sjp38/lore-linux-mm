@@ -1,258 +1,231 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 7265C6B0031
-	for <linux-mm@kvack.org>; Wed, 19 Feb 2014 09:53:21 -0500 (EST)
-Received: by mail-wg0-f45.google.com with SMTP id l18so411359wgh.0
-        for <linux-mm@kvack.org>; Wed, 19 Feb 2014 06:53:20 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f5si595247wjn.34.2014.02.19.06.53.19
+Received: from mail-vc0-f180.google.com (mail-vc0-f180.google.com [209.85.220.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 385186B0031
+	for <linux-mm@kvack.org>; Wed, 19 Feb 2014 10:32:06 -0500 (EST)
+Received: by mail-vc0-f180.google.com with SMTP id ks9so530160vcb.25
+        for <linux-mm@kvack.org>; Wed, 19 Feb 2014 07:32:06 -0800 (PST)
+Received: from mail-ve0-x229.google.com (mail-ve0-x229.google.com [2607:f8b0:400c:c01::229])
+        by mx.google.com with ESMTPS id yv5si204071veb.140.2014.02.19.07.31.58
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 19 Feb 2014 06:53:19 -0800 (PST)
-From: Michal Hocko <mhocko@suse.cz>
-Subject: [RFC PATCH -mm] memcg: reparent only LRUs during mem_cgroup_css_offline
-Date: Wed, 19 Feb 2014 15:51:49 +0100
-Message-Id: <1392821509-976-1-git-send-email-mhocko@suse.cz>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 19 Feb 2014 07:31:58 -0800 (PST)
+Received: by mail-ve0-f169.google.com with SMTP id oy12so544920veb.28
+        for <linux-mm@kvack.org>; Wed, 19 Feb 2014 07:31:58 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20140218225548.GI31892@mtj.dyndns.org>
+References: <1392437537-27392-1-git-send-email-dbasehore@chromium.org>
+	<20140218225548.GI31892@mtj.dyndns.org>
+Date: Wed, 19 Feb 2014 07:31:57 -0800
+Message-ID: <CAGAzgso+TGOgj+N=yOgQXxYuuJQmug9DyfJ_djDw0Zj_LY0L0Q@mail.gmail.com>
+Subject: Re: [PATCH] backing_dev: Fix hung task on sync
+From: "dbasehore ." <dbasehore@chromium.org>
+Content-Type: multipart/alternative; boundary=bcaec548a73bdd5e2f04f2c416d9
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Hugh Dickins <hughd@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Tejun Heo <tj@kernel.org>
+Cc: bleung@chromium.org, "Darrick J. Wong" <darrick.wong@oracle.com>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Alexander Viro <viro@zento.linux.org.uk>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, sonnyrao@chromium.org, Andrew Morton <akpm@linux-foundation.org>, semenzato@chromium.org, Kees Cook <keescook@chromium.org>, linux-kernel@vger.kernel.org
 
-css_offline callback exported by the cgroup core is not intended to get
-rid of all the charges but rather to get rid of cached charges for the
-soon destruction. For the memory controller we have 2 different types of
-"cached" charges which prevent from the memcg destruction (because they
-pin memcg by css reference). Swapped out pages (when swap accounting is
-enabled) and kmem charges. None of them are dealt with in the current
-code.
+--bcaec548a73bdd5e2f04f2c416d9
+Content-Type: text/plain; charset=UTF-8
 
-What we do instead is that we are reducing res counter charges (reduced
-by kmem charges) to 0. And this hard down-to-0 requirement has led to
-several issues in the past when the css_offline loops without any way
-out e.g. memcg: reparent charges of children before processing parent.
+On Feb 18, 2014 4:55 PM, "Tejun Heo" <tj@kernel.org> wrote:
+>
+> Hello,
+>
+> On Fri, Feb 14, 2014 at 08:12:17PM -0800, Derek Basehore wrote:
+> > bdi_wakeup_thread_delayed used the mod_delayed_work function to
+schedule work
+> > to writeback dirty inodes. The problem with this is that it can delay
+work that
+> > is scheduled for immediate execution, such as the work from
+sync_inodes_sb.
+> > This can happen since mod_delayed_work can now steal work from a
+work_queue.
+> > This fixes the problem by using queue_delayed_work instead. This is a
+> > regression from the move to the bdi workqueue design.
+> >
+> > The reason that this causes a problem is that laptop-mode will change
+the
+> > delay, dirty_writeback_centisecs, to 60000 (10 minutes) by default. In
+the case
+> > that bdi_wakeup_thread_delayed races with sync_inodes_sb, sync will be
+stopped
+> > for 10 minutes and trigger a hung task. Even if
+dirty_writeback_centisecs is
+> > not long enough to cause a hung task, we still don't want to delay sync
+for
+> > that long.
+>
+> Oops.
+>
+> > For the same reason, this also changes bdi_writeback_workfn to
+immediately
+> > queue the work again in the case that the work_list is not empty. The
+same
+> > problem can happen if the sync work is run on the rescue worker.
+> >
+> > Signed-off-by: Derek Basehore <dbasehore@chromium.org>
+> > ---
+> >  fs/fs-writeback.c | 5 +++--
+> >  mm/backing-dev.c  | 2 +-
+> >  2 files changed, 4 insertions(+), 3 deletions(-)
+> >
+> > diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
+> > index e0259a1..95b7b8c 100644
+> > --- a/fs/fs-writeback.c
+> > +++ b/fs/fs-writeback.c
+> > @@ -1047,8 +1047,9 @@ void bdi_writeback_workfn(struct work_struct
+*work)
+> >               trace_writeback_pages_written(pages_written);
+> >       }
+> >
+> > -     if (!list_empty(&bdi->work_list) ||
+> > -         (wb_has_dirty_io(wb) && dirty_writeback_interval))
+> > +     if (!list_empty(&bdi->work_list))
+> > +             mod_delayed_work(bdi_wq, &wb->dwork, 0);
+> > +     else if (wb_has_dirty_io(wb) && dirty_writeback_interval)
+> >               queue_delayed_work(bdi_wq, &wb->dwork,
+> >                       msecs_to_jiffies(dirty_writeback_interval * 10));
+>
+> Can you please add some comments explaining why the specific variants
+> are being used here?
 
-The important thing is that we actually do not have to drop all the
-charges. Instead we want to reduce LRU pages (which do not pin memcg) as
-much as possible because they are not reachable by memcg iterators after
-css_offline code returns, thus they are not reclaimable anymore.
+Will do this weekend. I'm away from my computer until then.
 
-This patch simply extracts LRU reparenting into mem_cgroup_reparent_lrus
-which doesn't care about charges and it is called from css_offline
-callback and the original mem_cgroup_reparent_charges stays in
-css_offline callback. The original workaround for the endless loop is no
-longer necessary because child vs. parent ordering is no longer and
-issue. The only requirement is that the parent has be still online at
-the time of css_offline.
-mem_cgroup_reparent_charges also doesn't have to exclude kmem charges
-because there shouldn't be any at the css_free stage. Let's add BUG_ON
-to make sure we haven't screwed anything.
+>
+> > diff --git a/mm/backing-dev.c b/mm/backing-dev.c
+> > index ce682f7..3fde024 100644
+> > --- a/mm/backing-dev.c
+> > +++ b/mm/backing-dev.c
+> > @@ -294,7 +294,7 @@ void bdi_wakeup_thread_delayed(struct
+backing_dev_info *bdi)
+> >       unsigned long timeout;
+> >
+> >       timeout = msecs_to_jiffies(dirty_writeback_interval * 10);
+> > -     mod_delayed_work(bdi_wq, &bdi->wb.dwork, timeout);
+> > +     queue_delayed_work(bdi_wq, &bdi->wb.dwork, timeout);
+>
+> and here?
+>
+> Hmmm.... but doesn't this create an opposite problem?  Now a flush
+> queued for an earlier time may be overridden by something scheduled
+> later, no?
+>
+> Thanks.
+>
+> --
+> tejun
 
-mem_cgroup_reparent_lrus is racy but this is tolerable as the inflight
-pages which will eventually get back to the memcg's LRU shouldn't
-constitute a lot of memory.
+--bcaec548a73bdd5e2f04f2c416d9
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 
-Signed-off-by: Michal Hocko <mhocko@suse.cz>
----
-This is on top of memcg-reparent-charges-of-children-before-processing-parent.patch
-and I am not suggesting to replace it (I think Filipe's patch is more
-appropriate for the stable tree).
-Nevertheless I find this approach slightly better because it makes
-semantical difference between offline and free more obvious and we can
-build on top of it later (when offlining is no longer synchronized by
-cgroup_mutex). But if you think that it is not worth touching this area
-until we find a good way to reparent swapped out and kmem pages then I
-am OK with it and stay with Filipe's patch.
+<p dir=3D"ltr"><br>
+On Feb 18, 2014 4:55 PM, &quot;Tejun Heo&quot; &lt;<a href=3D"mailto:tj@ker=
+nel.org">tj@kernel.org</a>&gt; wrote:<br>
+&gt;<br>
+&gt; Hello,<br>
+&gt;<br>
+&gt; On Fri, Feb 14, 2014 at 08:12:17PM -0800, Derek Basehore wrote:<br>
+&gt; &gt; bdi_wakeup_thread_delayed used the mod_delayed_work function to s=
+chedule work<br>
+&gt; &gt; to writeback dirty inodes. The problem with this is that it can d=
+elay work that<br>
+&gt; &gt; is scheduled for immediate execution, such as the work from sync_=
+inodes_sb.<br>
+&gt; &gt; This can happen since mod_delayed_work can now steal work from a =
+work_queue.<br>
+&gt; &gt; This fixes the problem by using queue_delayed_work instead. This =
+is a<br>
+&gt; &gt; regression from the move to the bdi workqueue design.<br>
+&gt; &gt;<br>
+&gt; &gt; The reason that this causes a problem is that laptop-mode will ch=
+ange the<br>
+&gt; &gt; delay, dirty_writeback_centisecs, to 60000 (10 minutes) by defaul=
+t. In the case<br>
+&gt; &gt; that bdi_wakeup_thread_delayed races with sync_inodes_sb, sync wi=
+ll be stopped<br>
+&gt; &gt; for 10 minutes and trigger a hung task. Even if dirty_writeback_c=
+entisecs is<br>
+&gt; &gt; not long enough to cause a hung task, we still don&#39;t want to =
+delay sync for<br>
+&gt; &gt; that long.<br>
+&gt;<br>
+&gt; Oops.<br>
+&gt;<br>
+&gt; &gt; For the same reason, this also changes bdi_writeback_workfn to im=
+mediately<br>
+&gt; &gt; queue the work again in the case that the work_list is not empty.=
+ The same<br>
+&gt; &gt; problem can happen if the sync work is run on the rescue worker.<=
+br>
+&gt; &gt;<br>
+&gt; &gt; Signed-off-by: Derek Basehore &lt;<a href=3D"mailto:dbasehore@chr=
+omium.org">dbasehore@chromium.org</a>&gt;<br>
+&gt; &gt; ---<br>
+&gt; &gt; =C2=A0fs/fs-writeback.c | 5 +++--<br>
+&gt; &gt; =C2=A0mm/backing-dev.c =C2=A0| 2 +-<br>
+&gt; &gt; =C2=A02 files changed, 4 insertions(+), 3 deletions(-)<br>
+&gt; &gt;<br>
+&gt; &gt; diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c<br>
+&gt; &gt; index e0259a1..95b7b8c 100644<br>
+&gt; &gt; --- a/fs/fs-writeback.c<br>
+&gt; &gt; +++ b/fs/fs-writeback.c<br>
+&gt; &gt; @@ -1047,8 +1047,9 @@ void bdi_writeback_workfn(struct work_struc=
+t *work)<br>
+&gt; &gt; =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 trace_writeback_=
+pages_written(pages_written);<br>
+&gt; &gt; =C2=A0 =C2=A0 =C2=A0 }<br>
+&gt; &gt;<br>
+&gt; &gt; - =C2=A0 =C2=A0 if (!list_empty(&amp;bdi-&gt;work_list) ||<br>
+&gt; &gt; - =C2=A0 =C2=A0 =C2=A0 =C2=A0 (wb_has_dirty_io(wb) &amp;&amp; dir=
+ty_writeback_interval))<br>
+&gt; &gt; + =C2=A0 =C2=A0 if (!list_empty(&amp;bdi-&gt;work_list))<br>
+&gt; &gt; + =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 mod_delayed_work(bdi_=
+wq, &amp;wb-&gt;dwork, 0);<br>
+&gt; &gt; + =C2=A0 =C2=A0 else if (wb_has_dirty_io(wb) &amp;&amp; dirty_wri=
+teback_interval)<br>
+&gt; &gt; =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 queue_delayed_wo=
+rk(bdi_wq, &amp;wb-&gt;dwork,<br>
+&gt; &gt; =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 msecs_to_jiffies(dirty_writeback_interval * 10));<br>
+&gt;<br>
+&gt; Can you please add some comments explaining why the specific variants<=
+br>
+&gt; are being used here?</p>
+<p dir=3D"ltr">Will do this weekend. I&#39;m away from my computer until th=
+en.</p>
+<p dir=3D"ltr">&gt;<br>
+&gt; &gt; diff --git a/mm/backing-dev.c b/mm/backing-dev.c<br>
+&gt; &gt; index ce682f7..3fde024 100644<br>
+&gt; &gt; --- a/mm/backing-dev.c<br>
+&gt; &gt; +++ b/mm/backing-dev.c<br>
+&gt; &gt; @@ -294,7 +294,7 @@ void bdi_wakeup_thread_delayed(struct backing=
+_dev_info *bdi)<br>
+&gt; &gt; =C2=A0 =C2=A0 =C2=A0 unsigned long timeout;<br>
+&gt; &gt;<br>
+&gt; &gt; =C2=A0 =C2=A0 =C2=A0 timeout =3D msecs_to_jiffies(dirty_writeback=
+_interval * 10);<br>
+&gt; &gt; - =C2=A0 =C2=A0 mod_delayed_work(bdi_wq, &amp;bdi-&gt;wb.dwork, t=
+imeout);<br>
+&gt; &gt; + =C2=A0 =C2=A0 queue_delayed_work(bdi_wq, &amp;bdi-&gt;wb.dwork,=
+ timeout);<br>
+&gt;<br>
+&gt; and here?<br>
+&gt;<br>
+&gt; Hmmm.... but doesn&#39;t this create an opposite problem? =C2=A0Now a =
+flush<br>
+&gt; queued for an earlier time may be overridden by something scheduled<br=
+>
+&gt; later, no?<br>
+&gt;<br>
+&gt; Thanks.<br>
+&gt;<br>
+&gt; --<br>
+&gt; tejun<br>
+</p>
 
- mm/memcontrol.c | 102 ++++++++++++++++++++++++++++++--------------------------
- 1 file changed, 55 insertions(+), 47 deletions(-)
-
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 45c2a50954ac..9f8e54333b60 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -3870,6 +3870,7 @@ out:
-  * @page: the page to move
-  * @pc: page_cgroup of the page
-  * @child: page's cgroup
-+ * @parent: parent where to reparent
-  *
-  * move charges to its parent or the root cgroup if the group has no
-  * parent (aka use_hierarchy==0).
-@@ -3888,9 +3889,9 @@ out:
-  */
- static int mem_cgroup_move_parent(struct page *page,
- 				  struct page_cgroup *pc,
--				  struct mem_cgroup *child)
-+				  struct mem_cgroup *child,
-+				  struct mem_cgroup *parent)
- {
--	struct mem_cgroup *parent;
- 	unsigned int nr_pages;
- 	unsigned long uninitialized_var(flags);
- 	int ret;
-@@ -3905,13 +3906,6 @@ static int mem_cgroup_move_parent(struct page *page,
- 
- 	nr_pages = hpage_nr_pages(page);
- 
--	parent = parent_mem_cgroup(child);
--	/*
--	 * If no parent, move charges to root cgroup.
--	 */
--	if (!parent)
--		parent = root_mem_cgroup;
--
- 	if (nr_pages > 1) {
- 		VM_BUG_ON_PAGE(!PageTransHuge(page), page);
- 		flags = compound_lock_irqsave(page);
-@@ -4867,6 +4861,7 @@ unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
- /**
-  * mem_cgroup_force_empty_list - clears LRU of a group
-  * @memcg: group to clear
-+ * @parent: parent group where to reparent
-  * @node: NUMA node
-  * @zid: zone id
-  * @lru: lru to to clear
-@@ -4876,6 +4871,7 @@ unsigned long mem_cgroup_soft_limit_reclaim(struct zone *zone, int order,
-  * group.
-  */
- static void mem_cgroup_force_empty_list(struct mem_cgroup *memcg,
-+				struct mem_cgroup *parent,
- 				int node, int zid, enum lru_list lru)
- {
- 	struct lruvec *lruvec;
-@@ -4909,7 +4905,7 @@ static void mem_cgroup_force_empty_list(struct mem_cgroup *memcg,
- 
- 		pc = lookup_page_cgroup(page);
- 
--		if (mem_cgroup_move_parent(page, pc, memcg)) {
-+		if (mem_cgroup_move_parent(page, pc, memcg, parent)) {
- 			/* found lock contention or "pc" is obsolete. */
- 			busy = page;
- 			cond_resched();
-@@ -4918,6 +4914,28 @@ static void mem_cgroup_force_empty_list(struct mem_cgroup *memcg,
- 	} while (!list_empty(list));
- }
- 
-+static void mem_cgroup_reparent_lrus(struct mem_cgroup *memcg,
-+		struct mem_cgroup *parent)
-+{
-+	int node, zid;
-+
-+	/* This is for making all *used* pages to be on LRU. */
-+	lru_add_drain_all();
-+	drain_all_stock_sync(memcg);
-+	mem_cgroup_start_move(memcg);
-+	for_each_node_state(node, N_MEMORY) {
-+		for (zid = 0; zid < MAX_NR_ZONES; zid++) {
-+			enum lru_list lru;
-+			for_each_lru(lru) {
-+				mem_cgroup_force_empty_list(memcg, parent,
-+						node, zid, lru);
-+			}
-+		}
-+	}
-+	mem_cgroup_end_move(memcg);
-+	memcg_oom_recover(memcg);
-+}
-+
- /*
-  * make mem_cgroup's charge to be 0 if there is no task by moving
-  * all the charges and pages to the parent.
-@@ -4927,42 +4945,25 @@ static void mem_cgroup_force_empty_list(struct mem_cgroup *memcg,
-  */
- static void mem_cgroup_reparent_charges(struct mem_cgroup *memcg)
- {
--	int node, zid;
--	u64 usage;
-+	struct mem_cgroup *parent;
-+
-+	/*
-+	 * All the kmem charges have to be gone by now or we have
-+	 * a css ref leak from the kmem code.
-+	 */
-+	BUG_ON(res_counter_read_u64(&memcg->kmem, RES_USAGE));
-+
-+	parent = parent_mem_cgroup(memcg);
-+	/*
-+	 * If no parent, move charges to root cgroup.
-+	 */
-+	if (!parent)
-+		parent = root_mem_cgroup;
- 
- 	do {
--		/* This is for making all *used* pages to be on LRU. */
--		lru_add_drain_all();
--		drain_all_stock_sync(memcg);
--		mem_cgroup_start_move(memcg);
--		for_each_node_state(node, N_MEMORY) {
--			for (zid = 0; zid < MAX_NR_ZONES; zid++) {
--				enum lru_list lru;
--				for_each_lru(lru) {
--					mem_cgroup_force_empty_list(memcg,
--							node, zid, lru);
--				}
--			}
--		}
--		mem_cgroup_end_move(memcg);
--		memcg_oom_recover(memcg);
-+		mem_cgroup_reparent_lrus(memcg, parent);
- 		cond_resched();
--
--		/*
--		 * Kernel memory may not necessarily be trackable to a specific
--		 * process. So they are not migrated, and therefore we can't
--		 * expect their value to drop to 0 here.
--		 * Having res filled up with kmem only is enough.
--		 *
--		 * This is a safety check because mem_cgroup_force_empty_list
--		 * could have raced with mem_cgroup_replace_page_cache callers
--		 * so the lru seemed empty but the page could have been added
--		 * right after the check. RES_USAGE should be safe as we always
--		 * charge before adding to the LRU.
--		 */
--		usage = res_counter_read_u64(&memcg->res, RES_USAGE) -
--			res_counter_read_u64(&memcg->kmem, RES_USAGE);
--	} while (usage > 0);
-+	} while (res_counter_read_u64(&memcg->res, RES_USAGE) > 0);
- }
- 
- static inline bool memcg_has_children(struct mem_cgroup *memcg)
-@@ -6595,8 +6596,8 @@ static void mem_cgroup_invalidate_reclaim_iterators(struct mem_cgroup *memcg)
- static void mem_cgroup_css_offline(struct cgroup_subsys_state *css)
- {
- 	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
-+	struct mem_cgroup *parent = memcg;
- 	struct mem_cgroup_event *event, *tmp;
--	struct cgroup_subsys_state *iter;
- 
- 	/*
- 	 * Unregister events and notify userspace.
-@@ -6613,13 +6614,20 @@ static void mem_cgroup_css_offline(struct cgroup_subsys_state *css)
- 	kmem_cgroup_css_offline(memcg);
- 
- 	mem_cgroup_invalidate_reclaim_iterators(memcg);
--
- 	/*
- 	 * This requires that offlining is serialized.  Right now that is
- 	 * guaranteed because css_killed_work_fn() holds the cgroup_mutex.
- 	 */
--	css_for_each_descendant_post(iter, css)
--		mem_cgroup_reparent_charges(mem_cgroup_from_css(iter));
-+	do {
-+		parent = parent_mem_cgroup(parent);
-+		/*
-+		 * If no parent, move charges to root cgroup.
-+		 */
-+		if (!parent)
-+			parent = root_mem_cgroup;
-+	} while (!css_tryget(&parent->css));
-+	mem_cgroup_reparent_lrus(memcg, parent);
-+	css_put(&parent->css);
- 
- 	mem_cgroup_destroy_all_caches(memcg);
- 	vmpressure_cleanup(&memcg->vmpressure);
--- 
-1.9.0.rc3
+--bcaec548a73bdd5e2f04f2c416d9--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
