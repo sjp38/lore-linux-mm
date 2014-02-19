@@ -1,67 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f172.google.com (mail-qc0-f172.google.com [209.85.216.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 356596B0035
-	for <linux-mm@kvack.org>; Wed, 19 Feb 2014 18:08:20 -0500 (EST)
-Received: by mail-qc0-f172.google.com with SMTP id r5so1979787qcx.31
-        for <linux-mm@kvack.org>; Wed, 19 Feb 2014 15:08:19 -0800 (PST)
-Received: from relay4-d.mail.gandi.net (relay4-d.mail.gandi.net. [2001:4b98:c:538::196])
-        by mx.google.com with ESMTPS id y1si630197qce.115.2014.02.19.15.08.19
+Received: from mail-ob0-f176.google.com (mail-ob0-f176.google.com [209.85.214.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 43A656B0035
+	for <linux-mm@kvack.org>; Wed, 19 Feb 2014 18:16:50 -0500 (EST)
+Received: by mail-ob0-f176.google.com with SMTP id gq1so1255495obb.35
+        for <linux-mm@kvack.org>; Wed, 19 Feb 2014 15:16:50 -0800 (PST)
+Received: from e7.ny.us.ibm.com (e7.ny.us.ibm.com. [32.97.182.137])
+        by mx.google.com with ESMTPS id ds9si1743550obc.21.2014.02.19.15.16.49
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 19 Feb 2014 15:08:19 -0800 (PST)
-Date: Wed, 19 Feb 2014 15:08:09 -0800
-From: Josh Triplett <josh@joshtriplett.org>
-Subject: Re: [OPW kernel] Re: [RFC] mm:prototype for the updated swapoff
- implementation
-Message-ID: <20140219230809.GA8221@jtriplet-mobl1>
-References: <20140219003522.GA8887@kelleynnn-virtual-machine>
- <20140219132757.58b61f07bad914b3848275e9@linux-foundation.org>
- <530524A3.6090700@surriel.com>
+        Wed, 19 Feb 2014 15:16:49 -0800 (PST)
+Received: from /spool/local
+	by e7.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <nacc@linux.vnet.ibm.com>;
+	Wed, 19 Feb 2014 18:16:49 -0500
+Received: from b01cxnp22035.gho.pok.ibm.com (b01cxnp22035.gho.pok.ibm.com [9.57.198.25])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 3A8D738C804A
+	for <linux-mm@kvack.org>; Wed, 19 Feb 2014 18:16:47 -0500 (EST)
+Received: from d01av02.pok.ibm.com (d01av02.pok.ibm.com [9.56.224.216])
+	by b01cxnp22035.gho.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s1JNGlPQ7340526
+	for <linux-mm@kvack.org>; Wed, 19 Feb 2014 23:16:47 GMT
+Received: from d01av02.pok.ibm.com (localhost [127.0.0.1])
+	by d01av02.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s1JNGklE023323
+	for <linux-mm@kvack.org>; Wed, 19 Feb 2014 18:16:46 -0500
+Date: Wed, 19 Feb 2014 15:16:41 -0800
+From: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
+Subject: [PATCH 0/3] powerpc: support memoryless nodes
+Message-ID: <20140219231641.GA413@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <530524A3.6090700@surriel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@surriel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Kelley Nielsen <kelleynnn@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, opw-kernel@googlegroups.com, jamieliu@google.com, sjenning@linux.vnet.ibm.com, Hugh Dickins <hughd@google.com>
+To: Nish Aravamudan <nacc@linux.vnet.ibm.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Ben Herrenschmidt <benh@kernel.crashing.org>, Anton Blanchard <anton@samba.org>, linuxppc-dev@lists.ozlabs.org
 
-On Wed, Feb 19, 2014 at 04:39:47PM -0500, Rik van Riel wrote:
-> On 02/19/2014 04:27 PM, Andrew Morton wrote:
-> > On Tue, 18 Feb 2014 16:35:22 -0800 Kelley Nielsen <kelleynnn@gmail.com> wrote:
-> > 
-> >> The function try_to_unuse() is of quadratic complexity, with a lot of
-> >> wasted effort. It unuses swap entries one by one, potentially iterating
-> >> over all the page tables for all the processes in the system for each
-> >> one.
-> >>
-> >> This new proposed implementation of try_to_unuse simplifies its
-> >> complexity to linear. It iterates over the system's mms once, unusing
-> >> all the affected entries as it walks each set of page tables. It also
-> >> makes similar changes to shmem_unuse.
-> >>
-> >> Improvement
-> >>
-> >> swapoff was called on a swap partition containing about 50M of data,
-> >> and calls to the function unuse_pte_range were counted.
-> >>
-> >> Present implementation....about 22.5M calls.
-> >> Prototype.................about  7.0K   calls.
-> > 
-> > Do you have situations in which swapoff is taking an unacceptable
-> > amount of time?  If so, please update the changelog to provide full
-> > details on this, with before-and-after timing measurements.
-> 
-> I have seen plenty of that.  With just a few GB in swap space in
-> use, on a system with 24GB of RAM, and about a dozen GB in use
-> by various processes, I have seen swapoff take several hours of
-> CPU time.
+We have seen several issues recently on powerpc LPARs with memoryless
+node NUMA configurations, e.g. (an extreme case):
 
-And it's clear what the lower bound on swapoff should be: current amount
-of swap in use, divided by maximum disk write speed.  We're definitely
-not to *that* point yet; this ought to get us a lot closer.
+numactl --hardware
+available: 2 nodes (0,3)
+node 0 cpus:
+node 0 size: 0 MB
+node 0 free: 0 MB
+node 3 cpus: 0 1 2 3
+node 3 size: 8142 MB
+node 3 free: 7765 MB
+node distances:
+node   0   3 
+  0:  10  20 
+  3:  20  10 
 
-- Josh Triplett
+powerpc doesn't set CONFIG_HAVE_MEMORYLESS_NODES, so we are missing out
+on a lot of the core-kernel support necessary. This series attempts to
+fix this by enabling the config option, which requires a few other
+changes as well.
+
+1/3: mm: return NUMA_NO_NODE in local_memory_node if zonelists are not
+setup
+2/3: powerpc: enable CONFIG_HAVE_PERCPU_NUMA_NODE_ID
+3/3: powerpc: enable CONFIG_HAVE_MEMORYLESS_NODES
+
+I have tested this series with Christoph's patch (currently being
+discussed): http://www.spinics.net/lists/linux-mm/msg69452.html
+
+Thanks,
+Nish
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
