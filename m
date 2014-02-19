@@ -1,148 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f54.google.com (mail-ee0-f54.google.com [74.125.83.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 166766B0031
-	for <linux-mm@kvack.org>; Tue, 18 Feb 2014 22:19:08 -0500 (EST)
-Received: by mail-ee0-f54.google.com with SMTP id e53so8175948eek.27
-        for <linux-mm@kvack.org>; Tue, 18 Feb 2014 19:19:08 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id f45si44425152eep.152.2014.02.18.19.19.06
-        for <linux-mm@kvack.org>;
-        Tue, 18 Feb 2014 19:19:07 -0800 (PST)
-Date: Tue, 18 Feb 2014 22:18:37 -0500
-From: Rik van Riel <riel@redhat.com>
-Subject: [PATCH -mm v2 3/3] move mmu notifier call from change_protection to
- change_pmd_range
-Message-ID: <20140218221837.6126ae74@annuminas.surriel.com>
-In-Reply-To: <alpine.DEB.2.02.1402181823420.20791@chino.kir.corp.google.com>
-References: <1392761566-24834-1-git-send-email-riel@redhat.com>
-	<1392761566-24834-4-git-send-email-riel@redhat.com>
-	<alpine.DEB.2.02.1402181823420.20791@chino.kir.corp.google.com>
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 291B36B0031
+	for <linux-mm@kvack.org>; Wed, 19 Feb 2014 01:56:30 -0500 (EST)
+Received: by mail-pa0-f45.google.com with SMTP id lf10so17683350pab.18
+        for <linux-mm@kvack.org>; Tue, 18 Feb 2014 22:56:29 -0800 (PST)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [119.145.14.64])
+        by mx.google.com with ESMTPS id sz7si20807364pab.232.2014.02.18.22.56.27
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 18 Feb 2014 22:56:29 -0800 (PST)
+Message-ID: <5304558F.9050605@huawei.com>
+Date: Wed, 19 Feb 2014 14:56:15 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Subject: mm: OS boot failed when set command-line kmemcheck=1
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: linux-kernel@vger.kernel.org, kvm@vger.kernel.org, linux-mm@kvack.org, peterz@infradead.org, chegu_vinod@hp.com, aarcange@redhat.com, akpm@linux-foundation.org
+To: Vegard Nossum <vegard.nossum@gmail.com>
+Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Xishi Qiu <qiuxishi@huawei.com>
 
-On Tue, 18 Feb 2014 18:24:36 -0800 (PST)
-David Rientjes <rientjes@google.com> wrote:
+Hi all,
 
-> Acked-by: David Rientjes <rientjes@google.com>
-> 
-> Might have been cleaner to move the 
-> mmu_notifier_invalidate_range_{start,end}() to hugetlb_change_protection() 
-> as well, though.
+CONFIG_KMEMCHECK=y and set command-line "kmemcheck=1", I find OS 
+boot failed. The kernel is v3.14.0-rc3
 
-Way cleaner!  Second version attached :)
+If set "kmemcheck=1 nowatchdog", OS will boot successfully.
 
-Thanks, David.
-
----8<---
-
-Subject: move mmu notifier call from change_protection to change_pmd_range
-
-The NUMA scanning code can end up iterating over many gigabytes
-of unpopulated memory, especially in the case of a freshly started
-KVM guest with lots of memory.
-
-This results in the mmu notifier code being called even when
-there are no mapped pages in a virtual address range. The amount
-of time wasted can be enough to trigger soft lockup warnings
-with very large KVM guests.
-
-This patch moves the mmu notifier call to the pmd level, which
-represents 1GB areas of memory on x86-64. Furthermore, the mmu
-notifier code is only called from the address in the PMD where
-present mappings are first encountered.
-
-The hugetlbfs code is left alone for now; hugetlb mappings are
-not relocatable, and as such are left alone by the NUMA code,
-and should never trigger this problem to begin with.
-
-Signed-off-by: Rik van Riel <riel@redhat.com>
-Acked-by: David Rientjes <rientjes@google.com>
----
- mm/hugetlb.c  |  2 ++
- mm/mprotect.c | 15 ++++++++++++---
- 2 files changed, 14 insertions(+), 3 deletions(-)
-
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index c0d930f..f0c5dfb 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -3065,6 +3065,7 @@ unsigned long hugetlb_change_protection(struct vm_area_struct *vma,
- 	BUG_ON(address >= end);
- 	flush_cache_range(vma, address, end);
- 
-+	mmu_notifier_invalidate_range_start(mm, start, end);
- 	mutex_lock(&vma->vm_file->f_mapping->i_mmap_mutex);
- 	for (; address < end; address += huge_page_size(h)) {
- 		spinlock_t *ptl;
-@@ -3094,6 +3095,7 @@ unsigned long hugetlb_change_protection(struct vm_area_struct *vma,
- 	 */
- 	flush_tlb_range(vma, start, end);
- 	mutex_unlock(&vma->vm_file->f_mapping->i_mmap_mutex);
-+	mmu_notifier_invalidate_range_end(mm, start, end);
- 
- 	return pages << h->order;
- }
-diff --git a/mm/mprotect.c b/mm/mprotect.c
-index d790166..76146fa 100644
---- a/mm/mprotect.c
-+++ b/mm/mprotect.c
-@@ -115,9 +115,11 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
- 		pgprot_t newprot, int dirty_accountable, int prot_numa)
- {
- 	pmd_t *pmd;
-+	struct mm_struct *mm = vma->vm_mm;
- 	unsigned long next;
- 	unsigned long pages = 0;
- 	unsigned long nr_huge_updates = 0;
-+	unsigned long mni_start = 0;
- 
- 	pmd = pmd_offset(pud, addr);
- 	do {
-@@ -126,6 +128,13 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
- 		next = pmd_addr_end(addr, end);
- 		if (!pmd_trans_huge(*pmd) && pmd_none_or_clear_bad(pmd))
- 				continue;
-+
-+		/* invoke the mmu notifier if the pmd is populated */
-+		if (!mni_start) {
-+			mni_start = addr;
-+			mmu_notifier_invalidate_range_start(mm, mni_start, end);
-+		}
-+
- 		if (pmd_trans_huge(*pmd)) {
- 			if (next - addr != HPAGE_PMD_SIZE)
- 				split_huge_page_pmd(vma, addr, pmd);
-@@ -149,6 +158,9 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
- 		pages += this_pages;
- 	} while (pmd++, addr = next, addr != end);
- 
-+	if (mni_start)
-+		mmu_notifier_invalidate_range_end(mm, mni_start, end);
-+
- 	if (nr_huge_updates)
- 		count_vm_numa_events(NUMA_HUGE_PTE_UPDATES, nr_huge_updates);
- 	return pages;
-@@ -208,15 +220,12 @@ unsigned long change_protection(struct vm_area_struct *vma, unsigned long start,
- 		       unsigned long end, pgprot_t newprot,
- 		       int dirty_accountable, int prot_numa)
- {
--	struct mm_struct *mm = vma->vm_mm;
- 	unsigned long pages;
- 
--	mmu_notifier_invalidate_range_start(mm, start, end);
- 	if (is_vm_hugetlb_page(vma))
- 		pages = hugetlb_change_protection(vma, start, end, newprot);
- 	else
- 		pages = change_protection_range(vma, start, end, newprot, dirty_accountable, prot_numa);
--	mmu_notifier_invalidate_range_end(mm, start, end);
- 
- 	return pages;
- }
+Here is the boot failed log:
+[   23.586826] Freeing unused kernel memory: 1160K (ffff8800014de000 - ffff88000
+1600000)
+[   23.600248] Freeing unused kernel memory: 1696K (ffff880001858000 - ffff88000
+1a00000)
+[   23.615534] Kernel panic - not syncing: Attempted to kill init! exitcode=0x00
+000005
+[   23.615534]
+[   23.624885] CPU: 0 PID: 1 Comm: init Tainted: G        W    3.14.0-rc3-0.1-de
+fault+ #1
+[   23.632957] Hardware name: Huawei Technologies Co., Ltd. Tecal RH2285
+  /BC11BTSA              , BIOS CTSAV036 04/27/2011
+[   23.644661]  ffff880c1dd28000 ffff880c1dd31c48 ffffffff814ca491 ffff880c1dd31
+cc8
+[   23.652416]  ffffffff814ca1e6 0000000000000010 ffff880c1dd31cd8 ffff880c1dd31
+c78
+[   23.660171]  0000000000000027 ffff880c1dcb8280 0000000000000005 ffff880c1dd28
+000
+[   23.667931] Call Trace:
+[   23.670482]  [<ffffffff814ca491>] dump_stack+0x6a/0x79
+[   23.675712]  [<ffffffff814ca1e6>] panic+0xb9/0x1f4
+[   23.680599]  [<ffffffff8104f78e>] forget_original_parent+0x42e/0x430
+[   23.687043]  [<ffffffff81107da0>] ? perf_cgroup_switch+0x170/0x170
+[   23.693314]  [<ffffffff8104f7a1>] exit_notify+0x11/0x140
+[   23.698722]  [<ffffffff8104fb00>] do_exit+0x230/0x490
+[   23.703865]  [<ffffffff8104fda3>] do_group_exit+0x43/0xb0
+[   23.709357]  [<ffffffff8105fb31>] get_signal_to_deliver+0x241/0x4b0
+[   23.715713]  [<ffffffff81002a0c>] do_notify_resume+0xac/0x1a0
+[   23.721551]  [<ffffffff814d712a>] int_signal+0x12/0x17
+[   23.726786] Kernel Offset: 0x0 from 0xffffffff81000000 (relocation range: 0xf
+fffffff80000000-0xffffffff9fffffff)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
