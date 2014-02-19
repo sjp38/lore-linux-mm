@@ -1,101 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f46.google.com (mail-qa0-f46.google.com [209.85.216.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 6513E6B0039
-	for <linux-mm@kvack.org>; Wed, 19 Feb 2014 13:05:26 -0500 (EST)
-Received: by mail-qa0-f46.google.com with SMTP id k15so1050911qaq.19
-        for <linux-mm@kvack.org>; Wed, 19 Feb 2014 10:05:26 -0800 (PST)
-Received: from e7.ny.us.ibm.com (e7.ny.us.ibm.com. [32.97.182.137])
-        by mx.google.com with ESMTPS id ew5si532918qab.87.2014.02.19.10.05.24
+Received: from mail-qa0-f45.google.com (mail-qa0-f45.google.com [209.85.216.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 098D66B0031
+	for <linux-mm@kvack.org>; Wed, 19 Feb 2014 14:01:46 -0500 (EST)
+Received: by mail-qa0-f45.google.com with SMTP id m5so1195769qaj.4
+        for <linux-mm@kvack.org>; Wed, 19 Feb 2014 11:01:45 -0800 (PST)
+Received: from mail-qa0-x234.google.com (mail-qa0-x234.google.com [2607:f8b0:400d:c00::234])
+        by mx.google.com with ESMTPS id a3si705294qam.170.2014.02.19.11.01.43
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 19 Feb 2014 10:05:25 -0800 (PST)
-Received: from /spool/local
-	by e7.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <nacc@linux.vnet.ibm.com>;
-	Wed, 19 Feb 2014 13:05:23 -0500
-Received: from b01cxnp22035.gho.pok.ibm.com (b01cxnp22035.gho.pok.ibm.com [9.57.198.25])
-	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 3A14538C803B
-	for <linux-mm@kvack.org>; Wed, 19 Feb 2014 13:05:22 -0500 (EST)
-Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
-	by b01cxnp22035.gho.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s1JI4uXx6488550
-	for <linux-mm@kvack.org>; Wed, 19 Feb 2014 18:05:22 GMT
-Received: from d01av01.pok.ibm.com (localhost [127.0.0.1])
-	by d01av01.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s1JGTrPI024056
-	for <linux-mm@kvack.org>; Wed, 19 Feb 2014 11:29:53 -0500
-Date: Wed, 19 Feb 2014 08:24:38 -0800
-From: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
-Subject: Re: ppc: RECLAIM_DISTANCE 10?
-Message-ID: <20140219162438.GB27108@linux.vnet.ibm.com>
-References: <20140218090658.GA28130@dhcp22.suse.cz>
- <20140218233404.GB10844@linux.vnet.ibm.com>
- <20140218235800.GC10844@linux.vnet.ibm.com>
- <alpine.DEB.2.02.1402181737530.17521@chino.kir.corp.google.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 19 Feb 2014 11:01:44 -0800 (PST)
+Received: by mail-qa0-f52.google.com with SMTP id j15so1188862qaq.39
+        for <linux-mm@kvack.org>; Wed, 19 Feb 2014 11:01:43 -0800 (PST)
+Date: Wed, 19 Feb 2014 14:01:39 -0500
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH] backing_dev: Fix hung task on sync
+Message-ID: <20140219190139.GQ10134@htj.dyndns.org>
+References: <1392437537-27392-1-git-send-email-dbasehore@chromium.org>
+ <20140218225548.GI31892@mtj.dyndns.org>
+ <20140219092731.GA4849@quack.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.02.1402181737530.17521@chino.kir.corp.google.com>
+In-Reply-To: <20140219092731.GA4849@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, Anton Blanchard <anton@samba.org>, LKML <linux-kernel@vger.kernel.org>
+To: Jan Kara <jack@suse.cz>
+Cc: Derek Basehore <dbasehore@chromium.org>, Alexander Viro <viro@zento.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Darrick J. Wong" <darrick.wong@oracle.com>, Kees Cook <keescook@chromium.org>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, bleung@chromium.org, sonnyrao@chromium.org, semenzato@chromium.org
 
-On 18.02.2014 [17:43:38 -0800], David Rientjes wrote:
-> On Tue, 18 Feb 2014, Nishanth Aravamudan wrote:
-> 
-> > How about the following?
-> > 
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > index 5de4337..1a0eced 100644
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -1854,7 +1854,8 @@ static void __paginginit init_zone_allows_reclaim(int nid)
-> >         int i;
-> >  
-> >         for_each_online_node(i)
-> > -               if (node_distance(nid, i) <= RECLAIM_DISTANCE)
-> > +               if (node_distance(nid, i) <= RECLAIM_DISTANCE ||
-> > +                                       !NODE_DATA(i)->node_present_pages)
-> >                         node_set(i, NODE_DATA(nid)->reclaim_nodes);
-> >                 else
-> >                         zone_reclaim_mode = 1;
-> 
->  [ I changed the above from NODE_DATA(nid) -> NODE_DATA(i) as you caught 
->    so we're looking at the right code. ]
-> 
-> That can't be right, it would allow reclaiming from a memoryless node.  I 
-> think what you want is
+Hello, Jan.
 
-Gah, you're right.
+On Wed, Feb 19, 2014 at 10:27:31AM +0100, Jan Kara wrote:
+>   You are the workqueue expert so you may know better ;) But the way I
+> understand it is that queue_delayed_work() does nothing if the timer is
+> already running. Since we queue flusher work to run either immediately or
+> after dirty_writeback_interval we are safe to run queue_delayed_work()
+> whenever we want it to run after dirty_writeback_interval and
+> mod_delayed_work() whenever we want to run it immediately.
 
-> 	for_each_online_node(i) {
-> 		if (!node_present_pages(i))
-> 			continue;
-> 		if (node_distance(nid, i) <= RECLAIM_DISTANCE) {
-> 			node_set(i, NODE_DATA(nid)->reclaim_nodes);
-> 			continue;
-> 		}
-> 		/* Always try to reclaim locally */
-> 		zone_reclaim_mode = 1;
-> 	}
-> 
-> but we really should be able to do for_each_node_state(i, N_MEMORY) here 
-> and memoryless nodes should already be excluded from that mask.
+Ah, okay, so it's always mod on immediate and queue on delayed.  Yeah,
+that should work.
 
-Yep, I found that afterwards, which simplifies the logic. I'll add this
-to my series :)
+> But it's subtle and some interface where we could say queue delayed work
+> after no later than X would be easier to grasp.
 
-<snip>
+Yeah, I think it'd be better if we had something like
+mod_delayed_work_if_later().  Hmm...
 
-> > I think it's safe to move init_zone_allows_reclaim, because I don't
-> > think any allocates are occurring here that could cause us to reclaim
-> > anyways, right? Moving it allows us to safely reference
-> > node_present_pages.
-> > 
-> 
-> Yeah, this is fine.
+Thanks.
 
-Thanks,
-Nish
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
