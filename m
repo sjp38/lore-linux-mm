@@ -1,39 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id C54F96B0035
-	for <linux-mm@kvack.org>; Wed, 19 Feb 2014 17:04:40 -0500 (EST)
-Received: by mail-pd0-f182.google.com with SMTP id v10so925859pde.41
-        for <linux-mm@kvack.org>; Wed, 19 Feb 2014 14:04:40 -0800 (PST)
-Received: from mail-pa0-x229.google.com (mail-pa0-x229.google.com [2607:f8b0:400e:c03::229])
-        by mx.google.com with ESMTPS id xe9si935219pab.141.2014.02.19.14.04.39
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 918CB6B0031
+	for <linux-mm@kvack.org>; Wed, 19 Feb 2014 17:14:45 -0500 (EST)
+Received: by mail-pa0-f47.google.com with SMTP id kp14so991153pab.6
+        for <linux-mm@kvack.org>; Wed, 19 Feb 2014 14:14:45 -0800 (PST)
+Received: from mail-pa0-x22f.google.com (mail-pa0-x22f.google.com [2607:f8b0:400e:c03::22f])
+        by mx.google.com with ESMTPS id po10si994405pab.218.2014.02.19.14.14.44
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 19 Feb 2014 14:04:39 -0800 (PST)
-Received: by mail-pa0-f41.google.com with SMTP id fa1so987421pad.14
-        for <linux-mm@kvack.org>; Wed, 19 Feb 2014 14:04:39 -0800 (PST)
-Date: Wed, 19 Feb 2014 14:04:37 -0800 (PST)
+        Wed, 19 Feb 2014 14:14:44 -0800 (PST)
+Received: by mail-pa0-f47.google.com with SMTP id kp14so989423pab.34
+        for <linux-mm@kvack.org>; Wed, 19 Feb 2014 14:14:44 -0800 (PST)
+Date: Wed, 19 Feb 2014 14:14:40 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [RFC PATCH 2/3] topology: support node_numa_mem() for determining
- the fallback node
-In-Reply-To: <alpine.DEB.2.10.1402181033480.28964@nuc>
-Message-ID: <alpine.DEB.2.02.1402191404030.31921@chino.kir.corp.google.com>
-References: <1391674026-20092-2-git-send-email-iamjoonsoo.kim@lge.com> <alpine.DEB.2.02.1402060041040.21148@chino.kir.corp.google.com> <CAAmzW4PXkdpNi5pZ=4BzdXNvqTEAhcuw-x0pWidqrxzdePxXxA@mail.gmail.com> <alpine.DEB.2.02.1402061248450.9567@chino.kir.corp.google.com>
- <20140207054819.GC28952@lge.com> <alpine.DEB.2.10.1402071150090.15168@nuc> <alpine.DEB.2.10.1402071245040.20246@nuc> <20140210191321.GD1558@linux.vnet.ibm.com> <20140211074159.GB27870@lge.com> <alpine.DEB.2.10.1402121612270.8183@nuc> <20140217065257.GD3468@lge.com>
- <alpine.DEB.2.10.1402181033480.28964@nuc>
+Subject: [patch] x86, kmemcheck: Use kstrtoint() instead of sscanf()
+In-Reply-To: <alpine.DEB.2.02.1402182344001.3551@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.02.1402191412300.31921@chino.kir.corp.google.com>
+References: <5304558F.9050605@huawei.com> <alpine.DEB.2.02.1402182344001.3551@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Nishanth Aravamudan <nacc@linux.vnet.ibm.com>, Han Pingtian <hanpt@linux.vnet.ibm.com>, Pekka Enberg <penberg@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Paul Mackerras <paulus@samba.org>, Anton Blanchard <anton@samba.org>, Matt Mackall <mpm@selenic.com>, linuxppc-dev@lists.ozlabs.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
+To: Vegard Nossum <vegardno@ifi.uio.no>, Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>
+Cc: Xishi Qiu <qiuxishi@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, 18 Feb 2014, Christoph Lameter wrote:
+Kmemcheck should use the preferred interface for parsing command line 
+arguments, kstrto*(), rather than sscanf() itself.  Use it appropriately.
 
-> Its an optimization to avoid calling the page allocator to figure out if
-> there is memory available on a particular node.
-> 
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ arch/x86/mm/kmemcheck/kmemcheck.c | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
 
-Thus this patch breaks with memory hot-add for a memoryless node.
+diff --git a/arch/x86/mm/kmemcheck/kmemcheck.c b/arch/x86/mm/kmemcheck/kmemcheck.c
+--- a/arch/x86/mm/kmemcheck/kmemcheck.c
++++ b/arch/x86/mm/kmemcheck/kmemcheck.c
+@@ -78,10 +78,16 @@ early_initcall(kmemcheck_init);
+  */
+ static int __init param_kmemcheck(char *str)
+ {
++	int val;
++	int ret;
++
+ 	if (!str)
+ 		return -EINVAL;
+ 
+-	sscanf(str, "%d", &kmemcheck_enabled);
++	ret = kstrtoint(str, 0, &val);
++	if (ret)
++		return ret;
++	kmemcheck_enabled = val;
+ 	return 0;
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
