@@ -1,108 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f52.google.com (mail-wg0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id E0F616B0036
-	for <linux-mm@kvack.org>; Wed, 19 Feb 2014 04:27:35 -0500 (EST)
-Received: by mail-wg0-f52.google.com with SMTP id b13so101094wgh.31
-        for <linux-mm@kvack.org>; Wed, 19 Feb 2014 01:27:35 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id vc6si17314867wjc.93.2014.02.19.01.27.34
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 3EF8B6B0036
+	for <linux-mm@kvack.org>; Wed, 19 Feb 2014 04:39:24 -0500 (EST)
+Received: by mail-pa0-f54.google.com with SMTP id fa1so155024pad.27
+        for <linux-mm@kvack.org>; Wed, 19 Feb 2014 01:39:23 -0800 (PST)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTPS id az6si9984194pab.159.2014.02.19.01.39.18
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 19 Feb 2014 01:27:34 -0800 (PST)
-Date: Wed, 19 Feb 2014 10:27:31 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH] backing_dev: Fix hung task on sync
-Message-ID: <20140219092731.GA4849@quack.suse.cz>
-References: <1392437537-27392-1-git-send-email-dbasehore@chromium.org>
- <20140218225548.GI31892@mtj.dyndns.org>
+        Wed, 19 Feb 2014 01:39:23 -0800 (PST)
+Message-ID: <53047AE6.4060403@huawei.com>
+Date: Wed, 19 Feb 2014 17:35:34 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140218225548.GI31892@mtj.dyndns.org>
+Subject: Re: mm: OS boot failed when set command-line kmemcheck=1
+References: <5304558F.9050605@huawei.com> <alpine.DEB.2.02.1402182344001.3551@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.02.1402182344001.3551@chino.kir.corp.google.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Derek Basehore <dbasehore@chromium.org>, Alexander Viro <viro@zento.linux.org.uk>, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Darrick J. Wong" <darrick.wong@oracle.com>, Kees Cook <keescook@chromium.org>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, bleung@chromium.org, sonnyrao@chromium.org, semenzato@chromium.org
+To: David Rientjes <rientjes@google.com>
+Cc: Vegard Nossum <vegard.nossum@gmail.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue 18-02-14 17:55:48, Tejun Heo wrote:
-> Hello,
-> 
-> On Fri, Feb 14, 2014 at 08:12:17PM -0800, Derek Basehore wrote:
-> > bdi_wakeup_thread_delayed used the mod_delayed_work function to schedule work
-> > to writeback dirty inodes. The problem with this is that it can delay work that
-> > is scheduled for immediate execution, such as the work from sync_inodes_sb.
-> > This can happen since mod_delayed_work can now steal work from a work_queue.
-> > This fixes the problem by using queue_delayed_work instead. This is a
-> > regression from the move to the bdi workqueue design.
-> > 
-> > The reason that this causes a problem is that laptop-mode will change the
-> > delay, dirty_writeback_centisecs, to 60000 (10 minutes) by default. In the case
-> > that bdi_wakeup_thread_delayed races with sync_inodes_sb, sync will be stopped
-> > for 10 minutes and trigger a hung task. Even if dirty_writeback_centisecs is
-> > not long enough to cause a hung task, we still don't want to delay sync for
-> > that long.
-> 
-> Oops.
-> 
-> > For the same reason, this also changes bdi_writeback_workfn to immediately
-> > queue the work again in the case that the work_list is not empty. The same
-> > problem can happen if the sync work is run on the rescue worker.
-> > 
-> > Signed-off-by: Derek Basehore <dbasehore@chromium.org>
-> > ---
-> >  fs/fs-writeback.c | 5 +++--
-> >  mm/backing-dev.c  | 2 +-
-> >  2 files changed, 4 insertions(+), 3 deletions(-)
-> > 
-> > diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
-> > index e0259a1..95b7b8c 100644
-> > --- a/fs/fs-writeback.c
-> > +++ b/fs/fs-writeback.c
-> > @@ -1047,8 +1047,9 @@ void bdi_writeback_workfn(struct work_struct *work)
-> >  		trace_writeback_pages_written(pages_written);
-> >  	}
-> >  
-> > -	if (!list_empty(&bdi->work_list) ||
-> > -	    (wb_has_dirty_io(wb) && dirty_writeback_interval))
-> > +	if (!list_empty(&bdi->work_list))
-> > +		mod_delayed_work(bdi_wq, &wb->dwork, 0);
-> > +	else if (wb_has_dirty_io(wb) && dirty_writeback_interval)
-> >  		queue_delayed_work(bdi_wq, &wb->dwork,
-> >  			msecs_to_jiffies(dirty_writeback_interval * 10));
-> 
-> Can you please add some comments explaining why the specific variants
-> are being used here?
-> 
-> > diff --git a/mm/backing-dev.c b/mm/backing-dev.c
-> > index ce682f7..3fde024 100644
-> > --- a/mm/backing-dev.c
-> > +++ b/mm/backing-dev.c
-> > @@ -294,7 +294,7 @@ void bdi_wakeup_thread_delayed(struct backing_dev_info *bdi)
-> >  	unsigned long timeout;
-> >  
-> >  	timeout = msecs_to_jiffies(dirty_writeback_interval * 10);
-> > -	mod_delayed_work(bdi_wq, &bdi->wb.dwork, timeout);
-> > +	queue_delayed_work(bdi_wq, &bdi->wb.dwork, timeout);
-> 
-> and here?
-> 
-> Hmmm.... but doesn't this create an opposite problem?  Now a flush
-> queued for an earlier time may be overridden by something scheduled
-> later, no?
-  You are the workqueue expert so you may know better ;) But the way I
-understand it is that queue_delayed_work() does nothing if the timer is
-already running. Since we queue flusher work to run either immediately or
-after dirty_writeback_interval we are safe to run queue_delayed_work()
-whenever we want it to run after dirty_writeback_interval and
-mod_delayed_work() whenever we want to run it immediately.
+On 2014/2/19 15:49, David Rientjes wrote:
 
-But it's subtle and some interface where we could say queue delayed work
-after no later than X would be easier to grasp.
+> On Wed, 19 Feb 2014, Xishi Qiu wrote:
+> 
+>> Hi all,
+>>
+>> CONFIG_KMEMCHECK=y and set command-line "kmemcheck=1", I find OS 
+>> boot failed. The kernel is v3.14.0-rc3
+>>
+>> If set "kmemcheck=1 nowatchdog", OS will boot successfully.
+>>
+> 
+> I have automated kernel boots that have both "kmemcheck=0" and 
+> "kmemcheck=1" as the last parameter in the kernel command line every 
+> night and I've never seen it fail on tip or linux-next before.
+> 
+> So I'm sure I won't be able to reproduce your issue, but it may have 
+> something to do with your bootloader that isn't described above.  The 
+> sscanf() really wants to be replaced with kstrtoint().
+> 
+> Could you try this out?
+> 
+> diff --git a/arch/x86/mm/kmemcheck/kmemcheck.c b/arch/x86/mm/kmemcheck/kmemcheck.c
+> --- a/arch/x86/mm/kmemcheck/kmemcheck.c
+> +++ b/arch/x86/mm/kmemcheck/kmemcheck.c
+> @@ -78,10 +78,16 @@ early_initcall(kmemcheck_init);
+>   */
+>  static int __init param_kmemcheck(char *str)
+>  {
+> +	int val;
+> +	int ret;
+> +
+>  	if (!str)
+>  		return -EINVAL;
+>  
+> -	sscanf(str, "%d", &kmemcheck_enabled);
+> +	ret = kstrtoint(str, 0, &val);
+> +	if (ret)
+> +		return ret;
+> +	kmemcheck_enabled = val;
+>  	return 0;
+>  }
+>  
 
-								Honza
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+Hi David,
+
+Thank you for your suggestion, but it still failed.
+Here is a warning, I don't whether it is relative to my hardware.
+If set "kmemcheck=1 nowatchdog", it can boot.
+
+code:
+	...
+	pte = kmemcheck_pte_lookup(address);
+	if (!pte)
+		return false;
+
+	WARN_ON_ONCE(in_nmi());
+
+	if (error_code & 2)
+	...
+
+log:
+[   10.920683] WARNING: CPU: 0 PID: 1 at arch/x86/mm/kmemcheck/kmemcheck.c:640 k
+memcheck_fault+0xb1/0xc0()
+[   10.920684] Modules linked in:
+[   10.920686] CPU: 0 PID: 1 Comm: swapper/0 Not tainted 3.14.0-rc3-0.1-default+
+ #3
+[   10.920687] Hardware name: Huawei Technologies Co., Ltd. Tecal RH2285 V2-24S/
+BC11SRSC1, BIOS RMISV055 02/02/2013
+[   10.920690]  0000000000000280 ffff88085f807678 ffffffff814ca491 ffff88085f807
+6b8
+[   10.920693]  ffffffff8104ce97 0000000000000000 ffff88085f807838 ffff88085f420
+5d4
+[   10.920695]  0000000000000000 0000000000000000 ffff88085f4205d4 ffff88085f807
+6c8
+[   10.920695] Call Trace:
+[   10.920701]  <NMI>  [<ffffffff814ca491>] dump_stack+0x6a/0x79
+[   10.920705]  [<ffffffff8104ce97>] warn_slowpath_common+0x87/0xb0
+[   10.920707]  [<ffffffff8104ced5>] warn_slowpath_null+0x15/0x20
+[   10.920710]  [<ffffffff810452c1>] kmemcheck_fault+0xb1/0xc0
+[   10.920714]  [<ffffffff814d262b>] __do_page_fault+0x39b/0x4c0
+[   10.920718]  [<ffffffff81272cd2>] ? put_dec+0x72/0x90
+[   10.920720]  [<ffffffff812730ba>] ? number+0x33a/0x360
+[   10.920723]  [<ffffffff814d2829>] do_page_fault+0x9/0x10
+[   10.920726]  [<ffffffff814cf222>] page_fault+0x22/0x30
+[   10.920731]  [<ffffffff81348b4c>] ? vt_console_print+0x8c/0x400
+[   10.920733]  [<ffffffff81348b2c>] ? vt_console_print+0x6c/0x400
+[   10.920737]  [<ffffffff8109cd9b>] ? msg_print_text+0x18b/0x1f0
+[   10.920739]  [<ffffffff8109bed1>] call_console_drivers+0xc1/0xe0
+[   10.920741]  [<ffffffff8109d746>] console_unlock+0x236/0x280
+[   10.920744]  [<ffffffff8109e095>] vprintk_emit+0x2b5/0x450
+[   10.920746]  [<ffffffff810452c1>] ? kmemcheck_fault+0xb1/0xc0
+[   10.920748]  [<ffffffff814ca3f7>] printk+0x4a/0x4c
+[   10.920750]  [<ffffffff810452c1>] ? kmemcheck_fault+0xb1/0xc0
+[   10.920753]  [<ffffffff8104ce4e>] warn_slowpath_common+0x3e/0xb0
+[   10.920755]  [<ffffffff8104ced5>] warn_slowpath_null+0x15/0x20
+[   10.920757]  [<ffffffff810452c1>] kmemcheck_fault+0xb1/0xc0
+[   10.920760]  [<ffffffff814d262b>] __do_page_fault+0x39b/0x4c0
+[   10.920763]  [<ffffffff814d2829>] do_page_fault+0x9/0x10
+[   10.920765]  [<ffffffff814cf222>] page_fault+0x22/0x30
+[   10.920769]  [<ffffffff81015b52>] ? x86_perf_event_update+0x2/0x70
+[   10.920772]  [<ffffffff8101de21>] ? intel_pmu_save_and_restart+0x11/0x50
+[   10.920774]  [<ffffffff8101eb02>] intel_pmu_handle_irq+0x142/0x3a0
+[   10.920777]  [<ffffffff814d0655>] perf_event_nmi_handler+0x35/0x60
+[   10.920779]  [<ffffffff814cfe83>] nmi_handle+0x63/0x150
+[   10.920782]  [<ffffffff814cffd3>] default_do_nmi+0x63/0x290
+[   10.920784]  [<ffffffff814d02a8>] do_nmi+0xa8/0xe0
+[   10.920786]  [<ffffffff814cf527>] end_repeat_nmi+0x1e/0x2e
+[   10.920789]  [<ffffffff814cf0f0>] ? retint_signal+0x78/0x78
+[   10.920791]  [<ffffffff814cf0f0>] ? retint_signal+0x78/0x78
+[   10.920793]  [<ffffffff814cf0f0>] ? retint_signal+0x78/0x78
+[   10.920799]  <<EOE>>  <#DB>  [<ffffffff81306b53>] ? acpi_ns_walk_namespace+0x
+98/0x251
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
