@@ -1,96 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f42.google.com (mail-pb0-f42.google.com [209.85.160.42])
-	by kanga.kvack.org (Postfix) with ESMTP id D8B916B0039
-	for <linux-mm@kvack.org>; Wed, 19 Feb 2014 13:02:10 -0500 (EST)
-Received: by mail-pb0-f42.google.com with SMTP id jt11so718672pbb.29
-        for <linux-mm@kvack.org>; Wed, 19 Feb 2014 10:02:10 -0800 (PST)
-Received: from e28smtp07.in.ibm.com (e28smtp07.in.ibm.com. [122.248.162.7])
-        by mx.google.com with ESMTPS id tt8si429971pbc.160.2014.02.19.10.02.08
+Received: from mail-qa0-f46.google.com (mail-qa0-f46.google.com [209.85.216.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 6513E6B0039
+	for <linux-mm@kvack.org>; Wed, 19 Feb 2014 13:05:26 -0500 (EST)
+Received: by mail-qa0-f46.google.com with SMTP id k15so1050911qaq.19
+        for <linux-mm@kvack.org>; Wed, 19 Feb 2014 10:05:26 -0800 (PST)
+Received: from e7.ny.us.ibm.com (e7.ny.us.ibm.com. [32.97.182.137])
+        by mx.google.com with ESMTPS id ew5si532918qab.87.2014.02.19.10.05.24
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 19 Feb 2014 10:02:09 -0800 (PST)
+        Wed, 19 Feb 2014 10:05:25 -0800 (PST)
 Received: from /spool/local
-	by e28smtp07.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
-	Wed, 19 Feb 2014 23:32:05 +0530
-Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
-	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 2DAE9E0063
-	for <linux-mm@kvack.org>; Wed, 19 Feb 2014 23:35:30 +0530 (IST)
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s1JI1r1Q52232254
-	for <linux-mm@kvack.org>; Wed, 19 Feb 2014 23:31:53 +0530
-Received: from d28av04.in.ibm.com (localhost [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s1JI20Df030311
-	for <linux-mm@kvack.org>; Wed, 19 Feb 2014 23:32:00 +0530
-Date: Wed, 19 Feb 2014 23:32:00 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: Panic on ppc64 with numa_balancing and !sparsemem_vmemmap
-Message-ID: <20140219180200.GA29257@linux.vnet.ibm.com>
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+	by e7.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <nacc@linux.vnet.ibm.com>;
+	Wed, 19 Feb 2014 13:05:23 -0500
+Received: from b01cxnp22035.gho.pok.ibm.com (b01cxnp22035.gho.pok.ibm.com [9.57.198.25])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 3A14538C803B
+	for <linux-mm@kvack.org>; Wed, 19 Feb 2014 13:05:22 -0500 (EST)
+Received: from d01av01.pok.ibm.com (d01av01.pok.ibm.com [9.56.224.215])
+	by b01cxnp22035.gho.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s1JI4uXx6488550
+	for <linux-mm@kvack.org>; Wed, 19 Feb 2014 18:05:22 GMT
+Received: from d01av01.pok.ibm.com (localhost [127.0.0.1])
+	by d01av01.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s1JGTrPI024056
+	for <linux-mm@kvack.org>; Wed, 19 Feb 2014 11:29:53 -0500
+Date: Wed, 19 Feb 2014 08:24:38 -0800
+From: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
+Subject: Re: ppc: RECLAIM_DISTANCE 10?
+Message-ID: <20140219162438.GB27108@linux.vnet.ibm.com>
+References: <20140218090658.GA28130@dhcp22.suse.cz>
+ <20140218233404.GB10844@linux.vnet.ibm.com>
+ <20140218235800.GC10844@linux.vnet.ibm.com>
+ <alpine.DEB.2.02.1402181737530.17521@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.02.1402181737530.17521@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, riel@redhat.com, mgorman@suse.de
-Cc: benh@kernel.crashing.org, paulus@samba.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, Peter Zijlstra <peterz@infradead.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, Anton Blanchard <anton@samba.org>, LKML <linux-kernel@vger.kernel.org>
 
+On 18.02.2014 [17:43:38 -0800], David Rientjes wrote:
+> On Tue, 18 Feb 2014, Nishanth Aravamudan wrote:
+> 
+> > How about the following?
+> > 
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > index 5de4337..1a0eced 100644
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -1854,7 +1854,8 @@ static void __paginginit init_zone_allows_reclaim(int nid)
+> >         int i;
+> >  
+> >         for_each_online_node(i)
+> > -               if (node_distance(nid, i) <= RECLAIM_DISTANCE)
+> > +               if (node_distance(nid, i) <= RECLAIM_DISTANCE ||
+> > +                                       !NODE_DATA(i)->node_present_pages)
+> >                         node_set(i, NODE_DATA(nid)->reclaim_nodes);
+> >                 else
+> >                         zone_reclaim_mode = 1;
+> 
+>  [ I changed the above from NODE_DATA(nid) -> NODE_DATA(i) as you caught 
+>    so we're looking at the right code. ]
+> 
+> That can't be right, it would allow reclaiming from a memoryless node.  I 
+> think what you want is
 
-On a powerpc machine with CONFIG_NUMA_BALANCING=y and CONFIG_SPARSEMEM_VMEMMAP
-not enabled,  kernel panics.
+Gah, you're right.
 
-This is true of kernel versions 3.13 to the latest commit 960dfc4 which is
-3.14-rc3+.  i.e the recent 3 fixups from Aneesh doesnt seem to help this case.
+> 	for_each_online_node(i) {
+> 		if (!node_present_pages(i))
+> 			continue;
+> 		if (node_distance(nid, i) <= RECLAIM_DISTANCE) {
+> 			node_set(i, NODE_DATA(nid)->reclaim_nodes);
+> 			continue;
+> 		}
+> 		/* Always try to reclaim locally */
+> 		zone_reclaim_mode = 1;
+> 	}
+> 
+> but we really should be able to do for_each_node_state(i, N_MEMORY) here 
+> and memoryless nodes should already be excluded from that mask.
 
-Sometimes it fails on boot up itself. Otherwise a kernel compile is good enough
-to trigger the same. I am seeing this on a Power 7 box.
+Yep, I found that afterwards, which simplifies the logic. I'll add this
+to my series :)
 
-Kernel 3.14.0-rc3-mainline_v313-00168-g960dfc4 on an ppc64
+<snip>
 
-transam2s-lp1 login: qla2xxx [0003:01:00.1]-8038:2: Cable is unplugged...
-Unable to handle kernel paging request for data at address 0x00000457
-Faulting instruction address: 0xc0000000000d6004
-cpu 0x38: Vector: 300 (Data Access) at [c00000171561f700]
-    pc: c0000000000d6004: .task_numa_fault+0x604/0xa30
-    lr: c0000000000d62fc: .task_numa_fault+0x8fc/0xa30
-    sp: c00000171561f980
-   msr: 8000000000009032
-   dar: 457
- dsisr: 40000000
-  current = 0xc0000017155d9b00
-  paca    = 0xc00000000ec1e000   softe: 0        irq_happened: 0x00
-    pid   = 16898, comm = gzip
-enter ? for help
-[c00000171561fa70] c0000000001b0fb0 .do_numa_page+0x1b0/0x2a0
-[c00000171561fb20] c0000000001b2788 .handle_mm_fault+0x538/0xca0
-[c00000171561fc00] c00000000082f498 .do_page_fault+0x378/0x880
-[c00000171561fe30] c000000000009568 handle_page_fault+0x10/0x30
---- Exception: 301 (Data Access) at 00000000100031d8
-SP (3fffd45ea2d0) is in userspace
-38:mon>
+> > I think it's safe to move init_zone_allows_reclaim, because I don't
+> > think any allocates are occurring here that could cause us to reclaim
+> > anyways, right? Moving it allows us to safely reference
+> > node_present_pages.
+> > 
+> 
+> Yeah, this is fine.
 
-
-(gdb) list *(task_numa_fault+0x604)
-0xc0000000000d6004 is in task_numa_fault (/home/srikar/work/linux.git/include/linux/mm.h:753).
-748             return cpupid_to_cpu(cpupid) == (-1 & LAST__CPU_MASK);
-749     }
-750
-751     static inline bool __cpupid_match_pid(pid_t task_pid, int cpupid)
-752     {
-753             return (task_pid & LAST__PID_MASK) == cpupid_to_pid(cpupid);
-754     }
-755
-756     #define cpupid_match_pid(task, cpupid) __cpupid_match_pid(task->pid, cpupid)
-757     #ifdef LAST_CPUPID_NOT_IN_PAGE_FLAGS
-(gdb) 
-
-
-However this doesnt seem to happen if we have CONFIG_SPARSEMEM_VMEMMAP=y set in the config.
-
-
--- 
-Thanks nnn Regards
-Srikar Dronamraju
+Thanks,
+Nish
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
