@@ -1,53 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id ABDD16B0031
-	for <linux-mm@kvack.org>; Wed, 19 Feb 2014 16:28:00 -0500 (EST)
-Received: by mail-pd0-f181.google.com with SMTP id y10so893966pdj.12
-        for <linux-mm@kvack.org>; Wed, 19 Feb 2014 13:28:00 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id gp2si883367pac.99.2014.02.19.13.27.59
-        for <linux-mm@kvack.org>;
-        Wed, 19 Feb 2014 13:27:59 -0800 (PST)
-Date: Wed, 19 Feb 2014 13:27:57 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
+Received: from mail-qc0-f171.google.com (mail-qc0-f171.google.com [209.85.216.171])
+	by kanga.kvack.org (Postfix) with ESMTP id E1EA36B0031
+	for <linux-mm@kvack.org>; Wed, 19 Feb 2014 16:39:56 -0500 (EST)
+Received: by mail-qc0-f171.google.com with SMTP id x3so1737859qcv.16
+        for <linux-mm@kvack.org>; Wed, 19 Feb 2014 13:39:56 -0800 (PST)
+Received: from shelob.surriel.com (shelob.surriel.com. [2002:4a5c:3b41:1:216:3eff:fe57:7f4])
+        by mx.google.com with ESMTPS id d67si1199389qgf.175.2014.02.19.13.39.54
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 19 Feb 2014 13:39:54 -0800 (PST)
+Message-ID: <530524A3.6090700@surriel.com>
+Date: Wed, 19 Feb 2014 16:39:47 -0500
+From: Rik van Riel <riel@surriel.com>
+MIME-Version: 1.0
 Subject: Re: [RFC] mm:prototype for the updated swapoff implementation
-Message-Id: <20140219132757.58b61f07bad914b3848275e9@linux-foundation.org>
-In-Reply-To: <20140219003522.GA8887@kelleynnn-virtual-machine>
-References: <20140219003522.GA8887@kelleynnn-virtual-machine>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+References: <20140219003522.GA8887@kelleynnn-virtual-machine> <20140219132757.58b61f07bad914b3848275e9@linux-foundation.org>
+In-Reply-To: <20140219132757.58b61f07bad914b3848275e9@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kelley Nielsen <kelleynnn@gmail.com>
-Cc: riel@surriel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, opw-kernel@googlegroups.com, jamieliu@google.com, sjenning@linux.vnet.ibm.com, Hugh Dickins <hughd@google.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Kelley Nielsen <kelleynnn@gmail.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, opw-kernel@googlegroups.com, jamieliu@google.com, sjenning@linux.vnet.ibm.com, Hugh Dickins <hughd@google.com>
 
-On Tue, 18 Feb 2014 16:35:22 -0800 Kelley Nielsen <kelleynnn@gmail.com> wrote:
-
-> The function try_to_unuse() is of quadratic complexity, with a lot of
-> wasted effort. It unuses swap entries one by one, potentially iterating
-> over all the page tables for all the processes in the system for each
-> one.
+On 02/19/2014 04:27 PM, Andrew Morton wrote:
+> On Tue, 18 Feb 2014 16:35:22 -0800 Kelley Nielsen <kelleynnn@gmail.com> wrote:
 > 
-> This new proposed implementation of try_to_unuse simplifies its
-> complexity to linear. It iterates over the system's mms once, unusing
-> all the affected entries as it walks each set of page tables. It also
-> makes similar changes to shmem_unuse.
+>> The function try_to_unuse() is of quadratic complexity, with a lot of
+>> wasted effort. It unuses swap entries one by one, potentially iterating
+>> over all the page tables for all the processes in the system for each
+>> one.
+>>
+>> This new proposed implementation of try_to_unuse simplifies its
+>> complexity to linear. It iterates over the system's mms once, unusing
+>> all the affected entries as it walks each set of page tables. It also
+>> makes similar changes to shmem_unuse.
+>>
+>> Improvement
+>>
+>> swapoff was called on a swap partition containing about 50M of data,
+>> and calls to the function unuse_pte_range were counted.
+>>
+>> Present implementation....about 22.5M calls.
+>> Prototype.................about  7.0K   calls.
 > 
-> Improvement
-> 
-> swapoff was called on a swap partition containing about 50M of data,
-> and calls to the function unuse_pte_range were counted.
-> 
-> Present implementation....about 22.5M calls.
-> Prototype.................about  7.0K   calls.
+> Do you have situations in which swapoff is taking an unacceptable
+> amount of time?  If so, please update the changelog to provide full
+> details on this, with before-and-after timing measurements.
 
-Do you have situations in which swapoff is taking an unacceptable
-amount of time?  If so, please update the changelog to provide full
-details on this, with before-and-after timing measurements.
+I have seen plenty of that.  With just a few GB in swap space in
+use, on a system with 24GB of RAM, and about a dozen GB in use
+by various processes, I have seen swapoff take several hours of
+CPU time.
 
-Also, please cc Hugh on swap things.
-
+-- 
+All rights reversed.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
