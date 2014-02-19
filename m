@@ -1,36 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f177.google.com (mail-qc0-f177.google.com [209.85.216.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 163836B0031
-	for <linux-mm@kvack.org>; Wed, 19 Feb 2014 11:11:38 -0500 (EST)
-Received: by mail-qc0-f177.google.com with SMTP id i8so817271qcq.36
-        for <linux-mm@kvack.org>; Wed, 19 Feb 2014 08:11:37 -0800 (PST)
-Received: from qmta04.emeryville.ca.mail.comcast.net (qmta04.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:40])
-        by mx.google.com with ESMTP id r62si1285871yhc.123.2014.02.19.08.11.36
-        for <linux-mm@kvack.org>;
-        Wed, 19 Feb 2014 08:11:37 -0800 (PST)
-Date: Wed, 19 Feb 2014 10:11:33 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [RFC PATCH 2/3] topology: support node_numa_mem() for determining
- the fallback node
-In-Reply-To: <20140218222242.GA10844@linux.vnet.ibm.com>
-Message-ID: <alpine.DEB.2.10.1402191010250.11318@nuc>
-References: <alpine.DEB.2.10.1402071245040.20246@nuc> <20140210191321.GD1558@linux.vnet.ibm.com> <20140211074159.GB27870@lge.com> <20140213065137.GA10860@linux.vnet.ibm.com> <20140217070051.GE3468@lge.com> <alpine.DEB.2.10.1402181051560.1291@nuc>
- <20140218172832.GD31998@linux.vnet.ibm.com> <alpine.DEB.2.10.1402181356120.2910@nuc> <20140218210923.GA28170@linux.vnet.ibm.com> <alpine.DEB.2.10.1402181547210.3973@nuc> <20140218222242.GA10844@linux.vnet.ibm.com>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-qc0-f180.google.com (mail-qc0-f180.google.com [209.85.216.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 9CA196B0031
+	for <linux-mm@kvack.org>; Wed, 19 Feb 2014 11:57:28 -0500 (EST)
+Received: by mail-qc0-f180.google.com with SMTP id i17so959067qcy.39
+        for <linux-mm@kvack.org>; Wed, 19 Feb 2014 08:57:28 -0800 (PST)
+Received: from e38.co.us.ibm.com (e38.co.us.ibm.com. [32.97.110.159])
+        by mx.google.com with ESMTPS id z79si1565936yhz.46.2014.02.19.08.57.27
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 19 Feb 2014 08:57:27 -0800 (PST)
+Received: from /spool/local
+	by e38.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <nacc@linux.vnet.ibm.com>;
+	Wed, 19 Feb 2014 09:57:27 -0700
+Received: from b03cxnp08026.gho.boulder.ibm.com (b03cxnp08026.gho.boulder.ibm.com [9.17.130.18])
+	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id 586043E4003F
+	for <linux-mm@kvack.org>; Wed, 19 Feb 2014 09:57:23 -0700 (MST)
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by b03cxnp08026.gho.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s1JGuxxY55640068
+	for <linux-mm@kvack.org>; Wed, 19 Feb 2014 17:56:59 +0100
+Received: from d03av02.boulder.ibm.com (localhost [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s1JGcxO1001461
+	for <linux-mm@kvack.org>; Wed, 19 Feb 2014 09:39:00 -0700
+Date: Wed, 19 Feb 2014 08:33:45 -0800
+From: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
+Subject: Re: ppc: RECLAIM_DISTANCE 10?
+Message-ID: <20140219163345.GD27108@linux.vnet.ibm.com>
+References: <20140218090658.GA28130@dhcp22.suse.cz>
+ <20140218233404.GB10844@linux.vnet.ibm.com>
+ <20140218235800.GC10844@linux.vnet.ibm.com>
+ <alpine.DEB.2.02.1402181737530.17521@chino.kir.corp.google.com>
+ <20140219162438.GB27108@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140219162438.GB27108@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Han Pingtian <hanpt@linux.vnet.ibm.com>, Pekka Enberg <penberg@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Paul Mackerras <paulus@samba.org>, Anton Blanchard <anton@samba.org>, Matt Mackall <mpm@selenic.com>, linuxppc-dev@lists.ozlabs.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, Anton Blanchard <anton@samba.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, 18 Feb 2014, Nishanth Aravamudan wrote:
+On 19.02.2014 [08:24:38 -0800], Nishanth Aravamudan wrote:
+> On 18.02.2014 [17:43:38 -0800], David Rientjes wrote:
+> > On Tue, 18 Feb 2014, Nishanth Aravamudan wrote:
+> > 
+> > > How about the following?
+> > > 
+> > > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > > index 5de4337..1a0eced 100644
+> > > --- a/mm/page_alloc.c
+> > > +++ b/mm/page_alloc.c
+> > > @@ -1854,7 +1854,8 @@ static void __paginginit init_zone_allows_reclaim(int nid)
+> > >         int i;
+> > >  
+> > >         for_each_online_node(i)
+> > > -               if (node_distance(nid, i) <= RECLAIM_DISTANCE)
+> > > +               if (node_distance(nid, i) <= RECLAIM_DISTANCE ||
+> > > +                                       !NODE_DATA(i)->node_present_pages)
+> > >                         node_set(i, NODE_DATA(nid)->reclaim_nodes);
+> > >                 else
+> > >                         zone_reclaim_mode = 1;
+> > 
+> >  [ I changed the above from NODE_DATA(nid) -> NODE_DATA(i) as you caught 
+> >    so we're looking at the right code. ]
+> > 
+> > That can't be right, it would allow reclaiming from a memoryless node.  I 
+> > think what you want is
+> 
+> Gah, you're right.
+> 
+> > 	for_each_online_node(i) {
+> > 		if (!node_present_pages(i))
+> > 			continue;
+> > 		if (node_distance(nid, i) <= RECLAIM_DISTANCE) {
+> > 			node_set(i, NODE_DATA(nid)->reclaim_nodes);
+> > 			continue;
+> > 		}
+> > 		/* Always try to reclaim locally */
+> > 		zone_reclaim_mode = 1;
+> > 	}
+> > 
+> > but we really should be able to do for_each_node_state(i, N_MEMORY) here 
+> > and memoryless nodes should already be excluded from that mask.
+> 
+> Yep, I found that afterwards, which simplifies the logic. I'll add this
+> to my series :)
 
-> the performance impact of the underlying NUMA configuration. I guess we
-> could special-case memoryless/cpuless configurations somewhat, but I
-> don't think there's any reason to do that if we can make memoryless-node
-> support work in-kernel?
+In looking at the code, I am wondering about the following:
 
-Well we can make it work in-kernel but it always has been a bit wacky (as
-is the idea of numa "memory" nodes without memory).
+init_zone_allows_reclaim() is called for each nid from
+free_area_init_node(). Which means that calculate_node_totalpages for
+other "later" nids and check_for_memory() [which sets up the N_MEMORY
+nodemask] hasn't been called yet.
+
+So, would it make sense to pull up the
+                /* Any memory on that node */
+                if (pgdat->node_present_pages)
+                        node_set_state(nid, N_MEMORY);
+                check_for_memory(pgdat, nid);
+into free_area_init_node()?
+
+Thanks,
+Nish
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
