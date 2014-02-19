@@ -1,140 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f175.google.com (mail-qc0-f175.google.com [209.85.216.175])
-	by kanga.kvack.org (Postfix) with ESMTP id C02676B0035
-	for <linux-mm@kvack.org>; Tue, 18 Feb 2014 18:58:07 -0500 (EST)
-Received: by mail-qc0-f175.google.com with SMTP id x13so26344271qcv.20
-        for <linux-mm@kvack.org>; Tue, 18 Feb 2014 15:58:07 -0800 (PST)
-Received: from e9.ny.us.ibm.com (e9.ny.us.ibm.com. [32.97.182.139])
-        by mx.google.com with ESMTPS id l40si11356236qga.157.2014.02.18.15.58.07
+Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 1BC346B0031
+	for <linux-mm@kvack.org>; Tue, 18 Feb 2014 19:04:03 -0500 (EST)
+Received: by mail-wi0-f176.google.com with SMTP id hi5so4092009wib.9
+        for <linux-mm@kvack.org>; Tue, 18 Feb 2014 16:04:02 -0800 (PST)
+Received: from pandora.arm.linux.org.uk (pandora.arm.linux.org.uk. [2001:4d48:ad52:3201:214:fdff:fe10:1be6])
+        by mx.google.com with ESMTPS id a9si13744525wiy.42.2014.02.18.16.03.58
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 18 Feb 2014 15:58:07 -0800 (PST)
-Received: from /spool/local
-	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <nacc@linux.vnet.ibm.com>;
-	Tue, 18 Feb 2014 18:58:06 -0500
-Received: from b01cxnp22036.gho.pok.ibm.com (b01cxnp22036.gho.pok.ibm.com [9.57.198.26])
-	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 86F326E8040
-	for <linux-mm@kvack.org>; Tue, 18 Feb 2014 18:58:00 -0500 (EST)
-Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
-	by b01cxnp22036.gho.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s1INw5IH6619422
-	for <linux-mm@kvack.org>; Tue, 18 Feb 2014 23:58:05 GMT
-Received: from d01av03.pok.ibm.com (localhost [127.0.0.1])
-	by d01av03.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s1INw4l0002523
-	for <linux-mm@kvack.org>; Tue, 18 Feb 2014 18:58:04 -0500
-Date: Tue, 18 Feb 2014 15:58:00 -0800
-From: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
-Subject: Re: ppc: RECLAIM_DISTANCE 10?
-Message-ID: <20140218235800.GC10844@linux.vnet.ibm.com>
-References: <20140218090658.GA28130@dhcp22.suse.cz>
- <20140218233404.GB10844@linux.vnet.ibm.com>
+        Tue, 18 Feb 2014 16:03:59 -0800 (PST)
+Date: Wed, 19 Feb 2014 00:03:52 +0000
+From: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Subject: Re: [GIT PULL] ARM fixes
+Message-ID: <20140219000352.GP21483@n2100.arm.linux.org.uk>
+References: <20140217234644.GA5171@rmk-PC.arm.linux.org.uk> <CA+55aFy7ApiQRudxPAd3v5k_apppxRnePHb1HZPH13erqhmX=g@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140218233404.GB10844@linux.vnet.ibm.com>
+In-Reply-To: <CA+55aFy7ApiQRudxPAd3v5k_apppxRnePHb1HZPH13erqhmX=g@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, Anton Blanchard <anton@samba.org>, LKML <linux-kernel@vger.kernel.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, James Bottomley <James.Bottomley@parallels.com>, Linux SCSI List <linux-scsi@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, ARM SoC <arm@kernel.org>
 
-On 18.02.2014 [15:34:05 -0800], Nishanth Aravamudan wrote:
-> Hi Michal,
+On Tue, Feb 18, 2014 at 03:49:03PM -0800, Linus Torvalds wrote:
+> On Mon, Feb 17, 2014 at 3:46 PM, Russell King <rmk@arm.linux.org.uk> wrote:
+> >
+> > One fix touches code outside of arch/arm, which is related to sorting
+> > out the DMA masks correctly.  There is a long standing issue with the
+> > conversion from PFNs to addresses where people assume that shifting an
+> > unsigned long left by PAGE_SHIFT results in a correct address.
 > 
-> On 18.02.2014 [10:06:58 +0100], Michal Hocko wrote:
-> > Hi,
-> > I have just noticed that ppc has RECLAIM_DISTANCE reduced to 10 set by
-> > 56608209d34b (powerpc/numa: Set a smaller value for RECLAIM_DISTANCE to
-> > enable zone reclaim). The commit message suggests that the zone reclaim
-> > is desirable for all NUMA configurations.
-> > 
-> > History has shown that the zone reclaim is more often harmful than
-> > helpful and leads to performance problems. The default RECLAIM_DISTANCE
-> > for generic case has been increased from 20 to 30 around 3.0
-> > (32e45ff43eaf mm: increase RECLAIM_DISTANCE to 30).
-> 
-> Interesting.
-> 
-> > I strongly suspect that the patch is incorrect and it should be
-> > reverted. Before I will send a revert I would like to understand what
-> > led to the patch in the first place. I do not see why would PPC use only
-> > LOCAL_DISTANCE and REMOTE_DISTANCE distances and in fact machines I have
-> > seen use different values.
-> > 
-> > Anton, could you comment please?
-> 
-> I'll let Anton comment here, but in looking into this issue in working
-> on CONFIG_HAVE_MEMORYLESS_NODE support, I realized that any LPAR with
-> memoryless nodes will set zone_reclaim_mode to 1. I think we want to
-> ignore memoryless nodes when we set up the reclaim mode like the
-> following? I'll send it as a proper patch if you agree?
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 5de4337..4f6ff6f 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1853,8 +1853,9 @@ static void __paginginit init_zone_allows_reclaim(int nid)
->  {
->         int i;
-> 
-> -       for_each_online_node(i)
-> -               if (node_distance(nid, i) <= RECLAIM_DISTANCE)
-> +       for_each_online_node(i) {
-> +               if (node_distance(nid, i) <= RECLAIM_DISTANCE ||
-> +                                       local_memory_node(nid) != nid)
->                         node_set(i, NODE_DATA(nid)->reclaim_nodes);
->                 else
->                         zone_reclaim_mode = 1;
-> 
-> Note, this won't actually do anything if CONFIG_HAVE_MEMORYLESS_NODES is
-> not set, but if it is, I think semantically it will indicate that
-> memoryless nodes *have* to reclaim remotely.
-> 
-> And actually the above won't work, because the callpath is
-> 
-> start_kernel -> setup_arch -> paging_init [-> free_area_init_nodes ->
-> free_area_init_node -> init_zone_allows_reclaim] which is called before
-> build_all_zonelists. This is a similar ordering problem as I'm having
-> with the MEMORYLESS_NODE support, will work on it.
+> You should probably have used PFN_PHYS(), which does this correctly.
+> Your explicit u64 isn't exactly wrong, but phys_addr_t is really the
+> right type for the result.
 
-How about the following?
+Almost, but not quite.  If we're going to avoid u64, then dma_addr_t
+woudl be the right type here because we're talking about DMA addresses.
+We could also switch to keeping this as PFNs - block internally converts
+it to a PFN anyway:
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 5de4337..1a0eced 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1854,7 +1854,8 @@ static void __paginginit init_zone_allows_reclaim(int nid)
-        int i;
- 
-        for_each_online_node(i)
--               if (node_distance(nid, i) <= RECLAIM_DISTANCE)
-+               if (node_distance(nid, i) <= RECLAIM_DISTANCE ||
-+                                       !NODE_DATA(nid)->node_present_pages)
-                        node_set(i, NODE_DATA(nid)->reclaim_nodes);
-                else
-                        zone_reclaim_mode = 1;
-@@ -4901,13 +4902,13 @@ void __paginginit free_area_init_node(int nid, unsigned long *zones_size,
- 
-        pgdat->node_id = nid;
-        pgdat->node_start_pfn = node_start_pfn;
--       init_zone_allows_reclaim(nid);
- #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
-        get_pfn_range_for_nid(nid, &start_pfn, &end_pfn);
- #endif
-        calculate_node_totalpages(pgdat, start_pfn, end_pfn,
-                                  zones_size, zholes_size);
- 
-+       init_zone_allows_reclaim(nid);
-        alloc_node_mem_map(pgdat);
- #ifdef CONFIG_FLAT_NODE_MEM_MAP
-        printk(KERN_DEBUG "free_area_init_node: node %d, pgdat %08lx, node_mem_map %08lx\n",
+void blk_queue_bounce_limit(struct request_queue *q, u64 max_addr)
+{
+        unsigned long b_pfn = max_addr >> PAGE_SHIFT;
+...
 
-I think it's safe to move init_zone_allows_reclaim, because I don't
-think any allocates are occurring here that could cause us to reclaim
-anyways, right? Moving it allows us to safely reference
-node_present_pages.
+and that is ultimately assigned to q->limits.bounce_pfn.  So, if we
+arranged for blk_queue_bounce_limit() to take a PFN, and then modified
+it's two callers, then we don't need to care about converting between
+phys and pfns.
 
-Thanks,
-Nish
+Maybe blk_queue_bounce_pfn_limit() so we ensure all users get caught?
+
+> That said, it's admittedly a disgusting name, and I wonder if we
+> should introduce a nicer-named "pfn_to_phys()" that matches the other
+> "xyz_to_abc()" functions we have (including "pfn_to_virt()")
+
+We have these on ARM:
+
+arch/arm/include/asm/memory.h:#define	__pfn_to_phys(pfn)	((phys_addr_t)(pfn) << PAGE_SHIFT)
+arch/arm/include/asm/memory.h:#define	__phys_to_pfn(paddr)	((unsigned long)((paddr) >> PAGE_SHIFT))
+
+it probably makes sense to pick those right out, maybe losing the
+__ prefix on them.
+
+> Looking at it, the Xen people then do this disgusting thing:
+> "__va(PFN_PHYS(pfn))" which is both ugly and pointless (__va() isn't
+> going to work for a phys_addr_t anyway). And <linux/mm.h> has this
+> gem:
+> 
+>   __va(PFN_PHYS(page_to_pfn(page)));
+
+Wow.  Two things spring to mind there... highmem pages, and don't we
+already have page_address() for that?
+
+> Anyway, I pulled your change to scsi_lib.c, since it's certainly no
+> worse than what we used to have, but James and company cc'd too.
+
+Thanks.  I do worry about all the other places which I also found -
+but the first step is getting concensus on what the macro should be.
+
+-- 
+FTTC broadband for 0.8mile line: 5.8Mbps down 500kbps up.  Estimation
+in database were 13.1 to 19Mbit for a good line, about 7.5+ for a bad.
+Estimate before purchase was "up to 13.2Mbit".
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
