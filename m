@@ -1,91 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 700D46B0031
-	for <linux-mm@kvack.org>; Tue, 18 Feb 2014 20:43:41 -0500 (EST)
-Received: by mail-pa0-f42.google.com with SMTP id kl14so17536235pab.15
-        for <linux-mm@kvack.org>; Tue, 18 Feb 2014 17:43:41 -0800 (PST)
-Received: from mail-pb0-x235.google.com (mail-pb0-x235.google.com [2607:f8b0:400e:c01::235])
-        by mx.google.com with ESMTPS id eb3si20060483pbc.326.2014.02.18.17.43.40
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 72E6A6B0031
+	for <linux-mm@kvack.org>; Tue, 18 Feb 2014 21:22:28 -0500 (EST)
+Received: by mail-pa0-f49.google.com with SMTP id hz1so17564850pad.36
+        for <linux-mm@kvack.org>; Tue, 18 Feb 2014 18:22:28 -0800 (PST)
+Received: from mail-pa0-x22b.google.com (mail-pa0-x22b.google.com [2607:f8b0:400e:c03::22b])
+        by mx.google.com with ESMTPS id pp3si19209454pbb.349.2014.02.18.18.22.27
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 18 Feb 2014 17:43:40 -0800 (PST)
-Received: by mail-pb0-f53.google.com with SMTP id md12so17533259pbc.12
-        for <linux-mm@kvack.org>; Tue, 18 Feb 2014 17:43:40 -0800 (PST)
-Date: Tue, 18 Feb 2014 17:43:38 -0800 (PST)
+        Tue, 18 Feb 2014 18:22:27 -0800 (PST)
+Received: by mail-pa0-f43.google.com with SMTP id rd3so17562018pab.2
+        for <linux-mm@kvack.org>; Tue, 18 Feb 2014 18:22:25 -0800 (PST)
+Date: Tue, 18 Feb 2014 18:22:24 -0800 (PST)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: ppc: RECLAIM_DISTANCE 10?
-In-Reply-To: <20140218235800.GC10844@linux.vnet.ibm.com>
-Message-ID: <alpine.DEB.2.02.1402181737530.17521@chino.kir.corp.google.com>
-References: <20140218090658.GA28130@dhcp22.suse.cz> <20140218233404.GB10844@linux.vnet.ibm.com> <20140218235800.GC10844@linux.vnet.ibm.com>
+Subject: Re: [PATCH -mm 2/3] mm,numa: reorganize change_pmd_range
+In-Reply-To: <1392761566-24834-3-git-send-email-riel@redhat.com>
+Message-ID: <alpine.DEB.2.02.1402181822010.20791@chino.kir.corp.google.com>
+References: <1392761566-24834-1-git-send-email-riel@redhat.com> <1392761566-24834-3-git-send-email-riel@redhat.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
-Cc: Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, Anton Blanchard <anton@samba.org>, LKML <linux-kernel@vger.kernel.org>
+To: riel@redhat.com
+Cc: linux-kernel@vger.kernel.org, kvm@vger.kernel.org, linux-mm@kvack.org, peterz@infradead.org, chegu_vinod@hp.com, aarcange@redhat.com, akpm@linux-foundation.org
 
-On Tue, 18 Feb 2014, Nishanth Aravamudan wrote:
+On Tue, 18 Feb 2014, riel@redhat.com wrote:
 
-> How about the following?
+> From: Rik van Riel <riel@redhat.com>
 > 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 5de4337..1a0eced 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1854,7 +1854,8 @@ static void __paginginit init_zone_allows_reclaim(int nid)
->         int i;
->  
->         for_each_online_node(i)
-> -               if (node_distance(nid, i) <= RECLAIM_DISTANCE)
-> +               if (node_distance(nid, i) <= RECLAIM_DISTANCE ||
-> +                                       !NODE_DATA(i)->node_present_pages)
->                         node_set(i, NODE_DATA(nid)->reclaim_nodes);
->                 else
->                         zone_reclaim_mode = 1;
-
- [ I changed the above from NODE_DATA(nid) -> NODE_DATA(i) as you caught 
-   so we're looking at the right code. ]
-
-That can't be right, it would allow reclaiming from a memoryless node.  I 
-think what you want is
-
-	for_each_online_node(i) {
-		if (!node_present_pages(i))
-			continue;
-		if (node_distance(nid, i) <= RECLAIM_DISTANCE) {
-			node_set(i, NODE_DATA(nid)->reclaim_nodes);
-			continue;
-		}
-		/* Always try to reclaim locally */
-		zone_reclaim_mode = 1;
-	}
-
-but we really should be able to do for_each_node_state(i, N_MEMORY) here 
-and memoryless nodes should already be excluded from that mask.
-
-> @@ -4901,13 +4902,13 @@ void __paginginit free_area_init_node(int nid, unsigned long *zones_size,
->  
->         pgdat->node_id = nid;
->         pgdat->node_start_pfn = node_start_pfn;
-> -       init_zone_allows_reclaim(nid);
->  #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
->         get_pfn_range_for_nid(nid, &start_pfn, &end_pfn);
->  #endif
->         calculate_node_totalpages(pgdat, start_pfn, end_pfn,
->                                   zones_size, zholes_size);
->  
-> +       init_zone_allows_reclaim(nid);
->         alloc_node_mem_map(pgdat);
->  #ifdef CONFIG_FLAT_NODE_MEM_MAP
->         printk(KERN_DEBUG "free_area_init_node: node %d, pgdat %08lx, node_mem_map %08lx\n",
+> Reorganize the order of ifs in change_pmd_range a little, in
+> preparation for the next patch.
 > 
-> I think it's safe to move init_zone_allows_reclaim, because I don't
-> think any allocates are occurring here that could cause us to reclaim
-> anyways, right? Moving it allows us to safely reference
-> node_present_pages.
-> 
+> Signed-off-by: Rik van Riel <riel@redhat.com>
+> Cc: Peter Zijlstra <peterz@infradead.org>
+> Cc: Andrea Arcangeli <aarcange@redhat.com>
+> Reported-by: Xing Gang <gang.xing@hp.com>
+> Tested-by: Chegu Vinod <chegu_vinod@hp.com>
 
-Yeah, this is fine.
+Acked-by: David Rientjes <rientjes@google.com>
+
+> ---
+>  mm/mprotect.c | 7 ++++---
+>  1 file changed, 4 insertions(+), 3 deletions(-)
+> 
+> diff --git a/mm/mprotect.c b/mm/mprotect.c
+> index 769a67a..6006c05 100644
+> --- a/mm/mprotect.c
+> +++ b/mm/mprotect.c
+> @@ -118,6 +118,8 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
+>  		unsigned long this_pages;
+>  
+>  		next = pmd_addr_end(addr, end);
+> +		if (!pmd_trans_huge(*pmd) && pmd_none_or_clear_bad(pmd))
+> +				continue;
+>  		if (pmd_trans_huge(*pmd)) {
+>  			if (next - addr != HPAGE_PMD_SIZE)
+>  				split_huge_page_pmd(vma, addr, pmd);
+
+Extra tab there, though.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
