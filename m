@@ -1,40 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f52.google.com (mail-qa0-f52.google.com [209.85.216.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 8CC0A6B0037
-	for <linux-mm@kvack.org>; Wed, 19 Feb 2014 18:18:10 -0500 (EST)
-Received: by mail-qa0-f52.google.com with SMTP id j15so1772758qaq.39
-        for <linux-mm@kvack.org>; Wed, 19 Feb 2014 15:18:10 -0800 (PST)
-Received: from e8.ny.us.ibm.com (e8.ny.us.ibm.com. [32.97.182.138])
-        by mx.google.com with ESMTPS id g88si1462594qgf.76.2014.02.19.15.18.09
+Received: from mail-ob0-f178.google.com (mail-ob0-f178.google.com [209.85.214.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 109236B0035
+	for <linux-mm@kvack.org>; Wed, 19 Feb 2014 18:24:38 -0500 (EST)
+Received: by mail-ob0-f178.google.com with SMTP id wn1so1269798obc.23
+        for <linux-mm@kvack.org>; Wed, 19 Feb 2014 15:24:37 -0800 (PST)
+Received: from e32.co.us.ibm.com (e32.co.us.ibm.com. [32.97.110.150])
+        by mx.google.com with ESMTPS id m4si1727258oel.74.2014.02.19.15.24.36
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 19 Feb 2014 15:18:10 -0800 (PST)
+        Wed, 19 Feb 2014 15:24:37 -0800 (PST)
 Received: from /spool/local
-	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e32.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <nacc@linux.vnet.ibm.com>;
-	Wed, 19 Feb 2014 18:18:09 -0500
-Received: from b01cxnp22033.gho.pok.ibm.com (b01cxnp22033.gho.pok.ibm.com [9.57.198.23])
-	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id BD55338C803B
-	for <linux-mm@kvack.org>; Wed, 19 Feb 2014 18:18:06 -0500 (EST)
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by b01cxnp22033.gho.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s1JNI6sN8454588
-	for <linux-mm@kvack.org>; Wed, 19 Feb 2014 23:18:06 GMT
-Received: from d01av04.pok.ibm.com (localhost [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s1JNI6wi022901
-	for <linux-mm@kvack.org>; Wed, 19 Feb 2014 18:18:06 -0500
-Date: Wed, 19 Feb 2014 15:18:00 -0800
+	Wed, 19 Feb 2014 16:24:36 -0700
+Received: from b03cxnp08028.gho.boulder.ibm.com (b03cxnp08028.gho.boulder.ibm.com [9.17.130.20])
+	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id D8AC93E40045
+	for <linux-mm@kvack.org>; Wed, 19 Feb 2014 16:24:33 -0700 (MST)
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by b03cxnp08028.gho.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s1JNOXml10092898
+	for <linux-mm@kvack.org>; Thu, 20 Feb 2014 00:24:33 +0100
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s1JNMQiJ032630
+	for <linux-mm@kvack.org>; Wed, 19 Feb 2014 16:22:27 -0700
+Date: Wed, 19 Feb 2014 15:22:21 -0800
 From: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
-Subject: [PATCH 2/3] powerpc: enable CONFIG_HAVE_PERCPU_NUMA_NODE_ID
-Message-ID: <20140219231800.GC413@linux.vnet.ibm.com>
+Subject: [PATCH 2/3 v2] powerpc: enable CONFIG_HAVE_PERCPU_NUMA_NODE_ID
+Message-ID: <20140219232221.GD413@linux.vnet.ibm.com>
 References: <20140219231641.GA413@linux.vnet.ibm.com>
  <20140219231714.GB413@linux.vnet.ibm.com>
+ <20140219231800.GC413@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140219231714.GB413@linux.vnet.ibm.com>
+In-Reply-To: <20140219231800.GC413@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Ben Herrenschmidt <benh@kernel.crashing.org>, Anton Blanchard <anton@samba.org>, linuxppc-dev@lists.ozlabs.org
+
+[Apologies, I sent a stale version of this patch a moment ago...]
 
 In order to enable CONFIG_HAVE_MEMORYLESS_NODES, it is necessary to have
 somewhere to store the cpu <-> local-memory-node mapping. We could
@@ -42,9 +45,30 @@ create another powerpc-specific lookup table, but the generic functions
 in include/linux/topology.h (protected by HAVE_PERCPU_NUMA_NODE_ID) are
 sufficient. This also allows us to remove the existing powerpc-specific
 cpu <-> node lookup table.
-    
-Signed-off-by: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
 
+Signed-off-by: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
+Cc: Ben Herrenschmidt <benh@kernel.crashing.org>
+Cc: Christoph Lameter <cl@linux.com>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Anton Blanchard <anton@samba.org>
+Cc: linuxppc-dev@lists.ozlabs.org
+
+diff --git a/arch/powerpc/Kconfig b/arch/powerpc/Kconfig
+index 957bf34..a84816c 100644
+--- a/arch/powerpc/Kconfig
++++ b/arch/powerpc/Kconfig
+@@ -449,6 +449,10 @@ config NODES_SHIFT
+ 	default "4"
+ 	depends on NEED_MULTIPLE_NODES
+ 
++config USE_PERCPU_NUMA_NODE_ID
++	def_bool y
++	depends on NUMA
++
+ config ARCH_SELECT_MEMORY_MODEL
+ 	def_bool y
+ 	depends on PPC64
 diff --git a/arch/powerpc/include/asm/mmzone.h b/arch/powerpc/include/asm/mmzone.h
 index 7b58917..c8fbd1c 100644
 --- a/arch/powerpc/include/asm/mmzone.h
