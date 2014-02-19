@@ -1,72 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ve0-f182.google.com (mail-ve0-f182.google.com [209.85.128.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B1D46B0031
-	for <linux-mm@kvack.org>; Tue, 18 Feb 2014 19:23:52 -0500 (EST)
-Received: by mail-ve0-f182.google.com with SMTP id jy13so14094390veb.41
-        for <linux-mm@kvack.org>; Tue, 18 Feb 2014 16:23:52 -0800 (PST)
-Received: from mail-vc0-x22a.google.com (mail-vc0-x22a.google.com [2607:f8b0:400c:c03::22a])
-        by mx.google.com with ESMTPS id b20si1872960veu.68.2014.02.18.16.23.51
+Received: from mail-ve0-f174.google.com (mail-ve0-f174.google.com [209.85.128.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A0816B0031
+	for <linux-mm@kvack.org>; Tue, 18 Feb 2014 19:29:19 -0500 (EST)
+Received: by mail-ve0-f174.google.com with SMTP id pa12so14086466veb.19
+        for <linux-mm@kvack.org>; Tue, 18 Feb 2014 16:29:19 -0800 (PST)
+Received: from mail-ve0-x234.google.com (mail-ve0-x234.google.com [2607:f8b0:400c:c01::234])
+        by mx.google.com with ESMTPS id tt2si6059698vdc.139.2014.02.18.16.29.18
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 18 Feb 2014 16:23:51 -0800 (PST)
-Received: by mail-vc0-f170.google.com with SMTP id hu8so14214710vcb.1
-        for <linux-mm@kvack.org>; Tue, 18 Feb 2014 16:23:51 -0800 (PST)
+        Tue, 18 Feb 2014 16:29:18 -0800 (PST)
+Received: by mail-ve0-f180.google.com with SMTP id db12so13814310veb.25
+        for <linux-mm@kvack.org>; Tue, 18 Feb 2014 16:29:18 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20140219000352.GP21483@n2100.arm.linux.org.uk>
-References: <20140217234644.GA5171@rmk-PC.arm.linux.org.uk>
-	<CA+55aFy7ApiQRudxPAd3v5k_apppxRnePHb1HZPH13erqhmX=g@mail.gmail.com>
-	<20140219000352.GP21483@n2100.arm.linux.org.uk>
-Date: Tue, 18 Feb 2014 16:23:51 -0800
-Message-ID: <CA+55aFxZz9ubkj72KHy8PhpsjZb6D7LD+v6jHJTtsD4N6AWPzw@mail.gmail.com>
-Subject: Re: [GIT PULL] ARM fixes
+In-Reply-To: <20140218235714.GA16064@node.dhcp.inet.fi>
+References: <1392662333-25470-1-git-send-email-kirill.shutemov@linux.intel.com>
+	<CA+55aFwz+36NOk=uanDvii7zn46-s1kpMT1Lt=C0hhhn9v6w-Q@mail.gmail.com>
+	<20140218175900.8CF90E0090@blue.fi.intel.com>
+	<20140218180730.C2552E0090@blue.fi.intel.com>
+	<CA+55aFwEAYhhUijNUf1dRppzh=+5QfXTAdGQe8D_mJH77tPHug@mail.gmail.com>
+	<20140218235714.GA16064@node.dhcp.inet.fi>
+Date: Tue, 18 Feb 2014 16:29:18 -0800
+Message-ID: <CA+55aFxdaSgwmdu7-MJb-f5EoR+pZry2rtNW6zZYuhqr6hdkjw@mail.gmail.com>
+Subject: Re: [RFC, PATCHv2 0/2] mm: map few pages around fault address if they
+ are in page cache
 From: Linus Torvalds <torvalds@linux-foundation.org>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Russell King - ARM Linux <linux@arm.linux.org.uk>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, James Bottomley <James.Bottomley@parallels.com>, Linux SCSI List <linux-scsi@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, ARM SoC <arm@kernel.org>, xen-devel@lists.xenproject.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Dave Chinner <david@fromorbit.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Tue, Feb 18, 2014 at 4:03 PM, Russell King - ARM Linux
-<linux@arm.linux.org.uk> wrote:
+On Tue, Feb 18, 2014 at 3:57 PM, Kirill A. Shutemov
+<kirill@shutemov.name> wrote:
 >
-> Almost, but not quite.  If we're going to avoid u64, then dma_addr_t
-> woudl be the right type here because we're talking about DMA addresses.
+> Current max_pgoff is end of page table (or end of vma, if it ends before).
 
-Well, phys_addr_t had better be as big as dma_addr_t, because that's
-what the resource management handles.
+Yeah, but that should be trivial to do, and limit it to FAULT_AROUND_ORDER.
 
-> We could also switch to keeping this as PFNs - block internally converts
-> it to a PFN anyway:
+> Other approach is too limit ourself to FAULT_AROUND_PAGES from start_addr.
+> In this case sometimes we will do useless radix-tree lookup even if we had
+> chance to populated pages further in the page table.
 
-Yeah, that definitely sounds like it would be a good idea.
+So the reason I'd prefer to limit the whole thing to that is to not
+generate too many extra cache misses. It would be lovely if we stayed
+withing one or two cachelines of the page table entry that we have to
+modify anyway.
 
-> Maybe blk_queue_bounce_pfn_limit() so we ensure all users get caught?
+But it would be really interesting to see the numbers for different
+FAULT_AROUND_ORDER and perhaps different variations of this.
+
+>> Btw, is the "radix_tree_deref_retry(page) -> goto restart" really
+>> necessary? I'd be almost more inclined to just make it just do a
+>> "break;" to break out of the loop and stop doing anything clever at
+>> all.
 >
->> That said, it's admittedly a disgusting name, and I wonder if we
->> should introduce a nicer-named "pfn_to_phys()" that matches the other
->> "xyz_to_abc()" functions we have (including "pfn_to_virt()")
->
-> We have these on ARM:
->
-> arch/arm/include/asm/memory.h:#define   __pfn_to_phys(pfn)      ((phys_addr_t)(pfn) << PAGE_SHIFT)
-> arch/arm/include/asm/memory.h:#define   __phys_to_pfn(paddr)    ((unsigned long)((paddr) >> PAGE_SHIFT))
->
-> it probably makes sense to pick those right out, maybe losing the
-> __ prefix on them.
+> The code has not ready yet. I'll rework it. It just what I had by the end
+> of the day. I wanted to know if setup pte directly from ->fault_nonblock()
+> is okayish approach or considered layering violation.
 
-Yup.
+Ok. Maybe somebody else screams bloody murder, but considering that
+you got 1%+ performance improvements (if I read your numbers right), I
+think it looks quite promising, and not overly horrid.
 
->>   __va(PFN_PHYS(page_to_pfn(page)));
->
-> Wow.  Two things spring to mind there... highmem pages, and don't we
-> already have page_address() for that?
+Having some complexity and layering violation that is strictly all in
+mm/filemap.c I don't see as horrid.
 
-Well, that code clearly cannot handle highmem anyway, but yes, it
-really smells like xen should use page_address().
+I would probably *not* like random drivers start to use that new
+'fault_nonblock' thing, though.
 
-Adding Xen people who I didn't add the last time around.
-
-             Linus
+                 Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
