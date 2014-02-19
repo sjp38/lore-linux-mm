@@ -1,55 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f45.google.com (mail-qa0-f45.google.com [209.85.216.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 098D66B0031
-	for <linux-mm@kvack.org>; Wed, 19 Feb 2014 14:01:46 -0500 (EST)
-Received: by mail-qa0-f45.google.com with SMTP id m5so1195769qaj.4
-        for <linux-mm@kvack.org>; Wed, 19 Feb 2014 11:01:45 -0800 (PST)
-Received: from mail-qa0-x234.google.com (mail-qa0-x234.google.com [2607:f8b0:400d:c00::234])
-        by mx.google.com with ESMTPS id a3si705294qam.170.2014.02.19.11.01.43
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 19 Feb 2014 11:01:44 -0800 (PST)
-Received: by mail-qa0-f52.google.com with SMTP id j15so1188862qaq.39
-        for <linux-mm@kvack.org>; Wed, 19 Feb 2014 11:01:43 -0800 (PST)
-Date: Wed, 19 Feb 2014 14:01:39 -0500
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH] backing_dev: Fix hung task on sync
-Message-ID: <20140219190139.GQ10134@htj.dyndns.org>
-References: <1392437537-27392-1-git-send-email-dbasehore@chromium.org>
- <20140218225548.GI31892@mtj.dyndns.org>
- <20140219092731.GA4849@quack.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140219092731.GA4849@quack.suse.cz>
+Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 51C546B0031
+	for <linux-mm@kvack.org>; Wed, 19 Feb 2014 14:28:06 -0500 (EST)
+Received: by mail-pd0-f173.google.com with SMTP id y10so771241pdj.32
+        for <linux-mm@kvack.org>; Wed, 19 Feb 2014 11:28:05 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id iy3si587634pbb.214.2014.02.19.11.28.04
+        for <linux-mm@kvack.org>;
+        Wed, 19 Feb 2014 11:28:05 -0800 (PST)
+Date: Wed, 19 Feb 2014 11:28:03 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH -mm 0/3] fix numa vs kvm scalability issue
+Message-Id: <20140219112803.75c6daf470dad88eb10f5dab@linux-foundation.org>
+In-Reply-To: <20140219085917.GJ27965@twins.programming.kicks-ass.net>
+References: <1392761566-24834-1-git-send-email-riel@redhat.com>
+	<20140219085917.GJ27965@twins.programming.kicks-ass.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Derek Basehore <dbasehore@chromium.org>, Alexander Viro <viro@zento.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Darrick J. Wong" <darrick.wong@oracle.com>, Kees Cook <keescook@chromium.org>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, bleung@chromium.org, sonnyrao@chromium.org, semenzato@chromium.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: riel@redhat.com, linux-kernel@vger.kernel.org, kvm@vger.kernel.org, linux-mm@kvack.org, chegu_vinod@hp.com, aarcange@redhat.com
 
-Hello, Jan.
+On Wed, 19 Feb 2014 09:59:17 +0100 Peter Zijlstra <peterz@infradead.org> wrote:
 
-On Wed, Feb 19, 2014 at 10:27:31AM +0100, Jan Kara wrote:
->   You are the workqueue expert so you may know better ;) But the way I
-> understand it is that queue_delayed_work() does nothing if the timer is
-> already running. Since we queue flusher work to run either immediately or
-> after dirty_writeback_interval we are safe to run queue_delayed_work()
-> whenever we want it to run after dirty_writeback_interval and
-> mod_delayed_work() whenever we want to run it immediately.
+> On Tue, Feb 18, 2014 at 05:12:43PM -0500, riel@redhat.com wrote:
+> > The NUMA scanning code can end up iterating over many gigabytes
+> > of unpopulated memory, especially in the case of a freshly started
+> > KVM guest with lots of memory.
+> > 
+> > This results in the mmu notifier code being called even when
+> > there are no mapped pages in a virtual address range. The amount
+> > of time wasted can be enough to trigger soft lockup warnings
+> > with very large (>2TB) KVM guests.
+> > 
+> > This patch moves the mmu notifier call to the pmd level, which
+> > represents 1GB areas of memory on x86-64. Furthermore, the mmu
+> > notifier code is only called from the address in the PMD where
+> > present mappings are first encountered.
+> > 
+> > The hugetlbfs code is left alone for now; hugetlb mappings are
+> > not relocatable, and as such are left alone by the NUMA code,
+> > and should never trigger this problem to begin with.
+> > 
+> > The series also adds a cond_resched to task_numa_work, to
+> > fix another potential latency issue.
+> 
+> Andrew, I'll pick up the first kernel/sched/ patch; do you want the
+> other two mm/ patches?
 
-Ah, okay, so it's always mod on immediate and queue on delayed.  Yeah,
-that should work.
-
-> But it's subtle and some interface where we could say queue delayed work
-> after no later than X would be easier to grasp.
-
-Yeah, I think it'd be better if we had something like
-mod_delayed_work_if_later().  Hmm...
-
-Thanks.
-
--- 
-tejun
+That works, thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
