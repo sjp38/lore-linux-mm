@@ -1,377 +1,169 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ve0-f181.google.com (mail-ve0-f181.google.com [209.85.128.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 308C86B0035
-	for <linux-mm@kvack.org>; Wed, 19 Feb 2014 19:08:29 -0500 (EST)
-Received: by mail-ve0-f181.google.com with SMTP id jw12so1186701veb.12
-        for <linux-mm@kvack.org>; Wed, 19 Feb 2014 16:08:28 -0800 (PST)
-Received: from mail-vc0-f201.google.com (mail-vc0-f201.google.com [209.85.220.201])
-        by mx.google.com with ESMTPS id a5si807562vez.120.2014.02.19.16.08.27
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 19 Feb 2014 16:08:28 -0800 (PST)
-Received: by mail-vc0-f201.google.com with SMTP id hq11so161721vcb.2
-        for <linux-mm@kvack.org>; Wed, 19 Feb 2014 16:08:27 -0800 (PST)
-Subject: mmotm 2014-02-19-16-07 uploaded
-From: akpm@linux-foundation.org
-Date: Wed, 19 Feb 2014 16:08:26 -0800
-Message-Id: <20140220000827.17F275A42DC@corp2gmr1-2.hot.corp.google.com>
+Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id BDDC16B0037
+	for <linux-mm@kvack.org>; Wed, 19 Feb 2014 19:13:57 -0500 (EST)
+Received: by mail-pd0-f174.google.com with SMTP id z10so1057213pdj.33
+        for <linux-mm@kvack.org>; Wed, 19 Feb 2014 16:13:57 -0800 (PST)
+Received: from ipmail04.adl6.internode.on.net (ipmail04.adl6.internode.on.net. [2001:44b8:8060:ff02:300:1:6:4])
+        by mx.google.com with ESMTP id ey10si1385755pab.111.2014.02.19.16.13.54
+        for <linux-mm@kvack.org>;
+        Wed, 19 Feb 2014 16:13:55 -0800 (PST)
+Date: Thu, 20 Feb 2014 11:13:29 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: mmap_sem -> isec->lock lockdep issues with shmem (was Re: [PATCH
+ 2/3] xfs: fix directory inode iolock lockdep false positive)
+Message-ID: <20140220001329.GG4916@dastard>
+References: <1392783402-4726-1-git-send-email-david@fromorbit.com>
+ <1392783402-4726-3-git-send-email-david@fromorbit.com>
+ <5304F70C.8070601@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5304F70C.8070601@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org
+To: Brian Foster <bfoster@redhat.com>
+Cc: xfs@oss.sgi.com, linux-mm@kvack.org, linux-security-module@vger.kernel.org
 
-The mm-of-the-moment snapshot 2014-02-19-16-07 has been uploaded to
+[cc linux-mm because it shmem craziness that is causing the problem]
+[cc linux-security-module because it is security contexts that need
+ lockdep annotations.]
 
-   http://www.ozlabs.org/~akpm/mmotm/
+On Wed, Feb 19, 2014 at 01:25:16PM -0500, Brian Foster wrote:
+> On 02/18/2014 11:16 PM, Dave Chinner wrote:
+> > From: Dave Chinner <dchinner@redhat.com>
+> > 
+> > The change to add the IO lock to protect the directory extent map
+> > during readdir operations has cause lockdep to have a heart attack
+> > as it now sees a different locking order on inodes w.r.t. the
+> > mmap_sem because readdir has a different ordering to write().
+> > 
+> > Add a new lockdep class for directory inodes to avoid this false
+> > positive.
+> > 
+> > Signed-off-by: Dave Chinner <dchinner@redhat.com>
+> > ---
+> 
+> Hey Dave,
+> 
+> I'm not terribly familiar with lockdep, but I hit the attached "possible
+> circular locking dependency detected" warning when running with this patch.
+> 
+> (Reproduces by running generic/001 after a reboot).
 
-mmotm-readme.txt says
+Ok, you're testing on an selinux enabled system, I didn't.
 
-README for mm-of-the-moment:
+> Feb 19 12:22:03 localhost kernel: [  101.487018] 
+> Feb 19 12:22:03 localhost kernel: [  101.487018] -> #2 (&xfs_dir_ilock_class){++++..}:
+> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff810f3ec2>] lock_acquire+0xa2/0x1d0
+> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff810ed147>] down_read_nested+0x57/0xa0
+> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffffa05a0022>] xfs_ilock+0x122/0x250 [xfs]
+> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffffa05a01af>] xfs_ilock_attr_map_shared+0x1f/0x50 [xfs]
+> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffffa0565d50>] xfs_attr_get+0x90/0xe0 [xfs]
+> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffffa055b9d7>] xfs_xattr_get+0x37/0x50 [xfs]
+> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff812483ef>] generic_getxattr+0x4f/0x70
+> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff8133fd5e>] inode_doinit_with_dentry+0x1ae/0x650
+> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff813402d8>] sb_finish_set_opts+0xd8/0x270
+> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff81340702>] selinux_set_mnt_opts+0x292/0x5f0
+> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff81340ac8>] superblock_doinit+0x68/0xd0
+> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff81340b8d>] selinux_sb_kern_mount+0x3d/0xa0
+> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff81335536>] security_sb_kern_mount+0x16/0x20
+> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff8122333a>] mount_fs+0x8a/0x1b0
+> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff8124285b>] vfs_kern_mount+0x6b/0x150
+> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff8124561e>] do_mount+0x23e/0xb90
+> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff812462a3>] SyS_mount+0x83/0xc0
+> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff8178ed69>] system_call_fastpath+0x16/0x1b
 
-http://www.ozlabs.org/~akpm/mmotm/
+So, we take the ilock on the directory xattr read path during
+security attribute initialisation so we have a inode->i_isec->lock -> ilock
+path, which is normal.
 
-This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
-more than once a week.
+> Feb 19 12:22:03 localhost kernel: [  101.487018] -> #1 (&isec->lock){+.+.+.}:
+> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff810f3ec2>] lock_acquire+0xa2/0x1d0
+> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff81780d77>] mutex_lock_nested+0x77/0x3f0
+> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff8133fc42>] inode_doinit_with_dentry+0x92/0x650
+> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff81340dcc>] selinux_d_instantiate+0x1c/0x20
+> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff8133517b>] security_d_instantiate+0x1b/0x30
+> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff81237d70>] d_instantiate+0x50/0x70
+> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff811bcb70>] __shmem_file_setup+0xe0/0x1d0
+> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff811bf988>] shmem_zero_setup+0x28/0x70
+> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff811d8653>] mmap_region+0x543/0x5a0
+> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff811d89b1>] do_mmap_pgoff+0x301/0x3c0
+> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff811c18f0>] vm_mmap_pgoff+0x90/0xc0
+> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff811d6f26>] SyS_mmap_pgoff+0x116/0x270
+> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff8101f9b2>] SyS_mmap+0x22/0x30
+> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff8178ed69>] system_call_fastpath+0x16/0x1b
 
-You will need quilt to apply these patches to the latest Linus release (3.x
-or 3.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
-http://ozlabs.org/~akpm/mmotm/series
+What the hell?  We instantiate an shmem filesystem *inode* under the
+mmap_sem? 
 
-The file broken-out.tar.gz contains two datestamp files: .DATE and
-.DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
-followed by the base kernel version against which this patch series is to
-be applied.
-
-This tree is partially included in linux-next.  To see which patches are
-included in linux-next, consult the `series' file.  Only the patches
-within the #NEXT_PATCHES_START/#NEXT_PATCHES_END markers are included in
-linux-next.
-
-A git tree which contains the memory management portion of this tree is
-maintained at git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
-by Michal Hocko.  It contains the patches which are between the
-"#NEXT_PATCHES_START mm" and "#NEXT_PATCHES_END" markers, from the series
-file, http://www.ozlabs.org/~akpm/mmotm/series.
-
-
-A full copy of the full kernel tree with the linux-next and mmotm patches
-already applied is available through git within an hour of the mmotm
-release.  Individual mmotm releases are tagged.  The master branch always
-points to the latest release, so it's constantly rebasing.
-
-http://git.cmpxchg.org/?p=linux-mmotm.git;a=summary
-
-To develop on top of mmotm git:
-
-  $ git remote add mmotm git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
-  $ git remote update mmotm
-  $ git checkout -b topic mmotm/master
-  <make changes, commit>
-  $ git send-email mmotm/master.. [...]
-
-To rebase a branch with older patches to a new mmotm release:
-
-  $ git remote update mmotm
-  $ git rebase --onto mmotm/master <topic base> topic
+And so we have a mmap_sem -> inode->i_isec->lock path on a *shmem* inode.
 
 
+> Feb 19 12:22:03 localhost kernel: [  101.487018] 
+> Feb 19 12:22:03 localhost kernel: [  101.487018] -> #0 (&mm->mmap_sem){++++++}:
+> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff810f351c>] __lock_acquire+0x18ec/0x1aa0
+> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff810f3ec2>] lock_acquire+0xa2/0x1d0
+> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff811cc8fc>] might_fault+0x8c/0xb0
+> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff812341c1>] filldir+0x91/0x120
+> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffffa053f2f7>] xfs_dir2_sf_getdents+0x317/0x380 [xfs]
+> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffffa054001b>] xfs_readdir+0x16b/0x230 [xfs]
+> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffffa05427fb>] xfs_file_readdir+0x2b/0x40 [xfs]
+> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff81234008>] iterate_dir+0xa8/0xe0
+> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff812344b3>] SyS_getdents+0x93/0x120
+> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff8178ed69>] system_call_fastpath+0x16/0x1b
+
+And then we have the mmap_sem in readdir, which inode->ilock ->
+mmap_sem.
 
 
-The directory http://www.ozlabs.org/~akpm/mmots/ (mm-of-the-second)
-contains daily snapshots of the -mm tree.  It is updated more frequently
-than mmotm, and is untested.
+> Feb 19 12:22:03 localhost kernel: [  101.487018] 
+> Feb 19 12:22:03 localhost kernel: [  101.487018] other info that might help us debug this:
+> Feb 19 12:22:03 localhost kernel: [  101.487018] 
+> Feb 19 12:22:03 localhost kernel: [  101.487018] Chain exists of:
+> Feb 19 12:22:03 localhost kernel: [  101.487018]   &mm->mmap_sem --> &isec->lock --> &xfs_dir_ilock_class
+> Feb 19 12:22:03 localhost kernel: [  101.487018] 
+> Feb 19 12:22:03 localhost kernel: [  101.487018]  Possible unsafe locking scenario:
+> Feb 19 12:22:03 localhost kernel: [  101.487018] 
+> Feb 19 12:22:03 localhost kernel: [  101.487018]        CPU0                    CPU1
+> Feb 19 12:22:03 localhost kernel: [  101.487018]        ----                    ----
+> Feb 19 12:22:03 localhost kernel: [  101.487018]   lock(&xfs_dir_ilock_class);
+> Feb 19 12:22:03 localhost kernel: [  101.487018]                                lock(&isec->lock);
+> Feb 19 12:22:03 localhost kernel: [  101.487018]                                lock(&xfs_dir_ilock_class);
+> Feb 19 12:22:03 localhost kernel: [  101.487018]   lock(&mm->mmap_sem);
 
-A git copy of this tree is available at
+So that's just another goddamn false positive.
 
-	http://git.cmpxchg.org/?p=linux-mmots.git;a=summary
+The problem here is that it's many, many layers away from XFS, and
+really doesn't involve XFS at all. It's caused by shmem
+instantiating an inode under the mmap_sem...
 
-and use of this tree is similar to
-http://git.cmpxchg.org/?p=linux-mmotm.git, described above.
+Basically, the only way I can see that this is even remotely
+preventable is that inode->isec->ilock needs a per-sb lockdep
+context so that lockdep doesn't confuse the lock heirarchies of
+completely unrelated filesystems when someone does something crazy
+like the page fault path is currently doing.
 
+Fmeh:
 
-This mmotm tree contains the following patches against 3.14-rc3:
-(patches marked "*" will be included in linux-next)
+struct super_block {
+....
+#ifdef CONFIG_SECURITY
+        void                    *s_security;
+#endif
 
-  origin.patch
-  arch-alpha-kernel-systblss-remove-debug-check.patch
-  i-need-old-gcc.patch
-* mm-hwpoison-release-page-on-pagehwpoison-in-__do_fault.patch
-* drivers-iommu-omap-iommu-debugc-fix-decimal-permissions.patch
-* drivers-fmc-fmc-write-eepromc-fix-decimal-permissions.patch
-* mm-thp-fix-infinite-loop-on-memcg-oom.patch
-* memcg-change-oom_info_lock-to-mutex.patch
-* ipcmqueue-remove-limits-for-the-amount-of-system-wide-queues.patch
-* makefile-fix-extra-parenthesis-typo-when-cc_stackprotector_regular-is-enabled.patch
-* maintainers-update-l-misuses.patch
-* maintainers-add-mauro-and-borislav-as-interim-patch-collectors.patch
-* mm-close-pagetail-race.patch
-* mm-page_alloc-make-first_page-visible-before-pagetail.patch
-* dma-debug-account-for-cachelines-and-read-only-mappings-in-overlap-tracking.patch
-* dma-debug-account-for-cachelines-and-read-only-mappings-in-overlap-tracking-v2.patch
-* swapoff-tmpfs-radix_tree-remember-to-rcu_read_unlock.patch
-* memcg-fix-endless-loop-in-__mem_cgroup_iter_next.patch
-* memcg-reparent-charges-of-children-before-processing-parent.patch
-* mm-numa-bugfix-for-last_cpupid_not_in_page_flags.patch
-* backing_dev-fix-hung-task-on-sync.patch
-* mm-include-vm_mixedmap-flag-in-the-vm_special-list-to-avoid-munlocking.patch
-* scripts-gen_initramfs_listsh-fix-flags-for-initramfs-lz4-compression.patch
-* kthread-ensure-locality-of-task_struct-allocations.patch
-* arch-x86-mm-kmemcheck-kmemcheckc-use-kstrtoint-instead-of-sscanf.patch
-* arm-use-generic-fixmaph.patch
-* fs-cifs-cifsfsc-add-__init-to-cifs_init_inodecache.patch
-* fanotify-remove-useless-bypass_perm-check.patch
-* fanotify-use-fanotify-event-structure-for-permission-response-processing.patch
-* fanotify-remove-useless-test-from-event-initialization.patch
-* fanotify-convert-access_mutex-to-spinlock.patch
-* fanotify-reorganize-loop-in-fanotify_read.patch
-* fanotify-move-unrelated-handling-from-copy_event_to_user.patch
-* sched_clock-document-4mhz-vs-1mhz-decision.patch
-* input-route-kbd-leds-through-the-generic-leds-layer.patch
-* jffs2-unlock-f-sem-on-error-in-jffs2_new_inode.patch
-* jffs2-avoid-soft-lockup-in-jffs2_reserve_space_gc.patch
-* jffs2-remove-wait-queue-after-schedule.patch
-* sh-push-extra-copy-of-r0-r2-for-syscall-parameters.patch
-* sh-remove-unused-do_fpu_error.patch
-* sh-dont-pass-saved-userspace-state-to-exception-handlers.patch
-* fs-udf-superc-add-__init-to-init_inodecache.patch
-* drivers-net-irda-donauboe-convert-to-module_pci_driver.patch
-* net-core-rtnetlinkc-copy-paste-error-in-rtnl_bridge_notify.patch
-* ocfs2-fix-null-pointer-dereference-when-access-dlm_state-before-launching-dlm-thread.patch
-* ocfs2-change-ip_unaligned_aio-to-of-type-mutex-from-atomit_t.patch
-* ocfs2-remove-unused-variable-uuid_net_key-in-ocfs2_initialize_super.patch
-* ocfs2-improve-fsync-efficiency-and-fix-deadlock-between-aio_write-and-sync_file.patch
-* ocfs2-o2net-incorrect-to-terminate-accepting-connections-loop-upon-rejecting-an-invalid-one.patch
-* ocfs2-fix-a-tiny-race-when-running-dirop_fileop_racer.patch
-* ocfs2-o2net-o2net_listen_data_ready-should-do-nothing-if-socket-state-is-not-tcp_listen.patch
-* ocfs2-should-call-ocfs2_journal_access_di-before-ocfs2_delete_entry-in-ocfs2_orphan_del.patch
-* ocfs2-llseek-requires-ocfs2-inode-lock-for-the-file-in-seek_end.patch
-* drivers-scsi-megaraid-megaraid_mmc-missing-bounds-check-in-mimd_to_kioc.patch
-* block-restore-proc-partitions-to-not-display-non-partitionable-removable-devices.patch
-* kernel-watchdogc-touch_nmi_watchdog-should-only-touch-local-cpu-not-every-one.patch
-* watchdog-trigger-all-cpu-backtrace-when-locked-up-and-going-to-panic.patch
-* mm-slab-slub-use-page-list-consistently-instead-of-page-lru.patch
-  mm.patch
-* mm-vmscan-respect-numa-policy-mask-when-shrinking-slab-on-direct-reclaim.patch
-* mm-vmscan-move-call-to-shrink_slab-to-shrink_zones.patch
-* mm-vmscan-remove-shrink_control-arg-from-do_try_to_free_pages.patch
-* mm-compaction-ignore-pageblock-skip-when-manually-invoking-compaction.patch
-* mm-optimize-put_mems_allowed-usage.patch
-* mm-hugetlb-unify-region-structure-handling.patch
-* mm-hugetlb-improve-cleanup-resv_map-parameters.patch
-* mm-hugetlb-fix-race-in-region-tracking.patch
-* mm-hugetlb-remove-resv_map_put.patch
-* mm-hugetlb-use-vma_resv_map-map-types.patch
-* mm-hugetlb-improve-page-fault-scalability.patch
-* mm-hugetlb-improve-page-fault-scalability-fix.patch
-* mm-vmscan-shrink_slab-rename-max_pass-freeable.patch
-* zram-drop-init_done-struct-zram-member.patch
-* zram-do-not-pass-rw-argument-to-__zram_make_request.patch
-* zram-remove-good-and-bad-compress-stats.patch
-* zram-use-atomic64_t-for-all-zram-stats.patch
-* zram-remove-zram-stats-code-duplication.patch
-* zram-report-failed-read-and-write-stats.patch
-* zram-drop-not-used-table-count-member.patch
-* zram-move-zram-size-warning-to-documentation.patch
-* zram-document-failed_reads-failed_writes-stats.patch
-* mm-vmstat-fix-up-zone-state-accounting.patch
-* mm-vmstat-fix-up-zone-state-accounting-fix.patch
-* fs-cachefiles-use-add_to_page_cache_lru.patch
-* lib-radix-tree-radix_tree_delete_item.patch
-* mm-shmem-save-one-radix-tree-lookup-when-truncating-swapped-pages.patch
-* mm-filemap-move-radix-tree-hole-searching-here.patch
-* mm-fs-prepare-for-non-page-entries-in-page-cache-radix-trees.patch
-* mm-fs-store-shadow-entries-in-page-cache.patch
-* mm-thrash-detection-based-file-cache-sizing.patch
-* lib-radix_tree-tree-node-interface.patch
-* mm-keep-page-cache-radix-tree-nodes-in-check.patch
-* mm-keep-page-cache-radix-tree-nodes-in-check-fix.patch
-* mm-keep-page-cache-radix-tree-nodes-in-check-fix-fix.patch
-* mm-keep-page-cache-radix-tree-nodes-in-check-fix-fix-fix.patch
-* mm-hugetlb-mark-some-bootstrap-functions-as-__init.patch
-* mm-compaction-avoid-isolating-pinned-pages.patch
-* mm-compactionc-mark-function-as-static.patch
-* mm-memoryc-mark-functions-as-static.patch
-* mm-mmapc-mark-function-as-static.patch
-* mm-process_vm_accessc-mark-function-as-static.patch
-* mm-page_cgroupc-mark-functions-as-static.patch
-* mm-nobootmemc-mark-function-as-static.patch
-* include-linux-mmh-remove-ifdef-condition.patch
-* pagewalk-update-page-table-walker-core.patch
-* pagewalk-add-walk_page_vma.patch
-* smaps-redefine-callback-functions-for-page-table-walker.patch
-* clear_refs-redefine-callback-functions-for-page-table-walker.patch
-* pagemap-redefine-callback-functions-for-page-table-walker.patch
-* numa_maps-redefine-callback-functions-for-page-table-walker.patch
-* memcg-redefine-callback-functions-for-page-table-walker.patch
-* madvise-redefine-callback-functions-for-page-table-walker.patch
-* arch-powerpc-mm-subpage-protc-use-walk_page_vma-instead-of-walk_page_range.patch
-* pagewalk-remove-argument-hmask-from-hugetlb_entry.patch
-* pagewalk-remove-argument-hmask-from-hugetlb_entry-fix.patch
-* pagewalk-remove-argument-hmask-from-hugetlb_entry-fix-fix.patch
-* mempolicy-apply-page-table-walker-on-queue_pages_range.patch
-* mm-rename-__do_fault-do_fault.patch
-* mm-do_fault-extract-to-call-vm_ops-do_fault-to-separate-function.patch
-* mm-introduce-do_read_fault.patch
-* mm-introduce-do_cow_fault.patch
-* mm-introduce-do_shared_fault-and-drop-do_fault.patch
-* mm-consolidate-code-to-call-vm_ops-page_mkwrite.patch
-* mm-consolidate-code-to-call-vm_ops-page_mkwrite-fix.patch
-* mm-consolidate-code-to-setup-pte.patch
-* mm-thp-drop-do_huge_pmd_wp_zero_page_fallback.patch
-* mm-remove-read_cache_page_async.patch
-* drop_caches-add-some-documentation-and-info-message.patch
-* mm-zswap-fix-trivial-typo-and-arrange-indentation.patch
-* mm-zswap-update-zsmalloc-in-comment-to-zbud.patch
-* kobject-dont-block-for-each-kobject_uevent.patch
-* kobject-dont-block-for-each-kobject_uevent-v2.patch
-* slub-do-not-drop-slab_mutex-for-sysfs_slab_add.patch
-* mm-readaheadc-fix-readahead-failure-for-memoryless-numa-nodes-and-limit-readahead-pages.patch
-* schednuma-add-cond_resched-to-task_numa_work.patch
-* mmnuma-reorganize-change_pmd_range.patch
-* mmnuma-reorganize-change_pmd_range-fix.patch
-* move-mmu-notifier-call-from-change_protection-to-change_pmd_range.patch
-* mm-vmscan-restore-sc-gfp_mask-after-promoting-it-to-__gfp_highmem.patch
-* mm-vmscan-do-not-check-compaction_ready-on-promoted-zones.patch
-* include-linux-syscallsh-add-sys32_quotactl-prototype.patch
-* include-linux-syscallsh-add-sys32_quotactl-prototype-fix.patch
-* kernel-used-macros-from-compilerh-instead-of-__attribute__.patch
-* asm-systemh-clean-asm-systemh-from-docs.patch
-* asm-systemh-sparc-sparc_cpu_model-isnt-in-asm-systemh-any-more.patch
-* asm-systemh-um-arch_align_stack-moved-to-asm-exech.patch
-* asm-systemh-arm-delete-asm-systemh.patch
-* sys_sysfs-add-config_sysfs_syscall.patch
-* sys_sysfs-add-config_sysfs_syscall-fix.patch
-* kernel-groupsc-remove-return-value-of-set_groups.patch
-* kernel-groupsc-remove-return-value-of-set_groups-fix.patch
-* kernel-audit-fix-non-modular-users-of-module_init-in-core-code.patch
-* kernel-resourcec-make-reallocate_resource-static.patch
-* drivers-misc-ti-st-st_corec-fix-null-dereference-on-protocol-type-check.patch
-* vsprintf-remove-%n-handling.patch
-* printk-remove-duplicated-check-for-log-level.patch
-* printk-remove-obsolete-check-for-log-level-c.patch
-* printk-add-comment-about-tricky-check-for-text-buffer-size.patch
-* printk-use-also-the-last-bytes-in-the-ring-buffer.patch
-* printk-do-not-compute-the-size-of-the-message-twice.patch
-* lib-vsprintf-add-%pt-format-specifier.patch
-* maintainers-add-backlight-co-maintainers.patch
-* maintainers-mark-superh-orphan.patch
-* backlight-update-bd-state-fb_blank-properties-when-necessary.patch
-* backlight-update-backlight-status-when-necessary.patch
-* backlight-aat2870-remove-unnecessary-oom-messages.patch
-* backlight-adp8860-remove-unnecessary-oom-messages.patch
-* backlight-adp8870-remove-unnecessary-oom-messages.patch
-* backlight-corgi_lcd-remove-unnecessary-oom-messages.patch
-* backlight-hx8357-remove-unnecessary-oom-messages.patch
-* backlight-ili922x-remove-unnecessary-oom-messages.patch
-* backlight-ili9320-remove-unnecessary-oom-messages.patch
-* backlight-l4f00242t03-remove-unnecessary-oom-messages.patch
-* backlight-lm3533_bl-remove-unnecessary-oom-messages.patch
-* backlight-lms283gf05-remove-unnecessary-oom-messages.patch
-* backlight-platform_lcd-remove-unnecessary-oom-messages.patch
-* backlight-tps65217_bl-remove-unnecessary-oom-messages.patch
-* drivers-video-backlight-backlightc-remove-backlight-sysfs-uevent.patch
-* lib-devresc-fix-some-sparse-warnings.patch
-* lib-random32c-minor-cleanups-and-kdoc-fix.patch
-* mm-utilc-add-kstrimdup.patch
-* lib-add-crc64-ecma-module.patch
-* checkpatch-add-test-for-long-udelay.patch
-* checkpatch-dont-warn-on-some-function-pointer-return-styles.patch
-* checkpatch-add-checks-for-constant-non-octal-permissions.patch
-* checkpatch-warn-on-uses-of-__constant_foo-functions.patch
-* checkpatch-update-octal-permissions-warning.patch
-* checkpatch-avoid-sscanf-test-duplicated-messages.patch
-* checkpatch-fix-jiffies-comparison-and-others.patch
-* fs-efs-superc-add-__init-to-init_inodecache.patch
-* binfmt_elfc-use-get_random_int-to-fix-entropy-depleting.patch
-* init-do_mountsc-fix-comment-error.patch
-* ncpfs-add-pr_fmt-and-convert-printks-to-pr_level.patch
-* ncpfs-convert-dprintk-ddprintk-to-ncp_dbg.patch
-* ncpfs-convert-dprintk-ddprintk-to-ncp_dbg-fix.patch
-* ncpfs-convert-dprintk-ddprintk-to-ncp_dbg-fix-fix.patch
-* ncpfs-convert-pprintk-to-ncp_vdbg.patch
-* ncpfs-remove-now-unused-printk-macro.patch
-* ncpfs-inode-fix-mismatch-printk-formats-and-arguments.patch
-* ncpfs-cleanup-indenting-in-ncp_lookup.patch
-* rtc-rtc-imxdi-check-the-return-value-from-clk_prepare_enable.patch
-* rtc-rtc-at32ap700x-remove-unnecessary-oom-messages.patch
-* rtc-rtc-davinci-remove-unnecessary-oom-messages.patch
-* rtc-rtc-ds1390-remove-unnecessary-oom-messages.patch
-* rtc-rtc-moxart-remove-unnecessary-oom-messages.patch
-* rtc-rtc-nuc900-remove-unnecessary-oom-messages.patch
-* rtc-rtc-pm8xxx-remove-unnecessary-oom-messages.patch
-* rtc-rtc-rx8025-remove-unnecessary-oom-messages.patch
-* rtc-rtc-sirfsoc-remove-unnecessary-oom-messages.patch
-* rtc-rtc-lpc32xx-remove-unnecessary-oom-messages.patch
-* rtc-rtc-spear-remove-unnecessary-oom-messages.patch
-* rtc-rtc-coh901331-use-devm_ioremap_resource.patch
-* rtc-rtc-davinci-use-devm_ioremap_resource.patch
-* rtc-rtc-vt8500-use-devm_ioremap_resource.patch
-* rtc-rtc-jz4740-use-devm_ioremap_resource.patch
-* drivers-rtc-rtc-isl12057c-remove-duplicate-include.patch
-* drivers-rtc-rtc-da9052c-remove-redundant-private-structure-field.patch
-* drivers-rtc-rtc-sirfsocc-fix-kernel-panic-of-backing-from-hibernation.patch
-* drivers-rtc-rtc-sirfsocc-fix-sysfs-wakealarm-attribute-creation.patch
-* drivers-rtc-rtc-sirfsocc-add-alarm-support-for-mcp7941x-chips.patch
-* fs-minix-inodec-add-__init-to-init_inodecache.patch
-* befs-replace-kmalloc-memset-0-by-kzalloc.patch
-* nilfs2-update-maintainers-file-entries.patch
-* nilfs2-add-struct-nilfs_suinfo_update-and-flags.patch
-* nilfs2-add-nilfs_sufile_set_suinfo-to-update-segment-usage.patch
-* nilfs2-add-nilfs_sufile_set_suinfo-to-update-segment-usage-fix.patch
-* nilfs2-implementation-of-nilfs_ioctl_set_suinfo-ioctl.patch
-* nilfs2-implementation-of-nilfs_ioctl_set_suinfo-ioctl-fix.patch
-* hfsplus-add-hfsx-subfolder-count-support.patch
-* hfsplus-remove-unused-variable-in-hfsplus_get_block.patch
-* hfsplus-fix-concurrent-acess-of-alloc_blocks.patch
-* hfsplus-fix-concurrent-acess-of-alloc_blocks-fix.patch
-* hfsplus-fix-concurrent-acess-of-alloc_blocks-fix-fix.patch
-* fs-ufs-superc-add-__init-to-init_inodecache.patch
-* fs-ufs-remove-unused-ufs_super_block_first-pointer.patch
-* fs-ufs-remove-unused-ufs_super_block_second-pointer.patch
-* fs-ufs-remove-unused-ufs_super_block_third-pointer.patch
-* ufs-sb-mutex-merge-mutex_destroy.patch
-* fs-reiserfs-move-prototype-declaration-to-header-file.patch
-* fat-add-i_disksize-to-represent-uninitialized-size.patch
-* fat-add-fat_fallocate-operation.patch
-* fat-zero-out-seek-range-on-_fat_get_block.patch
-* fat-fallback-to-buffered-write-in-case-of-fallocated-region-on-direct-io.patch
-* fat-permit-to-return-phy-block-number-by-fibmap-in-fallocated-region.patch
-* fat-update-the-limitation-for-fat-fallocate.patch
-* documentation-update-kmemleaktxt.patch
-* kmod-run-usermodehelpers-only-on-cpus-allowed-for-kthreadd-v2.patch
-* kmod-run-usermodehelpers-only-on-cpus-allowed-for-kthreadd-v2-fix.patch
-* kmod-run-usermodehelpers-only-on-cpus-allowed-for-kthreadd-v2-checkpatch-fixes.patch
-* fs-proc-meminfo-meminfo_proc_show-fix-typo-in-comment.patch
-* include-linux-crash_dumph-add-vmcore_cleanup-prototype.patch
-* include-linux-crash_dumph-add-vmcore_cleanup-prototype-fix.patch
-* fs-adfs-superc-add-__init-to-init_inodecache.patch
-* kernel-panicc-display-reason-at-end-pr_emerg.patch
-* kernel-panicc-display-reason-at-end-pr_emerg-fix.patch
-* pps-add-non-blocking-option-to-pps_fetch-ioctl.patch
-* drivers-misc-sgi-gru-grukdumpc-cleanup-gru_dump_context-a-little.patch
-* fault-injection-set-bounds-on-what-proc-self-make-it-fail-accepts.patch
-* fault-injection-set-bounds-on-what-proc-self-make-it-fail-accepts-fix.patch
-* initramfs-debug-detected-compression-method.patch
-* initramfs-debug-detected-compression-method-fix.patch
-* ipccompat-remove-sc_semopm-macro.patch
-* ipc-use-device_initcall.patch
-  linux-next.patch
-  linux-next-git-rejects.patch
-  linux-next-rejects.patch
-* w1-call-put_device-if-device_register-fails.patch
-* arm-move-arm_dma_limit-to-setup_dma_zone.patch
-* mm-add-strictlimit-knob-v2.patch
-  debugging-keep-track-of-page-owners.patch
-  make-sure-nobodys-leaking-resources.patch
-  journal_add_journal_head-debug.patch
-  releasing-resources-with-children.patch
-  make-frame_pointer-default=y.patch
-  kernel-forkc-export-kernel_thread-to-modules.patch
-  mutex-subsystem-synchro-test-module.patch
-  slab-leaks3-default-y.patch
-  put_bh-debug.patch
-  add-debugging-aid-for-memory-initialisation-problems.patch
-  workaround-for-a-pci-restoring-bug.patch
-  single_open-seq_release-leak-diagnostics.patch
+So I can't even isolate it to the security subsystem pointer in
+the superblock because there isn't a generic structure to abstract
+security specific stuff from the superblock without having to
+implement the same lockdep annotations in every security module
+uses xattrs to store security information.
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
