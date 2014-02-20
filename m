@@ -1,74 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f179.google.com (mail-we0-f179.google.com [74.125.82.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 5509A6B009C
-	for <linux-mm@kvack.org>; Thu, 20 Feb 2014 11:49:56 -0500 (EST)
-Received: by mail-we0-f179.google.com with SMTP id q58so1631272wes.24
-        for <linux-mm@kvack.org>; Thu, 20 Feb 2014 08:49:55 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id gt3si5928267wib.8.2014.02.20.08.49.54
+Received: from mail-qa0-f52.google.com (mail-qa0-f52.google.com [209.85.216.52])
+	by kanga.kvack.org (Postfix) with ESMTP id C489A6B009E
+	for <linux-mm@kvack.org>; Thu, 20 Feb 2014 13:29:11 -0500 (EST)
+Received: by mail-qa0-f52.google.com with SMTP id j15so3362662qaq.25
+        for <linux-mm@kvack.org>; Thu, 20 Feb 2014 10:29:11 -0800 (PST)
+Received: from e39.co.us.ibm.com (e39.co.us.ibm.com. [32.97.110.160])
+        by mx.google.com with ESMTPS id g88si2327209qgf.126.2014.02.20.10.29.03
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 20 Feb 2014 08:49:54 -0800 (PST)
-Message-ID: <5306322E.3030607@suse.cz>
-Date: Thu, 20 Feb 2014 17:49:50 +0100
-From: Vlastimil Babka <vbabka@suse.cz>
+        Thu, 20 Feb 2014 10:29:03 -0800 (PST)
+Received: from /spool/local
+	by e39.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <nacc@linux.vnet.ibm.com>;
+	Thu, 20 Feb 2014 11:29:02 -0700
+Received: from b03cxnp08028.gho.boulder.ibm.com (b03cxnp08028.gho.boulder.ibm.com [9.17.130.20])
+	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id AF30C19D805E
+	for <linux-mm@kvack.org>; Thu, 20 Feb 2014 11:28:58 -0700 (MST)
+Received: from d03av04.boulder.ibm.com (d03av04.boulder.ibm.com [9.17.195.170])
+	by b03cxnp08028.gho.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s1KISx5P10223880
+	for <linux-mm@kvack.org>; Thu, 20 Feb 2014 19:28:59 +0100
+Received: from d03av04.boulder.ibm.com (loopback [127.0.0.1])
+	by d03av04.boulder.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s1KISx5c029830
+	for <linux-mm@kvack.org>; Thu, 20 Feb 2014 11:28:59 -0700
+Date: Thu, 20 Feb 2014 10:28:47 -0800
+From: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
+Subject: Re: [PATCH 1/3] mm: return NUMA_NO_NODE in local_memory_node if
+ zonelists are not setup
+Message-ID: <20140220182847.GA24745@linux.vnet.ibm.com>
+References: <20140219231641.GA413@linux.vnet.ibm.com>
+ <20140219231714.GB413@linux.vnet.ibm.com>
+ <alpine.DEB.2.10.1402201004460.11829@nuc>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 2/5] mm/compaction: do not call suitable_migration_target()
- on every page
-References: <1392360843-22261-1-git-send-email-iamjoonsoo.kim@lge.com> <1392360843-22261-3-git-send-email-iamjoonsoo.kim@lge.com>
-In-Reply-To: <1392360843-22261-3-git-send-email-iamjoonsoo.kim@lge.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.10.1402201004460.11829@nuc>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, Joonsoo Kim <js1304@gmail.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <cl@linux.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Ben Herrenschmidt <benh@kernel.crashing.org>, Anton Blanchard <anton@samba.org>, linuxppc-dev@lists.ozlabs.org
 
-On 02/14/2014 07:54 AM, Joonsoo Kim wrote:
-> suitable_migration_target() checks that pageblock is suitable for
-> migration target. In isolate_freepages_block(), it is called on every
-> page and this is inefficient. So make it called once per pageblock.
->
-> suitable_migration_target() also checks if page is highorder or not,
-> but it's criteria for highorder is pageblock order. So calling it once
-> within pageblock range has no problem.
->
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+On 20.02.2014 [10:05:39 -0600], Christoph Lameter wrote:
+> On Wed, 19 Feb 2014, Nishanth Aravamudan wrote:
+> 
+> > We can call local_memory_node() before the zonelists are setup. In that
+> > case, first_zones_zonelist() will not set zone and the reference to
+> > zone->node will Oops. Catch this case, and, since we presumably running
+> > very early, just return that any node will do.
+> 
+> Really? Isnt there some way to avoid this call if zonelists are not setup
+> yet?
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+How do I best determine if zonelists aren't setup yet?
 
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index bbe1260..0d821a2 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -245,6 +245,7 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
->   	unsigned long nr_strict_required = end_pfn - blockpfn;
->   	unsigned long flags;
->   	bool locked = false;
-> +	bool checked_pageblock = false;
->
->   	cursor = pfn_to_page(blockpfn);
->
-> @@ -275,8 +276,16 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
->   			break;
->
->   		/* Recheck this is a suitable migration target under lock */
-> -		if (!strict && !suitable_migration_target(page))
-> -			break;
-> +		if (!strict && !checked_pageblock) {
-> +			/*
-> +			 * We need to check suitability of pageblock only once
-> +			 * and this isolate_freepages_block() is called with
-> +			 * pageblock range, so just check once is sufficient.
-> +			 */
-> +			checked_pageblock = true;
-> +			if (!suitable_migration_target(page))
-> +				break;
-> +		}
->
->   		/* Recheck this is a buddy page under lock */
->   		if (!PageBuddy(page))
->
+The call-path in question (after my series is applied) is:
+
+arch/powerpc/kernel/setup_64.c::setup_arch ->
+	arch/powerpc/mm/numa.c::do_init_bootmem() ->
+		cpu_numa_callback() ->
+			numa_setup_cpu() ->
+				map_cpu_to_node() ->
+					update_numa_cpu_node() ->
+						set_cpu_numa_mem()
+
+and setup_arch() is called before build_all_zonelists(NULL, NULL) in
+start_kernel(). This seemed like the most reasonable path, as it's used
+on hotplug as well.
+
+I'm open to suggestsions!
+
+Thanks,
+Nish
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
