@@ -1,169 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id BDDC16B0037
-	for <linux-mm@kvack.org>; Wed, 19 Feb 2014 19:13:57 -0500 (EST)
-Received: by mail-pd0-f174.google.com with SMTP id z10so1057213pdj.33
-        for <linux-mm@kvack.org>; Wed, 19 Feb 2014 16:13:57 -0800 (PST)
-Received: from ipmail04.adl6.internode.on.net (ipmail04.adl6.internode.on.net. [2001:44b8:8060:ff02:300:1:6:4])
-        by mx.google.com with ESMTP id ey10si1385755pab.111.2014.02.19.16.13.54
+Received: from mail-ee0-f44.google.com (mail-ee0-f44.google.com [74.125.83.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 18F946B0039
+	for <linux-mm@kvack.org>; Wed, 19 Feb 2014 21:23:44 -0500 (EST)
+Received: by mail-ee0-f44.google.com with SMTP id c13so661927eek.3
+        for <linux-mm@kvack.org>; Wed, 19 Feb 2014 18:23:44 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id v5si4826085eel.118.2014.02.19.18.23.42
         for <linux-mm@kvack.org>;
-        Wed, 19 Feb 2014 16:13:55 -0800 (PST)
-Date: Thu, 20 Feb 2014 11:13:29 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: mmap_sem -> isec->lock lockdep issues with shmem (was Re: [PATCH
- 2/3] xfs: fix directory inode iolock lockdep false positive)
-Message-ID: <20140220001329.GG4916@dastard>
-References: <1392783402-4726-1-git-send-email-david@fromorbit.com>
- <1392783402-4726-3-git-send-email-david@fromorbit.com>
- <5304F70C.8070601@redhat.com>
+        Wed, 19 Feb 2014 18:23:43 -0800 (PST)
+Date: Wed, 19 Feb 2014 23:22:55 -0300
+From: Marcelo Tosatti <mtosatti@redhat.com>
+Subject: Re: [PATCH 4/4] hugetlb: add hugepages_node= command-line option
+Message-ID: <20140220022254.GA25898@amt.cnet>
+References: <1392339728-13487-1-git-send-email-lcapitulino@redhat.com>
+ <1392339728-13487-5-git-send-email-lcapitulino@redhat.com>
+ <alpine.DEB.2.02.1402141511200.13935@chino.kir.corp.google.com>
+ <20140214225810.57e854cb@redhat.com>
+ <alpine.DEB.2.02.1402150159540.28883@chino.kir.corp.google.com>
+ <20140217085622.39b39cac@redhat.com>
+ <alpine.DEB.2.02.1402171518080.25724@chino.kir.corp.google.com>
+ <20140218123013.GA20609@amt.cnet>
+ <alpine.DEB.2.02.1402181407510.20772@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <5304F70C.8070601@redhat.com>
+In-Reply-To: <alpine.DEB.2.02.1402181407510.20772@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Brian Foster <bfoster@redhat.com>
-Cc: xfs@oss.sgi.com, linux-mm@kvack.org, linux-security-module@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Luiz Capitulino <lcapitulino@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Andi Kleen <andi@firstfloor.org>, Rik van Riel <riel@redhat.com>, davidlohr@hp.com, isimatu.yasuaki@jp.fujitsu.com, yinghai@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-[cc linux-mm because it shmem craziness that is causing the problem]
-[cc linux-security-module because it is security contexts that need
- lockdep annotations.]
-
-On Wed, Feb 19, 2014 at 01:25:16PM -0500, Brian Foster wrote:
-> On 02/18/2014 11:16 PM, Dave Chinner wrote:
-> > From: Dave Chinner <dchinner@redhat.com>
-> > 
-> > The change to add the IO lock to protect the directory extent map
-> > during readdir operations has cause lockdep to have a heart attack
-> > as it now sees a different locking order on inodes w.r.t. the
-> > mmap_sem because readdir has a different ordering to write().
-> > 
-> > Add a new lockdep class for directory inodes to avoid this false
-> > positive.
-> > 
-> > Signed-off-by: Dave Chinner <dchinner@redhat.com>
-> > ---
+On Tue, Feb 18, 2014 at 02:16:42PM -0800, David Rientjes wrote:
+> On Tue, 18 Feb 2014, Marcelo Tosatti wrote:
 > 
-> Hey Dave,
+> > > Lacking from your entire patchset is a specific example of what you want 
+> > > to do.  So I think we're all guessing what exactly your usecase is and we 
+> > > aren't getting any help.  Are you really suggesting that a customer wants 
+> > > to allocate 4 1GB hugepages on node 0, 12 2MB hugepages on node 0, 6 1GB 
+> > > hugepages on node 1, 24 2MB hugepages on node 1, 2 1GB hugepages on node 
+> > > 2, 100 2MB hugepages on node 3, etc?  Please.
+> > 
+> > Customer has 32GB machine. He wants 8 1GB pages for his performance
+> > critical application on node0 (KVM guest), and other guests and
+> > pagecache etc. using the remaining 26GB of memory.
+> > 
 > 
-> I'm not terribly familiar with lockdep, but I hit the attached "possible
-> circular locking dependency detected" warning when running with this patch.
+> Wow, is that it?  (This still doesn't present a clear picture since we 
+> don't know how much memory is on node 0, though.)
+>
+> So Luiz's example of setting up different size hugepages on three 
+> different nodes requiring nine kernel command line parameters doesn't even 
+> have a legitimate usecase today.
 > 
-> (Reproduces by running generic/001 after a reboot).
+> Back to the original comment on this patchset, forgetting all this 
+> parameter parsing stuff, if you had the ability to free 1GB pages at 
+> runtime then your problem is already solved, correct?  If that 32GB 
+> machine has two nodes, then doing "hugepagesz=1G hugepages=16" will boot 
+> just fine and then an init script frees the 8 1GB pages on node1.
+> 
+> It gets trickier if there are four nodes and each node is 8GB.  Then you'd 
+> be ooming the machine if you did "hugepagesz=1G hugepages=32".  You could 
+> actually do "hugepagesz=1G hugepages=29" and free the hugepages on 
+> everything except for node 0, but I feel like movablecore= would be a 
+> better option.
+> 
+> So why not just work on making 1GB pages dynamically allocatable and 
+> freeable at runtime?  It feels like it would be a much more heavily used 
+> feature than a special command line parameter for a single customer.
 
-Ok, you're testing on an selinux enabled system, I didn't.
+David,
 
-> Feb 19 12:22:03 localhost kernel: [  101.487018] 
-> Feb 19 12:22:03 localhost kernel: [  101.487018] -> #2 (&xfs_dir_ilock_class){++++..}:
-> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff810f3ec2>] lock_acquire+0xa2/0x1d0
-> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff810ed147>] down_read_nested+0x57/0xa0
-> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffffa05a0022>] xfs_ilock+0x122/0x250 [xfs]
-> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffffa05a01af>] xfs_ilock_attr_map_shared+0x1f/0x50 [xfs]
-> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffffa0565d50>] xfs_attr_get+0x90/0xe0 [xfs]
-> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffffa055b9d7>] xfs_xattr_get+0x37/0x50 [xfs]
-> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff812483ef>] generic_getxattr+0x4f/0x70
-> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff8133fd5e>] inode_doinit_with_dentry+0x1ae/0x650
-> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff813402d8>] sb_finish_set_opts+0xd8/0x270
-> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff81340702>] selinux_set_mnt_opts+0x292/0x5f0
-> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff81340ac8>] superblock_doinit+0x68/0xd0
-> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff81340b8d>] selinux_sb_kern_mount+0x3d/0xa0
-> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff81335536>] security_sb_kern_mount+0x16/0x20
-> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff8122333a>] mount_fs+0x8a/0x1b0
-> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff8124285b>] vfs_kern_mount+0x6b/0x150
-> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff8124561e>] do_mount+0x23e/0xb90
-> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff812462a3>] SyS_mount+0x83/0xc0
-> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff8178ed69>] system_call_fastpath+0x16/0x1b
+We agree that, in the future, we'd like to provide the ability to
+dynamically allocate and free 1GB pages at runtime.
 
-So, we take the ilock on the directory xattr read path during
-security attribute initialisation so we have a inode->i_isec->lock -> ilock
-path, which is normal.
+Extending the kernel command line interface is a first step.
 
-> Feb 19 12:22:03 localhost kernel: [  101.487018] -> #1 (&isec->lock){+.+.+.}:
-> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff810f3ec2>] lock_acquire+0xa2/0x1d0
-> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff81780d77>] mutex_lock_nested+0x77/0x3f0
-> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff8133fc42>] inode_doinit_with_dentry+0x92/0x650
-> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff81340dcc>] selinux_d_instantiate+0x1c/0x20
-> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff8133517b>] security_d_instantiate+0x1b/0x30
-> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff81237d70>] d_instantiate+0x50/0x70
-> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff811bcb70>] __shmem_file_setup+0xe0/0x1d0
-> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff811bf988>] shmem_zero_setup+0x28/0x70
-> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff811d8653>] mmap_region+0x543/0x5a0
-> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff811d89b1>] do_mmap_pgoff+0x301/0x3c0
-> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff811c18f0>] vm_mmap_pgoff+0x90/0xc0
-> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff811d6f26>] SyS_mmap_pgoff+0x116/0x270
-> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff8101f9b2>] SyS_mmap+0x22/0x30
-> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff8178ed69>] system_call_fastpath+0x16/0x1b
+Do you have a concrete objection to that first step ?
 
-What the hell?  We instantiate an shmem filesystem *inode* under the
-mmap_sem? 
+> > > If that's actually the usecase then I'll renew my objection to the 
+> > > entire patchset and say you want to add the ability to dynamically 
+> > > allocate 1GB pages and free them at runtime early in initscripts.  If 
+> > > something is going to be added to init code in the kernel then it 
+> > > better be trivial since all this can be duplicated in userspace if you 
+> > > really want to be fussy about it.
+> > 
+> > Not sure what is the point here. The command line interface addition
+> > being proposed is simple, is it not?
+> > 
+> 
+> You can't specify an interleave behavior with Luiz's command line 
+> interface so now we'd have two different interfaces for allocating 
+> hugepage sizes depending on whether you're specifying a node or not.  
+> It's "hugepagesz=1G hugepages=16" vs "hugepage_node=1:16:1G" (and I'd have 
+> to look at previous messages in this thread to see if that means 16 1GB 
+> pages on node 1 or 1 1GB pages on node 16.)
 
-And so we have a mmap_sem -> inode->i_isec->lock path on a *shmem* inode.
-
-
-> Feb 19 12:22:03 localhost kernel: [  101.487018] 
-> Feb 19 12:22:03 localhost kernel: [  101.487018] -> #0 (&mm->mmap_sem){++++++}:
-> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff810f351c>] __lock_acquire+0x18ec/0x1aa0
-> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff810f3ec2>] lock_acquire+0xa2/0x1d0
-> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff811cc8fc>] might_fault+0x8c/0xb0
-> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff812341c1>] filldir+0x91/0x120
-> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffffa053f2f7>] xfs_dir2_sf_getdents+0x317/0x380 [xfs]
-> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffffa054001b>] xfs_readdir+0x16b/0x230 [xfs]
-> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffffa05427fb>] xfs_file_readdir+0x2b/0x40 [xfs]
-> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff81234008>] iterate_dir+0xa8/0xe0
-> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff812344b3>] SyS_getdents+0x93/0x120
-> Feb 19 12:22:03 localhost kernel: [  101.487018]        [<ffffffff8178ed69>] system_call_fastpath+0x16/0x1b
-
-And then we have the mmap_sem in readdir, which inode->ilock ->
-mmap_sem.
-
-
-> Feb 19 12:22:03 localhost kernel: [  101.487018] 
-> Feb 19 12:22:03 localhost kernel: [  101.487018] other info that might help us debug this:
-> Feb 19 12:22:03 localhost kernel: [  101.487018] 
-> Feb 19 12:22:03 localhost kernel: [  101.487018] Chain exists of:
-> Feb 19 12:22:03 localhost kernel: [  101.487018]   &mm->mmap_sem --> &isec->lock --> &xfs_dir_ilock_class
-> Feb 19 12:22:03 localhost kernel: [  101.487018] 
-> Feb 19 12:22:03 localhost kernel: [  101.487018]  Possible unsafe locking scenario:
-> Feb 19 12:22:03 localhost kernel: [  101.487018] 
-> Feb 19 12:22:03 localhost kernel: [  101.487018]        CPU0                    CPU1
-> Feb 19 12:22:03 localhost kernel: [  101.487018]        ----                    ----
-> Feb 19 12:22:03 localhost kernel: [  101.487018]   lock(&xfs_dir_ilock_class);
-> Feb 19 12:22:03 localhost kernel: [  101.487018]                                lock(&isec->lock);
-> Feb 19 12:22:03 localhost kernel: [  101.487018]                                lock(&xfs_dir_ilock_class);
-> Feb 19 12:22:03 localhost kernel: [  101.487018]   lock(&mm->mmap_sem);
-
-So that's just another goddamn false positive.
-
-The problem here is that it's many, many layers away from XFS, and
-really doesn't involve XFS at all. It's caused by shmem
-instantiating an inode under the mmap_sem...
-
-Basically, the only way I can see that this is even remotely
-preventable is that inode->isec->ilock needs a per-sb lockdep
-context so that lockdep doesn't confuse the lock heirarchies of
-completely unrelated filesystems when someone does something crazy
-like the page fault path is currently doing.
-
-Fmeh:
-
-struct super_block {
-....
-#ifdef CONFIG_SECURITY
-        void                    *s_security;
-#endif
-
-So I can't even isolate it to the security subsystem pointer in
-the superblock because there isn't a generic structure to abstract
-security specific stuff from the superblock without having to
-implement the same lockdep annotations in every security module
-uses xattrs to store security information.
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+What syntax do you prefer and why ?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
