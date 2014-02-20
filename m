@@ -1,100 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f54.google.com (mail-wg0-f54.google.com [74.125.82.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 1432F6B0092
-	for <linux-mm@kvack.org>; Thu, 20 Feb 2014 04:55:38 -0500 (EST)
-Received: by mail-wg0-f54.google.com with SMTP id l18so1291119wgh.9
-        for <linux-mm@kvack.org>; Thu, 20 Feb 2014 01:55:38 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id wf8si3991259wjb.82.2014.02.20.01.55.37
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 20 Feb 2014 01:55:37 -0800 (PST)
-Date: Thu, 20 Feb 2014 10:55:34 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: ppc: RECLAIM_DISTANCE 10?
-Message-ID: <20140220095534.GC12451@dhcp22.suse.cz>
-References: <20140218090658.GA28130@dhcp22.suse.cz>
- <20140218233404.GB10844@linux.vnet.ibm.com>
- <20140218235800.GC10844@linux.vnet.ibm.com>
- <alpine.DEB.2.02.1402181737530.17521@chino.kir.corp.google.com>
- <20140219162438.GB27108@linux.vnet.ibm.com>
- <20140219163345.GD27108@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140219163345.GD27108@linux.vnet.ibm.com>
+Received: from mail-qa0-f45.google.com (mail-qa0-f45.google.com [209.85.216.45])
+	by kanga.kvack.org (Postfix) with ESMTP id D66606B0095
+	for <linux-mm@kvack.org>; Thu, 20 Feb 2014 11:03:08 -0500 (EST)
+Received: by mail-qa0-f45.google.com with SMTP id m5so3195169qaj.18
+        for <linux-mm@kvack.org>; Thu, 20 Feb 2014 08:03:08 -0800 (PST)
+Received: from qmta15.emeryville.ca.mail.comcast.net (qmta15.emeryville.ca.mail.comcast.net. [2001:558:fe2d:44:76:96:27:228])
+        by mx.google.com with ESMTP id y4si859686qad.73.2014.02.20.08.03.01
+        for <linux-mm@kvack.org>;
+        Thu, 20 Feb 2014 08:03:01 -0800 (PST)
+Date: Thu, 20 Feb 2014 10:02:58 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [RFC PATCH 2/3] topology: support node_numa_mem() for determining
+ the fallback node
+In-Reply-To: <alpine.DEB.2.02.1402191404030.31921@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.10.1402201001430.11829@nuc>
+References: <1391674026-20092-2-git-send-email-iamjoonsoo.kim@lge.com> <alpine.DEB.2.02.1402060041040.21148@chino.kir.corp.google.com> <CAAmzW4PXkdpNi5pZ=4BzdXNvqTEAhcuw-x0pWidqrxzdePxXxA@mail.gmail.com> <alpine.DEB.2.02.1402061248450.9567@chino.kir.corp.google.com>
+ <20140207054819.GC28952@lge.com> <alpine.DEB.2.10.1402071150090.15168@nuc> <alpine.DEB.2.10.1402071245040.20246@nuc> <20140210191321.GD1558@linux.vnet.ibm.com> <20140211074159.GB27870@lge.com> <alpine.DEB.2.10.1402121612270.8183@nuc> <20140217065257.GD3468@lge.com>
+ <alpine.DEB.2.10.1402181033480.28964@nuc> <alpine.DEB.2.02.1402191404030.31921@chino.kir.corp.google.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
-Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, Anton Blanchard <anton@samba.org>, LKML <linux-kernel@vger.kernel.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Nishanth Aravamudan <nacc@linux.vnet.ibm.com>, Han Pingtian <hanpt@linux.vnet.ibm.com>, Pekka Enberg <penberg@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Paul Mackerras <paulus@samba.org>, Anton Blanchard <anton@samba.org>, Matt Mackall <mpm@selenic.com>, linuxppc-dev@lists.ozlabs.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-On Wed 19-02-14 08:33:45, Nishanth Aravamudan wrote:
-> On 19.02.2014 [08:24:38 -0800], Nishanth Aravamudan wrote:
-> > On 18.02.2014 [17:43:38 -0800], David Rientjes wrote:
-> > > On Tue, 18 Feb 2014, Nishanth Aravamudan wrote:
-> > > 
-> > > > How about the following?
-> > > > 
-> > > > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > > > index 5de4337..1a0eced 100644
-> > > > --- a/mm/page_alloc.c
-> > > > +++ b/mm/page_alloc.c
-> > > > @@ -1854,7 +1854,8 @@ static void __paginginit init_zone_allows_reclaim(int nid)
-> > > >         int i;
-> > > >  
-> > > >         for_each_online_node(i)
-> > > > -               if (node_distance(nid, i) <= RECLAIM_DISTANCE)
-> > > > +               if (node_distance(nid, i) <= RECLAIM_DISTANCE ||
-> > > > +                                       !NODE_DATA(i)->node_present_pages)
-> > > >                         node_set(i, NODE_DATA(nid)->reclaim_nodes);
-> > > >                 else
-> > > >                         zone_reclaim_mode = 1;
-> > > 
-> > >  [ I changed the above from NODE_DATA(nid) -> NODE_DATA(i) as you caught 
-> > >    so we're looking at the right code. ]
-> > > 
-> > > That can't be right, it would allow reclaiming from a memoryless node.  I 
-> > > think what you want is
-> > 
-> > Gah, you're right.
-> > 
-> > > 	for_each_online_node(i) {
-> > > 		if (!node_present_pages(i))
-> > > 			continue;
-> > > 		if (node_distance(nid, i) <= RECLAIM_DISTANCE) {
-> > > 			node_set(i, NODE_DATA(nid)->reclaim_nodes);
-> > > 			continue;
-> > > 		}
-> > > 		/* Always try to reclaim locally */
-> > > 		zone_reclaim_mode = 1;
-> > > 	}
-> > > 
-> > > but we really should be able to do for_each_node_state(i, N_MEMORY) here 
-> > > and memoryless nodes should already be excluded from that mask.
-> > 
-> > Yep, I found that afterwards, which simplifies the logic. I'll add this
-> > to my series :)
-> 
-> In looking at the code, I am wondering about the following:
-> 
-> init_zone_allows_reclaim() is called for each nid from
-> free_area_init_node(). Which means that calculate_node_totalpages for
-> other "later" nids and check_for_memory() [which sets up the N_MEMORY
-> nodemask] hasn't been called yet.
-> 
-> So, would it make sense to pull up the
->                 /* Any memory on that node */
->                 if (pgdat->node_present_pages)
->                         node_set_state(nid, N_MEMORY);
->                 check_for_memory(pgdat, nid);
-> into free_area_init_node()?
+On Wed, 19 Feb 2014, David Rientjes wrote:
 
-Dunno, but it shouldn't be needed because nodes are set N_MEMORY earlier
-in early_calculate_totalpages as mentioned in other email.
+> On Tue, 18 Feb 2014, Christoph Lameter wrote:
+>
+> > Its an optimization to avoid calling the page allocator to figure out if
+> > there is memory available on a particular node.
+> Thus this patch breaks with memory hot-add for a memoryless node.
 
--- 
-Michal Hocko
-SUSE Labs
+As soon as the per cpu slab is exhausted the node number of the so far
+"empty" node will be used for allocation. That will be sucessfull and the
+node will no longer be marked as empty.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
