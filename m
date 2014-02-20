@@ -1,35 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f48.google.com (mail-yh0-f48.google.com [209.85.213.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 8F6CC6B0098
-	for <linux-mm@kvack.org>; Thu, 20 Feb 2014 11:05:44 -0500 (EST)
-Received: by mail-yh0-f48.google.com with SMTP id f10so867646yha.21
-        for <linux-mm@kvack.org>; Thu, 20 Feb 2014 08:05:44 -0800 (PST)
-Received: from qmta03.emeryville.ca.mail.comcast.net (qmta03.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:32])
-        by mx.google.com with ESMTP id r24si6153488yho.112.2014.02.20.08.05.42
+Received: from mail-ea0-f179.google.com (mail-ea0-f179.google.com [209.85.215.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 021E46B0099
+	for <linux-mm@kvack.org>; Thu, 20 Feb 2014 11:08:33 -0500 (EST)
+Received: by mail-ea0-f179.google.com with SMTP id q10so1018060ead.10
+        for <linux-mm@kvack.org>; Thu, 20 Feb 2014 08:08:33 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id p44si9539663eeu.215.2014.02.20.08.08.30
         for <linux-mm@kvack.org>;
-        Thu, 20 Feb 2014 08:05:42 -0800 (PST)
-Date: Thu, 20 Feb 2014 10:05:39 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 1/3] mm: return NUMA_NO_NODE in local_memory_node if
- zonelists are not setup
-In-Reply-To: <20140219231714.GB413@linux.vnet.ibm.com>
-Message-ID: <alpine.DEB.2.10.1402201004460.11829@nuc>
-References: <20140219231641.GA413@linux.vnet.ibm.com> <20140219231714.GB413@linux.vnet.ibm.com>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        Thu, 20 Feb 2014 08:08:32 -0800 (PST)
+Date: Thu, 20 Feb 2014 10:06:03 -0500
+From: Luiz Capitulino <lcapitulino@redhat.com>
+Subject: Re: [PATCH 4/4] hugetlb: add hugepages_node= command-line option
+Message-ID: <20140220100603.76622b33@redhat.com>
+In-Reply-To: <alpine.DEB.2.02.1402192048240.2568@chino.kir.corp.google.com>
+References: <1392339728-13487-1-git-send-email-lcapitulino@redhat.com>
+ <1392339728-13487-5-git-send-email-lcapitulino@redhat.com>
+ <alpine.DEB.2.02.1402141511200.13935@chino.kir.corp.google.com>
+ <20140214225810.57e854cb@redhat.com>
+ <alpine.DEB.2.02.1402150159540.28883@chino.kir.corp.google.com>
+ <20140217085622.39b39cac@redhat.com>
+ <alpine.DEB.2.02.1402171518080.25724@chino.kir.corp.google.com>
+ <20140218123013.GA20609@amt.cnet>
+ <alpine.DEB.2.02.1402181407510.20772@chino.kir.corp.google.com>
+ <20140220022254.GA25898@amt.cnet>
+ <alpine.DEB.2.02.1402191941330.29913@chino.kir.corp.google.com>
+ <20140219234232.07dc1eab@redhat.com>
+ <alpine.DEB.2.02.1402192048240.2568@chino.kir.corp.google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Ben Herrenschmidt <benh@kernel.crashing.org>, Anton Blanchard <anton@samba.org>, linuxppc-dev@lists.ozlabs.org
+To: David Rientjes <rientjes@google.com>
+Cc: Marcelo Tosatti <mtosatti@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Andi Kleen <andi@firstfloor.org>, Rik van Riel <riel@redhat.com>, davidlohr@hp.com, isimatu.yasuaki@jp.fujitsu.com, yinghai@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, 19 Feb 2014, Nishanth Aravamudan wrote:
+On Wed, 19 Feb 2014 20:51:55 -0800 (PST)
+David Rientjes <rientjes@google.com> wrote:
 
-> We can call local_memory_node() before the zonelists are setup. In that
-> case, first_zones_zonelist() will not set zone and the reference to
-> zone->node will Oops. Catch this case, and, since we presumably running
-> very early, just return that any node will do.
+> On Wed, 19 Feb 2014, Luiz Capitulino wrote:
+> 
+> > > Yes, my concrete objection is that the command line interface is 
+> > > unnecessary if you can dynamically allocate and free 1GB pages at runtime 
+> > > unless memory will be so fragmented that it cannot be done when userspace 
+> > > is brought up.  That is not your use case, thus this support is not 
+> > 
+> > Yes it is. The early boot is the most reliable moment to allocate huge pages
+> > and we want to take advantage from that.
+> > 
+> 
+> Your use case is 8GB of hugepages on a 32GB machine.  It shouldn't be 
+> necessary to do that at boot.
 
-Really? Isnt there some way to avoid this call if zonelists are not setup
-yet?
+That's shortsighted because it's tied to a particular machine. The same
+customer asked for more flexibility, too.
+
+Look, we're also looking forward to allocating 1G huge pages from user-space.
+We actually agree here. What we're suggesting is having _both_, the
+command-line option (which offers higher reliability and is a low hanging
+fruit right now) _and_ later we add support to allocate 1G huge pages from
+user-space. No loss here, that's the maximum benefit for all users.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
