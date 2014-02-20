@@ -1,46 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f49.google.com (mail-pb0-f49.google.com [209.85.160.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F6166B004D
-	for <linux-mm@kvack.org>; Wed, 19 Feb 2014 23:51:59 -0500 (EST)
-Received: by mail-pb0-f49.google.com with SMTP id up15so1382007pbc.22
-        for <linux-mm@kvack.org>; Wed, 19 Feb 2014 20:51:59 -0800 (PST)
-Received: from mail-pd0-x231.google.com (mail-pd0-x231.google.com [2607:f8b0:400e:c02::231])
-        by mx.google.com with ESMTPS id po10si1889820pab.15.2014.02.19.20.51.57
+Received: from mail-ie0-f170.google.com (mail-ie0-f170.google.com [209.85.223.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 55A466B005A
+	for <linux-mm@kvack.org>; Thu, 20 Feb 2014 00:41:45 -0500 (EST)
+Received: by mail-ie0-f170.google.com with SMTP id rl12so976484iec.15
+        for <linux-mm@kvack.org>; Wed, 19 Feb 2014 21:41:45 -0800 (PST)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
+        by mx.google.com with ESMTPS id m10si3292935icu.7.2014.02.19.21.41.40
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 19 Feb 2014 20:51:57 -0800 (PST)
-Received: by mail-pd0-f177.google.com with SMTP id x10so1311451pdj.36
-        for <linux-mm@kvack.org>; Wed, 19 Feb 2014 20:51:57 -0800 (PST)
-Date: Wed, 19 Feb 2014 20:51:55 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 4/4] hugetlb: add hugepages_node= command-line option
-In-Reply-To: <20140219234232.07dc1eab@redhat.com>
-Message-ID: <alpine.DEB.2.02.1402192048240.2568@chino.kir.corp.google.com>
-References: <1392339728-13487-1-git-send-email-lcapitulino@redhat.com> <1392339728-13487-5-git-send-email-lcapitulino@redhat.com> <alpine.DEB.2.02.1402141511200.13935@chino.kir.corp.google.com> <20140214225810.57e854cb@redhat.com>
- <alpine.DEB.2.02.1402150159540.28883@chino.kir.corp.google.com> <20140217085622.39b39cac@redhat.com> <alpine.DEB.2.02.1402171518080.25724@chino.kir.corp.google.com> <20140218123013.GA20609@amt.cnet> <alpine.DEB.2.02.1402181407510.20772@chino.kir.corp.google.com>
- <20140220022254.GA25898@amt.cnet> <alpine.DEB.2.02.1402191941330.29913@chino.kir.corp.google.com> <20140219234232.07dc1eab@redhat.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 19 Feb 2014 21:41:40 -0800 (PST)
+Message-ID: <53059590.7040506@infradead.org>
+Date: Wed, 19 Feb 2014 21:41:36 -0800
+From: Randy Dunlap <rdunlap@infradead.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: mmotm 2014-02-19-16-07 uploaded (sound/soc/intel/sst-dsp.c)
+References: <20140220000827.17F275A42DC@corp2gmr1-2.hot.corp.google.com>
+In-Reply-To: <20140220000827.17F275A42DC@corp2gmr1-2.hot.corp.google.com>
+Content-Type: text/plain; charset=windows-1256
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Luiz Capitulino <lcapitulino@redhat.com>
-Cc: Marcelo Tosatti <mtosatti@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Andi Kleen <andi@firstfloor.org>, Rik van Riel <riel@redhat.com>, davidlohr@hp.com, isimatu.yasuaki@jp.fujitsu.com, yinghai@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: akpm@linux-foundation.org, mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, Liam Girdwood <lgirdwood@gmail.com>
 
-On Wed, 19 Feb 2014, Luiz Capitulino wrote:
-
-> > Yes, my concrete objection is that the command line interface is 
-> > unnecessary if you can dynamically allocate and free 1GB pages at runtime 
-> > unless memory will be so fragmented that it cannot be done when userspace 
-> > is brought up.  That is not your use case, thus this support is not 
+On 02/19/14 16:08, akpm@linux-foundation.org wrote:
+> The mm-of-the-moment snapshot 2014-02-19-16-07 has been uploaded to
 > 
-> Yes it is. The early boot is the most reliable moment to allocate huge pages
-> and we want to take advantage from that.
+>    http://www.ozlabs.org/~akpm/mmotm/
+> 
+> mmotm-readme.txt says
+> 
+> README for mm-of-the-moment:
+> 
+> http://www.ozlabs.org/~akpm/mmotm/
+> 
+> This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
+> more than once a week.
 > 
 
-Your use case is 8GB of hugepages on a 32GB machine.  It shouldn't be 
-necessary to do that at boot.
+on i386:
+(from linux-next)
 
-Thanks.
+  CC      sound/soc/intel/sst-dsp.o
+sound/soc/intel/sst-dsp.c: In function 'sst_dsp_outbox_write':
+sound/soc/intel/sst-dsp.c:218:2: error: implicit declaration of function 'memcpy_toio' [-Werror=implicit-function-declaration]
+sound/soc/intel/sst-dsp.c: In function 'sst_dsp_outbox_read':
+sound/soc/intel/sst-dsp.c:231:2: error: implicit declaration of function 'memcpy_fromio' [-Werror=implicit-function-declaration]
+cc1: some warnings being treated as errors
+make[4]: *** [sound/soc/intel/sst-dsp.o] Error 1
+
+
+-- 
+~Randy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
