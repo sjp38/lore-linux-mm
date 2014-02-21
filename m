@@ -1,63 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f52.google.com (mail-pb0-f52.google.com [209.85.160.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 47F546B00DC
-	for <linux-mm@kvack.org>; Fri, 21 Feb 2014 17:04:07 -0500 (EST)
-Received: by mail-pb0-f52.google.com with SMTP id jt11so4033459pbb.11
-        for <linux-mm@kvack.org>; Fri, 21 Feb 2014 14:04:06 -0800 (PST)
-Received: from mail-pa0-x22e.google.com (mail-pa0-x22e.google.com [2607:f8b0:400e:c03::22e])
-        by mx.google.com with ESMTPS id xn1si8452200pbc.158.2014.02.21.14.04.05
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 21 Feb 2014 14:04:06 -0800 (PST)
-Received: by mail-pa0-f46.google.com with SMTP id rd3so4058234pab.33
-        for <linux-mm@kvack.org>; Fri, 21 Feb 2014 14:04:05 -0800 (PST)
-Date: Fri, 21 Feb 2014 14:04:03 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 4/4] hugetlb: add hugepages_node= command-line option
-In-Reply-To: <20140221191055.GD19955@amt.cnet>
-Message-ID: <alpine.DEB.2.02.1402211358030.4682@chino.kir.corp.google.com>
-References: <20140217085622.39b39cac@redhat.com> <alpine.DEB.2.02.1402171518080.25724@chino.kir.corp.google.com> <20140218123013.GA20609@amt.cnet> <alpine.DEB.2.02.1402181407510.20772@chino.kir.corp.google.com> <20140220022254.GA25898@amt.cnet>
- <alpine.DEB.2.02.1402191941330.29913@chino.kir.corp.google.com> <20140220213407.GA11048@amt.cnet> <alpine.DEB.2.02.1402201502580.30647@chino.kir.corp.google.com> <20140221022800.GA30230@amt.cnet> <alpine.DEB.2.02.1402210158400.17851@chino.kir.corp.google.com>
- <20140221191055.GD19955@amt.cnet>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-pb0-f48.google.com (mail-pb0-f48.google.com [209.85.160.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 337B86B00DD
+	for <linux-mm@kvack.org>; Fri, 21 Feb 2014 17:07:38 -0500 (EST)
+Received: by mail-pb0-f48.google.com with SMTP id rr13so4015551pbb.7
+        for <linux-mm@kvack.org>; Fri, 21 Feb 2014 14:07:37 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id o7si8527675pbh.212.2014.02.21.14.07.36
+        for <linux-mm@kvack.org>;
+        Fri, 21 Feb 2014 14:07:37 -0800 (PST)
+Date: Fri, 21 Feb 2014 14:07:35 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: exclude memory less nodes from zone_reclaim
+Message-Id: <20140221140735.cef7531462f31c408012b8cb@linux-foundation.org>
+In-Reply-To: <1392889904-18019-1-git-send-email-mhocko@suse.cz>
+References: <1392889904-18019-1-git-send-email-mhocko@suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marcelo Tosatti <mtosatti@redhat.com>
-Cc: Luiz Capitulino <lcapitulino@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Andi Kleen <andi@firstfloor.org>, Rik van Riel <riel@redhat.com>, davidlohr@hp.com, isimatu.yasuaki@jp.fujitsu.com, yinghai@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Nishanth Aravamudan <nacc@linux.vnet.ibm.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, 21 Feb 2014, Marcelo Tosatti wrote:
+On Thu, 20 Feb 2014 10:51:44 +0100 Michal Hocko <mhocko@suse.cz> wrote:
 
-> > I agree that your customer wants a non-default distribution of 1GB 
-> > hugepages, yes, that's clear.  The questions that have not been answered: 
-> > why must it be done this way as opposed to runtime?  If 1GB hugepages 
-> > could be dynamically allocated, would your customer be able to use it?  If 
-> > not, why not?  If dynamic allocation resolves all the issues, then is this 
-> > patchset a needless maintenance burden if we had such support today?
+> We had a report about strange OOM killer strikes on a PPC machine
+> although there was a lot of swap free and a tons of anonymous memory
+> which could be swapped out. In the end it turned out that the OOM was
+> a side effect of zone reclaim which wasn't doesn't unmap and swapp out
+> and so the system was pushed to the OOM. Although this sounds like a bug
+> somewhere in the kswapd vs. zone reclaim vs. direct reclaim interaction
+> numactl on the said hardware suggests that the zone reclaim should
+> have been set in the first place:
+> node 0 cpus: 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15
+> node 0 size: 0 MB
+> node 0 free: 0 MB
+> node 2 cpus:
+> node 2 size: 7168 MB
+> node 2 free: 6019 MB
+> node distances:
+> node   0   2
+> 0:  10  40
+> 2:  40  10
 > 
-> It must be done this way because:
+> So all the CPUs are associated with Node0 which doesn't have any memory
+> while Node2 contains all the available memory. Node distances cause an
+> automatic zone_reclaim_mode enabling.
 > 
-> 1) its the only interface which is easily backportable.
+> Zone reclaim is intended to keep the allocations local but this doesn't
+> make any sense on the memory less nodes. So let's exclude such nodes
+> for init_zone_allows_reclaim which evaluates zone reclaim behavior and
+> suitable reclaim_nodes.
 > 
+> ...
+>
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -1855,7 +1855,7 @@ static void __paginginit init_zone_allows_reclaim(int nid)
+>  {
+>  	int i;
+>  
+> -	for_each_online_node(i)
+> +	for_each_node_state(i, N_MEMORY)
+>  		if (node_distance(nid, i) <= RECLAIM_DISTANCE)
+>  			node_set(i, NODE_DATA(nid)->reclaim_nodes);
+>  		else
+> @@ -4901,7 +4901,8 @@ void __paginginit free_area_init_node(int nid, unsigned long *zones_size,
+>  
+>  	pgdat->node_id = nid;
+>  	pgdat->node_start_pfn = node_start_pfn;
+> -	init_zone_allows_reclaim(nid);
+> +	if (node_state(nid, N_MEMORY))
+> +		init_zone_allows_reclaim(nid);
+>  #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+>  	get_pfn_range_for_nid(nid, &start_pfn, &end_pfn);
+>  #endif
 
-There's no pending patchset that adds dynamic allocation of GB hugepages 
-so you can't comment on what is easily backportable and which isn't.
-
-> 2) it improves the kernel command line interface from incomplete
-> (lacking the ability to specify node<->page correlation), to 
-> a complete interface.
-> 
-
-If GB hugepages can be allocated dynamically, I really think we should be 
-able to remove hugepagesz= entirely for x86 after a few years of 
-supporting it for backwards compatibility, even though Linus has insisted 
-that we never break userspace in the past (which should discourage us 
-from adding additional command line interfaces which are obsoleted in the 
-future, such as in this case).
-
-Still waiting on an answer to whether your customer would be able to 
-dynamically allocate 1GB hugepages at runtime if we had such support and, 
-if not, please show why not?
+What happens if someone later hot-adds some memory to that node?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
