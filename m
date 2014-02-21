@@ -1,58 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id A8CA16B00EC
-	for <linux-mm@kvack.org>; Fri, 21 Feb 2014 18:54:25 -0500 (EST)
-Received: by mail-pd0-f175.google.com with SMTP id w10so3907533pde.6
-        for <linux-mm@kvack.org>; Fri, 21 Feb 2014 15:54:25 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id on3si7827980pbb.275.2014.02.21.15.54.24
-        for <linux-mm@kvack.org>;
-        Fri, 21 Feb 2014 15:54:24 -0800 (PST)
-Date: Fri, 21 Feb 2014 15:54:23 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 4/4] hugetlb: add hugepages_node= command-line option
-Message-Id: <20140221155423.6c6689e27fa10ed394f01843@linux-foundation.org>
-In-Reply-To: <1392702456.2468.4.camel@buesod1.americas.hpqcorp.net>
-References: <1392339728-13487-1-git-send-email-lcapitulino@redhat.com>
-	<1392339728-13487-5-git-send-email-lcapitulino@redhat.com>
-	<alpine.DEB.2.02.1402141511200.13935@chino.kir.corp.google.com>
-	<20140214225810.57e854cb@redhat.com>
-	<alpine.DEB.2.02.1402150159540.28883@chino.kir.corp.google.com>
-	<1392702456.2468.4.camel@buesod1.americas.hpqcorp.net>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-qa0-f49.google.com (mail-qa0-f49.google.com [209.85.216.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 59E756B00EE
+	for <linux-mm@kvack.org>; Fri, 21 Feb 2014 18:56:30 -0500 (EST)
+Received: by mail-qa0-f49.google.com with SMTP id w8so4063657qac.22
+        for <linux-mm@kvack.org>; Fri, 21 Feb 2014 15:56:30 -0800 (PST)
+Received: from e31.co.us.ibm.com (e31.co.us.ibm.com. [32.97.110.149])
+        by mx.google.com with ESMTPS id u9si4766292qar.149.2014.02.21.15.56.29
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 21 Feb 2014 15:56:29 -0800 (PST)
+Received: from /spool/local
+	by e31.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <nacc@linux.vnet.ibm.com>;
+	Fri, 21 Feb 2014 16:56:29 -0700
+Received: from b03cxnp08026.gho.boulder.ibm.com (b03cxnp08026.gho.boulder.ibm.com [9.17.130.18])
+	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id D2CCF3E4003E
+	for <linux-mm@kvack.org>; Fri, 21 Feb 2014 16:56:24 -0700 (MST)
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by b03cxnp08026.gho.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s1LNu0N510682692
+	for <linux-mm@kvack.org>; Sat, 22 Feb 2014 00:56:00 +0100
+Received: from d03av03.boulder.ibm.com (localhost [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s1LNuO7w003575
+	for <linux-mm@kvack.org>; Fri, 21 Feb 2014 16:56:24 -0700
+Date: Fri, 21 Feb 2014 15:56:16 -0800
+From: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
+Subject: Re: [PATCH 1/3] mm: return NUMA_NO_NODE in local_memory_node if
+ zonelists are not setup
+Message-ID: <20140221235616.GA25399@linux.vnet.ibm.com>
+References: <20140219231641.GA413@linux.vnet.ibm.com>
+ <20140219231714.GB413@linux.vnet.ibm.com>
+ <alpine.DEB.2.10.1402201004460.11829@nuc>
+ <20140220182847.GA24745@linux.vnet.ibm.com>
+ <20140221144203.8d7b0d7039846c0304f86141@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140221144203.8d7b0d7039846c0304f86141@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <davidlohr@hp.com>
-Cc: David Rientjes <rientjes@google.com>, Luiz Capitulino <lcapitulino@redhat.com>, mtosatti@redhat.com, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Andi Kleen <andi@firstfloor.org>, Rik van Riel <riel@redhat.com>, isimatu.yasuaki@jp.fujitsu.com, yinghai@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Lameter <cl@linux.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Ben Herrenschmidt <benh@kernel.crashing.org>, Anton Blanchard <anton@samba.org>, linuxppc-dev@lists.ozlabs.org
 
-On Mon, 17 Feb 2014 21:47:36 -0800 Davidlohr Bueso <davidlohr@hp.com> wrote:
-
-> > How is that difficult?  hugepages= is the "noun", hugepagesz= is the 
-> > "adjective".  hugepages=100 hugepagesz=1G hugepages=4 makes perfect sense 
-> > to me, and I actually don't allocate hugepages on the command line, nor 
-> > have I looked at Documentation/kernel-parameters.txt to check if I'm 
-> > constructing it correctly.  It just makes sense and once you learn it it's 
-> > just natural.
+On 21.02.2014 [14:42:03 -0800], Andrew Morton wrote:
+> On Thu, 20 Feb 2014 10:28:47 -0800 Nishanth Aravamudan <nacc@linux.vnet.ibm.com> wrote:
 > 
-> This can get annoying _really_ fast for larger systems.
+> > On 20.02.2014 [10:05:39 -0600], Christoph Lameter wrote:
+> > > On Wed, 19 Feb 2014, Nishanth Aravamudan wrote:
+> > > 
+> > > > We can call local_memory_node() before the zonelists are setup. In that
+> > > > case, first_zones_zonelist() will not set zone and the reference to
+> > > > zone->node will Oops. Catch this case, and, since we presumably running
+> > > > very early, just return that any node will do.
+> > > 
+> > > Really? Isnt there some way to avoid this call if zonelists are not setup
+> > > yet?
+> > 
+> > How do I best determine if zonelists aren't setup yet?
+> > 
+> > The call-path in question (after my series is applied) is:
+> > 
+> > arch/powerpc/kernel/setup_64.c::setup_arch ->
+> > 	arch/powerpc/mm/numa.c::do_init_bootmem() ->
+> > 		cpu_numa_callback() ->
+> > 			numa_setup_cpu() ->
+> > 				map_cpu_to_node() ->
+> > 					update_numa_cpu_node() ->
+> > 						set_cpu_numa_mem()
+> > 
+> > and setup_arch() is called before build_all_zonelists(NULL, NULL) in
+> > start_kernel(). This seemed like the most reasonable path, as it's used
+> > on hotplug as well.
+> > 
+> 
+> But the call to local_memory_node() you added was in start_secondary(),
+> which isn't in that trace.
 
-Yes, I do prefer the syntax Luiz is proposing.
+I added two calls to local_memory_node(), I *think* both are necessary,
+but am willing to be corrected.
 
-But I think it would be better if it made hugepages= and hugepagesz=
-obsolete, so we can emit a printk if people use those, telling them
-to migrate because the old options are going away.
+One is in map_cpu_to_node() and one is in start_secondary(). The
+start_secondary() path is fine, AFAICT, as we are up & running at that
+point. But in [the renamed function] update_numa_cpu_node() which is
+used by hotplug, we get called from do_init_bootmem(), which is before
+the zonelists are setup.
 
-Something like
+I think both calls are necessary because I believe the
+arch_update_cpu_topology() is used for supporting firmware-driven
+home-noding, which does not invoke start_secondary() again (the
+processor is already running, we're just updating the topology in that
+situation).
 
-	hugepages_node=1:4:1G
+Then again, I could special-case the do_init_bootmem callpath, which is
+only called at kernel init time?
 
-and
+> I do agree that calling local_memory_node() too early then trying to
+> fudge around the consequences seems rather wrong.
 
-	hugepages_node=:16:1G
+If the answer is to simply not call local_memory_node() early, I'll
+submit a patch to at least add a comment, as there's nothing in the code
+itself to prevent this from happening and is guaranteed to oops.
 
-?
+Thanks,
+Nish
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
