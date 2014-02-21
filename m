@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f171.google.com (mail-ob0-f171.google.com [209.85.214.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 82C506B00D4
-	for <linux-mm@kvack.org>; Fri, 21 Feb 2014 15:53:42 -0500 (EST)
-Received: by mail-ob0-f171.google.com with SMTP id vb8so4632667obc.2
-        for <linux-mm@kvack.org>; Fri, 21 Feb 2014 12:53:42 -0800 (PST)
-Received: from g4t3427.houston.hp.com (g4t3427.houston.hp.com. [15.201.208.55])
-        by mx.google.com with ESMTPS id us4si4055664obc.57.2014.02.21.12.53.41
+Received: from mail-oa0-f44.google.com (mail-oa0-f44.google.com [209.85.219.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 6762C6B00AB
+	for <linux-mm@kvack.org>; Fri, 21 Feb 2014 15:57:10 -0500 (EST)
+Received: by mail-oa0-f44.google.com with SMTP id g12so5108913oah.17
+        for <linux-mm@kvack.org>; Fri, 21 Feb 2014 12:57:10 -0800 (PST)
+Received: from g5t1625.atlanta.hp.com (g5t1625.atlanta.hp.com. [15.192.137.8])
+        by mx.google.com with ESMTPS id tm2si7916637oeb.42.2014.02.21.12.57.08
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 21 Feb 2014 12:53:41 -0800 (PST)
-Message-ID: <1393016019.3039.40.camel@buesod1.americas.hpqcorp.net>
+        Fri, 21 Feb 2014 12:57:09 -0800 (PST)
+Message-ID: <1393016226.3039.44.camel@buesod1.americas.hpqcorp.net>
 Subject: Re: [PATCH] mm: per-thread vma caching
 From: Davidlohr Bueso <davidlohr@hp.com>
-Date: Fri, 21 Feb 2014 12:53:39 -0800
+Date: Fri, 21 Feb 2014 12:57:06 -0800
 In-Reply-To: <CA+55aFw1_Ecbjjv9vijj3o46mkq3NrJn0X-FnbpCGBZG2=NuOA@mail.gmail.com>
 References: <1392960523.3039.16.camel@buesod1.americas.hpqcorp.net>
 	 <CA+55aFw1_Ecbjjv9vijj3o46mkq3NrJn0X-FnbpCGBZG2=NuOA@mail.gmail.com>
@@ -32,35 +32,12 @@ On Fri, 2014-02-21 at 10:13 -0800, Linus Torvalds wrote:
 > > avoiding potentially expensive rbtree walks to locate a vma upon faults.
 > 
 > Ok, so I like this one much better than the previous version.
-> 
-> However, I do wonder if the per-mm vmacache is actually worth it.
-> Couldn't the per-thread one replace it entirely?
 
-I think you are right. I just reran some of the tests and things are
-pretty much the same, so we could get rid of it. I originally left it
-there because I recall seeing a slightly better hit rate for some java
-workloads (map/reduce, specifically), but it wasn't a big deal - some
-slots endup being redundant with a per mm cache. It does however
-guarantee that we access hot vmas immediately, instead of potentially
-slightly more reads when we go into per-thread checking. I'm happy with
-the results either way.
-
-> Also, the hash you use for the vmacache index is *particularly* odd.
-> 
->         int idx =  (addr >> 10) & 3;
-> 
-> you're using the top two bits of the address *within* the page.
-> There's a lot of places that round addresses down to pages, and in
-> general it just looks really odd to use an offset within a page as an
-> index, since in some patterns (linear accesses, whatever), the page
-> faults will always be to the beginning of the page, so index 0 ends up
-> being special.
-
-Ah, this comes from tediously looking at access patterns. I actually
-printed pages of them. I agree that it is weird, and I'm by no means
-against changing it. However, the results are just too good, specially
-for ebizzy, so I decided to keep it, at least for now. I am open to
-alternatives.
+Btw, one concern I had is regarding seqnum overflows... if such
+scenarios should happen we'd end up potentially returning bogus vmas and
+getting bus errors and other sorts of issues. So we'd have to flush the
+caches, but, do we care? I guess on 32bit systems it could be a bit more
+possible to trigger given enough forking.
 
 Thanks,
 Davidlohr
