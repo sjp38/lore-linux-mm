@@ -1,93 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f173.google.com (mail-qc0-f173.google.com [209.85.216.173])
-	by kanga.kvack.org (Postfix) with ESMTP id CE7446B00A8
-	for <linux-mm@kvack.org>; Thu, 20 Feb 2014 18:48:00 -0500 (EST)
-Received: by mail-qc0-f173.google.com with SMTP id i8so4492963qcq.4
-        for <linux-mm@kvack.org>; Thu, 20 Feb 2014 15:48:00 -0800 (PST)
-Received: from mail-qc0-x22e.google.com (mail-qc0-x22e.google.com [2607:f8b0:400d:c01::22e])
-        by mx.google.com with ESMTPS id a51si2983175qge.110.2014.02.20.15.47.59
+Received: from mail-qc0-f182.google.com (mail-qc0-f182.google.com [209.85.216.182])
+	by kanga.kvack.org (Postfix) with ESMTP id C12C86B00AA
+	for <linux-mm@kvack.org>; Thu, 20 Feb 2014 19:30:41 -0500 (EST)
+Received: by mail-qc0-f182.google.com with SMTP id w7so2365562qcr.41
+        for <linux-mm@kvack.org>; Thu, 20 Feb 2014 16:30:41 -0800 (PST)
+Received: from e34.co.us.ibm.com (e34.co.us.ibm.com. [32.97.110.152])
+        by mx.google.com with ESMTPS id gd5si2191129qab.180.2014.02.20.16.30.40
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 20 Feb 2014 15:47:59 -0800 (PST)
-Received: by mail-qc0-f174.google.com with SMTP id x13so4559963qcv.33
-        for <linux-mm@kvack.org>; Thu, 20 Feb 2014 15:47:59 -0800 (PST)
-Message-ID: <5306942C.2070902@gmail.com>
-Date: Thu, 20 Feb 2014 18:47:56 -0500
-From: Sasha Levin <levinsasha928@gmail.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 20 Feb 2014 16:30:41 -0800 (PST)
+Received: from /spool/local
+	by e34.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <nacc@linux.vnet.ibm.com>;
+	Thu, 20 Feb 2014 17:30:40 -0700
+Received: from b03cxnp08028.gho.boulder.ibm.com (b03cxnp08028.gho.boulder.ibm.com [9.17.130.20])
+	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 1BF971FF001A
+	for <linux-mm@kvack.org>; Thu, 20 Feb 2014 17:30:38 -0700 (MST)
+Received: from d03av03.boulder.ibm.com (d03av03.boulder.ibm.com [9.17.195.169])
+	by b03cxnp08028.gho.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s1L0UaLx10224034
+	for <linux-mm@kvack.org>; Fri, 21 Feb 2014 01:30:38 +0100
+Received: from d03av03.boulder.ibm.com (localhost [127.0.0.1])
+	by d03av03.boulder.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s1L0Uadt007825
+	for <linux-mm@kvack.org>; Thu, 20 Feb 2014 17:30:36 -0700
+Date: Thu, 20 Feb 2014 16:30:27 -0800
+From: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
+Subject: N_NORMAL on NUMA?
+Message-ID: <20140221003027.GA12799@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 01/11] pagewalk: update page table walker core
-References: <1392068676-30627-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1392068676-30627-2-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1392068676-30627-2-git-send-email-n-horiguchi@ah.jp.nec.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, Cliff Wickman <cpw@sgi.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@parallels.com>, Rik van Riel <riel@redhat.com>, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: rientjes@google.com, cl@linux.com, anton@samba.org
 
-Hi Naoya,
+I'm confused by the following:
 
-This patch seems to trigger a NULL ptr deref here. I didn't have a change to look into it yet
-but here's the spew:
+/*
+ * Array of node states.
+ */
+nodemask_t node_states[NR_NODE_STATES] __read_mostly = {
+        [N_POSSIBLE] = NODE_MASK_ALL,
+        [N_ONLINE] = { { [0] = 1UL } },
+#ifndef CONFIG_NUMA
+        [N_NORMAL_MEMORY] = { { [0] = 1UL } },
+#ifdef CONFIG_HIGHMEM
+        [N_HIGH_MEMORY] = { { [0] = 1UL } },
+#endif
+#ifdef CONFIG_MOVABLE_NODE
+        [N_MEMORY] = { { [0] = 1UL } },
+#endif
+        [N_CPU] = { { [0] = 1UL } },
+#endif  /* NUMA */
+};
 
-[  281.650503] BUG: unable to handle kernel NULL pointer dereference at 0000000000000018
-[  281.651577] IP: [<ffffffff811a31fc>] __lock_acquire+0xbc/0x580
-[  281.652453] PGD 40b88d067 PUD 40b88c067 PMD 0
-[  281.653143] Oops: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
-[  281.653869] Dumping ftrace buffer:
-[  281.654430]    (ftrace buffer empty)
-[  281.654975] Modules linked in:
-[  281.655441] CPU: 4 PID: 12314 Comm: trinity-c361 Tainted: G        W 
-3.14.0-rc3-next-20140220-sasha-00008-gab7e7ac-dirty #113
-[  281.657622] task: ffff8804242ab000 ti: ffff880424348000 task.ti: ffff880424348000
-[  281.658503] RIP: 0010:[<ffffffff811a31fc>]  [<ffffffff811a31fc>] __lock_acquire+0xbc/0x580
-[  281.660025] RSP: 0018:ffff880424349ab8  EFLAGS: 00010002
-[  281.660761] RAX: 0000000000000086 RBX: 0000000000000018 RCX: 0000000000000000
-[  281.660761] RDX: 0000000000000000 RSI: 0000000000000000 RDI: 0000000000000018
-[  281.660761] RBP: ffff880424349b28 R08: 0000000000000001 R09: 0000000000000000
-[  281.660761] R10: 0000000000000001 R11: 0000000000000001 R12: ffff8804242ab000
-[  281.660761] R13: 0000000000000000 R14: 0000000000000000 R15: 0000000000000001
-[  281.660761] FS:  00007f36534b0700(0000) GS:ffff88052bc00000(0000) knlGS:0000000000000000
-[  281.660761] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-[  281.660761] CR2: 0000000000000018 CR3: 000000040b88e000 CR4: 00000000000006e0
-[  281.660761] Stack:
-[  281.660761]  ffff880424349ae8 ffffffff81180695 ffff8804242ab038 0000000000000004
-[  281.660761]  00000000001d8500 ffff88052bdd8500 ffff880424349b18 ffffffff81180915
-[  281.660761]  ffffffff876a68b0 ffff8804242ab000 0000000000000000 0000000000000001
-[  281.660761] Call Trace:
-[  281.660761]  [<ffffffff81180695>] ? sched_clock_local+0x25/0x90
-[  281.660761]  [<ffffffff81180915>] ? sched_clock_cpu+0xc5/0x110
-[  281.660761]  [<ffffffff811a3842>] lock_acquire+0x182/0x1d0
-[  281.660761]  [<ffffffff812990d8>] ? walk_pte_range+0xb8/0x170
-[  281.660761]  [<ffffffff811a3daa>] ? __lock_release+0x1da/0x1f0
-[  281.660761]  [<ffffffff8438ae5b>] _raw_spin_lock+0x3b/0x70
-[  281.660761]  [<ffffffff812990d8>] ? walk_pte_range+0xb8/0x170
-[  281.660761]  [<ffffffff812990d8>] walk_pte_range+0xb8/0x170
-[  281.660761]  [<ffffffff812993a1>] walk_pmd_range+0x211/0x240
-[  281.660761]  [<ffffffff812994fb>] walk_pud_range+0x12b/0x160
-[  281.660761]  [<ffffffff81299639>] walk_pgd_range+0x109/0x140
-[  281.660761]  [<ffffffff812996a5>] __walk_page_range+0x35/0x40
-[  281.660761]  [<ffffffff81299862>] walk_page_range+0xf2/0x130
-[  281.660761]  [<ffffffff812a8ccc>] queue_pages_range+0x6c/0x90
-[  281.660761]  [<ffffffff812a8d80>] ? queue_pages_hugetlb+0x90/0x90
-[  281.660761]  [<ffffffff812a8cf0>] ? queue_pages_range+0x90/0x90
-[  281.660761]  [<ffffffff812a8f50>] ? change_prot_numa+0x30/0x30
-[  281.660761]  [<ffffffff812ac9f1>] do_mbind+0x311/0x330
-[  281.660761]  [<ffffffff811815c1>] ? vtime_account_user+0x91/0xa0
-[  281.660761]  [<ffffffff8124f1a8>] ? context_tracking_user_exit+0xa8/0x1c0
-[  281.660761]  [<ffffffff812aca99>] SYSC_mbind+0x89/0xb0
-[  281.660761]  [<ffffffff812acac9>] SyS_mbind+0x9/0x10
-[  281.660761]  [<ffffffff84395360>] tracesys+0xdd/0xe2
-[  281.660761] Code: c2 04 47 49 85 be fa 0b 00 00 48 c7 c7 bb 85 49 85 e8 d9 7b f9 ff 31 c0 e9 9c 
-04 00 00 66 90 44 8b 1d a9 b8 ac 04 45 85 db 74 0c <48> 81 3b 40 61 3f 87 75 06 0f 1f 00 45 31 c0 83 
-fe 01 77 0c 89
-[  281.660761] RIP  [<ffffffff811a31fc>] __lock_acquire+0xbc/0x580
-[  281.660761]  RSP <ffff880424349ab8>
-[  281.660761] CR2: 0000000000000018
-[  281.660761] ---[ end trace b6e188d329664196 ]---
+Why are we checking for CONFIG_MOVABLE_NODE above when mm/Kconfig says:
+
+config MOVABLE_NODE
+        boolean "Enable to assign a node which has only movable memory"
+        depends on HAVE_MEMBLOCK
+        depends on NO_BOOTMEM
+        depends on X86_64
+        depends on NUMA
+
+? Doesn't that mean that you can't have CONFIG_HAVE_MOVABLE_NODE without
+CONFIG_NUMA? But we're in a #ifndef CONFIG_NUMA block above...
 
 Thanks,
-Sasha
+Nish
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
