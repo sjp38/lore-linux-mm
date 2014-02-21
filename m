@@ -1,59 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f174.google.com (mail-yk0-f174.google.com [209.85.160.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 578856B00B8
-	for <linux-mm@kvack.org>; Fri, 21 Feb 2014 01:43:36 -0500 (EST)
-Received: by mail-yk0-f174.google.com with SMTP id 20so4765036yks.5
-        for <linux-mm@kvack.org>; Thu, 20 Feb 2014 22:43:36 -0800 (PST)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id u64si3068546yhe.64.2014.02.20.22.43.35
+Received: from mail-oa0-f44.google.com (mail-oa0-f44.google.com [209.85.219.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 561A06B00BA
+	for <linux-mm@kvack.org>; Fri, 21 Feb 2014 02:37:37 -0500 (EST)
+Received: by mail-oa0-f44.google.com with SMTP id g12so3676539oah.3
+        for <linux-mm@kvack.org>; Thu, 20 Feb 2014 23:37:37 -0800 (PST)
+Received: from g6t1524.atlanta.hp.com (g6t1524.atlanta.hp.com. [15.193.200.67])
+        by mx.google.com with ESMTPS id iz10si2107690obb.0.2014.02.20.23.37.36
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 20 Feb 2014 22:43:35 -0800 (PST)
-Message-ID: <5306F588.10309@oracle.com>
-Date: Fri, 21 Feb 2014 01:43:20 -0500
-From: Sasha Levin <sasha.levin@oracle.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 01/11] pagewalk: update page table walker core
-References: <1392068676-30627-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1392068676-30627-2-git-send-email-n-horiguchi@ah.jp.nec.com> <5306942C.2070902@gmail.com> <5306c629.012ce50a.6c48.ffff9844SMTPIN_ADDED_BROKEN@mx.google.com>
-In-Reply-To: <5306c629.012ce50a.6c48.ffff9844SMTPIN_ADDED_BROKEN@mx.google.com>
-Content-Type: text/plain; charset=ISO-2022-JP
+        Thu, 20 Feb 2014 23:37:36 -0800 (PST)
+Message-ID: <1392968254.3039.19.camel@buesod1.americas.hpqcorp.net>
+Subject: [PATCH] mm: update comment in unmap_single_vma()
+From: Davidlohr Bueso <davidlohr@hp.com>
+Date: Thu, 20 Feb 2014 23:37:34 -0800
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, mpm@selenic.com, cpw@sgi.com, kosaki.motohiro@jp.fujitsu.com, hannes@cmpxchg.org, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suse.cz, aneesh.kumar@linux.vnet.ibm.com, xemul@parallels.com, riel@redhat.com, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, davidlohr@hp.com
 
-On 02/20/2014 10:20 PM, Naoya Horiguchi wrote:
-> Hi Sasha,
-> 
-> On Thu, Feb 20, 2014 at 06:47:56PM -0500, Sasha Levin wrote:
->> Hi Naoya,
->>
->> This patch seems to trigger a NULL ptr deref here. I didn't have a change to look into it yet
->> but here's the spew:
-> 
-> Thanks for reporting.
-> I'm not sure what caused this bug from the kernel message. But in my guessing,
-> it seems that the NULL pointer is deep inside lockdep routine __lock_acquire(),
-> so if we find out which pointer was NULL, it might be useful to bisect which
-> the proble is (page table walker or lockdep, or both.)
+From: Davidlohr Bueso <davidlohr@hp.com>
 
-This actually points to walk_pte_range() trying to lock a NULL spinlock. It happens when we call
-pte_offset_map_lock() and get a NULL ptl out of pte_lockptr().
+The described issue now occurs inside mmap_region().
+And unfortunately is still valid.
 
-> BTW, just from curiousity, in my build environment many of kernel functions
-> are inlined, so should not be shown in kernel message. But in your report
-> we can see the symbols like walk_pte_range() and __lock_acquire() which never
-> appear in my kernel. How did you do it? I turned off CONFIG_OPTIMIZE_INLINING,
-> but didn't make it.
+Signed-off-by: Davidlohr Bueso <davidlohr@hp.com>
+---
+ mm/memory.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-I'm really not sure. I've got a bunch of debug options enabled and it just seems to do the trick.
+diff --git a/mm/memory.c b/mm/memory.c
+index 95009f9..c90df25 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -1320,9 +1320,9 @@ static void unmap_single_vma(struct mmu_gather *tlb,
+ 			 * It is undesirable to test vma->vm_file as it
+ 			 * should be non-null for valid hugetlb area.
+ 			 * However, vm_file will be NULL in the error
+-			 * cleanup path of do_mmap_pgoff. When
++			 * cleanup path of mmap_region. When
+ 			 * hugetlbfs ->mmap method fails,
+-			 * do_mmap_pgoff() nullifies vma->vm_file
++			 * mmap_region() nullifies vma->vm_file
+ 			 * before calling this function to clean up.
+ 			 * Since no pte has actually been setup, it is
+ 			 * safe to do nothing in this case.
+-- 
+1.8.1.4
 
-Try CONFIG_READABLE_ASM maybe?
 
-
-Thanks,
-Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
