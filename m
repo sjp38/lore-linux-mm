@@ -1,66 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 217C06B00E1
-	for <linux-mm@kvack.org>; Fri, 21 Feb 2014 17:42:06 -0500 (EST)
-Received: by mail-pd0-f179.google.com with SMTP id fp1so3838351pdb.24
-        for <linux-mm@kvack.org>; Fri, 21 Feb 2014 14:42:05 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id ap6si8567321pad.345.2014.02.21.14.42.04
-        for <linux-mm@kvack.org>;
-        Fri, 21 Feb 2014 14:42:05 -0800 (PST)
-Date: Fri, 21 Feb 2014 14:42:03 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/3] mm: return NUMA_NO_NODE in local_memory_node if
- zonelists are not setup
-Message-Id: <20140221144203.8d7b0d7039846c0304f86141@linux-foundation.org>
-In-Reply-To: <20140220182847.GA24745@linux.vnet.ibm.com>
-References: <20140219231641.GA413@linux.vnet.ibm.com>
-	<20140219231714.GB413@linux.vnet.ibm.com>
-	<alpine.DEB.2.10.1402201004460.11829@nuc>
-	<20140220182847.GA24745@linux.vnet.ibm.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D9256B00E3
+	for <linux-mm@kvack.org>; Fri, 21 Feb 2014 17:44:08 -0500 (EST)
+Received: by mail-pd0-f170.google.com with SMTP id y10so648427pdj.1
+        for <linux-mm@kvack.org>; Fri, 21 Feb 2014 14:44:08 -0800 (PST)
+Received: from mail-pa0-x230.google.com (mail-pa0-x230.google.com [2607:f8b0:400e:c03::230])
+        by mx.google.com with ESMTPS id xe9si8542224pab.257.2014.02.21.14.44.07
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 21 Feb 2014 14:44:07 -0800 (PST)
+Received: by mail-pa0-f48.google.com with SMTP id kx10so4060265pab.21
+        for <linux-mm@kvack.org>; Fri, 21 Feb 2014 14:44:07 -0800 (PST)
+Date: Fri, 21 Feb 2014 14:44:05 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH 4/4] hugetlb: add hugepages_node= command-line option
+In-Reply-To: <20140221223616.GG22728@two.firstfloor.org>
+Message-ID: <alpine.DEB.2.02.1402211440120.20113@chino.kir.corp.google.com>
+References: <20140218123013.GA20609@amt.cnet> <alpine.DEB.2.02.1402181407510.20772@chino.kir.corp.google.com> <20140220022254.GA25898@amt.cnet> <alpine.DEB.2.02.1402191941330.29913@chino.kir.corp.google.com> <20140220213407.GA11048@amt.cnet>
+ <alpine.DEB.2.02.1402201502580.30647@chino.kir.corp.google.com> <20140221022800.GA30230@amt.cnet> <alpine.DEB.2.02.1402210158400.17851@chino.kir.corp.google.com> <20140221191055.GD19955@amt.cnet> <alpine.DEB.2.02.1402211358030.4682@chino.kir.corp.google.com>
+ <20140221223616.GG22728@two.firstfloor.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
-Cc: Christoph Lameter <cl@linux.com>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Ben Herrenschmidt <benh@kernel.crashing.org>, Anton Blanchard <anton@samba.org>, linuxppc-dev@lists.ozlabs.org
+To: Andi Kleen <andi@firstfloor.org>
+Cc: Marcelo Tosatti <mtosatti@redhat.com>, Luiz Capitulino <lcapitulino@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, davidlohr@hp.com, isimatu.yasuaki@jp.fujitsu.com, yinghai@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, 20 Feb 2014 10:28:47 -0800 Nishanth Aravamudan <nacc@linux.vnet.ibm.com> wrote:
+On Fri, 21 Feb 2014, Andi Kleen wrote:
 
-> On 20.02.2014 [10:05:39 -0600], Christoph Lameter wrote:
-> > On Wed, 19 Feb 2014, Nishanth Aravamudan wrote:
+> > > 2) it improves the kernel command line interface from incomplete
+> > > (lacking the ability to specify node<->page correlation), to 
+> > > a complete interface.
+> > > 
 > > 
-> > > We can call local_memory_node() before the zonelists are setup. In that
-> > > case, first_zones_zonelist() will not set zone and the reference to
-> > > zone->node will Oops. Catch this case, and, since we presumably running
-> > > very early, just return that any node will do.
-> > 
-> > Really? Isnt there some way to avoid this call if zonelists are not setup
-> > yet?
+> > If GB hugepages can be allocated dynamically, I really think we should be 
+> > able to remove hugepagesz= entirely for x86 after a few years of 
+> > supporting it for backwards compatibility, even though Linus has insisted 
 > 
-> How do I best determine if zonelists aren't setup yet?
-> 
-> The call-path in question (after my series is applied) is:
-> 
-> arch/powerpc/kernel/setup_64.c::setup_arch ->
-> 	arch/powerpc/mm/numa.c::do_init_bootmem() ->
-> 		cpu_numa_callback() ->
-> 			numa_setup_cpu() ->
-> 				map_cpu_to_node() ->
-> 					update_numa_cpu_node() ->
-> 						set_cpu_numa_mem()
-> 
-> and setup_arch() is called before build_all_zonelists(NULL, NULL) in
-> start_kernel(). This seemed like the most reasonable path, as it's used
-> on hotplug as well.
+> That doesn't make any sense. Why break a perfectly fine interface?
 > 
 
-But the call to local_memory_node() you added was in start_secondary(),
-which isn't in that trace.
+I think doing hugepagesz= and not default_hugepagesz= is more of a hack 
+just because we lack support for dynamically allocating some class of 
+hugepage sizes and this is the only way to currently do it; if we had 
+support for doing it at runtime then that hack probably isn't needed.  You 
+would still be able to do default_hugepagesz=1G and allocate a ton of them 
+when fragmentation is a concern and it can only truly be done at boot.  
+Even then, with such a large size it doesn't seem absolutely necessary 
+since you'd either be (a) oom as a result of all those hugepages or (b) 
+there would be enough memory for initscripts to do this at runtime, this 
+isn't the case with 2MB.
 
-I do agree that calling local_memory_node() too early then trying to
-fudge around the consequences seems rather wrong.
+But, like I said, I'm not sure we'd ever be able to totally remove it 
+because of backwards compatibility, but the point is that nobody would 
+have to use it anymore as a hack for 1GB.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
