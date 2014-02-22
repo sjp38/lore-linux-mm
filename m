@@ -1,46 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f46.google.com (mail-qa0-f46.google.com [209.85.216.46])
-	by kanga.kvack.org (Postfix) with ESMTP id AB4E76B00F4
-	for <linux-mm@kvack.org>; Fri, 21 Feb 2014 20:10:44 -0500 (EST)
-Received: by mail-qa0-f46.google.com with SMTP id k15so4220180qaq.33
-        for <linux-mm@kvack.org>; Fri, 21 Feb 2014 17:10:44 -0800 (PST)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id a51si5587921qge.60.2014.02.21.17.10.43
+Received: from mail-bk0-f52.google.com (mail-bk0-f52.google.com [209.85.214.52])
+	by kanga.kvack.org (Postfix) with ESMTP id AC37C6B00F6
+	for <linux-mm@kvack.org>; Fri, 21 Feb 2014 23:04:16 -0500 (EST)
+Received: by mail-bk0-f52.google.com with SMTP id e11so1295162bkh.11
+        for <linux-mm@kvack.org>; Fri, 21 Feb 2014 20:04:15 -0800 (PST)
+Received: from one.firstfloor.org (one.firstfloor.org. [193.170.194.197])
+        by mx.google.com with ESMTPS id ea6si4039293bkb.52.2014.02.21.20.03.51
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 21 Feb 2014 17:10:44 -0800 (PST)
-Message-ID: <5307F90C.9060602@oracle.com>
-Date: Fri, 21 Feb 2014 20:10:36 -0500
-From: Sasha Levin <sasha.levin@oracle.com>
+        Fri, 21 Feb 2014 20:04:14 -0800 (PST)
+Date: Sat, 22 Feb 2014 05:03:50 +0100
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [PATCH 4/4] hugetlb: add hugepages_node= command-line option
+Message-ID: <20140222040350.GI22728@two.firstfloor.org>
+References: <1392339728-13487-1-git-send-email-lcapitulino@redhat.com>
+ <1392339728-13487-5-git-send-email-lcapitulino@redhat.com>
+ <alpine.DEB.2.02.1402141511200.13935@chino.kir.corp.google.com>
+ <20140214225810.57e854cb@redhat.com>
+ <alpine.DEB.2.02.1402150159540.28883@chino.kir.corp.google.com>
+ <1392702456.2468.4.camel@buesod1.americas.hpqcorp.net>
+ <20140221155423.6c6689e27fa10ed394f01843@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: mm:  kernel BUG at mm/huge_memory.c:1371!
-References: <5307D74C.5070002@oracle.com> <20140221235145.GA18046@node.dhcp.inet.fi>
-In-Reply-To: <20140221235145.GA18046@node.dhcp.inet.fi>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140221155423.6c6689e27fa10ed394f01843@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Davidlohr Bueso <davidlohr@hp.com>, David Rientjes <rientjes@google.com>, Luiz Capitulino <lcapitulino@redhat.com>, mtosatti@redhat.com, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Andi Kleen <andi@firstfloor.org>, Rik van Riel <riel@redhat.com>, isimatu.yasuaki@jp.fujitsu.com, yinghai@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 02/21/2014 06:51 PM, Kirill A. Shutemov wrote:
-> On Fri, Feb 21, 2014 at 05:46:36PM -0500, Sasha Levin wrote:
->> >Hi all,
->> >
->> >While fuzzing with trinity inside a KVM tools guest running latest -next
->> >kernel I've stumbled on the following (now with pretty line numbers!) spew:
->> >
->> >[  746.125099] kernel BUG at mm/huge_memory.c:1371!
-> It "VM_BUG_ON_PAGE(!PageHead(page), page);", correct?
-> I don't see dump_page() output.
+> But I think it would be better if it made hugepages= and hugepagesz=
+> obsolete, so we can emit a printk if people use those, telling them
+> to migrate because the old options are going away.
 
-Right. However, I'm not seeing the dump_page() output in the log.
+Not sure why everyone wants to break existing systems. These options
+have existed for many years, you cannot not just remove them.
 
-I see that dump_page() has been modified not long ago, I'm looking into it.
+Also the old options are totally fine and work adequately for the
+vast majority of users who do not need to control node assignment
+fine grained.
 
-
-Thanks,
-Sasha
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
