@@ -1,51 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 91C336B00F2
-	for <linux-mm@kvack.org>; Fri, 21 Feb 2014 20:04:40 -0500 (EST)
-Received: by mail-wi0-f177.google.com with SMTP id e4so1389582wiv.16
-        for <linux-mm@kvack.org>; Fri, 21 Feb 2014 17:04:39 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id eo20si38767wid.38.2014.02.21.17.04.38
+Received: from mail-qa0-f46.google.com (mail-qa0-f46.google.com [209.85.216.46])
+	by kanga.kvack.org (Postfix) with ESMTP id AB4E76B00F4
+	for <linux-mm@kvack.org>; Fri, 21 Feb 2014 20:10:44 -0500 (EST)
+Received: by mail-qa0-f46.google.com with SMTP id k15so4220180qaq.33
+        for <linux-mm@kvack.org>; Fri, 21 Feb 2014 17:10:44 -0800 (PST)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id a51si5587921qge.60.2014.02.21.17.10.43
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 21 Feb 2014 17:04:38 -0800 (PST)
-Date: Sat, 22 Feb 2014 02:04:36 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH] Revert "writeback: do not sync data dirtied after sync
- start"
-Message-ID: <20140222010436.GB21405@quack.suse.cz>
-References: <1392978601-18002-1-git-send-email-jack@suse.cz>
- <20140221115742.04f893323ce6f9d693212787@linux-foundation.org>
+        Fri, 21 Feb 2014 17:10:44 -0800 (PST)
+Message-ID: <5307F90C.9060602@oracle.com>
+Date: Fri, 21 Feb 2014 20:10:36 -0500
+From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140221115742.04f893323ce6f9d693212787@linux-foundation.org>
+Subject: Re: mm:  kernel BUG at mm/huge_memory.c:1371!
+References: <5307D74C.5070002@oracle.com> <20140221235145.GA18046@node.dhcp.inet.fi>
+In-Reply-To: <20140221235145.GA18046@node.dhcp.inet.fi>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Jan Kara <jack@suse.cz>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri 21-02-14 11:57:42, Andrew Morton wrote:
-> On Fri, 21 Feb 2014 11:30:01 +0100 Jan Kara <jack@suse.cz> wrote:
-> 
-> > This reverts commit c4a391b53a72d2df4ee97f96f78c1d5971b47489. Dave
-> > Chinner <david@fromorbit.com> has reported the commit may cause some
-> > inodes to be left out from sync(2). This is because we can call
-> > redirty_tail() for some inode (which sets i_dirtied_when to current time)
-> > after sync(2) has started or similarly requeue_inode() can set
-> > i_dirtied_when to current time if writeback had to skip some pages. The
-> > real problem is in the functions clobbering i_dirtied_when but fixing
-> > that isn't trivial so revert is a safer choice for now.
-> > 
-> > Signed-off-by: Jan Kara <jack@suse.cz>
-> 
-> No cc:stable?  The patch is applicable to 3.13.x.
-  Ah, forgot about it. Thanks for the reminder!
+On 02/21/2014 06:51 PM, Kirill A. Shutemov wrote:
+> On Fri, Feb 21, 2014 at 05:46:36PM -0500, Sasha Levin wrote:
+>> >Hi all,
+>> >
+>> >While fuzzing with trinity inside a KVM tools guest running latest -next
+>> >kernel I've stumbled on the following (now with pretty line numbers!) spew:
+>> >
+>> >[  746.125099] kernel BUG at mm/huge_memory.c:1371!
+> It "VM_BUG_ON_PAGE(!PageHead(page), page);", correct?
+> I don't see dump_page() output.
 
-								Honza
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+Right. However, I'm not seeing the dump_page() output in the log.
+
+I see that dump_page() has been modified not long ago, I'm looking into it.
+
+
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
