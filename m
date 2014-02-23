@@ -1,86 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f179.google.com (mail-ig0-f179.google.com [209.85.213.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 1DF616B0100
-	for <linux-mm@kvack.org>; Sun, 23 Feb 2014 08:05:20 -0500 (EST)
-Received: by mail-ig0-f179.google.com with SMTP id r1so2805539igi.0
-        for <linux-mm@kvack.org>; Sun, 23 Feb 2014 05:05:19 -0800 (PST)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id p2si18159559igg.15.2014.02.23.05.05.19
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sun, 23 Feb 2014 05:05:19 -0800 (PST)
-Message-ID: <5309F1F8.6040006@oracle.com>
-Date: Sun, 23 Feb 2014 08:04:56 -0500
-From: Sasha Levin <sasha.levin@oracle.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 11/11] mempolicy: apply page table walker on queue_pages_range()
-References: <1392068676-30627-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1392068676-30627-12-git-send-email-n-horiguchi@ah.jp.nec.com> <5306F29D.8070600@gmail.com> <530785b2.d55c8c0a.3868.ffffa4e1SMTPIN_ADDED_BROKEN@mx.google.com> <53078A53.9030302@oracle.com> <1393003512-qjyhnu0@n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1393003512-qjyhnu0@n-horiguchi@ah.jp.nec.com>
-Content-Type: text/plain; charset=ISO-2022-JP
+Received: from mail-ee0-f51.google.com (mail-ee0-f51.google.com [74.125.83.51])
+	by kanga.kvack.org (Postfix) with ESMTP id BCCDA6B0102
+	for <linux-mm@kvack.org>; Sun, 23 Feb 2014 14:00:18 -0500 (EST)
+Received: by mail-ee0-f51.google.com with SMTP id b57so2694491eek.10
+        for <linux-mm@kvack.org>; Sun, 23 Feb 2014 11:00:18 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id g47si24551438eev.31.2014.02.23.11.00.15
+        for <linux-mm@kvack.org>;
+        Sun, 23 Feb 2014 11:00:16 -0800 (PST)
+Date: Sun, 23 Feb 2014 13:59:47 -0500
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Message-ID: <530a4540.c7230f0a.4b3d.6f17SMTPIN_ADDED_BROKEN@mx.google.com>
+In-Reply-To: <5309F1F8.6040006@oracle.com>
+References: <1392068676-30627-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1392068676-30627-12-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <5306F29D.8070600@gmail.com>
+ <530785b2.d55c8c0a.3868.ffffa4e1SMTPIN_ADDED_BROKEN@mx.google.com>
+ <53078A53.9030302@oracle.com>
+ <1393003512-qjyhnu0@n-horiguchi@ah.jp.nec.com>
+ <5309F1F8.6040006@oracle.com>
+Subject: Re: [PATCH 11/11] mempolicy: apply page table walker on
+ queue_pages_range()
+Mime-Version: 1.0
+Content-Type: text/plain;
+ charset=iso-2022-jp
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+To: sasha.levin@oracle.com
 Cc: linux-mm@kvack.org, akpm@linux-foundation.org, mpm@selenic.com, cpw@sgi.com, kosaki.motohiro@jp.fujitsu.com, hannes@cmpxchg.org, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suse.cz, aneesh.kumar@linux.vnet.ibm.com, xemul@parallels.com, riel@redhat.com, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org
 
-On 02/21/2014 12:25 PM, Naoya Horiguchi wrote:
-> On Fri, Feb 21, 2014 at 12:18:11PM -0500, Sasha Levin wrote:
->> On 02/21/2014 11:58 AM, Naoya Horiguchi wrote:
->>> On Fri, Feb 21, 2014 at 01:30:53AM -0500, Sasha Levin wrote:
->>>> On 02/10/2014 04:44 PM, Naoya Horiguchi wrote:
->>>>> queue_pages_range() does page table walking in its own way now,
->>>>> so this patch rewrites it with walk_page_range().
->>>>> One difficulty was that queue_pages_range() needed to check vmas
->>>>> to determine whether we queue pages from a given vma or skip it.
->>>>> Now we have test_walk() callback in mm_walk for that purpose,
->>>>> so we can do the replacement cleanly. queue_pages_test_walk()
->>>>> depends on not only the current vma but also the previous one,
->>>>> so we use queue_pages->prev to keep it.
->>>>>
->>>>> ChangeLog v2:
->>>>> - rebase onto mmots
->>>>> - add VM_PFNMAP check on queue_pages_test_walk()
->>>>>
->>>>> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
->>>>> ---
->>>>
->>>> Hi Naoya,
->>>>
->>>> I'm seeing another spew in today's -next, and it seems to be related
->>>> to this patch. Here's the spew (with line numbers instead of kernel
->>>> addresses):
->>>
->>> Thanks. (line numbers translation is very helpful.)
->>>
->>> This bug looks strange to me.
->>> "kernel BUG at mm/hugetlb.c:3580" means we try to do isolate_huge_page()
->>> for !PageHead page. But the caller queue_pages_hugetlb() gets the page
->>> with "page = pte_page(huge_ptep_get(pte))", so it should be the head page!
->>>
->>> mm/hugetlb.c:3580 is VM_BUG_ON_PAGE(!PageHead(page), page), so we expect to
->>> have dump_page output at this point, is that in your kernel log?
->>
->> This is usually a sign of a race between that code and thp splitting, see
->> https://lkml.org/lkml/2013/12/23/457 for example.
+On Sun, Feb 23, 2014 at 08:04:56AM -0500, Sasha Levin wrote:
+...
+> And here it is:
 > 
-> queue_pages_hugetlb() is for hugetlbfs, not for thp, so I don't think that
-> it's related to thp splitting, but I agree it's a race.
+> [  755.524966] page:ffffea0000000000 count:0 mapcount:1 mapping:          (null) index:0x0
+> [  755.526067] page flags: 0x0()
 > 
->> I forgot to add the dump_page output to my extraction process and the complete logs all long gone.
->> I'll grab it when it happens again.
-> 
-> Thank you. It'll be useful.
+> Followed by the same stack trace as before.
 
-And here it is:
+Thanks.
 
-[  755.524966] page:ffffea0000000000 count:0 mapcount:1 mapping:          (null) index:0x0
-[  755.526067] page flags: 0x0()
+It seems that this page is pfn 0, so we might have invalid value on page
+table entry (pointing to pfn 0.) In this -next tree we have some update around
+hugetlb fault code (like  "mm, hugetlb: improve page-fault scalability",)
+so I'll check there could be a race window from this viewpoint.
 
-Followed by the same stack trace as before.
-
-
-Thanks,
-Sasha
+Naoya
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
