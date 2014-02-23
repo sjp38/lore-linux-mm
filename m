@@ -1,53 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f51.google.com (mail-ee0-f51.google.com [74.125.83.51])
-	by kanga.kvack.org (Postfix) with ESMTP id BCCDA6B0102
-	for <linux-mm@kvack.org>; Sun, 23 Feb 2014 14:00:18 -0500 (EST)
-Received: by mail-ee0-f51.google.com with SMTP id b57so2694491eek.10
-        for <linux-mm@kvack.org>; Sun, 23 Feb 2014 11:00:18 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id g47si24551438eev.31.2014.02.23.11.00.15
-        for <linux-mm@kvack.org>;
-        Sun, 23 Feb 2014 11:00:16 -0800 (PST)
-Date: Sun, 23 Feb 2014 13:59:47 -0500
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <530a4540.c7230f0a.4b3d.6f17SMTPIN_ADDED_BROKEN@mx.google.com>
-In-Reply-To: <5309F1F8.6040006@oracle.com>
-References: <1392068676-30627-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1392068676-30627-12-git-send-email-n-horiguchi@ah.jp.nec.com>
- <5306F29D.8070600@gmail.com>
- <530785b2.d55c8c0a.3868.ffffa4e1SMTPIN_ADDED_BROKEN@mx.google.com>
- <53078A53.9030302@oracle.com>
- <1393003512-qjyhnu0@n-horiguchi@ah.jp.nec.com>
- <5309F1F8.6040006@oracle.com>
-Subject: Re: [PATCH 11/11] mempolicy: apply page table walker on
- queue_pages_range()
-Mime-Version: 1.0
-Content-Type: text/plain;
- charset=iso-2022-jp
+Received: from mail-qg0-f51.google.com (mail-qg0-f51.google.com [209.85.192.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 246366B0104
+	for <linux-mm@kvack.org>; Sun, 23 Feb 2014 14:32:27 -0500 (EST)
+Received: by mail-qg0-f51.google.com with SMTP id q108so12672991qgd.10
+        for <linux-mm@kvack.org>; Sun, 23 Feb 2014 11:32:26 -0800 (PST)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id js6si3814776qcb.51.2014.02.23.11.32.26
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Sun, 23 Feb 2014 11:32:26 -0800 (PST)
+Message-ID: <530A4CBE.5090305@oracle.com>
+Date: Sun, 23 Feb 2014 14:32:14 -0500
+From: Sasha Levin <sasha.levin@oracle.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] mm: remove BUG_ON() from mlock_vma_page()
+References: <1387327369-18806-1-git-send-email-bob.liu@oracle.com> <20140131123352.a3da2a1dee32d79ad1f6af9f@linux-foundation.org>
+In-Reply-To: <20140131123352.a3da2a1dee32d79ad1f6af9f@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: sasha.levin@oracle.com
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, mpm@selenic.com, cpw@sgi.com, kosaki.motohiro@jp.fujitsu.com, hannes@cmpxchg.org, kamezawa.hiroyu@jp.fujitsu.com, mhocko@suse.cz, aneesh.kumar@linux.vnet.ibm.com, xemul@parallels.com, riel@redhat.com, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, Bob Liu <lliubbo@gmail.com>
+Cc: linux-mm@kvack.org, walken@google.com, kosaki.motohiro@jp.fujitsu.com, riel@redhat.com, vbabka@suse.cz, stable@kernel.org, gregkh@linuxfoundation.org, Bob Liu <bob.liu@oracle.com>
 
-On Sun, Feb 23, 2014 at 08:04:56AM -0500, Sasha Levin wrote:
-...
-> And here it is:
-> 
-> [  755.524966] page:ffffea0000000000 count:0 mapcount:1 mapping:          (null) index:0x0
-> [  755.526067] page flags: 0x0()
-> 
-> Followed by the same stack trace as before.
+On 01/31/2014 03:33 PM, Andrew Morton wrote:
+> On Wed, 18 Dec 2013 08:42:49 +0800 Bob Liu<lliubbo@gmail.com>  wrote:
+>
+>> >This BUG_ON() was triggered when called from try_to_unmap_cluster() which
+>> >didn't lock the page.
+>> >And it's safe to mlock_vma_page() without PageLocked, so this patch fix this
+>> >issue by removing that BUG_ON() simply.
+>> >
+> This patch doesn't appear to be going anywhere, so I will drop it.
+> Please let's check to see whether the bug still exists and if so, start
+> another round of bugfixing.
 
-Thanks.
+This bug still happens on the latest -next kernel.
 
-It seems that this page is pfn 0, so we might have invalid value on page
-table entry (pointing to pfn 0.) In this -next tree we have some update around
-hugetlb fault code (like  "mm, hugetlb: improve page-fault scalability",)
-so I'll check there could be a race window from this viewpoint.
 
-Naoya
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
