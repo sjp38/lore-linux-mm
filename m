@@ -1,45 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f51.google.com (mail-qg0-f51.google.com [209.85.192.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 246366B0104
-	for <linux-mm@kvack.org>; Sun, 23 Feb 2014 14:32:27 -0500 (EST)
-Received: by mail-qg0-f51.google.com with SMTP id q108so12672991qgd.10
-        for <linux-mm@kvack.org>; Sun, 23 Feb 2014 11:32:26 -0800 (PST)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id js6si3814776qcb.51.2014.02.23.11.32.26
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sun, 23 Feb 2014 11:32:26 -0800 (PST)
-Message-ID: <530A4CBE.5090305@oracle.com>
-Date: Sun, 23 Feb 2014 14:32:14 -0500
-From: Sasha Levin <sasha.levin@oracle.com>
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 93FD66B0106
+	for <linux-mm@kvack.org>; Sun, 23 Feb 2014 23:49:10 -0500 (EST)
+Received: by mail-pa0-f49.google.com with SMTP id hz1so6005757pad.22
+        for <linux-mm@kvack.org>; Sun, 23 Feb 2014 20:49:10 -0800 (PST)
+Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
+        by mx.google.com with ESMTP id sh5si15303829pbc.260.2014.02.23.20.49.08
+        for <linux-mm@kvack.org>;
+        Sun, 23 Feb 2014 20:49:09 -0800 (PST)
+Date: Mon, 24 Feb 2014 13:49:18 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH 9/9] slab: remove a useless lockdep annotation
+Message-ID: <20140224044918.GA14814@lge.com>
+References: <1392361043-22420-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1392361043-22420-10-git-send-email-iamjoonsoo.kim@lge.com>
+ <alpine.DEB.2.10.1402141248560.12887@nuc>
+ <20140217061201.GA3468@lge.com>
+ <alpine.DEB.2.10.1402181019550.28591@nuc>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: remove BUG_ON() from mlock_vma_page()
-References: <1387327369-18806-1-git-send-email-bob.liu@oracle.com> <20140131123352.a3da2a1dee32d79ad1f6af9f@linux-foundation.org>
-In-Reply-To: <20140131123352.a3da2a1dee32d79ad1f6af9f@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.10.1402181019550.28591@nuc>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Bob Liu <lliubbo@gmail.com>
-Cc: linux-mm@kvack.org, walken@google.com, kosaki.motohiro@jp.fujitsu.com, riel@redhat.com, vbabka@suse.cz, stable@kernel.org, gregkh@linuxfoundation.org, Bob Liu <bob.liu@oracle.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 01/31/2014 03:33 PM, Andrew Morton wrote:
-> On Wed, 18 Dec 2013 08:42:49 +0800 Bob Liu<lliubbo@gmail.com>  wrote:
->
->> >This BUG_ON() was triggered when called from try_to_unmap_cluster() which
->> >didn't lock the page.
->> >And it's safe to mlock_vma_page() without PageLocked, so this patch fix this
->> >issue by removing that BUG_ON() simply.
->> >
-> This patch doesn't appear to be going anywhere, so I will drop it.
-> Please let's check to see whether the bug still exists and if so, start
-> another round of bugfixing.
+On Tue, Feb 18, 2014 at 10:21:10AM -0600, Christoph Lameter wrote:
+> On Mon, 17 Feb 2014, Joonsoo Kim wrote:
+> 
+> > > Why change the BAD_ALIEN_MAGIC?
+> >
+> > Hello, Christoph.
+> >
+> > BAD_ALIEN_MAGIC is only checked by slab_set_lock_classes(). We remove this
+> > function in this patch, so returning BAD_ALIEN_MAGIC is useless.
+> 
+> Its not useless. The point is if there is a pointer deref then we will see
+> this as a pointer value and know that it is realted to alien cache
+> processing.
+> 
+> > And, in fact, BAD_ALIEN_MAGIC is already useless, because alloc_alien_cache()
+> > can't be called on !CONFIG_NUMA. This function is called if use_alien_caches
+> > is positive, but on !CONFIG_NUMA, use_alien_caches is always 0. So we don't
+> > have any chance to meet this BAD_ALIEN_MAGIC in runtime.
+> 
+> Maybe it no longer serves a point. But note that caches may not be
+> populated because processors/nodes are not up yet.
 
-This bug still happens on the latest -next kernel.
+Hello,
 
+Let me clarify about alloc_alien_cache().
 
-Thanks,
-Sasha
+alloc_alien_cache() has two definitions, one for !CONFIG_NUMA, and the other for
+CONFIG_NUMA. BAD_ALIEN_MAGIC is only assigned on !CONFIG_NUMA definition. On
+CONFIG_NUMA, alloc_alien_cache() doesn't use BAD_ALIEN_MAGIC. So it is sufficient
+to consider just !CONFIG_NUMA case.
+
+As I mentioned before, this function isn't called if use_alien_caches is zero
+and use_alien_caches is always zero on !CONFIG_NUMA. Therefore we cannot see
+BAD_ALIEN_MAGIC on any configuration. I don't know why BAD_ALIEN_MAGIC is
+introduced, however, it no longer serves a point, so it is better to remove it.
+
+There are lots of code to check whether processor/nodes are up or not and these
+doesn't use BAD_ALIEN_MAGIC. Instead, it checks NULL on alien_cache of specific node.
+So removing BAD_ALIEN_MAGIC doesn't harm anything here.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
