@@ -1,103 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 2306D6B010C
-	for <linux-mm@kvack.org>; Mon, 24 Feb 2014 03:28:56 -0500 (EST)
-Received: by mail-pa0-f50.google.com with SMTP id kp14so6199282pab.23
-        for <linux-mm@kvack.org>; Mon, 24 Feb 2014 00:28:55 -0800 (PST)
-Received: from mail-pa0-x22e.google.com (mail-pa0-x22e.google.com [2607:f8b0:400e:c03::22e])
-        by mx.google.com with ESMTPS id s1si16132397pav.248.2014.02.24.00.28.54
+Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 95ACC6B010E
+	for <linux-mm@kvack.org>; Mon, 24 Feb 2014 03:59:44 -0500 (EST)
+Received: by mail-wi0-f176.google.com with SMTP id hi5so2765252wib.3
+        for <linux-mm@kvack.org>; Mon, 24 Feb 2014 00:59:43 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id dr11si5001594wid.3.2014.02.24.00.59.42
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 24 Feb 2014 00:28:55 -0800 (PST)
-Received: by mail-pa0-f46.google.com with SMTP id rd3so6278976pab.33
-        for <linux-mm@kvack.org>; Mon, 24 Feb 2014 00:28:54 -0800 (PST)
-Date: Mon, 24 Feb 2014 00:28:01 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH] mm: swap: Use swapfiles in priority order
-In-Reply-To: <CABdxLJHS5kw0rpD=+77iQtc6PMeRXoWnh-nh5VzjjfGHJ5wLGQ@mail.gmail.com>
-Message-ID: <alpine.LSU.2.11.1402232344280.1890@eggly.anvils>
-References: <20140213104231.GX6732@suse.de> <CAL1ERfNKX+o9dk5Qg77R3HQ_VLYiEL7mU0Tm_HqtSm9ixTW5fg@mail.gmail.com> <loom.20140214T135753-812@post.gmane.org> <CABdxLJHS5kw0rpD=+77iQtc6PMeRXoWnh-nh5VzjjfGHJ5wLGQ@mail.gmail.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 24 Feb 2014 00:59:43 -0800 (PST)
+Date: Mon, 24 Feb 2014 08:59:39 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [RFC][PATCH v2] mm/page_alloc: fix freeing of MIGRATE_RESERVE
+ migratetype pages
+Message-ID: <20140224085939.GE6732@suse.de>
+References: <42197912.c6v2hLDCey@amdc1032>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <42197912.c6v2hLDCey@amdc1032>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Weijie Yang <weijieut@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+Cc: Hugh Dickins <hughd@google.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Yong-Taek Lee <ytk.lee@samsung.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Sun, 16 Feb 2014, Weijie Yang wrote:
->  On Fri, Feb 14, 2014 at 9:10 PM, Christian Ehrhardt
-> <ehrhardt@linux.vnet.ibm.com> wrote:
-> > Weijie Yang <weijie.yang.kh <at> gmail.com> writes:
-> >
-> >>
-> >> On Thu, Feb 13, 2014 at 6:42 PM, Mel Gorman <mgorman <at> suse.de> wrote:
-> > [...]
-> >> > -       for (type = swap_list.next; type >= 0 && wrapped < 2; type = next) {
-> >> > +       for (type = swap_list.head; type >= 0 && wrapped < 2; type = next) {
-> >>
-> > [...]
-> >> Does it lead to a "schlemiel the painter's algorithm"?
-> >> (please forgive my rude words, but I can't find a precise word to describe it
-> >>
-> >> How about modify it like this?
-> >>
-> > [...]
-> >> - next = swap_list.head;
-> >> + next = type;
-> > [...]
-> >
-> > Hi,
-> > unfortunately withou studying the code more thoroughly I'm not even sure if
-> > you meant you code to extend or replace Mels patch.
-> >
-> > To be sure about your intention.  You refered to algorithm scaling because
-> > you were afraid the new code would scan the full list all the time right ?
-> >
-> > But simply letting the machines give a try for both options I can now
-> > qualify both.
-> >
-> > Just your patch creates a behaviour of jumping over priorities (see the
-> > following example), so I hope you meant combining both patches.
-> > With that in mind the patch I eventually tested the combined patch looking
-> > like this:
+On Fri, Feb 14, 2014 at 07:34:17PM +0100, Bartlomiej Zolnierkiewicz wrote:
+> Pages allocated from MIGRATE_RESERVE migratetype pageblocks
+> are not freed back to MIGRATE_RESERVE migratetype free
+> lists in free_pcppages_bulk()->__free_one_page() if we got
+> to free_pcppages_bulk() through drain_[zone_]pages().
+> The freeing through free_hot_cold_page() is okay because
+> freepage migratetype is set to pageblock migratetype before
+> calling free_pcppages_bulk().  If pages of MIGRATE_RESERVE
+> migratetype end up on the free lists of other migratetype
+> whole Reserved pageblock may be later changed to the other
+> migratetype in __rmqueue_fallback() and it will be never
+> changed back to be a Reserved pageblock.  Fix the issue by
+> preserving freepage migratetype as a pageblock migratetype
+> (instead of overriding it to the requested migratetype)
+> for MIGRATE_RESERVE migratetype pages in rmqueue_bulk().
 > 
-> Hi Christian,
+> The problem was introduced in v2.6.31 by commit ed0ae21
+> ("page allocator: do not call get_pageblock_migratetype()
+> more than necessary").
 > 
-> My patch is not appropriate, so there is no need to combine it with Mel's patch.
+> Signed-off-by: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+> Reported-by: Yong-Taek Lee <ytk.lee@samsung.com>
+> Cc: Marek Szyprowski <m.szyprowski@samsung.com>
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: Hugh Dickins <hughd@google.com>
+> ---
+> v2:
+> - updated patch description, there is no __zone_pcp_update()
+>   in newer kernels
 > 
-> What I worried about Mel's patch is not only the search efficiency,
-> actually it has
-> negligible impact on system, but also the following scenario:
+>  include/linux/mmzone.h |    5 +++++
+>  mm/page_alloc.c        |   10 +++++++---
+>  2 files changed, 12 insertions(+), 3 deletions(-)
 > 
-> If two swapfiles have the same priority, in ordinary semantic, they
-> should be used
-> in balance. But with Mel's patch, it will always get the free
-> swap_entry from the
-> swap_list.head in priority order, I worry it could break the balance.
-> 
-> I think you can test this scenario if you have available test machines.
-> 
-> Appreciate for your done.
+> Index: b/include/linux/mmzone.h
+> ===================================================================
+> --- a/include/linux/mmzone.h	2014-02-14 18:59:08.177837747 +0100
+> +++ b/include/linux/mmzone.h	2014-02-14 18:59:09.077837731 +0100
+> @@ -63,6 +63,11 @@ enum {
+>  	MIGRATE_TYPES
+>  };
+>  
+> +static inline bool is_migrate_reserve(int migratetype)
+> +{
+> +	return unlikely(migratetype == MIGRATE_RESERVE);
+> +}
+> +
+>  #ifdef CONFIG_CMA
+>  #  define is_migrate_cma(migratetype) unlikely((migratetype) == MIGRATE_CMA)
+>  #else
+> Index: b/mm/page_alloc.c
+> ===================================================================
+> --- a/mm/page_alloc.c	2014-02-14 18:59:08.185837746 +0100
+> +++ b/mm/page_alloc.c	2014-02-14 18:59:09.077837731 +0100
+> @@ -1174,7 +1174,7 @@ static int rmqueue_bulk(struct zone *zon
+>  			unsigned long count, struct list_head *list,
+>  			int migratetype, int cold)
+>  {
+> -	int mt = migratetype, i;
+> +	int mt, i;
+>  
+>  	spin_lock(&zone->lock);
+>  	for (i = 0; i < count; ++i) {
+> @@ -1195,9 +1195,13 @@ static int rmqueue_bulk(struct zone *zon
+>  			list_add(&page->lru, list);
+>  		else
+>  			list_add_tail(&page->lru, list);
+> +		mt = get_pageblock_migratetype(page);
+>  		if (IS_ENABLED(CONFIG_CMA)) {
+> -			mt = get_pageblock_migratetype(page);
+> -			if (!is_migrate_cma(mt) && !is_migrate_isolate(mt))
+> +			if (!is_migrate_cma(mt) && !is_migrate_isolate(mt) &&
+> +			    !is_migrate_reserve(mt))
+> +				mt = migratetype;
+> +		} else {
+> +			if (!is_migrate_reserve(mt))
+>  				mt = migratetype;
 
-Weijie, I agree with you on both points: Schlemiel effect of repeatedly
-restarting from head (already an unintended defect before Mel's patch),
-and more importantly the breakage of swapfiles at the same priority.
+Minimally, this could be simplified because now it's an unconditional
+call to get_pageblock_migratetype.
 
-Sorry, it has to be a Nak to Mel's patch, which fixes one behavior
-at the expense of another.  And if we were to go that way, better
-just to rip out all of swap_list.next and highest_priority_index.
+However, it looks like this could be improved without doing that.
+__rmqueue_fallback will be called if a page of the requested migratetype
+was not found. Furthermore, if a pageblock has been stolen then the
+pages are shuffled between free lists so you should be able to modify
+this patch to
 
-I had hoped to respond today with a better patch; but I just haven't
-got it right yet either.  I think we don't need to rush to fix it,
-but fix it we certainly should.
+1. have __rmqueue call set_freepage_migratetype(migratetype) if
+   __rmqueue_smallest found a page
+2. have __rmqueue_fallback call set_freepage_migratetype(new_type)
+   when it has selected which freelist to select from.
 
-Christian, congratulations on discovering this wrong behavior: at
-first I assumed it came from Shaohua's 3.9 highest_priority_index
-changes, but no; then I assumed it came from my 2.6.14 swap_lock
-changes; but now I think it goes back even before 2.4.0, probably
-ever since there have been swap priorities.
+Can you check it out as an alternative to this patch please as it would
+have much less overhead than unconditionally calling
+get_pageblock_migratetype()?
 
-Hugh
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
