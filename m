@@ -1,259 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id A10466B010A
-	for <linux-mm@kvack.org>; Mon, 24 Feb 2014 00:13:06 -0500 (EST)
-Received: by mail-pd0-f178.google.com with SMTP id fp1so5830780pdb.37
-        for <linux-mm@kvack.org>; Sun, 23 Feb 2014 21:13:06 -0800 (PST)
-Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
-        by mx.google.com with ESMTP id gn5si7312026pbc.326.2014.02.23.21.13.04
-        for <linux-mm@kvack.org>;
-        Sun, 23 Feb 2014 21:13:05 -0800 (PST)
-From: Minchan Kim <minchan@kernel.org>
-Subject: [PATCH] mm/zswap: support multiple swap devices
-Date: Mon, 24 Feb 2014 14:13:25 +0900
-Message-Id: <1393218805-24924-1-git-send-email-minchan@kernel.org>
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 2306D6B010C
+	for <linux-mm@kvack.org>; Mon, 24 Feb 2014 03:28:56 -0500 (EST)
+Received: by mail-pa0-f50.google.com with SMTP id kp14so6199282pab.23
+        for <linux-mm@kvack.org>; Mon, 24 Feb 2014 00:28:55 -0800 (PST)
+Received: from mail-pa0-x22e.google.com (mail-pa0-x22e.google.com [2607:f8b0:400e:c03::22e])
+        by mx.google.com with ESMTPS id s1si16132397pav.248.2014.02.24.00.28.54
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 24 Feb 2014 00:28:55 -0800 (PST)
+Received: by mail-pa0-f46.google.com with SMTP id rd3so6278976pab.33
+        for <linux-mm@kvack.org>; Mon, 24 Feb 2014 00:28:54 -0800 (PST)
+Date: Mon, 24 Feb 2014 00:28:01 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH] mm: swap: Use swapfiles in priority order
+In-Reply-To: <CABdxLJHS5kw0rpD=+77iQtc6PMeRXoWnh-nh5VzjjfGHJ5wLGQ@mail.gmail.com>
+Message-ID: <alpine.LSU.2.11.1402232344280.1890@eggly.anvils>
+References: <20140213104231.GX6732@suse.de> <CAL1ERfNKX+o9dk5Qg77R3HQ_VLYiEL7mU0Tm_HqtSm9ixTW5fg@mail.gmail.com> <loom.20140214T135753-812@post.gmane.org> <CABdxLJHS5kw0rpD=+77iQtc6PMeRXoWnh-nh5VzjjfGHJ5wLGQ@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cai.liu@samsung.com, weijie.yang.kh@gmail.com, Minchan Kim <minchan@kernel.org>, Bob Liu <bob.liu@oracle.com>, Seth Jennings <sjennings@variantweb.net>
+To: Weijie Yang <weijieut@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Cai Liu reporeted that now zbud pool pages counting has a problem
-when multiple swap is used because it just counts only one swap
-intead of all of swap so zswap cannot control writeback properly.
-The result is unnecessary writeback or no writeback when we should
-really writeback.
+On Sun, 16 Feb 2014, Weijie Yang wrote:
+>  On Fri, Feb 14, 2014 at 9:10 PM, Christian Ehrhardt
+> <ehrhardt@linux.vnet.ibm.com> wrote:
+> > Weijie Yang <weijie.yang.kh <at> gmail.com> writes:
+> >
+> >>
+> >> On Thu, Feb 13, 2014 at 6:42 PM, Mel Gorman <mgorman <at> suse.de> wrote:
+> > [...]
+> >> > -       for (type = swap_list.next; type >= 0 && wrapped < 2; type = next) {
+> >> > +       for (type = swap_list.head; type >= 0 && wrapped < 2; type = next) {
+> >>
+> > [...]
+> >> Does it lead to a "schlemiel the painter's algorithm"?
+> >> (please forgive my rude words, but I can't find a precise word to describe it
+> >>
+> >> How about modify it like this?
+> >>
+> > [...]
+> >> - next = swap_list.head;
+> >> + next = type;
+> > [...]
+> >
+> > Hi,
+> > unfortunately withou studying the code more thoroughly I'm not even sure if
+> > you meant you code to extend or replace Mels patch.
+> >
+> > To be sure about your intention.  You refered to algorithm scaling because
+> > you were afraid the new code would scan the full list all the time right ?
+> >
+> > But simply letting the machines give a try for both options I can now
+> > qualify both.
+> >
+> > Just your patch creates a behaviour of jumping over priorities (see the
+> > following example), so I hope you meant combining both patches.
+> > With that in mind the patch I eventually tested the combined patch looking
+> > like this:
+> 
+> Hi Christian,
+> 
+> My patch is not appropriate, so there is no need to combine it with Mel's patch.
+> 
+> What I worried about Mel's patch is not only the search efficiency,
+> actually it has
+> negligible impact on system, but also the following scenario:
+> 
+> If two swapfiles have the same priority, in ordinary semantic, they
+> should be used
+> in balance. But with Mel's patch, it will always get the free
+> swap_entry from the
+> swap_list.head in priority order, I worry it could break the balance.
+> 
+> I think you can test this scenario if you have available test machines.
+> 
+> Appreciate for your done.
 
-IOW, it made zswap crazy.
+Weijie, I agree with you on both points: Schlemiel effect of repeatedly
+restarting from head (already an unintended defect before Mel's patch),
+and more importantly the breakage of swapfiles at the same priority.
 
-Another problem in zswap is following as.
-For example, let's assume we use two swap A and B with different
-priority and A already has charged 19% long time ago and let's assume
-that A swap is full now so VM start to use B so that B has charged 1%
-recently. It menas zswap charged (19% + 1%) is full by default.
-Then, if VM want to swap out more pages into B, zbud_reclaim_page
-would be evict one of pages in B's pool and it would be repeated
-continuously. It's totally LRU reverse problem and swap thrashing
-in B would happen.
+Sorry, it has to be a Nak to Mel's patch, which fixes one behavior
+at the expense of another.  And if we were to go that way, better
+just to rip out all of swap_list.next and highest_priority_index.
 
-This patch makes zswap consider mutliple swap by creating *a* zbud
-pool which will be shared by multiple swap so all of zswap pages
-in multiple swap keep order by LRU so it can prevent above two
-problems.
+I had hoped to respond today with a better patch; but I just haven't
+got it right yet either.  I think we don't need to rush to fix it,
+but fix it we certainly should.
 
-Cc: Bob Liu <bob.liu@oracle.com>
-Cc: Seth Jennings <sjennings@variantweb.net>
-Reported-by: Cai Liu <cai.liu@samsung.com>
-Suggested-by: Weijie Yang <weijie.yang.kh@gmail.com>
-Signed-off-by: Minchan Kim <minchan@kernel.org>
----
- mm/zswap.c | 64 ++++++++++++++++++++++++++++++++------------------------------
- 1 file changed, 33 insertions(+), 31 deletions(-)
+Christian, congratulations on discovering this wrong behavior: at
+first I assumed it came from Shaohua's 3.9 highest_priority_index
+changes, but no; then I assumed it came from my 2.6.14 swap_lock
+changes; but now I think it goes back even before 2.4.0, probably
+ever since there have been swap priorities.
 
-diff --git a/mm/zswap.c b/mm/zswap.c
-index 25312eb373a0..7ab2b36e3340 100644
---- a/mm/zswap.c
-+++ b/mm/zswap.c
-@@ -89,6 +89,9 @@ static unsigned int zswap_max_pool_percent = 20;
- module_param_named(max_pool_percent,
- 			zswap_max_pool_percent, uint, 0644);
- 
-+/* zbud_pool is shared by all of zswap backend  */
-+static struct zbud_pool *shared_mem_pool;
-+
- /*********************************
- * compression functions
- **********************************/
-@@ -189,7 +192,6 @@ struct zswap_header {
- struct zswap_tree {
- 	struct rb_root rbroot;
- 	spinlock_t lock;
--	struct zbud_pool *pool;
- };
- 
- static struct zswap_tree *zswap_trees[MAX_SWAPFILES];
-@@ -285,13 +287,12 @@ static void zswap_rb_erase(struct rb_root *root, struct zswap_entry *entry)
-  * Carries out the common pattern of freeing and entry's zbud allocation,
-  * freeing the entry itself, and decrementing the number of stored pages.
-  */
--static void zswap_free_entry(struct zswap_tree *tree,
--			struct zswap_entry *entry)
-+static void zswap_free_entry(struct zswap_entry *entry)
- {
--	zbud_free(tree->pool, entry->handle);
-+	zbud_free(shared_mem_pool, entry->handle);
- 	zswap_entry_cache_free(entry);
- 	atomic_dec(&zswap_stored_pages);
--	zswap_pool_pages = zbud_get_pool_size(tree->pool);
-+	zswap_pool_pages = zbud_get_pool_size(shared_mem_pool);
- }
- 
- /* caller must hold the tree lock */
-@@ -311,7 +312,7 @@ static void zswap_entry_put(struct zswap_tree *tree,
- 	BUG_ON(refcount < 0);
- 	if (refcount == 0) {
- 		zswap_rb_erase(&tree->rbroot, entry);
--		zswap_free_entry(tree, entry);
-+		zswap_free_entry(entry);
- 	}
- }
- 
-@@ -545,7 +546,7 @@ static int zswap_writeback_entry(struct zbud_pool *pool, unsigned long handle)
- 	zbud_unmap(pool, handle);
- 	tree = zswap_trees[swp_type(swpentry)];
- 	offset = swp_offset(swpentry);
--	BUG_ON(pool != tree->pool);
-+	BUG_ON(pool != shared_mem_pool);
- 
- 	/* find and ref zswap entry */
- 	spin_lock(&tree->lock);
-@@ -573,13 +574,13 @@ static int zswap_writeback_entry(struct zbud_pool *pool, unsigned long handle)
- 	case ZSWAP_SWAPCACHE_NEW: /* page is locked */
- 		/* decompress */
- 		dlen = PAGE_SIZE;
--		src = (u8 *)zbud_map(tree->pool, entry->handle) +
-+		src = (u8 *)zbud_map(shared_mem_pool, entry->handle) +
- 			sizeof(struct zswap_header);
- 		dst = kmap_atomic(page);
- 		ret = zswap_comp_op(ZSWAP_COMPOP_DECOMPRESS, src,
- 				entry->length, dst, &dlen);
- 		kunmap_atomic(dst);
--		zbud_unmap(tree->pool, entry->handle);
-+		zbud_unmap(shared_mem_pool, entry->handle);
- 		BUG_ON(ret);
- 		BUG_ON(dlen != PAGE_SIZE);
- 
-@@ -652,7 +653,7 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
- 	/* reclaim space if needed */
- 	if (zswap_is_full()) {
- 		zswap_pool_limit_hit++;
--		if (zbud_reclaim_page(tree->pool, 8)) {
-+		if (zbud_reclaim_page(shared_mem_pool, 8)) {
- 			zswap_reject_reclaim_fail++;
- 			ret = -ENOMEM;
- 			goto reject;
-@@ -679,7 +680,7 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
- 
- 	/* store */
- 	len = dlen + sizeof(struct zswap_header);
--	ret = zbud_alloc(tree->pool, len, __GFP_NORETRY | __GFP_NOWARN,
-+	ret = zbud_alloc(shared_mem_pool, len, __GFP_NORETRY | __GFP_NOWARN,
- 		&handle);
- 	if (ret == -ENOSPC) {
- 		zswap_reject_compress_poor++;
-@@ -689,11 +690,11 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
- 		zswap_reject_alloc_fail++;
- 		goto freepage;
- 	}
--	zhdr = zbud_map(tree->pool, handle);
-+	zhdr = zbud_map(shared_mem_pool, handle);
- 	zhdr->swpentry = swp_entry(type, offset);
- 	buf = (u8 *)(zhdr + 1);
- 	memcpy(buf, dst, dlen);
--	zbud_unmap(tree->pool, handle);
-+	zbud_unmap(shared_mem_pool, handle);
- 	put_cpu_var(zswap_dstmem);
- 
- 	/* populate entry */
-@@ -716,7 +717,7 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
- 
- 	/* update stats */
- 	atomic_inc(&zswap_stored_pages);
--	zswap_pool_pages = zbud_get_pool_size(tree->pool);
-+	zswap_pool_pages = zbud_get_pool_size(shared_mem_pool);
- 
- 	return 0;
- 
-@@ -752,13 +753,13 @@ static int zswap_frontswap_load(unsigned type, pgoff_t offset,
- 
- 	/* decompress */
- 	dlen = PAGE_SIZE;
--	src = (u8 *)zbud_map(tree->pool, entry->handle) +
-+	src = (u8 *)zbud_map(shared_mem_pool, entry->handle) +
- 			sizeof(struct zswap_header);
- 	dst = kmap_atomic(page);
- 	ret = zswap_comp_op(ZSWAP_COMPOP_DECOMPRESS, src, entry->length,
- 		dst, &dlen);
- 	kunmap_atomic(dst);
--	zbud_unmap(tree->pool, entry->handle);
-+	zbud_unmap(shared_mem_pool, entry->handle);
- 	BUG_ON(ret);
- 
- 	spin_lock(&tree->lock);
-@@ -804,11 +805,9 @@ static void zswap_frontswap_invalidate_area(unsigned type)
- 	/* walk the tree and free everything */
- 	spin_lock(&tree->lock);
- 	rbtree_postorder_for_each_entry_safe(entry, n, &tree->rbroot, rbnode)
--		zswap_free_entry(tree, entry);
-+		zswap_free_entry(entry);
- 	tree->rbroot = RB_ROOT;
- 	spin_unlock(&tree->lock);
--
--	zbud_destroy_pool(tree->pool);
- 	kfree(tree);
- 	zswap_trees[type] = NULL;
- }
-@@ -822,20 +821,14 @@ static void zswap_frontswap_init(unsigned type)
- 	struct zswap_tree *tree;
- 
- 	tree = kzalloc(sizeof(struct zswap_tree), GFP_KERNEL);
--	if (!tree)
--		goto err;
--	tree->pool = zbud_create_pool(GFP_KERNEL, &zswap_zbud_ops);
--	if (!tree->pool)
--		goto freetree;
-+	if (!tree) {
-+		pr_err("alloc failed, zswap disabled for swap type %d\n", type);
-+		return;
-+	}
-+
- 	tree->rbroot = RB_ROOT;
- 	spin_lock_init(&tree->lock);
- 	zswap_trees[type] = tree;
--	return;
--
--freetree:
--	kfree(tree);
--err:
--	pr_err("alloc failed, zswap disabled for swap type %d\n", type);
- }
- 
- static struct frontswap_ops zswap_frontswap_ops = {
-@@ -907,9 +900,14 @@ static int __init init_zswap(void)
- 		return 0;
- 
- 	pr_info("loading zswap\n");
-+
-+	shared_mem_pool = zbud_create_pool(GFP_KERNEL, &zswap_zbud_ops);
-+	if (!shared_mem_pool)
-+		goto error;
-+
- 	if (zswap_entry_cache_create()) {
- 		pr_err("entry cache creation failed\n");
--		goto error;
-+		goto cachefail;
- 	}
- 	if (zswap_comp_init()) {
- 		pr_err("compressor initialization failed\n");
-@@ -919,6 +917,8 @@ static int __init init_zswap(void)
- 		pr_err("per-cpu initialization failed\n");
- 		goto pcpufail;
- 	}
-+
-+
- 	frontswap_register_ops(&zswap_frontswap_ops);
- 	if (zswap_debugfs_init())
- 		pr_warn("debugfs initialization failed\n");
-@@ -927,6 +927,8 @@ pcpufail:
- 	zswap_comp_exit();
- compfail:
- 	zswap_entry_cache_destory();
-+cachefail:
-+	zbud_destroy_pool(shared_mem_pool);
- error:
- 	return -ENOMEM;
- }
--- 
-1.8.5.3
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
