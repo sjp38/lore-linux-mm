@@ -1,45 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f45.google.com (mail-qg0-f45.google.com [209.85.192.45])
-	by kanga.kvack.org (Postfix) with ESMTP id A07E96B0118
-	for <linux-mm@kvack.org>; Mon, 24 Feb 2014 14:54:39 -0500 (EST)
-Received: by mail-qg0-f45.google.com with SMTP id j5so16141326qga.4
-        for <linux-mm@kvack.org>; Mon, 24 Feb 2014 11:54:39 -0800 (PST)
-Received: from qmta07.emeryville.ca.mail.comcast.net (qmta07.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:64])
-        by mx.google.com with ESMTP id x6si6386901qas.90.2014.02.24.11.54.38
-        for <linux-mm@kvack.org>;
-        Mon, 24 Feb 2014 11:54:39 -0800 (PST)
-Date: Mon, 24 Feb 2014 13:54:35 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [RFC PATCH 2/3] topology: support node_numa_mem() for determining
- the fallback node
-In-Reply-To: <20140224050851.GB14814@lge.com>
-Message-ID: <alpine.DEB.2.10.1402241353070.20839@nuc>
-References: <CAAmzW4PXkdpNi5pZ=4BzdXNvqTEAhcuw-x0pWidqrxzdePxXxA@mail.gmail.com> <alpine.DEB.2.02.1402061248450.9567@chino.kir.corp.google.com> <20140207054819.GC28952@lge.com> <alpine.DEB.2.10.1402071150090.15168@nuc> <alpine.DEB.2.10.1402071245040.20246@nuc>
- <20140210191321.GD1558@linux.vnet.ibm.com> <20140211074159.GB27870@lge.com> <alpine.DEB.2.10.1402121612270.8183@nuc> <20140217065257.GD3468@lge.com> <alpine.DEB.2.10.1402181033480.28964@nuc> <20140224050851.GB14814@lge.com>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-ob0-f175.google.com (mail-ob0-f175.google.com [209.85.214.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 0ECE26B011A
+	for <linux-mm@kvack.org>; Mon, 24 Feb 2014 18:01:38 -0500 (EST)
+Received: by mail-ob0-f175.google.com with SMTP id va2so4778792obc.20
+        for <linux-mm@kvack.org>; Mon, 24 Feb 2014 15:01:37 -0800 (PST)
+Received: from mail-oa0-f49.google.com (mail-oa0-f49.google.com [209.85.219.49])
+        by mx.google.com with ESMTPS id ke9si13285178oeb.90.2014.02.24.15.01.36
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 24 Feb 2014 15:01:36 -0800 (PST)
+Received: by mail-oa0-f49.google.com with SMTP id i4so5801435oah.8
+        for <linux-mm@kvack.org>; Mon, 24 Feb 2014 15:01:36 -0800 (PST)
+MIME-Version: 1.0
+Date: Mon, 24 Feb 2014 15:01:36 -0800
+Message-ID: <CAHTgTXWwLEjPxaS07DtW51WtFmpew6oZ0tOw1PAvniPnw44UUQ@mail.gmail.com>
+Subject: kernel BUG at mm/mlock.c:79! on 3.10
+From: Vinson Lee <vlee@twopensource.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Han Pingtian <hanpt@linux.vnet.ibm.com>, Pekka Enberg <penberg@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Paul Mackerras <paulus@samba.org>, Anton Blanchard <anton@samba.org>, Matt Mackall <mpm@selenic.com>, linuxppc-dev@lists.ozlabs.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, trinity@vger.kernel.org
 
-On Mon, 24 Feb 2014, Joonsoo Kim wrote:
+Hi.
 
-> > It will not common get there because of the tracking. Instead a per cpu
-> > object will be used.
-> > > get_partial_node() always fails even if there are some partial slab on
-> > > memoryless node's neareast node.
-> >
-> > Correct and that leads to a page allocator action whereupon the node will
-> > be marked as empty.
->
-> Why do we need to request to a page allocator if there is partial slab?
-> Checking whether node is memoryless or not is really easy, so we don't need
-> to skip this. To skip this is suboptimal solution.
+This kernel BUG was triggered while running trinity fuzzer on 3.10.
 
-The page allocator action is also used to determine to which other node we
-should fall back if the node is empty. So we need to call the page
-allocator when the per cpu slab is exhaused with the node of the
-memoryless node to get memory from the proper fallback node.
+[413679.376565] ------------[ cut here ]------------
+[413679.395034] kernel BUG at mm/mlock.c:79!
+[413679.395611] invalid opcode: 0000 [#1] SMP
+[413679.396206] Modules linked in: l2tp_ppp l2tp_netlink l2tp_core
+af_key ipt_ULOG nfnetlink can_bcm can_raw scsi_transport_iscsi can
+pppoe pppox ppp_generic slhc rds ipv6 bonding dm_multipath video sbs
+sbshc hed acpi_pad acpi_ipmi acpi_i2c parport_pc lp parport tcp_diag
+inet_diag ipmi_si ipmi_devintf ipmi_msghandler dell_rbu iTCO_wdt
+iTCO_vendor_support dcdbas igb i2c_algo_bit ptp pps_core i2c_i801
+i2c_core microcode lpc_ich mfd_core i7core_edac ioatdma edac_core
+shpchp dca freq_table mperf
+[413679.436926] CPU: 0 PID: 34852 Comm: trinity-c0 Not tainted 3.10.28 #1
+[413679.455720] task: ffff88032d7cc5c0 ti: ffff88032bd70000 task.ti:
+ffff88032bd70000
+[413679.456775] RIP: 0010:[<ffffffff8110cd2d>]  [<ffffffff8110cd2d>]
+mlock_vma_page+0x14/0x70
+[413679.474912] RSP: 0000:ffff88032bd71d08  EFLAGS: 00010246
+[413679.475625] RAX: 080000000038002c RBX: ffffea000703e340 RCX:
+000000000703e340
+[413679.476506] RDX: 80000001c0f8d027 RSI: 00000000f76e8000 RDI:
+ffffea000703e340
+[413679.494662] RBP: ffff88032bd71d10 R08: 0000000000000000 R09:
+ffffffff811130a7
+[413679.495571] R10: ffff88032a6a5f88 R11: 0000000000000911 R12:
+ffff88032a6a5f00
+[413679.496452] R13: ffffea000703e340 R14: ffffea000c5d3bc0 R15:
+0000000000020000
+[413679.497323] FS:  00000000016c8840(0063) GS:ffff880332600000(0000)
+knlGS:0000000000000000
+[413679.515582] CS:  0010 DS: 002b ES: 002b CR0: 0000000080050033
+[413679.516332] CR2: 00000000ff80d330 CR3: 0000000300a8b000 CR4:
+00000000000007f0
+[413679.517212] DR0: 0000000000000000 DR1: 00000000016cd000 DR2:
+0000000000000000
+[413679.535236] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7:
+0000000000000600
+[413679.536262] Stack:
+[413679.536485]  ffff8803094bfc08 ffff88032bd71dc0 ffffffff81113136
+ffff88032a6a6270
+[413679.555195]  ffff88032d7cc5c0 ffffea000c12d4c0 ffff88032a6a5f70
+ffff880328849d70
+[413679.556294]  0000000000020000 0000000300000001 00000000f76e9000
+ffff880328849d60
+[413679.557254] Call Trace:
+[413679.557538]  [<ffffffff81113136>] try_to_unmap_file+0x319/0x4be
+[413679.575403]  [<ffffffff81113bd2>] try_to_unmap+0x3d/0x52
+[413679.575970]  [<ffffffff8112bf08>] migrate_pages+0x1e2/0x3ce
+[413679.576682]  [<ffffffff8112b0be>] ? pte_to_swp_entry+0x22/0x22
+[413679.594735]  [<ffffffff8112c5c2>] SyS_move_pages+0x36c/0x4d6
+[413679.595456]  [<ffffffff8112c2b2>] ? SyS_move_pages+0x5c/0x4d6
+[413679.596219]  [<ffffffff81099cd7>] compat_sys_move_pages+0x9c/0xab
+[413679.597032]  [<ffffffff814cbaa9>] ia32_do_call+0x13/0x13
+[413679.614814] Code: 13 48 8b 03 a9 00 00 10 00 74 09 65 48 ff 04 25
+a8 f5 1c 00 5b 5d c3 66 66 66 66 90 55 48 89 e5 53 48 89 fb 48 8b 07
+a8 01 75 02 <0f> 0b f0 0f ba 2f 15 19 c0 85 c0 75 4c 48 8b 3f ba 01 00
+00 00
+[413679.617503] RIP  [<ffffffff8110cd2d>] mlock_vma_page+0x14/0x70
+[413679.635066]  RSP <ffff88032bd71d08>
+[413679.636094] ---[ end trace dd8b701ea9903fd6 ]---
+
+Cheers,
+Vinson
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
