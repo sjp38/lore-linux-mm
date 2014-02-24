@@ -1,57 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f50.google.com (mail-qa0-f50.google.com [209.85.216.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E0526B0114
-	for <linux-mm@kvack.org>; Mon, 24 Feb 2014 14:43:36 -0500 (EST)
-Received: by mail-qa0-f50.google.com with SMTP id cm18so6585187qab.37
-        for <linux-mm@kvack.org>; Mon, 24 Feb 2014 11:43:36 -0800 (PST)
-Received: from qmta15.emeryville.ca.mail.comcast.net (qmta15.emeryville.ca.mail.comcast.net. [2001:558:fe2d:44:76:96:27:228])
-        by mx.google.com with ESMTP id k1si1107346qaf.5.2014.02.24.11.43.34
+Received: from mail-qc0-f172.google.com (mail-qc0-f172.google.com [209.85.216.172])
+	by kanga.kvack.org (Postfix) with ESMTP id C8CFE6B0116
+	for <linux-mm@kvack.org>; Mon, 24 Feb 2014 14:45:58 -0500 (EST)
+Received: by mail-qc0-f172.google.com with SMTP id w7so7518247qcr.3
+        for <linux-mm@kvack.org>; Mon, 24 Feb 2014 11:45:58 -0800 (PST)
+Received: from qmta01.emeryville.ca.mail.comcast.net (qmta01.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:16])
+        by mx.google.com with ESMTP id k67si7206446qge.14.2014.02.24.11.45.57
         for <linux-mm@kvack.org>;
-        Mon, 24 Feb 2014 11:43:35 -0800 (PST)
-Date: Mon, 24 Feb 2014 13:43:31 -0600 (CST)
+        Mon, 24 Feb 2014 11:45:57 -0800 (PST)
+Date: Mon, 24 Feb 2014 13:45:55 -0600 (CST)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH 1/3] mm: return NUMA_NO_NODE in local_memory_node if
- zonelists are not setup
-In-Reply-To: <20140221235616.GA25399@linux.vnet.ibm.com>
-Message-ID: <alpine.DEB.2.10.1402241342480.20839@nuc>
-References: <20140219231641.GA413@linux.vnet.ibm.com> <20140219231714.GB413@linux.vnet.ibm.com> <alpine.DEB.2.10.1402201004460.11829@nuc> <20140220182847.GA24745@linux.vnet.ibm.com> <20140221144203.8d7b0d7039846c0304f86141@linux-foundation.org>
- <20140221235616.GA25399@linux.vnet.ibm.com>
+Subject: Re: N_NORMAL on NUMA?
+In-Reply-To: <20140221003027.GA12799@linux.vnet.ibm.com>
+Message-ID: <alpine.DEB.2.10.1402241345410.20839@nuc>
+References: <20140221003027.GA12799@linux.vnet.ibm.com>
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Ben Herrenschmidt <benh@kernel.crashing.org>, Anton Blanchard <anton@samba.org>, linuxppc-dev@lists.ozlabs.org
+Cc: linux-mm@kvack.org, rientjes@google.com, anton@samba.org
 
-On Fri, 21 Feb 2014, Nishanth Aravamudan wrote:
+On Thu, 20 Feb 2014, Nishanth Aravamudan wrote:
 
-> I added two calls to local_memory_node(), I *think* both are necessary,
-> but am willing to be corrected.
+> I'm confused by the following:
 >
-> One is in map_cpu_to_node() and one is in start_secondary(). The
-> start_secondary() path is fine, AFAICT, as we are up & running at that
-> point. But in [the renamed function] update_numa_cpu_node() which is
-> used by hotplug, we get called from do_init_bootmem(), which is before
-> the zonelists are setup.
+> /*
+>  * Array of node states.
+>  */
+> nodemask_t node_states[NR_NODE_STATES] __read_mostly = {
+>         [N_POSSIBLE] = NODE_MASK_ALL,
+>         [N_ONLINE] = { { [0] = 1UL } },
+> #ifndef CONFIG_NUMA
+>         [N_NORMAL_MEMORY] = { { [0] = 1UL } },
+> #ifdef CONFIG_HIGHMEM
+>         [N_HIGH_MEMORY] = { { [0] = 1UL } },
+> #endif
+> #ifdef CONFIG_MOVABLE_NODE
+>         [N_MEMORY] = { { [0] = 1UL } },
+> #endif
+>         [N_CPU] = { { [0] = 1UL } },
+> #endif  /* NUMA */
+> };
 >
-> I think both calls are necessary because I believe the
-> arch_update_cpu_topology() is used for supporting firmware-driven
-> home-noding, which does not invoke start_secondary() again (the
-> processor is already running, we're just updating the topology in that
-> situation).
+> Why are we checking for CONFIG_MOVABLE_NODE above when mm/Kconfig says:
 >
-> Then again, I could special-case the do_init_bootmem callpath, which is
-> only called at kernel init time?
-
-Well taht looks to be simpler.
-
-> > I do agree that calling local_memory_node() too early then trying to
-> > fudge around the consequences seems rather wrong.
+> config MOVABLE_NODE
+>         boolean "Enable to assign a node which has only movable memory"
+>         depends on HAVE_MEMBLOCK
+>         depends on NO_BOOTMEM
+>         depends on X86_64
+>         depends on NUMA
 >
-> If the answer is to simply not call local_memory_node() early, I'll
-> submit a patch to at least add a comment, as there's nothing in the code
-> itself to prevent this from happening and is guaranteed to oops.
+> ? Doesn't that mean that you can't have CONFIG_HAVE_MOVABLE_NODE without
+> CONFIG_NUMA? But we're in a #ifndef CONFIG_NUMA block above...
 
-Ok.
+Looks like a useless definition that can be removed then.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
