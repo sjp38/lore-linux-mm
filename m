@@ -1,60 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f172.google.com (mail-qc0-f172.google.com [209.85.216.172])
-	by kanga.kvack.org (Postfix) with ESMTP id C8CFE6B0116
-	for <linux-mm@kvack.org>; Mon, 24 Feb 2014 14:45:58 -0500 (EST)
-Received: by mail-qc0-f172.google.com with SMTP id w7so7518247qcr.3
-        for <linux-mm@kvack.org>; Mon, 24 Feb 2014 11:45:58 -0800 (PST)
-Received: from qmta01.emeryville.ca.mail.comcast.net (qmta01.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:16])
-        by mx.google.com with ESMTP id k67si7206446qge.14.2014.02.24.11.45.57
+Received: from mail-qg0-f45.google.com (mail-qg0-f45.google.com [209.85.192.45])
+	by kanga.kvack.org (Postfix) with ESMTP id A07E96B0118
+	for <linux-mm@kvack.org>; Mon, 24 Feb 2014 14:54:39 -0500 (EST)
+Received: by mail-qg0-f45.google.com with SMTP id j5so16141326qga.4
+        for <linux-mm@kvack.org>; Mon, 24 Feb 2014 11:54:39 -0800 (PST)
+Received: from qmta07.emeryville.ca.mail.comcast.net (qmta07.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:64])
+        by mx.google.com with ESMTP id x6si6386901qas.90.2014.02.24.11.54.38
         for <linux-mm@kvack.org>;
-        Mon, 24 Feb 2014 11:45:57 -0800 (PST)
-Date: Mon, 24 Feb 2014 13:45:55 -0600 (CST)
+        Mon, 24 Feb 2014 11:54:39 -0800 (PST)
+Date: Mon, 24 Feb 2014 13:54:35 -0600 (CST)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: N_NORMAL on NUMA?
-In-Reply-To: <20140221003027.GA12799@linux.vnet.ibm.com>
-Message-ID: <alpine.DEB.2.10.1402241345410.20839@nuc>
-References: <20140221003027.GA12799@linux.vnet.ibm.com>
+Subject: Re: [RFC PATCH 2/3] topology: support node_numa_mem() for determining
+ the fallback node
+In-Reply-To: <20140224050851.GB14814@lge.com>
+Message-ID: <alpine.DEB.2.10.1402241353070.20839@nuc>
+References: <CAAmzW4PXkdpNi5pZ=4BzdXNvqTEAhcuw-x0pWidqrxzdePxXxA@mail.gmail.com> <alpine.DEB.2.02.1402061248450.9567@chino.kir.corp.google.com> <20140207054819.GC28952@lge.com> <alpine.DEB.2.10.1402071150090.15168@nuc> <alpine.DEB.2.10.1402071245040.20246@nuc>
+ <20140210191321.GD1558@linux.vnet.ibm.com> <20140211074159.GB27870@lge.com> <alpine.DEB.2.10.1402121612270.8183@nuc> <20140217065257.GD3468@lge.com> <alpine.DEB.2.10.1402181033480.28964@nuc> <20140224050851.GB14814@lge.com>
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, rientjes@google.com, anton@samba.org
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>, David Rientjes <rientjes@google.com>, Han Pingtian <hanpt@linux.vnet.ibm.com>, Pekka Enberg <penberg@kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Paul Mackerras <paulus@samba.org>, Anton Blanchard <anton@samba.org>, Matt Mackall <mpm@selenic.com>, linuxppc-dev@lists.ozlabs.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-On Thu, 20 Feb 2014, Nishanth Aravamudan wrote:
+On Mon, 24 Feb 2014, Joonsoo Kim wrote:
 
-> I'm confused by the following:
+> > It will not common get there because of the tracking. Instead a per cpu
+> > object will be used.
+> > > get_partial_node() always fails even if there are some partial slab on
+> > > memoryless node's neareast node.
+> >
+> > Correct and that leads to a page allocator action whereupon the node will
+> > be marked as empty.
 >
-> /*
->  * Array of node states.
->  */
-> nodemask_t node_states[NR_NODE_STATES] __read_mostly = {
->         [N_POSSIBLE] = NODE_MASK_ALL,
->         [N_ONLINE] = { { [0] = 1UL } },
-> #ifndef CONFIG_NUMA
->         [N_NORMAL_MEMORY] = { { [0] = 1UL } },
-> #ifdef CONFIG_HIGHMEM
->         [N_HIGH_MEMORY] = { { [0] = 1UL } },
-> #endif
-> #ifdef CONFIG_MOVABLE_NODE
->         [N_MEMORY] = { { [0] = 1UL } },
-> #endif
->         [N_CPU] = { { [0] = 1UL } },
-> #endif  /* NUMA */
-> };
->
-> Why are we checking for CONFIG_MOVABLE_NODE above when mm/Kconfig says:
->
-> config MOVABLE_NODE
->         boolean "Enable to assign a node which has only movable memory"
->         depends on HAVE_MEMBLOCK
->         depends on NO_BOOTMEM
->         depends on X86_64
->         depends on NUMA
->
-> ? Doesn't that mean that you can't have CONFIG_HAVE_MOVABLE_NODE without
-> CONFIG_NUMA? But we're in a #ifndef CONFIG_NUMA block above...
+> Why do we need to request to a page allocator if there is partial slab?
+> Checking whether node is memoryless or not is really easy, so we don't need
+> to skip this. To skip this is suboptimal solution.
 
-Looks like a useless definition that can be removed then.
+The page allocator action is also used to determine to which other node we
+should fall back if the node is empty. So we need to call the page
+allocator when the per cpu slab is exhaused with the node of the
+memoryless node to get memory from the proper fallback node.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
