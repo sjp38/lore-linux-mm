@@ -1,83 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f175.google.com (mail-we0-f175.google.com [74.125.82.175])
-	by kanga.kvack.org (Postfix) with ESMTP id BB4AF6B00A0
-	for <linux-mm@kvack.org>; Tue, 25 Feb 2014 18:09:30 -0500 (EST)
-Received: by mail-we0-f175.google.com with SMTP id q59so1000619wes.6
-        for <linux-mm@kvack.org>; Tue, 25 Feb 2014 15:09:30 -0800 (PST)
+Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 125B36B00A0
+	for <linux-mm@kvack.org>; Tue, 25 Feb 2014 18:16:33 -0500 (EST)
+Received: by mail-wi0-f178.google.com with SMTP id cc10so1446674wib.17
+        for <linux-mm@kvack.org>; Tue, 25 Feb 2014 15:16:33 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id gf8si18759344wjc.150.2014.02.25.15.09.28
+        by mx.google.com with ESMTPS id v2si9234034wix.2.2014.02.25.15.16.32
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 25 Feb 2014 15:09:29 -0800 (PST)
+        Tue, 25 Feb 2014 15:16:32 -0800 (PST)
 Content-Type: text/plain;
 	charset=us-ascii
 Mime-Version: 1.0 (1.0)
 Subject: Re: [PATCH] ksm: Expose configuration via sysctl
 From: Alexander Graf <agraf@suse.de>
-In-Reply-To: <530CD443.7010400@intel.com>
-Date: Wed, 26 Feb 2014 07:09:10 +0800
+In-Reply-To: <20140225171940.GS6835@laptop.programming.kicks-ass.net>
+Date: Wed, 26 Feb 2014 07:16:17 +0800
 Content-Transfer-Encoding: quoted-printable
-Message-Id: <4B3C0B08-45E1-48EF-8030-A3365F0E7CF6@suse.de>
-References: <1393284484-27637-1-git-send-email-agraf@suse.de> <530CD443.7010400@intel.com>
+Message-Id: <5E6DB7F9-41E0-4DCC-A14B-49E2F4134A1C@suse.de>
+References: <1393284484-27637-1-git-send-email-agraf@suse.de> <20140225171528.GJ4407@cmpxchg.org> <20140225171940.GS6835@laptop.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>, Hugh Dickins <hughd@google.com>, Izik Eidus <izik.eidus@ravellosystems.com>, Andrea Arcangeli <aarcange@redhat.com>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Hugh Dickins <hughd@google.com>, Izik Eidus <izik.eidus@ravellosystems.com>, Andrea Arcangeli <aarcange@redhat.com>, "kay@vrfy.org" <kay@vrfy.org>
 
 
 
-> Am 26.02.2014 um 01:34 schrieb Dave Hansen <dave.hansen@intel.com>:
->=20
->> On 02/24/2014 03:28 PM, Alexander Graf wrote:
->> Configuration of tunables and Linux virtual memory settings has tradition=
-ally
->> happened via sysctl. Thanks to that there are well established ways to ma=
-ke
->> sysctl configuration bits persistent (sysctl.conf).
+>> Am 26.02.2014 um 01:19 schrieb Peter Zijlstra <peterz@infradead.org>:
 >>=20
->> KSM introduced a sysfs based configuration path which is not covered by u=
+>>> On Tue, Feb 25, 2014 at 12:15:28PM -0500, Johannes Weiner wrote:
+>>> On Tue, Feb 25, 2014 at 12:28:04AM +0100, Alexander Graf wrote:
+>>> Configuration of tunables and Linux virtual memory settings has traditio=
+nally
+>>> happened via sysctl. Thanks to that there are well established ways to m=
+ake
+>>> sysctl configuration bits persistent (sysctl.conf).
+>>>=20
+>>> KSM introduced a sysfs based configuration path which is not covered by u=
 ser
->> space persistent configuration frameworks.
->>=20
->> In order to make life easy for sysadmins, this patch adds all access to a=
+>>> space persistent configuration frameworks.
+>>>=20
+>>> In order to make life easy for sysadmins, this patch adds all access to a=
 ll
->> KSM tunables via sysctl as well. That way sysctl.conf works for KSM as we=
-ll,
->> giving us a streamlined way to make KSM configuration persistent.
+>>> KSM tunables via sysctl as well. That way sysctl.conf works for KSM as w=
+ell,
+>>> giving us a streamlined way to make KSM configuration persistent.
+>>>=20
+>>> Reported-by: Sasche Peilicke <speilicke@suse.com>
+>>> Signed-off-by: Alexander Graf <agraf@suse.de>
+>>> ---
+>>> kernel/sysctl.c |   10 +++++++
+>>> mm/ksm.c        |   78 +++++++++++++++++++++++++++++++++++++++++++++++++=
+++++++
+>>> 2 files changed, 88 insertions(+), 0 deletions(-)
+>>>=20
+>>> diff --git a/kernel/sysctl.c b/kernel/sysctl.c
+>>> index 332cefc..2169a00 100644
+>>> --- a/kernel/sysctl.c
+>>> +++ b/kernel/sysctl.c
+>>> @@ -217,6 +217,9 @@ extern struct ctl_table random_table[];
+>>> #ifdef CONFIG_EPOLL
+>>> extern struct ctl_table epoll_table[];
+>>> #endif
+>>> +#ifdef CONFIG_KSM
+>>> +extern struct ctl_table ksm_table[];
+>>> +#endif
+>>>=20
+>>> #ifdef HAVE_ARCH_PICK_MMAP_LAYOUT
+>>> int sysctl_legacy_va_layout;
+>>> @@ -1279,6 +1282,13 @@ static struct ctl_table vm_table[] =3D {
+>>>   },
+>>>=20
+>>> #endif /* CONFIG_COMPACTION */
+>>> +#ifdef CONFIG_KSM
+>>> +    {
+>>> +        .procname    =3D "ksm",
+>>> +        .mode        =3D 0555,
+>>> +        .child        =3D ksm_table,
+>>> +    },
+>>> +#endif
+>>=20
+>> ksm can be a module, so this won't work.
+>>=20
+>> Can we make those controls proper module parameters instead?
 >=20
-> Doesn't this essentially mean "don't use sysfs for configuration"?
-> Seems like at least /sys/kernel/mm/transparent_hugepage would need the
-> same treatment.
->=20
-> Couldn't we also (maybe in parallel) just teach the sysctl userspace
-> about sysfs?  This way we don't have to do parallel sysctls and sysfs
-> for *EVERYTHING* in the kernel:
->=20
->    sysfs.kernel.mm.transparent_hugepage.enabled=3Denabled
+> You can do dynamic sysctl registration and removal. Its its own little
+> filesystem of sorts.
 
-It's pretty hard to filter this. We definitely do not want to expose all of s=
-ysfs through /proc/sys. But how do we know which files are actual configurat=
-ion and which ones are dynamic system introspection data?
+Hm. Doesn't this open another big can of worms? If we have ksm as a module a=
+nd our sysctl helpers try to enable ksm on boot, they may not be able to bec=
+ause the module hasn't been loaded yet.
 
-We could add a filter, but then we can just as well stick with the manual ap=
-proach I followed here :).
-
->=20
-> Or do we just say "sysctls are the way to go for anything that might
-> need to be persistent, don't use sysfs"?
-
-IMHO there are 2 paths we can take:
-
-1) Admit that using sysfs for configuration is a bad idea, use sysctl instea=
-d
-
-2) Invent a streamlined way to set sysfs configuration variables similar to h=
-ow we can set sysctl values
-
-I'm not really sure which path is nicer. But the sitaution today is not exac=
-tly satisfactory. The most common solution to ksm configuration is an init  o=
-r systemd script that sets the respective config variables.
-
+So in that case, we want to always register the sysctl and dynamically load t=
+he ksm module when the sysctl gets accessed - similar to how we can do stub d=
+evices that load modiles, no?
 
 Alex=
 
