@@ -1,92 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f172.google.com (mail-ob0-f172.google.com [209.85.214.172])
-	by kanga.kvack.org (Postfix) with ESMTP id C54556B0119
-	for <linux-mm@kvack.org>; Mon, 24 Feb 2014 20:50:56 -0500 (EST)
-Received: by mail-ob0-f172.google.com with SMTP id gq1so1431075obb.17
-        for <linux-mm@kvack.org>; Mon, 24 Feb 2014 17:50:56 -0800 (PST)
-Received: from g6t1525.atlanta.hp.com (g6t1525.atlanta.hp.com. [15.193.200.68])
-        by mx.google.com with ESMTPS id mx9si11862257obc.80.2014.02.24.17.50.55
+Received: from mail-oa0-f47.google.com (mail-oa0-f47.google.com [209.85.219.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 8EBC76B0121
+	for <linux-mm@kvack.org>; Mon, 24 Feb 2014 21:34:23 -0500 (EST)
+Received: by mail-oa0-f47.google.com with SMTP id h16so2963003oag.20
+        for <linux-mm@kvack.org>; Mon, 24 Feb 2014 18:34:23 -0800 (PST)
+Received: from e34.co.us.ibm.com (e34.co.us.ibm.com. [32.97.110.152])
+        by mx.google.com with ESMTPS id tk7si11936451obc.29.2014.02.24.18.34.22
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 24 Feb 2014 17:50:55 -0800 (PST)
-Message-ID: <1393293051.2577.13.camel@buesod1.americas.hpqcorp.net>
-Subject: Re: [PATCH] mm: per-thread vma caching
-From: Davidlohr Bueso <davidlohr@hp.com>
-Date: Mon, 24 Feb 2014 17:50:51 -0800
-In-Reply-To: <CA+55aFz8jdbO5S9NjV69=vvFSMpHNU=a0wrPyXGSvBx-aaxhAA@mail.gmail.com>
-References: <1392960523.3039.16.camel@buesod1.americas.hpqcorp.net>
-	 <CA+55aFw1_Ecbjjv9vijj3o46mkq3NrJn0X-FnbpCGBZG2=NuOA@mail.gmail.com>
-	 <1393016019.3039.40.camel@buesod1.americas.hpqcorp.net>
-	 <CA+55aFyQJGG6SC99mWwm3L=xYTCmt3=Qm-R4pWjeCyY_xAt63Q@mail.gmail.com>
-	 <1393290984.2577.5.camel@buesod1.americas.hpqcorp.net>
-	 <CA+55aFz8jdbO5S9NjV69=vvFSMpHNU=a0wrPyXGSvBx-aaxhAA@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        Mon, 24 Feb 2014 18:34:22 -0800 (PST)
+Received: from /spool/local
+	by e34.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <nacc@linux.vnet.ibm.com>;
+	Mon, 24 Feb 2014 19:34:22 -0700
+Received: from b03cxnp08025.gho.boulder.ibm.com (b03cxnp08025.gho.boulder.ibm.com [9.17.130.17])
+	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 604AF1FF003F
+	for <linux-mm@kvack.org>; Mon, 24 Feb 2014 19:34:20 -0700 (MST)
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by b03cxnp08025.gho.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s1P2YKx510420710
+	for <linux-mm@kvack.org>; Tue, 25 Feb 2014 03:34:20 +0100
+Received: from d03av02.boulder.ibm.com (localhost [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s1P2YJv1019167
+	for <linux-mm@kvack.org>; Mon, 24 Feb 2014 19:34:20 -0700
+Date: Mon, 24 Feb 2014 18:34:15 -0800
+From: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
+Subject: Re: [PATCH 1/3] mm: return NUMA_NO_NODE in local_memory_node if
+ zonelists are not setup
+Message-ID: <20140225023415.GA6105@linux.vnet.ibm.com>
+References: <20140219231641.GA413@linux.vnet.ibm.com>
+ <20140219231714.GB413@linux.vnet.ibm.com>
+ <alpine.DEB.2.10.1402201004460.11829@nuc>
+ <20140220182847.GA24745@linux.vnet.ibm.com>
+ <20140221144203.8d7b0d7039846c0304f86141@linux-foundation.org>
+ <20140221235616.GA25399@linux.vnet.ibm.com>
+ <alpine.DEB.2.10.1402241342480.20839@nuc>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.10.1402241342480.20839@nuc>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Michel Lespinasse <walken@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, "Chandramouleeswaran, Aswin" <aswin@hp.com>, "Norton, Scott J" <scott.norton@hp.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Ben Herrenschmidt <benh@kernel.crashing.org>, Anton Blanchard <anton@samba.org>, linuxppc-dev@lists.ozlabs.org
 
-On Mon, 2014-02-24 at 17:42 -0800, Linus Torvalds wrote:
-> On Mon, Feb 24, 2014 at 5:16 PM, Davidlohr Bueso <davidlohr@hp.com> wrote:
+On 24.02.2014 [13:43:31 -0600], Christoph Lameter wrote:
+> On Fri, 21 Feb 2014, Nishanth Aravamudan wrote:
+> 
+> > I added two calls to local_memory_node(), I *think* both are necessary,
+> > but am willing to be corrected.
 > >
-> > If we add the two missing bits to the shifting and use PAGE_SHIFT (x86
-> > at least) we get just as good results as with 10. So we would probably
-> > prefer hashing based on the page number and not some offset within the
-> > page.
+> > One is in map_cpu_to_node() and one is in start_secondary(). The
+> > start_secondary() path is fine, AFAICT, as we are up & running at that
+> > point. But in [the renamed function] update_numa_cpu_node() which is
+> > used by hotplug, we get called from do_init_bootmem(), which is before
+> > the zonelists are setup.
+> >
+> > I think both calls are necessary because I believe the
+> > arch_update_cpu_topology() is used for supporting firmware-driven
+> > home-noding, which does not invoke start_secondary() again (the
+> > processor is already running, we're just updating the topology in that
+> > situation).
+> >
+> > Then again, I could special-case the do_init_bootmem callpath, which is
+> > only called at kernel init time?
 > 
-> So just
+> Well taht looks to be simpler.
+
+Ok, I'll work on this.
+
+> > > I do agree that calling local_memory_node() too early then trying to
+> > > fudge around the consequences seems rather wrong.
+> >
+> > If the answer is to simply not call local_memory_node() early, I'll
+> > submit a patch to at least add a comment, as there's nothing in the code
+> > itself to prevent this from happening and is guaranteed to oops.
 > 
->     int idx = (addr >> PAGE_SHIFT) & 3;
-> 
-> works fine?
+> Ok.
 
-Yep.
-
-> 
-> That makes me think it all just wants to be maximally spread out to
-> approximate some NRU when adding an entry.
-> 
->  Also, as far as I can tell, "vmacache_update()" should then become
-> just a simple unconditional
-> 
->     int idx = (addr >> PAGE_SHIFT) & 3;
->     current->vmacache[idx] = newvma;
-> 
-
-Yes, my thoughts exactly!
-
-> because your original code did
-> 
-> +       if (curr->vmacache[idx] != newvma)
-> +               curr->vmacache[idx] = newvma;
-> 
-> and that doesn't seem to make sense, since if "newvma" was already in
-> the cache, then we would have found it when looking up, and we
-> wouldn't be here updating it after doing the rb-walk? 
-
-I noticed this as well but kept my fingers shut and was planning on
-fixing it in v2.
-
-> And with the
-> per-mm cache removed, all that should remain is that simple version,
-> no? 
-
-Yes. 
-
-Although I am planning on keeping the current way of doing things for
-nommu configs as there's no dup_mmap. I'm not sure if that's the best
-idea though, it makes things less straightforward.
-
-> You don't even need the "check the vmcache sequence number and
-> clear if bogus", because the rule should be that you have always done
-> a "vmcache_find()" first, which should have done that..
-
-Makes sense, noted.
-
-Thanks,
-Davidlohr
+Thanks!
+-Nish
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
