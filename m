@@ -1,123 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f178.google.com (mail-ig0-f178.google.com [209.85.213.178])
-	by kanga.kvack.org (Postfix) with ESMTP id C697B6B00C3
-	for <linux-mm@kvack.org>; Tue, 25 Feb 2014 14:21:36 -0500 (EST)
-Received: by mail-ig0-f178.google.com with SMTP id hl1so222234igb.5
-        for <linux-mm@kvack.org>; Tue, 25 Feb 2014 11:21:36 -0800 (PST)
-Received: from relay.sgi.com (relay1.sgi.com. [192.48.179.29])
-        by mx.google.com with ESMTP id x4si39856665igl.11.2014.02.25.11.21.35
+Received: from mail-ig0-f176.google.com (mail-ig0-f176.google.com [209.85.213.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 8AB606B00D5
+	for <linux-mm@kvack.org>; Tue, 25 Feb 2014 14:21:38 -0500 (EST)
+Received: by mail-ig0-f176.google.com with SMTP id uy17so233972igb.3
+        for <linux-mm@kvack.org>; Tue, 25 Feb 2014 11:21:38 -0800 (PST)
+Received: from relay.sgi.com (relay2.sgi.com. [192.48.179.30])
+        by mx.google.com with ESMTP id x3si39844645igl.28.2014.02.25.11.21.37
         for <linux-mm@kvack.org>;
-        Tue, 25 Feb 2014 11:21:35 -0800 (PST)
+        Tue, 25 Feb 2014 11:21:37 -0800 (PST)
 From: Alex Thorlton <athorlton@sgi.com>
-Subject: [PATCH 0/3] mm, thp: Add mm flag to control THP
-Date: Tue, 25 Feb 2014 13:20:59 -0600
-Message-Id: <cover.1392009759.git.athorlton@sgi.com>
+Subject: [PATCH 1/3] Revert "thp: make MADV_HUGEPAGE check for mm->def_flags"
+Date: Tue, 25 Feb 2014 13:21:00 -0600
+Message-Id: <40ad55e4434df1e0b76c09b811c02a565a0b0025.1392009760.git.athorlton@sgi.com>
+In-Reply-To: <cover.1392009759.git.athorlton@sgi.com>
+References: <cover.1392009759.git.athorlton@sgi.com>
+In-Reply-To: <cover.1392009759.git.athorlton@sgi.com>
+References: <cover.1392009759.git.athorlton@sgi.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: Alex Thorlton <athorlton@sgi.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Paolo Bonzini <pbonzini@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Bob Liu <lliubbo@gmail.com>, Jiang Liu <liuj97@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Oleg Nesterov <oleg@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Daeseok Youn <daeseok.youn@gmail.com>, Kent Overstreet <koverstreet@google.com>, Dario Faggioli <raistlin@linux.it>, John Stultz <johnstul@us.ibm.com>, Stephen Rothwell <sfr@canb.auug.org.au>, Alexander Viro <viro@zeniv.linux.org.uk>, linux390@de.ibm.com, linux-s390@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org
 
-This patch is based on some of my work combined with some
-suggestions/patches given by Oleg Nesterov.  The main goal here is to
-add a prctl switch to allow us to disable to THP on a per mm_struct
-basis.
+This reverts commit 8e72033f2a489b6c98c4e3c7cc281b1afd6cb85c, and adds
+in code to fix up any issues caused by the revert.
 
-Changes for v4:
+The revert is necessary because hugepage_madvise would return -EINVAL
+when VM_NOHUGEPAGE is set, which will break subsequent chunks of this
+patch set.
 
-* Added a bit of documentation for flag changes
-* Changed the prctl switch code so that get/set operations are
-  processed in separate cases
-* Added information about the new flags to the user-facing prctl docs
-  (this is in a separate patch, everyone will be cc'd there as well)
+Here's a snip of an e-mail from Gerald detailing the original purpose
+of this code, and providing justification for the revert:
 
-The main motivation behind this patch is to provide a way to disable THP
-for jobs where the code cannot be modified, and using a malloc hook with
-madvise is not an option (i.e. statically allocated data).  This patch
-allows us to do just that, without affecting other jobs running on the
-system.
+<snip>
+The intent of 8e72033f2a48 was to guard against any future programming
+errors that may result in an madvice(MADV_HUGEPAGE) on guest mappings,
+which would crash the kernel.
 
-We need to do this sort of thing for jobs where THP hurts performance,
-due to the possibility of increased remote memory accesses that can be
-created by situations such as the following:
+Martin suggested adding the bit to arch/s390/mm/pgtable.c, if 8e72033f2a48
+was to be reverted, because that check will also prevent a kernel crash
+in the case described above, it will now send a SIGSEGV instead.
 
-When you touch 1 byte of an untouched, contiguous 2MB chunk, a THP will
-be handed out, and the THP will be stuck on whatever node the chunk was
-originally referenced from.  If many remote nodes need to do work on
-that same chunk, they'll be making remote accesses.
-
-With THP disabled, 4K pages can be handed out to separate nodes as
-they're needed, greatly reducing the amount of remote accesses to
-memory.
-
-Here's a bit of test data with the new patch in place...
-
-First with the flag unset:
-
-# perf stat -a ./prctl_wrapper_mmv3 0 ./thp_pthread -C 0 -m 0 -c 512 -b 256g                  
-Setting thp_disabled for this task...
-thp_disable: 0
-Set thp_disabled state to 0
-Process pid = 18027
-
-                                                                                                                     PF/
-                                MAX        MIN                                  TOTCPU/      TOT_PF/   TOT_PF/     WSEC/
-TYPE:               CPUS       WALL       WALL        SYS     USER     TOTCPU       CPU     WALL_SEC   SYS_SEC       CPU   NODES
- 512      1.120      0.060      0.000    0.110      0.110     0.000    28571428864 -9223372036854775808  55803572      23
-
- Performance counter stats for './prctl_wrapper_mmv3_hack 0 ./thp_pthread -C 0 -m 0 -c 512 -b 256g':
-
-  273719072.841402 task-clock                #  641.026 CPUs utilized           [100.00%]
-         1,008,986 context-switches          #    0.000 M/sec                   [100.00%]
-             7,717 CPU-migrations            #    0.000 M/sec                   [100.00%]
-         1,698,932 page-faults               #    0.000 M/sec
-355,222,544,890,379 cycles                    #    1.298 GHz                     [100.00%]
-536,445,412,234,588 stalled-cycles-frontend   #  151.02% frontend cycles idle    [100.00%]
-409,110,531,310,223 stalled-cycles-backend    #  115.17% backend  cycles idle    [100.00%]
-148,286,797,266,411 instructions              #    0.42  insns per cycle
-                                             #    3.62  stalled cycles per insn [100.00%]
-27,061,793,159,503 branches                  #   98.867 M/sec                   [100.00%]
-     1,188,655,196 branch-misses             #    0.00% of all branches
-
-     427.001706337 seconds time elapsed
-
-Now with the flag set:
-
-# perf stat -a ./prctl_wrapper_mmv3 1 ./thp_pthread -C 0 -m 0 -c 512 -b 256g
-Setting thp_disabled for this task...
-thp_disable: 1
-Set thp_disabled state to 1
-Process pid = 144957
-
-                                                                                                                     PF/
-                                MAX        MIN                                  TOTCPU/      TOT_PF/   TOT_PF/     WSEC/
-TYPE:               CPUS       WALL       WALL        SYS     USER     TOTCPU       CPU     WALL_SEC   SYS_SEC       CPU   NODES
- 512      0.620      0.260      0.250    0.320      0.570     0.001    51612901376 128000000000 100806448      23
-
- Performance counter stats for './prctl_wrapper_mmv3_hack 1 ./thp_pthread -C 0 -m 0 -c 512 -b 256g':
-
-  138789390.540183 task-clock                #  641.959 CPUs utilized           [100.00%]
-           534,205 context-switches          #    0.000 M/sec                   [100.00%]
-             4,595 CPU-migrations            #    0.000 M/sec                   [100.00%]
-        63,133,119 page-faults               #    0.000 M/sec
-147,977,747,269,768 cycles                    #    1.066 GHz                     [100.00%]
-200,524,196,493,108 stalled-cycles-frontend   #  135.51% frontend cycles idle    [100.00%]
-105,175,163,716,388 stalled-cycles-backend    #   71.07% backend  cycles idle    [100.00%]
-180,916,213,503,160 instructions              #    1.22  insns per cycle
-                                             #    1.11  stalled cycles per insn [100.00%]
-26,999,511,005,868 branches                  #  194.536 M/sec                   [100.00%]
-       714,066,351 branch-misses             #    0.00% of all branches
-
-     216.196778807 seconds time elapsed
-
-As with previous versions of the patch, We're getting about a 2x
-performance increase here.  Here's a link to the test case I used, along
-with the little wrapper to activate the flag:
-
-http://oss.sgi.com/projects/memtests/thp_pthread_mmprctlv3.tar.gz
-
-Let me know if anybody has any further suggestions here.  Thanks!
-
-(Sorry for the big cc list!)
+This would now also allow to do the madvise on other parts, if needed,
+so it is a more flexible approach. One could also say that it would have
+been better to do it this way right from the beginning... 
+</snip>
 
 Signed-off-by: Alex Thorlton <athorlton@sgi.com>
 Suggested-by: Oleg Nesterov <oleg@redhat.com>
@@ -149,20 +75,47 @@ Cc: linux-s390@vger.kernel.org
 Cc: linux-mm@kvack.org
 Cc: linux-api@vger.kernel.org
 
-Alex Thorlton (3):
-  Revert "thp: make MADV_HUGEPAGE check for mm->def_flags"
-  Add VM_INIT_DEF_MASK and PRCTL_THP_DISABLE
-  exec: kill the unnecessary mm->def_flags setting in load_elf_binary()
+---
+ arch/s390/mm/pgtable.c | 3 +++
+ mm/huge_memory.c       | 4 ----
+ 2 files changed, 3 insertions(+), 4 deletions(-)
 
- arch/s390/mm/pgtable.c     |  3 +++
- fs/binfmt_elf.c            |  4 ----
- include/linux/mm.h         |  3 +++
- include/uapi/linux/prctl.h |  3 +++
- kernel/fork.c              | 11 ++++++++---
- kernel/sys.c               | 15 +++++++++++++++
- mm/huge_memory.c           |  4 ----
- 7 files changed, 32 insertions(+), 11 deletions(-)
-
+diff --git a/arch/s390/mm/pgtable.c b/arch/s390/mm/pgtable.c
+index 3584ed9..a87cdb4 100644
+--- a/arch/s390/mm/pgtable.c
++++ b/arch/s390/mm/pgtable.c
+@@ -504,6 +504,9 @@ static int gmap_connect_pgtable(unsigned long address, unsigned long segment,
+ 	if (!pmd_present(*pmd) &&
+ 	    __pte_alloc(mm, vma, pmd, vmaddr))
+ 		return -ENOMEM;
++	/* large pmds cannot yet be handled */
++	if (pmd_large(*pmd))
++		return -EFAULT;
+ 	/* pmd now points to a valid segment table entry. */
+ 	rmap = kmalloc(sizeof(*rmap), GFP_KERNEL|__GFP_REPEAT);
+ 	if (!rmap)
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 82166bf..a4310a5 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1968,8 +1968,6 @@ out:
+ int hugepage_madvise(struct vm_area_struct *vma,
+ 		     unsigned long *vm_flags, int advice)
+ {
+-	struct mm_struct *mm = vma->vm_mm;
+-
+ 	switch (advice) {
+ 	case MADV_HUGEPAGE:
+ 		/*
+@@ -1977,8 +1975,6 @@ int hugepage_madvise(struct vm_area_struct *vma,
+ 		 */
+ 		if (*vm_flags & (VM_HUGEPAGE | VM_NO_THP))
+ 			return -EINVAL;
+-		if (mm->def_flags & VM_NOHUGEPAGE)
+-			return -EINVAL;
+ 		*vm_flags &= ~VM_NOHUGEPAGE;
+ 		*vm_flags |= VM_HUGEPAGE;
+ 		/*
 -- 
 1.7.12.4
 
