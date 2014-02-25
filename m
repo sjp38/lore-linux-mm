@@ -1,98 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ve0-f171.google.com (mail-ve0-f171.google.com [209.85.128.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 510826B0092
-	for <linux-mm@kvack.org>; Tue, 25 Feb 2014 14:31:52 -0500 (EST)
-Received: by mail-ve0-f171.google.com with SMTP id oz11so1007523veb.16
-        for <linux-mm@kvack.org>; Tue, 25 Feb 2014 11:31:52 -0800 (PST)
-Received: from mail-vc0-x232.google.com (mail-vc0-x232.google.com [2607:f8b0:400c:c03::232])
-        by mx.google.com with ESMTPS id cx4si7079882vcb.80.2014.02.25.11.31.51
+Received: from mail-qc0-f172.google.com (mail-qc0-f172.google.com [209.85.216.172])
+	by kanga.kvack.org (Postfix) with ESMTP id B65976B009E
+	for <linux-mm@kvack.org>; Tue, 25 Feb 2014 14:32:56 -0500 (EST)
+Received: by mail-qc0-f172.google.com with SMTP id w7so9282224qcr.3
+        for <linux-mm@kvack.org>; Tue, 25 Feb 2014 11:32:56 -0800 (PST)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id d2si716506qag.32.2014.02.25.11.32.55
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 25 Feb 2014 11:31:51 -0800 (PST)
-Received: by mail-vc0-f178.google.com with SMTP id ik5so7804854vcb.37
-        for <linux-mm@kvack.org>; Tue, 25 Feb 2014 11:31:51 -0800 (PST)
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 25 Feb 2014 11:32:56 -0800 (PST)
+Message-ID: <530CEFE2.9090909@oracle.com>
+Date: Tue, 25 Feb 2014 14:32:50 -0500
+From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-In-Reply-To: <1393355040.2577.52.camel@buesod1.americas.hpqcorp.net>
-References: <1393352206.2577.36.camel@buesod1.americas.hpqcorp.net>
-	<CA+55aFzPYZnkSQa=Y4Uo3zMVUVdchVxN2S266KyZLu-yJ314pw@mail.gmail.com>
-	<1393355040.2577.52.camel@buesod1.americas.hpqcorp.net>
-Date: Tue, 25 Feb 2014 11:31:51 -0800
-Message-ID: <CA+55aFy-7J+f+ogdN8rbzfDp1yRiiNnX7cnmbAwnTXp2JLTS4Q@mail.gmail.com>
-Subject: Re: [PATCH v2] mm: per-thread vma caching
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8
+Subject: mm: NULL ptr deref in balance_dirty_pages_ratelimited
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <davidlohr@hp.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Michel Lespinasse <walken@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, "Chandramouleeswaran, Aswin" <aswin@hp.com>, "Norton, Scott J" <scott.norton@hp.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, Feb 25, 2014 at 11:04 AM, Davidlohr Bueso <davidlohr@hp.com> wrote:
->
->> So it walks completely the wrong list of threads.
->
-> But we still need to deal with the rest of the tasks in the system, so
-> anytime there's an overflow we need to nullify all cached vmas, not just
-> current's. Am I missing something special about fork?
+Hi all,
 
-No, you're missing the much more fundamental issue: you are *not*
-incrementing the current mm sequence number at all.
+While fuzzing with trinity inside a KVM tools running latest -next kernel I've stumbled on the 
+following spew:
 
-This code here:
+[  232.869443] BUG: unable to handle kernel NULL pointer dereference at 0000000000000020
+[  232.870230] IP: [<mm/page-writeback.c:1612>] balance_dirty_pages_ratelimited+0x1e/0x150
+[  232.870230] PGD 586e1d067 PUD 586e1e067 PMD 0
+[  232.870230] Oops: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
+[  232.870230] Dumping ftrace buffer:
+[  232.870230]    (ftrace buffer empty)
+[  232.870230] Modules linked in:
+[  232.870230] CPU: 36 PID: 9707 Comm: trinity-c36 Tainted: G        W 
+3.14.0-rc4-next-20140225-sasha-00010-ga117461 #42
+[  232.870230] task: ffff880586dfb000 ti: ffff880586e34000 task.ti: ffff880586e34000
+[  232.870230] RIP: 0010:[<mm/page-writeback.c:1612>]  [<mm/page-writeback.c:1612>] 
+balance_dirty_pages_ratelimited+0x1e/0x150
+[  232.870230] RSP: 0000:ffff880586e35c58  EFLAGS: 00010282
+[  232.870230] RAX: 0000000000000000 RBX: ffff880582831361 RCX: 0000000000000007
+[  232.870230] RDX: 0000000000000007 RSI: ffff880586dfbcc0 RDI: ffff880582831361
+[  232.870230] RBP: ffff880586e35c78 R08: 0000000000000000 R09: 0000000000000000
+[  232.870230] R10: 0000000000000001 R11: 0000000000000001 R12: 00007f58007ee000
+[  232.870230] R13: ffff880c8d6d4f70 R14: 0000000000000200 R15: ffff880c8dcce710
+[  232.870230] FS:  00007f58018bb700(0000) GS:ffff880c8e800000(0000) knlGS:0000000000000000
+[  232.870230] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+[  232.870230] CR2: 0000000000000020 CR3: 0000000586e1c000 CR4: 00000000000006e0
+[  232.870230] Stack:
+[  232.870230]  ffff880586e35c78 ffff880586e33400 00007f58007ee000 ffff880c8d6d4f70
+[  232.870230]  ffff880586e35cd8 ffffffff8127d241 0000000000000001 0000000000000001
+[  232.870230]  0000000000000000 ffffea0032337080 0000000080000000 ffff880586e33400
+[  232.870230] Call Trace:
+[  232.870230]  [<mm/memory.c:3467>] do_shared_fault+0x1a1/0x1f0
+[  232.870230]  [<mm/memory.c:3487>] handle_pte_fault+0xc8/0x230
+[  232.870230]  [<arch/x86/include/asm/preempt.h:98>] ? delay_tsc+0xea/0x110
+[  232.870230]  [<mm/memory.c:3770>] __handle_mm_fault+0x36e/0x3a0
+[  232.870230]  [<include/linux/rcupdate.h:829>] ? rcu_read_unlock+0x5d/0x60
+[  232.870230]  [<include/linux/memcontrol.h:148>] handle_mm_fault+0x10b/0x1b0
+[  232.870230]  [<arch/x86/mm/fault.c:1147>] ? __do_page_fault+0x2e2/0x590
+[  232.870230]  [<arch/x86/mm/fault.c:1214>] __do_page_fault+0x551/0x590
+[  232.870230]  [<kernel/sched/cputime.c:681>] ? vtime_account_user+0x91/0xa0
+[  232.870230]  [<arch/x86/include/asm/atomic.h:26>] ? context_tracking_user_exit+0xa8/0x1c0
+[  232.870230]  [<arch/x86/include/asm/preempt.h:98>] ? _raw_spin_unlock+0x30/0x50
+[  232.870230]  [<kernel/sched/cputime.c:681>] ? vtime_account_user+0x91/0xa0
+[  232.870230]  [<arch/x86/include/asm/atomic.h:26>] ? context_tracking_user_exit+0xa8/0x1c0
+[  232.870230]  [<arch/x86/include/asm/atomic.h:26>] do_page_fault+0x3d/0x70
+[  232.870230]  [<arch/x86/kernel/kvm.c:263>] do_async_page_fault+0x35/0x100
+[  232.870230]  [<arch/x86/kernel/entry_64.S:1496>] async_page_fault+0x28/0x30
+[  232.870230] Code: 66 66 66 66 2e 0f 1f 84 00 00 00 00 00 55 48 89 e5 48 83 ec 20 48 89 5d e8 4c 
+89 65 f0 4c 89 6d f8 48 89 fb 48 8b 87 50 01 00 00 <f6> 40 20 01 0f 85 18 01 00 00 65 48 8b 14 25 40 
+da 00 00 44 8b
+[  232.870230] RIP  [<mm/page-writeback.c:1612>] balance_dirty_pages_ratelimited+0x1e/0x150
+[  232.870230]  RSP <ffff880586e35c58>
+[  232.870230] CR2: 0000000000000020
 
-    mm->vmacache_seqnum = oldmm->vmacache_seqnum + 1;
 
-doesn't change the "oldmm" sequence number.
-
-So invalidating the threads involved with the current sequence number
-is totally bogus. It's a completely nonsensical operation. You didn't
-do anything to their sequence numbers.
-
-Your argument that "we still need to deal with the rest of the tasks"
-is bogus. There is no "rest of the tasks". You're creating a new mm,
-WHICH DOESN'T HAVE ANY TASKS YET!
-
-(Well, there is the one half-formed task that is also in the process
-of being created, but that you don't even have access to in
-"dup_mmap()").
-
-It's also not sensible to make the new vmacache_seqnum have anything
-to do with the *old* vmacache seqnum. They are two totally unrelated
-things, since they are separate mm's, and they are tied to independent
-threads. They basically have nothing in common, so initializing the
-new mm sequence number with a value that is related to the old
-sequence number is not a sensible operation anyway.
-
-So dup_mmap() should just clear the mm->seqnum, and not touch any
-vmacache entries. There are no current vmacache entries associated
-with that mm anyway.
-
-And then you should clear the new vmacache entries in the thread
-structure, and set vmacache_seqnum to 0 there too. You can do that in
-"dup_mm()", which has access to the new task-struct.
-
-And then you're done, as far as fork() is concerned.
-
-Now, the *clone* case (CLONE_VM) is different. See "copy_mm()". For
-that case, you should probably just copy the vma cache from the old
-thread, and set the sequence number to be the same one. That's
-correct, since you are re-using the mm. But in practice, you don't
-actually need to do anything, since "dup_task_struct()" should have
-done this all. So the CLONE_VM case doesn't actually require any
-explicit code, because copying the cache and the sequence number is
-already the right thing to do.
-
-Btw, that all reminds me:
-
-The one case you should make sure to double-check is the "exec" case,
-which also creates a new mm. So that should clear the vmcache entries
-and the seqnum.  Currently we clear mm->mmap_cache implicitly in
-mm_alloc() because we do a memset(mm, 0) in it.
-
-So in exec_mmap(), as you do the activate_mm(), you need to do that
-same "clear vmacache and sequence number for *this* thread (and this
-thread *only*)".
-
-                 Linus
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
