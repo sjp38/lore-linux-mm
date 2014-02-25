@@ -1,47 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 20E646B00DF
-	for <linux-mm@kvack.org>; Tue, 25 Feb 2014 07:33:48 -0500 (EST)
-Received: by mail-wg0-f49.google.com with SMTP id x12so327626wgg.8
-        for <linux-mm@kvack.org>; Tue, 25 Feb 2014 04:33:47 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id dd1si7982757wib.18.2014.02.25.04.33.44
-        for <linux-mm@kvack.org>;
-        Tue, 25 Feb 2014 04:33:45 -0800 (PST)
-Message-ID: <530C8D84.2050505@redhat.com>
-Date: Tue, 25 Feb 2014 07:33:08 -0500
-From: Rik van Riel <riel@redhat.com>
+Received: from mail-wg0-f46.google.com (mail-wg0-f46.google.com [74.125.82.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 31B656B00DF
+	for <linux-mm@kvack.org>; Tue, 25 Feb 2014 08:06:38 -0500 (EST)
+Received: by mail-wg0-f46.google.com with SMTP id z12so373886wgg.5
+        for <linux-mm@kvack.org>; Tue, 25 Feb 2014 05:06:37 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id sd12si17707844wjb.172.2014.02.25.05.06.35
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 25 Feb 2014 05:06:36 -0800 (PST)
+Date: Tue, 25 Feb 2014 13:06:32 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH] mm: exclude memory less nodes from zone_reclaim
+Message-ID: <20140225130632.GR6732@suse.de>
+References: <1392889904-18019-1-git-send-email-mhocko@suse.cz>
 MIME-Version: 1.0
-Subject: Re: [PATCH] ksm: Expose configuration via sysctl
-References: <1393284484-27637-1-git-send-email-agraf@suse.de>
-In-Reply-To: <1393284484-27637-1-git-send-email-agraf@suse.de>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1392889904-18019-1-git-send-email-mhocko@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Graf <agraf@suse.de>, linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>, Hugh Dickins <hughd@google.com>, Izik Eidus <izik.eidus@ravellosystems.com>, Andrea Arcangeli <aarcange@redhat.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Nishanth Aravamudan <nacc@linux.vnet.ibm.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On 02/24/2014 06:28 PM, Alexander Graf wrote:
-> Configuration of tunables and Linux virtual memory settings has traditionally
-> happened via sysctl. Thanks to that there are well established ways to make
-> sysctl configuration bits persistent (sysctl.conf).
+On Thu, Feb 20, 2014 at 10:51:44AM +0100, Michal Hocko wrote:
+> We had a report about strange OOM killer strikes on a PPC machine
+> although there was a lot of swap free and a tons of anonymous memory
+> which could be swapped out. In the end it turned out that the OOM was
+> a side effect of zone reclaim which wasn't doesn't unmap and swapp out
+> and so the system was pushed to the OOM. Although this sounds like a bug
+> somewhere in the kswapd vs. zone reclaim vs. direct reclaim interaction
+> numactl on the said hardware suggests that the zone reclaim should
+> have been set in the first place:
+> node 0 cpus: 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15
+> node 0 size: 0 MB
+> node 0 free: 0 MB
+> node 2 cpus:
+> node 2 size: 7168 MB
+> node 2 free: 6019 MB
+> node distances:
+> node   0   2
+> 0:  10  40
+> 2:  40  10
 > 
-> KSM introduced a sysfs based configuration path which is not covered by user
-> space persistent configuration frameworks.
+> So all the CPUs are associated with Node0 which doesn't have any memory
+> while Node2 contains all the available memory. Node distances cause an
+> automatic zone_reclaim_mode enabling.
 > 
-> In order to make life easy for sysadmins, this patch adds all access to all
-> KSM tunables via sysctl as well. That way sysctl.conf works for KSM as well,
-> giving us a streamlined way to make KSM configuration persistent.
+> Zone reclaim is intended to keep the allocations local but this doesn't
+> make any sense on the memory less nodes. So let's exclude such nodes
+> for init_zone_allows_reclaim which evaluates zone reclaim behavior and
+> suitable reclaim_nodes.
 > 
-> Reported-by: Sasche Peilicke <speilicke@suse.com>
-> Signed-off-by: Alexander Graf <agraf@suse.de>
+> Signed-off-by: Michal Hocko <mhocko@suse.cz>
+> Acked-by: David Rientjes <rientjes@google.com>
+> Acked-by: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
+> Tested-by: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
 
-Reviewed-by: Rik van Riel <riel@redhat.com>
+Acked-by: Mel Gorman <mgorman@suse.de>
 
+FWIW, I do expect that memory hot-adding memory later will cause problems
+because the node is only initialised if it was previously considered offline
+but Nishanth is making changes in that area and it would be easier to fix
+it up in that context.
 
 -- 
-All rights reversed
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
