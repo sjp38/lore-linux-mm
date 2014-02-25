@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id D12416B00FF
-	for <linux-mm@kvack.org>; Tue, 25 Feb 2014 09:19:24 -0500 (EST)
-Received: by mail-pd0-f180.google.com with SMTP id y10so2194521pdj.25
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 25B336B0103
+	for <linux-mm@kvack.org>; Tue, 25 Feb 2014 09:19:25 -0500 (EST)
+Received: by mail-pa0-f46.google.com with SMTP id rd3so8102433pab.19
         for <linux-mm@kvack.org>; Tue, 25 Feb 2014 06:19:24 -0800 (PST)
 Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id gk3si20886893pac.234.2014.02.25.06.19.22
+        by mx.google.com with ESMTP id gk3si20883083pac.176.2014.02.25.06.19.23
         for <linux-mm@kvack.org>;
         Tue, 25 Feb 2014 06:19:23 -0800 (PST)
 From: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Subject: [PATCH v6 11/22] Replace ext2_clear_xip_target with dax_clear_blocks
-Date: Tue, 25 Feb 2014 09:18:27 -0500
-Message-Id: <1393337918-28265-12-git-send-email-matthew.r.wilcox@intel.com>
+Subject: [PATCH v6 12/22] ext2: Remove ext2_xip_verify_sb()
+Date: Tue, 25 Feb 2014 09:18:28 -0500
+Message-Id: <1393337918-28265-13-git-send-email-matthew.r.wilcox@intel.com>
 In-Reply-To: <1393337918-28265-1-git-send-email-matthew.r.wilcox@intel.com>
 References: <1393337918-28265-1-git-send-email-matthew.r.wilcox@intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,166 +19,128 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, willy@linux.intel.com
 Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>
 
-This is practically generic code; other filesystems will want to call
-it from other places, but there's nothing ext2-specific about it.
+Jan Kara pointed out that calling ext2_xip_verify_sb() in ext2_remount()
+doesn't make sense, since changing the XIP option on remount isn't
+allowed.  It also doesn't make sense to re-check whether blocksize is
+supported since it can't change between mounts.
 
-Make it a little more generic by allowing it to take a count of the number
-of bytes to zero rather than fixing it to a single page.  Thanks to Dave
-Hansen for suggesting that I need to call cond_resched() if zeroing more
-than one page.
+Replace the call to ext2_xip_verify_sb() in ext2_fill_super() with the
+equivalent check and delete the definition.
 
 Signed-off-by: Matthew Wilcox <matthew.r.wilcox@intel.com>
 ---
- fs/dax.c           | 34 ++++++++++++++++++++++++++++++++++
- fs/ext2/inode.c    |  8 +++++---
- fs/ext2/xip.c      | 23 -----------------------
- fs/ext2/xip.h      |  3 ---
- include/linux/fs.h |  6 ++++++
- 5 files changed, 45 insertions(+), 29 deletions(-)
+ fs/ext2/super.c | 33 ++++++++++++---------------------
+ fs/ext2/xip.c   | 12 ------------
+ fs/ext2/xip.h   |  2 --
+ 3 files changed, 12 insertions(+), 35 deletions(-)
 
-diff --git a/fs/dax.c b/fs/dax.c
-index a6a1adc..75328bf 100644
---- a/fs/dax.c
-+++ b/fs/dax.c
-@@ -22,8 +22,42 @@
- #include <linux/highmem.h>
- #include <linux/mm.h>
- #include <linux/mutex.h>
-+#include <linux/sched.h>
- #include <linux/uio.h>
+diff --git a/fs/ext2/super.c b/fs/ext2/super.c
+index 20d6697..3a1db39 100644
+--- a/fs/ext2/super.c
++++ b/fs/ext2/super.c
+@@ -868,9 +868,6 @@ static int ext2_fill_super(struct super_block *sb, void *data, int silent)
+ 		((EXT2_SB(sb)->s_mount_opt & EXT2_MOUNT_POSIX_ACL) ?
+ 		 MS_POSIXACL : 0);
  
-+int dax_clear_blocks(struct inode *inode, sector_t block, long size)
-+{
-+	struct block_device *bdev = inode->i_sb->s_bdev;
-+	const struct block_device_operations *ops = bdev->bd_disk->fops;
-+	sector_t sector = block << (inode->i_blkbits - 9);
-+	unsigned long pfn;
-+
-+	might_sleep();
-+	do {
-+		void *addr;
-+		long count = ops->direct_access(bdev, sector, &addr, &pfn,
-+									size);
-+		if (count < 0)
-+			return count;
-+		while (count >= PAGE_SIZE) {
-+			clear_page(addr);
-+			addr += PAGE_SIZE;
-+			size -= PAGE_SIZE;
-+			count -= PAGE_SIZE;
-+			sector += PAGE_SIZE / 512;
-+			cond_resched();
+-	ext2_xip_verify_sb(sb); /* see if bdev supports xip, unset
+-				    EXT2_MOUNT_XIP if not */
+-
+ 	if (le32_to_cpu(es->s_rev_level) == EXT2_GOOD_OLD_REV &&
+ 	    (EXT2_HAS_COMPAT_FEATURE(sb, ~0U) ||
+ 	     EXT2_HAS_RO_COMPAT_FEATURE(sb, ~0U) ||
+@@ -900,11 +897,17 @@ static int ext2_fill_super(struct super_block *sb, void *data, int silent)
+ 
+ 	blocksize = BLOCK_SIZE << le32_to_cpu(sbi->s_es->s_log_block_size);
+ 
+-	if (ext2_use_xip(sb) && blocksize != PAGE_SIZE) {
+-		if (!silent)
++	if (sbi->s_mount_opt & EXT2_MOUNT_XIP) {
++		if (blocksize != PAGE_SIZE) {
+ 			ext2_msg(sb, KERN_ERR,
+-				"error: unsupported blocksize for xip");
+-		goto failed_mount;
++					"error: unsupported blocksize for xip");
++			goto failed_mount;
 +		}
-+		if (count > 0) {
-+			memset(addr, 0, count);
-+			sector += count / 512;
-+			size -= count;
++		if (!sb->s_bdev->bd_disk->fops->direct_access) {
++			ext2_msg(sb, KERN_ERR,
++					"error: device does not support xip");
++			goto failed_mount;
 +		}
-+	} while (size);
-+
-+	return 0;
-+}
-+EXPORT_SYMBOL_GPL(dax_clear_blocks);
-+
- static long dax_get_addr(struct inode *inode, struct buffer_head *bh,
- 								void **addr)
+ 	}
+ 
+ 	/* If the blocksize doesn't match, re-read the thing.. */
+@@ -1249,7 +1252,6 @@ static int ext2_remount (struct super_block * sb, int * flags, char * data)
  {
-diff --git a/fs/ext2/inode.c b/fs/ext2/inode.c
-index b156fe8..a9346a9 100644
---- a/fs/ext2/inode.c
-+++ b/fs/ext2/inode.c
-@@ -733,10 +733,12 @@ static int ext2_get_blocks(struct inode *inode,
+ 	struct ext2_sb_info * sbi = EXT2_SB(sb);
+ 	struct ext2_super_block * es;
+-	unsigned long old_mount_opt = sbi->s_mount_opt;
+ 	struct ext2_mount_options old_opts;
+ 	unsigned long old_sb_flags;
+ 	int err;
+@@ -1273,22 +1275,11 @@ static int ext2_remount (struct super_block * sb, int * flags, char * data)
+ 	sb->s_flags = (sb->s_flags & ~MS_POSIXACL) |
+ 		((sbi->s_mount_opt & EXT2_MOUNT_POSIX_ACL) ? MS_POSIXACL : 0);
  
- 	if (IS_DAX(inode)) {
- 		/*
--		 * we need to clear the block
-+		 * block must be initialised before we put it in the tree
-+		 * so that it's not found by another thread before it's
-+		 * initialised
- 		 */
--		err = ext2_clear_xip_target (inode,
--			le32_to_cpu(chain[depth-1].key));
-+		err = dax_clear_blocks(inode, le32_to_cpu(chain[depth-1].key),
-+						count << inode->i_blkbits);
- 		if (err) {
- 			mutex_unlock(&ei->truncate_mutex);
- 			goto cleanup;
+-	ext2_xip_verify_sb(sb); /* see if bdev supports xip, unset
+-				    EXT2_MOUNT_XIP if not */
+-
+-	if ((ext2_use_xip(sb)) && (sb->s_blocksize != PAGE_SIZE)) {
+-		ext2_msg(sb, KERN_WARNING,
+-			"warning: unsupported blocksize for xip");
+-		err = -EINVAL;
+-		goto restore_opts;
+-	}
+-
+ 	es = sbi->s_es;
+-	if ((sbi->s_mount_opt ^ old_mount_opt) & EXT2_MOUNT_XIP) {
++	if ((sbi->s_mount_opt ^ old_opts.s_mount_opt) & EXT2_MOUNT_XIP) {
+ 		ext2_msg(sb, KERN_WARNING, "warning: refusing change of "
+ 			 "xip flag with busy inodes while remounting");
+-		sbi->s_mount_opt &= ~EXT2_MOUNT_XIP;
+-		sbi->s_mount_opt |= old_mount_opt & EXT2_MOUNT_XIP;
++		sbi->s_mount_opt ^= EXT2_MOUNT_XIP;
+ 	}
+ 	if ((*flags & MS_RDONLY) == (sb->s_flags & MS_RDONLY)) {
+ 		spin_unlock(&sbi->s_lock);
 diff --git a/fs/ext2/xip.c b/fs/ext2/xip.c
-index ca745ff..132d4da 100644
+index 132d4da..66ca113 100644
 --- a/fs/ext2/xip.c
 +++ b/fs/ext2/xip.c
-@@ -13,29 +13,6 @@
+@@ -13,15 +13,3 @@
  #include "ext2.h"
  #include "xip.h"
  
--static inline long __inode_direct_access(struct inode *inode, sector_t block,
--				void **kaddr, unsigned long *pfn, long size)
+-void ext2_xip_verify_sb(struct super_block *sb)
 -{
--	struct block_device *bdev = inode->i_sb->s_bdev;
--	const struct block_device_operations *ops = bdev->bd_disk->fops;
--	sector_t sector = block * (PAGE_SIZE / 512);
--	return ops->direct_access(bdev, sector, kaddr, pfn, size);
+-	struct ext2_sb_info *sbi = EXT2_SB(sb);
+-
+-	if ((sbi->s_mount_opt & EXT2_MOUNT_XIP) &&
+-	    !sb->s_bdev->bd_disk->fops->direct_access) {
+-		sbi->s_mount_opt &= (~EXT2_MOUNT_XIP);
+-		ext2_msg(sb, KERN_WARNING,
+-			     "warning: ignoring xip option - "
+-			     "not supported by bdev");
+-	}
 -}
--
--int
--ext2_clear_xip_target(struct inode *inode, sector_t block)
--{
--	void *kaddr;
--	unsigned long pfn;
--	long size;
--
--	size = __inode_direct_access(inode, block, &kaddr, &pfn, PAGE_SIZE);
--	if (size < 0)
--		return size;
--	clear_page(kaddr);
--	return 0;
--}
--
- void ext2_xip_verify_sb(struct super_block *sb)
- {
- 	struct ext2_sb_info *sbi = EXT2_SB(sb);
 diff --git a/fs/ext2/xip.h b/fs/ext2/xip.h
-index 0fa8b7f..e7b9f0a 100644
+index e7b9f0a..87eeb04 100644
 --- a/fs/ext2/xip.h
 +++ b/fs/ext2/xip.h
-@@ -7,8 +7,6 @@
+@@ -6,13 +6,11 @@
+  */
  
  #ifdef CONFIG_EXT2_FS_XIP
- extern void ext2_xip_verify_sb (struct super_block *);
--extern int ext2_clear_xip_target (struct inode *, sector_t);
--
+-extern void ext2_xip_verify_sb (struct super_block *);
  static inline int ext2_use_xip (struct super_block *sb)
  {
  	struct ext2_sb_info *sbi = EXT2_SB(sb);
-@@ -17,5 +15,4 @@ static inline int ext2_use_xip (struct super_block *sb)
+ 	return (sbi->s_mount_opt & EXT2_MOUNT_XIP);
+ }
  #else
- #define ext2_xip_verify_sb(sb)			do { } while (0)
+-#define ext2_xip_verify_sb(sb)			do { } while (0)
  #define ext2_use_xip(sb)			0
--#define ext2_clear_xip_target(inode, chain)	0
  #endif
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index c7945fd..6f7f445 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -2516,12 +2516,18 @@ extern int generic_file_open(struct inode * inode, struct file * filp);
- extern int nonseekable_open(struct inode * inode, struct file * filp);
- 
- #ifdef CONFIG_FS_XIP
-+int dax_clear_blocks(struct inode *, sector_t block, long size);
- int dax_truncate_page(struct inode *, loff_t from, get_block_t);
- ssize_t dax_do_io(int rw, struct kiocb *, struct inode *, const struct iovec *,
- 		loff_t, unsigned segs, get_block_t, dio_iodone_t, int flags);
- int dax_fault(struct vm_area_struct *, struct vm_fault *, get_block_t);
- int dax_mkwrite(struct vm_area_struct *, struct vm_fault *, get_block_t);
- #else
-+static inline int dax_clear_blocks(struct inode *i, sector_t blk, long sz)
-+{
-+	return 0;
-+}
-+
- static inline int dax_truncate_page(struct inode *i, loff_t frm, get_block_t gb)
- {
- 	return 0;
 -- 
 1.8.5.3
 
