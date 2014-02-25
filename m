@@ -1,44 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f52.google.com (mail-wg0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 380976B003B
-	for <linux-mm@kvack.org>; Tue, 25 Feb 2014 13:25:13 -0500 (EST)
-Received: by mail-wg0-f52.google.com with SMTP id k14so743169wgh.23
-        for <linux-mm@kvack.org>; Tue, 25 Feb 2014 10:25:12 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id i8si18412849wje.55.2014.02.25.10.25.11
+Received: from mail-qa0-f47.google.com (mail-qa0-f47.google.com [209.85.216.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 203CF6B009C
+	for <linux-mm@kvack.org>; Tue, 25 Feb 2014 13:26:35 -0500 (EST)
+Received: by mail-qa0-f47.google.com with SMTP id w5so675987qac.6
+        for <linux-mm@kvack.org>; Tue, 25 Feb 2014 10:26:34 -0800 (PST)
+Received: from qmta06.emeryville.ca.mail.comcast.net (qmta06.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:56])
+        by mx.google.com with ESMTP id s4si552570qan.27.2014.02.25.10.26.33
         for <linux-mm@kvack.org>;
-        Tue, 25 Feb 2014 10:25:11 -0800 (PST)
-Message-ID: <530CDFE0.10800@redhat.com>
-Date: Tue, 25 Feb 2014 13:24:32 -0500
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v2] mm: per-thread vma caching
-References: <1393352206.2577.36.camel@buesod1.americas.hpqcorp.net>
-In-Reply-To: <1393352206.2577.36.camel@buesod1.americas.hpqcorp.net>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+        Tue, 25 Feb 2014 10:26:34 -0800 (PST)
+Date: Tue, 25 Feb 2014 12:26:31 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [LSF/MM ATTEND] slab cache extension -- slab cache in fixed
+ size
+In-Reply-To: <530C0F08.1040000@oracle.com>
+Message-ID: <alpine.DEB.2.10.1402251225280.30822@nuc>
+References: <52D662A4.1080502@oracle.com> <alpine.DEB.2.10.1401310941430.6849@nuc> <530C0F08.1040000@oracle.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <davidlohr@hp.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Michel Lespinasse <walken@google.com>, Mel Gorman <mgorman@suse.de>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, aswin@hp.com, scott.norton@hp.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Jeff Liu <jeff.liu@oracle.com>
+Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>
 
-On 02/25/2014 01:16 PM, Davidlohr Bueso wrote:
+On Tue, 25 Feb 2014, Jeff Liu wrote:
 
-> The proposed approach is to keep the current cache and adding a small, per
-> thread, LRU cache. By keeping the mm->mmap_cache, 
+> In this case, another thing I'm hesitating about whether to export the cache_limit
+> via /proc/slabinfo by extending its tunable fields -- the per-CPU slab cache limit
+> and batchcount, as thus will change the user space interface and slabtop(1) need to
+> be modified accordingly.
 
-This bit of the changelog may want updating :)
+Can you move the code to handle /sys/kernel/slab into mm/slab_common.c and
+then make slab use that? (Maybe a bit of a tough call but that has to be
+done at some point).
 
-> Changes from v1 (https://lkml.org/lkml/2014/2/21/8): 
-> - Removed the per-mm cache for CONFIG_MMU, only having the 
->   per thread approach.
-
-The patch looks good.
-
-Reviewed-by: Rik van Riel <riel@redhat.com>
-
--- 
-All rights reversed
+Once you got a directly with settings per slab then its trivial to add
+another field.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
