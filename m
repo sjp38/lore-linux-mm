@@ -1,83 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f172.google.com (mail-qc0-f172.google.com [209.85.216.172])
-	by kanga.kvack.org (Postfix) with ESMTP id B65976B009E
-	for <linux-mm@kvack.org>; Tue, 25 Feb 2014 14:32:56 -0500 (EST)
-Received: by mail-qc0-f172.google.com with SMTP id w7so9282224qcr.3
-        for <linux-mm@kvack.org>; Tue, 25 Feb 2014 11:32:56 -0800 (PST)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id d2si716506qag.32.2014.02.25.11.32.55
+Received: from mail-ie0-f175.google.com (mail-ie0-f175.google.com [209.85.223.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 2C9EE6B0092
+	for <linux-mm@kvack.org>; Tue, 25 Feb 2014 14:47:05 -0500 (EST)
+Received: by mail-ie0-f175.google.com with SMTP id at1so780527iec.6
+        for <linux-mm@kvack.org>; Tue, 25 Feb 2014 11:47:05 -0800 (PST)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
+        by mx.google.com with ESMTPS id q7si40015331igh.19.2014.02.25.11.47.01
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 25 Feb 2014 11:32:56 -0800 (PST)
-Message-ID: <530CEFE2.9090909@oracle.com>
-Date: Tue, 25 Feb 2014 14:32:50 -0500
-From: Sasha Levin <sasha.levin@oracle.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 25 Feb 2014 11:47:01 -0800 (PST)
+Date: Tue, 25 Feb 2014 20:46:49 +0100
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH v2] mm: per-thread vma caching
+Message-ID: <20140225194649.GV6835@laptop.programming.kicks-ass.net>
+References: <1393352206.2577.36.camel@buesod1.americas.hpqcorp.net>
+ <20140225183522.GU6835@laptop.programming.kicks-ass.net>
+ <1393353454.2577.42.camel@buesod1.americas.hpqcorp.net>
 MIME-Version: 1.0
-Subject: mm: NULL ptr deref in balance_dirty_pages_ratelimited
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1393353454.2577.42.camel@buesod1.americas.hpqcorp.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
+To: Davidlohr Bueso <davidlohr@hp.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Michel Lespinasse <walken@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, aswin@hp.com, scott.norton@hp.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi all,
+On Tue, Feb 25, 2014 at 10:37:34AM -0800, Davidlohr Bueso wrote:
+> On Tue, 2014-02-25 at 19:35 +0100, Peter Zijlstra wrote:
+> > On Tue, Feb 25, 2014 at 10:16:46AM -0800, Davidlohr Bueso wrote:
+> > > +void vmacache_update(struct mm_struct *mm, unsigned long addr,
+> > > +		     struct vm_area_struct *newvma)
+> > > +{
+> > > +	/*
+> > > +	 * Hash based on the page number. Provides a good
+> > > +	 * hit rate for workloads with good locality and
+> > > +	 * those with random accesses as well.
+> > > +	 */
+> > > +	int idx = (addr >> PAGE_SHIFT) & 3;
+> > 
+> >  % VMACACHE_SIZE
+> > 
+> > perhaps? GCC should turn that into a mask for all sensible values I
+> > would think.
+> > 
+> > Barring that I think something like:
+> > 
+> > #define VMACACHE_BITS	2
+> > #define VMACACHE_SIZE	(1U << VMACACHE_BITS)
+> > #define VMACACHE_MASK	(VMACACHE_SIZE - 1)
+> 
+> Hmm all that seems like an overkill.
 
-While fuzzing with trinity inside a KVM tools running latest -next kernel I've stumbled on the 
-following spew:
-
-[  232.869443] BUG: unable to handle kernel NULL pointer dereference at 0000000000000020
-[  232.870230] IP: [<mm/page-writeback.c:1612>] balance_dirty_pages_ratelimited+0x1e/0x150
-[  232.870230] PGD 586e1d067 PUD 586e1e067 PMD 0
-[  232.870230] Oops: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
-[  232.870230] Dumping ftrace buffer:
-[  232.870230]    (ftrace buffer empty)
-[  232.870230] Modules linked in:
-[  232.870230] CPU: 36 PID: 9707 Comm: trinity-c36 Tainted: G        W 
-3.14.0-rc4-next-20140225-sasha-00010-ga117461 #42
-[  232.870230] task: ffff880586dfb000 ti: ffff880586e34000 task.ti: ffff880586e34000
-[  232.870230] RIP: 0010:[<mm/page-writeback.c:1612>]  [<mm/page-writeback.c:1612>] 
-balance_dirty_pages_ratelimited+0x1e/0x150
-[  232.870230] RSP: 0000:ffff880586e35c58  EFLAGS: 00010282
-[  232.870230] RAX: 0000000000000000 RBX: ffff880582831361 RCX: 0000000000000007
-[  232.870230] RDX: 0000000000000007 RSI: ffff880586dfbcc0 RDI: ffff880582831361
-[  232.870230] RBP: ffff880586e35c78 R08: 0000000000000000 R09: 0000000000000000
-[  232.870230] R10: 0000000000000001 R11: 0000000000000001 R12: 00007f58007ee000
-[  232.870230] R13: ffff880c8d6d4f70 R14: 0000000000000200 R15: ffff880c8dcce710
-[  232.870230] FS:  00007f58018bb700(0000) GS:ffff880c8e800000(0000) knlGS:0000000000000000
-[  232.870230] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-[  232.870230] CR2: 0000000000000020 CR3: 0000000586e1c000 CR4: 00000000000006e0
-[  232.870230] Stack:
-[  232.870230]  ffff880586e35c78 ffff880586e33400 00007f58007ee000 ffff880c8d6d4f70
-[  232.870230]  ffff880586e35cd8 ffffffff8127d241 0000000000000001 0000000000000001
-[  232.870230]  0000000000000000 ffffea0032337080 0000000080000000 ffff880586e33400
-[  232.870230] Call Trace:
-[  232.870230]  [<mm/memory.c:3467>] do_shared_fault+0x1a1/0x1f0
-[  232.870230]  [<mm/memory.c:3487>] handle_pte_fault+0xc8/0x230
-[  232.870230]  [<arch/x86/include/asm/preempt.h:98>] ? delay_tsc+0xea/0x110
-[  232.870230]  [<mm/memory.c:3770>] __handle_mm_fault+0x36e/0x3a0
-[  232.870230]  [<include/linux/rcupdate.h:829>] ? rcu_read_unlock+0x5d/0x60
-[  232.870230]  [<include/linux/memcontrol.h:148>] handle_mm_fault+0x10b/0x1b0
-[  232.870230]  [<arch/x86/mm/fault.c:1147>] ? __do_page_fault+0x2e2/0x590
-[  232.870230]  [<arch/x86/mm/fault.c:1214>] __do_page_fault+0x551/0x590
-[  232.870230]  [<kernel/sched/cputime.c:681>] ? vtime_account_user+0x91/0xa0
-[  232.870230]  [<arch/x86/include/asm/atomic.h:26>] ? context_tracking_user_exit+0xa8/0x1c0
-[  232.870230]  [<arch/x86/include/asm/preempt.h:98>] ? _raw_spin_unlock+0x30/0x50
-[  232.870230]  [<kernel/sched/cputime.c:681>] ? vtime_account_user+0x91/0xa0
-[  232.870230]  [<arch/x86/include/asm/atomic.h:26>] ? context_tracking_user_exit+0xa8/0x1c0
-[  232.870230]  [<arch/x86/include/asm/atomic.h:26>] do_page_fault+0x3d/0x70
-[  232.870230]  [<arch/x86/kernel/kvm.c:263>] do_async_page_fault+0x35/0x100
-[  232.870230]  [<arch/x86/kernel/entry_64.S:1496>] async_page_fault+0x28/0x30
-[  232.870230] Code: 66 66 66 66 2e 0f 1f 84 00 00 00 00 00 55 48 89 e5 48 83 ec 20 48 89 5d e8 4c 
-89 65 f0 4c 89 6d f8 48 89 fb 48 8b 87 50 01 00 00 <f6> 40 20 01 0f 85 18 01 00 00 65 48 8b 14 25 40 
-da 00 00 44 8b
-[  232.870230] RIP  [<mm/page-writeback.c:1612>] balance_dirty_pages_ratelimited+0x1e/0x150
-[  232.870230]  RSP <ffff880586e35c58>
-[  232.870230] CR2: 0000000000000020
-
-
-Thanks,
-Sasha
+If GCC does the right thing with % VMACACHE_SIZE it gets rid of an ugly
+constant. But the 3 VMACACHE_* things are 'better' in that its
+impossible to set VMACACHE_SIZE to silly values.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
