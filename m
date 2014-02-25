@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 25BA76B00F9
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 9ECF36B00FB
 	for <linux-mm@kvack.org>; Tue, 25 Feb 2014 09:19:23 -0500 (EST)
-Received: by mail-pd0-f169.google.com with SMTP id v10so7890995pde.28
-        for <linux-mm@kvack.org>; Tue, 25 Feb 2014 06:19:22 -0800 (PST)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id gk3si20886893pac.234.2014.02.25.06.19.21
+Received: by mail-pd0-f178.google.com with SMTP id x10so14529pdj.9
+        for <linux-mm@kvack.org>; Tue, 25 Feb 2014 06:19:23 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [143.182.124.37])
+        by mx.google.com with ESMTP id mo4si3765768pbc.201.2014.02.25.06.19.22
         for <linux-mm@kvack.org>;
         Tue, 25 Feb 2014 06:19:22 -0800 (PST)
 From: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Subject: [PATCH v6 08/22] Replace xip_truncate_page with dax_truncate_page
-Date: Tue, 25 Feb 2014 09:18:24 -0500
-Message-Id: <1393337918-28265-9-git-send-email-matthew.r.wilcox@intel.com>
+Subject: [PATCH v6 07/22] Replace the XIP page fault handler with the DAX page fault handler
+Date: Tue, 25 Feb 2014 09:18:23 -0500
+Message-Id: <1393337918-28265-8-git-send-email-matthew.r.wilcox@intel.com>
 In-Reply-To: <1393337918-28265-1-git-send-email-matthew.r.wilcox@intel.com>
 References: <1393337918-28265-1-git-send-email-matthew.r.wilcox@intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,181 +19,509 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, willy@linux.intel.com
 Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>
 
-It takes a get_block parameter just like nobh_truncate_page() and
-block_truncate_page()
+Instead of calling aops->get_xip_mem from the fault handler, the
+filesystem passes a get_block_t that is used to find the appropriate
+blocks.
 
 Signed-off-by: Matthew Wilcox <matthew.r.wilcox@intel.com>
 ---
- fs/dax.c           | 52 ++++++++++++++++++++++++++++++++++++++++++++++++----
- fs/ext2/inode.c    |  2 +-
- include/linux/fs.h |  4 ++--
- mm/filemap_xip.c   | 40 ----------------------------------------
- 4 files changed, 51 insertions(+), 47 deletions(-)
+ fs/dax.c           | 167 +++++++++++++++++++++++++++++++++++++++++++
+ fs/ext2/file.c     |  35 ++++++++-
+ include/linux/fs.h |   4 +-
+ mm/filemap_xip.c   | 206 -----------------------------------------------------
+ 4 files changed, 203 insertions(+), 209 deletions(-)
 
 diff --git a/fs/dax.c b/fs/dax.c
-index ebcd8fd..a6a1adc 100644
+index 81099f9..ebcd8fd 100644
 --- a/fs/dax.c
 +++ b/fs/dax.c
-@@ -302,13 +302,13 @@ static int do_dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
+@@ -19,6 +19,8 @@
+ #include <linux/buffer_head.h>
+ #include <linux/fs.h>
+ #include <linux/genhd.h>
++#include <linux/highmem.h>
++#include <linux/mm.h>
+ #include <linux/mutex.h>
+ #include <linux/uio.h>
+ 
+@@ -32,6 +34,16 @@ static long dax_get_addr(struct inode *inode, struct buffer_head *bh,
+ 	return ops->direct_access(bdev, sector, addr, &pfn, bh->b_size);
  }
  
- /**
-- * dax_fault - handle a page fault on an XIP file
-+ * dax_fault - handle a page fault on a DAX file
-  * @vma: The virtual memory area where the fault occurred
-  * @vmf: The description of the fault
-  * @get_block: The filesystem method used to translate file offsets to blocks
-  *
-  * When a page fault occurs, filesystems may call this helper in their
-- * fault handler for XIP files.
-+ * fault handler for DAX files.
-  */
- int dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
- 			get_block_t get_block)
-@@ -326,12 +326,12 @@ int dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
- EXPORT_SYMBOL_GPL(dax_fault);
- 
- /**
-- * dax_mkwrite - convert a read-only page to read-write in an XIP file
-+ * dax_mkwrite - convert a read-only page to read-write in a DAX file
-  * @vma: The virtual memory area where the fault occurred
-  * @vmf: The description of the fault
-  * @get_block: The filesystem method used to translate file offsets to blocks
-  *
-- * XIP handles reads of holes by adding pages full of zeroes into the
-+ * DAX handles reads of holes by adding pages full of zeroes into the
-  * mapping.  If the page is subsequenty written to, we have to allocate
-  * the page on media and free the page that was in the cache.
-  */
-@@ -357,3 +357,47 @@ int dax_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf,
- 	return result;
- }
- EXPORT_SYMBOL_GPL(dax_mkwrite);
-+
-+/**
-+ * dax_truncate_page - handle a partial page being truncated in a DAX file
-+ * @inode: The file being truncated
-+ * @from: The file offset that is being truncated to
-+ * @get_block: The filesystem method used to translate file offsets to blocks
-+ *
-+ * Similar to block_truncate_page(), this function can be called by a
-+ * filesystem when it is truncating an DAX file to handle the partial page.
-+ *
-+ * We work in terms of PAGE_CACHE_SIZE here for commonality with
-+ * block_truncate_page(), but we could go down to PAGE_SIZE if the filesystem
-+ * took care of disposing of the unnecessary blocks.  Even if the filesystem
-+ * block size is smaller than PAGE_SIZE, we have to zero the rest of the page
-+ * since the file might be mmaped.
-+ */
-+int dax_truncate_page(struct inode *inode, loff_t from, get_block_t get_block)
++static long dax_get_pfn(struct inode *inode, struct buffer_head *bh,
++							unsigned long *pfn)
 +{
-+	struct buffer_head bh;
-+	pgoff_t index = from >> PAGE_CACHE_SHIFT;
-+	unsigned offset = from & (PAGE_CACHE_SIZE-1);
-+	unsigned length = PAGE_CACHE_ALIGN(from) - from;
-+	int err;
++	struct block_device *bdev = bh->b_bdev;
++	const struct block_device_operations *ops = bdev->bd_disk->fops;
++	void *addr;
++	sector_t sector = bh->b_blocknr << (inode->i_blkbits - 9);
++	return ops->direct_access(bdev, sector, &addr, pfn, bh->b_size);
++}
 +
-+	/* Block boundary? Nothing to do */
-+	if (!length)
-+		return 0;
+ static void dax_new_buf(void *addr, unsigned size, unsigned first,
+ 					loff_t offset, loff_t end, int rw)
+ {
+@@ -190,3 +202,158 @@ ssize_t dax_do_io(int rw, struct kiocb *iocb, struct inode *inode,
+ 	return retval;
+ }
+ EXPORT_SYMBOL_GPL(dax_do_io);
 +
-+	memset(&bh, 0, sizeof(bh));
-+	bh.b_size = PAGE_CACHE_SIZE;
-+	err = get_block(inode, index, &bh, 0);
-+	if (err < 0)
-+		return err;
-+	if (buffer_written(&bh)) {
-+		void *addr;
-+		err = dax_get_addr(inode, &bh, &addr);
-+		if (err)
-+			return err;
-+		memset(addr + offset, 0, length);
++/*
++ * The user has performed a load from a hole in the file.  Allocating
++ * a new page in the file would cause excessive storage usage for
++ * workloads with sparse files.  We allocate a page cache page instead.
++ * We'll kick it out of the page cache if it's ever written to,
++ * otherwise it will simply fall out of the page cache under memory
++ * pressure without ever having been dirtied.
++ */
++static int dax_load_hole(struct address_space *mapping, struct vm_fault *vmf)
++{
++	unsigned long size;
++	struct inode *inode = mapping->host;
++	struct page *page = find_or_create_page(mapping, vmf->pgoff,
++						GFP_KERNEL | __GFP_ZERO);
++	if (!page)
++		return VM_FAULT_OOM;
++	size = (i_size_read(inode) + PAGE_SIZE - 1) >> PAGE_SHIFT;
++	if (vmf->pgoff >= size) {
++		unlock_page(page);
++		page_cache_release(page);
++		return VM_FAULT_SIGBUS;
 +	}
 +
++	vmf->page = page;
++	return VM_FAULT_LOCKED;
++}
++
++static void copy_user_bh(struct page *to, struct inode *inode,
++				struct buffer_head *bh, unsigned long vaddr)
++{
++	void *vfrom, *vto;
++	dax_get_addr(inode, bh, &vfrom);	/* XXX: error handling */
++	vto = kmap_atomic(to);
++	copy_user_page(vto, vfrom, vaddr, to);
++	kunmap_atomic(vto);
++}
++
++static int do_dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
++			get_block_t get_block)
++{
++	struct file *file = vma->vm_file;
++	struct inode *inode = file_inode(file);
++	struct address_space *mapping = file->f_mapping;
++	struct buffer_head bh;
++	unsigned long vaddr = (unsigned long)vmf->virtual_address;
++	sector_t block;
++	pgoff_t size;
++	unsigned long pfn;
++	int error;
++
++	size = (i_size_read(inode) + PAGE_SIZE - 1) >> PAGE_SHIFT;
++	if (vmf->pgoff >= size)
++		return VM_FAULT_SIGBUS;
++
++	memset(&bh, 0, sizeof(bh));
++	block = (sector_t)vmf->pgoff << (PAGE_SHIFT - inode->i_blkbits);
++	bh.b_size = PAGE_SIZE;
++	error = get_block(inode, block, &bh, 0);
++	if (error || bh.b_size < PAGE_SIZE)
++		return VM_FAULT_SIGBUS;
++
++	if (!buffer_written(&bh) && !vmf->cow_page) {
++		if (vmf->flags & FAULT_FLAG_WRITE) {
++			error = get_block(inode, block, &bh, 1);
++			if (error || bh.b_size < PAGE_SIZE)
++				return VM_FAULT_SIGBUS;
++		} else {
++			return dax_load_hole(mapping, vmf);
++		}
++	}
++
++	/* Recheck i_size under i_mmap_mutex */
++	mutex_lock(&mapping->i_mmap_mutex);
++	size = (i_size_read(inode) + PAGE_SIZE - 1) >> PAGE_SHIFT;
++	if (unlikely(vmf->pgoff >= size)) {
++		mutex_unlock(&mapping->i_mmap_mutex);
++		return VM_FAULT_SIGBUS;
++	}
++	if (vmf->cow_page) {
++		if (buffer_written(&bh))
++			copy_user_bh(vmf->cow_page, inode, &bh, vaddr);
++		else
++			clear_user_highpage(vmf->cow_page, vaddr);
++		return VM_FAULT_COWED;
++	}
++
++	error = dax_get_pfn(inode, &bh, &pfn);
++	if (error > 0)
++		error = vm_insert_mixed(vma, vaddr, pfn);
++	mutex_unlock(&mapping->i_mmap_mutex);
++	if (error == -ENOMEM)
++		return VM_FAULT_OOM;
++	/* -EBUSY is fine, somebody else faulted on the same PTE */
++	if (error != -EBUSY)
++		BUG_ON(error);
++	return VM_FAULT_NOPAGE;
++}
++
++/**
++ * dax_fault - handle a page fault on an XIP file
++ * @vma: The virtual memory area where the fault occurred
++ * @vmf: The description of the fault
++ * @get_block: The filesystem method used to translate file offsets to blocks
++ *
++ * When a page fault occurs, filesystems may call this helper in their
++ * fault handler for XIP files.
++ */
++int dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
++			get_block_t get_block)
++{
++	int result;
++	struct super_block *sb = file_inode(vma->vm_file)->i_sb;
++
++	sb_start_pagefault(sb);
++	file_update_time(vma->vm_file);
++	result = do_dax_fault(vma, vmf, get_block);
++	sb_end_pagefault(sb);
++
++	return result;
++}
++EXPORT_SYMBOL_GPL(dax_fault);
++
++/**
++ * dax_mkwrite - convert a read-only page to read-write in an XIP file
++ * @vma: The virtual memory area where the fault occurred
++ * @vmf: The description of the fault
++ * @get_block: The filesystem method used to translate file offsets to blocks
++ *
++ * XIP handles reads of holes by adding pages full of zeroes into the
++ * mapping.  If the page is subsequenty written to, we have to allocate
++ * the page on media and free the page that was in the cache.
++ */
++int dax_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf,
++			get_block_t get_block)
++{
++	int result;
++	struct super_block *sb = file_inode(vma->vm_file)->i_sb;
++
++	sb_start_pagefault(sb);
++	file_update_time(vma->vm_file);
++	result = do_dax_fault(vma, vmf, get_block);
++	sb_end_pagefault(sb);
++
++	if (!(result & VM_FAULT_ERROR)) {
++		struct page *page = vmf->page;
++		unmap_mapping_range(page->mapping,
++					(loff_t)page->index << PAGE_CACHE_SHIFT,
++					PAGE_CACHE_SIZE, 0);
++		delete_from_page_cache(page);
++	}
++
++	return result;
++}
++EXPORT_SYMBOL_GPL(dax_mkwrite);
+diff --git a/fs/ext2/file.c b/fs/ext2/file.c
+index ef5cf96..e3ce10d 100644
+--- a/fs/ext2/file.c
++++ b/fs/ext2/file.c
+@@ -25,6 +25,37 @@
+ #include "xattr.h"
+ #include "acl.h"
+ 
++#ifdef CONFIG_EXT2_FS_XIP
++static int ext2_dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
++{
++	return dax_fault(vma, vmf, ext2_get_block);
++}
++
++static int ext2_dax_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
++{
++	return dax_mkwrite(vma, vmf, ext2_get_block);
++}
++
++static const struct vm_operations_struct ext2_dax_vm_ops = {
++	.fault		= ext2_dax_fault,
++	.page_mkwrite	= ext2_dax_mkwrite,
++	.remap_pages	= generic_file_remap_pages,
++};
++
++static int ext2_file_mmap(struct file *file, struct vm_area_struct *vma)
++{
++	if (!IS_DAX(file_inode(file)))
++		return generic_file_mmap(file, vma);
++
++	file_accessed(file);
++	vma->vm_ops = &ext2_dax_vm_ops;
++	vma->vm_flags |= VM_MIXEDMAP;
 +	return 0;
 +}
-+EXPORT_SYMBOL_GPL(dax_truncate_page);
-diff --git a/fs/ext2/inode.c b/fs/ext2/inode.c
-index f128ebf..252481f 100644
---- a/fs/ext2/inode.c
-+++ b/fs/ext2/inode.c
-@@ -1207,7 +1207,7 @@ static int ext2_setsize(struct inode *inode, loff_t newsize)
- 	inode_dio_wait(inode);
- 
- 	if (IS_DAX(inode))
--		error = xip_truncate_page(inode->i_mapping, newsize);
-+		error = dax_truncate_page(inode, newsize, ext2_get_block);
- 	else if (test_opt(inode->i_sb, NOBH))
- 		error = nobh_truncate_page(inode->i_mapping,
- 				newsize, ext2_get_block);
++#else
++#define ext2_file_mmap	generic_file_mmap
++#endif
++
+ /*
+  * Called when filp is released. This happens when all file descriptors
+  * for a single struct file are closed. Note that different open() calls
+@@ -70,7 +101,7 @@ const struct file_operations ext2_file_operations = {
+ #ifdef CONFIG_COMPAT
+ 	.compat_ioctl	= ext2_compat_ioctl,
+ #endif
+-	.mmap		= generic_file_mmap,
++	.mmap		= ext2_file_mmap,
+ 	.open		= dquot_file_open,
+ 	.release	= ext2_release_file,
+ 	.fsync		= ext2_fsync,
+@@ -89,7 +120,7 @@ const struct file_operations ext2_xip_file_operations = {
+ #ifdef CONFIG_COMPAT
+ 	.compat_ioctl	= ext2_compat_ioctl,
+ #endif
+-	.mmap		= xip_file_mmap,
++	.mmap		= ext2_file_mmap,
+ 	.open		= dquot_file_open,
+ 	.release	= ext2_release_file,
+ 	.fsync		= ext2_fsync,
 diff --git a/include/linux/fs.h b/include/linux/fs.h
-index 00ad95e..02eeeb7 100644
+index 07888b9..00ad95e 100644
 --- a/include/linux/fs.h
 +++ b/include/linux/fs.h
-@@ -2518,13 +2518,13 @@ extern int generic_file_open(struct inode * inode, struct file * filp);
+@@ -48,6 +48,7 @@ struct cred;
+ struct swap_info_struct;
+ struct seq_file;
+ struct workqueue_struct;
++struct vm_fault;
+ 
+ extern void __init inode_init(void);
+ extern void __init inode_init_early(void);
+@@ -2517,10 +2518,11 @@ extern int generic_file_open(struct inode * inode, struct file * filp);
  extern int nonseekable_open(struct inode * inode, struct file * filp);
  
  #ifdef CONFIG_FS_XIP
--extern int xip_truncate_page(struct address_space *mapping, loff_t from);
-+int dax_truncate_page(struct inode *, loff_t from, get_block_t);
+-extern int xip_file_mmap(struct file * file, struct vm_area_struct * vma);
+ extern int xip_truncate_page(struct address_space *mapping, loff_t from);
  ssize_t dax_do_io(int rw, struct kiocb *, struct inode *, const struct iovec *,
  		loff_t, unsigned segs, get_block_t, dio_iodone_t, int flags);
- int dax_fault(struct vm_area_struct *, struct vm_fault *, get_block_t);
- int dax_mkwrite(struct vm_area_struct *, struct vm_fault *, get_block_t);
++int dax_fault(struct vm_area_struct *, struct vm_fault *, get_block_t);
++int dax_mkwrite(struct vm_area_struct *, struct vm_fault *, get_block_t);
  #else
--static inline int xip_truncate_page(struct address_space *mapping, loff_t from)
-+static inline int dax_truncate_page(struct inode *i, loff_t frm, get_block_t gb)
+ static inline int xip_truncate_page(struct address_space *mapping, loff_t from)
  {
- 	return 0;
- }
 diff --git a/mm/filemap_xip.c b/mm/filemap_xip.c
-index 9dd45f3..6316578 100644
+index f7c37a1..9dd45f3 100644
 --- a/mm/filemap_xip.c
 +++ b/mm/filemap_xip.c
-@@ -21,43 +21,3 @@
- #include <asm/tlbflush.h>
+@@ -22,212 +22,6 @@
  #include <asm/io.h>
  
--/*
-- * truncate a page used for execute in place
-- * functionality is analog to block_truncate_page but does use get_xip_mem
-- * to get the page instead of page cache
+ /*
+- * We do use our own empty page to avoid interference with other users
+- * of ZERO_PAGE(), such as /dev/zero
 - */
--int
--xip_truncate_page(struct address_space *mapping, loff_t from)
+-static DEFINE_MUTEX(xip_sparse_mutex);
+-static seqcount_t xip_sparse_seq = SEQCNT_ZERO(xip_sparse_seq);
+-static struct page *__xip_sparse_page;
+-
+-/* called under xip_sparse_mutex */
+-static struct page *xip_sparse_page(void)
 -{
--	pgoff_t index = from >> PAGE_CACHE_SHIFT;
--	unsigned offset = from & (PAGE_CACHE_SIZE-1);
--	unsigned blocksize;
--	unsigned length;
+-	if (!__xip_sparse_page) {
+-		struct page *page = alloc_page(GFP_HIGHUSER | __GFP_ZERO);
+-
+-		if (page)
+-			__xip_sparse_page = page;
+-	}
+-	return __xip_sparse_page;
+-}
+-
+-/*
+- * __xip_unmap is invoked from xip_unmap and
+- * xip_write
+- *
+- * This function walks all vmas of the address_space and unmaps the
+- * __xip_sparse_page when found at pgoff.
+- */
+-static void
+-__xip_unmap (struct address_space * mapping,
+-		     unsigned long pgoff)
+-{
+-	struct vm_area_struct *vma;
+-	struct mm_struct *mm;
+-	unsigned long address;
+-	pte_t *pte;
+-	pte_t pteval;
+-	spinlock_t *ptl;
+-	struct page *page;
+-	unsigned count;
+-	int locked = 0;
+-
+-	count = read_seqcount_begin(&xip_sparse_seq);
+-
+-	page = __xip_sparse_page;
+-	if (!page)
+-		return;
+-
+-retry:
+-	mutex_lock(&mapping->i_mmap_mutex);
+-	vma_interval_tree_foreach(vma, &mapping->i_mmap, pgoff, pgoff) {
+-		mm = vma->vm_mm;
+-		address = vma->vm_start +
+-			((pgoff - vma->vm_pgoff) << PAGE_SHIFT);
+-		BUG_ON(address < vma->vm_start || address >= vma->vm_end);
+-		pte = page_check_address(page, mm, address, &ptl, 1);
+-		if (pte) {
+-			/* Nuke the page table entry. */
+-			flush_cache_page(vma, address, pte_pfn(*pte));
+-			pteval = ptep_clear_flush(vma, address, pte);
+-			page_remove_rmap(page);
+-			dec_mm_counter(mm, MM_FILEPAGES);
+-			BUG_ON(pte_dirty(pteval));
+-			pte_unmap_unlock(pte, ptl);
+-			/* must invalidate_page _before_ freeing the page */
+-			mmu_notifier_invalidate_page(mm, address);
+-			page_cache_release(page);
+-		}
+-	}
+-	mutex_unlock(&mapping->i_mmap_mutex);
+-
+-	if (locked) {
+-		mutex_unlock(&xip_sparse_mutex);
+-	} else if (read_seqcount_retry(&xip_sparse_seq, count)) {
+-		mutex_lock(&xip_sparse_mutex);
+-		locked = 1;
+-		goto retry;
+-	}
+-}
+-
+-/*
+- * xip_fault() is invoked via the vma operations vector for a
+- * mapped memory region to read in file data during a page fault.
+- *
+- * This function is derived from filemap_fault, but used for execute in place
+- */
+-static int xip_file_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+-{
+-	struct file *file = vma->vm_file;
+-	struct address_space *mapping = file->f_mapping;
+-	struct inode *inode = mapping->host;
+-	pgoff_t size;
 -	void *xip_mem;
 -	unsigned long xip_pfn;
--	int err;
+-	struct page *page;
+-	int error;
 -
--	BUG_ON(!mapping->a_ops->get_xip_mem);
+-	/* XXX: are VM_FAULT_ codes OK? */
+-again:
+-	size = (i_size_read(inode) + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
+-	if (vmf->pgoff >= size)
+-		return VM_FAULT_SIGBUS;
 -
--	blocksize = 1 << mapping->host->i_blkbits;
--	length = offset & (blocksize - 1);
--
--	/* Block boundary? Nothing to do */
--	if (!length)
--		return 0;
--
--	length = blocksize - length;
--
--	err = mapping->a_ops->get_xip_mem(mapping, index, 0,
+-	error = mapping->a_ops->get_xip_mem(mapping, vmf->pgoff, 0,
 -						&xip_mem, &xip_pfn);
--	if (unlikely(err)) {
--		if (err == -ENODATA)
--			/* Hole? No need to truncate */
--			return 0;
--		else
--			return err;
+-	if (likely(!error))
+-		goto found;
+-	if (error != -ENODATA)
+-		return VM_FAULT_OOM;
+-
+-	/* sparse block */
+-	if ((vma->vm_flags & (VM_WRITE | VM_MAYWRITE)) &&
+-	    (vma->vm_flags & (VM_SHARED | VM_MAYSHARE)) &&
+-	    (!(mapping->host->i_sb->s_flags & MS_RDONLY))) {
+-		int err;
+-
+-		/* maybe shared writable, allocate new block */
+-		mutex_lock(&xip_sparse_mutex);
+-		error = mapping->a_ops->get_xip_mem(mapping, vmf->pgoff, 1,
+-							&xip_mem, &xip_pfn);
+-		mutex_unlock(&xip_sparse_mutex);
+-		if (error)
+-			return VM_FAULT_SIGBUS;
+-		/* unmap sparse mappings at pgoff from all other vmas */
+-		__xip_unmap(mapping, vmf->pgoff);
+-
+-found:
+-		/* We must recheck i_size under i_mmap_mutex */
+-		mutex_lock(&mapping->i_mmap_mutex);
+-		size = (i_size_read(inode) + PAGE_CACHE_SIZE - 1) >>
+-							PAGE_CACHE_SHIFT;
+-		if (unlikely(vmf->pgoff >= size)) {
+-			mutex_unlock(&mapping->i_mmap_mutex);
+-			return VM_FAULT_SIGBUS;
+-		}
+-		err = vm_insert_mixed(vma, (unsigned long)vmf->virtual_address,
+-							xip_pfn);
+-		mutex_unlock(&mapping->i_mmap_mutex);
+-		if (err == -ENOMEM)
+-			return VM_FAULT_OOM;
+-		/*
+-		 * err == -EBUSY is fine, we've raced against another thread
+-		 * that faulted-in the same page
+-		 */
+-		if (err != -EBUSY)
+-			BUG_ON(err);
+-		return VM_FAULT_NOPAGE;
+-	} else {
+-		int err, ret = VM_FAULT_OOM;
+-
+-		mutex_lock(&xip_sparse_mutex);
+-		write_seqcount_begin(&xip_sparse_seq);
+-		error = mapping->a_ops->get_xip_mem(mapping, vmf->pgoff, 0,
+-							&xip_mem, &xip_pfn);
+-		if (unlikely(!error)) {
+-			write_seqcount_end(&xip_sparse_seq);
+-			mutex_unlock(&xip_sparse_mutex);
+-			goto again;
+-		}
+-		if (error != -ENODATA)
+-			goto out;
+-
+-		/* We must recheck i_size under i_mmap_mutex */
+-		mutex_lock(&mapping->i_mmap_mutex);
+-		size = (i_size_read(inode) + PAGE_CACHE_SIZE - 1) >>
+-							PAGE_CACHE_SHIFT;
+-		if (unlikely(vmf->pgoff >= size)) {
+-			ret = VM_FAULT_SIGBUS;
+-			goto unlock;
+-		}
+-		/* not shared and writable, use xip_sparse_page() */
+-		page = xip_sparse_page();
+-		if (!page)
+-			goto unlock;
+-		err = vm_insert_page(vma, (unsigned long)vmf->virtual_address,
+-							page);
+-		if (err == -ENOMEM)
+-			goto unlock;
+-
+-		ret = VM_FAULT_NOPAGE;
+-unlock:
+-		mutex_unlock(&mapping->i_mmap_mutex);
+-out:
+-		write_seqcount_end(&xip_sparse_seq);
+-		mutex_unlock(&xip_sparse_mutex);
+-
+-		return ret;
 -	}
--	memset(xip_mem + offset, 0, length);
+-}
+-
+-static const struct vm_operations_struct xip_file_vm_ops = {
+-	.fault	= xip_file_fault,
+-	.page_mkwrite	= filemap_page_mkwrite,
+-	.remap_pages = generic_file_remap_pages,
+-};
+-
+-int xip_file_mmap(struct file * file, struct vm_area_struct * vma)
+-{
+-	BUG_ON(!file->f_mapping->a_ops->get_xip_mem);
+-
+-	file_accessed(file);
+-	vma->vm_ops = &xip_file_vm_ops;
+-	vma->vm_flags |= VM_MIXEDMAP;
 -	return 0;
 -}
--EXPORT_SYMBOL_GPL(xip_truncate_page);
+-EXPORT_SYMBOL_GPL(xip_file_mmap);
+-
+-/*
+  * truncate a page used for execute in place
+  * functionality is analog to block_truncate_page but does use get_xip_mem
+  * to get the page instead of page cache
 -- 
 1.8.5.3
 
