@@ -1,82 +1,170 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f178.google.com (mail-ob0-f178.google.com [209.85.214.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 16DC76B00C3
-	for <linux-mm@kvack.org>; Tue, 25 Feb 2014 14:04:04 -0500 (EST)
-Received: by mail-ob0-f178.google.com with SMTP id va2so6176836obc.9
-        for <linux-mm@kvack.org>; Tue, 25 Feb 2014 11:04:03 -0800 (PST)
-Received: from g4t3426.houston.hp.com (g4t3426.houston.hp.com. [15.201.208.54])
-        by mx.google.com with ESMTPS id sp3si13867351obb.108.2014.02.25.11.04.03
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 25 Feb 2014 11:04:03 -0800 (PST)
-Message-ID: <1393355040.2577.52.camel@buesod1.americas.hpqcorp.net>
-Subject: Re: [PATCH v2] mm: per-thread vma caching
-From: Davidlohr Bueso <davidlohr@hp.com>
-Date: Tue, 25 Feb 2014 11:04:00 -0800
-In-Reply-To: <CA+55aFzPYZnkSQa=Y4Uo3zMVUVdchVxN2S266KyZLu-yJ314pw@mail.gmail.com>
-References: <1393352206.2577.36.camel@buesod1.americas.hpqcorp.net>
-	 <CA+55aFzPYZnkSQa=Y4Uo3zMVUVdchVxN2S266KyZLu-yJ314pw@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail-ig0-f178.google.com (mail-ig0-f178.google.com [209.85.213.178])
+	by kanga.kvack.org (Postfix) with ESMTP id C697B6B00C3
+	for <linux-mm@kvack.org>; Tue, 25 Feb 2014 14:21:36 -0500 (EST)
+Received: by mail-ig0-f178.google.com with SMTP id hl1so222234igb.5
+        for <linux-mm@kvack.org>; Tue, 25 Feb 2014 11:21:36 -0800 (PST)
+Received: from relay.sgi.com (relay1.sgi.com. [192.48.179.29])
+        by mx.google.com with ESMTP id x4si39856665igl.11.2014.02.25.11.21.35
+        for <linux-mm@kvack.org>;
+        Tue, 25 Feb 2014 11:21:35 -0800 (PST)
+From: Alex Thorlton <athorlton@sgi.com>
+Subject: [PATCH 0/3] mm, thp: Add mm flag to control THP
+Date: Tue, 25 Feb 2014 13:20:59 -0600
+Message-Id: <cover.1392009759.git.athorlton@sgi.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Michel Lespinasse <walken@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, "Chandramouleeswaran, Aswin" <aswin@hp.com>, "Norton, Scott J" <scott.norton@hp.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: linux-kernel@vger.kernel.org
+Cc: Alex Thorlton <athorlton@sgi.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Paolo Bonzini <pbonzini@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Bob Liu <lliubbo@gmail.com>, Jiang Liu <liuj97@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Oleg Nesterov <oleg@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Daeseok Youn <daeseok.youn@gmail.com>, Kent Overstreet <koverstreet@google.com>, Dario Faggioli <raistlin@linux.it>, John Stultz <johnstul@us.ibm.com>, Stephen Rothwell <sfr@canb.auug.org.au>, Alexander Viro <viro@zeniv.linux.org.uk>, linux390@de.ibm.com, linux-s390@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org
 
-On Tue, 2014-02-25 at 10:37 -0800, Linus Torvalds wrote:
-> On Tue, Feb 25, 2014 at 10:16 AM, Davidlohr Bueso <davidlohr@hp.com> wrote:
-> > index a17621c..14396bf 100644
-> > --- a/kernel/fork.c
-> > +++ b/kernel/fork.c
-> > @@ -363,7 +363,12 @@ static int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
-> >
-> >         mm->locked_vm = 0;
-> >         mm->mmap = NULL;
-> > -       mm->mmap_cache = NULL;
-> > +       mm->vmacache_seqnum = oldmm->vmacache_seqnum + 1;
-> > +
-> > +       /* deal with overflows */
-> > +       if (unlikely(mm->vmacache_seqnum == 0))
-> > +               vmacache_invalidate_all();
-> 
-> Correct me if I'm wrong, but this can not possibly be correct.
-> 
-> vmacache_invalidate_all() walks over all the threads of the current
-> process, but "mm" here is the mm of the *new* process that is getting
-> created, and is unrelated in all ways to the threads of the old
-> process.
+This patch is based on some of my work combined with some
+suggestions/patches given by Oleg Nesterov.  The main goal here is to
+add a prctl switch to allow us to disable to THP on a per mm_struct
+basis.
 
-vmacache_invalidate_all() is actually a misleading name since we really
-aren't invalidating but just clearing the cache. I'll rename it.
-Anyways...
+Changes for v4:
 
-> So it walks completely the wrong list of threads.
+* Added a bit of documentation for flag changes
+* Changed the prctl switch code so that get/set operations are
+  processed in separate cases
+* Added information about the new flags to the user-facing prctl docs
+  (this is in a separate patch, everyone will be cc'd there as well)
 
-But we still need to deal with the rest of the tasks in the system, so
-anytime there's an overflow we need to nullify all cached vmas, not just
-current's. Am I missing something special about fork?
+The main motivation behind this patch is to provide a way to disable THP
+for jobs where the code cannot be modified, and using a malloc hook with
+madvise is not an option (i.e. statically allocated data).  This patch
+allows us to do just that, without affecting other jobs running on the
+system.
 
-> In fact, the sequence number of the old vm and the sequence number of
-> the new vm cannot in any way be related.
-> 
-> As far as I can tell, the only sane thing to do at fork/clone() time is to:
-> 
->  - clear all the cache entries (of the new 'struct task_struct'! - so
-> not in dup_mmap, but make sure it's zeroed when allocating!)(
+We need to do this sort of thing for jobs where THP hurts performance,
+due to the possibility of increased remote memory accesses that can be
+created by situations such as the following:
 
-Right, but that's done upon the first lookup, when vmacache_valid() is
-false.
+When you touch 1 byte of an untouched, contiguous 2MB chunk, a THP will
+be handed out, and the THP will be stuck on whatever node the chunk was
+originally referenced from.  If many remote nodes need to do work on
+that same chunk, they'll be making remote accesses.
 
->  - set vmcache_seqnum to 0 in dup_mmap (since any sequence number is
-> fine when it got invalidated, and 0 is best for "avoid overflow").
+With THP disabled, 4K pages can be handed out to separate nodes as
+they're needed, greatly reducing the amount of remote accesses to
+memory.
 
-Assuming your referring to curr->vmacache_seqnum (since mm's is already
-set).. isn't it irrelevant since we set it anyways when the first lookup
-fails?
+Here's a bit of test data with the new patch in place...
 
-Thanks,
-Davidlohr
+First with the flag unset:
+
+# perf stat -a ./prctl_wrapper_mmv3 0 ./thp_pthread -C 0 -m 0 -c 512 -b 256g                  
+Setting thp_disabled for this task...
+thp_disable: 0
+Set thp_disabled state to 0
+Process pid = 18027
+
+                                                                                                                     PF/
+                                MAX        MIN                                  TOTCPU/      TOT_PF/   TOT_PF/     WSEC/
+TYPE:               CPUS       WALL       WALL        SYS     USER     TOTCPU       CPU     WALL_SEC   SYS_SEC       CPU   NODES
+ 512      1.120      0.060      0.000    0.110      0.110     0.000    28571428864 -9223372036854775808  55803572      23
+
+ Performance counter stats for './prctl_wrapper_mmv3_hack 0 ./thp_pthread -C 0 -m 0 -c 512 -b 256g':
+
+  273719072.841402 task-clock                #  641.026 CPUs utilized           [100.00%]
+         1,008,986 context-switches          #    0.000 M/sec                   [100.00%]
+             7,717 CPU-migrations            #    0.000 M/sec                   [100.00%]
+         1,698,932 page-faults               #    0.000 M/sec
+355,222,544,890,379 cycles                    #    1.298 GHz                     [100.00%]
+536,445,412,234,588 stalled-cycles-frontend   #  151.02% frontend cycles idle    [100.00%]
+409,110,531,310,223 stalled-cycles-backend    #  115.17% backend  cycles idle    [100.00%]
+148,286,797,266,411 instructions              #    0.42  insns per cycle
+                                             #    3.62  stalled cycles per insn [100.00%]
+27,061,793,159,503 branches                  #   98.867 M/sec                   [100.00%]
+     1,188,655,196 branch-misses             #    0.00% of all branches
+
+     427.001706337 seconds time elapsed
+
+Now with the flag set:
+
+# perf stat -a ./prctl_wrapper_mmv3 1 ./thp_pthread -C 0 -m 0 -c 512 -b 256g
+Setting thp_disabled for this task...
+thp_disable: 1
+Set thp_disabled state to 1
+Process pid = 144957
+
+                                                                                                                     PF/
+                                MAX        MIN                                  TOTCPU/      TOT_PF/   TOT_PF/     WSEC/
+TYPE:               CPUS       WALL       WALL        SYS     USER     TOTCPU       CPU     WALL_SEC   SYS_SEC       CPU   NODES
+ 512      0.620      0.260      0.250    0.320      0.570     0.001    51612901376 128000000000 100806448      23
+
+ Performance counter stats for './prctl_wrapper_mmv3_hack 1 ./thp_pthread -C 0 -m 0 -c 512 -b 256g':
+
+  138789390.540183 task-clock                #  641.959 CPUs utilized           [100.00%]
+           534,205 context-switches          #    0.000 M/sec                   [100.00%]
+             4,595 CPU-migrations            #    0.000 M/sec                   [100.00%]
+        63,133,119 page-faults               #    0.000 M/sec
+147,977,747,269,768 cycles                    #    1.066 GHz                     [100.00%]
+200,524,196,493,108 stalled-cycles-frontend   #  135.51% frontend cycles idle    [100.00%]
+105,175,163,716,388 stalled-cycles-backend    #   71.07% backend  cycles idle    [100.00%]
+180,916,213,503,160 instructions              #    1.22  insns per cycle
+                                             #    1.11  stalled cycles per insn [100.00%]
+26,999,511,005,868 branches                  #  194.536 M/sec                   [100.00%]
+       714,066,351 branch-misses             #    0.00% of all branches
+
+     216.196778807 seconds time elapsed
+
+As with previous versions of the patch, We're getting about a 2x
+performance increase here.  Here's a link to the test case I used, along
+with the little wrapper to activate the flag:
+
+http://oss.sgi.com/projects/memtests/thp_pthread_mmprctlv3.tar.gz
+
+Let me know if anybody has any further suggestions here.  Thanks!
+
+(Sorry for the big cc list!)
+
+Signed-off-by: Alex Thorlton <athorlton@sgi.com>
+Suggested-by: Oleg Nesterov <oleg@redhat.com>
+Cc: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
+Cc: Christian Borntraeger <borntraeger@de.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Paolo Bonzini <pbonzini@redhat.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Ingo Molnar <mingo@kernel.org>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: Bob Liu <lliubbo@gmail.com>
+Cc: Jiang Liu <liuj97@gmail.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Oleg Nesterov <oleg@redhat.com>
+Cc: "Eric W. Biederman" <ebiederm@xmission.com>
+Cc: Daeseok Youn <daeseok.youn@gmail.com>
+Cc: Kent Overstreet <koverstreet@google.com>
+Cc: Dario Faggioli <raistlin@linux.it>
+Cc: John Stultz <johnstul@us.ibm.com>
+Cc: Stephen Rothwell <sfr@canb.auug.org.au>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>
+Cc: linux390@de.ibm.com
+Cc: linux-s390@vger.kernel.org
+Cc: linux-mm@kvack.org
+Cc: linux-api@vger.kernel.org
+
+Alex Thorlton (3):
+  Revert "thp: make MADV_HUGEPAGE check for mm->def_flags"
+  Add VM_INIT_DEF_MASK and PRCTL_THP_DISABLE
+  exec: kill the unnecessary mm->def_flags setting in load_elf_binary()
+
+ arch/s390/mm/pgtable.c     |  3 +++
+ fs/binfmt_elf.c            |  4 ----
+ include/linux/mm.h         |  3 +++
+ include/uapi/linux/prctl.h |  3 +++
+ kernel/fork.c              | 11 ++++++++---
+ kernel/sys.c               | 15 +++++++++++++++
+ mm/huge_memory.c           |  4 ----
+ 7 files changed, 32 insertions(+), 11 deletions(-)
+
+-- 
+1.7.12.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
