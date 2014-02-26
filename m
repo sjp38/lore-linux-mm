@@ -1,38 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f42.google.com (mail-pb0-f42.google.com [209.85.160.42])
-	by kanga.kvack.org (Postfix) with ESMTP id EFC1B6B009F
-	for <linux-mm@kvack.org>; Wed, 26 Feb 2014 01:46:49 -0500 (EST)
-Received: by mail-pb0-f42.google.com with SMTP id rr13so572203pbb.1
-        for <linux-mm@kvack.org>; Tue, 25 Feb 2014 22:46:49 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id qy5si22805127pab.311.2014.02.25.22.46.48
-        for <linux-mm@kvack.org>;
-        Tue, 25 Feb 2014 22:46:49 -0800 (PST)
-Date: Wed, 26 Feb 2014 14:46:45 +0800
-From: kbuild test robot <fengguang.wu@intel.com>
-Subject: [mmotm:master 326/350] undefined reference to `tty_write_message'
-Message-ID: <530d8dd5.N73la/TcxHdsINPu%fengguang.wu@intel.com>
+Received: from mail-ob0-f175.google.com (mail-ob0-f175.google.com [209.85.214.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D0A26B009F
+	for <linux-mm@kvack.org>; Wed, 26 Feb 2014 02:05:07 -0500 (EST)
+Received: by mail-ob0-f175.google.com with SMTP id va2so363713obc.34
+        for <linux-mm@kvack.org>; Tue, 25 Feb 2014 23:05:07 -0800 (PST)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id o4si19143163oei.98.2014.02.25.23.05.02
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 25 Feb 2014 23:05:02 -0800 (PST)
+Message-ID: <530D9216.8050808@oracle.com>
+Date: Wed, 26 Feb 2014 15:04:54 +0800
+From: Jeff Liu <jeff.liu@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Subject: Re: [LSF/MM ATTEND] slab cache extension -- slab cache in fixed size
+References: <52D662A4.1080502@oracle.com> <alpine.DEB.2.10.1401310941430.6849@nuc> <530C0F08.1040000@oracle.com> <alpine.DEB.2.10.1402251225280.30822@nuc>
+In-Reply-To: <alpine.DEB.2.10.1402251225280.30822@nuc>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Josh Triplett <josh@joshtriplett.org>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, kbuild-all@01.org
+To: Christoph Lameter <cl@linux.com>
+Cc: lsf-pc@lists.linux-foundation.org, linux-mm@kvack.org, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>
 
-tree:   git://git.cmpxchg.org/linux-mmotm.git master
-head:   a6a1126d3535f0bd8d7c56810061541a4f5595af
-commit: 5837644fad4fdcc7a812eb1f3a215d8196628627 [326/350] kconfig: make allnoconfig disable options behind EMBEDDED and EXPERT
-config: make ARCH=ia64 allnoconfig
 
-All error/warnings:
+On 02/26 2014 02:26 AM, Christoph Lameter wrote:
+> On Tue, 25 Feb 2014, Jeff Liu wrote:
+> 
+>> In this case, another thing I'm hesitating about whether to export the cache_limit
+>> via /proc/slabinfo by extending its tunable fields -- the per-CPU slab cache limit
+>> and batchcount, as thus will change the user space interface and slabtop(1) need to
+>> be modified accordingly.
+> 
+> Can you move the code to handle /sys/kernel/slab into mm/slab_common.c and
+> then make slab use that? (Maybe a bit of a tough call but that has to be
+> done at some point).
 
-   arch/ia64/kernel/built-in.o: In function `ia64_handle_unaligned':
->> (.text+0x1b882): undefined reference to `tty_write_message'
+Yes, so that we can enabled those debug functions for both slab and slub, thanks for
+your direction. :)
 
----
-0-DAY kernel build testing backend              Open Source Technology Center
-http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporation
+> 
+> Once you got a directly with settings per slab then its trivial to add
+> another field.
+
+Indeed, that would be convenient afterwards.
+
+
+Thanks,
+-Jeff
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
