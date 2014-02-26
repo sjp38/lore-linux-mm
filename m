@@ -1,140 +1,175 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vc0-f180.google.com (mail-vc0-f180.google.com [209.85.220.180])
-	by kanga.kvack.org (Postfix) with ESMTP id DBCFA6B009F
-	for <linux-mm@kvack.org>; Wed, 26 Feb 2014 02:15:07 -0500 (EST)
-Received: by mail-vc0-f180.google.com with SMTP id ks9so518724vcb.11
-        for <linux-mm@kvack.org>; Tue, 25 Feb 2014 23:15:07 -0800 (PST)
-Received: from mail-vc0-x229.google.com (mail-vc0-x229.google.com [2607:f8b0:400c:c03::229])
-        by mx.google.com with ESMTPS id y3si7443416vdo.123.2014.02.25.23.15.07
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 636076B00A3
+	for <linux-mm@kvack.org>; Wed, 26 Feb 2014 02:33:01 -0500 (EST)
+Received: by mail-pa0-f47.google.com with SMTP id kp14so608111pab.6
+        for <linux-mm@kvack.org>; Tue, 25 Feb 2014 23:33:01 -0800 (PST)
+Received: from e23smtp05.au.ibm.com (e23smtp05.au.ibm.com. [202.81.31.147])
+        by mx.google.com with ESMTPS id tu2si60587pbc.99.2014.02.25.23.32.59
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 25 Feb 2014 23:15:07 -0800 (PST)
-Received: by mail-vc0-f169.google.com with SMTP id hq11so515309vcb.14
-        for <linux-mm@kvack.org>; Tue, 25 Feb 2014 23:15:07 -0800 (PST)
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 25 Feb 2014 23:33:00 -0800 (PST)
+Received: from /spool/local
+	by e23smtp05.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Wed, 26 Feb 2014 17:32:56 +1000
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
+	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 6658E2CE8051
+	for <linux-mm@kvack.org>; Wed, 26 Feb 2014 18:32:52 +1100 (EST)
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s1Q7Wco69961802
+	for <linux-mm@kvack.org>; Wed, 26 Feb 2014 18:32:38 +1100
+Received: from d23av03.au.ibm.com (localhost [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s1Q7Wpm5003828
+	for <linux-mm@kvack.org>; Wed, 26 Feb 2014 18:32:51 +1100
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH] mm: numa: bugfix for LAST_CPUPID_NOT_IN_PAGE_FLAGS
+In-Reply-To: <1391563546-26052-1-git-send-email-pingfank@linux.vnet.ibm.com>
+References: <1391563546-26052-1-git-send-email-pingfank@linux.vnet.ibm.com>
+Date: Wed, 26 Feb 2014 13:02:46 +0530
+Message-ID: <87ob1ufhwh.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <530CEFE2.9090909@oracle.com>
-References: <530CEFE2.9090909@oracle.com>
-Date: Wed, 26 Feb 2014 15:15:07 +0800
-Message-ID: <CAA_GA1dJA9PmZnoNy59__Ek+KPS3xX4WuR_8=onY8mZSRQrKiQ@mail.gmail.com>
-Subject: Re: mm: NULL ptr deref in balance_dirty_pages_ratelimited
-From: Bob Liu <lliubbo@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
+To: Liu Ping Fan <qemulist@gmail.com>, linux-mm@kvack.org
+Cc: Peter Zijlstra <peterz@infradead.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>
 
-On Wed, Feb 26, 2014 at 3:32 AM, Sasha Levin <sasha.levin@oracle.com> wrote:
-> Hi all,
+Liu Ping Fan <qemulist@gmail.com> writes:
+
+> When doing some numa tests on powerpc, I triggered an oops bug. I find
+> it is caused by using page->_last_cpupid.  It should be initialized as
+> "-1 & LAST_CPUPID_MASK", but not "-1". Otherwise, in task_numa_fault(),
+> we will miss the checking (last_cpupid == (-1 & LAST_CPUPID_MASK)).
+> And finally cause an oops bug in task_numa_group(), since the online cpu is
+> less than possible cpu.
 >
-> While fuzzing with trinity inside a KVM tools running latest -next kernel
-> I've stumbled on the following spew:
->
-> [  232.869443] BUG: unable to handle kernel NULL pointer dereference at
-> 0000000000000020
-> [  232.870230] IP: [<mm/page-writeback.c:1612>]
-> balance_dirty_pages_ratelimited+0x1e/0x150
-> [  232.870230] PGD 586e1d067 PUD 586e1e067 PMD 0
-> [  232.870230] Oops: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
-> [  232.870230] Dumping ftrace buffer:
-> [  232.870230]    (ftrace buffer empty)
-> [  232.870230] Modules linked in:
-> [  232.870230] CPU: 36 PID: 9707 Comm: trinity-c36 Tainted: G        W
-> 3.14.0-rc4-next-20140225-sasha-00010-ga117461 #42
-> [  232.870230] task: ffff880586dfb000 ti: ffff880586e34000 task.ti:
-> ffff880586e34000
-> [  232.870230] RIP: 0010:[<mm/page-writeback.c:1612>]
-> [<mm/page-writeback.c:1612>] balance_dirty_pages_ratelimited+0x1e/0x150
-> [  232.870230] RSP: 0000:ffff880586e35c58  EFLAGS: 00010282
-> [  232.870230] RAX: 0000000000000000 RBX: ffff880582831361 RCX:
-> 0000000000000007
-> [  232.870230] RDX: 0000000000000007 RSI: ffff880586dfbcc0 RDI:
-> ffff880582831361
-> [  232.870230] RBP: ffff880586e35c78 R08: 0000000000000000 R09:
+> Call trace:
+> [   55.978091] SMP NR_CPUS=64 NUMA PowerNV
+> [   55.978118] Modules linked in:
+> [   55.978145] CPU: 24 PID: 804 Comm: systemd-udevd Not tainted
+> 3.13.0-rc1+ #32
+> [   55.978183] task: c000001e2746aa80 ti: c000001e32c50000 task.ti:
+> c000001e32c50000
+> [   55.978219] NIP: c0000000000f5ad0 LR: c0000000000f5ac8 CTR:
+> c000000000913cf0
+> [   55.978256] REGS: c000001e32c53510 TRAP: 0300   Not tainted
+> (3.13.0-rc1+)
+> [   55.978286] MSR: 9000000000009032 <SF,HV,EE,ME,IR,DR,RI>  CR:
+> 28024424  XER: 20000000
+> [   55.978380] CFAR: c000000000009324 DAR: 7265717569726857 DSISR:
+> 40000000 SOFTE: 1
+> GPR00: c0000000000f5ac8 c000001e32c53790 c000000001f34338
+> 0000000000000021
+> GPR04: 0000000000000000 0000000000000031 c000000001f74338
+> 0000ffffffffffff
+> GPR08: 0000000000000001 7265717569726573 0000000000000000
 > 0000000000000000
-> [  232.870230] R10: 0000000000000001 R11: 0000000000000001 R12:
-> 00007f58007ee000
-> [  232.870230] R13: ffff880c8d6d4f70 R14: 0000000000000200 R15:
-> ffff880c8dcce710
-> [  232.870230] FS:  00007f58018bb700(0000) GS:ffff880c8e800000(0000)
-> knlGS:0000000000000000
-> [  232.870230] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-> [  232.870230] CR2: 0000000000000020 CR3: 0000000586e1c000 CR4:
-> 00000000000006e0
-> [  232.870230] Stack:
-> [  232.870230]  ffff880586e35c78 ffff880586e33400 00007f58007ee000
-> ffff880c8d6d4f70
-> [  232.870230]  ffff880586e35cd8 ffffffff8127d241 0000000000000001
-> 0000000000000001
-> [  232.870230]  0000000000000000 ffffea0032337080 0000000080000000
-> ffff880586e33400
-> [  232.870230] Call Trace:
-> [  232.870230]  [<mm/memory.c:3467>] do_shared_fault+0x1a1/0x1f0
-> [  232.870230]  [<mm/memory.c:3487>] handle_pte_fault+0xc8/0x230
-> [  232.870230]  [<arch/x86/include/asm/preempt.h:98>] ? delay_tsc+0xea/0x110
-> [  232.870230]  [<mm/memory.c:3770>] __handle_mm_fault+0x36e/0x3a0
-> [  232.870230]  [<include/linux/rcupdate.h:829>] ? rcu_read_unlock+0x5d/0x60
-> [  232.870230]  [<include/linux/memcontrol.h:148>]
-> handle_mm_fault+0x10b/0x1b0
-> [  232.870230]  [<arch/x86/mm/fault.c:1147>] ? __do_page_fault+0x2e2/0x590
-> [  232.870230]  [<arch/x86/mm/fault.c:1214>] __do_page_fault+0x551/0x590
-> [  232.870230]  [<kernel/sched/cputime.c:681>] ?
-> vtime_account_user+0x91/0xa0
-> [  232.870230]  [<arch/x86/include/asm/atomic.h:26>] ?
-> context_tracking_user_exit+0xa8/0x1c0
-> [  232.870230]  [<arch/x86/include/asm/preempt.h:98>] ?
-> _raw_spin_unlock+0x30/0x50
-> [  232.870230]  [<kernel/sched/cputime.c:681>] ?
-> vtime_account_user+0x91/0xa0
-> [  232.870230]  [<arch/x86/include/asm/atomic.h:26>] ?
-> context_tracking_user_exit+0xa8/0x1c0
-> [  232.870230]  [<arch/x86/include/asm/atomic.h:26>] do_page_fault+0x3d/0x70
-> [  232.870230]  [<arch/x86/kernel/kvm.c:263>] do_async_page_fault+0x35/0x100
-> [  232.870230]  [<arch/x86/kernel/entry_64.S:1496>]
-> async_page_fault+0x28/0x30
-> [  232.870230] Code: 66 66 66 66 2e 0f 1f 84 00 00 00 00 00 55 48 89 e5 48
-> 83 ec 20 48 89 5d e8 4c 89 65 f0 4c 89 6d f8 48 89 fb 48 8b 87 50 01 00 00
-> <f6> 40 20 01 0f 85 18 01 00 00 65 48 8b 14 25 40 da 00 00 44 8b
-> [  232.870230] RIP  [<mm/page-writeback.c:1612>]
-> balance_dirty_pages_ratelimited+0x1e/0x150
-> [  232.870230]  RSP <ffff880586e35c58>
-> [  232.870230] CR2: 0000000000000020
+> GPR12: 0000000028024422 c00000000ffdd800 00000000296b2e64
+> 0000000000000020
+> GPR16: 0000000000000002 0000000000000003 c000001e2f8e4658
+> c000001e25c1c1d8
+> GPR20: c000001e2f8e4000 c000000001f7a858 0000000000000658
+> 0000000040000392
+> GPR24: 00000000000000a8 c000001e33c1a400 00000000000001d8
+> c000001e25c1c000
+> GPR28: c000001e33c37ff0 0007837840000392 000000000000003f
+> c000001e32c53790
+> [   55.978903] NIP [c0000000000f5ad0] .task_numa_fault+0x1470/0x2370
+> [   55.978934] LR [c0000000000f5ac8] .task_numa_fault+0x1468/0x2370
+> [   55.978964] Call Trace:
+> [   55.978978] [c000001e32c53790] [c0000000000f5ac8]
+> .task_numa_fault+0x1468/0x2370 (unreliable)
+> [   55.979036] [c000001e32c539e0] [c00000000020a820]
+> .do_numa_page+0x480/0x4a0
+> [   55.979072] [c000001e32c53b10] [c00000000020bfec]
+> .handle_mm_fault+0x4ec/0xc90
+> [   55.979123] [c000001e32c53c00] [c000000000e88c98]
+> .do_page_fault+0x3a8/0x890
+> [   55.979161] [c000001e32c53e30] [c000000000009568]
+> handle_page_fault+0x10/0x30
+> [   55.979197] Instruction dump:
+> [   55.979216] 3c82fefb 3884b138 48d9cff1 60000000 48000574 3c62fefb
+> 3863af78 3c82fefb
+> [   55.979277] 3884b138 48d9cfd5 60000000 e93f0100 <812902e4> 7d2907b4
+> 5529063e 7d2a07b4
+> [   55.979354] ---[ end trace 15f2510da5ae07cf ]---
 >
 >
+> Signed-off-by: Liu Ping Fan <pingfank@linux.vnet.ibm.com>
+> ---
+> I do the test on benh's git tree
+>   git://git.kernel.org/pub/scm/linux/kernel/git/benh/powerpc.git next commit 37e4a67be7beff74df2cdddfcb08153282c0f8a1
+>   (With patch "sched: Avoid NULL dereference on sd_busy" by PerterZ)
+> ---
+>  include/linux/mm.h                |  2 +-
+>  include/linux/page-flags-layout.h | 12 ++++--------
+>  2 files changed, 5 insertions(+), 9 deletions(-)
+>
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index a7b4e31..ddc66df4 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -727,7 +727,7 @@ static inline int page_cpupid_last(struct page *page)
+>  }
+>  static inline void page_cpupid_reset_last(struct page *page)
+>  {
+> -	page->_last_cpupid = -1;
+> +	page->_last_cpupid = -1 & LAST_CPUPID_MASK;
+>  }
+>  #else
 
-Could you please test below patch? I think it may fix this issue.
 
-diff --git a/mm/memory.c b/mm/memory.c
-index 548d97e..90cea22 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -3419,6 +3419,7 @@ static int do_shared_fault(struct mm_struct *mm,
-struct vm_area_struct *vma,
-  pgoff_t pgoff, unsigned int flags, pte_t orig_pte)
- {
-  struct page *fault_page;
-+ struct address_space *mapping;
-  spinlock_t *ptl;
-  pte_t *pte;
-  int dirtied = 0;
-@@ -3454,13 +3455,14 @@ static int do_shared_fault(struct mm_struct
-*mm, struct vm_area_struct *vma,
+May be i am missing something in the below.  But does it change anything
+? We do set CPUID_WIDTH = 0 if we have
 
-  if (set_page_dirty(fault_page))
-  dirtied = 1;
-+ mapping = fault_page->mapping;
-  unlock_page(fault_page);
-- if ((dirtied || vma->vm_ops->page_mkwrite) && fault_page->mapping) {
-+ if ((dirtied || vma->vm_ops->page_mkwrite) && mapping) {
-  /*
-  * Some device drivers do not set page.mapping but still
-  * dirty their pages
-  */
-- balance_dirty_pages_ratelimited(fault_page->mapping);
-+ balance_dirty_pages_ratelimited(mapping);
-  }
+#if SECTIONS_WIDTH+ZONES_WIDTH+NODES_SHIFT+LAST_CPUPID_SHIFT > BITS_PER_LONG - NR_PAGEFLAGS
 
-  /* file_update_time outside page_lock */
+and if we have CPUID_WIDTH == 0 we have
+
+#if defined(CONFIG_NUMA_BALANCING) && LAST_CPUPID_WIDTH == 0
+#define LAST_CPUPID_NOT_IN_PAGE_FLAGS
+#endif
+
+So what is that i am missing ?
+
+
+>  static inline int page_cpupid_last(struct page *page)
+> diff --git a/include/linux/page-flags-layout.h b/include/linux/page-flags-layout.h
+> index da52366..3cbaa20 100644
+> --- a/include/linux/page-flags-layout.h
+> +++ b/include/linux/page-flags-layout.h
+> @@ -69,15 +69,15 @@
+>  #define LAST__CPU_MASK  ((1 << LAST__CPU_SHIFT)-1)
+>
+>  #define LAST_CPUPID_SHIFT (LAST__PID_SHIFT+LAST__CPU_SHIFT)
+> +
+> +#if SECTIONS_WIDTH+ZONES_WIDTH+NODES_SHIFT+LAST_CPUPID_SHIFT > BITS_PER_LONG - NR_PAGEFLAGS
+> +#define LAST_CPUPID_NOT_IN_PAGE_FLAGS
+> +#endif
+>  #else
+>  #define LAST_CPUPID_SHIFT 0
+>  #endif
+>
+> -#if SECTIONS_WIDTH+ZONES_WIDTH+NODES_SHIFT+LAST_CPUPID_SHIFT <= BITS_PER_LONG - NR_PAGEFLAGS
+>  #define LAST_CPUPID_WIDTH LAST_CPUPID_SHIFT
+> -#else
+> -#define LAST_CPUPID_WIDTH 0
+> -#endif
+>
+>  /*
+>   * We are going to use the flags for the page to node mapping if its in
+> @@ -87,8 +87,4 @@
+>  #define NODE_NOT_IN_PAGE_FLAGS
+>  #endif
+>
+> -#if defined(CONFIG_NUMA_BALANCING) && LAST_CPUPID_WIDTH == 0
+> -#define LAST_CPUPID_NOT_IN_PAGE_FLAGS
+> -#endif
+> -
+>  #endif /* _LINUX_PAGE_FLAGS_LAYOUT */
+
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
