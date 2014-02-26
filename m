@@ -1,76 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f51.google.com (mail-pb0-f51.google.com [209.85.160.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 44FB36B004D
-	for <linux-mm@kvack.org>; Wed, 26 Feb 2014 18:09:56 -0500 (EST)
-Received: by mail-pb0-f51.google.com with SMTP id un15so1655196pbc.38
-        for <linux-mm@kvack.org>; Wed, 26 Feb 2014 15:09:55 -0800 (PST)
-Received: from mail-pb0-x231.google.com (mail-pb0-x231.google.com [2607:f8b0:400e:c01::231])
-        by mx.google.com with ESMTPS id gp2si2419112pac.157.2014.02.26.15.09.53
+Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 087386B0073
+	for <linux-mm@kvack.org>; Wed, 26 Feb 2014 18:49:02 -0500 (EST)
+Received: by mail-pd0-f176.google.com with SMTP id r10so1614101pdi.7
+        for <linux-mm@kvack.org>; Wed, 26 Feb 2014 15:49:02 -0800 (PST)
+Received: from mail-pb0-x229.google.com (mail-pb0-x229.google.com [2607:f8b0:400e:c01::229])
+        by mx.google.com with ESMTPS id yo5si2518911pab.34.2014.02.26.15.49.01
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 26 Feb 2014 15:09:55 -0800 (PST)
-Received: by mail-pb0-f49.google.com with SMTP id jt11so1646404pbb.22
-        for <linux-mm@kvack.org>; Wed, 26 Feb 2014 15:09:53 -0800 (PST)
-Date: Wed, 26 Feb 2014 15:08:58 -0800 (PST)
+        Wed, 26 Feb 2014 15:49:01 -0800 (PST)
+Received: by mail-pb0-f41.google.com with SMTP id jt11so1696918pbb.14
+        for <linux-mm@kvack.org>; Wed, 26 Feb 2014 15:49:01 -0800 (PST)
+Date: Wed, 26 Feb 2014 15:48:07 -0800 (PST)
 From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH v5 0/10] fs: Introduce new flag(FALLOC_FL_COLLAPSE_RANGE)
- for fallocate
-In-Reply-To: <20140226064224.GU13647@dastard>
-Message-ID: <alpine.LSU.2.11.1402261454270.2808@eggly.anvils>
-References: <1392741436-19995-1-git-send-email-linkinjeon@gmail.com> <20140224005710.GH4317@dastard> <20140225141601.358f6e3df2660d4af44da876@canb.auug.org.au> <20140225041346.GA29907@dastard> <alpine.LSU.2.11.1402251217030.2380@eggly.anvils>
- <20140226011347.GL13647@dastard> <alpine.LSU.2.11.1402251856060.1114@eggly.anvils> <20140226064224.GU13647@dastard>
+Subject: Re: [PATCH v5 1/10] fs: Add new flag(FALLOC_FL_COLLAPSE_RANGE) for
+ fallocate
+In-Reply-To: <20140226100439.GV13647@dastard>
+Message-ID: <alpine.LSU.2.11.1402261511270.2880@eggly.anvils>
+References: <1392741464-20029-1-git-send-email-linkinjeon@gmail.com> <20140222140625.GD26637@thunk.org> <20140223213606.GE4317@dastard> <alpine.LSU.2.11.1402251525370.2380@eggly.anvils> <20140226015747.GN13647@dastard> <alpine.LSU.2.11.1402252049250.1586@eggly.anvils>
+ <20140226100439.GV13647@dastard>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Dave Chinner <david@fromorbit.com>
-Cc: Hugh Dickins <hughd@google.com>, Namjae Jeon <linkinjeon@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <matthew@wil.cx>, Theodore Ts'o <tytso@mit.edu>, Stephen Rothwell <sfr@canb.auug.org.au>, viro@zeniv.linux.org.uk, bpm@sgi.com, adilger.kernel@dilger.ca, jack@suse.cz, mtk.manpages@gmail.com, lczerner@redhat.com, linux-fsdevel@vger.kernel.org, xfs@oss.sgi.com, linux-ext4@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Namjae Jeon <namjae.jeon@samsung.com>
+Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Theodore Ts'o <tytso@mit.edu>, Namjae Jeon <linkinjeon@gmail.com>, viro@zeniv.linux.org.uk, bpm@sgi.com, adilger.kernel@dilger.ca, jack@suse.cz, mtk.manpages@gmail.com, lczerner@redhat.com, linux-fsdevel@vger.kernel.org, xfs@oss.sgi.com, linux-ext4@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Namjae Jeon <namjae.jeon@samsung.com>, Ashish Sangwan <a.sangwan@samsung.com>
 
 On Wed, 26 Feb 2014, Dave Chinner wrote:
-> On Tue, Feb 25, 2014 at 08:45:15PM -0800, Hugh Dickins wrote:
-> > On Wed, 26 Feb 2014, Dave Chinner wrote:
-> > > On Tue, Feb 25, 2014 at 03:23:35PM -0800, Hugh Dickins wrote:
-> > > 
-> > > > I should mention that when "we" implemented this thirty years ago,
-> > > > we had a strong conviction that the system call should be idempotent:
-> > > > that is, the len argument should indicate the final i_size, not the
-> > > > amount being removed from it.  Now, I don't remember the grounds for
-> > > > that conviction: maybe it was just an idealistic preference for how
-> > > > to design a good system call.  I can certainly see that defining it
-> > > > that way round would surprise many app programmers.  Just mentioning
-> > > > this in case anyone on these lists sees a practical advantage to
-> > > > doing it that way instead.
-> > > 
-> > > I don't see how specifying the end file size as an improvement. What
-> > > happens if you are collapse a range in a file that is still being
-> > > appended to by the application and so you race with a file size
-> > > update? IOWs, with such an API the range to be collapsed is
-> > > completely unpredictable, and IMO that's a fundamentally broken API.
-> > 
-> > That's fine if you don't see the idempotent API as an improvement,
-> > I just wanted to put it on the table in case someone does see an
-> > advantage to it.  But I think I'm missing something in your race
-> > example: I don't see a difference between the two APIs there.
+> On Tue, Feb 25, 2014 at 09:25:40PM -0800, Hugh Dickins wrote:
 > 
+> > But I wasn't really thinking of the offset > i_size case, just the
+> > offset + len >= i_size case: which would end with i_size at offset,
+> > and the areas you're worried about still beyond EOF - or am I confused?
 > 
-> Userspace can't sample the inode size via stat(2) and then use the value for a
-> syscall atomically. i.e. if you specify the offset you want to
-> collapse at, and the file size you want to have to define the region
-> to collapse, then the length you need to collapse is (current inode
-> size - end file size). If "current inode size" can change between
-> the stat(2) and fallocate() call (and it can), then the length being
-> collapsed is indeterminate....
+> Right, offset beyond EOF is just plain daft. But you're not thinking
+> of the entire picture. What happens when a system crashes half way
+> through a collapse operation? On tmpfs you don't care - everything
+> is lost, but on real filesystems we have to care about. 
+> 
+> offset + len beyond EOF is just truncate(offset).
+> 
+> From the point of view of an application offloading a data movement
+> operation via collapse range, any range that overlaps EOF is wrong -
+> data beyond EOF is not accessible and is not available for the
+> application to move. Hence EINVAL - it's an invalid set of
+> parameters.
+> 
+> If we do allow it and implement it by block shifting (which,
+> technically, is the correct interpretation of the collapse range
+> behaviour because it preserves preallocation beyond
+> the collapsed region beyond EOF), then we have
+> thr problem of moving data blocks below EOF by extent shifting
+> before we change the EOF. That exposes blocks of undefined content
+> to the user if we crash and recover up to that point of the
+> operation. It's just plain dangerous, and if we allow this
+> possibility via the API, someone is going to make that mistake in a
+> filesystem because it's difficult to test and hard to get right.
 
-Thanks for explaining more, I was just about to acknowledge what a good
-example that is.  Indeed, it seems not unreasonable to be editing the
-earlier part of a file while the later part of it is still streaming in.
+Again, I would have thought that this is a problem you are already
+having to solve in the case when offset + len is below EOF, with
+blocks of undefined content preallocated beyond EOF.
 
-But damn, it now occurs to me that there's still a problem at the
-streaming end: its file write offset won't be updated to reflect
-the collapse, so there would be a sparse hole at that end.  And
-collapse returns -EPERM if IS_APPEND(inode).
+But I don't know xfs, you do: so I accept there may be subtle reasons
+why the offset + len below EOF case is easier for you to handle - and
+please don't spend your time trying to hammer those into my head!
 
-Never mind, I'm not campaigning for a change of interface anyway.
+I think I've been somewhat unreasonable: I insisted in the other
+thread that "Collapse is significantly more challenging than either
+hole-punch or truncation", so I should give you a break, not demand
+that you provide a perfect smooth implementation in all circumstances.
+
+None of our filesystems were designed with this operation in mind,
+each may have its own sound reasons to reject those peculiare cases
+which would pose more trouble and risk than they are worth.
+
+Whether that should be enforced at the VFS level is anther matter:
+if it turns out that the xfs and ext4 limitations match up, okay.
+
+I think we have different preferences, for whether to return error
+or success, when there is nothing to be done; but I notice now that
+fallocate fails on len 0, so you are being consistent with that.
+
+Reject "offset + len >= i_size" or "offset + len > i_size"?
 
 Hugh
 
