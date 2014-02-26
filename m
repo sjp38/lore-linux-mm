@@ -1,105 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f42.google.com (mail-pb0-f42.google.com [209.85.160.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 4884E6B0062
-	for <linux-mm@kvack.org>; Tue, 25 Feb 2014 20:50:04 -0500 (EST)
-Received: by mail-pb0-f42.google.com with SMTP id rr13so262507pbb.15
-        for <linux-mm@kvack.org>; Tue, 25 Feb 2014 17:50:03 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id po10si22126229pab.44.2014.02.25.17.50.03
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 364B26B0062
+	for <linux-mm@kvack.org>; Tue, 25 Feb 2014 20:57:53 -0500 (EST)
+Received: by mail-pd0-f170.google.com with SMTP id y10so258874pdj.29
+        for <linux-mm@kvack.org>; Tue, 25 Feb 2014 17:57:52 -0800 (PST)
+Received: from ipmail05.adl6.internode.on.net (ipmail05.adl6.internode.on.net. [2001:44b8:8060:ff02:300:1:6:5])
+        by mx.google.com with ESMTP id gk3si22337400pac.263.2014.02.25.17.57.51
         for <linux-mm@kvack.org>;
-        Tue, 25 Feb 2014 17:50:03 -0800 (PST)
-Date: Tue, 25 Feb 2014 17:52:16 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v5 0/10] fs: Introduce new
- flag(FALLOC_FL_COLLAPSE_RANGE) for fallocate
-Message-Id: <20140225175216.0f0c10f9.akpm@linux-foundation.org>
-In-Reply-To: <20140226013426.GM13647@dastard>
-References: <1392741436-19995-1-git-send-email-linkinjeon@gmail.com>
-	<20140224005710.GH4317@dastard>
-	<20140225141601.358f6e3df2660d4af44da876@canb.auug.org.au>
-	<20140225041346.GA29907@dastard>
-	<alpine.LSU.2.11.1402251217030.2380@eggly.anvils>
-	<20140225154128.947a2de83a2d0dc21763ccf9@linux-foundation.org>
-	<20140226013426.GM13647@dastard>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Tue, 25 Feb 2014 17:57:52 -0800 (PST)
+Date: Wed, 26 Feb 2014 12:57:47 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH v5 1/10] fs: Add new flag(FALLOC_FL_COLLAPSE_RANGE) for
+ fallocate
+Message-ID: <20140226015747.GN13647@dastard>
+References: <1392741464-20029-1-git-send-email-linkinjeon@gmail.com>
+ <20140222140625.GD26637@thunk.org>
+ <20140223213606.GE4317@dastard>
+ <alpine.LSU.2.11.1402251525370.2380@eggly.anvils>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.11.1402251525370.2380@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Hugh Dickins <hughd@google.com>, Namjae Jeon <linkinjeon@gmail.com>, Matthew Wilcox <matthew@wil.cx>, Theodore Ts'o <tytso@mit.edu>, Stephen Rothwell <sfr@canb.auug.org.au>, viro@zeniv.linux.org.uk, bpm@sgi.com, adilger.kernel@dilger.ca, jack@suse.cz, mtk.manpages@gmail.com, lczerner@redhat.com, linux-fsdevel@vger.kernel.org, xfs@oss.sgi.com, linux-ext4@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Namjae Jeon <namjae.jeon@samsung.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Theodore Ts'o <tytso@mit.edu>, Namjae Jeon <linkinjeon@gmail.com>, viro@zeniv.linux.org.uk, bpm@sgi.com, adilger.kernel@dilger.ca, jack@suse.cz, mtk.manpages@gmail.com, lczerner@redhat.com, linux-fsdevel@vger.kernel.org, xfs@oss.sgi.com, linux-ext4@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Namjae Jeon <namjae.jeon@samsung.com>, Ashish Sangwan <a.sangwan@samsung.com>
 
-On Wed, 26 Feb 2014 12:34:26 +1100 Dave Chinner <david@fromorbit.com> wrote:
-
-> On Tue, Feb 25, 2014 at 03:41:28PM -0800, Andrew Morton wrote:
-> > On Tue, 25 Feb 2014 15:23:35 -0800 (PST) Hugh Dickins <hughd@google.com> wrote:
-> > > On Tue, 25 Feb 2014, Dave Chinner wrote:
-> > > > On Tue, Feb 25, 2014 at 02:16:01PM +1100, Stephen Rothwell wrote:
-> > > > > On Mon, 24 Feb 2014 11:57:10 +1100 Dave Chinner <david@fromorbit.com> wrote:
-> > > FALLOC_FL_COLLAPSE_RANGE: I'm a little sad at the name COLLAPSE,
-> > > but probably seven months too late to object.  It surprises me that
-> > > you're doing all this work to deflate a part of the file, without
-> > > the obvious complementary work to inflate it - presumably all those
-> > > advertisers whose ads you're cutting out, will come back to us soon
-> > > to ask for inflation, so that they have somewhere to reinsert them ;)
+On Tue, Feb 25, 2014 at 03:41:20PM -0800, Hugh Dickins wrote:
+> On Mon, 24 Feb 2014, Dave Chinner wrote:
+> > On Sat, Feb 22, 2014 at 09:06:25AM -0500, Theodore Ts'o wrote:
+> > > On Wed, Feb 19, 2014 at 01:37:43AM +0900, Namjae Jeon wrote:
+> > > > +	/*
+> > > > +	 * There is no need to overlap collapse range with EOF, in which case
+> > > > +	 * it is effectively a truncate operation
+> > > > +	 */
+> > > > +	if ((mode & FALLOC_FL_COLLAPSE_RANGE) &&
+> > > > +	    (offset + len >= i_size_read(inode)))
+> > > > +		return -EINVAL;
+> > > > +
+> > > 
+> > > I wonder if we should just translate a collapse range that is
+> > > equivalent to a truncate operation to, in fact, be a truncate
+> > > operation?
 > > 
-> > Yes, I was wondering that.  Why not simply "move these blocks from here
-> > to there".
+> > Trying to collapse a range that extends beyond EOF, IMO, is likely
+> > to only happen if the DVR/NLE application is buggy. Hence I think
+> > that telling the application it is doing something that is likely to
+> > be wrong is better than silently truncating the file....
 > 
-> And open a completely unnecessary can of worms to do with
-> behavioural and implementation corner cases?
+> I do agree with Ted on this point.  This is not an xfs ioctl added
+> for one DVR/NLE application, it's a mode of a Linux system call.
+> 
+> We do not usually reject with an error when one system call happens
+> to ask for something which can already be accomplished another way;
+> nor nanny our callers.
+> 
+> It seems natural to me that COLLAPSE_RANGE should support beyond EOF;
+> unless that adds significantly to implementation difficulties?
 
-But it's general.
+Yes, it does add to the implementation complexity significantly - it
+adds data security issues that don't exist with the current API.
 
-> Do you allow it to destroy data by default? Or only allow moves into
-> holes?
+That is, Filesystems can have uninitialised blocks beyond EOF so
+if we allow COLLAPSE_RANGE to shift them down within EOF, we now
+have to ensure they are properly zeroed or marked as unwritten.
 
-Overwrite.
+It also makes implementations more difficult. For example, XFS can
+also have in-memory delayed allocation extents beyond EOF, and they
+can't be brought into the range < EOF without either:
 
-> What do you do with range the data is moved out of? Does it just
-> become a hole? What happens if the range overlaps EOF - does that
-> change the file size?
+	a) inserting zeroed pages with appropriately set up
+	and mapped bufferheads into the page cache for the range
+	that sits within EOF; or
+	b) truncating the delalloc extents beyond EOF before the
+	move
 
-Truncate.
+So, really, the moment you go beyond EOF filesystems have to do
+quite a bit more validation and IO in the context of the system
+call. It no longer becomes a pure extent manipulation offload - it
+becomes a data security problem.
 
-> What if you want to move the range beyond EOF?
+And, indeed, the specification that we are working to is that the
+applications that want to collapse the range of a file are using
+this function instead of read/memcpy/write/truncate, which by
+definition means they cannot shift ranges of the file beyond EOF
+into the new file.
 
-Extend.
+So IMO the API defines the functionality as required by the
+applications that require it and *no more*. If you need some
+different behaviour - we can add it via additional flags in future
+when you have an application that requires it. 
 
-> What if the source and destination ranges overlap?
+> Actually, is it even correct to fail at EOF?  What if fallocation
+> with FALLOC_FL_KEEP_SIZE was used earlier, to allocate beyond EOF:
+> shouldn't it be possible to shift that allocation down, along with
+> the EOF, rather than leave it behind as a stranded island?
 
-Don't screw it up.
+It does get shifted down - it just remains beyond EOF, just like it
+was before the operation. And that is part of the specification of
+COLLAPSE_RANGE - it was done so that preallocation (physical or
+speculative delayed allocation) beyond EOF to avoid fragmentation as
+the DVR continues to write is not screwed up by chopping out earlier
+parts of the file.
 
-> What happens when you move the block at EOF into the middle of a
-> file - do you end up with zeros padding the block and the file size
-> having to be adjusted accordingly? Or do we have to *copy* all the
-> data in high blocks down to fill the hole in the block?
+Cheers,
 
-I don't understand that.  Move the block(s) and truncate to the new
-length.
-
-> What behaviour should we expect if the filesystem can't implement
-> the entire move atomically and we crash in the middle of the move?
-
-What does collapse_range do now?
-
-If it's a journaled filesystem, it shouldn't screw up.  If it isn't, fsck.
-
-> I can keep going, but I'll stop here - you get the idea.
-
-None of this seems like rocket science.
-
-> In comparison, collapse range as a file data manipulation has very
-> specific requirements and from that we can define a simple, specific
-> API that allows filesystems to accelerate that operation by extent
-> manipulation rather than read/memcpy/write that the applications are
-> currently doing for this operation....  IOWs, collapse range is a
-> simple operation, "move arbitrary blocks from here to there" is a
-> nightmare both from the specification and the implementation points
-> of view.
-
-collapse_range seems weird, arbitrary and half-assed.  "Why didn't they
-go all the way and do it properly".
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
