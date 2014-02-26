@@ -1,47 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f178.google.com (mail-qc0-f178.google.com [209.85.216.178])
-	by kanga.kvack.org (Postfix) with ESMTP id D7F446B009F
-	for <linux-mm@kvack.org>; Wed, 26 Feb 2014 02:07:54 -0500 (EST)
-Received: by mail-qc0-f178.google.com with SMTP id i8so772948qcq.9
-        for <linux-mm@kvack.org>; Tue, 25 Feb 2014 23:07:54 -0800 (PST)
-Received: from relay3-d.mail.gandi.net (relay3-d.mail.gandi.net. [2001:4b98:c:538::195])
-        by mx.google.com with ESMTPS id v4si5080qap.7.2014.02.25.23.07.54
+Received: from mail-vc0-f180.google.com (mail-vc0-f180.google.com [209.85.220.180])
+	by kanga.kvack.org (Postfix) with ESMTP id DBCFA6B009F
+	for <linux-mm@kvack.org>; Wed, 26 Feb 2014 02:15:07 -0500 (EST)
+Received: by mail-vc0-f180.google.com with SMTP id ks9so518724vcb.11
+        for <linux-mm@kvack.org>; Tue, 25 Feb 2014 23:15:07 -0800 (PST)
+Received: from mail-vc0-x229.google.com (mail-vc0-x229.google.com [2607:f8b0:400c:c03::229])
+        by mx.google.com with ESMTPS id y3si7443416vdo.123.2014.02.25.23.15.07
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 25 Feb 2014 23:07:54 -0800 (PST)
-Date: Tue, 25 Feb 2014 23:07:45 -0800
-From: Josh Triplett <josh@joshtriplett.org>
-Subject: Re: [mmotm:master 326/350] undefined reference to `tty_write_message'
-Message-ID: <20140226070745.GA8078@thin>
-References: <530d8dd5.N73la/TcxHdsINPu%fengguang.wu@intel.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 25 Feb 2014 23:15:07 -0800 (PST)
+Received: by mail-vc0-f169.google.com with SMTP id hq11so515309vcb.14
+        for <linux-mm@kvack.org>; Tue, 25 Feb 2014 23:15:07 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <530d8dd5.N73la/TcxHdsINPu%fengguang.wu@intel.com>
+In-Reply-To: <530CEFE2.9090909@oracle.com>
+References: <530CEFE2.9090909@oracle.com>
+Date: Wed, 26 Feb 2014 15:15:07 +0800
+Message-ID: <CAA_GA1dJA9PmZnoNy59__Ek+KPS3xX4WuR_8=onY8mZSRQrKiQ@mail.gmail.com>
+Subject: Re: mm: NULL ptr deref in balance_dirty_pages_ratelimited
+From: Bob Liu <lliubbo@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <fengguang.wu@intel.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, kbuild-all@01.org
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Feb 26, 2014 at 02:46:45PM +0800, kbuild test robot wrote:
-> tree:   git://git.cmpxchg.org/linux-mmotm.git master
-> head:   a6a1126d3535f0bd8d7c56810061541a4f5595af
-> commit: 5837644fad4fdcc7a812eb1f3a215d8196628627 [326/350] kconfig: make allnoconfig disable options behind EMBEDDED and EXPERT
-> config: make ARCH=ia64 allnoconfig
-> 
-> All error/warnings:
-> 
->    arch/ia64/kernel/built-in.o: In function `ia64_handle_unaligned':
-> >> (.text+0x1b882): undefined reference to `tty_write_message'
+On Wed, Feb 26, 2014 at 3:32 AM, Sasha Levin <sasha.levin@oracle.com> wrote:
+> Hi all,
+>
+> While fuzzing with trinity inside a KVM tools running latest -next kernel
+> I've stumbled on the following spew:
+>
+> [  232.869443] BUG: unable to handle kernel NULL pointer dereference at
+> 0000000000000020
+> [  232.870230] IP: [<mm/page-writeback.c:1612>]
+> balance_dirty_pages_ratelimited+0x1e/0x150
+> [  232.870230] PGD 586e1d067 PUD 586e1e067 PMD 0
+> [  232.870230] Oops: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
+> [  232.870230] Dumping ftrace buffer:
+> [  232.870230]    (ftrace buffer empty)
+> [  232.870230] Modules linked in:
+> [  232.870230] CPU: 36 PID: 9707 Comm: trinity-c36 Tainted: G        W
+> 3.14.0-rc4-next-20140225-sasha-00010-ga117461 #42
+> [  232.870230] task: ffff880586dfb000 ti: ffff880586e34000 task.ti:
+> ffff880586e34000
+> [  232.870230] RIP: 0010:[<mm/page-writeback.c:1612>]
+> [<mm/page-writeback.c:1612>] balance_dirty_pages_ratelimited+0x1e/0x150
+> [  232.870230] RSP: 0000:ffff880586e35c58  EFLAGS: 00010282
+> [  232.870230] RAX: 0000000000000000 RBX: ffff880582831361 RCX:
+> 0000000000000007
+> [  232.870230] RDX: 0000000000000007 RSI: ffff880586dfbcc0 RDI:
+> ffff880582831361
+> [  232.870230] RBP: ffff880586e35c78 R08: 0000000000000000 R09:
+> 0000000000000000
+> [  232.870230] R10: 0000000000000001 R11: 0000000000000001 R12:
+> 00007f58007ee000
+> [  232.870230] R13: ffff880c8d6d4f70 R14: 0000000000000200 R15:
+> ffff880c8dcce710
+> [  232.870230] FS:  00007f58018bb700(0000) GS:ffff880c8e800000(0000)
+> knlGS:0000000000000000
+> [  232.870230] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+> [  232.870230] CR2: 0000000000000020 CR3: 0000000586e1c000 CR4:
+> 00000000000006e0
+> [  232.870230] Stack:
+> [  232.870230]  ffff880586e35c78 ffff880586e33400 00007f58007ee000
+> ffff880c8d6d4f70
+> [  232.870230]  ffff880586e35cd8 ffffffff8127d241 0000000000000001
+> 0000000000000001
+> [  232.870230]  0000000000000000 ffffea0032337080 0000000080000000
+> ffff880586e33400
+> [  232.870230] Call Trace:
+> [  232.870230]  [<mm/memory.c:3467>] do_shared_fault+0x1a1/0x1f0
+> [  232.870230]  [<mm/memory.c:3487>] handle_pte_fault+0xc8/0x230
+> [  232.870230]  [<arch/x86/include/asm/preempt.h:98>] ? delay_tsc+0xea/0x110
+> [  232.870230]  [<mm/memory.c:3770>] __handle_mm_fault+0x36e/0x3a0
+> [  232.870230]  [<include/linux/rcupdate.h:829>] ? rcu_read_unlock+0x5d/0x60
+> [  232.870230]  [<include/linux/memcontrol.h:148>]
+> handle_mm_fault+0x10b/0x1b0
+> [  232.870230]  [<arch/x86/mm/fault.c:1147>] ? __do_page_fault+0x2e2/0x590
+> [  232.870230]  [<arch/x86/mm/fault.c:1214>] __do_page_fault+0x551/0x590
+> [  232.870230]  [<kernel/sched/cputime.c:681>] ?
+> vtime_account_user+0x91/0xa0
+> [  232.870230]  [<arch/x86/include/asm/atomic.h:26>] ?
+> context_tracking_user_exit+0xa8/0x1c0
+> [  232.870230]  [<arch/x86/include/asm/preempt.h:98>] ?
+> _raw_spin_unlock+0x30/0x50
+> [  232.870230]  [<kernel/sched/cputime.c:681>] ?
+> vtime_account_user+0x91/0xa0
+> [  232.870230]  [<arch/x86/include/asm/atomic.h:26>] ?
+> context_tracking_user_exit+0xa8/0x1c0
+> [  232.870230]  [<arch/x86/include/asm/atomic.h:26>] do_page_fault+0x3d/0x70
+> [  232.870230]  [<arch/x86/kernel/kvm.c:263>] do_async_page_fault+0x35/0x100
+> [  232.870230]  [<arch/x86/kernel/entry_64.S:1496>]
+> async_page_fault+0x28/0x30
+> [  232.870230] Code: 66 66 66 66 2e 0f 1f 84 00 00 00 00 00 55 48 89 e5 48
+> 83 ec 20 48 89 5d e8 4c 89 65 f0 4c 89 6d f8 48 89 fb 48 8b 87 50 01 00 00
+> <f6> 40 20 01 0f 85 18 01 00 00 65 48 8b 14 25 40 da 00 00 44 8b
+> [  232.870230] RIP  [<mm/page-writeback.c:1612>]
+> balance_dirty_pages_ratelimited+0x1e/0x150
+> [  232.870230]  RSP <ffff880586e35c58>
+> [  232.870230] CR2: 0000000000000020
+>
+>
 
-Looks like ia64 is broken with CONFIG_TTY=n.  Why in the world does
-arch/ia64/kernel/unaligned.c call tty_write_message on the tty of the
-current process?  That's just *wrong*.
+Could you please test below patch? I think it may fix this issue.
 
-Would anything go horribly wrong if the tty_write_message just went
-away, leaving only the printk?  (Bonus: no need to sprintf first.)
+diff --git a/mm/memory.c b/mm/memory.c
+index 548d97e..90cea22 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -3419,6 +3419,7 @@ static int do_shared_fault(struct mm_struct *mm,
+struct vm_area_struct *vma,
+  pgoff_t pgoff, unsigned int flags, pte_t orig_pte)
+ {
+  struct page *fault_page;
++ struct address_space *mapping;
+  spinlock_t *ptl;
+  pte_t *pte;
+  int dirtied = 0;
+@@ -3454,13 +3455,14 @@ static int do_shared_fault(struct mm_struct
+*mm, struct vm_area_struct *vma,
 
-- Josh Triplett
+  if (set_page_dirty(fault_page))
+  dirtied = 1;
++ mapping = fault_page->mapping;
+  unlock_page(fault_page);
+- if ((dirtied || vma->vm_ops->page_mkwrite) && fault_page->mapping) {
++ if ((dirtied || vma->vm_ops->page_mkwrite) && mapping) {
+  /*
+  * Some device drivers do not set page.mapping but still
+  * dirty their pages
+  */
+- balance_dirty_pages_ratelimited(fault_page->mapping);
++ balance_dirty_pages_ratelimited(mapping);
+  }
+
+  /* file_update_time outside page_lock */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
