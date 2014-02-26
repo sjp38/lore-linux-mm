@@ -1,60 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 620966B0082
-	for <linux-mm@kvack.org>; Wed, 26 Feb 2014 09:01:27 -0500 (EST)
-Received: by mail-pa0-f48.google.com with SMTP id kx10so996406pab.21
-        for <linux-mm@kvack.org>; Wed, 26 Feb 2014 06:01:27 -0800 (PST)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id xz2si1162210pbb.149.2014.02.26.06.01.25
+Received: from mail-ee0-f50.google.com (mail-ee0-f50.google.com [74.125.83.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C7446B00A5
+	for <linux-mm@kvack.org>; Wed, 26 Feb 2014 09:10:10 -0500 (EST)
+Received: by mail-ee0-f50.google.com with SMTP id t10so575144eei.9
+        for <linux-mm@kvack.org>; Wed, 26 Feb 2014 06:10:09 -0800 (PST)
+Received: from jenni2.inet.fi (mta-out.inet.fi. [195.156.147.13])
+        by mx.google.com with ESMTP id z8si2360398eee.41.2014.02.26.06.09.50
         for <linux-mm@kvack.org>;
-        Wed, 26 Feb 2014 06:01:26 -0800 (PST)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-In-Reply-To: <1393422925-22108-1-git-send-email-kirill.shutemov@linux.intel.com>
-References: <1393422925-22108-1-git-send-email-kirill.shutemov@linux.intel.com>
-Subject: RE: [PATCH] mm: disable split page table lock for !MMU
-Content-Transfer-Encoding: 7bit
-Message-Id: <20140226140040.8E07AE0098@blue.fi.intel.com>
-Date: Wed, 26 Feb 2014 16:00:40 +0200 (EET)
+        Wed, 26 Feb 2014 06:09:51 -0800 (PST)
+Date: Wed, 26 Feb 2014 16:09:41 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: mm: NULL ptr deref in balance_dirty_pages_ratelimited
+Message-ID: <20140226140941.GA31230@node.dhcp.inet.fi>
+References: <530CEFE2.9090909@oracle.com>
+ <CAA_GA1dJA9PmZnoNy59__Ek+KPS3xX4WuR_8=onY8mZSRQrKiQ@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAA_GA1dJA9PmZnoNy59__Ek+KPS3xX4WuR_8=onY8mZSRQrKiQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, =?UTF-8?B?VXdlIEtsZWluZS1Lw7ZuaWc=?= <u.kleine-koenig@pengutronix.de>, Peter Zijlstra <peterz@infradead.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Arnd Bergmann <arnd@arndb.de>, linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Bob Liu <lliubbo@gmail.com>
+Cc: Sasha Levin <sasha.levin@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-(Oops. CC: lists)
+On Wed, Feb 26, 2014 at 03:15:07PM +0800, Bob Liu wrote:
+> On Wed, Feb 26, 2014 at 3:32 AM, Sasha Levin <sasha.levin@oracle.com> wrote:
+> > Hi all,
+> >
+> > While fuzzing with trinity inside a KVM tools running latest -next kernel
+> > I've stumbled on the following spew:
+> >
+> > [  232.869443] BUG: unable to handle kernel NULL pointer dereference at
+> > 0000000000000020
+> > [  232.870230] IP: [<mm/page-writeback.c:1612>]
+> > balance_dirty_pages_ratelimited+0x1e/0x150
+> > [  232.870230] PGD 586e1d067 PUD 586e1e067 PMD 0
+> > [  232.870230] Oops: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
+> > [  232.870230] Dumping ftrace buffer:
+> > [  232.870230]    (ftrace buffer empty)
+> > [  232.870230] Modules linked in:
+> > [  232.870230] CPU: 36 PID: 9707 Comm: trinity-c36 Tainted: G        W
+> > 3.14.0-rc4-next-20140225-sasha-00010-ga117461 #42
+> > [  232.870230] task: ffff880586dfb000 ti: ffff880586e34000 task.ti:
+> > ffff880586e34000
+> > [  232.870230] RIP: 0010:[<mm/page-writeback.c:1612>]
+> > [<mm/page-writeback.c:1612>] balance_dirty_pages_ratelimited+0x1e/0x150
+> > [  232.870230] RSP: 0000:ffff880586e35c58  EFLAGS: 00010282
+> > [  232.870230] RAX: 0000000000000000 RBX: ffff880582831361 RCX:
+> > 0000000000000007
+> > [  232.870230] RDX: 0000000000000007 RSI: ffff880586dfbcc0 RDI:
+> > ffff880582831361
+> > [  232.870230] RBP: ffff880586e35c78 R08: 0000000000000000 R09:
+> > 0000000000000000
+> > [  232.870230] R10: 0000000000000001 R11: 0000000000000001 R12:
+> > 00007f58007ee000
+> > [  232.870230] R13: ffff880c8d6d4f70 R14: 0000000000000200 R15:
+> > ffff880c8dcce710
+> > [  232.870230] FS:  00007f58018bb700(0000) GS:ffff880c8e800000(0000)
+> > knlGS:0000000000000000
+> > [  232.870230] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+> > [  232.870230] CR2: 0000000000000020 CR3: 0000000586e1c000 CR4:
+> > 00000000000006e0
+> > [  232.870230] Stack:
+> > [  232.870230]  ffff880586e35c78 ffff880586e33400 00007f58007ee000
+> > ffff880c8d6d4f70
+> > [  232.870230]  ffff880586e35cd8 ffffffff8127d241 0000000000000001
+> > 0000000000000001
+> > [  232.870230]  0000000000000000 ffffea0032337080 0000000080000000
+> > ffff880586e33400
+> > [  232.870230] Call Trace:
+> > [  232.870230]  [<mm/memory.c:3467>] do_shared_fault+0x1a1/0x1f0
+> > [  232.870230]  [<mm/memory.c:3487>] handle_pte_fault+0xc8/0x230
+> > [  232.870230]  [<arch/x86/include/asm/preempt.h:98>] ? delay_tsc+0xea/0x110
+> > [  232.870230]  [<mm/memory.c:3770>] __handle_mm_fault+0x36e/0x3a0
+> > [  232.870230]  [<include/linux/rcupdate.h:829>] ? rcu_read_unlock+0x5d/0x60
+> > [  232.870230]  [<include/linux/memcontrol.h:148>]
+> > handle_mm_fault+0x10b/0x1b0
+> > [  232.870230]  [<arch/x86/mm/fault.c:1147>] ? __do_page_fault+0x2e2/0x590
+> > [  232.870230]  [<arch/x86/mm/fault.c:1214>] __do_page_fault+0x551/0x590
+> > [  232.870230]  [<kernel/sched/cputime.c:681>] ?
+> > vtime_account_user+0x91/0xa0
+> > [  232.870230]  [<arch/x86/include/asm/atomic.h:26>] ?
+> > context_tracking_user_exit+0xa8/0x1c0
+> > [  232.870230]  [<arch/x86/include/asm/preempt.h:98>] ?
+> > _raw_spin_unlock+0x30/0x50
+> > [  232.870230]  [<kernel/sched/cputime.c:681>] ?
+> > vtime_account_user+0x91/0xa0
+> > [  232.870230]  [<arch/x86/include/asm/atomic.h:26>] ?
+> > context_tracking_user_exit+0xa8/0x1c0
+> > [  232.870230]  [<arch/x86/include/asm/atomic.h:26>] do_page_fault+0x3d/0x70
+> > [  232.870230]  [<arch/x86/kernel/kvm.c:263>] do_async_page_fault+0x35/0x100
+> > [  232.870230]  [<arch/x86/kernel/entry_64.S:1496>]
+> > async_page_fault+0x28/0x30
+> > [  232.870230] Code: 66 66 66 66 2e 0f 1f 84 00 00 00 00 00 55 48 89 e5 48
+> > 83 ec 20 48 89 5d e8 4c 89 65 f0 4c 89 6d f8 48 89 fb 48 8b 87 50 01 00 00
+> > <f6> 40 20 01 0f 85 18 01 00 00 65 48 8b 14 25 40 da 00 00 44 8b
+> > [  232.870230] RIP  [<mm/page-writeback.c:1612>]
+> > balance_dirty_pages_ratelimited+0x1e/0x150
+> > [  232.870230]  RSP <ffff880586e35c58>
+> > [  232.870230] CR2: 0000000000000020
+> >
+> >
+> 
+> Could you please test below patch? I think it may fix this issue.
 
-Kirill A. Shutemov wrote:
-> There's no reason to enable split page table lock if don't have page
-> tables.
+What stops compiler from transform this back to unpatched?
+Do you relay on unlock_page() to have a compiler barrier?
+
 > 
-> It also triggers build error at least on ARM since we don't define
-> pmd_page() for !MMU.
+> diff --git a/mm/memory.c b/mm/memory.c
+> index 548d97e..90cea22 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -3419,6 +3419,7 @@ static int do_shared_fault(struct mm_struct *mm,
+> struct vm_area_struct *vma,
+>   pgoff_t pgoff, unsigned int flags, pte_t orig_pte)
+>  {
+>   struct page *fault_page;
+> + struct address_space *mapping;
+>   spinlock_t *ptl;
+>   pte_t *pte;
+>   int dirtied = 0;
+> @@ -3454,13 +3455,14 @@ static int do_shared_fault(struct mm_struct
+> *mm, struct vm_area_struct *vma,
 > 
-> In file included from arch/arm/kernel/asm-offsets.c:14:0:
-> include/linux/mm.h: In function 'pte_lockptr':
-> include/linux/mm.h:1392:2: error: implicit declaration of function 'pmd_page' [-Werror=implicit-function-declaration]
-> include/linux/mm.h:1392:2: warning: passing argument 1 of 'ptlock_ptr' makes pointer from integer without a cast [enabled by default]
-> include/linux/mm.h:1384:27: note: expected 'struct page *' but argument is of type 'int'
+>   if (set_page_dirty(fault_page))
+>   dirtied = 1;
+> + mapping = fault_page->mapping;
+>   unlock_page(fault_page);
+> - if ((dirtied || vma->vm_ops->page_mkwrite) && fault_page->mapping) {
+> + if ((dirtied || vma->vm_ops->page_mkwrite) && mapping) {
+>   /*
+>   * Some device drivers do not set page.mapping but still
+>   * dirty their pages
+>   */
+> - balance_dirty_pages_ratelimited(fault_page->mapping);
+> + balance_dirty_pages_ratelimited(mapping);
+>   }
 > 
-> Reported-by: Uwe Kleine-KA?nig <u.kleine-koenig@pengutronix.de>
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> ---
->  mm/Kconfig | 1 +
->  1 file changed, 1 insertion(+)
-> 
-> diff --git a/mm/Kconfig b/mm/Kconfig
-> index 2d9f1504d75e..90bd85ea6035 100644
-> --- a/mm/Kconfig
-> +++ b/mm/Kconfig
-> @@ -216,6 +216,7 @@ config PAGEFLAGS_EXTENDED
->  #
->  config SPLIT_PTLOCK_CPUS
->  	int
-> +	default "999999" if !MMU
->  	default "999999" if ARM && !CPU_CACHE_VIPT
->  	default "999999" if PARISC && !PA20
->  	default "4"
-> -- 
-> 1.9.0
+>   /* file_update_time outside page_lock */
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 
 -- 
  Kirill A. Shutemov
