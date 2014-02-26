@@ -1,175 +1,205 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 636076B00A3
-	for <linux-mm@kvack.org>; Wed, 26 Feb 2014 02:33:01 -0500 (EST)
-Received: by mail-pa0-f47.google.com with SMTP id kp14so608111pab.6
-        for <linux-mm@kvack.org>; Tue, 25 Feb 2014 23:33:01 -0800 (PST)
-Received: from e23smtp05.au.ibm.com (e23smtp05.au.ibm.com. [202.81.31.147])
-        by mx.google.com with ESMTPS id tu2si60587pbc.99.2014.02.25.23.32.59
+Received: from mail-ob0-f182.google.com (mail-ob0-f182.google.com [209.85.214.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 947166B00A3
+	for <linux-mm@kvack.org>; Wed, 26 Feb 2014 02:52:23 -0500 (EST)
+Received: by mail-ob0-f182.google.com with SMTP id uz6so401120obc.41
+        for <linux-mm@kvack.org>; Tue, 25 Feb 2014 23:52:23 -0800 (PST)
+Received: from mail-oa0-x22e.google.com (mail-oa0-x22e.google.com [2607:f8b0:4003:c02::22e])
+        by mx.google.com with ESMTPS id m2si141509obv.45.2014.02.25.23.52.22
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 25 Feb 2014 23:33:00 -0800 (PST)
-Received: from /spool/local
-	by e23smtp05.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Wed, 26 Feb 2014 17:32:56 +1000
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
-	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 6658E2CE8051
-	for <linux-mm@kvack.org>; Wed, 26 Feb 2014 18:32:52 +1100 (EST)
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s1Q7Wco69961802
-	for <linux-mm@kvack.org>; Wed, 26 Feb 2014 18:32:38 +1100
-Received: from d23av03.au.ibm.com (localhost [127.0.0.1])
-	by d23av03.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s1Q7Wpm5003828
-	for <linux-mm@kvack.org>; Wed, 26 Feb 2014 18:32:51 +1100
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH] mm: numa: bugfix for LAST_CPUPID_NOT_IN_PAGE_FLAGS
-In-Reply-To: <1391563546-26052-1-git-send-email-pingfank@linux.vnet.ibm.com>
-References: <1391563546-26052-1-git-send-email-pingfank@linux.vnet.ibm.com>
-Date: Wed, 26 Feb 2014 13:02:46 +0530
-Message-ID: <87ob1ufhwh.fsf@linux.vnet.ibm.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 25 Feb 2014 23:52:22 -0800 (PST)
+Received: by mail-oa0-f46.google.com with SMTP id l6so460513oag.5
+        for <linux-mm@kvack.org>; Tue, 25 Feb 2014 23:52:22 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <1393387473.7655.28.camel@buesod1.americas.hpqcorp.net>
+References: <1393352206.2577.36.camel@buesod1.americas.hpqcorp.net>
+	<CANN689HfCT8uHKBeMHF-2Xa_eW9y9=UY7WdD1gW2EetqpcVSMw@mail.gmail.com>
+	<1393387473.7655.28.camel@buesod1.americas.hpqcorp.net>
+Date: Tue, 25 Feb 2014 23:52:22 -0800
+Message-ID: <CANN689GNfGLKkHAz9R6BC=E4b6ueMWcS0Ba_qZfCnW7NjnBs9A@mail.gmail.com>
+Subject: Re: [PATCH v2] mm: per-thread vma caching
+From: Michel Lespinasse <walken@google.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Liu Ping Fan <qemulist@gmail.com>, linux-mm@kvack.org
-Cc: Peter Zijlstra <peterz@infradead.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>
+To: Davidlohr Bueso <davidlohr@hp.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, aswin@hp.com, scott.norton@hp.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Liu Ping Fan <qemulist@gmail.com> writes:
-
-> When doing some numa tests on powerpc, I triggered an oops bug. I find
-> it is caused by using page->_last_cpupid.  It should be initialized as
-> "-1 & LAST_CPUPID_MASK", but not "-1". Otherwise, in task_numa_fault(),
-> we will miss the checking (last_cpupid == (-1 & LAST_CPUPID_MASK)).
-> And finally cause an oops bug in task_numa_group(), since the online cpu is
-> less than possible cpu.
+On Tue, Feb 25, 2014 at 8:04 PM, Davidlohr Bueso <davidlohr@hp.com> wrote:
+> On Tue, 2014-02-25 at 18:04 -0800, Michel Lespinasse wrote:
+>> On Tue, Feb 25, 2014 at 10:16 AM, Davidlohr Bueso <davidlohr@hp.com> wrote:
+>> > This patch is a continuation of efforts trying to optimize find_vma(),
+>> > avoiding potentially expensive rbtree walks to locate a vma upon faults.
+>> > The original approach (https://lkml.org/lkml/2013/11/1/410), where the
+>> > largest vma was also cached, ended up being too specific and random, thus
+>> > further comparison with other approaches were needed. There are two things
+>> > to consider when dealing with this, the cache hit rate and the latency of
+>> > find_vma(). Improving the hit-rate does not necessarily translate in finding
+>> > the vma any faster, as the overhead of any fancy caching schemes can be too
+>> > high to consider.
+>>
+>> Actually there is also the cost of keeping the cache up to date. I'm
+>> not saying that it's an issue in your proposal - I like the proposal,
+>> especially now that you are replacing the per-mm cache rather than
+>> adding something on top - but it is a factor to consider.
 >
-> Call trace:
-> [   55.978091] SMP NR_CPUS=64 NUMA PowerNV
-> [   55.978118] Modules linked in:
-> [   55.978145] CPU: 24 PID: 804 Comm: systemd-udevd Not tainted
-> 3.13.0-rc1+ #32
-> [   55.978183] task: c000001e2746aa80 ti: c000001e32c50000 task.ti:
-> c000001e32c50000
-> [   55.978219] NIP: c0000000000f5ad0 LR: c0000000000f5ac8 CTR:
-> c000000000913cf0
-> [   55.978256] REGS: c000001e32c53510 TRAP: 0300   Not tainted
-> (3.13.0-rc1+)
-> [   55.978286] MSR: 9000000000009032 <SF,HV,EE,ME,IR,DR,RI>  CR:
-> 28024424  XER: 20000000
-> [   55.978380] CFAR: c000000000009324 DAR: 7265717569726857 DSISR:
-> 40000000 SOFTE: 1
-> GPR00: c0000000000f5ac8 c000001e32c53790 c000000001f34338
-> 0000000000000021
-> GPR04: 0000000000000000 0000000000000031 c000000001f74338
-> 0000ffffffffffff
-> GPR08: 0000000000000001 7265717569726573 0000000000000000
-> 0000000000000000
-> GPR12: 0000000028024422 c00000000ffdd800 00000000296b2e64
-> 0000000000000020
-> GPR16: 0000000000000002 0000000000000003 c000001e2f8e4658
-> c000001e25c1c1d8
-> GPR20: c000001e2f8e4000 c000000001f7a858 0000000000000658
-> 0000000040000392
-> GPR24: 00000000000000a8 c000001e33c1a400 00000000000001d8
-> c000001e25c1c000
-> GPR28: c000001e33c37ff0 0007837840000392 000000000000003f
-> c000001e32c53790
-> [   55.978903] NIP [c0000000000f5ad0] .task_numa_fault+0x1470/0x2370
-> [   55.978934] LR [c0000000000f5ac8] .task_numa_fault+0x1468/0x2370
-> [   55.978964] Call Trace:
-> [   55.978978] [c000001e32c53790] [c0000000000f5ac8]
-> .task_numa_fault+0x1468/0x2370 (unreliable)
-> [   55.979036] [c000001e32c539e0] [c00000000020a820]
-> .do_numa_page+0x480/0x4a0
-> [   55.979072] [c000001e32c53b10] [c00000000020bfec]
-> .handle_mm_fault+0x4ec/0xc90
-> [   55.979123] [c000001e32c53c00] [c000000000e88c98]
-> .do_page_fault+0x3a8/0x890
-> [   55.979161] [c000001e32c53e30] [c000000000009568]
-> handle_page_fault+0x10/0x30
-> [   55.979197] Instruction dump:
-> [   55.979216] 3c82fefb 3884b138 48d9cff1 60000000 48000574 3c62fefb
-> 3863af78 3c82fefb
-> [   55.979277] 3884b138 48d9cfd5 60000000 e93f0100 <812902e4> 7d2907b4
-> 5529063e 7d2a07b4
-> [   55.979354] ---[ end trace 15f2510da5ae07cf ]---
+> True, although numbers show that the cost of maintaining the cache is
+> quite minimal. Invalidations are a free lunch (except in the rare event
+> of a seqnum overflow), so the updating part would consume the most
+> cycles, but then again, the hit rate is quite good so I'm not worried
+> about that either.
+
+Yes. I like your patch precisely because it keeps maintainance costs low.
+
+>> > +void vmacache_invalidate_all(void)
+>> > +{
+>> > +       struct task_struct *g, *p;
+>> > +
+>> > +       rcu_read_lock();
+>> > +       for_each_process_thread(g, p) {
+>> > +               /*
+>> > +                * Only flush the vmacache pointers as the
+>> > +                * mm seqnum is already set and curr's will
+>> > +                * be set upon invalidation when the next
+>> > +                * lookup is done.
+>> > +                */
+>> > +               memset(p->vmacache, 0, sizeof(p->vmacache));
+>> > +       }
+>> > +       rcu_read_unlock();
+>> > +}
+>>
+>> Two things:
+>>
+>> - I believe we only need to invalidate vma caches for threads that
+>> share a given mm ? we should probably pass in that mm in order to
+>> avoid over-invalidation
 >
+> I think you're right, since the overflows will always occur on
+> mm->seqnum, tasks that do not share the mm shouldn't be affected.
 >
-> Signed-off-by: Liu Ping Fan <pingfank@linux.vnet.ibm.com>
-> ---
-> I do the test on benh's git tree
->   git://git.kernel.org/pub/scm/linux/kernel/git/benh/powerpc.git next commit 37e4a67be7beff74df2cdddfcb08153282c0f8a1
->   (With patch "sched: Avoid NULL dereference on sd_busy" by PerterZ)
-> ---
->  include/linux/mm.h                |  2 +-
->  include/linux/page-flags-layout.h | 12 ++++--------
->  2 files changed, 5 insertions(+), 9 deletions(-)
+> So the danger here is that when a lookup occurs, vmacache_valid() will
+> return true, having:
 >
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index a7b4e31..ddc66df4 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -727,7 +727,7 @@ static inline int page_cpupid_last(struct page *page)
->  }
->  static inline void page_cpupid_reset_last(struct page *page)
->  {
-> -	page->_last_cpupid = -1;
-> +	page->_last_cpupid = -1 & LAST_CPUPID_MASK;
->  }
->  #else
-
-
-May be i am missing something in the below.  But does it change anything
-? We do set CPUID_WIDTH = 0 if we have
-
-#if SECTIONS_WIDTH+ZONES_WIDTH+NODES_SHIFT+LAST_CPUPID_SHIFT > BITS_PER_LONG - NR_PAGEFLAGS
-
-and if we have CPUID_WIDTH == 0 we have
-
-#if defined(CONFIG_NUMA_BALANCING) && LAST_CPUPID_WIDTH == 0
-#define LAST_CPUPID_NOT_IN_PAGE_FLAGS
-#endif
-
-So what is that i am missing ?
-
-
->  static inline int page_cpupid_last(struct page *page)
-> diff --git a/include/linux/page-flags-layout.h b/include/linux/page-flags-layout.h
-> index da52366..3cbaa20 100644
-> --- a/include/linux/page-flags-layout.h
-> +++ b/include/linux/page-flags-layout.h
-> @@ -69,15 +69,15 @@
->  #define LAST__CPU_MASK  ((1 << LAST__CPU_SHIFT)-1)
+> mm == curr->mm && mm->vmacache_seqnum == curr->vmacache_seqnum (both 0).
 >
->  #define LAST_CPUPID_SHIFT (LAST__PID_SHIFT+LAST__CPU_SHIFT)
-> +
-> +#if SECTIONS_WIDTH+ZONES_WIDTH+NODES_SHIFT+LAST_CPUPID_SHIFT > BITS_PER_LONG - NR_PAGEFLAGS
-> +#define LAST_CPUPID_NOT_IN_PAGE_FLAGS
-> +#endif
->  #else
->  #define LAST_CPUPID_SHIFT 0
->  #endif
+> Then we just iterate the cache and potentially return some bugus vma.
 >
-> -#if SECTIONS_WIDTH+ZONES_WIDTH+NODES_SHIFT+LAST_CPUPID_SHIFT <= BITS_PER_LONG - NR_PAGEFLAGS
->  #define LAST_CPUPID_WIDTH LAST_CPUPID_SHIFT
-> -#else
-> -#define LAST_CPUPID_WIDTH 0
-> -#endif
->
->  /*
->   * We are going to use the flags for the page to node mapping if its in
-> @@ -87,8 +87,4 @@
->  #define NODE_NOT_IN_PAGE_FLAGS
->  #endif
->
-> -#if defined(CONFIG_NUMA_BALANCING) && LAST_CPUPID_WIDTH == 0
-> -#define LAST_CPUPID_NOT_IN_PAGE_FLAGS
-> -#endif
-> -
->  #endif /* _LINUX_PAGE_FLAGS_LAYOUT */
+> However, since we're now going to reset the seqnum on every fork/clone
+> (before it was just the oldmm->seqnum + 1 thing), I doubt we'll ever
+> overflow.
 
--aneesh
+I'm concerned about it *precisely* because it won't happen often, and
+so it'd be hard to debug if we had a problem there. 64 bits would be
+safe, but a 32-bit counter doesn't take that long to overflow, and I'm
+sure it will happen once in a while in production.
+
+Actually, I think there is a case for masking the seqnum with a
+constant (all ones in production builds, but something shorter when
+CONFIG_DEBUG_VM is enabled) so that this code is easier to exercise.
+
+>> - My understanding is that the operation is safe because the caller
+>> has the mm's mmap_sem held for write, and other threads accessing the
+>> vma cache will have mmap_sem held at least for read, so we don't need
+>> extra locking to maintain the vma cache.
+>
+> Yes, that's how I see things as well.
+>
+>> Please 1- confirm this is the
+>> intention, 2- document this, and 3- only invalidate vma caches for
+>> threads that match the caller's mm so that mmap_sem locking can
+>> actually apply.
+>
+> Will do.
+
+Thanks :)
+
+>> > +struct vm_area_struct *vmacache_find(struct mm_struct *mm,
+>> > +                                    unsigned long addr)
+>> > +
+>> > +{
+>> > +       int i;
+>> > +
+>> > +       if (!vmacache_valid(mm))
+>> > +               return NULL;
+>> > +
+>> > +       for (i = 0; i < VMACACHE_SIZE; i++) {
+>> > +               struct vm_area_struct *vma = current->vmacache[i];
+>> > +
+>> > +               if (vma && vma->vm_start <= addr && vma->vm_end > addr)
+>> > +                       return vma;
+>> > +       }
+>> > +
+>> > +       return NULL;
+>> > +}
+>> > +
+>> > +void vmacache_update(struct mm_struct *mm, unsigned long addr,
+>> > +                    struct vm_area_struct *newvma)
+>> > +{
+>> > +       /*
+>> > +        * Hash based on the page number. Provides a good
+>> > +        * hit rate for workloads with good locality and
+>> > +        * those with random accesses as well.
+>> > +        */
+>> > +       int idx = (addr >> PAGE_SHIFT) & 3;
+>> > +       current->vmacache[idx] = newvma;
+>> > +}
+>>
+>> I did read the previous discussion about how to compute idx here. I
+>> did not at the time realize that you are searching all 4 vmacache
+>> entries on lookup - that is, we are only talking about eviction policy
+>> here, not a lookup hash policy.
+>
+> Right.
+>
+>> My understanding is that the reason both your current and your
+>> previous idx computations work, is that a random eviction policy would
+>> work too. Basically, what you do is pick some address bits that are
+>> 'random enough' to use as an eviction policy.
+>
+> What do you mean by random enough? I assume that would be something like
+> my original scheme were I used the last X bits of the offset within the
+> page.
+
+What I mean is that if you used a per-thread random number generator
+to compute idx, such as prandom_u32_state() for example, you'd get
+nice enough results already - after all, random eviction is not that
+bad. So, my hunch is that the particular way you compute idx based on
+the address works not because it catches on some particular property
+of the access patterns, but just because the sequence of indexes it
+ends up generating is as good as a random one.
+
+>> This is more of a question for Linus, but I am very surprised that I
+>> can't find an existing LRU eviction policy scheme in Linux. What I
+>> have in mind is to keep track of the order the cache entries have last
+>> been used. With 4 entries, there are 4! = 24 possible orders, which
+>> can be represented with an integer between 0 and 23. When
+>> vmacache_find suceeds, that integer is updated using a table lookup
+>> (table takes 24*4 = 96 bytes). In vmacache_update, the lru value
+>> module 4 indicates which cache way to evict (i.e. it's the one that's
+>> been least recently used).
+>
+> While not completely related, I did play with a mod 4 hashing scheme
+> before I got to the one I'm proposing now. It was just not as effective.
+
+I believe you mean using idx = addr % 4 ? I can see that this wouldn't
+work well, because index 0 would be chosen way too often (i.e. any
+time the address is aligned, or the first access into a given page is
+from reading a byte stream that crosses into it, etc).
+
+But, what I propose above is entirely different, it is just picking
+whatever cache index was least recently used for lookups. In this
+context, the 'modulo 4' is only an implementation detail of how I
+propose we track LRU order between the 4 cache slots.
+
+By the way, I'm happy enough with your patch going in with your
+proposed eviction scheme; LRU eviction is a refinement that is best
+done as a separate patch. It just came up because I think it would be
+applicable here.
+
+-- 
+Michel "Walken" Lespinasse
+A program is never fully debugged until the last user dies.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
