@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f181.google.com (mail-lb0-f181.google.com [209.85.217.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 274E06B00AF
+Received: from mail-lb0-f170.google.com (mail-lb0-f170.google.com [209.85.217.170])
+	by kanga.kvack.org (Postfix) with ESMTP id C7F9E6B00B1
 	for <linux-mm@kvack.org>; Wed, 26 Feb 2014 10:05:43 -0500 (EST)
-Received: by mail-lb0-f181.google.com with SMTP id c11so699552lbj.26
-        for <linux-mm@kvack.org>; Wed, 26 Feb 2014 07:05:42 -0800 (PST)
+Received: by mail-lb0-f170.google.com with SMTP id s7so718528lbd.29
+        for <linux-mm@kvack.org>; Wed, 26 Feb 2014 07:05:43 -0800 (PST)
 Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id w9si1818087laj.103.2014.02.26.07.05.40
+        by mx.google.com with ESMTPS id w9si1818141laj.103.2014.02.26.07.05.41
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 26 Feb 2014 07:05:41 -0800 (PST)
+        Wed, 26 Feb 2014 07:05:42 -0800 (PST)
 From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH -mm 10/12] memcg: kill GFP_KMEMCG and stuff
-Date: Wed, 26 Feb 2014 19:05:15 +0400
-Message-ID: <2d22758b4cfea1eff247a65bb26f6179674ed6dc.1393423762.git.vdavydov@parallels.com>
+Subject: [PATCH -mm 11/12] memcg: reparent slab on css offline
+Date: Wed, 26 Feb 2014 19:05:16 +0400
+Message-ID: <20e062a78ca90aac93ea108bae074e49f37e9b52.1393423762.git.vdavydov@parallels.com>
 In-Reply-To: <cover.1393423762.git.vdavydov@parallels.com>
 References: <cover.1393423762.git.vdavydov@parallels.com>
 MIME-Version: 1.0
@@ -22,380 +22,498 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
 Cc: hannes@cmpxchg.org, mhocko@suse.cz, glommer@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, devel@openvz.org
 
-No one uses it any more. Just get rid of it.
+Currently we take a css reference per each memcg cache. This is simple,
+but extremely ugly - a memcg will hang around after its death until it
+has any charges. Moreover, there are some clashes with the design
+principles the cgroup subsystems implies.
+
+However, there is nothing that prevents us from reparenting kmem charges
+just like we do with user pages. Moreover, it is much easier to
+implement: we already keep all memcg caches on a list, so all we have to
+do is walk over the list and move the caches to the parent cgroup's list
+changing the memcg ptr in the meanwhile. If somebody frees an object to
+a cache being reparented, he might see a pointer to the old memcg, but
+that's OK, we only need to use RCU to protect against use-after-free.
+Let's just do it.
 
 Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
 Cc: Johannes Weiner <hannes@cmpxchg.org>
 Cc: Michal Hocko <mhocko@suse.cz>
 Cc: Glauber Costa <glommer@gmail.com>
 ---
- include/linux/gfp.h             |    5 --
- include/linux/memcontrol.h      |   90 ----------------------------
- include/trace/events/gfpflags.h |    1 -
- mm/memcontrol.c                 |  125 ---------------------------------------
- mm/page_alloc.c                 |   35 -----------
- 5 files changed, 256 deletions(-)
+ mm/memcontrol.c |  306 ++++++++++++++++++++++++++++++++++---------------------
+ 1 file changed, 189 insertions(+), 117 deletions(-)
 
-diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-index 39b81dc7d01a..e37b662cd869 100644
---- a/include/linux/gfp.h
-+++ b/include/linux/gfp.h
-@@ -31,7 +31,6 @@ struct vm_area_struct;
- #define ___GFP_HARDWALL		0x20000u
- #define ___GFP_THISNODE		0x40000u
- #define ___GFP_RECLAIMABLE	0x80000u
--#define ___GFP_KMEMCG		0x100000u
- #define ___GFP_NOTRACK		0x200000u
- #define ___GFP_NO_KSWAPD	0x400000u
- #define ___GFP_OTHER_NODE	0x800000u
-@@ -91,7 +90,6 @@ struct vm_area_struct;
- 
- #define __GFP_NO_KSWAPD	((__force gfp_t)___GFP_NO_KSWAPD)
- #define __GFP_OTHER_NODE ((__force gfp_t)___GFP_OTHER_NODE) /* On behalf of other node */
--#define __GFP_KMEMCG	((__force gfp_t)___GFP_KMEMCG) /* Allocation comes from a memcg-accounted resource */
- #define __GFP_WRITE	((__force gfp_t)___GFP_WRITE)	/* Allocator intends to dirty page */
- 
- /*
-@@ -372,9 +370,6 @@ extern void free_pages(unsigned long addr, unsigned int order);
- extern void free_hot_cold_page(struct page *page, int cold);
- extern void free_hot_cold_page_list(struct list_head *list, int cold);
- 
--extern void __free_memcg_kmem_pages(struct page *page, unsigned int order);
--extern void free_memcg_kmem_pages(unsigned long addr, unsigned int order);
--
- #define __free_page(page) __free_pages((page), 0)
- #define free_page(addr) free_pages((addr), 0)
- 
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index 3f0ff043ba94..f6fa5726b1a7 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -490,12 +490,6 @@ static inline bool memcg_kmem_enabled(void)
-  * conditions, but because they are pretty simple, they are expected to be
-  * fast.
-  */
--bool __memcg_kmem_newpage_charge(gfp_t gfp, struct mem_cgroup **memcg,
--					int order);
--void __memcg_kmem_commit_charge(struct page *page,
--				       struct mem_cgroup *memcg, int order);
--void __memcg_kmem_uncharge_pages(struct page *page, int order);
--
- struct kmem_cache *__memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp);
- int __memcg_kmem_charge_slab(struct kmem_cache *s, gfp_t gfp, int nr_pages);
- void __memcg_kmem_uncharge_slab(struct kmem_cache *s, int nr_pages);
-@@ -516,75 +510,6 @@ void memcg_update_array_size(int num_groups);
- void kmem_cache_destroy_memcg_children(struct kmem_cache *s);
- 
- /**
-- * memcg_kmem_newpage_charge: verify if a new kmem allocation is allowed.
-- * @gfp: the gfp allocation flags.
-- * @memcg: a pointer to the memcg this was charged against.
-- * @order: allocation order.
-- *
-- * returns true if the memcg where the current task belongs can hold this
-- * allocation.
-- *
-- * We return true automatically if this allocation is not to be accounted to
-- * any memcg.
-- */
--static inline bool
--memcg_kmem_newpage_charge(gfp_t gfp, struct mem_cgroup **memcg, int order)
--{
--	if (!memcg_kmem_enabled())
--		return true;
--
--	/*
--	 * __GFP_NOFAIL allocations will move on even if charging is not
--	 * possible. Therefore we don't even try, and have this allocation
--	 * unaccounted. We could in theory charge it with
--	 * res_counter_charge_nofail, but we hope those allocations are rare,
--	 * and won't be worth the trouble.
--	 */
--	if (!(gfp & __GFP_KMEMCG) || (gfp & __GFP_NOFAIL))
--		return true;
--	if (in_interrupt() || (!current->mm) || (current->flags & PF_KTHREAD))
--		return true;
--
--	/* If the test is dying, just let it go. */
--	if (unlikely(fatal_signal_pending(current)))
--		return true;
--
--	return __memcg_kmem_newpage_charge(gfp, memcg, order);
--}
--
--/**
-- * memcg_kmem_uncharge_pages: uncharge pages from memcg
-- * @page: pointer to struct page being freed
-- * @order: allocation order.
-- *
-- * there is no need to specify memcg here, since it is embedded in page_cgroup
-- */
--static inline void
--memcg_kmem_uncharge_pages(struct page *page, int order)
--{
--	if (memcg_kmem_enabled())
--		__memcg_kmem_uncharge_pages(page, order);
--}
--
--/**
-- * memcg_kmem_commit_charge: embeds correct memcg in a page
-- * @page: pointer to struct page recently allocated
-- * @memcg: the memcg structure we charged against
-- * @order: allocation order.
-- *
-- * Needs to be called after memcg_kmem_newpage_charge, regardless of success or
-- * failure of the allocation. if @page is NULL, this function will revert the
-- * charges. Otherwise, it will commit the memcg given by @memcg to the
-- * corresponding page_cgroup.
-- */
--static inline void
--memcg_kmem_commit_charge(struct page *page, struct mem_cgroup *memcg, int order)
--{
--	if (memcg_kmem_enabled() && memcg)
--		__memcg_kmem_commit_charge(page, memcg, order);
--}
--
--/**
-  * memcg_kmem_get_cache: selects the correct per-memcg cache for allocation
-  * @cachep: the original global kmem cache
-  * @gfp: allocation flags.
-@@ -627,21 +552,6 @@ static inline bool memcg_kmem_enabled(void)
- 	return false;
- }
- 
--static inline bool
--memcg_kmem_newpage_charge(gfp_t gfp, struct mem_cgroup **memcg, int order)
--{
--	return true;
--}
--
--static inline void memcg_kmem_uncharge_pages(struct page *page, int order)
--{
--}
--
--static inline void
--memcg_kmem_commit_charge(struct page *page, struct mem_cgroup *memcg, int order)
--{
--}
--
- static inline int memcg_cache_id(struct mem_cgroup *memcg)
- {
- 	return -1;
-diff --git a/include/trace/events/gfpflags.h b/include/trace/events/gfpflags.h
-index 1eddbf1557f2..d6fd8e5b14b7 100644
---- a/include/trace/events/gfpflags.h
-+++ b/include/trace/events/gfpflags.h
-@@ -34,7 +34,6 @@
- 	{(unsigned long)__GFP_HARDWALL,		"GFP_HARDWALL"},	\
- 	{(unsigned long)__GFP_THISNODE,		"GFP_THISNODE"},	\
- 	{(unsigned long)__GFP_RECLAIMABLE,	"GFP_RECLAIMABLE"},	\
--	{(unsigned long)__GFP_KMEMCG,		"GFP_KMEMCG"},		\
- 	{(unsigned long)__GFP_MOVABLE,		"GFP_MOVABLE"},		\
- 	{(unsigned long)__GFP_NOTRACK,		"GFP_NOTRACK"},		\
- 	{(unsigned long)__GFP_NO_KSWAPD,	"GFP_NO_KSWAPD"},	\
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index d60080812060..dad455a911d5 100644
+index dad455a911d5..05bde78e14f0 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -3531,131 +3531,6 @@ out:
- 	rcu_read_unlock();
- 	return cachep;
+@@ -383,11 +383,20 @@ struct mem_cgroup {
+ /* internal only representation about the status of kmem accounting. */
+ enum {
+ 	KMEM_ACCOUNTED_ACTIVE, /* accounted by this cgroup itself */
+-	KMEM_ACCOUNTED_DEAD, /* dead memcg with pending kmem charges */
++	KMEM_ACCOUNTED_REPARENTED, /* has reparented caches */
+ };
+ 
+ #ifdef CONFIG_MEMCG_KMEM
+-static inline void memcg_kmem_set_active(struct mem_cgroup *memcg)
++/*
++ * mem_cgroup::slab_caches_mutex nesting subclasses:
++ */
++enum memcg_slab_mutex_class
++{
++	MEMCG_SLAB_MUTEX_PARENT,
++	MEMCG_SLAB_MUTEX_CHILD,
++};
++
++static void memcg_kmem_set_active(struct mem_cgroup *memcg)
+ {
+ 	set_bit(KMEM_ACCOUNTED_ACTIVE, &memcg->kmem_account_flags);
  }
--EXPORT_SYMBOL(__memcg_kmem_get_cache);
--
--/*
-- * We need to verify if the allocation against current->mm->owner's memcg is
-- * possible for the given order. But the page is not allocated yet, so we'll
-- * need a further commit step to do the final arrangements.
-- *
-- * It is possible for the task to switch cgroups in this mean time, so at
-- * commit time, we can't rely on task conversion any longer.  We'll then use
-- * the handle argument to return to the caller which cgroup we should commit
-- * against. We could also return the memcg directly and avoid the pointer
-- * passing, but a boolean return value gives better semantics considering
-- * the compiled-out case as well.
-- *
-- * Returning true means the allocation is possible.
-- */
--bool
--__memcg_kmem_newpage_charge(gfp_t gfp, struct mem_cgroup **_memcg, int order)
--{
--	struct mem_cgroup *memcg;
--	int ret;
--
--	*_memcg = NULL;
--
+@@ -397,21 +406,14 @@ static bool memcg_kmem_is_active(struct mem_cgroup *memcg)
+ 	return test_bit(KMEM_ACCOUNTED_ACTIVE, &memcg->kmem_account_flags);
+ }
+ 
+-static void memcg_kmem_mark_dead(struct mem_cgroup *memcg)
++static void memcg_kmem_set_reparented(struct mem_cgroup *memcg)
+ {
 -	/*
--	 * Disabling accounting is only relevant for some specific memcg
--	 * internal allocations. Therefore we would initially not have such
--	 * check here, since direct calls to the page allocator that are marked
--	 * with GFP_KMEMCG only happen outside memcg core. We are mostly
--	 * concerned with cache allocations, and by having this test at
--	 * memcg_kmem_get_cache, we are already able to relay the allocation to
--	 * the root cache and bypass the memcg cache altogether.
--	 *
--	 * There is one exception, though: the SLUB allocator does not create
--	 * large order caches, but rather service large kmallocs directly from
--	 * the page allocator. Therefore, the following sequence when backed by
--	 * the SLUB allocator:
--	 *
--	 *	memcg_stop_kmem_account();
--	 *	kmalloc(<large_number>)
--	 *	memcg_resume_kmem_account();
--	 *
--	 * would effectively ignore the fact that we should skip accounting,
--	 * since it will drive us directly to this function without passing
--	 * through the cache selector memcg_kmem_get_cache. Such large
--	 * allocations are extremely rare but can happen, for instance, for the
--	 * cache arrays. We bring this test here.
+-	 * Our caller must use css_get() first, because memcg_uncharge_kmem()
+-	 * will call css_put() if it sees the memcg is dead.
 -	 */
--	if (!current->mm || current->memcg_kmem_skip_account)
--		return true;
--
--	memcg = try_get_mem_cgroup_from_mm(current->mm);
--
+-	smp_wmb();
+-	if (test_bit(KMEM_ACCOUNTED_ACTIVE, &memcg->kmem_account_flags))
+-		set_bit(KMEM_ACCOUNTED_DEAD, &memcg->kmem_account_flags);
++	set_bit(KMEM_ACCOUNTED_REPARENTED, &memcg->kmem_account_flags);
+ }
+ 
+-static bool memcg_kmem_test_and_clear_dead(struct mem_cgroup *memcg)
++static bool memcg_kmem_is_reparented(struct mem_cgroup *memcg)
+ {
+-	return test_and_clear_bit(KMEM_ACCOUNTED_DEAD,
+-				  &memcg->kmem_account_flags);
++	return test_bit(KMEM_ACCOUNTED_REPARENTED, &memcg->kmem_account_flags);
+ }
+ #endif
+ 
+@@ -656,11 +658,6 @@ static void disarm_kmem_keys(struct mem_cgroup *memcg)
+ 		static_key_slow_dec(&memcg_kmem_enabled_key);
+ 		ida_simple_remove(&kmem_limited_groups, memcg->kmemcg_id);
+ 	}
 -	/*
--	 * very rare case described in mem_cgroup_from_task. Unfortunately there
--	 * isn't much we can do without complicating this too much, and it would
--	 * be gfp-dependent anyway. Just let it go
+-	 * This check can't live in kmem destruction function,
+-	 * since the charges will outlive the cgroup
 -	 */
--	if (unlikely(!memcg))
--		return true;
--
--	if (!memcg_can_account_kmem(memcg)) {
+-	WARN_ON(res_counter_read_u64(&memcg->kmem, RES_USAGE) != 0);
+ }
+ #else
+ static void disarm_kmem_keys(struct mem_cgroup *memcg)
+@@ -3040,36 +3037,48 @@ static void memcg_uncharge_kmem(struct mem_cgroup *memcg, u64 size)
+ 	res_counter_uncharge(&memcg->res, size);
+ 	if (do_swap_account)
+ 		res_counter_uncharge(&memcg->memsw, size);
++	res_counter_uncharge(&memcg->kmem, size);
++}
+ 
+-	/* Not down to 0 */
+-	if (res_counter_uncharge(&memcg->kmem, size))
+-		return;
++static struct mem_cgroup *try_get_mem_cgroup_from_slab(struct kmem_cache *s)
++{
++	struct mem_cgroup *memcg;
+ 
+-	/*
+-	 * Releases a reference taken in kmem_cgroup_css_offline in case
+-	 * this last uncharge is racing with the offlining code or it is
+-	 * outliving the memcg existence.
+-	 *
+-	 * The memory barrier imposed by test&clear is paired with the
+-	 * explicit one in memcg_kmem_mark_dead().
+-	 */
+-	if (memcg_kmem_test_and_clear_dead(memcg))
 -		css_put(&memcg->css);
--		return true;
--	}
--
--	ret = memcg_charge_kmem(memcg, gfp, PAGE_SIZE << order);
--	if (!ret)
--		*_memcg = memcg;
--
--	css_put(&memcg->css);
--	return (ret == 0);
--}
--
--void __memcg_kmem_commit_charge(struct page *page, struct mem_cgroup *memcg,
--			      int order)
--{
--	struct page_cgroup *pc;
--
--	VM_BUG_ON(mem_cgroup_is_root(memcg));
--
--	/* The page allocation failed. Revert */
--	if (!page) {
--		memcg_uncharge_kmem(memcg, PAGE_SIZE << order);
--		return;
--	}
--
--	pc = lookup_page_cgroup(page);
--	lock_page_cgroup(pc);
--	pc->mem_cgroup = memcg;
--	SetPageCgroupUsed(pc);
--	unlock_page_cgroup(pc);
--}
--
--void __memcg_kmem_uncharge_pages(struct page *page, int order)
--{
--	struct mem_cgroup *memcg = NULL;
--	struct page_cgroup *pc;
--
--
--	pc = lookup_page_cgroup(page);
--	/*
--	 * Fast unlocked return. Theoretically might have changed, have to
--	 * check again after locking.
--	 */
--	if (!PageCgroupUsed(pc))
--		return;
--
--	lock_page_cgroup(pc);
--	if (PageCgroupUsed(pc)) {
--		memcg = pc->mem_cgroup;
--		ClearPageCgroupUsed(pc);
--	}
--	unlock_page_cgroup(pc);
--
--	/*
--	 * We trust that only if there is a memcg associated with the page, it
--	 * is a valid allocation
--	 */
--	if (!memcg)
--		return;
--
--	VM_BUG_ON_PAGE(mem_cgroup_is_root(memcg), page);
--	memcg_uncharge_kmem(memcg, PAGE_SIZE << order);
--}
++	if (is_root_cache(s))
++		return NULL;
++
++	rcu_read_lock();
++	do {
++		memcg = s->memcg_params->memcg;
++		if (!memcg)
++			break;
++	} while (!css_tryget(&memcg->css));
++	rcu_read_unlock();
++	return memcg;
+ }
  
- static void __init memcg_kmem_init(void)
+ int __memcg_kmem_charge_slab(struct kmem_cache *s, gfp_t gfp, int nr_pages)
  {
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 9d6892c3527d..a7acceb00770 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2717,7 +2717,6 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
- 	int migratetype = allocflags_to_migratetype(gfp_mask);
- 	unsigned int cpuset_mems_cookie;
- 	int alloc_flags = ALLOC_WMARK_LOW|ALLOC_CPUSET;
--	struct mem_cgroup *memcg = NULL;
+-	if (is_root_cache(s))
+-		return 0;
+-	return memcg_charge_kmem(s->memcg_params->memcg,
+-				 gfp, nr_pages << PAGE_SHIFT);
++	struct mem_cgroup *memcg;
++	int ret = 0;
++
++	memcg = try_get_mem_cgroup_from_slab(s);
++	if (memcg) {
++		ret = memcg_charge_kmem(memcg, gfp, nr_pages << PAGE_SHIFT);
++		css_put(&memcg->css);
++	}
++	return ret;
+ }
  
- 	gfp_mask &= gfp_allowed_mask;
- 
-@@ -2736,13 +2735,6 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
- 	if (unlikely(!zonelist->_zonerefs->zone))
- 		return NULL;
- 
--	/*
--	 * Will only have any effect when __GFP_KMEMCG is set.  This is
--	 * verified in the (always inline) callee
--	 */
--	if (!memcg_kmem_newpage_charge(gfp_mask, &memcg, order))
--		return NULL;
--
- retry_cpuset:
- 	cpuset_mems_cookie = read_mems_allowed_begin();
- 
-@@ -2785,8 +2777,6 @@ out:
- 	if (unlikely(!page && read_mems_allowed_retry(cpuset_mems_cookie)))
- 		goto retry_cpuset;
- 
--	memcg_kmem_commit_charge(page, memcg, order);
--
- 	if (page)
- 		set_page_owner(page, order, gfp_mask);
- 
-@@ -2842,31 +2832,6 @@ void free_pages(unsigned long addr, unsigned int order)
- 
- EXPORT_SYMBOL(free_pages);
- 
--/*
-- * __free_memcg_kmem_pages and free_memcg_kmem_pages will free
-- * pages allocated with __GFP_KMEMCG.
-- *
-- * Those pages are accounted to a particular memcg, embedded in the
-- * corresponding page_cgroup. To avoid adding a hit in the allocator to search
-- * for that information only to find out that it is NULL for users who have no
-- * interest in that whatsoever, we provide these functions.
-- *
-- * The caller knows better which flags it relies on.
-- */
--void __free_memcg_kmem_pages(struct page *page, unsigned int order)
--{
--	memcg_kmem_uncharge_pages(page, order);
--	__free_pages(page, order);
--}
--
--void free_memcg_kmem_pages(unsigned long addr, unsigned int order)
--{
--	if (addr != 0) {
--		VM_BUG_ON(!virt_addr_valid((void *)addr));
--		__free_memcg_kmem_pages(virt_to_page((void *)addr), order);
--	}
--}
--
- static void *make_alloc_exact(unsigned long addr, unsigned order, size_t size)
+ void __memcg_kmem_uncharge_slab(struct kmem_cache *s, int nr_pages)
  {
- 	if (addr) {
+-	if (is_root_cache(s))
+-		return;
+-	memcg_uncharge_kmem(s->memcg_params->memcg, nr_pages << PAGE_SHIFT);
++	struct mem_cgroup *memcg;
++
++	memcg = try_get_mem_cgroup_from_slab(s);
++	if (memcg) {
++		memcg_uncharge_kmem(memcg, nr_pages << PAGE_SHIFT);
++		css_put(&memcg->css);
++	}
+ }
+ 
+ /*
+@@ -3214,7 +3223,6 @@ int memcg_alloc_cache_params(struct mem_cgroup *memcg, struct kmem_cache *s,
+ 		INIT_WORK(&s->memcg_params->destroy,
+ 				kmem_cache_destroy_work_func);
+ 		atomic_set(&s->memcg_params->refcount, 1);
+-		css_get(&memcg->css);
+ 	} else {
+ 		s->memcg_params->is_root_cache = true;
+ 		INIT_LIST_HEAD(&s->memcg_params->children);
+@@ -3225,19 +3233,36 @@ int memcg_alloc_cache_params(struct mem_cgroup *memcg, struct kmem_cache *s,
+ 
+ void memcg_free_cache_params(struct kmem_cache *s)
+ {
+-	if (!s->memcg_params)
+-		return;
+-	if (!s->memcg_params->is_root_cache)
+-		css_put(&s->memcg_params->memcg->css);
+ 	kfree(s->memcg_params);
+ }
+ 
+-void memcg_register_cache(struct kmem_cache *s)
++static void __memcg_register_cache(struct kmem_cache *s, struct kmem_cache *root)
+ {
+-	struct kmem_cache *root;
+ 	struct mem_cgroup *memcg;
+ 	int id;
+ 
++	memcg = s->memcg_params->memcg;
++	/*
++	 * Special case: re-registering the cache on __kmem_cache_shutdown()
++	 * failure (see __kmem_cache_destroy()).
++	 */
++	if (!memcg)
++		return;
++
++	id = memcg_cache_id(memcg);
++	BUG_ON(id < 0);
++
++	mutex_lock(&memcg->slab_caches_mutex);
++	BUG_ON(root->memcg_params->memcg_caches[id]);
++	root->memcg_params->memcg_caches[id] = s;
++	list_add(&s->memcg_params->list, &memcg->memcg_slab_caches);
++	mutex_unlock(&memcg->slab_caches_mutex);
++}
++
++void memcg_register_cache(struct kmem_cache *s)
++{
++	struct kmem_cache *root;
++
+ 	if (is_root_cache(s))
+ 		return;
+ 
+@@ -3247,10 +3272,6 @@ void memcg_register_cache(struct kmem_cache *s)
+ 	 */
+ 	lockdep_assert_held(&slab_mutex);
+ 
+-	root = s->memcg_params->root_cache;
+-	memcg = s->memcg_params->memcg;
+-	id = memcg_cache_id(memcg);
+-
+ 	/*
+ 	 * Since readers won't lock (see cache_from_memcg_idx()), we need a
+ 	 * barrier here to ensure nobody will see the kmem_cache partially
+@@ -3258,21 +3279,61 @@ void memcg_register_cache(struct kmem_cache *s)
+ 	 */
+ 	smp_wmb();
+ 
++	root = s->memcg_params->root_cache;
+ 	list_add(&s->memcg_params->siblings, &root->memcg_params->children);
++	__memcg_register_cache(s, root);
+ 
+-	VM_BUG_ON(root->memcg_params->memcg_caches[id]);
+-	root->memcg_params->memcg_caches[id] = s;
++	static_key_slow_inc(&memcg_kmem_enabled_key);
++}
++
++static void __memcg_unregister_cache(struct kmem_cache *s, struct kmem_cache *root)
++{
++	struct mem_cgroup *memcg;
++	int id;
++
++retry:
++	memcg = try_get_mem_cgroup_from_slab(s);
++
++	/*
++	 * This can happen if the cache's memcg was turned offline and it was
++	 * reparented to the root cgroup. In this case the cache must have
++	 * already been properly unregistered so we have nothing to do.
++	 */
++	if (!memcg)
++		return;
+ 
++	id = memcg_cache_id(memcg);
++
++	/*
++	 * To delete a cache from memcg_slab_caches list, we need to take the
++	 * correpsonding slab_caches_mutex. Since nothing prevents the cache
++	 * from being reparented while we are here, we recheck the cache's
++	 * memcg after taking the mutex and retry if it changed.
++	 */
+ 	mutex_lock(&memcg->slab_caches_mutex);
+-	list_add(&s->memcg_params->list, &memcg->memcg_slab_caches);
++	if (memcg != s->memcg_params->memcg) {
++		mutex_unlock(&memcg->slab_caches_mutex);
++		css_put(&memcg->css);
++		goto retry;
++	}
++
++	list_del(&s->memcg_params->list);
++	s->memcg_params->memcg = NULL;
++
++	/*
++	 * Clear the slot in the memcg_caches array only if the cache hasn't
++	 * been reparented before.
++	 */
++	if (id >= 0 && root->memcg_params->memcg_caches[id] == s)
++		root->memcg_params->memcg_caches[id] = NULL;
++
+ 	mutex_unlock(&memcg->slab_caches_mutex);
++	css_put(&memcg->css);
+ }
+ 
+ void memcg_unregister_cache(struct kmem_cache *s)
+ {
+ 	struct kmem_cache *root;
+-	struct mem_cgroup *memcg;
+-	int id;
+ 
+ 	if (is_root_cache(s))
+ 		return;
+@@ -3284,17 +3345,10 @@ void memcg_unregister_cache(struct kmem_cache *s)
+ 	lockdep_assert_held(&slab_mutex);
+ 
+ 	root = s->memcg_params->root_cache;
+-	memcg = s->memcg_params->memcg;
+-	id = memcg_cache_id(memcg);
+-
+ 	list_del(&s->memcg_params->siblings);
++	__memcg_unregister_cache(s, root);
+ 
+-	mutex_lock(&memcg->slab_caches_mutex);
+-	list_del(&s->memcg_params->list);
+-	mutex_unlock(&memcg->slab_caches_mutex);
+-
+-	VM_BUG_ON(root->memcg_params->memcg_caches[id] != s);
+-	root->memcg_params->memcg_caches[id] = NULL;
++	static_key_slow_dec(&memcg_kmem_enabled_key);
+ }
+ 
+ /*
+@@ -3338,7 +3392,7 @@ static void kmem_cache_destroy_work_func(struct work_struct *w)
+ 
+ 	if (atomic_read(&params->refcount) != 0) {
+ 		/*
+-		 * We were scheduled from mem_cgroup_destroy_all_caches().
++		 * We were scheduled from mem_cgroup_reparent_slab().
+ 		 * Shrink the cache and drop the reference taken by memcg.
+ 		 */
+ 		kmem_cache_shrink(cachep);
+@@ -3381,11 +3435,56 @@ void kmem_cache_destroy_memcg_children(struct kmem_cache *s)
+ 	mutex_unlock(&activate_kmem_mutex);
+ }
+ 
+-static void mem_cgroup_destroy_all_caches(struct mem_cgroup *memcg)
++static void mem_cgroup_reparent_one_slab(struct kmem_cache *cachep,
++		struct mem_cgroup *from, struct mem_cgroup *to)
+ {
++	struct kmem_cache *root;
++	int id;
++
++	root = cachep->memcg_params->root_cache;
++
++	if (to)
++		list_move(&cachep->memcg_params->list, &to->memcg_slab_caches);
++	else
++		list_del(&cachep->memcg_params->list);
++
++	BUG_ON(cachep->memcg_params->memcg != from);
++	cachep->memcg_params->memcg = to;
++
++	/*
++	 * We may access the cachep->memcg_params->memcg ptr lock-free so we
++	 * have to make sure readers will see the new value before the final
++	 * css put.
++	 */
++	smp_wmb();
++
++	/*
++	 * If the cache has already been reparented we are done here. Otherwise
++	 * we clear the reference to it in the memcg_caches array and schedule
++	 * shrink work.
++	 */
++	id = memcg_cache_id(from);
++	if (id < 0 || root->memcg_params->memcg_caches[id] != cachep)
++		return;
++
++	root->memcg_params->memcg_caches[id] = NULL;
++
++	/*
++	 * The work could not be scheduled from memcg_release_pages(), because
++	 * we haven't dropped cachep->memcg_params->refcount yet. That's why we
++	 * cannot fail here.
++	 */
++	if (!schedule_work(&cachep->memcg_params->destroy))
++		BUG();
++}
++
++static void mem_cgroup_reparent_slab(struct mem_cgroup *memcg)
++{
++	struct mem_cgroup *parent;
+ 	struct memcg_cache_params *params;
+ 
+-	if (!memcg_kmem_is_active(memcg))
++	if (!memcg_kmem_is_active(memcg) &&
++	    !memcg_kmem_is_reparented(memcg))
+ 		return;
+ 
+ 	/*
+@@ -3397,17 +3496,30 @@ static void mem_cgroup_destroy_all_caches(struct mem_cgroup *memcg)
+ 	 */
+ 	flush_workqueue(memcg_cache_create_wq);
+ 
+-	mutex_lock(&memcg->slab_caches_mutex);
+-	list_for_each_entry(params, &memcg->memcg_slab_caches, list) {
+-		/*
+-		 * Since we still hold the reference to the cache params from
+-		 * the memcg, the work could not have been scheduled from
+-		 * memcg_release_pages(), and this cannot fail.
+-		 */
+-		if (!schedule_work(&params->destroy))
+-			BUG();
++	/*
++	 * We are going to modify memcg_caches arrays, so we have to protect
++	 * them against relocating.
++	 */
++	mutex_lock(&activate_kmem_mutex);
++
++	parent = parent_mem_cgroup(memcg);
++	if (parent)
++		mutex_lock_nested(&parent->slab_caches_mutex,
++				  MEMCG_SLAB_MUTEX_PARENT);
++	mutex_lock_nested(&memcg->slab_caches_mutex, MEMCG_SLAB_MUTEX_CHILD);
++	while (!list_empty(&memcg->memcg_slab_caches)) {
++		params = list_first_entry(&memcg->memcg_slab_caches,
++					  struct memcg_cache_params, list);
++		mem_cgroup_reparent_one_slab(params->cachep, memcg, parent);
+ 	}
+ 	mutex_unlock(&memcg->slab_caches_mutex);
++	if (parent)
++		mutex_unlock(&parent->slab_caches_mutex);
++
++	mutex_unlock(&activate_kmem_mutex);
++
++	if (parent)
++		memcg_kmem_set_reparented(parent);
+ }
+ 
+ struct create_work {
+@@ -3538,7 +3650,7 @@ static void __init memcg_kmem_init(void)
+ 	BUG_ON(!memcg_cache_create_wq);
+ }
+ #else
+-static inline void mem_cgroup_destroy_all_caches(struct mem_cgroup *memcg)
++static void mem_cgroup_reparent_slab(struct mem_cgroup *memcg)
+ {
+ }
+ 
+@@ -5752,40 +5864,6 @@ static void memcg_destroy_kmem(struct mem_cgroup *memcg)
+ {
+ 	mem_cgroup_sockets_destroy(memcg);
+ }
+-
+-static void kmem_cgroup_css_offline(struct mem_cgroup *memcg)
+-{
+-	if (!memcg_kmem_is_active(memcg))
+-		return;
+-
+-	/*
+-	 * kmem charges can outlive the cgroup. In the case of slab
+-	 * pages, for instance, a page contain objects from various
+-	 * processes. As we prevent from taking a reference for every
+-	 * such allocation we have to be careful when doing uncharge
+-	 * (see memcg_uncharge_kmem) and here during offlining.
+-	 *
+-	 * The idea is that that only the _last_ uncharge which sees
+-	 * the dead memcg will drop the last reference. An additional
+-	 * reference is taken here before the group is marked dead
+-	 * which is then paired with css_put during uncharge resp. here.
+-	 *
+-	 * Although this might sound strange as this path is called from
+-	 * css_offline() when the referencemight have dropped down to 0
+-	 * and shouldn't be incremented anymore (css_tryget would fail)
+-	 * we do not have other options because of the kmem allocations
+-	 * lifetime.
+-	 */
+-	css_get(&memcg->css);
+-
+-	memcg_kmem_mark_dead(memcg);
+-
+-	if (res_counter_read_u64(&memcg->kmem, RES_USAGE) != 0)
+-		return;
+-
+-	if (memcg_kmem_test_and_clear_dead(memcg))
+-		css_put(&memcg->css);
+-}
+ #else
+ static int memcg_init_kmem(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
+ {
+@@ -5795,10 +5873,6 @@ static int memcg_init_kmem(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
+ static void memcg_destroy_kmem(struct mem_cgroup *memcg)
+ {
+ }
+-
+-static void kmem_cgroup_css_offline(struct mem_cgroup *memcg)
+-{
+-}
+ #endif
+ 
+ /*
+@@ -6406,8 +6480,6 @@ static void mem_cgroup_css_offline(struct cgroup_subsys_state *css)
+ 	}
+ 	spin_unlock(&memcg->event_list_lock);
+ 
+-	kmem_cgroup_css_offline(memcg);
+-
+ 	mem_cgroup_invalidate_reclaim_iterators(memcg);
+ 
+ 	/*
+@@ -6417,7 +6489,7 @@ static void mem_cgroup_css_offline(struct cgroup_subsys_state *css)
+ 	css_for_each_descendant_post(iter, css)
+ 		mem_cgroup_reparent_charges(mem_cgroup_from_css(iter));
+ 
+-	mem_cgroup_destroy_all_caches(memcg);
++	mem_cgroup_reparent_slab(memcg);
+ 	vmpressure_cleanup(&memcg->vmpressure);
+ }
+ 
 -- 
 1.7.10.4
 
