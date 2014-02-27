@@ -1,83 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f51.google.com (mail-qa0-f51.google.com [209.85.216.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 407C16B0073
-	for <linux-mm@kvack.org>; Thu, 27 Feb 2014 11:36:17 -0500 (EST)
-Received: by mail-qa0-f51.google.com with SMTP id j7so4080712qaq.38
-        for <linux-mm@kvack.org>; Thu, 27 Feb 2014 08:36:17 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id mm10si1333884qcb.39.2014.02.27.08.36.16
+Received: from mail-yh0-f48.google.com (mail-yh0-f48.google.com [209.85.213.48])
+	by kanga.kvack.org (Postfix) with ESMTP id B1BED6B0071
+	for <linux-mm@kvack.org>; Thu, 27 Feb 2014 12:23:47 -0500 (EST)
+Received: by mail-yh0-f48.google.com with SMTP id z6so2890432yhz.35
+        for <linux-mm@kvack.org>; Thu, 27 Feb 2014 09:23:47 -0800 (PST)
+Received: from relay.sgi.com (relay1.sgi.com. [192.48.179.29])
+        by mx.google.com with ESMTP id o69si8466877yhb.132.2014.02.27.09.23.46
         for <linux-mm@kvack.org>;
-        Thu, 27 Feb 2014 08:36:16 -0800 (PST)
-Message-ID: <530F697B.1010802@redhat.com>
-Date: Thu, 27 Feb 2014 17:36:11 +0100
-From: Florian Weimer <fweimer@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v6 00/22] Support ext4 on NV-DIMMs
-References: <1393337918-28265-1-git-send-email-matthew.r.wilcox@intel.com> <530F451F.9020107@redhat.com> <20140227162923.GH5744@linux.intel.com>
-In-Reply-To: <20140227162923.GH5744@linux.intel.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+        Thu, 27 Feb 2014 09:23:47 -0800 (PST)
+From: Alex Thorlton <athorlton@sgi.com>
+Subject: [PATCH 2/4] mm, s390: Ignore MADV_HUGEPAGE on s390 to prevent SIGSEGV in qemu
+Date: Thu, 27 Feb 2014 11:23:24 -0600
+Message-Id: <c856e298ae180842638bdf85d74436ad8bbb84e4.1393516106.git.athorlton@sgi.com>
+In-Reply-To: <cover.1393516106.git.athorlton@sgi.com>
+References: <cover.1393516106.git.athorlton@sgi.com>
+In-Reply-To: <cover.1393516106.git.athorlton@sgi.com>
+References: <cover.1393516106.git.athorlton@sgi.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@linux.intel.com>
-Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: linux-kernel@vger.kernel.org
+Cc: Alex Thorlton <athorlton@sgi.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Paolo Bonzini <pbonzini@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Oleg Nesterov <oleg@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Alexander Viro <viro@zeniv.linux.org.uk>, linux390@de.ibm.com, linux-s390@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org
 
-On 02/27/2014 05:29 PM, Matthew Wilcox wrote:
+As Christian pointed out, the recent 'Revert "thp: make MADV_HUGEPAGE
+check for mm->def_flags"' breaks qemu, it does QEMU_MADV_HUGEPAGE for
+all kvm pages but this doesn't work after s390_enable_sie/thp_split_mm.
 
->> Some distributions use udisks2 to grant permission to local console
->> users to create new loop devices from files.  File systems on these
->> block devices are then mounted.  This is a replacement for several
->> file systems implemented in user space, and for the users, this is a
->> good thing because the in-kernel implementations are generally of
->> higher quality.
->
-> Just to be sure I understand; the user owns the file (so can change any
-> bit in it at will), and the loop device is used to present that file
-> to the filesystem as a block device to be mounted?
+Paolo suggested that instead of failing on the call to madvise, we
+simply ignore the call (return 0).
 
-Yes, that's a fair summary.
+Reported-by: Christian Borntraeger <borntraeger@de.ibm.com>
+Suggested-by: Paolo Bonzini <pbonzini@redhat.com>
+Suggested-by: Oleg Nesterov <oleg@redhat.com>
+Signed-off-by: Alex Thorlton <athorlton@sgi.com>
+Cc: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
+Cc: Christian Borntraeger <borntraeger@de.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Paolo Bonzini <pbonzini@redhat.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Ingo Molnar <mingo@kernel.org>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Oleg Nesterov <oleg@redhat.com>
+Cc: "Eric W. Biederman" <ebiederm@xmission.com>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>
+Cc: linux390@de.ibm.com
+Cc: linux-s390@vger.kernel.org
+Cc: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org
+Cc: linux-api@vger.kernel.org
 
- > Have we fuzz-tested
-> all the filesystems enough to be sure that's safe?  :-)
+---
+ mm/huge_memory.c | 9 +++++++++
+ 1 file changed, 9 insertions(+)
 
-It raised some eyebrows.  But I've looked at some of the userspace 
-alternatives, and I can see why we ended up with this.
-
->> What happens if we have DAX support in the entire stack, and an
->> enterprising user mounts a file system?  Will she be able to fuzz
->> the file system or binfmt loaders concurrently, changing the bits
->> while they are being read?
->>
->> Currently, it appears that the loop device duplicates pages in the
->> page cache, so this does not seem to be possible, but DAX support
->> might change this.
->
-> I haven't looked at adding DAX support to the loop device, although
-> that would make sense.  At the moment, neither ext2 nor ext4 (our only
-> DAX-supporting filesystems) use DAX for their metadata, only for user
-> data.  As far as fuzzing the binfmt loaders ... are these filesystems not
-> forced to be at least nosuid?
-
-The kernel binfmt parser runs as root even without a SUID bit. :)
-
- > I might go so far as to make them noexec.
-
-Oh, that's an interesting idea.
-
-> Thanks for thinking about this.  I didn't know allowing users to mount
-> files they owned was something distros actually did.  Have we considered
-> prohibiting the user from modifying the file while it's mounted, eg
-> forcing its permissions to 0 or pretending it's immutable?
-
-Perhaps like "Text file busy" for executables?  How reliable is that in 
-practice?
-
-Changing file permissions doesn't affected already open descriptors and 
-might not always be possible (the file system might be mounted 
-read-only, but still be modifiable beneath).
-
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index a4310a5..61d234d 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1970,6 +1970,15 @@ int hugepage_madvise(struct vm_area_struct *vma,
+ {
+ 	switch (advice) {
+ 	case MADV_HUGEPAGE:
++#ifdef CONFIG_S390
++		/*
++		 * qemu blindly sets MADV_HUGEPAGE on all allocations, but s390
++		 * can't handle this properly after s390_enable_sie, so we simply
++		 * ignore the madvise to prevent qemu from causing a SIGSEGV.
++		 */
++		if (mm_has_pgste(vma->vm_mm))
++			return 0;
++#endif
+ 		/*
+ 		 * Be somewhat over-protective like KSM for now!
+ 		 */
 -- 
-Florian Weimer / Red Hat Product Security Team
+1.7.12.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
