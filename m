@@ -1,68 +1,144 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ve0-f180.google.com (mail-ve0-f180.google.com [209.85.128.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 0722F6B0031
-	for <linux-mm@kvack.org>; Thu, 27 Feb 2014 16:28:23 -0500 (EST)
-Received: by mail-ve0-f180.google.com with SMTP id jz11so4387585veb.39
-        for <linux-mm@kvack.org>; Thu, 27 Feb 2014 13:28:23 -0800 (PST)
-Received: from mail-ve0-x232.google.com (mail-ve0-x232.google.com [2607:f8b0:400c:c01::232])
-        by mx.google.com with ESMTPS id cx4si1689389vcb.5.2014.02.27.13.28.23
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 27 Feb 2014 13:28:23 -0800 (PST)
-Received: by mail-ve0-f178.google.com with SMTP id jy13so4542663veb.9
-        for <linux-mm@kvack.org>; Thu, 27 Feb 2014 13:28:23 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <1393530827-25450-1-git-send-email-kirill.shutemov@linux.intel.com>
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 7B2106B0031
+	for <linux-mm@kvack.org>; Thu, 27 Feb 2014 16:47:14 -0500 (EST)
+Received: by mail-pa0-f44.google.com with SMTP id bj1so3053777pad.31
+        for <linux-mm@kvack.org>; Thu, 27 Feb 2014 13:47:14 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id ey10si564368pab.256.2014.02.27.13.47.13
+        for <linux-mm@kvack.org>;
+        Thu, 27 Feb 2014 13:47:13 -0800 (PST)
+Date: Thu, 27 Feb 2014 13:47:11 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCHv3 2/2] mm: implement ->map_pages for page cache
+Message-Id: <20140227134711.329eb3c385098c8bce37c8d1@linux-foundation.org>
+In-Reply-To: <1393530827-25450-3-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1393530827-25450-1-git-send-email-kirill.shutemov@linux.intel.com>
-Date: Thu, 27 Feb 2014 13:28:22 -0800
-Message-ID: <CA+55aFwOe_m3cfQDGxmcBavhyQTqQQNGvACR4YPLaazM_0oyUw@mail.gmail.com>
-Subject: Re: [PATCHv3 0/2] mm: map few pages around fault address if they are
- in page cache
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8
+	<1393530827-25450-3-git-send-email-kirill.shutemov@linux.intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Dave Chinner <david@fromorbit.com>, Ning Qu <quning@gmail.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Dave Chinner <david@fromorbit.com>, Ning Qu <quning@gmail.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Thu, Feb 27, 2014 at 11:53 AM, Kirill A. Shutemov
-<kirill.shutemov@linux.intel.com> wrote:
-> Here's new version of faultaround patchset. It took a while to tune it and
-> collect performance data.
+On Thu, 27 Feb 2014 21:53:47 +0200 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
 
-Andrew, mind taking this into -mm with my acks? It's based on top of
-Kirill's cleanup patches that I think are also in your tree.
+> filemap_map_pages() is generic implementation of ->map_pages() for
+> filesystems who uses page cache.
+> 
+> It should be safe to use filemap_map_pages() for ->map_pages() if
+> filesystem use filemap_fault() for ->fault().
+> 
+> ...
+>
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -1818,6 +1818,7 @@ extern void truncate_inode_pages_range(struct address_space *,
+>  
+>  /* generic vm_area_ops exported for stackable file systems */
+>  extern int filemap_fault(struct vm_area_struct *, struct vm_fault *);
+> +extern void filemap_map_pages(struct vm_area_struct *vma, struct vm_fault *vmf);
+>  extern int filemap_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf);
+>  
+>  /* mm/page-writeback.c */
+> diff --git a/mm/filemap.c b/mm/filemap.c
+> index 7a13f6ac5421..1bc12a96060d 100644
+> --- a/mm/filemap.c
+> +++ b/mm/filemap.c
+> @@ -33,6 +33,7 @@
+>  #include <linux/hardirq.h> /* for BUG_ON(!in_atomic()) only */
+>  #include <linux/memcontrol.h>
+>  #include <linux/cleancache.h>
+> +#include <linux/rmap.h>
+>  #include "internal.h"
+>  
+>  #define CREATE_TRACE_POINTS
+> @@ -1726,6 +1727,76 @@ page_not_uptodate:
+>  }
+>  EXPORT_SYMBOL(filemap_fault);
+>  
+> +void filemap_map_pages(struct vm_area_struct *vma, struct vm_fault *vmf)
+> +{
+> +	struct radix_tree_iter iter;
+> +	void **slot;
+> +	struct file *file = vma->vm_file;
+> +	struct address_space *mapping = file->f_mapping;
+> +	loff_t size;
+> +	struct page *page;
+> +	unsigned long address = (unsigned long) vmf->virtual_address;
+> +	unsigned long addr;
+> +	pte_t *pte;
+> +
+> +	rcu_read_lock();
+> +	radix_tree_for_each_slot(slot, &mapping->page_tree, &iter, vmf->pgoff) {
+> +		if (iter.index > vmf->max_pgoff)
+> +			break;
+> +repeat:
+> +		page = radix_tree_deref_slot(slot);
+> +		if (radix_tree_exception(page)) {
+> +			if (radix_tree_deref_retry(page))
+> +				break;
+> +			else
+> +				goto next;
+> +		}
+> +
+> +		if (!page_cache_get_speculative(page))
+> +			goto repeat;
+> +
+> +		/* Has the page moved? */
+> +		if (unlikely(page != *slot)) {
+> +			page_cache_release(page);
+> +			goto repeat;
+> +		}
+> +
+> +		if (!PageUptodate(page) ||
+> +				PageReadahead(page) ||
+> +				PageHWPoison(page))
+> +			goto skip;
+> +		if (!trylock_page(page))
+> +			goto skip;
+> +
+> +		if (page->mapping != mapping || !PageUptodate(page))
+> +			goto unlock;
+> +
+> +		size = i_size_read(mapping->host) + PAGE_CACHE_SIZE - 1;
 
-Kirill - no complaints from me. I do have two minor issues that you
-might satisfy, but I think the patch is fine as-is.
+Could perhaps use round_up here.
 
-The issues/questions are:
+> +		if (page->index >= size	>> PAGE_CACHE_SHIFT)
+> +			goto unlock;
+> +		pte = vmf->pte + page->index - vmf->pgoff;
+> +		if (!pte_none(*pte))
+> +			goto unlock;
+> +
+> +		if (file->f_ra.mmap_miss > 0)
+> +			file->f_ra.mmap_miss--;
 
- (a) could you test this on a couple of different architectures? Even
-if you just have access to intel machines, testing it across a couple
-of generations of microarchitectures would be good. The reason I say
-that is that from my profiles, it *looks* like the page fault costs
-are relatively higher on Ivybridge/Haswell than on some earlier
-uarchs.
+I'm wondering about this.  We treat every speculative faultahead as a
+hit, whether or not userspace will actually touch that page.
 
-   Now, I may well be wrong about the uarch issue, and maybe I just
-didn't notice it as much before. I've stared at a lot of profiles over
-the years, though, and the page fault cost seems to stand out much
-more than it used to. And don't get me wrong - it might not be because
-Ivy/Haswell is any worse, it might just be that exception performance
-hasn't improved together with some other improvements.
+What's the effect of this?  To cause the amount of physical readahead
+to increase?  But if userspace is in fact touching the file in a sparse
+random fashion, that is exactly the wrong thing to do?
 
- (b) I suspect we should try to strongly discourage filesystems from
-actually using map_pages unless they use the standard
-filemap_map_pages function as-is. Even with the fairly clean
-interface, and forcing people to use "do_set_pte()", I think the docs
-might want to try to more explicitly discourage people from using this
-to do their own hacks..
-
-Hmm? Either way, even without those questions answered, I'm happy with
-how your patches look.
-
-                    Linus
+> +		addr = address + (page->index - vmf->pgoff) * PAGE_SIZE;
+> +		do_set_pte(vma, addr, page, pte, false, false);
+> +		unlock_page(page);
+> +		goto next;
+> +unlock:
+> +		unlock_page(page);
+> +skip:
+> +		page_cache_release(page);
+> +next:
+> +		if (page->index == vmf->max_pgoff)
+> +			break;
+> +	}
+> +	rcu_read_unlock();
+> +}
+> +EXPORT_SYMBOL(filemap_map_pages);
+> +
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
