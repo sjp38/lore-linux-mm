@@ -1,59 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f47.google.com (mail-ee0-f47.google.com [74.125.83.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 42E456B0072
-	for <linux-mm@kvack.org>; Thu, 27 Feb 2014 15:24:41 -0500 (EST)
-Received: by mail-ee0-f47.google.com with SMTP id e49so1716335eek.34
-        for <linux-mm@kvack.org>; Thu, 27 Feb 2014 12:24:40 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id v48si946497een.116.2014.02.27.12.24.38
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 1658B6B0072
+	for <linux-mm@kvack.org>; Thu, 27 Feb 2014 16:03:26 -0500 (EST)
+Received: by mail-pa0-f45.google.com with SMTP id lf10so3008476pab.18
+        for <linux-mm@kvack.org>; Thu, 27 Feb 2014 13:03:25 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id pg1si504185pac.96.2014.02.27.13.03.24
         for <linux-mm@kvack.org>;
-        Thu, 27 Feb 2014 12:24:39 -0800 (PST)
-Message-ID: <530F9EB2.3070800@redhat.com>
-Date: Thu, 27 Feb 2014 15:23:14 -0500
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [patch 1/2] mm: page_alloc: reset aging cycle with GFP_THISNODE
-References: <1393360022-22566-1-git-send-email-hannes@cmpxchg.org> <20140226095422.GY6732@suse.de> <20140226171206.GU6963@cmpxchg.org> <20140226201333.GV6963@cmpxchg.org>
-In-Reply-To: <20140226201333.GV6963@cmpxchg.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+        Thu, 27 Feb 2014 13:03:25 -0800 (PST)
+Date: Thu, 27 Feb 2014 13:03:23 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/3] mm/pagewalk.c: fix end address calculation in
+ walk_page_range()
+Message-Id: <20140227130323.0d4f0a27b4327100805bab02@linux-foundation.org>
+In-Reply-To: <1393475977-3381-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+References: <1393475977-3381-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+	<1393475977-3381-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Stancek <jstancek@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Sasha Levin <sasha.levin@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 02/26/2014 03:13 PM, Johannes Weiner wrote:
+On Wed, 26 Feb 2014 23:39:35 -0500 Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
 
-> Would this be an acceptable replacement for 1/2?
+> When we try to walk over inside a vma, walk_page_range() tries to walk
+> until vma->vm_end even if a given end is before that point.
+> So this patch takes the smaller one as an end address.
+> 
+> ...
+>
+> --- next-20140220.orig/mm/pagewalk.c
+> +++ next-20140220/mm/pagewalk.c
+> @@ -321,8 +321,9 @@ int walk_page_range(unsigned long start, unsigned long end,
+>  			next = vma->vm_start;
+>  		} else { /* inside the found vma */
+>  			walk->vma = vma;
+> -			next = vma->vm_end;
+> -			err = walk_page_test(start, end, walk);
+> +			next = min_t(unsigned long, end, vma->vm_end);
 
-Looks reasonable to me. This should avoid the issues that
-were observed with NUMA migrations.
+min_t is unneeded, isn't it?  Everything here has type unsigned long.
 
-> ---
->
-> From: Johannes Weiner <hannes@cmpxchg.org>
-> Subject: [patch 1/2] mm: page_alloc: exempt GFP_THISNODE allocations from zone
->   fairness
->
-> Jan Stancek reports manual page migration encountering allocation
-> failures after some pages when there is still plenty of memory free,
-> and bisected the problem down to 81c0a2bb515f ("mm: page_alloc: fair
-> zone allocator policy").
->
-> The problem is that GFP_THISNODE obeys the zone fairness allocation
-> batches on one hand, but doesn't reset them and wake kswapd on the
-> other hand.  After a few of those allocations, the batches are
-> exhausted and the allocations fail.
->
-> Fixing this means either having GFP_THISNODE wake up kswapd, or
-> GFP_THISNODE not participating in zone fairness at all.  The latter
-> seems safer as an acute bugfix, we can clean up later.
->
-> Reported-by: Jan Stancek <jstancek@redhat.com>
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: <stable@kernel.org> # 3.12+
+> +			err = walk_page_test(start, next, walk);
+>  			if (skip_lower_level_walking(walk))
+>  				continue;
+>  			if (err)
 
-Acked-by: Rik van Riel <riel@redhat.com>
+I'm assuming this is a fix against
+pagewalk-update-page-table-walker-core.patch and shall eventually be
+folded into that patch.  
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
