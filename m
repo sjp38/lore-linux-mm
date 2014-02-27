@@ -1,45 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f171.google.com (mail-ea0-f171.google.com [209.85.215.171])
-	by kanga.kvack.org (Postfix) with ESMTP id AEE586B006C
-	for <linux-mm@kvack.org>; Wed, 26 Feb 2014 23:39:54 -0500 (EST)
-Received: by mail-ea0-f171.google.com with SMTP id f15so1453645eak.2
-        for <linux-mm@kvack.org>; Wed, 26 Feb 2014 20:39:54 -0800 (PST)
+Received: from mail-ea0-f180.google.com (mail-ea0-f180.google.com [209.85.215.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 985CC6B007B
+	for <linux-mm@kvack.org>; Wed, 26 Feb 2014 23:39:57 -0500 (EST)
+Received: by mail-ea0-f180.google.com with SMTP id m10so1462743eaj.39
+        for <linux-mm@kvack.org>; Wed, 26 Feb 2014 20:39:56 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id c43si6171807eeo.185.2014.02.26.20.39.51
+        by mx.google.com with ESMTP id p44si6207498eeu.131.2014.02.26.20.39.54
         for <linux-mm@kvack.org>;
-        Wed, 26 Feb 2014 20:39:52 -0800 (PST)
+        Wed, 26 Feb 2014 20:39:55 -0800 (PST)
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH 0/3] fixes on page table walker and hugepage rmapping
-Date: Wed, 26 Feb 2014 23:39:34 -0500
-Message-Id: <1393475977-3381-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH 3/3] mm: call vma_adjust_trans_huge() only for thp-enabled vma
+Date: Wed, 26 Feb 2014 23:39:37 -0500
+Message-Id: <1393475977-3381-4-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1393475977-3381-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+References: <1393475977-3381-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Sasha Levin <sasha.levin@oracle.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi,
+vma_adjust() is called also for vma(VM_HUGETLB) and it could happen that
+we happen to try to split hugetlbfs hugepage. So exclude the possibility.
 
-Sasha, could you test if the bug you reported recently [1] reproduces
-on the latest next tree with this patchset? (I'm not sure of this
-because the problem looks differently in my own testing...)
-
-[1] http://thread.gmane.org/gmane.linux.kernel.mm/113374/focus=113
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 ---
-Summary:
+ mm/mmap.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
 
-Naoya Horiguchi (3):
-      mm/pagewalk.c: fix end address calculation in walk_page_range()
-      mm, hugetlbfs: fix rmapping for anonymous hugepages with page_pgoff()
-      mm: call vma_adjust_trans_huge() only for thp-enabled vma
-
- include/linux/pagemap.h | 13 +++++++++++++
- mm/huge_memory.c        |  2 +-
- mm/hugetlb.c            |  5 +++++
- mm/memory-failure.c     |  4 ++--
- mm/mmap.c               |  3 ++-
- mm/pagewalk.c           |  5 +++--
- mm/rmap.c               |  8 ++------
- 7 files changed, 28 insertions(+), 12 deletions(-)
+diff --git next-20140220.orig/mm/mmap.c next-20140220/mm/mmap.c
+index f53397806d7f..45a9c0d51e3f 100644
+--- next-20140220.orig/mm/mmap.c
++++ next-20140220/mm/mmap.c
+@@ -772,7 +772,8 @@ again:			remove_next = 1 + (end > next->vm_end);
+ 		}
+ 	}
+ 
+-	vma_adjust_trans_huge(vma, start, end, adjust_next);
++	if (transparent_hugepage_enabled(vma))
++		vma_adjust_trans_huge(vma, start, end, adjust_next);
+ 
+ 	anon_vma = vma->anon_vma;
+ 	if (!anon_vma && adjust_next)
+-- 
+1.8.5.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
