@@ -1,100 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f46.google.com (mail-la0-f46.google.com [209.85.215.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F5096B0068
-	for <linux-mm@kvack.org>; Thu, 27 Feb 2014 21:54:55 -0500 (EST)
-Received: by mail-la0-f46.google.com with SMTP id hr17so2280969lab.5
-        for <linux-mm@kvack.org>; Thu, 27 Feb 2014 18:54:55 -0800 (PST)
-Received: from mail-la0-x233.google.com (mail-la0-x233.google.com [2a00:1450:4010:c03::233])
-        by mx.google.com with ESMTPS id z2si8629532lal.136.2014.02.27.18.54.53
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 27 Feb 2014 18:54:54 -0800 (PST)
-Received: by mail-la0-f51.google.com with SMTP id pv20so1515713lab.38
-        for <linux-mm@kvack.org>; Thu, 27 Feb 2014 18:54:53 -0800 (PST)
+Received: from mail-pb0-f42.google.com (mail-pb0-f42.google.com [209.85.160.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 393666B0072
+	for <linux-mm@kvack.org>; Thu, 27 Feb 2014 22:52:58 -0500 (EST)
+Received: by mail-pb0-f42.google.com with SMTP id rr13so186659pbb.29
+        for <linux-mm@kvack.org>; Thu, 27 Feb 2014 19:52:57 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id wm7si401029pab.231.2014.02.27.19.52.56
+        for <linux-mm@kvack.org>;
+        Thu, 27 Feb 2014 19:52:56 -0800 (PST)
+From: "Wilcox, Matthew R" <matthew.r.wilcox@intel.com>
+Subject: RE: [PATCHv3 0/2] mm: map few pages around fault address if they
+ are in page cache
+Date: Fri, 28 Feb 2014 03:52:54 +0000
+Message-ID: <100D68C7BA14664A8938383216E40DE04062F3E9@FMSMSX114.amr.corp.intel.com>
+References: <1393530827-25450-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <CA+55aFwOe_m3cfQDGxmcBavhyQTqQQNGvACR4YPLaazM_0oyUw@mail.gmail.com>,<20140228001039.GB8034@node.dhcp.inet.fi>
+In-Reply-To: <20140228001039.GB8034@node.dhcp.inet.fi>
+Content-Language: en-CA
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-In-Reply-To: <20140227154104.4e3572f1d9e2692d431d1a4e@linux-foundation.org>
-References: <1391563546-26052-1-git-send-email-pingfank@linux.vnet.ibm.com>
- <20140213152009.b16a30d2a5b5c5706fc8952a@linux-foundation.org>
- <87k3cifgzz.fsf@linux.vnet.ibm.com> <20140227154104.4e3572f1d9e2692d431d1a4e@linux-foundation.org>
-From: liu ping fan <qemulist@gmail.com>
-Date: Fri, 28 Feb 2014 10:54:33 +0800
-Message-ID: <CAJnKYQnK57Z-FVVXTJ9u5ijTh8QFCw1PnEj_526Q4DzeyyWRTw@mail.gmail.com>
-Subject: Re: [PATCH] mm: numa: bugfix for LAST_CPUPID_NOT_IN_PAGE_FLAGS
-Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-mm@kvack.org, Peter Zijlstra <peterz@infradead.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, linuxppc-dev@lists.ozlabs.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>, Linus Torvalds <torvalds@linux-foundation.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Andi Kleen <ak@linux.intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Dave Chinner <david@fromorbit.com>, Ning Qu <quning@gmail.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux
+ Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On Fri, Feb 28, 2014 at 7:41 AM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> On Wed, 26 Feb 2014 13:22:16 +0530 "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
->
->> Andrew Morton <akpm@linux-foundation.org> writes:
->>
->> > On Wed,  5 Feb 2014 09:25:46 +0800 Liu Ping Fan <qemulist@gmail.com> wrote:
->> >
->> >> When doing some numa tests on powerpc, I triggered an oops bug. I find
->> >> it is caused by using page->_last_cpupid.  It should be initialized as
->> >> "-1 & LAST_CPUPID_MASK", but not "-1". Otherwise, in task_numa_fault(),
->> >> we will miss the checking (last_cpupid == (-1 & LAST_CPUPID_MASK)).
->> >> And finally cause an oops bug in task_numa_group(), since the online cpu is
->> >> less than possible cpu.
->> >
->> > I grabbed this.  I added this to the changelog:
->> >
->> > : PPC needs the LAST_CPUPID_NOT_IN_PAGE_FLAGS case because ppc needs to
->> > : support a large physical address region, up to 2^46 but small section size
->> > : (2^24).  So when NR_CPUS grows up, it is easily to cause
->> > : not-in-page-flags.
->> >
->> > to hopefully address Peter's observation.
->> >
->> > How should we proceed with this?  I'm getting the impression that numa
->> > balancing on ppc is a dead duck in 3.14, so perhaps this and
->> >
->> > powerpc-mm-add-new-set-flag-argument-to-pte-pmd-update-function.patch
->> > mm-dirty-accountable-change-only-apply-to-non-prot-numa-case.patch
->> > mm-use-ptep-pmdp_set_numa-for-updating-_page_numa-bit.patch
->> >
->>
->> All these are already in 3.14  ?
->
-> Yes.
->
->> > are 3.15-rc1 material?
->> >
->>
->> We should push the first hunk to 3.14. I will wait for Liu to redo the
->> patch. BTW this should happen only when SPARSE_VMEMMAP is not
->> specified. Srikar had reported the issue here
->>
->> http://mid.gmane.org/20140219180200.GA29257@linux.vnet.ibm.com
->>
->> #if defined(CONFIG_SPARSEMEM) && !defined(CONFIG_SPARSEMEM_VMEMMAP)
->> #define SECTIONS_WIDTH                SECTIONS_SHIFT
->> #else
->> #define SECTIONS_WIDTH                0
->> #endif
->>
->
-> I'm lost.  What patch are you talking about?  The first hunk of what?
->
-I think Aneesh was talking about the chunk of patch, which modified
-the file "page-flags-layout.h".
-I tried to collapse and simplify the logic, but it will incur that
-LAST_CPUPID_WIDTH depends on CONFIG_NUMA_BALANCING.
-It is an error since we need LAST_CPUPID_WIDTH even without
-CONFIG_NUMA_BALANCING. (Sorry, I compiled and run kernel, but not find
-this).
-
-Thanks and best regards,
-Fan
-
-> I assume we're talking about
-> mm-numa-bugfix-for-last_cpupid_not_in_page_flags.patch, which I had
-> queued for 3.14.  I'll put it on hold until there's some clarity here.
->
+I think the psbfb case is just horribly broken; they probably want to popul=
+ate the entire VMA at mmap time rather than fault time.  It'll be less code=
+ for them.=0A=
+=0A=
+ttm is more nuanced, and there're one or two other graphics drivers that ha=
+ve similar requirements of "faulting around".  But all of the ones that try=
+ it have the nasty feature of potentially faulting in some pages that weren=
+'t the one that actually faulted on, and then failing before faulting in th=
+e requested one, then returning to userspace.=0A=
+=0A=
+Granted, this is a pretty rare case.  You'd have to be incredibly low on me=
+mory to fail to allocate a page table page.  But it can happen, and shouldn=
+'t.=0A=
+=0A=
+So I was thinking about a helper that these drivers could use to "fault aro=
+und" in ->fault, then Kirill let me in on ->map_pages, and I think this way=
+ could work too.=0A=
+=0A=
+________________________________________=0A=
+From: Kirill A. Shutemov [kirill@shutemov.name]=0A=
+Sent: February 27, 2014 4:10 PM=0A=
+To: Linus Torvalds=0A=
+Cc: Kirill A. Shutemov; Andrew Morton; Mel Gorman; Rik van Riel; Andi Kleen=
+; Wilcox, Matthew R; Dave Hansen; Alexander Viro; Dave Chinner; Ning Qu; li=
+nux-mm; linux-fsdevel; Linux Kernel Mailing List=0A=
+Subject: Re: [PATCHv3 0/2] mm: map few pages around fault address if they a=
+re in page cache=0A=
+=0A=
+On Thu, Feb 27, 2014 at 01:28:22PM -0800, Linus Torvalds wrote:=0A=
+> On Thu, Feb 27, 2014 at 11:53 AM, Kirill A. Shutemov=0A=
+> <kirill.shutemov@linux.intel.com> wrote:=0A=
+> > Here's new version of faultaround patchset. It took a while to tune it =
+and=0A=
+> > collect performance data.=0A=
+>=0A=
+> Andrew, mind taking this into -mm with my acks? It's based on top of=0A=
+> Kirill's cleanup patches that I think are also in your tree.=0A=
+>=0A=
+> Kirill - no complaints from me. I do have two minor issues that you=0A=
+> might satisfy, but I think the patch is fine as-is.=0A=
+>=0A=
+> The issues/questions are:=0A=
+>=0A=
+>  (a) could you test this on a couple of different architectures? Even=0A=
+> if you just have access to intel machines, testing it across a couple=0A=
+> of generations of microarchitectures would be good. The reason I say=0A=
+> that is that from my profiles, it *looks* like the page fault costs=0A=
+> are relatively higher on Ivybridge/Haswell than on some earlier=0A=
+> uarchs.=0A=
+=0A=
+These numbers were from Ivy Bridge.=0A=
+I'll bring some numbers for Westmere and Haswell.=0A=
+=0A=
+>  (b) I suspect we should try to strongly discourage filesystems from=0A=
+> actually using map_pages unless they use the standard=0A=
+> filemap_map_pages function as-is. Even with the fairly clean=0A=
+> interface, and forcing people to use "do_set_pte()", I think the docs=0A=
+> might want to try to more explicitly discourage people from using this=0A=
+> to do their own hacks..=0A=
+=0A=
+We would need ->map_pages() at least for shmem/tmpfs. It should be=0A=
+benefitial there.=0A=
+=0A=
+Also Matthew noticed that some drivers do ugly hacks like fault in whole=0A=
+VMA on first page fault. IIUC, it's for performance reasons. See=0A=
+psbfb_vm_fault() or ttm_bo_vm_fault().=0A=
+=0A=
+I thought it could be reasonable to have ->map_pages() there and do VMA=0A=
+population get_user_pages() on mmap() instead.=0A=
+=0A=
+What do you think?=0A=
+=0A=
+--=0A=
+ Kirill A. Shutemov=0A=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
