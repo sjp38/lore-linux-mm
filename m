@@ -1,88 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
-	by kanga.kvack.org (Postfix) with ESMTP id C053B6B0072
-	for <linux-mm@kvack.org>; Fri, 28 Feb 2014 06:43:24 -0500 (EST)
-Received: by mail-wi0-f169.google.com with SMTP id bs8so1759756wib.0
-        for <linux-mm@kvack.org>; Fri, 28 Feb 2014 03:43:24 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id fu4si1699945wib.30.2014.02.28.03.43.22
-        for <linux-mm@kvack.org>;
-        Fri, 28 Feb 2014 03:43:23 -0800 (PST)
-Message-ID: <5310762C.90108@redhat.com>
-Date: Fri, 28 Feb 2014 12:42:36 +0100
-From: Paolo Bonzini <pbonzini@redhat.com>
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 163136B0073
+	for <linux-mm@kvack.org>; Fri, 28 Feb 2014 06:45:05 -0500 (EST)
+Received: by mail-wi0-f177.google.com with SMTP id r20so476886wiv.10
+        for <linux-mm@kvack.org>; Fri, 28 Feb 2014 03:45:05 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id dl5si1353652wib.47.2014.02.28.03.45.04
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 28 Feb 2014 03:45:04 -0800 (PST)
+Date: Fri, 28 Feb 2014 11:45:01 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [patch 1/2] mm: page_alloc: reset aging cycle with GFP_THISNODE
+Message-ID: <20140228114501.GN6732@suse.de>
+References: <1393360022-22566-1-git-send-email-hannes@cmpxchg.org>
+ <20140226095422.GY6732@suse.de>
+ <20140226171206.GU6963@cmpxchg.org>
+ <20140226201333.GV6963@cmpxchg.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/4] mm, s390: Ignore MADV_HUGEPAGE on s390 to prevent
- SIGSEGV in qemu
-References: <cover.1393516106.git.athorlton@sgi.com> <c856e298ae180842638bdf85d74436ad8bbb84e4.1393516106.git.athorlton@sgi.com>
-In-Reply-To: <c856e298ae180842638bdf85d74436ad8bbb84e4.1393516106.git.athorlton@sgi.com>
-Content-Type: text/plain; charset=ISO-8859-15; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20140226201333.GV6963@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alex Thorlton <athorlton@sgi.com>, linux-kernel@vger.kernel.org
-Cc: Gerald Schaefer <gerald.schaefer@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Oleg Nesterov <oleg@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Alexander Viro <viro@zeniv.linux.org.uk>, linux390@de.ibm.com, linux-s390@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Stancek <jstancek@redhat.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Il 27/02/2014 18:23, Alex Thorlton ha scritto:
-> As Christian pointed out, the recent 'Revert "thp: make MADV_HUGEPAGE
-> check for mm->def_flags"' breaks qemu, it does QEMU_MADV_HUGEPAGE for
-> all kvm pages but this doesn't work after s390_enable_sie/thp_split_mm.
->
-> Paolo suggested that instead of failing on the call to madvise, we
-> simply ignore the call (return 0).
->
-> Reported-by: Christian Borntraeger <borntraeger@de.ibm.com>
-> Suggested-by: Paolo Bonzini <pbonzini@redhat.com>
-> Suggested-by: Oleg Nesterov <oleg@redhat.com>
-> Signed-off-by: Alex Thorlton <athorlton@sgi.com>
-> Cc: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-> Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
-> Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
-> Cc: Christian Borntraeger <borntraeger@de.ibm.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Paolo Bonzini <pbonzini@redhat.com>
-> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> Cc: Mel Gorman <mgorman@suse.de>
-> Cc: Rik van Riel <riel@redhat.com>
-> Cc: Ingo Molnar <mingo@kernel.org>
-> Cc: Peter Zijlstra <peterz@infradead.org>
-> Cc: Andrea Arcangeli <aarcange@redhat.com>
-> Cc: Oleg Nesterov <oleg@redhat.com>
-> Cc: "Eric W. Biederman" <ebiederm@xmission.com>
-> Cc: Alexander Viro <viro@zeniv.linux.org.uk>
-> Cc: linux390@de.ibm.com
-> Cc: linux-s390@vger.kernel.org
-> Cc: linux-kernel@vger.kernel.org
-> Cc: linux-mm@kvack.org
-> Cc: linux-api@vger.kernel.org
->
+On Wed, Feb 26, 2014 at 03:13:33PM -0500, Johannes Weiner wrote:
+> On Wed, Feb 26, 2014 at 12:12:06PM -0500, Johannes Weiner wrote:
+> > On Wed, Feb 26, 2014 at 09:54:22AM +0000, Mel Gorman wrote:
+> > > How about special casing the (alloc_flags & ALLOC_WMARK_LOW) check in
+> > > get_page_from_freelist to also ignore GFP_THISNODE? The NR_ALLOC_BATCH
+> > > will go further negative if there are storms of GFP_THISNODE allocations
+> > > forcing other allocations into the slow path doing multiple calls to
+> > > prepare_slowpath but it would be closer to current behaviour and avoid
+> > > weirdness with kswapd.
+> > 
+> > I think the result would be much uglier.  The allocations wouldn't
+> > participate in the fairness protocol, and they'd create work for
+> > kswapd without waking it up, diminishing the latency reduction for
+> > which we have kswapd in the first place.
+> > 
+> > If kswapd wakeups should be too aggressive, I'd rather we ratelimit
+> > them in some way rather than exempting random order-0 allocation types
+> > as a moderation measure.  Exempting higher order wakeups, like THP
+> > does is one thing, but we want order-0 watermarks to be met at all
+> > times anyway, so it would make sense to me to nudge kswapd for every
+> > failing order-0 request.
+> 
+> So I'd still like to fix this and wake kswapd even for GFP_THISNODE
+> allocations, but let's defer it for now in favor of a minimal bugfix
+> that can be ported to -stable.
+> 
+> Would this be an acceptable replacement for 1/2?
+> 
 > ---
->  mm/huge_memory.c | 9 +++++++++
->  1 file changed, 9 insertions(+)
->
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index a4310a5..61d234d 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -1970,6 +1970,15 @@ int hugepage_madvise(struct vm_area_struct *vma,
->  {
->  	switch (advice) {
->  	case MADV_HUGEPAGE:
-> +#ifdef CONFIG_S390
-> +		/*
-> +		 * qemu blindly sets MADV_HUGEPAGE on all allocations, but s390
-> +		 * can't handle this properly after s390_enable_sie, so we simply
-> +		 * ignore the madvise to prevent qemu from causing a SIGSEGV.
-> +		 */
-> +		if (mm_has_pgste(vma->vm_mm))
-> +			return 0;
-> +#endif
->  		/*
->  		 * Be somewhat over-protective like KSM for now!
->  		 */
->
+> 
+> From: Johannes Weiner <hannes@cmpxchg.org>
+> Subject: [patch 1/2] mm: page_alloc: exempt GFP_THISNODE allocations from zone
+>  fairness
+> 
+> Jan Stancek reports manual page migration encountering allocation
+> failures after some pages when there is still plenty of memory free,
+> and bisected the problem down to 81c0a2bb515f ("mm: page_alloc: fair
+> zone allocator policy").
+> 
+> The problem is that GFP_THISNODE obeys the zone fairness allocation
+> batches on one hand, but doesn't reset them and wake kswapd on the
+> other hand.  After a few of those allocations, the batches are
+> exhausted and the allocations fail.
+> 
+> Fixing this means either having GFP_THISNODE wake up kswapd, or
+> GFP_THISNODE not participating in zone fairness at all.  The latter
+> seems safer as an acute bugfix, we can clean up later.
+> 
+> Reported-by: Jan Stancek <jstancek@redhat.com>
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: <stable@kernel.org> # 3.12+
 
-Acked-by: Paolo Bonzini <pbonzini@redhat.com>
+Acked-by: Mel Gorman <mgorman@suse.de>
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
