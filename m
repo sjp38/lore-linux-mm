@@ -1,55 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 26E346B0072
-	for <linux-mm@kvack.org>; Fri, 28 Feb 2014 04:04:51 -0500 (EST)
-Received: by mail-pd0-f182.google.com with SMTP id g10so489076pdj.27
-        for <linux-mm@kvack.org>; Fri, 28 Feb 2014 01:04:50 -0800 (PST)
-Received: from e23smtp04.au.ibm.com (e23smtp04.au.ibm.com. [202.81.31.146])
-        by mx.google.com with ESMTPS id yc8si1255210pbc.187.2014.02.28.01.04.41
+Received: from mail-ie0-f182.google.com (mail-ie0-f182.google.com [209.85.223.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 1857B6B0072
+	for <linux-mm@kvack.org>; Fri, 28 Feb 2014 06:31:53 -0500 (EST)
+Received: by mail-ie0-f182.google.com with SMTP id y20so496823ier.27
+        for <linux-mm@kvack.org>; Fri, 28 Feb 2014 03:31:52 -0800 (PST)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
+        by mx.google.com with ESMTPS id pg8si2961844icb.122.2014.02.28.03.31.52
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 28 Feb 2014 01:04:42 -0800 (PST)
-Received: from /spool/local
-	by e23smtp04.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Fri, 28 Feb 2014 19:04:40 +1000
-Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
-	by d23dlp03.au.ibm.com (Postfix) with ESMTP id F35B73578053
-	for <linux-mm@kvack.org>; Fri, 28 Feb 2014 20:04:37 +1100 (EST)
-Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s1S8ioXG3080534
-	for <linux-mm@kvack.org>; Fri, 28 Feb 2014 19:44:50 +1100
-Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
-	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s1S94b6U008569
-	for <linux-mm@kvack.org>; Fri, 28 Feb 2014 20:04:37 +1100
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH] mm: numa: bugfix for LAST_CPUPID_NOT_IN_PAGE_FLAGS
-In-Reply-To: <CAJnKYQkVziWMmCL=rTakSA4955VMvFnaFtFdmexQAKUfTuVv_Q@mail.gmail.com>
-References: <1391563546-26052-1-git-send-email-pingfank@linux.vnet.ibm.com> <20140213152009.b16a30d2a5b5c5706fc8952a@linux-foundation.org> <87k3cifgzz.fsf@linux.vnet.ibm.com> <20140227154104.4e3572f1d9e2692d431d1a4e@linux-foundation.org> <877g8fn8qw.fsf@linux.vnet.ibm.com> <CAJnKYQkVziWMmCL=rTakSA4955VMvFnaFtFdmexQAKUfTuVv_Q@mail.gmail.com>
-Date: Fri, 28 Feb 2014 14:34:31 +0530
-Message-ID: <871tynmwv4.fsf@linux.vnet.ibm.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 28 Feb 2014 03:31:52 -0800 (PST)
+Date: Fri, 28 Feb 2014 12:31:46 +0100
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH V3] mm: numa: bugfix for LAST_CPUPID_NOT_IN_PAGE_FLAGS
+Message-ID: <20140228113146.GJ27965@twins.programming.kicks-ass.net>
+References: <1393578122-6500-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1393578122-6500-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: liu ping fan <qemulist@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Peter Zijlstra <peterz@infradead.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, linuxppc-dev@lists.ozlabs.org
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: benh@kernel.crashing.org, akpm@linux-foundation.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Liu Ping Fan <pingfank@linux.vnet.ibm.com>
 
-liu ping fan <qemulist@gmail.com> writes:
+On Fri, Feb 28, 2014 at 02:32:02PM +0530, Aneesh Kumar K.V wrote:
+> From: Liu Ping Fan <pingfank@linux.vnet.ibm.com>
+> 
+> When doing some numa tests on powerpc, I triggered an oops bug. I find
+> it is caused by using page->_last_cpupid.  It should be initialized as
+> "-1 & LAST_CPUPID_MASK", but not "-1". Otherwise, in task_numa_fault(),
+> we will miss the checking (last_cpupid == (-1 & LAST_CPUPID_MASK)).
+> And finally cause an oops bug in task_numa_group(), since the online cpu is
+> less than possible cpu. This happen with CONFIG_SPARSE_VMEMMAP disabled
+> 
+> Signed-off-by: Liu Ping Fan <pingfank@linux.vnet.ibm.com>
+> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 
-> On Fri, Feb 28, 2014 at 12:47 PM, Aneesh Kumar K.V
-> <aneesh.kumar@linux.vnet.ibm.com> wrote:
->> Andrew Morton <akpm@linux-foundation.org> writes:
->>
-> Thanks for sending V2.  Since the ppc machine env is changed by
-> others, I am blocking on setting up the env for re-test this patch.
-> And not send out it quickly.
 
-I sent an updated v3 also taking care of xchg
+Acked-by: Peter Zijlstra <peterz@infradead.org>
 
-http://article.gmane.org/gmane.linux.kernel/1657613
-
--aneesh
+> ---
+>   
+>  include/linux/mm.h | 4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+> 
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index f28f46eade6a..86245839c9fa 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -757,7 +757,7 @@ static inline bool __cpupid_match_pid(pid_t task_pid, int cpupid)
+>  #ifdef LAST_CPUPID_NOT_IN_PAGE_FLAGS
+>  static inline int page_cpupid_xchg_last(struct page *page, int cpupid)
+>  {
+> -	return xchg(&page->_last_cpupid, cpupid);
+> +	return xchg(&page->_last_cpupid, cpupid & LAST_CPUPID_MASK);
+>  }
+>  
+>  static inline int page_cpupid_last(struct page *page)
+> @@ -766,7 +766,7 @@ static inline int page_cpupid_last(struct page *page)
+>  }
+>  static inline void page_cpupid_reset_last(struct page *page)
+>  {
+> -	page->_last_cpupid = -1;
+> +	page->_last_cpupid = -1 & LAST_CPUPID_MASK;
+>  }
+>  #else
+>  static inline int page_cpupid_last(struct page *page)
+> -- 
+> 1.8.3.2
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
