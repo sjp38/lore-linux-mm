@@ -1,94 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f177.google.com (mail-ie0-f177.google.com [209.85.223.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D6F96B0071
-	for <linux-mm@kvack.org>; Fri, 28 Feb 2014 12:20:53 -0500 (EST)
-Received: by mail-ie0-f177.google.com with SMTP id rl12so3514521iec.8
-        for <linux-mm@kvack.org>; Fri, 28 Feb 2014 09:20:53 -0800 (PST)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id x3si7887726igl.28.2014.02.28.09.20.52
+Received: from mail-ob0-f170.google.com (mail-ob0-f170.google.com [209.85.214.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 341DD6B0071
+	for <linux-mm@kvack.org>; Fri, 28 Feb 2014 12:56:32 -0500 (EST)
+Received: by mail-ob0-f170.google.com with SMTP id uz6so4260863obc.1
+        for <linux-mm@kvack.org>; Fri, 28 Feb 2014 09:56:32 -0800 (PST)
+Received: from g5t1625.atlanta.hp.com (g5t1625.atlanta.hp.com. [15.192.137.8])
+        by mx.google.com with ESMTPS id ws6si4172063oeb.6.2014.02.28.09.56.31
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 28 Feb 2014 09:20:52 -0800 (PST)
-Message-ID: <5310C56C.60709@oracle.com>
-Date: Fri, 28 Feb 2014 12:20:44 -0500
-From: Sasha Levin <sasha.levin@oracle.com>
-MIME-Version: 1.0
-Subject: Re: mm:  kernel BUG at mm/huge_memory.c:1371!
-References: <5307D74C.5070002@oracle.com> <20140221235145.GA18046@node.dhcp.inet.fi> <5307F90C.9060602@oracle.com>
-In-Reply-To: <5307F90C.9060602@oracle.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+        Fri, 28 Feb 2014 09:56:31 -0800 (PST)
+Message-ID: <1393609771.6784.83.camel@misato.fc.hp.com>
+Subject: Re: [PATCH v6 07/22] Replace the XIP page fault handler with the
+ DAX page fault handler
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Fri, 28 Feb 2014 10:49:31 -0700
+In-Reply-To: <1393337918-28265-8-git-send-email-matthew.r.wilcox@intel.com>
+References: <1393337918-28265-1-git-send-email-matthew.r.wilcox@intel.com>
+	 <1393337918-28265-8-git-send-email-matthew.r.wilcox@intel.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
+To: Matthew Wilcox <matthew.r.wilcox@intel.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, willy@linux.intel.com
 
-On 02/21/2014 08:10 PM, Sasha Levin wrote:
-> On 02/21/2014 06:51 PM, Kirill A. Shutemov wrote:
->> On Fri, Feb 21, 2014 at 05:46:36PM -0500, Sasha Levin wrote:
->>> >Hi all,
->>> >
->>> >While fuzzing with trinity inside a KVM tools guest running latest -next
->>> >kernel I've stumbled on the following (now with pretty line numbers!) spew:
->>> >
->>> >[  746.125099] kernel BUG at mm/huge_memory.c:1371!
->> It "VM_BUG_ON_PAGE(!PageHead(page), page);", correct?
->> I don't see dump_page() output.
->
-> Right. However, I'm not seeing the dump_page() output in the log.
->
-> I see that dump_page() has been modified not long ago, I'm looking into it.
+On Tue, 2014-02-25 at 09:18 -0500, Matthew Wilcox wrote:
+> Instead of calling aops->get_xip_mem from the fault handler, the
+> filesystem passes a get_block_t that is used to find the appropriate
+> blocks.
+ :
+> +static int do_dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
+> +			get_block_t get_block)
+> +{
+> +	struct file *file = vma->vm_file;
+> +	struct inode *inode = file_inode(file);
+> +	struct address_space *mapping = file->f_mapping;
+> +	struct buffer_head bh;
+> +	unsigned long vaddr = (unsigned long)vmf->virtual_address;
+> +	sector_t block;
+> +	pgoff_t size;
+> +	unsigned long pfn;
+> +	int error;
+> +
+> +	size = (i_size_read(inode) + PAGE_SIZE - 1) >> PAGE_SHIFT;
+> +	if (vmf->pgoff >= size)
+> +		return VM_FAULT_SIGBUS;
+> +
+> +	memset(&bh, 0, sizeof(bh));
+> +	block = (sector_t)vmf->pgoff << (PAGE_SHIFT - inode->i_blkbits);
+> +	bh.b_size = PAGE_SIZE;
+> +	error = get_block(inode, block, &bh, 0);
+> +	if (error || bh.b_size < PAGE_SIZE)
+> +		return VM_FAULT_SIGBUS;
 
-Alright, here we go:
-
-[ 3323.062742] page:ffffea00080f0000 count:3 mapcount:0 mapping:ffff8802292ee0e1 index:0x7fa2e6800
-[ 3323.065978] page flags: 0x16fffff80090018(uptodate|dirty|swapcache|swapbacked)
-[ 3323.068535] ------------[ cut here ]------------
-[ 3323.069669] kernel BUG at mm/huge_memory.c:1371!
-[ 3323.070961] invalid opcode: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
-[ 3323.071028] Dumping ftrace buffer:
-[ 3323.071028]    (ftrace buffer empty)
-[ 3323.071028] Modules linked in:
-[ 3323.071028] CPU: 101 PID: 48284 Comm: trinity-c101 Tainted: G        W 
-3.14.0-rc4-next-20140228-sasha-00011-g4077c67 #25
-[ 3323.071028] task: ffff8800c2718000 ti: ffff8800c26ec000 task.ti: ffff8800c26ec000
-[ 3323.071028] RIP: 0010:[<ffffffff812c083a>]  [<ffffffff812c083a>] zap_huge_pmd+0x17a/0x200
-[ 3323.071028] RSP: 0018:ffff8800c26edc78  EFLAGS: 00010246
-[ 3323.071028] RAX: ffff88022febc000 RBX: ffff8800c26edde8 RCX: 0000000000000040
-[ 3323.071028] RDX: 0000000000000000 RSI: ffff8800c2718cc0 RDI: 000000000203c000
-[ 3323.071028] RBP: ffff8800c26edcb8 R08: 0000000000000000 R09: 0000000000000000
-[ 3323.071028] R10: 0000000000000001 R11: 0000000000000001 R12: ffffea0008b9e240
-[ 3323.071028] R13: ffffea00080f0000 R14: 00007fa2e6800000 R15: 00007fa2ffffffff
-[ 3323.071028] FS:  00007fa31e1b8700(0000) GS:ffff880230600000(0000) knlGS:0000000000000000
-[ 3323.071028] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-[ 3323.071028] CR2: 00007fa31e1e8990 CR3: 0000000005c25000 CR4: 00000000000006e0
-[ 3323.071028] DR0: 0000000000698000 DR1: 0000000000698000 DR2: 0000000000698000
-[ 3323.071028] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000600
-[ 3323.071028] Stack:
-[ 3323.071028]  00000000000004de ffff88022e2139d0 ffff8800c26edcb8 ffff88021b7ef9a0
-[ 3323.071028]  00007fa2e6800000 00007fa300000000 ffff8800c26edde8 00007fa2ffffffff
-[ 3323.071028]  ffff8800c26edd48 ffffffff812800c6 ffffea0008454540 00007fa2e6a00000
-[ 3323.071028] Call Trace:
-[ 3323.071028]  [<ffffffff812800c6>] unmap_page_range+0x2c6/0x410
-[ 3323.071028]  [<ffffffff81280301>] unmap_single_vma+0xf1/0x110
-[ 3323.071028]  [<ffffffff81280381>] unmap_vmas+0x61/0xa0
-[ 3323.071028]  [<ffffffff812875e0>] exit_mmap+0xd0/0x170
-[ 3323.071028]  [<ffffffff811387a7>] mmput+0x77/0xe0
-[ 3323.071028]  [<ffffffff8113c80d>] exit_mm+0x18d/0x1a0
-[ 3323.071028]  [<ffffffff811ecea5>] ? acct_collect+0x175/0x1b0
-[ 3323.071028]  [<ffffffff8113ec1a>] do_exit+0x26a/0x510
-[ 3323.071028]  [<ffffffff8113ef61>] do_group_exit+0xa1/0xe0
-[ 3323.071028]  [<ffffffff8113efb2>] SyS_exit_group+0x12/0x20
-[ 3323.071028]  [<ffffffff8439f720>] tracesys+0xdd/0xe2
-[ 3323.071028] Code: 00 eb fe 66 0f 1f 44 00 00 48 8b 03 f0 48 81 80 60 03 00 00 00 fe ff ff 49 8b 
-45 00 f6 c4 40 75 18 31 f6 4c 89 ef e8 f6 1f f9 ff <0f> 0b 0f 1f 40 00 eb fe 66 0f 1f 44 00 00 48 8b 
-03 f0 48 ff 48
-[ 3323.071028] RIP  [<ffffffff812c083a>] zap_huge_pmd+0x17a/0x200
-[ 3323.071028]  RSP <ffff8800c26edc78>
-
+I am learning the code and have some questions.  The original code,
+xip_file_fault(), jumps to found: and calls vm_insert_mixed() when
+get_xip_mem(,,0,,) succeeded.  If get_xip_mem() returns -ENODATA, it
+calls either get_xip_mem(,,1,,) or xip_sparse_page().  In this new
+function, it looks to me that get_block(,,,0) returns 0 for both cases
+(success and -ENODATA previously), which are dealt in the same way.  Is
+that right?  If so, is there any reason for the change?  Also, isn't it
+possible to call get_block(,,,1) even if get_block(,,,0) found a block?
 
 Thanks,
-Sasha
+-Toshi
+
+> +
+> +	if (!buffer_written(&bh) && !vmf->cow_page) {
+> +		if (vmf->flags & FAULT_FLAG_WRITE) {
+> +			error = get_block(inode, block, &bh, 1);
+> +			if (error || bh.b_size < PAGE_SIZE)
+> +				return VM_FAULT_SIGBUS;
+> +		} else {
+> +			return dax_load_hole(mapping, vmf);
+> +		}
+> +	}
+> +
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
