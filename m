@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 78E136B0078
+Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
+	by kanga.kvack.org (Postfix) with ESMTP id DA7186B0073
 	for <linux-mm@kvack.org>; Fri, 28 Feb 2014 09:15:36 -0500 (EST)
-Received: by mail-wi0-f182.google.com with SMTP id f8so644565wiw.9
-        for <linux-mm@kvack.org>; Fri, 28 Feb 2014 06:15:35 -0800 (PST)
+Received: by mail-wi0-f178.google.com with SMTP id cc10so644817wib.5
+        for <linux-mm@kvack.org>; Fri, 28 Feb 2014 06:15:36 -0800 (PST)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j7si1787707wjy.45.2014.02.28.06.15.33
+        by mx.google.com with ESMTPS id g6si1756779wjb.159.2014.02.28.06.15.33
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 28 Feb 2014 06:15:33 -0800 (PST)
+        Fri, 28 Feb 2014 06:15:34 -0800 (PST)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH 3/6] mm: add is_migrate_isolate_page_nolock() for cases where locking is undesirable
-Date: Fri, 28 Feb 2014 15:15:01 +0100
-Message-Id: <1393596904-16537-4-git-send-email-vbabka@suse.cz>
+Subject: [PATCH 4/6] mm: add set_pageblock_migratetype_nolock() for calls outside zone->lock
+Date: Fri, 28 Feb 2014 15:15:02 +0100
+Message-Id: <1393596904-16537-5-git-send-email-vbabka@suse.cz>
 In-Reply-To: <1393596904-16537-1-git-send-email-vbabka@suse.cz>
 References: <1393596904-16537-1-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,76 +20,60 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>
 
-This patch complements the addition of get_pageblock_migratetype_nolock() for
-the case where is_migrate_isolate_page() cannot be called with zone->lock held.
-A race with set_pageblock_migratetype() may be detected, in which case a caller
-supplied argument is returned.
+To prevent races, set_pageblock_migratetype() should be called with zone->lock
+held. This patch adds a debugging assertion and introduces a _nolock variant
+for zone init functions.
 
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 ---
- include/linux/page-isolation.h | 24 ++++++++++++++++++++++++
- mm/hugetlb.c                   |  2 +-
- 2 files changed, 25 insertions(+), 1 deletion(-)
+ mm/page_alloc.c | 13 ++++++++++---
+ 1 file changed, 10 insertions(+), 3 deletions(-)
 
-diff --git a/include/linux/page-isolation.h b/include/linux/page-isolation.h
-index 3fff8e7..f7bd491 100644
---- a/include/linux/page-isolation.h
-+++ b/include/linux/page-isolation.h
-@@ -2,10 +2,30 @@
- #define __LINUX_PAGEISOLATION_H
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index de5b419..fd6a64c 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -232,7 +232,7 @@ EXPORT_SYMBOL(nr_online_nodes);
  
- #ifdef CONFIG_MEMORY_ISOLATION
-+/*
-+ * Should be called only with zone->lock held. In cases where locking overhead
-+ * is undesirable, consider the _nolock version.
-+ */
- static inline bool is_migrate_isolate_page(struct page *page)
- {
- 	return get_pageblock_migratetype(page) == MIGRATE_ISOLATE;
- }
-+/*
-+ * When called without zone->lock held, a race with set_pageblock_migratetype
-+ * may result in bogus values. The race may be detected, in which case the
-+ * value of race_fallback argument is returned. For details, see
-+ * get_pageblock_migratetype_nolock().
-+ */
-+static inline bool is_migrate_isolate_page_nolock(struct page *page,
-+		bool race_fallback)
-+{
-+	int migratetype = get_pageblock_migratetype_nolock(page, MIGRATE_TYPES);
-+
-+	if (unlikely(migratetype == MIGRATE_TYPES))
-+		return race_fallback;
-+
-+	return migratetype == MIGRATE_ISOLATE;
-+}
- static inline bool is_migrate_isolate(int migratetype)
- {
- 	return migratetype == MIGRATE_ISOLATE;
-@@ -15,6 +35,10 @@ static inline bool is_migrate_isolate_page(struct page *page)
- {
- 	return false;
- }
-+static inline bool is_migrate_isolate_page_nolock(struct page *page)
-+{
-+	return false;
-+}
- static inline bool is_migrate_isolate(int migratetype)
- {
- 	return false;
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 2252cac..fac4003 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -525,7 +525,7 @@ static struct page *dequeue_huge_page_node(struct hstate *h, int nid)
- 	struct page *page;
+ int page_group_by_mobility_disabled __read_mostly;
  
- 	list_for_each_entry(page, &h->hugepage_freelists[nid], lru)
--		if (!is_migrate_isolate_page(page))
-+		if (!is_migrate_isolate_page_nolock(page, true))
- 			break;
- 	/*
- 	 * if 'non-isolated free hugepage' not found on the list,
+-void set_pageblock_migratetype(struct page *page, int migratetype)
++static void set_pageblock_migratetype_nolock(struct page *page, int migratetype)
+ {
+ 	if (unlikely(page_group_by_mobility_disabled &&
+ 		     migratetype < MIGRATE_PCPTYPES))
+@@ -242,6 +242,13 @@ void set_pageblock_migratetype(struct page *page, int migratetype)
+ 					PB_migrate, PB_migrate_end);
+ }
+ 
++void set_pageblock_migratetype(struct page *page, int migratetype)
++{
++	VM_BUG_ON(!spin_is_locked(&page_zone(page)->lock));
++
++	set_pageblock_migratetype_nolock(page, migratetype);
++}
++
+ bool oom_killer_disabled __read_mostly;
+ 
+ #ifdef CONFIG_DEBUG_VM
+@@ -803,7 +810,7 @@ void __init init_cma_reserved_pageblock(struct page *page)
+ 	} while (++p, --i);
+ 
+ 	set_page_refcounted(page);
+-	set_pageblock_migratetype(page, MIGRATE_CMA);
++	set_pageblock_migratetype_nolock(page, MIGRATE_CMA);
+ 	__free_pages(page, pageblock_order);
+ 	adjust_managed_page_count(page, pageblock_nr_pages);
+ }
+@@ -4100,7 +4107,7 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
+ 		if ((z->zone_start_pfn <= pfn)
+ 		    && (pfn < zone_end_pfn(z))
+ 		    && !(pfn & (pageblock_nr_pages - 1)))
+-			set_pageblock_migratetype(page, MIGRATE_MOVABLE);
++			set_pageblock_migratetype_nolock(page, MIGRATE_MOVABLE);
+ 
+ 		INIT_LIST_HEAD(&page->lru);
+ #ifdef WANT_PAGE_VIRTUAL
 -- 
 1.8.4.5
 
