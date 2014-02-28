@@ -1,103 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f173.google.com (mail-we0-f173.google.com [74.125.82.173])
-	by kanga.kvack.org (Postfix) with ESMTP id CAE3A6B0073
-	for <linux-mm@kvack.org>; Fri, 28 Feb 2014 06:52:26 -0500 (EST)
-Received: by mail-we0-f173.google.com with SMTP id w61so458886wes.32
-        for <linux-mm@kvack.org>; Fri, 28 Feb 2014 03:52:26 -0800 (PST)
-Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com. [195.75.94.110])
-        by mx.google.com with ESMTPS id fu7si1356729wjb.118.2014.02.28.03.52.25
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 28 Feb 2014 03:52:25 -0800 (PST)
-Received: from /spool/local
-	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <borntraeger@de.ibm.com>;
-	Fri, 28 Feb 2014 11:52:23 -0000
-Received: from b06cxnps4076.portsmouth.uk.ibm.com (d06relay13.portsmouth.uk.ibm.com [9.149.109.198])
-	by d06dlp01.portsmouth.uk.ibm.com (Postfix) with ESMTP id 8562617D804E
-	for <linux-mm@kvack.org>; Fri, 28 Feb 2014 11:52:54 +0000 (GMT)
-Received: from d06av06.portsmouth.uk.ibm.com (d06av06.portsmouth.uk.ibm.com [9.149.37.217])
-	by b06cxnps4076.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s1SBq8VZ64421952
-	for <linux-mm@kvack.org>; Fri, 28 Feb 2014 11:52:08 GMT
-Received: from d06av06.portsmouth.uk.ibm.com (localhost [127.0.0.1])
-	by d06av06.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s1SCqKXn011583
-	for <linux-mm@kvack.org>; Fri, 28 Feb 2014 05:52:20 -0700
-Message-ID: <53107872.7030904@de.ibm.com>
-Date: Fri, 28 Feb 2014 12:52:18 +0100
-From: Christian Borntraeger <borntraeger@de.ibm.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 2/4] mm, s390: Ignore MADV_HUGEPAGE on s390 to prevent
- SIGSEGV in qemu
-References: <cover.1393516106.git.athorlton@sgi.com> <c856e298ae180842638bdf85d74436ad8bbb84e4.1393516106.git.athorlton@sgi.com>
-In-Reply-To: <c856e298ae180842638bdf85d74436ad8bbb84e4.1393516106.git.athorlton@sgi.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 638846B0072
+	for <linux-mm@kvack.org>; Fri, 28 Feb 2014 07:50:38 -0500 (EST)
+Received: by mail-pa0-f54.google.com with SMTP id fa1so718512pad.13
+        for <linux-mm@kvack.org>; Fri, 28 Feb 2014 04:50:38 -0800 (PST)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id m9si1933497pab.264.2014.02.28.04.50.37
+        for <linux-mm@kvack.org>;
+        Fri, 28 Feb 2014 04:50:37 -0800 (PST)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCH 2/2] mm: add debugfs tunable for fault_around_order
+Date: Fri, 28 Feb 2014 14:50:33 +0200
+Message-Id: <1393591833-24950-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alex Thorlton <athorlton@sgi.com>, linux-kernel@vger.kernel.org
-Cc: Gerald Schaefer <gerald.schaefer@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Paolo Bonzini <pbonzini@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Oleg Nesterov <oleg@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Alexander Viro <viro@zeniv.linux.org.uk>, linux390@de.ibm.com, linux-s390@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On 27/02/14 18:23, Alex Thorlton wrote:
-> As Christian pointed out, the recent 'Revert "thp: make MADV_HUGEPAGE
-> check for mm->def_flags"' breaks qemu, it does QEMU_MADV_HUGEPAGE for
-> all kvm pages but this doesn't work after s390_enable_sie/thp_split_mm.
-> 
-> Paolo suggested that instead of failing on the call to madvise, we
-> simply ignore the call (return 0).
-> 
-> Reported-by: Christian Borntraeger <borntraeger@de.ibm.com>
-> Suggested-by: Paolo Bonzini <pbonzini@redhat.com>
-> Suggested-by: Oleg Nesterov <oleg@redhat.com>
-> Signed-off-by: Alex Thorlton <athorlton@sgi.com>
-> Cc: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-> Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
-> Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
-> Cc: Christian Borntraeger <borntraeger@de.ibm.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Paolo Bonzini <pbonzini@redhat.com>
-> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> Cc: Mel Gorman <mgorman@suse.de>
-> Cc: Rik van Riel <riel@redhat.com>
-> Cc: Ingo Molnar <mingo@kernel.org>
-> Cc: Peter Zijlstra <peterz@infradead.org>
-> Cc: Andrea Arcangeli <aarcange@redhat.com>
-> Cc: Oleg Nesterov <oleg@redhat.com>
-> Cc: "Eric W. Biederman" <ebiederm@xmission.com>
-> Cc: Alexander Viro <viro@zeniv.linux.org.uk>
-> Cc: linux390@de.ibm.com
-> Cc: linux-s390@vger.kernel.org
-> Cc: linux-kernel@vger.kernel.org
-> Cc: linux-mm@kvack.org
-> Cc: linux-api@vger.kernel.org
-> 
-> ---
->  mm/huge_memory.c | 9 +++++++++
->  1 file changed, 9 insertions(+)
-> 
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index a4310a5..61d234d 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -1970,6 +1970,15 @@ int hugepage_madvise(struct vm_area_struct *vma,
->  {
->  	switch (advice) {
->  	case MADV_HUGEPAGE:
-> +#ifdef CONFIG_S390
-> +		/*
-> +		 * qemu blindly sets MADV_HUGEPAGE on all allocations, but s390
-> +		 * can't handle this properly after s390_enable_sie, so we simply
-> +		 * ignore the madvise to prevent qemu from causing a SIGSEGV.
-> +		 */
-> +		if (mm_has_pgste(vma->vm_mm))
-> +			return 0;
-> +#endif
->  		/*
->  		 * Be somewhat over-protective like KSM for now!
->  		 */
-> 
+Let's allow people to tweak faultaround in runtime.
 
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
+ mm/memory.c | 68 ++++++++++++++++++++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 61 insertions(+), 7 deletions(-)
 
-Tested-by: Christian Borntraeger <borntraeger@de.ibm.com>
+diff --git a/mm/memory.c b/mm/memory.c
+index 3f17a60e817f..e2d54e818c5b 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -60,6 +60,7 @@
+ #include <linux/migrate.h>
+ #include <linux/string.h>
+ #include <linux/dma-debug.h>
++#include <linux/debugfs.h>
+ 
+ #include <asm/io.h>
+ #include <asm/pgalloc.h>
+@@ -3344,8 +3345,63 @@ void do_set_pte(struct vm_area_struct *vma, unsigned long address,
+ }
+ 
+ #define FAULT_AROUND_ORDER 4
+-#define FAULT_AROUND_PAGES (1UL << FAULT_AROUND_ORDER)
+-#define FAULT_AROUND_MASK ~((1UL << (PAGE_SHIFT + FAULT_AROUND_ORDER)) - 1)
++
++#ifdef CONFIG_DEBUG_FS
++static unsigned int fault_around_order = FAULT_AROUND_ORDER;
++
++static int fault_around_order_get(void *data, u64 *val)
++{
++	*val = fault_around_order;
++	return 0;
++}
++
++static int fault_around_order_set(void *data, u64 val)
++{
++	BUILD_BUG_ON((1UL << FAULT_AROUND_ORDER) > PTRS_PER_PTE);
++	if (1UL << val > PTRS_PER_PTE)
++		return -EINVAL;
++	fault_around_order = val;
++	return 0;
++}
++DEFINE_SIMPLE_ATTRIBUTE(fault_around_order_fops,
++		fault_around_order_get, fault_around_order_set, "%llu\n");
++
++static int __init fault_around_debugfs(void)
++{
++	void *ret;
++
++	ret = debugfs_create_file("fault_around_order",	0644, NULL, NULL,
++			&fault_around_order_fops);
++	if (!ret)
++		pr_warning("Failed to create fault_around_order in debugfs");
++	return 0;
++}
++late_initcall(fault_around_debugfs);
++
++static inline unsigned long fault_around_pages(void)
++{
++	return 1UL << fault_around_order;
++}
++
++static inline unsigned long fault_around_mask(void)
++{
++	return ~((1UL << (PAGE_SHIFT + fault_around_order)) - 1);
++}
++#else
++static inline unsigned long fault_around_pages(void)
++{
++	unsigned long nr_pages;
++
++	nr_pages = 1UL << FAULT_AROUND_ORDER;
++	BUILD_BUG_ON(nr_pages > PTRS_PER_PTE);
++	return nr_pages;
++}
++
++static inline unsigned long fault_around_mask(void)
++{
++	return ~((1UL << (PAGE_SHIFT + FAULT_AROUND_ORDER)) - 1);
++}
++#endif
+ 
+ static void do_fault_around(struct vm_area_struct *vma, unsigned long address,
+ 		pte_t *pte, pgoff_t pgoff, unsigned int flags)
+@@ -3355,21 +3411,19 @@ static void do_fault_around(struct vm_area_struct *vma, unsigned long address,
+ 	struct vm_fault vmf;
+ 	int off;
+ 
+-	BUILD_BUG_ON(FAULT_AROUND_PAGES > PTRS_PER_PTE);
+-
+-	start_addr = max(address & FAULT_AROUND_MASK, vma->vm_start);
++	start_addr = max(address & fault_around_mask(), vma->vm_start);
+ 	off = ((address - start_addr) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1);
+ 	pte -= off;
+ 	pgoff -= off;
+ 
+ 	/*
+ 	 *  max_pgoff is either end of page table or end of vma
+-	 *  or FAULT_AROUND_PAGES from pgoff, depending what is neast.
++	 *  or fault_around_pages() from pgoff, depending what is neast.
+ 	 */
+ 	max_pgoff = pgoff - ((start_addr >> PAGE_SHIFT) & (PTRS_PER_PTE - 1)) +
+ 		PTRS_PER_PTE - 1;
+ 	max_pgoff = min3(max_pgoff, vma_pages(vma) + vma->vm_pgoff - 1,
+-			pgoff + FAULT_AROUND_PAGES - 1);
++			pgoff + fault_around_pages() - 1);
+ 
+ 	/* Check if it makes any sense to call ->map_pages */
+ 	while (!pte_none(*pte)) {
+-- 
+1.9.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
