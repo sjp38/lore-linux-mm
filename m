@@ -1,110 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f179.google.com (mail-we0-f179.google.com [74.125.82.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 854DB6B0074
-	for <linux-mm@kvack.org>; Fri, 28 Feb 2014 09:15:37 -0500 (EST)
-Received: by mail-we0-f179.google.com with SMTP id x48so607389wes.10
-        for <linux-mm@kvack.org>; Fri, 28 Feb 2014 06:15:37 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ev4si2128243wib.66.2014.02.28.06.15.34
+Received: from mail-ie0-f177.google.com (mail-ie0-f177.google.com [209.85.223.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D6F96B0071
+	for <linux-mm@kvack.org>; Fri, 28 Feb 2014 12:20:53 -0500 (EST)
+Received: by mail-ie0-f177.google.com with SMTP id rl12so3514521iec.8
+        for <linux-mm@kvack.org>; Fri, 28 Feb 2014 09:20:53 -0800 (PST)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id x3si7887726igl.28.2014.02.28.09.20.52
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 28 Feb 2014 06:15:34 -0800 (PST)
-From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH 6/6] mm: use atomic bit operations in set_pageblock_flags_group()
-Date: Fri, 28 Feb 2014 15:15:04 +0100
-Message-Id: <1393596904-16537-7-git-send-email-vbabka@suse.cz>
-In-Reply-To: <1393596904-16537-1-git-send-email-vbabka@suse.cz>
-References: <1393596904-16537-1-git-send-email-vbabka@suse.cz>
+        Fri, 28 Feb 2014 09:20:52 -0800 (PST)
+Message-ID: <5310C56C.60709@oracle.com>
+Date: Fri, 28 Feb 2014 12:20:44 -0500
+From: Sasha Levin <sasha.levin@oracle.com>
+MIME-Version: 1.0
+Subject: Re: mm:  kernel BUG at mm/huge_memory.c:1371!
+References: <5307D74C.5070002@oracle.com> <20140221235145.GA18046@node.dhcp.inet.fi> <5307F90C.9060602@oracle.com>
+In-Reply-To: <5307F90C.9060602@oracle.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>
+To: Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-set_pageblock_flags_group() is used to set either migratetype or skip bit of a
-pageblock. Setting migratetype is done under zone->lock (except from __init
-code), however changing the skip bits is not protected and the pageblock flags
-bitmap packs migratetype and skip bits together and uses non-atomic bit ops.
-Therefore, races between setting migratetype and skip bit are possible and the
-non-atomic read-modify-update of the skip bit may cause lost updates to
-migratetype bits, resulting in invalid migratetype values, which are in turn
-used to e.g. index free_list array.
+On 02/21/2014 08:10 PM, Sasha Levin wrote:
+> On 02/21/2014 06:51 PM, Kirill A. Shutemov wrote:
+>> On Fri, Feb 21, 2014 at 05:46:36PM -0500, Sasha Levin wrote:
+>>> >Hi all,
+>>> >
+>>> >While fuzzing with trinity inside a KVM tools guest running latest -next
+>>> >kernel I've stumbled on the following (now with pretty line numbers!) spew:
+>>> >
+>>> >[  746.125099] kernel BUG at mm/huge_memory.c:1371!
+>> It "VM_BUG_ON_PAGE(!PageHead(page), page);", correct?
+>> I don't see dump_page() output.
+>
+> Right. However, I'm not seeing the dump_page() output in the log.
+>
+> I see that dump_page() has been modified not long ago, I'm looking into it.
 
-The race has been observed to happen and cause panics, albeit during
-development of series that increases frequency of migratetype changes through
-{start,undo}_isolate_page_range() calls.
+Alright, here we go:
 
-Two possible solutions were investigated: 1) using zone->lock for changing
-pageblock_skip bit and 2) changing the bitmap operations to be atomic. The
-problem of 1) is that zone->lock is already contended and almost never held in
-the compaction code that updates pageblock_skip bits. Solution 2) should scale
-better, but adds atomic operations also to migratype changes which are already
-protected by zone->lock.
+[ 3323.062742] page:ffffea00080f0000 count:3 mapcount:0 mapping:ffff8802292ee0e1 index:0x7fa2e6800
+[ 3323.065978] page flags: 0x16fffff80090018(uptodate|dirty|swapcache|swapbacked)
+[ 3323.068535] ------------[ cut here ]------------
+[ 3323.069669] kernel BUG at mm/huge_memory.c:1371!
+[ 3323.070961] invalid opcode: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
+[ 3323.071028] Dumping ftrace buffer:
+[ 3323.071028]    (ftrace buffer empty)
+[ 3323.071028] Modules linked in:
+[ 3323.071028] CPU: 101 PID: 48284 Comm: trinity-c101 Tainted: G        W 
+3.14.0-rc4-next-20140228-sasha-00011-g4077c67 #25
+[ 3323.071028] task: ffff8800c2718000 ti: ffff8800c26ec000 task.ti: ffff8800c26ec000
+[ 3323.071028] RIP: 0010:[<ffffffff812c083a>]  [<ffffffff812c083a>] zap_huge_pmd+0x17a/0x200
+[ 3323.071028] RSP: 0018:ffff8800c26edc78  EFLAGS: 00010246
+[ 3323.071028] RAX: ffff88022febc000 RBX: ffff8800c26edde8 RCX: 0000000000000040
+[ 3323.071028] RDX: 0000000000000000 RSI: ffff8800c2718cc0 RDI: 000000000203c000
+[ 3323.071028] RBP: ffff8800c26edcb8 R08: 0000000000000000 R09: 0000000000000000
+[ 3323.071028] R10: 0000000000000001 R11: 0000000000000001 R12: ffffea0008b9e240
+[ 3323.071028] R13: ffffea00080f0000 R14: 00007fa2e6800000 R15: 00007fa2ffffffff
+[ 3323.071028] FS:  00007fa31e1b8700(0000) GS:ffff880230600000(0000) knlGS:0000000000000000
+[ 3323.071028] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+[ 3323.071028] CR2: 00007fa31e1e8990 CR3: 0000000005c25000 CR4: 00000000000006e0
+[ 3323.071028] DR0: 0000000000698000 DR1: 0000000000698000 DR2: 0000000000698000
+[ 3323.071028] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000600
+[ 3323.071028] Stack:
+[ 3323.071028]  00000000000004de ffff88022e2139d0 ffff8800c26edcb8 ffff88021b7ef9a0
+[ 3323.071028]  00007fa2e6800000 00007fa300000000 ffff8800c26edde8 00007fa2ffffffff
+[ 3323.071028]  ffff8800c26edd48 ffffffff812800c6 ffffea0008454540 00007fa2e6a00000
+[ 3323.071028] Call Trace:
+[ 3323.071028]  [<ffffffff812800c6>] unmap_page_range+0x2c6/0x410
+[ 3323.071028]  [<ffffffff81280301>] unmap_single_vma+0xf1/0x110
+[ 3323.071028]  [<ffffffff81280381>] unmap_vmas+0x61/0xa0
+[ 3323.071028]  [<ffffffff812875e0>] exit_mmap+0xd0/0x170
+[ 3323.071028]  [<ffffffff811387a7>] mmput+0x77/0xe0
+[ 3323.071028]  [<ffffffff8113c80d>] exit_mm+0x18d/0x1a0
+[ 3323.071028]  [<ffffffff811ecea5>] ? acct_collect+0x175/0x1b0
+[ 3323.071028]  [<ffffffff8113ec1a>] do_exit+0x26a/0x510
+[ 3323.071028]  [<ffffffff8113ef61>] do_group_exit+0xa1/0xe0
+[ 3323.071028]  [<ffffffff8113efb2>] SyS_exit_group+0x12/0x20
+[ 3323.071028]  [<ffffffff8439f720>] tracesys+0xdd/0xe2
+[ 3323.071028] Code: 00 eb fe 66 0f 1f 44 00 00 48 8b 03 f0 48 81 80 60 03 00 00 00 fe ff ff 49 8b 
+45 00 f6 c4 40 75 18 31 f6 4c 89 ef e8 f6 1f f9 ff <0f> 0b 0f 1f 40 00 eb fe 66 0f 1f 44 00 00 48 8b 
+03 f0 48 ff 48
+[ 3323.071028] RIP  [<ffffffff812c083a>] zap_huge_pmd+0x17a/0x200
+[ 3323.071028]  RSP <ffff8800c26edc78>
 
-Using mmtests' stress-highalloc benchmark, little difference was found between
-the two solutions. The base is 3.13 with recent compaction series by myself and
-Joonsoo Kim applied.
 
-                3.13        3.13        3.13
-                base     2)atomic     1)lock
-User         6103.92     6072.09     6178.79
-System       1039.68     1033.96     1042.92
-Elapsed      2114.27     2090.20     2110.23
-
-For 1) stats show how many times the compaction code had to lock zone->lock
-during the benchmark, or failed due to contention.
-
-update_pageblock_skip stats:
-
-mig scanner already locked        0
-mig scanner had to lock           172985
-mig scanner skip bit already set  1
-mig scanner failed to lock        43
-free scanner already locked       42
-free scanner had to lock          499631
-free scanner skip bit already set 87
-free scanner failed to lock       79
-
-For 2) Profiling found no measurable increase of time spent in the pageblock
-update operations.
-
-Therefore, solution 2) was selected as implemented by this patch. To minimize
-dirty cachelines and amount of atomic ops, the bitmap bits are only changed
-when needed. For migratetype, this is not racy thanks to zone->lock protection.
-For pageblock_skip bits, this raciness is not an issue as the bits
-are just a heuristic for memory compaction.
-
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
----
- mm/page_alloc.c | 14 +++++++++-----
- 1 file changed, 9 insertions(+), 5 deletions(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index fd6a64c..050bf5e 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -6085,11 +6085,15 @@ void set_pageblock_flags_group(struct page *page, unsigned long flags,
- 	bitidx = pfn_to_bitidx(zone, pfn);
- 	VM_BUG_ON_PAGE(!zone_spans_pfn(zone, pfn), page);
- 
--	for (; start_bitidx <= end_bitidx; start_bitidx++, value <<= 1)
--		if (flags & value)
--			__set_bit(bitidx + start_bitidx, bitmap);
--		else
--			__clear_bit(bitidx + start_bitidx, bitmap);
-+	for (; start_bitidx <= end_bitidx; start_bitidx++, value <<= 1) {
-+		int oldbit = test_bit(bitidx + start_bitidx, bitmap);
-+		unsigned long newbit = flags & value;
-+
-+		if (!oldbit && newbit)
-+			set_bit(bitidx + start_bitidx, bitmap);
-+		else if (oldbit && !newbit)
-+			clear_bit(bitidx + start_bitidx, bitmap);
-+	}
- }
- 
- /*
--- 
-1.8.4.5
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
