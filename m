@@ -1,322 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f172.google.com (mail-we0-f172.google.com [74.125.82.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 90D4E6B006E
-	for <linux-mm@kvack.org>; Fri, 28 Feb 2014 22:35:57 -0500 (EST)
-Received: by mail-we0-f172.google.com with SMTP id u56so1244149wes.17
-        for <linux-mm@kvack.org>; Fri, 28 Feb 2014 19:35:56 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id w4si3682609wja.116.2014.02.28.19.35.54
-        for <linux-mm@kvack.org>;
-        Fri, 28 Feb 2014 19:35:55 -0800 (PST)
-Date: Fri, 28 Feb 2014 22:35:26 -0500
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <5311559b.2409c20a.6cfa.fffff5c5SMTPIN_ADDED_BROKEN@mx.google.com>
-In-Reply-To: <20140228151427.dd232b07960dcf876112e191@linux-foundation.org>
-References: <1393475977-3381-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1393475977-3381-3-git-send-email-n-horiguchi@ah.jp.nec.com>
- <20140227131957.d81cf9a643f4d3fd6b8d8b16@linux-foundation.org>
- <530fb3ee.03cb0e0a.407a.ffffffbcSMTPIN_ADDED_BROKEN@mx.google.com>
- <5310ea8b.c425e00a.2cd9.ffffe097SMTPIN_ADDED_BROKEN@mx.google.com>
- <20140228151427.dd232b07960dcf876112e191@linux-foundation.org>
-Subject: [PATCH v3] mm, hugetlbfs: fix rmapping for anonymous hugepages with
- page_pgoff()
-Mime-Version: 1.0
-Content-Type: text/plain;
- charset=iso-2022-jp
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Received: from mail-yh0-f47.google.com (mail-yh0-f47.google.com [209.85.213.47])
+	by kanga.kvack.org (Postfix) with ESMTP id F01976B006E
+	for <linux-mm@kvack.org>; Fri, 28 Feb 2014 22:54:41 -0500 (EST)
+Received: by mail-yh0-f47.google.com with SMTP id c41so1695867yho.6
+        for <linux-mm@kvack.org>; Fri, 28 Feb 2014 19:54:41 -0800 (PST)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id r1si6639866yhk.7.2014.02.28.19.54.40
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 28 Feb 2014 19:54:41 -0800 (PST)
+From: Sasha Levin <sasha.levin@oracle.com>
+Subject: [PATCH] lib: radix: return correct error code on insertion failure
+Date: Fri, 28 Feb 2014 22:54:24 -0500
+Message-Id: <1393646064-23785-1-git-send-email-sasha.levin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
-Cc: sasha.levin@oracle.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, riel@redhat.com
+Cc: riel@redhat.com, hannes@cmpxchg.org, minchan@kernel.org, mgorman@suse.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sasha Levin <sasha.levin@oracle.com>
 
-On Fri, Feb 28, 2014 at 03:14:27PM -0800, Andrew Morton wrote:
-> On Fri, 28 Feb 2014 14:59:02 -0500 Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
-> 
-> > page->index stores pagecache index when the page is mapped into file mapping
-> > region, and the index is in pagecache size unit, so it depends on the page
-> > size. Some of users of reverse mapping obviously assumes that page->index
-> > is in PAGE_CACHE_SHIFT unit, so they don't work for anonymous hugepage.
-> > 
-> > For example, consider that we have 3-hugepage vma and try to mbind the 2nd
-> > hugepage to migrate to another node. Then the vma is split and migrate_page()
-> > is called for the 2nd hugepage (belonging to the middle vma.)
-> > In migrate operation, rmap_walk_anon() tries to find the relevant vma to
-> > which the target hugepage belongs, but here we miscalculate pgoff.
-> > So anon_vma_interval_tree_foreach() grabs invalid vma, which fires VM_BUG_ON.
-> > 
-> > This patch introduces a new API that is usable both for normal page and
-> > hugepage to get PAGE_SIZE offset from page->index. Users should clearly
-> > distinguish page_index for pagecache index and page_pgoff for page offset.
-> > 
-> > ..
-> >
-> > --- a/include/linux/pagemap.h
-> > +++ b/include/linux/pagemap.h
-> > @@ -307,6 +307,22 @@ static inline loff_t page_file_offset(struct page *page)
-> >  	return ((loff_t)page_file_index(page)) << PAGE_CACHE_SHIFT;
-> >  }
-> >  
-> > +static inline unsigned int page_size_order(struct page *page)
-> > +{
-> > +	return unlikely(PageHuge(page)) ?
-> > +		huge_page_size_order(page) :
+We would never check the return value of __radix_tree_create() on insertion
+which would cause us to return -EEXIST on all cases of failure, even when
+such failure would be running out of memory, for example.
 
-I found that we have compound_order(page) for the same purpose, so we don't
-have to define this new function.
+This would trigger errors in various code that assumed that -EEXIST is
+a critical failure, as opposed to a "regular" error. For example, it
+would trigger a VM_BUG_ON in mm's swap handling:
 
-> > +		(PAGE_CACHE_SHIFT - PAGE_SHIFT);
-> > +}
-> 
-> Could use some nice documentation, please.  Why it exists, what it
-> does.  Particularly: what sort of pages it can and can't operate on,
-> and why.
+[  469.636769] kernel BUG at mm/swap_state.c:113!
+[  469.636769] invalid opcode: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
+[  469.638313] Dumping ftrace buffer:
+[  469.638526]    (ftrace buffer empty)
+[  469.640016] Modules linked in:
+[  469.640110] CPU: 54 PID: 4598 Comm: kswapd6 Tainted: G        W    3.14.0-rc4-next-20140228-sasha-00012-g6bbcf46-dirty #29
+[  469.640110] task: ffff8802850d3000 ti: ffff8802850cc000 task.ti: ffff8802850cc000
+[  469.640110] RIP: 0010:[<ffffffff81296a82>]  [<ffffffff81296a82>] __add_to_swap_cache+0x132/0x170
+[  469.640110] RSP: 0000:ffff8802850cd7a8  EFLAGS: 00010246
+[  469.640110] RAX: 0000000080000001 RBX: ffffea000a02ca00 RCX: 0000000000000000
+[  469.640110] RDX: 0000000000000001 RSI: 0000000000000001 RDI: 00000000ffffffff
+[  469.640110] RBP: ffff8802850cd7c8 R08: 0000000000000000 R09: 0000000000000000
+[  469.640110] R10: 0000000000000001 R11: 0000000000000001 R12: ffffffff868c2e18
+[  469.640110] R13: ffffffff868c2e30 R14: 00000000ffffffef R15: 0000000000000000
+[  469.640110] FS:  0000000000000000(0000) GS:ffff880286800000(0000) knlGS:0000000000000000
+[  469.640110] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+[  469.640110] CR2: 00000000029c23b0 CR3: 00000000824ca000 CR4: 00000000000006e0
+[  469.640110] Stack:
+[  469.640110]  ffffea000a02ca00 020000000004c037 ffff8802850cd9c8 ffffea000a02ca00
+[  469.640110]  ffff8802850cd7f8 ffffffff81296cac ffff8802850cd9c8 ffff8802850cd9c8
+[  469.640110]  ffffea000a02ca00 020000000004c037 ffff8802850cd828 ffffffff81296d90
+[  469.640110] Call Trace:
+[  469.640110]  [<ffffffff81296cac>] add_to_swap_cache+0x2c/0x60
+[  469.640110]  [<ffffffff81296d90>] add_to_swap+0xb0/0xe0
+[  469.640110]  [<ffffffff81263d21>] shrink_page_list+0x411/0x7c0
+[  469.640110]  [<ffffffff812657ac>] shrink_inactive_list+0x31c/0x570
+[  469.640110]  [<ffffffff81265d0b>] ? shrink_active_list+0x30b/0x320
+[  469.640110]  [<ffffffff81265e44>] shrink_lruvec+0x124/0x300
+[  469.640110]  [<ffffffff812660ae>] shrink_zone+0x8e/0x1d0
+[  469.640110]  [<ffffffff81266771>] kswapd_shrink_zone+0xf1/0x1b0
+[  469.640110]  [<ffffffff81267783>] balance_pgdat+0x363/0x540
+[  469.640110]  [<ffffffff81269383>] kswapd+0x2b3/0x310
+[  469.640110]  [<ffffffff812690d0>] ? ftrace_raw_event_mm_vmscan_writepage+0x180/0x180
+[  469.640110]  [<ffffffff811678b5>] kthread+0x105/0x110
+[  469.640110]  [<ffffffff811a3b52>] ? __lock_release+0x1e2/0x200
+[  469.640110]  [<ffffffff811677b0>] ? set_kthreadd_affinity+0x30/0x30
+[  469.640110]  [<ffffffff8439f58c>] ret_from_fork+0x7c/0xb0
+[  469.640110]  [<ffffffff811677b0>] ? set_kthreadd_affinity+0x30/0x30
+[  469.640110] Code: 00 00 be 0a 00 00 00 e8 0d ae fd ff 48 ff 05 b6 33 d2 06 4c 89 ef e8 1e f6 0f 03 eb 2c 4c 89 ef e8 14 f6 0f 03 41 83 fe ef 75 04 <0f> 0b eb fe 48 c7 43 30 00 00 00 00 f0 80 63 02 fe 48 89 df e8
+[  469.640110] RIP  [<ffffffff81296a82>] __add_to_swap_cache+0x132/0x170
+[  469.640110]  RSP <ffff8802850cd7a8>
 
-OK.
-
-> The presence of PAGE_CACHE_SIZE is unfortunate - it at least implies
-> that the page is a pagecache page.  I dunno, maybe just use "0"?
-
-Yes, PAGE_CACHE_SHIFT makes code messy if PAGE_CACHE_SHIFT is always PAGE_SHIFT.
-But I guess that recently people start to thinking of changing the size of
-pagecache (in the discussion around >4kB sector device.)
-And from readabilitie's perspective, "pagecache size" and "page size" are
-different things, so keeping it is better in a long run.
-
-Anyway, I revised the patch again, could you take a look?
-
-Thanks,
-Naoya
+Signed-off-by: Sasha Levin <sasha.levin@oracle.com>
 ---
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Date: Fri, 28 Feb 2014 21:56:24 -0500
-Subject: [PATCH] mm, hugetlbfs: fix rmapping for anonymous hugepages with
- page_pgoff()
+ lib/radix-tree.c |    2 ++
+ 1 files changed, 2 insertions(+), 0 deletions(-)
 
-page->index stores pagecache index when the page is mapped into file mapping
-region, and the index is in pagecache size unit, so it depends on the page
-size. Some of users of reverse mapping obviously assumes that page->index
-is in PAGE_CACHE_SHIFT unit, so they don't work for anonymous hugepage.
-
-For example, consider that we have 3-hugepage vma and try to mbind the 2nd
-hugepage to migrate to another node. Then the vma is split and migrate_page()
-is called for the 2nd hugepage (belonging to the middle vma.)
-In migrate operation, rmap_walk_anon() tries to find the relevant vma to
-which the target hugepage belongs, but here we miscalculate pgoff.
-So anon_vma_interval_tree_foreach() grabs invalid vma, which fires VM_BUG_ON.
-
-This patch introduces a new API that is usable both for normal page and
-hugepage to get PAGE_SIZE offset from page->index. Users should clearly
-distinguish page_index for pagecache index and page_pgoff for page offset.
-
-ChangeLog v3:
-- add comment on page_size_order()
-- use compound_order(compound_head(page)) instead of huge_page_size_order()
-- use page_pgoff() in rmap_walk_file() too
-- use page_size_order() in kill_proc()
-- fix space indent
-
-ChangeLog v2:
-- fix wrong shift direction
-- introduce page_size_order() and huge_page_size_order()
-- move the declaration of PageHuge() to include/linux/hugetlb_inline.h
-  to avoid macro definition.
-
-Reported-by: Sasha Levin <sasha.levin@oracle.com> # if the reported problem is fixed
-Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: stable@vger.kernel.org # 3.12+
----
- include/linux/hugetlb.h        |  7 -------
- include/linux/hugetlb_inline.h |  7 +++++++
- include/linux/pagemap.h        | 28 ++++++++++++++++++++++++++++
- mm/huge_memory.c               |  2 +-
- mm/hugetlb.c                   |  1 +
- mm/memory-failure.c            |  6 +++---
- mm/rmap.c                      | 10 +++-------
- 7 files changed, 43 insertions(+), 18 deletions(-)
-
-diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-index 8c43cc469d78..91fffa4fbc57 100644
---- a/include/linux/hugetlb.h
-+++ b/include/linux/hugetlb.h
-@@ -31,8 +31,6 @@ extern int hugetlb_max_hstate __read_mostly;
- struct hugepage_subpool *hugepage_new_subpool(long nr_blocks);
- void hugepage_put_subpool(struct hugepage_subpool *spool);
+diff --git a/lib/radix-tree.c b/lib/radix-tree.c
+index f5ea7c9..9599aa7 100644
+--- a/lib/radix-tree.c
++++ b/lib/radix-tree.c
+@@ -444,6 +444,8 @@ int radix_tree_insert(struct radix_tree_root *root,
+ 	BUG_ON(radix_tree_is_indirect_ptr(item));
  
--int PageHuge(struct page *page);
--
- void reset_vma_resv_huge_pages(struct vm_area_struct *vma);
- int hugetlb_sysctl_handler(struct ctl_table *, int, void __user *, size_t *, loff_t *);
- int hugetlb_overcommit_handler(struct ctl_table *, int, void __user *, size_t *, loff_t *);
-@@ -99,11 +97,6 @@ unsigned long hugetlb_change_protection(struct vm_area_struct *vma,
- 
- #else /* !CONFIG_HUGETLB_PAGE */
- 
--static inline int PageHuge(struct page *page)
--{
--	return 0;
--}
--
- static inline void reset_vma_resv_huge_pages(struct vm_area_struct *vma)
- {
- }
-diff --git a/include/linux/hugetlb_inline.h b/include/linux/hugetlb_inline.h
-index 2bb681fbeb35..4d60c82e9fda 100644
---- a/include/linux/hugetlb_inline.h
-+++ b/include/linux/hugetlb_inline.h
-@@ -10,6 +10,8 @@ static inline int is_vm_hugetlb_page(struct vm_area_struct *vma)
- 	return !!(vma->vm_flags & VM_HUGETLB);
- }
- 
-+int PageHuge(struct page *page);
-+
- #else
- 
- static inline int is_vm_hugetlb_page(struct vm_area_struct *vma)
-@@ -17,6 +19,11 @@ static inline int is_vm_hugetlb_page(struct vm_area_struct *vma)
- 	return 0;
- }
- 
-+static inline int PageHuge(struct page *page)
-+{
-+	return 0;
-+}
-+
- #endif
- 
- #endif
-diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
-index f0ef8826acf1..715962f7ea7a 100644
---- a/include/linux/pagemap.h
-+++ b/include/linux/pagemap.h
-@@ -307,6 +307,34 @@ static inline loff_t page_file_offset(struct page *page)
- 	return ((loff_t)page_file_index(page)) << PAGE_CACHE_SHIFT;
- }
- 
-+/*
-+ * Getting page order of a given page in the context of the pagecache which
-+ * each page belongs to.
-+ *
-+ * Pagecache unit size is not a fixed value (hugetlbfs is an example), but
-+ * vma_interval_tree and anon_vma_internval_tree APIs assume that its indices
-+ * are in PAGE_SIZE unit. So this routine helps us to get normalized indices.
-+ *
-+ * This page should be called only for pagecache pages/hugepages and anonymous
-+ * pages/hugepages, because pagecache unit size is irrelevant except for those
-+ * pages.
-+ */
-+static inline unsigned int page_size_order(struct page *page)
-+{
-+	return unlikely(PageHuge(page)) ?
-+		compound_order(compound_head(page)) :
-+		(PAGE_CACHE_SHIFT - PAGE_SHIFT);
-+}
-+
-+/*
-+ * page->index stores pagecache index whose unit is not always PAGE_SIZE.
-+ * This function converts it into PAGE_SIZE offset.
-+ */
-+static inline pgoff_t page_pgoff(struct page *page)
-+{
-+	return page->index << page_size_order(page);
-+}
-+
- extern pgoff_t linear_hugepage_index(struct vm_area_struct *vma,
- 				     unsigned long address);
- 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 82166bf974e1..12faa32f4d6d 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1877,7 +1877,7 @@ static void __split_huge_page(struct page *page,
- 			      struct list_head *list)
- {
- 	int mapcount, mapcount2;
--	pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
-+	pgoff_t pgoff = page_pgoff(page);
- 	struct anon_vma_chain *avc;
- 
- 	BUG_ON(!PageHead(page));
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index c01cb9fedb18..7222247a590b 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -29,6 +29,7 @@
- 
- #include <linux/io.h>
- #include <linux/hugetlb.h>
-+#include <linux/hugetlb_inline.h>
- #include <linux/hugetlb_cgroup.h>
- #include <linux/node.h>
- #include "internal.h"
-diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-index 47e500c2f258..516dd4202248 100644
---- a/mm/memory-failure.c
-+++ b/mm/memory-failure.c
-@@ -207,7 +207,7 @@ static int kill_proc(struct task_struct *t, unsigned long addr, int trapno,
- #ifdef __ARCH_SI_TRAPNO
- 	si.si_trapno = trapno;
- #endif
--	si.si_addr_lsb = compound_order(compound_head(page)) + PAGE_SHIFT;
-+	si.si_addr_lsb = page_size_order(page) + PAGE_SHIFT;
- 
- 	if ((flags & MF_ACTION_REQUIRED) && t == current) {
- 		si.si_code = BUS_MCEERR_AR;
-@@ -409,7 +409,7 @@ static void collect_procs_anon(struct page *page, struct list_head *to_kill,
- 	if (av == NULL)	/* Not actually mapped anymore */
- 		return;
- 
--	pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
-+	pgoff = page_pgoff(page);
- 	read_lock(&tasklist_lock);
- 	for_each_process (tsk) {
- 		struct anon_vma_chain *vmac;
-@@ -442,7 +442,7 @@ static void collect_procs_file(struct page *page, struct list_head *to_kill,
- 	mutex_lock(&mapping->i_mmap_mutex);
- 	read_lock(&tasklist_lock);
- 	for_each_process(tsk) {
--		pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
-+		pgoff_t pgoff = page_pgoff(page);
- 
- 		if (!task_early_kill(tsk))
- 			continue;
-diff --git a/mm/rmap.c b/mm/rmap.c
-index d9d42316a99a..e344012cc20a 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -515,11 +515,7 @@ void page_unlock_anon_vma_read(struct anon_vma *anon_vma)
- static inline unsigned long
- __vma_address(struct page *page, struct vm_area_struct *vma)
- {
--	pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
--
--	if (unlikely(is_vm_hugetlb_page(vma)))
--		pgoff = page->index << huge_page_order(page_hstate(page));
--
-+	pgoff_t pgoff = page_pgoff(page);
- 	return vma->vm_start + ((pgoff - vma->vm_pgoff) << PAGE_SHIFT);
- }
- 
-@@ -1588,7 +1584,7 @@ static struct anon_vma *rmap_walk_anon_lock(struct page *page,
- static int rmap_walk_anon(struct page *page, struct rmap_walk_control *rwc)
- {
- 	struct anon_vma *anon_vma;
--	pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
-+	pgoff_t pgoff = page_pgoff(page);
- 	struct anon_vma_chain *avc;
- 	int ret = SWAP_AGAIN;
- 
-@@ -1629,7 +1625,7 @@ static int rmap_walk_anon(struct page *page, struct rmap_walk_control *rwc)
- static int rmap_walk_file(struct page *page, struct rmap_walk_control *rwc)
- {
- 	struct address_space *mapping = page->mapping;
--	pgoff_t pgoff = page->index << compound_order(page);
-+	pgoff_t pgoff = page_pgoff(page);
- 	struct vm_area_struct *vma;
- 	int ret = SWAP_AGAIN;
- 
+ 	error = __radix_tree_create(root, index, &node, &slot);
++	if (error)
++		return error;
+ 	if (*slot != NULL)
+ 		return -EEXIST;
+ 	rcu_assign_pointer(*slot, item);
 -- 
-1.8.5.3
+1.7.2.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
