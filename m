@@ -1,52 +1,112 @@
-From: Davidlohr Bueso <davidlohr@hp.com>
-Subject: Re: [PATCH] mm: per-thread vma caching
-Date: Fri, 21 Feb 2014 20:57:26 -0800
-Message-ID: <1393045046.2473.6.camel@buesod1.americas.hpqcorp.net>
-References: <1392960523.3039.16.camel@buesod1.americas.hpqcorp.net>
-	 <CA+55aFw1_Ecbjjv9vijj3o46mkq3NrJn0X-FnbpCGBZG2=NuOA@mail.gmail.com>
-	 <1393016226.3039.44.camel@buesod1.americas.hpqcorp.net>
-	 <CA+55aFzw24Mwk_xw3QM_36-TbDOya=XZCqUeSSBVNS1QfjnWEw@mail.gmail.com>
-	 <1393044955.2473.5.camel@buesod1.americas.hpqcorp.net>
-Mime-Version: 1.0
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
-Return-path: <linux-kernel-owner@vger.kernel.org>
-In-Reply-To: <1393044955.2473.5.camel@buesod1.americas.hpqcorp.net>
-Sender: linux-kernel-owner@vger.kernel.org
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Michel Lespinasse <walken@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, "Chandramouleeswaran, Aswin" <aswin@hp.com>, "Norton, Scott J" <scott.norton@hp.com>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
-List-Id: linux-mm.kvack.org
+Return-Path: <owner-linux-mm@kvack.org>
+Received: from mail-vc0-f181.google.com (mail-vc0-f181.google.com [209.85.220.181])
+	by kanga.kvack.org (Postfix) with ESMTP id AF3056B0036
+	for <linux-mm@kvack.org>; Sat,  1 Mar 2014 01:11:08 -0500 (EST)
+Received: by mail-vc0-f181.google.com with SMTP id lg15so1647236vcb.40
+        for <linux-mm@kvack.org>; Fri, 28 Feb 2014 22:11:08 -0800 (PST)
+Received: from mail-vc0-x232.google.com (mail-vc0-x232.google.com [2607:f8b0:400c:c03::232])
+        by mx.google.com with ESMTPS id xn5si1481582vdc.68.2014.02.28.22.11.07
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 28 Feb 2014 22:11:08 -0800 (PST)
+Received: by mail-vc0-f178.google.com with SMTP id ik5so1676180vcb.37
+        for <linux-mm@kvack.org>; Fri, 28 Feb 2014 22:11:07 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20140228174150.8ff4edca.akpm@linux-foundation.org>
+References: <1393625931-2858-1-git-send-email-quning@google.com>
+ <CACQD4-5U3P+QiuNKzt5+VdDDi0ocphR+Jh81eHqG6_+KeaHyRw@mail.gmail.com> <20140228174150.8ff4edca.akpm@linux-foundation.org>
+From: Ning Qu <quning@gmail.com>
+Date: Fri, 28 Feb 2014 22:10:27 -0800
+Message-ID: <CACQD4-7UUDMeXdR-NaAAXvk-NRYqW7mHJkjDUM=JRvL54b_Xsg@mail.gmail.com>
+Subject: Re: [PATCH 0/1] mm, shmem: map few pages around fault address if they
+ are in page cache
+Content-Type: text/plain; charset=UTF-8
+Sender: owner-linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Fri, 2014-02-21 at 20:55 -0800, Davidlohr Bueso wrote:
-> On Fri, 2014-02-21 at 13:24 -0800, Linus Torvalds wrote:
-> > On Fri, Feb 21, 2014 at 12:57 PM, Davidlohr Bueso <davidlohr@hp.com> wrote:
-> > >
-> > > Btw, one concern I had is regarding seqnum overflows... if such
-> > > scenarios should happen we'd end up potentially returning bogus vmas and
-> > > getting bus errors and other sorts of issues. So we'd have to flush the
-> > > caches, but, do we care? I guess on 32bit systems it could be a bit more
-> > > possible to trigger given enough forking.
-> > 
-> > I guess we should do something like
-> > 
-> >     if (unlikely(!++seqnum))
-> >         flush_vma_cache()
-> > 
-> > just to not have to worry about it.
-> > 
-> > And we can either use a "#ifndef CONFIG_64BIT" to disable it for the
-> > 64-bit case (because no, we really don't need to worry about overflow
-> > in 64 bits ;), or just decide that a 32-bit sequence number actually
-> > packs better in the structures, and make it be an "u32" even on 64-bit
-> > architectures?
-> > 
-> > It looks like a 32-bit sequence number might pack nicely next to the
-> > 
-> >     unsigned brk_randomized:1;
-> 
-> And probably specially so for structures like task and mm. I hadn't
-> considered the benefits of packing vs overflowing. So we can afford
-> flushing all tasks's vmacache every 4 billion forks.
+Yes, I am using the iozone -i 0 -i 1. Let me try the most simple test
+as you mentioned.
+Best wishes,
+-- 
+Ning Qu
 
-ah, not quite that much, I was just thinking of dup_mmap, of course we
-also increment upon invalidations.
+
+On Fri, Feb 28, 2014 at 5:41 PM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
+> On Fri, 28 Feb 2014 16:35:16 -0800 Ning Qu <quning@gmail.com> wrote:
+>
+>> Sorry about my fault about the experiments, here is the real one.
+>>
+>> Btw, apparently, there are still some questions about the results and
+>> I will sync with Kirill about his test command line.
+>>
+>> Below is just some simple experiment numbers from this patch, let me know if
+>> you would like more:
+>>
+>> Tested on Xeon machine with 64GiB of RAM, using the current default fault
+>> order 4.
+>>
+>> Sequential access 8GiB file
+>>                         Baseline        with-patch
+>> 1 thread
+>>     minor fault         8,389,052    4,456,530
+>>     time, seconds    9.55            8.31
+>
+> The numbers still seem wrong.  I'd expect to see almost exactly 2M minor
+> faults with this test.
+>
+> Looky:
+>
+> #include <sys/mman.h>
+> #include <stdio.h>
+> #include <unistd.h>
+> #include <stdlib.h>
+> #include <sys/types.h>
+> #include <sys/stat.h>
+> #include <fcntl.h>
+>
+> #define G (1024 * 1024 * 1024)
+>
+> int main(int argc, char *argv[])
+> {
+>         char *p;
+>         int fd;
+>         unsigned long idx;
+>         int sum = 0;
+>
+>         fd = open("foo", O_RDONLY);
+>         if (fd < 0) {
+>                 perror("open");
+>                 exit(1);
+>         }
+>         p = mmap(NULL, 1 * G, PROT_READ, MAP_PRIVATE, fd, 0);
+>         if (p == MAP_FAILED) {
+>                 perror("mmap");
+>                 exit(1);
+>         }
+>
+>         for (idx = 0; idx < 1 * G; idx += 4096)
+>                 sum += p[idx];
+>         printf("%d\n", sum);
+>         exit(0);
+> }
+>
+> z:/home/akpm> /usr/bin/time ./a.out
+> 0
+> 0.05user 0.33system 0:00.38elapsed 99%CPU (0avgtext+0avgdata 4195856maxresident)k
+> 0inputs+0outputs (0major+262264minor)pagefaults 0swaps
+>
+> z:/home/akpm> dc
+> 16o
+> 262264 4 * p
+> 1001E0
+>
+> That's close!
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
