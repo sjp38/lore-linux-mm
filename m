@@ -1,84 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f50.google.com (mail-pb0-f50.google.com [209.85.160.50])
-	by kanga.kvack.org (Postfix) with ESMTP id D21476B006E
-	for <linux-mm@kvack.org>; Fri, 28 Feb 2014 20:21:18 -0500 (EST)
-Received: by mail-pb0-f50.google.com with SMTP id md12so1468228pbc.23
-        for <linux-mm@kvack.org>; Fri, 28 Feb 2014 17:21:18 -0800 (PST)
-Received: from mail-pd0-x22d.google.com (mail-pd0-x22d.google.com [2607:f8b0:400e:c02::22d])
-        by mx.google.com with ESMTPS id yc8si3862893pbc.67.2014.02.28.17.21.17
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 28 Feb 2014 17:21:17 -0800 (PST)
-Received: by mail-pd0-f173.google.com with SMTP id z10so1433432pdj.32
-        for <linux-mm@kvack.org>; Fri, 28 Feb 2014 17:21:17 -0800 (PST)
-Date: Fri, 28 Feb 2014 17:20:23 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 1/1] mm: implement ->map_pages for shmem/tmpfs
-In-Reply-To: <1393625931-2858-2-git-send-email-quning@google.com>
-Message-ID: <alpine.LSU.2.11.1402281657520.976@eggly.anvils>
-References: <1393625931-2858-1-git-send-email-quning@google.com> <1393625931-2858-2-git-send-email-quning@google.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E24E6B006E
+	for <linux-mm@kvack.org>; Fri, 28 Feb 2014 20:39:06 -0500 (EST)
+Received: by mail-pd0-f179.google.com with SMTP id w10so1441149pde.24
+        for <linux-mm@kvack.org>; Fri, 28 Feb 2014 17:39:06 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id on3si3872972pbb.215.2014.02.28.17.39.05
+        for <linux-mm@kvack.org>;
+        Fri, 28 Feb 2014 17:39:05 -0800 (PST)
+Date: Fri, 28 Feb 2014 17:41:50 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 0/1] mm, shmem: map few pages around fault address if
+ they are in page cache
+Message-Id: <20140228174150.8ff4edca.akpm@linux-foundation.org>
+In-Reply-To: <CACQD4-5U3P+QiuNKzt5+VdDDi0ocphR+Jh81eHqG6_+KeaHyRw@mail.gmail.com>
+References: <1393625931-2858-1-git-send-email-quning@google.com>
+	<CACQD4-5U3P+QiuNKzt5+VdDDi0ocphR+Jh81eHqG6_+KeaHyRw@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ning Qu <quning@google.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Dave Chinner <david@fromorbit.com>, Ning Qu <quning@gmail.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Ning Qu <quning@gmail.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Ning Qu <quning@google.com>
 
-On Fri, 28 Feb 2014, Ning Qu wrote:
+On Fri, 28 Feb 2014 16:35:16 -0800 Ning Qu <quning@gmail.com> wrote:
 
-> In shmem/tmpfs, we also use the generic filemap_map_pages,
-> seems the additional checking is not worth a separate version
-> of map_pages for it.
+> Sorry about my fault about the experiments, here is the real one.
 > 
-> Signed-off-by: Ning Qu <quning@google.com>
-> ---
->  mm/shmem.c | 1 +
->  1 file changed, 1 insertion(+)
+> Btw, apparently, there are still some questions about the results and
+> I will sync with Kirill about his test command line.
 > 
-> diff --git a/mm/shmem.c b/mm/shmem.c
-> index 1f18c9d..2ea4e89 100644
-> --- a/mm/shmem.c
-> +++ b/mm/shmem.c
-> @@ -2783,6 +2783,7 @@ static const struct super_operations shmem_ops = {
->  
->  static const struct vm_operations_struct shmem_vm_ops = {
->  	.fault		= shmem_fault,
-> +	.map_pages	= filemap_map_pages,
->  #ifdef CONFIG_NUMA
->  	.set_policy     = shmem_set_policy,
->  	.get_policy     = shmem_get_policy,
-> -- 
+> Below is just some simple experiment numbers from this patch, let me know if
+> you would like more:
+> 
+> Tested on Xeon machine with 64GiB of RAM, using the current default fault
+> order 4.
+> 
+> Sequential access 8GiB file
+>                         Baseline        with-patch
+> 1 thread
+>     minor fault         8,389,052    4,456,530
+>     time, seconds    9.55            8.31
 
-(There's no need for a 0/1, all the info should go into the one patch.)
+The numbers still seem wrong.  I'd expect to see almost exactly 2M minor
+faults with this test.
 
-I expect this will prove to be a very sensible and adequate patch,
-thank you: it probably wouldn't be worth more effort to give shmem
-anything special of its own, and filemap_map_pages() is already
-(almost) coping with exceptional entries.
+Looky:
 
-But I can't Ack it until I've tested it some more, won't be able to
-do so until Sunday; and even then some doubt, since this and Kirill's
-are built upon mmotm/next, which after a while gives me spinlock
-lockups under load these days, yet to be investigated.
+#include <sys/mman.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
-"almost" above because, Kirill, even without Ning's extension to
-shmem, your filemap_map_page() soon crashes on an exceptional entry:
+#define G (1024 * 1024 * 1024)
 
-Don't try to dereference an exceptional entry.
+int main(int argc, char *argv[])
+{
+	char *p;
+	int fd;
+	unsigned long idx;
+	int sum = 0;
 
-Signed-off-by: Hugh Dickins <hughd@google.com>
+	fd = open("foo", O_RDONLY);
+	if (fd < 0) {
+		perror("open");
+		exit(1);
+	}
+	p = mmap(NULL, 1 * G, PROT_READ, MAP_PRIVATE, fd, 0);
+	if (p == MAP_FAILED) {
+		perror("mmap");
+		exit(1);
+	}
 
---- mmotm+kirill/mm/filemap.c	2014-02-28 15:17:50.984019060 -0800
-+++ linux/mm/filemap.c	2014-02-28 16:38:04.976633308 -0800
-@@ -2084,7 +2084,7 @@ repeat:
- 			if (radix_tree_deref_retry(page))
- 				break;
- 			else
--				goto next;
-+				continue;
- 		}
- 
- 		if (!page_cache_get_speculative(page))
+	for (idx = 0; idx < 1 * G; idx += 4096)
+		sum += p[idx];
+	printf("%d\n", sum);
+	exit(0);
+}
+
+z:/home/akpm> /usr/bin/time ./a.out
+0
+0.05user 0.33system 0:00.38elapsed 99%CPU (0avgtext+0avgdata 4195856maxresident)k
+0inputs+0outputs (0major+262264minor)pagefaults 0swaps
+
+z:/home/akpm> dc
+16o
+262264 4 * p
+1001E0
+
+That's close!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
