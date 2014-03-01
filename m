@@ -1,89 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f181.google.com (mail-ea0-f181.google.com [209.85.215.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 5AE166B005C
-	for <linux-mm@kvack.org>; Sat,  1 Mar 2014 09:02:27 -0500 (EST)
-Received: by mail-ea0-f181.google.com with SMTP id k10so3382835eaj.12
-        for <linux-mm@kvack.org>; Sat, 01 Mar 2014 06:02:26 -0800 (PST)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id n7si9976613eeu.166.2014.03.01.06.02.25
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 41E4C6B005C
+	for <linux-mm@kvack.org>; Sat,  1 Mar 2014 11:03:11 -0500 (EST)
+Received: by mail-pd0-f175.google.com with SMTP id x10so1989062pdj.20
+        for <linux-mm@kvack.org>; Sat, 01 Mar 2014 08:03:10 -0800 (PST)
+Received: from mail-pd0-x234.google.com (mail-pd0-x234.google.com [2607:f8b0:400e:c02::234])
+        by mx.google.com with ESMTPS id xe9si5737860pab.141.2014.03.01.08.03.08
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sat, 01 Mar 2014 06:02:25 -0800 (PST)
-Date: Sat, 1 Mar 2014 09:02:12 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] lib: radix: return correct error code on insertion
- failure
-Message-ID: <20140301140212.GW6963@cmpxchg.org>
-References: <1393646064-23785-1-git-send-email-sasha.levin@oracle.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1393646064-23785-1-git-send-email-sasha.levin@oracle.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Sat, 01 Mar 2014 08:03:09 -0800 (PST)
+Received: by mail-pd0-f180.google.com with SMTP id y10so2003046pdj.11
+        for <linux-mm@kvack.org>; Sat, 01 Mar 2014 08:03:08 -0800 (PST)
+From: Gideon Israel Dsouza <gidisrael@gmail.com>
+Subject: [PATCH 0/1] Use macros from compiler.h instead of gcc specific attributes
+Date: Sat,  1 Mar 2014 21:32:27 +0530
+Message-Id: <1393689748-32236-1-git-send-email-gidisrael@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: akpm@linux-foundation.org, riel@redhat.com, minchan@kernel.org, mgorman@suse.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, geert@linux-m68k.org, Gideon Israel Dsouza <gidisrael@gmail.com>
 
-On Fri, Feb 28, 2014 at 10:54:24PM -0500, Sasha Levin wrote:
-> We would never check the return value of __radix_tree_create() on insertion
-> which would cause us to return -EEXIST on all cases of failure, even when
-> such failure would be running out of memory, for example.
-> 
-> This would trigger errors in various code that assumed that -EEXIST is
-> a critical failure, as opposed to a "regular" error. For example, it
-> would trigger a VM_BUG_ON in mm's swap handling:
-> 
-> [  469.636769] kernel BUG at mm/swap_state.c:113!
-> [  469.636769] invalid opcode: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
-> [  469.638313] Dumping ftrace buffer:
-> [  469.638526]    (ftrace buffer empty)
-> [  469.640016] Modules linked in:
-> [  469.640110] CPU: 54 PID: 4598 Comm: kswapd6 Tainted: G        W    3.14.0-rc4-next-20140228-sasha-00012-g6bbcf46-dirty #29
-> [  469.640110] task: ffff8802850d3000 ti: ffff8802850cc000 task.ti: ffff8802850cc000
-> [  469.640110] RIP: 0010:[<ffffffff81296a82>]  [<ffffffff81296a82>] __add_to_swap_cache+0x132/0x170
-> [  469.640110] RSP: 0000:ffff8802850cd7a8  EFLAGS: 00010246
-> [  469.640110] RAX: 0000000080000001 RBX: ffffea000a02ca00 RCX: 0000000000000000
-> [  469.640110] RDX: 0000000000000001 RSI: 0000000000000001 RDI: 00000000ffffffff
-> [  469.640110] RBP: ffff8802850cd7c8 R08: 0000000000000000 R09: 0000000000000000
-> [  469.640110] R10: 0000000000000001 R11: 0000000000000001 R12: ffffffff868c2e18
-> [  469.640110] R13: ffffffff868c2e30 R14: 00000000ffffffef R15: 0000000000000000
-> [  469.640110] FS:  0000000000000000(0000) GS:ffff880286800000(0000) knlGS:0000000000000000
-> [  469.640110] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-> [  469.640110] CR2: 00000000029c23b0 CR3: 00000000824ca000 CR4: 00000000000006e0
-> [  469.640110] Stack:
-> [  469.640110]  ffffea000a02ca00 020000000004c037 ffff8802850cd9c8 ffffea000a02ca00
-> [  469.640110]  ffff8802850cd7f8 ffffffff81296cac ffff8802850cd9c8 ffff8802850cd9c8
-> [  469.640110]  ffffea000a02ca00 020000000004c037 ffff8802850cd828 ffffffff81296d90
-> [  469.640110] Call Trace:
-> [  469.640110]  [<ffffffff81296cac>] add_to_swap_cache+0x2c/0x60
-> [  469.640110]  [<ffffffff81296d90>] add_to_swap+0xb0/0xe0
-> [  469.640110]  [<ffffffff81263d21>] shrink_page_list+0x411/0x7c0
-> [  469.640110]  [<ffffffff812657ac>] shrink_inactive_list+0x31c/0x570
-> [  469.640110]  [<ffffffff81265d0b>] ? shrink_active_list+0x30b/0x320
-> [  469.640110]  [<ffffffff81265e44>] shrink_lruvec+0x124/0x300
-> [  469.640110]  [<ffffffff812660ae>] shrink_zone+0x8e/0x1d0
-> [  469.640110]  [<ffffffff81266771>] kswapd_shrink_zone+0xf1/0x1b0
-> [  469.640110]  [<ffffffff81267783>] balance_pgdat+0x363/0x540
-> [  469.640110]  [<ffffffff81269383>] kswapd+0x2b3/0x310
-> [  469.640110]  [<ffffffff812690d0>] ? ftrace_raw_event_mm_vmscan_writepage+0x180/0x180
-> [  469.640110]  [<ffffffff811678b5>] kthread+0x105/0x110
-> [  469.640110]  [<ffffffff811a3b52>] ? __lock_release+0x1e2/0x200
-> [  469.640110]  [<ffffffff811677b0>] ? set_kthreadd_affinity+0x30/0x30
-> [  469.640110]  [<ffffffff8439f58c>] ret_from_fork+0x7c/0xb0
-> [  469.640110]  [<ffffffff811677b0>] ? set_kthreadd_affinity+0x30/0x30
-> [  469.640110] Code: 00 00 be 0a 00 00 00 e8 0d ae fd ff 48 ff 05 b6 33 d2 06 4c 89 ef e8 1e f6 0f 03 eb 2c 4c 89 ef e8 14 f6 0f 03 41 83 fe ef 75 04 <0f> 0b eb fe 48 c7 43 30 00 00 00 00 f0 80 63 02 fe 48 89 df e8
-> [  469.640110] RIP  [<ffffffff81296a82>] __add_to_swap_cache+0x132/0x170
-> [  469.640110]  RSP <ffff8802850cd7a8>
-> 
-> Signed-off-by: Sasha Levin <sasha.levin@oracle.com>
+To increase compiler portability there is <linux/compiler.h> which
+provides convenience macros for various gcc constructs.  Eg: __weak for
+__attribute__((weak)).  
 
-Ouch.
+I've taken up the job of cleaning these attributes all over the kernel.
+Currently my patches for cleanup of all files under /kernel and /block
+are already done and in the linux-next tree.
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+In the following patch I've replaced all aforementioned instances under
+the /mm directory in the kernel source.
 
-Andrew, this is a fix for lib-radix_tree-tree-node-interface.patch
+Gideon Israel Dsouza (1):
+  mm: use macros from compiler.h instead of __attribute__((...))
 
-Thanks!
+ mm/hugetlb.c | 3 ++-
+ mm/nommu.c   | 3 ++-
+ mm/sparse.c  | 6 ++++--
+ mm/util.c    | 5 +++--
+ mm/vmalloc.c | 4 +++-
+ 5 files changed, 14 insertions(+), 7 deletions(-)
+
+-- 
+1.8.5.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
