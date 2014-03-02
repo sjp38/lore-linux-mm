@@ -1,33 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f51.google.com (mail-qa0-f51.google.com [209.85.216.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C0DF6B0038
-	for <linux-mm@kvack.org>; Sat,  1 Mar 2014 19:59:11 -0500 (EST)
-Received: by mail-qa0-f51.google.com with SMTP id j7so2217693qaq.10
-        for <linux-mm@kvack.org>; Sat, 01 Mar 2014 16:59:11 -0800 (PST)
-Received: from qmta01.emeryville.ca.mail.comcast.net (qmta01.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:16])
-        by mx.google.com with ESMTP id f6si3580175qap.40.2014.03.01.16.59.10
+Received: from mail-ee0-f52.google.com (mail-ee0-f52.google.com [74.125.83.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 908296B0035
+	for <linux-mm@kvack.org>; Sun,  2 Mar 2014 03:22:04 -0500 (EST)
+Received: by mail-ee0-f52.google.com with SMTP id c41so3300146eek.11
+        for <linux-mm@kvack.org>; Sun, 02 Mar 2014 00:22:03 -0800 (PST)
+Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
+        by mx.google.com with ESMTP id 46si13429232eem.130.2014.03.02.00.22.01
         for <linux-mm@kvack.org>;
-        Sat, 01 Mar 2014 16:59:10 -0800 (PST)
-Date: Sat, 1 Mar 2014 18:59:07 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH] mm/slab.c: cleanup outdated comments and unify variables
- naming
-In-Reply-To: <20140227073258.GA11087@meta-silence.Home>
-Message-ID: <alpine.DEB.2.10.1403011858040.14057@nuc>
-References: <20140227073258.GA11087@meta-silence.Home>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        Sun, 02 Mar 2014 00:22:01 -0800 (PST)
+Date: Sun, 2 Mar 2014 09:22:00 +0100
+From: Pavel Machek <pavel@ucw.cz>
+Subject: Re: [PATCH v6 00/22] Support ext4 on NV-DIMMs
+Message-ID: <20140302082159.GA27716@amd.pavel.ucw.cz>
+References: <1393337918-28265-1-git-send-email-matthew.r.wilcox@intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1393337918-28265-1-git-send-email-matthew.r.wilcox@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jianyu Zhan <nasa4836@gmail.com>
-Cc: linux-mm@kvack.org, penberg@kernel.org, mpm@selenic.com, linux-kernel@vger.kernel.org
+To: Matthew Wilcox <matthew.r.wilcox@intel.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, willy@linux.intel.com
 
-On Thu, 27 Feb 2014, Jianyu Zhan wrote:
+On Tue 2014-02-25 09:18:16, Matthew Wilcox wrote:
+> One of the primary uses for NV-DIMMs is to expose them as a block device
+> and use a filesystem to store files on the NV-DIMM.  While that works,
+> it currently wastes memory and CPU time buffering the files in the page
+> cache.  We have support in ext2 for bypassing the page cache, but it
+> has some races which are unfixable in the current design.  This series
+> of patches rewrite the underlying support, and add support for direct
+> access to ext4.
+> 
+> This iteration of the patchset renames the "XIP" support to "DAX".
+> This fixes the confusion between kernel XIP and filesystem XIP.  It's not
+> really about executing in-place; it's about direct access to memory-like
+> storage, bypassing the page cache.  DAX is TLA-compliant, retains the
+> exciting X, is pronouncable ("Dacks") and is not used elsewhere in
+> the kernel.  The only major use of DAX outside the kernel is the German
+> stock exchange, and I think that's pretty unlikely to cause
+> confusion.
 
-> As time goes, the code changes a lot, and this leads to that
-> some old-days comments scatter around , which instead of faciliating
-> understanding, but make more confusion. So this patch cleans up them.
+It is TLA compliant, but not widely understood, and probably not
+googleable. Could we perhaps use some longer name for a while?
 
-Acked-by: Christoph Lameter <cl@linux.com>
+>  create mode 100644 Documentation/filesystems/dax.txt
+
+Its not like filename can't be longer than 3.3, you see?
+
+									Pavel
+
+-- 
+(english) http://www.livejournal.com/~pavelmachek
+(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
