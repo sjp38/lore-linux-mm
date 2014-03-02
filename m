@@ -1,165 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f41.google.com (mail-pb0-f41.google.com [209.85.160.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 261E56B0037
-	for <linux-mm@kvack.org>; Sun,  2 Mar 2014 08:40:27 -0500 (EST)
-Received: by mail-pb0-f41.google.com with SMTP id jt11so2708451pbb.0
-        for <linux-mm@kvack.org>; Sun, 02 Mar 2014 05:40:26 -0800 (PST)
-Received: from mail-pd0-x229.google.com (mail-pd0-x229.google.com [2607:f8b0:400e:c02::229])
-        by mx.google.com with ESMTPS id yp10si7584369pab.69.2014.03.02.05.40.25
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sun, 02 Mar 2014 05:40:26 -0800 (PST)
-Received: by mail-pd0-f169.google.com with SMTP id fp1so2652386pdb.14
-        for <linux-mm@kvack.org>; Sun, 02 Mar 2014 05:40:25 -0800 (PST)
-From: Gideon Israel Dsouza <gidisrael@gmail.com>
-Subject: [PATCH 1/1] mm: use macros from compiler.h instead of __attribute__((...))
-Date: Sun,  2 Mar 2014 19:09:58 +0530
-Message-Id: <1393767598-15954-2-git-send-email-gidisrael@gmail.com>
-In-Reply-To: <1393767598-15954-1-git-send-email-gidisrael@gmail.com>
-References: <1393767598-15954-1-git-send-email-gidisrael@gmail.com>
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id B7C1F6B0035
+	for <linux-mm@kvack.org>; Sun,  2 Mar 2014 18:30:32 -0500 (EST)
+Received: by mail-pa0-f41.google.com with SMTP id hz1so311336pad.14
+        for <linux-mm@kvack.org>; Sun, 02 Mar 2014 15:30:32 -0800 (PST)
+Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [2001:44b8:8060:ff02:300:1:6:6])
+        by mx.google.com with ESMTP id zt8si8576743pbc.105.2014.03.02.15.30.30
+        for <linux-mm@kvack.org>;
+        Sun, 02 Mar 2014 15:30:31 -0800 (PST)
+Date: Mon, 3 Mar 2014 10:30:27 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH v6 07/22] Replace the XIP page fault handler with the DAX
+ page fault handler
+Message-ID: <20140302233027.GR30131@dastard>
+References: <1393337918-28265-1-git-send-email-matthew.r.wilcox@intel.com>
+ <1393337918-28265-8-git-send-email-matthew.r.wilcox@intel.com>
+ <1393609771.6784.83.camel@misato.fc.hp.com>
+ <20140228202031.GB12820@linux.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140228202031.GB12820@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, geert@linux-m68k.org, Gideon Israel Dsouza <gidisrael@gmail.com>
+To: Matthew Wilcox <willy@linux.intel.com>
+Cc: Toshi Kani <toshi.kani@hp.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
 
-To increase compiler portability there is <linux/compiler.h> which
-provides convenience macros for various gcc constructs.  Eg: __weak
-for __attribute__((weak)).  I've replaced all instances of gcc
-attributes with the right macro in the memory management
-(/mm) subsystem.
+On Fri, Feb 28, 2014 at 03:20:31PM -0500, Matthew Wilcox wrote:
+> On Fri, Feb 28, 2014 at 10:49:31AM -0700, Toshi Kani wrote:
+> > On Tue, 2014-02-25 at 09:18 -0500, Matthew Wilcox wrote:
+> > > Instead of calling aops->get_xip_mem from the fault handler, the
+> > > filesystem passes a get_block_t that is used to find the appropriate
+> > > blocks.
+> >  :
+> > > +static int do_dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
+> > > +			get_block_t get_block)
+> > > +{
+> > > +	struct file *file = vma->vm_file;
+> > > +	struct inode *inode = file_inode(file);
+> > > +	struct address_space *mapping = file->f_mapping;
+> > > +	struct buffer_head bh;
+> > > +	unsigned long vaddr = (unsigned long)vmf->virtual_address;
+> > > +	sector_t block;
+> > > +	pgoff_t size;
+> > > +	unsigned long pfn;
+> > > +	int error;
+> > > +
+> > > +	size = (i_size_read(inode) + PAGE_SIZE - 1) >> PAGE_SHIFT;
+> > > +	if (vmf->pgoff >= size)
+> > > +		return VM_FAULT_SIGBUS;
+> > > +
+> > > +	memset(&bh, 0, sizeof(bh));
+> > > +	block = (sector_t)vmf->pgoff << (PAGE_SHIFT - inode->i_blkbits);
+> > > +	bh.b_size = PAGE_SIZE;
+> > > +	error = get_block(inode, block, &bh, 0);
+> > > +	if (error || bh.b_size < PAGE_SIZE)
+> > > +		return VM_FAULT_SIGBUS;
+> > 
+> > I am learning the code and have some questions.
+> 
+> Hi Toshi,
+> 
+> Glad to see you're looking at it.  Let me try to help ...
+> 
+> > The original code,
+> > xip_file_fault(), jumps to found: and calls vm_insert_mixed() when
+> > get_xip_mem(,,0,,) succeeded.  If get_xip_mem() returns -ENODATA, it
+> > calls either get_xip_mem(,,1,,) or xip_sparse_page().  In this new
+> > function, it looks to me that get_block(,,,0) returns 0 for both cases
+> > (success and -ENODATA previously), which are dealt in the same way.  Is
+> > that right?  If so, is there any reason for the change?
+> 
+> Yes, get_xip_mem() returned -ENODATA for a hole.  That was a suboptimal
+> interface because filesystems are actually capable of returning more
+> information than that, eg how long the hole is (ext4 *doesn't*, but I
+> consider that to be a bug).
+> 
+> I don't get to decide what the get_block() interface looks like.  It's the
+> standard way that the VFS calls back into the filesystem and has been
+> around for probably close to twenty years at this point.  I'm still trying
+> to understand exactly what the contract is for get_blocks() ... I have
+> a document that I'm working on to try to explain it, but it's tough going!
+> 
+> > Also, isn't it
+> > possible to call get_block(,,,1) even if get_block(,,,0) found a block?
+> 
+> The code in question looks like this:
+> 
+>         error = get_block(inode, block, &bh, 0);
+>         if (error || bh.b_size < PAGE_SIZE)
+>                 goto sigbus;
+> 
+>         if (!buffer_written(&bh) && !vmf->cow_page) {
+>                 if (vmf->flags & FAULT_FLAG_WRITE) {
+>                         error = get_block(inode, block, &bh, 1);
+> 
+> where buffer_written is defined as:
+>         return buffer_mapped(bh) && !buffer_unwritten(bh);
+> 
+> Doing some boolean algebra, that's:
+> 
+> 	if (!buffer_mapped || buffer_unwritten)
+> 
+> In either case, we want to tell the filesystem that we're writing to
+> this block.  At least, that's my current understanding of the get_block()
+> interface.  I'm open to correction here!
 
-Signed-off-by: Gideon Israel Dsouza <gidisrael@gmail.com>
----
- mm/hugetlb.c | 3 ++-
- mm/nommu.c   | 3 ++-
- mm/sparse.c  | 4 +++-
- mm/util.c    | 5 +++--
- mm/vmalloc.c | 4 +++-
- 5 files changed, 13 insertions(+), 6 deletions(-)
+I've got a rewritten version on this that doesn't require two calls
+to get_block() that I wrote while prototyping the XFS code. It also
+fixes all the misunderstandings about what get_block() actually does
+and returns so it works correctly with XFS.
 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index c01cb9f..2870e19 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -13,6 +13,7 @@
- #include <linux/nodemask.h>
- #include <linux/pagemap.h>
- #include <linux/mempolicy.h>
-+#include <linux/compiler.h>
- #include <linux/cpuset.h>
- #include <linux/mutex.h>
- #include <linux/bootmem.h>
-@@ -3446,7 +3447,7 @@ follow_huge_pud(struct mm_struct *mm, unsigned long address,
- #else /* !CONFIG_ARCH_WANT_GENERAL_HUGETLB */
- 
- /* Can be overriden by architectures */
--__attribute__((weak)) struct page *
-+__weak struct page *
- follow_huge_pud(struct mm_struct *mm, unsigned long address,
- 	       pud_t *pud, int write)
- {
-diff --git a/mm/nommu.c b/mm/nommu.c
-index 8740213..6556792 100644
---- a/mm/nommu.c
-+++ b/mm/nommu.c
-@@ -24,6 +24,7 @@
- #include <linux/vmalloc.h>
- #include <linux/blkdev.h>
- #include <linux/backing-dev.h>
-+#include <linux/compiler.h>
- #include <linux/mount.h>
- #include <linux/personality.h>
- #include <linux/security.h>
-@@ -459,7 +460,7 @@ EXPORT_SYMBOL_GPL(vm_unmap_aliases);
-  * Implement a stub for vmalloc_sync_all() if the architecture chose not to
-  * have one.
-  */
--void  __attribute__((weak)) vmalloc_sync_all(void)
-+void  __weak vmalloc_sync_all(void)
- {
- }
- 
-diff --git a/mm/sparse.c b/mm/sparse.c
-index 63c3ea5..68ad7da 100644
---- a/mm/sparse.c
-+++ b/mm/sparse.c
-@@ -5,10 +5,12 @@
- #include <linux/slab.h>
- #include <linux/mmzone.h>
- #include <linux/bootmem.h>
-+#include <linux/compiler.h>
- #include <linux/highmem.h>
- #include <linux/export.h>
- #include <linux/spinlock.h>
- #include <linux/vmalloc.h>
-+
- #include "internal.h"
- #include <asm/dma.h>
- #include <asm/pgalloc.h>
-@@ -461,7 +463,7 @@ static struct page __init *sparse_early_mem_map_alloc(unsigned long pnum)
- }
- #endif
- 
--void __attribute__((weak)) __meminit vmemmap_populate_print_last(void)
-+void __weak __meminit vmemmap_populate_print_last(void)
- {
- }
- 
-diff --git a/mm/util.c b/mm/util.c
-index a24aa22..d7813e6 100644
---- a/mm/util.c
-+++ b/mm/util.c
-@@ -1,6 +1,7 @@
- #include <linux/mm.h>
- #include <linux/slab.h>
- #include <linux/string.h>
-+#include <linux/compiler.h>
- #include <linux/export.h>
- #include <linux/err.h>
- #include <linux/sched.h>
-@@ -307,7 +308,7 @@ void arch_pick_mmap_layout(struct mm_struct *mm)
-  * If the architecture not support this function, simply return with no
-  * page pinned
-  */
--int __attribute__((weak)) __get_user_pages_fast(unsigned long start,
-+int __weak __get_user_pages_fast(unsigned long start,
- 				 int nr_pages, int write, struct page **pages)
- {
- 	return 0;
-@@ -338,7 +339,7 @@ EXPORT_SYMBOL_GPL(__get_user_pages_fast);
-  * callers need to carefully consider what to use. On many architectures,
-  * get_user_pages_fast simply falls back to get_user_pages.
-  */
--int __attribute__((weak)) get_user_pages_fast(unsigned long start,
-+int __weak get_user_pages_fast(unsigned long start,
- 				int nr_pages, int write, struct page **pages)
- {
- 	struct mm_struct *mm = current->mm;
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 0fdf968..a7b522f 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -27,7 +27,9 @@
- #include <linux/pfn.h>
- #include <linux/kmemleak.h>
- #include <linux/atomic.h>
-+#include <linux/compiler.h>
- #include <linux/llist.h>
-+
- #include <asm/uaccess.h>
- #include <asm/tlbflush.h>
- #include <asm/shmparam.h>
-@@ -2181,7 +2183,7 @@ EXPORT_SYMBOL(remap_vmalloc_range);
-  * Implement a stub for vmalloc_sync_all() if the architecture chose not to
-  * have one.
-  */
--void  __attribute__((weak)) vmalloc_sync_all(void)
-+void __weak vmalloc_sync_all(void)
- {
- }
- 
+I need to port it forward to your new patch set (hopefully later
+this week), so don't spend too much time trying to work out exactly
+what this code needs to do...
+
+Cheers,
+
+Dave.
 -- 
-1.8.5.3
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
