@@ -1,67 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f179.google.com (mail-ea0-f179.google.com [209.85.215.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E7116B0035
-	for <linux-mm@kvack.org>; Mon,  3 Mar 2014 13:07:37 -0500 (EST)
-Received: by mail-ea0-f179.google.com with SMTP id q10so4760098ead.10
-        for <linux-mm@kvack.org>; Mon, 03 Mar 2014 10:07:36 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id he7si11510029wjc.26.2014.03.03.10.07.34
-        for <linux-mm@kvack.org>;
-        Mon, 03 Mar 2014 10:07:35 -0800 (PST)
-Date: Mon, 03 Mar 2014 13:07:07 -0500
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <5314c4e7.47c0c20a.23ba.ffff94feSMTPIN_ADDED_BROKEN@mx.google.com>
-In-Reply-To: <1392737235-27286-2-git-send-email-steve.capper@linaro.org>
-References: <1392737235-27286-1-git-send-email-steve.capper@linaro.org>
- <1392737235-27286-2-git-send-email-steve.capper@linaro.org>
-Subject: Re: [PATCH 1/5] mm: hugetlb: Introduce huge_pte_{page,present,young}
-Mime-Version: 1.0
-Content-Type: text/plain;
- charset=iso-2022-jp
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Received: from mail-ve0-f169.google.com (mail-ve0-f169.google.com [209.85.128.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 156336B0035
+	for <linux-mm@kvack.org>; Mon,  3 Mar 2014 13:49:44 -0500 (EST)
+Received: by mail-ve0-f169.google.com with SMTP id pa12so4061575veb.14
+        for <linux-mm@kvack.org>; Mon, 03 Mar 2014 10:49:43 -0800 (PST)
+Received: from mail-vc0-x22c.google.com (mail-vc0-x22c.google.com [2607:f8b0:400c:c03::22c])
+        by mx.google.com with ESMTPS id uo16si3436735veb.48.2014.03.03.10.49.43
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 03 Mar 2014 10:49:43 -0800 (PST)
+Received: by mail-vc0-f172.google.com with SMTP id lf12so4044245vcb.3
+        for <linux-mm@kvack.org>; Mon, 03 Mar 2014 10:49:43 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20140303110747.01F2DE0098@blue.fi.intel.com>
+References: <1393625931-2858-1-git-send-email-quning@google.com>
+ <1393625931-2858-2-git-send-email-quning@google.com> <alpine.LSU.2.11.1402281657520.976@eggly.anvils>
+ <CACQD4-4bbwk_LOUVamTyB6V+Fg_F+Q4q2g8DxroTM7YiA=eJzQ@mail.gmail.com> <20140303110747.01F2DE0098@blue.fi.intel.com>
+From: Ning Qu <quning@google.com>
+Date: Mon, 3 Mar 2014 10:49:02 -0800
+Message-ID: <CACQD4-5FhMZ5c1+rFdSLHusK4gT4uE8D06FPUHJ9Exqw8KVYYQ@mail.gmail.com>
+Subject: Re: [PATCH 1/1] mm: implement ->map_pages for shmem/tmpfs
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: steve.capper@linaro.org
-Cc: linux-arm-kernel@lists.infradead.org, linux@arm.linux.org.uk, linux-mm@kvack.org, will.deacon@arm.com, catalin.marinas@arm.com, arnd@arndb.de, dsaxena@linaro.org, robherring2@gmail.com
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Hi Steve,
+Thanks for the updates!
+Best wishes,
+--=20
+Ning Qu (=E6=9B=B2=E5=AE=81) | Software Engineer | quning@google.com | +1-4=
+08-418-6066
 
-On Tue, Feb 18, 2014 at 03:27:11PM +0000, Steve Capper wrote:
-> Introduce huge pte versions of pte_page, pte_present and pte_young.
-> This allows ARM (without LPAE) to use alternative pte processing logic
-> for huge ptes.
-> 
-> Where these functions are not defined by architectural code they
-> fallback to the standard functions.
-> 
-> Signed-off-by: Steve Capper <steve.capper@linaro.org>
+
+On Mon, Mar 3, 2014 at 3:07 AM, Kirill A. Shutemov
+<kirill.shutemov@linux.intel.com> wrote:
+> Ning Qu wrote:
+>> Btw, should we first check if page returned by radix_tree_deref_slot is =
+NULL?
+>
+> Yes, we should. I don't know how I missed that. :(
+>
+> The patch below should address both issues.
+>
+> From dca24c9a1f31ee1599fe81e9a60d4f87a4eaf0ea Mon Sep 17 00:00:00 2001
+> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> Date: Mon, 3 Mar 2014 12:07:03 +0200
+> Subject: [PATCH] mm: filemap_map_pages() avoid dereference NULL/exception
+>  slots
+>
+> radix_tree_deref_slot() can return NULL: add missed check.
+>
+> Do no dereference 'page': we can get there as result of
+> radix_tree_exception(page) check.
+>
+> Reported-by: Hugh Dickins <hughd@google.com>
+> Reported-by: Ning Qu <quning@google.com>
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 > ---
->  include/linux/hugetlb.h | 12 ++++++++++++
->  mm/hugetlb.c            | 22 +++++++++++-----------
->  2 files changed, 23 insertions(+), 11 deletions(-)
-
-How about replacing other archs' arch-dependent code with new functions?
-
-  [~/dev]$ find arch/ -name "hugetlbpage.c" | xargs grep pte_page
-  arch/s390/mm/hugetlbpage.c:             pmd_val(pmd) |= pte_page(pte)[1].index;
-  arch/powerpc/mm/hugetlbpage.c:  page = pte_page(*ptep);
-  arch/powerpc/mm/hugetlbpage.c:  head = pte_page(pte);
-  arch/x86/mm/hugetlbpage.c:      page = &pte_page(*pte)[vpfn % (HPAGE_SIZE/PAGE_SIZE)];
-  arch/ia64/mm/hugetlbpage.c:     page = pte_page(*ptep);
-  arch/mips/mm/hugetlbpage.c:     page = pte_page(*(pte_t *)pmd);
-  arch/tile/mm/hugetlbpage.c:     page = pte_page(*(pte_t *)pmd);
-  arch/tile/mm/hugetlbpage.c:     page = pte_page(*(pte_t *)pud);
-  [~/dev]$ find arch/ -name "hugetlbpage.c" | xargs grep pte_present
-  arch/s390/mm/hugetlbpage.c:     if (pte_present(pte)) {
-  arch/sparc/mm/hugetlbpage.c:    if (!pte_present(*ptep) && pte_present(entry))
-  arch/sparc/mm/hugetlbpage.c:    if (pte_present(entry))
-  arch/tile/mm/hugetlbpage.c:     if (!pte_present(*ptep) && huge_shift[level] != 0) {
-  arch/tile/mm/hugetlbpage.c:             if (pte_present(pte) && pte_super(pte))
-  arch/tile/mm/hugetlbpage.c:     if (!pte_present(*pte))
-
-Thanks,
-Naoya Horiguchi
+>  mm/filemap.c | 4 +++-
+>  1 file changed, 3 insertions(+), 1 deletion(-)
+>
+> diff --git a/mm/filemap.c b/mm/filemap.c
+> index 5f4fe7f0c258..e48624634927 100644
+> --- a/mm/filemap.c
+> +++ b/mm/filemap.c
+> @@ -1745,6 +1745,8 @@ void filemap_map_pages(struct vm_area_struct *vma, =
+struct vm_fault *vmf)
+>                         break;
+>  repeat:
+>                 page =3D radix_tree_deref_slot(slot);
+> +               if (unlikely(!page))
+> +                       goto next;
+>                 if (radix_tree_exception(page)) {
+>                         if (radix_tree_deref_retry(page))
+>                                 break;
+> @@ -1790,7 +1792,7 @@ unlock:
+>  skip:
+>                 page_cache_release(page);
+>  next:
+> -               if (page->index =3D=3D vmf->max_pgoff)
+> +               if (iter.index =3D=3D vmf->max_pgoff)
+>                         break;
+>         }
+>         rcu_read_unlock();
+> --
+>  Kirill A. Shutemov
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
