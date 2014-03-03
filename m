@@ -1,147 +1,171 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f49.google.com (mail-pb0-f49.google.com [209.85.160.49])
-	by kanga.kvack.org (Postfix) with ESMTP id E97E06B0037
-	for <linux-mm@kvack.org>; Mon,  3 Mar 2014 18:07:19 -0500 (EST)
-Received: by mail-pb0-f49.google.com with SMTP id jt11so4314495pbb.8
-        for <linux-mm@kvack.org>; Mon, 03 Mar 2014 15:07:19 -0800 (PST)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id zt8si12104629pbc.45.2014.03.03.15.07.18
-        for <linux-mm@kvack.org>;
-        Mon, 03 Mar 2014 15:07:18 -0800 (PST)
-Date: Mon, 3 Mar 2014 16:07:35 -0700 (MST)
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH v6 07/22] Replace the XIP page fault handler with the
- DAX page fault handler
-In-Reply-To: <20140302233027.GR30131@dastard>
-Message-ID: <alpine.OSX.2.00.1403031549110.34680@scrumpy>
-References: <1393337918-28265-1-git-send-email-matthew.r.wilcox@intel.com> <1393337918-28265-8-git-send-email-matthew.r.wilcox@intel.com> <1393609771.6784.83.camel@misato.fc.hp.com> <20140228202031.GB12820@linux.intel.com> <20140302233027.GR30131@dastard>
+Received: from mail-ve0-f170.google.com (mail-ve0-f170.google.com [209.85.128.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 166346B0038
+	for <linux-mm@kvack.org>; Mon,  3 Mar 2014 18:08:28 -0500 (EST)
+Received: by mail-ve0-f170.google.com with SMTP id pa12so4450812veb.29
+        for <linux-mm@kvack.org>; Mon, 03 Mar 2014 15:08:27 -0800 (PST)
+Received: from mail-ve0-x230.google.com (mail-ve0-x230.google.com [2607:f8b0:400c:c01::230])
+        by mx.google.com with ESMTPS id tt2si3993712vdc.22.2014.03.03.15.08.27
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 03 Mar 2014 15:08:27 -0800 (PST)
+Received: by mail-ve0-f176.google.com with SMTP id cz12so4348147veb.21
+        for <linux-mm@kvack.org>; Mon, 03 Mar 2014 15:08:27 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20140303143834.90ebe8ec5c6a369e54a599ec@linux-foundation.org>
+References: <1393625931-2858-1-git-send-email-quning@google.com>
+ <CACQD4-5U3P+QiuNKzt5+VdDDi0ocphR+Jh81eHqG6_+KeaHyRw@mail.gmail.com>
+ <20140228174150.8ff4edca.akpm@linux-foundation.org> <CACQD4-7UUDMeXdR-NaAAXvk-NRYqW7mHJkjDUM=JRvL54b_Xsg@mail.gmail.com>
+ <CACQD4-5SmUf+krLbef9Yg9HhJ-ipT2QKKq-NW=2C6G=XwXcMcQ@mail.gmail.com> <20140303143834.90ebe8ec5c6a369e54a599ec@linux-foundation.org>
+From: Ning Qu <quning@gmail.com>
+Date: Mon, 3 Mar 2014 15:07:47 -0800
+Message-ID: <CACQD4-4M9PkJ7cg24fLZ6ow=5hjhpHzymmfO1LU5x9ZBK-AsJA@mail.gmail.com>
+Subject: Re: [PATCH 0/1] mm, shmem: map few pages around fault address if they
+ are in page cache
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Matthew Wilcox <willy@linux.intel.com>, Toshi Kani <toshi.kani@hp.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Mon, 3 Mar 2014, Dave Chinner wrote:
-> On Fri, Feb 28, 2014 at 03:20:31PM -0500, Matthew Wilcox wrote:
-> > On Fri, Feb 28, 2014 at 10:49:31AM -0700, Toshi Kani wrote:
-> > > The original code,
-> > > xip_file_fault(), jumps to found: and calls vm_insert_mixed() when
-> > > get_xip_mem(,,0,,) succeeded.  If get_xip_mem() returns -ENODATA, it
-> > > calls either get_xip_mem(,,1,,) or xip_sparse_page().  In this new
-> > > function, it looks to me that get_block(,,,0) returns 0 for both cases
-> > > (success and -ENODATA previously), which are dealt in the same way.  Is
-> > > that right?  If so, is there any reason for the change?
-> > 
-> > Yes, get_xip_mem() returned -ENODATA for a hole.  That was a suboptimal
-> > interface because filesystems are actually capable of returning more
-> > information than that, eg how long the hole is (ext4 *doesn't*, but I
-> > consider that to be a bug).
-> > 
-> > I don't get to decide what the get_block() interface looks like.  It's the
-> > standard way that the VFS calls back into the filesystem and has been
-> > around for probably close to twenty years at this point.  I'm still trying
-> > to understand exactly what the contract is for get_blocks() ... I have
-> > a document that I'm working on to try to explain it, but it's tough going!
-> > 
-> > > Also, isn't it
-> > > possible to call get_block(,,,1) even if get_block(,,,0) found a block?
-> > 
-> > The code in question looks like this:
-> > 
-> >         error = get_block(inode, block, &bh, 0);
-> >         if (error || bh.b_size < PAGE_SIZE)
-> >                 goto sigbus;
-> > 
-> >         if (!buffer_written(&bh) && !vmf->cow_page) {
-> >                 if (vmf->flags & FAULT_FLAG_WRITE) {
-> >                         error = get_block(inode, block, &bh, 1);
-> > 
-> > where buffer_written is defined as:
-> >         return buffer_mapped(bh) && !buffer_unwritten(bh);
-> > 
-> > Doing some boolean algebra, that's:
-> > 
-> > 	if (!buffer_mapped || buffer_unwritten)
-> > 
-> > In either case, we want to tell the filesystem that we're writing to
-> > this block.  At least, that's my current understanding of the get_block()
-> > interface.  I'm open to correction here!
-> 
-> I've got a rewritten version on this that doesn't require two calls
-> to get_block() that I wrote while prototyping the XFS code. It also
-> fixes all the misunderstandings about what get_block() actually does
-> and returns so it works correctly with XFS.
-> 
-> I need to port it forward to your new patch set (hopefully later
-> this week), so don't spend too much time trying to work out exactly
-> what this code needs to do...
+Actually this one is just using the generic functions provided in
+Kirill's patch.
 
-Here is a writeup from Matthew Wilcox describing the get_block() interface.
+And Kirill just sent another email earlier with two fixes reported by
+Hugh and I.
 
-He sent this to me before Dave sent out the latest mail in this thread. :)
+So it doesn't change anything in this patch. I will update the log and
+work on the
 
-Corrections and updates are very welcome.
+experiment results. I already asked Kirill command line, so I can have a
 
-- Ross
+apple-to-apple comparison then. I will update the patch with new results soon.
 
-================
+Sorry about the mess-up previously. I should have asked Kirill about the test
 
-get_block_t is used by the VFS to ask filesystem to translate logical
-blocks within a file to sectors on a block device.
+in the first place.
 
-typedef int (get_block_t)(struct inode *inode, sector_t iblock,
-                        struct buffer_head *bh_result, int create);
 
-get_block() must not be called simultaneously with the create flag set
-for overlapping extents *** or is/was this a bug in ext2? ***
+Best wishes,
+-- 
+Ning Qu
 
-Despite the iblock argument having type sector_t, iblock is actually
-in units of the file block size, not in units of 512-byte sectors.
-iblock must not extend beyond i_size. *** um, looks like xfs permits
-this ... ? ***
 
-If there is no current mapping from the block to the media, one will be
-created if 'create' is set to 1.  'create' should not be set to a value
-other than '0' or '1'.
-
-On entry, bh_result should have b_size set to the number of bytes that the
-caller is interested in and b_state initialised to zero.  b_size should
-be a multiple of the file block size.  On exit, bh_result describes a
-physically contiguous extent starting at iblock.  b_size will not be
-increased by get_block, but it may be decreased if the filesystem extent
-is shorter than the extent requested.
-
-If bh_result describes an extent that is allocated, then BH_Mapped will
-be set, and b_bdev and b_blocknr will be set to indicate the physical
-location on the media.  The filesystem may wish to use map_bh() in order
-to set BH_Mapped and initialise b_bdev, b_blocknr and b_size.  If the
-filesystem knows that the extent is read into memory (eg because it
-decided to populate the page cache as part of its get_block operation),
-it should set BH_Uptodate.
-
-If bh_result describes a hole, the filesystem should clear BH_Mapped and
-set BH_Uptodate.  It will not set b_bdev or b_blocknr, but it should set
-b_size to indicate the length of the hole.  It may also opt to leave
-bh_result untouched as described above.  If the block corresponds to
-a hole, bh_result *may* be unmodified, but the VFS can optimise some
-operations if the filesystem reports the length of the hole as described
-below. *** or is this a bug in ext4? ***
-
-If bh_result describes an extent which has data in the pagecache, but
-that data has not yet had space allocated on the media (due to delayed
-allocation), BH_Mapped, BH_Uptodate and BH_Delay will be set.  b_blocknr
-is not set.
-
-If bh_result describes an extent which is reserved for data which has not
-yet been written, BH_Unwritten is set, b_bdev and b_blocknr are set.
-
-Other flags that may be set include BH_New (to indicate that the buffer
-was newly allocated and may need to be initialised), and BH_Boundary (to
-indicate a physical discontinuity after this extent).
-
-The filesystem may choose to set b_private.  Other fields in buffer_head
-are legacy buffer-cache uses and will not be modified by get_block.
+On Mon, Mar 3, 2014 at 2:38 PM, Andrew Morton <akpm@linux-foundation.org> wrote:
+> On Fri, 28 Feb 2014 22:27:04 -0800 Ning Qu <quning@gmail.com> wrote:
+>
+>> On Fri, Feb 28, 2014 at 10:10 PM, Ning Qu <quning@gmail.com> wrote:
+>> > Yes, I am using the iozone -i 0 -i 1. Let me try the most simple test
+>> > as you mentioned.
+>> > Best wishes,
+>> > --
+>> > Ning Qu
+>> >
+>> >
+>> > On Fri, Feb 28, 2014 at 5:41 PM, Andrew Morton
+>> > <akpm@linux-foundation.org> wrote:
+>> >> On Fri, 28 Feb 2014 16:35:16 -0800 Ning Qu <quning@gmail.com> wrote:
+>> >>
+>> >>
+>> >> int main(int argc, char *argv[])
+>> >> {
+>> >>         char *p;
+>> >>         int fd;
+>> >>         unsigned long idx;
+>> >>         int sum = 0;
+>> >>
+>> >>         fd = open("foo", O_RDONLY);
+>> >>         if (fd < 0) {
+>> >>                 perror("open");
+>> >>                 exit(1);
+>> >>         }
+>> >>         p = mmap(NULL, 1 * G, PROT_READ, MAP_PRIVATE, fd, 0);
+>> >>         if (p == MAP_FAILED) {
+>> >>                 perror("mmap");
+>> >>                 exit(1);
+>> >>         }
+>> >>
+>> >>         for (idx = 0; idx < 1 * G; idx += 4096)
+>> >>                 sum += p[idx];
+>> >>         printf("%d\n", sum);
+>> >>         exit(0);
+>> >> }
+>> >>
+>> >> z:/home/akpm> /usr/bin/time ./a.out
+>> >> 0
+>> >> 0.05user 0.33system 0:00.38elapsed 99%CPU (0avgtext+0avgdata 4195856maxresident)k
+>> >> 0inputs+0outputs (0major+262264minor)pagefaults 0swaps
+>> >>
+>> >> z:/home/akpm> dc
+>> >> 16o
+>> >> 262264 4 * p
+>> >> 1001E0
+>> >>
+>> >> That's close!
+>
+> OK, I'm repairing your top-posting here.  It makes it unnecessarily
+> hard to conduct a conversation - please just don't do it.
+>
+>> Yes, the simple test does verify that the page fault number are
+>> correct with the patch. So my previous results are from those command
+>> lines, which also show some performance improvement with this change
+>> in tmpfs.
+>>
+>> sequential access
+>> /usr/bin/time -a ./iozone -B s 8g -i 0 -i 1
+>>
+>> random access
+>> /usr/bin/time -a ./iozone -B s 8g -i 0 -i 2
+>
+> I don't understand your point here.
+>
+> Running my simple test app with and without Kirill's
+> mm-introduce-vm_ops-map_pages and
+> mm-implement-map_pages-for-page-cache, minor faults are reduced 16x
+> when the file is cached, as expected:
+>
+> 0.02user 0.22system 0:00.24elapsed 97%CPU (0avgtext+0avgdata 4198080maxresident)k
+> 0inputs+0outputs (0major+16433minor)pagefaults 0swaps
+>
+>
+> When the file is uncached, results are peculiar:
+>
+> 0.00user 2.84system 0:50.90elapsed 5%CPU (0avgtext+0avgdata 4198096maxresident)k
+> 0inputs+0outputs (1major+49666minor)pagefaults 0swaps
+>
+> That's approximately 3x more minor faults.  I thought it might be due
+> to the fact that userspace pagefaults and disk IO completions are both
+> working in the same order through the same pages, so the pagefaults
+> keep stumbling across not-yet-completed pages.  So I attempted to
+> complete the pages in reverse order:
+>
+> --- a/fs/mpage.c~a
+> +++ a/fs/mpage.c
+> @@ -41,12 +41,16 @@
+>   * status of that page is hard.  See end_buffer_async_read() for the details.
+>   * There is no point in duplicating all that complexity.
+>   */
+> +#define bio_for_each_segment_all_reverse(bvl, bio, i)                  \
+> +       for (i = 0, bvl = (bio)->bi_io_vec + (bio)->bi_vcnt - 1;        \
+> +       i < (bio)->bi_vcnt; i++, bvl--)
+> +
+>  static void mpage_end_io(struct bio *bio, int err)
+>  {
+>         struct bio_vec *bv;
+>         int i;
+>
+> -       bio_for_each_segment_all(bv, bio, i) {
+> +       bio_for_each_segment_all_reverse(bv, bio, i) {
+>                 struct page *page = bv->bv_page;
+>
+>                 if (bio_data_dir(bio) == READ) {
+>
+> But that made no difference.  Maybe I got the wrong BIO completion
+> routine, but I don't think so (it's ext3).  Probably my theory is
+> wrong.
+>
+> Anyway, could you please resend your patch with Hugh's fix and with a
+> more carefully written and more accurate changelog?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
