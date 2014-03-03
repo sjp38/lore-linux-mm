@@ -1,92 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f43.google.com (mail-wg0-f43.google.com [74.125.82.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 93B5F6B0035
-	for <linux-mm@kvack.org>; Mon,  3 Mar 2014 07:46:50 -0500 (EST)
-Received: by mail-wg0-f43.google.com with SMTP id x13so2010914wgg.14
-        for <linux-mm@kvack.org>; Mon, 03 Mar 2014 04:46:49 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x3si5824185wje.119.2014.03.03.04.46.48
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id E4F976B0035
+	for <linux-mm@kvack.org>; Mon,  3 Mar 2014 08:15:03 -0500 (EST)
+Received: by mail-pa0-f43.google.com with SMTP id bj1so3684780pad.16
+        for <linux-mm@kvack.org>; Mon, 03 Mar 2014 05:15:03 -0800 (PST)
+Received: from out3-smtp.messagingengine.com (out3-smtp.messagingengine.com. [66.111.4.27])
+        by mx.google.com with ESMTPS id u5si280313pbi.298.2014.03.03.05.15.02
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 03 Mar 2014 04:46:48 -0800 (PST)
-Message-ID: <531479B7.3070606@suse.cz>
-Date: Mon, 03 Mar 2014 13:46:47 +0100
-From: Vlastimil Babka <vbabka@suse.cz>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 03 Mar 2014 05:15:02 -0800 (PST)
+Received: from compute6.internal (compute6.nyi.mail.srv.osa [10.202.2.46])
+	by gateway1.nyi.mail.srv.osa (Postfix) with ESMTP id C232020E29
+	for <linux-mm@kvack.org>; Mon,  3 Mar 2014 08:14:57 -0500 (EST)
+Message-ID: <5314804F.9090806@iki.fi>
+Date: Mon, 03 Mar 2014 15:14:55 +0200
+From: Pekka Enberg <penberg@iki.fi>
 MIME-Version: 1.0
-Subject: Re: [PATCH 6/6] mm: use atomic bit operations in set_pageblock_flags_group()
-References: <1393596904-16537-1-git-send-email-vbabka@suse.cz> <1393596904-16537-7-git-send-email-vbabka@suse.cz> <20140303082846.GB28899@lge.com>
-In-Reply-To: <20140303082846.GB28899@lge.com>
+Subject: Re: [patch] x86, kmemcheck: Use kstrtoint() instead of sscanf()
+References: <5304558F.9050605@huawei.com> <alpine.DEB.2.02.1402182344001.3551@chino.kir.corp.google.com> <alpine.DEB.2.02.1402191412300.31921@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.02.1402191412300.31921@chino.kir.corp.google.com>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: David Rientjes <rientjes@google.com>, Vegard Nossum <vegardno@ifi.uio.no>, Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>
+Cc: Xishi Qiu <qiuxishi@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 03/03/2014 09:28 AM, Joonsoo Kim wrote:
-> On Fri, Feb 28, 2014 at 03:15:04PM +0100, Vlastimil Babka wrote:
->> set_pageblock_flags_group() is used to set either migratetype or skip bit of a
->> pageblock. Setting migratetype is done under zone->lock (except from __init
->> code), however changing the skip bits is not protected and the pageblock flags
->> bitmap packs migratetype and skip bits together and uses non-atomic bit ops.
->> Therefore, races between setting migratetype and skip bit are possible and the
->> non-atomic read-modify-update of the skip bit may cause lost updates to
->> migratetype bits, resulting in invalid migratetype values, which are in turn
->> used to e.g. index free_list array.
->>
->> The race has been observed to happen and cause panics, albeit during
->> development of series that increases frequency of migratetype changes through
->> {start,undo}_isolate_page_range() calls.
->>
->> Two possible solutions were investigated: 1) using zone->lock for changing
->> pageblock_skip bit and 2) changing the bitmap operations to be atomic. The
->> problem of 1) is that zone->lock is already contended and almost never held in
->> the compaction code that updates pageblock_skip bits. Solution 2) should scale
->> better, but adds atomic operations also to migratype changes which are already
->> protected by zone->lock.
+On 02/20/2014 12:14 AM, David Rientjes wrote:
+> Kmemcheck should use the preferred interface for parsing command line
+> arguments, kstrto*(), rather than sscanf() itself.  Use it appropriately.
 >
-> How about 3) introduce new bitmap for pageblock_skip?
-> I guess that migratetype bitmap is read-intensive and set/clear pageblock_skip
-> could make performance degradation.
+> Signed-off-by: David Rientjes <rientjes@google.com>
 
-Yes that would be also possible, but was deemed too ugly and maybe even 
-uglier in case some new pageblock bits are introduced. But it seems no 
-performance degradation was observed for 1) and 2).
+Acked-by: Pekka Enberg <penberg@kernel.org>
 
-I guess if we left the whole idea of packed bitmap we could also make 
-atomic the update of the whole migratetype instead of processing each 
-bit separately. But that would mean at least 8 bits per pageblock for 
-migratetype (and I have no idea about specifics for other archs than x86 
-here). Maybe 4 bits if it's even more ugly and distinguishes odd and 
-even pageblocks...
+Andrew, can you pick this up?
 
->>
->> Using mmtests' stress-highalloc benchmark, little difference was found between
->> the two solutions. The base is 3.13 with recent compaction series by myself and
->> Joonsoo Kim applied.
->>
->>                  3.13        3.13        3.13
->>                  base     2)atomic     1)lock
->> User         6103.92     6072.09     6178.79
->> System       1039.68     1033.96     1042.92
->> Elapsed      2114.27     2090.20     2110.23
->>
+> ---
+>   arch/x86/mm/kmemcheck/kmemcheck.c | 8 +++++++-
+>   1 file changed, 7 insertions(+), 1 deletion(-)
 >
-> I really wonder how 2) is better than base although there is a little difference.
-> Is it the avg result of 10 runs? Do you have any idea what happens?
-
-It is avg of 10 runs but I guess this just means 10 runs are not enough 
-to get results precise enough. One difference is that atomic version 
-does not clear/set bits that don't need it, but the profiles show the 
-whole operation is pretty negligible. And if at least one bit is changed 
-(I guess it is, unless migratetypes are somewhere set to the same value 
-as they already are), cache line becomes dirty anyway. And again, 
-profiles suggest that very little cache is dirtied here.
-
-Vlastimil
-
-> Thanks.
->
+> diff --git a/arch/x86/mm/kmemcheck/kmemcheck.c b/arch/x86/mm/kmemcheck/kmemcheck.c
+> --- a/arch/x86/mm/kmemcheck/kmemcheck.c
+> +++ b/arch/x86/mm/kmemcheck/kmemcheck.c
+> @@ -78,10 +78,16 @@ early_initcall(kmemcheck_init);
+>    */
+>   static int __init param_kmemcheck(char *str)
+>   {
+> +	int val;
+> +	int ret;
+> +
+>   	if (!str)
+>   		return -EINVAL;
+>   
+> -	sscanf(str, "%d", &kmemcheck_enabled);
+> +	ret = kstrtoint(str, 0, &val);
+> +	if (ret)
+> +		return ret;
+> +	kmemcheck_enabled = val;
+>   	return 0;
+>   }
+>   
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
