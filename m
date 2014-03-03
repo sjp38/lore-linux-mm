@@ -1,58 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f180.google.com (mail-qc0-f180.google.com [209.85.216.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 245D26B0037
-	for <linux-mm@kvack.org>; Mon,  3 Mar 2014 15:57:46 -0500 (EST)
-Received: by mail-qc0-f180.google.com with SMTP id x3so2137195qcv.25
-        for <linux-mm@kvack.org>; Mon, 03 Mar 2014 12:57:45 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id g16si6694100qgd.65.2014.03.03.12.57.45
-        for <linux-mm@kvack.org>;
-        Mon, 03 Mar 2014 12:57:45 -0800 (PST)
-Message-ID: <5314D57C.6070608@redhat.com>
-Date: Mon, 03 Mar 2014 14:18:20 -0500
-From: Rik van Riel <riel@redhat.com>
+Received: from mail-qc0-f169.google.com (mail-qc0-f169.google.com [209.85.216.169])
+	by kanga.kvack.org (Postfix) with ESMTP id E53DE6B0037
+	for <linux-mm@kvack.org>; Mon,  3 Mar 2014 16:38:50 -0500 (EST)
+Received: by mail-qc0-f169.google.com with SMTP id i17so1539088qcy.0
+        for <linux-mm@kvack.org>; Mon, 03 Mar 2014 13:38:50 -0800 (PST)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id b7si6735834qad.142.2014.03.03.13.38.50
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 03 Mar 2014 13:38:50 -0800 (PST)
+Message-ID: <5314F661.30202@oracle.com>
+Date: Mon, 03 Mar 2014 16:38:41 -0500
+From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-Subject: Re: scan_unevictable_pages issue
-References: <E04081535648644687C2E921D23610432E488F@VRSKUTMB1.veriskdom.com>
-In-Reply-To: <E04081535648644687C2E921D23610432E488F@VRSKUTMB1.veriskdom.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Subject: Re: [PATCH] mm: add pte_present() check on existing hugetlb_entry
+ callbacks
+References: <53126861.7040107@oracle.com> <1393822946-26871-1-git-send-email-n-horiguchi@ah.jp.nec.com> <5314E0CD.6070308@oracle.com>
+In-Reply-To: <5314E0CD.6070308@oracle.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sugat Sikrikar <ssikrikar@veriskhealth.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>
 
-On 02/28/2014 12:19 AM, Sugat Sikrikar wrote:
-> Hello ,
+On 03/03/2014 03:06 PM, Sasha Levin wrote:
+> On 03/03/2014 12:02 AM, Naoya Horiguchi wrote:
+>> Hi Sasha,
+>>
+>>> >I can confirm that with this patch the lockdep issue is gone. However, the NULL deref in
+>>> >walk_pte_range() and the BUG at mm/hugemem.c:3580 still appear.
+>> I spotted the cause of this problem.
+>> Could you try testing if this patch fixes it?
 >
-> Following message is causing our server to halt. Please, suggest.
+> I'm seeing a different failure with this patch:
 
-I suspect something else is causing your problems.
+And the NULL deref still happens.
 
-> "Feb 27 13:54:03 MWG kernel: [18464.328680] The scan_unevictable_pages
-> sysctl/node-interface has been disabled for lack of a legitimate use
-> case.  If you have one, please send an email to linux-mm@kvack.org
-> <mailto:linux-mm@kvack.org>."
 
-Writing to /proc/sys/vm/scan_unevictable_pages causes
-that warning to be printed exactly once, after which
-the system should continue running the way it did
-before.
-
-As an aside, do you have a legitimate use case for
-scan_unevictable_pages? :)
-
-It would be good to get more information on what happens
-when your system is about to hang (or hanging).
-
-What version are you running?
-
-Do you see lots of unevictable pages?
-
-What about active/inactive anon/file pages?
-
-What about free memory?
-
-What about slab?  Page tables?
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
