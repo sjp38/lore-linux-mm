@@ -1,130 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id AFE516B0035
-	for <linux-mm@kvack.org>; Mon,  3 Mar 2014 03:21:53 -0500 (EST)
-Received: by mail-pd0-f173.google.com with SMTP id z10so3420564pdj.4
-        for <linux-mm@kvack.org>; Mon, 03 Mar 2014 00:21:53 -0800 (PST)
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 84FF96B0037
+	for <linux-mm@kvack.org>; Mon,  3 Mar 2014 03:28:14 -0500 (EST)
+Received: by mail-pd0-f170.google.com with SMTP id v10so1384349pde.15
+        for <linux-mm@kvack.org>; Mon, 03 Mar 2014 00:28:14 -0800 (PST)
 Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
-        by mx.google.com with ESMTP id s1si9755236pav.335.2014.03.03.00.21.51
+        by mx.google.com with ESMTP id yn4si9792128pab.255.2014.03.03.00.28.12
         for <linux-mm@kvack.org>;
-        Mon, 03 Mar 2014 00:21:52 -0800 (PST)
-Date: Mon, 3 Mar 2014 17:22:27 +0900
+        Mon, 03 Mar 2014 00:28:13 -0800 (PST)
+Date: Mon, 3 Mar 2014 17:28:46 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 2/6] mm: add get_pageblock_migratetype_nolock() for cases
- where locking is undesirable
-Message-ID: <20140303082227.GA28899@lge.com>
+Subject: Re: [PATCH 6/6] mm: use atomic bit operations in
+ set_pageblock_flags_group()
+Message-ID: <20140303082846.GB28899@lge.com>
 References: <1393596904-16537-1-git-send-email-vbabka@suse.cz>
- <1393596904-16537-3-git-send-email-vbabka@suse.cz>
+ <1393596904-16537-7-git-send-email-vbabka@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1393596904-16537-3-git-send-email-vbabka@suse.cz>
+In-Reply-To: <1393596904-16537-7-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Vlastimil Babka <vbabka@suse.cz>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Fri, Feb 28, 2014 at 03:15:00PM +0100, Vlastimil Babka wrote:
-> In order to prevent race with set_pageblock_migratetype, most of calls to
-> get_pageblock_migratetype have been moved under zone->lock. For the remaining
-> call sites, the extra locking is undesirable, notably in free_hot_cold_page().
+On Fri, Feb 28, 2014 at 03:15:04PM +0100, Vlastimil Babka wrote:
+> set_pageblock_flags_group() is used to set either migratetype or skip bit of a
+> pageblock. Setting migratetype is done under zone->lock (except from __init
+> code), however changing the skip bits is not protected and the pageblock flags
+> bitmap packs migratetype and skip bits together and uses non-atomic bit ops.
+> Therefore, races between setting migratetype and skip bit are possible and the
+> non-atomic read-modify-update of the skip bit may cause lost updates to
+> migratetype bits, resulting in invalid migratetype values, which are in turn
+> used to e.g. index free_list array.
 > 
-> This patch introduces a _nolock version to be used on these call sites, where
-> a wrong value does not affect correctness. The function makes sure that the
-> value does not exceed valid migratetype numbers. Such too-high values are
-> assumed to be a result of race and caller-supplied fallback value is returned
-> instead.
+> The race has been observed to happen and cause panics, albeit during
+> development of series that increases frequency of migratetype changes through
+> {start,undo}_isolate_page_range() calls.
 > 
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-> ---
->  include/linux/mmzone.h | 24 ++++++++++++++++++++++++
->  mm/compaction.c        | 14 +++++++++++---
->  mm/memory-failure.c    |  3 ++-
->  mm/page_alloc.c        | 22 +++++++++++++++++-----
->  mm/vmstat.c            |  2 +-
->  5 files changed, 55 insertions(+), 10 deletions(-)
+> Two possible solutions were investigated: 1) using zone->lock for changing
+> pageblock_skip bit and 2) changing the bitmap operations to be atomic. The
+> problem of 1) is that zone->lock is already contended and almost never held in
+> the compaction code that updates pageblock_skip bits. Solution 2) should scale
+> better, but adds atomic operations also to migratype changes which are already
+> protected by zone->lock.
+
+How about 3) introduce new bitmap for pageblock_skip?
+I guess that migratetype bitmap is read-intensive and set/clear pageblock_skip
+could make performance degradation.
+
 > 
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> index fac5509..7c3f678 100644
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -75,6 +75,30 @@ enum {
->  
->  extern int page_group_by_mobility_disabled;
->  
-> +/*
-> + * When called without zone->lock held, a race with set_pageblock_migratetype
-> + * may result in bogus values. Use this variant only when this does not affect
-> + * correctness, and taking zone->lock would be costly. Values >= MIGRATE_TYPES
-> + * are considered to be a result of this race and the value of race_fallback
-> + * argument is returned instead.
-> + */
-> +static inline int get_pageblock_migratetype_nolock(struct page *page,
-> +	int race_fallback)
-> +{
-> +	int ret = get_pageblock_flags_group(page, PB_migrate, PB_migrate_end);
-> +
-> +	if (unlikely(ret >= MIGRATE_TYPES))
-> +		ret = race_fallback;
-> +
-> +	return ret;
-> +}
+> Using mmtests' stress-highalloc benchmark, little difference was found between
+> the two solutions. The base is 3.13 with recent compaction series by myself and
+> Joonsoo Kim applied.
+> 
+>                 3.13        3.13        3.13
+>                 base     2)atomic     1)lock
+> User         6103.92     6072.09     6178.79
+> System       1039.68     1033.96     1042.92
+> Elapsed      2114.27     2090.20     2110.23
+> 
 
-Hello, Vlastimil.
-
-First of all, thanks for nice work!
-I have another opinion about this implementation. It can be wrong, so if it
-is wrong, please let me know.
-
-Although this implementation would close the race which triggers NULL dereference,
-I think that this isn't enough if you have a plan to add more
-{start,undo}_isolate_page_range().
-
-Consider that there are lots of {start,undo}_isolate_page_range() calls
-on the system without CMA.
-
-bit representation of migratetype is like as following.
-
-MIGRATE_MOVABLE = 010
-MIGRATE_ISOLATE = 100
-
-We could read following values as migratetype of the page on movable pageblock
-if race occurs.
-
-start_isolate_page_range() case: 010 -> 100
-010, 000, 100
-
-undo_isolate_page_range() case: 100 -> 010
-100, 110, 010
-
-Above implementation prevents us from getting 110, but, it can't prevent us from
-getting 000, that is, MIGRATE_UNMOVABLE. If this race occurs in free_hot_cold_page(),
-this page would go into unmovable pcp and then allocated for that migratetype.
-It results in more fragmented memory.
-
-
-Consider another case that system enables CONFIG_CMA,
-
-MIGRATE_MOVABLE = 010
-MIGRATE_ISOLATE = 101
-
-start_isolate_page_range() case: 010 -> 101
-010, 011, 001, 101
-
-undo_isolate_page_range() case: 101 -> 010
-101, 100, 110, 010
-
-This can results in totally different values and this also makes the problem
-mentioned above. And, although this doesn't cause any problem on CMA for now,
-if another migratetype is introduced or some migratetype is removed, it can cause
-CMA typed page to go into other migratetype and makes CMA permanently failed.
-
-To close this kind of races without dependency how many pageblock isolation occurs,
-I recommend that you use separate pageblock bits for MIGRATE_CMA, MIGRATE_ISOLATE
-and use accessor function whenver we need to check migratetype. IMHO, it may not
-impose much overhead.
-
-How about it?
+I really wonder how 2) is better than base although there is a little difference.
+Is it the avg result of 10 runs? Do you have any idea what happens?
 
 Thanks.
 
