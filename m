@@ -1,126 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id B7C1F6B0035
-	for <linux-mm@kvack.org>; Sun,  2 Mar 2014 18:30:32 -0500 (EST)
-Received: by mail-pa0-f41.google.com with SMTP id hz1so311336pad.14
-        for <linux-mm@kvack.org>; Sun, 02 Mar 2014 15:30:32 -0800 (PST)
-Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [2001:44b8:8060:ff02:300:1:6:6])
-        by mx.google.com with ESMTP id zt8si8576743pbc.105.2014.03.02.15.30.30
+Received: from mail-ee0-f49.google.com (mail-ee0-f49.google.com [74.125.83.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 254306B0035
+	for <linux-mm@kvack.org>; Mon,  3 Mar 2014 00:02:43 -0500 (EST)
+Received: by mail-ee0-f49.google.com with SMTP id b57so3681613eek.36
+        for <linux-mm@kvack.org>; Sun, 02 Mar 2014 21:02:42 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id c43si21609730eeo.122.2014.03.02.21.02.40
         for <linux-mm@kvack.org>;
-        Sun, 02 Mar 2014 15:30:31 -0800 (PST)
-Date: Mon, 3 Mar 2014 10:30:27 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH v6 07/22] Replace the XIP page fault handler with the DAX
- page fault handler
-Message-ID: <20140302233027.GR30131@dastard>
-References: <1393337918-28265-1-git-send-email-matthew.r.wilcox@intel.com>
- <1393337918-28265-8-git-send-email-matthew.r.wilcox@intel.com>
- <1393609771.6784.83.camel@misato.fc.hp.com>
- <20140228202031.GB12820@linux.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140228202031.GB12820@linux.intel.com>
+        Sun, 02 Mar 2014 21:02:41 -0800 (PST)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH] mm: add pte_present() check on existing hugetlb_entry callbacks
+Date: Mon,  3 Mar 2014 00:02:26 -0500
+Message-Id: <1393822946-26871-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <53126861.7040107@oracle.com>
+References: <53126861.7040107@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@linux.intel.com>
-Cc: Toshi Kani <toshi.kani@hp.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>
 
-On Fri, Feb 28, 2014 at 03:20:31PM -0500, Matthew Wilcox wrote:
-> On Fri, Feb 28, 2014 at 10:49:31AM -0700, Toshi Kani wrote:
-> > On Tue, 2014-02-25 at 09:18 -0500, Matthew Wilcox wrote:
-> > > Instead of calling aops->get_xip_mem from the fault handler, the
-> > > filesystem passes a get_block_t that is used to find the appropriate
-> > > blocks.
-> >  :
-> > > +static int do_dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
-> > > +			get_block_t get_block)
-> > > +{
-> > > +	struct file *file = vma->vm_file;
-> > > +	struct inode *inode = file_inode(file);
-> > > +	struct address_space *mapping = file->f_mapping;
-> > > +	struct buffer_head bh;
-> > > +	unsigned long vaddr = (unsigned long)vmf->virtual_address;
-> > > +	sector_t block;
-> > > +	pgoff_t size;
-> > > +	unsigned long pfn;
-> > > +	int error;
-> > > +
-> > > +	size = (i_size_read(inode) + PAGE_SIZE - 1) >> PAGE_SHIFT;
-> > > +	if (vmf->pgoff >= size)
-> > > +		return VM_FAULT_SIGBUS;
-> > > +
-> > > +	memset(&bh, 0, sizeof(bh));
-> > > +	block = (sector_t)vmf->pgoff << (PAGE_SHIFT - inode->i_blkbits);
-> > > +	bh.b_size = PAGE_SIZE;
-> > > +	error = get_block(inode, block, &bh, 0);
-> > > +	if (error || bh.b_size < PAGE_SIZE)
-> > > +		return VM_FAULT_SIGBUS;
-> > 
-> > I am learning the code and have some questions.
-> 
-> Hi Toshi,
-> 
-> Glad to see you're looking at it.  Let me try to help ...
-> 
-> > The original code,
-> > xip_file_fault(), jumps to found: and calls vm_insert_mixed() when
-> > get_xip_mem(,,0,,) succeeded.  If get_xip_mem() returns -ENODATA, it
-> > calls either get_xip_mem(,,1,,) or xip_sparse_page().  In this new
-> > function, it looks to me that get_block(,,,0) returns 0 for both cases
-> > (success and -ENODATA previously), which are dealt in the same way.  Is
-> > that right?  If so, is there any reason for the change?
-> 
-> Yes, get_xip_mem() returned -ENODATA for a hole.  That was a suboptimal
-> interface because filesystems are actually capable of returning more
-> information than that, eg how long the hole is (ext4 *doesn't*, but I
-> consider that to be a bug).
-> 
-> I don't get to decide what the get_block() interface looks like.  It's the
-> standard way that the VFS calls back into the filesystem and has been
-> around for probably close to twenty years at this point.  I'm still trying
-> to understand exactly what the contract is for get_blocks() ... I have
-> a document that I'm working on to try to explain it, but it's tough going!
-> 
-> > Also, isn't it
-> > possible to call get_block(,,,1) even if get_block(,,,0) found a block?
-> 
-> The code in question looks like this:
-> 
->         error = get_block(inode, block, &bh, 0);
->         if (error || bh.b_size < PAGE_SIZE)
->                 goto sigbus;
-> 
->         if (!buffer_written(&bh) && !vmf->cow_page) {
->                 if (vmf->flags & FAULT_FLAG_WRITE) {
->                         error = get_block(inode, block, &bh, 1);
-> 
-> where buffer_written is defined as:
->         return buffer_mapped(bh) && !buffer_unwritten(bh);
-> 
-> Doing some boolean algebra, that's:
-> 
-> 	if (!buffer_mapped || buffer_unwritten)
-> 
-> In either case, we want to tell the filesystem that we're writing to
-> this block.  At least, that's my current understanding of the get_block()
-> interface.  I'm open to correction here!
+Hi Sasha,
 
-I've got a rewritten version on this that doesn't require two calls
-to get_block() that I wrote while prototyping the XFS code. It also
-fixes all the misunderstandings about what get_block() actually does
-and returns so it works correctly with XFS.
+> I can confirm that with this patch the lockdep issue is gone. However, the NULL deref in
+> walk_pte_range() and the BUG at mm/hugemem.c:3580 still appear.
 
-I need to port it forward to your new patch set (hopefully later
-this week), so don't spend too much time trying to work out exactly
-what this code needs to do...
+I spotted the cause of this problem.
+Could you try testing if this patch fixes it?
 
-Cheers,
+Thanks,
+Naoya
+---
+Page table walker doesn't check non-present hugetlb entry in common path,
+so hugetlb_entry() callbacks must check it. The reason for this behavior
+is that some callers want to handle it in its own way.
 
-Dave.
+However, some callers don't check it now, which causes unpredictable result,
+for example when we have a race between migrating hugepage and reading
+/proc/pid/numa_maps. This patch fixes it by adding pte_present checks on
+buggy callbacks.
+
+This bug exists for long and got visible by introducing hugepage migration.
+
+Reported-by: Sasha Levin <sasha.levin@oracle.com>
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: stable@vger.kernel.org # 3.12+
+---
+ fs/proc/task_mmu.c | 3 +++
+ mm/mempolicy.c     | 6 +++++-
+ 2 files changed, 8 insertions(+), 1 deletion(-)
+
+diff --git next-20140228.orig/fs/proc/task_mmu.c next-20140228/fs/proc/task_mmu.c
+index 3746d89c768b..a4cecadce867 100644
+--- next-20140228.orig/fs/proc/task_mmu.c
++++ next-20140228/fs/proc/task_mmu.c
+@@ -1299,6 +1299,9 @@ static int gather_hugetlb_stats(pte_t *pte, unsigned long addr,
+ 	if (pte_none(*pte))
+ 		return 0;
+ 
++	if (pte_present(*pte))
++		return 0;
++
+ 	page = pte_page(*pte);
+ 	if (!page)
+ 		return 0;
+diff --git next-20140228.orig/mm/mempolicy.c next-20140228/mm/mempolicy.c
+index c0d1cbd68790..1e171186ee6d 100644
+--- next-20140228.orig/mm/mempolicy.c
++++ next-20140228/mm/mempolicy.c
+@@ -524,8 +524,12 @@ static int queue_pages_hugetlb(pte_t *pte, unsigned long addr,
+ 	unsigned long flags = qp->flags;
+ 	int nid;
+ 	struct page *page;
++	pte_t entry;
+ 
+-	page = pte_page(huge_ptep_get(pte));
++	entry = huge_ptep_get(pte);
++	if (pte_present(entry))
++		return 0;
++	page = pte_page(entry);
+ 	nid = page_to_nid(page);
+ 	if (node_isset(nid, *qp->nmask) == !!(flags & MPOL_MF_INVERT))
+ 		return 0;
 -- 
-Dave Chinner
-david@fromorbit.com
+1.8.5.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
