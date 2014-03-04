@@ -1,56 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f169.google.com (mail-yk0-f169.google.com [209.85.160.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 98C296B003A
-	for <linux-mm@kvack.org>; Tue,  4 Mar 2014 17:47:00 -0500 (EST)
-Received: by mail-yk0-f169.google.com with SMTP id 142so568592ykq.0
-        for <linux-mm@kvack.org>; Tue, 04 Mar 2014 14:47:00 -0800 (PST)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id t49si669892yhd.9.2014.03.04.14.46.59
+Received: from mail-pb0-f51.google.com (mail-pb0-f51.google.com [209.85.160.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 39B836B003D
+	for <linux-mm@kvack.org>; Tue,  4 Mar 2014 17:48:38 -0500 (EST)
+Received: by mail-pb0-f51.google.com with SMTP id uo5so177596pbc.38
+        for <linux-mm@kvack.org>; Tue, 04 Mar 2014 14:48:37 -0800 (PST)
+Received: from mail-pb0-x236.google.com (mail-pb0-x236.google.com [2607:f8b0:400e:c01::236])
+        by mx.google.com with ESMTPS id ub8si277866pac.213.2014.03.04.14.48.36
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 04 Mar 2014 14:47:00 -0800 (PST)
-Message-ID: <531657DC.4050204@oracle.com>
-Date: Tue, 04 Mar 2014 17:46:52 -0500
-From: Sasha Levin <sasha.levin@oracle.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 04 Mar 2014 14:48:36 -0800 (PST)
+Received: by mail-pb0-f54.google.com with SMTP id ma3so183895pbc.13
+        for <linux-mm@kvack.org>; Tue, 04 Mar 2014 14:48:36 -0800 (PST)
+Date: Tue, 4 Mar 2014 14:48:31 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] slab_common: fix the check for duplicate slab names
+In-Reply-To: <alpine.LRH.2.02.1403041711300.29476@file01.intranet.prod.int.rdu2.redhat.com>
+Message-ID: <alpine.DEB.2.02.1403041448190.5421@chino.kir.corp.google.com>
+References: <alpine.LRH.2.02.1403041711300.29476@file01.intranet.prod.int.rdu2.redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: add pte_present() check on existing hugetlb_entry
- callbacks
-References: <53126861.7040107@oracle.com> <1393822946-26871-1-git-send-email-n-horiguchi@ah.jp.nec.com> <5314E0CD.6070308@oracle.com> <5314F661.30202@oracle.com> <1393968743-imrxpynb@n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1393968743-imrxpynb@n-horiguchi@ah.jp.nec.com>
-Content-Type: text/plain; charset=ISO-2022-JP
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, riel@redhat.com
+To: Mikulas Patocka <mpatocka@redhat.com>
+Cc: Christoph Lameter <cl@linux.com>, Jonathan Brassow <jbrassow@redhat.com>, "Alasdair G. Kergon" <agk@redhat.com>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, dm-devel@redhat.com
 
-On 03/04/2014 04:32 PM, Naoya Horiguchi wrote:
-> # sorry if duplicate message
+On Tue, 4 Mar 2014, Mikulas Patocka wrote:
+
+> The patch 3e374919b314f20e2a04f641ebc1093d758f66a4 is supposed to fix the
+> problem where kmem_cache_create incorrectly reports duplicate cache name
+> and fails. The problem is described in the header of that patch.
 > 
-> On Mon, Mar 03, 2014 at 04:38:41PM -0500, Sasha Levin wrote:
->> On 03/03/2014 03:06 PM, Sasha Levin wrote:
->>> On 03/03/2014 12:02 AM, Naoya Horiguchi wrote:
->>>> Hi Sasha,
->>>>
->>>>>> I can confirm that with this patch the lockdep issue is gone. However, the NULL deref in
->>>>>> walk_pte_range() and the BUG at mm/hugemem.c:3580 still appear.
->>>> I spotted the cause of this problem.
->>>> Could you try testing if this patch fixes it?
->>>
->>> I'm seeing a different failure with this patch:
->>
->> And the NULL deref still happens.
+> However, the patch doesn't really fix the problem because of these
+> reasons:
 > 
-> I don't yet find out the root reason why this issue remains.
-> So I tried to run trinity myself but the problem didn't reproduce.
-> (I did simply like "./trinity --group vm --dangerous" a few hours.)
-> Could you show more detail or tips about how the problem occurs?
+> * the logic to test for debugging is reversed. It was intended to perform
+>   the check only if slub debugging is enabled (which implies that caches
+>   with the same parameters are not merged). Therefore, there should be
+>   #if !defined(CONFIG_SLUB) || defined(CONFIG_SLUB_DEBUG_ON)
+>   The current code has the condition reversed and performs the test if
+>   debugging is disabled.
+> 
+> * slub debugging may be enabled or disabled based on kernel command line,
+>   CONFIG_SLUB_DEBUG_ON is just the default settings. Therefore the test
+>   based on definition of CONFIG_SLUB_DEBUG_ON is unreliable.
+> 
+> This patch fixes the problem by removing the test
+> "!defined(CONFIG_SLUB_DEBUG_ON)". Therefore, duplicate names are never
+> checked if the SLUB allocator is used.
+> 
+> Note to stable kernel maintainers: when backporint this patch, please
+> backport also the patch 3e374919b314f20e2a04f641ebc1093d758f66a4.
+> 
+> Signed-off-by: Mikulas Patocka <mpatocka@redhat.com>
 
-I run it as root in a disposable vm, that may be the difference here.
-
-
-Thanks,
-Sasha
+Acked-by: David Rientjes <rientjes@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
