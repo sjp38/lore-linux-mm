@@ -1,62 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f41.google.com (mail-pb0-f41.google.com [209.85.160.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 169A66B0037
-	for <linux-mm@kvack.org>; Mon,  3 Mar 2014 22:09:10 -0500 (EST)
-Received: by mail-pb0-f41.google.com with SMTP id jt11so4630563pbb.28
-        for <linux-mm@kvack.org>; Mon, 03 Mar 2014 19:09:09 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id yo5si12566849pab.121.2014.03.03.19.09.08
-        for <linux-mm@kvack.org>;
-        Mon, 03 Mar 2014 19:09:09 -0800 (PST)
-Date: Mon, 3 Mar 2014 19:12:24 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
+Received: from mail-ob0-f171.google.com (mail-ob0-f171.google.com [209.85.214.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 7DF516B0037
+	for <linux-mm@kvack.org>; Mon,  3 Mar 2014 22:13:33 -0500 (EST)
+Received: by mail-ob0-f171.google.com with SMTP id wn1so2138150obc.2
+        for <linux-mm@kvack.org>; Mon, 03 Mar 2014 19:13:33 -0800 (PST)
+Received: from g2t2352.austin.hp.com (g2t2352.austin.hp.com. [15.217.128.51])
+        by mx.google.com with ESMTPS id dq4si16934173oeb.73.2014.03.03.19.13.32
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 03 Mar 2014 19:13:32 -0800 (PST)
+Message-ID: <1393902810.30648.36.camel@buesod1.americas.hpqcorp.net>
 Subject: Re: [PATCH v4] mm: per-thread vma caching
-Message-Id: <20140303191224.96f93142.akpm@linux-foundation.org>
-In-Reply-To: <1393900953.30648.32.camel@buesod1.americas.hpqcorp.net>
+From: Davidlohr Bueso <davidlohr@hp.com>
+Date: Mon, 03 Mar 2014 19:13:30 -0800
+In-Reply-To: <20140303191224.96f93142.akpm@linux-foundation.org>
 References: <1393537704.2899.3.camel@buesod1.americas.hpqcorp.net>
-	<20140303164002.02df915e12d05bb98762407f@linux-foundation.org>
-	<1393894778.30648.29.camel@buesod1.americas.hpqcorp.net>
-	<20140303172348.3f00c9df.akpm@linux-foundation.org>
-	<1393900953.30648.32.camel@buesod1.americas.hpqcorp.net>
+	 <20140303164002.02df915e12d05bb98762407f@linux-foundation.org>
+	 <1393894778.30648.29.camel@buesod1.americas.hpqcorp.net>
+	 <20140303172348.3f00c9df.akpm@linux-foundation.org>
+	 <1393900953.30648.32.camel@buesod1.americas.hpqcorp.net>
+	 <20140303191224.96f93142.akpm@linux-foundation.org>
+Content-Type: text/plain; charset="UTF-8"
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <davidlohr@hp.com>
+To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Ingo Molnar <mingo@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Michel Lespinasse <walken@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, aswin@hp.com, scott.norton@hp.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, 03 Mar 2014 18:42:33 -0800 Davidlohr Bueso <davidlohr@hp.com> wrote:
-
-> On Mon, 2014-03-03 at 17:23 -0800, Andrew Morton wrote:
-> > On Mon, 03 Mar 2014 16:59:38 -0800 Davidlohr Bueso <davidlohr@hp.com> wrote:
-> > 
-> > > > >...
-> > > > >
-> > > > > +static bool vmacache_valid(struct mm_struct *mm)
-> > > > > +{
-> > > > > +	struct task_struct *curr = current;
-> > > > > +
-> > > > > +	if (mm != curr->mm)
-> > > > > +		return false;
-> > > > 
-> > > > What's going on here?  Handling a task poking around in someone else's
-> > > > mm?  I'm thinking "__access_remote_vm", but I don't know what you were
-> > > > thinking ;) An explanatory comment would be revealing.
-> > > 
-> > > I don't understand the doubt here. Seems like a pretty obvious thing to
-> > > check -- yes it's probably unlikely but we certainly don't want to be
-> > > validating the cache on an mm that's not ours... or are you saying it's
-> > > redundant??
-> > 
-> > Well it has to be here for a reason and I'm wondering that that reason
-> > is.  If nobody comes here with a foreign mm then let's remove it.
+On Mon, 2014-03-03 at 19:12 -0800, Andrew Morton wrote:
+> On Mon, 03 Mar 2014 18:42:33 -0800 Davidlohr Bueso <davidlohr@hp.com> wrote:
 > 
-> find_vma() can be called by concurrent threads sharing the mm->mmap_sem
-> for reading, thus this check needs to be there.
+> > On Mon, 2014-03-03 at 17:23 -0800, Andrew Morton wrote:
+> > > On Mon, 03 Mar 2014 16:59:38 -0800 Davidlohr Bueso <davidlohr@hp.com> wrote:
+> > > 
+> > > > > >...
+> > > > > >
+> > > > > > +static bool vmacache_valid(struct mm_struct *mm)
+> > > > > > +{
+> > > > > > +	struct task_struct *curr = current;
+> > > > > > +
+> > > > > > +	if (mm != curr->mm)
+> > > > > > +		return false;
+> > > > > 
+> > > > > What's going on here?  Handling a task poking around in someone else's
+> > > > > mm?  I'm thinking "__access_remote_vm", but I don't know what you were
+> > > > > thinking ;) An explanatory comment would be revealing.
+> > > > 
+> > > > I don't understand the doubt here. Seems like a pretty obvious thing to
+> > > > check -- yes it's probably unlikely but we certainly don't want to be
+> > > > validating the cache on an mm that's not ours... or are you saying it's
+> > > > redundant??
+> > > 
+> > > Well it has to be here for a reason and I'm wondering that that reason
+> > > is.  If nobody comes here with a foreign mm then let's remove it.
+> > 
+> > find_vma() can be called by concurrent threads sharing the mm->mmap_sem
+> > for reading, thus this check needs to be there.
+> 
+> Confused.  If the threads share mm->mmap_sem then they share mm and the
+> test will always be false?
 
-Confused.  If the threads share mm->mmap_sem then they share mm and the
-test will always be false?
+Yes, I shortly realized that was silly... but I can say for sure it can
+happen and a quick qemu run confirms it. So I see your point as to
+asking why we need it, so now I'm looking for an explanation in the
+code.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
