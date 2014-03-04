@@ -1,88 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f47.google.com (mail-bk0-f47.google.com [209.85.214.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 859A16B0035
-	for <linux-mm@kvack.org>; Tue,  4 Mar 2014 16:58:15 -0500 (EST)
-Received: by mail-bk0-f47.google.com with SMTP id w10so353676bkz.20
-        for <linux-mm@kvack.org>; Tue, 04 Mar 2014 13:58:14 -0800 (PST)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id yy2si28644bkb.174.2014.03.04.13.58.13
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 04 Mar 2014 13:58:14 -0800 (PST)
-Date: Tue, 4 Mar 2014 16:57:35 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: +
- mm-fs-prepare-for-non-page-entries-in-page-cache-radix-trees.patch added to
- -mm tree
-Message-ID: <20140304215735.GA11171@cmpxchg.org>
-References: <52f17469.abvZ3DeLOCoQdhR5%akpm@linux-foundation.org>
+Received: from mail-qc0-f174.google.com (mail-qc0-f174.google.com [209.85.216.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 9128F6B0039
+	for <linux-mm@kvack.org>; Tue,  4 Mar 2014 17:13:51 -0500 (EST)
+Received: by mail-qc0-f174.google.com with SMTP id x13so214090qcv.19
+        for <linux-mm@kvack.org>; Tue, 04 Mar 2014 14:13:51 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id z2si137535qad.161.2014.03.04.14.13.50
+        for <linux-mm@kvack.org>;
+        Tue, 04 Mar 2014 14:13:50 -0800 (PST)
+Date: Tue, 4 Mar 2014 17:13:47 -0500 (EST)
+From: Mikulas Patocka <mpatocka@redhat.com>
+Subject: [PATCH] slab_common: fix the check for duplicate slab names
+Message-ID: <alpine.LRH.2.02.1403041711300.29476@file01.intranet.prod.int.rdu2.redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <52f17469.abvZ3DeLOCoQdhR5%akpm@linux-foundation.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: mm-commits@vger.kernel.org, walken@google.com, vbabka@suse.cz, tj@kernel.org, semenzato@google.com, rmallon@gmail.com, riel@redhat.com, peterz@infradead.org, ozgun@citusdata.com, minchan@kernel.org, mgorman@suse.de, metin@citusdata.com, kosaki.motohiro@jp.fujitsu.com, klamm@yandex-team.ru, jack@suse.cz, hughd@google.com, hch@infradead.org, gthelen@google.com, david@fromorbit.com, bob.liu@oracle.com, aarcange@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Christoph Lameter <cl@linux.com>
+Cc: Jonathan Brassow <jbrassow@redhat.com>, "Alasdair G. Kergon" <agk@redhat.com>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, dm-devel@redhat.com
 
-On Tue, Feb 04, 2014 at 03:14:49PM -0800, akpm@linux-foundation.org wrote:
-> @@ -307,14 +331,15 @@ void truncate_inode_pages_range(struct a
->  	index = start;
->  	for ( ; ; ) {
->  		cond_resched();
-> -		if (!pagevec_lookup(&pvec, mapping, index,
-> -			min(end - index, (pgoff_t)PAGEVEC_SIZE))) {
-> +		if (!__pagevec_lookup(&pvec, mapping, index,
-> +			min(end - index, (pgoff_t)PAGEVEC_SIZE),
-> +			indices)) {
->  			if (index == start)
->  				break;
->  			index = start;
->  			continue;
->  		}
-> -		if (index == start && pvec.pages[0]->index >= end) {
-> +		if (index == start && indices[0] >= end) {
->  			pagevec_release(&pvec);
->  			break;
->  		}
+The patch 3e374919b314f20e2a04f641ebc1093d758f66a4 is supposed to fix the
+problem where kmem_cache_create incorrectly reports duplicate cache name
+and fails. The problem is described in the header of that patch.
 
-There is a missing pagevec_remove_exceptionals(), which can crash the
-kernel when pagevec_release() passes the non-page pointers to the page
-allocator.
+However, the patch doesn't really fix the problem because of these
+reasons:
 
-Andrew, could you please include this incremental fix?
+* the logic to test for debugging is reversed. It was intended to perform
+  the check only if slub debugging is enabled (which implies that caches
+  with the same parameters are not merged). Therefore, there should be
+  #if !defined(CONFIG_SLUB) || defined(CONFIG_SLUB_DEBUG_ON)
+  The current code has the condition reversed and performs the test if
+  debugging is disabled.
+
+* slub debugging may be enabled or disabled based on kernel command line,
+  CONFIG_SLUB_DEBUG_ON is just the default settings. Therefore the test
+  based on definition of CONFIG_SLUB_DEBUG_ON is unreliable.
+
+This patch fixes the problem by removing the test
+"!defined(CONFIG_SLUB_DEBUG_ON)". Therefore, duplicate names are never
+checked if the SLUB allocator is used.
+
+Note to stable kernel maintainers: when backporint this patch, please
+backport also the patch 3e374919b314f20e2a04f641ebc1093d758f66a4.
+
+Signed-off-by: Mikulas Patocka <mpatocka@redhat.com>
+Cc: stable@vger.kernel.org	# 3.6+
 
 ---
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch] mm + fs: prepare for non-page entries in page cache radix
- trees fix
+ mm/slab_common.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-__pagevec_lookup() stores exceptional entries in the pagevec.  They
-must be pruned before passing the pagevec along to pagevec_release()
-or the kernel crashes when these non-page pointers reach the page
-allocator.
-
-Add a missing pagevec_remove_exceptionals() in the truncate path.
-
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
----
- mm/truncate.c | 1 +
- 1 file changed, 1 insertion(+)
-
-diff --git a/mm/truncate.c b/mm/truncate.c
-index b0f4d4bee8ab..5fafca2ed3d2 100644
---- a/mm/truncate.c
-+++ b/mm/truncate.c
-@@ -340,6 +340,7 @@ void truncate_inode_pages_range(struct address_space *mapping,
+Index: linux-3.14-rc5/mm/slab_common.c
+===================================================================
+--- linux-3.14-rc5.orig/mm/slab_common.c	2014-03-04 22:47:02.000000000 +0100
++++ linux-3.14-rc5/mm/slab_common.c	2014-03-04 22:47:08.000000000 +0100
+@@ -56,7 +56,7 @@ static int kmem_cache_sanity_check(struc
  			continue;
  		}
- 		if (index == start && indices[0] >= end) {
-+			pagevec_remove_exceptionals(&pvec);
- 			pagevec_release(&pvec);
- 			break;
- 		}
--- 
-1.9.0
+ 
+-#if !defined(CONFIG_SLUB) || !defined(CONFIG_SLUB_DEBUG_ON)
++#if !defined(CONFIG_SLUB)
+ 		/*
+ 		 * For simplicity, we won't check this in the list of memcg
+ 		 * caches. We have control over memcg naming, and if there
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
