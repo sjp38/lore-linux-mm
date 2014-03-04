@@ -1,86 +1,211 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f179.google.com (mail-ea0-f179.google.com [209.85.215.179])
-	by kanga.kvack.org (Postfix) with ESMTP id C65A96B0037
-	for <linux-mm@kvack.org>; Mon,  3 Mar 2014 19:50:15 -0500 (EST)
-Received: by mail-ea0-f179.google.com with SMTP id q10so17684ead.10
-        for <linux-mm@kvack.org>; Mon, 03 Mar 2014 16:50:15 -0800 (PST)
-Received: from jenni2.inet.fi (mta-out.inet.fi. [195.156.147.13])
-        by mx.google.com with ESMTP id s46si27776777eeg.225.2014.03.03.16.50.14
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 57C4A6B0037
+	for <linux-mm@kvack.org>; Mon,  3 Mar 2014 19:54:48 -0500 (EST)
+Received: by mail-pd0-f182.google.com with SMTP id g10so4377021pdj.41
+        for <linux-mm@kvack.org>; Mon, 03 Mar 2014 16:54:47 -0800 (PST)
+Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
+        by mx.google.com with ESMTP id j4si2921408pad.341.2014.03.03.16.54.45
         for <linux-mm@kvack.org>;
-        Mon, 03 Mar 2014 16:50:14 -0800 (PST)
-Date: Tue, 4 Mar 2014 02:50:01 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 0/1] mm, shmem: map few pages around fault address if
- they are in page cache
-Message-ID: <20140304005001.GA21508@node.dhcp.inet.fi>
-References: <1393625931-2858-1-git-send-email-quning@google.com>
- <CACQD4-5U3P+QiuNKzt5+VdDDi0ocphR+Jh81eHqG6_+KeaHyRw@mail.gmail.com>
- <20140228174150.8ff4edca.akpm@linux-foundation.org>
- <CACQD4-7UUDMeXdR-NaAAXvk-NRYqW7mHJkjDUM=JRvL54b_Xsg@mail.gmail.com>
- <CACQD4-5SmUf+krLbef9Yg9HhJ-ipT2QKKq-NW=2C6G=XwXcMcQ@mail.gmail.com>
- <20140303143834.90ebe8ec5c6a369e54a599ec@linux-foundation.org>
- <CA+55aFzvCF-tWg7qx2_Om+Y64uJy6ujEyWgcq87UkzSkfbVGqw@mail.gmail.com>
- <20140303153707.beced5c271179d1b1658a246@linux-foundation.org>
+        Mon, 03 Mar 2014 16:54:47 -0800 (PST)
+Date: Tue, 4 Mar 2014 09:55:13 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH 2/6] mm: add get_pageblock_migratetype_nolock() for cases
+ where locking is undesirable
+Message-ID: <20140304005513.GB32172@lge.com>
+References: <1393596904-16537-1-git-send-email-vbabka@suse.cz>
+ <1393596904-16537-3-git-send-email-vbabka@suse.cz>
+ <20140303082227.GA28899@lge.com>
+ <53148981.90709@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140303153707.beced5c271179d1b1658a246@linux-foundation.org>
+In-Reply-To: <53148981.90709@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Ning Qu <quning@gmail.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Dave Chinner <david@fromorbit.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Mon, Mar 03, 2014 at 03:37:07PM -0800, Andrew Morton wrote:
-> On Mon, 3 Mar 2014 15:29:00 -0800 Linus Torvalds <torvalds@linux-foundation.org> wrote:
+On Mon, Mar 03, 2014 at 02:54:09PM +0100, Vlastimil Babka wrote:
+> On 03/03/2014 09:22 AM, Joonsoo Kim wrote:
+> >On Fri, Feb 28, 2014 at 03:15:00PM +0100, Vlastimil Babka wrote:
+> >>In order to prevent race with set_pageblock_migratetype, most of calls to
+> >>get_pageblock_migratetype have been moved under zone->lock. For the remaining
+> >>call sites, the extra locking is undesirable, notably in free_hot_cold_page().
+> >>
+> >>This patch introduces a _nolock version to be used on these call sites, where
+> >>a wrong value does not affect correctness. The function makes sure that the
+> >>value does not exceed valid migratetype numbers. Such too-high values are
+> >>assumed to be a result of race and caller-supplied fallback value is returned
+> >>instead.
+> >>
+> >>Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+> >>---
+> >>  include/linux/mmzone.h | 24 ++++++++++++++++++++++++
+> >>  mm/compaction.c        | 14 +++++++++++---
+> >>  mm/memory-failure.c    |  3 ++-
+> >>  mm/page_alloc.c        | 22 +++++++++++++++++-----
+> >>  mm/vmstat.c            |  2 +-
+> >>  5 files changed, 55 insertions(+), 10 deletions(-)
+> >>
+> >>diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> >>index fac5509..7c3f678 100644
+> >>--- a/include/linux/mmzone.h
+> >>+++ b/include/linux/mmzone.h
+> >>@@ -75,6 +75,30 @@ enum {
+> >>
+> >>  extern int page_group_by_mobility_disabled;
+> >>
+> >>+/*
+> >>+ * When called without zone->lock held, a race with set_pageblock_migratetype
+> >>+ * may result in bogus values. Use this variant only when this does not affect
+> >>+ * correctness, and taking zone->lock would be costly. Values >= MIGRATE_TYPES
+> >>+ * are considered to be a result of this race and the value of race_fallback
+> >>+ * argument is returned instead.
+> >>+ */
+> >>+static inline int get_pageblock_migratetype_nolock(struct page *page,
+> >>+	int race_fallback)
+> >>+{
+> >>+	int ret = get_pageblock_flags_group(page, PB_migrate, PB_migrate_end);
+> >>+
+> >>+	if (unlikely(ret >= MIGRATE_TYPES))
+> >>+		ret = race_fallback;
+> >>+
+> >>+	return ret;
+> >>+}
+> >
+> >Hello, Vlastimil.
+> >
+> >First of all, thanks for nice work!
+> >I have another opinion about this implementation. It can be wrong, so if it
+> >is wrong, please let me know.
 > 
-> > On Mon, Mar 3, 2014 at 2:38 PM, Andrew Morton <akpm@linux-foundation.org> wrote:
-> > >
-> > > When the file is uncached, results are peculiar:
-> > >
-> > > 0.00user 2.84system 0:50.90elapsed 5%CPU (0avgtext+0avgdata 4198096maxresident)k
-> > > 0inputs+0outputs (1major+49666minor)pagefaults 0swaps
-> > >
-> > > That's approximately 3x more minor faults.
-> > 
-> > This is not peculiar.
-> > 
-> > When the file is uncached, some pages will obviously be under IO due
-> > to readahead etc. And the fault-around code very much on purpose will
-> > *not* try to wait for those pages, so any busy pages will just simply
-> > not be faulted-around.
+> Thanks, all opinions/reviewing is welcome :)
 > 
-> Of course.
+> >Although this implementation would close the race which triggers NULL dereference,
+> >I think that this isn't enough if you have a plan to add more
+> >{start,undo}_isolate_page_range().
+> >
+> >Consider that there are lots of {start,undo}_isolate_page_range() calls
+> >on the system without CMA.
+> >
+> >bit representation of migratetype is like as following.
+> >
+> >MIGRATE_MOVABLE = 010
+> >MIGRATE_ISOLATE = 100
+> >
+> >We could read following values as migratetype of the page on movable pageblock
+> >if race occurs.
+> >
+> >start_isolate_page_range() case: 010 -> 100
+> >010, 000, 100
+> >
+> >undo_isolate_page_range() case: 100 -> 010
+> >100, 110, 010
+> >
+> >Above implementation prevents us from getting 110, but, it can't prevent us from
+> >getting 000, that is, MIGRATE_UNMOVABLE. If this race occurs in free_hot_cold_page(),
+> >this page would go into unmovable pcp and then allocated for that migratetype.
+> >It results in more fragmented memory.
 > 
-> > So you should still have fewer minor faults than faulting on *every*
-> > page (ie the non-fault-around case), but I would very much expect that
-> > fault-around will not see the full "one sixteenth" reduction in minor
-> > faults.
-> > 
-> > And the order of IO will not matter, since the read-ahead is
-> > asynchronous wrt the page-faults.
+> Yes, that can happen. But I would expect it to be negligible to
+> other causes of fragmentation. But I'm not at this moment sure how
+> often {start,undo}_isolate_page_range() would be called in the end.
+> Certainly
+> not as often as in the development patch which is just to see if
+> that can improve anything. Because it will have its own overhead
+> (mostly for zone->lock) that might be too large. But good point, I
+> will try to quantify this.
 > 
-> When a pagefault hits a locked, not-uptodate page it is going to block.
-> Once it wakes up we'd *like* to find lots of now-uptodate pages in
-> that page's vicinity.  Obviously, that is happening, but not to the
-> fullest possible extent.  We _could_ still achieve the 16x if readahead
-> was cooperating in an ideal fashion.
+> >
+> >Consider another case that system enables CONFIG_CMA,
+> >
+> >MIGRATE_MOVABLE = 010
+> >MIGRATE_ISOLATE = 101
+> >
+> >start_isolate_page_range() case: 010 -> 101
+> >010, 011, 001, 101
+> >
+> >undo_isolate_page_range() case: 101 -> 010
+> >101, 100, 110, 010
+> >
+> >This can results in totally different values and this also makes the problem
+> >mentioned above. And, although this doesn't cause any problem on CMA for now,
+> >if another migratetype is introduced or some migratetype is removed, it can cause
+> >CMA typed page to go into other migratetype and makes CMA permanently failed.
 > 
-> I don't know what's going on in there to produce this consistent 3x
-> factor.
+> This should actually be no problem for free_hot_cold_page() as any
+> migratetype >= MIGRATE_PCPTYPES will defer to free_one_page() which
+> will reread migratetype under zone->lock. So as long as
+> MIGRATE_PCPTYPES does not include a migratetype with such dangerous
+> "permanently failed" properties, it should be good. And I doubt such
+> migratetype would be added to pcptypes. But of course, anyone adding
+> new migratetype would have to reconsider each
+> get_pageblock_migratetype_nolock() call for such potential problems.
 
-In my VM numbers are different (fault in 1G):
+Please let me explain more.
+Now CMA page can have following race values.
 
-cold cache: 2097352inputs+0outputs (2major+25048minor)pagefaults 0swaps
-hot cache: 0inputs+0outputs (0major+16450minor)pagefaults 0swaps
+MIGRATE_CMA = 100
+MIGRATE_ISOLATE = 101
 
-~1.5x more page faults with cold cache comparing to hot cache.
+start_isolate_page_range(): 100 -> 101
+100, 101
+undo_isolate_page_range(): 101 -> 100
+101, 100
 
-BTW, moving do_fault_around() below __do_fault() doesn't make much better:
+So, race doesn't cause any big problem.
 
-cold cache: 2097200inputs+0outputs (1major+24641minor)pagefaults 0swaps
+But, as you mentioned in earlier patch, it could get worse if MIGRATE_RESERVE
+is removed. It doesn't happen until now, but, it can be possible.
 
--- 
- Kirill A. Shutemov
+In that case,
+
+MIGRATE_CMA = 011
+MIGRATE_ISOLATE = 100
+
+start_isolate_page_range(): 011 -> 100
+011, 010, 000, 100
+undo_isolate_page_range(): 100 -> 011
+100, 101, 111, 011
+
+If this race happens, CMA page can go into MIGRATE_UNMOVABLE list, because
+"migratetpye >= MIGRATE_PCPTYPES" can't prevent it, and this could make
+CMA permanently failed.
+
+I think that to dump the responsibility on developer who want to add/remove migratetype
+is not reasonable and doesn't work well, because they may not have enough background
+knowledge. I hope to close the possible race more in this time.
+
+Thanks.
+
+> 
+> >To close this kind of races without dependency how many pageblock isolation occurs,
+> >I recommend that you use separate pageblock bits for MIGRATE_CMA, MIGRATE_ISOLATE
+> >and use accessor function whenver we need to check migratetype. IMHO, it may not
+> >impose much overhead.
+> 
+> That could work in case the fragmentation is confirmed to be a problem.
+> 
+> Thanks,
+> Vlastimil
+> 
+> >How about it?
+> >
+> >Thanks.
+> >
+> >--
+> >To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> >the body to majordomo@kvack.org.  For more info on Linux MM,
+> >see: http://www.linux-mm.org/ .
+> >Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> >
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
