@@ -1,49 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 447F86B0035
-	for <linux-mm@kvack.org>; Tue,  4 Mar 2014 16:26:07 -0500 (EST)
-Received: by mail-pa0-f46.google.com with SMTP id kp14so107680pab.5
-        for <linux-mm@kvack.org>; Tue, 04 Mar 2014 13:26:06 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id e2si127952pba.181.2014.03.04.13.26.05
+Received: from mail-ee0-f47.google.com (mail-ee0-f47.google.com [74.125.83.47])
+	by kanga.kvack.org (Postfix) with ESMTP id AAA0D6B0035
+	for <linux-mm@kvack.org>; Tue,  4 Mar 2014 16:32:36 -0500 (EST)
+Received: by mail-ee0-f47.google.com with SMTP id b15so47835eek.6
+        for <linux-mm@kvack.org>; Tue, 04 Mar 2014 13:32:36 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id g5si321553eew.105.2014.03.04.13.32.33
         for <linux-mm@kvack.org>;
-        Tue, 04 Mar 2014 13:26:06 -0800 (PST)
-Date: Tue, 4 Mar 2014 13:26:04 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/1] mm: use macros from compiler.h instead of
- __attribute__((...))
-Message-Id: <20140304132604.5be1b967068f8e03820d2169@linux-foundation.org>
-In-Reply-To: <1393767598-15954-2-git-send-email-gidisrael@gmail.com>
-References: <1393767598-15954-1-git-send-email-gidisrael@gmail.com>
-	<1393767598-15954-2-git-send-email-gidisrael@gmail.com>
+        Tue, 04 Mar 2014 13:32:34 -0800 (PST)
+Date: Tue, 04 Mar 2014 16:32:23 -0500
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Message-ID: <53164672.05300f0a.3ff5.ffff9885SMTPIN_ADDED_BROKEN@mx.google.com>
+In-Reply-To: <5314F661.30202@oracle.com>
+References: <53126861.7040107@oracle.com>
+ <1393822946-26871-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <5314E0CD.6070308@oracle.com>
+ <5314F661.30202@oracle.com>
+Subject: Re: [PATCH] mm: add pte_present() check on existing hugetlb_entry
+ callbacks
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain;
+ charset=iso-2022-jp
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gideon Israel Dsouza <gidisrael@gmail.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, geert@linux-m68k.org
+To: sasha.levin@oracle.com
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, riel@redhat.com
 
-On Sun,  2 Mar 2014 19:09:58 +0530 Gideon Israel Dsouza <gidisrael@gmail.com> wrote:
+# sorry if duplicate message
 
-> To increase compiler portability there is <linux/compiler.h> which
-> provides convenience macros for various gcc constructs.  Eg: __weak
-> for __attribute__((weak)).  I've replaced all instances of gcc
-> attributes with the right macro in the memory management
-> (/mm) subsystem.
+On Mon, Mar 03, 2014 at 04:38:41PM -0500, Sasha Levin wrote:
+> On 03/03/2014 03:06 PM, Sasha Levin wrote:
+> >On 03/03/2014 12:02 AM, Naoya Horiguchi wrote:
+> >>Hi Sasha,
+> >>
+> >>>>I can confirm that with this patch the lockdep issue is gone. However, the NULL deref in
+> >>>>walk_pte_range() and the BUG at mm/hugemem.c:3580 still appear.
+> >>I spotted the cause of this problem.
+> >>Could you try testing if this patch fixes it?
+> >
+> >I'm seeing a different failure with this patch:
 > 
-> ...
->
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -13,6 +13,7 @@
->  #include <linux/nodemask.h>
->  #include <linux/pagemap.h>
->  #include <linux/mempolicy.h>
-> +#include <linux/compiler.h>
+> And the NULL deref still happens.
 
-It may be overdoing things a bit to explicitly include compiler.h. 
-It's hard to conceive of any .c file which doesn't already include it.
+I don't yet find out the root reason why this issue remains.
+So I tried to run trinity myself but the problem didn't reproduce.
+(I did simply like "./trinity --group vm --dangerous" a few hours.)
+Could you show more detail or tips about how the problem occurs?
+
+Thanks,
+Naoya
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
