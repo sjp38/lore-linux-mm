@@ -1,70 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f42.google.com (mail-pb0-f42.google.com [209.85.160.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 048276B003B
-	for <linux-mm@kvack.org>; Mon,  3 Mar 2014 18:37:10 -0500 (EST)
-Received: by mail-pb0-f42.google.com with SMTP id rr13so4405587pbb.15
-        for <linux-mm@kvack.org>; Mon, 03 Mar 2014 15:37:10 -0800 (PST)
+Received: from mail-pb0-f43.google.com (mail-pb0-f43.google.com [209.85.160.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 2FCED6B0037
+	for <linux-mm@kvack.org>; Mon,  3 Mar 2014 19:00:25 -0500 (EST)
+Received: by mail-pb0-f43.google.com with SMTP id um1so4406770pbc.16
+        for <linux-mm@kvack.org>; Mon, 03 Mar 2014 16:00:24 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id a3si8449259pay.194.2014.03.03.15.37.09
+        by mx.google.com with ESMTP id io5si12166621pbc.324.2014.03.03.16.00.23
         for <linux-mm@kvack.org>;
-        Mon, 03 Mar 2014 15:37:09 -0800 (PST)
-Date: Mon, 3 Mar 2014 15:37:07 -0800
+        Mon, 03 Mar 2014 16:00:24 -0800 (PST)
+Date: Mon, 3 Mar 2014 16:00:21 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 0/1] mm, shmem: map few pages around fault address if
- they are in page cache
-Message-Id: <20140303153707.beced5c271179d1b1658a246@linux-foundation.org>
-In-Reply-To: <CA+55aFzvCF-tWg7qx2_Om+Y64uJy6ujEyWgcq87UkzSkfbVGqw@mail.gmail.com>
-References: <1393625931-2858-1-git-send-email-quning@google.com>
-	<CACQD4-5U3P+QiuNKzt5+VdDDi0ocphR+Jh81eHqG6_+KeaHyRw@mail.gmail.com>
-	<20140228174150.8ff4edca.akpm@linux-foundation.org>
-	<CACQD4-7UUDMeXdR-NaAAXvk-NRYqW7mHJkjDUM=JRvL54b_Xsg@mail.gmail.com>
-	<CACQD4-5SmUf+krLbef9Yg9HhJ-ipT2QKKq-NW=2C6G=XwXcMcQ@mail.gmail.com>
-	<20140303143834.90ebe8ec5c6a369e54a599ec@linux-foundation.org>
-	<CA+55aFzvCF-tWg7qx2_Om+Y64uJy6ujEyWgcq87UkzSkfbVGqw@mail.gmail.com>
+Subject: Re: [PATCH v4] mm: per-thread vma caching
+Message-Id: <20140303160021.3001634fa62781d7b0359158@linux-foundation.org>
+In-Reply-To: <1393537704.2899.3.camel@buesod1.americas.hpqcorp.net>
+References: <1393537704.2899.3.camel@buesod1.americas.hpqcorp.net>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Ning Qu <quning@gmail.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Hugh Dickins <hughd@google.com>, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Dave Chinner <david@fromorbit.com>, linux-mm <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Davidlohr Bueso <davidlohr@hp.com>
+Cc: Ingo Molnar <mingo@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Michel Lespinasse <walken@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, aswin@hp.com, scott.norton@hp.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, 3 Mar 2014 15:29:00 -0800 Linus Torvalds <torvalds@linux-foundation.org> wrote:
+On Thu, 27 Feb 2014 13:48:24 -0800 Davidlohr Bueso <davidlohr@hp.com> wrote:
 
-> On Mon, Mar 3, 2014 at 2:38 PM, Andrew Morton <akpm@linux-foundation.org> wrote:
-> >
-> > When the file is uncached, results are peculiar:
-> >
-> > 0.00user 2.84system 0:50.90elapsed 5%CPU (0avgtext+0avgdata 4198096maxresident)k
-> > 0inputs+0outputs (1major+49666minor)pagefaults 0swaps
-> >
-> > That's approximately 3x more minor faults.
+> From: Davidlohr Bueso <davidlohr@hp.com>
 > 
-> This is not peculiar.
+> This patch is a continuation of efforts trying to optimize find_vma(),
+> avoiding potentially expensive rbtree walks to locate a vma upon faults.
+> The original approach (https://lkml.org/lkml/2013/11/1/410), where the
+> largest vma was also cached, ended up being too specific and random, thus
+> further comparison with other approaches were needed. There are two things
+> to consider when dealing with this, the cache hit rate and the latency of
+> find_vma(). Improving the hit-rate does not necessarily translate in finding
+> the vma any faster, as the overhead of any fancy caching schemes can be too
+> high to consider.
 > 
-> When the file is uncached, some pages will obviously be under IO due
-> to readahead etc. And the fault-around code very much on purpose will
-> *not* try to wait for those pages, so any busy pages will just simply
-> not be faulted-around.
-
-Of course.
-
-> So you should still have fewer minor faults than faulting on *every*
-> page (ie the non-fault-around case), but I would very much expect that
-> fault-around will not see the full "one sixteenth" reduction in minor
-> faults.
+> We currently cache the last used vma for the whole address space, which
+> provides a nice optimization, reducing the total cycles in find_vma() by up
+> to 250%, for workloads with good locality. On the other hand, this simple
+> scheme is pretty much useless for workloads with poor locality. Analyzing
+> ebizzy runs shows that, no matter how many threads are running, the
+> mmap_cache hit rate is less than 2%, and in many situations below 1%.
 > 
-> And the order of IO will not matter, since the read-ahead is
-> asynchronous wrt the page-faults.
+> The proposed approach is to replace this scheme with a small per-thread cache,
+> maximizing hit rates at a very low maintenance cost. Invalidations are
+> performed by simply bumping up a 32-bit sequence number. The only expensive
+> operation is in the rare case of a seq number overflow, where all caches that
+> share the same address space are flushed. Upon a miss, the proposed replacement
+> policy is based on the page number that contains the virtual address in
+> question. Concretely, the following results are seen on an 80 core, 8 socket
+> x86-64 box:
+> 
+> ...
+> 
+> 2) Kernel build: This one is already pretty good with the current approach
+> as we're dealing with good locality.
+> 
+> +----------------+----------+------------------+
+> | caching scheme | hit-rate | cycles (billion) |
+> +----------------+----------+------------------+
+> | baseline       | 75.28%   | 11.03            |
+> | patched        | 88.09%   | 9.31             |
+> +----------------+----------+------------------+
 
-When a pagefault hits a locked, not-uptodate page it is going to block.
-Once it wakes up we'd *like* to find lots of now-uptodate pages in
-that page's vicinity.  Obviously, that is happening, but not to the
-fullest possible extent.  We _could_ still achieve the 16x if readahead
-was cooperating in an ideal fashion.
+What is the "cycles" number here?  I'd like to believe we sped up kernel
+builds by 10% ;)
 
-I don't know what's going on in there to produce this consistent 3x
-factor.
+Were any overall run time improvements observable?
+
+> ...
+>
+> @@ -1228,6 +1229,9 @@ struct task_struct {
+>  #ifdef CONFIG_COMPAT_BRK
+>  	unsigned brk_randomized:1;
+>  #endif
+> +	/* per-thread vma caching */
+> +	u32 vmacache_seqnum;
+> +	struct vm_area_struct *vmacache[VMACACHE_SIZE];
+
+So these are implicitly locked by being per-thread.
+
+> +static inline void vmacache_invalidate(struct mm_struct *mm)
+> +{
+> +	mm->vmacache_seqnum++;
+> +
+> +	/* deal with overflows */
+> +	if (unlikely(mm->vmacache_seqnum == 0))
+> +		vmacache_flush_all(mm);
+> +}
+
+What's the locking rule for mm->vmacache_seqnum?
+
+>
+> ...
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
