@@ -1,41 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f174.google.com (mail-we0-f174.google.com [74.125.82.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 366DB6B0031
-	for <linux-mm@kvack.org>; Tue,  4 Mar 2014 10:21:50 -0500 (EST)
-Received: by mail-we0-f174.google.com with SMTP id t60so5018083wes.5
-        for <linux-mm@kvack.org>; Tue, 04 Mar 2014 07:21:49 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k1si16060439wjz.126.2014.03.04.07.21.47
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 04 Mar 2014 07:21:48 -0800 (PST)
-Date: Tue, 4 Mar 2014 16:21:45 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH -mm 00/12] kmemcg reparenting
-Message-ID: <20140304152145.GB12647@dhcp22.suse.cz>
-References: <cover.1393423762.git.vdavydov@parallels.com>
- <5315E986.7070608@parallels.com>
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id F1FFD6B0035
+	for <linux-mm@kvack.org>; Tue,  4 Mar 2014 12:11:35 -0500 (EST)
+Received: by mail-pa0-f52.google.com with SMTP id rd3so3962464pab.25
+        for <linux-mm@kvack.org>; Tue, 04 Mar 2014 09:11:35 -0800 (PST)
+Received: from blackbird.sr71.net (www.sr71.net. [198.145.64.142])
+        by mx.google.com with ESMTP id n8si14908498pab.0.2014.03.04.09.11.18
+        for <linux-mm@kvack.org>;
+        Tue, 04 Mar 2014 09:11:29 -0800 (PST)
+Message-ID: <53160932.6060200@sr71.net>
+Date: Tue, 04 Mar 2014 09:11:14 -0800
+From: Dave Hansen <dave@sr71.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5315E986.7070608@parallels.com>
+Subject: Re: [PATCH RFC 0/1] ksm: check and skip page, if it is already scanned
+References: <1393901333-5569-1-git-send-email-pradeep.sawlani@gmail.com>
+In-Reply-To: <1393901333-5569-1-git-send-email-pradeep.sawlani@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: hannes@cmpxchg.org, akpm@linux-foundation.org, glommer@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, devel@openvz.org
+To: Pradeep Sawlani <pradeep.sawlani@gmail.com>, Hugh Dickins <hughd@google.com>, Izik Eidus <izik.eidus@ravellosystems.com>, Andrea Arcangeli <aarcange@redhat.com>, Chris Wright <chrisw@sous-sol.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, MEMORY MANAGEMENT <linux-mm@kvack.org>, Arjan van de Ven <arjan@linux.intel.com>, Suri Maddhula <surim@amazon.com>, Matt Wilson <msw@amazon.com>, Anthony Liguori <aliguori@amazon.com>, Pradeep Sawlani <sawlani@amazon.com>
 
-On Tue 04-03-14 18:56:06, Vladimir Davydov wrote:
-> Hi Johannes, Michal
-> 
-> Could you please take a look at this set when you have time?
+On 03/03/2014 06:48 PM, Pradeep Sawlani wrote:
+> Patch uses two bits to detect if page is scanned, one bit for odd cycle
+> and other for even cycle. This adds one more bit in page flags and
+> overloads existing bit (PG_owner_priv_1).
+> Changes are based of 3.4.79 kernel, since I have used that for verification.
+> Detail discussion can be found at https://lkml.org/lkml/2014/2/13/624
+> Suggestion(s) are welcome for alternative solution in order to avoid one more
+> bit in page flags.
 
-I plan to catch up with others as well. I was on vacation last week and
-now catching up with other stuff. I do understand that this review
-"speed" might be really frustrating for you but there is a lot of things
-on my agenda now (and last few weeks). Sorry about that.
--- 
-Michal Hocko
-SUSE Labs
+Allocate a big bitmap (depends on how many pages you are scanning).
+Hash the page's pfn and index in to the bitmap.  If the bit is set,
+don't scan the page.  If not set, then set it.  Vary the hash for each
+scanning pass to reduce the same collision happening repeatedly.  Clear
+the bitmap before each scan.
+
+You'll get plenty of collisions, especially for a small table, but who
+cares?
+
+The other option is to bloat anon_vma instead, and only do one scan for
+each anon_vma that shares the same root.  That's a bit more invasive though.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
