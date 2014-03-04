@@ -1,61 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C3066B0039
-	for <linux-mm@kvack.org>; Mon,  3 Mar 2014 20:20:36 -0500 (EST)
-Received: by mail-pa0-f51.google.com with SMTP id kq14so4553230pab.10
-        for <linux-mm@kvack.org>; Mon, 03 Mar 2014 17:20:35 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id bs8si6391033pad.128.2014.03.03.17.20.33
+Received: from mail-ee0-f49.google.com (mail-ee0-f49.google.com [74.125.83.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 613EA6B0037
+	for <linux-mm@kvack.org>; Mon,  3 Mar 2014 20:26:25 -0500 (EST)
+Received: by mail-ee0-f49.google.com with SMTP id c41so507262eek.36
+        for <linux-mm@kvack.org>; Mon, 03 Mar 2014 17:26:24 -0800 (PST)
+Received: from jenni1.inet.fi (mta-out.inet.fi. [195.156.147.13])
+        by mx.google.com with ESMTP id x41si27951639eee.180.2014.03.03.17.26.23
         for <linux-mm@kvack.org>;
-        Mon, 03 Mar 2014 17:20:33 -0800 (PST)
-Date: Mon, 3 Mar 2014 17:23:48 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v4] mm: per-thread vma caching
-Message-Id: <20140303172348.3f00c9df.akpm@linux-foundation.org>
-In-Reply-To: <1393894778.30648.29.camel@buesod1.americas.hpqcorp.net>
-References: <1393537704.2899.3.camel@buesod1.americas.hpqcorp.net>
-	<20140303164002.02df915e12d05bb98762407f@linux-foundation.org>
-	<1393894778.30648.29.camel@buesod1.americas.hpqcorp.net>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Mon, 03 Mar 2014 17:26:24 -0800 (PST)
+Date: Tue, 4 Mar 2014 03:26:13 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCHv3 1/2] mm: introduce vm_ops->map_pages()
+Message-ID: <20140304012613.GB21508@node.dhcp.inet.fi>
+References: <1393530827-25450-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1393530827-25450-2-git-send-email-kirill.shutemov@linux.intel.com>
+ <20140303151611.5671eebb74cedb99aa5396c8@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140303151611.5671eebb74cedb99aa5396c8@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <davidlohr@hp.com>
-Cc: Ingo Molnar <mingo@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Michel Lespinasse <walken@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, aswin@hp.com, scott.norton@hp.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Dave Chinner <david@fromorbit.com>, Ning Qu <quning@gmail.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Rusty Russell <rusty@rustcorp.com.au>
 
-On Mon, 03 Mar 2014 16:59:38 -0800 Davidlohr Bueso <davidlohr@hp.com> wrote:
-
-> > >...
-> > >
-> > > +static bool vmacache_valid(struct mm_struct *mm)
-> > > +{
-> > > +	struct task_struct *curr = current;
-> > > +
-> > > +	if (mm != curr->mm)
-> > > +		return false;
-> > 
-> > What's going on here?  Handling a task poking around in someone else's
-> > mm?  I'm thinking "__access_remote_vm", but I don't know what you were
-> > thinking ;) An explanatory comment would be revealing.
+On Mon, Mar 03, 2014 at 03:16:11PM -0800, Andrew Morton wrote:
+> On Thu, 27 Feb 2014 21:53:46 +0200 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
 > 
-> I don't understand the doubt here. Seems like a pretty obvious thing to
-> check -- yes it's probably unlikely but we certainly don't want to be
-> validating the cache on an mm that's not ours... or are you saying it's
-> redundant??
+> > The patch introduces new vm_ops callback ->map_pages() and uses it for
+> > mapping easy accessible pages around fault address.
+> > 
+> > On read page fault, if filesystem provides ->map_pages(), we try to map
+> > up to FAULT_AROUND_PAGES pages around page fault address in hope to
+> > reduce number of minor page faults.
+> > 
+> > We call ->map_pages first and use ->fault() as fallback if page by the
+> > offset is not ready to be mapped (cold page cache or something).
+> >
+> > ...
+> >
+> > --- a/include/linux/mm.h
+> > +++ b/include/linux/mm.h
+> >
+> > ...
+> >
+> > @@ -571,6 +576,9 @@ static inline pte_t maybe_mkwrite(pte_t pte, struct vm_area_struct *vma)
+> >  		pte = pte_mkwrite(pte);
+> >  	return pte;
+> >  }
+> > +
+> > +void do_set_pte(struct vm_area_struct *vma, unsigned long address,
+> > +		struct page *page, pte_t *pte, bool write, bool anon);
+> >  #endif
+> >  
+> >  /*
+> 
+> lguest made a dubious naming decision:
+> 
+> drivers/lguest/page_tables.c:890: error: conflicting types for 'do_set_pte'
+> include/linux/mm.h:593: note: previous declaration of 'do_set_pte' was here
+> 
+> I'll rename lguest's do_set_pte() to do_guest_set_pte() as a
+> preparatory patch.
 
-Well it has to be here for a reason and I'm wondering that that reason
-is.  If nobody comes here with a foreign mm then let's remove it.  Or
-perhaps stick a WARN_ON_ONCE() in there to detect the unexpected.  If
-there _is_ a real reason, let's write that down.
+Thanks.
 
-> And no, we don't want __access_remote_vm() here.
+> btw, do_set_pte() could really do with some documentation.  It's not a
+> trivial function and it does a lot of stuff.  It's exported to other
+> compilation units and we should explain the what, the why and
+> particularly the locking preconditions.
 
-__access_remote_vm doesn't look at the vma cache, so scrub that
-explanation.
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Like this?
