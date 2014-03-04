@@ -1,47 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id F1FFD6B0035
-	for <linux-mm@kvack.org>; Tue,  4 Mar 2014 12:11:35 -0500 (EST)
-Received: by mail-pa0-f52.google.com with SMTP id rd3so3962464pab.25
-        for <linux-mm@kvack.org>; Tue, 04 Mar 2014 09:11:35 -0800 (PST)
-Received: from blackbird.sr71.net (www.sr71.net. [198.145.64.142])
-        by mx.google.com with ESMTP id n8si14908498pab.0.2014.03.04.09.11.18
-        for <linux-mm@kvack.org>;
-        Tue, 04 Mar 2014 09:11:29 -0800 (PST)
-Message-ID: <53160932.6060200@sr71.net>
-Date: Tue, 04 Mar 2014 09:11:14 -0800
-From: Dave Hansen <dave@sr71.net>
+Received: from mail-pb0-f51.google.com (mail-pb0-f51.google.com [209.85.160.51])
+	by kanga.kvack.org (Postfix) with ESMTP id CA68F6B0035
+	for <linux-mm@kvack.org>; Tue,  4 Mar 2014 15:03:22 -0500 (EST)
+Received: by mail-pb0-f51.google.com with SMTP id uo5so18359pbc.10
+        for <linux-mm@kvack.org>; Tue, 04 Mar 2014 12:03:22 -0800 (PST)
+Received: from mail-pb0-x235.google.com (mail-pb0-x235.google.com [2607:f8b0:400e:c01::235])
+        by mx.google.com with ESMTPS id m9si15260183pab.293.2014.03.04.12.03.17
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 04 Mar 2014 12:03:20 -0800 (PST)
+Received: by mail-pb0-f53.google.com with SMTP id rp16so14021pbb.26
+        for <linux-mm@kvack.org>; Tue, 04 Mar 2014 12:03:17 -0800 (PST)
+Date: Tue, 4 Mar 2014 12:02:15 -0800 (PST)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH 1/1] mm: implement ->map_pages for shmem/tmpfs
+In-Reply-To: <alpine.LSU.2.11.1402281657520.976@eggly.anvils>
+Message-ID: <alpine.LSU.2.11.1403041143530.1739@eggly.anvils>
+References: <1393625931-2858-1-git-send-email-quning@google.com> <1393625931-2858-2-git-send-email-quning@google.com> <alpine.LSU.2.11.1402281657520.976@eggly.anvils>
 MIME-Version: 1.0
-Subject: Re: [PATCH RFC 0/1] ksm: check and skip page, if it is already scanned
-References: <1393901333-5569-1-git-send-email-pradeep.sawlani@gmail.com>
-In-Reply-To: <1393901333-5569-1-git-send-email-pradeep.sawlani@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pradeep Sawlani <pradeep.sawlani@gmail.com>, Hugh Dickins <hughd@google.com>, Izik Eidus <izik.eidus@ravellosystems.com>, Andrea Arcangeli <aarcange@redhat.com>, Chris Wright <chrisw@sous-sol.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, MEMORY MANAGEMENT <linux-mm@kvack.org>, Arjan van de Ven <arjan@linux.intel.com>, Suri Maddhula <surim@amazon.com>, Matt Wilson <msw@amazon.com>, Anthony Liguori <aliguori@amazon.com>, Pradeep Sawlani <sawlani@amazon.com>
+To: Ning Qu <quning@google.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andi Kleen <ak@linux.intel.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Dave Chinner <david@fromorbit.com>, Ning Qu <quning@gmail.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On 03/03/2014 06:48 PM, Pradeep Sawlani wrote:
-> Patch uses two bits to detect if page is scanned, one bit for odd cycle
-> and other for even cycle. This adds one more bit in page flags and
-> overloads existing bit (PG_owner_priv_1).
-> Changes are based of 3.4.79 kernel, since I have used that for verification.
-> Detail discussion can be found at https://lkml.org/lkml/2014/2/13/624
-> Suggestion(s) are welcome for alternative solution in order to avoid one more
-> bit in page flags.
+On Fri, 28 Feb 2014, Hugh Dickins wrote:
+> On Fri, 28 Feb 2014, Ning Qu wrote:
+> 
+> > In shmem/tmpfs, we also use the generic filemap_map_pages,
+> > seems the additional checking is not worth a separate version
+> > of map_pages for it.
+> > 
+> > Signed-off-by: Ning Qu <quning@google.com>
 
-Allocate a big bitmap (depends on how many pages you are scanning).
-Hash the page's pfn and index in to the bitmap.  If the bit is set,
-don't scan the page.  If not set, then set it.  Vary the hash for each
-scanning pass to reduce the same collision happening repeatedly.  Clear
-the bitmap before each scan.
+Acked-by: Hugh Dickins <hughd@google.com>
 
-You'll get plenty of collisions, especially for a small table, but who
-cares?
+> > ---
+> >  mm/shmem.c | 1 +
+> >  1 file changed, 1 insertion(+)
+> > 
+> > diff --git a/mm/shmem.c b/mm/shmem.c
+> > index 1f18c9d..2ea4e89 100644
+> > --- a/mm/shmem.c
+> > +++ b/mm/shmem.c
+> > @@ -2783,6 +2783,7 @@ static const struct super_operations shmem_ops = {
+> >  
+> >  static const struct vm_operations_struct shmem_vm_ops = {
+> >  	.fault		= shmem_fault,
+> > +	.map_pages	= filemap_map_pages,
+> >  #ifdef CONFIG_NUMA
+> >  	.set_policy     = shmem_set_policy,
+> >  	.get_policy     = shmem_get_policy,
+> > -- 
+> 
+> (There's no need for a 0/1, all the info should go into the one patch.)
+> 
+> I expect this will prove to be a very sensible and adequate patch,
+> thank you: it probably wouldn't be worth more effort to give shmem
+> anything special of its own, and filemap_map_pages() is already
+> (almost) coping with exceptional entries.
 
-The other option is to bloat anon_vma instead, and only do one scan for
-each anon_vma that shares the same root.  That's a bit more invasive though.
+I haven't looked at performance at all: I'm just glad that you and
+Kirill have it working correctly as on other filesystems, without
+any need for special treatment in filemap_map_pages() - thanks.
+
+> 
+> But I can't Ack it until I've tested it some more, won't be able to
+> do so until Sunday; and even then some doubt, since this and Kirill's
+> are built upon mmotm/next, which after a while gives me spinlock
+> lockups under load these days, yet to be investigated.
+
+Other test machines didn't give me those lockups at the weekend, and
+overnight it looks like yesterday's mmotm has fixed the freezes on my
+laptop (PeterZ's "sched: Guarantee task priority in pick_next_task()"
+probably fixed them, but it's old history now, so I've not verified).
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
