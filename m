@@ -1,243 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 55E3D6B0062
-	for <linux-mm@kvack.org>; Tue,  4 Mar 2014 18:56:07 -0500 (EST)
-Received: by mail-pa0-f47.google.com with SMTP id lj1so259843pab.6
-        for <linux-mm@kvack.org>; Tue, 04 Mar 2014 15:56:06 -0800 (PST)
-Received: from mail-pb0-x231.google.com (mail-pb0-x231.google.com [2607:f8b0:400e:c01::231])
-        by mx.google.com with ESMTPS id tu7si382549pac.309.2014.03.04.15.56.06
+Received: from mail-qa0-f51.google.com (mail-qa0-f51.google.com [209.85.216.51])
+	by kanga.kvack.org (Postfix) with ESMTP id A9DAD6B0068
+	for <linux-mm@kvack.org>; Tue,  4 Mar 2014 18:57:59 -0500 (EST)
+Received: by mail-qa0-f51.google.com with SMTP id cm18so274393qab.38
+        for <linux-mm@kvack.org>; Tue, 04 Mar 2014 15:57:59 -0800 (PST)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id j9si128400qcm.18.2014.03.04.15.57.58
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 04 Mar 2014 15:56:06 -0800 (PST)
-Received: by mail-pb0-f49.google.com with SMTP id jt11so249907pbb.22
-        for <linux-mm@kvack.org>; Tue, 04 Mar 2014 15:56:06 -0800 (PST)
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 04 Mar 2014 15:57:59 -0800 (PST)
+Message-ID: <53166881.1020504@oracle.com>
+Date: Tue, 04 Mar 2014 18:57:53 -0500
+From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-From: Florian Fainelli <f.fainelli@gmail.com>
-Date: Tue, 4 Mar 2014 15:55:24 -0800
-Message-ID: <CAGVrzcbsSV7h3qA3KuCTwKNFEeww_kSNcfUkfw3PPjeXQXBo6g@mail.gmail.com>
-Subject: RCU stalls when running out of memory on 3.14-rc4 w/ NFS and kernel
- threads priorities changed
-Content-Type: multipart/mixed; boundary=047d7b33d592b900ae04f3d0a56c
+Subject: Re: mm: kernel BUG at mm/huge_memory.c:2785!
+References: <530F3F0A.5040304@oracle.com> <20140227150313.3BA27E0098@blue.fi.intel.com>
+In-Reply-To: <20140227150313.3BA27E0098@blue.fi.intel.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, paulmck@linux.vnet.ibm.com, linux-nfs@vger.kernel.org, trond.myklebust@primarydata.com
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
---047d7b33d592b900ae04f3d0a56c
-Content-Type: text/plain; charset=UTF-8
+On 02/27/2014 10:03 AM, Kirill A. Shutemov wrote:
+> Sasha Levin wrote:
+>> >Hi all,
+>> >
+>> >While fuzzing with trinity inside a KVM tools guest running latest -next kernel I've stumbled on the
+>> >following spew:
+>> >
+>> >[ 1428.146261] kernel BUG at mm/huge_memory.c:2785!
+> Hm, interesting.
+>
+> It seems we either failed to split huge page on vma split or it
+> materialized from under us. I don't see how it can happen:
+>
+>    - it seems we do the right thing with vma_adjust_trans_huge() in
+>      __split_vma();
+>    - we hold ->mmap_sem all the way from vm_munmap(). At least I don't see
+>      a place where we could drop it;
+>
+> Andrea, any ideas?
 
-Hi all,
+And a somewhat related issue (please correct me if I'm wrong):
 
-I am seeing the following RCU stalls messages appearing on an ARMv7
-4xCPUs system running 3.14-rc4:
+[ 2208.713223] kernel BUG at mm/mlock.c:528!
+[ 2208.713692] invalid opcode: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
+[ 2208.714488] Dumping ftrace buffer:
+[ 2208.715209]    (ftrace buffer empty)
+[ 2208.715759] Modules linked in:
+[ 2208.716206] CPU: 34 PID: 3736 Comm: trinity-c209 Tainted: G        W    3.14.0-rc5-next-20140304-sasha-00009-geaa4df0 #77
+[ 2208.717637] task: ffff880ff90c8000 ti: ffff880ff90c6000 task.ti: ffff880ff90c6000
+[ 2208.718742] RIP: 0010:[<ffffffff812a53d6>]  [<ffffffff812a53d6>] munlock_vma_pages_range+0x176/0x1d0
+[ 2208.720107] RSP: 0018:ffff880ff90c7e08  EFLAGS: 00010206
+[ 2208.720711] RAX: 00000000000001ff RBX: 000000000003f000 RCX: 0000000000000000
+[ 2208.721456] RDX: 000000000000003f RSI: ffffffff8129d92d RDI: ffffffff84476115
+[ 2208.721456] RBP: ffff880ff90c7ec8 R08: 0000000000000000 R09: 0000000000000000
+[ 2208.721456] R10: 0000000000000001 R11: 0000000000000000 R12: fffffffffffffff2
+[ 2208.721456] R13: ffff880313b41600 R14: 0000000000040000 R15: ffff880ff90c7e94
+[ 2208.721456] FS:  00007f2bd5330700(0000) GS:ffff88032bc00000(0000) knlGS:0000000000000000
+[ 2208.721456] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+[ 2208.721456] CR2: 0000000002767c90 CR3: 0000000ffa1d4000 CR4: 00000000000006e0
+[ 2208.721456] DR0: 00007f15fe555000 DR1: 0000000000000000 DR2: 0000000000000000
+[ 2208.721456] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000600
+[ 2208.721456] Stack:
+[ 2208.721456]  0000000000000000 0000000000000000 0001880ff90c7e38 0000000000000000
+[ 2208.721456]  0000000000000000 ffff880313b41600 00000000f90c7e88 0000000000000000
+[ 2208.721456]  00ff880ff90c7e58 ffff880815e8cba0 ffff880ff90c7eb8 ffff880313b41600
+[ 2208.721456] Call Trace:
+[ 2208.721456]  [<ffffffff812a8a52>] do_munmap+0x1d2/0x350
+[ 2208.721456]  [<ffffffff84473eb6>] ? down_write+0xa6/0xc0
+[ 2208.721456]  [<ffffffff812a8c16>] ? vm_munmap+0x46/0x80
+[ 2208.721456]  [<ffffffff812a8c24>] vm_munmap+0x54/0x80
+[ 2208.721456]  [<ffffffff812a8c7c>] SyS_munmap+0x2c/0x40
+[ 2208.721456]  [<ffffffff84480110>] tracesys+0xdd/0xe2
+[ 2208.721456] Code: fd ff ff 4c 89 e6 48 89 c3 48 8d bd 40 ff ff ff e8 80 fa ff ff eb 2f 66 0f 1f 44 00 00 8b 45 cc 48 89 da 48 c1 ea 0c 85 d0 74 12 <0f> 0b 0f 1f 84 00 00 00 00 00 eb fe 66 0f 1f 44 00 00 ff c0 48
+[ 2208.721456] RIP  [<ffffffff812a53d6>] munlock_vma_pages_range+0x176/0x1d0
+[ 2208.721456]  RSP <ffff880ff90c7e08>
 
-[   42.974327] INFO: rcu_sched detected stalls on CPUs/tasks:
-[   42.979839]  (detected by 0, t=2102 jiffies, g=4294967082,
-c=4294967081, q=516)
-[   42.987169] INFO: Stall ended before state dump start
 
-this is happening under the following conditions:
-
-- the attached bumper.c binary alters various kernel thread priorities
-based on the contents of bumpup.cfg and
-- malloc_crazy is running from a NFS share
-- malloc_crazy.c is running in a loop allocating chunks of memory but
-never freeing it
-
-when the priorities are altered, instead of getting the OOM killer to
-be invoked, the RCU stalls are happening. Taking NFS out of the
-equation does not allow me to reproduce the problem even with the
-priorities altered.
-
-This "problem" seems to have been there for quite a while now since I
-was able to get 3.8.13 to trigger that bug as well, with a slightly
-more detailed RCU debugging trace which points the finger at kswapd0.
-
-You should be able to get that reproduced under QEMU with the
-Versatile Express platform emulating a Cortex A15 CPU and the attached
-files.
-
-Any help or suggestions would be greatly appreciated. Thanks!
--- 
-Florian
-
---047d7b33d592b900ae04f3d0a56c
-Content-Type: text/x-csrc; charset=US-ASCII; name="malloc_crazy.c"
-Content-Disposition: attachment; filename="malloc_crazy.c"
-Content-Transfer-Encoding: base64
-X-Attachment-Id: f_hs3wclis1
-
-I2luY2x1ZGUgPHN0ZGxpYi5oPgojaW5jbHVkZSA8c3RkaW8uaD4KI2luY2x1ZGUgPHN0cmluZy5o
-PgoKaW50IG1haW4oaW50IGFyZ2MsIGNoYXIgKiphcmd2KQp7CglpbnQgaTsKCWludCAqYnVmOwoJ
-aW50IG1heCA9IDMwNDg7CgoJaWYgKGFyZ2MgPT0gMikKCQltYXggPSBhdG9pKGFyZ3ZbMV0pOwoK
-CWZvcihpID0gMDsgaSA8IG1heDsgaSsrKSB7CgkJYnVmID0gKHZvaWQgKiltYWxsb2MoMTA0ODU3
-Nik7CgkJaWYoISBidWYpIHsKCQkJcHJpbnRmKCJtYWxsb2MgcmV0dXJuZWQgTlVMTFxuIik7CgkJ
-CXJldHVybigwKTsKCQl9CgkJbWVtc2V0KGJ1ZiwgMHgxMSwgMTA0ODU3Nik7CgkJKmJ1ZiA9IGk7
-CgkJcHJpbnRmKCIlZFxuIiwgaSk7Cgl9CglwcmludGYoImZpbmlzaGVkXG4iKTsKCglyZXR1cm4o
-MSk7Cn0K
---047d7b33d592b900ae04f3d0a56c
-Content-Type: application/x-sh; name="rcu_test.sh"
-Content-Disposition: attachment; filename="rcu_test.sh"
-Content-Transfer-Encoding: base64
-X-Attachment-Id: f_hsdt92rv1
-
-IyEvYmluL3NoClBSSU89YnVtcGVyCkNGRz1idW1wdXAuY2ZnClJVTj1tYWxsb2NfY3JhenkKCiRQ
-UklPICRDRkcKCnJ1bj0wCndoaWxlIHRydWUKZG8KCSRSVU4gMj4mMSA+IC9kZXYvbnVsbAoJcnVu
-PSQoKHJ1biArIDEpKQoJZWNobyAicnVuOiAkcnVuIgoJZG1lc2cgfCBncmVwIC12IHJjdV9mYW5v
-dXQgfCBncmVwIC1pIHJjdV8gLXEKCXJldD0kPwoJWyAkcmV0IC1lcSAwIF0gJiYgewoJCWVjaG8g
-IkZvdW5kIFJDVSBzdGFsbCBhZnRlciBydW4gJHJ1biI7CgkJZXhpdCAxOwoJfQpkb25lCg==
---047d7b33d592b900ae04f3d0a56c
-Content-Type: application/octet-stream; name="bumpup.cfg"
-Content-Disposition: attachment; filename="bumpup.cfg"
-Content-Transfer-Encoding: base64
-X-Attachment-Id: f_hsdt9sem2
-
-a3NvZnRpcnFkLzAsUlIsOTcKZXZlbnRzLzAsUlIsOTcKa2hlbHBlcixSUiw5NwprdGhyZWFkLFJS
-LDk3CmtibG9ja2QvMCxSUiw5NwpwZGZsdXNoLFJSLDk3Cmtzd2FwZDAsUlIsOTcKCmFpby8wLFJS
-LDk3CmF0YS8wLFJSLDk3CmF0YV9hdXgsUlIsOTcKc2NzaV9laF8wLFJSLDk3CnNjc2lfZWhfMSxS
-Uiw5NwptdGRibG9ja2QsUlIsOTcKCmluZXRkLFJSLDk3CnRlbG5ldGQsUlIsMzQKcG9ydG1hcCxS
-Uiw5NwpzaCxSUiw5NwoKa2h1YmQsUlIsOTYK
---047d7b33d592b900ae04f3d0a56c
-Content-Type: text/x-csrc; charset=US-ASCII; name="bumper.c"
-Content-Disposition: attachment; filename="bumper.c"
-Content-Transfer-Encoding: base64
-X-Attachment-Id: f_hsdt9yca3
-
-Ci8qKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioq
-KioqKioqKioqKioqKioqKioqKioKICogICBDb3B5cmlnaHQgKEMpIDIwMTAgYnkgQlNreUIKICog
-ICBSaWNoYXJkIFBhcnNvbnMKICogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg
-ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgKgogKiAgIFRoaXMgcHJvZ3JhbSBp
-cyBmcmVlIHNvZnR3YXJlOyB5b3UgY2FuIHJlZGlzdHJpYnV0ZSBpdCBhbmQvb3IgbW9kaWZ5ICAq
-CiAqICAgaXQgdW5kZXIgdGhlIHRlcm1zIG9mIHRoZSBHTlUgR2VuZXJhbCBQdWJsaWMgTGljZW5z
-ZSBhcyBwdWJsaXNoZWQgYnkgICoKICogICB0aGUgRnJlZSBTb2Z0d2FyZSBGb3VuZGF0aW9uOyBl
-aXRoZXIgdmVyc2lvbiAyIG9mIHRoZSBMaWNlbnNlLCBvciAgICAgKgogKiAgIChhdCB5b3VyIG9w
-dGlvbikgYW55IGxhdGVyIHZlcnNpb24uICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg
-ICAqCiAqICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg
-ICAgICAgICAgICAgICAgICAgICAgICoKICogICBUaGlzIHByb2dyYW0gaXMgZGlzdHJpYnV0ZWQg
-aW4gdGhlIGhvcGUgdGhhdCBpdCB3aWxsIGJlIHVzZWZ1bCwgICAgICAgKgogKiAgIGJ1dCBXSVRI
-T1VUIEFOWSBXQVJSQU5UWTsgd2l0aG91dCBldmVuIHRoZSBpbXBsaWVkIHdhcnJhbnR5IG9mICAg
-ICAgICAqCiAqICAgTUVSQ0hBTlRBQklMSVRZIG9yIEZJVE5FU1MgRk9SIEEgUEFSVElDVUxBUiBQ
-VVJQT1NFLiAgU2VlIHRoZSAgICAgICAgICoKICogICBHTlUgR2VuZXJhbCBQdWJsaWMgTGljZW5z
-ZSBmb3IgbW9yZSBkZXRhaWxzLiAgICAgICAgICAgICAgICAgICAgICAgICAgKgogKiAgICAgICAg
-ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg
-ICAgICAgICAqCiAqICAgWW91IHNob3VsZCBoYXZlIHJlY2VpdmVkIGEgY29weSBvZiB0aGUgR05V
-IEdlbmVyYWwgUHVibGljIExpY2Vuc2UgICAgICoKICogICBhbG9uZyB3aXRoIHRoaXMgcHJvZ3Jh
-bTsgaWYgbm90LCB3cml0ZSB0byB0aGUgICAgICAgICAgICAgICAgICAgICAgICAgKgogKiAgIEZy
-ZWUgU29mdHdhcmUgRm91bmRhdGlvbiwgSW5jLiwgICAgICAgICAgICAgICAgICAgICAgICAgICAg
-ICAgICAgICAgICAqCiAqICAgNTkgVGVtcGxlIFBsYWNlIC0gU3VpdGUgMzMwLCBCb3N0b24sIE1B
-ICAwMjExMS0xMzA3LCBVU0EuICAgICAgICAgICAgICoKICoqKioqKioqKioqKioqKioqKioqKioq
-KioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKioqKi8KCi8q
-IE4uQi4gKi8KLyogdGhpcyBwcm9ncmFtIGlzIHN1cHBsaWVkIFdJVEhPVVQgYW55IHdhcnJhbnR5
-IHdoYXRzb2V2ZXIJCSAgKi8KCi8qPT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
-PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0KClRoaXMgcHJvZ3JhbSBpcyB1
-c2VkIGZvciB0aGUgbWFzcyBjaGFuZ2luZyBvZiBwcm9jZXNzIHByaW9yaXRpZXMgYnkgbmFtZQpU
-aGUgc3ludGF4IGlzIGFzIGZvbGxvd3MKCS4vYnVtYmVyIFtjZmdmaWxlXQoKVGhlIGNvbmZpZyBm
-aWxlIHVzZXMgdGhlIGZvbGxvd2luZyBzeW50YXgKI3RoaXMgaXMgYSBjb21tZW50CnByb2Nlc3Nf
-bmFtZSxQT0xJQ1kscHJpb3JpdHkKCkRlZmF1bHQgaXMgUlIgLCBidXQgdmFsaWQgcG9saWNpZXMg
-YXJlCiAgUlIsIEZJRk8gYW5kIE9USEVSCgpwcmlvcml0eSBpcyBhIHZhbHVlIGZyb20gMC4uOTkK
-CmUuZy4KCiNUZWxuZXQgcHJpb3JpdHkKdGVsbmV0ZCxSUiwzNwoKPT09PT09PT09PT09PT09PT09
-PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09
-PT0qLwoKCiNpZmRlZiBIQVZFX0NPTkZJR19ICiNpbmNsdWRlIDxjb25maWcuaD4KI2VuZGlmCgoj
-aW5jbHVkZSA8c3RkaW8uaD4KI2luY2x1ZGUgPHN0ZGxpYi5oPgojaW5jbHVkZSA8ZGlyZW50Lmg+
-CiNpbmNsdWRlIDxzdHJpbmcuaD4KI2luY2x1ZGUgPHNjaGVkLmg+CiNpbmNsdWRlICJidW1wZXIu
-aCIKCmludCBtYWluICggaW50IGFyZ2MsIGNoYXIgKmFyZ3ZbXSApCnsKCglpZiAoIGFyZ2MgIT0g
-MiApCgl7CgkJcHJpbnRmICggIkVycm9yOiBVc2FnZSBpcyAlcyBbY29uZmlnIGZpbGVdXG4iLGFy
-Z3ZbMF0gKTsKCQlyZXR1cm4gRVhJVF9GQUlMVVJFOwoJfSAKCXByb2Nlc3NMaXN0ID0gaW5pdF9h
-cHBsaWNhdGlvbigpOwoJaWYgKCByZWFkSW5wdXRGaWxlICggYXJndlsxXSApIDwgMCApCgl7CgkJ
-cHJpbnRmICggIkVycm9yOiBDb3VsZCBub3Qgb3BlbiAlc1xuIixhcmd2WzFdICk7CgkJcmV0dXJu
-IEVYSVRfRkFJTFVSRTsKCX0KCWdldFByb2Nlc3NJRCAoIHByb2Nlc3NMaXN0ICk7CglkZXN0b3J5
-X2FwcGxpY2F0aW9uKHByb2Nlc3NMaXN0KTsKCXJldHVybiBFWElUX1NVQ0NFU1M7Cn0KCnZvaWQg
-KmluaXRfYXBwbGljYXRpb24gKCB2b2lkICkKewogIHJldHVybiBOVUxMOwp9Cgp2b2lkIGRlc3Rv
-cnlfYXBwbGljYXRpb24oc3RydWN0IHBhcmFtcyAqaGVhZCkKewogICAgc3RydWN0IHBhcmFtcyAq
-bmV4dDsKCiAgICBpZiAoaGVhZCA9PSBOVUxMKQogICAgICByZXR1cm47CgogICBuZXh0ID0gaGVh
-ZDsgCgogICB3aGlsZSAobmV4dCAhPSBOVUxMKQogICAgIHsKICAgICAgICB2b2lkICpucHRyID0g
-bmV4dC0+bmV4dDsgCglmcmVlKG5leHQtPnByb2Nlc3MpOwogICAgICAgIGZyZWUobmV4dCk7CiAg
-ICAgICAgbmV4dCA9IG5wdHI7CiAgICAgfSAKfQoKaW50IHJlYWRJbnB1dEZpbGUgKCBjaGFyICpp
-bkZpbGUgKQp7CglGSUxFICpmcDsKCWludCByYyA9IC0xOwoJY2hhciBpbkxpbmVbMTAxXTsKCglp
-ZiAoICggZnAgPSBmb3BlbiAoIGluRmlsZSwgInIiICkgKSA9PSBOVUxMICkKCQlyZXR1cm4gcmM7
-CgoJd2hpbGUgKCBmZ2V0cyAoIGluTGluZSwgMTAwLCBmcCApICE9TlVMTCApCgl7CgkJaWYgKCBp
-bkxpbmVbMF0gPT0gJyMnICkKCQkJY29udGludWU7CgoJCXByb2Nlc3NMaXN0ID0gYWRkRW50cnkg
-KCBpbkxpbmUscHJvY2Vzc0xpc3QgKTsKCX0KCWZjbG9zZSAoIGZwICk7CglyZXR1cm4gMTsKfQoK
-CnZvaWQgKmFkZEVudHJ5ICggY2hhciAqc3pQYXJhbWV0ZXJzLHN0cnVjdCBwYXJhbXMgKmhlYWQg
-KQp7CglzdHJ1Y3QgcGFyYW1zICplbnRyeTsKCXN0cnVjdCBwYXJhbXMgKmxhc3RQdHI9aGVhZDsK
-CXZvaWQgKnJldFB0cj1oZWFkOwoJY2hhciBwcm9jZXNzWzUxMl07CgljaGFyIHBvbGljeVs1MTJd
-OwoJY2hhciBwcmlvWzUxMl07CglpZiAoIHN0cmxlbiAoIHN6UGFyYW1ldGVycyApID4gNTExICkg
-IC8vIHNtYWxsIHNhbml5IGNoZWNrLi4KCQlyZXR1cm4gaGVhZDsKCWlmICggc3RybGVuICggc3pQ
-YXJhbWV0ZXJzICkgPCA1ICkgIC8vIHNtYWxsIHNhbml5IGNoZWNrLi4KCQlyZXR1cm4gaGVhZDsK
-CglpbnQgcmMgPSBzc2NhbmYgKCBzelBhcmFtZXRlcnMsIiVbXicsJ10sJVteJywnXSwlW14nLCdd
-Iixwcm9jZXNzLHBvbGljeSxwcmlvICk7CglpZiAoIHJjID09IDMgKQoJewoJCWludCBwVmFsID0g
-YXRvaShwcmlvKTsKCQlpZiAoICggcFZhbCA8IDAgKSB8fCAoIHBWYWwgPiAxMDAgKSApCgkJewoJ
-CQlwcmludGYgKCAiRXJyb3IgOiBQcm9jZXNzICVzIFByaW9yaXR5ICVpIE9VVCBPRiBCT1VORFMg
-b2YgMC4uOTlcbiIscHJvY2VzcyxwVmFsICk7CgkJCXJldHVybiBoZWFkOwoJCX0KCQllbnRyeSA9
-IG1hbGxvYyAoIHNpemVvZiAoIHN0cnVjdCBwYXJhbXMgKSApOwoJCWVudHJ5LT5uZXh0PWhlYWQ7
-CgkJZW50cnktPnByb2Nlc3MgPSBtYWxsb2MgKCBzdHJsZW4gKCBwcm9jZXNzICkgKzEgKTsKCQlz
-dHJjcHkgKCBlbnRyeS0+cHJvY2Vzcyxwcm9jZXNzICk7CgkJZW50cnktPnByaW8gPSBwVmFsOwoJ
-CWVudHJ5LT5wb2xpY3kgPSBTQ0hFRF9SUjsKCQllbnRyeS0+cHJvY2Vzc0NvdW50PTA7CgoJCWlm
-ICggIXN0cmNhc2VjbXAgKCBwb2xpY3ksIlJSIiApICkKCQl7CgkJCWVudHJ5LT5wb2xpY3kgPSBT
-Q0hFRF9SUjsKCQl9CgkJZWxzZSBpZiAoICFzdHJjYXNlY21wICggcG9saWN5LCJPVEhFUiIgKSAp
-CgkJewoJCQllbnRyeS0+cG9saWN5ID0gU0NIRURfT1RIRVI7CgkJfQoJCWVsc2UgaWYgKCAhc3Ry
-Y2FzZWNtcCAoIHBvbGljeSwiRklGTyIgKSApCgkJewoJCQllbnRyeS0+cG9saWN5ID0gU0NIRURf
-RklGTzsKCQl9CgkJcHJpbnRmICggIlByb2Nlc3MgJXMgW1ByaW9yaXR5ICVpXSBbUG9saWN5ICVz
-ICglaSldXG4iLGVudHJ5LT5wcm9jZXNzLGVudHJ5LT5wcmlvLHBvbGljeSxlbnRyeS0+cG9saWN5
-ICk7Cgl9CgllbHNlCgl7CgkJcmV0dXJuIGhlYWQ7Cgl9CglyZXR1cm4gZW50cnk7Cn0KCgppbnQg
-Y2hlY2tQcm9jZXNzTmFtZSAoIHN0cnVjdCBwYXJhbXMgKmhlYWQsIGNoYXIgKnByb2Nlc3MsIGlu
-dCAqcHJpbywgaW50ICpwb2xpY3kgKQp7CglpbnQgcmMgPSAtMTsKCXN0cnVjdCBwYXJhbXMgKml0
-ciA9IGhlYWQ7CgoJZm9yICggaXRyPWhlYWQ7aXRyICE9IE5VTEw7aXRyPWl0ci0+bmV4dCApCgl7
-CgkJaWYgKCBzdHJzdHIgKCBwcm9jZXNzLGl0ci0+cHJvY2VzcyApICE9IE5VTEwgKQoJCXsKCQkJ
-KnByaW8gPSBpdHItPnByaW87CgkJCSpwb2xpY3kgPSBpdHItPnBvbGljeTsKCQkJaXRyLT5wcm9j
-ZXNzQ291bnQrKzsKCQkJcmMgPSAxOwoJCQlicmVhazsKCQl9Cgl9CglyZXR1cm4gcmM7Cn0KCgpp
-bnQgZmluZENoYXIgKCBjaGFyICppblN0cmluZyxjaGFyIGNoYXJhY3RlciApCnsKCWludCBhOwoK
-CWZvciAoIGE9MDthPHN0cmxlbiAoIGluU3RyaW5nICk7YSsrICkKCXsKCQlpZiAoIGluU3RyaW5n
-W2FdID09IGNoYXJhY3RlciApCgkJCXJldHVybiBhOwoJfQoJcmV0dXJuIC0xOwp9CgoKaW50IHJl
-YWRTdGF0ICggY2hhciAqZXhlLCBjaGFyICp0YXJnZXRfbmFtZSApCnsKCUZJTEUgKmZwOwoJaW50
-IHJjID0gLTE7CgljaGFyIGluTGluZVs1MTJdOwoKCgoJaWYgKCAoIGZwID0gZm9wZW4gKCBleGUs
-ICJyIiApICkgPT0gTlVMTCApCgl7CgkJcHJpbnRmICggIkZhaWxlZCB0byBvcGVuICVzXG4iLGV4
-ZSApOwoJCXJldHVybiByYzsKCX0KCgljaGFyICpyZXRDaGFyID0gZmdldHMgKCBpbkxpbmUsIDEw
-MCwgZnAgKTsKCWlmICggcmV0Q2hhciA9PSBOVUxMICkKCXsKCQljbG9zZSAoIGZwICk7CgkJcmV0
-dXJuIHJjOwoJfQoKCWludCBzdGFydCA9IGZpbmRDaGFyICggaW5MaW5lLCcoJyApOwoJaW50IGVu
-ZCA9IGZpbmRDaGFyICggaW5MaW5lLCcpJyApOwoKCWlmICggKCBzdGFydCA+IDAgKSAmJiAoIGVu
-ZCA+MCApICkKCXsKCQltZW1zZXQgKCB0YXJnZXRfbmFtZSwwLCAoIGVuZC1zdGFydCApICsxICk7
-CgkJbWVtY3B5ICggdGFyZ2V0X25hbWUsaW5MaW5lK3N0YXJ0KzEsICggZW5kLXN0YXJ0ICktMSAp
-OwoJCXJjID0gMTsKCX0KCglmY2xvc2UgKCBmcCApOwoJcmV0dXJuIHJjOwp9CgoKdW5zaWduZWQg
-aW50IGdldFByb2Nlc3NJRCAoIHN0cnVjdCBwYXJhbXMgKmhlYWQgKQp7CglESVIgKmRpcl9wOwoJ
-c3RydWN0IGRpcmVudCAqZGlyX2VudHJ5X3A7CgljaGFyIGRpcl9uYW1lWzUxMl07IC8vIEhvcnJp
-YmxlLi4gYnV0IHdpbGwgZG8KCWNoYXIgdGFyZ2V0X25hbWVbNTEyXTsgIC8vIEhvcnJpYmxlLi4g
-YnV0IHdpbGwgZG8KCWludCB0YXJnZXRfcmVzdWx0OwoJY2hhciBleGVfbGlua1s1MTJdOyAgLy8g
-eXVrCglpbnQgZXJyb3Jjb3VudDsKCWludCByZXN1bHQ7CglpbnQgcHJpbzsKCWludCBwb2xpY3k7
-CgoJZXJyb3Jjb3VudD0wOwoJcmVzdWx0PTA7CglkaXJfcCA9IG9wZW5kaXIgKCAiL3Byb2MvIiAp
-OwoJd2hpbGUgKCBOVUxMICE9ICggZGlyX2VudHJ5X3AgPSByZWFkZGlyICggZGlyX3AgKSApICkK
-CXsKCQlpZiAoIHN0cnNwbiAoIGRpcl9lbnRyeV9wLT5kX25hbWUsICIwMTIzNDU2Nzg5IiApID09
-IHN0cmxlbiAoIGRpcl9lbnRyeV9wLT5kX25hbWUgKSApCgkJewoJCQlzdHJjcHkgKCBkaXJfbmFt
-ZSwgIi9wcm9jLyIgKTsKCQkJc3RyY2F0ICggZGlyX25hbWUsIGRpcl9lbnRyeV9wLT5kX25hbWUg
-KTsKCQkJc3RyY2F0ICggZGlyX25hbWUsICIvIiApOwoJCQlleGVfbGlua1swXSA9IDA7CgkJCXN0
-cmNhdCAoIGV4ZV9saW5rLCBkaXJfbmFtZSApOwoJCQlzdHJjYXQgKCBleGVfbGluaywgInN0YXQi
-ICk7CgkJCXRhcmdldF9yZXN1bHQgPSByZWFkU3RhdCAoIGV4ZV9saW5rLCB0YXJnZXRfbmFtZSAp
-OwoJCQlpZiAoIHRhcmdldF9yZXN1bHQgPiAwICkKCQkJewoJCQkJLy9wcmludGYgKCAiQ2hlY2tp
-bmcgZm9yICVzXG4iLHRhcmdldF9uYW1lICk7CgoJCQkJaWYgKCBjaGVja1Byb2Nlc3NOYW1lICgg
-aGVhZCx0YXJnZXRfbmFtZSwmcHJpbywmcG9saWN5ICkgPiAwICkKCQkJCXsKCQkJCQlyZXN1bHQg
-PSBhdG9pICggZGlyX2VudHJ5X3AtPmRfbmFtZSApOwoJCQkJCXN0cnVjdCBzY2hlZF9wYXJhbSBz
-cDsKCQkJCQlzcC5zY2hlZF9wcmlvcml0eSA9IHByaW87CgkJCQkJaWYgKCBzY2hlZF9zZXRzY2hl
-ZHVsZXIgKCByZXN1bHQsIHBvbGljeSwgJnNwICkgPCAwICkKCQkJCQl7CgkJCQkJCXByaW50ZiAo
-ICJGYWlsZWQgdG8gc2V0ICVzICglaSkgW1BvbGljeSAlaV0gW1ByaW9yaXR5ICVpXVxuIiwgdGFy
-Z2V0X25hbWUsIHJlc3VsdCxwb2xpY3kscHJpbyApOwoJCQkJCX0KCQkJCQllbHNlCgkJCQkJCXBy
-aW50ZiAoICJQcmlvcml0eSBzZXQgJXMgKCVpKVxuIiwgdGFyZ2V0X25hbWUsIHJlc3VsdCApOwoJ
-CQkJfQoJCQl9CgkJfQoJfQoJY2xvc2VkaXIgKCBkaXJfcCApOwoJcmV0dXJuIHJlc3VsdDsKfQo=
---047d7b33d592b900ae04f3d0a56c
-Content-Type: text/x-chdr; charset=US-ASCII; name="bumper.h"
-Content-Disposition: attachment; filename="bumper.h"
-Content-Transfer-Encoding: base64
-X-Attachment-Id: f_hsdt9ycm4
-
-I2lmbmRlZiBfQlVNUEVSX0gKI2RlZmluZSBfQlVNUEVSX0gKCgpzdHJ1Y3QgcGFyYW1zIHsKICBj
-aGFyICpwcm9jZXNzOwogIGludCAgcHJpbzsKICBpbnQgIHBvbGljeTsKICBpbnQgIHByb2Nlc3ND
-b3VudDsKc3RydWN0IHBhcmFtcyAqbmV4dDsgLy8gc2luZ2xlIGVudHJ5IGxpbmtlZCBsaXN0Cn07
-Cgp1bnNpZ25lZCBpbnQgZ2V0UHJvY2Vzc0lEICggc3RydWN0IHBhcmFtcyAqaGVhZCApOwp2b2lk
-ICphZGRFbnRyeSAoIGNoYXIgKnN6UGFyYW1ldGVycyxzdHJ1Y3QgcGFyYW1zICpoZWFkICk7Cmlu
-dCBjaGVja1Byb2Nlc3NOYW1lICggc3RydWN0IHBhcmFtcyAqaGVhZCwgY2hhciAqcHJvY2Vzcywg
-aW50ICpwcmlvLCBpbnQgKnBvbGljeSApOwppbnQgcmVhZElucHV0RmlsZSAoIGNoYXIgKmluRmls
-ZSApOwp2b2lkICppbml0X2FwcGxpY2F0aW9uICggdm9pZCApOwp2b2lkIGRlc3RvcnlfYXBwbGlj
-YXRpb24oc3RydWN0IHBhcmFtcyAqaGVhZCk7CgovLyBHbG9iYWxzIApzdHJ1Y3QgcGFyYW1zICpw
-cm9jZXNzTGlzdDsKCgojZW5kaWYK
---047d7b33d592b900ae04f3d0a56c--
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
