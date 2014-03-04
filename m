@@ -1,59 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f51.google.com (mail-pb0-f51.google.com [209.85.160.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 39B836B003D
-	for <linux-mm@kvack.org>; Tue,  4 Mar 2014 17:48:38 -0500 (EST)
-Received: by mail-pb0-f51.google.com with SMTP id uo5so177596pbc.38
-        for <linux-mm@kvack.org>; Tue, 04 Mar 2014 14:48:37 -0800 (PST)
-Received: from mail-pb0-x236.google.com (mail-pb0-x236.google.com [2607:f8b0:400e:c01::236])
-        by mx.google.com with ESMTPS id ub8si277866pac.213.2014.03.04.14.48.36
+Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com [209.85.160.54])
+	by kanga.kvack.org (Postfix) with ESMTP id A2C9E6B004D
+	for <linux-mm@kvack.org>; Tue,  4 Mar 2014 18:28:05 -0500 (EST)
+Received: by mail-pb0-f54.google.com with SMTP id ma3so225878pbc.13
+        for <linux-mm@kvack.org>; Tue, 04 Mar 2014 15:28:05 -0800 (PST)
+Received: from ozlabs.org (ozlabs.org. [2402:b800:7003:1:1::1])
+        by mx.google.com with ESMTPS id h3si361466paw.149.2014.03.04.15.28.02
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 04 Mar 2014 14:48:36 -0800 (PST)
-Received: by mail-pb0-f54.google.com with SMTP id ma3so183895pbc.13
-        for <linux-mm@kvack.org>; Tue, 04 Mar 2014 14:48:36 -0800 (PST)
-Date: Tue, 4 Mar 2014 14:48:31 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] slab_common: fix the check for duplicate slab names
-In-Reply-To: <alpine.LRH.2.02.1403041711300.29476@file01.intranet.prod.int.rdu2.redhat.com>
-Message-ID: <alpine.DEB.2.02.1403041448190.5421@chino.kir.corp.google.com>
-References: <alpine.LRH.2.02.1403041711300.29476@file01.intranet.prod.int.rdu2.redhat.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 04 Mar 2014 15:28:04 -0800 (PST)
+Date: Wed, 5 Mar 2014 10:27:55 +1100
+From: Stephen Rothwell <sfr@canb.auug.org.au>
+Subject: Re: [PATCH 1/1] mm: use macros from compiler.h instead of
+ __attribute__((...))
+Message-Id: <20140305102755.6e44b7e1e6eb62f01c41c018@canb.auug.org.au>
+In-Reply-To: <20140304132604.5be1b967068f8e03820d2169@linux-foundation.org>
+References: <1393767598-15954-1-git-send-email-gidisrael@gmail.com>
+	<1393767598-15954-2-git-send-email-gidisrael@gmail.com>
+	<20140304132604.5be1b967068f8e03820d2169@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: multipart/signed; protocol="application/pgp-signature";
+ micalg="PGP-SHA256";
+ boundary="Signature=_Wed__5_Mar_2014_10_27_55_+1100_4Tkb.4C=j8HwzHJy"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mikulas Patocka <mpatocka@redhat.com>
-Cc: Christoph Lameter <cl@linux.com>, Jonathan Brassow <jbrassow@redhat.com>, "Alasdair G. Kergon" <agk@redhat.com>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, dm-devel@redhat.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Gideon Israel Dsouza <gidisrael@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, geert@linux-m68k.org
 
-On Tue, 4 Mar 2014, Mikulas Patocka wrote:
+--Signature=_Wed__5_Mar_2014_10_27_55_+1100_4Tkb.4C=j8HwzHJy
+Content-Type: text/plain; charset=US-ASCII
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-> The patch 3e374919b314f20e2a04f641ebc1093d758f66a4 is supposed to fix the
-> problem where kmem_cache_create incorrectly reports duplicate cache name
-> and fails. The problem is described in the header of that patch.
-> 
-> However, the patch doesn't really fix the problem because of these
-> reasons:
-> 
-> * the logic to test for debugging is reversed. It was intended to perform
->   the check only if slub debugging is enabled (which implies that caches
->   with the same parameters are not merged). Therefore, there should be
->   #if !defined(CONFIG_SLUB) || defined(CONFIG_SLUB_DEBUG_ON)
->   The current code has the condition reversed and performs the test if
->   debugging is disabled.
-> 
-> * slub debugging may be enabled or disabled based on kernel command line,
->   CONFIG_SLUB_DEBUG_ON is just the default settings. Therefore the test
->   based on definition of CONFIG_SLUB_DEBUG_ON is unreliable.
-> 
-> This patch fixes the problem by removing the test
-> "!defined(CONFIG_SLUB_DEBUG_ON)". Therefore, duplicate names are never
-> checked if the SLUB allocator is used.
-> 
-> Note to stable kernel maintainers: when backporint this patch, please
-> backport also the patch 3e374919b314f20e2a04f641ebc1093d758f66a4.
-> 
-> Signed-off-by: Mikulas Patocka <mpatocka@redhat.com>
+Hi Andrew,
 
-Acked-by: David Rientjes <rientjes@google.com>
+On Tue, 4 Mar 2014 13:26:04 -0800 Andrew Morton <akpm@linux-foundation.org>=
+ wrote:
+>
+> On Sun,  2 Mar 2014 19:09:58 +0530 Gideon Israel Dsouza <gidisrael@gmail.=
+com> wrote:
+>=20
+> > To increase compiler portability there is <linux/compiler.h> which
+> > provides convenience macros for various gcc constructs.  Eg: __weak
+> > for __attribute__((weak)).  I've replaced all instances of gcc
+> > attributes with the right macro in the memory management
+> > (/mm) subsystem.
+> >=20
+> > ...
+> >
+> > --- a/mm/hugetlb.c
+> > +++ b/mm/hugetlb.c
+> > @@ -13,6 +13,7 @@
+> >  #include <linux/nodemask.h>
+> >  #include <linux/pagemap.h>
+> >  #include <linux/mempolicy.h>
+> > +#include <linux/compiler.h>
+>=20
+> It may be overdoing things a bit to explicitly include compiler.h.=20
+> It's hard to conceive of any .c file which doesn't already include it.
+
+Stick to Rule 1 :-)
+
+--=20
+Cheers,
+Stephen Rothwell                    sfr@canb.auug.org.au
+
+--Signature=_Wed__5_Mar_2014_10_27_55_+1100_4Tkb.4C=j8HwzHJy
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2.0.22 (GNU/Linux)
+
+iQIcBAEBCAAGBQJTFmGAAAoJEMDTa8Ir7ZwVJnMP/2u/zWMM1eDdxqZfXYTRlPan
+tyZ1EGR1tD8WdEQw5N5hOYp4sIIxC6ALo+XFcrNhUJ3fg3/rIqhRAf+5sDWI5MHR
+8bkM2Ah5rCmLDTfwUjtjwYgvHHZcBu5Ipk/vtuiRRhPOfr08eTkVBSROGUIw6vkE
+Wgn/YN3cIuBa2HhATzqmdRxS5gD91o2m4P4ES4+Vyqeuw2cvB0B0HfEWttRI7CHK
+0Qwfy4TTE+DkhzWzdXtUpPD741xJyACUP2EFQFCExHO+3D647P3ldA3QTpnhKSnD
+7YJAiJXIDOp4WDPsSHq245Gfti8vhh52WCMDO1FSxj9kyveLC/uxi+RA90azpc5v
+0q/ZIelPRMgyMyc03EpFxXe8iDokvtLEYy69v/KX9f+a1I515jYiO13hdKUv2Zo7
+feQzCwkp8yQEtdiMcJDzYnkAJtBk5SoFo7FfzLn6eppq7usUp21PnE08gy0920ec
+XG3X2+fK9um1w8Je98kRQHosC3kmsA0J51CCwMgOjFMQojVzWaTaZjtl5MYLOQuE
+y3sZqQ0zFsvaoYtcW5tHvYgbiJNkUisOcMQ6EVU2qgEB66nzgq4P9hFYwk27WkcT
+Guaj1wDzYHCXoOz8VSZpSGZ7ENkqAMFsqrZdnj4PG54n/Ys0YdR3HxFLvRz4KzQG
+RdY+Nz/oVRsWmxTDMGSl
+=f2hV
+-----END PGP SIGNATURE-----
+
+--Signature=_Wed__5_Mar_2014_10_27_55_+1100_4Tkb.4C=j8HwzHJy--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
