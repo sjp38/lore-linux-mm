@@ -1,230 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f175.google.com (mail-we0-f175.google.com [74.125.82.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 0663D6B0037
-	for <linux-mm@kvack.org>; Tue,  4 Mar 2014 07:16:59 -0500 (EST)
-Received: by mail-we0-f175.google.com with SMTP id q58so537727wes.6
-        for <linux-mm@kvack.org>; Tue, 04 Mar 2014 04:16:59 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id rz17si15229041wjb.88.2014.03.04.04.16.57
+Received: from mail-la0-f48.google.com (mail-la0-f48.google.com [209.85.215.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 791DC6B0031
+	for <linux-mm@kvack.org>; Tue,  4 Mar 2014 09:56:11 -0500 (EST)
+Received: by mail-la0-f48.google.com with SMTP id gf5so5628399lab.21
+        for <linux-mm@kvack.org>; Tue, 04 Mar 2014 06:56:10 -0800 (PST)
+Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
+        by mx.google.com with ESMTPS id q7si19176223lbw.113.2014.03.04.06.56.08
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 04 Mar 2014 04:16:58 -0800 (PST)
-Message-ID: <5315C438.8070504@suse.cz>
-Date: Tue, 04 Mar 2014 13:16:56 +0100
-From: Vlastimil Babka <vbabka@suse.cz>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 04 Mar 2014 06:56:09 -0800 (PST)
+Message-ID: <5315E986.7070608@parallels.com>
+Date: Tue, 4 Mar 2014 18:56:06 +0400
+From: Vladimir Davydov <vdavydov@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/6] mm: add get_pageblock_migratetype_nolock() for cases
- where locking is undesirable
-References: <1393596904-16537-1-git-send-email-vbabka@suse.cz> <1393596904-16537-3-git-send-email-vbabka@suse.cz> <20140303082227.GA28899@lge.com> <53148981.90709@suse.cz> <20140304005513.GB32172@lge.com>
-In-Reply-To: <20140304005513.GB32172@lge.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [PATCH -mm 00/12] kmemcg reparenting
+References: <cover.1393423762.git.vdavydov@parallels.com>
+In-Reply-To: <cover.1393423762.git.vdavydov@parallels.com>
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: hannes@cmpxchg.org, mhocko@suse.cz
+Cc: akpm@linux-foundation.org, glommer@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, devel@openvz.org
 
-On 03/04/2014 01:55 AM, Joonsoo Kim wrote:
-> On Mon, Mar 03, 2014 at 02:54:09PM +0100, Vlastimil Babka wrote:
->> On 03/03/2014 09:22 AM, Joonsoo Kim wrote:
->>> On Fri, Feb 28, 2014 at 03:15:00PM +0100, Vlastimil Babka wrote:
->>>> In order to prevent race with set_pageblock_migratetype, most of calls to
->>>> get_pageblock_migratetype have been moved under zone->lock. For the remaining
->>>> call sites, the extra locking is undesirable, notably in free_hot_cold_page().
->>>>
->>>> This patch introduces a _nolock version to be used on these call sites, where
->>>> a wrong value does not affect correctness. The function makes sure that the
->>>> value does not exceed valid migratetype numbers. Such too-high values are
->>>> assumed to be a result of race and caller-supplied fallback value is returned
->>>> instead.
->>>>
->>>> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
->>>> ---
->>>>   include/linux/mmzone.h | 24 ++++++++++++++++++++++++
->>>>   mm/compaction.c        | 14 +++++++++++---
->>>>   mm/memory-failure.c    |  3 ++-
->>>>   mm/page_alloc.c        | 22 +++++++++++++++++-----
->>>>   mm/vmstat.c            |  2 +-
->>>>   5 files changed, 55 insertions(+), 10 deletions(-)
->>>>
->>>> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
->>>> index fac5509..7c3f678 100644
->>>> --- a/include/linux/mmzone.h
->>>> +++ b/include/linux/mmzone.h
->>>> @@ -75,6 +75,30 @@ enum {
->>>>
->>>>   extern int page_group_by_mobility_disabled;
->>>>
->>>> +/*
->>>> + * When called without zone->lock held, a race with set_pageblock_migratetype
->>>> + * may result in bogus values. Use this variant only when this does not affect
->>>> + * correctness, and taking zone->lock would be costly. Values >= MIGRATE_TYPES
->>>> + * are considered to be a result of this race and the value of race_fallback
->>>> + * argument is returned instead.
->>>> + */
->>>> +static inline int get_pageblock_migratetype_nolock(struct page *page,
->>>> +	int race_fallback)
->>>> +{
->>>> +	int ret = get_pageblock_flags_group(page, PB_migrate, PB_migrate_end);
->>>> +
->>>> +	if (unlikely(ret >= MIGRATE_TYPES))
->>>> +		ret = race_fallback;
->>>> +
->>>> +	return ret;
->>>> +}
->>>
->>> Hello, Vlastimil.
->>>
->>> First of all, thanks for nice work!
->>> I have another opinion about this implementation. It can be wrong, so if it
->>> is wrong, please let me know.
->>
->> Thanks, all opinions/reviewing is welcome :)
->>
->>> Although this implementation would close the race which triggers NULL dereference,
->>> I think that this isn't enough if you have a plan to add more
->>> {start,undo}_isolate_page_range().
->>>
->>> Consider that there are lots of {start,undo}_isolate_page_range() calls
->>> on the system without CMA.
->>>
->>> bit representation of migratetype is like as following.
->>>
->>> MIGRATE_MOVABLE = 010
->>> MIGRATE_ISOLATE = 100
->>>
->>> We could read following values as migratetype of the page on movable pageblock
->>> if race occurs.
->>>
->>> start_isolate_page_range() case: 010 -> 100
->>> 010, 000, 100
->>>
->>> undo_isolate_page_range() case: 100 -> 010
->>> 100, 110, 010
->>>
->>> Above implementation prevents us from getting 110, but, it can't prevent us from
->>> getting 000, that is, MIGRATE_UNMOVABLE. If this race occurs in free_hot_cold_page(),
->>> this page would go into unmovable pcp and then allocated for that migratetype.
->>> It results in more fragmented memory.
->>
->> Yes, that can happen. But I would expect it to be negligible to
->> other causes of fragmentation. But I'm not at this moment sure how
->> often {start,undo}_isolate_page_range() would be called in the end.
->> Certainly
->> not as often as in the development patch which is just to see if
->> that can improve anything. Because it will have its own overhead
->> (mostly for zone->lock) that might be too large. But good point, I
->> will try to quantify this.
->>
->>>
->>> Consider another case that system enables CONFIG_CMA,
->>>
->>> MIGRATE_MOVABLE = 010
->>> MIGRATE_ISOLATE = 101
->>>
->>> start_isolate_page_range() case: 010 -> 101
->>> 010, 011, 001, 101
->>>
->>> undo_isolate_page_range() case: 101 -> 010
->>> 101, 100, 110, 010
->>>
->>> This can results in totally different values and this also makes the problem
->>> mentioned above. And, although this doesn't cause any problem on CMA for now,
->>> if another migratetype is introduced or some migratetype is removed, it can cause
->>> CMA typed page to go into other migratetype and makes CMA permanently failed.
->>
->> This should actually be no problem for free_hot_cold_page() as any
->> migratetype >= MIGRATE_PCPTYPES will defer to free_one_page() which
->> will reread migratetype under zone->lock. So as long as
->> MIGRATE_PCPTYPES does not include a migratetype with such dangerous
->> "permanently failed" properties, it should be good. And I doubt such
->> migratetype would be added to pcptypes. But of course, anyone adding
->> new migratetype would have to reconsider each
->> get_pageblock_migratetype_nolock() call for such potential problems.
->
-> Please let me explain more.
-> Now CMA page can have following race values.
->
-> MIGRATE_CMA = 100
-> MIGRATE_ISOLATE = 101
->
-> start_isolate_page_range(): 100 -> 101
-> 100, 101
-> undo_isolate_page_range(): 101 -> 100
-> 101, 100
->
-> So, race doesn't cause any big problem.
->
-> But, as you mentioned in earlier patch, it could get worse if MIGRATE_RESERVE
-> is removed. It doesn't happen until now, but, it can be possible.
->
-> In that case,
->
-> MIGRATE_CMA = 011
-> MIGRATE_ISOLATE = 100
->
-> start_isolate_page_range(): 011 -> 100
-> 011, 010, 000, 100
-> undo_isolate_page_range(): 100 -> 011
-> 100, 101, 111, 011
->
-> If this race happens, CMA page can go into MIGRATE_UNMOVABLE list, because
-> "migratetpye >= MIGRATE_PCPTYPES" can't prevent it, and this could make
-> CMA permanently failed.
+Hi Johannes, Michal
 
-Oh, I understand what you mean now, sorry. And since 
-alloc_contig_range() is already doing just this kind of 
-CMA->ISOLATE->CMA transitions, it could really be a problem even without 
-my pending work. But maybe it would be enough to add just extra 
-PG_isolate bit to prevent this, and CMA could stay within the current 
-migratetype bits, no? The separate bit could be even useful to simplify 
-my work.
-Would you agree that this can be postponed a bit as I develop the 
-further compaction series, since CMA currently doesn't have the 
-dangerous value? Maybe there will be new concerns that will lead to 
-different solution.
-This series already prevents possible panic, which is worse than this issue.
+Could you please take a look at this set when you have time?
 
-> I think that to dump the responsibility on developer who want to add/remove migratetype
-> is not reasonable and doesn't work well, because they may not have enough background
-> knowledge. I hope to close the possible race more in this time.
+Thank you.
 
-Right, but even if we now added separate bits for ISOLATE and CMA, 
-anyone adding new migratetype would still have to think how to handle 
-that one (common migratetype bits or also some new bit?) and what are 
-the consequences.
-
-Vlastimil
-
-> Thanks.
+On 02/26/2014 07:05 PM, Vladimir Davydov wrote:
+> Hi,
 >
->>
->>> To close this kind of races without dependency how many pageblock isolation occurs,
->>> I recommend that you use separate pageblock bits for MIGRATE_CMA, MIGRATE_ISOLATE
->>> and use accessor function whenver we need to check migratetype. IMHO, it may not
->>> impose much overhead.
->>
->> That could work in case the fragmentation is confirmed to be a problem.
->>
->> Thanks,
->> Vlastimil
->>
->>> How about it?
->>>
->>> Thanks.
->>>
->>> --
->>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->>> the body to majordomo@kvack.org.  For more info on Linux MM,
->>> see: http://www.linux-mm.org/ .
->>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->>>
->>
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> During my recent attempt to push kmemcg shrinkers, I was pointed out
+> that current kmemcg implementation has a serious design flaw - it lacks
+> reparenting. Currently each memcg cache holds a css ref to its memcg and
+> does not let it go until the cache is emptied. Although this approach is
+> simple, it leads to memcgs hanging around for quite a long time after
+> the death, which is ugly. Building something on top of that is
+> unacceptable. So this patch set targets on implementing reparenting for
+> kmemcg charges.
+>
+> [ for more details see the discussion thread:
+>   https://lkml.org/lkml/2014/2/11/623 ]
+>
+> It is based on top of 3.14.0-rc4-mmotm and organized as follows:
+>  - Patches 1-3 fix some nasty races in kmemcg implementation. I could
+>    not let them live any longer, because they touch the code I'm going
+>    to modify.
+>  - Patches 4-6 prepare memcg_cache_params for reparenting.
+>  - Patch 7 rework slab charging making it easier to track and therefore
+>    reparent kmem charges, and patches 8-10 kill the old charging code.
+>  - Patch 11 introduces kmemcg reparenting.
+>  - Patch 12 is for slub. It fixes sysfs naming clashes that can arise
+>    due to reparented caches.
+>
+> Please note that this patch set does not resolve all kmemcg-related
+> issues - there are still plenty of them (e.g. "dangling" caches), but it
+> is already big enough so I guess I'll address them later when this one
+> is committed (if it will be committed at all, of course).
+>
+> Many thanks to Johannes Weiner, who proposed the idea and kindly
+> outlined basic design principles.
+>
+> Thanks,
+>
+> Vladimir Davydov (12):
+>   memcg: flush cache creation works before memcg cache destruction
+>   memcg: fix race in memcg cache destruction path
+>   memcg: fix root vs memcg cache destruction race
+>   memcg: move slab caches list/mutex init to memcg creation
+>   memcg: add pointer from memcg_cache_params to cache
+>   memcg: keep all children of each root cache on a list
+>   memcg: rework slab charging
+>   memcg: do not charge kmalloc_large allocations
+>   fork: do not charge thread_info to kmemcg
+>   memcg: kill GFP_KMEMCG and stuff
+>   memcg: reparent slab on css offline
+>   slub: make sure all memcg caches have unique names on sysfs
+>
+>  include/linux/gfp.h             |    5 -
+>  include/linux/memcontrol.h      |  133 ++-------
+>  include/linux/slab.h            |   15 +-
+>  include/linux/thread_info.h     |    2 -
+>  include/trace/events/gfpflags.h |    1 -
+>  kernel/fork.c                   |    4 +-
+>  mm/memcontrol.c                 |  587 +++++++++++++++++----------------------
+>  mm/page_alloc.c                 |   35 ---
+>  mm/slab.c                       |   47 ++--
+>  mm/slab.h                       |   17 +-
+>  mm/slab_common.c                |  100 +++++--
+>  mm/slub.c                       |   88 ++++--
+>  12 files changed, 470 insertions(+), 564 deletions(-)
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
