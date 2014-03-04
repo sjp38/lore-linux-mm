@@ -1,92 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com [209.85.160.54])
-	by kanga.kvack.org (Postfix) with ESMTP id A2C9E6B004D
-	for <linux-mm@kvack.org>; Tue,  4 Mar 2014 18:28:05 -0500 (EST)
-Received: by mail-pb0-f54.google.com with SMTP id ma3so225878pbc.13
-        for <linux-mm@kvack.org>; Tue, 04 Mar 2014 15:28:05 -0800 (PST)
-Received: from ozlabs.org (ozlabs.org. [2402:b800:7003:1:1::1])
-        by mx.google.com with ESMTPS id h3si361466paw.149.2014.03.04.15.28.02
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 04 Mar 2014 15:28:04 -0800 (PST)
-Date: Wed, 5 Mar 2014 10:27:55 +1100
-From: Stephen Rothwell <sfr@canb.auug.org.au>
-Subject: Re: [PATCH 1/1] mm: use macros from compiler.h instead of
- __attribute__((...))
-Message-Id: <20140305102755.6e44b7e1e6eb62f01c41c018@canb.auug.org.au>
-In-Reply-To: <20140304132604.5be1b967068f8e03820d2169@linux-foundation.org>
-References: <1393767598-15954-1-git-send-email-gidisrael@gmail.com>
-	<1393767598-15954-2-git-send-email-gidisrael@gmail.com>
-	<20140304132604.5be1b967068f8e03820d2169@linux-foundation.org>
+Received: from mail-ee0-f47.google.com (mail-ee0-f47.google.com [74.125.83.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 3CD536B005A
+	for <linux-mm@kvack.org>; Tue,  4 Mar 2014 18:49:43 -0500 (EST)
+Received: by mail-ee0-f47.google.com with SMTP id b15so95187eek.20
+        for <linux-mm@kvack.org>; Tue, 04 Mar 2014 15:49:42 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id e3si759544eeo.156.2014.03.04.15.49.40
+        for <linux-mm@kvack.org>;
+        Tue, 04 Mar 2014 15:49:40 -0800 (PST)
+Date: Tue, 04 Mar 2014 18:49:27 -0500
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Message-ID: <53166694.03cb0e0a.67e6.6250SMTPIN_ADDED_BROKEN@mx.google.com>
+In-Reply-To: <531657DC.4050204@oracle.com>
+References: <53126861.7040107@oracle.com>
+ <1393822946-26871-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <5314E0CD.6070308@oracle.com>
+ <5314F661.30202@oracle.com>
+ <1393968743-imrxpynb@n-horiguchi@ah.jp.nec.com>
+ <531657DC.4050204@oracle.com>
+Subject: Re: [PATCH] mm: add pte_present() check on existing hugetlb_entry
+ callbacks
 Mime-Version: 1.0
-Content-Type: multipart/signed; protocol="application/pgp-signature";
- micalg="PGP-SHA256";
- boundary="Signature=_Wed__5_Mar_2014_10_27_55_+1100_4Tkb.4C=j8HwzHJy"
+Content-Type: text/plain;
+ charset=iso-2022-jp
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Gideon Israel Dsouza <gidisrael@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, geert@linux-m68k.org
+To: sasha.levin@oracle.com
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, riel@redhat.com
 
---Signature=_Wed__5_Mar_2014_10_27_55_+1100_4Tkb.4C=j8HwzHJy
-Content-Type: text/plain; charset=US-ASCII
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+On Tue, Mar 04, 2014 at 05:46:52PM -0500, Sasha Levin wrote:
+> On 03/04/2014 04:32 PM, Naoya Horiguchi wrote:
+> > # sorry if duplicate message
+> > 
+> > On Mon, Mar 03, 2014 at 04:38:41PM -0500, Sasha Levin wrote:
+> >> On 03/03/2014 03:06 PM, Sasha Levin wrote:
+> >>> On 03/03/2014 12:02 AM, Naoya Horiguchi wrote:
+> >>>> Hi Sasha,
+> >>>>
+> >>>>>> I can confirm that with this patch the lockdep issue is gone. However, the NULL deref in
+> >>>>>> walk_pte_range() and the BUG at mm/hugemem.c:3580 still appear.
+> >>>> I spotted the cause of this problem.
+> >>>> Could you try testing if this patch fixes it?
+> >>>
+> >>> I'm seeing a different failure with this patch:
+> >>
+> >> And the NULL deref still happens.
+> > 
+> > I don't yet find out the root reason why this issue remains.
+> > So I tried to run trinity myself but the problem didn't reproduce.
+> > (I did simply like "./trinity --group vm --dangerous" a few hours.)
+> > Could you show more detail or tips about how the problem occurs?
+> 
+> I run it as root in a disposable vm, that may be the difference here.
 
-Hi Andrew,
+Sorry, I didn't write it but I also run it as root on VM, so condition is
+the same. It might depend on kernel config, so I'm now trying the config
+you previously gave me, but it doesn't boot correctly on my environment
+(panic in initialization). I may need some time to get over this.
 
-On Tue, 4 Mar 2014 13:26:04 -0800 Andrew Morton <akpm@linux-foundation.org>=
- wrote:
->
-> On Sun,  2 Mar 2014 19:09:58 +0530 Gideon Israel Dsouza <gidisrael@gmail.=
-com> wrote:
->=20
-> > To increase compiler portability there is <linux/compiler.h> which
-> > provides convenience macros for various gcc constructs.  Eg: __weak
-> > for __attribute__((weak)).  I've replaced all instances of gcc
-> > attributes with the right macro in the memory management
-> > (/mm) subsystem.
-> >=20
-> > ...
-> >
-> > --- a/mm/hugetlb.c
-> > +++ b/mm/hugetlb.c
-> > @@ -13,6 +13,7 @@
-> >  #include <linux/nodemask.h>
-> >  #include <linux/pagemap.h>
-> >  #include <linux/mempolicy.h>
-> > +#include <linux/compiler.h>
->=20
-> It may be overdoing things a bit to explicitly include compiler.h.=20
-> It's hard to conceive of any .c file which doesn't already include it.
-
-Stick to Rule 1 :-)
-
---=20
-Cheers,
-Stephen Rothwell                    sfr@canb.auug.org.au
-
---Signature=_Wed__5_Mar_2014_10_27_55_+1100_4Tkb.4C=j8HwzHJy
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2.0.22 (GNU/Linux)
-
-iQIcBAEBCAAGBQJTFmGAAAoJEMDTa8Ir7ZwVJnMP/2u/zWMM1eDdxqZfXYTRlPan
-tyZ1EGR1tD8WdEQw5N5hOYp4sIIxC6ALo+XFcrNhUJ3fg3/rIqhRAf+5sDWI5MHR
-8bkM2Ah5rCmLDTfwUjtjwYgvHHZcBu5Ipk/vtuiRRhPOfr08eTkVBSROGUIw6vkE
-Wgn/YN3cIuBa2HhATzqmdRxS5gD91o2m4P4ES4+Vyqeuw2cvB0B0HfEWttRI7CHK
-0Qwfy4TTE+DkhzWzdXtUpPD741xJyACUP2EFQFCExHO+3D647P3ldA3QTpnhKSnD
-7YJAiJXIDOp4WDPsSHq245Gfti8vhh52WCMDO1FSxj9kyveLC/uxi+RA90azpc5v
-0q/ZIelPRMgyMyc03EpFxXe8iDokvtLEYy69v/KX9f+a1I515jYiO13hdKUv2Zo7
-feQzCwkp8yQEtdiMcJDzYnkAJtBk5SoFo7FfzLn6eppq7usUp21PnE08gy0920ec
-XG3X2+fK9um1w8Je98kRQHosC3kmsA0J51CCwMgOjFMQojVzWaTaZjtl5MYLOQuE
-y3sZqQ0zFsvaoYtcW5tHvYgbiJNkUisOcMQ6EVU2qgEB66nzgq4P9hFYwk27WkcT
-Guaj1wDzYHCXoOz8VSZpSGZ7ENkqAMFsqrZdnj4PG54n/Ys0YdR3HxFLvRz4KzQG
-RdY+Nz/oVRsWmxTDMGSl
-=f2hV
------END PGP SIGNATURE-----
-
---Signature=_Wed__5_Mar_2014_10_27_55_+1100_4Tkb.4C=j8HwzHJy--
+Thanks,
+Naoya
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
