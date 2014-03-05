@@ -1,90 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f50.google.com (mail-pb0-f50.google.com [209.85.160.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 8BFDA6B0073
-	for <linux-mm@kvack.org>; Tue,  4 Mar 2014 19:39:11 -0500 (EST)
-Received: by mail-pb0-f50.google.com with SMTP id md12so289624pbc.37
-        for <linux-mm@kvack.org>; Tue, 04 Mar 2014 16:39:11 -0800 (PST)
-Received: from LGEAMRELO02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
-        by mx.google.com with ESMTP id f1si519866pbn.16.2014.03.04.16.39.09
-        for <linux-mm@kvack.org>;
-        Tue, 04 Mar 2014 16:39:10 -0800 (PST)
-Date: Wed, 5 Mar 2014 09:39:08 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 3/6] mm: add is_migrate_isolate_page_nolock() for cases
- where locking is undesirable
-Message-ID: <20140305003908.GC2340@lge.com>
-References: <1393596904-16537-1-git-send-email-vbabka@suse.cz>
- <1393596904-16537-4-git-send-email-vbabka@suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1393596904-16537-4-git-send-email-vbabka@suse.cz>
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 32C286B0075
+	for <linux-mm@kvack.org>; Tue,  4 Mar 2014 19:49:04 -0500 (EST)
+Received: by mail-pd0-f182.google.com with SMTP id g10so299256pdj.27
+        for <linux-mm@kvack.org>; Tue, 04 Mar 2014 16:49:03 -0800 (PST)
+Received: from mail-pd0-x22c.google.com (mail-pd0-x22c.google.com [2607:f8b0:400e:c02::22c])
+        by mx.google.com with ESMTPS id ub8si477956pac.329.2014.03.04.16.49.02
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 04 Mar 2014 16:49:03 -0800 (PST)
+Received: by mail-pd0-f172.google.com with SMTP id p10so295783pdj.31
+        for <linux-mm@kvack.org>; Tue, 04 Mar 2014 16:49:02 -0800 (PST)
+Message-ID: <1393980534.26794.147.camel@edumazet-glaptop2.roam.corp.google.com>
+Subject: Re: RCU stalls when running out of memory on 3.14-rc4 w/ NFS and
+ kernel threads priorities changed
+From: Eric Dumazet <eric.dumazet@gmail.com>
+Date: Tue, 04 Mar 2014 16:48:54 -0800
+In-Reply-To: <CAGVrzcbsSV7h3qA3KuCTwKNFEeww_kSNcfUkfw3PPjeXQXBo6g@mail.gmail.com>
+References: 
+	<CAGVrzcbsSV7h3qA3KuCTwKNFEeww_kSNcfUkfw3PPjeXQXBo6g@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Florian Fainelli <f.fainelli@gmail.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, paulmck@linux.vnet.ibm.com, linux-nfs@vger.kernel.org, trond.myklebust@primarydata.com, netdev <netdev@vger.kernel.org>
 
-On Fri, Feb 28, 2014 at 03:15:01PM +0100, Vlastimil Babka wrote:
-> This patch complements the addition of get_pageblock_migratetype_nolock() for
-> the case where is_migrate_isolate_page() cannot be called with zone->lock held.
-> A race with set_pageblock_migratetype() may be detected, in which case a caller
-> supplied argument is returned.
+On Tue, 2014-03-04 at 15:55 -0800, Florian Fainelli wrote:
+> Hi all,
 > 
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-> ---
->  include/linux/page-isolation.h | 24 ++++++++++++++++++++++++
->  mm/hugetlb.c                   |  2 +-
->  2 files changed, 25 insertions(+), 1 deletion(-)
+> I am seeing the following RCU stalls messages appearing on an ARMv7
+> 4xCPUs system running 3.14-rc4:
 > 
-> diff --git a/include/linux/page-isolation.h b/include/linux/page-isolation.h
-> index 3fff8e7..f7bd491 100644
-> --- a/include/linux/page-isolation.h
-> +++ b/include/linux/page-isolation.h
-> @@ -2,10 +2,30 @@
->  #define __LINUX_PAGEISOLATION_H
->  
->  #ifdef CONFIG_MEMORY_ISOLATION
-> +/*
-> + * Should be called only with zone->lock held. In cases where locking overhead
-> + * is undesirable, consider the _nolock version.
-> + */
->  static inline bool is_migrate_isolate_page(struct page *page)
->  {
->  	return get_pageblock_migratetype(page) == MIGRATE_ISOLATE;
->  }
-> +/*
-> + * When called without zone->lock held, a race with set_pageblock_migratetype
-> + * may result in bogus values. The race may be detected, in which case the
-> + * value of race_fallback argument is returned. For details, see
-> + * get_pageblock_migratetype_nolock().
-> + */
-> +static inline bool is_migrate_isolate_page_nolock(struct page *page,
-> +		bool race_fallback)
-> +{
-> +	int migratetype = get_pageblock_migratetype_nolock(page, MIGRATE_TYPES);
-> +
-> +	if (unlikely(migratetype == MIGRATE_TYPES))
-> +		return race_fallback;
-> +
-> +	return migratetype == MIGRATE_ISOLATE;
-> +}
->  static inline bool is_migrate_isolate(int migratetype)
->  {
->  	return migratetype == MIGRATE_ISOLATE;
-> @@ -15,6 +35,10 @@ static inline bool is_migrate_isolate_page(struct page *page)
->  {
->  	return false;
->  }
-> +static inline bool is_migrate_isolate_page_nolock(struct page *page)
-> +{
-> +	return false;
-> +}
->  static inline bool is_migrate_isolate(int migratetype)
->  {
->  	return false;
+> [   42.974327] INFO: rcu_sched detected stalls on CPUs/tasks:
+> [   42.979839]  (detected by 0, t=2102 jiffies, g=4294967082,
+> c=4294967081, q=516)
+> [   42.987169] INFO: Stall ended before state dump start
+> 
+> this is happening under the following conditions:
+> 
+> - the attached bumper.c binary alters various kernel thread priorities
+> based on the contents of bumpup.cfg and
+> - malloc_crazy is running from a NFS share
+> - malloc_crazy.c is running in a loop allocating chunks of memory but
+> never freeing it
+> 
+> when the priorities are altered, instead of getting the OOM killer to
+> be invoked, the RCU stalls are happening. Taking NFS out of the
+> equation does not allow me to reproduce the problem even with the
+> priorities altered.
+> 
+> This "problem" seems to have been there for quite a while now since I
+> was able to get 3.8.13 to trigger that bug as well, with a slightly
+> more detailed RCU debugging trace which points the finger at kswapd0.
+> 
+> You should be able to get that reproduced under QEMU with the
+> Versatile Express platform emulating a Cortex A15 CPU and the attached
+> files.
+> 
+> Any help or suggestions would be greatly appreciated. Thanks!
 
-Nitpick.
-You need race_fallback parameter for is_migrate_isolate_page_nolock().
+Do you have a more complete trace, including stack traces ?
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
