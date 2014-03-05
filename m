@@ -1,60 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f173.google.com (mail-qc0-f173.google.com [209.85.216.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 9FB016B008C
-	for <linux-mm@kvack.org>; Tue,  4 Mar 2014 22:53:50 -0500 (EST)
-Received: by mail-qc0-f173.google.com with SMTP id r5so547115qcx.18
-        for <linux-mm@kvack.org>; Tue, 04 Mar 2014 19:53:50 -0800 (PST)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id 4si497207qat.146.2014.03.04.19.53.50
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 991E56B0095
+	for <linux-mm@kvack.org>; Tue,  4 Mar 2014 22:55:44 -0500 (EST)
+Received: by mail-pa0-f48.google.com with SMTP id hz1so503159pad.35
+        for <linux-mm@kvack.org>; Tue, 04 Mar 2014 19:55:44 -0800 (PST)
+Received: from mail-pd0-x230.google.com (mail-pd0-x230.google.com [2607:f8b0:400e:c02::230])
+        by mx.google.com with ESMTPS id i7si928481pav.101.2014.03.04.19.55.43
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 04 Mar 2014 19:53:50 -0800 (PST)
-Message-ID: <53169FC5.4080006@oracle.com>
-Date: Tue, 04 Mar 2014 22:53:41 -0500
-From: Sasha Levin <sasha.levin@oracle.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 04 Mar 2014 19:55:43 -0800 (PST)
+Received: by mail-pd0-f176.google.com with SMTP id r10so482257pdi.35
+        for <linux-mm@kvack.org>; Tue, 04 Mar 2014 19:55:43 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: mm: kernel BUG at mm/huge_memory.c:2785!
-References: <530F3F0A.5040304@oracle.com>	<20140227150313.3BA27E0098@blue.fi.intel.com> <CAA_GA1c02iSmkmCLHFkrK4b4W+JppZ4CSMUJ-Wn1rCs-c=dV6g@mail.gmail.com>
-In-Reply-To: <CAA_GA1c02iSmkmCLHFkrK4b4W+JppZ4CSMUJ-Wn1rCs-c=dV6g@mail.gmail.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20140305014310.GC3334@linux.vnet.ibm.com>
+References: <CAGVrzcbsSV7h3qA3KuCTwKNFEeww_kSNcfUkfw3PPjeXQXBo6g@mail.gmail.com>
+ <1393980534.26794.147.camel@edumazet-glaptop2.roam.corp.google.com>
+ <CAGVrzcaekM51hme_tquaT6e22fV1_cocpn1kDUsYfFce=F+o4g@mail.gmail.com>
+ <CAGVrzcbRycBy0w64R9pV=JG6M3aJeARbOnh-xRrumYzzVDgWGQ@mail.gmail.com> <20140305014310.GC3334@linux.vnet.ibm.com>
+From: Florian Fainelli <f.fainelli@gmail.com>
+Date: Tue, 4 Mar 2014 19:55:03 -0800
+Message-ID: <CAGVrzcae0XPXpue_+n-O+EBzK92JqXHNftTPGt+5SRzroTSF3Q@mail.gmail.com>
+Subject: Re: RCU stalls when running out of memory on 3.14-rc4 w/ NFS and
+ kernel threads priorities changed
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bob Liu <lliubbo@gmail.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
+To: Paul McKenney <paulmck@linux.vnet.ibm.com>
+Cc: Eric Dumazet <eric.dumazet@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-nfs <linux-nfs@vger.kernel.org>, "trond.myklebust" <trond.myklebust@primarydata.com>, netdev <netdev@vger.kernel.org>
 
-On 03/04/2014 10:16 PM, Bob Liu wrote:
-> On Thu, Feb 27, 2014 at 11:03 PM, Kirill A. Shutemov
-> <kirill.shutemov@linux.intel.com> wrote:
->> Sasha Levin wrote:
->>> Hi all,
->>>
->>> While fuzzing with trinity inside a KVM tools guest running latest -next kernel I've stumbled on the
->>> following spew:
->>>
->>> [ 1428.146261] kernel BUG at mm/huge_memory.c:2785!
+2014-03-04 17:43 GMT-08:00 Paul E. McKenney <paulmck@linux.vnet.ibm.com>:
+> On Tue, Mar 04, 2014 at 05:16:27PM -0800, Florian Fainelli wrote:
+>> 2014-03-04 17:03 GMT-08:00 Florian Fainelli <f.fainelli@gmail.com>:
+>> > 2014-03-04 16:48 GMT-08:00 Eric Dumazet <eric.dumazet@gmail.com>:
+>> >> On Tue, 2014-03-04 at 15:55 -0800, Florian Fainelli wrote:
+>> >>> Hi all,
+>> >>>
+>> >>> I am seeing the following RCU stalls messages appearing on an ARMv7
+>> >>> 4xCPUs system running 3.14-rc4:
+>> >>>
+>> >>> [   42.974327] INFO: rcu_sched detected stalls on CPUs/tasks:
+>> >>> [   42.979839]  (detected by 0, t=2102 jiffies, g=4294967082,
+>> >>> c=4294967081, q=516)
+>> >>> [   42.987169] INFO: Stall ended before state dump start
+>> >>>
+>> >>> this is happening under the following conditions:
+>> >>>
+>> >>> - the attached bumper.c binary alters various kernel thread priorities
+>> >>> based on the contents of bumpup.cfg and
+>> >>> - malloc_crazy is running from a NFS share
+>> >>> - malloc_crazy.c is running in a loop allocating chunks of memory but
+>> >>> never freeing it
+>> >>>
+>> >>> when the priorities are altered, instead of getting the OOM killer to
+>> >>> be invoked, the RCU stalls are happening. Taking NFS out of the
+>> >>> equation does not allow me to reproduce the problem even with the
+>> >>> priorities altered.
+>> >>>
+>> >>> This "problem" seems to have been there for quite a while now since I
+>> >>> was able to get 3.8.13 to trigger that bug as well, with a slightly
+>> >>> more detailed RCU debugging trace which points the finger at kswapd0.
+>> >>>
+>> >>> You should be able to get that reproduced under QEMU with the
+>> >>> Versatile Express platform emulating a Cortex A15 CPU and the attached
+>> >>> files.
+>> >>>
+>> >>> Any help or suggestions would be greatly appreciated. Thanks!
+>> >>
+>> >> Do you have a more complete trace, including stack traces ?
+>> >
+>> > Attatched is what I get out of SysRq-t, which is the only thing I have
+>> > (note that the kernel is built with CONFIG_RCU_CPU_STALL_INFO=y):
 >>
->> Hm, interesting.
+>> QEMU for Versatile Express w/ 2 CPUs yields something slightly
+>> different than the real HW platform this is happening with, but it
+>> does produce the RCU stall anyway:
 >>
->> It seems we either failed to split huge page on vma split or it
->> materialized from under us. I don't see how it can happen:
->>
->>    - it seems we do the right thing with vma_adjust_trans_huge() in
->>      __split_vma();
->>    - we hold ->mmap_sem all the way from vm_munmap(). At least I don't see
->>      a place where we could drop it;
->>
+>> [  125.762946] BUG: soft lockup - CPU#1 stuck for 53s! [malloc_crazy:91]
 >
-> Enable CONFIG_DEBUG_VM may show some useful information, at least we
-> can confirm weather rwsem_is_locked(&tlb->mm->mmap_sem) before
-> split_huge_page_pmd().
+> This soft-lockup condition can result in RCU CPU stall warnings.  Fix
+> the problem causing the soft lockup, and I bet that your RCU CPU stall
+> warnings go away.
 
-I have CONFIG_DEBUG_VM enabled and that code you're talking is not triggering, so mmap_sem
-is locked.
+I definitively agree, which is why I was asking for help, as I think
+the kernel thread priority change is what is causing the soft lockup
+to appear, but nothing obvious jumps to mind when looking at the
+trace.
 
-
-Thanks,
-Sasha
+Thanks!
+-- 
+Florian
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
