@@ -1,94 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 991E56B0095
-	for <linux-mm@kvack.org>; Tue,  4 Mar 2014 22:55:44 -0500 (EST)
-Received: by mail-pa0-f48.google.com with SMTP id hz1so503159pad.35
-        for <linux-mm@kvack.org>; Tue, 04 Mar 2014 19:55:44 -0800 (PST)
-Received: from mail-pd0-x230.google.com (mail-pd0-x230.google.com [2607:f8b0:400e:c02::230])
-        by mx.google.com with ESMTPS id i7si928481pav.101.2014.03.04.19.55.43
+Received: from mail-pb0-f50.google.com (mail-pb0-f50.google.com [209.85.160.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 11E366B0098
+	for <linux-mm@kvack.org>; Tue,  4 Mar 2014 22:58:41 -0500 (EST)
+Received: by mail-pb0-f50.google.com with SMTP id md12so500204pbc.9
+        for <linux-mm@kvack.org>; Tue, 04 Mar 2014 19:58:41 -0800 (PST)
+Received: from mail-pa0-x22a.google.com (mail-pa0-x22a.google.com [2607:f8b0:400e:c03::22a])
+        by mx.google.com with ESMTPS id q5si893597pbh.344.2014.03.04.19.58.39
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 04 Mar 2014 19:55:43 -0800 (PST)
-Received: by mail-pd0-f176.google.com with SMTP id r10so482257pdi.35
-        for <linux-mm@kvack.org>; Tue, 04 Mar 2014 19:55:43 -0800 (PST)
+        Tue, 04 Mar 2014 19:58:40 -0800 (PST)
+Received: by mail-pa0-f42.google.com with SMTP id fb1so510931pad.29
+        for <linux-mm@kvack.org>; Tue, 04 Mar 2014 19:58:39 -0800 (PST)
+Date: Tue, 4 Mar 2014 19:58:38 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch 00/11] userspace out of memory handling
+Message-ID: <alpine.DEB.2.02.1403041952170.8067@chino.kir.corp.google.com>
 MIME-Version: 1.0
-In-Reply-To: <20140305014310.GC3334@linux.vnet.ibm.com>
-References: <CAGVrzcbsSV7h3qA3KuCTwKNFEeww_kSNcfUkfw3PPjeXQXBo6g@mail.gmail.com>
- <1393980534.26794.147.camel@edumazet-glaptop2.roam.corp.google.com>
- <CAGVrzcaekM51hme_tquaT6e22fV1_cocpn1kDUsYfFce=F+o4g@mail.gmail.com>
- <CAGVrzcbRycBy0w64R9pV=JG6M3aJeARbOnh-xRrumYzzVDgWGQ@mail.gmail.com> <20140305014310.GC3334@linux.vnet.ibm.com>
-From: Florian Fainelli <f.fainelli@gmail.com>
-Date: Tue, 4 Mar 2014 19:55:03 -0800
-Message-ID: <CAGVrzcae0XPXpue_+n-O+EBzK92JqXHNftTPGt+5SRzroTSF3Q@mail.gmail.com>
-Subject: Re: RCU stalls when running out of memory on 3.14-rc4 w/ NFS and
- kernel threads priorities changed
-Content-Type: text/plain; charset=UTF-8
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Paul McKenney <paulmck@linux.vnet.ibm.com>
-Cc: Eric Dumazet <eric.dumazet@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-nfs <linux-nfs@vger.kernel.org>, "trond.myklebust" <trond.myklebust@primarydata.com>, netdev <netdev@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Tejun Heo <tj@kernel.org>, Mel Gorman <mgorman@suse.de>, Oleg Nesterov <oleg@redhat.com>, Rik van Riel <riel@redhat.com>, Jianguo Wu <wujianguo@huawei.com>, Tim Hockin <thockin@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-doc@vger.kernel.org
 
-2014-03-04 17:43 GMT-08:00 Paul E. McKenney <paulmck@linux.vnet.ibm.com>:
-> On Tue, Mar 04, 2014 at 05:16:27PM -0800, Florian Fainelli wrote:
->> 2014-03-04 17:03 GMT-08:00 Florian Fainelli <f.fainelli@gmail.com>:
->> > 2014-03-04 16:48 GMT-08:00 Eric Dumazet <eric.dumazet@gmail.com>:
->> >> On Tue, 2014-03-04 at 15:55 -0800, Florian Fainelli wrote:
->> >>> Hi all,
->> >>>
->> >>> I am seeing the following RCU stalls messages appearing on an ARMv7
->> >>> 4xCPUs system running 3.14-rc4:
->> >>>
->> >>> [   42.974327] INFO: rcu_sched detected stalls on CPUs/tasks:
->> >>> [   42.979839]  (detected by 0, t=2102 jiffies, g=4294967082,
->> >>> c=4294967081, q=516)
->> >>> [   42.987169] INFO: Stall ended before state dump start
->> >>>
->> >>> this is happening under the following conditions:
->> >>>
->> >>> - the attached bumper.c binary alters various kernel thread priorities
->> >>> based on the contents of bumpup.cfg and
->> >>> - malloc_crazy is running from a NFS share
->> >>> - malloc_crazy.c is running in a loop allocating chunks of memory but
->> >>> never freeing it
->> >>>
->> >>> when the priorities are altered, instead of getting the OOM killer to
->> >>> be invoked, the RCU stalls are happening. Taking NFS out of the
->> >>> equation does not allow me to reproduce the problem even with the
->> >>> priorities altered.
->> >>>
->> >>> This "problem" seems to have been there for quite a while now since I
->> >>> was able to get 3.8.13 to trigger that bug as well, with a slightly
->> >>> more detailed RCU debugging trace which points the finger at kswapd0.
->> >>>
->> >>> You should be able to get that reproduced under QEMU with the
->> >>> Versatile Express platform emulating a Cortex A15 CPU and the attached
->> >>> files.
->> >>>
->> >>> Any help or suggestions would be greatly appreciated. Thanks!
->> >>
->> >> Do you have a more complete trace, including stack traces ?
->> >
->> > Attatched is what I get out of SysRq-t, which is the only thing I have
->> > (note that the kernel is built with CONFIG_RCU_CPU_STALL_INFO=y):
->>
->> QEMU for Versatile Express w/ 2 CPUs yields something slightly
->> different than the real HW platform this is happening with, but it
->> does produce the RCU stall anyway:
->>
->> [  125.762946] BUG: soft lockup - CPU#1 stuck for 53s! [malloc_crazy:91]
->
-> This soft-lockup condition can result in RCU CPU stall warnings.  Fix
-> the problem causing the soft lockup, and I bet that your RCU CPU stall
-> warnings go away.
+This patchset implements userspace out of memory handling.
 
-I definitively agree, which is why I was asking for help, as I think
-the kernel thread priority change is what is causing the soft lockup
-to appear, but nothing obvious jumps to mind when looking at the
-trace.
+It is based on v3.14-rc5.  Individual patches will apply cleanly or you
+may pull the entire series from
 
-Thanks!
--- 
-Florian
+	git://git.kernel.org/pub/scm/linux/kernel/git/rientjes/linux.git mm/oom
+
+When the system or a memcg is oom, processes running on that system or
+attached to that memcg cannot allocate memory.  It is impossible for a
+process to reliably handle the oom condition from userspace.
+
+First, consider only system oom conditions.  When memory is completely
+depleted and nothing may be reclaimed, the kernel is forced to free some
+memory; the only way it can do so is to kill a userspace process.  This
+will happen instantaneously and userspace can enforce neither its own
+policy nor collect information.
+
+On system oom, there may be a hierarchy of memcgs that represent user
+jobs, for example.  Each job may have a priority independent of their
+current memory usage.  There is no existing kernel interface to kill the
+lowest priority job; userspace can now kill the lowest priority job or
+allow priorities to change based on whether the job is using more memory
+than its pre-defined reservation.
+
+Additionally, users may want to log the condition or debug applications
+that are using too much memory.  They may wish to collect heap profiles
+or are able to do memory freeing without killing a process by throttling
+or ratelimiting.
+
+Interactive users using X window environments may wish to have a dialogue
+box appear to determine how to proceed -- it may even allow them shell
+access to examine the state of the system while oom.
+
+It's not sufficient to simply restrict all user processes to a subset of
+memory and oom handling processes to the remainder via a memcg hierarchy:
+kernel memory and other page allocations can easily deplete all memory
+that is not charged to a user hierarchy of memory.
+
+This patchset allows userspace to do all of these things by defining a
+small memory reserve that is accessible only by processes that are
+handling the notification.
+
+Second, consider memcg oom conditions.  Processes need no special
+knowledge of whether they are attached to the root memcg, where memcg
+charging will always succeed, or a child memcg where charging will fail
+when the limit has been reached.  This allows those processes handling
+memcg oom conditions to overcharge the memcg by the amount of reserved
+memory.  They need not create child memcgs with smaller limits and
+attach the userspace oom handler only to the parent; such support would
+not allow userspace to handle system oom conditions anyway.
+
+This patchset introduces a standard interface through memcg that allows
+both of these conditions to be handled in the same clean way: users
+define memory.oom_reserve_in_bytes to define the reserve and this
+amount is allowed to be overcharged to the process handling the oom
+condition's memcg.  If used with the root memcg, this amount is allowed
+to be allocated below the per-zone watermarks for root processes that
+are handling such conditions (only root may write to
+cgroup.event_control for the root memcg).
+---
+ Documentation/cgroups/memory.txt           |  46 ++++++++-
+ Documentation/cgroups/resource_counter.txt |  12 +--
+ Documentation/sysctl/vm.txt                |   5 +
+ arch/m32r/mm/discontig.c                   |   1 +
+ include/linux/memcontrol.h                 |  24 +++++
+ include/linux/mempolicy.h                  |   3 +-
+ include/linux/mmzone.h                     |   2 +
+ include/linux/res_counter.h                |  16 ++--
+ include/linux/sched.h                      |   2 +-
+ kernel/fork.c                              |  13 +--
+ kernel/res_counter.c                       |  42 ++++++---
+ mm/memcontrol.c                            | 144 ++++++++++++++++++++++++++++-
+ mm/mempolicy.c                             |  46 ++-------
+ mm/oom_kill.c                              |   7 ++
+ mm/page_alloc.c                            |  17 +++-
+ mm/slab.c                                  |   8 +-
+ mm/slub.c                                  |   2 +-
+ 17 files changed, 292 insertions(+), 98 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
