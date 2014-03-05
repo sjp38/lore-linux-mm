@@ -1,84 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id AFB726B0071
-	for <linux-mm@kvack.org>; Tue,  4 Mar 2014 19:37:12 -0500 (EST)
-Received: by mail-pa0-f48.google.com with SMTP id hz1so301321pad.35
-        for <linux-mm@kvack.org>; Tue, 04 Mar 2014 16:37:12 -0800 (PST)
+Received: from mail-pb0-f50.google.com (mail-pb0-f50.google.com [209.85.160.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 8BFDA6B0073
+	for <linux-mm@kvack.org>; Tue,  4 Mar 2014 19:39:11 -0500 (EST)
+Received: by mail-pb0-f50.google.com with SMTP id md12so289624pbc.37
+        for <linux-mm@kvack.org>; Tue, 04 Mar 2014 16:39:11 -0800 (PST)
 Received: from LGEAMRELO02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
-        by mx.google.com with ESMTP id ub8si490085pac.155.2014.03.04.16.37.10
+        by mx.google.com with ESMTP id f1si519866pbn.16.2014.03.04.16.39.09
         for <linux-mm@kvack.org>;
-        Tue, 04 Mar 2014 16:37:11 -0800 (PST)
-Date: Wed, 5 Mar 2014 09:37:10 +0900
+        Tue, 04 Mar 2014 16:39:10 -0800 (PST)
+Date: Wed, 5 Mar 2014 09:39:08 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 2/6] mm: add get_pageblock_migratetype_nolock() for cases
+Subject: Re: [PATCH 3/6] mm: add is_migrate_isolate_page_nolock() for cases
  where locking is undesirable
-Message-ID: <20140305003709.GB2340@lge.com>
+Message-ID: <20140305003908.GC2340@lge.com>
 References: <1393596904-16537-1-git-send-email-vbabka@suse.cz>
- <1393596904-16537-3-git-send-email-vbabka@suse.cz>
+ <1393596904-16537-4-git-send-email-vbabka@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1393596904-16537-3-git-send-email-vbabka@suse.cz>
+In-Reply-To: <1393596904-16537-4-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Vlastimil Babka <vbabka@suse.cz>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Fri, Feb 28, 2014 at 03:15:00PM +0100, Vlastimil Babka wrote:
-> In order to prevent race with set_pageblock_migratetype, most of calls to
-> get_pageblock_migratetype have been moved under zone->lock. For the remaining
-> call sites, the extra locking is undesirable, notably in free_hot_cold_page().
-> 
-> This patch introduces a _nolock version to be used on these call sites, where
-> a wrong value does not affect correctness. The function makes sure that the
-> value does not exceed valid migratetype numbers. Such too-high values are
-> assumed to be a result of race and caller-supplied fallback value is returned
-> instead.
+On Fri, Feb 28, 2014 at 03:15:01PM +0100, Vlastimil Babka wrote:
+> This patch complements the addition of get_pageblock_migratetype_nolock() for
+> the case where is_migrate_isolate_page() cannot be called with zone->lock held.
+> A race with set_pageblock_migratetype() may be detected, in which case a caller
+> supplied argument is returned.
 > 
 > Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 > ---
->  include/linux/mmzone.h | 24 ++++++++++++++++++++++++
->  mm/compaction.c        | 14 +++++++++++---
->  mm/memory-failure.c    |  3 ++-
->  mm/page_alloc.c        | 22 +++++++++++++++++-----
->  mm/vmstat.c            |  2 +-
->  5 files changed, 55 insertions(+), 10 deletions(-)
+>  include/linux/page-isolation.h | 24 ++++++++++++++++++++++++
+>  mm/hugetlb.c                   |  2 +-
+>  2 files changed, 25 insertions(+), 1 deletion(-)
 > 
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> index fac5509..7c3f678 100644
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -75,6 +75,30 @@ enum {
+> diff --git a/include/linux/page-isolation.h b/include/linux/page-isolation.h
+> index 3fff8e7..f7bd491 100644
+> --- a/include/linux/page-isolation.h
+> +++ b/include/linux/page-isolation.h
+> @@ -2,10 +2,30 @@
+>  #define __LINUX_PAGEISOLATION_H
 >  
->  extern int page_group_by_mobility_disabled;
->  
+>  #ifdef CONFIG_MEMORY_ISOLATION
+> +/*
+> + * Should be called only with zone->lock held. In cases where locking overhead
+> + * is undesirable, consider the _nolock version.
+> + */
+>  static inline bool is_migrate_isolate_page(struct page *page)
+>  {
+>  	return get_pageblock_migratetype(page) == MIGRATE_ISOLATE;
+>  }
 > +/*
 > + * When called without zone->lock held, a race with set_pageblock_migratetype
-> + * may result in bogus values. Use this variant only when this does not affect
-> + * correctness, and taking zone->lock would be costly. Values >= MIGRATE_TYPES
-> + * are considered to be a result of this race and the value of race_fallback
-> + * argument is returned instead.
+> + * may result in bogus values. The race may be detected, in which case the
+> + * value of race_fallback argument is returned. For details, see
+> + * get_pageblock_migratetype_nolock().
 > + */
-> +static inline int get_pageblock_migratetype_nolock(struct page *page,
-> +	int race_fallback)
+> +static inline bool is_migrate_isolate_page_nolock(struct page *page,
+> +		bool race_fallback)
 > +{
-> +	int ret = get_pageblock_flags_group(page, PB_migrate, PB_migrate_end);
+> +	int migratetype = get_pageblock_migratetype_nolock(page, MIGRATE_TYPES);
 > +
-> +	if (unlikely(ret >= MIGRATE_TYPES))
-> +		ret = race_fallback;
+> +	if (unlikely(migratetype == MIGRATE_TYPES))
+> +		return race_fallback;
 > +
-> +	return ret;
+> +	return migratetype == MIGRATE_ISOLATE;
 > +}
+>  static inline bool is_migrate_isolate(int migratetype)
+>  {
+>  	return migratetype == MIGRATE_ISOLATE;
+> @@ -15,6 +35,10 @@ static inline bool is_migrate_isolate_page(struct page *page)
+>  {
+>  	return false;
+>  }
+> +static inline bool is_migrate_isolate_page_nolock(struct page *page)
+> +{
+> +	return false;
+> +}
+>  static inline bool is_migrate_isolate(int migratetype)
+>  {
+>  	return false;
 
-How about below forms?
-
-get_pageblock_migratetype_locked(struct page *page)
-get_pageblock_migratetype(struct page *page, int race_fallback)
-
-get_pageblock_migratetype() and _nolock looks error-prone because developer
-who try to use get_pageblock_migratetype() may not know that it needs lock.
-
-Thanks.
+Nitpick.
+You need race_fallback parameter for is_migrate_isolate_page_nolock().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
