@@ -1,87 +1,218 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f51.google.com (mail-qa0-f51.google.com [209.85.216.51])
-	by kanga.kvack.org (Postfix) with ESMTP id A9DAD6B0068
-	for <linux-mm@kvack.org>; Tue,  4 Mar 2014 18:57:59 -0500 (EST)
-Received: by mail-qa0-f51.google.com with SMTP id cm18so274393qab.38
-        for <linux-mm@kvack.org>; Tue, 04 Mar 2014 15:57:59 -0800 (PST)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id j9si128400qcm.18.2014.03.04.15.57.58
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 04 Mar 2014 15:57:59 -0800 (PST)
-Message-ID: <53166881.1020504@oracle.com>
-Date: Tue, 04 Mar 2014 18:57:53 -0500
-From: Sasha Levin <sasha.levin@oracle.com>
+Received: from mail-pb0-f50.google.com (mail-pb0-f50.google.com [209.85.160.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 28BD76B006E
+	for <linux-mm@kvack.org>; Tue,  4 Mar 2014 19:29:38 -0500 (EST)
+Received: by mail-pb0-f50.google.com with SMTP id md12so283718pbc.23
+        for <linux-mm@kvack.org>; Tue, 04 Mar 2014 16:29:37 -0800 (PST)
+Received: from LGEAMRELO02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
+        by mx.google.com with ESMTP id j4si499496pad.22.2014.03.04.16.29.35
+        for <linux-mm@kvack.org>;
+        Tue, 04 Mar 2014 16:29:37 -0800 (PST)
+Date: Wed, 5 Mar 2014 09:29:32 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH 2/6] mm: add get_pageblock_migratetype_nolock() for cases
+ where locking is undesirable
+Message-ID: <20140305002932.GA2340@lge.com>
+References: <1393596904-16537-1-git-send-email-vbabka@suse.cz>
+ <1393596904-16537-3-git-send-email-vbabka@suse.cz>
+ <20140303082227.GA28899@lge.com>
+ <53148981.90709@suse.cz>
+ <20140304005513.GB32172@lge.com>
+ <5315C438.8070504@suse.cz>
 MIME-Version: 1.0
-Subject: Re: mm: kernel BUG at mm/huge_memory.c:2785!
-References: <530F3F0A.5040304@oracle.com> <20140227150313.3BA27E0098@blue.fi.intel.com>
-In-Reply-To: <20140227150313.3BA27E0098@blue.fi.intel.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5315C438.8070504@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On 02/27/2014 10:03 AM, Kirill A. Shutemov wrote:
-> Sasha Levin wrote:
->> >Hi all,
->> >
->> >While fuzzing with trinity inside a KVM tools guest running latest -next kernel I've stumbled on the
->> >following spew:
->> >
->> >[ 1428.146261] kernel BUG at mm/huge_memory.c:2785!
-> Hm, interesting.
->
-> It seems we either failed to split huge page on vma split or it
-> materialized from under us. I don't see how it can happen:
->
->    - it seems we do the right thing with vma_adjust_trans_huge() in
->      __split_vma();
->    - we hold ->mmap_sem all the way from vm_munmap(). At least I don't see
->      a place where we could drop it;
->
-> Andrea, any ideas?
+On Tue, Mar 04, 2014 at 01:16:56PM +0100, Vlastimil Babka wrote:
+> On 03/04/2014 01:55 AM, Joonsoo Kim wrote:
+> >On Mon, Mar 03, 2014 at 02:54:09PM +0100, Vlastimil Babka wrote:
+> >>On 03/03/2014 09:22 AM, Joonsoo Kim wrote:
+> >>>On Fri, Feb 28, 2014 at 03:15:00PM +0100, Vlastimil Babka wrote:
+> >>>>In order to prevent race with set_pageblock_migratetype, most of calls to
+> >>>>get_pageblock_migratetype have been moved under zone->lock. For the remaining
+> >>>>call sites, the extra locking is undesirable, notably in free_hot_cold_page().
+> >>>>
+> >>>>This patch introduces a _nolock version to be used on these call sites, where
+> >>>>a wrong value does not affect correctness. The function makes sure that the
+> >>>>value does not exceed valid migratetype numbers. Such too-high values are
+> >>>>assumed to be a result of race and caller-supplied fallback value is returned
+> >>>>instead.
+> >>>>
+> >>>>Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+> >>>>---
+> >>>>  include/linux/mmzone.h | 24 ++++++++++++++++++++++++
+> >>>>  mm/compaction.c        | 14 +++++++++++---
+> >>>>  mm/memory-failure.c    |  3 ++-
+> >>>>  mm/page_alloc.c        | 22 +++++++++++++++++-----
+> >>>>  mm/vmstat.c            |  2 +-
+> >>>>  5 files changed, 55 insertions(+), 10 deletions(-)
+> >>>>
+> >>>>diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> >>>>index fac5509..7c3f678 100644
+> >>>>--- a/include/linux/mmzone.h
+> >>>>+++ b/include/linux/mmzone.h
+> >>>>@@ -75,6 +75,30 @@ enum {
+> >>>>
+> >>>>  extern int page_group_by_mobility_disabled;
+> >>>>
+> >>>>+/*
+> >>>>+ * When called without zone->lock held, a race with set_pageblock_migratetype
+> >>>>+ * may result in bogus values. Use this variant only when this does not affect
+> >>>>+ * correctness, and taking zone->lock would be costly. Values >= MIGRATE_TYPES
+> >>>>+ * are considered to be a result of this race and the value of race_fallback
+> >>>>+ * argument is returned instead.
+> >>>>+ */
+> >>>>+static inline int get_pageblock_migratetype_nolock(struct page *page,
+> >>>>+	int race_fallback)
+> >>>>+{
+> >>>>+	int ret = get_pageblock_flags_group(page, PB_migrate, PB_migrate_end);
+> >>>>+
+> >>>>+	if (unlikely(ret >= MIGRATE_TYPES))
+> >>>>+		ret = race_fallback;
+> >>>>+
+> >>>>+	return ret;
+> >>>>+}
+> >>>
+> >>>Hello, Vlastimil.
+> >>>
+> >>>First of all, thanks for nice work!
+> >>>I have another opinion about this implementation. It can be wrong, so if it
+> >>>is wrong, please let me know.
+> >>
+> >>Thanks, all opinions/reviewing is welcome :)
+> >>
+> >>>Although this implementation would close the race which triggers NULL dereference,
+> >>>I think that this isn't enough if you have a plan to add more
+> >>>{start,undo}_isolate_page_range().
+> >>>
+> >>>Consider that there are lots of {start,undo}_isolate_page_range() calls
+> >>>on the system without CMA.
+> >>>
+> >>>bit representation of migratetype is like as following.
+> >>>
+> >>>MIGRATE_MOVABLE = 010
+> >>>MIGRATE_ISOLATE = 100
+> >>>
+> >>>We could read following values as migratetype of the page on movable pageblock
+> >>>if race occurs.
+> >>>
+> >>>start_isolate_page_range() case: 010 -> 100
+> >>>010, 000, 100
+> >>>
+> >>>undo_isolate_page_range() case: 100 -> 010
+> >>>100, 110, 010
+> >>>
+> >>>Above implementation prevents us from getting 110, but, it can't prevent us from
+> >>>getting 000, that is, MIGRATE_UNMOVABLE. If this race occurs in free_hot_cold_page(),
+> >>>this page would go into unmovable pcp and then allocated for that migratetype.
+> >>>It results in more fragmented memory.
+> >>
+> >>Yes, that can happen. But I would expect it to be negligible to
+> >>other causes of fragmentation. But I'm not at this moment sure how
+> >>often {start,undo}_isolate_page_range() would be called in the end.
+> >>Certainly
+> >>not as often as in the development patch which is just to see if
+> >>that can improve anything. Because it will have its own overhead
+> >>(mostly for zone->lock) that might be too large. But good point, I
+> >>will try to quantify this.
+> >>
+> >>>
+> >>>Consider another case that system enables CONFIG_CMA,
+> >>>
+> >>>MIGRATE_MOVABLE = 010
+> >>>MIGRATE_ISOLATE = 101
+> >>>
+> >>>start_isolate_page_range() case: 010 -> 101
+> >>>010, 011, 001, 101
+> >>>
+> >>>undo_isolate_page_range() case: 101 -> 010
+> >>>101, 100, 110, 010
+> >>>
+> >>>This can results in totally different values and this also makes the problem
+> >>>mentioned above. And, although this doesn't cause any problem on CMA for now,
+> >>>if another migratetype is introduced or some migratetype is removed, it can cause
+> >>>CMA typed page to go into other migratetype and makes CMA permanently failed.
+> >>
+> >>This should actually be no problem for free_hot_cold_page() as any
+> >>migratetype >= MIGRATE_PCPTYPES will defer to free_one_page() which
+> >>will reread migratetype under zone->lock. So as long as
+> >>MIGRATE_PCPTYPES does not include a migratetype with such dangerous
+> >>"permanently failed" properties, it should be good. And I doubt such
+> >>migratetype would be added to pcptypes. But of course, anyone adding
+> >>new migratetype would have to reconsider each
+> >>get_pageblock_migratetype_nolock() call for such potential problems.
+> >
+> >Please let me explain more.
+> >Now CMA page can have following race values.
+> >
+> >MIGRATE_CMA = 100
+> >MIGRATE_ISOLATE = 101
+> >
+> >start_isolate_page_range(): 100 -> 101
+> >100, 101
+> >undo_isolate_page_range(): 101 -> 100
+> >101, 100
+> >
+> >So, race doesn't cause any big problem.
+> >
+> >But, as you mentioned in earlier patch, it could get worse if MIGRATE_RESERVE
+> >is removed. It doesn't happen until now, but, it can be possible.
+> >
+> >In that case,
+> >
+> >MIGRATE_CMA = 011
+> >MIGRATE_ISOLATE = 100
+> >
+> >start_isolate_page_range(): 011 -> 100
+> >011, 010, 000, 100
+> >undo_isolate_page_range(): 100 -> 011
+> >100, 101, 111, 011
+> >
+> >If this race happens, CMA page can go into MIGRATE_UNMOVABLE list, because
+> >"migratetpye >= MIGRATE_PCPTYPES" can't prevent it, and this could make
+> >CMA permanently failed.
+> 
+> Oh, I understand what you mean now, sorry. And since
+> alloc_contig_range() is already doing just this kind of
+> CMA->ISOLATE->CMA transitions, it could really be a problem even
+> without my pending work. But maybe it would be enough to add just
+> extra PG_isolate bit to prevent this, and CMA could stay within the
+> current migratetype bits, no? The separate bit could be even useful
+> to simplify my work.
 
-And a somewhat related issue (please correct me if I'm wrong):
+Yes, CMA could stay within the current migratetype bits.
 
-[ 2208.713223] kernel BUG at mm/mlock.c:528!
-[ 2208.713692] invalid opcode: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
-[ 2208.714488] Dumping ftrace buffer:
-[ 2208.715209]    (ftrace buffer empty)
-[ 2208.715759] Modules linked in:
-[ 2208.716206] CPU: 34 PID: 3736 Comm: trinity-c209 Tainted: G        W    3.14.0-rc5-next-20140304-sasha-00009-geaa4df0 #77
-[ 2208.717637] task: ffff880ff90c8000 ti: ffff880ff90c6000 task.ti: ffff880ff90c6000
-[ 2208.718742] RIP: 0010:[<ffffffff812a53d6>]  [<ffffffff812a53d6>] munlock_vma_pages_range+0x176/0x1d0
-[ 2208.720107] RSP: 0018:ffff880ff90c7e08  EFLAGS: 00010206
-[ 2208.720711] RAX: 00000000000001ff RBX: 000000000003f000 RCX: 0000000000000000
-[ 2208.721456] RDX: 000000000000003f RSI: ffffffff8129d92d RDI: ffffffff84476115
-[ 2208.721456] RBP: ffff880ff90c7ec8 R08: 0000000000000000 R09: 0000000000000000
-[ 2208.721456] R10: 0000000000000001 R11: 0000000000000000 R12: fffffffffffffff2
-[ 2208.721456] R13: ffff880313b41600 R14: 0000000000040000 R15: ffff880ff90c7e94
-[ 2208.721456] FS:  00007f2bd5330700(0000) GS:ffff88032bc00000(0000) knlGS:0000000000000000
-[ 2208.721456] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-[ 2208.721456] CR2: 0000000002767c90 CR3: 0000000ffa1d4000 CR4: 00000000000006e0
-[ 2208.721456] DR0: 00007f15fe555000 DR1: 0000000000000000 DR2: 0000000000000000
-[ 2208.721456] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000600
-[ 2208.721456] Stack:
-[ 2208.721456]  0000000000000000 0000000000000000 0001880ff90c7e38 0000000000000000
-[ 2208.721456]  0000000000000000 ffff880313b41600 00000000f90c7e88 0000000000000000
-[ 2208.721456]  00ff880ff90c7e58 ffff880815e8cba0 ffff880ff90c7eb8 ffff880313b41600
-[ 2208.721456] Call Trace:
-[ 2208.721456]  [<ffffffff812a8a52>] do_munmap+0x1d2/0x350
-[ 2208.721456]  [<ffffffff84473eb6>] ? down_write+0xa6/0xc0
-[ 2208.721456]  [<ffffffff812a8c16>] ? vm_munmap+0x46/0x80
-[ 2208.721456]  [<ffffffff812a8c24>] vm_munmap+0x54/0x80
-[ 2208.721456]  [<ffffffff812a8c7c>] SyS_munmap+0x2c/0x40
-[ 2208.721456]  [<ffffffff84480110>] tracesys+0xdd/0xe2
-[ 2208.721456] Code: fd ff ff 4c 89 e6 48 89 c3 48 8d bd 40 ff ff ff e8 80 fa ff ff eb 2f 66 0f 1f 44 00 00 8b 45 cc 48 89 da 48 c1 ea 0c 85 d0 74 12 <0f> 0b 0f 1f 84 00 00 00 00 00 eb fe 66 0f 1f 44 00 00 ff c0 48
-[ 2208.721456] RIP  [<ffffffff812a53d6>] munlock_vma_pages_range+0x176/0x1d0
-[ 2208.721456]  RSP <ffff880ff90c7e08>
+> Would you agree that this can be postponed a bit as I develop the
+> further compaction series, since CMA currently doesn't have the
+> dangerous value? Maybe there will be new concerns that will lead to
+> different solution.
+> This series already prevents possible panic, which is worse than this issue.
 
+If we introduce separate bit for MIGRATE_ISOLATE and makes bit operation atomic(6/6),
+this patchset can be changed. Although I think that it is better to distinguish
+lock/nolock case, nolock variant has no effect since there is no possibility
+to get strange race values prevented by this patch if we have separate bit for
+MIGRATE_ISOLATE. So I would like to see the change at this time. But, I don't
+have strong objection to current implementation. :)
 
-Thanks,
-Sasha
+> 
+> >I think that to dump the responsibility on developer who want to add/remove migratetype
+> >is not reasonable and doesn't work well, because they may not have enough background
+> >knowledge. I hope to close the possible race more in this time.
+> 
+> Right, but even if we now added separate bits for ISOLATE and CMA,
+> anyone adding new migratetype would still have to think how to
+> handle that one (common migratetype bits or also some new bit?) and
+> what are the consequences.
+
+Okay.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
