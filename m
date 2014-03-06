@@ -1,60 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f51.google.com (mail-pb0-f51.google.com [209.85.160.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 497226B0031
-	for <linux-mm@kvack.org>; Thu,  6 Mar 2014 18:12:10 -0500 (EST)
-Received: by mail-pb0-f51.google.com with SMTP id uo5so3270669pbc.24
-        for <linux-mm@kvack.org>; Thu, 06 Mar 2014 15:12:09 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id wm7si6322178pab.202.2014.03.06.15.12.08
+Received: from mail-qc0-f180.google.com (mail-qc0-f180.google.com [209.85.216.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 16A1E6B0031
+	for <linux-mm@kvack.org>; Thu,  6 Mar 2014 18:23:32 -0500 (EST)
+Received: by mail-qc0-f180.google.com with SMTP id x3so3826840qcv.25
+        for <linux-mm@kvack.org>; Thu, 06 Mar 2014 15:23:31 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id 108si3989080qgr.134.2014.03.06.15.23.31
         for <linux-mm@kvack.org>;
-        Thu, 06 Mar 2014 15:12:09 -0800 (PST)
-Date: Thu, 6 Mar 2014 15:12:06 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [merged]
- mm-page_alloc-reset-aging-cycle-with-gfp_thisnode-v2.patch removed from -mm
- tree
-Message-Id: <20140306151206.6228ae8933af538048aa056c@linux-foundation.org>
-In-Reply-To: <20140306230404.GY6963@cmpxchg.org>
-References: <5318dca5.AwhU/92X21JgbpdE%akpm@linux-foundation.org>
-	<20140306214927.GB11171@cmpxchg.org>
-	<20140306135635.6999d703429afb7fd3949304@linux-foundation.org>
-	<20140306230404.GY6963@cmpxchg.org>
+        Thu, 06 Mar 2014 15:23:31 -0800 (PST)
+Date: Thu, 6 Mar 2014 17:31:12 -0500
+From: Rik van Riel <riel@redhat.com>
+Subject: [PATCH -mm] mm,numa,mprotect: always continue after finding a
+ stable thp page
+Message-ID: <20140306173112.3bd6802b@cuia.bos.redhat.com>
+In-Reply-To: <5318E4BC.50301@oracle.com>
+References: <5318E4BC.50301@oracle.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: stable@kernel.org, riel@redhat.com, mgorman@suse.de, jstancek@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, mgorman@suse.de, hhuang@redhat.com, knoel@redhat.com, aarcange@redhat.com
 
-On Thu, 6 Mar 2014 18:04:04 -0500 Johannes Weiner <hannes@cmpxchg.org> wrote:
+On Thu, 06 Mar 2014 16:12:28 -0500
+Sasha Levin <sasha.levin@oracle.com> wrote:
 
-> > what bug does it fix and what are the user-visible effects??
-> 
-> Ok, maybe this is better?
-> 
-> ---
-> 
-> GFP_THISNODE is for callers that implement their own clever fallback
-> to remote nodes.  It restricts the allocation to the specified node
-> and does not invoke reclaim, assuming that the caller will take care
-> of it when the fallback fails, e.g. through a subsequent allocation
-> request without GFP_THISNODE set.
-> 
-> However, many current GFP_THISNODE users only want the node exclusive
-> aspect of the flag, without actually implementing their own fallback
-> or triggering reclaim if necessary.  This results in things like page
-> migration failing prematurely even when there is easily reclaimable
-> memory available, unless kswapd happens to be running already or a
-> concurrent allocation attempt triggers the necessary reclaim.
-> 
-> Convert all callsites that don't implement their own fallback strategy
-> to __GFP_THISNODE.  This restricts the allocation a single node too,
-> but at the same time allows the allocator to enter the slowpath, wake
-> kswapd, and invoke direct reclaim if necessary, to make the allocation
-> happen when memory is full.
+> While fuzzing with trinity inside a KVM tools guest running latest -next kernel I've hit the
+> following spew. This seems to be introduced by your patch "mm,numa: reorganize change_pmd_range()".
 
-Looks good, thanks.  I'll send this Linuswards next week.
+That patch should not introduce any functional changes, except for
+the VM_BUG_ON that catches the fact that we fell through to the 4kB
+pte handling code, despite having just handled a THP pmd...
+
+Does this patch fix the issue?
+
+Mel, am I overlooking anything obvious? :)
+
+---8<---
+
+Subject: mm,numa,mprotect: always continue after finding a stable thp page
+
+When turning a thp pmds into a NUMA one, change_huge_pmd will
+return 0 when the pmd already is a NUMA pmd.
+
+However, change_pmd_range would fall through to the code that
+handles 4kB pages, instead of continuing on to the next pmd.
+
+Signed-off-by: Rik van Riel <riel@redhat.com>
+Reported-by: Sasha Levin <sasha.levin@oracle.com>
+Cc: Mel Gorman <mgorman@suse.de>
+---
+ mm/mprotect.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mm/mprotect.c b/mm/mprotect.c
+index 61f0a07..4746608 100644
+--- a/mm/mprotect.c
++++ b/mm/mprotect.c
+@@ -138,8 +138,8 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
+ 						pages += HPAGE_PMD_NR;
+ 						nr_huge_updates++;
+ 					}
+-					continue;
+ 				}
++				continue;
+ 			}
+ 			/* fall through, the trans huge pmd just split */
+ 		}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
