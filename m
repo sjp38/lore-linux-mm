@@ -1,54 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f171.google.com (mail-qc0-f171.google.com [209.85.216.171])
-	by kanga.kvack.org (Postfix) with ESMTP id D5F2B6B0031
-	for <linux-mm@kvack.org>; Thu,  6 Mar 2014 17:15:20 -0500 (EST)
-Received: by mail-qc0-f171.google.com with SMTP id x13so3768167qcv.2
-        for <linux-mm@kvack.org>; Thu, 06 Mar 2014 14:15:19 -0800 (PST)
+Received: from mail-qc0-f169.google.com (mail-qc0-f169.google.com [209.85.216.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 81ED96B0031
+	for <linux-mm@kvack.org>; Thu,  6 Mar 2014 17:37:55 -0500 (EST)
+Received: by mail-qc0-f169.google.com with SMTP id i17so3829463qcy.28
+        for <linux-mm@kvack.org>; Thu, 06 Mar 2014 14:37:55 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id l52si3915653qge.85.2014.03.06.14.15.18
+        by mx.google.com with ESMTP id q1si3936728qab.111.2014.03.06.14.37.53
         for <linux-mm@kvack.org>;
-        Thu, 06 Mar 2014 14:15:19 -0800 (PST)
-Received: from int-mx02.intmail.prod.int.phx2.redhat.com (int-mx02.intmail.prod.int.phx2.redhat.com [10.5.11.12])
-	by mx1.redhat.com (8.14.4/8.14.4) with ESMTP id s26MFHFv012474
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Thu, 6 Mar 2014 17:15:17 -0500
-Date: Thu, 6 Mar 2014 17:15:16 -0500 (EST)
-From: Mikulas Patocka <mpatocka@redhat.com>
-Subject: [PATCH] mempool: add unlikely and likely hints
-Message-ID: <alpine.LRH.2.02.1403061713300.928@file01.intranet.prod.int.rdu2.redhat.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        Thu, 06 Mar 2014 14:37:54 -0800 (PST)
+Date: Thu, 6 Mar 2014 17:31:37 -0500
+From: Rik van Riel <riel@redhat.com>
+Subject: [PATCH -mm] mm,numa,mprotect: always continue after finding a
+ stable thp page
+Message-ID: <20140306173137.6a23a0b2@cuia.bos.redhat.com>
+In-Reply-To: <5318E4BC.50301@oracle.com>
+References: <5318E4BC.50301@oracle.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@redhat.com>
-Cc: linux-mm@kvack.org
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, mgorman@suse.de, hhuang@redhat.com, knoel@redhat.com, aarcange@redhat.com
 
-This patch adds unlikely and likely hints to the function mempool_free. It
-lays out the code in such a way that the common path is executed
-straighforward and saves a cache line.
+On Thu, 06 Mar 2014 16:12:28 -0500
+Sasha Levin <sasha.levin@oracle.com> wrote:
 
-Signed-off-by: Mikulas Patocka <mpatocka@redhat.com>
+> While fuzzing with trinity inside a KVM tools guest running latest -next kernel I've hit the
+> following spew. This seems to be introduced by your patch "mm,numa: reorganize change_pmd_range()".
 
+That patch should not introduce any functional changes, except for
+the VM_BUG_ON that catches the fact that we fell through to the 4kB
+pte handling code, despite having just handled a THP pmd...
+
+Does this patch fix the issue?
+
+Mel, am I overlooking anything obvious? :)
+
+---8<---
+
+Subject: mm,numa,mprotect: always continue after finding a stable thp page
+
+When turning a thp pmds into a NUMA one, change_huge_pmd will
+return 0 when the pmd already is a NUMA pmd.
+
+However, change_pmd_range would fall through to the code that
+handles 4kB pages, instead of continuing on to the next pmd.
+
+Signed-off-by: Rik van Riel <riel@redhat.com>
+Reported-by: Sasha Levin <sasha.levin@oracle.com>
+Cc: Mel Gorman <mgorman@suse.de>
 ---
- mm/mempool.c |    4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ mm/mprotect.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-Index: linux-3.13.5/mm/mempool.c
-===================================================================
---- linux-3.13.5.orig/mm/mempool.c	2014-02-23 22:50:11.481071417 +0100
-+++ linux-3.13.5/mm/mempool.c	2014-03-06 23:02:24.264538587 +0100
-@@ -306,9 +306,9 @@ void mempool_free(void *element, mempool
- 	 * ensures that there will be frees which return elements to the
- 	 * pool waking up the waiters.
- 	 */
--	if (pool->curr_nr < pool->min_nr) {
-+	if (unlikely(pool->curr_nr < pool->min_nr)) {
- 		spin_lock_irqsave(&pool->lock, flags);
--		if (pool->curr_nr < pool->min_nr) {
-+		if (likely(pool->curr_nr < pool->min_nr)) {
- 			add_element(pool, element);
- 			spin_unlock_irqrestore(&pool->lock, flags);
- 			wake_up(&pool->wait);
+diff --git a/mm/mprotect.c b/mm/mprotect.c
+index 61f0a07..4746608 100644
+--- a/mm/mprotect.c
++++ b/mm/mprotect.c
+@@ -138,8 +138,8 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
+ 						pages += HPAGE_PMD_NR;
+ 						nr_huge_updates++;
+ 					}
+-					continue;
+ 				}
++				continue;
+ 			}
+ 			/* fall through, the trans huge pmd just split */
+ 		}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
