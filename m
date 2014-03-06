@@ -1,41 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f41.google.com (mail-yh0-f41.google.com [209.85.213.41])
-	by kanga.kvack.org (Postfix) with ESMTP id C32066B0037
-	for <linux-mm@kvack.org>; Thu,  6 Mar 2014 16:16:37 -0500 (EST)
-Received: by mail-yh0-f41.google.com with SMTP id f73so3330694yha.14
-        for <linux-mm@kvack.org>; Thu, 06 Mar 2014 13:16:37 -0800 (PST)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id s36si12455051yhh.89.2014.03.06.13.16.37
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 06 Mar 2014 13:16:37 -0800 (PST)
-Message-ID: <5318E5AD.9090107@oracle.com>
-Date: Thu, 06 Mar 2014 16:16:29 -0500
-From: Sasha Levin <sasha.levin@oracle.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] mm: add pte_present() check on existing hugetlb_entry
- callbacks
-References: <53126861.7040107@oracle.com> <1393822946-26871-1-git-send-email-n-horiguchi@ah.jp.nec.com> <5314E0CD.6070308@oracle.com> <5314F661.30202@oracle.com> <1393968743-imrxpynb@n-horiguchi@ah.jp.nec.com> <531657DC.4050204@oracle.com> <1393976967-lnmm5xcs@n-horiguchi@ah.jp.nec.com> <5317FA3B.8060900@oracle.com> <1394122113-xsq3i6vw@n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1394122113-xsq3i6vw@n-horiguchi@ah.jp.nec.com>
-Content-Type: text/plain; charset=ISO-2022-JP
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id E70C16B0031
+	for <linux-mm@kvack.org>; Thu,  6 Mar 2014 16:18:37 -0500 (EST)
+Received: by mail-pd0-f169.google.com with SMTP id fp1so3092656pdb.28
+        for <linux-mm@kvack.org>; Thu, 06 Mar 2014 13:18:37 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id zj6si6127157pac.30.2014.03.06.13.18.36
+        for <linux-mm@kvack.org>;
+        Thu, 06 Mar 2014 13:18:37 -0800 (PST)
+Date: Thu, 6 Mar 2014 13:18:35 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [next:master 452/458] undefined reference to
+ `__bad_size_call_parameter'
+Message-Id: <20140306131835.543007307bf38e8986f1229c@linux-foundation.org>
+In-Reply-To: <53188aab.D8+W+0kHpmaV0uFd%fengguang.wu@intel.com>
+References: <53188aab.D8+W+0kHpmaV0uFd%fengguang.wu@intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, riel@redhat.com
+To: kbuild test robot <fengguang.wu@intel.com>
+Cc: Christoph Lameter <cl@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, kbuild-all@01.org
 
-On 03/06/2014 11:08 AM, Naoya Horiguchi wrote:
-> And I found my patch was totally wrong because it should check
-> !pte_present(), not pte_present().
-> I'm testing fixed one (see below), and the problem seems not to reproduce
-> in my environment at least for now.
-> But I'm not 100% sure, so I need your double checking.
+On Thu, 06 Mar 2014 22:48:11 +0800 kbuild test robot <fengguang.wu@intel.com> wrote:
 
-Nope, I still see the problem. Same NULL deref and trace as before.
+> tree:   git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
+> head:   0ffb2fe7b9c30082876fa3a17da018bf0632cf03
+> commit: 3b0fc5a9f85472be761e51de110e0aa8d15e7f41 [452/458] sh: replace __get_cpu_var uses
+> config: make ARCH=sh r7785rp_defconfig
+> 
+> All error/warnings:
+> 
+>    arch/sh/kernel/built-in.o: In function `kprobe_exceptions_notify':
+> >> (.kprobes.text+0x8c8): undefined reference to `__bad_size_call_parameter'
 
+This has me stumped - the same code 
 
-Thanks,
-Sasha
+	p = __this_cpu_read(current_kprobe);
+
+works OK elsewhere in that file.  I'm suspecting a miscompile - it's
+not unknown for gcc to screw up when we use this trick.
+
+I can reproduce it with gcc-3.4.5 for sh.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
