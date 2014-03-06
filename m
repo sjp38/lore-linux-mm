@@ -1,54 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f41.google.com (mail-wg0-f41.google.com [74.125.82.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 786776B0031
-	for <linux-mm@kvack.org>; Thu,  6 Mar 2014 14:51:18 -0500 (EST)
-Received: by mail-wg0-f41.google.com with SMTP id n12so3809460wgh.0
-        for <linux-mm@kvack.org>; Thu, 06 Mar 2014 11:51:17 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id db4si6343174wjb.69.2014.03.06.11.51.16
-        for <linux-mm@kvack.org>;
-        Thu, 06 Mar 2014 11:51:16 -0800 (PST)
-Date: Thu, 6 Mar 2014 14:51:06 -0500
-From: Dave Jones <davej@redhat.com>
-Subject: Bad page map during process exit. (ext4_file_mmap)
-Message-ID: <20140306195106.GA9470@redhat.com>
+Received: from mail-qg0-f41.google.com (mail-qg0-f41.google.com [209.85.192.41])
+	by kanga.kvack.org (Postfix) with ESMTP id B08C76B0031
+	for <linux-mm@kvack.org>; Thu,  6 Mar 2014 15:49:28 -0500 (EST)
+Received: by mail-qg0-f41.google.com with SMTP id i50so4447450qgf.0
+        for <linux-mm@kvack.org>; Thu, 06 Mar 2014 12:49:28 -0800 (PST)
+Received: from mail-qc0-x231.google.com (mail-qc0-x231.google.com [2607:f8b0:400d:c01::231])
+        by mx.google.com with ESMTPS id h93si3777104qgh.104.2014.03.06.12.49.27
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 06 Mar 2014 12:49:27 -0800 (PST)
+Received: by mail-qc0-f177.google.com with SMTP id w7so3577389qcr.22
+        for <linux-mm@kvack.org>; Thu, 06 Mar 2014 12:49:27 -0800 (PST)
+Date: Thu, 6 Mar 2014 15:49:23 -0500
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [patch 00/11] userspace out of memory handling
+Message-ID: <20140306204923.GF14033@htj.dyndns.org>
+References: <alpine.DEB.2.02.1403041952170.8067@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.02.1403041952170.8067@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux Kernel <linux-kernel@vger.kernel.org>
-Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Mel Gorman <mgorman@suse.de>, Oleg Nesterov <oleg@redhat.com>, Rik van Riel <riel@redhat.com>, Jianguo Wu <wujianguo@huawei.com>, Tim Hockin <thockin@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-doc@vger.kernel.org
 
-Just hit this while building a kernel on 3.14rc5
+On Tue, Mar 04, 2014 at 07:58:38PM -0800, David Rientjes wrote:
+> This patchset implements userspace out of memory handling.
+> 
+> It is based on v3.14-rc5.  Individual patches will apply cleanly or you
+> may pull the entire series from
+> 
+> 	git://git.kernel.org/pub/scm/linux/kernel/git/rientjes/linux.git mm/oom
+> 
+> When the system or a memcg is oom, processes running on that system or
+> attached to that memcg cannot allocate memory.  It is impossible for a
+> process to reliably handle the oom condition from userspace.
 
-[60602.562954] BUG: Bad page map in process systemd-udevd  pte:ffff88005d47e270 pmd:148048067
-[60602.563792] addr:00007fcf338e8000 vm_flags:08000070 anon_vma:          (null) mapping:ffff88009f2622f0 index:12c
-[60602.564613] vma->vm_ops->fault: filemap_fault+0x0/0x420
-[60602.565426] vma->vm_file->f_op->mmap: ext4_file_mmap+0x0/0x70
-[60602.566245] CPU: 1 PID: 7946 Comm: systemd-udevd Not tainted 3.14.0-rc5+ #130 
-[60602.567939]  ffff8801a5915200 0000000001ae188a ffff880199503c78 ffffffffa672edd8
-[60602.568783]  00007fcf338e8000 ffff880199503cc0 ffffffffa617cfb4 ffff88005d47e270
-[60602.569626]  000000000000012c ffff880148048740 00007fcf33800000 ffff880199503df0
-[60602.570486] Call Trace:
-[60602.571358]  [<ffffffffa672edd8>] dump_stack+0x4e/0x7a
-[60602.572244]  [<ffffffffa617cfb4>] print_bad_pte+0x184/0x230
-[60602.573116]  [<ffffffffa617ea58>] unmap_single_vma+0x738/0x8a0
-[60602.573974]  [<ffffffffa617fce9>] unmap_vmas+0x49/0x90
-[60602.574815]  [<ffffffffa6189095>] exit_mmap+0xe5/0x1a0
-[60602.575655]  [<ffffffffa6068d13>] mmput+0x73/0x110
-[60602.576495]  [<ffffffffa606d022>] do_exit+0x2a2/0xb50
-[60602.577340]  [<ffffffffa60aa0a1>] ? vtime_account_user+0x91/0xa0
-[60602.578193]  [<ffffffffa615213b>] ? context_tracking_user_exit+0x9b/0x100
-[60602.579067]  [<ffffffffa606e8cc>] do_group_exit+0x4c/0xc0
-[60602.579939]  [<ffffffffa606e954>] SyS_exit_group+0x14/0x20
-[60602.580818]  [<ffffffffa67429ea>] tracesys+0xd4/0xd9
+ISTR the conclusion last time was nack on the whole approach.  What
+changed between then and now?  I can't detect any fundamental changes
+from the description.
 
-It's possible that the damage had been done by an earlier fuzzing run, and we never
-touched that memory until the kernel install caused us to trip over it.
-Only seen this one once so far.
+Thanks.
 
-	Dave
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
