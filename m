@@ -1,175 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 6FB816B0031
-	for <linux-mm@kvack.org>; Thu,  6 Mar 2014 12:41:16 -0500 (EST)
-Received: by mail-pd0-f182.google.com with SMTP id g10so2814625pdj.41
-        for <linux-mm@kvack.org>; Thu, 06 Mar 2014 09:41:16 -0800 (PST)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.11.231])
-        by mx.google.com with ESMTPS id j4si5635218pad.22.2014.03.06.09.41.14
+Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C8356B0031
+	for <linux-mm@kvack.org>; Thu,  6 Mar 2014 13:12:41 -0500 (EST)
+Received: by mail-pd0-f173.google.com with SMTP id z10so2875767pdj.32
+        for <linux-mm@kvack.org>; Thu, 06 Mar 2014 10:12:41 -0800 (PST)
+Received: from mailout1.samsung.com (mailout1.samsung.com. [203.254.224.24])
+        by mx.google.com with ESMTPS id tg2si5675143pbc.233.2014.03.06.10.12.40
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Mar 2014 09:41:15 -0800 (PST)
-Message-ID: <5318B339.6010000@codeaurora.org>
-Date: Thu, 06 Mar 2014 09:41:13 -0800
-From: Laura Abbott <lauraa@codeaurora.org>
-MIME-Version: 1.0
-Subject: Re: [PATCH] mm/compaction: Break out of loop on !PageBuddy in isolate_freepages_block
-References: <1394072800-11776-1-git-send-email-lauraa@codeaurora.org> <53184C5F.1080406@suse.cz>
-In-Reply-To: <53184C5F.1080406@suse.cz>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Thu, 06 Mar 2014 10:12:40 -0800 (PST)
+Received: from epcpsbgm2.samsung.com (epcpsbgm2 [203.254.230.27])
+ by mailout1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0N21005JR192E390@mailout1.samsung.com> for
+ linux-mm@kvack.org; Fri, 07 Mar 2014 03:12:38 +0900 (KST)
+From: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+Subject: Re: [RFC][PATCH v2] mm/page_alloc: fix freeing of MIGRATE_RESERVE
+ migratetype pages
+Date: Thu, 06 Mar 2014 19:12:24 +0100
+Message-id: <1773622.n1LPhdl60W@amdc1032>
+In-reply-to: <20140224085939.GE6732@suse.de>
+References: <42197912.c6v2hLDCey@amdc1032> <20140224085939.GE6732@suse.de>
+MIME-version: 1.0
+Content-transfer-encoding: 7Bit
+Content-type: text/plain; charset=iso-8859-15
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Hugh Dickins <hughd@google.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Yong-Taek Lee <ytk.lee@samsung.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 3/6/2014 2:22 AM, Vlastimil Babka wrote:
-> On 03/06/2014 03:26 AM, Laura Abbott wrote:
->> We received several reports of bad page state when freeing CMA pages
->> previously allocated with alloc_contig_range:
->>
->> <1>[ 1258.084111] BUG: Bad page state in process Binder_A  pfn:63202
->> <1>[ 1258.089763] page:d21130b0 count:0 mapcount:1 mapping:  (null)
->> index:0x7dfbf
->> <1>[ 1258.096109] page flags: 0x40080068(uptodate|lru|active|swapbacked)
->>
->> Based on the page state, it looks like the page was still in use. The
->> page
->> flags do not make sense for the use case though. Further debugging showed
->> that despite alloc_contig_range returning success, at least one page
->> in the
->> range still remained in the buddy allocator.
->>
->> There is an issue with isolate_freepages_block. In strict mode (which CMA
->> uses), if any pages in the range cannot be isolated,
->> isolate_freepages_block
->> should return failure 0. The current check keeps track of the total
->> number
->> of isolated pages and compares against the size of the range:
->>
->>          if (strict && nr_strict_required > total_isolated)
->>                  total_isolated = 0;
->>
->> After taking the zone lock, if one of the pages in the range is not
->> in the buddy allocator, we continue through the loop and do not
->
->> increment total_isolated. If we end up over isolating by more than
->> one page (e.g. last since page needed is a higher order page), it
->> is not possible to detect that the page was skipped. The fix is to
->
-> I found it hard to grasp this sentence at first. Perhaps something like
-> "if in the last iteration of the loop we isolate more than one page
-> (e.g. ...), the check for total_isolated may pass and we fail to detect
-> that a page was skipped" would be better?
->
 
-Yes, that sounds much better.
+Hi,
 
->> bail out if the loop immediately if we are in strict mode. There's
->> no benfit to continuing anyway since we need all pages to be
->> isolated.
->
-> That looks sound , but I wonder if it makes sense to keep the
-> nr_strict_required stuff after this change. The check could then simply
-> use 'if (pfn < end_pfn)' the same way as isolate_freepages_range does,
-> right?
->
+On Monday, February 24, 2014 08:59:39 AM Mel Gorman wrote:
+> On Fri, Feb 14, 2014 at 07:34:17PM +0100, Bartlomiej Zolnierkiewicz wrote:
+> > Pages allocated from MIGRATE_RESERVE migratetype pageblocks
+> > are not freed back to MIGRATE_RESERVE migratetype free
+> > lists in free_pcppages_bulk()->__free_one_page() if we got
+> > to free_pcppages_bulk() through drain_[zone_]pages().
+> > The freeing through free_hot_cold_page() is okay because
+> > freepage migratetype is set to pageblock migratetype before
+> > calling free_pcppages_bulk().  If pages of MIGRATE_RESERVE
+> > migratetype end up on the free lists of other migratetype
+> > whole Reserved pageblock may be later changed to the other
+> > migratetype in __rmqueue_fallback() and it will be never
+> > changed back to be a Reserved pageblock.  Fix the issue by
+> > preserving freepage migratetype as a pageblock migratetype
+> > (instead of overriding it to the requested migratetype)
+> > for MIGRATE_RESERVE migratetype pages in rmqueue_bulk().
+> > 
+> > The problem was introduced in v2.6.31 by commit ed0ae21
+> > ("page allocator: do not call get_pageblock_migratetype()
+> > more than necessary").
+> > 
+> > Signed-off-by: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+> > Reported-by: Yong-Taek Lee <ytk.lee@samsung.com>
+> > Cc: Marek Szyprowski <m.szyprowski@samsung.com>
+> > Cc: Mel Gorman <mgorman@suse.de>
+> > Cc: Hugh Dickins <hughd@google.com>
+> > ---
+> > v2:
+> > - updated patch description, there is no __zone_pcp_update()
+> >   in newer kernels
+> > 
+> >  include/linux/mmzone.h |    5 +++++
+> >  mm/page_alloc.c        |   10 +++++++---
+> >  2 files changed, 12 insertions(+), 3 deletions(-)
+> > 
+> > Index: b/include/linux/mmzone.h
+> > ===================================================================
+> > --- a/include/linux/mmzone.h	2014-02-14 18:59:08.177837747 +0100
+> > +++ b/include/linux/mmzone.h	2014-02-14 18:59:09.077837731 +0100
+> > @@ -63,6 +63,11 @@ enum {
+> >  	MIGRATE_TYPES
+> >  };
+> >  
+> > +static inline bool is_migrate_reserve(int migratetype)
+> > +{
+> > +	return unlikely(migratetype == MIGRATE_RESERVE);
+> > +}
+> > +
+> >  #ifdef CONFIG_CMA
+> >  #  define is_migrate_cma(migratetype) unlikely((migratetype) == MIGRATE_CMA)
+> >  #else
+> > Index: b/mm/page_alloc.c
+> > ===================================================================
+> > --- a/mm/page_alloc.c	2014-02-14 18:59:08.185837746 +0100
+> > +++ b/mm/page_alloc.c	2014-02-14 18:59:09.077837731 +0100
+> > @@ -1174,7 +1174,7 @@ static int rmqueue_bulk(struct zone *zon
+> >  			unsigned long count, struct list_head *list,
+> >  			int migratetype, int cold)
+> >  {
+> > -	int mt = migratetype, i;
+> > +	int mt, i;
+> >  
+> >  	spin_lock(&zone->lock);
+> >  	for (i = 0; i < count; ++i) {
+> > @@ -1195,9 +1195,13 @@ static int rmqueue_bulk(struct zone *zon
+> >  			list_add(&page->lru, list);
+> >  		else
+> >  			list_add_tail(&page->lru, list);
+> > +		mt = get_pageblock_migratetype(page);
+> >  		if (IS_ENABLED(CONFIG_CMA)) {
+> > -			mt = get_pageblock_migratetype(page);
+> > -			if (!is_migrate_cma(mt) && !is_migrate_isolate(mt))
+> > +			if (!is_migrate_cma(mt) && !is_migrate_isolate(mt) &&
+> > +			    !is_migrate_reserve(mt))
+> > +				mt = migratetype;
+> > +		} else {
+> > +			if (!is_migrate_reserve(mt))
+> >  				mt = migratetype;
+> 
+> Minimally, this could be simplified because now it's an unconditional
+> call to get_pageblock_migratetype.
+> 
+> However, it looks like this could be improved without doing that.
+> __rmqueue_fallback will be called if a page of the requested migratetype
+> was not found. Furthermore, if a pageblock has been stolen then the
+> pages are shuffled between free lists so you should be able to modify
+> this patch to
+> 
+> 1. have __rmqueue call set_freepage_migratetype(migratetype) if
+>    __rmqueue_smallest found a page
+> 2. have __rmqueue_fallback call set_freepage_migratetype(new_type)
+>    when it has selected which freelist to select from.
+> 
+> Can you check it out as an alternative to this patch please as it would
+> have much less overhead than unconditionally calling
+> get_pageblock_migratetype()?
 
-I had that thought as well. I'll fix that up for v2 along with the rest 
-of your comments.
+I updated the patch (please see the other mail) but besides fixing
+MIGRATE_RESERVE issue I left the current code behaviour unchanged
+for now - freepage migratetype is not set to new_type in
+__rmqueue_fallback() as it would affect pages of other migratetypes
+(i.e. MIGRATE_MOVABLE or MIGRATE_UNMVOVABLE ones).  I think that
+setting freepage migratetype to new_type instead of the requested
+migratetype in __rmqueue_fallback() would go beyond the scope of
+current patch and I don't know whether it is desirable (I can do
+an incremental patch implementing it if needed).
 
->> Signed-off-by: Laura Abbott <lauraa@codeaurora.org>
->> ---
->>   mm/compaction.c |   25 +++++++++++++++++++------
->>   1 files changed, 19 insertions(+), 6 deletions(-)
->>
->> diff --git a/mm/compaction.c b/mm/compaction.c
->> index b48c525..3190cef 100644
->> --- a/mm/compaction.c
->> +++ b/mm/compaction.c
->> @@ -263,12 +263,21 @@ static unsigned long
->> isolate_freepages_block(struct compact_control *cc,
->>           struct page *page = cursor;
->>
->>           nr_scanned++;
->> -        if (!pfn_valid_within(blockpfn))
->> -            continue;
->> +        if (!pfn_valid_within(blockpfn)) {
->> +            if (strict)
->> +                break;
->> +            else
->> +                continue;
->> +        }
->> +
->>           if (!valid_page)
->>               valid_page = page;
->> -        if (!PageBuddy(page))
->> -            continue;
->> +        if (!PageBuddy(page)) {
->> +            if (strict)
->> +                break;
->> +            else
->> +                continue;
->> +        }
->>
->>           /*
->>            * The zone lock must be held to isolate freepages.
->> @@ -288,8 +297,12 @@ static unsigned long
->> isolate_freepages_block(struct compact_control *cc,
->>               break;
->>
->>           /* Recheck this is a buddy page under lock */
->> -        if (!PageBuddy(page))
->> -            continue;
->> +        if (!PageBuddy(page)) {
->> +            if (strict)
->> +                break;
->> +            else
->> +                continue;
->> +        }
->
-> To avoid this triple if-else occurence, you could instead do a "goto
-> isolate_failed;" and put the if-else under said label at the end of the
-> loop, also allowing extra cleanup, something like this:
->
-> @@ -298,8 +298,6 @@ static unsigned long isolate_freepages_block(struct
-> compact_control *cc,
->
->                  /* Found a free page, break it into order-0 pages */
->                  isolated = split_free_page(page);
-> -               if (!isolated && strict)
-> -                       break;
->                  total_isolated += isolated;
->                  for (i = 0; i < isolated; i++) {
->                          list_add(&page->lru, freelist);
-> @@ -310,7 +308,13 @@ static unsigned long isolate_freepages_block(struct
-> compact_control *cc,
->                  if (isolated) {
->                          blockpfn += isolated - 1;
->                          cursor += isolated - 1;
-> +                       continue;
->                  }
-> +isolate_fail:
-> +               if (strict)
-> +                       break;
-> +               else
-> +                       continue;
->
->
-> Thanks,
-> Vlastimil
->
->>           /* Found a free page, break it into order-0 pages */
->>           isolated = split_free_page(page);
->>
->
-
-Thanks,
-Laura
-
--- 
-Qualcomm Innovation Center, Inc. is a member of Code Aurora Forum,
-hosted by The Linux Foundation
+Best regards,
+--
+Bartlomiej Zolnierkiewicz
+Samsung R&D Institute Poland
+Samsung Electronics
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
