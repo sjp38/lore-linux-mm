@@ -1,33 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 253226B0036
-	for <linux-mm@kvack.org>; Fri,  7 Mar 2014 12:14:18 -0500 (EST)
-Received: by mail-pa0-f49.google.com with SMTP id lj1so4383258pab.8
-        for <linux-mm@kvack.org>; Fri, 07 Mar 2014 09:14:17 -0800 (PST)
-Received: from qmta01.emeryville.ca.mail.comcast.net (qmta01.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:16])
-        by mx.google.com with ESMTP id bo2si8930574pbc.81.2014.03.07.09.14.16
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 56CB76B0031
+	for <linux-mm@kvack.org>; Fri,  7 Mar 2014 12:15:30 -0500 (EST)
+Received: by mail-pa0-f45.google.com with SMTP id kl14so4424289pab.4
+        for <linux-mm@kvack.org>; Fri, 07 Mar 2014 09:15:30 -0800 (PST)
+Received: from blackbird.sr71.net ([2001:19d0:2:6:209:6bff:fe9a:902])
+        by mx.google.com with ESMTP id m7si8953218pbl.63.2014.03.07.09.15.27
         for <linux-mm@kvack.org>;
-        Fri, 07 Mar 2014 09:14:17 -0800 (PST)
-Date: Fri, 7 Mar 2014 11:14:14 -0600 (CST)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: slub: fix leak of 'name' in sysfs_slab_add
-In-Reply-To: <20140307153259.GA778@redhat.com>
-Message-ID: <alpine.DEB.2.10.1403071113590.21846@nuc>
-References: <20140306211141.GA17009@redhat.com> <5319649C.3060309@parallels.com> <20140307153259.GA778@redhat.com>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        Fri, 07 Mar 2014 09:15:28 -0800 (PST)
+Message-ID: <5319FEA1.50107@sr71.net>
+Date: Fri, 07 Mar 2014 09:15:13 -0800
+From: Dave Hansen <dave@sr71.net>
+MIME-Version: 1.0
+Subject: Re: [PATCH 6/7] x86: mm: set TLB flush tunable to sane value
+References: <20140306004519.BBD70A1A@viggo.jf.intel.com>	 <20140306004529.5510B23D@viggo.jf.intel.com> <1394157304.2555.21.camel@buesod1.americas.hpqcorp.net>
+In-Reply-To: <1394157304.2555.21.camel@buesod1.americas.hpqcorp.net>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Jones <davej@redhat.com>
-Cc: Vladimir Davydov <vdavydov@parallels.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, penberg@kernel.org, Andrew Morton <akpm@linux-foundation.org>
+To: Davidlohr Bueso <davidlohr@hp.com>
+Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, ak@linux.intel.com, kirill.shutemov@linux.intel.com, mgorman@suse.de, alex.shi@linaro.org, x86@kernel.org, linux-mm@kvack.org, dave.hansen@linux.intel.com
 
-On Fri, 7 Mar 2014, Dave Jones wrote:
+On 03/06/2014 05:55 PM, Davidlohr Bueso wrote:
+> On Wed, 2014-03-05 at 16:45 -0800, Dave Hansen wrote:
+>> From: Dave Hansen <dave.hansen@linux.intel.com>
+>>
+>> Now that we have some shiny new tracepoints, we can actually
+>> figure out what the heck is going on.
+>>
+>> During a kernel compile, 60% of the flush_tlb_mm_range() calls
+>> are for a single page.  It breaks down like this:
+> 
+> It would be interesting to see similar data for opposite workloads with
+> more random access patterns. That's normally when things start getting
+> fun in the tlb world.
 
->  > Since this function was modified in the mmotm tree, I would propose
->  > something like this on top of mmotm to avoid further merge conflicts:
->
-> Looks good to me.
+First of all, thanks for testing.  It's much appreciated!
 
-Acked-by: Christoph Lameter <cl@linux.com>
+Any suggestions for opposite workloads?
+
+I've seen this tunable have really heavy effects on ebizzy.  It fits
+almost entirely within the itlb and if we are doing full flushes, it
+eats the itlb and increases the misses about 10x.  Even putting this
+tunable above 500 pages (which is pretty insane) didn't help it.
+
+Things that thrash the TLB don't really care if someone invalidates
+their TLB since they're thrashing it anyway.
+
+I've had a really hard time finding workloads that _care_ or are
+affected by small changes in this tunable.  That's one of the reasons I
+tried to simplify it: it's just not worth the complexity.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
