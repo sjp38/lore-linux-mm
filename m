@@ -1,64 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f42.google.com (mail-ee0-f42.google.com [74.125.83.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 74C156B0031
-	for <linux-mm@kvack.org>; Thu,  6 Mar 2014 21:57:17 -0500 (EST)
-Received: by mail-ee0-f42.google.com with SMTP id d17so1468048eek.29
-        for <linux-mm@kvack.org>; Thu, 06 Mar 2014 18:57:16 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id g5si13288911eew.105.2014.03.06.18.57.14
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 56A0F6B0035
+	for <linux-mm@kvack.org>; Thu,  6 Mar 2014 21:58:55 -0500 (EST)
+Received: by mail-pd0-f179.google.com with SMTP id w10so3428108pde.38
+        for <linux-mm@kvack.org>; Thu, 06 Mar 2014 18:58:55 -0800 (PST)
+Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
+        by mx.google.com with ESMTP id gn5si6735351pbc.326.2014.03.06.18.58.53
         for <linux-mm@kvack.org>;
-        Thu, 06 Mar 2014 18:57:15 -0800 (PST)
-Date: Thu, 6 Mar 2014 21:57:03 -0500
-From: Dave Jones <davej@redhat.com>
-Subject: oops in slab/leaks_show
-Message-ID: <20140307025703.GA30770@redhat.com>
+        Thu, 06 Mar 2014 18:58:54 -0800 (PST)
+Date: Fri, 7 Mar 2014 11:58:52 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCHv2] mm/compaction: Break out of loop on !PageBuddy in
+ isolate_freepages_block
+Message-ID: <20140307025852.GC3787@bbox>
+References: <1394130092-25440-1-git-send-email-lauraa@codeaurora.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <1394130092-25440-1-git-send-email-lauraa@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux Kernel <linux-kernel@vger.kernel.org>
-Cc: Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, Al Viro <viro@zeniv.linux.org.uk>
+To: Laura Abbott <lauraa@codeaurora.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-I pretty much always use SLUB for my fuzzing boxes, but thought I'd give SLAB a try
-for a change.. It blew up when something tried to read /proc/slab_allocators
-(Just cat it, and you should see the oops below)
+On Thu, Mar 06, 2014 at 10:21:32AM -0800, Laura Abbott wrote:
+> We received several reports of bad page state when freeing CMA pages
+> previously allocated with alloc_contig_range:
+> 
+> <1>[ 1258.084111] BUG: Bad page state in process Binder_A  pfn:63202
+> <1>[ 1258.089763] page:d21130b0 count:0 mapcount:1 mapping:  (null) index:0x7dfbf
+> <1>[ 1258.096109] page flags: 0x40080068(uptodate|lru|active|swapbacked)
+> 
+> Based on the page state, it looks like the page was still in use. The page
+> flags do not make sense for the use case though. Further debugging showed
+> that despite alloc_contig_range returning success, at least one page in the
+> range still remained in the buddy allocator.
+> 
+> There is an issue with isolate_freepages_block. In strict mode (which CMA
+> uses), if any pages in the range cannot be isolated,
+> isolate_freepages_block should return failure 0. The current check keeps
+> track of the total number of isolated pages and compares against the size
+> of the range:
+> 
+>         if (strict && nr_strict_required > total_isolated)
+>                 total_isolated = 0;
+> 
+> After taking the zone lock, if one of the pages in the range is not
+> in the buddy allocator, we continue through the loop and do not
+> increment total_isolated. If in the last iteration of the loop we isolate
+> more than one page (e.g. last page needed is a higher order page), the
+> check for total_isolated may pass and we fail to detect that a page was
+> skipped. The fix is to bail out if the loop immediately if we are in
+> strict mode. There's no benfit to continuing anyway since we need all
+> pages to be isolated. Additionally, drop the error checking based on
+> nr_strict_required and just check the pfn ranges. This matches with
+> what isolate_freepages_range does.
+> 
+> Signed-off-by: Laura Abbott <lauraa@codeaurora.org>
 
-Oops: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
-Modules linked in: fuse hidp snd_seq_dummy tun rfcomm bnep llc2 af_key can_raw ipt_ULOG can_bcm nfnetlink scsi_transport_iscsi nfc caif_socket caif af_802154 phonet af_rxrpc can pppoe pppox ppp_generic slhc irda crc_ccitt rds rose x25 atm netrom appletalk ipx p8023 psnap p8022 llc ax25 cfg80211 xfs coretemp hwmon x86_pkg_temp_thermal kvm_intel kvm crct10dif_pclmul crc32c_intel ghash_clmulni_intel libcrc32c usb_debug microcode snd_hda_codec_hdmi snd_hda_codec_realtek snd_hda_codec_generic pcspkr btusb bluetooth 6lowpan_iphc rfkill snd_hda_intel snd_hda_codec snd_hwdep snd_seq snd_seq_device snd_pcm snd_timer e1000e snd ptp shpchp soundcore pps_core serio_raw
-CPU: 1 PID: 9386 Comm: trinity-c33 Not tainted 3.14.0-rc5+ #131 
-task: ffff8801aa46e890 ti: ffff880076924000 task.ti: ffff880076924000
-RIP: 0010:[<ffffffffaa1a8f4a>]  [<ffffffffaa1a8f4a>] handle_slab+0x8a/0x180
-RSP: 0018:ffff880076925de0  EFLAGS: 00010002
-RAX: 0000000000001000 RBX: 0000000000000000 RCX: 000000005ce85ce7
-RDX: ffffea00079be100 RSI: 0000000000001000 RDI: ffff880107458000
-RBP: ffff880076925e18 R08: 0000000000000001 R09: 0000000000000000
-R10: 0000000000000000 R11: 000000000000000f R12: ffff8801e6f84000
-R13: ffffea00079be100 R14: ffff880107458000 R15: ffff88022bb8d2c0
-FS:  00007fb769e45740(0000) GS:ffff88024d040000(0000) knlGS:0000000000000000
-CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-CR2: ffff8801e6f84ff8 CR3: 00000000a22db000 CR4: 00000000001407e0
-DR0: 0000000002695000 DR1: 0000000002695000 DR2: 0000000000000000
-DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000070602
-Stack:
- ffff8802339dcfc0 ffff88022bb8d2c0 ffff880107458000 ffff88022bb8d2c0
- ffff8802339dd008 ffff8802339dcfc0 ffffea00079be100 ffff880076925e68
- ffffffffaa1ad9be ffff880203fe4f00 ffff88022bb8d318 0000000076925e98
-Call Trace:
- [<ffffffffaa1ad9be>] leaks_show+0xce/0x240
- [<ffffffffaa1e6c0e>] seq_read+0x28e/0x490
- [<ffffffffaa23008d>] proc_reg_read+0x3d/0x80
- [<ffffffffaa1c026b>] vfs_read+0x9b/0x160
- [<ffffffffaa1c0d88>] SyS_read+0x58/0xb0
- [<ffffffffaa7420aa>] tracesys+0xd4/0xd9
-Code: f5 00 00 00 0f 1f 44 00 00 48 63 c8 44 3b 0c 8a 0f 84 e3 00 00 00 83 c0 01 44 39 c0 72 eb 41 f6 47 1a 01 0f 84 e9 00 00 00 89 f0 <4d> 8b 4c 04 f8 4d 85 c9 0f 84 88 00 00 00 49 8b 7e 08 4d 8d 46 
-RIP  [<ffffffffaa1a8f4a>] handle_slab+0x8a/0x180
- RSP <ffff880076925de0>
-CR2: ffff8801e6f84ff8
+Nice catch! stable stuff?
+Acked-by: Minchan Kim <minchan@kernel.org>
 
-
-  2b:*	4d 8b 4c 04 f8       	mov    -0x8(%r12,%rax,1),%r9     <-- trapping instruction
-
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
