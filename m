@@ -1,53 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id D88D56B0036
-	for <linux-mm@kvack.org>; Fri,  7 Mar 2014 12:19:14 -0500 (EST)
-Received: by mail-pa0-f53.google.com with SMTP id ld10so4418459pab.12
-        for <linux-mm@kvack.org>; Fri, 07 Mar 2014 09:19:14 -0800 (PST)
-Received: from blackbird.sr71.net (www.sr71.net. [198.145.64.142])
-        by mx.google.com with ESMTP id n8si8919424pab.290.2014.03.07.09.19.13
+Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 28D576B0031
+	for <linux-mm@kvack.org>; Fri,  7 Mar 2014 12:21:05 -0500 (EST)
+Received: by mail-pd0-f174.google.com with SMTP id y13so4247833pdi.5
+        for <linux-mm@kvack.org>; Fri, 07 Mar 2014 09:21:04 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [143.182.124.37])
+        by mx.google.com with ESMTP id tu7si8932707pac.193.2014.03.07.09.21.03
         for <linux-mm@kvack.org>;
-        Fri, 07 Mar 2014 09:19:13 -0800 (PST)
-Message-ID: <5319FF8D.1080107@sr71.net>
-Date: Fri, 07 Mar 2014 09:19:09 -0800
-From: Dave Hansen <dave@sr71.net>
+        Fri, 07 Mar 2014 09:21:04 -0800 (PST)
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [patch 03/11] mm, mempolicy: remove per-process flag
+References: <alpine.DEB.2.02.1403041952170.8067@chino.kir.corp.google.com>
+	<alpine.DEB.2.02.1403041954420.8067@chino.kir.corp.google.com>
+Date: Fri, 07 Mar 2014 09:20:39 -0800
+In-Reply-To: <alpine.DEB.2.02.1403041954420.8067@chino.kir.corp.google.com>
+	(David Rientjes's message of "Tue, 4 Mar 2014 19:59:16 -0800 (PST)")
+Message-ID: <877g866i3c.fsf@tassilo.jf.intel.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 5/7] x86: mm: new tunable for single vs full TLB flush
-References: <20140306004519.BBD70A1A@viggo.jf.intel.com>	 <20140306004527.6C232C54@viggo.jf.intel.com> <1394156230.2555.19.camel@buesod1.americas.hpqcorp.net>
-In-Reply-To: <1394156230.2555.19.camel@buesod1.americas.hpqcorp.net>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <davidlohr@hp.com>
-Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, ak@linux.intel.com, kirill.shutemov@linux.intel.com, mgorman@suse.de, alex.shi@linaro.org, x86@kernel.org, linux-mm@kvack.org, dave.hansen@linux.intel.com
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Tejun Heo <tj@kernel.org>, Mel Gorman <mgorman@suse.de>, Oleg Nesterov <oleg@redhat.com>, Rik van Riel <riel@redhat.com>, Jianguo Wu <wujianguo@huawei.com>, Tim Hockin <thockin@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-doc@vger.kernel.org
 
-On 03/06/2014 05:37 PM, Davidlohr Bueso wrote:
-> On Wed, 2014-03-05 at 16:45 -0800, Dave Hansen wrote:
->> From: Dave Hansen <dave.hansen@linux.intel.com>
->> +
->> +If you believe that invlpg is being called too often, you can
->> +lower the tunable:
->> +
->> +	/sys/debug/kernel/x86/tlb_single_page_flush_ceiling
->> +
-> 
-> Whenever this tunable needs to be updated, most users will not know what
-> a invlpg is and won't think in terms of pages either. How about making
-> this in units of Kb instead? But then again most of those users won't be
-> looking into tlb flushing issues anyways, so...
+David Rientjes <rientjes@google.com> writes:
+>
+> Per-process flags are a scarce resource so we should free them up
+> whenever possible and make them available.  We'll be using it shortly for
+> memcg oom reserves.
 
-Yeah, talking about the instruction directly in the documentation is
-probably going a bit far.  I'll see if I can uplevel it a bit.
+I'm not convinced TCP_RR is a meaningfull benchmark for slab.
 
-It's obviously not a big deal to change it to be pages vs. kb, but for
-something that's as *COMPLETELY* developer-focused, I think we can keep
-it in pages.  We don't want users fooling with this.
+The shortness seems like an artificial problem.
 
-> While obvious, tt should also mention that this does not apply to
-> hugepages.
+Just add another flag word to the task_struct? That would seem 
+to be the obvious way. People will need it sooner or later anyways.
 
-Good point.
+-Andi
+
+-- 
+ak@linux.intel.com -- Speaking for myself only
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
