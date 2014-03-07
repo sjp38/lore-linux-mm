@@ -1,76 +1,208 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oa0-f46.google.com (mail-oa0-f46.google.com [209.85.219.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 42D9A6B0031
-	for <linux-mm@kvack.org>; Fri,  7 Mar 2014 10:06:16 -0500 (EST)
-Received: by mail-oa0-f46.google.com with SMTP id i7so4270929oag.19
-        for <linux-mm@kvack.org>; Fri, 07 Mar 2014 07:06:16 -0800 (PST)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id tm2si6853885oeb.94.2014.03.07.07.06.15
+Received: from mail-we0-f175.google.com (mail-we0-f175.google.com [74.125.82.175])
+	by kanga.kvack.org (Postfix) with ESMTP id E81DA6B0031
+	for <linux-mm@kvack.org>; Fri,  7 Mar 2014 10:09:29 -0500 (EST)
+Received: by mail-we0-f175.google.com with SMTP id q58so5055988wes.34
+        for <linux-mm@kvack.org>; Fri, 07 Mar 2014 07:09:29 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id hh8si9737457wjc.166.2014.03.07.07.09.28
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 07 Mar 2014 07:06:15 -0800 (PST)
-Message-ID: <5319DF72.6090408@oracle.com>
-Date: Fri, 07 Mar 2014 10:02:10 -0500
-From: Sasha Levin <sasha.levin@oracle.com>
+        Fri, 07 Mar 2014 07:09:28 -0800 (PST)
+Date: Fri, 7 Mar 2014 15:09:23 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH -mm] mm,numa,mprotect: always continue after finding a
+ stable thp page
+Message-ID: <20140307150923.GB1931@suse.de>
+References: <5318E4BC.50301@oracle.com>
+ <20140306173137.6a23a0b2@cuia.bos.redhat.com>
+ <5318FC3F.4080204@redhat.com>
+ <20140307140650.GA1931@suse.de>
 MIME-Version: 1.0
-Subject: mm: kernel BUG at mm/filemap.c:202
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20140307140650.GA1931@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, LKML <linux-kernel@vger.kernel.org>
+To: Rik van Riel <riel@redhat.com>
+Cc: Sasha Levin <sasha.levin@oracle.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, hhuang@redhat.com, knoel@redhat.com, aarcange@redhat.com
 
-Hi all,
+On Fri, Mar 07, 2014 at 02:06:50PM +0000, Mel Gorman wrote:
+> On Thu, Mar 06, 2014 at 05:52:47PM -0500, Rik van Riel wrote:
+> > On 03/06/2014 05:31 PM, Rik van Riel wrote:
+> > >On Thu, 06 Mar 2014 16:12:28 -0500
+> > >Sasha Levin <sasha.levin@oracle.com> wrote:
+> > >
+> > >>While fuzzing with trinity inside a KVM tools guest running latest -next kernel I've hit the
+> > >>following spew. This seems to be introduced by your patch "mm,numa: reorganize change_pmd_range()".
+> > >
+> > >That patch should not introduce any functional changes, except for
+> > >the VM_BUG_ON that catches the fact that we fell through to the 4kB
+> > >pte handling code, despite having just handled a THP pmd...
+> > >
+> > >Does this patch fix the issue?
+> > >
+> > >Mel, am I overlooking anything obvious? :)
+> > >
+> > >---8<---
+> > >
+> > >Subject: mm,numa,mprotect: always continue after finding a stable thp page
+> > >
+> > >When turning a thp pmds into a NUMA one, change_huge_pmd will
+> > >return 0 when the pmd already is a NUMA pmd.
+> > 
+> > I did miss something obvious.  In this case, the code returns 1.
+> > 
+> > >However, change_pmd_range would fall through to the code that
+> > >handles 4kB pages, instead of continuing on to the next pmd.
+> > 
+> > Maybe the case that I missed is when khugepaged is in the
+> > process of collapsing pages into a transparent huge page?
+> > 
+> > If the virtual CPU gets de-scheduled by the host for long
+> > enough, it would be possible for khugepaged to run on
+> > another virtual CPU, and turn the pmd into a THP pmd,
+> > before that VM_BUG_ON test.
+> > 
+> > I see that khugepaged takes the mmap_sem for writing in the
+> > collapse code, and it looks like task_numa_work takes the
+> > mmap_sem for reading, so I guess that may not be possible?
+> > 
+> 
+> mmap_sem will prevent a parallel collapse but what prevents something
+> like the following?
+> 
+> 							do_huge_pmd_wp_page
+> change_pmd_range
+> if (!pmd_trans_huge(*pmd) && pmd_none_or_clear_bad(pmd))
+> 	continue;
+> 							pmdp_clear_flush(vma, haddr, pmd);
+> if (pmd_trans_huge(*pmd)) {
+> 	.... path not taken ....
+> }
+> 							page_add_new_anon_rmap(new_page, vma, haddr);
+> 							set_pmd_at(mm, haddr, pmd, entry);
+> VM_BUG_ON(pmd_trans_huge(*pmd));
+> 
+> We do not hold the page table lock during the pmd_trans_huge check and we
+> do not recheck it under PTF lock in change_pte_range()
+> 
 
-While fuzzing with trinity inside a KVM tools guest running latest -next kernel I've stumbled on
-the following spew:
+This is a completely untested prototype. It rechecks pmd_trans_huge
+under the lock and falls through if it hit a parallel split. It's not
+perfect because it could decide to fall through just because there was
+no prot_numa work to do but it's for illustration purposes. Secondly,
+I noted that you are calling invalidate for every pmd range. Is that not
+a lot of invalidations? We could do the same by just tracking the address
+of the first invalidation.
 
-[  567.833881] kernel BUG at mm/filemap.c:202!
-[  567.834485] invalid opcode: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
-[  567.835522] Dumping ftrace buffer:
-[  567.836752]    (ftrace buffer empty)
-[  567.837307] Modules linked in:
-[  567.837796] CPU: 23 PID: 14457 Comm: trinity-c323 Tainted: G        W    3.14.0-rc5-next-20140307-sasha-00010-gb6b571d-dirty #111
-[  567.839449] task: ffff88021afa8000 ti: ffff88071f290000 task.ti: ffff88071f290000
-[  567.840489] RIP: 0010:[<ffffffff8126b3f0>]  [<ffffffff8126b3f0>] __delete_from_page_cache+0x150/0x270
-[  567.841649] RSP: 0018:ffff88071f291b78  EFLAGS: 00010046
-[  567.841649] RAX: 0000000000000000 RBX: ffffea0002c4ac40 RCX: 00000000ffffffb8
-[  567.841649] RDX: 00000000001dc1a8 RSI: 0000000000000018 RDI: ffff88012ffd2000
-[  567.841649] RBP: ffff88071f291b98 R08: 0000000000000048 R09: 00000000ffffffff
-[  567.841649] R10: 0000000000000001 R11: 0000000000000001 R12: ffff880627f2bd30
-[  567.841649] R13: ffff880627f2bd18 R14: 0000000000000000 R15: 0000000000000000
-[  567.841649] FS:  00007f15b504d700(0000) GS:ffff88082ba00000(0000) knlGS:0000000000000000
-[  567.841649] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-[  567.841649] CR2: 0000000002eef848 CR3: 000000071fce7000 CR4: 00000000000006a0
-[  567.841649] DR0: 0000000000900870 DR1: 00007f15b505a000 DR2: 0000000000000000
-[  567.841649] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000602
-[  567.841649] Stack:
-[  567.841649]  ffffea0002c4ac40 ffff880627f2bd30 0000000000000000
-[  567.859673]  0000000000000200
-[  567.859673]  ffff88071f291bc8 ffffffff8126b56a ffff880627f2bd18 ffffea0002c4ac40
-[  567.859673]  ffff880627f2bd18 ffff88071f291c48 ffff88071f291be8 ffffffff8127fb94
-[  567.859673] Call Trace:
-[  567.859673]  [<ffffffff8126b56a>] delete_from_page_cache+0x5a/0x90
-[  567.859673]  [<ffffffff8127fb94>] truncate_inode_page+0x74/0x90
-[  567.859673]  [<ffffffff8128c875>] shmem_undo_range+0x245/0x770
-[  567.859673]  [<ffffffff812a01b8>] ? unmap_mapping_range+0x168/0x180
-[  567.859673]  [<ffffffff8128cdb8>] shmem_truncate_range+0x18/0x40
-[  567.859673]  [<ffffffff8128d0c9>] shmem_fallocate+0x99/0x2f0
-[  567.859673]  [<ffffffff8129b7be>] ? madvise_vma+0xde/0x1c0
-[  567.859673]  [<ffffffff811ad632>] ? __lock_release+0x1e2/0x200
-[  567.859673]  [<ffffffff812f87da>] do_fallocate+0x14a/0x1a0
-[  567.859673]  [<ffffffff8129b7d4>] madvise_vma+0xf4/0x1c0
-[  567.859673]  [<ffffffff812a765f>] ? find_vma+0x6f/0x90
-[  567.859673]  [<ffffffff8129ba28>] SyS_madvise+0x188/0x250
-[  567.859673]  [<ffffffff844b1650>] tracesys+0xdd/0xe2
-[  567.859673] Code: be 0a 00 00 00 48 89 df e8 8e 55 02 00 48 8b 03 a9 00 00 08 00 74 0d be 18 00 00 00 48 89 df e8 77 55 02 00 8b 43 18 85 c0 78 10 <0f> 0b 66 0f 1f 44 00 00 eb fe 66 0f 1f 44 00 00 48 8b 03 a8 10
-[  567.859673] RIP  [<ffffffff8126b3f0>] __delete_from_page_cache+0x150/0x270
-[  567.859673]  RSP <ffff88071f291b78>
+diff --git a/mm/mprotect.c b/mm/mprotect.c
+index 2afc40e..a0050fc 100644
+--- a/mm/mprotect.c
++++ b/mm/mprotect.c
+@@ -46,6 +46,20 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+ 	unsigned long pages = 0;
+ 
+ 	pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
++
++	/* transhuge page could have faulted in parallel */
++	if (unlikely(pmd_trans_huge(*pmd))) {
++		int nr_ptes;
++
++		pte_unmap_unlock(pte, ptl);
++		nr_ptes = change_huge_pmd(vma, pmd, addr, newprot, prot_numa);
++		if (nr_ptes)
++			return nr_ptes;
++
++		/* Page was split so retake the ptl and handle ptes */
++		pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
++	}
++
+ 	arch_enter_lazy_mmu_mode();
+ 	do {
+ 		oldpte = *pte;
+@@ -106,14 +120,14 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+ 
+ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
+ 		pud_t *pud, unsigned long addr, unsigned long end,
+-		pgprot_t newprot, int dirty_accountable, int prot_numa)
++		pgprot_t newprot, int dirty_accountable, int prot_numa,
++		unsigned long mni_start, unsigned long mni_end)
+ {
+ 	pmd_t *pmd;
+ 	struct mm_struct *mm = vma->vm_mm;
+ 	unsigned long next;
+ 	unsigned long pages = 0;
+ 	unsigned long nr_huge_updates = 0;
+-	unsigned long mni_start = 0;
+ 
+ 	pmd = pmd_offset(pud, addr);
+ 	do {
+@@ -124,10 +138,8 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
+ 			continue;
+ 
+ 		/* invoke the mmu notifier if the pmd is populated */
+-		if (!mni_start) {
+-			mni_start = addr;
+-			mmu_notifier_invalidate_range_start(mm, mni_start, end);
+-		}
++		if (!mni_start)
++			mmu_notifier_invalidate_range_start(mm, addr, mni_end);
+ 
+ 		if (pmd_trans_huge(*pmd)) {
+ 			if (next - addr != HPAGE_PMD_SIZE)
+@@ -141,8 +153,8 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
+ 						pages += HPAGE_PMD_NR;
+ 						nr_huge_updates++;
+ 					}
+-					continue;
+ 				}
++				continue;
+ 			}
+ 			/* fall through, the trans huge pmd just split */
+ 		}
+@@ -152,9 +164,6 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
+ 		pages += this_pages;
+ 	} while (pmd++, addr = next, addr != end);
+ 
+-	if (mni_start)
+-		mmu_notifier_invalidate_range_end(mm, mni_start, end);
+-
+ 	if (nr_huge_updates)
+ 		count_vm_numa_events(NUMA_HUGE_PTE_UPDATES, nr_huge_updates);
+ 	return pages;
+@@ -167,16 +176,25 @@ static inline unsigned long change_pud_range(struct vm_area_struct *vma,
+ 	pud_t *pud;
+ 	unsigned long next;
+ 	unsigned long pages = 0;
++	unsigned long mni_start = 0;
+ 
+ 	pud = pud_offset(pgd, addr);
+ 	do {
++		unsigned long this_pages;
+ 		next = pud_addr_end(addr, end);
+ 		if (pud_none_or_clear_bad(pud))
+ 			continue;
+-		pages += change_pmd_range(vma, pud, addr, next, newprot,
+-				 dirty_accountable, prot_numa);
++		this_pages = change_pmd_range(vma, pud, addr, next, newprot,
++				 dirty_accountable, prot_numa, mni_start,
++				 end);
++		if (this_pages)
++			mni_start = addr;
++		pages += this_pages;
+ 	} while (pud++, addr = next, addr != end);
+ 
++	if (mni_start)
++		mmu_notifier_invalidate_range_end(vma->vm_mm, mni_start, end);
++
+ 	return pages;
+ }
+ 
 
-
-Thanks,
-Sasha
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
