@@ -1,76 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f177.google.com (mail-ea0-f177.google.com [209.85.215.177])
-	by kanga.kvack.org (Postfix) with ESMTP id F04226B0031
-	for <linux-mm@kvack.org>; Fri,  7 Mar 2014 07:18:15 -0500 (EST)
-Received: by mail-ea0-f177.google.com with SMTP id h10so2271182eak.22
-        for <linux-mm@kvack.org>; Fri, 07 Mar 2014 04:18:15 -0800 (PST)
-Received: from jenni1.inet.fi (mta-out.inet.fi. [195.156.147.13])
-        by mx.google.com with ESMTP id i43si16047807eev.112.2014.03.07.04.18.14
-        for <linux-mm@kvack.org>;
-        Fri, 07 Mar 2014 04:18:14 -0800 (PST)
-Date: Fri, 7 Mar 2014 14:18:10 +0200
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: mm: kernel BUG at mm/huge_memory.c:2785!
-Message-ID: <20140307121810.GA6740@node.dhcp.inet.fi>
-References: <530F3F0A.5040304@oracle.com>
- <20140227150313.3BA27E0098@blue.fi.intel.com>
- <CAA_GA1c02iSmkmCLHFkrK4b4W+JppZ4CSMUJ-Wn1rCs-c=dV6g@mail.gmail.com>
- <53169FC5.4080006@oracle.com>
- <531921C0.3030904@oracle.com>
+Received: from mail-we0-f178.google.com (mail-we0-f178.google.com [74.125.82.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B4836B0031
+	for <linux-mm@kvack.org>; Fri,  7 Mar 2014 07:24:03 -0500 (EST)
+Received: by mail-we0-f178.google.com with SMTP id u56so4810500wes.9
+        for <linux-mm@kvack.org>; Fri, 07 Mar 2014 04:24:02 -0800 (PST)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id j6si9094470wje.154.2014.03.07.04.24.00
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 07 Mar 2014 04:24:01 -0800 (PST)
+Date: Fri, 7 Mar 2014 13:23:59 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch 00/11] userspace out of memory handling
+Message-ID: <20140307122359.GA28816@dhcp22.suse.cz>
+References: <alpine.DEB.2.02.1403041952170.8067@chino.kir.corp.google.com>
+ <20140306204923.GF14033@htj.dyndns.org>
+ <alpine.DEB.2.02.1403061254240.25499@chino.kir.corp.google.com>
+ <20140306205911.GG14033@htj.dyndns.org>
+ <alpine.DEB.2.02.1403061301020.25499@chino.kir.corp.google.com>
+ <20140306211136.GA17902@htj.dyndns.org>
+ <alpine.DEB.2.02.1403061312020.25499@chino.kir.corp.google.com>
+ <20140306213324.GG17902@htj.dyndns.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <531921C0.3030904@oracle.com>
+In-Reply-To: <20140306213324.GG17902@htj.dyndns.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: Bob Liu <lliubbo@gmail.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
+To: Tejun Heo <tj@kernel.org>
+Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Mel Gorman <mgorman@suse.de>, Oleg Nesterov <oleg@redhat.com>, Rik van Riel <riel@redhat.com>, Jianguo Wu <wujianguo@huawei.com>, Tim Hockin <thockin@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-doc@vger.kernel.org
 
-On Thu, Mar 06, 2014 at 08:32:48PM -0500, Sasha Levin wrote:
-> On 03/04/2014 10:53 PM, Sasha Levin wrote:
-> >On 03/04/2014 10:16 PM, Bob Liu wrote:
-> >>On Thu, Feb 27, 2014 at 11:03 PM, Kirill A. Shutemov
-> >><kirill.shutemov@linux.intel.com> wrote:
-> >>>Sasha Levin wrote:
-> >>>>Hi all,
-> >>>>
-> >>>>While fuzzing with trinity inside a KVM tools guest running latest -next kernel I've stumbled on the
-> >>>>following spew:
-> >>>>
-> >>>>[ 1428.146261] kernel BUG at mm/huge_memory.c:2785!
-> >>>
-> >>>Hm, interesting.
-> >>>
-> >>>It seems we either failed to split huge page on vma split or it
-> >>>materialized from under us. I don't see how it can happen:
-> >>>
-> >>>   - it seems we do the right thing with vma_adjust_trans_huge() in
-> >>>     __split_vma();
-> >>>   - we hold ->mmap_sem all the way from vm_munmap(). At least I don't see
-> >>>     a place where we could drop it;
-> >>>
-> >>
-> >>Enable CONFIG_DEBUG_VM may show some useful information, at least we
-> >>can confirm weather rwsem_is_locked(&tlb->mm->mmap_sem) before
-> >>split_huge_page_pmd().
-> >
-> >I have CONFIG_DEBUG_VM enabled and that code you're talking is not triggering, so mmap_sem
-> >is locked.
+On Thu 06-03-14 16:33:24, Tejun Heo wrote:
+> A bit of addition.
 > 
-> Guess what. I've just hit it.
+> On Thu, Mar 06, 2014 at 01:23:57PM -0800, David Rientjes wrote:
+> > This patchset provides a solution to a real-world problem that is not 
+> > solved with any other patchset.  I expect it to be reviewed as any other 
+> > patchset, it's not an "RFC" from my perspective: it's a proposal for 
+> > inclusion.  Don't worry, Andrew is not going to apply anything 
+> > accidentally.
+> 
+> I can't force it down your throat but I feel somewhat uneasy about how
+> this was posted without any reference to the previous discussion as if
+> this were just now being proposed especially as the said discussion
+> wasn't particularly favorable to this approach.  Prefixing RFC or at
+> least pointing back to the original discussion seems like the
+> courteous thing to do.
 
-I think this particular traceback is not a real problem: by time of
-exit_mm() we shouldn't race with anybody for the mm_struct.
-
-We probably could drop ->mmap_sem later in mmput() rather then in
-exit_mm() to fix this false positive.
-
-> It's worth keeping in mind that this is the first time I see it.
-
-Hm. That's strange exit_mmap() is called without holding ->mmap_sem.
-
+Completely agreed! My first impression when I saw the patchset yesterday
+was that it was posted for sake of future LSF discussion. I was also
+curious about the missing RFC. Posting it as a proposal for inclusion is
+premature before any conclusion is reached.
 -- 
- Kirill A. Shutemov
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
