@@ -1,163 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f177.google.com (mail-we0-f177.google.com [74.125.82.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 844B66B0031
-	for <linux-mm@kvack.org>; Fri,  7 Mar 2014 17:48:29 -0500 (EST)
-Received: by mail-we0-f177.google.com with SMTP id u57so5692027wes.8
-        for <linux-mm@kvack.org>; Fri, 07 Mar 2014 14:48:29 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id cw3si11371161wjb.23.2014.03.07.14.48.27
+Received: from mail-ea0-f177.google.com (mail-ea0-f177.google.com [209.85.215.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B75D6B0031
+	for <linux-mm@kvack.org>; Fri,  7 Mar 2014 18:03:07 -0500 (EST)
+Received: by mail-ea0-f177.google.com with SMTP id h10so2606154eak.36
+        for <linux-mm@kvack.org>; Fri, 07 Mar 2014 15:03:07 -0800 (PST)
+Received: from mail-ee0-f45.google.com (mail-ee0-f45.google.com [74.125.83.45])
+        by mx.google.com with ESMTPS id t3si19356702eeg.64.2014.03.07.15.03.06
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 07 Mar 2014 14:48:28 -0800 (PST)
-Message-ID: <531A4CBB.4070208@suse.cz>
-Date: Fri, 07 Mar 2014 23:48:27 +0100
-From: Vlastimil Babka <vbabka@suse.cz>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 07 Mar 2014 15:03:06 -0800 (PST)
+Received: by mail-ee0-f45.google.com with SMTP id d17so2000016eek.32
+        for <linux-mm@kvack.org>; Fri, 07 Mar 2014 15:03:06 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: [PATCHv2] mm/compaction: Break out of loop on !PageBuddy in isolate_freepages_block
-References: <1394130092-25440-1-git-send-email-lauraa@codeaurora.org> <20140306163349.d1f25dac8bc97f0cf89a82b5@linux-foundation.org>
-In-Reply-To: <20140306163349.d1f25dac8bc97f0cf89a82b5@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Date: Sat, 8 Mar 2014 00:03:05 +0100
+Message-ID: <CAM9z9z-ngrFwc-KvdUqWsY=b8jzuzzKDYbG+nd10h_y=NApOVA@mail.gmail.com>
+Subject: hugetlb_cow and tlb invalidation on x86
+From: Anthony I <foobar@altatus.com>
+Content-Type: multipart/alternative; boundary=001a11c3f68cb3bb3704f40c413a
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Laura Abbott <lauraa@codeaurora.org>
-Cc: Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: linux-mm@kvack.org
 
-On 7.3.2014 1:33, Andrew Morton wrote:
-> On Thu,  6 Mar 2014 10:21:32 -0800 Laura Abbott <lauraa@codeaurora.org> wrote:
->
->> We received several reports of bad page state when freeing CMA pages
->> previously allocated with alloc_contig_range:
->>
->> <1>[ 1258.084111] BUG: Bad page state in process Binder_A  pfn:63202
->> <1>[ 1258.089763] page:d21130b0 count:0 mapcount:1 mapping:  (null) index:0x7dfbf
->> <1>[ 1258.096109] page flags: 0x40080068(uptodate|lru|active|swapbacked)
->>
->> Based on the page state, it looks like the page was still in use. The page
->> flags do not make sense for the use case though. Further debugging showed
->> that despite alloc_contig_range returning success, at least one page in the
->> range still remained in the buddy allocator.
->>
->> There is an issue with isolate_freepages_block. In strict mode (which CMA
->> uses), if any pages in the range cannot be isolated,
->> isolate_freepages_block should return failure 0. The current check keeps
->> track of the total number of isolated pages and compares against the size
->> of the range:
->>
->>          if (strict && nr_strict_required > total_isolated)
->>                  total_isolated = 0;
->>
->> After taking the zone lock, if one of the pages in the range is not
->> in the buddy allocator, we continue through the loop and do not
->> increment total_isolated. If in the last iteration of the loop we isolate
->> more than one page (e.g. last page needed is a higher order page), the
->> check for total_isolated may pass and we fail to detect that a page was
->> skipped. The fix is to bail out if the loop immediately if we are in
->> strict mode. There's no benfit to continuing anyway since we need all
->> pages to be isolated. Additionally, drop the error checking based on
->> nr_strict_required and just check the pfn ranges. This matches with
->> what isolate_freepages_range does.
->>
->> --- a/mm/compaction.c
->> +++ b/mm/compaction.c
->> @@ -242,7 +242,6 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
->>   {
->>   	int nr_scanned = 0, total_isolated = 0;
->>   	struct page *cursor, *valid_page = NULL;
->> -	unsigned long nr_strict_required = end_pfn - blockpfn;
->>   	unsigned long flags;
->>   	bool locked = false;
->>   	bool checked_pageblock = false;
->> @@ -256,11 +255,12 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
->>   
->>   		nr_scanned++;
->>   		if (!pfn_valid_within(blockpfn))
->> -			continue;
->> +			goto isolate_fail;
->> +
->>   		if (!valid_page)
->>   			valid_page = page;
->>   		if (!PageBuddy(page))
->> -			continue;
->> +			goto isolate_fail;
->>   
->>   		/*
->>   		 * The zone lock must be held to isolate freepages.
->> @@ -289,12 +289,10 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
->>   
->>   		/* Recheck this is a buddy page under lock */
->>   		if (!PageBuddy(page))
->> -			continue;
->> +			goto isolate_fail;
->>   
->>   		/* Found a free page, break it into order-0 pages */
->>   		isolated = split_free_page(page);
->> -		if (!isolated && strict)
->> -			break;
->>   		total_isolated += isolated;
->>   		for (i = 0; i < isolated; i++) {
->>   			list_add(&page->lru, freelist);
->> @@ -305,7 +303,15 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
->>   		if (isolated) {
->>   			blockpfn += isolated - 1;
->>   			cursor += isolated - 1;
->> +			continue;
->>   		}
-> We can make the code a little more efficient and (I think) clearer by
-> moving that `if (isolated)' test.
->
->> +
->> +isolate_fail:
->> +		if (strict)
->> +			break;
->> +		else
->> +			continue;
->> +
-> And I don't think this `continue' has any benefit.
+--001a11c3f68cb3bb3704f40c413a
+Content-Type: text/plain; charset=ISO-8859-1
 
-Oops, missed that in my suggestion.
+Hi all,
 
->
-> --- a/mm/compaction.c~mm-compaction-break-out-of-loop-on-pagebuddy-in-isolate_freepages_block-fix
-> +++ a/mm/compaction.c
-> @@ -293,14 +293,14 @@ static unsigned long isolate_freepages_b
->   
->   		/* Found a free page, break it into order-0 pages */
->   		isolated = split_free_page(page);
-> -		total_isolated += isolated;
-> -		for (i = 0; i < isolated; i++) {
-> -			list_add(&page->lru, freelist);
-> -			page++;
-> -		}
-> -
-> -		/* If a page was split, advance to the end of it */
->   		if (isolated) {
-> +			total_isolated += isolated;
-> +			for (i = 0; i < isolated; i++) {
-> +				list_add(&page->lru, freelist);
-> +				page++;
-> +			}
-> +
-> +			/* If a page was split, advance to the end of it */
->   			blockpfn += isolated - 1;
->   			cursor += isolated - 1;
->   			continue;
-> @@ -309,9 +309,6 @@ static unsigned long isolate_freepages_b
->   isolate_fail:
->   		if (strict)
->   			break;
-> -		else
-> -			continue;
-> -
->   	}
->   
->   	trace_mm_compaction_isolate_freepages(nr_scanned, total_isolated);
->
->
-> Problem is, I can't be bothered testing this.
->
+Currently huge_ptep_clear_flush on x86 is a nop. How is dtlb invalidation
+handled, for the copy-on-write cases on huge pages ?
 
-I don't think it's necessary, or that the better efficiency would show :)
+I have actually verified that dtlb consistency is maintained with an
+example code, under the following scenario:
+
+- parent allocates a 2M hugepage (via mmap/MAP_HUGETLB), fills page with
+some random data
+- forks a child process
+- clones a thread
+(all parent, child and thread run on separate cores, pinned).
+
+The child process as well as the thread, read the contents of the hugepage
+(thus there is a dtlb entry at the core that the thread runs)
+
+At a later point, parent writes into the page, thus inducing a CoW fault.
+Since this is a hugepage, there is no tlb page flushing taking place (no
+tlb-flushing IPIs). My assumption is that the thread would be now reading
+from the physical page that belongs to the child after CoW, since the
+parent pgtable pte is now pointing to a newly allocated page, but the core
+executing the thread has not received any tlb invalidation interrupts (thus
+it would be following the "old" tlb entry). Oddly enough, this does not
+hold true (the thread can see the updated page).
+
+Going through the intel devel manuals, I do not see how this would happen.
+It does not seem that large pages are treated differently from 4K pages as
+far as tlb invalidation goes.
+
+Any ideas ? Does the kernel somehow manage this in a different way, or is
+it an x86 thing that is non-obvious ?
+
+Regards,
+Anthony
+
+--001a11c3f68cb3bb3704f40c413a
+Content-Type: text/html; charset=ISO-8859-1
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr">Hi all,<br><br>Currently huge_ptep_clear_flush on x86 is a=
+ nop. How is dtlb invalidation handled, for the copy-on-write cases on huge=
+ pages ?<br><br>I have actually verified that dtlb consistency is maintaine=
+d with an example code, under the following scenario:<br>
+
+<br>- parent allocates a 2M hugepage (via mmap/MAP_HUGETLB), fills page wit=
+h some random data<br>- forks a child process<br>- clones a thread<br>(all =
+parent, child and thread run on separate cores, pinned).<br><br>The child p=
+rocess as well as the thread, read the contents of the hugepage (thus there=
+ is a dtlb entry at the core that the thread runs)<br>
+
+<br>At a later point, parent writes into the page, thus inducing a CoW faul=
+t. Since this is a hugepage, there is no tlb page flushing taking place (no=
+ tlb-flushing IPIs). My assumption is that the thread would be now reading =
+from the physical page that belongs to the child after CoW, since the paren=
+t pgtable pte is now pointing to a newly allocated page, but the core execu=
+ting the thread has not received any tlb invalidation interrupts (thus it w=
+ould be following the &quot;old&quot; tlb entry). Oddly enough, this does n=
+ot hold true (the thread can see the updated page).<br>
+
+<br>Going through the intel devel manuals, I do not see how this would happ=
+en. It does not seem that large pages are treated differently from 4K pages=
+ as far as tlb invalidation goes.<br><br>Any ideas ? Does the kernel someho=
+w manage this in a different way, or is it an x86 thing that is non-obvious=
+ ?<br>
+<br>Regards,<br>Anthony<br></div>
+
+--001a11c3f68cb3bb3704f40c413a--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
