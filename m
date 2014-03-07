@@ -1,154 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f49.google.com (mail-la0-f49.google.com [209.85.215.49])
-	by kanga.kvack.org (Postfix) with ESMTP id C39056B0031
-	for <linux-mm@kvack.org>; Fri,  7 Mar 2014 01:18:12 -0500 (EST)
-Received: by mail-la0-f49.google.com with SMTP id mc6so2417628lab.8
-        for <linux-mm@kvack.org>; Thu, 06 Mar 2014 22:18:11 -0800 (PST)
-Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id o8si6924044laf.93.2014.03.06.22.18.10
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 06 Mar 2014 22:18:10 -0800 (PST)
-Message-ID: <5319649C.3060309@parallels.com>
-Date: Fri, 7 Mar 2014 10:18:04 +0400
-From: Vladimir Davydov <vdavydov@parallels.com>
-MIME-Version: 1.0
-Subject: Re: slub: fix leak of 'name' in sysfs_slab_add
-References: <20140306211141.GA17009@redhat.com>
-In-Reply-To: <20140306211141.GA17009@redhat.com>
-Content-Type: text/plain; charset="ISO-8859-1"
+Received: from mail-ea0-f178.google.com (mail-ea0-f178.google.com [209.85.215.178])
+	by kanga.kvack.org (Postfix) with ESMTP id D14426B0031
+	for <linux-mm@kvack.org>; Fri,  7 Mar 2014 01:35:09 -0500 (EST)
+Received: by mail-ea0-f178.google.com with SMTP id a15so2105251eae.23
+        for <linux-mm@kvack.org>; Thu, 06 Mar 2014 22:35:09 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id a43si14091829eei.142.2014.03.06.22.35.07
+        for <linux-mm@kvack.org>;
+        Thu, 06 Mar 2014 22:35:08 -0800 (PST)
+Date: Fri, 07 Mar 2014 01:35:02 -0500
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Message-ID: <5319689c.437e0e0a.63ea.ffffacdcSMTPIN_ADDED_BROKEN@mx.google.com>
+In-Reply-To: <5318E5AD.9090107@oracle.com>
+References: <53126861.7040107@oracle.com>
+ <1393822946-26871-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <5314E0CD.6070308@oracle.com>
+ <5314F661.30202@oracle.com>
+ <1393968743-imrxpynb@n-horiguchi@ah.jp.nec.com>
+ <531657DC.4050204@oracle.com>
+ <1393976967-lnmm5xcs@n-horiguchi@ah.jp.nec.com>
+ <5317FA3B.8060900@oracle.com>
+ <1394122113-xsq3i6vw@n-horiguchi@ah.jp.nec.com>
+ <5318E5AD.9090107@oracle.com>
+Subject: Re: [PATCH] mm: add pte_present() check on existing hugetlb_entry
+ callbacks
+Mime-Version: 1.0
+Content-Type: text/plain;
+ charset=iso-2022-jp
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Jones <davej@redhat.com>
-Cc: Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, cl@linux-foundation.org, penberg@kernel.org, Andrew Morton <akpm@linux-foundation.org>
+To: sasha.levin@oracle.com
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, riel@redhat.com
 
-[adding Andrew to Cc]
-
-On 03/07/2014 01:11 AM, Dave Jones wrote:
-> The failure paths of sysfs_slab_add don't release the allocation of 'name'
-> made by create_unique_id() a few lines above the context of the diff below.
-> Create a common exit path to make it more obvious what needs freeing.
+On Thu, Mar 06, 2014 at 04:16:29PM -0500, Sasha Levin wrote:
+> On 03/06/2014 11:08 AM, Naoya Horiguchi wrote:
+> > And I found my patch was totally wrong because it should check
+> > !pte_present(), not pte_present().
+> > I'm testing fixed one (see below), and the problem seems not to reproduce
+> > in my environment at least for now.
+> > But I'm not 100% sure, so I need your double checking.
 > 
-> Signed-off-by: Dave Jones <davej@fedoraproject.org>
-> 
-> diff --git a/mm/slub.c b/mm/slub.c
-> index 25f14ad8f817..b2181d2682ac 100644
-> --- a/mm/slub.c
-> +++ b/mm/slub.c
-> @@ -5197,17 +5197,13 @@ static int sysfs_slab_add(struct kmem_cache *s)
->  
->  	s->kobj.kset = slab_kset;
->  	err = kobject_init_and_add(&s->kobj, &slab_ktype, NULL, "%s", name);
-> -	if (err) {
-> -		kobject_put(&s->kobj);
-> -		return err;
-> -	}
-> +	if (err)
-> +		goto err_out;
->  
->  	err = sysfs_create_group(&s->kobj, &slab_attr_group);
-> -	if (err) {
-> -		kobject_del(&s->kobj);
-> -		kobject_put(&s->kobj);
-> -		return err;
-> -	}
-> +	if (err)
-> +		goto err_sysfs;
-> +
->  	kobject_uevent(&s->kobj, KOBJ_ADD);
->  	if (!unmergeable) {
->  		/* Setup first alias */
-> @@ -5215,6 +5211,13 @@ static int sysfs_slab_add(struct kmem_cache *s)
->  		kfree(name);
->  	}
->  	return 0;
-> +
-> +err_sysfs:
-> +	kobject_del(&s->kobj);
-> +err_out:
-> +	kobject_put(&s->kobj);
-> +	kfree(name);
-> +	return err;
->  }
+> Nope, I still see the problem. Same NULL deref and trace as before.
 
-We should free the name only if !unmergeable, because:
+Hmm, that's unfortunate.
+I tried to find out how this reproduces and the root cause, but no luck.
+So I suggest to add !PageHuge check before entering isolate_huge_page(),
+which certainly gets over this problem.
 
-sysfs_slab_add():
-	if (unmergeable) {
-		/*
-		 * Slabcache can never be merged so we can use the name proper.
-		 * This is typically the case for debug situations. In that
-		 * case we can catch duplicate names easily.
-		 */
-		sysfs_remove_link(&slab_kset->kobj, s->name);
-		name = s->name;
-	} else {
-		/*
-		 * Create a unique name for the slab as a target
-		 * for the symlinks.
-		 */
-		name = create_unique_id(s);
-	}
+I think "[PATCH] mm: add pte_present() check on existing hugetlb_entry"
+is correct itself although it didn't fix this race.
 
-Since this function was modified in the mmotm tree, I would propose
-something like this on top of mmotm to avoid further merge conflicts:
+Thanks,
+Naoya
+---
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Date: Fri, 7 Mar 2014 00:59:41 -0500
+Subject: [PATCH] mm/mempolicy.c: add comment in queue_pages_hugetlb()
 
-diff --git a/mm/slub.c b/mm/slub.c
-index c6eb29d65847..f4ca525c05b0 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -5214,25 +5214,19 @@ static int sysfs_slab_add(struct kmem_cache *s)
- 
- 	s->kobj.kset = cache_kset(s);
- 	err = kobject_init_and_add(&s->kobj, &slab_ktype, NULL, "%s", name);
--	if (err) {
--		kobject_put(&s->kobj);
--		return err;
--	}
-+	if (err)
-+		goto out_put_kobj;
- 
- 	err = sysfs_create_group(&s->kobj, &slab_attr_group);
--	if (err) {
--		kobject_del(&s->kobj);
--		kobject_put(&s->kobj);
--		return err;
--	}
-+	if (err)
-+		goto out_del_kobj;
- 
- #ifdef CONFIG_MEMCG_KMEM
- 	if (is_root_cache(s)) {
- 		s->memcg_kset = kset_create_and_add("cgroup", NULL, &s->kobj);
- 		if (!s->memcg_kset) {
--			kobject_del(&s->kobj);
--			kobject_put(&s->kobj);
--			return -ENOMEM;
-+			err = -ENOMEM;
-+			goto out_del_kobj;
- 		}
- 	}
- #endif
-@@ -5241,9 +5235,16 @@ static int sysfs_slab_add(struct kmem_cache *s)
- 	if (!unmergeable) {
- 		/* Setup first alias */
- 		sysfs_slab_alias(s, s->name);
--		kfree(name);
- 	}
--	return 0;
-+out:
-+	if (!unmergeable)
-+		kfree(name);
-+	return err;
-+out_del_kobj:
-+	kobject_del(&s->kobj);
-+out_put_kobj:
-+	kobject_put(&s->kobj);
-+	goto out;
- }
- 
- static void sysfs_slab_remove(struct kmem_cache *s)
+We have a race where we try to migrate an invalid page, resulting in
+hitting VM_BUG_ON_PAGE in isolate_huge_page().
+queue_pages_hugetlb() is OK to fail, so let's check !PageHuge before
+queuing it with some comment as a todo reminder.
+
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+---
+ mm/mempolicy.c | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
+
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index 494f401bbf6c..175353eb7396 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -530,6 +530,17 @@ static int queue_pages_hugetlb(pte_t *pte, unsigned long addr,
+ 	if (!pte_present(entry))
+ 		return 0;
+ 	page = pte_page(entry);
++
++	/*
++	 * TODO: Trinity found that page could be a non-hugepage. This is an
++	 * unexpected behavior, but it's not clear how this problem happens.
++	 * So let's simply skip such corner case. Page migration can often
++	 * fail for various reasons, so it's ok to just skip the address
++	 * unsuitable to hugepage migration.
++	 */
++	if (!PageHeadHuge(page))
++		return 0;
++
+ 	nid = page_to_nid(page);
+ 	if (node_isset(nid, *qp->nmask) == !!(flags & MPOL_MF_INVERT))
+ 		return 0;
+-- 
+1.8.5.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
