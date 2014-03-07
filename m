@@ -1,46 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 383956B0031
-	for <linux-mm@kvack.org>; Fri,  7 Mar 2014 12:07:55 -0500 (EST)
-Received: by mail-pd0-f176.google.com with SMTP id r10so4254667pdi.21
-        for <linux-mm@kvack.org>; Fri, 07 Mar 2014 09:07:54 -0800 (PST)
-Received: from qmta04.emeryville.ca.mail.comcast.net (qmta04.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:40])
-        by mx.google.com with ESMTP id yp10si8902532pab.98.2014.03.07.09.07.47
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id DDD406B0031
+	for <linux-mm@kvack.org>; Fri,  7 Mar 2014 12:09:38 -0500 (EST)
+Received: by mail-pa0-f54.google.com with SMTP id lf10so4433059pab.13
+        for <linux-mm@kvack.org>; Fri, 07 Mar 2014 09:09:38 -0800 (PST)
+Received: from qmta13.emeryville.ca.mail.comcast.net (qmta13.emeryville.ca.mail.comcast.net. [2001:558:fe2d:44:76:96:27:243])
+        by mx.google.com with ESMTP id ki1si8850371pbc.265.2014.03.07.09.09.37
         for <linux-mm@kvack.org>;
-        Fri, 07 Mar 2014 09:07:47 -0800 (PST)
-Date: Fri, 7 Mar 2014 11:07:45 -0600 (CST)
+        Fri, 07 Mar 2014 09:09:37 -0800 (PST)
+Date: Fri, 7 Mar 2014 11:09:34 -0600 (CST)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [next:master 452/458] undefined reference to
- `__bad_size_call_parameter'
-In-Reply-To: <20140306131835.543007307bf38e8986f1229c@linux-foundation.org>
-Message-ID: <alpine.DEB.2.10.1403071106280.21846@nuc>
-References: <53188aab.D8+W+0kHpmaV0uFd%fengguang.wu@intel.com> <20140306131835.543007307bf38e8986f1229c@linux-foundation.org>
+Subject: Re: [PATCH -next] slub: Replace __this_cpu_inc usage w/ SLUB_STATS
+In-Reply-To: <20140306182941.GH18529@joshc.qualcomm.com>
+Message-ID: <alpine.DEB.2.10.1403071108310.21846@nuc>
+References: <20140306194821.3715d0b6212cc10415374a68@canb.auug.org.au> <20140306155316.GG18529@joshc.qualcomm.com> <20140306182941.GH18529@joshc.qualcomm.com>
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: kbuild test robot <fengguang.wu@intel.com>, Linux Memory Management List <linux-mm@kvack.org>, kbuild-all@01.org
+To: Josh Cartwright <joshc@codeaurora.org>
+Cc: Stephen Rothwell <sfr@canb.auug.org.au>, linux-next@vger.kernel.org, linux-kernel@vger.kernel.org, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org
 
-On Thu, 6 Mar 2014, Andrew Morton wrote:
+On Thu, 6 Mar 2014, Josh Cartwright wrote:
 
-> On Thu, 06 Mar 2014 22:48:11 +0800 kbuild test robot
-> <fengguang.wu@intel.com> wrote:
-> This has me stumped - the same code
->
-> 	p = __this_cpu_read(current_kprobe);
->
-> works OK elsewhere in that file.  I'm suspecting a miscompile - it's
-> not unknown for gcc to screw up when we use this trick.
->
-> I can reproduce it with gcc-3.4.5 for sh.
+> Although, I'm wondering how exact these statistics need to be.  Is
+> making them preemption safe even a concern?
 
-This is again the autoconversion not applying because current_kprobe is
-probably a pointer. __bad_size_call_parameter is failure because reads
-from structures larger than word size are not supported.
-
-p = this_cpu_ptr(&current_kprobe);
-
-would fix it.
+Not sure about that. You solution makes it preempt safe. If is can be
+tolerated that its racy then raw_cpu_inc() could be used.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
