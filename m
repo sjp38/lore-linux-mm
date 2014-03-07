@@ -1,59 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oa0-f47.google.com (mail-oa0-f47.google.com [209.85.219.47])
-	by kanga.kvack.org (Postfix) with ESMTP id CF51F6B0035
-	for <linux-mm@kvack.org>; Thu,  6 Mar 2014 19:16:24 -0500 (EST)
-Received: by mail-oa0-f47.google.com with SMTP id i11so3441884oag.34
-        for <linux-mm@kvack.org>; Thu, 06 Mar 2014 16:16:24 -0800 (PST)
-Received: from g4t3426.houston.hp.com (g4t3426.houston.hp.com. [15.201.208.54])
-        by mx.google.com with ESMTPS id f4si4083019oel.144.2014.03.06.16.16.24
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 06 Mar 2014 16:16:24 -0800 (PST)
-Message-ID: <1394151380.2555.3.camel@buesod1.americas.hpqcorp.net>
-Subject: Re: [PATCH 1/7] x86: mm: clean up tlb flushing code
-From: Davidlohr Bueso <davidlohr@hp.com>
-Date: Thu, 06 Mar 2014 16:16:20 -0800
-In-Reply-To: <20140306004521.5D13DC05@viggo.jf.intel.com>
-References: <20140306004519.BBD70A1A@viggo.jf.intel.com>
-	 <20140306004521.5D13DC05@viggo.jf.intel.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail-ea0-f172.google.com (mail-ea0-f172.google.com [209.85.215.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 519CD6B0031
+	for <linux-mm@kvack.org>; Thu,  6 Mar 2014 19:22:23 -0500 (EST)
+Received: by mail-ea0-f172.google.com with SMTP id l9so2028952eaj.3
+        for <linux-mm@kvack.org>; Thu, 06 Mar 2014 16:22:22 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id 46si12783719eem.46.2014.03.06.16.22.20
+        for <linux-mm@kvack.org>;
+        Thu, 06 Mar 2014 16:22:21 -0800 (PST)
+Date: Thu, 6 Mar 2014 19:22:10 -0500
+From: Dave Jones <davej@redhat.com>
+Subject: Re: bad rss-counter message in 3.14rc5
+Message-ID: <20140307002210.GA26603@redhat.com>
+References: <20140305174503.GA16335@redhat.com>
+ <20140305175725.GB16335@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140305175725.GB16335@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, ak@linux.intel.com, kirill.shutemov@linux.intel.com, mgorman@suse.de, alex.shi@linaro.org, x86@kernel.org, linux-mm@kvack.org, dave.hansen@linux.intel.com
+To: Linux Kernel <linux-kernel@vger.kernel.org>
+Cc: linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Wed, 2014-03-05 at 16:45 -0800, Dave Hansen wrote:
-> From: Dave Hansen <dave.hansen@linux.intel.com>
-> 
-> The
-> 
-> 	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
-> 
-> line of code is not exactly the easiest to audit, especially when
-> it ends up at two different indentation levels.  This eliminates
-> one of the the copy-n-paste versions.  It also gives us a unified
-> exit point for each path through this function.  We need this in
-> a minute for our tracepoint.
-> 
-> 
-> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-> ---
-> 
->  b/arch/x86/mm/tlb.c |   23 +++++++++++------------
->  1 file changed, 11 insertions(+), 12 deletions(-)
-> 
-> diff -puN arch/x86/mm/tlb.c~simplify-tlb-code arch/x86/mm/tlb.c
-> --- a/arch/x86/mm/tlb.c~simplify-tlb-code	2014-03-05 16:10:09.607047728 -0800
-> +++ b/arch/x86/mm/tlb.c	2014-03-05 16:10:09.610047866 -0800
-> @@ -161,23 +161,24 @@ void flush_tlb_current_task(void)
->  void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
->  				unsigned long end, unsigned long vmflag)
->  {
-> +	int need_flush_others_all = 1;
+On Wed, Mar 05, 2014 at 12:57:25PM -0500, Dave Jones wrote:
+ > On Wed, Mar 05, 2014 at 12:45:03PM -0500, Dave Jones wrote:
+ >  > I just saw this on my box that's been running trinity..
+ >  > 
+ >  > [48825.517189] BUG: Bad rss-counter state mm:ffff880177921d40 idx:0 val:1 (Not tainted)
+ >  > 
+ >  > There's nothing else, no trace, nothing.  Any ideas where to begin with this?
+ > 
+ > ah, on the serial console there was also this truncated warning..
+ > 
+ > [48825.517189] BUG: Bad rss-counter state mm:ffff880177921d40 idx:0 val:1 (Not tainted)
+ > [48924.133273] ------------[ cut here ]------------
+ > [48924.133391] kernel BUG at include/linux/swapops.h:131!
+ > 
+ > 	Dave
+ > 
+ > 124 static inline struct page *migration_entry_to_page(swp_entry_t entry)
+ > 125 {
+ > 126         struct page *p = pfn_to_page(swp_offset(entry));
+ > 127         /*
+ > 128          * Any use of migration entries may only occur while the
+ > 129          * corresponding page is locked
+ > 130          */
+ > 131         BUG_ON(!PageLocked(p));
+ > 132         return p;
+ > 133 }
 
-nit: this can be bool.
+I hit this again, this time a full trace made it over the serial console.
+This time there was no bad rss-counter message though.
+
+kernel BUG at include/linux/swapops.h:131!
+invalid opcode: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
+Modules linked in: snd_seq_dummy fuse hidp tun bnep rfcomm llc2 af_key ipt_ULOG can_raw nfnetlink scsi_transport_iscsi nfc caif_socket caif af_802154 phonet af_rxrpc can_bcm can pppoe pppox ppp_generic slhc irda crc_ccitt rds rose x25 atm netrom appletalk ipx p8023 psnap p8022 llc ax25 cfg80211 xfs libcrc32c coretemp hwmon x86_pkg_temp_thermal kvm_intel kvm crct10dif_pclmul crc32c_intel ghash_clmulni_intel snd_hda_codec_hdmi snd_hda_codec_realtek snd_hda_codec_generic microcode pcspkr serio_raw btusb bluetooth 6lowpan_iphc rfkill usb_debug shpchp snd_hda_intel snd_hda_codec snd_hwdep snd_seq snd_seq_device snd_pcm e1000e ptp snd_timer snd pps_core soundcore
+CPU: 2 PID: 10002 Comm: trinity-c36 Not tainted 3.14.0-rc5+ #131 
+task: ffff880108966750 ti: ffff88018911a000 task.ti: ffff88018911a000
+RIP: 0010:[<ffffffff9d72d129>]  [<ffffffff9d72d129>] migration_entry_to_page.part.47+0x4/0x6
+RSP: 0000:ffff88018911bae8  EFLAGS: 00010246
+RAX: ffffea00048a8980 RBX: ffff8801a08ae020 RCX: 0000000000000000
+RDX: 0000000000000000 RSI: 0000000000000000 RDI: 3c00000000122a26
+RBP: ffff88018911bae8 R08: 0000000000000000 R09: 0000000000000000
+R10: 0000000000000000 R11: fffffffffffffffe R12: 0000000024544c3c
+R13: ffff88018911bc18 R14: 0000000040c00000 R15: 0000000040a04000
+FS:  0000000000000000(0000) GS:ffff88024d080000(0000) knlGS:0000000000000000
+CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+CR2: 0000000000000001 CR3: 00000001e3c27000 CR4: 00000000001407e0
+DR0: 0000000000ab5000 DR1: 0000000001008000 DR2: 0000000002230000
+DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000600
+Stack:
+ ffff88018911bbc8 ffffffff9d17ec1e 0000000040d65fff 0000000040d65fff
+ ffff8801e3c27000 0000000040d66000 ffff88011c72e008 0000000040d66000
+ 0000000040d65fff 0000000000000001 0000000040d66000 ffff88018911bb98
+Call Trace:
+ [<ffffffff9d17ec1e>] unmap_single_vma+0x89e/0x8a0
+ [<ffffffff9d17fd49>] unmap_vmas+0x49/0x90
+ [<ffffffff9d1890f5>] exit_mmap+0xe5/0x1a0
+ [<ffffffff9d068d13>] mmput+0x73/0x110
+ [<ffffffff9d06d022>] do_exit+0x2a2/0xb50
+ [<ffffffff9d07bb63>] ? __sigqueue_free.part.11+0x33/0x40
+ [<ffffffff9d07c39c>] ? __dequeue_signal+0x13c/0x220
+ [<ffffffff9d06e8cc>] do_group_exit+0x4c/0xc0
+ [<ffffffff9d07fd41>] get_signal_to_deliver+0x2d1/0x6d0
+ [<ffffffff9d0024c7>] do_signal+0x57/0x9d0
+ [<ffffffff9d11003e>] ? __acct_update_integrals+0x8e/0x120
+ [<ffffffff9d73d66b>] ? preempt_count_sub+0x6b/0xf0
+ [<ffffffff9d738ec1>] ? _raw_spin_unlock+0x31/0x50
+ [<ffffffff9d0aa0b1>] ? vtime_account_user+0x91/0xa0
+ [<ffffffff9d15215b>] ? context_tracking_user_exit+0x9b/0x100
+ [<ffffffff9d002eb1>] do_notify_resume+0x71/0xc0
+ [<ffffffff9d739c06>] retint_signal+0x46/0x90
+Code: df 48 c1 ff 06 49 01 fc 4c 89 e7 e8 79 ff ff ff 85 c0 74 0c 4c 89 e0 48 c1 e0 06 48 29 d8 eb 02 31 c0 5b 41 5c 5d c3 55 48 89 e5 <0f> 0b 55 48 89 e5 0f 0b 55 48 89 e5 0f 0b 55 31 f6 48 89 e5 e8
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
