@@ -1,175 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f174.google.com (mail-we0-f174.google.com [74.125.82.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 1492F6B0031
-	for <linux-mm@kvack.org>; Fri,  7 Mar 2014 09:17:17 -0500 (EST)
-Received: by mail-we0-f174.google.com with SMTP id t60so4978294wes.19
-        for <linux-mm@kvack.org>; Fri, 07 Mar 2014 06:17:17 -0800 (PST)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id n12si9567860wjw.141.2014.03.07.06.17.15
+Received: from mail-oa0-f46.google.com (mail-oa0-f46.google.com [209.85.219.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 42D9A6B0031
+	for <linux-mm@kvack.org>; Fri,  7 Mar 2014 10:06:16 -0500 (EST)
+Received: by mail-oa0-f46.google.com with SMTP id i7so4270929oag.19
+        for <linux-mm@kvack.org>; Fri, 07 Mar 2014 07:06:16 -0800 (PST)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id tm2si6853885oeb.94.2014.03.07.07.06.15
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 07 Mar 2014 06:17:15 -0800 (PST)
-Date: Fri, 7 Mar 2014 15:17:14 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [RFC PATCH -mm] memcg: reparent only LRUs during
- mem_cgroup_css_offline
-Message-ID: <20140307141714.GD28816@dhcp22.suse.cz>
-References: <1392821509-976-1-git-send-email-mhocko@suse.cz>
- <alpine.LSU.2.11.1402261755230.975@eggly.anvils>
+        Fri, 07 Mar 2014 07:06:15 -0800 (PST)
+Message-ID: <5319DF72.6090408@oracle.com>
+Date: Fri, 07 Mar 2014 10:02:10 -0500
+From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1402261755230.975@eggly.anvils>
+Subject: mm: kernel BUG at mm/filemap.c:202
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Filipe Brandenburger <filbranden@google.com>, Greg Thelen <gthelen@google.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed 26-02-14 18:49:10, Hugh Dickins wrote:
-> On Wed, 19 Feb 2014, Michal Hocko wrote:
-> 
-> > css_offline callback exported by the cgroup core is not intended to get
-> > rid of all the charges but rather to get rid of cached charges for the
-> > soon destruction. For the memory controller we have 2 different types of
-> > "cached" charges which prevent from the memcg destruction (because they
-> > pin memcg by css reference). Swapped out pages (when swap accounting is
-> > enabled) and kmem charges. None of them are dealt with in the current
-> > code.
-> > 
-> > What we do instead is that we are reducing res counter charges (reduced
-> > by kmem charges) to 0. And this hard down-to-0 requirement has led to
-> > several issues in the past when the css_offline loops without any way
-> > out e.g. memcg: reparent charges of children before processing parent.
-> > 
-> > The important thing is that we actually do not have to drop all the
-> > charges. Instead we want to reduce LRU pages (which do not pin memcg) as
-> > much as possible because they are not reachable by memcg iterators after
-> > css_offline code returns, thus they are not reclaimable anymore.
-> 
-> That worries me.
-> 
-> > 
-> > This patch simply extracts LRU reparenting into mem_cgroup_reparent_lrus
-> > which doesn't care about charges and it is called from css_offline
-> > callback and the original mem_cgroup_reparent_charges stays in
-> > css_offline callback. The original workaround for the endless loop is no
-> > longer necessary because child vs. parent ordering is no longer and
-> > issue. The only requirement is that the parent has be still online at
-> > the time of css_offline.
-> 
-> But isn't that precisely what we just found is not guaranteed?
+Hi all,
 
-OK, this implicitly relies on cgroup_mutex and later when cgroup_mutex
-is away we would need our own lock around reparenting.
+While fuzzing with trinity inside a KVM tools guest running latest -next kernel I've stumbled on
+the following spew:
 
-> And in fact your patch has the necessary loop up to find the
-> first ancestor it can successfully css_tryget.  Maybe you meant
-> to say "still there" rather than "still online".
+[  567.833881] kernel BUG at mm/filemap.c:202!
+[  567.834485] invalid opcode: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
+[  567.835522] Dumping ftrace buffer:
+[  567.836752]    (ftrace buffer empty)
+[  567.837307] Modules linked in:
+[  567.837796] CPU: 23 PID: 14457 Comm: trinity-c323 Tainted: G        W    3.14.0-rc5-next-20140307-sasha-00010-gb6b571d-dirty #111
+[  567.839449] task: ffff88021afa8000 ti: ffff88071f290000 task.ti: ffff88071f290000
+[  567.840489] RIP: 0010:[<ffffffff8126b3f0>]  [<ffffffff8126b3f0>] __delete_from_page_cache+0x150/0x270
+[  567.841649] RSP: 0018:ffff88071f291b78  EFLAGS: 00010046
+[  567.841649] RAX: 0000000000000000 RBX: ffffea0002c4ac40 RCX: 00000000ffffffb8
+[  567.841649] RDX: 00000000001dc1a8 RSI: 0000000000000018 RDI: ffff88012ffd2000
+[  567.841649] RBP: ffff88071f291b98 R08: 0000000000000048 R09: 00000000ffffffff
+[  567.841649] R10: 0000000000000001 R11: 0000000000000001 R12: ffff880627f2bd30
+[  567.841649] R13: ffff880627f2bd18 R14: 0000000000000000 R15: 0000000000000000
+[  567.841649] FS:  00007f15b504d700(0000) GS:ffff88082ba00000(0000) knlGS:0000000000000000
+[  567.841649] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+[  567.841649] CR2: 0000000002eef848 CR3: 000000071fce7000 CR4: 00000000000006a0
+[  567.841649] DR0: 0000000000900870 DR1: 00007f15b505a000 DR2: 0000000000000000
+[  567.841649] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000602
+[  567.841649] Stack:
+[  567.841649]  ffffea0002c4ac40 ffff880627f2bd30 0000000000000000
+[  567.859673]  0000000000000200
+[  567.859673]  ffff88071f291bc8 ffffffff8126b56a ffff880627f2bd18 ffffea0002c4ac40
+[  567.859673]  ffff880627f2bd18 ffff88071f291c48 ffff88071f291be8 ffffffff8127fb94
+[  567.859673] Call Trace:
+[  567.859673]  [<ffffffff8126b56a>] delete_from_page_cache+0x5a/0x90
+[  567.859673]  [<ffffffff8127fb94>] truncate_inode_page+0x74/0x90
+[  567.859673]  [<ffffffff8128c875>] shmem_undo_range+0x245/0x770
+[  567.859673]  [<ffffffff812a01b8>] ? unmap_mapping_range+0x168/0x180
+[  567.859673]  [<ffffffff8128cdb8>] shmem_truncate_range+0x18/0x40
+[  567.859673]  [<ffffffff8128d0c9>] shmem_fallocate+0x99/0x2f0
+[  567.859673]  [<ffffffff8129b7be>] ? madvise_vma+0xde/0x1c0
+[  567.859673]  [<ffffffff811ad632>] ? __lock_release+0x1e2/0x200
+[  567.859673]  [<ffffffff812f87da>] do_fallocate+0x14a/0x1a0
+[  567.859673]  [<ffffffff8129b7d4>] madvise_vma+0xf4/0x1c0
+[  567.859673]  [<ffffffff812a765f>] ? find_vma+0x6f/0x90
+[  567.859673]  [<ffffffff8129ba28>] SyS_madvise+0x188/0x250
+[  567.859673]  [<ffffffff844b1650>] tracesys+0xdd/0xe2
+[  567.859673] Code: be 0a 00 00 00 48 89 df e8 8e 55 02 00 48 8b 03 a9 00 00 08 00 74 0d be 18 00 00 00 48 89 df e8 77 55 02 00 8b 43 18 85 c0 78 10 <0f> 0b 66 0f 1f 44 00 00 eb fe 66 0f 1f 44 00 00 48 8b 03 a8 10
+[  567.859673] RIP  [<ffffffff8126b3f0>] __delete_from_page_cache+0x150/0x270
+[  567.859673]  RSP <ffff88071f291b78>
 
-I meant online because we have to make sure that the reparented pages
-have to to be reachable by iterators.
 
-> (Tangential, I don't think you rely on this any more than we do
-> at present, and I may be wrong to suggest any problem: but I would
-> feel more comfortable if kernel/cgroup.c's css_free_work_fn() did
-> parent = css->parent; css->ss->css_free(css); css_put(parent);
-> instead of putting the parent before freeing the child.)
-
-that makes sense to me.
-
-> > mem_cgroup_reparent_charges also doesn't have to exclude kmem charges
-> > because there shouldn't be any at the css_free stage. Let's add BUG_ON
-> > to make sure we haven't screwed anything.
-> > 
-> > mem_cgroup_reparent_lrus is racy but this is tolerable as the inflight
-> > pages which will eventually get back to the memcg's LRU shouldn't
-> > constitute a lot of memory.
-> > 
-> > Signed-off-by: Michal Hocko <mhocko@suse.cz>
-> > ---
-> > This is on top of memcg-reparent-charges-of-children-before-processing-parent.patch
-> > and I am not suggesting to replace it (I think Filipe's patch is more
-> > appropriate for the stable tree).
-> > Nevertheless I find this approach slightly better because it makes
-> > semantical difference between offline and free more obvious and we can
-> > build on top of it later (when offlining is no longer synchronized by
-> > cgroup_mutex). But if you think that it is not worth touching this area
-> > until we find a good way to reparent swapped out and kmem pages then I
-> > am OK with it and stay with Filipe's patch.
-> 
-> I'm ambivalent about it.  I like it, and I like very much that the loop
-> waiting for RES_USAGE to go down to 0 is without cgroup_mutex held; but
-> I dislike that any pages temporarily off LRU at the time of css_offline's
-> list_empty check, will then go AWOL (unreachable by reclaim), until
-> css_free later gets around to reparenting them.
-
-Yes it is not nice but my impression is that we are not talking about
-too many pages. Maybe I am underestimating this.
-
-> It's conceivable that some code could be added to mem_cgroup_page_lruvec()
-> (near my "Surreptitiously" comment), to reparent when they're put back on
-> LRU; but more probably not, that's already tricky, and probably bad to
-> make it any trickier, even if it turned out to be possible.
-
-That would work, but as you write, it would make this code even
-trickier.
-
-> So  I'm inclined to wait until the swap and kmem situation is sorted out
-
-Vladimir Davydov has already posted kmem reparenting patchset but I
-didn't get to read through it. Swap reparenting has already been posted
-by you and Johannes.
-
-I am not planning to push this patch, it was more an example what I was
-referring to earlier in discussion.
-
-> (when the delay between offline and free should become much briefer);
-> but would be happy if you found a good way to make the missing pages
-> reclaimable in the meantime.
-> 
-> A couple of un-comments below.
-[...]
-> > @@ -6613,13 +6614,20 @@ static void mem_cgroup_css_offline(struct cgroup_subsys_state *css)
-> >  	kmem_cgroup_css_offline(memcg);
-> >  
-> >  	mem_cgroup_invalidate_reclaim_iterators(memcg);
-> > -
-> >  	/*
-> >  	 * This requires that offlining is serialized.  Right now that is
-> >  	 * guaranteed because css_killed_work_fn() holds the cgroup_mutex.
-> >  	 */
-> 
-> And that comment belongs to the code you're removing, doesn't it?
-> So should be removed along with it.
-
-We still rely on the serialization because we have to be sure that the
-parent is not offlined in parallel because we could end up reparenting
-into a parent which goes offline right after css_tryget and pages
-wouldn't be reachable. This is guaranteed by the cgroup_mutex currently
-but if that changes in the cgroup core we need our own synchronization
-here.
-
-> > -	css_for_each_descendant_post(iter, css)
-> > -		mem_cgroup_reparent_charges(mem_cgroup_from_css(iter));
-> > +	do {
-> > +		parent = parent_mem_cgroup(parent);
-> > +		/*
-> > +		 * If no parent, move charges to root cgroup.
-> > +		 */
-> > +		if (!parent)
-> > +			parent = root_mem_cgroup;
-> > +	} while (!css_tryget(&parent->css));
-> > +	mem_cgroup_reparent_lrus(memcg, parent);
-> > +	css_put(&parent->css);
-> >  
-> >  	mem_cgroup_destroy_all_caches(memcg);
-> >  	vmpressure_cleanup(&memcg->vmpressure);
-> > -- 
-> > 1.9.0.rc3
-
--- 
-Michal Hocko
-SUSE Labs
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
