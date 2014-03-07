@@ -1,98 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f178.google.com (mail-ea0-f178.google.com [209.85.215.178])
-	by kanga.kvack.org (Postfix) with ESMTP id D14426B0031
-	for <linux-mm@kvack.org>; Fri,  7 Mar 2014 01:35:09 -0500 (EST)
-Received: by mail-ea0-f178.google.com with SMTP id a15so2105251eae.23
-        for <linux-mm@kvack.org>; Thu, 06 Mar 2014 22:35:09 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id a43si14091829eei.142.2014.03.06.22.35.07
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 591486B0031
+	for <linux-mm@kvack.org>; Fri,  7 Mar 2014 03:21:33 -0500 (EST)
+Received: by mail-pd0-f171.google.com with SMTP id r10so3733798pdi.30
+        for <linux-mm@kvack.org>; Fri, 07 Mar 2014 00:21:33 -0800 (PST)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id u5si7477980pbi.238.2014.03.07.00.21.31
         for <linux-mm@kvack.org>;
-        Thu, 06 Mar 2014 22:35:08 -0800 (PST)
-Date: Fri, 07 Mar 2014 01:35:02 -0500
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <5319689c.437e0e0a.63ea.ffffacdcSMTPIN_ADDED_BROKEN@mx.google.com>
-In-Reply-To: <5318E5AD.9090107@oracle.com>
-References: <53126861.7040107@oracle.com>
- <1393822946-26871-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <5314E0CD.6070308@oracle.com>
- <5314F661.30202@oracle.com>
- <1393968743-imrxpynb@n-horiguchi@ah.jp.nec.com>
- <531657DC.4050204@oracle.com>
- <1393976967-lnmm5xcs@n-horiguchi@ah.jp.nec.com>
- <5317FA3B.8060900@oracle.com>
- <1394122113-xsq3i6vw@n-horiguchi@ah.jp.nec.com>
- <5318E5AD.9090107@oracle.com>
-Subject: Re: [PATCH] mm: add pte_present() check on existing hugetlb_entry
- callbacks
-Mime-Version: 1.0
-Content-Type: text/plain;
- charset=iso-2022-jp
-Content-Transfer-Encoding: 7bit
+        Fri, 07 Mar 2014 00:21:32 -0800 (PST)
+Date: Fri, 7 Mar 2014 16:22:16 +0800
+From: Yuanhan Liu <yuanhan.liu@linux.intel.com>
+Subject: Re: performance regression due to commit e82e0561("mm: vmscan: obey
+ proportional scanning requirements for kswapd")
+Message-ID: <20140307082216.GJ29270@yliu-dev.sh.intel.com>
+References: <20140218080122.GO26593@yliu-dev.sh.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20140218080122.GO26593@yliu-dev.sh.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: sasha.levin@oracle.com
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, riel@redhat.com
+To: Mel Gorman <mgorman@suse.de>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Mar 06, 2014 at 04:16:29PM -0500, Sasha Levin wrote:
-> On 03/06/2014 11:08 AM, Naoya Horiguchi wrote:
-> > And I found my patch was totally wrong because it should check
-> > !pte_present(), not pte_present().
-> > I'm testing fixed one (see below), and the problem seems not to reproduce
-> > in my environment at least for now.
-> > But I'm not 100% sure, so I need your double checking.
+ping...
+
+On Tue, Feb 18, 2014 at 04:01:22PM +0800, Yuanhan Liu wrote:
+> Hi,
 > 
-> Nope, I still see the problem. Same NULL deref and trace as before.
-
-Hmm, that's unfortunate.
-I tried to find out how this reproduces and the root cause, but no luck.
-So I suggest to add !PageHuge check before entering isolate_huge_page(),
-which certainly gets over this problem.
-
-I think "[PATCH] mm: add pte_present() check on existing hugetlb_entry"
-is correct itself although it didn't fix this race.
-
-Thanks,
-Naoya
----
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Date: Fri, 7 Mar 2014 00:59:41 -0500
-Subject: [PATCH] mm/mempolicy.c: add comment in queue_pages_hugetlb()
-
-We have a race where we try to migrate an invalid page, resulting in
-hitting VM_BUG_ON_PAGE in isolate_huge_page().
-queue_pages_hugetlb() is OK to fail, so let's check !PageHuge before
-queuing it with some comment as a todo reminder.
-
-Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
----
- mm/mempolicy.c | 11 +++++++++++
- 1 file changed, 11 insertions(+)
-
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index 494f401bbf6c..175353eb7396 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -530,6 +530,17 @@ static int queue_pages_hugetlb(pte_t *pte, unsigned long addr,
- 	if (!pte_present(entry))
- 		return 0;
- 	page = pte_page(entry);
-+
-+	/*
-+	 * TODO: Trinity found that page could be a non-hugepage. This is an
-+	 * unexpected behavior, but it's not clear how this problem happens.
-+	 * So let's simply skip such corner case. Page migration can often
-+	 * fail for various reasons, so it's ok to just skip the address
-+	 * unsuitable to hugepage migration.
-+	 */
-+	if (!PageHeadHuge(page))
-+		return 0;
-+
- 	nid = page_to_nid(page);
- 	if (node_isset(nid, *qp->nmask) == !!(flags & MPOL_MF_INVERT))
- 		return 0;
--- 
-1.8.5.3
+> Commit e82e0561("mm: vmscan: obey proportional scanning requirements for
+> kswapd") caused a big performance regression(73%) for vm-scalability/
+> lru-file-readonce testcase on a system with 256G memory without swap.
+> 
+> That testcase simply looks like this:
+>      truncate -s 1T /tmp/vm-scalability.img
+>      mkfs.xfs -q /tmp/vm-scalability.img
+>      mount -o loop /tmp/vm-scalability.img /tmp/vm-scalability
+> 
+>      SPARESE_FILE="/tmp/vm-scalability/sparse-lru-file-readonce"
+>      for i in `seq 1 120`; do
+>          truncate $SPARESE_FILE-$i -s 36G
+>          timeout --foreground -s INT 300 dd bs=4k if=$SPARESE_FILE-$i of=/dev/null
+>      done
+> 
+>      wait
+> 
+> Actually, it's not the newlly added code(obey proportional scanning)
+> in that commit caused the regression. But instead, it's the following
+> change:
+> +
+> +               if (nr_reclaimed < nr_to_reclaim || scan_adjusted)
+> +                       continue;
+> +
+> 
+> 
+> -               if (nr_reclaimed >= nr_to_reclaim &&
+> -                   sc->priority < DEF_PRIORITY)
+> +               if (global_reclaim(sc) && !current_is_kswapd())
+>                         break;
+> 
+> The difference is that we might reclaim more than requested before
+> in the first round reclaimming(sc->priority == DEF_PRIORITY).
+> 
+> So, for a testcase like lru-file-readonce, the dirty rate is fast, and
+> reclaimming SWAP_CLUSTER_MAX(32 pages) each time is not enough for catching
+> up the dirty rate. And thus page allocation stalls, and performance drops:
+> 
+>    O for e82e0561
+>    * for parent commit
+> 
+>                                 proc-vmstat.allocstall
+> 
+>      2e+06 ++---------------------------------------------------------------+
+>    1.8e+06 O+              O                O               O               |
+>            |                                                                |
+>    1.6e+06 ++                                                               |
+>    1.4e+06 ++                                                               |
+>            |                                                                |
+>    1.2e+06 ++                                                               |
+>      1e+06 ++                                                               |
+>     800000 ++                                                               |
+>            |                                                                |
+>     600000 ++                                                               |
+>     400000 ++                                                               |
+>            |                                                                |
+>     200000 *+..............*................*...............*...............*
+>          0 ++---------------------------------------------------------------+
+> 
+>                                vm-scalability.throughput
+> 
+>    2.2e+07 ++---------------------------------------------------------------+
+>            |                                                                |
+>      2e+07 *+..............*................*...............*...............*
+>    1.8e+07 ++                                                               |
+>            |                                                                |
+>    1.6e+07 ++                                                               |
+>            |                                                                |
+>    1.4e+07 ++                                                               |
+>            |                                                                |
+>    1.2e+07 ++                                                               |
+>      1e+07 ++                                                               |
+>            |                                                                |
+>      8e+06 ++              O                O               O               |
+>            O                                                                |
+>      6e+06 ++---------------------------------------------------------------+
+> 
+> I made a patch which simply keeps reclaimming more if sc->priority == DEF_PRIORITY.
+> I'm not sure it's the right way to go or not. Anyway, I pasted it here for comments.
+> 
+> ---
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 26ad67f..37004a8 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -1828,7 +1828,16 @@ static void shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
+>  	unsigned long nr_reclaimed = 0;
+>  	unsigned long nr_to_reclaim = sc->nr_to_reclaim;
+>  	struct blk_plug plug;
+> -	bool scan_adjusted = false;
+> +	/*
+> +	 * On large memory systems, direct reclamming of SWAP_CLUSTER_MAX
+> +	 * each time may not catch up the dirty rate in some cases(say,
+> +	 * vm-scalability/lru-file-readonce), which may increase the
+> +	 * page allocation stall latency in the end.
+> +	 *
+> +	 * Here we try to reclaim more than requested for the first round
+> +	 * (sc->priority == DEF_PRIORITY) to reduce such latency.
+> +	 */
+> +	bool scan_adjusted = sc->priority == DEF_PRIORITY;
+>  
+>  	get_scan_count(lruvec, sc, nr);
+>  
+> -- 
+> 1.7.7.6
+> 
+> 
+> 	--yliu
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
