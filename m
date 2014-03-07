@@ -1,51 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f42.google.com (mail-wg0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 7233D6B0031
-	for <linux-mm@kvack.org>; Fri,  7 Mar 2014 11:41:59 -0500 (EST)
-Received: by mail-wg0-f42.google.com with SMTP id y10so5317827wgg.25
-        for <linux-mm@kvack.org>; Fri, 07 Mar 2014 08:41:58 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id j5si5750531wjq.0.2014.03.07.08.41.56
+Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 383956B0031
+	for <linux-mm@kvack.org>; Fri,  7 Mar 2014 12:07:55 -0500 (EST)
+Received: by mail-pd0-f176.google.com with SMTP id r10so4254667pdi.21
+        for <linux-mm@kvack.org>; Fri, 07 Mar 2014 09:07:54 -0800 (PST)
+Received: from qmta04.emeryville.ca.mail.comcast.net (qmta04.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:40])
+        by mx.google.com with ESMTP id yp10si8902532pab.98.2014.03.07.09.07.47
         for <linux-mm@kvack.org>;
-        Fri, 07 Mar 2014 08:41:57 -0800 (PST)
-Date: Fri, 7 Mar 2014 09:50:20 -0500 (EST)
-From: Mikulas Patocka <mpatocka@redhat.com>
-Subject: Re: [PATCH] mempool: add unlikely and likely hints
-In-Reply-To: <alpine.DEB.2.02.1403070210080.31668@chino.kir.corp.google.com>
-Message-ID: <alpine.LRH.2.02.1403070942090.12776@file01.intranet.prod.int.rdu2.redhat.com>
-References: <alpine.LRH.2.02.1403061713300.928@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.02.1403070210080.31668@chino.kir.corp.google.com>
-MIME-Version: 1.0
+        Fri, 07 Mar 2014 09:07:47 -0800 (PST)
+Date: Fri, 7 Mar 2014 11:07:45 -0600 (CST)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [next:master 452/458] undefined reference to
+ `__bad_size_call_parameter'
+In-Reply-To: <20140306131835.543007307bf38e8986f1229c@linux-foundation.org>
+Message-ID: <alpine.DEB.2.10.1403071106280.21846@nuc>
+References: <53188aab.D8+W+0kHpmaV0uFd%fengguang.wu@intel.com> <20140306131835.543007307bf38e8986f1229c@linux-foundation.org>
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Ingo Molnar <mingo@redhat.com>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: kbuild test robot <fengguang.wu@intel.com>, Linux Memory Management List <linux-mm@kvack.org>, kbuild-all@01.org
 
+On Thu, 6 Mar 2014, Andrew Morton wrote:
 
+> On Thu, 06 Mar 2014 22:48:11 +0800 kbuild test robot
+> <fengguang.wu@intel.com> wrote:
+> This has me stumped - the same code
+>
+> 	p = __this_cpu_read(current_kprobe);
+>
+> works OK elsewhere in that file.  I'm suspecting a miscompile - it's
+> not unknown for gcc to screw up when we use this trick.
+>
+> I can reproduce it with gcc-3.4.5 for sh.
 
-On Fri, 7 Mar 2014, David Rientjes wrote:
+This is again the autoconversion not applying because current_kprobe is
+probably a pointer. __bad_size_call_parameter is failure because reads
+from structures larger than word size are not supported.
 
-> On Thu, 6 Mar 2014, Mikulas Patocka wrote:
-> 
-> > This patch adds unlikely and likely hints to the function mempool_free. It
-> > lays out the code in such a way that the common path is executed
-> > straighforward and saves a cache line.
-> > 
-> 
-> What observable performance benefit have you seen with this patch and 
-> with what architecture?  Could we include some data in the changelog?
+p = this_cpu_ptr(&current_kprobe);
 
-None - you usually don't get observable performance benefit from 
-microoptimizations like this.
-
-It may be that the cache line that the patch saves aliases some other 
-important cache lines and then, the patch saves two cache line refills. 
-Or, the saved cache line doesn't alias anything important and then the 
-patch doesn't have any effect at all. It's not worth spending many days or 
-weeks trying to recreate a situation when the code cache is used in such a 
-way that the patch would help.
-
-Mikulas
+would fix it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
