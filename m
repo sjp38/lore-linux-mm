@@ -1,62 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pb0-f50.google.com (mail-pb0-f50.google.com [209.85.160.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 521016B0031
-	for <linux-mm@kvack.org>; Fri,  7 Mar 2014 15:48:34 -0500 (EST)
-Received: by mail-pb0-f50.google.com with SMTP id md12so4645372pbc.23
-        for <linux-mm@kvack.org>; Fri, 07 Mar 2014 12:48:34 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id ha5si9441327pbc.300.2014.03.07.12.48.32
-        for <linux-mm@kvack.org>;
-        Fri, 07 Mar 2014 12:48:33 -0800 (PST)
-Date: Fri, 7 Mar 2014 12:48:31 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 03/11] mm, mempolicy: remove per-process flag
-Message-Id: <20140307124831.69b50f829ed34de8651fa461@linux-foundation.org>
-In-Reply-To: <877g866i3c.fsf@tassilo.jf.intel.com>
-References: <alpine.DEB.2.02.1403041952170.8067@chino.kir.corp.google.com>
-	<alpine.DEB.2.02.1403041954420.8067@chino.kir.corp.google.com>
-	<877g866i3c.fsf@tassilo.jf.intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+	by kanga.kvack.org (Postfix) with ESMTP id DC3FC6B0031
+	for <linux-mm@kvack.org>; Fri,  7 Mar 2014 15:54:48 -0500 (EST)
+Received: by mail-pb0-f50.google.com with SMTP id md12so4679166pbc.9
+        for <linux-mm@kvack.org>; Fri, 07 Mar 2014 12:54:48 -0800 (PST)
+Received: from mail-pd0-x232.google.com (mail-pd0-x232.google.com [2607:f8b0:400e:c02::232])
+        by mx.google.com with ESMTPS id vo7si9458346pab.219.2014.03.07.12.54.47
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 07 Mar 2014 12:54:47 -0800 (PST)
+Received: by mail-pd0-f178.google.com with SMTP id x10so4509427pdj.37
+        for <linux-mm@kvack.org>; Fri, 07 Mar 2014 12:54:47 -0800 (PST)
+Date: Fri, 7 Mar 2014 12:54:45 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] mempool: add unlikely and likely hints
+In-Reply-To: <alpine.LRH.2.02.1403070942090.12776@file01.intranet.prod.int.rdu2.redhat.com>
+Message-ID: <alpine.DEB.2.02.1403071254220.23969@chino.kir.corp.google.com>
+References: <alpine.LRH.2.02.1403061713300.928@file01.intranet.prod.int.rdu2.redhat.com> <alpine.DEB.2.02.1403070210080.31668@chino.kir.corp.google.com> <alpine.LRH.2.02.1403070942090.12776@file01.intranet.prod.int.rdu2.redhat.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
-Cc: David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Tejun Heo <tj@kernel.org>, Mel Gorman <mgorman@suse.de>, Oleg Nesterov <oleg@redhat.com>, Rik van Riel <riel@redhat.com>, Jianguo Wu <wujianguo@huawei.com>, Tim Hockin <thockin@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-doc@vger.kernel.org
+To: Mikulas Patocka <mpatocka@redhat.com>
+Cc: Ingo Molnar <mingo@redhat.com>, linux-mm@kvack.org
 
-On Fri, 07 Mar 2014 09:20:39 -0800 Andi Kleen <andi@firstfloor.org> wrote:
+On Fri, 7 Mar 2014, Mikulas Patocka wrote:
 
-> David Rientjes <rientjes@google.com> writes:
-> >
-> > Per-process flags are a scarce resource so we should free them up
-> > whenever possible and make them available.  We'll be using it shortly for
-> > memcg oom reserves.
+> > What observable performance benefit have you seen with this patch and 
+> > with what architecture?  Could we include some data in the changelog?
 > 
-> I'm not convinced TCP_RR is a meaningfull benchmark for slab.
+> None - you usually don't get observable performance benefit from 
+> microoptimizations like this.
 > 
-> The shortness seems like an artificial problem.
+> It may be that the cache line that the patch saves aliases some other 
+> important cache lines and then, the patch saves two cache line refills. 
+> Or, the saved cache line doesn't alias anything important and then the 
+> patch doesn't have any effect at all. It's not worth spending many days or 
+> weeks trying to recreate a situation when the code cache is used in such a 
+> way that the patch would help.
 > 
-> Just add another flag word to the task_struct? That would seem 
-> to be the obvious way. People will need it sooner or later anyways.
-> 
 
-This is basically what the patch does:
-
-@@ -3259,7 +3259,7 @@ __do_cache_alloc(struct kmem_cache *cach
- {
- 	void *objp;
- 
--	if (unlikely(current->flags & (PF_SPREAD_SLAB | PF_MEMPOLICY))) {
-+	if (current->mempolicy || unlikely(current->flags & PF_SPREAD_SLAB)) {
- 		objp = alternate_node_alloc(cache, flags);
- 		if (objp)
- 			goto out;
-
-It runs when slab goes into the page allocator for backing store (ie:
-relatively rarely).  It adds one test-n-branch when a mempolicy is
-active and actually removes instructions when no mempolicy is active.
-
-This patch won't be making any difference to anything.
+Not sure there's any benefit of merging the patch, then.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
