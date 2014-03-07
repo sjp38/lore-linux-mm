@@ -1,100 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 499B06B0031
-	for <linux-mm@kvack.org>; Fri,  7 Mar 2014 16:00:04 -0500 (EST)
-Received: by mail-pd0-f175.google.com with SMTP id x10so4521878pdj.20
-        for <linux-mm@kvack.org>; Fri, 07 Mar 2014 13:00:04 -0800 (PST)
+Received: from mail-pb0-f47.google.com (mail-pb0-f47.google.com [209.85.160.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 54FE76B0031
+	for <linux-mm@kvack.org>; Fri,  7 Mar 2014 16:13:07 -0500 (EST)
+Received: by mail-pb0-f47.google.com with SMTP id up15so4659543pbc.6
+        for <linux-mm@kvack.org>; Fri, 07 Mar 2014 13:13:07 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id hh1si9448626pac.303.2014.03.07.13.00.03
+        by mx.google.com with ESMTP id gn5si9534286pbc.56.2014.03.07.13.13.06
         for <linux-mm@kvack.org>;
-        Fri, 07 Mar 2014 13:00:03 -0800 (PST)
-Date: Fri, 7 Mar 2014 13:00:01 -0800
+        Fri, 07 Mar 2014 13:13:06 -0800 (PST)
+Date: Fri, 7 Mar 2014 13:13:05 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [next:master 452/458] undefined reference to
- `__bad_size_call_parameter'
-Message-Id: <20140307130001.25fbbcdc9c6b4a5025a9687f@linux-foundation.org>
-In-Reply-To: <alpine.DEB.2.10.1403071106280.21846@nuc>
-References: <53188aab.D8+W+0kHpmaV0uFd%fengguang.wu@intel.com>
-	<20140306131835.543007307bf38e8986f1229c@linux-foundation.org>
-	<alpine.DEB.2.10.1403071106280.21846@nuc>
+Subject: Re: [PATCHv2] mm/compaction: Break out of loop on !PageBuddy in
+ isolate_freepages_block
+Message-Id: <20140307131305.36547cc3346e23c0a64d95af@linux-foundation.org>
+In-Reply-To: <20140307025852.GC3787@bbox>
+References: <1394130092-25440-1-git-send-email-lauraa@codeaurora.org>
+	<20140307025852.GC3787@bbox>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: kbuild test robot <fengguang.wu@intel.com>, Linux Memory Management List <linux-mm@kvack.org>, kbuild-all@01.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Laura Abbott <lauraa@codeaurora.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Fri, 7 Mar 2014 11:07:45 -0600 (CST) Christoph Lameter <cl@linux.com> wrote:
+On Fri, 7 Mar 2014 11:58:52 +0900 Minchan Kim <minchan@kernel.org> wrote:
 
-> On Thu, 6 Mar 2014, Andrew Morton wrote:
+> On Thu, Mar 06, 2014 at 10:21:32AM -0800, Laura Abbott wrote:
+> > We received several reports of bad page state when freeing CMA pages
+> > previously allocated with alloc_contig_range:
+> > 
+> > <1>[ 1258.084111] BUG: Bad page state in process Binder_A  pfn:63202
+> > <1>[ 1258.089763] page:d21130b0 count:0 mapcount:1 mapping:  (null) index:0x7dfbf
+> > <1>[ 1258.096109] page flags: 0x40080068(uptodate|lru|active|swapbacked)
+> > 
+> > Based on the page state, it looks like the page was still in use. The page
+> > flags do not make sense for the use case though. Further debugging showed
+> > that despite alloc_contig_range returning success, at least one page in the
+> > range still remained in the buddy allocator.
+> > 
+> > There is an issue with isolate_freepages_block. In strict mode (which CMA
+> > uses), if any pages in the range cannot be isolated,
+> > isolate_freepages_block should return failure 0. The current check keeps
+> > track of the total number of isolated pages and compares against the size
+> > of the range:
+> > 
+> >         if (strict && nr_strict_required > total_isolated)
+> >                 total_isolated = 0;
+> > 
+> > After taking the zone lock, if one of the pages in the range is not
+> > in the buddy allocator, we continue through the loop and do not
+> > increment total_isolated. If in the last iteration of the loop we isolate
+> > more than one page (e.g. last page needed is a higher order page), the
+> > check for total_isolated may pass and we fail to detect that a page was
+> > skipped. The fix is to bail out if the loop immediately if we are in
+> > strict mode. There's no benfit to continuing anyway since we need all
+> > pages to be isolated. Additionally, drop the error checking based on
+> > nr_strict_required and just check the pfn ranges. This matches with
+> > what isolate_freepages_range does.
+> > 
+> > Signed-off-by: Laura Abbott <lauraa@codeaurora.org>
 > 
-> > On Thu, 06 Mar 2014 22:48:11 +0800 kbuild test robot
-> > <fengguang.wu@intel.com> wrote:
-> > This has me stumped - the same code
-> >
-> > 	p = __this_cpu_read(current_kprobe);
-> >
-> > works OK elsewhere in that file.  I'm suspecting a miscompile - it's
-> > not unknown for gcc to screw up when we use this trick.
-> >
-> > I can reproduce it with gcc-3.4.5 for sh.
-> 
-> This is again the autoconversion not applying because current_kprobe is
-> probably a pointer. __bad_size_call_parameter is failure because reads
-> from structures larger than word size are not supported.
-> 
+> Nice catch! stable stuff?
 
-But there are two instances of
-
-	__this_cpu_read(current_kprobe);
-
-in arch/sh/kernel/kprobes.c.  One generates the bad_size thing and one
-does not.
-
-> p = this_cpu_ptr(&current_kprobe);
-> 
-> would fix it.
-
-This compiles:
-
---- a/arch/sh/kernel/kprobes.c~a
-+++ a/arch/sh/kernel/kprobes.c
-@@ -511,7 +511,7 @@ int __kprobes kprobe_exceptions_notify(s
- 				if (kprobe_handler(args->regs)) {
- 					ret = NOTIFY_STOP;
- 				} else {
--					p = __this_cpu_read(current_kprobe);
-+					p = *this_cpu_ptr(&current_kprobe);
- 					if (p->break_handler &&
- 					    p->break_handler(p, args->regs))
- 						ret = NOTIFY_STOP;
-
-But still generates a reference to __bad_size_call_parameter.
-
-As does this:
-
---- a/arch/sh/kernel/kprobes.c~a
-+++ a/arch/sh/kernel/kprobes.c
-@@ -249,7 +249,7 @@ static int __kprobes kprobe_handler(stru
- 			kcb->kprobe_status = KPROBE_REENTER;
- 			return 1;
- 		} else {
--			p = __this_cpu_read(current_kprobe);
-+			p = *this_cpu_ptr(&current_kprobe);
- 			if (p->break_handler && p->break_handler(p, regs)) {
- 				goto ss_probe;
- 			}
-@@ -511,7 +511,7 @@ int __kprobes kprobe_exceptions_notify(s
- 				if (kprobe_handler(args->regs)) {
- 					ret = NOTIFY_STOP;
- 				} else {
--					p = __this_cpu_read(current_kprobe);
-+					p = *this_cpu_ptr(&current_kprobe);
- 					if (p->break_handler &&
- 					    p->break_handler(p, args->regs))
- 						ret = NOTIFY_STOP;
-_
+Yes, I was wondering that.  I think I will add the cc:stable.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
