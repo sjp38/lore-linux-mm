@@ -1,69 +1,154 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 56A0F6B0035
-	for <linux-mm@kvack.org>; Thu,  6 Mar 2014 21:58:55 -0500 (EST)
-Received: by mail-pd0-f179.google.com with SMTP id w10so3428108pde.38
-        for <linux-mm@kvack.org>; Thu, 06 Mar 2014 18:58:55 -0800 (PST)
-Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
-        by mx.google.com with ESMTP id gn5si6735351pbc.326.2014.03.06.18.58.53
-        for <linux-mm@kvack.org>;
-        Thu, 06 Mar 2014 18:58:54 -0800 (PST)
-Date: Fri, 7 Mar 2014 11:58:52 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCHv2] mm/compaction: Break out of loop on !PageBuddy in
- isolate_freepages_block
-Message-ID: <20140307025852.GC3787@bbox>
-References: <1394130092-25440-1-git-send-email-lauraa@codeaurora.org>
+Received: from mail-la0-f49.google.com (mail-la0-f49.google.com [209.85.215.49])
+	by kanga.kvack.org (Postfix) with ESMTP id C39056B0031
+	for <linux-mm@kvack.org>; Fri,  7 Mar 2014 01:18:12 -0500 (EST)
+Received: by mail-la0-f49.google.com with SMTP id mc6so2417628lab.8
+        for <linux-mm@kvack.org>; Thu, 06 Mar 2014 22:18:11 -0800 (PST)
+Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
+        by mx.google.com with ESMTPS id o8si6924044laf.93.2014.03.06.22.18.10
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 06 Mar 2014 22:18:10 -0800 (PST)
+Message-ID: <5319649C.3060309@parallels.com>
+Date: Fri, 7 Mar 2014 10:18:04 +0400
+From: Vladimir Davydov <vdavydov@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1394130092-25440-1-git-send-email-lauraa@codeaurora.org>
+Subject: Re: slub: fix leak of 'name' in sysfs_slab_add
+References: <20140306211141.GA17009@redhat.com>
+In-Reply-To: <20140306211141.GA17009@redhat.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <lauraa@codeaurora.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Dave Jones <davej@redhat.com>
+Cc: Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, cl@linux-foundation.org, penberg@kernel.org, Andrew Morton <akpm@linux-foundation.org>
 
-On Thu, Mar 06, 2014 at 10:21:32AM -0800, Laura Abbott wrote:
-> We received several reports of bad page state when freeing CMA pages
-> previously allocated with alloc_contig_range:
-> 
-> <1>[ 1258.084111] BUG: Bad page state in process Binder_A  pfn:63202
-> <1>[ 1258.089763] page:d21130b0 count:0 mapcount:1 mapping:  (null) index:0x7dfbf
-> <1>[ 1258.096109] page flags: 0x40080068(uptodate|lru|active|swapbacked)
-> 
-> Based on the page state, it looks like the page was still in use. The page
-> flags do not make sense for the use case though. Further debugging showed
-> that despite alloc_contig_range returning success, at least one page in the
-> range still remained in the buddy allocator.
-> 
-> There is an issue with isolate_freepages_block. In strict mode (which CMA
-> uses), if any pages in the range cannot be isolated,
-> isolate_freepages_block should return failure 0. The current check keeps
-> track of the total number of isolated pages and compares against the size
-> of the range:
-> 
->         if (strict && nr_strict_required > total_isolated)
->                 total_isolated = 0;
-> 
-> After taking the zone lock, if one of the pages in the range is not
-> in the buddy allocator, we continue through the loop and do not
-> increment total_isolated. If in the last iteration of the loop we isolate
-> more than one page (e.g. last page needed is a higher order page), the
-> check for total_isolated may pass and we fail to detect that a page was
-> skipped. The fix is to bail out if the loop immediately if we are in
-> strict mode. There's no benfit to continuing anyway since we need all
-> pages to be isolated. Additionally, drop the error checking based on
-> nr_strict_required and just check the pfn ranges. This matches with
-> what isolate_freepages_range does.
-> 
-> Signed-off-by: Laura Abbott <lauraa@codeaurora.org>
+[adding Andrew to Cc]
 
-Nice catch! stable stuff?
-Acked-by: Minchan Kim <minchan@kernel.org>
+On 03/07/2014 01:11 AM, Dave Jones wrote:
+> The failure paths of sysfs_slab_add don't release the allocation of 'name'
+> made by create_unique_id() a few lines above the context of the diff below.
+> Create a common exit path to make it more obvious what needs freeing.
+> 
+> Signed-off-by: Dave Jones <davej@fedoraproject.org>
+> 
+> diff --git a/mm/slub.c b/mm/slub.c
+> index 25f14ad8f817..b2181d2682ac 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -5197,17 +5197,13 @@ static int sysfs_slab_add(struct kmem_cache *s)
+>  
+>  	s->kobj.kset = slab_kset;
+>  	err = kobject_init_and_add(&s->kobj, &slab_ktype, NULL, "%s", name);
+> -	if (err) {
+> -		kobject_put(&s->kobj);
+> -		return err;
+> -	}
+> +	if (err)
+> +		goto err_out;
+>  
+>  	err = sysfs_create_group(&s->kobj, &slab_attr_group);
+> -	if (err) {
+> -		kobject_del(&s->kobj);
+> -		kobject_put(&s->kobj);
+> -		return err;
+> -	}
+> +	if (err)
+> +		goto err_sysfs;
+> +
+>  	kobject_uevent(&s->kobj, KOBJ_ADD);
+>  	if (!unmergeable) {
+>  		/* Setup first alias */
+> @@ -5215,6 +5211,13 @@ static int sysfs_slab_add(struct kmem_cache *s)
+>  		kfree(name);
+>  	}
+>  	return 0;
+> +
+> +err_sysfs:
+> +	kobject_del(&s->kobj);
+> +err_out:
+> +	kobject_put(&s->kobj);
+> +	kfree(name);
+> +	return err;
+>  }
 
--- 
-Kind regards,
-Minchan Kim
+We should free the name only if !unmergeable, because:
+
+sysfs_slab_add():
+	if (unmergeable) {
+		/*
+		 * Slabcache can never be merged so we can use the name proper.
+		 * This is typically the case for debug situations. In that
+		 * case we can catch duplicate names easily.
+		 */
+		sysfs_remove_link(&slab_kset->kobj, s->name);
+		name = s->name;
+	} else {
+		/*
+		 * Create a unique name for the slab as a target
+		 * for the symlinks.
+		 */
+		name = create_unique_id(s);
+	}
+
+Since this function was modified in the mmotm tree, I would propose
+something like this on top of mmotm to avoid further merge conflicts:
+
+diff --git a/mm/slub.c b/mm/slub.c
+index c6eb29d65847..f4ca525c05b0 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -5214,25 +5214,19 @@ static int sysfs_slab_add(struct kmem_cache *s)
+ 
+ 	s->kobj.kset = cache_kset(s);
+ 	err = kobject_init_and_add(&s->kobj, &slab_ktype, NULL, "%s", name);
+-	if (err) {
+-		kobject_put(&s->kobj);
+-		return err;
+-	}
++	if (err)
++		goto out_put_kobj;
+ 
+ 	err = sysfs_create_group(&s->kobj, &slab_attr_group);
+-	if (err) {
+-		kobject_del(&s->kobj);
+-		kobject_put(&s->kobj);
+-		return err;
+-	}
++	if (err)
++		goto out_del_kobj;
+ 
+ #ifdef CONFIG_MEMCG_KMEM
+ 	if (is_root_cache(s)) {
+ 		s->memcg_kset = kset_create_and_add("cgroup", NULL, &s->kobj);
+ 		if (!s->memcg_kset) {
+-			kobject_del(&s->kobj);
+-			kobject_put(&s->kobj);
+-			return -ENOMEM;
++			err = -ENOMEM;
++			goto out_del_kobj;
+ 		}
+ 	}
+ #endif
+@@ -5241,9 +5235,16 @@ static int sysfs_slab_add(struct kmem_cache *s)
+ 	if (!unmergeable) {
+ 		/* Setup first alias */
+ 		sysfs_slab_alias(s, s->name);
+-		kfree(name);
+ 	}
+-	return 0;
++out:
++	if (!unmergeable)
++		kfree(name);
++	return err;
++out_del_kobj:
++	kobject_del(&s->kobj);
++out_put_kobj:
++	kobject_put(&s->kobj);
++	goto out;
+ }
+ 
+ static void sysfs_slab_remove(struct kmem_cache *s)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
