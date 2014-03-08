@@ -1,86 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oa0-f51.google.com (mail-oa0-f51.google.com [209.85.219.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 63CEC6B0031
-	for <linux-mm@kvack.org>; Fri,  7 Mar 2014 19:28:24 -0500 (EST)
-Received: by mail-oa0-f51.google.com with SMTP id i4so4888430oah.38
-        for <linux-mm@kvack.org>; Fri, 07 Mar 2014 16:28:24 -0800 (PST)
-Received: from g2t2353.austin.hp.com (g2t2353.austin.hp.com. [15.217.128.52])
-        by mx.google.com with ESMTPS id kg1si8454149oeb.57.2014.03.07.16.28.23
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 07 Mar 2014 16:28:23 -0800 (PST)
-Message-ID: <1394238498.11969.22.camel@buesod1.americas.hpqcorp.net>
-Subject: Re: [PATCH 6/7] x86: mm: set TLB flush tunable to sane value
-From: Davidlohr Bueso <davidlohr@hp.com>
-Date: Fri, 07 Mar 2014 16:28:18 -0800
-In-Reply-To: <5319FEA1.50107@sr71.net>
-References: <20140306004519.BBD70A1A@viggo.jf.intel.com>
-		 <20140306004529.5510B23D@viggo.jf.intel.com>
-	 <1394157304.2555.21.camel@buesod1.americas.hpqcorp.net>
-	 <5319FEA1.50107@sr71.net>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 171326B0031
+	for <linux-mm@kvack.org>; Sat,  8 Mar 2014 16:48:22 -0500 (EST)
+Received: by mail-pd0-f171.google.com with SMTP id r10so5495584pdi.2
+        for <linux-mm@kvack.org>; Sat, 08 Mar 2014 13:48:21 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id qe9si12286155pbb.282.2014.03.08.13.48.20
+        for <linux-mm@kvack.org>;
+        Sat, 08 Mar 2014 13:48:21 -0800 (PST)
+Date: Sun, 09 Mar 2014 05:48:17 +0800
+From: kbuild test robot <fengguang.wu@intel.com>
+Subject: [mmotm:master 432/471] kernel/sched/rt.c:1451:39: sparse:
+ incorrect type in initializer (different address spaces)
+Message-ID: <531b9021.6iBITNWPrSqc6ad1%fengguang.wu@intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, ak@linux.intel.com, kirill.shutemov@linux.intel.com, mgorman@suse.de, alex.shi@linaro.org, x86@kernel.org, linux-mm@kvack.org, dave.hansen@linux.intel.com
+To: Christoph Lameter <cl@linux-foundation.org>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, kbuild-all@01.org
 
-On Fri, 2014-03-07 at 09:15 -0800, Dave Hansen wrote:
-> On 03/06/2014 05:55 PM, Davidlohr Bueso wrote:
-> > On Wed, 2014-03-05 at 16:45 -0800, Dave Hansen wrote:
-> >> From: Dave Hansen <dave.hansen@linux.intel.com>
-> >>
-> >> Now that we have some shiny new tracepoints, we can actually
-> >> figure out what the heck is going on.
-> >>
-> >> During a kernel compile, 60% of the flush_tlb_mm_range() calls
-> >> are for a single page.  It breaks down like this:
-> > 
-> > It would be interesting to see similar data for opposite workloads with
-> > more random access patterns. That's normally when things start getting
-> > fun in the tlb world.
-> 
-> First of all, thanks for testing.  It's much appreciated!
-> 
-> Any suggestions for opposite workloads?
-
-I was actually thinking of ebizzy as well.
-
-> I've seen this tunable have really heavy effects on ebizzy.  It fits
-> almost entirely within the itlb and if we are doing full flushes, it
-> eats the itlb and increases the misses about 10x.  Even putting this
-> tunable above 500 pages (which is pretty insane) didn't help it.
-
-Interesting, I didn't expect the misses to be as severe. So I guess what
-you say is that this issue is seen even with how we currently have
-things.
+tree:   git://git.cmpxchg.org/linux-mmotm.git master
+head:   f6bf2766c2091cbf8ffcc2c5009875dbdb678282
+commit: 4a46dca81e38ce94eb5c2ba6f35d6e4bf4c86664 [432/471] scheduler: replace __get_cpu_var with this_cpu_ptr
+reproduce: make C=1 CF=-D__CHECK_ENDIAN__
 
 
-> Things that thrash the TLB don't really care if someone invalidates
-> their TLB since they're thrashing it anyway.
+sparse warnings: (new ones prefixed by >>)
 
-That's a really good point.
+>> kernel/sched/rt.c:1451:39: sparse: incorrect type in initializer (different address spaces)
+   kernel/sched/rt.c:1451:39:    expected void const [noderef] <asn:3>*__vpp_verify
+   kernel/sched/rt.c:1451:39:    got struct cpumask *<noident>
+   kernel/sched/rt.c:1484:9: sparse: incompatible types in comparison expression (different address spaces)
 
-> I've had a really hard time finding workloads that _care_ or are
-> affected by small changes in this tunable.  That's one of the reasons I
-> tried to simplify it: it's just not worth the complexity.
+vim +1451 kernel/sched/rt.c
 
-I agree, since we aren't seeing much performance differences anyway I
-guess it simply doesn't matter. I can see it perhaps as a factor for
-virtualized workloads in the pre-tagged tlb era but not so much
-nowadays. In any case I've also asked a colleague to see if he can
-produce any interesting results with this patchset on his kvm workloads
-but don't expect much surprises.
+  1435		if (!has_pushable_tasks(rq))
+  1436			return NULL;
+  1437	
+  1438		plist_for_each_entry(p, head, pushable_tasks) {
+  1439			if (pick_rt_task(rq, p, cpu))
+  1440				return p;
+  1441		}
+  1442	
+  1443		return NULL;
+  1444	}
+  1445	
+  1446	static DEFINE_PER_CPU(cpumask_var_t, local_cpu_mask);
+  1447	
+  1448	static int find_lowest_rq(struct task_struct *task)
+  1449	{
+  1450		struct sched_domain *sd;
+> 1451		struct cpumask *lowest_mask = this_cpu_ptr(local_cpu_mask);
+  1452		int this_cpu = smp_processor_id();
+  1453		int cpu      = task_cpu(task);
+  1454	
+  1455		/* Make sure the mask is initialized first */
+  1456		if (unlikely(!lowest_mask))
+  1457			return -1;
+  1458	
+  1459		if (task->nr_cpus_allowed == 1)
 
-So all in all I definitely like this cleanup, and things are simplified
-significantly without any apparent performance hits. The justification
-for the ceiling being 33 seems pretty prudent, and heck, it can be
-modified anyway by users. An additional suggestion would be to comment
-this magic number, in the code.
-
-Thanks,
-Davidlohr
+---
+0-DAY kernel build testing backend              Open Source Technology Center
+http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
