@@ -1,213 +1,174 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id B41256B0055
-	for <linux-mm@kvack.org>; Mon, 10 Mar 2014 13:12:56 -0400 (EDT)
-Received: by mail-pd0-f172.google.com with SMTP id p10so7316284pdj.31
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 3CF996B005C
+	for <linux-mm@kvack.org>; Mon, 10 Mar 2014 13:12:57 -0400 (EDT)
+Received: by mail-pa0-f53.google.com with SMTP id ld10so7499506pab.40
         for <linux-mm@kvack.org>; Mon, 10 Mar 2014 10:12:56 -0700 (PDT)
 Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id po10si17425571pab.189.2014.03.10.10.12.55
+        by mx.google.com with ESMTP id ey10si17421472pab.169.2014.03.10.10.12.53
         for <linux-mm@kvack.org>;
-        Mon, 10 Mar 2014 10:12:55 -0700 (PDT)
-Subject: [PATCH 7/7] big time hack: instrument flush times
+        Mon, 10 Mar 2014 10:12:56 -0700 (PDT)
+Subject: [PATCH 5/7] x86: mm: new tunable for single vs full TLB flush
 From: Dave Hansen <dave@sr71.net>
-Date: Mon, 10 Mar 2014 10:11:34 -0700
+Date: Mon, 10 Mar 2014 10:11:30 -0700
 References: <20140310171118.7E16CD45@viggo.jf.intel.com>
 In-Reply-To: <20140310171118.7E16CD45@viggo.jf.intel.com>
-Message-Id: <20140310171134.DFE096F8@viggo.jf.intel.com>
+Message-Id: <20140310171130.82C0822D@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: akpm@linux-foundation.org, ak@linux.intel.com, kirill.shutemov@linux.intel.com, mgorman@suse.de, alex.shi@linaro.org, x86@kernel.org, linux-mm@kvack.org, davidlohr@hp.com, Dave Hansen <dave@sr71.net>
+Cc: akpm@linux-foundation.org, ak@linux.intel.com, kirill.shutemov@linux.intel.com, mgorman@suse.de, alex.shi@linaro.org, x86@kernel.org, linux-mm@kvack.org, davidlohr@hp.com, Dave Hansen <dave@sr71.net>, dave.hansen@linux.intel.com
 
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-The tracepoint code is a _bit_ too much overhead, so use some
-percpu counters to aggregate it instead.  Yes, this is racy
-and ugly beyond reason, but it was quick to code up.
+Most of the logic here is in the documentation file.  Please take
+a look at it.
 
-I'm posting this here because it's interesting to have around,
-and if other folks like it, maybe I can get it in to shape to
-stick in to mainline.
+I know we've come full-circle here back to a tunable, but this
+new one is *WAY* simpler.  I challenge anyone to describe in one
+sentence how the old one worked.  Here's the way the new one
+works:
 
+	If we are flushing more pages than the ceiling, we use
+	the full flush, otherwise we use invlpg.
+
+Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 ---
 
- b/arch/x86/mm/tlb.c |  112 ++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 112 insertions(+)
+ b/Documentation/x86/tlb.txt |   72 ++++++++++++++++++++++++++++++++++++++++++++
+ b/arch/x86/mm/tlb.c         |   46 ++++++++++++++++++++++++++++
+ 2 files changed, 118 insertions(+)
 
-diff -puN arch/x86/mm/tlb.c~instrument-flush-times arch/x86/mm/tlb.c
---- a/arch/x86/mm/tlb.c~instrument-flush-times	2014-03-05 16:10:11.255122898 -0800
-+++ b/arch/x86/mm/tlb.c	2014-03-05 16:10:11.258123035 -0800
-@@ -97,6 +97,8 @@ EXPORT_SYMBOL_GPL(leave_mm);
-  * 1) Flush the tlb entries if the cpu uses the mm that's being flushed.
-  * 2) Leave the mm if we are in the lazy tlb mode.
-  */
-+void inc_stat(u64 flush_size, u64 time);
-+
- static void flush_tlb_func(void *info)
- {
- 	struct flush_tlb_info *f = info;
-@@ -109,17 +111,23 @@ static void flush_tlb_func(void *info)
- 	count_vm_tlb_event(NR_TLB_REMOTE_FLUSH_RECEIVED);
- 	if (this_cpu_read(cpu_tlbstate.state) == TLBSTATE_OK) {
- 		if (f->flush_end == TLB_FLUSH_ALL) {
-+			u64 start_ns = sched_clock();
- 			local_flush_tlb();
-+			inc_stat(TLB_FLUSH_ALL, sched_clock() - start_ns);
- 			trace_tlb_flush(TLB_REMOTE_SHOOTDOWN, TLB_FLUSH_ALL);
- 		} else if (!f->flush_end)
- 			__flush_tlb_single(f->flush_start);
- 		else {
-+			u64 start_ns;
- 			unsigned long addr;
-+			start_ns = sched_clock();
- 			addr = f->flush_start;
- 			while (addr < f->flush_end) {
- 				__flush_tlb_single(addr);
- 				addr += PAGE_SIZE;
- 			}
-+			inc_stat((f->flush_end - f->flush_start) / PAGE_SIZE,
-+				 sched_clock() - start_ns);
- 		}
- 	} else
- 		leave_mm(smp_processor_id());
-@@ -164,12 +172,112 @@ void flush_tlb_current_task(void)
- 	preempt_enable();
+diff -puN arch/x86/mm/tlb.c~new-tunable-for-single-vs-full-tlb-flush arch/x86/mm/tlb.c
+--- a/arch/x86/mm/tlb.c~new-tunable-for-single-vs-full-tlb-flush	2014-03-10 09:31:51.465173034 -0700
++++ b/arch/x86/mm/tlb.c	2014-03-10 09:31:51.469173214 -0700
+@@ -266,3 +266,49 @@ void flush_tlb_kernel_range(unsigned lon
+ 		on_each_cpu(do_kernel_range_flush, &info, 1);
+ 	}
  }
- 
-+struct one_tlb_stat {
-+	u64 flushes;
-+	u64 time;
-+};
 +
-+#define NR_TO_TRACK 1024
-+
-+struct tlb_stats {
-+	struct one_tlb_stat stats[NR_TO_TRACK];
-+};
-+
-+DEFINE_PER_CPU(struct tlb_stats, tlb_stats);
-+
-+void inc_stat(u64 flush_size, u64 time)
-+{
-+	struct tlb_stats *thiscpu =
-+		&per_cpu(tlb_stats, smp_processor_id());
-+	struct one_tlb_stat *stat;
-+
-+	if (flush_size == TLB_FLUSH_ALL)
-+		flush_size = 0;
-+	if (flush_size >= NR_TO_TRACK)
-+		flush_size = NR_TO_TRACK-1;
-+
-+	stat = &thiscpu->stats[flush_size];
-+	stat->time += time;
-+	stat->flushes++;
-+}
-+
-+char printbuf[80 * NR_TO_TRACK];
-+static ssize_t tlb_stat_read_file(struct file *file, char __user *user_buf,
++static ssize_t tlbflush_read_file(struct file *file, char __user *user_buf,
 +			     size_t count, loff_t *ppos)
 +{
-+	int cpu;
-+	int flush_size;
-+	unsigned int len = 0;
++	char buf[32];
++	unsigned int len;
 +
-+	for (flush_size = 0; flush_size < NR_TO_TRACK; flush_size++) {
-+		struct one_tlb_stat tot;
-+		tot.flushes = 0;
-+		tot.time = 0;
-+
-+		for_each_online_cpu(cpu){
-+			struct tlb_stats *thiscpu = &per_cpu(tlb_stats, cpu);
-+			struct one_tlb_stat *stat;
-+			stat = &thiscpu->stats[flush_size];
-+			tot.flushes += stat->flushes;
-+			tot.time += stat->time;
-+		}
-+		if (!tot.flushes)
-+			continue;
-+		if (flush_size == 0)
-+			len += sprintf(&printbuf[len], "[FULL]");
-+		else if (flush_size == NR_TO_TRACK-1)
-+			len += sprintf(&printbuf[len], "[FBIG]");
-+		else
-+			len += sprintf(&printbuf[len], "[%d]", flush_size);
-+
-+		len += sprintf(&printbuf[len], " %lld %lld\n",
-+			tot.flushes, tot.time);
-+	}
-+
-+	return simple_read_from_buffer(user_buf, count, ppos, printbuf, len);
++	len = sprintf(buf, "%ld\n", tlb_single_page_flush_ceiling);
++	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 +}
 +
-+static ssize_t tlb_stat_write_file(struct file *file,
++static ssize_t tlbflush_write_file(struct file *file,
 +		 const char __user *user_buf, size_t count, loff_t *ppos)
 +{
-+	int cpu;
-+	int flush_size;
++	char buf[32];
++	ssize_t len;
++	int ceiling;
 +
-+	for_each_online_cpu(cpu){
-+		struct tlb_stats *thiscpu = &per_cpu(tlb_stats, cpu);
-+		for (flush_size = 0; flush_size < NR_TO_TRACK; flush_size++) {
-+			struct one_tlb_stat *stat;
-+			stat = &thiscpu->stats[flush_size];
-+			stat->time = 0;
-+			stat->flushes = 0;
-+		}
-+	}
++	len = min(count, sizeof(buf) - 1);
++	if (copy_from_user(buf, user_buf, len))
++		return -EFAULT;
++
++	buf[len] = '\0';
++	if (kstrtoint(buf, 0, &ceiling))
++		return -EINVAL;
++
++	if (ceiling < 0)
++		return -EINVAL;
++
++	tlb_single_page_flush_ceiling = ceiling;
 +	return count;
 +}
 +
-+static const struct file_operations fops_tlb_stat = {
-+	.read = tlb_stat_read_file,
-+	.write = tlb_stat_write_file,
++static const struct file_operations fops_tlbflush = {
++	.read = tlbflush_read_file,
++	.write = tlbflush_write_file,
 +	.llseek = default_llseek,
 +};
 +
-+static int __init create_tlb_stats(void)
++static int __init create_tlb_single_page_flush_ceiling(void)
 +{
-+	debugfs_create_file("tlb_flush_stats", S_IRUSR | S_IWUSR,
-+			    arch_debugfs_dir, NULL, &fops_tlb_stat);
++	debugfs_create_file("tlb_single_page_flush_ceiling", S_IRUSR | S_IWUSR,
++			    arch_debugfs_dir, NULL, &fops_tlbflush);
 +	return 0;
 +}
-+late_initcall(create_tlb_stats);
++late_initcall(create_tlb_single_page_flush_ceiling);
+diff -puN /dev/null Documentation/x86/tlb.txt
+--- /dev/null	2014-01-15 16:08:30.019511980 -0800
++++ b/Documentation/x86/tlb.txt	2014-03-10 09:39:07.906770882 -0700
+@@ -0,0 +1,72 @@
++nWhen the kernel unmaps or modified the attributes of a range of
++memory, it has two choices:
++ 1. Flush the entire TLB with a two-instruction sequence.  This is
++    a quick operation, but it causes collateral damage: TLB entries
++    from areas other than the one we are trying to flush will be
++    destroyed and must be refilled later, at some cost.
++ 2. Use the invlpg instruction to invalidate a single page at a
++    time.  This could potentialy cost many more instructions, but
++    it is a much more precise operation, causing no collateral
++    damage to other TLB entries.
 +
++Which method to do depends on a few things:
++ 1. The size of the flush being performed.  A flush of the entire
++    address space is obviously better performed by flushing the
++    entire TLB than doing 2^48/PAGE_SIZE individual flushes.
++ 2. The contents of the TLB.  If the TLB is empty, then there will
++    be no collateral damage caused by doing the global flush, and
++    all of the individual flush will have ended up being wasted
++    work.
++ 3. The size of the TLB.  The larger the TLB, the more collateral
++    damage we do with a full flush.  So, the larger the TLB, the
++    more attrative an individual flush looks.  Data and
++    instructions have separate TLBs, as do different page sizes.
++ 4. The microarchitecture.  The TLB has become a multi-level
++    cache on modern CPUs, and the global flushes have become more
++    expensive relative to single-page flushes.
 +
- /* in units of pages */
- unsigned long tlb_single_page_flush_ceiling = 33;
- 
- void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
- 				unsigned long end, unsigned long vmflag)
- {
-+	u64 start_ns = 0;
-+	u64 end_ns;
- 	unsigned long addr;
- 	/* do a global flush by default */
- 	unsigned long base_pages_to_flush = TLB_FLUSH_ALL;
-@@ -187,6 +295,7 @@ void flush_tlb_mm_range(struct mm_struct
- 		base_pages_to_flush = (end - start) >> PAGE_SHIFT;
- 
- 	trace_tlb_flush(TLB_LOCAL_MM_SHOOTDOWN, base_pages_to_flush);
-+	start_ns = sched_clock();
- 	if (base_pages_to_flush > tlb_single_page_flush_ceiling) {
- 		base_pages_to_flush = TLB_FLUSH_ALL;
- 		count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
-@@ -198,12 +307,15 @@ void flush_tlb_mm_range(struct mm_struct
- 			__flush_tlb_single(addr);
- 		}
- 	}
-+	end_ns = sched_clock();
- 	trace_tlb_flush(TLB_LOCAL_MM_SHOOTDOWN_DONE, base_pages_to_flush);
- out:
- 	if (base_pages_to_flush == TLB_FLUSH_ALL) {
- 		start = 0UL;
- 		end = TLB_FLUSH_ALL;
- 	}
-+	if (start_ns)
-+		inc_stat(base_pages_to_flush, end_ns - start_ns);
- 	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
- 		flush_tlb_others(mm_cpumask(mm), mm, start, end);
- 	preempt_enable();
++There is obviously no way the kernel can know all these things,
++especially the contents of the TLB during a given flush.  The
++sizes of the flush will vary greatly depending on the workload as
++well.  There is essentially no "right" point to choose.
++
++You may be doing too many individual invalidations if you see the
++invlpg instruction (or instructions _near_ it) show up high in
++profiles.  If you believe that individual invalidatoins being
++called too often, you can lower the tunable:
++
++	/sys/debug/kernel/x86/tlb_single_page_flush_ceiling
++
++This will cause us to do the global flush for more cases.
++Lowering it to 0 will disable the use of the individual flushes.
++Setting it to 1 is a very conservative setting and it should
++never need to be 0 under normal circumstances.
++
++Despite the fact that a single individual flush on x86 is
++guaranteed to flush a full 2MB, hugetlbfs always uses the full
++flushes.  THP is treated exactly the same as normal memory.
++
++You might see invlpg inside of flush_tlb_mm_range() show up in
++profiles, or you can use the trace_tlb_flush() tracepoints. to
++determine how long the flush operations are taking.
++
++Essentially, you are balancing the cycles you spend doing invlpg
++with the cycles that you spend refilling the TLB later.
++
++You can measure how expensive TLB refills are by using
++performance counters and 'perf stat', like this:
++
++perf stat -e
++	cpu/event=0x8,umask=0x84,name=dtlb_load_misses_walk_duration/,
++	cpu/event=0x8,umask=0x82,name=dtlb_load_misses_walk_completed/,
++	cpu/event=0x49,umask=0x4,name=dtlb_store_misses_walk_duration/,
++	cpu/event=0x49,umask=0x2,name=dtlb_store_misses_walk_completed/,
++	cpu/event=0x85,umask=0x4,name=itlb_misses_walk_duration/,
++	cpu/event=0x85,umask=0x2,name=itlb_misses_walk_completed/
++
++That works on an IvyBridge-era CPU (i5-3320M).  Different CPUs
++may have differently-named counters, but they should at least
++be there in some form.  You can use pmu-tools 'ocperf list'
++(https://github.com/andikleen/pmu-tools) to find the right
++counters for a given CPU.
++
 _
 
 --
