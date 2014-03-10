@@ -1,84 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f49.google.com (mail-pb0-f49.google.com [209.85.160.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 0DD226B0031
-	for <linux-mm@kvack.org>; Mon, 10 Mar 2014 06:16:06 -0400 (EDT)
-Received: by mail-pb0-f49.google.com with SMTP id jt11so7033803pbb.22
-        for <linux-mm@kvack.org>; Mon, 10 Mar 2014 03:16:06 -0700 (PDT)
-Received: from LGEMRELSE1Q.lge.com (LGEMRELSE1Q.lge.com. [156.147.1.111])
-        by mx.google.com with ESMTP id k7si16304054pbl.221.2014.03.10.03.16.05
-        for <linux-mm@kvack.org>;
-        Mon, 10 Mar 2014 03:16:06 -0700 (PDT)
-From: "Gioh Kim" <gioh.kim@lge.com>
-Subject: Subject: [PATCH] mm: use vm_map_ram for only temporal object
-Date: Mon, 10 Mar 2014 19:16:03 +0900
-Message-ID: <002701cf3c49$be67da30$3b378e90$@lge.com>
+Received: from mail-qa0-f47.google.com (mail-qa0-f47.google.com [209.85.216.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 723006B0031
+	for <linux-mm@kvack.org>; Mon, 10 Mar 2014 11:01:17 -0400 (EDT)
+Received: by mail-qa0-f47.google.com with SMTP id w5so7039340qac.34
+        for <linux-mm@kvack.org>; Mon, 10 Mar 2014 08:01:16 -0700 (PDT)
+Received: from mail-qc0-x236.google.com (mail-qc0-x236.google.com [2607:f8b0:400d:c01::236])
+        by mx.google.com with ESMTPS id u4si9566488qat.12.2014.03.10.08.01.15
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 10 Mar 2014 08:01:15 -0700 (PDT)
+Received: by mail-qc0-f182.google.com with SMTP id e16so7946958qcx.27
+        for <linux-mm@kvack.org>; Mon, 10 Mar 2014 08:01:15 -0700 (PDT)
+Date: Mon, 10 Mar 2014 11:01:06 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: deadlock in lru_add_drain ? (3.14rc5)
+Message-ID: <20140310150106.GD25290@htj.dyndns.org>
+References: <20140308220024.GA814@redhat.com>
+ <CA+55aFzLxY8Xsn90v1OAsmVBWYPZTiJ74YE=HaCPYR2hvRfk+g@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain;
-	charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-Content-Language: ko
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CA+55aFzLxY8Xsn90v1OAsmVBWYPZTiJ74YE=HaCPYR2hvRfk+g@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Zhang Yanfei' <zhangyanfei@cn.fujitsu.com>, 'Minchan Kim' <minchan@kernel.org>
-Cc: 'Andrew Morton' <akpm@linux-foundation.org>, 'Joonsoo Kim' <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, =?UTF-8?B?J+ydtOqxtO2YuCc=?= <gunho.lee@lge.com>, chanho.min@lge.com, 'Johannes Weiner' <hannes@cmpxchg.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Dave Jones <davej@redhat.com>, Chris Metcalf <cmetcalf@tilera.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 
+Hello,
 
-The vm_map_ram has fragment problem because it couldn't
-purge a chunk(ie, 4M address space) if there is a pinning object in
-that addresss space. So it could consume all VMALLOC address space
-easily.
-We can fix the fragmentation problem with using vmap instead of =
-vm_map_ram
-but vmap is known to slow operation compared to vm_map_ram. Minchan said
-vm_map_ram is 5 times faster than vmap in his experiment. So I thought
-we should fix fragment problem of vm_map_ram because our proprietary
-GPU driver has used it heavily.
+On Sat, Mar 08, 2014 at 05:18:34PM -0800, Linus Torvalds wrote:
+> Adding more appropriate people to the cc.
+> 
+> That semaphore was added by commit 5fbc461636c3 ("mm: make
+> lru_add_drain_all() selective"), and acked by Tejun. But we've had
 
-On second thought, it's not an easy because we should reuse freed
-space for solving the problem and it could make more IPI and bitmap =
-operation
-for searching hole. It could mitigate API's goal which is very fast =
-mapping.
-And even fragmentation problem wouldn't show in 64 bit machine.
+It's essentially custom static implementation of
+schedule_on_each_cpu() which uses the mutex to protect the static
+buffers.  schedule_on_each_cpu() is different in that it uses dynamic
+allocation and can be reentered.
 
-Another option is that the user should separate long-life and short-life
-object and use vmap for long-life but vm_map_ram for short-life.
-If we inform the user about the characteristic of vm_map_ram
-the user can choose one according to the page lifetime.
+> problems before with holding locks and then calling flush_work(),
+> since that has had a tendency of deadlocking. I think we have various
+> lockdep hacks in place to make "flush_work()" trigger some of the
+> problems, but I'm not convinced it necessarily works.
 
-Let's add some notice messages to user.
+If this were caused by lru_add_drain_all() entering itself, the
+offender must be pretty clear in its stack trace.  It probably
+involves more elaborate dependency chain.  No idea why wq lockdep
+annotation would trigger on it tho.  The flush_work() annotation is
+pretty straight-forward.
 
-Signed-off-by: Gioh Kim <gioh.kim@lge.com>
-Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
----
- mm/vmalloc.c |    6 ++++++
- 1 file changed, 6 insertions(+)
+> On Sat, Mar 8, 2014 at 2:00 PM, Dave Jones <davej@redhat.com> wrote:
+> > I left my fuzzing box running for the weekend, and checked in on it this evening,
+> > to find that none of the child processes were making any progress.
+> > cat'ing /proc/n/stack shows them all stuck in the same place..
+> > Some examples:
 
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 0fdf968..85b6687 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -1083,6 +1083,12 @@ EXPORT_SYMBOL(vm_unmap_ram);
-  * @node: prefer to allocate data structures on this node
-  * @prot: memory protection to use. PAGE_KERNEL for regular RAM
-  *
-+ * If you use this function for below VMAP_MAX_ALLOC pages, it could be =
-faster
-+ * than vmap so it's good. But if you mix long-life and short-life =
-object
-+ * with vm_map_ram, it could consume lots of address space by =
-fragmentation
-+ * (expecially, 32bit machine). You could see failure in the end.
-+ * Please use this function for short-life object.
-+ *
-  * Returns: a pointer to the address that has been mapped, or %NULL on =
-failure
-  */
- void *vm_map_ram(struct page **pages, unsigned int count, int node, =
-pgprot_t prot)
---
-1.7.9.5
+Dave, any chance you can post full sysrq-t dump?
 
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
