@@ -1,230 +1,213 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 3EFD36B004D
-	for <linux-mm@kvack.org>; Mon, 10 Mar 2014 13:12:54 -0400 (EDT)
-Received: by mail-pa0-f43.google.com with SMTP id bj1so7525942pad.16
-        for <linux-mm@kvack.org>; Mon, 10 Mar 2014 10:12:53 -0700 (PDT)
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id B41256B0055
+	for <linux-mm@kvack.org>; Mon, 10 Mar 2014 13:12:56 -0400 (EDT)
+Received: by mail-pd0-f172.google.com with SMTP id p10so7316284pdj.31
+        for <linux-mm@kvack.org>; Mon, 10 Mar 2014 10:12:56 -0700 (PDT)
 Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id ey10si17421472pab.169.2014.03.10.10.12.52
+        by mx.google.com with ESMTP id po10si17425571pab.189.2014.03.10.10.12.55
         for <linux-mm@kvack.org>;
-        Mon, 10 Mar 2014 10:12:53 -0700 (PDT)
-Subject: [PATCH 4/7] x86: mm: trace tlb flushes
+        Mon, 10 Mar 2014 10:12:55 -0700 (PDT)
+Subject: [PATCH 7/7] big time hack: instrument flush times
 From: Dave Hansen <dave@sr71.net>
-Date: Mon, 10 Mar 2014 10:11:27 -0700
+Date: Mon, 10 Mar 2014 10:11:34 -0700
 References: <20140310171118.7E16CD45@viggo.jf.intel.com>
 In-Reply-To: <20140310171118.7E16CD45@viggo.jf.intel.com>
-Message-Id: <20140310171127.2501E481@viggo.jf.intel.com>
+Message-Id: <20140310171134.DFE096F8@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: akpm@linux-foundation.org, ak@linux.intel.com, kirill.shutemov@linux.intel.com, mgorman@suse.de, alex.shi@linaro.org, x86@kernel.org, linux-mm@kvack.org, davidlohr@hp.com, Dave Hansen <dave@sr71.net>, dave.hansen@linux.intel.com
+Cc: akpm@linux-foundation.org, ak@linux.intel.com, kirill.shutemov@linux.intel.com, mgorman@suse.de, alex.shi@linaro.org, x86@kernel.org, linux-mm@kvack.org, davidlohr@hp.com, Dave Hansen <dave@sr71.net>
 
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-We don't have any good way to figure out what kinds of flushes
-are being attempted.  Right now, we can try to use the vm
-counters, but those only tell us what we actually did with the
-hardware (one-by-one vs full) and don't tell us what was actually
-_requested_.
+The tracepoint code is a _bit_ too much overhead, so use some
+percpu counters to aggregate it instead.  Yes, this is racy
+and ugly beyond reason, but it was quick to code up.
 
-This allows us to select out "interesting" TLB flushes that we
-might want to optimize (like the ranged ones) and ignore the ones
-that we have very little control over (the ones at context
-switch).
+I'm posting this here because it's interesting to have around,
+and if other folks like it, maybe I can get it in to shape to
+stick in to mainline.
 
-Also, since we have a pair of tracepoint calls in
-flush_tlb_mm_range(), we can time the deltas between them to make
-sure that we got the "invlpg vs. global flush" balance correct in
-practice.
-
-Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 ---
 
- b/arch/x86/include/asm/mmu_context.h |    6 +++++
- b/arch/x86/mm/tlb.c                  |   12 +++++++++--
- b/include/linux/mm_types.h           |   10 +++++++++
- b/include/trace/events/tlb.h         |   37 +++++++++++++++++++++++++++++++++++
- b/mm/Makefile                        |    2 -
- b/mm/trace_tlb.c                     |   12 +++++++++++
- 6 files changed, 76 insertions(+), 3 deletions(-)
+ b/arch/x86/mm/tlb.c |  112 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 112 insertions(+)
 
-diff -puN arch/x86/include/asm/mmu_context.h~tlb-trace-flushes arch/x86/include/asm/mmu_context.h
---- a/arch/x86/include/asm/mmu_context.h~tlb-trace-flushes	2014-03-05 16:10:10.423084949 -0800
-+++ b/arch/x86/include/asm/mmu_context.h	2014-03-05 16:10:10.431085313 -0800
-@@ -3,6 +3,10 @@
- 
- #include <asm/desc.h>
- #include <linux/atomic.h>
-+#include <linux/mm_types.h>
+diff -puN arch/x86/mm/tlb.c~instrument-flush-times arch/x86/mm/tlb.c
+--- a/arch/x86/mm/tlb.c~instrument-flush-times	2014-03-05 16:10:11.255122898 -0800
++++ b/arch/x86/mm/tlb.c	2014-03-05 16:10:11.258123035 -0800
+@@ -97,6 +97,8 @@ EXPORT_SYMBOL_GPL(leave_mm);
+  * 1) Flush the tlb entries if the cpu uses the mm that's being flushed.
+  * 2) Leave the mm if we are in the lazy tlb mode.
+  */
++void inc_stat(u64 flush_size, u64 time);
 +
-+#include <trace/events/tlb.h>
-+
- #include <asm/pgalloc.h>
- #include <asm/tlbflush.h>
- #include <asm/paravirt.h>
-@@ -44,6 +48,7 @@ static inline void switch_mm(struct mm_s
- 
- 		/* Re-load page tables */
- 		load_cr3(next->pgd);
-+		trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH, TLB_FLUSH_ALL);
- 
- 		/* Stop flush ipis for the previous mm */
- 		cpumask_clear_cpu(cpu, mm_cpumask(prev));
-@@ -71,6 +76,7 @@ static inline void switch_mm(struct mm_s
- 			 * to make sure to use no freed page tables.
- 			 */
- 			load_cr3(next->pgd);
-+			trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH, TLB_FLUSH_ALL);
- 			load_LDT_nolock(&next->context);
- 		}
- 	}
-diff -puN arch/x86/mm/tlb.c~tlb-trace-flushes arch/x86/mm/tlb.c
---- a/arch/x86/mm/tlb.c~tlb-trace-flushes	2014-03-05 16:10:10.425085039 -0800
-+++ b/arch/x86/mm/tlb.c	2014-03-05 16:10:10.432085359 -0800
-@@ -14,6 +14,8 @@
- #include <asm/uv/uv.h>
- #include <linux/debugfs.h>
- 
-+#include <trace/events/tlb.h>
-+
- DEFINE_PER_CPU_SHARED_ALIGNED(struct tlb_state, cpu_tlbstate)
- 			= { &init_mm, 0, };
- 
-@@ -49,6 +51,7 @@ void leave_mm(int cpu)
- 	if (cpumask_test_cpu(cpu, mm_cpumask(active_mm))) {
- 		cpumask_clear_cpu(cpu, mm_cpumask(active_mm));
- 		load_cr3(swapper_pg_dir);
-+		trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH, TLB_FLUSH_ALL);
- 	}
- }
- EXPORT_SYMBOL_GPL(leave_mm);
-@@ -105,9 +108,10 @@ static void flush_tlb_func(void *info)
- 
+ static void flush_tlb_func(void *info)
+ {
+ 	struct flush_tlb_info *f = info;
+@@ -109,17 +111,23 @@ static void flush_tlb_func(void *info)
  	count_vm_tlb_event(NR_TLB_REMOTE_FLUSH_RECEIVED);
  	if (this_cpu_read(cpu_tlbstate.state) == TLBSTATE_OK) {
--		if (f->flush_end == TLB_FLUSH_ALL)
-+		if (f->flush_end == TLB_FLUSH_ALL) {
+ 		if (f->flush_end == TLB_FLUSH_ALL) {
++			u64 start_ns = sched_clock();
  			local_flush_tlb();
--		else if (!f->flush_end)
-+			trace_tlb_flush(TLB_REMOTE_SHOOTDOWN, TLB_FLUSH_ALL);
-+		} else if (!f->flush_end)
++			inc_stat(TLB_FLUSH_ALL, sched_clock() - start_ns);
+ 			trace_tlb_flush(TLB_REMOTE_SHOOTDOWN, TLB_FLUSH_ALL);
+ 		} else if (!f->flush_end)
  			__flush_tlb_single(f->flush_start);
  		else {
++			u64 start_ns;
  			unsigned long addr;
-@@ -152,7 +156,9 @@ void flush_tlb_current_task(void)
- 	preempt_disable();
- 
- 	count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
-+	trace_tlb_flush(TLB_LOCAL_SHOOTDOWN, TLB_FLUSH_ALL);
- 	local_flush_tlb();
-+	trace_tlb_flush(TLB_LOCAL_SHOOTDOWN_DONE, TLB_FLUSH_ALL);
- 	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
- 		flush_tlb_others(mm_cpumask(mm), mm, 0UL, TLB_FLUSH_ALL);
++			start_ns = sched_clock();
+ 			addr = f->flush_start;
+ 			while (addr < f->flush_end) {
+ 				__flush_tlb_single(addr);
+ 				addr += PAGE_SIZE;
+ 			}
++			inc_stat((f->flush_end - f->flush_start) / PAGE_SIZE,
++				 sched_clock() - start_ns);
+ 		}
+ 	} else
+ 		leave_mm(smp_processor_id());
+@@ -164,12 +172,112 @@ void flush_tlb_current_task(void)
  	preempt_enable();
-@@ -180,6 +186,7 @@ void flush_tlb_mm_range(struct mm_struct
- 	if ((end != TLB_FLUSH_ALL) && !(vmflag & VM_HUGETLB))
+ }
+ 
++struct one_tlb_stat {
++	u64 flushes;
++	u64 time;
++};
++
++#define NR_TO_TRACK 1024
++
++struct tlb_stats {
++	struct one_tlb_stat stats[NR_TO_TRACK];
++};
++
++DEFINE_PER_CPU(struct tlb_stats, tlb_stats);
++
++void inc_stat(u64 flush_size, u64 time)
++{
++	struct tlb_stats *thiscpu =
++		&per_cpu(tlb_stats, smp_processor_id());
++	struct one_tlb_stat *stat;
++
++	if (flush_size == TLB_FLUSH_ALL)
++		flush_size = 0;
++	if (flush_size >= NR_TO_TRACK)
++		flush_size = NR_TO_TRACK-1;
++
++	stat = &thiscpu->stats[flush_size];
++	stat->time += time;
++	stat->flushes++;
++}
++
++char printbuf[80 * NR_TO_TRACK];
++static ssize_t tlb_stat_read_file(struct file *file, char __user *user_buf,
++			     size_t count, loff_t *ppos)
++{
++	int cpu;
++	int flush_size;
++	unsigned int len = 0;
++
++	for (flush_size = 0; flush_size < NR_TO_TRACK; flush_size++) {
++		struct one_tlb_stat tot;
++		tot.flushes = 0;
++		tot.time = 0;
++
++		for_each_online_cpu(cpu){
++			struct tlb_stats *thiscpu = &per_cpu(tlb_stats, cpu);
++			struct one_tlb_stat *stat;
++			stat = &thiscpu->stats[flush_size];
++			tot.flushes += stat->flushes;
++			tot.time += stat->time;
++		}
++		if (!tot.flushes)
++			continue;
++		if (flush_size == 0)
++			len += sprintf(&printbuf[len], "[FULL]");
++		else if (flush_size == NR_TO_TRACK-1)
++			len += sprintf(&printbuf[len], "[FBIG]");
++		else
++			len += sprintf(&printbuf[len], "[%d]", flush_size);
++
++		len += sprintf(&printbuf[len], " %lld %lld\n",
++			tot.flushes, tot.time);
++	}
++
++	return simple_read_from_buffer(user_buf, count, ppos, printbuf, len);
++}
++
++static ssize_t tlb_stat_write_file(struct file *file,
++		 const char __user *user_buf, size_t count, loff_t *ppos)
++{
++	int cpu;
++	int flush_size;
++
++	for_each_online_cpu(cpu){
++		struct tlb_stats *thiscpu = &per_cpu(tlb_stats, cpu);
++		for (flush_size = 0; flush_size < NR_TO_TRACK; flush_size++) {
++			struct one_tlb_stat *stat;
++			stat = &thiscpu->stats[flush_size];
++			stat->time = 0;
++			stat->flushes = 0;
++		}
++	}
++	return count;
++}
++
++static const struct file_operations fops_tlb_stat = {
++	.read = tlb_stat_read_file,
++	.write = tlb_stat_write_file,
++	.llseek = default_llseek,
++};
++
++static int __init create_tlb_stats(void)
++{
++	debugfs_create_file("tlb_flush_stats", S_IRUSR | S_IWUSR,
++			    arch_debugfs_dir, NULL, &fops_tlb_stat);
++	return 0;
++}
++late_initcall(create_tlb_stats);
++
++
+ /* in units of pages */
+ unsigned long tlb_single_page_flush_ceiling = 33;
+ 
+ void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
+ 				unsigned long end, unsigned long vmflag)
+ {
++	u64 start_ns = 0;
++	u64 end_ns;
+ 	unsigned long addr;
+ 	/* do a global flush by default */
+ 	unsigned long base_pages_to_flush = TLB_FLUSH_ALL;
+@@ -187,6 +295,7 @@ void flush_tlb_mm_range(struct mm_struct
  		base_pages_to_flush = (end - start) >> PAGE_SHIFT;
  
-+	trace_tlb_flush(TLB_LOCAL_MM_SHOOTDOWN, base_pages_to_flush);
+ 	trace_tlb_flush(TLB_LOCAL_MM_SHOOTDOWN, base_pages_to_flush);
++	start_ns = sched_clock();
  	if (base_pages_to_flush > tlb_single_page_flush_ceiling) {
  		base_pages_to_flush = TLB_FLUSH_ALL;
  		count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
-@@ -191,6 +198,7 @@ void flush_tlb_mm_range(struct mm_struct
+@@ -198,12 +307,15 @@ void flush_tlb_mm_range(struct mm_struct
  			__flush_tlb_single(addr);
  		}
  	}
-+	trace_tlb_flush(TLB_LOCAL_MM_SHOOTDOWN_DONE, base_pages_to_flush);
++	end_ns = sched_clock();
+ 	trace_tlb_flush(TLB_LOCAL_MM_SHOOTDOWN_DONE, base_pages_to_flush);
  out:
  	if (base_pages_to_flush == TLB_FLUSH_ALL) {
  		start = 0UL;
-diff -puN include/linux/mm_types.h~tlb-trace-flushes include/linux/mm_types.h
---- a/include/linux/mm_types.h~tlb-trace-flushes	2014-03-05 16:10:10.426085085 -0800
-+++ b/include/linux/mm_types.h	2014-03-05 16:10:10.432085359 -0800
-@@ -509,4 +509,14 @@ static inline void clear_tlb_flush_pendi
- }
- #endif
- 
-+enum tlb_flush_reason {
-+	TLB_FLUSH_ON_TASK_SWITCH,
-+	TLB_REMOTE_SHOOTDOWN,
-+	TLB_LOCAL_SHOOTDOWN,
-+	TLB_LOCAL_SHOOTDOWN_DONE,
-+	TLB_LOCAL_MM_SHOOTDOWN,
-+	TLB_LOCAL_MM_SHOOTDOWN_DONE,
-+	NR_TLB_FLUSH_REASONS,
-+};
-+
- #endif /* _LINUX_MM_TYPES_H */
-diff -puN /dev/null include/trace/events/tlb.h
---- /dev/null	2014-01-15 16:08:30.019511980 -0800
-+++ b/include/trace/events/tlb.h	2014-03-05 16:10:10.433085404 -0800
-@@ -0,0 +1,37 @@
-+#undef TRACE_SYSTEM
-+#define TRACE_SYSTEM tlb
-+
-+#if !defined(_TRACE_TLB_H) || defined(TRACE_HEADER_MULTI_READ)
-+#define _TRACE_TLB_H
-+
-+#include <linux/mm_types.h>
-+#include <linux/tracepoint.h>
-+
-+extern const char * const tlb_flush_reason_desc[];
-+
-+TRACE_EVENT(tlb_flush,
-+
-+	TP_PROTO(int reason, unsigned long pages),
-+	TP_ARGS(reason, pages),
-+
-+	TP_STRUCT__entry(
-+		__field(	  int, reason)
-+		__field(unsigned long,  pages)
-+	),
-+
-+	TP_fast_assign(
-+		__entry->reason = reason;
-+		__entry->pages  = pages;
-+	),
-+
-+	TP_printk("pages: %ld reason: %d (%s)",
-+		__entry->pages,
-+		__entry->reason,
-+		tlb_flush_reason_desc[__entry->reason])
-+);
-+
-+#endif /* _TRACE_TLB_H */
-+
-+/* This part must be outside protection */
-+#include <trace/define_trace.h>
-+
-diff -puN mm/Makefile~tlb-trace-flushes mm/Makefile
---- a/mm/Makefile~tlb-trace-flushes	2014-03-05 16:10:10.428085177 -0800
-+++ b/mm/Makefile	2014-03-05 16:10:10.433085404 -0800
-@@ -5,7 +5,7 @@
- mmu-y			:= nommu.o
- mmu-$(CONFIG_MMU)	:= fremap.o highmem.o madvise.o memory.o mincore.o \
- 			   mlock.o mmap.o mprotect.o mremap.o msync.o rmap.o \
--			   vmalloc.o pagewalk.o pgtable-generic.o
-+			   vmalloc.o pagewalk.o pgtable-generic.o trace_tlb.o
- 
- ifdef CONFIG_CROSS_MEMORY_ATTACH
- mmu-$(CONFIG_MMU)	+= process_vm_access.o
-diff -puN /dev/null mm/trace_tlb.c
---- /dev/null	2014-01-15 16:08:30.019511980 -0800
-+++ b/mm/trace_tlb.c	2014-03-05 16:10:10.433085404 -0800
-@@ -0,0 +1,12 @@
-+#define CREATE_TRACE_POINTS
-+#include <trace/events/tlb.h>
-+
-+const char * const tlb_flush_reason_desc[] = {
-+	__stringify(TLB_FLUSH_ON_TASK_SWITCH),
-+	__stringify(TLB_REMOTE_SHOOTDOWN),
-+	__stringify(TLB_LOCAL_SHOOTDOWN),
-+	__stringify(TLB_LOCAL_SHOOTDOWN_DONE),
-+	__stringify(TLB_LOCAL_MM_SHOOTDOWN),
-+	__stringify(TLB_LOCAL_MM_SHOOTDOWN_DONE),
-+};
-+
+ 		end = TLB_FLUSH_ALL;
+ 	}
++	if (start_ns)
++		inc_stat(base_pages_to_flush, end_ns - start_ns);
+ 	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
+ 		flush_tlb_others(mm_cpumask(mm), mm, start, end);
+ 	preempt_enable();
 _
 
 --
