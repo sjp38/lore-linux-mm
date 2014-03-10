@@ -1,106 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f50.google.com (mail-pb0-f50.google.com [209.85.160.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 18B296B0038
-	for <linux-mm@kvack.org>; Mon, 10 Mar 2014 13:11:39 -0400 (EDT)
-Received: by mail-pb0-f50.google.com with SMTP id md12so7559803pbc.9
-        for <linux-mm@kvack.org>; Mon, 10 Mar 2014 10:11:38 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id bi5si17430491pbb.229.2014.03.10.10.11.37
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id CF0146B003B
+	for <linux-mm@kvack.org>; Mon, 10 Mar 2014 13:11:46 -0400 (EDT)
+Received: by mail-pa0-f46.google.com with SMTP id kp14so7582781pab.33
+        for <linux-mm@kvack.org>; Mon, 10 Mar 2014 10:11:46 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id bq3si7696587pbd.296.2014.03.10.10.11.43
         for <linux-mm@kvack.org>;
-        Mon, 10 Mar 2014 10:11:37 -0700 (PDT)
-Subject: [PATCH 1/7] x86: mm: clean up tlb flushing code
+        Mon, 10 Mar 2014 10:11:46 -0700 (PDT)
+Subject: [PATCH 0/7] x86: rework tlb range flushing code
 From: Dave Hansen <dave@sr71.net>
-Date: Mon, 10 Mar 2014 10:11:21 -0700
-References: <20140310171118.7E16CD45@viggo.jf.intel.com>
-In-Reply-To: <20140310171118.7E16CD45@viggo.jf.intel.com>
-Message-Id: <20140310171121.2AC7BD88@viggo.jf.intel.com>
+Date: Mon, 10 Mar 2014 10:11:18 -0700
+Message-Id: <20140310171118.7E16CD45@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: akpm@linux-foundation.org, ak@linux.intel.com, kirill.shutemov@linux.intel.com, mgorman@suse.de, alex.shi@linaro.org, x86@kernel.org, linux-mm@kvack.org, davidlohr@hp.com, Dave Hansen <dave@sr71.net>, dave.hansen@linux.intel.com
+Cc: akpm@linux-foundation.org, ak@linux.intel.com, kirill.shutemov@linux.intel.com, mgorman@suse.de, alex.shi@linaro.org, x86@kernel.org, linux-mm@kvack.org, davidlohr@hp.com, Dave Hansen <dave@sr71.net>
 
 
-From: Dave Hansen <dave.hansen@linux.intel.com>
+Changes from v2:
+ * Added a brief comment above the ceiling tunable
+ * Updated the documentation to mention large pages and say
+   "individual flush" instead of invlpg in most cases.
 
-The
+Reposting with an instrumentation patch, and a few minor tweaks.
+I'd love some more eyeballs on this, but I think it's ready for
+-mm.
 
-	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
+I'm having it run through the LKP harness to see if any perfmance
+regressions (or gains) show up.
 
-line of code is not exactly the easiest to audit, especially when
-it ends up at two different indentation levels.  This eliminates
-one of the the copy-n-paste versions.  It also gives us a unified
-exit point for each path through this function.  We need this in
-a minute for our tracepoint.
+Without the last (instrumentation/debugging) patch:
 
+ arch/x86/include/asm/mmu_context.h |    6 ++
+ arch/x86/include/asm/processor.h   |    1
+ arch/x86/kernel/cpu/amd.c          |    7 --
+ arch/x86/kernel/cpu/common.c       |   13 -----
+ arch/x86/kernel/cpu/intel.c        |   26 ----------
+ arch/x86/mm/tlb.c                  |   91 +++++++++++++++----------------------
+ include/linux/mm_types.h           |   10 ++++
+ mm/Makefile                        |    2
+ 8 files changed, 58 insertions(+), 98 deletions(-)
 
-Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
----
+--
 
- b/arch/x86/mm/tlb.c |   23 +++++++++++------------
- 1 file changed, 11 insertions(+), 12 deletions(-)
+I originally went to look at this becuase I realized that newer
+CPUs were not present in the intel_tlb_flushall_shift_set() code.
 
-diff -puN arch/x86/mm/tlb.c~simplify-tlb-code arch/x86/mm/tlb.c
---- a/arch/x86/mm/tlb.c~simplify-tlb-code	2014-03-05 16:10:09.607047728 -0800
-+++ b/arch/x86/mm/tlb.c	2014-03-05 16:10:09.610047866 -0800
-@@ -161,23 +161,24 @@ void flush_tlb_current_task(void)
- void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
- 				unsigned long end, unsigned long vmflag)
- {
-+	int need_flush_others_all = 1;
- 	unsigned long addr;
- 	unsigned act_entries, tlb_entries = 0;
- 	unsigned long nr_base_pages;
- 
- 	preempt_disable();
- 	if (current->active_mm != mm)
--		goto flush_all;
-+		goto out;
- 
- 	if (!current->mm) {
- 		leave_mm(smp_processor_id());
--		goto flush_all;
-+		goto out;
- 	}
- 
- 	if (end == TLB_FLUSH_ALL || tlb_flushall_shift == -1
- 					|| vmflag & VM_HUGETLB) {
- 		local_flush_tlb();
--		goto flush_all;
-+		goto out;
- 	}
- 
- 	/* In modern CPU, last level tlb used for both data/ins */
-@@ -196,22 +197,20 @@ void flush_tlb_mm_range(struct mm_struct
- 		count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
- 		local_flush_tlb();
- 	} else {
-+		need_flush_others_all = 0;
- 		/* flush range by one by one 'invlpg' */
- 		for (addr = start; addr < end;	addr += PAGE_SIZE) {
- 			count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ONE);
- 			__flush_tlb_single(addr);
- 		}
--
--		if (cpumask_any_but(mm_cpumask(mm),
--				smp_processor_id()) < nr_cpu_ids)
--			flush_tlb_others(mm_cpumask(mm), mm, start, end);
--		preempt_enable();
--		return;
- 	}
--
--flush_all:
-+out:
-+	if (need_flush_others_all) {
-+		start = 0UL;
-+		end = TLB_FLUSH_ALL;
-+	}
- 	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
--		flush_tlb_others(mm_cpumask(mm), mm, 0UL, TLB_FLUSH_ALL);
-+		flush_tlb_others(mm_cpumask(mm), mm, start, end);
- 	preempt_enable();
- }
- 
-_
+I went to try to figure out where to stick newer CPUs (do we
+consider them more like SandyBridge or IvyBridge), and was not
+able to repeat the original experiments.
+
+Instead, this set does:
+ 1. Rework the code a bit to ready it for tracepoints
+ 2. Add tracepoints
+ 3. Add a new tunable and set it to a sane value
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
