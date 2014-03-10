@@ -1,57 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id AD63A6B006E
-	for <linux-mm@kvack.org>; Mon, 10 Mar 2014 16:15:46 -0400 (EDT)
-Received: by mail-wg0-f51.google.com with SMTP id k14so6954425wgh.22
-        for <linux-mm@kvack.org>; Mon, 10 Mar 2014 13:15:46 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id r4si19805305wjz.63.2014.03.10.13.15.44
-        for <linux-mm@kvack.org>;
-        Mon, 10 Mar 2014 13:15:45 -0700 (PDT)
-Date: Mon, 10 Mar 2014 16:15:08 -0400
-From: Dave Jones <davej@redhat.com>
-Subject: Re: deadlock in lru_add_drain ? (3.14rc5)
-Message-ID: <20140310201508.GA16200@redhat.com>
-References: <20140308220024.GA814@redhat.com>
- <CA+55aFzLxY8Xsn90v1OAsmVBWYPZTiJ74YE=HaCPYR2hvRfk+g@mail.gmail.com>
- <20140310150106.GD25290@htj.dyndns.org>
- <20140310155053.GA26188@redhat.com>
- <20140310200957.GF25290@htj.dyndns.org>
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id E06356B0036
+	for <linux-mm@kvack.org>; Mon, 10 Mar 2014 16:40:11 -0400 (EDT)
+Received: by mail-pd0-f182.google.com with SMTP id g10so7647967pdj.27
+        for <linux-mm@kvack.org>; Mon, 10 Mar 2014 13:40:11 -0700 (PDT)
+Received: from e28smtp08.in.ibm.com (e28smtp08.in.ibm.com. [122.248.162.8])
+        by mx.google.com with ESMTPS id q5si17890718pbh.194.2014.03.10.13.40.09
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 10 Mar 2014 13:40:11 -0700 (PDT)
+Received: from /spool/local
+	by e28smtp08.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <srivatsa.bhat@linux.vnet.ibm.com>;
+	Tue, 11 Mar 2014 02:10:08 +0530
+Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
+	by d28dlp02.in.ibm.com (Postfix) with ESMTP id D1C993940023
+	for <linux-mm@kvack.org>; Tue, 11 Mar 2014 02:10:05 +0530 (IST)
+Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s2AKe24N50266194
+	for <linux-mm@kvack.org>; Tue, 11 Mar 2014 02:10:02 +0530
+Received: from d28av01.in.ibm.com (localhost [127.0.0.1])
+	by d28av01.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s2AKe48g014346
+	for <linux-mm@kvack.org>; Tue, 11 Mar 2014 02:10:05 +0530
+From: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
+Subject: [PATCH v3 36/52] zsmalloc: Fix CPU hotplug callback registration
+Date: Tue, 11 Mar 2014 02:09:59 +0530
+Message-ID: <20140310203959.10746.61303.stgit@srivatsabhat.in.ibm.com>
+In-Reply-To: <20140310203312.10746.310.stgit@srivatsabhat.in.ibm.com>
+References: <20140310203312.10746.310.stgit@srivatsabhat.in.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140310200957.GF25290@htj.dyndns.org>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Chris Metcalf <cmetcalf@tilera.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Lai Jiangshan <laijs@cn.fujitsu.com>
+To: paulus@samba.org, oleg@redhat.com, mingo@kernel.org, rjw@rjwysocki.net, rusty@rustcorp.com.au, peterz@infradead.org, tglx@linutronix.de, akpm@linux-foundation.org
+Cc: paulmck@linux.vnet.ibm.com, tj@kernel.org, walken@google.com, ego@linux.vnet.ibm.com, linux@arm.linux.org.uk, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-pm@vger.kernel.org, linuxppc-dev@ozlabs.org, srivatsa.bhat@linux.vnet.ibm.com, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, linux-mm@kvack.org"Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
 
-On Mon, Mar 10, 2014 at 04:09:57PM -0400, Tejun Heo wrote:
+Subsystems that want to register CPU hotplug callbacks, as well as perform
+initialization for the CPUs that are already online, often do it as shown
+below:
 
- > Hmmm... this is puzzling.  At least according to the slightly
- > truncated (pids < 13) sysrq-t output, there's no kworker running
- > lru_add_drain_per_cpu() and nothing blocked on lru_add_drain_all::lock
- > can introduce any complex dependency.  Also, at least from glancing
- > over, I don't see anything behind lru_add_rain_per_cpu() which can get
- > involved in a complex dependency chain.
- > 
- > Assuming that the handful lost traces didn't reveal serious ah-has, it
- > almost looks like workqueue either failed to initiate execution of a
- > queued work item or flush_work() somehow got confused on a work item
- > which already finished, both of which are quite unlikely given that we
- > haven't had any simliar report on any other work items.
- > 
- > I think it'd be wise to extend sysrq-t output to include the states of
- > workqueue if for nothing else to easily rule out doubts about basic wq
- > functions.  Dave, is this as much information we're gonna get from the
- > trinity instance?  I assume trying to reproduce the case isn't likely
- > to work?
+	get_online_cpus();
+
+	for_each_online_cpu(cpu)
+		init_cpu(cpu);
+
+	register_cpu_notifier(&foobar_cpu_notifier);
+
+	put_online_cpus();
+
+This is wrong, since it is prone to ABBA deadlocks involving the
+cpu_add_remove_lock and the cpu_hotplug.lock (when running concurrently
+with CPU hotplug operations).
+
+Instead, the correct and race-free way of performing the callback
+registration is:
+
+	cpu_notifier_register_begin();
+
+	for_each_online_cpu(cpu)
+		init_cpu(cpu);
+
+	/* Note the use of the double underscored version of the API */
+	__register_cpu_notifier(&foobar_cpu_notifier);
+
+	cpu_notifier_register_done();
+
+
+Fix the zsmalloc code by using this latter form of callback registration.
+
+Cc: Minchan Kim <minchan@kernel.org>
+Cc: Nitin Gupta <ngupta@vflare.org>
+Cc: Ingo Molnar <mingo@kernel.org>
+Cc: linux-mm@kvack.org
+Signed-off-by: Srivatsa S. Bhat <srivatsa.bhat@linux.vnet.ibm.com>
+---
+
+ mm/zsmalloc.c |   17 ++++++++++++++---
+ 1 file changed, 14 insertions(+), 3 deletions(-)
+
+diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+index c03ca5e..36b4591 100644
+--- a/mm/zsmalloc.c
++++ b/mm/zsmalloc.c
+@@ -814,21 +814,32 @@ static void zs_exit(void)
+ {
+ 	int cpu;
  
-I tried enabling the function tracer, and ended up locking up the box entirely,
-so had to reboot.  Rerunning it now on rc6, will let you know if it reproduces
-(though it took like a day or so last time).
-
-	Dave
++	cpu_notifier_register_begin();
++
+ 	for_each_online_cpu(cpu)
+ 		zs_cpu_notifier(NULL, CPU_DEAD, (void *)(long)cpu);
+-	unregister_cpu_notifier(&zs_cpu_nb);
++	__unregister_cpu_notifier(&zs_cpu_nb);
++
++	cpu_notifier_register_done();
+ }
+ 
+ static int zs_init(void)
+ {
+ 	int cpu, ret;
+ 
+-	register_cpu_notifier(&zs_cpu_nb);
++	cpu_notifier_register_begin();
++
++	__register_cpu_notifier(&zs_cpu_nb);
+ 	for_each_online_cpu(cpu) {
+ 		ret = zs_cpu_notifier(NULL, CPU_UP_PREPARE, (void *)(long)cpu);
+-		if (notifier_to_errno(ret))
++		if (notifier_to_errno(ret)) {
++			cpu_notifier_register_done();
+ 			goto fail;
++		}
+ 	}
++
++	cpu_notifier_register_done();
++
+ 	return 0;
+ fail:
+ 	zs_exit();
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
