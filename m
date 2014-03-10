@@ -1,175 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 3CF996B005C
-	for <linux-mm@kvack.org>; Mon, 10 Mar 2014 13:12:57 -0400 (EDT)
-Received: by mail-pa0-f53.google.com with SMTP id ld10so7499506pab.40
-        for <linux-mm@kvack.org>; Mon, 10 Mar 2014 10:12:56 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id ey10si17421472pab.169.2014.03.10.10.12.53
-        for <linux-mm@kvack.org>;
-        Mon, 10 Mar 2014 10:12:56 -0700 (PDT)
-Subject: [PATCH 5/7] x86: mm: new tunable for single vs full TLB flush
-From: Dave Hansen <dave@sr71.net>
-Date: Mon, 10 Mar 2014 10:11:30 -0700
-References: <20140310171118.7E16CD45@viggo.jf.intel.com>
-In-Reply-To: <20140310171118.7E16CD45@viggo.jf.intel.com>
-Message-Id: <20140310171130.82C0822D@viggo.jf.intel.com>
+Received: from mail-qg0-f45.google.com (mail-qg0-f45.google.com [209.85.192.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 716D66B0069
+	for <linux-mm@kvack.org>; Mon, 10 Mar 2014 13:48:40 -0400 (EDT)
+Received: by mail-qg0-f45.google.com with SMTP id j5so21536659qga.4
+        for <linux-mm@kvack.org>; Mon, 10 Mar 2014 10:48:40 -0700 (PDT)
+Received: from relay5-d.mail.gandi.net (relay5-d.mail.gandi.net. [2001:4b98:c:538::197])
+        by mx.google.com with ESMTPS id c50si3870086qgf.109.2014.03.10.10.48.39
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 10 Mar 2014 10:48:39 -0700 (PDT)
+Date: Mon, 10 Mar 2014 10:48:27 -0700
+From: Josh Triplett <josh@joshtriplett.org>
+Subject: [PATCH] mm: Disable mm/balloon_compaction.c completely when
+ !CONFIG_BALLOON_COMPACTION
+Message-ID: <20140310174738.GA2660@leaf>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: akpm@linux-foundation.org, ak@linux.intel.com, kirill.shutemov@linux.intel.com, mgorman@suse.de, alex.shi@linaro.org, x86@kernel.org, linux-mm@kvack.org, davidlohr@hp.com, Dave Hansen <dave@sr71.net>, dave.hansen@linux.intel.com
+To: Andrew Morton <akpm@linux-foundation.org>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Anton Vorontsov <anton.vorontsov@linaro.org>, Josh Triplett <josh@joshtriplett.org>, Dave Chinner <dchinner@redhat.com>, Christoph Lameter <cl@linux.com>, Dave Hansen <dave@sr71.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
+mm/balloon_compaction.c contains ifdefs around some of its functions
+when !CONFIG_BALLOON_COMPACTION, but the remaining functions aren't used
+in that case either.  Drop the ifdefs in the file, and move
+mm/balloon_compaction.o to obj-$(CONFIG_BALLOON_COMPACTION).
 
-From: Dave Hansen <dave.hansen@linux.intel.com>
+In addition to eliminating that ifdef, this also saves some space;
+bloat-o-meter statistics:
+add/remove: 0/3 grow/shrink: 0/0 up/down: 0/-281 (-281)
+function                                     old     new   delta
+balloon_devinfo_alloc                         63       -     -63
+balloon_page_enqueue                          84       -     -84
+balloon_page_dequeue                         134       -    -134
 
-Most of the logic here is in the documentation file.  Please take
-a look at it.
-
-I know we've come full-circle here back to a tunable, but this
-new one is *WAY* simpler.  I challenge anyone to describe in one
-sentence how the old one worked.  Here's the way the new one
-works:
-
-	If we are flushing more pages than the ceiling, we use
-	the full flush, otherwise we use invlpg.
-
-Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+Signed-off-by: Josh Triplett <josh@joshtriplett.org>
 ---
+ mm/Makefile             | 4 ++--
+ mm/balloon_compaction.c | 2 --
+ 2 files changed, 2 insertions(+), 4 deletions(-)
 
- b/Documentation/x86/tlb.txt |   72 ++++++++++++++++++++++++++++++++++++++++++++
- b/arch/x86/mm/tlb.c         |   46 ++++++++++++++++++++++++++++
- 2 files changed, 118 insertions(+)
-
-diff -puN arch/x86/mm/tlb.c~new-tunable-for-single-vs-full-tlb-flush arch/x86/mm/tlb.c
---- a/arch/x86/mm/tlb.c~new-tunable-for-single-vs-full-tlb-flush	2014-03-10 09:31:51.465173034 -0700
-+++ b/arch/x86/mm/tlb.c	2014-03-10 09:31:51.469173214 -0700
-@@ -266,3 +266,49 @@ void flush_tlb_kernel_range(unsigned lon
- 		on_each_cpu(do_kernel_range_flush, &info, 1);
- 	}
+diff --git a/mm/Makefile b/mm/Makefile
+index 310c90a..1e6ab7d 100644
+--- a/mm/Makefile
++++ b/mm/Makefile
+@@ -16,7 +16,7 @@ obj-y			:= filemap.o mempool.o oom_kill.o fadvise.o \
+ 			   readahead.o swap.o truncate.o vmscan.o shmem.o \
+ 			   util.o mmzone.o vmstat.o backing-dev.o \
+ 			   mm_init.o mmu_context.o percpu.o slab_common.o \
+-			   compaction.o balloon_compaction.o \
++			   compaction.o \
+ 			   interval_tree.o list_lru.o $(mmu-y)
+ 
+ obj-y += init-mm.o
+@@ -28,7 +28,7 @@ else
+ endif
+ 
+ obj-$(CONFIG_HAVE_MEMBLOCK) += memblock.o
+-
++obj-$(CONFIG_BALLOON_COMPACTION) += balloon_compaction.o
+ obj-$(CONFIG_BOUNCE)	+= bounce.o
+ obj-$(CONFIG_SWAP)	+= page_io.o swap_state.o swapfile.o
+ obj-$(CONFIG_FRONTSWAP)	+= frontswap.o
+diff --git a/mm/balloon_compaction.c b/mm/balloon_compaction.c
+index 6e45a50..8339787 100644
+--- a/mm/balloon_compaction.c
++++ b/mm/balloon_compaction.c
+@@ -131,7 +131,6 @@ struct page *balloon_page_dequeue(struct balloon_dev_info *b_dev_info)
  }
-+
-+static ssize_t tlbflush_read_file(struct file *file, char __user *user_buf,
-+			     size_t count, loff_t *ppos)
-+{
-+	char buf[32];
-+	unsigned int len;
-+
-+	len = sprintf(buf, "%ld\n", tlb_single_page_flush_ceiling);
-+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
-+}
-+
-+static ssize_t tlbflush_write_file(struct file *file,
-+		 const char __user *user_buf, size_t count, loff_t *ppos)
-+{
-+	char buf[32];
-+	ssize_t len;
-+	int ceiling;
-+
-+	len = min(count, sizeof(buf) - 1);
-+	if (copy_from_user(buf, user_buf, len))
-+		return -EFAULT;
-+
-+	buf[len] = '\0';
-+	if (kstrtoint(buf, 0, &ceiling))
-+		return -EINVAL;
-+
-+	if (ceiling < 0)
-+		return -EINVAL;
-+
-+	tlb_single_page_flush_ceiling = ceiling;
-+	return count;
-+}
-+
-+static const struct file_operations fops_tlbflush = {
-+	.read = tlbflush_read_file,
-+	.write = tlbflush_write_file,
-+	.llseek = default_llseek,
-+};
-+
-+static int __init create_tlb_single_page_flush_ceiling(void)
-+{
-+	debugfs_create_file("tlb_single_page_flush_ceiling", S_IRUSR | S_IWUSR,
-+			    arch_debugfs_dir, NULL, &fops_tlbflush);
-+	return 0;
-+}
-+late_initcall(create_tlb_single_page_flush_ceiling);
-diff -puN /dev/null Documentation/x86/tlb.txt
---- /dev/null	2014-01-15 16:08:30.019511980 -0800
-+++ b/Documentation/x86/tlb.txt	2014-03-10 09:39:07.906770882 -0700
-@@ -0,0 +1,72 @@
-+nWhen the kernel unmaps or modified the attributes of a range of
-+memory, it has two choices:
-+ 1. Flush the entire TLB with a two-instruction sequence.  This is
-+    a quick operation, but it causes collateral damage: TLB entries
-+    from areas other than the one we are trying to flush will be
-+    destroyed and must be refilled later, at some cost.
-+ 2. Use the invlpg instruction to invalidate a single page at a
-+    time.  This could potentialy cost many more instructions, but
-+    it is a much more precise operation, causing no collateral
-+    damage to other TLB entries.
-+
-+Which method to do depends on a few things:
-+ 1. The size of the flush being performed.  A flush of the entire
-+    address space is obviously better performed by flushing the
-+    entire TLB than doing 2^48/PAGE_SIZE individual flushes.
-+ 2. The contents of the TLB.  If the TLB is empty, then there will
-+    be no collateral damage caused by doing the global flush, and
-+    all of the individual flush will have ended up being wasted
-+    work.
-+ 3. The size of the TLB.  The larger the TLB, the more collateral
-+    damage we do with a full flush.  So, the larger the TLB, the
-+    more attrative an individual flush looks.  Data and
-+    instructions have separate TLBs, as do different page sizes.
-+ 4. The microarchitecture.  The TLB has become a multi-level
-+    cache on modern CPUs, and the global flushes have become more
-+    expensive relative to single-page flushes.
-+
-+There is obviously no way the kernel can know all these things,
-+especially the contents of the TLB during a given flush.  The
-+sizes of the flush will vary greatly depending on the workload as
-+well.  There is essentially no "right" point to choose.
-+
-+You may be doing too many individual invalidations if you see the
-+invlpg instruction (or instructions _near_ it) show up high in
-+profiles.  If you believe that individual invalidatoins being
-+called too often, you can lower the tunable:
-+
-+	/sys/debug/kernel/x86/tlb_single_page_flush_ceiling
-+
-+This will cause us to do the global flush for more cases.
-+Lowering it to 0 will disable the use of the individual flushes.
-+Setting it to 1 is a very conservative setting and it should
-+never need to be 0 under normal circumstances.
-+
-+Despite the fact that a single individual flush on x86 is
-+guaranteed to flush a full 2MB, hugetlbfs always uses the full
-+flushes.  THP is treated exactly the same as normal memory.
-+
-+You might see invlpg inside of flush_tlb_mm_range() show up in
-+profiles, or you can use the trace_tlb_flush() tracepoints. to
-+determine how long the flush operations are taking.
-+
-+Essentially, you are balancing the cycles you spend doing invlpg
-+with the cycles that you spend refilling the TLB later.
-+
-+You can measure how expensive TLB refills are by using
-+performance counters and 'perf stat', like this:
-+
-+perf stat -e
-+	cpu/event=0x8,umask=0x84,name=dtlb_load_misses_walk_duration/,
-+	cpu/event=0x8,umask=0x82,name=dtlb_load_misses_walk_completed/,
-+	cpu/event=0x49,umask=0x4,name=dtlb_store_misses_walk_duration/,
-+	cpu/event=0x49,umask=0x2,name=dtlb_store_misses_walk_completed/,
-+	cpu/event=0x85,umask=0x4,name=itlb_misses_walk_duration/,
-+	cpu/event=0x85,umask=0x2,name=itlb_misses_walk_completed/
-+
-+That works on an IvyBridge-era CPU (i5-3320M).  Different CPUs
-+may have differently-named counters, but they should at least
-+be there in some form.  You can use pmu-tools 'ocperf list'
-+(https://github.com/andikleen/pmu-tools) to find the right
-+counters for a given CPU.
-+
-_
+ EXPORT_SYMBOL_GPL(balloon_page_dequeue);
+ 
+-#ifdef CONFIG_BALLOON_COMPACTION
+ /*
+  * balloon_mapping_alloc - allocates a special ->mapping for ballooned pages.
+  * @b_dev_info: holds the balloon device information descriptor.
+@@ -299,4 +298,3 @@ int balloon_page_migrate(struct page *newpage,
+ 	unlock_page(newpage);
+ 	return rc;
+ }
+-#endif /* CONFIG_BALLOON_COMPACTION */
+-- 
+1.9.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
