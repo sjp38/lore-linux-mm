@@ -1,71 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f44.google.com (mail-pb0-f44.google.com [209.85.160.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E4DB6B0071
-	for <linux-mm@kvack.org>; Tue, 11 Mar 2014 04:30:12 -0400 (EDT)
-Received: by mail-pb0-f44.google.com with SMTP id rp16so8490233pbb.31
-        for <linux-mm@kvack.org>; Tue, 11 Mar 2014 01:30:10 -0700 (PDT)
-Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
-        by mx.google.com with ESMTP id qy5si19410371pab.311.2014.03.11.01.30.08
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 0CCD96B0073
+	for <linux-mm@kvack.org>; Tue, 11 Mar 2014 05:23:03 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id fa1so8587358pad.0
+        for <linux-mm@kvack.org>; Tue, 11 Mar 2014 02:23:03 -0700 (PDT)
+Received: from song.cn.fujitsu.com ([222.73.24.84])
+        by mx.google.com with ESMTP id u5si19541967pbi.358.2014.03.11.02.23.01
         for <linux-mm@kvack.org>;
-        Tue, 11 Mar 2014 01:30:10 -0700 (PDT)
-Date: Tue, 11 Mar 2014 17:30:09 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: oops in slab/leaks_show
-Message-ID: <20140311083009.GA32004@lge.com>
-References: <20140307025703.GA30770@redhat.com>
- <alpine.DEB.2.10.1403071117230.21846@nuc>
- <20140311003459.GA25657@lge.com>
- <20140311010135.GA25845@lge.com>
- <20140311012455.GA5151@redhat.com>
- <20140311025811.GA601@lge.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140311025811.GA601@lge.com>
+        Tue, 11 Mar 2014 02:23:03 -0700 (PDT)
+From: Dongsheng Yang <yangds.fnst@cn.fujitsu.com>
+Subject: [PATCH 06/16] mm: Replace hardcoding of 19 with MAX_NICE.
+Date: Tue, 11 Mar 2014 17:20:27 +0800
+Message-Id: <6db404fe09e07e90af42388d05bef923e834bba6.1394529373.git.yangds.fnst@cn.fujitsu.com>
+In-Reply-To: <cover.1394529373.git.yangds.fnst@cn.fujitsu.com>
+References: <cover.1394529373.git.yangds.fnst@cn.fujitsu.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Jones <davej@redhat.com>, Christoph Lameter <cl@linux.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Al Viro <viro@zeniv.linux.org.uk>
+To: linux-kernel@vger.kernel.org
+Cc: joe@perches.com, peterz@infradead.org, mingo@kernel.org, tglx@linutronix.de, heiko.carstens@de.ibm.com, Dongsheng Yang <yangds.fnst@cn.fujitsu.com>, linux-mm@kvack.org, Bob Liu <lliubbo@gmail.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Tue, Mar 11, 2014 at 11:58:11AM +0900, Joonsoo Kim wrote:
-> On Mon, Mar 10, 2014 at 09:24:55PM -0400, Dave Jones wrote:
-> > On Tue, Mar 11, 2014 at 10:01:35AM +0900, Joonsoo Kim wrote:
-> >  > On Tue, Mar 11, 2014 at 09:35:00AM +0900, Joonsoo Kim wrote:
-> >  > > On Fri, Mar 07, 2014 at 11:18:30AM -0600, Christoph Lameter wrote:
-> >  > > > Joonsoo recently changed the handling of the freelist in SLAB. CCing him.
-> >  > > > 
-> >  > > > > I pretty much always use SLUB for my fuzzing boxes, but thought I'd give SLAB a try
-> >  > > > > for a change.. It blew up when something tried to read /proc/slab_allocators
-> >  > > > > (Just cat it, and you should see the oops below)
-> >  > > 
-> >  > > Hello, Dave.
-> >  > > 
-> >  > > Today, I did a test on v3.13 which contains all my changes on the handling of
-> >  > > the freelist in SLAB and couldn't trigger oops by just 'cat /proc/slab_allocators'.
-> >  > > 
-> >  > > So I look at the code and find that there is race window if there is multiple users
-> >  > > doing 'cat /proc/slab_allocators'. Did your test do that?
-> >  > 
-> >  > Opps, sorry. I am misunderstanding something. Maybe there is no race.
-> >  > Anyway, How do you test it?
-> > 
-> > 1. build kernel with CONFIG_SLAB=y.
-> > 2. boot kernel
-> > 3. cat /proc/slab_allocators
-> 
-> Okay. I reproduce it with CONFIG_DEBUG_PAGEALLOC=y.
-> 
-> I look at the code and find that the problem doesn't come from my patches.
-> I think that it is long-lived bug. Let me explain it.
-> 
-> 'cat /proc/slab_allocators' checks all allocated objects for all slabs.
-> The problem is that it considers objects in cpu slab caches as allocated objects.
-> These objects in cpu slab caches are unmapped if CONFIG_DEBUG_PAGEALLOC=y, so when we
-> try to access it to get the caller information, oops would be triggered.
-> 
-> I will think more deeply how to fix this problem.
-> If I am missing something, please let me know.
+Signed-off-by: Dongsheng Yang <yangds.fnst@cn.fujitsu.com>
+cc: linux-mm@kvack.org
+cc: Bob Liu <lliubbo@gmail.com>
+cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+cc: Mel Gorman <mgorman@suse.de>
+cc: Rik van Riel <riel@redhat.com>
+cc: Andrew Morton <akpm@linux-foundation.org>
+---
+ mm/huge_memory.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-Here is the fix for this problem.
-Thanks for reporting it.
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 1546655..dcdb6f9 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -2803,7 +2803,7 @@ static int khugepaged(void *none)
+ 	struct mm_slot *mm_slot;
+ 
+ 	set_freezable();
+-	set_user_nice(current, 19);
++	set_user_nice(current, MAX_NICE);
+ 
+ 	while (!kthread_should_stop()) {
+ 		khugepaged_do_scan();
+-- 
+1.8.2.1
 
----------8<---------------------
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
