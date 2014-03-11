@@ -1,107 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 70F026B0095
-	for <linux-mm@kvack.org>; Tue, 11 Mar 2014 09:22:36 -0400 (EDT)
-Received: by mail-pa0-f50.google.com with SMTP id kq14so8755949pab.23
-        for <linux-mm@kvack.org>; Tue, 11 Mar 2014 06:22:35 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id xe9si20182254pab.315.2014.03.11.06.22.34
-        for <linux-mm@kvack.org>;
-        Tue, 11 Mar 2014 06:22:35 -0700 (PDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH] mm: use 'const char *' insted of 'char *' for reason in dump_page()
-Date: Tue, 11 Mar 2014 15:18:41 +0200
-Message-Id: <1394543921-8294-1-git-send-email-kirill.shutemov@linux.intel.com>
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id CF5D76B0098
+	for <linux-mm@kvack.org>; Tue, 11 Mar 2014 09:23:16 -0400 (EDT)
+Received: by mail-pa0-f42.google.com with SMTP id fb1so8882646pad.1
+        for <linux-mm@kvack.org>; Tue, 11 Mar 2014 06:23:15 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id zo6si20254921pbc.13.2014.03.11.06.23.14
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 11 Mar 2014 06:23:14 -0700 (PDT)
+Message-ID: <531F0E39.9020100@oracle.com>
+Date: Tue, 11 Mar 2014 09:23:05 -0400
+From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Subject: Re: bad rss-counter message in 3.14rc5
+References: <20140305174503.GA16335@redhat.com> <20140305175725.GB16335@redhat.com> <20140307002210.GA26603@redhat.com> <20140311024906.GA9191@redhat.com> <20140310201340.81994295.akpm@linux-foundation.org> <20140310214612.3b4de36a.akpm@linux-foundation.org> <20140311045109.GB12551@redhat.com> <20140310220158.7e8b7f2a.akpm@linux-foundation.org> <20140311053017.GB14329@redhat.com> <20140311132024.GC32390@moon>
+In-Reply-To: <20140311132024.GC32390@moon>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Cyrill Gorcunov <gorcunov@gmail.com>, Dave Jones <davej@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Bob Liu <bob.liu@oracle.com>, Konstantin Khlebnikov <koct9i@gmail.com>
 
-I tried to use 'dump_page(page, __func__)' for debugging, but it
-triggers warning:
+On 03/11/2014 09:20 AM, Cyrill Gorcunov wrote:
+> On Tue, Mar 11, 2014 at 01:30:17AM -0400, Dave Jones wrote:
+>>   > >  >
+>>   > >  > I don't see any holes in regular migration.  Do you know if this is
+>>   > >  > reproducible with CONFIG_NUMA_BALANCING=n or CONFIG_NUMA=n?
+>>   > >
+>>   > > CONFIG_NUMA_BALANCING was n already btw, so I'll do a NUMA=n run.
+>>   >
+>>   > There probably isn't much point unless trinity is using
+>>   > sys_move_pages().  Is it?  If so it would be interesting to disable
+>>   > trinity's move_pages calls and see if it still fails.
+>>
+>> Ok, with move_pages excluded it still oopses.
+>
+> Dave, is it possible to somehow figure out was someone reading pagemap file
+> at moment of the bug triggering?
 
-  warning: passing argument 2 of a??dump_pagea?? discards a??consta?? qualifier from pointer target type [enabled by default]
+We can sprinkle printk()s wherever might be useful, might not be 100% accurate but
+should be close enough to confirm/deny the theory.
 
-Let's convert 'reason' to 'const char *' in dump_page() and friends:
-we shouldn't modify it anyway.
 
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
----
- include/linux/mmdebug.h |  4 ++--
- mm/page_alloc.c         | 12 +++++++-----
- 2 files changed, 9 insertions(+), 7 deletions(-)
-
-diff --git a/include/linux/mmdebug.h b/include/linux/mmdebug.h
-index 5042c036dda9..2d57efa64cc1 100644
---- a/include/linux/mmdebug.h
-+++ b/include/linux/mmdebug.h
-@@ -3,8 +3,8 @@
- 
- struct page;
- 
--extern void dump_page(struct page *page, char *reason);
--extern void dump_page_badflags(struct page *page, char *reason,
-+extern void dump_page(struct page *page, const char *reason);
-+extern void dump_page_badflags(struct page *page, const char *reason,
- 			       unsigned long badflags);
- 
- #ifdef CONFIG_DEBUG_VM
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index e3758a09a009..a648a11f1108 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -295,7 +295,8 @@ static inline int bad_range(struct zone *zone, struct page *page)
- }
- #endif
- 
--static void bad_page(struct page *page, char *reason, unsigned long bad_flags)
-+static void bad_page(struct page *page, const char *reason,
-+		unsigned long bad_flags)
- {
- 	static unsigned long resume;
- 	static unsigned long nr_shown;
-@@ -621,7 +622,7 @@ out:
- 
- static inline int free_pages_check(struct page *page)
- {
--	char *bad_reason = NULL;
-+	const char *bad_reason = NULL;
- 	unsigned long bad_flags = 0;
- 
- 	if (unlikely(page_mapcount(page)))
-@@ -857,7 +858,7 @@ static inline void expand(struct zone *zone, struct page *page,
-  */
- static inline int check_new_page(struct page *page)
- {
--	char *bad_reason = NULL;
-+	const char *bad_reason = NULL;
- 	unsigned long bad_flags = 0;
- 
- 	if (unlikely(page_mapcount(page)))
-@@ -6524,7 +6525,8 @@ static void dump_page_flags(unsigned long flags)
- 	printk(")\n");
- }
- 
--void dump_page_badflags(struct page *page, char *reason, unsigned long badflags)
-+void dump_page_badflags(struct page *page, const char *reason,
-+		unsigned long badflags)
- {
- 	printk(KERN_ALERT
- 	       "page:%p count:%d mapcount:%d mapping:%p index:%#lx\n",
-@@ -6540,7 +6542,7 @@ void dump_page_badflags(struct page *page, char *reason, unsigned long badflags)
- 	mem_cgroup_print_bad_page(page);
- }
- 
--void dump_page(struct page *page, char *reason)
-+void dump_page(struct page *page, const char *reason)
- {
- 	dump_page_badflags(page, reason, 0);
- }
--- 
-1.9.0
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
