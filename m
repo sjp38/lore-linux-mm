@@ -1,57 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 75D7E6B0038
-	for <linux-mm@kvack.org>; Tue, 11 Mar 2014 15:31:36 -0400 (EDT)
-Received: by mail-pd0-f179.google.com with SMTP id w10so9017108pde.10
-        for <linux-mm@kvack.org>; Tue, 11 Mar 2014 12:31:36 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id yo5si21106698pab.121.2014.03.11.12.31.35
-        for <linux-mm@kvack.org>;
-        Tue, 11 Mar 2014 12:31:35 -0700 (PDT)
-Date: Tue, 11 Mar 2014 12:31:33 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: mmotm 2014-03-10-15-35 uploaded (virtio_balloon)
-Message-Id: <20140311123133.f40adf3154452e82aecb61ca@linux-foundation.org>
-In-Reply-To: <20140311192046.GA2686@leaf>
-References: <20140310223701.0969C31C2AA@corp2gmr1-1.hot.corp.google.com>
-	<531F43F2.1030504@infradead.org>
-	<20140311110338.333e1ee691cadb0f20dbb083@linux-foundation.org>
-	<20140311192046.GA2686@leaf>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail-ig0-f169.google.com (mail-ig0-f169.google.com [209.85.213.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A7B16B0037
+	for <linux-mm@kvack.org>; Tue, 11 Mar 2014 15:34:07 -0400 (EDT)
+Received: by mail-ig0-f169.google.com with SMTP id h18so12441705igc.0
+        for <linux-mm@kvack.org>; Tue, 11 Mar 2014 12:34:07 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id pg8si33105702icb.135.2014.03.11.12.34.06
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 11 Mar 2014 12:34:06 -0700 (PDT)
+Message-ID: <531F6527.6010508@oracle.com>
+Date: Tue, 11 Mar 2014 15:33:59 -0400
+From: Sasha Levin <sasha.levin@oracle.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH -mm] mm,numa,mprotect: always continue after finding a
+ stable thp page
+References: <5318E4BC.50301@oracle.com>	<20140306173137.6a23a0b2@cuia.bos.redhat.com>	<5318FC3F.4080204@redhat.com>	<20140307140650.GA1931@suse.de>	<20140307150923.GB1931@suse.de>	<20140307182745.GD1931@suse.de>	<20140311162845.GA30604@suse.de>	<531F3F15.8050206@oracle.com>	<531F4128.8020109@redhat.com>	<531F48CC.303@oracle.com>	<20140311180652.GM10663@suse.de>	<531F616A.7060300@oracle.com> <20140311122859.fb6c1e772d82d9f4edd02f52@linux-foundation.org>
+In-Reply-To: <20140311122859.fb6c1e772d82d9f4edd02f52@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Josh Triplett <josh@joshtriplett.org>
-Cc: Randy Dunlap <rdunlap@infradead.org>, mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, Rusty Russell <rusty@rustcorp.com.au>, virtio-dev@lists.oasis-open.org, "Michael S. Tsirkin" <mst@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, hhuang@redhat.com, knoel@redhat.com, aarcange@redhat.com, Davidlohr Bueso <davidlohr@hp.com>
 
-On Tue, 11 Mar 2014 12:20:46 -0700 Josh Triplett <josh@joshtriplett.org> wrote:
+On 03/11/2014 03:28 PM, Andrew Morton wrote:
+> On Tue, 11 Mar 2014 15:18:02 -0400 Sasha Levin <sasha.levin@oracle.com> wrote:
+>
+>>> 3. Can you test with the following patches reverted please?
+>>>
+>>> 	e15d25d9c827b4346a36a3a78dd566d5ad353402 mm-per-thread-vma-caching-fix-fix
+>>> 	e440e20dc76803cdab616b4756c201d5c72857f2 mm-per-thread-vma-caching-fix
+>>> 	0d9ad4220e6d73f63a9eeeaac031b92838f75bb3 mm: per-thread vma caching
+>>>
+>>> The last patch will not revert cleanly (least it didn't for me) but it
+>>> was just a case of git rm the two affected files, remove any include of
+>>> vmacache.h and commit the rest.
+>>
+>> Don't see the issues I've reported before now.
+>
+> This is foggy.  Do you mean that all the bugs went away when
+> per-thread-vma-caching was reverted?
 
-> > > ERROR: "balloon_devinfo_alloc" [drivers/virtio/virtio_balloon.ko] undefined!
-> > > ERROR: "balloon_page_enqueue" [drivers/virtio/virtio_balloon.ko] undefined!
-> > > ERROR: "balloon_page_dequeue" [drivers/virtio/virtio_balloon.ko] undefined!
-> > > 
-> > > when loadable module
-> > > 
-> > > or
-> > > 
-> > > virtio_balloon.c:(.text+0x1fa26): undefined reference to `balloon_page_enqueue'
-> > > virtio_balloon.c:(.text+0x1fb87): undefined reference to `balloon_page_dequeue'
-> > > virtio_balloon.c:(.text+0x1fdf1): undefined reference to `balloon_devinfo_alloc'
-> > > 
-> > > when builtin.
-> > 
-> > OK, thanks, I'll drop
-> > http://ozlabs.org/~akpm/mmots/broken-out/mm-disable-mm-balloon_compactionc-completely-when-config_balloon_compaction.patch
-> 
-> Sorry about that; I missed that case in my testing.  It always seems
-> strange that the dependency goes that way around.
-> 
-> With virtio-balloon being the one and only user of this API, would it be
-> reasonable to just only compile in balloon_compaction.o when
-> CONFIG_VIRTIO_BALLOON?
+No, sorry, just the vmacache_find and the mm/mmap.c:439 BUGs.
 
-Better to make VIRTIO_BALLOON depend on (or select) BALLOON_COMPACTION.
+
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
