@@ -1,77 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 25D976B0035
-	for <linux-mm@kvack.org>; Tue, 11 Mar 2014 14:03:42 -0400 (EDT)
-Received: by mail-pa0-f41.google.com with SMTP id fa1so9207904pad.0
-        for <linux-mm@kvack.org>; Tue, 11 Mar 2014 11:03:41 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id zt8si20910183pbc.255.2014.03.11.11.03.40
-        for <linux-mm@kvack.org>;
-        Tue, 11 Mar 2014 11:03:41 -0700 (PDT)
-Date: Tue, 11 Mar 2014 11:03:38 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: mmotm 2014-03-10-15-35 uploaded (virtio_balloon)
-Message-Id: <20140311110338.333e1ee691cadb0f20dbb083@linux-foundation.org>
-In-Reply-To: <531F43F2.1030504@infradead.org>
-References: <20140310223701.0969C31C2AA@corp2gmr1-1.hot.corp.google.com>
-	<531F43F2.1030504@infradead.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 220306B0055
+	for <linux-mm@kvack.org>; Tue, 11 Mar 2014 14:06:58 -0400 (EDT)
+Received: by mail-wi0-f174.google.com with SMTP id d1so1304243wiv.7
+        for <linux-mm@kvack.org>; Tue, 11 Mar 2014 11:06:57 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id n12si21927786wjw.141.2014.03.11.11.06.55
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 11 Mar 2014 11:06:56 -0700 (PDT)
+Date: Tue, 11 Mar 2014 18:06:52 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH -mm] mm,numa,mprotect: always continue after finding a
+ stable thp page
+Message-ID: <20140311180652.GM10663@suse.de>
+References: <5318E4BC.50301@oracle.com>
+ <20140306173137.6a23a0b2@cuia.bos.redhat.com>
+ <5318FC3F.4080204@redhat.com>
+ <20140307140650.GA1931@suse.de>
+ <20140307150923.GB1931@suse.de>
+ <20140307182745.GD1931@suse.de>
+ <20140311162845.GA30604@suse.de>
+ <531F3F15.8050206@oracle.com>
+ <531F4128.8020109@redhat.com>
+ <531F48CC.303@oracle.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <531F48CC.303@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Randy Dunlap <rdunlap@infradead.org>
-Cc: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, Rusty Russell <rusty@rustcorp.com.au>, virtio-dev@lists.oasis-open.org, "Michael S. Tsirkin" <mst@redhat.com>, Josh Triplett <josh@joshtriplett.org>
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, hhuang@redhat.com, knoel@redhat.com, aarcange@redhat.com
 
-On Tue, 11 Mar 2014 10:12:18 -0700 Randy Dunlap <rdunlap@infradead.org> wrote:
+On Tue, Mar 11, 2014 at 01:33:00PM -0400, Sasha Levin wrote:
+> Okay. So just this patch on top of the latest -next shows the following issues:
+> 
+> 1. BUG in task_numa_work:
+> 
+> [  439.417171] BUG: unable to handle kernel paging request at ffff880e17530c00
+> [  439.418216] IP: [<ffffffff81299385>] vmacache_find+0x75/0xa0
+> [  439.419073] PGD 8904067 PUD 1028fcb067 PMD 1028f10067 PTE 8000000e17530060
+> [  439.420340] Oops: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
+> [  439.420340] Dumping ftrace buffer:
+> [  439.420340]    (ftrace buffer empty)
+> [  439.420340] Modules linked in:
+> [  439.420340] CPU: 12 PID: 9937 Comm: trinity-c212 Tainted: G        W    3.14.0-rc5-next-20140307-sasha-00009-g3b24300-dirty #137
+> [  439.420340] task: ffff880e1a45b000 ti: ffff880e1a490000 task.ti: ffff880e1a490000
+> [  439.420340] RIP: 0010:[<ffffffff81299385>]  [<ffffffff81299385>] vmacache_find+0x75/0xa0
+> [  439.420340] RSP: 0018:ffff880e1a491e68  EFLAGS: 00010286
+> [  439.420340] RAX: ffff880e17530c00 RBX: 0000000000000000 RCX: 0000000000000001
+> [  439.420340] RDX: 0000000000000001 RSI: 0000000000000000 RDI: ffff880e1a45b000
+> [  439.420340] RBP: ffff880e1a491e68 R08: 0000000000000000 R09: 0000000000000000
+> [  439.420340] R10: 0000000000000001 R11: 0000000000000000 R12: ffff880e1ab75000
+> [  439.420340] R13: ffff880e1ab75000 R14: 0000000000010000 R15: 0000000000000000
+> [  439.420340] FS:  00007f3458c05700(0000) GS:ffff880d2b800000(0000) knlGS:0000000000000000
+> [  439.420340] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+> [  439.420340] CR2: ffff880e17530c00 CR3: 0000000e1a472000 CR4: 00000000000006a0
+> [  439.420340] Stack:
+> [  439.420340]  ffff880e1a491e98 ffffffff812a7610 ffffffff8118de40 0000000000000117
+> [  439.420340]  00000001000036da ffff880e1a45b000 ffff880e1a491ef8 ffffffff8118de4b
+> [  439.420340]  ffff880e1a491ec8 ffffffff81269575 ffff880e1ab750a8 ffff880e1a45b000
+> [  439.420340] Call Trace:
+> [  439.420340]  [<ffffffff812a7610>] find_vma+0x20/0x90
+> [  439.420340]  [<ffffffff8118de40>] ? task_numa_work+0x130/0x360
+> [  439.420340]  [<ffffffff8118de4b>] task_numa_work+0x13b/0x360
+> [  439.420340]  [<ffffffff81269575>] ? context_tracking_user_exit+0x195/0x1d0
+> [  439.420340]  [<ffffffff8116c5be>] task_work_run+0xae/0xf0
+> [  439.420340]  [<ffffffff8106ffbe>] do_notify_resume+0x8e/0xe0
+> [  439.420340]  [<ffffffff844b17a2>] int_signal+0x12/0x17
+> [  439.420340] Code: 42 10 00 00 00 00 48 c7 42 18 00 00 00 00 eb 38 66 0f 1f 44 00 00 31 d2 48 89 c7 48 63 ca 48 8b 84 cf b8 07 00 00 48 85 c0 74 0b <48> 39 30 77 06 48 3b 70 08 72 12 ff c2 83 fa 04 75 de 66 0f 1f
+> [  439.420340] RIP  [<ffffffff81299385>] vmacache_find+0x75/0xa0
+> [  439.420340]  RSP <ffff880e1a491e68>
+> [  439.420340] CR2: ffff880e17530c00
+> 
 
-> On 03/10/2014 03:37 PM, akpm@linux-foundation.org wrote:
-> > The mm-of-the-moment snapshot 2014-03-10-15-35 has been uploaded to
-> > 
-> >    http://www.ozlabs.org/~akpm/mmotm/
-> > 
-> > mmotm-readme.txt says
-> > 
-> > README for mm-of-the-moment:
-> > 
-> > http://www.ozlabs.org/~akpm/mmotm/
-> > 
-> > This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
-> > more than once a week.
-> > 
-> > You will need quilt to apply these patches to the latest Linus release (3.x
-> > or 3.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
-> > http://ozlabs.org/~akpm/mmotm/series
-> > 
-> > The file broken-out.tar.gz contains two datestamp files: .DATE and
-> > .DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
-> > followed by the base kernel version against which this patch series is to
-> > be applied.
-> > 
-> > This tree is partially included in linux-next.  To see which patches are
-> > included in linux-next, consult the `series' file.  Only the patches
-> > within the #NEXT_PATCHES_START/#NEXT_PATCHES_END markers are included in
-> > linux-next.
-> > 
-> 
-> on x86_64:
-> 
-> ERROR: "balloon_devinfo_alloc" [drivers/virtio/virtio_balloon.ko] undefined!
-> ERROR: "balloon_page_enqueue" [drivers/virtio/virtio_balloon.ko] undefined!
-> ERROR: "balloon_page_dequeue" [drivers/virtio/virtio_balloon.ko] undefined!
-> 
-> when loadable module
-> 
-> or
-> 
-> virtio_balloon.c:(.text+0x1fa26): undefined reference to `balloon_page_enqueue'
-> virtio_balloon.c:(.text+0x1fb87): undefined reference to `balloon_page_dequeue'
-> virtio_balloon.c:(.text+0x1fdf1): undefined reference to `balloon_devinfo_alloc'
-> 
-> when builtin.
+Ok, this does not look related. It looks like damage from the VMA caching
+patches, possibly a use-after free. I'm skeptical that it's related to
+automatic NUMA balancing as such based on the second trace you posted.
 
-OK, thanks, I'll drop
-http://ozlabs.org/~akpm/mmots/broken-out/mm-disable-mm-balloon_compactionc-completely-when-config_balloon_compaction.patch
+What does addr2line -e vmlinux ffffffff81299385 say? I want to be sure
+it looks like a vma dereference without risking making a mistake
+decoding it.
+
+1. Does this bug trigger even if automatic NUMA balancing is disabled?
+2. Does this bug trigger if DEBUG_PAGEALLOC is disabled? If it's a
+	use-after free then the bug would still be there.
+3. Can you test with the following patches reverted please?
+
+	e15d25d9c827b4346a36a3a78dd566d5ad353402 mm-per-thread-vma-caching-fix-fix
+	e440e20dc76803cdab616b4756c201d5c72857f2 mm-per-thread-vma-caching-fix
+	0d9ad4220e6d73f63a9eeeaac031b92838f75bb3 mm: per-thread vma caching
+
+The last patch will not revert cleanly (least it didn't for me) but it
+was just a case of git rm the two affected files, remove any include of
+vmacache.h and commit the rest.
+
+Thanks!
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
