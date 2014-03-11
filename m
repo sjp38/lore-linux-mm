@@ -1,53 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f171.google.com (mail-we0-f171.google.com [74.125.82.171])
-	by kanga.kvack.org (Postfix) with ESMTP id BFC696B009D
-	for <linux-mm@kvack.org>; Tue, 11 Mar 2014 10:06:58 -0400 (EDT)
-Received: by mail-we0-f171.google.com with SMTP id t61so10075293wes.16
-        for <linux-mm@kvack.org>; Tue, 11 Mar 2014 07:06:58 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id hu4si21442803wjb.92.2014.03.11.07.06.56
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 11 Mar 2014 07:06:57 -0700 (PDT)
-Date: Tue, 11 Mar 2014 15:06:55 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] mm: implement POSIX_FADV_NOREUSE
-Message-ID: <20140311140655.GD28292@dhcp22.suse.cz>
-References: <1394533550-18485-1-git-send-email-matthias.wirth@gmail.com>
+Received: from mail-qa0-f49.google.com (mail-qa0-f49.google.com [209.85.216.49])
+	by kanga.kvack.org (Postfix) with ESMTP id C9A506B009F
+	for <linux-mm@kvack.org>; Tue, 11 Mar 2014 10:28:29 -0400 (EDT)
+Received: by mail-qa0-f49.google.com with SMTP id j7so1019622qaq.8
+        for <linux-mm@kvack.org>; Tue, 11 Mar 2014 07:28:29 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id s10si10682326qas.115.2014.03.11.07.28.28
+        for <linux-mm@kvack.org>;
+        Tue, 11 Mar 2014 07:28:28 -0700 (PDT)
+Date: Tue, 11 Mar 2014 10:28:17 -0400
+From: Dave Jones <davej@redhat.com>
+Subject: Re: bad rss-counter message in 3.14rc5
+Message-ID: <20140311142817.GA26517@redhat.com>
+References: <20140307002210.GA26603@redhat.com>
+ <20140311024906.GA9191@redhat.com>
+ <20140310201340.81994295.akpm@linux-foundation.org>
+ <20140310214612.3b4de36a.akpm@linux-foundation.org>
+ <20140311045109.GB12551@redhat.com>
+ <20140310220158.7e8b7f2a.akpm@linux-foundation.org>
+ <20140311053017.GB14329@redhat.com>
+ <20140311132024.GC32390@moon>
+ <531F0E39.9020100@oracle.com>
+ <20140311134158.GD32390@moon>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1394533550-18485-1-git-send-email-matthias.wirth@gmail.com>
+In-Reply-To: <20140311134158.GD32390@moon>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthias Wirth <matthias.wirth@gmail.com>
-Cc: Lukas Senger <lukas@fridolin.com>, Matthew Wilcox <matthew@wil.cx>, Jeff Layton <jlayton@redhat.com>, "J. Bruce Fields" <bfields@fieldses.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Lisa Du <cldu@marvell.com>, Paul Mackerras <paulus@samba.org>, Sasha Levin <sasha.levin@oracle.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Fengguang Wu <fengguang.wu@intel.com>, Shaohua Li <shli@kernel.org>, Alexey Kardashevskiy <aik@ozlabs.ru>, Minchan Kim <minchan@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Al Viro <viro@zeniv.linux.org.uk>, Steven Whitehouse <swhiteho@redhat.com>, Mel Gorman <mgorman@suse.de>, Cody P Schafer <cody@linux.vnet.ibm.com>, Jiang Liu <liuj97@gmail.com>, David Rientjes <rientjes@google.com>, "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, Dave Hansen <dave.hansen@linux.intel.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, Lukas Czerner <lczerner@redhat.com>, Damien Ramonda <damien.ramonda@intel.com>, Mark Rutland <mark.rutland@arm.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Cyrill Gorcunov <gorcunov@gmail.com>
+Cc: Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Bob Liu <bob.liu@oracle.com>, Konstantin Khlebnikov <koct9i@gmail.com>
 
-On Tue 11-03-14 11:25:41, Matthias Wirth wrote:
-> Backups, logrotation and indexers don't need files they read to remain
-> in the page cache. Their pages can be reclaimed early and should not
-> displace useful pages. POSIX specifices the POSIX_FADV_NOREUSE flag for
-> these use cases but it's currently a noop.
+On Tue, Mar 11, 2014 at 05:41:58PM +0400, Cyrill Gorcunov wrote:
+ > On Tue, Mar 11, 2014 at 09:23:05AM -0400, Sasha Levin wrote:
+ > > >>
+ > > >>Ok, with move_pages excluded it still oopses.
+ > > >
+ > > >Dave, is it possible to somehow figure out was someone reading pagemap file
+ > > >at moment of the bug triggering?
+ > > 
+ > > We can sprinkle printk()s wherever might be useful, might not be 100% accurate but
+ > > should be close enough to confirm/deny the theory.
+ > 
+ > After reading some more, I suppose the idea I had is wrong, investigating.
+ > Will ping if I find something.
 
-Why don't you use POSIX_FADV_DONTNEED when you no longer use those
-pages? E.g. on close()?
+I can rule it out anyway, I can reproduce this by telling trinity to do nothing
+other than mmap()'s.   I'll try and narrow down the exact parameters.
 
-> In our implementation pages marked with the NoReuse flag are added to
-> the tail of the LRU list the first time they are read. Therefore they
-> are the first to be reclaimed.
-
-page flags are really scarce and I am not sure this is the best usage of
-the few remaining slots.
-
-> We needed to add flags to the file and page structs in order to pass
-> down the hint to the actual call to list_add.
-> 
-> Signed-off-by: Matthias Wirth <matthias.wirth@gmail.com>
-> Signed-off-by: Lukas Senger <lukas@fridolin.com>
-[...]
--- 
-Michal Hocko
-SUSE Labs
+	Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
