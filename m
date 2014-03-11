@@ -1,60 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f170.google.com (mail-yk0-f170.google.com [209.85.160.170])
-	by kanga.kvack.org (Postfix) with ESMTP id D7C766B006E
-	for <linux-mm@kvack.org>; Tue, 11 Mar 2014 14:48:28 -0400 (EDT)
-Received: by mail-yk0-f170.google.com with SMTP id 9so24153652ykp.1
-        for <linux-mm@kvack.org>; Tue, 11 Mar 2014 11:48:28 -0700 (PDT)
-Received: from SMTP.CITRIX.COM (smtp.citrix.com. [66.165.176.89])
-        by mx.google.com with ESMTPS id k22si37681337yhj.107.2014.03.11.11.48.28
+Received: from mail-qg0-f41.google.com (mail-qg0-f41.google.com [209.85.192.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 512426B0035
+	for <linux-mm@kvack.org>; Tue, 11 Mar 2014 15:20:55 -0400 (EDT)
+Received: by mail-qg0-f41.google.com with SMTP id i50so21785015qgf.0
+        for <linux-mm@kvack.org>; Tue, 11 Mar 2014 12:20:55 -0700 (PDT)
+Received: from relay3-d.mail.gandi.net (relay3-d.mail.gandi.net. [2001:4b98:c:538::195])
+        by mx.google.com with ESMTPS id v4si11768919qap.55.2014.03.11.12.20.54
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 11 Mar 2014 11:48:28 -0700 (PDT)
-From: David Vrabel <david.vrabel@citrix.com>
-Subject: [PATCHv2] mm/vmalloc: avoid soft lockup warnings when vunmap()'ing large ranges
-Date: Tue, 11 Mar 2014 18:40:23 +0000
-Message-ID: <1394563223-5045-1-git-send-email-david.vrabel@citrix.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 11 Mar 2014 12:20:54 -0700 (PDT)
+Date: Tue, 11 Mar 2014 12:20:46 -0700
+From: Josh Triplett <josh@joshtriplett.org>
+Subject: Re: mmotm 2014-03-10-15-35 uploaded (virtio_balloon)
+Message-ID: <20140311192046.GA2686@leaf>
+References: <20140310223701.0969C31C2AA@corp2gmr1-1.hot.corp.google.com>
+ <531F43F2.1030504@infradead.org>
+ <20140311110338.333e1ee691cadb0f20dbb083@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140311110338.333e1ee691cadb0f20dbb083@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, xen-devel@lists.xenproject.org, Dietmar Hahn <dietmar.hahn@ts.fujitsu.com>, David Vrabel <david.vrabel@citrix.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Randy Dunlap <rdunlap@infradead.org>, mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, Rusty Russell <rusty@rustcorp.com.au>, virtio-dev@lists.oasis-open.org, "Michael S. Tsirkin" <mst@redhat.com>
 
-If vunmap() is used to unmap a large (e.g., 50 GB) region, it may take
-sufficiently long that it triggers soft lockup warnings.
+On Tue, Mar 11, 2014 at 11:03:38AM -0700, Andrew Morton wrote:
+> On Tue, 11 Mar 2014 10:12:18 -0700 Randy Dunlap <rdunlap@infradead.org> wrote:
+> 
+> > On 03/10/2014 03:37 PM, akpm@linux-foundation.org wrote:
+> > > The mm-of-the-moment snapshot 2014-03-10-15-35 has been uploaded to
+> > > 
+> > >    http://www.ozlabs.org/~akpm/mmotm/
+> > > 
+> > > mmotm-readme.txt says
+> > > 
+> > > README for mm-of-the-moment:
+> > > 
+> > > http://www.ozlabs.org/~akpm/mmotm/
+> > > 
+> > > This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
+> > > more than once a week.
+> > > 
+> > > You will need quilt to apply these patches to the latest Linus release (3.x
+> > > or 3.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
+> > > http://ozlabs.org/~akpm/mmotm/series
+> > > 
+> > > The file broken-out.tar.gz contains two datestamp files: .DATE and
+> > > .DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
+> > > followed by the base kernel version against which this patch series is to
+> > > be applied.
+> > > 
+> > > This tree is partially included in linux-next.  To see which patches are
+> > > included in linux-next, consult the `series' file.  Only the patches
+> > > within the #NEXT_PATCHES_START/#NEXT_PATCHES_END markers are included in
+> > > linux-next.
+> > > 
+> > 
+> > on x86_64:
+> > 
+> > ERROR: "balloon_devinfo_alloc" [drivers/virtio/virtio_balloon.ko] undefined!
+> > ERROR: "balloon_page_enqueue" [drivers/virtio/virtio_balloon.ko] undefined!
+> > ERROR: "balloon_page_dequeue" [drivers/virtio/virtio_balloon.ko] undefined!
+> > 
+> > when loadable module
+> > 
+> > or
+> > 
+> > virtio_balloon.c:(.text+0x1fa26): undefined reference to `balloon_page_enqueue'
+> > virtio_balloon.c:(.text+0x1fb87): undefined reference to `balloon_page_dequeue'
+> > virtio_balloon.c:(.text+0x1fdf1): undefined reference to `balloon_devinfo_alloc'
+> > 
+> > when builtin.
+> 
+> OK, thanks, I'll drop
+> http://ozlabs.org/~akpm/mmots/broken-out/mm-disable-mm-balloon_compactionc-completely-when-config_balloon_compaction.patch
 
-Add a cond_resched() into vunmap_pmd_range() so the calling task may
-be resheduled after unmapping each PMD entry.  This is how
-zap_pmd_range() fixes the same problem for userspace mappings.
+Sorry about that; I missed that case in my testing.  It always seems
+strange that the dependency goes that way around.
 
-All callers may sleep except for the APEI GHES driver (apei/ghes.c)
-which calls unmap_kernel_range_no_flush() from NMI and IRQ contexts.
-This driver only unmaps a single pages so don't call cond_resched() if
-the unmap doesn't cross a PMD boundary.
+With virtio-balloon being the one and only user of this API, would it be
+reasonable to just only compile in balloon_compaction.o when
+CONFIG_VIRTIO_BALLOON?
 
-Reported-by: Dietmar Hahn <dietmar.hahn@ts.fujitsu.com>
-Signed-off-by: David Vrabel <david.vrabel@citrix.com>
----
-v2: don't call cond_resched() at the end of a PMD range.
----
- mm/vmalloc.c |    2 ++
- 1 files changed, 2 insertions(+), 0 deletions(-)
-
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 0fdf968..1a8b162 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -75,6 +75,8 @@ static void vunmap_pmd_range(pud_t *pud, unsigned long addr, unsigned long end)
- 		if (pmd_none_or_clear_bad(pmd))
- 			continue;
- 		vunmap_pte_range(pmd, addr, next);
-+		if (next != end)
-+			cond_resched();
- 	} while (pmd++, addr = next, addr != end);
- }
- 
--- 
-1.7.2.5
+- Josh Triplett
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
