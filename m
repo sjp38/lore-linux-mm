@@ -1,51 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id CF5D76B0098
-	for <linux-mm@kvack.org>; Tue, 11 Mar 2014 09:23:16 -0400 (EDT)
-Received: by mail-pa0-f42.google.com with SMTP id fb1so8882646pad.1
-        for <linux-mm@kvack.org>; Tue, 11 Mar 2014 06:23:15 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id zo6si20254921pbc.13.2014.03.11.06.23.14
+Received: from mail-lb0-f177.google.com (mail-lb0-f177.google.com [209.85.217.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 37E686B009A
+	for <linux-mm@kvack.org>; Tue, 11 Mar 2014 09:42:02 -0400 (EDT)
+Received: by mail-lb0-f177.google.com with SMTP id z11so5480146lbi.8
+        for <linux-mm@kvack.org>; Tue, 11 Mar 2014 06:42:01 -0700 (PDT)
+Received: from mail-lb0-x233.google.com (mail-lb0-x233.google.com [2a00:1450:4010:c04::233])
+        by mx.google.com with ESMTPS id am6si22083490lbc.18.2014.03.11.06.42.00
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 11 Mar 2014 06:23:14 -0700 (PDT)
-Message-ID: <531F0E39.9020100@oracle.com>
-Date: Tue, 11 Mar 2014 09:23:05 -0400
-From: Sasha Levin <sasha.levin@oracle.com>
-MIME-Version: 1.0
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 11 Mar 2014 06:42:00 -0700 (PDT)
+Received: by mail-lb0-f179.google.com with SMTP id p9so5705517lbv.10
+        for <linux-mm@kvack.org>; Tue, 11 Mar 2014 06:42:00 -0700 (PDT)
+Date: Tue, 11 Mar 2014 17:41:58 +0400
+From: Cyrill Gorcunov <gorcunov@gmail.com>
 Subject: Re: bad rss-counter message in 3.14rc5
-References: <20140305174503.GA16335@redhat.com> <20140305175725.GB16335@redhat.com> <20140307002210.GA26603@redhat.com> <20140311024906.GA9191@redhat.com> <20140310201340.81994295.akpm@linux-foundation.org> <20140310214612.3b4de36a.akpm@linux-foundation.org> <20140311045109.GB12551@redhat.com> <20140310220158.7e8b7f2a.akpm@linux-foundation.org> <20140311053017.GB14329@redhat.com> <20140311132024.GC32390@moon>
-In-Reply-To: <20140311132024.GC32390@moon>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Message-ID: <20140311134158.GD32390@moon>
+References: <20140305175725.GB16335@redhat.com>
+ <20140307002210.GA26603@redhat.com>
+ <20140311024906.GA9191@redhat.com>
+ <20140310201340.81994295.akpm@linux-foundation.org>
+ <20140310214612.3b4de36a.akpm@linux-foundation.org>
+ <20140311045109.GB12551@redhat.com>
+ <20140310220158.7e8b7f2a.akpm@linux-foundation.org>
+ <20140311053017.GB14329@redhat.com>
+ <20140311132024.GC32390@moon>
+ <531F0E39.9020100@oracle.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <531F0E39.9020100@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cyrill Gorcunov <gorcunov@gmail.com>, Dave Jones <davej@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Bob Liu <bob.liu@oracle.com>, Konstantin Khlebnikov <koct9i@gmail.com>
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: Dave Jones <davej@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Bob Liu <bob.liu@oracle.com>, Konstantin Khlebnikov <koct9i@gmail.com>
 
-On 03/11/2014 09:20 AM, Cyrill Gorcunov wrote:
-> On Tue, Mar 11, 2014 at 01:30:17AM -0400, Dave Jones wrote:
->>   > >  >
->>   > >  > I don't see any holes in regular migration.  Do you know if this is
->>   > >  > reproducible with CONFIG_NUMA_BALANCING=n or CONFIG_NUMA=n?
->>   > >
->>   > > CONFIG_NUMA_BALANCING was n already btw, so I'll do a NUMA=n run.
->>   >
->>   > There probably isn't much point unless trinity is using
->>   > sys_move_pages().  Is it?  If so it would be interesting to disable
->>   > trinity's move_pages calls and see if it still fails.
->>
->> Ok, with move_pages excluded it still oopses.
->
-> Dave, is it possible to somehow figure out was someone reading pagemap file
-> at moment of the bug triggering?
+On Tue, Mar 11, 2014 at 09:23:05AM -0400, Sasha Levin wrote:
+> >>
+> >>Ok, with move_pages excluded it still oopses.
+> >
+> >Dave, is it possible to somehow figure out was someone reading pagemap file
+> >at moment of the bug triggering?
+> 
+> We can sprinkle printk()s wherever might be useful, might not be 100% accurate but
+> should be close enough to confirm/deny the theory.
 
-We can sprinkle printk()s wherever might be useful, might not be 100% accurate but
-should be close enough to confirm/deny the theory.
-
-
-Thanks,
-Sasha
+After reading some more, I suppose the idea I had is wrong, investigating.
+Will ping if I find something.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
