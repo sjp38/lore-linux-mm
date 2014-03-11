@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f176.google.com (mail-qc0-f176.google.com [209.85.216.176])
-	by kanga.kvack.org (Postfix) with ESMTP id D66706B003D
-	for <linux-mm@kvack.org>; Tue, 11 Mar 2014 00:50:21 -0400 (EDT)
-Received: by mail-qc0-f176.google.com with SMTP id m20so8807317qcx.7
-        for <linux-mm@kvack.org>; Mon, 10 Mar 2014 21:50:21 -0700 (PDT)
+Received: from mail-qa0-f46.google.com (mail-qa0-f46.google.com [209.85.216.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 25E5F6B004D
+	for <linux-mm@kvack.org>; Tue, 11 Mar 2014 00:51:19 -0400 (EDT)
+Received: by mail-qa0-f46.google.com with SMTP id i13so7812600qae.19
+        for <linux-mm@kvack.org>; Mon, 10 Mar 2014 21:51:18 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id u4si10598478qat.108.2014.03.10.21.50.20
+        by mx.google.com with ESMTP id k50si2610832qgf.156.2014.03.10.21.51.18
         for <linux-mm@kvack.org>;
-        Mon, 10 Mar 2014 21:50:21 -0700 (PDT)
-Date: Tue, 11 Mar 2014 00:50:05 -0400
+        Mon, 10 Mar 2014 21:51:18 -0700 (PDT)
+Date: Tue, 11 Mar 2014 00:51:09 -0400
 From: Dave Jones <davej@redhat.com>
 Subject: Re: bad rss-counter message in 3.14rc5
-Message-ID: <20140311045005.GA12551@redhat.com>
+Message-ID: <20140311045109.GB12551@redhat.com>
 References: <20140305174503.GA16335@redhat.com>
  <20140305175725.GB16335@redhat.com>
  <20140307002210.GA26603@redhat.com>
@@ -44,7 +44,7 @@ On Mon, Mar 10, 2014 at 09:46:12PM -0700, Andrew Morton wrote:
  > I don't see any holes in regular migration.  Do you know if this is
  > reproducible with CONFIG_NUMA_BALANCING=n or CONFIG_NUMA=n?
 
-I'll give it an overnight run and let you know tomorrow.
+CONFIG_NUMA_BALANCING was n already btw, so I'll do a NUMA=n run.
 
 	Dave
 
