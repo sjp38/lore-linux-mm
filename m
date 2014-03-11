@@ -1,47 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f42.google.com (mail-pb0-f42.google.com [209.85.160.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 2DE2A6B00A6
-	for <linux-mm@kvack.org>; Tue, 11 Mar 2014 11:34:19 -0400 (EDT)
-Received: by mail-pb0-f42.google.com with SMTP id rr13so8979270pbb.15
-        for <linux-mm@kvack.org>; Tue, 11 Mar 2014 08:34:18 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id ha5si20581976pbc.120.2014.03.11.08.34.17
-        for <linux-mm@kvack.org>;
-        Tue, 11 Mar 2014 08:34:18 -0700 (PDT)
-Message-ID: <531F2ABA.6060804@linux.intel.com>
-Date: Tue, 11 Mar 2014 08:24:42 -0700
-From: Dave Hansen <dave.hansen@linux.intel.com>
+Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E5676B00A8
+	for <linux-mm@kvack.org>; Tue, 11 Mar 2014 12:28:50 -0400 (EDT)
+Received: by mail-wg0-f48.google.com with SMTP id l18so5926498wgh.31
+        for <linux-mm@kvack.org>; Tue, 11 Mar 2014 09:28:49 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id cs8si1887018wib.70.2014.03.11.09.28.48
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 11 Mar 2014 09:28:48 -0700 (PDT)
+Date: Tue, 11 Mar 2014 16:28:45 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH -mm] mm,numa,mprotect: always continue after finding a
+ stable thp page
+Message-ID: <20140311162845.GA30604@suse.de>
+References: <5318E4BC.50301@oracle.com>
+ <20140306173137.6a23a0b2@cuia.bos.redhat.com>
+ <5318FC3F.4080204@redhat.com>
+ <20140307140650.GA1931@suse.de>
+ <20140307150923.GB1931@suse.de>
+ <20140307182745.GD1931@suse.de>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: implement POSIX_FADV_NOREUSE
-References: <1394533550-18485-1-git-send-email-matthias.wirth@gmail.com> <20140311140655.GD28292@dhcp22.suse.cz>
-In-Reply-To: <20140311140655.GD28292@dhcp22.suse.cz>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20140307182745.GD1931@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>, Matthias Wirth <matthias.wirth@gmail.com>
-Cc: Lukas Senger <lukas@fridolin.com>, Matthew Wilcox <matthew@wil.cx>, Jeff Layton <jlayton@redhat.com>, "J. Bruce Fields" <bfields@fieldses.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Lisa Du <cldu@marvell.com>, Paul Mackerras <paulus@samba.org>, Sasha Levin <sasha.levin@oracle.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Fengguang Wu <fengguang.wu@intel.com>, Shaohua Li <shli@kernel.org>, Alexey Kardashevskiy <aik@ozlabs.ru>, Minchan Kim <minchan@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Al Viro <viro@zeniv.linux.org.uk>, Steven Whitehouse <swhiteho@redhat.com>, Mel Gorman <mgorman@suse.de>, Cody P Schafer <cody@linux.vnet.ibm.com>, Jiang Liu <liuj97@gmail.com>, David Rientjes <rientjes@google.com>, "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, Lukas Czerner <lczerner@redhat.com>, Damien Ramonda <damien.ramonda@intel.com>, Mark Rutland <mark.rutland@arm.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Rik van Riel <riel@redhat.com>, Sasha Levin <sasha.levin@oracle.com>
+Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, hhuang@redhat.com, knoel@redhat.com, aarcange@redhat.com
 
-On 03/11/2014 07:06 AM, Michal Hocko wrote:
->> > In our implementation pages marked with the NoReuse flag are added to
->> > the tail of the LRU list the first time they are read. Therefore they
->> > are the first to be reclaimed.
-> page flags are really scarce and I am not sure this is the best usage of
-> the few remaining slots.
+On Fri, Mar 07, 2014 at 06:27:45PM +0000, Mel Gorman wrote:
+> > This is a completely untested prototype. It rechecks pmd_trans_huge
+> > under the lock and falls through if it hit a parallel split. It's not
+> > perfect because it could decide to fall through just because there was
+> > no prot_numa work to do but it's for illustration purposes. Secondly,
+> > I noted that you are calling invalidate for every pmd range. Is that not
+> > a lot of invalidations? We could do the same by just tracking the address
+> > of the first invalidation.
+> > 
+> 
+> And there were other minor issues. This is still untested but Sasha,
+> can you try it out please? I discussed this with Rik on IRC for a bit and
+> reckon this should be sufficient if the correct race has been identified.
+> 
 
-Yeah, especially since the use so so transient.  I can see why using a
-flag is nice for a quick prototype, but this is a far cry from needing
-one. :)  You might be able to reuse a bit like PageReadahead.  You could
-probably also use a bit in the page pointer of the lruvec, or even have
-a percpu variable that stores a pointer to the 'struct page' you want to
-mark as NOREUSE.
+Any luck with this patch Sasha? It passed basic tests here but I had not
+seen the issue trigger either.
 
-This also looks to ignore the reuse flag for existing pages.  Have you
-thought about what the semantics should be there?
-
-Also, *should* readahead pages really have this flag set?  If a very
-important page gets brought in via readahead, doesn't this put it at a
-disadvantage for getting aged out?
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
