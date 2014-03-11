@@ -1,87 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oa0-f41.google.com (mail-oa0-f41.google.com [209.85.219.41])
-	by kanga.kvack.org (Postfix) with ESMTP id ED5F26B0035
-	for <linux-mm@kvack.org>; Tue, 11 Mar 2014 16:21:38 -0400 (EDT)
-Received: by mail-oa0-f41.google.com with SMTP id j17so9290290oag.0
-        for <linux-mm@kvack.org>; Tue, 11 Mar 2014 13:21:38 -0700 (PDT)
-Received: from g2t2352.austin.hp.com (g2t2352.austin.hp.com. [15.217.128.51])
-        by mx.google.com with ESMTPS id 2si6603759oep.54.2014.03.11.13.21.38
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 11 Mar 2014 13:21:38 -0700 (PDT)
-Message-ID: <1394569297.2786.36.camel@buesod1.americas.hpqcorp.net>
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 9FB2C6B0035
+	for <linux-mm@kvack.org>; Tue, 11 Mar 2014 16:30:54 -0400 (EDT)
+Received: by mail-pd0-f175.google.com with SMTP id x10so58806pdj.6
+        for <linux-mm@kvack.org>; Tue, 11 Mar 2014 13:30:54 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id tu7si106233pac.193.2014.03.11.13.30.52
+        for <linux-mm@kvack.org>;
+        Tue, 11 Mar 2014 13:30:53 -0700 (PDT)
+Date: Tue, 11 Mar 2014 13:30:51 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: mm: mmap_sem lock assertion failure in __mlock_vma_pages_range
-From: Davidlohr Bueso <davidlohr@hp.com>
-Date: Tue, 11 Mar 2014 13:21:37 -0700
-In-Reply-To: <531F6E43.40901@oracle.com>
+Message-Id: <20140311133051.bf5ca716ef189746ebcff431@linux-foundation.org>
+In-Reply-To: <1394568453.2786.28.camel@buesod1.americas.hpqcorp.net>
 References: <531F6689.60307@oracle.com>
-	 <1394568453.2786.28.camel@buesod1.americas.hpqcorp.net>
-	 <531F6E43.40901@oracle.com>
-Content-Type: text/plain; charset="UTF-8"
+	<1394568453.2786.28.camel@buesod1.americas.hpqcorp.net>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>
+To: Davidlohr Bueso <davidlohr@hp.com>
+Cc: Sasha Levin <sasha.levin@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, 2014-03-11 at 16:12 -0400, Sasha Levin wrote:
-> On 03/11/2014 04:07 PM, Davidlohr Bueso wrote:
-> > On Tue, 2014-03-11 at 15:39 -0400, Sasha Levin wrote:
-> >> Hi all,
-> >>
-> >> I've ended up deleting the log file by mistake, but this bug does seem to be important
-> >> so I'd rather not wait before the same issue is triggered again.
-> >>
-> >> The call chain is:
-> >>
-> >> 	mlock (mm/mlock.c:745)
-> >> 		__mm_populate (mm/mlock.c:700)
-> >> 			__mlock_vma_pages_range (mm/mlock.c:229)
-> >> 				VM_BUG_ON(!rwsem_is_locked(&mm->mmap_sem));
-> >
-> > So __mm_populate() is only called by mlock(2) and this VM_BUG_ON seems
-> > wrong as we call it without the lock held:
-> >
-> > 	up_write(&current->mm->mmap_sem);
-> > 	if (!error)
-> > 		error = __mm_populate(start, len, 0);
-> > 	return error;
-> > }
-> >
-> >>
-> >> It seems to be a rather simple trace triggered from userspace. The only recent patch
-> >> in the area (that I've noticed) was "mm/mlock: prepare params outside critical region".
-> >> I've reverted it and trying to testing without it.
-> >
-> > Odd, this patch should definitely *not* cause this. In any case every
-> > operation removed from the critical region is local to the function:
-> >
-> > 	lock_limit = rlimit(RLIMIT_MEMLOCK);
-> > 	lock_limit >>= PAGE_SHIFT;
-> > 	locked = len >> PAGE_SHIFT;
-> >
-> > 	down_write(&current->mm->mmap_sem);
+On Tue, 11 Mar 2014 13:07:33 -0700 Davidlohr Bueso <davidlohr@hp.com> wrote:
+
+> On Tue, 2014-03-11 at 15:39 -0400, Sasha Levin wrote:
+> > Hi all,
+> > 
+> > I've ended up deleting the log file by mistake, but this bug does seem to be important
+> > so I'd rather not wait before the same issue is triggered again.
+> > 
+> > The call chain is:
+> > 
+> > 	mlock (mm/mlock.c:745)
+> > 		__mm_populate (mm/mlock.c:700)
+> > 			__mlock_vma_pages_range (mm/mlock.c:229)
+> > 				VM_BUG_ON(!rwsem_is_locked(&mm->mmap_sem));
 > 
-> Yeah, this patch doesn't look like it's causing it, I guess it was more of a "you touched this
-> code last - do you still remember what's going on here?" :).
+> So __mm_populate() is only called by mlock(2) and this VM_BUG_ON seems
+> wrong as we call it without the lock held:
+> 
+> 	up_write(&current->mm->mmap_sem);
+> 	if (!error)
+> 		error = __mm_populate(start, len, 0);
+> 	return error;
+> }
 
-How frequently do you trigger this issue? Could you verify if it still
-occurs by reverting my patch?
+__mm_populate() pretty clearly calls __mlock_vma_pages_range() under
+down_read(mm->mmap_sem).
 
-> It's semi-odd because it seems like an obvious issue to hit with trinity but it's the first time
-> I've seen it and it's probably been there for a while (that BUG_ON is there from 2009).
+I worry about what happens if __get_user_pages decides to do
 
-Actually that VM_BUG_ON is correct, because we do in fact take the
-mmap_sem (for reading) inside __mm_populate(), which in return calls
-__mlock_vma_pages_range() with the lock held. Now, the lock is taken
-within the for loop, which does the hole "if (!locked) down_read()"
-dance, but it's just making sure that we take the lock upon the first
-iteration. So besides doing the locking outside of the loop, which is
-just a cleanup, I don't really see how it could be triggered.
+				if (ret & VM_FAULT_RETRY) {
+					if (nonblocking)
+						*nonblocking = 0;
+					return i;
+				}
 
-Thanks,
-Davidlohr
+uh-oh, that just cleared __mm_populate()'s `locked' variable and we'll
+forget to undo mmap_sem.  That won't explain this result, but it's a
+potential problem.
+
+
+All I can think is that find_vma() went and returned a vma from a
+different mm, which would be odd.  How about I toss this in there?
+
+--- a/mm/vmacache.c~a
++++ a/mm/vmacache.c
+@@ -72,8 +72,10 @@ struct vm_area_struct *vmacache_find(str
+ 	for (i = 0; i < VMACACHE_SIZE; i++) {
+ 		struct vm_area_struct *vma = current->vmacache[i];
+ 
+-		if (vma && vma->vm_start <= addr && vma->vm_end > addr)
++		if (vma && vma->vm_start <= addr && vma->vm_end > addr) {
++			BUG_ON(vma->vm_mm != mm);
+ 			return vma;
++		}
+ 	}
+ 
+ 	return NULL;
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
