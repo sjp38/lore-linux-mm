@@ -1,127 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f46.google.com (mail-pb0-f46.google.com [209.85.160.46])
-	by kanga.kvack.org (Postfix) with ESMTP id BE13F6B00BE
-	for <linux-mm@kvack.org>; Tue, 11 Mar 2014 14:24:00 -0400 (EDT)
-Received: by mail-pb0-f46.google.com with SMTP id rq2so9243198pbb.33
-        for <linux-mm@kvack.org>; Tue, 11 Mar 2014 11:24:00 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id k7si20977490pbl.251.2014.03.11.11.23.58
-        for <linux-mm@kvack.org>;
-        Tue, 11 Mar 2014 11:23:59 -0700 (PDT)
-Date: Tue, 11 Mar 2014 11:23:55 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] backing_dev: Fix hung task on sync
-Message-Id: <20140311112355.d335295ed62cd480eb5ab33c@linux-foundation.org>
-In-Reply-To: <20140219190139.GQ10134@htj.dyndns.org>
-References: <1392437537-27392-1-git-send-email-dbasehore@chromium.org>
-	<20140218225548.GI31892@mtj.dyndns.org>
-	<20140219092731.GA4849@quack.suse.cz>
-	<20140219190139.GQ10134@htj.dyndns.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-yk0-f170.google.com (mail-yk0-f170.google.com [209.85.160.170])
+	by kanga.kvack.org (Postfix) with ESMTP id D7C766B006E
+	for <linux-mm@kvack.org>; Tue, 11 Mar 2014 14:48:28 -0400 (EDT)
+Received: by mail-yk0-f170.google.com with SMTP id 9so24153652ykp.1
+        for <linux-mm@kvack.org>; Tue, 11 Mar 2014 11:48:28 -0700 (PDT)
+Received: from SMTP.CITRIX.COM (smtp.citrix.com. [66.165.176.89])
+        by mx.google.com with ESMTPS id k22si37681337yhj.107.2014.03.11.11.48.28
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 11 Mar 2014 11:48:28 -0700 (PDT)
+From: David Vrabel <david.vrabel@citrix.com>
+Subject: [PATCHv2] mm/vmalloc: avoid soft lockup warnings when vunmap()'ing large ranges
+Date: Tue, 11 Mar 2014 18:40:23 +0000
+Message-ID: <1394563223-5045-1-git-send-email-david.vrabel@citrix.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Jan Kara <jack@suse.cz>, Derek Basehore <dbasehore@chromium.org>, Alexander Viro <viro@zento.linux.org.uk>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Darrick J. Wong" <darrick.wong@oracle.com>, Kees Cook <keescook@chromium.org>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, bleung@chromium.org, sonnyrao@chromium.org, semenzato@chromium.org
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, xen-devel@lists.xenproject.org, Dietmar Hahn <dietmar.hahn@ts.fujitsu.com>, David Vrabel <david.vrabel@citrix.com>
 
-On Wed, 19 Feb 2014 14:01:39 -0500 Tejun Heo <tj@kernel.org> wrote:
+If vunmap() is used to unmap a large (e.g., 50 GB) region, it may take
+sufficiently long that it triggers soft lockup warnings.
 
-> Hello, Jan.
-> 
-> On Wed, Feb 19, 2014 at 10:27:31AM +0100, Jan Kara wrote:
-> >   You are the workqueue expert so you may know better ;) But the way I
-> > understand it is that queue_delayed_work() does nothing if the timer is
-> > already running. Since we queue flusher work to run either immediately or
-> > after dirty_writeback_interval we are safe to run queue_delayed_work()
-> > whenever we want it to run after dirty_writeback_interval and
-> > mod_delayed_work() whenever we want to run it immediately.
-> 
-> Ah, okay, so it's always mod on immediate and queue on delayed.  Yeah,
-> that should work.
-> 
-> > But it's subtle and some interface where we could say queue delayed work
-> > after no later than X would be easier to grasp.
-> 
-> Yeah, I think it'd be better if we had something like
-> mod_delayed_work_if_later().  Hmm...
+Add a cond_resched() into vunmap_pmd_range() so the calling task may
+be resheduled after unmapping each PMD entry.  This is how
+zap_pmd_range() fixes the same problem for userspace mappings.
 
-The code comments which you asked for were not forthcoming.
+All callers may sleep except for the APEI GHES driver (apei/ghes.c)
+which calls unmap_kernel_range_no_flush() from NMI and IRQ contexts.
+This driver only unmaps a single pages so don't call cond_resched() if
+the unmap doesn't cross a PMD boundary.
 
-Are you otherwise OK with merging this into 3.14 and -stable?
-
-
-From: Derek Basehore <dbasehore@chromium.org>
-Subject: backing_dev: fix hung task on sync
-
-bdi_wakeup_thread_delayed() used mod_delayed_work() to schedule work to
-writeback dirty inodes.  The problem with this is that it can delay work
-that is scheduled for immediate execution, such as the work from
-sync_inodes_sb().  This can happen since mod_delayed_work can now steal
-work from a work_queue.  This fixes the problem by using
-queue_delayed_work instead.  This is a regression from the move to the bdi
-workqueue design.
-
-The reason that this causes a problem is that laptop-mode will change the
-delay, dirty_writeback_centisecs, to 60000 (10 minutes) by default.  In
-the case that bdi_wakeup_thread_delayed races with sync_inodes_sb, sync
-will be stopped for 10 minutes and trigger a hung task.  Even if
-dirty_writeback_centisecs is not long enough to cause a hung task, we
-still don't want to delay sync for that long.
-
-For the same reason, this also changes bdi_writeback_workfn to immediately
-queue the work again in the case that the work_list is not empty.  The
-same problem can happen if the sync work is run on the rescue worker.
-
-Signed-off-by: Derek Basehore <dbasehore@chromium.org>
-Reviewed-by: Jan Kara <jack@suse.cz>
-Cc: Alexander Viro <viro@zento.linux.org.uk>
-Cc: Tejun Heo <tj@kernel.org>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: "Darrick J. Wong" <darrick.wong@oracle.com>
-Cc: Derek Basehore <dbasehore@chromium.org>
-Cc: Kees Cook <keescook@chromium.org>
-Cc: Benson Leung <bleung@chromium.org>
-Cc: Sonny Rao <sonnyrao@chromium.org>
-Cc: Luigi Semenzato <semenzato@chromium.org>
-Cc: Jens Axboe <axboe@kernel.dk>
-Cc: Dave Chinner <david@fromorbit.com>
-Cc: <stable@vger.kernel.org>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+Reported-by: Dietmar Hahn <dietmar.hahn@ts.fujitsu.com>
+Signed-off-by: David Vrabel <david.vrabel@citrix.com>
 ---
+v2: don't call cond_resched() at the end of a PMD range.
+---
+ mm/vmalloc.c |    2 ++
+ 1 files changed, 2 insertions(+), 0 deletions(-)
 
- fs/fs-writeback.c |    5 +++--
- mm/backing-dev.c  |    2 +-
- 2 files changed, 4 insertions(+), 3 deletions(-)
-
-diff -puN fs/fs-writeback.c~backing_dev-fix-hung-task-on-sync fs/fs-writeback.c
---- a/fs/fs-writeback.c~backing_dev-fix-hung-task-on-sync
-+++ a/fs/fs-writeback.c
-@@ -1039,8 +1039,9 @@ void bdi_writeback_workfn(struct work_st
- 		trace_writeback_pages_written(pages_written);
- 	}
- 
--	if (!list_empty(&bdi->work_list) ||
--	    (wb_has_dirty_io(wb) && dirty_writeback_interval))
-+	if (!list_empty(&bdi->work_list))
-+		mod_delayed_work(bdi_wq, &wb->dwork, 0);
-+	else if (wb_has_dirty_io(wb) && dirty_writeback_interval)
- 		queue_delayed_work(bdi_wq, &wb->dwork,
- 			msecs_to_jiffies(dirty_writeback_interval * 10));
- 
-diff -puN mm/backing-dev.c~backing_dev-fix-hung-task-on-sync mm/backing-dev.c
---- a/mm/backing-dev.c~backing_dev-fix-hung-task-on-sync
-+++ a/mm/backing-dev.c
-@@ -294,7 +294,7 @@ void bdi_wakeup_thread_delayed(struct ba
- 	unsigned long timeout;
- 
- 	timeout = msecs_to_jiffies(dirty_writeback_interval * 10);
--	mod_delayed_work(bdi_wq, &bdi->wb.dwork, timeout);
-+	queue_delayed_work(bdi_wq, &bdi->wb.dwork, timeout);
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index 0fdf968..1a8b162 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -75,6 +75,8 @@ static void vunmap_pmd_range(pud_t *pud, unsigned long addr, unsigned long end)
+ 		if (pmd_none_or_clear_bad(pmd))
+ 			continue;
+ 		vunmap_pte_range(pmd, addr, next);
++		if (next != end)
++			cond_resched();
+ 	} while (pmd++, addr = next, addr != end);
  }
  
- /*
-_
+-- 
+1.7.2.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
