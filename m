@@ -1,74 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f43.google.com (mail-yh0-f43.google.com [209.85.213.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 878D96B0035
-	for <linux-mm@kvack.org>; Tue, 11 Mar 2014 16:12:57 -0400 (EDT)
-Received: by mail-yh0-f43.google.com with SMTP id b6so9203597yha.30
-        for <linux-mm@kvack.org>; Tue, 11 Mar 2014 13:12:57 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id t49si38141945yhd.9.2014.03.11.13.12.56
+Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A3DC6B0035
+	for <linux-mm@kvack.org>; Tue, 11 Mar 2014 16:19:07 -0400 (EDT)
+Received: by mail-wi0-f169.google.com with SMTP id hm4so1336233wib.4
+        for <linux-mm@kvack.org>; Tue, 11 Mar 2014 13:19:07 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id b18si22291329wjb.1.2014.03.11.13.19.04
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 11 Mar 2014 13:12:57 -0700 (PDT)
-Message-ID: <531F6E43.40901@oracle.com>
-Date: Tue, 11 Mar 2014 16:12:51 -0400
-From: Sasha Levin <sasha.levin@oracle.com>
+        Tue, 11 Mar 2014 13:19:05 -0700 (PDT)
+Date: Tue, 11 Mar 2014 21:19:02 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH] backing_dev: Fix hung task on sync
+Message-ID: <20140311201902.GA17011@quack.suse.cz>
+References: <1392437537-27392-1-git-send-email-dbasehore@chromium.org>
+ <20140218225548.GI31892@mtj.dyndns.org>
+ <20140219092731.GA4849@quack.suse.cz>
+ <20140219190139.GQ10134@htj.dyndns.org>
+ <20140311112355.d335295ed62cd480eb5ab33c@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: mm: mmap_sem lock assertion failure in __mlock_vma_pages_range
-References: <531F6689.60307@oracle.com> <1394568453.2786.28.camel@buesod1.americas.hpqcorp.net>
-In-Reply-To: <1394568453.2786.28.camel@buesod1.americas.hpqcorp.net>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140311112355.d335295ed62cd480eb5ab33c@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <davidlohr@hp.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Tejun Heo <tj@kernel.org>, Jan Kara <jack@suse.cz>, Derek Basehore <dbasehore@chromium.org>, Alexander Viro <viro@zento.linux.org.uk>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Darrick J. Wong" <darrick.wong@oracle.com>, Kees Cook <keescook@chromium.org>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, bleung@chromium.org, sonnyrao@chromium.org, semenzato@chromium.org
 
-On 03/11/2014 04:07 PM, Davidlohr Bueso wrote:
-> On Tue, 2014-03-11 at 15:39 -0400, Sasha Levin wrote:
->> Hi all,
->>
->> I've ended up deleting the log file by mistake, but this bug does seem to be important
->> so I'd rather not wait before the same issue is triggered again.
->>
->> The call chain is:
->>
->> 	mlock (mm/mlock.c:745)
->> 		__mm_populate (mm/mlock.c:700)
->> 			__mlock_vma_pages_range (mm/mlock.c:229)
->> 				VM_BUG_ON(!rwsem_is_locked(&mm->mmap_sem));
->
-> So __mm_populate() is only called by mlock(2) and this VM_BUG_ON seems
-> wrong as we call it without the lock held:
->
-> 	up_write(&current->mm->mmap_sem);
-> 	if (!error)
-> 		error = __mm_populate(start, len, 0);
-> 	return error;
-> }
->
->>
->> It seems to be a rather simple trace triggered from userspace. The only recent patch
->> in the area (that I've noticed) was "mm/mlock: prepare params outside critical region".
->> I've reverted it and trying to testing without it.
->
-> Odd, this patch should definitely *not* cause this. In any case every
-> operation removed from the critical region is local to the function:
->
-> 	lock_limit = rlimit(RLIMIT_MEMLOCK);
-> 	lock_limit >>= PAGE_SHIFT;
-> 	locked = len >> PAGE_SHIFT;
->
-> 	down_write(&current->mm->mmap_sem);
+On Tue 11-03-14 11:23:55, Andrew Morton wrote:
+> On Wed, 19 Feb 2014 14:01:39 -0500 Tejun Heo <tj@kernel.org> wrote:
+> 
+> > Hello, Jan.
+> > 
+> > On Wed, Feb 19, 2014 at 10:27:31AM +0100, Jan Kara wrote:
+> > >   You are the workqueue expert so you may know better ;) But the way I
+> > > understand it is that queue_delayed_work() does nothing if the timer is
+> > > already running. Since we queue flusher work to run either immediately or
+> > > after dirty_writeback_interval we are safe to run queue_delayed_work()
+> > > whenever we want it to run after dirty_writeback_interval and
+> > > mod_delayed_work() whenever we want to run it immediately.
+> > 
+> > Ah, okay, so it's always mod on immediate and queue on delayed.  Yeah,
+> > that should work.
+> > 
+> > > But it's subtle and some interface where we could say queue delayed work
+> > > after no later than X would be easier to grasp.
+> > 
+> > Yeah, I think it'd be better if we had something like
+> > mod_delayed_work_if_later().  Hmm...
+> 
+> The code comments which you asked for were not forthcoming.
+> 
+> Are you otherwise OK with merging this into 3.14 and -stable?
+  I have actually added the comment when nothing happened and have a patch
+with Tejun's Reviewed-by. Just noone picked it up. I'll send it your way
+together with another fix in flush work handling.
 
-Yeah, this patch doesn't look like it's causing it, I guess it was more of a "you touched this
-code last - do you still remember what's going on here?" :).
-
-It's semi-odd because it seems like an obvious issue to hit with trinity but it's the first time
-I've seen it and it's probably been there for a while (that BUG_ON is there from 2009).
+								Honza
 
 
-Thanks,
-Sasha
+> From: Derek Basehore <dbasehore@chromium.org>
+> Subject: backing_dev: fix hung task on sync
+> 
+> bdi_wakeup_thread_delayed() used mod_delayed_work() to schedule work to
+> writeback dirty inodes.  The problem with this is that it can delay work
+> that is scheduled for immediate execution, such as the work from
+> sync_inodes_sb().  This can happen since mod_delayed_work can now steal
+> work from a work_queue.  This fixes the problem by using
+> queue_delayed_work instead.  This is a regression from the move to the bdi
+> workqueue design.
+> 
+> The reason that this causes a problem is that laptop-mode will change the
+> delay, dirty_writeback_centisecs, to 60000 (10 minutes) by default.  In
+> the case that bdi_wakeup_thread_delayed races with sync_inodes_sb, sync
+> will be stopped for 10 minutes and trigger a hung task.  Even if
+> dirty_writeback_centisecs is not long enough to cause a hung task, we
+> still don't want to delay sync for that long.
+> 
+> For the same reason, this also changes bdi_writeback_workfn to immediately
+> queue the work again in the case that the work_list is not empty.  The
+> same problem can happen if the sync work is run on the rescue worker.
+> 
+> Signed-off-by: Derek Basehore <dbasehore@chromium.org>
+> Reviewed-by: Jan Kara <jack@suse.cz>
+> Cc: Alexander Viro <viro@zento.linux.org.uk>
+> Cc: Tejun Heo <tj@kernel.org>
+> Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+> Cc: "Darrick J. Wong" <darrick.wong@oracle.com>
+> Cc: Derek Basehore <dbasehore@chromium.org>
+> Cc: Kees Cook <keescook@chromium.org>
+> Cc: Benson Leung <bleung@chromium.org>
+> Cc: Sonny Rao <sonnyrao@chromium.org>
+> Cc: Luigi Semenzato <semenzato@chromium.org>
+> Cc: Jens Axboe <axboe@kernel.dk>
+> Cc: Dave Chinner <david@fromorbit.com>
+> Cc: <stable@vger.kernel.org>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> ---
+> 
+>  fs/fs-writeback.c |    5 +++--
+>  mm/backing-dev.c  |    2 +-
+>  2 files changed, 4 insertions(+), 3 deletions(-)
+> 
+> diff -puN fs/fs-writeback.c~backing_dev-fix-hung-task-on-sync fs/fs-writeback.c
+> --- a/fs/fs-writeback.c~backing_dev-fix-hung-task-on-sync
+> +++ a/fs/fs-writeback.c
+> @@ -1039,8 +1039,9 @@ void bdi_writeback_workfn(struct work_st
+>  		trace_writeback_pages_written(pages_written);
+>  	}
+>  
+> -	if (!list_empty(&bdi->work_list) ||
+> -	    (wb_has_dirty_io(wb) && dirty_writeback_interval))
+> +	if (!list_empty(&bdi->work_list))
+> +		mod_delayed_work(bdi_wq, &wb->dwork, 0);
+> +	else if (wb_has_dirty_io(wb) && dirty_writeback_interval)
+>  		queue_delayed_work(bdi_wq, &wb->dwork,
+>  			msecs_to_jiffies(dirty_writeback_interval * 10));
+>  
+> diff -puN mm/backing-dev.c~backing_dev-fix-hung-task-on-sync mm/backing-dev.c
+> --- a/mm/backing-dev.c~backing_dev-fix-hung-task-on-sync
+> +++ a/mm/backing-dev.c
+> @@ -294,7 +294,7 @@ void bdi_wakeup_thread_delayed(struct ba
+>  	unsigned long timeout;
+>  
+>  	timeout = msecs_to_jiffies(dirty_writeback_interval * 10);
+> -	mod_delayed_work(bdi_wq, &bdi->wb.dwork, timeout);
+> +	queue_delayed_work(bdi_wq, &bdi->wb.dwork, timeout);
+>  }
+>  
+>  /*
+> _
+> 
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
