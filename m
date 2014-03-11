@@ -1,75 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f170.google.com (mail-ie0-f170.google.com [209.85.223.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 1FFA46B00B0
-	for <linux-mm@kvack.org>; Tue, 11 Mar 2014 13:12:24 -0400 (EDT)
-Received: by mail-ie0-f170.google.com with SMTP id rd18so9284047iec.15
-        for <linux-mm@kvack.org>; Tue, 11 Mar 2014 10:12:23 -0700 (PDT)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
-        by mx.google.com with ESMTPS id x10si42810728igw.0.2014.03.11.10.12.21
+Received: from mail-la0-f47.google.com (mail-la0-f47.google.com [209.85.215.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 2517E6B00B2
+	for <linux-mm@kvack.org>; Tue, 11 Mar 2014 13:36:08 -0400 (EDT)
+Received: by mail-la0-f47.google.com with SMTP id y1so5800463lam.6
+        for <linux-mm@kvack.org>; Tue, 11 Mar 2014 10:36:07 -0700 (PDT)
+Received: from mail-lb0-x232.google.com (mail-lb0-x232.google.com [2a00:1450:4010:c04::232])
+        by mx.google.com with ESMTPS id oc6si7766938lbb.25.2014.03.11.10.36.05
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 11 Mar 2014 10:12:21 -0700 (PDT)
-Message-ID: <531F43F2.1030504@infradead.org>
-Date: Tue, 11 Mar 2014 10:12:18 -0700
-From: Randy Dunlap <rdunlap@infradead.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 11 Mar 2014 10:36:06 -0700 (PDT)
+Received: by mail-lb0-f178.google.com with SMTP id s7so5968001lbd.9
+        for <linux-mm@kvack.org>; Tue, 11 Mar 2014 10:36:05 -0700 (PDT)
+Date: Tue, 11 Mar 2014 21:36:03 +0400
+From: Cyrill Gorcunov <gorcunov@gmail.com>
+Subject: Re: bad rss-counter message in 3.14rc5
+Message-ID: <20140311173603.GG32390@moon>
+References: <20140310214612.3b4de36a.akpm@linux-foundation.org>
+ <20140311045109.GB12551@redhat.com>
+ <20140310220158.7e8b7f2a.akpm@linux-foundation.org>
+ <20140311053017.GB14329@redhat.com>
+ <20140311132024.GC32390@moon>
+ <531F0E39.9020100@oracle.com>
+ <20140311134158.GD32390@moon>
+ <20140311142817.GA26517@redhat.com>
+ <20140311143750.GE32390@moon>
+ <20140311171045.GA4693@redhat.com>
 MIME-Version: 1.0
-Subject: Re: mmotm 2014-03-10-15-35 uploaded (virtio_balloon)
-References: <20140310223701.0969C31C2AA@corp2gmr1-1.hot.corp.google.com>
-In-Reply-To: <20140310223701.0969C31C2AA@corp2gmr1-1.hot.corp.google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140311171045.GA4693@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, Rusty Russell <rusty@rustcorp.com.au>, virtio-dev@lists.oasis-open.org, "Michael S. Tsirkin" <mst@redhat.com>
+To: Dave Jones <davej@redhat.com>
+Cc: Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Bob Liu <bob.liu@oracle.com>, Konstantin Khlebnikov <koct9i@gmail.com>
 
-On 03/10/2014 03:37 PM, akpm@linux-foundation.org wrote:
-> The mm-of-the-moment snapshot 2014-03-10-15-35 has been uploaded to
+On Tue, Mar 11, 2014 at 01:10:45PM -0400, Dave Jones wrote:
+>  > 
+>  > Dave, iirc trinity can write log file pointing which exactly syscall sequence
+>  > was passed, right? Share it too please.
 > 
->    http://www.ozlabs.org/~akpm/mmotm/
-> 
-> mmotm-readme.txt says
-> 
-> README for mm-of-the-moment:
-> 
-> http://www.ozlabs.org/~akpm/mmotm/
-> 
-> This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
-> more than once a week.
-> 
-> You will need quilt to apply these patches to the latest Linus release (3.x
-> or 3.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
-> http://ozlabs.org/~akpm/mmotm/series
-> 
-> The file broken-out.tar.gz contains two datestamp files: .DATE and
-> .DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
-> followed by the base kernel version against which this patch series is to
-> be applied.
-> 
-> This tree is partially included in linux-next.  To see which patches are
-> included in linux-next, consult the `series' file.  Only the patches
-> within the #NEXT_PATCHES_START/#NEXT_PATCHES_END markers are included in
-> linux-next.
-> 
+> Hm, I may have been mistaken, and the damage was done by a previous run.
+> I went from being able to reproduce it almost instantly to now not being able
+> to reproduce it at all.  Will keep trying.
 
-on x86_64:
-
-ERROR: "balloon_devinfo_alloc" [drivers/virtio/virtio_balloon.ko] undefined!
-ERROR: "balloon_page_enqueue" [drivers/virtio/virtio_balloon.ko] undefined!
-ERROR: "balloon_page_dequeue" [drivers/virtio/virtio_balloon.ko] undefined!
-
-when loadable module
-
-or
-
-virtio_balloon.c:(.text+0x1fa26): undefined reference to `balloon_page_enqueue'
-virtio_balloon.c:(.text+0x1fb87): undefined reference to `balloon_page_dequeue'
-virtio_balloon.c:(.text+0x1fdf1): undefined reference to `balloon_devinfo_alloc'
-
-when builtin.
-
-
--- 
-~Randy
+Sasha already gave a link to the syscalls sequence, so no rush.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
