@@ -1,57 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f172.google.com (mail-ob0-f172.google.com [209.85.214.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A95D6B00A4
-	for <linux-mm@kvack.org>; Tue, 11 Mar 2014 10:58:52 -0400 (EDT)
-Received: by mail-ob0-f172.google.com with SMTP id wm4so8557678obc.3
-        for <linux-mm@kvack.org>; Tue, 11 Mar 2014 07:58:51 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id iz10si24522770obb.13.2014.03.11.07.58.51
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 11 Mar 2014 07:58:51 -0700 (PDT)
-Message-ID: <531F24A6.2020409@oracle.com>
-Date: Tue, 11 Mar 2014 10:58:46 -0400
-From: Sasha Levin <sasha.levin@oracle.com>
+Received: from mail-pb0-f42.google.com (mail-pb0-f42.google.com [209.85.160.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 2DE2A6B00A6
+	for <linux-mm@kvack.org>; Tue, 11 Mar 2014 11:34:19 -0400 (EDT)
+Received: by mail-pb0-f42.google.com with SMTP id rr13so8979270pbb.15
+        for <linux-mm@kvack.org>; Tue, 11 Mar 2014 08:34:18 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id ha5si20581976pbc.120.2014.03.11.08.34.17
+        for <linux-mm@kvack.org>;
+        Tue, 11 Mar 2014 08:34:18 -0700 (PDT)
+Message-ID: <531F2ABA.6060804@linux.intel.com>
+Date: Tue, 11 Mar 2014 08:24:42 -0700
+From: Dave Hansen <dave.hansen@linux.intel.com>
 MIME-Version: 1.0
-Subject: Re: bad rss-counter message in 3.14rc5
-References: <20140311024906.GA9191@redhat.com> <20140310201340.81994295.akpm@linux-foundation.org> <20140310214612.3b4de36a.akpm@linux-foundation.org> <20140311045109.GB12551@redhat.com> <20140310220158.7e8b7f2a.akpm@linux-foundation.org> <20140311053017.GB14329@redhat.com> <20140311132024.GC32390@moon> <531F0E39.9020100@oracle.com> <20140311134158.GD32390@moon> <20140311142817.GA26517@redhat.com> <20140311143750.GE32390@moon>
-In-Reply-To: <20140311143750.GE32390@moon>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [PATCH] mm: implement POSIX_FADV_NOREUSE
+References: <1394533550-18485-1-git-send-email-matthias.wirth@gmail.com> <20140311140655.GD28292@dhcp22.suse.cz>
+In-Reply-To: <20140311140655.GD28292@dhcp22.suse.cz>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cyrill Gorcunov <gorcunov@gmail.com>, Dave Jones <davej@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Bob Liu <bob.liu@oracle.com>, Konstantin Khlebnikov <koct9i@gmail.com>
+To: Michal Hocko <mhocko@suse.cz>, Matthias Wirth <matthias.wirth@gmail.com>
+Cc: Lukas Senger <lukas@fridolin.com>, Matthew Wilcox <matthew@wil.cx>, Jeff Layton <jlayton@redhat.com>, "J. Bruce Fields" <bfields@fieldses.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Lisa Du <cldu@marvell.com>, Paul Mackerras <paulus@samba.org>, Sasha Levin <sasha.levin@oracle.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Fengguang Wu <fengguang.wu@intel.com>, Shaohua Li <shli@kernel.org>, Alexey Kardashevskiy <aik@ozlabs.ru>, Minchan Kim <minchan@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Al Viro <viro@zeniv.linux.org.uk>, Steven Whitehouse <swhiteho@redhat.com>, Mel Gorman <mgorman@suse.de>, Cody P Schafer <cody@linux.vnet.ibm.com>, Jiang Liu <liuj97@gmail.com>, David Rientjes <rientjes@google.com>, "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, Lukas Czerner <lczerner@redhat.com>, Damien Ramonda <damien.ramonda@intel.com>, Mark Rutland <mark.rutland@arm.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 03/11/2014 10:37 AM, Cyrill Gorcunov wrote:
-> On Tue, Mar 11, 2014 at 10:28:17AM -0400, Dave Jones wrote:
->> On Tue, Mar 11, 2014 at 05:41:58PM +0400, Cyrill Gorcunov wrote:
->>   > On Tue, Mar 11, 2014 at 09:23:05AM -0400, Sasha Levin wrote:
->>   > > >>
->>   > > >>Ok, with move_pages excluded it still oopses.
->>   > > >
->>   > > >Dave, is it possible to somehow figure out was someone reading pagemap file
->>   > > >at moment of the bug triggering?
->>   > >
->>   > > We can sprinkle printk()s wherever might be useful, might not be 100% accurate but
->>   > > should be close enough to confirm/deny the theory.
->>   >
->>   > After reading some more, I suppose the idea I had is wrong, investigating.
->>   > Will ping if I find something.
->>
->> I can rule it out anyway, I can reproduce this by telling trinity to do nothing
->> other than mmap()'s.   I'll try and narrow down the exact parameters.
->
-> Dave, iirc trinity can write log file pointing which exactly syscall sequence
-> was passed, right? Share it too please.
+On 03/11/2014 07:06 AM, Michal Hocko wrote:
+>> > In our implementation pages marked with the NoReuse flag are added to
+>> > the tail of the LRU list the first time they are read. Therefore they
+>> > are the first to be reclaimed.
+> page flags are really scarce and I am not sure this is the best usage of
+> the few remaining slots.
 
-I've sent one of those last time I reported this issue:
+Yeah, especially since the use so so transient.  I can see why using a
+flag is nice for a quick prototype, but this is a far cry from needing
+one. :)  You might be able to reuse a bit like PageReadahead.  You could
+probably also use a bit in the page pointer of the lruvec, or even have
+a percpu variable that stores a pointer to the 'struct page' you want to
+mark as NOREUSE.
 
-	https://lkml.org/lkml/2014/1/22/625
+This also looks to ignore the reuse flag for existing pages.  Have you
+thought about what the semantics should be there?
 
-
-Thanks,
-Sasha
+Also, *should* readahead pages really have this flag set?  If a very
+important page gets brought in via readahead, doesn't this put it at a
+disadvantage for getting aged out?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
