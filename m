@@ -1,45 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 60CC86B003B
-	for <linux-mm@kvack.org>; Tue, 11 Mar 2014 00:41:50 -0400 (EDT)
-Received: by mail-pa0-f48.google.com with SMTP id hz1so8278903pad.35
-        for <linux-mm@kvack.org>; Mon, 10 Mar 2014 21:41:50 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id m9si18875545pab.32.2014.03.10.21.41.48
+Received: from mail-qc0-f176.google.com (mail-qc0-f176.google.com [209.85.216.176])
+	by kanga.kvack.org (Postfix) with ESMTP id D66706B003D
+	for <linux-mm@kvack.org>; Tue, 11 Mar 2014 00:50:21 -0400 (EDT)
+Received: by mail-qc0-f176.google.com with SMTP id m20so8807317qcx.7
+        for <linux-mm@kvack.org>; Mon, 10 Mar 2014 21:50:21 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id u4si10598478qat.108.2014.03.10.21.50.20
         for <linux-mm@kvack.org>;
-        Mon, 10 Mar 2014 21:41:49 -0700 (PDT)
-Date: Mon, 10 Mar 2014 21:46:12 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
+        Mon, 10 Mar 2014 21:50:21 -0700 (PDT)
+Date: Tue, 11 Mar 2014 00:50:05 -0400
+From: Dave Jones <davej@redhat.com>
 Subject: Re: bad rss-counter message in 3.14rc5
-Message-Id: <20140310214612.3b4de36a.akpm@linux-foundation.org>
-In-Reply-To: <20140310201340.81994295.akpm@linux-foundation.org>
+Message-ID: <20140311045005.GA12551@redhat.com>
 References: <20140305174503.GA16335@redhat.com>
-	<20140305175725.GB16335@redhat.com>
-	<20140307002210.GA26603@redhat.com>
-	<20140311024906.GA9191@redhat.com>
-	<20140310201340.81994295.akpm@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+ <20140305175725.GB16335@redhat.com>
+ <20140307002210.GA26603@redhat.com>
+ <20140311024906.GA9191@redhat.com>
+ <20140310201340.81994295.akpm@linux-foundation.org>
+ <20140310214612.3b4de36a.akpm@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140310214612.3b4de36a.akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Jones <davej@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Bob Liu <bob.liu@oracle.com>, Konstantin Khlebnikov <koct9i@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Bob Liu <bob.liu@oracle.com>, Konstantin Khlebnikov <koct9i@gmail.com>
 
-On Mon, 10 Mar 2014 20:13:40 -0700 Andrew Morton <akpm@linux-foundation.org> wrote:
+On Mon, Mar 10, 2014 at 09:46:12PM -0700, Andrew Morton wrote:
+ > On Mon, 10 Mar 2014 20:13:40 -0700 Andrew Morton <akpm@linux-foundation.org> wrote:
+ > 
+ > > > Anyone ? I'm hitting this trace on an almost daily basis, which is a pain
+ > > > while trying to reproduce a different bug..
+ > > 
+ > > Damn, I thought we'd fixed that but it seems not.  Cc's added.
+ > > 
+ > > Guys, what stops the migration target page from coming unlocked in
+ > > parallel with zap_pte_range()'s call to migration_entry_to_page()?
+ > 
+ > page_table_lock, sort-of.  At least, transitions of is_migration_entry()
+ > and page_locked() happen under ptl.
+ > 
+ > I don't see any holes in regular migration.  Do you know if this is
+ > reproducible with CONFIG_NUMA_BALANCING=n or CONFIG_NUMA=n?
 
-> > Anyone ? I'm hitting this trace on an almost daily basis, which is a pain
-> > while trying to reproduce a different bug..
-> 
-> Damn, I thought we'd fixed that but it seems not.  Cc's added.
-> 
-> Guys, what stops the migration target page from coming unlocked in
-> parallel with zap_pte_range()'s call to migration_entry_to_page()?
+I'll give it an overnight run and let you know tomorrow.
 
-page_table_lock, sort-of.  At least, transitions of is_migration_entry()
-and page_locked() happen under ptl.
-
-I don't see any holes in regular migration.  Do you know if this is
-reproducible with CONFIG_NUMA_BALANCING=n or CONFIG_NUMA=n?
+	Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
