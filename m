@@ -1,57 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f178.google.com (mail-ea0-f178.google.com [209.85.215.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F9856B0038
-	for <linux-mm@kvack.org>; Tue, 11 Mar 2014 15:40:49 -0400 (EDT)
-Received: by mail-ea0-f178.google.com with SMTP id a15so4499478eae.23
-        for <linux-mm@kvack.org>; Tue, 11 Mar 2014 12:40:49 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id y41si9762134eel.104.2014.03.11.12.40.47
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id E6B056B0035
+	for <linux-mm@kvack.org>; Tue, 11 Mar 2014 15:47:01 -0400 (EDT)
+Received: by mail-pa0-f50.google.com with SMTP id kq14so11472pab.23
+        for <linux-mm@kvack.org>; Tue, 11 Mar 2014 12:47:01 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id nc6si11295pbc.293.2014.03.11.12.47.00
         for <linux-mm@kvack.org>;
-        Tue, 11 Mar 2014 12:40:48 -0700 (PDT)
-Date: Tue, 11 Mar 2014 14:43:53 -0400
-From: Dave Jones <davej@redhat.com>
-Subject: Re: [PATCH] mm: remove BUG_ON() from mlock_vma_page()
-Message-ID: <20140311184353.GA10764@redhat.com>
-References: <1387327369-18806-1-git-send-email-bob.liu@oracle.com>
- <20140131123352.a3da2a1dee32d79ad1f6af9f@linux-foundation.org>
- <530A4CBE.5090305@oracle.com>
- <6B2BA408B38BA1478B473C31C3D2074E2F6DBA97C6@SV-EXCHANGE1.Corp.FC.LOCAL>
- <5314A9E9.6090802@suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5314A9E9.6090802@suse.cz>
+        Tue, 11 Mar 2014 12:47:01 -0700 (PDT)
+Date: Tue, 11 Mar 2014 12:46:59 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCHv2] mm/vmalloc: avoid soft lockup warnings when
+ vunmap()'ing large ranges
+Message-Id: <20140311124659.9565a5cc86ade7084eabe24d@linux-foundation.org>
+In-Reply-To: <1394563223-5045-1-git-send-email-david.vrabel@citrix.com>
+References: <1394563223-5045-1-git-send-email-david.vrabel@citrix.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Motohiro Kosaki <Motohiro.Kosaki@us.fujitsu.com>, Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Bob Liu <lliubbo@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "walken@google.com" <walken@google.com>, Motohiro Kosaki JP <kosaki.motohiro@jp.fujitsu.com>, "riel@redhat.com" <riel@redhat.com>, "stable@kernel.org" <stable@kernel.org>, "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>, Bob Liu <bob.liu@oracle.com>
+To: David Vrabel <david.vrabel@citrix.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, xen-devel@lists.xenproject.org, Dietmar Hahn <dietmar.hahn@ts.fujitsu.com>
 
-On Mon, Mar 03, 2014 at 05:12:25PM +0100, Vlastimil Babka wrote:
+On Tue, 11 Mar 2014 18:40:23 +0000 David Vrabel <david.vrabel@citrix.com> wrote:
 
- > >> On 01/31/2014 03:33 PM, Andrew Morton wrote:
- > >>> On Wed, 18 Dec 2013 08:42:49 +0800 Bob Liu<lliubbo@gmail.com>  wrote:
- > >>>
- > >>>>> This BUG_ON() was triggered when called from try_to_unmap_cluster()
- > >>>>> which didn't lock the page.
- > >>>>> And it's safe to mlock_vma_page() without PageLocked, so this patch
- > >>>>> fix this issue by removing that BUG_ON() simply.
- > >>>>>
- > >>> This patch doesn't appear to be going anywhere, so I will drop it.
- > >>> Please let's check to see whether the bug still exists and if so,
- > >>> start another round of bugfixing.
- > >>
- > >> This bug still happens on the latest -next kernel.
- > >
- > > Yeah, I recognized it. I'm preparing new patch. Thanks.
- > 
- > What will be your approach? After we had the discussion some month ago 
- > about m(un)lock vs migration I've concluded that there is no race that 
- > page lock helps, and removing the BUG_ON() would be indeed correct. Just 
- > needs to be correctly explained and documentation updated as well.
+> If vunmap() is used to unmap a large (e.g., 50 GB) region, it may take
+> sufficiently long that it triggers soft lockup warnings.
+> 
+> Add a cond_resched() into vunmap_pmd_range() so the calling task may
+> be resheduled after unmapping each PMD entry.  This is how
+> zap_pmd_range() fixes the same problem for userspace mappings.
+> 
+> All callers may sleep except for the APEI GHES driver (apei/ghes.c)
+> which calls unmap_kernel_range_no_flush() from NMI and IRQ contexts.
+> This driver only unmaps a single pages so don't call cond_resched() if
+> the unmap doesn't cross a PMD boundary.
+> 
+> Reported-by: Dietmar Hahn <dietmar.hahn@ts.fujitsu.com>
+> Signed-off-by: David Vrabel <david.vrabel@citrix.com>
+> ---
+> v2: don't call cond_resched() at the end of a PMD range.
+> ---
+>  mm/vmalloc.c |    2 ++
+>  1 files changed, 2 insertions(+), 0 deletions(-)
+> 
+> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+> index 0fdf968..1a8b162 100644
+> --- a/mm/vmalloc.c
+> +++ b/mm/vmalloc.c
+> @@ -75,6 +75,8 @@ static void vunmap_pmd_range(pud_t *pud, unsigned long addr, unsigned long end)
+>  		if (pmd_none_or_clear_bad(pmd))
+>  			continue;
+>  		vunmap_pte_range(pmd, addr, next);
+> +		if (next != end)
+> +			cond_resched();
+>  	} while (pmd++, addr = next, addr != end);
+>  }
 
-This is not just a -next problem btw, I just hit this in 3.14-rc6
+Worried.  This adds a schedule into a previously atomic function.  Are
+there any callers which call into here from interrupt or with a lock
+held, etc?
 
-	Dave
+I started doing an audit, got to
+mvebu_hwcc_dma_ops.free->__dma_free_remap->unmap_kernel_range->vunmap_page_range
+and gave up - there's just too much.
+
+The best I can suggest is to do
+
+--- a/mm/vmalloc.c~mm-vmalloc-avoid-soft-lockup-warnings-when-vunmaping-large-ranges-fix
++++ a/mm/vmalloc.c
+@@ -71,6 +71,8 @@ static void vunmap_pmd_range(pud_t *pud,
+ 	pmd_t *pmd;
+ 	unsigned long next;
+ 
++	might_sleep();
++
+ 	pmd = pmd_offset(pud, addr);
+ 	do {
+ 		next = pmd_addr_end(addr, end);
+
+so we at least find out about bugs promptly, but that's a pretty lame
+approach.
+
+Who the heck is mapping 50GB?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
