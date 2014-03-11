@@ -1,89 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f41.google.com (mail-qg0-f41.google.com [209.85.192.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 512426B0035
-	for <linux-mm@kvack.org>; Tue, 11 Mar 2014 15:20:55 -0400 (EDT)
-Received: by mail-qg0-f41.google.com with SMTP id i50so21785015qgf.0
-        for <linux-mm@kvack.org>; Tue, 11 Mar 2014 12:20:55 -0700 (PDT)
-Received: from relay3-d.mail.gandi.net (relay3-d.mail.gandi.net. [2001:4b98:c:538::195])
-        by mx.google.com with ESMTPS id v4si11768919qap.55.2014.03.11.12.20.54
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 11 Mar 2014 12:20:54 -0700 (PDT)
-Date: Tue, 11 Mar 2014 12:20:46 -0700
-From: Josh Triplett <josh@joshtriplett.org>
-Subject: Re: mmotm 2014-03-10-15-35 uploaded (virtio_balloon)
-Message-ID: <20140311192046.GA2686@leaf>
-References: <20140310223701.0969C31C2AA@corp2gmr1-1.hot.corp.google.com>
- <531F43F2.1030504@infradead.org>
- <20140311110338.333e1ee691cadb0f20dbb083@linux-foundation.org>
+Received: from mail-qa0-f49.google.com (mail-qa0-f49.google.com [209.85.216.49])
+	by kanga.kvack.org (Postfix) with ESMTP id E868D6B0037
+	for <linux-mm@kvack.org>; Tue, 11 Mar 2014 15:24:34 -0400 (EDT)
+Received: by mail-qa0-f49.google.com with SMTP id j7so1455772qaq.8
+        for <linux-mm@kvack.org>; Tue, 11 Mar 2014 12:24:34 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id o92si11736847qgd.107.2014.03.11.12.24.34
+        for <linux-mm@kvack.org>;
+        Tue, 11 Mar 2014 12:24:34 -0700 (PDT)
+Message-ID: <531F48C2.6010408@redhat.com>
+Date: Tue, 11 Mar 2014 13:32:50 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140311110338.333e1ee691cadb0f20dbb083@linux-foundation.org>
+Subject: Re: [PATCH -mm] mm,numa,mprotect: always continue after finding a
+ stable thp page
+References: <5318E4BC.50301@oracle.com> <20140306173137.6a23a0b2@cuia.bos.redhat.com> <5318FC3F.4080204@redhat.com> <20140307140650.GA1931@suse.de> <20140307150923.GB1931@suse.de> <20140307182745.GD1931@suse.de> <20140311162845.GA30604@suse.de> <531F3F15.8050206@oracle.com> <531F4128.8020109@redhat.com> <531F48CC.303@oracle.com>
+In-Reply-To: <531F48CC.303@oracle.com>
+Content-Type: text/plain; charset=ISO-8859-15; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Randy Dunlap <rdunlap@infradead.org>, mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, Rusty Russell <rusty@rustcorp.com.au>, virtio-dev@lists.oasis-open.org, "Michael S. Tsirkin" <mst@redhat.com>
+To: Sasha Levin <sasha.levin@oracle.com>, Mel Gorman <mgorman@suse.de>
+Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, hhuang@redhat.com, knoel@redhat.com, aarcange@redhat.com
 
-On Tue, Mar 11, 2014 at 11:03:38AM -0700, Andrew Morton wrote:
-> On Tue, 11 Mar 2014 10:12:18 -0700 Randy Dunlap <rdunlap@infradead.org> wrote:
-> 
-> > On 03/10/2014 03:37 PM, akpm@linux-foundation.org wrote:
-> > > The mm-of-the-moment snapshot 2014-03-10-15-35 has been uploaded to
-> > > 
-> > >    http://www.ozlabs.org/~akpm/mmotm/
-> > > 
-> > > mmotm-readme.txt says
-> > > 
-> > > README for mm-of-the-moment:
-> > > 
-> > > http://www.ozlabs.org/~akpm/mmotm/
-> > > 
-> > > This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
-> > > more than once a week.
-> > > 
-> > > You will need quilt to apply these patches to the latest Linus release (3.x
-> > > or 3.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
-> > > http://ozlabs.org/~akpm/mmotm/series
-> > > 
-> > > The file broken-out.tar.gz contains two datestamp files: .DATE and
-> > > .DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
-> > > followed by the base kernel version against which this patch series is to
-> > > be applied.
-> > > 
-> > > This tree is partially included in linux-next.  To see which patches are
-> > > included in linux-next, consult the `series' file.  Only the patches
-> > > within the #NEXT_PATCHES_START/#NEXT_PATCHES_END markers are included in
-> > > linux-next.
-> > > 
-> > 
-> > on x86_64:
-> > 
-> > ERROR: "balloon_devinfo_alloc" [drivers/virtio/virtio_balloon.ko] undefined!
-> > ERROR: "balloon_page_enqueue" [drivers/virtio/virtio_balloon.ko] undefined!
-> > ERROR: "balloon_page_dequeue" [drivers/virtio/virtio_balloon.ko] undefined!
-> > 
-> > when loadable module
-> > 
-> > or
-> > 
-> > virtio_balloon.c:(.text+0x1fa26): undefined reference to `balloon_page_enqueue'
-> > virtio_balloon.c:(.text+0x1fb87): undefined reference to `balloon_page_dequeue'
-> > virtio_balloon.c:(.text+0x1fdf1): undefined reference to `balloon_devinfo_alloc'
-> > 
-> > when builtin.
-> 
-> OK, thanks, I'll drop
-> http://ozlabs.org/~akpm/mmots/broken-out/mm-disable-mm-balloon_compactionc-completely-when-config_balloon_compaction.patch
+On 03/11/2014 01:33 PM, Sasha Levin wrote:
+> On 03/11/2014 01:00 PM, Rik van Riel wrote:
+>> On 03/11/2014 12:51 PM, Sasha Levin wrote:
+>>> On 03/11/2014 12:28 PM, Mel Gorman wrote:
+>>>> On Fri, Mar 07, 2014 at 06:27:45PM +0000, Mel Gorman wrote:
+>>>>>> This is a completely untested prototype. It rechecks pmd_trans_huge
+>>>>>> under the lock and falls through if it hit a parallel split. It's not
+>>>>>> perfect because it could decide to fall through just because there
+>>>>>> was
+>>>>>> no prot_numa work to do but it's for illustration purposes. Secondly,
+>>>>>> I noted that you are calling invalidate for every pmd range. Is that
+>>>>>> not
+>>>>>> a lot of invalidations? We could do the same by just tracking the
+>>>>>> address
+>>>>>> of the first invalidation.
+>>>>>>
+>>>>>
+>>>>> And there were other minor issues. This is still untested but Sasha,
+>>>>> can you try it out please? I discussed this with Rik on IRC for a bit
+>>>>> and
+>>>>> reckon this should be sufficient if the correct race has been
+>>>>> identified.
+>>>>>
+>>>>
+>>>> Any luck with this patch Sasha? It passed basic tests here but I had
+>>>> not
+>>>> seen the issue trigger either.
+>>>>
+>>>
+>>> Sorry, I've been stuck in my weekend project of getting lockdep to work
+>>> with page locks :)
+>>>
+>>> It takes a moment to test, so just to be sure - I should have only this
+>>> last patch applied?
+>>> Without the one in the original mail?
+>>
+>> Indeed, only this patch should do it.
+>
+> Okay. So just this patch on top of the latest -next shows the following
+> issues:
 
-Sorry about that; I missed that case in my testing.  It always seems
-strange that the dependency goes that way around.
-
-With virtio-balloon being the one and only user of this API, would it be
-reasonable to just only compile in balloon_compaction.o when
-CONFIG_VIRTIO_BALLOON?
-
-- Josh Triplett
+OK, those are all issues with Davidlohr Bueso's
+per-thread vma cache patch :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
