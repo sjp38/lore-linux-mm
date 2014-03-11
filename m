@@ -1,61 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f46.google.com (mail-qg0-f46.google.com [209.85.192.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 8450C6B00B7
-	for <linux-mm@kvack.org>; Tue, 11 Mar 2014 13:46:58 -0400 (EDT)
-Received: by mail-qg0-f46.google.com with SMTP id e89so5794908qgf.5
-        for <linux-mm@kvack.org>; Tue, 11 Mar 2014 10:46:58 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id c5si8323934qgc.117.2014.03.11.10.46.57
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 25D976B0035
+	for <linux-mm@kvack.org>; Tue, 11 Mar 2014 14:03:42 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id fa1so9207904pad.0
+        for <linux-mm@kvack.org>; Tue, 11 Mar 2014 11:03:41 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id zt8si20910183pbc.255.2014.03.11.11.03.40
         for <linux-mm@kvack.org>;
-        Tue, 11 Mar 2014 10:46:58 -0700 (PDT)
-Message-ID: <531F4128.8020109@redhat.com>
-Date: Tue, 11 Mar 2014 13:00:24 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH -mm] mm,numa,mprotect: always continue after finding a
- stable thp page
-References: <5318E4BC.50301@oracle.com> <20140306173137.6a23a0b2@cuia.bos.redhat.com> <5318FC3F.4080204@redhat.com> <20140307140650.GA1931@suse.de> <20140307150923.GB1931@suse.de> <20140307182745.GD1931@suse.de> <20140311162845.GA30604@suse.de> <531F3F15.8050206@oracle.com>
-In-Reply-To: <531F3F15.8050206@oracle.com>
-Content-Type: text/plain; charset=ISO-8859-15; format=flowed
+        Tue, 11 Mar 2014 11:03:41 -0700 (PDT)
+Date: Tue, 11 Mar 2014 11:03:38 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: mmotm 2014-03-10-15-35 uploaded (virtio_balloon)
+Message-Id: <20140311110338.333e1ee691cadb0f20dbb083@linux-foundation.org>
+In-Reply-To: <531F43F2.1030504@infradead.org>
+References: <20140310223701.0969C31C2AA@corp2gmr1-1.hot.corp.google.com>
+	<531F43F2.1030504@infradead.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>, Mel Gorman <mgorman@suse.de>
-Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, hhuang@redhat.com, knoel@redhat.com, aarcange@redhat.com
+To: Randy Dunlap <rdunlap@infradead.org>
+Cc: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, Rusty Russell <rusty@rustcorp.com.au>, virtio-dev@lists.oasis-open.org, "Michael S. Tsirkin" <mst@redhat.com>, Josh Triplett <josh@joshtriplett.org>
 
-On 03/11/2014 12:51 PM, Sasha Levin wrote:
-> On 03/11/2014 12:28 PM, Mel Gorman wrote:
->> On Fri, Mar 07, 2014 at 06:27:45PM +0000, Mel Gorman wrote:
->>>> This is a completely untested prototype. It rechecks pmd_trans_huge
->>>> under the lock and falls through if it hit a parallel split. It's not
->>>> perfect because it could decide to fall through just because there was
->>>> no prot_numa work to do but it's for illustration purposes. Secondly,
->>>> I noted that you are calling invalidate for every pmd range. Is that
->>>> not
->>>> a lot of invalidations? We could do the same by just tracking the
->>>> address
->>>> of the first invalidation.
->>>>
->>>
->>> And there were other minor issues. This is still untested but Sasha,
->>> can you try it out please? I discussed this with Rik on IRC for a bit
->>> and
->>> reckon this should be sufficient if the correct race has been
->>> identified.
->>>
->>
->> Any luck with this patch Sasha? It passed basic tests here but I had not
->> seen the issue trigger either.
->>
->
-> Sorry, I've been stuck in my weekend project of getting lockdep to work
-> with page locks :)
->
-> It takes a moment to test, so just to be sure - I should have only this
-> last patch applied?
-> Without the one in the original mail?
+On Tue, 11 Mar 2014 10:12:18 -0700 Randy Dunlap <rdunlap@infradead.org> wrote:
 
-Indeed, only this patch should do it.
+> On 03/10/2014 03:37 PM, akpm@linux-foundation.org wrote:
+> > The mm-of-the-moment snapshot 2014-03-10-15-35 has been uploaded to
+> > 
+> >    http://www.ozlabs.org/~akpm/mmotm/
+> > 
+> > mmotm-readme.txt says
+> > 
+> > README for mm-of-the-moment:
+> > 
+> > http://www.ozlabs.org/~akpm/mmotm/
+> > 
+> > This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
+> > more than once a week.
+> > 
+> > You will need quilt to apply these patches to the latest Linus release (3.x
+> > or 3.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
+> > http://ozlabs.org/~akpm/mmotm/series
+> > 
+> > The file broken-out.tar.gz contains two datestamp files: .DATE and
+> > .DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
+> > followed by the base kernel version against which this patch series is to
+> > be applied.
+> > 
+> > This tree is partially included in linux-next.  To see which patches are
+> > included in linux-next, consult the `series' file.  Only the patches
+> > within the #NEXT_PATCHES_START/#NEXT_PATCHES_END markers are included in
+> > linux-next.
+> > 
+> 
+> on x86_64:
+> 
+> ERROR: "balloon_devinfo_alloc" [drivers/virtio/virtio_balloon.ko] undefined!
+> ERROR: "balloon_page_enqueue" [drivers/virtio/virtio_balloon.ko] undefined!
+> ERROR: "balloon_page_dequeue" [drivers/virtio/virtio_balloon.ko] undefined!
+> 
+> when loadable module
+> 
+> or
+> 
+> virtio_balloon.c:(.text+0x1fa26): undefined reference to `balloon_page_enqueue'
+> virtio_balloon.c:(.text+0x1fb87): undefined reference to `balloon_page_dequeue'
+> virtio_balloon.c:(.text+0x1fdf1): undefined reference to `balloon_devinfo_alloc'
+> 
+> when builtin.
+
+OK, thanks, I'll drop
+http://ozlabs.org/~akpm/mmots/broken-out/mm-disable-mm-balloon_compactionc-completely-when-config_balloon_compaction.patch
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
