@@ -1,48 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B4766B0088
-	for <linux-mm@kvack.org>; Tue, 11 Mar 2014 08:54:01 -0400 (EDT)
-Received: by mail-pd0-f171.google.com with SMTP id r10so8506689pdi.2
-        for <linux-mm@kvack.org>; Tue, 11 Mar 2014 05:54:01 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id s3si20162533pbo.2.2014.03.11.05.53.59
-        for <linux-mm@kvack.org>;
-        Tue, 11 Mar 2014 05:53:59 -0700 (PDT)
-Date: Tue, 11 Mar 2014 08:53:57 -0400
-From: Matthew Wilcox <willy@linux.intel.com>
-Subject: Re: [PATCH v6 06/22] Replace XIP read and write with DAX I/O
-Message-ID: <20140311125357.GA7580@linux.intel.com>
-References: <1393337918-28265-1-git-send-email-matthew.r.wilcox@intel.com>
- <1393337918-28265-7-git-send-email-matthew.r.wilcox@intel.com>
- <1394497958.6784.204.camel@misato.fc.hp.com>
+Received: from mail-pb0-f48.google.com (mail-pb0-f48.google.com [209.85.160.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 780E66B008A
+	for <linux-mm@kvack.org>; Tue, 11 Mar 2014 08:56:00 -0400 (EDT)
+Received: by mail-pb0-f48.google.com with SMTP id md12so8728061pbc.7
+        for <linux-mm@kvack.org>; Tue, 11 Mar 2014 05:56:00 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id xe9si20157707pab.25.2014.03.11.05.55.59
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 11 Mar 2014 05:55:59 -0700 (PDT)
+Message-ID: <531F07D4.5000108@oracle.com>
+Date: Tue, 11 Mar 2014 08:55:48 -0400
+From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1394497958.6784.204.camel@misato.fc.hp.com>
+Subject: Re: bad rss-counter message in 3.14rc5
+References: <20140305174503.GA16335@redhat.com> <20140305175725.GB16335@redhat.com> <20140307002210.GA26603@redhat.com> <20140311024906.GA9191@redhat.com> <20140310201340.81994295.akpm@linux-foundation.org> <20140310214612.3b4de36a.akpm@linux-foundation.org> <20140311045109.GB12551@redhat.com> <20140310220158.7e8b7f2a.akpm@linux-foundation.org> <20140311053017.GB14329@redhat.com>
+In-Reply-To: <20140311053017.GB14329@redhat.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Toshi Kani <toshi.kani@hp.com>
-Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Dave Jones <davej@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Cyrill Gorcunov <gorcunov@gmail.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Bob Liu <bob.liu@oracle.com>, Konstantin Khlebnikov <koct9i@gmail.com>
 
-On Mon, Mar 10, 2014 at 06:32:38PM -0600, Toshi Kani wrote:
-> On Tue, 2014-02-25 at 09:18 -0500, Matthew Wilcox wrote:
-> > Use the generic AIO infrastructure instead of custom read and write
-> > methods.  In addition to giving us support for AIO, this adds the missing
-> > locking between read() and truncate().
-> > 
->  :
-> > +static void dax_new_buf(void *addr, unsigned size, unsigned first,
-> > +					loff_t offset, loff_t end, int rw)
-> > +{
-> > +	loff_t final = end - offset;	/* The final byte in this buffer */
-> 
-> I may be missing something, but shouldn't it take first into account?
-> 
-> 	loff_t final = end - offset + first;
+On 03/11/2014 01:30 AM, Dave Jones wrote:
+> On Mon, Mar 10, 2014 at 10:01:58PM -0700, Andrew Morton wrote:
+>   > On Tue, 11 Mar 2014 00:51:09 -0400 Dave Jones <davej@redhat.com> wrote:
+>   >
+>   > > On Mon, Mar 10, 2014 at 09:46:12PM -0700, Andrew Morton wrote:
+>   > >  > On Mon, 10 Mar 2014 20:13:40 -0700 Andrew Morton <akpm@linux-foundation.org> wrote:
+>   > >  >
+>   > >  > > > Anyone ? I'm hitting this trace on an almost daily basis, which is a pain
+>   > >  > > > while trying to reproduce a different bug..
+>   > >  > >
+>   > >  > > Damn, I thought we'd fixed that but it seems not.  Cc's added.
+>   > >  > >
+>   > >  > > Guys, what stops the migration target page from coming unlocked in
+>   > >  > > parallel with zap_pte_range()'s call to migration_entry_to_page()?
+>   > >  >
+>   > >  > page_table_lock, sort-of.  At least, transitions of is_migration_entry()
+>   > >  > and page_locked() happen under ptl.
+>   > >  >
+>   > >  > I don't see any holes in regular migration.  Do you know if this is
+>   > >  > reproducible with CONFIG_NUMA_BALANCING=n or CONFIG_NUMA=n?
+>   > >
+>   > > CONFIG_NUMA_BALANCING was n already btw, so I'll do a NUMA=n run.
+>   >
+>   > There probably isn't much point unless trinity is using
+>   > sys_move_pages().  Is it?  If so it would be interesting to disable
+>   > trinity's move_pages calls and see if it still fails.
+>
+> Ok, with move_pages excluded it still oopses.
 
-Yes it should.  Thanks!  (Fortunately, this is only a performance problem
-as we'll end up zeroing more than we ought to, which is fine as it will
-be overwritten by the copy_from_user later)
+FWIW, yes - I still see both of these issues happening. It's easy to ignore the
+bad rss-counter, and I've commented out the BUG at swapops.h so that I could keep
+on testing.
+
+There are quite a few issues within mm/ right now, I think there are more than 5
+different BUG()s hittable using trinity at this point without a fix.
+
+
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
