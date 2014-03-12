@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-bk0-f45.google.com (mail-bk0-f45.google.com [209.85.214.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 476C96B0055
-	for <linux-mm@kvack.org>; Tue, 11 Mar 2014 21:29:05 -0400 (EDT)
-Received: by mail-bk0-f45.google.com with SMTP id na10so1387103bkb.32
-        for <linux-mm@kvack.org>; Tue, 11 Mar 2014 18:29:04 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id DD35D6B005A
+	for <linux-mm@kvack.org>; Tue, 11 Mar 2014 21:29:06 -0400 (EDT)
+Received: by mail-bk0-f45.google.com with SMTP id na10so1347049bkb.4
+        for <linux-mm@kvack.org>; Tue, 11 Mar 2014 18:29:06 -0700 (PDT)
 Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id yj4si9801082bkb.337.2014.03.11.18.29.03
+        by mx.google.com with ESMTPS id u5si9805673bkh.292.2014.03.11.18.29.05
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 11 Mar 2014 18:29:04 -0700 (PDT)
+        Tue, 11 Mar 2014 18:29:05 -0700 (PDT)
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 7/8] memcg: do not replicate get_mem_cgroup_from_mm in __mem_cgroup_try_charge
-Date: Tue, 11 Mar 2014 21:28:33 -0400
-Message-Id: <1394587714-6966-8-git-send-email-hannes@cmpxchg.org>
+Subject: [patch 8/8] memcg: sanitize __mem_cgroup_try_charge() call protocol
+Date: Tue, 11 Mar 2014 21:28:34 -0400
+Message-Id: <1394587714-6966-9-git-send-email-hannes@cmpxchg.org>
 In-Reply-To: <1394587714-6966-1-git-send-email-hannes@cmpxchg.org>
 References: <1394587714-6966-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
@@ -20,95 +20,362 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-From: Michal Hocko <mhocko@suse.cz>
+Some callsites pass a memcg directly, some callsites pass a mm that
+first has to be translated to an mm.  This makes for a terrible
+function interface.
 
-__mem_cgroup_try_charge duplicates get_mem_cgroup_from_mm for charges
-which came without a memcg. The only reason seems to be a tiny
-optimization when css_tryget is not called if the charge can be
-consumed from the stock. Nevertheless css_tryget is very cheap since
-it has been reworked to use per-cpu counting so this optimization
-doesn't give us anything these days.
+Just push the mm-to-memcg translation into the respective callsites
+and always pass a memcg to mem_cgroup_try_charge().
 
-So let's drop the code duplication so that the code is more readable.
-
-Signed-off-by: Michal Hocko <mhocko@suse.cz>
 Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 ---
- mm/memcontrol.c | 50 ++++++--------------------------------------------
- 1 file changed, 6 insertions(+), 44 deletions(-)
+ mm/memcontrol.c | 184 +++++++++++++++++++++++++-------------------------------
+ 1 file changed, 83 insertions(+), 101 deletions(-)
 
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index cc7f3ca3ef34..4f7192bfa5fa 100644
+index 4f7192bfa5fa..876598b4505b 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -2731,52 +2731,14 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
- again:
- 	if (*ptr) { /* css should be a valid one */
- 		memcg = *ptr;
--		if (mem_cgroup_is_root(memcg))
--			goto done;
--		if (consume_stock(memcg, nr_pages))
--			goto done;
- 		css_get(&memcg->css);
- 	} else {
--		struct task_struct *p;
--
--		rcu_read_lock();
--		p = rcu_dereference(mm->owner);
--		/*
--		 * Because we don't have task_lock(), "p" can exit.
--		 * In that case, "memcg" can point to root or p can be NULL with
--		 * race with swapoff. Then, we have small risk of mis-accouning.
--		 * But such kind of mis-account by race always happens because
--		 * we don't have cgroup_mutex(). It's overkill and we allo that
--		 * small race, here.
--		 * (*) swapoff at el will charge against mm-struct not against
--		 * task-struct. So, mm->owner can be NULL.
--		 */
--		memcg = mem_cgroup_from_task(p);
--		if (!memcg)
--			memcg = root_mem_cgroup;
--		if (mem_cgroup_is_root(memcg)) {
--			rcu_read_unlock();
--			goto done;
--		}
--		if (consume_stock(memcg, nr_pages)) {
--			/*
--			 * It seems dagerous to access memcg without css_get().
--			 * But considering how consume_stok works, it's not
--			 * necessary. If consume_stock success, some charges
--			 * from this memcg are cached on this cpu. So, we
--			 * don't need to call css_get()/css_tryget() before
--			 * calling consume_stock().
--			 */
--			rcu_read_unlock();
--			goto done;
--		}
--		/* after here, we may be blocked. we need to get refcnt */
--		if (!css_tryget(&memcg->css)) {
--			rcu_read_unlock();
--			goto again;
--		}
--		rcu_read_unlock();
-+		memcg = get_mem_cgroup_from_mm(mm);
- 	}
+@@ -2609,7 +2609,7 @@ static int memcg_cpu_hotplug_callback(struct notifier_block *nb,
+ }
+ 
+ 
+-/* See __mem_cgroup_try_charge() for details */
++/* See mem_cgroup_try_charge() for details */
+ enum {
+ 	CHARGE_OK,		/* success */
+ 	CHARGE_RETRY,		/* need to retry but retry is not bad */
+@@ -2682,45 +2682,34 @@ static int mem_cgroup_do_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
+ 	return CHARGE_NOMEM;
+ }
+ 
+-/*
+- * __mem_cgroup_try_charge() does
+- * 1. detect memcg to be charged against from passed *mm and *ptr,
+- * 2. update res_counter
+- * 3. call memory reclaim if necessary.
+- *
+- * In some special case, if the task is fatal, fatal_signal_pending() or
+- * has TIF_MEMDIE, this function returns -EINTR while writing root_mem_cgroup
+- * to *ptr. There are two reasons for this. 1: fatal threads should quit as soon
+- * as possible without any hazards. 2: all pages should have a valid
+- * pc->mem_cgroup. If mm is NULL and the caller doesn't pass a valid memcg
+- * pointer, that is treated as a charge to root_mem_cgroup.
+- *
+- * So __mem_cgroup_try_charge() will return
+- *  0       ...  on success, filling *ptr with a valid memcg pointer.
+- *  -ENOMEM ...  charge failure because of resource limits.
+- *  -EINTR  ...  if thread is fatal. *ptr is filled with root_mem_cgroup.
++/**
++ * mem_cgroup_try_charge - try charging a memcg
++ * @memcg: memcg to charge
++ * @nr_pages: number of pages to charge
++ * @oom: trigger OOM if reclaim fails
+  *
+- * Unlike the exported interface, an "oom" parameter is added. if oom==true,
+- * the oom-killer can be invoked.
++ * Returns 0 if @memcg was charged successfully, -EINTR if the charge
++ * was bypassed to root_mem_cgroup, and -ENOMEM if the charge failed.
+  */
+-static int __mem_cgroup_try_charge(struct mm_struct *mm,
+-				   gfp_t gfp_mask,
+-				   unsigned int nr_pages,
+-				   struct mem_cgroup **ptr,
+-				   bool oom)
++static int mem_cgroup_try_charge(struct mem_cgroup *memcg,
++				 gfp_t gfp_mask,
++				 unsigned int nr_pages,
++				 bool oom)
+ {
+ 	unsigned int batch = max(CHARGE_BATCH, nr_pages);
+ 	int nr_oom_retries = MEM_CGROUP_RECLAIM_RETRIES;
+-	struct mem_cgroup *memcg = NULL;
+ 	int ret;
+ 
 +	if (mem_cgroup_is_root(memcg))
 +		goto done;
-+	if (consume_stock(memcg, nr_pages))
-+		goto done;
+ 	/*
+-	 * Unlike gloval-vm's OOM-kill, we're not in memory shortage
+-	 * in system level. So, allow to go ahead dying process in addition to
+-	 * MEMDIE process.
++	 * Unlike in global OOM situations, memcg is not in a physical
++	 * memory shortage.  Allow dying and OOM-killed tasks to
++	 * bypass the last charges so that they can exit quickly and
++	 * free their memory.
+ 	 */
+-	if (unlikely(test_thread_flag(TIF_MEMDIE)
+-		     || fatal_signal_pending(current)))
++	if (unlikely(test_thread_flag(TIF_MEMDIE) ||
++		     fatal_signal_pending(current)))
+ 		goto bypass;
  
- 	do {
+ 	if (unlikely(task_in_memcg_oom(current)))
+@@ -2729,14 +2718,6 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
+ 	if (gfp_mask & __GFP_NOFAIL)
+ 		oom = false;
+ again:
+-	if (*ptr) { /* css should be a valid one */
+-		memcg = *ptr;
+-		css_get(&memcg->css);
+-	} else {
+-		memcg = get_mem_cgroup_from_mm(mm);
+-	}
+-	if (mem_cgroup_is_root(memcg))
+-		goto done;
+ 	if (consume_stock(memcg, nr_pages))
+ 		goto done;
+ 
+@@ -2744,10 +2725,8 @@ again:
  		bool invoke_oom = oom && !nr_oom_retries;
-@@ -2812,8 +2774,8 @@ again:
  
+ 		/* If killed, bypass charge */
+-		if (fatal_signal_pending(current)) {
+-			css_put(&memcg->css);
++		if (fatal_signal_pending(current))
+ 			goto bypass;
+-		}
+ 
+ 		ret = mem_cgroup_do_charge(memcg, gfp_mask, batch,
+ 					   nr_pages, invoke_oom);
+@@ -2756,17 +2735,12 @@ again:
+ 			break;
+ 		case CHARGE_RETRY: /* not in OOM situation but retry */
+ 			batch = nr_pages;
+-			css_put(&memcg->css);
+-			memcg = NULL;
+ 			goto again;
+ 		case CHARGE_WOULDBLOCK: /* !__GFP_WAIT */
+-			css_put(&memcg->css);
+ 			goto nomem;
+ 		case CHARGE_NOMEM: /* OOM routine works */
+-			if (!oom || invoke_oom) {
+-				css_put(&memcg->css);
++			if (!oom || invoke_oom)
+ 				goto nomem;
+-			}
+ 			nr_oom_retries--;
+ 			break;
+ 		}
+@@ -2775,16 +2749,11 @@ again:
  	if (batch > nr_pages)
  		refill_stock(memcg, batch - nr_pages);
--	css_put(&memcg->css);
  done:
-+	css_put(&memcg->css);
- 	*ptr = memcg;
+-	css_put(&memcg->css);
+-	*ptr = memcg;
  	return 0;
  nomem:
+-	if (!(gfp_mask & __GFP_NOFAIL)) {
+-		*ptr = NULL;
++	if (!(gfp_mask & __GFP_NOFAIL))
+ 		return -ENOMEM;
+-	}
+ bypass:
+-	*ptr = root_mem_cgroup;
+ 	return -EINTR;
+ }
+ 
+@@ -2983,20 +2952,17 @@ static int mem_cgroup_slabinfo_read(struct seq_file *m, void *v)
+ static int memcg_charge_kmem(struct mem_cgroup *memcg, gfp_t gfp, u64 size)
+ {
+ 	struct res_counter *fail_res;
+-	struct mem_cgroup *_memcg;
+ 	int ret = 0;
+ 
+ 	ret = res_counter_charge(&memcg->kmem, size, &fail_res);
+ 	if (ret)
+ 		return ret;
+ 
+-	_memcg = memcg;
+-	ret = __mem_cgroup_try_charge(NULL, gfp, size >> PAGE_SHIFT,
+-				      &_memcg, oom_gfp_allowed(gfp));
+-
++	ret = mem_cgroup_try_charge(memcg, gfp, size >> PAGE_SHIFT,
++				    oom_gfp_allowed(gfp));
+ 	if (ret == -EINTR)  {
+ 		/*
+-		 * __mem_cgroup_try_charge() chosed to bypass to root due to
++		 * mem_cgroup_try_charge() chosed to bypass to root due to
+ 		 * OOM kill or fatal signal.  Since our only options are to
+ 		 * either fail the allocation or charge it to this cgroup, do
+ 		 * it as a temporary condition. But we can't fail. From a
+@@ -3006,7 +2972,7 @@ static int memcg_charge_kmem(struct mem_cgroup *memcg, gfp_t gfp, u64 size)
+ 		 *
+ 		 * This condition will only trigger if the task entered
+ 		 * memcg_charge_kmem in a sane state, but was OOM-killed during
+-		 * __mem_cgroup_try_charge() above. Tasks that were already
++		 * mem_cgroup_try_charge() above. Tasks that were already
+ 		 * dying when the allocation triggers should have been already
+ 		 * directed to the root cgroup in memcontrol.h
+ 		 */
+@@ -3858,8 +3824,8 @@ out:
+ int mem_cgroup_newpage_charge(struct page *page,
+ 			      struct mm_struct *mm, gfp_t gfp_mask)
+ {
+-	struct mem_cgroup *memcg = NULL;
+ 	unsigned int nr_pages = 1;
++	struct mem_cgroup *memcg;
+ 	bool oom = true;
+ 	int ret;
+ 
+@@ -3880,8 +3846,12 @@ int mem_cgroup_newpage_charge(struct page *page,
+ 		oom = false;
+ 	}
+ 
+-	ret = __mem_cgroup_try_charge(mm, gfp_mask, nr_pages, &memcg, oom);
+-	if (ret == -ENOMEM)
++	memcg = get_mem_cgroup_from_mm(mm);
++	ret = mem_cgroup_try_charge(memcg, gfp_mask, nr_pages, oom);
++	css_put(&memcg->css);
++	if (ret == -EINTR)
++		memcg = root_mem_cgroup;
++	else if (ret)
+ 		return ret;
+ 	__mem_cgroup_commit_charge(memcg, page, nr_pages,
+ 				   MEM_CGROUP_CHARGE_TYPE_ANON, false);
+@@ -3899,7 +3869,7 @@ static int __mem_cgroup_try_charge_swapin(struct mm_struct *mm,
+ 					  gfp_t mask,
+ 					  struct mem_cgroup **memcgp)
+ {
+-	struct mem_cgroup *memcg;
++	struct mem_cgroup *memcg = NULL;
+ 	struct page_cgroup *pc;
+ 	int ret;
+ 
+@@ -3912,31 +3882,29 @@ static int __mem_cgroup_try_charge_swapin(struct mm_struct *mm,
+ 	 * in turn serializes uncharging.
+ 	 */
+ 	if (PageCgroupUsed(pc))
+-		return 0;
+-	if (!do_swap_account)
+-		goto charge_cur_mm;
+-	memcg = try_get_mem_cgroup_from_page(page);
++		goto out;
++	if (do_swap_account)
++		memcg = try_get_mem_cgroup_from_page(page);
+ 	if (!memcg)
+-		goto charge_cur_mm;
+-	*memcgp = memcg;
+-	ret = __mem_cgroup_try_charge(NULL, mask, 1, memcgp, true);
++		memcg = get_mem_cgroup_from_mm(mm);
++	ret = mem_cgroup_try_charge(memcg, mask, 1, true);
+ 	css_put(&memcg->css);
+ 	if (ret == -EINTR)
+-		ret = 0;
+-	return ret;
+-charge_cur_mm:
+-	ret = __mem_cgroup_try_charge(mm, mask, 1, memcgp, true);
+-	if (ret == -EINTR)
+-		ret = 0;
+-	return ret;
++		memcg = root_mem_cgroup;
++	else if (ret)
++		return ret;
++out:
++	*memcgp = memcg;
++	return 0;
+ }
+ 
+ int mem_cgroup_try_charge_swapin(struct mm_struct *mm, struct page *page,
+ 				 gfp_t gfp_mask, struct mem_cgroup **memcgp)
+ {
+-	*memcgp = NULL;
+-	if (mem_cgroup_disabled())
++	if (mem_cgroup_disabled()) {
++		*memcgp = NULL;
+ 		return 0;
++	}
+ 	/*
+ 	 * A racing thread's fault, or swapoff, may have already
+ 	 * updated the pte, and even removed page from swap cache: in
+@@ -3944,12 +3912,18 @@ int mem_cgroup_try_charge_swapin(struct mm_struct *mm, struct page *page,
+ 	 * there's also a KSM case which does need to charge the page.
+ 	 */
+ 	if (!PageSwapCache(page)) {
++		struct mem_cgroup *memcg;
+ 		int ret;
+ 
+-		ret = __mem_cgroup_try_charge(mm, gfp_mask, 1, memcgp, true);
++		memcg = get_mem_cgroup_from_mm(mm);
++		ret = mem_cgroup_try_charge(memcg, gfp_mask, 1, true);
++		css_put(&memcg->css);
+ 		if (ret == -EINTR)
+-			ret = 0;
+-		return ret;
++			memcg = root_mem_cgroup;
++		else if (ret)
++			return ret;
++		*memcgp = memcg;
++		return 0;
+ 	}
+ 	return __mem_cgroup_try_charge_swapin(mm, page, gfp_mask, memcgp);
+ }
+@@ -3996,8 +3970,8 @@ void mem_cgroup_commit_charge_swapin(struct page *page,
+ int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
+ 				gfp_t gfp_mask)
+ {
+-	struct mem_cgroup *memcg = NULL;
+ 	enum charge_type type = MEM_CGROUP_CHARGE_TYPE_CACHE;
++	struct mem_cgroup *memcg;
+ 	int ret;
+ 
+ 	if (mem_cgroup_disabled())
+@@ -4005,23 +3979,32 @@ int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
+ 	if (PageCompound(page))
+ 		return 0;
+ 
+-	if (!PageSwapCache(page)) {
+-		/*
+-		 * Page cache insertions can happen without an actual
+-		 * task context, e.g. during disk probing on boot.
+-		 */
+-		if (!mm)
+-			memcg = root_mem_cgroup;
+-		ret = __mem_cgroup_try_charge(mm, gfp_mask, 1, &memcg, true);
+-		if (ret != -ENOMEM)
+-			__mem_cgroup_commit_charge(memcg, page, 1, type, false);
+-	} else { /* page is swapcache/shmem */
++	if (PageSwapCache(page)) { /* shmem */
+ 		ret = __mem_cgroup_try_charge_swapin(mm, page,
+ 						     gfp_mask, &memcg);
+-		if (!ret)
+-			__mem_cgroup_commit_charge_swapin(page, memcg, type);
++		if (ret)
++			return ret;
++		__mem_cgroup_commit_charge_swapin(page, memcg, type);
++		return 0;
+ 	}
+-	return ret;
++
++	/*
++	 * Page cache insertions can happen without an actual mm
++	 * context, e.g. during disk probing on boot.
++	 */
++	if (unlikely(!mm))
++		memcg = root_mem_cgroup;
++	else {
++		memcg = get_mem_cgroup_from_mm(mm);
++		ret = mem_cgroup_try_charge(memcg, gfp_mask, 1, true);
++		css_put(&memcg->css);
++		if (ret == -EINTR)
++			memcg = root_mem_cgroup;
++		else if (ret)
++			return ret;
++	}
++	__mem_cgroup_commit_charge(memcg, page, 1, type, false);
++	return 0;
+ }
+ 
+ static void mem_cgroup_do_uncharge(struct mem_cgroup *memcg,
+@@ -6635,8 +6618,7 @@ one_by_one:
+ 			batch_count = PRECHARGE_COUNT_AT_ONCE;
+ 			cond_resched();
+ 		}
+-		ret = __mem_cgroup_try_charge(NULL,
+-					GFP_KERNEL, 1, &memcg, false);
++		ret = mem_cgroup_try_charge(memcg, GFP_KERNEL, 1, false);
+ 		if (ret)
+ 			/* mem_cgroup_clear_mc() will do uncharge later */
+ 			return ret;
 -- 
 1.9.0
 
