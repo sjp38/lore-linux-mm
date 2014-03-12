@@ -1,83 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f180.google.com (mail-we0-f180.google.com [74.125.82.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 15D896B008A
-	for <linux-mm@kvack.org>; Wed, 12 Mar 2014 04:54:40 -0400 (EDT)
-Received: by mail-we0-f180.google.com with SMTP id p61so10893217wes.25
-        for <linux-mm@kvack.org>; Wed, 12 Mar 2014 01:54:40 -0700 (PDT)
-Received: from pandora.arm.linux.org.uk (pandora.arm.linux.org.uk. [2001:4d48:ad52:3201:214:fdff:fe10:1be6])
-        by mx.google.com with ESMTPS id be6si3412581wib.13.2014.03.12.01.54.37
+Received: from mail-we0-f176.google.com (mail-we0-f176.google.com [74.125.82.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 899266B0092
+	for <linux-mm@kvack.org>; Wed, 12 Mar 2014 05:19:35 -0400 (EDT)
+Received: by mail-we0-f176.google.com with SMTP id x48so11140753wes.35
+        for <linux-mm@kvack.org>; Wed, 12 Mar 2014 02:19:34 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [119.145.14.64])
+        by mx.google.com with ESMTPS id pd8si3452582wic.87.2014.03.12.02.19.32
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 12 Mar 2014 01:54:38 -0700 (PDT)
-Date: Wed, 12 Mar 2014 08:54:01 +0000
-From: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Subject: Re: [PATCHv4 2/2] arm: Get rid of meminfo
-Message-ID: <20140312085401.GB21483@n2100.arm.linux.org.uk>
-References: <1392761733-32628-1-git-send-email-lauraa@codeaurora.org> <1392761733-32628-3-git-send-email-lauraa@codeaurora.org>
+        Wed, 12 Mar 2014 02:19:34 -0700 (PDT)
+Message-ID: <53202598.8010402@huawei.com>
+Date: Wed, 12 Mar 2014 17:15:04 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1392761733-32628-3-git-send-email-lauraa@codeaurora.org>
+Subject: Re: mm: OS boot failed when set command-line kmemcheck=1
+References: <5304558F.9050605@huawei.com> <alpine.DEB.2.02.1402182344001.3551@chino.kir.corp.google.com> <53047AE6.4060403@huawei.com> <alpine.DEB.2.02.1402191422240.31921@chino.kir.corp.google.com> <20140226084304.GD18404@twins.programming.kicks-ass.net> <CAOMGZ=F66ysRvvPKiCNDRtjDjgAZUV+KBcgjS+G0Yho5quBFPw@mail.gmail.com>
+In-Reply-To: <CAOMGZ=F66ysRvvPKiCNDRtjDjgAZUV+KBcgjS+G0Yho5quBFPw@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <lauraa@codeaurora.org>
-Cc: David Brown <davidb@codeaurora.org>, Daniel Walker <dwalker@fifo99.com>, Jason Cooper <jason@lakedaemon.net>, Andrew Lunn <andrew@lunn.ch>, Sebastian Hesselbarth <sebastian.hesselbarth@gmail.com>, Eric Miao <eric.y.miao@gmail.com>, Haojian Zhuang <haojian.zhuang@gmail.com>, Ben Dooks <ben-linux@fluff.org>, Kukjin Kim <kgene.kim@samsung.com>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-arm-msm@vger.kernel.org, Leif Lindholm <leif.lindholm@linaro.org>, Grygorii Strashko <grygorii.strashko@ti.com>, Catalin Marinas <catalin.marinas@arm.com>, Rob Herring <robherring2@gmail.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Will Deacon <will.deacon@arm.com>, Nicolas Pitre <nicolas.pitre@linaro.org>, Santosh Shilimkar <santosh.shilimkar@ti.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Courtney Cavin <courtney.cavin@sonymobile.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Grant Likely <grant.likely@secretlab.ca>
+To: Vegard Nossum <vegard.nossum@gmail.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, David Rientjes <rientjes@google.com>, Robert Richter <rric@kernel.org>, Stephane Eranian <eranian@google.com>, Pekka Enberg <penberg@kernel.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, Feb 18, 2014 at 02:15:33PM -0800, Laura Abbott wrote:
-> memblock is now fully integrated into the kernel and is the prefered
-> method for tracking memory. Rather than reinvent the wheel with
-> meminfo, migrate to using memblock directly instead of meminfo as
-> an intermediate.
+On 2014/2/26 18:14, Vegard Nossum wrote:
+
+> On 26 February 2014 09:43, Peter Zijlstra <peterz@infradead.org> wrote:
+>> On Wed, Feb 19, 2014 at 02:24:41PM -0800, David Rientjes wrote:
+>>> On Wed, 19 Feb 2014, Xishi Qiu wrote:
+>>>
+>>>> Here is a warning, I don't whether it is relative to my hardware.
+>>>> If set "kmemcheck=1 nowatchdog", it can boot.
+>>>>
+>>>> code:
+>>>>     ...
+>>>>     pte = kmemcheck_pte_lookup(address);
+>>>>     if (!pte)
+>>>>             return false;
+>>>>
+>>>>     WARN_ON_ONCE(in_nmi());
+>>>>
+>>>>     if (error_code & 2)
+>>>>     ...
+>>
+>> That code seems to assume NMI context cannot fault; this is false since
+>> a while back (v3.9 or thereabouts).
+>>
+>>>> [   10.920757]  [<ffffffff810452c1>] kmemcheck_fault+0xb1/0xc0
+>>>> [   10.920760]  [<ffffffff814d262b>] __do_page_fault+0x39b/0x4c0
+>>>> [   10.920763]  [<ffffffff814d2829>] do_page_fault+0x9/0x10
+>>>> [   10.920765]  [<ffffffff814cf222>] page_fault+0x22/0x30
+>>>> [   10.920774]  [<ffffffff8101eb02>] intel_pmu_handle_irq+0x142/0x3a0
+>>>> [   10.920777]  [<ffffffff814d0655>] perf_event_nmi_handler+0x35/0x60
+>>>> [   10.920779]  [<ffffffff814cfe83>] nmi_handle+0x63/0x150
+>>>> [   10.920782]  [<ffffffff814cffd3>] default_do_nmi+0x63/0x290
+>>>> [   10.920784]  [<ffffffff814d02a8>] do_nmi+0xa8/0xe0
+>>>> [   10.920786]  [<ffffffff814cf527>] end_repeat_nmi+0x1e/0x2e
+>>
+>> And this does indeed show a fault from NMI context; which is totally
+>> expected.
+>>
+>> kmemcheck needs to be fixed; but I've no clue how any of that works.
 > 
-> Acked-by: Jason Cooper <jason@lakedaemon.net>
-> Acked-by: Catalin Marinas <catalin.marinas@arm.com>
-> Acked-by: Santosh Shilimkar <santosh.shilimkar@ti.com>
-> Acked-by: Kukjin Kim <kgene.kim@samsung.com>
-> Tested-by: Marek Szyprowski <m.szyprowski@samsung.com>
-> Tested-by: Leif Lindholm <leif.lindholm@linaro.org>
-> Signed-off-by: Laura Abbott <lauraa@codeaurora.org>
+> IIRC the reason we don't support page faults in NMI context is that we
+> may already be handling an existing fault (or trap) when the NMI hits.
+> So that would mess up kmemcheck's working state. I don't really see
+> that anything has changed in this respect lately, so it could always
+> have been broken.
+> 
+> I think the way we dealt with this before was just to make sure than
+> NMI handlers don't access any kmemcheck-tracked memory (i.e. to make
+> sure that all memory touched by NMI handlers has been marked NOTRACK).
+> And the purpose of this warning is just to tell us that something
+> inside an NMI triggered a page fault (in this specific case, it seems
+> to be intel_pmu_handle_irq).
+> 
+> I guess there are two ways forward:
+> 
+>  - create a stack of things that kmemcheck is working on, so that we
+> handle recursive page faults
+>  - try to figure out why intel_pmu_handle_irq() faults and add a
+> (kmemcheck-specific) workaround for it
+> 
+> Incidentally, do you remember what exactly changed wrt page faults in
+> NMI context?
+> 
+> 
+> Vegard
+> 
+> .
+> 
 
-Laura,
+Hi Vegardi 1/4 ?
 
-This patch causes a bunch of platforms to no longer boot - imx6solo with
-1GB of RAM boots, imx6q with 2GB of RAM doesn't.  Versatile Express doesn't.
+I use PERF_COUNT_HW_CACHE_MISSES instead of PERF_COUNT_HW_CPU_CYCLESi 1/4 ?
+and change watchdog_thresh to a large value, then OS boot successfully. 
+I don't know why.
 
-The early printk messages don't reveal anything too interesting:
+static struct perf_event_attr wd_hw_attr = {
+	.type		= PERF_TYPE_HARDWARE,
+	.config		= PERF_COUNT_HW_CPU_CYCLES, -> change to PERF_COUNT_HW_CACHE_MISSES
+	.size		= sizeof(struct perf_event_attr),
+	.pinned		= 1,
+	.disabled	= 1,
+};
 
-Booting Linux on physical CPU 0x0
-Linux version 3.14.0-rc6+ (rmk@rmk-PC.arm.linux.org.uk) (gcc version 4.6.4 (GCC) ) #630 SMP Wed Mar 12 01:13:36 GMT 2014
-CPU: ARMv7 Processor [412fc09a] revision 10 (ARMv7), cr=10c53c7d
-CPU: PIPT / VIPT nonaliasing data cache, VIPT aliasing instruction cache
-Machine model: SolidRun Cubox-i Dual/Quad
-cma: CMA: reserved 64 MiB at 8c000000
-Memory policy: Data cache writealloc
-<hang>
-
-vs.
-
-Booting Linux on physical CPU 0x0
-Linux version 3.14.0-rc6+ (rmk@rmk-PC.arm.linux.org.uk) (gcc version 4.6.4 (GCC) ) #631 SMP Wed Mar 12 01:15:37 GMT 2014
-CPU: ARMv7 Processor [412fc09a] revision 10 (ARMv7), cr=10c53c7d
-CPU: PIPT / VIPT nonaliasing data cache, VIPT aliasing instruction cache
-Machine model: SolidRun Cubox-i Dual/Quad
-cma: CMA: reserved 64 MiB at 3b800000
-Memory policy: Data cache writealloc
-On node 0 totalpages: 524288
-free_area_init_node: node 0, pgdat c09d0240, node_mem_map ea7d8000
-  Normal zone: 1520 pages used for memmap
-  Normal zone: 0 pages reserved
-  Normal zone: 194560 pages, LIFO batch:31
-  HighMem zone: 2576 pages used for memmap
-  HighMem zone: 329728 pages, LIFO batch:31
-...
-
-The only obvious difference is the address of that CMA reservation,
-CMA shouldn't make a difference here - but I suspect that other
-allocations which need to be in lowmem probably aren't.
-
--- 
-FTTC broadband for 0.8mile line: now at 9.7Mbps down 460kbps up... slowly
-improving, and getting towards what was expected from it.
+Thanks,
+Xishi Qiu
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
