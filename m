@@ -1,241 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f41.google.com (mail-wg0-f41.google.com [74.125.82.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E1286B00BB
-	for <linux-mm@kvack.org>; Wed, 12 Mar 2014 11:20:52 -0400 (EDT)
-Received: by mail-wg0-f41.google.com with SMTP id n12so11742836wgh.24
-        for <linux-mm@kvack.org>; Wed, 12 Mar 2014 08:20:51 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o5si4198317wij.24.2014.03.12.08.20.50
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 12 Mar 2014 08:20:51 -0700 (PDT)
-From: Michal Hocko <mhocko@suse.cz>
-Subject: [PATCH] memcg: rename high level charging functions
-Date: Wed, 12 Mar 2014 16:20:43 +0100
-Message-Id: <1394637643-5613-1-git-send-email-mhocko@suse.cz>
-In-Reply-To: <20140312145300.GC14688@cmpxchg.org>
-References: <20140312145300.GC14688@cmpxchg.org>
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 55D3B6B00BE
+	for <linux-mm@kvack.org>; Wed, 12 Mar 2014 12:09:35 -0400 (EDT)
+Received: by mail-pd0-f177.google.com with SMTP id y10so605052pdj.22
+        for <linux-mm@kvack.org>; Wed, 12 Mar 2014 09:09:35 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id xn1si2778757pbc.278.2014.03.12.09.09.33
+        for <linux-mm@kvack.org>;
+        Wed, 12 Mar 2014 09:09:34 -0700 (PDT)
+Message-ID: <532085E3.5030904@linux.intel.com>
+Date: Wed, 12 Mar 2014 09:05:55 -0700
+From: Dave Hansen <dave.hansen@linux.intel.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] mm: implement POSIX_FADV_NOREUSE
+References: <1394533550-18485-1-git-send-email-matthias.wirth@gmail.com>	 <20140311140655.GD28292@dhcp22.suse.cz> <531F2ABA.6060804@linux.intel.com>	 <20140311142729.1e3e4e51186db4c8ee49a9f4@linux-foundation.org> <1394625592.543.52.camel@dinghy>
+In-Reply-To: <1394625592.543.52.camel@dinghy>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Lukas Senger <lukas@fridolin.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.cz>, Matthias Wirth <matthias.wirth@gmail.com>, Matthew Wilcox <matthew@wil.cx>, Jeff Layton <jlayton@redhat.com>, "J. Bruce Fields" <bfields@fieldses.org>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Lisa Du <cldu@marvell.com>, Paul Mackerras <paulus@samba.org>, Sasha Levin <sasha.levin@oracle.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Fengguang Wu <fengguang.wu@intel.com>, Shaohua Li <shli@kernel.org>, Alexey Kardashevskiy <aik@ozlabs.ru>, Minchan Kim <minchan@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Al Viro <viro@zeniv.linux.org.uk>, Steven Whitehouse <swhiteho@redhat.com>, Mel Gorman <mgorman@suse.de>, Cody P Schafer <cody@linux.vnet.ibm.com>, Jiang Liu <liuj97@gmail.com>, David Rientjes <rientjes@google.com>, "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, Lukas Czerner <lczerner@redhat.com>, Damien Ramonda <damien.ramonda@intel.com>, Mark Rutland <mark.rutland@arm.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, i4passt <i4passt@lists.cs.fau.de>
 
-mem_cgroup_newpage_charge is used only for charging anonymous memory
-so it is better to rename it to mem_cgroup_charge_anon.
+On 03/12/2014 04:59 AM, Lukas Senger wrote:
+>> This also looks to ignore the reuse flag for existing pages.  Have you
+>> thought about what the semantics should be there?
+> 
+> The idea is to only treat the pages special when they are first read
+> from disk. This way we achieve the main goal of not displacing useful
+> cache content.
+> 
+>> Also, *should* readahead pages really have this flag set?  If a very
+>> important page gets brought in via readahead, doesn't this put it at a
+>> disadvantage for getting aged out?
+> 
+> If the flag is not set on readahead pages, the advise barely has any
+> effect at all, since most of the file gets read through readahead. Of
+> course that very important page has a disadvantage at the beginning, but
+> as soon as it has been moved into the active list the NOREUSE doesn't
+> affect it anymore. Worst case it gets read once more without the flag.
 
-mem_cgroup_cache_charge is used for file backed memory so rename it
-to mem_cgroup_charge_file.
+That's a good point, and it's a much more important change to the
+existing code than the fadvise bits are.  Probably best to make a bigger
+deal about it in the patch description.
 
-Signed-off-by: Michal Hocko <mhocko@suse.cz>
----
- Documentation/cgroups/memcg_test.txt | 4 ++--
- include/linux/memcontrol.h           | 8 ++++----
- mm/filemap.c                         | 2 +-
- mm/huge_memory.c                     | 8 ++++----
- mm/memcontrol.c                      | 4 ++--
- mm/memory.c                          | 6 +++---
- mm/shmem.c                           | 6 +++---
- 7 files changed, 19 insertions(+), 19 deletions(-)
+> On Tue, 2014-03-11 at 14:27 -0700, Andrew Morton wrote:
+>> And it sets PG_noreuse on new pages whether or not they were within the
+>> fadvise range (offset...offset+len).  It's not really an fadvise
+>> operation at all.
+> 
+> NORMAL, SEQUENTIAL and RANDOM don't honor the range either. So we
+> figured it would be ok to do so for the sake of keeping the
+> implementation simple.
+> 
+>>> page flags are really scarce and I am not sure this is the best
+>> usage of
+>>> the few remaining slots.
+>>
+>> Yeah, especially since the use so so transient.  I can see why using a
+>> flag is nice for a quick prototype, but this is a far cry from needing
+>> one. :)  You might be able to reuse a bit like PageReadahead.  You
+>> could
+>> probably also use a bit in the page pointer of the lruvec, or even
+>> have
+>> a percpu variable that stores a pointer to the 'struct page' you want
+>> to
+>> mark as NOREUSE.
+> 
+> Ok, we understand that we can't add a page flag. We tried to find a flag
+> to recycle but did not succeed. lruvec doesn't have page pointers and we
+> don't have access to a pagevec and the file struct at the same time. We
+> don't really understand the last suggestion, as we need to save this
+> information for more than one page and going over a list every time we
+> add something to an lru list doesn't seem like a good idea.
 
-diff --git a/Documentation/cgroups/memcg_test.txt b/Documentation/cgroups/memcg_test.txt
-index ce94a83a7d9a..80ac454704b8 100644
---- a/Documentation/cgroups/memcg_test.txt
-+++ b/Documentation/cgroups/memcg_test.txt
-@@ -24,7 +24,7 @@ Please note that implementation details can be changed.
- 
-    a page/swp_entry may be charged (usage += PAGE_SIZE) at
- 
--	mem_cgroup_newpage_charge()
-+	mem_cgroup_charge_anon()
- 	  Called at new page fault and Copy-On-Write.
- 
- 	mem_cgroup_try_charge_swapin()
-@@ -32,7 +32,7 @@ Please note that implementation details can be changed.
- 	  Followed by charge-commit-cancel protocol. (With swap accounting)
- 	  At commit, a charge recorded in swap_cgroup is removed.
- 
--	mem_cgroup_cache_charge()
-+	mem_cgroup_charge_file()
- 	  Called at add_to_page_cache()
- 
- 	mem_cgroup_cache_charge_swapin()
-diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-index abd0113b6620..b4e9c196949a 100644
---- a/include/linux/memcontrol.h
-+++ b/include/linux/memcontrol.h
-@@ -65,7 +65,7 @@ struct mem_cgroup_reclaim_cookie {
-  * (Of course, if memcg does memory allocation in future, GFP_KERNEL is sane.)
-  */
- 
--extern int mem_cgroup_newpage_charge(struct page *page, struct mm_struct *mm,
-+extern int mem_cgroup_charge_anon(struct page *page, struct mm_struct *mm,
- 				gfp_t gfp_mask);
- /* for swap handling */
- extern int mem_cgroup_try_charge_swapin(struct mm_struct *mm,
-@@ -74,7 +74,7 @@ extern void mem_cgroup_commit_charge_swapin(struct page *page,
- 					struct mem_cgroup *memcg);
- extern void mem_cgroup_cancel_charge_swapin(struct mem_cgroup *memcg);
- 
--extern int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
-+extern int mem_cgroup_charge_file(struct page *page, struct mm_struct *mm,
- 					gfp_t gfp_mask);
- 
- struct lruvec *mem_cgroup_zone_lruvec(struct zone *, struct mem_cgroup *);
-@@ -234,13 +234,13 @@ void mem_cgroup_print_bad_page(struct page *page);
- #else /* CONFIG_MEMCG */
- struct mem_cgroup;
- 
--static inline int mem_cgroup_newpage_charge(struct page *page,
-+static inline int mem_cgroup_charge_anon(struct page *page,
- 					struct mm_struct *mm, gfp_t gfp_mask)
- {
- 	return 0;
- }
- 
--static inline int mem_cgroup_cache_charge(struct page *page,
-+static inline int mem_cgroup_charge_file(struct page *page,
- 					struct mm_struct *mm, gfp_t gfp_mask)
- {
- 	return 0;
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 2d8af8796fed..a2e7b8ed7b74 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -562,7 +562,7 @@ static int __add_to_page_cache_locked(struct page *page,
- 	VM_BUG_ON_PAGE(!PageLocked(page), page);
- 	VM_BUG_ON_PAGE(PageSwapBacked(page), page);
- 
--	error = mem_cgroup_cache_charge(page, current->mm,
-+	error = mem_cgroup_charge_file(page, current->mm,
- 					gfp_mask & GFP_RECLAIM_MASK);
- 	if (error)
- 		return error;
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index bbf3b3db8f27..335e2f59853b 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -827,7 +827,7 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 		count_vm_event(THP_FAULT_FALLBACK);
- 		return VM_FAULT_FALLBACK;
- 	}
--	if (unlikely(mem_cgroup_newpage_charge(page, mm, GFP_KERNEL))) {
-+	if (unlikely(mem_cgroup_charge_anon(page, mm, GFP_KERNEL))) {
- 		put_page(page);
- 		count_vm_event(THP_FAULT_FALLBACK);
- 		return VM_FAULT_FALLBACK;
-@@ -968,7 +968,7 @@ static int do_huge_pmd_wp_page_fallback(struct mm_struct *mm,
- 					       __GFP_OTHER_NODE,
- 					       vma, address, page_to_nid(page));
- 		if (unlikely(!pages[i] ||
--			     mem_cgroup_newpage_charge(pages[i], mm,
-+			     mem_cgroup_charge_anon(pages[i], mm,
- 						       GFP_KERNEL))) {
- 			if (pages[i])
- 				put_page(pages[i]);
-@@ -1101,7 +1101,7 @@ alloc:
- 		goto out;
- 	}
- 
--	if (unlikely(mem_cgroup_newpage_charge(new_page, mm, GFP_KERNEL))) {
-+	if (unlikely(mem_cgroup_charge_anon(new_page, mm, GFP_KERNEL))) {
- 		put_page(new_page);
- 		if (page) {
- 			split_huge_page(page);
-@@ -2363,7 +2363,7 @@ static void collapse_huge_page(struct mm_struct *mm,
- 	if (!new_page)
- 		return;
- 
--	if (unlikely(mem_cgroup_newpage_charge(new_page, mm, GFP_KERNEL)))
-+	if (unlikely(mem_cgroup_charge_anon(new_page, mm, GFP_KERNEL)))
- 		return;
- 
- 	/*
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 67e01b27a021..d67650a67507 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -3851,7 +3851,7 @@ out:
- 	return ret;
- }
- 
--int mem_cgroup_newpage_charge(struct page *page,
-+int mem_cgroup_charge_anon(struct page *page,
- 			      struct mm_struct *mm, gfp_t gfp_mask)
- {
- 	unsigned int nr_pages = 1;
-@@ -3987,7 +3987,7 @@ void mem_cgroup_commit_charge_swapin(struct page *page,
- 					  MEM_CGROUP_CHARGE_TYPE_ANON);
- }
- 
--int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
-+int mem_cgroup_charge_file(struct page *page, struct mm_struct *mm,
- 				gfp_t gfp_mask)
- {
- 	enum charge_type type = MEM_CGROUP_CHARGE_TYPE_CACHE;
-diff --git a/mm/memory.c b/mm/memory.c
-index 548d97e3df91..5c57d1bbf3cf 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2803,7 +2803,7 @@ gotten:
- 	}
- 	__SetPageUptodate(new_page);
- 
--	if (mem_cgroup_newpage_charge(new_page, mm, GFP_KERNEL))
-+	if (mem_cgroup_charge_anon(new_page, mm, GFP_KERNEL))
- 		goto oom_free_new;
- 
- 	mmun_start  = address & PAGE_MASK;
-@@ -3256,7 +3256,7 @@ static int do_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 	 */
- 	__SetPageUptodate(page);
- 
--	if (mem_cgroup_newpage_charge(page, mm, GFP_KERNEL))
-+	if (mem_cgroup_charge_anon(page, mm, GFP_KERNEL))
- 		goto oom_free_page;
- 
- 	entry = mk_pte(page, vma->vm_page_prot);
-@@ -3384,7 +3384,7 @@ static int do_cow_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 	if (!new_page)
- 		return VM_FAULT_OOM;
- 
--	if (mem_cgroup_newpage_charge(new_page, mm, GFP_KERNEL)) {
-+	if (mem_cgroup_charge_anon(new_page, mm, GFP_KERNEL)) {
- 		page_cache_release(new_page);
- 		return VM_FAULT_OOM;
- 	}
-diff --git a/mm/shmem.c b/mm/shmem.c
-index 7847ea0c0d30..0f0fca94b532 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -685,7 +685,7 @@ int shmem_unuse(swp_entry_t swap, struct page *page)
- 	 * the shmem_swaplist_mutex which might hold up shmem_writepage().
- 	 * Charged back to the user (not to caller) when swap account is used.
- 	 */
--	error = mem_cgroup_cache_charge(page, current->mm, GFP_KERNEL);
-+	error = mem_cgroup_charge_file(page, current->mm, GFP_KERNEL);
- 	if (error)
- 		goto out;
- 	/* No radix_tree_preload: swap entry keeps a place for page in tree */
-@@ -1082,7 +1082,7 @@ repeat:
- 				goto failed;
- 		}
- 
--		error = mem_cgroup_cache_charge(page, current->mm,
-+		error = mem_cgroup_charge_file(page, current->mm,
- 						gfp & GFP_RECLAIM_MASK);
- 		if (!error) {
- 			error = shmem_add_to_page_cache(page, mapping, index,
-@@ -1136,7 +1136,7 @@ repeat:
- 
- 		SetPageSwapBacked(page);
- 		__set_page_locked(page);
--		error = mem_cgroup_cache_charge(page, current->mm,
-+		error = mem_cgroup_charge_file(page, current->mm,
- 						gfp & GFP_RECLAIM_MASK);
- 		if (error)
- 			goto decused;
--- 
-1.9.0
+Yeah, you're right.  I was ignoring the readahead code here.
+
+But, why wouldn't this work there?  Define a percpu variable, and assign
+it to the target page in readahead's read_pages() and in
+do_generic_file_read() which deal with pages one at a time and not in lists.
+
+struct page *read_me_once;
+void hint_page_read_once(struct page *page)
+{
+	read_me_once = page;
+}
+
+Then check for (read_me_once == page) in add_page_to_lru_list() instead
+of the page flag.  Then, make read_me_once per-cpu.  This won't be
+preempt safe, but we're talking about readahead and hints here, so we
+can probably just bail in the cases where we race.
+
+> Would it be acceptable to add a member to struct page for our purpose?
+
+'struct page' must be aligned to two pointers due to constraints from
+the slub allocator.  Adding a single byte to it would bloat it by 16
+bytes for me, which translates in to 2GB of lost space on my 1TB system.
+ There are 6TB systems out there today which would lose 12GB.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
