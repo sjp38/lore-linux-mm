@@ -1,64 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 1EDDF6B0080
-	for <linux-mm@kvack.org>; Wed, 12 Mar 2014 02:58:12 -0400 (EDT)
-Received: by mail-pd0-f177.google.com with SMTP id y10so6953pdj.8
-        for <linux-mm@kvack.org>; Tue, 11 Mar 2014 23:58:11 -0700 (PDT)
-Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
-        by mx.google.com with ESMTP id tk9si1358628pac.6.2014.03.11.23.58.09
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C62D6B0082
+	for <linux-mm@kvack.org>; Wed, 12 Mar 2014 03:06:05 -0400 (EDT)
+Received: by mail-pa0-f50.google.com with SMTP id kq14so690806pab.9
+        for <linux-mm@kvack.org>; Wed, 12 Mar 2014 00:06:04 -0700 (PDT)
+Received: from LGEAMRELO02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
+        by mx.google.com with ESMTP id u5si1374665pbi.118.2014.03.12.00.06.03
         for <linux-mm@kvack.org>;
-        Tue, 11 Mar 2014 23:58:11 -0700 (PDT)
-From: Jungsoo Son <jungsoo.son@lge.com>
-Subject: [PATCH] page owners: correct page->order when to free page
-Date: Wed, 12 Mar 2014 15:58:06 +0900
-Message-Id: <1394607486-31493-1-git-send-email-jungsoo.son@lge.com>
+        Wed, 12 Mar 2014 00:06:04 -0700 (PDT)
+Date: Wed, 12 Mar 2014 16:06:21 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH] page owners: correct page->order when to free page
+Message-ID: <20140312070621.GI17828@bbox>
+References: <1394607486-31493-1-git-send-email-jungsoo.son@lge.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1394607486-31493-1-git-send-email-jungsoo.son@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Jungsoo Son <jungsoo.son@lge.com>, Minchan Kim <minchan@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Jungsoo Son <jungsoo.son@lge.com>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-When I use PAGE_OWNER in mmotm tree, I found a problem that mismatches
-the number of allocated pages. When I investigate, the problem is that
-set_page_order is called for only a head page if freed page is merged to
-a higher order page in the buddy allocator so tail pages of the higher
-order page couldn't be reset to page->order = -1.
+On Wed, Mar 12, 2014 at 03:58:06PM +0900, Jungsoo Son wrote:
+> When I use PAGE_OWNER in mmotm tree, I found a problem that mismatches
+> the number of allocated pages. When I investigate, the problem is that
+> set_page_order is called for only a head page if freed page is merged to
+> a higher order page in the buddy allocator so tail pages of the higher
+> order page couldn't be reset to page->order = -1.
+> 
+> It means when we do 'cat /proc/page-owner', it could show wrong
+> information.
 
-It means when we do 'cat /proc/page-owner', it could show wrong
-information.
+We could make read_page_owner more smart so that it could check
+PageBuddy at head page of high order page and skip tail pages but
+it needs zone->lock which is already heavy contention lock.
+Additionally, it could make wrong information on pcp pages, too.
+So, I like this simple approach.
 
-So page->order should be set to -1 for all the tail pages as well as the
-first page before buddy allocator merges them.
+> 
+> So page->order should be set to -1 for all the tail pages as well as the
+> first page before buddy allocator merges them.
+> 
+> This patch is for clearing page->order of all the tail pages in
+> free_pages_prepare() when to free page.
+> 
+> Signed-off-by: Jungsoo Son <jungsoo.son@lge.com>
+> Cc: Minchan Kim <minchan@kernel.org>
+> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-This patch is for clearing page->order of all the tail pages in
-free_pages_prepare() when to free page.
+Acked-by: Minchan Kim <minchan@kernel.org>
 
-Signed-off-by: Jungsoo Son <jungsoo.son@lge.com>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
----
- mm/page_alloc.c |    7 +++++++
- 1 file changed, 7 insertions(+)
+Thanks.
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index dfbc967..9b946f0 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -741,6 +741,13 @@ static bool free_pages_prepare(struct page *page, unsigned int order)
- 	if (bad)
- 		return false;
- 
-+#ifdef CONFIG_PAGE_OWNER
-+	for (i = 0; i < (1 << order); i++) {
-+		struct page *p = (page + i);
-+		p->order = -1;
-+	}
-+#endif
-+
- 	if (!PageHighMem(page)) {
- 		debug_check_no_locks_freed(page_address(page),
- 					   PAGE_SIZE << order);
 -- 
-1.7.9.5
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
