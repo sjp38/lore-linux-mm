@@ -1,83 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f45.google.com (mail-yh0-f45.google.com [209.85.213.45])
-	by kanga.kvack.org (Postfix) with ESMTP id DEC916B00C0
-	for <linux-mm@kvack.org>; Wed, 12 Mar 2014 12:26:21 -0400 (EDT)
-Received: by mail-yh0-f45.google.com with SMTP id a41so2256159yho.32
-        for <linux-mm@kvack.org>; Wed, 12 Mar 2014 09:26:21 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id w21si42383558yhl.130.2014.03.12.09.26.20
+Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 51E476B00C2
+	for <linux-mm@kvack.org>; Wed, 12 Mar 2014 12:54:51 -0400 (EDT)
+Received: by mail-wi0-f175.google.com with SMTP id cc10so2702677wib.14
+        for <linux-mm@kvack.org>; Wed, 12 Mar 2014 09:54:50 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id vo5si15235423wjc.58.2014.03.12.09.54.49
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 12 Mar 2014 09:26:20 -0700 (PDT)
-Message-ID: <53208A87.2040907@oracle.com>
-Date: Wed, 12 Mar 2014 12:25:43 -0400
-From: Sasha Levin <sasha.levin@oracle.com>
+        Wed, 12 Mar 2014 09:54:49 -0700 (PDT)
+Date: Wed, 12 Mar 2014 16:54:47 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: performance regression due to commit e82e0561("mm: vmscan: obey
+ proportional scanning requirements for kswapd")
+Message-ID: <20140312165447.GO10663@suse.de>
+References: <20140218080122.GO26593@yliu-dev.sh.intel.com>
 MIME-Version: 1.0
-Subject: mm: slub: gpf in deactivate_slab
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20140218080122.GO26593@yliu-dev.sh.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@gentwo.org>, Matt Mackall <mpm@selenic.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Yuanhan Liu <yuanhan.liu@linux.intel.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi all,
+On Tue, Feb 18, 2014 at 04:01:22PM +0800, Yuanhan Liu wrote:
+> Hi,
+> 
+> Commit e82e0561("mm: vmscan: obey proportional scanning requirements for
+> kswapd") caused a big performance regression(73%) for vm-scalability/
+> lru-file-readonce testcase on a system with 256G memory without swap.
+> 
+> That testcase simply looks like this:
+>      truncate -s 1T /tmp/vm-scalability.img
+>      mkfs.xfs -q /tmp/vm-scalability.img
+>      mount -o loop /tmp/vm-scalability.img /tmp/vm-scalability
+> 
+>      SPARESE_FILE="/tmp/vm-scalability/sparse-lru-file-readonce"
+>      for i in `seq 1 120`; do
+>          truncate $SPARESE_FILE-$i -s 36G
+>          timeout --foreground -s INT 300 dd bs=4k if=$SPARESE_FILE-$i of=/dev/null
+>      done
+> 
+>      wait
+> 
 
-While fuzzing with trinity inside a KVM tools guest running latest -next kernel I've stumbled
-on the following spew:
+The filename implies that it's a sparse file with no IO but does not say
+what the truncate function/program/whatever actually does. If it's really a
+sparse file then the dd process should be reading zeros and writing them to
+NULL without IO. Where are pages being dirtied? Does the truncate command
+really create a sparse file or is it something else?
 
-[  241.916559] BUG: unable to handle kernel paging request at ffff880029aa5e58
-[  241.917961] IP: [<ffffffff812c5fa3>] deactivate_slab+0x103/0x560
-[  241.919439] PGD 88f9067 PUD 88fa067 PMD 102fd35067 PTE 8000000029aa5060
-[  241.920339] Oops: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
-[  241.920339] Dumping ftrace buffer:
-[  241.920339]    (ftrace buffer empty)
-[  241.920339] Modules linked in:
-[  241.920339] CPU: 17 PID: 9910 Comm: trinity-c183 Tainted: G        W    3.14.0-rc6-next-20140311-sasha-00009-g6c028cd-dirty #146
-[  241.920339] task: ffff88090eb68000 ti: ffff88090eb70000 task.ti: ffff88090eb70000
-[  241.920339] RIP: 0010:[<ffffffff812c5fa3>]  [<ffffffff812c5fa3>] deactivate_slab+0x103/0x560
-[  241.920339] RSP: 0018:ffff88090eb71c18  EFLAGS: 00010082
-[  241.920339] RAX: 0000000000000418 RBX: ffff880229ae2010 RCX: 0000000180170017
-[  241.920339] RDX: 0000000000000000 RSI: ffffffff812c5f52 RDI: ffffffff812c5e29
-[  241.920339] RBP: ffff88090eb71d28 R08: ffff880229ae2010 R09: 0000000000000080
-[  241.920339] R10: ffff880229ae2ed0 R11: 0000000000000000 R12: ffffea0008a6b800
-[  241.920339] R13: ffff88012b4da580 R14: ffff880029aa5a40 R15: ffff880229ae2010
-[  241.920339] FS:  00007fb615415700(0000) GS:ffff88022ba00000(0000) knlGS:0000000000000000
-[  241.920339] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-[  241.920339] CR2: ffff880029aa5e58 CR3: 000000090eb4a000 CR4: 00000000000006a0
-[  241.920339] DR0: 0000000000005bf2 DR1: 0000000000000000 DR2: 0000000000000000
-[  241.920339] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000070602
-[  241.920339] Stack:
-[  241.920339]  ffffffff856e37ab ffffffff84486272 0000000000000000 000000002b405600
-[  241.920339]  ffff88090eb71c58 ffff88090eb70000 0000000000000011 ffff88022ba03fc0
-[  241.920339]  ffff88090eb71cb8 000000000000000f ffff88022b405600 ffff880029aa5a40
-[  241.920339] Call Trace:
-[  241.920339]  [<ffffffff84486272>] ? preempt_count_sub+0xe2/0x120
-[  241.920339]  [<ffffffff8130f151>] ? alloc_inode+0x41/0xa0
-[  241.954886]  [<ffffffff8130f151>] ? alloc_inode+0x41/0xa0
-[  241.954886]  [<ffffffff8130f151>] ? alloc_inode+0x41/0xa0
-[  241.954886]  [<ffffffff812c36eb>] ? set_track+0xab/0x100
-[  241.954886]  [<ffffffff812c731f>] __slab_alloc+0x42f/0x4d0
-[  241.954886]  [<ffffffff81073e6d>] ? sched_clock+0x1d/0x30
-[  241.954886]  [<ffffffff8130f151>] ? alloc_inode+0x41/0xa0
-[  241.961624]  [<ffffffff812c870f>] kmem_cache_alloc+0x12f/0x2e0
-[  241.961624]  [<ffffffff8130f151>] ? alloc_inode+0x41/0xa0
-[  241.961624]  [<ffffffff8130f151>] alloc_inode+0x41/0xa0
-[  241.961624]  [<ffffffff8130f1cb>] new_inode_pseudo+0x1b/0x70
-[  241.961624]  [<ffffffff812f985c>] get_pipe_inode+0x1c/0xf0
-[  241.961624]  [<ffffffff812f995c>] create_pipe_files+0x2c/0x170
-[  241.961624]  [<ffffffff812f9ae1>] __do_pipe_flags+0x41/0xf0
-[  241.961624]  [<ffffffff812f9bbb>] SyS_pipe2+0x2b/0xb0
-[  241.961624]  [<ffffffff8448b3b1>] ? tracesys+0x7e/0xe2
-[  241.961624]  [<ffffffff8448b410>] tracesys+0xdd/0xe2
-[  241.972975] Code: 4d 85 f6 75 8b eb 45 90 4d 85 f6 75 13 49 8b 5c 24 10 45 31 ff 0f 1f 00 eb 32 66 0f 1f 44 00 00 4c 89 b5 48 ff ff ff 49 63 45 20 <49> 8b 0c 06 48 85 c9 74 10 4d 89 f7 49 8b 54 24 10 49 89 ce e9
-[  241.972975] RIP  [<ffffffff812c5fa3>] deactivate_slab+0x103/0x560
-[  241.972975]  RSP <ffff88090eb71c18>
-[  241.972975] CR2: ffff880029aa5e58
+> Actually, it's not the newlly added code(obey proportional scanning)
+> in that commit caused the regression. But instead, it's the following
+> change:
+> +
+> +               if (nr_reclaimed < nr_to_reclaim || scan_adjusted)
+> +                       continue;
+> +
+> 
+> 
+> -               if (nr_reclaimed >= nr_to_reclaim &&
+> -                   sc->priority < DEF_PRIORITY)
+> +               if (global_reclaim(sc) && !current_is_kswapd())
+>                         break;
+> 
+> The difference is that we might reclaim more than requested before
+> in the first round reclaimming(sc->priority == DEF_PRIORITY).
+> 
+> So, for a testcase like lru-file-readonce, the dirty rate is fast, and
+> reclaimming SWAP_CLUSTER_MAX(32 pages) each time is not enough for catching
+> up the dirty rate. And thus page allocation stalls, and performance drops:
+> 
+>    O for e82e0561
+>    * for parent commit
+> 
+>                                 proc-vmstat.allocstall
+> 
+>      2e+06 ++---------------------------------------------------------------+
+>    1.8e+06 O+              O                O               O               |
+>            |                                                                |
+>    1.6e+06 ++                                                               |
+>    1.4e+06 ++                                                               |
+>            |                                                                |
+>    1.2e+06 ++                                                               |
+>      1e+06 ++                                                               |
+>     800000 ++                                                               |
+>            |                                                                |
+>     600000 ++                                                               |
+>     400000 ++                                                               |
+>            |                                                                |
+>     200000 *+..............*................*...............*...............*
+>          0 ++---------------------------------------------------------------+
+> 
+>                                vm-scalability.throughput
+> 
+>    2.2e+07 ++---------------------------------------------------------------+
+>            |                                                                |
+>      2e+07 *+..............*................*...............*...............*
+>    1.8e+07 ++                                                               |
+>            |                                                                |
+>    1.6e+07 ++                                                               |
+>            |                                                                |
+>    1.4e+07 ++                                                               |
+>            |                                                                |
+>    1.2e+07 ++                                                               |
+>      1e+07 ++                                                               |
+>            |                                                                |
+>      8e+06 ++              O                O               O               |
+>            O                                                                |
+>      6e+06 ++---------------------------------------------------------------+
+> 
+> I made a patch which simply keeps reclaimming more if sc->priority == DEF_PRIORITY.
+> I'm not sure it's the right way to go or not. Anyway, I pasted it here for comments.
+> 
 
+The impact of the patch is that a direct reclaimer will now scan and
+reclaim more pages than requested so the unlucky reclaiming process will
+stall for longer than it should while others make forward progress.
 
-Thanks,
-Sasha
+That would explain the difference in allocstall figure as each stall is
+now doing more work than it did previously. The throughput figure is
+harder to explain. What is it measuring?
+
+Any idea why kswapd is failing to keep up?
+
+I'm not saying the patch is wrong but there appears to be more going on
+that is explained in the changelog. Is the full source of the benchmark
+suite available? If so, can you point me to it and the exact commands
+you use to run the testcase please?
+
+Thanks.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
