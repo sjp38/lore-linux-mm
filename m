@@ -1,78 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f53.google.com (mail-pb0-f53.google.com [209.85.160.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 0DBE06B0085
-	for <linux-mm@kvack.org>; Wed, 12 Mar 2014 04:06:17 -0400 (EDT)
-Received: by mail-pb0-f53.google.com with SMTP id rp16so748963pbb.12
-        for <linux-mm@kvack.org>; Wed, 12 Mar 2014 01:06:17 -0700 (PDT)
-Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
-        by mx.google.com with ESMTP id vu10si1517510pbc.339.2014.03.12.01.06.15
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id BD3AB6B0088
+	for <linux-mm@kvack.org>; Wed, 12 Mar 2014 04:26:18 -0400 (EDT)
+Received: by mail-pd0-f169.google.com with SMTP id fp1so760607pdb.14
+        for <linux-mm@kvack.org>; Wed, 12 Mar 2014 01:26:18 -0700 (PDT)
+Received: from LGEAMRELO01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
+        by mx.google.com with ESMTP id wh10si1576164pab.249.2014.03.12.01.26.16
         for <linux-mm@kvack.org>;
-        Wed, 12 Mar 2014 01:06:17 -0700 (PDT)
+        Wed, 12 Mar 2014 01:26:17 -0700 (PDT)
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: [RESEND PATCH] slab: fix wrongly used macro
-Date: Wed, 12 Mar 2014 17:06:19 +0900
-Message-Id: <1394611579-7709-1-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [RESEND PATCH] slub: fix high order page allocation problem with  __GFP_NOFAIL
+Date: Wed, 12 Mar 2014 17:26:20 +0900
+Message-Id: <1394612780-8033-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@kernel.org>
-Cc: Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Christian Casteyde <casteyde.christian@free.fr>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-commit 'slab: restrict the number of objects in a slab' uses
-__builtin_constant_p() on #if macro. It is wrong usage of builtin
-function, but it is compiled on x86 without any problem, so I can't
-find it before 0 day build system find it.
+SLUB already try to allocate high order page with clearing __GFP_NOFAIL.
+But, when allocating shadow page for kmemcheck, it missed clearing
+the flag. This trigger WARN_ON_ONCE() reported by Christian Casteyde.
 
-This commit fixes the situation by using KMALLOC_MIN_SIZE, instead of
-KMALLOC_SHIFT_LOW. KMALLOC_SHIFT_LOW is parsed to ilog2() on some
-architecture and this ilog2() uses __builtin_constant_p() and results in
-the problem. This problem would disappear by using KMALLOC_MIN_SIZE,
-since it is just constant.
+https://bugzilla.kernel.org/show_bug.cgi?id=65991
+https://lkml.org/lkml/2013/12/3/764
 
-Tested-by: David Rientjes <rientjes@google.com>
+This patch fix this situation by using same allocation flag as original
+allocation.
+
+Reported-by: Christian Casteyde <casteyde.christian@free.fr>
 Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
----
-This patch is based on Pekka's slab/next branch.
 
-diff --git a/include/linux/slab.h b/include/linux/slab.h
-index d015dec..5df89f7 100644
---- a/include/linux/slab.h
-+++ b/include/linux/slab.h
-@@ -201,17 +201,6 @@ struct kmem_cache {
- #ifndef KMALLOC_SHIFT_LOW
- #define KMALLOC_SHIFT_LOW	5
- #endif
--
--/*
-- * This restriction comes from byte sized index implementation.
-- * Page size is normally 2^12 bytes and, in this case, if we want to use
-- * byte sized index which can represent 2^8 entries, the size of the object
-- * should be equal or greater to 2^12 / 2^8 = 2^4 = 16.
-- * If minimum size of kmalloc is less than 16, we use it as minimum object
-- * size and give up to use byte sized index.
-- */
--#define SLAB_OBJ_MIN_SIZE	(KMALLOC_SHIFT_LOW < 4 ? \
--				(1 << KMALLOC_SHIFT_LOW) : 16)
- #endif
+diff --git a/mm/slub.c b/mm/slub.c
+index 3508ede..d43b063 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -1348,11 +1348,12 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
+ 	page = alloc_slab_page(alloc_gfp, node, oo);
+ 	if (unlikely(!page)) {
+ 		oo = s->min;
++		alloc_gfp = flags;
+ 		/*
+ 		 * Allocation may have failed due to fragmentation.
+ 		 * Try a lower order alloc if possible
+ 		 */
+-		page = alloc_slab_page(flags, node, oo);
++		page = alloc_slab_page(alloc_gfp, node, oo);
  
- #ifdef CONFIG_SLUB
-@@ -253,6 +242,17 @@ struct kmem_cache {
- #define KMALLOC_MIN_SIZE (1 << KMALLOC_SHIFT_LOW)
- #endif
+ 		if (page)
+ 			stat(s, ORDER_FALLBACK);
+@@ -1362,7 +1363,7 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
+ 		&& !(s->flags & (SLAB_NOTRACK | DEBUG_DEFAULT_FLAGS))) {
+ 		int pages = 1 << oo_order(oo);
  
-+/*
-+ * This restriction comes from byte sized index implementation.
-+ * Page size is normally 2^12 bytes and, in this case, if we want to use
-+ * byte sized index which can represent 2^8 entries, the size of the object
-+ * should be equal or greater to 2^12 / 2^8 = 2^4 = 16.
-+ * If minimum size of kmalloc is less than 16, we use it as minimum object
-+ * size and give up to use byte sized index.
-+ */
-+#define SLAB_OBJ_MIN_SIZE      (KMALLOC_MIN_SIZE < 16 ? \
-+                               (KMALLOC_MIN_SIZE) : 16)
-+
- #ifndef CONFIG_SLOB
- extern struct kmem_cache *kmalloc_caches[KMALLOC_SHIFT_HIGH + 1];
- #ifdef CONFIG_ZONE_DMA
+-		kmemcheck_alloc_shadow(page, oo_order(oo), flags, node);
++		kmemcheck_alloc_shadow(page, oo_order(oo), alloc_gfp, node);
+ 
+ 		/*
+ 		 * Objects from caches that have a constructor don't get
 -- 
 1.7.9.5
 
