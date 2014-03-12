@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f51.google.com (mail-bk0-f51.google.com [209.85.214.51])
-	by kanga.kvack.org (Postfix) with ESMTP id EA71B6B003D
-	for <linux-mm@kvack.org>; Tue, 11 Mar 2014 21:28:57 -0400 (EDT)
-Received: by mail-bk0-f51.google.com with SMTP id 6so1317679bkj.24
-        for <linux-mm@kvack.org>; Tue, 11 Mar 2014 18:28:57 -0700 (PDT)
+Received: from mail-bk0-f44.google.com (mail-bk0-f44.google.com [209.85.214.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A04C6B0044
+	for <linux-mm@kvack.org>; Tue, 11 Mar 2014 21:28:59 -0400 (EDT)
+Received: by mail-bk0-f44.google.com with SMTP id mz13so1361857bkb.17
+        for <linux-mm@kvack.org>; Tue, 11 Mar 2014 18:28:58 -0700 (PDT)
 Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id d1si9832985bko.51.2014.03.11.18.28.56
+        by mx.google.com with ESMTPS id u5si9805615bkh.292.2014.03.11.18.28.58
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 11 Mar 2014 18:28:56 -0700 (PDT)
+        Tue, 11 Mar 2014 18:28:58 -0700 (PDT)
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 4/8] mm: memcg: push !mm handling out to page cache charge function
-Date: Tue, 11 Mar 2014 21:28:30 -0400
-Message-Id: <1394587714-6966-5-git-send-email-hannes@cmpxchg.org>
+Subject: [patch 5/8] memcg: remove unnecessary !mm check from try_get_mem_cgroup_from_mm()
+Date: Tue, 11 Mar 2014 21:28:31 -0400
+Message-Id: <1394587714-6966-6-git-send-email-hannes@cmpxchg.org>
 In-Reply-To: <1394587714-6966-1-git-send-email-hannes@cmpxchg.org>
 References: <1394587714-6966-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
@@ -20,51 +20,33 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Only page cache charges can happen without an mm context, so push this
-special case out of the inner core and into the cache charge function.
-
-An ancient comment explains that the mm can also be NULL in case the
-task is currently being migrated, but that is not actually true with
-the current case, so just remove it.
+Users pass either a mm that has been established under task lock, or
+use a verified current->mm, which means the task can't be exiting.
 
 Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+Acked-by: Michal Hocko <mhocko@suse.cz>
 ---
- mm/memcontrol.c | 15 ++++++---------
- 1 file changed, 6 insertions(+), 9 deletions(-)
+ mm/memcontrol.c | 7 -------
+ 1 file changed, 7 deletions(-)
 
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index cfdb9c385d8d..c40186cf22ad 100644
+index c40186cf22ad..1780e66ec61e 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -2737,15 +2737,6 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
+@@ -1075,13 +1075,6 @@ struct mem_cgroup *try_get_mem_cgroup_from_mm(struct mm_struct *mm)
+ {
+ 	struct mem_cgroup *memcg = NULL;
  
- 	if (gfp_mask & __GFP_NOFAIL)
- 		oom = false;
--
+-	if (!mm)
+-		return NULL;
 -	/*
--	 * We always charge the cgroup the mm_struct belongs to.
--	 * The mm_struct's mem_cgroup changes on task migration if the
--	 * thread group leader migrates. It's possible that mm is not
--	 * set, if so charge the root memcg (happens for pagecache usage).
+-	 * Because we have no locks, mm->owner's may be being moved to other
+-	 * cgroup. We use css_tryget() here even if this looks
+-	 * pessimistic (rather than adding locks here).
 -	 */
--	if (!*ptr && !mm)
--		*ptr = root_mem_cgroup;
- again:
- 	if (*ptr) { /* css should be a valid one */
- 		memcg = *ptr;
-@@ -4070,6 +4061,12 @@ int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
- 		return 0;
- 
- 	if (!PageSwapCache(page)) {
-+		/*
-+		 * Page cache insertions can happen without an actual
-+		 * task context, e.g. during disk probing on boot.
-+		 */
-+		if (!mm)
-+			memcg = root_mem_cgroup;
- 		ret = __mem_cgroup_try_charge(mm, gfp_mask, 1, &memcg, true);
- 		if (ret != -ENOMEM)
- 			__mem_cgroup_commit_charge(memcg, page, 1, type, false);
+ 	rcu_read_lock();
+ 	do {
+ 		memcg = mem_cgroup_from_task(rcu_dereference(mm->owner));
 -- 
 1.9.0
 
