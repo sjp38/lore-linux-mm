@@ -1,102 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 55D3B6B00BE
-	for <linux-mm@kvack.org>; Wed, 12 Mar 2014 12:09:35 -0400 (EDT)
-Received: by mail-pd0-f177.google.com with SMTP id y10so605052pdj.22
-        for <linux-mm@kvack.org>; Wed, 12 Mar 2014 09:09:35 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id xn1si2778757pbc.278.2014.03.12.09.09.33
-        for <linux-mm@kvack.org>;
-        Wed, 12 Mar 2014 09:09:34 -0700 (PDT)
-Message-ID: <532085E3.5030904@linux.intel.com>
-Date: Wed, 12 Mar 2014 09:05:55 -0700
-From: Dave Hansen <dave.hansen@linux.intel.com>
+Received: from mail-yh0-f45.google.com (mail-yh0-f45.google.com [209.85.213.45])
+	by kanga.kvack.org (Postfix) with ESMTP id DEC916B00C0
+	for <linux-mm@kvack.org>; Wed, 12 Mar 2014 12:26:21 -0400 (EDT)
+Received: by mail-yh0-f45.google.com with SMTP id a41so2256159yho.32
+        for <linux-mm@kvack.org>; Wed, 12 Mar 2014 09:26:21 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id w21si42383558yhl.130.2014.03.12.09.26.20
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 12 Mar 2014 09:26:20 -0700 (PDT)
+Message-ID: <53208A87.2040907@oracle.com>
+Date: Wed, 12 Mar 2014 12:25:43 -0400
+From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: implement POSIX_FADV_NOREUSE
-References: <1394533550-18485-1-git-send-email-matthias.wirth@gmail.com>	 <20140311140655.GD28292@dhcp22.suse.cz> <531F2ABA.6060804@linux.intel.com>	 <20140311142729.1e3e4e51186db4c8ee49a9f4@linux-foundation.org> <1394625592.543.52.camel@dinghy>
-In-Reply-To: <1394625592.543.52.camel@dinghy>
-Content-Type: text/plain; charset=UTF-8
+Subject: mm: slub: gpf in deactivate_slab
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Lukas Senger <lukas@fridolin.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.cz>, Matthias Wirth <matthias.wirth@gmail.com>, Matthew Wilcox <matthew@wil.cx>, Jeff Layton <jlayton@redhat.com>, "J. Bruce Fields" <bfields@fieldses.org>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Lisa Du <cldu@marvell.com>, Paul Mackerras <paulus@samba.org>, Sasha Levin <sasha.levin@oracle.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Fengguang Wu <fengguang.wu@intel.com>, Shaohua Li <shli@kernel.org>, Alexey Kardashevskiy <aik@ozlabs.ru>, Minchan Kim <minchan@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Al Viro <viro@zeniv.linux.org.uk>, Steven Whitehouse <swhiteho@redhat.com>, Mel Gorman <mgorman@suse.de>, Cody P Schafer <cody@linux.vnet.ibm.com>, Jiang Liu <liuj97@gmail.com>, David Rientjes <rientjes@google.com>, "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, Lukas Czerner <lczerner@redhat.com>, Damien Ramonda <damien.ramonda@intel.com>, Mark Rutland <mark.rutland@arm.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, i4passt <i4passt@lists.cs.fau.de>
+To: Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@gentwo.org>, Matt Mackall <mpm@selenic.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 03/12/2014 04:59 AM, Lukas Senger wrote:
->> This also looks to ignore the reuse flag for existing pages.  Have you
->> thought about what the semantics should be there?
-> 
-> The idea is to only treat the pages special when they are first read
-> from disk. This way we achieve the main goal of not displacing useful
-> cache content.
-> 
->> Also, *should* readahead pages really have this flag set?  If a very
->> important page gets brought in via readahead, doesn't this put it at a
->> disadvantage for getting aged out?
-> 
-> If the flag is not set on readahead pages, the advise barely has any
-> effect at all, since most of the file gets read through readahead. Of
-> course that very important page has a disadvantage at the beginning, but
-> as soon as it has been moved into the active list the NOREUSE doesn't
-> affect it anymore. Worst case it gets read once more without the flag.
+Hi all,
 
-That's a good point, and it's a much more important change to the
-existing code than the fadvise bits are.  Probably best to make a bigger
-deal about it in the patch description.
+While fuzzing with trinity inside a KVM tools guest running latest -next kernel I've stumbled
+on the following spew:
 
-> On Tue, 2014-03-11 at 14:27 -0700, Andrew Morton wrote:
->> And it sets PG_noreuse on new pages whether or not they were within the
->> fadvise range (offset...offset+len).  It's not really an fadvise
->> operation at all.
-> 
-> NORMAL, SEQUENTIAL and RANDOM don't honor the range either. So we
-> figured it would be ok to do so for the sake of keeping the
-> implementation simple.
-> 
->>> page flags are really scarce and I am not sure this is the best
->> usage of
->>> the few remaining slots.
->>
->> Yeah, especially since the use so so transient.  I can see why using a
->> flag is nice for a quick prototype, but this is a far cry from needing
->> one. :)  You might be able to reuse a bit like PageReadahead.  You
->> could
->> probably also use a bit in the page pointer of the lruvec, or even
->> have
->> a percpu variable that stores a pointer to the 'struct page' you want
->> to
->> mark as NOREUSE.
-> 
-> Ok, we understand that we can't add a page flag. We tried to find a flag
-> to recycle but did not succeed. lruvec doesn't have page pointers and we
-> don't have access to a pagevec and the file struct at the same time. We
-> don't really understand the last suggestion, as we need to save this
-> information for more than one page and going over a list every time we
-> add something to an lru list doesn't seem like a good idea.
+[  241.916559] BUG: unable to handle kernel paging request at ffff880029aa5e58
+[  241.917961] IP: [<ffffffff812c5fa3>] deactivate_slab+0x103/0x560
+[  241.919439] PGD 88f9067 PUD 88fa067 PMD 102fd35067 PTE 8000000029aa5060
+[  241.920339] Oops: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
+[  241.920339] Dumping ftrace buffer:
+[  241.920339]    (ftrace buffer empty)
+[  241.920339] Modules linked in:
+[  241.920339] CPU: 17 PID: 9910 Comm: trinity-c183 Tainted: G        W    3.14.0-rc6-next-20140311-sasha-00009-g6c028cd-dirty #146
+[  241.920339] task: ffff88090eb68000 ti: ffff88090eb70000 task.ti: ffff88090eb70000
+[  241.920339] RIP: 0010:[<ffffffff812c5fa3>]  [<ffffffff812c5fa3>] deactivate_slab+0x103/0x560
+[  241.920339] RSP: 0018:ffff88090eb71c18  EFLAGS: 00010082
+[  241.920339] RAX: 0000000000000418 RBX: ffff880229ae2010 RCX: 0000000180170017
+[  241.920339] RDX: 0000000000000000 RSI: ffffffff812c5f52 RDI: ffffffff812c5e29
+[  241.920339] RBP: ffff88090eb71d28 R08: ffff880229ae2010 R09: 0000000000000080
+[  241.920339] R10: ffff880229ae2ed0 R11: 0000000000000000 R12: ffffea0008a6b800
+[  241.920339] R13: ffff88012b4da580 R14: ffff880029aa5a40 R15: ffff880229ae2010
+[  241.920339] FS:  00007fb615415700(0000) GS:ffff88022ba00000(0000) knlGS:0000000000000000
+[  241.920339] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+[  241.920339] CR2: ffff880029aa5e58 CR3: 000000090eb4a000 CR4: 00000000000006a0
+[  241.920339] DR0: 0000000000005bf2 DR1: 0000000000000000 DR2: 0000000000000000
+[  241.920339] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000070602
+[  241.920339] Stack:
+[  241.920339]  ffffffff856e37ab ffffffff84486272 0000000000000000 000000002b405600
+[  241.920339]  ffff88090eb71c58 ffff88090eb70000 0000000000000011 ffff88022ba03fc0
+[  241.920339]  ffff88090eb71cb8 000000000000000f ffff88022b405600 ffff880029aa5a40
+[  241.920339] Call Trace:
+[  241.920339]  [<ffffffff84486272>] ? preempt_count_sub+0xe2/0x120
+[  241.920339]  [<ffffffff8130f151>] ? alloc_inode+0x41/0xa0
+[  241.954886]  [<ffffffff8130f151>] ? alloc_inode+0x41/0xa0
+[  241.954886]  [<ffffffff8130f151>] ? alloc_inode+0x41/0xa0
+[  241.954886]  [<ffffffff812c36eb>] ? set_track+0xab/0x100
+[  241.954886]  [<ffffffff812c731f>] __slab_alloc+0x42f/0x4d0
+[  241.954886]  [<ffffffff81073e6d>] ? sched_clock+0x1d/0x30
+[  241.954886]  [<ffffffff8130f151>] ? alloc_inode+0x41/0xa0
+[  241.961624]  [<ffffffff812c870f>] kmem_cache_alloc+0x12f/0x2e0
+[  241.961624]  [<ffffffff8130f151>] ? alloc_inode+0x41/0xa0
+[  241.961624]  [<ffffffff8130f151>] alloc_inode+0x41/0xa0
+[  241.961624]  [<ffffffff8130f1cb>] new_inode_pseudo+0x1b/0x70
+[  241.961624]  [<ffffffff812f985c>] get_pipe_inode+0x1c/0xf0
+[  241.961624]  [<ffffffff812f995c>] create_pipe_files+0x2c/0x170
+[  241.961624]  [<ffffffff812f9ae1>] __do_pipe_flags+0x41/0xf0
+[  241.961624]  [<ffffffff812f9bbb>] SyS_pipe2+0x2b/0xb0
+[  241.961624]  [<ffffffff8448b3b1>] ? tracesys+0x7e/0xe2
+[  241.961624]  [<ffffffff8448b410>] tracesys+0xdd/0xe2
+[  241.972975] Code: 4d 85 f6 75 8b eb 45 90 4d 85 f6 75 13 49 8b 5c 24 10 45 31 ff 0f 1f 00 eb 32 66 0f 1f 44 00 00 4c 89 b5 48 ff ff ff 49 63 45 20 <49> 8b 0c 06 48 85 c9 74 10 4d 89 f7 49 8b 54 24 10 49 89 ce e9
+[  241.972975] RIP  [<ffffffff812c5fa3>] deactivate_slab+0x103/0x560
+[  241.972975]  RSP <ffff88090eb71c18>
+[  241.972975] CR2: ffff880029aa5e58
 
-Yeah, you're right.  I was ignoring the readahead code here.
 
-But, why wouldn't this work there?  Define a percpu variable, and assign
-it to the target page in readahead's read_pages() and in
-do_generic_file_read() which deal with pages one at a time and not in lists.
-
-struct page *read_me_once;
-void hint_page_read_once(struct page *page)
-{
-	read_me_once = page;
-}
-
-Then check for (read_me_once == page) in add_page_to_lru_list() instead
-of the page flag.  Then, make read_me_once per-cpu.  This won't be
-preempt safe, but we're talking about readahead and hints here, so we
-can probably just bail in the cases where we race.
-
-> Would it be acceptable to add a member to struct page for our purpose?
-
-'struct page' must be aligned to two pointers due to constraints from
-the slub allocator.  Adding a single byte to it would bloat it by 16
-bytes for me, which translates in to 2GB of lost space on my 1TB system.
- There are 6TB systems out there today which would lose 12GB.
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
