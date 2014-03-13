@@ -1,20 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 35BAC6B0031
-	for <linux-mm@kvack.org>; Thu, 13 Mar 2014 02:48:00 -0400 (EDT)
-Received: by mail-pa0-f51.google.com with SMTP id kq14so680777pab.10
-        for <linux-mm@kvack.org>; Wed, 12 Mar 2014 23:47:59 -0700 (PDT)
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
-        by mx.google.com with ESMTPS id zt8si1258743pbc.45.2014.03.12.23.47.56
+Received: from mail-pb0-f42.google.com (mail-pb0-f42.google.com [209.85.160.42])
+	by kanga.kvack.org (Postfix) with ESMTP id D5F526B0036
+	for <linux-mm@kvack.org>; Thu, 13 Mar 2014 02:48:12 -0400 (EDT)
+Received: by mail-pb0-f42.google.com with SMTP id rr13so672462pbb.15
+        for <linux-mm@kvack.org>; Wed, 12 Mar 2014 23:48:12 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [119.145.14.64])
+        by mx.google.com with ESMTPS id p2si1229789pbn.213.2014.03.12.23.48.08
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 12 Mar 2014 23:47:59 -0700 (PDT)
-Message-ID: <53215492.40701@huawei.com>
-Date: Thu, 13 Mar 2014 14:47:46 +0800
+        Wed, 12 Mar 2014 23:48:12 -0700 (PDT)
+Message-ID: <532154A1.3060002@huawei.com>
+Date: Thu, 13 Mar 2014 14:48:01 +0800
 From: Li Zefan <lizefan@huawei.com>
 MIME-Version: 1.0
-Subject: [PATCH 1/3] kmemleak: allow freeing internal objects after disabling
- kmemleak
+Subject: [PATCH 2/3] kmemleak: remove redundant code
+References: <53215492.40701@huawei.com>
+In-Reply-To: <53215492.40701@huawei.com>
 Content-Type: text/plain; charset="GB2312"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -22,168 +23,53 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Catalin Marinas <catalin.marinas@arm.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-Currently if you disable kmemleak without stopping kmemleak scan
-thread, the kmemleak objects can never be freed. It's about 370MB
-on my system.
-
-  OBJS ACTIVE  USE OBJ SIZE  SLABS OBJ/SLAB CACHE SIZE NAME
-1200264 1197433  99%    0.30K  46164	   26    369312K kmemleak_object
-
-With this patch, it's allowed to free those objects by extending the
-"clear" command.
-
-	# echo off > kmemleak
-	# echo clear > kmemleak
-
-Also inform users if kmemleak is disabled but internal objects are
-not freed.
+- remove kmemleak_padding().
+- remove kmemleak_release().
 
 Signed-off-by: Li Zefan <lizefan@huawei.com>
 ---
- Documentation/kmemleak.txt | 20 +++++++++++++++++++-
- mm/kmemleak.c              | 44 +++++++++++++++++++++++++++++++-------------
- 2 files changed, 50 insertions(+), 14 deletions(-)
+ include/linux/kmemleak.h | 2 --
+ mm/kmemleak.c            | 7 +------
+ 2 files changed, 1 insertion(+), 8 deletions(-)
 
-diff --git a/Documentation/kmemleak.txt b/Documentation/kmemleak.txt
-index 6dc8013..f2b21bb 100644
---- a/Documentation/kmemleak.txt
-+++ b/Documentation/kmemleak.txt
-@@ -51,7 +51,8 @@ Memory scanning parameters can be modified at run-time by writing to the
- 		  (default 600, 0 to stop the automatic scanning)
-   scan		- trigger a memory scan
-   clear		- clear list of current memory leak suspects, done by
--		  marking all current reported unreferenced objects grey
-+		  marking all current reported unreferenced objects grey.
-+		  Or free all kmemleak objects if kmemleak has been disabled.
-   dump=<addr>	- dump information about the object found at <addr>
- 
- Kmemleak can also be disabled at boot-time by passing "kmemleak=off" on
-@@ -118,6 +119,23 @@ Then as usual to get your report with:
- 
-   # cat /sys/kernel/debug/kmemleak
- 
-+Freeing kmemleak internal objects
-+---------------------------------
-+
-+To allow access to previosuly found memory leaks even when an error fatal
-+to kmemleak happens, internal kmemleak objects won't be freed when kmemleak
-+is disabled, and those objects may occupy a large part of physical
-+memory.
-+
-+If you want to make sure they're freed before disabling kmemleak:
-+
-+  # echo scan=off > /sys/kernel/debug/kmemleak
-+  # echo off > /sys/kernel/debug/kmemleak
-+
-+If kmemleak has been disabled, you can reclaim memory with:
-+
-+  # echo clear > /sys/kernel/debug/kmemleak
-+
- Kmemleak API
- ------------
- 
+diff --git a/include/linux/kmemleak.h b/include/linux/kmemleak.h
+index 2a5e554..5bb4246 100644
+--- a/include/linux/kmemleak.h
++++ b/include/linux/kmemleak.h
+@@ -30,8 +30,6 @@ extern void kmemleak_alloc_percpu(const void __percpu *ptr, size_t size) __ref;
+ extern void kmemleak_free(const void *ptr) __ref;
+ extern void kmemleak_free_part(const void *ptr, size_t size) __ref;
+ extern void kmemleak_free_percpu(const void __percpu *ptr) __ref;
+-extern void kmemleak_padding(const void *ptr, unsigned long offset,
+-			     size_t size) __ref;
+ extern void kmemleak_not_leak(const void *ptr) __ref;
+ extern void kmemleak_ignore(const void *ptr) __ref;
+ extern void kmemleak_scan_area(const void *ptr, size_t size, gfp_t gfp) __ref;
 diff --git a/mm/kmemleak.c b/mm/kmemleak.c
-index 31f01c5..c7d4b94 100644
+index c7d4b94..9e102ce 100644
 --- a/mm/kmemleak.c
 +++ b/mm/kmemleak.c
-@@ -1594,6 +1594,8 @@ static void kmemleak_clear(void)
- 	rcu_read_unlock();
+@@ -1545,11 +1545,6 @@ static int kmemleak_open(struct inode *inode, struct file *file)
+ 	return seq_open(file, &kmemleak_seq_ops);
  }
  
-+static void __kmemleak_do_cleanup(void);
-+
- /*
-  * File write operation to configure kmemleak at run-time. The following
-  * commands can be written to the /sys/kernel/debug/kmemleak file:
-@@ -1606,7 +1608,8 @@ static void kmemleak_clear(void)
-  *		  disable it)
-  *   scan	- trigger a memory scan
-  *   clear	- mark all current reported unreferenced kmemleak objects as
-- *		  grey to ignore printing them
-+ *		  grey to ignore printing them, or free all kmemleak objects
-+ *		  if kmemleak has been disabled.
-  *   dump=...	- dump information about the object found at the given address
-  */
- static ssize_t kmemleak_write(struct file *file, const char __user *user_buf,
-@@ -1616,9 +1619,6 @@ static ssize_t kmemleak_write(struct file *file, const char __user *user_buf,
- 	int buf_size;
- 	int ret;
- 
--	if (!atomic_read(&kmemleak_enabled))
--		return -EBUSY;
+-static int kmemleak_release(struct inode *inode, struct file *file)
+-{
+-	return seq_release(inode, file);
+-}
 -
- 	buf_size = min(size, (sizeof(buf) - 1));
- 	if (strncpy_from_user(buf, user_buf, buf_size) < 0)
- 		return -EFAULT;
-@@ -1628,6 +1628,19 @@ static ssize_t kmemleak_write(struct file *file, const char __user *user_buf,
- 	if (ret < 0)
- 		return ret;
- 
-+	if (strncmp(buf, "clear", 5) == 0) {
-+		if (atomic_read(&kmemleak_enabled))
-+			kmemleak_clear();
-+		else
-+			__kmemleak_do_cleanup();
-+		goto out;
-+	}
-+
-+	if (!atomic_read(&kmemleak_enabled)) {
-+		ret = -EBUSY;
-+		goto out;
-+	}
-+
- 	if (strncmp(buf, "off", 3) == 0)
- 		kmemleak_disable();
- 	else if (strncmp(buf, "stack=on", 8) == 0)
-@@ -1651,8 +1664,6 @@ static ssize_t kmemleak_write(struct file *file, const char __user *user_buf,
- 		}
- 	} else if (strncmp(buf, "scan", 4) == 0)
- 		kmemleak_scan();
--	else if (strncmp(buf, "clear", 5) == 0)
--		kmemleak_clear();
- 	else if (strncmp(buf, "dump=", 5) == 0)
- 		ret = dump_str_object_info(buf + 5);
- 	else
-@@ -1677,6 +1688,16 @@ static const struct file_operations kmemleak_fops = {
- 	.release	= kmemleak_release,
+ static int dump_str_object_info(const char *str)
+ {
+ 	unsigned long flags;
+@@ -1685,7 +1680,7 @@ static const struct file_operations kmemleak_fops = {
+ 	.read		= seq_read,
+ 	.write		= kmemleak_write,
+ 	.llseek		= seq_lseek,
+-	.release	= kmemleak_release,
++	.release	= seq_release,
  };
  
-+static void __kmemleak_do_cleanup(void)
-+{
-+	struct kmemleak_object *object;
-+
-+	rcu_read_lock();
-+	list_for_each_entry_rcu(object, &object_list, object_list)
-+		delete_object_full(object->pointer);
-+	rcu_read_unlock();
-+}
-+
- /*
-  * Stop the memory scanning thread and free the kmemleak internal objects if
-  * no previous scan thread (otherwise, kmemleak may still have some useful
-@@ -1684,18 +1705,15 @@ static const struct file_operations kmemleak_fops = {
-  */
- static void kmemleak_do_cleanup(struct work_struct *work)
- {
--	struct kmemleak_object *object;
- 	bool cleanup = scan_thread == NULL;
- 
- 	mutex_lock(&scan_mutex);
- 	stop_scan_thread();
- 
--	if (cleanup) {
--		rcu_read_lock();
--		list_for_each_entry_rcu(object, &object_list, object_list)
--			delete_object_full(object->pointer);
--		rcu_read_unlock();
--	}
-+	if (cleanup)
-+		__kmemleak_do_cleanup();
-+	else
-+		pr_info("You may free internal objects by \"echo clear > kmemleak\"\n");
- 	mutex_unlock(&scan_mutex);
- }
- 
+ static void __kmemleak_do_cleanup(void)
 -- 
 1.8.0.2
 
