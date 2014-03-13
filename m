@@ -1,23 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ea0-f175.google.com (mail-ea0-f175.google.com [209.85.215.175])
-	by kanga.kvack.org (Postfix) with ESMTP id E01FC6B0035
-	for <linux-mm@kvack.org>; Thu, 13 Mar 2014 18:24:47 -0400 (EDT)
-Received: by mail-ea0-f175.google.com with SMTP id d10so752439eaj.6
-        for <linux-mm@kvack.org>; Thu, 13 Mar 2014 15:24:47 -0700 (PDT)
+Received: from mail-ea0-f181.google.com (mail-ea0-f181.google.com [209.85.215.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 6047F6B0035
+	for <linux-mm@kvack.org>; Thu, 13 Mar 2014 18:28:59 -0400 (EDT)
+Received: by mail-ea0-f181.google.com with SMTP id k10so772004eaj.12
+        for <linux-mm@kvack.org>; Thu, 13 Mar 2014 15:28:58 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id z42si200856eel.302.2014.03.13.15.24.44
+        by mx.google.com with ESMTP id b48si241730eew.157.2014.03.13.15.28.56
         for <linux-mm@kvack.org>;
-        Thu, 13 Mar 2014 15:24:45 -0700 (PDT)
+        Thu, 13 Mar 2014 15:28:57 -0700 (PDT)
+Date: Thu, 13 Mar 2014 18:28:34 -0400
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH 3/6] mm/memory-failure.c: add code to resolve quasi-hwpoisoned page
-Date: Thu, 13 Mar 2014 17:39:43 -0400
-Message-Id: <1394746786-6397-4-git-send-email-n-horiguchi@ah.jp.nec.com>
+Message-ID: <53223129.c82d0f0a.67d2.5df4SMTPIN_ADDED_BROKEN@mx.google.com>
 In-Reply-To: <1394746786-6397-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 References: <1394746786-6397-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH 3/6] mm/memory-failure.c: add code to resolve quasi-hwpoisoned
+ page
+Mime-Version: 1.0
+Content-Type: text/plain;
+ charset=iso-2022-jp
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Wu Fengguang <fengguang.wu@intel.com>, Tony Luck <tony.luck@intel.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Dave Chinner <david@fromorbit.com>, Jun'ichi Nomura <j-nomura@ce.jp.nec.com>, linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, andi@firstfloor.org, fengguang.wu@intel.com, tony.luck@intel.com, liwanp@linux.vnet.ibm.com, david@fromorbit.com, j-nomura@ce.jp.nec.com, linux-mm@kvack.org
+
+# patch 3 might be lost, so I resend it. Thanks Tony.
 
 This patch introduces three ways to resolve quasi-hwpoisoned pages:
  1. unpoison: this is a test feature, but if users accept data lost (then
