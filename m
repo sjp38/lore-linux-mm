@@ -1,50 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f176.google.com (mail-ob0-f176.google.com [209.85.214.176])
-	by kanga.kvack.org (Postfix) with ESMTP id D5DA56B0035
-	for <linux-mm@kvack.org>; Thu, 13 Mar 2014 09:43:45 -0400 (EDT)
-Received: by mail-ob0-f176.google.com with SMTP id wp18so1029187obc.35
-        for <linux-mm@kvack.org>; Thu, 13 Mar 2014 06:43:45 -0700 (PDT)
-Received: from mail-oa0-x230.google.com (mail-oa0-x230.google.com [2607:f8b0:4003:c02::230])
-        by mx.google.com with ESMTPS id dq4si2490062oeb.34.2014.03.13.06.43.45
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 12AF46B0035
+	for <linux-mm@kvack.org>; Thu, 13 Mar 2014 10:25:44 -0400 (EDT)
+Received: by mail-wi0-f172.google.com with SMTP id hi5so3974655wib.17
+        for <linux-mm@kvack.org>; Thu, 13 Mar 2014 07:25:44 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 14si1609861wjq.73.2014.03.13.07.25.43
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 13 Mar 2014 06:43:45 -0700 (PDT)
-Received: by mail-oa0-f48.google.com with SMTP id m1so1039475oag.21
-        for <linux-mm@kvack.org>; Thu, 13 Mar 2014 06:43:45 -0700 (PDT)
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 13 Mar 2014 07:25:43 -0700 (PDT)
+Date: Thu, 13 Mar 2014 14:25:40 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [RFC][PATCH v2] mm/page_alloc: fix freeing of MIGRATE_RESERVE
+ migratetype pages
+Message-ID: <20140313142540.GQ10663@suse.de>
+References: <42197912.c6v2hLDCey@amdc1032>
 MIME-Version: 1.0
-In-Reply-To: <532136C1.5020502@samsung.com>
-References: <CAA6Yd9V=RJpysp1u3_+nA6ttWMNdYdRTn1o8fyOX35faaOtx2w@mail.gmail.com>
- <532136C1.5020502@samsung.com>
-From: Ramakrishnan Muthukrishnan <vu3rdd@gmail.com>
-Date: Thu, 13 Mar 2014 19:13:23 +0530
-Message-ID: <CAA6Yd9UxYg7SMyW2HtNREM7AtkQjQ67kerFoHday5L8+CjE-tQ@mail.gmail.com>
-Subject: Re: cma: alloc_contig_range test_pages_isolated .. failed
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <42197912.c6v2hLDCey@amdc1032>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Heesub Shin <heesub.shin@samsung.com>
-Cc: linux-mm@kvack.org
+To: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+Cc: Hugh Dickins <hughd@google.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Yong-Taek Lee <ytk.lee@samsung.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hello
+On Fri, Feb 14, 2014 at 07:34:17PM +0100, Bartlomiej Zolnierkiewicz wrote:
+> Pages allocated from MIGRATE_RESERVE migratetype pageblocks
+> are not freed back to MIGRATE_RESERVE migratetype free
+> lists in free_pcppages_bulk()->__free_one_page() if we got
+> to free_pcppages_bulk() through drain_[zone_]pages().
+> The freeing through free_hot_cold_page() is okay because
+> freepage migratetype is set to pageblock migratetype before
+> calling free_pcppages_bulk().  If pages of MIGRATE_RESERVE
+> migratetype end up on the free lists of other migratetype
+> whole Reserved pageblock may be later changed to the other
+> migratetype in __rmqueue_fallback() and it will be never
+> changed back to be a Reserved pageblock.  Fix the issue by
+> preserving freepage migratetype as a pageblock migratetype
+> (instead of overriding it to the requested migratetype)
+> for MIGRATE_RESERVE migratetype pages in rmqueue_bulk().
+> 
+> The problem was introduced in v2.6.31 by commit ed0ae21
+> ("page allocator: do not call get_pageblock_migratetype()
+> more than necessary").
+> 
+> Signed-off-by: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+> Reported-by: Yong-Taek Lee <ytk.lee@samsung.com>
+> Cc: Marek Szyprowski <m.szyprowski@samsung.com>
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: Hugh Dickins <hughd@google.com>
 
-On Thu, Mar 13, 2014 at 10:10 AM, Heesub Shin <heesub.shin@samsung.com> wrote:
->
-> On 03/11/2014 11:02 PM, Ramakrishnan Muthukrishnan wrote:
->>
->> [   26.846313] alloc_contig_range test_pages_isolated(a2e00, a3400) failed
->> [   26.853515] alloc_contig_range test_pages_isolated(a2e00, a3500) failed
->> [   26.860809] alloc_contig_range test_pages_isolated(a3100, a3700) failed
->> [   26.868133] alloc_contig_range test_pages_isolated(a3200, a3800) failed
->
->
-> "memory-hotplug: fix pages missed by race rather than failing" by Minchan
-> Kim (435b405) would also help you, which was merged after v3.4.
+It's a pity about the unconditional pageblock lookup in that path but I
+didn't see a better way around it so
 
-Yes, I tried that and the associated parent patches as well but
-unfortunately that too didn't help.
+Acked-by: Mel Gorman <mgorman@suse.de>
 
 -- 
-  Ramakrishnan
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
