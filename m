@@ -1,70 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 597946B006C
-	for <linux-mm@kvack.org>; Fri, 14 Mar 2014 07:56:20 -0400 (EDT)
-Received: by mail-pa0-f41.google.com with SMTP id fa1so2528360pad.14
-        for <linux-mm@kvack.org>; Fri, 14 Mar 2014 04:56:20 -0700 (PDT)
-Received: from e28smtp04.in.ibm.com (e28smtp04.in.ibm.com. [122.248.162.4])
-        by mx.google.com with ESMTPS id bi5si5473002pbb.109.2014.03.14.04.56.17
+Received: from mail-pb0-f46.google.com (mail-pb0-f46.google.com [209.85.160.46])
+	by kanga.kvack.org (Postfix) with ESMTP id B1CCA6B0071
+	for <linux-mm@kvack.org>; Fri, 14 Mar 2014 07:58:55 -0400 (EDT)
+Received: by mail-pb0-f46.google.com with SMTP id rq2so2507302pbb.19
+        for <linux-mm@kvack.org>; Fri, 14 Mar 2014 04:58:55 -0700 (PDT)
+Received: from e23smtp09.au.ibm.com (e23smtp09.au.ibm.com. [202.81.31.142])
+        by mx.google.com with ESMTPS id xr10si3672166pab.193.2014.03.14.04.58.52
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 14 Mar 2014 04:56:19 -0700 (PDT)
+        Fri, 14 Mar 2014 04:58:54 -0700 (PDT)
 Received: from /spool/local
-	by e28smtp04.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp09.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
-	Fri, 14 Mar 2014 17:26:16 +0530
-Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
-	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 654DF125805B
-	for <linux-mm@kvack.org>; Fri, 14 Mar 2014 17:28:28 +0530 (IST)
-Received: from d28av01.in.ibm.com (d28av01.in.ibm.com [9.184.220.63])
-	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s2EBtnnA63766688
-	for <linux-mm@kvack.org>; Fri, 14 Mar 2014 17:25:49 +0530
-Received: from d28av01.in.ibm.com (localhost [127.0.0.1])
-	by d28av01.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s2EBtu0x012311
-	for <linux-mm@kvack.org>; Fri, 14 Mar 2014 17:25:57 +0530
-Date: Fri, 14 Mar 2014 17:25:56 +0530
+	Fri, 14 Mar 2014 21:58:50 +1000
+Received: from d23relay05.au.ibm.com (d23relay05.au.ibm.com [9.190.235.152])
+	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 661432CE8055
+	for <linux-mm@kvack.org>; Fri, 14 Mar 2014 22:58:47 +1100 (EST)
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay05.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s2EBcXwr66584702
+	for <linux-mm@kvack.org>; Fri, 14 Mar 2014 22:38:34 +1100
+Received: from d23av03.au.ibm.com (localhost [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s2EBwjpL003610
+	for <linux-mm@kvack.org>; Fri, 14 Mar 2014 22:58:46 +1100
+Date: Fri, 14 Mar 2014 17:28:43 +0530
 From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Subject: [PATCH] numa: Use LAST_CPUPID_SHIFT to calculate LAST_CPUPID_MASK
-Message-ID: <20140314115556.GA10406@linux.vnet.ibm.com>
+Subject: Re: [PATCH] numa: Use LAST_CPUPID_SHIFT to calculate LAST_CPUPID_MASK
+Message-ID: <20140314115843.GD23154@linux.vnet.ibm.com>
 Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+References: <20140314115556.GA10406@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
+In-Reply-To: <20140314115556.GA10406@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Liu Ping Fan <qemulist@gmail.com>, Mel Gorman <mel@csn.ul.ie>, Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, Peter Zijlstra <peterz@infradead.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>
 
-LAST_CPUPID_MASK is calculated using LAST_CPUPID_WIDTH.  However
-LAST_CPUPID_WIDTH itself can be 0. (when LAST_CPUPID_NOT_IN_PAGE_FLAGS
-is set). In such a case LAST_CPUPID_MASK turns out to be 0.
+Some performance numbers and perf stats with and without the fix.
 
-But with recent commit 1ae71d0319: (mm: numa: bugfix for
-LAST_CPUPID_NOT_IN_PAGE_FLAGS) if LAST_CPUPID_MASK is 0,
-page_cpupid_xchg_last() and page_cpupid_reset_last() causes
-page->_last_cpupid to be set to 0.
+(3.14-rc6)
+----------
+numa01
 
-This causes performance regression. Its almost as if numa_balancing is
-off.
+ Performance counter stats for '/usr/bin/time -f %e %S %U %c %w -o start_bench.out -a ./numa01':
 
-Fix LAST_CPUPID_MASK by using LAST_CPUPID_SHIFT instead of
-LAST_CPUPID_WIDTH.
+         12,27,462 cs                                                           [100.00%]
+          2,41,957 migrations                                                   [100.00%]
+       1,68,01,713 faults                                                       [100.00%]
+    7,99,35,29,041 cache-misses
+            98,808 migrate:mm_migrate_pages                                     [100.00%]
 
-Signed-off-by: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+    1407.690148814 seconds time elapsed
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index c1b7414..b9765bf 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -684,7 +684,7 @@ static inline pte_t maybe_mkwrite(pte_t pte, struct vm_area_struct *vma)
- #define ZONES_MASK		((1UL << ZONES_WIDTH) - 1)
- #define NODES_MASK		((1UL << NODES_WIDTH) - 1)
- #define SECTIONS_MASK		((1UL << SECTIONS_WIDTH) - 1)
--#define LAST_CPUPID_MASK	((1UL << LAST_CPUPID_WIDTH) - 1)
-+#define LAST_CPUPID_MASK	((1UL << LAST_CPUPID_SHIFT) - 1)
- #define ZONEID_MASK		((1UL << ZONEID_SHIFT) - 1)
- 
- static inline enum zone_type page_zonenum(const struct page *page)
+numa02
+
+ Performance counter stats for '/usr/bin/time -f %e %S %U %c %w -o start_bench.out -a ./numa02':
+
+            63,065 cs                                                           [100.00%]
+            14,364 migrations                                                   [100.00%]
+          2,08,118 faults                                                       [100.00%]
+      25,32,59,404 cache-misses
+                12 migrate:mm_migrate_pages                                     [100.00%]
+
+      63.840827219 seconds time elapsed
+
+
+(3.14-rc6 with fix)
+-------------------
+numa01
+
+ Performance counter stats for '/usr/bin/time -f %e %S %U %c %w -o start_bench.out -a ./numa01':
+
+          9,68,911 cs                                                           [100.00%]
+          1,01,414 migrations                                                   [100.00%]
+         88,38,697 faults                                                       [100.00%]
+    4,42,92,51,042 cache-misses
+          4,25,060 migrate:mm_migrate_pages                                     [100.00%]
+
+     685.965331189 seconds time elapsed
+
+numa02
+
+ Performance counter stats for '/usr/bin/time -f %e %S %U %c %w -o start_bench.out -a ./numa02':
+
+            17,543 cs                                                           [100.00%]
+             2,962 migrations                                                   [100.00%]
+          1,17,843 faults                                                       [100.00%]
+      11,80,61,644 cache-misses
+            12,358 migrate:mm_migrate_pages                                     [100.00%]
+
+      20.380132343 seconds time elapsed
+
+-- 
+Thanks and Regards
+Srikar Dronamraju
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
