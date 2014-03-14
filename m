@@ -1,49 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f178.google.com (mail-lb0-f178.google.com [209.85.217.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A1F36B0072
-	for <linux-mm@kvack.org>; Fri, 14 Mar 2014 08:27:18 -0400 (EDT)
-Received: by mail-lb0-f178.google.com with SMTP id s7so1739984lbd.9
-        for <linux-mm@kvack.org>; Fri, 14 Mar 2014 05:27:17 -0700 (PDT)
-Received: from mail-lb0-x231.google.com (mail-lb0-x231.google.com [2a00:1450:4010:c04::231])
-        by mx.google.com with ESMTPS id y10si2974201lad.71.2014.03.14.05.27.15
+Received: from mail-ee0-f50.google.com (mail-ee0-f50.google.com [74.125.83.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 5811C6B003C
+	for <linux-mm@kvack.org>; Fri, 14 Mar 2014 08:35:15 -0400 (EDT)
+Received: by mail-ee0-f50.google.com with SMTP id c13so1311751eek.23
+        for <linux-mm@kvack.org>; Fri, 14 Mar 2014 05:35:14 -0700 (PDT)
+Received: from moutng.kundenserver.de (moutng.kundenserver.de. [212.227.17.10])
+        by mx.google.com with ESMTPS id r9si10041963eew.18.2014.03.14.05.35.13
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 14 Mar 2014 05:27:16 -0700 (PDT)
-Received: by mail-lb0-f177.google.com with SMTP id z11so1705476lbi.36
-        for <linux-mm@kvack.org>; Fri, 14 Mar 2014 05:27:15 -0700 (PDT)
-Date: Fri, 14 Mar 2014 16:27:14 +0400
-From: Cyrill Gorcunov <gorcunov@gmail.com>
-Subject: Re: bad rss-counter message in 3.14rc5
-Message-ID: <20140314122714.GR13448@moon>
-References: <20140310220158.7e8b7f2a.akpm@linux-foundation.org>
- <20140311053017.GB14329@redhat.com>
- <20140311132024.GC32390@moon>
- <531F0E39.9020100@oracle.com>
- <20140311134158.GD32390@moon>
- <20140311142817.GA26517@redhat.com>
- <20140311143750.GE32390@moon>
- <20140311171045.GA4693@redhat.com>
- <20140311173603.GG32390@moon>
- <20140311173917.GB4693@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140311173917.GB4693@redhat.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 14 Mar 2014 05:35:13 -0700 (PDT)
+Message-ID: <1394800460.3853.8.camel@dinghy>
+Subject: Re: [PATCHv2] mm: implement POSIX_FADV_NOREUSE
+From: Lukas Senger <lukas@fridolin.com>
+Date: Fri, 14 Mar 2014 13:34:20 +0100
+In-Reply-To: <20140313130115.e5abf7da216e6a7610d4cd36@linux-foundation.org>
+References: <1394533550-18485-1-git-send-email-matthias.wirth@gmail.com>
+	 <1394736229-30684-1-git-send-email-matthias.wirth@gmail.com>
+	 <20140313130115.e5abf7da216e6a7610d4cd36@linux-foundation.org>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Jones <davej@redhat.com>, Sasha Levin <sasha.levin@oracle.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Bob Liu <bob.liu@oracle.com>, Konstantin Khlebnikov <koct9i@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Matthias Wirth <matthias.wirth@gmail.com>, i4passt@lists.cs.fau.de, Dave Hansen <dave.hansen@linux.intel.com>, Matthew Wilcox <matthew@wil.cx>, Jeff Layton <jlayton@redhat.com>, "J. Bruce Fields" <bfields@fieldses.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Rik van Riel <riel@redhat.com>, Lisa Du <cldu@marvell.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Sasha Levin <sasha.levin@oracle.com>, Al Viro <viro@zeniv.linux.org.uk>, Steven Whitehouse <swhiteho@redhat.com>, Fengguang Wu <fengguang.wu@intel.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, Lukas Czerner <lczerner@redhat.com>, Damien Ramonda <damien.ramonda@intel.com>, Mark Rutland <mark.rutland@arm.com>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, Khalid Aziz <khalid.aziz@oracle.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Mar 11, 2014 at 01:39:17PM -0400, Dave Jones wrote:
->  > 
->  > Sasha already gave a link to the syscalls sequence, so no rush.
+On Thu, 2014-03-13 at 13:01 -0700, Andrew Morton wrote:
+> On Thu, 13 Mar 2014 19:43:41 +0100 Matthias Wirth <matthias.wirth@gmail.com> wrote:
 > 
-> It'd be nice to get a more concise reproducer, his list had a little of everything in there.
+> > Backups, logrotation and indexers don't need files they read to remain
+> > in the page cache. Their pages can be reclaimed early and should not
+> > displace useful pages. POSIX specifices the POSIX_FADV_NOREUSE flag for
+> > these use cases but it's currently a noop.
+> 
+> As far as I can tell, POSIX_FADV_DONTNEED suits these applications
+> quite well.  Why is this patch happening?
 
-Dave, could you please send me your config privately so I would try to reproduce
-the issue locally maybe it shed some light on the problem.
+Using DONTNEED means the application will throw out its pages even if
+they are used by other processes. If the application wants to be more
+polite it needs a way to find out whether thats the case. One way is to
+use mincore to get a snapshot of pages before mmaping the file and then
+keeping pages that were already cached before we accessed them. This of
+course ignores all accesses by other processes occuring while we use the
+file and doesn't work with read. Apart from those flaws, does that kind
+of page cache management belong into userspace?
 
-	Cyrill
+> My proposal to deactivate the pages within the fadvise() call violates
+> that, because the spec wants us to act *after* the app has touched the
+> pages.
+> 
+> Your proposed implementation violates it because it affects data
+> outside the specified range.
+> 
+> It would be interesting to know what the *bsd guys chose to do, but I
+> don't understand it from the amount of context in
+> http://lists.freebsd.org/pipermail/svn-src-stable-9/2012-August/002608.html
+> 
+> Ignoring the range and impacting the entire file (for this fd) is a
+> bit lame.  Alternatives include:
+> 
+> a) Implement a per-fd tree of (start,len) ranges and maintain and
+>    search that.  blah.
+> 
+> b) violate the spec in a different fashion and implement NOREUSE
+>    synchronously within fadvise.
+> 
+> From a practical point of view, I'm currently inclining toward b). 
+> Yes, we require NOREUSE be run *after* the read() instead of before it,
+> but what's wrong with that?  It's just as easy to implement from
+> userspace.  Perhaps we should call it POSIX_FADV_NOREUSE_LINUX to make
+> it clear that we went our own way.
+
+The problem with calling fadvise with NOREUSE_LINUX after read is that
+it makes writing applications in a portable way harder. As you point
+out, our version doesn't adhere to the spec perfectly either, but I'd
+wager it covers the most common use case. And a) would at least allow a
+spec faithful implementation in the future.
+
+> I don't think that per-cpu page thing is suitable, really.  If this
+> task context-switches to a different CPU then we get the wrong page. 
+> This will happen pretty often as the task is performing physical IO. 
+> This can be fixed by putting the page* into the task_struct instead,
+> but passing function args via current-> is a bit of a hack.  Why not
+> create add_to_page_cache_lru_tail()?
+
+We agree and will send a new version with add_to_page_cache_lru_tail.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
