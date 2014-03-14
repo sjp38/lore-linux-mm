@@ -1,80 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D74D6B0044
-	for <linux-mm@kvack.org>; Fri, 14 Mar 2014 02:37:45 -0400 (EDT)
-Received: by mail-pd0-f181.google.com with SMTP id p10so2114662pdj.26
-        for <linux-mm@kvack.org>; Thu, 13 Mar 2014 23:37:45 -0700 (PDT)
-Received: from LGEAMRELO02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
-        by mx.google.com with ESMTP id my2si3015002pab.281.2014.03.13.23.37.31
+Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 92A786B0038
+	for <linux-mm@kvack.org>; Fri, 14 Mar 2014 02:40:45 -0400 (EDT)
+Received: by mail-pd0-f180.google.com with SMTP id v10so2142736pde.39
+        for <linux-mm@kvack.org>; Thu, 13 Mar 2014 23:40:45 -0700 (PDT)
+Received: from LGEMRELSE1Q.lge.com (LGEMRELSE1Q.lge.com. [156.147.1.111])
+        by mx.google.com with ESMTP id tk9si3033517pac.170.2014.03.13.23.40.43
         for <linux-mm@kvack.org>;
-        Thu, 13 Mar 2014 23:37:32 -0700 (PDT)
+        Thu, 13 Mar 2014 23:40:44 -0700 (PDT)
+Date: Fri, 14 Mar 2014 15:41:08 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: [RFC 6/6] mm: ksm: don't merge lazyfree page
-Date: Fri, 14 Mar 2014 15:37:50 +0900
-Message-Id: <1394779070-8545-7-git-send-email-minchan@kernel.org>
-In-Reply-To: <1394779070-8545-1-git-send-email-minchan@kernel.org>
-References: <1394779070-8545-1-git-send-email-minchan@kernel.org>
+Subject: Re: [PATCH v3 36/52] zsmalloc: Fix CPU hotplug callback registration
+Message-ID: <20140314064108.GD20556@bbox>
+References: <20140310203312.10746.310.stgit@srivatsabhat.in.ibm.com>
+ <20140310203959.10746.61303.stgit@srivatsabhat.in.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140310203959.10746.61303.stgit@srivatsabhat.in.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, John Stultz <john.stultz@linaro.org>, Jason Evans <je@fb.com>, Minchan Kim <minchan@kernel.org>
+To: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
+Cc: paulus@samba.org, oleg@redhat.com, mingo@kernel.org, rjw@rjwysocki.net, rusty@rustcorp.com.au, peterz@infradead.org, tglx@linutronix.de, akpm@linux-foundation.org, paulmck@linux.vnet.ibm.com, tj@kernel.org, walken@google.com, ego@linux.vnet.ibm.com, linux@arm.linux.org.uk, linux-kernel@vger.kernel.org, linux-arch@vger.kernel.org, linux-pm@vger.kernel.org, linuxppc-dev@ozlabs.org, Nitin Gupta <ngupta@vflare.org>, linux-mm@kvack.org
 
-I didn't test this patch but just wanted to make lagefree pages KSM.
+On Tue, Mar 11, 2014 at 02:09:59AM +0530, Srivatsa S. Bhat wrote:
+> Subsystems that want to register CPU hotplug callbacks, as well as perform
+> initialization for the CPUs that are already online, often do it as shown
+> below:
+> 
+> 	get_online_cpus();
+> 
+> 	for_each_online_cpu(cpu)
+> 		init_cpu(cpu);
+> 
+> 	register_cpu_notifier(&foobar_cpu_notifier);
+> 
+> 	put_online_cpus();
+> 
+> This is wrong, since it is prone to ABBA deadlocks involving the
+> cpu_add_remove_lock and the cpu_hotplug.lock (when running concurrently
+> with CPU hotplug operations).
+> 
+> Instead, the correct and race-free way of performing the callback
+> registration is:
+> 
+> 	cpu_notifier_register_begin();
+> 
+> 	for_each_online_cpu(cpu)
+> 		init_cpu(cpu);
+> 
+> 	/* Note the use of the double underscored version of the API */
+> 	__register_cpu_notifier(&foobar_cpu_notifier);
+> 
+> 	cpu_notifier_register_done();
+> 
+> 
+> Fix the zsmalloc code by using this latter form of callback registration.
+> 
+> Cc: Minchan Kim <minchan@kernel.org>
+> Cc: Nitin Gupta <ngupta@vflare.org>
+> Cc: Ingo Molnar <mingo@kernel.org>
+> Cc: linux-mm@kvack.org
+> Signed-off-by: Srivatsa S. Bhat <srivatsa.bhat@linux.vnet.ibm.com>
 
-Signed-off-by: Minchan Kim <minchan@kernel.org>
----
- mm/ksm.c | 18 +++++++++++++-----
- 1 file changed, 13 insertions(+), 5 deletions(-)
+Acked-by: Minchan Kim <minchan@kernel.org>
 
-diff --git a/mm/ksm.c b/mm/ksm.c
-index 68710e80994a..43ca73aa45e7 100644
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -470,7 +470,8 @@ static struct page *get_mergeable_page(struct rmap_item *rmap_item)
- 	page = follow_page(vma, addr, FOLL_GET);
- 	if (IS_ERR_OR_NULL(page))
- 		goto out;
--	if (PageAnon(page) || page_trans_compound_anon(page)) {
-+	if ((PageAnon(page) && !PageLazyFree(page)) ||
-+			page_trans_compound_anon(page)) {
- 		flush_anon_page(vma, page, addr);
- 		flush_dcache_page(page);
- 	} else {
-@@ -1032,13 +1033,20 @@ static int try_to_merge_one_page(struct vm_area_struct *vma,
- 
- 	/*
- 	 * We need the page lock to read a stable PageSwapCache in
--	 * write_protect_page().  We use trylock_page() instead of
--	 * lock_page() because we don't want to wait here - we
--	 * prefer to continue scanning and merging different pages,
-+	 * write_protect_page() and check lazyfree.
-+	 * We use trylock_page() instead of lock_page() because we
-+	 * don't want to wait here - we prefer to continue scanning
-+	 * and merging different pages,
- 	 * then come back to this page when it is unlocked.
- 	 */
- 	if (!trylock_page(page))
- 		goto out;
-+
-+	if (PageLazyFree(page)) {
-+		unlock_page(page);
-+		goto out;
-+	}
-+
- 	/*
- 	 * If this anonymous page is mapped only here, its pte may need
- 	 * to be write-protected.  If it's mapped elsewhere, all of its
-@@ -1621,7 +1629,7 @@ next_mm:
- 				cond_resched();
- 				continue;
- 			}
--			if (PageAnon(*page) ||
-+			if ((PageAnon(*page) && !PageLazyFree(*page)) ||
- 			    page_trans_compound_anon(*page)) {
- 				flush_anon_page(vma, *page, ksm_scan.address);
- 				flush_dcache_page(*page);
+Thanks.
+
 -- 
-1.9.0
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
