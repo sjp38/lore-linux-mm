@@ -1,252 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f48.google.com (mail-pb0-f48.google.com [209.85.160.48])
-	by kanga.kvack.org (Postfix) with ESMTP id EBC2A6B006E
-	for <linux-mm@kvack.org>; Fri, 14 Mar 2014 03:55:48 -0400 (EDT)
-Received: by mail-pb0-f48.google.com with SMTP id md12so2267448pbc.21
-        for <linux-mm@kvack.org>; Fri, 14 Mar 2014 00:55:48 -0700 (PDT)
-Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
-        by mx.google.com with ESMTP id xr10si3171032pab.275.2014.03.14.00.55.46
-        for <linux-mm@kvack.org>;
-        Fri, 14 Mar 2014 00:55:48 -0700 (PDT)
-Date: Fri, 14 Mar 2014 16:56:11 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC 0/6] mm: support madvise(MADV_FREE)
-Message-ID: <20140314075611.GF20556@bbox>
-References: <1394779070-8545-1-git-send-email-minchan@kernel.org>
- <5322B1B8.3010403@cn.fujitsu.com>
+Received: from mail-pb0-f44.google.com (mail-pb0-f44.google.com [209.85.160.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 060146B0070
+	for <linux-mm@kvack.org>; Fri, 14 Mar 2014 04:20:06 -0400 (EDT)
+Received: by mail-pb0-f44.google.com with SMTP id rp16so2293799pbb.31
+        for <linux-mm@kvack.org>; Fri, 14 Mar 2014 01:20:06 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [119.145.14.64])
+        by mx.google.com with ESMTPS id wp10si4878347pbc.47.2014.03.14.01.20.03
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 14 Mar 2014 01:20:06 -0700 (PDT)
+Message-ID: <5322BB89.70208@huawei.com>
+Date: Fri, 14 Mar 2014 16:19:21 +0800
+From: Jianguo Wu <wujianguo@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5322B1B8.3010403@cn.fujitsu.com>
+Subject: Re: cma: alloc_contig_range test_pages_isolated .. failed
+References: <CAA6Yd9V=RJpysp1u3_+nA6ttWMNdYdRTn1o8fyOX35faaOtx2w@mail.gmail.com>
+In-Reply-To: <CAA6Yd9V=RJpysp1u3_+nA6ttWMNdYdRTn1o8fyOX35faaOtx2w@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, John Stultz <john.stultz@linaro.org>, Jason Evans <je@fb.com>
+To: Ramakrishnan Muthukrishnan <vu3rdd@gmail.com>
+Cc: linux-mm@kvack.org, Minchan Kim <minchan.kim@gmail.com>
 
-Hello Zhang,
+Hello,
 
-On Fri, Mar 14, 2014 at 03:37:28PM +0800, Zhang Yanfei wrote:
-> Hello Minchan
-> 
-> On 03/14/2014 02:37 PM, Minchan Kim wrote:
-> > This patch is an attempt to support MADV_FREE for Linux.
-> > 
-> > Rationale is following as.
-> > 
-> > Allocators call munmap(2) when user call free(3) if ptr is
-> > in mmaped area. But munmap isn't cheap because it have to clean up
-> > all pte entries, unlinking a vma and returns free pages to buddy
-> > so overhead would be increased linearly by mmaped area's size.
-> > So they like madvise_dontneed rather than munmap.
-> > 
-> > "dontneed" holds read-side lock of mmap_sem so other threads
-> > of the process could go with concurrent page faults so it is
-> > better than munmap if it's not lack of address space.
-> > But the problem is that most of allocator reuses that address
-> > space soonish so applications see page fault, page allocation,
-> > page zeroing if allocator already called madvise_dontneed
-> > on the address space.
-> > 
-> > For avoidng that overheads, other OS have supported MADV_FREE.
-> > The idea is just mark pages as lazyfree when madvise called
-> > and purge them if memory pressure happens. Otherwise, VM doesn't
-> > detach pages on the address space so application could use
-> > that memory space without above overheads.
-> 
-> I didn't look into the code. Does this mean we just keep the vma,
-> the pte entries, and page itself for later possible reuse? If so,
+On 2014/3/11 22:02, Ramakrishnan Muthukrishnan wrote:
 
-Just clear pte access bit and dirty bit so the VM could notice
-that user made page dirty since it called madvise(MADV_FREE).
-If then, VM couldn't purge the page. Otherwise, VM could purge
-the page instead of swapping and later, user could see the zeroed
-pages.
+> Hello linux-mm hackers,
+> 
+> We have a TI OMAP4 based system running 3.4 kernel. OMAP4 has got 2 M3
+> processors which is used for some media tasks.
+> 
+> During bootup, the M3 firmware is loaded and it used CMA to allocate 3
+> regions for DMA, as seen by these logs:
+> 
+> [    0.000000] cma: dma_declare_contiguous(size a400000, base
+> 99000000, limit 00000000)
+> [    0.000000] cma: CMA: reserved 168 MiB at 99000000
+> [    0.000000] cma: dma_declare_contiguous(size 2000000, base
+> 00000000, limit 00000000)
+> [    0.000000] cma: CMA: reserved 32 MiB at ad800000
+> [    0.000000] cma: dma_contiguous_reserve(limit af800000)
+> [    0.000000] cma: dma_contiguous_reserve: reserving 16 MiB for global area
+> [    0.000000] cma: dma_declare_contiguous(size 1000000, base
+> 00000000, limit af800000)
+> [    0.000000] cma: CMA: reserved 16 MiB at ac000000
+> [    0.243652] cma: cma_init_reserved_areas()
+> [    0.243682] cma: cma_create_area(base 00099000, count a800)
+> [    0.253417] cma: cma_create_area: returned ed0ee400
+> [...]
+> 
+> We observed that if we reboot a system without unmounting the file
+> systems (like in abrupt power off..etc), after the fresh reboot, the
+> file system checks are performed, the firmware load is delayed by ~4
+> seconds (compared to the one without fsck) and then we see the
+> following in the kernel bootup logs:
+> 
+> [   26.846313] alloc_contig_range test_pages_isolated(a2e00, a3400) failed
+> [   26.853515] alloc_contig_range test_pages_isolated(a2e00, a3500) failed
+> [   26.860809] alloc_contig_range test_pages_isolated(a3100, a3700) failed
+> [   26.868133] alloc_contig_range test_pages_isolated(a3200, a3800) failed
+> [   26.875213] rproc remoteproc0: dma_alloc_coherent failed: 6291456
+> [   26.881744] rproc remoteproc0: Failed to process resources: -12
+> [   26.902221] omap_hwmod: ipu: failed to hardreset
+> [   26.909545] omap_hwmod: ipu: _wait_target_disable failed
+> [   26.916748] rproc remoteproc0: rproc_boot() failed -12
+> 
+> The M3 firmware load fails because of this. I have been looking at the
+> git logs to see if this is fixed in the later checkins, since this is
+> a bit old kernel. For various non-technical reasons which I have no
+> control of, we can't move to a newer kernel. But I could backport any
+> fixes done in newer kernel. Also I am totally new to memory management
+> in the kernel, so any help in debugging is highly appreciated.
+> 
+> thanks
 
-> how can we reuse the vma? The kernel would mark the vma kinds of
-> special so that it can be reused other than unmapped? Do you have
 
-I don't get it. Could you elaborate it a bit?
+There is a possible that pages drain from pcp will be add to movable list, and
+get allocated again before test isolated.
 
-> an example about this reuse?
+free_pcppages_bulk()
+{
+	//mt can still be MIGRATE_MOVABLE even the pageblock's migratetype is MIGRATE_ISOLATE.
+	mt = get_freepage_migratetype(page);
+	/* MIGRATE_MOVABLE list may include MIGRATE_RESERVEs */
+	__free_one_page(page, zone, 0, mt);
+}
 
-As I said, jemalloc and tcmalloc have supported it for other OS.
+we should use mt = get_pageblock_migratetype(page), but Minchan think it's not a good idea to call
+get_pageblock_migratetype in hotpath.
 
-> 
-> Another thing is when I search MADV_FREE in the internet, I see that
-> Rik posted the similar patch in 2007 but that patch didn't
-> go into the upstream kernel.  And some explanation from Andrew:
-> 
-> ------------------------------------------------------
->  lazy-freeing-of-memory-through-madv_free.patch
-> 
->  lazy-freeing-of-memory-through-madv_free-vs-mm-madvise-avoid-exclusive-mmap_sem.patch
-> 
->  restore-madv_dontneed-to-its-original-linux-behaviour.patch
-> 
-> 
-> 
-> I think the MADV_FREE changes need more work:
-> 
-> 
-> 
-> We need crystal-clear statements regarding the present functionality, the new
-> 
-> functionality and how these relate to the spec and to implmentations in other
-> 
-> OS'es.  Once we have that info we are in a position to work out whether the
-> 
-> code can be merged as-is, or if additional changes are needed.
-> 
-> 
-> 
-> Because right now, I don't know where we are with respect to these things and
-> 
-> I doubt if many of our users know either.  How can Michael write a manpage for
-> 
-> this is we don't tell him what it all does?
-> ------------------------------------------------------
-
-True. I need more documentation and will do it if everybody agree on
-this new feature.
+http://marc.info/?l=linux-kernel&m=134555114706070&w=2
 
 Thanks.
 
-> 
-> Thanks
-> Zhang Yanfei
-> 
-> > 
-> > I tweaked jamalloc to use MADV_FREE for the testing.
-> > 
-> > diff --git a/src/chunk_mmap.c b/src/chunk_mmap.c
-> > index 8a42e75..20e31af 100644
-> > --- a/src/chunk_mmap.c
-> > +++ b/src/chunk_mmap.c
-> > @@ -131,7 +131,7 @@ pages_purge(void *addr, size_t length)
-> >  #  else
-> >  #    error "No method defined for purging unused dirty pages."
-> >  #  endif
-> > -       int err = madvise(addr, length, JEMALLOC_MADV_PURGE);
-> > +       int err = madvise(addr, length, 5);
-> >         unzeroed = (JEMALLOC_MADV_ZEROS == false || err != 0);
-> >  #  undef JEMALLOC_MADV_PURGE
-> >  #  undef JEMALLOC_MADV_ZEROS
-> > 
-> > 
-> > RAM 2G, CPU 4, ebizzy benchmark(./ebizzy -S 30 -n 512)
-> > 
-> > (1.1) stands for 1 process and 1 thread so for exmaple,
-> > (1.4) is 1 process and 4 thread.
-> > 
-> > vanilla jemalloc	 patched jemalloc
-> > 
-> > 1.1       1.1
-> > records:  5              records:  5
-> > avg:      7404.60        avg:      14059.80
-> > std:      116.67(1.58%)  std:      93.92(0.67%)
-> > max:      7564.00        max:      14152.00
-> > min:      7288.00        min:      13893.00
-> > 1.4       1.4
-> > records:  5              records:  5
-> > avg:      16160.80       avg:      30173.00
-> > std:      509.80(3.15%)  std:      3050.72(10.11%)
-> > max:      16728.00       max:      33989.00
-> > min:      15216.00       min:      25173.00
-> > 1.8       1.8
-> > records:  5              records:  5
-> > avg:      16003.00       avg:      30080.20
-> > std:      290.40(1.81%)  std:      2063.57(6.86%)
-> > max:      16537.00       max:      32735.00
-> > min:      15727.00       min:      27381.00
-> > 4.1       4.1
-> > records:  5              records:  5
-> > avg:      4003.60        avg:      8064.80
-> > std:      65.33(1.63%)   std:      143.89(1.78%)
-> > max:      4118.00        max:      8319.00
-> > min:      3921.00        min:      7888.00
-> > 4.4       4.4
-> > records:  5              records:  5
-> > avg:      3907.40        avg:      7199.80
-> > std:      48.68(1.25%)   std:      80.21(1.11%)
-> > max:      3997.00        max:      7320.00
-> > min:      3863.00        min:      7113.00
-> > 4.8       4.8
-> > records:  5              records:  5
-> > avg:      3893.00        avg:      7195.20
-> > std:      19.11(0.49%)   std:      101.55(1.41%)
-> > max:      3927.00        max:      7309.00
-> > min:      3869.00        min:      7012.00
-> > 8.1       8.1
-> > records:  5              records:  5
-> > avg:      1942.00        avg:      3602.80
-> > std:      34.60(1.78%)   std:      22.97(0.64%)
-> > max:      2010.00        max:      3632.00
-> > min:      1913.00        min:      3563.00
-> > 8.4       8.4
-> > records:  5              records:  5
-> > avg:      1938.00        avg:      3405.60
-> > std:      32.77(1.69%)   std:      36.25(1.06%)
-> > max:      1998.00        max:      3468.00
-> > min:      1905.00        min:      3374.00
-> > 8.8       8.8
-> > records:  5              records:  5
-> > avg:      1977.80        avg:      3434.20
-> > std:      25.75(1.30%)   std:      57.95(1.69%)
-> > max:      2011.00        max:      3533.00
-> > min:      1937.00        min:      3363.00
-> > 
-> > So, MADV_FREE is 2 time faster than MADV_DONTNEED for
-> > every cases.
-> > 
-> > I didn't test a lot but it's enough to show the concept and
-> > direction before LSF/MM.
-> > 
-> > Patchset is based on 3.14-rc6.
-> > 
-> > Welcome any comment!
-> > 
-> > Minchan Kim (6):
-> >   mm: clean up PAGE_MAPPING_FLAGS
-> >   mm: work deactivate_page with anon pages
-> >   mm: support madvise(MADV_FREE)
-> >   mm: add stat about lazyfree pages
-> >   mm: reclaim lazyfree pages in swapless system
-> >   mm: ksm: don't merge lazyfree page
-> > 
-> >  include/asm-generic/tlb.h              |  9 ++++++++
-> >  include/linux/mm.h                     | 39 +++++++++++++++++++++++++++++++++-
-> >  include/linux/mm_inline.h              |  9 ++++++++
-> >  include/linux/mmzone.h                 |  1 +
-> >  include/linux/rmap.h                   |  1 +
-> >  include/linux/swap.h                   | 15 +++++++++++++
-> >  include/linux/vm_event_item.h          |  1 +
-> >  include/uapi/asm-generic/mman-common.h |  1 +
-> >  mm/ksm.c                               | 18 +++++++++++-----
-> >  mm/madvise.c                           | 17 +++++++++++++--
-> >  mm/memory.c                            | 12 ++++++++++-
-> >  mm/page_alloc.c                        |  5 ++++-
-> >  mm/rmap.c                              | 25 ++++++++++++++++++----
-> >  mm/swap.c                              | 20 ++++++++---------
-> >  mm/swap_state.c                        | 38 ++++++++++++++++++++++++++++++++-
-> >  mm/vmscan.c                            | 32 +++++++++++++++++++++++++---
-> >  mm/vmstat.c                            |  2 ++
-> >  17 files changed, 217 insertions(+), 28 deletions(-)
-> > 
-> 
-> 
-> -- 
-> Thanks.
-> Zhang Yanfei
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
-Kind regards,
-Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
