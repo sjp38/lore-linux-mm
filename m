@@ -1,64 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f44.google.com (mail-qa0-f44.google.com [209.85.216.44])
-	by kanga.kvack.org (Postfix) with ESMTP id EB92A6B0035
-	for <linux-mm@kvack.org>; Thu, 13 Mar 2014 22:17:55 -0400 (EDT)
-Received: by mail-qa0-f44.google.com with SMTP id f11so1912111qae.17
-        for <linux-mm@kvack.org>; Thu, 13 Mar 2014 19:17:55 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id o92si2529259qgd.7.2014.03.13.19.17.55
-        for <linux-mm@kvack.org>;
-        Thu, 13 Mar 2014 19:17:55 -0700 (PDT)
-Received: from int-mx02.intmail.prod.int.phx2.redhat.com (int-mx02.intmail.prod.int.phx2.redhat.com [10.5.11.12])
-	by mx1.redhat.com (8.14.4/8.14.4) with ESMTP id s2E2Hr3x023986
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Thu, 13 Mar 2014 22:17:54 -0400
-Received: from gelk.kernelslacker.org (ovpn-113-167.phx2.redhat.com [10.3.113.167])
-	by int-mx02.intmail.prod.int.phx2.redhat.com (8.13.8/8.13.8) with ESMTP id s2E2Hluk006852
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=NO)
-	for <linux-mm@kvack.org>; Thu, 13 Mar 2014 22:17:52 -0400
-Received: from gelk.kernelslacker.org (localhost [127.0.0.1])
-	by gelk.kernelslacker.org (8.14.8/8.14.7) with ESMTP id s2E2HkQp005055
-	for <linux-mm@kvack.org>; Thu, 13 Mar 2014 22:17:46 -0400
-Received: (from davej@localhost)
-	by gelk.kernelslacker.org (8.14.8/8.14.8/Submit) id s2E2HjPW005054
-	for linux-mm@kvack.org; Thu, 13 Mar 2014 22:17:45 -0400
-Date: Thu, 13 Mar 2014 22:17:45 -0400
-From: Dave Jones <davej@redhat.com>
-Subject: non-atomic rss_stat modifications
-Message-ID: <20140314021745.GA4894@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Received: from mail-pb0-f43.google.com (mail-pb0-f43.google.com [209.85.160.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C4256B0035
+	for <linux-mm@kvack.org>; Thu, 13 Mar 2014 22:31:08 -0400 (EDT)
+Received: by mail-pb0-f43.google.com with SMTP id um1so1948407pbc.16
+        for <linux-mm@kvack.org>; Thu, 13 Mar 2014 19:31:08 -0700 (PDT)
+Received: from mail-pd0-x229.google.com (mail-pd0-x229.google.com [2607:f8b0:400e:c02::229])
+        by mx.google.com with ESMTPS id e6si2122717pbj.163.2014.03.13.19.31.07
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 13 Mar 2014 19:31:07 -0700 (PDT)
+Received: by mail-pd0-f169.google.com with SMTP id fp1so1909933pdb.28
+        for <linux-mm@kvack.org>; Thu, 13 Mar 2014 19:31:07 -0700 (PDT)
+From: john.hubbard@gmail.com
+Subject: [PATCH] A long explanation for a short patch
+Date: Thu, 13 Mar 2014 19:30:45 -0700
+Message-Id: <1394764246-19936-1-git-send-email-jhubbard@nvidia.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, linux-mm@kvack.org, John Hubbard <jhubbard@nvidia.com>
 
-I've been trying to make sense of this message which I keep seeing..
+From: John Hubbard <jhubbard@nvidia.com>
 
-BUG: Bad rss-counter state mm:ffff88018bb78000 idx:0 val:1
+Hi Sasha and linux-mm,
 
-Looking at the FILEPAGES counter accesses...
+Prior to commit 309381feaee564281c3d9e90fbca8963bb7428ad, it was
+possible to build MIT-licensed (non-GPL) drivers on Fedora. Fedora is
+semi-unique, in that it sets CONFIG_VM_DEBUG.
 
-$ rgrep FILEPAGES mm
-mm/filemap_xip.c:			dec_mm_counter(mm, MM_FILEPAGES);
-mm/oom_kill.c:		K(get_mm_counter(victim->mm, MM_FILEPAGES)));
-mm/fremap.c:			dec_mm_counter(mm, MM_FILEPAGES);
-mm/memory.c:					rss[MM_FILEPAGES]++;
-mm/memory.c:			rss[MM_FILEPAGES]++;
-mm/memory.c:				rss[MM_FILEPAGES]--;
-mm/memory.c:					rss[MM_FILEPAGES]--;
-mm/memory.c:	inc_mm_counter_fast(mm, MM_FILEPAGES);
-mm/memory.c:				dec_mm_counter_fast(mm, MM_FILEPAGES);
-mm/memory.c:			inc_mm_counter_fast(mm, MM_FILEPAGES);
-mm/rmap.c:				dec_mm_counter(mm, MM_FILEPAGES);
-mm/rmap.c:		dec_mm_counter(mm, MM_FILEPAGES);
-mm/rmap.c:		dec_mm_counter(mm, MM_FILEPAGES);
+Because Fedora sets CONFIG_VM_DEBUG, they end up pulling in
+dump_page(), via VM_BUG_ON_PAGE, via get_page().  As one of the
+authors of NVIDIA's new, open source, "UVM-Lite" kernel module, I
+originally choose to use the kernel's get_page() routine from within
+nvidia_uvm_page_cache.c, because get_page() has always seemed to be
+very clearly intended for use by non-GPL, driver code.
 
+So I'm hoping that making get_page() widely accessible again will not
+be too controversial. We did check with Fedora first, and they
+responded (https://bugzilla.redhat.com/show_bug.cgi?id=1074710#c3)
+that we should try to get upstream changed, before asking Fedora
+to change.  Their reasoning seems beneficial to Linux: leaving
+CONFIG_DEBUG_VM set allows Fedora to help catch mm bugs.
 
-How come we sometimes use the atomic accessors, but in copy_one_pte() and
-zap_pte_range() we don't ?  Is that safe ?
+thanks,
+John h
 
-	Dave
+John Hubbard (1):
+  Change mm debug routines back to EXPORT_SYMBOL
+
+ mm/page_alloc.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+-- 
+1.9.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
