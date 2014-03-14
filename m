@@ -1,166 +1,155 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f179.google.com (mail-we0-f179.google.com [74.125.82.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B8216B004D
-	for <linux-mm@kvack.org>; Fri, 14 Mar 2014 13:15:00 -0400 (EDT)
-Received: by mail-we0-f179.google.com with SMTP id x48so2337685wes.24
-        for <linux-mm@kvack.org>; Fri, 14 Mar 2014 10:14:59 -0700 (PDT)
-Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
-        by mx.google.com with ESMTPS id rz17si4361620wjb.88.2014.03.14.10.14.58
+Received: from mail-pb0-f43.google.com (mail-pb0-f43.google.com [209.85.160.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 2C7D56B007B
+	for <linux-mm@kvack.org>; Fri, 14 Mar 2014 14:33:46 -0400 (EDT)
+Received: by mail-pb0-f43.google.com with SMTP id um1so2953202pbc.16
+        for <linux-mm@kvack.org>; Fri, 14 Mar 2014 11:33:45 -0700 (PDT)
+Received: from mail-pb0-f41.google.com (mail-pb0-f41.google.com [209.85.160.41])
+        by mx.google.com with ESMTPS id sf3si464734pac.452.2014.03.14.11.33.44
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 14 Mar 2014 10:14:58 -0700 (PDT)
-Received: by mail-wi0-f169.google.com with SMTP id bs8so752595wib.2
-        for <linux-mm@kvack.org>; Fri, 14 Mar 2014 10:14:58 -0700 (PDT)
-Date: Fri, 14 Mar 2014 17:14:55 +0000
-From: Andy Whitcroft <apw@canonical.com>
-Subject: Hyper-V balloon memory hotplug deadlock?
-Message-ID: <20140314171455.GB3497@dm>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+        Fri, 14 Mar 2014 11:33:44 -0700 (PDT)
+Received: by mail-pb0-f41.google.com with SMTP id jt11so2966200pbb.14
+        for <linux-mm@kvack.org>; Fri, 14 Mar 2014 11:33:44 -0700 (PDT)
+From: John Stultz <john.stultz@linaro.org>
+Subject: [PATCH 0/3] Volatile Ranges (v11)
+Date: Fri, 14 Mar 2014 11:33:30 -0700
+Message-Id: <1394822013-23804-1-git-send-email-john.stultz@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, "K. Y. Srinivasan" <kys@microsoft.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-kernel@vger.kernel.org
+To: LKML <linux-kernel@vger.kernel.org>
+Cc: John Stultz <john.stultz@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Johannes Weiner <hannes@cmpxchg.org>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@sr71.net>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Neil Brown <neilb@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Dhaval Giani <dgiani@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-We are seeing machines lockup with what appears to be an ABBA deadlock in
-the memory hotplug system.  These are from the 3.13.6 based Ubuntu kernels.
-The hv_balloon driver is adding memory using add_memory() which takes
-the hotplug lock, and then emits a udev event, and then attempts to lock
-the sysfs device.  In response to the udev event udev opens the sysfs
-device and locks it, then attempts to grab the hotplug lock to online
-the memory.  This seems to be inverted nesting in the two cases, leading
-to the hangs below:
+I recently got a chance to try to implement Johannes' suggested approach
+so I wanted to send it out for comments. It looks like Minchan has also
+done the same, but from a different direction, focusing on the MADV_FREE
+use cases. I think both approaches are valid, so I wouldn't consider
+these patches to be in conflict. Its just that earlier iterations of the
+volatile range patches had tried to handle numerous different use cases,
+and the resulting complexity was apparently making it difficult to review
+and get interest in the patch set. So basically we're splitting the use
+cases up and trying to find simpler solutions for each.
 
-    [  240.608612] INFO: task kworker/0:2:861 blocked for more than 120 seconds.
-    [  240.608705] INFO: task systemd-udevd:1906 blocked for more than 120 seconds.
+I'd greatly appreciate any feedback or thoughts!
 
-I note that the device hotplug locking allows complete retries (via
-ERESTARTSYS) and if we could detect this at the online stage it could
-be used to get us out.  But before I go down this road I wanted to make
-sure I am reading this right.  Or indeed if the hv_balloon driver is just
-doing this wrong.
-
-Fuller details are below including stacks and snippets of the locking in
-question.
-
-Thoughts?
-
--apw
-
-Stack from kworker:
-
-    [  240.608612] INFO: task kworker/0:2:861 blocked for more than 120 seconds.
-    [  240.608617]       Not tainted 3.13.0-17-generic #37-Ubuntu
-    [  240.608618] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
-    [  240.608620] kworker/0:2     D ffff88001e414440     0   861      2 0x00000000
-    [  240.608628] Workqueue: events hot_add_req [hv_balloon]
-    [  240.608630]  ffff88001a00fb30 0000000000000002 ffff88001a6f8000 ffff88001a00ffd8
-    [  240.608632]  0000000000014440 0000000000014440 ffff88001a6f8000 ffff88001aac6c98
-    [  240.608635]  ffff88001aac6c9c ffff88001a6f8000 00000000ffffffff ffff88001aac6ca0
-    [  240.608637] Call Trace:
-    [  240.608643]  [<ffffffff817159f9>] schedule_preempt_disabled+0x29/0x70
-    [  240.608645]  [<ffffffff81717865>] __mutex_lock_slowpath+0x135/0x1b0
-    [  240.608647]  [<ffffffff817178ff>] mutex_lock+0x1f/0x2f
-    [  240.608651]  [<ffffffff8148a5bd>] device_attach+0x1d/0xa0
-    [  240.608653]  [<ffffffff81489a38>] bus_probe_device+0x98/0xc0
-    [  240.608656]  [<ffffffff81487895>] device_add+0x4c5/0x640
-    [  240.608658]  [<ffffffff81487a2a>] device_register+0x1a/0x20
-    [  240.608661]  [<ffffffff8149e000>] init_memory_block+0xd0/0xf0
-    [  240.608663]  [<ffffffff8149e141>] register_new_memory+0x91/0xa0
-    [  240.608666]  [<ffffffff81700d10>] __add_pages+0x140/0x240
-    [  240.608670]  [<ffffffff81055649>] arch_add_memory+0x59/0xd0
-    [  240.608672]  [<ffffffff81700fe4>] add_memory+0xe4/0x1f0
-    [  240.608675]  [<ffffffffa00411cf>] hot_add_req+0x31f/0x1150 [hv_balloon]
-    [  240.608679]  [<ffffffff810824a2>] process_one_work+0x182/0x450
-    [  240.608681]  [<ffffffff81083241>] worker_thread+0x121/0x410
-    [  240.608683]  [<ffffffff81083120>] ? rescuer_thread+0x3e0/0x3e0
-    [  240.608686]  [<ffffffff81089ed2>] kthread+0xd2/0xf0
-    [  240.608688]  [<ffffffff81089e00>] ? kthread_create_on_node+0x190/0x190
-    [  240.608691]  [<ffffffff817219bc>] ret_from_fork+0x7c/0xb0
-    [  240.608693]  [<ffffffff81089e00>] ? kthread_create_on_node+0x190/0x190
-
-kworker looks to be blocked on the device lock in device_attach:
-
-    int device_attach(struct device *dev)
-    {
-	int ret = 0;
-
-	device_lock(dev);
-	[...]
-    }
-
-If we follow the call trace we take mem_hotplug_mutex in add_memory():
-
-    int __ref add_memory(int nid, u64 start, u64 size)
-    {
-	[...]
-        lock_memory_hotplug();
-    }
-
-We later call device_add which triggers the udev event for this block:
-
-    int device_add(struct device *dev)
-    {
-        kobject_uevent(&dev->kobj, KOBJ_ADD);
-    [...]
-    }
-
-Finally, after emitting this event and and while holding that we call
-device_attach() above, nesting the device_lock(dev) inside the memory
-hotplug lock.
+thanks
+-john
 
 
-Stack from systemd-udevd:
+Volatile ranges provides a method for userland to inform the kernel that
+a range of memory is safe to discard (ie: can be regenerated) but
+userspace may want to try access it in the future.  It can be thought of
+as similar to MADV_DONTNEED, but that the actual freeing of the memory
+is delayed and only done under memory pressure, and the user can try to
+cancel the action and be able to quickly access any unpurged pages. The
+idea originated from Android's ashmem, but I've since learned that other
+OSes provide similar functionality.
 
-    [  240.608705] INFO: task systemd-udevd:1906 blocked for more than 120 seconds.
-    [  240.608706]       Not tainted 3.13.0-17-generic #37-Ubuntu
-    [  240.608707] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
-    [  240.608708] systemd-udevd   D ffff88001e414440     0  1906    404 0x00000004
-    [  240.608710]  ffff88001a97bd20 0000000000000002 ffff8800170e0000 ffff88001a97bfd8
-    [  240.608712]  0000000000014440 0000000000014440 ffff8800170e0000 ffffffff81c620e0
-    [  240.608714]  ffffffff81c620e4 ffff8800170e0000 00000000ffffffff ffffffff81c620e8
-    [  240.608716] Call Trace:
-    [  240.608719]  [<ffffffff817159f9>] schedule_preempt_disabled+0x29/0x70
-    [  240.608721]  [<ffffffff81717865>] __mutex_lock_slowpath+0x135/0x1b0
-    [  240.608725]  [<ffffffff8115a8ae>] ? lru_cache_add+0xe/0x10
-    [  240.608727]  [<ffffffff817178ff>] mutex_lock+0x1f/0x2f
-    [  240.608729]  [<ffffffff817019c3>] online_pages+0x33/0x570
-    [  240.608731]  [<ffffffff8149dd98>] memory_subsys_online+0x68/0xd0
-    [  240.608733]  [<ffffffff814881e5>] device_online+0x65/0x90
-    [  240.608735]  [<ffffffff8149da24>] store_mem_state+0x64/0x160
-    [  240.608738]  [<ffffffff81485748>] dev_attr_store+0x18/0x30
-    [  240.608742]  [<ffffffff8122e698>] sysfs_write_file+0x128/0x1c0
-    [  240.608745]  [<ffffffff811b88c4>] vfs_write+0xb4/0x1f0
-    [  240.608747]  [<ffffffff811b92f9>] SyS_write+0x49/0xa0
-    [  240.608749]  [<ffffffff81721c7f>] tracesys+0xe1/0xe6
+This functionality allows for a number of interesting uses:
+* Userland caches that have kernel triggered eviction under memory
+pressure. This allows for the kernel to "rightsize" userspace caches for
+current system-wide workload. Things like image bitmap caches, or
+rendered HTML in a hidden browser tab, where the data is not visible and
+can be regenerated if needed, are good examples.
 
-udevd seems to be blocked on the hotplug lock:
+* Opportunistic freeing of memory that may be quickly reused. Minchan
+has done a malloc implementation where free() marks the pages as
+volatile, allowing the kernel to reclaim under pressure. This avoids the
+unmapping and remapping of anonymous pages on free/malloc. So if
+userland wants to malloc memory quickly after the free, it just needs to
+mark the pages as non-volatile, and only purged pages will have to be
+faulted back in.
 
-    int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_type)
-    {
-    [...]
-	lock_memory_hotplug();
-    [...]
-	mutex_lock(&zonelists_mutex);
-    [...]
-    }
+There are two basic ways this can be used:
 
-Note that udevd would have taken the device lock in device_online():
+Explicit marking method:
+1) Userland marks a range of memory that can be regenerated if necessary
+as volatile
+2) Before accessing the memory again, userland marks the memory as
+nonvolatile, and the kernel will provide notification if any pages in the
+range has been purged.
 
-    int device_online(struct device *dev)
-    {
-        int ret = 0;
+Optimistic method:
+1) Userland marks a large range of data as volatile
+2) Userland continues to access the data as it needs.
+3) If userland accesses a page that has been purged, the kernel will
+send a SIGBUS
+4) Userspace can trap the SIGBUS, mark the affected pages as
+non-volatile, and refill the data as needed before continuing on
 
-        device_lock(dev);
-    [...]
-    }
+You can read more about the history of volatile ranges here:
+http://permalink.gmane.org/gmane.linux.kernel.mm/98848
+http://permalink.gmane.org/gmane.linux.kernel.mm/98676
+https://lwn.net/Articles/522135/
+https://lwn.net/Kernel/Index/#Volatile_ranges
 
-And while holding this we call online_pages() as above, nesting the memory
-hotplug lock inside the device_lock(dev).
 
-This looks to be an ABBA deadlock, assuming dev is the same in these two
-cases which seems plausible as we emit the udev event in the middle.
+This version of the patchset, at Johannes Weiner's suggestion, is much
+reduced in scope compared to earlier attempts. I've only handled
+volatility on anonymous memory, and we're storing the volatility in
+the VMA.  This may have performance implications compared with the earlier
+approach, but it does simplify the approach.
+
+Further, the page discarding happens via normal vmscanning, which due to
+anonymous pages not being aged on swapless systems, means we'll only purge
+pages when swap is enabled. I'll be looking at enabling anonymous aging
+when swap is disabled to resolve this, but I wanted to get this out for
+initial comment.
+
+Additionally, since we don't handle volatility on tmpfs files with this
+version of the patch, it is not able to be used to implement semantics
+similar to Android's ashmem. But since shared volatiltiy on files is
+more complex, my hope is to start small and hopefully grow from there.
+
+Also, much of the logic in this patchset is based on Minchan's earlier
+efforts. On this iteration, I've not been in close collaboration with him,
+so I don't want to mis-attribute my rework of the code as his design,
+but I do want to make sure the credit goes to him for his major contribution.
+
+
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Android Kernel Team <kernel-team@android.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Robert Love <rlove@google.com>
+Cc: Mel Gorman <mel@csn.ul.ie>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Dave Hansen <dave@sr71.net>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Dmitry Adamushko <dmitry.adamushko@gmail.com>
+Cc: Neil Brown <neilb@suse.de>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Mike Hommey <mh@glandium.org>
+Cc: Taras Glek <tglek@mozilla.com>
+Cc: Dhaval Giani <dgiani@mozilla.com>
+Cc: Jan Kara <jack@suse.cz>
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Cc: Michel Lespinasse <walken@google.com>
+Cc: Minchan Kim <minchan@kernel.org>
+Cc: linux-mm@kvack.org <linux-mm@kvack.org>
+
+
+John Stultz (3):
+  vrange: Add vrange syscall and handle splitting/merging and marking
+    vmas
+  vrange: Add purged page detection on setting memory non-volatile
+  vrange: Add page purging logic & SIGBUS trap
+
+ arch/x86/syscalls/syscall_64.tbl |   1 +
+ include/linux/mm.h               |   1 +
+ include/linux/swap.h             |  15 +-
+ include/linux/vrange.h           |  22 +++
+ mm/Makefile                      |   2 +-
+ mm/internal.h                    |   2 -
+ mm/memory.c                      |  21 +++
+ mm/rmap.c                        |   5 +
+ mm/vmscan.c                      |  12 ++
+ mm/vrange.c                      | 306 +++++++++++++++++++++++++++++++++++++++
+ 10 files changed, 382 insertions(+), 5 deletions(-)
+ create mode 100644 include/linux/vrange.h
+ create mode 100644 mm/vrange.c
+
+-- 
+1.8.3.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
