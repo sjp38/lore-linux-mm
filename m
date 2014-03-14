@@ -1,60 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f173.google.com (mail-we0-f173.google.com [74.125.82.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 548056B0070
-	for <linux-mm@kvack.org>; Fri, 14 Mar 2014 12:06:36 -0400 (EDT)
-Received: by mail-we0-f173.google.com with SMTP id w61so2286750wes.4
-        for <linux-mm@kvack.org>; Fri, 14 Mar 2014 09:06:35 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id en20si9104055wic.72.2014.03.14.09.06.33
-        for <linux-mm@kvack.org>;
-        Fri, 14 Mar 2014 09:06:34 -0700 (PDT)
-Message-ID: <53232901.5030307@redhat.com>
-Date: Fri, 14 Mar 2014 12:06:25 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail-ie0-f178.google.com (mail-ie0-f178.google.com [209.85.223.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 7DD8C6B0082
+	for <linux-mm@kvack.org>; Fri, 14 Mar 2014 12:14:52 -0400 (EDT)
+Received: by mail-ie0-f178.google.com with SMTP id lx4so2764501iec.37
+        for <linux-mm@kvack.org>; Fri, 14 Mar 2014 09:14:52 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id k7si2003187igd.4.2014.03.14.09.14.51
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 14 Mar 2014 09:14:51 -0700 (PDT)
+Message-ID: <53232AF3.3040300@oracle.com>
+Date: Fri, 14 Mar 2014 12:14:43 -0400
+From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-Subject: Re: [patch] mm: vmscan: do not swap anon pages just because free+file
- is low
-References: <1394811302-30468-1-git-send-email-hannes@cmpxchg.org>
-In-Reply-To: <1394811302-30468-1-git-send-email-hannes@cmpxchg.org>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: mm: mmap_sem lock assertion failure in __mlock_vma_pages_range
+References: <531F6689.60307@oracle.com> <1394568453.2786.28.camel@buesod1.americas.hpqcorp.net> <20140311133051.bf5ca716ef189746ebcff431@linux-foundation.org> <531F75D1.3060909@oracle.com> <1394570844.2786.42.camel@buesod1.americas.hpqcorp.net> <531F79F7.5090201@oracle.com> <1394574323.2786.45.camel@buesod1.americas.hpqcorp.net> <531F8C3A.1040502@oracle.com> <1394737202.2452.8.camel@buesod1.americas.hpqcorp.net> <alpine.LSU.2.11.1403131352240.20266@eggly.anvils>
+In-Reply-To: <alpine.LSU.2.11.1403131352240.20266@eggly.anvils>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr@hp.com>
+Cc: Oleg Nesterov <oleg@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Michel Lespinasse <walken@google.com>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>
 
-On 03/14/2014 11:35 AM, Johannes Weiner wrote:
-> Page reclaim force-scans / swaps anonymous pages when file cache drops
-> below the high watermark of a zone in order to prevent what little
-> cache remains from thrashing.
-> 
-> However, on bigger machines the high watermark value can be quite
-> large and when the workload is dominated by a static anonymous/shmem
-> set, the file set might just be a small window of used-once cache.  In
-> such situations, the VM starts swapping heavily when instead it should
-> be recycling the no longer used cache.
-> 
-> This is a longer-standing problem, but it's more likely to trigger
-> after 81c0a2bb515f ("mm: page_alloc: fair zone allocator policy")
-> because file pages can no longer accumulate in a single zone and are
-> dispersed into smaller fractions among the available zones.
-> 
-> To resolve this, do not force scan anon when file pages are low but
-> instead rely on the scan/rotation ratios to make the right prediction.
+On 03/13/2014 04:57 PM, Hugh Dickins wrote:
+> On Thu, 13 Mar 2014, Davidlohr Bueso wrote:
+>> On Tue, 2014-03-11 at 18:20 -0400, Sasha Levin wrote:
+>>> On 03/11/2014 05:45 PM, Davidlohr Bueso wrote:
+>>>> On Tue, 2014-03-11 at 17:02 -0400, Sasha Levin wrote:
+>>>>>> On 03/11/2014 04:47 PM, Davidlohr Bueso wrote:
+>>>>>>>>>> Bingo! With the above patch:
+>>>>>>>>>>>>
+>>>>>>>>>>>> [  243.565794] kernel BUG at mm/vmacache.c:76!
+>>>>>>>>>>>> [  243.566720] invalid opcode: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
+>>>>>>>>>>>> [  243.568048] Dumping ftrace buffer:
+>>>>>>>>>>>> [  243.568740]    (ftrace buffer empty)
+>>>>>>>>>>>> [  243.569481] Modules linked in:
+>>>>>>>>>>>> [  243.570203] CPU: 10 PID: 10073 Comm: trinity-c332 Tainted: G        W    3.14.0-rc5-next-20140307-sasha-00010-g1f812cb-dirty #143
+>>>>>>>> and this is also part of the DEBUG_PAGEALLOC + trinity combo! I suspect
+>>>>>>>> the root cause it the same as Fengguang's report.
+>>>>>>
+>>>>>> The BUG still happens without DEBUG_PAGEALLOC.
+>>>> Any idea what trinity itself is doing?
+>>>>
+>>>> Could you add the following, I just want to make sure the bug isn't
+>>>> being caused by an overflow:
+>>>
+>>> Not hitting that WARN.
+>>
+>> Sasha, could you please try the following patch:
+>> https://lkml.org/lkml/2014/3/13/312
+>
+> I was getting the "kernel BUG at mm/vmacache.c:76!" running KSM
+> on mmotm: Oleg's patch (buildable version below) fixes it for me.
 
-I am not entirely sure that the scan/rotation ratio will be
-meaningful when the page cache has been essentially depleted,
-but on larger systems the distance between the low and high
-watermark is gigantic, and I have no better idea on how to
-fix the bug you encountered, so ...
+Sorry for the delay, some patch in the last -next broke boot and I had to spend
+a while waiting for the bisect before I could test this patch.
 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: <stable@kernel.org> [3.12+]
+The patch fixes the vmacache issues I've been seeing.
 
-Reviewed-by: Rik van Riel <riel@redhat.com>
 
--- 
-All rights reversed
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
