@@ -1,76 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id D0EA06B0074
-	for <linux-mm@kvack.org>; Fri, 14 Mar 2014 11:21:37 -0400 (EDT)
-Received: by mail-pa0-f54.google.com with SMTP id lf10so2751469pab.41
-        for <linux-mm@kvack.org>; Fri, 14 Mar 2014 08:21:37 -0700 (PDT)
-Received: from mail-pd0-x230.google.com (mail-pd0-x230.google.com [2607:f8b0:400e:c02::230])
-        by mx.google.com with ESMTPS id vu10si6017974pbc.219.2014.03.14.08.21.36
+Received: from mail-bk0-f51.google.com (mail-bk0-f51.google.com [209.85.214.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 03E796B0038
+	for <linux-mm@kvack.org>; Fri, 14 Mar 2014 11:35:11 -0400 (EDT)
+Received: by mail-bk0-f51.google.com with SMTP id 6so205195bkj.38
+        for <linux-mm@kvack.org>; Fri, 14 Mar 2014 08:35:11 -0700 (PDT)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id ov5si2686232bkb.171.2014.03.14.08.35.10
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 14 Mar 2014 08:21:36 -0700 (PDT)
-Received: by mail-pd0-f176.google.com with SMTP id r10so2659604pdi.21
-        for <linux-mm@kvack.org>; Fri, 14 Mar 2014 08:21:36 -0700 (PDT)
-Date: Fri, 14 Mar 2014 15:24:17 +0000
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC 3/6] mm: support madvise(MADV_FREE)
-Message-ID: <20140314152417.GA4008@gmail.com>
-References: <1394779070-8545-1-git-send-email-minchan@kernel.org>
- <1394779070-8545-4-git-send-email-minchan@kernel.org>
- <20140314133311.GA6316@node.dhcp.inet.fi>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140314133311.GA6316@node.dhcp.inet.fi>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 14 Mar 2014 08:35:10 -0700 (PDT)
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: [patch] mm: vmscan: do not swap anon pages just because free+file is low
+Date: Fri, 14 Mar 2014 11:35:02 -0400
+Message-Id: <1394811302-30468-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, John Stultz <john.stultz@linaro.org>, Jason Evans <je@fb.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Mar 14, 2014 at 03:33:11PM +0200, Kirill A. Shutemov wrote:
-> On Fri, Mar 14, 2014 at 03:37:47PM +0900, Minchan Kim wrote:
-> > diff --git a/include/linux/mm.h b/include/linux/mm.h
-> > index c1b7414c7bef..9b048cabce27 100644
-> > --- a/include/linux/mm.h
-> > +++ b/include/linux/mm.h
-> > @@ -933,10 +933,16 @@ void page_address_init(void);
-> >   * Please note that, confusingly, "page_mapping" refers to the inode
-> >   * address_space which maps the page from disk; whereas "page_mapped"
-> >   * refers to user virtual address space into which the page is mapped.
-> > + *
-> > + * PAGE_MAPPING_LZFREE bit is set along with PAGE_MAPPING_ANON bit
-> > + * and then page->mapping points to an anon_vma. This flag is used
-> > + * for lazy freeing the page instead of swap.
-> >   */
-> >  #define PAGE_MAPPING_ANON	1
-> >  #define PAGE_MAPPING_KSM	2
-> > -#define PAGE_MAPPING_FLAGS	(PAGE_MAPPING_ANON | PAGE_MAPPING_KSM)
-> > +#define PAGE_MAPPING_LZFREE	4
-> > +#define PAGE_MAPPING_FLAGS	(PAGE_MAPPING_ANON | PAGE_MAPPING_KSM | \
-> > +				 PAGE_MAPPING_LZFREE)
-> 
-> Is it safe to use third bit in pointer everywhere?
+Page reclaim force-scans / swaps anonymous pages when file cache drops
+below the high watermark of a zone in order to prevent what little
+cache remains from thrashing.
 
-I overlooked ARCH_SLAB_MINALIGN which is 8 byte for most arch but
-surely some of arch would have less than it(ex, 4 byte).
+However, on bigger machines the high watermark value can be quite
+large and when the workload is dominated by a static anonymous/shmem
+set, the file set might just be a small window of used-once cache.  In
+such situations, the VM starts swapping heavily when instead it should
+be recycling the no longer used cache.
 
-Alternative is PG_private or PG_private2. That flags is used for
-file pages mostly while zsmalloc uses it but it should not LRU page.
-Other thing in mm/ is memory-hotplug but I guess we don't need to set
-PG_private because I couldn't find PagePrivate for that.
+This is a longer-standing problem, but it's more likely to trigger
+after 81c0a2bb515f ("mm: page_alloc: fair zone allocator policy")
+because file pages can no longer accumulate in a single zone and are
+dispersed into smaller fractions among the available zones.
 
-So, I think using that flag for anon page has no problem if we tweak
-page_has_private works with only !PageAnon.
+To resolve this, do not force scan anon when file pages are low but
+instead rely on the scan/rotation ratios to make the right prediction.
 
-> 
-> -- 
->  Kirill A. Shutemov
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+Cc: <stable@kernel.org> [3.12+]
+---
+ mm/vmscan.c | 16 +---------------
+ 1 file changed, 1 insertion(+), 15 deletions(-)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index a9c74b409681..e58e9ad5b5d1 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1848,7 +1848,7 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
+ 	struct zone *zone = lruvec_zone(lruvec);
+ 	unsigned long anon_prio, file_prio;
+ 	enum scan_balance scan_balance;
+-	unsigned long anon, file, free;
++	unsigned long anon, file;
+ 	bool force_scan = false;
+ 	unsigned long ap, fp;
+ 	enum lru_list lru;
+@@ -1902,20 +1902,6 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
+ 		get_lru_size(lruvec, LRU_INACTIVE_FILE);
+ 
+ 	/*
+-	 * If it's foreseeable that reclaiming the file cache won't be
+-	 * enough to get the zone back into a desirable shape, we have
+-	 * to swap.  Better start now and leave the - probably heavily
+-	 * thrashing - remaining file pages alone.
+-	 */
+-	if (global_reclaim(sc)) {
+-		free = zone_page_state(zone, NR_FREE_PAGES);
+-		if (unlikely(file + free <= high_wmark_pages(zone))) {
+-			scan_balance = SCAN_ANON;
+-			goto out;
+-		}
+-	}
+-
+-	/*
+ 	 * There is enough inactive page cache, do not reclaim
+ 	 * anything from the anonymous working set right now.
+ 	 */
+-- 
+1.9.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
