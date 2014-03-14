@@ -1,98 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f47.google.com (mail-ee0-f47.google.com [74.125.83.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 949B76B0036
-	for <linux-mm@kvack.org>; Fri, 14 Mar 2014 13:07:08 -0400 (EDT)
-Received: by mail-ee0-f47.google.com with SMTP id b15so1616234eek.20
-        for <linux-mm@kvack.org>; Fri, 14 Mar 2014 10:07:07 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id x47si4120991eel.193.2014.03.14.10.07.06
-        for <linux-mm@kvack.org>;
-        Fri, 14 Mar 2014 10:07:07 -0700 (PDT)
-Date: Fri, 14 Mar 2014 14:06:55 -0300
-From: Rafael Aquini <aquini@redhat.com>
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 802516B003B
+	for <linux-mm@kvack.org>; Fri, 14 Mar 2014 13:08:13 -0400 (EDT)
+Received: by mail-wi0-f173.google.com with SMTP id f8so5682498wiw.12
+        for <linux-mm@kvack.org>; Fri, 14 Mar 2014 10:08:13 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id t7si4654984wix.53.2014.03.14.10.08.11
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 14 Mar 2014 10:08:12 -0700 (PDT)
+Date: Fri, 14 Mar 2014 17:08:08 +0000
+From: Mel Gorman <mgorman@suse.de>
 Subject: Re: [patch] mm: vmscan: do not swap anon pages just because
  free+file is low
-Message-ID: <20140314170654.GA13596@localhost.localdomain>
+Message-ID: <20140314170807.GW10663@suse.de>
 References: <1394811302-30468-1-git-send-email-hannes@cmpxchg.org>
+ <53232901.5030307@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1394811302-30468-1-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <53232901.5030307@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Rik van Riel <riel@redhat.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, mhocko@suse.cz
 
-On Fri, Mar 14, 2014 at 11:35:02AM -0400, Johannes Weiner wrote:
-> Page reclaim force-scans / swaps anonymous pages when file cache drops
-> below the high watermark of a zone in order to prevent what little
-> cache remains from thrashing.
+On Fri, Mar 14, 2014 at 12:06:25PM -0400, Rik van Riel wrote:
+> On 03/14/2014 11:35 AM, Johannes Weiner wrote:
+> > Page reclaim force-scans / swaps anonymous pages when file cache drops
+> > below the high watermark of a zone in order to prevent what little
+> > cache remains from thrashing.
+> > 
+> > However, on bigger machines the high watermark value can be quite
+> > large and when the workload is dominated by a static anonymous/shmem
+> > set, the file set might just be a small window of used-once cache.  In
+> > such situations, the VM starts swapping heavily when instead it should
+> > be recycling the no longer used cache.
+> > 
+> > This is a longer-standing problem, but it's more likely to trigger
+> > after 81c0a2bb515f ("mm: page_alloc: fair zone allocator policy")
+> > because file pages can no longer accumulate in a single zone and are
+> > dispersed into smaller fractions among the available zones.
+> > 
+> > To resolve this, do not force scan anon when file pages are low but
+> > instead rely on the scan/rotation ratios to make the right prediction.
 > 
-> However, on bigger machines the high watermark value can be quite
-> large and when the workload is dominated by a static anonymous/shmem
-> set, the file set might just be a small window of used-once cache.  In
-> such situations, the VM starts swapping heavily when instead it should
-> be recycling the no longer used cache.
+> I am not entirely sure that the scan/rotation ratio will be
+> meaningful when the page cache has been essentially depleted,
+> but on larger systems the distance between the low and high
+> watermark is gigantic, and I have no better idea on how to
+> fix the bug you encountered, so ...
 > 
-> This is a longer-standing problem, but it's more likely to trigger
-> after 81c0a2bb515f ("mm: page_alloc: fair zone allocator policy")
-> because file pages can no longer accumulate in a single zone and are
-> dispersed into smaller fractions among the available zones.
-> 
-> To resolve this, do not force scan anon when file pages are low but
-> instead rely on the scan/rotation ratios to make the right prediction.
-> 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: <stable@kernel.org> [3.12+]
-> ---
 
-Acked-by: Rafael Aquini <aquini@redhat.com>
+I still agree with the direction in general even though I've not put
+thought into this specific patch yet. We've observed a problem whereby force
+reclaim was causing one or other LRU list to be trashed.  In one specific
+case, the inactive file is low logic was causing problems because while
+the relative size of inactive/active was taken into account, the absolute
+size vs anon was not. It was not a mainline kernel and we do not have a
+test configuration that properly illustrates the problem on mainline it's
+on our radar that it's a potential problem. The scan/rotation ratio at the
+moment does not take absolute sizes into account but we almost certainly
+want to go in that direction at some stage. Hugh's patch on altering how
+proportional shrinking works is also relevant.
 
->  mm/vmscan.c | 16 +---------------
->  1 file changed, 1 insertion(+), 15 deletions(-)
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index a9c74b409681..e58e9ad5b5d1 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1848,7 +1848,7 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
->  	struct zone *zone = lruvec_zone(lruvec);
->  	unsigned long anon_prio, file_prio;
->  	enum scan_balance scan_balance;
-> -	unsigned long anon, file, free;
-> +	unsigned long anon, file;
->  	bool force_scan = false;
->  	unsigned long ap, fp;
->  	enum lru_list lru;
-> @@ -1902,20 +1902,6 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
->  		get_lru_size(lruvec, LRU_INACTIVE_FILE);
->  
->  	/*
-> -	 * If it's foreseeable that reclaiming the file cache won't be
-> -	 * enough to get the zone back into a desirable shape, we have
-> -	 * to swap.  Better start now and leave the - probably heavily
-> -	 * thrashing - remaining file pages alone.
-> -	 */
-> -	if (global_reclaim(sc)) {
-> -		free = zone_page_state(zone, NR_FREE_PAGES);
-> -		if (unlikely(file + free <= high_wmark_pages(zone))) {
-> -			scan_balance = SCAN_ANON;
-> -			goto out;
-> -		}
-> -	}
-> -
-> -	/*
->  	 * There is enough inactive page cache, do not reclaim
->  	 * anything from the anonymous working set right now.
->  	 */
-> -- 
-> 1.9.0
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
