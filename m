@@ -1,57 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 441836B004D
-	for <linux-mm@kvack.org>; Sat, 15 Mar 2014 08:31:24 -0400 (EDT)
-Received: by mail-pd0-f171.google.com with SMTP id r10so3672282pdi.30
-        for <linux-mm@kvack.org>; Sat, 15 Mar 2014 05:31:23 -0700 (PDT)
-Received: from mail-pb0-x22c.google.com (mail-pb0-x22c.google.com [2607:f8b0:400e:c01::22c])
-        by mx.google.com with ESMTPS id p2si8666508pbn.183.2014.03.15.05.31.22
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sat, 15 Mar 2014 05:31:23 -0700 (PDT)
-Received: by mail-pb0-f44.google.com with SMTP id rp16so3787466pbb.3
-        for <linux-mm@kvack.org>; Sat, 15 Mar 2014 05:31:22 -0700 (PDT)
+Received: from mail-ve0-f182.google.com (mail-ve0-f182.google.com [209.85.128.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D39B6B0039
+	for <linux-mm@kvack.org>; Sat, 15 Mar 2014 12:22:12 -0400 (EDT)
+Received: by mail-ve0-f182.google.com with SMTP id jw12so4096429veb.13
+        for <linux-mm@kvack.org>; Sat, 15 Mar 2014 09:22:11 -0700 (PDT)
+Received: from cdptpa-omtalb.mail.rr.com (cdptpa-omtalb.mail.rr.com. [75.180.132.120])
+        by mx.google.com with ESMTP id yv18si3375440vcb.14.2014.03.15.09.22.11
+        for <linux-mm@kvack.org>;
+        Sat, 15 Mar 2014 09:22:11 -0700 (PDT)
+Message-ID: <53247E31.7060002@ubuntu.com>
+Date: Sat, 15 Mar 2014 12:22:09 -0400
+From: Phillip Susi <psusi@ubuntu.com>
 MIME-Version: 1.0
-Reply-To: mtk.manpages@gmail.com
-In-Reply-To: <20140315092455.GA6018@infradead.org>
-References: <1394812471-9693-1-git-send-email-psusi@ubuntu.com>
- <532417CA.1040300@gmail.com> <20140315092455.GA6018@infradead.org>
-From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
-Date: Sat, 15 Mar 2014 13:31:02 +0100
-Message-ID: <CAKgNAkgGZ-3U8PLKrZZ5KUWMmopd1B777_6ekva5ZpeXecEZ1g@mail.gmail.com>
 Subject: Re: [PATCH] readahead.2: don't claim the call blocks until all data
  has been read
-Content-Type: text/plain; charset=ISO-8859-1
+References: <1394812471-9693-1-git-send-email-psusi@ubuntu.com> <532417CA.1040300@gmail.com>
+In-Reply-To: <532417CA.1040300@gmail.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Phillip Susi <psusi@ubuntu.com>, linux-man <linux-man@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-ext4@vger.kernel.org, Corrado Zoccolo <czoccolo@gmail.com>, "Gregory P. Smith" <gps@google.com>, Zhu Yanhai <zhu.yanhai@gmail.com>
+To: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+Cc: linux-man@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org, Corrado Zoccolo <czoccolo@gmail.com>, "Gregory P. Smith" <gps@google.com>, Zhu Yanhai <zhu.yanhai@gmail.com>
 
-On Sat, Mar 15, 2014 at 10:24 AM, Christoph Hellwig <hch@infradead.org> wrote:
-> On Sat, Mar 15, 2014 at 10:05:14AM +0100, Michael Kerrisk (man-pages) wrote:
->>        However, it may block while  it  reads
->>        the  filesystem metadata needed to locate the requested blocks.
->>        This occurs frequently with ext[234] on large files using indi???
->>        rect  blocks instead of extents, giving the appearence that the
->>        call blocks until the requested data has been read.
->>
->> Okay?
+On 03/15/2014 05:05 AM, Michael Kerrisk (man-pages) wrote:
+> I've tweaked your text a bit to make some details clearer (I hope):
 >
-> The part above is something that should be in the BUGS section.
+>         readahead()  initiates  readahead  on a file so that subsequent
+>         reads from that file will, be satisfied from the cache, and not
+>         block  on  disk I/O (assuming the readahead was initiated early
+>         enough and that other activity on the system  did  not  in  the
+>         meantime flush pages from the cache).
 
-Good call. Done. Thanks, Christoph.
+Slight grammatical error there: there's an extra comma in "file will, be".
 
-Cheers,
-
-Michael
-
-
-
-
--- 
-Michael Kerrisk
-Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
-Linux/UNIX System Programming Training: http://man7.org/training/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
