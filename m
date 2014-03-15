@@ -1,70 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 39B4B6B005A
-	for <linux-mm@kvack.org>; Sat, 15 Mar 2014 06:48:21 -0400 (EDT)
-Received: by mail-pa0-f44.google.com with SMTP id bj1so3747737pad.3
-        for <linux-mm@kvack.org>; Sat, 15 Mar 2014 03:48:20 -0700 (PDT)
-Received: from e28smtp09.in.ibm.com (e28smtp09.in.ibm.com. [122.248.162.9])
-        by mx.google.com with ESMTPS id xj10si421487pab.163.2014.03.15.03.48.18
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 441836B004D
+	for <linux-mm@kvack.org>; Sat, 15 Mar 2014 08:31:24 -0400 (EDT)
+Received: by mail-pd0-f171.google.com with SMTP id r10so3672282pdi.30
+        for <linux-mm@kvack.org>; Sat, 15 Mar 2014 05:31:23 -0700 (PDT)
+Received: from mail-pb0-x22c.google.com (mail-pb0-x22c.google.com [2607:f8b0:400e:c01::22c])
+        by mx.google.com with ESMTPS id p2si8666508pbn.183.2014.03.15.05.31.22
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sat, 15 Mar 2014 03:48:20 -0700 (PDT)
-Received: from /spool/local
-	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Sat, 15 Mar 2014 16:18:17 +0530
-Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
-	by d28dlp02.in.ibm.com (Postfix) with ESMTP id BB7D6394003E
-	for <linux-mm@kvack.org>; Sat, 15 Mar 2014 16:18:14 +0530 (IST)
-Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
-	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s2FAm5bw1769832
-	for <linux-mm@kvack.org>; Sat, 15 Mar 2014 16:18:06 +0530
-Received: from d28av05.in.ibm.com (localhost [127.0.0.1])
-	by d28av05.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s2FAmEsD019417
-	for <linux-mm@kvack.org>; Sat, 15 Mar 2014 16:18:14 +0530
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [PATCH] powerpc/mm: Make sure a local_irq_disable prevent a parallel THP split
-Date: Sat, 15 Mar 2014 16:17:58 +0530
-Message-Id: <1394880478-770-1-git-send-email-aneesh.kumar@linux.vnet.ibm.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Sat, 15 Mar 2014 05:31:23 -0700 (PDT)
+Received: by mail-pb0-f44.google.com with SMTP id rp16so3787466pbb.3
+        for <linux-mm@kvack.org>; Sat, 15 Mar 2014 05:31:22 -0700 (PDT)
+MIME-Version: 1.0
+Reply-To: mtk.manpages@gmail.com
+In-Reply-To: <20140315092455.GA6018@infradead.org>
+References: <1394812471-9693-1-git-send-email-psusi@ubuntu.com>
+ <532417CA.1040300@gmail.com> <20140315092455.GA6018@infradead.org>
+From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+Date: Sat, 15 Mar 2014 13:31:02 +0100
+Message-ID: <CAKgNAkgGZ-3U8PLKrZZ5KUWMmopd1B777_6ekva5ZpeXecEZ1g@mail.gmail.com>
+Subject: Re: [PATCH] readahead.2: don't claim the call blocks until all data
+ has been read
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: benh@kernel.crashing.org, paulus@samba.org, Rik van Riel <riel@redhat.com>
-Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Phillip Susi <psusi@ubuntu.com>, linux-man <linux-man@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-ext4@vger.kernel.org, Corrado Zoccolo <czoccolo@gmail.com>, "Gregory P. Smith" <gps@google.com>, Zhu Yanhai <zhu.yanhai@gmail.com>
 
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+On Sat, Mar 15, 2014 at 10:24 AM, Christoph Hellwig <hch@infradead.org> wrote:
+> On Sat, Mar 15, 2014 at 10:05:14AM +0100, Michael Kerrisk (man-pages) wrote:
+>>        However, it may block while  it  reads
+>>        the  filesystem metadata needed to locate the requested blocks.
+>>        This occurs frequently with ext[234] on large files using indi???
+>>        rect  blocks instead of extents, giving the appearence that the
+>>        call blocks until the requested data has been read.
+>>
+>> Okay?
+>
+> The part above is something that should be in the BUGS section.
 
-We have generic code like the one in get_futex_key that assume that
-a local_irq_disable prevents a parallel THP split. Support that by
-adding a dummy smp call function after setting _PAGE_SPLITTING. Code
-paths like get_user_pages_fast still need to check for _PAGE_SPLITTING
-after disabling IRQ which indicate that a parallel THP splitting is
-ongoing. Now if they don't find _PAGE_SPLITTING set, then we can be
-sure that parallel split will now block in pmdp_splitting flush
-until we enables IRQ
+Good call. Done. Thanks, Christoph.
 
-Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
----
- arch/powerpc/mm/pgtable_64.c | 5 +++++
- 1 file changed, 5 insertions(+)
+Cheers,
 
-diff --git a/arch/powerpc/mm/pgtable_64.c b/arch/powerpc/mm/pgtable_64.c
-index 62bf5e8e78da..f6ce1f111f5b 100644
---- a/arch/powerpc/mm/pgtable_64.c
-+++ b/arch/powerpc/mm/pgtable_64.c
-@@ -647,6 +647,11 @@ void pmdp_splitting_flush(struct vm_area_struct *vma,
- 		if (old & _PAGE_HASHPTE)
- 			hpte_do_hugepage_flush(vma->vm_mm, address, pmdp);
- 	}
-+	/*
-+	 * This ensures that generic code that rely on IRQ disabling
-+	 * to prevent a parallel THP split work as expected.
-+	 */
-+	kick_all_cpus_sync();
- }
- 
- /*
+Michael
+
+
+
+
 -- 
-1.8.3.2
+Michael Kerrisk
+Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
+Linux/UNIX System Programming Training: http://man7.org/training/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
