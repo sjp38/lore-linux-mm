@@ -1,119 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f54.google.com (mail-ee0-f54.google.com [74.125.83.54])
-	by kanga.kvack.org (Postfix) with ESMTP id A2F656B003A
-	for <linux-mm@kvack.org>; Sat, 15 Mar 2014 02:46:06 -0400 (EDT)
-Received: by mail-ee0-f54.google.com with SMTP id d49so2136946eek.27
-        for <linux-mm@kvack.org>; Fri, 14 Mar 2014 23:46:05 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id v2si6556170eel.196.2014.03.14.23.46.03
-        for <linux-mm@kvack.org>;
-        Fri, 14 Mar 2014 23:46:04 -0700 (PDT)
-Date: Sat, 15 Mar 2014 02:45:57 -0400
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <5323f72c.82ad0e0a.316a.ffffea68SMTPIN_ADDED_BROKEN@mx.google.com>
-In-Reply-To: <5319689c.437e0e0a.63ea.ffffacdcSMTPIN_ADDED_BROKEN@mx.google.com>
-References: <1393822946-26871-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <5314E0CD.6070308@oracle.com>
- <5314F661.30202@oracle.com>
- <1393968743-imrxpynb@n-horiguchi@ah.jp.nec.com>
- <531657DC.4050204@oracle.com>
- <1393976967-lnmm5xcs@n-horiguchi@ah.jp.nec.com>
- <5317FA3B.8060900@oracle.com>
- <1394122113-xsq3i6vw@n-horiguchi@ah.jp.nec.com>
- <5318E5AD.9090107@oracle.com>
- <5319689c.437e0e0a.63ea.ffffacdcSMTPIN_ADDED_BROKEN@mx.google.com>
-Subject: Re: [PATCH] mm: add pte_present() check on existing hugetlb_entry
- callbacks
-Mime-Version: 1.0
-Content-Type: text/plain;
- charset=iso-2022-jp
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Received: from mail-bk0-f54.google.com (mail-bk0-f54.google.com [209.85.214.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 05C156B0036
+	for <linux-mm@kvack.org>; Sat, 15 Mar 2014 05:05:24 -0400 (EDT)
+Received: by mail-bk0-f54.google.com with SMTP id 6so248049bkj.41
+        for <linux-mm@kvack.org>; Sat, 15 Mar 2014 02:05:24 -0700 (PDT)
+Received: from mail-bk0-x234.google.com (mail-bk0-x234.google.com [2a00:1450:4008:c01::234])
+        by mx.google.com with ESMTPS id ny9si3597703bkb.273.2014.03.15.02.05.21
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Sat, 15 Mar 2014 02:05:22 -0700 (PDT)
+Received: by mail-bk0-f52.google.com with SMTP id my13so259790bkb.11
+        for <linux-mm@kvack.org>; Sat, 15 Mar 2014 02:05:21 -0700 (PDT)
+Message-ID: <532417CA.1040300@gmail.com>
+Date: Sat, 15 Mar 2014 10:05:14 +0100
+From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] readahead.2: don't claim the call blocks until all data
+ has been read
+References: <1394812471-9693-1-git-send-email-psusi@ubuntu.com>
+In-Reply-To: <1394812471-9693-1-git-send-email-psusi@ubuntu.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: sasha.levin@oracle.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, riel@redhat.com
+To: Phillip Susi <psusi@ubuntu.com>
+Cc: mtk.manpages@gmail.com, linux-man@vger.kernel.org, linux-mm@kvack.org, linux-ext4@vger.kernel.org, Corrado Zoccolo <czoccolo@gmail.com>, "Gregory P. Smith" <gps@google.com>, Zhu Yanhai <zhu.yanhai@gmail.com>
 
-On Fri, Mar 07, 2014 at 01:35:02AM -0500, Naoya Horiguchi wrote:
-> On Thu, Mar 06, 2014 at 04:16:29PM -0500, Sasha Levin wrote:
-> > On 03/06/2014 11:08 AM, Naoya Horiguchi wrote:
-> > > And I found my patch was totally wrong because it should check
-> > > !pte_present(), not pte_present().
-> > > I'm testing fixed one (see below), and the problem seems not to reproduce
-> > > in my environment at least for now.
-> > > But I'm not 100% sure, so I need your double checking.
-> > 
-> > Nope, I still see the problem. Same NULL deref and trace as before.
-> 
-> Hmm, that's unfortunate.
-> I tried to find out how this reproduces and the root cause, but no luck.
-> So I suggest to add !PageHuge check before entering isolate_huge_page(),
-> which certainly gets over this problem.
-> 
-> I think "[PATCH] mm: add pte_present() check on existing hugetlb_entry"
-> is correct itself although it didn't fix this race.
+[CC += Past reporters: Corrado Zoccolo, Greg Smith, Zhu Yanhai]
 
-Andrew, could you consider picking up this patch (below) and "[PATCH] mm:
-add pte_present() check on existing hugetlb_entry" (previously posted in
-this thread) into linux-mm?
+On 03/14/2014 04:54 PM, Phillip Susi wrote:
+> The readahead(2) man page was claiming that the call blocks until all
+> data has been read into the cache.  This is incorrect.
 
-This patch is to be folded into "mempolicy: apply page table walker on
-queue_pages_range()," and another one is into "pagewalk: update page
-table walker core."
+Phillip, thanks for a good patch that sums things up. I didn't follow
+up an earlier patch from Greg Smith, but that patch failed to explain the
+behavior we discussed in https://bugzilla.kernel.org/show_bug.cgi?id=54271
+where call did sometimes block for a considerable time.
 
-Or do I need to repost them?
+I've applied the patch. Thanks for your efforts and persistence.
 
-Thanks,
-Naoya
+I've tweaked your text a bit to make some details clearer (I hope):
 
-> Thanks,
-> Naoya
+       readahead()  initiates  readahead  on a file so that subsequent
+       reads from that file will, be satisfied from the cache, and not
+       block  on  disk I/O (assuming the readahead was initiated early
+       enough and that other activity on the system  did  not  in  the
+       meantime flush pages from the cache).
+
+       ...
+
+       readahead()  attempts  to  schedule the reads in the background
+       and return immediately.  However, it may block while  it  reads
+       the  filesystem metadata needed to locate the requested blocks.
+       This occurs frequently with ext[234] on large files using india??
+       rect  blocks instead of extents, giving the appearence that the
+       call blocks until the requested data has been read.
+
+Okay?
+
+Cheers,
+
+Michael
+ 
+> Signed-off-by: Phillip Susi <psusi@ubuntu.com>
 > ---
-> From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Date: Fri, 7 Mar 2014 00:59:41 -0500
-> Subject: [PATCH] mm/mempolicy.c: add comment in queue_pages_hugetlb()
+>  man2/readahead.2 | 15 ++++++++++-----
+>  1 file changed, 10 insertions(+), 5 deletions(-)
 > 
-> We have a race where we try to migrate an invalid page, resulting in
-> hitting VM_BUG_ON_PAGE in isolate_huge_page().
-> queue_pages_hugetlb() is OK to fail, so let's check !PageHuge before
-> queuing it with some comment as a todo reminder.
-> 
-> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> ---
->  mm/mempolicy.c | 11 +++++++++++
->  1 file changed, 11 insertions(+)
-> 
-> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-> index 494f401bbf6c..175353eb7396 100644
-> --- a/mm/mempolicy.c
-> +++ b/mm/mempolicy.c
-> @@ -530,6 +530,17 @@ static int queue_pages_hugetlb(pte_t *pte, unsigned long addr,
->  	if (!pte_present(entry))
->  		return 0;
->  	page = pte_page(entry);
+> diff --git a/man2/readahead.2 b/man2/readahead.2
+> index 605fa5e..1b0376e 100644
+> --- a/man2/readahead.2
+> +++ b/man2/readahead.2
+> @@ -27,7 +27,7 @@
+>  .\"
+>  .TH READAHEAD 2 2013-04-01 "Linux" "Linux Programmer's Manual"
+>  .SH NAME
+> -readahead \- perform file readahead into page cache
+> +readahead \- initiate file readahead into page cache
+>  .SH SYNOPSIS
+>  .nf
+>  .BR "#define _GNU_SOURCE" "             /* See feature_test_macros(7) */"
+> @@ -37,8 +37,8 @@ readahead \- perform file readahead into page cache
+>  .fi
+>  .SH DESCRIPTION
+>  .BR readahead ()
+> -populates the page cache with data from a file so that subsequent
+> -reads from that file will not block on disk I/O.
+> +initates readahead on a file so that subsequent reads from that file will
+> +hopefully be satisfied from the cache, and not block on disk I/O.
+>  The
+>  .I fd
+>  argument is a file descriptor identifying the file which is
+> @@ -57,8 +57,6 @@ equal to
+>  .IR "(offset+count)" .
+>  .BR readahead ()
+>  does not read beyond the end of the file.
+> -.BR readahead ()
+> -blocks until the specified data has been read.
+>  The current file offset of the open file referred to by
+>  .I fd
+>  is left unchanged.
+> @@ -94,6 +92,13 @@ On some 32-bit architectures,
+>  the calling signature for this system call differs,
+>  for the reasons described in
+>  .BR syscall (2).
 > +
-> +	/*
-> +	 * TODO: Trinity found that page could be a non-hugepage. This is an
-> +	 * unexpected behavior, but it's not clear how this problem happens.
-> +	 * So let's simply skip such corner case. Page migration can often
-> +	 * fail for various reasons, so it's ok to just skip the address
-> +	 * unsuitable to hugepage migration.
-> +	 */
-> +	if (!PageHeadHuge(page))
-> +		return 0;
-> +
->  	nid = page_to_nid(page);
->  	if (node_isset(nid, *qp->nmask) == !!(flags & MPOL_MF_INVERT))
->  		return 0;
-> -- 
-> 1.8.5.3
+> +The call attempts to schedule the reads in the background and return
+> +immediately, however it may block while reading filesystem metadata
+> +in order to locate where the blocks requested are.  This occurs frequently
+> +with ext[234] on large files using indirect blocks instead of extents,
+> +giving the appearence that the call blocks until the requested data has
+> +been read.
+>  .SH SEE ALSO
+>  .BR lseek (2),
+>  .BR madvise (2),
 > 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+
+
+-- 
+Michael Kerrisk
+Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
+Linux/UNIX System Programming Training: http://man7.org/training/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
