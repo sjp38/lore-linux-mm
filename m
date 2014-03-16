@@ -1,189 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f52.google.com (mail-pb0-f52.google.com [209.85.160.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 73FDC6B0037
-	for <linux-mm@kvack.org>; Sat, 15 Mar 2014 23:57:11 -0400 (EDT)
-Received: by mail-pb0-f52.google.com with SMTP id rr13so4280221pbb.25
-        for <linux-mm@kvack.org>; Sat, 15 Mar 2014 20:57:11 -0700 (PDT)
-Received: from mail-pd0-x22b.google.com (mail-pd0-x22b.google.com [2607:f8b0:400e:c02::22b])
-        by mx.google.com with ESMTPS id e6si8390578pbj.313.2014.03.15.20.57.10
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E11A6B0038
+	for <linux-mm@kvack.org>; Sun, 16 Mar 2014 00:21:11 -0400 (EDT)
+Received: by mail-pa0-f53.google.com with SMTP id ld10so4319942pab.12
+        for <linux-mm@kvack.org>; Sat, 15 Mar 2014 21:21:11 -0700 (PDT)
+Received: from mail-pd0-x232.google.com (mail-pd0-x232.google.com [2607:f8b0:400e:c02::232])
+        by mx.google.com with ESMTPS id vu10si10328690pbc.249.2014.03.15.21.21.10
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sat, 15 Mar 2014 20:57:10 -0700 (PDT)
-Received: by mail-pd0-f171.google.com with SMTP id r10so4176979pdi.16
-        for <linux-mm@kvack.org>; Sat, 15 Mar 2014 20:57:10 -0700 (PDT)
-Date: Sat, 15 Mar 2014 20:56:10 -0700 (PDT)
+        Sat, 15 Mar 2014 21:21:10 -0700 (PDT)
+Received: by mail-pd0-f178.google.com with SMTP id x10so4190308pdj.23
+        for <linux-mm@kvack.org>; Sat, 15 Mar 2014 21:21:10 -0700 (PDT)
+Date: Sat, 15 Mar 2014 21:20:16 -0700 (PDT)
 From: Hugh Dickins <hughd@google.com>
-Subject: Re: performance regression due to commit e82e0561("mm: vmscan: obey
- proportional scanning requirements for kswapd")
-In-Reply-To: <20140314142103.GV10663@suse.de>
-Message-ID: <alpine.LSU.2.11.1403152040380.21540@eggly.anvils>
-References: <20140218080122.GO26593@yliu-dev.sh.intel.com> <20140312165447.GO10663@suse.de> <alpine.LSU.2.11.1403130516050.10128@eggly.anvils> <20140314142103.GV10663@suse.de>
+Subject: Re: [patch] mm: vmscan: do not swap anon pages just because free+file
+ is low
+In-Reply-To: <20140314170807.GW10663@suse.de>
+Message-ID: <alpine.LSU.2.11.1403152056430.21540@eggly.anvils>
+References: <1394811302-30468-1-git-send-email-hannes@cmpxchg.org> <53232901.5030307@redhat.com> <20140314170807.GW10663@suse.de>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Yuanhan Liu <yuanhan.liu@linux.intel.com>, Suleiman Souhlal <suleiman@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Rafael Aquini <aquini@redhat.com>, Suleiman Souhlal <suleiman@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
 On Fri, 14 Mar 2014, Mel Gorman wrote:
-> On Thu, Mar 13, 2014 at 05:44:57AM -0700, Hugh Dickins wrote:
-> > On Wed, 12 Mar 2014, Mel Gorman wrote:
-> > > On Tue, Feb 18, 2014 at 04:01:22PM +0800, Yuanhan Liu wrote:
-> > > > Hi,
-> > > > 
-> > > > Commit e82e0561("mm: vmscan: obey proportional scanning requirements for
-> > > > kswapd") caused a big performance regression(73%) for vm-scalability/
-> > > > lru-file-readonce testcase on a system with 256G memory without swap.
-> > > > 
-> > > > That testcase simply looks like this:
-> > > >      truncate -s 1T /tmp/vm-scalability.img
-> > > >      mkfs.xfs -q /tmp/vm-scalability.img
-> > > >      mount -o loop /tmp/vm-scalability.img /tmp/vm-scalability
-> > > > 
-> > > >      SPARESE_FILE="/tmp/vm-scalability/sparse-lru-file-readonce"
-> > > >      for i in `seq 1 120`; do
-> > > >          truncate $SPARESE_FILE-$i -s 36G
-> > > >          timeout --foreground -s INT 300 dd bs=4k if=$SPARESE_FILE-$i of=/dev/null
-> > > >      done
-> > > > 
-> > > >      wait
-> > > > 
+> On Fri, Mar 14, 2014 at 12:06:25PM -0400, Rik van Riel wrote:
+> > On 03/14/2014 11:35 AM, Johannes Weiner wrote:
+> > > Page reclaim force-scans / swaps anonymous pages when file cache drops
+> > > below the high watermark of a zone in order to prevent what little
+> > > cache remains from thrashing.
 > > > 
-> > > The filename implies that it's a sparse file with no IO but does not say
-> > > what the truncate function/program/whatever actually does. If it's really a
-> > > sparse file then the dd process should be reading zeros and writing them to
-> > > NULL without IO. Where are pages being dirtied? Does the truncate command
-> > > really create a sparse file or is it something else?
+> > > However, on bigger machines the high watermark value can be quite
+> > > large and when the workload is dominated by a static anonymous/shmem
+> > > set, the file set might just be a small window of used-once cache.  In
+> > > such situations, the VM starts swapping heavily when instead it should
+> > > be recycling the no longer used cache.
 > > > 
-> > > > Actually, it's not the newlly added code(obey proportional scanning)
-> > > > in that commit caused the regression. But instead, it's the following
-> > > > change:
-> > > > +
-> > > > +               if (nr_reclaimed < nr_to_reclaim || scan_adjusted)
-> > > > +                       continue;
-> > > > +
-> > > > 
-> > > > 
-> > > > -               if (nr_reclaimed >= nr_to_reclaim &&
-> > > > -                   sc->priority < DEF_PRIORITY)
-> > > > +               if (global_reclaim(sc) && !current_is_kswapd())
-> > > >                         break;
-> > > > 
-> > > > The difference is that we might reclaim more than requested before
-> > > > in the first round reclaimming(sc->priority == DEF_PRIORITY).
-> > > > 
-> > > > So, for a testcase like lru-file-readonce, the dirty rate is fast, and
-> > > > reclaimming SWAP_CLUSTER_MAX(32 pages) each time is not enough for catching
-> > > > up the dirty rate. And thus page allocation stalls, and performance drops:
-> > ...
-> > > > I made a patch which simply keeps reclaimming more if sc->priority == DEF_PRIORITY.
-> > > > I'm not sure it's the right way to go or not. Anyway, I pasted it here for comments.
-> > > > 
+> > > This is a longer-standing problem, but it's more likely to trigger
+> > > after 81c0a2bb515f ("mm: page_alloc: fair zone allocator policy")
+> > > because file pages can no longer accumulate in a single zone and are
+> > > dispersed into smaller fractions among the available zones.
 > > > 
-> > > The impact of the patch is that a direct reclaimer will now scan and
-> > > reclaim more pages than requested so the unlucky reclaiming process will
-> > > stall for longer than it should while others make forward progress.
-> > > 
-> > > That would explain the difference in allocstall figure as each stall is
-> > > now doing more work than it did previously. The throughput figure is
-> > > harder to explain. What is it measuring?
-> > > 
-> > > Any idea why kswapd is failing to keep up?
-> > > 
-> > > I'm not saying the patch is wrong but there appears to be more going on
-> > > that is explained in the changelog. Is the full source of the benchmark
-> > > suite available? If so, can you point me to it and the exact commands
-> > > you use to run the testcase please?
+> > > To resolve this, do not force scan anon when file pages are low but
+> > > instead rely on the scan/rotation ratios to make the right prediction.
 > > 
-> > I missed Yuanhan's mail, but seeing your reply reminds me of another
-> > issue with that proportionality patch - or perhaps more thought would
-> > show them to be two sides of the same issue, with just one fix required.
-> > Let me throw our patch into the cauldron.
-> > 
-> > [PATCH] mm: revisit shrink_lruvec's attempt at proportionality
-> > 
-> > We have a memcg reclaim test which exerts a certain amount of pressure,
-> > and expects to see a certain range of page reclaim in response.  It's a
-> > very wide range allowed, but the test repeatably failed on v3.11 onwards,
-> > because reclaim goes wild and frees up almost everything.
-> > 
-> > This wild behaviour bisects to Mel's "scan_adjusted" commit e82e0561dae9
-> > "mm: vmscan: obey proportional scanning requirements for kswapd".  That
-> > attempts to achieve proportionality between anon and file lrus: to the
-> > extent that once one of those is empty, it then tries to empty the other.
-> > Stop that.
-> > 
-> > Signed-off-by: Hugh Dickins <hughd@google.com>
-> > ---
-> > 
-> > We've been running happily with this for months; but all that time it's
-> > been on my TODO list with a "needs more thought" tag before we could
-> > upstream it, and I never got around to that.  We also have a somewhat
-> > similar, but older and quite independent, fix to get_scan_count() from
-> > Suleiman, which I'd meant to send along at the same time: I'll dig that
-> > one out tomorrow or the day after.
-
-I've sent that one out now in a new thread
-https://lkml.org/lkml/2014/3/15/168
-and also let's tie these together with Hannes's
-https://lkml.org/lkml/2014/3/14/277
-
+> > I am not entirely sure that the scan/rotation ratio will be
+> > meaningful when the page cache has been essentially depleted,
+> > but on larger systems the distance between the low and high
+> > watermark is gigantic, and I have no better idea on how to
+> > fix the bug you encountered, so ...
 > > 
 > 
-> I ran a battery of page reclaim related tests against it on top of
-> 3.14-rc6. Workloads showed small improvements in their absolute performance
-> but actual IO behaviour looked much better in some tests.  This is the
-> iostats summary for the test that showed the biggest different -- dd of
-> a large file on ext3.
-> 
->  	                3.14.0-rc6	3.14.0-rc6
-> 	                   vanilla	proportional-v1r1
-> Mean	sda-avgqz 	1045.64		224.18	
-> Mean	sda-await 	2120.12		506.77	
-> Mean	sda-r_await	18.61		19.78	
-> Mean	sda-w_await	11089.60	2126.35	
-> Max 	sda-avgqz 	2294.39		787.13	
-> Max 	sda-await 	7074.79		2371.67	
-> Max 	sda-r_await	503.00		414.00	
-> Max 	sda-w_await	35721.93	7249.84	
-> 
-> Not all workloads benefitted. The same workload on ext4 showed no useful
-> difference. btrfs looks like
-> 
->  	             3.14.0-rc6	3.14.0-rc6
-> 	               vanilla	proportional-v1r1
-> Mean	sda-avgqz 	762.69		650.39	
-> Mean	sda-await 	2438.46		2495.15	
-> Mean	sda-r_await	44.18		47.20	
-> Mean	sda-w_await	6109.19		5139.86	
-> Max 	sda-avgqz 	2203.50		1870.78	
-> Max 	sda-await 	7098.26		6847.21	
-> Max 	sda-r_await	63.02		156.00	
-> Max 	sda-w_await	19921.70	11085.13	
-> 
-> Better but not as dramatically so. I didn't analyse why. A workload that
-> had a large anonymous mapping with large amounts of IO in the background
-> did not show any regressions so based on that and the fact the patch looks
-> ok, here goes nothing;
-> 
-> Acked-by: Mel Gorman <mgorman@suse.de>
+> I still agree with the direction in general even though I've not put
+> thought into this specific patch yet. We've observed a problem whereby force
+> reclaim was causing one or other LRU list to be trashed.  In one specific
+> case, the inactive file is low logic was causing problems because while
+> the relative size of inactive/active was taken into account, the absolute
+> size vs anon was not. It was not a mainline kernel and we do not have a
+> test configuration that properly illustrates the problem on mainline it's
+> on our radar that it's a potential problem. The scan/rotation ratio at the
+> moment does not take absolute sizes into account but we almost certainly
+> want to go in that direction at some stage. Hugh's patch on altering how
+> proportional shrinking works is also relevant.
 
-Big thank you, Mel, for doing so much work on it, and so very quickly.
-I get quite lost in the numbers myself: I'm much more convinced of it
-by your numbers and ack.
+That https://lkml.org/lkml/2014/3/13/217
+is relevant, yes, but I think rather more so is
+Suleiman's in https://lkml.org/lkml/2014/3/15/168
 
-> 
-> You say it's already been tested for months but it would be nice if the
-> workload that generated this thread was also tested.
+Hannes, your patch looks reasonable to me, and as I read it would
+be well complemented by Suleiman's and mine; but I do worry that
+the "scan_balance = SCAN_ANON" block you're removing was inserted
+for good reason, and its removal bring complaint from some direction.
 
-Yes indeed: Yuanhan, do you have time to try this patch for your
-testcase?  I'm hoping it will prove at least as effective as your
-own suggested patch, but please let us know what you find - thanks.
-
-> Regrettably I'm not
-> going to have the chance to setup and do it myself for some time.
-
-Understood, I'll continue to Cc you, but not expecting more.
+By the way, I notice you marked yours for stable [3.12+]:
+if it's for stable at all, shouldn't it be for 3.9+?
+(well, maybe nobody's doing a 3.9.N.M but 3.10.N is still alive).
 
 Hugh
 
