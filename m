@@ -1,360 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D8C06B0073
-	for <linux-mm@kvack.org>; Mon, 17 Mar 2014 05:21:24 -0400 (EDT)
-Received: by mail-wg0-f45.google.com with SMTP id l18so4250079wgh.4
-        for <linux-mm@kvack.org>; Mon, 17 Mar 2014 02:21:23 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id mb19si4468311wic.24.2014.03.17.02.21.22
+Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com [209.85.160.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A9806B0074
+	for <linux-mm@kvack.org>; Mon, 17 Mar 2014 05:24:18 -0400 (EDT)
+Received: by mail-pb0-f54.google.com with SMTP id ma3so5462817pbc.13
+        for <linux-mm@kvack.org>; Mon, 17 Mar 2014 02:24:17 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [119.145.14.64])
+        by mx.google.com with ESMTPS id mu18si4166923pab.272.2014.03.17.02.24.15
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 17 Mar 2014 02:21:22 -0700 (PDT)
-Date: Mon, 17 Mar 2014 10:21:18 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 1/3] vrange: Add vrange syscall and handle
- splitting/merging and marking vmas
-Message-ID: <20140317092118.GA2210@quack.suse.cz>
-References: <1394822013-23804-1-git-send-email-john.stultz@linaro.org>
- <1394822013-23804-2-git-send-email-john.stultz@linaro.org>
+        Mon, 17 Mar 2014 02:24:17 -0700 (PDT)
+Message-ID: <5326BE25.9090201@huawei.com>
+Date: Mon, 17 Mar 2014 17:19:33 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1394822013-23804-2-git-send-email-john.stultz@linaro.org>
+Subject: kmemcheck: OS boot failed because NMI handlers access the memory
+ tracked by kmemcheck
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Stultz <john.stultz@linaro.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Johannes Weiner <hannes@cmpxchg.org>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@sr71.net>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Neil Brown <neilb@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Dhaval Giani <dgiani@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>, vegard.nossum@oracle.com, Pekka Enberg <penberg@kernel.org>, Peter Zijlstra <peterz@infradead.org>, David Rientjes <rientjes@google.com>, Vegard Nossum <vegard.nossum@gmail.com>
+Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Xishi Qiu <qiuxishi@huawei.com>, Li Zefan <lizefan@huawei.com>
 
-On Fri 14-03-14 11:33:31, John Stultz wrote:
-> This patch introduces the vrange() syscall, which allows for specifying
-> ranges of memory as volatile, and able to be discarded by the system.
-> 
-> This initial patch simply adds the syscall, and the vma handling,
-> splitting and merging the vmas as needed, and marking them with
-> VM_VOLATILE.
-> 
-> No purging or discarding of volatile ranges is done at this point.
-> 
-> Example man page:
-> 
-> NAME
-> 	vrange - Mark or unmark range of memory as volatile
-> 
-> SYNOPSIS
-> 	int vrange(unsigned_long start, size_t length, int mode,
-> 			 int *purged);
-> 
-> DESCRIPTION
-> 	Applications can use vrange(2) to advise the kernel how it should
-> 	handle paging I/O in this VM area.  The idea is to help the kernel
-> 	discard pages of vrange instead of reclaiming when memory pressure
-> 	happens. It means kernel doesn't discard any pages of vrange if
-> 	there is no memory pressure.
-  I'd say that the advantage is kernel doesn't have to swap volatile pages,
-it can just directly discard them on memory pressure. You should also
-mention somewhere vrange() is currently supported only for anonymous pages.
-So maybe we can have the description like:
-Applications can use vrange(2) to advise kernel that pages of anonymous
-mapping in the given VM area can be reclaimed without swapping (or can no
-longer be reclaimed without swapping). The idea is that application can
-help kernel with page reclaim under memory pressure by specifying data
-it can easily regenerate and thus kernel can discard the data if needed.
+OS boot failed when set cmdline kmemcheck=1. The reason is that
+NMI handlers will access the memory from kmalloc(), this will cause
+page fault, because memory from kmalloc() is tracked by kmemcheck.
 
-> 	mode:
-> 	VRANGE_VOLATILE
-> 		hint to kernel so VM can discard in vrange pages when
-> 		memory pressure happens.
-> 	VRANGE_NONVOLATILE
-> 		hint to kernel so VM doesn't discard vrange pages
-> 		any more.
-> 
-> 	If user try to access purged memory without VRANGE_NONVOLATILE call,
-                ^^^ tries
+watchdog_nmi_enable()
+	perf_event_create_kernel_counter()
+		perf_event_alloc()
+			event = kzalloc(sizeof(*event), GFP_KERNEL);
 
-> 	he can encounter SIGBUS if the page was discarded by kernel.
-> 
-> 	purged: Pointer to an integer which will return 1 if
-> 	mode == VRANGE_NONVOLATILE and any page in the affected range
-> 	was purged. If purged returns zero during a mode ==
-> 	VRANGE_NONVOLATILE call, it means all of the pages in the range
-> 	are intact.
-> 
-> RETURN VALUE
-> 	On success vrange returns the number of bytes marked or unmarked.
-> 	Similar to write(), it may return fewer bytes then specified
-> 	if it ran into a problem.
-  I believe you may need to better explain what is 'purged' argument good
-for. Because in my naive understanding *purged == 1 iff return value !=
-length.  I recall your discussion with Johannes about error conditions and
-the need to return error but also the state of the range, is that right?
-But that should be really explained somewhere so that poor application
-programmer is aware of those corner cases as well.
+Now we don't support page faults in NMI context is that we
+may already be handling an existing fault (or trap) when the NMI hits.
+So that would mess up kmemcheck's working state.
 
-> 
-> 	If an error is returned, no changes were made.
-> 
-> ERRORS
-> 	EINVAL This error can occur for the following reasons:
-> 		* The value length is negative or not page size units.
-> 		* addr is not page-aligned
-> 		* mode not a valid value.
-> 
-> 	ENOMEM Not enough memory
-> 
-> 	EFAULT purged pointer is invalid
-> 
-> This a simplified implementation which reuses some of the logic
-> from Minchan's earlier efforts. So credit to Minchan for his work.
-> 
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Android Kernel Team <kernel-team@android.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Robert Love <rlove@google.com>
-> Cc: Mel Gorman <mel@csn.ul.ie>
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: Dave Hansen <dave@sr71.net>
-> Cc: Rik van Riel <riel@redhat.com>
-> Cc: Dmitry Adamushko <dmitry.adamushko@gmail.com>
-> Cc: Neil Brown <neilb@suse.de>
-> Cc: Andrea Arcangeli <aarcange@redhat.com>
-> Cc: Mike Hommey <mh@glandium.org>
-> Cc: Taras Glek <tglek@mozilla.com>
-> Cc: Dhaval Giani <dgiani@mozilla.com>
-> Cc: Jan Kara <jack@suse.cz>
-> Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-> Cc: Michel Lespinasse <walken@google.com>
-> Cc: Minchan Kim <minchan@kernel.org>
-> Cc: linux-mm@kvack.org <linux-mm@kvack.org>
-> Signed-off-by: John Stultz <john.stultz@linaro.org>
-  Some minor comments in the patch below...
+Here is the failed log:
+[    1.731052] WARNING: CPU: 0 PID: 1 at arch/x86/mm/kmemcheck/kmemcheck.c:634 k
+memcheck_fault+0xb1/0xc0()
+[    1.731053] Modules linked in:
+[    1.731056] CPU: 0 PID: 1 Comm: swapper/0 Not tainted 3.14.0-rc3-0.1-default+
+ #1
+[    1.731057] Hardware name: Huawei Technologies Co., Ltd. Tecal RH2285
+  /BC11BTSA              , BIOS CTSAV036 04/27/2011
+[    1.731061]  000000000000027a ffff880c39c07678 ffffffff814ca491 ffff880c39c07
+6b8
+[    1.731063]  ffffffff8104ce97 0000000000000000 ffff880c39c07838 ffff880c21028
+1d4
+[    1.731065]  0000000000000000 0000000000000000 ffff880c210281d4 ffff880c39c07
+6c8
+[    1.731065] Call Trace:
+[    1.731073]  <NMI>  [<ffffffff814ca491>] dump_stack+0x6a/0x79
+[    1.731077]  [<ffffffff8104ce97>] warn_slowpath_common+0x87/0xb0
+[    1.731079]  [<ffffffff8104ced5>] warn_slowpath_null+0x15/0x20
+[    1.731081]  [<ffffffff810452c1>] kmemcheck_fault+0xb1/0xc0
+[    1.731087]  [<ffffffff814d262b>] __do_page_fault+0x39b/0x4c0
+[    1.731092]  [<ffffffff81272cd2>] ? put_dec+0x72/0x90
+[    1.731093]  [<ffffffff812730ba>] ? number+0x33a/0x360
+[    1.731096]  [<ffffffff814d2829>] do_page_fault+0x9/0x10
+[    1.731098]  [<ffffffff814cf222>] page_fault+0x22/0x30
+[    1.731104]  [<ffffffff81348b4c>] ? vt_console_print+0x8c/0x400
+[    1.731106]  [<ffffffff81348b2c>] ? vt_console_print+0x6c/0x400
+[    1.731111]  [<ffffffff8109cd9b>] ? msg_print_text+0x18b/0x1f0
+[    1.731113]  [<ffffffff8109bed1>] call_console_drivers+0xc1/0xe0
+[    1.731115]  [<ffffffff8109d746>] console_unlock+0x236/0x280
+[    1.731117]  [<ffffffff8109e095>] vprintk_emit+0x2b5/0x450
+[    1.731119]  [<ffffffff810452c1>] ? kmemcheck_fault+0xb1/0xc0
+[    1.731120]  [<ffffffff814ca3f7>] printk+0x4a/0x4c
+[    1.731122]  [<ffffffff810452c1>] ? kmemcheck_fault+0xb1/0xc0
+[    1.731124]  [<ffffffff8104ce4e>] warn_slowpath_common+0x3e/0xb0
+[    1.731126]  [<ffffffff8104ced5>] warn_slowpath_null+0x15/0x20
+[    1.731128]  [<ffffffff810452c1>] kmemcheck_fault+0xb1/0xc0
+[    1.731130]  [<ffffffff814d262b>] __do_page_fault+0x39b/0x4c0
+[    1.731132]  [<ffffffff814d2829>] do_page_fault+0x9/0x10
+[    1.731134]  [<ffffffff814cf222>] page_fault+0x22/0x30
+[    1.731138]  [<ffffffff81015b52>] ? x86_perf_event_update+0x2/0x70
+[    1.731142]  [<ffffffff8101de21>] ? intel_pmu_save_and_restart+0x11/0x50
+[    1.731144]  [<ffffffff8101eb02>] intel_pmu_handle_irq+0x142/0x3a0
+[    1.731146]  [<ffffffff814d0655>] perf_event_nmi_handler+0x35/0x60
+[    1.731148]  [<ffffffff814cfe83>] nmi_handle+0x63/0x150
+[    1.731150]  [<ffffffff814cffd3>] default_do_nmi+0x63/0x290
+[    1.731151]  [<ffffffff814d02a8>] do_nmi+0xa8/0xe0
 
-> ---
->  arch/x86/syscalls/syscall_64.tbl |   1 +
->  include/linux/mm.h               |   1 +
->  include/linux/vrange.h           |   7 ++
->  mm/Makefile                      |   2 +-
->  mm/vrange.c                      | 150 +++++++++++++++++++++++++++++++++++++++
->  5 files changed, 160 insertions(+), 1 deletion(-)
->  create mode 100644 include/linux/vrange.h
->  create mode 100644 mm/vrange.c
-> 
-> diff --git a/arch/x86/syscalls/syscall_64.tbl b/arch/x86/syscalls/syscall_64.tbl
-> index a12bddc..7ae3940 100644
-> --- a/arch/x86/syscalls/syscall_64.tbl
-> +++ b/arch/x86/syscalls/syscall_64.tbl
-> @@ -322,6 +322,7 @@
->  313	common	finit_module		sys_finit_module
->  314	common	sched_setattr		sys_sched_setattr
->  315	common	sched_getattr		sys_sched_getattr
-> +316	common	vrange			sys_vrange
->  
->  #
->  # x32-specific system call numbers start at 512 to avoid cache impact
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index c1b7414..a1f11da 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -117,6 +117,7 @@ extern unsigned int kobjsize(const void *objp);
->  #define VM_IO           0x00004000	/* Memory mapped I/O or similar */
->  
->  					/* Used by sys_madvise() */
-> +#define VM_VOLATILE	0x00001000	/* VMA is volatile */
->  #define VM_SEQ_READ	0x00008000	/* App will access data sequentially */
->  #define VM_RAND_READ	0x00010000	/* App will not benefit from clustered reads */
->  
-> diff --git a/include/linux/vrange.h b/include/linux/vrange.h
-> new file mode 100644
-> index 0000000..652396b
-> --- /dev/null
-> +++ b/include/linux/vrange.h
-> @@ -0,0 +1,7 @@
-> +#ifndef _LINUX_VRANGE_H
-> +#define _LINUX_VRANGE_H
-> +
-> +#define VRANGE_NONVOLATILE 0
-> +#define VRANGE_VOLATILE 1
-> +
-> +#endif /* _LINUX_VRANGE_H */
-> diff --git a/mm/Makefile b/mm/Makefile
-> index 310c90a..20229e2 100644
-> --- a/mm/Makefile
-> +++ b/mm/Makefile
-> @@ -16,7 +16,7 @@ obj-y			:= filemap.o mempool.o oom_kill.o fadvise.o \
->  			   readahead.o swap.o truncate.o vmscan.o shmem.o \
->  			   util.o mmzone.o vmstat.o backing-dev.o \
->  			   mm_init.o mmu_context.o percpu.o slab_common.o \
-> -			   compaction.o balloon_compaction.o \
-> +			   compaction.o balloon_compaction.o vrange.o \
->  			   interval_tree.o list_lru.o $(mmu-y)
->  
->  obj-y += init-mm.o
-> diff --git a/mm/vrange.c b/mm/vrange.c
-> new file mode 100644
-> index 0000000..acb4356
-> --- /dev/null
-> +++ b/mm/vrange.c
-> @@ -0,0 +1,150 @@
-> +#include <linux/syscalls.h>
-> +#include <linux/vrange.h>
-> +#include <linux/mm_inline.h>
-> +#include <linux/pagemap.h>
-> +#include <linux/rmap.h>
-> +#include <linux/hugetlb.h>
-> +#include <linux/mmu_notifier.h>
-> +#include <linux/mm_inline.h>
-> +#include "internal.h"
-> +
-> +static ssize_t do_vrange(struct mm_struct *mm, unsigned long start,
-> +				unsigned long end, int mode, int *purged)
-> +{
-> +	struct vm_area_struct *vma, *prev;
-> +	unsigned long orig_start = start;
-> +	ssize_t count = 0, ret = 0;
-> +	int lpurged = 0;
-> +
-> +	down_read(&mm->mmap_sem);
-> +
-> +	vma = find_vma_prev(mm, start, &prev);
-> +	if (vma && start > vma->vm_start)
-> +		prev = vma;
-> +
-> +	for (;;) {
-> +		unsigned long new_flags;
-> +		pgoff_t pgoff;
-> +		unsigned long tmp;
-> +
-> +		if (!vma)
-> +			goto out;
-> +
-> +		if (vma->vm_flags & (VM_SPECIAL|VM_LOCKED|VM_MIXEDMAP|
-> +					VM_HUGETLB))
-> +			goto out;
-> +
-> +		/* We don't support volatility on files for now */
-> +		if (vma->vm_file) {
-> +			ret = -EINVAL;
-> +			goto out;
-> +		}
-> +
-> +		new_flags = vma->vm_flags;
-> +
-> +		if (start < vma->vm_start) {
-> +			start = vma->vm_start;
-> +			if (start >= end)
-> +				goto out;
-> +		}
-> +		tmp = vma->vm_end;
-> +		if (end < tmp)
-> +			tmp = end;
-> +
-> +		switch (mode) {
-> +		case VRANGE_VOLATILE:
-> +			new_flags |= VM_VOLATILE;
-> +			break;
-> +		case VRANGE_NONVOLATILE:
-> +			new_flags &= ~VM_VOLATILE;
-> +		}
-> +
-> +		pgoff = vma->vm_pgoff + ((start - vma->vm_start) >> PAGE_SHIFT);
-> +		prev = vma_merge(mm, prev, start, tmp, new_flags,
-> +					vma->anon_vma, vma->vm_file, pgoff,
-> +					vma_policy(vma));
-> +		if (prev)
-> +			goto success;
-> +
-> +		if (start != vma->vm_start) {
-> +			ret = split_vma(mm, vma, start, 1);
-> +			if (ret)
-> +				goto out;
-> +		}
-> +
-> +		if (tmp != vma->vm_end) {
-> +			ret = split_vma(mm, vma, tmp, 0);
-> +			if (ret)
-> +				goto out;
-> +		}
-> +
-> +		prev = vma;
-> +success:
-> +		vma->vm_flags = new_flags;
-> +		*purged = lpurged;
-> +
-> +		/* update count to distance covered so far*/
-> +		count = tmp - orig_start;
-> +
-> +		if (prev && start < prev->vm_end)
-  In which case 'prev' can be NULL? And when start >= prev->vm_end? In all
-the cases I can come up with this condition seems to be true...
+Another NMI handler which from CONFIG_ACPI_APEI_GHES=y, has the same problem too.
+ghes_probe()
+	register_nmi_handler(NMI_LOCAL, ghes_notify_nmi, 0, "ghes");
 
-> +			start = prev->vm_end;
-> +		if (start >= end)
-> +			goto out;
-> +		if (prev)
-  Ditto regarding 'prev'...
+I find it is not easy to change, because:
+e.g.
+ghes_ioremap_init()
+	ghes_ioremap_area = __get_vm_area() -> it will call kmalloc() at last, and we 
+						can not change the general interface. 
 
-> +			vma = prev->vm_next;
-> +		else	/* madvise_remove dropped mmap_sem */
-> +			vma = find_vma(mm, start);
-  The comment regarding madvise_remove() looks bogus...
+And we can not use kmem_cache_alloc()(create a new slab with SLAB_NOTRACK) instead of 
+kmalloc() when the size is variable.
 
-> +	}
-> +out:
-> +	up_read(&mm->mmap_sem);
-> +
-> +	/* report bytes successfully marked, even if we're exiting on error */
-> +	if (count)
-> +		return count;
-> +
-> +	return ret;
-> +}
-> +
-> +SYSCALL_DEFINE4(vrange, unsigned long, start,
-> +		size_t, len, int, mode, int __user *, purged)
-> +{
-> +	unsigned long end;
-> +	struct mm_struct *mm = current->mm;
-> +	ssize_t ret = -EINVAL;
-> +	int p = 0;
-> +
-> +	if (start & ~PAGE_MASK)
-> +		goto out;
-> +
-> +	len &= PAGE_MASK;
-> +	if (!len)
-> +		goto out;
-> +
-> +	end = start + len;
-> +	if (end < start)
-> +		goto out;
-> +
-> +	if (start >= TASK_SIZE)
-> +		goto out;
-> +
-> +	if (purged) {
-> +		/* Test pointer is valid before making any changes */
-> +		if (put_user(p, purged))
-> +			return -EFAULT;
-> +	}
-> +
-> +	ret = do_vrange(mm, start, end, mode, &p);
-> +
-> +	if (purged) {
-> +		if (put_user(p, purged)) {
-> +			/*
-> +			 * This would be bad, since we've modified volatilty
-> +			 * and the change in purged state would be lost.
-> +			 */
-> +			WARN_ONCE(1, "vrange: purge state possibly lost\n");
-> +		}
-> +	}
-> +
-> +out:
-> +	return ret;
-> +}
-								Honza
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+Thanks,
+Xishi Qiu
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
