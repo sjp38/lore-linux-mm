@@ -1,216 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C80C6B00DA
-	for <linux-mm@kvack.org>; Mon, 17 Mar 2014 18:22:43 -0400 (EDT)
-Received: by mail-pa0-f49.google.com with SMTP id lj1so6274134pab.8
-        for <linux-mm@kvack.org>; Mon, 17 Mar 2014 15:22:43 -0700 (PDT)
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-        by mx.google.com with ESMTPS id f8si15902536pbc.28.2014.03.17.15.22.42
+Received: from mail-yh0-f54.google.com (mail-yh0-f54.google.com [209.85.213.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 6ED1A6B00DC
+	for <linux-mm@kvack.org>; Mon, 17 Mar 2014 18:56:38 -0400 (EDT)
+Received: by mail-yh0-f54.google.com with SMTP id f73so6128845yha.27
+        for <linux-mm@kvack.org>; Mon, 17 Mar 2014 15:56:38 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id y67si8699968yhk.76.2014.03.17.15.56.37
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 17 Mar 2014 15:22:42 -0700 (PDT)
-Received: by mail-pa0-f45.google.com with SMTP id kl14so6331725pab.18
-        for <linux-mm@kvack.org>; Mon, 17 Mar 2014 15:22:42 -0700 (PDT)
-Message-ID: <532775AD.90007@linaro.org>
-Date: Mon, 17 Mar 2014 15:22:37 -0700
-From: John Stultz <john.stultz@linaro.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 17 Mar 2014 15:56:37 -0700 (PDT)
+Message-ID: <53277D9F.7070006@oracle.com>
+Date: Mon, 17 Mar 2014 18:56:31 -0400
+From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/3] vrange: Add purged page detection on setting memory
- non-volatile
-References: <1394822013-23804-1-git-send-email-john.stultz@linaro.org> <1394822013-23804-3-git-send-email-john.stultz@linaro.org> <20140317093937.GB2210@quack.suse.cz>
-In-Reply-To: <20140317093937.GB2210@quack.suse.cz>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: mm: kernel BUG at mm/mremap.c:68!
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Johannes Weiner <hannes@cmpxchg.org>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@sr71.net>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Neil Brown <neilb@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Dhaval Giani <dgiani@mozilla.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 03/17/2014 02:39 AM, Jan Kara wrote:
-> On Fri 14-03-14 11:33:32, John Stultz wrote:
->> Users of volatile ranges will need to know if memory was discarded.
->> This patch adds the purged state tracking required to inform userland
->> when it marks memory as non-volatile that some memory in that range
->> was purged and needs to be regenerated.
->>
->> This simplified implementation which uses some of the logic from
->> Minchan's earlier efforts, so credit to Minchan for his work.
->   Some minor comments below...
->
->> Cc: Andrew Morton <akpm@linux-foundation.org>
->> Cc: Android Kernel Team <kernel-team@android.com>
->> Cc: Johannes Weiner <hannes@cmpxchg.org>
->> Cc: Robert Love <rlove@google.com>
->> Cc: Mel Gorman <mel@csn.ul.ie>
->> Cc: Hugh Dickins <hughd@google.com>
->> Cc: Dave Hansen <dave@sr71.net>
->> Cc: Rik van Riel <riel@redhat.com>
->> Cc: Dmitry Adamushko <dmitry.adamushko@gmail.com>
->> Cc: Neil Brown <neilb@suse.de>
->> Cc: Andrea Arcangeli <aarcange@redhat.com>
->> Cc: Mike Hommey <mh@glandium.org>
->> Cc: Taras Glek <tglek@mozilla.com>
->> Cc: Dhaval Giani <dgiani@mozilla.com>
->> Cc: Jan Kara <jack@suse.cz>
->> Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
->> Cc: Michel Lespinasse <walken@google.com>
->> Cc: Minchan Kim <minchan@kernel.org>
->> Cc: linux-mm@kvack.org <linux-mm@kvack.org>
->> Signed-off-by: John Stultz <john.stultz@linaro.org>
->> ---
->>  include/linux/swap.h   | 15 +++++++++++--
->>  include/linux/vrange.h | 13 ++++++++++++
->>  mm/vrange.c            | 57 ++++++++++++++++++++++++++++++++++++++++++++++++++
->>  3 files changed, 83 insertions(+), 2 deletions(-)
->>
->> diff --git a/include/linux/swap.h b/include/linux/swap.h
->> index 46ba0c6..18c12f9 100644
->> --- a/include/linux/swap.h
->> +++ b/include/linux/swap.h
->> @@ -70,8 +70,19 @@ static inline int current_is_kswapd(void)
->>  #define SWP_HWPOISON_NUM 0
->>  #endif
->>  
->> -#define MAX_SWAPFILES \
->> -	((1 << MAX_SWAPFILES_SHIFT) - SWP_MIGRATION_NUM - SWP_HWPOISON_NUM)
->> +
->> +/*
->> + * Purged volatile range pages
->> + */
->> +#define SWP_VRANGE_PURGED_NUM 1
->> +#define SWP_VRANGE_PURGED (MAX_SWAPFILES + SWP_HWPOISON_NUM + SWP_MIGRATION_NUM)
->> +
->> +
->> +#define MAX_SWAPFILES ((1 << MAX_SWAPFILES_SHIFT)	\
->> +				- SWP_MIGRATION_NUM	\
->> +				- SWP_HWPOISON_NUM	\
->> +				- SWP_VRANGE_PURGED_NUM	\
->> +			)
->>  
->>  /*
->>   * Magic header for a swap area. The first part of the union is
->> diff --git a/include/linux/vrange.h b/include/linux/vrange.h
->> index 652396b..c4a1616 100644
->> --- a/include/linux/vrange.h
->> +++ b/include/linux/vrange.h
->> @@ -1,7 +1,20 @@
->>  #ifndef _LINUX_VRANGE_H
->>  #define _LINUX_VRANGE_H
->>  
->> +#include <linux/swap.h>
->> +#include <linux/swapops.h>
->> +
->>  #define VRANGE_NONVOLATILE 0
->>  #define VRANGE_VOLATILE 1
->>  
->> +static inline swp_entry_t swp_entry_mk_vrange_purged(void)
->> +{
->> +	return swp_entry(SWP_VRANGE_PURGED, 0);
->> +}
->> +
->> +static inline int entry_is_vrange_purged(swp_entry_t entry)
->> +{
->> +	return swp_type(entry) == SWP_VRANGE_PURGED;
->> +}
->> +
->>  #endif /* _LINUX_VRANGE_H */
->> diff --git a/mm/vrange.c b/mm/vrange.c
->> index acb4356..844571b 100644
->> --- a/mm/vrange.c
->> +++ b/mm/vrange.c
->> @@ -8,6 +8,60 @@
->>  #include <linux/mm_inline.h>
->>  #include "internal.h"
->>  
->> +struct vrange_walker {
->> +	struct vm_area_struct *vma;
->> +	int pages_purged;
->   Maybe call this 'was_page_purged'? To better suggest the value is bool
-> and not a number of pages... Or make that 'bool' instead of 'int'?
+Hi all,
 
-Yea, page_was_purged sounds good to me. Thanks for pointing out the
-ambiguity.  Similarly the
+While fuzzing with trinity inside a KVM tools guest running latest -next
+kernel I've stumbled on the following:
 
-entry_is_vrange_purged/swp_entry_mk_vrange_purged functions are a little inconsistently named.
+[ 2977.289180] kernel BUG at mm/mremap.c:68!
+[ 2977.290064] invalid opcode: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
+[ 2977.290231] Dumping ftrace buffer:
+[ 2977.290231]    (ftrace buffer empty)
+[ 2977.290231] Modules linked in:
+[ 2977.290231] CPU: 20 PID: 36563 Comm: trinity-c383 Tainted: G        W     3.14.0-rc6-next-20140317-sasha-00012-ge933921-dirty #226
+[ 2977.290231] task: ffff880bf79d3000 ti: ffff880bfb5c8000 task.ti: ffff880bfb5c8000
+[ 2977.290231] RIP:  alloc_new_pmd (mm/mremap.c:68)
+[ 2977.290231] RSP: 0018:ffff880bfb5c9d78  EFLAGS: 00010286
+[ 2977.290231] RAX: 00000004b2a008e7 RBX: ffff880c28ab2000 RCX: ffff880000000000
+[ 2977.290231] RDX: 00003ffffffff000 RSI: ffff880bc678c800 RDI: 00000004b2a008e7
+[ 2977.290231] RBP: ffff880bfb5c9d98 R08: 0000000000000000 R09: 0000000000000000
+[ 2977.290231] R10: 0000000000000001 R11: 00007f9847e76000 R12: ffff880c28ab3000
+[ 2977.290231] R13: ffff880c27a6f000 R14: 0000000000100000 R15: ffff880c16e3b1f0
+[ 2977.290231] FS:  00007f9847c67700(0000) GS:ffff88052ba00000(0000) knlGS:0000000000000000
+[ 2977.290231] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+[ 2977.290231] CR2: 0000000000697280 CR3: 0000000bf79af000 CR4: 00000000000006a0
+[ 2977.290231] DR0: 0000000000698000 DR1: 0000000000698000 DR2: 0000000000000000
+[ 2977.290231] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000600
+[ 2977.290231] Stack:
+[ 2977.290231]  0000000000102000 00007f9847c76000 ffff880bc678c800 0000000000002000
+[ 2977.290231]  ffff880bfb5c9e28 ffffffff812a31a1 0000000000000000 0000000000000282
+[ 2977.290231]  ffff880bfb5c9e08 ffff880504497400 00007f9847e76000 0000000000002000
+[ 2977.290231] Call Trace:
+[ 2977.290231]  move_page_tables (mm/mremap.c:193)
+[ 2977.290231]  move_vma (mm/mremap.c:271)
+[ 2977.290231]  mremap_to (mm/mremap.c:439)
+[ 2977.290231]  ? SyS_mremap (mm/mremap.c:500 mm/mremap.c:470)
+[ 2977.290231]  SyS_mremap (mm/mremap.c:501 mm/mremap.c:470)
+[ 2977.290231]  ? syscall_trace_enter (include/linux/context_tracking.h:27 arch/x86/kernel/ptrace.c:1461)
+[ 2977.290231]  tracesys (arch/x86/kernel/entry_64.S:749)
+[ 2977.290231] Code: 3f 49 8b 3c 24 48 83 3d 43 ae ba 04 00 75 11 0f 0b 0f 1f 80 00 00 00 00 eb fe 66 0f 1f 44 00 00 48 89 f8 66 66 66 90 84 c0 79 15 <0f> 0b 0f 1f 00 eb fe 66 0f 1f 44 00 00 45 31 e4 0f 1f 44 00 00
+[ 2977.290231] RIP  alloc_new_pmd (mm/mremap.c:68)
+[ 2977.290231]  RSP <ffff880bfb5c9d78>
 
 
-
->
->> +};
->> +
->> +static int vrange_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
->> +				struct mm_walk *walk)
->> +{
->> +	struct vrange_walker *vw = walk->private;
->> +	pte_t *pte;
->> +	spinlock_t *ptl;
->> +
->> +	if (pmd_trans_huge(*pmd))
->> +		return 0;
->> +	if (pmd_trans_unstable(pmd))
->> +		return 0;
->> +
->> +	pte = pte_offset_map_lock(walk->mm, pmd, addr, &ptl);
->> +	for (; addr != end; pte++, addr += PAGE_SIZE) {
->> +		if (!pte_present(*pte)) {
->> +			swp_entry_t vrange_entry = pte_to_swp_entry(*pte);
->> +
->> +			if (unlikely(entry_is_vrange_purged(vrange_entry))) {
->> +				vw->pages_purged = 1;
->> +				break;
->> +			}
->> +		}
->> +	}
->> +	pte_unmap_unlock(pte - 1, ptl);
->> +	cond_resched();
->> +
->> +	return 0;
->> +}
->> +
->> +static unsigned long vrange_check_purged(struct mm_struct *mm,
->   What's the point of this function returning ulong when everything else
-> expects 'int'?
-
-Thanks, I'll fix that.
-
->> +					 struct vm_area_struct *vma,
->> +					 unsigned long start,
->> +					 unsigned long end)
->> +{
->> +	struct vrange_walker vw;
->> +	struct mm_walk vrange_walk = {
->> +		.pmd_entry = vrange_pte_range,
->> +		.mm = vma->vm_mm,
->> +		.private = &vw,
->> +	};
->> +	vw.pages_purged = 0;
->> +	vw.vma = vma;
->> +
->> +	walk_page_range(start, end, &vrange_walk);
->> +
->> +	return vw.pages_purged;
->> +
->> +}
->> +
->>  static ssize_t do_vrange(struct mm_struct *mm, unsigned long start,
->>  				unsigned long end, int mode, int *purged)
->>  {
->> @@ -57,6 +111,9 @@ static ssize_t do_vrange(struct mm_struct *mm, unsigned long start,
->>  			break;
->>  		case VRANGE_NONVOLATILE:
->>  			new_flags &= ~VM_VOLATILE;
->> +			lpurged |= vrange_check_purged(mm, vma,
->> +							vma->vm_start,
->> +							vma->vm_end);
->   Hum, why don't you actually just call vrange_check_purge() once for the
-> whole syscall range? walk_page_range() seems to handle multiple vmas just
-> fine...
->
-
-Another good suggestion!
-
-Thanks!
--john
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
