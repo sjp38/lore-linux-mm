@@ -1,60 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A6976B0093
-	for <linux-mm@kvack.org>; Mon, 17 Mar 2014 07:00:32 -0400 (EDT)
-Received: by mail-wi0-f175.google.com with SMTP id cc10so1937219wib.2
-        for <linux-mm@kvack.org>; Mon, 17 Mar 2014 04:00:31 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ep15si9410512wjd.3.2014.03.17.04.00.30
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 17 Mar 2014 04:00:30 -0700 (PDT)
-Date: Mon, 17 Mar 2014 12:00:29 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: non-atomic rss_stat modifications
-Message-ID: <20140317110029.GB4777@dhcp22.suse.cz>
-References: <20140314021745.GA4894@redhat.com>
+Received: from mail-bk0-f54.google.com (mail-bk0-f54.google.com [209.85.214.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 83B696B0098
+	for <linux-mm@kvack.org>; Mon, 17 Mar 2014 07:43:35 -0400 (EDT)
+Received: by mail-bk0-f54.google.com with SMTP id 6so404086bkj.13
+        for <linux-mm@kvack.org>; Mon, 17 Mar 2014 04:43:34 -0700 (PDT)
+Received: from jenni2.inet.fi (mta-out.inet.fi. [195.156.147.13])
+        by mx.google.com with ESMTP id nr7si6181606bkb.159.2014.03.17.04.43.33
+        for <linux-mm@kvack.org>;
+        Mon, 17 Mar 2014 04:43:33 -0700 (PDT)
+Date: Mon, 17 Mar 2014 13:43:21 +0200
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [RFC PATCH] Support map_pages() for DAX
+Message-ID: <20140317114321.GA30191@node.dhcp.inet.fi>
+References: <1394838199-29102-1-git-send-email-toshi.kani@hp.com>
+ <20140314233233.GA8310@node.dhcp.inet.fi>
+ <20140316024613.GF6091@linux.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140314021745.GA4894@redhat.com>
+In-Reply-To: <20140316024613.GF6091@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Jones <davej@redhat.com>
-Cc: linux-mm@kvack.org
+To: Matthew Wilcox <willy@linux.intel.com>
+Cc: Toshi Kani <toshi.kani@hp.com>, kirill.shutemov@linux.intel.com, david@fromorbit.com, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu 13-03-14 22:17:45, Dave Jones wrote:
-> I've been trying to make sense of this message which I keep seeing..
+On Sat, Mar 15, 2014 at 10:46:13PM -0400, Matthew Wilcox wrote:
+> On Sat, Mar 15, 2014 at 01:32:33AM +0200, Kirill A. Shutemov wrote:
+> > Side note: I'm sceptical about whole idea to use i_mmap_mutux to protect
+> > against truncate. It will not scale good enough comparing lock_page()
+> > with its granularity.
 > 
-> BUG: Bad rss-counter state mm:ffff88018bb78000 idx:0 val:1
-> 
-> Looking at the FILEPAGES counter accesses...
-> 
-> $ rgrep FILEPAGES mm
-> mm/filemap_xip.c:			dec_mm_counter(mm, MM_FILEPAGES);
-> mm/oom_kill.c:		K(get_mm_counter(victim->mm, MM_FILEPAGES)));
-> mm/fremap.c:			dec_mm_counter(mm, MM_FILEPAGES);
-> mm/memory.c:					rss[MM_FILEPAGES]++;
-> mm/memory.c:			rss[MM_FILEPAGES]++;
-> mm/memory.c:				rss[MM_FILEPAGES]--;
-> mm/memory.c:					rss[MM_FILEPAGES]--;
-> mm/memory.c:	inc_mm_counter_fast(mm, MM_FILEPAGES);
-> mm/memory.c:				dec_mm_counter_fast(mm, MM_FILEPAGES);
-> mm/memory.c:			inc_mm_counter_fast(mm, MM_FILEPAGES);
-> mm/rmap.c:				dec_mm_counter(mm, MM_FILEPAGES);
-> mm/rmap.c:		dec_mm_counter(mm, MM_FILEPAGES);
-> mm/rmap.c:		dec_mm_counter(mm, MM_FILEPAGES);
-> 
-> 
-> How come we sometimes use the atomic accessors, but in copy_one_pte() and
-> zap_pte_range() we don't ?  Is that safe ?
+> I'm actually working on this now.  The basic idea is to put an entry in
+> the radix tree for each page.  For zero pages, that's a pagecache page.
+> For pages that map to the media, it's an exceptional entry.  Radix tree
+> exceptional entries take two bits, leaving us with 30 or 62 bits depending
+> on sizeof(void *).  We can then take two more bits for Dirty and Lock,
+> leaving 28 or 60 bits that we can use to cache the PFN on the page,
+> meaning that we won't have to call the filesystem's get_block as often.
 
-Those two use a local counter which is then added to the global one. See
-copy_pte_range (resp. zap_pte_range) and add_mm_rss_vec they use.
+Sound reasonable to me. Implementation of ->map_pages should be trivial
+with this.
+
+Few questions:
+ - why would you need Dirty for DAX?
+ - are you sure that 28 bits is enough for PFN everywhere?
+   ARM with LPAE can have up to 40 physical address lines. Is there any
+   32-bit machine with more address lines?
 
 -- 
-Michal Hocko
-SUSE Labs
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
