@@ -1,189 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f46.google.com (mail-qa0-f46.google.com [209.85.216.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C7026B00A4
-	for <linux-mm@kvack.org>; Mon, 17 Mar 2014 11:24:08 -0400 (EDT)
-Received: by mail-qa0-f46.google.com with SMTP id i13so5465438qae.33
-        for <linux-mm@kvack.org>; Mon, 17 Mar 2014 08:24:07 -0700 (PDT)
-Received: from mail-qc0-f181.google.com (mail-qc0-f181.google.com [209.85.216.181])
-        by mx.google.com with ESMTPS id l52si8763409qge.135.2014.03.17.08.24.07
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
+	by kanga.kvack.org (Postfix) with ESMTP id B7B906B00A6
+	for <linux-mm@kvack.org>; Mon, 17 Mar 2014 12:08:00 -0400 (EDT)
+Received: by mail-wi0-f180.google.com with SMTP id hn9so2408069wib.7
+        for <linux-mm@kvack.org>; Mon, 17 Mar 2014 09:07:59 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id t3si5492661wiz.50.2014.03.17.09.07.58
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 17 Mar 2014 08:24:07 -0700 (PDT)
-Received: by mail-qc0-f181.google.com with SMTP id e9so5964751qcy.26
-        for <linux-mm@kvack.org>; Mon, 17 Mar 2014 08:24:07 -0700 (PDT)
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 17 Mar 2014 09:07:59 -0700 (PDT)
+Date: Mon, 17 Mar 2014 17:07:55 +0100
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH RESEND -mm 01/12] memcg: flush cache creation works
+ before memcg cache destruction
+Message-ID: <20140317160755.GB30623@dhcp22.suse.cz>
+References: <cover.1394708827.git.vdavydov@parallels.com>
+ <4cccfcf74595f26532a6dda7264dc420df82fb8a.1394708827.git.vdavydov@parallels.com>
 MIME-Version: 1.0
-In-Reply-To: <20140317144551.GG6091@linux.intel.com>
-References: <1394838199-29102-1-git-send-email-toshi.kani@hp.com>
-	<20140314233233.GA8310@node.dhcp.inet.fi>
-	<20140316024613.GF6091@linux.intel.com>
-	<20140317114321.GA30191@node.dhcp.inet.fi>
-	<20140317144551.GG6091@linux.intel.com>
-Date: Mon, 17 Mar 2014 17:24:07 +0200
-Message-ID: <CAON-v2zuknEAEKRCnCzA+KTEjD8Cq-MukmX6BicZ6zpewsLs2w@mail.gmail.com>
-Subject: Re: [RFC PATCH] Support map_pages() for DAX
-From: Amit Golander <amit@plexistor.com>
-Content-Type: multipart/alternative; boundary=089e0149c39cad973704f4cf027f
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4cccfcf74595f26532a6dda7264dc420df82fb8a.1394708827.git.vdavydov@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@linux.intel.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Toshi Kani <toshi.kani@hp.com>, kirill.shutemov@linux.intel.com, david@fromorbit.com, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, glommer@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, devel@openvz.org
 
---089e0149c39cad973704f4cf027f
-Content-Type: text/plain; charset=ISO-8859-1
+On Thu 13-03-14 19:06:39, Vladimir Davydov wrote:
+> When we get to memcg cache destruction, either from the root cache
+> destruction path or when turning memcg offline, there still might be
+> memcg cache creation works pending that was scheduled before we
+> initiated destruction. We need to flush them before starting to destroy
+> memcg caches, otherwise we can get a leaked kmem cache or, even worse,
+> an attempt to use after free.
 
-On Mon, Mar 17, 2014 at 4:45 PM, Matthew Wilcox <willy@linux.intel.com>wrote:
+How can we use-after-free? Even if there is a pending work item to
+create a new cache then we keep the css reference for the memcg and
+release it from the worker (memcg_create_cache_work_func). So although
+this can race with memcg offlining the memcg itself will be still alive.
 
-> On Mon, Mar 17, 2014 at 01:43:21PM +0200, Kirill A. Shutemov wrote:
-> > On Sat, Mar 15, 2014 at 10:46:13PM -0400, Matthew Wilcox wrote:
-> > > I'm actually working on this now.  The basic idea is to put an entry in
-> > > the radix tree for each page.  For zero pages, that's a pagecache page.
-> > > For pages that map to the media, it's an exceptional entry.  Radix tree
-> > > exceptional entries take two bits, leaving us with 30 or 62 bits
-> depending
-> > > on sizeof(void *).  We can then take two more bits for Dirty and Lock,
-> > > leaving 28 or 60 bits that we can use to cache the PFN on the page,
-> > > meaning that we won't have to call the filesystem's get_block as often.
-> >
-> > Sound reasonable to me. Implementation of ->map_pages should be trivial
-> > with this.
-> >
-> > Few questions:
-> >  - why would you need Dirty for DAX?
->
-> One of the areas ignored by the original XIP code was CPU caches.  Maybe
-> s390 has write-through caches or something, but on x86 we need to write
-> back
-> the lines from the CPU cache to the memory on an msync().  We'll also need
-> to do this for a write(), although that's a SMOP.
->
+> Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Michal Hocko <mhocko@suse.cz>
+> Cc: Glauber Costa <glommer@gmail.com>
+> ---
+>  mm/memcontrol.c |   32 +++++++++++++++++++++++++++++++-
+>  1 file changed, 31 insertions(+), 1 deletion(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 9d489a9e7701..b183aaf1b616 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -2904,6 +2904,7 @@ static DEFINE_MUTEX(set_limit_mutex);
+>  
+>  #ifdef CONFIG_MEMCG_KMEM
+>  static DEFINE_MUTEX(activate_kmem_mutex);
+> +static struct workqueue_struct *memcg_cache_create_wq;
+>  
+>  static inline bool memcg_can_account_kmem(struct mem_cgroup *memcg)
+>  {
+> @@ -3327,6 +3328,15 @@ int __kmem_cache_destroy_memcg_children(struct kmem_cache *s)
+>  	int i, failed = 0;
+>  
+>  	/*
+> +	 * Since the cache is being destroyed, it shouldn't be allocated from
+> +	 * any more, and therefore no new memcg cache creation works could be
+> +	 * scheduled. However, there still might be pending works scheduled
+> +	 * before the cache destruction was initiated. Flush them before
+> +	 * destroying child caches to avoid nasty races.
+> +	 */
+> +	flush_workqueue(memcg_cache_create_wq);
+> +
+> +	/*
+>  	 * If the cache is being destroyed, we trust that there is no one else
+>  	 * requesting objects from it. Even if there are, the sanity checks in
+>  	 * kmem_cache_destroy should caught this ill-case.
+> @@ -3374,6 +3384,15 @@ static void mem_cgroup_destroy_all_caches(struct mem_cgroup *memcg)
+>  	if (!memcg_kmem_is_active(memcg))
+>  		return;
+>  
+> +	/*
+> +	 * By the time we get here, the cgroup must be empty. That said no new
+> +	 * allocations can happen from its caches, and therefore no new memcg
+> +	 * cache creation works can be scheduled. However, there still might be
+> +	 * pending works scheduled before the cgroup was turned offline. Flush
+> +	 * them before destroying memcg caches to avoid nasty races.
+> +	 */
+> +	flush_workqueue(memcg_cache_create_wq);
+> +
+>  	mutex_lock(&memcg->slab_caches_mutex);
+>  	list_for_each_entry(params, &memcg->memcg_slab_caches, list) {
+>  		cachep = memcg_params_to_cache(params);
+> @@ -3418,7 +3437,7 @@ static void __memcg_create_cache_enqueue(struct mem_cgroup *memcg,
+>  	cw->cachep = cachep;
+>  
+>  	INIT_WORK(&cw->work, memcg_create_cache_work_func);
+> -	schedule_work(&cw->work);
+> +	queue_work(memcg_cache_create_wq, &cw->work);
+>  }
+>  
+>  static void memcg_create_cache_enqueue(struct mem_cgroup *memcg,
+> @@ -3621,10 +3640,20 @@ void __memcg_kmem_uncharge_pages(struct page *page, int order)
+>  	VM_BUG_ON_PAGE(mem_cgroup_is_root(memcg), page);
+>  	memcg_uncharge_kmem(memcg, PAGE_SIZE << order);
+>  }
+> +
+> +static void __init memcg_kmem_init(void)
+> +{
+> +	memcg_cache_create_wq = alloc_workqueue("memcg_cache_create", 0, 1);
+> +	BUG_ON(!memcg_cache_create_wq);
+> +}
+>  #else
+>  static inline void mem_cgroup_destroy_all_caches(struct mem_cgroup *memcg)
+>  {
+>  }
+> +
+> +static void __init memcg_kmem_init(void)
+> +{
+> +}
+>  #endif /* CONFIG_MEMCG_KMEM */
+>  
+>  #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+> @@ -7181,6 +7210,7 @@ static int __init mem_cgroup_init(void)
+>  	enable_swap_cgroup();
+>  	mem_cgroup_soft_limit_tree_init();
+>  	memcg_stock_init();
+> +	memcg_kmem_init();
+>  	return 0;
+>  }
+>  subsys_initcall(mem_cgroup_init);
+> -- 
+> 1.7.10.4
+> 
 
-Indeed CLFLUSH has to be used extensively in order to guarantee that the
-data is seen by the memory controller. This adds many instructions to the
-execution path, and more importantly is associated with a substantial
-latency penalty. This sub-optimal behavior derives from the current
-hardware implementation (e.g Intel E5-26xx v2), which does not ADR-protect
-WB caches. Hopefully, in the future, processor vendors will extend the ADR
-protection to the WB caches, which will free us from the need to CLFLUSH.
-
-
-
-> >  - are you sure that 28 bits is enough for PFN everywhere?
-> >    ARM with LPAE can have up to 40 physical address lines. Is there any
-> >    32-bit machine with more address lines?
->
-> It's clearly not enough :-)  My plan is to have a pair of functions
-> pfn_to_rte() and rte_to_pfn() with default implementations that work well
-> on 64-bit and can be overridden by address-space deficient architectures.
-> If rte_to_pfn() returns RTE_PFN_UNKNOWN (which is probably -1), we'll
-> just go off and call get_block and ->direct_access.  This will be a
-> well-tested codepath because it'll be the same as the codepath used the
-> first time we look up a block.
->
-> Architectures can use whatever fancy scheme they like to optimise
-> rte_to_pfn() ... I don't think suggesting that enabling DAX grows
-> the radix tree entries from 32 to 64 bit would be a popular idea, but
-> that'd be something for those architecture maintainers to figure out.
-> I certainly don't care much about an x86-32 kernel with DAX ... I can
-> see it maybe being interesting in a virtualisation environment, but
-> probably not.
->
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-fsdevel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
->
-
---089e0149c39cad973704f4cf027f
-Content-Type: text/html; charset=ISO-8859-1
-Content-Transfer-Encoding: quoted-printable
-
-<div dir=3D"ltr"><br><div class=3D"gmail_extra"><br><br><div class=3D"gmail=
-_quote">On Mon, Mar 17, 2014 at 4:45 PM, Matthew Wilcox <span dir=3D"ltr">&=
-lt;<a href=3D"mailto:willy@linux.intel.com" target=3D"_blank">willy@linux.i=
-ntel.com</a>&gt;</span> wrote:<br>
-<blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1p=
-x #ccc solid;padding-left:1ex"><div class=3D"">On Mon, Mar 17, 2014 at 01:4=
-3:21PM +0200, Kirill A. Shutemov wrote:<br>
-&gt; On Sat, Mar 15, 2014 at 10:46:13PM -0400, Matthew Wilcox wrote:<br>
-</div><div class=3D"">&gt; &gt; I&#39;m actually working on this now. =A0Th=
-e basic idea is to put an entry in<br>
-&gt; &gt; the radix tree for each page. =A0For zero pages, that&#39;s a pag=
-ecache page.<br>
-&gt; &gt; For pages that map to the media, it&#39;s an exceptional entry. =
-=A0Radix tree<br>
-&gt; &gt; exceptional entries take two bits, leaving us with 30 or 62 bits =
-depending<br>
-&gt; &gt; on sizeof(void *). =A0We can then take two more bits for Dirty an=
-d Lock,<br>
-&gt; &gt; leaving 28 or 60 bits that we can use to cache the PFN on the pag=
-e,<br>
-&gt; &gt; meaning that we won&#39;t have to call the filesystem&#39;s get_b=
-lock as often.<br>
-&gt;<br>
-&gt; Sound reasonable to me. Implementation of -&gt;map_pages should be tri=
-vial<br>
-&gt; with this.<br>
-&gt;<br>
-&gt; Few questions:<br>
-&gt; =A0- why would you need Dirty for DAX?<br>
-<br>
-</div>One of the areas ignored by the original XIP code was CPU caches. =A0=
-Maybe<br>
-s390 has write-through caches or something, but on x86 we need to write bac=
-k<br>
-the lines from the CPU cache to the memory on an msync(). =A0We&#39;ll also=
- need<br>
-to do this for a write(), although that&#39;s a SMOP.<br></blockquote><div>=
-<br></div><div>Indeed CLFLUSH has to be used extensively in order to guaran=
-tee that the data is seen by the memory controller. This adds many instruct=
-ions to the execution path, and more importantly is associated with a subst=
-antial latency penalty. This sub-optimal behavior derives from the current =
-hardware implementation (e.g Intel E5-26xx v2), which does not ADR-protect =
-WB caches. Hopefully, in the future, processor vendors will extend the ADR =
-protection to the WB caches, which will free us from the need to CLFLUSH.</=
-div>
-<div><br></div><div><br></div><blockquote class=3D"gmail_quote" style=3D"ma=
-rgin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
-<div class=3D""><br>
-&gt; =A0- are you sure that 28 bits is enough for PFN everywhere?<br>
-&gt; =A0 =A0ARM with LPAE can have up to 40 physical address lines. Is ther=
-e any<br>
-&gt; =A0 =A032-bit machine with more address lines?<br>
-<br>
-</div>It&#39;s clearly not enough :-) =A0My plan is to have a pair of funct=
-ions<br>
-pfn_to_rte() and rte_to_pfn() with default implementations that work well<b=
-r>
-on 64-bit and can be overridden by address-space deficient architectures.<b=
-r>
-If rte_to_pfn() returns RTE_PFN_UNKNOWN (which is probably -1), we&#39;ll<b=
-r>
-just go off and call get_block and -&gt;direct_access. =A0This will be a<br=
->
-well-tested codepath because it&#39;ll be the same as the codepath used the=
-<br>
-first time we look up a block.<br>
-<br>
-Architectures can use whatever fancy scheme they like to optimise<br>
-rte_to_pfn() ... I don&#39;t think suggesting that enabling DAX grows<br>
-the radix tree entries from 32 to 64 bit would be a popular idea, but<br>
-that&#39;d be something for those architecture maintainers to figure out.<b=
-r>
-I certainly don&#39;t care much about an x86-32 kernel with DAX ... I can<b=
-r>
-see it maybe being interesting in a virtualisation environment, but<br>
-probably not.<br>
-<div class=3D"HOEnZb"><div class=3D"h5"><br>
---<br>
-To unsubscribe from this list: send the line &quot;unsubscribe linux-fsdeve=
-l&quot; in<br>
-the body of a message to <a href=3D"mailto:majordomo@vger.kernel.org">major=
-domo@vger.kernel.org</a><br>
-More majordomo info at =A0<a href=3D"http://vger.kernel.org/majordomo-info.=
-html" target=3D"_blank">http://vger.kernel.org/majordomo-info.html</a><br>
-</div></div></blockquote></div><br></div></div>
-
---089e0149c39cad973704f4cf027f--
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
