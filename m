@@ -1,86 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vc0-f178.google.com (mail-vc0-f178.google.com [209.85.220.178])
-	by kanga.kvack.org (Postfix) with ESMTP id C73EF6B003B
-	for <linux-mm@kvack.org>; Sun, 16 Mar 2014 16:21:00 -0400 (EDT)
-Received: by mail-vc0-f178.google.com with SMTP id im17so4831369vcb.23
-        for <linux-mm@kvack.org>; Sun, 16 Mar 2014 13:21:00 -0700 (PDT)
-Received: from mail-ve0-x231.google.com (mail-ve0-x231.google.com [2607:f8b0:400c:c01::231])
-        by mx.google.com with ESMTPS id fb12si2286913veb.176.2014.03.16.13.20.59
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sun, 16 Mar 2014 13:20:59 -0700 (PDT)
-Received: by mail-ve0-f177.google.com with SMTP id sa20so4756819veb.22
-        for <linux-mm@kvack.org>; Sun, 16 Mar 2014 13:20:59 -0700 (PDT)
+Received: from mail-we0-f180.google.com (mail-we0-f180.google.com [74.125.82.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 446956B0038
+	for <linux-mm@kvack.org>; Sun, 16 Mar 2014 22:07:43 -0400 (EDT)
+Received: by mail-we0-f180.google.com with SMTP id p61so4055640wes.11
+        for <linux-mm@kvack.org>; Sun, 16 Mar 2014 19:07:42 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id l14si8694622wjq.66.2014.03.16.19.07.40
+        for <linux-mm@kvack.org>;
+        Sun, 16 Mar 2014 19:07:41 -0700 (PDT)
+References: <1392708338-19685-1-git-send-email-raghavendra.kt@linux.vnet.ibm.com> <20140218094920.GB29660@quack.suse.cz> <53034C66.90707@linux.vnet.ibm.com>
+From: Madper Xie <cxie@redhat.com>
+Subject: Re: [PATCH V6 ] mm readahead: Fix readahead fail for memoryless cpu and limit readahead pages
+In-reply-to: <53034C66.90707@linux.vnet.ibm.com>
+Date: Mon, 17 Mar 2014 10:07:23 +0800
+Message-ID: <871ty1zig4.fsf@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <CAGAzgsqD0aRnDMMyDCUVii6Rv22f97G0irpzFBz4c_ukKsn2hg@mail.gmail.com>
-References: <1392437537-27392-1-git-send-email-dbasehore@chromium.org>
-	<20140218225548.GI31892@mtj.dyndns.org>
-	<20140219092731.GA4849@quack.suse.cz>
-	<20140219190139.GQ10134@htj.dyndns.org>
-	<CAGAzgspTZnUh_qi=FeQ4hS4LRiexPccTyALMg3Gt1K0ZZq_MuQ@mail.gmail.com>
-	<20140316145951.GB26026@htj.dyndns.org>
-	<CAGAzgsqD0aRnDMMyDCUVii6Rv22f97G0irpzFBz4c_ukKsn2hg@mail.gmail.com>
-Date: Sun, 16 Mar 2014 13:20:58 -0700
-Message-ID: <CAGAzgsomQqKMy+1Be5p_HivbMM1poV8vQbG4WxN1h5e-JYLGyA@mail.gmail.com>
-Subject: Re: [PATCH] backing_dev: Fix hung task on sync
-From: "dbasehore ." <dbasehore@chromium.org>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "Darrick J. Wong" <darrick.wong@oracle.com>, Kees Cook <keescook@chromium.org>, linux-fsdevel@vger.kernel.org, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, bleung@chromium.org, sonnyrao@chromium.org, Luigi Semenzato <semenzato@chromium.org>
+To: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
+Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Fengguang Wu <fengguang.wu@intel.com>, David Cohen <david.a.cohen@linux.intel.com>, Al Viro <viro@zeniv.linux.org.uk>, Damien Ramonda <damien.ramonda@intel.com>, rientjes@google.com, Linus <torvalds@linux-foundation.org>, nacc@linux.vnet.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Also, the difference it would make is fix the issue for when a
-delayed_work is used for both immediate work (mod_delayed_work(0)) and
-delayed work.
 
-On Sun, Mar 16, 2014 at 12:13 PM, dbasehore . <dbasehore@chromium.org> wrote:
-> There's already behavior that is somewhat like that with the current
-> implementation. If there's an item on a workqueue, it could run at any
-> time. From the perspective of the driver/etc. that is using the
-> workqueue, there should be no difference between work being on the
-> workqueue and the kernel triggering a schedule right after the work is
-> removed from the workqueue, but before the work function has done
-> anything.
->
-> So to reiterate, calling mod_delayed_work on something that is already
-> in the workqueue has two behaviors. One, the work is dispatched before
-> mod_delayed_work can remove it from the workqueue. Two,
-> mod_delayed_work removes it from the workqueue and sets the timer (or
-> not in the case of 0). The behavior of the proposed change should be
-> no different than the first behavior.
->
-> This should not introduce new behavior from the perspective of the
-> code using delayed_work. It is true that there is a larger window of
-> time between when you call mod_delayed_work and when an already queued
-> work item will run, but I don't believe that matters.
->
-> The API will still make sense since we will only ever mod delayed work
-> but not work that is no longer delayed (on the workqueue).
->
-> On Sun, Mar 16, 2014 at 7:59 AM, Tejun Heo <tj@kernel.org> wrote:
->> On Sat, Mar 15, 2014 at 01:22:53PM -0700, dbasehore . wrote:
->>> mod_delayed_work currently removes a work item from a workqueue if it
->>> is on it. Correct me if I'm wrong, but I don't think that this is
->>> necessarily required for mod_delayed_work to have the current
->>> behavior. We should be able to set the timer while a delayed_work is
->>> currently on a workqueue. If the delayed_work is still on the
->>> workqueue when the timer goes off, everything is fine. If it has left
->>> the workqueue, we can queue it again.
+Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com> writes:
+
+> On 02/18/2014 03:19 PM, Jan Kara wrote:
+>> On Tue 18-02-14 12:55:38, Raghavendra K T wrote:
+>>> Currently max_sane_readahead() returns zero on the cpu having no local memory node
+>>> which leads to readahead failure. Fix the readahead failure by returning
+>>> minimum of (requested pages, 512). Users running application on a memory-less cpu
+>>> which needs readahead such as streaming application see considerable boost in the
+>>> performance.
+>>>
+>>> Result:
+>>> fadvise experiment with FADV_WILLNEED on a PPC machine having memoryless CPU
+>>> with 1GB testfile ( 12 iterations) yielded around 46.66% improvement.
+>>>
+>>> fadvise experiment with FADV_WILLNEED on a x240 machine with 1GB testfile
+>>> 32GB* 4G RAM  numa machine ( 12 iterations) showed no impact on the normal
+>>> NUMA cases w/ patch.
+>>    Can you try one more thing please? Compare startup time of some big
+>> executable (Firefox or LibreOffice come to my mind) for the patched and
+>> normal kernel on a machine which wasn't hit by this NUMA issue. And don't
+>> forget to do "echo 3 >/proc/sys/vm/drop_caches" before each test to flush
+>> the caches. If this doesn't show significant differences, I'm OK with the
+>> patch.
 >>
->> What different would that make w.r.t. this issue?  Plus, please note
->> that a work item may wait non-insignificant amount of time pending if
->> the workqueue is saturated to max_active.  Doing the above would make
->> mod_delayed_work()'s behavior quite fuzzy - the work item is modified
->> or queued to the specified time but if the timer has already expired,
->> the work item may execute after unspecified amount of time which may
->> be shorter than the new timeout.  What kind of interface would that
->> be?
->>
->> Thanks.
->>
->> --
->> tejun
+>
+> Thanks Honza, I checked with firefox (starting to particular point)..
+> I do not see any difference. Both the case took around 14sec.
+>
+>   ( some time it is even faster.. may be because we do not do free page 
+> calculation?. )
+Hi. Just a concern. Will the performance reduce on some special storage
+backend? E.g. tape.
+The existent applications may using readahead for userspace I/O schedule
+to decrease seeking time.
+-- 
+Thanks,
+Madper
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
