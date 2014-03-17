@@ -1,193 +1,360 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f177.google.com (mail-we0-f177.google.com [74.125.82.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 1CA166B0071
-	for <linux-mm@kvack.org>; Mon, 17 Mar 2014 04:51:20 -0400 (EDT)
-Received: by mail-we0-f177.google.com with SMTP id u57so4185384wes.22
-        for <linux-mm@kvack.org>; Mon, 17 Mar 2014 01:51:19 -0700 (PDT)
-Received: from pandora.arm.linux.org.uk (pandora.arm.linux.org.uk. [2001:4d48:ad52:3201:214:fdff:fe10:1be6])
-        by mx.google.com with ESMTPS id h9si9164739wjb.42.2014.03.17.01.51.16
+Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D8C06B0073
+	for <linux-mm@kvack.org>; Mon, 17 Mar 2014 05:21:24 -0400 (EDT)
+Received: by mail-wg0-f45.google.com with SMTP id l18so4250079wgh.4
+        for <linux-mm@kvack.org>; Mon, 17 Mar 2014 02:21:23 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id mb19si4468311wic.24.2014.03.17.02.21.22
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 17 Mar 2014 01:51:17 -0700 (PDT)
-Date: Mon, 17 Mar 2014 08:51:06 +0000
-From: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Subject: Re: Recent 3.x kernels: Memory leak causing OOMs
-Message-ID: <20140317085105.GZ21483@n2100.arm.linux.org.uk>
-References: <20140216200503.GN30257@n2100.arm.linux.org.uk> <alpine.DEB.2.02.1402161406120.26926@chino.kir.corp.google.com> <20140216225000.GO30257@n2100.arm.linux.org.uk> <1392670951.24429.10.camel@sakura.staff.proxad.net> <20140217210954.GA21483@n2100.arm.linux.org.uk> <20140315101952.GT21483@n2100.arm.linux.org.uk> <20140317180748.644d30e2@notabene.brown>
+        Mon, 17 Mar 2014 02:21:22 -0700 (PDT)
+Date: Mon, 17 Mar 2014 10:21:18 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 1/3] vrange: Add vrange syscall and handle
+ splitting/merging and marking vmas
+Message-ID: <20140317092118.GA2210@quack.suse.cz>
+References: <1394822013-23804-1-git-send-email-john.stultz@linaro.org>
+ <1394822013-23804-2-git-send-email-john.stultz@linaro.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140317180748.644d30e2@notabene.brown>
+In-Reply-To: <1394822013-23804-2-git-send-email-john.stultz@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: NeilBrown <neilb@suse.de>
-Cc: linux-raid@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Maxime Bizon <mbizon@freebox.fr>, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, David Rientjes <rientjes@google.com>
+To: John Stultz <john.stultz@linaro.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Johannes Weiner <hannes@cmpxchg.org>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@sr71.net>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Neil Brown <neilb@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Dhaval Giani <dgiani@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Mon, Mar 17, 2014 at 06:07:48PM +1100, NeilBrown wrote:
-> On Sat, 15 Mar 2014 10:19:52 +0000 Russell King - ARM Linux
-> <linux@arm.linux.org.uk> wrote:
+On Fri 14-03-14 11:33:31, John Stultz wrote:
+> This patch introduces the vrange() syscall, which allows for specifying
+> ranges of memory as volatile, and able to be discarded by the system.
 > 
-> > On Mon, Feb 17, 2014 at 09:09:54PM +0000, Russell King - ARM Linux wrote:
-> > > On Mon, Feb 17, 2014 at 10:02:31PM +0100, Maxime Bizon wrote:
-> > > > 
-> > > > On Sun, 2014-02-16 at 22:50 +0000, Russell King - ARM Linux wrote:
-> > > > 
-> > > > > http://www.home.arm.linux.org.uk/~rmk/misc/log-20140208.txt
-> > > > 
-> > > > [<c0064ce0>] (__alloc_pages_nodemask+0x0/0x694) from [<c022273c>] (sk_page_frag_refill+0x78/0x108)
-> > > > [<c02226c4>] (sk_page_frag_refill+0x0/0x108) from [<c026a3a4>] (tcp_sendmsg+0x654/0xd1c)  r6:00000520 r5:c277bae0 r4:c68f37c0
-> > > > [<c0269d50>] (tcp_sendmsg+0x0/0xd1c) from [<c028ca9c>] (inet_sendmsg+0x64/0x70)
-> > > > 
-> > > > FWIW I had OOMs with the exact same backtrace on kirkwood platform
-> > > > (512MB RAM), but sorry I don't have the full dump anymore.
-> > > > 
-> > > > I found a slow leaking process, and since I fixed that leak I now have
-> > > > uptime better than 7 days, *but* there was definitely some memory left
-> > > > when the OOM happened, so it appears to be related to fragmentation.
-> > > 
-> > > However, that's a side effect, not the cause - and a patch has been
-> > > merged to fix that OOM - but that doesn't explain where most of the
-> > > memory has gone!
-> > > 
-> > > I'm presently waiting for the machine to OOM again (it's probably going
-> > > to be something like another month) at which point I'll grab the files
-> > > people have been mentioning (/proc/meminfo, /proc/vmallocinfo,
-> > > /proc/slabinfo etc.)
-> > 
-> > For those new to this report, this is a 3.12.6+ kernel, and I'm seeing
-> > OOMs after a month or two of uptime.
-> > 
-> > Last night, it OOM'd severely again at around 5am... and rebooted soon
-> > after so we've lost any hope of recovering anything useful from the
-> > machine.
-> > 
-> > However, the new kernel re-ran the raid check, and...
-> > 
-> > md: data-check of RAID array md2
-> > md: minimum _guaranteed_  speed: 1000 KB/sec/disk.
-> > md: using maximum available idle IO bandwidth (but not more than 200000 KB/sec)
-> > for data-check.
-> > md: using 128k window, over a total of 4194688k.
-> > md: delaying data-check of md3 until md2 has finished (they share one or more physical units)
-> > md: delaying data-check of md4 until md2 has finished (they share one or more physical units)
-> > md: delaying data-check of md3 until md2 has finished (they share one or more physical units)
-> > md: delaying data-check of md5 until md2 has finished (they share one or more physical units)
-> > md: delaying data-check of md3 until md2 has finished (they share one or more physical units)
-> > md: delaying data-check of md4 until md2 has finished (they share one or more physical units)
-> > md: delaying data-check of md6 until md2 has finished (they share one or more physical units)
-> > md: delaying data-check of md4 until md2 has finished (they share one or more physical units)
-> > md: delaying data-check of md3 until md2 has finished (they share one or more physical units)
-> > md: delaying data-check of md5 until md2 has finished (they share one or more physical units)
-> > md: md2: data-check done.
-> > md: delaying data-check of md5 until md3 has finished (they share one or more physical units)
-> > md: data-check of RAID array md3
-> > md: minimum _guaranteed_  speed: 1000 KB/sec/disk.
-> > md: using maximum available idle IO bandwidth (but not more than 200000 KB/sec)
-> > for data-check.
-> > md: using 128k window, over a total of 524544k.
-> > md: delaying data-check of md4 until md3 has finished (they share one or more physical units)
-> > md: delaying data-check of md6 until md3 has finished (they share one or more physical units)
-> > kmemleak: 836 new suspected memory leaks (see /sys/kernel/debug/kmemleak)
-> > md: md3: data-check done.
-> > md: delaying data-check of md6 until md4 has finished (they share one or more physical units)
-> > md: delaying data-check of md4 until md5 has finished (they share one or more physical units)
-> > md: data-check of RAID array md5
-> > md: minimum _guaranteed_  speed: 1000 KB/sec/disk.
-> > md: using maximum available idle IO bandwidth (but not more than 200000 KB/sec)
-> > for data-check.
-> > md: using 128k window, over a total of 10486080k.
-> > kmemleak: 2235 new suspected memory leaks (see /sys/kernel/debug/kmemleak)
-> > md: md5: data-check done.
-> > md: data-check of RAID array md4
-> > md: minimum _guaranteed_  speed: 1000 KB/sec/disk.
-> > md: using maximum available idle IO bandwidth (but not more than 200000 KB/sec)
-> > for data-check.
-> > md: using 128k window, over a total of 10486080k.
-> > md: delaying data-check of md6 until md4 has finished (they share one or more physical units)
-> > kmemleak: 1 new suspected memory leaks (see /sys/kernel/debug/kmemleak)
-> > md: md4: data-check done.
-> > md: data-check of RAID array md6
-> > md: minimum _guaranteed_  speed: 1000 KB/sec/disk.
-> > md: using maximum available idle IO bandwidth (but not more than 200000 KB/sec)
-> > for data-check.
-> > md: using 128k window, over a total of 10409472k.
-> > kmemleak: 1 new suspected memory leaks (see /sys/kernel/debug/kmemleak)
-> > kmemleak: 3 new suspected memory leaks (see /sys/kernel/debug/kmemleak)
-> > md: md6: data-check done.
-> > kmemleak: 1 new suspected memory leaks (see /sys/kernel/debug/kmemleak)
-> > 
-> > which totals 3077 of leaks.  So we have a memory leak.  Looking at
-> > the kmemleak file:
-> > 
-> > unreferenced object 0xc3c3f880 (size 256):
-> >   comm "md2_resync", pid 4680, jiffies 638245 (age 8615.570s)
-> >   hex dump (first 32 bytes):
-> >     00 00 00 00 00 00 00 00 00 00 00 00 01 00 00 f0  ................
-> >     00 00 00 00 10 00 00 00 00 00 00 00 00 00 00 00  ................
-> >   backtrace:
-> >     [<c008d4f0>] __save_stack_trace+0x34/0x40
-> >     [<c008d5f0>] create_object+0xf4/0x214
-> >     [<c02da114>] kmemleak_alloc+0x3c/0x6c
-> >     [<c008c0d4>] __kmalloc+0xd0/0x124
-> >     [<c00bb124>] bio_alloc_bioset+0x4c/0x1a4
-> >     [<c021206c>] r1buf_pool_alloc+0x40/0x148
-> >     [<c0061160>] mempool_alloc+0x54/0xfc
-> >     [<c0211938>] sync_request+0x168/0x85c
-> >     [<c021addc>] md_do_sync+0x75c/0xbc0
-> >     [<c021b594>] md_thread+0x138/0x154
-> >     [<c0037b48>] kthread+0xb0/0xbc
-> >     [<c0013190>] ret_from_fork+0x14/0x24
-> >     [<ffffffff>] 0xffffffff
-> > 
-> > with 3077 of these in the debug file.  3075 are for "md2_resync" and
-> > two are for "md4_resync".
-> > 
-> > /proc/slabinfo shows for this bucket:
-> > kmalloc-256         3237   3450    256   15    1 : tunables  120   60    0 : slabdata    230    230      0
-> > 
-> > but this would only account for about 800kB of memory usage, which itself
-> > is insignificant - so this is not the whole story.
-> > 
-> > It seems that this is the culpret for the allocations:
-> >         for (j = pi->raid_disks ; j-- ; ) {
-> >                 bio = bio_kmalloc(gfp_flags, RESYNC_PAGES);
-> > 
-> > Since RESYNC_PAGES will be 64K/4K=16, each struct bio_vec is 12 bytes
-> > (12 * 16 = 192) plus the size of struct bio, which would fall into this
-> > bucket.
-> > 
-> > I don't see anything obvious - it looks like it isn't every raid check
-> > which loses bios.  Not quite sure what to make of this right now.
-> > 
+> This initial patch simply adds the syscall, and the vma handling,
+> splitting and merging the vmas as needed, and marking them with
+> VM_VOLATILE.
 > 
-> I can't see anything obvious either.
+> No purging or discarding of volatile ranges is done at this point.
 > 
-> The bios allocated there are stored in a r1_bio and those pointers are never
-> changed.
-> If the r1_bio wasn't freed then when the data-check finished, mempool_destroy
-> would complain that the pool wasn't completely freed.
-> And when the r1_bio is freed, all the bios are put as well.
+> Example man page:
 > 
-> I guess if something was calling bio_get() on the bio, then might stop the
-> bio_put from freeing the memory, but I cannot see anything that would do that.
+> NAME
+> 	vrange - Mark or unmark range of memory as volatile
 > 
-> I've tried testing on a recent mainline kernel and while kmemleak shows about
-> 238 leaks from "swapper/0", there are none related to md or bios.
+> SYNOPSIS
+> 	int vrange(unsigned_long start, size_t length, int mode,
+> 			 int *purged);
 > 
-> I'll let it run a while longer and see if anything pops.
+> DESCRIPTION
+> 	Applications can use vrange(2) to advise the kernel how it should
+> 	handle paging I/O in this VM area.  The idea is to help the kernel
+> 	discard pages of vrange instead of reclaiming when memory pressure
+> 	happens. It means kernel doesn't discard any pages of vrange if
+> 	there is no memory pressure.
+  I'd say that the advantage is kernel doesn't have to swap volatile pages,
+it can just directly discard them on memory pressure. You should also
+mention somewhere vrange() is currently supported only for anonymous pages.
+So maybe we can have the description like:
+Applications can use vrange(2) to advise kernel that pages of anonymous
+mapping in the given VM area can be reclaimed without swapping (or can no
+longer be reclaimed without swapping). The idea is that application can
+help kernel with page reclaim under memory pressure by specifying data
+it can easily regenerate and thus kernel can discard the data if needed.
 
-I think the interesting detail from the above is that seems a little random
-- which suggests some kind of race maybe.  There are three 10G partitions,
-but only one of those leaks two BIOs, but a 4G partition leaked 3075 BIOs.
-md2 is /usr and md4 is /home.  Maybe it's related to other IO happening
-during the check?
+> 	mode:
+> 	VRANGE_VOLATILE
+> 		hint to kernel so VM can discard in vrange pages when
+> 		memory pressure happens.
+> 	VRANGE_NONVOLATILE
+> 		hint to kernel so VM doesn't discard vrange pages
+> 		any more.
+> 
+> 	If user try to access purged memory without VRANGE_NONVOLATILE call,
+                ^^^ tries
 
-The underlying devices for all the raid1s are PATA (IT821x) using the ata
-driver.
+> 	he can encounter SIGBUS if the page was discarded by kernel.
+> 
+> 	purged: Pointer to an integer which will return 1 if
+> 	mode == VRANGE_NONVOLATILE and any page in the affected range
+> 	was purged. If purged returns zero during a mode ==
+> 	VRANGE_NONVOLATILE call, it means all of the pages in the range
+> 	are intact.
+> 
+> RETURN VALUE
+> 	On success vrange returns the number of bytes marked or unmarked.
+> 	Similar to write(), it may return fewer bytes then specified
+> 	if it ran into a problem.
+  I believe you may need to better explain what is 'purged' argument good
+for. Because in my naive understanding *purged == 1 iff return value !=
+length.  I recall your discussion with Johannes about error conditions and
+the need to return error but also the state of the range, is that right?
+But that should be really explained somewhere so that poor application
+programmer is aware of those corner cases as well.
 
+> 
+> 	If an error is returned, no changes were made.
+> 
+> ERRORS
+> 	EINVAL This error can occur for the following reasons:
+> 		* The value length is negative or not page size units.
+> 		* addr is not page-aligned
+> 		* mode not a valid value.
+> 
+> 	ENOMEM Not enough memory
+> 
+> 	EFAULT purged pointer is invalid
+> 
+> This a simplified implementation which reuses some of the logic
+> from Minchan's earlier efforts. So credit to Minchan for his work.
+> 
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Android Kernel Team <kernel-team@android.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Robert Love <rlove@google.com>
+> Cc: Mel Gorman <mel@csn.ul.ie>
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: Dave Hansen <dave@sr71.net>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: Dmitry Adamushko <dmitry.adamushko@gmail.com>
+> Cc: Neil Brown <neilb@suse.de>
+> Cc: Andrea Arcangeli <aarcange@redhat.com>
+> Cc: Mike Hommey <mh@glandium.org>
+> Cc: Taras Glek <tglek@mozilla.com>
+> Cc: Dhaval Giani <dgiani@mozilla.com>
+> Cc: Jan Kara <jack@suse.cz>
+> Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+> Cc: Michel Lespinasse <walken@google.com>
+> Cc: Minchan Kim <minchan@kernel.org>
+> Cc: linux-mm@kvack.org <linux-mm@kvack.org>
+> Signed-off-by: John Stultz <john.stultz@linaro.org>
+  Some minor comments in the patch below...
+
+> ---
+>  arch/x86/syscalls/syscall_64.tbl |   1 +
+>  include/linux/mm.h               |   1 +
+>  include/linux/vrange.h           |   7 ++
+>  mm/Makefile                      |   2 +-
+>  mm/vrange.c                      | 150 +++++++++++++++++++++++++++++++++++++++
+>  5 files changed, 160 insertions(+), 1 deletion(-)
+>  create mode 100644 include/linux/vrange.h
+>  create mode 100644 mm/vrange.c
+> 
+> diff --git a/arch/x86/syscalls/syscall_64.tbl b/arch/x86/syscalls/syscall_64.tbl
+> index a12bddc..7ae3940 100644
+> --- a/arch/x86/syscalls/syscall_64.tbl
+> +++ b/arch/x86/syscalls/syscall_64.tbl
+> @@ -322,6 +322,7 @@
+>  313	common	finit_module		sys_finit_module
+>  314	common	sched_setattr		sys_sched_setattr
+>  315	common	sched_getattr		sys_sched_getattr
+> +316	common	vrange			sys_vrange
+>  
+>  #
+>  # x32-specific system call numbers start at 512 to avoid cache impact
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index c1b7414..a1f11da 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -117,6 +117,7 @@ extern unsigned int kobjsize(const void *objp);
+>  #define VM_IO           0x00004000	/* Memory mapped I/O or similar */
+>  
+>  					/* Used by sys_madvise() */
+> +#define VM_VOLATILE	0x00001000	/* VMA is volatile */
+>  #define VM_SEQ_READ	0x00008000	/* App will access data sequentially */
+>  #define VM_RAND_READ	0x00010000	/* App will not benefit from clustered reads */
+>  
+> diff --git a/include/linux/vrange.h b/include/linux/vrange.h
+> new file mode 100644
+> index 0000000..652396b
+> --- /dev/null
+> +++ b/include/linux/vrange.h
+> @@ -0,0 +1,7 @@
+> +#ifndef _LINUX_VRANGE_H
+> +#define _LINUX_VRANGE_H
+> +
+> +#define VRANGE_NONVOLATILE 0
+> +#define VRANGE_VOLATILE 1
+> +
+> +#endif /* _LINUX_VRANGE_H */
+> diff --git a/mm/Makefile b/mm/Makefile
+> index 310c90a..20229e2 100644
+> --- a/mm/Makefile
+> +++ b/mm/Makefile
+> @@ -16,7 +16,7 @@ obj-y			:= filemap.o mempool.o oom_kill.o fadvise.o \
+>  			   readahead.o swap.o truncate.o vmscan.o shmem.o \
+>  			   util.o mmzone.o vmstat.o backing-dev.o \
+>  			   mm_init.o mmu_context.o percpu.o slab_common.o \
+> -			   compaction.o balloon_compaction.o \
+> +			   compaction.o balloon_compaction.o vrange.o \
+>  			   interval_tree.o list_lru.o $(mmu-y)
+>  
+>  obj-y += init-mm.o
+> diff --git a/mm/vrange.c b/mm/vrange.c
+> new file mode 100644
+> index 0000000..acb4356
+> --- /dev/null
+> +++ b/mm/vrange.c
+> @@ -0,0 +1,150 @@
+> +#include <linux/syscalls.h>
+> +#include <linux/vrange.h>
+> +#include <linux/mm_inline.h>
+> +#include <linux/pagemap.h>
+> +#include <linux/rmap.h>
+> +#include <linux/hugetlb.h>
+> +#include <linux/mmu_notifier.h>
+> +#include <linux/mm_inline.h>
+> +#include "internal.h"
+> +
+> +static ssize_t do_vrange(struct mm_struct *mm, unsigned long start,
+> +				unsigned long end, int mode, int *purged)
+> +{
+> +	struct vm_area_struct *vma, *prev;
+> +	unsigned long orig_start = start;
+> +	ssize_t count = 0, ret = 0;
+> +	int lpurged = 0;
+> +
+> +	down_read(&mm->mmap_sem);
+> +
+> +	vma = find_vma_prev(mm, start, &prev);
+> +	if (vma && start > vma->vm_start)
+> +		prev = vma;
+> +
+> +	for (;;) {
+> +		unsigned long new_flags;
+> +		pgoff_t pgoff;
+> +		unsigned long tmp;
+> +
+> +		if (!vma)
+> +			goto out;
+> +
+> +		if (vma->vm_flags & (VM_SPECIAL|VM_LOCKED|VM_MIXEDMAP|
+> +					VM_HUGETLB))
+> +			goto out;
+> +
+> +		/* We don't support volatility on files for now */
+> +		if (vma->vm_file) {
+> +			ret = -EINVAL;
+> +			goto out;
+> +		}
+> +
+> +		new_flags = vma->vm_flags;
+> +
+> +		if (start < vma->vm_start) {
+> +			start = vma->vm_start;
+> +			if (start >= end)
+> +				goto out;
+> +		}
+> +		tmp = vma->vm_end;
+> +		if (end < tmp)
+> +			tmp = end;
+> +
+> +		switch (mode) {
+> +		case VRANGE_VOLATILE:
+> +			new_flags |= VM_VOLATILE;
+> +			break;
+> +		case VRANGE_NONVOLATILE:
+> +			new_flags &= ~VM_VOLATILE;
+> +		}
+> +
+> +		pgoff = vma->vm_pgoff + ((start - vma->vm_start) >> PAGE_SHIFT);
+> +		prev = vma_merge(mm, prev, start, tmp, new_flags,
+> +					vma->anon_vma, vma->vm_file, pgoff,
+> +					vma_policy(vma));
+> +		if (prev)
+> +			goto success;
+> +
+> +		if (start != vma->vm_start) {
+> +			ret = split_vma(mm, vma, start, 1);
+> +			if (ret)
+> +				goto out;
+> +		}
+> +
+> +		if (tmp != vma->vm_end) {
+> +			ret = split_vma(mm, vma, tmp, 0);
+> +			if (ret)
+> +				goto out;
+> +		}
+> +
+> +		prev = vma;
+> +success:
+> +		vma->vm_flags = new_flags;
+> +		*purged = lpurged;
+> +
+> +		/* update count to distance covered so far*/
+> +		count = tmp - orig_start;
+> +
+> +		if (prev && start < prev->vm_end)
+  In which case 'prev' can be NULL? And when start >= prev->vm_end? In all
+the cases I can come up with this condition seems to be true...
+
+> +			start = prev->vm_end;
+> +		if (start >= end)
+> +			goto out;
+> +		if (prev)
+  Ditto regarding 'prev'...
+
+> +			vma = prev->vm_next;
+> +		else	/* madvise_remove dropped mmap_sem */
+> +			vma = find_vma(mm, start);
+  The comment regarding madvise_remove() looks bogus...
+
+> +	}
+> +out:
+> +	up_read(&mm->mmap_sem);
+> +
+> +	/* report bytes successfully marked, even if we're exiting on error */
+> +	if (count)
+> +		return count;
+> +
+> +	return ret;
+> +}
+> +
+> +SYSCALL_DEFINE4(vrange, unsigned long, start,
+> +		size_t, len, int, mode, int __user *, purged)
+> +{
+> +	unsigned long end;
+> +	struct mm_struct *mm = current->mm;
+> +	ssize_t ret = -EINVAL;
+> +	int p = 0;
+> +
+> +	if (start & ~PAGE_MASK)
+> +		goto out;
+> +
+> +	len &= PAGE_MASK;
+> +	if (!len)
+> +		goto out;
+> +
+> +	end = start + len;
+> +	if (end < start)
+> +		goto out;
+> +
+> +	if (start >= TASK_SIZE)
+> +		goto out;
+> +
+> +	if (purged) {
+> +		/* Test pointer is valid before making any changes */
+> +		if (put_user(p, purged))
+> +			return -EFAULT;
+> +	}
+> +
+> +	ret = do_vrange(mm, start, end, mode, &p);
+> +
+> +	if (purged) {
+> +		if (put_user(p, purged)) {
+> +			/*
+> +			 * This would be bad, since we've modified volatilty
+> +			 * and the change in purged state would be lost.
+> +			 */
+> +			WARN_ONCE(1, "vrange: purge state possibly lost\n");
+> +		}
+> +	}
+> +
+> +out:
+> +	return ret;
+> +}
+								Honza
 -- 
-FTTC broadband for 0.8mile line: now at 9.7Mbps down 460kbps up... slowly
-improving, and getting towards what was expected from it.
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
