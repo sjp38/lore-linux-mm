@@ -1,65 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f179.google.com (mail-we0-f179.google.com [74.125.82.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 459766B0092
-	for <linux-mm@kvack.org>; Mon, 17 Mar 2014 06:42:24 -0400 (EDT)
-Received: by mail-we0-f179.google.com with SMTP id x48so4320981wes.38
-        for <linux-mm@kvack.org>; Mon, 17 Mar 2014 03:42:23 -0700 (PDT)
+Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A6976B0093
+	for <linux-mm@kvack.org>; Mon, 17 Mar 2014 07:00:32 -0400 (EDT)
+Received: by mail-wi0-f175.google.com with SMTP id cc10so1937219wib.2
+        for <linux-mm@kvack.org>; Mon, 17 Mar 2014 04:00:31 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l3si4613515wiz.32.2014.03.17.03.42.22
+        by mx.google.com with ESMTPS id ep15si9410512wjd.3.2014.03.17.04.00.30
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 17 Mar 2014 03:42:22 -0700 (PDT)
-Date: Mon, 17 Mar 2014 11:42:20 +0100
+        Mon, 17 Mar 2014 04:00:30 -0700 (PDT)
+Date: Mon, 17 Mar 2014 12:00:29 +0100
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: kmemcheck: OS boot failed because NMI handlers access the memory
- tracked by kmemcheck
-Message-ID: <20140317104220.GA7774@dhcp22.suse.cz>
-References: <5326BE25.9090201@huawei.com>
- <20140317095141.GA4777@dhcp22.suse.cz>
- <5326C690.4090107@oracle.com>
+Subject: Re: non-atomic rss_stat modifications
+Message-ID: <20140317110029.GB4777@dhcp22.suse.cz>
+References: <20140314021745.GA4894@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <5326C690.4090107@oracle.com>
+In-Reply-To: <20140314021745.GA4894@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vegard Nossum <vegard.nossum@oracle.com>
-Cc: Xishi Qiu <qiuxishi@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Peter Zijlstra <peterz@infradead.org>, David Rientjes <rientjes@google.com>, Vegard Nossum <vegard.nossum@gmail.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Li Zefan <lizefan@huawei.com>
+To: Dave Jones <davej@redhat.com>
+Cc: linux-mm@kvack.org
 
-On Mon 17-03-14 10:55:28, Vegard Nossum wrote:
-> On 03/17/2014 10:51 AM, Michal Hocko wrote:
-> >On Mon 17-03-14 17:19:33, Xishi Qiu wrote:
-> >>OS boot failed when set cmdline kmemcheck=1. The reason is that
-> >>NMI handlers will access the memory from kmalloc(), this will cause
-> >>page fault, because memory from kmalloc() is tracked by kmemcheck.
-> >>
-> >>watchdog_nmi_enable()
-> >>	perf_event_create_kernel_counter()
-> >>		perf_event_alloc()
-> >>			event = kzalloc(sizeof(*event), GFP_KERNEL);
-> >
-> >Where is this path called from an NMI context?
-> >
-> >Your trace bellow points at something else and it doesn't seem to
-> >allocate any memory either. It looks more like x86_perf_event_update
-> >sees an invalid perf_event or something like that...
-> >
+On Thu 13-03-14 22:17:45, Dave Jones wrote:
+> I've been trying to make sense of this message which I keep seeing..
 > 
-> It's not important that the kzalloc() is called from NMI context, it's
-> important that the memory that was allocated is touched (read/written) from
-> NMI context.
-
-OK, I see. I thought that kzalloc already touches that memory but my
-knowledge of kmemcheck is basically zero...
-
-Anyway, sorry for the noise.
- 
-> I'm currently looking into the possibility of handling recursive faults in
-> kmemcheck (using the approach outlined by peterz; see
-> https://lkml.org/lkml/2014/2/26/141).
+> BUG: Bad rss-counter state mm:ffff88018bb78000 idx:0 val:1
+> 
+> Looking at the FILEPAGES counter accesses...
+> 
+> $ rgrep FILEPAGES mm
+> mm/filemap_xip.c:			dec_mm_counter(mm, MM_FILEPAGES);
+> mm/oom_kill.c:		K(get_mm_counter(victim->mm, MM_FILEPAGES)));
+> mm/fremap.c:			dec_mm_counter(mm, MM_FILEPAGES);
+> mm/memory.c:					rss[MM_FILEPAGES]++;
+> mm/memory.c:			rss[MM_FILEPAGES]++;
+> mm/memory.c:				rss[MM_FILEPAGES]--;
+> mm/memory.c:					rss[MM_FILEPAGES]--;
+> mm/memory.c:	inc_mm_counter_fast(mm, MM_FILEPAGES);
+> mm/memory.c:				dec_mm_counter_fast(mm, MM_FILEPAGES);
+> mm/memory.c:			inc_mm_counter_fast(mm, MM_FILEPAGES);
+> mm/rmap.c:				dec_mm_counter(mm, MM_FILEPAGES);
+> mm/rmap.c:		dec_mm_counter(mm, MM_FILEPAGES);
+> mm/rmap.c:		dec_mm_counter(mm, MM_FILEPAGES);
 > 
 > 
-> Vegard
+> How come we sometimes use the atomic accessors, but in copy_one_pte() and
+> zap_pte_range() we don't ?  Is that safe ?
+
+Those two use a local counter which is then added to the global one. See
+copy_pte_range (resp. zap_pte_range) and add_mm_rss_vec they use.
 
 -- 
 Michal Hocko
