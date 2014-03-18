@@ -1,51 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id C4BE46B010E
-	for <linux-mm@kvack.org>; Tue, 18 Mar 2014 13:26:43 -0400 (EDT)
-Received: by mail-pd0-f176.google.com with SMTP id r10so7369621pdi.21
-        for <linux-mm@kvack.org>; Tue, 18 Mar 2014 10:26:43 -0700 (PDT)
-Received: from qmta07.emeryville.ca.mail.comcast.net (qmta07.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:64])
-        by mx.google.com with ESMTP id xk4si11775583pbc.5.2014.03.18.10.26.42
-        for <linux-mm@kvack.org>;
-        Tue, 18 Mar 2014 10:26:42 -0700 (PDT)
-Date: Tue, 18 Mar 2014 12:26:40 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [Lsf] [LSF/MM TOPIC] Testing Large-Memory Hardware
-In-Reply-To: <20140318165059.GI22095@laptop.programming.kicks-ass.net>
-Message-ID: <alpine.DEB.2.10.1403181224000.23935@nuc>
-References: <5328753B.2050107@intel.com> <20140318165059.GI22095@laptop.programming.kicks-ass.net>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-ve0-f169.google.com (mail-ve0-f169.google.com [209.85.128.169])
+	by kanga.kvack.org (Postfix) with ESMTP id ED8496B010F
+	for <linux-mm@kvack.org>; Tue, 18 Mar 2014 13:53:03 -0400 (EDT)
+Received: by mail-ve0-f169.google.com with SMTP id pa12so7674108veb.0
+        for <linux-mm@kvack.org>; Tue, 18 Mar 2014 10:53:03 -0700 (PDT)
+Received: from mail-vc0-f171.google.com (mail-vc0-f171.google.com [209.85.220.171])
+        by mx.google.com with ESMTPS id u5si2808966vdo.148.2014.03.18.10.53.03
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 18 Mar 2014 10:53:03 -0700 (PDT)
+Received: by mail-vc0-f171.google.com with SMTP id lg15so7632972vcb.2
+        for <linux-mm@kvack.org>; Tue, 18 Mar 2014 10:53:03 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20140318122425.GD3191@dhcp22.suse.cz>
+References: <1394822013-23804-1-git-send-email-john.stultz@linaro.org>
+	<20140318122425.GD3191@dhcp22.suse.cz>
+Date: Tue, 18 Mar 2014 10:53:03 -0700
+Message-ID: <CALAqxLU30YQs9PQaybWnTXOkVWGVX2Y7zOSLJH3Y4YSq_KDp3Q@mail.gmail.com>
+Subject: Re: [PATCH 0/3] Volatile Ranges (v11)
+From: John Stultz <john.stultz@linaro.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Dave Hansen <dave.hansen@intel.com>, lsf@lists.linux-foundation.org, Linux-MM <linux-mm@kvack.org>, Wu Fengguang <fengguang.wu@intel.com>, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Johannes Weiner <hannes@cmpxchg.org>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@sr71.net>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Neil Brown <neilb@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Dhaval Giani <dgiani@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Tue, 18 Mar 2014, Peter Zijlstra wrote:
-
-> > My gut reaction was that we'd probably be better served by putting
-> > resources in to systems with higher core counts rather than lots of RAM.
-> >  I have encountered the occasional boot bug on my 1TB system, but it's
-> > far from a frequent occurrence, and even more infrequent to encounter
-> > things at runtime.
-> >
-> > Would folks agree with that?  What kinds of tests, benchmarks, stress
-> > tests, etc... do folks run that are both valuable and can only be run on
-> > a system with a large amount of actual RAM?
+On Tue, Mar 18, 2014 at 5:24 AM, Michal Hocko <mhocko@suse.cz> wrote:
+> On Fri 14-03-14 11:33:30, John Stultz wrote:
+> [...]
+>> Volatile ranges provides a method for userland to inform the kernel that
+>> a range of memory is safe to discard (ie: can be regenerated) but
+>> userspace may want to try access it in the future.  It can be thought of
+>> as similar to MADV_DONTNEED, but that the actual freeing of the memory
+>> is delayed and only done under memory pressure, and the user can try to
+>> cancel the action and be able to quickly access any unpurged pages. The
+>> idea originated from Android's ashmem, but I've since learned that other
+>> OSes provide similar functionality.
 >
-> We had a sched-numa + kvm fail on really large systems the other day,
-> but yeah in general such problems tend to be rare. Then again, without
-> test coverage they will always be rare, for even if there were problems,
-> nobody would notice :-)
+> Maybe I have missed something (I've only glanced through the patches)
+> but it seems that marking a range volatile doesn't alter neither
+> reference bits nor position in the LRU. I thought that a volatile page
+> would be moved to the end of inactive LRU with the reference bit
+> dropped. Or is this expectation wrong and volatility is not supposed to
+> touch page aging?
 
-SGI had systems out there up to few PB of RAM. There were a couple of
-tricks to get this going. Bootup time was pretty long. I/O has to be done
-carefully. The MM subsystem used to work with these sizes (I have not had
-a chance to verify that recently).
+Hrmm. So you're right, I had talked about how we'd end up purging
+pages in a range together (as opposed to just randomly) because the
+pages would have been marked together. On this pass, I was trying to
+avoid touching all the pages on every operation, but I'll try to add
+the referencing to keep it consistent with what was discussed (and
+we'll get a sense of the performance impact).
 
-This was Itanium with 64K page size so you had a factor of 16 less page
-structs to process. What I saw there is one of the reasons why I would
-like to see larger page support in the kernel. Managing massive amounts of
-4k pages is creation far too much overhead.
+Though subtleties like this are still open for discussion. For
+instance, Minchan would like to see the volatile pages moved to the
+front of the LRU instead of the back.
+
+thanks
+-john
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
