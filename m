@@ -1,66 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id C53736B0112
-	for <linux-mm@kvack.org>; Tue, 18 Mar 2014 13:55:28 -0400 (EDT)
-Received: by mail-pa0-f47.google.com with SMTP id lj1so7650750pab.34
-        for <linux-mm@kvack.org>; Tue, 18 Mar 2014 10:55:28 -0700 (PDT)
-Received: from mail-pb0-f53.google.com (mail-pb0-f53.google.com [209.85.160.53])
-        by mx.google.com with ESMTPS id zt8si1326549pbc.255.2014.03.18.10.55.27
+Received: from mail-ve0-f182.google.com (mail-ve0-f182.google.com [209.85.128.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 389666B0114
+	for <linux-mm@kvack.org>; Tue, 18 Mar 2014 14:07:51 -0400 (EDT)
+Received: by mail-ve0-f182.google.com with SMTP id jw12so7601508veb.13
+        for <linux-mm@kvack.org>; Tue, 18 Mar 2014 11:07:50 -0700 (PDT)
+Received: from mail-vc0-f169.google.com (mail-vc0-f169.google.com [209.85.220.169])
+        by mx.google.com with ESMTPS id sq9si2824773vdc.71.2014.03.18.11.07.50
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 18 Mar 2014 10:55:27 -0700 (PDT)
-Received: by mail-pb0-f53.google.com with SMTP id rp16so7570194pbb.26
-        for <linux-mm@kvack.org>; Tue, 18 Mar 2014 10:55:27 -0700 (PDT)
-Message-ID: <5328888C.7030402@mit.edu>
-Date: Tue, 18 Mar 2014 10:55:24 -0700
-From: Andy Lutomirski <luto@amacapital.net>
+        Tue, 18 Mar 2014 11:07:50 -0700 (PDT)
+Received: by mail-vc0-f169.google.com with SMTP id ik5so7746576vcb.14
+        for <linux-mm@kvack.org>; Tue, 18 Mar 2014 11:07:50 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [RFC 0/6] mm: support madvise(MADV_FREE)
-References: <1394779070-8545-1-git-send-email-minchan@kernel.org>
-In-Reply-To: <1394779070-8545-1-git-send-email-minchan@kernel.org>
+In-Reply-To: <20140318151113.GA10724@gmail.com>
+References: <1394822013-23804-1-git-send-email-john.stultz@linaro.org>
+	<20140318151113.GA10724@gmail.com>
+Date: Tue, 18 Mar 2014 11:07:50 -0700
+Message-ID: <CALAqxLV=uRV825taKrnH2=p_kAf5f1PbQ7=J5MopFt9ATj=a3A@mail.gmail.com>
+Subject: Re: [PATCH 0/3] Volatile Ranges (v11)
+From: John Stultz <john.stultz@linaro.org>
 Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, John Stultz <john.stultz@linaro.org>, Jason Evans <je@fb.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Johannes Weiner <hannes@cmpxchg.org>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@sr71.net>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Neil Brown <neilb@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On 03/13/2014 11:37 PM, Minchan Kim wrote:
-> This patch is an attempt to support MADV_FREE for Linux.
-> 
-> Rationale is following as.
-> 
-> Allocators call munmap(2) when user call free(3) if ptr is
-> in mmaped area. But munmap isn't cheap because it have to clean up
-> all pte entries, unlinking a vma and returns free pages to buddy
-> so overhead would be increased linearly by mmaped area's size.
-> So they like madvise_dontneed rather than munmap.
-> 
-> "dontneed" holds read-side lock of mmap_sem so other threads
-> of the process could go with concurrent page faults so it is
-> better than munmap if it's not lack of address space.
-> But the problem is that most of allocator reuses that address
-> space soonish so applications see page fault, page allocation,
-> page zeroing if allocator already called madvise_dontneed
-> on the address space.
-> 
-> For avoidng that overheads, other OS have supported MADV_FREE.
-> The idea is just mark pages as lazyfree when madvise called
-> and purge them if memory pressure happens. Otherwise, VM doesn't
-> detach pages on the address space so application could use
-> that memory space without above overheads.
+On Tue, Mar 18, 2014 at 8:11 AM, Minchan Kim <minchan@kernel.org> wrote:
+> 1) SIGBUS
+>
+> It's one of the arguable issue because some user want to get a
+> SIGBUS(ex, Firefox) while other want a just zero page(ex, Google
+> address sanitizer) without signal so it should be option.
+>
+>         int vrange(start, len, VRANGE_VOLATILE|VRANGE_ZERO, &purged);
+>         int vrange(start, len, VRANGE_VOLATILE|VRANGE_SIGNAL, &purged);
 
-I must be missing something.
+So, the zero-fill on volatile access feels like a *very* special case
+to me, since a null page could be valid data in many cases. Since
+support/interest for volatile ranges has been middling at best, I want
+to start culling the stranger use cases. I'm open in the future to
+adding a special flag or something if it really make sense, but at
+this point, lets just get the more general volatile range use cases
+supported.
 
-If the application issues MADV_FREE and then writes to the MADV_FREEd
-range, the kernel needs to know that the pages are no longer safe to
-lazily free.  This would presumably happen via a page fault on write.
-For that to happen reliably, the kernel has to write protect the pages
-when MADV_FREE is called, which in turn requires flushing the TLBs.
 
-How does this end up being faster than munmap?
+> 2) Accouting
+>
+> The one of problem I have thought is lack of accouting of vrange pages.
+> I mean we need some statistics for vrange pages and it should be number
+> of pages rather than vma size. Without that, user space couldn't see
+> current status and then they couldn't control the system's memory
+> consumption. It's alredy known problem for other OS which have support
+> similar thing(ex, MADV_FREE).
+>
+> For accouting, we should account how many of existing pages are the range
+> when vrange syscall is called. It could increase syscall overhead
+> but user could have accurate statistics information. It's just trade-off.
 
---Andy
+Agreed. As I've been looking at handling anonymous page aging on
+swapless systems, the naive method causes performance issues as we
+scan and scan and scan the anonymous list trying to page things out to
+nowhere. Providing the number of volatile pages would allow the
+scanning to stop at a sensible time.
+
+> 3) Aging
+>
+> I think vrange pages should be discarded eariler than other hot pages
+> so want to move pages to tail of inactive LRU when syscall is called.
+> We could do by using deactivate_page with some tweak while we accouts
+> pages in syscall context.
+>
+> But if user want to treat vrange pages with other hot pages equally
+> he could ask so that we could skip deactivating.
+>
+>         vrange(start, len, VRANGE_VOLATILE|VRANGE_ZERO|VRANGE_AGING, &purged)
+>         or
+>         vrange(start, len, VRANGE_VOLATILE|VRANGE_SIGNAL|VRANGE_AGING, &purged)
+>
+> It could be convenient for Moz usecase if they want to age vrange
+> pages.
+
+Again, I want to keep the scope small for now, so I'd rather not add
+more options just yet. I think we should come up with a sensable
+default and give that time to be used, and if there need to be more
+options later, we can open those up. I think activating on volatile
+(so the pages are purged together) is the right default approach, but
+I'm open to discuss this further.
+
+
+> 4) Permanency
+>
+> Like MCL_FUTURE of mlockall, it would be better to make the range
+> have permanent property until called VRANGE_NOVOLATILE.
+> I mean pages faulted on the range in future since syscall is called
+> should be volatile automatically so that user could avoid frequent
+> syscall to make them volatile.
+
+I'm not sure I followed this. Is this with respect to the issue of
+unmapped holes in the range?
+
+thanks
+-john
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
