@@ -1,259 +1,209 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f172.google.com (mail-we0-f172.google.com [74.125.82.172])
-	by kanga.kvack.org (Postfix) with ESMTP id D521C6B00F7
-	for <linux-mm@kvack.org>; Tue, 18 Mar 2014 06:41:53 -0400 (EDT)
-Received: by mail-we0-f172.google.com with SMTP id t61so5730109wes.31
-        for <linux-mm@kvack.org>; Tue, 18 Mar 2014 03:41:53 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ax8si11815444wjc.157.2014.03.18.03.41.51
+Received: from mail-la0-f50.google.com (mail-la0-f50.google.com [209.85.215.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 09F7E6B00FA
+	for <linux-mm@kvack.org>; Tue, 18 Mar 2014 08:15:01 -0400 (EDT)
+Received: by mail-la0-f50.google.com with SMTP id y1so4778715lam.9
+        for <linux-mm@kvack.org>; Tue, 18 Mar 2014 05:15:01 -0700 (PDT)
+Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
+        by mx.google.com with ESMTPS id w9si13393996laj.230.2014.03.18.05.14.59
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 18 Mar 2014 03:41:51 -0700 (PDT)
-Message-ID: <532822EE.2080607@suse.cz>
-Date: Tue, 18 Mar 2014 11:41:50 +0100
-From: Vlastimil Babka <vbabka@suse.cz>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 18 Mar 2014 05:15:00 -0700 (PDT)
+Message-ID: <532838C2.4050303@parallels.com>
+Date: Tue, 18 Mar 2014 16:14:58 +0400
+From: Vladimir Davydov <vdavydov@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/3] mm: munlock: fix a bug where THP tail page is encountered
-References: <52AE07B4.4020203@oracle.com> <1387188856-21027-1-git-send-email-vbabka@suse.cz> <1387188856-21027-2-git-send-email-vbabka@suse.cz> <52AFA845.3060109@oracle.com> <52B04AD2.2070406@suse.cz> <532396E7.6000400@oracle.com> <5323C3B5.4060602@oracle.com> <5326ECD8.20107@suse.cz> <53276452.7040906@oracle.com> <53277549.5000008@suse.cz> <53277E06.6090905@oracle.com>
-In-Reply-To: <53277E06.6090905@oracle.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [PATCH RESEND -mm 02/12] memcg: fix race in memcg cache destruction
+ path
+References: <cover.1394708827.git.vdavydov@parallels.com> <94fc308b9074e45a2aac7a06cf357a33c5d97c9f.1394708827.git.vdavydov@parallels.com> <20140317164203.GC30623@dhcp22.suse.cz> <53280174.1040507@parallels.com> <20140318100147.GC3191@dhcp22.suse.cz>
+In-Reply-To: <20140318100147.GC3191@dhcp22.suse.cz>
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>, Bob Liu <bob.liu@oracle.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, joern@logfs.org, Michel Lespinasse <walken@google.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, glommer@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, devel@openvz.org
 
-On 03/17/2014 11:58 PM, Sasha Levin wrote:
-> On 03/17/2014 06:20 PM, Vlastimil Babka wrote:
->> On 17.3.2014 22:08, Sasha Levin wrote:
->>> On 03/17/2014 08:38 AM, Vlastimil Babka wrote:
->>>> On 03/15/2014 04:06 AM, Sasha Levin wrote:
->>>>> On 03/14/2014 07:55 PM, Sasha Levin wrote:
->>>>>> On 12/17/2013 08:00 AM, Vlastimil Babka wrote:
->>>>>>> From: Vlastimil Babka<vbabka@suse.cz>
->>>>>>> Date: Fri, 13 Dec 2013 14:25:21 +0100
->>>>>>> Subject: [PATCH 1/3] mm: munlock: fix a bug where THP tail page is encountered
->>>>>>>
->>>>>>> Since commit ff6a6da60 ("mm: accelerate munlock() treatment of THP pages")
->>>>>>> munlock skips tail pages of a munlocked THP page. However, when the head page
->>>>>>> already has PageMlocked unset, it will not skip the tail pages.
->>>>>>>
->>>>>>> Commit 7225522bb ("mm: munlock: batch non-THP page isolation and
->>>>>>> munlock+putback using pagevec") has added a PageTransHuge() check which
->>>>>>> contains VM_BUG_ON(PageTail(page)). Sasha Levin found this triggered using
->>>>>>> trinity, on the first tail page of a THP page without PageMlocked flag.
->>>>>>>
->>>>>>> This patch fixes the issue by skipping tail pages also in the case when
->>>>>>> PageMlocked flag is unset. There is still a possibility of race with THP page
->>>>>>> split between clearing PageMlocked and determining how many pages to skip.
->>>>>>> The race might result in former tail pages not being skipped, which is however
->>>>>>> no longer a bug, as during the skip the PageTail flags are cleared.
->>>>>>>
->>>>>>> However this race also affects correctness of NR_MLOCK accounting, which is to
->>>>>>> be fixed in a separate patch.
->>>>>>
->>>>>> I've hit the same thing again, on the latest -next, this time with a different trace:
->>>>>>
->>>>>> [  539.199120] page:ffffea0013249a80 count:0 mapcount:1 mapping:          (null) index:0x0
->>>>>> [  539.200429] page flags: 0x12fffff80008000(tail)
->>>>>> [  539.201167] ------------[ cut here ]------------
->>>>>> [  539.201889] kernel BUG at include/linux/page-flags.h:415!
->>>>>> [  539.202859] invalid opcode: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
->>>>>> [  539.204588] Dumping ftrace buffer:
->>>>>> [  539.206415]    (ftrace buffer empty)
->>>>>> [  539.207022] Modules linked in:
->>>>>> [  539.207503] CPU: 3 PID: 18262 Comm: trinity-c228 Tainted: G        W 3.14.0-rc6-next-20140313-sasha-00010-gb8c1db1-dirty #217
->>>>>> [  539.209012] task: ffff880627b10000 ti: ffff8805a44c2000 task.ti: ffff8805a44c2000
->>>>>> [  539.209989] RIP:  munlock_vma_pages_range+0x93/0x1d0 (include/linux/page-flags.h:415 mm/mlock.c:494)
->>>>>> [  539.210263] RSP: 0000:ffff8805a44c3e08  EFLAGS: 00010246
->>>>>> [  539.210263] RAX: ffff88052ae126a0 RBX: 000000000006a000 RCX: 0000000000000099
->>>>>> [  539.210263] RDX: 0000000000000000 RSI: ffff880627b10cf0 RDI: 0000000004c926a0
->>>>>> [  539.210263] RBP: ffff8805a44c3ec8 R08: 0000000000000001 R09: 0000000000000001
->>>>>> [  539.210263] R10: 0000000000000001 R11: 0000000000000001 R12: ffffea0013249a80
->>>>>> [  539.210263] R13: ffff88039dc95a00 R14: 000000000006b000 R15: ffff8805a44c3e94
->>>>>> [  539.210263] FS:  00007fd6ce14a700(0000) GS:ffff88042b800000(0000) knlGS:0000000000000000
->>>>>> [  539.210263] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
->>>>>> [  539.210263] CR2: 00007fd6ce0ef6ac CR3: 00000006025cd000 CR4: 00000000000006a0
->>>>>> [  539.210263] DR0: 0000000000698000 DR1: 0000000000000000 DR2: 0000000000000000
->>>>>> [  539.210263] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000600
->>>>>> [  539.210263] Stack:
->>>>>> [  539.210263]  0000000000000000 0000000000000000 00018805a44c3e38 0000000000000000
->>>>>> [  539.210263]  0000000000000000 ffff88039dc95a00 00000000a44c3e88 0000000000000000
->>>>>> [  539.210263]  00ff8805a44c3e58 ffff880528f0a0f0 ffff8805a44c3eb8 ffff88039dc95a00
->>>>>> [  539.210263] Call Trace:
->>>>>> [  539.210263]  do_munmap+0x1d2/0x360 (mm/internal.h:168 mm/mmap.c:2547)
->>>>>> [  539.210263]  ? down_write+0xa6/0xc0 (kernel/locking/rwsem.c:51)
->>>>>> [  539.210263]  ? vm_munmap+0x46/0x80 (mm/mmap.c:2571)
->>>>>> [  539.210263]  vm_munmap+0x54/0x80 (mm/mmap.c:2572)
->>>>>> [  539.210263]  SyS_munmap+0x2c/0x40 (mm/mmap.c:2577)
->>>>>> [  539.210263]  tracesys+0xdd/0xe2 (arch/x86/kernel/entry_64.S:749)
->>>>>> [  539.210263] Code: ff 49 89 c4 48 85 c0 0f 84 f3 00 00 00 48 3d 00 f0 ff ff 0f 87 e7 00 00 00 48 8b 00 66 85 c0 79 17 31 f6 4c 89 e7 e8 4d d2 fc ff <0f> 0b 0f 1f 00 eb fe 66 0f 1f 44 00 00 49 8b 04 24 f6 c4 40 74
->>>>>> [  539.210263] RIP  munlock_vma_pages_range+0x93/0x1d0 (include/linux/page-flags.h:415 mm/mlock.c:494)
->>>>>> [  539.210263]  RSP <ffff8805a44c3e08>
->>>>>> [  539.236666] ---[ end trace 4e90dc9141579181 ]---
->>>>>>
->>>>>>
->>>>>> Thanks,
->>>>>> Sasha
->>>>>
->>>>> And another related trace:
->>>>>
->>>>> [  741.192502] kernel BUG at mm/mlock.c:528!
->>>>> [  741.193088] invalid opcode: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
->>>>> [  741.194177] Dumping ftrace buffer:
->>>>> [  741.194645]    (ftrace buffer empty)
->>>>> [  741.195109] Modules linked in:
->>>>> [  741.195728] CPU: 23 PID: 19908 Comm: trinity-c264 Tainted: G        W     3.14.0-rc6-next-20140314-sasha-00012-g5590866 #219
->>>>> [  741.197549] task: ffff88061fc2b000 ti: ffff8805decb8000 task.ti: ffff8805decb8000
->>>>> [  741.198548] RIP:  munlock_vma_pages_range+0x176/0x1d0 (mm/mlock.c:528)
->>>>> [  741.199754] RSP: 0018:ffff8805decb9e08  EFLAGS: 00010206
->>>>> [  741.200085] RAX: 00000000000001ff RBX: 0000000000111000 RCX: 0000000000000000
->>>>> [  741.200085] RDX: 0000000000000111 RSI: ffffffff81295fdd RDI: ffffffff84490705
->>>>> [  741.200085] RBP: ffff8805decb9ec8 R08: 0000000000000000 R09: 0000000000000000
->>>>> [  741.200085] R10: 0000000000000001 R11: 0000000000000000 R12: fffffffffffffff2
->>>>> [  741.200085] R13: ffff880221044e00 R14: 0000000000112000 R15: ffff8805decb9e94
->>>>> [  741.200085] FS:  00007f4bec6bc700(0000) GS:ffff88082ba00000(0000) knlGS:0000000000000000
->>>>> [  741.200085] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
->>>>> [  741.200085] CR2: 0000000003109a98 CR3: 00000005decaf000 CR4: 00000000000006a0
->>>>> [  741.200085] Stack:
->>>>> [  741.200085]  0000000000000000 0000000000000000 00018805decb9e38 0000000000000000
->>>>> [  741.200085]  0000000000000000 ffff880221044e00 00000000decb9e88 0000000000000000
->>>>> [  741.200085]  00ff8805decb9e58 ffff880ff376f450 ffff8805decb9eb8 ffff880221044e00
->>>>> [  741.200085] Call Trace:
->>>>> [  741.200085]  do_munmap+0x1d2/0x360 (mm/internal.h:168 mm/mmap.c:2547)
->>>>> [  741.200085]  ? down_write+0xa6/0xc0 (kernel/locking/rwsem.c:51)
->>>>> [  741.200085]  ? vm_munmap+0x46/0x80 (mm/mmap.c:2571)
->>>>> [  741.200085]  vm_munmap+0x54/0x80 (mm/mmap.c:2572)
->>>>> [  741.200085]  SyS_munmap+0x2c/0x40 (mm/mmap.c:2577)
->>>>> [  741.200085]  tracesys+0xdd/0xe2 (arch/x86/kernel/entry_64.S:749)
->>>>> [  741.200085] Code: fd ff ff 4c 89 e6 48 89 c3 48 8d bd 40 ff ff ff e8 80 fa ff ff eb 2f 66 0f 1f 44 00 00 8b 45 cc 48 89 da 48 c1 ea 0c 85 d0 74 12 <0f> 0b 0f 1f 84 00 00 00 00 00 eb fe 66 0f 1f 44 00 00 ff c0 48
->>>>> [  741.200085] RIP  munlock_vma_pages_range+0x176/0x1d0 (mm/mlock.c:528)
->>>>> [  741.200085]  RSP <ffff8805decb9e08>
->>>>
->>>> Sigh, again? I really wonder what is it this time :)
->>>> Please try this debug patch, hopefully we learn something:
->>>>
->>>> diff --git a/mm/mlock.c b/mm/mlock.c
->>>> index 4e1a6816..7094bac 100644
->>>> --- a/mm/mlock.c
->>>> +++ b/mm/mlock.c
->>>> @@ -469,12 +469,14 @@ static unsigned long __munlock_pagevec_fill(struct pagevec *pvec,
->>>>    void munlock_vma_pages_range(struct vm_area_struct *vma,
->>>>                     unsigned long start, unsigned long end)
->>>>    {
->>>> +    unsigned long orig_start = start;
->>>> +    unsigned long page_increm = 0;
->>>> +
->>>>        vma->vm_flags &= ~VM_LOCKED;
->>>>
->>>>        while (start < end) {
->>>>            struct page *page = NULL;
->>>>            unsigned int page_mask;
->>>> -        unsigned long page_increm;
->>>>            struct pagevec pvec;
->>>>            struct zone *zone;
->>>>            int zoneid;
->>>> @@ -491,6 +493,24 @@ void munlock_vma_pages_range(struct vm_area_struct *vma,
->>>>                    &page_mask);
->>>>
->>>>            if (page && !IS_ERR(page)) {
->>>> +            if (PageTail(page)) {
->>>> +                struct page *first_page;
->>>> +                dump_page(page, "Unexpected PageTail");
->>>> +                printk("start=%lu pfn=%lu orig_start=%lu "
->>>> +                       "page_increm=%lu "
->>>> +                       "vm_start=%lu vm_end=%lu vm_flags=%lu\n",
->>>> +                    start, page_to_pfn(page), orig_start,
->>>> +                    page_increm,
->>>> +                    vma->vm_start, vma->vm_end,
->>>> +                    vma->vm_flags);
->>>> +                first_page = page->first_page;
->>>> +                printk("first_page pfn=%lu\n",
->>>> +                        page_to_pfn(first_page));
->>>> +                dump_page(first_page, "first_page of unexpected PageTail page");
->>>> +                if (PageCompound(first_page))
->>>> +                    printk("first_page is compound with order=%d\n", compound_order(first_page));
->>>> +                VM_BUG_ON(true);
->>>> +            }
->>>>                if (PageTransHuge(page)) {
->>>>                    lock_page(page);
->>>>                    /*
->>>> @@ -525,7 +545,25 @@ void munlock_vma_pages_range(struct vm_area_struct *vma,
->>>>                }
->>>>            }
->>>>            /* It's a bug to munlock in the middle of a THP page */
->>>> -        VM_BUG_ON((start >> PAGE_SHIFT) & page_mask);
->>>> +        if ((start >> PAGE_SHIFT) & page_mask) {
->>>> +            dump_page(page, "unexpected middle of THP page");
->>>> +            printk("start=%lu pfn=%lu orig_start=%lu "
->>>
->>> In this scenario page might be error or NULL, no?
->>>
+On 03/18/2014 02:01 PM, Michal Hocko wrote:
+> On Tue 18-03-14 12:19:00, Vladimir Davydov wrote:
+>> On 03/17/2014 08:42 PM, Michal Hocko wrote:
+>>> On Thu 13-03-14 19:06:40, Vladimir Davydov wrote:
+>>>> We schedule memcg cache shrink+destruction work (memcg_params::destroy)
+>>>> from two places: when we turn memcg offline
+>>>> (mem_cgroup_destroy_all_caches) and when the last page of the cache is
+>>>> freed (memcg_params::nr_pages reachs zero, see memcg_release_pages,
+>>>> mem_cgroup_destroy_cache).
+>>> This is just ugly! Why do we mem_cgroup_destroy_all_caches from the
+>>> offline code at all? Just calling kmem_cache_shrink and then wait for
+>>> the last pages to go away should be sufficient to fix this, no?
+>> The problem is kmem_cache_shrink() can take the slab_mutex, and we
+>> iterate over memcg caches to be destroyed under the memcg's
+>> slab_caches_mutex, which is nested into the slab_mutex (see
+>> mem_cgroup_destroy_all_caches()). So we can't call kmem_cache_shrink()
+>> there directly due to lockdep. That's what all that trickery with using
+>> the same work for both cache shrinking and destruction is for. I agree
+>> this is ugly and somewhat difficult to understand. Let me share my
+>> thoughts on this problem.
+> Nothing prevents mem_cgroup_destroy_all_caches to call kmem_cache_shrink
+> from the workqueue context, no? And then we can move all caches which
+> still have some pages to the parent memcg
+
+Currently, when reparenting memcg caches (see patch 11), I move memcg
+caches from the memcg_slab_caches list of the memcg being offlined to
+its parent under both memcg's slab_caches_mutexes held - this makes
+synchronization with kmem_cache_destroy easier. However, if we could
+take the reference to the root cache there protecting it from being
+destroyed, I guess we could safely release memcg::slab_caches_mutex
+between removal the caches from the old list (of the memcg being
+destroyed) and inserting them to the new list (parent). That said, you
+must be right. It seems that introducing full-fledged refcounting for
+kmem_caches would simplify the code a lot.
+
+> + update back-pointers from respective page_cgroups.
+
+As Johannes mentioned, we don't need page_cgroups for kmem pages since
+we can track kmem objects through page->slab_cache, and this set gets
+rid of them (patch 7).
+
+>> First, why do we need to call kmem_cache_shrink() there at all? AFAIU,
+>> this is because most of memcg caches must be empty by the time the memcg
+>> is destroyed, but since there are some pages left on the caches for
+>> performance reasons, and those pages hold cache references
+>> (kmem_cache::memcg_params::nr_pages) preventing it from being destroyed,
+>> we try to shrink them to get rid of empty caches. If shrink fails (i.e.
+>> the memcg cache is not empty) the cache will be pending for good in the
+>> current implementation (until someone calls the shrink manually at
+>> least). Glauber intended to fix the issue with pending caches by reaping
+>> them on vmpressure, but he didn't have enough time to complete this,
+>> unfortunately.
 >>
->> Hm I doubt page_mask would be nonzero in such case, but who knows what weirdness causes this...
->> Feel free to move the dump_page() below printk() so we still get useful info before it crashes on
->> dump_page() in such situation.
+>> But why do we get cache references per slab?
+> I guess this is natural from the charging point of view. It is also less
+> intrusive because this is a slow path.
 >
-> It happened once, so I moved it, but in the meanwhile I got something useful:
->
-> [ 1753.907376] page:ffffea0017130c40 count:0 mapcount:1 mapping:          (null) index:0x2
-> [ 1753.908327] page flags: 0x16fffff80008000(tail)
-> [ 1753.908973] page dumped because: Unexpected PageTail
-> [ 1753.909595] start=140340826935296 pfn=6048817 orig_start=140340826935296 page_increm=0 vm_start=140340826935296 vm_end=140340826939392 vm_flags=1210057078
+>> I mean why do we inc the
+>> cache refcounter (kmem_cache::memcg_params::nr_pages currently) when
+>> allocating a slab, not an individual object? If we took the reference to
+>> the cache per individual object, we would not have to call
+>> kmem_cache_shrink() on memcg offline - if the cache is empty it will be
+>> destroyed immediately then, because its refcounter reaches 0, otherwise
+>> we could leave it hanging around for a while and only try to shrink it
+>> on vmpressure when we really need free mem. That would make the
+>> destroy_work straightforward - it would simply call kmem_cache_destroy()
+>> and that's it.
+>>
+>> I guess I foresee the answer to the question I've just raised - using a
+>> per cache refcounter and taking it on each alloc/free would hurt
+>> scalability too much. However, we could use percpu refcounter to
+>> overcome this, couldn't we?
+> I am afraid this would still be too invasive for the fast path. That
+> would be a question for slab guys though.
 
-A VMA spanning a single page (4096 bytes), which appears to be part of 
-THP page (and also is not aligned to its beginning).
-The VMA flags are: VM_WRITE,VM_EXEC,VM_MAYREAD,VM_MAYWRITE,VM_MAYEXEC
-- where's VM_READ, while there's VM_EXEC?
-more interesting: VM_GROWSDOWN,VM_NORESERVE,VM_SOFTDIRTY,VM_NOHUGEPAGE
+Yeah, that's bothering me too. I guess I'll try to send it as RFC in a
+separate patch to get more feedback, because this would be a great
+simplification, IMO.
 
-Seems to me it's not possible to allocate a vma with such combination of 
-flags, especially the VM_GROWSDOWN seems to be stack-only. So it's 
-possible that the vma is corrupted. Could it be related to the vma caching?
+>> There is one more argument for taking the cache refcount on a per-object
+>> (not per-slab) basis. There seems to be a race in kmem allocation path.
+>> The point is there is a time window between we get the cache to allocate
+>> from (memcg_kmem_get_cache()) and the actual allocating from the cache
+>> (see slab_alloc_node()). Actually, nothing prevents the cache from going
+>> away in this time window
+> By "the cache" you mean the memcg variant or the global one?
 
-> [ 1753.911220] first_page pfn=6048768
-> [ 1753.911692] page:ffffea0017130000 count:2 mapcount:1 mapping:ffff880612b41f01 index:0x7fa3a5200
-> [ 1753.912733] page flags: 0x16fffff80384028(uptodate|lru|head|swapbacked|unevictable|mlocked)
-> [ 1753.913464] page dumped because: first_page of unexpected PageTail page
-> [ 1753.914387] pc:ffff88062adcc000 pc->flags:2 pc->mem_cgroup:ffff88012b474520
-> [ 1753.914387] first_page is compound with order=9
-> [ 1753.914387] ------------[ cut here ]------------
-> [ 1753.914387] kernel BUG at mm/mlock.c:512!
-> [ 1753.914387] invalid opcode: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
-> [ 1753.914387] Dumping ftrace buffer:
-> [ 1753.914387]    (ftrace buffer empty)
-> [ 1753.914387] Modules linked in:
-> [ 1753.914387] CPU: 26 PID: 36822 Comm: trinity-c337 Tainted: G        W     3.14.0-rc6-next-20140317-sasha-00012-ge933921-dirty #226
-> [ 1753.914387] task: ffff88090cdeb000 ti: ffff88090a868000 task.ti: ffff88090a868000
-> [ 1753.914387] RIP: 0010:[<ffffffff8129ca7a>]  [<ffffffff8129ca7a>] munlock_vma_pages_range+0x12a/0x340
-> [ 1753.914387] RSP: 0018:ffff88090a869dd8  EFLAGS: 00010292
-> [ 1753.914387] RAX: 0000000000000023 RBX: ffffea0017130000 RCX: 0000000000000006
-> [ 1753.914387] RDX: 0000000000000006 RSI: ffff88090cdebcf0 RDI: 0000000000000282
-> [ 1753.914387] RBP: ffff88090a869ec8 R08: 0000000000000001 R09: 0000000000000001
-> [ 1753.914387] R10: 0000000000000001 R11: 0000000000000001 R12: 00007fa3a5231000
-> [ 1753.914387] R13: ffff880613c69400 R14: 0000160000000000 R15: 0000000000000000
-> [ 1753.914387] FS:  00007fa3a9081700(0000) GS:ffff880b2ba00000(0000) knlGS:0000000000000000
-> [ 1753.914387] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-> [ 1753.914387] CR2: 0000000002fff0a8 CR3: 00000008fa08d000 CR4: 00000000000006a0
-> [ 1753.914387] Stack:
-> [ 1753.914387]  00007fa3a5232000 0000000048200176 00007fa3a552a000 ffff880613c6a800
-> [ 1753.914387]  00007fa3a552a000 00007fa3a5231000 0000000000000000 0000000000000000
-> [ 1753.914387]  000188090a869e38 0000000000000000 0000000000000000 ffff880613c69400
-> [ 1753.914387] Call Trace:
-> [ 1753.914387]  [<ffffffff812a0302>] do_munmap+0x1d2/0x360
-> [ 1753.914387]  [<ffffffff844a42e6>] ? down_write+0xa6/0xc0
-> [ 1753.914387]  [<ffffffff812a04d6>] ? vm_munmap+0x46/0x80
-> [ 1753.914387]  [<ffffffff812a04e4>] vm_munmap+0x54/0x80
-> [ 1753.914387]  [<ffffffff812a053c>] SyS_munmap+0x2c/0x40
-> [ 1753.914387]  [<ffffffff844b04d0>] tracesys+0xdd/0xe2
-> [ 1753.914387] Code: 85 48 89 df e8 98 d0 fc ff 66 f7 03 00 c0 74 1b 48 8b 03 31 f6 f6 c4 40 74 03 8b 73 68 48 c7 c7 58 7d 6e 85 31 c0 e8 52 1f 20 03 <0f> 0b 0f 1f 40 00 eb fe 66 0f 1f 44 00 00 48 8b 03 66 85 c0 79
-> [ 1753.914387] RIP  [<ffffffff8129ca7a>] munlock_vma_pages_range+0x12a/0x340
-> [ 1753.914387]  RSP <ffff88090a869dd8>
+memcg one
+
+>> - the task can change its cgroup and the former cgroup can be taken
+>> offline resulting in the cache destruction.
+> With a proper synchronization this shouldn't be a big deal I suppose.
+> kmem_cache_create_memcg should check that the memcg is still alive. We
+> mark caches dead and we would need something like that per-memcg as well
+> during css_offline (after all memcg_slab_caches were shrunk). The create
+> worker would then back off and fail when trying to register the cache.
+
+Let's consider the following scenario:
+
+1) A process inside a memcg calls kmem_cache_alloc(). Suppose the
+memcg's cache already exists and is empty.
+2) kmem_cache_alloc() calls memcg_kmem_get_cache(), which returns the
+pointer to the memcg cache to allocate from.
+3) At this time, the process is moved out of the memcg, and the memcg is
+destroyed along with its empty caches.
+4) The process then proceeds to an object allocation from the cache it
+was given by memcg_kmem_get_cache() on step 2, but the cache was freed.
+
+Does it make sense?
+
+>> This is very unlikely, but still possible.
+>> A similar problem with freeing
+>> objects - currently we might continue using a cache after we actually
+>> freed the last object and dropped the reference - look at
+>> kmem_freepages(), there we dereference the cache pointer after calling
+>> memcg_release_pages(), which drops the cache reference.
+> This sounds like an ordering issue. memcg_release_pages should be called
+> as the last. I do not see why the ordering was done this way.
+
+Fixing ordering only in this function wouldn't solve the problem
+completely. Look at slab's cache_free_alien() - it unlocks
+cachep->node[nodeid].list_lock after calling free_block() that might
+schedule the cache destruction. I mean the problem is that
+kmem_freepages and __free_slab(), which issue memcg_release_pages(), are
+not necessarily the last functions using the cache - the code issuing
+them may still want to touch the cache.
+
+>> The latter is
+>> more-or-less easy to fix though by ensuring we always drop the reference
+>> after we stopped using the cache, but this would imply heavy intrusion
+>> into slab internals AFAIU, which is bad. OTOH if we took the cache
+>> reference per allocated object, these problems would be resolved
+>> automatically and clearly.
+>>
+>> I haven't included that in this set, because I tried not to blow it too
+>> much, I just wanted to introduce cache reparenting, in the meanwhile
+>> fixing only those issues that had become really painful. Not sure if it
+>> was the right decision though :-/
+> I would really prefer to go with simplifications first and build
+> reparenting on top of that.
+
+Agree, but first we need to come to agreement about what simplifications
+we should go with.
+
+IMO, the most confusing part of kmemcg is how memcg cache
+creation/destruction is handled. I mean all those synchronization tricks
+between kmem_cache_destroy, kmem_cache_create of root cache, memcg
+cache, etc. I think we would benefit if we introduced fully-fledged
+refcounting for kmem caches. This would also solve the problems first
+three patches of this set address.
+
+Next, as I've already mentioned we can handle kmem w/o using
+page_cgroups provided we don't charge kmalloc large allocations. See
+patches 7-10 - they remove ~270 lines of code while adding only ~70.
+When looking at those patches now, I start to think it would be better
+if I sent them first in a separate set.
+
+Currently, nothing else springs to my mind. I guess I need to think a
+bit more...
+
+Thanks.
+
+>> Anyway, I would appreciate if you could share your thoughts about that.
+>>
+>>> Whether the current code is good (no it's not) is another question. But
+>>> this should be fixed also in the stable trees (is the bug there since
+>>> the very beginning?) so the fix should be as simple as possible IMO.
+>>> So if there is a simpler solution I would prefer it. But I am drowning
+>>> in the kmem trickiness spread out all over the place so I might be
+>>> missing something very easily.
+>> Frankly, I'm not bothering about stable trees by now, because I don't
+>> think anybody is using kmemcg since w/o fs cache shrinking it looks
+>> pretty useless. May be, I'm wrong :-/
+> OK, it is all opt-in so there shouldn't be any harm for those who do not
+> use the feature which makes it less urgent but I can still imagine that
+> somebody might want to use the feature even on older kernels.
 >
->
-> Thanks,
-> Sasha
->
+> You are right that the feature is really dubious without proper
+> shrinking. Which was btw. my objection at the time when we have
+> discussed that at LSF (before it got merged).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
