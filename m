@@ -1,56 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 52BCE6B00E8
-	for <linux-mm@kvack.org>; Tue, 18 Mar 2014 03:08:01 -0400 (EDT)
-Received: by mail-pd0-f176.google.com with SMTP id r10so6676165pdi.35
-        for <linux-mm@kvack.org>; Tue, 18 Mar 2014 00:08:01 -0700 (PDT)
-Received: from e23smtp02.au.ibm.com (e23smtp02.au.ibm.com. [202.81.31.144])
-        by mx.google.com with ESMTPS id f1si17016280pbn.76.2014.03.18.00.07.59
+Received: from mail-pb0-f52.google.com (mail-pb0-f52.google.com [209.85.160.52])
+	by kanga.kvack.org (Postfix) with ESMTP id B9F7C6B00EA
+	for <linux-mm@kvack.org>; Tue, 18 Mar 2014 03:36:22 -0400 (EDT)
+Received: by mail-pb0-f52.google.com with SMTP id rr13so6910583pbb.11
+        for <linux-mm@kvack.org>; Tue, 18 Mar 2014 00:36:22 -0700 (PDT)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTPS id dg5si16709357pbc.187.2014.03.18.00.36.19
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 18 Mar 2014 00:08:00 -0700 (PDT)
-Received: from /spool/local
-	by e23smtp02.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <raghavendra.kt@linux.vnet.ibm.com>;
-	Tue, 18 Mar 2014 17:07:56 +1000
-Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
-	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 6BBB72BB0056
-	for <linux-mm@kvack.org>; Tue, 18 Mar 2014 18:07:53 +1100 (EST)
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s2I6lgut20185216
-	for <linux-mm@kvack.org>; Tue, 18 Mar 2014 17:47:44 +1100
-Received: from d23av03.au.ibm.com (localhost [127.0.0.1])
-	by d23av03.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s2I77pKU004889
-	for <linux-mm@kvack.org>; Tue, 18 Mar 2014 18:07:51 +1100
-Message-ID: <5327F218.1000506@linux.vnet.ibm.com>
-Date: Tue, 18 Mar 2014 12:43:28 +0530
-From: Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>
+        Tue, 18 Mar 2014 00:36:21 -0700 (PDT)
+Message-ID: <5327F75F.1010406@huawei.com>
+Date: Tue, 18 Mar 2014 15:35:59 +0800
+From: Jianguo Wu <wujianguo@huawei.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH V6 ] mm readahead: Fix readahead fail for memoryless cpu
- and limit readahead pages
-References: <1392708338-19685-1-git-send-email-raghavendra.kt@linux.vnet.ibm.com> <20140218094920.GB29660@quack.suse.cz> <53034C66.90707@linux.vnet.ibm.com> <871ty1zig4.fsf@redhat.com>
-In-Reply-To: <871ty1zig4.fsf@redhat.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [PATCH v2] ARM: mm: support big-endian page tables
+References: <5301B4AF.1040305@huawei.com>
+In-Reply-To: <5301B4AF.1040305@huawei.com>
+Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Madper Xie <cxie@redhat.com>
-Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Fengguang Wu <fengguang.wu@intel.com>, David Cohen <david.a.cohen@linux.intel.com>, Al Viro <viro@zeniv.linux.org.uk>, Damien Ramonda <damien.ramonda@intel.com>, rientjes@google.com, Linus <torvalds@linux-foundation.org>, nacc@linux.vnet.ibm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux@arm.linux.org.uk
+Cc: Wang Nan <wangnan0@huawei.com>, gregkh@linuxfoundation.org, will.deacon@arm.com, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Li Zefan <lizefan@huawei.com>, Catalin Marinas <catalin.marinas@arm.com>, Ben Dooks <ben.dooks@codethink.co.uk>, linux-arm-kernel@lists.infradead.org
 
-On 03/17/2014 07:37 AM, Madper Xie wrote:
->
-> Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com> writes:
->
->> On 02/18/2014 03:19 PM, Jan Kara wrote:
->>> On Tue 18-02-14 12:55:38, Raghavendra K T wrote:
-> Hi. Just a concern. Will the performance reduce on some special storage
-> backend? E.g. tape.
-> The existent applications may using readahead for userspace I/O schedule
-> to decrease seeking time.
+Hi Russell,
 
-I have not tested the patch on such systems yet unfortunately :(.
-Sequential read with huge file has not suffered on disk based system,
-but I think, I should be honest enough not to guess the effect on tape.
+Cloud you please take a look at this?
+
+Thanks!
+
+On 2014/2/17 15:05, Jianguo Wu wrote:
+
+> When enable LPAE and big-endian in a hisilicon board, while specify
+> mem=384M mem=512M@7680M, will get bad page state:
+> 
+> Freeing unused kernel memory: 180K (c0466000 - c0493000)
+> BUG: Bad page state in process init  pfn:fa442
+> page:c7749840 count:0 mapcount:-1 mapping:  (null) index:0x0
+> page flags: 0x40000400(reserved)
+> Modules linked in:
+> CPU: 0 PID: 1 Comm: init Not tainted 3.10.27+ #66
+> [<c000f5f0>] (unwind_backtrace+0x0/0x11c) from [<c000cbc4>] (show_stack+0x10/0x14)
+> [<c000cbc4>] (show_stack+0x10/0x14) from [<c009e448>] (bad_page+0xd4/0x104)
+> [<c009e448>] (bad_page+0xd4/0x104) from [<c009e520>] (free_pages_prepare+0xa8/0x14c)
+> [<c009e520>] (free_pages_prepare+0xa8/0x14c) from [<c009f8ec>] (free_hot_cold_page+0x18/0xf0)
+> [<c009f8ec>] (free_hot_cold_page+0x18/0xf0) from [<c00b5444>] (handle_pte_fault+0xcf4/0xdc8)
+> [<c00b5444>] (handle_pte_fault+0xcf4/0xdc8) from [<c00b6458>] (handle_mm_fault+0xf4/0x120)
+> [<c00b6458>] (handle_mm_fault+0xf4/0x120) from [<c0013754>] (do_page_fault+0xfc/0x354)
+> [<c0013754>] (do_page_fault+0xfc/0x354) from [<c0008400>] (do_DataAbort+0x2c/0x90)
+> [<c0008400>] (do_DataAbort+0x2c/0x90) from [<c0008fb4>] (__dabt_usr+0x34/0x40)
+> 
+> The bad pfn:fa442 is not system memory(mem=384M mem=512M@7680M), after debugging,
+> I find in page fault handler, will get wrong pfn from pte just after set pte,
+> as follow:
+> do_anonymous_page()
+> {
+> 	...
+> 	set_pte_at(mm, address, page_table, entry);
+> 	
+> 	//debug code
+> 	pfn = pte_pfn(entry);
+> 	pr_info("pfn:0x%lx, pte:0x%llx\n", pfn, pte_val(entry));
+> 
+> 	//read out the pte just set
+> 	new_pte = pte_offset_map(pmd, address);
+> 	new_pfn = pte_pfn(*new_pte);
+> 	pr_info("new pfn:0x%lx, new pte:0x%llx\n", pfn, pte_val(entry));
+> 	...
+> }
+> 
+> pfn:   0x1fa4f5,     pte:0xc00001fa4f575f
+> new_pfn:0xfa4f5, new_pte:0xc00000fa4f5f5f	//new pfn/pte is wrong.
+> 
+> The bug is happened in cpu_v7_set_pte_ext(ptep, pte):
+> when pte is 64-bit, for little-endian, will store low 32-bit in r2,
+> high 32-bit in r3; for big-endian, will store low 32-bit in r3,
+> high 32-bit in r2, this will cause wrong pfn stored in pte,
+> so we should exchange r2 and r3 for big-endian.
+> 
+> Signed-off-by: Jianguo Wu <wujianguo@huawei.com>
+> ---
+>  arch/arm/mm/proc-v7-3level.S |   18 +++++++++++++-----
+>  1 files changed, 13 insertions(+), 5 deletions(-)
+> 
+> diff --git a/arch/arm/mm/proc-v7-3level.S b/arch/arm/mm/proc-v7-3level.S
+> index 01a719e..22e3ad6 100644
+> --- a/arch/arm/mm/proc-v7-3level.S
+> +++ b/arch/arm/mm/proc-v7-3level.S
+> @@ -64,6 +64,14 @@ ENTRY(cpu_v7_switch_mm)
+>  	mov	pc, lr
+>  ENDPROC(cpu_v7_switch_mm)
+>  
+> +#ifdef __ARMEB__
+> +#define rl r3
+> +#define rh r2
+> +#else
+> +#define rl r2
+> +#define rh r3
+> +#endif
+> +
+>  /*
+>   * cpu_v7_set_pte_ext(ptep, pte)
+>   *
+> @@ -73,13 +81,13 @@ ENDPROC(cpu_v7_switch_mm)
+>   */
+>  ENTRY(cpu_v7_set_pte_ext)
+>  #ifdef CONFIG_MMU
+> -	tst	r2, #L_PTE_VALID
+> +	tst	rl, #L_PTE_VALID
+>  	beq	1f
+> -	tst	r3, #1 << (57 - 32)		@ L_PTE_NONE
+> -	bicne	r2, #L_PTE_VALID
+> +	tst	rh, #1 << (57 - 32)		@ L_PTE_NONE
+> +	bicne	rl, #L_PTE_VALID
+>  	bne	1f
+> -	tst	r3, #1 << (55 - 32)		@ L_PTE_DIRTY
+> -	orreq	r2, #L_PTE_RDONLY
+> +	tst	rh, #1 << (55 - 32)		@ L_PTE_DIRTY
+> +	orreq	rl, #L_PTE_RDONLY
+>  1:	strd	r2, r3, [r0]
+>  	ALT_SMP(W(nop))
+>  	ALT_UP (mcr	p15, 0, r0, c7, c10, 1)		@ flush_pte
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
