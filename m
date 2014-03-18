@@ -1,62 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ve0-f169.google.com (mail-ve0-f169.google.com [209.85.128.169])
-	by kanga.kvack.org (Postfix) with ESMTP id ED8496B010F
-	for <linux-mm@kvack.org>; Tue, 18 Mar 2014 13:53:03 -0400 (EDT)
-Received: by mail-ve0-f169.google.com with SMTP id pa12so7674108veb.0
-        for <linux-mm@kvack.org>; Tue, 18 Mar 2014 10:53:03 -0700 (PDT)
-Received: from mail-vc0-f171.google.com (mail-vc0-f171.google.com [209.85.220.171])
-        by mx.google.com with ESMTPS id u5si2808966vdo.148.2014.03.18.10.53.03
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id C53736B0112
+	for <linux-mm@kvack.org>; Tue, 18 Mar 2014 13:55:28 -0400 (EDT)
+Received: by mail-pa0-f47.google.com with SMTP id lj1so7650750pab.34
+        for <linux-mm@kvack.org>; Tue, 18 Mar 2014 10:55:28 -0700 (PDT)
+Received: from mail-pb0-f53.google.com (mail-pb0-f53.google.com [209.85.160.53])
+        by mx.google.com with ESMTPS id zt8si1326549pbc.255.2014.03.18.10.55.27
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 18 Mar 2014 10:53:03 -0700 (PDT)
-Received: by mail-vc0-f171.google.com with SMTP id lg15so7632972vcb.2
-        for <linux-mm@kvack.org>; Tue, 18 Mar 2014 10:53:03 -0700 (PDT)
+        Tue, 18 Mar 2014 10:55:27 -0700 (PDT)
+Received: by mail-pb0-f53.google.com with SMTP id rp16so7570194pbb.26
+        for <linux-mm@kvack.org>; Tue, 18 Mar 2014 10:55:27 -0700 (PDT)
+Message-ID: <5328888C.7030402@mit.edu>
+Date: Tue, 18 Mar 2014 10:55:24 -0700
+From: Andy Lutomirski <luto@amacapital.net>
 MIME-Version: 1.0
-In-Reply-To: <20140318122425.GD3191@dhcp22.suse.cz>
-References: <1394822013-23804-1-git-send-email-john.stultz@linaro.org>
-	<20140318122425.GD3191@dhcp22.suse.cz>
-Date: Tue, 18 Mar 2014 10:53:03 -0700
-Message-ID: <CALAqxLU30YQs9PQaybWnTXOkVWGVX2Y7zOSLJH3Y4YSq_KDp3Q@mail.gmail.com>
-Subject: Re: [PATCH 0/3] Volatile Ranges (v11)
-From: John Stultz <john.stultz@linaro.org>
+Subject: Re: [RFC 0/6] mm: support madvise(MADV_FREE)
+References: <1394779070-8545-1-git-send-email-minchan@kernel.org>
+In-Reply-To: <1394779070-8545-1-git-send-email-minchan@kernel.org>
 Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Johannes Weiner <hannes@cmpxchg.org>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@sr71.net>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Neil Brown <neilb@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Dhaval Giani <dgiani@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, John Stultz <john.stultz@linaro.org>, Jason Evans <je@fb.com>
 
-On Tue, Mar 18, 2014 at 5:24 AM, Michal Hocko <mhocko@suse.cz> wrote:
-> On Fri 14-03-14 11:33:30, John Stultz wrote:
-> [...]
->> Volatile ranges provides a method for userland to inform the kernel that
->> a range of memory is safe to discard (ie: can be regenerated) but
->> userspace may want to try access it in the future.  It can be thought of
->> as similar to MADV_DONTNEED, but that the actual freeing of the memory
->> is delayed and only done under memory pressure, and the user can try to
->> cancel the action and be able to quickly access any unpurged pages. The
->> idea originated from Android's ashmem, but I've since learned that other
->> OSes provide similar functionality.
->
-> Maybe I have missed something (I've only glanced through the patches)
-> but it seems that marking a range volatile doesn't alter neither
-> reference bits nor position in the LRU. I thought that a volatile page
-> would be moved to the end of inactive LRU with the reference bit
-> dropped. Or is this expectation wrong and volatility is not supposed to
-> touch page aging?
+On 03/13/2014 11:37 PM, Minchan Kim wrote:
+> This patch is an attempt to support MADV_FREE for Linux.
+> 
+> Rationale is following as.
+> 
+> Allocators call munmap(2) when user call free(3) if ptr is
+> in mmaped area. But munmap isn't cheap because it have to clean up
+> all pte entries, unlinking a vma and returns free pages to buddy
+> so overhead would be increased linearly by mmaped area's size.
+> So they like madvise_dontneed rather than munmap.
+> 
+> "dontneed" holds read-side lock of mmap_sem so other threads
+> of the process could go with concurrent page faults so it is
+> better than munmap if it's not lack of address space.
+> But the problem is that most of allocator reuses that address
+> space soonish so applications see page fault, page allocation,
+> page zeroing if allocator already called madvise_dontneed
+> on the address space.
+> 
+> For avoidng that overheads, other OS have supported MADV_FREE.
+> The idea is just mark pages as lazyfree when madvise called
+> and purge them if memory pressure happens. Otherwise, VM doesn't
+> detach pages on the address space so application could use
+> that memory space without above overheads.
 
-Hrmm. So you're right, I had talked about how we'd end up purging
-pages in a range together (as opposed to just randomly) because the
-pages would have been marked together. On this pass, I was trying to
-avoid touching all the pages on every operation, but I'll try to add
-the referencing to keep it consistent with what was discussed (and
-we'll get a sense of the performance impact).
+I must be missing something.
 
-Though subtleties like this are still open for discussion. For
-instance, Minchan would like to see the volatile pages moved to the
-front of the LRU instead of the back.
+If the application issues MADV_FREE and then writes to the MADV_FREEd
+range, the kernel needs to know that the pages are no longer safe to
+lazily free.  This would presumably happen via a page fault on write.
+For that to happen reliably, the kernel has to write protect the pages
+when MADV_FREE is called, which in turn requires flushing the TLBs.
 
-thanks
--john
+How does this end up being faster than munmap?
+
+--Andy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
