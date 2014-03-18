@@ -1,72 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oa0-f44.google.com (mail-oa0-f44.google.com [209.85.219.44])
-	by kanga.kvack.org (Postfix) with ESMTP id E9A276B010A
-	for <linux-mm@kvack.org>; Tue, 18 Mar 2014 12:38:07 -0400 (EDT)
-Received: by mail-oa0-f44.google.com with SMTP id n16so7337964oag.3
-        for <linux-mm@kvack.org>; Tue, 18 Mar 2014 09:38:07 -0700 (PDT)
-Received: from g4t3427.houston.hp.com (g4t3427.houston.hp.com. [15.201.208.55])
-        by mx.google.com with ESMTPS id so6si18608232obb.53.2014.03.18.09.38.06
+Received: from mail-ig0-f177.google.com (mail-ig0-f177.google.com [209.85.213.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 590DE6B010C
+	for <linux-mm@kvack.org>; Tue, 18 Mar 2014 12:51:05 -0400 (EDT)
+Received: by mail-ig0-f177.google.com with SMTP id ur14so9091848igb.4
+        for <linux-mm@kvack.org>; Tue, 18 Mar 2014 09:51:05 -0700 (PDT)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
+        by mx.google.com with ESMTPS id pe7si22639859icc.6.2014.03.18.09.51.03
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 18 Mar 2014 09:38:07 -0700 (PDT)
-Message-ID: <1395160684.2474.47.camel@buesod1.americas.hpqcorp.net>
-Subject: Re: [BUG -next] "mm: per-thread vma caching fix 5" breaks s390
-From: Davidlohr Bueso <davidlohr@hp.com>
-Date: Tue, 18 Mar 2014 09:38:04 -0700
-In-Reply-To: <20140318124107.GA24890@osiris>
-References: <20140318124107.GA24890@osiris>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 18 Mar 2014 09:51:03 -0700 (PDT)
+Date: Tue, 18 Mar 2014 17:50:59 +0100
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [Lsf] [LSF/MM TOPIC] Testing Large-Memory Hardware
+Message-ID: <20140318165059.GI22095@laptop.programming.kicks-ass.net>
+References: <5328753B.2050107@intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5328753B.2050107@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Heiko Carstens <heiko.carstens@de.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michel Lespinasse <walken@google.com>, Sasha Levin <sasha.levin@oracle.com>, Rik van Riel <riel@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-next@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Martin Schwidefsky <schwidefsky@de.ibm.com>
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, lsf@lists.linux-foundation.org, Wu Fengguang <fengguang.wu@intel.com>
 
-On Tue, 2014-03-18 at 13:41 +0100, Heiko Carstens wrote:
-> Hi Andrew,
+On Tue, Mar 18, 2014 at 09:32:59AM -0700, Dave Hansen wrote:
+> I have a quick topic that could perhaps be addressed along with the
+> testing topic that Dave Jones proposed.  I won't be attending, but there
+> will be a couple of other Intel folks there.  This should be a fairly
+> quick thing to address.
 > 
-> your patch "mm-per-thread-vma-caching-fix-5" in linux-next (see below) breaks s390:
+> Topic:
 > 
-> [   10.101173] kernel BUG at mm/vmacache.c:76!
-> [   10.101206] illegal operation: 0001 [#1] SMP DEBUG_PAGEALLOC
-> [   10.101210] Modules linked in:
-> [   10.101212] CPU: 3 PID: 2286 Comm: ifup-eth Not tainted 3.14.0-rc6-00193-g7f31667faba3 #20
-> [   10.101214] task: 000000003f65cb90 ti: 000000003db30000 task.ti: 000000003db30000
-> [   10.101220] Krnl PSW : 0704d00180000000 000000000025df40 (vma_interval_tree_augment_rotate+0x0/0x64)
-> [   10.101222]            R:0 T:1 IO:1 EX:1 Key:0 M:1 W:0 P:0 AS:3 CC:1 PM:0 EA:3
->                Krnl GPRS: 0000000000000000 0000000000000018 000000003a42cfd0 00000000800fb000
-> [   10.101225]            0000000000000001 000000003f65cb90 0000000000000000 000000003dbacba8
-> [   10.101226]            0705100180000000 000000003dbacb00 000000003f65cb90 000000003dbacb00
-> [   10.101227]            000000003a42cfd0 00000000800fb000 0000000000269e54 000000003db33d80
-> [   10.101235] Krnl Code: 000000000025df32: e3b0c0400020        cg      %r11,64(%r12)
->                           000000000025df38: a784ffd1            brc     8,25deda
->                          #000000000025df3c: a7f40001            brc     15,25df3e
->                          >000000000025df40: e31020180004        lg      %r1,24(%r2)
->                           000000000025df46: e31030180024        stg     %r1,24(%r3)
->                           000000000025df4c: e3302fb0ff04        lg      %r3,-80(%r2)
->                           000000000025df52: e31020400004        lg      %r1,64(%r2)
->                           000000000025df58: e3302fa8ff09        sg      %r3,-88(%r2)
-> [   10.101251] Call Trace:
-> [   10.101253] ([<000000003dbacb00>] 0x3dbacb00)
-> [   10.101256]  [<00000000007a62da>] do_protection_exception+0x12a/0x3b4
-> [   10.101258]  [<00000000007a4862>] pgm_check_handler+0x17a/0x17e
-> [   10.101259]  [<0000000080086806>] 0x80086806
-> [   10.101260] INFO: lockdep is turned off.
-> [   10.101261] Last Breaking-Event-Address:
-> [   10.101262]  [<000000000025df3c>] vmacache_find+0x80/0x84
-> [   10.101264]  
-> [   10.101265] Kernel panic - not syncing: Fatal exception: panic_on_oops
+> Fengguang Wu who runs the wonderful LKP and 0day build tests was
+> recently asking if I thought there was value in adding a large-memory
+> system, say with 1TB of RAM.  LKP is the system that generates these
+> kinds of automated bug reports and performance tests:
 > 
-> Given that this is just an addon patch to Davidlohr's "mm: per-thread
-> vma caching" patch I was wondering if something in there is architecture
-> specific.
-> But it doesn't look like that. So I'm wondering if this only breaks on
-> s390?
+> 	http://lkml.org/lkml/2014/3/9/201
+> 
+> My gut reaction was that we'd probably be better served by putting
+> resources in to systems with higher core counts rather than lots of RAM.
+>  I have encountered the occasional boot bug on my 1TB system, but it's
+> far from a frequent occurrence, and even more infrequent to encounter
+> things at runtime.
+> 
+> Would folks agree with that?  What kinds of tests, benchmarks, stress
+> tests, etc... do folks run that are both valuable and can only be run on
+> a system with a large amount of actual RAM?
 
-No, there isn't anything arch specific. Please note that there are a few
-other patches in -mm that fix the actual issue that triggers that
-BUG_ON(), so you'll want to try those.
+We had a sched-numa + kvm fail on really large systems the other day,
+but yeah in general such problems tend to be rare. Then again, without
+test coverage they will always be rare, for even if there were problems,
+nobody would notice :-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
