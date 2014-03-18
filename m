@@ -1,48 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
-	by kanga.kvack.org (Postfix) with ESMTP id C9E496B0106
-	for <linux-mm@kvack.org>; Tue, 18 Mar 2014 11:14:53 -0400 (EDT)
-Received: by mail-wi0-f171.google.com with SMTP id hn9so3829581wib.4
-        for <linux-mm@kvack.org>; Tue, 18 Mar 2014 08:14:53 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id wu7si12427434wjb.140.2014.03.18.08.14.51
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 18 Mar 2014 08:14:52 -0700 (PDT)
-Date: Tue, 18 Mar 2014 16:14:48 +0100
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCHv3] mm: implement POSIX_FADV_NOREUSE
-Message-ID: <20140318151448.GB8051@dhcp22.suse.cz>
-References: <1394533550-18485-1-git-send-email-matthias.wirth@gmail.com>
- <1394812370-13454-1-git-send-email-matthias.wirth@gmail.com>
+Received: from mail-pb0-f44.google.com (mail-pb0-f44.google.com [209.85.160.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 654446B0108
+	for <linux-mm@kvack.org>; Tue, 18 Mar 2014 12:33:33 -0400 (EDT)
+Received: by mail-pb0-f44.google.com with SMTP id rp16so7563704pbb.3
+        for <linux-mm@kvack.org>; Tue, 18 Mar 2014 09:33:33 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id bs8si7506092pad.94.2014.03.18.09.33.31
+        for <linux-mm@kvack.org>;
+        Tue, 18 Mar 2014 09:33:32 -0700 (PDT)
+Message-ID: <5328753B.2050107@intel.com>
+Date: Tue, 18 Mar 2014 09:32:59 -0700
+From: Dave Hansen <dave.hansen@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1394812370-13454-1-git-send-email-matthias.wirth@gmail.com>
+Subject: [LSF/MM TOPIC] Testing Large-Memory Hardware
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthias Wirth <matthias.wirth@gmail.com>
-Cc: Lukas Senger <lukas@fridolin.com>, i4passt@lists.cs.fau.de, Dave Hansen <dave.hansen@linux.intel.com>, Matthew Wilcox <matthew@wil.cx>, Jeff Layton <jlayton@redhat.com>, "J. Bruce Fields" <bfields@fieldses.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Lisa Du <cldu@marvell.com>, Minchan Kim <minchan@kernel.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Sasha Levin <sasha.levin@oracle.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, Shaohua Li <shli@kernel.org>, Bob Liu <bob.liu@oracle.com>, Seth Jennings <sjenning@linux.vnet.ibm.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Rafael Aquini <aquini@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Al Viro <viro@zeniv.linux.org.uk>, Steven Whitehouse <swhiteho@redhat.com>, Fengguang Wu <fengguang.wu@intel.com>, Raghavendra K T <raghavendra.kt@linux.vnet.ibm.com>, Lukas Czerner <lczerner@redhat.com>, Damien Ramonda <damien.ramonda@intel.com>, Mark Rutland <mark.rutland@arm.com>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, Khalid Aziz <khalid.aziz@oracle.com>, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, lsf@lists.linux-foundation.org, Wu Fengguang <fengguang.wu@intel.com>
 
-On Fri 14-03-14 16:52:38, Matthias Wirth wrote:
-[...]
-> The idea of the patch is to add pages from files with FMODE_NOREUSE at
-> the tail of the lru list. Therefore these pages are the first to be
-> reclaimed. We added add_to_page_cache_lru_tail and corresponding
-> functions, complementing add_to_page_cache_lru.
+I have a quick topic that could perhaps be addressed along with the
+testing topic that Dave Jones proposed.  I won't be attending, but there
+will be a couple of other Intel folks there.  This should be a fairly
+quick thing to address.
 
-If this is set before the read then you can end up trashing on those
-pages during heavy memory pressure I am afraid. Page would get reclaimed
-before the read gets to it.
+Topic:
 
-What you could do instead, I think, is to reclaim pages belonging to
-a FMODE_NOREUSE file away when they would be activated normally during
-reclaim. That would require tweaking page_check_references which
-implements used-once logic currently.
+Fengguang Wu who runs the wonderful LKP and 0day build tests was
+recently asking if I thought there was value in adding a large-memory
+system, say with 1TB of RAM.  LKP is the system that generates these
+kinds of automated bug reports and performance tests:
 
--- 
-Michal Hocko
-SUSE Labs
+	http://lkml.org/lkml/2014/3/9/201
+
+My gut reaction was that we'd probably be better served by putting
+resources in to systems with higher core counts rather than lots of RAM.
+ I have encountered the occasional boot bug on my 1TB system, but it's
+far from a frequent occurrence, and even more infrequent to encounter
+things at runtime.
+
+Would folks agree with that?  What kinds of tests, benchmarks, stress
+tests, etc... do folks run that are both valuable and can only be run on
+a system with a large amount of actual RAM?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
