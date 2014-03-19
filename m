@@ -1,104 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id E3AF06B0135
-	for <linux-mm@kvack.org>; Tue, 18 Mar 2014 21:36:13 -0400 (EDT)
-Received: by mail-pd0-f174.google.com with SMTP id y13so7890608pdi.19
-        for <linux-mm@kvack.org>; Tue, 18 Mar 2014 18:36:13 -0700 (PDT)
-Received: from LGEAMRELO01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
-        by mx.google.com with ESMTP id wh4si19686908pbc.214.2014.03.18.18.36.11
+Received: from mail-qg0-f50.google.com (mail-qg0-f50.google.com [209.85.192.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 03AE26B0138
+	for <linux-mm@kvack.org>; Tue, 18 Mar 2014 22:06:14 -0400 (EDT)
+Received: by mail-qg0-f50.google.com with SMTP id q108so23717876qgd.9
+        for <linux-mm@kvack.org>; Tue, 18 Mar 2014 19:06:14 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id gq5si10049726qab.3.2014.03.18.19.06.13
         for <linux-mm@kvack.org>;
-        Tue, 18 Mar 2014 18:36:12 -0700 (PDT)
-Date: Wed, 19 Mar 2014 10:36:12 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: zram: sleeping vunmap_pmd_range called from atomic
- zram_make_request
-Message-ID: <20140319013612.GE13475@bbox>
-References: <53275359.7000802@oracle.com>
+        Tue, 18 Mar 2014 19:06:14 -0700 (PDT)
+Date: Tue, 18 Mar 2014 22:06:02 -0400
+From: Dave Jones <davej@redhat.com>
+Subject: Re: bad rss-counter message in 3.14rc5
+Message-ID: <20140319020602.GA29787@redhat.com>
+References: <20140311132024.GC32390@moon>
+ <531F0E39.9020100@oracle.com>
+ <20140311134158.GD32390@moon>
+ <20140311142817.GA26517@redhat.com>
+ <20140311143750.GE32390@moon>
+ <20140311171045.GA4693@redhat.com>
+ <20140311173603.GG32390@moon>
+ <20140311173917.GB4693@redhat.com>
+ <alpine.LSU.2.11.1403181703470.7055@eggly.anvils>
+ <5328F3B4.1080208@oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <53275359.7000802@oracle.com>
+In-Reply-To: <5328F3B4.1080208@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Sasha Levin <sasha.levin@oracle.com>
-Cc: ngupta@vflare.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+Cc: Hugh Dickins <hughd@google.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Bob Liu <bob.liu@oracle.com>, Konstantin Khlebnikov <koct9i@gmail.com>
 
-Hello Sasha,
+On Tue, Mar 18, 2014 at 09:32:36PM -0400, Sasha Levin wrote:
+ 
+ > > Untested patch below: I can't quite say Reported-by, because it may
+ > > not even be one that you and Sasha have been seeing; but I'm hopeful,
+ > > remap_file_pages is in the list.
+ > >
+ > > Please give this a try, preferably on 3.14-rc or earlier: I've never
+ > > seen "Bad rss-counter"s there myself (trinity uses remap_file_pages
+ > > a lot more than most of us); but have seen them on mmotm/next, so
+ > > some other trigger is coming up there, I'll worry about that once
+ > > it reaches 3.15-rc.
+ > 
+ > The patch fixed the "Bad rss-counter" errors I've been seeing both in
+ > 3.14-rc7 and -next.
+ 
+It's looking good here too so far. I'll leave it running overnight to be sure.
 
-Sergey also reported that and Andrew are handling the problem.
-https://lkml.org/lkml/2014/3/17/325
-
-Thanks for the report!
-
-On Mon, Mar 17, 2014 at 03:56:09PM -0400, Sasha Levin wrote:
-> Hi all,
-> 
-> While fuzzing with trinity inside a KVM tools guest running the latest -next kernel
-> I've stumbled on the following spew:
-> 
-> [  827.272181] BUG: sleeping function called from invalid context at mm/vmalloc.c:74
-> [  827.273204] in_atomic(): 1, irqs_disabled(): 0, pid: 4213, name: kswapd14
-> [  827.274080] 1 lock held by kswapd14/4213:
-> [  827.274587]  #0:  (&zram->init_lock){++++.-}, at: zram_make_request (drivers/block/zram/zram_drv.c:765)
-> [  827.275923] Preemption disabled zram_bvec_write (drivers/block/zram/zram_drv.c:500)
-> [  827.276910]
-> [  827.277104] CPU: 30 PID: 4213 Comm: kswapd14 Tainted: G        W     3.14.0-rc6-next-20140317-sasha-00012-ge933921-dirty #226
-> [  827.278467]  ffff880229700000 ffff8802296fd388 ffffffff8449ebb3 0000000000000001
-> [  827.279610]  0000000000000000 ffff8802296fd3b8 ffffffff81176cec ffff8802296fd3c8
-> [  827.281258]
-> [  827.281549]  ffff88032b40a000 ffffc900077fa000 ffffc900077f8000 ffff8802296fd428
-> [  827.282911] Call Trace:
-> [  827.283318]  dump_stack (lib/dump_stack.c:52)
-> [  827.284013]  __might_sleep (kernel/sched/core.c:7016)
-> [  827.284797]  vunmap_pmd_range (mm/vmalloc.c:74)
-> [  827.285486]  ? sched_clock_cpu (kernel/sched/clock.c:311)
-> [  827.286313]  vunmap_page_range (mm/vmalloc.c:97 mm/vmalloc.c:112)
-> [  827.287177]  unmap_kernel_range (mm/vmalloc.c:1273)
-> [  827.288055]  zs_unmap_object (mm/zsmalloc.c:1086)
-> [  827.288863]  zram_bvec_write (drivers/block/zram/zram_drv.c:516)
-> [  827.289628]  zram_bvec_rw (drivers/block/zram/zram_drv.c:551)
-> [  827.290844]  __zram_make_request (drivers/block/zram/zram_drv.c:743)
-> [  827.291629]  zram_make_request (drivers/block/zram/zram_drv.c:774)
-> [  827.292414]  generic_make_request (block/blk-core.c:1862)
-> [  827.293283]  submit_bio (block/blk-core.c:1913)
-> [  827.294134]  ? test_set_page_writeback (include/linux/rcupdate.h:800 include/linux/memcontrol.h:180 mm/page-writeback.c:2408)
-> [  827.295287]  __swap_writepage (mm/page_io.c:315)
-> [  827.296287]  ? preempt_count_sub (kernel/sched/core.c:2530)
-> [  827.297199]  ? _raw_spin_unlock (arch/x86/include/asm/preempt.h:98 include/linux/spinlock_api_smp.h:152 kernel/locking/spinlock.c:183)
-> [  827.298019]  ? page_swapcount (mm/swapfile.c:898)
-> [  827.298802]  swap_writepage (mm/page_io.c:249)
-> [  827.299534]  pageout (mm/vmscan.c:502)
-> [  827.300721]  shrink_page_list (mm/vmscan.c:1015)
-> [  827.301475]  shrink_inactive_list (include/linux/spinlock.h:328 mm/vmscan.c:1503)
-> [  827.302320]  ? shrink_active_list (mm/vmscan.c:1744)
-> [  827.303170]  shrink_lruvec (mm/vmscan.c:1830 mm/vmscan.c:2054)
-> [  827.303881]  ? sched_clock (arch/x86/include/asm/paravirt.h:192 arch/x86/kernel/tsc.c:305)
-> [  827.304518]  shrink_zone (mm/vmscan.c:2235)
-> [  827.305327]  kswapd_shrink_zone (include/linux/bitmap.h:165 include/linux/nodemask.h:131 mm/vmscan.c:2904)
-> [  827.306117]  balance_pgdat (mm/vmscan.c:3088)
-> [  827.306808]  ? finish_wait (kernel/sched/wait.c:254)
-> [  827.307479]  kswapd (mm/vmscan.c:3296)
-> [  827.308127]  ? perf_trace_mm_vmscan_wakeup_kswapd (mm/vmscan.c:3213)
-> [  827.309164]  ? perf_trace_mm_vmscan_wakeup_kswapd (mm/vmscan.c:3213)
-> [  827.310391]  kthread (kernel/kthread.c:216)
-> [  827.311092]  ? __tick_nohz_task_switch (arch/x86/include/asm/paravirt.h:809 kernel/time/tick-sched.c:272)
-> [  827.312070]  ? set_kthreadd_affinity (kernel/kthread.c:185)
-> [  827.312903]  ret_from_fork (arch/x86/kernel/entry_64.S:555)
-> [  827.313627]  ? set_kthreadd_affinity (kernel/kthread.c:185)
-> 
-> 
-> Thanks,
-> Sasha
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
-Kind regards,
-Minchan Kim
+	Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
