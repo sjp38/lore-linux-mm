@@ -1,100 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 40C066B0132
-	for <linux-mm@kvack.org>; Tue, 18 Mar 2014 21:22:49 -0400 (EDT)
-Received: by mail-pa0-f49.google.com with SMTP id lj1so8056809pab.8
-        for <linux-mm@kvack.org>; Tue, 18 Mar 2014 18:22:48 -0700 (PDT)
-Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
-        by mx.google.com with ESMTP id qe9si11867399pbb.192.2014.03.18.18.22.46
-        for <linux-mm@kvack.org>;
-        Tue, 18 Mar 2014 18:22:48 -0700 (PDT)
-Date: Wed, 19 Mar 2014 10:22:48 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC 3/6] mm: support madvise(MADV_FREE)
-Message-ID: <20140319012248.GD13475@bbox>
-References: <1394779070-8545-1-git-send-email-minchan@kernel.org>
- <1394779070-8545-4-git-send-email-minchan@kernel.org>
- <20140318182621.GH14688@cmpxchg.org>
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A0AD6B0134
+	for <linux-mm@kvack.org>; Tue, 18 Mar 2014 21:32:44 -0400 (EDT)
+Received: by mail-pd0-f171.google.com with SMTP id r10so7921135pdi.2
+        for <linux-mm@kvack.org>; Tue, 18 Mar 2014 18:32:43 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id po10si13646170pab.97.2014.03.18.18.32.42
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 18 Mar 2014 18:32:43 -0700 (PDT)
+Message-ID: <5328F3B4.1080208@oracle.com>
+Date: Tue, 18 Mar 2014 21:32:36 -0400
+From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140318182621.GH14688@cmpxchg.org>
+Subject: Re: bad rss-counter message in 3.14rc5
+References: <20140311045109.GB12551@redhat.com> <20140310220158.7e8b7f2a.akpm@linux-foundation.org> <20140311053017.GB14329@redhat.com> <20140311132024.GC32390@moon> <531F0E39.9020100@oracle.com> <20140311134158.GD32390@moon> <20140311142817.GA26517@redhat.com> <20140311143750.GE32390@moon> <20140311171045.GA4693@redhat.com> <20140311173603.GG32390@moon> <20140311173917.GB4693@redhat.com> <alpine.LSU.2.11.1403181703470.7055@eggly.anvils>
+In-Reply-To: <alpine.LSU.2.11.1403181703470.7055@eggly.anvils>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, John Stultz <john.stultz@linaro.org>, Jason Evans <je@fb.com>
+To: Hugh Dickins <hughd@google.com>, Dave Jones <davej@redhat.com>
+Cc: Cyrill Gorcunov <gorcunov@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Bob Liu <bob.liu@oracle.com>, Konstantin Khlebnikov <koct9i@gmail.com>
 
-Hello Hannes,
+On 03/18/2014 08:38 PM, Hugh Dickins wrote:
+> On Tue, 11 Mar 2014, Dave Jones wrote:
+>> On Tue, Mar 11, 2014 at 09:36:03PM +0400, Cyrill Gorcunov wrote:
+>>   > On Tue, Mar 11, 2014 at 01:10:45PM -0400, Dave Jones wrote:
+>>   > >  >
+>>   > >  > Dave, iirc trinity can write log file pointing which exactly syscall sequence
+>>   > >  > was passed, right? Share it too please.
+>>   > >
+>>   > > Hm, I may have been mistaken, and the damage was done by a previous run.
+>>   > > I went from being able to reproduce it almost instantly to now not being able
+>>   > > to reproduce it at all.  Will keep trying.
+>>   >
+>>   > Sasha already gave a link to the syscalls sequence, so no rush.
+>>
+>> It'd be nice to get a more concise reproducer, his list had a little of everything in there.
+>
+> I've so far failed to find any explanation for your swapops.h BUG;
+> but believe I have identified one cause for "Bad rss-counter"s.
+>
+> My hunch is that the swapops.h BUG is "nearby", but I just cannot
+> fit it together (the swapops.h BUG comes when rmap cannot find all
+> all the migration entries it inserted earlier: it's a very useful
+> BUG for validating rmap).
+>
+> Untested patch below: I can't quite say Reported-by, because it may
+> not even be one that you and Sasha have been seeing; but I'm hopeful,
+> remap_file_pages is in the list.
+>
+> Please give this a try, preferably on 3.14-rc or earlier: I've never
+> seen "Bad rss-counter"s there myself (trinity uses remap_file_pages
+> a lot more than most of us); but have seen them on mmotm/next, so
+> some other trigger is coming up there, I'll worry about that once
+> it reaches 3.15-rc.
 
-On Tue, Mar 18, 2014 at 02:26:21PM -0400, Johannes Weiner wrote:
-> On Fri, Mar 14, 2014 at 03:37:47PM +0900, Minchan Kim wrote:
-> > Linux doesn't have an ability to free pages lazy while other OS
-> > already have been supported that named by madvise(MADV_FREE).
-> > 
-> > The gain is clear that kernel can evict freed pages rather than
-> > swapping out or OOM if memory pressure happens.
-> > 
-> > Without memory pressure, freed pages would be reused by userspace
-> > without another additional overhead(ex, page fault + + page allocation
-> > + page zeroing).
-> > 
-> > Firstly, heavy users would be general allocators(ex, jemalloc,
-> > I hope ptmalloc support it) and jemalloc already have supported
-> > the feature for other OS(ex, FreeBSD)
-> > 
-> > At the moment, this patch would break build other ARCHs which have
-> > own TLB flush scheme other than that x86 but if there is no objection
-> > in this direction, I will add patches for handling other ARCHs
-> > in next iteration.
-> > 
-> > Signed-off-by: Minchan Kim <minchan@kernel.org>
-> 
-> > @@ -284,8 +286,17 @@ static long madvise_dontneed(struct vm_area_struct *vma,
-> >  			.last_index = ULONG_MAX,
-> >  		};
-> >  		zap_page_range(vma, start, end - start, &details);
-> > +	} else if (behavior == MADV_FREE) {
-> > +		struct zap_details details = {
-> > +			.lazy_free = 1,
-> > +		};
-> > +
-> > +		if (vma->vm_file)
-> > +			return -EINVAL;
-> > +		zap_page_range(vma, start, end - start, &details);
-> 
-> Wouldn't a custom page table walker to clear dirty bits and move pages
-> be better?  It's awkward to hook this into the freeing code and then
-> special case the pages and not actually free them.
+The patch fixed the "Bad rss-counter" errors I've been seeing both in
+3.14-rc7 and -next.
 
-NP.
 
-> 
-> > @@ -817,6 +817,25 @@ static unsigned long shrink_page_list(struct list_head *page_list,
-> >  
-> >  		sc->nr_scanned++;
-> >  
-> > +		if (PageLazyFree(page)) {
-> > +			switch (try_to_unmap(page, ttu_flags)) {
-> 
-> I don't get why we need a page flag for this.  page_check_references()
-> could use the rmap walk to also check if any pte/pmd is dirty.  If so,
-> you have to swap the page.  If all are clean, it can be discarded.
-
-Ugh, you're right. I guess it could work.
-I will look into that in next iteration.
-
-Thanks!
-
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
-Kind regards,
-Minchan Kim
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
