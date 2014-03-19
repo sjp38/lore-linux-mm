@@ -1,87 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f49.google.com (mail-bk0-f49.google.com [209.85.214.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B0856B0152
-	for <linux-mm@kvack.org>; Wed, 19 Mar 2014 01:16:02 -0400 (EDT)
-Received: by mail-bk0-f49.google.com with SMTP id my13so525469bkb.8
-        for <linux-mm@kvack.org>; Tue, 18 Mar 2014 22:16:01 -0700 (PDT)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id zj7si8931390bkb.197.2014.03.18.22.16.00
+Received: from mail-la0-f47.google.com (mail-la0-f47.google.com [209.85.215.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 6411D6B0156
+	for <linux-mm@kvack.org>; Wed, 19 Mar 2014 02:23:53 -0400 (EDT)
+Received: by mail-la0-f47.google.com with SMTP id y1so5489338lam.20
+        for <linux-mm@kvack.org>; Tue, 18 Mar 2014 23:23:52 -0700 (PDT)
+Received: from mail-la0-x232.google.com (mail-la0-x232.google.com [2a00:1450:4010:c03::232])
+        by mx.google.com with ESMTPS id h8si14443704lam.32.2014.03.18.23.23.51
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 18 Mar 2014 22:16:00 -0700 (PDT)
-Date: Wed, 19 Mar 2014 01:15:43 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [RFC 0/6] mm: support madvise(MADV_FREE)
-Message-ID: <20140319051543.GI14688@cmpxchg.org>
-References: <1394779070-8545-1-git-send-email-minchan@kernel.org>
- <5328888C.7030402@mit.edu>
- <20140319001826.GA13475@bbox>
- <CALCETrUsgVgKDRjqY=7avbvowkNSn-CWJ3L9zti1SCOYgrY3UA@mail.gmail.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 18 Mar 2014 23:23:51 -0700 (PDT)
+Received: by mail-la0-f50.google.com with SMTP id y1so5454663lam.23
+        for <linux-mm@kvack.org>; Tue, 18 Mar 2014 23:23:51 -0700 (PDT)
+Date: Wed, 19 Mar 2014 09:20:00 +0300
+From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Subject: Re: kswapd using __this_cpu_add() in preemptible code
+Message-ID: <20140319062000.GA435@swordfish>
+References: <20140318185329.GB430@swordfish>
+ <20140318142216.317bf986d10a564881791100@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CALCETrUsgVgKDRjqY=7avbvowkNSn-CWJ3L9zti1SCOYgrY3UA@mail.gmail.com>
+In-Reply-To: <20140318142216.317bf986d10a564881791100@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, John Stultz <john.stultz@linaro.org>, Jason Evans <je@fb.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Christoph Lameter <cl@linux.com>
 
-On Tue, Mar 18, 2014 at 05:23:37PM -0700, Andy Lutomirski wrote:
-> On Tue, Mar 18, 2014 at 5:18 PM, Minchan Kim <minchan@kernel.org> wrote:
-> > Hello,
-> >
-> > On Tue, Mar 18, 2014 at 10:55:24AM -0700, Andy Lutomirski wrote:
-> >> On 03/13/2014 11:37 PM, Minchan Kim wrote:
-> >> > This patch is an attempt to support MADV_FREE for Linux.
-> >> >
-> >> > Rationale is following as.
-> >> >
-> >> > Allocators call munmap(2) when user call free(3) if ptr is
-> >> > in mmaped area. But munmap isn't cheap because it have to clean up
-> >> > all pte entries, unlinking a vma and returns free pages to buddy
-> >> > so overhead would be increased linearly by mmaped area's size.
-> >> > So they like madvise_dontneed rather than munmap.
-> >> >
-> >> > "dontneed" holds read-side lock of mmap_sem so other threads
-> >> > of the process could go with concurrent page faults so it is
-> >> > better than munmap if it's not lack of address space.
-> >> > But the problem is that most of allocator reuses that address
-> >> > space soonish so applications see page fault, page allocation,
-> >> > page zeroing if allocator already called madvise_dontneed
-> >> > on the address space.
-> >> >
-> >> > For avoidng that overheads, other OS have supported MADV_FREE.
-> >> > The idea is just mark pages as lazyfree when madvise called
-> >> > and purge them if memory pressure happens. Otherwise, VM doesn't
-> >> > detach pages on the address space so application could use
-> >> > that memory space without above overheads.
-> >>
-> >> I must be missing something.
-> >>
-> >> If the application issues MADV_FREE and then writes to the MADV_FREEd
-> >> range, the kernel needs to know that the pages are no longer safe to
-> >> lazily free.  This would presumably happen via a page fault on write.
-> >> For that to happen reliably, the kernel has to write protect the pages
-> >> when MADV_FREE is called, which in turn requires flushing the TLBs.
-> >
-> > It could be done by pte_dirty bit check. Of course, if some architectures
-> > don't support it by H/W, pte_mkdirty would make it CoW as you said.
+On (03/18/14 14:22), Andrew Morton wrote:
+> On Tue, 18 Mar 2014 21:53:30 +0300 Sergey Senozhatsky <sergey.senozhatsky@gmail.com> wrote:
 > 
-> If the page already has dirty PTEs, then you need to clear the dirty
-> bits and flush TLBs so that other CPUs notice that the PTEs are clean,
-> I think.
+> > Hello gentlemen,
+> > 
+> > Commit 589a606f9539663f162e4a110d117527833b58a4 ("percpu: add preemption
+> > checks to __this_cpu ops") added preempt check to used in __count_vm_events()
+> > __this_cpu ops, causing the following kswapd warning:
+> > 
+> >  BUG: using __this_cpu_add() in preemptible [00000000] code: kswapd0/56
+> >  caller is __this_cpu_preempt_check+0x2b/0x2d
+> >  Call Trace:
+> >  [<ffffffff813b8d4d>] dump_stack+0x4e/0x7a
+> >  [<ffffffff8121366f>] check_preemption_disabled+0xce/0xdd
+> >  [<ffffffff812136bb>] __this_cpu_preempt_check+0x2b/0x2d
+> >  [<ffffffff810f622e>] inode_lru_isolate+0xed/0x197
+> >  [<ffffffff810be43c>] list_lru_walk_node+0x7b/0x14c
+> >  [<ffffffff810f6141>] ? iput+0x131/0x131
+> >  [<ffffffff810f681f>] prune_icache_sb+0x35/0x4c
+> >  [<ffffffff810e3951>] super_cache_scan+0xe3/0x143
+> >  [<ffffffff810b1301>] shrink_slab_node+0x103/0x16f
+> >  [<ffffffff810b19fd>] shrink_slab+0x75/0xe4
+> >  [<ffffffff810b3f3d>] balance_pgdat+0x2fa/0x47f
+> >  [<ffffffff810b4395>] kswapd+0x2d3/0x2fd
+> >  [<ffffffff81068049>] ? __wake_up_sync+0xd/0xd
+> >  [<ffffffff810b40c2>] ? balance_pgdat+0x47f/0x47f
+> >  [<ffffffff81051e75>] kthread+0xd6/0xde
+> >  [<ffffffff81051d9f>] ? kthread_create_on_node+0x162/0x162
+> >  [<ffffffff813be5bc>] ret_from_fork+0x7c/0xb0
+> >  [<ffffffff81051d9f>] ? kthread_create_on_node+0x162/0x162
+> > 
+> > 
+> > list_lru_walk_node() seems to be the only place where __count_vm_events()
+> > called with preemption enabled. remaining __count_vm_events() and
+> > __count_vm_event() calls are done with preemption disabled (unless I
+> > overlooked something).
 > 
-> Also, this has very odd semantics wrt reading the page after MADV_FREE
-> -- is reading the page guaranteed to un-free it?
+> Christoph caught one.  How does this look?
+> 
 
-MADV_FREE simply invalidates content.  Sure, you can read at a given
-address repeatedly after it.  You might see a different page every
-time you do it, but it doesn't matter; the content is undefined.
+Thank you.
 
-It's no different than doing malloc() and looking at the memory before
-writing anything in it.  After MADV_FREE, the memory is like a freshly
-malloc'd chunk: the first access may result in page faults and the
-content is undefined until you write it.
+Tested-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+
+	-ss
+
+> 
+> 
+> From: Andrew Morton <akpm@linux-foundation.org>
+> Subject: fs/inode.c:inode_lru_isolate(): use atomic count_vm_events()
+> 
+> "percpu: add preemption checks to __this_cpu ops" added preempt check to
+> used in __count_vm_events() __this_cpu ops, causing the following kswapd
+> warning:
+> 
+>  BUG: using __this_cpu_add() in preemptible [00000000] code: kswapd0/56
+>  caller is __this_cpu_preempt_check+0x2b/0x2d
+>  Call Trace:
+>  [<ffffffff813b8d4d>] dump_stack+0x4e/0x7a
+>  [<ffffffff8121366f>] check_preemption_disabled+0xce/0xdd
+>  [<ffffffff812136bb>] __this_cpu_preempt_check+0x2b/0x2d
+>  [<ffffffff810f622e>] inode_lru_isolate+0xed/0x197
+>  [<ffffffff810be43c>] list_lru_walk_node+0x7b/0x14c
+>  [<ffffffff810f6141>] ? iput+0x131/0x131
+>  [<ffffffff810f681f>] prune_icache_sb+0x35/0x4c
+> 
+> Switch from __count_vm_events() to the preempt-safe count_vm_events().
+> 
+> Reported-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+> Cc: Christoph Lameter <cl@linux-foundation.org>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> ---
+> 
+>  fs/inode.c |    4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+> 
+> diff -puN fs/inode.c~fs-inodec-inode_lru_isolate-use-atomic-count_vm_events fs/inode.c
+> --- a/fs/inode.c~fs-inodec-inode_lru_isolate-use-atomic-count_vm_events
+> +++ a/fs/inode.c
+> @@ -722,9 +722,9 @@ inode_lru_isolate(struct list_head *item
+>  			unsigned long reap;
+>  			reap = invalidate_mapping_pages(&inode->i_data, 0, -1);
+>  			if (current_is_kswapd())
+> -				__count_vm_events(KSWAPD_INODESTEAL, reap);
+> +				count_vm_events(KSWAPD_INODESTEAL, reap);
+>  			else
+> -				__count_vm_events(PGINODESTEAL, reap);
+> +				count_vm_events(PGINODESTEAL, reap);
+>  			if (current->reclaim_state)
+>  				current->reclaim_state->reclaimed_slab += reap;
+>  		}
+> _
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
