@@ -1,86 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id C86996B0147
-	for <linux-mm@kvack.org>; Tue, 18 Mar 2014 22:42:20 -0400 (EDT)
-Received: by mail-pa0-f45.google.com with SMTP id kl14so8246441pab.32
-        for <linux-mm@kvack.org>; Tue, 18 Mar 2014 19:42:20 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id my2si12055298pbc.145.2014.03.18.19.42.19
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 18 Mar 2014 19:42:19 -0700 (PDT)
-Message-ID: <53290403.5030809@oracle.com>
-Date: Tue, 18 Mar 2014 22:42:11 -0400
-From: Sasha Levin <sasha.levin@oracle.com>
-MIME-Version: 1.0
-Subject: Re: bad rss-counter message in 3.14rc5
-References: <20140311045109.GB12551@redhat.com> <20140310220158.7e8b7f2a.akpm@linux-foundation.org> <20140311053017.GB14329@redhat.com> <20140311132024.GC32390@moon> <531F0E39.9020100@oracle.com> <20140311134158.GD32390@moon> <20140311142817.GA26517@redhat.com> <20140311143750.GE32390@moon> <20140311171045.GA4693@redhat.com> <20140311173603.GG32390@moon> <20140311173917.GB4693@redhat.com> <alpine.LSU.2.11.1403181703470.7055@eggly.anvils> <5328F3B4.1080208@oracle.com> <alpine.LSU.2.11.1403181906140.3318@eggly.anvils>
-In-Reply-To: <alpine.LSU.2.11.1403181906140.3318@eggly.anvils>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from mail-ee0-f48.google.com (mail-ee0-f48.google.com [74.125.83.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 375116B0149
+	for <linux-mm@kvack.org>; Tue, 18 Mar 2014 22:43:39 -0400 (EDT)
+Received: by mail-ee0-f48.google.com with SMTP id b57so5345730eek.21
+        for <linux-mm@kvack.org>; Tue, 18 Mar 2014 19:43:38 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id n7si24614630eeu.79.2014.03.18.19.43.36
+        for <linux-mm@kvack.org>;
+        Tue, 18 Mar 2014 19:43:37 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH RESEND -mm 2/2] mm/mempolicy.c: add comment in queue_pages_hugetlb()
+Date: Tue, 18 Mar 2014 22:29:39 -0400
+Message-Id: <1395196179-4075-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1395196179-4075-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+References: <1395196179-4075-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Dave Jones <davej@redhat.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Bob Liu <bob.liu@oracle.com>, Konstantin Khlebnikov <koct9i@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Sasha Levin <sasha.levin@oracle.com>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 03/18/2014 10:12 PM, Hugh Dickins wrote:
-> On Tue, 18 Mar 2014, Sasha Levin wrote:
->> On 03/18/2014 08:38 PM, Hugh Dickins wrote:
->>> On Tue, 11 Mar 2014, Dave Jones wrote:
->>>> On Tue, Mar 11, 2014 at 09:36:03PM +0400, Cyrill Gorcunov wrote:
->>>>    > On Tue, Mar 11, 2014 at 01:10:45PM -0400, Dave Jones wrote:
->>>>    > >  >
->>>>    > >  > Dave, iirc trinity can write log file pointing which exactly
->>>> syscall sequence
->>>>    > >  > was passed, right? Share it too please.
->>>>    > >
->>>>    > > Hm, I may have been mistaken, and the damage was done by a previous
->>>> run.
->>>>    > > I went from being able to reproduce it almost instantly to now not
->>>> being able
->>>>    > > to reproduce it at all.  Will keep trying.
->>>>    >
->>>>    > Sasha already gave a link to the syscalls sequence, so no rush.
->>>>
->>>> It'd be nice to get a more concise reproducer, his list had a little of
->>>> everything in there.
->>>
->>> I've so far failed to find any explanation for your swapops.h BUG;
->>> but believe I have identified one cause for "Bad rss-counter"s.
->>>
->>> My hunch is that the swapops.h BUG is "nearby", but I just cannot
->>> fit it together (the swapops.h BUG comes when rmap cannot find all
->>> all the migration entries it inserted earlier: it's a very useful
->>> BUG for validating rmap).
->>>
->>> Untested patch below: I can't quite say Reported-by, because it may
->>> not even be one that you and Sasha have been seeing; but I'm hopeful,
->>> remap_file_pages is in the list.
->>>
->>> Please give this a try, preferably on 3.14-rc or earlier: I've never
->>> seen "Bad rss-counter"s there myself (trinity uses remap_file_pages
->>> a lot more than most of us); but have seen them on mmotm/next, so
->>> some other trigger is coming up there, I'll worry about that once
->>> it reaches 3.15-rc.
->>
->> The patch fixed the "Bad rss-counter" errors I've been seeing both in
->> 3.14-rc7 and -next.
->
-> Great, thanks a lot, Sasha.  I was afraid that you'd hit those swapops
-> BUGs, which seemed perhaps to be paired with these; but glad to hear
-> a positive.  Let's see how Dave fares.  (I've not forgotten shmem
-> fallocate, by the way, but those probably aren't as high on my agenda
-> as you'd like.)
+We have a race where we try to migrate an invalid page, resulting in
+hitting VM_BUG_ON_PAGE in isolate_huge_page().
+queue_pages_hugetlb() is OK to fail, so let's check !PageHeadHuge to keep
+invalid hugepage from queuing.
 
-I do hit the swapops issue a lot, I didn't think that your patch was
-supposed to fix that so I didn't mention it.
+Reported-by: Sasha Levin <sasha.levin@oracle.com>
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+---
+ mm/mempolicy.c | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
 
-Thanks for keeping shmem in mind, I've removed shmem from testing for now
-but I agree, it's not one of the more important issues to be taken care of.
-
-
-Thanks,
-Sasha
+diff --git v3.14-rc7-mmotm-2014-03-18-16-37.orig/mm/mempolicy.c v3.14-rc7-mmotm-2014-03-18-16-37/mm/mempolicy.c
+index 9d2ef4111a4c..ae6e2d9dc855 100644
+--- v3.14-rc7-mmotm-2014-03-18-16-37.orig/mm/mempolicy.c
++++ v3.14-rc7-mmotm-2014-03-18-16-37/mm/mempolicy.c
+@@ -530,6 +530,17 @@ static int queue_pages_hugetlb(pte_t *pte, unsigned long addr,
+ 	if (!pte_present(entry))
+ 		return 0;
+ 	page = pte_page(entry);
++
++	/*
++	 * Trinity found that page could be a non-hugepage. This is an
++	 * unexpected behavior, but it's not clear how this problem happens.
++	 * So let's simply skip such corner case. Page migration can often
++	 * fail for various reasons, so it's ok to just skip the address
++	 * unsuitable to hugepage migration.
++	 */
++	if (!PageHeadHuge(page))
++		return 0;
++
+ 	nid = page_to_nid(page);
+ 	if (node_isset(nid, *qp->nmask) == !!(flags & MPOL_MF_INVERT))
+ 		return 0;
+-- 
+1.8.5.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
