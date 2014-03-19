@@ -1,133 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
-	by kanga.kvack.org (Postfix) with ESMTP id B01B16B0166
-	for <linux-mm@kvack.org>; Wed, 19 Mar 2014 10:38:37 -0400 (EDT)
-Received: by mail-wi0-f171.google.com with SMTP id hn9so5102403wib.10
-        for <linux-mm@kvack.org>; Wed, 19 Mar 2014 07:38:37 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id li2si9521675wjc.170.2014.03.19.07.38.35
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 19 Mar 2014 07:38:36 -0700 (PDT)
-Date: Wed, 19 Mar 2014 14:38:32 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] mm: numa: Recheck for transhuge pages under lock during
- protection changes
-Message-ID: <20140319143831.GA4751@suse.de>
-References: <20140307182745.GD1931@suse.de>
- <20140311162845.GA30604@suse.de>
- <531F3F15.8050206@oracle.com>
- <531F4128.8020109@redhat.com>
- <531F48CC.303@oracle.com>
- <20140311180652.GM10663@suse.de>
- <531F616A.7060300@oracle.com>
- <20140311122859.fb6c1e772d82d9f4edd02f52@linux-foundation.org>
- <20140312103602.GN10663@suse.de>
- <5323C5D9.2070902@oracle.com>
+Received: from mail-qc0-f179.google.com (mail-qc0-f179.google.com [209.85.216.179])
+	by kanga.kvack.org (Postfix) with ESMTP id C60666B0167
+	for <linux-mm@kvack.org>; Wed, 19 Mar 2014 10:52:11 -0400 (EDT)
+Received: by mail-qc0-f179.google.com with SMTP id m20so9731420qcx.24
+        for <linux-mm@kvack.org>; Wed, 19 Mar 2014 07:52:11 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id c8si5711170qco.32.2014.03.19.07.52.10
+        for <linux-mm@kvack.org>;
+        Wed, 19 Mar 2014 07:52:11 -0700 (PDT)
+Date: Wed, 19 Mar 2014 10:52:00 -0400
+From: Dave Jones <davej@redhat.com>
+Subject: Re: bad rss-counter message in 3.14rc5
+Message-ID: <20140319145200.GA4608@redhat.com>
+References: <20140311142817.GA26517@redhat.com>
+ <20140311143750.GE32390@moon>
+ <20140311171045.GA4693@redhat.com>
+ <20140311173603.GG32390@moon>
+ <20140311173917.GB4693@redhat.com>
+ <alpine.LSU.2.11.1403181703470.7055@eggly.anvils>
+ <5328F3B4.1080208@oracle.com>
+ <20140319020602.GA29787@redhat.com>
+ <20140319021131.GA30018@redhat.com>
+ <alpine.LSU.2.11.1403181918130.3423@eggly.anvils>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <5323C5D9.2070902@oracle.com>
+In-Reply-To: <alpine.LSU.2.11.1403181918130.3423@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, hhuang@redhat.com, knoel@redhat.com, aarcange@redhat.com, Davidlohr Bueso <davidlohr@hp.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Hugh Dickins <hughd@google.com>
+Cc: Sasha Levin <sasha.levin@oracle.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Bob Liu <bob.liu@oracle.com>, Konstantin Khlebnikov <koct9i@gmail.com>
 
-On Fri, Mar 14, 2014 at 11:15:37PM -0400, Sasha Levin wrote:
-> On 03/12/2014 06:36 AM, Mel Gorman wrote:
-> >Andrew, this should go with the patches
-> >mmnuma-reorganize-change_pmd_range.patch
-> >mmnuma-reorganize-change_pmd_range-fix.patch
-> >move-mmu-notifier-call-from-change_protection-to-change_pmd_range.patch
-> >in mmotm please.
-> >
-> >Thanks.
-> >
-> >---8<---
-> >From: Mel Gorman<mgorman@suse.de>
-> >Subject: [PATCH] mm: numa: Recheck for transhuge pages under lock during protection changes
-> >
-> >Sasha Levin reported the following bug using trinity
-> 
-> I'm seeing a different issue with this patch. A NULL ptr deref occurs in the
-> pte_offset_map_lock() macro right before the new recheck code:
-> 
+On Tue, Mar 18, 2014 at 07:19:09PM -0700, Hugh Dickins wrote:
 
-This on top?
+ > Another positive on the rss counters, great, thanks Dave.
+ > That encourages me to think again on the swapops BUG, but no promises.
 
-I tried testing it but got all sorts of carnage that trinity throw up
-in the mix and ordinary testing does not trigger the race. I've no idea
-which of the current mess of trinity-exposed bugs you've encountered and
-got fixed already.
+So while I slept I ran a test kernel with that swapops BUG replaced with a printk.
+I'm not sure of the validity of this, given the state of the kernel afterwards
+is somewhat suspect, but I did see in the logs this morning..
 
----8<---
-From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH] mm: numa: Recheck for transhuge pages under lock during protection changes -fix
+[18728.075153] migration_entry_to_page BUG hit
+[18728.200705] BUG: Bad rss-counter state mm:ffff880241b3f500 idx:0 val:1 (Not tainted)
+[18728.200706] BUG: Bad rss-counter state mm:ffff880241b3f500 idx:1 val:-1 (Not tainted)
 
-Signed-off-by: Mel Gorman <mgorman@suse.de>
----
- mm/mprotect.c | 40 ++++++++++++++++++++++++++++++----------
- 1 file changed, 30 insertions(+), 10 deletions(-)
+This might be collateral damage from the swapops thing, I guess we won't know until
+that gets fixed, but I thought I'd mention that we might still have a problem here.
 
-diff --git a/mm/mprotect.c b/mm/mprotect.c
-index 66973db..c43d557 100644
---- a/mm/mprotect.c
-+++ b/mm/mprotect.c
-@@ -36,6 +36,34 @@ static inline pgprot_t pgprot_modify(pgprot_t oldprot, pgprot_t newprot)
- }
- #endif
- 
-+/*
-+ * For a prot_numa update we only hold mmap_sem for read so there is a
-+ * potential race with faulting where a pmd was temporarily none. This
-+ * function checks for a transhuge pmd under the appropriate lock. It
-+ * returns a pte if it was successfully locked or NULL if it raced with
-+ * a transhuge insertion.
-+ */
-+static pte_t *lock_pte_protection(struct vm_area_struct *vma, pmd_t *pmd,
-+			unsigned long addr, int prot_numa, spinlock_t **ptl)
-+{
-+	pte_t *pte;
-+	spinlock_t *pmdl;
-+
-+	/* !prot_numa is protected by mmap_sem held for write */
-+	if (!prot_numa)
-+		return pte_offset_map_lock(vma->vm_mm, pmd, addr, ptl);
-+
-+	pmdl = pmd_lock(vma->vm_mm, pmd);
-+	if (unlikely(pmd_trans_huge(*pmd) || pmd_none(*pmd))) {
-+		spin_unlock(pmdl);
-+		return NULL;
-+	}
-+
-+	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, ptl);
-+	spin_unlock(pmdl);
-+	return pte;
-+}
-+
- static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
- 		unsigned long addr, unsigned long end, pgprot_t newprot,
- 		int dirty_accountable, int prot_numa)
-@@ -45,17 +73,9 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
- 	spinlock_t *ptl;
- 	unsigned long pages = 0;
- 
--	pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
--
--	/*
--	 * For a prot_numa update we only hold mmap_sem for read so there is a
--	 * potential race with faulting where a pmd was temporarily none so
--	 * recheck it under the lock and bail if we race
--	 */
--	if (prot_numa && unlikely(pmd_trans_huge(*pmd))) {
--		pte_unmap_unlock(pte, ptl);
-+	pte = lock_pte_protection(vma, pmd, addr, prot_numa, &ptl);
-+	if (!pte)
- 		return 0;
--	}
- 
- 	arch_enter_lazy_mmu_mode();
- 	do {
+	Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
