@@ -1,139 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id A9E8B6B0129
-	for <linux-mm@kvack.org>; Tue, 18 Mar 2014 20:40:05 -0400 (EDT)
-Received: by mail-pd0-f172.google.com with SMTP id p10so7849910pdj.31
-        for <linux-mm@kvack.org>; Tue, 18 Mar 2014 17:40:05 -0700 (PDT)
-Received: from mail-pa0-x231.google.com (mail-pa0-x231.google.com [2607:f8b0:400e:c03::231])
-        by mx.google.com with ESMTPS id yo5si13552827pab.210.2014.03.18.17.40.04
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 18 Mar 2014 17:40:04 -0700 (PDT)
-Received: by mail-pa0-f49.google.com with SMTP id lj1so8080354pab.36
-        for <linux-mm@kvack.org>; Tue, 18 Mar 2014 17:40:04 -0700 (PDT)
-Date: Tue, 18 Mar 2014 17:38:38 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: bad rss-counter message in 3.14rc5
-In-Reply-To: <20140311173917.GB4693@redhat.com>
-Message-ID: <alpine.LSU.2.11.1403181703470.7055@eggly.anvils>
-References: <20140311045109.GB12551@redhat.com> <20140310220158.7e8b7f2a.akpm@linux-foundation.org> <20140311053017.GB14329@redhat.com> <20140311132024.GC32390@moon> <531F0E39.9020100@oracle.com> <20140311134158.GD32390@moon> <20140311142817.GA26517@redhat.com>
- <20140311143750.GE32390@moon> <20140311171045.GA4693@redhat.com> <20140311173603.GG32390@moon> <20140311173917.GB4693@redhat.com>
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id BBACD6B012C
+	for <linux-mm@kvack.org>; Tue, 18 Mar 2014 20:49:19 -0400 (EDT)
+Received: by mail-pa0-f47.google.com with SMTP id lj1so8065212pab.6
+        for <linux-mm@kvack.org>; Tue, 18 Mar 2014 17:49:19 -0700 (PDT)
+Received: from lgeamrelo05.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
+        by mx.google.com with ESMTP id xk4si12701033pbc.275.2014.03.18.17.49.17
+        for <linux-mm@kvack.org>;
+        Tue, 18 Mar 2014 17:49:18 -0700 (PDT)
+Date: Wed, 19 Mar 2014 09:49:18 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH 0/3] Volatile Ranges (v11)
+Message-ID: <20140319004918.GB13475@bbox>
+References: <1394822013-23804-1-git-send-email-john.stultz@linaro.org>
+ <20140318151113.GA10724@gmail.com>
+ <CALAqxLV=uRV825taKrnH2=p_kAf5f1PbQ7=J5MopFt9ATj=a3A@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CALAqxLV=uRV825taKrnH2=p_kAf5f1PbQ7=J5MopFt9ATj=a3A@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Jones <davej@redhat.com>
-Cc: Cyrill Gorcunov <gorcunov@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Bob Liu <bob.liu@oracle.com>, Konstantin Khlebnikov <koct9i@gmail.com>
+To: John Stultz <john.stultz@linaro.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Johannes Weiner <hannes@cmpxchg.org>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@sr71.net>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Neil Brown <neilb@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Tue, 11 Mar 2014, Dave Jones wrote:
-> On Tue, Mar 11, 2014 at 09:36:03PM +0400, Cyrill Gorcunov wrote:
->  > On Tue, Mar 11, 2014 at 01:10:45PM -0400, Dave Jones wrote:
->  > >  > 
->  > >  > Dave, iirc trinity can write log file pointing which exactly syscall sequence
->  > >  > was passed, right? Share it too please.
->  > > 
->  > > Hm, I may have been mistaken, and the damage was done by a previous run.
->  > > I went from being able to reproduce it almost instantly to now not being able
->  > > to reproduce it at all.  Will keep trying.
->  > 
->  > Sasha already gave a link to the syscalls sequence, so no rush.
+On Tue, Mar 18, 2014 at 11:07:50AM -0700, John Stultz wrote:
+> On Tue, Mar 18, 2014 at 8:11 AM, Minchan Kim <minchan@kernel.org> wrote:
+> > 1) SIGBUS
+> >
+> > It's one of the arguable issue because some user want to get a
+> > SIGBUS(ex, Firefox) while other want a just zero page(ex, Google
+> > address sanitizer) without signal so it should be option.
+> >
+> >         int vrange(start, len, VRANGE_VOLATILE|VRANGE_ZERO, &purged);
+> >         int vrange(start, len, VRANGE_VOLATILE|VRANGE_SIGNAL, &purged);
 > 
-> It'd be nice to get a more concise reproducer, his list had a little of everything in there.
+> So, the zero-fill on volatile access feels like a *very* special case
+> to me, since a null page could be valid data in many cases. Since
+> support/interest for volatile ranges has been middling at best, I want
+> to start culling the stranger use cases. I'm open in the future to
+> adding a special flag or something if it really make sense, but at
+> this point, lets just get the more general volatile range use cases
+> supported.
 
-I've so far failed to find any explanation for your swapops.h BUG;
-but believe I have identified one cause for "Bad rss-counter"s.
+I'm not sure it's special case. Because some user could reserve
+a big volatile VMA and want to use the range by circle queue for
+caching so overwriting could happen easily.
+We should call vrange(NOVOLATILE) to prevent SIGBUS right before
+overwriting. I feel it's unnecessary overhead and we could avoid
+the cost with VRANGE_ZERO.
+Do you think this usecase would be rare?
 
-My hunch is that the swapops.h BUG is "nearby", but I just cannot
-fit it together (the swapops.h BUG comes when rmap cannot find all
-all the migration entries it inserted earlier: it's a very useful
-BUG for validating rmap).
+> 
+> 
+> > 2) Accouting
+> >
+> > The one of problem I have thought is lack of accouting of vrange pages.
+> > I mean we need some statistics for vrange pages and it should be number
+> > of pages rather than vma size. Without that, user space couldn't see
+> > current status and then they couldn't control the system's memory
+> > consumption. It's alredy known problem for other OS which have support
+> > similar thing(ex, MADV_FREE).
+> >
+> > For accouting, we should account how many of existing pages are the range
+> > when vrange syscall is called. It could increase syscall overhead
+> > but user could have accurate statistics information. It's just trade-off.
+> 
+> Agreed. As I've been looking at handling anonymous page aging on
+> swapless systems, the naive method causes performance issues as we
+> scan and scan and scan the anonymous list trying to page things out to
+> nowhere. Providing the number of volatile pages would allow the
+> scanning to stop at a sensible time.
+> 
+> > 3) Aging
+> >
+> > I think vrange pages should be discarded eariler than other hot pages
+> > so want to move pages to tail of inactive LRU when syscall is called.
+> > We could do by using deactivate_page with some tweak while we accouts
+> > pages in syscall context.
+> >
+> > But if user want to treat vrange pages with other hot pages equally
+> > he could ask so that we could skip deactivating.
+> >
+> >         vrange(start, len, VRANGE_VOLATILE|VRANGE_ZERO|VRANGE_AGING, &purged)
+> >         or
+> >         vrange(start, len, VRANGE_VOLATILE|VRANGE_SIGNAL|VRANGE_AGING, &purged)
+> >
+> > It could be convenient for Moz usecase if they want to age vrange
+> > pages.
+> 
+> Again, I want to keep the scope small for now, so I'd rather not add
+> more options just yet. I think we should come up with a sensable
+> default and give that time to be used, and if there need to be more
+> options later, we can open those up. I think activating on volatile
+> (so the pages are purged together) is the right default approach, but
+> I'm open to discuss this further.
 
-Untested patch below: I can't quite say Reported-by, because it may
-not even be one that you and Sasha have been seeing; but I'm hopeful,
-remap_file_pages is in the list.
+Activating on volatile?
+Could you elaborate it a bit?
 
-Please give this a try, preferably on 3.14-rc or earlier: I've never
-seen "Bad rss-counter"s there myself (trinity uses remap_file_pages
-a lot more than most of us); but have seen them on mmotm/next, so
-some other trigger is coming up there, I'll worry about that once
-it reaches 3.15-rc.
+What I want is that let's move volatile pages into inactive's tail
+with cleared pte when the syscall is called so that volatile pages
+could be reclaimed firstly without reclaiming working set if others
+didn't access that page. Otherwise, we could rotate the page into
+maybe, inactive's head to make new window to get a access chance
+if the VMA sill has VM_VOLATILE.
 
-(Cyrill, entirely unrelated, but in preparing this patch I noticed
-your soft_dirty work in install_file_pte(): which looked good at
-first, until I realized that it's propagating the soft_dirty of a
-pte it's about to zap completely, to the unrelated entry it's about
-to insert in its place.  Which seems very odd to me.)
+> 
+> 
+> > 4) Permanency
+> >
+> > Like MCL_FUTURE of mlockall, it would be better to make the range
+> > have permanent property until called VRANGE_NOVOLATILE.
+> > I mean pages faulted on the range in future since syscall is called
+> > should be volatile automatically so that user could avoid frequent
+> > syscall to make them volatile.
+> 
+> I'm not sure I followed this. Is this with respect to the issue of
+> unmapped holes in the range?
 
+No, I want to make an error when we meed hole during syscall.
 
-[PATCH] mm: fix bad rss-counter if remap_file_pages raced migration
+I meant that vrange syscall works like MCL_FUTURE that means
+to make volatile all pages which will become mapped into the
+vrange as we are already doing.
 
-Fix some "Bad rss-counter state" reports on exit, arising from the
-interaction between page migration and remap_file_pages(): zap_pte()
-must count a migration entry when zapping it.
+> 
+> thanks
+> -john
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-And yes, it is possible (though very unusual) to find an anon page or
-swap entry in a VM_SHARED nonlinear mapping: coming from that horrid
-get_user_pages(write, force) case which COWs even in a shared mapping.
-
-Signed-off-by: Hugh Dickins <hughd@google.com>
----
-
- mm/fremap.c |   28 ++++++++++++++++++++++------
- 1 file changed, 22 insertions(+), 6 deletions(-)
-
---- 3.14-rc7/mm/fremap.c	2014-01-19 18:40:07.000000000 -0800
-+++ linux/mm/fremap.c	2014-03-18 16:32:39.288612346 -0700
-@@ -23,28 +23,44 @@
- 
- #include "internal.h"
- 
-+static int mm_counter(struct page *page)
-+{
-+	return PageAnon(page) ? MM_ANONPAGES : MM_FILEPAGES;
-+}
-+
- static void zap_pte(struct mm_struct *mm, struct vm_area_struct *vma,
- 			unsigned long addr, pte_t *ptep)
- {
- 	pte_t pte = *ptep;
-+	struct page *page;
-+	swp_entry_t entry;
- 
- 	if (pte_present(pte)) {
--		struct page *page;
--
- 		flush_cache_page(vma, addr, pte_pfn(pte));
- 		pte = ptep_clear_flush(vma, addr, ptep);
- 		page = vm_normal_page(vma, addr, pte);
- 		if (page) {
- 			if (pte_dirty(pte))
- 				set_page_dirty(page);
-+			update_hiwater_rss(mm);
-+			dec_mm_counter(mm, mm_counter(page));
- 			page_remove_rmap(page);
- 			page_cache_release(page);
-+		}
-+	} else {	/* zap_pte() is not called when pte_none() */
-+		if (!pte_file(pte)) {
- 			update_hiwater_rss(mm);
--			dec_mm_counter(mm, MM_FILEPAGES);
-+			entry = pte_to_swp_entry(pte);
-+			if (non_swap_entry(entry)) {
-+				if (is_migration_entry(entry)) {
-+					page = migration_entry_to_page(entry);
-+					dec_mm_counter(mm, mm_counter(page));
-+				}
-+			} else {
-+				free_swap_and_cache(entry);
-+				dec_mm_counter(mm, MM_SWAPENTS);
-+			}
- 		}
--	} else {
--		if (!pte_file(pte))
--			free_swap_and_cache(pte_to_swp_entry(pte));
- 		pte_clear_not_present_full(mm, addr, ptep, 0);
- 	}
- }
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
