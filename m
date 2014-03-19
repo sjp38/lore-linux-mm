@@ -1,95 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vc0-f175.google.com (mail-vc0-f175.google.com [209.85.220.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 1841A6B0128
-	for <linux-mm@kvack.org>; Tue, 18 Mar 2014 20:23:58 -0400 (EDT)
-Received: by mail-vc0-f175.google.com with SMTP id lh14so8201677vcb.20
-        for <linux-mm@kvack.org>; Tue, 18 Mar 2014 17:23:57 -0700 (PDT)
-Received: from mail-vc0-f177.google.com (mail-vc0-f177.google.com [209.85.220.177])
-        by mx.google.com with ESMTPS id a15si4012696vew.169.2014.03.18.17.23.57
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id A9E8B6B0129
+	for <linux-mm@kvack.org>; Tue, 18 Mar 2014 20:40:05 -0400 (EDT)
+Received: by mail-pd0-f172.google.com with SMTP id p10so7849910pdj.31
+        for <linux-mm@kvack.org>; Tue, 18 Mar 2014 17:40:05 -0700 (PDT)
+Received: from mail-pa0-x231.google.com (mail-pa0-x231.google.com [2607:f8b0:400e:c03::231])
+        by mx.google.com with ESMTPS id yo5si13552827pab.210.2014.03.18.17.40.04
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 18 Mar 2014 17:23:57 -0700 (PDT)
-Received: by mail-vc0-f177.google.com with SMTP id if17so8080970vcb.22
-        for <linux-mm@kvack.org>; Tue, 18 Mar 2014 17:23:57 -0700 (PDT)
+        Tue, 18 Mar 2014 17:40:04 -0700 (PDT)
+Received: by mail-pa0-f49.google.com with SMTP id lj1so8080354pab.36
+        for <linux-mm@kvack.org>; Tue, 18 Mar 2014 17:40:04 -0700 (PDT)
+Date: Tue, 18 Mar 2014 17:38:38 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: bad rss-counter message in 3.14rc5
+In-Reply-To: <20140311173917.GB4693@redhat.com>
+Message-ID: <alpine.LSU.2.11.1403181703470.7055@eggly.anvils>
+References: <20140311045109.GB12551@redhat.com> <20140310220158.7e8b7f2a.akpm@linux-foundation.org> <20140311053017.GB14329@redhat.com> <20140311132024.GC32390@moon> <531F0E39.9020100@oracle.com> <20140311134158.GD32390@moon> <20140311142817.GA26517@redhat.com>
+ <20140311143750.GE32390@moon> <20140311171045.GA4693@redhat.com> <20140311173603.GG32390@moon> <20140311173917.GB4693@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20140319001826.GA13475@bbox>
-References: <1394779070-8545-1-git-send-email-minchan@kernel.org>
- <5328888C.7030402@mit.edu> <20140319001826.GA13475@bbox>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Tue, 18 Mar 2014 17:23:37 -0700
-Message-ID: <CALCETrUsgVgKDRjqY=7avbvowkNSn-CWJ3L9zti1SCOYgrY3UA@mail.gmail.com>
-Subject: Re: [RFC 0/6] mm: support madvise(MADV_FREE)
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, John Stultz <john.stultz@linaro.org>, Jason Evans <je@fb.com>
+To: Dave Jones <davej@redhat.com>
+Cc: Cyrill Gorcunov <gorcunov@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Bob Liu <bob.liu@oracle.com>, Konstantin Khlebnikov <koct9i@gmail.com>
 
-On Tue, Mar 18, 2014 at 5:18 PM, Minchan Kim <minchan@kernel.org> wrote:
-> Hello,
->
-> On Tue, Mar 18, 2014 at 10:55:24AM -0700, Andy Lutomirski wrote:
->> On 03/13/2014 11:37 PM, Minchan Kim wrote:
->> > This patch is an attempt to support MADV_FREE for Linux.
->> >
->> > Rationale is following as.
->> >
->> > Allocators call munmap(2) when user call free(3) if ptr is
->> > in mmaped area. But munmap isn't cheap because it have to clean up
->> > all pte entries, unlinking a vma and returns free pages to buddy
->> > so overhead would be increased linearly by mmaped area's size.
->> > So they like madvise_dontneed rather than munmap.
->> >
->> > "dontneed" holds read-side lock of mmap_sem so other threads
->> > of the process could go with concurrent page faults so it is
->> > better than munmap if it's not lack of address space.
->> > But the problem is that most of allocator reuses that address
->> > space soonish so applications see page fault, page allocation,
->> > page zeroing if allocator already called madvise_dontneed
->> > on the address space.
->> >
->> > For avoidng that overheads, other OS have supported MADV_FREE.
->> > The idea is just mark pages as lazyfree when madvise called
->> > and purge them if memory pressure happens. Otherwise, VM doesn't
->> > detach pages on the address space so application could use
->> > that memory space without above overheads.
->>
->> I must be missing something.
->>
->> If the application issues MADV_FREE and then writes to the MADV_FREEd
->> range, the kernel needs to know that the pages are no longer safe to
->> lazily free.  This would presumably happen via a page fault on write.
->> For that to happen reliably, the kernel has to write protect the pages
->> when MADV_FREE is called, which in turn requires flushing the TLBs.
->
-> It could be done by pte_dirty bit check. Of course, if some architectures
-> don't support it by H/W, pte_mkdirty would make it CoW as you said.
+On Tue, 11 Mar 2014, Dave Jones wrote:
+> On Tue, Mar 11, 2014 at 09:36:03PM +0400, Cyrill Gorcunov wrote:
+>  > On Tue, Mar 11, 2014 at 01:10:45PM -0400, Dave Jones wrote:
+>  > >  > 
+>  > >  > Dave, iirc trinity can write log file pointing which exactly syscall sequence
+>  > >  > was passed, right? Share it too please.
+>  > > 
+>  > > Hm, I may have been mistaken, and the damage was done by a previous run.
+>  > > I went from being able to reproduce it almost instantly to now not being able
+>  > > to reproduce it at all.  Will keep trying.
+>  > 
+>  > Sasha already gave a link to the syscalls sequence, so no rush.
+> 
+> It'd be nice to get a more concise reproducer, his list had a little of everything in there.
 
-If the page already has dirty PTEs, then you need to clear the dirty
-bits and flush TLBs so that other CPUs notice that the PTEs are clean,
-I think.
+I've so far failed to find any explanation for your swapops.h BUG;
+but believe I have identified one cause for "Bad rss-counter"s.
 
-Also, this has very odd semantics wrt reading the page after MADV_FREE
--- is reading the page guaranteed to un-free it?
+My hunch is that the swapops.h BUG is "nearby", but I just cannot
+fit it together (the swapops.h BUG comes when rmap cannot find all
+all the migration entries it inserted earlier: it's a very useful
+BUG for validating rmap).
 
->>
->> How does this end up being faster than munmap?
->
-> MADV_FREE doesn't need to return back the pages into page allocator
-> compared to MADV_DONTNEED and the overhead is not small when I measured
-> that on my machine.(Roughly, MADV_FREE's cost is half of DONTNEED through
-> avoiding involving page allocator.)
->
-> But I'd like to clarify that it's not MADV_FREE's goal that syscall
-> itself should be faster than MADV_DONTNEED but major goal is to
-> avoid unnecessary page fault + page allocation + page zeroing +
-> garbage swapout.
+Untested patch below: I can't quite say Reported-by, because it may
+not even be one that you and Sasha have been seeing; but I'm hopeful,
+remap_file_pages is in the list.
 
-This sounds like it might be better solved by trying to make munmap or
-MADV_DONTNEED faster.  Maybe those functions should lazily give pages
-back to the buddy allocator.
+Please give this a try, preferably on 3.14-rc or earlier: I've never
+seen "Bad rss-counter"s there myself (trinity uses remap_file_pages
+a lot more than most of us); but have seen them on mmotm/next, so
+some other trigger is coming up there, I'll worry about that once
+it reaches 3.15-rc.
 
---Andy
+(Cyrill, entirely unrelated, but in preparing this patch I noticed
+your soft_dirty work in install_file_pte(): which looked good at
+first, until I realized that it's propagating the soft_dirty of a
+pte it's about to zap completely, to the unrelated entry it's about
+to insert in its place.  Which seems very odd to me.)
+
+
+[PATCH] mm: fix bad rss-counter if remap_file_pages raced migration
+
+Fix some "Bad rss-counter state" reports on exit, arising from the
+interaction between page migration and remap_file_pages(): zap_pte()
+must count a migration entry when zapping it.
+
+And yes, it is possible (though very unusual) to find an anon page or
+swap entry in a VM_SHARED nonlinear mapping: coming from that horrid
+get_user_pages(write, force) case which COWs even in a shared mapping.
+
+Signed-off-by: Hugh Dickins <hughd@google.com>
+---
+
+ mm/fremap.c |   28 ++++++++++++++++++++++------
+ 1 file changed, 22 insertions(+), 6 deletions(-)
+
+--- 3.14-rc7/mm/fremap.c	2014-01-19 18:40:07.000000000 -0800
++++ linux/mm/fremap.c	2014-03-18 16:32:39.288612346 -0700
+@@ -23,28 +23,44 @@
+ 
+ #include "internal.h"
+ 
++static int mm_counter(struct page *page)
++{
++	return PageAnon(page) ? MM_ANONPAGES : MM_FILEPAGES;
++}
++
+ static void zap_pte(struct mm_struct *mm, struct vm_area_struct *vma,
+ 			unsigned long addr, pte_t *ptep)
+ {
+ 	pte_t pte = *ptep;
++	struct page *page;
++	swp_entry_t entry;
+ 
+ 	if (pte_present(pte)) {
+-		struct page *page;
+-
+ 		flush_cache_page(vma, addr, pte_pfn(pte));
+ 		pte = ptep_clear_flush(vma, addr, ptep);
+ 		page = vm_normal_page(vma, addr, pte);
+ 		if (page) {
+ 			if (pte_dirty(pte))
+ 				set_page_dirty(page);
++			update_hiwater_rss(mm);
++			dec_mm_counter(mm, mm_counter(page));
+ 			page_remove_rmap(page);
+ 			page_cache_release(page);
++		}
++	} else {	/* zap_pte() is not called when pte_none() */
++		if (!pte_file(pte)) {
+ 			update_hiwater_rss(mm);
+-			dec_mm_counter(mm, MM_FILEPAGES);
++			entry = pte_to_swp_entry(pte);
++			if (non_swap_entry(entry)) {
++				if (is_migration_entry(entry)) {
++					page = migration_entry_to_page(entry);
++					dec_mm_counter(mm, mm_counter(page));
++				}
++			} else {
++				free_swap_and_cache(entry);
++				dec_mm_counter(mm, MM_SWAPENTS);
++			}
+ 		}
+-	} else {
+-		if (!pte_file(pte))
+-			free_swap_and_cache(pte_to_swp_entry(pte));
+ 		pte_clear_not_present_full(mm, addr, ptep, 0);
+ 	}
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
