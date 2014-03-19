@@ -1,133 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id BBACD6B012C
-	for <linux-mm@kvack.org>; Tue, 18 Mar 2014 20:49:19 -0400 (EDT)
-Received: by mail-pa0-f47.google.com with SMTP id lj1so8065212pab.6
-        for <linux-mm@kvack.org>; Tue, 18 Mar 2014 17:49:19 -0700 (PDT)
-Received: from lgeamrelo05.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
-        by mx.google.com with ESMTP id xk4si12701033pbc.275.2014.03.18.17.49.17
+Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com [209.85.160.54])
+	by kanga.kvack.org (Postfix) with ESMTP id A7BAD6B012E
+	for <linux-mm@kvack.org>; Tue, 18 Mar 2014 21:02:55 -0400 (EDT)
+Received: by mail-pb0-f54.google.com with SMTP id ma3so8121801pbc.13
+        for <linux-mm@kvack.org>; Tue, 18 Mar 2014 18:02:55 -0700 (PDT)
+Received: from LGEMRELSE1Q.lge.com (LGEMRELSE1Q.lge.com. [156.147.1.111])
+        by mx.google.com with ESMTP id yp10si8255083pab.11.2014.03.18.18.02.53
         for <linux-mm@kvack.org>;
-        Tue, 18 Mar 2014 17:49:18 -0700 (PDT)
-Date: Wed, 19 Mar 2014 09:49:18 +0900
+        Tue, 18 Mar 2014 18:02:54 -0700 (PDT)
+Date: Wed, 19 Mar 2014 10:02:53 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 0/3] Volatile Ranges (v11)
-Message-ID: <20140319004918.GB13475@bbox>
-References: <1394822013-23804-1-git-send-email-john.stultz@linaro.org>
- <20140318151113.GA10724@gmail.com>
- <CALAqxLV=uRV825taKrnH2=p_kAf5f1PbQ7=J5MopFt9ATj=a3A@mail.gmail.com>
+Subject: Re: [RFC 0/6] mm: support madvise(MADV_FREE)
+Message-ID: <20140319010253.GC13475@bbox>
+References: <1394779070-8545-1-git-send-email-minchan@kernel.org>
+ <5328888C.7030402@mit.edu>
+ <20140319001826.GA13475@bbox>
+ <CALCETrUsgVgKDRjqY=7avbvowkNSn-CWJ3L9zti1SCOYgrY3UA@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CALAqxLV=uRV825taKrnH2=p_kAf5f1PbQ7=J5MopFt9ATj=a3A@mail.gmail.com>
+In-Reply-To: <CALCETrUsgVgKDRjqY=7avbvowkNSn-CWJ3L9zti1SCOYgrY3UA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Stultz <john.stultz@linaro.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Johannes Weiner <hannes@cmpxchg.org>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@sr71.net>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Neil Brown <neilb@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, John Stultz <john.stultz@linaro.org>, Jason Evans <je@fb.com>
 
-On Tue, Mar 18, 2014 at 11:07:50AM -0700, John Stultz wrote:
-> On Tue, Mar 18, 2014 at 8:11 AM, Minchan Kim <minchan@kernel.org> wrote:
-> > 1) SIGBUS
+On Tue, Mar 18, 2014 at 05:23:37PM -0700, Andy Lutomirski wrote:
+> On Tue, Mar 18, 2014 at 5:18 PM, Minchan Kim <minchan@kernel.org> wrote:
+> > Hello,
 > >
-> > It's one of the arguable issue because some user want to get a
-> > SIGBUS(ex, Firefox) while other want a just zero page(ex, Google
-> > address sanitizer) without signal so it should be option.
+> > On Tue, Mar 18, 2014 at 10:55:24AM -0700, Andy Lutomirski wrote:
+> >> On 03/13/2014 11:37 PM, Minchan Kim wrote:
+> >> > This patch is an attempt to support MADV_FREE for Linux.
+> >> >
+> >> > Rationale is following as.
+> >> >
+> >> > Allocators call munmap(2) when user call free(3) if ptr is
+> >> > in mmaped area. But munmap isn't cheap because it have to clean up
+> >> > all pte entries, unlinking a vma and returns free pages to buddy
+> >> > so overhead would be increased linearly by mmaped area's size.
+> >> > So they like madvise_dontneed rather than munmap.
+> >> >
+> >> > "dontneed" holds read-side lock of mmap_sem so other threads
+> >> > of the process could go with concurrent page faults so it is
+> >> > better than munmap if it's not lack of address space.
+> >> > But the problem is that most of allocator reuses that address
+> >> > space soonish so applications see page fault, page allocation,
+> >> > page zeroing if allocator already called madvise_dontneed
+> >> > on the address space.
+> >> >
+> >> > For avoidng that overheads, other OS have supported MADV_FREE.
+> >> > The idea is just mark pages as lazyfree when madvise called
+> >> > and purge them if memory pressure happens. Otherwise, VM doesn't
+> >> > detach pages on the address space so application could use
+> >> > that memory space without above overheads.
+> >>
+> >> I must be missing something.
+> >>
+> >> If the application issues MADV_FREE and then writes to the MADV_FREEd
+> >> range, the kernel needs to know that the pages are no longer safe to
+> >> lazily free.  This would presumably happen via a page fault on write.
+> >> For that to happen reliably, the kernel has to write protect the pages
+> >> when MADV_FREE is called, which in turn requires flushing the TLBs.
 > >
-> >         int vrange(start, len, VRANGE_VOLATILE|VRANGE_ZERO, &purged);
-> >         int vrange(start, len, VRANGE_VOLATILE|VRANGE_SIGNAL, &purged);
+> > It could be done by pte_dirty bit check. Of course, if some architectures
+> > don't support it by H/W, pte_mkdirty would make it CoW as you said.
 > 
-> So, the zero-fill on volatile access feels like a *very* special case
-> to me, since a null page could be valid data in many cases. Since
-> support/interest for volatile ranges has been middling at best, I want
-> to start culling the stranger use cases. I'm open in the future to
-> adding a special flag or something if it really make sense, but at
-> this point, lets just get the more general volatile range use cases
-> supported.
+> If the page already has dirty PTEs, then you need to clear the dirty
+> bits and flush TLBs so that other CPUs notice that the PTEs are clean,
+> I think.
 
-I'm not sure it's special case. Because some user could reserve
-a big volatile VMA and want to use the range by circle queue for
-caching so overwriting could happen easily.
-We should call vrange(NOVOLATILE) to prevent SIGBUS right before
-overwriting. I feel it's unnecessary overhead and we could avoid
-the cost with VRANGE_ZERO.
-Do you think this usecase would be rare?
-
-> 
-> 
-> > 2) Accouting
-> >
-> > The one of problem I have thought is lack of accouting of vrange pages.
-> > I mean we need some statistics for vrange pages and it should be number
-> > of pages rather than vma size. Without that, user space couldn't see
-> > current status and then they couldn't control the system's memory
-> > consumption. It's alredy known problem for other OS which have support
-> > similar thing(ex, MADV_FREE).
-> >
-> > For accouting, we should account how many of existing pages are the range
-> > when vrange syscall is called. It could increase syscall overhead
-> > but user could have accurate statistics information. It's just trade-off.
-> 
-> Agreed. As I've been looking at handling anonymous page aging on
-> swapless systems, the naive method causes performance issues as we
-> scan and scan and scan the anonymous list trying to page things out to
-> nowhere. Providing the number of volatile pages would allow the
-> scanning to stop at a sensible time.
-> 
-> > 3) Aging
-> >
-> > I think vrange pages should be discarded eariler than other hot pages
-> > so want to move pages to tail of inactive LRU when syscall is called.
-> > We could do by using deactivate_page with some tweak while we accouts
-> > pages in syscall context.
-> >
-> > But if user want to treat vrange pages with other hot pages equally
-> > he could ask so that we could skip deactivating.
-> >
-> >         vrange(start, len, VRANGE_VOLATILE|VRANGE_ZERO|VRANGE_AGING, &purged)
-> >         or
-> >         vrange(start, len, VRANGE_VOLATILE|VRANGE_SIGNAL|VRANGE_AGING, &purged)
-> >
-> > It could be convenient for Moz usecase if they want to age vrange
-> > pages.
-> 
-> Again, I want to keep the scope small for now, so I'd rather not add
-> more options just yet. I think we should come up with a sensable
-> default and give that time to be used, and if there need to be more
-> options later, we can open those up. I think activating on volatile
-> (so the pages are purged together) is the right default approach, but
-> I'm open to discuss this further.
-
-Activating on volatile?
-Could you elaborate it a bit?
-
-What I want is that let's move volatile pages into inactive's tail
-with cleared pte when the syscall is called so that volatile pages
-could be reclaimed firstly without reclaiming working set if others
-didn't access that page. Otherwise, we could rotate the page into
-maybe, inactive's head to make new window to get a access chance
-if the VMA sill has VM_VOLATILE.
+True. I didn't mean we don't need TLB flush. Look at the code although
+there are lots of bug in RFC v1.
 
 > 
+> Also, this has very odd semantics wrt reading the page after MADV_FREE
+> -- is reading the page guaranteed to un-free it?
+
+Yeb, I thought about that oddness but didn't make conclusion because
+other OS seem to work like that.
+http://www.freebsd.org/cgi/man.cgi?query=madvise&sektion=2
+
+But we could fix it easily by checking access bit instead of dirty bit.
+
 > 
-> > 4) Permanency
+> >>
+> >> How does this end up being faster than munmap?
 > >
-> > Like MCL_FUTURE of mlockall, it would be better to make the range
-> > have permanent property until called VRANGE_NOVOLATILE.
-> > I mean pages faulted on the range in future since syscall is called
-> > should be volatile automatically so that user could avoid frequent
-> > syscall to make them volatile.
+> > MADV_FREE doesn't need to return back the pages into page allocator
+> > compared to MADV_DONTNEED and the overhead is not small when I measured
+> > that on my machine.(Roughly, MADV_FREE's cost is half of DONTNEED through
+> > avoiding involving page allocator.)
+> >
+> > But I'd like to clarify that it's not MADV_FREE's goal that syscall
+> > itself should be faster than MADV_DONTNEED but major goal is to
+> > avoid unnecessary page fault + page allocation + page zeroing +
+> > garbage swapout.
 > 
-> I'm not sure I followed this. Is this with respect to the issue of
-> unmapped holes in the range?
+> This sounds like it might be better solved by trying to make munmap or
+> MADV_DONTNEED faster.  Maybe those functions should lazily give pages
+> back to the buddy allocator.
 
-No, I want to make an error when we meed hole during syscall.
+About munmap, it needs write-mmap_sem and it hurts heavily of
+allocator performance in multi-thread.
 
-I meant that vrange syscall works like MCL_FUTURE that means
-to make volatile all pages which will become mapped into the
-vrange as we are already doing.
+About MADV_DONTNEED, Rik van Riel tried to replace MADV_DONTNEED
+with MADV_FREE in 2007(http://lwn.net/Articles/230799/).
+But I don't know why it was dropped. One think I can imagine
+is that it could make regression because user on MADV_DONTNEED
+expect rss decreasing when syscall is called.
 
 > 
-> thanks
-> -john
+> --Andy
 > 
 > --
 > To unsubscribe, send a message with 'unsubscribe linux-mm' in
