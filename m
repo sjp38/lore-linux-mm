@@ -1,77 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ve0-f174.google.com (mail-ve0-f174.google.com [209.85.128.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D18D6B014C
-	for <linux-mm@kvack.org>; Tue, 18 Mar 2014 22:57:01 -0400 (EDT)
-Received: by mail-ve0-f174.google.com with SMTP id oz11so7947823veb.5
-        for <linux-mm@kvack.org>; Tue, 18 Mar 2014 19:57:01 -0700 (PDT)
-Received: from mail-ve0-x22f.google.com (mail-ve0-x22f.google.com [2607:f8b0:400c:c01::22f])
-        by mx.google.com with ESMTPS id w5si7200661vcl.141.2014.03.18.19.57.00
+Received: from mail-pb0-f41.google.com (mail-pb0-f41.google.com [209.85.160.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B42F6B0150
+	for <linux-mm@kvack.org>; Tue, 18 Mar 2014 23:21:17 -0400 (EDT)
+Received: by mail-pb0-f41.google.com with SMTP id jt11so8293403pbb.28
+        for <linux-mm@kvack.org>; Tue, 18 Mar 2014 20:21:16 -0700 (PDT)
+Received: from mail-pd0-x22b.google.com (mail-pd0-x22b.google.com [2607:f8b0:400e:c02::22b])
+        by mx.google.com with ESMTPS id r8si9279342pab.278.2014.03.18.20.21.14
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 18 Mar 2014 19:57:00 -0700 (PDT)
-Received: by mail-ve0-f175.google.com with SMTP id oz11so8135869veb.34
-        for <linux-mm@kvack.org>; Tue, 18 Mar 2014 19:57:00 -0700 (PDT)
+        Tue, 18 Mar 2014 20:21:15 -0700 (PDT)
+Received: by mail-pd0-f171.google.com with SMTP id r10so8034385pdi.2
+        for <linux-mm@kvack.org>; Tue, 18 Mar 2014 20:21:14 -0700 (PDT)
+Date: Tue, 18 Mar 2014 20:20:15 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: performance regression due to commit e82e0561("mm: vmscan: obey
+ proportional scanning requirements for kswapd")
+In-Reply-To: <20140318063822.GS29270@yliu-dev.sh.intel.com>
+Message-ID: <alpine.LSU.2.11.1403182012350.975@eggly.anvils>
+References: <20140218080122.GO26593@yliu-dev.sh.intel.com> <20140312165447.GO10663@suse.de> <alpine.LSU.2.11.1403130516050.10128@eggly.anvils> <20140314142103.GV10663@suse.de> <alpine.LSU.2.11.1403152040380.21540@eggly.anvils>
+ <20140318063822.GS29270@yliu-dev.sh.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.LSU.2.11.1403181928370.3499@eggly.anvils>
-References: <20140311045109.GB12551@redhat.com>
-	<20140310220158.7e8b7f2a.akpm@linux-foundation.org>
-	<20140311053017.GB14329@redhat.com>
-	<20140311132024.GC32390@moon>
-	<531F0E39.9020100@oracle.com>
-	<20140311134158.GD32390@moon>
-	<20140311142817.GA26517@redhat.com>
-	<20140311143750.GE32390@moon>
-	<20140311171045.GA4693@redhat.com>
-	<20140311173603.GG32390@moon>
-	<20140311173917.GB4693@redhat.com>
-	<alpine.LSU.2.11.1403181703470.7055@eggly.anvils>
-	<CA+55aFx0ZyCVrkosgTongBrNX6mJM4B8+QZQE1p0okk8ubbv7g@mail.gmail.com>
-	<alpine.LSU.2.11.1403181848380.3318@eggly.anvils>
-	<CA+55aFxVG7HLmsvCzoiA7PBRPvX3utRfyVGrBs6gVLZ-fUCuPQ@mail.gmail.com>
-	<alpine.LSU.2.11.1403181928370.3499@eggly.anvils>
-Date: Tue, 18 Mar 2014 19:57:00 -0700
-Message-ID: <CA+55aFyjXdfsGniSHvCg83KCB-BD4SYNrJ+dcpr-8bnHsoet_Q@mail.gmail.com>
-Subject: Re: bad rss-counter message in 3.14rc5
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Dave Jones <davej@redhat.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Bob Liu <bob.liu@oracle.com>, Konstantin Khlebnikov <koct9i@gmail.com>
+To: Yuanhan Liu <yuanhan.liu@linux.intel.com>
+Cc: Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Suleiman Souhlal <suleiman@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Mar 18, 2014 at 7:37 PM, Hugh Dickins <hughd@google.com> wrote:
->
-> For 3.15, and probably 3.16 too, we should keep in place whatever
-> partial accommodations we have for the case (such as allowing for
-> anon and swap in fremap's zap_pte), in case we do need to revert;
-> but clean those away later on.  (Not many, I think: it was mainly
-> a guilty secret that VM accounting didn't really hold together.)
+On Tue, 18 Mar 2014, Yuanhan Liu wrote:
+> On Sat, Mar 15, 2014 at 08:56:10PM -0700, Hugh Dickins wrote:
+> > On Fri, 14 Mar 2014, Mel Gorman wrote:
+> > > 
+> > > You say it's already been tested for months but it would be nice if the
+> > > workload that generated this thread was also tested.
+> > 
+> > Yes indeed: Yuanhan, do you have time to try this patch for your
+> > testcase?  I'm hoping it will prove at least as effective as your
+> > own suggested patch, but please let us know what you find - thanks.
+> 
+> Hi Hugh,
+> 
+> Sure, and sorry to tell you that this patch introduced another half
+> performance descrease from avg 60 MB/s to 30 MB/s in this testcase.
 
-Absolutely. See if it works to just stop doing that special COW, and
-then later on, if we have decided "nobody even noticed", we can remove
-the hacks we have to support the fact that shared mappings sometimes
-have anon pages in them.
+Thanks a lot for trying it out.  I had been hoping that everything
+would be wonderful, and I wouldn't have think at all about what's
+going on.  You have made me sad :( but I can't blame your honesty!
 
-> :)  That fits with what I heard of HP-UX mmap,
-> but I never had the pleasure of dealing with it.
+I'll have to think a little after all, about your test, and Mel's
+pertinent questions: I'll come back to you, nothing to say right now.
 
-They had purely virtually indexed caches, making coherency
-"interesting". Together with a VM based on some really old BSD VM code
-that everybody else had thrown out, and that didn't allow you to unmap
-things partially etc. So HPUX mmap really didn't work, not even for
-non-shared mmap's.
+Hugh
 
-I think they fixed the interfaces in HP-UX 11. But not being coherent
-meant that the shared mappings tended to still have trouble. nntp
-largely died, but was replaced with the cyrus imapd that played
-similar games.
-
-At least out mmap was always coherent. Even in MAP_PRIVATE, and with
-regards to both write() system calls and other mmap PROT_WRITE users.
-
-Except when we had bugs. Shared mmap really isn't very simple to get right.
-
-                 Linus
+> 
+> Moreover, the dd throughput for each process was steady before, however,
+> it's quite bumpy from 20 MB/s to 40 MB/s w/ this patch applied, and thus
+> got a avg of 30 MB/s:
+> 
+>     11327188992 bytes (11 GB) copied, 300.014 s, 37.8 MB/s
+>     1809373+0 records in
+>     1809372+0 records out
+>     7411187712 bytes (7.4 GB) copied, 300.008 s, 24.7 MB/s
+>     3068285+0 records in
+>     3068284+0 records out
+>     12567691264 bytes (13 GB) copied, 300.001 s, 41.9 MB/s
+>     1883877+0 records in
+>     1883876+0 records out
+>     7716356096 bytes (7.7 GB) copied, 300.002 s, 25.7 MB/s
+>     1807674+0 records in
+>     1807673+0 records out
+>     7404228608 bytes (7.4 GB) copied, 300.024 s, 24.7 MB/s
+>     1796473+0 records in
+>     1796472+0 records out
+>     7358349312 bytes (7.4 GB) copied, 300.008 s, 24.5 MB/s
+>     1905655+0 records in
+>     1905654+0 records out
+>     7805558784 bytes (7.8 GB) copied, 300.016 s, 26.0 MB/s
+>     2819168+0 records in
+>     2819167+0 records out
+>     11547308032 bytes (12 GB) copied, 300.025 s, 38.5 MB/s
+>     1848381+0 records in
+>     1848380+0 records out
+>     7570964480 bytes (7.6 GB) copied, 300.005 s, 25.2 MB/s
+>     3023133+0 records in
+>     3023132+0 records out
+>     12382748672 bytes (12 GB) copied, 300.024 s, 41.3 MB/s
+>     1714585+0 records in
+>     1714584+0 records out
+>     7022936064 bytes (7.0 GB) copied, 300.011 s, 23.4 MB/s
+>     1835132+0 records in
+>     1835131+0 records out
+>     7516696576 bytes (7.5 GB) copied, 299.998 s, 25.1 MB/s
+>     1733341+0 records in
+>     
+> 
+> 	--yliu
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
