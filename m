@@ -1,127 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com [209.85.160.54])
-	by kanga.kvack.org (Postfix) with ESMTP id A7BAD6B012E
-	for <linux-mm@kvack.org>; Tue, 18 Mar 2014 21:02:55 -0400 (EDT)
-Received: by mail-pb0-f54.google.com with SMTP id ma3so8121801pbc.13
-        for <linux-mm@kvack.org>; Tue, 18 Mar 2014 18:02:55 -0700 (PDT)
-Received: from LGEMRELSE1Q.lge.com (LGEMRELSE1Q.lge.com. [156.147.1.111])
-        by mx.google.com with ESMTP id yp10si8255083pab.11.2014.03.18.18.02.53
-        for <linux-mm@kvack.org>;
-        Tue, 18 Mar 2014 18:02:54 -0700 (PDT)
-Date: Wed, 19 Mar 2014 10:02:53 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [RFC 0/6] mm: support madvise(MADV_FREE)
-Message-ID: <20140319010253.GC13475@bbox>
-References: <1394779070-8545-1-git-send-email-minchan@kernel.org>
- <5328888C.7030402@mit.edu>
- <20140319001826.GA13475@bbox>
- <CALCETrUsgVgKDRjqY=7avbvowkNSn-CWJ3L9zti1SCOYgrY3UA@mail.gmail.com>
+Received: from mail-ve0-f176.google.com (mail-ve0-f176.google.com [209.85.128.176])
+	by kanga.kvack.org (Postfix) with ESMTP id B1EF56B012F
+	for <linux-mm@kvack.org>; Tue, 18 Mar 2014 21:10:41 -0400 (EDT)
+Received: by mail-ve0-f176.google.com with SMTP id cz12so7887099veb.21
+        for <linux-mm@kvack.org>; Tue, 18 Mar 2014 18:10:41 -0700 (PDT)
+Received: from mail-ve0-x22d.google.com (mail-ve0-x22d.google.com [2607:f8b0:400c:c01::22d])
+        by mx.google.com with ESMTPS id dm2si4057314vec.111.2014.03.18.18.10.40
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 18 Mar 2014 18:10:41 -0700 (PDT)
+Received: by mail-ve0-f173.google.com with SMTP id oy12so8138165veb.32
+        for <linux-mm@kvack.org>; Tue, 18 Mar 2014 18:10:40 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CALCETrUsgVgKDRjqY=7avbvowkNSn-CWJ3L9zti1SCOYgrY3UA@mail.gmail.com>
+In-Reply-To: <alpine.LSU.2.11.1403181703470.7055@eggly.anvils>
+References: <20140311045109.GB12551@redhat.com>
+	<20140310220158.7e8b7f2a.akpm@linux-foundation.org>
+	<20140311053017.GB14329@redhat.com>
+	<20140311132024.GC32390@moon>
+	<531F0E39.9020100@oracle.com>
+	<20140311134158.GD32390@moon>
+	<20140311142817.GA26517@redhat.com>
+	<20140311143750.GE32390@moon>
+	<20140311171045.GA4693@redhat.com>
+	<20140311173603.GG32390@moon>
+	<20140311173917.GB4693@redhat.com>
+	<alpine.LSU.2.11.1403181703470.7055@eggly.anvils>
+Date: Tue, 18 Mar 2014 18:10:40 -0700
+Message-ID: <CA+55aFx0ZyCVrkosgTongBrNX6mJM4B8+QZQE1p0okk8ubbv7g@mail.gmail.com>
+Subject: Re: bad rss-counter message in 3.14rc5
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, John Stultz <john.stultz@linaro.org>, Jason Evans <je@fb.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: Dave Jones <davej@redhat.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Bob Liu <bob.liu@oracle.com>, Konstantin Khlebnikov <koct9i@gmail.com>
 
-On Tue, Mar 18, 2014 at 05:23:37PM -0700, Andy Lutomirski wrote:
-> On Tue, Mar 18, 2014 at 5:18 PM, Minchan Kim <minchan@kernel.org> wrote:
-> > Hello,
-> >
-> > On Tue, Mar 18, 2014 at 10:55:24AM -0700, Andy Lutomirski wrote:
-> >> On 03/13/2014 11:37 PM, Minchan Kim wrote:
-> >> > This patch is an attempt to support MADV_FREE for Linux.
-> >> >
-> >> > Rationale is following as.
-> >> >
-> >> > Allocators call munmap(2) when user call free(3) if ptr is
-> >> > in mmaped area. But munmap isn't cheap because it have to clean up
-> >> > all pte entries, unlinking a vma and returns free pages to buddy
-> >> > so overhead would be increased linearly by mmaped area's size.
-> >> > So they like madvise_dontneed rather than munmap.
-> >> >
-> >> > "dontneed" holds read-side lock of mmap_sem so other threads
-> >> > of the process could go with concurrent page faults so it is
-> >> > better than munmap if it's not lack of address space.
-> >> > But the problem is that most of allocator reuses that address
-> >> > space soonish so applications see page fault, page allocation,
-> >> > page zeroing if allocator already called madvise_dontneed
-> >> > on the address space.
-> >> >
-> >> > For avoidng that overheads, other OS have supported MADV_FREE.
-> >> > The idea is just mark pages as lazyfree when madvise called
-> >> > and purge them if memory pressure happens. Otherwise, VM doesn't
-> >> > detach pages on the address space so application could use
-> >> > that memory space without above overheads.
-> >>
-> >> I must be missing something.
-> >>
-> >> If the application issues MADV_FREE and then writes to the MADV_FREEd
-> >> range, the kernel needs to know that the pages are no longer safe to
-> >> lazily free.  This would presumably happen via a page fault on write.
-> >> For that to happen reliably, the kernel has to write protect the pages
-> >> when MADV_FREE is called, which in turn requires flushing the TLBs.
-> >
-> > It could be done by pte_dirty bit check. Of course, if some architectures
-> > don't support it by H/W, pte_mkdirty would make it CoW as you said.
-> 
-> If the page already has dirty PTEs, then you need to clear the dirty
-> bits and flush TLBs so that other CPUs notice that the PTEs are clean,
-> I think.
+On Tue, Mar 18, 2014 at 5:38 PM, Hugh Dickins <hughd@google.com> wrote:
+>
+> And yes, it is possible (though very unusual) to find an anon page or
+> swap entry in a VM_SHARED nonlinear mapping: coming from that horrid
+> get_user_pages(write, force) case which COWs even in a shared mapping.
 
-True. I didn't mean we don't need TLB flush. Look at the code although
-there are lots of bug in RFC v1.
+Hmm. Maybe we could just disallow that forced case.
 
-> 
-> Also, this has very odd semantics wrt reading the page after MADV_FREE
-> -- is reading the page guaranteed to un-free it?
+It *used* to be a trivial "we can just do a COW", but that was back
+when the VM was much simpler and we had no rmap's etc. So "that horrid
+case" used to be a simple hack that wasn't painful. But I suspect we
+could very easily just fail it instead of forcing a COW, if that would
+make it simpler for the VM code.
 
-Yeb, I thought about that oddness but didn't make conclusion because
-other OS seem to work like that.
-http://www.freebsd.org/cgi/man.cgi?query=madvise&sektion=2
-
-But we could fix it easily by checking access bit instead of dirty bit.
-
-> 
-> >>
-> >> How does this end up being faster than munmap?
-> >
-> > MADV_FREE doesn't need to return back the pages into page allocator
-> > compared to MADV_DONTNEED and the overhead is not small when I measured
-> > that on my machine.(Roughly, MADV_FREE's cost is half of DONTNEED through
-> > avoiding involving page allocator.)
-> >
-> > But I'd like to clarify that it's not MADV_FREE's goal that syscall
-> > itself should be faster than MADV_DONTNEED but major goal is to
-> > avoid unnecessary page fault + page allocation + page zeroing +
-> > garbage swapout.
-> 
-> This sounds like it might be better solved by trying to make munmap or
-> MADV_DONTNEED faster.  Maybe those functions should lazily give pages
-> back to the buddy allocator.
-
-About munmap, it needs write-mmap_sem and it hurts heavily of
-allocator performance in multi-thread.
-
-About MADV_DONTNEED, Rik van Riel tried to replace MADV_DONTNEED
-with MADV_FREE in 2007(http://lwn.net/Articles/230799/).
-But I don't know why it was dropped. One think I can imagine
-is that it could make regression because user on MADV_DONTNEED
-expect rss decreasing when syscall is called.
-
-> 
-> --Andy
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
-Kind regards,
-Minchan Kim
+               Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
