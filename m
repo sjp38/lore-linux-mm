@@ -1,219 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 2FE516B0142
-	for <linux-mm@kvack.org>; Tue, 18 Mar 2014 22:21:27 -0400 (EDT)
-Received: by mail-pa0-f51.google.com with SMTP id kq14so8174783pab.24
-        for <linux-mm@kvack.org>; Tue, 18 Mar 2014 19:21:26 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id ha5si12034120pbc.300.2014.03.18.19.21.25
-        for <linux-mm@kvack.org>;
-        Tue, 18 Mar 2014 19:21:26 -0700 (PDT)
-Date: Wed, 19 Mar 2014 10:21:21 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: [map_pages] 66431c4de99: -55.4% proc-vmstat.pgfault
-Message-ID: <20140319022121.GA14115@localhost>
+Received: from mail-vc0-f173.google.com (mail-vc0-f173.google.com [209.85.220.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 202EC6B0144
+	for <linux-mm@kvack.org>; Tue, 18 Mar 2014 22:24:14 -0400 (EDT)
+Received: by mail-vc0-f173.google.com with SMTP id il7so8480460vcb.32
+        for <linux-mm@kvack.org>; Tue, 18 Mar 2014 19:24:13 -0700 (PDT)
+Received: from mail-ve0-x22f.google.com (mail-ve0-x22f.google.com [2607:f8b0:400c:c01::22f])
+        by mx.google.com with ESMTPS id i3si7187520vcp.52.2014.03.18.19.24.13
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 18 Mar 2014 19:24:13 -0700 (PDT)
+Received: by mail-ve0-f175.google.com with SMTP id oz11so8056105veb.20
+        for <linux-mm@kvack.org>; Tue, 18 Mar 2014 19:24:13 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.11.1403181848380.3318@eggly.anvils>
+References: <20140311045109.GB12551@redhat.com>
+	<20140310220158.7e8b7f2a.akpm@linux-foundation.org>
+	<20140311053017.GB14329@redhat.com>
+	<20140311132024.GC32390@moon>
+	<531F0E39.9020100@oracle.com>
+	<20140311134158.GD32390@moon>
+	<20140311142817.GA26517@redhat.com>
+	<20140311143750.GE32390@moon>
+	<20140311171045.GA4693@redhat.com>
+	<20140311173603.GG32390@moon>
+	<20140311173917.GB4693@redhat.com>
+	<alpine.LSU.2.11.1403181703470.7055@eggly.anvils>
+	<CA+55aFx0ZyCVrkosgTongBrNX6mJM4B8+QZQE1p0okk8ubbv7g@mail.gmail.com>
+	<alpine.LSU.2.11.1403181848380.3318@eggly.anvils>
+Date: Tue, 18 Mar 2014 19:24:13 -0700
+Message-ID: <CA+55aFxVG7HLmsvCzoiA7PBRPvX3utRfyVGrBs6gVLZ-fUCuPQ@mail.gmail.com>
+Subject: Re: bad rss-counter message in 3.14rc5
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, lkp@01.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Dave Jones <davej@redhat.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Bob Liu <bob.liu@oracle.com>, Konstantin Khlebnikov <koct9i@gmail.com>
 
-Hi Kirill,
+On Tue, Mar 18, 2014 at 7:06 PM, Hugh Dickins <hughd@google.com> wrote:
+>
+> I'd love that, if we can get away with it now: depends very
+> much on whether we then turn out to break userspace or not.
 
-FYI, we noticed decreased page faults and increased mapped pages on
+Right. I suspect we can, though, but it's one of those "we can try it
+and see". Remind me early in the 3.15 merge window, and we can just
+turn the "force" case into an error case and see if anybody hollers.
 
-git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
-commit 66431c4de9921a9b3c7f3556bada4285912aedb7 ("mm: implement ->map_pages for page cache")
+> If I remember correctly, it's been that way since early days,
+> in case ptrace were used to put a breakpoint into a MAP_SHARED
+> mapping of an executable: to prevent that modification from
+> reaching the file, if the file happened to be opened O_RDWR.
+> Usually it's not open for writing, and mapped MAP_PRIVATE anyway.
 
-c9161c06019b342  66431c4de9921a9b3c7f3556b  
----------------  -------------------------  
-    591248 ~ 0%     -56.1%     259664 ~ 0%  lkp-t410/micro/netperf/120s-200%-TCP_MAERTS
-   5090162 ~ 0%     -55.4%    2272005 ~ 0%  lkp-ws02/micro/dd-write/11HDD-JBOD-cfq-ext4-10dd
-   5681411 ~ 0%     -55.4%    2531670 ~ 0%  TOTAL proc-vmstat.pgfault
+Yes, it's been that way since the very beginning, I think it goes back
+pretty much as far as MAP_SHARED does.
 
-c9161c06019b342  66431c4de9921a9b3c7f3556b  
----------------  -------------------------  
-      1413 ~ 0%     +95.2%       2759 ~ 1%  lkp-t410/micro/netperf/120s-200%-TCP_MAERTS
-      1458 ~ 0%     +94.4%       2835 ~ 0%  lkp-ws02/micro/dd-write/11HDD-JBOD-cfq-ext4-10dd
-      2872 ~ 0%     +94.8%       5594 ~ 1%  TOTAL time.maximum_resident_set_size
+We used to play lots of games wrt MAP_SHARED - in fact I think we used
+to silently turn a MAP_SHARED RO mapping into MAP_PRIVATE because for
+the longest time there was no "true" writable MAP_SHARED at all, but
+we did have a coherent MAP_PRIVATE and something like the indexer for
+nntpd wanted a read-only shared mapping of the nntp spool or something
+like that. I forget the details, it's a _loong_ time ago.
 
-c9161c06019b342  66431c4de9921a9b3c7f3556b  
----------------  -------------------------  
-      4332 ~ 0%     +48.9%       6449 ~ 0%  lkp-ws02/micro/dd-write/11HDD-JBOD-cfq-ext4-10dd
-      4332 ~ 0%     +48.9%       6449 ~ 0%  TOTAL numa-meminfo.node1.Mapped
+So the whole "force turns a MAP_SHARED page into MAP_PRIVATE" all used
+to make a lot more sense in that kind of situation, when MAP_SHARED vs
+MAP_PRIVATE was much less of a black-and-white thing.
 
-c9161c06019b342  66431c4de9921a9b3c7f3556b  
----------------  -------------------------  
-      1082 ~ 0%     +48.9%       1612 ~ 0%  lkp-ws02/micro/dd-write/11HDD-JBOD-cfq-ext4-10dd
-      1082 ~ 0%     +48.9%       1612 ~ 0%  TOTAL numa-vmstat.node1.nr_mapped
+I really suspect nobody cares wrt ptrace, especially since presumably
+other systems haven't had those kinds of games (although who knows -
+HP-UX in particular had some of the shittiest mmap() implementations
+on the planet - it made even the original Linux mmap hacks look like a
+thing of pure beauty in comparison).
 
-c9161c06019b342  66431c4de9921a9b3c7f3556b  
----------------  -------------------------  
-      4349 ~ 0%     +48.6%       6465 ~ 0%  lkp-ws02/micro/dd-write/11HDD-JBOD-cfq-ext4-10dd
-      4349 ~ 0%     +48.6%       6465 ~ 0%  TOTAL numa-meminfo.node0.Mapped
-
-c9161c06019b342  66431c4de9921a9b3c7f3556b  
----------------  -------------------------  
-      1087 ~ 0%     +48.7%       1616 ~ 0%  lkp-ws02/micro/dd-write/11HDD-JBOD-cfq-ext4-10dd
-      1087 ~ 0%     +48.7%       1616 ~ 0%  TOTAL numa-vmstat.node0.nr_mapped
-
-c9161c06019b342  66431c4de9921a9b3c7f3556b  
----------------  -------------------------  
-      7426 ~ 0%     +45.1%      10773 ~ 0%  lkp-t410/micro/netperf/120s-200%-TCP_MAERTS
-      8682 ~ 0%     +48.7%      12911 ~ 0%  lkp-ws02/micro/dd-write/11HDD-JBOD-cfq-ext4-10dd
-     16108 ~ 0%     +47.0%      23684 ~ 0%  TOTAL meminfo.Mapped
-
-c9161c06019b342  66431c4de9921a9b3c7f3556b  
----------------  -------------------------  
-      1852 ~ 0%     +45.4%       2693 ~ 0%  lkp-t410/micro/netperf/120s-200%-TCP_MAERTS
-      2170 ~ 0%     +48.7%       3227 ~ 0%  lkp-ws02/micro/dd-write/11HDD-JBOD-cfq-ext4-10dd
-      4022 ~ 0%     +47.2%       5921 ~ 0%  TOTAL proc-vmstat.nr_mapped
-
-c9161c06019b342  66431c4de9921a9b3c7f3556b  
----------------  -------------------------  
-      0.93 ~ 4%     +24.2%       1.15 ~ 5%  lkp-ws02/micro/dd-write/11HDD-JBOD-cfq-ext4-10dd
-      0.93 ~ 4%     +24.2%       1.15 ~ 5%  TOTAL perf-profile.cpu-cycles.vfs_write.sys_write.system_call_fastpath.write
-
-c9161c06019b342  66431c4de9921a9b3c7f3556b  
----------------  -------------------------  
-      1968 ~ 0%     +17.5%       2313 ~ 1%  lkp-t410/micro/netperf/120s-200%-TCP_MAERTS
-      1968 ~ 0%     +17.5%       2313 ~ 1%  TOTAL proc-vmstat.pgactivate
-
-c9161c06019b342  66431c4de9921a9b3c7f3556b  
----------------  -------------------------  
-      3.34 ~ 1%     -10.7%       2.98 ~ 2%  lkp-ws02/micro/dd-write/11HDD-JBOD-cfq-ext4-10dd
-      3.34 ~ 1%     -10.7%       2.98 ~ 2%  TOTAL perf-profile.cpu-cycles.ext4_mark_iloc_dirty.ext4_mark_inode_dirty.ext4_dirty_inode.__mark_inode_dirty.generic_write_end
-
-c9161c06019b342  66431c4de9921a9b3c7f3556b  
----------------  -------------------------  
-      3258 ~ 0%     -59.1%       1331 ~ 0%  lkp-t410/micro/netperf/120s-200%-TCP_MAERTS
-    162827 ~ 0%     -59.3%      66299 ~ 0%  lkp-ws02/micro/dd-write/11HDD-JBOD-cfq-ext4-10dd
-    166085 ~ 0%     -59.3%      67630 ~ 0%  TOTAL time.minor_page_faults
-
-c9161c06019b342  66431c4de9921a9b3c7f3556b  
----------------  -------------------------  
-   5093318 ~ 0%     -55.7%    2257903 ~ 0%  lkp-ws02/micro/dd-write/11HDD-JBOD-cfq-ext4-10dd
-   5093318 ~ 0%     -55.7%    2257903 ~ 0%  TOTAL perf-stat.minor-faults
-
-c9161c06019b342  66431c4de9921a9b3c7f3556b  
----------------  -------------------------  
-   5092110 ~ 0%     -55.7%    2257193 ~ 0%  lkp-ws02/micro/dd-write/11HDD-JBOD-cfq-ext4-10dd
-   5092110 ~ 0%     -55.7%    2257193 ~ 0%  TOTAL perf-stat.page-faults
-
-c9161c06019b342  66431c4de9921a9b3c7f3556b  
----------------  -------------------------  
- 3.698e+11 ~ 0%     -11.3%   3.28e+11 ~ 0%  lkp-ws02/micro/dd-write/11HDD-JBOD-cfq-ext4-10dd
- 3.698e+11 ~ 0%     -11.3%   3.28e+11 ~ 0%  TOTAL perf-stat.L1-icache-load-misses
-
-c9161c06019b342  66431c4de9921a9b3c7f3556b  
----------------  -------------------------  
-     45.26 ~ 3%      +8.4%      49.05 ~ 3%  lkp-ws02/micro/dd-write/11HDD-JBOD-cfq-ext4-10dd
-     45.26 ~ 3%      +8.4%      49.05 ~ 3%  TOTAL iostat.sdd.wrqm/s
-
-c9161c06019b342  66431c4de9921a9b3c7f3556b  
----------------  -------------------------  
- 1.824e+10 ~ 0%      -5.3%  1.727e+10 ~ 0%  lkp-ws02/micro/dd-write/11HDD-JBOD-cfq-ext4-10dd
- 1.824e+10 ~ 0%      -5.3%  1.727e+10 ~ 0%  TOTAL perf-stat.branch-misses
-
-c9161c06019b342  66431c4de9921a9b3c7f3556b  
----------------  -------------------------  
- 2.802e+12 ~ 0%      -4.7%   2.67e+12 ~ 0%  lkp-ws02/micro/dd-write/11HDD-JBOD-cfq-ext4-10dd
- 2.802e+12 ~ 0%      -4.7%   2.67e+12 ~ 0%  TOTAL perf-stat.L1-icache-loads
-
-c9161c06019b342  66431c4de9921a9b3c7f3556b  
----------------  -------------------------  
- 7.246e+08 ~ 2%      -4.5%  6.922e+08 ~ 1%  lkp-ws02/micro/dd-write/11HDD-JBOD-cfq-ext4-10dd
- 7.246e+08 ~ 2%      -4.5%  6.922e+08 ~ 1%  TOTAL perf-stat.iTLB-load-misses
-
-c9161c06019b342  66431c4de9921a9b3c7f3556b  
----------------  -------------------------  
- 3.314e+09 ~ 1%      -4.8%  3.154e+09 ~ 1%  lkp-ws02/micro/dd-write/11HDD-JBOD-cfq-ext4-10dd
- 3.314e+09 ~ 1%      -4.8%  3.154e+09 ~ 1%  TOTAL perf-stat.LLC-load-misses
-
-c9161c06019b342  66431c4de9921a9b3c7f3556b  
----------------  -------------------------  
- 3.324e+09 ~ 1%      -4.4%  3.179e+09 ~ 0%  lkp-ws02/micro/dd-write/11HDD-JBOD-cfq-ext4-10dd
- 3.324e+09 ~ 1%      -4.4%  3.179e+09 ~ 0%  TOTAL perf-stat.node-loads
-
-c9161c06019b342  66431c4de9921a9b3c7f3556b  
----------------  -------------------------  
- 3.554e+08 ~ 3%      +5.7%  3.755e+08 ~ 1%  lkp-ws02/micro/dd-write/11HDD-JBOD-cfq-ext4-10dd
- 3.554e+08 ~ 3%      +5.7%  3.755e+08 ~ 1%  TOTAL perf-stat.node-store-misses
-
-c9161c06019b342  66431c4de9921a9b3c7f3556b  
----------------  -------------------------  
- 8.409e+12 ~ 0%      -2.5%  8.196e+12 ~ 1%  lkp-ws02/micro/dd-write/11HDD-JBOD-cfq-ext4-10dd
- 8.409e+12 ~ 0%      -2.5%  8.196e+12 ~ 1%  TOTAL perf-stat.cpu-cycles
-
-Legend:
-	~XX%    - stddev percent
-	[+-]XX% - change percent
-
-
-                                time.minor_page_faults
-
-   170000 ++----------------------------------------------------------------+
-   160000 *+*.*..*.*.*.*.*..*.*.*.*.*..*.*.*.*.*..*.*.*.*.*..*.*.*.*.*..*.*.*
-          |                                                                 |
-   150000 ++                                                                |
-   140000 ++                                                                |
-   130000 ++                                                                |
-   120000 ++                                                                |
-          |                                                                 |
-   110000 ++                                                                |
-   100000 ++                                                                |
-    90000 ++                                                                |
-    80000 ++                                                                |
-          |                                                                 |
-    70000 O+O O  O O O O O  O O O O O  O O O O O  O O O O O  O              |
-    60000 ++----------------------------------------------------------------+
-
-
-                                 perf-stat.page-faults
-
-   5.5e+06 ++---------------------------------------------------------------+
-           |                                                                |
-     5e+06 *+*.*..*.*.*.*.*.*..*.*.*.*.*.*..*.*.*.*.*.*..*.*.*.*.*.*..*.*.*.*
-           |                                                                |
-   4.5e+06 ++                                                               |
-           |                                                                |
-     4e+06 ++                                                               |
-           |                                                                |
-   3.5e+06 ++                                                               |
-           |                                                                |
-     3e+06 ++                                                               |
-           |                                                                |
-   2.5e+06 ++                                                               |
-           O O O  O O O O O O  O O O O O O  O O O O O O  O O O              |
-     2e+06 ++---------------------------------------------------------------+
-
-
-                                perf-stat.minor-faults
-
-   5.5e+06 ++---------------------------------------------------------------+
-           |                                                                |
-     5e+06 *+*.*..*.*.*.*.*.*..*.*.*.*.*.*..*.*.*.*.*.*..*.*.*.*.*.*..*.*.*.*
-           |                                                                |
-   4.5e+06 ++                                                               |
-           |                                                                |
-     4e+06 ++                                                               |
-           |                                                                |
-   3.5e+06 ++                                                               |
-           |                                                                |
-     3e+06 ++                                                               |
-           |                                                                |
-   2.5e+06 ++                                                               |
-           O O O  O O O O O O  O O O O O O  O O O O O O  O O O              |
-     2e+06 ++---------------------------------------------------------------+
-
-
-	[*] bisect-good sample
-	[O] bisect-bad  sample
-
-Thanks,
-Fengguang
+              Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
