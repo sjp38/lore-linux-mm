@@ -1,80 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f45.google.com (mail-pb0-f45.google.com [209.85.160.45])
-	by kanga.kvack.org (Postfix) with ESMTP id D9F326B0146
-	for <linux-mm@kvack.org>; Tue, 18 Mar 2014 22:38:02 -0400 (EDT)
-Received: by mail-pb0-f45.google.com with SMTP id uo5so8183533pbc.4
-        for <linux-mm@kvack.org>; Tue, 18 Mar 2014 19:38:02 -0700 (PDT)
-Received: from mail-pa0-x22e.google.com (mail-pa0-x22e.google.com [2607:f8b0:400e:c03::22e])
-        by mx.google.com with ESMTPS id sf3si8403671pac.42.2014.03.18.19.38.01
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id C86996B0147
+	for <linux-mm@kvack.org>; Tue, 18 Mar 2014 22:42:20 -0400 (EDT)
+Received: by mail-pa0-f45.google.com with SMTP id kl14so8246441pab.32
+        for <linux-mm@kvack.org>; Tue, 18 Mar 2014 19:42:20 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id my2si12055298pbc.145.2014.03.18.19.42.19
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 18 Mar 2014 19:38:01 -0700 (PDT)
-Received: by mail-pa0-f46.google.com with SMTP id kp14so8198728pab.19
-        for <linux-mm@kvack.org>; Tue, 18 Mar 2014 19:38:01 -0700 (PDT)
-Date: Tue, 18 Mar 2014 19:37:01 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: bad rss-counter message in 3.14rc5
-In-Reply-To: <CA+55aFxVG7HLmsvCzoiA7PBRPvX3utRfyVGrBs6gVLZ-fUCuPQ@mail.gmail.com>
-Message-ID: <alpine.LSU.2.11.1403181928370.3499@eggly.anvils>
-References: <20140311045109.GB12551@redhat.com> <20140310220158.7e8b7f2a.akpm@linux-foundation.org> <20140311053017.GB14329@redhat.com> <20140311132024.GC32390@moon> <531F0E39.9020100@oracle.com> <20140311134158.GD32390@moon> <20140311142817.GA26517@redhat.com>
- <20140311143750.GE32390@moon> <20140311171045.GA4693@redhat.com> <20140311173603.GG32390@moon> <20140311173917.GB4693@redhat.com> <alpine.LSU.2.11.1403181703470.7055@eggly.anvils> <CA+55aFx0ZyCVrkosgTongBrNX6mJM4B8+QZQE1p0okk8ubbv7g@mail.gmail.com>
- <alpine.LSU.2.11.1403181848380.3318@eggly.anvils> <CA+55aFxVG7HLmsvCzoiA7PBRPvX3utRfyVGrBs6gVLZ-fUCuPQ@mail.gmail.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 18 Mar 2014 19:42:19 -0700 (PDT)
+Message-ID: <53290403.5030809@oracle.com>
+Date: Tue, 18 Mar 2014 22:42:11 -0400
+From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: bad rss-counter message in 3.14rc5
+References: <20140311045109.GB12551@redhat.com> <20140310220158.7e8b7f2a.akpm@linux-foundation.org> <20140311053017.GB14329@redhat.com> <20140311132024.GC32390@moon> <531F0E39.9020100@oracle.com> <20140311134158.GD32390@moon> <20140311142817.GA26517@redhat.com> <20140311143750.GE32390@moon> <20140311171045.GA4693@redhat.com> <20140311173603.GG32390@moon> <20140311173917.GB4693@redhat.com> <alpine.LSU.2.11.1403181703470.7055@eggly.anvils> <5328F3B4.1080208@oracle.com> <alpine.LSU.2.11.1403181906140.3318@eggly.anvils>
+In-Reply-To: <alpine.LSU.2.11.1403181906140.3318@eggly.anvils>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Hugh Dickins <hughd@google.com>, Dave Jones <davej@redhat.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Bob Liu <bob.liu@oracle.com>, Konstantin Khlebnikov <koct9i@gmail.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: Dave Jones <davej@redhat.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Bob Liu <bob.liu@oracle.com>, Konstantin Khlebnikov <koct9i@gmail.com>
 
-On Tue, 18 Mar 2014, Linus Torvalds wrote:
-> On Tue, Mar 18, 2014 at 7:06 PM, Hugh Dickins <hughd@google.com> wrote:
-> >
-> > I'd love that, if we can get away with it now: depends very
-> > much on whether we then turn out to break userspace or not.
-> 
-> Right. I suspect we can, though, but it's one of those "we can try it
-> and see". Remind me early in the 3.15 merge window, and we can just
-> turn the "force" case into an error case and see if anybody hollers.
+On 03/18/2014 10:12 PM, Hugh Dickins wrote:
+> On Tue, 18 Mar 2014, Sasha Levin wrote:
+>> On 03/18/2014 08:38 PM, Hugh Dickins wrote:
+>>> On Tue, 11 Mar 2014, Dave Jones wrote:
+>>>> On Tue, Mar 11, 2014 at 09:36:03PM +0400, Cyrill Gorcunov wrote:
+>>>>    > On Tue, Mar 11, 2014 at 01:10:45PM -0400, Dave Jones wrote:
+>>>>    > >  >
+>>>>    > >  > Dave, iirc trinity can write log file pointing which exactly
+>>>> syscall sequence
+>>>>    > >  > was passed, right? Share it too please.
+>>>>    > >
+>>>>    > > Hm, I may have been mistaken, and the damage was done by a previous
+>>>> run.
+>>>>    > > I went from being able to reproduce it almost instantly to now not
+>>>> being able
+>>>>    > > to reproduce it at all.  Will keep trying.
+>>>>    >
+>>>>    > Sasha already gave a link to the syscalls sequence, so no rush.
+>>>>
+>>>> It'd be nice to get a more concise reproducer, his list had a little of
+>>>> everything in there.
+>>>
+>>> I've so far failed to find any explanation for your swapops.h BUG;
+>>> but believe I have identified one cause for "Bad rss-counter"s.
+>>>
+>>> My hunch is that the swapops.h BUG is "nearby", but I just cannot
+>>> fit it together (the swapops.h BUG comes when rmap cannot find all
+>>> all the migration entries it inserted earlier: it's a very useful
+>>> BUG for validating rmap).
+>>>
+>>> Untested patch below: I can't quite say Reported-by, because it may
+>>> not even be one that you and Sasha have been seeing; but I'm hopeful,
+>>> remap_file_pages is in the list.
+>>>
+>>> Please give this a try, preferably on 3.14-rc or earlier: I've never
+>>> seen "Bad rss-counter"s there myself (trinity uses remap_file_pages
+>>> a lot more than most of us); but have seen them on mmotm/next, so
+>>> some other trigger is coming up there, I'll worry about that once
+>>> it reaches 3.15-rc.
+>>
+>> The patch fixed the "Bad rss-counter" errors I've been seeing both in
+>> 3.14-rc7 and -next.
+>
+> Great, thanks a lot, Sasha.  I was afraid that you'd hit those swapops
+> BUGs, which seemed perhaps to be paired with these; but glad to hear
+> a positive.  Let's see how Dave fares.  (I've not forgotten shmem
+> fallocate, by the way, but those probably aren't as high on my agenda
+> as you'd like.)
 
-Super, I'll do that, thanks.
+I do hit the swapops issue a lot, I didn't think that your patch was
+supposed to fix that so I didn't mention it.
 
-For 3.15, and probably 3.16 too, we should keep in place whatever
-partial accommodations we have for the case (such as allowing for
-anon and swap in fremap's zap_pte), in case we do need to revert;
-but clean those away later on.  (Not many, I think: it was mainly
-a guilty secret that VM accounting didn't really hold together.)
+Thanks for keeping shmem in mind, I've removed shmem from testing for now
+but I agree, it's not one of the more important issues to be taken care of.
 
-> 
-> > If I remember correctly, it's been that way since early days,
-> > in case ptrace were used to put a breakpoint into a MAP_SHARED
-> > mapping of an executable: to prevent that modification from
-> > reaching the file, if the file happened to be opened O_RDWR.
-> > Usually it's not open for writing, and mapped MAP_PRIVATE anyway.
-> 
-> Yes, it's been that way since the very beginning, I think it goes back
-> pretty much as far as MAP_SHARED does.
-> 
-> We used to play lots of games wrt MAP_SHARED - in fact I think we used
-> to silently turn a MAP_SHARED RO mapping into MAP_PRIVATE because for
-> the longest time there was no "true" writable MAP_SHARED at all, but
-> we did have a coherent MAP_PRIVATE and something like the indexer for
-> nntpd wanted a read-only shared mapping of the nntp spool or something
-> like that. I forget the details, it's a _loong_ time ago.
-> 
-> So the whole "force turns a MAP_SHARED page into MAP_PRIVATE" all used
-> to make a lot more sense in that kind of situation, when MAP_SHARED vs
-> MAP_PRIVATE was much less of a black-and-white thing.
-> 
-> I really suspect nobody cares wrt ptrace, especially since presumably
-> other systems haven't had those kinds of games (although who knows -
-> HP-UX in particular had some of the shittiest mmap() implementations
-> on the planet - it made even the original Linux mmap hacks look like a
-> thing of pure beauty in comparison).
 
-:)  That fits with what I heard of HP-UX mmap,
-but I never had the pleasure of dealing with it.
-
-Hugh
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
