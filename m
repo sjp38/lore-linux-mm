@@ -1,59 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f173.google.com (mail-ig0-f173.google.com [209.85.213.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 55FDA6B01B3
-	for <linux-mm@kvack.org>; Thu, 20 Mar 2014 07:30:31 -0400 (EDT)
-Received: by mail-ig0-f173.google.com with SMTP id t19so14593025igi.0
-        for <linux-mm@kvack.org>; Thu, 20 Mar 2014 04:30:31 -0700 (PDT)
-Received: from mail-ig0-x22a.google.com (mail-ig0-x22a.google.com [2607:f8b0:4001:c05::22a])
-        by mx.google.com with ESMTPS id ac8si1949609icc.126.2014.03.20.04.29.54
+Received: from mail-la0-f53.google.com (mail-la0-f53.google.com [209.85.215.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 0068B6B01F2
+	for <linux-mm@kvack.org>; Thu, 20 Mar 2014 07:50:50 -0400 (EDT)
+Received: by mail-la0-f53.google.com with SMTP id b8so509994lan.12
+        for <linux-mm@kvack.org>; Thu, 20 Mar 2014 04:50:49 -0700 (PDT)
+Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
+        by mx.google.com with ESMTPS id x2si1376662lad.33.2014.03.20.04.50.48
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 20 Mar 2014 04:29:54 -0700 (PDT)
-Received: by mail-ig0-f170.google.com with SMTP id uq10so16849383igb.1
-        for <linux-mm@kvack.org>; Thu, 20 Mar 2014 04:29:54 -0700 (PDT)
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 20 Mar 2014 04:50:49 -0700 (PDT)
+Message-ID: <532AD606.40406@parallels.com>
+Date: Thu, 20 Mar 2014 15:50:30 +0400
+From: Pavel Emelyanov <xemul@parallels.com>
 MIME-Version: 1.0
-In-Reply-To: <532AAE7B.2030501@parallels.com>
-References: <1395256011-2423-1-git-send-email-dh.herrmann@gmail.com>
-	<1395256011-2423-4-git-send-email-dh.herrmann@gmail.com>
-	<20140320084748.GK1728@moon>
-	<532AAE7B.2030501@parallels.com>
-Date: Thu, 20 Mar 2014 12:29:54 +0100
-Message-ID: <CANq1E4SLp5Smxf3VbjT0hq0UrWWDf0RxudbQTA1G=sW1ecQk-g@mail.gmail.com>
 Subject: Re: [PATCH 3/6] shm: add memfd_create() syscall
-From: David Herrmann <dh.herrmann@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+References: <1395256011-2423-1-git-send-email-dh.herrmann@gmail.com> <1395256011-2423-4-git-send-email-dh.herrmann@gmail.com> <20140320084748.GK1728@moon> <532AAE7B.2030501@parallels.com> <CANq1E4SLp5Smxf3VbjT0hq0UrWWDf0RxudbQTA1G=sW1ecQk-g@mail.gmail.com>
+In-Reply-To: <CANq1E4SLp5Smxf3VbjT0hq0UrWWDf0RxudbQTA1G=sW1ecQk-g@mail.gmail.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Emelyanov <xemul@parallels.com>
-Cc: Cyrill Gorcunov <gorcunov@gmail.com>, linux-kernel <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Karol Lewandowski <k.lewandowsk@samsung.com>, Kay Sievers <kay@vrfy.org>, Daniel Mack <zonque@gmail.com>, Lennart Poettering <lennart@poettering.net>, =?ISO-8859-1?Q?Kristian_H=F8gsberg?= <krh@bitplanet.net>, John Stultz <john.stultz@linaro.org>, Greg Kroah-Hartman <greg@kroah.com>, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ryan Lortie <desrt@desrt.ca>, "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+To: David Herrmann <dh.herrmann@gmail.com>
+Cc: Cyrill Gorcunov <gorcunov@gmail.com>, linux-kernel <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Karol Lewandowski <k.lewandowsk@samsung.com>, Kay Sievers <kay@vrfy.org>, Daniel Mack <zonque@gmail.com>, Lennart Poettering <lennart@poettering.net>, =?ISO-8859-1?Q?Kristian_H?= =?ISO-8859-1?Q?=F8gsberg?= <krh@bitplanet.net>, John Stultz <john.stultz@linaro.org>, Greg Kroah-Hartman <greg@kroah.com>, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ryan Lortie <desrt@desrt.ca>, "Michael
+ Kerrisk (man-pages)" <mtk.manpages@gmail.com>
 
-Hi
+On 03/20/2014 03:29 PM, David Herrmann wrote:
+> Hi
+> 
+> On Thu, Mar 20, 2014 at 10:01 AM, Pavel Emelyanov <xemul@parallels.com> wrote:
+>> On 03/20/2014 12:47 PM, Cyrill Gorcunov wrote:
+>>> If I'm not mistaken in something obvious, this looks similar to /proc/pid/map_files
+>>> feature, Pavel?
+>>
+>> It is, but the map_files will work "in the opposite direction" :) In the memfd
+>> case one first gets an FD, then mmap()s it; in the /proc/pis/map_files case one
+>> should first mmap() a region, then open it via /proc/self/map_files.
+>>
+>> But I don't know whether this matters.
+> 
+> Yes, you can replace memfd_create() so far with:
+>   p = mmap(NULL, size, ..., MAP_ANON | MAP_SHARED, -1, 0);
+>   sprintf(path, "/proc/self/map_files/%lx-%lx", p, p + size);
+>   fd = open(path, O_RDWR);
+> 
+> However, map_files is only enabled with CONFIG_CHECKPOINT_RESTORE, the
+> /proc/pid/map_files/ directory is root-only (at least I get EPERM if
+> non-root),
 
-On Thu, Mar 20, 2014 at 10:01 AM, Pavel Emelyanov <xemul@parallels.com> wrote:
-> On 03/20/2014 12:47 PM, Cyrill Gorcunov wrote:
->> If I'm not mistaken in something obvious, this looks similar to /proc/pid/map_files
->> feature, Pavel?
->
-> It is, but the map_files will work "in the opposite direction" :) In the memfd
-> case one first gets an FD, then mmap()s it; in the /proc/pis/map_files case one
-> should first mmap() a region, then open it via /proc/self/map_files.
->
-> But I don't know whether this matters.
+Yes. But this is something we'd also like to have fixed :) Having two
+parties willing the same makes it easier for the patch to get accepted.
 
-Yes, you can replace memfd_create() so far with:
-  p = mmap(NULL, size, ..., MAP_ANON | MAP_SHARED, -1, 0);
-  sprintf(path, "/proc/self/map_files/%lx-%lx", p, p + size);
-  fd = open(path, O_RDWR);
+> it doesn't provide the "name" argument which is very handy
+> for debugging,
 
-However, map_files is only enabled with CONFIG_CHECKPOINT_RESTORE, the
-/proc/pid/map_files/ directory is root-only (at least I get EPERM if
-non-root), it doesn't provide the "name" argument which is very handy
-for debugging, it doesn't explicitly support sealing (it requires
-MAP_ANON to be backed by shmem) and it's a very weird API for
-something this simple.
+What if we make mmap's shmem_zero_setup() generate a meaningful name,
+would it solve the debugging issue?
 
-Thanks
-David
+> it doesn't explicitly support sealing (it requires MAP_ANON to be backed 
+> by shmem)
+
+Can you elaborate on this? The fd generated by sys_memfd() will be
+shmem-backed, so will be the file opened via map_files link for the
+MAP_ANON | MAP_SHARED mapping. So what are the problems to make it
+support sealing?
+
+> and it's a very weird API for something this simple.
+
+:)
+
+Thanks,
+Pavel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
