@@ -1,152 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f178.google.com (mail-ig0-f178.google.com [209.85.213.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 86F066B01A6
-	for <linux-mm@kvack.org>; Thu, 20 Mar 2014 05:21:18 -0400 (EDT)
-Received: by mail-ig0-f178.google.com with SMTP id uq10so1504457igb.5
-        for <linux-mm@kvack.org>; Thu, 20 Mar 2014 02:21:18 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id o2si35549861igj.19.2014.03.20.02.21.17
+Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
+	by kanga.kvack.org (Postfix) with ESMTP id C29B76B01A7
+	for <linux-mm@kvack.org>; Thu, 20 Mar 2014 05:50:36 -0400 (EDT)
+Received: by mail-wi0-f176.google.com with SMTP id hr14so5998276wib.3
+        for <linux-mm@kvack.org>; Thu, 20 Mar 2014 02:50:36 -0700 (PDT)
+Received: from mail-wg0-f44.google.com (mail-wg0-f44.google.com [74.125.82.44])
+        by mx.google.com with ESMTPS id j3si12161480wiz.14.2014.03.20.02.50.34
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 20 Mar 2014 02:21:17 -0700 (PDT)
-Message-ID: <532AB305.4050001@oracle.com>
-Date: Thu, 20 Mar 2014 17:21:09 +0800
-From: Bob Liu <bob.liu@oracle.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 20 Mar 2014 02:50:35 -0700 (PDT)
+Received: by mail-wg0-f44.google.com with SMTP id m15so396788wgh.27
+        for <linux-mm@kvack.org>; Thu, 20 Mar 2014 02:50:34 -0700 (PDT)
+Date: Thu, 20 Mar 2014 09:50:27 +0000
+From: Steve Capper <steve.capper@linaro.org>
+Subject: Re: [RESEND PATCH] mm: hugetlb: Introduce
+ huge_pte_{page,present,young}
+Message-ID: <20140320095027.GA23180@linaro.org>
+References: <1395082318-7703-1-git-send-email-steve.capper@linaro.org>
+ <20140317150730.156a3325ff96dfc6e1352902@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: mm: kernel BUG at mm/swap.c:609!
-References: <531F6D02.3060409@oracle.com> <531FB77E.4030805@oracle.com>
-In-Reply-To: <531FB77E.4030805@oracle.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140317150730.156a3325ff96dfc6e1352902@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, LKML <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, catalin.marinas@arm.com
 
+On Mon, Mar 17, 2014 at 03:07:30PM -0700, Andrew Morton wrote:
+> On Mon, 17 Mar 2014 18:51:58 +0000 Steve Capper <steve.capper@linaro.org> wrote:
+> 
+> > Introduce huge pte versions of pte_page, pte_present and pte_young.
+> > This allows ARM (without LPAE) to use alternative pte processing logic
+> > for huge ptes.
+> > 
+> > Where these functions are not defined by architectural code they
+> > fallback to the standard functions.
+> > 
+> > Signed-off-by: Steve Capper <steve.capper@linaro.org>
+> > ---
+> > Hi,
+> > I'm resending this patch to provoke some discussion.
+> > 
+> > We already have some huge_pte_ style functions, and this patch adds a
+> > few more (that simplify to the pte_ equivalents where unspecified).
+> > 
+> > Having separate hugetlb versions of pte_page, present and mkyoung
+> > allows for a greatly simplified huge page implementation for ARM with
+> > the classical MMU (which has a different bit layout for huge ptes).
+> 
+> Looks OK to me.  One thing...
+> 
+> > --- a/include/linux/hugetlb.h
+> > +++ b/include/linux/hugetlb.h
+> > @@ -353,6 +353,18 @@ static inline pte_t arch_make_huge_pte(pte_t entry, struct vm_area_struct *vma,
+> >  }
+> >  #endif
+> >  
+> > +#ifndef huge_pte_page
+> > +#define huge_pte_page(pte)	pte_page(pte)
+> > +#endif
+> 
+> This #ifndef x #define x thing works well, but it is 100% unclear which
+> arch header file is supposed to define x if it wishes to override the
+> definition.  We've had problems with that in the past where different
+> architectures put it in different files and various breakages ensued.
+> 
+> So can we decide which arch header file is responsible for defining
+> these, then document that right here in a comment and add an explicit
+> #include <asm/that-file.h>?
 
-On 03/12/2014 09:25 AM, Bob Liu wrote:
-> 
-> On 03/12/2014 04:07 AM, Sasha Levin wrote:
->> Hi all,
->>
->> While fuzzing with trinity inside a KVM tools guest running latest -next
->> kernel
->> I've stumbled on the following spew:
->>
->> [  477.301955] kernel BUG at mm/swap.c:609!
->> [  477.302564] invalid opcode: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
->> [  477.303590] Dumping ftrace buffer:
->> [  477.305022]    (ftrace buffer empty)
->> [  477.305899] Modules linked in:
->> [  477.306397] CPU: 35 PID: 10092 Comm: trinity-c374 Tainted: G       
->> W    3.14.0-rc5-next-20140307-sasha-00010-g1f812cb #142
->> [  477.307644] task: ffff8800a7f80000 ti: ffff8800a7f6a000 task.ti:
->> ffff8800a7f6a000
->> [  477.309124] RIP: 0010:[<ffffffff8127f311>]  [<ffffffff8127f311>]
->> lru_cache_add+0x21/0x60
->> [  477.310301] RSP: 0000:ffff8800a7f6bbc8  EFLAGS: 00010292
->> [  477.311110] RAX: 000000000000003f RBX: ffffea0013d68000 RCX:
->> 0000000000000006
->> [  477.311110] RDX: 0000000000000006 RSI: ffff8800a7f80d60 RDI:
->> 0000000000000282
->> [  477.311110] RBP: ffff8800a7f6bbc8 R08: 0000000000000001 R09:
->> 0000000000000001
->> [  477.311110] R10: 0000000000000001 R11: 0000000000000001 R12:
->> ffff8800ab9b0c00
->> [  477.311110] R13: 0000000002400000 R14: ffff8800ab9b0c00 R15:
->> 0000000000000001
->> [  477.311110] FS:  00007ff2c047c700(0000) GS:ffff88042bc00000(0000)
->> knlGS:0000000000000000
->> [  477.311110] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
->> [  477.311110] CR2: 0000000003788a68 CR3: 00000000a7f68000 CR4:
->> 00000000000006a0
->> [  477.311110] DR0: 000000000069b000 DR1: 0000000000000000 DR2:
->> 0000000000000000
->> [  477.311110] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7:
->> 0000000000000600
->> [  477.311110] Stack:
->> [  477.311110]  ffff8800a7f6bbf8 ffffffff812adaec ffffea0013d68000
->> ffffea002bdb8000
->> [  477.311110]  ffffea0013d68000 ffff8800a7f7c090 ffff8800a7f6bca8
->> ffffffff812db8ec
->> [  477.311110]  0000000000000001 ffffffff812e1321 ffff8800a7f6bc48
->> ffffffff811ad632
->> [  477.311110] Call Trace:
->> [  477.311110]  [<ffffffff812adaec>] page_add_new_anon_rmap+0x1ec/0x210
->> [  477.311110]  [<ffffffff812db8ec>]
->> migrate_misplaced_transhuge_page+0x55c/0x830
->> [  477.311110]  [<ffffffff812e1321>] ? do_huge_pmd_numa_page+0x311/0x460
->> [  477.311110]  [<ffffffff811ad632>] ? __lock_release+0x1e2/0x200
->> [  477.311110]  [<ffffffff812e133f>] do_huge_pmd_numa_page+0x32f/0x460
->> [  477.311110]  [<ffffffff81af6aca>] ? delay_tsc+0xfa/0x120
->> [  477.311110]  [<ffffffff812a31f4>] __handle_mm_fault+0x244/0x3a0
->> [  477.311110]  [<ffffffff812e37ed>] ? rcu_read_unlock+0x5d/0x60
->> [  477.311110]  [<ffffffff812a3463>] handle_mm_fault+0x113/0x1c0
->> [  477.311110]  [<ffffffff844abd42>] ? __do_page_fault+0x302/0x5d0
->> [  477.311110]  [<ffffffff844abfd1>] __do_page_fault+0x591/0x5d0
->> [  477.311110]  [<ffffffff8118ab46>] ? vtime_account_user+0x96/0xb0
->> [  477.311110]  [<ffffffff844ac492>] ? preempt_count_sub+0xe2/0x120
->> [  477.311110]  [<ffffffff81269567>] ?
->> context_tracking_user_exit+0x187/0x1d0
->> [  477.311110]  [<ffffffff844ac0d5>] do_page_fault+0x45/0x70
->> [  477.311110]  [<ffffffff844ab386>] do_async_page_fault+0x36/0x100
->> [  477.311110]  [<ffffffff844a7f18>] async_page_fault+0x28/0x30
->> [  477.311110] Code: 65 f0 4c 8b 6d f8 c9 c3 66 90 55 48 89 e5 66 66 66
->> 66 90 48 8b 07 a8 40 74 18 48 8b 07 a9 00 00 10 00 74 0e 31 f6 e8 2f 20
->> ff ff <0f> 0b eb fe 0f 1f 00 48 8b 07 a8 20 74 19 31 f6 e8 1a 20 ff ff
->> [  477.311110] RIP  [<ffffffff8127f311>] lru_cache_add+0x21/0x60
->> [  477.311110]  RSP <ffff8800a7f6bbc8>
->>
-> 
-> 
-> If PageUnevictable(old_page) is true, new page will also be set before
-> page_add_new_anon_rmap().
-> 
-> migrate_misplaced_transhuge_page()
->     > migrate_page_copy()
->         > SetPageUnevictable(newpage)
->     > page_add_new_anon_rmap()
-> 
-> But in page_add_new_anon_rmap(), there is only mlocked_vma_newpage()
-> called to check whether a page should be added to unevictable list. I
-> think that is incorrect in some cases and may trigger this BUG().
-> 
-> We can see from vmscan:
-> int page_evictable(struct page *page)
-> {
->     return !mapping_unevictable(page_mapping(page)) && !PageMlocked(page);
-> }
-> 
-> Besides mlock, we may also set a page to unevictable when that page's
-> mapping marked unevictable.
-> 
-> mlocked_vma_newpage(new_page) can't detect this situation if the old
-> page is set to unevictable by this reason. So I think we should add an
-> extra !PageUnevictable(page) checking in page_add_new_anon_rmap().
-> Fix me if I misunderstood something.
-> 
-> diff --git a/mm/rmap.c b/mm/rmap.c
-> index 9056a1f..8d13318 100644
-> --- a/mm/rmap.c
-> +++ b/mm/rmap.c
-> @@ -1024,7 +1024,7 @@ void page_add_new_anon_rmap(struct page *page,
->         __mod_zone_page_state(page_zone(page), NR_ANON_PAGES,
->                         hpage_nr_pages(page));
->         __page_set_anon_rmap(page, vma, address, 1);
-> -       if (!mlocked_vma_newpage(vma, page)) {
-> +       if (!mlocked_vma_newpage(vma, page) && !PageUnevictable(page)) {
->                 SetPageActive(page);
->                 lru_cache_add(page);
->         } else
-> 
-> 
+Thanks Andrew,
+Yes I see your point, this could quickly become unstable.
+I'll see how these look in include/asm-generic/hugetlb.h instead.
 
-Sasha, any lucky with above changes? If it can fix this issue, I'll
-resend out a patch.
-
+Cheers,
 -- 
-Regards,
--Bob
+Steve
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
