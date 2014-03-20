@@ -1,57 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f182.google.com (mail-lb0-f182.google.com [209.85.217.182])
-	by kanga.kvack.org (Postfix) with ESMTP id D09186B019F
-	for <linux-mm@kvack.org>; Thu, 20 Mar 2014 05:02:15 -0400 (EDT)
-Received: by mail-lb0-f182.google.com with SMTP id n15so365876lbi.13
-        for <linux-mm@kvack.org>; Thu, 20 Mar 2014 02:02:15 -0700 (PDT)
-Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id w4si987221lad.17.2014.03.20.02.02.13
+Received: from mail-pb0-f49.google.com (mail-pb0-f49.google.com [209.85.160.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 64B836B01A1
+	for <linux-mm@kvack.org>; Thu, 20 Mar 2014 05:16:52 -0400 (EDT)
+Received: by mail-pb0-f49.google.com with SMTP id jt11so656552pbb.36
+        for <linux-mm@kvack.org>; Thu, 20 Mar 2014 02:16:52 -0700 (PDT)
+Received: from mail-pa0-x22d.google.com (mail-pa0-x22d.google.com [2607:f8b0:400e:c03::22d])
+        by mx.google.com with ESMTPS id my2si1008307pbc.68.2014.03.20.02.16.51
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 20 Mar 2014 02:02:14 -0700 (PDT)
-Message-ID: <532AAE7B.2030501@parallels.com>
-Date: Thu, 20 Mar 2014 13:01:47 +0400
-From: Pavel Emelyanov <xemul@parallels.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 3/6] shm: add memfd_create() syscall
-References: <1395256011-2423-1-git-send-email-dh.herrmann@gmail.com> <1395256011-2423-4-git-send-email-dh.herrmann@gmail.com> <20140320084748.GK1728@moon>
-In-Reply-To: <20140320084748.GK1728@moon>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 20 Mar 2014 02:16:51 -0700 (PDT)
+Received: by mail-pa0-f45.google.com with SMTP id kl14so659735pab.18
+        for <linux-mm@kvack.org>; Thu, 20 Mar 2014 02:16:51 -0700 (PDT)
+From: Bob Liu <lliubbo@gmail.com>
+Subject: [RESEND PATCH] mm: try_to_unmap_cluster() should lock_page() before mlocking
+Date: Thu, 20 Mar 2014 17:16:36 +0800
+Message-Id: <1395306996-13993-1-git-send-email-bob.liu@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cyrill Gorcunov <gorcunov@gmail.com>, David Herrmann <dh.herrmann@gmail.com>
-Cc: linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Matthew Wilcox <matthew@wil.cx>, Karol Lewandowski <k.lewandowsk@samsung.com>, Kay Sievers <kay@vrfy.org>, Daniel Mack <zonque@gmail.com>, Lennart Poettering <lennart@poettering.net>, =?ISO-8859-1?Q?Kristian_H=F8gsberg?= <krh@bitplanet.net>, john.stultz@linaro.org, Greg Kroah-Hartman <greg@kroah.com>, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, dri-devel@lists.freedesktop.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ryan Lortie <desrt@desrt.ca>, "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+To: akpm@linux-foundation.org
+Cc: vbabka@suse.cz, davej@redhat.com, sasha.levin@oracle.com, linux-mm@kvack.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Michel Lespinasse <walken@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, stable@vger.kernel.org, Bob Liu <bob.liu@oracle.com>
 
-On 03/20/2014 12:47 PM, Cyrill Gorcunov wrote:
-> On Wed, Mar 19, 2014 at 08:06:48PM +0100, David Herrmann wrote:
->> memfd_create() is similar to mmap(MAP_ANON), but returns a file-descriptor
->> that you can pass to mmap(). It explicitly allows sealing and
->> avoids any connection to user-visible mount-points. Thus, it's not
->> subject to quotas on mounted file-systems, but can be used like
->> malloc()'ed memory, but with a file-descriptor to it.
->>
->> memfd_create() does not create a front-FD, but instead returns the raw
->> shmem file, so calls like ftruncate() can be used. Also calls like fstat()
->> will return proper information and mark the file as regular file. Sealing
->> is explicitly supported on memfds.
->>
->> Compared to O_TMPFILE, it does not require a tmpfs mount-point and is not
->> subject to quotas and alike.
-> 
-> If I'm not mistaken in something obvious, this looks similar to /proc/pid/map_files
-> feature, Pavel?
+From: Vlastimil Babka <vbabka@suse.cz>
 
-Thanks, Cyrill.
+A BUG_ON(!PageLocked) was triggered in mlock_vma_page() by Sasha Levin fuzzing
+with trinity. The call site try_to_unmap_cluster() does not lock the pages
+other than its check_page parameter (which is already locked).
 
-It is, but the map_files will work "in the opposite direction" :) In the memfd
-case one first gets an FD, then mmap()s it; in the /proc/pis/map_files case one
-should first mmap() a region, then open it via /proc/self/map_files.
+The BUG_ON in mlock_vma_page() is not documented and its purpose is somewhat
+unclear, but apparently it serializes against page migration, which could
+otherwise fail to transfer the PG_mlocked flag. This would not be fatal, as the
+page would be eventually encountered again, but NR_MLOCK accounting would
+become distorted nevertheless. This patch adds a comment to the BUG_ON in
+mlock_vma_page() and munlock_vma_page() to that effect.
 
-But I don't know whether this matters.
+The call site try_to_unmap_cluster() is fixed so that for page != check_page,
+trylock_page() is attempted (to avoid possible deadlocks as we already have
+check_page locked) and mlock_vma_page() is performed only upon success. If the
+page lock cannot be obtained, the page is left without PG_mlocked, which is
+again not a problem in the whole unevictable memory design.
 
-Thanks,
-Pavel
+Reported-by: Sasha Levin <sasha.levin@oracle.com>
+Cc: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+Cc: Michel Lespinasse <walken@google.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: <stable@vger.kernel.org>
+Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+Signed-off-by: Bob Liu <bob.liu@oracle.com>
+---
+ mm/mlock.c |    2 ++
+ mm/rmap.c  |   14 ++++++++++++--
+ 2 files changed, 14 insertions(+), 2 deletions(-)
+
+diff --git a/mm/mlock.c b/mm/mlock.c
+index 4e1a6816..b1eb536 100644
+--- a/mm/mlock.c
++++ b/mm/mlock.c
+@@ -79,6 +79,7 @@ void clear_page_mlock(struct page *page)
+  */
+ void mlock_vma_page(struct page *page)
+ {
++	/* Serialize with page migration */
+ 	BUG_ON(!PageLocked(page));
+ 
+ 	if (!TestSetPageMlocked(page)) {
+@@ -174,6 +175,7 @@ unsigned int munlock_vma_page(struct page *page)
+ 	unsigned int nr_pages;
+ 	struct zone *zone = page_zone(page);
+ 
++	/* For try_to_munlock() and to serialize with page migration */
+ 	BUG_ON(!PageLocked(page));
+ 
+ 	/*
+diff --git a/mm/rmap.c b/mm/rmap.c
+index d9d4231..43d429b 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -1322,9 +1322,19 @@ static int try_to_unmap_cluster(unsigned long cursor, unsigned int *mapcount,
+ 		BUG_ON(!page || PageAnon(page));
+ 
+ 		if (locked_vma) {
+-			mlock_vma_page(page);   /* no-op if already mlocked */
+-			if (page == check_page)
++			if (page == check_page) {
++				/* we know we have check_page locked */
++				mlock_vma_page(page);
+ 				ret = SWAP_MLOCK;
++			} else if (trylock_page(page)) {
++				/*
++				 * If we can lock the page, perform mlock.
++				 * Otherwise leave the page alone, it will be
++				 * eventually encountered again later.
++				 */
++				mlock_vma_page(page);
++				unlock_page(page);
++			}
+ 			continue;	/* don't unmap */
+ 		}
+ 
+-- 
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
