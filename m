@@ -1,75 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f49.google.com (mail-bk0-f49.google.com [209.85.214.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 448306B020E
-	for <linux-mm@kvack.org>; Thu, 20 Mar 2014 11:27:23 -0400 (EDT)
-Received: by mail-bk0-f49.google.com with SMTP id my13so83916bkb.22
-        for <linux-mm@kvack.org>; Thu, 20 Mar 2014 08:27:21 -0700 (PDT)
-Received: from lxorguk.ukuu.org.uk (lxorguk.ukuu.org.uk. [81.2.110.251])
-        by mx.google.com with ESMTPS id ua6si1087542bkb.106.2014.03.20.08.27.20
+Received: from mail-yh0-f51.google.com (mail-yh0-f51.google.com [209.85.213.51])
+	by kanga.kvack.org (Postfix) with ESMTP id B57E46B020F
+	for <linux-mm@kvack.org>; Thu, 20 Mar 2014 11:33:08 -0400 (EDT)
+Received: by mail-yh0-f51.google.com with SMTP id f10so994589yha.38
+        for <linux-mm@kvack.org>; Thu, 20 Mar 2014 08:33:08 -0700 (PDT)
+Received: from imap.thunk.org (imap.thunk.org. [2600:3c02::f03c:91ff:fe96:be03])
+        by mx.google.com with ESMTPS id x66si2549110yhd.26.2014.03.20.08.33.06
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 20 Mar 2014 08:27:20 -0700 (PDT)
-Date: Thu, 20 Mar 2014 15:26:57 +0000
-From: One Thousand Gnomes <gnomes@lxorguk.ukuu.org.uk>
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Thu, 20 Mar 2014 08:33:07 -0700 (PDT)
+Date: Thu, 20 Mar 2014 11:32:51 -0400
+From: tytso@mit.edu
 Subject: Re: [PATCH 0/6] File Sealing & memfd_create()
-Message-ID: <20140320152657.381956ff@alan.etchedpixels.co.uk>
-In-Reply-To: <CANq1E4Ro8bsgp1QS_Qf9KKBAMZH+joMW5DmfyZ4OBJuTxdXCZA@mail.gmail.com>
+Message-ID: <20140320153250.GC20618@thunk.org>
 References: <1395256011-2423-1-git-send-email-dh.herrmann@gmail.com>
-	<CA+55aFyNORiS2XidhWoDBVyO6foZuPJTg_BOP3aLtvVhY1R6mw@mail.gmail.com>
-	<CANq1E4TuiU6_J=N0WoPav=0AxOJ9G1w+FGvO15kmGP76i+-caw@mail.gmail.com>
-	<20140320144127.1d411f26@alan.etchedpixels.co.uk>
-	<CANq1E4Ro8bsgp1QS_Qf9KKBAMZH+joMW5DmfyZ4OBJuTxdXCZA@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1395256011-2423-1-git-send-email-dh.herrmann@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: David Herrmann <dh.herrmann@gmail.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Karol Lewandowski <k.lewandowsk@samsung.com>, Kay Sievers <kay@vrfy.org>, Daniel Mack <zonque@gmail.com>, Lennart Poettering <lennart@poettering.net>, Kristian =?UTF-8?B?SMO4Z3NiZXJn?= <krh@bitplanet.net>, John Stultz <john.stultz@linaro.org>, Greg Kroah-Hartman <greg@kroah.com>, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, DRI <dri-devel@lists.freedesktop.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Ryan Lortie <desrt@desrt.ca>, "Michael
- Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+Cc: linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Matthew Wilcox <matthew@wil.cx>, Karol Lewandowski <k.lewandowsk@samsung.com>, Kay Sievers <kay@vrfy.org>, Daniel Mack <zonque@gmail.com>, Lennart Poettering <lennart@poettering.net>, Kristian@thunk.org, =?iso-8859-1?Q?H=F8gsberg_=3Ckrh=40bitplanet=2Enet=3E?=@thunk.org, john.stultz@linaro.org, Greg Kroah-Hartman <greg@kroah.com>, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, dri-devel@lists.freedesktop.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ryan Lortie <desrt@desrt.ca>, "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
 
-On Thu, 20 Mar 2014 16:12:54 +0100
-David Herrmann <dh.herrmann@gmail.com> wrote:
-
-> Hi
+On Wed, Mar 19, 2014 at 08:06:45PM +0100, David Herrmann wrote:
 > 
-> On Thu, Mar 20, 2014 at 3:41 PM, One Thousand Gnomes
-> <gnomes@lxorguk.ukuu.org.uk> wrote:
-> > I think you want two things at minimum
-> >
-> > owner to seal
-> > root can always override
+> This series introduces the concept of "file sealing". Sealing a file restricts
+> the set of allowed operations on the file in question. Multiple seals are
+> defined and each seal will cause a different set of operations to return EPERM
+> if it is set. The following seals are introduced:
 > 
-> Why should root be allowed to override?
+>  * SEAL_SHRINK: If set, the inode size cannot be reduced
+>  * SEAL_GROW: If set, the inode size cannot be increased
+>  * SEAL_WRITE: If set, the file content cannot be modified
 
-Because root can already override it by say mmapping the kernel memory
-and patching. It also tends to be valuable for debugging horrible
-problems with complex systems.
+Looking at your patches, and what files you are modifying, you are
+enforcing this in the low-level file system.
 
-Imposing fake restrictions on root just causes annoyance when doing stuff
-like debugging but doesn't actually change the security situation.
-> 
-> I'm fine with F_SET/GET_SEALS. But given you suggested requiring
-> MFD_ALLOW_SEALS for sealing, I don't see why we couldn't limit this
-> interface entirely to memfd_create().
+Why not make sealing an attribute of the "struct file", and enforce it
+at the VFS layer?  That way all file system objects would have access
+to sealing interface, and for memfd_shmem, you can't get another
+struct file pointing at the object, the security properties would be
+identical.
 
-But if someone does find a non memfd use for it then it's useful not to
-have to go "this fnctl for memfd, that fnctl for the other"
+Cheers,
 
-Just planning ahead.
-
-
-> > Whether you want some way to undo a seal without an exclusive reference as
-> > the file owner is another question.
-> 
-> No. You are never allowed to undo a seal but with an exclusive
-> reference. This interface was created for situations _without_ any
-> trust relationship. So if the owner is allowed to undo seals, the
-> interface doesn't make any sense. The only options I see is to not
-> allow un-sealing at all (which I'm fine with) or tracking users (which
-> is way too much overhead).
-
-Ok - that makes sense
+						- Ted
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
