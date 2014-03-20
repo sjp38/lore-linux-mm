@@ -1,30 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com [74.125.82.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F0466B0257
-	for <linux-mm@kvack.org>; Thu, 20 Mar 2014 17:34:08 -0400 (EDT)
-Received: by mail-wg0-f51.google.com with SMTP id k14so1028897wgh.34
-        for <linux-mm@kvack.org>; Thu, 20 Mar 2014 14:34:07 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m4si399851wib.24.2014.03.20.14.34.05
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 20 Mar 2014 14:34:06 -0700 (PDT)
-Date: Thu, 20 Mar 2014 21:33:58 +0000
-From: Mel Gorman <mgorman@suse.de>
+Received: from mail-pb0-f45.google.com (mail-pb0-f45.google.com [209.85.160.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E0786B025A
+	for <linux-mm@kvack.org>; Thu, 20 Mar 2014 18:12:36 -0400 (EDT)
+Received: by mail-pb0-f45.google.com with SMTP id uo5so1566550pbc.32
+        for <linux-mm@kvack.org>; Thu, 20 Mar 2014 15:12:36 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id ys6si1602377pab.377.2014.03.20.15.12.01
+        for <linux-mm@kvack.org>;
+        Thu, 20 Mar 2014 15:12:31 -0700 (PDT)
+Date: Thu, 20 Mar 2014 15:11:58 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: [patch] mm: page_alloc: spill to remote nodes before waking
  kswapd
-Message-ID: <20140320213358.GO25087@suse.de>
-References: <1395348816-4733-1-git-send-email-hannes@cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
+Message-Id: <20140320151158.e5cec93960cd0cd00f5b3790@linux-foundation.org>
 In-Reply-To: <1395348816-4733-1-git-send-email-hannes@cmpxchg.org>
+References: <1395348816-4733-1-git-send-email-hannes@cmpxchg.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Mar 20, 2014 at 04:53:36PM -0400, Johannes Weiner wrote:
+On Thu, 20 Mar 2014 16:53:36 -0400 Johannes Weiner <hannes@cmpxchg.org> wrote:
+
 > On NUMA systems, a node may start thrashing cache or even swap
 > anonymous pages while there are still free pages on remote nodes.
 > 
@@ -56,11 +56,11 @@ On Thu, Mar 20, 2014 at 04:53:36PM -0400, Johannes Weiner wrote:
 > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 > Cc: <stable@kernel.org> [3.12+]
 
-Acked-by: Mel Gorman <mgorman@suse.de>
+I queued this for 3.15-rc1 so it should get backported into 3.14.1 and
+earlier.
 
--- 
-Mel Gorman
-SUSE Labs
+It doesn't come close to applying to 3.13 or 3.12 so please check into
+what needs doing when Greg comes calling.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
