@@ -1,106 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f52.google.com (mail-pb0-f52.google.com [209.85.160.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 18EAA6B0184
-	for <linux-mm@kvack.org>; Wed, 19 Mar 2014 20:57:38 -0400 (EDT)
-Received: by mail-pb0-f52.google.com with SMTP id rr13so140417pbb.11
-        for <linux-mm@kvack.org>; Wed, 19 Mar 2014 17:57:37 -0700 (PDT)
-Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-        by mx.google.com with ESMTPS id sf3si128463pac.452.2014.03.19.17.57.36
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 19 Mar 2014 17:57:37 -0700 (PDT)
-Received: by mail-pd0-f178.google.com with SMTP id x10so136472pdj.37
-        for <linux-mm@kvack.org>; Wed, 19 Mar 2014 17:57:36 -0700 (PDT)
-Message-ID: <532A3CFC.4080406@linaro.org>
-Date: Wed, 19 Mar 2014 17:57:32 -0700
-From: John Stultz <john.stultz@linaro.org>
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 44A5A6B0185
+	for <linux-mm@kvack.org>; Wed, 19 Mar 2014 21:01:32 -0400 (EDT)
+Received: by mail-pa0-f54.google.com with SMTP id lf10so144731pab.13
+        for <linux-mm@kvack.org>; Wed, 19 Mar 2014 18:01:31 -0700 (PDT)
+Received: from ipmail05.adl6.internode.on.net (ipmail05.adl6.internode.on.net. [2001:44b8:8060:ff02:300:1:6:5])
+        by mx.google.com with ESMTP id tk5si128555pbc.510.2014.03.19.18.01.28
+        for <linux-mm@kvack.org>;
+        Wed, 19 Mar 2014 18:01:29 -0700 (PDT)
+Date: Thu, 20 Mar 2014 12:01:10 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: kswapd using __this_cpu_add() in preemptible code
+Message-ID: <20140320010110.GJ7072@dastard>
+References: <20140318185329.GB430@swordfish>
+ <20140318142216.317bf986d10a564881791100@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/3] Volatile Ranges (v11)
-References: <1394822013-23804-1-git-send-email-john.stultz@linaro.org> <20140318122425.GD3191@dhcp22.suse.cz> <532A3872.1080101@sr71.net>
-In-Reply-To: <532A3872.1080101@sr71.net>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140318142216.317bf986d10a564881791100@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>, Michal Hocko <mhocko@suse.cz>
-Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Johannes Weiner <hannes@cmpxchg.org>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Neil Brown <neilb@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Christoph Lameter <cl@linux.com>
 
-On 03/19/2014 05:38 PM, Dave Hansen wrote:
-> On 03/18/2014 05:24 AM, Michal Hocko wrote:
->> On Fri 14-03-14 11:33:30, John Stultz wrote:
->> [...]
->>> Volatile ranges provides a method for userland to inform the kernel that
->>> a range of memory is safe to discard (ie: can be regenerated) but
->>> userspace may want to try access it in the future.  It can be thought of
->>> as similar to MADV_DONTNEED, but that the actual freeing of the memory
->>> is delayed and only done under memory pressure, and the user can try to
->>> cancel the action and be able to quickly access any unpurged pages. The
->>> idea originated from Android's ashmem, but I've since learned that other
->>> OSes provide similar functionality.
->> Maybe I have missed something (I've only glanced through the patches)
->> but it seems that marking a range volatile doesn't alter neither
->> reference bits nor position in the LRU. I thought that a volatile page
->> would be moved to the end of inactive LRU with the reference bit
->> dropped. Or is this expectation wrong and volatility is not supposed to
->> touch page aging?
-> I'm not really convinced it should alter the aging.  Things could
-> potentially go in and out of volatile state frequently, and requiring
-> aging means we've got to go after them page-by-page or pte-by-pte at
-> best.  That doesn't seem like something we want to do in a path we want
-> to be fast.
->
-> Why not just let normal page aging deal with them?  It seems to me like
-> like trying to infer intended lru position from volatility is the wrong
-> thing.  It's quite possible we'd have two pages in the same range that
-> we want in completely different parts of the LRU.  Maybe the structure
-> has a hot page and a cold one, and we would ideally want the cold one
-> swapped out and not the hot one.
-s/swapped/purged
+On Tue, Mar 18, 2014 at 02:22:16PM -0700, Andrew Morton wrote:
+> On Tue, 18 Mar 2014 21:53:30 +0300 Sergey Senozhatsky <sergey.senozhatsky@gmail.com> wrote:
+> 
+> > Hello gentlemen,
+> > 
+> > Commit 589a606f9539663f162e4a110d117527833b58a4 ("percpu: add preemption
+> > checks to __this_cpu ops") added preempt check to used in __count_vm_events()
+> > __this_cpu ops, causing the following kswapd warning:
+> > 
+> >  BUG: using __this_cpu_add() in preemptible [00000000] code: kswapd0/56
+> >  caller is __this_cpu_preempt_check+0x2b/0x2d
+> >  Call Trace:
+> >  [<ffffffff813b8d4d>] dump_stack+0x4e/0x7a
+> >  [<ffffffff8121366f>] check_preemption_disabled+0xce/0xdd
+> >  [<ffffffff812136bb>] __this_cpu_preempt_check+0x2b/0x2d
+> >  [<ffffffff810f622e>] inode_lru_isolate+0xed/0x197
+> >  [<ffffffff810be43c>] list_lru_walk_node+0x7b/0x14c
+> >  [<ffffffff810f6141>] ? iput+0x131/0x131
+> >  [<ffffffff810f681f>] prune_icache_sb+0x35/0x4c
+> >  [<ffffffff810e3951>] super_cache_scan+0xe3/0x143
+> >  [<ffffffff810b1301>] shrink_slab_node+0x103/0x16f
+> >  [<ffffffff810b19fd>] shrink_slab+0x75/0xe4
+> >  [<ffffffff810b3f3d>] balance_pgdat+0x2fa/0x47f
+> >  [<ffffffff810b4395>] kswapd+0x2d3/0x2fd
+> >  [<ffffffff81068049>] ? __wake_up_sync+0xd/0xd
+> >  [<ffffffff810b40c2>] ? balance_pgdat+0x47f/0x47f
+> >  [<ffffffff81051e75>] kthread+0xd6/0xde
+> >  [<ffffffff81051d9f>] ? kthread_create_on_node+0x162/0x162
+> >  [<ffffffff813be5bc>] ret_from_fork+0x7c/0xb0
+> >  [<ffffffff81051d9f>] ? kthread_create_on_node+0x162/0x162
+> > 
+> > 
+> > list_lru_walk_node() seems to be the only place where __count_vm_events()
+> > called with preemption enabled. remaining __count_vm_events() and
+> > __count_vm_event() calls are done with preemption disabled (unless I
+> > overlooked something).
+> 
+> Christoph caught one.  How does this look?
+> 
+> 
+> 
+> From: Andrew Morton <akpm@linux-foundation.org>
+> Subject: fs/inode.c:inode_lru_isolate(): use atomic count_vm_events()
+> 
+> "percpu: add preemption checks to __this_cpu ops" added preempt check to
+> used in __count_vm_events() __this_cpu ops, causing the following kswapd
+> warning:
+> 
+>  BUG: using __this_cpu_add() in preemptible [00000000] code: kswapd0/56
+>  caller is __this_cpu_preempt_check+0x2b/0x2d
+>  Call Trace:
+>  [<ffffffff813b8d4d>] dump_stack+0x4e/0x7a
+>  [<ffffffff8121366f>] check_preemption_disabled+0xce/0xdd
+>  [<ffffffff812136bb>] __this_cpu_preempt_check+0x2b/0x2d
+>  [<ffffffff810f622e>] inode_lru_isolate+0xed/0x197
+>  [<ffffffff810be43c>] list_lru_walk_node+0x7b/0x14c
+>  [<ffffffff810f6141>] ? iput+0x131/0x131
+>  [<ffffffff810f681f>] prune_icache_sb+0x35/0x4c
+> 
+> Switch from __count_vm_events() to the preempt-safe count_vm_events().
+> 
+> Reported-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+> Cc: Christoph Lameter <cl@linux-foundation.org>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> ---
+> 
+>  fs/inode.c |    4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+> 
+> diff -puN fs/inode.c~fs-inodec-inode_lru_isolate-use-atomic-count_vm_events fs/inode.c
+> --- a/fs/inode.c~fs-inodec-inode_lru_isolate-use-atomic-count_vm_events
+> +++ a/fs/inode.c
+> @@ -722,9 +722,9 @@ inode_lru_isolate(struct list_head *item
+>  			unsigned long reap;
+>  			reap = invalidate_mapping_pages(&inode->i_data, 0, -1);
+>  			if (current_is_kswapd())
+> -				__count_vm_events(KSWAPD_INODESTEAL, reap);
+> +				count_vm_events(KSWAPD_INODESTEAL, reap);
+>  			else
+> -				__count_vm_events(PGINODESTEAL, reap);
+> +				count_vm_events(PGINODESTEAL, reap);
+>  			if (current->reclaim_state)
+>  				current->reclaim_state->reclaimed_slab += reap;
+>  		}
 
-But yea. Part of the request here is that when talking with potential
-users, there were some folks who were particularly concerned that if we
-purge a page from a range, we should purge the rest of that range before
-purging any pages of other ranges. Minchan has pushed for a flag
-VRANGE_FULL option (vs VRANGE_PARTIAL) to trigger this sort of
-full-range purging semantics.
+Acked-by: Dave Chinner <dchinner@redhat.com>
 
-Subtly, the same potential user wanted the partial semantics as well,
-since they could continue to access the unpurged volatile data, allowing
-only the cold pages to be purged.
+Cheers,
 
-I'm not particularly fond of having a option to specify this behavior,
-since I really want to leave all purging decisions to the VM and not
-have userland expect a particular behavior for volatile purging (since
-the right call at a system level may be different from one situation to
-the next - much as userspace cannot expect constant memory access times
-since some pages may be swapped out).
-
-So one way to approximate full range purging, while still doing page
-based purging, is to touch the pages being marked volatile as we mark
-them. Thus they will be all of the same "age", and thus likely to be
-purged together (assuming they haven't been accessed since being made
-volatile, in which case the cold pages rightly are purged first). Now,
-while setting them to all be of the same age, there is still the open
-question of what should that age be? And I'm not sure that answer is yet
-clear.  But as long as they are together, we still get the (approximate)
-full range purging behavior that was desired.
-
-Now.. one could also argue (as you have) that such behavior could be
-done separately from the mark-volatile operation. Possibly via making an
-madvise call on the range, prior to calling
-vrange(VRANGE_VOLATILE,...).  This is attractive, since it lowers the
-performance overhead. But I wanted to at least try to implement the page
-referencing, since I had talked about it as a solution to the
-FULL/PARTIAL purging issue.
-
-thanks
--john
-
-
-
-
-
-
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
