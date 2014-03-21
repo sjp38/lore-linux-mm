@@ -1,134 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 737906B0287
-	for <linux-mm@kvack.org>; Fri, 21 Mar 2014 17:18:09 -0400 (EDT)
-Received: by mail-pa0-f42.google.com with SMTP id fb1so2921502pad.29
-        for <linux-mm@kvack.org>; Fri, 21 Mar 2014 14:18:09 -0700 (PDT)
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-        by mx.google.com with ESMTPS id ha5si4390811pbc.129.2014.03.21.14.18.08
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 21 Mar 2014 14:18:08 -0700 (PDT)
-Received: by mail-pd0-f176.google.com with SMTP id r10so2837822pdi.35
-        for <linux-mm@kvack.org>; Fri, 21 Mar 2014 14:18:08 -0700 (PDT)
-From: John Stultz <john.stultz@linaro.org>
-Subject: [PATCH 5/5] vmscan: Age anonymous memory even when swap is off.
-Date: Fri, 21 Mar 2014 14:17:35 -0700
-Message-Id: <1395436655-21670-6-git-send-email-john.stultz@linaro.org>
-In-Reply-To: <1395436655-21670-1-git-send-email-john.stultz@linaro.org>
-References: <1395436655-21670-1-git-send-email-john.stultz@linaro.org>
+Received: from mail-pb0-f41.google.com (mail-pb0-f41.google.com [209.85.160.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B7586B0151
+	for <linux-mm@kvack.org>; Fri, 21 Mar 2014 17:40:08 -0400 (EDT)
+Received: by mail-pb0-f41.google.com with SMTP id jt11so2935373pbb.14
+        for <linux-mm@kvack.org>; Fri, 21 Mar 2014 14:40:07 -0700 (PDT)
+Date: Fri, 21 Mar 2014 14:39:59 -0700
+From: "Darrick J. Wong" <darrick.wong@oracle.com>
+Subject: Re: [RFC PATCH 0/5] userspace PI passthrough via AIO/DIO
+Message-ID: <20140321213959.GC5437@birch.djwong.org>
+References: <20140321043041.8428.79003.stgit@birch.djwong.org>
+ <x49wqfny4ys.fsf@segfault.boston.devel.redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <x49wqfny4ys.fsf@segfault.boston.devel.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: LKML <linux-kernel@vger.kernel.org>
-Cc: John Stultz <john.stultz@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Johannes Weiner <hannes@cmpxchg.org>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@sr71.net>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Neil Brown <neilb@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Jeff Moyer <jmoyer@redhat.com>
+Cc: axboe@kernel.dk, martin.petersen@oracle.com, JBottomley@parallels.com, bcrl@kvack.org, viro@zeniv.linux.org.uk, linux-fsdevel@vger.kernel.org, linux-aio@kvack.org, linux-scsi@vger.kernel.org, linux-mm@kvack.org
 
-Currently we don't shrink/scan the anonymous lrus when swap is off.
-This is problematic for volatile range purging on swapless systems/
+On Fri, Mar 21, 2014 at 10:57:31AM -0400, Jeff Moyer wrote:
+> "Darrick J. Wong" <darrick.wong@oracle.com> writes:
+> 
+> > This RFC provides a rough implementation of a mechanism to allow
+> > userspace to attach protection information (e.g. T10 DIF) data to a
+> > disk write and to receive the information alongside a disk read.  The
+> > interface is an extension to the AIO interface: two new commands
+> > (IOCB_CMD_P{READ,WRITE}VM) are provided.  The last struct iovec in the
+> 
+> Sorry for the shallow question, but what does that M stand for?
 
-This patch naievely changes the vmscan code to continue scanning
-and shrinking the lrus even when there is no swap.
+Hmmm... I really don't remember why I picked 'M'.  Probably because it implied
+that the IO has extra 'M'etadata associated with it.
 
-It obviously has performance issues.
+But now I see, 'VM' connotes something entirely wrong.
 
-Thoughts on how best to implement this would be appreciated.
-
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Android Kernel Team <kernel-team@android.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Robert Love <rlove@google.com>
-Cc: Mel Gorman <mel@csn.ul.ie>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Dave Hansen <dave@sr71.net>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Dmitry Adamushko <dmitry.adamushko@gmail.com>
-Cc: Neil Brown <neilb@suse.de>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Mike Hommey <mh@glandium.org>
-Cc: Taras Glek <tglek@mozilla.com>
-Cc: Jan Kara <jack@suse.cz>
-Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: Michel Lespinasse <walken@google.com>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: linux-mm@kvack.org <linux-mm@kvack.org>
-Signed-off-by: John Stultz <john.stultz@linaro.org>
----
- mm/vmscan.c | 26 ++++----------------------
- 1 file changed, 4 insertions(+), 22 deletions(-)
-
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 34f159a..07b0a8c 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -155,9 +155,8 @@ static unsigned long zone_reclaimable_pages(struct zone *zone)
- 	nr = zone_page_state(zone, NR_ACTIVE_FILE) +
- 	     zone_page_state(zone, NR_INACTIVE_FILE);
- 
--	if (get_nr_swap_pages() > 0)
--		nr += zone_page_state(zone, NR_ACTIVE_ANON) +
--		      zone_page_state(zone, NR_INACTIVE_ANON);
-+	nr += zone_page_state(zone, NR_ACTIVE_ANON) +
-+	      zone_page_state(zone, NR_INACTIVE_ANON);
- 
- 	return nr;
- }
-@@ -1764,13 +1763,6 @@ static int inactive_anon_is_low_global(struct zone *zone)
-  */
- static int inactive_anon_is_low(struct lruvec *lruvec)
- {
--	/*
--	 * If we don't have swap space, anonymous page deactivation
--	 * is pointless.
--	 */
--	if (!total_swap_pages)
--		return 0;
--
- 	if (!mem_cgroup_disabled())
- 		return mem_cgroup_inactive_anon_is_low(lruvec);
- 
-@@ -1880,12 +1872,6 @@ static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
- 	if (!global_reclaim(sc))
- 		force_scan = true;
- 
--	/* If we have no swap space, do not bother scanning anon pages. */
--	if (!sc->may_swap || (get_nr_swap_pages() <= 0)) {
--		scan_balance = SCAN_FILE;
--		goto out;
--	}
--
- 	/*
- 	 * Global reclaim will swap to prevent OOM even with no
- 	 * swappiness, but memcg users want to use this knob to
-@@ -2048,7 +2034,6 @@ static void shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
- 			if (nr[lru]) {
- 				nr_to_scan = min(nr[lru], SWAP_CLUSTER_MAX);
- 				nr[lru] -= nr_to_scan;
--
- 				nr_reclaimed += shrink_list(lru, nr_to_scan,
- 							    lruvec, sc);
- 			}
-@@ -2181,8 +2166,8 @@ static inline bool should_continue_reclaim(struct zone *zone,
- 	 */
- 	pages_for_compaction = (2UL << sc->order);
- 	inactive_lru_pages = zone_page_state(zone, NR_INACTIVE_FILE);
--	if (get_nr_swap_pages() > 0)
--		inactive_lru_pages += zone_page_state(zone, NR_INACTIVE_ANON);
-+	inactive_lru_pages += zone_page_state(zone, NR_INACTIVE_ANON);
-+
- 	if (sc->nr_reclaimed < pages_for_compaction &&
- 			inactive_lru_pages > pages_for_compaction)
- 		return true;
-@@ -2726,9 +2711,6 @@ static void age_active_anon(struct zone *zone, struct scan_control *sc)
- {
- 	struct mem_cgroup *memcg;
- 
--	if (!total_swap_pages)
--		return;
--
- 	memcg = mem_cgroup_iter(NULL, NULL, NULL);
- 	do {
- 		struct lruvec *lruvec = mem_cgroup_zone_lruvec(zone, memcg);
--- 
-1.8.3.2
+--D
+> 
+> Cheers,
+> Jeff
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
