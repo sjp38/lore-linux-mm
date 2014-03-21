@@ -1,230 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f53.google.com (mail-pb0-f53.google.com [209.85.160.53])
-	by kanga.kvack.org (Postfix) with ESMTP id D10216B025C
-	for <linux-mm@kvack.org>; Thu, 20 Mar 2014 19:55:17 -0400 (EDT)
-Received: by mail-pb0-f53.google.com with SMTP id rp16so1639185pbb.26
-        for <linux-mm@kvack.org>; Thu, 20 Mar 2014 16:55:17 -0700 (PDT)
-Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [2001:44b8:8060:ff02:300:1:6:6])
-        by mx.google.com with ESMTP id vu10si2391548pbc.482.2014.03.20.16.55.15
-        for <linux-mm@kvack.org>;
-        Thu, 20 Mar 2014 16:55:16 -0700 (PDT)
-Date: Fri, 21 Mar 2014 10:55:08 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH v6 07/22] Replace the XIP page fault handler with the DAX
- page fault handler
-Message-ID: <20140320235508.GO7072@dastard>
-References: <1393337918-28265-1-git-send-email-matthew.r.wilcox@intel.com>
- <1393337918-28265-8-git-send-email-matthew.r.wilcox@intel.com>
- <1393609771.6784.83.camel@misato.fc.hp.com>
- <20140228202031.GB12820@linux.intel.com>
- <20140302233027.GR30131@dastard>
- <alpine.OSX.2.00.1403031549110.34680@scrumpy>
- <20140304005624.GB6851@dastard>
- <20140320193844.GB5705@linux.intel.com>
+Received: from mail-ig0-f182.google.com (mail-ig0-f182.google.com [209.85.213.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 4C2016B025E
+	for <linux-mm@kvack.org>; Thu, 20 Mar 2014 21:47:27 -0400 (EDT)
+Received: by mail-ig0-f182.google.com with SMTP id uy17so151064igb.3
+        for <linux-mm@kvack.org>; Thu, 20 Mar 2014 18:47:27 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id y8si4047745icp.22.2014.03.20.18.47.26
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 20 Mar 2014 18:47:26 -0700 (PDT)
+Message-ID: <532B9A18.8020606@oracle.com>
+Date: Thu, 20 Mar 2014 21:47:04 -0400
+From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140320193844.GB5705@linux.intel.com>
+Subject: Re: [PATCH 08/11] madvise: redefine callback functions for page table
+ walker
+References: <1392068676-30627-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1392068676-30627-9-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1392068676-30627-9-git-send-email-n-horiguchi@ah.jp.nec.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@linux.intel.com>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Toshi Kani <toshi.kani@hp.com>, Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, Cliff Wickman <cpw@sgi.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@parallels.com>, Rik van Riel <riel@redhat.com>, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org
 
-On Thu, Mar 20, 2014 at 03:38:44PM -0400, Matthew Wilcox wrote:
-> On Tue, Mar 04, 2014 at 11:56:25AM +1100, Dave Chinner wrote:
-> > > get_block_t is used by the VFS to ask filesystem to translate logical
-> > > blocks within a file to sectors on a block device.
-> > > 
-> > > typedef int (get_block_t)(struct inode *inode, sector_t iblock,
-> > >                         struct buffer_head *bh_result, int create);
-> > > 
-> > > get_block() must not be called simultaneously with the create flag set
-> > > for overlapping extents *** or is/was this a bug in ext2? ***
-> > 
-> > Why not? The filesystem is responsible for serialising such requests
-> > internally, or if it can't handle them preventing them from
-> > occurring. XFS has allowed this to occur with concurrent overlapping
-> > direct IO writes for a long time. In the situations where we need
-> > serialisation to avoid data corruption (e.g. overlapping sub-block
-> > IO), we serialise at the IO syscall context (i.e at a much higher
-> > layer).
-> 
-> I'm basing this on this commit:
-> 
-> commit 14bac5acfdb6a40be64acc042c6db73f1a68f6a4
-> Author: Nick Piggin <npiggin@suse.de>
-> Date:   Wed Aug 20 14:09:20 2008 -0700
-> 
->     mm: xip/ext2 fix block allocation race
->     
->     XIP can call into get_xip_mem concurrently with the same file,offset with
->     create=1.  This usually maps down to get_block, which expects the page
->     lock to prevent such a situation.  This causes ext2 to explode for one
->     reason or another.
->     
->     Serialise those calls for the moment.  For common usages today, I suspect
->     get_xip_mem rarely is called to create new blocks.  In future as XIP
->     technologies evolve we might need to look at which operations require
->     scalability, and rework the locking to suit.
-> 
-> Now, specifically for DAX, reads and writes are serialised by DIO_LOCKING,
-> just like direct I/O.
+On 02/10/2014 04:44 PM, Naoya Horiguchi wrote:
+> swapin_walk_pmd_entry() is defined as pmd_entry(), but it has no code
+> about pmd handling (except pmd_none_or_trans_huge_or_clear_bad, but the
+> same check are now done in core page table walk code).
+> So let's move this function on pte_entry() as swapin_walk_pte_entry().
+>
+> Signed-off-by: Naoya Horiguchi<n-horiguchi@ah.jp.nec.com>
 
-No, filesystems don't necessarily use DIO_LOCKING for direct IO.
-That's the whole point of having the flag - so filesystems can use
-their own, more efficient serialisation for getblocks calls.  XFS
-does it via the internal XFS inode i_ilock, others do it via the
-i_alloc_sem, and so on.
+This patch seems to generate:
 
-Indeed, XFS has extremely good DIO scalability because it uses
-shared locks where ever possible inside getblocks - it only takes an
-exclusive lock if allocation is actually required - and hence
-concurrent lookups don't serialise unless a modification is
-required...
+[  305.267354] =================================
+[  305.268051] [ INFO: inconsistent lock state ]
+[  305.268678] 3.14.0-rc7-next-20140320-sasha-00015-gd752393-dirty #261 Tainted: G        W
+[  305.269992] ---------------------------------
+[  305.270152] inconsistent {IN-RECLAIM_FS-W} -> {RECLAIM_FS-ON-W} usage.
+[  305.270152] trinity-c57/13619 [HC0[0]:SC0[0]:HE1:SE1] takes:
+[  305.270152]  (&(ptlock_ptr(page))->rlock#2){+.+.?.}, at: walk_pte_range (include/linux/spinlock.h:303 mm/pagewalk.c:33)
+[  305.270152] {IN-RECLAIM_FS-W} state was registered at:
+[  305.270152]   mark_irqflags (kernel/locking/lockdep.c:2821)
+[  305.270152]   __lock_acquire (kernel/locking/lockdep.c:3138)
+[  305.270152]   lock_acquire (arch/x86/include/asm/current.h:14 kernel/locking/lockdep.c:3602)
+[  305.270152]   _raw_spin_lock (include/linux/spinlock_api_smp.h:143 kernel/locking/spinlock.c:151)
+[  305.270152]   __page_check_address (include/linux/spinlock.h:303 mm/rmap.c:624)
+[  305.270152]   page_referenced_one (mm/rmap.c:706)
+[  305.270152]   rmap_walk_anon (mm/rmap.c:1613)
+[  305.270152]   rmap_walk (mm/rmap.c:1685)
+[  305.270152]   page_referenced (mm/rmap.c:802)
+[  305.270152]   shrink_active_list (mm/vmscan.c:1704)
+[  305.270152]   balance_pgdat (mm/vmscan.c:2741 mm/vmscan.c:2996)
+[  305.270152]   kswapd (mm/vmscan.c:3296)
+[  305.270152]   kthread (kernel/kthread.c:216)
+[  305.270152]   ret_from_fork (arch/x86/kernel/entry_64.S:555)
+[  305.270152] irq event stamp: 20863
+[  305.270152] hardirqs last  enabled at (20863): alloc_pages_vma (arch/x86/include/asm/paravirt.h:809 include/linux/seqlock.h:81 include/linux/seqlock.h:146 include/linux/cpus
+et.h:98 mm/mempolicy.c:1990)
+[  305.270152] hardirqs last disabled at (20862): alloc_pages_vma (include/linux/seqlock.h:79 include/linux/seqlock.h:146 include/linux/cpuset.h:98 mm/mempolicy.c:1990)
+[  305.270152] softirqs last  enabled at (19858): __do_softirq (arch/x86/include/asm/preempt.h:22 kernel/softirq.c:298)
+[  305.270152] softirqs last disabled at (19855): irq_exit (kernel/softirq.c:348 kernel/softirq.c:389)
+[  305.270152]
+[  305.270152] other info that might help us debug this:
+[  305.270152]  Possible unsafe locking scenario:
+[  305.270152]
+[  305.270152]        CPU0
+[  305.270152]        ----
+[  305.270152]   lock(&(ptlock_ptr(page))->rlock#2);
+[  305.270152]   <Interrupt>
+[  305.270152]     lock(&(ptlock_ptr(page))->rlock#2);
+[  305.270152]
+[  305.270152]  *** DEADLOCK ***
+[  305.270152]
+[  305.270152] 2 locks held by trinity-c57/13619:
+[  305.270152]  #0:  (&mm->mmap_sem){++++++}, at: SyS_madvise (arch/x86/include/asm/current.h:14 mm/madvise.c:492 mm/madvise.c:448)
+[  305.270152]  #1:  (&(ptlock_ptr(page))->rlock#2){+.+.?.}, at: walk_pte_range (include/linux/spinlock.h:303 mm/pagewalk.c:33)
+[  305.270152]
+[  305.270152] stack backtrace:
+[  305.270152] CPU: 23 PID: 13619 Comm: trinity-c57 Tainted: G        W     3.14.0-rc7-next-20140320-sasha-00015-gd752393-dirty #261
+[  305.270152]  ffff8804ab8e0d28 ffff8804ab9c5968 ffffffff844b76e7 0000000000000001
+[  305.270152]  ffff8804ab8e0000 ffff8804ab9c59c8 ffffffff811a55f7 0000000000000000
+[  305.270152]  0000000000000001 ffff880400000001 ffffffff87e18ed8 000000000000000a
+[  305.270152] Call Trace:
+[  305.270152]  dump_stack (lib/dump_stack.c:52)
+[  305.270152]  print_usage_bug (kernel/locking/lockdep.c:2254)
+[  305.270152]  ? check_usage_forwards (kernel/locking/lockdep.c:2371)
+[  305.270152]  mark_lock_irq (kernel/locking/lockdep.c:2465)
+[  305.270152]  mark_lock (kernel/locking/lockdep.c:2920)
+[  305.270152]  mark_held_locks (kernel/locking/lockdep.c:2523)
+[  305.270152]  lockdep_trace_alloc (kernel/locking/lockdep.c:2745 kernel/locking/lockdep.c:2760)
+[  305.270152]  __alloc_pages_nodemask (mm/page_alloc.c:2722)
+[  305.270152]  ? mark_held_locks (kernel/locking/lockdep.c:2523)
+[  305.270152]  ? alloc_pages_vma (arch/x86/include/asm/paravirt.h:809 include/linux/seqlock.h:81 include/linux/seqlock.h:146 include/linux/cpuset.h:98 mm/mempolicy.c:1990)
+[  305.270152]  alloc_pages_vma (include/linux/mempolicy.h:76 mm/mempolicy.c:2006)
+[  305.270152]  ? read_swap_cache_async (mm/swap_state.c:328)
+[  305.270152]  ? __const_udelay (arch/x86/lib/delay.c:126)
+[  305.270152]  read_swap_cache_async (mm/swap_state.c:328)
+[  305.270152]  ? walk_pte_range (include/linux/spinlock.h:303 mm/pagewalk.c:33)
+[  305.270152]  swapin_walk_pte_entry (mm/madvise.c:152)
+[  305.270152]  walk_pte_range (mm/pagewalk.c:47)
+[  305.270152]  ? sched_clock (arch/x86/include/asm/paravirt.h:192 arch/x86/kernel/tsc.c:305)
+[  305.270152]  walk_pmd_range (mm/pagewalk.c:90)
+[  305.270152]  ? sched_clock (arch/x86/include/asm/paravirt.h:192 arch/x86/kernel/tsc.c:305)
+[  305.270152]  ? kvm_clock_read (arch/x86/include/asm/preempt.h:90 arch/x86/kernel/kvmclock.c:86)
+[  305.270152]  walk_pud_range (mm/pagewalk.c:128)
+[  305.270152]  walk_pgd_range (mm/pagewalk.c:165)
+[  305.270152]  __walk_page_range (mm/pagewalk.c:259)
+[  305.270152]  walk_page_range (mm/pagewalk.c:333)
+[  305.270152]  madvise_willneed (mm/madvise.c:167 mm/madvise.c:211)
+[  305.270152]  ? madvise_hwpoison (mm/madvise.c:140)
+[  305.270152]  madvise_vma (mm/madvise.c:369)
+[  305.270152]  ? find_vma (mm/mmap.c:2021)
+[  305.270152]  SyS_madvise (mm/madvise.c:518 mm/madvise.c:448)
+[  305.270152]  ia32_do_call (arch/x86/ia32/ia32entry.S:430)
 
-> *currently*, simultaneous pagefaults are not
-> serialised against each other at all (or reads/writes), which means we
-> can call get_block() with create=1 simultaneously for the same block.
-> For a variety of reasons (scalability, fix a subtle race), I'm going to
-> implement an equivalent to the page lock for pages of DAX memory, so in
-> the future the DAX code will also not call into get_block in parallel.
 
-Which is going to be a major scalability issue. You need to allow
-concurrent calls into getblock...
-
-> So what should the document say here?  It sounds like it's similar to
-> the iblock beyond i_size below; that the filesystem and the VFS should
-> cooperate to ensure that it only happens if the filesystem can make
-> it work.
-
-"Filesystems are responsible for ensuring coherency w.r.t.
-concurrent access to their block mapping routines"
-
-> > > Despite the iblock argument having type sector_t, iblock is actually
-> > > in units of the file block size, not in units of 512-byte sectors.
-> > > iblock must not extend beyond i_size. *** um, looks like xfs permits
-> > > this ... ? ***
-> > 
-> > Of course.  There is nothing that prevents filesystems from mapping
-> > and allocating blocks beyond EOF if they can do so sanely, and
-> > nothign that prevents getblocks from letting them do so. Callers
-> > need to handle the situation appropriately, either by doing their
-> > own EOF checks or by leaving it up to the filesystems to do the
-> > right thing. Buffered IO does the former, direct IO does the latter.
-> > 
-> > The code in question in __xfs_get_blocks:
-> > 
-> >         if (!create && direct && offset >= i_size_read(inode))
-> > 	                return 0;
-> > 
-> > This is because XFS does direct IO differently to everyone else.  It
-> > doesn't update the inode size until after IO completion (see
-> > xfs_end_io_direct_write()), and hence it has to be able to allocate
-> > and map blocks beyond EOF.
-> > 
-> > i.e. only direct IO reads are disallowed if the requested mapping is
-> > beyond EOF. Buffered reads beyond EOF don't get here, but direct IO
-> > does.
-> 
-> So how can we document this?  'iblock must not be beyond i_size unless
-> it's allowed to be'?  'iblock may only be beyond end of file for direct
-> I/O'?
-
-"filesystems must reject attempts to map a range beyond EOF if
-create is not set".
-
-> > > b_size to indicate the length of the hole.  It may also opt to leave
-> > > bh_result untouched as described above.  If the block corresponds to
-> > > a hole, bh_result *may* be unmodified, but the VFS can optimise some
-> > > operations if the filesystem reports the length of the hole as described
-> > > below. *** or is this a bug in ext4? ***
-> > 
-> > mpage_readpages() remaps the hole on every block, so regardless of
-> > the size of the hole getblocks returns it will do the right thing.
-> 
-> Yes, this is true, but it could be more efficient if it could rely on
-> get_block to return an accurate length of the hole.
-
-Sure. But do_mpage_readpage() needs an aenema. It's a complex mess
-that relies on block_read_full_page() and bufferhead based IO to
-sort out the crap it gets confused about.
-
-As it is, I suspect that this is all going to be academic. I'm in
-the process of ripping bufferhead support out of XFS and adding a
-new iomapping interface so that we don't have to carry bufferheads
-around on pages anymore. As such, I'll have to re-implement whatever
-you do with DAX to support bufferhead enabled filesystems....
-
-> > > If bh_result describes an extent which has data in the pagecache, but
-> > > that data has not yet had space allocated on the media (due to delayed
-> > > allocation), BH_Mapped, BH_Uptodate and BH_Delay will be set.  b_blocknr
-> > > is not set.
-> > 
-> > b_blocknr is undefined. filesystems can set it to whatever they
-> > want; they will interpret it correctly when they see BH_Delay on the
-> > buffer.
-> 
-> Thanks, I'll fix that.
-> 
-> > Again, BH_Uptodate is used here by XFS to prevent
-> > __block_write_begin() from issuing IO on delalloc buffers that have
-> > no data in them yet. That's specific to the filesystem
-> > implementation (as XFS uses __block_write_begin), so this is
-> > actually a requirement of __block_write_begin() for being used with
-> > delalloc buffers, not a requirement of the getblocks interface.
-> 
-> So ... "BH_Mapped and BH_Delay will be set.  BH_Uptodate may be set.
-> b_blocknr may be used by the filesystem for its own purpose."
-
-The only indication that a buffer contains a delayed allocation map
-is BH_Delay. What the filesystem sets in other flags is determined
-by the filesystem implementation, not the getblock API. e.g. it
-looks like ext4 always sets buffer_new() on a delalloc block, but
-XFs only ever sets it on the getblocks call that allocates the
-delalloc block. i.e. the use of many of these flags is filesystem
-implementation specific, so you can't actually say that the getblock
-API has fixed definitions for these combinations of flags.
-
-> > > The filesystem may choose to set b_private.  Other fields in buffer_head
-> > > are legacy buffer-cache uses and will not be modified by get_block.
-> > 
-> > Precisely why we should be moving this interface to a structure like
-> > this:
-> > 
-> > struct iomap {
-> > 	sector_t	blocknr;
-> > 	sector_t	length;
-> > 	void		*fsprivate;
-> > 	unsigned int	state;
-> > };
-> > 
-> > That is used specifically for returning block maps and directing
-> > allocation, rather than something that conflates mapping, allocation
-> > and data initialisation all into the one interface...
-> 
-> You missed:
-> 	struct block_device *bdev;
-
-Sure - it's in the structures I'm using. ;)
-
-> And I agree, but documentation of the current get_block interface is
-> not the place to launch into a polemic on how things ought to be.  It's
-> reasonable to point out infelicities ... which I do in a few places :-)
-
-Saying how things are broken and ought to be is the first step
-towards fixing a mess. XFS is definitely going to be moving away
-from this current mess so we can support block size > page size  and
-mulit-page writes without major changes needed to either the
-filesystem or the page cache.  Moving away from bufferheads and the
-getblock interface is a necessary part of that change...
-
-Cheers,
-
-Dave.
-
--- 
-Dave Chinner
-david@fromorbit.com
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
