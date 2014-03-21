@@ -1,40 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 821BE6B0287
-	for <linux-mm@kvack.org>; Fri, 21 Mar 2014 19:44:33 -0400 (EDT)
-Received: by mail-pd0-f173.google.com with SMTP id z10so2945596pdj.18
-        for <linux-mm@kvack.org>; Fri, 21 Mar 2014 16:44:33 -0700 (PDT)
-Received: from collaborate-mta1.arm.com (fw-tnat.austin.arm.com. [217.140.110.23])
-        by mx.google.com with ESMTP id gt10si4037684pbc.208.2014.03.21.16.44.32
-        for <linux-mm@kvack.org>;
-        Fri, 21 Mar 2014 16:44:32 -0700 (PDT)
-Date: Fri, 21 Mar 2014 23:44:07 +0000
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [PATCH v2 3/3] kmemleak: change some global variables to int
-Message-ID: <20140321234407.GB21429@arm.com>
-References: <5326750E.1000004@huawei.com>
- <53267560.5060803@huawei.com>
+Received: from mail-qc0-f174.google.com (mail-qc0-f174.google.com [209.85.216.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C4F86B0287
+	for <linux-mm@kvack.org>; Fri, 21 Mar 2014 19:49:01 -0400 (EDT)
+Received: by mail-qc0-f174.google.com with SMTP id c9so3574556qcz.5
+        for <linux-mm@kvack.org>; Fri, 21 Mar 2014 16:49:00 -0700 (PDT)
+Date: Fri, 21 Mar 2014 16:48:32 -0700
+From: Zach Brown <zab@redhat.com>
+Subject: Re: [RFC PATCH 0/5] userspace PI passthrough via AIO/DIO
+Message-ID: <20140321234832.GR10561@lenny.home.zabbo.net>
+References: <20140321043041.8428.79003.stgit@birch.djwong.org>
+ <x49wqfny4ys.fsf@segfault.boston.devel.redhat.com>
+ <20140321213959.GC5437@birch.djwong.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <53267560.5060803@huawei.com>
-Content-Language: en-US
+In-Reply-To: <20140321213959.GC5437@birch.djwong.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Li Zefan <lizefan@huawei.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: "Darrick J. Wong" <darrick.wong@oracle.com>
+Cc: Jeff Moyer <jmoyer@redhat.com>, axboe@kernel.dk, martin.petersen@oracle.com, JBottomley@parallels.com, bcrl@kvack.org, viro@zeniv.linux.org.uk, linux-fsdevel@vger.kernel.org, linux-aio@kvack.org, linux-scsi@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Mar 17, 2014 at 04:09:04AM +0000, Li Zefan wrote:
-> They don't have to be atomic_t, because they are simple boolean
-> toggles.
+On Fri, Mar 21, 2014 at 02:39:59PM -0700, Darrick J. Wong wrote:
+> On Fri, Mar 21, 2014 at 10:57:31AM -0400, Jeff Moyer wrote:
+> > "Darrick J. Wong" <darrick.wong@oracle.com> writes:
+> > 
+> > > This RFC provides a rough implementation of a mechanism to allow
+> > > userspace to attach protection information (e.g. T10 DIF) data to a
+> > > disk write and to receive the information alongside a disk read.  The
+> > > interface is an extension to the AIO interface: two new commands
+> > > (IOCB_CMD_P{READ,WRITE}VM) are provided.  The last struct iovec in the
+> > 
+> > Sorry for the shallow question, but what does that M stand for?
 > 
-> Signed-off-by: Li Zefan <lizefan@huawei.com>
+> Hmmm... I really don't remember why I picked 'M'.  Probably because it implied
+> that the IO has extra 'M'etadata associated with it.
 
-A reason for which I had atomic_t was to avoid compiler optimisations
-but I don't immediately see how it could go wrong. Assuming that you
-have tested it,
+Magical! :)
 
-Acked-by: Catalin Marinas <catalin.marinas@arm.com>
+- z
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
