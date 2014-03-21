@@ -1,274 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f51.google.com (mail-pb0-f51.google.com [209.85.160.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B2626B0272
-	for <linux-mm@kvack.org>; Fri, 21 Mar 2014 00:31:21 -0400 (EDT)
-Received: by mail-pb0-f51.google.com with SMTP id uo5so1903094pbc.38
-        for <linux-mm@kvack.org>; Thu, 20 Mar 2014 21:31:20 -0700 (PDT)
-Subject: [PATCH 5/5] blk-integrity: refactor various routines
-From: "Darrick J. Wong" <darrick.wong@oracle.com>
-Date: Thu, 20 Mar 2014 21:31:15 -0700
-Message-ID: <20140321043115.8428.76652.stgit@birch.djwong.org>
-In-Reply-To: <20140321043041.8428.79003.stgit@birch.djwong.org>
-References: <20140321043041.8428.79003.stgit@birch.djwong.org>
+Received: from mail-pb0-f47.google.com (mail-pb0-f47.google.com [209.85.160.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 03D836B0266
+	for <linux-mm@kvack.org>; Fri, 21 Mar 2014 00:47:58 -0400 (EDT)
+Received: by mail-pb0-f47.google.com with SMTP id up15so1910679pbc.34
+        for <linux-mm@kvack.org>; Thu, 20 Mar 2014 21:47:58 -0700 (PDT)
+Received: from mail-pa0-x22b.google.com (mail-pa0-x22b.google.com [2607:f8b0:400e:c03::22b])
+        by mx.google.com with ESMTPS id zt8si2809922pbc.316.2014.03.20.21.47.53
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 20 Mar 2014 21:47:54 -0700 (PDT)
+Received: by mail-pa0-f43.google.com with SMTP id bj1so1921515pad.30
+        for <linux-mm@kvack.org>; Thu, 20 Mar 2014 21:47:53 -0700 (PDT)
+Date: Thu, 20 Mar 2014 21:46:51 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: bad rss-counter message in 3.14rc5
+In-Reply-To: <532AF8E8.8030101@oracle.com>
+Message-ID: <alpine.LSU.2.11.1403202141310.1006@eggly.anvils>
+References: <20140311171045.GA4693@redhat.com> <20140311173603.GG32390@moon> <20140311173917.GB4693@redhat.com> <alpine.LSU.2.11.1403181703470.7055@eggly.anvils> <5328F3B4.1080208@oracle.com> <20140319020602.GA29787@redhat.com> <20140319021131.GA30018@redhat.com>
+ <alpine.LSU.2.11.1403181918130.3423@eggly.anvils> <20140319145200.GA4608@redhat.com> <alpine.LSU.2.11.1403192147470.971@eggly.anvils> <20140320135137.GA2263@redhat.com> <532AF8E8.8030101@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: axboe@kernel.dk, martin.petersen@oracle.com, darrick.wong@oracle.com, JBottomley@parallels.com, bcrl@kvack.org, viro@zeniv.linux.org.uk
-Cc: linux-fsdevel@vger.kernel.org, linux-aio@kvack.org, linux-scsi@vger.kernel.org, linux-mm@kvack.org
+To: Sasha Levin <sasha.levin@oracle.com>, Dave Jones <davej@redhat.com>
+Cc: Cyrill Gorcunov <gorcunov@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Bob Liu <bob.liu@oracle.com>, Konstantin Khlebnikov <koct9i@gmail.com>
 
-Refactor blk-integrity.c to avoid duplicating similar functions, and
-remove all users of pi_buf, since it's really only there to handle the
-(common) case where the kernel auto-generates all the PI data.
+On Thu, 20 Mar 2014, Sasha Levin wrote:
+> On 03/20/2014 09:51 AM, Dave Jones wrote:
+> > On Wed, Mar 19, 2014 at 10:00:29PM -0700, Hugh Dickins wrote:
+> > 
+> >   > > This might be collateral damage from the swapops thing, I guess we
+> > won't know until
+> >   > > that gets fixed, but I thought I'd mention that we might still have a
+> > problem here.
+> >   >
+> >   > Yes, those Bad rss-counters could well be collateral damage from the
+> >   > swapops BUG.  To which I believe I now have the answer: again untested,
+> >   > but please give this a try...
+> > 
+> > This survived an overnight run. No swapops bug, and no bad RSS. Good job:)
+> 
+> Same here, swapops bug is gone!
 
-Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
----
- fs/bio-integrity.c  |  120 +++++++++++++++++++++------------------------------
- include/linux/bio.h |    2 -
- 2 files changed, 49 insertions(+), 73 deletions(-)
+That was welcome news, thanks guys.  I notice it has not (yet) magically
+appeared in Linus's public tree like the rss one did: so to be on the
+safe side, I'll just repost it now, with your Reported-and-tested-bys,
+otherwise unchanged.
 
-
-diff --git a/fs/bio-integrity.c b/fs/bio-integrity.c
-index 381ee38..3ff1572 100644
---- a/fs/bio-integrity.c
-+++ b/fs/bio-integrity.c
-@@ -97,8 +97,7 @@ void bio_integrity_free(struct bio *bio)
- 	struct bio_integrity_payload *bip = bio->bi_integrity;
- 	struct bio_set *bs = bio->bi_pool;
- 
--	if (bip->bip_owns_buf)
--		kfree(bip->bip_buf);
-+	kfree(bip->bip_buf);
- 
- 	if (bs) {
- 		if (bip->bip_slab != BIO_POOL_NONE)
-@@ -239,9 +238,11 @@ static int bio_integrity_tag(struct bio *bio, void *tag_buf, unsigned int len,
- {
- 	struct bio_integrity_payload *bip = bio->bi_integrity;
- 	struct blk_integrity *bi = bdev_get_integrity(bio->bi_bdev);
--	unsigned int nr_sectors;
--
--	BUG_ON(bip->bip_buf == NULL);
-+	unsigned int nr_sectors, tag_offset, sectors;
-+	void *prot_buf;
-+	unsigned int prot_offset, prot_len;
-+	struct bio_vec *iv;
-+	void (*tag_fn)(void *buf, void *tag_buf, unsigned int);
- 
- 	if (bi->tag_size == 0)
- 		return -1;
-@@ -255,10 +256,30 @@ static int bio_integrity_tag(struct bio *bio, void *tag_buf, unsigned int len,
- 		return -1;
- 	}
- 
--	if (set)
--		bi->set_tag_fn(bip->bip_buf, tag_buf, nr_sectors);
--	else
--		bi->get_tag_fn(bip->bip_buf, tag_buf, nr_sectors);
-+	iv = bip->bip_vec;
-+	prot_offset = iv->bv_offset;
-+	prot_len = iv->bv_len;
-+	prot_buf = kmap_atomic(iv->bv_page);
-+	tag_fn = set ? bi->set_tag_fn : bi->get_tag_fn;
-+	tag_offset = 0;
-+
-+	while (nr_sectors) {
-+		if (prot_len < bi->tuple_size) {
-+			kunmap_atomic(prot_buf);
-+			iv++;
-+			BUG_ON(iv >= bip->bip_vec + bip->bip_vcnt);
-+			prot_offset = iv->bv_offset;
-+			prot_len = iv->bv_len;
-+			prot_buf = kmap_atomic(iv->bv_page);
-+		}
-+		sectors = min(prot_len / bi->tuple_size, nr_sectors);
-+		tag_fn(prot_buf + prot_offset, tag_buf + tag_offset, sectors);
-+		nr_sectors -= sectors;
-+		tag_offset += sectors * bi->tuple_size;
-+		prot_offset += sectors * bi->tuple_size;
-+		prot_len -= sectors * bi->tuple_size;
-+	}
-+	kunmap_atomic(prot_buf);
- 
- 	return 0;
- }
-@@ -300,28 +321,24 @@ int bio_integrity_get_tag(struct bio *bio, void *tag_buf, unsigned int len)
- }
- EXPORT_SYMBOL(bio_integrity_get_tag);
- 
--/**
-- * bio_integrity_update_user_buffer - Update user-provided PI buffers for a bio
-- * @bio:	bio to generate/verify integrity metadata for
-- */
--int bio_integrity_update_user_buffer(struct bio *bio)
-+typedef int (walk_buf_fn)(struct blk_integrity_exchg *bi, int flags);
-+
-+static int bio_integrity_walk_bufs(struct bio *bio, sector_t sector,
-+				   walk_buf_fn *mod_fn)
- {
- 	struct blk_integrity *bi = bdev_get_integrity(bio->bi_bdev);
- 	struct blk_integrity_exchg bix;
- 	struct bio_vec bv;
- 	struct bvec_iter iter;
--	sector_t sector;
- 	unsigned int sectors, total, ret;
- 	void *prot_buf;
- 	unsigned int prot_offset, prot_len, bv_offset, bv_len;
- 	struct bio_vec *iv;
- 	struct bio_integrity_payload *bip = bio->bi_integrity;
- 
--	if (!bi->mod_user_buf_fn)
-+	if (!mod_fn)
- 		return 0;
- 
--	sector = bio->bi_iter.bi_sector;
--
- 	total = ret = 0;
- 	bix.disk_name = bio->bi_bdev->bd_disk->disk_name;
- 	bix.sector_size = bi->sector_size;
-@@ -351,7 +368,7 @@ int bio_integrity_update_user_buffer(struct bio *bio)
- 			bix.prot_buf = prot_buf + prot_offset;
- 			bix.sector = sector;
- 
--			ret = bi->mod_user_buf_fn(&bix, bip->bip_user_flags);
-+			ret = mod_fn(&bix, bip->bip_user_flags);
- 			if (ret) {
- 				if (ret == -ENOTTY)
- 					ret = 0;
-@@ -374,59 +391,19 @@ int bio_integrity_update_user_buffer(struct bio *bio)
- 	kunmap_atomic(prot_buf);
- 	return ret;
- }
--EXPORT_SYMBOL_GPL(bio_integrity_update_user_buffer);
- 
- /**
-- * bio_integrity_generate_verify - Generate/verify integrity metadata for a bio
-+ * bio_integrity_update_user_buffer - Update user-provided PI buffers for a bio
-  * @bio:	bio to generate/verify integrity metadata for
-- * @operate:	operate number, 1 for generate, 0 for verify
-+ * @sector:	stratin
-  */
--static int bio_integrity_generate_verify(struct bio *bio, int operate)
-+int bio_integrity_update_user_buffer(struct bio *bio)
- {
- 	struct blk_integrity *bi = bdev_get_integrity(bio->bi_bdev);
--	struct blk_integrity_exchg bix;
--	struct bio_vec bv;
--	struct bvec_iter iter;
--	sector_t sector;
--	unsigned int sectors, total, ret;
--	void *prot_buf = bio->bi_integrity->bip_buf;
--
--	if (operate)
--		sector = bio->bi_iter.bi_sector;
--	else
--		sector = bio->bi_integrity->bip_iter.bi_sector;
--
--	total = ret = 0;
--	bix.disk_name = bio->bi_bdev->bd_disk->disk_name;
--	bix.sector_size = bi->sector_size;
--
--	bio_for_each_segment(bv, bio, iter) {
--		void *kaddr = kmap_atomic(bv.bv_page);
--		bix.data_buf = kaddr + bv.bv_offset;
--		bix.data_size = bv.bv_len;
--		bix.prot_buf = prot_buf;
--		bix.sector = sector;
--
--		if (operate) {
--			bi->generate_fn(&bix);
--		} else {
--			ret = bi->verify_fn(&bix);
--			if (ret) {
--				kunmap_atomic(kaddr);
--				return ret;
--			}
--		}
--
--		sectors = bv.bv_len / bi->sector_size;
--		sector += sectors;
--		prot_buf += sectors * bi->tuple_size;
--		total += sectors * bi->tuple_size;
--		BUG_ON(total > bio->bi_integrity->bip_iter.bi_size);
--
--		kunmap_atomic(kaddr);
--	}
--	return ret;
-+	return bio_integrity_walk_bufs(bio, bio->bi_iter.bi_sector,
-+				       bi->mod_user_buf_fn);
- }
-+EXPORT_SYMBOL_GPL(bio_integrity_update_user_buffer);
- 
- /**
-  * bio_integrity_generate - Generate integrity metadata for a bio
-@@ -439,7 +416,9 @@ static int bio_integrity_generate_verify(struct bio *bio, int operate)
-  */
- static void bio_integrity_generate(struct bio *bio)
- {
--	bio_integrity_generate_verify(bio, 1);
-+	struct blk_integrity *bi = bdev_get_integrity(bio->bi_bdev);
-+	bio_integrity_walk_bufs(bio, bio->bi_iter.bi_sector,
-+				(walk_buf_fn *)bi->generate_fn);
- }
- 
- static inline unsigned short blk_integrity_tuple_size(struct blk_integrity *bi)
-@@ -479,7 +458,6 @@ int bio_integrity_prep_buffer(struct bio *bio, int rw,
- 
- 	sectors = bio_integrity_hw_sectors(bi, bio_sectors(bio));
- 
--	/* Allocate kernel buffer for protection data */
- 	len = sectors * blk_integrity_tuple_size(bi);
- 	end = (pi->pi_offset + len + PAGE_SIZE - 1) >> PAGE_SHIFT;
- 	start = pi->pi_offset >> PAGE_SHIFT;
-@@ -497,8 +475,6 @@ int bio_integrity_prep_buffer(struct bio *bio, int rw,
- 		return -EIO;
- 	}
- 
--	bip->bip_owns_buf = 0;
--	bip->bip_buf = NULL;
- 	bip->bip_iter.bi_size = len;
- 	bip->bip_iter.bi_sector = bio->bi_iter.bi_sector;
- 	bip->bip_user_flags = pi->pi_userflags;
-@@ -591,7 +567,6 @@ int bio_integrity_prep(struct bio *bio)
- 		return -EIO;
- 	}
- 
--	bip->bip_owns_buf = 1;
- 	bip->bip_buf = buf;
- 	bip->bip_iter.bi_size = len;
- 	bip->bip_iter.bi_sector = bio->bi_iter.bi_sector;
-@@ -646,7 +621,10 @@ EXPORT_SYMBOL(bio_integrity_prep);
-  */
- static int bio_integrity_verify(struct bio *bio)
- {
--	return bio_integrity_generate_verify(bio, 0);
-+	struct blk_integrity *bi = bdev_get_integrity(bio->bi_bdev);
-+	return bio_integrity_walk_bufs(bio,
-+				       bio->bi_integrity->bip_iter.bi_sector,
-+				       (walk_buf_fn *)bi->verify_fn);
- }
- 
- /**
-diff --git a/include/linux/bio.h b/include/linux/bio.h
-index 5bd9618..c2ad1a8 100644
---- a/include/linux/bio.h
-+++ b/include/linux/bio.h
-@@ -292,14 +292,12 @@ struct bio_integrity_payload {
- 
- 	struct bvec_iter	bip_iter;
- 
--	/* kill - should just use bip_vec */
- 	void			*bip_buf;	/* generated integrity data */
- 
- 	bio_end_io_t		*bip_end_io;	/* saved I/O completion fn */
- 
- 	unsigned short		bip_slab;	/* slab the bip came from */
- 	unsigned short		bip_vcnt;	/* # of integrity bio_vecs */
--	unsigned		bip_owns_buf:1;	/* should free bip_buf */
- 
- 	struct work_struct	bip_work;	/* I/O completion */
- 
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
