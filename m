@@ -1,120 +1,161 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f182.google.com (mail-ig0-f182.google.com [209.85.213.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C2016B025E
-	for <linux-mm@kvack.org>; Thu, 20 Mar 2014 21:47:27 -0400 (EDT)
-Received: by mail-ig0-f182.google.com with SMTP id uy17so151064igb.3
-        for <linux-mm@kvack.org>; Thu, 20 Mar 2014 18:47:27 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id y8si4047745icp.22.2014.03.20.18.47.26
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 0BC9B6B0260
+	for <linux-mm@kvack.org>; Thu, 20 Mar 2014 21:56:19 -0400 (EDT)
+Received: by mail-pa0-f42.google.com with SMTP id fb1so1757404pad.15
+        for <linux-mm@kvack.org>; Thu, 20 Mar 2014 18:56:19 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id b5si2580344pbq.61.2014.03.20.18.56.18
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 20 Mar 2014 18:47:26 -0700 (PDT)
-Message-ID: <532B9A18.8020606@oracle.com>
-Date: Thu, 20 Mar 2014 21:47:04 -0400
+        Thu, 20 Mar 2014 18:56:18 -0700 (PDT)
+Message-ID: <532B9BA0.9060503@oracle.com>
+Date: Thu, 20 Mar 2014 21:53:36 -0400
 From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 08/11] madvise: redefine callback functions for page table
- walker
-References: <1392068676-30627-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1392068676-30627-9-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1392068676-30627-9-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: Re: kernel BUG in munlock_vma_pages_range
+References: <52A3D0C3.1080504@oracle.com> <52A58E8A.3050401@suse.cz> <52A5F83F.4000207@oracle.com> <52A5F9EE.4010605@suse.cz> <52A6275F.4040007@oracle.com> <52A8EE38.2060004@suse.cz> <52A92A8D.20603@oracle.com> <52A943BC.2090001@oracle.com> <52A9AEF2.2030600@suse.cz> <52AA2510.8080908@oracle.com> <52AACA0B.6080602@oracle.com> <52AACE79.20804@suse.cz>
+In-Reply-To: <52AACE79.20804@suse.cz>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, Cliff Wickman <cpw@sgi.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@parallels.com>, Rik van Riel <riel@redhat.com>, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org
+To: Vlastimil Babka <vbabka@suse.cz>, Bob Liu <bob.liu@oracle.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, joern@logfs.org, mgorman@suse.de, Michel Lespinasse <walken@google.com>, riel@redhat.com, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On 02/10/2014 04:44 PM, Naoya Horiguchi wrote:
-> swapin_walk_pmd_entry() is defined as pmd_entry(), but it has no code
-> about pmd handling (except pmd_none_or_trans_huge_or_clear_bad, but the
-> same check are now done in core page table walk code).
-> So let's move this function on pte_entry() as swapin_walk_pte_entry().
+On 12/13/2013 04:08 AM, Vlastimil Babka wrote:
+> On 12/13/2013 09:49 AM, Bob Liu wrote:
+>> On 12/13/2013 05:05 AM, Sasha Levin wrote:
+>>> On 12/12/2013 07:41 AM, Vlastimil Babka wrote:
+>>>> On 12/12/2013 06:03 AM, Bob Liu wrote:
+>>>>>
+>>>>> On 12/12/2013 11:16 AM, Sasha Levin wrote:
+>>>>>> On 12/11/2013 05:59 PM, Vlastimil Babka wrote:
+>>>>>>> On 12/09/2013 09:26 PM, Sasha Levin wrote:
+>>>>>>>> On 12/09/2013 12:12 PM, Vlastimil Babka wrote:
+>>>>>>>>> On 12/09/2013 06:05 PM, Sasha Levin wrote:
+>>>>>>>>>> On 12/09/2013 04:34 AM, Vlastimil Babka wrote:
+>>>>>>>>>>> Hello, I will look at it, thanks.
+>>>>>>>>>>> Do you have specific reproduction instructions?
+>>>>>>>>>>
+>>>>>>>>>> Not really, the fuzzer hit it once and I've been unable to trigger
+>>>>>>>>>> it again. Looking at
+>>>>>>>>>> the piece of code involved it might have had something to do with
+>>>>>>>>>> hugetlbfs, so I'll crank
+>>>>>>>>>> up testing on that part.
+>>>>>>>>>
+>>>>>>>>> Thanks. Do you have trinity log and the .config file? I'm currently
+>>>>>>>>> unable to even boot linux-next
+>>>>>>>>> with my config/setup due to a GPF.
+>>>>>>>>> Looking at code I wouldn't expect that it could encounter a tail
+>>>>>>>>> page, without first encountering a
+>>>>>>>>> head page and skipping the whole huge page. At least in THP case, as
+>>>>>>>>> TLB pages should be split when
+>>>>>>>>> a vma is split. As for hugetlbfs, it should be skipped for
+>>>>>>>>> mlock/munlock operations completely. One
+>>>>>>>>> of these assumptions is probably failing here...
+>>>>>>>>
+>>>>>>>> If it helps, I've added a dump_page() in case we hit a tail page
+>>>>>>>> there and got:
+>>>>>>>>
+>>>>>>>> [  980.172299] page:ffffea003e5e8040 count:0 mapcount:1
+>>>>>>>> mapping:          (null) index:0
+>>>>>>>> x0
+>>>>>>>> [  980.173412] page flags: 0x2fffff80008000(tail)
+>>>>>>>>
+>>>>>>>> I can also add anything else in there to get other debug output if
+>>>>>>>> you think of something else useful.
+>>>>>>>
+>>>>>>> Please try the following. Thanks in advance.
+>>>>>>
+>>>>>> [  428.499889] page:ffffea003e5c0040 count:0 mapcount:4
+>>>>>> mapping:          (null) index:0x0
+>>>>>> [  428.499889] page flags: 0x2fffff80008000(tail)
+>>>>>> [  428.499889] start=140117131923456 pfn=16347137
+>>>>>> orig_start=140117130543104 page_increm
+>>>>>> =1 vm_start=140117130543104 vm_end=140117134688256 vm_flags=135266419
+>>>>>> [  428.499889] first_page pfn=16347136
+>>>>>> [  428.499889] page:ffffea003e5c0000 count:204 mapcount:44
+>>>>>> mapping:ffff880fb5c466c1 inde
+>>>>>> x:0x7f6f8fe00
+>>>>>> [  428.499889] page flags:
+>>>>>> 0x2fffff80084068(uptodate|lru|active|head|swapbacked)
+>>>>>
+>>>>>     From this print, it looks like the page is still a huge page.
+>>>>> One situation I guess is a huge page which isn't PageMlocked and passed
+>>>>> to munlock_vma_page(). I'm not sure whether this will happen.
+>>>>
+>>>> Yes that's quite likely the case. It's not illegal to happen I would say.
+>>>>
+>>>>> Please take a try this patch.
+>>>>
+>>>> I've made a simpler version that does away with the ugly page_mask
+>>>> thing completely.
+>>>> Please try that as well. Thanks.
+>>>>
+>>>> Also when working on this I think I found another potential but much
+>>>> rare problem
+>>>> when munlock_vma_page races with a THP split. That would however
+>>>> manifest such that
+>>>> part of the former tail pages would stay PageMlocked. But that still
+>>>> needs more thought.
+>>>> The bug at hand should however be fixed by this patch.
+>>>
+>>> Yup, this patch seems to fix the issue previously reported.
+>>>
+>>> However, I'll piggyback another thing that popped up now that the vm
+>>> could run for a while which
+>>> also seems to be caused by the original patch. It looks like a pretty
+>>> straightforward deadlock, but
 >
-> Signed-off-by: Naoya Horiguchi<n-horiguchi@ah.jp.nec.com>
+> Sigh, put one down, patch it around... :)
+>
+>> Looks like put_page() in __munlock_pagevec() need to get the
+>> zone->lru_lock which is already held when entering __munlock_pagevec().
+>
+> I've come to the same conclusion, however:
+>
+>> How about fix like this?
+>
+> That unfortunately removes most of the purpose of this function which was to avoid repeated locking.
+>
+> Please try this patch.
 
-This patch seems to generate:
+It seems that this one is back, not exactly sure why yet:
 
-[  305.267354] =================================
-[  305.268051] [ INFO: inconsistent lock state ]
-[  305.268678] 3.14.0-rc7-next-20140320-sasha-00015-gd752393-dirty #261 Tainted: G        W
-[  305.269992] ---------------------------------
-[  305.270152] inconsistent {IN-RECLAIM_FS-W} -> {RECLAIM_FS-ON-W} usage.
-[  305.270152] trinity-c57/13619 [HC0[0]:SC0[0]:HE1:SE1] takes:
-[  305.270152]  (&(ptlock_ptr(page))->rlock#2){+.+.?.}, at: walk_pte_range (include/linux/spinlock.h:303 mm/pagewalk.c:33)
-[  305.270152] {IN-RECLAIM_FS-W} state was registered at:
-[  305.270152]   mark_irqflags (kernel/locking/lockdep.c:2821)
-[  305.270152]   __lock_acquire (kernel/locking/lockdep.c:3138)
-[  305.270152]   lock_acquire (arch/x86/include/asm/current.h:14 kernel/locking/lockdep.c:3602)
-[  305.270152]   _raw_spin_lock (include/linux/spinlock_api_smp.h:143 kernel/locking/spinlock.c:151)
-[  305.270152]   __page_check_address (include/linux/spinlock.h:303 mm/rmap.c:624)
-[  305.270152]   page_referenced_one (mm/rmap.c:706)
-[  305.270152]   rmap_walk_anon (mm/rmap.c:1613)
-[  305.270152]   rmap_walk (mm/rmap.c:1685)
-[  305.270152]   page_referenced (mm/rmap.c:802)
-[  305.270152]   shrink_active_list (mm/vmscan.c:1704)
-[  305.270152]   balance_pgdat (mm/vmscan.c:2741 mm/vmscan.c:2996)
-[  305.270152]   kswapd (mm/vmscan.c:3296)
-[  305.270152]   kthread (kernel/kthread.c:216)
-[  305.270152]   ret_from_fork (arch/x86/kernel/entry_64.S:555)
-[  305.270152] irq event stamp: 20863
-[  305.270152] hardirqs last  enabled at (20863): alloc_pages_vma (arch/x86/include/asm/paravirt.h:809 include/linux/seqlock.h:81 include/linux/seqlock.h:146 include/linux/cpus
-et.h:98 mm/mempolicy.c:1990)
-[  305.270152] hardirqs last disabled at (20862): alloc_pages_vma (include/linux/seqlock.h:79 include/linux/seqlock.h:146 include/linux/cpuset.h:98 mm/mempolicy.c:1990)
-[  305.270152] softirqs last  enabled at (19858): __do_softirq (arch/x86/include/asm/preempt.h:22 kernel/softirq.c:298)
-[  305.270152] softirqs last disabled at (19855): irq_exit (kernel/softirq.c:348 kernel/softirq.c:389)
-[  305.270152]
-[  305.270152] other info that might help us debug this:
-[  305.270152]  Possible unsafe locking scenario:
-[  305.270152]
-[  305.270152]        CPU0
-[  305.270152]        ----
-[  305.270152]   lock(&(ptlock_ptr(page))->rlock#2);
-[  305.270152]   <Interrupt>
-[  305.270152]     lock(&(ptlock_ptr(page))->rlock#2);
-[  305.270152]
-[  305.270152]  *** DEADLOCK ***
-[  305.270152]
-[  305.270152] 2 locks held by trinity-c57/13619:
-[  305.270152]  #0:  (&mm->mmap_sem){++++++}, at: SyS_madvise (arch/x86/include/asm/current.h:14 mm/madvise.c:492 mm/madvise.c:448)
-[  305.270152]  #1:  (&(ptlock_ptr(page))->rlock#2){+.+.?.}, at: walk_pte_range (include/linux/spinlock.h:303 mm/pagewalk.c:33)
-[  305.270152]
-[  305.270152] stack backtrace:
-[  305.270152] CPU: 23 PID: 13619 Comm: trinity-c57 Tainted: G        W     3.14.0-rc7-next-20140320-sasha-00015-gd752393-dirty #261
-[  305.270152]  ffff8804ab8e0d28 ffff8804ab9c5968 ffffffff844b76e7 0000000000000001
-[  305.270152]  ffff8804ab8e0000 ffff8804ab9c59c8 ffffffff811a55f7 0000000000000000
-[  305.270152]  0000000000000001 ffff880400000001 ffffffff87e18ed8 000000000000000a
-[  305.270152] Call Trace:
-[  305.270152]  dump_stack (lib/dump_stack.c:52)
-[  305.270152]  print_usage_bug (kernel/locking/lockdep.c:2254)
-[  305.270152]  ? check_usage_forwards (kernel/locking/lockdep.c:2371)
-[  305.270152]  mark_lock_irq (kernel/locking/lockdep.c:2465)
-[  305.270152]  mark_lock (kernel/locking/lockdep.c:2920)
-[  305.270152]  mark_held_locks (kernel/locking/lockdep.c:2523)
-[  305.270152]  lockdep_trace_alloc (kernel/locking/lockdep.c:2745 kernel/locking/lockdep.c:2760)
-[  305.270152]  __alloc_pages_nodemask (mm/page_alloc.c:2722)
-[  305.270152]  ? mark_held_locks (kernel/locking/lockdep.c:2523)
-[  305.270152]  ? alloc_pages_vma (arch/x86/include/asm/paravirt.h:809 include/linux/seqlock.h:81 include/linux/seqlock.h:146 include/linux/cpuset.h:98 mm/mempolicy.c:1990)
-[  305.270152]  alloc_pages_vma (include/linux/mempolicy.h:76 mm/mempolicy.c:2006)
-[  305.270152]  ? read_swap_cache_async (mm/swap_state.c:328)
-[  305.270152]  ? __const_udelay (arch/x86/lib/delay.c:126)
-[  305.270152]  read_swap_cache_async (mm/swap_state.c:328)
-[  305.270152]  ? walk_pte_range (include/linux/spinlock.h:303 mm/pagewalk.c:33)
-[  305.270152]  swapin_walk_pte_entry (mm/madvise.c:152)
-[  305.270152]  walk_pte_range (mm/pagewalk.c:47)
-[  305.270152]  ? sched_clock (arch/x86/include/asm/paravirt.h:192 arch/x86/kernel/tsc.c:305)
-[  305.270152]  walk_pmd_range (mm/pagewalk.c:90)
-[  305.270152]  ? sched_clock (arch/x86/include/asm/paravirt.h:192 arch/x86/kernel/tsc.c:305)
-[  305.270152]  ? kvm_clock_read (arch/x86/include/asm/preempt.h:90 arch/x86/kernel/kvmclock.c:86)
-[  305.270152]  walk_pud_range (mm/pagewalk.c:128)
-[  305.270152]  walk_pgd_range (mm/pagewalk.c:165)
-[  305.270152]  __walk_page_range (mm/pagewalk.c:259)
-[  305.270152]  walk_page_range (mm/pagewalk.c:333)
-[  305.270152]  madvise_willneed (mm/madvise.c:167 mm/madvise.c:211)
-[  305.270152]  ? madvise_hwpoison (mm/madvise.c:140)
-[  305.270152]  madvise_vma (mm/madvise.c:369)
-[  305.270152]  ? find_vma (mm/mmap.c:2021)
-[  305.270152]  SyS_madvise (mm/madvise.c:518 mm/madvise.c:448)
-[  305.270152]  ia32_do_call (arch/x86/ia32/ia32entry.S:430)
+[ 2857.034927] kernel BUG at include/linux/page-flags.h:415!
+[ 2857.035576] invalid opcode: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
+[ 2857.036702] Dumping ftrace buffer:
+[ 2857.037447]    (ftrace buffer empty)
+[ 2857.037937] Modules linked in:
+[ 2857.038379] CPU: 25 PID: 21381 Comm: trinity-c61 Tainted: G        W     3.14.0-rc7-next-20140320-sasha-00015-gd752393-dirty #261
+[ 2857.039854] task: ffff88080f91b000 ti: ffff8807fd106000 task.ti: ffff8807fd106000
+[ 2857.040328] RIP: 0010:[<ffffffff8129dc93>]  [<ffffffff8129dc93>] munlock_vma_pages_range+0x93/0x1d0
+[ 2857.040328] RSP: 0000:ffff8807fd107e08  EFLAGS: 00010246
+[ 2857.040328] RAX: ffff88052c955360 RBX: 0000000041b36000 RCX: 000000000000009f
+[ 2857.040328] RDX: 0000000000000000 RSI: ffff88080f91bcf0 RDI: 0000000004fd5360
+[ 2857.040328] RBP: ffff8807fd107ec8 R08: 0000000000000001 R09: 0000000000000000
+[ 2857.040328] R10: 0000000000000001 R11: 0000000000000001 R12: ffffea0013f54d80
+[ 2857.040328] R13: ffff88068083c200 R14: 0000000041b37000 R15: ffff8807fd107e94
+[ 2857.040328] FS:  00007fcd4bd02700(0000) GS:ffff8806acc00000(0000) knlGS:0000000000000000
+[ 2857.040328] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+[ 2857.040328] CR2: 00000000027405a8 CR3: 0000000804ad4000 CR4: 00000000000006a0
+[ 2857.040328] DR0: 0000000000698000 DR1: 0000000000698000 DR2: 0000000000000000
+[ 2857.040328] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000600
+[ 2857.040328] Stack:
+[ 2857.040328]  0000000000000000 0000000000000000 00018807fd107e38 0000000000000000
+[ 2857.040328]  0000000000000000 ffff88068083c200 00000000fd107e88 0000000000000000
+[ 2857.040328]  00ff8807fd107e58 ffff88052be99b20 ffff8807fd107eb8 ffff88068083c200
+[ 2857.040328] Call Trace:
+[ 2857.040328]  [<ffffffff812a1462>] do_munmap+0x1d2/0x360
+[ 2857.040328]  [<ffffffff844bce16>] ? down_write+0xa6/0xc0
+[ 2857.040328]  [<ffffffff812a1636>] ? vm_munmap+0x46/0x80
+[ 2857.040328]  [<ffffffff812a1644>] vm_munmap+0x54/0x80
+[ 2857.040328]  [<ffffffff812a169c>] SyS_munmap+0x2c/0x40
+[ 2857.040328]  [<ffffffff844c9210>] tracesys+0xdd/0xe2
+[ 2857.040328] Code: ff 49 89 c4 48 85 c0 0f 84 f3 00 00 00 48 3d 00 f0 ff ff 0f 87 e7 00 00 00 48 8b 00 66 85 c0 79 17 31 f6 4c 89 e7 e8 fd d0 fc ff <0f> 0b 0f 1f 00 eb fe 66 0f 1f 44 00 00 49 8b 04 24 f6 c4 40 74
+[ 2857.062774] RIP  [<ffffffff8129dc93>] munlock_vma_pages_range+0x93/0x1d0
+[ 2857.062774]  RSP <ffff8807fd107e08>
 
 
 Thanks,
