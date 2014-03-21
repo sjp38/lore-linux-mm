@@ -1,73 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Date: Fri, 21 Mar 2014 17:44:10 -0400
-From: Benjamin LaHaise <bcrl@kvack.org>
-Subject: Re: [RFC PATCH 0/5] userspace PI passthrough via AIO/DIO
-Message-ID: <20140321214410.GE23173@kvack.org>
-References: <20140321043041.8428.79003.stgit@birch.djwong.org> <20140321182332.GP10561@lenny.home.zabbo.net>
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 23EDA6B0281
+	for <linux-mm@kvack.org>; Fri, 21 Mar 2014 18:07:01 -0400 (EDT)
+Received: by mail-pa0-f47.google.com with SMTP id lj1so2938607pab.34
+        for <linux-mm@kvack.org>; Fri, 21 Mar 2014 15:07:00 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id m8si4173915pbd.288.2014.03.21.15.06.59
+        for <linux-mm@kvack.org>;
+        Fri, 21 Mar 2014 15:07:00 -0700 (PDT)
+Date: Fri, 21 Mar 2014 15:06:58 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: numa: Recheck for transhuge pages under lock during
+ protection changes
+Message-Id: <20140321150658.386926ac3afa263946b1a2aa@linux-foundation.org>
+In-Reply-To: <20140319143831.GA4751@suse.de>
+References: <20140307182745.GD1931@suse.de>
+	<20140311162845.GA30604@suse.de>
+	<531F3F15.8050206@oracle.com>
+	<531F4128.8020109@redhat.com>
+	<531F48CC.303@oracle.com>
+	<20140311180652.GM10663@suse.de>
+	<531F616A.7060300@oracle.com>
+	<20140311122859.fb6c1e772d82d9f4edd02f52@linux-foundation.org>
+	<20140312103602.GN10663@suse.de>
+	<5323C5D9.2070902@oracle.com>
+	<20140319143831.GA4751@suse.de>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140321182332.GP10561@lenny.home.zabbo.net>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zach Brown <zab@redhat.com>
-Cc: "Darrick J. Wong" <darrick.wong@oracle.com>, axboe@kernel.dk, martin.petersen@oracle.com, JBottomley@parallels.com, viro@zeniv.linux.org.uk, linux-fsdevel@vger.kernel.org, linux-aio@kvack.org, linux-scsi@vger.kernel.org, linux-mm@kvack.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Sasha Levin <sasha.levin@oracle.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, hhuang@redhat.com, knoel@redhat.com, aarcange@redhat.com, Davidlohr Bueso <davidlohr@hp.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Hi folks,
+On Wed, 19 Mar 2014 14:38:32 +0000 Mel Gorman <mgorman@suse.de> wrote:
 
-On Fri, Mar 21, 2014 at 11:23:32AM -0700, Zach Brown wrote:
-> On Thu, Mar 20, 2014 at 09:30:41PM -0700, Darrick J. Wong wrote:
-> > This RFC provides a rough implementation of a mechanism to allow
-> > userspace to attach protection information (e.g. T10 DIF) data to a
-> > disk write and to receive the information alongside a disk read.  The
-> > interface is an extension to the AIO interface: two new commands
-> > (IOCB_CMD_P{READ,WRITE}VM) are provided.  The last struct iovec in the
-> > arg list is interpreted to point to a buffer containing a header,
-> > followed by the the PI data.
+> On Fri, Mar 14, 2014 at 11:15:37PM -0400, Sasha Levin wrote:
+> > On 03/12/2014 06:36 AM, Mel Gorman wrote:
+> > >Andrew, this should go with the patches
+> > >mmnuma-reorganize-change_pmd_range.patch
+> > >mmnuma-reorganize-change_pmd_range-fix.patch
+> > >move-mmu-notifier-call-from-change_protection-to-change_pmd_range.patch
+> > >in mmotm please.
+> > >
+> > >Thanks.
+> > >
+> > >---8<---
+> > >From: Mel Gorman<mgorman@suse.de>
+> > >Subject: [PATCH] mm: numa: Recheck for transhuge pages under lock during protection changes
+> > >
+> > >Sasha Levin reported the following bug using trinity
+> > 
+> > I'm seeing a different issue with this patch. A NULL ptr deref occurs in the
+> > pte_offset_map_lock() macro right before the new recheck code:
+> > 
 > 
-> Instead of adding commands that indicate that the final element is a
-> magical pi buffer, why not expand the iocb?
+> This on top?
 > 
-> In the user iocb, a bit in aio_flags could indicate that aio_reserved2
-> is a pointer to an extension of the iocb.  In that extension could be a
-> full iov *, nr_segs for PI data.
-
-I'm inclined to agree with Zach on this item.  Ultimately, we need an 
-extensible data structure that can be grown without completely revising 
-the ABI as new parameters are added.  We need something that is either 
-TLV based, or an extensible array.
-
-> You'd then translate that into a bigger kernel kiocb with a specific
-> pointer to PI data rather than having to bubble the tests for this magic
-> final iovec down through the kernel.
+> I tried testing it but got all sorts of carnage that trinity throw up
+> in the mix and ordinary testing does not trigger the race. I've no idea
+> which of the current mess of trinity-exposed bugs you've encountered and
+> got fixed already.
 > 
-> +       if (iocb->ki_flags & KIOCB_USE_PI) {
-> +               nr_segs--;
-> +               pi_iov = (struct iovec *)(iov + nr_segs);
-> +       }
-> 
-> I suggest this because there's already pressure to extend the iocb.
-> Folks want io priority inputs, completion time outputs, etc.
 
-There are already folks at other companies looking at similar extensions.  
-I think there are folks at Google who have similar requirements.
+Where are we at with this one?
 
-Do you have time to put in some effort into defining these extensions?
 
-		-ben
+With this patch I'm now sitting on
 
-> It's a much cleaner way to extend the interface without an explosion of
-> command enums that are really combinations of per-io arguments that are
-> present or not.
-> 
-> And heck, on the sync rw syscall side, add variant that have a pointer
-> to this same extension struct.  There's nothing inherently aio specific
-> about having lots more per-io inputs and outputs.
-> 
-> - z
+mmnuma-reorganize-change_pmd_range.patch
+mmnuma-reorganize-change_pmd_range-fix.patch
+mm-numa-recheck-for-transhuge-pages-under-lock-during-protection-changes.patch
+mm-numa-recheck-for-transhuge-pages-under-lock-during-protection-changes-fix.patch
+move-mmu-notifier-call-from-change_protection-to-change_pmd_range.patch
 
--- 
-"Thought is the essence of where you are now."
+Where the first four are prep work for the fifth.
+
+move-mmu-notifier-call-from-change_protection-to-change_pmd_range.patch
+is a performance optimisation for KVM guests.  Should I drop all five,
+try again next time?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
