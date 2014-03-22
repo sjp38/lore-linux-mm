@@ -1,64 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f45.google.com (mail-bk0-f45.google.com [209.85.214.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 14AB96B009E
-	for <linux-mm@kvack.org>; Sat, 22 Mar 2014 11:43:29 -0400 (EDT)
-Received: by mail-bk0-f45.google.com with SMTP id na10so263658bkb.18
-        for <linux-mm@kvack.org>; Sat, 22 Mar 2014 08:43:29 -0700 (PDT)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id os9si3692474bkb.64.2014.03.22.08.43.27
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sat, 22 Mar 2014 08:43:28 -0700 (PDT)
-Date: Sat, 22 Mar 2014 11:43:24 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 0/3] Per cgroup swap file support
-Message-ID: <20140322154324.GK4407@cmpxchg.org>
-References: <1395442234-7493-1-git-send-email-yuzhao@google.com>
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id E67FC6B0075
+	for <linux-mm@kvack.org>; Sat, 22 Mar 2014 16:49:38 -0400 (EDT)
+Received: by mail-pa0-f42.google.com with SMTP id fb1so3858012pad.1
+        for <linux-mm@kvack.org>; Sat, 22 Mar 2014 13:49:38 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id tm9si6206319pab.305.2014.03.22.13.49.37
+        for <linux-mm@kvack.org>;
+        Sat, 22 Mar 2014 13:49:38 -0700 (PDT)
+Date: Sun, 23 Mar 2014 04:49:27 +0800
+From: kbuild test robot <fengguang.wu@intel.com>
+Subject: [next:master 191/463] mm/memcontrol.c:1074:19: sparse: symbol
+ 'get_mem_cgroup_from_mm' was not declared. Should it be static?
+Message-ID: <532df757.AkU5AH07Cpb86z5c%fengguang.wu@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1395442234-7493-1-git-send-email-yuzhao@google.com>
+Content-Type: multipart/mixed;
+ boundary="=_532df757.iEvTk5usfvEOJpM+clOTd00Qg/JP32NnGQ3nxOkrs9qJ5cmo"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yu Zhao <yuzhao@google.com>
-Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, jamieliu@google.com, suleiman@google.com
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, kbuild-all@01.org
 
-Hello Yu!
+This is a multi-part message in MIME format.
 
-On Fri, Mar 21, 2014 at 03:50:31PM -0700, Yu Zhao wrote:
-> This series of patches adds support to configure a cgroup to swap to a
-> particular file by using control file memory.swapfile.
-> 
-> A value of "default" in memory.swapfile indicates that this cgroup should
-> use the default, system-wide, swap files. A value of "none" indicates that
-> this cgroup should never swap. Other values are interpreted as the path
-> to a private swap file that can only be used by the owner (and its children).
-> 
-> The swap file has to be created and swapon() has to be done on it with
-> SWAP_FLAG_PRIVATE, before it can be used. This flag ensures that the swap
-> file is private and does not get used by others.
-> 
-> Jamie Liu (1):
->   swap: do not store private swap files on swap_list
-> 
-> Suleiman Souhlal (2):
->   mm/swap: support per memory cgroup swapfiles
->   swap: Increase the maximum number of swap files to 8192.
-> 
->  Documentation/cgroups/memory.txt  |  15 ++
->  arch/x86/include/asm/pgtable_64.h |  63 ++++++--
->  include/linux/memcontrol.h        |   2 +
->  include/linux/swap.h              |  45 +++---
->  mm/memcontrol.c                   |  76 ++++++++++
->  mm/memory.c                       |   3 +-
->  mm/shmem.c                        |   2 +-
->  mm/swap_state.c                   |   2 +-
->  mm/swapfile.c                     | 307 +++++++++++++++++++++++++++++++-------
->  mm/vmscan.c                       |   2 +-
->  10 files changed, 423 insertions(+), 94 deletions(-)
+--=_532df757.iEvTk5usfvEOJpM+clOTd00Qg/JP32NnGQ3nxOkrs9qJ5cmo
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 
-For feature patches like this, please include a rationale.  What is
-this functionality good for, and who is going to use this?
+tree:   git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
+head:   06ed26d1de59ce7cbbe68378b7e470be169750e5
+commit: 83ab64d4c75418a019166519d2f95015868f79a4 [191/463] memcg: get_mem_cgroup_from_mm()
+reproduce: make C=1 CF=-D__CHECK_ENDIAN__
+
+
+sparse warnings: (new ones prefixed by >>)
+
+>> mm/memcontrol.c:1074:19: sparse: symbol 'get_mem_cgroup_from_mm' was not declared. Should it be static?
+   mm/slab.h:182:18: sparse: incompatible types in comparison expression (different address spaces)
+   mm/slab.h:182:18: sparse: incompatible types in comparison expression (different address spaces)
+   mm/slab.h:182:18: sparse: incompatible types in comparison expression (different address spaces)
+   mm/memcontrol.c:5562:21: sparse: incompatible types in comparison expression (different address spaces)
+   mm/memcontrol.c:5564:21: sparse: incompatible types in comparison expression (different address spaces)
+   mm/memcontrol.c:7015:31: sparse: incompatible types in comparison expression (different address spaces)
+
+Please consider folding the attached diff :-)
+
+---
+0-DAY kernel build testing backend              Open Source Technology Center
+http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporation
+
+--=_532df757.iEvTk5usfvEOJpM+clOTd00Qg/JP32NnGQ3nxOkrs9qJ5cmo
+Content-Type: text/x-diff;
+ charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment;
+ filename="make-it-static-83ab64d4c75418a019166519d2f95015868f79a4.diff"
+
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: [PATCH next] memcg: get_mem_cgroup_from_mm() can be static
+TO: Johannes Weiner <hannes@cmpxchg.org>
+CC: cgroups@vger.kernel.org 
+CC: linux-mm@kvack.org 
+CC: linux-kernel@vger.kernel.org 
+
+CC: Johannes Weiner <hannes@cmpxchg.org>
+Signed-off-by: Fengguang Wu <fengguang.wu@intel.com>
+---
+ memcontrol.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 28fd509..bdb62eb 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1071,7 +1071,7 @@ struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p)
+ 	return mem_cgroup_from_css(task_css(p, mem_cgroup_subsys_id));
+ }
+ 
+-struct mem_cgroup *get_mem_cgroup_from_mm(struct mm_struct *mm)
++static struct mem_cgroup *get_mem_cgroup_from_mm(struct mm_struct *mm)
+ {
+ 	struct mem_cgroup *memcg = NULL;
+ 
+
+--=_532df757.iEvTk5usfvEOJpM+clOTd00Qg/JP32NnGQ3nxOkrs9qJ5cmo--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
