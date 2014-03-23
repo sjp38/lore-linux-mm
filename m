@@ -1,80 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id BC6676B00F5
-	for <linux-mm@kvack.org>; Sun, 23 Mar 2014 15:35:41 -0400 (EDT)
-Received: by mail-pa0-f41.google.com with SMTP id fa1so4555416pad.0
-        for <linux-mm@kvack.org>; Sun, 23 Mar 2014 12:35:41 -0700 (PDT)
-Received: from mail-pb0-x233.google.com (mail-pb0-x233.google.com [2607:f8b0:400e:c01::233])
-        by mx.google.com with ESMTPS id m8si7381804pbd.116.2014.03.23.12.33.06
+Received: from mail-vc0-f170.google.com (mail-vc0-f170.google.com [209.85.220.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 9425A6B00B7
+	for <linux-mm@kvack.org>; Sun, 23 Mar 2014 16:21:42 -0400 (EDT)
+Received: by mail-vc0-f170.google.com with SMTP id hu19so4923856vcb.1
+        for <linux-mm@kvack.org>; Sun, 23 Mar 2014 13:21:42 -0700 (PDT)
+Received: from mail-vc0-f178.google.com (mail-vc0-f178.google.com [209.85.220.178])
+        by mx.google.com with ESMTPS id b5si413810vej.29.2014.03.23.13.21.41
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sun, 23 Mar 2014 12:33:07 -0700 (PDT)
-Received: by mail-pb0-f51.google.com with SMTP id uo5so4557017pbc.10
-        for <linux-mm@kvack.org>; Sun, 23 Mar 2014 12:33:05 -0700 (PDT)
-Date: Sun, 23 Mar 2014 12:32:03 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [RFC v4] mm: prototype: rid swapoff of quadratic complexity
-In-Reply-To: <20140321194141.GA14361@kelleynnn-virtual-machine>
-Message-ID: <alpine.LSU.2.11.1403231218530.22062@eggly.anvils>
-References: <20140321194141.GA14361@kelleynnn-virtual-machine>
+        Sun, 23 Mar 2014 13:21:41 -0700 (PDT)
+Received: by mail-vc0-f178.google.com with SMTP id im17so4744618vcb.23
+        for <linux-mm@kvack.org>; Sun, 23 Mar 2014 13:21:41 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20140323122913.GC2813@quack.suse.cz>
+References: <1395436655-21670-1-git-send-email-john.stultz@linaro.org>
+	<1395436655-21670-3-git-send-email-john.stultz@linaro.org>
+	<20140323122913.GC2813@quack.suse.cz>
+Date: Sun, 23 Mar 2014 13:21:41 -0700
+Message-ID: <CALAqxLVHrtDOtfkPUDgzwdt6eOG4rdykJq6zBFZmRWq+H7i3uA@mail.gmail.com>
+Subject: Re: [PATCH 2/5] vrange: Add purged page detection on setting memory non-volatile
+From: John Stultz <john.stultz@linaro.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kelley Nielsen <kelleynnn@gmail.com>
-Cc: linux-mm@kvack.org, riel@surriel.com, riel@redhat.com, opw-kernel@googlegroups.com, hughd@google.com, akpm@linux-foundation.org, jamieliu@google.com, sjenning@linux.vnet.ibm.com, sarah.a.sharp@intel.com
+To: Jan Kara <jack@suse.cz>
+Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Johannes Weiner <hannes@cmpxchg.org>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@sr71.net>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Neil Brown <neilb@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Fri, 21 Mar 2014, Kelley Nielsen wrote:
+On Sun, Mar 23, 2014 at 5:29 AM, Jan Kara <jack@suse.cz> wrote:
+> On Fri 21-03-14 14:17:32, John Stultz wrote:
+>> + *
+>> + * Sets the vrange_walker.pages_purged to 1 if any were purged.
+>                               ^^^ page_was_purged
 
-> The function try_to_unuse() is of quadratic complexity, with a lot of
-> wasted effort. It unuses swap entries one by one, potentially iterating
-> over all the page tables for all the processes in the system for each
-> one.
-> 
-> This new proposed implementation of try_to_unuse simplifies its
-> complexity to linear. It iterates over the system's mms once, unusing
-> all the affected entries as it walks each set of page tables. It also
-> makes similar changes to shmem_unuse.
-> 
-> Improvement
-> 
-> Time took by swapoff on a swap partition containing about 240M of data,
-> with about 1.1G free memory and about 520M swap available. Swap
-> partition was on a laptop with a hard disk drive (not SSD).
-> 
-> Present implementation....about 13.8s
-> Prototype.................about  5.5s
+Doh. Thanks for catching this! Fixed in my tree.
 
-I haven't studied the patch yet (and won't manage to do so in the week
-ahead), nor examined its performance; but I have taken it out for a
-spin, and I'm impressed by its robustness - swap being as racy as it
-is, I had expected plenty of trouble, but very little - well done.
-
-Just three little self-explanatory fixes needed so far, all down
-at the out_put end: please fold in to your next version whenever.
-
-Hugh
-
---- 3.14-rc7-kn/mm/swapfile.c	2014-03-22 12:22:46.420136358 -0700
-+++ linux/mm/swapfile.c	2014-03-23 07:29:59.852002968 -0700
-@@ -1479,12 +1479,14 @@ out_put:
- 		 * that we must not delete, since it may not have been written
- 		 * out to swap yet.
- 		 */
-+		lock_page(page);
- 		if (PageSwapCache(page) &&
--		    likely(page_private(page) == entry.val)){
--			lock_page(page);
-+		    likely(page_private(page) == entry.val)) {
-+			wait_on_page_writeback(page);
- 			delete_from_swap_cache(page);
--			unlock_page(page);
- 		}
-+		unlock_page(page);
-+		page_cache_release(page);
- 	}
- out:
- 	return retval;
+Thanks so much for the review!
+-john
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
