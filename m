@@ -1,108 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 661246B0039
+Received: from mail-pb0-f43.google.com (mail-pb0-f43.google.com [209.85.160.43])
+	by kanga.kvack.org (Postfix) with ESMTP id ADA266B0035
 	for <linux-mm@kvack.org>; Sun, 23 Mar 2014 15:08:41 -0400 (EDT)
-Received: by mail-pd0-f172.google.com with SMTP id p10so4411924pdj.17
+Received: by mail-pb0-f43.google.com with SMTP id um1so4514324pbc.2
         for <linux-mm@kvack.org>; Sun, 23 Mar 2014 12:08:41 -0700 (PDT)
 Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id tk9si7728991pac.88.2014.03.23.12.08.39
+        by mx.google.com with ESMTP id tk9si7728991pac.88.2014.03.23.12.08.40
         for <linux-mm@kvack.org>;
-        Sun, 23 Mar 2014 12:08:39 -0700 (PDT)
+        Sun, 23 Mar 2014 12:08:40 -0700 (PDT)
 From: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Subject: [PATCH v2 1/6] Factor clean_buffers() out of __mpage_writepage()
-Date: Sun, 23 Mar 2014 15:08:23 -0400
-Message-Id: <9d7d6d37b52a6e13bd8162ecd5e5e4325a722e2e.1395593198.git.matthew.r.wilcox@intel.com>
-In-Reply-To: <cover.1395593198.git.matthew.r.wilcox@intel.com>
-References: <cover.1395593198.git.matthew.r.wilcox@intel.com>
-In-Reply-To: <cover.1395593198.git.matthew.r.wilcox@intel.com>
-References: <cover.1395593198.git.matthew.r.wilcox@intel.com>
+Subject: [PATCH v2 0/6] Page I/O
+Date: Sun, 23 Mar 2014 15:08:22 -0400
+Message-Id: <cover.1395593198.git.matthew.r.wilcox@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, willy@linux.intel.com
 
-__mpage_writepage() is over 200 lines long, has 20 local variables,
-four goto labels and could desperately use simplification.  Splitting
-clean_buffers() into a helper function improves matters a little,
-removing 20+ lines from it.
+Page I/O allows us to read/write pages to storage without allocating any
+memory (in particular, it avoids allocating a BIO).  This is nice for
+the purposes of swap and reduces overhead for fast storage devices.  The
+downside is that it removes all batching from the I/O path, potentially
+sending dozens of commands for a large I/O instead of just one.
 
-Signed-off-by: Matthew Wilcox <matthew.r.wilcox@intel.com>
----
- fs/mpage.c | 54 ++++++++++++++++++++++++++++++------------------------
- 1 file changed, 30 insertions(+), 24 deletions(-)
+This iteration of the Page I/O patchset has been tested with xfstests
+on ext4 on brd, and there are no unexpected failures.
 
-diff --git a/fs/mpage.c b/fs/mpage.c
-index 4979ffa..4cc9c5d 100644
---- a/fs/mpage.c
-+++ b/fs/mpage.c
-@@ -439,6 +439,35 @@ struct mpage_data {
- 	unsigned use_writepage;
- };
- 
-+/*
-+ * We have our BIO, so we can now mark the buffers clean.  Make
-+ * sure to only clean buffers which we know we'll be writing.
-+ */
-+static void clean_buffers(struct page *page, unsigned first_unmapped)
-+{
-+	unsigned buffer_counter = 0;
-+	struct buffer_head *bh, *head;
-+	if (!page_has_buffers(page))
-+		return;
-+	head = page_buffers(page);
-+	bh = head;
-+
-+	do {
-+		if (buffer_counter++ == first_unmapped)
-+			break;
-+		clear_buffer_dirty(bh);
-+		bh = bh->b_this_page;
-+	} while (bh != head);
-+
-+	/*
-+	 * we cannot drop the bh if the page is not uptodate or a concurrent
-+	 * readpage would fail to serialize with the bh and it would read from
-+	 * disk before we reach the platter.
-+	 */
-+	if (buffer_heads_over_limit && PageUptodate(page))
-+		try_to_free_buffers(page);
-+}
-+
- static int __mpage_writepage(struct page *page, struct writeback_control *wbc,
- 		      void *data)
- {
-@@ -591,30 +620,7 @@ alloc_new:
- 		goto alloc_new;
- 	}
- 
--	/*
--	 * OK, we have our BIO, so we can now mark the buffers clean.  Make
--	 * sure to only clean buffers which we know we'll be writing.
--	 */
--	if (page_has_buffers(page)) {
--		struct buffer_head *head = page_buffers(page);
--		struct buffer_head *bh = head;
--		unsigned buffer_counter = 0;
--
--		do {
--			if (buffer_counter++ == first_unmapped)
--				break;
--			clear_buffer_dirty(bh);
--			bh = bh->b_this_page;
--		} while (bh != head);
--
--		/*
--		 * we cannot drop the bh if the page is not uptodate
--		 * or a concurrent readpage would fail to serialize with the bh
--		 * and it would read from disk before we reach the platter.
--		 */
--		if (buffer_heads_over_limit && PageUptodate(page))
--			try_to_free_buffers(page);
--	}
-+	clean_buffers(page, first_unmapped);
- 
- 	BUG_ON(PageWriteback(page));
- 	set_page_writeback(page);
+Changes since v1:
+
+ - Rebased to 3.14-rc7
+ - Separate out the clean_buffers() refactoring into its own patch
+ - Change the page_endio() interface to take an error code rather than
+   a boolean 'success'.  All of its callers prefer this (and my earlier
+   patchset got this wrong in one caller).
+ - Added kerneldoc to bdev_read_page() and bdev_write_page()
+ - bdev_write_page() now does less on failure.  Since its two customers
+   (swap and mpage) want to do different things to the page flags on
+   failure, let them.
+ - Drop the virtio_blk patch, since I don't think it should be included
+
+Keith Busch (1):
+  NVMe: Add support for rw_page
+
+Matthew Wilcox (5):
+  Factor clean_buffers() out of __mpage_writepage()
+  Factor page_endio() out of mpage_end_io()
+  Add bdev_read_page() and bdev_write_page()
+  swap: Use bdev_read_page() / bdev_write_page()
+  brd: Add support for rw_page
+
+ drivers/block/brd.c       |  10 ++++
+ drivers/block/nvme-core.c | 129 +++++++++++++++++++++++++++++++++++++---------
+ fs/block_dev.c            |  63 ++++++++++++++++++++++
+ fs/mpage.c                |  84 +++++++++++++++---------------
+ include/linux/blkdev.h    |   4 ++
+ include/linux/pagemap.h   |   2 +
+ mm/filemap.c              |  25 +++++++++
+ mm/page_io.c              |  23 ++++++++-
+ 8 files changed, 273 insertions(+), 67 deletions(-)
+
 -- 
 1.9.0
 
