@@ -1,120 +1,182 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 279ED6B00C9
+Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com [209.85.160.54])
+	by kanga.kvack.org (Postfix) with ESMTP id BE6BE6B00FC
 	for <linux-mm@kvack.org>; Sun, 23 Mar 2014 15:08:59 -0400 (EDT)
-Received: by mail-pa0-f46.google.com with SMTP id kp14so4480002pab.5
-        for <linux-mm@kvack.org>; Sun, 23 Mar 2014 12:08:58 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id zw7si3963436pac.29.2014.03.23.12.08.57
+Received: by mail-pb0-f54.google.com with SMTP id ma3so4557841pbc.27
+        for <linux-mm@kvack.org>; Sun, 23 Mar 2014 12:08:59 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id uk5si7740471pab.27.2014.03.23.12.08.58
         for <linux-mm@kvack.org>;
         Sun, 23 Mar 2014 12:08:58 -0700 (PDT)
 From: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Subject: [PATCH v7 00/22] Support ext4 on NV-DIMMs
-Date: Sun, 23 Mar 2014 15:08:26 -0400
-Message-Id: <cover.1395591795.git.matthew.r.wilcox@intel.com>
+Subject: [PATCH v7 02/22] Allow page fault handlers to perform the COW
+Date: Sun, 23 Mar 2014 15:08:28 -0400
+Message-Id: <feee29988e167b019f5726cd497b1470b050a3ce.1395591795.git.matthew.r.wilcox@intel.com>
+In-Reply-To: <cover.1395591795.git.matthew.r.wilcox@intel.com>
+References: <cover.1395591795.git.matthew.r.wilcox@intel.com>
+In-Reply-To: <cover.1395591795.git.matthew.r.wilcox@intel.com>
+References: <cover.1395591795.git.matthew.r.wilcox@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, willy@linux.intel.com
 
-One of the primary uses for NV-DIMMs is to expose them as a block device
-and use a filesystem to store files on the NV-DIMM.  While that works,
-it currently wastes memory and CPU time buffering the files in the page
-cache.  We have support in ext2 for bypassing the page cache, but it
-has some races which are unfixable in the current design.  This series
-of patches rewrite the underlying support, and add support for direct
-access to ext4.
+Currently COW of an XIP file is done by first bringing in a read-only
+mapping, then retrying the fault and copying the page.  It is much more
+efficient to tell the fault handler that a COW is being attempted (by
+passing in the pre-allocated page in the vm_fault structure), and allow
+the handler to perform the COW operation itself.
 
-This iteration of the patchset rebases to Linus' 3.14-rc7 (plus Kirill's
-patches in linux-next http://marc.info/?l=linux-mm&m=139206489208546&w=2)
-and fixes several bugs:
+Where the filemap code protects against truncation of the file until
+the PTE has been installed with the page lock, the XIP code use the
+i_mmap_mutex instead.  We must therefore unlock the i_mmap_mutex after
+inserting the PTE.
 
- - Initialise cow_page in do_page_mkwrite() (Matthew Wilcox)
- - Clear new or unwritten blocks in page fault handler (Matthew Wilcox)
- - Only call get_block when necessary (Matthew Wilcox)
- - Reword Kconfig options (Matthew Wilcox / Vishal Verma)
- - Fix a race between page fault and truncate (Matthew Wilcox)
- - Fix a race between fault-for-read and fault-for-write (Matthew Wilcox)
- - Zero the correct bytes in dax_new_buf() (Toshi Kani)
- - Add DIO_LOCKING to an invocation of dax_do_io in ext4 (Ross Zwisler)
+Signed-off-by: Matthew Wilcox <matthew.r.wilcox@intel.com>
+---
+ include/linux/mm.h |  2 ++
+ mm/memory.c        | 45 +++++++++++++++++++++++++++++++++------------
+ 2 files changed, 35 insertions(+), 12 deletions(-)
 
-Relative to the last patchset, I folded the 'Add reporting of major faults'
-patch into the patch that adds the DAX page fault handler.
-
-The v6 patchset had seven additional xfstests failures.  This patchset
-now passes approximately as many xfstests as ext4 does on a ramdisk.
-
-Matthew Wilcox (21):
-  Fix XIP fault vs truncate race
-  Allow page fault handlers to perform the COW
-  axonram: Fix bug in direct_access
-  Change direct_access calling convention
-  Introduce IS_DAX(inode)
-  Replace XIP read and write with DAX I/O
-  Replace the XIP page fault handler with the DAX page fault handler
-  Replace xip_truncate_page with dax_truncate_page
-  Remove mm/filemap_xip.c
-  Remove get_xip_mem
-  Replace ext2_clear_xip_target with dax_clear_blocks
-  ext2: Remove ext2_xip_verify_sb()
-  ext2: Remove ext2_use_xip
-  ext2: Remove xip.c and xip.h
-  Remove CONFIG_EXT2_FS_XIP and rename CONFIG_FS_XIP to CONFIG_FS_DAX
-  ext2: Remove ext2_aops_xip
-  Get rid of most mentions of XIP in ext2
-  xip: Add xip_zero_page_range
-  ext4: Make ext4_block_zero_page_range static
-  ext4: Fix typos
-  brd: Rename XIP to DAX
-
-Ross Zwisler (1):
-  ext4: Add DAX functionality
-
- Documentation/filesystems/Locking  |   3 -
- Documentation/filesystems/dax.txt  |  84 ++++++
- Documentation/filesystems/ext4.txt |   2 +
- Documentation/filesystems/xip.txt  |  68 -----
- arch/powerpc/sysdev/axonram.c      |   8 +-
- drivers/block/Kconfig              |  13 +-
- drivers/block/brd.c                |  22 +-
- drivers/s390/block/dcssblk.c       |  19 +-
- fs/Kconfig                         |  21 +-
- fs/Makefile                        |   1 +
- fs/dax.c                           | 509 +++++++++++++++++++++++++++++++++++++
- fs/exofs/inode.c                   |   1 -
- fs/ext2/Kconfig                    |  11 -
- fs/ext2/Makefile                   |   1 -
- fs/ext2/ext2.h                     |   9 +-
- fs/ext2/file.c                     |  45 +++-
- fs/ext2/inode.c                    |  37 +--
- fs/ext2/namei.c                    |  13 +-
- fs/ext2/super.c                    |  48 ++--
- fs/ext2/xip.c                      |  91 -------
- fs/ext2/xip.h                      |  26 --
- fs/ext4/ext4.h                     |   8 +-
- fs/ext4/file.c                     |  53 +++-
- fs/ext4/indirect.c                 |  19 +-
- fs/ext4/inode.c                    |  94 ++++---
- fs/ext4/namei.c                    |  10 +-
- fs/ext4/super.c                    |  39 ++-
- fs/open.c                          |   5 +-
- include/linux/blkdev.h             |   4 +-
- include/linux/fs.h                 |  49 +++-
- include/linux/mm.h                 |   2 +
- mm/Makefile                        |   1 -
- mm/fadvise.c                       |   6 +-
- mm/filemap.c                       |   6 +-
- mm/filemap_xip.c                   | 483 -----------------------------------
- mm/madvise.c                       |   2 +-
- mm/memory.c                        |  45 +++-
- 37 files changed, 984 insertions(+), 874 deletions(-)
- create mode 100644 Documentation/filesystems/dax.txt
- delete mode 100644 Documentation/filesystems/xip.txt
- create mode 100644 fs/dax.c
- delete mode 100644 fs/ext2/xip.c
- delete mode 100644 fs/ext2/xip.h
- delete mode 100644 mm/filemap_xip.c
-
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index c1b7414..513b78a 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -205,6 +205,7 @@ struct vm_fault {
+ 	pgoff_t pgoff;			/* Logical page offset based on vma */
+ 	void __user *virtual_address;	/* Faulting virtual address */
+ 
++	struct page *cow_page;		/* Handler may choose to COW */
+ 	struct page *page;		/* ->fault handlers should return a
+ 					 * page here, unless VM_FAULT_NOPAGE
+ 					 * is set (which is also implied by
+@@ -1010,6 +1011,7 @@ static inline int page_mapped(struct page *page)
+ #define VM_FAULT_HWPOISON 0x0010	/* Hit poisoned small page */
+ #define VM_FAULT_HWPOISON_LARGE 0x0020  /* Hit poisoned large page. Index encoded in upper bits */
+ 
++#define VM_FAULT_COWED	0x0080	/* ->fault COWed the page instead */
+ #define VM_FAULT_NOPAGE	0x0100	/* ->fault installed the pte, not return page */
+ #define VM_FAULT_LOCKED	0x0200	/* ->fault locked the returned page */
+ #define VM_FAULT_RETRY	0x0400	/* ->fault blocked, must retry */
+diff --git a/mm/memory.c b/mm/memory.c
+index 07b4287..2a2ecac 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -2602,6 +2602,7 @@ static int do_page_mkwrite(struct vm_area_struct *vma, struct page *page,
+ 	vmf.pgoff = page->index;
+ 	vmf.flags = FAULT_FLAG_WRITE|FAULT_FLAG_MKWRITE;
+ 	vmf.page = page;
++	vmf.cow_page = NULL;
+ 
+ 	ret = vma->vm_ops->page_mkwrite(vma, &vmf);
+ 	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE)))
+@@ -3288,7 +3289,8 @@ oom:
+ }
+ 
+ static int __do_fault(struct vm_area_struct *vma, unsigned long address,
+-		pgoff_t pgoff, unsigned int flags, struct page **page)
++			pgoff_t pgoff, unsigned int flags,
++			struct page *cow_page, struct page **page)
+ {
+ 	struct vm_fault vmf;
+ 	int ret;
+@@ -3297,10 +3299,13 @@ static int __do_fault(struct vm_area_struct *vma, unsigned long address,
+ 	vmf.pgoff = pgoff;
+ 	vmf.flags = flags;
+ 	vmf.page = NULL;
++	vmf.cow_page = cow_page;
+ 
+ 	ret = vma->vm_ops->fault(vma, &vmf);
+ 	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE | VM_FAULT_RETRY)))
+ 		return ret;
++	if (unlikely(ret & VM_FAULT_COWED))
++		goto out;
+ 
+ 	if (unlikely(PageHWPoison(vmf.page))) {
+ 		if (ret & VM_FAULT_LOCKED)
+@@ -3314,6 +3319,7 @@ static int __do_fault(struct vm_area_struct *vma, unsigned long address,
+ 	else
+ 		VM_BUG_ON_PAGE(!PageLocked(vmf.page), vmf.page);
+ 
++ out:
+ 	*page = vmf.page;
+ 	return ret;
+ }
+@@ -3351,7 +3357,7 @@ static int do_read_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	pte_t *pte;
+ 	int ret;
+ 
+-	ret = __do_fault(vma, address, pgoff, flags, &fault_page);
++	ret = __do_fault(vma, address, pgoff, flags, NULL, &fault_page);
+ 	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE | VM_FAULT_RETRY)))
+ 		return ret;
+ 
+@@ -3368,6 +3374,12 @@ static int do_read_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	return ret;
+ }
+ 
++/*
++ * If the fault handler performs the COW, it does not return a page,
++ * so cannot use the page's lock to protect against a concurrent truncate
++ * operation.  Instead it returns with the i_mmap_mutex held, which must
++ * be released after the PTE has been inserted.
++ */
+ static int do_cow_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		unsigned long address, pmd_t *pmd,
+ 		pgoff_t pgoff, unsigned int flags, pte_t orig_pte)
+@@ -3389,25 +3401,34 @@ static int do_cow_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		return VM_FAULT_OOM;
+ 	}
+ 
+-	ret = __do_fault(vma, address, pgoff, flags, &fault_page);
++	ret = __do_fault(vma, address, pgoff, flags, new_page, &fault_page);
+ 	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE | VM_FAULT_RETRY)))
+ 		goto uncharge_out;
+ 
+-	copy_user_highpage(new_page, fault_page, address, vma);
++	if (!(ret & VM_FAULT_COWED))
++		copy_user_highpage(new_page, fault_page, address, vma);
+ 	__SetPageUptodate(new_page);
+ 
+ 	pte = pte_offset_map_lock(mm, pmd, address, &ptl);
+-	if (unlikely(!pte_same(*pte, orig_pte))) {
+-		pte_unmap_unlock(pte, ptl);
++	if (unlikely(!pte_same(*pte, orig_pte)))
++		goto unlock_out;
++	do_set_pte(vma, address, new_page, pte, true, true);
++	pte_unmap_unlock(pte, ptl);
++	if (ret & VM_FAULT_COWED) {
++		mutex_unlock(&vma->vm_file->f_mapping->i_mmap_mutex);
++	} else {
+ 		unlock_page(fault_page);
+ 		page_cache_release(fault_page);
+-		goto uncharge_out;
+ 	}
+-	do_set_pte(vma, address, new_page, pte, true, true);
+-	pte_unmap_unlock(pte, ptl);
+-	unlock_page(fault_page);
+-	page_cache_release(fault_page);
+ 	return ret;
++unlock_out:
++	pte_unmap_unlock(pte, ptl);
++	if (ret & VM_FAULT_COWED) {
++		mutex_unlock(&vma->vm_file->f_mapping->i_mmap_mutex);
++	} else {
++		unlock_page(fault_page);
++		page_cache_release(fault_page);
++	}
+ uncharge_out:
+ 	mem_cgroup_uncharge_page(new_page);
+ 	page_cache_release(new_page);
+@@ -3424,7 +3445,7 @@ static int do_shared_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	int dirtied = 0;
+ 	int ret, tmp;
+ 
+-	ret = __do_fault(vma, address, pgoff, flags, &fault_page);
++	ret = __do_fault(vma, address, pgoff, flags, NULL, &fault_page);
+ 	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE | VM_FAULT_RETRY)))
+ 		return ret;
+ 
 -- 
 1.9.0
 
