@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f42.google.com (mail-pb0-f42.google.com [209.85.160.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 74B936B0105
-	for <linux-mm@kvack.org>; Sun, 23 Mar 2014 15:09:19 -0400 (EDT)
-Received: by mail-pb0-f42.google.com with SMTP id rr13so4549103pbb.1
-        for <linux-mm@kvack.org>; Sun, 23 Mar 2014 12:09:19 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id zw7si3963436pac.29.2014.03.23.12.08.59
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E7D46B0106
+	for <linux-mm@kvack.org>; Sun, 23 Mar 2014 15:09:21 -0400 (EDT)
+Received: by mail-pd0-f169.google.com with SMTP id fp1so4445372pdb.28
+        for <linux-mm@kvack.org>; Sun, 23 Mar 2014 12:09:21 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id f1si7623998pbn.16.2014.03.23.12.09.18
         for <linux-mm@kvack.org>;
-        Sun, 23 Mar 2014 12:08:59 -0700 (PDT)
+        Sun, 23 Mar 2014 12:09:20 -0700 (PDT)
 From: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Subject: [PATCH v7 03/22] axonram: Fix bug in direct_access
-Date: Sun, 23 Mar 2014 15:08:29 -0400
-Message-Id: <e3ede380dd37d3cae604ee20198e568c9eb4fa00.1395591795.git.matthew.r.wilcox@intel.com>
+Subject: [PATCH v7 01/22] Fix XIP fault vs truncate race
+Date: Sun, 23 Mar 2014 15:08:27 -0400
+Message-Id: <59d73a58d4cfbe190a16ce912bb2776d9cc95447.1395591795.git.matthew.r.wilcox@intel.com>
 In-Reply-To: <cover.1395591795.git.matthew.r.wilcox@intel.com>
 References: <cover.1395591795.git.matthew.r.wilcox@intel.com>
 In-Reply-To: <cover.1395591795.git.matthew.r.wilcox@intel.com>
@@ -21,27 +21,77 @@ List-ID: <linux-mm.kvack.org>
 To: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, willy@linux.intel.com
 
-The 'pfn' returned by axonram was completely bogus, and has been since
-2008.
+Pagecache faults recheck i_size after taking the page lock to ensure that
+the fault didn't race against a truncate.  We don't have a page to lock
+in the XIP case, so use the i_mmap_mutex instead.  It is locked in the
+truncate path in unmap_mapping_range() after updating i_size.  So while
+we hold it in the fault path, we are guaranteed that either i_size has
+already been updated in the truncate path, or that the truncate will
+subsequently call zap_page_range_single() and so remove the mapping we
+have just inserted.
+
+There is a window of time in which i_size has been reduced and the
+thread has a mapping to a page which will be removed from the file,
+but this is harmless as the page will not be allocated to a different
+purpose before the thread's access to it is revoked.
 
 Signed-off-by: Matthew Wilcox <matthew.r.wilcox@intel.com>
 ---
- arch/powerpc/sysdev/axonram.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ mm/filemap_xip.c | 24 ++++++++++++++++++++++--
+ 1 file changed, 22 insertions(+), 2 deletions(-)
 
-diff --git a/arch/powerpc/sysdev/axonram.c b/arch/powerpc/sysdev/axonram.c
-index 47b6b9f..830edc8 100644
---- a/arch/powerpc/sysdev/axonram.c
-+++ b/arch/powerpc/sysdev/axonram.c
-@@ -156,7 +156,7 @@ axon_ram_direct_access(struct block_device *device, sector_t sector,
- 	}
+diff --git a/mm/filemap_xip.c b/mm/filemap_xip.c
+index d8d9fe3..c8d23e9 100644
+--- a/mm/filemap_xip.c
++++ b/mm/filemap_xip.c
+@@ -260,8 +260,17 @@ again:
+ 		__xip_unmap(mapping, vmf->pgoff);
  
- 	*kaddr = (void *)(bank->ph_addr + offset);
--	*pfn = virt_to_phys(kaddr) >> PAGE_SHIFT;
-+	*pfn = virt_to_phys(*kaddr) >> PAGE_SHIFT;
+ found:
++		/* We must recheck i_size under i_mmap_mutex */
++		mutex_lock(&mapping->i_mmap_mutex);
++		size = (i_size_read(inode) + PAGE_CACHE_SIZE - 1) >>
++							PAGE_CACHE_SHIFT;
++		if (unlikely(vmf->pgoff >= size)) {
++			mutex_unlock(&mapping->i_mmap_mutex);
++			return VM_FAULT_SIGBUS;
++		}
+ 		err = vm_insert_mixed(vma, (unsigned long)vmf->virtual_address,
+ 							xip_pfn);
++		mutex_unlock(&mapping->i_mmap_mutex);
+ 		if (err == -ENOMEM)
+ 			return VM_FAULT_OOM;
+ 		/*
+@@ -285,16 +294,27 @@ found:
+ 		}
+ 		if (error != -ENODATA)
+ 			goto out;
++
++		/* We must recheck i_size under i_mmap_mutex */
++		mutex_lock(&mapping->i_mmap_mutex);
++		size = (i_size_read(inode) + PAGE_CACHE_SIZE - 1) >>
++							PAGE_CACHE_SHIFT;
++		if (unlikely(vmf->pgoff >= size)) {
++			ret = VM_FAULT_SIGBUS;
++			goto unlock;
++		}
+ 		/* not shared and writable, use xip_sparse_page() */
+ 		page = xip_sparse_page();
+ 		if (!page)
+-			goto out;
++			goto unlock;
+ 		err = vm_insert_page(vma, (unsigned long)vmf->virtual_address,
+ 							page);
+ 		if (err == -ENOMEM)
+-			goto out;
++			goto unlock;
  
- 	return 0;
- }
+ 		ret = VM_FAULT_NOPAGE;
++unlock:
++		mutex_unlock(&mapping->i_mmap_mutex);
+ out:
+ 		write_seqcount_end(&xip_sparse_seq);
+ 		mutex_unlock(&xip_sparse_mutex);
 -- 
 1.9.0
 
