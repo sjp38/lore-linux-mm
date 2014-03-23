@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f53.google.com (mail-pb0-f53.google.com [209.85.160.53])
-	by kanga.kvack.org (Postfix) with ESMTP id A88316B00FE
+Received: from mail-pb0-f47.google.com (mail-pb0-f47.google.com [209.85.160.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 07F806B00FE
 	for <linux-mm@kvack.org>; Sun, 23 Mar 2014 15:09:02 -0400 (EDT)
-Received: by mail-pb0-f53.google.com with SMTP id rp16so4515985pbb.12
+Received: by mail-pb0-f47.google.com with SMTP id up15so4487959pbc.6
         for <linux-mm@kvack.org>; Sun, 23 Mar 2014 12:09:02 -0700 (PDT)
 Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id m8si7362160pbd.460.2014.03.23.12.09.00
+        by mx.google.com with ESMTP id m8si7362160pbd.460.2014.03.23.12.09.01
         for <linux-mm@kvack.org>;
         Sun, 23 Mar 2014 12:09:01 -0700 (PDT)
 From: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Subject: [PATCH v7 14/22] ext2: Remove xip.c and xip.h
-Date: Sun, 23 Mar 2014 15:08:40 -0400
-Message-Id: <33ff0862f6d99b352429ef4494817544c3d5da68.1395591795.git.matthew.r.wilcox@intel.com>
+Subject: [PATCH v7 15/22] Remove CONFIG_EXT2_FS_XIP and rename CONFIG_FS_XIP to CONFIG_FS_DAX
+Date: Sun, 23 Mar 2014 15:08:41 -0400
+Message-Id: <ff35fb6b662af013eddeb295a01258b42ccaa5ae.1395591795.git.matthew.r.wilcox@intel.com>
 In-Reply-To: <cover.1395591795.git.matthew.r.wilcox@intel.com>
 References: <cover.1395591795.git.matthew.r.wilcox@intel.com>
 In-Reply-To: <cover.1395591795.git.matthew.r.wilcox@intel.com>
@@ -21,108 +21,170 @@ List-ID: <linux-mm.kvack.org>
 To: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, willy@linux.intel.com
 
-These files are now empty, so delete them
+The fewer Kconfig options we have the better.  Use the generic
+CONFIG_FS_DAX to enable XIP support in ext2 as well as in the core.
 
 Signed-off-by: Matthew Wilcox <matthew.r.wilcox@intel.com>
 ---
- fs/ext2/Makefile |  1 -
- fs/ext2/inode.c  |  1 -
- fs/ext2/namei.c  |  1 -
- fs/ext2/super.c  |  1 -
- fs/ext2/xip.c    | 15 ---------------
- fs/ext2/xip.h    | 16 ----------------
- 6 files changed, 35 deletions(-)
- delete mode 100644 fs/ext2/xip.c
- delete mode 100644 fs/ext2/xip.h
+ fs/Kconfig         | 21 ++++++++++++++-------
+ fs/Makefile        |  2 +-
+ fs/ext2/Kconfig    | 11 -----------
+ fs/ext2/ext2.h     |  2 +-
+ fs/ext2/file.c     |  4 ++--
+ fs/ext2/super.c    |  4 ++--
+ include/linux/fs.h |  4 ++--
+ 7 files changed, 22 insertions(+), 26 deletions(-)
 
-diff --git a/fs/ext2/Makefile b/fs/ext2/Makefile
-index f42af45..445b0e9 100644
---- a/fs/ext2/Makefile
-+++ b/fs/ext2/Makefile
-@@ -10,4 +10,3 @@ ext2-y := balloc.o dir.o file.o ialloc.o inode.o \
- ext2-$(CONFIG_EXT2_FS_XATTR)	 += xattr.o xattr_user.o xattr_trusted.o
- ext2-$(CONFIG_EXT2_FS_POSIX_ACL) += acl.o
- ext2-$(CONFIG_EXT2_FS_SECURITY)	 += xattr_security.o
--ext2-$(CONFIG_EXT2_FS_XIP)	 += xip.o
-diff --git a/fs/ext2/inode.c b/fs/ext2/inode.c
-index 2e587e2..67124f0 100644
---- a/fs/ext2/inode.c
-+++ b/fs/ext2/inode.c
-@@ -34,7 +34,6 @@
- #include <linux/aio.h>
- #include "ext2.h"
- #include "acl.h"
--#include "xip.h"
- #include "xattr.h"
+diff --git a/fs/Kconfig b/fs/Kconfig
+index 7385e54..620ab73 100644
+--- a/fs/Kconfig
++++ b/fs/Kconfig
+@@ -13,13 +13,6 @@ if BLOCK
+ source "fs/ext2/Kconfig"
+ source "fs/ext3/Kconfig"
+ source "fs/ext4/Kconfig"
+-
+-config FS_XIP
+-# execute in place
+-	bool
+-	depends on EXT2_FS_XIP
+-	default y
+-
+ source "fs/jbd/Kconfig"
+ source "fs/jbd2/Kconfig"
  
- static int __ext2_write_inode(struct inode *inode, int do_sync);
-diff --git a/fs/ext2/namei.c b/fs/ext2/namei.c
-index 846c356..7ca803f 100644
---- a/fs/ext2/namei.c
-+++ b/fs/ext2/namei.c
-@@ -35,7 +35,6 @@
- #include "ext2.h"
+@@ -40,6 +33,20 @@ source "fs/ocfs2/Kconfig"
+ source "fs/btrfs/Kconfig"
+ source "fs/nilfs2/Kconfig"
+ 
++config FS_DAX
++	bool "Direct Access support"
++	depends on MMU
++	help
++	  Direct Access (DAX) can be used on memory-backed block devices.
++	  If the block device supports DAX and the filesystem supports DAX,
++	  then you can avoid using the pagecache to buffer I/Os.  Turning
++	  on this option will compile in support for DAX; you will need to
++	  mount the filesystem using the -o xip option.
++
++	  If you do not have a block device that is capable of using this,
++	  or if unsure, say N.  Saying Y will increase the size of the kernel
++	  by about 2kB.
++
+ endif # BLOCK
+ 
+ # Posix ACL utility routines
+diff --git a/fs/Makefile b/fs/Makefile
+index 2f194cd..b7e0a13 100644
+--- a/fs/Makefile
++++ b/fs/Makefile
+@@ -29,7 +29,7 @@ obj-$(CONFIG_SIGNALFD)		+= signalfd.o
+ obj-$(CONFIG_TIMERFD)		+= timerfd.o
+ obj-$(CONFIG_EVENTFD)		+= eventfd.o
+ obj-$(CONFIG_AIO)               += aio.o
+-obj-$(CONFIG_FS_XIP)		+= dax.o
++obj-$(CONFIG_FS_DAX)		+= dax.o
+ obj-$(CONFIG_FILE_LOCKING)      += locks.o
+ obj-$(CONFIG_COMPAT)		+= compat.o compat_ioctl.o
+ obj-$(CONFIG_BINFMT_AOUT)	+= binfmt_aout.o
+diff --git a/fs/ext2/Kconfig b/fs/ext2/Kconfig
+index 14a6780..c634874e 100644
+--- a/fs/ext2/Kconfig
++++ b/fs/ext2/Kconfig
+@@ -42,14 +42,3 @@ config EXT2_FS_SECURITY
+ 
+ 	  If you are not using a security module that requires using
+ 	  extended attributes for file security labels, say N.
+-
+-config EXT2_FS_XIP
+-	bool "Ext2 execute in place support"
+-	depends on EXT2_FS && MMU
+-	help
+-	  Execute in place can be used on memory-backed block devices. If you
+-	  enable this option, you can select to mount block devices which are
+-	  capable of this feature without using the page cache.
+-
+-	  If you do not use a block device that is capable of using this,
+-	  or if unsure, say N.
+diff --git a/fs/ext2/ext2.h b/fs/ext2/ext2.h
+index 5ecf570..b30c3bd 100644
+--- a/fs/ext2/ext2.h
++++ b/fs/ext2/ext2.h
+@@ -380,7 +380,7 @@ struct ext2_inode {
+ #define EXT2_MOUNT_NO_UID32		0x000200  /* Disable 32-bit UIDs */
+ #define EXT2_MOUNT_XATTR_USER		0x004000  /* Extended user attributes */
+ #define EXT2_MOUNT_POSIX_ACL		0x008000  /* POSIX Access Control Lists */
+-#ifdef CONFIG_FS_XIP
++#ifdef CONFIG_FS_DAX
+ #define EXT2_MOUNT_XIP			0x010000  /* Execute in place */
+ #else
+ #define EXT2_MOUNT_XIP			0
+diff --git a/fs/ext2/file.c b/fs/ext2/file.c
+index e3ce10d..ae7f000 100644
+--- a/fs/ext2/file.c
++++ b/fs/ext2/file.c
+@@ -25,7 +25,7 @@
  #include "xattr.h"
  #include "acl.h"
--#include "xip.h"
  
- static inline int ext2_add_nondir(struct dentry *dentry, struct inode *inode)
+-#ifdef CONFIG_EXT2_FS_XIP
++#ifdef CONFIG_FS_DAX
+ static int ext2_dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
  {
+ 	return dax_fault(vma, vmf, ext2_get_block);
+@@ -109,7 +109,7 @@ const struct file_operations ext2_file_operations = {
+ 	.splice_write	= generic_file_splice_write,
+ };
+ 
+-#ifdef CONFIG_EXT2_FS_XIP
++#ifdef CONFIG_FS_DAX
+ const struct file_operations ext2_xip_file_operations = {
+ 	.llseek		= generic_file_llseek,
+ 	.read		= do_sync_read,
 diff --git a/fs/ext2/super.c b/fs/ext2/super.c
-index 3a1db39..752ccb4 100644
+index 752ccb4..fdcacf7 100644
 --- a/fs/ext2/super.c
 +++ b/fs/ext2/super.c
-@@ -35,7 +35,6 @@
- #include "ext2.h"
- #include "xattr.h"
- #include "acl.h"
--#include "xip.h"
+@@ -287,7 +287,7 @@ static int ext2_show_options(struct seq_file *seq, struct dentry *root)
+ 		seq_puts(seq, ",grpquota");
+ #endif
  
- static void ext2_sync_super(struct super_block *sb,
- 			    struct ext2_super_block *es, int wait);
-diff --git a/fs/ext2/xip.c b/fs/ext2/xip.c
-deleted file mode 100644
-index 66ca113..0000000
---- a/fs/ext2/xip.c
-+++ /dev/null
-@@ -1,15 +0,0 @@
--/*
-- *  linux/fs/ext2/xip.c
-- *
-- * Copyright (C) 2005 IBM Corporation
-- * Author: Carsten Otte (cotte@de.ibm.com)
-- */
--
--#include <linux/mm.h>
--#include <linux/fs.h>
--#include <linux/genhd.h>
--#include <linux/buffer_head.h>
--#include <linux/blkdev.h>
--#include "ext2.h"
--#include "xip.h"
--
-diff --git a/fs/ext2/xip.h b/fs/ext2/xip.h
-deleted file mode 100644
-index 87eeb04..0000000
---- a/fs/ext2/xip.h
-+++ /dev/null
-@@ -1,16 +0,0 @@
--/*
-- *  linux/fs/ext2/xip.h
-- *
-- * Copyright (C) 2005 IBM Corporation
-- * Author: Carsten Otte (cotte@de.ibm.com)
-- */
--
+-#if defined(CONFIG_EXT2_FS_XIP)
++#ifdef CONFIG_FS_DAX
+ 	if (sbi->s_mount_opt & EXT2_MOUNT_XIP)
+ 		seq_puts(seq, ",xip");
+ #endif
+@@ -549,7 +549,7 @@ static int parse_options(char *options, struct super_block *sb)
+ 			break;
+ #endif
+ 		case Opt_xip:
 -#ifdef CONFIG_EXT2_FS_XIP
--static inline int ext2_use_xip (struct super_block *sb)
--{
--	struct ext2_sb_info *sbi = EXT2_SB(sb);
--	return (sbi->s_mount_opt & EXT2_MOUNT_XIP);
--}
--#else
--#define ext2_use_xip(sb)			0
--#endif
++#ifdef CONFIG_FS_DAX
+ 			set_opt (sbi->s_mount_opt, XIP);
+ #else
+ 			ext2_msg(sb, KERN_INFO, "xip option not supported");
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index aeab3fda..bff394d 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -1681,7 +1681,7 @@ struct super_operations {
+ #define IS_IMA(inode)		((inode)->i_flags & S_IMA)
+ #define IS_AUTOMOUNT(inode)	((inode)->i_flags & S_AUTOMOUNT)
+ #define IS_NOSEC(inode)		((inode)->i_flags & S_NOSEC)
+-#ifdef CONFIG_FS_XIP
++#ifdef CONFIG_FS_DAX
+ #define IS_DAX(inode)		((inode)->i_flags & S_DAX)
+ #else
+ #define IS_DAX(inode)		0
+@@ -2519,7 +2519,7 @@ extern loff_t fixed_size_llseek(struct file *file, loff_t offset,
+ extern int generic_file_open(struct inode * inode, struct file * filp);
+ extern int nonseekable_open(struct inode * inode, struct file * filp);
+ 
+-#ifdef CONFIG_FS_XIP
++#ifdef CONFIG_FS_DAX
+ int dax_clear_blocks(struct inode *, sector_t block, long size);
+ int dax_truncate_page(struct inode *, loff_t from, get_block_t);
+ ssize_t dax_do_io(int rw, struct kiocb *, struct inode *, const struct iovec *,
 -- 
 1.9.0
 
