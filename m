@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com [209.85.160.54])
-	by kanga.kvack.org (Postfix) with ESMTP id BE6BE6B00FC
-	for <linux-mm@kvack.org>; Sun, 23 Mar 2014 15:08:59 -0400 (EDT)
-Received: by mail-pb0-f54.google.com with SMTP id ma3so4557841pbc.27
-        for <linux-mm@kvack.org>; Sun, 23 Mar 2014 12:08:59 -0700 (PDT)
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 62B836B00FD
+	for <linux-mm@kvack.org>; Sun, 23 Mar 2014 15:09:00 -0400 (EDT)
+Received: by mail-pd0-f175.google.com with SMTP id x10so4421939pdj.20
+        for <linux-mm@kvack.org>; Sun, 23 Mar 2014 12:09:00 -0700 (PDT)
 Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id uk5si7740471pab.27.2014.03.23.12.08.58
+        by mx.google.com with ESMTP id uk5si7740471pab.27.2014.03.23.12.08.59
         for <linux-mm@kvack.org>;
-        Sun, 23 Mar 2014 12:08:58 -0700 (PDT)
+        Sun, 23 Mar 2014 12:08:59 -0700 (PDT)
 From: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Subject: [PATCH v7 02/22] Allow page fault handlers to perform the COW
-Date: Sun, 23 Mar 2014 15:08:28 -0400
-Message-Id: <feee29988e167b019f5726cd497b1470b050a3ce.1395591795.git.matthew.r.wilcox@intel.com>
+Subject: [PATCH v7 05/22] Introduce IS_DAX(inode)
+Date: Sun, 23 Mar 2014 15:08:31 -0400
+Message-Id: <6a8918c9a0fb37882179e3699b3e04d96540b24f.1395591795.git.matthew.r.wilcox@intel.com>
 In-Reply-To: <cover.1395591795.git.matthew.r.wilcox@intel.com>
 References: <cover.1395591795.git.matthew.r.wilcox@intel.com>
 In-Reply-To: <cover.1395591795.git.matthew.r.wilcox@intel.com>
@@ -21,162 +21,95 @@ List-ID: <linux-mm.kvack.org>
 To: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, willy@linux.intel.com
 
-Currently COW of an XIP file is done by first bringing in a read-only
-mapping, then retrying the fault and copying the page.  It is much more
-efficient to tell the fault handler that a COW is being attempted (by
-passing in the pre-allocated page in the vm_fault structure), and allow
-the handler to perform the COW operation itself.
-
-Where the filemap code protects against truncation of the file until
-the PTE has been installed with the page lock, the XIP code use the
-i_mmap_mutex instead.  We must therefore unlock the i_mmap_mutex after
-inserting the PTE.
+Use an inode flag to tag inodes which should avoid using the page cache.
+Convert ext2 to use it instead of mapping_is_xip().
 
 Signed-off-by: Matthew Wilcox <matthew.r.wilcox@intel.com>
 ---
- include/linux/mm.h |  2 ++
- mm/memory.c        | 45 +++++++++++++++++++++++++++++++++------------
- 2 files changed, 35 insertions(+), 12 deletions(-)
+ fs/ext2/inode.c    | 9 ++++++---
+ fs/ext2/xip.h      | 2 --
+ include/linux/fs.h | 6 ++++++
+ 3 files changed, 12 insertions(+), 5 deletions(-)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index c1b7414..513b78a 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -205,6 +205,7 @@ struct vm_fault {
- 	pgoff_t pgoff;			/* Logical page offset based on vma */
- 	void __user *virtual_address;	/* Faulting virtual address */
+diff --git a/fs/ext2/inode.c b/fs/ext2/inode.c
+index 94ed3684..e7d3192 100644
+--- a/fs/ext2/inode.c
++++ b/fs/ext2/inode.c
+@@ -731,7 +731,7 @@ static int ext2_get_blocks(struct inode *inode,
+ 		goto cleanup;
+ 	}
  
-+	struct page *cow_page;		/* Handler may choose to COW */
- 	struct page *page;		/* ->fault handlers should return a
- 					 * page here, unless VM_FAULT_NOPAGE
- 					 * is set (which is also implied by
-@@ -1010,6 +1011,7 @@ static inline int page_mapped(struct page *page)
- #define VM_FAULT_HWPOISON 0x0010	/* Hit poisoned small page */
- #define VM_FAULT_HWPOISON_LARGE 0x0020  /* Hit poisoned large page. Index encoded in upper bits */
+-	if (ext2_use_xip(inode->i_sb)) {
++	if (IS_DAX(inode)) {
+ 		/*
+ 		 * we need to clear the block
+ 		 */
+@@ -1201,7 +1201,7 @@ static int ext2_setsize(struct inode *inode, loff_t newsize)
  
-+#define VM_FAULT_COWED	0x0080	/* ->fault COWed the page instead */
- #define VM_FAULT_NOPAGE	0x0100	/* ->fault installed the pte, not return page */
- #define VM_FAULT_LOCKED	0x0200	/* ->fault locked the returned page */
- #define VM_FAULT_RETRY	0x0400	/* ->fault blocked, must retry */
-diff --git a/mm/memory.c b/mm/memory.c
-index 07b4287..2a2ecac 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2602,6 +2602,7 @@ static int do_page_mkwrite(struct vm_area_struct *vma, struct page *page,
- 	vmf.pgoff = page->index;
- 	vmf.flags = FAULT_FLAG_WRITE|FAULT_FLAG_MKWRITE;
- 	vmf.page = page;
-+	vmf.cow_page = NULL;
+ 	inode_dio_wait(inode);
  
- 	ret = vma->vm_ops->page_mkwrite(vma, &vmf);
- 	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE)))
-@@ -3288,7 +3289,8 @@ oom:
- }
- 
- static int __do_fault(struct vm_area_struct *vma, unsigned long address,
--		pgoff_t pgoff, unsigned int flags, struct page **page)
-+			pgoff_t pgoff, unsigned int flags,
-+			struct page *cow_page, struct page **page)
+-	if (mapping_is_xip(inode->i_mapping))
++	if (IS_DAX(inode))
+ 		error = xip_truncate_page(inode->i_mapping, newsize);
+ 	else if (test_opt(inode->i_sb, NOBH))
+ 		error = nobh_truncate_page(inode->i_mapping,
+@@ -1273,7 +1273,8 @@ void ext2_set_inode_flags(struct inode *inode)
  {
- 	struct vm_fault vmf;
- 	int ret;
-@@ -3297,10 +3299,13 @@ static int __do_fault(struct vm_area_struct *vma, unsigned long address,
- 	vmf.pgoff = pgoff;
- 	vmf.flags = flags;
- 	vmf.page = NULL;
-+	vmf.cow_page = cow_page;
+ 	unsigned int flags = EXT2_I(inode)->i_flags;
  
- 	ret = vma->vm_ops->fault(vma, &vmf);
- 	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE | VM_FAULT_RETRY)))
- 		return ret;
-+	if (unlikely(ret & VM_FAULT_COWED))
-+		goto out;
- 
- 	if (unlikely(PageHWPoison(vmf.page))) {
- 		if (ret & VM_FAULT_LOCKED)
-@@ -3314,6 +3319,7 @@ static int __do_fault(struct vm_area_struct *vma, unsigned long address,
- 	else
- 		VM_BUG_ON_PAGE(!PageLocked(vmf.page), vmf.page);
- 
-+ out:
- 	*page = vmf.page;
- 	return ret;
- }
-@@ -3351,7 +3357,7 @@ static int do_read_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 	pte_t *pte;
- 	int ret;
- 
--	ret = __do_fault(vma, address, pgoff, flags, &fault_page);
-+	ret = __do_fault(vma, address, pgoff, flags, NULL, &fault_page);
- 	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE | VM_FAULT_RETRY)))
- 		return ret;
- 
-@@ -3368,6 +3374,12 @@ static int do_read_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 	return ret;
+-	inode->i_flags &= ~(S_SYNC|S_APPEND|S_IMMUTABLE|S_NOATIME|S_DIRSYNC);
++	inode->i_flags &= ~(S_SYNC | S_APPEND | S_IMMUTABLE | S_NOATIME |
++				S_DIRSYNC | S_DAX);
+ 	if (flags & EXT2_SYNC_FL)
+ 		inode->i_flags |= S_SYNC;
+ 	if (flags & EXT2_APPEND_FL)
+@@ -1284,6 +1285,8 @@ void ext2_set_inode_flags(struct inode *inode)
+ 		inode->i_flags |= S_NOATIME;
+ 	if (flags & EXT2_DIRSYNC_FL)
+ 		inode->i_flags |= S_DIRSYNC;
++	if (test_opt(inode->i_sb, XIP))
++		inode->i_flags |= S_DAX;
  }
  
-+/*
-+ * If the fault handler performs the COW, it does not return a page,
-+ * so cannot use the page's lock to protect against a concurrent truncate
-+ * operation.  Instead it returns with the i_mmap_mutex held, which must
-+ * be released after the PTE has been inserted.
-+ */
- static int do_cow_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 		unsigned long address, pmd_t *pmd,
- 		pgoff_t pgoff, unsigned int flags, pte_t orig_pte)
-@@ -3389,25 +3401,34 @@ static int do_cow_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 		return VM_FAULT_OOM;
- 	}
+ /* Propagate flags from i_flags to EXT2_I(inode)->i_flags */
+diff --git a/fs/ext2/xip.h b/fs/ext2/xip.h
+index 18b34d2..29be737 100644
+--- a/fs/ext2/xip.h
++++ b/fs/ext2/xip.h
+@@ -16,9 +16,7 @@ static inline int ext2_use_xip (struct super_block *sb)
+ }
+ int ext2_get_xip_mem(struct address_space *, pgoff_t, int,
+ 				void **, unsigned long *);
+-#define mapping_is_xip(map) unlikely(map->a_ops->get_xip_mem)
+ #else
+-#define mapping_is_xip(map)			0
+ #define ext2_xip_verify_sb(sb)			do { } while (0)
+ #define ext2_use_xip(sb)			0
+ #define ext2_clear_xip_target(inode, chain)	0
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index 23b2a35..47fd219 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -1644,6 +1644,7 @@ struct super_operations {
+ #define S_IMA		1024	/* Inode has an associated IMA struct */
+ #define S_AUTOMOUNT	2048	/* Automount/referral quasi-directory */
+ #define S_NOSEC		4096	/* no suid or xattr security attributes */
++#define S_DAX		8192	/* Direct Access, avoiding the page cache */
  
--	ret = __do_fault(vma, address, pgoff, flags, &fault_page);
-+	ret = __do_fault(vma, address, pgoff, flags, new_page, &fault_page);
- 	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE | VM_FAULT_RETRY)))
- 		goto uncharge_out;
+ /*
+  * Note that nosuid etc flags are inode-specific: setting some file-system
+@@ -1681,6 +1682,11 @@ struct super_operations {
+ #define IS_IMA(inode)		((inode)->i_flags & S_IMA)
+ #define IS_AUTOMOUNT(inode)	((inode)->i_flags & S_AUTOMOUNT)
+ #define IS_NOSEC(inode)		((inode)->i_flags & S_NOSEC)
++#ifdef CONFIG_FS_XIP
++#define IS_DAX(inode)		((inode)->i_flags & S_DAX)
++#else
++#define IS_DAX(inode)		0
++#endif
  
--	copy_user_highpage(new_page, fault_page, address, vma);
-+	if (!(ret & VM_FAULT_COWED))
-+		copy_user_highpage(new_page, fault_page, address, vma);
- 	__SetPageUptodate(new_page);
- 
- 	pte = pte_offset_map_lock(mm, pmd, address, &ptl);
--	if (unlikely(!pte_same(*pte, orig_pte))) {
--		pte_unmap_unlock(pte, ptl);
-+	if (unlikely(!pte_same(*pte, orig_pte)))
-+		goto unlock_out;
-+	do_set_pte(vma, address, new_page, pte, true, true);
-+	pte_unmap_unlock(pte, ptl);
-+	if (ret & VM_FAULT_COWED) {
-+		mutex_unlock(&vma->vm_file->f_mapping->i_mmap_mutex);
-+	} else {
- 		unlock_page(fault_page);
- 		page_cache_release(fault_page);
--		goto uncharge_out;
- 	}
--	do_set_pte(vma, address, new_page, pte, true, true);
--	pte_unmap_unlock(pte, ptl);
--	unlock_page(fault_page);
--	page_cache_release(fault_page);
- 	return ret;
-+unlock_out:
-+	pte_unmap_unlock(pte, ptl);
-+	if (ret & VM_FAULT_COWED) {
-+		mutex_unlock(&vma->vm_file->f_mapping->i_mmap_mutex);
-+	} else {
-+		unlock_page(fault_page);
-+		page_cache_release(fault_page);
-+	}
- uncharge_out:
- 	mem_cgroup_uncharge_page(new_page);
- 	page_cache_release(new_page);
-@@ -3424,7 +3445,7 @@ static int do_shared_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 	int dirtied = 0;
- 	int ret, tmp;
- 
--	ret = __do_fault(vma, address, pgoff, flags, &fault_page);
-+	ret = __do_fault(vma, address, pgoff, flags, NULL, &fault_page);
- 	if (unlikely(ret & (VM_FAULT_ERROR | VM_FAULT_NOPAGE | VM_FAULT_RETRY)))
- 		return ret;
- 
+ /*
+  * Inode state bits.  Protected by inode->i_lock
 -- 
 1.9.0
 
