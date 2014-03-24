@@ -1,13 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f47.google.com (mail-pb0-f47.google.com [209.85.160.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 7ABD26B00C6
-	for <linux-mm@kvack.org>; Mon, 24 Mar 2014 12:22:59 -0400 (EDT)
-Received: by mail-pb0-f47.google.com with SMTP id up15so5679407pbc.20
-        for <linux-mm@kvack.org>; Mon, 24 Mar 2014 09:22:59 -0700 (PDT)
-Subject: [PATCH 3/6] aio/dio: enable PI passthrough
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 600E56B00C9
+	for <linux-mm@kvack.org>; Mon, 24 Mar 2014 12:23:06 -0400 (EDT)
+Received: by mail-pd0-f181.google.com with SMTP id p10so5533535pdj.40
+        for <linux-mm@kvack.org>; Mon, 24 Mar 2014 09:23:06 -0700 (PDT)
+Subject: [PATCH 4/6] PI IO extension: allow user to ask kernel to fill in
+ parts of the protection info
 From: "Darrick J. Wong" <darrick.wong@oracle.com>
-Date: Mon, 24 Mar 2014 09:22:52 -0700
-Message-ID: <20140324162251.10848.56452.stgit@birch.djwong.org>
+Date: Mon, 24 Mar 2014 09:22:59 -0700
+Message-ID: <20140324162258.10848.36755.stgit@birch.djwong.org>
 In-Reply-To: <20140324162231.10848.4863.stgit@birch.djwong.org>
 References: <20140324162231.10848.4863.stgit@birch.djwong.org>
 MIME-Version: 1.0
@@ -18,542 +19,417 @@ List-ID: <linux-mm.kvack.org>
 To: axboe@kernel.dk, zab@redhat.com, martin.petersen@oracle.com, darrick.wong@oracle.com, JBottomley@parallels.com, jmoyer@redhat.com, bcrl@kvack.org, viro@zeniv.linux.org.uk
 Cc: linux-fsdevel@vger.kernel.org, linux-aio@kvack.org, linux-scsi@vger.kernel.org, linux-mm@kvack.org
 
-Provide an IO extension handler that attaches PI data from the io
-extension structure to a kiocb, then teach directio how to attach the
-pages representing the PI buffer directly to a bio.
+Since userspace can now pass PI buffers through to the block integrity
+provider, provide a means for userspace to specify a flags argument
+with the PI buffer.  The initial user for this will be sd_dif, which
+will enable user programs to ask the kernel to fill in whichever
+fields they don't want to provide.  This is intended, for example, to
+satisfy programs that really only care to provide an app tag.
 
 Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
 ---
  Documentation/block/data-integrity.txt |   11 ++++
- fs/aio.c                               |   62 +++++++++++++++++++++
- fs/bio-integrity.c                     |   94 +++++++++++++++++++++++++++++++-
- fs/direct-io.c                         |   70 +++++++++++++++++++-----
- include/linux/aio.h                    |   10 +++
- include/linux/bio.h                    |   15 +++++
- include/uapi/linux/aio_abi.h           |    6 ++
- mm/filemap.c                           |    6 ++
- 8 files changed, 259 insertions(+), 15 deletions(-)
+ block/blk-integrity.c                  |    1 
+ drivers/scsi/sd_dif.c                  |   76 ++++++++++++++++++++++++++----
+ fs/aio.c                               |    3 +
+ fs/bio-integrity.c                     |   80 ++++++++++++++++++++++++++++++++
+ fs/direct-io.c                         |    1 
+ include/linux/bio.h                    |    3 +
+ include/linux/blkdev.h                 |    2 +
+ include/uapi/linux/aio_abi.h           |    1 
+ 9 files changed, 162 insertions(+), 16 deletions(-)
 
 
 diff --git a/Documentation/block/data-integrity.txt b/Documentation/block/data-integrity.txt
-index 2d735b0a..1d1f070 100644
+index 1d1f070..b72a54f 100644
 --- a/Documentation/block/data-integrity.txt
 +++ b/Documentation/block/data-integrity.txt
-@@ -282,6 +282,17 @@ will require extra work due to the application tag.
-       It is up to the receiver to process them and verify data
-       integrity upon completion.
+@@ -292,7 +292,10 @@ will require extra work due to the application tag.
  
-+    int bio_integrity_prep_buffer(struct bio *bio, int rw,
-+				  struct bio_integrity_prep_iter *pi);
-+
-+      This function should be called before submit_bio; its purpose is to
-+      attach an arbitrary array of struct page * containing integrity data
-+      to an existing bio.  Primarily this is intended for AIO/DIO to be
-+      able to attach a userspace buffer to a bio.
-+
-+      The bio_integrity_prep_iter should contain the page offset and buffer
-+      length of the PI buffer, the number of pages, and the actual array of
-+      pages, as returned by get_user_pages.
+       The bio_integrity_prep_iter should contain the page offset and buffer
+       length of the PI buffer, the number of pages, and the actual array of
+-      pages, as returned by get_user_pages.
++      pages, as returned by get_user_pages.  The user_flags argument should
++      contain whatever flag values were passed in by userspace; the values
++      of the flags are specific to the block integrity provider, and are
++      passed to the mod_user_buf_fn handler.
  
  5.4 REGISTERING A BLOCK DEVICE AS CAPABLE OF EXCHANGING INTEGRITY
      METADATA
-diff --git a/fs/aio.c b/fs/aio.c
-index 0c40bdc..3f932c3 100644
---- a/fs/aio.c
-+++ b/fs/aio.c
-@@ -1379,7 +1379,69 @@ struct io_extension_type {
- 	int (*destroy_fn)(struct kiocb *);
+@@ -332,6 +335,12 @@ will require extra work due to the application tag.
+       are available per hardware sector.  For DIF this is either 2 or
+       0 depending on the value of the Control Mode Page ATO bit.
+ 
++      'mod_user_buf_fn' updates the appropriate integrity metadata for
++      a WRITE operation.  This function is called when userspace passes
++      in a PI buffer along with file data; the flags argument (which is
++      specific to the blk_integrity provider) arrange for pre-processing
++      of the user buffer prior to issuing the IO.
++
+       See 6.2 for a description of get_tag_fn and set_tag_fn.
+ 
+ ----------------------------------------------------------------------
+diff --git a/block/blk-integrity.c b/block/blk-integrity.c
+index 7fbab84..1cb1eb2 100644
+--- a/block/blk-integrity.c
++++ b/block/blk-integrity.c
+@@ -421,6 +421,7 @@ int blk_integrity_register(struct gendisk *disk, struct blk_integrity *template)
+ 		bi->set_tag_fn = template->set_tag_fn;
+ 		bi->get_tag_fn = template->get_tag_fn;
+ 		bi->tag_size = template->tag_size;
++		bi->mod_user_buf_fn = template->mod_user_buf_fn;
+ 	} else
+ 		bi->name = bi_unsupported_name;
+ 
+diff --git a/drivers/scsi/sd_dif.c b/drivers/scsi/sd_dif.c
+index a7a691d..74182c9 100644
+--- a/drivers/scsi/sd_dif.c
++++ b/drivers/scsi/sd_dif.c
+@@ -53,31 +53,58 @@ static __u16 sd_dif_ip_fn(void *data, unsigned int len)
+  * Type 1 and Type 2 protection use the same format: 16 bit guard tag,
+  * 16 bit app tag, 32 bit reference tag.
+  */
+-static void sd_dif_type1_generate(struct blk_integrity_exchg *bix, csum_fn *fn)
++#define GENERATE_GUARD	(1)
++#define GENERATE_REF	(2)
++#define GENERATE_APP	(4)
++#define GENERATE_ALL	(7)
++static int sd_dif_type1_generate(struct blk_integrity_exchg *bix, csum_fn *fn,
++				 int flags)
+ {
+ 	void *buf = bix->data_buf;
+ 	struct sd_dif_tuple *sdt = bix->prot_buf;
+ 	sector_t sector = bix->sector;
+ 	unsigned int i;
+ 
++	if (flags & ~GENERATE_ALL)
++		return -EINVAL;
++	if (!flags)
++		return -ENOTTY;
++
+ 	for (i = 0 ; i < bix->data_size ; i += bix->sector_size, sdt++) {
+-		sdt->guard_tag = fn(buf, bix->sector_size);
+-		sdt->ref_tag = cpu_to_be32(sector & 0xffffffff);
+-		sdt->app_tag = 0;
++		if (flags & GENERATE_GUARD)
++			sdt->guard_tag = fn(buf, bix->sector_size);
++		if (flags & GENERATE_REF)
++			sdt->ref_tag = cpu_to_be32(sector & 0xffffffff);
++		if (flags & GENERATE_APP)
++			sdt->app_tag = 0;
+ 
+ 		buf += bix->sector_size;
+ 		sector++;
+ 	}
++
++	return 0;
+ }
+ 
+ static void sd_dif_type1_generate_crc(struct blk_integrity_exchg *bix)
+ {
+-	sd_dif_type1_generate(bix, sd_dif_crc_fn);
++	sd_dif_type1_generate(bix, sd_dif_crc_fn, GENERATE_ALL);
+ }
+ 
+ static void sd_dif_type1_generate_ip(struct blk_integrity_exchg *bix)
+ {
+-	sd_dif_type1_generate(bix, sd_dif_ip_fn);
++	sd_dif_type1_generate(bix, sd_dif_ip_fn, GENERATE_ALL);
++}
++
++static int sd_dif_type1_mod_crc(struct blk_integrity_exchg *bix,
++				int flags)
++{
++	return sd_dif_type1_generate(bix, sd_dif_crc_fn, flags);
++}
++
++static int sd_dif_type1_mod_ip(struct blk_integrity_exchg *bix,
++			       int flags)
++{
++	return sd_dif_type1_generate(bix, sd_dif_ip_fn, flags);
+ }
+ 
+ static int sd_dif_type1_verify(struct blk_integrity_exchg *bix, csum_fn *fn)
+@@ -163,6 +190,7 @@ static struct blk_integrity dif_type1_integrity_crc = {
+ 	.set_tag_fn		= sd_dif_type1_set_tag,
+ 	.tuple_size		= sizeof(struct sd_dif_tuple),
+ 	.tag_size		= 0,
++	.mod_user_buf_fn	= sd_dif_type1_mod_crc,
  };
  
-+#ifdef CONFIG_BLK_DEV_INTEGRITY
-+static int destroy_pi_ext(struct kiocb *req)
-+{
-+	unsigned int i;
-+
-+	if (req->ki_ioext->ke_pi_iter.pi_userpages == NULL)
-+		return 0;
-+
-+	for (i = 0; i < req->ki_ioext->ke_pi_iter.pi_nrpages; i++)
-+		page_cache_release(req->ki_ioext->ke_pi_iter.pi_userpages[i]);
-+	kfree(req->ki_ioext->ke_pi_iter.pi_userpages);
-+	req->ki_ioext->ke_pi_iter.pi_userpages = NULL;
-+
-+	return 0;
-+}
-+
-+static int setup_pi_ext(struct kiocb *req, int is_write)
-+{
-+	struct file *file = req->ki_filp;
-+	struct io_extension *ext = &req->ki_ioext->ke_kern;
-+	void *p;
-+	unsigned long start, end;
-+	int retval;
-+
-+	if (!(file->f_flags & O_DIRECT)) {
-+		pr_debug("EINVAL: can't use PI without O_DIRECT.\n");
+ static struct blk_integrity dif_type1_integrity_ip = {
+@@ -173,6 +201,7 @@ static struct blk_integrity dif_type1_integrity_ip = {
+ 	.set_tag_fn		= sd_dif_type1_set_tag,
+ 	.tuple_size		= sizeof(struct sd_dif_tuple),
+ 	.tag_size		= 0,
++	.mod_user_buf_fn	= sd_dif_type1_mod_ip,
+ };
+ 
+ 
+@@ -180,29 +209,50 @@ static struct blk_integrity dif_type1_integrity_ip = {
+  * Type 3 protection has a 16-bit guard tag and 16 + 32 bits of opaque
+  * tag space.
+  */
+-static void sd_dif_type3_generate(struct blk_integrity_exchg *bix, csum_fn *fn)
++static int sd_dif_type3_generate(struct blk_integrity_exchg *bix, csum_fn *fn,
++				 int flags)
+ {
+ 	void *buf = bix->data_buf;
+ 	struct sd_dif_tuple *sdt = bix->prot_buf;
+ 	unsigned int i;
+ 
++	if (flags & (~GENERATE_ALL | GENERATE_REF))
 +		return -EINVAL;
-+	}
++	if (!flags)
++		return -ENOTTY;
 +
-+	BUG_ON(req->ki_ioext->ke_pi_iter.pi_userpages);
-+
-+	end = (((unsigned long)ext->ie_pi_buf) + ext->ie_pi_buflen +
-+		PAGE_SIZE - 1) >> PAGE_SHIFT;
-+	start = ((unsigned long)ext->ie_pi_buf) >> PAGE_SHIFT;
-+	req->ki_ioext->ke_pi_iter.pi_offset = offset_in_page(ext->ie_pi_buf);
-+	req->ki_ioext->ke_pi_iter.pi_len = ext->ie_pi_buflen;
-+	req->ki_ioext->ke_pi_iter.pi_nrpages = end - start;
-+	p = kzalloc(req->ki_ioext->ke_pi_iter.pi_nrpages *
-+		    sizeof(struct page *),
-+		    GFP_NOIO);
-+	if (p == NULL) {
-+		pr_err("%s: no room for page array?\n", __func__);
-+		return -ENOMEM;
-+	}
-+	req->ki_ioext->ke_pi_iter.pi_userpages = p;
-+
-+	retval = get_user_pages_fast((unsigned long)ext->ie_pi_buf,
-+				     req->ki_ioext->ke_pi_iter.pi_nrpages,
-+				     is_write,
-+				     req->ki_ioext->ke_pi_iter.pi_userpages);
-+	if (retval != req->ki_ioext->ke_pi_iter.pi_nrpages) {
-+		pr_err("%s: couldn't map pages?\n", __func__);
-+		req->ki_ioext->ke_pi_iter.pi_nrpages = retval;
-+		return -ENOMEM;
-+	}
-+	req->ki_flags |= KIOCB_DIO_ONLY;
+ 	for (i = 0 ; i < bix->data_size ; i += bix->sector_size, sdt++) {
+-		sdt->guard_tag = fn(buf, bix->sector_size);
+-		sdt->ref_tag = 0;
+-		sdt->app_tag = 0;
++		if (flags & GENERATE_GUARD)
++			sdt->guard_tag = fn(buf, bix->sector_size);
++		if (flags & GENERATE_APP) {
++			sdt->ref_tag = 0;
++			sdt->app_tag = 0;
++		}
+ 
+ 		buf += bix->sector_size;
+ 	}
 +
 +	return 0;
+ }
+ 
+ static void sd_dif_type3_generate_crc(struct blk_integrity_exchg *bix)
+ {
+-	sd_dif_type3_generate(bix, sd_dif_crc_fn);
++	sd_dif_type3_generate(bix, sd_dif_crc_fn, GENERATE_ALL);
+ }
+ 
+ static void sd_dif_type3_generate_ip(struct blk_integrity_exchg *bix)
+ {
+-	sd_dif_type3_generate(bix, sd_dif_ip_fn);
++	sd_dif_type3_generate(bix, sd_dif_ip_fn, GENERATE_ALL);
 +}
-+#endif
 +
++static int sd_dif_type3_mod_crc(struct blk_integrity_exchg *bix, int flags)
++{
++	return sd_dif_type3_generate(bix, sd_dif_crc_fn, flags);
++}
++
++static int sd_dif_type3_mod_ip(struct blk_integrity_exchg *bix, int flags)
++{
++	return sd_dif_type3_generate(bix, sd_dif_ip_fn, flags);
+ }
+ 
+ static int sd_dif_type3_verify(struct blk_integrity_exchg *bix, csum_fn *fn)
+@@ -283,6 +333,7 @@ static struct blk_integrity dif_type3_integrity_crc = {
+ 	.set_tag_fn		= sd_dif_type3_set_tag,
+ 	.tuple_size		= sizeof(struct sd_dif_tuple),
+ 	.tag_size		= 0,
++	.mod_user_buf_fn	= sd_dif_type3_mod_crc,
+ };
+ 
+ static struct blk_integrity dif_type3_integrity_ip = {
+@@ -293,6 +344,7 @@ static struct blk_integrity dif_type3_integrity_ip = {
+ 	.set_tag_fn		= sd_dif_type3_set_tag,
+ 	.tuple_size		= sizeof(struct sd_dif_tuple),
+ 	.tag_size		= 0,
++	.mod_user_buf_fn	= sd_dif_type3_mod_ip,
+ };
+ 
+ /*
+diff --git a/fs/aio.c b/fs/aio.c
+index 3f932c3..2e80fbb 100644
+--- a/fs/aio.c
++++ b/fs/aio.c
+@@ -1424,6 +1424,7 @@ static int setup_pi_ext(struct kiocb *req, int is_write)
+ 		return -ENOMEM;
+ 	}
+ 	req->ki_ioext->ke_pi_iter.pi_userpages = p;
++	req->ki_ioext->ke_pi_iter.pi_userflags = ext->ie_pi_flags;
+ 
+ 	retval = get_user_pages_fast((unsigned long)ext->ie_pi_buf,
+ 				     req->ki_ioext->ke_pi_iter.pi_nrpages,
+@@ -1441,7 +1442,7 @@ static int setup_pi_ext(struct kiocb *req, int is_write)
+ #endif
+ 
  static struct io_extension_type extensions[] = {
-+	{IO_EXT_PI, IO_EXT_SIZE(ie_pi_ret), setup_pi_ext, destroy_pi_ext},
+-	{IO_EXT_PI, IO_EXT_SIZE(ie_pi_ret), setup_pi_ext, destroy_pi_ext},
++	{IO_EXT_PI, IO_EXT_SIZE(ie_pi_flags), setup_pi_ext, destroy_pi_ext},
  	{IO_EXT_INVALID, 0, NULL, NULL},
  };
  
 diff --git a/fs/bio-integrity.c b/fs/bio-integrity.c
-index 413312f..3df9aeb 100644
+index 3df9aeb..381ee38 100644
 --- a/fs/bio-integrity.c
 +++ b/fs/bio-integrity.c
-@@ -138,7 +138,7 @@ int bio_integrity_add_page(struct bio *bio, struct page *page,
- 	struct bio_vec *iv;
- 
- 	if (bip->bip_vcnt >= bip_integrity_vecs(bip)) {
--		printk(KERN_ERR "%s: bip_vec full\n", __func__);
-+		pr_err("%s: bip_vec full\n", __func__);
- 		return 0;
- 	}
- 
-@@ -250,7 +250,7 @@ static int bio_integrity_tag(struct bio *bio, void *tag_buf, unsigned int len,
- 					DIV_ROUND_UP(len, bi->tag_size));
- 
- 	if (nr_sectors * bi->tuple_size > bip->bip_iter.bi_size) {
--		printk(KERN_ERR "%s: tag too big for bio: %u > %u\n", __func__,
-+		pr_err("%s: tag too big for bio: %u > %u\n", __func__,
- 		       nr_sectors * bi->tuple_size, bip->bip_iter.bi_size);
- 		return -1;
- 	}
-@@ -375,6 +375,96 @@ static inline unsigned short blk_integrity_tuple_size(struct blk_integrity *bi)
- }
+@@ -301,6 +301,82 @@ int bio_integrity_get_tag(struct bio *bio, void *tag_buf, unsigned int len)
+ EXPORT_SYMBOL(bio_integrity_get_tag);
  
  /**
-+ * bio_integrity_prep_buffer - Prepare bio for integrity I/O
-+ * @bio:	bio to prepare
-+ * @rw:		data direction for the bio
-+ * @pi:		pi data to attach to bio
-+ *
-+ * Description: Allocates a buffer for integrity metadata, maps the
-+ * pages and attaches them to a bio.  The bio must have target device
-+ * and start sector set prior to calling.  The pages specified in the
-+ * @pi argument should contain integrity metadata in the WRITE case,
-+ * and should be ready to receive metadata in the READ case.
++ * bio_integrity_update_user_buffer - Update user-provided PI buffers for a bio
++ * @bio:	bio to generate/verify integrity metadata for
 + */
-+int bio_integrity_prep_buffer(struct bio *bio, int rw,
-+			      struct bio_integrity_prep_iter *pi)
++int bio_integrity_update_user_buffer(struct bio *bio)
 +{
-+	struct bio_integrity_payload *bip;
-+	struct blk_integrity *bi;
-+	unsigned long start, end;
-+	unsigned int len, nr_pages;
-+	unsigned int bytes, i;
-+	unsigned int sectors;
-+	int ret;
++	struct blk_integrity *bi = bdev_get_integrity(bio->bi_bdev);
++	struct blk_integrity_exchg bix;
++	struct bio_vec bv;
++	struct bvec_iter iter;
++	sector_t sector;
++	unsigned int sectors, total, ret;
++	void *prot_buf;
++	unsigned int prot_offset, prot_len, bv_offset, bv_len;
++	struct bio_vec *iv;
++	struct bio_integrity_payload *bip = bio->bi_integrity;
 +
-+	bi = bdev_get_integrity(bio->bi_bdev);
-+	BUG_ON(bi == NULL);
-+	BUG_ON(bio_integrity(bio));
++	if (!bi->mod_user_buf_fn)
++		return 0;
 +
-+	sectors = bio_integrity_hw_sectors(bi, bio_sectors(bio));
++	sector = bio->bi_iter.bi_sector;
 +
-+	/* Allocate kernel buffer for protection data */
-+	len = sectors * blk_integrity_tuple_size(bi);
-+	end = (pi->pi_offset + len + PAGE_SIZE - 1) >> PAGE_SHIFT;
-+	start = pi->pi_offset >> PAGE_SHIFT;
-+	nr_pages = end - start;
++	total = ret = 0;
++	bix.disk_name = bio->bi_bdev->bd_disk->disk_name;
++	bix.sector_size = bi->sector_size;
 +
-+	if (pi->pi_len < len) {
-+		pr_err("%s: not enough space left in buffer!\n", __func__);
-+		return -ENOMEM;
++	iv = bip->bip_vec;
++	prot_offset = iv->bv_offset;
++	prot_len = iv->bv_len;
++	prot_buf = kmap_atomic(iv->bv_page);
++
++	bio_for_each_segment(bv, bio, iter) {
++		void *kaddr = kmap_atomic(bv.bv_page);
++		bv_len = bv.bv_len;
++		bv_offset = bv.bv_offset;
++
++		while (bv_len > 0) {
++			if (prot_len < bi->tuple_size) {
++				kunmap_atomic(prot_buf);
++				iv++;
++				BUG_ON(iv >= bip->bip_vec + bip->bip_vcnt);
++				prot_offset = iv->bv_offset;
++				prot_len = iv->bv_len;
++				prot_buf = kmap_atomic(iv->bv_page);
++			}
++			bix.data_buf = kaddr + bv_offset;
++			bix.data_size = min(bv_len,
++				prot_len / bi->tuple_size * bix.sector_size);
++			bix.prot_buf = prot_buf + prot_offset;
++			bix.sector = sector;
++
++			ret = bi->mod_user_buf_fn(&bix, bip->bip_user_flags);
++			if (ret) {
++				if (ret == -ENOTTY)
++					ret = 0;
++				kunmap_atomic(kaddr);
++				kunmap_atomic(prot_buf);
++				return ret;
++			}
++
++			bv_offset += bix.data_size;
++			bv_len -= bix.data_size;
++			sectors = bix.data_size / bi->sector_size;
++			sector += sectors;
++			prot_offset += sectors * bi->tuple_size;
++			prot_len -= sectors * bi->tuple_size;
++			total += sectors * bi->tuple_size;
++			BUG_ON(total > bio->bi_integrity->bip_iter.bi_size);
++		}
++		kunmap_atomic(kaddr);
 +	}
-+
-+	/* Allocate bio integrity payload and integrity vectors */
-+	bip = bio_integrity_alloc(bio, GFP_NOIO, nr_pages);
-+	if (unlikely(bip == NULL)) {
-+		pr_err("could not allocate data integrity bioset\n");
-+		return -EIO;
-+	}
-+
-+	bip->bip_owns_buf = 0;
-+	bip->bip_buf = NULL;
-+	bip->bip_iter.bi_size = len;
-+	bip->bip_iter.bi_sector = bio->bi_iter.bi_sector;
-+
-+	/* Map it */
-+	for (i = 0 ; i < nr_pages ; i++) {
-+		bytes = PAGE_SIZE - pi->pi_offset;
-+
-+		if (bytes > pi->pi_len)
-+			bytes = pi->pi_len;
-+		if (bytes > len)
-+			bytes = len;
-+		if (pi->pi_len <= 0 || len == 0)
-+			break;
-+
-+		ret = bio_integrity_add_page(bio, *pi->pi_userpages,
-+					     bytes, pi->pi_offset);
-+
-+		if (ret == 0)
-+			return -EIO;
-+
-+		if (ret < bytes)
-+			break;
-+
-+		len -= bytes;
-+		pi->pi_len -= bytes;
-+		if (pi->pi_offset + bytes == PAGE_SIZE)
-+			pi->pi_userpages++;
-+		pi->pi_offset = (pi->pi_offset + bytes) % PAGE_SIZE;
-+	}
-+
-+	/* Install custom I/O completion handler if read verify is enabled */
-+	if ((rw & WRITE) == READ) {
-+		bip->bip_end_io = bio->bi_end_io;
-+		bio->bi_end_io = bio_integrity_endio;
-+		ret = 0;
-+	}
-+
++	kunmap_atomic(prot_buf);
 +	return ret;
 +}
-+EXPORT_SYMBOL(bio_integrity_prep_buffer);
++EXPORT_SYMBOL_GPL(bio_integrity_update_user_buffer);
 +
 +/**
-  * bio_integrity_prep - Prepare bio for integrity I/O
-  * @bio:	bio to prepare
-  *
+  * bio_integrity_generate_verify - Generate/verify integrity metadata for a bio
+  * @bio:	bio to generate/verify integrity metadata for
+  * @operate:	operate number, 1 for generate, 0 for verify
+@@ -425,6 +501,7 @@ int bio_integrity_prep_buffer(struct bio *bio, int rw,
+ 	bip->bip_buf = NULL;
+ 	bip->bip_iter.bi_size = len;
+ 	bip->bip_iter.bi_sector = bio->bi_iter.bi_sector;
++	bip->bip_user_flags = pi->pi_userflags;
+ 
+ 	/* Map it */
+ 	for (i = 0 ; i < nr_pages ; i++) {
+@@ -458,7 +535,8 @@ int bio_integrity_prep_buffer(struct bio *bio, int rw,
+ 		bip->bip_end_io = bio->bi_end_io;
+ 		bio->bi_end_io = bio_integrity_endio;
+ 		ret = 0;
+-	}
++	} else
++		ret = bio_integrity_update_user_buffer(bio);
+ 
+ 	return ret;
+ }
 diff --git a/fs/direct-io.c b/fs/direct-io.c
-index 160a548..3f591f8 100644
+index 3f591f8..6740638 100644
 --- a/fs/direct-io.c
 +++ b/fs/direct-io.c
-@@ -111,6 +111,10 @@ struct dio_submit {
- 	 */
- 	unsigned head;			/* next page to process */
- 	unsigned tail;			/* last valid page + 1 */
-+
-+#if defined(CONFIG_BLK_DEV_INTEGRITY)
-+	struct bio_integrity_prep_iter	pi_iter;
-+#endif
- };
- 
- /* dio_state communicated between submission path and end_io */
-@@ -221,6 +225,7 @@ static inline struct page *dio_get_page(struct dio *dio,
+@@ -225,7 +225,6 @@ static inline struct page *dio_get_page(struct dio *dio,
  	return dio->pages[sdio->head++];
  }
  
-+
+-
  /**
   * dio_complete() - called when all DIO BIO I/O has been completed
   * @offset: the byte offset in the file of the completed operation
-@@ -385,6 +390,22 @@ dio_bio_alloc(struct dio *dio, struct dio_submit *sdio,
- 	sdio->logical_offset_in_bio = sdio->cur_page_fs_offset;
- }
- 
-+#ifdef CONFIG_BLK_DEV_INTEGRITY
-+static int dio_prep_pi_buffers(struct dio *dio, struct dio_submit *sdio)
-+{
-+	struct bio *bio = sdio->bio;
-+	if (sdio->pi_iter.pi_userpages == NULL || !bio_integrity_enabled(bio))
-+		return 0;
-+
-+	return bio_integrity_prep_buffer(bio, dio->rw, &sdio->pi_iter);
-+}
-+#else
-+static int dio_prep_pi_buffers(struct dio *dio, struct dio_submit *sdio)
-+{
-+	return 0;
-+}
-+#endif
-+
- /*
-  * In the AIO read case we speculatively dirty the pages before starting IO.
-  * During IO completion, any of these pages which happen to have been written
-@@ -392,13 +413,18 @@ dio_bio_alloc(struct dio *dio, struct dio_submit *sdio,
-  *
-  * bios hold a dio reference between submit_bio and ->end_io.
-  */
--static inline void dio_bio_submit(struct dio *dio, struct dio_submit *sdio)
-+static inline int dio_bio_submit(struct dio *dio, struct dio_submit *sdio)
- {
- 	struct bio *bio = sdio->bio;
- 	unsigned long flags;
-+	int ret = 0;
- 
- 	bio->bi_private = dio;
- 
-+	ret = dio_prep_pi_buffers(dio, sdio);
-+	if (ret)
-+		return ret;
-+
- 	spin_lock_irqsave(&dio->bio_lock, flags);
- 	dio->refcount++;
- 	spin_unlock_irqrestore(&dio->bio_lock, flags);
-@@ -415,6 +441,8 @@ static inline void dio_bio_submit(struct dio *dio, struct dio_submit *sdio)
- 	sdio->bio = NULL;
- 	sdio->boundary = 0;
- 	sdio->logical_offset_in_bio = 0;
-+
-+	return ret;
- }
- 
- /*
-@@ -736,8 +764,11 @@ static inline int dio_send_cur_page(struct dio *dio, struct dio_submit *sdio,
- 		 * have.
- 		 */
- 		if (sdio->final_block_in_bio != sdio->cur_page_block ||
--		    cur_offset != bio_next_offset)
--			dio_bio_submit(dio, sdio);
-+		    cur_offset != bio_next_offset) {
-+			ret = dio_bio_submit(dio, sdio);
-+			if (ret)
-+				goto out;
-+		}
- 	}
- 
- 	if (sdio->bio == NULL) {
-@@ -747,7 +778,9 @@ static inline int dio_send_cur_page(struct dio *dio, struct dio_submit *sdio,
- 	}
- 
- 	if (dio_bio_add_page(sdio) != 0) {
--		dio_bio_submit(dio, sdio);
-+		ret = dio_bio_submit(dio, sdio);
-+		if (ret)
-+			goto out;
- 		ret = dio_new_bio(dio, sdio, sdio->cur_page_block, map_bh);
- 		if (ret == 0) {
- 			ret = dio_bio_add_page(sdio);
-@@ -823,8 +856,12 @@ out:
- 	 * avoid metadata seeks.
- 	 */
- 	if (sdio->boundary) {
-+		int ret2;
-+
- 		ret = dio_send_cur_page(dio, sdio, map_bh);
--		dio_bio_submit(dio, sdio);
-+		ret2 = dio_bio_submit(dio, sdio);
-+		if (ret == 0)
-+			ret = ret2;
- 		page_cache_release(sdio->cur_page);
- 		sdio->cur_page = NULL;
- 	}
-@@ -1120,7 +1157,7 @@ do_blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
- 	unsigned blocksize_mask = (1 << blkbits) - 1;
- 	ssize_t retval = -EINVAL;
- 	loff_t end = offset;
--	struct dio *dio;
-+	struct dio *dio = NULL;
- 	struct dio_submit sdio = { 0, };
- 	unsigned long user_addr;
- 	size_t bytes;
-@@ -1187,8 +1224,7 @@ do_blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
- 							      end - 1);
- 			if (retval) {
- 				mutex_unlock(&inode->i_mutex);
--				kmem_cache_free(dio_cache, dio);
--				goto out;
-+				goto out_dio;
- 			}
- 		}
- 	}
-@@ -1217,8 +1253,7 @@ do_blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
- 			 * We grab i_mutex only for reads so we don't have
- 			 * to release it here
- 			 */
--			kmem_cache_free(dio_cache, dio);
--			goto out;
-+			goto out_dio;
- 		}
- 	}
- 
-@@ -1228,6 +1263,9 @@ do_blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
- 	atomic_inc(&inode->i_dio_count);
- 
- 	retval = 0;
-+#ifdef CONFIG_BLK_DEV_INTEGRITY
-+	sdio.pi_iter = iocb->ki_ioext->ke_pi_iter;
-+#endif
- 	sdio.blkbits = blkbits;
- 	sdio.blkfactor = i_blkbits - blkbits;
- 	sdio.block_in_file = offset >> blkbits;
-@@ -1315,8 +1353,12 @@ do_blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
- 		page_cache_release(sdio.cur_page);
- 		sdio.cur_page = NULL;
- 	}
--	if (sdio.bio)
--		dio_bio_submit(dio, &sdio);
-+	if (sdio.bio) {
-+		int ret2;
-+		ret2 = dio_bio_submit(dio, &sdio);
-+		if (retval == 0)
-+			retval = ret2;
-+	}
- 
- 	blk_finish_plug(&plug);
- 
-@@ -1353,7 +1395,9 @@ do_blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
- 		retval = dio_complete(dio, offset, retval, false);
- 	} else
- 		BUG_ON(retval != -EIOCBQUEUED);
--
-+	return retval;
-+out_dio:
-+	kmem_cache_free(dio_cache, dio);
- out:
- 	return retval;
- }
-diff --git a/include/linux/aio.h b/include/linux/aio.h
-index 60f4364..3f142b8 100644
---- a/include/linux/aio.h
-+++ b/include/linux/aio.h
-@@ -6,6 +6,7 @@
- #include <linux/aio_abi.h>
- #include <linux/uio.h>
- #include <linux/rcupdate.h>
-+#include <linux/bio.h>
- 
- #include <linux/atomic.h>
- 
-@@ -14,6 +15,8 @@ struct kiocb;
- 
- #define KIOCB_KEY		0
- 
-+#define KIOCB_DIO_ONLY	(1)	/* don't try buffered if directio fails */
-+
- /*
-  * We use ki_cancel == KIOCB_CANCELLED to indicate that a kiocb has been either
-  * cancelled or completed (this makes a certain amount of sense because
-@@ -29,10 +32,15 @@ struct kiocb;
- 
- typedef int (kiocb_cancel_fn)(struct kiocb *);
- 
-+/* per-kiocb extension data */
- struct kio_extension {
- 	struct io_extension __user *ke_user;
- 	struct io_extension ke_kern;
-+#if defined(CONFIG_BLK_DEV_INTEGRITY)
-+	struct bio_integrity_prep_iter	ke_pi_iter;	/* PI buffers */
-+#endif
- };
-+
- struct kiocb {
- 	struct file		*ki_filp;
- 	struct kioctx		*ki_ctx;	/* NULL for sync ops */
-@@ -59,6 +67,8 @@ struct kiocb {
- 
- 	/* Kernel copy of extension descriptors */
- 	struct kio_extension	*ki_ioext;
-+
-+	unsigned int		ki_flags;
- };
- 
- static inline bool is_sync_kiocb(struct kiocb *kiocb)
 diff --git a/include/linux/bio.h b/include/linux/bio.h
-index 5a4d39b..4729ab1 100644
+index 4729ab1..5bd9618 100644
 --- a/include/linux/bio.h
 +++ b/include/linux/bio.h
-@@ -635,6 +635,13 @@ struct biovec_slab {
- 	struct kmem_cache *slab;
+@@ -304,7 +304,9 @@ struct bio_integrity_payload {
+ 	struct work_struct	bip_work;	/* I/O completion */
+ 
+ 	struct bio_vec		*bip_vec;
++	unsigned int		bip_user_flags;
+ 	struct bio_vec		bip_inline_vecs[0];/* embedded bvec array */
++	/* This must be last! */
+ };
+ #endif /* CONFIG_BLK_DEV_INTEGRITY */
+ 
+@@ -640,6 +642,7 @@ struct bio_integrity_prep_iter {
+ 	size_t pi_nrpages;		/* Number of PI data pages */
+ 	size_t pi_offset;		/* Offset into the page */
+ 	size_t pi_len;			/* Length of the buffer */
++	unsigned int pi_userflags;	/* Userspace flags */
  };
  
-+struct bio_integrity_prep_iter {
-+	struct page **pi_userpages;	/* Pages containing PI data */
-+	size_t pi_nrpages;		/* Number of PI data pages */
-+	size_t pi_offset;		/* Offset into the page */
-+	size_t pi_len;			/* Length of the buffer */
-+};
-+
  /*
-  * a small number of entries is fine, not going to be performance critical.
-  * basically we just need to survive
-@@ -663,6 +670,8 @@ extern int bio_integrity_enabled(struct bio *bio);
- extern int bio_integrity_set_tag(struct bio *, void *, unsigned int);
- extern int bio_integrity_get_tag(struct bio *, void *, unsigned int);
- extern int bio_integrity_prep(struct bio *);
-+extern int bio_integrity_prep_buffer(struct bio *, int rw,
-+				     struct bio_integrity_prep_iter *);
- extern void bio_integrity_endio(struct bio *, int);
- extern void bio_integrity_advance(struct bio *, unsigned int);
- extern void bio_integrity_trim(struct bio *, unsigned int, unsigned int);
-@@ -693,6 +702,12 @@ static inline void bioset_integrity_free (struct bio_set *bs)
- 	return;
- }
+diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
+index 4afa4f8..cf1ec22 100644
+--- a/include/linux/blkdev.h
++++ b/include/linux/blkdev.h
+@@ -1426,12 +1426,14 @@ typedef void (integrity_gen_fn) (struct blk_integrity_exchg *);
+ typedef int (integrity_vrfy_fn) (struct blk_integrity_exchg *);
+ typedef void (integrity_set_tag_fn) (void *, void *, unsigned int);
+ typedef void (integrity_get_tag_fn) (void *, void *, unsigned int);
++typedef int (integrity_mod_user_buf_fn) (struct blk_integrity_exchg *, int);
  
-+static inline int bio_integrity_prep_buffer(struct bio *bio, int rw,
-+					    struct bio_integrity_prep_iter *pi)
-+{
-+	return 0;
-+}
-+
- static inline int bio_integrity_prep(struct bio *bio)
- {
- 	return 0;
+ struct blk_integrity {
+ 	integrity_gen_fn	*generate_fn;
+ 	integrity_vrfy_fn	*verify_fn;
+ 	integrity_set_tag_fn	*set_tag_fn;
+ 	integrity_get_tag_fn	*get_tag_fn;
++	integrity_mod_user_buf_fn	*mod_user_buf_fn;
+ 
+ 	unsigned short		flags;
+ 	unsigned short		tuple_size;
 diff --git a/include/uapi/linux/aio_abi.h b/include/uapi/linux/aio_abi.h
-index 07ffd1f..d7b8c68 100644
+index d7b8c68..f6556a6 100644
 --- a/include/uapi/linux/aio_abi.h
 +++ b/include/uapi/linux/aio_abi.h
-@@ -74,11 +74,17 @@ struct io_event {
- 
- /* IO extension types */
- #define IO_EXT_INVALID	(0)
-+#define IO_EXT_PI	(1)	/* protection info (checksums, etc) */
- 
- /* IO extension descriptor */
- struct io_extension {
- 	__u64 ie_size;
- 	__u64 ie_has;
-+
-+	/* PI stuff */
-+	__u64 ie_pi_buf;
-+	__u32 ie_pi_buflen;
-+	__u32 ie_pi_ret;
+@@ -85,6 +85,7 @@ struct io_extension {
+ 	__u64 ie_pi_buf;
+ 	__u32 ie_pi_buflen;
+ 	__u32 ie_pi_ret;
++	__u32 ie_pi_flags;
  };
  
  /*
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 7a13f6a..d35ddb3 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -2477,6 +2477,12 @@ ssize_t __generic_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
- 							ppos, count, ocount);
- 		if (written < 0 || written == count)
- 			goto out;
-+
-+		if (iocb->ki_flags & KIOCB_DIO_ONLY) {
-+			err = -EINVAL;
-+			goto out;
-+		}
-+
- 		/*
- 		 * direct-io write to a hole: fall through to buffered I/O
- 		 * for completing the rest of the request.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
