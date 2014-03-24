@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 4ABBC6B00C6
-	for <linux-mm@kvack.org>; Mon, 24 Mar 2014 12:22:51 -0400 (EDT)
-Received: by mail-pa0-f51.google.com with SMTP id kq14so5670715pab.38
-        for <linux-mm@kvack.org>; Mon, 24 Mar 2014 09:22:51 -0700 (PDT)
-Subject: [PATCH 2/6] io: define an interface for IO extensions
+Received: from mail-pb0-f47.google.com (mail-pb0-f47.google.com [209.85.160.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 7ABD26B00C6
+	for <linux-mm@kvack.org>; Mon, 24 Mar 2014 12:22:59 -0400 (EDT)
+Received: by mail-pb0-f47.google.com with SMTP id up15so5679407pbc.20
+        for <linux-mm@kvack.org>; Mon, 24 Mar 2014 09:22:59 -0700 (PDT)
+Subject: [PATCH 3/6] aio/dio: enable PI passthrough
 From: "Darrick J. Wong" <darrick.wong@oracle.com>
-Date: Mon, 24 Mar 2014 09:22:44 -0700
-Message-ID: <20140324162244.10848.46322.stgit@birch.djwong.org>
+Date: Mon, 24 Mar 2014 09:22:52 -0700
+Message-ID: <20140324162251.10848.56452.stgit@birch.djwong.org>
 In-Reply-To: <20140324162231.10848.4863.stgit@birch.djwong.org>
 References: <20140324162231.10848.4863.stgit@birch.djwong.org>
 MIME-Version: 1.0
@@ -18,310 +18,542 @@ List-ID: <linux-mm.kvack.org>
 To: axboe@kernel.dk, zab@redhat.com, martin.petersen@oracle.com, darrick.wong@oracle.com, JBottomley@parallels.com, jmoyer@redhat.com, bcrl@kvack.org, viro@zeniv.linux.org.uk
 Cc: linux-fsdevel@vger.kernel.org, linux-aio@kvack.org, linux-scsi@vger.kernel.org, linux-mm@kvack.org
 
-Define a generic interface to allow userspace to attach metadata to an
-IO operation.  This interface will be used initially to implement
-protection information (PI) pass through, though it ought to be usable
-by anyone else desiring to extend the IO interface.  It should not be
-difficult to modify the non-AIO calls to use this mechanism.
+Provide an IO extension handler that attaches PI data from the io
+extension structure to a kiocb, then teach directio how to attach the
+pages representing the PI buffer directly to a bio.
 
 Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
 ---
- fs/aio.c                     |  180 +++++++++++++++++++++++++++++++++++++++++-
- include/linux/aio.h          |    7 ++
- include/uapi/linux/aio_abi.h |   15 +++-
- 3 files changed, 197 insertions(+), 5 deletions(-)
+ Documentation/block/data-integrity.txt |   11 ++++
+ fs/aio.c                               |   62 +++++++++++++++++++++
+ fs/bio-integrity.c                     |   94 +++++++++++++++++++++++++++++++-
+ fs/direct-io.c                         |   70 +++++++++++++++++++-----
+ include/linux/aio.h                    |   10 +++
+ include/linux/bio.h                    |   15 +++++
+ include/uapi/linux/aio_abi.h           |    6 ++
+ mm/filemap.c                           |    6 ++
+ 8 files changed, 259 insertions(+), 15 deletions(-)
 
 
+diff --git a/Documentation/block/data-integrity.txt b/Documentation/block/data-integrity.txt
+index 2d735b0a..1d1f070 100644
+--- a/Documentation/block/data-integrity.txt
++++ b/Documentation/block/data-integrity.txt
+@@ -282,6 +282,17 @@ will require extra work due to the application tag.
+       It is up to the receiver to process them and verify data
+       integrity upon completion.
+ 
++    int bio_integrity_prep_buffer(struct bio *bio, int rw,
++				  struct bio_integrity_prep_iter *pi);
++
++      This function should be called before submit_bio; its purpose is to
++      attach an arbitrary array of struct page * containing integrity data
++      to an existing bio.  Primarily this is intended for AIO/DIO to be
++      able to attach a userspace buffer to a bio.
++
++      The bio_integrity_prep_iter should contain the page offset and buffer
++      length of the PI buffer, the number of pages, and the actual array of
++      pages, as returned by get_user_pages.
+ 
+ 5.4 REGISTERING A BLOCK DEVICE AS CAPABLE OF EXCHANGING INTEGRITY
+     METADATA
 diff --git a/fs/aio.c b/fs/aio.c
-index 062a5f6..0c40bdc 100644
+index 0c40bdc..3f932c3 100644
 --- a/fs/aio.c
 +++ b/fs/aio.c
-@@ -158,6 +158,11 @@ static struct vfsmount *aio_mnt;
- static const struct file_operations aio_ring_fops;
- static const struct address_space_operations aio_ctx_aops;
+@@ -1379,7 +1379,69 @@ struct io_extension_type {
+ 	int (*destroy_fn)(struct kiocb *);
+ };
  
-+static int io_teardown_extensions(struct kiocb *req);
-+static int io_setup_extensions(struct kiocb *req, int is_write,
-+			       struct io_extension __user *ioext);
-+static int iocb_setup_extensions(struct iocb *iocb, struct kiocb *req);
-+
- static struct file *aio_private_file(struct kioctx *ctx, loff_t nr_pages)
- {
- 	struct qstr this = QSTR_INIT("[aio]", 5);
-@@ -916,6 +921,17 @@ void aio_complete(struct kiocb *iocb, long res, long res2)
- 	struct io_event	*ev_page, *event;
- 	unsigned long	flags;
- 	unsigned tail, pos;
-+	int ret;
-+
-+	ret = io_teardown_extensions(iocb);
-+	if (ret) {
-+		if (!res)
-+			res = ret;
-+		else if (!res2)
-+			res2 = ret;
-+		else
-+			pr_err("error %d tearing down aio extensions\n", ret);
-+	}
- 
- 	/*
- 	 * Special case handling for sync iocbs:
-@@ -1350,15 +1366,167 @@ rw_common:
- 	return 0;
- }
- 
-+/* IO extension code */
-+#define REQUIRED_STRUCTURE_SIZE(type, member)	\
-+	(offsetof(type, member) + sizeof(((type *)NULL)->member))
-+#define IO_EXT_SIZE(member) \
-+	REQUIRED_STRUCTURE_SIZE(struct io_extension, member)
-+
-+struct io_extension_type {
-+	unsigned int type;
-+	unsigned int extension_struct_size;
-+	int (*setup_fn)(struct kiocb *, int is_write);
-+	int (*destroy_fn)(struct kiocb *);
-+};
-+
-+static struct io_extension_type extensions[] = {
-+	{IO_EXT_INVALID, 0, NULL, NULL},
-+};
-+
-+static int is_write_iocb(struct iocb *iocb)
++#ifdef CONFIG_BLK_DEV_INTEGRITY
++static int destroy_pi_ext(struct kiocb *req)
 +{
-+	switch (iocb->aio_lio_opcode) {
-+	case IOCB_CMD_PWRITE:
-+	case IOCB_CMD_PWRITEV:
-+		return 1;
-+	default:
-+		return 0;
-+	}
-+}
++	unsigned int i;
 +
-+static int io_teardown_extensions(struct kiocb *req)
-+{
-+	struct io_extension_type *iet;
-+	int ret, ret2;
-+
-+	if (req->ki_ioext == NULL)
++	if (req->ki_ioext->ke_pi_iter.pi_userpages == NULL)
 +		return 0;
 +
-+	/* Shut down all the extensions */
-+	ret = 0;
-+	for (iet = extensions; iet->type != IO_EXT_INVALID; iet++) {
-+		if (!(req->ki_ioext->ke_kern.ie_has & iet->type))
-+			continue;
-+		ret2 = iet->destroy_fn(req);
-+		if (ret2 && !ret)
-+			ret = ret2;
-+	}
-+
-+	/* Copy out return values */
-+	if (unlikely(copy_to_user(req->ki_ioext->ke_user,
-+				  &req->ki_ioext->ke_kern,
-+				  sizeof(struct io_extension)))) {
-+		if (!ret)
-+			ret = -EFAULT;
-+	}
-+
-+	kfree(req->ki_ioext);
-+	req->ki_ioext = NULL;
-+	return ret;
-+}
-+
-+static int io_check_bufsize(__u64 has, __u64 size)
-+{
-+	struct io_extension_type *iet;
-+	__u64 all_flags = 0;
-+
-+	for (iet = extensions; iet->type != IO_EXT_INVALID; iet++) {
-+		all_flags |= iet->type;
-+		if (!(has & iet->type))
-+			continue;
-+		if (iet->extension_struct_size > size)
-+			return -EINVAL;
-+	}
-+
-+	if (has & ~all_flags)
-+		return -EINVAL;
++	for (i = 0; i < req->ki_ioext->ke_pi_iter.pi_nrpages; i++)
++		page_cache_release(req->ki_ioext->ke_pi_iter.pi_userpages[i]);
++	kfree(req->ki_ioext->ke_pi_iter.pi_userpages);
++	req->ki_ioext->ke_pi_iter.pi_userpages = NULL;
 +
 +	return 0;
 +}
 +
-+static int io_setup_extensions(struct kiocb *req, int is_write,
-+			       struct io_extension __user *ioext)
++static int setup_pi_ext(struct kiocb *req, int is_write)
 +{
-+	struct io_extension_type *iet;
-+	__u64 sz, has;
++	struct file *file = req->ki_filp;
++	struct io_extension *ext = &req->ki_ioext->ke_kern;
++	void *p;
++	unsigned long start, end;
++	int retval;
++
++	if (!(file->f_flags & O_DIRECT)) {
++		pr_debug("EINVAL: can't use PI without O_DIRECT.\n");
++		return -EINVAL;
++	}
++
++	BUG_ON(req->ki_ioext->ke_pi_iter.pi_userpages);
++
++	end = (((unsigned long)ext->ie_pi_buf) + ext->ie_pi_buflen +
++		PAGE_SIZE - 1) >> PAGE_SHIFT;
++	start = ((unsigned long)ext->ie_pi_buf) >> PAGE_SHIFT;
++	req->ki_ioext->ke_pi_iter.pi_offset = offset_in_page(ext->ie_pi_buf);
++	req->ki_ioext->ke_pi_iter.pi_len = ext->ie_pi_buflen;
++	req->ki_ioext->ke_pi_iter.pi_nrpages = end - start;
++	p = kzalloc(req->ki_ioext->ke_pi_iter.pi_nrpages *
++		    sizeof(struct page *),
++		    GFP_NOIO);
++	if (p == NULL) {
++		pr_err("%s: no room for page array?\n", __func__);
++		return -ENOMEM;
++	}
++	req->ki_ioext->ke_pi_iter.pi_userpages = p;
++
++	retval = get_user_pages_fast((unsigned long)ext->ie_pi_buf,
++				     req->ki_ioext->ke_pi_iter.pi_nrpages,
++				     is_write,
++				     req->ki_ioext->ke_pi_iter.pi_userpages);
++	if (retval != req->ki_ioext->ke_pi_iter.pi_nrpages) {
++		pr_err("%s: couldn't map pages?\n", __func__);
++		req->ki_ioext->ke_pi_iter.pi_nrpages = retval;
++		return -ENOMEM;
++	}
++	req->ki_flags |= KIOCB_DIO_ONLY;
++
++	return 0;
++}
++#endif
++
+ static struct io_extension_type extensions[] = {
++	{IO_EXT_PI, IO_EXT_SIZE(ie_pi_ret), setup_pi_ext, destroy_pi_ext},
+ 	{IO_EXT_INVALID, 0, NULL, NULL},
+ };
+ 
+diff --git a/fs/bio-integrity.c b/fs/bio-integrity.c
+index 413312f..3df9aeb 100644
+--- a/fs/bio-integrity.c
++++ b/fs/bio-integrity.c
+@@ -138,7 +138,7 @@ int bio_integrity_add_page(struct bio *bio, struct page *page,
+ 	struct bio_vec *iv;
+ 
+ 	if (bip->bip_vcnt >= bip_integrity_vecs(bip)) {
+-		printk(KERN_ERR "%s: bip_vec full\n", __func__);
++		pr_err("%s: bip_vec full\n", __func__);
+ 		return 0;
+ 	}
+ 
+@@ -250,7 +250,7 @@ static int bio_integrity_tag(struct bio *bio, void *tag_buf, unsigned int len,
+ 					DIV_ROUND_UP(len, bi->tag_size));
+ 
+ 	if (nr_sectors * bi->tuple_size > bip->bip_iter.bi_size) {
+-		printk(KERN_ERR "%s: tag too big for bio: %u > %u\n", __func__,
++		pr_err("%s: tag too big for bio: %u > %u\n", __func__,
+ 		       nr_sectors * bi->tuple_size, bip->bip_iter.bi_size);
+ 		return -1;
+ 	}
+@@ -375,6 +375,96 @@ static inline unsigned short blk_integrity_tuple_size(struct blk_integrity *bi)
+ }
+ 
+ /**
++ * bio_integrity_prep_buffer - Prepare bio for integrity I/O
++ * @bio:	bio to prepare
++ * @rw:		data direction for the bio
++ * @pi:		pi data to attach to bio
++ *
++ * Description: Allocates a buffer for integrity metadata, maps the
++ * pages and attaches them to a bio.  The bio must have target device
++ * and start sector set prior to calling.  The pages specified in the
++ * @pi argument should contain integrity metadata in the WRITE case,
++ * and should be ready to receive metadata in the READ case.
++ */
++int bio_integrity_prep_buffer(struct bio *bio, int rw,
++			      struct bio_integrity_prep_iter *pi)
++{
++	struct bio_integrity_payload *bip;
++	struct blk_integrity *bi;
++	unsigned long start, end;
++	unsigned int len, nr_pages;
++	unsigned int bytes, i;
++	unsigned int sectors;
 +	int ret;
 +
-+	/* Check size of buffer */
-+	if (unlikely(copy_from_user(&sz, &ioext->ie_size, sizeof(sz))))
-+		return -EFAULT;
-+	if (sz > PAGE_SIZE ||
-+	    sz > sizeof(struct io_extension) ||
-+	    sz < IO_EXT_SIZE(ie_has))
-+		return -EINVAL;
++	bi = bdev_get_integrity(bio->bi_bdev);
++	BUG_ON(bi == NULL);
++	BUG_ON(bio_integrity(bio));
 +
-+	/* Check that the buffer's big enough */
-+	if (unlikely(copy_from_user(&has, &ioext->ie_has, sizeof(has))))
-+		return -EFAULT;
-+	ret = io_check_bufsize(has, sz);
++	sectors = bio_integrity_hw_sectors(bi, bio_sectors(bio));
++
++	/* Allocate kernel buffer for protection data */
++	len = sectors * blk_integrity_tuple_size(bi);
++	end = (pi->pi_offset + len + PAGE_SIZE - 1) >> PAGE_SHIFT;
++	start = pi->pi_offset >> PAGE_SHIFT;
++	nr_pages = end - start;
++
++	if (pi->pi_len < len) {
++		pr_err("%s: not enough space left in buffer!\n", __func__);
++		return -ENOMEM;
++	}
++
++	/* Allocate bio integrity payload and integrity vectors */
++	bip = bio_integrity_alloc(bio, GFP_NOIO, nr_pages);
++	if (unlikely(bip == NULL)) {
++		pr_err("could not allocate data integrity bioset\n");
++		return -EIO;
++	}
++
++	bip->bip_owns_buf = 0;
++	bip->bip_buf = NULL;
++	bip->bip_iter.bi_size = len;
++	bip->bip_iter.bi_sector = bio->bi_iter.bi_sector;
++
++	/* Map it */
++	for (i = 0 ; i < nr_pages ; i++) {
++		bytes = PAGE_SIZE - pi->pi_offset;
++
++		if (bytes > pi->pi_len)
++			bytes = pi->pi_len;
++		if (bytes > len)
++			bytes = len;
++		if (pi->pi_len <= 0 || len == 0)
++			break;
++
++		ret = bio_integrity_add_page(bio, *pi->pi_userpages,
++					     bytes, pi->pi_offset);
++
++		if (ret == 0)
++			return -EIO;
++
++		if (ret < bytes)
++			break;
++
++		len -= bytes;
++		pi->pi_len -= bytes;
++		if (pi->pi_offset + bytes == PAGE_SIZE)
++			pi->pi_userpages++;
++		pi->pi_offset = (pi->pi_offset + bytes) % PAGE_SIZE;
++	}
++
++	/* Install custom I/O completion handler if read verify is enabled */
++	if ((rw & WRITE) == READ) {
++		bip->bip_end_io = bio->bi_end_io;
++		bio->bi_end_io = bio_integrity_endio;
++		ret = 0;
++	}
++
++	return ret;
++}
++EXPORT_SYMBOL(bio_integrity_prep_buffer);
++
++/**
+  * bio_integrity_prep - Prepare bio for integrity I/O
+  * @bio:	bio to prepare
+  *
+diff --git a/fs/direct-io.c b/fs/direct-io.c
+index 160a548..3f591f8 100644
+--- a/fs/direct-io.c
++++ b/fs/direct-io.c
+@@ -111,6 +111,10 @@ struct dio_submit {
+ 	 */
+ 	unsigned head;			/* next page to process */
+ 	unsigned tail;			/* last valid page + 1 */
++
++#if defined(CONFIG_BLK_DEV_INTEGRITY)
++	struct bio_integrity_prep_iter	pi_iter;
++#endif
+ };
+ 
+ /* dio_state communicated between submission path and end_io */
+@@ -221,6 +225,7 @@ static inline struct page *dio_get_page(struct dio *dio,
+ 	return dio->pages[sdio->head++];
+ }
+ 
++
+ /**
+  * dio_complete() - called when all DIO BIO I/O has been completed
+  * @offset: the byte offset in the file of the completed operation
+@@ -385,6 +390,22 @@ dio_bio_alloc(struct dio *dio, struct dio_submit *sdio,
+ 	sdio->logical_offset_in_bio = sdio->cur_page_fs_offset;
+ }
+ 
++#ifdef CONFIG_BLK_DEV_INTEGRITY
++static int dio_prep_pi_buffers(struct dio *dio, struct dio_submit *sdio)
++{
++	struct bio *bio = sdio->bio;
++	if (sdio->pi_iter.pi_userpages == NULL || !bio_integrity_enabled(bio))
++		return 0;
++
++	return bio_integrity_prep_buffer(bio, dio->rw, &sdio->pi_iter);
++}
++#else
++static int dio_prep_pi_buffers(struct dio *dio, struct dio_submit *sdio)
++{
++	return 0;
++}
++#endif
++
+ /*
+  * In the AIO read case we speculatively dirty the pages before starting IO.
+  * During IO completion, any of these pages which happen to have been written
+@@ -392,13 +413,18 @@ dio_bio_alloc(struct dio *dio, struct dio_submit *sdio,
+  *
+  * bios hold a dio reference between submit_bio and ->end_io.
+  */
+-static inline void dio_bio_submit(struct dio *dio, struct dio_submit *sdio)
++static inline int dio_bio_submit(struct dio *dio, struct dio_submit *sdio)
+ {
+ 	struct bio *bio = sdio->bio;
+ 	unsigned long flags;
++	int ret = 0;
+ 
+ 	bio->bi_private = dio;
+ 
++	ret = dio_prep_pi_buffers(dio, sdio);
 +	if (ret)
 +		return ret;
 +
-+	/* Copy from userland */
-+	req->ki_ioext = kzalloc(sizeof(struct kio_extension), GFP_NOIO);
-+	if (!req->ki_ioext)
-+		return -ENOMEM;
+ 	spin_lock_irqsave(&dio->bio_lock, flags);
+ 	dio->refcount++;
+ 	spin_unlock_irqrestore(&dio->bio_lock, flags);
+@@ -415,6 +441,8 @@ static inline void dio_bio_submit(struct dio *dio, struct dio_submit *sdio)
+ 	sdio->bio = NULL;
+ 	sdio->boundary = 0;
+ 	sdio->logical_offset_in_bio = 0;
 +
-+	req->ki_ioext->ke_user = ioext;
-+	if (unlikely(copy_from_user(&req->ki_ioext->ke_kern, ioext, sz))) {
-+		ret = -EFAULT;
-+		goto out;
-+	}
-+
-+	/* Try to initialize all the extensions */
-+	has = 0;
-+	for (iet = extensions; iet->type != IO_EXT_INVALID; iet++) {
-+		if (!(req->ki_ioext->ke_kern.ie_has & iet->type))
-+			continue;
-+		ret = iet->setup_fn(req, is_write);
-+		if (ret) {
-+			req->ki_ioext->ke_kern.ie_has = has;
-+			goto out_destroy;
-+		}
-+		has |= iet->type;
-+	}
-+
-+	return 0;
-+out_destroy:
-+	io_teardown_extensions(req);
-+out:
-+	kfree(req->ki_ioext);
-+	req->ki_ioext = NULL;
 +	return ret;
-+}
-+
-+static int iocb_setup_extensions(struct iocb *iocb, struct kiocb *req)
-+{
-+	struct io_extension __user *user_ext;
-+
-+	if (!(iocb->aio_flags & IOCB_FLAG_EXTENSIONS))
-+		return 0;
-+
-+	user_ext = (struct io_extension __user *)iocb->aio_extension_ptr;
-+	return io_setup_extensions(req, is_write_iocb(iocb), user_ext);
-+}
-+
- static int io_submit_one(struct kioctx *ctx, struct iocb __user *user_iocb,
- 			 struct iocb *iocb, bool compat)
- {
- 	struct kiocb *req;
- 	ssize_t ret;
+ }
  
-+	/* check for flags we don't know about */
-+	if (iocb->aio_flags & ~IOCB_FLAG_ALL) {
-+		pr_debug("EINVAL: invalid flags\n");
-+		return -EINVAL;
-+	}
-+
- 	/* enforce forwards compatibility on users */
--	if (unlikely(iocb->aio_reserved1 || iocb->aio_reserved2)) {
--		pr_debug("EINVAL: reserve field set\n");
-+	if (unlikely(iocb->aio_reserved1 ||
-+	    (!(iocb->aio_flags & IOCB_FLAG_EXTENSIONS) &&
-+	     iocb->aio_extension_ptr))) {
-+		pr_debug("EINVAL: reserved field set\n");
- 		return -EINVAL;
+ /*
+@@ -736,8 +764,11 @@ static inline int dio_send_cur_page(struct dio *dio, struct dio_submit *sdio,
+ 		 * have.
+ 		 */
+ 		if (sdio->final_block_in_bio != sdio->cur_page_block ||
+-		    cur_offset != bio_next_offset)
+-			dio_bio_submit(dio, sdio);
++		    cur_offset != bio_next_offset) {
++			ret = dio_bio_submit(dio, sdio);
++			if (ret)
++				goto out;
++		}
  	}
  
-@@ -1408,13 +1576,19 @@ static int io_submit_one(struct kioctx *ctx, struct iocb __user *user_iocb,
- 	req->ki_pos = iocb->aio_offset;
- 	req->ki_nbytes = iocb->aio_nbytes;
+ 	if (sdio->bio == NULL) {
+@@ -747,7 +778,9 @@ static inline int dio_send_cur_page(struct dio *dio, struct dio_submit *sdio,
+ 	}
  
-+	ret = iocb_setup_extensions(iocb, req);
-+	if (unlikely(ret))
-+		goto out_del_ext;
+ 	if (dio_bio_add_page(sdio) != 0) {
+-		dio_bio_submit(dio, sdio);
++		ret = dio_bio_submit(dio, sdio);
++		if (ret)
++			goto out;
+ 		ret = dio_new_bio(dio, sdio, sdio->cur_page_block, map_bh);
+ 		if (ret == 0) {
+ 			ret = dio_bio_add_page(sdio);
+@@ -823,8 +856,12 @@ out:
+ 	 * avoid metadata seeks.
+ 	 */
+ 	if (sdio->boundary) {
++		int ret2;
 +
- 	ret = aio_run_iocb(req, iocb->aio_lio_opcode,
- 			   (char __user *)(unsigned long)iocb->aio_buf,
- 			   compat);
- 	if (ret)
--		goto out_put_req;
-+		goto out_del_ext;
+ 		ret = dio_send_cur_page(dio, sdio, map_bh);
+-		dio_bio_submit(dio, sdio);
++		ret2 = dio_bio_submit(dio, sdio);
++		if (ret == 0)
++			ret = ret2;
+ 		page_cache_release(sdio->cur_page);
+ 		sdio->cur_page = NULL;
+ 	}
+@@ -1120,7 +1157,7 @@ do_blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
+ 	unsigned blocksize_mask = (1 << blkbits) - 1;
+ 	ssize_t retval = -EINVAL;
+ 	loff_t end = offset;
+-	struct dio *dio;
++	struct dio *dio = NULL;
+ 	struct dio_submit sdio = { 0, };
+ 	unsigned long user_addr;
+ 	size_t bytes;
+@@ -1187,8 +1224,7 @@ do_blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
+ 							      end - 1);
+ 			if (retval) {
+ 				mutex_unlock(&inode->i_mutex);
+-				kmem_cache_free(dio_cache, dio);
+-				goto out;
++				goto out_dio;
+ 			}
+ 		}
+ 	}
+@@ -1217,8 +1253,7 @@ do_blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
+ 			 * We grab i_mutex only for reads so we don't have
+ 			 * to release it here
+ 			 */
+-			kmem_cache_free(dio_cache, dio);
+-			goto out;
++			goto out_dio;
+ 		}
+ 	}
  
- 	return 0;
-+out_del_ext:
-+	io_teardown_extensions(req);
- out_put_req:
- 	put_reqs_available(ctx, 1);
- 	percpu_ref_put(&ctx->reqs);
+@@ -1228,6 +1263,9 @@ do_blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
+ 	atomic_inc(&inode->i_dio_count);
+ 
+ 	retval = 0;
++#ifdef CONFIG_BLK_DEV_INTEGRITY
++	sdio.pi_iter = iocb->ki_ioext->ke_pi_iter;
++#endif
+ 	sdio.blkbits = blkbits;
+ 	sdio.blkfactor = i_blkbits - blkbits;
+ 	sdio.block_in_file = offset >> blkbits;
+@@ -1315,8 +1353,12 @@ do_blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
+ 		page_cache_release(sdio.cur_page);
+ 		sdio.cur_page = NULL;
+ 	}
+-	if (sdio.bio)
+-		dio_bio_submit(dio, &sdio);
++	if (sdio.bio) {
++		int ret2;
++		ret2 = dio_bio_submit(dio, &sdio);
++		if (retval == 0)
++			retval = ret2;
++	}
+ 
+ 	blk_finish_plug(&plug);
+ 
+@@ -1353,7 +1395,9 @@ do_blockdev_direct_IO(int rw, struct kiocb *iocb, struct inode *inode,
+ 		retval = dio_complete(dio, offset, retval, false);
+ 	} else
+ 		BUG_ON(retval != -EIOCBQUEUED);
+-
++	return retval;
++out_dio:
++	kmem_cache_free(dio_cache, dio);
+ out:
+ 	return retval;
+ }
 diff --git a/include/linux/aio.h b/include/linux/aio.h
-index d9c92da..60f4364 100644
+index 60f4364..3f142b8 100644
 --- a/include/linux/aio.h
 +++ b/include/linux/aio.h
-@@ -29,6 +29,10 @@ struct kiocb;
+@@ -6,6 +6,7 @@
+ #include <linux/aio_abi.h>
+ #include <linux/uio.h>
+ #include <linux/rcupdate.h>
++#include <linux/bio.h>
+ 
+ #include <linux/atomic.h>
+ 
+@@ -14,6 +15,8 @@ struct kiocb;
+ 
+ #define KIOCB_KEY		0
+ 
++#define KIOCB_DIO_ONLY	(1)	/* don't try buffered if directio fails */
++
+ /*
+  * We use ki_cancel == KIOCB_CANCELLED to indicate that a kiocb has been either
+  * cancelled or completed (this makes a certain amount of sense because
+@@ -29,10 +32,15 @@ struct kiocb;
  
  typedef int (kiocb_cancel_fn)(struct kiocb *);
  
-+struct kio_extension {
-+	struct io_extension __user *ke_user;
-+	struct io_extension ke_kern;
-+};
++/* per-kiocb extension data */
+ struct kio_extension {
+ 	struct io_extension __user *ke_user;
+ 	struct io_extension ke_kern;
++#if defined(CONFIG_BLK_DEV_INTEGRITY)
++	struct bio_integrity_prep_iter	ke_pi_iter;	/* PI buffers */
++#endif
+ };
++
  struct kiocb {
  	struct file		*ki_filp;
  	struct kioctx		*ki_ctx;	/* NULL for sync ops */
-@@ -52,6 +56,9 @@ struct kiocb {
- 	 * this is the underlying eventfd context to deliver events to.
- 	 */
- 	struct eventfd_ctx	*ki_eventfd;
+@@ -59,6 +67,8 @@ struct kiocb {
+ 
+ 	/* Kernel copy of extension descriptors */
+ 	struct kio_extension	*ki_ioext;
 +
-+	/* Kernel copy of extension descriptors */
-+	struct kio_extension	*ki_ioext;
++	unsigned int		ki_flags;
  };
  
  static inline bool is_sync_kiocb(struct kiocb *kiocb)
-diff --git a/include/uapi/linux/aio_abi.h b/include/uapi/linux/aio_abi.h
-index bb2554f..07ffd1f 100644
---- a/include/uapi/linux/aio_abi.h
-+++ b/include/uapi/linux/aio_abi.h
-@@ -53,6 +53,8 @@ enum {
-  *                   is valid.
-  */
- #define IOCB_FLAG_RESFD		(1 << 0)
-+#define IOCB_FLAG_EXTENSIONS	(1 << 1)
-+#define IOCB_FLAG_ALL		(IOCB_FLAG_RESFD | IOCB_FLAG_EXTENSIONS)
+diff --git a/include/linux/bio.h b/include/linux/bio.h
+index 5a4d39b..4729ab1 100644
+--- a/include/linux/bio.h
++++ b/include/linux/bio.h
+@@ -635,6 +635,13 @@ struct biovec_slab {
+ 	struct kmem_cache *slab;
+ };
  
- /* read() from /dev/aio returns these structures. */
- struct io_event {
-@@ -70,6 +72,15 @@ struct io_event {
- #error edit for your odd byteorder.
- #endif
- 
-+/* IO extension types */
-+#define IO_EXT_INVALID	(0)
-+
-+/* IO extension descriptor */
-+struct io_extension {
-+	__u64 ie_size;
-+	__u64 ie_has;
++struct bio_integrity_prep_iter {
++	struct page **pi_userpages;	/* Pages containing PI data */
++	size_t pi_nrpages;		/* Number of PI data pages */
++	size_t pi_offset;		/* Offset into the page */
++	size_t pi_len;			/* Length of the buffer */
 +};
 +
  /*
-  * we always use a 64bit off_t when communicating
-  * with userland.  its up to libraries to do the
-@@ -91,8 +102,8 @@ struct iocb {
- 	__u64	aio_nbytes;
- 	__s64	aio_offset;
+  * a small number of entries is fine, not going to be performance critical.
+  * basically we just need to survive
+@@ -663,6 +670,8 @@ extern int bio_integrity_enabled(struct bio *bio);
+ extern int bio_integrity_set_tag(struct bio *, void *, unsigned int);
+ extern int bio_integrity_get_tag(struct bio *, void *, unsigned int);
+ extern int bio_integrity_prep(struct bio *);
++extern int bio_integrity_prep_buffer(struct bio *, int rw,
++				     struct bio_integrity_prep_iter *);
+ extern void bio_integrity_endio(struct bio *, int);
+ extern void bio_integrity_advance(struct bio *, unsigned int);
+ extern void bio_integrity_trim(struct bio *, unsigned int, unsigned int);
+@@ -693,6 +702,12 @@ static inline void bioset_integrity_free (struct bio_set *bs)
+ 	return;
+ }
  
--	/* extra parameters */
--	__u64	aio_reserved2;	/* TODO: use this for a (struct sigevent *) */
-+	/* aio extensions, only present if IOCB_FLAG_EXTENSIONS */
-+	__u64	aio_extension_ptr;
++static inline int bio_integrity_prep_buffer(struct bio *bio, int rw,
++					    struct bio_integrity_prep_iter *pi)
++{
++	return 0;
++}
++
+ static inline int bio_integrity_prep(struct bio *bio)
+ {
+ 	return 0;
+diff --git a/include/uapi/linux/aio_abi.h b/include/uapi/linux/aio_abi.h
+index 07ffd1f..d7b8c68 100644
+--- a/include/uapi/linux/aio_abi.h
++++ b/include/uapi/linux/aio_abi.h
+@@ -74,11 +74,17 @@ struct io_event {
  
- 	/* flags for the "struct iocb" */
- 	__u32	aio_flags;
+ /* IO extension types */
+ #define IO_EXT_INVALID	(0)
++#define IO_EXT_PI	(1)	/* protection info (checksums, etc) */
+ 
+ /* IO extension descriptor */
+ struct io_extension {
+ 	__u64 ie_size;
+ 	__u64 ie_has;
++
++	/* PI stuff */
++	__u64 ie_pi_buf;
++	__u32 ie_pi_buflen;
++	__u32 ie_pi_ret;
+ };
+ 
+ /*
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 7a13f6a..d35ddb3 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -2477,6 +2477,12 @@ ssize_t __generic_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
+ 							ppos, count, ocount);
+ 		if (written < 0 || written == count)
+ 			goto out;
++
++		if (iocb->ki_flags & KIOCB_DIO_ONLY) {
++			err = -EINVAL;
++			goto out;
++		}
++
+ 		/*
+ 		 * direct-io write to a hole: fall through to buffered I/O
+ 		 * for completing the rest of the request.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
