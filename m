@@ -1,65 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Date: Mon, 24 Mar 2014 15:07:43 -0400
-From: Benjamin LaHaise <bcrl@kvack.org>
-Subject: Re: [PATCH] aio: ensure access to ctx->ring_pages is correctly serialised
-Message-ID: <20140324190743.GJ4173@kvack.org>
-References: <532A80B1.5010002@cn.fujitsu.com> <20140320143207.GA3760@redhat.com> <20140320163004.GE28970@kvack.org> <532B9C54.80705@cn.fujitsu.com> <20140321183509.GC23173@kvack.org> <533077CE.6010204@oracle.com>
-Mime-Version: 1.0
+Received: from mail-yh0-f52.google.com (mail-yh0-f52.google.com [209.85.213.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 9CEFD6B0035
+	for <linux-mm@kvack.org>; Mon, 24 Mar 2014 15:12:08 -0400 (EDT)
+Received: by mail-yh0-f52.google.com with SMTP id c41so5636749yho.39
+        for <linux-mm@kvack.org>; Mon, 24 Mar 2014 12:12:08 -0700 (PDT)
+Received: from imap.thunk.org (imap.thunk.org. [2600:3c02::f03c:91ff:fe96:be03])
+        by mx.google.com with ESMTPS id q67si16447776yhe.172.2014.03.24.12.12.07
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Mon, 24 Mar 2014 12:12:08 -0700 (PDT)
+Date: Mon, 24 Mar 2014 15:11:59 -0400
+From: tytso@mit.edu
+Subject: Re: [PATCH v7 19/22] ext4: Make ext4_block_zero_page_range static
+Message-ID: <20140324191158.GC6896@thunk.org>
+References: <cover.1395591795.git.matthew.r.wilcox@intel.com>
+ <6ae0bcd05c2e114d3c4a7803415b6c2c8a8dadd7.1395591795.git.matthew.r.wilcox@intel.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <533077CE.6010204@oracle.com>
+In-Reply-To: <6ae0bcd05c2e114d3c4a7803415b6c2c8a8dadd7.1395591795.git.matthew.r.wilcox@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: Gu Zheng <guz.fnst@cn.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>, Dave Jones <davej@redhat.com>, Al Viro <viro@zeniv.linux.org.uk>, jmoyer@redhat.com, kosaki.motohiro@jp.fujitsu.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, miaox@cn.fujitsu.com, linux-aio@kvack.org, fsdevel <linux-fsdevel@vger.kernel.org>, linux-kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Matthew Wilcox <matthew.r.wilcox@intel.com>
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, willy@linux.intel.com, linux-ext4@vger.kernel.org
 
-On Mon, Mar 24, 2014 at 02:22:06PM -0400, Sasha Levin wrote:
-> On 03/21/2014 02:35 PM, Benjamin LaHaise wrote:
-> >Hi all,
-> >
-> >Based on the issues reported by Tang and Gu, I've come up with the an
-> >alternative fix that avoids adding additional locking in the event read
-> >code path.  The fix is to take the ring_lock mutex during page migration,
-> >which is already used to syncronize event readers and thus does not add
-> >any new locking requirements in aio_read_events_ring().  I've dropped
-> >the patches from Tang and Gu as a result.  This patch is now in my
-> >git://git.kvack.org/~bcrl/aio-next.git tree and will be sent to Linus
-> >once a few other people chime in with their reviews of this change.
-> >Please review Tang, Gu.  Thanks!
+On Sun, Mar 23, 2014 at 03:08:45PM -0400, Matthew Wilcox wrote:
+> It's only called within inode.c, so make it static, remove its prototype
+> from ext4.h and move it above all of its callers so it doesn't need a
+> prototype within inode.c.
 > 
-> Hi Benjamin,
-> 
-> This patch seems to trigger:
-> 
-> [  433.476216] ======================================================
-> [  433.478468] [ INFO: possible circular locking dependency detected ]
-...
+> Signed-off-by: Matthew Wilcox <matthew.r.wilcox@intel.com>
 
-Yeah, that's a problem -- thanks for the report.  The ring_lock mutex can't 
-be nested inside of mmap_sem, as aio_read_events_ring() can take a page 
-fault while holding ring_mutex.  That makes the following change required.  
-I'll fold this change into the patch that caused this issue.
+Thanks, applied to the ext4 tree.
 
-		-ben
--- 
-"Thought is the essence of where you are now."
-
-diff --git a/fs/aio.c b/fs/aio.c
-index c97cee8..f645e7e 100644
---- a/fs/aio.c
-+++ b/fs/aio.c
-@@ -300,7 +300,10 @@ static int aio_migratepage(struct address_space *mapping, struct page *new,
- 	if (!ctx)
- 		return -EINVAL;
- 
--	mutex_lock(&ctx->ring_lock);
-+	if (!mutex_trylock(&ctx->ring_lock)) {
-+		percpu_ref_put(&ctx->users);
-+		return -EAGAIN;
-+	}
- 
- 	/* Make sure the old page hasn't already been changed */
- 	spin_lock(&mapping->private_lock);
+					- Ted
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
