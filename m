@@ -1,37 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f50.google.com (mail-yh0-f50.google.com [209.85.213.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C2D46B0035
-	for <linux-mm@kvack.org>; Mon, 24 Mar 2014 15:16:17 -0400 (EDT)
-Received: by mail-yh0-f50.google.com with SMTP id c41so5665994yho.9
-        for <linux-mm@kvack.org>; Mon, 24 Mar 2014 12:16:16 -0700 (PDT)
-Received: from imap.thunk.org (imap.thunk.org. [2600:3c02::f03c:91ff:fe96:be03])
-        by mx.google.com with ESMTPS id e68si16459496yhm.147.2014.03.24.12.16.15
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Mon, 24 Mar 2014 12:16:15 -0700 (PDT)
-Date: Mon, 24 Mar 2014 15:16:14 -0400
-From: tytso@mit.edu
-Subject: Re: [PATCH v7 21/22] ext4: Fix typos
-Message-ID: <20140324191614.GD6896@thunk.org>
-References: <cover.1395591795.git.matthew.r.wilcox@intel.com>
- <2b2c5467283817503fede11d12cba8aef912c9c5.1395591795.git.matthew.r.wilcox@intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <2b2c5467283817503fede11d12cba8aef912c9c5.1395591795.git.matthew.r.wilcox@intel.com>
+Received: from mail-ig0-f179.google.com (mail-ig0-f179.google.com [209.85.213.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 191386B00A9
+	for <linux-mm@kvack.org>; Mon, 24 Mar 2014 17:00:37 -0400 (EDT)
+Received: by mail-ig0-f179.google.com with SMTP id t19so8968964igi.0
+        for <linux-mm@kvack.org>; Mon, 24 Mar 2014 14:00:36 -0700 (PDT)
+Received: from qmta11.emeryville.ca.mail.comcast.net (qmta11.emeryville.ca.mail.comcast.net. [2001:558:fe2d:44:76:96:27:211])
+        by mx.google.com with ESMTP id nv5si22226745igb.42.2014.03.24.14.00.35
+        for <linux-mm@kvack.org>;
+        Mon, 24 Mar 2014 14:00:36 -0700 (PDT)
+Date: Mon, 24 Mar 2014 16:00:32 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [mmotm:master 463/499] mm/mprotect.c:46:14: sparse: context
+ imbalance in 'lock_pte_protection' - different lock contexts for basic
+ block
+In-Reply-To: <532e4cc1.umGiNE2YJiL9Z2iq%fengguang.wu@intel.com>
+Message-ID: <alpine.DEB.2.10.1403241559390.29809@nuc>
+References: <532e4cc1.umGiNE2YJiL9Z2iq%fengguang.wu@intel.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, willy@linux.intel.com, linux-ext4@vger.kernel.org
+To: kbuild test robot <fengguang.wu@intel.com>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, kbuild-all@01.org
 
-On Sun, Mar 23, 2014 at 03:08:47PM -0400, Matthew Wilcox wrote:
-> Comment fix only
-> 
-> Signed-off-by: Matthew Wilcox <matthew.r.wilcox@intel.com>
+On Sun, 23 Mar 2014, kbuild test robot wrote:
 
-Thanks, applied to the ext4 git tree.
+> >> mm/mprotect.c:46:14: sparse: context imbalance in 'lock_pte_protection' - different lock contexts for basic block
+> >> arch/x86/include/asm/paravirt.h:699:9: sparse: context imbalance in 'change_pte_range' - unexpected unlock
+> --
+> >> fs/ntfs/super.c:3100:1: sparse: directive in argument list
+> >> fs/ntfs/super.c:3102:1: sparse: directive in argument list
+> >> fs/ntfs/super.c:3104:1: sparse: directive in argument list
+> >> fs/ntfs/super.c:3105:1: sparse: directive in argument list
+> >> fs/ntfs/super.c:3107:1: sparse: directive in argument list
+> >> fs/ntfs/super.c:3108:1: sparse: directive in argument list
+> >> fs/ntfs/super.c:3110:1: sparse: directive in argument list
 
-							- Ted
+Looked through these and I am a bit puzzled how they related to raw cpu
+ops patch.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
