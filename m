@@ -1,158 +1,327 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id B735E6B00C2
-	for <linux-mm@kvack.org>; Mon, 24 Mar 2014 12:22:50 -0400 (EDT)
-Received: by mail-pd0-f172.google.com with SMTP id p10so5575292pdj.3
-        for <linux-mm@kvack.org>; Mon, 24 Mar 2014 09:22:50 -0700 (PDT)
-Subject: [PATCH 1/6] fs/bio-integrity: remove duplicate code
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 4ABBC6B00C6
+	for <linux-mm@kvack.org>; Mon, 24 Mar 2014 12:22:51 -0400 (EDT)
+Received: by mail-pa0-f51.google.com with SMTP id kq14so5670715pab.38
+        for <linux-mm@kvack.org>; Mon, 24 Mar 2014 09:22:51 -0700 (PDT)
+Subject: [PATCH 2/6] io: define an interface for IO extensions
 From: "Darrick J. Wong" <darrick.wong@oracle.com>
-Date: Mon, 24 Mar 2014 09:22:38 -0700
-Message-ID: <20140324162238.10848.96492.stgit@birch.djwong.org>
+Date: Mon, 24 Mar 2014 09:22:44 -0700
+Message-ID: <20140324162244.10848.46322.stgit@birch.djwong.org>
 In-Reply-To: <20140324162231.10848.4863.stgit@birch.djwong.org>
 References: <20140324162231.10848.4863.stgit@birch.djwong.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 8bit
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: axboe@kernel.dk, zab@redhat.com, martin.petersen@oracle.com, darrick.wong@oracle.com, JBottomley@parallels.com, jmoyer@redhat.com, bcrl@kvack.org, viro@zeniv.linux.org.uk
-Cc: linux-fsdevel@vger.kernel.org, linux-aio@kvack.org, Gu Zheng <guz.fnst@cn.fujitsu.com>, linux-scsi@vger.kernel.org, linux-mm@kvack.org
+Cc: linux-fsdevel@vger.kernel.org, linux-aio@kvack.org, linux-scsi@vger.kernel.org, linux-mm@kvack.org
 
-FrA,m: Gu Zheng <guz.fnst@cn.fujitsu.com>
+Define a generic interface to allow userspace to attach metadata to an
+IO operation.  This interface will be used initially to implement
+protection information (PI) pass through, though it ought to be usable
+by anyone else desiring to extend the IO interface.  It should not be
+difficult to modify the non-AIO calls to use this mechanism.
 
-Most code of function bio_integrity_verify and bio_integrity_generate
-is the same, so introduce a help function bio_integrity_generate_verify()
-to remove the duplicate code.
-
-Signed-off-by: Gu Zheng <guz.fnst@cn.fujitsu.com>
+Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
 ---
- fs/bio-integrity.c |   83 +++++++++++++++++++++++-----------------------------
- 1 file changed, 37 insertions(+), 46 deletions(-)
+ fs/aio.c                     |  180 +++++++++++++++++++++++++++++++++++++++++-
+ include/linux/aio.h          |    7 ++
+ include/uapi/linux/aio_abi.h |   15 +++-
+ 3 files changed, 197 insertions(+), 5 deletions(-)
 
 
-diff --git a/fs/bio-integrity.c b/fs/bio-integrity.c
-index 4f70f38..413312f 100644
---- a/fs/bio-integrity.c
-+++ b/fs/bio-integrity.c
-@@ -301,25 +301,26 @@ int bio_integrity_get_tag(struct bio *bio, void *tag_buf, unsigned int len)
- EXPORT_SYMBOL(bio_integrity_get_tag);
+diff --git a/fs/aio.c b/fs/aio.c
+index 062a5f6..0c40bdc 100644
+--- a/fs/aio.c
++++ b/fs/aio.c
+@@ -158,6 +158,11 @@ static struct vfsmount *aio_mnt;
+ static const struct file_operations aio_ring_fops;
+ static const struct address_space_operations aio_ctx_aops;
  
- /**
-- * bio_integrity_generate - Generate integrity metadata for a bio
-- * @bio:	bio to generate integrity metadata for
-- *
-- * Description: Generates integrity metadata for a bio by calling the
-- * block device's generation callback function.  The bio must have a
-- * bip attached with enough room to accommodate the generated
-- * integrity metadata.
-+ * bio_integrity_generate_verify - Generate/verify integrity metadata for a bio
-+ * @bio:	bio to generate/verify integrity metadata for
-+ * @operate:	operate number, 1 for generate, 0 for verify
-  */
--static void bio_integrity_generate(struct bio *bio)
-+static int bio_integrity_generate_verify(struct bio *bio, int operate)
- {
- 	struct blk_integrity *bi = bdev_get_integrity(bio->bi_bdev);
- 	struct blk_integrity_exchg bix;
- 	struct bio_vec bv;
- 	struct bvec_iter iter;
--	sector_t sector = bio->bi_iter.bi_sector;
--	unsigned int sectors, total;
-+	sector_t sector;
-+	unsigned int sectors, total, ret;
- 	void *prot_buf = bio->bi_integrity->bip_buf;
- 
--	total = 0;
-+	if (operate)
-+		sector = bio->bi_iter.bi_sector;
-+	else
-+		sector = bio->bi_integrity->bip_iter.bi_sector;
++static int io_teardown_extensions(struct kiocb *req);
++static int io_setup_extensions(struct kiocb *req, int is_write,
++			       struct io_extension __user *ioext);
++static int iocb_setup_extensions(struct iocb *iocb, struct kiocb *req);
 +
-+	total = ret = 0;
- 	bix.disk_name = bio->bi_bdev->bd_disk->disk_name;
- 	bix.sector_size = bi->sector_size;
+ static struct file *aio_private_file(struct kioctx *ctx, loff_t nr_pages)
+ {
+ 	struct qstr this = QSTR_INIT("[aio]", 5);
+@@ -916,6 +921,17 @@ void aio_complete(struct kiocb *iocb, long res, long res2)
+ 	struct io_event	*ev_page, *event;
+ 	unsigned long	flags;
+ 	unsigned tail, pos;
++	int ret;
++
++	ret = io_teardown_extensions(iocb);
++	if (ret) {
++		if (!res)
++			res = ret;
++		else if (!res2)
++			res2 = ret;
++		else
++			pr_err("error %d tearing down aio extensions\n", ret);
++	}
  
-@@ -330,7 +331,15 @@ static void bio_integrity_generate(struct bio *bio)
- 		bix.prot_buf = prot_buf;
- 		bix.sector = sector;
+ 	/*
+ 	 * Special case handling for sync iocbs:
+@@ -1350,15 +1366,167 @@ rw_common:
+ 	return 0;
+ }
  
--		bi->generate_fn(&bix);
-+		if (operate) {
-+			bi->generate_fn(&bix);
-+		} else {
-+			ret = bi->verify_fn(&bix);
-+			if (ret) {
-+				kunmap_atomic(kaddr);
-+				return ret;
-+			}
-+		}
- 
- 		sectors = bv.bv_len / bi->sector_size;
- 		sector += sectors;
-@@ -340,6 +349,21 @@ static void bio_integrity_generate(struct bio *bio)
- 
- 		kunmap_atomic(kaddr);
- 	}
++/* IO extension code */
++#define REQUIRED_STRUCTURE_SIZE(type, member)	\
++	(offsetof(type, member) + sizeof(((type *)NULL)->member))
++#define IO_EXT_SIZE(member) \
++	REQUIRED_STRUCTURE_SIZE(struct io_extension, member)
++
++struct io_extension_type {
++	unsigned int type;
++	unsigned int extension_struct_size;
++	int (*setup_fn)(struct kiocb *, int is_write);
++	int (*destroy_fn)(struct kiocb *);
++};
++
++static struct io_extension_type extensions[] = {
++	{IO_EXT_INVALID, 0, NULL, NULL},
++};
++
++static int is_write_iocb(struct iocb *iocb)
++{
++	switch (iocb->aio_lio_opcode) {
++	case IOCB_CMD_PWRITE:
++	case IOCB_CMD_PWRITEV:
++		return 1;
++	default:
++		return 0;
++	}
++}
++
++static int io_teardown_extensions(struct kiocb *req)
++{
++	struct io_extension_type *iet;
++	int ret, ret2;
++
++	if (req->ki_ioext == NULL)
++		return 0;
++
++	/* Shut down all the extensions */
++	ret = 0;
++	for (iet = extensions; iet->type != IO_EXT_INVALID; iet++) {
++		if (!(req->ki_ioext->ke_kern.ie_has & iet->type))
++			continue;
++		ret2 = iet->destroy_fn(req);
++		if (ret2 && !ret)
++			ret = ret2;
++	}
++
++	/* Copy out return values */
++	if (unlikely(copy_to_user(req->ki_ioext->ke_user,
++				  &req->ki_ioext->ke_kern,
++				  sizeof(struct io_extension)))) {
++		if (!ret)
++			ret = -EFAULT;
++	}
++
++	kfree(req->ki_ioext);
++	req->ki_ioext = NULL;
 +	return ret;
 +}
 +
-+/**
-+ * bio_integrity_generate - Generate integrity metadata for a bio
-+ * @bio:	bio to generate integrity metadata for
-+ *
-+ * Description: Generates integrity metadata for a bio by calling the
-+ * block device's generation callback function.  The bio must have a
-+ * bip attached with enough room to accommodate the generated
-+ * integrity metadata.
-+ */
-+static void bio_integrity_generate(struct bio *bio)
++static int io_check_bufsize(__u64 has, __u64 size)
 +{
-+	bio_integrity_generate_verify(bio, 1);
- }
- 
- static inline unsigned short blk_integrity_tuple_size(struct blk_integrity *bi)
-@@ -454,40 +478,7 @@ EXPORT_SYMBOL(bio_integrity_prep);
-  */
- static int bio_integrity_verify(struct bio *bio)
++	struct io_extension_type *iet;
++	__u64 all_flags = 0;
++
++	for (iet = extensions; iet->type != IO_EXT_INVALID; iet++) {
++		all_flags |= iet->type;
++		if (!(has & iet->type))
++			continue;
++		if (iet->extension_struct_size > size)
++			return -EINVAL;
++	}
++
++	if (has & ~all_flags)
++		return -EINVAL;
++
++	return 0;
++}
++
++static int io_setup_extensions(struct kiocb *req, int is_write,
++			       struct io_extension __user *ioext)
++{
++	struct io_extension_type *iet;
++	__u64 sz, has;
++	int ret;
++
++	/* Check size of buffer */
++	if (unlikely(copy_from_user(&sz, &ioext->ie_size, sizeof(sz))))
++		return -EFAULT;
++	if (sz > PAGE_SIZE ||
++	    sz > sizeof(struct io_extension) ||
++	    sz < IO_EXT_SIZE(ie_has))
++		return -EINVAL;
++
++	/* Check that the buffer's big enough */
++	if (unlikely(copy_from_user(&has, &ioext->ie_has, sizeof(has))))
++		return -EFAULT;
++	ret = io_check_bufsize(has, sz);
++	if (ret)
++		return ret;
++
++	/* Copy from userland */
++	req->ki_ioext = kzalloc(sizeof(struct kio_extension), GFP_NOIO);
++	if (!req->ki_ioext)
++		return -ENOMEM;
++
++	req->ki_ioext->ke_user = ioext;
++	if (unlikely(copy_from_user(&req->ki_ioext->ke_kern, ioext, sz))) {
++		ret = -EFAULT;
++		goto out;
++	}
++
++	/* Try to initialize all the extensions */
++	has = 0;
++	for (iet = extensions; iet->type != IO_EXT_INVALID; iet++) {
++		if (!(req->ki_ioext->ke_kern.ie_has & iet->type))
++			continue;
++		ret = iet->setup_fn(req, is_write);
++		if (ret) {
++			req->ki_ioext->ke_kern.ie_has = has;
++			goto out_destroy;
++		}
++		has |= iet->type;
++	}
++
++	return 0;
++out_destroy:
++	io_teardown_extensions(req);
++out:
++	kfree(req->ki_ioext);
++	req->ki_ioext = NULL;
++	return ret;
++}
++
++static int iocb_setup_extensions(struct iocb *iocb, struct kiocb *req)
++{
++	struct io_extension __user *user_ext;
++
++	if (!(iocb->aio_flags & IOCB_FLAG_EXTENSIONS))
++		return 0;
++
++	user_ext = (struct io_extension __user *)iocb->aio_extension_ptr;
++	return io_setup_extensions(req, is_write_iocb(iocb), user_ext);
++}
++
+ static int io_submit_one(struct kioctx *ctx, struct iocb __user *user_iocb,
+ 			 struct iocb *iocb, bool compat)
  {
--	struct blk_integrity *bi = bdev_get_integrity(bio->bi_bdev);
--	struct blk_integrity_exchg bix;
--	struct bio_vec *bv;
--	sector_t sector = bio->bi_integrity->bip_iter.bi_sector;
--	unsigned int sectors, ret = 0;
--	void *prot_buf = bio->bi_integrity->bip_buf;
--	int i;
--
--	bix.disk_name = bio->bi_bdev->bd_disk->disk_name;
--	bix.sector_size = bi->sector_size;
--
--	bio_for_each_segment_all(bv, bio, i) {
--		void *kaddr = kmap_atomic(bv->bv_page);
--
--		bix.data_buf = kaddr + bv->bv_offset;
--		bix.data_size = bv->bv_len;
--		bix.prot_buf = prot_buf;
--		bix.sector = sector;
--
--		ret = bi->verify_fn(&bix);
--
--		if (ret) {
--			kunmap_atomic(kaddr);
--			return ret;
--		}
--
--		sectors = bv->bv_len / bi->sector_size;
--		sector += sectors;
--		prot_buf += sectors * bi->tuple_size;
--
--		kunmap_atomic(kaddr);
--	}
--
--	return ret;
-+	return bio_integrity_generate_verify(bio, 0);
- }
+ 	struct kiocb *req;
+ 	ssize_t ret;
  
- /**
++	/* check for flags we don't know about */
++	if (iocb->aio_flags & ~IOCB_FLAG_ALL) {
++		pr_debug("EINVAL: invalid flags\n");
++		return -EINVAL;
++	}
++
+ 	/* enforce forwards compatibility on users */
+-	if (unlikely(iocb->aio_reserved1 || iocb->aio_reserved2)) {
+-		pr_debug("EINVAL: reserve field set\n");
++	if (unlikely(iocb->aio_reserved1 ||
++	    (!(iocb->aio_flags & IOCB_FLAG_EXTENSIONS) &&
++	     iocb->aio_extension_ptr))) {
++		pr_debug("EINVAL: reserved field set\n");
+ 		return -EINVAL;
+ 	}
+ 
+@@ -1408,13 +1576,19 @@ static int io_submit_one(struct kioctx *ctx, struct iocb __user *user_iocb,
+ 	req->ki_pos = iocb->aio_offset;
+ 	req->ki_nbytes = iocb->aio_nbytes;
+ 
++	ret = iocb_setup_extensions(iocb, req);
++	if (unlikely(ret))
++		goto out_del_ext;
++
+ 	ret = aio_run_iocb(req, iocb->aio_lio_opcode,
+ 			   (char __user *)(unsigned long)iocb->aio_buf,
+ 			   compat);
+ 	if (ret)
+-		goto out_put_req;
++		goto out_del_ext;
+ 
+ 	return 0;
++out_del_ext:
++	io_teardown_extensions(req);
+ out_put_req:
+ 	put_reqs_available(ctx, 1);
+ 	percpu_ref_put(&ctx->reqs);
+diff --git a/include/linux/aio.h b/include/linux/aio.h
+index d9c92da..60f4364 100644
+--- a/include/linux/aio.h
++++ b/include/linux/aio.h
+@@ -29,6 +29,10 @@ struct kiocb;
+ 
+ typedef int (kiocb_cancel_fn)(struct kiocb *);
+ 
++struct kio_extension {
++	struct io_extension __user *ke_user;
++	struct io_extension ke_kern;
++};
+ struct kiocb {
+ 	struct file		*ki_filp;
+ 	struct kioctx		*ki_ctx;	/* NULL for sync ops */
+@@ -52,6 +56,9 @@ struct kiocb {
+ 	 * this is the underlying eventfd context to deliver events to.
+ 	 */
+ 	struct eventfd_ctx	*ki_eventfd;
++
++	/* Kernel copy of extension descriptors */
++	struct kio_extension	*ki_ioext;
+ };
+ 
+ static inline bool is_sync_kiocb(struct kiocb *kiocb)
+diff --git a/include/uapi/linux/aio_abi.h b/include/uapi/linux/aio_abi.h
+index bb2554f..07ffd1f 100644
+--- a/include/uapi/linux/aio_abi.h
++++ b/include/uapi/linux/aio_abi.h
+@@ -53,6 +53,8 @@ enum {
+  *                   is valid.
+  */
+ #define IOCB_FLAG_RESFD		(1 << 0)
++#define IOCB_FLAG_EXTENSIONS	(1 << 1)
++#define IOCB_FLAG_ALL		(IOCB_FLAG_RESFD | IOCB_FLAG_EXTENSIONS)
+ 
+ /* read() from /dev/aio returns these structures. */
+ struct io_event {
+@@ -70,6 +72,15 @@ struct io_event {
+ #error edit for your odd byteorder.
+ #endif
+ 
++/* IO extension types */
++#define IO_EXT_INVALID	(0)
++
++/* IO extension descriptor */
++struct io_extension {
++	__u64 ie_size;
++	__u64 ie_has;
++};
++
+ /*
+  * we always use a 64bit off_t when communicating
+  * with userland.  its up to libraries to do the
+@@ -91,8 +102,8 @@ struct iocb {
+ 	__u64	aio_nbytes;
+ 	__s64	aio_offset;
+ 
+-	/* extra parameters */
+-	__u64	aio_reserved2;	/* TODO: use this for a (struct sigevent *) */
++	/* aio extensions, only present if IOCB_FLAG_EXTENSIONS */
++	__u64	aio_extension_ptr;
+ 
+ 	/* flags for the "struct iocb" */
+ 	__u32	aio_flags;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
