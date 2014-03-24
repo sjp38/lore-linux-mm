@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E92C6B00C9
-	for <linux-mm@kvack.org>; Mon, 24 Mar 2014 12:23:13 -0400 (EDT)
-Received: by mail-pd0-f174.google.com with SMTP id y13so5493796pdi.5
-        for <linux-mm@kvack.org>; Mon, 24 Mar 2014 09:23:13 -0700 (PDT)
-Subject: [PATCH 5/6] PI IO extension: advertise possible userspace flags
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E2796B00C9
+	for <linux-mm@kvack.org>; Mon, 24 Mar 2014 12:23:20 -0400 (EDT)
+Received: by mail-pa0-f46.google.com with SMTP id kp14so5631445pab.5
+        for <linux-mm@kvack.org>; Mon, 24 Mar 2014 09:23:19 -0700 (PDT)
+Subject: [PATCH 6/6] blk-integrity: refactor various routines
 From: "Darrick J. Wong" <darrick.wong@oracle.com>
-Date: Mon, 24 Mar 2014 09:23:07 -0700
-Message-ID: <20140324162307.10848.94267.stgit@birch.djwong.org>
+Date: Mon, 24 Mar 2014 09:23:13 -0700
+Message-ID: <20140324162313.10848.7587.stgit@birch.djwong.org>
 In-Reply-To: <20140324162231.10848.4863.stgit@birch.djwong.org>
 References: <20140324162231.10848.4863.stgit@birch.djwong.org>
 MIME-Version: 1.0
@@ -18,216 +18,257 @@ List-ID: <linux-mm.kvack.org>
 To: axboe@kernel.dk, zab@redhat.com, martin.petersen@oracle.com, darrick.wong@oracle.com, JBottomley@parallels.com, jmoyer@redhat.com, bcrl@kvack.org, viro@zeniv.linux.org.uk
 Cc: linux-fsdevel@vger.kernel.org, linux-aio@kvack.org, linux-scsi@vger.kernel.org, linux-mm@kvack.org
 
-Expose possible userland flags to the new PI IO extension so that
-userspace can discover what flags exist.
+Refactor blk-integrity.c to avoid duplicating similar functions, and
+remove all users of pi_buf, since it's really only there to handle the
+(common) case where the kernel auto-generates all the PI data.
 
 Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
 ---
- Documentation/ABI/testing/sysfs-block  |   14 ++++++++++++++
- Documentation/block/data-integrity.txt |   22 +++++++++++++++++++++
- block/blk-integrity.c                  |   33 ++++++++++++++++++++++++++++++++
- drivers/scsi/sd_dif.c                  |   11 +++++++++++
- include/linux/blkdev.h                 |    7 +++++++
- 5 files changed, 87 insertions(+)
+ fs/bio-integrity.c  |  120 +++++++++++++++++++++------------------------------
+ include/linux/bio.h |    2 -
+ 2 files changed, 49 insertions(+), 73 deletions(-)
 
 
-diff --git a/Documentation/ABI/testing/sysfs-block b/Documentation/ABI/testing/sysfs-block
-index 279da08..989cb80 100644
---- a/Documentation/ABI/testing/sysfs-block
-+++ b/Documentation/ABI/testing/sysfs-block
-@@ -53,6 +53,20 @@ Description:
- 		512 bytes of data.
+diff --git a/fs/bio-integrity.c b/fs/bio-integrity.c
+index 381ee38..3ff1572 100644
+--- a/fs/bio-integrity.c
++++ b/fs/bio-integrity.c
+@@ -97,8 +97,7 @@ void bio_integrity_free(struct bio *bio)
+ 	struct bio_integrity_payload *bip = bio->bi_integrity;
+ 	struct bio_set *bs = bio->bi_pool;
  
+-	if (bip->bip_owns_buf)
+-		kfree(bip->bip_buf);
++	kfree(bip->bip_buf);
  
-+What:		/sys/block/<disk>/integrity/tuple_size
-+Date:		March 2014
-+Contact:	Darrick J. Wong <darrick.wong@oracle.com>
-+Description:
-+		Size in bytes of the integrity data buffer for each logical
-+		block.
-+
-+What:		/sys/block/<disk>/integrity/write_user_flags
-+Date:		March 2014
-+Contact:	Darrick J. Wong <darrick.wong@oracle.com>
-+Description:
-+		Provides a list of flags that userspace can pass to the kernel
-+		when supplying integrity data for a write IO.
-+
- What:		/sys/block/<disk>/integrity/write_generate
- Date:		June 2008
- Contact:	Martin K. Petersen <martin.petersen@oracle.com>
-diff --git a/Documentation/block/data-integrity.txt b/Documentation/block/data-integrity.txt
-index b72a54f..e33d4a7 100644
---- a/Documentation/block/data-integrity.txt
-+++ b/Documentation/block/data-integrity.txt
-@@ -341,7 +341,29 @@ will require extra work due to the application tag.
-       specific to the blk_integrity provider) arrange for pre-processing
-       of the user buffer prior to issuing the IO.
+ 	if (bs) {
+ 		if (bip->bip_slab != BIO_POOL_NONE)
+@@ -239,9 +238,11 @@ static int bio_integrity_tag(struct bio *bio, void *tag_buf, unsigned int len,
+ {
+ 	struct bio_integrity_payload *bip = bio->bi_integrity;
+ 	struct blk_integrity *bi = bdev_get_integrity(bio->bi_bdev);
+-	unsigned int nr_sectors;
+-
+-	BUG_ON(bip->bip_buf == NULL);
++	unsigned int nr_sectors, tag_offset, sectors;
++	void *prot_buf;
++	unsigned int prot_offset, prot_len;
++	struct bio_vec *iv;
++	void (*tag_fn)(void *buf, void *tag_buf, unsigned int);
  
-+      'user_write_flags' points to an array of struct blk_integrity_flag,
-+      which maps mod_user_buf_fn flags to a description of what they do.
-+
-       See 6.2 for a description of get_tag_fn and set_tag_fn.
- 
-+5.5 PASSING INTEGRITY DATA FROM USERSPACE
-+
-+    The "IO extension" interface has been expanded to provide
-+    userspace programs with the ability to provide PI data with a WRITE,
-+    or to receive PI data with a READ.  The fields ie_pi_buf,
-+    ie_pi_buflen, and ie_pi_flags should contain a pointer to the PI
-+    buffer, the length of the PI buffer, and any flags that should be
-+    passed to the PI provider.
-+
-+    This buffer must contain PI tuples.  Tuples must NOT split a page
-+    boundary.  Valid flag values can be found in
-+    /sys/block/*/integrity/user_write_flags.  The tuple size can be found
-+    in /sys/block/*/integrity/tuple_size.
-+
-+    In general, the flags allow the user program to ask the in-kernel
-+    integrity provider to fill in some parts of the tuples.  For example,
-+    the T10 DIF provider can fill in the reference tag (sector number) so
-+    that userspace can choose not to care about the reference tag.
-+
- ----------------------------------------------------------------------
- 2007-12-24 Martin K. Petersen <martin.petersen@oracle.com>
-diff --git a/block/blk-integrity.c b/block/blk-integrity.c
-index 1cb1eb2..557d28e 100644
---- a/block/blk-integrity.c
-+++ b/block/blk-integrity.c
-@@ -307,6 +307,26 @@ static ssize_t integrity_write_show(struct blk_integrity *bi, char *page)
- 	return sprintf(page, "%d\n", (bi->flags & INTEGRITY_FLAG_WRITE) != 0);
- }
- 
-+static ssize_t integrity_write_flags_show(struct blk_integrity *bi, char *page)
-+{
-+	struct blk_integrity_flag *flag = bi->user_write_flags;
-+	char *p = page;
-+	ssize_t ret = 0;
-+
-+	while (flag->value) {
-+		ret += snprintf(p, PAGE_SIZE - ret, "0x%x: %s\n",
-+				flag->value, flag->descr);
-+		p = page + ret;
-+		flag++;
-+	}
-+	return ret;
-+}
-+
-+static ssize_t integrity_tuple_size_show(struct blk_integrity *bi, char *page)
-+{
-+	return sprintf(page, "%d\n", bi->tuple_size);
-+}
-+
- static struct integrity_sysfs_entry integrity_format_entry = {
- 	.attr = { .name = "format", .mode = S_IRUGO },
- 	.show = integrity_format_show,
-@@ -329,11 +349,23 @@ static struct integrity_sysfs_entry integrity_write_entry = {
- 	.store = integrity_write_store,
- };
- 
-+static struct integrity_sysfs_entry integrity_write_flags_entry = {
-+	.attr = { .name = "write_user_flags", .mode = S_IRUGO },
-+	.show = integrity_write_flags_show,
-+};
-+
-+static struct integrity_sysfs_entry integrity_tuple_size_entry = {
-+	.attr = { .name = "tuple_size", .mode = S_IRUGO },
-+	.show = integrity_tuple_size_show,
-+};
-+
- static struct attribute *integrity_attrs[] = {
- 	&integrity_format_entry.attr,
- 	&integrity_tag_size_entry.attr,
- 	&integrity_read_entry.attr,
- 	&integrity_write_entry.attr,
-+	&integrity_write_flags_entry.attr,
-+	&integrity_tuple_size_entry.attr,
- 	NULL,
- };
- 
-@@ -422,6 +454,7 @@ int blk_integrity_register(struct gendisk *disk, struct blk_integrity *template)
- 		bi->get_tag_fn = template->get_tag_fn;
- 		bi->tag_size = template->tag_size;
- 		bi->mod_user_buf_fn = template->mod_user_buf_fn;
-+		bi->user_write_flags = template->user_write_flags;
- 	} else
- 		bi->name = bi_unsupported_name;
- 
-diff --git a/drivers/scsi/sd_dif.c b/drivers/scsi/sd_dif.c
-index 74182c9..bea648b 100644
---- a/drivers/scsi/sd_dif.c
-+++ b/drivers/scsi/sd_dif.c
-@@ -182,6 +182,13 @@ static void sd_dif_type1_get_tag(void *prot, void *tag_buf, unsigned int sectors
+ 	if (bi->tag_size == 0)
+ 		return -1;
+@@ -255,10 +256,30 @@ static int bio_integrity_tag(struct bio *bio, void *tag_buf, unsigned int len,
+ 		return -1;
  	}
+ 
+-	if (set)
+-		bi->set_tag_fn(bip->bip_buf, tag_buf, nr_sectors);
+-	else
+-		bi->get_tag_fn(bip->bip_buf, tag_buf, nr_sectors);
++	iv = bip->bip_vec;
++	prot_offset = iv->bv_offset;
++	prot_len = iv->bv_len;
++	prot_buf = kmap_atomic(iv->bv_page);
++	tag_fn = set ? bi->set_tag_fn : bi->get_tag_fn;
++	tag_offset = 0;
++
++	while (nr_sectors) {
++		if (prot_len < bi->tuple_size) {
++			kunmap_atomic(prot_buf);
++			iv++;
++			BUG_ON(iv >= bip->bip_vec + bip->bip_vcnt);
++			prot_offset = iv->bv_offset;
++			prot_len = iv->bv_len;
++			prot_buf = kmap_atomic(iv->bv_page);
++		}
++		sectors = min(prot_len / bi->tuple_size, nr_sectors);
++		tag_fn(prot_buf + prot_offset, tag_buf + tag_offset, sectors);
++		nr_sectors -= sectors;
++		tag_offset += sectors * bi->tuple_size;
++		prot_offset += sectors * bi->tuple_size;
++		prot_len -= sectors * bi->tuple_size;
++	}
++	kunmap_atomic(prot_buf);
+ 
+ 	return 0;
+ }
+@@ -300,28 +321,24 @@ int bio_integrity_get_tag(struct bio *bio, void *tag_buf, unsigned int len)
+ }
+ EXPORT_SYMBOL(bio_integrity_get_tag);
+ 
+-/**
+- * bio_integrity_update_user_buffer - Update user-provided PI buffers for a bio
+- * @bio:	bio to generate/verify integrity metadata for
+- */
+-int bio_integrity_update_user_buffer(struct bio *bio)
++typedef int (walk_buf_fn)(struct blk_integrity_exchg *bi, int flags);
++
++static int bio_integrity_walk_bufs(struct bio *bio, sector_t sector,
++				   walk_buf_fn *mod_fn)
+ {
+ 	struct blk_integrity *bi = bdev_get_integrity(bio->bi_bdev);
+ 	struct blk_integrity_exchg bix;
+ 	struct bio_vec bv;
+ 	struct bvec_iter iter;
+-	sector_t sector;
+ 	unsigned int sectors, total, ret;
+ 	void *prot_buf;
+ 	unsigned int prot_offset, prot_len, bv_offset, bv_len;
+ 	struct bio_vec *iv;
+ 	struct bio_integrity_payload *bip = bio->bi_integrity;
+ 
+-	if (!bi->mod_user_buf_fn)
++	if (!mod_fn)
+ 		return 0;
+ 
+-	sector = bio->bi_iter.bi_sector;
+-
+ 	total = ret = 0;
+ 	bix.disk_name = bio->bi_bdev->bd_disk->disk_name;
+ 	bix.sector_size = bi->sector_size;
+@@ -351,7 +368,7 @@ int bio_integrity_update_user_buffer(struct bio *bio)
+ 			bix.prot_buf = prot_buf + prot_offset;
+ 			bix.sector = sector;
+ 
+-			ret = bi->mod_user_buf_fn(&bix, bip->bip_user_flags);
++			ret = mod_fn(&bix, bip->bip_user_flags);
+ 			if (ret) {
+ 				if (ret == -ENOTTY)
+ 					ret = 0;
+@@ -374,59 +391,19 @@ int bio_integrity_update_user_buffer(struct bio *bio)
+ 	kunmap_atomic(prot_buf);
+ 	return ret;
+ }
+-EXPORT_SYMBOL_GPL(bio_integrity_update_user_buffer);
+ 
+ /**
+- * bio_integrity_generate_verify - Generate/verify integrity metadata for a bio
++ * bio_integrity_update_user_buffer - Update user-provided PI buffers for a bio
+  * @bio:	bio to generate/verify integrity metadata for
+- * @operate:	operate number, 1 for generate, 0 for verify
++ * @sector:	stratin
+  */
+-static int bio_integrity_generate_verify(struct bio *bio, int operate)
++int bio_integrity_update_user_buffer(struct bio *bio)
+ {
+ 	struct blk_integrity *bi = bdev_get_integrity(bio->bi_bdev);
+-	struct blk_integrity_exchg bix;
+-	struct bio_vec bv;
+-	struct bvec_iter iter;
+-	sector_t sector;
+-	unsigned int sectors, total, ret;
+-	void *prot_buf = bio->bi_integrity->bip_buf;
+-
+-	if (operate)
+-		sector = bio->bi_iter.bi_sector;
+-	else
+-		sector = bio->bi_integrity->bip_iter.bi_sector;
+-
+-	total = ret = 0;
+-	bix.disk_name = bio->bi_bdev->bd_disk->disk_name;
+-	bix.sector_size = bi->sector_size;
+-
+-	bio_for_each_segment(bv, bio, iter) {
+-		void *kaddr = kmap_atomic(bv.bv_page);
+-		bix.data_buf = kaddr + bv.bv_offset;
+-		bix.data_size = bv.bv_len;
+-		bix.prot_buf = prot_buf;
+-		bix.sector = sector;
+-
+-		if (operate) {
+-			bi->generate_fn(&bix);
+-		} else {
+-			ret = bi->verify_fn(&bix);
+-			if (ret) {
+-				kunmap_atomic(kaddr);
+-				return ret;
+-			}
+-		}
+-
+-		sectors = bv.bv_len / bi->sector_size;
+-		sector += sectors;
+-		prot_buf += sectors * bi->tuple_size;
+-		total += sectors * bi->tuple_size;
+-		BUG_ON(total > bio->bi_integrity->bip_iter.bi_size);
+-
+-		kunmap_atomic(kaddr);
+-	}
+-	return ret;
++	return bio_integrity_walk_bufs(bio, bio->bi_iter.bi_sector,
++				       bi->mod_user_buf_fn);
+ }
++EXPORT_SYMBOL_GPL(bio_integrity_update_user_buffer);
+ 
+ /**
+  * bio_integrity_generate - Generate integrity metadata for a bio
+@@ -439,7 +416,9 @@ static int bio_integrity_generate_verify(struct bio *bio, int operate)
+  */
+ static void bio_integrity_generate(struct bio *bio)
+ {
+-	bio_integrity_generate_verify(bio, 1);
++	struct blk_integrity *bi = bdev_get_integrity(bio->bi_bdev);
++	bio_integrity_walk_bufs(bio, bio->bi_iter.bi_sector,
++				(walk_buf_fn *)bi->generate_fn);
  }
  
-+static struct blk_integrity_flag dif_flags[] = {
-+	{GENERATE_GUARD,	"generate guard tag"},
-+	{GENERATE_REF,		"generate ref tag"},
-+	{GENERATE_APP,		"generate app tag"},
-+	{0, NULL},
-+};
-+
- static struct blk_integrity dif_type1_integrity_crc = {
- 	.name			= "T10-DIF-TYPE1-CRC",
- 	.generate_fn		= sd_dif_type1_generate_crc,
-@@ -191,6 +198,7 @@ static struct blk_integrity dif_type1_integrity_crc = {
- 	.tuple_size		= sizeof(struct sd_dif_tuple),
- 	.tag_size		= 0,
- 	.mod_user_buf_fn	= sd_dif_type1_mod_crc,
-+	.user_write_flags	= dif_flags,
- };
+ static inline unsigned short blk_integrity_tuple_size(struct blk_integrity *bi)
+@@ -479,7 +458,6 @@ int bio_integrity_prep_buffer(struct bio *bio, int rw,
  
- static struct blk_integrity dif_type1_integrity_ip = {
-@@ -202,6 +210,7 @@ static struct blk_integrity dif_type1_integrity_ip = {
- 	.tuple_size		= sizeof(struct sd_dif_tuple),
- 	.tag_size		= 0,
- 	.mod_user_buf_fn	= sd_dif_type1_mod_ip,
-+	.user_write_flags	= dif_flags,
- };
+ 	sectors = bio_integrity_hw_sectors(bi, bio_sectors(bio));
  
+-	/* Allocate kernel buffer for protection data */
+ 	len = sectors * blk_integrity_tuple_size(bi);
+ 	end = (pi->pi_offset + len + PAGE_SIZE - 1) >> PAGE_SHIFT;
+ 	start = pi->pi_offset >> PAGE_SHIFT;
+@@ -497,8 +475,6 @@ int bio_integrity_prep_buffer(struct bio *bio, int rw,
+ 		return -EIO;
+ 	}
  
-@@ -334,6 +343,7 @@ static struct blk_integrity dif_type3_integrity_crc = {
- 	.tuple_size		= sizeof(struct sd_dif_tuple),
- 	.tag_size		= 0,
- 	.mod_user_buf_fn	= sd_dif_type3_mod_crc,
-+	.user_write_flags	= dif_flags,
- };
+-	bip->bip_owns_buf = 0;
+-	bip->bip_buf = NULL;
+ 	bip->bip_iter.bi_size = len;
+ 	bip->bip_iter.bi_sector = bio->bi_iter.bi_sector;
+ 	bip->bip_user_flags = pi->pi_userflags;
+@@ -591,7 +567,6 @@ int bio_integrity_prep(struct bio *bio)
+ 		return -EIO;
+ 	}
  
- static struct blk_integrity dif_type3_integrity_ip = {
-@@ -345,6 +355,7 @@ static struct blk_integrity dif_type3_integrity_ip = {
- 	.tuple_size		= sizeof(struct sd_dif_tuple),
- 	.tag_size		= 0,
- 	.mod_user_buf_fn	= sd_dif_type3_mod_ip,
-+	.user_write_flags	= dif_flags,
- };
+-	bip->bip_owns_buf = 1;
+ 	bip->bip_buf = buf;
+ 	bip->bip_iter.bi_size = len;
+ 	bip->bip_iter.bi_sector = bio->bi_iter.bi_sector;
+@@ -646,7 +621,10 @@ EXPORT_SYMBOL(bio_integrity_prep);
+  */
+ static int bio_integrity_verify(struct bio *bio)
+ {
+-	return bio_integrity_generate_verify(bio, 0);
++	struct blk_integrity *bi = bdev_get_integrity(bio->bi_bdev);
++	return bio_integrity_walk_bufs(bio,
++				       bio->bi_integrity->bip_iter.bi_sector,
++				       (walk_buf_fn *)bi->verify_fn);
+ }
  
- /*
-diff --git a/include/linux/blkdev.h b/include/linux/blkdev.h
-index cf1ec22..e8e6401 100644
---- a/include/linux/blkdev.h
-+++ b/include/linux/blkdev.h
-@@ -1428,6 +1428,11 @@ typedef void (integrity_set_tag_fn) (void *, void *, unsigned int);
- typedef void (integrity_get_tag_fn) (void *, void *, unsigned int);
- typedef int (integrity_mod_user_buf_fn) (struct blk_integrity_exchg *, int);
+ /**
+diff --git a/include/linux/bio.h b/include/linux/bio.h
+index 5bd9618..c2ad1a8 100644
+--- a/include/linux/bio.h
++++ b/include/linux/bio.h
+@@ -292,14 +292,12 @@ struct bio_integrity_payload {
  
-+struct blk_integrity_flag {
-+	unsigned int value;
-+	const char *descr;
-+};
-+
- struct blk_integrity {
- 	integrity_gen_fn	*generate_fn;
- 	integrity_vrfy_fn	*verify_fn;
-@@ -1443,6 +1448,8 @@ struct blk_integrity {
- 	const char		*name;
+ 	struct bvec_iter	bip_iter;
  
- 	struct kobject		kobj;
-+
-+	struct blk_integrity_flag	*user_write_flags;
- };
+-	/* kill - should just use bip_vec */
+ 	void			*bip_buf;	/* generated integrity data */
  
- extern bool blk_integrity_is_initialized(struct gendisk *);
+ 	bio_end_io_t		*bip_end_io;	/* saved I/O completion fn */
+ 
+ 	unsigned short		bip_slab;	/* slab the bip came from */
+ 	unsigned short		bip_vcnt;	/* # of integrity bio_vecs */
+-	unsigned		bip_owns_buf:1;	/* should free bip_buf */
+ 
+ 	struct work_struct	bip_work;	/* I/O completion */
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
