@@ -1,273 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E2796B00C9
-	for <linux-mm@kvack.org>; Mon, 24 Mar 2014 12:23:20 -0400 (EDT)
-Received: by mail-pa0-f46.google.com with SMTP id kp14so5631445pab.5
-        for <linux-mm@kvack.org>; Mon, 24 Mar 2014 09:23:19 -0700 (PDT)
-Subject: [PATCH 6/6] blk-integrity: refactor various routines
-From: "Darrick J. Wong" <darrick.wong@oracle.com>
-Date: Mon, 24 Mar 2014 09:23:13 -0700
-Message-ID: <20140324162313.10848.7587.stgit@birch.djwong.org>
-In-Reply-To: <20140324162231.10848.4863.stgit@birch.djwong.org>
-References: <20140324162231.10848.4863.stgit@birch.djwong.org>
+Received: from mail-bk0-f51.google.com (mail-bk0-f51.google.com [209.85.214.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 1457A6B0080
+	for <linux-mm@kvack.org>; Mon, 24 Mar 2014 12:30:41 -0400 (EDT)
+Received: by mail-bk0-f51.google.com with SMTP id 6so560365bkj.24
+        for <linux-mm@kvack.org>; Mon, 24 Mar 2014 09:30:41 -0700 (PDT)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id qr7si940554bkb.78.2014.03.24.09.30.39
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 24 Mar 2014 09:30:40 -0700 (PDT)
+Date: Mon, 24 Mar 2014 12:30:35 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [next:master 191/463] mm/memcontrol.c:1074:19: sparse: symbol
+ 'get_mem_cgroup_from_mm' was not declared. Should it be static?
+Message-ID: <20140324163035.GL4407@cmpxchg.org>
+References: <532df757.AkU5AH07Cpb86z5c%fengguang.wu@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <532df757.AkU5AH07Cpb86z5c%fengguang.wu@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: axboe@kernel.dk, zab@redhat.com, martin.petersen@oracle.com, darrick.wong@oracle.com, JBottomley@parallels.com, jmoyer@redhat.com, bcrl@kvack.org, viro@zeniv.linux.org.uk
-Cc: linux-fsdevel@vger.kernel.org, linux-aio@kvack.org, linux-scsi@vger.kernel.org, linux-mm@kvack.org
+To: kbuild test robot <fengguang.wu@intel.com>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, kbuild-all@01.org
 
-Refactor blk-integrity.c to avoid duplicating similar functions, and
-remove all users of pi_buf, since it's really only there to handle the
-(common) case where the kernel auto-generates all the PI data.
+On Sun, Mar 23, 2014 at 04:49:27AM +0800, kbuild test robot wrote:
+> tree:   git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
+> head:   06ed26d1de59ce7cbbe68378b7e470be169750e5
+> commit: 83ab64d4c75418a019166519d2f95015868f79a4 [191/463] memcg: get_mem_cgroup_from_mm()
+> reproduce: make C=1 CF=-D__CHECK_ENDIAN__
+> 
+> 
+> sparse warnings: (new ones prefixed by >>)
+> 
+> >> mm/memcontrol.c:1074:19: sparse: symbol 'get_mem_cgroup_from_mm' was not declared. Should it be static?
+>    mm/slab.h:182:18: sparse: incompatible types in comparison expression (different address spaces)
+>    mm/slab.h:182:18: sparse: incompatible types in comparison expression (different address spaces)
+>    mm/slab.h:182:18: sparse: incompatible types in comparison expression (different address spaces)
+>    mm/memcontrol.c:5562:21: sparse: incompatible types in comparison expression (different address spaces)
+>    mm/memcontrol.c:5564:21: sparse: incompatible types in comparison expression (different address spaces)
+>    mm/memcontrol.c:7015:31: sparse: incompatible types in comparison expression (different address spaces)
+> 
+> Please consider folding the attached diff :-)
 
-Signed-off-by: Darrick J. Wong <darrick.wong@oracle.com>
+Yeah, there are no external users.
+
+> From: Fengguang Wu <fengguang.wu@intel.com>
+> Subject: [PATCH next] memcg: get_mem_cgroup_from_mm() can be static
+> TO: Johannes Weiner <hannes@cmpxchg.org>
+> CC: cgroups@vger.kernel.org 
+> CC: linux-mm@kvack.org 
+> CC: linux-kernel@vger.kernel.org 
+> 
+> CC: Johannes Weiner <hannes@cmpxchg.org>
+> Signed-off-by: Fengguang Wu <fengguang.wu@intel.com>
+> ---
+>  memcontrol.c |    2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 28fd509..bdb62eb 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -1071,7 +1071,7 @@ struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p)
+>  	return mem_cgroup_from_css(task_css(p, mem_cgroup_subsys_id));
+>  }
+>  
+> -struct mem_cgroup *get_mem_cgroup_from_mm(struct mm_struct *mm)
+> +static struct mem_cgroup *get_mem_cgroup_from_mm(struct mm_struct *mm)
+>  {
+>  	struct mem_cgroup *memcg = NULL;
+>  
+
+Yes, but also update the headers:
+
 ---
- fs/bio-integrity.c  |  120 +++++++++++++++++++++------------------------------
- include/linux/bio.h |    2 -
- 2 files changed, 49 insertions(+), 73 deletions(-)
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: [PATCH] memcg-get_mem_cgroup_from_mm-fix.patch
 
+Signed-off-by: Fengguang Wu <fengguang.wu@intel.com>
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+---
 
-diff --git a/fs/bio-integrity.c b/fs/bio-integrity.c
-index 381ee38..3ff1572 100644
---- a/fs/bio-integrity.c
-+++ b/fs/bio-integrity.c
-@@ -97,8 +97,7 @@ void bio_integrity_free(struct bio *bio)
- 	struct bio_integrity_payload *bip = bio->bi_integrity;
- 	struct bio_set *bs = bio->bi_pool;
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index e9dfcdad24c5..b569b8be5c5a 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -94,7 +94,6 @@ bool task_in_mem_cgroup(struct task_struct *task,
  
--	if (bip->bip_owns_buf)
--		kfree(bip->bip_buf);
-+	kfree(bip->bip_buf);
+ extern struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page);
+ extern struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p);
+-extern struct mem_cgroup *try_get_mem_cgroup_from_mm(struct mm_struct *mm);
  
- 	if (bs) {
- 		if (bip->bip_slab != BIO_POOL_NONE)
-@@ -239,9 +238,11 @@ static int bio_integrity_tag(struct bio *bio, void *tag_buf, unsigned int len,
+ extern struct mem_cgroup *parent_mem_cgroup(struct mem_cgroup *memcg);
+ extern struct mem_cgroup *mem_cgroup_from_css(struct cgroup_subsys_state *css);
+@@ -294,11 +293,6 @@ static inline struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page)
+ 	return NULL;
+ }
+ 
+-static inline struct mem_cgroup *try_get_mem_cgroup_from_mm(struct mm_struct *mm)
+-{
+-	return NULL;
+-}
+-
+ static inline bool mm_match_cgroup(struct mm_struct *mm,
+ 		struct mem_cgroup *memcg)
  {
- 	struct bio_integrity_payload *bip = bio->bi_integrity;
- 	struct blk_integrity *bi = bdev_get_integrity(bio->bi_bdev);
--	unsigned int nr_sectors;
--
--	BUG_ON(bip->bip_buf == NULL);
-+	unsigned int nr_sectors, tag_offset, sectors;
-+	void *prot_buf;
-+	unsigned int prot_offset, prot_len;
-+	struct bio_vec *iv;
-+	void (*tag_fn)(void *buf, void *tag_buf, unsigned int);
- 
- 	if (bi->tag_size == 0)
- 		return -1;
-@@ -255,10 +256,30 @@ static int bio_integrity_tag(struct bio *bio, void *tag_buf, unsigned int len,
- 		return -1;
- 	}
- 
--	if (set)
--		bi->set_tag_fn(bip->bip_buf, tag_buf, nr_sectors);
--	else
--		bi->get_tag_fn(bip->bip_buf, tag_buf, nr_sectors);
-+	iv = bip->bip_vec;
-+	prot_offset = iv->bv_offset;
-+	prot_len = iv->bv_len;
-+	prot_buf = kmap_atomic(iv->bv_page);
-+	tag_fn = set ? bi->set_tag_fn : bi->get_tag_fn;
-+	tag_offset = 0;
-+
-+	while (nr_sectors) {
-+		if (prot_len < bi->tuple_size) {
-+			kunmap_atomic(prot_buf);
-+			iv++;
-+			BUG_ON(iv >= bip->bip_vec + bip->bip_vcnt);
-+			prot_offset = iv->bv_offset;
-+			prot_len = iv->bv_len;
-+			prot_buf = kmap_atomic(iv->bv_page);
-+		}
-+		sectors = min(prot_len / bi->tuple_size, nr_sectors);
-+		tag_fn(prot_buf + prot_offset, tag_buf + tag_offset, sectors);
-+		nr_sectors -= sectors;
-+		tag_offset += sectors * bi->tuple_size;
-+		prot_offset += sectors * bi->tuple_size;
-+		prot_len -= sectors * bi->tuple_size;
-+	}
-+	kunmap_atomic(prot_buf);
- 
- 	return 0;
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index b4b6aef562fa..92b48c0a8cfd 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1071,7 +1071,7 @@ struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p)
+ 	return mem_cgroup_from_css(task_css(p, memory_cgrp_id));
  }
-@@ -300,28 +321,24 @@ int bio_integrity_get_tag(struct bio *bio, void *tag_buf, unsigned int len)
- }
- EXPORT_SYMBOL(bio_integrity_get_tag);
  
--/**
-- * bio_integrity_update_user_buffer - Update user-provided PI buffers for a bio
-- * @bio:	bio to generate/verify integrity metadata for
-- */
--int bio_integrity_update_user_buffer(struct bio *bio)
-+typedef int (walk_buf_fn)(struct blk_integrity_exchg *bi, int flags);
-+
-+static int bio_integrity_walk_bufs(struct bio *bio, sector_t sector,
-+				   walk_buf_fn *mod_fn)
+-struct mem_cgroup *get_mem_cgroup_from_mm(struct mm_struct *mm)
++static struct mem_cgroup *get_mem_cgroup_from_mm(struct mm_struct *mm)
  {
- 	struct blk_integrity *bi = bdev_get_integrity(bio->bi_bdev);
- 	struct blk_integrity_exchg bix;
- 	struct bio_vec bv;
- 	struct bvec_iter iter;
--	sector_t sector;
- 	unsigned int sectors, total, ret;
- 	void *prot_buf;
- 	unsigned int prot_offset, prot_len, bv_offset, bv_len;
- 	struct bio_vec *iv;
- 	struct bio_integrity_payload *bip = bio->bi_integrity;
- 
--	if (!bi->mod_user_buf_fn)
-+	if (!mod_fn)
- 		return 0;
- 
--	sector = bio->bi_iter.bi_sector;
--
- 	total = ret = 0;
- 	bix.disk_name = bio->bi_bdev->bd_disk->disk_name;
- 	bix.sector_size = bi->sector_size;
-@@ -351,7 +368,7 @@ int bio_integrity_update_user_buffer(struct bio *bio)
- 			bix.prot_buf = prot_buf + prot_offset;
- 			bix.sector = sector;
- 
--			ret = bi->mod_user_buf_fn(&bix, bip->bip_user_flags);
-+			ret = mod_fn(&bix, bip->bip_user_flags);
- 			if (ret) {
- 				if (ret == -ENOTTY)
- 					ret = 0;
-@@ -374,59 +391,19 @@ int bio_integrity_update_user_buffer(struct bio *bio)
- 	kunmap_atomic(prot_buf);
- 	return ret;
- }
--EXPORT_SYMBOL_GPL(bio_integrity_update_user_buffer);
- 
- /**
-- * bio_integrity_generate_verify - Generate/verify integrity metadata for a bio
-+ * bio_integrity_update_user_buffer - Update user-provided PI buffers for a bio
-  * @bio:	bio to generate/verify integrity metadata for
-- * @operate:	operate number, 1 for generate, 0 for verify
-+ * @sector:	stratin
-  */
--static int bio_integrity_generate_verify(struct bio *bio, int operate)
-+int bio_integrity_update_user_buffer(struct bio *bio)
- {
- 	struct blk_integrity *bi = bdev_get_integrity(bio->bi_bdev);
--	struct blk_integrity_exchg bix;
--	struct bio_vec bv;
--	struct bvec_iter iter;
--	sector_t sector;
--	unsigned int sectors, total, ret;
--	void *prot_buf = bio->bi_integrity->bip_buf;
--
--	if (operate)
--		sector = bio->bi_iter.bi_sector;
--	else
--		sector = bio->bi_integrity->bip_iter.bi_sector;
--
--	total = ret = 0;
--	bix.disk_name = bio->bi_bdev->bd_disk->disk_name;
--	bix.sector_size = bi->sector_size;
--
--	bio_for_each_segment(bv, bio, iter) {
--		void *kaddr = kmap_atomic(bv.bv_page);
--		bix.data_buf = kaddr + bv.bv_offset;
--		bix.data_size = bv.bv_len;
--		bix.prot_buf = prot_buf;
--		bix.sector = sector;
--
--		if (operate) {
--			bi->generate_fn(&bix);
--		} else {
--			ret = bi->verify_fn(&bix);
--			if (ret) {
--				kunmap_atomic(kaddr);
--				return ret;
--			}
--		}
--
--		sectors = bv.bv_len / bi->sector_size;
--		sector += sectors;
--		prot_buf += sectors * bi->tuple_size;
--		total += sectors * bi->tuple_size;
--		BUG_ON(total > bio->bi_integrity->bip_iter.bi_size);
--
--		kunmap_atomic(kaddr);
--	}
--	return ret;
-+	return bio_integrity_walk_bufs(bio, bio->bi_iter.bi_sector,
-+				       bi->mod_user_buf_fn);
- }
-+EXPORT_SYMBOL_GPL(bio_integrity_update_user_buffer);
- 
- /**
-  * bio_integrity_generate - Generate integrity metadata for a bio
-@@ -439,7 +416,9 @@ static int bio_integrity_generate_verify(struct bio *bio, int operate)
-  */
- static void bio_integrity_generate(struct bio *bio)
- {
--	bio_integrity_generate_verify(bio, 1);
-+	struct blk_integrity *bi = bdev_get_integrity(bio->bi_bdev);
-+	bio_integrity_walk_bufs(bio, bio->bi_iter.bi_sector,
-+				(walk_buf_fn *)bi->generate_fn);
- }
- 
- static inline unsigned short blk_integrity_tuple_size(struct blk_integrity *bi)
-@@ -479,7 +458,6 @@ int bio_integrity_prep_buffer(struct bio *bio, int rw,
- 
- 	sectors = bio_integrity_hw_sectors(bi, bio_sectors(bio));
- 
--	/* Allocate kernel buffer for protection data */
- 	len = sectors * blk_integrity_tuple_size(bi);
- 	end = (pi->pi_offset + len + PAGE_SIZE - 1) >> PAGE_SHIFT;
- 	start = pi->pi_offset >> PAGE_SHIFT;
-@@ -497,8 +475,6 @@ int bio_integrity_prep_buffer(struct bio *bio, int rw,
- 		return -EIO;
- 	}
- 
--	bip->bip_owns_buf = 0;
--	bip->bip_buf = NULL;
- 	bip->bip_iter.bi_size = len;
- 	bip->bip_iter.bi_sector = bio->bi_iter.bi_sector;
- 	bip->bip_user_flags = pi->pi_userflags;
-@@ -591,7 +567,6 @@ int bio_integrity_prep(struct bio *bio)
- 		return -EIO;
- 	}
- 
--	bip->bip_owns_buf = 1;
- 	bip->bip_buf = buf;
- 	bip->bip_iter.bi_size = len;
- 	bip->bip_iter.bi_sector = bio->bi_iter.bi_sector;
-@@ -646,7 +621,10 @@ EXPORT_SYMBOL(bio_integrity_prep);
-  */
- static int bio_integrity_verify(struct bio *bio)
- {
--	return bio_integrity_generate_verify(bio, 0);
-+	struct blk_integrity *bi = bdev_get_integrity(bio->bi_bdev);
-+	return bio_integrity_walk_bufs(bio,
-+				       bio->bi_integrity->bip_iter.bi_sector,
-+				       (walk_buf_fn *)bi->verify_fn);
- }
- 
- /**
-diff --git a/include/linux/bio.h b/include/linux/bio.h
-index 5bd9618..c2ad1a8 100644
---- a/include/linux/bio.h
-+++ b/include/linux/bio.h
-@@ -292,14 +292,12 @@ struct bio_integrity_payload {
- 
- 	struct bvec_iter	bip_iter;
- 
--	/* kill - should just use bip_vec */
- 	void			*bip_buf;	/* generated integrity data */
- 
- 	bio_end_io_t		*bip_end_io;	/* saved I/O completion fn */
- 
- 	unsigned short		bip_slab;	/* slab the bip came from */
- 	unsigned short		bip_vcnt;	/* # of integrity bio_vecs */
--	unsigned		bip_owns_buf:1;	/* should free bip_buf */
- 
- 	struct work_struct	bip_work;	/* I/O completion */
+ 	struct mem_cgroup *memcg = NULL;
  
 
 --
