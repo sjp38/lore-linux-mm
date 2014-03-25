@@ -1,47 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Date: Tue, 25 Mar 2014 14:57:27 -0400
-From: Benjamin LaHaise <bcrl@kvack.org>
-Subject: Re: [PATCH] aio: ensure access to ctx->ring_pages is correctly serialised
-Message-ID: <20140325185727.GU4173@kvack.org>
-References: <532A80B1.5010002@cn.fujitsu.com> <20140320143207.GA3760@redhat.com> <20140320163004.GE28970@kvack.org> <532B9C54.80705@cn.fujitsu.com> <20140321183509.GC23173@kvack.org> <533077CE.6010204@oracle.com> <20140324190743.GJ4173@kvack.org> <5331C13C.8030507@oracle.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5331C13C.8030507@oracle.com>
+Received: from mail-ig0-f173.google.com (mail-ig0-f173.google.com [209.85.213.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A1316B003B
+	for <linux-mm@kvack.org>; Tue, 25 Mar 2014 15:35:14 -0400 (EDT)
+Received: by mail-ig0-f173.google.com with SMTP id t19so11520990igi.0
+        for <linux-mm@kvack.org>; Tue, 25 Mar 2014 12:35:14 -0700 (PDT)
+Received: from smtprelay.hostedemail.com (smtprelay0251.hostedemail.com. [216.40.44.251])
+        by mx.google.com with ESMTP id bs7si20557235icc.127.2014.03.25.12.35.13
+        for <linux-mm@kvack.org>;
+        Tue, 25 Mar 2014 12:35:13 -0700 (PDT)
+From: Joe Perches <joe@perches.com>
+Subject: [PATCH 0/5] Convert last few uses of __FUNCTION__ to __func__
+Date: Tue, 25 Mar 2014 12:35:02 -0700
+Message-Id: <cover.1395775901.git.joe@perches.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: Gu Zheng <guz.fnst@cn.fujitsu.com>, Tang Chen <tangchen@cn.fujitsu.com>, Dave Jones <davej@redhat.com>, Al Viro <viro@zeniv.linux.org.uk>, jmoyer@redhat.com, kosaki.motohiro@jp.fujitsu.com, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, miaox@cn.fujitsu.com, linux-aio@kvack.org, fsdevel <linux-fsdevel@vger.kernel.org>, linux-kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: linux-kernel@vger.kernel.org
+Cc: linuxppc-dev@lists.ozlabs.org, drbd-user@lists.linbit.com, xen-devel@lists.xenproject.org, intel-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org, linux-mm@kvack.org
 
-Hi Sasha,
+Outside of staging, there aren't any more uses of __FUNCTION__ now...
 
-On Tue, Mar 25, 2014 at 01:47:40PM -0400, Sasha Levin wrote:
-> On 03/24/2014 03:07 PM, Benjamin LaHaise wrote:
-...
-> >Yeah, that's a problem -- thanks for the report.  The ring_lock mutex can't
-> >be nested inside of mmap_sem, as aio_read_events_ring() can take a page
-> >fault while holding ring_mutex.  That makes the following change required.
-> >I'll fold this change into the patch that caused this issue.
-> 
-> Yup, that does the trick.
-> 
-> Could you please add something to document why this is a trylock instead of 
-> a lock? If
-> I were reading the code there's no way I'd understand what's the reason 
-> behind it
-> without knowing of this bug report.
+Joe Perches (5):
+  powerpc: Convert last uses of __FUNCTION__ to __func__
+  x86: Convert last uses of __FUNCTION__ to __func__
+  block: Convert last uses of __FUNCTION__ to __func__
+  i915: Convert last uses of __FUNCTION__ to __func__
+  slab: Convert last uses of __FUNCTION__ to __func__
 
-Done.  I've updated the patch in my aio-next.git tree, so it should be in 
-tomorrow's linux-next, and will give it one last day for any further problem 
-reports.  Thanks for testing!
-
-		-ben
-
-> Thanks,
-> Sasha
+ arch/powerpc/platforms/pseries/nvram.c       | 11 +++++------
+ arch/x86/kernel/hpet.c                       |  2 +-
+ arch/x86/kernel/rtc.c                        |  4 ++--
+ arch/x86/platform/intel-mid/intel_mid_vrtc.c |  2 +-
+ drivers/block/drbd/drbd_int.h                |  8 ++++----
+ drivers/block/xen-blkfront.c                 |  4 ++--
+ drivers/gpu/drm/i915/dvo_ns2501.c            | 15 ++++++---------
+ mm/slab.h                                    |  2 +-
+ 8 files changed, 22 insertions(+), 26 deletions(-)
 
 -- 
-"Thought is the essence of where you are now."
+1.8.1.2.459.gbcd45b4.dirty
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
