@@ -1,58 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f44.google.com (mail-wg0-f44.google.com [74.125.82.44])
-	by kanga.kvack.org (Postfix) with ESMTP id A01DF6B003C
-	for <linux-mm@kvack.org>; Tue, 25 Mar 2014 14:01:57 -0400 (EDT)
-Received: by mail-wg0-f44.google.com with SMTP id m15so562442wgh.3
-        for <linux-mm@kvack.org>; Tue, 25 Mar 2014 11:01:57 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id qb5si1647743wic.35.2014.03.25.11.01.55
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 25 Mar 2014 11:01:56 -0700 (PDT)
-Date: Tue, 25 Mar 2014 11:01:50 -0700
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: mm: slub: gpf in deactivate_slab
-Message-ID: <20140325180149.GD7519@dhcp22.suse.cz>
-References: <53208A87.2040907@oracle.com>
- <5331A6C3.2000303@oracle.com>
- <20140325165247.GA7519@dhcp22.suse.cz>
- <alpine.DEB.2.10.1403251205140.24534@nuc>
- <20140325175634.GC7519@dhcp22.suse.cz>
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E4E36B003C
+	for <linux-mm@kvack.org>; Tue, 25 Mar 2014 14:06:06 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id fa1so784417pad.14
+        for <linux-mm@kvack.org>; Tue, 25 Mar 2014 11:06:06 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id f1si11860115pbn.317.2014.03.25.11.06.05
+        for <linux-mm@kvack.org>;
+        Tue, 25 Mar 2014 11:06:05 -0700 (PDT)
+Message-ID: <5331C1C9.5020309@intel.com>
+Date: Tue, 25 Mar 2014 10:50:01 -0700
+From: Dave Hansen <dave.hansen@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140325175634.GC7519@dhcp22.suse.cz>
+Subject: Re: [PATCH 1/1] mm: move FAULT_AROUND_ORDER to arch/
+References: <1395730215-11604-1-git-send-email-maddy@linux.vnet.ibm.com> <1395730215-11604-2-git-send-email-maddy@linux.vnet.ibm.com> <20140325173605.GA21411@node.dhcp.inet.fi>
+In-Reply-To: <20140325173605.GA21411@node.dhcp.inet.fi>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Sasha Levin <sasha.levin@oracle.com>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>, Madhavan Srinivasan <maddy@linux.vnet.ibm.com>
+Cc: linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, x86@kernel.org, benh@kernel.crashing.org, paulus@samba.org, kirill.shutemov@linux.intel.com, rusty@rustcorp.com.au, akpm@linux-foundation.org, riel@redhat.com, mgorman@suse.de, ak@linux.intel.com, peterz@infradead.org, mingo@kernel.org
 
-On Tue 25-03-14 10:56:34, Michal Hocko wrote:
-> On Tue 25-03-14 12:06:36, Christoph Lameter wrote:
-> > On Tue, 25 Mar 2014, Michal Hocko wrote:
-> > 
-> > > You are right. The function even does VM_BUG_ON(!irqs_disabled())...
-> > > Unfortunatelly we do not seem to have an _irq alternative of the bit
-> > > spinlock.
-> > > Not sure what to do about it. Christoph?
-> > >
-> > > Btw. it seems to go way back to 3.1 (1d07171c5e58e).
-> > 
-> > Well there is a preempt_enable() (bit_spin_lock) and a preempt_disable()
-> > bit_spin_unlock() within a piece of code where irqs are disabled.
-> > 
-> > Is that a problem? Has been there for a long time.
-> 
-> It is because preempt_enable calls __preempt_schedule when the preempt
-> count drops down to 0. You would need to call preempt_disable before you
-> disable interrupts or use an irq safe bit spin unlock which doesn't
-> enabled preemption unconditionally.
+On 03/25/2014 10:36 AM, Kirill A. Shutemov wrote:
+>> > +/*
+>> > + * Fault around order is a control knob to decide the fault around pages.
+>> > + * Default value is set to 0UL (disabled), but the arch can override it as
+>> > + * desired.
+>> > + */
+>> > +#ifndef FAULT_AROUND_ORDER
+>> > +#define FAULT_AROUND_ORDER	0UL
+>> > +#endif
+> FAULT_AROUND_ORDER == 0 case should be handled separately in
+> do_read_fault(): no reason to go to do_fault_around() if we are going to
+> fault in only one page.
 
-Hmm, now that I am looking into the code more closely it seems that
-preempt_schedule bails out when interrupts are disabled.
--- 
-Michal Hocko
-SUSE Labs
+Isn't this the kind of thing we want to do in Kconfig?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
