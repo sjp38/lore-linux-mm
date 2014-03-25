@@ -1,76 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f54.google.com (mail-ee0-f54.google.com [74.125.83.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D2BE6B003D
-	for <linux-mm@kvack.org>; Tue, 25 Mar 2014 04:11:12 -0400 (EDT)
-Received: by mail-ee0-f54.google.com with SMTP id d49so106892eek.41
-        for <linux-mm@kvack.org>; Tue, 25 Mar 2014 01:11:11 -0700 (PDT)
-Received: from mail-ee0-x22f.google.com (mail-ee0-x22f.google.com [2a00:1450:4013:c00::22f])
-        by mx.google.com with ESMTPS id g47si19083616eet.294.2014.03.25.01.11.10
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 151C96B0070
+	for <linux-mm@kvack.org>; Tue, 25 Mar 2014 06:02:51 -0400 (EDT)
+Received: by mail-pd0-f182.google.com with SMTP id y10so223122pdj.13
+        for <linux-mm@kvack.org>; Tue, 25 Mar 2014 03:02:50 -0700 (PDT)
+Received: from am1outboundpool.messaging.microsoft.com (am1ehsobe005.messaging.microsoft.com. [213.199.154.208])
+        by mx.google.com with ESMTPS id pc9si6456721pac.312.2014.03.25.03.02.49
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 25 Mar 2014 01:11:11 -0700 (PDT)
-Received: by mail-ee0-f47.google.com with SMTP id b15so112312eek.6
-        for <linux-mm@kvack.org>; Tue, 25 Mar 2014 01:11:10 -0700 (PDT)
-Date: Tue, 25 Mar 2014 09:11:07 +0100
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH 0/1] mm: FAULT_AROUND_ORDER patchset performance data for
- powerpc
-Message-ID: <20140325081107.GA28377@gmail.com>
-References: <1395730215-11604-1-git-send-email-maddy@linux.vnet.ibm.com>
+        (version=TLSv1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 25 Mar 2014 03:02:49 -0700 (PDT)
+From: Emil Medve <Emilian.Medve@Freescale.com>
+Subject: [PATCH 2/3] memblock: Use for_each_memblock()
+Date: Tue, 25 Mar 2014 04:31:04 -0500
+Message-ID: <1395739864-19276-1-git-send-email-Emilian.Medve@Freescale.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1395730215-11604-1-git-send-email-maddy@linux.vnet.ibm.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Madhavan Srinivasan <maddy@linux.vnet.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, x86@kernel.org, benh@kernel.crashing.org, paulus@samba.org, kirill.shutemov@linux.intel.com, rusty@rustcorp.com.au, akpm@linux-foundation.org, riel@redhat.com, mgorman@suse.de, ak@linux.intel.com, peterz@infradead.org, Linus Torvalds <torvalds@linux-foundation.org>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, torvalds@linux-foundation.org
+Cc: Emil Medve <Emilian.Medve@Freescale.com>
 
+Signed-off-by: Emil Medve <Emilian.Medve@Freescale.com>
+---
 
-* Madhavan Srinivasan <maddy@linux.vnet.ibm.com> wrote:
+This is a small cleanup
 
-> Performance data for different FAULT_AROUND_ORDER values from 4 socket
-> Power7 system (128 Threads and 128GB memory) is below.  Fault around order (FAO)
-> value of 3 looks more advantageous.
-> 
-> FAULT_AROUND_ORDER      Baseline        1               3               4		5               7
-> 
-> Linux build (make -j64)
-> minor-faults		7184385		5874015		4567289		4318518		4193815		4159193
-> times in seconds	61.433776136	60.865935292	59.245368038	60.630675011	60.56587624	59.828271924
+ mm/memblock.c   | 24 +++++++++++-------------
+ mm/page_alloc.c | 10 +++++-----
+ 2 files changed, 16 insertions(+), 18 deletions(-)
 
-Hm, I have one general observation: it's hard to tell how 
-(statistically) significant the time differences are, without standard 
-deviation numbers.
+diff --git a/mm/memblock.c b/mm/memblock.c
+index 39a31e7..2b2aaf8 100644
+--- a/mm/memblock.c
++++ b/mm/memblock.c
+@@ -1271,16 +1271,14 @@ phys_addr_t __init_memblock memblock_end_of_DRAM(void)
+ 
+ void __init memblock_enforce_memory_limit(phys_addr_t limit)
+ {
+-	unsigned long i;
+ 	phys_addr_t max_addr = (phys_addr_t)ULLONG_MAX;
++	struct memblock_region *r;
+ 
+ 	if (!limit)
+ 		return;
+ 
+ 	/* find out max address */
+-	for (i = 0; i < memblock.memory.cnt; i++) {
+-		struct memblock_region *r = &memblock.memory.regions[i];
+-
++	for_each_memblock(memory, r) {
+ 		if (limit <= r->size) {
+ 			max_addr = r->base + limit;
+ 			break;
+@@ -1379,13 +1377,12 @@ int __init_memblock memblock_is_region_reserved(phys_addr_t base, phys_addr_t si
+ 
+ void __init_memblock memblock_trim_memory(phys_addr_t align)
+ {
+-	int i;
+ 	phys_addr_t start, end, orig_start, orig_end;
+-	struct memblock_type *mem = &memblock.memory;
++	struct memblock_region *r;
+ 
+-	for (i = 0; i < mem->cnt; i++) {
+-		orig_start = mem->regions[i].base;
+-		orig_end = mem->regions[i].base + mem->regions[i].size;
++	for_each_memblock(memory, r) {
++		orig_start = r->base;
++		orig_end = r->base + r->size;
+ 		start = round_up(orig_start, align);
+ 		end = round_down(orig_end, align);
+ 
+@@ -1393,11 +1390,12 @@ void __init_memblock memblock_trim_memory(phys_addr_t align)
+ 			continue;
+ 
+ 		if (start < end) {
+-			mem->regions[i].base = start;
+-			mem->regions[i].size = end - start;
++			r->base = start;
++			r->size = end - start;
+ 		} else {
+-			memblock_remove_region(mem, i);
+-			i--;
++			memblock_remove_region(&memblock.memory,
++					       r - memblock.memory.regions);
++			r--;
+ 		}
+ 	}
+ }
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index e3758a0..b3727ef 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -5050,7 +5050,7 @@ static void __init find_zone_movable_pfns_for_nodes(void)
+ 	nodemask_t saved_node_state = node_states[N_MEMORY];
+ 	unsigned long totalpages = early_calculate_totalpages();
+ 	int usable_nodes = nodes_weight(node_states[N_MEMORY]);
+-	struct memblock_type *type = &memblock.memory;
++	struct memblock_region *r;
+ 
+ 	/* Need to find movable_zone earlier when movable_node is specified. */
+ 	find_usable_zone_for_movable();
+@@ -5060,13 +5060,13 @@ static void __init find_zone_movable_pfns_for_nodes(void)
+ 	 * options.
+ 	 */
+ 	if (movable_node_is_enabled()) {
+-		for (i = 0; i < type->cnt; i++) {
+-			if (!memblock_is_hotpluggable(&type->regions[i]))
++		for_each_memblock(memory, r) {
++			if (!memblock_is_hotpluggable(r))
+ 				continue;
+ 
+-			nid = type->regions[i].nid;
++			nid = r->nid;
+ 
+-			usable_startpfn = PFN_DOWN(type->regions[i].base);
++			usable_startpfn = PFN_DOWN(r->base);
+ 			zone_movable_pfn[nid] = zone_movable_pfn[nid] ?
+ 				min(usable_startpfn, zone_movable_pfn[nid]) :
+ 				usable_startpfn;
+-- 
+1.9.1
 
-You can get stddev very easily via 'perf stat --null --repeat N'.
-
-You can use --pre <script> and --post <script> for pre/post 
-measurement cleanup hooks (such as 'make clean'). So for example:
-
-  perf stat --null --repeat 3 --pre 'make defconfig; make clean >/dev/null 2>&1' make -j64 kernel/
-
-Which run the workload 3 times and it will output something like:
-
-       9.013717158 seconds time elapsed                                          ( +-  0.99% )
-
-Where the +- column shows the stddev in relative percentage units.
-
-The --null option ensures that only time measurement is done with no 
-overhead for the workload, no other performance metrics are taken.
-
-The overhead of the --pre stage is not added to the measured time.
-
-Thus you can also add really expensive steps to the --pre stage, such 
-as a vm_drop_caches clearing of all caches, to measure cache-cold 
-results.
-
-The stddev value shows that the result is significant to about the 
-first fractional digit.
-
-Thanks,
-
-	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
