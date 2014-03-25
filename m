@@ -1,88 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vc0-f182.google.com (mail-vc0-f182.google.com [209.85.220.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 520CC6B003B
-	for <linux-mm@kvack.org>; Tue, 25 Mar 2014 16:16:05 -0400 (EDT)
-Received: by mail-vc0-f182.google.com with SMTP id ks9so1247497vcb.41
-        for <linux-mm@kvack.org>; Tue, 25 Mar 2014 13:16:04 -0700 (PDT)
-Received: from mail-ve0-x234.google.com (mail-ve0-x234.google.com [2607:f8b0:400c:c01::234])
-        by mx.google.com with ESMTPS id sq9si4090589vdc.53.2014.03.25.13.16.03
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 80ADB6B003B
+	for <linux-mm@kvack.org>; Tue, 25 Mar 2014 16:31:47 -0400 (EDT)
+Received: by mail-wi0-f170.google.com with SMTP id bs8so3845916wib.3
+        for <linux-mm@kvack.org>; Tue, 25 Mar 2014 13:31:47 -0700 (PDT)
+Received: from mail-wi0-x231.google.com (mail-wi0-x231.google.com [2a00:1450:400c:c05::231])
+        by mx.google.com with ESMTPS id w10si4321807wiy.37.2014.03.25.13.31.45
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 25 Mar 2014 13:16:03 -0700 (PDT)
-Received: by mail-ve0-f180.google.com with SMTP id jz11so1215121veb.11
-        for <linux-mm@kvack.org>; Tue, 25 Mar 2014 13:16:03 -0700 (PDT)
+        Tue, 25 Mar 2014 13:31:46 -0700 (PDT)
+Received: by mail-wi0-f177.google.com with SMTP id cc10so1056482wib.4
+        for <linux-mm@kvack.org>; Tue, 25 Mar 2014 13:31:45 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <CAKbGBLiVqaHEOZx6y4MW4xDTUdKRhVLZXTTGiqYT7vuH2Wgeww@mail.gmail.com>
-References: <1395425902-29817-1-git-send-email-david.vrabel@citrix.com>
-	<1395425902-29817-3-git-send-email-david.vrabel@citrix.com>
-	<533016CB.4090807@citrix.com>
-	<CAKbGBLiVqaHEOZx6y4MW4xDTUdKRhVLZXTTGiqYT7vuH2Wgeww@mail.gmail.com>
-Date: Tue, 25 Mar 2014 13:16:02 -0700
-Message-ID: <CA+55aFwEwUmLe+dsFghMcaXdG5LPZ_NcQeOU1zZvEf7rCPw5CQ@mail.gmail.com>
-Subject: Re: [PATCH 2/2] x86: use pv-ops in {pte,pmd}_{set,clear}_flags()
-From: Linus Torvalds <torvalds@linux-foundation.org>
+Reply-To: sedat.dilek@gmail.com
+In-Reply-To: <20140325085609.9132a2e1.akpm@linux-foundation.org>
+References: <CA+icZUUr2Wua1kNoB1oCje2rU0KQx5c+V6A76UP0c99gg6UxTg@mail.gmail.com>
+	<20140325085609.9132a2e1.akpm@linux-foundation.org>
+Date: Tue, 25 Mar 2014 21:31:45 +0100
+Message-ID: <CA+icZUVH98q=-n9WKJkxqkUPkUtUU1FCMVdT7Vye0x5-vPU7cA@mail.gmail.com>
+Subject: Re: [v3.17-rc8] LTP oom testsuite produces OOPS
+From: Sedat Dilek <sedat.dilek@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Noonan <steven@uplinklabs.net>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>
-Cc: David Vrabel <david.vrabel@citrix.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, Mar 24, 2014 at 8:31 AM, Steven Noonan <steven@uplinklabs.net> wrote:
-> Vrabel's comments make me think that revisiting the elimination of the
-> _PAGE_NUMA bit implementation would be a good idea... should I CC you
-> on this discussion (not sure if you're subscribed to xen-devel, or if
-> LKML is a better place for that discussion)?
-
-I detest the PAGE_NUMA games myself, but:
-
-From: David Vrabel <david.vrabel@citrix.com>:
+On Tue, Mar 25, 2014 at 4:56 PM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
+> On Tue, 25 Mar 2014 08:45:34 +0100 Sedat Dilek <sedat.dilek@gmail.com> wrote:
 >
-> I really do not understand how you're supposed to distinguish between a
-> PTE for a PROT_NONE page and one with _PAGE_NUMA -- they're identical.
-> i.e., pte_numa() will return true for a PROT_NONE protected page which
-> just seems wrong to me.
+>> Hi,
+>>
+>> as reported in [1] in my post-scriptum I see several OOPs when running
+>> LTP and OOM tests (here: oom3).
+>> Linus requested to send you mm-folks my bug-report.
+>>
+>> # cd /opt/ltp/
+>>
+>> # cat Version
+>> 20140115
+>>
+>> # ./testcases/bin/oom03
+>>
+>> I have tested with latest LTP (15-Jan-2014).
+>>
+>> If you need additional information, please let me know.
+>
+> I don't actually see any oopses there.  There are some stack traces
+> associated with the oom-killing events:
+>
+>
+> [  104.383349] Memory cgroup out of memory: Kill process 2518 (oom03) score 777 or sacrifice child
+> [  104.383352] Killed process 2518 (oom03) total-vm:3152196kB, anon-rss:1048444kB, file-rss:192kB
+> [  107.946908] oom03 invoked oom-killer: gfp_mask=0xd0, order=0, oom_score_adj=0
+> [  107.946912] oom03 cpuset=/ mems_allowed=0
+> [  107.946915] CPU: 0 PID: 2521 Comm: oom03 Not tainted 3.14.0-rc8-1-iniza-small #1
+> [  107.946917] Hardware name: SAMSUNG ELECTRONICS CO., LTD. 530U3BI/530U4BI/530U4BH/530U3BI/530U4BI/530U4BH, BIOS 13XK 03/28/2013
+> [  107.946919]  ffff880108e58400 ffff880064125be8 ffffffff8170fb45 0000000000000007
+> [  107.946923]  ffff880108e7a190 ffff880064125c68 ffffffff8170c6e5 ffff880064125cd8
+> [  107.946925]  ffff88010b686858 ffff88011fdf9d80 ffff88010b6863d0 0000000000000000
+> [  107.946928] Call Trace:
+> [  107.946934]  [<ffffffff8170fb45>] dump_stack+0x46/0x58
+> [  107.946937]  [<ffffffff8170c6e5>] dump_header+0x7e/0x1c3
+> [  107.946942]  [<ffffffff813881e0>] ? ___ratelimit+0xa0/0x120
+> [  107.946946]  [<ffffffff811580e4>] oom_kill_process+0x214/0x370
+> [  107.946949]  [<ffffffff81075ce5>] ? has_ns_capability_noaudit+0x15/0x20
+> ...
+>
+> But these aren't oopses - mm/oom_kill.c:dump_header() deliberately
+> performs a dump_stack() while reporting on the event.
+>
 
-The way to distinguish PAGE_NUMA from PROTNONE is *supposed* to be by
-looking at the vma, and PROTNONE goes together with a vma with
-PROT_NONE. That's what the comments in pgtable_types.h say.
+Indicated by the lines '...expected victim is...' and according to you
+'expected'?
 
-However, as far as I can tell, that is pure and utter bullshit.  It's
-true that generally handle_mm_fault() shouldn't be called for
-PROT_NONE pages, since it will fail the protection checks. However, we
-have FOLL_FORCE that overrides those protection checks for things like
-ptrace etc. So people have tried to convince me that _PAGE_NUMA works,
-but I'm really not at all sure they are right.
+# cd /opt/ltp/
 
-I fundamentally think that it was a horrible horrible disaster to make
-_PAGE_NUMA alias onto _PAGE_PROTNONE.
+# ./testcases/bin/oom03
+oom03       0  TINFO  :  set overcommit_memory to 1
+oom03       0  TINFO  :  start normal OOM testing.
+oom03       0  TINFO  :  expected victim is 2834.
+oom03       0  TINFO  :  allocating 3221225472 bytes.
+oom03       0  TINFO  :  start OOM testing for mlocked pages.
+oom03       0  TINFO  :  expected victim is 2835.
+oom03       0  TINFO  :  allocating 3221225472 bytes.
+oom03       0  TINFO  :  start OOM testing for KSM pages.
+oom03       0  TINFO  :  expected victim is 2836.
+oom03       0  TINFO  :  allocating 3221225472 bytes.
+oom03       1  TCONF  :  memcg swap accounting is disabled
+oom03       0  TINFO  :  set overcommit_memory to 0
 
-But I'm cc'ing the people who tried to convince me otherwise last time
-around, to see if they can articulate this mess better now.
+# dmesg | egrep '2834|2835|2836'
+[ 1220.478440] CPU: 0 PID: 2834 Comm: oom03 Not tainted
+3.14.0-rc8-1-iniza-small #1
+[ 1220.478552] [ 2834]     0  2834   788049   248262     623    65524
+           0 oom03
+[ 1220.478554] Memory cgroup out of memory: Kill process 2834 (oom03)
+score 930 or sacrifice child
+[ 1220.478558] Killed process 2834 (oom03) total-vm:3152196kB,
+anon-rss:992852kB, file-rss:196kB
+[ 1221.544018] CPU: 0 PID: 2835 Comm: oom03 Not tainted
+3.14.0-rc8-1-iniza-small #1
+[ 1221.544151] [ 2835]     0  2835   788049   262161     522       13
+           0 oom03
+[ 1221.544152] Memory cgroup out of memory: Kill process 2835 (oom03)
+score 777 or sacrifice child
+[ 1221.544155] Killed process 2835 (oom03) total-vm:3152196kB,
+anon-rss:1048452kB, file-rss:192kB
+[ 1225.016810] CPU: 0 PID: 2836 Comm: oom03 Not tainted
+3.14.0-rc8-1-iniza-small #1
+[ 1225.016941] [ 2836]     0  2836   788049   250693     628    65535
+           0 oom03
+[ 1225.016943] Memory cgroup out of memory: Kill process 2836 (oom03)
+score 937 or sacrifice child
+[ 1225.016945] Killed process 2836 (oom03) total-vm:3152196kB,
+anon-rss:1002564kB, file-rss:208kB
 
-The argument *seems* to be that if things are truly PROT_NONE, then
-the page will never be touched by page faulting code (and as
-mentioned, I think that argument is fundamentally broken), and if it's
-PROT_NUMA then the page faulting code will magically do the right
-thing.
-
-FURTHERMORE, the argument was that we can't just call things PROT_NONE
-and just say that "those are the semantics", because on other
-architectures PROT_NONE might mean/do something else.  Which really
-makes no sense either, because if the argument was that PROT_NONE
-causes faults that can either be handled as faults (for PROT_NONE) or
-as NUMA issues (for NUMA), then dammit, that argument should be
-completely architecture-independent.
-
-But I gave up arguing with people. I will state (again) that I think
-this is a f*cking mess, and saying that PROTNONE and NUMA are somehow
-the exact same thing on x86 but not in general is bogus crap. And
-saying that you can determine which it is from the vma is very
-debatable too.
-
-Let the people responsible for the crap try to explain why it works
-and has to be that mess. Again. Rik, Mel?
-
-             Linus
+- Sedat -
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
