@@ -1,73 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id BD88F6B0069
-	for <linux-mm@kvack.org>; Mon, 24 Mar 2014 22:28:40 -0400 (EDT)
-Received: by mail-pd0-f178.google.com with SMTP id x10so6163165pdj.9
-        for <linux-mm@kvack.org>; Mon, 24 Mar 2014 19:28:40 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id zm8si10486846pac.358.2014.03.24.19.28.39
-        for <linux-mm@kvack.org>;
-        Mon, 24 Mar 2014 19:28:39 -0700 (PDT)
-Date: Tue, 25 Mar 2014 10:28:33 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: Re: [mmotm:master 463/499] mm/mprotect.c:46:14: sparse: context
- imbalance in 'lock_pte_protection' - different lock contexts for basic block
-Message-ID: <20140325022833.GA19661@localhost>
-References: <532e4cc1.umGiNE2YJiL9Z2iq%fengguang.wu@intel.com>
- <alpine.DEB.2.10.1403241559390.29809@nuc>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <alpine.DEB.2.10.1403241559390.29809@nuc>
+Received: from mail-pb0-f46.google.com (mail-pb0-f46.google.com [209.85.160.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 9ADF06B00AC
+	for <linux-mm@kvack.org>; Tue, 25 Mar 2014 02:50:30 -0400 (EDT)
+Received: by mail-pb0-f46.google.com with SMTP id rq2so36520pbb.33
+        for <linux-mm@kvack.org>; Mon, 24 Mar 2014 23:50:30 -0700 (PDT)
+Received: from e28smtp07.in.ibm.com (e28smtp07.in.ibm.com. [122.248.162.7])
+        by mx.google.com with ESMTPS id h3si10816463paw.86.2014.03.24.23.50.28
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 24 Mar 2014 23:50:29 -0700 (PDT)
+Received: from /spool/local
+	by e28smtp07.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <maddy@linux.vnet.ibm.com>;
+	Tue, 25 Mar 2014 12:20:25 +0530
+Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 1003B1258053
+	for <linux-mm@kvack.org>; Tue, 25 Mar 2014 12:22:47 +0530 (IST)
+Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
+	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s2P6oR1N4784468
+	for <linux-mm@kvack.org>; Tue, 25 Mar 2014 12:20:27 +0530
+Received: from d28av04.in.ibm.com (localhost [127.0.0.1])
+	by d28av04.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s2P6oLl5016498
+	for <linux-mm@kvack.org>; Tue, 25 Mar 2014 12:20:22 +0530
+From: Madhavan Srinivasan <maddy@linux.vnet.ibm.com>
+Subject: [PATCH 1/1] mm: move FAULT_AROUND_ORDER to arch/
+Date: Tue, 25 Mar 2014 12:20:15 +0530
+Message-Id: <1395730215-11604-2-git-send-email-maddy@linux.vnet.ibm.com>
+In-Reply-To: <1395730215-11604-1-git-send-email-maddy@linux.vnet.ibm.com>
+References: <1395730215-11604-1-git-send-email-maddy@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, kbuild-all@01.org
+To: linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, x86@kernel.org
+Cc: benh@kernel.crashing.org, paulus@samba.org, kirill.shutemov@linux.intel.com, rusty@rustcorp.com.au, akpm@linux-foundation.org, riel@redhat.com, mgorman@suse.de, ak@linux.intel.com, peterz@infradead.org, mingo@kernel.org, Madhavan Srinivasan <maddy@linux.vnet.ibm.com>
 
-On Mon, Mar 24, 2014 at 04:00:32PM -0500, Christoph Lameter wrote:
-> On Sun, 23 Mar 2014, kbuild test robot wrote:
-> 
-> > >> mm/mprotect.c:46:14: sparse: context imbalance in 'lock_pte_protection' - different lock contexts for basic block
-> > >> arch/x86/include/asm/paravirt.h:699:9: sparse: context imbalance in 'change_pte_range' - unexpected unlock
-> > --
-> > >> fs/ntfs/super.c:3100:1: sparse: directive in argument list
-> > >> fs/ntfs/super.c:3102:1: sparse: directive in argument list
-> > >> fs/ntfs/super.c:3104:1: sparse: directive in argument list
-> > >> fs/ntfs/super.c:3105:1: sparse: directive in argument list
-> > >> fs/ntfs/super.c:3107:1: sparse: directive in argument list
-> > >> fs/ntfs/super.c:3108:1: sparse: directive in argument list
-> > >> fs/ntfs/super.c:3110:1: sparse: directive in argument list
-> 
-> Looked through these and I am a bit puzzled how they related to raw cpu
-> ops patch.
+Kirill A. Shutemov with the commit 96bacfe542 introduced
+vm_ops->map_pages() for mapping easy accessible pages around
+fault address in hope to reduce number of minor page faults.
+Based on his workload runs, suggested FAULT_AROUND_ORDER
+(knob to control the numbers of pages to map) is 4.
 
-Ah yes, this is false positive and is because the compilation on the
-previous commit failed, so the sparse errors in fs/ntfs/super.c show
-up as "new" ones in commit 6a9ad050.
+This patch moves the FAULT_AROUND_ORDER macro to arch/ for
+architecture maintainers to decide on suitable FAULT_AROUND_ORDER
+value based on performance data for that architecture.
 
-wfg@bee ~/linux% git checkout 6a9ad050c521ac607a30a691042f2a5d24109b07~
-...
-HEAD is now at 1b1dc6d... arm: move arm_dma_limit to setup_dma_zone
+Signed-off-by: Madhavan Srinivasan <maddy@linux.vnet.ibm.com>
+---
+ arch/powerpc/include/asm/pgtable.h |    6 ++++++
+ arch/x86/include/asm/pgtable.h     |    5 +++++
+ include/asm-generic/pgtable.h      |   10 ++++++++++
+ mm/memory.c                        |    2 --
+ 4 files changed, 21 insertions(+), 2 deletions(-)
 
-wfg@bee ~/linux/obj-compiletest% make C=1 fs/ntfs/super.o
-...
-  HOSTLD  scripts/mod/modpost
-In file included from /c/wfg/linux/include/linux/mm.h:897:0,
-                 from /c/wfg/linux/include/linux/suspend.h:8,
-                 from /c/wfg/linux/arch/x86/kernel/asm-offsets.c:12:
-/c/wfg/linux/include/linux/vmstat.h: In function a??__count_vm_eventa??:
-/c/wfg/linux/include/linux/vmstat.h:36:2: error: implicit declaration of function a??raw_cpu_inca?? [-Werror=implicit-function-declaration]
-/c/wfg/linux/include/linux/vmstat.h: In function a??__count_vm_eventsa??:
-/c/wfg/linux/include/linux/vmstat.h:46:2: error: implicit declaration of function a??raw_cpu_adda?? [-Werror=implicit-function-declaration]
-cc1: some warnings being treated as errors
-make[2]: *** [arch/x86/kernel/asm-offsets.s] Error 1
-make[1]: *** [prepare0] Error 2
-make: *** [sub-make] Error 2
-make: Leaving directory `/c/wfg/linux'
-
-Thanks,
-Fengguang
+diff --git a/arch/powerpc/include/asm/pgtable.h b/arch/powerpc/include/asm/pgtable.h
+index 3ebb188..9fcbd48 100644
+--- a/arch/powerpc/include/asm/pgtable.h
++++ b/arch/powerpc/include/asm/pgtable.h
+@@ -19,6 +19,12 @@ struct mm_struct;
+ #endif
+ 
+ /*
++ * With a few real world workloads that were run,
++ * the performance data showed that a value of 3 is more advantageous.
++ */
++#define FAULT_AROUND_ORDER	3
++
++/*
+  * We save the slot number & secondary bit in the second half of the
+  * PTE page. We use the 8 bytes per each pte entry.
+  */
+diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+index 938ef1d..8387a65 100644
+--- a/arch/x86/include/asm/pgtable.h
++++ b/arch/x86/include/asm/pgtable.h
+@@ -7,6 +7,11 @@
+ #include <asm/pgtable_types.h>
+ 
+ /*
++ * Based on Kirill's test results, fault around order is set to 4
++ */
++#define FAULT_AROUND_ORDER 4
++
++/*
+  * Macro to mark a page protection value as UC-
+  */
+ #define pgprot_noncached(prot)					\
+diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
+index 1ec08c1..62f7f07 100644
+--- a/include/asm-generic/pgtable.h
++++ b/include/asm-generic/pgtable.h
+@@ -7,6 +7,16 @@
+ #include <linux/mm_types.h>
+ #include <linux/bug.h>
+ 
++
++/*
++ * Fault around order is a control knob to decide the fault around pages.
++ * Default value is set to 0UL (disabled), but the arch can override it as
++ * desired.
++ */
++#ifndef FAULT_AROUND_ORDER
++#define FAULT_AROUND_ORDER	0UL
++#endif
++
+ /*
+  * On almost all architectures and configurations, 0 can be used as the
+  * upper ceiling to free_pgtables(): on many architectures it has the same
+diff --git a/mm/memory.c b/mm/memory.c
+index b02c584..fd79ffc 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -3358,8 +3358,6 @@ void do_set_pte(struct vm_area_struct *vma, unsigned long address,
+ 	update_mmu_cache(vma, address, pte);
+ }
+ 
+-#define FAULT_AROUND_ORDER 4
+-
+ #ifdef CONFIG_DEBUG_FS
+ static unsigned int fault_around_order = FAULT_AROUND_ORDER;
+ 
+-- 
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
