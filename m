@@ -1,41 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E4E36B003C
-	for <linux-mm@kvack.org>; Tue, 25 Mar 2014 14:06:06 -0400 (EDT)
-Received: by mail-pa0-f41.google.com with SMTP id fa1so784417pad.14
-        for <linux-mm@kvack.org>; Tue, 25 Mar 2014 11:06:06 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id f1si11860115pbn.317.2014.03.25.11.06.05
+Received: from mail-ie0-f174.google.com (mail-ie0-f174.google.com [209.85.223.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 434836B004D
+	for <linux-mm@kvack.org>; Tue, 25 Mar 2014 14:07:07 -0400 (EDT)
+Received: by mail-ie0-f174.google.com with SMTP id rp18so763029iec.33
+        for <linux-mm@kvack.org>; Tue, 25 Mar 2014 11:07:07 -0700 (PDT)
+Received: from qmta09.emeryville.ca.mail.comcast.net (qmta09.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:96])
+        by mx.google.com with ESMTP id l4si28591464igx.25.2014.03.25.11.07.04
         for <linux-mm@kvack.org>;
-        Tue, 25 Mar 2014 11:06:05 -0700 (PDT)
-Message-ID: <5331C1C9.5020309@intel.com>
-Date: Tue, 25 Mar 2014 10:50:01 -0700
-From: Dave Hansen <dave.hansen@intel.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 1/1] mm: move FAULT_AROUND_ORDER to arch/
-References: <1395730215-11604-1-git-send-email-maddy@linux.vnet.ibm.com> <1395730215-11604-2-git-send-email-maddy@linux.vnet.ibm.com> <20140325173605.GA21411@node.dhcp.inet.fi>
-In-Reply-To: <20140325173605.GA21411@node.dhcp.inet.fi>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+        Tue, 25 Mar 2014 11:07:05 -0700 (PDT)
+Date: Tue, 25 Mar 2014 13:07:02 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: slab_common: fix the check for duplicate slab names
+In-Reply-To: <20140325170324.GC580@redhat.com>
+Message-ID: <alpine.DEB.2.10.1403251306260.26471@nuc>
+References: <alpine.LRH.2.02.1403041711300.29476@file01.intranet.prod.int.rdu2.redhat.com> <20140325170324.GC580@redhat.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>, Madhavan Srinivasan <maddy@linux.vnet.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, x86@kernel.org, benh@kernel.crashing.org, paulus@samba.org, kirill.shutemov@linux.intel.com, rusty@rustcorp.com.au, akpm@linux-foundation.org, riel@redhat.com, mgorman@suse.de, ak@linux.intel.com, peterz@infradead.org, mingo@kernel.org
+To: Mike Snitzer <snitzer@redhat.com>
+Cc: Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, dm-devel@redhat.com, linux-kernel@vger.kernel.org, "Alasdair G. Kergon" <agk@redhat.com>, Mikulas Patocka <mpatocka@redhat.com>
 
-On 03/25/2014 10:36 AM, Kirill A. Shutemov wrote:
->> > +/*
->> > + * Fault around order is a control knob to decide the fault around pages.
->> > + * Default value is set to 0UL (disabled), but the arch can override it as
->> > + * desired.
->> > + */
->> > +#ifndef FAULT_AROUND_ORDER
->> > +#define FAULT_AROUND_ORDER	0UL
->> > +#endif
-> FAULT_AROUND_ORDER == 0 case should be handled separately in
-> do_read_fault(): no reason to go to do_fault_around() if we are going to
-> fault in only one page.
+On Tue, 25 Mar 2014, Mike Snitzer wrote:
 
-Isn't this the kind of thing we want to do in Kconfig?
+> This patch still isn't upstream.  Who should be shepherding it to Linus?
+
+Pekka usually does that.
+
+Acked-by: Christoph Lameter <cl@linux.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
