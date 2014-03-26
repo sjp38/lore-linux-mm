@@ -1,75 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id DC5046B0035
-	for <linux-mm@kvack.org>; Wed, 26 Mar 2014 15:55:28 -0400 (EDT)
-Received: by mail-pa0-f53.google.com with SMTP id ld10so2371566pab.26
-        for <linux-mm@kvack.org>; Wed, 26 Mar 2014 12:55:28 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id tm9si14458815pab.387.2014.03.26.12.55.26
-        for <linux-mm@kvack.org>;
-        Wed, 26 Mar 2014 12:55:26 -0700 (PDT)
-Date: Wed, 26 Mar 2014 12:55:25 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: mm: BUG: Bad page state in process ksmd
-Message-Id: <20140326125525.4e8090096f647f654eb7329d@linux-foundation.org>
-In-Reply-To: <5332EE97.4050604@oracle.com>
-References: <5332EE97.4050604@oracle.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 91D406B0031
+	for <linux-mm@kvack.org>; Wed, 26 Mar 2014 16:28:49 -0400 (EDT)
+Received: by mail-wi0-f173.google.com with SMTP id f8so5129898wiw.6
+        for <linux-mm@kvack.org>; Wed, 26 Mar 2014 13:28:48 -0700 (PDT)
+Received: from mail-wg0-x231.google.com (mail-wg0-x231.google.com [2a00:1450:400c:c00::231])
+        by mx.google.com with ESMTPS id tc6si2312867wic.102.2014.03.26.13.28.47
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 26 Mar 2014 13:28:48 -0700 (PDT)
+Received: by mail-wg0-f49.google.com with SMTP id a1so1743790wgh.32
+        for <linux-mm@kvack.org>; Wed, 26 Mar 2014 13:28:47 -0700 (PDT)
+MIME-Version: 1.0
+From: Dan Streetman <ddstreet@ieee.org>
+Date: Wed, 26 Mar 2014 16:28:27 -0400
+Message-ID: <CALZtONDiOdYSSu02Eo78F4UL5OLTsk-9MR1hePc-XnSujRuvfw@mail.gmail.com>
+Subject: Adding compression before/above swapcache
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>
+To: Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, Seth Jennings <sjennings@variantweb.net>, Bob Liu <bob.liu@oracle.com>, Minchan Kim <minchan@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Weijie Yang <weijie.yang@samsung.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 
-On Wed, 26 Mar 2014 11:13:27 -0400 Sasha Levin <sasha.levin@oracle.com> wrote:
+I'd like some feedback on how possible/useful, or not, it might be to
+add compression into the page handling code before pages are added to
+the swapcache.  My thought is that adding a compressed cache at that
+point may have (at least) two advantages over the existing page
+compression, zswap and zram, which are both in the swap path.
 
-> Hi all,
-> 
-> While fuzzing with trinity inside a KVM tools guest running the latest -next
-> kernel I've stumbled on the following.
+1) Both zswap and zram are limited in the amount of memory that they
+can compress/store:
+-zswap is limited both in the amount of pre-compressed pages, by the
+total amount of swap configured in the system, and post-compressed
+pages, by its max_pool_percentage parameter.  These limitations aren't
+necessarily a bad thing, just requirements for the user (or distro
+setup tool, etc) to correctly configure them.  And for optimal
+operation, they need to coordinate; for example, with the default
+post-compressed 20% of memory zswap's configured to use, the amount of
+swap in the system must be at least 40% of system memory (if/when
+zswap is changed to use zsmalloc that number would need to increase).
+The point being, there is a clear possibility of misconfiguration, or
+even a simple lack of enough disk space for actual swap, that could
+artificially reduce the amount of total memory zswap is able to
+compress.  Additionally, most of that real disk swap is wasted space -
+all the pages stored compressed in zswap aren't actually written on
+the disk.
+-zram is limited only by its pre-compressed size, and of course the
+amount of actual system memory it can use for compressed storage.  If
+using without dm-cache, this could allow essentially unlimited
+compression until no more compressed pages can be stored; however that
+requires the zram device to be configured as larger than the actual
+system memory.  If using with dm-cache, it may not be obvious what the
+optimal zram size is.
 
-(cc Hugh)
+Pre-swapcache compression would theoretically require no user
+configuration, and the amount of compressed pages would be unlimited
+(until there is no more room to store compressed pages).
 
-> Out of curiosity, is there a reason not to do bad flag checks when actually
-> setting flag? Obviously it'll be slower but it'll be easier catching these
-> issues.
+2) Both zswap and zram (with dm-cache) write uncompressed pages to disk:
+-zswap rejects any pages being sent to swap that don't compress well
+enough, and they're passed on to the swap disk in uncompressed form.
+Also, once zswap is full it starts uncompressing its old compressed
+pages and writing them back to the swap disk.
+-zram, with dm-cache, can pass pages on to the swap disk, but IIUC
+those pages must be uncompressed first, and then written in compressed
+form on disk.  (Please correct me here if that is wrong).
 
-Tricky.  Each code site must determine what are and are not valid page
-states depending upon the current context.  The one place where we've
-made that effort is at the point where a page is returned to the free
-page pool.  Any other sites would require similar amounts of effort and
-each one would be different from all the others.
+A compressed cache that comes before the swap cache would be able to
+push pages from its compressed storage to the swap disk, that contain
+multiple compressed pages (and/or parts of compressed pages, if
+overlapping page boundries).  I think that would be able to,
+theoretically at least, improve overall read/write times from a
+pre-compressed perspective, simply because less actual data would be
+transferred.  Also, less actual swap disk space would be
+used/required, which on systems with a very large amount of system
+memory may be beneficial.
 
-We do this in a small way all over the place, against individual page
-flags.  grep PageLocked */*.c.
 
-> [ 3926.683948] BUG: Bad page state in process ksmd  pfn:5a6246
-> [ 3926.689336] page:ffffea0016989180 count:0 mapcount:0 mapping:          (null) index:
-> [ 3926.696507] page flags: 0x56fffff8028001c(referenced|uptodate|dirty|swapbacked|mlock
-> [ 3926.709201] page dumped because: PAGE_FLAGS_CHECK_AT_FREE flag(s) set
-> [ 3926.711216] bad because of flags:
-> [ 3926.712136] page flags: 0x200000(mlocked)
-> [ 3926.713574] Modules linked in:
-> [ 3926.714466] CPU: 26 PID: 3864 Comm: ksmd Tainted: G        W     3.14.0-rc7-next-201
-> [ 3926.720942]  ffffffff85688060 ffff8806ec7abc38 ffffffff844bd702 0000000000002fa0
-> [ 3926.728107]  ffffea0016989180 ffff8806ec7abc68 ffffffff844b158f 000fffff80000000
-> [ 3926.730563]  0000000000000000 000fffff80000000 ffffffff85688060 ffff8806ec7abcb8
-> [ 3926.737653] Call Trace:
-> [ 3926.738347]  dump_stack (lib/dump_stack.c:52)
-> [ 3926.739841]  bad_page (arch/x86/include/asm/atomic.h:38 include/linux/mm.h:432 mm/page_alloc.c:339)
-> [ 3926.741296]  free_pages_prepare (mm/page_alloc.c:644 mm/page_alloc.c:738)
-> [ 3926.742818]  free_hot_cold_page (mm/page_alloc.c:1371)
-> [ 3926.749425]  __put_single_page (mm/swap.c:71)
-> [ 3926.751074]  put_page (mm/swap.c:237)
-> [ 3926.752398]  ksm_do_scan (mm/ksm.c:1480 mm/ksm.c:1704)
-> [ 3926.753957]  ksm_scan_thread (mm/ksm.c:1723)
-> [ 3926.755940]  ? bit_waitqueue (kernel/sched/wait.c:291)
-> [ 3926.758644]  ? ksm_do_scan (mm/ksm.c:1715)
-> [ 3926.760420]  kthread (kernel/kthread.c:219)
-> [ 3926.761605]  ? kthread_create_on_node (kernel/kthread.c:185)
-> [ 3926.763149]  ret_from_fork (arch/x86/kernel/entry_64.S:555)
-> [ 3926.764323]  ? kthread_create_on_node (kernel/kthread.c:185)
+Additionally, a couple other random possible benefits:
+-like zswap but unlike zram, a pre-swapcache compressed cache would be
+able to select which pages to store compressed, either based on poor
+compression results or some other criteria - possibly userspace could
+madvise that certain pages were or weren't likely compressible.
+-while zram and zswap are only able to compress and store pages that
+are passed to them by zswapd or direct reclaim, a pre-swap compressed
+cache wouldn't necessarily have to wait until the low watermark is
+reached.
+
+Any feedback would be greatly appreciated!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
