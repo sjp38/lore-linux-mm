@@ -1,65 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f45.google.com (mail-yh0-f45.google.com [209.85.213.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 7440F6B0038
-	for <linux-mm@kvack.org>; Wed, 26 Mar 2014 11:13:36 -0400 (EDT)
-Received: by mail-yh0-f45.google.com with SMTP id a41so2198458yho.32
-        for <linux-mm@kvack.org>; Wed, 26 Mar 2014 08:13:36 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id l53si23743723yhh.132.2014.03.26.08.13.35
+Received: from mail-lb0-f179.google.com (mail-lb0-f179.google.com [209.85.217.179])
+	by kanga.kvack.org (Postfix) with ESMTP id CA6986B0031
+	for <linux-mm@kvack.org>; Wed, 26 Mar 2014 11:28:11 -0400 (EDT)
+Received: by mail-lb0-f179.google.com with SMTP id p9so1593107lbv.24
+        for <linux-mm@kvack.org>; Wed, 26 Mar 2014 08:28:10 -0700 (PDT)
+Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
+        by mx.google.com with ESMTPS id w4si14677936lad.164.2014.03.26.08.28.09
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 26 Mar 2014 08:13:35 -0700 (PDT)
-Message-ID: <5332EE97.4050604@oracle.com>
-Date: Wed, 26 Mar 2014 11:13:27 -0400
-From: Sasha Levin <sasha.levin@oracle.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 26 Mar 2014 08:28:09 -0700 (PDT)
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: [PATCH -mm 0/4] kmemcg: get rid of __GFP_KMEMCG
+Date: Wed, 26 Mar 2014 19:28:03 +0400
+Message-ID: <cover.1395846845.git.vdavydov@parallels.com>
 MIME-Version: 1.0
-Subject: mm: BUG: Bad page state in process ksmd
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
+To: akpm@linux-foundation.org
+Cc: hannes@cmpxchg.org, mhocko@suse.cz, glommer@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, devel@openvz.org
 
-Hi all,
+Hi,
 
-While fuzzing with trinity inside a KVM tools guest running the latest -next
-kernel I've stumbled on the following.
+Currently we charge kmem to memcg in alloc_pages if __GFP_KMEMCG is
+passed. However, since there are only a few places where we actually
+want to charge kmem, we could call kmemcg charge function explicitly
+instead. That would remove all kmemcg-related stuff from the general
+allocation path and make all kmem charges easier to follow.
 
-Out of curiosity, is there a reason not to do bad flag checks when actually
-setting flag? Obviously it'll be slower but it'll be easier catching these
-issues.
-
-[ 3926.683948] BUG: Bad page state in process ksmd  pfn:5a6246
-[ 3926.689336] page:ffffea0016989180 count:0 mapcount:0 mapping:          (null) index:
-[ 3926.696507] page flags: 0x56fffff8028001c(referenced|uptodate|dirty|swapbacked|mlock
-[ 3926.709201] page dumped because: PAGE_FLAGS_CHECK_AT_FREE flag(s) set
-[ 3926.711216] bad because of flags:
-[ 3926.712136] page flags: 0x200000(mlocked)
-[ 3926.713574] Modules linked in:
-[ 3926.714466] CPU: 26 PID: 3864 Comm: ksmd Tainted: G        W     3.14.0-rc7-next-201
-[ 3926.720942]  ffffffff85688060 ffff8806ec7abc38 ffffffff844bd702 0000000000002fa0
-[ 3926.728107]  ffffea0016989180 ffff8806ec7abc68 ffffffff844b158f 000fffff80000000
-[ 3926.730563]  0000000000000000 000fffff80000000 ffffffff85688060 ffff8806ec7abcb8
-[ 3926.737653] Call Trace:
-[ 3926.738347]  dump_stack (lib/dump_stack.c:52)
-[ 3926.739841]  bad_page (arch/x86/include/asm/atomic.h:38 include/linux/mm.h:432 mm/page_alloc.c:339)
-[ 3926.741296]  free_pages_prepare (mm/page_alloc.c:644 mm/page_alloc.c:738)
-[ 3926.742818]  free_hot_cold_page (mm/page_alloc.c:1371)
-[ 3926.749425]  __put_single_page (mm/swap.c:71)
-[ 3926.751074]  put_page (mm/swap.c:237)
-[ 3926.752398]  ksm_do_scan (mm/ksm.c:1480 mm/ksm.c:1704)
-[ 3926.753957]  ksm_scan_thread (mm/ksm.c:1723)
-[ 3926.755940]  ? bit_waitqueue (kernel/sched/wait.c:291)
-[ 3926.758644]  ? ksm_do_scan (mm/ksm.c:1715)
-[ 3926.760420]  kthread (kernel/kthread.c:219)
-[ 3926.761605]  ? kthread_create_on_node (kernel/kthread.c:185)
-[ 3926.763149]  ret_from_fork (arch/x86/kernel/entry_64.S:555)
-[ 3926.764323]  ? kthread_create_on_node (kernel/kthread.c:185)
-
+So let's charge kmem explicitly where we want it to be charged (slab,
+threadinfo) and remove __GFP_KMEMCG.
 
 Thanks,
-Sasha
+
+Vladimir Davydov (4):
+  sl[au]b: do not charge large allocations to memcg
+  sl[au]b: charge slabs to memcg explicitly
+  fork: charge threadinfo to memcg explicitly
+  mm: kill __GFP_KMEMCG
+
+ include/linux/gfp.h             |    5 -----
+ include/linux/memcontrol.h      |   26 +++++++++++++-----------
+ include/linux/slab.h            |    2 +-
+ include/linux/thread_info.h     |    2 --
+ include/trace/events/gfpflags.h |    1 -
+ kernel/fork.c                   |   13 +++++++++---
+ mm/memcontrol.c                 |   42 +++++++++++++++------------------------
+ mm/page_alloc.c                 |   35 --------------------------------
+ mm/slab.c                       |    7 ++++++-
+ mm/slab_common.c                |    6 +-----
+ mm/slub.c                       |   28 +++++++++++++++++---------
+ 11 files changed, 67 insertions(+), 100 deletions(-)
+
+-- 
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
