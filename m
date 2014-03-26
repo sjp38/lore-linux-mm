@@ -1,103 +1,249 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f51.google.com (mail-ee0-f51.google.com [74.125.83.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 069F56B0035
-	for <linux-mm@kvack.org>; Wed, 26 Mar 2014 17:55:44 -0400 (EDT)
-Received: by mail-ee0-f51.google.com with SMTP id c13so2165811eek.38
-        for <linux-mm@kvack.org>; Wed, 26 Mar 2014 14:55:44 -0700 (PDT)
-Received: from mail.anarazel.de (mail.anarazel.de. [217.115.131.40])
-        by mx.google.com with ESMTP id z2si33527249eeo.274.2014.03.26.14.55.42
-        for <linux-mm@kvack.org>;
-        Wed, 26 Mar 2014 14:55:43 -0700 (PDT)
-Date: Wed, 26 Mar 2014 22:55:18 +0100
-From: Andres Freund <andres@2ndquadrant.com>
-Subject: Re: [Lsf] Postgresql performance problems with IO latency,
- especially during fsync()
-Message-ID: <20140326215518.GH9066@alap3.anarazel.de>
-References: <20140326191113.GF9066@alap3.anarazel.de>
- <CALCETrUc1YvNc3EKb4ex579rCqBfF=84_h5bvbq49o62k2KpmA@mail.gmail.com>
+Received: from mail-wg0-f50.google.com (mail-wg0-f50.google.com [74.125.82.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A7556B0031
+	for <linux-mm@kvack.org>; Wed, 26 Mar 2014 17:58:56 -0400 (EDT)
+Received: by mail-wg0-f50.google.com with SMTP id x13so1836365wgg.9
+        for <linux-mm@kvack.org>; Wed, 26 Mar 2014 14:58:55 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id gc6si332965wib.123.2014.03.26.14.58.54
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 26 Mar 2014 14:58:54 -0700 (PDT)
+Date: Wed, 26 Mar 2014 14:58:49 -0700
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH -mm 2/4] sl[au]b: charge slabs to memcg explicitly
+Message-ID: <20140326215848.GB22656@dhcp22.suse.cz>
+References: <cover.1395846845.git.vdavydov@parallels.com>
+ <1d0196602182e5284f3289eaea0219e62a51d1c4.1395846845.git.vdavydov@parallels.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CALCETrUc1YvNc3EKb4ex579rCqBfF=84_h5bvbq49o62k2KpmA@mail.gmail.com>
+In-Reply-To: <1d0196602182e5284f3289eaea0219e62a51d1c4.1395846845.git.vdavydov@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, lsf@lists.linux-foundation.org, Wu Fengguang <fengguang.wu@intel.com>, rhaas@anarazel.de
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, glommer@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, devel@openvz.org, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>
 
-On 2014-03-26 14:41:31 -0700, Andy Lutomirski wrote:
-> On Wed, Mar 26, 2014 at 12:11 PM, Andres Freund <andres@anarazel.de> wrote:
-> > Hi,
-> >
-> > At LSF/MM there was a slot about postgres' problems with the kernel. Our
-> > top#1 concern is frequent slow read()s that happen while another process
-> > calls fsync(), even though we'd be perfectly fine if that fsync() took
-> > ages.
-> > The "conclusion" of that part was that it'd be very useful to have a
-> > demonstration of the problem without needing a full blown postgres
-> > setup. I've quickly hacked something together, that seems to show the
-> > problem nicely.
-> >
-> > For a bit of context: lwn.net/SubscriberLink/591723/940134eb57fcc0b8/
-> > and the "IO Scheduling" bit in
-> > http://archives.postgresql.org/message-id/20140310101537.GC10663%40suse.de
-> >
+On Wed 26-03-14 19:28:05, Vladimir Davydov wrote:
+> We have only a few places where we actually want to charge kmem so
+> instead of intruding into the general page allocation path with
+> __GFP_KMEMCG it's better to explictly charge kmem there. All kmem
+> charges will be easier to follow that way.
 > 
-> For your amusement: running this program in KVM on a 2GB disk image
-> failed, but it caused the *host* to go out to lunch for several
-> seconds while failing.  In fact, it seems to have caused the host to
-> fall over so badly that the guest decided that the disk controller was
-> timing out.  The host is btrfs, and I think that btrfs is *really* bad
-> at this kind of workload.
+> This is a step towards removing __GFP_KMEMCG. It removes __GFP_KMEMCG
+> from memcg caches' allocflags. Instead it makes slab allocation path
+> call memcg_charge_kmem directly getting memcg to charge from the cache's
+> memcg params.
 
-Also, unless you changed the parameters, it's a) using a 48GB disk file,
-and writes really rather fast ;)
+Yes, removing __GFP_KMEMCG is definitely a good step. I am currently at
+a conference and do not have much time to review this properly (even
+worse will be on vacation for the next 2 weeks) but where did all the
+static_key optimization go? What am I missing.
 
-> Even using ext4 is no good.  I think that dm-crypt is dying under the
-> load.  So I won't test your program for real :/
-
-Try to reduce data_size to RAM * 2, NUM_RANDOM_READERS to something
-smaller. If it still doesn't work consider increasing the two nsleep()s...
-
-I didn't have a good idea how to scale those to the current machine in a
-halfway automatic fashion.
-
-> > Possible solutions:
-> > * Add a fadvise(UNDIRTY), that doesn't stall on a full IO queue like
-> >   sync_file_range() does.
-> > * Make IO triggered by writeback regard IO priorities and add it to
-> >   schedulers other than CFQ
-> > * Add a tunable that allows limiting the amount of dirty memory before
-> >   writeback on a per process basis.
-> > * ...?
+> Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Michal Hocko <mhocko@suse.cz>
+> Cc: Glauber Costa <glommer@gmail.com>
+> Cc: Christoph Lameter <cl@linux-foundation.org>
+> Cc: Pekka Enberg <penberg@kernel.org>
+> ---
+>  include/linux/memcontrol.h |   24 +++++++++++++-----------
+>  mm/memcontrol.c            |   15 +++++++++++++++
+>  mm/slab.c                  |    7 ++++++-
+>  mm/slab_common.c           |    6 +-----
+>  mm/slub.c                  |   24 +++++++++++++++++-------
+>  5 files changed, 52 insertions(+), 24 deletions(-)
 > 
-> I thought the problem wasn't so much that priorities weren't respected
-> but that the fsync call fills up the queue, so everything starts
-> contending for the right to enqueue a new request.
-
-I think it's both actually. If I understand correctly there's not even a
-correct association to the originator anymore during a fsync triggered
-flush?
-
-> Since fsync blocks until all of its IO finishes anyway, what if it
-> could just limit itself to a much smaller number of outstanding
-> requests?
-
-Yea, that could already help. If you remove the fsync()s, the problem
-will periodically appear anyway, because writeback is triggered with
-vengeance. That'd need to be fixed in a similar way.
-
-> I'm not sure I understand the request queue stuff, but here's an idea.
->  The block core contains this little bit of code:
-
-I haven't read enough of the code yet, to comment intelligently ;)
-
-Greetings,
-
-Andres Freund
+> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> index e9dfcdad24c5..b8aaecc25cbf 100644
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+> @@ -512,6 +512,9 @@ void memcg_update_array_size(int num_groups);
+>  struct kmem_cache *
+>  __memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp);
+>  
+> +int memcg_charge_slab(struct kmem_cache *s, gfp_t gfp, int order);
+> +void memcg_uncharge_slab(struct kmem_cache *s, int order);
+> +
+>  void mem_cgroup_destroy_cache(struct kmem_cache *cachep);
+>  int __kmem_cache_destroy_memcg_children(struct kmem_cache *s);
+>  
+> @@ -589,17 +592,7 @@ memcg_kmem_commit_charge(struct page *page, struct mem_cgroup *memcg, int order)
+>   * @cachep: the original global kmem cache
+>   * @gfp: allocation flags.
+>   *
+> - * This function assumes that the task allocating, which determines the memcg
+> - * in the page allocator, belongs to the same cgroup throughout the whole
+> - * process.  Misacounting can happen if the task calls memcg_kmem_get_cache()
+> - * while belonging to a cgroup, and later on changes. This is considered
+> - * acceptable, and should only happen upon task migration.
+> - *
+> - * Before the cache is created by the memcg core, there is also a possible
+> - * imbalance: the task belongs to a memcg, but the cache being allocated from
+> - * is the global cache, since the child cache is not yet guaranteed to be
+> - * ready. This case is also fine, since in this case the GFP_KMEMCG will not be
+> - * passed and the page allocator will not attempt any cgroup accounting.
+> + * All memory allocated from a per-memcg cache is charged to the owner memcg.
+>   */
+>  static __always_inline struct kmem_cache *
+>  memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp)
+> @@ -667,6 +660,15 @@ memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp)
+>  {
+>  	return cachep;
+>  }
+> +
+> +static inline int memcg_charge_slab(struct kmem_cache *s, gfp_t gfp, int order)
+> +{
+> +	return 0;
+> +}
+> +
+> +static inline void memcg_uncharge_slab(struct kmem_cache *s, int order)
+> +{
+> +}
+>  #endif /* CONFIG_MEMCG_KMEM */
+>  #endif /* _LINUX_MEMCONTROL_H */
+>  
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 81a162d01d4d..9bbc088e3107 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -3506,6 +3506,21 @@ out:
+>  }
+>  EXPORT_SYMBOL(__memcg_kmem_get_cache);
+>  
+> +int memcg_charge_slab(struct kmem_cache *s, gfp_t gfp, int order)
+> +{
+> +	if (is_root_cache(s))
+> +		return 0;
+> +	return memcg_charge_kmem(s->memcg_params->memcg, gfp,
+> +				 PAGE_SIZE << order);
+> +}
+> +
+> +void memcg_uncharge_slab(struct kmem_cache *s, int order)
+> +{
+> +	if (is_root_cache(s))
+> +		return;
+> +	memcg_uncharge_kmem(s->memcg_params->memcg, PAGE_SIZE << order);
+> +}
+> +
+>  /*
+>   * We need to verify if the allocation against current->mm->owner's memcg is
+>   * possible for the given order. But the page is not allocated yet, so we'll
+> diff --git a/mm/slab.c b/mm/slab.c
+> index eebc619ae33c..af126a37dafd 100644
+> --- a/mm/slab.c
+> +++ b/mm/slab.c
+> @@ -1664,8 +1664,12 @@ static struct page *kmem_getpages(struct kmem_cache *cachep, gfp_t flags,
+>  	if (cachep->flags & SLAB_RECLAIM_ACCOUNT)
+>  		flags |= __GFP_RECLAIMABLE;
+>  
+> +	if (memcg_charge_slab(cachep, flags, cachep->gfporder))
+> +		return NULL;
+> +
+>  	page = alloc_pages_exact_node(nodeid, flags | __GFP_NOTRACK, cachep->gfporder);
+>  	if (!page) {
+> +		memcg_uncharge_slab(cachep, cachep->gfporder);
+>  		if (!(flags & __GFP_NOWARN) && printk_ratelimit())
+>  			slab_out_of_memory(cachep, flags, nodeid);
+>  		return NULL;
+> @@ -1724,7 +1728,8 @@ static void kmem_freepages(struct kmem_cache *cachep, struct page *page)
+>  	memcg_release_pages(cachep, cachep->gfporder);
+>  	if (current->reclaim_state)
+>  		current->reclaim_state->reclaimed_slab += nr_freed;
+> -	__free_memcg_kmem_pages(page, cachep->gfporder);
+> +	__free_pages(page, cachep->gfporder);
+> +	memcg_uncharge_slab(cachep, cachep->gfporder);
+>  }
+>  
+>  static void kmem_rcu_free(struct rcu_head *head)
+> diff --git a/mm/slab_common.c b/mm/slab_common.c
+> index f3cfccf76dda..6673597ac967 100644
+> --- a/mm/slab_common.c
+> +++ b/mm/slab_common.c
+> @@ -290,12 +290,8 @@ void kmem_cache_create_memcg(struct mem_cgroup *memcg, struct kmem_cache *root_c
+>  				 root_cache->size, root_cache->align,
+>  				 root_cache->flags, root_cache->ctor,
+>  				 memcg, root_cache);
+> -	if (IS_ERR(s)) {
+> +	if (IS_ERR(s))
+>  		kfree(cache_name);
+> -		goto out_unlock;
+> -	}
+> -
+> -	s->allocflags |= __GFP_KMEMCG;
+>  
+>  out_unlock:
+>  	mutex_unlock(&slab_mutex);
+> diff --git a/mm/slub.c b/mm/slub.c
+> index c2e58a787443..6fefe3b33ce0 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -1317,17 +1317,26 @@ static inline void slab_free_hook(struct kmem_cache *s, void *x)
+>  /*
+>   * Slab allocation and freeing
+>   */
+> -static inline struct page *alloc_slab_page(gfp_t flags, int node,
+> -					struct kmem_cache_order_objects oo)
+> +static inline struct page *alloc_slab_page(struct kmem_cache *s,
+> +		gfp_t flags, int node, struct kmem_cache_order_objects oo)
+>  {
+> +	struct page *page;
+>  	int order = oo_order(oo);
+>  
+>  	flags |= __GFP_NOTRACK;
+>  
+> +	if (memcg_charge_slab(s, flags, order))
+> +		return NULL;
+> +
+>  	if (node == NUMA_NO_NODE)
+> -		return alloc_pages(flags, order);
+> +		page = alloc_pages(flags, order);
+>  	else
+> -		return alloc_pages_exact_node(node, flags, order);
+> +		page = alloc_pages_exact_node(node, flags, order);
+> +
+> +	if (!page)
+> +		memcg_uncharge_slab(s, order);
+> +
+> +	return page;
+>  }
+>  
+>  static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
+> @@ -1349,7 +1358,7 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
+>  	 */
+>  	alloc_gfp = (flags | __GFP_NOWARN | __GFP_NORETRY) & ~__GFP_NOFAIL;
+>  
+> -	page = alloc_slab_page(alloc_gfp, node, oo);
+> +	page = alloc_slab_page(s, alloc_gfp, node, oo);
+>  	if (unlikely(!page)) {
+>  		oo = s->min;
+>  		alloc_gfp = flags;
+> @@ -1357,7 +1366,7 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
+>  		 * Allocation may have failed due to fragmentation.
+>  		 * Try a lower order alloc if possible
+>  		 */
+> -		page = alloc_slab_page(alloc_gfp, node, oo);
+> +		page = alloc_slab_page(s, alloc_gfp, node, oo);
+>  
+>  		if (page)
+>  			stat(s, ORDER_FALLBACK);
+> @@ -1473,7 +1482,8 @@ static void __free_slab(struct kmem_cache *s, struct page *page)
+>  	page_mapcount_reset(page);
+>  	if (current->reclaim_state)
+>  		current->reclaim_state->reclaimed_slab += pages;
+> -	__free_memcg_kmem_pages(page, order);
+> +	__free_pages(page, order);
+> +	memcg_uncharge_slab(s, order);
+>  }
+>  
+>  #define need_reserve_slab_rcu						\
+> -- 
+> 1.7.10.4
+> 
 
 -- 
- Andres Freund	                   http://www.2ndQuadrant.com/
- PostgreSQL Development, 24x7 Support, Training & Services
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
