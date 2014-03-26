@@ -1,150 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ve0-f176.google.com (mail-ve0-f176.google.com [209.85.128.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 737996B0031
-	for <linux-mm@kvack.org>; Wed, 26 Mar 2014 18:26:40 -0400 (EDT)
-Received: by mail-ve0-f176.google.com with SMTP id cz12so3063547veb.7
-        for <linux-mm@kvack.org>; Wed, 26 Mar 2014 15:26:40 -0700 (PDT)
-Received: from mail-vc0-f174.google.com (mail-vc0-f174.google.com [209.85.220.174])
-        by mx.google.com with ESMTPS id dr8si12392vcb.13.2014.03.26.15.26.39
+Received: from mail-ig0-f182.google.com (mail-ig0-f182.google.com [209.85.213.182])
+	by kanga.kvack.org (Postfix) with ESMTP id F18616B0031
+	for <linux-mm@kvack.org>; Wed, 26 Mar 2014 18:30:38 -0400 (EDT)
+Received: by mail-ig0-f182.google.com with SMTP id uy17so1120410igb.9
+        for <linux-mm@kvack.org>; Wed, 26 Mar 2014 15:30:38 -0700 (PDT)
+Received: from mail-ig0-x22c.google.com (mail-ig0-x22c.google.com [2607:f8b0:4001:c05::22c])
+        by mx.google.com with ESMTPS id l7si4474509icq.191.2014.03.26.15.30.38
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 26 Mar 2014 15:26:39 -0700 (PDT)
-Received: by mail-vc0-f174.google.com with SMTP id ld13so3232933vcb.33
-        for <linux-mm@kvack.org>; Wed, 26 Mar 2014 15:26:39 -0700 (PDT)
+        Wed, 26 Mar 2014 15:30:38 -0700 (PDT)
+Received: by mail-ig0-f172.google.com with SMTP id hn18so1114788igb.5
+        for <linux-mm@kvack.org>; Wed, 26 Mar 2014 15:30:38 -0700 (PDT)
+Date: Thu, 27 Mar 2014 06:30:34 +0800
+From: Shaohua Li <shli@kernel.org>
+Subject: [patch]x86: clearing access bit don't flush tlb
+Message-ID: <20140326223034.GA31713@kernel.org>
 MIME-Version: 1.0
-In-Reply-To: <20140326215518.GH9066@alap3.anarazel.de>
-References: <20140326191113.GF9066@alap3.anarazel.de> <CALCETrUc1YvNc3EKb4ex579rCqBfF=84_h5bvbq49o62k2KpmA@mail.gmail.com>
- <20140326215518.GH9066@alap3.anarazel.de>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Wed, 26 Mar 2014 15:26:19 -0700
-Message-ID: <CALCETrVEjpFpKhY6=CEG-9Prm=uBDLS936imb=+hyWN4fXPjtg@mail.gmail.com>
-Subject: Re: [Lsf] Postgresql performance problems with IO latency, especially
- during fsync()
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andres Freund <andres@2ndquadrant.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, lsf@lists.linux-foundation.org, Wu Fengguang <fengguang.wu@intel.com>, rhaas@anarazel.de
+To: linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, hughd@google.com, riel@redhat.com, mel@csn.ul.ie
 
-On Wed, Mar 26, 2014 at 2:55 PM, Andres Freund <andres@2ndquadrant.com> wrote:
-> On 2014-03-26 14:41:31 -0700, Andy Lutomirski wrote:
->> On Wed, Mar 26, 2014 at 12:11 PM, Andres Freund <andres@anarazel.de> wrote:
->> > Hi,
->> >
->> > At LSF/MM there was a slot about postgres' problems with the kernel. Our
->> > top#1 concern is frequent slow read()s that happen while another process
->> > calls fsync(), even though we'd be perfectly fine if that fsync() took
->> > ages.
->> > The "conclusion" of that part was that it'd be very useful to have a
->> > demonstration of the problem without needing a full blown postgres
->> > setup. I've quickly hacked something together, that seems to show the
->> > problem nicely.
->> >
->> > For a bit of context: lwn.net/SubscriberLink/591723/940134eb57fcc0b8/
->> > and the "IO Scheduling" bit in
->> > http://archives.postgresql.org/message-id/20140310101537.GC10663%40suse.de
->> >
->>
->> For your amusement: running this program in KVM on a 2GB disk image
->> failed, but it caused the *host* to go out to lunch for several
->> seconds while failing.  In fact, it seems to have caused the host to
->> fall over so badly that the guest decided that the disk controller was
->> timing out.  The host is btrfs, and I think that btrfs is *really* bad
->> at this kind of workload.
->
-> Also, unless you changed the parameters, it's a) using a 48GB disk file,
-> and writes really rather fast ;)
->
->> Even using ext4 is no good.  I think that dm-crypt is dying under the
->> load.  So I won't test your program for real :/
->
-> Try to reduce data_size to RAM * 2, NUM_RANDOM_READERS to something
-> smaller. If it still doesn't work consider increasing the two nsleep()s...
->
-> I didn't have a good idea how to scale those to the current machine in a
-> halfway automatic fashion.
 
-OK, I think I'm getting reasonable bad behavior with these qemu options:
+I posted this patch a year ago or so, but it gets lost. Repost it here to check
+if we can make progress this time.
 
--smp 2 -cpu host -m 600 -drive file=/var/lutotmp/test.img,cache=none
+We use access bit to age a page at page reclaim. When clearing pte access bit,
+we could skip tlb flush in X86. The side effect is if the pte is in tlb and pte
+access bit is unset in page table, when cpu access the page again, cpu will not
+set page table pte's access bit. Next time page reclaim will think this hot
+page is old and reclaim it wrongly, but this doesn't corrupt data.
 
-and a 2GB test partition.
+And according to intel manual, tlb has less than 1k entries, which covers < 4M
+memory. In today's system, several giga byte memory is normal. After page
+reclaim clears pte access bit and before cpu access the page again, it's quite
+unlikely this page's pte is still in TLB. And context swich will flush tlb too.
+The chance skiping tlb flush to impact page reclaim should be very rare.
 
->
->> > Possible solutions:
->> > * Add a fadvise(UNDIRTY), that doesn't stall on a full IO queue like
->> >   sync_file_range() does.
->> > * Make IO triggered by writeback regard IO priorities and add it to
->> >   schedulers other than CFQ
->> > * Add a tunable that allows limiting the amount of dirty memory before
->> >   writeback on a per process basis.
->> > * ...?
->>
->> I thought the problem wasn't so much that priorities weren't respected
->> but that the fsync call fills up the queue, so everything starts
->> contending for the right to enqueue a new request.
->
-> I think it's both actually. If I understand correctly there's not even a
-> correct association to the originator anymore during a fsync triggered
-> flush?
->
->> Since fsync blocks until all of its IO finishes anyway, what if it
->> could just limit itself to a much smaller number of outstanding
->> requests?
->
-> Yea, that could already help. If you remove the fsync()s, the problem
-> will periodically appear anyway, because writeback is triggered with
-> vengeance. That'd need to be fixed in a similar way.
->
->> I'm not sure I understand the request queue stuff, but here's an idea.
->>  The block core contains this little bit of code:
->
-> I haven't read enough of the code yet, to comment intelligently ;)
+Originally (in 2.5 kernel maybe), we didn't do tlb flush after clear access bit.
+Hugh added it to fix some ARM and sparc issues. Since I only change this for
+x86, there should be no risk.
 
-My little patch doesn't seem to help.  I'm either changing the wrong
-piece of code entirely or I'm penalizing readers and writers too much.
+And in some workloads, TLB flush overhead is very heavy. In my simple
+multithread app with a lot of swap to several pcie SSD, removing the tlb flush
+gives about 20% ~ 30% swapout speedup.
 
-Hopefully some real block layer people can comment as to whether a
-refinement of this idea could work.  The behavior I want is for
-writeback to be limited to using a smallish fraction of the total
-request queue size -- I think that writeback should be able to enqueue
-enough requests to get decent sorting performance but not enough
-requests to prevent the io scheduler from doing a good job on
-non-writeback I/O.
+Signed-off-by: Shaohua Li <shli@fusionio.com>
+---
+ arch/x86/mm/pgtable.c |   13 ++++++-------
+ 1 file changed, 6 insertions(+), 7 deletions(-)
 
-As an even more radical idea, what if there was a way to submit truly
-enormous numbers of lightweight requests, such that the queue will
-give the requester some kind of callback when the request is nearly
-ready for submission so the requester can finish filling in the
-request?  This would allow things like dm-crypt to get the benefit of
-sorting without needing to encrypt hundreds of MB of data in advance
-of having that data actually be to the backing device.  It might also
-allow writeback to submit multiple gigabytes of writes, in arbitrarily
-large pieces, but not to need to pin pages or do whatever expensive
-things are needed until the IO actually happens.
-
-For reference, here's my patch that doesn't work well:
-
-diff --git a/block/blk-core.c b/block/blk-core.c
-index 4cd5ffc..c0dedc3 100644
---- a/block/blk-core.c
-+++ b/block/blk-core.c
-@@ -941,11 +941,11 @@ static struct request *__get_request(struct request_list *
-        }
-
-        /*
--        * Only allow batching queuers to allocate up to 50% over the defined
--        * limit of requests, otherwise we could have thousands of requests
--        * allocated with any setting of ->nr_requests
-+        * Only allow batching queuers to allocate up to 50% of the
-+        * defined limit of requests, so that non-batching queuers can
-+        * get into the queue and thus be scheduled properly.
-         */
--       if (rl->count[is_sync] >= (3 * q->nr_requests / 2))
-+       if (rl->count[is_sync] >= (q->nr_requests + 3) / 4)
-                return NULL;
-
-        q->nr_rqs[is_sync]++;
+Index: linux/arch/x86/mm/pgtable.c
+===================================================================
+--- linux.orig/arch/x86/mm/pgtable.c	2014-03-27 05:22:08.572100549 +0800
++++ linux/arch/x86/mm/pgtable.c	2014-03-27 05:46:12.456131121 +0800
+@@ -399,13 +399,12 @@ int pmdp_test_and_clear_young(struct vm_
+ int ptep_clear_flush_young(struct vm_area_struct *vma,
+ 			   unsigned long address, pte_t *ptep)
+ {
+-	int young;
+-
+-	young = ptep_test_and_clear_young(vma, address, ptep);
+-	if (young)
+-		flush_tlb_page(vma, address);
+-
+-	return young;
++	/*
++	 * In X86, clearing access bit without TLB flush doesn't cause data
++	 * corruption. Doing this could cause wrong page aging and so hot pages
++	 * are reclaimed, but the chance should be very rare.
++	 */
++	return ptep_test_and_clear_young(vma, address, ptep);
+ }
+ 
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
