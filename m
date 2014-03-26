@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f41.google.com (mail-la0-f41.google.com [209.85.215.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 0215D6B0037
-	for <linux-mm@kvack.org>; Wed, 26 Mar 2014 11:28:11 -0400 (EDT)
-Received: by mail-la0-f41.google.com with SMTP id gl10so1629277lab.14
+Received: from mail-la0-f52.google.com (mail-la0-f52.google.com [209.85.215.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 5CBC56B0039
+	for <linux-mm@kvack.org>; Wed, 26 Mar 2014 11:28:12 -0400 (EDT)
+Received: by mail-la0-f52.google.com with SMTP id ec20so1582998lab.25
         for <linux-mm@kvack.org>; Wed, 26 Mar 2014 08:28:11 -0700 (PDT)
 Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id oc6si14699824lbb.31.2014.03.26.08.28.09
+        by mx.google.com with ESMTPS id on7si14699978lbb.53.2014.03.26.08.28.10
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 26 Mar 2014 08:28:10 -0700 (PDT)
 From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH -mm 1/4] sl[au]b: do not charge large allocations to memcg
-Date: Wed, 26 Mar 2014 19:28:04 +0400
-Message-ID: <5a5b09d4cb9a15fc120b4bec8be168630a3b43c2.1395846845.git.vdavydov@parallels.com>
+Subject: [PATCH -mm 2/4] sl[au]b: charge slabs to memcg explicitly
+Date: Wed, 26 Mar 2014 19:28:05 +0400
+Message-ID: <1d0196602182e5284f3289eaea0219e62a51d1c4.1395846845.git.vdavydov@parallels.com>
 In-Reply-To: <cover.1395846845.git.vdavydov@parallels.com>
 References: <cover.1395846845.git.vdavydov@parallels.com>
 MIME-Version: 1.0
@@ -22,8 +22,15 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
 Cc: hannes@cmpxchg.org, mhocko@suse.cz, glommer@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, devel@openvz.org, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>
 
-We don't track any random page allocation, so we shouldn't track kmalloc
-that falls back to the page allocator.
+We have only a few places where we actually want to charge kmem so
+instead of intruding into the general page allocation path with
+__GFP_KMEMCG it's better to explictly charge kmem there. All kmem
+charges will be easier to follow that way.
+
+This is a step towards removing __GFP_KMEMCG. It removes __GFP_KMEMCG
+from memcg caches' allocflags. Instead it makes slab allocation path
+call memcg_charge_kmem directly getting memcg to charge from the cache's
+memcg params.
 
 Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
 Cc: Johannes Weiner <hannes@cmpxchg.org>
@@ -32,87 +39,196 @@ Cc: Glauber Costa <glommer@gmail.com>
 Cc: Christoph Lameter <cl@linux-foundation.org>
 Cc: Pekka Enberg <penberg@kernel.org>
 ---
- include/linux/slab.h |    2 +-
- mm/memcontrol.c      |   27 +--------------------------
- mm/slub.c            |    4 ++--
- 3 files changed, 4 insertions(+), 29 deletions(-)
+ include/linux/memcontrol.h |   24 +++++++++++++-----------
+ mm/memcontrol.c            |   15 +++++++++++++++
+ mm/slab.c                  |    7 ++++++-
+ mm/slab_common.c           |    6 +-----
+ mm/slub.c                  |   24 +++++++++++++++++-------
+ 5 files changed, 52 insertions(+), 24 deletions(-)
 
-diff --git a/include/linux/slab.h b/include/linux/slab.h
-index 3dd389aa91c7..8a928ff71d93 100644
---- a/include/linux/slab.h
-+++ b/include/linux/slab.h
-@@ -363,7 +363,7 @@ kmalloc_order(size_t size, gfp_t flags, unsigned int order)
- {
- 	void *ret;
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index e9dfcdad24c5..b8aaecc25cbf 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -512,6 +512,9 @@ void memcg_update_array_size(int num_groups);
+ struct kmem_cache *
+ __memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp);
  
--	flags |= (__GFP_COMP | __GFP_KMEMCG);
-+	flags |= __GFP_COMP;
- 	ret = (void *) __get_free_pages(flags, order);
- 	kmemleak_alloc(ret, size, 1, flags);
- 	return ret;
++int memcg_charge_slab(struct kmem_cache *s, gfp_t gfp, int order);
++void memcg_uncharge_slab(struct kmem_cache *s, int order);
++
+ void mem_cgroup_destroy_cache(struct kmem_cache *cachep);
+ int __kmem_cache_destroy_memcg_children(struct kmem_cache *s);
+ 
+@@ -589,17 +592,7 @@ memcg_kmem_commit_charge(struct page *page, struct mem_cgroup *memcg, int order)
+  * @cachep: the original global kmem cache
+  * @gfp: allocation flags.
+  *
+- * This function assumes that the task allocating, which determines the memcg
+- * in the page allocator, belongs to the same cgroup throughout the whole
+- * process.  Misacounting can happen if the task calls memcg_kmem_get_cache()
+- * while belonging to a cgroup, and later on changes. This is considered
+- * acceptable, and should only happen upon task migration.
+- *
+- * Before the cache is created by the memcg core, there is also a possible
+- * imbalance: the task belongs to a memcg, but the cache being allocated from
+- * is the global cache, since the child cache is not yet guaranteed to be
+- * ready. This case is also fine, since in this case the GFP_KMEMCG will not be
+- * passed and the page allocator will not attempt any cgroup accounting.
++ * All memory allocated from a per-memcg cache is charged to the owner memcg.
+  */
+ static __always_inline struct kmem_cache *
+ memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp)
+@@ -667,6 +660,15 @@ memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp)
+ {
+ 	return cachep;
+ }
++
++static inline int memcg_charge_slab(struct kmem_cache *s, gfp_t gfp, int order)
++{
++	return 0;
++}
++
++static inline void memcg_uncharge_slab(struct kmem_cache *s, int order)
++{
++}
+ #endif /* CONFIG_MEMCG_KMEM */
+ #endif /* _LINUX_MEMCONTROL_H */
+ 
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index b4b6aef562fa..81a162d01d4d 100644
+index 81a162d01d4d..9bbc088e3107 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -3528,35 +3528,10 @@ __memcg_kmem_newpage_charge(gfp_t gfp, struct mem_cgroup **_memcg, int order)
+@@ -3506,6 +3506,21 @@ out:
+ }
+ EXPORT_SYMBOL(__memcg_kmem_get_cache);
  
- 	*_memcg = NULL;
++int memcg_charge_slab(struct kmem_cache *s, gfp_t gfp, int order)
++{
++	if (is_root_cache(s))
++		return 0;
++	return memcg_charge_kmem(s->memcg_params->memcg, gfp,
++				 PAGE_SIZE << order);
++}
++
++void memcg_uncharge_slab(struct kmem_cache *s, int order)
++{
++	if (is_root_cache(s))
++		return;
++	memcg_uncharge_kmem(s->memcg_params->memcg, PAGE_SIZE << order);
++}
++
+ /*
+  * We need to verify if the allocation against current->mm->owner's memcg is
+  * possible for the given order. But the page is not allocated yet, so we'll
+diff --git a/mm/slab.c b/mm/slab.c
+index eebc619ae33c..af126a37dafd 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -1664,8 +1664,12 @@ static struct page *kmem_getpages(struct kmem_cache *cachep, gfp_t flags,
+ 	if (cachep->flags & SLAB_RECLAIM_ACCOUNT)
+ 		flags |= __GFP_RECLAIMABLE;
  
--	/*
--	 * Disabling accounting is only relevant for some specific memcg
--	 * internal allocations. Therefore we would initially not have such
--	 * check here, since direct calls to the page allocator that are marked
--	 * with GFP_KMEMCG only happen outside memcg core. We are mostly
--	 * concerned with cache allocations, and by having this test at
--	 * memcg_kmem_get_cache, we are already able to relay the allocation to
--	 * the root cache and bypass the memcg cache altogether.
--	 *
--	 * There is one exception, though: the SLUB allocator does not create
--	 * large order caches, but rather service large kmallocs directly from
--	 * the page allocator. Therefore, the following sequence when backed by
--	 * the SLUB allocator:
--	 *
--	 *	memcg_stop_kmem_account();
--	 *	kmalloc(<large_number>)
--	 *	memcg_resume_kmem_account();
--	 *
--	 * would effectively ignore the fact that we should skip accounting,
--	 * since it will drive us directly to this function without passing
--	 * through the cache selector memcg_kmem_get_cache. Such large
--	 * allocations are extremely rare but can happen, for instance, for the
--	 * cache arrays. We bring this test here.
--	 */
--	if (!current->mm || current->memcg_kmem_skip_account)
-+	if (!current->mm)
- 		return true;
++	if (memcg_charge_slab(cachep, flags, cachep->gfporder))
++		return NULL;
++
+ 	page = alloc_pages_exact_node(nodeid, flags | __GFP_NOTRACK, cachep->gfporder);
+ 	if (!page) {
++		memcg_uncharge_slab(cachep, cachep->gfporder);
+ 		if (!(flags & __GFP_NOWARN) && printk_ratelimit())
+ 			slab_out_of_memory(cachep, flags, nodeid);
+ 		return NULL;
+@@ -1724,7 +1728,8 @@ static void kmem_freepages(struct kmem_cache *cachep, struct page *page)
+ 	memcg_release_pages(cachep, cachep->gfporder);
+ 	if (current->reclaim_state)
+ 		current->reclaim_state->reclaimed_slab += nr_freed;
+-	__free_memcg_kmem_pages(page, cachep->gfporder);
++	__free_pages(page, cachep->gfporder);
++	memcg_uncharge_slab(cachep, cachep->gfporder);
+ }
  
- 	memcg = get_mem_cgroup_from_mm(current->mm);
+ static void kmem_rcu_free(struct rcu_head *head)
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index f3cfccf76dda..6673597ac967 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -290,12 +290,8 @@ void kmem_cache_create_memcg(struct mem_cgroup *memcg, struct kmem_cache *root_c
+ 				 root_cache->size, root_cache->align,
+ 				 root_cache->flags, root_cache->ctor,
+ 				 memcg, root_cache);
+-	if (IS_ERR(s)) {
++	if (IS_ERR(s))
+ 		kfree(cache_name);
+-		goto out_unlock;
+-	}
 -
- 	if (!memcg_can_account_kmem(memcg)) {
- 		css_put(&memcg->css);
- 		return true;
+-	s->allocflags |= __GFP_KMEMCG;
+ 
+ out_unlock:
+ 	mutex_unlock(&slab_mutex);
 diff --git a/mm/slub.c b/mm/slub.c
-index 5e234f1f8853..c2e58a787443 100644
+index c2e58a787443..6fefe3b33ce0 100644
 --- a/mm/slub.c
 +++ b/mm/slub.c
-@@ -3325,7 +3325,7 @@ static void *kmalloc_large_node(size_t size, gfp_t flags, int node)
- 	struct page *page;
- 	void *ptr = NULL;
+@@ -1317,17 +1317,26 @@ static inline void slab_free_hook(struct kmem_cache *s, void *x)
+ /*
+  * Slab allocation and freeing
+  */
+-static inline struct page *alloc_slab_page(gfp_t flags, int node,
+-					struct kmem_cache_order_objects oo)
++static inline struct page *alloc_slab_page(struct kmem_cache *s,
++		gfp_t flags, int node, struct kmem_cache_order_objects oo)
+ {
++	struct page *page;
+ 	int order = oo_order(oo);
  
--	flags |= __GFP_COMP | __GFP_NOTRACK | __GFP_KMEMCG;
-+	flags |= __GFP_COMP | __GFP_NOTRACK;
- 	page = alloc_pages_node(node, flags, get_order(size));
- 	if (page)
- 		ptr = page_address(page);
-@@ -3395,7 +3395,7 @@ void kfree(const void *x)
- 	if (unlikely(!PageSlab(page))) {
- 		BUG_ON(!PageCompound(page));
- 		kfree_hook(x);
--		__free_memcg_kmem_pages(page, compound_order(page));
-+		__free_pages(page, compound_order(page));
- 		return;
- 	}
- 	slab_free(page->slab_cache, page, object, _RET_IP_);
+ 	flags |= __GFP_NOTRACK;
+ 
++	if (memcg_charge_slab(s, flags, order))
++		return NULL;
++
+ 	if (node == NUMA_NO_NODE)
+-		return alloc_pages(flags, order);
++		page = alloc_pages(flags, order);
+ 	else
+-		return alloc_pages_exact_node(node, flags, order);
++		page = alloc_pages_exact_node(node, flags, order);
++
++	if (!page)
++		memcg_uncharge_slab(s, order);
++
++	return page;
+ }
+ 
+ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
+@@ -1349,7 +1358,7 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
+ 	 */
+ 	alloc_gfp = (flags | __GFP_NOWARN | __GFP_NORETRY) & ~__GFP_NOFAIL;
+ 
+-	page = alloc_slab_page(alloc_gfp, node, oo);
++	page = alloc_slab_page(s, alloc_gfp, node, oo);
+ 	if (unlikely(!page)) {
+ 		oo = s->min;
+ 		alloc_gfp = flags;
+@@ -1357,7 +1366,7 @@ static struct page *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
+ 		 * Allocation may have failed due to fragmentation.
+ 		 * Try a lower order alloc if possible
+ 		 */
+-		page = alloc_slab_page(alloc_gfp, node, oo);
++		page = alloc_slab_page(s, alloc_gfp, node, oo);
+ 
+ 		if (page)
+ 			stat(s, ORDER_FALLBACK);
+@@ -1473,7 +1482,8 @@ static void __free_slab(struct kmem_cache *s, struct page *page)
+ 	page_mapcount_reset(page);
+ 	if (current->reclaim_state)
+ 		current->reclaim_state->reclaimed_slab += pages;
+-	__free_memcg_kmem_pages(page, order);
++	__free_pages(page, order);
++	memcg_uncharge_slab(s, order);
+ }
+ 
+ #define need_reserve_slab_rcu						\
 -- 
 1.7.10.4
 
