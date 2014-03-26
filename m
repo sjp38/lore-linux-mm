@@ -1,67 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f43.google.com (mail-pb0-f43.google.com [209.85.160.43])
-	by kanga.kvack.org (Postfix) with ESMTP id E30E96B0031
-	for <linux-mm@kvack.org>; Wed, 26 Mar 2014 17:46:20 -0400 (EDT)
-Received: by mail-pb0-f43.google.com with SMTP id um1so2518124pbc.2
-        for <linux-mm@kvack.org>; Wed, 26 Mar 2014 14:46:20 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id et3si14409926pbc.377.2014.03.26.14.46.19
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 384446B0031
+	for <linux-mm@kvack.org>; Wed, 26 Mar 2014 17:54:18 -0400 (EDT)
+Received: by mail-wi0-f182.google.com with SMTP id d1so2398092wiv.15
+        for <linux-mm@kvack.org>; Wed, 26 Mar 2014 14:54:17 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id r18si2534888wiv.66.2014.03.26.14.53.24
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 26 Mar 2014 14:46:20 -0700 (PDT)
-Message-ID: <5333492D.2030300@oracle.com>
-Date: Wed, 26 Mar 2014 17:39:57 -0400
-From: Sasha Levin <sasha.levin@oracle.com>
+        Wed, 26 Mar 2014 14:53:25 -0700 (PDT)
+Date: Wed, 26 Mar 2014 14:53:20 -0700
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH -mm 1/4] sl[au]b: do not charge large allocations to memcg
+Message-ID: <20140326215320.GA22656@dhcp22.suse.cz>
+References: <cover.1395846845.git.vdavydov@parallels.com>
+ <5a5b09d4cb9a15fc120b4bec8be168630a3b43c2.1395846845.git.vdavydov@parallels.com>
 MIME-Version: 1.0
-Subject: Re: mm: BUG: Bad page state in process ksmd
-References: <5332EE97.4050604@oracle.com> <20140326125525.4e8090096f647f654eb7329d@linux-foundation.org>
-In-Reply-To: <20140326125525.4e8090096f647f654eb7329d@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5a5b09d4cb9a15fc120b4bec8be168630a3b43c2.1395846845.git.vdavydov@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, glommer@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, devel@openvz.org, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>
 
-On 03/26/2014 03:55 PM, Andrew Morton wrote:
-> On Wed, 26 Mar 2014 11:13:27 -0400 Sasha Levin <sasha.levin@oracle.com> wrote:
->> Out of curiosity, is there a reason not to do bad flag checks when actually
->> setting flag? Obviously it'll be slower but it'll be easier catching these
->> issues.
->
-> Tricky.  Each code site must determine what are and are not valid page
-> states depending upon the current context.  The one place where we've
-> made that effort is at the point where a page is returned to the free
-> page pool.  Any other sites would require similar amounts of effort and
-> each one would be different from all the others.
->
-> We do this in a small way all over the place, against individual page
-> flags.  grep PageLocked */*.c.
+On Wed 26-03-14 19:28:04, Vladimir Davydov wrote:
+> We don't track any random page allocation, so we shouldn't track kmalloc
+> that falls back to the page allocator.
 
-What if we define generic page types and group page flags under them?
-It would be easier to put these checks in key sites around the code
-and no need to fully customize them to each site.
+Why did we do that in the first place? d79923fad95b (sl[au]b: allocate
+objects from memcg cache) didn't tell me much.
 
-For exmaple, swap_readpage() is doing this:
+How is memcg_kmem_skip_account removal related?
 
-         VM_BUG_ON_PAGE(!PageLocked(page), page);
-         VM_BUG_ON_PAGE(PageUptodate(page), page);
+> Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Michal Hocko <mhocko@suse.cz>
+> Cc: Glauber Costa <glommer@gmail.com>
+> Cc: Christoph Lameter <cl@linux-foundation.org>
+> Cc: Pekka Enberg <penberg@kernel.org>
+> ---
+>  include/linux/slab.h |    2 +-
+>  mm/memcontrol.c      |   27 +--------------------------
+>  mm/slub.c            |    4 ++--
+>  3 files changed, 4 insertions(+), 29 deletions(-)
+> 
+> diff --git a/include/linux/slab.h b/include/linux/slab.h
+> index 3dd389aa91c7..8a928ff71d93 100644
+> --- a/include/linux/slab.h
+> +++ b/include/linux/slab.h
+> @@ -363,7 +363,7 @@ kmalloc_order(size_t size, gfp_t flags, unsigned int order)
+>  {
+>  	void *ret;
+>  
+> -	flags |= (__GFP_COMP | __GFP_KMEMCG);
+> +	flags |= __GFP_COMP;
+>  	ret = (void *) __get_free_pages(flags, order);
+>  	kmemleak_alloc(ret, size, 1, flags);
+>  	return ret;
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index b4b6aef562fa..81a162d01d4d 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -3528,35 +3528,10 @@ __memcg_kmem_newpage_charge(gfp_t gfp, struct mem_cgroup **_memcg, int order)
+>  
+>  	*_memcg = NULL;
+>  
+> -	/*
+> -	 * Disabling accounting is only relevant for some specific memcg
+> -	 * internal allocations. Therefore we would initially not have such
+> -	 * check here, since direct calls to the page allocator that are marked
+> -	 * with GFP_KMEMCG only happen outside memcg core. We are mostly
+> -	 * concerned with cache allocations, and by having this test at
+> -	 * memcg_kmem_get_cache, we are already able to relay the allocation to
+> -	 * the root cache and bypass the memcg cache altogether.
+> -	 *
+> -	 * There is one exception, though: the SLUB allocator does not create
+> -	 * large order caches, but rather service large kmallocs directly from
+> -	 * the page allocator. Therefore, the following sequence when backed by
+> -	 * the SLUB allocator:
+> -	 *
+> -	 *	memcg_stop_kmem_account();
+> -	 *	kmalloc(<large_number>)
+> -	 *	memcg_resume_kmem_account();
+> -	 *
+> -	 * would effectively ignore the fact that we should skip accounting,
+> -	 * since it will drive us directly to this function without passing
+> -	 * through the cache selector memcg_kmem_get_cache. Such large
+> -	 * allocations are extremely rare but can happen, for instance, for the
+> -	 * cache arrays. We bring this test here.
+> -	 */
+> -	if (!current->mm || current->memcg_kmem_skip_account)
+> +	if (!current->mm)
+>  		return true;
+>  
+>  	memcg = get_mem_cgroup_from_mm(current->mm);
+> -
+>  	if (!memcg_can_account_kmem(memcg)) {
+>  		css_put(&memcg->css);
+>  		return true;
+> diff --git a/mm/slub.c b/mm/slub.c
+> index 5e234f1f8853..c2e58a787443 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -3325,7 +3325,7 @@ static void *kmalloc_large_node(size_t size, gfp_t flags, int node)
+>  	struct page *page;
+>  	void *ptr = NULL;
+>  
+> -	flags |= __GFP_COMP | __GFP_NOTRACK | __GFP_KMEMCG;
+> +	flags |= __GFP_COMP | __GFP_NOTRACK;
+>  	page = alloc_pages_node(node, flags, get_order(size));
+>  	if (page)
+>  		ptr = page_address(page);
+> @@ -3395,7 +3395,7 @@ void kfree(const void *x)
+>  	if (unlikely(!PageSlab(page))) {
+>  		BUG_ON(!PageCompound(page));
+>  		kfree_hook(x);
+> -		__free_memcg_kmem_pages(page, compound_order(page));
+> +		__free_pages(page, compound_order(page));
+>  		return;
+>  	}
+>  	slab_free(page->slab_cache, page, object, _RET_IP_);
+> -- 
+> 1.7.10.4
+> 
 
-But what if instead of that we'd do:
-
-	VM_BUG_ON_PAGE(!PageSwap(page), page);
-
-Where PageSwap would test "not locked", "uptodate", and in addition
-a set of "sanity" flags which it didn't make sense to test individually
-everywhere (PageError()? PageReclaim()?).
-
-I can add the infrastructure if that sounds good (and people promise to
-work with me on defining page types). I'd be happy to do all the testing
-involved in getting this to work right.
-
-
-Thanks,
-Sasha
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
