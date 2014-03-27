@@ -1,33 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f181.google.com (mail-ie0-f181.google.com [209.85.223.181])
-	by kanga.kvack.org (Postfix) with ESMTP id C1EA96B0031
-	for <linux-mm@kvack.org>; Wed, 26 Mar 2014 20:38:58 -0400 (EDT)
-Received: by mail-ie0-f181.google.com with SMTP id tp5so2556919ieb.12
-        for <linux-mm@kvack.org>; Wed, 26 Mar 2014 17:38:58 -0700 (PDT)
-Received: from qmta15.emeryville.ca.mail.comcast.net (qmta15.emeryville.ca.mail.comcast.net. [2001:558:fe2d:44:76:96:27:228])
-        by mx.google.com with ESMTP id nx5si304152icb.26.2014.03.26.17.38.57
-        for <linux-mm@kvack.org>;
-        Wed, 26 Mar 2014 17:38:57 -0700 (PDT)
-Date: Wed, 26 Mar 2014 19:38:54 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH] mm: convert some level-less printks to pr_*
-In-Reply-To: <1395877783-18910-2-git-send-email-mitchelh@codeaurora.org>
-Message-ID: <alpine.DEB.2.10.1403261938160.5585@nuc>
-References: <1395877783-18910-1-git-send-email-mitchelh@codeaurora.org> <1395877783-18910-2-git-send-email-mitchelh@codeaurora.org>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D0C96B0031
+	for <linux-mm@kvack.org>; Wed, 26 Mar 2014 22:31:42 -0400 (EDT)
+Received: by mail-pa0-f48.google.com with SMTP id hz1so2790590pad.21
+        for <linux-mm@kvack.org>; Wed, 26 Mar 2014 19:31:42 -0700 (PDT)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTPS id zt8si333134pbc.273.2014.03.26.19.31.39
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 26 Mar 2014 19:31:40 -0700 (PDT)
+Message-ID: <53338CFE.3060705@huawei.com>
+Date: Thu, 27 Mar 2014 10:29:18 +0800
+From: Li Zefan <lizefan@huawei.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v2 1/3] kmemleak: allow freeing internal objects after
+ kmemleak was disabled
+References: <5326750E.1000004@huawei.com> <F7314A69-24BE-42B9-8E99-8F9292B397C4@arm.com>
+In-Reply-To: <F7314A69-24BE-42B9-8E99-8F9292B397C4@arm.com>
+Content-Type: text/plain; charset="GB2312"
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mitchel Humpherys <mitchelh@codeaurora.org>
-Cc: Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Wed, 26 Mar 2014, Mitchel Humpherys wrote:
+(Just came back from travelling)
 
-> printk is meant to be used with an associated log level. There are some
-> instances of printk scattered around the mm code where the log level is
-> missing. Add a log level and adhere to suggestions by
-> scripts/checkpatch.pl by moving to the pr_* macros.
+On 2014/3/22 7:37, Catalin Marinas wrote:
+> Hi Li,
+> 
+> On 17 Mar 2014, at 04:07, Li Zefan <lizefan@huawei.com> wrote:
+>> Currently if kmemleak is disabled, the kmemleak objects can never be freed,
+>> no matter if it's disabled by a user or due to fatal errors.
+>>
+>> Those objects can be a big waste of memory.
+>>
+>>  OBJS ACTIVE  USE OBJ SIZE  SLABS OBJ/SLAB CACHE SIZE NAME
+>> 1200264 1197433  99%    0.30K  46164       26    369312K kmemleak_object
+>>
+>> With this patch, internal objects will be freed immediately if kmemleak is
+>> disabled explicitly by a user. If it's disabled due to a kmemleak error,
+>> The user will be informed, and then he/she can reclaim memory with:
+>>
+>> 	# echo off > /sys/kernel/debug/kmemleak
+>>
+>> v2: use "off" handler instead of "clear" handler to do this, suggested
+>>    by Catalin.
+> 
+> I think there was a slight misunderstanding. My point was about "echo
+> scan=off!+- before !?echo off!+-, they can just be squashed into the
+> same action of the latter.
+> 
 
-Acked-by: Christoph Lameter <cl@linux.com>
+I'm not sure if I understand correctly, so you want the "off" handler to
+stop the scan thread but it will never free kmemleak objects until the 
+user explicitly trigger the "clear" action, right?
+
+> I would keep the !?clear!+- part separately as per your first patch. I
+> recall people asked in the past to still be able to analyse the reports
+> even though kmemleak failed or was disabled.
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
