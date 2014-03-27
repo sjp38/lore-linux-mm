@@ -1,59 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f43.google.com (mail-qg0-f43.google.com [209.85.192.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 11F696B0031
-	for <linux-mm@kvack.org>; Thu, 27 Mar 2014 11:00:43 -0400 (EDT)
-Received: by mail-qg0-f43.google.com with SMTP id f51so2876698qge.16
-        for <linux-mm@kvack.org>; Thu, 27 Mar 2014 08:00:42 -0700 (PDT)
-Received: from mail-qg0-x229.google.com (mail-qg0-x229.google.com [2607:f8b0:400d:c04::229])
-        by mx.google.com with ESMTPS id m6si1135408qay.57.2014.03.27.08.00.42
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 90E566B0031
+	for <linux-mm@kvack.org>; Thu, 27 Mar 2014 11:11:38 -0400 (EDT)
+Received: by mail-wi0-f172.google.com with SMTP id hi5so6087727wib.11
+        for <linux-mm@kvack.org>; Thu, 27 Mar 2014 08:11:37 -0700 (PDT)
+Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
+        by mx.google.com with ESMTPS id w12si2745002wiv.65.2014.03.27.08.11.36
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 27 Mar 2014 08:00:42 -0700 (PDT)
-Received: by mail-qg0-f41.google.com with SMTP id i50so2901871qgf.14
-        for <linux-mm@kvack.org>; Thu, 27 Mar 2014 08:00:42 -0700 (PDT)
-Date: Thu, 27 Mar 2014 11:00:38 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 2/2] mm/percpu.c: don't bother to re-walk the pcpu_slot
- list if nobody free space since we last drop pcpu_lock.
-Message-ID: <20140327150038.GD18503@htj.dyndns.org>
-References: <1395918363-6823-1-git-send-email-nasa4836@gmail.com>
+        Thu, 27 Mar 2014 08:11:37 -0700 (PDT)
+Received: by mail-wi0-f179.google.com with SMTP id f8so3274267wiw.6
+        for <linux-mm@kvack.org>; Thu, 27 Mar 2014 08:11:36 -0700 (PDT)
+Date: Thu, 27 Mar 2014 15:11:30 +0000
+From: Steve Capper <steve.capper@linaro.org>
+Subject: Re: [PATCH V2] mm: hugetlb: Introduce huge_pte_{page,present,young}
+Message-ID: <20140327151129.GA5117@linaro.org>
+References: <1395321473-1257-1-git-send-email-steve.capper@linaro.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1395918363-6823-1-git-send-email-nasa4836@gmail.com>
+In-Reply-To: <1395321473-1257-1-git-send-email-steve.capper@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jianyu Zhan <nasa4836@gmail.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, cl@linux-foundation.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, linux-s390@vger.kernel.org
+Cc: akpm@linux-foundation.org, catalin.marinas@arm.com
 
-On Thu, Mar 27, 2014 at 07:06:03PM +0800, Jianyu Zhan wrote:
-> Presently, after we fail the first try to walk the pcpu_slot list
-> to find a chunk for allocating, we just drop the pcpu_lock spinlock,
-> and go allocating a new chunk. Then we re-gain the pcpu_lock and
-> anchoring our hope on that during this period, some guys might have
-> freed space for us(we still hold the pcpu_alloc_mutex during this
-> period, so only freeing or reclaiming could happen), we do a fully
-> rewalk of the pcpu_slot list.
+On Thu, Mar 20, 2014 at 01:17:53PM +0000, Steve Capper wrote:
+> Introduce huge pte versions of pte_page, pte_present and pte_young.
 > 
-> However if nobody free space, this fully rewalk may seem too silly,
-> and we would eventually fall back to the new chunk.
+> This allows ARM (without LPAE) to use alternative pte processing logic
+> for huge ptes.
 > 
-> And since we hold pcpu_alloc_mutex, only freeing or reclaiming path
-> could touch the pcpu_slot(which just need holding a pcpu_lock), we
-> could maintain a pcpu_slot_stat bitmap to record that during the period
-> we don't have the pcpu_lock, if anybody free space to any slot we
-> interest in. If so, we just just go inside these slots for a try;
-> if not, we just do allocation using the newly-allocated fully-free
-> new chunk.
+> Generic implementations that call the standard pte versions are also
+> added to asm-generic/hugetlb.h.
+> 
+> Signed-off-by: Steve Capper <steve.capper@linaro.org>
+> ---
+> Changed in V2 - moved from #ifndef,#define macros to entries in
+> asm-generic/hugetlb.h as it makes more sense to have these with the
+> other huge_pte_. definitions.
+> 
+> The only other architecture I can see that does not use
+> asm-generic/hugetlb.h is s390. This patch includes trivial definitions
+> for huge_pte_{page,present,young} for s390.
+> 
+> I've compile-tested this for s390, but don't have one under my desk so
+> have not been able to test it.
+> ---
+>  arch/s390/include/asm/hugetlb.h | 15 +++++++++++++++
+>  include/asm-generic/hugetlb.h   | 15 +++++++++++++++
+>  mm/hugetlb.c                    | 22 +++++++++++-----------
+>  3 files changed, 41 insertions(+), 11 deletions(-)
+> 
 
-The patch probably needs to be refreshed on top of percpu/for-3.15.
-Hmmm... I'm not sure whether the added complexity is worthwhile.  It's
-a fairly cold path.  Can you show how helpful this optimization is?
+Hello,
+I was just wondering if this patch looked reasonable to people?
 
-Thanks.
-
+Cheers,
 -- 
-tejun
+Steve
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
