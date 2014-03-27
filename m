@@ -1,88 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D0756B0035
-	for <linux-mm@kvack.org>; Thu, 27 Mar 2014 11:37:44 -0400 (EDT)
-Received: by mail-pd0-f179.google.com with SMTP id w10so3494091pde.24
-        for <linux-mm@kvack.org>; Thu, 27 Mar 2014 08:37:44 -0700 (PDT)
-Received: from mail-pa0-x22b.google.com (mail-pa0-x22b.google.com [2607:f8b0:400e:c03::22b])
-        by mx.google.com with ESMTPS id qj1si1787962pbb.170.2014.03.27.08.37.42
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 922F66B0031
+	for <linux-mm@kvack.org>; Thu, 27 Mar 2014 11:50:07 -0400 (EDT)
+Received: by mail-wi0-f171.google.com with SMTP id q5so166771wiv.16
+        for <linux-mm@kvack.org>; Thu, 27 Mar 2014 08:50:06 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id gs1si2867130wib.44.2014.03.27.08.50.05
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 27 Mar 2014 08:37:43 -0700 (PDT)
-Received: by mail-pa0-f43.google.com with SMTP id bj1so3635703pad.16
-        for <linux-mm@kvack.org>; Thu, 27 Mar 2014 08:37:42 -0700 (PDT)
-Date: Thu, 27 Mar 2014 08:36:47 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: mm: BUG: Bad page state in process ksmd
-In-Reply-To: <5333492D.2030300@oracle.com>
-Message-ID: <alpine.LSU.2.11.1403270821450.4269@eggly.anvils>
-References: <5332EE97.4050604@oracle.com> <20140326125525.4e8090096f647f654eb7329d@linux-foundation.org> <5333492D.2030300@oracle.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 27 Mar 2014 08:50:05 -0700 (PDT)
+Date: Thu, 27 Mar 2014 16:50:02 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [Lsf] Postgresql performance problems with IO latency,
+ especially during fsync()
+Message-ID: <20140327155002.GF18118@quack.suse.cz>
+References: <20140326191113.GF9066@alap3.anarazel.de>
+ <CALCETrUc1YvNc3EKb4ex579rCqBfF=84_h5bvbq49o62k2KpmA@mail.gmail.com>
+ <20140326215518.GH9066@alap3.anarazel.de>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140326215518.GH9066@alap3.anarazel.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>
+To: Andres Freund <andres@2ndquadrant.com>
+Cc: Andy Lutomirski <luto@amacapital.net>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, lsf@lists.linux-foundation.org, "linux-mm@kvack.org" <linux-mm@kvack.org>, rhaas@anarazel.de, Linux FS Devel <linux-fsdevel@vger.kernel.org>, Wu Fengguang <fengguang.wu@intel.com>
 
-On Wed, 26 Mar 2014, Sasha Levin wrote:
-> On 03/26/2014 03:55 PM, Andrew Morton wrote:
-> > On Wed, 26 Mar 2014 11:13:27 -0400 Sasha Levin <sasha.levin@oracle.com>
-> > wrote:
-> > > Out of curiosity, is there a reason not to do bad flag checks when
-> > > actually
-> > > setting flag? Obviously it'll be slower but it'll be easier catching these
-> > > issues.
+On Wed 26-03-14 22:55:18, Andres Freund wrote:
+> On 2014-03-26 14:41:31 -0700, Andy Lutomirski wrote:
+> > On Wed, Mar 26, 2014 at 12:11 PM, Andres Freund <andres@anarazel.de> wrote:
+> > > Hi,
+> > >
+> > > At LSF/MM there was a slot about postgres' problems with the kernel. Our
+> > > top#1 concern is frequent slow read()s that happen while another process
+> > > calls fsync(), even though we'd be perfectly fine if that fsync() took
+> > > ages.
+> > > The "conclusion" of that part was that it'd be very useful to have a
+> > > demonstration of the problem without needing a full blown postgres
+> > > setup. I've quickly hacked something together, that seems to show the
+> > > problem nicely.
+> > >
+> > > For a bit of context: lwn.net/SubscriberLink/591723/940134eb57fcc0b8/
+> > > and the "IO Scheduling" bit in
+> > > http://archives.postgresql.org/message-id/20140310101537.GC10663%40suse.de
+> > >
 > > 
-> > Tricky.  Each code site must determine what are and are not valid page
-> > states depending upon the current context.  The one place where we've
-> > made that effort is at the point where a page is returned to the free
-> > page pool.  Any other sites would require similar amounts of effort and
-> > each one would be different from all the others.
+> > For your amusement: running this program in KVM on a 2GB disk image
+> > failed, but it caused the *host* to go out to lunch for several
+> > seconds while failing.  In fact, it seems to have caused the host to
+> > fall over so badly that the guest decided that the disk controller was
+> > timing out.  The host is btrfs, and I think that btrfs is *really* bad
+> > at this kind of workload.
+> 
+> Also, unless you changed the parameters, it's a) using a 48GB disk file,
+> and writes really rather fast ;)
+> 
+> > Even using ext4 is no good.  I think that dm-crypt is dying under the
+> > load.  So I won't test your program for real :/
+> 
+> Try to reduce data_size to RAM * 2, NUM_RANDOM_READERS to something
+> smaller. If it still doesn't work consider increasing the two nsleep()s...
+> 
+> I didn't have a good idea how to scale those to the current machine in a
+> halfway automatic fashion.
+  That's not necessary. If we have a guidance like above, we can figure it
+out ourselves (I hope ;).
+
+> > > Possible solutions:
+> > > * Add a fadvise(UNDIRTY), that doesn't stall on a full IO queue like
+> > >   sync_file_range() does.
+> > > * Make IO triggered by writeback regard IO priorities and add it to
+> > >   schedulers other than CFQ
+> > > * Add a tunable that allows limiting the amount of dirty memory before
+> > >   writeback on a per process basis.
+> > > * ...?
 > > 
-> > We do this in a small way all over the place, against individual page
-> > flags.  grep PageLocked */*.c.
+> > I thought the problem wasn't so much that priorities weren't respected
+> > but that the fsync call fills up the queue, so everything starts
+> > contending for the right to enqueue a new request.
 > 
-> What if we define generic page types and group page flags under them?
-> It would be easier to put these checks in key sites around the code
-> and no need to fully customize them to each site.
-> 
-> For exmaple, swap_readpage() is doing this:
-> 
->         VM_BUG_ON_PAGE(!PageLocked(page), page);
->         VM_BUG_ON_PAGE(PageUptodate(page), page);
-> 
-> But what if instead of that we'd do:
-> 
-> 	VM_BUG_ON_PAGE(!PageSwap(page), page);
-> 
-> Where PageSwap would test "not locked", "uptodate", and in addition
-> a set of "sanity" flags which it didn't make sense to test individually
-> everywhere (PageError()? PageReclaim()?).
-> 
-> I can add the infrastructure if that sounds good (and people promise to
-> work with me on defining page types). I'd be happy to do all the testing
-> involved in getting this to work right.
+> I think it's both actually. If I understand correctly there's not even a
+> correct association to the originator anymore during a fsync triggered
+> flush?
+  There is. The association is lost for background writeback (and sync(2)
+for that matter) but IO from fsync(2) is submitted in the context of the
+process doing fsync.
 
-Sorry, I don't understand how you see that as a good idea.  I wonder
-if you have cleverly put that suggestion into the thread, to push me
-into a more timely response to the BUG than you usually get ?-)
+What I think happens is the problem with 'dependent sync IO' vs
+'independent sync IO'. Reads are an example of dependent sync IO where you
+submit a read, need it to complete and then you submit another read. OTOH
+fsync is an example of independent sync IO where you fire of tons of IO to
+the drive and they wait for everything. Since we treat both these types of
+IO in the same way, it can easily happen that independent sync IO starves
+out the dependent one (you execute say 100 IO requests for fsync and 1 IO
+request for read). We've seen problems like this in the past.
 
-It seems a bad idea to me in at least three ways: expending more
-developer time on establishing what set of page flags to test at
-each site; expending more developer time on fixing all the false
-positives that would result; and spoiling the greppability of the
-source tree by hiding flag checks in obscure combinations.
+I'll have a look into your test program and if my feeling is indeed
+correct, I'll have a look into what we could do in the block layer to fix
+this (and poke block layer guys - they had some preliminary patches that
+tried to address this but it didn't went anywhere).
 
-Page flags are separate flags because they are largely
-independent.
+> > Since fsync blocks until all of its IO finishes anyway, what if it
+> > could just limit itself to a much smaller number of outstanding
+> > requests?
+> 
+> Yea, that could already help. If you remove the fsync()s, the problem
+> will periodically appear anyway, because writeback is triggered with
+> vengeance. That'd need to be fixed in a similar way.
+  Actually, that might be triggered by a different problem because in case
+of background writeback, block layer knows the IO is asynchronous and
+treats it in a different way.
 
-Developers have inserted the VM_BUG_ONs they think are needed,
-please leave them at that.  There may be a good case for removing
-some of the older ones that have served their purpose (we rather
-overused PageLocked checks in 2.4 for example), but not for
-putting effort into adding more to what's there.
-
-Hugh
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
