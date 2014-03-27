@@ -1,114 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f43.google.com (mail-qa0-f43.google.com [209.85.216.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 5DA2E6B0035
-	for <linux-mm@kvack.org>; Thu, 27 Mar 2014 16:34:16 -0400 (EDT)
-Received: by mail-qa0-f43.google.com with SMTP id j15so4337464qaq.2
-        for <linux-mm@kvack.org>; Thu, 27 Mar 2014 13:34:16 -0700 (PDT)
-Received: from e8.ny.us.ibm.com (e8.ny.us.ibm.com. [32.97.182.138])
-        by mx.google.com with ESMTPS id 68si1656019qgk.12.2014.03.27.13.34.15
+Received: from mail-wg0-f41.google.com (mail-wg0-f41.google.com [74.125.82.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 644B06B0035
+	for <linux-mm@kvack.org>; Thu, 27 Mar 2014 16:38:36 -0400 (EDT)
+Received: by mail-wg0-f41.google.com with SMTP id n12so2939140wgh.24
+        for <linux-mm@kvack.org>; Thu, 27 Mar 2014 13:38:35 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id ce2si3616266wib.115.2014.03.27.13.38.34
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 27 Mar 2014 13:34:15 -0700 (PDT)
-Received: from /spool/local
-	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <nacc@linux.vnet.ibm.com>;
-	Thu, 27 Mar 2014 16:34:15 -0400
-Received: from b01cxnp23032.gho.pok.ibm.com (b01cxnp23032.gho.pok.ibm.com [9.57.198.27])
-	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id DC0C3C90049
-	for <linux-mm@kvack.org>; Thu, 27 Mar 2014 16:34:08 -0400 (EDT)
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by b01cxnp23032.gho.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s2RKYCeN65863840
-	for <linux-mm@kvack.org>; Thu, 27 Mar 2014 20:34:12 GMT
-Received: from d01av04.pok.ibm.com (localhost [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s2RKYCWZ022914
-	for <linux-mm@kvack.org>; Thu, 27 Mar 2014 16:34:12 -0400
-Date: Thu, 27 Mar 2014 13:33:54 -0700
-From: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
-Subject: Re: Bug in reclaim logic with exhausted nodes?
-Message-ID: <20140327203354.GA16651@linux.vnet.ibm.com>
-References: <20140311210614.GB946@linux.vnet.ibm.com>
- <20140313170127.GE22247@linux.vnet.ibm.com>
- <20140324230550.GB18778@linux.vnet.ibm.com>
- <alpine.DEB.2.10.1403251116490.16557@nuc>
- <20140325162303.GA29977@linux.vnet.ibm.com>
- <alpine.DEB.2.10.1403251152250.16870@nuc>
- <20140325181010.GB29977@linux.vnet.ibm.com>
- <alpine.DEB.2.10.1403251323030.26744@nuc>
+        Thu, 27 Mar 2014 13:38:35 -0700 (PDT)
+Date: Thu, 27 Mar 2014 13:38:29 -0700
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH -mm 2/4] sl[au]b: charge slabs to memcg explicitly
+Message-ID: <20140327203829.GA28590@dhcp22.suse.cz>
+References: <cover.1395846845.git.vdavydov@parallels.com>
+ <1d0196602182e5284f3289eaea0219e62a51d1c4.1395846845.git.vdavydov@parallels.com>
+ <20140326215848.GB22656@dhcp22.suse.cz>
+ <5333D576.1050106@parallels.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1403251323030.26744@nuc>
+In-Reply-To: <5333D576.1050106@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: linux-mm@kvack.org, rientjes@google.com, linuxppc-dev@lists.ozlabs.org, anton@samba.org, mgorman@suse.de
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, glommer@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, devel@openvz.org, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>
 
-Hi Christoph,
-
-On 25.03.2014 [13:25:30 -0500], Christoph Lameter wrote:
-> On Tue, 25 Mar 2014, Nishanth Aravamudan wrote:
+On Thu 27-03-14 11:38:30, Vladimir Davydov wrote:
+> On 03/27/2014 01:58 AM, Michal Hocko wrote:
+> > On Wed 26-03-14 19:28:05, Vladimir Davydov wrote:
+> >> We have only a few places where we actually want to charge kmem so
+> >> instead of intruding into the general page allocation path with
+> >> __GFP_KMEMCG it's better to explictly charge kmem there. All kmem
+> >> charges will be easier to follow that way.
+> >>
+> >> This is a step towards removing __GFP_KMEMCG. It removes __GFP_KMEMCG
+> >> from memcg caches' allocflags. Instead it makes slab allocation path
+> >> call memcg_charge_kmem directly getting memcg to charge from the cache's
+> >> memcg params.
+> > Yes, removing __GFP_KMEMCG is definitely a good step. I am currently at
+> > a conference and do not have much time to review this properly (even
+> > worse will be on vacation for the next 2 weeks) but where did all the
+> > static_key optimization go? What am I missing.
 > 
-> > On power, very early, we find the 16G pages (gpages in the powerpc arch
-> > code) in the device-tree:
-> >
-> > early_setup ->
-> > 	early_init_mmu ->
-> > 		htab_initialize ->
-> > 			htab_init_page_sizes ->
-> > 				htab_dt_scan_hugepage_blocks ->
-> > 					memblock_reserve
-> > 						which marks the memory
-> > 						as reserved
-> > 					add_gpage
-> > 						which saves the address
-> > 						off so future calls for
-> > 						alloc_bootmem_huge_page()
-> >
-> > hugetlb_init ->
-> > 		hugetlb_init_hstates ->
-> > 			hugetlb_hstate_alloc_pages ->
-> > 				alloc_bootmem_huge_page
-> >
-> > > Not sure if I understand that correctly.
-> >
-> > Basically this is present memory that is "reserved" for the 16GB usage
-> > per the LPAR configuration. We honor that configuration in Linux based
-> > upon the contents of the device-tree. It just so happens in the
-> > configuration from my original e-mail that a consequence of this is that
-> > a NUMA node has memory (topologically), but none of that memory is free,
-> > nor will it ever be free.
+> I expected this question, because I want somebody to confirm if we
+> really need such kind of optimization in the slab allocation path. From
+> my POV, since we thrash cpu caches there anyway by calling alloc_pages,
+> wrapping memcg_charge_slab in a static branch wouldn't result in any
+> noticeable performance boost.
 > 
-> Well dont do that
+> I do admit we benefit from static branching in memcg_kmem_get_cache,
+> because this one is called on every kmem object allocation, but slab
+> allocations happen much rarer.
 > 
-> > Perhaps, in this case, we could just remove that node from the N_MEMORY
-> > mask? Memory allocations will never succeed from the node, and we can
-> > never free these 16GB pages. It is really not any different than a
-> > memoryless node *except* when you are using the 16GB pages.
-> 
-> That looks to be the correct way to handle things. Maybe mark the node as
-> offline or somehow not present so that the kernel ignores it.
+> I don't insist on that though, so if you say "no", I'll just add
+> __memcg_charge_slab and make memcg_charge_slab call it if the static key
+> is on, but may be, we can avoid such code bloating?
 
-This is a SLUB condition:
+I definitely do not insist on static branching at places where it
+doesn't help much. The less tricky code we will have the better. Please
+document this in the changelog and drop a comment in memcg_charge_slab
+which would tell us why we do not have to check for kmem enabling.
 
-mm/slub.c::early_kmem_cache_node_alloc():
-...
-        page = new_slab(kmem_cache_node, GFP_NOWAIT, node);
-...
-        if (page_to_nid(page) != node) {
-                printk(KERN_ERR "SLUB: Unable to allocate memory from "
-                                "node %d\n", node);
-                printk(KERN_ERR "SLUB: Allocating a useless per node structure "
-                                "in order to be able to continue\n");
-        }
-...
-
-Since this is quite early, and we have not set up the nodemasks yet,
-does it make sense to perhaps have a temporary init-time nodemask that
-we set bits in here, and "fix-up" those nodes when we setup the
-nodemasks?
-
-Thanks,
-Nish
+Thanks!
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
