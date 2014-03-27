@@ -1,242 +1,150 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f49.google.com (mail-ee0-f49.google.com [74.125.83.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A7CF6B0031
-	for <linux-mm@kvack.org>; Thu, 27 Mar 2014 14:42:11 -0400 (EDT)
-Received: by mail-ee0-f49.google.com with SMTP id c41so3188897eek.22
-        for <linux-mm@kvack.org>; Thu, 27 Mar 2014 11:42:10 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id r9si4586761eew.78.2014.03.27.11.42.08
-        for <linux-mm@kvack.org>;
-        Thu, 27 Mar 2014 11:42:09 -0700 (PDT)
-Message-ID: <533470F7.4000406@redhat.com>
-Date: Thu, 27 Mar 2014 14:41:59 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail-ve0-f182.google.com (mail-ve0-f182.google.com [209.85.128.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 899076B0035
+	for <linux-mm@kvack.org>; Thu, 27 Mar 2014 15:43:15 -0400 (EDT)
+Received: by mail-ve0-f182.google.com with SMTP id jw12so4764278veb.13
+        for <linux-mm@kvack.org>; Thu, 27 Mar 2014 12:43:15 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [patch]x86: clearing access bit don't flush tlb
-References: <20140326223034.GA31713@kernel.org> <53336907.1050105@redhat.com> <20140327171237.GA9490@kernel.org>
-In-Reply-To: <20140327171237.GA9490@kernel.org>
-Content-Type: multipart/mixed;
- boundary="------------090300070802020406070101"
+In-Reply-To: <CA+55aFzFgY4-26SO-MsFagzaj9JevkeeT1OJ3pjj-tcjuNCEeQ@mail.gmail.com>
+References: <20140327134653.GA22407@kvack.org>
+	<CA+55aFzFgY4-26SO-MsFagzaj9JevkeeT1OJ3pjj-tcjuNCEeQ@mail.gmail.com>
+Date: Thu, 27 Mar 2014 12:43:13 -0700
+Message-ID: <CA+55aFx7vg2rvOu6Bu_e8+BB=ymoUMp0AM9JmAuUuSgo0LVEwg@mail.gmail.com>
+Subject: Re: git pull -- [PATCH] aio: v2 ensure access to ctx->ring_pages is
+ correctly serialised
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Content-Type: multipart/mixed; boundary=20cf30334739bac69104f59bcb07
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shli@kernel.org>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, hughd@google.com, mel@csn.ul.ie
+To: Benjamin LaHaise <bcrl@kvack.org>
+Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Sasha Levin <sasha.levin@oracle.com>, Tang Chen <tangchen@cn.fujitsu.com>, Gu Zheng <guz.fnst@cn.fujitsu.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, stable <stable@vger.kernel.org>, linux-aio@kvack.org, linux-mm <linux-mm@kvack.org>
 
-This is a multi-part message in MIME format.
---------------090300070802020406070101
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+--20cf30334739bac69104f59bcb07
+Content-Type: text/plain; charset=UTF-8
 
-On 03/27/2014 01:12 PM, Shaohua Li wrote:
-> On Wed, Mar 26, 2014 at 07:55:51PM -0400, Rik van Riel wrote:
->> On 03/26/2014 06:30 PM, Shaohua Li wrote:
->>>
->>> I posted this patch a year ago or so, but it gets lost. Repost it here to check
->>> if we can make progress this time.
->>
->> I believe we can make progress. However, I also
->> believe the code could be enhanced to address a
->> concern that Hugh raised last time this was
->> proposed...
->>
->>> And according to intel manual, tlb has less than 1k entries, which covers < 4M
->>> memory. In today's system, several giga byte memory is normal. After page
->>> reclaim clears pte access bit and before cpu access the page again, it's quite
->>> unlikely this page's pte is still in TLB. And context swich will flush tlb too.
->>> The chance skiping tlb flush to impact page reclaim should be very rare.
->>
->> Context switch to a kernel thread does not result in a
->> TLB flush, due to the lazy TLB code.
->>
->> While I agree with you that clearing the TLB right at
->> the moment the accessed bit is cleared in a PTE is
->> not necessary, I believe it would be good to clear
->> the TLB on affected CPUs relatively soon, maybe at the
->> next time schedule is called?
->>
->>> --- linux.orig/arch/x86/mm/pgtable.c	2014-03-27 05:22:08.572100549 +0800
->>> +++ linux/arch/x86/mm/pgtable.c	2014-03-27 05:46:12.456131121 +0800
->>> @@ -399,13 +399,12 @@ int pmdp_test_and_clear_young(struct vm_
->>>   int ptep_clear_flush_young(struct vm_area_struct *vma,
->>>   			   unsigned long address, pte_t *ptep)
->>>   {
->>> -	int young;
->>> -
->>> -	young = ptep_test_and_clear_young(vma, address, ptep);
->>> -	if (young)
->>> -		flush_tlb_page(vma, address);
->>> -
->>> -	return young;
->>> +	/*
->>> +	 * In X86, clearing access bit without TLB flush doesn't cause data
->>> +	 * corruption. Doing this could cause wrong page aging and so hot pages
->>> +	 * are reclaimed, but the chance should be very rare.
->>> +	 */
->>> +	return ptep_test_and_clear_young(vma, address, ptep);
->>>   }
->>
->>
->> At this point, we could use vma->vm_mm->cpu_vm_mask_var to
->> set (or clear) some bit in the per-cpu data of each CPU that
->> has active/valid tlb state for the mm in question.
->>
->> I could see using cpu_tlbstate.state for this, or maybe
->> another variable in cpu_tlbstate, so switch_mm will load
->> both items with the same cache line.
->>
->> At schedule time, the function switch_mm() can examine that
->> variable (it already touches that data, anyway), and flush
->> the TLB even if prev==next.
->>
->> I suspect that would be both low overhead enough to get you
->> the performance gains you want, and address the concern that
->> we do want to flush the TLB at some point.
->>
->> Does that sound reasonable?
+On Thu, Mar 27, 2014 at 11:16 AM, Linus Torvalds
+<torvalds@linux-foundation.org> wrote:
 >
-> So looks what you suggested is to force tlb flush for a mm with access bit
-> cleared in two corner cases:
-> 1. lazy tlb flush
-> 2. context switch between threads from one process
->
-> Am I missing anything? I'm wonering if we should care about these corner cases.
+> It would all be cleaner if all the setup was done with the
+> ctx->ring_lock held (you can even *initialize* it to the locked state,
+> since this is the function that allocates it!) and then it would just
+> be unlocked when done.
 
-I believe the corner case is relatively rare, but I also
-suspect that your patch could fail pretty badly in some
-of those cases, and the fix is easy...
+Attached is a TOTALLY UNTESTED patch based on Ben's one that does at
+least this minimal cleanup, in addition to dropping the
+completion_lock in aio_free_ring() in favor of instead just doing the
+"put_aio_ring_file()" first.
 
-> On the other hand, a thread might run long time without schedule. If the corner
-> cases are an issue, the long run thread is a severer issue. My point is context
-> switch does provide a safeguard, but we don't depend on it. The whole theory at
-> the back of this patch is page which has access bit cleared is unlikely
-> accessed again when its pte entry is still in tlb cache.
+I do want to stress that "untested" part. I'm not going to commit
+this, because I don't have any real test-cases even if it were to boot
+and work for me otherwise.
 
-On the contrary, a TLB with a good cache policy should
-retain the most actively used entries, in favor of
-less actively used ones.
+I can't say that I like the locking. It really seems totally
+mis-designed to me. For example, the first completion_lock in
+aio_migratepage() seems to be total BS - it's locking against other
+migrations, but that's what "mapping->private_lock" (and now
+"ctx->ring_lock") protect against.
 
-That means the pages we care most about keeping, are
-the ones also most at danger of not having the accessed
-bit flushed to memory.
+The *second* completion_lock use in aio_migratepage() is actually
+valid: we can't copy the page contents to a new one when a completion
+might change the ring tail data, because then the change might be done
+to the old page but not the new page. But there the "check if things
+haven't changed" is bogus, since we've held the ring_lock.
 
-Does the attached (untested) patch look reasonable?
+I did *not* clean up that part. But it's an example of how the locking
+here seems to be more "voodoo programming" than actually thought about
+and designed.
 
+Please, somebody who has test-cases look at this, ok?
 
+                  Linus
 
+--20cf30334739bac69104f59bcb07
+Content-Type: text/plain; charset=US-ASCII; name="patch.diff"
+Content-Disposition: attachment; filename="patch.diff"
+Content-Transfer-Encoding: base64
+X-Attachment-Id: f_htag82nk0
 
---------------090300070802020406070101
-Content-Type: text/x-patch;
- name="flush_young_lazy_tlb.patch"
-Content-Transfer-Encoding: 7bit
-Content-Disposition: attachment;
- filename="flush_young_lazy_tlb.patch"
-
-
-Signed-off-by: Rik van Riel <riel@redhat.com>
----
- arch/x86/include/asm/mmu_context.h |  5 ++++-
- arch/x86/include/asm/tlbflush.h    | 12 ++++++++++++
- arch/x86/mm/pgtable.c              |  9 ++++++---
- 3 files changed, 22 insertions(+), 4 deletions(-)
-
-diff --git a/arch/x86/include/asm/mmu_context.h b/arch/x86/include/asm/mmu_context.h
-index be12c53..665d98b 100644
---- a/arch/x86/include/asm/mmu_context.h
-+++ b/arch/x86/include/asm/mmu_context.h
-@@ -39,6 +39,7 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
- #ifdef CONFIG_SMP
- 		this_cpu_write(cpu_tlbstate.state, TLBSTATE_OK);
- 		this_cpu_write(cpu_tlbstate.active_mm, next);
-+		this_cpu_write(cpu_tlbstate.force_flush, false);
- #endif
- 		cpumask_set_cpu(cpu, mm_cpumask(next));
- 
-@@ -57,7 +58,8 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
- 		this_cpu_write(cpu_tlbstate.state, TLBSTATE_OK);
- 		BUG_ON(this_cpu_read(cpu_tlbstate.active_mm) != next);
- 
--		if (!cpumask_test_cpu(cpu, mm_cpumask(next))) {
-+		if (!cpumask_test_cpu(cpu, mm_cpumask(next)) ||
-+				this_cpu_read(cpu_tlbstate.force_flush)) {
- 			/*
- 			 * On established mms, the mm_cpumask is only changed
- 			 * from irq context, from ptep_clear_flush() while in
-@@ -70,6 +72,7 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
- 			 * tlb flush IPI delivery. We must reload CR3
- 			 * to make sure to use no freed page tables.
- 			 */
-+			this_cpu_write(cpu_tlbstate.force_flush, false);
- 			load_cr3(next->pgd);
- 			load_LDT_nolock(&next->context);
- 		}
-diff --git a/arch/x86/include/asm/tlbflush.h b/arch/x86/include/asm/tlbflush.h
-index 04905bf..f2cda2c 100644
---- a/arch/x86/include/asm/tlbflush.h
-+++ b/arch/x86/include/asm/tlbflush.h
-@@ -151,6 +151,10 @@ static inline void reset_lazy_tlbstate(void)
- {
- }
- 
-+static inline void tlb_set_force_flush(int cpu)
-+{
-+}
-+
- static inline void flush_tlb_kernel_range(unsigned long start,
- 					  unsigned long end)
- {
-@@ -187,6 +191,7 @@ void native_flush_tlb_others(const struct cpumask *cpumask,
- struct tlb_state {
- 	struct mm_struct *active_mm;
- 	int state;
-+	bool force_flush;
- };
- DECLARE_PER_CPU_SHARED_ALIGNED(struct tlb_state, cpu_tlbstate);
- 
-@@ -196,6 +201,13 @@ static inline void reset_lazy_tlbstate(void)
- 	this_cpu_write(cpu_tlbstate.active_mm, &init_mm);
- }
- 
-+static inline void tlb_set_force_flush(int cpu)
-+{
-+	struct tlb_state *percputlb= &per_cpu(cpu_tlbstate, cpu);
-+	if (percputlb->force_flush == false)
-+		percputlb->force_flush = true;
-+}
-+
- #endif	/* SMP */
- 
- #ifndef CONFIG_PARAVIRT
-diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
-index c96314a..dcd26e9 100644
---- a/arch/x86/mm/pgtable.c
-+++ b/arch/x86/mm/pgtable.c
-@@ -4,6 +4,7 @@
- #include <asm/pgtable.h>
- #include <asm/tlb.h>
- #include <asm/fixmap.h>
-+#include <asm/tlbflush.h>
- 
- #define PGALLOC_GFP GFP_KERNEL | __GFP_NOTRACK | __GFP_REPEAT | __GFP_ZERO
- 
-@@ -399,11 +400,13 @@ int pmdp_test_and_clear_young(struct vm_area_struct *vma,
- int ptep_clear_flush_young(struct vm_area_struct *vma,
- 			   unsigned long address, pte_t *ptep)
- {
--	int young;
-+	int young, cpu;
- 
- 	young = ptep_test_and_clear_young(vma, address, ptep);
--	if (young)
--		flush_tlb_page(vma, address);
-+	if (young) {
-+		for_each_cpu(cpu, vma->vm_mm->cpu_vm_mask_var)
-+			tlb_set_force_flush(cpu);
-+	}
- 
- 	return young;
- }
-
---------------090300070802020406070101--
+IGZzL2Fpby5jIHwgNTMgKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysr
+Ky0tLS0tLS0tLS0KIDEgZmlsZSBjaGFuZ2VkLCA0MyBpbnNlcnRpb25zKCspLCAxMCBkZWxldGlv
+bnMoLSkKCmRpZmYgLS1naXQgYS9mcy9haW8uYyBiL2ZzL2Fpby5jCmluZGV4IDA2MmE1ZjZhMTQ0
+OC4uNzU4NDMwNjY1YjNhIDEwMDY0NAotLS0gYS9mcy9haW8uYworKysgYi9mcy9haW8uYwpAQCAt
+MjQzLDYgKzI0Myw5IEBAIHN0YXRpYyB2b2lkIGFpb19mcmVlX3Jpbmcoc3RydWN0IGtpb2N0eCAq
+Y3R4KQogewogCWludCBpOwogCisJLyogVGhpcyBtYWtlcyB0aGUgY3R4IHVucmVhY2hhYmxlICov
+CisJcHV0X2Fpb19yaW5nX2ZpbGUoY3R4KTsKKwogCWZvciAoaSA9IDA7IGkgPCBjdHgtPm5yX3Bh
+Z2VzOyBpKyspIHsKIAkJc3RydWN0IHBhZ2UgKnBhZ2U7CiAJCXByX2RlYnVnKCJwaWQoJWQpIFsl
+ZF0gcGFnZS0+Y291bnQ9JWRcbiIsIGN1cnJlbnQtPnBpZCwgaSwKQEAgLTI1NCw4ICsyNTcsNiBA
+QCBzdGF0aWMgdm9pZCBhaW9fZnJlZV9yaW5nKHN0cnVjdCBraW9jdHggKmN0eCkKIAkJcHV0X3Bh
+Z2UocGFnZSk7CiAJfQogCi0JcHV0X2Fpb19yaW5nX2ZpbGUoY3R4KTsKLQogCWlmIChjdHgtPnJp
+bmdfcGFnZXMgJiYgY3R4LT5yaW5nX3BhZ2VzICE9IGN0eC0+aW50ZXJuYWxfcGFnZXMpIHsKIAkJ
+a2ZyZWUoY3R4LT5yaW5nX3BhZ2VzKTsKIAkJY3R4LT5yaW5nX3BhZ2VzID0gTlVMTDsKQEAgLTI4
+Nyw5ICsyODgsMjkgQEAgc3RhdGljIGludCBhaW9fbWlncmF0ZXBhZ2Uoc3RydWN0IGFkZHJlc3Nf
+c3BhY2UgKm1hcHBpbmcsIHN0cnVjdCBwYWdlICpuZXcsCiAKIAlyYyA9IDA7CiAKLQkvKiBNYWtl
+IHN1cmUgdGhlIG9sZCBwYWdlIGhhc24ndCBhbHJlYWR5IGJlZW4gY2hhbmdlZCAqLworCS8qIEdl
+dCBhIHJlZmVyZW5jZSBvbiB0aGUgaW9jdHggc28gd2UgY2FuIHRha2UgdGhlIHJpbmdfbG9jayBt
+dXRleC4gKi8KIAlzcGluX2xvY2soJm1hcHBpbmctPnByaXZhdGVfbG9jayk7CiAJY3R4ID0gbWFw
+cGluZy0+cHJpdmF0ZV9kYXRhOworCWlmIChjdHgpCisJCXBlcmNwdV9yZWZfZ2V0KCZjdHgtPnVz
+ZXJzKTsKKwlzcGluX3VubG9jaygmbWFwcGluZy0+cHJpdmF0ZV9sb2NrKTsKKworCWlmICghY3R4
+KQorCQlyZXR1cm4gLUVJTlZBTDsKKworCS8qIFdlIHVzZSBtdXRleF90cnlsb2NrKCkgaGVyZSBh
+cyB0aGUgY2FsbGVycyBvZiBtaWdyYXRlcGFnZSBtYXkKKwkgKiBhbHJlYWR5IGJlIGhvbGRpbmcg
+Y3VycmVudC0+bW0tPm1tYXBfc2VtLCBhbmQgLT5yaW5nX2xvY2sgbXVzdCBiZQorCSAqIG91dHNp
+ZGUgb2YgbW1hcF9zZW0gZHVlIHRvIGl0cyB1c2FnZSBpbiBhaW9fcmVhZF9ldmVudHNfcmluZygp
+LgorCSAqIFNpbmNlIHBhZ2UgbWlncmF0aW9uIGlzIG5vdCBhbiBhYnNvbHV0ZWx5IGNyaXRpY2Fs
+IG9wZXJhdGlvbiwgdGhlCisJICogb2NjYXNpb25hbCBmYWlsdXJlIGhlcmUgaXMgYWNjZXB0YWJs
+ZS4KKwkgKi8KKwlpZiAoIW11dGV4X3RyeWxvY2soJmN0eC0+cmluZ19sb2NrKSkgeworCQlwZXJj
+cHVfcmVmX3B1dCgmY3R4LT51c2Vycyk7CisJCXJldHVybiAtRUFHQUlOOworCX0KKworCS8qIE1h
+a2Ugc3VyZSB0aGUgb2xkIHBhZ2UgaGFzbid0IGFscmVhZHkgYmVlbiBjaGFuZ2VkICovCisJc3Bp
+bl9sb2NrKCZtYXBwaW5nLT5wcml2YXRlX2xvY2spOwogCWlmIChjdHgpIHsKIAkJcGdvZmZfdCBp
+ZHg7CiAJCXNwaW5fbG9ja19pcnFzYXZlKCZjdHgtPmNvbXBsZXRpb25fbG9jaywgZmxhZ3MpOwpA
+QCAtMzA1LDcgKzMyNiw3IEBAIHN0YXRpYyBpbnQgYWlvX21pZ3JhdGVwYWdlKHN0cnVjdCBhZGRy
+ZXNzX3NwYWNlICptYXBwaW5nLCBzdHJ1Y3QgcGFnZSAqbmV3LAogCXNwaW5fdW5sb2NrKCZtYXBw
+aW5nLT5wcml2YXRlX2xvY2spOwogCiAJaWYgKHJjICE9IDApCi0JCXJldHVybiByYzsKKwkJZ290
+byBvdXRfdW5sb2NrOwogCiAJLyogV3JpdGViYWNrIG11c3QgYmUgY29tcGxldGUgKi8KIAlCVUdf
+T04oUGFnZVdyaXRlYmFjayhvbGQpKTsKQEAgLTMxNCw3ICszMzUsNyBAQCBzdGF0aWMgaW50IGFp
+b19taWdyYXRlcGFnZShzdHJ1Y3QgYWRkcmVzc19zcGFjZSAqbWFwcGluZywgc3RydWN0IHBhZ2Ug
+Km5ldywKIAlyYyA9IG1pZ3JhdGVfcGFnZV9tb3ZlX21hcHBpbmcobWFwcGluZywgbmV3LCBvbGQs
+IE5VTEwsIG1vZGUsIDEpOwogCWlmIChyYyAhPSBNSUdSQVRFUEFHRV9TVUNDRVNTKSB7CiAJCXB1
+dF9wYWdlKG5ldyk7Ci0JCXJldHVybiByYzsKKwkJZ290byBvdXRfdW5sb2NrOwogCX0KIAogCS8q
+IFdlIGNhbiBwb3RlbnRpYWxseSByYWNlIGFnYWluc3Qga2lvY3R4IHRlYXJkb3duIGhlcmUuICBV
+c2UgdGhlCkBAIC0zNDYsNiArMzY3LDkgQEAgc3RhdGljIGludCBhaW9fbWlncmF0ZXBhZ2Uoc3Ry
+dWN0IGFkZHJlc3Nfc3BhY2UgKm1hcHBpbmcsIHN0cnVjdCBwYWdlICpuZXcsCiAJZWxzZQogCQlw
+dXRfcGFnZShuZXcpOwogCitvdXRfdW5sb2NrOgorCW11dGV4X3VubG9jaygmY3R4LT5yaW5nX2xv
+Y2spOworCXBlcmNwdV9yZWZfcHV0KCZjdHgtPnVzZXJzKTsKIAlyZXR1cm4gcmM7CiB9CiAjZW5k
+aWYKQEAgLTM4MCw3ICs0MDQsNyBAQCBzdGF0aWMgaW50IGFpb19zZXR1cF9yaW5nKHN0cnVjdCBr
+aW9jdHggKmN0eCkKIAlmaWxlID0gYWlvX3ByaXZhdGVfZmlsZShjdHgsIG5yX3BhZ2VzKTsKIAlp
+ZiAoSVNfRVJSKGZpbGUpKSB7CiAJCWN0eC0+YWlvX3JpbmdfZmlsZSA9IE5VTEw7Ci0JCXJldHVy
+biAtRUFHQUlOOworCQlyZXR1cm4gLUVOT01FTTsKIAl9CiAKIAljdHgtPmFpb19yaW5nX2ZpbGUg
+PSBmaWxlOwpAQCAtNDE1LDcgKzQzOSw3IEBAIHN0YXRpYyBpbnQgYWlvX3NldHVwX3Jpbmcoc3Ry
+dWN0IGtpb2N0eCAqY3R4KQogCiAJaWYgKHVubGlrZWx5KGkgIT0gbnJfcGFnZXMpKSB7CiAJCWFp
+b19mcmVlX3JpbmcoY3R4KTsKLQkJcmV0dXJuIC1FQUdBSU47CisJCXJldHVybiAtRU5PTUVNOwog
+CX0KIAogCWN0eC0+bW1hcF9zaXplID0gbnJfcGFnZXMgKiBQQUdFX1NJWkU7CkBAIC00MjksNyAr
+NDUzLDcgQEAgc3RhdGljIGludCBhaW9fc2V0dXBfcmluZyhzdHJ1Y3Qga2lvY3R4ICpjdHgpCiAJ
+aWYgKElTX0VSUigodm9pZCAqKWN0eC0+bW1hcF9iYXNlKSkgewogCQljdHgtPm1tYXBfc2l6ZSA9
+IDA7CiAJCWFpb19mcmVlX3JpbmcoY3R4KTsKLQkJcmV0dXJuIC1FQUdBSU47CisJCXJldHVybiAt
+RU5PTUVNOwogCX0KIAogCXByX2RlYnVnKCJtbWFwIGFkZHJlc3M6IDB4JTA4bHhcbiIsIGN0eC0+
+bW1hcF9iYXNlKTsKQEAgLTY1Nyw4ICs2ODEsMTMgQEAgc3RhdGljIHN0cnVjdCBraW9jdHggKmlv
+Y3R4X2FsbG9jKHVuc2lnbmVkIG5yX2V2ZW50cykKIAlpZiAoIWN0eC0+Y3B1KQogCQlnb3RvIGVy
+cjsKIAotCWlmIChhaW9fc2V0dXBfcmluZyhjdHgpIDwgMCkKLQkJZ290byBlcnI7CisJLyogUHJl
+dmVudCByYWNlcyB3aXRoIHBhZ2UgbWlncmF0aW9uIGR1cmluZyBzZXR1cCBieSBob2xkaW5nCisJ
+ICogdGhlIHJpbmdfbG9jayBtdXRleC4KKwkgKi8KKwltdXRleF9sb2NrKCZjdHgtPnJpbmdfbG9j
+ayk7CisJZXJyID0gYWlvX3NldHVwX3JpbmcoY3R4KTsKKwlpZiAoZXJyIDwgMCkKKwkJZ290byBl
+cnJfdW5sb2NrOwogCiAJYXRvbWljX3NldCgmY3R4LT5yZXFzX2F2YWlsYWJsZSwgY3R4LT5ucl9l
+dmVudHMgLSAxKTsKIAljdHgtPnJlcV9iYXRjaCA9IChjdHgtPm5yX2V2ZW50cyAtIDEpIC8gKG51
+bV9wb3NzaWJsZV9jcHVzKCkgKiA0KTsKQEAgLTY4Myw2ICs3MTIsNyBAQCBzdGF0aWMgc3RydWN0
+IGtpb2N0eCAqaW9jdHhfYWxsb2ModW5zaWduZWQgbnJfZXZlbnRzKQogCWlmIChlcnIpCiAJCWdv
+dG8gZXJyX2NsZWFudXA7CiAKKwltdXRleF91bmxvY2soJmN0eC0+cmluZ19sb2NrKTsKIAlwcl9k
+ZWJ1ZygiYWxsb2NhdGVkIGlvY3R4ICVwWyVsZF06IG1tPSVwIG1hc2s9MHgleFxuIiwKIAkJIGN0
+eCwgY3R4LT51c2VyX2lkLCBtbSwgY3R4LT5ucl9ldmVudHMpOwogCXJldHVybiBjdHg7CkBAIC02
+OTEsNiArNzIxLDggQEAgZXJyX2NsZWFudXA6CiAJYWlvX25yX3N1YihjdHgtPm1heF9yZXFzKTsK
+IGVycl9jdHg6CiAJYWlvX2ZyZWVfcmluZyhjdHgpOworZXJyX3VubG9jazoKKwltdXRleF91bmxv
+Y2soJmN0eC0+cmluZ19sb2NrKTsKIGVycjoKIAlmcmVlX3BlcmNwdShjdHgtPmNwdSk7CiAJZnJl
+ZV9wZXJjcHUoY3R4LT5yZXFzLnBjcHVfY291bnQpOwpAQCAtMTAyNCw2ICsxMDU2LDcgQEAgc3Rh
+dGljIGxvbmcgYWlvX3JlYWRfZXZlbnRzX3Jpbmcoc3RydWN0IGtpb2N0eCAqY3R4LAogCiAJbXV0
+ZXhfbG9jaygmY3R4LT5yaW5nX2xvY2spOwogCisJLyogQWNjZXNzIHRvIC0+cmluZ19wYWdlcyBo
+ZXJlIGlzIHByb3RlY3RlZCBieSBjdHgtPnJpbmdfbG9jay4gKi8KIAlyaW5nID0ga21hcF9hdG9t
+aWMoY3R4LT5yaW5nX3BhZ2VzWzBdKTsKIAloZWFkID0gcmluZy0+aGVhZDsKIAl0YWlsID0gcmlu
+Zy0+dGFpbDsK
+--20cf30334739bac69104f59bcb07--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
