@@ -1,69 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ve0-f177.google.com (mail-ve0-f177.google.com [209.85.128.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D1816B0036
-	for <linux-mm@kvack.org>; Thu, 27 Mar 2014 16:22:13 -0400 (EDT)
-Received: by mail-ve0-f177.google.com with SMTP id sa20so4648501veb.22
-        for <linux-mm@kvack.org>; Thu, 27 Mar 2014 13:22:12 -0700 (PDT)
+Received: from mail-qa0-f43.google.com (mail-qa0-f43.google.com [209.85.216.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 5DA2E6B0035
+	for <linux-mm@kvack.org>; Thu, 27 Mar 2014 16:34:16 -0400 (EDT)
+Received: by mail-qa0-f43.google.com with SMTP id j15so4337464qaq.2
+        for <linux-mm@kvack.org>; Thu, 27 Mar 2014 13:34:16 -0700 (PDT)
+Received: from e8.ny.us.ibm.com (e8.ny.us.ibm.com. [32.97.182.138])
+        by mx.google.com with ESMTPS id 68si1656019qgk.12.2014.03.27.13.34.15
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 27 Mar 2014 13:34:15 -0700 (PDT)
+Received: from /spool/local
+	by e8.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <nacc@linux.vnet.ibm.com>;
+	Thu, 27 Mar 2014 16:34:15 -0400
+Received: from b01cxnp23032.gho.pok.ibm.com (b01cxnp23032.gho.pok.ibm.com [9.57.198.27])
+	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id DC0C3C90049
+	for <linux-mm@kvack.org>; Thu, 27 Mar 2014 16:34:08 -0400 (EDT)
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by b01cxnp23032.gho.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s2RKYCeN65863840
+	for <linux-mm@kvack.org>; Thu, 27 Mar 2014 20:34:12 GMT
+Received: from d01av04.pok.ibm.com (localhost [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s2RKYCWZ022914
+	for <linux-mm@kvack.org>; Thu, 27 Mar 2014 16:34:12 -0400
+Date: Thu, 27 Mar 2014 13:33:54 -0700
+From: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
+Subject: Re: Bug in reclaim logic with exhausted nodes?
+Message-ID: <20140327203354.GA16651@linux.vnet.ibm.com>
+References: <20140311210614.GB946@linux.vnet.ibm.com>
+ <20140313170127.GE22247@linux.vnet.ibm.com>
+ <20140324230550.GB18778@linux.vnet.ibm.com>
+ <alpine.DEB.2.10.1403251116490.16557@nuc>
+ <20140325162303.GA29977@linux.vnet.ibm.com>
+ <alpine.DEB.2.10.1403251152250.16870@nuc>
+ <20140325181010.GB29977@linux.vnet.ibm.com>
+ <alpine.DEB.2.10.1403251323030.26744@nuc>
 MIME-Version: 1.0
-In-Reply-To: <20140327200851.GL17679@kvack.org>
-References: <20140327134653.GA22407@kvack.org>
-	<CA+55aFzFgY4-26SO-MsFagzaj9JevkeeT1OJ3pjj-tcjuNCEeQ@mail.gmail.com>
-	<CA+55aFx7vg2rvOu6Bu_e8+BB=ymoUMp0AM9JmAuUuSgo0LVEwg@mail.gmail.com>
-	<20140327200851.GL17679@kvack.org>
-Date: Thu, 27 Mar 2014 13:22:11 -0700
-Message-ID: <CA+55aFy_sRnFu7KguAUAN5kbHk3Qa_0ZuATPU5i8LOyMMWZ_5g@mail.gmail.com>
-Subject: Re: git pull -- [PATCH] aio: v2 ensure access to ctx->ring_pages is
- correctly serialised
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.10.1403251323030.26744@nuc>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Benjamin LaHaise <bcrl@kvack.org>
-Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Sasha Levin <sasha.levin@oracle.com>, Tang Chen <tangchen@cn.fujitsu.com>, Gu Zheng <guz.fnst@cn.fujitsu.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, stable <stable@vger.kernel.org>, linux-aio@kvack.org, linux-mm <linux-mm@kvack.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: linux-mm@kvack.org, rientjes@google.com, linuxppc-dev@lists.ozlabs.org, anton@samba.org, mgorman@suse.de
 
-On Thu, Mar 27, 2014 at 1:08 PM, Benjamin LaHaise <bcrl@kvack.org> wrote:
->
-> The patch below is lightly tested -- my migration test case is able to
-> successfully move the aio ring around multiple times.  It still needs to
-> be run through some more thorough tests (like Trinity).  See below for
-> the differences relative to your patch.
+Hi Christoph,
 
-Ok, from a quick glance-through this fixes my big complaints (not
-unrurprisingly, similarly to my patch), and seems to fix  few of the
-smaller ones that I didn't bother with.
+On 25.03.2014 [13:25:30 -0500], Christoph Lameter wrote:
+> On Tue, 25 Mar 2014, Nishanth Aravamudan wrote:
+> 
+> > On power, very early, we find the 16G pages (gpages in the powerpc arch
+> > code) in the device-tree:
+> >
+> > early_setup ->
+> > 	early_init_mmu ->
+> > 		htab_initialize ->
+> > 			htab_init_page_sizes ->
+> > 				htab_dt_scan_hugepage_blocks ->
+> > 					memblock_reserve
+> > 						which marks the memory
+> > 						as reserved
+> > 					add_gpage
+> > 						which saves the address
+> > 						off so future calls for
+> > 						alloc_bootmem_huge_page()
+> >
+> > hugetlb_init ->
+> > 		hugetlb_init_hstates ->
+> > 			hugetlb_hstate_alloc_pages ->
+> > 				alloc_bootmem_huge_page
+> >
+> > > Not sure if I understand that correctly.
+> >
+> > Basically this is present memory that is "reserved" for the 16GB usage
+> > per the LPAR configuration. We honor that configuration in Linux based
+> > upon the contents of the device-tree. It just so happens in the
+> > configuration from my original e-mail that a consequence of this is that
+> > a NUMA node has memory (topologically), but none of that memory is free,
+> > nor will it ever be free.
+> 
+> Well dont do that
+> 
+> > Perhaps, in this case, we could just remove that node from the N_MEMORY
+> > mask? Memory allocations will never succeed from the node, and we can
+> > never free these 16GB pages. It is really not any different than a
+> > memoryless node *except* when you are using the 16GB pages.
+> 
+> That looks to be the correct way to handle things. Maybe mark the node as
+> offline or somehow not present so that the kernel ignores it.
 
-However, I think you missed the mutex_unlock() in the error paths of
-ioctx_alloc().
+This is a SLUB condition:
 
-> What I did instead is to just hold mapping->private_lock over the entire
-> operation of aio_migratepage.  That gets rid of the probably broken attempt
-> to take a reference count on the kioctx within aio_migratepage(), and makes
-> it completely clear that migration won't touch a kioctx after
-> put_aio_ring_file() returns.  It also cleans up much of the error handling
-> in aio_migratepage() since things cannot change unexpectedly.
+mm/slub.c::early_kmem_cache_node_alloc():
+...
+        page = new_slab(kmem_cache_node, GFP_NOWAIT, node);
+...
+        if (page_to_nid(page) != node) {
+                printk(KERN_ERR "SLUB: Unable to allocate memory from "
+                                "node %d\n", node);
+                printk(KERN_ERR "SLUB: Allocating a useless per node structure "
+                                "in order to be able to continue\n");
+        }
+...
 
-Yes, that looks simpler. I don't know what the latency implications
-are, but the expensive part (the actual page migration) was and
-continues to be under the completion lock with interrupts disabled, so
-I guess it's not worse.
+Since this is quite early, and we have not set up the nodemasks yet,
+does it make sense to perhaps have a temporary init-time nodemask that
+we set bits in here, and "fix-up" those nodes when we setup the
+nodemasks?
 
-It would be good to try to get rid of the completion lock irq thing,
-but that looks complex. It would likely require a two-phase migration
-model, where phase one is "unmap page from user space and copy it to
-new page", and phase two would be "insert new page into mapping". Then
-we could have just a "update the tail pointer and the kernel mapping
-under the completion lock" thing with interrupts disabled in between.
-
-But that's a much bigger change and requires help from the migration
-people. Maybe we don't care about latency here.
-
-> I also added a few comments to help explain the locking.
->
-> How does this version look?
-
-Looks ok, except for the error handling wrt mutex_unlock. Did I miss it?
-
-                 Linus
+Thanks,
+Nish
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
