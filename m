@@ -1,136 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f181.google.com (mail-ie0-f181.google.com [209.85.223.181])
-	by kanga.kvack.org (Postfix) with ESMTP id DE5996B0031
-	for <linux-mm@kvack.org>; Thu, 27 Mar 2014 00:31:56 -0400 (EDT)
-Received: by mail-ie0-f181.google.com with SMTP id tp5so2870838ieb.40
-        for <linux-mm@kvack.org>; Wed, 26 Mar 2014 21:31:56 -0700 (PDT)
-Received: from mail-ie0-x249.google.com (mail-ie0-x249.google.com [2607:f8b0:4001:c03::249])
-        by mx.google.com with ESMTPS id l4si6763803igx.25.2014.03.26.21.31.55
+Received: from mail-pb0-f42.google.com (mail-pb0-f42.google.com [209.85.160.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 11F046B0031
+	for <linux-mm@kvack.org>; Thu, 27 Mar 2014 02:20:15 -0400 (EDT)
+Received: by mail-pb0-f42.google.com with SMTP id rr13so3009878pbb.15
+        for <linux-mm@kvack.org>; Wed, 26 Mar 2014 23:20:14 -0700 (PDT)
+Received: from e28smtp01.in.ibm.com (e28smtp01.in.ibm.com. [122.248.162.1])
+        by mx.google.com with ESMTPS id uh7si688410pbc.512.2014.03.26.23.20.12
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 26 Mar 2014 21:31:56 -0700 (PDT)
-Received: by mail-ie0-f201.google.com with SMTP id rd18so647314iec.0
-        for <linux-mm@kvack.org>; Wed, 26 Mar 2014 21:31:53 -0700 (PDT)
-References: <cover.1395846845.git.vdavydov@parallels.com> <5a5b09d4cb9a15fc120b4bec8be168630a3b43c2.1395846845.git.vdavydov@parallels.com>
-From: Greg Thelen <gthelen@google.com>
-Subject: Re: [PATCH -mm 1/4] sl[au]b: do not charge large allocations to memcg
-In-reply-to: <5a5b09d4cb9a15fc120b4bec8be168630a3b43c2.1395846845.git.vdavydov@parallels.com>
-Date: Wed, 26 Mar 2014 21:31:51 -0700
-Message-ID: <xr93fvm42rew.fsf@gthelen.mtv.corp.google.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 26 Mar 2014 23:20:13 -0700 (PDT)
+Received: from /spool/local
+	by e28smtp01.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <maddy@linux.vnet.ibm.com>;
+	Thu, 27 Mar 2014 11:50:10 +0530
+Received: from d28relay02.in.ibm.com (d28relay02.in.ibm.com [9.184.220.59])
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id D80791258054
+	for <linux-mm@kvack.org>; Thu, 27 Mar 2014 11:52:32 +0530 (IST)
+Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
+	by d28relay02.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s2R6JpRg61669454
+	for <linux-mm@kvack.org>; Thu, 27 Mar 2014 11:49:51 +0530
+Received: from d28av03.in.ibm.com (localhost [127.0.0.1])
+	by d28av03.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s2R6K68T026747
+	for <linux-mm@kvack.org>; Thu, 27 Mar 2014 11:50:06 +0530
+Message-ID: <5333C315.3000405@linux.vnet.ibm.com>
+Date: Thu, 27 Mar 2014 11:50:05 +0530
+From: Madhavan Srinivasan <maddy@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Subject: Re: [PATCH 1/1] mm: move FAULT_AROUND_ORDER to arch/
+References: <1395730215-11604-1-git-send-email-maddy@linux.vnet.ibm.com> <1395730215-11604-2-git-send-email-maddy@linux.vnet.ibm.com> <20140325173605.GA21411@node.dhcp.inet.fi>
+In-Reply-To: <20140325173605.GA21411@node.dhcp.inet.fi>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, mhocko@suse.cz, glommer@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, devel@openvz.org, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, x86@kernel.org, benh@kernel.crashing.org, paulus@samba.org, kirill.shutemov@linux.intel.com, rusty@rustcorp.com.au, akpm@linux-foundation.org, riel@redhat.com, mgorman@suse.de, ak@linux.intel.com, peterz@infradead.org, mingo@kernel.org
 
+On Tuesday 25 March 2014 11:06 PM, Kirill A. Shutemov wrote:
+> On Tue, Mar 25, 2014 at 12:20:15PM +0530, Madhavan Srinivasan wrote:
+>> Kirill A. Shutemov with the commit 96bacfe542 introduced
+>> vm_ops->map_pages() for mapping easy accessible pages around
+>> fault address in hope to reduce number of minor page faults.
+>> Based on his workload runs, suggested FAULT_AROUND_ORDER
+>> (knob to control the numbers of pages to map) is 4.
+>>
+>> This patch moves the FAULT_AROUND_ORDER macro to arch/ for
+>> architecture maintainers to decide on suitable FAULT_AROUND_ORDER
+>> value based on performance data for that architecture.
+>>
+>> Signed-off-by: Madhavan Srinivasan <maddy@linux.vnet.ibm.com>
+>> ---
+>>  arch/powerpc/include/asm/pgtable.h |    6 ++++++
+>>  arch/x86/include/asm/pgtable.h     |    5 +++++
+>>  include/asm-generic/pgtable.h      |   10 ++++++++++
+>>  mm/memory.c                        |    2 --
+>>  4 files changed, 21 insertions(+), 2 deletions(-)
+>>
+>> diff --git a/arch/powerpc/include/asm/pgtable.h b/arch/powerpc/include/asm/pgtable.h
+>> index 3ebb188..9fcbd48 100644
+>> --- a/arch/powerpc/include/asm/pgtable.h
+>> +++ b/arch/powerpc/include/asm/pgtable.h
+>> @@ -19,6 +19,12 @@ struct mm_struct;
+>>  #endif
+>>  
+>>  /*
+>> + * With a few real world workloads that were run,
+>> + * the performance data showed that a value of 3 is more advantageous.
+>> + */
+>> +#define FAULT_AROUND_ORDER	3
+>> +
+>> +/*
+>>   * We save the slot number & secondary bit in the second half of the
+>>   * PTE page. We use the 8 bytes per each pte entry.
+>>   */
+>> diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+>> index 938ef1d..8387a65 100644
+>> --- a/arch/x86/include/asm/pgtable.h
+>> +++ b/arch/x86/include/asm/pgtable.h
+>> @@ -7,6 +7,11 @@
+>>  #include <asm/pgtable_types.h>
+>>  
+>>  /*
+>> + * Based on Kirill's test results, fault around order is set to 4
+>> + */
+>> +#define FAULT_AROUND_ORDER 4
+>> +
+>> +/*
+>>   * Macro to mark a page protection value as UC-
+>>   */
+>>  #define pgprot_noncached(prot)					\
+>> diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
+>> index 1ec08c1..62f7f07 100644
+>> --- a/include/asm-generic/pgtable.h
+>> +++ b/include/asm-generic/pgtable.h
+>> @@ -7,6 +7,16 @@
+>>  #include <linux/mm_types.h>
+>>  #include <linux/bug.h>
+>>  
+>> +
+>> +/*
+>> + * Fault around order is a control knob to decide the fault around pages.
+>> + * Default value is set to 0UL (disabled), but the arch can override it as
+>> + * desired.
+>> + */
+>> +#ifndef FAULT_AROUND_ORDER
+>> +#define FAULT_AROUND_ORDER	0UL
+>> +#endif
+> 
+> FAULT_AROUND_ORDER == 0 case should be handled separately in
+> do_read_fault(): no reason to go to do_fault_around() if we are going to
+> fault in only one page.
+> 
 
-On Wed, Mar 26 2014, Vladimir Davydov <vdavydov@parallels.com> wrote:
+ok agreed. I am thinking of adding FAULT_AROUND_ORDER check with
+map_pages check in the do_read_fault. Kindly share your thoughts.
 
-> We don't track any random page allocation, so we shouldn't track kmalloc
-> that falls back to the page allocator.
-
-This seems like a change which will leads to confusing (and arguably
-improper) kernel behavior.  I prefer the behavior prior to this patch.
-
-Before this change both of the following allocations are charged to
-memcg (assuming kmem accounting is enabled):
- a = kmalloc(KMALLOC_MAX_CACHE_SIZE, GFP_KERNEL)
- b = kmalloc(KMALLOC_MAX_CACHE_SIZE + 1, GFP_KERNEL)
-
-After this change only 'a' is charged; 'b' goes directly to page
-allocator which no longer does accounting.
-
-> Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Michal Hocko <mhocko@suse.cz>
-> Cc: Glauber Costa <glommer@gmail.com>
-> Cc: Christoph Lameter <cl@linux-foundation.org>
-> Cc: Pekka Enberg <penberg@kernel.org>
-> ---
->  include/linux/slab.h |    2 +-
->  mm/memcontrol.c      |   27 +--------------------------
->  mm/slub.c            |    4 ++--
->  3 files changed, 4 insertions(+), 29 deletions(-)
->
-> diff --git a/include/linux/slab.h b/include/linux/slab.h
-> index 3dd389aa91c7..8a928ff71d93 100644
-> --- a/include/linux/slab.h
-> +++ b/include/linux/slab.h
-> @@ -363,7 +363,7 @@ kmalloc_order(size_t size, gfp_t flags, unsigned int order)
->  {
->  	void *ret;
->  
-> -	flags |= (__GFP_COMP | __GFP_KMEMCG);
-> +	flags |= __GFP_COMP;
->  	ret = (void *) __get_free_pages(flags, order);
->  	kmemleak_alloc(ret, size, 1, flags);
->  	return ret;
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index b4b6aef562fa..81a162d01d4d 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -3528,35 +3528,10 @@ __memcg_kmem_newpage_charge(gfp_t gfp, struct mem_cgroup **_memcg, int order)
->  
->  	*_memcg = NULL;
->  
-> -	/*
-> -	 * Disabling accounting is only relevant for some specific memcg
-> -	 * internal allocations. Therefore we would initially not have such
-> -	 * check here, since direct calls to the page allocator that are marked
-> -	 * with GFP_KMEMCG only happen outside memcg core. We are mostly
-> -	 * concerned with cache allocations, and by having this test at
-> -	 * memcg_kmem_get_cache, we are already able to relay the allocation to
-> -	 * the root cache and bypass the memcg cache altogether.
-> -	 *
-> -	 * There is one exception, though: the SLUB allocator does not create
-> -	 * large order caches, but rather service large kmallocs directly from
-> -	 * the page allocator. Therefore, the following sequence when backed by
-> -	 * the SLUB allocator:
-> -	 *
-> -	 *	memcg_stop_kmem_account();
-> -	 *	kmalloc(<large_number>)
-> -	 *	memcg_resume_kmem_account();
-> -	 *
-> -	 * would effectively ignore the fact that we should skip accounting,
-> -	 * since it will drive us directly to this function without passing
-> -	 * through the cache selector memcg_kmem_get_cache. Such large
-> -	 * allocations are extremely rare but can happen, for instance, for the
-> -	 * cache arrays. We bring this test here.
-> -	 */
-> -	if (!current->mm || current->memcg_kmem_skip_account)
-> +	if (!current->mm)
->  		return true;
->  
->  	memcg = get_mem_cgroup_from_mm(current->mm);
-> -
->  	if (!memcg_can_account_kmem(memcg)) {
->  		css_put(&memcg->css);
->  		return true;
-> diff --git a/mm/slub.c b/mm/slub.c
-> index 5e234f1f8853..c2e58a787443 100644
-> --- a/mm/slub.c
-> +++ b/mm/slub.c
-> @@ -3325,7 +3325,7 @@ static void *kmalloc_large_node(size_t size, gfp_t flags, int node)
->  	struct page *page;
->  	void *ptr = NULL;
->  
-> -	flags |= __GFP_COMP | __GFP_NOTRACK | __GFP_KMEMCG;
-> +	flags |= __GFP_COMP | __GFP_NOTRACK;
->  	page = alloc_pages_node(node, flags, get_order(size));
->  	if (page)
->  		ptr = page_address(page);
-> @@ -3395,7 +3395,7 @@ void kfree(const void *x)
->  	if (unlikely(!PageSlab(page))) {
->  		BUG_ON(!PageCompound(page));
->  		kfree_hook(x);
-> -		__free_memcg_kmem_pages(page, compound_order(page));
-> +		__free_pages(page, compound_order(page));
->  		return;
->  	}
->  	slab_free(page->slab_cache, page, object, _RET_IP_);
-> -- 
-> 1.7.10.4
+With regards
+Maddy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
