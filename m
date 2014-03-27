@@ -1,150 +1,297 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ve0-f182.google.com (mail-ve0-f182.google.com [209.85.128.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 899076B0035
-	for <linux-mm@kvack.org>; Thu, 27 Mar 2014 15:43:15 -0400 (EDT)
-Received: by mail-ve0-f182.google.com with SMTP id jw12so4764278veb.13
-        for <linux-mm@kvack.org>; Thu, 27 Mar 2014 12:43:15 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <CA+55aFzFgY4-26SO-MsFagzaj9JevkeeT1OJ3pjj-tcjuNCEeQ@mail.gmail.com>
-References: <20140327134653.GA22407@kvack.org>
-	<CA+55aFzFgY4-26SO-MsFagzaj9JevkeeT1OJ3pjj-tcjuNCEeQ@mail.gmail.com>
-Date: Thu, 27 Mar 2014 12:43:13 -0700
-Message-ID: <CA+55aFx7vg2rvOu6Bu_e8+BB=ymoUMp0AM9JmAuUuSgo0LVEwg@mail.gmail.com>
-Subject: Re: git pull -- [PATCH] aio: v2 ensure access to ctx->ring_pages is
- correctly serialised
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Content-Type: multipart/mixed; boundary=20cf30334739bac69104f59bcb07
+Date: Thu, 27 Mar 2014 16:08:51 -0400
+From: Benjamin LaHaise <bcrl@kvack.org>
+Subject: Re: git pull -- [PATCH] aio: v2 ensure access to ctx->ring_pages is correctly serialised
+Message-ID: <20140327200851.GL17679@kvack.org>
+References: <20140327134653.GA22407@kvack.org> <CA+55aFzFgY4-26SO-MsFagzaj9JevkeeT1OJ3pjj-tcjuNCEeQ@mail.gmail.com> <CA+55aFx7vg2rvOu6Bu_e8+BB=ymoUMp0AM9JmAuUuSgo0LVEwg@mail.gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CA+55aFx7vg2rvOu6Bu_e8+BB=ymoUMp0AM9JmAuUuSgo0LVEwg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Benjamin LaHaise <bcrl@kvack.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
 Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Sasha Levin <sasha.levin@oracle.com>, Tang Chen <tangchen@cn.fujitsu.com>, Gu Zheng <guz.fnst@cn.fujitsu.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, stable <stable@vger.kernel.org>, linux-aio@kvack.org, linux-mm <linux-mm@kvack.org>
 
---20cf30334739bac69104f59bcb07
-Content-Type: text/plain; charset=UTF-8
+On Thu, Mar 27, 2014 at 12:43:13PM -0700, Linus Torvalds wrote:
+> On Thu, Mar 27, 2014 at 11:16 AM, Linus Torvalds
+> <torvalds@linux-foundation.org> wrote:
+> >
+> > It would all be cleaner if all the setup was done with the
+> > ctx->ring_lock held (you can even *initialize* it to the locked state,
+> > since this is the function that allocates it!) and then it would just
+> > be unlocked when done.
+> 
+> Attached is a TOTALLY UNTESTED patch based on Ben's one that does at
+> least this minimal cleanup, in addition to dropping the
+> completion_lock in aio_free_ring() in favor of instead just doing the
+> "put_aio_ring_file()" first.
 
-On Thu, Mar 27, 2014 at 11:16 AM, Linus Torvalds
-<torvalds@linux-foundation.org> wrote:
->
-> It would all be cleaner if all the setup was done with the
-> ctx->ring_lock held (you can even *initialize* it to the locked state,
-> since this is the function that allocates it!) and then it would just
-> be unlocked when done.
+I was just about to send a slightly different variant (see below).  Your rant 
+was entirely justified.
 
-Attached is a TOTALLY UNTESTED patch based on Ben's one that does at
-least this minimal cleanup, in addition to dropping the
-completion_lock in aio_free_ring() in favor of instead just doing the
-"put_aio_ring_file()" first.
+> I do want to stress that "untested" part. I'm not going to commit
+> this, because I don't have any real test-cases even if it were to boot
+> and work for me otherwise.
 
-I do want to stress that "untested" part. I'm not going to commit
-this, because I don't have any real test-cases even if it were to boot
-and work for me otherwise.
+The patch below is lightly tested -- my migration test case is able to 
+successfully move the aio ring around multiple times.  It still needs to 
+be run through some more thorough tests (like Trinity).  See below for 
+the differences relative to your patch.
 
-I can't say that I like the locking. It really seems totally
-mis-designed to me. For example, the first completion_lock in
-aio_migratepage() seems to be total BS - it's locking against other
-migrations, but that's what "mapping->private_lock" (and now
-"ctx->ring_lock") protect against.
+> I can't say that I like the locking. It really seems totally
+> mis-designed to me. For example, the first completion_lock in
+> aio_migratepage() seems to be total BS - it's locking against other
+> migrations, but that's what "mapping->private_lock" (and now
+> "ctx->ring_lock") protect against.
 
-The *second* completion_lock use in aio_migratepage() is actually
-valid: we can't copy the page contents to a new one when a completion
-might change the ring tail data, because then the change might be done
-to the old page but not the new page. But there the "check if things
-haven't changed" is bogus, since we've held the ring_lock.
+What I did instead is to just hold mapping->private_lock over the entire 
+operation of aio_migratepage.  That gets rid of the probably broken attempt 
+to take a reference count on the kioctx within aio_migratepage(), and makes 
+it completely clear that migration won't touch a kioctx after 
+put_aio_ring_file() returns.  It also cleans up much of the error handling 
+in aio_migratepage() since things cannot change unexpectedly.
 
-I did *not* clean up that part. But it's an example of how the locking
-here seems to be more "voodoo programming" than actually thought about
-and designed.
+> The *second* completion_lock use in aio_migratepage() is actually
+> valid: we can't copy the page contents to a new one when a completion
+> might change the ring tail data, because then the change might be done
+> to the old page but not the new page. But there the "check if things
+> haven't changed" is bogus, since we've held the ring_lock.
 
-Please, somebody who has test-cases look at this, ok?
+Yes, that should have been cleaned up since it was no longer needed.
 
-                  Linus
+> I did *not* clean up that part. But it's an example of how the locking
+> here seems to be more "voodoo programming" than actually thought about
+> and designed.
 
---20cf30334739bac69104f59bcb07
-Content-Type: text/plain; charset=US-ASCII; name="patch.diff"
-Content-Disposition: attachment; filename="patch.diff"
-Content-Transfer-Encoding: base64
-X-Attachment-Id: f_htag82nk0
+I also added a few comments to help explain the locking.
 
-IGZzL2Fpby5jIHwgNTMgKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysrKysr
-Ky0tLS0tLS0tLS0KIDEgZmlsZSBjaGFuZ2VkLCA0MyBpbnNlcnRpb25zKCspLCAxMCBkZWxldGlv
-bnMoLSkKCmRpZmYgLS1naXQgYS9mcy9haW8uYyBiL2ZzL2Fpby5jCmluZGV4IDA2MmE1ZjZhMTQ0
-OC4uNzU4NDMwNjY1YjNhIDEwMDY0NAotLS0gYS9mcy9haW8uYworKysgYi9mcy9haW8uYwpAQCAt
-MjQzLDYgKzI0Myw5IEBAIHN0YXRpYyB2b2lkIGFpb19mcmVlX3Jpbmcoc3RydWN0IGtpb2N0eCAq
-Y3R4KQogewogCWludCBpOwogCisJLyogVGhpcyBtYWtlcyB0aGUgY3R4IHVucmVhY2hhYmxlICov
-CisJcHV0X2Fpb19yaW5nX2ZpbGUoY3R4KTsKKwogCWZvciAoaSA9IDA7IGkgPCBjdHgtPm5yX3Bh
-Z2VzOyBpKyspIHsKIAkJc3RydWN0IHBhZ2UgKnBhZ2U7CiAJCXByX2RlYnVnKCJwaWQoJWQpIFsl
-ZF0gcGFnZS0+Y291bnQ9JWRcbiIsIGN1cnJlbnQtPnBpZCwgaSwKQEAgLTI1NCw4ICsyNTcsNiBA
-QCBzdGF0aWMgdm9pZCBhaW9fZnJlZV9yaW5nKHN0cnVjdCBraW9jdHggKmN0eCkKIAkJcHV0X3Bh
-Z2UocGFnZSk7CiAJfQogCi0JcHV0X2Fpb19yaW5nX2ZpbGUoY3R4KTsKLQogCWlmIChjdHgtPnJp
-bmdfcGFnZXMgJiYgY3R4LT5yaW5nX3BhZ2VzICE9IGN0eC0+aW50ZXJuYWxfcGFnZXMpIHsKIAkJ
-a2ZyZWUoY3R4LT5yaW5nX3BhZ2VzKTsKIAkJY3R4LT5yaW5nX3BhZ2VzID0gTlVMTDsKQEAgLTI4
-Nyw5ICsyODgsMjkgQEAgc3RhdGljIGludCBhaW9fbWlncmF0ZXBhZ2Uoc3RydWN0IGFkZHJlc3Nf
-c3BhY2UgKm1hcHBpbmcsIHN0cnVjdCBwYWdlICpuZXcsCiAKIAlyYyA9IDA7CiAKLQkvKiBNYWtl
-IHN1cmUgdGhlIG9sZCBwYWdlIGhhc24ndCBhbHJlYWR5IGJlZW4gY2hhbmdlZCAqLworCS8qIEdl
-dCBhIHJlZmVyZW5jZSBvbiB0aGUgaW9jdHggc28gd2UgY2FuIHRha2UgdGhlIHJpbmdfbG9jayBt
-dXRleC4gKi8KIAlzcGluX2xvY2soJm1hcHBpbmctPnByaXZhdGVfbG9jayk7CiAJY3R4ID0gbWFw
-cGluZy0+cHJpdmF0ZV9kYXRhOworCWlmIChjdHgpCisJCXBlcmNwdV9yZWZfZ2V0KCZjdHgtPnVz
-ZXJzKTsKKwlzcGluX3VubG9jaygmbWFwcGluZy0+cHJpdmF0ZV9sb2NrKTsKKworCWlmICghY3R4
-KQorCQlyZXR1cm4gLUVJTlZBTDsKKworCS8qIFdlIHVzZSBtdXRleF90cnlsb2NrKCkgaGVyZSBh
-cyB0aGUgY2FsbGVycyBvZiBtaWdyYXRlcGFnZSBtYXkKKwkgKiBhbHJlYWR5IGJlIGhvbGRpbmcg
-Y3VycmVudC0+bW0tPm1tYXBfc2VtLCBhbmQgLT5yaW5nX2xvY2sgbXVzdCBiZQorCSAqIG91dHNp
-ZGUgb2YgbW1hcF9zZW0gZHVlIHRvIGl0cyB1c2FnZSBpbiBhaW9fcmVhZF9ldmVudHNfcmluZygp
-LgorCSAqIFNpbmNlIHBhZ2UgbWlncmF0aW9uIGlzIG5vdCBhbiBhYnNvbHV0ZWx5IGNyaXRpY2Fs
-IG9wZXJhdGlvbiwgdGhlCisJICogb2NjYXNpb25hbCBmYWlsdXJlIGhlcmUgaXMgYWNjZXB0YWJs
-ZS4KKwkgKi8KKwlpZiAoIW11dGV4X3RyeWxvY2soJmN0eC0+cmluZ19sb2NrKSkgeworCQlwZXJj
-cHVfcmVmX3B1dCgmY3R4LT51c2Vycyk7CisJCXJldHVybiAtRUFHQUlOOworCX0KKworCS8qIE1h
-a2Ugc3VyZSB0aGUgb2xkIHBhZ2UgaGFzbid0IGFscmVhZHkgYmVlbiBjaGFuZ2VkICovCisJc3Bp
-bl9sb2NrKCZtYXBwaW5nLT5wcml2YXRlX2xvY2spOwogCWlmIChjdHgpIHsKIAkJcGdvZmZfdCBp
-ZHg7CiAJCXNwaW5fbG9ja19pcnFzYXZlKCZjdHgtPmNvbXBsZXRpb25fbG9jaywgZmxhZ3MpOwpA
-QCAtMzA1LDcgKzMyNiw3IEBAIHN0YXRpYyBpbnQgYWlvX21pZ3JhdGVwYWdlKHN0cnVjdCBhZGRy
-ZXNzX3NwYWNlICptYXBwaW5nLCBzdHJ1Y3QgcGFnZSAqbmV3LAogCXNwaW5fdW5sb2NrKCZtYXBw
-aW5nLT5wcml2YXRlX2xvY2spOwogCiAJaWYgKHJjICE9IDApCi0JCXJldHVybiByYzsKKwkJZ290
-byBvdXRfdW5sb2NrOwogCiAJLyogV3JpdGViYWNrIG11c3QgYmUgY29tcGxldGUgKi8KIAlCVUdf
-T04oUGFnZVdyaXRlYmFjayhvbGQpKTsKQEAgLTMxNCw3ICszMzUsNyBAQCBzdGF0aWMgaW50IGFp
-b19taWdyYXRlcGFnZShzdHJ1Y3QgYWRkcmVzc19zcGFjZSAqbWFwcGluZywgc3RydWN0IHBhZ2Ug
-Km5ldywKIAlyYyA9IG1pZ3JhdGVfcGFnZV9tb3ZlX21hcHBpbmcobWFwcGluZywgbmV3LCBvbGQs
-IE5VTEwsIG1vZGUsIDEpOwogCWlmIChyYyAhPSBNSUdSQVRFUEFHRV9TVUNDRVNTKSB7CiAJCXB1
-dF9wYWdlKG5ldyk7Ci0JCXJldHVybiByYzsKKwkJZ290byBvdXRfdW5sb2NrOwogCX0KIAogCS8q
-IFdlIGNhbiBwb3RlbnRpYWxseSByYWNlIGFnYWluc3Qga2lvY3R4IHRlYXJkb3duIGhlcmUuICBV
-c2UgdGhlCkBAIC0zNDYsNiArMzY3LDkgQEAgc3RhdGljIGludCBhaW9fbWlncmF0ZXBhZ2Uoc3Ry
-dWN0IGFkZHJlc3Nfc3BhY2UgKm1hcHBpbmcsIHN0cnVjdCBwYWdlICpuZXcsCiAJZWxzZQogCQlw
-dXRfcGFnZShuZXcpOwogCitvdXRfdW5sb2NrOgorCW11dGV4X3VubG9jaygmY3R4LT5yaW5nX2xv
-Y2spOworCXBlcmNwdV9yZWZfcHV0KCZjdHgtPnVzZXJzKTsKIAlyZXR1cm4gcmM7CiB9CiAjZW5k
-aWYKQEAgLTM4MCw3ICs0MDQsNyBAQCBzdGF0aWMgaW50IGFpb19zZXR1cF9yaW5nKHN0cnVjdCBr
-aW9jdHggKmN0eCkKIAlmaWxlID0gYWlvX3ByaXZhdGVfZmlsZShjdHgsIG5yX3BhZ2VzKTsKIAlp
-ZiAoSVNfRVJSKGZpbGUpKSB7CiAJCWN0eC0+YWlvX3JpbmdfZmlsZSA9IE5VTEw7Ci0JCXJldHVy
-biAtRUFHQUlOOworCQlyZXR1cm4gLUVOT01FTTsKIAl9CiAKIAljdHgtPmFpb19yaW5nX2ZpbGUg
-PSBmaWxlOwpAQCAtNDE1LDcgKzQzOSw3IEBAIHN0YXRpYyBpbnQgYWlvX3NldHVwX3Jpbmcoc3Ry
-dWN0IGtpb2N0eCAqY3R4KQogCiAJaWYgKHVubGlrZWx5KGkgIT0gbnJfcGFnZXMpKSB7CiAJCWFp
-b19mcmVlX3JpbmcoY3R4KTsKLQkJcmV0dXJuIC1FQUdBSU47CisJCXJldHVybiAtRU5PTUVNOwog
-CX0KIAogCWN0eC0+bW1hcF9zaXplID0gbnJfcGFnZXMgKiBQQUdFX1NJWkU7CkBAIC00MjksNyAr
-NDUzLDcgQEAgc3RhdGljIGludCBhaW9fc2V0dXBfcmluZyhzdHJ1Y3Qga2lvY3R4ICpjdHgpCiAJ
-aWYgKElTX0VSUigodm9pZCAqKWN0eC0+bW1hcF9iYXNlKSkgewogCQljdHgtPm1tYXBfc2l6ZSA9
-IDA7CiAJCWFpb19mcmVlX3JpbmcoY3R4KTsKLQkJcmV0dXJuIC1FQUdBSU47CisJCXJldHVybiAt
-RU5PTUVNOwogCX0KIAogCXByX2RlYnVnKCJtbWFwIGFkZHJlc3M6IDB4JTA4bHhcbiIsIGN0eC0+
-bW1hcF9iYXNlKTsKQEAgLTY1Nyw4ICs2ODEsMTMgQEAgc3RhdGljIHN0cnVjdCBraW9jdHggKmlv
-Y3R4X2FsbG9jKHVuc2lnbmVkIG5yX2V2ZW50cykKIAlpZiAoIWN0eC0+Y3B1KQogCQlnb3RvIGVy
-cjsKIAotCWlmIChhaW9fc2V0dXBfcmluZyhjdHgpIDwgMCkKLQkJZ290byBlcnI7CisJLyogUHJl
-dmVudCByYWNlcyB3aXRoIHBhZ2UgbWlncmF0aW9uIGR1cmluZyBzZXR1cCBieSBob2xkaW5nCisJ
-ICogdGhlIHJpbmdfbG9jayBtdXRleC4KKwkgKi8KKwltdXRleF9sb2NrKCZjdHgtPnJpbmdfbG9j
-ayk7CisJZXJyID0gYWlvX3NldHVwX3JpbmcoY3R4KTsKKwlpZiAoZXJyIDwgMCkKKwkJZ290byBl
-cnJfdW5sb2NrOwogCiAJYXRvbWljX3NldCgmY3R4LT5yZXFzX2F2YWlsYWJsZSwgY3R4LT5ucl9l
-dmVudHMgLSAxKTsKIAljdHgtPnJlcV9iYXRjaCA9IChjdHgtPm5yX2V2ZW50cyAtIDEpIC8gKG51
-bV9wb3NzaWJsZV9jcHVzKCkgKiA0KTsKQEAgLTY4Myw2ICs3MTIsNyBAQCBzdGF0aWMgc3RydWN0
-IGtpb2N0eCAqaW9jdHhfYWxsb2ModW5zaWduZWQgbnJfZXZlbnRzKQogCWlmIChlcnIpCiAJCWdv
-dG8gZXJyX2NsZWFudXA7CiAKKwltdXRleF91bmxvY2soJmN0eC0+cmluZ19sb2NrKTsKIAlwcl9k
-ZWJ1ZygiYWxsb2NhdGVkIGlvY3R4ICVwWyVsZF06IG1tPSVwIG1hc2s9MHgleFxuIiwKIAkJIGN0
-eCwgY3R4LT51c2VyX2lkLCBtbSwgY3R4LT5ucl9ldmVudHMpOwogCXJldHVybiBjdHg7CkBAIC02
-OTEsNiArNzIxLDggQEAgZXJyX2NsZWFudXA6CiAJYWlvX25yX3N1YihjdHgtPm1heF9yZXFzKTsK
-IGVycl9jdHg6CiAJYWlvX2ZyZWVfcmluZyhjdHgpOworZXJyX3VubG9jazoKKwltdXRleF91bmxv
-Y2soJmN0eC0+cmluZ19sb2NrKTsKIGVycjoKIAlmcmVlX3BlcmNwdShjdHgtPmNwdSk7CiAJZnJl
-ZV9wZXJjcHUoY3R4LT5yZXFzLnBjcHVfY291bnQpOwpAQCAtMTAyNCw2ICsxMDU2LDcgQEAgc3Rh
-dGljIGxvbmcgYWlvX3JlYWRfZXZlbnRzX3Jpbmcoc3RydWN0IGtpb2N0eCAqY3R4LAogCiAJbXV0
-ZXhfbG9jaygmY3R4LT5yaW5nX2xvY2spOwogCisJLyogQWNjZXNzIHRvIC0+cmluZ19wYWdlcyBo
-ZXJlIGlzIHByb3RlY3RlZCBieSBjdHgtPnJpbmdfbG9jay4gKi8KIAlyaW5nID0ga21hcF9hdG9t
-aWMoY3R4LT5yaW5nX3BhZ2VzWzBdKTsKIAloZWFkID0gcmluZy0+aGVhZDsKIAl0YWlsID0gcmlu
-Zy0+dGFpbDsK
---20cf30334739bac69104f59bcb07--
+> Please, somebody who has test-cases look at this, ok?
+
+How does this version look?
+
+		-ben
+
+ aio.c |  107 +++++++++++++++++++++++++++++++++++++-----------------------------
+ 1 file changed, 60 insertions(+), 47 deletions(-)
+
+diff --git a/fs/aio.c b/fs/aio.c
+index 062a5f6..cdec97c 100644
+--- a/fs/aio.c
++++ b/fs/aio.c
+@@ -52,7 +52,8 @@
+ struct aio_ring {
+ 	unsigned	id;	/* kernel internal index number */
+ 	unsigned	nr;	/* number of io_events */
+-	unsigned	head;
++	unsigned	head;	/* Written to by userland or under ring_lock
++				 * mutex by aio_read_events_ring(). */
+ 	unsigned	tail;
+ 
+ 	unsigned	magic;
+@@ -243,6 +244,11 @@ static void aio_free_ring(struct kioctx *ctx)
+ {
+ 	int i;
+ 
++	/* Disconnect the kiotx from the ring file.  This prevents future
++	 * accesses to the kioctx from page migration.
++	 */
++	put_aio_ring_file(ctx);
++
+ 	for (i = 0; i < ctx->nr_pages; i++) {
+ 		struct page *page;
+ 		pr_debug("pid(%d) [%d] page->count=%d\n", current->pid, i,
+@@ -254,8 +260,6 @@ static void aio_free_ring(struct kioctx *ctx)
+ 		put_page(page);
+ 	}
+ 
+-	put_aio_ring_file(ctx);
+-
+ 	if (ctx->ring_pages && ctx->ring_pages != ctx->internal_pages) {
+ 		kfree(ctx->ring_pages);
+ 		ctx->ring_pages = NULL;
+@@ -283,29 +287,38 @@ static int aio_migratepage(struct address_space *mapping, struct page *new,
+ {
+ 	struct kioctx *ctx;
+ 	unsigned long flags;
++	pgoff_t idx;
+ 	int rc;
+ 
+ 	rc = 0;
+ 
+-	/* Make sure the old page hasn't already been changed */
++	/* mapping->private_lock here protects against the kioctx teardown.  */
+ 	spin_lock(&mapping->private_lock);
+ 	ctx = mapping->private_data;
+-	if (ctx) {
+-		pgoff_t idx;
+-		spin_lock_irqsave(&ctx->completion_lock, flags);
+-		idx = old->index;
+-		if (idx < (pgoff_t)ctx->nr_pages) {
+-			if (ctx->ring_pages[idx] != old)
+-				rc = -EAGAIN;
+-		} else
+-			rc = -EINVAL;
+-		spin_unlock_irqrestore(&ctx->completion_lock, flags);
++	if (!ctx) {
++		rc = -EINVAL;
++		goto out;
++	}
++
++	/* The ring_lock mutex.  The prevents aio_read_events() from writing
++	 * to the ring's head, and prevents page migration from mucking in
++	 * a partially initialized kiotx.
++	 */
++	if (!mutex_trylock(&ctx->ring_lock)) {
++		rc = -EAGAIN;
++		goto out;
++	}
++
++	idx = old->index;
++	if (idx < (pgoff_t)ctx->nr_pages) {
++		/* Make sure the old page hasn't already been changed */
++		if (ctx->ring_pages[idx] != old)
++			rc = -EAGAIN;
+ 	} else
+ 		rc = -EINVAL;
+-	spin_unlock(&mapping->private_lock);
+ 
+ 	if (rc != 0)
+-		return rc;
++		goto out_unlock;
+ 
+ 	/* Writeback must be complete */
+ 	BUG_ON(PageWriteback(old));
+@@ -314,38 +327,26 @@ static int aio_migratepage(struct address_space *mapping, struct page *new,
+ 	rc = migrate_page_move_mapping(mapping, new, old, NULL, mode, 1);
+ 	if (rc != MIGRATEPAGE_SUCCESS) {
+ 		put_page(new);
+-		return rc;
++		goto out_unlock;
+ 	}
+ 
+-	/* We can potentially race against kioctx teardown here.  Use the
+-	 * address_space's private data lock to protect the mapping's
+-	 * private_data.
++	/* Take completion_lock to prevent other writes to the ring buffer
++	 * while the old page is copied to the new.  This prevents new
++	 * events from being lost.
+ 	 */
+-	spin_lock(&mapping->private_lock);
+-	ctx = mapping->private_data;
+-	if (ctx) {
+-		pgoff_t idx;
+-		spin_lock_irqsave(&ctx->completion_lock, flags);
+-		migrate_page_copy(new, old);
+-		idx = old->index;
+-		if (idx < (pgoff_t)ctx->nr_pages) {
+-			/* And only do the move if things haven't changed */
+-			if (ctx->ring_pages[idx] == old)
+-				ctx->ring_pages[idx] = new;
+-			else
+-				rc = -EAGAIN;
+-		} else
+-			rc = -EINVAL;
+-		spin_unlock_irqrestore(&ctx->completion_lock, flags);
+-	} else
+-		rc = -EBUSY;
+-	spin_unlock(&mapping->private_lock);
++	spin_lock_irqsave(&ctx->completion_lock, flags);
++	migrate_page_copy(new, old);
++	BUG_ON(ctx->ring_pages[idx] != old);
++	ctx->ring_pages[idx] = new;
++	spin_unlock_irqrestore(&ctx->completion_lock, flags);
+ 
+-	if (rc == MIGRATEPAGE_SUCCESS)
+-		put_page(old);
+-	else
+-		put_page(new);
++	/* The old page is no longer accessible. */
++	put_page(old);
+ 
++out_unlock:
++	mutex_unlock(&ctx->ring_lock);
++out:
++	spin_unlock(&mapping->private_lock);
+ 	return rc;
+ }
+ #endif
+@@ -380,7 +381,7 @@ static int aio_setup_ring(struct kioctx *ctx)
+ 	file = aio_private_file(ctx, nr_pages);
+ 	if (IS_ERR(file)) {
+ 		ctx->aio_ring_file = NULL;
+-		return -EAGAIN;
++		return -ENOMEM;
+ 	}
+ 
+ 	ctx->aio_ring_file = file;
+@@ -415,7 +416,7 @@ static int aio_setup_ring(struct kioctx *ctx)
+ 
+ 	if (unlikely(i != nr_pages)) {
+ 		aio_free_ring(ctx);
+-		return -EAGAIN;
++		return -ENOMEM;
+ 	}
+ 
+ 	ctx->mmap_size = nr_pages * PAGE_SIZE;
+@@ -429,7 +430,7 @@ static int aio_setup_ring(struct kioctx *ctx)
+ 	if (IS_ERR((void *)ctx->mmap_base)) {
+ 		ctx->mmap_size = 0;
+ 		aio_free_ring(ctx);
+-		return -EAGAIN;
++		return -ENOMEM;
+ 	}
+ 
+ 	pr_debug("mmap address: 0x%08lx\n", ctx->mmap_base);
+@@ -556,6 +557,10 @@ static int ioctx_add_table(struct kioctx *ctx, struct mm_struct *mm)
+ 					rcu_read_unlock();
+ 					spin_unlock(&mm->ioctx_lock);
+ 
++					/* While kioctx setup is in progress,
++					 * we are protected from page migration
++					 * changes ring_pages by ->ring_lock.
++					 */
+ 					ring = kmap_atomic(ctx->ring_pages[0]);
+ 					ring->id = ctx->id;
+ 					kunmap_atomic(ring);
+@@ -649,6 +654,9 @@ static struct kioctx *ioctx_alloc(unsigned nr_events)
+ 	spin_lock_init(&ctx->ctx_lock);
+ 	spin_lock_init(&ctx->completion_lock);
+ 	mutex_init(&ctx->ring_lock);
++	/* Protect against page migration throughout kiotx setup by keeping
++	 * the ring_lock mutex held until setup is complete. */
++	mutex_lock(&ctx->ring_lock);
+ 	init_waitqueue_head(&ctx->wait);
+ 
+ 	INIT_LIST_HEAD(&ctx->active_reqs);
+@@ -657,7 +665,8 @@ static struct kioctx *ioctx_alloc(unsigned nr_events)
+ 	if (!ctx->cpu)
+ 		goto err;
+ 
+-	if (aio_setup_ring(ctx) < 0)
++	err = aio_setup_ring(ctx);
++	if (err < 0)
+ 		goto err;
+ 
+ 	atomic_set(&ctx->reqs_available, ctx->nr_events - 1);
+@@ -683,6 +692,9 @@ static struct kioctx *ioctx_alloc(unsigned nr_events)
+ 	if (err)
+ 		goto err_cleanup;
+ 
++	/* Release the ring_lock mutex now that all setup is complete. */
++	mutex_unlock(&ctx->ring_lock);
++
+ 	pr_debug("allocated ioctx %p[%ld]: mm=%p mask=0x%x\n",
+ 		 ctx, ctx->user_id, mm, ctx->nr_events);
+ 	return ctx;
+@@ -1024,6 +1036,7 @@ static long aio_read_events_ring(struct kioctx *ctx,
+ 
+ 	mutex_lock(&ctx->ring_lock);
+ 
++	/* Access to ->ring_pages here is protected by ctx->ring_lock. */
+ 	ring = kmap_atomic(ctx->ring_pages[0]);
+ 	head = ring->head;
+ 	tail = ring->tail;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
