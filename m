@@ -1,65 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D0C96B0031
-	for <linux-mm@kvack.org>; Wed, 26 Mar 2014 22:31:42 -0400 (EDT)
-Received: by mail-pa0-f48.google.com with SMTP id hz1so2790590pad.21
-        for <linux-mm@kvack.org>; Wed, 26 Mar 2014 19:31:42 -0700 (PDT)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id zt8si333134pbc.273.2014.03.26.19.31.39
+Received: from mail-ie0-f181.google.com (mail-ie0-f181.google.com [209.85.223.181])
+	by kanga.kvack.org (Postfix) with ESMTP id DE5996B0031
+	for <linux-mm@kvack.org>; Thu, 27 Mar 2014 00:31:56 -0400 (EDT)
+Received: by mail-ie0-f181.google.com with SMTP id tp5so2870838ieb.40
+        for <linux-mm@kvack.org>; Wed, 26 Mar 2014 21:31:56 -0700 (PDT)
+Received: from mail-ie0-x249.google.com (mail-ie0-x249.google.com [2607:f8b0:4001:c03::249])
+        by mx.google.com with ESMTPS id l4si6763803igx.25.2014.03.26.21.31.55
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 26 Mar 2014 19:31:40 -0700 (PDT)
-Message-ID: <53338CFE.3060705@huawei.com>
-Date: Thu, 27 Mar 2014 10:29:18 +0800
-From: Li Zefan <lizefan@huawei.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 26 Mar 2014 21:31:56 -0700 (PDT)
+Received: by mail-ie0-f201.google.com with SMTP id rd18so647314iec.0
+        for <linux-mm@kvack.org>; Wed, 26 Mar 2014 21:31:53 -0700 (PDT)
+References: <cover.1395846845.git.vdavydov@parallels.com> <5a5b09d4cb9a15fc120b4bec8be168630a3b43c2.1395846845.git.vdavydov@parallels.com>
+From: Greg Thelen <gthelen@google.com>
+Subject: Re: [PATCH -mm 1/4] sl[au]b: do not charge large allocations to memcg
+In-reply-to: <5a5b09d4cb9a15fc120b4bec8be168630a3b43c2.1395846845.git.vdavydov@parallels.com>
+Date: Wed, 26 Mar 2014 21:31:51 -0700
+Message-ID: <xr93fvm42rew.fsf@gthelen.mtv.corp.google.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 1/3] kmemleak: allow freeing internal objects after
- kmemleak was disabled
-References: <5326750E.1000004@huawei.com> <F7314A69-24BE-42B9-8E99-8F9292B397C4@arm.com>
-In-Reply-To: <F7314A69-24BE-42B9-8E99-8F9292B397C4@arm.com>
-Content-Type: text/plain; charset="GB2312"
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, mhocko@suse.cz, glommer@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, devel@openvz.org, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>
 
-(Just came back from travelling)
 
-On 2014/3/22 7:37, Catalin Marinas wrote:
-> Hi Li,
-> 
-> On 17 Mar 2014, at 04:07, Li Zefan <lizefan@huawei.com> wrote:
->> Currently if kmemleak is disabled, the kmemleak objects can never be freed,
->> no matter if it's disabled by a user or due to fatal errors.
->>
->> Those objects can be a big waste of memory.
->>
->>  OBJS ACTIVE  USE OBJ SIZE  SLABS OBJ/SLAB CACHE SIZE NAME
->> 1200264 1197433  99%    0.30K  46164       26    369312K kmemleak_object
->>
->> With this patch, internal objects will be freed immediately if kmemleak is
->> disabled explicitly by a user. If it's disabled due to a kmemleak error,
->> The user will be informed, and then he/she can reclaim memory with:
->>
->> 	# echo off > /sys/kernel/debug/kmemleak
->>
->> v2: use "off" handler instead of "clear" handler to do this, suggested
->>    by Catalin.
-> 
-> I think there was a slight misunderstanding. My point was about "echo
-> scan=off!+- before !?echo off!+-, they can just be squashed into the
-> same action of the latter.
-> 
+On Wed, Mar 26 2014, Vladimir Davydov <vdavydov@parallels.com> wrote:
 
-I'm not sure if I understand correctly, so you want the "off" handler to
-stop the scan thread but it will never free kmemleak objects until the 
-user explicitly trigger the "clear" action, right?
+> We don't track any random page allocation, so we shouldn't track kmalloc
+> that falls back to the page allocator.
 
-> I would keep the !?clear!+- part separately as per your first patch. I
-> recall people asked in the past to still be able to analyse the reports
-> even though kmemleak failed or was disabled.
-> 
+This seems like a change which will leads to confusing (and arguably
+improper) kernel behavior.  I prefer the behavior prior to this patch.
+
+Before this change both of the following allocations are charged to
+memcg (assuming kmem accounting is enabled):
+ a = kmalloc(KMALLOC_MAX_CACHE_SIZE, GFP_KERNEL)
+ b = kmalloc(KMALLOC_MAX_CACHE_SIZE + 1, GFP_KERNEL)
+
+After this change only 'a' is charged; 'b' goes directly to page
+allocator which no longer does accounting.
+
+> Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Michal Hocko <mhocko@suse.cz>
+> Cc: Glauber Costa <glommer@gmail.com>
+> Cc: Christoph Lameter <cl@linux-foundation.org>
+> Cc: Pekka Enberg <penberg@kernel.org>
+> ---
+>  include/linux/slab.h |    2 +-
+>  mm/memcontrol.c      |   27 +--------------------------
+>  mm/slub.c            |    4 ++--
+>  3 files changed, 4 insertions(+), 29 deletions(-)
+>
+> diff --git a/include/linux/slab.h b/include/linux/slab.h
+> index 3dd389aa91c7..8a928ff71d93 100644
+> --- a/include/linux/slab.h
+> +++ b/include/linux/slab.h
+> @@ -363,7 +363,7 @@ kmalloc_order(size_t size, gfp_t flags, unsigned int order)
+>  {
+>  	void *ret;
+>  
+> -	flags |= (__GFP_COMP | __GFP_KMEMCG);
+> +	flags |= __GFP_COMP;
+>  	ret = (void *) __get_free_pages(flags, order);
+>  	kmemleak_alloc(ret, size, 1, flags);
+>  	return ret;
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index b4b6aef562fa..81a162d01d4d 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -3528,35 +3528,10 @@ __memcg_kmem_newpage_charge(gfp_t gfp, struct mem_cgroup **_memcg, int order)
+>  
+>  	*_memcg = NULL;
+>  
+> -	/*
+> -	 * Disabling accounting is only relevant for some specific memcg
+> -	 * internal allocations. Therefore we would initially not have such
+> -	 * check here, since direct calls to the page allocator that are marked
+> -	 * with GFP_KMEMCG only happen outside memcg core. We are mostly
+> -	 * concerned with cache allocations, and by having this test at
+> -	 * memcg_kmem_get_cache, we are already able to relay the allocation to
+> -	 * the root cache and bypass the memcg cache altogether.
+> -	 *
+> -	 * There is one exception, though: the SLUB allocator does not create
+> -	 * large order caches, but rather service large kmallocs directly from
+> -	 * the page allocator. Therefore, the following sequence when backed by
+> -	 * the SLUB allocator:
+> -	 *
+> -	 *	memcg_stop_kmem_account();
+> -	 *	kmalloc(<large_number>)
+> -	 *	memcg_resume_kmem_account();
+> -	 *
+> -	 * would effectively ignore the fact that we should skip accounting,
+> -	 * since it will drive us directly to this function without passing
+> -	 * through the cache selector memcg_kmem_get_cache. Such large
+> -	 * allocations are extremely rare but can happen, for instance, for the
+> -	 * cache arrays. We bring this test here.
+> -	 */
+> -	if (!current->mm || current->memcg_kmem_skip_account)
+> +	if (!current->mm)
+>  		return true;
+>  
+>  	memcg = get_mem_cgroup_from_mm(current->mm);
+> -
+>  	if (!memcg_can_account_kmem(memcg)) {
+>  		css_put(&memcg->css);
+>  		return true;
+> diff --git a/mm/slub.c b/mm/slub.c
+> index 5e234f1f8853..c2e58a787443 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -3325,7 +3325,7 @@ static void *kmalloc_large_node(size_t size, gfp_t flags, int node)
+>  	struct page *page;
+>  	void *ptr = NULL;
+>  
+> -	flags |= __GFP_COMP | __GFP_NOTRACK | __GFP_KMEMCG;
+> +	flags |= __GFP_COMP | __GFP_NOTRACK;
+>  	page = alloc_pages_node(node, flags, get_order(size));
+>  	if (page)
+>  		ptr = page_address(page);
+> @@ -3395,7 +3395,7 @@ void kfree(const void *x)
+>  	if (unlikely(!PageSlab(page))) {
+>  		BUG_ON(!PageCompound(page));
+>  		kfree_hook(x);
+> -		__free_memcg_kmem_pages(page, compound_order(page));
+> +		__free_pages(page, compound_order(page));
+>  		return;
+>  	}
+>  	slab_free(page->slab_cache, page, object, _RET_IP_);
+> -- 
+> 1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
