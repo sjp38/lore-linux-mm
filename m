@@ -1,60 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	by kanga.kvack.org (Postfix) with ESMTP id D3EE16B0035
-	for <linux-mm@kvack.org>; Thu, 27 Mar 2014 16:40:46 -0400 (EDT)
-Received: by mail-wi0-f173.google.com with SMTP id f8so6418985wiw.12
-        for <linux-mm@kvack.org>; Thu, 27 Mar 2014 13:40:46 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id dq1si3638609wib.75.2014.03.27.13.40.45
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 27 Mar 2014 13:40:45 -0700 (PDT)
-Date: Thu, 27 Mar 2014 13:40:41 -0700
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH -mm 1/4] sl[au]b: do not charge large allocations to memcg
-Message-ID: <20140327204041.GB28590@dhcp22.suse.cz>
-References: <cover.1395846845.git.vdavydov@parallels.com>
- <5a5b09d4cb9a15fc120b4bec8be168630a3b43c2.1395846845.git.vdavydov@parallels.com>
- <20140326215320.GA22656@dhcp22.suse.cz>
- <5333D472.2000606@parallels.com>
+Received: from mail-we0-f177.google.com (mail-we0-f177.google.com [74.125.82.177])
+	by kanga.kvack.org (Postfix) with ESMTP id E5E296B0036
+	for <linux-mm@kvack.org>; Thu, 27 Mar 2014 16:42:01 -0400 (EDT)
+Received: by mail-we0-f177.google.com with SMTP id u57so2091772wes.8
+        for <linux-mm@kvack.org>; Thu, 27 Mar 2014 13:42:01 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id ea8si5847478wib.23.2014.03.27.13.41.58
+        for <linux-mm@kvack.org>;
+        Thu, 27 Mar 2014 13:41:59 -0700 (PDT)
+Message-ID: <53348D09.3060802@redhat.com>
+Date: Thu, 27 Mar 2014 16:41:45 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5333D472.2000606@parallels.com>
+Subject: Re: [PATCH] mm: Only force scan in reclaim when none of the LRUs
+ are big enough.
+References: <alpine.LSU.2.11.1403151957160.21388@eggly.anvils>
+In-Reply-To: <alpine.LSU.2.11.1403151957160.21388@eggly.anvils>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: glommer@gmail.com, akpm@linux-foundation.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, devel@openvz.org, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>
+To: Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>
+Cc: Suleiman Souhlal <suleiman@google.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rafael Aquini <aquini@redhat.com>, Michal Hocko <mhocko@suse.cz>, Yuanhan Liu <yuanhan.liu@linux.intel.com>, Seth Jennings <sjennings@variantweb.net>, Bob Liu <bob.liu@oracle.com>, Minchan Kim <minchan@kernel.org>, Luigi Semenzato <semenzato@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu 27-03-14 11:34:10, Vladimir Davydov wrote:
-> Hi Michal,
-> 
-> On 03/27/2014 01:53 AM, Michal Hocko wrote:
-> > On Wed 26-03-14 19:28:04, Vladimir Davydov wrote:
-> >> We don't track any random page allocation, so we shouldn't track kmalloc
-> >> that falls back to the page allocator.
-> > Why did we do that in the first place? d79923fad95b (sl[au]b: allocate
-> > objects from memcg cache) didn't tell me much.
-> 
-> I don't know, we'd better ask Glauber about that.
-> 
-> > How is memcg_kmem_skip_account removal related?
-> 
-> The comment this patch removes along with the memcg_kmem_skip_account
-> check explains that pretty well IMO. In short, we only use
-> memcg_kmem_skip_account to prevent kmalloc's from charging, which is
-> crucial for recursion-avoidance in memcg_kmem_get_cache. Since we don't
-> charge pages allocated from a root (not per-memcg) cache, from the first
-> glance it would be enough to check for memcg_kmem_skip_account only in
-> memcg_kmem_get_cache and return the root cache if it's set. However, for
-> we can also kmalloc w/o issuing memcg_kmem_get_cache (kmalloc_large), we
-> also need this check in memcg_kmem_newpage_charge. This patch removes
-> kmalloc_large accounting, so we don't need this check anymore.
+On 03/15/2014 11:36 PM, Hugh Dickins wrote:
+> From: Suleiman Souhlal <suleiman@google.com>
+>
+> Prior to this change, we would decide whether to force scan a LRU
+> during reclaim if that LRU itself was too small for the current
+> priority. However, this can lead to the file LRU getting force
+> scanned even if there are a lot of anonymous pages we can reclaim,
+> leading to hot file pages getting needlessly reclaimed.
+>
+> To address this, we instead only force scan when none of the
+> reclaimable LRUs are big enough.
+>
+> Gives huge improvements with zswap. For example, when doing -j20
+> kernel build in a 500MB container with zswap enabled, runtime (in
+> seconds) is greatly reduced:
+>
+> x without this change
+> + with this change
+>      N           Min           Max        Median           Avg        Stddev
+> x   5       700.997       790.076       763.928        754.05      39.59493
+> +   5       141.634       197.899       155.706         161.9     21.270224
+> Difference at 95.0% confidence
+>          -592.15 +/- 46.3521
+>          -78.5293% +/- 6.14709%
+>          (Student's t, pooled s = 31.7819)
+>
+> Should also give some improvements in regular (non-zswap) swap cases.
+>
+> Yes, hughd found significant speedup using regular swap, with several
+> memcgs under pressure; and it should also be effective in the non-memcg
+> case, whenever one or another zone LRU is forced too small.
+>
+> Signed-off-by: Suleiman Souhlal <suleiman@google.com>
+> Signed-off-by: Hugh Dickins <hughd@google.com>
 
-Document that in the changelog please.
--- 
-Michal Hocko
-SUSE Labs
+Acked-by: Rik van Riel <riel@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
