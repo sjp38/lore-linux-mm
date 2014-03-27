@@ -1,66 +1,229 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 9FB3D6B0031
-	for <linux-mm@kvack.org>; Thu, 27 Mar 2014 08:22:02 -0400 (EDT)
-Received: by mail-pd0-f170.google.com with SMTP id v10so3302412pde.29
-        for <linux-mm@kvack.org>; Thu, 27 Mar 2014 05:22:02 -0700 (PDT)
-Received: from collaborate-mta1.arm.com (fw-tnat.austin.arm.com. [217.140.110.23])
-        by mx.google.com with ESMTP id sf3si1405029pac.165.2014.03.27.05.22.01
-        for <linux-mm@kvack.org>;
-        Thu, 27 Mar 2014 05:22:01 -0700 (PDT)
-Date: Thu, 27 Mar 2014 12:21:39 +0000
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [PATCH v2 1/3] kmemleak: allow freeing internal objects after
- kmemleak was disabled
-Message-ID: <20140327122139.GH20298@arm.com>
-References: <5326750E.1000004@huawei.com>
- <F7314A69-24BE-42B9-8E99-8F9292B397C4@arm.com>
- <53338CFE.3060705@huawei.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Date: Thu, 27 Mar 2014 09:46:53 -0400
+From: Benjamin LaHaise <bcrl@kvack.org>
+Subject: git pull -- [PATCH] aio: v2 ensure access to ctx->ring_pages is correctly serialised
+Message-ID: <20140327134653.GA22407@kvack.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <53338CFE.3060705@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Li Zefan <lizefan@huawei.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Sasha Levin <sasha.levin@oracle.com>, Tang Chen <tangchen@cn.fujitsu.com>, Gu Zheng <guz.fnst@cn.fujitsu.com>, linux-kernel@vger.kernel.org, stable@vger.kernel.org, linux-aio@kvack.org, linux-mm@kvack.org
 
-On Thu, Mar 27, 2014 at 02:29:18AM +0000, Li Zefan wrote:
-> On 2014/3/22 7:37, Catalin Marinas wrote:
-> > On 17 Mar 2014, at 04:07, Li Zefan <lizefan@huawei.com> wrote:
-> >> Currently if kmemleak is disabled, the kmemleak objects can never be freed,
-> >> no matter if it's disabled by a user or due to fatal errors.
-> >>
-> >> Those objects can be a big waste of memory.
-> >>
-> >>  OBJS ACTIVE  USE OBJ SIZE  SLABS OBJ/SLAB CACHE SIZE NAME
-> >> 1200264 1197433  99%    0.30K  46164       26    369312K kmemleak_object
-> >>
-> >> With this patch, internal objects will be freed immediately if kmemleak is
-> >> disabled explicitly by a user. If it's disabled due to a kmemleak error,
-> >> The user will be informed, and then he/she can reclaim memory with:
-> >>
-> >> 	# echo off > /sys/kernel/debug/kmemleak
-> >>
-> >> v2: use "off" handler instead of "clear" handler to do this, suggested
-> >>    by Catalin.
-> > 
-> > I think there was a slight misunderstanding. My point was about "echo
-> > scan=offa?? before a??echo offa??, they can just be squashed into the
-> > same action of the latter.
-> 
-> I'm not sure if I understand correctly, so you want the "off" handler to
-> stop the scan thread but it will never free kmemleak objects until the 
-> user explicitly trigger the "clear" action, right?
+Hello Linus and everyone,
 
-Yes. That's just in case someone wants to stop kmemleak but still
-investigate some previously reported leaks.
+Please pull the change below from my aio-fixes git repository at 
+git://git.kvack.org/~bcrl/aio-fixes.git which fixes a couple of issues 
+found in the aio page migration code.  This patch is applicable to the 
+3.12 and later stable trees as well.  Thanks to all the folks involved 
+in reporting & testing.
 
-Thanks.
+		-ben
+----snip----
+
+As reported by Tang Chen, Gu Zheng and Yasuaki Isimatsu, the following issues
+exist in the aio ring page migration support.
+
+As a result, for example, we have the following problem:
+
+            thread 1                      |              thread 2
+                                          |
+aio_migratepage()                         |
+ |-> take ctx->completion_lock            |
+ |-> migrate_page_copy(new, old)          |
+ |   *NOW*, ctx->ring_pages[idx] == old   |
+                                          |
+                                          |    *NOW*, ctx->ring_pages[idx] == old
+                                          |    aio_read_events_ring()
+                                          |     |-> ring = kmap_atomic(ctx->ring_pages[0])
+                                          |     |-> ring->head = head;          *HERE, write to the old ring page*
+                                          |     |-> kunmap_atomic(ring);
+                                          |
+ |-> ctx->ring_pages[idx] = new           |
+ |   *BUT NOW*, the content of            |
+ |    ring_pages[idx] is old.             |
+ |-> release ctx->completion_lock         |
+
+As above, the new ring page will not be updated.
+
+Fix this issue, as well as prevent races in aio_ring_setup() by taking
+the ring_lock mutex during page migration and where otherwise applicable.
+This avoids the overhead of taking another spinlock in
+aio_read_events_ring() as Tang's and Gu's original fix did, pushing the
+overhead into the migration code.
+
+Note that to handle the nesting of ring_lock inside of mmap_sem, the
+migratepage operation uses mutex_trylock().  Page migration is not a 100%
+critical operation in this case, so the ocassional failure can be
+tolerated.  This issue was reported by Sasha Levin.
+
+Reported-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+Reported-by: Sasha Levin <sasha.levin@oracle.com>
+Signed-off-by: Benjamin LaHaise <bcrl@kvack.org>
+Cc: Tang Chen <tangchen@cn.fujitsu.com>
+Cc: Gu Zheng <guz.fnst@cn.fujitsu.com>
+Cc: stable@vger.kernel.org
+---
+ fs/aio.c | 55 ++++++++++++++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 48 insertions(+), 7 deletions(-)
+
+diff --git a/fs/aio.c b/fs/aio.c
+index 062a5f6..bfe1497 100644
+--- a/fs/aio.c
++++ b/fs/aio.c
+@@ -241,8 +241,10 @@ static void put_aio_ring_file(struct kioctx *ctx)
+ 
+ static void aio_free_ring(struct kioctx *ctx)
+ {
++	unsigned long flags;
+ 	int i;
+ 
++	spin_lock_irqsave(&ctx->completion_lock, flags);
+ 	for (i = 0; i < ctx->nr_pages; i++) {
+ 		struct page *page;
+ 		pr_debug("pid(%d) [%d] page->count=%d\n", current->pid, i,
+@@ -253,6 +255,7 @@ static void aio_free_ring(struct kioctx *ctx)
+ 		ctx->ring_pages[i] = NULL;
+ 		put_page(page);
+ 	}
++	spin_unlock_irqrestore(&ctx->completion_lock, flags);
+ 
+ 	put_aio_ring_file(ctx);
+ 
+@@ -287,9 +290,29 @@ static int aio_migratepage(struct address_space *mapping, struct page *new,
+ 
+ 	rc = 0;
+ 
+-	/* Make sure the old page hasn't already been changed */
++	/* Get a reference on the ioctx so we can take the ring_lock mutex. */
+ 	spin_lock(&mapping->private_lock);
+ 	ctx = mapping->private_data;
++	if (ctx)
++		percpu_ref_get(&ctx->users);
++	spin_unlock(&mapping->private_lock);
++
++	if (!ctx)
++		return -EINVAL;
++
++	/* We use mutex_trylock() here as the callers of migratepage may
++	 * already be holding current->mm->mmap_sem, and ->ring_lock must be
++	 * outside of mmap_sem due to its usage in aio_read_events_ring().
++	 * Since page migration is not an absolutely critical operation, the
++	 * occasional failure here is acceptable.
++	 */
++	if (!mutex_trylock(&ctx->ring_lock)) {
++		percpu_ref_put(&ctx->users);
++		return -EAGAIN;
++	}
++
++	/* Make sure the old page hasn't already been changed */
++	spin_lock(&mapping->private_lock);
+ 	if (ctx) {
+ 		pgoff_t idx;
+ 		spin_lock_irqsave(&ctx->completion_lock, flags);
+@@ -305,7 +328,7 @@ static int aio_migratepage(struct address_space *mapping, struct page *new,
+ 	spin_unlock(&mapping->private_lock);
+ 
+ 	if (rc != 0)
+-		return rc;
++		goto out_unlock;
+ 
+ 	/* Writeback must be complete */
+ 	BUG_ON(PageWriteback(old));
+@@ -314,7 +337,7 @@ static int aio_migratepage(struct address_space *mapping, struct page *new,
+ 	rc = migrate_page_move_mapping(mapping, new, old, NULL, mode, 1);
+ 	if (rc != MIGRATEPAGE_SUCCESS) {
+ 		put_page(new);
+-		return rc;
++		goto out_unlock;
+ 	}
+ 
+ 	/* We can potentially race against kioctx teardown here.  Use the
+@@ -346,6 +369,9 @@ static int aio_migratepage(struct address_space *mapping, struct page *new,
+ 	else
+ 		put_page(new);
+ 
++out_unlock:
++	mutex_unlock(&ctx->ring_lock);
++	percpu_ref_put(&ctx->users);
+ 	return rc;
+ }
+ #endif
+@@ -380,7 +406,7 @@ static int aio_setup_ring(struct kioctx *ctx)
+ 	file = aio_private_file(ctx, nr_pages);
+ 	if (IS_ERR(file)) {
+ 		ctx->aio_ring_file = NULL;
+-		return -EAGAIN;
++		return -ENOMEM;
+ 	}
+ 
+ 	ctx->aio_ring_file = file;
+@@ -415,7 +441,7 @@ static int aio_setup_ring(struct kioctx *ctx)
+ 
+ 	if (unlikely(i != nr_pages)) {
+ 		aio_free_ring(ctx);
+-		return -EAGAIN;
++		return -ENOMEM;
+ 	}
+ 
+ 	ctx->mmap_size = nr_pages * PAGE_SIZE;
+@@ -429,7 +455,7 @@ static int aio_setup_ring(struct kioctx *ctx)
+ 	if (IS_ERR((void *)ctx->mmap_base)) {
+ 		ctx->mmap_size = 0;
+ 		aio_free_ring(ctx);
+-		return -EAGAIN;
++		return -ENOMEM;
+ 	}
+ 
+ 	pr_debug("mmap address: 0x%08lx\n", ctx->mmap_base);
+@@ -556,9 +582,17 @@ static int ioctx_add_table(struct kioctx *ctx, struct mm_struct *mm)
+ 					rcu_read_unlock();
+ 					spin_unlock(&mm->ioctx_lock);
+ 
++					/*
++					 * Accessing ring pages must be done
++					 * holding ctx->completion_lock to
++					 * prevent aio ring page migration
++					 * procedure from migrating ring pages.
++					 */
++					spin_lock_irq(&ctx->completion_lock);
+ 					ring = kmap_atomic(ctx->ring_pages[0]);
+ 					ring->id = ctx->id;
+ 					kunmap_atomic(ring);
++					spin_unlock_irq(&ctx->completion_lock);
+ 					return 0;
+ 				}
+ 
+@@ -657,7 +691,13 @@ static struct kioctx *ioctx_alloc(unsigned nr_events)
+ 	if (!ctx->cpu)
+ 		goto err;
+ 
+-	if (aio_setup_ring(ctx) < 0)
++	/* Prevent races with page migration in aio_setup_ring() by holding
++	 * the ring_lock mutex.
++	 */
++	mutex_lock(&ctx->ring_lock);
++	err = aio_setup_ring(ctx);
++	mutex_unlock(&ctx->ring_lock);
++	if (err < 0)
+ 		goto err;
+ 
+ 	atomic_set(&ctx->reqs_available, ctx->nr_events - 1);
+@@ -1024,6 +1064,7 @@ static long aio_read_events_ring(struct kioctx *ctx,
+ 
+ 	mutex_lock(&ctx->ring_lock);
+ 
++	/* Access to ->ring_pages here is protected by ctx->ring_lock. */
+ 	ring = kmap_atomic(ctx->ring_pages[0]);
+ 	head = ring->head;
+ 	tail = ring->tail;
+-- 
+1.8.2.1
+
 
 -- 
-Catalin
+"Thought is the essence of where you are now."
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
