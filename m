@@ -1,40 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-ig0-f175.google.com (mail-ig0-f175.google.com [209.85.213.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 128B86B0031
-	for <linux-mm@kvack.org>; Thu, 27 Mar 2014 12:10:58 -0400 (EDT)
-Received: by mail-ig0-f175.google.com with SMTP id ur14so1761117igb.8
-        for <linux-mm@kvack.org>; Thu, 27 Mar 2014 09:10:57 -0700 (PDT)
-Received: from qmta04.emeryville.ca.mail.comcast.net (qmta04.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:40])
-        by mx.google.com with ESMTP id j5si6903034igj.39.2014.03.27.09.10.56
-        for <linux-mm@kvack.org>;
-        Thu, 27 Mar 2014 09:10:56 -0700 (PDT)
-Date: Thu, 27 Mar 2014 11:10:53 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH] mm: convert some level-less printks to pr_*
-In-Reply-To: <alpine.DEB.2.10.1403261938160.5585@nuc>
-Message-ID: <alpine.DEB.2.10.1403271110010.10482@nuc>
-References: <1395877783-18910-1-git-send-email-mitchelh@codeaurora.org> <1395877783-18910-2-git-send-email-mitchelh@codeaurora.org> <alpine.DEB.2.10.1403261938160.5585@nuc>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+	by kanga.kvack.org (Postfix) with ESMTP id 9EBF06B0031
+	for <linux-mm@kvack.org>; Thu, 27 Mar 2014 13:12:41 -0400 (EDT)
+Received: by mail-ig0-f175.google.com with SMTP id ur14so1845780igb.2
+        for <linux-mm@kvack.org>; Thu, 27 Mar 2014 10:12:41 -0700 (PDT)
+Received: from mail-ie0-x22e.google.com (mail-ie0-x22e.google.com [2607:f8b0:4001:c03::22e])
+        by mx.google.com with ESMTPS id u6si3307169icp.38.2014.03.27.10.12.40
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 27 Mar 2014 10:12:40 -0700 (PDT)
+Received: by mail-ie0-f174.google.com with SMTP id rp18so3754941iec.19
+        for <linux-mm@kvack.org>; Thu, 27 Mar 2014 10:12:40 -0700 (PDT)
+Date: Fri, 28 Mar 2014 01:12:37 +0800
+From: Shaohua Li <shli@kernel.org>
+Subject: Re: [patch]x86: clearing access bit don't flush tlb
+Message-ID: <20140327171237.GA9490@kernel.org>
+References: <20140326223034.GA31713@kernel.org>
+ <53336907.1050105@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <53336907.1050105@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mitchel Humpherys <mitchelh@codeaurora.org>
-Cc: Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Rik van Riel <riel@redhat.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, hughd@google.com, mel@csn.ul.ie
 
-Would like to retracting the ack after seeing the other comments. Will ack
-after then issues have been fixed.
+On Wed, Mar 26, 2014 at 07:55:51PM -0400, Rik van Riel wrote:
+> On 03/26/2014 06:30 PM, Shaohua Li wrote:
+> >
+> >I posted this patch a year ago or so, but it gets lost. Repost it here to check
+> >if we can make progress this time.
+> 
+> I believe we can make progress. However, I also
+> believe the code could be enhanced to address a
+> concern that Hugh raised last time this was
+> proposed...
+> 
+> >And according to intel manual, tlb has less than 1k entries, which covers < 4M
+> >memory. In today's system, several giga byte memory is normal. After page
+> >reclaim clears pte access bit and before cpu access the page again, it's quite
+> >unlikely this page's pte is still in TLB. And context swich will flush tlb too.
+> >The chance skiping tlb flush to impact page reclaim should be very rare.
+> 
+> Context switch to a kernel thread does not result in a
+> TLB flush, due to the lazy TLB code.
+> 
+> While I agree with you that clearing the TLB right at
+> the moment the accessed bit is cleared in a PTE is
+> not necessary, I believe it would be good to clear
+> the TLB on affected CPUs relatively soon, maybe at the
+> next time schedule is called?
+> 
+> >--- linux.orig/arch/x86/mm/pgtable.c	2014-03-27 05:22:08.572100549 +0800
+> >+++ linux/arch/x86/mm/pgtable.c	2014-03-27 05:46:12.456131121 +0800
+> >@@ -399,13 +399,12 @@ int pmdp_test_and_clear_young(struct vm_
+> >  int ptep_clear_flush_young(struct vm_area_struct *vma,
+> >  			   unsigned long address, pte_t *ptep)
+> >  {
+> >-	int young;
+> >-
+> >-	young = ptep_test_and_clear_young(vma, address, ptep);
+> >-	if (young)
+> >-		flush_tlb_page(vma, address);
+> >-
+> >-	return young;
+> >+	/*
+> >+	 * In X86, clearing access bit without TLB flush doesn't cause data
+> >+	 * corruption. Doing this could cause wrong page aging and so hot pages
+> >+	 * are reclaimed, but the chance should be very rare.
+> >+	 */
+> >+	return ptep_test_and_clear_young(vma, address, ptep);
+> >  }
+> 
+> 
+> At this point, we could use vma->vm_mm->cpu_vm_mask_var to
+> set (or clear) some bit in the per-cpu data of each CPU that
+> has active/valid tlb state for the mm in question.
+> 
+> I could see using cpu_tlbstate.state for this, or maybe
+> another variable in cpu_tlbstate, so switch_mm will load
+> both items with the same cache line.
+> 
+> At schedule time, the function switch_mm() can examine that
+> variable (it already touches that data, anyway), and flush
+> the TLB even if prev==next.
+> 
+> I suspect that would be both low overhead enough to get you
+> the performance gains you want, and address the concern that
+> we do want to flush the TLB at some point.
+> 
+> Does that sound reasonable?
 
-On Wed, 26 Mar 2014, Christoph Lameter wrote:
+So looks what you suggested is to force tlb flush for a mm with access bit
+cleared in two corner cases:
+1. lazy tlb flush
+2. context switch between threads from one process
 
-> On Wed, 26 Mar 2014, Mitchel Humpherys wrote:
->
-> > printk is meant to be used with an associated log level. There are some
-> > instances of printk scattered around the mm code where the log level is
-> > missing. Add a log level and adhere to suggestions by
-> > scripts/checkpatch.pl by moving to the pr_* macros.
->
-> Acked-by: Christoph Lameter <cl@linux.com>
->
->
+Am I missing anything? I'm wonering if we should care about these corner cases.
+On the other hand, a thread might run long time without schedule. If the corner
+cases are an issue, the long run thread is a severer issue. My point is context
+switch does provide a safeguard, but we don't depend on it. The whole theory at
+the back of this patch is page which has access bit cleared is unlikely
+accessed again when its pte entry is still in tlb cache.
+
+Thanks,
+Shaohua
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
