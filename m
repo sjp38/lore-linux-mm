@@ -1,60 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f47.google.com (mail-wg0-f47.google.com [74.125.82.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 233206B0035
-	for <linux-mm@kvack.org>; Fri, 28 Mar 2014 06:04:31 -0400 (EDT)
-Received: by mail-wg0-f47.google.com with SMTP id x12so3336025wgg.6
-        for <linux-mm@kvack.org>; Fri, 28 Mar 2014 03:04:30 -0700 (PDT)
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 619466B0037
+	for <linux-mm@kvack.org>; Fri, 28 Mar 2014 06:13:38 -0400 (EDT)
+Received: by mail-pa0-f46.google.com with SMTP id kp14so4808961pab.33
+        for <linux-mm@kvack.org>; Fri, 28 Mar 2014 03:13:38 -0700 (PDT)
 Received: from collaborate-mta1.arm.com (fw-tnat.austin.arm.com. [217.140.110.23])
-        by mx.google.com with ESMTP id w2si1499107wiz.57.2014.03.28.03.04.28
+        by mx.google.com with ESMTP id k1si3374296pao.306.2014.03.28.03.13.37
         for <linux-mm@kvack.org>;
-        Fri, 28 Mar 2014 03:04:29 -0700 (PDT)
-Date: Fri, 28 Mar 2014 10:04:06 +0000
+        Fri, 28 Mar 2014 03:13:37 -0700 (PDT)
+Date: Fri, 28 Mar 2014 10:13:15 +0000
 From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [PATCH v3 1/4] kmemleak: free internal objects only if there're
- no leaks to be reported
-Message-ID: <20140328100403.GA21330@arm.com>
+Subject: Re: [PATCH v3 2/4] kmemleak: allow freeing internal objects after
+ kmemleak was disabled
+Message-ID: <20140328101315.GB21330@arm.com>
 References: <5335384A.2000000@huawei.com>
+ <5335387E.2050005@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <5335384A.2000000@huawei.com>
+In-Reply-To: <5335387E.2050005@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Li Zefan <lizefan@huawei.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Fri, Mar 28, 2014 at 08:52:26AM +0000, Li Zefan wrote:
-> Currently if you disabling kmemleak after stopping kmemleak thread,
-> kmemleak objects will be freed and so you won't be able to check
-> previously reported leaks.
-> 
-> With this patch, kmemleak objects won't be freed if there're leaks
-> that can be reported.
-> 
-> Signed-off-by: Li Zefan <lizefan@huawei.com>
+More nitpicks ;)
 
-Some nitpicks below:
+On Fri, Mar 28, 2014 at 08:53:18AM +0000, Li Zefan wrote:
+> diff --git a/Documentation/kmemleak.txt b/Documentation/kmemleak.txt
+> index 6dc8013..a7e6a06 100644
+> --- a/Documentation/kmemleak.txt
+> +++ b/Documentation/kmemleak.txt
+> @@ -51,7 +51,8 @@ Memory scanning parameters can be modified at run-time by writing to the
+>  		  (default 600, 0 to stop the automatic scanning)
+>    scan		- trigger a memory scan
+>    clear		- clear list of current memory leak suspects, done by
+> -		  marking all current reported unreferenced objects grey
+> +		  marking all current reported unreferenced objects grey.
+> +		  Or free all kmemleak objects if kmemleak has been disabled.
+
+Comma after "unreferenced objects grey" and lower-case "or free ..."
 
 > diff --git a/mm/kmemleak.c b/mm/kmemleak.c
-> index 31f01c5..be7ecc0 100644
-> --- a/mm/kmemleak.c
-> +++ b/mm/kmemleak.c
-> @@ -218,7 +218,8 @@ static int kmemleak_stack_scan = 1;
->  static DEFINE_MUTEX(scan_mutex);
->  /* setting kmemleak=on, will set this var, skipping the disable */
->  static int kmemleak_skip_disable;
+> index be7ecc0..6631df8 100644
+[...]
+> @@ -1690,17 +1711,16 @@ static const struct file_operations kmemleak_fops = {
+>   */
+>  static void kmemleak_do_cleanup(struct work_struct *work)
+>  {
+> -	struct kmemleak_object *object;
 > -
-> +/* If there're leaks that can be reported */
+>  	mutex_lock(&scan_mutex);
+>  	stop_scan_thread();
+>  
+> -	if (!kmemleak_has_leaks) {
+> -		rcu_read_lock();
+> -		list_for_each_entry_rcu(object, &object_list, object_list)
+> -			delete_object_full(object->pointer);
+> -		rcu_read_unlock();
+> -	}
+> +	if (!kmemleak_has_leaks)
+> +		__kmemleak_do_cleanup();
+> +	else
+> +		pr_info("Disable kmemleak without freeing internal objects, "
+> +			"so you may still check information on memory leaks. "
+> +			"You may reclaim memory by writing \"clear\" to "
+> +			"/sys/kernel/debug/kmemleak\n");
 
-"If there are ..." (easier to read ;)).
+Alternative text:
 
-> +static bool kmemleak_has_leaks;
+		pr_info("Kmemleak disabled without freeing internal data. "
+			"Reclaim the memory with \"echo clear > /sys/kernel/debug/kmemleak\"\n");
 
-Better "kmemleak_found_leaks" to avoid confusion.
+(I'm wouldn't bother with long lines in printk strings)
 
 Otherwise:
 
 Acked-by: Catalin Marinas <catalin.marinas@arm.com>
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
