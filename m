@@ -1,250 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 548A56B0036
-	for <linux-mm@kvack.org>; Fri, 28 Mar 2014 16:35:40 -0400 (EDT)
-Received: by mail-pa0-f44.google.com with SMTP id bj1so5504336pad.17
-        for <linux-mm@kvack.org>; Fri, 28 Mar 2014 13:35:40 -0700 (PDT)
-Received: from mail-pd0-x22a.google.com (mail-pd0-x22a.google.com [2607:f8b0:400e:c02::22a])
-        by mx.google.com with ESMTPS id zw7si4327218pac.111.2014.03.28.13.35.39
+Received: from mail-ie0-f172.google.com (mail-ie0-f172.google.com [209.85.223.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 92C8E6B0035
+	for <linux-mm@kvack.org>; Fri, 28 Mar 2014 18:37:36 -0400 (EDT)
+Received: by mail-ie0-f172.google.com with SMTP id as1so5631408iec.3
+        for <linux-mm@kvack.org>; Fri, 28 Mar 2014 15:37:36 -0700 (PDT)
+Received: from mail-ig0-x236.google.com (mail-ig0-x236.google.com [2607:f8b0:4001:c05::236])
+        by mx.google.com with ESMTPS id nv5si8728951igb.41.2014.03.28.15.37.35
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 28 Mar 2014 13:35:39 -0700 (PDT)
-Received: by mail-pd0-f170.google.com with SMTP id v10so5346106pde.29
-        for <linux-mm@kvack.org>; Fri, 28 Mar 2014 13:35:39 -0700 (PDT)
-Date: Fri, 28 Mar 2014 13:35:37 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch stable-3.13] mm: close PageTail race
-In-Reply-To: <alpine.DEB.2.02.1403281333290.18841@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.02.1403281335200.18841@chino.kir.corp.google.com>
-References: <alpine.DEB.2.02.1403281333290.18841@chino.kir.corp.google.com>
+        Fri, 28 Mar 2014 15:37:35 -0700 (PDT)
+Received: by mail-ig0-f182.google.com with SMTP id uy17so1450560igb.3
+        for <linux-mm@kvack.org>; Fri, 28 Mar 2014 15:37:35 -0700 (PDT)
+Date: Sat, 29 Mar 2014 03:02:33 +0800
+From: Shaohua Li <shli@kernel.org>
+Subject: Re: [patch]x86: clearing access bit don't flush tlb
+Message-ID: <20140328190233.GA14905@kernel.org>
+References: <20140326223034.GA31713@kernel.org>
+ <53336907.1050105@redhat.com>
+ <20140327171237.GA9490@kernel.org>
+ <533470F7.4000406@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <533470F7.4000406@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: stable@vger.kernel.org
-Cc: Holger Kiehl <Holger.Kiehl@dwd.de>, Christoph Lameter <cl@linux.com>, Rafael Aquini <aquini@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Rik van Riel <riel@redhat.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, hughd@google.com, mel@csn.ul.ie
 
-commit 668f9abbd4334e6c29fa8acd71635c4f9101caa7 upstream.
+On Thu, Mar 27, 2014 at 02:41:59PM -0400, Rik van Riel wrote:
+> On 03/27/2014 01:12 PM, Shaohua Li wrote:
+> >On Wed, Mar 26, 2014 at 07:55:51PM -0400, Rik van Riel wrote:
+> >>On 03/26/2014 06:30 PM, Shaohua Li wrote:
+> >>>
+> >>>I posted this patch a year ago or so, but it gets lost. Repost it here to check
+> >>>if we can make progress this time.
+> >>
+> >>I believe we can make progress. However, I also
+> >>believe the code could be enhanced to address a
+> >>concern that Hugh raised last time this was
+> >>proposed...
+> >>
+> >>>And according to intel manual, tlb has less than 1k entries, which covers < 4M
+> >>>memory. In today's system, several giga byte memory is normal. After page
+> >>>reclaim clears pte access bit and before cpu access the page again, it's quite
+> >>>unlikely this page's pte is still in TLB. And context swich will flush tlb too.
+> >>>The chance skiping tlb flush to impact page reclaim should be very rare.
+> >>
+> >>Context switch to a kernel thread does not result in a
+> >>TLB flush, due to the lazy TLB code.
+> >>
+> >>While I agree with you that clearing the TLB right at
+> >>the moment the accessed bit is cleared in a PTE is
+> >>not necessary, I believe it would be good to clear
+> >>the TLB on affected CPUs relatively soon, maybe at the
+> >>next time schedule is called?
+> >>
+> >>>--- linux.orig/arch/x86/mm/pgtable.c	2014-03-27 05:22:08.572100549 +0800
+> >>>+++ linux/arch/x86/mm/pgtable.c	2014-03-27 05:46:12.456131121 +0800
+> >>>@@ -399,13 +399,12 @@ int pmdp_test_and_clear_young(struct vm_
+> >>>  int ptep_clear_flush_young(struct vm_area_struct *vma,
+> >>>  			   unsigned long address, pte_t *ptep)
+> >>>  {
+> >>>-	int young;
+> >>>-
+> >>>-	young = ptep_test_and_clear_young(vma, address, ptep);
+> >>>-	if (young)
+> >>>-		flush_tlb_page(vma, address);
+> >>>-
+> >>>-	return young;
+> >>>+	/*
+> >>>+	 * In X86, clearing access bit without TLB flush doesn't cause data
+> >>>+	 * corruption. Doing this could cause wrong page aging and so hot pages
+> >>>+	 * are reclaimed, but the chance should be very rare.
+> >>>+	 */
+> >>>+	return ptep_test_and_clear_young(vma, address, ptep);
+> >>>  }
+> >>
+> >>
+> >>At this point, we could use vma->vm_mm->cpu_vm_mask_var to
+> >>set (or clear) some bit in the per-cpu data of each CPU that
+> >>has active/valid tlb state for the mm in question.
+> >>
+> >>I could see using cpu_tlbstate.state for this, or maybe
+> >>another variable in cpu_tlbstate, so switch_mm will load
+> >>both items with the same cache line.
+> >>
+> >>At schedule time, the function switch_mm() can examine that
+> >>variable (it already touches that data, anyway), and flush
+> >>the TLB even if prev==next.
+> >>
+> >>I suspect that would be both low overhead enough to get you
+> >>the performance gains you want, and address the concern that
+> >>we do want to flush the TLB at some point.
+> >>
+> >>Does that sound reasonable?
+> >
+> >So looks what you suggested is to force tlb flush for a mm with access bit
+> >cleared in two corner cases:
+> >1. lazy tlb flush
+> >2. context switch between threads from one process
+> >
+> >Am I missing anything? I'm wonering if we should care about these corner cases.
+> 
+> I believe the corner case is relatively rare, but I also
+> suspect that your patch could fail pretty badly in some
+> of those cases, and the fix is easy...
+> 
+> >On the other hand, a thread might run long time without schedule. If the corner
+> >cases are an issue, the long run thread is a severer issue. My point is context
+> >switch does provide a safeguard, but we don't depend on it. The whole theory at
+> >the back of this patch is page which has access bit cleared is unlikely
+> >accessed again when its pte entry is still in tlb cache.
+> 
+> On the contrary, a TLB with a good cache policy should
+> retain the most actively used entries, in favor of
+> less actively used ones.
+> 
+> That means the pages we care most about keeping, are
+> the ones also most at danger of not having the accessed
+> bit flushed to memory.
+> 
+> Does the attached (untested) patch look reasonable?
 
-Commit bf6bddf1924e ("mm: introduce compaction and migration for
-ballooned pages") introduces page_count(page) into memory compaction
-which dereferences page->first_page if PageTail(page).
+It works obviously. Test shows tehre is no extra tradeoff too compared to just
+skip tlb flush. So I have no objection to this if you insist a safeguard like
+this. Should we force no entering lazy tlb too (in context_switch) if
+force_flush is set, because you are talking about it but I didn't see it in the
+patch? Should I push this or will you do it?
 
-This results in a very rare NULL pointer dereference on the
-aforementioned page_count(page).  Indeed, anything that does
-compound_head(), including page_count() is susceptible to racing with
-prep_compound_page() and seeing a NULL or dangling page->first_page
-pointer.
-
-This patch uses Andrea's implementation of compound_trans_head() that
-deals with such a race and makes it the default compound_head()
-implementation.  This includes a read memory barrier that ensures that
-if PageTail(head) is true that we return a head page that is neither
-NULL nor dangling.  The patch then adds a store memory barrier to
-prep_compound_page() to ensure page->first_page is set.
-
-This is the safest way to ensure we see the head page that we are
-expecting, PageTail(page) is already in the unlikely() path and the
-memory barriers are unfortunately required.
-
-Hugetlbfs is the exception, we don't enforce a store memory barrier
-during init since no race is possible.
-
-Signed-off-by: David Rientjes <rientjes@google.com>
-Cc: Holger Kiehl <Holger.Kiehl@dwd.de>
-Cc: Christoph Lameter <cl@linux.com>
-Cc: Rafael Aquini <aquini@redhat.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>
-Cc: Michal Hocko <mhocko@suse.cz>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
----
- drivers/block/aoe/aoecmd.c      |  4 ++--
- drivers/vfio/vfio_iommu_type1.c |  4 ++--
- fs/proc/page.c                  |  2 +-
- include/linux/huge_mm.h         | 18 ------------------
- include/linux/mm.h              | 14 ++++++++++++--
- mm/ksm.c                        |  2 +-
- mm/memory-failure.c             |  2 +-
- mm/page_alloc.c                 |  4 +++-
- mm/swap.c                       |  4 ++--
- 9 files changed, 24 insertions(+), 30 deletions(-)
-
-diff --git a/drivers/block/aoe/aoecmd.c b/drivers/block/aoe/aoecmd.c
---- a/drivers/block/aoe/aoecmd.c
-+++ b/drivers/block/aoe/aoecmd.c
-@@ -905,7 +905,7 @@ bio_pageinc(struct bio *bio)
- 		/* Non-zero page count for non-head members of
- 		 * compound pages is no longer allowed by the kernel.
- 		 */
--		page = compound_trans_head(bv->bv_page);
-+		page = compound_head(bv->bv_page);
- 		atomic_inc(&page->_count);
- 	}
- }
-@@ -918,7 +918,7 @@ bio_pagedec(struct bio *bio)
- 	int i;
- 
- 	bio_for_each_segment(bv, bio, i) {
--		page = compound_trans_head(bv->bv_page);
-+		page = compound_head(bv->bv_page);
- 		atomic_dec(&page->_count);
- 	}
- }
-diff --git a/drivers/vfio/vfio_iommu_type1.c b/drivers/vfio/vfio_iommu_type1.c
---- a/drivers/vfio/vfio_iommu_type1.c
-+++ b/drivers/vfio/vfio_iommu_type1.c
-@@ -186,12 +186,12 @@ static bool is_invalid_reserved_pfn(unsigned long pfn)
- 	if (pfn_valid(pfn)) {
- 		bool reserved;
- 		struct page *tail = pfn_to_page(pfn);
--		struct page *head = compound_trans_head(tail);
-+		struct page *head = compound_head(tail);
- 		reserved = !!(PageReserved(head));
- 		if (head != tail) {
- 			/*
- 			 * "head" is not a dangling pointer
--			 * (compound_trans_head takes care of that)
-+			 * (compound_head takes care of that)
- 			 * but the hugepage may have been split
- 			 * from under us (and we may not hold a
- 			 * reference count on the head page so it can
-diff --git a/fs/proc/page.c b/fs/proc/page.c
---- a/fs/proc/page.c
-+++ b/fs/proc/page.c
-@@ -121,7 +121,7 @@ u64 stable_page_flags(struct page *page)
- 	 * just checks PG_head/PG_tail, so we need to check PageLRU to make
- 	 * sure a given page is a thp, not a non-huge compound page.
- 	 */
--	else if (PageTransCompound(page) && PageLRU(compound_trans_head(page)))
-+	else if (PageTransCompound(page) && PageLRU(compound_head(page)))
- 		u |= 1 << KPF_THP;
- 
- 	/*
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -157,23 +157,6 @@ static inline int hpage_nr_pages(struct page *page)
- 		return HPAGE_PMD_NR;
- 	return 1;
- }
--static inline struct page *compound_trans_head(struct page *page)
--{
--	if (PageTail(page)) {
--		struct page *head;
--		head = page->first_page;
--		smp_rmb();
--		/*
--		 * head may be a dangling pointer.
--		 * __split_huge_page_refcount clears PageTail before
--		 * overwriting first_page, so if PageTail is still
--		 * there it means the head pointer isn't dangling.
--		 */
--		if (PageTail(page))
--			return head;
--	}
--	return page;
--}
- 
- extern int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 				unsigned long addr, pmd_t pmd, pmd_t *pmdp);
-@@ -203,7 +186,6 @@ static inline int split_huge_page(struct page *page)
- 	do { } while (0)
- #define split_huge_page_pmd_mm(__mm, __address, __pmd)	\
- 	do { } while (0)
--#define compound_trans_head(page) compound_head(page)
- static inline int hugepage_madvise(struct vm_area_struct *vma,
- 				   unsigned long *vm_flags, int advice)
- {
-diff --git a/include/linux/mm.h b/include/linux/mm.h
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -389,8 +389,18 @@ static inline void compound_unlock_irqrestore(struct page *page,
- 
- static inline struct page *compound_head(struct page *page)
- {
--	if (unlikely(PageTail(page)))
--		return page->first_page;
-+	if (unlikely(PageTail(page))) {
-+		struct page *head = page->first_page;
-+
-+		/*
-+		 * page->first_page may be a dangling pointer to an old
-+		 * compound page, so recheck that it is still a tail
-+		 * page before returning.
-+		 */
-+		smp_rmb();
-+		if (likely(PageTail(page)))
-+			return head;
-+	}
- 	return page;
- }
- 
-diff --git a/mm/ksm.c b/mm/ksm.c
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -444,7 +444,7 @@ static void break_cow(struct rmap_item *rmap_item)
- static struct page *page_trans_compound_anon(struct page *page)
- {
- 	if (PageTransCompound(page)) {
--		struct page *head = compound_trans_head(page);
-+		struct page *head = compound_head(page);
- 		/*
- 		 * head may actually be splitted and freed from under
- 		 * us but it's ok here.
-diff --git a/mm/memory-failure.c b/mm/memory-failure.c
---- a/mm/memory-failure.c
-+++ b/mm/memory-failure.c
-@@ -1645,7 +1645,7 @@ int soft_offline_page(struct page *page, int flags)
- {
- 	int ret;
- 	unsigned long pfn = page_to_pfn(page);
--	struct page *hpage = compound_trans_head(page);
-+	struct page *hpage = compound_head(page);
- 
- 	if (PageHWPoison(page)) {
- 		pr_info("soft offline: %#lx page already poisoned\n", pfn);
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -369,9 +369,11 @@ void prep_compound_page(struct page *page, unsigned long order)
- 	__SetPageHead(page);
- 	for (i = 1; i < nr_pages; i++) {
- 		struct page *p = page + i;
--		__SetPageTail(p);
- 		set_page_count(p, 0);
- 		p->first_page = page;
-+		/* Make sure p->first_page is always valid for PageTail() */
-+		smp_wmb();
-+		__SetPageTail(p);
- 	}
- }
- 
-diff --git a/mm/swap.c b/mm/swap.c
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -84,7 +84,7 @@ static void put_compound_page(struct page *page)
- {
- 	if (unlikely(PageTail(page))) {
- 		/* __split_huge_page_refcount can run under us */
--		struct page *page_head = compound_trans_head(page);
-+		struct page *page_head = compound_head(page);
- 
- 		if (likely(page != page_head &&
- 			   get_page_unless_zero(page_head))) {
-@@ -222,7 +222,7 @@ bool __get_page_tail(struct page *page)
- 	 */
- 	unsigned long flags;
- 	bool got = false;
--	struct page *page_head = compound_trans_head(page);
-+	struct page *page_head = compound_head(page);
- 
- 	if (likely(page != page_head && get_page_unless_zero(page_head))) {
- 		/* Ref to put_compound_page() comment. */
+Thanks,
+Shaohua
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
