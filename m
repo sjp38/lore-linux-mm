@@ -1,97 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f173.google.com (mail-we0-f173.google.com [74.125.82.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F9766B005A
-	for <linux-mm@kvack.org>; Fri, 28 Mar 2014 11:02:00 -0400 (EDT)
-Received: by mail-we0-f173.google.com with SMTP id w61so2801570wes.32
-        for <linux-mm@kvack.org>; Fri, 28 Mar 2014 08:02:00 -0700 (PDT)
-Received: from mail-we0-f176.google.com (mail-we0-f176.google.com [74.125.82.176])
-        by mx.google.com with ESMTPS id o13si2340493wij.21.2014.03.28.08.01.59
+Received: from mail-wg0-f50.google.com (mail-wg0-f50.google.com [74.125.82.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 336F36B0035
+	for <linux-mm@kvack.org>; Fri, 28 Mar 2014 12:28:14 -0400 (EDT)
+Received: by mail-wg0-f50.google.com with SMTP id x13so3658460wgg.33
+        for <linux-mm@kvack.org>; Fri, 28 Mar 2014 09:28:13 -0700 (PDT)
+Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com. [195.75.94.110])
+        by mx.google.com with ESMTPS id ge12si2560861wic.74.2014.03.28.09.28.11
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 28 Mar 2014 08:01:59 -0700 (PDT)
-Received: by mail-we0-f176.google.com with SMTP id x48so2783044wes.35
-        for <linux-mm@kvack.org>; Fri, 28 Mar 2014 08:01:58 -0700 (PDT)
-From: Steve Capper <steve.capper@linaro.org>
-Subject: [RFC PATCH V4 7/7] arm64: mm: Enable RCU fast_gup
-Date: Fri, 28 Mar 2014 15:01:32 +0000
-Message-Id: <1396018892-6773-8-git-send-email-steve.capper@linaro.org>
-In-Reply-To: <1396018892-6773-1-git-send-email-steve.capper@linaro.org>
-References: <1396018892-6773-1-git-send-email-steve.capper@linaro.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 28 Mar 2014 09:28:11 -0700 (PDT)
+Received: from /spool/local
+	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <gerald.schaefer@de.ibm.com>;
+	Fri, 28 Mar 2014 16:28:10 -0000
+Received: from b06cxnps3075.portsmouth.uk.ibm.com (d06relay10.portsmouth.uk.ibm.com [9.149.109.195])
+	by d06dlp03.portsmouth.uk.ibm.com (Postfix) with ESMTP id 9C1921B0805F
+	for <linux-mm@kvack.org>; Fri, 28 Mar 2014 16:28:02 +0000 (GMT)
+Received: from d06av08.portsmouth.uk.ibm.com (d06av08.portsmouth.uk.ibm.com [9.149.37.249])
+	by b06cxnps3075.portsmouth.uk.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s2SGRu3b2031882
+	for <linux-mm@kvack.org>; Fri, 28 Mar 2014 16:27:56 GMT
+Received: from d06av08.portsmouth.uk.ibm.com (localhost [127.0.0.1])
+	by d06av08.portsmouth.uk.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s2SGS7S5010592
+	for <linux-mm@kvack.org>; Fri, 28 Mar 2014 10:28:08 -0600
+Date: Fri, 28 Mar 2014 17:28:05 +0100
+From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+Subject: Re: [PATCH V2] mm: hugetlb: Introduce huge_pte_{page,present,young}
+Message-ID: <20140328172805.67f9ea0b@thinkpad>
+In-Reply-To: <20140327151129.GA5117@linaro.org>
+References: <1395321473-1257-1-git-send-email-steve.capper@linaro.org>
+	<20140327151129.GA5117@linaro.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-arm-kernel@lists.infradead.org, catalin.marinas@arm.com, linux@arm.linux.org.uk, linux-mm@kvack.org, linux-arch@vger.kernel.org
-Cc: peterz@infradead.org, gary.robertson@linaro.org, anders.roxell@linaro.org, akpm@linux-foundation.org, Steve Capper <steve.capper@linaro.org>
+To: Steve Capper <steve.capper@linaro.org>
+Cc: linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, linux-s390@vger.kernel.org, akpm@linux-foundation.org, catalin.marinas@arm.com
 
-Activate the RCU fast_gup for ARM64. We also need to force THP splits
-to broadcast an IPI s.t. we block in the fast_gup page walker. As THP
-splits are comparatively rare, this should not lead to a noticeable
-performance degradation.
+On Thu, 27 Mar 2014 15:11:30 +0000
+Steve Capper <steve.capper@linaro.org> wrote:
 
-Signed-off-by: Steve Capper <steve.capper@linaro.org>
----
- arch/arm64/Kconfig               |  3 +++
- arch/arm64/include/asm/pgtable.h |  4 ++++
- arch/arm64/mm/flush.c            | 19 +++++++++++++++++++
- 3 files changed, 26 insertions(+)
+> On Thu, Mar 20, 2014 at 01:17:53PM +0000, Steve Capper wrote:
+> > Introduce huge pte versions of pte_page, pte_present and pte_young.
+> > 
+> > This allows ARM (without LPAE) to use alternative pte processing logic
+> > for huge ptes.
+> > 
+> > Generic implementations that call the standard pte versions are also
+> > added to asm-generic/hugetlb.h.
+> > 
+> > Signed-off-by: Steve Capper <steve.capper@linaro.org>
+> > ---
+> > Changed in V2 - moved from #ifndef,#define macros to entries in
+> > asm-generic/hugetlb.h as it makes more sense to have these with the
+> > other huge_pte_. definitions.
+> > 
+> > The only other architecture I can see that does not use
+> > asm-generic/hugetlb.h is s390. This patch includes trivial definitions
+> > for huge_pte_{page,present,young} for s390.
+> > 
+> > I've compile-tested this for s390, but don't have one under my desk so
+> > have not been able to test it.
+> > ---
+> >  arch/s390/include/asm/hugetlb.h | 15 +++++++++++++++
+> >  include/asm-generic/hugetlb.h   | 15 +++++++++++++++
+> >  mm/hugetlb.c                    | 22 +++++++++++-----------
+> >  3 files changed, 41 insertions(+), 11 deletions(-)
+> > 
+> 
+> Hello,
+> I was just wondering if this patch looked reasonable to people?
 
-diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-index 6185f95..9f5a81a 100644
---- a/arch/arm64/Kconfig
-+++ b/arch/arm64/Kconfig
-@@ -86,6 +86,9 @@ config GENERIC_CSUM
- config GENERIC_CALIBRATE_DELAY
- 	def_bool y
- 
-+config HAVE_RCU_GUP
-+	def_bool y
-+
- config ZONE_DMA32
- 	def_bool y
- 
-diff --git a/arch/arm64/include/asm/pgtable.h b/arch/arm64/include/asm/pgtable.h
-index aa3917c..0e148ae 100644
---- a/arch/arm64/include/asm/pgtable.h
-+++ b/arch/arm64/include/asm/pgtable.h
-@@ -245,6 +245,10 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
- #define pmd_trans_huge(pmd)	(pmd_val(pmd) && !(pmd_val(pmd) & PMD_TABLE_BIT))
- #define pmd_trans_splitting(pmd) (pmd_val(pmd) & PMD_SECT_SPLITTING)
-+#define __HAVE_ARCH_PMDP_SPLITTING_FLUSH
-+struct vm_area_struct;
-+void pmdp_splitting_flush(struct vm_area_struct *vma, unsigned long address,
-+			  pmd_t *pmdp);
- #endif
- 
- #define PMD_BIT_FUNC(fn,op) \
-diff --git a/arch/arm64/mm/flush.c b/arch/arm64/mm/flush.c
-index e4193e3..ddf96c1 100644
---- a/arch/arm64/mm/flush.c
-+++ b/arch/arm64/mm/flush.c
-@@ -103,3 +103,22 @@ EXPORT_SYMBOL(flush_dcache_page);
-  */
- EXPORT_SYMBOL(flush_cache_all);
- EXPORT_SYMBOL(flush_icache_range);
-+
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+#ifdef CONFIG_HAVE_RCU_TABLE_FREE
-+static void thp_splitting_flush_sync(void *arg)
-+{
-+}
-+
-+void pmdp_splitting_flush(struct vm_area_struct *vma, unsigned long address,
-+			  pmd_t *pmdp)
-+{
-+	pmd_t pmd = pmd_mksplitting(*pmdp);
-+	VM_BUG_ON(address & ~PMD_MASK);
-+	set_pmd_at(vma->vm_mm, address, pmdp, pmd);
-+
-+	/* dummy IPI to serialise against fast_gup */
-+	smp_call_function(thp_splitting_flush_sync, NULL, 1);
-+}
-+#endif /* CONFIG_HAVE_RCU_TABLE_FREE */
-+#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
--- 
-1.8.1.4
+Looks good, and I also tested it on s390, so for the s390 part:
+Acked-by: Gerald Schaefer <gerald.schaefer@de.ibm.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
