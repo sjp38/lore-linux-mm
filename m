@@ -1,179 +1,258 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f44.google.com (mail-ee0-f44.google.com [74.125.83.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 4BD026B0035
-	for <linux-mm@kvack.org>; Fri, 28 Mar 2014 14:14:46 -0400 (EDT)
-Received: by mail-ee0-f44.google.com with SMTP id e49so4432968eek.3
-        for <linux-mm@kvack.org>; Fri, 28 Mar 2014 11:14:45 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id o46si9520675eem.219.2014.03.28.11.14.43
-        for <linux-mm@kvack.org>;
-        Fri, 28 Mar 2014 11:14:44 -0700 (PDT)
-Date: Fri, 28 Mar 2014 15:10:20 -0300
-From: Rafael Aquini <aquini@redhat.com>
-Subject: Re: [PATCH] mm: Only force scan in reclaim when none of the LRUs are
- big enough.
-Message-ID: <20140328181020.GB10709@localhost.localdomain>
-References: <alpine.LSU.2.11.1403151957160.21388@eggly.anvils>
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 23CA26B0035
+	for <linux-mm@kvack.org>; Fri, 28 Mar 2014 16:35:38 -0400 (EDT)
+Received: by mail-pd0-f181.google.com with SMTP id p10so5297989pdj.12
+        for <linux-mm@kvack.org>; Fri, 28 Mar 2014 13:35:37 -0700 (PDT)
+Received: from mail-pb0-x22e.google.com (mail-pb0-x22e.google.com [2607:f8b0:400e:c01::22e])
+        by mx.google.com with ESMTPS id bp1si4336039pbb.135.2014.03.28.13.35.36
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 28 Mar 2014 13:35:36 -0700 (PDT)
+Received: by mail-pb0-f46.google.com with SMTP id rq2so5452523pbb.5
+        for <linux-mm@kvack.org>; Fri, 28 Mar 2014 13:35:36 -0700 (PDT)
+Date: Fri, 28 Mar 2014 13:35:34 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch stable-3.10] mm: close PageTail race
+Message-ID: <alpine.DEB.2.02.1403281333290.18841@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1403151957160.21388@eggly.anvils>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Suleiman Souhlal <suleiman@google.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, Yuanhan Liu <yuanhan.liu@linux.intel.com>, Seth Jennings <sjennings@variantweb.net>, Bob Liu <bob.liu@oracle.com>, Minchan Kim <minchan@kernel.org>, Luigi Semenzato <semenzato@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: stable@vger.kernel.org
+Cc: Holger Kiehl <Holger.Kiehl@dwd.de>, Christoph Lameter <cl@linux.com>, Rafael Aquini <aquini@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Sat, Mar 15, 2014 at 08:36:02PM -0700, Hugh Dickins wrote:
-> From: Suleiman Souhlal <suleiman@google.com>
-> 
-> Prior to this change, we would decide whether to force scan a LRU
-> during reclaim if that LRU itself was too small for the current
-> priority. However, this can lead to the file LRU getting force
-> scanned even if there are a lot of anonymous pages we can reclaim,
-> leading to hot file pages getting needlessly reclaimed.
-> 
-> To address this, we instead only force scan when none of the
-> reclaimable LRUs are big enough.
-> 
-> Gives huge improvements with zswap. For example, when doing -j20
-> kernel build in a 500MB container with zswap enabled, runtime (in
-> seconds) is greatly reduced:
-> 
-> x without this change
-> + with this change
->     N           Min           Max        Median           Avg        Stddev
-> x   5       700.997       790.076       763.928        754.05      39.59493
-> +   5       141.634       197.899       155.706         161.9     21.270224
-> Difference at 95.0% confidence
->         -592.15 +/- 46.3521
->         -78.5293% +/- 6.14709%
->         (Student's t, pooled s = 31.7819)
-> 
-> Should also give some improvements in regular (non-zswap) swap cases.
-> 
-> Yes, hughd found significant speedup using regular swap, with several
-> memcgs under pressure; and it should also be effective in the non-memcg
-> case, whenever one or another zone LRU is forced too small.
-> 
-> Signed-off-by: Suleiman Souhlal <suleiman@google.com>
-> Signed-off-by: Hugh Dickins <hughd@google.com>
-> ---
-> 
+commit 668f9abbd4334e6c29fa8acd71635c4f9101caa7 upstream.
 
-Acked-by: Rafael Aquini <aquini@redhat.com>
+Commit bf6bddf1924e ("mm: introduce compaction and migration for
+ballooned pages") introduces page_count(page) into memory compaction
+which dereferences page->first_page if PageTail(page).
 
-> I apologize to everyone for holding on to this so long: I think it's
-> a very helpful patch (which we've been using in Google for months now).
-> Been sitting on my TODO list, now prompted to send by related patches
-> 
-> https://lkml.org/lkml/2014/3/13/217
-> https://lkml.org/lkml/2014/3/14/277
-> 
-> Certainly worth considering all three together, but my understanding
-> is that they're actually three independent attacks on different ways
-> in which we currently squeeze an LRU too small; and this patch from
-> Suleiman seems to be the most valuable of the three, at least for
-> the workloads I've tried it on.  But I'm not much of a page reclaim
-> performance tester: please try it out to see if it's good for you.
-> Thanks!
-> 
->  mm/vmscan.c |   72 +++++++++++++++++++++++++++++---------------------
->  1 file changed, 42 insertions(+), 30 deletions(-)
-> 
-> We did experiment with different ways of writing the patch, I'm afraid
-> the way it came out best indents deeper, making it look more than it is.
-> 
-> --- 3.14-rc6/mm/vmscan.c	2014-02-02 18:49:07.949302116 -0800
-> +++ linux/mm/vmscan.c	2014-03-15 19:31:44.948977032 -0700
-> @@ -1852,6 +1852,8 @@ static void get_scan_count(struct lruvec
->  	bool force_scan = false;
->  	unsigned long ap, fp;
->  	enum lru_list lru;
-> +	bool some_scanned;
-> +	int pass;
->  
->  	/*
->  	 * If the zone or memcg is small, nr[l] can be 0.  This
-> @@ -1971,39 +1973,49 @@ static void get_scan_count(struct lruvec
->  	fraction[1] = fp;
->  	denominator = ap + fp + 1;
->  out:
-> -	for_each_evictable_lru(lru) {
-> -		int file = is_file_lru(lru);
-> -		unsigned long size;
-> -		unsigned long scan;
-> -
-> -		size = get_lru_size(lruvec, lru);
-> -		scan = size >> sc->priority;
-> -
-> -		if (!scan && force_scan)
-> -			scan = min(size, SWAP_CLUSTER_MAX);
-> -
-> -		switch (scan_balance) {
-> -		case SCAN_EQUAL:
-> -			/* Scan lists relative to size */
-> -			break;
-> -		case SCAN_FRACT:
-> +	some_scanned = false;
-> +	/* Only use force_scan on second pass. */
-> +	for (pass = 0; !some_scanned && pass < 2; pass++) {
-> +		for_each_evictable_lru(lru) {
-> +			int file = is_file_lru(lru);
-> +			unsigned long size;
-> +			unsigned long scan;
-> +
-> +			size = get_lru_size(lruvec, lru);
-> +			scan = size >> sc->priority;
-> +
-> +			if (!scan && pass && force_scan)
-> +				scan = min(size, SWAP_CLUSTER_MAX);
-> +
-> +			switch (scan_balance) {
-> +			case SCAN_EQUAL:
-> +				/* Scan lists relative to size */
-> +				break;
-> +			case SCAN_FRACT:
-> +				/*
-> +				 * Scan types proportional to swappiness and
-> +				 * their relative recent reclaim efficiency.
-> +				 */
-> +				scan = div64_u64(scan * fraction[file],
-> +							denominator);
-> +				break;
-> +			case SCAN_FILE:
-> +			case SCAN_ANON:
-> +				/* Scan one type exclusively */
-> +				if ((scan_balance == SCAN_FILE) != file)
-> +					scan = 0;
-> +				break;
-> +			default:
-> +				/* Look ma, no brain */
-> +				BUG();
-> +			}
-> +			nr[lru] = scan;
->  			/*
-> -			 * Scan types proportional to swappiness and
-> -			 * their relative recent reclaim efficiency.
-> +			 * Skip the second pass and don't force_scan,
-> +			 * if we found something to scan.
->  			 */
-> -			scan = div64_u64(scan * fraction[file], denominator);
-> -			break;
-> -		case SCAN_FILE:
-> -		case SCAN_ANON:
-> -			/* Scan one type exclusively */
-> -			if ((scan_balance == SCAN_FILE) != file)
-> -				scan = 0;
-> -			break;
-> -		default:
-> -			/* Look ma, no brain */
-> -			BUG();
-> +			some_scanned |= !!scan;
->  		}
-> -		nr[lru] = scan;
->  	}
->  }
->  
+This results in a very rare NULL pointer dereference on the
+aforementioned page_count(page).  Indeed, anything that does
+compound_head(), including page_count() is susceptible to racing with
+prep_compound_page() and seeing a NULL or dangling page->first_page
+pointer.
+
+This patch uses Andrea's implementation of compound_trans_head() that
+deals with such a race and makes it the default compound_head()
+implementation.  This includes a read memory barrier that ensures that
+if PageTail(head) is true that we return a head page that is neither
+NULL nor dangling.  The patch then adds a store memory barrier to
+prep_compound_page() to ensure page->first_page is set.
+
+This is the safest way to ensure we see the head page that we are
+expecting, PageTail(page) is already in the unlikely() path and the
+memory barriers are unfortunately required.
+
+Hugetlbfs is the exception, we don't enforce a store memory barrier
+during init since no race is possible.
+
+Signed-off-by: David Rientjes <rientjes@google.com>
+Cc: Holger Kiehl <Holger.Kiehl@dwd.de>
+Cc: Christoph Lameter <cl@linux.com>
+Cc: Rafael Aquini <aquini@redhat.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>
+Cc: Michal Hocko <mhocko@suse.cz>
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
+---
+ drivers/block/aoe/aoecmd.c      |  2 +-
+ drivers/vfio/vfio_iommu_type1.c |  4 ++--
+ fs/proc/page.c                  |  2 +-
+ include/linux/huge_mm.h         | 18 ------------------
+ include/linux/mm.h              | 14 ++++++++++++--
+ mm/ksm.c                        |  2 +-
+ mm/memory-failure.c             |  2 +-
+ mm/page_alloc.c                 |  4 +++-
+ mm/swap.c                       |  4 ++--
+ virt/kvm/kvm_main.c             |  4 ++--
+ 10 files changed, 25 insertions(+), 31 deletions(-)
+
+diff --git a/drivers/block/aoe/aoecmd.c b/drivers/block/aoe/aoecmd.c
+--- a/drivers/block/aoe/aoecmd.c
++++ b/drivers/block/aoe/aoecmd.c
+@@ -899,7 +899,7 @@ bio_pageinc(struct bio *bio)
+ 		 * but this has never been seen here.
+ 		 */
+ 		if (unlikely(PageCompound(page)))
+-			if (compound_trans_head(page) != page) {
++			if (compound_head(page) != page) {
+ 				pr_crit("page tail used for block I/O\n");
+ 				BUG();
+ 			}
+diff --git a/drivers/vfio/vfio_iommu_type1.c b/drivers/vfio/vfio_iommu_type1.c
+--- a/drivers/vfio/vfio_iommu_type1.c
++++ b/drivers/vfio/vfio_iommu_type1.c
+@@ -138,12 +138,12 @@ static bool is_invalid_reserved_pfn(unsigned long pfn)
+ 	if (pfn_valid(pfn)) {
+ 		bool reserved;
+ 		struct page *tail = pfn_to_page(pfn);
+-		struct page *head = compound_trans_head(tail);
++		struct page *head = compound_head(tail);
+ 		reserved = !!(PageReserved(head));
+ 		if (head != tail) {
+ 			/*
+ 			 * "head" is not a dangling pointer
+-			 * (compound_trans_head takes care of that)
++			 * (compound_head takes care of that)
+ 			 * but the hugepage may have been split
+ 			 * from under us (and we may not hold a
+ 			 * reference count on the head page so it can
+diff --git a/fs/proc/page.c b/fs/proc/page.c
+--- a/fs/proc/page.c
++++ b/fs/proc/page.c
+@@ -121,7 +121,7 @@ u64 stable_page_flags(struct page *page)
+ 	 * just checks PG_head/PG_tail, so we need to check PageLRU to make
+ 	 * sure a given page is a thp, not a non-huge compound page.
+ 	 */
+-	else if (PageTransCompound(page) && PageLRU(compound_trans_head(page)))
++	else if (PageTransCompound(page) && PageLRU(compound_head(page)))
+ 		u |= 1 << KPF_THP;
+ 
+ 	/*
+diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
+--- a/include/linux/huge_mm.h
++++ b/include/linux/huge_mm.h
+@@ -159,23 +159,6 @@ static inline int hpage_nr_pages(struct page *page)
+ 		return HPAGE_PMD_NR;
+ 	return 1;
+ }
+-static inline struct page *compound_trans_head(struct page *page)
+-{
+-	if (PageTail(page)) {
+-		struct page *head;
+-		head = page->first_page;
+-		smp_rmb();
+-		/*
+-		 * head may be a dangling pointer.
+-		 * __split_huge_page_refcount clears PageTail before
+-		 * overwriting first_page, so if PageTail is still
+-		 * there it means the head pointer isn't dangling.
+-		 */
+-		if (PageTail(page))
+-			return head;
+-	}
+-	return page;
+-}
+ 
+ extern int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
+ 				unsigned long addr, pmd_t pmd, pmd_t *pmdp);
+@@ -205,7 +188,6 @@ static inline int split_huge_page(struct page *page)
+ 	do { } while (0)
+ #define split_huge_page_pmd_mm(__mm, __address, __pmd)	\
+ 	do { } while (0)
+-#define compound_trans_head(page) compound_head(page)
+ static inline int hugepage_madvise(struct vm_area_struct *vma,
+ 				   unsigned long *vm_flags, int advice)
+ {
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -361,8 +361,18 @@ static inline void compound_unlock_irqrestore(struct page *page,
+ 
+ static inline struct page *compound_head(struct page *page)
+ {
+-	if (unlikely(PageTail(page)))
+-		return page->first_page;
++	if (unlikely(PageTail(page))) {
++		struct page *head = page->first_page;
++
++		/*
++		 * page->first_page may be a dangling pointer to an old
++		 * compound page, so recheck that it is still a tail
++		 * page before returning.
++		 */
++		smp_rmb();
++		if (likely(PageTail(page)))
++			return head;
++	}
+ 	return page;
+ }
+ 
+diff --git a/mm/ksm.c b/mm/ksm.c
+--- a/mm/ksm.c
++++ b/mm/ksm.c
+@@ -444,7 +444,7 @@ static void break_cow(struct rmap_item *rmap_item)
+ static struct page *page_trans_compound_anon(struct page *page)
+ {
+ 	if (PageTransCompound(page)) {
+-		struct page *head = compound_trans_head(page);
++		struct page *head = compound_head(page);
+ 		/*
+ 		 * head may actually be splitted and freed from under
+ 		 * us but it's ok here.
+diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+--- a/mm/memory-failure.c
++++ b/mm/memory-failure.c
+@@ -1544,7 +1544,7 @@ int soft_offline_page(struct page *page, int flags)
+ {
+ 	int ret;
+ 	unsigned long pfn = page_to_pfn(page);
+-	struct page *hpage = compound_trans_head(page);
++	struct page *hpage = compound_head(page);
+ 
+ 	if (PageHWPoison(page)) {
+ 		pr_info("soft offline: %#lx page already poisoned\n", pfn);
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -360,9 +360,11 @@ void prep_compound_page(struct page *page, unsigned long order)
+ 	__SetPageHead(page);
+ 	for (i = 1; i < nr_pages; i++) {
+ 		struct page *p = page + i;
+-		__SetPageTail(p);
+ 		set_page_count(p, 0);
+ 		p->first_page = page;
++		/* Make sure p->first_page is always valid for PageTail() */
++		smp_wmb();
++		__SetPageTail(p);
+ 	}
+ }
+ 
+diff --git a/mm/swap.c b/mm/swap.c
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -81,7 +81,7 @@ static void put_compound_page(struct page *page)
+ {
+ 	if (unlikely(PageTail(page))) {
+ 		/* __split_huge_page_refcount can run under us */
+-		struct page *page_head = compound_trans_head(page);
++		struct page *page_head = compound_head(page);
+ 
+ 		if (likely(page != page_head &&
+ 			   get_page_unless_zero(page_head))) {
+@@ -219,7 +219,7 @@ bool __get_page_tail(struct page *page)
+ 	 */
+ 	unsigned long flags;
+ 	bool got = false;
+-	struct page *page_head = compound_trans_head(page);
++	struct page *page_head = compound_head(page);
+ 
+ 	if (likely(page != page_head && get_page_unless_zero(page_head))) {
+ 		/* Ref to put_compound_page() comment. */
+diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
+--- a/virt/kvm/kvm_main.c
++++ b/virt/kvm/kvm_main.c
+@@ -105,12 +105,12 @@ bool kvm_is_mmio_pfn(pfn_t pfn)
+ 	if (pfn_valid(pfn)) {
+ 		int reserved;
+ 		struct page *tail = pfn_to_page(pfn);
+-		struct page *head = compound_trans_head(tail);
++		struct page *head = compound_head(tail);
+ 		reserved = PageReserved(head);
+ 		if (head != tail) {
+ 			/*
+ 			 * "head" is not a dangling pointer
+-			 * (compound_trans_head takes care of that)
++			 * (compound_head takes care of that)
+ 			 * but the hugepage may have been splitted
+ 			 * from under us (and we may not hold a
+ 			 * reference count on the head page so it can
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
