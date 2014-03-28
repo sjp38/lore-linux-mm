@@ -1,20 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 23CA26B0035
-	for <linux-mm@kvack.org>; Fri, 28 Mar 2014 16:35:38 -0400 (EDT)
-Received: by mail-pd0-f181.google.com with SMTP id p10so5297989pdj.12
-        for <linux-mm@kvack.org>; Fri, 28 Mar 2014 13:35:37 -0700 (PDT)
-Received: from mail-pb0-x22e.google.com (mail-pb0-x22e.google.com [2607:f8b0:400e:c01::22e])
-        by mx.google.com with ESMTPS id bp1si4336039pbb.135.2014.03.28.13.35.36
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 548A56B0036
+	for <linux-mm@kvack.org>; Fri, 28 Mar 2014 16:35:40 -0400 (EDT)
+Received: by mail-pa0-f44.google.com with SMTP id bj1so5504336pad.17
+        for <linux-mm@kvack.org>; Fri, 28 Mar 2014 13:35:40 -0700 (PDT)
+Received: from mail-pd0-x22a.google.com (mail-pd0-x22a.google.com [2607:f8b0:400e:c02::22a])
+        by mx.google.com with ESMTPS id zw7si4327218pac.111.2014.03.28.13.35.39
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 28 Mar 2014 13:35:36 -0700 (PDT)
-Received: by mail-pb0-f46.google.com with SMTP id rq2so5452523pbb.5
-        for <linux-mm@kvack.org>; Fri, 28 Mar 2014 13:35:36 -0700 (PDT)
-Date: Fri, 28 Mar 2014 13:35:34 -0700 (PDT)
+        Fri, 28 Mar 2014 13:35:39 -0700 (PDT)
+Received: by mail-pd0-f170.google.com with SMTP id v10so5346106pde.29
+        for <linux-mm@kvack.org>; Fri, 28 Mar 2014 13:35:39 -0700 (PDT)
+Date: Fri, 28 Mar 2014 13:35:37 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: [patch stable-3.10] mm: close PageTail race
-Message-ID: <alpine.DEB.2.02.1403281333290.18841@chino.kir.corp.google.com>
+Subject: [patch stable-3.13] mm: close PageTail race
+In-Reply-To: <alpine.DEB.2.02.1403281333290.18841@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.02.1403281335200.18841@chino.kir.corp.google.com>
+References: <alpine.DEB.2.02.1403281333290.18841@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -61,7 +63,7 @@ Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
 ---
- drivers/block/aoe/aoecmd.c      |  2 +-
+ drivers/block/aoe/aoecmd.c      |  4 ++--
  drivers/vfio/vfio_iommu_type1.c |  4 ++--
  fs/proc/page.c                  |  2 +-
  include/linux/huge_mm.h         | 18 ------------------
@@ -70,25 +72,33 @@ Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
  mm/memory-failure.c             |  2 +-
  mm/page_alloc.c                 |  4 +++-
  mm/swap.c                       |  4 ++--
- virt/kvm/kvm_main.c             |  4 ++--
- 10 files changed, 25 insertions(+), 31 deletions(-)
+ 9 files changed, 24 insertions(+), 30 deletions(-)
 
 diff --git a/drivers/block/aoe/aoecmd.c b/drivers/block/aoe/aoecmd.c
 --- a/drivers/block/aoe/aoecmd.c
 +++ b/drivers/block/aoe/aoecmd.c
-@@ -899,7 +899,7 @@ bio_pageinc(struct bio *bio)
- 		 * but this has never been seen here.
+@@ -905,7 +905,7 @@ bio_pageinc(struct bio *bio)
+ 		/* Non-zero page count for non-head members of
+ 		 * compound pages is no longer allowed by the kernel.
  		 */
- 		if (unlikely(PageCompound(page)))
--			if (compound_trans_head(page) != page) {
-+			if (compound_head(page) != page) {
- 				pr_crit("page tail used for block I/O\n");
- 				BUG();
- 			}
+-		page = compound_trans_head(bv->bv_page);
++		page = compound_head(bv->bv_page);
+ 		atomic_inc(&page->_count);
+ 	}
+ }
+@@ -918,7 +918,7 @@ bio_pagedec(struct bio *bio)
+ 	int i;
+ 
+ 	bio_for_each_segment(bv, bio, i) {
+-		page = compound_trans_head(bv->bv_page);
++		page = compound_head(bv->bv_page);
+ 		atomic_dec(&page->_count);
+ 	}
+ }
 diff --git a/drivers/vfio/vfio_iommu_type1.c b/drivers/vfio/vfio_iommu_type1.c
 --- a/drivers/vfio/vfio_iommu_type1.c
 +++ b/drivers/vfio/vfio_iommu_type1.c
-@@ -138,12 +138,12 @@ static bool is_invalid_reserved_pfn(unsigned long pfn)
+@@ -186,12 +186,12 @@ static bool is_invalid_reserved_pfn(unsigned long pfn)
  	if (pfn_valid(pfn)) {
  		bool reserved;
  		struct page *tail = pfn_to_page(pfn);
@@ -118,7 +128,7 @@ diff --git a/fs/proc/page.c b/fs/proc/page.c
 diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
 --- a/include/linux/huge_mm.h
 +++ b/include/linux/huge_mm.h
-@@ -159,23 +159,6 @@ static inline int hpage_nr_pages(struct page *page)
+@@ -157,23 +157,6 @@ static inline int hpage_nr_pages(struct page *page)
  		return HPAGE_PMD_NR;
  	return 1;
  }
@@ -142,7 +152,7 @@ diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
  
  extern int do_huge_pmd_numa_page(struct mm_struct *mm, struct vm_area_struct *vma,
  				unsigned long addr, pmd_t pmd, pmd_t *pmdp);
-@@ -205,7 +188,6 @@ static inline int split_huge_page(struct page *page)
+@@ -203,7 +186,6 @@ static inline int split_huge_page(struct page *page)
  	do { } while (0)
  #define split_huge_page_pmd_mm(__mm, __address, __pmd)	\
  	do { } while (0)
@@ -153,7 +163,7 @@ diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
 diff --git a/include/linux/mm.h b/include/linux/mm.h
 --- a/include/linux/mm.h
 +++ b/include/linux/mm.h
-@@ -361,8 +361,18 @@ static inline void compound_unlock_irqrestore(struct page *page,
+@@ -389,8 +389,18 @@ static inline void compound_unlock_irqrestore(struct page *page,
  
  static inline struct page *compound_head(struct page *page)
  {
@@ -189,7 +199,7 @@ diff --git a/mm/ksm.c b/mm/ksm.c
 diff --git a/mm/memory-failure.c b/mm/memory-failure.c
 --- a/mm/memory-failure.c
 +++ b/mm/memory-failure.c
-@@ -1544,7 +1544,7 @@ int soft_offline_page(struct page *page, int flags)
+@@ -1645,7 +1645,7 @@ int soft_offline_page(struct page *page, int flags)
  {
  	int ret;
  	unsigned long pfn = page_to_pfn(page);
@@ -201,7 +211,7 @@ diff --git a/mm/memory-failure.c b/mm/memory-failure.c
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -360,9 +360,11 @@ void prep_compound_page(struct page *page, unsigned long order)
+@@ -369,9 +369,11 @@ void prep_compound_page(struct page *page, unsigned long order)
  	__SetPageHead(page);
  	for (i = 1; i < nr_pages; i++) {
  		struct page *p = page + i;
@@ -217,7 +227,7 @@ diff --git a/mm/page_alloc.c b/mm/page_alloc.c
 diff --git a/mm/swap.c b/mm/swap.c
 --- a/mm/swap.c
 +++ b/mm/swap.c
-@@ -81,7 +81,7 @@ static void put_compound_page(struct page *page)
+@@ -84,7 +84,7 @@ static void put_compound_page(struct page *page)
  {
  	if (unlikely(PageTail(page))) {
  		/* __split_huge_page_refcount can run under us */
@@ -226,7 +236,7 @@ diff --git a/mm/swap.c b/mm/swap.c
  
  		if (likely(page != page_head &&
  			   get_page_unless_zero(page_head))) {
-@@ -219,7 +219,7 @@ bool __get_page_tail(struct page *page)
+@@ -222,7 +222,7 @@ bool __get_page_tail(struct page *page)
  	 */
  	unsigned long flags;
  	bool got = false;
@@ -235,24 +245,6 @@ diff --git a/mm/swap.c b/mm/swap.c
  
  	if (likely(page != page_head && get_page_unless_zero(page_head))) {
  		/* Ref to put_compound_page() comment. */
-diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
---- a/virt/kvm/kvm_main.c
-+++ b/virt/kvm/kvm_main.c
-@@ -105,12 +105,12 @@ bool kvm_is_mmio_pfn(pfn_t pfn)
- 	if (pfn_valid(pfn)) {
- 		int reserved;
- 		struct page *tail = pfn_to_page(pfn);
--		struct page *head = compound_trans_head(tail);
-+		struct page *head = compound_head(tail);
- 		reserved = PageReserved(head);
- 		if (head != tail) {
- 			/*
- 			 * "head" is not a dangling pointer
--			 * (compound_trans_head takes care of that)
-+			 * (compound_head takes care of that)
- 			 * but the hugepage may have been splitted
- 			 * from under us (and we may not hold a
- 			 * reference count on the head page so it can
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
