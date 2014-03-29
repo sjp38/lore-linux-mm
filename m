@@ -1,48 +1,144 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f47.google.com (mail-qg0-f47.google.com [209.85.192.47])
-	by kanga.kvack.org (Postfix) with ESMTP id A4AF36B0035
-	for <linux-mm@kvack.org>; Sat, 29 Mar 2014 09:30:23 -0400 (EDT)
-Received: by mail-qg0-f47.google.com with SMTP id 63so5517342qgz.6
-        for <linux-mm@kvack.org>; Sat, 29 Mar 2014 06:30:23 -0700 (PDT)
-Received: from mail-qg0-x234.google.com (mail-qg0-x234.google.com [2607:f8b0:400d:c04::234])
-        by mx.google.com with ESMTPS id g2si3851651qab.153.2014.03.29.06.30.22
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sat, 29 Mar 2014 06:30:23 -0700 (PDT)
-Received: by mail-qg0-f52.google.com with SMTP id q107so2057787qgd.39
-        for <linux-mm@kvack.org>; Sat, 29 Mar 2014 06:30:22 -0700 (PDT)
-Date: Sat, 29 Mar 2014 09:30:18 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 1/2] mm/percpu.c: renew the max_contig if we merge the
- head and previous block
-Message-ID: <20140329133018.GD5553@htj.dyndns.org>
-References: <1396011321-19759-1-git-send-email-nasa4836@gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1396011321-19759-1-git-send-email-nasa4836@gmail.com>
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id BDD0F6B0031
+	for <linux-mm@kvack.org>; Sat, 29 Mar 2014 15:09:13 -0400 (EDT)
+Received: by mail-wi0-f173.google.com with SMTP id z2so53584wiv.0
+        for <linux-mm@kvack.org>; Sat, 29 Mar 2014 12:09:13 -0700 (PDT)
+Received: from mailrelay008.isp.belgacom.be (mailrelay008.isp.belgacom.be. [195.238.6.174])
+        by mx.google.com with ESMTP id pg11si4602685wic.16.2014.03.29.12.09.11
+        for <linux-mm@kvack.org>;
+        Sat, 29 Mar 2014 12:09:12 -0700 (PDT)
+Date: Sat, 29 Mar 2014 20:09:10 +0100
+From: Fabian Frederick <fabf@skynet.be>
+Subject: [PATCH v2] mm/readahead.c: inline ra_submit
+Message-Id: <20140329200910.35212c0b8890199b578ba175@skynet.be>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jianyu Zhan <nasa4836@gmail.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, cl@linux-foundation.org, linux-kernel@vger.kernel.org
+To: linux-kernel <linux-kernel@vger.kernel.org>
+Cc: akpm <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-On Fri, Mar 28, 2014 at 08:55:21PM +0800, Jianyu Zhan wrote:
-> Hi, tj,
-> I've reworked the patches on top of percpu/for-3.15.
-> 
-> During pcpu_alloc_area(), we might merge the current head with the
-> previous block. Since we have calculated the max_contig using the
-> size of previous block before we skip it, and now we update the size
-> of previous block, so we should renew the max_contig.
-> 
-> Signed-off-by: Jianyu Zhan <nasa4836@gmail.com>
+f9acc8c7b35a ("readahead: sanify file_ra_state names")
+left ra_submit with a single function call.
 
-Applied to percpu/for-3.15.
+Move ra_submit to internal.h and inline it to save some stack.
+Thanks to Andrew Morton for commenting different versions.
 
-Thanks!
+Suggested-by: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Fabian Frederick <fabf@skynet.be>
+---
+ include/linux/mm.h |  3 ---
+ mm/internal.h      | 15 +++++++++++++++
+ mm/readahead.c     | 21 +++------------------
+ 3 files changed, 18 insertions(+), 21 deletions(-)
 
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index c1b7414..c8ecf29 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1847,9 +1847,6 @@ void page_cache_async_readahead(struct address_space *mapping,
+ 				unsigned long size);
+ 
+ unsigned long max_sane_readahead(unsigned long nr);
+-unsigned long ra_submit(struct file_ra_state *ra,
+-			struct address_space *mapping,
+-			struct file *filp);
+ 
+ /* Generic expand stack which grows the stack according to GROWS{UP,DOWN} */
+ extern int expand_stack(struct vm_area_struct *vma, unsigned long address);
+diff --git a/mm/internal.h b/mm/internal.h
+index 29e1e76..51f309c 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -11,6 +11,7 @@
+ #ifndef __MM_INTERNAL_H
+ #define __MM_INTERNAL_H
+ 
++#include <linux/fs.h>
+ #include <linux/mm.h>
+ 
+ void free_pgtables(struct mmu_gather *tlb, struct vm_area_struct *start_vma,
+@@ -21,6 +22,20 @@ static inline void set_page_count(struct page *page, int v)
+ 	atomic_set(&page->_count, v);
+ }
+ 
++extern int __do_page_cache_readahead(struct address_space *mapping,
++		struct file *filp, pgoff_t offset, unsigned long nr_to_read,
++		unsigned long lookahead_size);
++
++/*
++ * Submit IO for the read-ahead request in file_ra_state.
++ */
++static inline unsigned long ra_submit(struct file_ra_state *ra,
++		struct address_space *mapping, struct file *filp)
++{
++	return __do_page_cache_readahead(mapping, filp,
++					ra->start, ra->size, ra->async_size);
++}
++
+ /*
+  * Turn a non-refcounted page (->_count == 0) into refcounted with
+  * a count of one.
+diff --git a/mm/readahead.c b/mm/readahead.c
+index 0de2360..4d9f4c2 100644
+--- a/mm/readahead.c
++++ b/mm/readahead.c
+@@ -8,9 +8,7 @@
+  */
+ 
+ #include <linux/kernel.h>
+-#include <linux/fs.h>
+ #include <linux/gfp.h>
+-#include <linux/mm.h>
+ #include <linux/export.h>
+ #include <linux/blkdev.h>
+ #include <linux/backing-dev.h>
+@@ -20,6 +18,8 @@
+ #include <linux/syscalls.h>
+ #include <linux/file.h>
+ 
++#include "internal.h"
++
+ /*
+  * Initialise a struct file's readahead state.  Assumes that the caller has
+  * memset *ra to zero.
+@@ -149,8 +149,7 @@ out:
+  *
+  * Returns the number of pages requested, or the maximum amount of I/O allowed.
+  */
+-static int
+-__do_page_cache_readahead(struct address_space *mapping, struct file *filp,
++int __do_page_cache_readahead(struct address_space *mapping, struct file *filp,
+ 			pgoff_t offset, unsigned long nr_to_read,
+ 			unsigned long lookahead_size)
+ {
+@@ -244,20 +243,6 @@ unsigned long max_sane_readahead(unsigned long nr)
+ }
+ 
+ /*
+- * Submit IO for the read-ahead request in file_ra_state.
+- */
+-unsigned long ra_submit(struct file_ra_state *ra,
+-		       struct address_space *mapping, struct file *filp)
+-{
+-	int actual;
+-
+-	actual = __do_page_cache_readahead(mapping, filp,
+-					ra->start, ra->size, ra->async_size);
+-
+-	return actual;
+-}
+-
+-/*
+  * Set the initial window size, round to next power of 2 and square
+  * for small size, x 4 for medium, and x 2 for large
+  * for 128k (32 page) max ra
 -- 
-tejun
+1.8.4.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
