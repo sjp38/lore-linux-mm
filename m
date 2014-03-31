@@ -1,60 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 04B296B0031
-	for <linux-mm@kvack.org>; Mon, 31 Mar 2014 15:30:31 -0400 (EDT)
-Received: by mail-pd0-f171.google.com with SMTP id r10so8408709pdi.2
-        for <linux-mm@kvack.org>; Mon, 31 Mar 2014 12:30:31 -0700 (PDT)
+Received: from mail-pb0-f45.google.com (mail-pb0-f45.google.com [209.85.160.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 8BA4B6B0031
+	for <linux-mm@kvack.org>; Mon, 31 Mar 2014 15:37:42 -0400 (EDT)
+Received: by mail-pb0-f45.google.com with SMTP id uo5so8647902pbc.18
+        for <linux-mm@kvack.org>; Mon, 31 Mar 2014 12:37:42 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id h3si9754625paw.86.2014.03.31.12.30.30
+        by mx.google.com with ESMTP id m6si9726885pbj.442.2014.03.31.12.37.41
         for <linux-mm@kvack.org>;
-        Mon, 31 Mar 2014 12:30:30 -0700 (PDT)
-Date: Mon, 31 Mar 2014 12:30:28 -0700
+        Mon, 31 Mar 2014 12:37:41 -0700 (PDT)
+Date: Mon, 31 Mar 2014 12:37:40 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: hugetlb: fix softlockup when a large number of
- hugepages are freed.
-Message-Id: <20140331123028.113f3e263daa1b9e749a1678@linux-foundation.org>
-In-Reply-To: <533946D4.1060305@jp.fujitsu.com>
-References: <533946D4.1060305@jp.fujitsu.com>
+Subject: Re: [next:master 114/486] fs/proc/task_mmu.c:1120:31: error:
+ 'pagemap_hugetlb' undeclared
+Message-Id: <20140331123740.1007bf1b67ad635495426cce@linux-foundation.org>
+In-Reply-To: <53397020.435fe00a.5cb4.32f9SMTPIN_ADDED_BROKEN@mx.google.com>
+References: <533930a1.W68d+/5S+SyV5Fsf%fengguang.wu@intel.com>
+	<53397020.435fe00a.5cb4.32f9SMTPIN_ADDED_BROKEN@mx.google.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Mizuma, Masayoshi" <m.mizuma@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Hocko <mhocko@suse.cz>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: fengguang.wu@intel.com, linux-mm@kvack.org, kbuild-all@01.org
 
-On Mon, 31 Mar 2014 19:43:32 +0900 "Mizuma, Masayoshi" <m.mizuma@jp.fujitsu.com> wrote:
+On Mon, 31 Mar 2014 09:39:37 -0400 Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
 
-> Hi,
+> On Mon, Mar 31, 2014 at 05:08:49PM +0800, kbuild test robot wrote:
+> > tree:   git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
+> > head:   8a896813a328f23aeee5f56d3139361534796636
+> > commit: 64aa967f459ba0bb91ea8b127c9bd586db1beabc [114/486] pagemap: redefine callback functions for page table walker
+> > config: x86_64-randconfig-br2-03311043 (attached as .config)
+> > 
+> > Note: the next/master HEAD 8a896813a328f23aeee5f56d3139361534796636 builds fine.
+> >       It only hurts bisectibility.
+> > 
+> > All error/warnings:
+> > 
+> >    fs/proc/task_mmu.c: In function 'pagemap_read':
+> > >> fs/proc/task_mmu.c:1120:31: error: 'pagemap_hugetlb' undeclared (first use in this function)
+> >      pagemap_walk.hugetlb_entry = pagemap_hugetlb;
+> >                                   ^
+> >    fs/proc/task_mmu.c:1120:31: note: each undeclared identifier is reported only once for each function it appears in
+> >    fs/proc/task_mmu.c: At top level:
+> >    fs/proc/task_mmu.c:1025:12: warning: 'pagemap_hugetlb_range' defined but not used [-Wunused-function]
+> >     static int pagemap_hugetlb_range(pte_t *pte, unsigned long hmask,
+> >                ^
 > 
-> When I decrease the value of nr_hugepage in procfs a lot, softlockup happens.
-> It is because there is no chance of context switch during this process.
+> pagemap_hugetlb_range() should be renamed to pagemap_hugetlb() at 64aa967f459b
+> ("pagemap: redefine callback functions for page table walker"), while it is
+> currently done by dc86a8715d79 ("pagewalk: remove argument hmask from
+> hugetlb_entry()") afterward like below:
 > 
-> On the other hand, when I allocate a large number of hugepages,
-> there is some chance of context switch. Hence softlockup doesn't happen
-> during this process. So it's necessary to add the context switch
-> in the freeing process as same as allocating process to avoid softlockup.
+> @@ -1022,8 +1022,7 @@ static void huge_pte_to_pagemap_entry(pagemap_entry_t *pme, struct pagemapread *
+>  }
+>  
+>  /* This function walks within one hugetlb entry in the single call */
+> -static int pagemap_hugetlb_range(pte_t *pte, unsigned long hmask,
+> -				 unsigned long addr, unsigned long end,
+> +static int pagemap_hugetlb(pte_t *pte, unsigned long addr, unsigned long end,
+>  				 struct mm_walk *walk)
+>  {
+>  	struct pagemapread *pm = walk->private;
 > 
-> ...
->
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -1535,6 +1535,7 @@ static unsigned long set_max_huge_pages(struct hstate *h, unsigned long count,
->  	while (min_count < persistent_huge_pages(h)) {
->  		if (!free_pool_huge_page(h, nodes_allowed, 0))
->  			break;
-> +		cond_resched_lock(&hugetlb_lock);
->  	}
->  	while (count < persistent_huge_pages(h)) {
->  		if (!adjust_pool_surplus(h, nodes_allowed, 1))
+> Obviously, dc86a8715d79 should only remove hmask.
+> Sorry for my poor patch separation.
 
-Are you sure we don't need a cond_resched_lock() in this second loop as
-well?
+It gets messy.  I tried this
+pagemap-redefine-callback-functions-for-page-table-walker-fix.patch:
 
-Let's bear in mind the objective here: it is to avoid long scheduling
-stalls, not to prevent softlockup-detector warnings.  A piece of code
-which doesn't trip the lockup detector can still be a problem.
 
+--- a/fs/proc/task_mmu.c~pagemap-redefine-callback-functions-for-page-table-walker-fix
++++ a/fs/proc/task_mmu.c
+@@ -1022,15 +1022,15 @@ static void huge_pte_to_pagemap_entry(pa
+ }
+ 
+ /* This function walks within one hugetlb entry in the single call */
+-static int pagemap_hugetlb_range(pte_t *pte, unsigned long hmask,
+-				 unsigned long addr, unsigned long end,
+-				 struct mm_walk *walk)
++static int pagemap_hugetlb(pte_t *pte, unsigned long addr, unsigned long end,
++			   struct mm_walk *walk)
+ {
+ 	struct pagemapread *pm = walk->private;
+ 	struct vm_area_struct *vma = walk->vma;
+ 	int err = 0;
+ 	int flags2;
+ 	pagemap_entry_t pme;
++	unsigned long hmask;
+ 
+ 	WARN_ON_ONCE(!vma);
+ 
+
+and got 
+
+fs/proc/task_mmu.c: In function 'pagemap_read':
+fs/proc/task_mmu.c:1120: warning: assignment from incompatible pointer type
+
+from
+
+#ifdef CONFIG_HUGETLB_PAGE
+        pagemap_walk.hugetlb_entry = pagemap_hugetlb;
+#endif
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
