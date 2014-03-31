@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C6B86B0031
-	for <linux-mm@kvack.org>; Mon, 31 Mar 2014 09:39:48 -0400 (EDT)
-Received: by mail-wi0-f177.google.com with SMTP id cc10so3325683wib.10
-        for <linux-mm@kvack.org>; Mon, 31 Mar 2014 06:39:48 -0700 (PDT)
+Received: from mail-qc0-f182.google.com (mail-qc0-f182.google.com [209.85.216.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 54E966B0031
+	for <linux-mm@kvack.org>; Mon, 31 Mar 2014 11:02:31 -0400 (EDT)
+Received: by mail-qc0-f182.google.com with SMTP id e16so9179569qcx.27
+        for <linux-mm@kvack.org>; Mon, 31 Mar 2014 08:02:30 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id be6si7545189wib.13.2014.03.31.06.39.45
+        by mx.google.com with ESMTP id f33si6334005qgf.50.2014.03.31.08.02.30
         for <linux-mm@kvack.org>;
-        Mon, 31 Mar 2014 06:39:46 -0700 (PDT)
-Date: Mon, 31 Mar 2014 09:39:37 -0400
+        Mon, 31 Mar 2014 08:02:30 -0700 (PDT)
+Date: Mon, 31 Mar 2014 11:02:20 -0400
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <53397022.4658b40a.3c99.2fa8SMTPIN_ADDED_BROKEN@mx.google.com>
-In-Reply-To: <533930a1.W68d+/5S+SyV5Fsf%fengguang.wu@intel.com>
-References: <533930a1.W68d+/5S+SyV5Fsf%fengguang.wu@intel.com>
-Subject: Re: [next:master 114/486] fs/proc/task_mmu.c:1120:31: error:
- 'pagemap_hugetlb' undeclared
+Message-ID: <53398386.a41f8c0a.2cce.ffffa9a1SMTPIN_ADDED_BROKEN@mx.google.com>
+In-Reply-To: <533946D4.1060305@jp.fujitsu.com>
+References: <533946D4.1060305@jp.fujitsu.com>
+Subject: Re: [PATCH] mm: hugetlb: fix softlockup when a large number of
+ hugepages are freed.
 Mime-Version: 1.0
 Content-Type: text/plain;
  charset=iso-2022-jp
@@ -22,68 +22,96 @@ Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: fengguang.wu@intel.com
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, kbuild-all@01.org
+To: m.mizuma@jp.fujitsu.com
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, iamjoonsoo.kim@lge.com, mhocko@suse.cz, liwanp@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, kosaki.motohiro@jp.fujitsu.com
 
-On Mon, Mar 31, 2014 at 05:08:49PM +0800, kbuild test robot wrote:
-> tree:   git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
-> head:   8a896813a328f23aeee5f56d3139361534796636
-> commit: 64aa967f459ba0bb91ea8b127c9bd586db1beabc [114/486] pagemap: redefine callback functions for page table walker
-> config: x86_64-randconfig-br2-03311043 (attached as .config)
+On Mon, Mar 31, 2014 at 07:43:32PM +0900, Mizuma, Masayoshi wrote:
+> Hi,
 > 
-> Note: the next/master HEAD 8a896813a328f23aeee5f56d3139361534796636 builds fine.
->       It only hurts bisectibility.
+> When I decrease the value of nr_hugepage in procfs a lot, softlockup happens.
+> It is because there is no chance of context switch during this process.
 > 
-> All error/warnings:
+> On the other hand, when I allocate a large number of hugepages,
+> there is some chance of context switch. Hence softlockup doesn't happen
+> during this process. So it's necessary to add the context switch
+> in the freeing process as same as allocating process to avoid softlockup.
 > 
->    fs/proc/task_mmu.c: In function 'pagemap_read':
-> >> fs/proc/task_mmu.c:1120:31: error: 'pagemap_hugetlb' undeclared (first use in this function)
->      pagemap_walk.hugetlb_entry = pagemap_hugetlb;
->                                   ^
->    fs/proc/task_mmu.c:1120:31: note: each undeclared identifier is reported only once for each function it appears in
->    fs/proc/task_mmu.c: At top level:
->    fs/proc/task_mmu.c:1025:12: warning: 'pagemap_hugetlb_range' defined but not used [-Wunused-function]
->     static int pagemap_hugetlb_range(pte_t *pte, unsigned long hmask,
->                ^
+> When I freed 12 TB hugapages with kernel-2.6.32-358.el6, the freeing process
+> occupied a CPU over 150 seconds and following softlockup message appeared
+> twice or more.
+> 
+> --
+> $ echo 6000000 > /proc/sys/vm/nr_hugepages
+> $ cat /proc/sys/vm/nr_hugepages
+> 6000000
+> $ grep ^Huge /proc/meminfo
+> HugePages_Total:   6000000
+> HugePages_Free:    6000000
+> HugePages_Rsvd:        0
+> HugePages_Surp:        0
+> Hugepagesize:       2048 kB
+> $ echo 0 > /proc/sys/vm/nr_hugepages
+> 
+> BUG: soft lockup - CPU#16 stuck for 67s! [sh:12883] ...
+> Pid: 12883, comm: sh Not tainted 2.6.32-358.el6.x86_64 #1
+> Call Trace:
+>  [<ffffffff8115a438>] ? free_pool_huge_page+0xb8/0xd0
+>  [<ffffffff8115a578>] ? set_max_huge_pages+0x128/0x190
+>  [<ffffffff8115c663>] ? hugetlb_sysctl_handler_common+0x113/0x140
+>  [<ffffffff8115c6de>] ? hugetlb_sysctl_handler+0x1e/0x20
+>  [<ffffffff811f3097>] ? proc_sys_call_handler+0x97/0xd0
+>  [<ffffffff811f30e4>] ? proc_sys_write+0x14/0x20
+>  [<ffffffff81180f98>] ? vfs_write+0xb8/0x1a0
+>  [<ffffffff81181891>] ? sys_write+0x51/0x90
+>  [<ffffffff810dc565>] ? __audit_syscall_exit+0x265/0x290
+>  [<ffffffff8100b072>] ? system_call_fastpath+0x16/0x1b
+> --
+> I have not confirmed this problem with upstream kernels because I am not
+> able to prepare the machine equipped with 12TB memory now.
+> However I confirmed that the amount of decreasing hugepages was directly
+> proportional to the amount of required time.
+> 
+> I measured required times on a smaller machine. It showed 130-145 hugepages
+> decreased in a millisecond.
+> 
+> Amount of decreasing     Required time      Decreasing rate
+> hugepages                     (msec)         (pages/msec)
+> ------------------------------------------------------------
+> 10,000 pages == 20GB         70 -  74          135-142
+> 30,000 pages == 60GB        208 - 229          131-144
+> 
+> It means decrement of 6TB hugepages will trigger softlockup with the default
+> threshold 20sec, in this decreasing rate.
+> 
+> Signed-off-by: Masayoshi Mizuma <m.mizuma@jp.fujitsu.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> Cc: Michal Hocko <mhocko@suse.cz>
+> Cc: Wanpeng Li <liwanp@linux.vnet.ibm.com>
+> Cc: Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>
+> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> ---
+>  mm/hugetlb.c |    1 +
+>  1 files changed, 1 insertions(+), 0 deletions(-)
+> 
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index 7d57af2..fe67f2c 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -1535,6 +1535,7 @@ static unsigned long set_max_huge_pages(struct hstate *h, unsigned long count,
+>  	while (min_count < persistent_huge_pages(h)) {
+>  		if (!free_pool_huge_page(h, nodes_allowed, 0))
+>  			break;
+> +		cond_resched_lock(&hugetlb_lock);
+>  	}
+>  	while (count < persistent_huge_pages(h)) {
+>  		if (!adjust_pool_surplus(h, nodes_allowed, 1))
 
-pagemap_hugetlb_range() should be renamed to pagemap_hugetlb() at 64aa967f459b
-("pagemap: redefine callback functions for page table walker"), while it is
-currently done by dc86a8715d79 ("pagewalk: remove argument hmask from
-hugetlb_entry()") afterward like below:
-
-@@ -1022,8 +1022,7 @@ static void huge_pte_to_pagemap_entry(pagemap_entry_t *pme, struct pagemapread *
- }
- 
- /* This function walks within one hugetlb entry in the single call */
--static int pagemap_hugetlb_range(pte_t *pte, unsigned long hmask,
--				 unsigned long addr, unsigned long end,
-+static int pagemap_hugetlb(pte_t *pte, unsigned long addr, unsigned long end,
- 				 struct mm_walk *walk)
- {
- 	struct pagemapread *pm = walk->private;
-
-Obviously, dc86a8715d79 should only remove hmask.
-Sorry for my poor patch separation.
+It seems that the same thing could happen when freeing a number of surplus pages,
+so how about adding cond_resched_lock() also in return_unused_surplus_pages()?
 
 Thanks,
 Naoya Horiguchi
-
-> vim +/pagemap_hugetlb +1120 fs/proc/task_mmu.c
-> 
->   1114			goto out_free;
->   1115	
->   1116		pagemap_walk.pte_entry = pagemap_pte;
->   1117		pagemap_walk.pmd_entry = pagemap_pmd;
->   1118		pagemap_walk.pte_hole = pagemap_pte_hole;
->   1119	#ifdef CONFIG_HUGETLB_PAGE
-> > 1120		pagemap_walk.hugetlb_entry = pagemap_hugetlb;
->   1121	#endif
->   1122		pagemap_walk.mm = mm;
->   1123		pagemap_walk.private = &pm;
-> 
-> ---
-> 0-DAY kernel build testing backend              Open Source Technology Center
-> http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
