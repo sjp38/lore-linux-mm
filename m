@@ -1,29 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f43.google.com (mail-pb0-f43.google.com [209.85.160.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 735CF6B0037
-	for <linux-mm@kvack.org>; Mon, 31 Mar 2014 19:53:26 -0400 (EDT)
-Received: by mail-pb0-f43.google.com with SMTP id um1so8932863pbc.16
-        for <linux-mm@kvack.org>; Mon, 31 Mar 2014 16:53:26 -0700 (PDT)
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 9DEB36B0038
+	for <linux-mm@kvack.org>; Mon, 31 Mar 2014 19:53:40 -0400 (EDT)
+Received: by mail-pa0-f44.google.com with SMTP id bj1so8936187pad.17
+        for <linux-mm@kvack.org>; Mon, 31 Mar 2014 16:53:40 -0700 (PDT)
 Received: from out4-smtp.messagingengine.com (out4-smtp.messagingengine.com. [66.111.4.28])
-        by mx.google.com with ESMTPS id dg5si10033924pbc.179.2014.03.31.16.53.25
+        by mx.google.com with ESMTPS id f8si10017230pbc.501.2014.03.31.16.53.39
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 31 Mar 2014 16:53:25 -0700 (PDT)
-Date: Mon, 31 Mar 2014 16:55:43 -0700
+        Mon, 31 Mar 2014 16:53:39 -0700 (PDT)
+Received: from compute1.internal (compute1.nyi.mail.srv.osa [10.202.2.41])
+	by gateway1.nyi.mail.srv.osa (Postfix) with ESMTP id EEE7C20F1C
+	for <linux-mm@kvack.org>; Mon, 31 Mar 2014 19:53:31 -0400 (EDT)
+Date: Mon, 31 Mar 2014 16:55:50 -0700
 From: Greg KH <greg@kroah.com>
-Subject: Re: [patch stable-3.10] mm: close PageTail race
-Message-ID: <20140331235543.GB20979@kroah.com>
+Subject: Re: [patch stable-3.13] mm: close PageTail race
+Message-ID: <20140331235550.GC20979@kroah.com>
 References: <alpine.DEB.2.02.1403281333290.18841@chino.kir.corp.google.com>
+ <alpine.DEB.2.02.1403281335200.18841@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.02.1403281333290.18841@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.02.1403281335200.18841@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: David Rientjes <rientjes@google.com>
 Cc: stable@vger.kernel.org, Holger Kiehl <Holger.Kiehl@dwd.de>, Christoph Lameter <cl@linux.com>, Rafael Aquini <aquini@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, Mar 28, 2014 at 01:35:34PM -0700, David Rientjes wrote:
+On Fri, Mar 28, 2014 at 01:35:37PM -0700, David Rientjes wrote:
 > commit 668f9abbd4334e6c29fa8acd71635c4f9101caa7 upstream.
 
 Applied, thanks.
