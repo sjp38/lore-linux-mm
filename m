@@ -1,39 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oa0-f46.google.com (mail-oa0-f46.google.com [209.85.219.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D1816B0031
-	for <linux-mm@kvack.org>; Mon, 31 Mar 2014 14:35:38 -0400 (EDT)
-Received: by mail-oa0-f46.google.com with SMTP id i7so9851896oag.33
-        for <linux-mm@kvack.org>; Mon, 31 Mar 2014 11:35:37 -0700 (PDT)
-Received: from qmta09.emeryville.ca.mail.comcast.net (qmta09.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:96])
-        by mx.google.com with ESMTP id ft3si29968090igd.6.2014.03.31.11.35.36
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 5AFDF6B0031
+	for <linux-mm@kvack.org>; Mon, 31 Mar 2014 14:41:58 -0400 (EDT)
+Received: by mail-pa0-f48.google.com with SMTP id hz1so8632861pad.35
+        for <linux-mm@kvack.org>; Mon, 31 Mar 2014 11:41:58 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id u6si9653259paa.462.2014.03.31.11.41.57
         for <linux-mm@kvack.org>;
-        Mon, 31 Mar 2014 11:35:37 -0700 (PDT)
-Date: Mon, 31 Mar 2014 13:35:34 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH v2] mm: convert some level-less printks to pr_*
-In-Reply-To: <1395942859-11611-2-git-send-email-mitchelh@codeaurora.org>
-Message-ID: <alpine.DEB.2.10.1403311334060.3313@nuc>
-References: <1395942859-11611-1-git-send-email-mitchelh@codeaurora.org> <1395942859-11611-2-git-send-email-mitchelh@codeaurora.org>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        Mon, 31 Mar 2014 11:41:57 -0700 (PDT)
+Message-ID: <5339B6F4.9000809@intel.com>
+Date: Mon, 31 Mar 2014 11:41:56 -0700
+From: Dave Hansen <dave.hansen@intel.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v3 00/14] mm, hugetlb: remove a hugetlb_instantiation_mutex
+References: <1387349640-8071-1-git-send-email-iamjoonsoo.kim@lge.com>	 <5339977F.4070905@intel.com> <1396286773.2507.11.camel@buesod1.americas.hpqcorp.net>
+In-Reply-To: <1396286773.2507.11.camel@buesod1.americas.hpqcorp.net>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mitchel Humpherys <mitchelh@codeaurora.org>
-Cc: Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Joe Perches <joe@perches.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Davidlohr Bueso <davidlohr@hp.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, David Gibson <david@gibson.dropbear.id.au>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Hillf Danton <dhillf@gmail.com>
 
-On Thu, 27 Mar 2014, Mitchel Humpherys wrote:
+On 03/31/2014 10:26 AM, Davidlohr Bueso wrote:
+> On Mon, 2014-03-31 at 09:27 -0700, Dave Hansen wrote:
+>> On 12/17/2013 10:53 PM, Joonsoo Kim wrote:
+>>> * NOTE for v3
+>>> - Updating patchset is so late because of other works, not issue from
+>>> this patchset.
+>>
+>> I've got some folks with a couple TB of RAM seeing long startup times
+>> with $LARGE_DATABASE_PRODUCT.  It looks to be contention on
+>> hugetlb_instantiation_mutex because everyone is trying to zero hugepages
+>> under that lock in parallel.  Just removing the lock sped things up
+>> quite a bit.
+> 
+> Welcome to my world. Regarding the instantiation mutex, it is addressed,
+> see commit c999c05ff595 in -next. 
 
-> diff --git a/mm/slub.c b/mm/slub.c
-> index 25f14ad8f8..9f109e6756 100644
-> --- a/mm/slub.c
-> +++ b/mm/slub.c
-> @@ -9,6 +9,8 @@
->   * (C) 2011 Linux Foundation, Christoph Lameter
->   */
->
-> +#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+Cool stuff.  That does seem to fix my parallel-fault hugetlbfs
+microbenchmark.  I'll recommend that the $DATABASE folks check it as well.
 
-This is implicitly used by some macros? If so then please define this
-elsewhere. I do not see any use in slub.c of this one.
+> As for the clear page overhead, I brought this up in lsfmm last week,
+> proposing some daemon to clear pages when we have idle cpu... but didn't
+> get much positive feedback. Basically (i) not worth the additional
+> complexity and (ii) can trigger different application startup times,
+> which seems to be something negative. I do have a patch that implements
+> huge_clear_page with non-temporal hinting but I didn't see much
+> difference on my environment, would you want to give it a try?
+
+I'd just be happy to see it happen outside of the locks.  As it stands
+now, I have 1 CPU zeroing a huge page, and 159 sitting there sleeping
+waiting for it to release the hugetlb_instantiation_mutex.  That's just
+nonsense.  I don't think making them non-temporal will fundamentally
+help that.  We need them parallelized.  According to ftrace, a
+hugetlb_fault() takes ~700us.  Literally 99% of that is zeroing the page.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
