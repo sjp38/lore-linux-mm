@@ -1,122 +1,155 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f43.google.com (mail-qg0-f43.google.com [209.85.192.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 421136B0031
-	for <linux-mm@kvack.org>; Sun, 30 Mar 2014 16:33:54 -0400 (EDT)
-Received: by mail-qg0-f43.google.com with SMTP id f51so6502341qge.2
-        for <linux-mm@kvack.org>; Sun, 30 Mar 2014 13:33:54 -0700 (PDT)
-Received: from mail-qa0-x22b.google.com (mail-qa0-x22b.google.com [2607:f8b0:400d:c00::22b])
-        by mx.google.com with ESMTPS id 4si5339844qat.71.2014.03.30.13.33.53
+Received: from mail-pb0-f48.google.com (mail-pb0-f48.google.com [209.85.160.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F56F6B0031
+	for <linux-mm@kvack.org>; Sun, 30 Mar 2014 22:16:19 -0400 (EDT)
+Received: by mail-pb0-f48.google.com with SMTP id md12so7462611pbc.7
+        for <linux-mm@kvack.org>; Sun, 30 Mar 2014 19:16:19 -0700 (PDT)
+Received: from mail-pd0-x22e.google.com (mail-pd0-x22e.google.com [2607:f8b0:400e:c02::22e])
+        by mx.google.com with ESMTPS id e10si3974578paw.251.2014.03.30.19.16.18
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sun, 30 Mar 2014 13:33:53 -0700 (PDT)
-Received: by mail-qa0-f43.google.com with SMTP id j15so7405549qaq.30
-        for <linux-mm@kvack.org>; Sun, 30 Mar 2014 13:33:53 -0700 (PDT)
-Date: Sun, 30 Mar 2014 16:33:30 -0400
-From: Jerome Glisse <j.glisse@gmail.com>
-Subject: Re: [PATCH] mm/mmu_notifier: restore set_pte_at_notify semantics
-Message-ID: <20140330203328.GA4859@gmail.com>
-References: <1389778834-21200-1-git-send-email-mike.rapoport@ravellosystems.com>
- <20140122131046.GF14193@redhat.com>
- <52DFCF2B.1010603@mellanox.com>
+        Sun, 30 Mar 2014 19:16:18 -0700 (PDT)
+Received: by mail-pd0-f174.google.com with SMTP id y13so7250305pdi.5
+        for <linux-mm@kvack.org>; Sun, 30 Mar 2014 19:16:18 -0700 (PDT)
+Date: Mon, 31 Mar 2014 10:16:03 +0800
+From: Shaohua Li <shli@kernel.org>
+Subject: Re: [patch]x86: clearing access bit don't flush tlb
+Message-ID: <20140331021603.GA24892@kernel.org>
+References: <20140326223034.GA31713@kernel.org>
+ <53336907.1050105@redhat.com>
+ <20140327171237.GA9490@kernel.org>
+ <533470F7.4000406@redhat.com>
+ <20140328190233.GA14905@kernel.org>
+ <53381506.1090104@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <52DFCF2B.1010603@mellanox.com>
+In-Reply-To: <53381506.1090104@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Haggai Eran <haggaie@mellanox.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Mike Rapoport <mike.rapoport@ravellosystems.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Izik Eidus <izik.eidus@ravellosystems.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Or Gerlitz <ogerlitz@mellanox.com>, Sagi Grimberg <sagig@mellanox.com>, Shachar Raindel <raindel@mellanox.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, hughd@google.com, mel@csn.ul.ie
 
-On Wed, Jan 22, 2014 at 04:01:15PM +0200, Haggai Eran wrote:
-> On 22/01/2014 15:10, Andrea Arcangeli wrote:
-> > On Wed, Jan 15, 2014 at 11:40:34AM +0200, Mike Rapoport wrote:
-> >> Commit 6bdb913f0a70a4dfb7f066fb15e2d6f960701d00 (mm: wrap calls to
-> >> set_pte_at_notify with invalidate_range_start and invalidate_range_end)
-> >> breaks semantics of set_pte_at_notify. When calls to set_pte_at_notify
-> >> are wrapped with mmu_notifier_invalidate_range_start and
-> >> mmu_notifier_invalidate_range_end, KVM zaps pte during
-> >> mmu_notifier_invalidate_range_start callback and set_pte_at_notify has
-> >> no spte to update and therefore it's called for nothing.
+On Sun, Mar 30, 2014 at 08:58:46AM -0400, Rik van Riel wrote:
+> On 03/28/2014 03:02 PM, Shaohua Li wrote:
+> > On Thu, Mar 27, 2014 at 02:41:59PM -0400, Rik van Riel wrote:
+> >> On 03/27/2014 01:12 PM, Shaohua Li wrote:
+> >>> On Wed, Mar 26, 2014 at 07:55:51PM -0400, Rik van Riel wrote:
+> >>>> On 03/26/2014 06:30 PM, Shaohua Li wrote:
+> >>>>>
+> >>>>> I posted this patch a year ago or so, but it gets lost. Repost it here to check
+> >>>>> if we can make progress this time.
+> >>>>
+> >>>> I believe we can make progress. However, I also
+> >>>> believe the code could be enhanced to address a
+> >>>> concern that Hugh raised last time this was
+> >>>> proposed...
+> >>>>
+> >>>>> And according to intel manual, tlb has less than 1k entries, which covers < 4M
+> >>>>> memory. In today's system, several giga byte memory is normal. After page
+> >>>>> reclaim clears pte access bit and before cpu access the page again, it's quite
+> >>>>> unlikely this page's pte is still in TLB. And context swich will flush tlb too.
+> >>>>> The chance skiping tlb flush to impact page reclaim should be very rare.
+> >>>>
+> >>>> Context switch to a kernel thread does not result in a
+> >>>> TLB flush, due to the lazy TLB code.
+> >>>>
+> >>>> While I agree with you that clearing the TLB right at
+> >>>> the moment the accessed bit is cleared in a PTE is
+> >>>> not necessary, I believe it would be good to clear
+> >>>> the TLB on affected CPUs relatively soon, maybe at the
+> >>>> next time schedule is called?
+> >>>>
+> >>>>> --- linux.orig/arch/x86/mm/pgtable.c	2014-03-27 05:22:08.572100549 +0800
+> >>>>> +++ linux/arch/x86/mm/pgtable.c	2014-03-27 05:46:12.456131121 +0800
+> >>>>> @@ -399,13 +399,12 @@ int pmdp_test_and_clear_young(struct vm_
+> >>>>>  int ptep_clear_flush_young(struct vm_area_struct *vma,
+> >>>>>  			   unsigned long address, pte_t *ptep)
+> >>>>>  {
+> >>>>> -	int young;
+> >>>>> -
+> >>>>> -	young = ptep_test_and_clear_young(vma, address, ptep);
+> >>>>> -	if (young)
+> >>>>> -		flush_tlb_page(vma, address);
+> >>>>> -
+> >>>>> -	return young;
+> >>>>> +	/*
+> >>>>> +	 * In X86, clearing access bit without TLB flush doesn't cause data
+> >>>>> +	 * corruption. Doing this could cause wrong page aging and so hot pages
+> >>>>> +	 * are reclaimed, but the chance should be very rare.
+> >>>>> +	 */
+> >>>>> +	return ptep_test_and_clear_young(vma, address, ptep);
+> >>>>>  }
+> >>>>
+> >>>>
+> >>>> At this point, we could use vma->vm_mm->cpu_vm_mask_var to
+> >>>> set (or clear) some bit in the per-cpu data of each CPU that
+> >>>> has active/valid tlb state for the mm in question.
+> >>>>
+> >>>> I could see using cpu_tlbstate.state for this, or maybe
+> >>>> another variable in cpu_tlbstate, so switch_mm will load
+> >>>> both items with the same cache line.
+> >>>>
+> >>>> At schedule time, the function switch_mm() can examine that
+> >>>> variable (it already touches that data, anyway), and flush
+> >>>> the TLB even if prev==next.
+> >>>>
+> >>>> I suspect that would be both low overhead enough to get you
+> >>>> the performance gains you want, and address the concern that
+> >>>> we do want to flush the TLB at some point.
+> >>>>
+> >>>> Does that sound reasonable?
+> >>>
+> >>> So looks what you suggested is to force tlb flush for a mm with access bit
+> >>> cleared in two corner cases:
+> >>> 1. lazy tlb flush
+> >>> 2. context switch between threads from one process
+> >>>
+> >>> Am I missing anything? I'm wonering if we should care about these corner cases.
 > >>
-> >> As Andrea suggested (1), the problem is resolved by calling
-> >> mmu_notifier_invalidate_page after PT lock has been released and only
-> >> for mmu_notifiers that do not implement change_ptr callback.
+> >> I believe the corner case is relatively rare, but I also
+> >> suspect that your patch could fail pretty badly in some
+> >> of those cases, and the fix is easy...
 > >>
-> >> (1) http://thread.gmane.org/gmane.linux.kernel.mm/111710/focus=111711
+> >>> On the other hand, a thread might run long time without schedule. If the corner
+> >>> cases are an issue, the long run thread is a severer issue. My point is context
+> >>> switch does provide a safeguard, but we don't depend on it. The whole theory at
+> >>> the back of this patch is page which has access bit cleared is unlikely
+> >>> accessed again when its pte entry is still in tlb cache.
 > >>
-> >> Reported-by: Izik Eidus <izik.eidus@ravellosystems.com>
-> >> Signed-off-by: Mike Rapoport <mike.rapoport@ravellosystems.com>
-> >> Cc: Andrea Arcangeli <aarcange@redhat.com>
-> >> Cc: Haggai Eran <haggaie@mellanox.com>
-> >> Cc: Peter Zijlstra <a.p.zijlstra@chello.nl>
-> >> ---
-> >>  include/linux/mmu_notifier.h | 31 ++++++++++++++++++++++++++-----
-> >>  kernel/events/uprobes.c      | 12 ++++++------
-> >>  mm/ksm.c                     | 15 +++++----------
-> >>  mm/memory.c                  | 14 +++++---------
-> >>  mm/mmu_notifier.c            | 24 ++++++++++++++++++++++--
-> >>  5 files changed, 64 insertions(+), 32 deletions(-)
+> >> On the contrary, a TLB with a good cache policy should
+> >> retain the most actively used entries, in favor of
+> >> less actively used ones.
+> >>
+> >> That means the pages we care most about keeping, are
+> >> the ones also most at danger of not having the accessed
+> >> bit flushed to memory.
+> >>
+> >> Does the attached (untested) patch look reasonable?
 > > 
-> > Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
-> > 
+> > It works obviously. Test shows tehre is no extra tradeoff too compared to just
+> > skip tlb flush. So I have no objection to this if you insist a safeguard like
+> > this. Should we force no entering lazy tlb too (in context_switch) if
+> > force_flush is set, because you are talking about it but I didn't see it in the
+> > patch? Should I push this or will you do it?
 > 
-> Hi Andrea, Mike,
+> Thank you for testing the patch.
 > 
-> Did you get a chance to consider the scenario I wrote about in the other
-> thread?
+> I think we should be fine not adding any code to the lazy tlb
+> entering code, because a kernel thread in lazy tlb mode should
+> not be accessing user space memory, except for the vhost-net
+> thread, which will then wake up userspace, and cause the flush.
 > 
-> I'm worried about the following scenario:
-> 
-> Given a read-only page, suppose one host thread (thread 1) writes to
-> that page, and performs COW, but before it calls the
-> mmu_notifier_invalidate_page_if_missing_change_pte function another host
-> thread (thread 2) writes to the same page (this time without a page
-> fault). Then we have a valid entry in the secondary page table to a
-> stale page, and someone (thread 3) may read stale data from there.
-> 
-> Here's a diagram that shows this scenario:
-> 
-> Thread 1                                | Thread 2        | Thread 3
-> ========================================================================
-> do_wp_page(page 1)                      |                 |
->   ...                                   |                 |
->   set_pte_at_notify                     |                 |
->   ...                                   | write to page 1 |
->                                         |                 | stale access
->   pte_unmap_unlock                      |                 |
->   invalidate_page_if_missing_change_pte |                 |
-> 
-> This is currently prevented by the use of the range start and range end
-> notifiers.
-> 
-> Do you agree that this scenario is possible with the new patch, or am I
-> missing something?
-> 
+> Since performance numbers were identical, can I use your
+> performance numbers when submitting my patch? :)
 
-I believe you are right, but of all the upstream user of the mmu_notifier
-API only xen would suffer from this ie any user that do not have a proper
-change_pte callback can see the bogus scenario you describe above.
+Sure, I tested 10 threads sequential access memory to 2 pcie ssd. without the
+patch, the swapout speed is around 1.5G/s; with the patch, the speed is around
+1.85G/s. As I said before, the patch can provide about 20% ~ 30% swapout
+speedup for ssd swap.
 
-The issue i see is with user that want to/or might sleep when they are
-invalidation the secondary page table. The issue being that change_pte is
-call with the cpu page table locked (well at least for the affected pmd).
-
-I would rather keep the invalidate_range_start/end bracket around change_pte
-and invalidate page. I think we can fix the kvm regression by other means.
-
-Cheers,
-Jerome
-
-
-> Regards,
-> Haggai
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Thanks,
+Shaohua
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
