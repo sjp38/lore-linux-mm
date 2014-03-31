@@ -1,88 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vc0-f173.google.com (mail-vc0-f173.google.com [209.85.220.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 8963E6B0031
-	for <linux-mm@kvack.org>; Mon, 31 Mar 2014 08:43:14 -0400 (EDT)
-Received: by mail-vc0-f173.google.com with SMTP id il7so8133913vcb.18
-        for <linux-mm@kvack.org>; Mon, 31 Mar 2014 05:43:14 -0700 (PDT)
-Received: from mail-ve0-x231.google.com (mail-ve0-x231.google.com [2607:f8b0:400c:c01::231])
-        by mx.google.com with ESMTPS id sr19si2834935vcb.179.2014.03.31.05.43.13
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 31 Mar 2014 05:43:13 -0700 (PDT)
-Received: by mail-ve0-f177.google.com with SMTP id sa20so8008048veb.36
-        for <linux-mm@kvack.org>; Mon, 31 Mar 2014 05:43:13 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <CALZtONA=v+3_+6qEvyY0SruT=aGxAfV_N5fsHvLMJKFp4Stnww@mail.gmail.com>
-References: <CALZtONDiOdYSSu02Eo78F4UL5OLTsk-9MR1hePc-XnSujRuvfw@mail.gmail.com>
-	<20140327222605.GB16495@medulla.variantweb.net>
-	<CALZtONDBNzL_S+UUxKgvNjEYu49eM5Fc2yJ37dJ8E+PEK+C7qg@mail.gmail.com>
-	<533587FD.7000006@redhat.com>
-	<CALZtONA=v+3_+6qEvyY0SruT=aGxAfV_N5fsHvLMJKFp4Stnww@mail.gmail.com>
-Date: Mon, 31 Mar 2014 20:43:13 +0800
-Message-ID: <CAA_GA1er3d+_LJp67aD8tE0SLMod--FpRFvGBdKmpzU_aQNdUg@mail.gmail.com>
-Subject: Re: Adding compression before/above swapcache
-From: Bob Liu <lliubbo@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C6B86B0031
+	for <linux-mm@kvack.org>; Mon, 31 Mar 2014 09:39:48 -0400 (EDT)
+Received: by mail-wi0-f177.google.com with SMTP id cc10so3325683wib.10
+        for <linux-mm@kvack.org>; Mon, 31 Mar 2014 06:39:48 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id be6si7545189wib.13.2014.03.31.06.39.45
+        for <linux-mm@kvack.org>;
+        Mon, 31 Mar 2014 06:39:46 -0700 (PDT)
+Date: Mon, 31 Mar 2014 09:39:37 -0400
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Message-ID: <53397022.4658b40a.3c99.2fa8SMTPIN_ADDED_BROKEN@mx.google.com>
+In-Reply-To: <533930a1.W68d+/5S+SyV5Fsf%fengguang.wu@intel.com>
+References: <533930a1.W68d+/5S+SyV5Fsf%fengguang.wu@intel.com>
+Subject: Re: [next:master 114/486] fs/proc/task_mmu.c:1120:31: error:
+ 'pagemap_hugetlb' undeclared
+Mime-Version: 1.0
+Content-Type: text/plain;
+ charset=iso-2022-jp
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Streetman <ddstreet@ieee.org>
-Cc: Rik van Riel <riel@redhat.com>, Seth Jennings <sjennings@variantweb.net>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Bob Liu <bob.liu@oracle.com>, Minchan Kim <minchan@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Weijie Yang <weijie.yang@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: fengguang.wu@intel.com
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, kbuild-all@01.org
 
-On Fri, Mar 28, 2014 at 10:47 PM, Dan Streetman <ddstreet@ieee.org> wrote:
-> On Fri, Mar 28, 2014 at 10:32 AM, Rik van Riel <riel@redhat.com> wrote:
->> On 03/28/2014 08:36 AM, Dan Streetman wrote:
->>
->>> Well my general idea was to modify shrink_page_list() so that instead
->>> of calling add_to_swap() and then pageout(), anonymous pages would be
->>> added to a compressed cache.  I haven't worked out all the specific
->>> details, but I am initially thinking that the compressed cache could
->>> simply repurpose incoming pages to use as the compressed cache storage
->>> (using its own page mapping, similar to swap page mapping), and then
->>> add_to_swap() the storage pages when the compressed cache gets to a
->>> certain size.  Pages that don't compress well could just bypass the
->>> compressed cache, and get sent the current route directly to
->>> add_to_swap().
->>
->>
->> That sounds a lot like what zswap does. How is your
->> proposal different?
->
-> Two main ways:
-> 1) it's above swap, so it would still work without any real swap.
+On Mon, Mar 31, 2014 at 05:08:49PM +0800, kbuild test robot wrote:
+> tree:   git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
+> head:   8a896813a328f23aeee5f56d3139361534796636
+> commit: 64aa967f459ba0bb91ea8b127c9bd586db1beabc [114/486] pagemap: redefine callback functions for page table walker
+> config: x86_64-randconfig-br2-03311043 (attached as .config)
+> 
+> Note: the next/master HEAD 8a896813a328f23aeee5f56d3139361534796636 builds fine.
+>       It only hurts bisectibility.
+> 
+> All error/warnings:
+> 
+>    fs/proc/task_mmu.c: In function 'pagemap_read':
+> >> fs/proc/task_mmu.c:1120:31: error: 'pagemap_hugetlb' undeclared (first use in this function)
+>      pagemap_walk.hugetlb_entry = pagemap_hugetlb;
+>                                   ^
+>    fs/proc/task_mmu.c:1120:31: note: each undeclared identifier is reported only once for each function it appears in
+>    fs/proc/task_mmu.c: At top level:
+>    fs/proc/task_mmu.c:1025:12: warning: 'pagemap_hugetlb_range' defined but not used [-Wunused-function]
+>     static int pagemap_hugetlb_range(pte_t *pte, unsigned long hmask,
+>                ^
 
-Zswap can also be extended without any real swap device.
+pagemap_hugetlb_range() should be renamed to pagemap_hugetlb() at 64aa967f459b
+("pagemap: redefine callback functions for page table walker"), while it is
+currently done by dc86a8715d79 ("pagewalk: remove argument hmask from
+hugetlb_entry()") afterward like below:
 
-> 2) compressed pages could be written to swap disk.
->
+@@ -1022,8 +1022,7 @@ static void huge_pte_to_pagemap_entry(pagemap_entry_t *pme, struct pagemapread *
+ }
+ 
+ /* This function walks within one hugetlb entry in the single call */
+-static int pagemap_hugetlb_range(pte_t *pte, unsigned long hmask,
+-				 unsigned long addr, unsigned long end,
++static int pagemap_hugetlb(pte_t *pte, unsigned long addr, unsigned long end,
+ 				 struct mm_walk *walk)
+ {
+ 	struct pagemapread *pm = walk->private;
 
-Yes, how to handle the write back of zswap is a problem. And I think
-your patch making zswap write through is a good start.
+Obviously, dc86a8715d79 should only remove hmask.
+Sorry for my poor patch separation.
 
-> Essentially, the two existing memory compression approaches are both
-> tied to swap.  But, AFAIK there's no reason that memory compression
-> has to be tied to swap.  So my approach uncouples it.
->
+Thanks,
+Naoya Horiguchi
 
-Yes, it's not necessary but swap page is a good candidate and easy to
-handle. There are also clean file pages which may suitable for
-compression. See http://lwn.net/Articles/545244/.
-
->>
->> And, is there an easier way to implement that difference? :)
->
-> I'm hoping that it wouldn't actually be too complex.  But that's part
-> of why I emailed for feedback before digging into a prototype... :-)
->
-
-I'm afraid your idea may not that easy to be implemented and need to
-add many tricky code to current mm subsystem, but the benefit is still
-uncertain. As Mel pointed out we really need better demonstration
-workloads for memory compression before changes.
-https://lwn.net/Articles/591961
-
--- 
-Regards,
---Bob
+> vim +/pagemap_hugetlb +1120 fs/proc/task_mmu.c
+> 
+>   1114			goto out_free;
+>   1115	
+>   1116		pagemap_walk.pte_entry = pagemap_pte;
+>   1117		pagemap_walk.pmd_entry = pagemap_pmd;
+>   1118		pagemap_walk.pte_hole = pagemap_pte_hole;
+>   1119	#ifdef CONFIG_HUGETLB_PAGE
+> > 1120		pagemap_walk.hugetlb_entry = pagemap_hugetlb;
+>   1121	#endif
+>   1122		pagemap_walk.mm = mm;
+>   1123		pagemap_walk.private = &pm;
+> 
+> ---
+> 0-DAY kernel build testing backend              Open Source Technology Center
+> http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
