@@ -1,73 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id AA8486B0035
-	for <linux-mm@kvack.org>; Mon, 31 Mar 2014 16:19:31 -0400 (EDT)
-Received: by mail-pa0-f44.google.com with SMTP id bj1so8773649pad.3
-        for <linux-mm@kvack.org>; Mon, 31 Mar 2014 13:19:31 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id ub3si6991549pac.194.2014.03.31.13.19.30
-        for <linux-mm@kvack.org>;
-        Mon, 31 Mar 2014 13:19:30 -0700 (PDT)
-Date: Mon, 31 Mar 2014 13:19:28 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: 3.14-rc6: BUG: Bad page map in process objdump pte:483d2025
- pmd:daa04067
-Message-Id: <20140331131928.6f00ecbc13b54b53bfe62515@linux-foundation.org>
-In-Reply-To: <CACVxJT-d=Sm1-N9wvojgXj0voBABwxrgV728fAyZuPX2BK-3vg@mail.gmail.com>
-References: <CACVxJT-d=Sm1-N9wvojgXj0voBABwxrgV728fAyZuPX2BK-3vg@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-we0-f170.google.com (mail-we0-f170.google.com [74.125.82.170])
+	by kanga.kvack.org (Postfix) with ESMTP id A962A6B0035
+	for <linux-mm@kvack.org>; Mon, 31 Mar 2014 17:11:09 -0400 (EDT)
+Received: by mail-we0-f170.google.com with SMTP id w61so5438055wes.29
+        for <linux-mm@kvack.org>; Mon, 31 Mar 2014 14:11:09 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id k9si2285170wiw.87.2014.03.31.14.11.07
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 31 Mar 2014 14:11:08 -0700 (PDT)
+Date: Mon, 31 Mar 2014 23:11:06 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [next:master 15/486] fs/notify/fanotify/fanotify_user.c:214:23:
+ error: 'struct fsnotify_event' has no member named 'fae'
+Message-ID: <20140331211106.GF1367@quack.suse.cz>
+References: <53384b3c.gyaYGJJFj2CNi4A/%fengguang.wu@intel.com>
+ <20140331130931.96219b669e3333da9af6329b@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140331130931.96219b669e3333da9af6329b@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexey Dobriyan <adobriyan@gmail.com>
-Cc: Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: kbuild test robot <fengguang.wu@intel.com>, Jan Kara <jack@suse.cz>, Linux Memory Management List <linux-mm@kvack.org>, kbuild-all@01.org
 
-(cc linux-mm)
-
-On Thu, 27 Mar 2014 17:47:06 +0300 Alexey Dobriyan <adobriyan@gmail.com> wrote:
-
-> Hell knows what happened, I did nothing unusual...
-> This is the first time I see this message on this box.
+On Mon 31-03-14 13:09:31, Andrew Morton wrote:
+> On Mon, 31 Mar 2014 00:50:04 +0800 kbuild test robot <fengguang.wu@intel.com> wrote:
 > 
-> [15173.408570] BUG: Bad page map in process objdump  pte:483d2025 pmd:daa04067
-> [15173.408578] page:ffffea000120f480 count:1 mapcount:-1
-> mapping:ffff88005316bb10 index:0x9a22
-> [15173.408580] page flags:
-> 0x400000000002002c(referenced|uptodate|lru|mappedtodisk)
-> [15173.408585] page dumped because: bad pte
-> [15173.408588] addr:00007fe290749000 vm_flags:00000075 anon_vma:
->    (null) mapping:ffff88007fe518c0 index:24
-> [15173.408593] vma->vm_ops->fault: filemap_fault+0x0/0x420
-> [15173.408597] vma->vm_file->f_op->mmap: ext4_file_mmap+0x0/0x60
-> [15173.408601] CPU: 1 PID: 10326 Comm: objdump Not tainted 3.14.0-rc6 #13
-> [15173.408603] Hardware name: Hewlett-Packard HP Compaq dc7800
-> Convertible Minitower/0AACh, BIOS 786F1 v01.28 02/26/2009
-> [15173.408605]  ffff8800bb77faa8 ffff880047899c78 ffffffff814649d0
-> 0000000000000007
-> [15173.408608]  00007fe290749000 ffff880047899cc8 ffffffff810f7ece
-> ffffea0002edf840
-> [15173.408611]  ffff88007fe518c0 ffff880047899ca8 00007fe29075e000
-> ffff8800daa04a48
-> [15173.408614] Call Trace:
-> [15173.408620]  [<ffffffff814649d0>] dump_stack+0x4e/0x71
-> [15173.408624]  [<ffffffff810f7ece>] print_bad_pte+0x18e/0x240
-> [15173.408627]  [<ffffffff810f94eb>] unmap_single_vma+0x5cb/0x5f0
-> [15173.408630]  [<ffffffff810f9c09>] unmap_vmas+0x49/0x90
-> [15173.408633]  [<ffffffff8110144d>] exit_mmap+0xbd/0x170
-> [15173.408637]  [<ffffffff81072cbc>] mmput+0x3c/0xb0
-> [15173.408640]  [<ffffffff81076db6>] do_exit+0x1f6/0x900
-> [15173.408644]  [<ffffffff8109e1cb>] ? local_clock+0x1b/0x30
-> [15173.408647]  [<ffffffff8109eb28>] ? vtime_account_user+0x58/0x70
-> [15173.408650]  [<ffffffff810775da>] do_group_exit+0x3a/0xa0
-> [15173.408652]  [<ffffffff81077652>] SyS_exit_group+0x12/0x20
-> [15173.408656]  [<ffffffff8146a459>] tracesys+0xd0/0xd5
+> > tree:   git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
+> > head:   201544be8c37dffbf069bb5fc9edb5674f8c1754
+> > commit: a35f174ec04eaf07a52bb0603ecbb332450d6b4e [15/486] fanotify: use fanotify event structure for permission response processing
+> > config: x86_64-randconfig-c0-0331 (attached as .config)
+> > 
+> > Note: the next/master HEAD 201544be8c37dffbf069bb5fc9edb5674f8c1754 builds fine.
+> >       It only hurts bisectibility.
+> > 
+> > All error/warnings:
+> > 
+> >    fs/notify/fanotify/fanotify_user.c: In function 'copy_event_to_user':
+> > >> fs/notify/fanotify/fanotify_user.c:214:23: error: 'struct fsnotify_event' has no member named 'fae'
+> >       list_add_tail(&event->fae.fse.list,
+> >                           ^
+> > 
+> > vim +214 fs/notify/fanotify/fanotify_user.c
+> > 
+> >    208			goto out_close_fd;
+> >    209	
+> >    210	#ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
+> >    211		if (event->mask & FAN_ALL_PERM_EVENTS) {
+> >    212			FANOTIFY_PE(event)->fd = fd;
+> >    213			mutex_lock(&group->fanotify_data.access_mutex);
+> >  > 214			list_add_tail(&event->fae.fse.list,
+> >    215				      &group->fanotify_data.access_list);
+> >    216			mutex_unlock(&group->fanotify_data.access_mutex);
+> >    217		}
+> 
+> This, I suppose.
+  Yup, that looks good. Thanks for fixing it up so quickly.
 
-page_mapcount() = -1 in zap_pte_range().
+								Honza
 
-I can't imagine what caused that and objdump is, I assume, a very
-simple program - single threaded, does nothing much apart from
-open/lseek/read/printf.
+> --- a/fs/notify/fanotify/fanotify_user.c~fanotify-use-fanotify-event-structure-for-permission-response-processing-fix
+> +++ a/fs/notify/fanotify/fanotify_user.c
+> @@ -209,9 +209,12 @@ static ssize_t copy_event_to_user(struct
+>  
+>  #ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
+>  	if (event->mask & FAN_ALL_PERM_EVENTS) {
+> -		FANOTIFY_PE(event)->fd = fd;
+> +		struct fanotify_perm_event_info *pevent;
+> +
+> +		pevent = FANOTIFY_PE(event);
+> +		pevent->fd = fd;
+>  		mutex_lock(&group->fanotify_data.access_mutex);
+> -		list_add_tail(&event->fae.fse.list,
+> +		list_add_tail(&pevent->fae.fse.list,
+>  			      &group->fanotify_data.access_list);
+>  		mutex_unlock(&group->fanotify_data.access_mutex);
+>  	}
+> _
+> 
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
