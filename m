@@ -1,133 +1,173 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id E56DC6B0036
-	for <linux-mm@kvack.org>; Sun, 30 Mar 2014 23:07:54 -0400 (EDT)
-Received: by mail-pd0-f169.google.com with SMTP id fp1so7390011pdb.0
-        for <linux-mm@kvack.org>; Sun, 30 Mar 2014 20:07:54 -0700 (PDT)
-Received: from mail-pd0-x22d.google.com (mail-pd0-x22d.google.com [2607:f8b0:400e:c02::22d])
-        by mx.google.com with ESMTPS id e10si4038865paw.333.2014.03.30.20.07.53
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sun, 30 Mar 2014 20:07:54 -0700 (PDT)
-Received: by mail-pd0-f173.google.com with SMTP id z10so7338265pdj.18
-        for <linux-mm@kvack.org>; Sun, 30 Mar 2014 20:07:53 -0700 (PDT)
-From: Bob Liu <lliubbo@gmail.com>
-Subject: [PATCH] mm: rmap: don't try to add an unevictable page to lru list
-Date: Mon, 31 Mar 2014 11:07:39 +0800
-Message-Id: <1396235259-2394-1-git-send-email-bob.liu@oracle.com>
+Received: from mail-pb0-f46.google.com (mail-pb0-f46.google.com [209.85.160.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 2293D6B0031
+	for <linux-mm@kvack.org>; Mon, 31 Mar 2014 00:55:44 -0400 (EDT)
+Received: by mail-pb0-f46.google.com with SMTP id rq2so7589147pbb.5
+        for <linux-mm@kvack.org>; Sun, 30 Mar 2014 21:55:43 -0700 (PDT)
+Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
+        by mx.google.com with ESMTP id a8si8351939pbs.457.2014.03.30.21.55.41
+        for <linux-mm@kvack.org>;
+        Sun, 30 Mar 2014 21:55:43 -0700 (PDT)
+Date: Mon, 31 Mar 2014 13:56:26 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: Adding compression before/above swapcache
+Message-ID: <20140331045626.GA6281@bbox>
+References: <CALZtONDiOdYSSu02Eo78F4UL5OLTsk-9MR1hePc-XnSujRuvfw@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CALZtONDiOdYSSu02Eo78F4UL5OLTsk-9MR1hePc-XnSujRuvfw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: mgorman@suse.de, linux-mm@kvack.org, riel@redhat.com, sasha.levin@oracle.com, Bob Liu <bob.liu@oracle.com>
+To: Dan Streetman <ddstreet@ieee.org>
+Cc: Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@suse.cz>, Seth Jennings <sjennings@variantweb.net>, Bob Liu <bob.liu@oracle.com>, Johannes Weiner <hannes@cmpxchg.org>, Weijie Yang <weijie.yang@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 
-VM_BUG_ON_PAGE(PageActive(page) && PageUnevictable(page), page) in
-lru_cache_add() was triggered during migrate_misplaced_transhuge_page.
+Hello Dan,
 
-[  477.301955] kernel BUG at mm/swap.c:609!
-[  477.302564] invalid opcode: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
-[  477.303590] Dumping ftrace buffer:
-[  477.305022]    (ftrace buffer empty)
-[  477.305899] Modules linked in:
-[  477.306397] CPU: 35 PID: 10092 Comm: trinity-c374 Tainted: G        W
-3.14.0-rc5-next-20140307-sasha-00010-g1f812cb #142
-[  477.307644] task: ffff8800a7f80000 ti: ffff8800a7f6a000 task.ti:
-ffff8800a7f6a000
-[  477.309124] RIP: 0010:[<ffffffff8127f311>]  [<ffffffff8127f311>]
-lru_cache_add+0x21/0x60
-[  477.310301] RSP: 0000:ffff8800a7f6bbc8  EFLAGS: 00010292
-[  477.311110] RAX: 000000000000003f RBX: ffffea0013d68000 RCX:
-0000000000000006
-[  477.311110] RDX: 0000000000000006 RSI: ffff8800a7f80d60 RDI:
-0000000000000282
-[  477.311110] RBP: ffff8800a7f6bbc8 R08: 0000000000000001 R09:
-0000000000000001
-[  477.311110] R10: 0000000000000001 R11: 0000000000000001 R12:
-ffff8800ab9b0c00
-[  477.311110] R13: 0000000002400000 R14: ffff8800ab9b0c00 R15:
-0000000000000001
-[  477.311110] FS:  00007ff2c047c700(0000) GS:ffff88042bc00000(0000)
-knlGS:0000000000000000
-[  477.311110] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-[  477.311110] CR2: 0000000003788a68 CR3: 00000000a7f68000 CR4:
-00000000000006a0
-[  477.311110] DR0: 000000000069b000 DR1: 0000000000000000 DR2:
-0000000000000000
-[  477.311110] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7:
-0000000000000600
-[  477.311110] Stack:
-[  477.311110]  ffff8800a7f6bbf8 ffffffff812adaec ffffea0013d68000
-ffffea002bdb8000
-[  477.311110]  ffffea0013d68000 ffff8800a7f7c090 ffff8800a7f6bca8
-ffffffff812db8ec
-[  477.311110]  0000000000000001 ffffffff812e1321 ffff8800a7f6bc48
-ffffffff811ad632
-[  477.311110] Call Trace:
-[  477.311110]  [<ffffffff812adaec>] page_add_new_anon_rmap+0x1ec/0x210
-[  477.311110]  [<ffffffff812db8ec>]
-migrate_misplaced_transhuge_page+0x55c/0x830
-[  477.311110]  [<ffffffff812e1321>] ? do_huge_pmd_numa_page+0x311/0x460
-[  477.311110]  [<ffffffff811ad632>] ? __lock_release+0x1e2/0x200
-[  477.311110]  [<ffffffff812e133f>] do_huge_pmd_numa_page+0x32f/0x460
-[  477.311110]  [<ffffffff81af6aca>] ? delay_tsc+0xfa/0x120
-[  477.311110]  [<ffffffff812a31f4>] __handle_mm_fault+0x244/0x3a0
-[  477.311110]  [<ffffffff812e37ed>] ? rcu_read_unlock+0x5d/0x60
-[  477.311110]  [<ffffffff812a3463>] handle_mm_fault+0x113/0x1c0
-[  477.311110]  [<ffffffff844abd42>] ? __do_page_fault+0x302/0x5d0
-[  477.311110]  [<ffffffff844abfd1>] __do_page_fault+0x591/0x5d0
-[  477.311110]  [<ffffffff8118ab46>] ? vtime_account_user+0x96/0xb0
-[  477.311110]  [<ffffffff844ac492>] ? preempt_count_sub+0xe2/0x120
-[  477.311110]  [<ffffffff81269567>] ? context_tracking_user_exit+0x187/0x1d0
-[  477.311110]  [<ffffffff844ac0d5>] do_page_fault+0x45/0x70
-[  477.311110]  [<ffffffff844ab386>] do_async_page_fault+0x36/0x100
-[  477.311110]  [<ffffffff844a7f18>] async_page_fault+0x28/0x30
-[  477.311110] Code: 65 f0 4c 8b 6d f8 c9 c3 66 90 55 48 89 e5 66 66 66 66 90
-48 8b 07 a8 40 74 18 48 8b 07 a9 00 00 10 00 74 0e 31 f6 e8 2f 20 ff ff <0f>
-0b eb fe 0f 1f 00 48 8b 07 a8 20 74 19 31 f6 e8 1a 20 ff ff
-[  477.311110] RIP  [<ffffffff8127f311>] lru_cache_add+0x21/0x60
-[  477.311110]  RSP <ffff8800a7f6bbc8>
+On Wed, Mar 26, 2014 at 04:28:27PM -0400, Dan Streetman wrote:
+> I'd like some feedback on how possible/useful, or not, it might be to
+> add compression into the page handling code before pages are added to
+> the swapcache.  My thought is that adding a compressed cache at that
+> point may have (at least) two advantages over the existing page
+> compression, zswap and zram, which are both in the swap path.
+> 
+> 1) Both zswap and zram are limited in the amount of memory that they
+> can compress/store:
+> -zswap is limited both in the amount of pre-compressed pages, by the
+> total amount of swap configured in the system, and post-compressed
+> pages, by its max_pool_percentage parameter.  These limitations aren't
+> necessarily a bad thing, just requirements for the user (or distro
+> setup tool, etc) to correctly configure them.  And for optimal
+> operation, they need to coordinate; for example, with the default
+> post-compressed 20% of memory zswap's configured to use, the amount of
+> swap in the system must be at least 40% of system memory (if/when
+> zswap is changed to use zsmalloc that number would need to increase).
+> The point being, there is a clear possibility of misconfiguration, or
+> even a simple lack of enough disk space for actual swap, that could
+> artificially reduce the amount of total memory zswap is able to
 
-The root cause is the checking mlocked_vma_newpage() in
-page_add_new_anon_rmap() is not enough to decide whether a page is unevictable.
+Potentailly, there is risk in tuning knob so admin should be careful.
+Surely, kernel should do best effort to prevent such confusion and
+I think well-written documentation would be enough.
 
-migrate_misplaced_transhuge_page():
-	=> migrate_page_copy()
-		=> SetPageUnevictable(newpage)
+> compress.  Additionally, most of that real disk swap is wasted space -
+> all the pages stored compressed in zswap aren't actually written on
+> the disk.
 
-	=> page_add_new_anon_rmap(newpage)
-		=> mlocked_vma_newpage(vma, newpage) <--This check is not enough
-			=> SetPageActive(newpage)
-			=> lru_cache_add(newpage)
-				=> VM_BUG_ON_PAGE()
+It's same with normal swap. If there isn't memory pressure, it's wasted
+space, too.
 
->From vmscan.c:
- * Reasons page might not be evictable:
- * (1) page's mapping marked unevictable
- * (2) page is part of an mlocked VMA
+> -zram is limited only by its pre-compressed size, and of course the
+> amount of actual system memory it can use for compressed storage.  If
+> using without dm-cache, this could allow essentially unlimited
 
-But page_add_new_anon_rmap() only checks reason (2), we may hit this
-VM_BUG_ON_PAGE() if PageUnevictable(old_page) was originally set by reason (1).
+It's because no requirement until now. If someone ask it or report
+the problem, we could support it easily.
 
-Reported-by: Sasha Levin <sasha.levin@oracle.com>
-Signed-off-by: Bob Liu <bob.liu@oracle.com>
----
- mm/rmap.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+> compression until no more compressed pages can be stored; however that
+> requires the zram device to be configured as larger than the actual
+> system memory.  If using with dm-cache, it may not be obvious what the
 
-diff --git a/mm/rmap.c b/mm/rmap.c
-index 43d429b..39458c5 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -1024,7 +1024,7 @@ void page_add_new_anon_rmap(struct page *page,
- 	__mod_zone_page_state(page_zone(page), NR_ANON_PAGES,
- 			hpage_nr_pages(page));
- 	__page_set_anon_rmap(page, vma, address, 1);
--	if (!mlocked_vma_newpage(vma, page)) {
-+	if (!mlocked_vma_newpage(vma, page) && !PageUnevictable(page)) {
- 		SetPageActive(page);
- 		lru_cache_add(page);
- 	} else
---
-1.7.10.4
+Normally, the method we have used is to measure avg compr ratio
+and 
+
+> optimal zram size is.
+
+It's not a problem of zram. It seems dm-cache folks pass the decision
+to userspace because there would be various choices depends on policy
+dm-cache have supported.
+
+> 
+> Pre-swapcache compression would theoretically require no user
+> configuration, and the amount of compressed pages would be unlimited
+> (until there is no more room to store compressed pages).
+
+Could you elaborate it more?
+You mean pre-swapcache doesn't need real storage(mkswap + swapn)?
+
+> 
+> 2) Both zswap and zram (with dm-cache) write uncompressed pages to disk:
+> -zswap rejects any pages being sent to swap that don't compress well
+> enough, and they're passed on to the swap disk in uncompressed form.
+> Also, once zswap is full it starts uncompressing its old compressed
+> pages and writing them back to the swap disk.
+> -zram, with dm-cache, can pass pages on to the swap disk, but IIUC
+> those pages must be uncompressed first, and then written in compressed
+> form on disk.  (Please correct me here if that is wrong).
+
+I didn't look that code but I guess if dm-cache decides moving the page
+from zram device to real storage, it would decompress a page from zram
+and write it to storage without compressing. So it's not a compressed
+form.
+
+> 
+> A compressed cache that comes before the swap cache would be able to
+> push pages from its compressed storage to the swap disk, that contain
+> multiple compressed pages (and/or parts of compressed pages, if
+> overlapping page boundries).  I think that would be able to,
+> theoretically at least, improve overall read/write times from a
+> pre-compressed perspective, simply because less actual data would be
+> transferred.  Also, less actual swap disk space would be
+> used/required, which on systems with a very large amount of system
+> memory may be beneficial.
+
+I agree part of your claim but couldn't.
+If we write a page which includes several compressed pages, it surely
+enhance write bandwidth but we should give extra pages for *reading*
+a page. You might argue swap already have done it via page-cluster.
+But the difference is that we could control it by knob so we could
+reduce window size if swap readahead hit ratio isn't good.
+
+With your proposal, we couldn't control it so it would be likely to
+fail swap-read than old if memory pressure is severe because we 
+might need many pages to decompress just a page. For prevent,
+we need large buffer to decompress pages and we should limit the
+number of pages which put together a page, which can make system
+more predictable but it needs serialization of buffer so might hurt
+performance, too.
+
+> 
+> 
+> Additionally, a couple other random possible benefits:
+> -like zswap but unlike zram, a pre-swapcache compressed cache would be
+> able to select which pages to store compressed, either based on poor
+> compression results or some other criteria - possibly userspace could
+> madvise that certain pages were or weren't likely compressible.
+
+In your proposal, If it turns out poor compression after doing comp work,
+it would go to swap. It's same with zswap.
+
+Another suggestion on madvise is more general and I believe it could
+help zram/zswap as well as your proposal.
+
+It's already known problem and I suggested using mlock.
+If mlock is really big overhead for that, we might introduce another
+hint which just mark vma->vm_flags to *VMA_NOT_GOOD_COMPRESS*.
+In that case, mm layer could skip zswap and it might work with zram
+if there is support like BDI_CAP_SWAP_BACKED_INCOMPRAM.
+
+> -while zram and zswap are only able to compress and store pages that
+> are passed to them by zswapd or direct reclaim, a pre-swap compressed
+> cache wouldn't necessarily have to wait until the low watermark is
+> reached.
+
+I couldn't understand the benefit.
+Why should we compress memory before system is no memory pressure?
+
+> 
+> Any feedback would be greatly appreciated!
+
+Having said that, I'd like to have such feature(ie, copmressed-form writeout)
+for zram because zram supports zram-blk as well as zram-swap so zram-blk
+case could be no problem for memory-pressure so it would be happy to
+allocate multiple pages to store data when *read* happens and decompress
+a page into multiple pages.
+
+Thanks.
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
