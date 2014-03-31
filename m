@@ -1,152 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B95F6B0037
-	for <linux-mm@kvack.org>; Mon, 31 Mar 2014 11:35:27 -0400 (EDT)
-Received: by mail-wg0-f48.google.com with SMTP id l18so6163449wgh.19
-        for <linux-mm@kvack.org>; Mon, 31 Mar 2014 08:35:27 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id m49si23486313eeo.281.2014.03.31.08.35.25
-        for <linux-mm@kvack.org>;
-        Mon, 31 Mar 2014 08:35:26 -0700 (PDT)
-Date: Mon, 31 Mar 2014 11:34:42 -0400
-From: Rik van Riel <riel@redhat.com>
-Subject: [PATCH] x86,mm: delay TLB flush after clearing accessed bit
-Message-ID: <20140331113442.0d628362@annuminas.surriel.com>
+Received: from mail-we0-f182.google.com (mail-we0-f182.google.com [74.125.82.182])
+	by kanga.kvack.org (Postfix) with ESMTP id EF5D26B0038
+	for <linux-mm@kvack.org>; Mon, 31 Mar 2014 11:36:19 -0400 (EDT)
+Received: by mail-we0-f182.google.com with SMTP id p61so4876701wes.41
+        for <linux-mm@kvack.org>; Mon, 31 Mar 2014 08:36:19 -0700 (PDT)
+Received: from mail-we0-x231.google.com (mail-we0-x231.google.com [2a00:1450:400c:c03::231])
+        by mx.google.com with ESMTPS id ba5si3631337wjb.51.2014.03.31.08.36.18
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 31 Mar 2014 08:36:18 -0700 (PDT)
+Received: by mail-we0-f177.google.com with SMTP id u57so5016807wes.36
+        for <linux-mm@kvack.org>; Mon, 31 Mar 2014 08:36:17 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <CAA_GA1er3d+_LJp67aD8tE0SLMod--FpRFvGBdKmpzU_aQNdUg@mail.gmail.com>
+References: <CALZtONDiOdYSSu02Eo78F4UL5OLTsk-9MR1hePc-XnSujRuvfw@mail.gmail.com>
+ <20140327222605.GB16495@medulla.variantweb.net> <CALZtONDBNzL_S+UUxKgvNjEYu49eM5Fc2yJ37dJ8E+PEK+C7qg@mail.gmail.com>
+ <533587FD.7000006@redhat.com> <CALZtONA=v+3_+6qEvyY0SruT=aGxAfV_N5fsHvLMJKFp4Stnww@mail.gmail.com>
+ <CAA_GA1er3d+_LJp67aD8tE0SLMod--FpRFvGBdKmpzU_aQNdUg@mail.gmail.com>
+From: Dan Streetman <ddstreet@ieee.org>
+Date: Mon, 31 Mar 2014 11:35:57 -0400
+Message-ID: <CALZtONBQZYeRTx_=Z70H7v4g=39C=caJgoZV3mVFwoPHTHVTuQ@mail.gmail.com>
+Subject: Re: Adding compression before/above swapcache
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, shli@kernel.org, akpm@linux-foundation.org, mingo@kernel.org, hughd@google.com, mgorman@suse.de
+To: Bob Liu <lliubbo@gmail.com>
+Cc: Rik van Riel <riel@redhat.com>, Seth Jennings <sjennings@variantweb.net>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Bob Liu <bob.liu@oracle.com>, Minchan Kim <minchan@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Weijie Yang <weijie.yang@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 
-Doing an immediate TLB flush after clearing the accesed bit
-in page tables results in a lot of extra TLB flushes when there
-is memory pressure. This used to not be a problem, when swap
-was done to spinning disks, but with SSDs it is starting to
-become an issue.
+On Mon, Mar 31, 2014 at 8:43 AM, Bob Liu <lliubbo@gmail.com> wrote:
+> On Fri, Mar 28, 2014 at 10:47 PM, Dan Streetman <ddstreet@ieee.org> wrote:
+>> On Fri, Mar 28, 2014 at 10:32 AM, Rik van Riel <riel@redhat.com> wrote:
+>>> On 03/28/2014 08:36 AM, Dan Streetman wrote:
+>>>
+>>>> Well my general idea was to modify shrink_page_list() so that instead
+>>>> of calling add_to_swap() and then pageout(), anonymous pages would be
+>>>> added to a compressed cache.  I haven't worked out all the specific
+>>>> details, but I am initially thinking that the compressed cache could
+>>>> simply repurpose incoming pages to use as the compressed cache storage
+>>>> (using its own page mapping, similar to swap page mapping), and then
+>>>> add_to_swap() the storage pages when the compressed cache gets to a
+>>>> certain size.  Pages that don't compress well could just bypass the
+>>>> compressed cache, and get sent the current route directly to
+>>>> add_to_swap().
+>>>
+>>>
+>>> That sounds a lot like what zswap does. How is your
+>>> proposal different?
+>>
+>> Two main ways:
+>> 1) it's above swap, so it would still work without any real swap.
+>
+> Zswap can also be extended without any real swap device.
 
-However, clearing the accessed bit does not lead to any
-consistency issues, there is no reason to flush the TLB
-immediately. The TLB flush can be deferred until some
-later point in time.
+Ok I'm interested - how is that possible? :-)
 
-The lazy TLB flush code already has a data structure that
-is used at context switch time to determine whether or not
-the TLB needs to be flushed. The accessed bit clearing code
-can piggyback on top of that same data structure, allowing
-the context switch code to check whether a TLB flush needs
-to be forced when switching between the same mm, without
-incurring an additional cache miss.
+>> 2) compressed pages could be written to swap disk.
+>>
+>
+> Yes, how to handle the write back of zswap is a problem. And I think
+> your patch making zswap write through is a good start.
 
-In Shaohua's multi-threaded test with a lot of swap to several
-PCIe SSDs, this patch results in about 20-30% swapout speedup,
-increasing swapout speed from 1.5GB/s to 1.85GB/s.
+but it's still writethrough of uncompressed pages.
 
-Tested-by: Shaohua Li <shli@kernel.org>
-Signed-off-by: Rik van Riel <riel@redhat.com>
----
- arch/x86/include/asm/mmu_context.h |  5 ++++-
- arch/x86/include/asm/tlbflush.h    | 12 ++++++++++++
- arch/x86/mm/pgtable.c              |  9 ++++++---
- 3 files changed, 22 insertions(+), 4 deletions(-)
+>> Essentially, the two existing memory compression approaches are both
+>> tied to swap.  But, AFAIK there's no reason that memory compression
+>> has to be tied to swap.  So my approach uncouples it.
+>>
+>
+> Yes, it's not necessary but swap page is a good candidate and easy to
+> handle. There are also clean file pages which may suitable for
+> compression. See http://lwn.net/Articles/545244/.
 
-diff --git a/arch/x86/include/asm/mmu_context.h b/arch/x86/include/asm/mmu_context.h
-index be12c53..665d98b 100644
---- a/arch/x86/include/asm/mmu_context.h
-+++ b/arch/x86/include/asm/mmu_context.h
-@@ -39,6 +39,7 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
- #ifdef CONFIG_SMP
- 		this_cpu_write(cpu_tlbstate.state, TLBSTATE_OK);
- 		this_cpu_write(cpu_tlbstate.active_mm, next);
-+		this_cpu_write(cpu_tlbstate.force_flush, false);
- #endif
- 		cpumask_set_cpu(cpu, mm_cpumask(next));
- 
-@@ -57,7 +58,8 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
- 		this_cpu_write(cpu_tlbstate.state, TLBSTATE_OK);
- 		BUG_ON(this_cpu_read(cpu_tlbstate.active_mm) != next);
- 
--		if (!cpumask_test_cpu(cpu, mm_cpumask(next))) {
-+		if (!cpumask_test_cpu(cpu, mm_cpumask(next)) ||
-+				this_cpu_read(cpu_tlbstate.force_flush)) {
- 			/*
- 			 * On established mms, the mm_cpumask is only changed
- 			 * from irq context, from ptep_clear_flush() while in
-@@ -70,6 +72,7 @@ static inline void switch_mm(struct mm_struct *prev, struct mm_struct *next,
- 			 * tlb flush IPI delivery. We must reload CR3
- 			 * to make sure to use no freed page tables.
- 			 */
-+			this_cpu_write(cpu_tlbstate.force_flush, false);
- 			load_cr3(next->pgd);
- 			load_LDT_nolock(&next->context);
- 		}
-diff --git a/arch/x86/include/asm/tlbflush.h b/arch/x86/include/asm/tlbflush.h
-index 04905bf..f2cda2c 100644
---- a/arch/x86/include/asm/tlbflush.h
-+++ b/arch/x86/include/asm/tlbflush.h
-@@ -151,6 +151,10 @@ static inline void reset_lazy_tlbstate(void)
- {
- }
- 
-+static inline void tlb_set_force_flush(int cpu)
-+{
-+}
-+
- static inline void flush_tlb_kernel_range(unsigned long start,
- 					  unsigned long end)
- {
-@@ -187,6 +191,7 @@ void native_flush_tlb_others(const struct cpumask *cpumask,
- struct tlb_state {
- 	struct mm_struct *active_mm;
- 	int state;
-+	bool force_flush;
- };
- DECLARE_PER_CPU_SHARED_ALIGNED(struct tlb_state, cpu_tlbstate);
- 
-@@ -196,6 +201,13 @@ static inline void reset_lazy_tlbstate(void)
- 	this_cpu_write(cpu_tlbstate.active_mm, &init_mm);
- }
- 
-+static inline void tlb_set_force_flush(int cpu)
-+{
-+	struct tlb_state *percputlb= &per_cpu(cpu_tlbstate, cpu);
-+	if (percputlb->force_flush == false)
-+		percputlb->force_flush = true;
-+}
-+
- #endif	/* SMP */
- 
- #ifndef CONFIG_PARAVIRT
-diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
-index c96314a..dcd26e9 100644
---- a/arch/x86/mm/pgtable.c
-+++ b/arch/x86/mm/pgtable.c
-@@ -4,6 +4,7 @@
- #include <asm/pgtable.h>
- #include <asm/tlb.h>
- #include <asm/fixmap.h>
-+#include <asm/tlbflush.h>
- 
- #define PGALLOC_GFP GFP_KERNEL | __GFP_NOTRACK | __GFP_REPEAT | __GFP_ZERO
- 
-@@ -399,11 +400,13 @@ int pmdp_test_and_clear_young(struct vm_area_struct *vma,
- int ptep_clear_flush_young(struct vm_area_struct *vma,
- 			   unsigned long address, pte_t *ptep)
- {
--	int young;
-+	int young, cpu;
- 
- 	young = ptep_test_and_clear_young(vma, address, ptep);
--	if (young)
--		flush_tlb_page(vma, address);
-+	if (young) {
-+		for_each_cpu(cpu, vma->vm_mm->cpu_vm_mask_var)
-+			tlb_set_force_flush(cpu);
-+	}
- 
- 	return young;
- }
+Yep, and what is the current state of cleancache?  Was there a
+definitive reason it hasn't made it in yet?
+
+>>> And, is there an easier way to implement that difference? :)
+>>
+>> I'm hoping that it wouldn't actually be too complex.  But that's part
+>> of why I emailed for feedback before digging into a prototype... :-)
+>>
+>
+> I'm afraid your idea may not that easy to be implemented and need to
+> add many tricky code to current mm subsystem, but the benefit is still
+> uncertain. As Mel pointed out we really need better demonstration
+> workloads for memory compression before changes.
+> https://lwn.net/Articles/591961
+
+Well I think it's hard to argue that memory compression provides *no*
+obvious benefit - I'm pretty sure it's quite useful for minor
+overcommit on systems without any disk swap, and even for systems with
+swap it at least softens the steep performance cliff that we currently
+have when starting to overcommit memory into swap space.
+
+As far as its benefits for larger systems, or how realistic it is to
+start routinely overcommitting systems with the expectation that
+memory compression magically gives you more effective RAM, I certainly
+don't know the answer, and I agree, more widespread testing and
+demonstration surely will be needed.
+
+But to ask a more pointed question - what do you think would be the
+tricky part(s)?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
