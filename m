@@ -1,38 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 9DEB36B0038
-	for <linux-mm@kvack.org>; Mon, 31 Mar 2014 19:53:40 -0400 (EDT)
-Received: by mail-pa0-f44.google.com with SMTP id bj1so8936187pad.17
-        for <linux-mm@kvack.org>; Mon, 31 Mar 2014 16:53:40 -0700 (PDT)
-Received: from out4-smtp.messagingengine.com (out4-smtp.messagingengine.com. [66.111.4.28])
-        by mx.google.com with ESMTPS id f8si10017230pbc.501.2014.03.31.16.53.39
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 31 Mar 2014 16:53:39 -0700 (PDT)
-Received: from compute1.internal (compute1.nyi.mail.srv.osa [10.202.2.41])
-	by gateway1.nyi.mail.srv.osa (Postfix) with ESMTP id EEE7C20F1C
-	for <linux-mm@kvack.org>; Mon, 31 Mar 2014 19:53:31 -0400 (EDT)
-Date: Mon, 31 Mar 2014 16:55:50 -0700
-From: Greg KH <greg@kroah.com>
-Subject: Re: [patch stable-3.13] mm: close PageTail race
-Message-ID: <20140331235550.GC20979@kroah.com>
-References: <alpine.DEB.2.02.1403281333290.18841@chino.kir.corp.google.com>
- <alpine.DEB.2.02.1403281335200.18841@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.02.1403281335200.18841@chino.kir.corp.google.com>
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 0D5D46B0035
+	for <linux-mm@kvack.org>; Mon, 31 Mar 2014 20:06:06 -0400 (EDT)
+Received: by mail-pa0-f51.google.com with SMTP id kq14so8895590pab.24
+        for <linux-mm@kvack.org>; Mon, 31 Mar 2014 17:06:06 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id hw8si10059865pbc.163.2014.03.31.17.06.05
+        for <linux-mm@kvack.org>;
+        Mon, 31 Mar 2014 17:06:06 -0700 (PDT)
+Date: Mon, 31 Mar 2014 17:05:46 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] ipc,shm: increase default size for shmmax
+Message-Id: <20140331170546.3b3e72f0.akpm@linux-foundation.org>
+In-Reply-To: <1396308332.18499.25.camel@buesod1.americas.hpqcorp.net>
+References: <1396235199.2507.2.camel@buesod1.americas.hpqcorp.net>
+	<20140331143217.c6ff958e1fd9944d78507418@linux-foundation.org>
+	<1396306773.18499.22.camel@buesod1.americas.hpqcorp.net>
+	<20140331161308.6510381345cb9a1b419d5ec0@linux-foundation.org>
+	<1396308332.18499.25.camel@buesod1.americas.hpqcorp.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: stable@vger.kernel.org, Holger Kiehl <Holger.Kiehl@dwd.de>, Christoph Lameter <cl@linux.com>, Rafael Aquini <aquini@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@suse.cz>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Davidlohr Bueso <davidlohr@hp.com>
+Cc: Manfred Spraul <manfred@colorfullife.com>, aswin@hp.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, Mar 28, 2014 at 01:35:37PM -0700, David Rientjes wrote:
-> commit 668f9abbd4334e6c29fa8acd71635c4f9101caa7 upstream.
+On Mon, 31 Mar 2014 16:25:32 -0700 Davidlohr Bueso <davidlohr@hp.com> wrote:
 
-Applied, thanks.
+> On Mon, 2014-03-31 at 16:13 -0700, Andrew Morton wrote:
+> > On Mon, 31 Mar 2014 15:59:33 -0700 Davidlohr Bueso <davidlohr@hp.com> wrote:
+> > 
+> > > > 
+> > > > - Shouldn't there be a way to alter this namespace's shm_ctlmax?
+> > > 
+> > > Unfortunately this would also add the complexity I previously mentioned.
+> > 
+> > But if the current namespace's shm_ctlmax is too small, you're screwed.
+> > Have to shut down the namespace all the way back to init_ns and start
+> > again.
+> > 
+> > > > - What happens if we just nuke the limit altogether and fall back to
+> > > >   the next check, which presumably is the rlimit bounds?
+> > > 
+> > > afaik we only have rlimit for msgqueues. But in any case, while I like
+> > > that simplicity, it's too late. Too many workloads (specially DBs) rely
+> > > heavily on shmmax. Removing it and relying on something else would thus
+> > > cause a lot of things to break.
+> > 
+> > It would permit larger shm segments - how could that break things?  It
+> > would make most or all of these issues go away?
+> > 
+> 
+> So sysadmins wouldn't be very happy, per man shmget(2):
+> 
+> EINVAL A new segment was to be created and size < SHMMIN or size >
+> SHMMAX, or no new segment was to be created, a segment with given key
+> existed, but size is greater than the size of that segment.
 
-greg k-h
+So their system will act as if they had set SHMMAX=enormous.  What
+problems could that cause?
+
+
+Look.  The 32M thing is causing problems.  Arbitrarily increasing the
+arbitrary 32M to an arbitrary 128M won't fix anything - we still have
+the problem.  Think bigger, please: how can we make this problem go
+away for ever?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
