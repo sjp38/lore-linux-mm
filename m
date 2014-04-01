@@ -1,76 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f177.google.com (mail-qc0-f177.google.com [209.85.216.177])
-	by kanga.kvack.org (Postfix) with ESMTP id BA7286B0031
-	for <linux-mm@kvack.org>; Tue,  1 Apr 2014 09:26:21 -0400 (EDT)
-Received: by mail-qc0-f177.google.com with SMTP id w7so10457597qcr.22
-        for <linux-mm@kvack.org>; Tue, 01 Apr 2014 06:26:21 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id s39si7601655qgs.184.2014.04.01.06.26.20
-        for <linux-mm@kvack.org>;
-        Tue, 01 Apr 2014 06:26:21 -0700 (PDT)
-Message-ID: <533ABE71.9090507@redhat.com>
-Date: Tue, 01 Apr 2014 09:26:09 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail-vc0-f178.google.com (mail-vc0-f178.google.com [209.85.220.178])
+	by kanga.kvack.org (Postfix) with ESMTP id C51866B0031
+	for <linux-mm@kvack.org>; Tue,  1 Apr 2014 11:13:32 -0400 (EDT)
+Received: by mail-vc0-f178.google.com with SMTP id im17so10203527vcb.9
+        for <linux-mm@kvack.org>; Tue, 01 Apr 2014 08:13:32 -0700 (PDT)
+Received: from mail-vc0-x236.google.com (mail-vc0-x236.google.com [2607:f8b0:400c:c03::236])
+        by mx.google.com with ESMTPS id cb3si3691332vdc.5.2014.04.01.08.13.32
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 01 Apr 2014 08:13:32 -0700 (PDT)
+Received: by mail-vc0-f182.google.com with SMTP id ks9so9784164vcb.41
+        for <linux-mm@kvack.org>; Tue, 01 Apr 2014 08:13:32 -0700 (PDT)
 MIME-Version: 1.0
+In-Reply-To: <20140331113442.0d628362@annuminas.surriel.com>
+References: <20140331113442.0d628362@annuminas.surriel.com>
+Date: Tue, 1 Apr 2014 08:13:31 -0700
+Message-ID: <CA+55aFzG=B3t_YaoCY_H1jmEgs+cYd--ZHz7XhGeforMRvNfEQ@mail.gmail.com>
 Subject: Re: [PATCH] x86,mm: delay TLB flush after clearing accessed bit
-References: <20140331113442.0d628362@annuminas.surriel.com> <20140401105318.GA2823@gmail.com> <533AB741.5080508@redhat.com> <20140401132037.GB7024@gmail.com>
-In-Reply-To: <20140401132037.GB7024@gmail.com>
+From: Linus Torvalds <torvalds@linux-foundation.org>
 Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, shli@kernel.org, akpm@linux-foundation.org, hughd@google.com, mgorman@suse.de, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
+To: Rik van Riel <riel@redhat.com>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, shli@kernel.org, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>
 
-On 04/01/2014 09:20 AM, Ingo Molnar wrote:
-> 
-> * Rik van Riel <riel@redhat.com> wrote:
-> 
->>>>  int ptep_clear_flush_young(struct vm_area_struct *vma,
->>>>  			   unsigned long address, pte_t *ptep)
->>>>  {
->>>> -	int young;
->>>> +	int young, cpu;
->>>>  
->>>>  	young = ptep_test_and_clear_young(vma, address, ptep);
->>>> -	if (young)
->>>> -		flush_tlb_page(vma, address);
->>>> +	if (young) {
->>>> +		for_each_cpu(cpu, vma->vm_mm->cpu_vm_mask_var)
->>>> +			tlb_set_force_flush(cpu);
->>>
->>> Hm, just to play the devil's advocate - what happens when we have 
->>> a va that is used on a few dozen, a few hundred or a few thousand 
->>> CPUs? Will the savings be dwarved by the O(nr_cpus_used) loop 
->>> overhead?
->>>
->>> Especially as this is touching cachelines on other CPUs and likely 
->>> creating the worst kind of cachemisses. That can really kill 
->>> performance.
->>
->> flush_tlb_page does the same O(nr_cpus_used) loop, but it sends an 
->> IPI to each CPU every time, instead of dirtying a cache line once 
->> per pageout run (or until the next context switch).
->>
->> Does that address your concern?
-> 
-> That depends on the platform - which could implement flush_tlb_page() 
-> as a broadcast IPI - but yes, it was bad before as well, now it became 
-> more visible and I noticed it :)
-> 
-> Wouldn't it be more scalable to use a generation count as a timestamp, 
-> and set that in the mm? mm that last flushed before that timestamp 
-> need to flush, or so. That gets rid of the mask logic and the loop, 
-> AFAICS.
+On Mon, Mar 31, 2014 at 8:34 AM, Rik van Riel <riel@redhat.com> wrote:
+>
+> However, clearing the accessed bit does not lead to any
+> consistency issues, there is no reason to flush the TLB
+> immediately. The TLB flush can be deferred until some
+> later point in time.
 
-More scalable in the page eviction code, sure.
+Ugh. I absolutely detest this patch.
 
-However, that would cause the context switch code to load an
-additional cache line, so I am not convinced that is a good
-tradeoff...
+If we're going to leave the TLB dirty, then dammit, leave it dirty.
+Don't play some half-way games.
 
--- 
-All rights reversed
+Here's the patch you should just try:
+
+ int ptep_clear_flush_young(struct vm_area_struct *vma,
+        unsigned long address, pte_t *ptep)
+ {
+     return ptep_test_and_clear_young(vma, address, ptep);
+ }
+
+instead of complicating things.
+
+Rationale: if the working set is so big that we start paging things
+out, we sure as hell don't need to worry about TLB flushing. It will
+flush itself.
+
+And conversely - if it doesn't flush itself, and something stays
+marked as "accessed" in the TLB for a long time even though we've
+cleared it in the page tables, we don't care, because clearly there
+isn't enough memory pressure for the accessed bit to matter.
+
+                  Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
