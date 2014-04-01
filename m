@@ -1,77 +1,143 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f176.google.com (mail-ig0-f176.google.com [209.85.213.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 345CE6B0035
-	for <linux-mm@kvack.org>; Wed, 30 Apr 2014 23:57:56 -0400 (EDT)
-Received: by mail-ig0-f176.google.com with SMTP id hl10so70668igb.3
-        for <linux-mm@kvack.org>; Wed, 30 Apr 2014 20:57:55 -0700 (PDT)
-Received: from mail-ie0-x22b.google.com (mail-ie0-x22b.google.com [2607:f8b0:4001:c03::22b])
-        by mx.google.com with ESMTPS id a5si3863935icf.95.2014.04.30.20.57.55
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 30 Apr 2014 20:57:55 -0700 (PDT)
-Received: by mail-ie0-f171.google.com with SMTP id to1so3092169ieb.16
-        for <linux-mm@kvack.org>; Wed, 30 Apr 2014 20:57:55 -0700 (PDT)
-Date: Wed, 30 Apr 2014 20:56:40 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [BUG] kernel BUG at mm/vmacache.c:85!
-In-Reply-To: <53614BFE.9090804@linux.vnet.ibm.com>
-Message-ID: <alpine.LSU.2.11.1404302030260.11435@eggly.anvils>
-References: <535EA976.1080402@linux.vnet.ibm.com> <CA+55aFxgW0fS=6xJsKP-WiOUw=aiCEvydj+pc+zDF8Pvn4v+Jw@mail.gmail.com> <CA+55aFzXAnTzfNL-bfUFnu15=4Z9HNigoo-XyjmwRvAWX_xz0A@mail.gmail.com> <alpine.LSU.2.11.1404281500180.2861@eggly.anvils>
- <1398723290.25549.20.camel@buesod1.americas.hpqcorp.net> <CA+55aFwGjYS7PqsD6A-q+Yp9YZmiM6mB4MUYmfR7ro02poxxCQ@mail.gmail.com> <535F77E8.2040000@linux.vnet.ibm.com> <53614BFE.9090804@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-To: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Davidlohr Bueso <davidlohr@hp.com>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Dave Jones <davej@redhat.com>
+From: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Subject: Re: Recent 3.x kernels: Memory leak causing OOMs
+Date: Tue, 1 Apr 2014 10:19:59 +0100
+Message-ID: <20140401091959.GA10912@n2100.arm.linux.org.uk>
+References: <20140216200503.GN30257@n2100.arm.linux.org.uk> <alpine.DEB.2.02.1402161406120.26926@chino.kir.corp.google.com> <20140216225000.GO30257@n2100.arm.linux.org.uk> <1392670951.24429.10.camel@sakura.staff.proxad.net> <20140217210954.GA21483@n2100.arm.linux.org.uk> <20140315101952.GT21483@n2100.arm.linux.org.uk> <20140317180748.644d30e2@notabene.brown> <20140317181813.GA24144@arm.com> <20140317193316.GF21483@n2100.arm.linux.org.uk>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Return-path: <linux-raid-owner@vger.kernel.org>
+Content-Disposition: inline
+In-Reply-To: <20140317193316.GF21483@n2100.arm.linux.org.uk>
+Sender: linux-raid-owner@vger.kernel.org
+To: Catalin Marinas <catalin.marinas@arm.com>, Linus Torvalds <torvalds@linux-foundation.org>
+Cc: NeilBrown <neilb@suse.de>, linux-raid@vger.kernel.org, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Maxime Bizon <mbizon@freebox.fr>, linux-arm-kernel@lists.infradead.org
+List-Id: linux-mm.kvack.org
 
-On Thu, 1 May 2014, Srivatsa S. Bhat wrote:
+Right, so the machine has died again this morning.
+
+Excuse me if I ignore this merge window, I seem to have some debugging
+to do on my own because no one else is interested in my reports of this,
+and I need to get this fixed.  Modern Linux is totally unusable for me
+at the moment.
+
+On Mon, Mar 17, 2014 at 07:33:16PM +0000, Russell King - ARM Linux wrote:
+> On Mon, Mar 17, 2014 at 06:18:13PM +0000, Catalin Marinas wrote:
+> > On Mon, Mar 17, 2014 at 06:07:48PM +1100, NeilBrown wrote:
+> > > On Sat, 15 Mar 2014 10:19:52 +0000 Russell King - ARM Linux
+> > > <linux@arm.linux.org.uk> wrote:
+> > > > unreferenced object 0xc3c3f880 (size 256):
+> > > >   comm "md2_resync", pid 4680, jiffies 638245 (age 8615.570s)
+> > > >   hex dump (first 32 bytes):
+> > > >     00 00 00 00 00 00 00 00 00 00 00 00 01 00 00 f0  ................
+> > > >     00 00 00 00 10 00 00 00 00 00 00 00 00 00 00 00  ................
+> > > >   backtrace:
+> > > >     [<c008d4f0>] __save_stack_trace+0x34/0x40
+> > > >     [<c008d5f0>] create_object+0xf4/0x214
+> > > >     [<c02da114>] kmemleak_alloc+0x3c/0x6c
+> > > >     [<c008c0d4>] __kmalloc+0xd0/0x124
+> > > >     [<c00bb124>] bio_alloc_bioset+0x4c/0x1a4
+> > > >     [<c021206c>] r1buf_pool_alloc+0x40/0x148
+> > > >     [<c0061160>] mempool_alloc+0x54/0xfc
+> > > >     [<c0211938>] sync_request+0x168/0x85c
+> > > >     [<c021addc>] md_do_sync+0x75c/0xbc0
+> > > >     [<c021b594>] md_thread+0x138/0x154
+> > > >     [<c0037b48>] kthread+0xb0/0xbc
+> > > >     [<c0013190>] ret_from_fork+0x14/0x24
+> > > >     [<ffffffff>] 0xffffffff
+> > > > 
+> > > > with 3077 of these in the debug file.  3075 are for "md2_resync" and
+> > > > two are for "md4_resync".
+> > > > 
+> > > > /proc/slabinfo shows for this bucket:
+> > > > kmalloc-256         3237   3450    256   15    1 : tunables  120   60    0 : slabdata    230    230      0
+> > > > 
+> > > > but this would only account for about 800kB of memory usage, which itself
+> > > > is insignificant - so this is not the whole story.
+> > > > 
+> > > > It seems that this is the culpret for the allocations:
+> > > >         for (j = pi->raid_disks ; j-- ; ) {
+> > > >                 bio = bio_kmalloc(gfp_flags, RESYNC_PAGES);
+> > > > 
+> > > > Since RESYNC_PAGES will be 64K/4K=16, each struct bio_vec is 12 bytes
+> > > > (12 * 16 = 192) plus the size of struct bio, which would fall into this
+> > > > bucket.
+> > > > 
+> > > > I don't see anything obvious - it looks like it isn't every raid check
+> > > > which loses bios.  Not quite sure what to make of this right now.
+> > > 
+> > > I can't see anything obvious either.
+> > > 
+> > > The bios allocated there are stored in a r1_bio and those pointers are never
+> > > changed.
+> > > If the r1_bio wasn't freed then when the data-check finished, mempool_destroy
+> > > would complain that the pool wasn't completely freed.
+> > > And when the r1_bio is freed, all the bios are put as well.
+> > 
+> > It could be a false positive, there are areas that kmemleak doesn't scan
+> > like page allocations and the pointer reference graph it tries to build
+> > would fail.
+> > 
+> > What's interesting to see is the first few leaks reported as they are
+> > always reported in the order of allocation. In this case, the
+> > bio_kmalloc() returned pointer is stored in r1_bio. Is the r1_bio
+> > reported as a leak as well?
 > 
-> I tried to recall the *exact* steps that I had carried out when I first
-> hit the bug. I realized that I had actually used kexec to boot the new
-> kernel. I had originally booted into a 3.7.7 kernel that happens to be
-> on that machine, and then kexec()'ed 3.15-rc3 on it. And that had caused
-> the kernel crash. Fresh boots of 3.15-rc3, as well as kexec from 3.15+
-> to itself, seems to be pretty robust and has never resulted in any bad
-> behavior (this is why I couldn't reproduce the issue earlier, since I was
-> doing fresh boots of 3.15-rc).
+> I'd assume that something else would likely have a different size.
+> All leaks are of 256 bytes.  Also...
 > 
-> So I tried the same recipe again (boot into 3.7.7 and kexec into 3.15-rc3+)
-> and I got totally random crashes so far, once in sys_kill and two times in
-> exit_mmap. So I guess the bug is in 3.7.x and probably 3.15-rc is fine after
-> all...
+> $ grep kmemleak_alloc kmemleak-20140315 -A2 |sort | uniq -c |less
+>    3081 --
+>    3082     [<c008c0d4>] __kmalloc+0xd0/0x124
+>    3082     [<c00bb124>] bio_alloc_bioset+0x4c/0x1a4
+>    3082     [<c02da114>] kmemleak_alloc+0x3c/0x6c
+> 
+> seems pretty conclusive that it's just one spot.
+> 
+> > The sync_request() function eventually gets rid of the r1_bio as it is a
+> > variable on the stack. But it is stored in a bio->bi_private variable
+> > and that's where I lost track of where pointers are referenced from.
+> > 
+> > A simple way to check whether it's a false positive is to do a:
+> > 
+> > echo dump=<unref obj addr> > /sys/kernel/debug/kmemleak
+> > 
+> > If an object was reported as a leak but later on kmemleak doesn't know
+> > about it, it means that it was freed and hence a false positive (maybe I
+> > should add this as a warning in kmemleak if certain amount of leaked
+> > objects freeing is detected).
+> 
+> So doing that with the above leaked bio produces:
+> 
+> kmemleak: Object 0xc3c3f880 (size 256):
+> kmemleak:   comm "md2_resync", pid 4680, jiffies 638245
+> kmemleak:   min_count = 1
+> kmemleak:   count = 0
+> kmemleak:   flags = 0x3
+> kmemleak:   checksum = 1042746691
+> kmemleak:   backtrace:
+>      [<c008d4f0>] __save_stack_trace+0x34/0x40
+>      [<c008d5f0>] create_object+0xf4/0x214
+>      [<c02da114>] kmemleak_alloc+0x3c/0x6c
+>      [<c008c0d4>] __kmalloc+0xd0/0x124
+>      [<c00bb124>] bio_alloc_bioset+0x4c/0x1a4
+>      [<c021206c>] r1buf_pool_alloc+0x40/0x148
+>      [<c0061160>] mempool_alloc+0x54/0xfc
+>      [<c0211938>] sync_request+0x168/0x85c
+>      [<c021addc>] md_do_sync+0x75c/0xbc0
+>      [<c021b594>] md_thread+0x138/0x154
+>      [<c0037b48>] kthread+0xb0/0xbc
+>      [<c0013190>] ret_from_fork+0x14/0x24
+>      [<ffffffff>] 0xffffffff
+> 
+> -- 
+> FTTC broadband for 0.8mile line: now at 9.7Mbps down 460kbps up... slowly
+> improving, and getting towards what was expected from it.
+> 
+> _______________________________________________
+> linux-arm-kernel mailing list
+> linux-arm-kernel@lists.infradead.org
+> http://lists.infradead.org/mailman/listinfo/linux-arm-kernel
 
-I don't know if we can conclude the bug is in 3.7 rather than 3.15.
-
-I spent a little while yesterday looking at your register dumps,
-and applying scripts/decodecode to your Code lines.  I did notice a
-pattern to the general protection faulting addresses, and the dumps
-you show today confirm that pattern (but with "1e000000" at the top
-instead of yesterday's "9e000000").
-
-Sorry, I really cannot spend more time on this, but thought I should
-at least throw out my observation before moving on.  Here I've simply
-grepped out the lines with the significant pattern (and at least one
-of these lines is essentially a repetition of the line before, value
-moved from one register to another with offset subtracted; oh, and
-that R12 line, "it" has been added on to the vsize acct_collect()
-already accumulated).
-
-RAX: 9e00000005f9e8fd RBX: 000000000000000b RCX: 0000000000000001
-RAX: 9e00000005f9e5fd RBX: ffff881031a0c2f8 RCX: ffff88203d52ba40
-RDX: 000000000000001e RSI: 9e00000005f9e5a5 RDI: ffff881031a0c2f8
-R10: 0000000000000000 R11: 00000000000027d5 R12: 9e000000069d62fd
-BUG: Bad page map in process kdump  pte:1e00000005f98701 pmd:1031489067
-BUG: Bad page map in process kdump  pte:1e00000005f98701 pmd:103420b067
-R13: 0000000000000004 R14: 1e00000005f93403 R15: 000000000000000a
-
-That this corruption likes to attack mm structures (vmas yesterday,
-page tables today) does make me wonder whether mm is to blame.
-
-Hugh
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+-- 
+FTTC broadband for 0.8mile line: now at 9.7Mbps down 460kbps up... slowly
+improving, and getting towards what was expected from it.
