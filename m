@@ -1,73 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f48.google.com (mail-qg0-f48.google.com [209.85.192.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 11B506B0031
-	for <linux-mm@kvack.org>; Tue,  1 Apr 2014 14:25:49 -0400 (EDT)
-Received: by mail-qg0-f48.google.com with SMTP id j107so9338109qga.21
-        for <linux-mm@kvack.org>; Tue, 01 Apr 2014 11:25:48 -0700 (PDT)
-Received: from smtp.bbn.com (smtp.bbn.com. [128.33.0.80])
-        by mx.google.com with ESMTPS id m6si7954025qay.149.2014.04.01.11.25.48
+Received: from mail-ob0-f180.google.com (mail-ob0-f180.google.com [209.85.214.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 51E206B0031
+	for <linux-mm@kvack.org>; Tue,  1 Apr 2014 14:31:26 -0400 (EDT)
+Received: by mail-ob0-f180.google.com with SMTP id wn1so11146133obc.25
+        for <linux-mm@kvack.org>; Tue, 01 Apr 2014 11:31:26 -0700 (PDT)
+Received: from g4t3427.houston.hp.com (g4t3427.houston.hp.com. [15.201.208.55])
+        by mx.google.com with ESMTPS id ns8si15738313obc.153.2014.04.01.11.31.25
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 01 Apr 2014 11:25:48 -0700 (PDT)
-Message-ID: <533B04A9.6090405@bbn.com>
-Date: Tue, 01 Apr 2014 14:25:45 -0400
-From: Richard Hansen <rhansen@bbn.com>
-MIME-Version: 1.0
-Subject: [PATCH] mm: msync: require either MS_ASYNC or MS_SYNC
-Content-Type: text/plain; charset=ISO-8859-1
+        Tue, 01 Apr 2014 11:31:25 -0700 (PDT)
+Message-ID: <1396377083.25314.17.camel@buesod1.americas.hpqcorp.net>
+Subject: Re: [PATCH] ipc,shm: increase default size for shmmax
+From: Davidlohr Bueso <davidlohr@hp.com>
+Date: Tue, 01 Apr 2014 11:31:23 -0700
+In-Reply-To: <CAHGf_=qsf6vN5k=-PLraG8Q_uU1pofoBDktjVH1N92o76xPadQ@mail.gmail.com>
+References: <1396235199.2507.2.camel@buesod1.americas.hpqcorp.net>
+	 <20140331143217.c6ff958e1fd9944d78507418@linux-foundation.org>
+	 <1396306773.18499.22.camel@buesod1.americas.hpqcorp.net>
+	 <20140331161308.6510381345cb9a1b419d5ec0@linux-foundation.org>
+	 <1396308332.18499.25.camel@buesod1.americas.hpqcorp.net>
+	 <20140331170546.3b3e72f0.akpm@linux-foundation.org>
+	 <1396371699.25314.11.camel@buesod1.americas.hpqcorp.net>
+	 <CAHGf_=qsf6vN5k=-PLraG8Q_uU1pofoBDktjVH1N92o76xPadQ@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: linux-api@vger.kernel.org, Greg Troxel <gdt@ir.bbn.com>
+To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Manfred Spraul <manfred@colorfullife.com>, aswin@hp.com, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-For the flags parameter, POSIX says "Either MS_ASYNC or MS_SYNC shall
-be specified, but not both." [1]  There was already a test for the
-"both" condition.  Add a test to ensure that the caller specified one
-of the flags; fail with EINVAL if neither are specified.
+On Tue, 2014-04-01 at 14:10 -0400, KOSAKI Motohiro wrote:
+> On Tue, Apr 1, 2014 at 1:01 PM, Davidlohr Bueso <davidlohr@hp.com> wrote:
+> > On Mon, 2014-03-31 at 17:05 -0700, Andrew Morton wrote:
+> >> On Mon, 31 Mar 2014 16:25:32 -0700 Davidlohr Bueso <davidlohr@hp.com> wrote:
+> >>
+> >> > On Mon, 2014-03-31 at 16:13 -0700, Andrew Morton wrote:
+> >> > > On Mon, 31 Mar 2014 15:59:33 -0700 Davidlohr Bueso <davidlohr@hp.com> wrote:
+> >> > >
+> >> > > > >
+> >> > > > > - Shouldn't there be a way to alter this namespace's shm_ctlmax?
+> >> > > >
+> >> > > > Unfortunately this would also add the complexity I previously mentioned.
+> >> > >
+> >> > > But if the current namespace's shm_ctlmax is too small, you're screwed.
+> >> > > Have to shut down the namespace all the way back to init_ns and start
+> >> > > again.
+> >> > >
+> >> > > > > - What happens if we just nuke the limit altogether and fall back to
+> >> > > > >   the next check, which presumably is the rlimit bounds?
+> >> > > >
+> >> > > > afaik we only have rlimit for msgqueues. But in any case, while I like
+> >> > > > that simplicity, it's too late. Too many workloads (specially DBs) rely
+> >> > > > heavily on shmmax. Removing it and relying on something else would thus
+> >> > > > cause a lot of things to break.
+> >> > >
+> >> > > It would permit larger shm segments - how could that break things?  It
+> >> > > would make most or all of these issues go away?
+> >> > >
+> >> >
+> >> > So sysadmins wouldn't be very happy, per man shmget(2):
+> >> >
+> >> > EINVAL A new segment was to be created and size < SHMMIN or size >
+> >> > SHMMAX, or no new segment was to be created, a segment with given key
+> >> > existed, but size is greater than the size of that segment.
+> >>
+> >> So their system will act as if they had set SHMMAX=enormous.  What
+> >> problems could that cause?
+> >
+> > So, just like any sysctl configurable, only privileged users can change
+> > this value. If we remove this option, users can theoretically create
+> > huge segments, thus ignoring any custom limit previously set. This is
+> > what I fear. Think of it kind of like mlock's rlimit. And for that
+> > matter, why does sysctl exist at all, the same would go for the rest of
+> > the limits.
+> 
+> Hmm. It's hard to agree. AFAIK 32MB is just borrowed from other Unix
+> and it doesn't respect any Linux internals. 
 
-Without this change, specifying neither is the same as specifying
-flags=MS_ASYNC because nothing in msync() is conditioned on the
-MS_ASYNC flag.  This has not always been true, and there's no good
-reason to believe that this behavior would have persisted
-indefinitely.
+Agreed, it's stupid, but it's what Linux chose to use since forever.
 
-The msync(2) man page (as currently written in man-pages.git) is
-silent on the behavior if both flags are unset, so this change should
-not break an application written by somone who carefully reads the
-Linux man pages or the POSIX spec.
+> Look, non privileged user
+> can user unlimited memory, at least on linux. So I don't find out any
+> difference between regular anon and shmem.
 
-[1] http://pubs.opengroup.org/onlinepubs/9699919799/functions/msync.html
+Fine, let's try it, if users complain we can revert.
 
-Signed-off-by: Richard Hansen <rhansen@bbn.com>
-Reported-by: Greg Troxel <gdt@ir.bbn.com>
-Reviewed-by: Greg Troxel <gdt@ir.bbn.com>
----
+> 
+> So, I personally like 0 byte per default.
 
-This is a resend of:
-http://article.gmane.org/gmane.linux.kernel/1554416
-I didn't get any feedback from that submission, so I'm resending it
-without changes.
+If by this you mean 0 bytes == unlimited, then I agree. It's less harsh
+then removing it entirely. So instead of removing the limit we can just
+set it by default to 0, and in newseg() if shm_ctlmax == 0 then we don't
+return EINVAL if the passed size is great (obviously), otherwise, if the
+user _explicitly_ set it via sysctl then we respect that. Andrew, do you
+agree with this? If so I'll send a patch.
 
- mm/msync.c | 2 ++
- 1 file changed, 2 insertions(+)
-
-diff --git a/mm/msync.c b/mm/msync.c
-index 632df45..472ad3e 100644
---- a/mm/msync.c
-+++ b/mm/msync.c
-@@ -42,6 +42,8 @@ SYSCALL_DEFINE3(msync, unsigned long, start, size_t,
-len, int, flags)
- 		goto out;
- 	if ((flags & MS_ASYNC) && (flags & MS_SYNC))
- 		goto out;
-+	if (!(flags & (MS_ASYNC | MS_SYNC)))
-+		goto out;
- 	error = -ENOMEM;
- 	len = (len + ~PAGE_MASK) & PAGE_MASK;
- 	end = start + len;
--- 
-1.8.4
+Thanks,
+Davidlohr
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
