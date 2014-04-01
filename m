@@ -1,54 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f175.google.com (mail-we0-f175.google.com [74.125.82.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B7256B0036
-	for <linux-mm@kvack.org>; Tue,  1 Apr 2014 14:31:43 -0400 (EDT)
-Received: by mail-we0-f175.google.com with SMTP id q58so6771536wes.34
-        for <linux-mm@kvack.org>; Tue, 01 Apr 2014 11:31:42 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id fv2si10336855wib.104.2014.04.01.11.31.41
-        for <linux-mm@kvack.org>;
-        Tue, 01 Apr 2014 11:31:42 -0700 (PDT)
-Message-ID: <533B0603.7040301@redhat.com>
-Date: Tue, 01 Apr 2014 14:31:31 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail-vc0-f180.google.com (mail-vc0-f180.google.com [209.85.220.180])
+	by kanga.kvack.org (Postfix) with ESMTP id BA99A6B0031
+	for <linux-mm@kvack.org>; Tue,  1 Apr 2014 14:43:12 -0400 (EDT)
+Received: by mail-vc0-f180.google.com with SMTP id lf12so10058239vcb.39
+        for <linux-mm@kvack.org>; Tue, 01 Apr 2014 11:43:12 -0700 (PDT)
+Received: from mail-vc0-x229.google.com (mail-vc0-x229.google.com [2607:f8b0:400c:c03::229])
+        by mx.google.com with ESMTPS id cm9si3864380vcb.46.2014.04.01.11.43.11
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 01 Apr 2014 11:43:11 -0700 (PDT)
+Received: by mail-vc0-f169.google.com with SMTP id ik5so10389117vcb.14
+        for <linux-mm@kvack.org>; Tue, 01 Apr 2014 11:43:11 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH] x86,mm: delay TLB flush after clearing accessed bit
-References: <20140331113442.0d628362@annuminas.surriel.com>	<CA+55aFzG=B3t_YaoCY_H1jmEgs+cYd--ZHz7XhGeforMRvNfEQ@mail.gmail.com>	<533AE518.1090705@redhat.com> <CA+55aFx9KYTV_N3qjV6S9uu6iTiVZimXhZtUa9UYRkNR9P-7RQ@mail.gmail.com>
-In-Reply-To: <CA+55aFx9KYTV_N3qjV6S9uu6iTiVZimXhZtUa9UYRkNR9P-7RQ@mail.gmail.com>
+In-Reply-To: <533B0301.3010507@citrix.com>
+References: <1395425902-29817-1-git-send-email-david.vrabel@citrix.com>
+	<1395425902-29817-3-git-send-email-david.vrabel@citrix.com>
+	<533016CB.4090807@citrix.com>
+	<CAKbGBLiVqaHEOZx6y4MW4xDTUdKRhVLZXTTGiqYT7vuH2Wgeww@mail.gmail.com>
+	<CA+55aFwEwUmLe+dsFghMcaXdG5LPZ_NcQeOU1zZvEf7rCPw5CQ@mail.gmail.com>
+	<20140331122625.GR25087@suse.de>
+	<CA+55aFwGF9G+FBH3a5L0hHkTYaP9eCAfUT+OwvqUY_6N6LcbaQ@mail.gmail.com>
+	<533B0301.3010507@citrix.com>
+Date: Tue, 1 Apr 2014 11:43:11 -0700
+Message-ID: <CA+55aFw2wReYNaxtTRYjEWTRsV=bMAFq8YK3=qX-PCvQjY72Kw@mail.gmail.com>
+Subject: Re: [PATCH 2/2] x86: use pv-ops in {pte,pmd}_{set,clear}_flags()
+From: Linus Torvalds <torvalds@linux-foundation.org>
 Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, shli@kernel.org, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>
+To: David Vrabel <david.vrabel@citrix.com>
+Cc: Mel Gorman <mgorman@suse.de>, Steven Noonan <steven@uplinklabs.net>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, linux-mm <linux-mm@kvack.org>
 
-On 04/01/2014 12:21 PM, Linus Torvalds wrote:
-> On Tue, Apr 1, 2014 at 9:11 AM, Rik van Riel <riel@redhat.com> wrote:
->>
->> Memory pressure is not necessarily caused by the same process
->> whose accessed bit we just cleared. Memory pressure may not
->> even be caused by any process's virtual memory at all, but it
->> could be caused by the page cache.
-> 
-> If we have that much memory pressure on the page cache without having
-> any memory pressure on the actual VM space, then the swap-out activity
-> will never be an issue anyway.
-> 
-> IOW, I think all these scenarios are made-up. I'd much rather go for
-> simpler implementation, and make things more complex only in the
-> presence of numbers. Of which we have none.
+On Tue, Apr 1, 2014 at 11:18 AM, David Vrabel <david.vrabel@citrix.com> wrote:
+>
+> I don't think it's sufficient to avoid collisions with bits used only
+> with P=0.  The original value of this bit must be retained when the
+> _PAGE_NUMA bit is set/cleared.
+>
+> Bit 7 is PAT[2] and whilst Linux currently sets up the PAT such that
+> PAT[2] is a 'don't care', there has been talk up adjusting the PAT to
+> include more types. So I'm not sure it's a good idea to use bit 7.
+>
+> What's wrong with using e.g., bit 62? And not supporting this NUMA
+> rebalancing feature on 32-bit non-PAE builds?
 
-We've been bitten by the lack of a properly tracked accessed
-bit before, but admittedly that was with the KVM code and EPT.
+Sounds good to me, but it's not available in 32-bit PAE. The high bits
+are all reserved, afaik.
 
-I'll add my Acked-by: to Shaohua's original patch then, and
-will keep my eyes open for any problems that may or may not
-materialize...
+But you'd have to be insane to care about NUMA balancing on 32-bit,
+even with PAE. So restricting it to x86-64 and using the high bits (I
+think bits 52-62 are all available to SW) sounds fine to me.
 
-Shaohua?
+Same goes for soft-dirty. I think it's fine if we say that you won't
+have soft-dirty with a 32-bit kernel. Even with PAE.
 
--- 
-All rights reversed
+                Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
