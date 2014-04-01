@@ -1,103 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f176.google.com (mail-ob0-f176.google.com [209.85.214.176])
-	by kanga.kvack.org (Postfix) with ESMTP id C4F556B0038
-	for <linux-mm@kvack.org>; Tue,  1 Apr 2014 15:51:51 -0400 (EDT)
-Received: by mail-ob0-f176.google.com with SMTP id wp18so11551791obc.21
-        for <linux-mm@kvack.org>; Tue, 01 Apr 2014 12:51:51 -0700 (PDT)
-Received: from mail-ob0-x231.google.com (mail-ob0-x231.google.com [2607:f8b0:4003:c01::231])
-        by mx.google.com with ESMTPS id ij7si15896004obc.36.2014.04.01.12.51.50
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 01 Apr 2014 12:51:51 -0700 (PDT)
-Received: by mail-ob0-f177.google.com with SMTP id wo20so11220372obc.22
-        for <linux-mm@kvack.org>; Tue, 01 Apr 2014 12:51:50 -0700 (PDT)
+Received: from mail-wg0-f47.google.com (mail-wg0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 12BE56B003B
+	for <linux-mm@kvack.org>; Tue,  1 Apr 2014 16:04:44 -0400 (EDT)
+Received: by mail-wg0-f47.google.com with SMTP id x12so8070333wgg.30
+        for <linux-mm@kvack.org>; Tue, 01 Apr 2014 13:04:44 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id y41si29640114eel.230.2014.04.01.13.04.42
+        for <linux-mm@kvack.org>;
+        Tue, 01 Apr 2014 13:04:43 -0700 (PDT)
+Message-ID: <533B12A6.9020403@redhat.com>
+Date: Tue, 01 Apr 2014 15:25:26 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <1396377083.25314.17.camel@buesod1.americas.hpqcorp.net>
-References: <1396235199.2507.2.camel@buesod1.americas.hpqcorp.net>
- <20140331143217.c6ff958e1fd9944d78507418@linux-foundation.org>
- <1396306773.18499.22.camel@buesod1.americas.hpqcorp.net> <20140331161308.6510381345cb9a1b419d5ec0@linux-foundation.org>
- <1396308332.18499.25.camel@buesod1.americas.hpqcorp.net> <20140331170546.3b3e72f0.akpm@linux-foundation.org>
- <1396371699.25314.11.camel@buesod1.americas.hpqcorp.net> <CAHGf_=qsf6vN5k=-PLraG8Q_uU1pofoBDktjVH1N92o76xPadQ@mail.gmail.com>
- <1396377083.25314.17.camel@buesod1.americas.hpqcorp.net>
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Date: Tue, 1 Apr 2014 15:51:30 -0400
-Message-ID: <CAHGf_=rLLBDr5ptLMvFD-M+TPQSnK3EP=7R+27K8or84rY-KLA@mail.gmail.com>
-Subject: Re: [PATCH] ipc,shm: increase default size for shmmax
+Subject: Re: [RFC v5] mm: prototype: rid swapoff of quadratic complexity
+References: <20140401051638.GA13715@kelleynnn-virtual-machine>
+In-Reply-To: <20140401051638.GA13715@kelleynnn-virtual-machine>
 Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <davidlohr@hp.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Manfred Spraul <manfred@colorfullife.com>, aswin@hp.com, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Kelley Nielsen <kelleynnn@gmail.com>, jamieliu@google.com
+Cc: linux-mm@kvack.org, riel@surriel.com, opw-kernel@googlegroups.com, hughd@google.com, akpm@linux-foundation.org, sarah.a.sharp@intel.com
 
-On Tue, Apr 1, 2014 at 2:31 PM, Davidlohr Bueso <davidlohr@hp.com> wrote:
-> On Tue, 2014-04-01 at 14:10 -0400, KOSAKI Motohiro wrote:
->> On Tue, Apr 1, 2014 at 1:01 PM, Davidlohr Bueso <davidlohr@hp.com> wrote:
->> > On Mon, 2014-03-31 at 17:05 -0700, Andrew Morton wrote:
->> >> On Mon, 31 Mar 2014 16:25:32 -0700 Davidlohr Bueso <davidlohr@hp.com> wrote:
->> >>
->> >> > On Mon, 2014-03-31 at 16:13 -0700, Andrew Morton wrote:
->> >> > > On Mon, 31 Mar 2014 15:59:33 -0700 Davidlohr Bueso <davidlohr@hp.com> wrote:
->> >> > >
->> >> > > > >
->> >> > > > > - Shouldn't there be a way to alter this namespace's shm_ctlmax?
->> >> > > >
->> >> > > > Unfortunately this would also add the complexity I previously mentioned.
->> >> > >
->> >> > > But if the current namespace's shm_ctlmax is too small, you're screwed.
->> >> > > Have to shut down the namespace all the way back to init_ns and start
->> >> > > again.
->> >> > >
->> >> > > > > - What happens if we just nuke the limit altogether and fall back to
->> >> > > > >   the next check, which presumably is the rlimit bounds?
->> >> > > >
->> >> > > > afaik we only have rlimit for msgqueues. But in any case, while I like
->> >> > > > that simplicity, it's too late. Too many workloads (specially DBs) rely
->> >> > > > heavily on shmmax. Removing it and relying on something else would thus
->> >> > > > cause a lot of things to break.
->> >> > >
->> >> > > It would permit larger shm segments - how could that break things?  It
->> >> > > would make most or all of these issues go away?
->> >> > >
->> >> >
->> >> > So sysadmins wouldn't be very happy, per man shmget(2):
->> >> >
->> >> > EINVAL A new segment was to be created and size < SHMMIN or size >
->> >> > SHMMAX, or no new segment was to be created, a segment with given key
->> >> > existed, but size is greater than the size of that segment.
->> >>
->> >> So their system will act as if they had set SHMMAX=enormous.  What
->> >> problems could that cause?
->> >
->> > So, just like any sysctl configurable, only privileged users can change
->> > this value. If we remove this option, users can theoretically create
->> > huge segments, thus ignoring any custom limit previously set. This is
->> > what I fear. Think of it kind of like mlock's rlimit. And for that
->> > matter, why does sysctl exist at all, the same would go for the rest of
->> > the limits.
->>
->> Hmm. It's hard to agree. AFAIK 32MB is just borrowed from other Unix
->> and it doesn't respect any Linux internals.
->
-> Agreed, it's stupid, but it's what Linux chose to use since forever.
->
->> Look, non privileged user
->> can user unlimited memory, at least on linux. So I don't find out any
->> difference between regular anon and shmem.
->
-> Fine, let's try it, if users complain we can revert.
->
->>
->> So, I personally like 0 byte per default.
->
-> If by this you mean 0 bytes == unlimited, then I agree. It's less harsh
-> then removing it entirely. So instead of removing the limit we can just
-> set it by default to 0, and in newseg() if shm_ctlmax == 0 then we don't
-> return EINVAL if the passed size is great (obviously), otherwise, if the
-> user _explicitly_ set it via sysctl then we respect that. Andrew, do you
-> agree with this? If so I'll send a patch.
+On 04/01/2014 01:16 AM, Kelley Nielsen wrote:
+> The function try_to_unuse() is of quadratic complexity, with a lot of
+> wasted effort. It unuses swap entries one by one, potentially iterating
+> over all the page tables for all the processes in the system for each
+> one.
+> 
+> This new proposed implementation of try_to_unuse simplifies its
+> complexity to linear. It iterates over the system's mms once, unusing
+> all the affected entries as it walks each set of page tables. It also
+> makes similar changes to shmem_unuse.
+> 
+> Improvement
+> 
+> Time took by swapoff on a swap partition containing about 240M of data,
+> with about 1.1G free memory and about 520M swap available. Swap
+> partition was on a laptop with a hard disk drive (not SSD).
+> 
+> Present implementation....about 13.8s
+> Prototype.................about  5.5s
 
-Yes, my 0 bytes mean unlimited. I totally agree we shouldn't remove the knob
-entirely.
+> TODO
+> 
+> * Handle count of unused pages for frontswap.
+
+That should probably wait for a follow-up patch. This patch is big
+enough as is.
+
+> Signed-off-by: Kelley Nielsen <kelleynnn@gmail.com>
+
+Acked-by: Rik van Riel <riel@redhat.com>
+
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
