@@ -1,103 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f180.google.com (mail-ob0-f180.google.com [209.85.214.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 51E206B0031
-	for <linux-mm@kvack.org>; Tue,  1 Apr 2014 14:31:26 -0400 (EDT)
-Received: by mail-ob0-f180.google.com with SMTP id wn1so11146133obc.25
-        for <linux-mm@kvack.org>; Tue, 01 Apr 2014 11:31:26 -0700 (PDT)
-Received: from g4t3427.houston.hp.com (g4t3427.houston.hp.com. [15.201.208.55])
-        by mx.google.com with ESMTPS id ns8si15738313obc.153.2014.04.01.11.31.25
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 01 Apr 2014 11:31:25 -0700 (PDT)
-Message-ID: <1396377083.25314.17.camel@buesod1.americas.hpqcorp.net>
-Subject: Re: [PATCH] ipc,shm: increase default size for shmmax
-From: Davidlohr Bueso <davidlohr@hp.com>
-Date: Tue, 01 Apr 2014 11:31:23 -0700
-In-Reply-To: <CAHGf_=qsf6vN5k=-PLraG8Q_uU1pofoBDktjVH1N92o76xPadQ@mail.gmail.com>
-References: <1396235199.2507.2.camel@buesod1.americas.hpqcorp.net>
-	 <20140331143217.c6ff958e1fd9944d78507418@linux-foundation.org>
-	 <1396306773.18499.22.camel@buesod1.americas.hpqcorp.net>
-	 <20140331161308.6510381345cb9a1b419d5ec0@linux-foundation.org>
-	 <1396308332.18499.25.camel@buesod1.americas.hpqcorp.net>
-	 <20140331170546.3b3e72f0.akpm@linux-foundation.org>
-	 <1396371699.25314.11.camel@buesod1.americas.hpqcorp.net>
-	 <CAHGf_=qsf6vN5k=-PLraG8Q_uU1pofoBDktjVH1N92o76xPadQ@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
+Received: from mail-we0-f175.google.com (mail-we0-f175.google.com [74.125.82.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B7256B0036
+	for <linux-mm@kvack.org>; Tue,  1 Apr 2014 14:31:43 -0400 (EDT)
+Received: by mail-we0-f175.google.com with SMTP id q58so6771536wes.34
+        for <linux-mm@kvack.org>; Tue, 01 Apr 2014 11:31:42 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id fv2si10336855wib.104.2014.04.01.11.31.41
+        for <linux-mm@kvack.org>;
+        Tue, 01 Apr 2014 11:31:42 -0700 (PDT)
+Message-ID: <533B0603.7040301@redhat.com>
+Date: Tue, 01 Apr 2014 14:31:31 -0400
+From: Rik van Riel <riel@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] x86,mm: delay TLB flush after clearing accessed bit
+References: <20140331113442.0d628362@annuminas.surriel.com>	<CA+55aFzG=B3t_YaoCY_H1jmEgs+cYd--ZHz7XhGeforMRvNfEQ@mail.gmail.com>	<533AE518.1090705@redhat.com> <CA+55aFx9KYTV_N3qjV6S9uu6iTiVZimXhZtUa9UYRkNR9P-7RQ@mail.gmail.com>
+In-Reply-To: <CA+55aFx9KYTV_N3qjV6S9uu6iTiVZimXhZtUa9UYRkNR9P-7RQ@mail.gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Manfred Spraul <manfred@colorfullife.com>, aswin@hp.com, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, shli@kernel.org, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>
 
-On Tue, 2014-04-01 at 14:10 -0400, KOSAKI Motohiro wrote:
-> On Tue, Apr 1, 2014 at 1:01 PM, Davidlohr Bueso <davidlohr@hp.com> wrote:
-> > On Mon, 2014-03-31 at 17:05 -0700, Andrew Morton wrote:
-> >> On Mon, 31 Mar 2014 16:25:32 -0700 Davidlohr Bueso <davidlohr@hp.com> wrote:
-> >>
-> >> > On Mon, 2014-03-31 at 16:13 -0700, Andrew Morton wrote:
-> >> > > On Mon, 31 Mar 2014 15:59:33 -0700 Davidlohr Bueso <davidlohr@hp.com> wrote:
-> >> > >
-> >> > > > >
-> >> > > > > - Shouldn't there be a way to alter this namespace's shm_ctlmax?
-> >> > > >
-> >> > > > Unfortunately this would also add the complexity I previously mentioned.
-> >> > >
-> >> > > But if the current namespace's shm_ctlmax is too small, you're screwed.
-> >> > > Have to shut down the namespace all the way back to init_ns and start
-> >> > > again.
-> >> > >
-> >> > > > > - What happens if we just nuke the limit altogether and fall back to
-> >> > > > >   the next check, which presumably is the rlimit bounds?
-> >> > > >
-> >> > > > afaik we only have rlimit for msgqueues. But in any case, while I like
-> >> > > > that simplicity, it's too late. Too many workloads (specially DBs) rely
-> >> > > > heavily on shmmax. Removing it and relying on something else would thus
-> >> > > > cause a lot of things to break.
-> >> > >
-> >> > > It would permit larger shm segments - how could that break things?  It
-> >> > > would make most or all of these issues go away?
-> >> > >
-> >> >
-> >> > So sysadmins wouldn't be very happy, per man shmget(2):
-> >> >
-> >> > EINVAL A new segment was to be created and size < SHMMIN or size >
-> >> > SHMMAX, or no new segment was to be created, a segment with given key
-> >> > existed, but size is greater than the size of that segment.
-> >>
-> >> So their system will act as if they had set SHMMAX=enormous.  What
-> >> problems could that cause?
-> >
-> > So, just like any sysctl configurable, only privileged users can change
-> > this value. If we remove this option, users can theoretically create
-> > huge segments, thus ignoring any custom limit previously set. This is
-> > what I fear. Think of it kind of like mlock's rlimit. And for that
-> > matter, why does sysctl exist at all, the same would go for the rest of
-> > the limits.
+On 04/01/2014 12:21 PM, Linus Torvalds wrote:
+> On Tue, Apr 1, 2014 at 9:11 AM, Rik van Riel <riel@redhat.com> wrote:
+>>
+>> Memory pressure is not necessarily caused by the same process
+>> whose accessed bit we just cleared. Memory pressure may not
+>> even be caused by any process's virtual memory at all, but it
+>> could be caused by the page cache.
 > 
-> Hmm. It's hard to agree. AFAIK 32MB is just borrowed from other Unix
-> and it doesn't respect any Linux internals. 
-
-Agreed, it's stupid, but it's what Linux chose to use since forever.
-
-> Look, non privileged user
-> can user unlimited memory, at least on linux. So I don't find out any
-> difference between regular anon and shmem.
-
-Fine, let's try it, if users complain we can revert.
-
+> If we have that much memory pressure on the page cache without having
+> any memory pressure on the actual VM space, then the swap-out activity
+> will never be an issue anyway.
 > 
-> So, I personally like 0 byte per default.
+> IOW, I think all these scenarios are made-up. I'd much rather go for
+> simpler implementation, and make things more complex only in the
+> presence of numbers. Of which we have none.
 
-If by this you mean 0 bytes == unlimited, then I agree. It's less harsh
-then removing it entirely. So instead of removing the limit we can just
-set it by default to 0, and in newseg() if shm_ctlmax == 0 then we don't
-return EINVAL if the passed size is great (obviously), otherwise, if the
-user _explicitly_ set it via sysctl then we respect that. Andrew, do you
-agree with this? If so I'll send a patch.
+We've been bitten by the lack of a properly tracked accessed
+bit before, but admittedly that was with the KVM code and EPT.
 
-Thanks,
-Davidlohr
+I'll add my Acked-by: to Shaohua's original patch then, and
+will keep my eyes open for any problems that may or may not
+materialize...
+
+Shaohua?
+
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
