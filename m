@@ -1,83 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oa0-f48.google.com (mail-oa0-f48.google.com [209.85.219.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B8E06B0031
-	for <linux-mm@kvack.org>; Tue,  1 Apr 2014 14:11:05 -0400 (EDT)
-Received: by mail-oa0-f48.google.com with SMTP id m1so11677784oag.35
-        for <linux-mm@kvack.org>; Tue, 01 Apr 2014 11:11:04 -0700 (PDT)
-Received: from mail-oa0-x236.google.com (mail-oa0-x236.google.com [2607:f8b0:4003:c02::236])
-        by mx.google.com with ESMTPS id u10si15717361obn.33.2014.04.01.11.11.04
+Received: from mail-yh0-f53.google.com (mail-yh0-f53.google.com [209.85.213.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 377BC6B0031
+	for <linux-mm@kvack.org>; Tue,  1 Apr 2014 14:19:08 -0400 (EDT)
+Received: by mail-yh0-f53.google.com with SMTP id v1so9351394yhn.26
+        for <linux-mm@kvack.org>; Tue, 01 Apr 2014 11:19:07 -0700 (PDT)
+Received: from SMTP02.CITRIX.COM (smtp02.citrix.com. [66.165.176.63])
+        by mx.google.com with ESMTPS id f21si13373747yhc.124.2014.04.01.11.19.07
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 01 Apr 2014 11:11:04 -0700 (PDT)
-Received: by mail-oa0-f54.google.com with SMTP id n16so11701939oag.13
-        for <linux-mm@kvack.org>; Tue, 01 Apr 2014 11:11:04 -0700 (PDT)
+        Tue, 01 Apr 2014 11:19:07 -0700 (PDT)
+Message-ID: <533B0301.3010507@citrix.com>
+Date: Tue, 1 Apr 2014 19:18:41 +0100
+From: David Vrabel <david.vrabel@citrix.com>
 MIME-Version: 1.0
-In-Reply-To: <1396371699.25314.11.camel@buesod1.americas.hpqcorp.net>
-References: <1396235199.2507.2.camel@buesod1.americas.hpqcorp.net>
- <20140331143217.c6ff958e1fd9944d78507418@linux-foundation.org>
- <1396306773.18499.22.camel@buesod1.americas.hpqcorp.net> <20140331161308.6510381345cb9a1b419d5ec0@linux-foundation.org>
- <1396308332.18499.25.camel@buesod1.americas.hpqcorp.net> <20140331170546.3b3e72f0.akpm@linux-foundation.org>
- <1396371699.25314.11.camel@buesod1.americas.hpqcorp.net>
-From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Date: Tue, 1 Apr 2014 14:10:43 -0400
-Message-ID: <CAHGf_=qsf6vN5k=-PLraG8Q_uU1pofoBDktjVH1N92o76xPadQ@mail.gmail.com>
-Subject: Re: [PATCH] ipc,shm: increase default size for shmmax
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH 2/2] x86: use pv-ops in {pte,pmd}_{set,clear}_flags()
+References: <1395425902-29817-1-git-send-email-david.vrabel@citrix.com>	<1395425902-29817-3-git-send-email-david.vrabel@citrix.com>	<533016CB.4090807@citrix.com>	<CAKbGBLiVqaHEOZx6y4MW4xDTUdKRhVLZXTTGiqYT7vuH2Wgeww@mail.gmail.com>	<CA+55aFwEwUmLe+dsFghMcaXdG5LPZ_NcQeOU1zZvEf7rCPw5CQ@mail.gmail.com>	<20140331122625.GR25087@suse.de> <CA+55aFwGF9G+FBH3a5L0hHkTYaP9eCAfUT+OwvqUY_6N6LcbaQ@mail.gmail.com>
+In-Reply-To: <CA+55aFwGF9G+FBH3a5L0hHkTYaP9eCAfUT+OwvqUY_6N6LcbaQ@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <davidlohr@hp.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Manfred Spraul <manfred@colorfullife.com>, aswin@hp.com, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, Steven Noonan <steven@uplinklabs.net>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, linux-mm <linux-mm@kvack.org>
 
-On Tue, Apr 1, 2014 at 1:01 PM, Davidlohr Bueso <davidlohr@hp.com> wrote:
-> On Mon, 2014-03-31 at 17:05 -0700, Andrew Morton wrote:
->> On Mon, 31 Mar 2014 16:25:32 -0700 Davidlohr Bueso <davidlohr@hp.com> wrote:
+On 31/03/14 16:41, Linus Torvalds wrote:
+> On Mon, Mar 31, 2014 at 5:26 AM, Mel Gorman <mgorman@suse.de> wrote:
 >>
->> > On Mon, 2014-03-31 at 16:13 -0700, Andrew Morton wrote:
->> > > On Mon, 31 Mar 2014 15:59:33 -0700 Davidlohr Bueso <davidlohr@hp.com> wrote:
->> > >
->> > > > >
->> > > > > - Shouldn't there be a way to alter this namespace's shm_ctlmax?
->> > > >
->> > > > Unfortunately this would also add the complexity I previously mentioned.
->> > >
->> > > But if the current namespace's shm_ctlmax is too small, you're screwed.
->> > > Have to shut down the namespace all the way back to init_ns and start
->> > > again.
->> > >
->> > > > > - What happens if we just nuke the limit altogether and fall back to
->> > > > >   the next check, which presumably is the rlimit bounds?
->> > > >
->> > > > afaik we only have rlimit for msgqueues. But in any case, while I like
->> > > > that simplicity, it's too late. Too many workloads (specially DBs) rely
->> > > > heavily on shmmax. Removing it and relying on something else would thus
->> > > > cause a lot of things to break.
->> > >
->> > > It would permit larger shm segments - how could that break things?  It
->> > > would make most or all of these issues go away?
->> > >
->> >
->> > So sysadmins wouldn't be very happy, per man shmget(2):
->> >
->> > EINVAL A new segment was to be created and size < SHMMIN or size >
->> > SHMMAX, or no new segment was to be created, a segment with given key
->> > existed, but size is greater than the size of that segment.
->>
->> So their system will act as if they had set SHMMAX=enormous.  What
->> problems could that cause?
->
-> So, just like any sysctl configurable, only privileged users can change
-> this value. If we remove this option, users can theoretically create
-> huge segments, thus ignoring any custom limit previously set. This is
-> what I fear. Think of it kind of like mlock's rlimit. And for that
-> matter, why does sysctl exist at all, the same would go for the rest of
-> the limits.
+>> Ok, so how do you suggest that _PAGE_NUMA could have been implemented
+>> that did *not* use _PAGE_PROTNONE on x86, trapped a fault and was not
+>> expensive as hell to handle?
+> 
+> So on x86, the obvious model is to use another bit. We've got several.
+> The _PAGE_NUMA case only matters for when _PAGE_PRESENT is clear, and
+> when that bit is clear the hardware doesn't care about any of the
+> other bits. Currently we use:
+> 
+>   #define _PAGE_BIT_PROTNONE      _PAGE_BIT_GLOBAL
+>   #define _PAGE_BIT_FILE          _PAGE_BIT_DIRTY
+> 
+> which are bits 8 and 6 respectively, afaik.
+> 
+> and the only rule is that (a) we should *not* use a bit we already use
+> when the page is not present (since that is ambiguous!) and (b) we
+> should *not* use a bit that is used by the swap index cases. I think
+> bit 7 should work, but maybe I missed something.
 
-Hmm. It's hard to agree. AFAIK 32MB is just borrowed from other Unix
-and it doesn't respect any Linux internals. Look, non privileged user
-can user unlimited memory, at least on linux. So I don't find out any
-difference between regular anon and shmem.
+I don't think it's sufficient to avoid collisions with bits used only
+with P=0.  The original value of this bit must be retained when the
+_PAGE_NUMA bit is set/cleared.
 
-So, I personally like 0 byte per default.
+Bit 7 is PAT[2] and whilst Linux currently sets up the PAT such that
+PAT[2] is a 'don't care', there has been talk up adjusting the PAT to
+include more types. So I'm not sure it's a good idea to use bit 7.
+
+What's wrong with using e.g., bit 62? And not supporting this NUMA
+rebalancing feature on 32-bit non-PAE builds?
+
+David
+
+> Can somebody tell me why _PAGE_NUMA is *not* that bit seven? Make
+> "pte_present()" on x86 just check all of the present/numa/protnone
+> bits, and if any of them is set, it's a "present" page.
+> 
+> Now, unlike x86, some other architectures do *not* have free bits, so
+> there may be problems elsewhere.
+> 
+>             Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
