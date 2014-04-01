@@ -1,47 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vc0-f179.google.com (mail-vc0-f179.google.com [209.85.220.179])
-	by kanga.kvack.org (Postfix) with ESMTP id A6C146B0031
-	for <linux-mm@kvack.org>; Tue,  1 Apr 2014 12:21:41 -0400 (EDT)
-Received: by mail-vc0-f179.google.com with SMTP id ij19so9864620vcb.24
-        for <linux-mm@kvack.org>; Tue, 01 Apr 2014 09:21:41 -0700 (PDT)
-Received: from mail-vc0-x230.google.com (mail-vc0-x230.google.com [2607:f8b0:400c:c03::230])
-        by mx.google.com with ESMTPS id vd8si3745018vdc.34.2014.04.01.09.21.40
+Received: from mail-pb0-f49.google.com (mail-pb0-f49.google.com [209.85.160.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 0FC666B0031
+	for <linux-mm@kvack.org>; Tue,  1 Apr 2014 13:01:42 -0400 (EDT)
+Received: by mail-pb0-f49.google.com with SMTP id jt11so10092571pbb.22
+        for <linux-mm@kvack.org>; Tue, 01 Apr 2014 10:01:42 -0700 (PDT)
+Received: from g6t1526.atlanta.hp.com (g6t1526.atlanta.hp.com. [15.193.200.69])
+        by mx.google.com with ESMTPS id iw3si11603492pac.14.2014.04.01.10.01.41
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 01 Apr 2014 09:21:40 -0700 (PDT)
-Received: by mail-vc0-f176.google.com with SMTP id lc6so9795533vcb.7
-        for <linux-mm@kvack.org>; Tue, 01 Apr 2014 09:21:40 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <533AE518.1090705@redhat.com>
-References: <20140331113442.0d628362@annuminas.surriel.com>
-	<CA+55aFzG=B3t_YaoCY_H1jmEgs+cYd--ZHz7XhGeforMRvNfEQ@mail.gmail.com>
-	<533AE518.1090705@redhat.com>
-Date: Tue, 1 Apr 2014 09:21:40 -0700
-Message-ID: <CA+55aFx9KYTV_N3qjV6S9uu6iTiVZimXhZtUa9UYRkNR9P-7RQ@mail.gmail.com>
-Subject: Re: [PATCH] x86,mm: delay TLB flush after clearing accessed bit
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 01 Apr 2014 10:01:42 -0700 (PDT)
+Message-ID: <1396371699.25314.11.camel@buesod1.americas.hpqcorp.net>
+Subject: Re: [PATCH] ipc,shm: increase default size for shmmax
+From: Davidlohr Bueso <davidlohr@hp.com>
+Date: Tue, 01 Apr 2014 10:01:39 -0700
+In-Reply-To: <20140331170546.3b3e72f0.akpm@linux-foundation.org>
+References: <1396235199.2507.2.camel@buesod1.americas.hpqcorp.net>
+	 <20140331143217.c6ff958e1fd9944d78507418@linux-foundation.org>
+	 <1396306773.18499.22.camel@buesod1.americas.hpqcorp.net>
+	 <20140331161308.6510381345cb9a1b419d5ec0@linux-foundation.org>
+	 <1396308332.18499.25.camel@buesod1.americas.hpqcorp.net>
+	 <20140331170546.3b3e72f0.akpm@linux-foundation.org>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, shli@kernel.org, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Manfred Spraul <manfred@colorfullife.com>, aswin@hp.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Apr 1, 2014 at 9:11 AM, Rik van Riel <riel@redhat.com> wrote:
->
-> Memory pressure is not necessarily caused by the same process
-> whose accessed bit we just cleared. Memory pressure may not
-> even be caused by any process's virtual memory at all, but it
-> could be caused by the page cache.
+On Mon, 2014-03-31 at 17:05 -0700, Andrew Morton wrote:
+> On Mon, 31 Mar 2014 16:25:32 -0700 Davidlohr Bueso <davidlohr@hp.com> wrote:
+> 
+> > On Mon, 2014-03-31 at 16:13 -0700, Andrew Morton wrote:
+> > > On Mon, 31 Mar 2014 15:59:33 -0700 Davidlohr Bueso <davidlohr@hp.com> wrote:
+> > > 
+> > > > > 
+> > > > > - Shouldn't there be a way to alter this namespace's shm_ctlmax?
+> > > > 
+> > > > Unfortunately this would also add the complexity I previously mentioned.
+> > > 
+> > > But if the current namespace's shm_ctlmax is too small, you're screwed.
+> > > Have to shut down the namespace all the way back to init_ns and start
+> > > again.
+> > > 
+> > > > > - What happens if we just nuke the limit altogether and fall back to
+> > > > >   the next check, which presumably is the rlimit bounds?
+> > > > 
+> > > > afaik we only have rlimit for msgqueues. But in any case, while I like
+> > > > that simplicity, it's too late. Too many workloads (specially DBs) rely
+> > > > heavily on shmmax. Removing it and relying on something else would thus
+> > > > cause a lot of things to break.
+> > > 
+> > > It would permit larger shm segments - how could that break things?  It
+> > > would make most or all of these issues go away?
+> > > 
+> > 
+> > So sysadmins wouldn't be very happy, per man shmget(2):
+> > 
+> > EINVAL A new segment was to be created and size < SHMMIN or size >
+> > SHMMAX, or no new segment was to be created, a segment with given key
+> > existed, but size is greater than the size of that segment.
+> 
+> So their system will act as if they had set SHMMAX=enormous.  What
+> problems could that cause?
 
-If we have that much memory pressure on the page cache without having
-any memory pressure on the actual VM space, then the swap-out activity
-will never be an issue anyway.
+So, just like any sysctl configurable, only privileged users can change
+this value. If we remove this option, users can theoretically create
+huge segments, thus ignoring any custom limit previously set. This is
+what I fear. Think of it kind of like mlock's rlimit. And for that
+matter, why does sysctl exist at all, the same would go for the rest of
+the limits.
 
-IOW, I think all these scenarios are made-up. I'd much rather go for
-simpler implementation, and make things more complex only in the
-presence of numbers. Of which we have none.
+> Look.  The 32M thing is causing problems.  Arbitrarily increasing the
+> arbitrary 32M to an arbitrary 128M won't fix anything - we still have
+> the problem.  Think bigger, please: how can we make this problem go
+> away for ever?
 
-              Linus
+That's the thing, I don't think we can make it go away without breaking
+userspace. I'm not saying that my 4x increase is the correct value, I
+don't think any default value is really correct, as with any other
+hardcoded limits there are pros and cons. That's really why we give
+users the option to change it to the "correct" one via sysctl. All I'm
+saying is that 32mb is just too small for default in today's systems,
+and increasing it is just making a bad situation a tiny bit better.
+
+Thanks,
+Davidlohr
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
