@@ -1,49 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f50.google.com (mail-bk0-f50.google.com [209.85.214.50])
-	by kanga.kvack.org (Postfix) with ESMTP id D31A56B0031
-	for <linux-mm@kvack.org>; Tue,  1 Apr 2014 12:08:08 -0400 (EDT)
-Received: by mail-bk0-f50.google.com with SMTP id w10so1362193bkz.37
-        for <linux-mm@kvack.org>; Tue, 01 Apr 2014 09:08:08 -0700 (PDT)
-Received: from kirsi1.inet.fi (mta-out.inet.fi. [195.156.147.13])
-        by mx.google.com with ESMTP id qa8si9387494bkb.50.2014.04.01.09.08.06
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id C5C7B6B0031
+	for <linux-mm@kvack.org>; Tue,  1 Apr 2014 12:11:44 -0400 (EDT)
+Received: by mail-wi0-f171.google.com with SMTP id q5so5495306wiv.4
+        for <linux-mm@kvack.org>; Tue, 01 Apr 2014 09:11:44 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id 43si28809267eer.207.2014.04.01.09.11.10
         for <linux-mm@kvack.org>;
-        Tue, 01 Apr 2014 09:08:06 -0700 (PDT)
-Date: Tue, 1 Apr 2014 19:07:38 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH RFC] drivers/char/mem: byte generating devices and
- poisoned mappings
-Message-ID: <20140401160738.GA15175@node.dhcp.inet.fi>
-References: <20140331211607.26784.43976.stgit@zurg>
- <20140401103617.GA10882@node.dhcp.inet.fi>
- <CALYGNiPvZSg7_b47+TbjhTzt0vBSRiXN8edVH=9A3YJOMQMqjA@mail.gmail.com>
+        Tue, 01 Apr 2014 09:11:41 -0700 (PDT)
+Message-ID: <533AE518.1090705@redhat.com>
+Date: Tue, 01 Apr 2014 12:11:04 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CALYGNiPvZSg7_b47+TbjhTzt0vBSRiXN8edVH=9A3YJOMQMqjA@mail.gmail.com>
+Subject: Re: [PATCH] x86,mm: delay TLB flush after clearing accessed bit
+References: <20140331113442.0d628362@annuminas.surriel.com> <CA+55aFzG=B3t_YaoCY_H1jmEgs+cYd--ZHz7XhGeforMRvNfEQ@mail.gmail.com>
+In-Reply-To: <CA+55aFzG=B3t_YaoCY_H1jmEgs+cYd--ZHz7XhGeforMRvNfEQ@mail.gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <koct9i@gmail.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Yury Gribov <y.gribov@samsung.com>, Alexandr Andreev <aandreev@parallels.com>, Vassili Karpov <av1474@comtv.ru>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, shli@kernel.org, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>
 
-On Tue, Apr 01, 2014 at 07:15:31PM +0400, Konstantin Khlebnikov wrote:
-> On Tue, Apr 1, 2014 at 2:36 PM, Kirill A. Shutemov <kirill@shutemov.name> wrote:
-> > On Tue, Apr 01, 2014 at 01:16:07AM +0400, Konstantin Khlebnikov wrote:
-> >> This patch adds 256 virtual character devices: /dev/byte0, ..., /dev/byte255.
-> >> Each works like /dev/zero but generates memory filled with particular byte.
-> >
-> > Shouldn't /dev/byte0 be an alias for /dev/zero?
-> > I see you reuse ZERO_PAGE(0) for that, but what about all these special
-> > cases /dev/zero has?
+On 04/01/2014 11:13 AM, Linus Torvalds wrote:
+> On Mon, Mar 31, 2014 at 8:34 AM, Rik van Riel <riel@redhat.com> wrote:
+>>
+>> However, clearing the accessed bit does not lead to any
+>> consistency issues, there is no reason to flush the TLB
+>> immediately. The TLB flush can be deferred until some
+>> later point in time.
 > 
-> What special cases? I found rss-accounting part, you've mentioned coredump.
+> Ugh. I absolutely detest this patch.
+> 
+> If we're going to leave the TLB dirty, then dammit, leave it dirty.
+> Don't play some half-way games.
+> 
+> Here's the patch you should just try:
+> 
+>  int ptep_clear_flush_young(struct vm_area_struct *vma,
+>         unsigned long address, pte_t *ptep)
+>  {
+>      return ptep_test_and_clear_young(vma, address, ptep);
+>  }
+> 
+> instead of complicating things.
+> 
+> Rationale: if the working set is so big that we start paging things
+> out, we sure as hell don't need to worry about TLB flushing. It will
+> flush itself.
+> 
+> And conversely - if it doesn't flush itself, and something stays
+> marked as "accessed" in the TLB for a long time even though we've
+> cleared it in the page tables, we don't care, because clearly there
+> isn't enough memory pressure for the accessed bit to matter.
 
-I'm not sure what else is there. It's probably good idea to check all
-users of vm_normal_page().
+That was my initial feeling too, when this kind of patch first
+came up, a few years ago.
 
-One thing is zero page coloring which some archs have.
+However, the more I think about it, the less I am convinced it
+is actually true.
+
+Memory pressure is not necessarily caused by the same process
+whose accessed bit we just cleared. Memory pressure may not
+even be caused by any process's virtual memory at all, but it
+could be caused by the page cache.
+
+With 2MB pages, a reasonably sized process could fit in the
+TLB quite easily. Having its accessed bits not make it to the
+page table while its pages are on the inactive list could
+cause it to get paged out, due to memory pressure from another,
+larger process.
+
+I have no particular preference for this implementation, and am
+willing to implement any other idea for batching the TLB shootdowns
+that are due to pageout scanning.
 
 -- 
- Kirill A. Shutemov
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
