@@ -1,115 +1,207 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f45.google.com (mail-qa0-f45.google.com [209.85.216.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 356E96B0035
-	for <linux-mm@kvack.org>; Mon, 31 Mar 2014 21:33:56 -0400 (EDT)
-Received: by mail-qa0-f45.google.com with SMTP id hw13so8743906qab.4
-        for <linux-mm@kvack.org>; Mon, 31 Mar 2014 18:33:55 -0700 (PDT)
-Received: from e9.ny.us.ibm.com (e9.ny.us.ibm.com. [32.97.182.139])
-        by mx.google.com with ESMTPS id l5si4637024qai.146.2014.03.31.18.33.55
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 31 Mar 2014 18:33:55 -0700 (PDT)
-Received: from /spool/local
-	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <nacc@linux.vnet.ibm.com>;
-	Mon, 31 Mar 2014 21:33:54 -0400
-Received: from b01cxnp23033.gho.pok.ibm.com (b01cxnp23033.gho.pok.ibm.com [9.57.198.28])
-	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 2809738C8045
-	for <linux-mm@kvack.org>; Mon, 31 Mar 2014 21:33:52 -0400 (EDT)
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by b01cxnp23033.gho.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s311XqFi131480
-	for <linux-mm@kvack.org>; Tue, 1 Apr 2014 01:33:52 GMT
-Received: from d01av04.pok.ibm.com (localhost [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s311XpIv008774
-	for <linux-mm@kvack.org>; Mon, 31 Mar 2014 21:33:51 -0400
-Date: Mon, 31 Mar 2014 18:33:46 -0700
-From: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
-Subject: Re: Bug in reclaim logic with exhausted nodes?
-Message-ID: <20140401013346.GD5144@linux.vnet.ibm.com>
-References: <20140311210614.GB946@linux.vnet.ibm.com>
- <20140313170127.GE22247@linux.vnet.ibm.com>
- <20140324230550.GB18778@linux.vnet.ibm.com>
- <alpine.DEB.2.10.1403251116490.16557@nuc>
- <20140325162303.GA29977@linux.vnet.ibm.com>
- <alpine.DEB.2.10.1403251152250.16870@nuc>
- <20140325181010.GB29977@linux.vnet.ibm.com>
- <alpine.DEB.2.10.1403251323030.26744@nuc>
- <20140327203354.GA16651@linux.vnet.ibm.com>
- <alpine.DEB.2.10.1403290038200.24286@nuc>
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 58DF76B0035
+	for <linux-mm@kvack.org>; Mon, 31 Mar 2014 23:57:06 -0400 (EDT)
+Received: by mail-pd0-f182.google.com with SMTP id y10so8944256pdj.13
+        for <linux-mm@kvack.org>; Mon, 31 Mar 2014 20:57:06 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id sf3si10300656pac.452.2014.03.31.20.57.04
+        for <linux-mm@kvack.org>;
+        Mon, 31 Mar 2014 20:57:05 -0700 (PDT)
+Date: Tue, 1 Apr 2014 11:56:59 +0800
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: [map_pages] 5449f33f982: +1.7% netperf.Throughput_Mbps
+Message-ID: <20140401035659.GA18224@localhost>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1403290038200.24286@nuc>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: linux-mm@kvack.org, rientjes@google.com, linuxppc-dev@lists.ozlabs.org, anton@samba.org, mgorman@suse.de
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, lkp@01.org
 
-On 29.03.2014 [00:40:41 -0500], Christoph Lameter wrote:
-> On Thu, 27 Mar 2014, Nishanth Aravamudan wrote:
-> 
-> > > That looks to be the correct way to handle things. Maybe mark the node as
-> > > offline or somehow not present so that the kernel ignores it.
-> >
-> > This is a SLUB condition:
-> >
-> > mm/slub.c::early_kmem_cache_node_alloc():
-> > ...
-> >         page = new_slab(kmem_cache_node, GFP_NOWAIT, node);
-> > ...
-> 
-> So the page allocation from the node failed. We have a strange boot
-> condition where the OS is aware of anode but allocations on that node
-> fail.
+Hi Kirill,
 
-Yep. The node exists, it's just fully exhausted at boot (due to the
-presence of 16GB pages reserved at boot-time).
+FYI, we noticed the below (good) changes on
 
->  >         if (page_to_nid(page) != node) {
-> >                 printk(KERN_ERR "SLUB: Unable to allocate memory from "
-> >                                 "node %d\n", node);
-> >                 printk(KERN_ERR "SLUB: Allocating a useless per node structure "
-> >                                 "in order to be able to continue\n");
-> >         }
-> > ...
-> >
-> > Since this is quite early, and we have not set up the nodemasks yet,
-> > does it make sense to perhaps have a temporary init-time nodemask that
-> > we set bits in here, and "fix-up" those nodes when we setup the
-> > nodemasks?
-> 
-> Please take care of this earlier than this. The page allocator in
-> general should allow allocations from all nodes with memory during
-> boot,
+commit 5449f33f982905593117556d9d368d85eea8d13b ("mm: implement ->map_pages for page cache")
 
-I'd appreciate a bit more guidance? I'm suggesting that in this case the
-node functionally has no memory. So the page allocator should not allow
-allocations from it -- except (I need to investigate this still)
-userspace accessing the 16GB pages on that node, but that, I believe,
-doesn't go through the page allocator at all, it's all from hugetlb
-interfaces. It seems to me there is a bug in SLUB that we are noting
-that we have a useless per-node structure for a given nid, but not
-actually preventing requests to that node or reclaim because of those
-allocations.
+d6c1ccefdbdf13a  5449f33f982905593117556d9  
+---------------  -------------------------  
+      5044 ~ 0%      +1.7%       5128 ~ 0%  lkp-nex05/micro/netperf/120s-200%-TCP_SENDFILE
+      5044 ~ 0%      +1.7%       5128 ~ 0%  TOTAL netperf.Throughput_Mbps
 
-The page allocator is actually fine here, afaict. We've pulled out
-memory from this node, even though it's present, so none is free. All of
-that is working as expected, based upon the issue we've seen. The
-problems start when we "force" (by way of a round-robin page allocation
-request from /proc/sys/vm/nr_hugepages) a THISNODE allocation to come
-from the exhausted node, which has no memory free, causing reclaim,
-which progresses on other nodes, and thus never alleviates the
-allocation failure (and can't).
+d6c1ccefdbdf13a  5449f33f982905593117556d9  
+---------------  -------------------------  
+   1588009 ~ 2%     -54.9%     716407 ~ 3%  lkp-nex04/micro/netperf/120s-200%-UDP_RR
+   1500063 ~ 3%     -55.7%     664357 ~ 4%  lkp-nex05/micro/netperf/120s-200%-TCP_SENDFILE
+   3088072 ~ 2%     -55.3%    1380765 ~ 4%  TOTAL proc-vmstat.pgfault
 
-I think there is a logical bug (even if it only occurs in this
-particular corner case) where if reclaim progresses for a THISNODE
-allocation, we don't check *where* the reclaim is progressing, and thus
-may falsely be indicating that we have done some progress when in fact
-the allocation that is causing reclaim will not possibly make any more
-progress.
+d6c1ccefdbdf13a  5449f33f982905593117556d9  
+---------------  -------------------------  
+      1446 ~ 0%     +93.0%       2792 ~ 2%  lkp-nex04/micro/netperf/120s-200%-UDP_RR
+      1453 ~ 0%     +91.1%       2777 ~ 1%  lkp-nex05/micro/netperf/120s-200%-TCP_SENDFILE
+      2900 ~ 0%     +92.1%       5569 ~ 1%  TOTAL time.maximum_resident_set_size
+
+d6c1ccefdbdf13a  5449f33f982905593117556d9  
+---------------  -------------------------  
+      2.94 ~ 6%     -37.0%       1.85 ~ 4%  lkp-nex04/micro/netperf/120s-200%-UDP_RR
+      2.94 ~ 6%     -37.0%       1.85 ~ 4%  TOTAL perf-profile.cpu-cycles.inet_putpeer.__ip_select_ident.__ip_make_skb.ip_make_skb.udp_sendmsg
+
+d6c1ccefdbdf13a  5449f33f982905593117556d9  
+---------------  -------------------------  
+    272158 ~22%     -28.4%     194888 ~10%  lkp-nex04/micro/netperf/120s-200%-UDP_RR
+    272158 ~22%     -28.4%     194888 ~10%  TOTAL numa-vmstat.node1.numa_local
+
+d6c1ccefdbdf13a  5449f33f982905593117556d9  
+---------------  -------------------------  
+      1.38 ~ 5%     +47.5%       2.04 ~ 2%  lkp-nex04/micro/netperf/120s-200%-UDP_RR
+      1.38 ~ 5%     +47.5%       2.04 ~ 2%  TOTAL perf-profile.cpu-cycles.__udp4_lib_lookup.__udp4_lib_rcv.udp_rcv.ip_local_deliver.ip_rcv
+
+d6c1ccefdbdf13a  5449f33f982905593117556d9  
+---------------  -------------------------  
+    298658 ~20%     -25.7%     221766 ~ 9%  lkp-nex04/micro/netperf/120s-200%-UDP_RR
+    298658 ~20%     -25.7%     221766 ~ 9%  TOTAL numa-vmstat.node1.numa_hit
+
+d6c1ccefdbdf13a  5449f33f982905593117556d9  
+---------------  -------------------------  
+      2.98 ~14%     -22.7%       2.31 ~12%  lkp-nex04/micro/netperf/120s-200%-UDP_RR
+      2.98 ~14%     -22.7%       2.31 ~12%  TOTAL perf-profile.cpu-cycles.__ip_select_ident.__ip_make_skb.ip_make_skb.udp_sendmsg.inet_sendmsg
+
+d6c1ccefdbdf13a  5449f33f982905593117556d9  
+---------------  -------------------------  
+     10092 ~ 4%     +35.2%      13642 ~ 4%  lkp-nex04/micro/netperf/120s-200%-UDP_RR
+     10351 ~ 3%     +31.2%      13579 ~ 1%  lkp-nex05/micro/netperf/120s-200%-TCP_SENDFILE
+     20443 ~ 3%     +33.2%      27222 ~ 2%  TOTAL meminfo.Mapped
+
+d6c1ccefdbdf13a  5449f33f982905593117556d9  
+---------------  -------------------------  
+      2470 ~ 1%     +39.0%       3435 ~ 6%  lkp-nex04/micro/netperf/120s-200%-UDP_RR
+      2470 ~ 1%     +39.0%       3435 ~ 6%  TOTAL numa-meminfo.node2.Mapped
+
+d6c1ccefdbdf13a  5449f33f982905593117556d9  
+---------------  -------------------------  
+       620 ~ 1%     +40.1%        868 ~10%  lkp-nex04/micro/netperf/120s-200%-UDP_RR
+       620 ~ 1%     +40.1%        868 ~10%  TOTAL numa-vmstat.node2.nr_mapped
+
+d6c1ccefdbdf13a  5449f33f982905593117556d9  
+---------------  -------------------------  
+       662 ~12%     +24.8%        826 ~ 1%  lkp-nex04/micro/netperf/120s-200%-UDP_RR
+       782 ~ 2%     +33.7%       1046 ~ 1%  lkp-nex05/micro/netperf/120s-200%-TCP_SENDFILE
+      1444 ~ 6%     +29.7%       1873 ~ 1%  TOTAL numa-vmstat.node1.nr_mapped
+
+d6c1ccefdbdf13a  5449f33f982905593117556d9  
+---------------  -------------------------  
+       618 ~ 1%     +33.6%        825 ~ 2%  lkp-nex04/micro/netperf/120s-200%-UDP_RR
+       780 ~ 2%     +39.0%       1085 ~ 7%  lkp-nex05/micro/netperf/120s-200%-TCP_SENDFILE
+      1398 ~ 2%     +36.6%       1911 ~ 5%  TOTAL numa-vmstat.node3.nr_mapped
+
+d6c1ccefdbdf13a  5449f33f982905593117556d9  
+---------------  -------------------------  
+      2476 ~ 2%     +33.7%       3310 ~ 1%  lkp-nex04/micro/netperf/120s-200%-UDP_RR
+      3297 ~11%     +33.4%       4398 ~ 8%  lkp-nex05/micro/netperf/120s-200%-TCP_SENDFILE
+      5773 ~ 7%     +33.5%       7709 ~ 5%  TOTAL numa-meminfo.node3.Mapped
+
+d6c1ccefdbdf13a  5449f33f982905593117556d9  
+---------------  -------------------------  
+      2625 ~10%     +26.8%       3327 ~ 1%  lkp-nex04/micro/netperf/120s-200%-UDP_RR
+      3171 ~ 2%     +33.1%       4222 ~ 2%  lkp-nex05/micro/netperf/120s-200%-TCP_SENDFILE
+      5796 ~ 5%     +30.3%       7550 ~ 1%  TOTAL numa-meminfo.node1.Mapped
+
+d6c1ccefdbdf13a  5449f33f982905593117556d9  
+---------------  -------------------------  
+       622 ~ 0%     +33.6%        831 ~ 1%  lkp-nex04/micro/netperf/120s-200%-UDP_RR
+       978 ~ 8%     +25.0%       1222 ~ 3%  lkp-nex05/micro/netperf/120s-200%-TCP_SENDFILE
+      1601 ~ 5%     +28.3%       2054 ~ 2%  TOTAL numa-vmstat.node0.nr_mapped
+
+d6c1ccefdbdf13a  5449f33f982905593117556d9  
+---------------  -------------------------  
+      2582 ~ 4%     +32.1%       3412 ~ 2%  lkp-nex04/micro/netperf/120s-200%-UDP_RR
+      2542 ~ 2%     +33.5%       3394 ~ 3%  lkp-nex05/micro/netperf/120s-200%-TCP_SENDFILE
+      5124 ~ 3%     +32.8%       6806 ~ 2%  TOTAL proc-vmstat.nr_mapped
+
+d6c1ccefdbdf13a  5449f33f982905593117556d9  
+---------------  -------------------------  
+      2508 ~ 1%     +39.5%       3499 ~ 9%  lkp-nex04/micro/netperf/120s-200%-UDP_RR
+      4040 ~10%     +22.6%       4952 ~ 3%  lkp-nex05/micro/netperf/120s-200%-TCP_SENDFILE
+      6549 ~ 6%     +29.1%       8452 ~ 5%  TOTAL numa-meminfo.node0.Mapped
+
+d6c1ccefdbdf13a  5449f33f982905593117556d9  
+---------------  -------------------------  
+     14667 ~ 9%     +12.6%      16520 ~ 9%  lkp-nex04/micro/netperf/120s-200%-UDP_RR
+     14667 ~ 9%     +12.6%      16520 ~ 9%  TOTAL numa-meminfo.node3.AnonPages
+
+d6c1ccefdbdf13a  5449f33f982905593117556d9  
+---------------  -------------------------  
+     14436 ~ 9%     +12.5%      16244 ~10%  lkp-nex04/micro/netperf/120s-200%-UDP_RR
+     14436 ~ 9%     +12.5%      16244 ~10%  TOTAL numa-meminfo.node3.Active(anon)
+
+d6c1ccefdbdf13a  5449f33f982905593117556d9  
+---------------  -------------------------  
+      1.24 ~ 4%     +21.2%       1.50 ~ 7%  lkp-nex04/micro/netperf/120s-200%-UDP_RR
+      1.24 ~ 4%     +21.2%       1.50 ~ 7%  TOTAL perf-profile.cpu-cycles.__schedule.schedule.schedule_timeout.__skb_recv_datagram.udp_recvmsg
+
+d6c1ccefdbdf13a  5449f33f982905593117556d9  
+---------------  -------------------------  
+      1.29 ~ 8%     +12.1%       1.45 ~ 6%  lkp-nex04/micro/netperf/120s-200%-UDP_RR
+      1.29 ~ 8%     +12.1%       1.45 ~ 6%  TOTAL perf-profile.cpu-cycles.__ip_route_output_key.ip_route_output_flow.udp_sendmsg.inet_sendmsg.sock_sendmsg
+
+d6c1ccefdbdf13a  5449f33f982905593117556d9  
+---------------  -------------------------  
+      2825 ~ 4%      +7.4%       3034 ~ 4%  lkp-nex05/micro/netperf/120s-200%-TCP_SENDFILE
+      2825 ~ 4%      +7.4%       3034 ~ 4%  TOTAL slabinfo.signal_cache.active_objs
+
+d6c1ccefdbdf13a  5449f33f982905593117556d9  
+---------------  -------------------------  
+      2825 ~ 4%      +7.8%       3046 ~ 3%  lkp-nex05/micro/netperf/120s-200%-TCP_SENDFILE
+      2825 ~ 4%      +7.8%       3046 ~ 3%  TOTAL slabinfo.signal_cache.num_objs
+
+d6c1ccefdbdf13a  5449f33f982905593117556d9  
+---------------  -------------------------  
+      0.96 ~ 2%      -8.3%       0.88 ~ 1%  lkp-nex05/micro/netperf/120s-200%-TCP_SENDFILE
+      0.96 ~ 2%      -8.3%       0.88 ~ 1%  TOTAL perf-profile.cpu-cycles.splice_from_pipe_feed.__splice_from_pipe.splice_from_pipe.generic_splice_sendpage.direct_splice_actor
+
+d6c1ccefdbdf13a  5449f33f982905593117556d9  
+---------------  -------------------------  
+      5236 ~ 1%     -35.7%       3365 ~ 3%  lkp-nex04/micro/netperf/120s-200%-UDP_RR
+      5343 ~ 1%     -35.4%       3449 ~ 1%  lkp-nex05/micro/netperf/120s-200%-TCP_SENDFILE
+     10579 ~ 1%     -35.6%       6814 ~ 2%  TOTAL time.minor_page_faults
+
+d6c1ccefdbdf13a  5449f33f982905593117556d9  
+---------------  -------------------------  
+   2783688 ~ 1%      -1.6%    2738371 ~ 0%  lkp-nex05/micro/netperf/120s-200%-TCP_SENDFILE
+   2783688 ~ 1%      -1.6%    2738371 ~ 0%  TOTAL vmstat.system.cs
+
+
+Legend:
+	~XX%    - stddev percent
+	[+-]XX% - change percent
+
+
+                               time.minor_page_faults
+
+   5500 *+---*-----*----*------------*----*-*--*-*---*--*-----------------*-*
+        | *.   *.*    *   *.*..*.*.*    *          *      *.*.*..*.*.*.*.   |
+        |                                                                   |
+   5000 ++                                                                  |
+        |                                                                   |
+        |                                                                   |
+   4500 ++                                                                  |
+        |                                                                   |
+   4000 ++                                                                  |
+        |                                                                   |
+        |                                                                   |
+   3500 ++       O    O            O           O        O O O               |
+        O O  O O   O    O O O  O O   O  O O O    O O O        O  O          |
+        |                                                                   |
+   3000 ++------------------------------------------------------------------+
+
+
+	[*] bisect-good sample
+	[O] bisect-bad  sample
 
 Thanks,
-Nish
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
