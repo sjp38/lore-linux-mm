@@ -1,71 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D5D46B0035
-	for <linux-mm@kvack.org>; Mon, 31 Mar 2014 20:06:06 -0400 (EDT)
-Received: by mail-pa0-f51.google.com with SMTP id kq14so8895590pab.24
-        for <linux-mm@kvack.org>; Mon, 31 Mar 2014 17:06:06 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id hw8si10059865pbc.163.2014.03.31.17.06.05
-        for <linux-mm@kvack.org>;
-        Mon, 31 Mar 2014 17:06:06 -0700 (PDT)
-Date: Mon, 31 Mar 2014 17:05:46 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] ipc,shm: increase default size for shmmax
-Message-Id: <20140331170546.3b3e72f0.akpm@linux-foundation.org>
-In-Reply-To: <1396308332.18499.25.camel@buesod1.americas.hpqcorp.net>
-References: <1396235199.2507.2.camel@buesod1.americas.hpqcorp.net>
-	<20140331143217.c6ff958e1fd9944d78507418@linux-foundation.org>
-	<1396306773.18499.22.camel@buesod1.americas.hpqcorp.net>
-	<20140331161308.6510381345cb9a1b419d5ec0@linux-foundation.org>
-	<1396308332.18499.25.camel@buesod1.americas.hpqcorp.net>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-qa0-f45.google.com (mail-qa0-f45.google.com [209.85.216.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 356E96B0035
+	for <linux-mm@kvack.org>; Mon, 31 Mar 2014 21:33:56 -0400 (EDT)
+Received: by mail-qa0-f45.google.com with SMTP id hw13so8743906qab.4
+        for <linux-mm@kvack.org>; Mon, 31 Mar 2014 18:33:55 -0700 (PDT)
+Received: from e9.ny.us.ibm.com (e9.ny.us.ibm.com. [32.97.182.139])
+        by mx.google.com with ESMTPS id l5si4637024qai.146.2014.03.31.18.33.55
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 31 Mar 2014 18:33:55 -0700 (PDT)
+Received: from /spool/local
+	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <nacc@linux.vnet.ibm.com>;
+	Mon, 31 Mar 2014 21:33:54 -0400
+Received: from b01cxnp23033.gho.pok.ibm.com (b01cxnp23033.gho.pok.ibm.com [9.57.198.28])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 2809738C8045
+	for <linux-mm@kvack.org>; Mon, 31 Mar 2014 21:33:52 -0400 (EDT)
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by b01cxnp23033.gho.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s311XqFi131480
+	for <linux-mm@kvack.org>; Tue, 1 Apr 2014 01:33:52 GMT
+Received: from d01av04.pok.ibm.com (localhost [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s311XpIv008774
+	for <linux-mm@kvack.org>; Mon, 31 Mar 2014 21:33:51 -0400
+Date: Mon, 31 Mar 2014 18:33:46 -0700
+From: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
+Subject: Re: Bug in reclaim logic with exhausted nodes?
+Message-ID: <20140401013346.GD5144@linux.vnet.ibm.com>
+References: <20140311210614.GB946@linux.vnet.ibm.com>
+ <20140313170127.GE22247@linux.vnet.ibm.com>
+ <20140324230550.GB18778@linux.vnet.ibm.com>
+ <alpine.DEB.2.10.1403251116490.16557@nuc>
+ <20140325162303.GA29977@linux.vnet.ibm.com>
+ <alpine.DEB.2.10.1403251152250.16870@nuc>
+ <20140325181010.GB29977@linux.vnet.ibm.com>
+ <alpine.DEB.2.10.1403251323030.26744@nuc>
+ <20140327203354.GA16651@linux.vnet.ibm.com>
+ <alpine.DEB.2.10.1403290038200.24286@nuc>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.10.1403290038200.24286@nuc>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <davidlohr@hp.com>
-Cc: Manfred Spraul <manfred@colorfullife.com>, aswin@hp.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Christoph Lameter <cl@linux.com>
+Cc: linux-mm@kvack.org, rientjes@google.com, linuxppc-dev@lists.ozlabs.org, anton@samba.org, mgorman@suse.de
 
-On Mon, 31 Mar 2014 16:25:32 -0700 Davidlohr Bueso <davidlohr@hp.com> wrote:
-
-> On Mon, 2014-03-31 at 16:13 -0700, Andrew Morton wrote:
-> > On Mon, 31 Mar 2014 15:59:33 -0700 Davidlohr Bueso <davidlohr@hp.com> wrote:
-> > 
-> > > > 
-> > > > - Shouldn't there be a way to alter this namespace's shm_ctlmax?
-> > > 
-> > > Unfortunately this would also add the complexity I previously mentioned.
-> > 
-> > But if the current namespace's shm_ctlmax is too small, you're screwed.
-> > Have to shut down the namespace all the way back to init_ns and start
-> > again.
-> > 
-> > > > - What happens if we just nuke the limit altogether and fall back to
-> > > >   the next check, which presumably is the rlimit bounds?
-> > > 
-> > > afaik we only have rlimit for msgqueues. But in any case, while I like
-> > > that simplicity, it's too late. Too many workloads (specially DBs) rely
-> > > heavily on shmmax. Removing it and relying on something else would thus
-> > > cause a lot of things to break.
-> > 
-> > It would permit larger shm segments - how could that break things?  It
-> > would make most or all of these issues go away?
-> > 
+On 29.03.2014 [00:40:41 -0500], Christoph Lameter wrote:
+> On Thu, 27 Mar 2014, Nishanth Aravamudan wrote:
 > 
-> So sysadmins wouldn't be very happy, per man shmget(2):
+> > > That looks to be the correct way to handle things. Maybe mark the node as
+> > > offline or somehow not present so that the kernel ignores it.
+> >
+> > This is a SLUB condition:
+> >
+> > mm/slub.c::early_kmem_cache_node_alloc():
+> > ...
+> >         page = new_slab(kmem_cache_node, GFP_NOWAIT, node);
+> > ...
 > 
-> EINVAL A new segment was to be created and size < SHMMIN or size >
-> SHMMAX, or no new segment was to be created, a segment with given key
-> existed, but size is greater than the size of that segment.
+> So the page allocation from the node failed. We have a strange boot
+> condition where the OS is aware of anode but allocations on that node
+> fail.
 
-So their system will act as if they had set SHMMAX=enormous.  What
-problems could that cause?
+Yep. The node exists, it's just fully exhausted at boot (due to the
+presence of 16GB pages reserved at boot-time).
 
+>  >         if (page_to_nid(page) != node) {
+> >                 printk(KERN_ERR "SLUB: Unable to allocate memory from "
+> >                                 "node %d\n", node);
+> >                 printk(KERN_ERR "SLUB: Allocating a useless per node structure "
+> >                                 "in order to be able to continue\n");
+> >         }
+> > ...
+> >
+> > Since this is quite early, and we have not set up the nodemasks yet,
+> > does it make sense to perhaps have a temporary init-time nodemask that
+> > we set bits in here, and "fix-up" those nodes when we setup the
+> > nodemasks?
+> 
+> Please take care of this earlier than this. The page allocator in
+> general should allow allocations from all nodes with memory during
+> boot,
 
-Look.  The 32M thing is causing problems.  Arbitrarily increasing the
-arbitrary 32M to an arbitrary 128M won't fix anything - we still have
-the problem.  Think bigger, please: how can we make this problem go
-away for ever?
+I'd appreciate a bit more guidance? I'm suggesting that in this case the
+node functionally has no memory. So the page allocator should not allow
+allocations from it -- except (I need to investigate this still)
+userspace accessing the 16GB pages on that node, but that, I believe,
+doesn't go through the page allocator at all, it's all from hugetlb
+interfaces. It seems to me there is a bug in SLUB that we are noting
+that we have a useless per-node structure for a given nid, but not
+actually preventing requests to that node or reclaim because of those
+allocations.
+
+The page allocator is actually fine here, afaict. We've pulled out
+memory from this node, even though it's present, so none is free. All of
+that is working as expected, based upon the issue we've seen. The
+problems start when we "force" (by way of a round-robin page allocation
+request from /proc/sys/vm/nr_hugepages) a THISNODE allocation to come
+from the exhausted node, which has no memory free, causing reclaim,
+which progresses on other nodes, and thus never alleviates the
+allocation failure (and can't).
+
+I think there is a logical bug (even if it only occurs in this
+particular corner case) where if reclaim progresses for a THISNODE
+allocation, we don't check *where* the reclaim is progressing, and thus
+may falsely be indicating that we have done some progress when in fact
+the allocation that is causing reclaim will not possibly make any more
+progress.
+
+Thanks,
+Nish
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
