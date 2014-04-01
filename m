@@ -1,41 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f181.google.com (mail-we0-f181.google.com [74.125.82.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 3308C6B0071
-	for <linux-mm@kvack.org>; Tue,  1 Apr 2014 17:37:24 -0400 (EDT)
-Received: by mail-we0-f181.google.com with SMTP id q58so6808661wes.40
-        for <linux-mm@kvack.org>; Tue, 01 Apr 2014 14:37:23 -0700 (PDT)
-Received: from mail.zytor.com (terminus.zytor.com. [2001:1868:205::10])
-        by mx.google.com with ESMTPS id g15si10602100wiw.22.2014.04.01.14.37.19
+Received: from mail-ob0-f177.google.com (mail-ob0-f177.google.com [209.85.214.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 180736B0073
+	for <linux-mm@kvack.org>; Tue,  1 Apr 2014 17:42:16 -0400 (EDT)
+Received: by mail-ob0-f177.google.com with SMTP id wo20so11477072obc.36
+        for <linux-mm@kvack.org>; Tue, 01 Apr 2014 14:42:15 -0700 (PDT)
+Received: from mail-ob0-x232.google.com (mail-ob0-x232.google.com [2607:f8b0:4003:c01::232])
+        by mx.google.com with ESMTPS id me5si16042536obb.24.2014.04.01.14.42.14
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 01 Apr 2014 14:37:20 -0700 (PDT)
-Message-ID: <533B313E.5000403@zytor.com>
-Date: Tue, 01 Apr 2014 14:35:58 -0700
-From: "H. Peter Anvin" <hpa@zytor.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 01 Apr 2014 14:42:15 -0700 (PDT)
+Received: by mail-ob0-f178.google.com with SMTP id wp18so12006852obc.9
+        for <linux-mm@kvack.org>; Tue, 01 Apr 2014 14:42:14 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/5] Volatile Ranges (v12) & LSF-MM discussion fodder
-References: <1395436655-21670-1-git-send-email-john.stultz@linaro.org> <20140401212102.GM4407@cmpxchg.org>
-In-Reply-To: <20140401212102.GM4407@cmpxchg.org>
+In-Reply-To: <20140401142947.927642a408d84df27d581e36@linux-foundation.org>
+References: <1396235199.2507.2.camel@buesod1.americas.hpqcorp.net>
+ <20140331143217.c6ff958e1fd9944d78507418@linux-foundation.org>
+ <1396306773.18499.22.camel@buesod1.americas.hpqcorp.net> <20140331161308.6510381345cb9a1b419d5ec0@linux-foundation.org>
+ <1396308332.18499.25.camel@buesod1.americas.hpqcorp.net> <20140331170546.3b3e72f0.akpm@linux-foundation.org>
+ <1396371699.25314.11.camel@buesod1.americas.hpqcorp.net> <CAHGf_=qsf6vN5k=-PLraG8Q_uU1pofoBDktjVH1N92o76xPadQ@mail.gmail.com>
+ <1396377083.25314.17.camel@buesod1.americas.hpqcorp.net> <CAHGf_=rLLBDr5ptLMvFD-M+TPQSnK3EP=7R+27K8or84rY-KLA@mail.gmail.com>
+ <1396386062.25314.24.camel@buesod1.americas.hpqcorp.net> <CAHGf_=rhXrBQSmDBJJ-vPxBbhjJ91Fh2iWe1cf_UQd-tCfpb2w@mail.gmail.com>
+ <20140401142947.927642a408d84df27d581e36@linux-foundation.org>
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Date: Tue, 1 Apr 2014 17:41:54 -0400
+Message-ID: <CAHGf_=p70rLOYwP2OgtK+2b+41=GwMA9R=rZYBqRr1w_O5UnKA@mail.gmail.com>
+Subject: Re: [PATCH] ipc,shm: increase default size for shmmax
 Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>, John Stultz <john.stultz@linaro.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@sr71.net>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Neil Brown <neilb@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Davidlohr Bueso <davidlohr@hp.com>, Manfred Spraul <manfred@colorfullife.com>, aswin@hp.com, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On 04/01/2014 02:21 PM, Johannes Weiner wrote:
-> 
-> Either way, optimistic volatile pointers are nowhere near as
-> transparent to the application as the above description suggests,
-> which makes this usecase not very interesting, IMO.
-> 
+>> > Hmmm so 0 won't really work because it could be weirdly used to disable
+>> > shm altogether... we cannot go to some negative value either since we're
+>> > dealing with unsigned, and cutting the range in half could also hurt
+>> > users that set the limit above that. So I was thinking of simply setting
+>> > SHMMAX to ULONG_MAX and be done with it. Users can then set it manually
+>> > if they want a smaller value.
+>> >
+>> > Makes sense?
+>>
+>> I don't think people use 0 for disabling. but ULONG_MAX make sense to me too.
+>
+> Distros could have set it to [U]LONG_MAX in initscripts ten years ago
+> - less phone calls, happier customers.  And they could do so today.
+>
+> But they haven't.   What are the risks of doing this?
 
-... however, I think you're still derating the value way too much.  The
-case of user space doing elastic memory management is more and more
-common, and for a lot of those applications it is perfectly reasonable
-to either not do system calls or to have to devolatilize first.
+I have no idea really. But at least I'm sure current default is much worse.
 
-	-hpa
+1. Solaris changed the default to total-memory/4 since Solaris 10 for DB.
+ http://www.postgresql.org/docs/9.1/static/kernel-resources.html
+
+2. RHEL changed the default to very big size since RHEL5 (now it is
+64GB). Even tough many box don't have 64GB memory at that time.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
