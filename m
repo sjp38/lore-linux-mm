@@ -1,100 +1,172 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f47.google.com (mail-bk0-f47.google.com [209.85.214.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C6D86B0031
-	for <linux-mm@kvack.org>; Tue,  1 Apr 2014 15:32:15 -0400 (EDT)
-Received: by mail-bk0-f47.google.com with SMTP id w10so1363525bkz.20
-        for <linux-mm@kvack.org>; Tue, 01 Apr 2014 12:32:14 -0700 (PDT)
-Received: from mail-bk0-x230.google.com (mail-bk0-x230.google.com [2a00:1450:4008:c01::230])
-        by mx.google.com with ESMTPS id nw1si9657609bkb.190.2014.04.01.12.32.13
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 01 Apr 2014 12:32:14 -0700 (PDT)
-Received: by mail-bk0-f48.google.com with SMTP id mx12so1333291bkb.21
-        for <linux-mm@kvack.org>; Tue, 01 Apr 2014 12:32:13 -0700 (PDT)
-Message-ID: <533B1439.3010403@gmail.com>
-Date: Tue, 01 Apr 2014 21:32:09 +0200
-From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] mm: msync: require either MS_ASYNC or MS_SYNC
-References: <533B04A9.6090405@bbn.com>
-In-Reply-To: <533B04A9.6090405@bbn.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail-pb0-f44.google.com (mail-pb0-f44.google.com [209.85.160.44])
+	by kanga.kvack.org (Postfix) with ESMTP id B07216B0036
+	for <linux-mm@kvack.org>; Tue,  1 Apr 2014 15:49:16 -0400 (EDT)
+Received: by mail-pb0-f44.google.com with SMTP id rp16so10398488pbb.3
+        for <linux-mm@kvack.org>; Tue, 01 Apr 2014 12:49:16 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id vn9si4880204pbc.131.2014.04.01.12.49.15
+        for <linux-mm@kvack.org>;
+        Tue, 01 Apr 2014 12:49:15 -0700 (PDT)
+Date: Tue, 1 Apr 2014 12:49:13 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: Only force scan in reclaim when none of the LRUs
+ are big enough.
+Message-Id: <20140401124913.c27f190e2342d6e5c2c29277@linux-foundation.org>
+In-Reply-To: <alpine.LSU.2.11.1403151957160.21388@eggly.anvils>
+References: <alpine.LSU.2.11.1403151957160.21388@eggly.anvils>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Richard Hansen <rhansen@bbn.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: mtk.manpages@gmail.com, linux-api@vger.kernel.org, Greg Troxel <gdt@ir.bbn.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Suleiman Souhlal <suleiman@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Rafael Aquini <aquini@redhat.com>, Michal Hocko <mhocko@suse.cz>, Yuanhan Liu <yuanhan.liu@linux.intel.com>, Seth Jennings <sjennings@variantweb.net>, Bob Liu <bob.liu@oracle.com>, Minchan Kim <minchan@kernel.org>, Luigi Semenzato <semenzato@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Richard,
+On Sat, 15 Mar 2014 20:36:02 -0700 (PDT) Hugh Dickins <hughd@google.com> wrote:
 
-On 04/01/2014 08:25 PM, Richard Hansen wrote:
-> For the flags parameter, POSIX says "Either MS_ASYNC or MS_SYNC shall
-> be specified, but not both." [1]  There was already a test for the
-> "both" condition.  Add a test to ensure that the caller specified one
-> of the flags; fail with EINVAL if neither are specified.
+> From: Suleiman Souhlal <suleiman@google.com>
 > 
-> Without this change, specifying neither is the same as specifying
-> flags=MS_ASYNC because nothing in msync() is conditioned on the
-> MS_ASYNC flag.  This has not always been true, 
+> Prior to this change, we would decide whether to force scan a LRU
+> during reclaim if that LRU itself was too small for the current
+> priority. However, this can lead to the file LRU getting force
+> scanned even if there are a lot of anonymous pages we can reclaim,
+> leading to hot file pages getting needlessly reclaimed.
 
-I am curious (since such things should be documented)--when was
-it not true?
+Struggling a bit here.  You're referring to this code?
 
-> and there's no good
-> reason to believe that this behavior would have persisted
-> indefinitely.
+			size = get_lru_size(lruvec, lru);
+			scan = size >> sc->priority;
+
+			if (!scan && force_scan)
+				scan = min(size, SWAP_CLUSTER_MAX);
+
+So we're talking about the case where the LRU is so small that it
+contains fewer than (1<<sc->priority) pages?
+
+If so, then I'd expect that in normal operation this situation rarely
+occurs?  Surely the LRUs normally contain many more pages than this.
+
+> To address this, we instead only force scan when none of the
+> reclaimable LRUs are big enough.
 > 
-> The msync(2) man page (as currently written in man-pages.git) is
-> silent on the behavior if both flags are unset, so this change should
-> not break an application written by somone who carefully reads the
-> Linux man pages or the POSIX spec.
-
-Sadly, people do not always carefully read man pages, so there
-remains the chance that a change like this will break applications.
-Aside from standards conformance, what do you see as the benefit
-of the change?
-
-Thanks,
-
-Michael
-
-
-> [1] http://pubs.opengroup.org/onlinepubs/9699919799/functions/msync.html
+> Gives huge improvements with zswap. For example, when doing -j20
+> kernel build in a 500MB container with zswap enabled, runtime (in
+> seconds) is greatly reduced:
 > 
-> Signed-off-by: Richard Hansen <rhansen@bbn.com>
-> Reported-by: Greg Troxel <gdt@ir.bbn.com>
-> Reviewed-by: Greg Troxel <gdt@ir.bbn.com>
-> ---
-> 
-> This is a resend of:
-> http://article.gmane.org/gmane.linux.kernel/1554416
-> I didn't get any feedback from that submission, so I'm resending it
-> without changes.
-> 
->  mm/msync.c | 2 ++
->  1 file changed, 2 insertions(+)
-> 
-> diff --git a/mm/msync.c b/mm/msync.c
-> index 632df45..472ad3e 100644
-> --- a/mm/msync.c
-> +++ b/mm/msync.c
-> @@ -42,6 +42,8 @@ SYSCALL_DEFINE3(msync, unsigned long, start, size_t,
-> len, int, flags)
->  		goto out;
->  	if ((flags & MS_ASYNC) && (flags & MS_SYNC))
->  		goto out;
-> +	if (!(flags & (MS_ASYNC | MS_SYNC)))
-> +		goto out;
->  	error = -ENOMEM;
->  	len = (len + ~PAGE_MASK) & PAGE_MASK;
->  	end = start + len;
-> 
+> x without this change
+> + with this change
+>     N           Min           Max        Median           Avg        Stddev
+> x   5       700.997       790.076       763.928        754.05      39.59493
+> +   5       141.634       197.899       155.706         161.9     21.270224
+> Difference at 95.0% confidence
+>         -592.15 +/- 46.3521
+>         -78.5293% +/- 6.14709%
+>         (Student's t, pooled s = 31.7819)
 
+And yet the patch makes a large difference.  What am I missing here?
 
--- 
-Michael Kerrisk
-Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
-Linux/UNIX System Programming Training: http://man7.org/training/
+> --- 3.14-rc6/mm/vmscan.c	2014-02-02 18:49:07.949302116 -0800
+> +++ linux/mm/vmscan.c	2014-03-15 19:31:44.948977032 -0700
+> @@ -1971,39 +1973,49 @@ static void get_scan_count(struct lruvec
+>  	fraction[1] = fp;
+>  	denominator = ap + fp + 1;
+>  out:
+> -	for_each_evictable_lru(lru) {
+> -		int file = is_file_lru(lru);
+> -		unsigned long size;
+> -		unsigned long scan;
+> -
+> -		size = get_lru_size(lruvec, lru);
+> -		scan = size >> sc->priority;
+> -
+> -		if (!scan && force_scan)
+> -			scan = min(size, SWAP_CLUSTER_MAX);
+> -
+> -		switch (scan_balance) {
+> -		case SCAN_EQUAL:
+> -			/* Scan lists relative to size */
+> -			break;
+> -		case SCAN_FRACT:
+> +	some_scanned = false;
+> +	/* Only use force_scan on second pass. */
+
+That's a poor comment.
+
+> +	for (pass = 0; !some_scanned && pass < 2; pass++) {
+> +		for_each_evictable_lru(lru) {
+> +			int file = is_file_lru(lru);
+> +			unsigned long size;
+> +			unsigned long scan;
+> +
+> +			size = get_lru_size(lruvec, lru);
+> +			scan = size >> sc->priority;
+> +
+> +			if (!scan && pass && force_scan)
+> +				scan = min(size, SWAP_CLUSTER_MAX);
+> +
+> +			switch (scan_balance) {
+> +			case SCAN_EQUAL:
+> +				/* Scan lists relative to size */
+> +				break;
+> +			case SCAN_FRACT:
+> +				/*
+> +				 * Scan types proportional to swappiness and
+> +				 * their relative recent reclaim efficiency.
+> +				 */
+> +				scan = div64_u64(scan * fraction[file],
+> +							denominator);
+> +				break;
+> +			case SCAN_FILE:
+> +			case SCAN_ANON:
+> +				/* Scan one type exclusively */
+> +				if ((scan_balance == SCAN_FILE) != file)
+> +					scan = 0;
+> +				break;
+> +			default:
+> +				/* Look ma, no brain */
+> +				BUG();
+> +			}
+> +			nr[lru] = scan;
+>  			/*
+> -			 * Scan types proportional to swappiness and
+> -			 * their relative recent reclaim efficiency.
+> +			 * Skip the second pass and don't force_scan,
+> +			 * if we found something to scan.
+
+And so is that.  Both comments explain *what* the code is doing (which
+was fairly obvious from the code!) but they fail to explain *why* the
+code is doing what it does.
+
+>  			 */
+> -			scan = div64_u64(scan * fraction[file], denominator);
+> -			break;
+> -		case SCAN_FILE:
+> -		case SCAN_ANON:
+> -			/* Scan one type exclusively */
+> -			if ((scan_balance == SCAN_FILE) != file)
+> -				scan = 0;
+> -			break;
+> -		default:
+> -			/* Look ma, no brain */
+> -			BUG();
+> +			some_scanned |= !!scan;
+
+Also the "and don't force_scan" part appears to be flatly untrue.  Either
+the comment is wrong or the code should be along the lines of
+
+	if (scan) {
+		some_scanned = true;
+		force_scan = false;
+	}
+
+Can we fix these things please?  And retest if necessary.
+
+>  		}
+> -		nr[lru] = scan;
+>  	}
+>  }
+>  
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
