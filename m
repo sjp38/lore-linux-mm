@@ -1,56 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f179.google.com (mail-ig0-f179.google.com [209.85.213.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 2091B6B0031
-	for <linux-mm@kvack.org>; Tue,  1 Apr 2014 13:27:49 -0400 (EDT)
-Received: by mail-ig0-f179.google.com with SMTP id hl10so1595463igb.12
-        for <linux-mm@kvack.org>; Tue, 01 Apr 2014 10:27:48 -0700 (PDT)
-Received: from mail-ie0-x22e.google.com (mail-ie0-x22e.google.com [2607:f8b0:4001:c03::22e])
-        by mx.google.com with ESMTPS id i17si10241420igh.21.2014.04.01.10.27.47
+Received: from mail-oa0-f48.google.com (mail-oa0-f48.google.com [209.85.219.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B8E06B0031
+	for <linux-mm@kvack.org>; Tue,  1 Apr 2014 14:11:05 -0400 (EDT)
+Received: by mail-oa0-f48.google.com with SMTP id m1so11677784oag.35
+        for <linux-mm@kvack.org>; Tue, 01 Apr 2014 11:11:04 -0700 (PDT)
+Received: from mail-oa0-x236.google.com (mail-oa0-x236.google.com [2607:f8b0:4003:c02::236])
+        by mx.google.com with ESMTPS id u10si15717361obn.33.2014.04.01.11.11.04
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 01 Apr 2014 10:27:47 -0700 (PDT)
-Received: by mail-ie0-f174.google.com with SMTP id rp18so9560932iec.19
-        for <linux-mm@kvack.org>; Tue, 01 Apr 2014 10:27:47 -0700 (PDT)
+        Tue, 01 Apr 2014 11:11:04 -0700 (PDT)
+Received: by mail-oa0-f54.google.com with SMTP id n16so11701939oag.13
+        for <linux-mm@kvack.org>; Tue, 01 Apr 2014 11:11:04 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20140401175947.5b5a3298@alan.etchedpixels.co.uk>
-References: <20140331211607.26784.43976.stgit@zurg>
-	<20140401175947.5b5a3298@alan.etchedpixels.co.uk>
-Date: Tue, 1 Apr 2014 21:27:47 +0400
-Message-ID: <CALYGNiONACddsH_6uaG5QyaWRaZ_5ZH0atZJyZVD=DowiKLJcw@mail.gmail.com>
-Subject: Re: [PATCH RFC] drivers/char/mem: byte generating devices and
- poisoned mappings
-From: Konstantin Khlebnikov <koct9i@gmail.com>
+In-Reply-To: <1396371699.25314.11.camel@buesod1.americas.hpqcorp.net>
+References: <1396235199.2507.2.camel@buesod1.americas.hpqcorp.net>
+ <20140331143217.c6ff958e1fd9944d78507418@linux-foundation.org>
+ <1396306773.18499.22.camel@buesod1.americas.hpqcorp.net> <20140331161308.6510381345cb9a1b419d5ec0@linux-foundation.org>
+ <1396308332.18499.25.camel@buesod1.americas.hpqcorp.net> <20140331170546.3b3e72f0.akpm@linux-foundation.org>
+ <1396371699.25314.11.camel@buesod1.americas.hpqcorp.net>
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Date: Tue, 1 Apr 2014 14:10:43 -0400
+Message-ID: <CAHGf_=qsf6vN5k=-PLraG8Q_uU1pofoBDktjVH1N92o76xPadQ@mail.gmail.com>
+Subject: Re: [PATCH] ipc,shm: increase default size for shmmax
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: One Thousand Gnomes <gnomes@lxorguk.ukuu.org.uk>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Yury Gribov <y.gribov@samsung.com>, Alexandr Andreev <aandreev@parallels.com>, Vassili Karpov <av1474@comtv.ru>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Davidlohr Bueso <davidlohr@hp.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Manfred Spraul <manfred@colorfullife.com>, aswin@hp.com, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Tue, Apr 1, 2014 at 8:59 PM, One Thousand Gnomes
-<gnomes@lxorguk.ukuu.org.uk> wrote:
-> On Tue, 01 Apr 2014 01:16:07 +0400
-> Konstantin Khlebnikov <koct9i@gmail.com> wrote:
+On Tue, Apr 1, 2014 at 1:01 PM, Davidlohr Bueso <davidlohr@hp.com> wrote:
+> On Mon, 2014-03-31 at 17:05 -0700, Andrew Morton wrote:
+>> On Mon, 31 Mar 2014 16:25:32 -0700 Davidlohr Bueso <davidlohr@hp.com> wrote:
+>>
+>> > On Mon, 2014-03-31 at 16:13 -0700, Andrew Morton wrote:
+>> > > On Mon, 31 Mar 2014 15:59:33 -0700 Davidlohr Bueso <davidlohr@hp.com> wrote:
+>> > >
+>> > > > >
+>> > > > > - Shouldn't there be a way to alter this namespace's shm_ctlmax?
+>> > > >
+>> > > > Unfortunately this would also add the complexity I previously mentioned.
+>> > >
+>> > > But if the current namespace's shm_ctlmax is too small, you're screwed.
+>> > > Have to shut down the namespace all the way back to init_ns and start
+>> > > again.
+>> > >
+>> > > > > - What happens if we just nuke the limit altogether and fall back to
+>> > > > >   the next check, which presumably is the rlimit bounds?
+>> > > >
+>> > > > afaik we only have rlimit for msgqueues. But in any case, while I like
+>> > > > that simplicity, it's too late. Too many workloads (specially DBs) rely
+>> > > > heavily on shmmax. Removing it and relying on something else would thus
+>> > > > cause a lot of things to break.
+>> > >
+>> > > It would permit larger shm segments - how could that break things?  It
+>> > > would make most or all of these issues go away?
+>> > >
+>> >
+>> > So sysadmins wouldn't be very happy, per man shmget(2):
+>> >
+>> > EINVAL A new segment was to be created and size < SHMMIN or size >
+>> > SHMMAX, or no new segment was to be created, a segment with given key
+>> > existed, but size is greater than the size of that segment.
+>>
+>> So their system will act as if they had set SHMMAX=enormous.  What
+>> problems could that cause?
 >
->> This patch adds 256 virtual character devices: /dev/byte0, ..., /dev/byte255.
->> Each works like /dev/zero but generates memory filled with particular byte.
->
-> More kernel code for an ultra-obscure corner case that can be done in
-> user space
->
-> I don't see the point
+> So, just like any sysctl configurable, only privileged users can change
+> this value. If we remove this option, users can theoretically create
+> huge segments, thus ignoring any custom limit previously set. This is
+> what I fear. Think of it kind of like mlock's rlimit. And for that
+> matter, why does sysctl exist at all, the same would go for the rest of
+> the limits.
 
-True. That was a long-planned joke.
-But at the final moment I've found practical usage for it and overall
-design became not such funny.
+Hmm. It's hard to agree. AFAIK 32MB is just borrowed from other Unix
+and it doesn't respect any Linux internals. Look, non privileged user
+can user unlimited memory, at least on linux. So I don't find out any
+difference between regular anon and shmem.
 
-Currently I'm thinking about single-device model proposed by Kirill.
-
-Let's call it /dev/poison. Application can open it, write a poison (up
-to a page size) and after that this instance will generate pages
-filled with this pattern. I don't see how this can be done in
-userspace without major memory/cpu overhead caused by initial memset.
-
-Default poison might be for example 0xff, so it still will be useful for 'dd'.
+So, I personally like 0 byte per default.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
