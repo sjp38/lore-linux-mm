@@ -1,102 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id DB79E6B0088
-	for <linux-mm@kvack.org>; Tue,  1 Apr 2014 19:08:41 -0400 (EDT)
-Received: by mail-pa0-f54.google.com with SMTP id lf10so10635939pab.27
-        for <linux-mm@kvack.org>; Tue, 01 Apr 2014 16:08:41 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id vn9si52302pbc.2.2014.04.01.16.08.40
-        for <linux-mm@kvack.org>;
-        Tue, 01 Apr 2014 16:08:40 -0700 (PDT)
-Date: Tue, 1 Apr 2014 16:08:39 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] A long explanation for a short patch
-Message-Id: <20140401160839.8b561fbaae6568439fbc5a1d@linux-foundation.org>
-In-Reply-To: <20140314165332.GH16145@hansolo.jdub.homelinux.org>
-References: <1394764246-19936-1-git-send-email-jhubbard@nvidia.com>
-	<5322875D.1040702@oracle.com>
-	<532289F6.5010404@nvidia.com>
-	<20140314134222.GG16145@hansolo.jdub.homelinux.org>
-	<53231BB3.20205@oracle.com>
-	<20140314165332.GH16145@hansolo.jdub.homelinux.org>
+Received: from mail-oa0-f49.google.com (mail-oa0-f49.google.com [209.85.219.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B3F06B008A
+	for <linux-mm@kvack.org>; Tue,  1 Apr 2014 19:36:24 -0400 (EDT)
+Received: by mail-oa0-f49.google.com with SMTP id o6so1606342oag.36
+        for <linux-mm@kvack.org>; Tue, 01 Apr 2014 16:36:24 -0700 (PDT)
+Received: from g4t3425.houston.hp.com (g4t3425.houston.hp.com. [15.201.208.53])
+        by mx.google.com with ESMTPS id pp9si52132obc.173.2014.04.01.16.28.53
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 01 Apr 2014 16:29:23 -0700 (PDT)
+Message-ID: <1396394931.25314.34.camel@buesod1.americas.hpqcorp.net>
+Subject: Re: [PATCH] ipc,shm: increase default size for shmmax
+From: Davidlohr Bueso <davidlohr@hp.com>
+Date: Tue, 01 Apr 2014 16:28:51 -0700
+In-Reply-To: <CAHGf_=r5AUu6yvJgOzwYDghBo6iT2q+nNumpvqwer+igcfChrA@mail.gmail.com>
+References: <1396235199.2507.2.camel@buesod1.americas.hpqcorp.net>
+	 <20140331143217.c6ff958e1fd9944d78507418@linux-foundation.org>
+	 <1396306773.18499.22.camel@buesod1.americas.hpqcorp.net>
+	 <20140331161308.6510381345cb9a1b419d5ec0@linux-foundation.org>
+	 <1396308332.18499.25.camel@buesod1.americas.hpqcorp.net>
+	 <20140331170546.3b3e72f0.akpm@linux-foundation.org>
+	 <1396371699.25314.11.camel@buesod1.americas.hpqcorp.net>
+	 <CAHGf_=qsf6vN5k=-PLraG8Q_uU1pofoBDktjVH1N92o76xPadQ@mail.gmail.com>
+	 <1396377083.25314.17.camel@buesod1.americas.hpqcorp.net>
+	 <CAHGf_=rLLBDr5ptLMvFD-M+TPQSnK3EP=7R+27K8or84rY-KLA@mail.gmail.com>
+	 <1396386062.25314.24.camel@buesod1.americas.hpqcorp.net>
+	 <CAHGf_=rhXrBQSmDBJJ-vPxBbhjJ91Fh2iWe1cf_UQd-tCfpb2w@mail.gmail.com>
+	 <20140401142947.927642a408d84df27d581e36@linux-foundation.org>
+	 <CAHGf_=p70rLOYwP2OgtK+2b+41=GwMA9R=rZYBqRr1w_O5UnKA@mail.gmail.com>
+	 <20140401144801.603c288674ab8f417b42a043@linux-foundation.org>
+	 <CAHGf_=r5AUu6yvJgOzwYDghBo6iT2q+nNumpvqwer+igcfChrA@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Josh Boyer <jwboyer@redhat.com>
-Cc: Sasha Levin <sasha.levin@oracle.com>, John Hubbard <jhubbard@nvidia.com>, "john.hubbard@gmail.com" <john.hubbard@gmail.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Manfred Spraul <manfred@colorfullife.com>, aswin@hp.com, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Fri, 14 Mar 2014 12:53:32 -0400 Josh Boyer <jwboyer@redhat.com> wrote:
+On Tue, 2014-04-01 at 18:49 -0400, KOSAKI Motohiro wrote:
+> On Tue, Apr 1, 2014 at 5:48 PM, Andrew Morton <akpm@linux-foundation.org> wrote:
+> > On Tue, 1 Apr 2014 17:41:54 -0400 KOSAKI Motohiro <kosaki.motohiro@gmail.com> wrote:
+> >
+> >> >> > Hmmm so 0 won't really work because it could be weirdly used to disable
+> >> >> > shm altogether... we cannot go to some negative value either since we're
+> >> >> > dealing with unsigned, and cutting the range in half could also hurt
+> >> >> > users that set the limit above that. So I was thinking of simply setting
+> >> >> > SHMMAX to ULONG_MAX and be done with it. Users can then set it manually
+> >> >> > if they want a smaller value.
+> >> >> >
+> >> >> > Makes sense?
+> >> >>
+> >> >> I don't think people use 0 for disabling. but ULONG_MAX make sense to me too.
+> >> >
+> >> > Distros could have set it to [U]LONG_MAX in initscripts ten years ago
+> >> > - less phone calls, happier customers.  And they could do so today.
+> >> >
+> >> > But they haven't.   What are the risks of doing this?
+> >>
+> >> I have no idea really. But at least I'm sure current default is much worse.
+> >>
+> >> 1. Solaris changed the default to total-memory/4 since Solaris 10 for DB.
+> >>  http://www.postgresql.org/docs/9.1/static/kernel-resources.html
+> >>
+> >> 2. RHEL changed the default to very big size since RHEL5 (now it is
+> >> 64GB). Even tough many box don't have 64GB memory at that time.
+> >
+> > Ah-hah, that's interesting info.
+> >
+> > Let's make the default 64GB?
+> 
+> 64GB is infinity at that time, but it no longer near infinity today. I like
+> very large or total memory proportional number.
 
-> I suppose the
-> thing that gave me pause here is that the highlighted example was an
-> issue with a proprietary module whereas this one is permissively
-> licensed (more permissively than GPL even).
+So I still like 0 for unlimited. Nice, clean and much easier to look at
+than ULONG_MAX. And since we cannot disable shm through SHMMIN, I really
+don't see any disadvantages, as opposed to some other arbitrary value.
+Furthermore it wouldn't break userspace: any existing sysctl would
+continue to work, and if not set, the user never has to worry about this
+tunable again.
 
-Doesn't really matter much.
-
-a) things used to work, but 309381feaee564 broke it, unintentionally.
-
-b) modules which work OK with CONFIG_DEBUG_VM=n will break with
-   CONFIG_DEBUG_VM=y, which makes no sense.
-
-
-I queued the patch for 3.15-rc1 with a tweaked changelog:
-
-
-From: John Hubbard <jhubbard@nvidia.com>
-Subject: mm/page_alloc.c: change mm debug routines back to EXPORT_SYMBOL
-
-A new dump_page() routine was recently added, and marked
-EXPORT_SYMBOL_GPL.  dump_page() was also added to the VM_BUG_ON_PAGE()
-macro, and so the end result is that non-GPL code can no longer call
-get_page() and a few other routines.
-
-This only happens if the kernel was compiled with CONFIG_DEBUG_VM.
-
-Change dump_page() to be EXPORT_SYMBOL.
-
-Longer explanation:
-
-Prior to 309381feaee564 ("mm: dump page when hitting a VM_BUG_ON using
-VM_BUG_ON_PAGE") , it was possible to build MIT-licensed (non-GPL) drivers
-on Fedora.  Fedora is semi-unique, in that it sets CONFIG_VM_DEBUG.
-
-Because Fedora sets CONFIG_VM_DEBUG, they end up pulling in dump_page(),
-via VM_BUG_ON_PAGE, via get_page().  As one of the authors of NVIDIA's
-new, open source, "UVM-Lite" kernel module, I originally choose to use the
-kernel's get_page() routine from within nvidia_uvm_page_cache.c, because
-get_page() has always seemed to be very clearly intended for use by
-non-GPL, driver code.
-
-So I'm hoping that making get_page() widely accessible again will not be
-too controversial.  We did check with Fedora first, and they responded
-(https://bugzilla.redhat.com/show_bug.cgi?id=1074710#c3) that we should
-try to get upstream changed, before asking Fedora to change.  Their
-reasoning seems beneficial to Linux: leaving CONFIG_DEBUG_VM set allows
-Fedora to help catch mm bugs.
-
-Signed-off-by: John Hubbard <jhubbard@nvidia.com>
-Cc: Sasha Levin <sasha.levin@oracle.com>
-Cc: Josh Boyer <jwboyer@redhat.com>
-
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
----
-
- mm/page_alloc.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff -puN mm/page_alloc.c~mm-page_allocc-change-mm-debug-routines-back-to-export_symbol mm/page_alloc.c
---- a/mm/page_alloc.c~mm-page_allocc-change-mm-debug-routines-back-to-export_symbol
-+++ a/mm/page_alloc.c
-@@ -6566,4 +6566,4 @@ void dump_page(struct page *page, const
- {
- 	dump_page_badflags(page, reason, 0);
- }
--EXPORT_SYMBOL_GPL(dump_page);
-+EXPORT_SYMBOL(dump_page);
-_
+Please let me know if you all agree with this...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
