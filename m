@@ -1,71 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f53.google.com (mail-yh0-f53.google.com [209.85.213.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 377BC6B0031
-	for <linux-mm@kvack.org>; Tue,  1 Apr 2014 14:19:08 -0400 (EDT)
-Received: by mail-yh0-f53.google.com with SMTP id v1so9351394yhn.26
-        for <linux-mm@kvack.org>; Tue, 01 Apr 2014 11:19:07 -0700 (PDT)
-Received: from SMTP02.CITRIX.COM (smtp02.citrix.com. [66.165.176.63])
-        by mx.google.com with ESMTPS id f21si13373747yhc.124.2014.04.01.11.19.07
+Received: from mail-qg0-f48.google.com (mail-qg0-f48.google.com [209.85.192.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 11B506B0031
+	for <linux-mm@kvack.org>; Tue,  1 Apr 2014 14:25:49 -0400 (EDT)
+Received: by mail-qg0-f48.google.com with SMTP id j107so9338109qga.21
+        for <linux-mm@kvack.org>; Tue, 01 Apr 2014 11:25:48 -0700 (PDT)
+Received: from smtp.bbn.com (smtp.bbn.com. [128.33.0.80])
+        by mx.google.com with ESMTPS id m6si7954025qay.149.2014.04.01.11.25.48
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 01 Apr 2014 11:19:07 -0700 (PDT)
-Message-ID: <533B0301.3010507@citrix.com>
-Date: Tue, 1 Apr 2014 19:18:41 +0100
-From: David Vrabel <david.vrabel@citrix.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 01 Apr 2014 11:25:48 -0700 (PDT)
+Message-ID: <533B04A9.6090405@bbn.com>
+Date: Tue, 01 Apr 2014 14:25:45 -0400
+From: Richard Hansen <rhansen@bbn.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/2] x86: use pv-ops in {pte,pmd}_{set,clear}_flags()
-References: <1395425902-29817-1-git-send-email-david.vrabel@citrix.com>	<1395425902-29817-3-git-send-email-david.vrabel@citrix.com>	<533016CB.4090807@citrix.com>	<CAKbGBLiVqaHEOZx6y4MW4xDTUdKRhVLZXTTGiqYT7vuH2Wgeww@mail.gmail.com>	<CA+55aFwEwUmLe+dsFghMcaXdG5LPZ_NcQeOU1zZvEf7rCPw5CQ@mail.gmail.com>	<20140331122625.GR25087@suse.de> <CA+55aFwGF9G+FBH3a5L0hHkTYaP9eCAfUT+OwvqUY_6N6LcbaQ@mail.gmail.com>
-In-Reply-To: <CA+55aFwGF9G+FBH3a5L0hHkTYaP9eCAfUT+OwvqUY_6N6LcbaQ@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
+Subject: [PATCH] mm: msync: require either MS_ASYNC or MS_SYNC
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, Steven Noonan <steven@uplinklabs.net>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, linux-mm <linux-mm@kvack.org>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: linux-api@vger.kernel.org, Greg Troxel <gdt@ir.bbn.com>
 
-On 31/03/14 16:41, Linus Torvalds wrote:
-> On Mon, Mar 31, 2014 at 5:26 AM, Mel Gorman <mgorman@suse.de> wrote:
->>
->> Ok, so how do you suggest that _PAGE_NUMA could have been implemented
->> that did *not* use _PAGE_PROTNONE on x86, trapped a fault and was not
->> expensive as hell to handle?
-> 
-> So on x86, the obvious model is to use another bit. We've got several.
-> The _PAGE_NUMA case only matters for when _PAGE_PRESENT is clear, and
-> when that bit is clear the hardware doesn't care about any of the
-> other bits. Currently we use:
-> 
->   #define _PAGE_BIT_PROTNONE      _PAGE_BIT_GLOBAL
->   #define _PAGE_BIT_FILE          _PAGE_BIT_DIRTY
-> 
-> which are bits 8 and 6 respectively, afaik.
-> 
-> and the only rule is that (a) we should *not* use a bit we already use
-> when the page is not present (since that is ambiguous!) and (b) we
-> should *not* use a bit that is used by the swap index cases. I think
-> bit 7 should work, but maybe I missed something.
+For the flags parameter, POSIX says "Either MS_ASYNC or MS_SYNC shall
+be specified, but not both." [1]  There was already a test for the
+"both" condition.  Add a test to ensure that the caller specified one
+of the flags; fail with EINVAL if neither are specified.
 
-I don't think it's sufficient to avoid collisions with bits used only
-with P=0.  The original value of this bit must be retained when the
-_PAGE_NUMA bit is set/cleared.
+Without this change, specifying neither is the same as specifying
+flags=MS_ASYNC because nothing in msync() is conditioned on the
+MS_ASYNC flag.  This has not always been true, and there's no good
+reason to believe that this behavior would have persisted
+indefinitely.
 
-Bit 7 is PAT[2] and whilst Linux currently sets up the PAT such that
-PAT[2] is a 'don't care', there has been talk up adjusting the PAT to
-include more types. So I'm not sure it's a good idea to use bit 7.
+The msync(2) man page (as currently written in man-pages.git) is
+silent on the behavior if both flags are unset, so this change should
+not break an application written by somone who carefully reads the
+Linux man pages or the POSIX spec.
 
-What's wrong with using e.g., bit 62? And not supporting this NUMA
-rebalancing feature on 32-bit non-PAE builds?
+[1] http://pubs.opengroup.org/onlinepubs/9699919799/functions/msync.html
 
-David
+Signed-off-by: Richard Hansen <rhansen@bbn.com>
+Reported-by: Greg Troxel <gdt@ir.bbn.com>
+Reviewed-by: Greg Troxel <gdt@ir.bbn.com>
+---
 
-> Can somebody tell me why _PAGE_NUMA is *not* that bit seven? Make
-> "pte_present()" on x86 just check all of the present/numa/protnone
-> bits, and if any of them is set, it's a "present" page.
-> 
-> Now, unlike x86, some other architectures do *not* have free bits, so
-> there may be problems elsewhere.
-> 
->             Linus
+This is a resend of:
+http://article.gmane.org/gmane.linux.kernel/1554416
+I didn't get any feedback from that submission, so I'm resending it
+without changes.
+
+ mm/msync.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/mm/msync.c b/mm/msync.c
+index 632df45..472ad3e 100644
+--- a/mm/msync.c
++++ b/mm/msync.c
+@@ -42,6 +42,8 @@ SYSCALL_DEFINE3(msync, unsigned long, start, size_t,
+len, int, flags)
+ 		goto out;
+ 	if ((flags & MS_ASYNC) && (flags & MS_SYNC))
+ 		goto out;
++	if (!(flags & (MS_ASYNC | MS_SYNC)))
++		goto out;
+ 	error = -ENOMEM;
+ 	len = (len + ~PAGE_MASK) & PAGE_MASK;
+ 	end = start + len;
+-- 
+1.8.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
