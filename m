@@ -1,101 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f173.google.com (mail-qc0-f173.google.com [209.85.216.173])
-	by kanga.kvack.org (Postfix) with ESMTP id CB2666B00B1
-	for <linux-mm@kvack.org>; Wed,  2 Apr 2014 11:18:34 -0400 (EDT)
-Received: by mail-qc0-f173.google.com with SMTP id r5so358214qcx.4
-        for <linux-mm@kvack.org>; Wed, 02 Apr 2014 08:18:34 -0700 (PDT)
-Received: from mail-qa0-x22c.google.com (mail-qa0-x22c.google.com [2607:f8b0:400d:c00::22c])
-        by mx.google.com with ESMTPS id 72si914312qga.168.2014.04.02.08.18.33
+Received: from mail-pb0-f51.google.com (mail-pb0-f51.google.com [209.85.160.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 779BD6B00B8
+	for <linux-mm@kvack.org>; Wed,  2 Apr 2014 11:43:23 -0400 (EDT)
+Received: by mail-pb0-f51.google.com with SMTP id uo5so366917pbc.38
+        for <linux-mm@kvack.org>; Wed, 02 Apr 2014 08:43:23 -0700 (PDT)
+Received: from mail-pa0-x236.google.com (mail-pa0-x236.google.com [2607:f8b0:400e:c03::236])
+        by mx.google.com with ESMTPS id il2si1490316pbc.134.2014.04.02.08.43.22
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 02 Apr 2014 08:18:34 -0700 (PDT)
-Received: by mail-qa0-f44.google.com with SMTP id dc16so319856qab.3
-        for <linux-mm@kvack.org>; Wed, 02 Apr 2014 08:18:33 -0700 (PDT)
-Date: Wed, 2 Apr 2014 11:18:27 -0400
-From: Jerome Glisse <j.glisse@gmail.com>
-Subject: Re: [PATCH] mm/mmu_notifier: restore set_pte_at_notify semantics
-Message-ID: <20140402151825.GA3614@gmail.com>
-References: <1389778834-21200-1-git-send-email-mike.rapoport@ravellosystems.com>
- <20140122131046.GF14193@redhat.com>
- <52DFCF2B.1010603@mellanox.com>
- <20140330203328.GA4859@gmail.com>
- <533C081D.9050202@mellanox.com>
+        Wed, 02 Apr 2014 08:43:22 -0700 (PDT)
+Received: by mail-pa0-f54.google.com with SMTP id lf10so362563pab.41
+        for <linux-mm@kvack.org>; Wed, 02 Apr 2014 08:43:22 -0700 (PDT)
+Date: Wed, 2 Apr 2014 08:42:15 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [patch]x86: clearing access bit don't flush tlb
+In-Reply-To: <20140402130143.GA1869@suse.de>
+Message-ID: <alpine.LSU.2.11.1404020830470.19355@eggly.anvils>
+References: <20140326223034.GA31713@kernel.org> <20140402130143.GA1869@suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <533C081D.9050202@mellanox.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Haggai Eran <haggaie@mellanox.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Mike Rapoport <mike.rapoport@ravellosystems.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Izik Eidus <izik.eidus@ravellosystems.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Or Gerlitz <ogerlitz@mellanox.com>, Sagi Grimberg <sagig@mellanox.com>, Shachar Raindel <raindel@mellanox.com>
+To: Shaohua Li <shli@kernel.org>
+Cc: Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, akpm@linux-foundation.org, hughd@google.com, riel@redhat.com, mel@csn.ul.ie
 
-On Wed, Apr 02, 2014 at 03:52:45PM +0300, Haggai Eran wrote:
-> On 03/30/2014 11:33 PM, Jerome Glisse wrote:
-> >On Wed, Jan 22, 2014 at 04:01:15PM +0200, Haggai Eran wrote:
-> >>I'm worried about the following scenario:
-> >>
-> >>Given a read-only page, suppose one host thread (thread 1) writes to
-> >>that page, and performs COW, but before it calls the
-> >>mmu_notifier_invalidate_page_if_missing_change_pte function another host
-> >>thread (thread 2) writes to the same page (this time without a page
-> >>fault). Then we have a valid entry in the secondary page table to a
-> >>stale page, and someone (thread 3) may read stale data from there.
-> >>
-> >>Here's a diagram that shows this scenario:
-> >>
-> >>Thread 1                                | Thread 2        | Thread 3
-> >>========================================================================
-> >>do_wp_page(page 1)                      |                 |
-> >>   ...                                   |                 |
-> >>   set_pte_at_notify                     |                 |
-> >>   ...                                   | write to page 1 |
-> >>                                         |                 | stale access
-> >>   pte_unmap_unlock                      |                 |
-> >>   invalidate_page_if_missing_change_pte |                 |
-> >>
-> >>This is currently prevented by the use of the range start and range end
-> >>notifiers.
-> >>
-> >>Do you agree that this scenario is possible with the new patch, or am I
-> >>missing something?
-> >>
-> >I believe you are right, but of all the upstream user of the mmu_notifier
-> >API only xen would suffer from this ie any user that do not have a proper
-> >change_pte callback can see the bogus scenario you describe above.
-> Yes. I sent our RDMA paging RFC patch-set on linux-rdma [1] last
-> month, and it would also suffer from this scenario, but it's not
-> upstream yet.
-> >The issue i see is with user that want to/or might sleep when they are
-> >invalidation the secondary page table. The issue being that change_pte is
-> >call with the cpu page table locked (well at least for the affected pmd).
-> >
-> >I would rather keep the invalidate_range_start/end bracket around change_pte
-> >and invalidate page. I think we can fix the kvm regression by other means.
-> Perhaps another possibility would be to do the
-> invalidate_range_start/end bracket only when the mmu_notifier is
-> missing a change_pte implementation.
-
-This would imply either to scan all mmu_notifier currently register or to
-have a global flags for the mm to know if there is one mmu_notifier without
-change_pte. Moreover this would means that kvm would remain "broken" if one
-of the mmu notifier do not have the change_pte callback.
-
-Solution i have in mind and is part of a patchset i am working on, just
-involve passing along an enum value to mmu notifier callback. The enum
-value would tell what are the exact event that actually triggered the
-mmu notifier call (vmscan, migrate, ksm, ...). Knowing this kvm could then
-simply ignore invalidate_range_start/end for event it knows it will get
-a change_pte callback.
-
-Cheers,
-Jerome
-
+On Wed, 2 Apr 2014, Mel Gorman wrote:
+> On Thu, Mar 27, 2014 at 06:30:34AM +0800, Shaohua Li wrote:
+> > 
+> > I posted this patch a year ago or so, but it gets lost. Repost it here to check
+> > if we can make progress this time.
+> > 
+> > We use access bit to age a page at page reclaim. When clearing pte access bit,
+> > we could skip tlb flush in X86. The side effect is if the pte is in tlb and pte
+> > access bit is unset in page table, when cpu access the page again, cpu will not
+> > set page table pte's access bit. Next time page reclaim will think this hot
+> > page is old and reclaim it wrongly, but this doesn't corrupt data.
+> > 
+> > And according to intel manual, tlb has less than 1k entries, which covers < 4M
+> > memory. In today's system, several giga byte memory is normal. After page
+> > reclaim clears pte access bit and before cpu access the page again, it's quite
+> > unlikely this page's pte is still in TLB. And context swich will flush tlb too.
+> > The chance skiping tlb flush to impact page reclaim should be very rare.
+> > 
+> > Originally (in 2.5 kernel maybe), we didn't do tlb flush after clear access bit.
+> > Hugh added it to fix some ARM and sparc issues. Since I only change this for
+> > x86, there should be no risk.
+> > 
+> > And in some workloads, TLB flush overhead is very heavy. In my simple
+> > multithread app with a lot of swap to several pcie SSD, removing the tlb flush
+> > gives about 20% ~ 30% swapout speedup.
+> > 
+> > Signed-off-by: Shaohua Li <shli@fusionio.com>
 > 
-> Best regards,
-> Haggai
+> I'm aware of the discussion on the more complex version and the outcome
+> of that. While I think the corner case is real, I think it's also very
+> unlikely and as this is an x86-only thing which will be safe from
+> corruption at least;
 > 
-> [1] http://www.spinics.net/lists/linux-rdma/msg18906.html
+> Acked-by: Mel Gorman <mgorman@suse.de>
+> 
+> Shaohua, you almost certainly should resend this to Andrew with the
+> ack's you collected so that he does not have to dig into the history
+> trying to figure out what the exact story is.
+
+And you can add my
+
+Acked-by: Hugh Dickins <hughd@google.com>
+
+to your collection too: you and I discussed this at LSF/MM, and nowadays
+I agree that the corner case that originally worried me (highly-accessed
+page not getting its accessed bit updated and then temporarily unmapped)
+is too unlikely a case to refuse the optimization: it might happen
+occasionally, but I doubt anybody will notice.
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
