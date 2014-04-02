@@ -1,71 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f41.google.com (mail-bk0-f41.google.com [209.85.214.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 404F96B00A5
-	for <linux-mm@kvack.org>; Wed,  2 Apr 2014 09:01:49 -0400 (EDT)
-Received: by mail-bk0-f41.google.com with SMTP id d7so36754bkh.0
-        for <linux-mm@kvack.org>; Wed, 02 Apr 2014 06:01:48 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ti7si921185bkb.287.2014.04.02.06.01.47
+Received: from mail-la0-f52.google.com (mail-la0-f52.google.com [209.85.215.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 461CB6B00A8
+	for <linux-mm@kvack.org>; Wed,  2 Apr 2014 09:29:46 -0400 (EDT)
+Received: by mail-la0-f52.google.com with SMTP id ec20so162067lab.11
+        for <linux-mm@kvack.org>; Wed, 02 Apr 2014 06:29:45 -0700 (PDT)
+Received: from mail-lb0-x22b.google.com (mail-lb0-x22b.google.com [2a00:1450:4010:c04::22b])
+        by mx.google.com with ESMTPS id iz10si321911lbc.123.2014.04.02.06.29.44
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 02 Apr 2014 06:01:47 -0700 (PDT)
-Date: Wed, 2 Apr 2014 14:01:43 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [patch]x86: clearing access bit don't flush tlb
-Message-ID: <20140402130143.GA1869@suse.de>
-References: <20140326223034.GA31713@kernel.org>
+        Wed, 02 Apr 2014 06:29:44 -0700 (PDT)
+Received: by mail-lb0-f171.google.com with SMTP id w7so157927lbi.16
+        for <linux-mm@kvack.org>; Wed, 02 Apr 2014 06:29:43 -0700 (PDT)
+Date: Wed, 2 Apr 2014 17:29:42 +0400
+From: Cyrill Gorcunov <gorcunov@gmail.com>
+Subject: Re: [PATCH 2/2] x86: use pv-ops in {pte,pmd}_{set,clear}_flags()
+Message-ID: <20140402132942.GZ4872@moon>
+References: <1395425902-29817-3-git-send-email-david.vrabel@citrix.com>
+ <533016CB.4090807@citrix.com>
+ <CAKbGBLiVqaHEOZx6y4MW4xDTUdKRhVLZXTTGiqYT7vuH2Wgeww@mail.gmail.com>
+ <CA+55aFwEwUmLe+dsFghMcaXdG5LPZ_NcQeOU1zZvEf7rCPw5CQ@mail.gmail.com>
+ <20140331122625.GR25087@suse.de>
+ <CA+55aFwGF9G+FBH3a5L0hHkTYaP9eCAfUT+OwvqUY_6N6LcbaQ@mail.gmail.com>
+ <533B0301.3010507@citrix.com>
+ <CA+55aFw2wReYNaxtTRYjEWTRsV=bMAFq8YK3=qX-PCvQjY72Kw@mail.gmail.com>
+ <20140401190344.GX4872@moon>
+ <533BF59C.1080203@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140326223034.GA31713@kernel.org>
+In-Reply-To: <533BF59C.1080203@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shli@kernel.org>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, hughd@google.com, riel@redhat.com, mel@csn.ul.ie
+To: Pavel Emelyanov <xemul@parallels.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, David Vrabel <david.vrabel@citrix.com>, Mel Gorman <mgorman@suse.de>, Steven Noonan <steven@uplinklabs.net>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, linux-mm <linux-mm@kvack.org>
 
-On Thu, Mar 27, 2014 at 06:30:34AM +0800, Shaohua Li wrote:
+On Wed, Apr 02, 2014 at 03:33:48PM +0400, Pavel Emelyanov wrote:
+...
+> >>
+> >> But you'd have to be insane to care about NUMA balancing on 32-bit,
+> >> even with PAE. So restricting it to x86-64 and using the high bits (I
+> >> think bits 52-62 are all available to SW) sounds fine to me.
+> >>
+> >> Same goes for soft-dirty. I think it's fine if we say that you won't
+> >> have soft-dirty with a 32-bit kernel. Even with PAE.
+> > 
+> > Well, at the moment we use soft-dirty for x86-64 only in criu but there
+> > were plans to implement complete 32bit support as well. While personally
+> > I don't mind dropping soft-dirty for non x86-64 case, I would like
+> > to hear Pavel's opinion, Pavel?
 > 
-> I posted this patch a year ago or so, but it gets lost. Repost it here to check
-> if we can make progress this time.
-> 
-> We use access bit to age a page at page reclaim. When clearing pte access bit,
-> we could skip tlb flush in X86. The side effect is if the pte is in tlb and pte
-> access bit is unset in page table, when cpu access the page again, cpu will not
-> set page table pte's access bit. Next time page reclaim will think this hot
-> page is old and reclaim it wrongly, but this doesn't corrupt data.
-> 
-> And according to intel manual, tlb has less than 1k entries, which covers < 4M
-> memory. In today's system, several giga byte memory is normal. After page
-> reclaim clears pte access bit and before cpu access the page again, it's quite
-> unlikely this page's pte is still in TLB. And context swich will flush tlb too.
-> The chance skiping tlb flush to impact page reclaim should be very rare.
-> 
-> Originally (in 2.5 kernel maybe), we didn't do tlb flush after clear access bit.
-> Hugh added it to fix some ARM and sparc issues. Since I only change this for
-> x86, there should be no risk.
-> 
-> And in some workloads, TLB flush overhead is very heavy. In my simple
-> multithread app with a lot of swap to several pcie SSD, removing the tlb flush
-> gives about 20% ~ 30% swapout speedup.
-> 
-> Signed-off-by: Shaohua Li <shli@fusionio.com>
+> We (Parallels) don't have plans on C/R on 32-bit kernels, but I speak only
+> for Parallels. However, people I know who need 32-bit C/R use ARM :)
 
-I'm aware of the discussion on the more complex version and the outcome
-of that. While I think the corner case is real, I think it's also very
-unlikely and as this is an x86-only thing which will be safe from
-corruption at least;
+OK, since it's x86 specific I can prepare patch for dropping softdirty on
+x86-32 (this will release ugly macros in file mapping a bit but not that
+significantly).
 
-Acked-by: Mel Gorman <mgorman@suse.de>
+Guys, while looking into how to re-define _PAGE bits for case where present
+bit is dropped I though about the form like
 
-Shaohua, you almost certainly should resend this to Andrew with the
-ack's you collected so that he does not have to dig into the history
-trying to figure out what the exact story is.
+#define _PAGE_BIT_FILE		(_PAGE_BIT_PRESENT + 1)	/* _PAGE_BIT_RW */
+#define _PAGE_BIT_NUMA		(_PAGE_BIT_PRESENT + 2)	/* _PAGE_BIT_USER */
+#define _PAGE_BIT_PROTNONE	(_PAGE_BIT_PRESENT + 3)	/* _PAGE_BIT_PWT */
 
-Thanks.
+and while _PAGE_BIT_FILE case should work (as well as swap pages), I'm not that
+sure about the numa and protnone case. I fear there are some code paths which
+depends on the former bits positions -- ie when
 
--- 
-Mel Gorman
-SUSE Labs
+	PAGE_BIT_PROTNONE = _PAGE_BIT_NUMA = _PAGE_BIT_GLOBAL.
+
+One of the _PAGE_BIT_GLOBAL user is the page attributes code. It seems to always check
+_PAGE_BIT_PRESENT together with _PAGE_BIT_GLOBAL, so if _PAGE_BIT_PROTNONE get redefined
+to a new value it should not fail. Thus main concern is protnone + numa code, which
+I must admit I don't know well enough yet.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
