@@ -1,346 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f180.google.com (mail-we0-f180.google.com [74.125.82.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E1E96B00D9
-	for <linux-mm@kvack.org>; Wed,  2 Apr 2014 14:09:21 -0400 (EDT)
-Received: by mail-we0-f180.google.com with SMTP id p61so636209wes.39
-        for <linux-mm@kvack.org>; Wed, 02 Apr 2014 11:09:21 -0700 (PDT)
+Received: from mail-wg0-f52.google.com (mail-wg0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 236126B00DB
+	for <linux-mm@kvack.org>; Wed,  2 Apr 2014 14:31:58 -0400 (EDT)
+Received: by mail-wg0-f52.google.com with SMTP id k14so667357wgh.23
+        for <linux-mm@kvack.org>; Wed, 02 Apr 2014 11:31:57 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id g3si1247502wja.58.2014.04.02.11.09.19
+        by mx.google.com with ESMTP id m6si2018687wiy.17.2014.04.02.11.31.53
         for <linux-mm@kvack.org>;
-        Wed, 02 Apr 2014 11:09:20 -0700 (PDT)
-From: Luiz Capitulino <lcapitulino@redhat.com>
-Subject: [PATCH 4/4] hugetlb: add support for gigantic page allocation at runtime
-Date: Wed,  2 Apr 2014 14:08:48 -0400
-Message-Id: <1396462128-32626-5-git-send-email-lcapitulino@redhat.com>
-In-Reply-To: <1396462128-32626-1-git-send-email-lcapitulino@redhat.com>
-References: <1396462128-32626-1-git-send-email-lcapitulino@redhat.com>
+        Wed, 02 Apr 2014 11:31:54 -0700 (PDT)
+Date: Wed, 2 Apr 2014 20:31:13 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 0/5] Volatile Ranges (v12) & LSF-MM discussion fodder
+Message-ID: <20140402183113.GL1500@redhat.com>
+References: <1395436655-21670-1-git-send-email-john.stultz@linaro.org>
+ <20140401212102.GM4407@cmpxchg.org>
+ <533B8C2D.9010108@linaro.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <533B8C2D.9010108@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, mtosatti@redhat.com, aarcange@redhat.com, mgorman@suse.de, akpm@linux-foundation.org, andi@firstfloor.org, davidlohr@hp.com, rientjes@google.com, isimatu.yasuaki@jp.fujitsu.com, yinghai@kernel.org, riel@redhat.com
+To: John Stultz <john.stultz@linaro.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@sr71.net>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Neil Brown <neilb@suse.de>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-HugeTLB is limited to allocating hugepages whose size are less than
-MAX_ORDER order. This is so because HugeTLB allocates hugepages via
-the buddy allocator. Gigantic pages (that is, pages whose size is
-greater than MAX_ORDER order) have to be allocated at boottime.
+Hi everyone,
 
-However, boottime allocation has at least two serious problems. First,
-it doesn't support NUMA and second, gigantic pages allocated at
-boottime can't be freed.
+On Tue, Apr 01, 2014 at 09:03:57PM -0700, John Stultz wrote:
+> So between zero-fill and SIGBUS, I think SIGBUS makes the most sense. If
+> you have a third option you're thinking of, I'd of course be interested
+> in hearing it.
 
-This commit solves both issues by adding support for allocating gigantic
-pages during runtime. It works just like regular sized hugepages,
-meaning that the interface in sysfs is the same, it supports NUMA,
-and gigantic pages can be freed.
+I actually thought the way of being notified with a page fault (sigbus
+or whatever) was the most efficient way of using volatile ranges.
 
-For example, on x86_64 gigantic pages are 1GB big. To allocate two 1G
-gigantic pages on node 1, one can do:
+Why having to call a syscall to know if you can still access the
+volatile range, if there was no VM pressure before the access?
+syscalls are expensive, accessing the memory direct is not. Only if it
+page was actually missing and a page fault would fire, you'd take the
+slowpath.
 
- # echo 2 > \
-   /sys/devices/system/node/node1/hugepages/hugepages-1048576kB/nr_hugepages
+The usages I see for this are plenty, like for maintaining caches in
+memory that may be big and would be nice to discard if there's VM
+pressure, jpeg uncompressed images sounds like a candidate too. So the
+browser size would shrink if there's VM pressure, instead of ending up
+swapping out uncompressed image data that can be regenerated more
+quickly with the CPU than with swapins.
 
-And to free them later:
+> Now... once you've chosen SIGBUS semantics, there will be folks who will
+> try to exploit the fact that we get SIGBUS on purged page access (at
+> least on the user-space side) and will try to access pages that are
+> volatile until they are purged and try to then handle the SIGBUS to fix
+> things up. Those folks exploiting that will have to be particularly
+> careful not to pass volatile data to the kernel, and if they do they'll
+> have to be smart enough to handle the EFAULT, etc. That's really all
+> their problem, because they're being clever. :)
 
- # echo 0 > \
-   /sys/devices/system/node/node1/hugepages/hugepages-1048576kB/nr_hugepages
+I'm actually working on feature that would solve the problem for the
+syscalls accessing missing volatile pages. So you'd never see a
+-EFAULT because all syscalls won't return even if they encounters a
+missing page in the volatile range dropped by the VM pressure.
 
-The one problem with gigantic page allocation at runtime is that it
-can't be serviced by the buddy allocator. To overcome that problem, this
-series scans all zones from a node looking for a large enough contiguous
-region. When one is found, it's allocated by using CMA, that is, we call
-alloc_contig_range() to do the actual allocation. For example, on x86_64
-we scan all zones looking for a 1GB contiguous region. When one is found
-it's allocated by alloc_contig_range().
+It's called userfaultfd. You call sys_userfaultfd(flags) and it
+connects the current mm to a pseudo filedescriptor. The filedescriptor
+works similarly to eventfd but with a different protocol.
 
-One expected issue with that approach is that such gigantic contiguous
-regions tend to vanish as time goes by. The best way to avoid this for
-now is to make gigantic page allocations very early during boot, say
-from a init script. Other possible optimization include using compaction,
-which is supported by CMA but is not explicitly used by this commit.
+You need a thread that will never access the userfault area with the
+CPU, that is responsible to poll on the userfaultfd and talk the
+userfaultfd protocol to fill-in missing pages. The userfault thread
+after a POLLIN event reads the virtual addresses of the fault that
+must have happened on some other thread of the same mm, and then
+writes back an "handled" virtual range into the fd, after the page (or
+pages if multiple) have been regenerated and mapped in with
+sys_remap_anon_pages(), mremap or equivalent atomic pagetable page
+swapping. Then depending on the "solved" range written back into the
+fd, the kernel will wakeup the thread or threads that were waiting in
+kernel mode on the "handled" virtual range, and retry the fault
+without ever exiting kernel mode.
 
-It's also important to note the following:
+We need this in KVM for running the guest on memory that is on other
+nodes or other processes (postcopy live migration is the most common
+use case but there are others like memory externalization and
+cross-node KSM in the cloud, to keep a single copy of memory across
+multiple nodes and externalized to the VM and to the host node).
 
- 1. My target systems are x86_64 machines, so I have only tested 1GB
-    pages allocation/release. I did try to make this arch indepedent
-    and expect it to work on other archs but didn't try it myself
+This thread made me wonder if we could mix the two features and you
+would then depend on MADV_USERFAULT and userfaultfd to deliver to
+userland the "faults" happening on the volatile pages that have been
+purged as result of VM pressure.
 
- 2. I didn't add support for hugepage overcommit, that is allocating
-    a gigantic page on demand when
-   /proc/sys/vm/nr_overcommit_hugepages > 0. The reason is that I don't
-   think it's reasonable to do the hard and long work required for
-   allocating a gigantic page at fault time. But it should be simple
-   to add this if wanted
+I'm just saying this after Johannes mentioned the issue with syscalls
+returning -EFAULT. Because that is the very issue that the userfaultfd
+is going to solve for the KVM migration thread.
 
-Signed-off-by: Luiz Capitulino <lcapitulino@redhat.com>
----
- arch/x86/include/asm/hugetlb.h |  10 +++
- mm/hugetlb.c                   | 177 ++++++++++++++++++++++++++++++++++++++---
- 2 files changed, 176 insertions(+), 11 deletions(-)
+What I'm thinking now would be to mark the volatile range also
+MADV_USERFAULT and then calling userfaultfd and instead of having the
+cache regeneration "slow path" inside the SIGBUS handler, to run it in
+the userfault thread that polls the userfaultfd. Then you could write
+the volatile ranges to disk with a write() syscall (or use any other
+syscall on the volatile ranges), without having to worry about -EFAULT
+being returned because one page was discarded. And if MADV_USERFAULT
+is not called in combination with vrange syscalls, then it'd still
+work without the userfault, but with the vrange syscalls only.
 
-diff --git a/arch/x86/include/asm/hugetlb.h b/arch/x86/include/asm/hugetlb.h
-index a809121..2b262f7 100644
---- a/arch/x86/include/asm/hugetlb.h
-+++ b/arch/x86/include/asm/hugetlb.h
-@@ -91,6 +91,16 @@ static inline void arch_release_hugepage(struct page *page)
- {
- }
- 
-+static inline int arch_prepare_gigantic_page(struct page *page)
-+{
-+	return 0;
-+}
-+
-+static inline void arch_release_gigantic_page(struct page *page)
-+{
-+}
-+
-+
- static inline void arch_clear_hugepage_flags(struct page *page)
- {
- }
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 2c7a44a..c68515e 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -643,11 +643,159 @@ static int hstate_next_node_to_free(struct hstate *h, nodemask_t *nodes_allowed)
- 		((node = hstate_next_node_to_free(hs, mask)) || 1);	\
- 		nr_nodes--)
- 
-+#ifdef CONFIG_CMA
-+static void destroy_compound_gigantic_page(struct page *page,
-+					unsigned long order)
-+{
-+	int i;
-+	int nr_pages = 1 << order;
-+	struct page *p = page + 1;
-+
-+	for (i = 1; i < nr_pages; i++, p = mem_map_next(p, page, i)) {
-+		__ClearPageTail(p);
-+		set_page_refcounted(p);
-+		p->first_page = NULL;
-+	}
-+
-+	set_compound_order(page, 0);
-+	__ClearPageHead(page);
-+}
-+
-+static void free_gigantic_page(struct page *page, unsigned order)
-+{
-+	free_contig_range(page_to_pfn(page), 1 << order);
-+}
-+
-+static int __alloc_gigantic_page(unsigned long start_pfn, unsigned long count)
-+{
-+	unsigned long end_pfn = start_pfn + count;
-+	return alloc_contig_range(start_pfn, end_pfn, MIGRATE_MOVABLE);
-+}
-+
-+static bool pfn_valid_gigantic(unsigned long pfn)
-+{
-+	struct page *page;
-+
-+	if (!pfn_valid(pfn))
-+		return false;
-+
-+	page = pfn_to_page(pfn);
-+
-+	if (PageReserved(page))
-+		return false;
-+
-+	if (page_count(page) > 0)
-+		return false;
-+
-+	return true;
-+}
-+
-+static inline bool pfn_aligned_gigantic(unsigned long pfn, unsigned order)
-+{
-+	return IS_ALIGNED((phys_addr_t) pfn << PAGE_SHIFT, PAGE_SIZE << order);
-+}
-+
-+static struct page *alloc_gigantic_page(int nid, unsigned order)
-+{
-+	unsigned long ret, i, count, start_pfn, flags;
-+	unsigned long nr_pages = 1 << order;
-+	struct zone *z;
-+
-+	z = NODE_DATA(nid)->node_zones;
-+	for (; z - NODE_DATA(nid)->node_zones < MAX_NR_ZONES; z++) {
-+		spin_lock_irqsave(&z->lock, flags);
-+		if (z->spanned_pages < nr_pages) {
-+			spin_unlock_irqrestore(&z->lock, flags);
-+			continue;
-+		}
-+
-+		/* scan zone 'z' looking for a contiguous 'nr_pages' range */
-+		count = 0;
-+		start_pfn = z->zone_start_pfn; /* to silence gcc */
-+		for (i = z->zone_start_pfn; i < zone_end_pfn(z); i++) {
-+			if (!pfn_valid_gigantic(i)) {
-+				count = 0;
-+				continue;
-+			}
-+			if (!count) {
-+				if (!pfn_aligned_gigantic(i, order))
-+					continue;
-+				start_pfn = i;
-+			}
-+			if (++count == nr_pages) {
-+				/*
-+				 * We release the zone lock here because
-+				 * alloc_contig_range() will also lock the zone
-+				 * at some point. If there's an allocation
-+				 * spinning on this lock, it may win the race
-+				 * and cause alloc_contig_range() to fail...
-+				 */
-+				spin_unlock_irqrestore(&z->lock, flags);
-+				ret = __alloc_gigantic_page(start_pfn, count);
-+				if (!ret)
-+					return pfn_to_page(start_pfn);
-+				count = 0;
-+				spin_lock_irqsave(&z->lock, flags);
-+			}
-+		}
-+
-+		spin_unlock_irqrestore(&z->lock, flags);
-+	}
-+
-+	return NULL;
-+}
-+
-+static void prep_new_huge_page(struct hstate *h, struct page *page, int nid);
-+static void prep_compound_gigantic_page(struct page *page, unsigned long order);
-+
-+static struct page *alloc_fresh_gigantic_page_node(struct hstate *h, int nid)
-+{
-+	struct page *page;
-+
-+	page = alloc_gigantic_page(nid, huge_page_order(h));
-+	if (page) {
-+		if (arch_prepare_gigantic_page(page)) {
-+			free_gigantic_page(page, huge_page_order(h));
-+			return NULL;
-+		}
-+		prep_compound_gigantic_page(page, huge_page_order(h));
-+		prep_new_huge_page(h, page, nid);
-+	}
-+
-+	return page;
-+}
-+
-+static int alloc_fresh_gigantic_page(struct hstate *h,
-+				nodemask_t *nodes_allowed)
-+{
-+	struct page *page = NULL;
-+	int nr_nodes, node;
-+
-+	for_each_node_mask_to_alloc(h, nr_nodes, node, nodes_allowed) {
-+		page = alloc_fresh_gigantic_page_node(h, node);
-+		if (page)
-+			return 1;
-+	}
-+
-+	return 0;
-+}
-+
-+static inline bool gigantic_page_supported(void) { return true; }
-+#else /* !CONFIG_CMA */
-+static inline bool gigantic_page_supported(void) { return false; }
-+static inline void free_gigantic_page(struct page *page, unsigned order) { }
-+static inline void destroy_compound_gigantic_page(struct page *page,
-+						unsigned long order) { }
-+static inline int alloc_fresh_gigantic_page(struct hstate *h,
-+					nodemask_t *nodes_allowed) { return 0; }
-+#endif /* CONFIG_CMA */
-+
- static void update_and_free_page(struct hstate *h, struct page *page)
- {
- 	int i;
- 
--	VM_BUG_ON(hstate_is_gigantic(h));
-+	if (hstate_is_gigantic(h) && !gigantic_page_supported())
-+		return;
- 
- 	h->nr_huge_pages--;
- 	h->nr_huge_pages_node[page_to_nid(page)]--;
-@@ -661,8 +809,14 @@ static void update_and_free_page(struct hstate *h, struct page *page)
- 	VM_BUG_ON_PAGE(hugetlb_cgroup_from_page(page), page);
- 	set_compound_page_dtor(page, NULL);
- 	set_page_refcounted(page);
--	arch_release_hugepage(page);
--	__free_pages(page, huge_page_order(h));
-+	if (hstate_is_gigantic(h)) {
-+		arch_release_gigantic_page(page);
-+		destroy_compound_gigantic_page(page, huge_page_order(h));
-+		free_gigantic_page(page, huge_page_order(h));
-+	} else {
-+		arch_release_hugepage(page);
-+		__free_pages(page, huge_page_order(h));
-+	}
- }
- 
- struct hstate *size_to_hstate(unsigned long size)
-@@ -701,7 +855,7 @@ static void free_huge_page(struct page *page)
- 	if (restore_reserve)
- 		h->resv_huge_pages++;
- 
--	if (h->surplus_huge_pages_node[nid] && !hstate_is_gigantic(h)) {
-+	if (h->surplus_huge_pages_node[nid]) {
- 		/* remove the page from active list */
- 		list_del(&page->lru);
- 		update_and_free_page(h, page);
-@@ -805,9 +959,6 @@ static struct page *alloc_fresh_huge_page_node(struct hstate *h, int nid)
- {
- 	struct page *page;
- 
--	if (hstate_is_gigantic(h))
--		return NULL;
--
- 	page = alloc_pages_exact_node(nid,
- 		htlb_alloc_mask(h)|__GFP_COMP|__GFP_THISNODE|
- 						__GFP_REPEAT|__GFP_NOWARN,
-@@ -1452,7 +1603,7 @@ static unsigned long set_max_huge_pages(struct hstate *h, unsigned long count,
- {
- 	unsigned long min_count, ret;
- 
--	if (hstate_is_gigantic(h))
-+	if (hstate_is_gigantic(h) && !gigantic_page_supported())
- 		return h->max_huge_pages;
- 
- 	/*
-@@ -1479,7 +1630,11 @@ static unsigned long set_max_huge_pages(struct hstate *h, unsigned long count,
- 		 * and reducing the surplus.
- 		 */
- 		spin_unlock(&hugetlb_lock);
--		ret = alloc_fresh_huge_page(h, nodes_allowed);
-+		if (hstate_is_gigantic(h)) {
-+			ret = alloc_fresh_gigantic_page(h, nodes_allowed);
-+		} else {
-+			ret = alloc_fresh_huge_page(h, nodes_allowed);
-+		}
- 		spin_lock(&hugetlb_lock);
- 		if (!ret)
- 			goto out;
-@@ -1578,7 +1733,7 @@ static ssize_t nr_hugepages_store_common(bool obey_mempolicy,
- 		goto out;
- 
- 	h = kobj_to_hstate(kobj, &nid);
--	if (hstate_is_gigantic(h)) {
-+	if (hstate_is_gigantic(h) && !gigantic_page_supported()) {
- 		err = -EINVAL;
- 		goto out;
- 	}
-@@ -2072,7 +2227,7 @@ static int hugetlb_sysctl_handler_common(bool obey_mempolicy,
- 
- 	tmp = h->max_huge_pages;
- 
--	if (write && hstate_is_gigantic(h))
-+	if (write && hstate_is_gigantic(h) && !gigantic_page_supported())
- 		return -EINVAL;
- 
- 	table->data = &tmp;
--- 
-1.8.1.4
+In short the idea would be to let the userfault code solve the fault
+delivery to userland for you, and make the vrange syscalls only focus
+on the page purging problem, without having to worry about what
+happens when something access a missing page.
+
+But if you don't intend to solve the syscall -EFAULT problem, well
+then probably the overlap is still as thin as I thought it was before
+(like also mentioned in the below link).
+
+Thanks,
+Andrea
+
+PS. my last email about this from a more KVM centric point of view:
+
+http://www.spinics.net/lists/kvm/msg101449.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
