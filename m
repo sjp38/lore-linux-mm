@@ -1,150 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f49.google.com (mail-qa0-f49.google.com [209.85.216.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 483DD6B009A
-	for <linux-mm@kvack.org>; Tue,  1 Apr 2014 20:53:54 -0400 (EDT)
-Received: by mail-qa0-f49.google.com with SMTP id j7so10188730qaq.8
-        for <linux-mm@kvack.org>; Tue, 01 Apr 2014 17:53:53 -0700 (PDT)
-Received: from smtp.bbn.com (smtp.bbn.com. [128.33.0.80])
-        by mx.google.com with ESMTPS id gq5si135994qab.72.2014.04.01.17.53.52
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 03CE26B009C
+	for <linux-mm@kvack.org>; Tue,  1 Apr 2014 21:03:20 -0400 (EDT)
+Received: by mail-pa0-f50.google.com with SMTP id kq14so10729089pab.9
+        for <linux-mm@kvack.org>; Tue, 01 Apr 2014 18:03:20 -0700 (PDT)
+Received: from fgwmail5.fujitsu.co.jp (fgwmail5.fujitsu.co.jp. [192.51.44.35])
+        by mx.google.com with ESMTPS id mv8si145413pab.461.2014.04.01.18.03.19
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 01 Apr 2014 17:53:52 -0700 (PDT)
-Message-ID: <533B5F9C.9000003@bbn.com>
-Date: Tue, 01 Apr 2014 20:53:48 -0400
-From: Richard Hansen <rhansen@bbn.com>
+        Tue, 01 Apr 2014 18:03:20 -0700 (PDT)
+Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 90CB23EE0FE
+	for <linux-mm@kvack.org>; Wed,  2 Apr 2014 10:03:18 +0900 (JST)
+Received: from smail (m2 [127.0.0.1])
+	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7EE0445DE4D
+	for <linux-mm@kvack.org>; Wed,  2 Apr 2014 10:03:18 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (s2.gw.nic.fujitsu.com [10.0.50.92])
+	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 64A5C45DE52
+	for <linux-mm@kvack.org>; Wed,  2 Apr 2014 10:03:18 +0900 (JST)
+Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 3725A1DB8038
+	for <linux-mm@kvack.org>; Wed,  2 Apr 2014 10:03:18 +0900 (JST)
+Received: from m1001.s.css.fujitsu.com (m1001.s.css.fujitsu.com [10.240.81.139])
+	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id CEA311DB8048
+	for <linux-mm@kvack.org>; Wed,  2 Apr 2014 10:03:17 +0900 (JST)
+Message-ID: <533B61AC.7090808@jp.fujitsu.com>
+Date: Wed, 02 Apr 2014 10:02:36 +0900
+From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: msync: require either MS_ASYNC or MS_SYNC
-References: <533B04A9.6090405@bbn.com> <533B1439.3010403@gmail.com>
-In-Reply-To: <533B1439.3010403@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH] ipc,shm: increase default size for shmmax
+References: <1396235199.2507.2.camel@buesod1.americas.hpqcorp.net>	<20140331143217.c6ff958e1fd9944d78507418@linux-foundation.org>	<1396306773.18499.22.camel@buesod1.americas.hpqcorp.net>	<20140331161308.6510381345cb9a1b419d5ec0@linux-foundation.org>	<1396308332.18499.25.camel@buesod1.americas.hpqcorp.net>	<20140331170546.3b3e72f0.akpm@linux-foundation.org>	<533A5CB1.1@jp.fujitsu.com> <20140401121920.50d1dd96c2145acc81561b82@linux-foundation.org>
+In-Reply-To: <20140401121920.50d1dd96c2145acc81561b82@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: linux-api@vger.kernel.org, Greg Troxel <gdt@ir.bbn.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Davidlohr Bueso <davidlohr@hp.com>, Manfred Spraul <manfred@colorfullife.com>, aswin@hp.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "Gotou, Yasunori" <y-goto@jp.fujitsu.com>, chenhanxiao <chenhanxiao@cn.fujitsu.com>, Gao feng <gaofeng@cn.fujitsu.com>
 
-On 2014-04-01 15:32, Michael Kerrisk (man-pages) wrote:
-> Richard,
-> 
-> On 04/01/2014 08:25 PM, Richard Hansen wrote:
->> For the flags parameter, POSIX says "Either MS_ASYNC or MS_SYNC shall
->> be specified, but not both." [1]  There was already a test for the
->> "both" condition.  Add a test to ensure that the caller specified one
->> of the flags; fail with EINVAL if neither are specified.
+(2014/04/02 4:19), Andrew Morton wrote:
+> On Tue, 01 Apr 2014 15:29:05 +0900 Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+>
+>>>
+>>> So their system will act as if they had set SHMMAX=enormous.  What
+>>> problems could that cause?
+>>>
+>>>
+>>> Look.  The 32M thing is causing problems.  Arbitrarily increasing the
+>>> arbitrary 32M to an arbitrary 128M won't fix anything - we still have
+>>> the problem.  Think bigger, please: how can we make this problem go
+>>> away for ever?
+>>>
 >>
->> Without this change, specifying neither is the same as specifying
->> flags=MS_ASYNC because nothing in msync() is conditioned on the
->> MS_ASYNC flag.  This has not always been true, 
-> 
-> I am curious (since such things should be documented)--when was
-> it not true?
+>> Our middleware engineers has been complaining about this sysctl limit.
+>> System administrator need to calculate required sysctl value by making sum
+>> of all planned middlewares, and middleware provider needs to write "please
+>> calculate systcl param by....." in their installation manuals.
+>
+> Why aren't people just setting the sysctl to a petabyte?  What problems
+> would that lead to?
+>
 
-Before commit 204ec84 [1] (in v2.6.19), specifying MS_ASYNC could
-potentially follow a different code path than specifying neither
-MS_ASYNC nor MS_SYNC.  I'm not familiar enough with the internals to
-know what the behavioral implications were at the time.
+They(and admin) don't know the fact, setting petabytes won't cause any pain.
 
-[1]
-https://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/commit/?id=204ec841fbea3e5138168edbc3a76d46747cc987
+In their thinking:
+==
+If there is a kernel's limit, it should have some (bad) side-effect and
+the trade-off which must be handled by admin is represented by the limit.
+In this case, they think setting this value large will consume tons of resource.
+==
+They don't care kernel's implemenation but takes care of what API says.
 
-> 
->> and there's no good
->> reason to believe that this behavior would have persisted
->> indefinitely.
->>
->> The msync(2) man page (as currently written in man-pages.git) is
->> silent on the behavior if both flags are unset, so this change should
->> not break an application written by somone who carefully reads the
->> Linux man pages or the POSIX spec.
-> 
-> Sadly, people do not always carefully read man pages, so there
-> remains the chance that a change like this will break applications.
-
-True.  Mitigating factors:  (1) It'll only break applications that only
-care about Linux, and (2) any app that does flags=0 is arguably buggy
-anyway given the unspecified behavior.
-
-> Aside from standards conformance,
-
-Technically this change isn't required for standards conformance.  The
-POSIX standard is OK with implementation extensions, so this issue could
-be resolved by simply documenting that if neither MS_ASYNC nor MS_SYNC
-are set then MS_ASYNC is implied.  This would preclude us from using
-flags=0 for a different purpose in the future, so I'm a bit reluctant to
-go this route.
-
-(If we do go this route I'd like to see msync() modified to explicitly
-set the MS_ASYNC flag if neither are set to be defensive and to
-communicate intention to anyone reading the code.)
-
-> what do you see as the benefit of the change?
-
-  * Clarify intentions.  Looking at the code and the code history, the
-    fact that flags=0 behaves like flags=MS_ASYNC appears to be a
-    coincidence, not the result of an intentional choice.
-
-  * Eliminate unclear semantics.  (What does it mean for msync() to be
-    neither synchronous nor asynchronous?)
-
-  * Force app portability:  Other operating systems (e.g., NetBSD)
-    enforce POSIX, so an app developer using Linux might not notice the
-    non-conformance.  This is really the app developer's problem, not
-    the kernel's, but the alternatives to this patch are to stay vague
-    or to commit to defaulting to MS_ASYNC, neither of which I like as
-    much.
-
-    Here is a link to a discussion on the bup mailing list about
-    msync() portability.  This is the conversation that motivated this
-    patch.
-
-      http://article.gmane.org/gmane.comp.sysutils.backup.bup/3005
-
-Note that in addition to this patch I'd like to update the msync(2) man
-page to say that one of the two flags must be specified, but this commit
-should go in first.
+Of course, always I was asked, I answer set it to peta-bytes. But the fact
+*default is small* makes them doubtful.
 
 Thanks,
-Richard
-
-
-> 
-> Thanks,
-> 
-> Michael
-> 
-> 
->> [1] http://pubs.opengroup.org/onlinepubs/9699919799/functions/msync.html
->>
->> Signed-off-by: Richard Hansen <rhansen@bbn.com>
->> Reported-by: Greg Troxel <gdt@ir.bbn.com>
->> Reviewed-by: Greg Troxel <gdt@ir.bbn.com>
->> ---
->>
->> This is a resend of:
->> http://article.gmane.org/gmane.linux.kernel/1554416
->> I didn't get any feedback from that submission, so I'm resending it
->> without changes.
->>
->>  mm/msync.c | 2 ++
->>  1 file changed, 2 insertions(+)
->>
->> diff --git a/mm/msync.c b/mm/msync.c
->> index 632df45..472ad3e 100644
->> --- a/mm/msync.c
->> +++ b/mm/msync.c
->> @@ -42,6 +42,8 @@ SYSCALL_DEFINE3(msync, unsigned long, start, size_t,
->> len, int, flags)
->>  		goto out;
->>  	if ((flags & MS_ASYNC) && (flags & MS_SYNC))
->>  		goto out;
->> +	if (!(flags & (MS_ASYNC | MS_SYNC)))
->> +		goto out;
->>  	error = -ENOMEM;
->>  	len = (len + ~PAGE_MASK) & PAGE_MASK;
->>  	end = start + len;
->>
-> 
-> 
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
