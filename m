@@ -1,85 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id EF8A66B0114
-	for <linux-mm@kvack.org>; Wed,  2 Apr 2014 16:44:27 -0400 (EDT)
-Received: by mail-pa0-f51.google.com with SMTP id kq14so730951pab.38
-        for <linux-mm@kvack.org>; Wed, 02 Apr 2014 13:44:27 -0700 (PDT)
-Date: Wed, 2 Apr 2014 13:44:20 -0700
-From: "Darrick J. Wong" <darrick.wong@oracle.com>
-Subject: Re: [PATCH 3/6] aio/dio: enable PI passthrough
-Message-ID: <20140402204420.GB10230@birch.djwong.org>
-References: <20140324162231.10848.4863.stgit@birch.djwong.org>
- <20140324162251.10848.56452.stgit@birch.djwong.org>
- <20140402200133.GK2394@lenny.home.zabbo.net>
+Received: from mail-bk0-f49.google.com (mail-bk0-f49.google.com [209.85.214.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 50C166B0119
+	for <linux-mm@kvack.org>; Wed,  2 Apr 2014 16:54:39 -0400 (EDT)
+Received: by mail-bk0-f49.google.com with SMTP id my13so85046bkb.8
+        for <linux-mm@kvack.org>; Wed, 02 Apr 2014 13:54:38 -0700 (PDT)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id dm5si1582293bkc.83.2014.04.02.13.54.37
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 02 Apr 2014 13:54:37 -0700 (PDT)
+Date: Wed, 2 Apr 2014 16:54:33 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH v2 0/3] Per-cgroup swap file support
+Message-ID: <20140402205433.GW14688@cmpxchg.org>
+References: <1396470849-26154-1-git-send-email-yuzhao@google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140402200133.GK2394@lenny.home.zabbo.net>
+In-Reply-To: <1396470849-26154-1-git-send-email-yuzhao@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zach Brown <zab@redhat.com>
-Cc: axboe@kernel.dk, martin.petersen@oracle.com, JBottomley@parallels.com, jmoyer@redhat.com, bcrl@kvack.org, viro@zeniv.linux.org.uk, linux-fsdevel@vger.kernel.org, linux-aio@kvack.org, linux-scsi@vger.kernel.org, linux-mm@kvack.org
+To: Yu Zhao <yuzhao@google.com>
+Cc: linux-mm@kvack.org, cgroups@vger.kernel.org, x86@kernel.org, linux-kernel@vger.kernel.org, linux-doc@vger.kernel.org, jamieliu@google.com, suleiman@google.com
 
-On Wed, Apr 02, 2014 at 01:01:33PM -0700, Zach Brown wrote:
-> > +static int setup_pi_ext(struct kiocb *req, int is_write)
-> > +{
-> > +	struct file *file = req->ki_filp;
-> > +	struct io_extension *ext = &req->ki_ioext->ke_kern;
-> > +	void *p;
-> > +	unsigned long start, end;
-> > +	int retval;
-> > +
-> > +	if (!(file->f_flags & O_DIRECT)) {
-> > +		pr_debug("EINVAL: can't use PI without O_DIRECT.\n");
-> > +		return -EINVAL;
-> > +	}
-> > +
-> > +	BUG_ON(req->ki_ioext->ke_pi_iter.pi_userpages);
-> > +
-> > +	end = (((unsigned long)ext->ie_pi_buf) + ext->ie_pi_buflen +
-> > +		PAGE_SIZE - 1) >> PAGE_SHIFT;
-> > +	start = ((unsigned long)ext->ie_pi_buf) >> PAGE_SHIFT;
-> > +	req->ki_ioext->ke_pi_iter.pi_offset = offset_in_page(ext->ie_pi_buf);
-> > +	req->ki_ioext->ke_pi_iter.pi_len = ext->ie_pi_buflen;
-> > +	req->ki_ioext->ke_pi_iter.pi_nrpages = end - start;
-> > +	p = kzalloc(req->ki_ioext->ke_pi_iter.pi_nrpages *
-> > +		    sizeof(struct page *),
-> > +		    GFP_NOIO);
+On Wed, Apr 02, 2014 at 01:34:06PM -0700, Yu Zhao wrote:
+> This series of patches adds support to configure a cgroup to swap to a
+> particular file by using control file memory.swapfile.
 > 
-> Can userspace give us bad data and get us to generate insane allcation
-> attempt warnings?
+> Originally, cgroups share system-wide swap space and limiting cgroup swapping
+> is not possible. This patchset solves the problem by adding mechanism that
+> isolates cgroup swap spaces (i.e. per-cgroup swap file) so users can safely
+> enable swap for particular cgroups without worrying about one cgroup uses up
+> all swap space.
 
-Easily.  One of the bits I have to work on for the PI part is figuring out how
-to check with the PI provider that the arguments (the iovec and the pi buffer)
-actually make any sense, in terms of length and alignment requirements (PI
-tuples can't cross pages).  I think it's as simple as adding a bio_integrity
-ops call, and then calling down to it from the kiocb level.
+Isn't that what the swap controller is for?
 
-One thing I'm not sure about: What's the largest IO (in terms of # of blocks,
-not # of struct iovecs) that I can throw at the kernel?
-
-> > +	if (p == NULL) {
-> > +		pr_err("%s: no room for page array?\n", __func__);
-> > +		return -ENOMEM;
-> > +	}
-> > +	req->ki_ioext->ke_pi_iter.pi_userpages = p;
-> > +
-> > +	retval = get_user_pages_fast((unsigned long)ext->ie_pi_buf,
-> > +				     req->ki_ioext->ke_pi_iter.pi_nrpages,
-> > +				     is_write,
-> 
-> Isn't this is_write backwards?  If it's a write syscall then the PI
-> pages is going to be read from.
-
-Yes, I think so.  Good catch!
-
---D
-> 
-> - z
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-fsdevel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+config MEMCG_SWAP
+	bool "Memory Resource Controller Swap Extension"
+	depends on MEMCG && SWAP
+	help
+	  Add swap management feature to memory resource controller. When you
+	  enable this, you can limit mem+swap usage per cgroup. In other words,
+	  when you disable this, memory resource controller has no cares to
+	  usage of swap...a process can exhaust all of the swap. This extension
+	  is useful when you want to avoid exhaustion swap but this itself
+	  adds more overheads and consumes memory for remembering information.
+	  Especially if you use 32bit system or small memory system, please
+	  be careful about enabling this. When memory resource controller
+	  is disabled by boot option, this will be automatically disabled and
+	  there will be no overhead from this. Even when you set this config=y,
+	  if boot option "swapaccount=0" is set, swap will not be accounted.
+	  Now, memory usage of swap_cgroup is 2 bytes per entry. If swap page
+	  size is 4096bytes, 512k per 1Gbytes of swap.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
