@@ -1,52 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f53.google.com (mail-bk0-f53.google.com [209.85.214.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 8BBE16B0092
-	for <linux-mm@kvack.org>; Wed,  2 Apr 2014 06:45:52 -0400 (EDT)
-Received: by mail-bk0-f53.google.com with SMTP id r7so16774bkg.40
-        for <linux-mm@kvack.org>; Wed, 02 Apr 2014 03:45:51 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id pv3si754614bkb.149.2014.04.02.03.45.50
+Received: from mail-qg0-f50.google.com (mail-qg0-f50.google.com [209.85.192.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 671FD6B0099
+	for <linux-mm@kvack.org>; Wed,  2 Apr 2014 07:10:39 -0400 (EDT)
+Received: by mail-qg0-f50.google.com with SMTP id q108so23513qgd.23
+        for <linux-mm@kvack.org>; Wed, 02 Apr 2014 04:10:39 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
+        by mx.google.com with ESMTPS id s6si594940qas.242.2014.04.02.04.10.36
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 02 Apr 2014 03:45:50 -0700 (PDT)
-Date: Wed, 2 Apr 2014 12:45:17 +0200
-From: chrubis@suse.cz
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 02 Apr 2014 04:10:36 -0700 (PDT)
+Date: Wed, 2 Apr 2014 04:10:32 -0700
+From: Christoph Hellwig <hch@infradead.org>
 Subject: Re: [PATCH] mm: msync: require either MS_ASYNC or MS_SYNC
-Message-ID: <20140402104517.GA20656@rei>
+Message-ID: <20140402111032.GA27551@infradead.org>
 References: <533B04A9.6090405@bbn.com>
- <533B1439.3010403@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <533B1439.3010403@gmail.com>
+In-Reply-To: <533B04A9.6090405@bbn.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
-Cc: Richard Hansen <rhansen@bbn.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Greg Troxel <gdt@ir.bbn.com>
+To: Richard Hansen <rhansen@bbn.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Greg Troxel <gdt@ir.bbn.com>
 
-Hi!
-> > and there's no good
-> > reason to believe that this behavior would have persisted
-> > indefinitely.
-> > 
-> > The msync(2) man page (as currently written in man-pages.git) is
-> > silent on the behavior if both flags are unset, so this change should
-> > not break an application written by somone who carefully reads the
-> > Linux man pages or the POSIX spec.
-> 
-> Sadly, people do not always carefully read man pages, so there
-> remains the chance that a change like this will break applications.
-> Aside from standards conformance, what do you see as the benefit
-> of the change?
+On Tue, Apr 01, 2014 at 02:25:45PM -0400, Richard Hansen wrote:
+> For the flags parameter, POSIX says "Either MS_ASYNC or MS_SYNC shall
+> be specified, but not both." [1]  There was already a test for the
+> "both" condition.  Add a test to ensure that the caller specified one
+> of the flags; fail with EINVAL if neither are specified.
 
-I've looked around Linux Test Project and this change will break a few
-testcases, but nothing that couldn't be easily fixed.
+This breaks various (sloppy) existing userspace for no gain.
 
-The rest of the world may be more problematic though.
-
--- 
-Cyril Hrubis
-chrubis@suse.cz
+NAK.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
