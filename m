@@ -1,44 +1,33 @@
-From: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Subject: Re: Recent 3.x kernels: Memory leak causing OOMs
-Date: Tue, 1 Apr 2014 15:04:01 +0100
-Message-ID: <20140401140401.GZ7528@n2100.arm.linux.org.uk>
-References: <alpine.DEB.2.02.1402161406120.26926@chino.kir.corp.google.com> <20140216225000.GO30257@n2100.arm.linux.org.uk> <1392670951.24429.10.camel@sakura.staff.proxad.net> <20140217210954.GA21483@n2100.arm.linux.org.uk> <20140315101952.GT21483@n2100.arm.linux.org.uk> <20140317180748.644d30e2@notabene.brown> <20140317181813.GA24144@arm.com> <20140317193316.GF21483@n2100.arm.linux.org.uk> <20140401091959.GA10912@n2100.arm.linux.org.uk> <20140401113851.GA15317@n2100.arm.linux.org.uk>
+From: "H. Peter Anvin" <hpa@zytor.com>
+Subject: Re: [PATCH 0/5] Volatile Ranges (v12) & LSF-MM discussion fodder
+Date: Wed, 02 Apr 2014 09:37:49 -0700
+Message-ID: <533C3CDD.9090400@zytor.com>
+References: <1395436655-21670-1-git-send-email-john.stultz@linaro.org> <20140401212102.GM4407@cmpxchg.org> <533B8C2D.9010108@linaro.org> <20140402163013.GP14688@cmpxchg.org> <533C3BB4.8020904@zytor.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Return-path: <linux-raid-owner@vger.kernel.org>
-Content-Disposition: inline
-In-Reply-To: <20140401113851.GA15317@n2100.arm.linux.org.uk>
-Sender: linux-raid-owner@vger.kernel.org
-To: NeilBrown <neilb@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>, Kent Overstreet <koverstreet@google.com>
-Cc: Catalin Marinas <catalin.marinas@arm.com>, linux-raid@vger.kernel.org, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Maxime Bizon <mbizon@freebox.fr>, linux-arm-kernel@lists.infradead.org
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
+Return-path: <linux-kernel-owner@vger.kernel.org>
+In-Reply-To: <533C3BB4.8020904@zytor.com>
+Sender: linux-kernel-owner@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>, John Stultz <john.stultz@linaro.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@sr71.net>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Neil Brown <neilb@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 List-Id: linux-mm.kvack.org
 
-On Tue, Apr 01, 2014 at 12:38:51PM +0100, Russell King - ARM Linux wrote:
-> Consider what happens when bio_alloc_pages() fails.  j starts off as one
-> for non-recovery operations, and we enter the loop to allocate the pages.
-> j is post-decremented to zero.  So, bio = r1_bio->bios[0].
+On 04/02/2014 09:32 AM, H. Peter Anvin wrote:
+> On 04/02/2014 09:30 AM, Johannes Weiner wrote:
+>>
+>> So between zero-fill and SIGBUS, I'd prefer the one which results in
+>> the simpler user interface / fewer system calls.
+>>
 > 
-> bio_alloc_pages(bio) fails, we jump to out_free_bio.  The first thing
-> that does is increment j, so we free from r1_bio->bios[1] up to the
-> number of raid disks, leaving r1_bio->bios[0] leaked as the r1_bio is
-> then freed.
+> The use cases are different; I believe this should be a user space option.
+> 
 
-Neil,
+Case in point, for example: imagine a JIT.  You *really* don't want to
+zero-fill memory behind the back of your JIT, as all zero memory may not
+be a trapping instruction (it isn't on x86, for example, and if you are
+unlucky you may be modifying *part* of an instruction.)
 
-Can you please review commit a07876064a0b7 (block: Add bio_alloc_pages)
-which seems to have introduced this bug - it seems to have gone in during
-the v3.10 merge window, and looks like it was never reviewed from the
-attributations on the commit.
+Thus, SIGBUS is the only safe option.
 
-The commit message is brief, and inadequately describes the functional
-change that the patch has - we go from "get up to RESYNC_PAGES into the
-bio's io_vec" to "get all RESYNC_PAGES or fail completely".
-
-Not withstanding the breakage of the error cleanup paths, is this an
-acceptable change of behaviour here?
-
-Thanks.
-
--- 
-FTTC broadband for 0.8mile line: now at 9.7Mbps down 460kbps up... slowly
-improving, and getting towards what was expected from it.
+	-hpa
