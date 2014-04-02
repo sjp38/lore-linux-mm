@@ -1,54 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f46.google.com (mail-qg0-f46.google.com [209.85.192.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 636A06B00A2
-	for <linux-mm@kvack.org>; Wed,  2 Apr 2014 07:46:02 -0400 (EDT)
-Received: by mail-qg0-f46.google.com with SMTP id 63so56120qgz.33
-        for <linux-mm@kvack.org>; Wed, 02 Apr 2014 04:46:02 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id e30si679102qge.36.2014.04.02.04.46.01
-        for <linux-mm@kvack.org>;
-        Wed, 02 Apr 2014 04:46:01 -0700 (PDT)
-Message-ID: <1396439119.2726.29.camel@menhir>
-Subject: Re: [PATCH] mm: msync: require either MS_ASYNC or MS_SYNC
-From: Steven Whitehouse <swhiteho@redhat.com>
-Date: Wed, 02 Apr 2014 12:45:19 +0100
-In-Reply-To: <20140402111032.GA27551@infradead.org>
-References: <533B04A9.6090405@bbn.com>
-	 <20140402111032.GA27551@infradead.org>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
+Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 99ACB6B00A3
+	for <linux-mm@kvack.org>; Wed,  2 Apr 2014 08:52:53 -0400 (EDT)
+Received: by mail-wi0-f178.google.com with SMTP id bs8so438714wib.5
+        for <linux-mm@kvack.org>; Wed, 02 Apr 2014 05:52:52 -0700 (PDT)
+Received: from emea01-am1-obe.outbound.protection.outlook.com (mail-am1lp0014.outbound.protection.outlook.com. [213.199.154.14])
+        by mx.google.com with ESMTPS id m2si764013wij.48.2014.04.02.05.52.51
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 02 Apr 2014 05:52:51 -0700 (PDT)
+Message-ID: <533C081D.9050202@mellanox.com>
+Date: Wed, 2 Apr 2014 15:52:45 +0300
+From: Haggai Eran <haggaie@mellanox.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] mm/mmu_notifier: restore set_pte_at_notify semantics
+References: <1389778834-21200-1-git-send-email-mike.rapoport@ravellosystems.com> <20140122131046.GF14193@redhat.com> <52DFCF2B.1010603@mellanox.com> <20140330203328.GA4859@gmail.com>
+In-Reply-To: <20140330203328.GA4859@gmail.com>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Richard Hansen <rhansen@bbn.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Greg Troxel <gdt@ir.bbn.com>
+To: Jerome Glisse <j.glisse@gmail.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Mike Rapoport <mike.rapoport@ravellosystems.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Izik Eidus <izik.eidus@ravellosystems.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Or Gerlitz <ogerlitz@mellanox.com>, Sagi Grimberg <sagig@mellanox.com>, Shachar Raindel <raindel@mellanox.com>
 
-Hi,
+On 03/30/2014 11:33 PM, Jerome Glisse wrote:
+> On Wed, Jan 22, 2014 at 04:01:15PM +0200, Haggai Eran wrote:
+>> I'm worried about the following scenario:
+>>
+>> Given a read-only page, suppose one host thread (thread 1) writes to
+>> that page, and performs COW, but before it calls the
+>> mmu_notifier_invalidate_page_if_missing_change_pte function another host
+>> thread (thread 2) writes to the same page (this time without a page
+>> fault). Then we have a valid entry in the secondary page table to a
+>> stale page, and someone (thread 3) may read stale data from there.
+>>
+>> Here's a diagram that shows this scenario:
+>>
+>> Thread 1                                | Thread 2        | Thread 3
+>> ========================================================================
+>> do_wp_page(page 1)                      |                 |
+>>    ...                                   |                 |
+>>    set_pte_at_notify                     |                 |
+>>    ...                                   | write to page 1 |
+>>                                          |                 | stale access
+>>    pte_unmap_unlock                      |                 |
+>>    invalidate_page_if_missing_change_pte |                 |
+>>
+>> This is currently prevented by the use of the range start and range end
+>> notifiers.
+>>
+>> Do you agree that this scenario is possible with the new patch, or am I
+>> missing something?
+>>
+> I believe you are right, but of all the upstream user of the mmu_notifier
+> API only xen would suffer from this ie any user that do not have a proper
+> change_pte callback can see the bogus scenario you describe above.
+Yes. I sent our RDMA paging RFC patch-set on linux-rdma [1] last month, 
+and it would also suffer from this scenario, but it's not upstream yet.
+> The issue i see is with user that want to/or might sleep when they are
+> invalidation the secondary page table. The issue being that change_pte is
+> call with the cpu page table locked (well at least for the affected pmd).
+>
+> I would rather keep the invalidate_range_start/end bracket around change_pte
+> and invalidate page. I think we can fix the kvm regression by other means.
+Perhaps another possibility would be to do the 
+invalidate_range_start/end bracket only when the mmu_notifier is missing 
+a change_pte implementation.
 
-On Wed, 2014-04-02 at 04:10 -0700, Christoph Hellwig wrote:
-> On Tue, Apr 01, 2014 at 02:25:45PM -0400, Richard Hansen wrote:
-> > For the flags parameter, POSIX says "Either MS_ASYNC or MS_SYNC shall
-> > be specified, but not both." [1]  There was already a test for the
-> > "both" condition.  Add a test to ensure that the caller specified one
-> > of the flags; fail with EINVAL if neither are specified.
-> 
-> This breaks various (sloppy) existing userspace for no gain.
-> 
-> NAK.
-> 
-Agreed. It might be better to have something like:
+Best regards,
+Haggai
 
-if (flags == 0)
-	flags = MS_SYNC;
-
-That way applications which don't set the flags (and possibly also don't
-check the return value, so will not notice an error return) will get the
-sync they desire. Not that either of those things is desirable, but at
-least we can make the best of the situation. Probably better to be slow
-than to potentially lose someone's data in this case,
-
-Steve.
-
+[1] http://www.spinics.net/lists/linux-rdma/msg18906.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
