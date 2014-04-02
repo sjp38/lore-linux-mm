@@ -1,79 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f51.google.com (mail-pb0-f51.google.com [209.85.160.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 779BD6B00B8
-	for <linux-mm@kvack.org>; Wed,  2 Apr 2014 11:43:23 -0400 (EDT)
-Received: by mail-pb0-f51.google.com with SMTP id uo5so366917pbc.38
-        for <linux-mm@kvack.org>; Wed, 02 Apr 2014 08:43:23 -0700 (PDT)
-Received: from mail-pa0-x236.google.com (mail-pa0-x236.google.com [2607:f8b0:400e:c03::236])
-        by mx.google.com with ESMTPS id il2si1490316pbc.134.2014.04.02.08.43.22
+Received: from mail-bk0-f48.google.com (mail-bk0-f48.google.com [209.85.214.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 5896C6B00BA
+	for <linux-mm@kvack.org>; Wed,  2 Apr 2014 12:31:16 -0400 (EDT)
+Received: by mail-bk0-f48.google.com with SMTP id mx12so63662bkb.7
+        for <linux-mm@kvack.org>; Wed, 02 Apr 2014 09:31:15 -0700 (PDT)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id oy9si1251202bkb.54.2014.04.02.09.31.08
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 02 Apr 2014 08:43:22 -0700 (PDT)
-Received: by mail-pa0-f54.google.com with SMTP id lf10so362563pab.41
-        for <linux-mm@kvack.org>; Wed, 02 Apr 2014 08:43:22 -0700 (PDT)
-Date: Wed, 2 Apr 2014 08:42:15 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [patch]x86: clearing access bit don't flush tlb
-In-Reply-To: <20140402130143.GA1869@suse.de>
-Message-ID: <alpine.LSU.2.11.1404020830470.19355@eggly.anvils>
-References: <20140326223034.GA31713@kernel.org> <20140402130143.GA1869@suse.de>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 02 Apr 2014 09:31:09 -0700 (PDT)
+Date: Wed, 2 Apr 2014 12:30:13 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 0/5] Volatile Ranges (v12) & LSF-MM discussion fodder
+Message-ID: <20140402163013.GP14688@cmpxchg.org>
+References: <1395436655-21670-1-git-send-email-john.stultz@linaro.org>
+ <20140401212102.GM4407@cmpxchg.org>
+ <533B8C2D.9010108@linaro.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <533B8C2D.9010108@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shli@kernel.org>
-Cc: Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, akpm@linux-foundation.org, hughd@google.com, riel@redhat.com, mel@csn.ul.ie
+To: John Stultz <john.stultz@linaro.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@sr71.net>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Neil Brown <neilb@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Wed, 2 Apr 2014, Mel Gorman wrote:
-> On Thu, Mar 27, 2014 at 06:30:34AM +0800, Shaohua Li wrote:
-> > 
-> > I posted this patch a year ago or so, but it gets lost. Repost it here to check
-> > if we can make progress this time.
-> > 
-> > We use access bit to age a page at page reclaim. When clearing pte access bit,
-> > we could skip tlb flush in X86. The side effect is if the pte is in tlb and pte
-> > access bit is unset in page table, when cpu access the page again, cpu will not
-> > set page table pte's access bit. Next time page reclaim will think this hot
-> > page is old and reclaim it wrongly, but this doesn't corrupt data.
-> > 
-> > And according to intel manual, tlb has less than 1k entries, which covers < 4M
-> > memory. In today's system, several giga byte memory is normal. After page
-> > reclaim clears pte access bit and before cpu access the page again, it's quite
-> > unlikely this page's pte is still in TLB. And context swich will flush tlb too.
-> > The chance skiping tlb flush to impact page reclaim should be very rare.
-> > 
-> > Originally (in 2.5 kernel maybe), we didn't do tlb flush after clear access bit.
-> > Hugh added it to fix some ARM and sparc issues. Since I only change this for
-> > x86, there should be no risk.
-> > 
-> > And in some workloads, TLB flush overhead is very heavy. In my simple
-> > multithread app with a lot of swap to several pcie SSD, removing the tlb flush
-> > gives about 20% ~ 30% swapout speedup.
-> > 
-> > Signed-off-by: Shaohua Li <shli@fusionio.com>
+On Tue, Apr 01, 2014 at 09:03:57PM -0700, John Stultz wrote:
+> On 04/01/2014 02:21 PM, Johannes Weiner wrote:
+> > [ I tried to bring this up during LSFMM but it got drowned out.
+> >   Trying again :) ]
+> >
+> > On Fri, Mar 21, 2014 at 02:17:30PM -0700, John Stultz wrote:
+> >> Optimistic method:
+> >> 1) Userland marks a large range of data as volatile
+> >> 2) Userland continues to access the data as it needs.
+> >> 3) If userland accesses a page that has been purged, the kernel will
+> >> send a SIGBUS
+> >> 4) Userspace can trap the SIGBUS, mark the affected pages as
+> >> non-volatile, and refill the data as needed before continuing on
+> > As far as I understand, if a pointer to volatile memory makes it into
+> > a syscall and the fault is trapped in kernel space, there won't be a
+> > SIGBUS, the syscall will just return -EFAULT.
+> >
+> > Handling this would mean annotating every syscall invocation to check
+> > for -EFAULT, refill the data, and then restart the syscall.  This is
+> > complicated even before taking external libraries into account, which
+> > may not propagate syscall returns properly or may not be reentrant at
+> > the necessary granularity.
+> >
+> > Another option is to never pass volatile memory pointers into the
+> > kernel, but that too means that knowledge of volatility has to travel
+> > alongside the pointers, which will either result in more complexity
+> > throughout the application or severely limited scope of volatile
+> > memory usage.
+> >
+> > Either way, optimistic volatile pointers are nowhere near as
+> > transparent to the application as the above description suggests,
+> > which makes this usecase not very interesting, IMO.  If we can support
+> > it at little cost, why not, but I don't think we should complicate the
+> > common usecases to support this one.
 > 
-> I'm aware of the discussion on the more complex version and the outcome
-> of that. While I think the corner case is real, I think it's also very
-> unlikely and as this is an x86-only thing which will be safe from
-> corruption at least;
+> So yea, thanks again for all the feedback at LSF-MM! I'm trying to get
+> things integrated for a v13 here shortly (although with visitors in town
+> this week it may not happen until next week).
 > 
-> Acked-by: Mel Gorman <mgorman@suse.de>
 > 
-> Shaohua, you almost certainly should resend this to Andrew with the
-> ack's you collected so that he does not have to dig into the history
-> trying to figure out what the exact story is.
+> So, maybe its best to ignore the fact that folks want to do semi-crazy
+> user-space faulting via SIGBUS. At least to start with. Lets look at the
+> semantic for the "normal" mark volatile, never touch the pages until you
+> mark non-volatile - basically where accessing volatile pages is similar
+> to a use-after-free bug.
+> 
+> So, for the most part, I'd say the proposed SIGBUS semantics don't
+> complicate things for this basic use-case, at least when compared with
+> things like zero-fill.  If an applications accidentally accessed a
+> purged volatile page, I think SIGBUS is the right thing to do. They most
+> likely immediately crash, but its better then them moving along with
+> silent corruption because they're mucking with zero-filled pages.
+> 
+> So between zero-fill and SIGBUS, I think SIGBUS makes the most sense. If
+> you have a third option you're thinking of, I'd of course be interested
+> in hearing it.
 
-And you can add my
+The reason I'm bringing this up again is because I see very little
+solid usecases for a separate vrange() syscall once we have something
+like MADV_FREE and MADV_REVIVE, which respectively clear the dirty
+bits of a range of anon/tmpfs pages, and set them again and report if
+any pages in the given range were purged on revival.
 
-Acked-by: Hugh Dickins <hughd@google.com>
-
-to your collection too: you and I discussed this at LSF/MM, and nowadays
-I agree that the corner case that originally worried me (highly-accessed
-page not getting its accessed bit updated and then temporarily unmapped)
-is too unlikely a case to refuse the optimization: it might happen
-occasionally, but I doubt anybody will notice.
-
-Hugh
+So between zero-fill and SIGBUS, I'd prefer the one which results in
+the simpler user interface / fewer system calls.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
