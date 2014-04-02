@@ -1,127 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f173.google.com (mail-qc0-f173.google.com [209.85.216.173])
-	by kanga.kvack.org (Postfix) with ESMTP id C39066B013D
-	for <linux-mm@kvack.org>; Wed,  2 Apr 2014 19:45:06 -0400 (EDT)
-Received: by mail-qc0-f173.google.com with SMTP id r5so1062251qcx.32
-        for <linux-mm@kvack.org>; Wed, 02 Apr 2014 16:45:06 -0700 (PDT)
-Received: from smtp.bbn.com (smtp.bbn.com. [128.33.1.81])
-        by mx.google.com with ESMTPS id j30si1471531qge.58.2014.04.02.16.45.06
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 8EBBC6B013F
+	for <linux-mm@kvack.org>; Wed,  2 Apr 2014 19:48:21 -0400 (EDT)
+Received: by mail-pa0-f51.google.com with SMTP id kq14so916388pab.24
+        for <linux-mm@kvack.org>; Wed, 02 Apr 2014 16:48:21 -0700 (PDT)
+Received: from fgwmail5.fujitsu.co.jp (fgwmail5.fujitsu.co.jp. [192.51.44.35])
+        by mx.google.com with ESMTPS id jh5si2095467pbb.426.2014.04.02.16.48.20
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 02 Apr 2014 16:45:06 -0700 (PDT)
-Message-ID: <533CA0F6.2070100@bbn.com>
-Date: Wed, 02 Apr 2014 19:44:54 -0400
-From: Richard Hansen <rhansen@bbn.com>
+        Wed, 02 Apr 2014 16:48:20 -0700 (PDT)
+Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 2BF623EE1D8
+	for <linux-mm@kvack.org>; Thu,  3 Apr 2014 08:48:19 +0900 (JST)
+Received: from smail (m1 [127.0.0.1])
+	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 1D4AA45DE54
+	for <linux-mm@kvack.org>; Thu,  3 Apr 2014 08:48:19 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (s1.gw.nic.fujitsu.com [10.0.50.91])
+	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 04D4745DE53
+	for <linux-mm@kvack.org>; Thu,  3 Apr 2014 08:48:19 +0900 (JST)
+Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id EAA551DB804A
+	for <linux-mm@kvack.org>; Thu,  3 Apr 2014 08:48:18 +0900 (JST)
+Received: from m1000.s.css.fujitsu.com (m1000.s.css.fujitsu.com [10.240.81.136])
+	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 9771D1DB803F
+	for <linux-mm@kvack.org>; Thu,  3 Apr 2014 08:48:18 +0900 (JST)
+Message-ID: <533CA179.3050005@jp.fujitsu.com>
+Date: Thu, 03 Apr 2014 08:47:05 +0900
+From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: msync: require either MS_ASYNC or MS_SYNC
-References: <533B04A9.6090405@bbn.com>	 <20140402111032.GA27551@infradead.org> <1396439119.2726.29.camel@menhir>
-In-Reply-To: <1396439119.2726.29.camel@menhir>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH] ipc,shm: increase default size for shmmax
+References: <1396235199.2507.2.camel@buesod1.americas.hpqcorp.net>	<20140331143217.c6ff958e1fd9944d78507418@linux-foundation.org>	<1396306773.18499.22.camel@buesod1.americas.hpqcorp.net>	<20140331161308.6510381345cb9a1b419d5ec0@linux-foundation.org>	<1396308332.18499.25.camel@buesod1.americas.hpqcorp.net>	<20140331170546.3b3e72f0.akpm@linux-foundation.org>	<533A5CB1.1@jp.fujitsu.com>	<20140401121920.50d1dd96c2145acc81561b82@linux-foundation.org> <20140402155507.1d976144@alan.etchedpixels.co.uk>
+In-Reply-To: <20140402155507.1d976144@alan.etchedpixels.co.uk>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Whitehouse <swhiteho@redhat.com>, Christoph Hellwig <hch@infradead.org>, mtk.manpages@gmail.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Greg Troxel <gdt@ir.bbn.com>
+To: One Thousand Gnomes <gnomes@lxorguk.ukuu.org.uk>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Davidlohr Bueso <davidlohr@hp.com>, Manfred Spraul <manfred@colorfullife.com>, aswin@hp.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "Gotou, Yasunori" <y-goto@jp.fujitsu.com>, chenhanxiao <chenhanxiao@cn.fujitsu.com>, Gao feng <gaofeng@cn.fujitsu.com>
 
-On 2014-04-02 07:45, Steven Whitehouse wrote:
-> Hi,
-> 
-> On Wed, 2014-04-02 at 04:10 -0700, Christoph Hellwig wrote:
->> On Tue, Apr 01, 2014 at 02:25:45PM -0400, Richard Hansen wrote:
->>> For the flags parameter, POSIX says "Either MS_ASYNC or MS_SYNC shall
->>> be specified, but not both." [1]  There was already a test for the
->>> "both" condition.  Add a test to ensure that the caller specified one
->>> of the flags; fail with EINVAL if neither are specified.
->>
->> This breaks various (sloppy) existing userspace 
+(2014/04/02 23:55), One Thousand Gnomes wrote:
+>> Why aren't people just setting the sysctl to a petabyte?  What problems
+>> would that lead to?
+>
+> Historically - hanging on real world desktop systems when someone
+> accidentally creates a giant SHM segment and maps it.
+>
+> If you are running with vm overcmmit set to actually do checks then it
+> *shouldn't* blow up nowdays.
+>
+> More to the point wtf are people still using prehistoric sys5 IPC APIs
+> not shmemfs/posix shmem ?
+>
 
-Agreed, but this shouldn't be a strong consideration.  The kernel should
-let userspace apps worry about their own bugs, not provide crutches.
+AFAIK, there are many sys5 ipc users.
+And admins are using ipcs etc...for checking status. I guess they will not
+change the attitude until they see trouble with sysv IPC.
+*) I think some RedHat's document(MRG?) says sysv IPC is obsolete clearly but...
 
->> for no gain.
-
-I disagree.  Here is what we gain from this patch (expanded from my
-previous email):
-
-  * Clearer intentions.  Looking at the existing code and the code
-    history, the fact that flags=0 behaves like flags=MS_ASYNC appears
-    to be a coincidence, not the result of an intentional choice.
-
-  * Clearer semantics.  What does it mean for msync() to be neither
-    synchronous nor asynchronous?
-
-  * Met expectations.  An average reader of the POSIX spec or the
-    Linux man page would expect msync() to fail if neither flag is
-    specified.
-
-  * Defense against potential future security vulnerabilities.  By
-    explicitly requiring one of the flags, a future change to msync()
-    is less likely to expose an unintended code path to userspace.
-
-  * flags=0 is reserved.  By making it illegal to omit both flags
-    we have the option of making it legal in the future for some
-    expanded purpose.  (Unlikely, but still.)
-
-  * Forced app portability.  Other operating systems (e.g., NetBSD)
-    enforce POSIX, so an app developer using Linux might not notice the
-    non-conformance.  This is really the app developer's problem, not
-    the kernel's, but it's worth considering given msync()'s behavior
-    is currently unspecified.
-
-    Here is a link to a discussion on the bup mailing list about
-    msync() portability.  This is the conversation that motivated this
-    patch.
-
-      http://article.gmane.org/gmane.comp.sysutils.backup.bup/3005
-
-Alternatives:
-
-  * Do nothing.  Leave the behavior of flags=0 unspecified and let
-    sloppy userspace continue to be sloppy.  Easiest, but the intended
-    behavior remains unclear and it risks unintended behavior changes
-    the next time msync() is overhauled.
-
-  * Leave msync()'s current behavior alone, but document that MS_ASYNC
-    is the default if neither is specified.  This is backward-
-    compatible with sloppy userspace, but encourages non-portable uses
-    of msync() and would preclude using flags=0 for some other future
-    purpose.
-
-  * Change the default to MS_SYNC and document this.  This is perhaps
-    the most conservative option, but it alters the behavior of existing
-    sloppy userspace and also has the disadvantages of the previous
-    alternative.
-
-Overall, I believe the advantages of this patch outweigh the
-disadvantages, given the alternatives.
-
-Perhaps I should include the above bullets in the commit message.
-
->>
->> NAK.
->>
-> Agreed. It might be better to have something like:
-> 
-> if (flags == 0)
-> 	flags = MS_SYNC;
-> 
-> That way applications which don't set the flags (and possibly also don't
-> check the return value, so will not notice an error return) will get the
-> sync they desire. Not that either of those things is desirable, but at
-> least we can make the best of the situation. Probably better to be slow
-> than to potentially lose someone's data in this case,
-
-This is a conservative alternative, but I'd rather not condone flags=0.
- Other than compatibility with broken apps, there is little value in
-supporting flags=0.  Portable apps will have to specify one of the flags
-anyway, and the behavior of flags=0 is already accessible via other means.
+I tend to recommend posix shared memory when people newly starts development but
+there is an another trap.
+IIUC, for posix shmem, an implicit size limit is applied by tmpfs's fs size.
+tmpfs mounted on /dev/shm tends to be limited to half size of system memory.
+It's hard to know that limit for users before hitting trouble.
 
 Thanks,
-Richard
-
-
-> 
-> Steve.
+-Kame
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
