@@ -1,67 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f46.google.com (mail-qa0-f46.google.com [209.85.216.46])
-	by kanga.kvack.org (Postfix) with ESMTP id E71096B00DE
-	for <linux-mm@kvack.org>; Wed,  2 Apr 2014 15:01:02 -0400 (EDT)
-Received: by mail-qa0-f46.google.com with SMTP id i13so597565qae.33
-        for <linux-mm@kvack.org>; Wed, 02 Apr 2014 12:01:02 -0700 (PDT)
-Received: from mail-qg0-f46.google.com (mail-qg0-f46.google.com [209.85.192.46])
-        by mx.google.com with ESMTPS id s6si1185656qaj.131.2014.04.02.12.01.00
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 02 Apr 2014 12:01:00 -0700 (PDT)
-Received: by mail-qg0-f46.google.com with SMTP id 63so641131qgz.5
-        for <linux-mm@kvack.org>; Wed, 02 Apr 2014 12:01:00 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20140402175852.GS14688@cmpxchg.org>
-References: <1395436655-21670-1-git-send-email-john.stultz@linaro.org>
-	<20140401212102.GM4407@cmpxchg.org>
-	<533B313E.5000403@zytor.com>
-	<533B4555.3000608@sr71.net>
-	<533B8E3C.3090606@linaro.org>
-	<20140402163638.GQ14688@cmpxchg.org>
-	<CALAqxLUNKJQs+q__fwqggaRtqLz5sJtuxKdVPja8X0htDyaT6A@mail.gmail.com>
-	<20140402175852.GS14688@cmpxchg.org>
-Date: Wed, 2 Apr 2014 12:01:00 -0700
-Message-ID: <CALAqxLXs+tB3h6wqZ3m5qOFWfgeJcH03k-0dsj+NUoB5D5LEgQ@mail.gmail.com>
-Subject: Re: [PATCH 0/5] Volatile Ranges (v12) & LSF-MM discussion fodder
-From: John Stultz <john.stultz@linaro.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 137436B00DF
+	for <linux-mm@kvack.org>; Wed,  2 Apr 2014 15:03:04 -0400 (EDT)
+Received: by mail-pa0-f52.google.com with SMTP id rd3so610198pab.25
+        for <linux-mm@kvack.org>; Wed, 02 Apr 2014 12:03:03 -0700 (PDT)
+Received: from message.langara.bc.ca (message.langara.bc.ca. [142.35.159.25])
+        by mx.google.com with ESMTP id my2si1788536pbc.25.2014.04.02.12.03.02
+        for <linux-mm@kvack.org>;
+        Wed, 02 Apr 2014 12:03:03 -0700 (PDT)
+MIME-version: 1.0
+Content-transfer-encoding: 7BIT
+Content-disposition: inline
+Content-type: text/plain; charset=us-ascii
+Received: from langara.bc.ca ([127.0.0.1])
+ by message.langara.bc.ca (Sun Java(tm) System Messaging Server 6.3-6.03 (built
+ Mar 14 2008; 32bit)) with ESMTP id <0N3F0021F3L2LG60@message.langara.bc.ca>
+ for linux-mm@kvack.org; Wed, 02 Apr 2014 12:03:02 -0700 (PDT)
+From: Steven Stewart-Gallus <sstewartgallus00@mylangara.bc.ca>
+Message-id: <fa9ecac225ee2.533c5ee6@langara.bc.ca>
+Date: Wed, 02 Apr 2014 19:03:02 +0000 (GMT)
+Content-language: en
+Subject: Suggestion, "public process scoped interfaces"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Dave Hansen <dave@sr71.net>, "H. Peter Anvin" <hpa@zytor.com>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Neil Brown <neilb@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: linux-api@vger.kernel.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cyeoh@au1.ibm.com
 
-On Wed, Apr 2, 2014 at 10:58 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
-> On Wed, Apr 02, 2014 at 10:40:16AM -0700, John Stultz wrote:
->> That point beside, I think the other problem with the page-cleaning
->> volatility approach is that there are other awkward side effects. For
->> example: Say an application marks a range as volatile. One page in the
->> range is then purged. The application, due to a bug or otherwise,
->> reads the volatile range. This causes the page to be zero-filled in,
->> and the application silently uses the corrupted data (which isn't
->> great). More problematic though, is that by faulting the page in,
->> they've in effect lost the purge state for that page. When the
->> application then goes to mark the range as non-volatile, all pages are
->> present, so we'd return that no pages were purged.  From an
->> application perspective this is pretty ugly.
->>
->> Johannes: Any thoughts on this potential issue with your proposal? Am
->> I missing something else?
->
-> No, this is accurate.  However, I don't really see how this is
-> different than any other use-after-free bug.  If you access malloc
-> memory after free(), you might receive a SIGSEGV, you might see random
-> data, you might corrupt somebody else's data.  This certainly isn't
-> nice, but it's not exactly new behavior, is it?
+Hello,
 
-The part that troubles me is that I see the purged state as kernel
-data being corrupted by userland in this case. The kernel will tell
-userspace that no pages were purged, even though they were. Only
-because userspace made an errant read of a page, and got garbage data
-back.
+I have been reconsidering requirements and solutions brought up in my
+post "How about allowing processes to expose memory for cross memory
+attaching?". I now have a much clearer idea of what I want. I think
+there is a need for publicly exposing process scoped
+interfaces. Previous solutions such as cross memory attaching,
+processes binding to ports, DBus and shared directories /run have
+troubles with permissions, are not generic or work on a service
+level. I suggest "public process scoped interfaces" as the solution,
+that every process is give in it's own run directory in /proc for
+publicly exposing services.
 
-thanks
--john
+There is already an interface for cross memory attaching but the
+interface has the same permissions constraints as ptracing. As well,
+this solution is not generic and does not work for other kinds of
+interfaces such as sockets or message queues. Furthermore, I believe
+that this use case could be replaced by "public process scoped
+interfaces" as follows. For example, in an MPI implementation a
+process might create a file in /proc/self/run/openmp/queue (with only
+user readable, writable permissions of course!) and map it into shared
+memory. Then other processes would using that process's PID open the
+file /proc/${PID}/run/openmp/queue, write to the file and then close
+it. Unfortunately, that inflates the system call cost to three times
+as much. Arguably, the cost could be mitigated by caching file
+descriptors but it's likely that MPI implementations might continue
+using the existing solution of cross memory attaching.
+
+Many programs bind to ports to expose an interface for
+communication. However, these interfaces are limited to internet
+sockets. Moreover, multiple instances of the program have to fight
+over the ports available. As well, there is no relation between the
+process's PID and the port. Under "public process scoped interfaces"
+any file interface can be used, each process has it's own interface
+and there is an obvious way to find the interface from the PID.
+
+Shared directories like /run and /tmp can let a process expose generic
+file interfaces but there is no relation between the PID and exposed
+interface. A process can create a file or directory such as
+/tmp/${SERVICE}-${PID} but then that process is vulnerable to DOS
+attacks by other users. Furthermore, the files are not removed on
+process exit.
+
+An object registry like DBus seems like a natural fit for this problem
+but is oriented primarily towards services and not processes. There
+are basically the same problems as with the shared directory
+solution. As well, DBus is far too complicated when one just wants to
+expose a socket interface. Moreover, there is no relation to the name
+the process registers under and the PID.
+
+A problem with "public process scoped interfaces" is that on process
+exit the directory and all it's contents would be removed. This is
+contrary to the semantics of rmdir which requires the directory to be
+empty.
+
+Final note, for a bit of speed and for letting /proc not be mounted
+it could be convenient to create a system call, process_run_dir, that
+takes a PID and opens the run directory for the process.
+
+Thank you, Steven Stewart-Gallus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
