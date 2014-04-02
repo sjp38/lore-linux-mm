@@ -1,78 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f52.google.com (mail-la0-f52.google.com [209.85.215.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 461CB6B00A8
-	for <linux-mm@kvack.org>; Wed,  2 Apr 2014 09:29:46 -0400 (EDT)
-Received: by mail-la0-f52.google.com with SMTP id ec20so162067lab.11
-        for <linux-mm@kvack.org>; Wed, 02 Apr 2014 06:29:45 -0700 (PDT)
-Received: from mail-lb0-x22b.google.com (mail-lb0-x22b.google.com [2a00:1450:4010:c04::22b])
-        by mx.google.com with ESMTPS id iz10si321911lbc.123.2014.04.02.06.29.44
+Received: from mail-ie0-f176.google.com (mail-ie0-f176.google.com [209.85.223.176])
+	by kanga.kvack.org (Postfix) with ESMTP id C23E16B00A9
+	for <linux-mm@kvack.org>; Wed,  2 Apr 2014 09:38:36 -0400 (EDT)
+Received: by mail-ie0-f176.google.com with SMTP id rd18so200972iec.21
+        for <linux-mm@kvack.org>; Wed, 02 Apr 2014 06:38:36 -0700 (PDT)
+Received: from mail-ig0-x22b.google.com (mail-ig0-x22b.google.com [2607:f8b0:4001:c05::22b])
+        by mx.google.com with ESMTPS id k7si2467174icu.9.2014.04.02.06.38.35
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 02 Apr 2014 06:29:44 -0700 (PDT)
-Received: by mail-lb0-f171.google.com with SMTP id w7so157927lbi.16
-        for <linux-mm@kvack.org>; Wed, 02 Apr 2014 06:29:43 -0700 (PDT)
-Date: Wed, 2 Apr 2014 17:29:42 +0400
-From: Cyrill Gorcunov <gorcunov@gmail.com>
-Subject: Re: [PATCH 2/2] x86: use pv-ops in {pte,pmd}_{set,clear}_flags()
-Message-ID: <20140402132942.GZ4872@moon>
-References: <1395425902-29817-3-git-send-email-david.vrabel@citrix.com>
- <533016CB.4090807@citrix.com>
- <CAKbGBLiVqaHEOZx6y4MW4xDTUdKRhVLZXTTGiqYT7vuH2Wgeww@mail.gmail.com>
- <CA+55aFwEwUmLe+dsFghMcaXdG5LPZ_NcQeOU1zZvEf7rCPw5CQ@mail.gmail.com>
- <20140331122625.GR25087@suse.de>
- <CA+55aFwGF9G+FBH3a5L0hHkTYaP9eCAfUT+OwvqUY_6N6LcbaQ@mail.gmail.com>
- <533B0301.3010507@citrix.com>
- <CA+55aFw2wReYNaxtTRYjEWTRsV=bMAFq8YK3=qX-PCvQjY72Kw@mail.gmail.com>
- <20140401190344.GX4872@moon>
- <533BF59C.1080203@parallels.com>
+        Wed, 02 Apr 2014 06:38:36 -0700 (PDT)
+Received: by mail-ig0-f171.google.com with SMTP id c1so5078515igq.4
+        for <linux-mm@kvack.org>; Wed, 02 Apr 2014 06:38:35 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <533BF59C.1080203@parallels.com>
+In-Reply-To: <1395256011-2423-4-git-send-email-dh.herrmann@gmail.com>
+References: <1395256011-2423-1-git-send-email-dh.herrmann@gmail.com>
+	<1395256011-2423-4-git-send-email-dh.herrmann@gmail.com>
+Date: Wed, 2 Apr 2014 17:38:35 +0400
+Message-ID: <CALYGNiPnAVf+wSsdn4aO=89H_HqyjL_-vNHpZdop=Wchf7gTtw@mail.gmail.com>
+Subject: Re: [PATCH 3/6] shm: add memfd_create() syscall
+From: Konstantin Khlebnikov <koct9i@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Emelyanov <xemul@parallels.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, David Vrabel <david.vrabel@citrix.com>, Mel Gorman <mgorman@suse.de>, Steven Noonan <steven@uplinklabs.net>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, linux-mm <linux-mm@kvack.org>
+To: David Herrmann <dh.herrmann@gmail.com>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Hugh Dickins <hughd@google.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Matthew Wilcox <matthew@wil.cx>, Karol Lewandowski <k.lewandowsk@samsung.com>, Kay Sievers <kay@vrfy.org>, Daniel Mack <zonque@gmail.com>, Lennart Poettering <lennart@poettering.net>, =?UTF-8?Q?Kristian_H=C3=B8gsberg?= <krh@bitplanet.net>, john.stultz@linaro.org, Greg Kroah-Hartman <greg@kroah.com>, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, dri-devel <dri-devel@lists.freedesktop.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ryan Lortie <desrt@desrt.ca>, "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
 
-On Wed, Apr 02, 2014 at 03:33:48PM +0400, Pavel Emelyanov wrote:
-...
-> >>
-> >> But you'd have to be insane to care about NUMA balancing on 32-bit,
-> >> even with PAE. So restricting it to x86-64 and using the high bits (I
-> >> think bits 52-62 are all available to SW) sounds fine to me.
-> >>
-> >> Same goes for soft-dirty. I think it's fine if we say that you won't
-> >> have soft-dirty with a 32-bit kernel. Even with PAE.
-> > 
-> > Well, at the moment we use soft-dirty for x86-64 only in criu but there
-> > were plans to implement complete 32bit support as well. While personally
-> > I don't mind dropping soft-dirty for non x86-64 case, I would like
-> > to hear Pavel's opinion, Pavel?
-> 
-> We (Parallels) don't have plans on C/R on 32-bit kernels, but I speak only
-> for Parallels. However, people I know who need 32-bit C/R use ARM :)
+On Wed, Mar 19, 2014 at 11:06 PM, David Herrmann <dh.herrmann@gmail.com> wrote:
+> memfd_create() is similar to mmap(MAP_ANON), but returns a file-descriptor
+> that you can pass to mmap(). It explicitly allows sealing and
+> avoids any connection to user-visible mount-points. Thus, it's not
+> subject to quotas on mounted file-systems, but can be used like
+> malloc()'ed memory, but with a file-descriptor to it.
+>
+> memfd_create() does not create a front-FD, but instead returns the raw
+> shmem file, so calls like ftruncate() can be used. Also calls like fstat()
+> will return proper information and mark the file as regular file. Sealing
+> is explicitly supported on memfds.
+>
+> Compared to O_TMPFILE, it does not require a tmpfs mount-point and is not
+> subject to quotas and alike.
 
-OK, since it's x86 specific I can prepare patch for dropping softdirty on
-x86-32 (this will release ugly macros in file mapping a bit but not that
-significantly).
+Instead of adding new syscall we can extend existing openat() a little
+bit more:
 
-Guys, while looking into how to re-define _PAGE bits for case where present
-bit is dropped I though about the form like
-
-#define _PAGE_BIT_FILE		(_PAGE_BIT_PRESENT + 1)	/* _PAGE_BIT_RW */
-#define _PAGE_BIT_NUMA		(_PAGE_BIT_PRESENT + 2)	/* _PAGE_BIT_USER */
-#define _PAGE_BIT_PROTNONE	(_PAGE_BIT_PRESENT + 3)	/* _PAGE_BIT_PWT */
-
-and while _PAGE_BIT_FILE case should work (as well as swap pages), I'm not that
-sure about the numa and protnone case. I fear there are some code paths which
-depends on the former bits positions -- ie when
-
-	PAGE_BIT_PROTNONE = _PAGE_BIT_NUMA = _PAGE_BIT_GLOBAL.
-
-One of the _PAGE_BIT_GLOBAL user is the page attributes code. It seems to always check
-_PAGE_BIT_PRESENT together with _PAGE_BIT_GLOBAL, so if _PAGE_BIT_PROTNONE get redefined
-to a new value it should not fail. Thus main concern is protnone + numa code, which
-I must admit I don't know well enough yet.
+openat(AT_FDSHM, "name", O_TMPFILE | O_RDWR, 0666)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
