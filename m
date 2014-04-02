@@ -1,81 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 03CE26B009C
-	for <linux-mm@kvack.org>; Tue,  1 Apr 2014 21:03:20 -0400 (EDT)
-Received: by mail-pa0-f50.google.com with SMTP id kq14so10729089pab.9
-        for <linux-mm@kvack.org>; Tue, 01 Apr 2014 18:03:20 -0700 (PDT)
-Received: from fgwmail5.fujitsu.co.jp (fgwmail5.fujitsu.co.jp. [192.51.44.35])
-        by mx.google.com with ESMTPS id mv8si145413pab.461.2014.04.01.18.03.19
+Received: from mail-ob0-f176.google.com (mail-ob0-f176.google.com [209.85.214.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 271646B009D
+	for <linux-mm@kvack.org>; Tue,  1 Apr 2014 21:08:23 -0400 (EDT)
+Received: by mail-ob0-f176.google.com with SMTP id wp18so11778514obc.7
+        for <linux-mm@kvack.org>; Tue, 01 Apr 2014 18:08:22 -0700 (PDT)
+Received: from mail-oa0-x24a.google.com (mail-oa0-x24a.google.com [2607:f8b0:4003:c02::24a])
+        by mx.google.com with ESMTPS id o4si163333oei.151.2014.04.01.18.08.22
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 01 Apr 2014 18:03:20 -0700 (PDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 90CB23EE0FE
-	for <linux-mm@kvack.org>; Wed,  2 Apr 2014 10:03:18 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 7EE0445DE4D
-	for <linux-mm@kvack.org>; Wed,  2 Apr 2014 10:03:18 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.nic.fujitsu.com [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id 64A5C45DE52
-	for <linux-mm@kvack.org>; Wed,  2 Apr 2014 10:03:18 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 3725A1DB8038
-	for <linux-mm@kvack.org>; Wed,  2 Apr 2014 10:03:18 +0900 (JST)
-Received: from m1001.s.css.fujitsu.com (m1001.s.css.fujitsu.com [10.240.81.139])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id CEA311DB8048
-	for <linux-mm@kvack.org>; Wed,  2 Apr 2014 10:03:17 +0900 (JST)
-Message-ID: <533B61AC.7090808@jp.fujitsu.com>
-Date: Wed, 02 Apr 2014 10:02:36 +0900
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 01 Apr 2014 18:08:22 -0700 (PDT)
+Received: by mail-oa0-f74.google.com with SMTP id i7so2141519oag.3
+        for <linux-mm@kvack.org>; Tue, 01 Apr 2014 18:08:22 -0700 (PDT)
+References: <1396235199.2507.2.camel@buesod1.americas.hpqcorp.net> <20140331143217.c6ff958e1fd9944d78507418@linux-foundation.org> <1396306773.18499.22.camel@buesod1.americas.hpqcorp.net> <20140331161308.6510381345cb9a1b419d5ec0@linux-foundation.org> <1396308332.18499.25.camel@buesod1.americas.hpqcorp.net> <20140331170546.3b3e72f0.akpm@linux-foundation.org> <1396371699.25314.11.camel@buesod1.americas.hpqcorp.net> <CAHGf_=qsf6vN5k=-PLraG8Q_uU1pofoBDktjVH1N92o76xPadQ@mail.gmail.com> <1396377083.25314.17.camel@buesod1.americas.hpqcorp.net> <CAHGf_=rLLBDr5ptLMvFD-M+TPQSnK3EP=7R+27K8or84rY-KLA@mail.gmail.com> <1396386062.25314.24.camel@buesod1.americas.hpqcorp.net> <CAHGf_=rhXrBQSmDBJJ-vPxBbhjJ91Fh2iWe1cf_UQd-tCfpb2w@mail.gmail.com> <20140401142947.927642a408d84df27d581e36@linux-foundation.org> <CAHGf_=p70rLOYwP2OgtK+2b+41=GwMA9R=rZYBqRr1w_O5UnKA@mail.gmail.com> <20140401144801.603c288674ab8f417b42a043@linux-foundation.org> <CAHGf_=r5AUu6yvJgOzwYDghBo6iT2q+nNumpvqwer+igcfChrA@mail.gmail.co
+ m> <1396394931.25314.34.camel@buesod1.americas.hpqcorp.net> <CAHGf_=rH+vfFzRrh35TETxjFU2HM0xnDQFweQ+Bfw20Pm2nL3g@mail.gmail.com> <1396399239.25314.47.camel@buesod1.americas.hpqcorp.net>
+From: Greg Thelen <gthelen@google.com>
 Subject: Re: [PATCH] ipc,shm: increase default size for shmmax
-References: <1396235199.2507.2.camel@buesod1.americas.hpqcorp.net>	<20140331143217.c6ff958e1fd9944d78507418@linux-foundation.org>	<1396306773.18499.22.camel@buesod1.americas.hpqcorp.net>	<20140331161308.6510381345cb9a1b419d5ec0@linux-foundation.org>	<1396308332.18499.25.camel@buesod1.americas.hpqcorp.net>	<20140331170546.3b3e72f0.akpm@linux-foundation.org>	<533A5CB1.1@jp.fujitsu.com> <20140401121920.50d1dd96c2145acc81561b82@linux-foundation.org>
-In-Reply-To: <20140401121920.50d1dd96c2145acc81561b82@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+In-reply-to: <1396399239.25314.47.camel@buesod1.americas.hpqcorp.net>
+Date: Tue, 01 Apr 2014 18:08:21 -0700
+Message-ID: <xr937g78k06y.fsf@gthelen.mtv.corp.google.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Davidlohr Bueso <davidlohr@hp.com>, Manfred Spraul <manfred@colorfullife.com>, aswin@hp.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "Gotou, Yasunori" <y-goto@jp.fujitsu.com>, chenhanxiao <chenhanxiao@cn.fujitsu.com>, Gao feng <gaofeng@cn.fujitsu.com>
+To: Davidlohr Bueso <davidlohr@hp.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Manfred Spraul <manfred@colorfullife.com>, aswin@hp.com, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-(2014/04/02 4:19), Andrew Morton wrote:
-> On Tue, 01 Apr 2014 15:29:05 +0900 Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com> wrote:
+
+On Tue, Apr 01 2014, Davidlohr Bueso <davidlohr@hp.com> wrote:
+
+> On Tue, 2014-04-01 at 19:56 -0400, KOSAKI Motohiro wrote:
+>> >> > Ah-hah, that's interesting info.
+>> >> >
+>> >> > Let's make the default 64GB?
+>> >>
+>> >> 64GB is infinity at that time, but it no longer near infinity today. I like
+>> >> very large or total memory proportional number.
+>> >
+>> > So I still like 0 for unlimited. Nice, clean and much easier to look at
+>> > than ULONG_MAX. And since we cannot disable shm through SHMMIN, I really
+>> > don't see any disadvantages, as opposed to some other arbitrary value.
+>> > Furthermore it wouldn't break userspace: any existing sysctl would
+>> > continue to work, and if not set, the user never has to worry about this
+>> > tunable again.
+>> >
+>> > Please let me know if you all agree with this...
+>> 
+>> Surething. Why not. :)
 >
->>>
->>> So their system will act as if they had set SHMMAX=enormous.  What
->>> problems could that cause?
->>>
->>>
->>> Look.  The 32M thing is causing problems.  Arbitrarily increasing the
->>> arbitrary 32M to an arbitrary 128M won't fix anything - we still have
->>> the problem.  Think bigger, please: how can we make this problem go
->>> away for ever?
->>>
->>
->> Our middleware engineers has been complaining about this sysctl limit.
->> System administrator need to calculate required sysctl value by making sum
->> of all planned middlewares, and middleware provider needs to write "please
->> calculate systcl param by....." in their installation manuals.
+> *sigh* actually, the plot thickens a bit with SHMALL (total size of shm
+> segments system wide, in pages). Currently by default:
 >
-> Why aren't people just setting the sysctl to a petabyte?  What problems
-> would that lead to?
+> #define SHMALL (SHMMAX/getpagesize()*(SHMMNI/16))
 >
+> This deals with physical memory, at least admins are recommended to set
+> it to some large percentage of ram / pagesize. So I think that if we
+> loose control over the default value, users can potentially DoS the
+> system, or at least cause excessive swapping if not manually set, but
+> then again the same goes for anon mem... so do we care?
 
-They(and admin) don't know the fact, setting petabytes won't cause any pain.
-
-In their thinking:
-==
-If there is a kernel's limit, it should have some (bad) side-effect and
-the trade-off which must be handled by admin is represented by the limit.
-In this case, they think setting this value large will consume tons of resource.
-==
-They don't care kernel's implemenation but takes care of what API says.
-
-Of course, always I was asked, I answer set it to peta-bytes. But the fact
-*default is small* makes them doubtful.
-
-Thanks,
--Kame
+At least when there's an egregious anon leak the oom killer has the
+power to free the memory by killing until the memory is unreferenced.
+This isn't true for shm or tmpfs.  So shm is more effective than anon at
+crushing a machine.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
