@@ -1,86 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f170.google.com (mail-qc0-f170.google.com [209.85.216.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 1396C6B00F6
-	for <linux-mm@kvack.org>; Wed,  2 Apr 2014 15:37:14 -0400 (EDT)
-Received: by mail-qc0-f170.google.com with SMTP id x13so781822qcv.1
-        for <linux-mm@kvack.org>; Wed, 02 Apr 2014 12:37:13 -0700 (PDT)
-Received: from mail-qa0-f48.google.com (mail-qa0-f48.google.com [209.85.216.48])
-        by mx.google.com with ESMTPS id s10si1228442qak.106.2014.04.02.12.37.13
+Received: from mail-bk0-f48.google.com (mail-bk0-f48.google.com [209.85.214.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B0A46B00F7
+	for <linux-mm@kvack.org>; Wed,  2 Apr 2014 15:47:32 -0400 (EDT)
+Received: by mail-bk0-f48.google.com with SMTP id mx12so84153bkb.35
+        for <linux-mm@kvack.org>; Wed, 02 Apr 2014 12:47:32 -0700 (PDT)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id d3si1523820bko.20.2014.04.02.12.47.31
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 02 Apr 2014 12:37:13 -0700 (PDT)
-Received: by mail-qa0-f48.google.com with SMTP id m5so643158qaj.7
-        for <linux-mm@kvack.org>; Wed, 02 Apr 2014 12:37:13 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20140402180707.GT14688@cmpxchg.org>
-References: <1395436655-21670-1-git-send-email-john.stultz@linaro.org>
-	<20140401212102.GM4407@cmpxchg.org>
-	<533B8C2D.9010108@linaro.org>
-	<20140402163013.GP14688@cmpxchg.org>
-	<533C3BB4.8020904@zytor.com>
-	<533C3CDD.9090400@zytor.com>
-	<20140402171812.GR14688@cmpxchg.org>
-	<533C4B7E.6030807@sr71.net>
-	<CALAqxLUR4ucQ_zOp5i3Y0+WpCWiwm2oR6Dp7aeD2XN1pjiELEQ@mail.gmail.com>
-	<20140402180707.GT14688@cmpxchg.org>
-Date: Wed, 2 Apr 2014 12:37:13 -0700
-Message-ID: <CALAqxLX1EADOVw_OrB4eP9c__7eftpCgWPU=u6gH6bZ5u3FCMQ@mail.gmail.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 02 Apr 2014 12:47:31 -0700 (PDT)
+Date: Wed, 2 Apr 2014 15:47:08 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
 Subject: Re: [PATCH 0/5] Volatile Ranges (v12) & LSF-MM discussion fodder
-From: John Stultz <john.stultz@linaro.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Message-ID: <20140402194708.GV14688@cmpxchg.org>
+References: <1395436655-21670-1-git-send-email-john.stultz@linaro.org>
+ <20140401212102.GM4407@cmpxchg.org>
+ <533B313E.5000403@zytor.com>
+ <533B4555.3000608@sr71.net>
+ <533B8E3C.3090606@linaro.org>
+ <20140402163638.GQ14688@cmpxchg.org>
+ <CALAqxLUNKJQs+q__fwqggaRtqLz5sJtuxKdVPja8X0htDyaT6A@mail.gmail.com>
+ <20140402175852.GS14688@cmpxchg.org>
+ <CALAqxLXs+tB3h6wqZ3m5qOFWfgeJcH03k-0dsj+NUoB5D5LEgQ@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CALAqxLXs+tB3h6wqZ3m5qOFWfgeJcH03k-0dsj+NUoB5D5LEgQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
+To: John Stultz <john.stultz@linaro.org>
 Cc: Dave Hansen <dave@sr71.net>, "H. Peter Anvin" <hpa@zytor.com>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Neil Brown <neilb@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Wed, Apr 2, 2014 at 11:07 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
-> On Wed, Apr 02, 2014 at 10:48:03AM -0700, John Stultz wrote:
->> I suspect handling the SIGBUS and patching up the purged page you
->> trapped on is likely much to complicated for most use cases. But I do
->> think SIGBUS is preferable to zero-fill on purged page access, just
->> because its likely to be easier to debug applications.
->
-> Fully agreed, but it seems a bit overkill to add a separate syscall, a
-> range-tree on top of shmem address_spaces, and an essentially new
-> programming model based on SIGBUS userspace fault handling (incl. all
-> the complexities and confusion this inevitably will bring when people
-> DO end up passing these pointers into kernel space) just to be a bit
-> nicer about use-after-free bugs in applications.
+On Wed, Apr 02, 2014 at 12:01:00PM -0700, John Stultz wrote:
+> On Wed, Apr 2, 2014 at 10:58 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
+> > On Wed, Apr 02, 2014 at 10:40:16AM -0700, John Stultz wrote:
+> >> That point beside, I think the other problem with the page-cleaning
+> >> volatility approach is that there are other awkward side effects. For
+> >> example: Say an application marks a range as volatile. One page in the
+> >> range is then purged. The application, due to a bug or otherwise,
+> >> reads the volatile range. This causes the page to be zero-filled in,
+> >> and the application silently uses the corrupted data (which isn't
+> >> great). More problematic though, is that by faulting the page in,
+> >> they've in effect lost the purge state for that page. When the
+> >> application then goes to mark the range as non-volatile, all pages are
+> >> present, so we'd return that no pages were purged.  From an
+> >> application perspective this is pretty ugly.
+> >>
+> >> Johannes: Any thoughts on this potential issue with your proposal? Am
+> >> I missing something else?
+> >
+> > No, this is accurate.  However, I don't really see how this is
+> > different than any other use-after-free bug.  If you access malloc
+> > memory after free(), you might receive a SIGSEGV, you might see random
+> > data, you might corrupt somebody else's data.  This certainly isn't
+> > nice, but it's not exactly new behavior, is it?
+> 
+> The part that troubles me is that I see the purged state as kernel
+> data being corrupted by userland in this case. The kernel will tell
+> userspace that no pages were purged, even though they were. Only
+> because userspace made an errant read of a page, and got garbage data
+> back.
 
-Its more about making an interface that has graspable semantics to
-userspace, instead of having the semantics being a side-effect of the
-implementation.
+That sounds overly dramatic to me.  First of all, this data still
+reflects accurately the actions of userspace in this situation.  And
+secondly, the kernel does not rely on this data to be meaningful from
+a userspace perspective to function correctly.
 
-Tying volatility to the page-clean state and page-was-purged to
-page-present seems problematic to me, because there are too many ways
-to change the page-clean or page-present outside of the interface
-being proposed.
+It's really nothing but a use-after-free bug that has consequences for
+no-one but the faulty application.  The thing that IS new is that even
+a read is enough to corrupt your data in this case.
 
-I feel this causes a cascade of corner cases that have to be explained
-to users of the interface.
-
-Also I disagree we're adding a new programming model, as SIGBUSes can
-already be caught, just that there's not usually much one can do,
-where with volatile pages its more likely something could be done. And
-again, its really just a side-effect of having semantics (SIGBUS on
-purged page access) that are more helpful from a applications
-perspective.
-
-As for the separate syscall: Again, this is mainly needed to handle
-allocation failures that happen mid-way through modifying the range.
-There may still be a way to do the allocation first and only after it
-succeeds do the modification. The vma merge/splitting logic doesn't
-make this easy but if we can be sure that on a failed split of 1 vma
--> 3 vmas (which may fail half way) we can re-merge w/o allocation and
-error out (without having to do any other allocations), this might be
-avoidable. I'm still wanting to look at this. If so, it would be
-easier to re-add this support under madvise, if folks really really
-don't like the new syscall.   For the most part, having the separate
-syscall allows us to discuss other details of the semantics, which to
-me are more important then the syscall naming.
-
-thanks
--john
+MADV_REVIVE could return 0 if all pages in the specified range were
+present, -Esomething if otherwise.  That would be semantically sound
+even if userspace messes up.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
