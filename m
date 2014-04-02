@@ -1,76 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 99ACB6B00A3
-	for <linux-mm@kvack.org>; Wed,  2 Apr 2014 08:52:53 -0400 (EDT)
-Received: by mail-wi0-f178.google.com with SMTP id bs8so438714wib.5
-        for <linux-mm@kvack.org>; Wed, 02 Apr 2014 05:52:52 -0700 (PDT)
-Received: from emea01-am1-obe.outbound.protection.outlook.com (mail-am1lp0014.outbound.protection.outlook.com. [213.199.154.14])
-        by mx.google.com with ESMTPS id m2si764013wij.48.2014.04.02.05.52.51
+Received: from mail-bk0-f41.google.com (mail-bk0-f41.google.com [209.85.214.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 404F96B00A5
+	for <linux-mm@kvack.org>; Wed,  2 Apr 2014 09:01:49 -0400 (EDT)
+Received: by mail-bk0-f41.google.com with SMTP id d7so36754bkh.0
+        for <linux-mm@kvack.org>; Wed, 02 Apr 2014 06:01:48 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id ti7si921185bkb.287.2014.04.02.06.01.47
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Wed, 02 Apr 2014 05:52:51 -0700 (PDT)
-Message-ID: <533C081D.9050202@mellanox.com>
-Date: Wed, 2 Apr 2014 15:52:45 +0300
-From: Haggai Eran <haggaie@mellanox.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 02 Apr 2014 06:01:47 -0700 (PDT)
+Date: Wed, 2 Apr 2014 14:01:43 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [patch]x86: clearing access bit don't flush tlb
+Message-ID: <20140402130143.GA1869@suse.de>
+References: <20140326223034.GA31713@kernel.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm/mmu_notifier: restore set_pte_at_notify semantics
-References: <1389778834-21200-1-git-send-email-mike.rapoport@ravellosystems.com> <20140122131046.GF14193@redhat.com> <52DFCF2B.1010603@mellanox.com> <20140330203328.GA4859@gmail.com>
-In-Reply-To: <20140330203328.GA4859@gmail.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20140326223034.GA31713@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <j.glisse@gmail.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, Mike Rapoport <mike.rapoport@ravellosystems.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Izik Eidus <izik.eidus@ravellosystems.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Or Gerlitz <ogerlitz@mellanox.com>, Sagi Grimberg <sagig@mellanox.com>, Shachar Raindel <raindel@mellanox.com>
+To: Shaohua Li <shli@kernel.org>
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, hughd@google.com, riel@redhat.com, mel@csn.ul.ie
 
-On 03/30/2014 11:33 PM, Jerome Glisse wrote:
-> On Wed, Jan 22, 2014 at 04:01:15PM +0200, Haggai Eran wrote:
->> I'm worried about the following scenario:
->>
->> Given a read-only page, suppose one host thread (thread 1) writes to
->> that page, and performs COW, but before it calls the
->> mmu_notifier_invalidate_page_if_missing_change_pte function another host
->> thread (thread 2) writes to the same page (this time without a page
->> fault). Then we have a valid entry in the secondary page table to a
->> stale page, and someone (thread 3) may read stale data from there.
->>
->> Here's a diagram that shows this scenario:
->>
->> Thread 1                                | Thread 2        | Thread 3
->> ========================================================================
->> do_wp_page(page 1)                      |                 |
->>    ...                                   |                 |
->>    set_pte_at_notify                     |                 |
->>    ...                                   | write to page 1 |
->>                                          |                 | stale access
->>    pte_unmap_unlock                      |                 |
->>    invalidate_page_if_missing_change_pte |                 |
->>
->> This is currently prevented by the use of the range start and range end
->> notifiers.
->>
->> Do you agree that this scenario is possible with the new patch, or am I
->> missing something?
->>
-> I believe you are right, but of all the upstream user of the mmu_notifier
-> API only xen would suffer from this ie any user that do not have a proper
-> change_pte callback can see the bogus scenario you describe above.
-Yes. I sent our RDMA paging RFC patch-set on linux-rdma [1] last month, 
-and it would also suffer from this scenario, but it's not upstream yet.
-> The issue i see is with user that want to/or might sleep when they are
-> invalidation the secondary page table. The issue being that change_pte is
-> call with the cpu page table locked (well at least for the affected pmd).
->
-> I would rather keep the invalidate_range_start/end bracket around change_pte
-> and invalidate page. I think we can fix the kvm regression by other means.
-Perhaps another possibility would be to do the 
-invalidate_range_start/end bracket only when the mmu_notifier is missing 
-a change_pte implementation.
+On Thu, Mar 27, 2014 at 06:30:34AM +0800, Shaohua Li wrote:
+> 
+> I posted this patch a year ago or so, but it gets lost. Repost it here to check
+> if we can make progress this time.
+> 
+> We use access bit to age a page at page reclaim. When clearing pte access bit,
+> we could skip tlb flush in X86. The side effect is if the pte is in tlb and pte
+> access bit is unset in page table, when cpu access the page again, cpu will not
+> set page table pte's access bit. Next time page reclaim will think this hot
+> page is old and reclaim it wrongly, but this doesn't corrupt data.
+> 
+> And according to intel manual, tlb has less than 1k entries, which covers < 4M
+> memory. In today's system, several giga byte memory is normal. After page
+> reclaim clears pte access bit and before cpu access the page again, it's quite
+> unlikely this page's pte is still in TLB. And context swich will flush tlb too.
+> The chance skiping tlb flush to impact page reclaim should be very rare.
+> 
+> Originally (in 2.5 kernel maybe), we didn't do tlb flush after clear access bit.
+> Hugh added it to fix some ARM and sparc issues. Since I only change this for
+> x86, there should be no risk.
+> 
+> And in some workloads, TLB flush overhead is very heavy. In my simple
+> multithread app with a lot of swap to several pcie SSD, removing the tlb flush
+> gives about 20% ~ 30% swapout speedup.
+> 
+> Signed-off-by: Shaohua Li <shli@fusionio.com>
 
-Best regards,
-Haggai
+I'm aware of the discussion on the more complex version and the outcome
+of that. While I think the corner case is real, I think it's also very
+unlikely and as this is an x86-only thing which will be safe from
+corruption at least;
 
-[1] http://www.spinics.net/lists/linux-rdma/msg18906.html
+Acked-by: Mel Gorman <mgorman@suse.de>
+
+Shaohua, you almost certainly should resend this to Andrew with the
+ack's you collected so that he does not have to dig into the history
+trying to figure out what the exact story is.
+
+Thanks.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
