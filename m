@@ -1,81 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f48.google.com (mail-bk0-f48.google.com [209.85.214.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A2306B00CF
-	for <linux-mm@kvack.org>; Wed,  2 Apr 2014 14:07:31 -0400 (EDT)
-Received: by mail-bk0-f48.google.com with SMTP id mx12so72573bkb.7
-        for <linux-mm@kvack.org>; Wed, 02 Apr 2014 11:07:30 -0700 (PDT)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id qa8si1391767bkb.50.2014.04.02.11.07.29
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 02 Apr 2014 11:07:30 -0700 (PDT)
-Date: Wed, 2 Apr 2014 14:07:07 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 0/5] Volatile Ranges (v12) & LSF-MM discussion fodder
-Message-ID: <20140402180707.GT14688@cmpxchg.org>
-References: <1395436655-21670-1-git-send-email-john.stultz@linaro.org>
- <20140401212102.GM4407@cmpxchg.org>
- <533B8C2D.9010108@linaro.org>
- <20140402163013.GP14688@cmpxchg.org>
- <533C3BB4.8020904@zytor.com>
- <533C3CDD.9090400@zytor.com>
- <20140402171812.GR14688@cmpxchg.org>
- <533C4B7E.6030807@sr71.net>
- <CALAqxLUR4ucQ_zOp5i3Y0+WpCWiwm2oR6Dp7aeD2XN1pjiELEQ@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CALAqxLUR4ucQ_zOp5i3Y0+WpCWiwm2oR6Dp7aeD2XN1pjiELEQ@mail.gmail.com>
+Received: from mail-we0-f181.google.com (mail-we0-f181.google.com [74.125.82.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 7DAD36B00D1
+	for <linux-mm@kvack.org>; Wed,  2 Apr 2014 14:09:13 -0400 (EDT)
+Received: by mail-we0-f181.google.com with SMTP id q58so619346wes.26
+        for <linux-mm@kvack.org>; Wed, 02 Apr 2014 11:09:12 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id db6si12449471wib.25.2014.04.02.11.09.11
+        for <linux-mm@kvack.org>;
+        Wed, 02 Apr 2014 11:09:11 -0700 (PDT)
+From: Luiz Capitulino <lcapitulino@redhat.com>
+Subject: [PATCH 0/4] hugetlb: add support gigantic page allocation at runtime
+Date: Wed,  2 Apr 2014 14:08:44 -0400
+Message-Id: <1396462128-32626-1-git-send-email-lcapitulino@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Stultz <john.stultz@linaro.org>
-Cc: Dave Hansen <dave@sr71.net>, "H. Peter Anvin" <hpa@zytor.com>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Neil Brown <neilb@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, mtosatti@redhat.com, aarcange@redhat.com, mgorman@suse.de, akpm@linux-foundation.org, andi@firstfloor.org, davidlohr@hp.com, rientjes@google.com, isimatu.yasuaki@jp.fujitsu.com, yinghai@kernel.org, riel@redhat.com
 
-On Wed, Apr 02, 2014 at 10:48:03AM -0700, John Stultz wrote:
-> On Wed, Apr 2, 2014 at 10:40 AM, Dave Hansen <dave@sr71.net> wrote:
-> > On 04/02/2014 10:18 AM, Johannes Weiner wrote:
-> >> Hence my follow-up question in the other mail about how large we
-> >> expect such code caches to become in practice in relationship to
-> >> overall system memory.  Are code caches interesting reclaim candidates
-> >> to begin with?  Are they big enough to make the machine thrash/swap
-> >> otherwise?
-> >
-> > A big chunk of the use cases here are for swapless systems anyway, so
-> > this is the *only* way for them to reclaim anonymous memory.  Their
-> > choices are either to be constantly throwing away and rebuilding these
-> > objects, or to leave them in memory effectively pinned.
-> >
-> > In practice I did see ashmem (the Android thing that we're trying to
-> > replace) get used a lot by the Android web browser when I was playing
-> > with it.  John said that it got used for storing decompressed copies of
-> > images.
-> 
-> Although images are a simpler case where its easier to not touch
-> volatile pages. I think Johannes is mostly concerned about cases where
-> volatile pages are being accessed while they are volatile, which the
-> Mozilla folks are so far the only viable case (in my mind... folks may
-> have others) where they intentionally want to access pages while
-> they're volatile and thus require SIGBUS semantics.
+The HugeTLB subsystem uses the buddy allocator to allocate hugepages during
+runtime. This means that hugepages allocation during runtime is limited to
+MAX_ORDER order. For archs supporting gigantic pages (that is, page sizes
+greater than MAX_ORDER), this in turn means that those pages can't be
+allocated at runtime.
 
-Yes, absolutely, that is my only concern.  Compressed images as in
-Android can easily be marked non-volatile before they are accessed
-again.
+HugeTLB supports gigantic page allocation during boottime, via the boot
+allocator. To this end the kernel provides the command-line options
+hugepagesz= and hugepages=, which can be used to instruct the kernel to
+allocate N gigantic pages during boot.
 
-Code caches are harder because control is handed off to the CPU, but
-I'm not entirely sure yet whether these are in fact interesting
-reclaim candidates.
+For example, x86_64 supports 2M and 1G hugepages, but only 2M hugepages can
+be allocated and freed at runtime. If one wants to allocate 1G gigantic pages,
+this has to be done at boot via the hugepagesz= and hugepages= command-line
+options.
 
-> I suspect handling the SIGBUS and patching up the purged page you
-> trapped on is likely much to complicated for most use cases. But I do
-> think SIGBUS is preferable to zero-fill on purged page access, just
-> because its likely to be easier to debug applications.
+Now, gigantic page allocation at boottime has two serious problems:
 
-Fully agreed, but it seems a bit overkill to add a separate syscall, a
-range-tree on top of shmem address_spaces, and an essentially new
-programming model based on SIGBUS userspace fault handling (incl. all
-the complexities and confusion this inevitably will bring when people
-DO end up passing these pointers into kernel space) just to be a bit
-nicer about use-after-free bugs in applications.
+ 1. Boottime allocation is not NUMA aware. On a NUMA machine the kernel
+    evenly distributes boottime allocated hugepages among nodes.
+
+    For example, suppose you have a four-node NUMA machine and want
+    to allocate four 1G gigantic pages at boottime. The kernel will
+    allocate one gigantic page per node.
+
+    On the other hand, we do have users who want to be able to specify
+    which NUMA node gigantic pages should allocated from. So that they
+    can place virtual machines on a specific NUMA node.
+
+ 2. Gigantic pages allocated at boottime can't be freed
+
+At this point it's important to observe that regular hugepages allocated
+at runtime don't have those problems. This is so because HugeTLB interface
+for runtime allocation in sysfs supports NUMA and runtime allocated pages
+can be freed just fine via the buddy allocator.
+
+This series adds support for allocating gigantic pages at runtime. It does
+so by allocating gigantic pages via CMA instead of the buddy allocator.
+Releasing gigantic pages is also supported via CMA. As this series builds
+on top of the existing HugeTLB interface, it makes gigantic page allocation
+and releasing just like regular sized hugepages. This also means that NUMA
+support just works.
+
+For example, to allocate two 1G gigantic pages on node 1, one can do:
+
+ # echo 2 > \
+   /sys/devices/system/node/node1/hugepages/hugepages-1048576kB/nr_hugepages
+
+And, to release all gigantic pages on the same node:
+
+ # echo 0 > \
+   /sys/devices/system/node/node1/hugepages/hugepages-1048576kB/nr_hugepages
+
+Please, refer to patch 4/4 for full technical details.
+
+Finally, please note that this series is a follow up for a previous series
+that tried to extend the command-line options set to be NUMA aware:
+
+ http://marc.info/?l=linux-mm&m=139593335312191&w=2
+
+During the discussion of that series it was agreed that having runtime
+allocation support for gigantic pages was a better solution.
+
+Luiz Capitulino (4):
+  hugetlb: add hstate_is_gigantic()
+  hugetlb: update_and_free_page(): don't clear PG_reserved bit
+  hugetlb: move helpers up in the file
+  hugetlb: add support for gigantic page allocation at runtime
+
+ arch/x86/include/asm/hugetlb.h |  10 ++
+ include/linux/hugetlb.h        |   5 +
+ mm/hugetlb.c                   | 344 ++++++++++++++++++++++++++++++-----------
+ 3 files changed, 265 insertions(+), 94 deletions(-)
+
+-- 
+1.8.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
