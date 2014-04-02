@@ -1,73 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f50.google.com (mail-bk0-f50.google.com [209.85.214.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B1166B00BD
-	for <linux-mm@kvack.org>; Wed,  2 Apr 2014 12:36:59 -0400 (EDT)
-Received: by mail-bk0-f50.google.com with SMTP id w10so67663bkz.9
-        for <linux-mm@kvack.org>; Wed, 02 Apr 2014 09:36:58 -0700 (PDT)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id j9si1246031bko.217.2014.04.02.09.36.57
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 02 Apr 2014 09:36:58 -0700 (PDT)
-Date: Wed, 2 Apr 2014 12:36:38 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 0/5] Volatile Ranges (v12) & LSF-MM discussion fodder
-Message-ID: <20140402163638.GQ14688@cmpxchg.org>
-References: <1395436655-21670-1-git-send-email-john.stultz@linaro.org>
- <20140401212102.GM4407@cmpxchg.org>
- <533B313E.5000403@zytor.com>
- <533B4555.3000608@sr71.net>
- <533B8E3C.3090606@linaro.org>
+Received: from mail-qg0-f41.google.com (mail-qg0-f41.google.com [209.85.192.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 27C226B00C1
+	for <linux-mm@kvack.org>; Wed,  2 Apr 2014 12:43:35 -0400 (EDT)
+Received: by mail-qg0-f41.google.com with SMTP id z60so469219qgd.28
+        for <linux-mm@kvack.org>; Wed, 02 Apr 2014 09:43:34 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id a32si630020qgf.85.2014.04.02.09.43.34
+        for <linux-mm@kvack.org>;
+        Wed, 02 Apr 2014 09:43:34 -0700 (PDT)
+Date: Wed, 2 Apr 2014 18:43:24 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH] mm/mmu_notifier: restore set_pte_at_notify semantics
+Message-ID: <20140402164324.GK1500@redhat.com>
+References: <1389778834-21200-1-git-send-email-mike.rapoport@ravellosystems.com>
+ <20140122131046.GF14193@redhat.com>
+ <52DFCF2B.1010603@mellanox.com>
+ <20140330203328.GA4859@gmail.com>
+ <533C081D.9050202@mellanox.com>
+ <20140402151825.GA3614@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <533B8E3C.3090606@linaro.org>
+In-Reply-To: <20140402151825.GA3614@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Stultz <john.stultz@linaro.org>
-Cc: Dave Hansen <dave@sr71.net>, "H. Peter Anvin" <hpa@zytor.com>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Neil Brown <neilb@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Jerome Glisse <j.glisse@gmail.com>
+Cc: Haggai Eran <haggaie@mellanox.com>, Mike Rapoport <mike.rapoport@ravellosystems.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Izik Eidus <izik.eidus@ravellosystems.com>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Or Gerlitz <ogerlitz@mellanox.com>, Sagi Grimberg <sagig@mellanox.com>, Shachar Raindel <raindel@mellanox.com>
 
-On Tue, Apr 01, 2014 at 09:12:44PM -0700, John Stultz wrote:
-> On 04/01/2014 04:01 PM, Dave Hansen wrote:
-> > On 04/01/2014 02:35 PM, H. Peter Anvin wrote:
-> >> On 04/01/2014 02:21 PM, Johannes Weiner wrote:
-> >>> Either way, optimistic volatile pointers are nowhere near as
-> >>> transparent to the application as the above description suggests,
-> >>> which makes this usecase not very interesting, IMO.
-> >> ... however, I think you're still derating the value way too much.  The
-> >> case of user space doing elastic memory management is more and more
-> >> common, and for a lot of those applications it is perfectly reasonable
-> >> to either not do system calls or to have to devolatilize first.
-> > The SIGBUS is only in cases where the memory is set as volatile and
-> > _then_ accessed, right?
-> Not just set volatile and then accessed, but when a volatile page has
-> been purged and then accessed without being made non-volatile.
+Hi,
+
+On Wed, Apr 02, 2014 at 11:18:27AM -0400, Jerome Glisse wrote:
+> This would imply either to scan all mmu_notifier currently register or to
+> have a global flags for the mm to know if there is one mmu_notifier without
+> change_pte. Moreover this would means that kvm would remain "broken" if one
+> of the mmu notifier do not have the change_pte callback.
 > 
-> 
-> > John, this was something that the Mozilla guys asked for, right?  Any
-> > idea why this isn't ever a problem for them?
-> So one of their use cases for it is for library text. Basically they
-> want to decompress a compressed library file into memory. Then they plan
-> to mark the uncompressed pages volatile, and then be able to call into
-> it. Ideally for them, the kernel would only purge cold pages, leaving
-> the hot pages in memory. When they traverse a purged page, they handle
-> the SIGBUS and patch the page up.
+> Solution i have in mind and is part of a patchset i am working on, just
+> involve passing along an enum value to mmu notifier callback. The enum
+> value would tell what are the exact event that actually triggered the
+> mmu notifier call (vmscan, migrate, ksm, ...). Knowing this kvm could then
+> simply ignore invalidate_range_start/end for event it knows it will get
+> a change_pte callback.
 
-How big are these libraries compared to overall system size?
+That sounds similar to adding two new methods companion of change_pte
+that if not implemented would fallback into
+invalidate_range_start/end? And KVM would implement those as noops? It
+would add bytes to the mmu notifer structure but it wouldn't add
+branches.
 
-> Now.. this is not what I'd consider a normal use case, but was hoping to
-> illustrate some of the more interesting uses and demonstrate the
-> interfaces flexibility.
+It's not urgent but we clearly need to do something about this, or we
+should drop change_pte entirely because currently it does nothing and
+it only wastes some CPU cycle.
 
-I'm just dying to hear a "normal" use case then. :)
+Removing change_pte these days isn't a showstopper because KVM page
+fault become smarter lately. In the old days lack of change_pte would
+mean that the guest would break KSM cow if it ever accessed the page
+in readonly (sharable) mode. Back then change_pte was a fundamental
+optimization to use KSM and to avoid all KSM pages to be cowed
+immediately after being merged.
 
-> Also it provided a clear example of benefits to doing LRU based
-> cold-page purging rather then full object purging. Though I think the
-> same could be demonstrated in a simpler case of a large cache of objects
-> that the applications wants to mark volatile in one pass, unmarking
-> sub-objects as it needs.
+These days reading from guest memory backed by KSM won't break COW
+even if the spte isn't already established before the KVM fault fires
+on the KSM memory. change_pte these days has only the benefit of
+avoiding a vmexit/vmenter cycle after a the KSM merge and one
+vmexit/vmenter cyle after a KSM break COW (the event that triggers if
+the guest eventually writes to the page).
 
-Agreed.
+KSM merge and KSM cows aren't too frequent operations (and they both
+have significant cost associated with them) so it's uncertain if it's
+worth keeping the change_pte optimization nowadays. Considering it's
+already implemented I personally feel it's worth keeping as a
+microoptimization because vmexit/vmenter are certainly more expensive
+than calling change_pte.
+
+Both what you suggested above (with enum or two new companion methods)
+or the other way Haggai suggested (checking if change_pte is
+implemented in all registered mmu notifiers) sounds good to me.
+
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
