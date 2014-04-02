@@ -1,61 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f50.google.com (mail-pb0-f50.google.com [209.85.160.50])
-	by kanga.kvack.org (Postfix) with ESMTP id CEFCA6B00FB
-	for <linux-mm@kvack.org>; Wed,  2 Apr 2014 15:51:51 -0400 (EDT)
-Received: by mail-pb0-f50.google.com with SMTP id md12so677949pbc.9
-        for <linux-mm@kvack.org>; Wed, 02 Apr 2014 12:51:51 -0700 (PDT)
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-        by mx.google.com with ESMTPS id eg2si1842073pac.182.2014.04.02.12.51.50
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 02 Apr 2014 12:51:50 -0700 (PDT)
-Received: by mail-pa0-f42.google.com with SMTP id fb1so679000pad.1
-        for <linux-mm@kvack.org>; Wed, 02 Apr 2014 12:51:50 -0700 (PDT)
-Message-ID: <533C6A51.6090305@linaro.org>
-Date: Wed, 02 Apr 2014 12:51:45 -0700
-From: John Stultz <john.stultz@linaro.org>
+Received: from mail-qc0-f177.google.com (mail-qc0-f177.google.com [209.85.216.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 769C56B0103
+	for <linux-mm@kvack.org>; Wed,  2 Apr 2014 16:01:40 -0400 (EDT)
+Received: by mail-qc0-f177.google.com with SMTP id w7so788174qcr.8
+        for <linux-mm@kvack.org>; Wed, 02 Apr 2014 13:01:40 -0700 (PDT)
+Date: Wed, 2 Apr 2014 13:01:33 -0700
+From: Zach Brown <zab@redhat.com>
+Subject: Re: [PATCH 3/6] aio/dio: enable PI passthrough
+Message-ID: <20140402200133.GK2394@lenny.home.zabbo.net>
+References: <20140324162231.10848.4863.stgit@birch.djwong.org>
+ <20140324162251.10848.56452.stgit@birch.djwong.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/5] Volatile Ranges (v12) & LSF-MM discussion fodder
-References: <1395436655-21670-1-git-send-email-john.stultz@linaro.org> <20140401212102.GM4407@cmpxchg.org> <533B8C2D.9010108@linaro.org> <20140402183113.GL1500@redhat.com>
-In-Reply-To: <20140402183113.GL1500@redhat.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140324162251.10848.56452.stgit@birch.djwong.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@sr71.net>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Neil Brown <neilb@suse.de>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: "Darrick J. Wong" <darrick.wong@oracle.com>
+Cc: axboe@kernel.dk, martin.petersen@oracle.com, JBottomley@parallels.com, jmoyer@redhat.com, bcrl@kvack.org, viro@zeniv.linux.org.uk, linux-fsdevel@vger.kernel.org, linux-aio@kvack.org, linux-scsi@vger.kernel.org, linux-mm@kvack.org
 
-On 04/02/2014 11:31 AM, Andrea Arcangeli wrote:
-> On Tue, Apr 01, 2014 at 09:03:57PM -0700, John Stultz wrote:
->> Now... once you've chosen SIGBUS semantics, there will be folks who will
->> try to exploit the fact that we get SIGBUS on purged page access (at
->> least on the user-space side) and will try to access pages that are
->> volatile until they are purged and try to then handle the SIGBUS to fix
->> things up. Those folks exploiting that will have to be particularly
->> careful not to pass volatile data to the kernel, and if they do they'll
->> have to be smart enough to handle the EFAULT, etc. That's really all
->> their problem, because they're being clever. :)
-> I'm actually working on feature that would solve the problem for the
-> syscalls accessing missing volatile pages. So you'd never see a
-> -EFAULT because all syscalls won't return even if they encounters a
-> missing page in the volatile range dropped by the VM pressure.
->
-> It's called userfaultfd. You call sys_userfaultfd(flags) and it
-> connects the current mm to a pseudo filedescriptor. The filedescriptor
-> works similarly to eventfd but with a different protocol.
-So yea! I actually think (its been awhile now) I mentioned your work to
-Taras (or maybe he mentioned it to me?), but it did seem like the
-userfaltfd would be a better solution for the style of fault handling
-they were thinking about. (Especially as actually handling SIGBUS and
-doing something sane in a large threaded application seems very difficult).
+> +static int setup_pi_ext(struct kiocb *req, int is_write)
+> +{
+> +	struct file *file = req->ki_filp;
+> +	struct io_extension *ext = &req->ki_ioext->ke_kern;
+> +	void *p;
+> +	unsigned long start, end;
+> +	int retval;
+> +
+> +	if (!(file->f_flags & O_DIRECT)) {
+> +		pr_debug("EINVAL: can't use PI without O_DIRECT.\n");
+> +		return -EINVAL;
+> +	}
+> +
+> +	BUG_ON(req->ki_ioext->ke_pi_iter.pi_userpages);
+> +
+> +	end = (((unsigned long)ext->ie_pi_buf) + ext->ie_pi_buflen +
+> +		PAGE_SIZE - 1) >> PAGE_SHIFT;
+> +	start = ((unsigned long)ext->ie_pi_buf) >> PAGE_SHIFT;
+> +	req->ki_ioext->ke_pi_iter.pi_offset = offset_in_page(ext->ie_pi_buf);
+> +	req->ki_ioext->ke_pi_iter.pi_len = ext->ie_pi_buflen;
+> +	req->ki_ioext->ke_pi_iter.pi_nrpages = end - start;
+> +	p = kzalloc(req->ki_ioext->ke_pi_iter.pi_nrpages *
+> +		    sizeof(struct page *),
+> +		    GFP_NOIO);
 
-That said, explaining volatile ranges as a concept has been difficult
-enough without mixing in other new concepts :), so I'm hesitant to tie
-the functionality together in until its clear the userfaultfd approach
-is likely to land. But maybe I need to take a closer look at it.
+Can userspace give us bad data and get us to generate insane allcation
+attempt warnings?
 
-thanks
--john
+> +	if (p == NULL) {
+> +		pr_err("%s: no room for page array?\n", __func__);
+> +		return -ENOMEM;
+> +	}
+> +	req->ki_ioext->ke_pi_iter.pi_userpages = p;
+> +
+> +	retval = get_user_pages_fast((unsigned long)ext->ie_pi_buf,
+> +				     req->ki_ioext->ke_pi_iter.pi_nrpages,
+> +				     is_write,
+
+Isn't this is_write backwards?  If it's a write syscall then the PI
+pages is going to be read from.
+
+- z
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
