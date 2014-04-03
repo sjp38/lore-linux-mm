@@ -1,111 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f47.google.com (mail-la0-f47.google.com [209.85.215.47])
-	by kanga.kvack.org (Postfix) with ESMTP id EF1A76B0037
-	for <linux-mm@kvack.org>; Thu,  3 Apr 2014 15:09:58 -0400 (EDT)
-Received: by mail-la0-f47.google.com with SMTP id pn19so1667690lab.6
-        for <linux-mm@kvack.org>; Thu, 03 Apr 2014 12:09:58 -0700 (PDT)
-Received: from mail-la0-x234.google.com (mail-la0-x234.google.com [2a00:1450:4010:c03::234])
-        by mx.google.com with ESMTPS id g7si4109914lab.166.2014.04.03.12.09.57
+Received: from mail-oa0-f52.google.com (mail-oa0-f52.google.com [209.85.219.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 31CF66B0031
+	for <linux-mm@kvack.org>; Thu,  3 Apr 2014 15:50:41 -0400 (EDT)
+Received: by mail-oa0-f52.google.com with SMTP id l6so2476714oag.25
+        for <linux-mm@kvack.org>; Thu, 03 Apr 2014 12:50:40 -0700 (PDT)
+Received: from g2t2352.austin.hp.com (g2t2352.austin.hp.com. [15.217.128.51])
+        by mx.google.com with ESMTPS id wu5si5239023oeb.85.2014.04.03.12.50.40
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 03 Apr 2014 12:09:57 -0700 (PDT)
-Received: by mail-la0-f52.google.com with SMTP id ec20so1711862lab.11
-        for <linux-mm@kvack.org>; Thu, 03 Apr 2014 12:09:56 -0700 (PDT)
-Message-Id: <20140403190952.766500364@openvz.org>
-Date: Thu, 03 Apr 2014 22:48:47 +0400
-From: Cyrill Gorcunov <gorcunov@openvz.org>
-Subject: [rfc 3/3] mm: pgtable -- Use _PAGE_SOFT_DIRTY for swap entries
-References: <20140403184844.260532690@openvz.org>
-Content-Disposition: inline; filename=pgbits-drop-pse-for-dirty-swap
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 03 Apr 2014 12:50:40 -0700 (PDT)
+Message-ID: <1396554637.2550.11.camel@buesod1.americas.hpqcorp.net>
+Subject: Re: [PATCH] ipc,shm: disable shmmax and shmall by default
+From: Davidlohr Bueso <davidlohr@hp.com>
+Date: Thu, 03 Apr 2014 12:50:37 -0700
+In-Reply-To: <533DB03D.7010308@colorfullife.com>
+References: <1396235199.2507.2.camel@buesod1.americas.hpqcorp.net>
+	 <20140331170546.3b3e72f0.akpm@linux-foundation.org>
+	 <1396371699.25314.11.camel@buesod1.americas.hpqcorp.net>
+	 <CAHGf_=qsf6vN5k=-PLraG8Q_uU1pofoBDktjVH1N92o76xPadQ@mail.gmail.com>
+	 <1396377083.25314.17.camel@buesod1.americas.hpqcorp.net>
+	 <CAHGf_=rLLBDr5ptLMvFD-M+TPQSnK3EP=7R+27K8or84rY-KLA@mail.gmail.com>
+	 <1396386062.25314.24.camel@buesod1.americas.hpqcorp.net>
+	 <CAHGf_=rhXrBQSmDBJJ-vPxBbhjJ91Fh2iWe1cf_UQd-tCfpb2w@mail.gmail.com>
+	 <20140401142947.927642a408d84df27d581e36@linux-foundation.org>
+	 <CAHGf_=p70rLOYwP2OgtK+2b+41=GwMA9R=rZYBqRr1w_O5UnKA@mail.gmail.com>
+	 <20140401144801.603c288674ab8f417b42a043@linux-foundation.org>
+	 <CAHGf_=r5AUu6yvJgOzwYDghBo6iT2q+nNumpvqwer+igcfChrA@mail.gmail.com>
+	 <1396394931.25314.34.camel@buesod1.americas.hpqcorp.net>
+	 <CAHGf_=rH+vfFzRrh35TETxjFU2HM0xnDQFweQ+Bfw20Pm2nL3g@mail.gmail.com>
+	 <1396484447.2953.1.camel@buesod1.americas.hpqcorp.net>
+	 <533DB03D.7010308@colorfullife.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: gorcunov@openvz.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Peter Anvin <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, Steven Noonan <steven@uplinklabs.net>, Rik van Riel <riel@redhat.com>, David Vrabel <david.vrabel@citrix.com>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Pavel Emelyanov <xemul@parallels.com>
+To: Manfred Spraul <manfred@colorfullife.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, aswin@hp.com, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Greg Thelen <gthelen@google.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-Since we support soft-dirty on x86-64 now we can release _PAGE_PSE
-bit used to track dirty swap entries and reuse ealready existing
-_PAGE_SOFT_DIRTY.
+On Thu, 2014-04-03 at 21:02 +0200, Manfred Spraul wrote:
+> Hi Davidlohr,
+> 
+> On 04/03/2014 02:20 AM, Davidlohr Bueso wrote:
+> > The default size for shmmax is, and always has been, 32Mb.
+> > Today, in the XXI century, it seems that this value is rather small,
+> > making users have to increase it via sysctl, which can cause
+> > unnecessary work and userspace application workarounds[1].
+> >
+> > Instead of choosing yet another arbitrary value, larger than 32Mb,
+> > this patch disables the use of both shmmax and shmall by default,
+> > allowing users to create segments of unlimited sizes. Users and
+> > applications that already explicitly set these values through sysctl
+> > are left untouched, and thus does not change any of the behavior.
+> >
+> > So a value of 0 bytes or pages, for shmmax and shmall, respectively,
+> > implies unlimited memory, as opposed to disabling sysv shared memory.
+> > This is safe as 0 cannot possibly be used previously as SHMMIN is
+> > hardcoded to 1 and cannot be modified.
 
-Thus for all soft-dirty needs we use same pte bit.
+> Are we sure that no user space apps uses shmctl(IPC_INFO) and prints a 
+> pretty error message if shmall is too small?
+> We would break these apps.
 
-CC: Linus Torvalds <torvalds@linux-foundation.org>
-CC: Mel Gorman <mgorman@suse.de>
-CC: Peter Anvin <hpa@zytor.com>
-CC: Ingo Molnar <mingo@kernel.org>
-CC: Steven Noonan <steven@uplinklabs.net>
-CC: Rik van Riel <riel@redhat.com>
-CC: David Vrabel <david.vrabel@citrix.com>
-CC: Andrew Morton <akpm@linux-foundation.org>
-CC: Peter Zijlstra <peterz@infradead.org>
-CC: Pavel Emelyanov <xemul@parallels.com>
-Signed-off-by: Cyrill Gorcunov <gorcunov@openvz.org>
----
- arch/x86/include/asm/pgtable_64.h    |   12 ++++++++++--
- arch/x86/include/asm/pgtable_types.h |   19 ++++---------------
- 2 files changed, 14 insertions(+), 17 deletions(-)
+Good point. 0 bytes/pages would definitely trigger an unexpected error
+message if users did this. But on the other hand I'm not sure this
+actually is a _real_ scenario, since upon overflow the value can still
+end up being 0, which is totally bogus and would cause the same
+breakage.
 
-Index: linux-2.6.git/arch/x86/include/asm/pgtable_64.h
-===================================================================
---- linux-2.6.git.orig/arch/x86/include/asm/pgtable_64.h
-+++ linux-2.6.git/arch/x86/include/asm/pgtable_64.h
-@@ -142,9 +142,17 @@ static inline int pgd_large(pgd_t pgd) {
- #define pte_offset_map(dir, address) pte_offset_kernel((dir), (address))
- #define pte_unmap(pte) ((void)(pte))/* NOP */
- 
--/* Encode and de-code a swap entry */
-+/*
-+ * Encode and de-code a swap entry. When soft-dirty memory tracker is
-+ * enabled we need to borrow _PAGE_BIT_SOFT_DIRTY bit for own needs,
-+ * which limits the max size of swap partiotion about to 1T.
-+ */
- #define SWP_TYPE_BITS (_PAGE_BIT_FILE - _PAGE_BIT_PRESENT - 1)
--#define SWP_OFFSET_SHIFT (_PAGE_BIT_PROTNONE + 1)
-+#ifdef CONFIG_MEM_SOFT_DIRTY
-+# define SWP_OFFSET_SHIFT (_PAGE_BIT_SOFT_DIRTY + 1)
-+#else
-+# define SWP_OFFSET_SHIFT (_PAGE_BIT_PROTNONE + 1)
-+#endif
- 
- #define MAX_SWAPFILES_CHECK() BUILD_BUG_ON(MAX_SWAPFILES_SHIFT > SWP_TYPE_BITS)
- 
-Index: linux-2.6.git/arch/x86/include/asm/pgtable_types.h
-===================================================================
---- linux-2.6.git.orig/arch/x86/include/asm/pgtable_types.h
-+++ linux-2.6.git/arch/x86/include/asm/pgtable_types.h
-@@ -59,29 +59,18 @@
-  * The same hidden bit is used by kmemcheck, but since kmemcheck
-  * works on kernel pages while soft-dirty engine on user space,
-  * they do not conflict with each other.
-+ *
-+ * Because soft-dirty is limited to x86-64 only we can reuse this
-+ * bit to track swap entries as well.
-  */
- 
- #define _PAGE_BIT_SOFT_DIRTY	_PAGE_BIT_HIDDEN
- 
- #ifdef CONFIG_MEM_SOFT_DIRTY
- #define _PAGE_SOFT_DIRTY	(_AT(pteval_t, 1) << _PAGE_BIT_SOFT_DIRTY)
-+#define _PAGE_SWP_SOFT_DIRTY	_PAGE_SOFT_DIRTY
- #else
- #define _PAGE_SOFT_DIRTY	(_AT(pteval_t, 0))
--#endif
--
--/*
-- * Tracking soft dirty bit when a page goes to a swap is tricky.
-- * We need a bit which can be stored in pte _and_ not conflict
-- * with swap entry format. On x86 bits 6 and 7 are *not* involved
-- * into swap entry computation, but bit 6 is used for nonlinear
-- * file mapping, so we borrow bit 7 for soft dirty tracking.
-- *
-- * Please note that this bit must be treated as swap dirty page
-- * mark if and only if the PTE has present bit clear!
-- */
--#ifdef CONFIG_MEM_SOFT_DIRTY
--#define _PAGE_SWP_SOFT_DIRTY	_PAGE_PSE
--#else
- #define _PAGE_SWP_SOFT_DIRTY	(_AT(pteval_t, 0))
- #endif
- 
+So I see two possible workarounds:
+(i) Use ULONG_MAX for the shmmax default instead. This would make shmall
+default to 1152921504606846720 and 268435456, for 64 and 32bit systems,
+respectively.
+
+(ii) Keep the 0 bytes, but add a new a "transition" tunable that, if set
+(default off), would allow 0 bytes to be unlimited. With time, users
+could hopefully update their applications and we could eventually get
+rid of it. This _seems_ to be the less aggressive way to go.
+
+Thoughts?
+
+Thanks,
+Davidlohr
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
