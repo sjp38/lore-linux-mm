@@ -1,161 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oa0-f52.google.com (mail-oa0-f52.google.com [209.85.219.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 742436B003C
-	for <linux-mm@kvack.org>; Thu,  3 Apr 2014 19:14:24 -0400 (EDT)
-Received: by mail-oa0-f52.google.com with SMTP id l6so2716926oag.25
-        for <linux-mm@kvack.org>; Thu, 03 Apr 2014 16:14:24 -0700 (PDT)
-Received: from e39.co.us.ibm.com (e39.co.us.ibm.com. [32.97.110.160])
-        by mx.google.com with ESMTPS id e10si5524992oey.4.2014.04.03.16.14.23
+Received: from mail-yk0-f175.google.com (mail-yk0-f175.google.com [209.85.160.175])
+	by kanga.kvack.org (Postfix) with ESMTP id C6F426B0044
+	for <linux-mm@kvack.org>; Thu,  3 Apr 2014 19:25:00 -0400 (EDT)
+Received: by mail-yk0-f175.google.com with SMTP id 131so2238814ykp.6
+        for <linux-mm@kvack.org>; Thu, 03 Apr 2014 16:25:00 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id l5si7723296yhg.44.2014.04.03.16.25.00
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 03 Apr 2014 16:14:23 -0700 (PDT)
-Received: from /spool/local
-	by e39.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <nacc@linux.vnet.ibm.com>;
-	Thu, 3 Apr 2014 17:14:23 -0600
-Received: from b03cxnp07029.gho.boulder.ibm.com (b03cxnp07029.gho.boulder.ibm.com [9.17.130.16])
-	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id 25AC83E40026
-	for <linux-mm@kvack.org>; Thu,  3 Apr 2014 17:14:21 -0600 (MDT)
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by b03cxnp07029.gho.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s33LBOcl7995780
-	for <linux-mm@kvack.org>; Thu, 3 Apr 2014 23:11:24 +0200
-Received: from d03av01.boulder.ibm.com (localhost [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s33NEKgw027145
-	for <linux-mm@kvack.org>; Thu, 3 Apr 2014 17:14:20 -0600
-Date: Thu, 3 Apr 2014 16:14:13 -0700
-From: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
-Subject: hugetlb: ensure hugepage access is denied if hugepages are not
- supported
-Message-ID: <20140403231413.GB17412@linux.vnet.ibm.com>
+        Thu, 03 Apr 2014 16:25:00 -0700 (PDT)
+Message-ID: <533DEDC5.5070500@oracle.com>
+Date: Thu, 03 Apr 2014 19:24:53 -0400
+From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Subject: Re: [RFC] mm,tracing: improve current situation
+References: <1396561440.4661.33.camel@buesod1.americas.hpqcorp.net>
+In-Reply-To: <1396561440.4661.33.camel@buesod1.americas.hpqcorp.net>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linuxppc-dev@lists.ozlabs.org, nyc@holomorphy.com, benh@kernel.crashing.org, paulus@samba.org, anton@samba.org, akpm@linux-foundation.org, aneesh.kumar@linux.vnet.ibm.com
+To: Davidlohr Bueso <davidlohr@hp.com>, linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Dave Jones <davej@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
 
-In KVM guests on Power, in a guest not backed by hugepages, we see the
-following:
+On 04/03/2014 05:44 PM, Davidlohr Bueso wrote:
+> Hi All,
+> 
+> During LSFMM Dave Jones discussed the current situation around
+> testing/trinity in the mm. One of the conclusions was that basically we
+> lack tools to gather the necessary information to make debugging a less
+> painful process, making it pretty much a black box for a lot of cases.
+> 
+> One of the suggested ways to do so was to improve our tracing. Currently
+> we have events for kmem, vmscan and oom (which really just traces the
+> tunable updates) -- In addition Dave Hansen also also been trying to add
+> tracing for TLB range flushing, hopefully that can make it in some time
+> soon. However, this lacks the more general data that governs all of the
+> core VM, such as vmas and of course the mm_struct.
+> 
+> To this end, I've started adding events to trace the vma lifecycle,
+> including: creating, removing, splitting, merging, copying and
+> adjusting. Currently it only prints out the start and end virtual
+> addresses, such as:
+> 
+> bash-3661   [000]  ....  222.964847: split_vma: [8a8000-9a6000] => new: [9a6000-9b6000]
+> 
+> Now, on a more general scenario, I basically would like to know, 1) is
+> this actually useful... I'm hoping that, if in fact something like this
+> gets merged, it won't just sit there. 2) What other general data would
+> be useful for debugging purposes? I'm happy to collect feedback and send
+> out something we can all benefit from.
 
-AnonHugePages:         0 kB
-HugePages_Total:       0
-HugePages_Free:        0
-HugePages_Rsvd:        0
-HugePages_Surp:        0
-Hugepagesize:         64 kB
+There's another thing we have to think about, which is the bottleneck of
+getting that debug info out.
 
-HPAGE_SHIFT == 0 in this configuration, which indicates that hugepages
-are not supported at boot-time, but this is only checked in
-hugetlb_init(). Extract the check to a helper function, and use it in a
-few relevant places.
+Turning on any sort of tracing/logging in mm/ would trigger huge amounts
+of data flowing out. Any attempt to store that data anywhere would result
+either in too much interference to the tests so that issues stop reproducing,
+or way too much data to even be able to get through the guest <-> host pipe.
 
-This does make hugetlbfs not supported (not registered at all) in this
-environment. I believe this is fine, as there are no valid hugepages and
-that won't change at runtime.
+I was working on a similar idea, which is similar to what lockdep does now:
+when you get a lockdep spew you see a nice output which also shows call
+traces of relevant locks. What if, for example, we could make dump_page()
+also dump the traces of where each of it's flags was set or cleared?
 
-Signed-off-by: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
 
-diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-index d19b30a..cc8fcc7 100644
---- a/fs/hugetlbfs/inode.c
-+++ b/fs/hugetlbfs/inode.c
-@@ -1017,6 +1017,11 @@ static int __init init_hugetlbfs_fs(void)
- 	int error;
- 	int i;
- 
-+	if (!hugepages_supported()) {
-+		printk(KERN_ERR "hugetlbfs: Disabling because there are no supported hugepage sizes\n");
-+		return -ENOTSUPP;
-+	}
-+
- 	error = bdi_init(&hugetlbfs_backing_dev_info);
- 	if (error)
- 		return error;
-diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-index 8c43cc4..0aea8de 100644
---- a/include/linux/hugetlb.h
-+++ b/include/linux/hugetlb.h
-@@ -450,4 +450,14 @@ static inline spinlock_t *huge_pte_lock(struct hstate *h,
- 	return ptl;
- }
- 
-+static inline bool hugepages_supported(void)
-+{
-+	/*
-+	 * Some platform decide whether they support huge pages at boot
-+	 * time. On these, such as powerpc, HPAGE_SHIFT is set to 0 when
-+	 * there is no such support
-+	 */
-+	return HPAGE_SHIFT != 0;
-+}
-+
- #endif /* _LINUX_HUGETLB_H */
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index c01cb9f..1c99585 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -1949,11 +1949,7 @@ module_exit(hugetlb_exit);
- 
- static int __init hugetlb_init(void)
- {
--	/* Some platform decide whether they support huge pages at boot
--	 * time. On these, such as powerpc, HPAGE_SHIFT is set to 0 when
--	 * there is no such support
--	 */
--	if (HPAGE_SHIFT == 0)
-+	if (!hugepages_supported())
- 		return 0;
- 
- 	if (!size_to_hstate(default_hstate_size)) {
-@@ -2069,6 +2065,9 @@ static int hugetlb_sysctl_handler_common(bool obey_mempolicy,
- 	unsigned long tmp;
- 	int ret;
- 
-+	if (!hugepages_supported())
-+		return -ENOTSUPP;
-+
- 	tmp = h->max_huge_pages;
- 
- 	if (write && h->order >= MAX_ORDER)
-@@ -2122,6 +2121,9 @@ int hugetlb_overcommit_handler(struct ctl_table *table, int write,
- 	unsigned long tmp;
- 	int ret;
- 
-+	if (!hugepages_supported())
-+		return -ENOTSUPP;
-+
- 	tmp = h->nr_overcommit_huge_pages;
- 
- 	if (write && h->order >= MAX_ORDER)
-@@ -2147,6 +2149,8 @@ out:
- void hugetlb_report_meminfo(struct seq_file *m)
- {
- 	struct hstate *h = &default_hstate;
-+	if (!hugepages_supported())
-+		return;
- 	seq_printf(m,
- 			"HugePages_Total:   %5lu\n"
- 			"HugePages_Free:    %5lu\n"
-@@ -2163,6 +2167,8 @@ void hugetlb_report_meminfo(struct seq_file *m)
- int hugetlb_report_node_meminfo(int nid, char *buf)
- {
- 	struct hstate *h = &default_hstate;
-+	if (!hugepages_supported())
-+		return 0;
- 	return sprintf(buf,
- 		"Node %d HugePages_Total: %5u\n"
- 		"Node %d HugePages_Free:  %5u\n"
-@@ -2177,6 +2183,9 @@ void hugetlb_show_meminfo(void)
- 	struct hstate *h;
- 	int nid;
- 
-+	if (!hugepages_supported())
-+		return;
-+
- 	for_each_node_state(nid, N_MEMORY)
- 		for_each_hstate(h)
- 			pr_info("Node %d hugepages_total=%u hugepages_free=%u hugepages_surp=%u hugepages_size=%lukB\n",
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
