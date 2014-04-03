@@ -1,41 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f177.google.com (mail-lb0-f177.google.com [209.85.217.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 9287F6B0035
+Received: from mail-la0-f47.google.com (mail-la0-f47.google.com [209.85.215.47])
+	by kanga.kvack.org (Postfix) with ESMTP id EF1A76B0037
 	for <linux-mm@kvack.org>; Thu,  3 Apr 2014 15:09:58 -0400 (EDT)
-Received: by mail-lb0-f177.google.com with SMTP id z11so1651871lbi.8
-        for <linux-mm@kvack.org>; Thu, 03 Apr 2014 12:09:57 -0700 (PDT)
-Received: from mail-la0-x22c.google.com (mail-la0-x22c.google.com [2a00:1450:4010:c03::22c])
-        by mx.google.com with ESMTPS id iz10si3231835lbc.249.2014.04.03.12.09.56
+Received: by mail-la0-f47.google.com with SMTP id pn19so1667690lab.6
+        for <linux-mm@kvack.org>; Thu, 03 Apr 2014 12:09:58 -0700 (PDT)
+Received: from mail-la0-x234.google.com (mail-la0-x234.google.com [2a00:1450:4010:c03::234])
+        by mx.google.com with ESMTPS id g7si4109914lab.166.2014.04.03.12.09.57
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 03 Apr 2014 12:09:56 -0700 (PDT)
-Received: by mail-la0-f44.google.com with SMTP id c6so1699606lan.17
+        Thu, 03 Apr 2014 12:09:57 -0700 (PDT)
+Received: by mail-la0-f52.google.com with SMTP id ec20so1711862lab.11
         for <linux-mm@kvack.org>; Thu, 03 Apr 2014 12:09:56 -0700 (PDT)
-Message-Id: <20140403190952.661204455@openvz.org>
-Date: Thu, 03 Apr 2014 22:48:46 +0400
+Message-Id: <20140403190952.766500364@openvz.org>
+Date: Thu, 03 Apr 2014 22:48:47 +0400
 From: Cyrill Gorcunov <gorcunov@openvz.org>
-Subject: [rfc 2/3] mm: pgtable -- Require X86_64 for soft-dirty tracker
+Subject: [rfc 3/3] mm: pgtable -- Use _PAGE_SOFT_DIRTY for swap entries
 References: <20140403184844.260532690@openvz.org>
-Content-Disposition: inline; filename=pgbits-drop-softdirty-non-x86-64
+Content-Disposition: inline; filename=pgbits-drop-pse-for-dirty-swap
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: gorcunov@openvz.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Peter Anvin <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, Steven Noonan <steven@uplinklabs.net>, Rik van Riel <riel@redhat.com>, David Vrabel <david.vrabel@citrix.com>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Pavel Emelyanov <xemul@parallels.com>
 
-Tracking dirty status on 2 level pages requires very ugly macros
-and taking into account how old the machines who can operate
-without PAE mode only are, lets drop soft dirty tracker from
-them for code simplicity (note I can't drop all the macros
-from 2 level pages by now since _PAGE_BIT_PROTNONE and
-_PAGE_BIT_FILE are still used even without tracker).
+Since we support soft-dirty on x86-64 now we can release _PAGE_PSE
+bit used to track dirty swap entries and reuse ealready existing
+_PAGE_SOFT_DIRTY.
 
-Linus proposed to completely rip off softdirty support on
-x86-32 (even with PAE) and since for CRIU we're not planning
-to support native x86-32 mode, lets do that.
-
-(Softdirty tracker is relatively new feature which mostly used
- by CRIU so I don't expect if such API change would cause problems
- on userspace).
+Thus for all soft-dirty needs we use same pte bit.
 
 CC: Linus Torvalds <torvalds@linux-foundation.org>
 CC: Mel Gorman <mgorman@suse.de>
@@ -49,90 +40,72 @@ CC: Peter Zijlstra <peterz@infradead.org>
 CC: Pavel Emelyanov <xemul@parallels.com>
 Signed-off-by: Cyrill Gorcunov <gorcunov@openvz.org>
 ---
- arch/x86/Kconfig                      |    2 -
- arch/x86/include/asm/pgtable-2level.h |   49 ----------------------------------
- 2 files changed, 1 insertion(+), 50 deletions(-)
+ arch/x86/include/asm/pgtable_64.h    |   12 ++++++++++--
+ arch/x86/include/asm/pgtable_types.h |   19 ++++---------------
+ 2 files changed, 14 insertions(+), 17 deletions(-)
 
-Index: linux-2.6.git/arch/x86/Kconfig
+Index: linux-2.6.git/arch/x86/include/asm/pgtable_64.h
 ===================================================================
---- linux-2.6.git.orig/arch/x86/Kconfig
-+++ linux-2.6.git/arch/x86/Kconfig
-@@ -104,7 +104,7 @@ config X86
- 	select HAVE_ARCH_SECCOMP_FILTER
- 	select BUILDTIME_EXTABLE_SORT
- 	select GENERIC_CMOS_UPDATE
--	select HAVE_ARCH_SOFT_DIRTY
-+	select HAVE_ARCH_SOFT_DIRTY if X86_64
- 	select CLOCKSOURCE_WATCHDOG
- 	select GENERIC_CLOCKEVENTS
- 	select ARCH_CLOCKSOURCE_DATA if X86_64
-Index: linux-2.6.git/arch/x86/include/asm/pgtable-2level.h
-===================================================================
---- linux-2.6.git.orig/arch/x86/include/asm/pgtable-2level.h
-+++ linux-2.6.git/arch/x86/include/asm/pgtable-2level.h
-@@ -62,53 +62,6 @@ static inline unsigned long pte_bitop(un
- 	return ((value >> rightshift) & mask) << leftshift;
- }
+--- linux-2.6.git.orig/arch/x86/include/asm/pgtable_64.h
++++ linux-2.6.git/arch/x86/include/asm/pgtable_64.h
+@@ -142,9 +142,17 @@ static inline int pgd_large(pgd_t pgd) {
+ #define pte_offset_map(dir, address) pte_offset_kernel((dir), (address))
+ #define pte_unmap(pte) ((void)(pte))/* NOP */
  
--#ifdef CONFIG_MEM_SOFT_DIRTY
+-/* Encode and de-code a swap entry */
++/*
++ * Encode and de-code a swap entry. When soft-dirty memory tracker is
++ * enabled we need to borrow _PAGE_BIT_SOFT_DIRTY bit for own needs,
++ * which limits the max size of swap partiotion about to 1T.
++ */
+ #define SWP_TYPE_BITS (_PAGE_BIT_FILE - _PAGE_BIT_PRESENT - 1)
+-#define SWP_OFFSET_SHIFT (_PAGE_BIT_PROTNONE + 1)
++#ifdef CONFIG_MEM_SOFT_DIRTY
++# define SWP_OFFSET_SHIFT (_PAGE_BIT_SOFT_DIRTY + 1)
++#else
++# define SWP_OFFSET_SHIFT (_PAGE_BIT_PROTNONE + 1)
++#endif
+ 
+ #define MAX_SWAPFILES_CHECK() BUILD_BUG_ON(MAX_SWAPFILES_SHIFT > SWP_TYPE_BITS)
+ 
+Index: linux-2.6.git/arch/x86/include/asm/pgtable_types.h
+===================================================================
+--- linux-2.6.git.orig/arch/x86/include/asm/pgtable_types.h
++++ linux-2.6.git/arch/x86/include/asm/pgtable_types.h
+@@ -59,29 +59,18 @@
+  * The same hidden bit is used by kmemcheck, but since kmemcheck
+  * works on kernel pages while soft-dirty engine on user space,
+  * they do not conflict with each other.
++ *
++ * Because soft-dirty is limited to x86-64 only we can reuse this
++ * bit to track swap entries as well.
+  */
+ 
+ #define _PAGE_BIT_SOFT_DIRTY	_PAGE_BIT_HIDDEN
+ 
+ #ifdef CONFIG_MEM_SOFT_DIRTY
+ #define _PAGE_SOFT_DIRTY	(_AT(pteval_t, 1) << _PAGE_BIT_SOFT_DIRTY)
++#define _PAGE_SWP_SOFT_DIRTY	_PAGE_SOFT_DIRTY
+ #else
+ #define _PAGE_SOFT_DIRTY	(_AT(pteval_t, 0))
+-#endif
 -
 -/*
-- * Bits _PAGE_BIT_PRESENT, _PAGE_BIT_FILE, _PAGE_BIT_SOFT_DIRTY and
-- * _PAGE_BIT_PROTNONE are taken, split up the 28 bits of offset
-- * into this range.
+- * Tracking soft dirty bit when a page goes to a swap is tricky.
+- * We need a bit which can be stored in pte _and_ not conflict
+- * with swap entry format. On x86 bits 6 and 7 are *not* involved
+- * into swap entry computation, but bit 6 is used for nonlinear
+- * file mapping, so we borrow bit 7 for soft dirty tracking.
+- *
+- * Please note that this bit must be treated as swap dirty page
+- * mark if and only if the PTE has present bit clear!
 - */
--#define PTE_FILE_MAX_BITS	28
--#define PTE_FILE_SHIFT1		(_PAGE_BIT_PRESENT + 1)
--#define PTE_FILE_SHIFT2		(_PAGE_BIT_FILE + 1)
--#define PTE_FILE_SHIFT3		(_PAGE_BIT_PROTNONE + 1)
--#define PTE_FILE_SHIFT4		(_PAGE_BIT_SOFT_DIRTY + 1)
--#define PTE_FILE_BITS1		(PTE_FILE_SHIFT2 - PTE_FILE_SHIFT1 - 1)
--#define PTE_FILE_BITS2		(PTE_FILE_SHIFT3 - PTE_FILE_SHIFT2 - 1)
--#define PTE_FILE_BITS3		(PTE_FILE_SHIFT4 - PTE_FILE_SHIFT3 - 1)
--
--#define PTE_FILE_MASK1		((1U << PTE_FILE_BITS1) - 1)
--#define PTE_FILE_MASK2		((1U << PTE_FILE_BITS2) - 1)
--#define PTE_FILE_MASK3		((1U << PTE_FILE_BITS3) - 1)
--
--#define PTE_FILE_LSHIFT2	(PTE_FILE_BITS1)
--#define PTE_FILE_LSHIFT3	(PTE_FILE_BITS1 + PTE_FILE_BITS2)
--#define PTE_FILE_LSHIFT4	(PTE_FILE_BITS1 + PTE_FILE_BITS2 + PTE_FILE_BITS3)
--
--static __always_inline pgoff_t pte_to_pgoff(pte_t pte)
--{
--	return (pgoff_t)
--		(pte_bitop(pte.pte_low, PTE_FILE_SHIFT1, PTE_FILE_MASK1,  0)		    +
--		 pte_bitop(pte.pte_low, PTE_FILE_SHIFT2, PTE_FILE_MASK2,  PTE_FILE_LSHIFT2) +
--		 pte_bitop(pte.pte_low, PTE_FILE_SHIFT3, PTE_FILE_MASK3,  PTE_FILE_LSHIFT3) +
--		 pte_bitop(pte.pte_low, PTE_FILE_SHIFT4,           -1UL,  PTE_FILE_LSHIFT4));
--}
--
--static __always_inline pte_t pgoff_to_pte(pgoff_t off)
--{
--	return (pte_t){
--		.pte_low =
--			pte_bitop(off,                0, PTE_FILE_MASK1,  PTE_FILE_SHIFT1) +
--			pte_bitop(off, PTE_FILE_LSHIFT2, PTE_FILE_MASK2,  PTE_FILE_SHIFT2) +
--			pte_bitop(off, PTE_FILE_LSHIFT3, PTE_FILE_MASK3,  PTE_FILE_SHIFT3) +
--			pte_bitop(off, PTE_FILE_LSHIFT4,           -1UL,  PTE_FILE_SHIFT4) +
--			_PAGE_FILE,
--	};
--}
--
--#else /* CONFIG_MEM_SOFT_DIRTY */
--
- /*
-  * Bits _PAGE_BIT_PRESENT, _PAGE_BIT_FILE and _PAGE_BIT_PROTNONE are taken,
-  * split up the 29 bits of offset into this range.
-@@ -145,8 +98,6 @@ static __always_inline pte_t pgoff_to_pt
- 	};
- }
+-#ifdef CONFIG_MEM_SOFT_DIRTY
+-#define _PAGE_SWP_SOFT_DIRTY	_PAGE_PSE
+-#else
+ #define _PAGE_SWP_SOFT_DIRTY	(_AT(pteval_t, 0))
+ #endif
  
--#endif /* CONFIG_MEM_SOFT_DIRTY */
--
- /* Encode and de-code a swap entry */
- #define SWP_TYPE_BITS (_PAGE_BIT_FILE - _PAGE_BIT_PRESENT - 1)
- #define SWP_OFFSET_SHIFT (_PAGE_BIT_PROTNONE + 1)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
