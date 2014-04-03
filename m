@@ -1,70 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 8EBBC6B013F
-	for <linux-mm@kvack.org>; Wed,  2 Apr 2014 19:48:21 -0400 (EDT)
-Received: by mail-pa0-f51.google.com with SMTP id kq14so916388pab.24
-        for <linux-mm@kvack.org>; Wed, 02 Apr 2014 16:48:21 -0700 (PDT)
-Received: from fgwmail5.fujitsu.co.jp (fgwmail5.fujitsu.co.jp. [192.51.44.35])
-        by mx.google.com with ESMTPS id jh5si2095467pbb.426.2014.04.02.16.48.20
+Received: from mail-ob0-f177.google.com (mail-ob0-f177.google.com [209.85.214.177])
+	by kanga.kvack.org (Postfix) with ESMTP id C5B236B0142
+	for <linux-mm@kvack.org>; Wed,  2 Apr 2014 20:20:51 -0400 (EDT)
+Received: by mail-ob0-f177.google.com with SMTP id wo20so1130196obc.36
+        for <linux-mm@kvack.org>; Wed, 02 Apr 2014 17:20:51 -0700 (PDT)
+Received: from g4t3425.houston.hp.com (g4t3425.houston.hp.com. [15.201.208.53])
+        by mx.google.com with ESMTPS id sd1si2642806obb.136.2014.04.02.17.20.50
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 02 Apr 2014 16:48:20 -0700 (PDT)
-Received: from m1.gw.fujitsu.co.jp (unknown [10.0.50.71])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 2BF623EE1D8
-	for <linux-mm@kvack.org>; Thu,  3 Apr 2014 08:48:19 +0900 (JST)
-Received: from smail (m1 [127.0.0.1])
-	by outgoing.m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 1D4AA45DE54
-	for <linux-mm@kvack.org>; Thu,  3 Apr 2014 08:48:19 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (s1.gw.nic.fujitsu.com [10.0.50.91])
-	by m1.gw.fujitsu.co.jp (Postfix) with ESMTP id 04D4745DE53
-	for <linux-mm@kvack.org>; Thu,  3 Apr 2014 08:48:19 +0900 (JST)
-Received: from s1.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id EAA551DB804A
-	for <linux-mm@kvack.org>; Thu,  3 Apr 2014 08:48:18 +0900 (JST)
-Received: from m1000.s.css.fujitsu.com (m1000.s.css.fujitsu.com [10.240.81.136])
-	by s1.gw.fujitsu.co.jp (Postfix) with ESMTP id 9771D1DB803F
-	for <linux-mm@kvack.org>; Thu,  3 Apr 2014 08:48:18 +0900 (JST)
-Message-ID: <533CA179.3050005@jp.fujitsu.com>
-Date: Thu, 03 Apr 2014 08:47:05 +0900
-From: Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH] ipc,shm: increase default size for shmmax
-References: <1396235199.2507.2.camel@buesod1.americas.hpqcorp.net>	<20140331143217.c6ff958e1fd9944d78507418@linux-foundation.org>	<1396306773.18499.22.camel@buesod1.americas.hpqcorp.net>	<20140331161308.6510381345cb9a1b419d5ec0@linux-foundation.org>	<1396308332.18499.25.camel@buesod1.americas.hpqcorp.net>	<20140331170546.3b3e72f0.akpm@linux-foundation.org>	<533A5CB1.1@jp.fujitsu.com>	<20140401121920.50d1dd96c2145acc81561b82@linux-foundation.org> <20140402155507.1d976144@alan.etchedpixels.co.uk>
-In-Reply-To: <20140402155507.1d976144@alan.etchedpixels.co.uk>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+        Wed, 02 Apr 2014 17:20:51 -0700 (PDT)
+Message-ID: <1396484447.2953.1.camel@buesod1.americas.hpqcorp.net>
+Subject: [PATCH] ipc,shm: disable shmmax and shmall by default
+From: Davidlohr Bueso <davidlohr@hp.com>
+Date: Wed, 02 Apr 2014 17:20:47 -0700
+In-Reply-To: <CAHGf_=rH+vfFzRrh35TETxjFU2HM0xnDQFweQ+Bfw20Pm2nL3g@mail.gmail.com>
+References: <1396235199.2507.2.camel@buesod1.americas.hpqcorp.net>
+	 <20140331143217.c6ff958e1fd9944d78507418@linux-foundation.org>
+	 <1396306773.18499.22.camel@buesod1.americas.hpqcorp.net>
+	 <20140331161308.6510381345cb9a1b419d5ec0@linux-foundation.org>
+	 <1396308332.18499.25.camel@buesod1.americas.hpqcorp.net>
+	 <20140331170546.3b3e72f0.akpm@linux-foundation.org>
+	 <1396371699.25314.11.camel@buesod1.americas.hpqcorp.net>
+	 <CAHGf_=qsf6vN5k=-PLraG8Q_uU1pofoBDktjVH1N92o76xPadQ@mail.gmail.com>
+	 <1396377083.25314.17.camel@buesod1.americas.hpqcorp.net>
+	 <CAHGf_=rLLBDr5ptLMvFD-M+TPQSnK3EP=7R+27K8or84rY-KLA@mail.gmail.com>
+	 <1396386062.25314.24.camel@buesod1.americas.hpqcorp.net>
+	 <CAHGf_=rhXrBQSmDBJJ-vPxBbhjJ91Fh2iWe1cf_UQd-tCfpb2w@mail.gmail.com>
+	 <20140401142947.927642a408d84df27d581e36@linux-foundation.org>
+	 <CAHGf_=p70rLOYwP2OgtK+2b+41=GwMA9R=rZYBqRr1w_O5UnKA@mail.gmail.com>
+	 <20140401144801.603c288674ab8f417b42a043@linux-foundation.org>
+	 <CAHGf_=r5AUu6yvJgOzwYDghBo6iT2q+nNumpvqwer+igcfChrA@mail.gmail.com>
+	 <1396394931.25314.34.camel@buesod1.americas.hpqcorp.net>
+	 <CAHGf_=rH+vfFzRrh35TETxjFU2HM0xnDQFweQ+Bfw20Pm2nL3g@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: One Thousand Gnomes <gnomes@lxorguk.ukuu.org.uk>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Davidlohr Bueso <davidlohr@hp.com>, Manfred Spraul <manfred@colorfullife.com>, aswin@hp.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, "Gotou, Yasunori" <y-goto@jp.fujitsu.com>, chenhanxiao <chenhanxiao@cn.fujitsu.com>, Gao feng <gaofeng@cn.fujitsu.com>
+To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Manfred Spraul <manfred@colorfullife.com>, aswin@hp.com, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Greg Thelen <gthelen@google.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-(2014/04/02 23:55), One Thousand Gnomes wrote:
->> Why aren't people just setting the sysctl to a petabyte?  What problems
->> would that lead to?
->
-> Historically - hanging on real world desktop systems when someone
-> accidentally creates a giant SHM segment and maps it.
->
-> If you are running with vm overcmmit set to actually do checks then it
-> *shouldn't* blow up nowdays.
->
-> More to the point wtf are people still using prehistoric sys5 IPC APIs
-> not shmemfs/posix shmem ?
->
+The default size for shmmax is, and always has been, 32Mb.
+Today, in the XXI century, it seems that this value is rather small,
+making users have to increase it via sysctl, which can cause
+unnecessary work and userspace application workarounds[1].
 
-AFAIK, there are many sys5 ipc users.
-And admins are using ipcs etc...for checking status. I guess they will not
-change the attitude until they see trouble with sysv IPC.
-*) I think some RedHat's document(MRG?) says sysv IPC is obsolete clearly but...
+Instead of choosing yet another arbitrary value, larger than 32Mb,
+this patch disables the use of both shmmax and shmall by default,
+allowing users to create segments of unlimited sizes. Users and
+applications that already explicitly set these values through sysctl
+are left untouched, and thus does not change any of the behavior.
 
-I tend to recommend posix shared memory when people newly starts development but
-there is an another trap.
-IIUC, for posix shmem, an implicit size limit is applied by tmpfs's fs size.
-tmpfs mounted on /dev/shm tends to be limited to half size of system memory.
-It's hard to know that limit for users before hitting trouble.
+So a value of 0 bytes or pages, for shmmax and shmall, respectively,
+implies unlimited memory, as opposed to disabling sysv shared memory.
+This is safe as 0 cannot possibly be used previously as SHMMIN is
+hardcoded to 1 and cannot be modified.
 
-Thanks,
--Kame
+This change allows Linux to treat shm just as regular anonymous memory.
+One important difference between them, though, is handling out-of-memory
+conditions: as opposed to regular anon memory, the OOM killer will not
+kill processes that are hogging memory through shm, allowing users to
+potentially abuse this. To overcome this situation, the shm_rmid_forced
+option must be enabled.
+
+Running this patch through LTP, everything passes, except the following,
+which, due to the nature of this change, is quite expected:
+
+shmget02    1  TFAIL  :  call succeeded unexpectedly
+
+[1]: http://rhaas.blogspot.com/2012/06/absurd-shared-memory-limits.html
+
+Signed-off-by: Davidlohr Bueso <davidlohr@hp.com>
+---
+ include/linux/shm.h      | 2 +-
+ include/uapi/linux/shm.h | 8 ++++----
+ ipc/shm.c                | 6 ++++--
+ 3 files changed, 9 insertions(+), 7 deletions(-)
+
+diff --git a/include/linux/shm.h b/include/linux/shm.h
+index 1e2cd2e..0ca06a3 100644
+--- a/include/linux/shm.h
++++ b/include/linux/shm.h
+@@ -4,7 +4,7 @@
+ #include <asm/page.h>
+ #include <uapi/linux/shm.h>
+ 
+-#define SHMALL (SHMMAX/PAGE_SIZE*(SHMMNI/16)) /* max shm system wide (pages) */
++#define SHMALL 0 /* max shm system wide (pages) */
+ #include <asm/shmparam.h>
+ struct shmid_kernel /* private to the kernel */
+ {	
+diff --git a/include/uapi/linux/shm.h b/include/uapi/linux/shm.h
+index 78b6941..5f0ef28 100644
+--- a/include/uapi/linux/shm.h
++++ b/include/uapi/linux/shm.h
+@@ -9,14 +9,14 @@
+ 
+ /*
+  * SHMMAX, SHMMNI and SHMALL are upper limits are defaults which can
+- * be increased by sysctl
++ * be increased by sysctl. By default, disable SHMMAX and SHMALL with
++ * 0 bytes, thus allowing processes to have unlimited shared memory.
+  */
+-
+-#define SHMMAX 0x2000000		 /* max shared seg size (bytes) */
++#define SHMMAX 0		         /* max shared seg size (bytes) */
+ #define SHMMIN 1			 /* min shared seg size (bytes) */
+ #define SHMMNI 4096			 /* max num of segs system wide */
+ #ifndef __KERNEL__
+-#define SHMALL (SHMMAX/getpagesize()*(SHMMNI/16))
++#define SHMALL 0
+ #endif
+ #define SHMSEG SHMMNI			 /* max shared segs per process */
+ 
+diff --git a/ipc/shm.c b/ipc/shm.c
+index 7645961..ae01ffa 100644
+--- a/ipc/shm.c
++++ b/ipc/shm.c
+@@ -490,10 +490,12 @@ static int newseg(struct ipc_namespace *ns, struct ipc_params *params)
+ 	int id;
+ 	vm_flags_t acctflag = 0;
+ 
+-	if (size < SHMMIN || size > ns->shm_ctlmax)
++	if (ns->shm_ctlmax &&
++	    (size < SHMMIN || size > ns->shm_ctlmax))
+ 		return -EINVAL;
+ 
+-	if (ns->shm_tot + numpages > ns->shm_ctlall)
++	if (ns->shm_ctlall &&
++	    ns->shm_tot + numpages > ns->shm_ctlall)
+ 		return -ENOSPC;
+ 
+ 	shp = ipc_rcu_alloc(sizeof(*shp));
+-- 
+1.8.1.4
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
