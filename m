@@ -1,82 +1,196 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f47.google.com (mail-pb0-f47.google.com [209.85.160.47])
-	by kanga.kvack.org (Postfix) with ESMTP id A15046B0143
-	for <linux-mm@kvack.org>; Wed,  2 Apr 2014 20:43:04 -0400 (EDT)
-Received: by mail-pb0-f47.google.com with SMTP id up15so979182pbc.34
-        for <linux-mm@kvack.org>; Wed, 02 Apr 2014 17:43:04 -0700 (PDT)
-Received: from mail-pd0-x230.google.com (mail-pd0-x230.google.com [2607:f8b0:400e:c02::230])
-        by mx.google.com with ESMTPS id eg2si2182708pac.18.2014.04.02.17.43.03
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 5498C6B0146
+	for <linux-mm@kvack.org>; Thu,  3 Apr 2014 04:25:23 -0400 (EDT)
+Received: by mail-pd0-f177.google.com with SMTP id y10so1428075pdj.8
+        for <linux-mm@kvack.org>; Thu, 03 Apr 2014 01:25:22 -0700 (PDT)
+Received: from mail-pa0-x236.google.com (mail-pa0-x236.google.com [2607:f8b0:400e:c03::236])
+        by mx.google.com with ESMTPS id dg5si2726256pbc.308.2014.04.03.01.25.21
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 02 Apr 2014 17:43:03 -0700 (PDT)
-Received: by mail-pd0-f176.google.com with SMTP id r10so943821pdi.21
-        for <linux-mm@kvack.org>; Wed, 02 Apr 2014 17:43:03 -0700 (PDT)
-Date: Thu, 3 Apr 2014 08:42:50 +0800
-From: Shaohua Li <shli@kernel.org>
-Subject: [patch]x86: clearing access bit don't flush tlb
-Message-ID: <20140403004250.GA14597@kernel.org>
+        Thu, 03 Apr 2014 01:25:22 -0700 (PDT)
+Received: by mail-pa0-f54.google.com with SMTP id lf10so1497380pab.13
+        for <linux-mm@kvack.org>; Thu, 03 Apr 2014 01:25:21 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Reply-To: mtk.manpages@gmail.com
+In-Reply-To: <533CA0F6.2070100@bbn.com>
+References: <533B04A9.6090405@bbn.com> <20140402111032.GA27551@infradead.org>
+ <1396439119.2726.29.camel@menhir> <533CA0F6.2070100@bbn.com>
+From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+Date: Thu, 3 Apr 2014 10:25:01 +0200
+Message-ID: <CAKgNAki8U+j0mvYCg99j7wJ2Z7ve-gxusVbM3zdog=hKGPdidQ@mail.gmail.com>
+Subject: Re: [PATCH] mm: msync: require either MS_ASYNC or MS_SYNC
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, mingo@kernel.org, riel@redhat.com, hughd@google.com, mgorman@suse.de, torvalds@linux-foundation.org
+To: Richard Hansen <rhansen@bbn.com>
+Cc: Steven Whitehouse <swhiteho@redhat.com>, Christoph Hellwig <hch@infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, Greg Troxel <gdt@ir.bbn.com>, Peter Zijlstra <peterz@infradead.org>
 
-Add a few acks and resend this patch.
+[CC +=3D Peter Zijlstra]
+[CC +=3D bug-readline@gnu.org -- maintainers, it _may_ be desirable to
+fix your msync() call]
 
-We use access bit to age a page at page reclaim. When clearing pte access bit,
-we could skip tlb flush in X86. The side effect is if the pte is in tlb and pte
-access bit is unset in page table, when cpu access the page again, cpu will not
-set page table pte's access bit. Next time page reclaim will think this hot
-page is yong and reclaim it wrongly, but this doesn't corrupt data.
+Richard,
 
-And according to intel manual, tlb has less than 1k entries, which covers < 4M
-memory. In today's system, several giga byte memory is normal. After page
-reclaim clears pte access bit and before cpu access the page again, it's quite
-unlikely this page's pte is still in TLB. And context swich will flush tlb too.
-The chance skiping tlb flush to impact page reclaim should be very rare.
+On Thu, Apr 3, 2014 at 1:44 AM, Richard Hansen <rhansen@bbn.com> wrote:
+> On 2014-04-02 07:45, Steven Whitehouse wrote:
+>> Hi,
+>>
+>> On Wed, 2014-04-02 at 04:10 -0700, Christoph Hellwig wrote:
+>>> On Tue, Apr 01, 2014 at 02:25:45PM -0400, Richard Hansen wrote:
+>>>> For the flags parameter, POSIX says "Either MS_ASYNC or MS_SYNC shall
+>>>> be specified, but not both." [1]  There was already a test for the
+>>>> "both" condition.  Add a test to ensure that the caller specified one
+>>>> of the flags; fail with EINVAL if neither are specified.
+>>>
+>>> This breaks various (sloppy) existing userspace
+>
+> Agreed, but this shouldn't be a strong consideration.  The kernel should
+> let userspace apps worry about their own bugs, not provide crutches.
+>
+>>> for no gain.
+>
+> I disagree.  Here is what we gain from this patch (expanded from my
+> previous email):
+>
+>   * Clearer intentions.  Looking at the existing code and the code
+>     history, the fact that flags=3D0 behaves like flags=3DMS_ASYNC appear=
+s
+>     to be a coincidence, not the result of an intentional choice.
 
-Originally (in 2.5 kernel maybe), we didn't do tlb flush after clear access bit.
-Hugh added it to fix some ARM and sparc issues. Since I only change this for
-x86, there should be no risk.
+Maybe. You earlier asserted that the semantics when flags=3D=3D0 may have
+been different, prior to Peter Zijstra's patch,
+https://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/commit/?id=
+=3D204ec841fbea3e5138168edbc3a76d46747cc987
+.
+It's not clear to me that that is the case. But, it would be wise to
+CC the developer, in case he has an insight.
 
-And in some workloads, TLB flush overhead is very heavy. In my simple
-multithread app with a lot of swap to several pcie SSD, removing the tlb flush
-gives about 20% ~ 30% swapout speedup.
+>   * Clearer semantics.  What does it mean for msync() to be neither
+>     synchronous nor asynchronous?
+>
+>   * Met expectations.  An average reader of the POSIX spec or the
+>     Linux man page would expect msync() to fail if neither flag is
+>     specified.
+>
+>   * Defense against potential future security vulnerabilities.  By
+>     explicitly requiring one of the flags, a future change to msync()
+>     is less likely to expose an unintended code path to userspace.
+>
+>   * flags=3D0 is reserved.  By making it illegal to omit both flags
+>     we have the option of making it legal in the future for some
+>     expanded purpose.  (Unlikely, but still.)
+>
+>   * Forced app portability.  Other operating systems (e.g., NetBSD)
+>     enforce POSIX, so an app developer using Linux might not notice the
+>     non-conformance.  This is really the app developer's problem, not
+>     the kernel's, but it's worth considering given msync()'s behavior
+>     is currently unspecified.
 
-Signed-off-by: Shaohua Li <shli@fusionio.com>
-Acked-by: Rik van Riel <riel@redhat.com>
-Acked-by: Mel Gorman <mgorman@suse.de>
-Acked-by: Hugh Dickins <hughd@google.com>
----
- arch/x86/mm/pgtable.c |   13 ++++++-------
- 1 file changed, 6 insertions(+), 7 deletions(-)
+There is no doubt that the situation on Linux is an unfortunate mess
+from history (and is far from the only one, see
+https://lwn.net/Articles/588444/).
 
-Index: linux/arch/x86/mm/pgtable.c
-===================================================================
---- linux.orig/arch/x86/mm/pgtable.c	2014-03-27 05:22:08.572100549 +0800
-+++ linux/arch/x86/mm/pgtable.c	2014-03-27 05:46:12.456131121 +0800
-@@ -399,13 +399,12 @@ int pmdp_test_and_clear_young(struct vm_
- int ptep_clear_flush_young(struct vm_area_struct *vma,
- 			   unsigned long address, pte_t *ptep)
- {
--	int young;
--
--	young = ptep_test_and_clear_young(vma, address, ptep);
--	if (young)
--		flush_tlb_page(vma, address);
--
--	return young;
-+	/*
-+	 * In X86, clearing access bit without TLB flush doesn't cause data
-+	 * corruption. Doing this could cause wrong page aging and so hot pages
-+	 * are reclaimed, but the chance should be very rare.
-+	 */
-+	return ptep_test_and_clear_young(vma, address, ptep);
- }
- 
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+And I think everyone would agree that all of the above would be nice
+to have, if there was no cost to having them. But, there is a major
+cost: the pain of breaking those sloppy user-space applications. And
+in fact some casual grepping suggests that many applications would
+break, since, for example, libreadline contains (in histfile.c) an
+msync() call that omits both MS_SYNC and MS_ASYNC (I have not looked
+into the details of what that piece of code does).
+
+But, even if you could find and fix every application that misuses
+msync(), new kernels with your proposed changes would still break old
+binaries. Linus has made it clear on numerous occasions that kernel
+changes must not break user space. So, the change you suggest is never
+going to fly (and Christoph's NAK at least saves Linus yelling at you
+;-).)
+
+>     Here is a link to a discussion on the bup mailing list about
+>     msync() portability.  This is the conversation that motivated this
+>     patch.
+>
+>       http://article.gmane.org/gmane.comp.sysutils.backup.bup/3005
+>
+> Alternatives:
+>
+>   * Do nothing.  Leave the behavior of flags=3D0 unspecified and let
+>     sloppy userspace continue to be sloppy.  Easiest, but the intended
+>     behavior remains unclear and it risks unintended behavior changes
+>     the next time msync() is overhauled.
+>
+>   * Leave msync()'s current behavior alone, but document that MS_ASYNC
+>     is the default if neither is specified.  This is backward-
+>     compatible with sloppy userspace, but encourages non-portable uses
+>     of msync() and would preclude using flags=3D0 for some other future
+>     purpose.
+>
+>   * Change the default to MS_SYNC and document this.  This is perhaps
+>     the most conservative option, but it alters the behavior of existing
+>     sloppy userspace and also has the disadvantages of the previous
+>     alternative.
+>
+> Overall, I believe the advantages of this patch outweigh the
+> disadvantages, given the alternatives.
+
+I think the only reasonable solution is to better document existing
+behavior and what the programmer should do. With that in mind, I've
+drafted the following text for the msync(2) man page:
+
+    NOTES
+       According to POSIX, exactly one of MS_SYNC and MS_ASYNC  must  be
+       specified  in  flags.   However,  Linux permits a call to msync()
+       that specifies neither of these flags, with  semantics  that  are
+       (currently)  equivalent  to  specifying  MS_ASYNC.   (Since Linux
+       2.6.19, MS_ASYNC is in fact a no-op, since  the  kernel  properly
+       tracks  dirty  pages  and  flushes them to storage as necessary.)
+       Notwithstanding the Linux behavior, portable, future-proof appli=E2=
+=80=90
+       cations  should  ensure  that they specify exactly one of MS_SYNC
+       and MS_ASYNC in flags.
+
+Comments on this draft welcome.
+
+Cheers,
+
+Michael
+
+
+> Perhaps I should include the above bullets in the commit message.
+>
+>>>
+>>> NAK.
+>>>
+>> Agreed. It might be better to have something like:
+>>
+>> if (flags =3D=3D 0)
+>>       flags =3D MS_SYNC;
+>>
+>> That way applications which don't set the flags (and possibly also don't
+>> check the return value, so will not notice an error return) will get the
+>> sync they desire. Not that either of those things is desirable, but at
+>> least we can make the best of the situation. Probably better to be slow
+>> than to potentially lose someone's data in this case,
+>
+> This is a conservative alternative, but I'd rather not condone flags=3D0.
+>  Other than compatibility with broken apps, there is little value in
+> supporting flags=3D0.  Portable apps will have to specify one of the flag=
+s
+> anyway, and the behavior of flags=3D0 is already accessible via other mea=
+ns.
+>
+> Thanks,
+> Richard
+>
+>
+>>
+>> Steve.
+
+--=20
+Michael Kerrisk
+Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
+Linux/UNIX System Programming Training: http://man7.org/training/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
