@@ -1,78 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f46.google.com (mail-bk0-f46.google.com [209.85.214.46])
-	by kanga.kvack.org (Postfix) with ESMTP id EBF486B0031
-	for <linux-mm@kvack.org>; Fri,  4 Apr 2014 07:27:37 -0400 (EDT)
-Received: by mail-bk0-f46.google.com with SMTP id v15so286464bkz.19
-        for <linux-mm@kvack.org>; Fri, 04 Apr 2014 04:27:37 -0700 (PDT)
-Received: from mail-bk0-x230.google.com (mail-bk0-x230.google.com [2a00:1450:4008:c01::230])
-        by mx.google.com with ESMTPS id dg3si3222879bkc.299.2014.04.04.04.27.35
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 04 Apr 2014 04:27:36 -0700 (PDT)
-Received: by mail-bk0-f48.google.com with SMTP id mx12so274016bkb.7
-        for <linux-mm@kvack.org>; Fri, 04 Apr 2014 04:27:35 -0700 (PDT)
-Message-ID: <533E9725.90708@gmail.com>
-Date: Fri, 04 Apr 2014 13:27:33 +0200
-From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+Received: from mail-we0-f174.google.com (mail-we0-f174.google.com [74.125.82.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 16FFA6B0031
+	for <linux-mm@kvack.org>; Fri,  4 Apr 2014 08:32:52 -0400 (EDT)
+Received: by mail-we0-f174.google.com with SMTP id t60so3324635wes.19
+        for <linux-mm@kvack.org>; Fri, 04 Apr 2014 05:32:52 -0700 (PDT)
+Received: from kirsi1.inet.fi (mta-out.inet.fi. [195.156.147.13])
+        by mx.google.com with ESMTP id z42si12160584eel.302.2014.04.04.05.32.51
+        for <linux-mm@kvack.org>;
+        Fri, 04 Apr 2014 05:32:51 -0700 (PDT)
+Date: Fri, 4 Apr 2014 15:32:42 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH] mm: get_user_pages(write,force) refuse to COW in shared
+ areas
+Message-ID: <20140404123242.GA22320@node.dhcp.inet.fi>
+References: <alpine.LSU.2.11.1404040120110.6880@eggly.anvils>
 MIME-Version: 1.0
-Subject: Re: [PATCH] maps.2: fd for a file mapping must be opened for reading
-References: <1396599875-10562-1-git-send-email-avagin@openvz.org>
-In-Reply-To: <1396599875-10562-1-git-send-email-avagin@openvz.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.11.1404040120110.6880@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Vagin <avagin@openvz.org>
-Cc: mtk.manpages@gmail.com, linux-man@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Hugh Dickins <hughd@google.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Roland Dreier <roland@kernel.org>, Oleg Nesterov <oleg@redhat.com>, Konstantin Khlebnikov <koct9i@gmail.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mauro Carvalho Chehab <m.chehab@samsung.com>, Omar Ramirez Luna <omar.ramirez@copitl.com>, Inki Dae <inki.dae@samsung.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-rdma@vger.kernel.org, linux-media@vger.kernel.org
 
-On 04/04/2014 10:24 AM, Andrey Vagin wrote:
-> Here is no difference between MAP_SHARED and MAP_PRIVATE.
-
-Thanks, Andrey. That man page text has been there for a very long time,
-but but does not seem to correspond to the truth in any kernel version
-going back even to Linux 1.0. Patch applied.
-
-Cheers,
-
-Michael
-
-
-> do_mmap_pgoff()
-> 	switch (flags & MAP_TYPE) {
-> 	case MAP_SHARED:
-> 	...
-> 	/* fall through */
-> 	case MAP_PRIVATE:
-> 		if (!(file->f_mode & FMODE_READ))
-> 			return -EACCES;
+On Fri, Apr 04, 2014 at 01:28:22AM -0700, Hugh Dickins wrote:
+> get_user_pages(write=1, force=1) has always had odd behaviour on write-
+> protected shared mappings: although it demands FMODE_WRITE-access to the
+> underlying object (do_mmap_pgoff sets neither VM_SHARED nor VM_MAYWRITE
+> without that), it ends up with do_wp_page substituting private anonymous
+> Copied-On-Write pages for the shared file pages in the area.
 > 
-> Signed-off-by: Andrey Vagin <avagin@openvz.org>
-> ---
->  man2/mmap.2 | 4 +---
->  1 file changed, 1 insertion(+), 3 deletions(-)
+> That was long ago intentional, as a safety measure to prevent ptrace
+> setting a breakpoint (or POKETEXT or POKEDATA) from inadvertently
+> corrupting the underlying executable.  Yet exec and dynamic loaders
+> open the file read-only, and use MAP_PRIVATE rather than MAP_SHARED.
 > 
-> diff --git a/man2/mmap.2 b/man2/mmap.2
-> index c0fd321..b469f84 100644
-> --- a/man2/mmap.2
-> +++ b/man2/mmap.2
-> @@ -393,9 +393,7 @@ is set (probably to
->  .TP
->  .B EACCES
->  A file descriptor refers to a non-regular file.
-> -Or
-> -.B MAP_PRIVATE
-> -was requested, but
-> +Or a file mapping was requested, but
->  .I fd
->  is not open for reading.
->  Or
+> The traditional odd behaviour still causes surprises and bugs in mm,
+> and is probably not what any caller wants - even the comment on the flag
+> says "You do not want this" (although it's undoubtedly necessary for
+> overriding userspace protections in some contexts, and good when !write).
 > 
+> Let's stop doing that.  But it would be dangerous to remove the long-
+> standing safety at this stage, so just make get_user_pages(write,force)
+> fail with EFAULT when applied to a write-protected shared area.
+> Infiniband may in future want to force write through to underlying
+> object: we can add another FOLL_flag later to enable that if required.
+> 
+> Odd though the old behaviour was, there is no doubt that we may turn
+> out to break userspace with this change, and have to revert it quickly.
+> Issue a WARN_ON_ONCE to help debug the changed case (easily triggered
+> by userspace, so only once to prevent spamming the logs); and delay a
+> few associated cleanups until this change is proved.
+> 
+> get_user_pages callers who might see trouble from this change:
+>   ptrace poking, or writing to /proc/<pid>/mem
+>   drivers/infiniband/
+>   drivers/media/v4l2-core/
+>   drivers/gpu/drm/exynos/exynos_drm_gem.c
+>   drivers/staging/tidspbridge/core/tiomap3430.c
+> if they ever apply get_user_pages to write-protected shared mappings
+> of an object which was opened for writing.
+> 
+> I went to apply the same change to mm/nommu.c, but retreated.  NOMMU
+> has no place for COW, and its VM_flags conventions are not the same:
+> I'd be more likely to screw up NOMMU than make an improvement there.
+> 
+> Suggested-by: Linus Torvalds <torvalds@linux-foundation.org>
+> Signed-off-by: Hugh Dickins <hughd@google.com>
 
+There's comment in do_wp_page() which is not true anymore with patch
+applied. It should be fixed.
+
+Otherwise, looks good to me:
+
+Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 
 -- 
-Michael Kerrisk
-Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
-Linux/UNIX System Programming Training: http://man7.org/training/
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
