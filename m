@@ -1,110 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oa0-f52.google.com (mail-oa0-f52.google.com [209.85.219.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 3BFE76B0031
-	for <linux-mm@kvack.org>; Fri,  4 Apr 2014 01:00:38 -0400 (EDT)
-Received: by mail-oa0-f52.google.com with SMTP id l6so3023097oag.39
-        for <linux-mm@kvack.org>; Thu, 03 Apr 2014 22:00:38 -0700 (PDT)
-Received: from g4t3427.houston.hp.com (g4t3427.houston.hp.com. [15.201.208.55])
-        by mx.google.com with ESMTPS id i2si6005894oeu.210.2014.04.03.22.00.37
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id CA5496B0031
+	for <linux-mm@kvack.org>; Fri,  4 Apr 2014 02:27:28 -0400 (EDT)
+Received: by mail-pa0-f53.google.com with SMTP id ld10so2959715pab.26
+        for <linux-mm@kvack.org>; Thu, 03 Apr 2014 23:27:28 -0700 (PDT)
+Received: from e28smtp03.in.ibm.com (e28smtp03.in.ibm.com. [122.248.162.3])
+        by mx.google.com with ESMTPS id j1si4172992pbr.214.2014.04.03.23.27.26
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 03 Apr 2014 22:00:37 -0700 (PDT)
-Message-ID: <1396587632.2499.5.camel@buesod1.americas.hpqcorp.net>
-Subject: Re: [PATCH] ipc,shm: disable shmmax and shmall by default
-From: Davidlohr Bueso <davidlohr@hp.com>
-Date: Thu, 03 Apr 2014 22:00:32 -0700
-In-Reply-To: <CAHGf_=rT7WswD0LOxVeDDpae-Ahaz4wEcpE8HLmDwOBw598z8g@mail.gmail.com>
-References: <1396235199.2507.2.camel@buesod1.americas.hpqcorp.net>
-	 <20140331170546.3b3e72f0.akpm@linux-foundation.org>
-	 <1396371699.25314.11.camel@buesod1.americas.hpqcorp.net>
-	 <CAHGf_=qsf6vN5k=-PLraG8Q_uU1pofoBDktjVH1N92o76xPadQ@mail.gmail.com>
-	 <1396377083.25314.17.camel@buesod1.americas.hpqcorp.net>
-	 <CAHGf_=rLLBDr5ptLMvFD-M+TPQSnK3EP=7R+27K8or84rY-KLA@mail.gmail.com>
-	 <1396386062.25314.24.camel@buesod1.americas.hpqcorp.net>
-	 <CAHGf_=rhXrBQSmDBJJ-vPxBbhjJ91Fh2iWe1cf_UQd-tCfpb2w@mail.gmail.com>
-	 <20140401142947.927642a408d84df27d581e36@linux-foundation.org>
-	 <CAHGf_=p70rLOYwP2OgtK+2b+41=GwMA9R=rZYBqRr1w_O5UnKA@mail.gmail.com>
-	 <20140401144801.603c288674ab8f417b42a043@linux-foundation.org>
-	 <CAHGf_=r5AUu6yvJgOzwYDghBo6iT2q+nNumpvqwer+igcfChrA@mail.gmail.com>
-	 <1396394931.25314.34.camel@buesod1.americas.hpqcorp.net>
-	 <CAHGf_=rH+vfFzRrh35TETxjFU2HM0xnDQFweQ+Bfw20Pm2nL3g@mail.gmail.com>
-	 <1396484447.2953.1.camel@buesod1.americas.hpqcorp.net>
-	 <533DB03D.7010308@colorfullife.com>
-	 <1396554637.2550.11.camel@buesod1.americas.hpqcorp.net>
-	 <CAHGf_=rT7WswD0LOxVeDDpae-Ahaz4wEcpE8HLmDwOBw598z8g@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        Thu, 03 Apr 2014 23:27:27 -0700 (PDT)
+Received: from /spool/local
+	by e28smtp03.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <maddy@linux.vnet.ibm.com>;
+	Fri, 4 Apr 2014 11:57:23 +0530
+Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
+	by d28dlp01.in.ibm.com (Postfix) with ESMTP id AB59EE005B
+	for <linux-mm@kvack.org>; Fri,  4 Apr 2014 12:01:29 +0530 (IST)
+Received: from d28av05.in.ibm.com (d28av05.in.ibm.com [9.184.220.67])
+	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s346RE2A26542188
+	for <linux-mm@kvack.org>; Fri, 4 Apr 2014 11:57:14 +0530
+Received: from d28av05.in.ibm.com (localhost [127.0.0.1])
+	by d28av05.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s346RKkG027443
+	for <linux-mm@kvack.org>; Fri, 4 Apr 2014 11:57:21 +0530
+From: Madhavan Srinivasan <maddy@linux.vnet.ibm.com>
+Subject: [PATCH V2 1/2] mm: move FAULT_AROUND_ORDER to arch/
+Date: Fri,  4 Apr 2014 11:57:14 +0530
+Message-Id: <1396592835-24767-2-git-send-email-maddy@linux.vnet.ibm.com>
+In-Reply-To: <1396592835-24767-1-git-send-email-maddy@linux.vnet.ibm.com>
+References: <1396592835-24767-1-git-send-email-maddy@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: Manfred Spraul <manfred@colorfullife.com>, Andrew Morton <akpm@linux-foundation.org>, aswin@hp.com, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Greg Thelen <gthelen@google.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, x86@kernel.org
+Cc: benh@kernel.crashing.org, paulus@samba.org, kirill.shutemov@linux.intel.com, rusty@rustcorp.com.au, akpm@linux-foundation.org, riel@redhat.com, mgorman@suse.de, ak@linux.intel.com, peterz@infradead.org, mingo@kernel.org, Madhavan Srinivasan <maddy@linux.vnet.ibm.com>
 
-On Thu, 2014-04-03 at 19:39 -0400, KOSAKI Motohiro wrote:
-> On Thu, Apr 3, 2014 at 3:50 PM, Davidlohr Bueso <davidlohr@hp.com> wrote:
-> > On Thu, 2014-04-03 at 21:02 +0200, Manfred Spraul wrote:
-> >> Hi Davidlohr,
-> >>
-> >> On 04/03/2014 02:20 AM, Davidlohr Bueso wrote:
-> >> > The default size for shmmax is, and always has been, 32Mb.
-> >> > Today, in the XXI century, it seems that this value is rather small,
-> >> > making users have to increase it via sysctl, which can cause
-> >> > unnecessary work and userspace application workarounds[1].
-> >> >
-> >> > Instead of choosing yet another arbitrary value, larger than 32Mb,
-> >> > this patch disables the use of both shmmax and shmall by default,
-> >> > allowing users to create segments of unlimited sizes. Users and
-> >> > applications that already explicitly set these values through sysctl
-> >> > are left untouched, and thus does not change any of the behavior.
-> >> >
-> >> > So a value of 0 bytes or pages, for shmmax and shmall, respectively,
-> >> > implies unlimited memory, as opposed to disabling sysv shared memory.
-> >> > This is safe as 0 cannot possibly be used previously as SHMMIN is
-> >> > hardcoded to 1 and cannot be modified.
-> >
-> >> Are we sure that no user space apps uses shmctl(IPC_INFO) and prints a
-> >> pretty error message if shmall is too small?
-> >> We would break these apps.
-> >
-> > Good point. 0 bytes/pages would definitely trigger an unexpected error
-> > message if users did this. But on the other hand I'm not sure this
-> > actually is a _real_ scenario, since upon overflow the value can still
-> > end up being 0, which is totally bogus and would cause the same
-> > breakage.
-> >
-> > So I see two possible workarounds:
-> > (i) Use ULONG_MAX for the shmmax default instead. This would make shmall
-> > default to 1152921504606846720 and 268435456, for 64 and 32bit systems,
-> > respectively.
-> >
-> > (ii) Keep the 0 bytes, but add a new a "transition" tunable that, if set
-> > (default off), would allow 0 bytes to be unlimited. With time, users
-> > could hopefully update their applications and we could eventually get
-> > rid of it. This _seems_ to be the less aggressive way to go.
-> 
-> Do you mean
-> 
-> set 0: IPC_INFO return shmmax = 0.
-> set 1: IPC_INFO return shmmax = ULONG_MAX.
-> 
-> ?
-> 
-> That makes sense.
+Kirill A. Shutemov with faultaround patchset introduced
+vm_ops->map_pages() for mapping easy accessible pages around
+fault address in hope to reduce number of minor page faults.
 
-Well I was mostly referring to:
+This patch creates infrastructure to move the FAULT_AROUND_ORDER
+to arch/ using Kconfig. This will enable architecture maintainers
+to decide on suitable FAULT_AROUND_ORDER value based on
+performance data for that architecture. Patch also adds
+FAULT_AROUND_ORDER Kconfig element in arch/X86.
 
-set 0: leave things as there are now.
-set 1: this patch.
+Signed-off-by: Madhavan Srinivasan <maddy@linux.vnet.ibm.com>
+---
+ arch/x86/Kconfig   |    4 ++++
+ include/linux/mm.h |    9 +++++++++
+ mm/memory.c        |   12 +++++-------
+ 3 files changed, 18 insertions(+), 7 deletions(-)
 
-I don't think it makes much sense to set unlimited for both 0 and
-ULONG_MAX, that would probably just create even more confusion. 
-
-But then again, we shouldn't even care about breaking things with shmmax
-or shmall with 0 value, it just makes no sense from a user PoV. shmmax
-cannot be 0 unless there's an overflow, which voids any valid cases, and
-thus shmall cannot be 0 either as it would go against any values set for
-shmmax. I think it's safe to ignore this.
-
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index 9c0a657..5833f22 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -1177,6 +1177,10 @@ config DIRECT_GBPAGES
+ 	  support it. This can improve the kernel's performance a tiny bit by
+ 	  reducing TLB pressure. If in doubt, say "Y".
+ 
++config FAULT_AROUND_ORDER
++	int
++	default "4"
++
+ # Common NUMA Features
+ config NUMA
+ 	bool "Numa Memory Allocation and Scheduler Support"
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 0bd4359..b93c1c3 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -26,6 +26,15 @@ struct file_ra_state;
+ struct user_struct;
+ struct writeback_control;
+ 
++/*
++ * Fault around order is a control knob to decide the fault around pages.
++ * Default value is set to 0UL (disabled), but the arch can override it as
++ * desired.
++ */
++#ifndef CONFIG_FAULT_AROUND_ORDER
++#define CONFIG_FAULT_AROUND_ORDER 0
++#endif
++
+ #ifndef CONFIG_NEED_MULTIPLE_NODES	/* Don't use mapnrs, do it properly */
+ extern unsigned long max_mapnr;
+ 
+diff --git a/mm/memory.c b/mm/memory.c
+index b02c584..22a4a89 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -3358,10 +3358,8 @@ void do_set_pte(struct vm_area_struct *vma, unsigned long address,
+ 	update_mmu_cache(vma, address, pte);
+ }
+ 
+-#define FAULT_AROUND_ORDER 4
+-
+ #ifdef CONFIG_DEBUG_FS
+-static unsigned int fault_around_order = FAULT_AROUND_ORDER;
++static unsigned int fault_around_order = CONFIG_FAULT_AROUND_ORDER;
+ 
+ static int fault_around_order_get(void *data, u64 *val)
+ {
+@@ -3371,7 +3369,7 @@ static int fault_around_order_get(void *data, u64 *val)
+ 
+ static int fault_around_order_set(void *data, u64 val)
+ {
+-	BUILD_BUG_ON((1UL << FAULT_AROUND_ORDER) > PTRS_PER_PTE);
++	BUILD_BUG_ON((1UL << CONFIG_FAULT_AROUND_ORDER) > PTRS_PER_PTE);
+ 	if (1UL << val > PTRS_PER_PTE)
+ 		return -EINVAL;
+ 	fault_around_order = val;
+@@ -3406,14 +3404,14 @@ static inline unsigned long fault_around_pages(void)
+ {
+ 	unsigned long nr_pages;
+ 
+-	nr_pages = 1UL << FAULT_AROUND_ORDER;
++	nr_pages = 1UL << CONFIG_FAULT_AROUND_ORDER;
+ 	BUILD_BUG_ON(nr_pages > PTRS_PER_PTE);
+ 	return nr_pages;
+ }
+ 
+ static inline unsigned long fault_around_mask(void)
+ {
+-	return ~((1UL << (PAGE_SHIFT + FAULT_AROUND_ORDER)) - 1);
++	return ~((1UL << (PAGE_SHIFT + CONFIG_FAULT_AROUND_ORDER)) - 1);
+ }
+ #endif
+ 
+@@ -3471,7 +3469,7 @@ static int do_read_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	 * if page by the offset is not ready to be mapped (cold cache or
+ 	 * something).
+ 	 */
+-	if (vma->vm_ops->map_pages) {
++	if ((vma->vm_ops->map_pages) && (fault_around_pages() > 1)) {
+ 		pte = pte_offset_map_lock(mm, pmd, address, &ptl);
+ 		do_fault_around(vma, address, pte, pgoff, flags);
+ 		if (!pte_same(*pte, orig_pte))
+-- 
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
