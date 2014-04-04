@@ -1,69 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f177.google.com (mail-ie0-f177.google.com [209.85.223.177])
-	by kanga.kvack.org (Postfix) with ESMTP id E151F6B0031
-	for <linux-mm@kvack.org>; Fri,  4 Apr 2014 10:08:01 -0400 (EDT)
-Received: by mail-ie0-f177.google.com with SMTP id rl12so3387265iec.22
-        for <linux-mm@kvack.org>; Fri, 04 Apr 2014 07:08:01 -0700 (PDT)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
-        by mx.google.com with ESMTPS id k5si5155884ige.44.2014.04.04.07.07.57
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D2DF6B0031
+	for <linux-mm@kvack.org>; Fri,  4 Apr 2014 10:53:56 -0400 (EDT)
+Received: by mail-pd0-f175.google.com with SMTP id x10so3439353pdj.20
+        for <linux-mm@kvack.org>; Fri, 04 Apr 2014 07:53:56 -0700 (PDT)
+Received: from mail-pb0-x22c.google.com (mail-pb0-x22c.google.com [2607:f8b0:400e:c01::22c])
+        by mx.google.com with ESMTPS id bs8si4703760pad.135.2014.04.04.07.53.55
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 04 Apr 2014 07:07:58 -0700 (PDT)
-Date: Fri, 4 Apr 2014 16:07:32 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH] mm: msync: require either MS_ASYNC or MS_SYNC [resend]
-Message-ID: <20140404140732.GG10526@twins.programming.kicks-ass.net>
-References: <533B04A9.6090405@bbn.com>
- <20140402111032.GA27551@infradead.org>
- <1396439119.2726.29.camel@menhir>
- <533CA0F6.2070100@bbn.com>
- <533E5B7A.7030309@gmail.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 04 Apr 2014 07:53:55 -0700 (PDT)
+Received: by mail-pb0-f44.google.com with SMTP id rp16so3556096pbb.17
+        for <linux-mm@kvack.org>; Fri, 04 Apr 2014 07:53:55 -0700 (PDT)
+Date: Fri, 4 Apr 2014 07:52:47 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH] mm: get_user_pages(write,force) refuse to COW in shared
+ areas
+In-Reply-To: <20140404123242.GA22320@node.dhcp.inet.fi>
+Message-ID: <alpine.LSU.2.11.1404040733490.7442@eggly.anvils>
+References: <alpine.LSU.2.11.1404040120110.6880@eggly.anvils> <20140404123242.GA22320@node.dhcp.inet.fi>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <533E5B7A.7030309@gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
-Cc: Richard Hansen <rhansen@bbn.com>, Steven Whitehouse <swhiteho@redhat.com>, Christoph Hellwig <hch@infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, Greg Troxel <gdt@ir.bbn.com>, bug-readline@gnu.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Hugh Dickins <hughd@google.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Roland Dreier <roland@kernel.org>, Oleg Nesterov <oleg@redhat.com>, Konstantin Khlebnikov <koct9i@gmail.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mauro Carvalho Chehab <m.chehab@samsung.com>, Omar Ramirez Luna <omar.ramirez@copitl.com>, Inki Dae <inki.dae@samsung.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-rdma@vger.kernel.org, linux-media@vger.kernel.org
 
-On Fri, Apr 04, 2014 at 09:12:58AM +0200, Michael Kerrisk (man-pages) wrote:
-> >   * Clearer intentions.  Looking at the existing code and the code
-> >     history, the fact that flags=0 behaves like flags=MS_ASYNC appears
-> >     to be a coincidence, not the result of an intentional choice.
+On Fri, 4 Apr 2014, Kirill A. Shutemov wrote:
 > 
-> Maybe. You earlier asserted that the semantics when flags==0 may have
-> been different, prior to Peter Zijstra's patch,
-> https://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/commit/?id=204ec841fbea3e5138168edbc3a76d46747cc987
-> .
-> It's not clear to me that that is the case. But, it would be wise to
-> CC the developer, in case he has an insight.
+> There's comment in do_wp_page() which is not true anymore with patch
+> applied. It should be fixed.
 
-Right; so before that patch there appears to have been a difference.
-The code looked like:
+The * Only catch write-faults on shared writable pages,
+    * read-only shared pages can get COWed by
+    * get_user_pages(.write=1, .force=1).
 
-  if (flags & MS_ASYNC) {
-  	balance_dirty_pages_ratelimited();
-  } else if (flags & MS_SYNC) {
-  	do_fsync()
-  } else {
-  	/* do nothing */
-  }
+Yes, I went back and forth on that: I found it difficult to remove that
+comment without also simplifying the VM_WRITE|VM_SHARED test immediately
+above it, possibly even looking again at the ordering of those tests.
 
-Which would give the following semantics:
+In the end I decided to leave changing it to when we do the other
+little cleanups outside get_user_pages(), after it's become clear
+whether the new EFAULT is troublesome or not.  Most of my testing
+had been without any change in do_wp_page(), so I left that out.
 
-  msync(.flags = 0) -- scan PTEs and update dirty page accounting
-  msync(.flags = MS_ASYNC) -- scan PTEs and dirty throttle
-  msync(.flags = MS_SYNC) -- scan PTEs and flush dirty pages
+> 
+> Otherwise, looks good to me:
+> 
+> Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 
-However with the introduction of accurate dirty page accounting in
-.19 we always had an accurate dirty page count and both .flags=0 and
-.flags=MS_ASYNC turn into the same NO-OP.
-
-Yielding todays state, where 0 and MS_ASYNC don't do anything much and
-MS_SYNC issues the fsync() -- although I understand Willy recently
-posted a patch to do a data-range-sync instead of the full fsync.
-
+Thanks,
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
