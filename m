@@ -1,55 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A7156B0031
-	for <linux-mm@kvack.org>; Fri,  4 Apr 2014 13:49:24 -0400 (EDT)
-Received: by mail-pd0-f171.google.com with SMTP id r10so3634887pdi.2
-        for <linux-mm@kvack.org>; Fri, 04 Apr 2014 10:49:23 -0700 (PDT)
-Received: from shards.monkeyblade.net (shards.monkeyblade.net. [2001:4f8:3:36:211:85ff:fe63:a549])
-        by mx.google.com with ESMTP id pc9si4880564pac.148.2014.04.04.10.49.22
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 1EB106B0031
+	for <linux-mm@kvack.org>; Fri,  4 Apr 2014 14:43:57 -0400 (EDT)
+Received: by mail-wi0-f181.google.com with SMTP id hm4so1812781wib.14
+        for <linux-mm@kvack.org>; Fri, 04 Apr 2014 11:43:56 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id x46si13333584eea.269.2014.04.04.11.43.54
         for <linux-mm@kvack.org>;
-        Fri, 04 Apr 2014 10:49:22 -0700 (PDT)
-Date: Fri, 04 Apr 2014 13:50:56 -0400 (EDT)
-Message-Id: <20140404.135056.2103520199689146670.davem@davemloft.net>
-Subject: Re: [PATCH V2 1/2] mm: move FAULT_AROUND_ORDER to arch/
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <533EDB63.8090909@intel.com>
-References: <1396592835-24767-1-git-send-email-maddy@linux.vnet.ibm.com>
-	<1396592835-24767-2-git-send-email-maddy@linux.vnet.ibm.com>
-	<533EDB63.8090909@intel.com>
+        Fri, 04 Apr 2014 11:43:55 -0700 (PDT)
+Date: Fri, 04 Apr 2014 14:43:33 -0400
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Message-ID: <533efd6b.46250e0a.4a07.5836SMTPIN_ADDED_BROKEN@mx.google.com>
+Subject: [PATCH] mm/hugetlb.c: add NULL check of return value of
+ huge_pte_offset
 Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
+Content-Type: text/plain;
+ charset=iso-2022-jp
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: dave.hansen@intel.com
-Cc: maddy@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, x86@kernel.org, benh@kernel.crashing.org, paulus@samba.org, kirill.shutemov@linux.intel.com, rusty@rustcorp.com.au, akpm@linux-foundation.org, riel@redhat.com, mgorman@suse.de, ak@linux.intel.com, peterz@infradead.org, mingo@kernel.org
+To: linux-kernel@vger.kernel.org
+Cc: akpm@linux-foundation.org, mgorman@suse.de, andi@firstfloor.org, sasha.levin@oracle.com, kirill.shutemov@linux.intel.com, aneesh.kumar@linux.vnet.ibm.com, linux-mm@kvack.org
 
-From: Dave Hansen <dave.hansen@intel.com>
-Date: Fri, 04 Apr 2014 09:18:43 -0700
+huge_pte_offset() could return NULL, so we need NULL check to avoid
+potential NULL pointer dereferences.
 
-> On 04/03/2014 11:27 PM, Madhavan Srinivasan wrote:
->> This patch creates infrastructure to move the FAULT_AROUND_ORDER
->> to arch/ using Kconfig. This will enable architecture maintainers
->> to decide on suitable FAULT_AROUND_ORDER value based on
->> performance data for that architecture. Patch also adds
->> FAULT_AROUND_ORDER Kconfig element in arch/X86.
-> 
-> Please don't do it this way.
-> 
-> In mm/Kconfig, put
-> 
-> 	config FAULT_AROUND_ORDER
-> 		int
-> 		default 1234 if POWERPC
-> 		default 4
-> 
-> The way you have it now, every single architecture that needs to enable
-> this has to go put that in their Kconfig.  That's madness.  This way,
-> you only put it in one place, and folks only have to care if they want
-> to change the default to be something other than 4.
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+---
+ mm/hugetlb.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
 
-It looks more like it's necessary only to change the default, not
-to enable it.  Unless I read his patch wrong...
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 7222247a590b..b8f2bde6ca53 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -2662,7 +2662,8 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
+ 				BUG_ON(huge_pte_none(pte));
+ 				spin_lock(ptl);
+ 				ptep = huge_pte_offset(mm, address & huge_page_mask(h));
+-				if (likely(pte_same(huge_ptep_get(ptep), pte)))
++				if (likely(ptep &&
++					   pte_same(huge_ptep_get(ptep), pte)))
+ 					goto retry_avoidcopy;
+ 				/*
+ 				 * race occurs while re-acquiring page table
+@@ -2706,7 +2707,7 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	 */
+ 	spin_lock(ptl);
+ 	ptep = huge_pte_offset(mm, address & huge_page_mask(h));
+-	if (likely(pte_same(huge_ptep_get(ptep), pte))) {
++	if (likely(ptep && pte_same(huge_ptep_get(ptep), pte))) {
+ 		ClearPagePrivate(new_page);
+ 
+ 		/* Break COW */
+-- 
+1.9.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
