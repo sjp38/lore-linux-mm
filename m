@@ -1,90 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f171.google.com (mail-we0-f171.google.com [74.125.82.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 6803A6B0031
-	for <linux-mm@kvack.org>; Fri,  4 Apr 2014 03:11:04 -0400 (EDT)
-Received: by mail-we0-f171.google.com with SMTP id t61so2986378wes.30
-        for <linux-mm@kvack.org>; Fri, 04 Apr 2014 00:11:03 -0700 (PDT)
-Received: from mail-we0-x236.google.com (mail-we0-x236.google.com [2a00:1450:400c:c03::236])
-        by mx.google.com with ESMTPS id ni18si537298wic.59.2014.04.04.00.11.02
+Received: from mail-bk0-f45.google.com (mail-bk0-f45.google.com [209.85.214.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C8D06B0035
+	for <linux-mm@kvack.org>; Fri,  4 Apr 2014 03:11:27 -0400 (EDT)
+Received: by mail-bk0-f45.google.com with SMTP id na10so255340bkb.32
+        for <linux-mm@kvack.org>; Fri, 04 Apr 2014 00:11:27 -0700 (PDT)
+Received: from mail-bk0-x236.google.com (mail-bk0-x236.google.com [2a00:1450:4008:c01::236])
+        by mx.google.com with ESMTPS id k5si3060698bko.274.2014.04.04.00.11.26
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 04 Apr 2014 00:11:03 -0700 (PDT)
-Received: by mail-we0-f182.google.com with SMTP id p61so2985429wes.27
-        for <linux-mm@kvack.org>; Fri, 04 Apr 2014 00:11:02 -0700 (PDT)
-Date: Fri, 4 Apr 2014 09:10:59 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH V2 2/2] mm: add FAULT_AROUND_ORDER Kconfig paramater for
- powerpc
-Message-ID: <20140404071059.GA1397@gmail.com>
-References: <1396592835-24767-1-git-send-email-maddy@linux.vnet.ibm.com>
- <1396592835-24767-3-git-send-email-maddy@linux.vnet.ibm.com>
- <20140404070241.GA984@gmail.com>
+        Fri, 04 Apr 2014 00:11:26 -0700 (PDT)
+Received: by mail-bk0-f54.google.com with SMTP id 6so254587bkj.41
+        for <linux-mm@kvack.org>; Fri, 04 Apr 2014 00:11:26 -0700 (PDT)
+Message-ID: <533E5B17.8010804@gmail.com>
+Date: Fri, 04 Apr 2014 09:11:19 +0200
+From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140404070241.GA984@gmail.com>
+Subject: Re: [PATCH] mm: msync: require either MS_ASYNC or MS_SYNC
+References: <533B04A9.6090405@bbn.com> <20140402111032.GA27551@infradead.org>	<1396439119.2726.29.camel@menhir> <533CA0F6.2070100@bbn.com>	<CAKgNAki8U+j0mvYCg99j7wJ2Z7ve-gxusVbM3zdog=hKGPdidQ@mail.gmail.com> <rmivbuqy3hr.fsf@fnord.ir.bbn.com>
+In-Reply-To: <rmivbuqy3hr.fsf@fnord.ir.bbn.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Madhavan Srinivasan <maddy@linux.vnet.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, x86@kernel.org, benh@kernel.crashing.org, paulus@samba.org, kirill.shutemov@linux.intel.com, rusty@rustcorp.com.au, akpm@linux-foundation.org, riel@redhat.com, mgorman@suse.de, ak@linux.intel.com, peterz@infradead.org, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>
+To: Greg Troxel <gdt@ir.bbn.com>
+Cc: mtk.manpages@gmail.com, Richard Hansen <rhansen@bbn.com>, Steven Whitehouse <swhiteho@redhat.com>, Christoph Hellwig <hch@infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, Peter Zijlstra <peterz@infradead.org>
 
+Hi Greg,
 
-* Ingo Molnar <mingo@kernel.org> wrote:
-
-> * Madhavan Srinivasan <maddy@linux.vnet.ibm.com> wrote:
+On 04/03/2014 02:57 PM, Greg Troxel wrote:
 > 
-> > Performance data for different FAULT_AROUND_ORDER values from 4 
-> > socket Power7 system (128 Threads and 128GB memory) is below. perf 
-> > stat with repeat of 5 is used to get the stddev values. This patch 
-> > create FAULT_AROUND_ORDER Kconfig parameter and defaults it to 3 
-> > based on the performance data.
-> > 
-> > FAULT_AROUND_ORDER      Baseline        1               3               4               5               7
-> > 
-> > Linux build (make -j64)
-> > minor-faults            7184385         5874015         4567289         4318518         4193815         4159193
-> > times in seconds        61.433776136    60.865935292    59.245368038    60.630675011    60.56587624     59.828271924
-> >  stddev for time	( +-  1.18% )	( +-  1.78% )	( +-  0.44% )	( +-  2.03% )	( +-  1.66% )	( +-  1.45% )
+> "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com> writes:
 > 
-> Ok, this is better, but it is still rather incomplete statistically, 
-> please also calculate the percentage difference to baseline, so that 
-> the stddev becomes meaningful and can be compared to something!
+>> I think the only reasonable solution is to better document existing
+>> behavior and what the programmer should do. With that in mind, I've
+>> drafted the following text for the msync(2) man page:
+>>
+>>     NOTES
+>>        According to POSIX, exactly one of MS_SYNC and MS_ASYNC  must  be
+>>        specified  in  flags.   However,  Linux permits a call to msync()
+>>        that specifies neither of these flags, with  semantics  that  are
+>>        (currently)  equivalent  to  specifying  MS_ASYNC.   (Since Linux
+>>        2.6.19, MS_ASYNC is in fact a no-op, since  the  kernel  properly
+>>        tracks  dirty  pages  and  flushes them to storage as necessary.)
+>>        Notwithstanding the Linux behavior, portable, future-proof applia??
+>>        cations  should  ensure  that they specify exactly one of MS_SYNC
+>>        and MS_ASYNC in flags.
+>>
+>> Comments on this draft welcome.
 > 
-> As an example I did this for the first line of measurements (all 
-> errors in the numbers are mine, this was done manually), and it 
-> gives:
-> 
-> >  stddev for time   ( +-  1.18% ) ( +-  1.78% ) ( +-  0.44% ) ( +-  2.03% ) ( +-  1.66% ) ( +-  1.45% )
->                                         +0.9%         +3.5%         +1.3%         +1.4%         +2.6%
-> 
-> This shows that there is probably a statistically significant 
-> (positiv) effect from the change, but from these numbers alone I 
-> would not draw any quantitative (sizing, tuning) conclusions, 
-> because in 3 out of 5 cases the stddev was larger than the effect, 
-> so the resulting percentages are not comparable.
+> I think it's a step backwards to document unspecified behavior.  If
+> anything, the man page should make it clear that providing neither flag
+> results in undefined behavior and will lead to failure on systems on
+> than Linux.  While I can see the point of not changing the previous
+> behavior to protect buggy code, there's no need to document it in the
+> man page and further enshrine it.
 
-Also note that because we calculate the percentage by dividing result 
-with baseline, the stddev of the two values roughly adds up. So for 
-example the second column the true noise is around 1.5%, not 0.4%
+The Linux behavior is what it is. For the reasons I mentioned already,
+it's unlikely to change. And, when the man pages omit to explain what
+Linux actually does, there will one day come a request to actually
+document the behavior. So, I don't think it's quite enough to say the 
+behavior is undefined. On the other hand, it does not hurt to further
+expand the portability warning. I made the text now:
 
-So for good sizing decisions the stddev must be 'comfortably' below 
-the effect. (or sizing should be done based on the other workloads yu 
-tested, I have not checked them.)
+    NOTES
+       According to POSIX, either MS_SYNC or MS_ASYNC must be  specified
+       in  flags, and  indeed failure to include one of these flags will
+       cause msync() to fail on some systems.  However, Linux permits  a
+       call  to  msync()  that  specifies  neither  of these flags, with
+       semantics that are (currently) equivalent to specifying MS_ASYNC.
+       (Since  Linux 2.6.19, MS_ASYNC is in fact a no-op, since the kera??
+       nel properly tracks dirty pages and flushes them  to  storage  as
+       necessary.)    Notwithstanding   the  Linux  behavior,  portable,
+       future-proof applications should ensure that they specify  either
+       MS_SYNC or MS_ASYNC in flags.
 
-It also makes sense to run more measurements to reduce the stddev of 
-the baseline. So if each measurement is run 3 times then it makes 
-sense to run the baseline 6 times, this gives a ~30% improvement in 
-the confidence of our result, at just a small increase in test time.
 
-[ For such cases it might also make sense to script all of that, 
-  combined with a debug patch that puts the tuned fault-around value 
-  into a dynamic knob in /proc/sys/, so that you can run the full 
-  measurement in a single pass, with no reboot and with no human 
-  intervention. ]
 
-Thanks,
 
-	Ingo
+-- 
+Michael Kerrisk
+Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
+Linux/UNIX System Programming Training: http://man7.org/training/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
