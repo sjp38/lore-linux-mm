@@ -1,64 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 122566B0031
-	for <linux-mm@kvack.org>; Fri,  4 Apr 2014 20:04:33 -0400 (EDT)
-Received: by mail-wi0-f177.google.com with SMTP id cc10so2147060wib.16
-        for <linux-mm@kvack.org>; Fri, 04 Apr 2014 17:04:33 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id w48si14056695een.14.2014.04.04.17.04.30
+Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id EF0316B0031
+	for <linux-mm@kvack.org>; Fri,  4 Apr 2014 20:21:14 -0400 (EDT)
+Received: by mail-pd0-f176.google.com with SMTP id r10so3991461pdi.7
+        for <linux-mm@kvack.org>; Fri, 04 Apr 2014 17:21:14 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id jg5si388968pbb.383.2014.04.04.17.21.12
         for <linux-mm@kvack.org>;
-        Fri, 04 Apr 2014 17:04:31 -0700 (PDT)
-Date: Fri, 04 Apr 2014 20:04:09 -0400
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <533f488f.48c70e0a.4f2d.291eSMTPIN_ADDED_BROKEN@mx.google.com>
-In-Reply-To: <20140404150345.92400430db3111fe21df7c7f@linux-foundation.org>
-References: <533efd68.435fe00a.6936.ffffa5e7SMTPIN_ADDED_BROKEN@mx.google.com>
- <20140404150345.92400430db3111fe21df7c7f@linux-foundation.org>
-Subject: Re: [PATCH] mm/hugetlb.c: add NULL check of return value of
- huge_pte_offset
-Mime-Version: 1.0
-Content-Type: text/plain;
- charset=iso-2022-jp
-Content-Transfer-Encoding: 7bit
+        Fri, 04 Apr 2014 17:21:14 -0700 (PDT)
+Date: Fri, 4 Apr 2014 21:59:08 +0800
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: [mm] e04ddfd12aa: +9.4% ebizzy.throughput
+Message-ID: <20140404135908.GB22386@localhost>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, mgorman@suse.de, andi@firstfloor.org, sasha.levin@oracle.com, kirill.shutemov@linux.intel.com, aneesh.kumar@linux.vnet.ibm.com, linux-mm@kvack.org
+To: Davidlohr Bueso <davidlohr@hp.com>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, lkp@01.org
 
-On Fri, Apr 04, 2014 at 03:03:45PM -0700, Andrew Morton wrote:
-> On Fri, 04 Apr 2014 14:43:33 -0400 Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
-> 
-> > huge_pte_offset() could return NULL, so we need NULL check to avoid
-> > potential NULL pointer dereferences.
-> > 
-> > --- a/mm/hugetlb.c
-> > +++ b/mm/hugetlb.c
-> > @@ -2662,7 +2662,8 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
-> >  				BUG_ON(huge_pte_none(pte));
-> >  				spin_lock(ptl);
-> >  				ptep = huge_pte_offset(mm, address & huge_page_mask(h));
-> > -				if (likely(pte_same(huge_ptep_get(ptep), pte)))
-> > +				if (likely(ptep &&
-> > +					   pte_same(huge_ptep_get(ptep), pte)))
-> >  					goto retry_avoidcopy;
-> >  				/*
-> >  				 * race occurs while re-acquiring page table
-> > @@ -2706,7 +2707,7 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
-> >  	 */
-> >  	spin_lock(ptl);
-> >  	ptep = huge_pte_offset(mm, address & huge_page_mask(h));
-> > -	if (likely(pte_same(huge_ptep_get(ptep), pte))) {
-> > +	if (likely(ptep && pte_same(huge_ptep_get(ptep), pte))) {
-> >  		ClearPagePrivate(new_page);
-> >  
-> >  		/* Break COW */
-> 
-> Has anyone been hitting oopses here or was this from code inspection?
+Hi Davidlohr,
 
-It's from code inspection. This is why I didn't CCed stable.
+FYI, there are noticeable ebizzy throughput increases on commit
+e04ddfd12aa03471eff7daf3bc2435c7cea8e21f ("mm: per-thread vma caching")
 
-Naoya
+test case: lkp-st02/micro/ebizzy/200%-100-10
+
+700141f349f2b05  e04ddfd12aa03471eff7daf3b  
+---------------  -------------------------  
+     23726 ~ 0%      +9.4%      25955 ~ 0%  TOTAL ebizzy.throughput
+      1525 ~ 0%      +9.3%       1667 ~ 0%  TOTAL ebizzy.throughput.per_thread.max
+      1428 ~ 0%      +9.1%       1558 ~ 0%  TOTAL ebizzy.throughput.per_thread.min
+     14.42 ~ 0%      +8.1%      15.59 ~ 0%  TOTAL ebizzy.time.user
+     65.29 ~ 0%      -1.8%      64.12 ~ 0%  TOTAL ebizzy.time.sys
+      4290 ~17%     -28.4%       3073 ~22%  TOTAL slabinfo.buffer_head.active_objs
+      4313 ~17%     -28.8%       3073 ~22%  TOTAL slabinfo.buffer_head.num_objs
+    165372 ~ 0%      +9.2%     180527 ~ 0%  TOTAL vmstat.system.in
+      1443 ~ 0%      +8.1%       1560 ~ 0%  TOTAL time.user_time
+      6529 ~ 0%      -1.8%       6413 ~ 0%  TOTAL time.system_time
+
+Legend:
+	~XX%    - stddev percent
+	[+-]XX% - change percent
+
+
+                                  ebizzy.throughput
+
+   26500 ++O-----------O---O------------------------------------------------+
+         O   O O O O     O   O O O     O O                                  |
+   26000 ++          O             O O      O     O                         |
+         |                                 O  O O                           |
+         |                                                                  |
+   25500 ++                                                                 |
+         |                                                                  |
+   25000 ++                                                                 |
+         |                                                                  |
+   24500 ++                                                                 |
+         |                                                                  |
+         *.*.*.   .*. .*.*.*.   .*.*.       *.*.*.*.                        |
+   24000 ++    *.*   *       *.*     *.*.*.*        *.*.*.*.*.*.            |
+         |                                                      *.*.*.*.*.*.*
+   23500 ++-----------------------------------------------------------------+
+
+
+	[*] bisect-good sample
+	[O] bisect-bad  sample
+
+Thanks,
+Fengguang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
