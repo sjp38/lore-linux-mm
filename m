@@ -1,109 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f47.google.com (mail-bk0-f47.google.com [209.85.214.47])
-	by kanga.kvack.org (Postfix) with ESMTP id E17B96B0031
-	for <linux-mm@kvack.org>; Fri,  4 Apr 2014 11:01:13 -0400 (EDT)
-Received: by mail-bk0-f47.google.com with SMTP id w10so320237bkz.34
-        for <linux-mm@kvack.org>; Fri, 04 Apr 2014 08:01:13 -0700 (PDT)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id ts2si3399391bkb.167.2014.04.04.08.01.11
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 04 Apr 2014 08:01:12 -0700 (PDT)
-Date: Fri, 4 Apr 2014 11:01:04 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch] x86: clearing access bit don't flush tlb
-Message-ID: <20140404150104.GN4407@cmpxchg.org>
-References: <20140403004250.GA14597@kernel.org>
- <20140403113537.GA543@gmail.com>
- <20140403134542.GA3371@kernel.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 39ACD6B0031
+	for <linux-mm@kvack.org>; Fri,  4 Apr 2014 12:13:28 -0400 (EDT)
+Received: by mail-wi0-f171.google.com with SMTP id q5so1618397wiv.4
+        for <linux-mm@kvack.org>; Fri, 04 Apr 2014 09:13:27 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id ge12si1109343wic.74.2014.04.04.09.13.24
+        for <linux-mm@kvack.org>;
+        Fri, 04 Apr 2014 09:13:26 -0700 (PDT)
+Date: Fri, 04 Apr 2014 12:13:15 -0400
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Message-ID: <533eda26.0cbdb40a.0382.ffffef9dSMTPIN_ADDED_BROKEN@mx.google.com>
+In-Reply-To: <533D6D66.7030402@oracle.com>
+References: <533D6D66.7030402@oracle.com>
+Subject: [PATCH -mm] mm/pagewalk.c: move pte null check (Re: mm: BUG in
+ __phys_addr called from __walk_page_range)
+Mime-Version: 1.0
+Content-Type: text/plain;
+ charset=iso-2022-jp
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20140403134542.GA3371@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shaohua Li <shli@kernel.org>
-Cc: Ingo Molnar <mingo@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, riel@redhat.com, hughd@google.com, mgorman@suse.de, torvalds@linux-foundation.org, Peter Zijlstra <a.p.zijlstra@chello.nl>, Thomas Gleixner <tglx@linutronix.de>
+To: sasha.levin@oracle.com
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org
 
-On Thu, Apr 03, 2014 at 09:45:42PM +0800, Shaohua Li wrote:
-> On Thu, Apr 03, 2014 at 01:35:37PM +0200, Ingo Molnar wrote:
-> > 
-> > * Shaohua Li <shli@kernel.org> wrote:
-> > 
-> > > Add a few acks and resend this patch.
-> > > 
-> > > We use access bit to age a page at page reclaim. When clearing pte access bit,
-> > > we could skip tlb flush in X86. The side effect is if the pte is in tlb and pte
-> > > access bit is unset in page table, when cpu access the page again, cpu will not
-> > > set page table pte's access bit. Next time page reclaim will think this hot
-> > > page is yong and reclaim it wrongly, but this doesn't corrupt data.
-> > > 
-> > > And according to intel manual, tlb has less than 1k entries, which covers < 4M
-> > > memory. In today's system, several giga byte memory is normal. After page
-> > > reclaim clears pte access bit and before cpu access the page again, it's quite
-> > > unlikely this page's pte is still in TLB. And context swich will flush tlb too.
-> > > The chance skiping tlb flush to impact page reclaim should be very rare.
-> > > 
-> > > Originally (in 2.5 kernel maybe), we didn't do tlb flush after clear access bit.
-> > > Hugh added it to fix some ARM and sparc issues. Since I only change this for
-> > > x86, there should be no risk.
-> > > 
-> > > And in some workloads, TLB flush overhead is very heavy. In my simple
-> > > multithread app with a lot of swap to several pcie SSD, removing the tlb flush
-> > > gives about 20% ~ 30% swapout speedup.
-> > > 
-> > > Signed-off-by: Shaohua Li <shli@fusionio.com>
-> > > Acked-by: Rik van Riel <riel@redhat.com>
-> > > Acked-by: Mel Gorman <mgorman@suse.de>
-> > > Acked-by: Hugh Dickins <hughd@google.com>
-> > > ---
-> > >  arch/x86/mm/pgtable.c |   13 ++++++-------
-> > >  1 file changed, 6 insertions(+), 7 deletions(-)
-> > > 
-> > > Index: linux/arch/x86/mm/pgtable.c
-> > > ===================================================================
-> > > --- linux.orig/arch/x86/mm/pgtable.c	2014-03-27 05:22:08.572100549 +0800
-> > > +++ linux/arch/x86/mm/pgtable.c	2014-03-27 05:46:12.456131121 +0800
-> > > @@ -399,13 +399,12 @@ int pmdp_test_and_clear_young(struct vm_
-> > >  int ptep_clear_flush_young(struct vm_area_struct *vma,
-> > >  			   unsigned long address, pte_t *ptep)
-> > >  {
-> > > -	int young;
-> > > -
-> > > -	young = ptep_test_and_clear_young(vma, address, ptep);
-> > > -	if (young)
-> > > -		flush_tlb_page(vma, address);
-> > > -
-> > > -	return young;
-> > > +	/*
-> > > +	 * In X86, clearing access bit without TLB flush doesn't cause data
-> > > +	 * corruption. Doing this could cause wrong page aging and so hot pages
-> > > +	 * are reclaimed, but the chance should be very rare.
-> > 
-> > So, beyond the spelling mistakes, I guess this explanation should also 
-> > be a bit more explanatory - how about something like:
-> > 
-> > 	/*
-> > 	 * On x86 CPUs, clearing the accessed bit without a TLB flush 
-> > 	 * doesn't cause data corruption. [ It could cause incorrect
-> > 	 * page aging and the (mistaken) reclaim of hot pages, but the
-> > 	 * chance of that should be relatively low. ]
-> > 	 *
-> > 	 * So as a performance optimization don't flush the TLB when 
-> > 	 * clearing the accessed bit, it will eventually be flushed by 
-> > 	 * a context switch or a VM operation anyway. [ In the rare 
-> > 	 * event of it not getting flushed for a long time the delay 
-> > 	 * shouldn't really matter because there's no real memory 
-> > 	 * pressure for swapout to react to. ]
-> > 	 */
-> > 
-> > Agreed?
+Hi Sasha,
+
+On Thu, Apr 03, 2014 at 10:17:10AM -0400, Sasha Levin wrote:
+> Hi all,
 > 
-> Sure, that's better, thanks!
+> While fuzzing with trinity inside a KVM tools guest running the latest
+> -next kernel I've stumbled on the following:
+> 
+> [  942.869226] kernel BUG at arch/x86/mm/physaddr.c:26!
+> [  942.871710] invalid opcode: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
+> [  942.871710] Dumping ftrace buffer:
+> [  942.871710]    (ftrace buffer empty)
+> [  942.871710] Modules linked in:
+> [  942.871710] CPU: 16 PID: 17165 Comm: trinity-c55 Tainted: G        W     3.14.0-next-20140402-sasha-00013-g0cfaf7e-dirty #367
+> [  942.871710] task: ffff8801de603000 ti: ffff8801e7b4c000 task.ti: ffff8801e7b4c000
+> [  942.871710] RIP: __phys_addr (arch/x86/mm/physaddr.c:26 (discriminator 1))
+> [  942.871710] RSP: 0000:ffff8801e7b4daf8  EFLAGS: 00010287
+> [  942.871710] RAX: 0000780000000000 RBX: 00007f11fb000000 RCX: 0000000000000009
+> [  942.871710] RDX: 0000000080000000 RSI: 00007f11fae00000 RDI: 0000000000000000
+> [  942.871710] RBP: ffff8801e7b4daf8 R08: 0000000000000000 R09: 0000000008640070
+> [  942.871710] R10: 00007f11fae00000 R11: 00007f123ae00000 R12: ffffffffb54b2140
+> [  942.871710] R13: 0000000000200000 R14: 00007f11fae00000 R15: ffff8801e7b4dc00
+> [  942.871710] FS:  00007f123eb21700(0000) GS:ffff88046cc00000(0000) knlGS:0000000000000000
+> [  942.871710] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+> [  942.871710] CR2: 0000000000000000 CR3: 00000001de6bc000 CR4: 00000000000006a0
+> [  942.871710] DR0: 0000000000696000 DR1: 0000000000696000 DR2: 0000000000000000
+> [  942.871710] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 000000000057060a
+> [  942.871710] Stack:
+> [  942.871710]  ffff8801e7b4db98 ffffffffae2c1651 ffff8801e7b4db38 0000000000000000
+> [  942.871710]  ffff8801debf40b0 0000000040000000 ffff880767bb4000 00007f11fadfffff
+> [  942.871710]  00007f11fadfffff 000000003fffffff 00007f11fae00000 ffff8801eb8c7000
+> [  942.871710] Call Trace:
+> [  942.871710] __walk_page_range (include/linux/mm.h:1525 include/linux/mm.h:1530 include/linux/hugetlb.h:403 include/linux/hugetlb.h:451 mm/pagewalk.c:196 mm/pagewalk.c:254)
+> [  942.871710] walk_page_range (mm/pagewalk.c:333)
+> [  942.871710] queue_pages_range (mm/mempolicy.c:653)
+> [  942.871710] ? queue_pages_hugetlb (mm/mempolicy.c:492)
+> [  942.871710] ? queue_pages_range (mm/mempolicy.c:521)
+> [  942.871710] ? change_prot_numa (mm/mempolicy.c:588)
+> [  942.871710] migrate_to_node (mm/mempolicy.c:988)
+> [  942.871710] ? preempt_count_sub (kernel/sched/core.c:2527)
+> [  942.871710] do_migrate_pages (mm/mempolicy.c:1095)
+> [  942.871710] SYSC_migrate_pages (mm/mempolicy.c:1445)
+> [  942.871710] ? SYSC_migrate_pages (include/linux/rcupdate.h:800 mm/mempolicy.c:1391)
+> [  942.871710] SyS_migrate_pages (mm/mempolicy.c:1365)
+> [  942.871710] ia32_do_call (arch/x86/ia32/ia32entry.S:430)
+> [  942.871710] Code: 0f 0b 0f 1f 44 00 00 48 b8 00 00 00 00 00 78 00 00 48 01 f8 48 39 c2 72 12 0f b6 0d 10 0f fe 05 48 89 c2 48 d3 ea 48 85 d2 74 0c <0f> 0b 66 2e 0f 1f 84 00 00 00 00 00 5d c3 66 2e 0f 1f 84 00 00
+> [  942.871710] RIP __phys_addr (arch/x86/mm/physaddr.c:26 (discriminator 1))
+> [  942.871710]  RSP <ffff8801e7b4daf8>
 
-With Ingo's updated comment:
+Thanks for reporting. this bug shows that huge_pte_offset() returned NULL
+and we tried to take page table lock of the NULL entry. This is a bug in
+my patch and the following should fix it.
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+Thanks,
+Naoya
+---
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Date: Fri, 4 Apr 2014 11:37:57 -0400
+Subject: [PATCH -mm] mm/pagewalk.c: move pte null check
+
+huge_pte_offset() can return NULL, so we need check it before trying to
+take page table lock to avoid a crash.
+
+This patch would be fold into "pagewalk: update page table walker core"
+in latest linux-mm.
+
+Reported-by: Sasha Levin <sasha.levin@oracle.com>
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+---
+ mm/pagewalk.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/mm/pagewalk.c b/mm/pagewalk.c
+index a834f4deb527..b2a075ffb96e 100644
+--- a/mm/pagewalk.c
++++ b/mm/pagewalk.c
+@@ -193,12 +193,14 @@ static int walk_hugetlb_range(unsigned long addr, unsigned long end,
+ 	do {
+ 		next = hugetlb_entry_end(h, addr, end);
+ 		pte = huge_pte_offset(walk->mm, addr & hmask);
++		if (!pte)
++			continue;
+ 		ptl = huge_pte_lock(h, mm, pte);
+ 		/*
+ 		 * Callers should have their own way to handle swap entries
+ 		 * in walk->hugetlb_entry().
+ 		 */
+-		if (pte && walk->hugetlb_entry)
++		if (walk->hugetlb_entry)
+ 			err = walk->hugetlb_entry(pte, addr, next, walk);
+ 		spin_unlock(ptl);
+ 		if (err)
+-- 
+1.9.0
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
