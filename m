@@ -1,393 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 158376B0031
-	for <linux-mm@kvack.org>; Fri,  4 Apr 2014 09:31:17 -0400 (EDT)
-Received: by mail-wi0-f171.google.com with SMTP id q5so1271143wiv.10
-        for <linux-mm@kvack.org>; Fri, 04 Apr 2014 06:31:17 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id g47si12401999eet.144.2014.04.04.06.31.14
-        for <linux-mm@kvack.org>;
-        Fri, 04 Apr 2014 06:31:15 -0700 (PDT)
-Date: Fri, 4 Apr 2014 09:30:46 -0400
-From: Luiz Capitulino <lcapitulino@redhat.com>
-Subject: Re: [PATCH 4/4] hugetlb: add support for gigantic page allocation
- at runtime
-Message-ID: <20140404093046.35c8d245@redhat.com>
-In-Reply-To: <533E216D.1050609@jp.fujitsu.com>
-References: <1396462128-32626-1-git-send-email-lcapitulino@redhat.com>
- <1396462128-32626-5-git-send-email-lcapitulino@redhat.com>
- <533E216D.1050609@jp.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-ie0-f177.google.com (mail-ie0-f177.google.com [209.85.223.177])
+	by kanga.kvack.org (Postfix) with ESMTP id E151F6B0031
+	for <linux-mm@kvack.org>; Fri,  4 Apr 2014 10:08:01 -0400 (EDT)
+Received: by mail-ie0-f177.google.com with SMTP id rl12so3387265iec.22
+        for <linux-mm@kvack.org>; Fri, 04 Apr 2014 07:08:01 -0700 (PDT)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
+        by mx.google.com with ESMTPS id k5si5155884ige.44.2014.04.04.07.07.57
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 04 Apr 2014 07:07:58 -0700 (PDT)
+Date: Fri, 4 Apr 2014 16:07:32 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH] mm: msync: require either MS_ASYNC or MS_SYNC [resend]
+Message-ID: <20140404140732.GG10526@twins.programming.kicks-ass.net>
+References: <533B04A9.6090405@bbn.com>
+ <20140402111032.GA27551@infradead.org>
+ <1396439119.2726.29.camel@menhir>
+ <533CA0F6.2070100@bbn.com>
+ <533E5B7A.7030309@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <533E5B7A.7030309@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, mtosatti@redhat.com, aarcange@redhat.com, mgorman@suse.de, akpm@linux-foundation.org, andi@firstfloor.org, davidlohr@hp.com, rientjes@google.com, yinghai@kernel.org, riel@redhat.com
+To: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+Cc: Richard Hansen <rhansen@bbn.com>, Steven Whitehouse <swhiteho@redhat.com>, Christoph Hellwig <hch@infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, Greg Troxel <gdt@ir.bbn.com>, bug-readline@gnu.org
 
-On Fri, 4 Apr 2014 12:05:17 +0900
-Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com> wrote:
-
-> (2014/04/03 3:08), Luiz Capitulino wrote:
-> > HugeTLB is limited to allocating hugepages whose size are less than
-> > MAX_ORDER order. This is so because HugeTLB allocates hugepages via
-> > the buddy allocator. Gigantic pages (that is, pages whose size is
-> > greater than MAX_ORDER order) have to be allocated at boottime.
-> > 
-> > However, boottime allocation has at least two serious problems. First,
-> > it doesn't support NUMA and second, gigantic pages allocated at
-> > boottime can't be freed.
-> > 
-> > This commit solves both issues by adding support for allocating gigantic
-> > pages during runtime. It works just like regular sized hugepages,
-> > meaning that the interface in sysfs is the same, it supports NUMA,
-> > and gigantic pages can be freed.
-> > 
-> > For example, on x86_64 gigantic pages are 1GB big. To allocate two 1G
-> > gigantic pages on node 1, one can do:
-> > 
-> >   # echo 2 > \
-> >     /sys/devices/system/node/node1/hugepages/hugepages-1048576kB/nr_hugepages
-> > 
-> > And to free them later:
-> > 
-> >   # echo 0 > \
-> >     /sys/devices/system/node/node1/hugepages/hugepages-1048576kB/nr_hugepages
-> > 
-> > The one problem with gigantic page allocation at runtime is that it
-> > can't be serviced by the buddy allocator. To overcome that problem, this
-> > series scans all zones from a node looking for a large enough contiguous
-> > region. When one is found, it's allocated by using CMA, that is, we call
-> > alloc_contig_range() to do the actual allocation. For example, on x86_64
-> > we scan all zones looking for a 1GB contiguous region. When one is found
-> > it's allocated by alloc_contig_range().
-> > 
-> > One expected issue with that approach is that such gigantic contiguous
-> > regions tend to vanish as time goes by. The best way to avoid this for
-> > now is to make gigantic page allocations very early during boot, say
-> > from a init script. Other possible optimization include using compaction,
-> > which is supported by CMA but is not explicitly used by this commit.
-> > 
-> > It's also important to note the following:
-> > 
-> >   1. My target systems are x86_64 machines, so I have only tested 1GB
-> >      pages allocation/release. I did try to make this arch indepedent
-> >      and expect it to work on other archs but didn't try it myself
-> > 
-> >   2. I didn't add support for hugepage overcommit, that is allocating
-> >      a gigantic page on demand when
-> >     /proc/sys/vm/nr_overcommit_hugepages > 0. The reason is that I don't
-> >     think it's reasonable to do the hard and long work required for
-> >     allocating a gigantic page at fault time. But it should be simple
-> >     to add this if wanted
-> > 
-> > Signed-off-by: Luiz Capitulino <lcapitulino@redhat.com>
-> > ---
-> >   arch/x86/include/asm/hugetlb.h |  10 +++
-> >   mm/hugetlb.c                   | 177 ++++++++++++++++++++++++++++++++++++++---
-> >   2 files changed, 176 insertions(+), 11 deletions(-)
-> > 
-> > diff --git a/arch/x86/include/asm/hugetlb.h b/arch/x86/include/asm/hugetlb.h
-> > index a809121..2b262f7 100644
-> > --- a/arch/x86/include/asm/hugetlb.h
-> > +++ b/arch/x86/include/asm/hugetlb.h
-> > @@ -91,6 +91,16 @@ static inline void arch_release_hugepage(struct page *page)
-> >   {
-> >   }
-> >   
-> > +static inline int arch_prepare_gigantic_page(struct page *page)
-> > +{
-> > +	return 0;
-> > +}
-> > +
-> > +static inline void arch_release_gigantic_page(struct page *page)
-> > +{
-> > +}
-> > +
-> > +
-> >   static inline void arch_clear_hugepage_flags(struct page *page)
-> >   {
-> >   }
-> > diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> > index 2c7a44a..c68515e 100644
-> > --- a/mm/hugetlb.c
-> > +++ b/mm/hugetlb.c
-> > @@ -643,11 +643,159 @@ static int hstate_next_node_to_free(struct hstate *h, nodemask_t *nodes_allowed)
-> >   		((node = hstate_next_node_to_free(hs, mask)) || 1);	\
-> >   		nr_nodes--)
-> >   
-> > +#ifdef CONFIG_CMA
-> > +static void destroy_compound_gigantic_page(struct page *page,
-> > +					unsigned long order)
-> > +{
-> > +	int i;
-> > +	int nr_pages = 1 << order;
-> > +	struct page *p = page + 1;
-> > +
-> > +	for (i = 1; i < nr_pages; i++, p = mem_map_next(p, page, i)) {
-> > +		__ClearPageTail(p);
-> > +		set_page_refcounted(p);
-> > +		p->first_page = NULL;
-> > +	}
-> > +
-> > +	set_compound_order(page, 0);
-> > +	__ClearPageHead(page);
-> > +}
-> > +
-> > +static void free_gigantic_page(struct page *page, unsigned order)
-> > +{
-> > +	free_contig_range(page_to_pfn(page), 1 << order);
-> > +}
-> > +
-> > +static int __alloc_gigantic_page(unsigned long start_pfn, unsigned long count)
-> > +{
-> > +	unsigned long end_pfn = start_pfn + count;
-> > +	return alloc_contig_range(start_pfn, end_pfn, MIGRATE_MOVABLE);
-> > +}
-> > +
-> > +static bool pfn_valid_gigantic(unsigned long pfn)
-> > +{
-> > +	struct page *page;
-> > +
-> > +	if (!pfn_valid(pfn))
-> > +		return false;
-> > +
-> > +	page = pfn_to_page(pfn);
-> > +
-> > +	if (PageReserved(page))
-> > +		return false;
-> > +
-> > +	if (page_count(page) > 0)
-> > +		return false;
-> > +
-> > +	return true;
-> > +}
-> > +
-> > +static inline bool pfn_aligned_gigantic(unsigned long pfn, unsigned order)
-> > +{
-> > +	return IS_ALIGNED((phys_addr_t) pfn << PAGE_SHIFT, PAGE_SIZE << order);
-> > +}
-> > +
-> > +static struct page *alloc_gigantic_page(int nid, unsigned order)
-> > +{
-> > +	unsigned long ret, i, count, start_pfn, flags;
-> > +	unsigned long nr_pages = 1 << order;
-> > +	struct zone *z;
-> > +
-> > +	z = NODE_DATA(nid)->node_zones;
-> > +	for (; z - NODE_DATA(nid)->node_zones < MAX_NR_ZONES; z++) {
-> > +		spin_lock_irqsave(&z->lock, flags);
-> > +		if (z->spanned_pages < nr_pages) {
-> > +			spin_unlock_irqrestore(&z->lock, flags);
-> > +			continue;
-> > +		}
-> > +
-> > +		/* scan zone 'z' looking for a contiguous 'nr_pages' range */
-> > +		count = 0;
+On Fri, Apr 04, 2014 at 09:12:58AM +0200, Michael Kerrisk (man-pages) wrote:
+> >   * Clearer intentions.  Looking at the existing code and the code
+> >     history, the fact that flags=0 behaves like flags=MS_ASYNC appears
+> >     to be a coincidence, not the result of an intentional choice.
 > 
-> > +		start_pfn = z->zone_start_pfn; /* to silence gcc */
-> > +		for (i = z->zone_start_pfn; i < zone_end_pfn(z); i++) {
-> 
-> This loop is not smart. On our system, one node has serveral TBytes.
-> So the maximum loop count is "TBytes/Page size".
+> Maybe. You earlier asserted that the semantics when flags==0 may have
+> been different, prior to Peter Zijstra's patch,
+> https://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/commit/?id=204ec841fbea3e5138168edbc3a76d46747cc987
+> .
+> It's not clear to me that that is the case. But, it would be wise to
+> CC the developer, in case he has an insight.
 
-Interesting. Would you be willing to test this series on such a
-machine?
+Right; so before that patch there appears to have been a difference.
+The code looked like:
 
-> First page of gigantic page must be aligned.
-> So how about it:
-> 
-> 		start_pfn = zone_start_pfn aligned gigantic page
-> 		for (i = start_pfn; i < zone_end_pfn; i += size of gigantic page) {
-> 			if (!pfn_valid_gigantic(i)) {
-> 				count = 0;
-> 				continue;
-> 			}
-> 			
-> 			...
-> 		}
+  if (flags & MS_ASYNC) {
+  	balance_dirty_pages_ratelimited();
+  } else if (flags & MS_SYNC) {
+  	do_fsync()
+  } else {
+  	/* do nothing */
+  }
 
-I'm not sure that very loop will work because pfn_valid_gigantic() checks
-a single PFN today, but we do have to scan every single PFN on a gigantic
-page range.
+Which would give the following semantics:
 
-On the other hand, I think got what you're suggesting. When an unsuitable
-PFN is found, we should just skip to the next aligned PFN instead of
-keep scanning for nothing (which is what my loop does today). Maybe you're
-suggesting pfn_valid_gigantic() should do that?
+  msync(.flags = 0) -- scan PTEs and update dirty page accounting
+  msync(.flags = MS_ASYNC) -- scan PTEs and dirty throttle
+  msync(.flags = MS_SYNC) -- scan PTEs and flush dirty pages
 
-Anyway, I'll make that change, thank you very much for you review!
+However with the introduction of accurate dirty page accounting in
+.19 we always had an accurate dirty page count and both .flags=0 and
+.flags=MS_ASYNC turn into the same NO-OP.
 
-> 
-> Thanks,
-> Yasuaki Ishimatsu
-> 
-> > +			if (!pfn_valid_gigantic(i)) {
-> > +				count = 0;
-> > +				continue;
-> > +			}
-> > +			if (!count) {
-> > +				if (!pfn_aligned_gigantic(i, order))
-> > +					continue;
-> > +				start_pfn = i;
-> > +			}
-> > +			if (++count == nr_pages) {
-> > +				/*
-> > +				 * We release the zone lock here because
-> > +				 * alloc_contig_range() will also lock the zone
-> > +				 * at some point. If there's an allocation
-> > +				 * spinning on this lock, it may win the race
-> > +				 * and cause alloc_contig_range() to fail...
-> > +				 */
-> > +				spin_unlock_irqrestore(&z->lock, flags);
-> > +				ret = __alloc_gigantic_page(start_pfn, count);
-> > +				if (!ret)
-> > +					return pfn_to_page(start_pfn);
-> > +				count = 0;
-> > +				spin_lock_irqsave(&z->lock, flags);
-> > +			}
-> > +		}
-> > +
-> > +		spin_unlock_irqrestore(&z->lock, flags);
-> > +	}
-> > +
-> > +	return NULL;
-> > +}
-> > +
-> > +static void prep_new_huge_page(struct hstate *h, struct page *page, int nid);
-> > +static void prep_compound_gigantic_page(struct page *page, unsigned long order);
-> > +
-> > +static struct page *alloc_fresh_gigantic_page_node(struct hstate *h, int nid)
-> > +{
-> > +	struct page *page;
-> > +
-> > +	page = alloc_gigantic_page(nid, huge_page_order(h));
-> > +	if (page) {
-> > +		if (arch_prepare_gigantic_page(page)) {
-> > +			free_gigantic_page(page, huge_page_order(h));
-> > +			return NULL;
-> > +		}
-> > +		prep_compound_gigantic_page(page, huge_page_order(h));
-> > +		prep_new_huge_page(h, page, nid);
-> > +	}
-> > +
-> > +	return page;
-> > +}
-> > +
-> > +static int alloc_fresh_gigantic_page(struct hstate *h,
-> > +				nodemask_t *nodes_allowed)
-> > +{
-> > +	struct page *page = NULL;
-> > +	int nr_nodes, node;
-> > +
-> > +	for_each_node_mask_to_alloc(h, nr_nodes, node, nodes_allowed) {
-> > +		page = alloc_fresh_gigantic_page_node(h, node);
-> > +		if (page)
-> > +			return 1;
-> > +	}
-> > +
-> > +	return 0;
-> > +}
-> > +
-> > +static inline bool gigantic_page_supported(void) { return true; }
-> > +#else /* !CONFIG_CMA */
-> > +static inline bool gigantic_page_supported(void) { return false; }
-> > +static inline void free_gigantic_page(struct page *page, unsigned order) { }
-> > +static inline void destroy_compound_gigantic_page(struct page *page,
-> > +						unsigned long order) { }
-> > +static inline int alloc_fresh_gigantic_page(struct hstate *h,
-> > +					nodemask_t *nodes_allowed) { return 0; }
-> > +#endif /* CONFIG_CMA */
-> > +
-> >   static void update_and_free_page(struct hstate *h, struct page *page)
-> >   {
-> >   	int i;
-> >   
-> > -	VM_BUG_ON(hstate_is_gigantic(h));
-> > +	if (hstate_is_gigantic(h) && !gigantic_page_supported())
-> > +		return;
-> >   
-> >   	h->nr_huge_pages--;
-> >   	h->nr_huge_pages_node[page_to_nid(page)]--;
-> > @@ -661,8 +809,14 @@ static void update_and_free_page(struct hstate *h, struct page *page)
-> >   	VM_BUG_ON_PAGE(hugetlb_cgroup_from_page(page), page);
-> >   	set_compound_page_dtor(page, NULL);
-> >   	set_page_refcounted(page);
-> > -	arch_release_hugepage(page);
-> > -	__free_pages(page, huge_page_order(h));
-> > +	if (hstate_is_gigantic(h)) {
-> > +		arch_release_gigantic_page(page);
-> > +		destroy_compound_gigantic_page(page, huge_page_order(h));
-> > +		free_gigantic_page(page, huge_page_order(h));
-> > +	} else {
-> > +		arch_release_hugepage(page);
-> > +		__free_pages(page, huge_page_order(h));
-> > +	}
-> >   }
-> >   
-> >   struct hstate *size_to_hstate(unsigned long size)
-> > @@ -701,7 +855,7 @@ static void free_huge_page(struct page *page)
-> >   	if (restore_reserve)
-> >   		h->resv_huge_pages++;
-> >   
-> > -	if (h->surplus_huge_pages_node[nid] && !hstate_is_gigantic(h)) {
-> > +	if (h->surplus_huge_pages_node[nid]) {
-> >   		/* remove the page from active list */
-> >   		list_del(&page->lru);
-> >   		update_and_free_page(h, page);
-> > @@ -805,9 +959,6 @@ static struct page *alloc_fresh_huge_page_node(struct hstate *h, int nid)
-> >   {
-> >   	struct page *page;
-> >   
-> > -	if (hstate_is_gigantic(h))
-> > -		return NULL;
-> > -
-> >   	page = alloc_pages_exact_node(nid,
-> >   		htlb_alloc_mask(h)|__GFP_COMP|__GFP_THISNODE|
-> >   						__GFP_REPEAT|__GFP_NOWARN,
-> > @@ -1452,7 +1603,7 @@ static unsigned long set_max_huge_pages(struct hstate *h, unsigned long count,
-> >   {
-> >   	unsigned long min_count, ret;
-> >   
-> > -	if (hstate_is_gigantic(h))
-> > +	if (hstate_is_gigantic(h) && !gigantic_page_supported())
-> >   		return h->max_huge_pages;
-> >   
-> >   	/*
-> > @@ -1479,7 +1630,11 @@ static unsigned long set_max_huge_pages(struct hstate *h, unsigned long count,
-> >   		 * and reducing the surplus.
-> >   		 */
-> >   		spin_unlock(&hugetlb_lock);
-> > -		ret = alloc_fresh_huge_page(h, nodes_allowed);
-> > +		if (hstate_is_gigantic(h)) {
-> > +			ret = alloc_fresh_gigantic_page(h, nodes_allowed);
-> > +		} else {
-> > +			ret = alloc_fresh_huge_page(h, nodes_allowed);
-> > +		}
-> >   		spin_lock(&hugetlb_lock);
-> >   		if (!ret)
-> >   			goto out;
-> > @@ -1578,7 +1733,7 @@ static ssize_t nr_hugepages_store_common(bool obey_mempolicy,
-> >   		goto out;
-> >   
-> >   	h = kobj_to_hstate(kobj, &nid);
-> > -	if (hstate_is_gigantic(h)) {
-> > +	if (hstate_is_gigantic(h) && !gigantic_page_supported()) {
-> >   		err = -EINVAL;
-> >   		goto out;
-> >   	}
-> > @@ -2072,7 +2227,7 @@ static int hugetlb_sysctl_handler_common(bool obey_mempolicy,
-> >   
-> >   	tmp = h->max_huge_pages;
-> >   
-> > -	if (write && hstate_is_gigantic(h))
-> > +	if (write && hstate_is_gigantic(h) && !gigantic_page_supported())
-> >   		return -EINVAL;
-> >   
-> >   	table->data = &tmp;
-> > 
-> 
-> 
+Yielding todays state, where 0 and MS_ASYNC don't do anything much and
+MS_SYNC issues the fsync() -- although I understand Willy recently
+posted a patch to do a data-range-sync instead of the full fsync.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
