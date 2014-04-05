@@ -1,115 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f41.google.com (mail-pb0-f41.google.com [209.85.160.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D7B86B0031
-	for <linux-mm@kvack.org>; Sat,  5 Apr 2014 11:21:01 -0400 (EDT)
-Received: by mail-pb0-f41.google.com with SMTP id jt11so4802768pbb.28
-        for <linux-mm@kvack.org>; Sat, 05 Apr 2014 08:21:01 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id b5si5981416pbq.276.2014.04.05.08.21.00
+Received: from mail-oa0-f49.google.com (mail-oa0-f49.google.com [209.85.219.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 55BC06B0035
+	for <linux-mm@kvack.org>; Sat,  5 Apr 2014 14:24:47 -0400 (EDT)
+Received: by mail-oa0-f49.google.com with SMTP id o6so4961147oag.22
+        for <linux-mm@kvack.org>; Sat, 05 Apr 2014 11:24:47 -0700 (PDT)
+Received: from mail-oa0-x231.google.com (mail-oa0-x231.google.com [2607:f8b0:4003:c02::231])
+        by mx.google.com with ESMTPS id jh2si10353010obb.113.2014.04.05.11.24.46
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sat, 05 Apr 2014 08:21:00 -0700 (PDT)
-Message-ID: <53401F56.5090507@oracle.com>
-Date: Sat, 05 Apr 2014 11:20:54 -0400
-From: Sasha Levin <sasha.levin@oracle.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Sat, 05 Apr 2014 11:24:46 -0700 (PDT)
+Received: by mail-oa0-f49.google.com with SMTP id o6so4903228oag.8
+        for <linux-mm@kvack.org>; Sat, 05 Apr 2014 11:24:46 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: mm: slub: gpf in deactivate_slab
-References: <53208A87.2040907@oracle.com> <5331A6C3.2000303@oracle.com> <20140325165247.GA7519@dhcp22.suse.cz> <alpine.DEB.2.10.1403251205140.24534@nuc> <5331B9C8.7080106@oracle.com> <alpine.DEB.2.10.1403251308590.26471@nuc> <53321CB6.5050706@oracle.com> <alpine.DEB.2.10.1403261042360.2057@nuc>
-In-Reply-To: <alpine.DEB.2.10.1403261042360.2057@nuc>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1396587632.2499.5.camel@buesod1.americas.hpqcorp.net>
+References: <1396235199.2507.2.camel@buesod1.americas.hpqcorp.net>
+ <20140331170546.3b3e72f0.akpm@linux-foundation.org> <1396371699.25314.11.camel@buesod1.americas.hpqcorp.net>
+ <CAHGf_=qsf6vN5k=-PLraG8Q_uU1pofoBDktjVH1N92o76xPadQ@mail.gmail.com>
+ <1396377083.25314.17.camel@buesod1.americas.hpqcorp.net> <CAHGf_=rLLBDr5ptLMvFD-M+TPQSnK3EP=7R+27K8or84rY-KLA@mail.gmail.com>
+ <1396386062.25314.24.camel@buesod1.americas.hpqcorp.net> <CAHGf_=rhXrBQSmDBJJ-vPxBbhjJ91Fh2iWe1cf_UQd-tCfpb2w@mail.gmail.com>
+ <20140401142947.927642a408d84df27d581e36@linux-foundation.org>
+ <CAHGf_=p70rLOYwP2OgtK+2b+41=GwMA9R=rZYBqRr1w_O5UnKA@mail.gmail.com>
+ <20140401144801.603c288674ab8f417b42a043@linux-foundation.org>
+ <CAHGf_=r5AUu6yvJgOzwYDghBo6iT2q+nNumpvqwer+igcfChrA@mail.gmail.com>
+ <1396394931.25314.34.camel@buesod1.americas.hpqcorp.net> <CAHGf_=rH+vfFzRrh35TETxjFU2HM0xnDQFweQ+Bfw20Pm2nL3g@mail.gmail.com>
+ <1396484447.2953.1.camel@buesod1.americas.hpqcorp.net> <533DB03D.7010308@colorfullife.com>
+ <1396554637.2550.11.camel@buesod1.americas.hpqcorp.net> <CAHGf_=rT7WswD0LOxVeDDpae-Ahaz4wEcpE8HLmDwOBw598z8g@mail.gmail.com>
+ <1396587632.2499.5.camel@buesod1.americas.hpqcorp.net>
+From: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Date: Sat, 5 Apr 2014 14:24:26 -0400
+Message-ID: <CAHGf_=pvN96SgLYdR3jPn8VaEfAjq-LX=r=PQRvPGqi6xFJoxQ@mail.gmail.com>
+Subject: Re: [PATCH] ipc,shm: disable shmmax and shmall by default
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Davidlohr Bueso <davidlohr@hp.com>
+Cc: Manfred Spraul <manfred@colorfullife.com>, Andrew Morton <akpm@linux-foundation.org>, aswin@hp.com, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Greg Thelen <gthelen@google.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On 03/26/2014 11:43 AM, Christoph Lameter wrote:
-> On Tue, 25 Mar 2014, Sasha Levin wrote:
-> 
->> I'm not sure if there's anything special about this cache, codewise it's
->> created as follows:
+On Fri, Apr 4, 2014 at 1:00 AM, Davidlohr Bueso <davidlohr@hp.com> wrote:
+> On Thu, 2014-04-03 at 19:39 -0400, KOSAKI Motohiro wrote:
+>> On Thu, Apr 3, 2014 at 3:50 PM, Davidlohr Bueso <davidlohr@hp.com> wrote:
+>> > On Thu, 2014-04-03 at 21:02 +0200, Manfred Spraul wrote:
+>> >> Hi Davidlohr,
+>> >>
+>> >> On 04/03/2014 02:20 AM, Davidlohr Bueso wrote:
+>> >> > The default size for shmmax is, and always has been, 32Mb.
+>> >> > Today, in the XXI century, it seems that this value is rather small,
+>> >> > making users have to increase it via sysctl, which can cause
+>> >> > unnecessary work and userspace application workarounds[1].
+>> >> >
+>> >> > Instead of choosing yet another arbitrary value, larger than 32Mb,
+>> >> > this patch disables the use of both shmmax and shmall by default,
+>> >> > allowing users to create segments of unlimited sizes. Users and
+>> >> > applications that already explicitly set these values through sysctl
+>> >> > are left untouched, and thus does not change any of the behavior.
+>> >> >
+>> >> > So a value of 0 bytes or pages, for shmmax and shmall, respectively,
+>> >> > implies unlimited memory, as opposed to disabling sysv shared memory.
+>> >> > This is safe as 0 cannot possibly be used previously as SHMMIN is
+>> >> > hardcoded to 1 and cannot be modified.
+>> >
+>> >> Are we sure that no user space apps uses shmctl(IPC_INFO) and prints a
+>> >> pretty error message if shmall is too small?
+>> >> We would break these apps.
+>> >
+>> > Good point. 0 bytes/pages would definitely trigger an unexpected error
+>> > message if users did this. But on the other hand I'm not sure this
+>> > actually is a _real_ scenario, since upon overflow the value can still
+>> > end up being 0, which is totally bogus and would cause the same
+>> > breakage.
+>> >
+>> > So I see two possible workarounds:
+>> > (i) Use ULONG_MAX for the shmmax default instead. This would make shmall
+>> > default to 1152921504606846720 and 268435456, for 64 and 32bit systems,
+>> > respectively.
+>> >
+>> > (ii) Keep the 0 bytes, but add a new a "transition" tunable that, if set
+>> > (default off), would allow 0 bytes to be unlimited. With time, users
+>> > could hopefully update their applications and we could eventually get
+>> > rid of it. This _seems_ to be the less aggressive way to go.
 >>
+>> Do you mean
 >>
->>         inode_cachep = kmem_cache_create("inode_cache",
->>                                          sizeof(struct inode),
->>                                          0,
->>                                          (SLAB_RECLAIM_ACCOUNT|SLAB_PANIC|
->>                                          SLAB_MEM_SPREAD),
->>                                          init_once);
+>> set 0: IPC_INFO return shmmax = 0.
+>> set 1: IPC_INFO return shmmax = ULONG_MAX.
 >>
+>> ?
 >>
->> I'd be happy to dig up any other info required, I'm just not too sure
->> what you mean by options for the cache?
-> 
-> Slab parameters can be change in /sys/kernel/slab/inode. Any debug
-> parameters active? More information about what was actually going on when
-> the gpf occured?
+>> That makes sense.
+>
+> Well I was mostly referring to:
+>
+> set 0: leave things as there are now.
+> set 1: this patch.
 
-Unfortunately I've been unable to reproduce the issue to get more debug info
-out of it. However, I've hit something that seems to be somewhat similar
-to that:
-
-[ 1035.176692] BUG: unable to handle kernel paging request at ffff8801377e4000
-[ 1035.177893] IP: memset (arch/x86/lib/memset_64.S:105)
-[ 1035.178651] PGD 3d91c067 PUD 102f7ff067 PMD 102f643067 PTE 80000001377e4060
-[ 1035.179740] Oops: 0002 [#1] PREEMPT SMP DEBUG_PAGEALLOC
-[ 1035.180063] Dumping ftrace buffer:
-[ 1035.180063]    (ftrace buffer empty)
-[ 1035.180063] Modules linked in:
-[ 1035.180063] CPU: 2 PID: 27857 Comm: modprobe Not tainted 3.14.0-next-20140403-sasha-00019-g7474aa9-dirty #376
-[ 1035.180063] task: ffff8800a1918000 ti: ffff8800a4650000 task.ti: ffff8800a4650000
-[ 1035.180063] RIP: memset (arch/x86/lib/memset_64.S:105)
-[ 1035.180063] RSP: 0018:ffff8800a4651b60  EFLAGS: 00010046
-[ 1035.180063] RAX: bbbbbbbbbbbbbbbb RBX: ffff88007d852ec0 RCX: 0000000000000000
-[ 1035.180063] RDX: 0000000000000008 RSI: 00000000000000bb RDI: ffff8801377e4000
-[ 1035.180063] RBP: ffff8800a4651b88 R08: 0000000000000001 R09: 0000000000000000
-[ 1035.180063] R10: ffff8801377e4000 R11: ffffffffffffffce R12: ffff8801377e3000
-[ 1035.180063] R13: 00000000000000bb R14: ffff8801377e3000 R15: ffffffffffffffff
-[ 1035.180063] FS:  00007f2e098d6700(0000) GS:ffff8801abc00000(0000) knlGS:0000000000000000
-[ 1035.180063] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-[ 1035.180063] CR2: ffff8801377e4000 CR3: 000000061feec000 CR4: 00000000000006a0
-[ 1035.193166] DR0: 0000000000696000 DR1: 0000000000000000 DR2: 0000000000000000
-[ 1035.193166] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000600
-[ 1035.193166] Stack:
-[ 1035.193166]  ffffffffb62dabee ffff8800a4651b78 ffff88007d852ec0 ffff8801377e3000
-[ 1035.193166]  ffffea0004ddf8c0 ffff8800a4651ba8 ffffffffb62db1c0 ffff88007d852ec0
-[ 1035.193166]  ffff8801377e3000 ffff8800a4651be8 ffffffffb62dd1a6 ffff8800a4651bd8
-[ 1035.193166] Call Trace:
-[ 1035.193166] ? init_object (mm/slub.c:679)
-[ 1035.193166] setup_object.isra.34 (mm/slub.c:1071 mm/slub.c:1399)
-[ 1035.193166] new_slab (mm/slub.c:286 mm/slub.c:1439)
-[ 1035.193166] __slab_alloc (mm/slub.c:2203 mm/slub.c:2363)
-[ 1035.193166] ? kmem_cache_alloc (mm/slub.c:2469 mm/slub.c:2480 mm/slub.c:2485)
-[ 1035.193166] ? getname_flags (fs/namei.c:145)
-[ 1035.193166] ? get_parent_ip (kernel/sched/core.c:2472)
-[ 1035.193166] kmem_cache_alloc (mm/slub.c:2469 mm/slub.c:2480 mm/slub.c:2485)
-[ 1035.193166] ? getname_flags (fs/namei.c:145)
-[ 1035.193166] getname_flags (fs/namei.c:145)
-[ 1035.193166] user_path_at_empty (fs/namei.c:2121)
-[ 1035.193166] ? kvm_clock_read (arch/x86/include/asm/preempt.h:90 arch/x86/kernel/kvmclock.c:86)
-[ 1035.193166] ? sched_clock (arch/x86/include/asm/paravirt.h:192 arch/x86/kernel/tsc.c:305)
-[ 1035.193166] ? sched_clock_local (kernel/sched/clock.c:214)
-[ 1035.193166] ? vtime_account_user (kernel/sched/cputime.c:687)
-[ 1035.193166] ? debug_smp_processor_id (lib/smp_processor_id.c:57)
-[ 1035.193166] ? put_lock_stats.isra.12 (arch/x86/include/asm/preempt.h:98 kernel/locking/lockdep.c:254)
-[ 1035.193166] user_path_at (fs/namei.c:2137)
-[ 1035.193166] vfs_fstatat (fs/stat.c:107)
-[ 1035.193166] ? context_tracking_user_exit (arch/x86/include/asm/paravirt.h:809 (discriminator 2) kernel/context_tracking.c:182 (discriminator 2))
-[ 1035.193166] vfs_stat (fs/stat.c:124)
-[ 1035.193166] SYSC_newstat (fs/stat.c:272)
-[ 1035.193166] ? trace_hardirqs_on (kernel/locking/lockdep.c:2607)
-[ 1035.193166] ? syscall_trace_enter (include/linux/context_tracking.h:27 arch/x86/kernel/ptrace.c:1461)
-[ 1035.193166] ? tracesys (arch/x86/kernel/entry_64.S:738)
-[ 1035.193166] SyS_newstat (fs/stat.c:267)
-[ 1035.193166] tracesys (arch/x86/kernel/entry_64.S:749)
-[ 1035.193166] Code: 89 47 28 48 89 47 30 48 89 47 38 48 8d 7f 40 75 d8 0f 1f 84 00 00 00 00 00 89 d1 83 e1 38 74 14 c1 e9 03 66 0f 1f 44 00 00 ff c9 <48> 89 07 48 8d 7f 08 75 f5 83 e2 07 74 0a ff ca 88 07 48 8d 7f
-[ 1035.193166] RIP memset (arch/x86/lib/memset_64.S:105)
-[ 1035.193166]  RSP <ffff8800a4651b60>
-[ 1035.193166] CR2: ffff8801377e4000
+I don't recommend this approach because many user never switch 1 and
+finally getting API fragmentation.
 
 
-Thanks,
-Sasha
+> I don't think it makes much sense to set unlimited for both 0 and
+> ULONG_MAX, that would probably just create even more confusion.
+>
+> But then again, we shouldn't even care about breaking things with shmmax
+> or shmall with 0 value, it just makes no sense from a user PoV. shmmax
+> cannot be 0 unless there's an overflow, which voids any valid cases, and
+> thus shmall cannot be 0 either as it would go against any values set for
+> shmmax. I think it's safe to ignore this.
+
+Agreed.
+IMHO, until you find out any incompatibility issue of this, we don't
+need the switch
+because we can't make good workaround for that. I'd suggest to merge your patch
+and see what happen.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
