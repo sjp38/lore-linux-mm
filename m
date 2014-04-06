@@ -1,57 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f178.google.com (mail-lb0-f178.google.com [209.85.217.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D2B56B0038
-	for <linux-mm@kvack.org>; Sun,  6 Apr 2014 11:34:06 -0400 (EDT)
-Received: by mail-lb0-f178.google.com with SMTP id s7so3911043lbd.37
-        for <linux-mm@kvack.org>; Sun, 06 Apr 2014 08:34:05 -0700 (PDT)
-Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id y8si10116331lae.70.2014.04.06.08.34.04
+Received: from mail-ob0-f171.google.com (mail-ob0-f171.google.com [209.85.214.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 8445A6B0035
+	for <linux-mm@kvack.org>; Sun,  6 Apr 2014 12:54:42 -0400 (EDT)
+Received: by mail-ob0-f171.google.com with SMTP id wn1so5620291obc.16
+        for <linux-mm@kvack.org>; Sun, 06 Apr 2014 09:54:42 -0700 (PDT)
+Received: from g4t3427.houston.hp.com (g4t3427.houston.hp.com. [15.201.208.55])
+        by mx.google.com with ESMTPS id n4si6666704oew.144.2014.04.06.09.54.41
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 06 Apr 2014 08:34:05 -0700 (PDT)
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH -mm 2/3] lockdep: mark rwsem_acquire_read as recursive
-Date: Sun, 6 Apr 2014 19:33:51 +0400
-Message-ID: <8c6473e959a4557d8622a6d7ff24888cb3f7512d.1396779337.git.vdavydov@parallels.com>
-In-Reply-To: <cover.1396779337.git.vdavydov@parallels.com>
-References: <cover.1396779337.git.vdavydov@parallels.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Sun, 06 Apr 2014 09:54:41 -0700 (PDT)
+Message-ID: <1396803278.2461.12.camel@buesod1.americas.hpqcorp.net>
+Subject: Re: [PATCH] ipc,shm: disable shmmax and shmall by default
+From: Davidlohr Bueso <davidlohr@hp.com>
+Date: Sun, 06 Apr 2014 09:54:38 -0700
+In-Reply-To: <5340F73A.6090600@colorfullife.com>
+References: <1396235199.2507.2.camel@buesod1.americas.hpqcorp.net>
+	 <CAHGf_=rLLBDr5ptLMvFD-M+TPQSnK3EP=7R+27K8or84rY-KLA@mail.gmail.com>
+	 <1396386062.25314.24.camel@buesod1.americas.hpqcorp.net>
+	 <CAHGf_=rhXrBQSmDBJJ-vPxBbhjJ91Fh2iWe1cf_UQd-tCfpb2w@mail.gmail.com>
+	 <20140401142947.927642a408d84df27d581e36@linux-foundation.org>
+	 <CAHGf_=p70rLOYwP2OgtK+2b+41=GwMA9R=rZYBqRr1w_O5UnKA@mail.gmail.com>
+	 <20140401144801.603c288674ab8f417b42a043@linux-foundation.org>
+	 <CAHGf_=r5AUu6yvJgOzwYDghBo6iT2q+nNumpvqwer+igcfChrA@mail.gmail.com>
+	 <1396394931.25314.34.camel@buesod1.americas.hpqcorp.net>
+	 <CAHGf_=rH+vfFzRrh35TETxjFU2HM0xnDQFweQ+Bfw20Pm2nL3g@mail.gmail.com>
+	 <1396484447.2953.1.camel@buesod1.americas.hpqcorp.net>
+	 <533DB03D.7010308@colorfullife.com>
+	 <1396554637.2550.11.camel@buesod1.americas.hpqcorp.net>
+	 <CAHGf_=rT7WswD0LOxVeDDpae-Ahaz4wEcpE8HLmDwOBw598z8g@mail.gmail.com>
+	 <1396587632.2499.5.camel@buesod1.americas.hpqcorp.net>
+	 <CAHGf_=pvN96SgLYdR3jPn8VaEfAjq-LX=r=PQRvPGqi6xFJoxQ@mail.gmail.com>
+	 <5340F73A.6090600@colorfullife.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, devel@openvz.org, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>
+To: Manfred Spraul <manfred@colorfullife.com>
+Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, aswin@hp.com, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Greg Thelen <gthelen@google.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-rw_semaphore implementation allows recursing calls to down_read, but
-lockdep thinks that it doesn't. As a result, it will complain
-false-positively, e.g. if we do not observe some predefined locking
-order when taking an rw semaphore for reading and a mutex.
+On Sun, 2014-04-06 at 08:42 +0200, Manfred Spraul wrote:
+> Hi,
+> 
+> On 04/05/2014 08:24 PM, KOSAKI Motohiro wrote:
+> > On Fri, Apr 4, 2014 at 1:00 AM, Davidlohr Bueso <davidlohr@hp.com> wrote:
+> >> I don't think it makes much sense to set unlimited for both 0 and
+> >> ULONG_MAX, that would probably just create even more confusion.
+> I agree.
+> Unlimited was INT_MAX since 0.99.10 and ULONG_MAX since 2.3.39 (with 
+> proper backward compatibility for user space).
+> 
+> Adding a second value for unlimited just creates confusion.
+> >> But then again, we shouldn't even care about breaking things with shmmax
+> >> or shmall with 0 value, it just makes no sense from a user PoV. shmmax
+> >> cannot be 0 unless there's an overflow, which voids any valid cases, and
+> >> thus shmall cannot be 0 either as it would go against any values set for
+> >> shmmax. I think it's safe to ignore this.
+> > Agreed.
+> > IMHO, until you find out any incompatibility issue of this, we don't
+> > need the switch
+> > because we can't make good workaround for that. I'd suggest to merge your patch
+> > and see what happen.
+> I disagree:
+> - "shmctl(,IPC_INFO,&buf); if (my_memory_size > buf.shmmax) 
+> perror("change shmmax");" worked correctly since 0.99.10. I don't think 
+> that merging the patch and seeing what happens is the right approach.
 
-This patch makes lockdep think rw semaphore is read-recursive, just like
-rw spin lock.
+I agree, we *must* get this right the first time. So no rushing into
+things that might later come and bite us in the future.
 
-Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Ingo Molnar <mingo@redhat.com>
----
- include/linux/lockdep.h |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+That said, if users are doing that kind of check, then they must also
+check against shmmin, which has _always_ been 1. So shmmax == 0 is a no
+no. Otherwise it's not the kernel's fault that they're misusing the API,
+which IMO is pretty straightforward for such things. And if shmmax
+cannot be 0, shmall cannot be 0.
 
-diff --git a/include/linux/lockdep.h b/include/linux/lockdep.h
-index 008388f920d7..4b95fe85375e 100644
---- a/include/linux/lockdep.h
-+++ b/include/linux/lockdep.h
-@@ -500,7 +500,7 @@ static inline void print_irqtrace_events(struct task_struct *curr)
- 
- #define rwsem_acquire(l, s, t, i)		lock_acquire_exclusive(l, s, t, NULL, i)
- #define rwsem_acquire_nest(l, s, t, n, i)	lock_acquire_exclusive(l, s, t, n, i)
--#define rwsem_acquire_read(l, s, t, i)		lock_acquire_shared(l, s, t, NULL, i)
-+#define rwsem_acquire_read(l, s, t, i)		lock_acquire_shared_recursive(l, s, t, NULL, i)
- #define rwsem_release(l, n, i)			lock_release(l, n, i)
- 
- #define lock_map_acquire(l)			lock_acquire_exclusive(l, 0, 0, NULL, _THIS_IP_)
--- 
-1.7.10.4
+> - setting shmmax by default to ULONG_MAX is the perfect workaround.
+> 
+> What reasons are there against the one-line patch?
+
+There's really nothing wrong with it, it's just that 0 is a much nicer
+value to have for 'unlimited'. And if we can get away with it, then
+lets, otherwise yes, we should go with this path.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
