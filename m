@@ -1,83 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id D349A6B0031
-	for <linux-mm@kvack.org>; Mon,  7 Apr 2014 15:34:59 -0400 (EDT)
-Received: by mail-pd0-f179.google.com with SMTP id w10so6951411pde.24
-        for <linux-mm@kvack.org>; Mon, 07 Apr 2014 12:34:59 -0700 (PDT)
-Received: from qmta10.emeryville.ca.mail.comcast.net (qmta10.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:17])
-        by mx.google.com with ESMTP id ic8si8816436pad.13.2014.04.07.12.34.58
-        for <linux-mm@kvack.org>;
-        Mon, 07 Apr 2014 12:34:59 -0700 (PDT)
-Date: Mon, 7 Apr 2014 14:34:56 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: mm: slub: gpf in deactivate_slab
-In-Reply-To: <53401F56.5090507@oracle.com>
-Message-ID: <alpine.DEB.2.10.1404071429530.4447@nuc>
-References: <53208A87.2040907@oracle.com> <5331A6C3.2000303@oracle.com> <20140325165247.GA7519@dhcp22.suse.cz> <alpine.DEB.2.10.1403251205140.24534@nuc> <5331B9C8.7080106@oracle.com> <alpine.DEB.2.10.1403251308590.26471@nuc> <53321CB6.5050706@oracle.com>
- <alpine.DEB.2.10.1403261042360.2057@nuc> <53401F56.5090507@oracle.com>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-la0-f42.google.com (mail-la0-f42.google.com [209.85.215.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 1892C6B0031
+	for <linux-mm@kvack.org>; Mon,  7 Apr 2014 15:36:49 -0400 (EDT)
+Received: by mail-la0-f42.google.com with SMTP id ec20so5222769lab.15
+        for <linux-mm@kvack.org>; Mon, 07 Apr 2014 12:36:49 -0700 (PDT)
+Received: from mail-lb0-x22e.google.com (mail-lb0-x22e.google.com [2a00:1450:4010:c04::22e])
+        by mx.google.com with ESMTPS id e6si13012013lah.79.2014.04.07.12.36.48
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 07 Apr 2014 12:36:48 -0700 (PDT)
+Received: by mail-lb0-f174.google.com with SMTP id u14so5183767lbd.19
+        for <linux-mm@kvack.org>; Mon, 07 Apr 2014 12:36:48 -0700 (PDT)
+Date: Mon, 7 Apr 2014 23:36:46 +0400
+From: Cyrill Gorcunov <gorcunov@gmail.com>
+Subject: Re: [PATCH 2/3] x86: Define _PAGE_NUMA with unused physical address
+ bits PMD and PTE levels
+Message-ID: <20140407193646.GC23983@moon>
+References: <1396883443-11696-1-git-send-email-mgorman@suse.de>
+ <1396883443-11696-3-git-send-email-mgorman@suse.de>
+ <5342C517.2020305@citrix.com>
+ <20140407154935.GD7292@suse.de>
+ <20140407161910.GJ1444@moon>
+ <20140407182854.GH7292@suse.de>
+ <5342FC0E.9080701@zytor.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5342FC0E.9080701@zytor.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: "H. Peter Anvin" <hpa@zytor.com>
+Cc: Mel Gorman <mgorman@suse.de>, David Vrabel <david.vrabel@citrix.com>, Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Steven Noonan <steven@uplinklabs.net>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Linux-MM <linux-mm@kvack.org>, Linux-X86 <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Pavel Emelyanov <xemul@parallels.com>
 
-On Sat, 5 Apr 2014, Sasha Levin wrote:
+On Mon, Apr 07, 2014 at 12:27:10PM -0700, H. Peter Anvin wrote:
+> On 04/07/2014 11:28 AM, Mel Gorman wrote:
+> > 
+> > I had considered the soft-dirty tracking usage of the same bit. I thought I'd
+> > be able to swizzle around it or a further worst case of having soft-dirty and
+> > automatic NUMA balancing mutually exclusive. Unfortunately upon examination
+> > it's not obvious how to have both of them share a bit and I suspect any
+> > attempt to will break CRIU.  In my current tree, NUMA_BALANCING cannot be
+> > set if MEM_SOFT_DIRTY which is not particularly satisfactory. Next on the
+> > list is examining if _PAGE_BIT_IOMAP can be used.
+> 
+> Didn't we smoke the last user of _PAGE_BIT_IOMAP?
 
-> [ 1035.193166] Call Trace:
-> [ 1035.193166] ? init_object (mm/slub.c:679)
-> [ 1035.193166] setup_object.isra.34 (mm/slub.c:1071 mm/slub.c:1399)
-> [ 1035.193166] new_slab (mm/slub.c:286 mm/slub.c:1439)
-> [ 1035.193166] __slab_alloc (mm/slub.c:2203 mm/slub.c:2363)
-> [ 1035.193166] ? kmem_cache_alloc (mm/slub.c:2469 mm/slub.c:2480 mm/slub.c:2485)
-
-
-Ok so the story here is that slub decided it needed a new slab and
-requested memory from the page allocator.
-
-setup_object() tries to write to the page which fails.
-
-Could the page allocator have delivered a reference to a page struct that
-creates an invalid address?
-
-The code that fails is:
-
- page = allocate_slab(s,
-                flags & (GFP_RECLAIM_MASK | GFP_CONSTRAINT_MASK), node);
-        if (!page)
-                goto out;
-
---- So we got a page from teh page allocator
-
-        order = compound_order(page);
-        inc_slabs_node(s, page_to_nid(page), page->objects);
-        memcg_bind_pages(s, order);
-        page->slab_cache = s;
-        __SetPageSlab(page);
-
--- Writing to the page struct works.
-
-        if (page->pfmemalloc)
-                SetPageSlabPfmemalloc(page);
-
-        start = page_address(page);
-
-        if (unlikely(s->flags & SLAB_POISON))
-                memset(start, POISON_INUSE, PAGE_SIZE << order);
-
-
---- This should have triggered since we write to the page but maybe this
-	slab has a ctor set and therefore no poisining is possible.
-
-        last = start;
-        for_each_object(p, s, start, page->objects) {
-                setup_object(s, page, last);
-
-*** This is where the write access to the page fails.
-
-                set_freepointer(s, last, p);
-                last = p;
-        }
-        setup_object(s, page, last);
+Seems so, at least for non-kernel pages (not considering this bit references in
+xen code, which i simply don't know but i guess it's used for kernel pages only).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
