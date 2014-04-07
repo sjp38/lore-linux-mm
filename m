@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f180.google.com (mail-we0-f180.google.com [74.125.82.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 306C36B0031
-	for <linux-mm@kvack.org>; Mon,  7 Apr 2014 10:40:16 -0400 (EDT)
-Received: by mail-we0-f180.google.com with SMTP id p61so6963083wes.11
-        for <linux-mm@kvack.org>; Mon, 07 Apr 2014 07:40:15 -0700 (PDT)
+Received: from mail-ee0-f51.google.com (mail-ee0-f51.google.com [74.125.83.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E7346B0037
+	for <linux-mm@kvack.org>; Mon,  7 Apr 2014 10:46:16 -0400 (EDT)
+Received: by mail-ee0-f51.google.com with SMTP id c13so689297eek.24
+        for <linux-mm@kvack.org>; Mon, 07 Apr 2014 07:46:15 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q10si2064956wjf.70.2014.04.07.07.40.14
+        by mx.google.com with ESMTPS id w48si24189058eel.326.2014.04.07.07.46.13
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 07 Apr 2014 07:40:14 -0700 (PDT)
-Message-ID: <5342B8CC.9020009@suse.cz>
-Date: Mon, 07 Apr 2014 16:40:12 +0200
+        Mon, 07 Apr 2014 07:46:14 -0700 (PDT)
+Message-ID: <5342BA34.8050006@suse.cz>
+Date: Mon, 07 Apr 2014 16:46:12 +0200
 From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/2] mm/compaction: clean up unused code lines
-References: <1396515424-18794-1-git-send-email-heesub.shin@samsung.com>
-In-Reply-To: <1396515424-18794-1-git-send-email-heesub.shin@samsung.com>
+Subject: Re: [PATCH 2/2] mm/compaction: fix to initialize free scanner properly
+References: <1396515424-18794-1-git-send-email-heesub.shin@samsung.com> <1396515424-18794-2-git-send-email-heesub.shin@samsung.com>
+In-Reply-To: <1396515424-18794-2-git-send-email-heesub.shin@samsung.com>
 Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -24,53 +24,44 @@ To: Heesub Shin <heesub.shin@samsung.com>, Andrew Morton <akpm@linux-foundation.
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Dongjun Shin <d.j.shin@samsung.com>, Sunghwan Yun <sunghwan.yun@samsung.com>
 
 On 04/03/2014 10:57 AM, Heesub Shin wrote:
-> This commit removes code lines currently not in use or never called.
+> Free scanner does not works well on systems having zones which do not
+> span to pageblock-aligned boundary.
 >
+> zone->compact_cached_free_pfn is reset when the migration and free
+> scanner across or compaction restarts. After the reset, if end_pfn of
+> the zone was not aligned to pageblock_nr_pages, free scanner tries to
+> isolate free pages from the middle of pageblock to the end, which can
+> be very small range.
+
+Hm good catch. I think that the same problem can happen (at least 
+theoretically) through zone->compact_cached_free_pfn with 
+CONFIG_HOLES_IN_ZONE enabled. Then compact_cached_free_pfn could be set
+to a non-aligned-to-pageblock pfn and spoil scans. I'll send a patch 
+that solves it on isolate_freepages() level, which allows further 
+simplification of the function.
+
+Vlastimil
+
 > Signed-off-by: Heesub Shin <heesub.shin@samsung.com>
 > Cc: Dongjun Shin <d.j.shin@samsung.com>
 > Cc: Sunghwan Yun <sunghwan.yun@samsung.com>
-
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
-
 > ---
->   mm/compaction.c | 10 ----------
->   1 file changed, 10 deletions(-)
+>   mm/compaction.c | 2 +-
+>   1 file changed, 1 insertion(+), 1 deletion(-)
 >
 > diff --git a/mm/compaction.c b/mm/compaction.c
-> index 9635083..1ef9144 100644
+> index 1ef9144..fefe1da 100644
 > --- a/mm/compaction.c
 > +++ b/mm/compaction.c
-> @@ -208,12 +208,6 @@ static bool compact_checklock_irqsave(spinlock_t *lock, unsigned long *flags,
->   	return true;
->   }
->
-> -static inline bool compact_trylock_irqsave(spinlock_t *lock,
-> -			unsigned long *flags, struct compact_control *cc)
-> -{
-> -	return compact_checklock_irqsave(lock, flags, false, cc);
-> -}
-> -
->   /* Returns true if the page is within a block suitable for migration to */
->   static bool suitable_migration_target(struct page *page)
->   {
-> @@ -728,7 +722,6 @@ static void isolate_freepages(struct zone *zone,
->   			continue;
->
->   		/* Found a block suitable for isolating free pages from */
-> -		isolated = 0;
->
->   		/*
->   		 * As pfn may not start aligned, pfn+pageblock_nr_page
-> @@ -1160,9 +1153,6 @@ static void __compact_pgdat(pg_data_t *pgdat, struct compact_control *cc)
->   			if (zone_watermark_ok(zone, cc->order,
->   						low_wmark_pages(zone), 0, 0))
->   				compaction_defer_reset(zone, cc->order, false);
-> -			/* Currently async compaction is never deferred. */
-> -			else if (cc->sync)
-> -				defer_compaction(zone, cc->order);
->   		}
->
->   		VM_BUG_ON(!list_empty(&cc->freepages));
+> @@ -983,7 +983,7 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
+>   	 */
+>   	cc->migrate_pfn = zone->compact_cached_migrate_pfn;
+>   	cc->free_pfn = zone->compact_cached_free_pfn;
+> -	if (cc->free_pfn < start_pfn || cc->free_pfn > end_pfn) {
+> +	if (cc->free_pfn < start_pfn || cc->free_pfn >= end_pfn) {
+>   		cc->free_pfn = end_pfn & ~(pageblock_nr_pages-1);
+>   		zone->compact_cached_free_pfn = cc->free_pfn;
+>   	}
 >
 
 --
