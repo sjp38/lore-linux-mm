@@ -1,91 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
-	by kanga.kvack.org (Postfix) with ESMTP id AD5E56B0036
-	for <linux-mm@kvack.org>; Mon,  7 Apr 2014 18:34:34 -0400 (EDT)
-Received: by mail-wi0-f180.google.com with SMTP id q5so357307wiv.1
-        for <linux-mm@kvack.org>; Mon, 07 Apr 2014 15:34:33 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q5si146627eem.141.2014.04.07.15.34.32
+Received: from mail-bk0-f54.google.com (mail-bk0-f54.google.com [209.85.214.54])
+	by kanga.kvack.org (Postfix) with ESMTP id A9F996B0031
+	for <linux-mm@kvack.org>; Mon,  7 Apr 2014 19:35:23 -0400 (EDT)
+Received: by mail-bk0-f54.google.com with SMTP id 6so37653bkj.27
+        for <linux-mm@kvack.org>; Mon, 07 Apr 2014 16:35:22 -0700 (PDT)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id ur10si264361bkb.242.2014.04.07.16.35.21
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 07 Apr 2014 15:34:33 -0700 (PDT)
-From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 2/2] mm: page_alloc: Do not cache reclaim distances
-Date: Mon,  7 Apr 2014 23:34:28 +0100
-Message-Id: <1396910068-11637-3-git-send-email-mgorman@suse.de>
-In-Reply-To: <1396910068-11637-1-git-send-email-mgorman@suse.de>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 07 Apr 2014 16:35:22 -0700 (PDT)
+Date: Mon, 7 Apr 2014 19:35:11 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 1/2] mm: Disable zone_reclaim_mode by default
+Message-ID: <20140407233511.GO4407@cmpxchg.org>
 References: <1396910068-11637-1-git-send-email-mgorman@suse.de>
+ <1396910068-11637-2-git-send-email-mgorman@suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1396910068-11637-2-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Robert Haas <robertmhaas@gmail.com>, Josh Berkus <josh@agliodbs.com>, Andres Freund <andres@2ndquadrant.com>, Christoph Lameter <cl@linux.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Robert Haas <robertmhaas@gmail.com>, Josh Berkus <josh@agliodbs.com>, Andres Freund <andres@2ndquadrant.com>, Christoph Lameter <cl@linux.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-pgdat->reclaim_nodes tracks if a remote node is allowed to be reclaimed by
-zone_reclaim due to its distance. As it is expected that zone_reclaim_mode
-will be rarely enabled it is unreasonable for all machines to take a penalty.
-Fortunately, the zone_reclaim_mode() path is already slow and it is the path
-that takes the hit.
+On Mon, Apr 07, 2014 at 11:34:27PM +0100, Mel Gorman wrote:
+> zone_reclaim_mode causes processes to prefer reclaiming memory from local
+> node instead of spilling over to other nodes. This made sense initially when
+> NUMA machines were almost exclusively HPC and the workload was partitioned
+> into nodes. The NUMA penalties were sufficiently high to justify reclaiming
+> the memory. On current machines and workloads it is often the case that
+> zone_reclaim_mode destroys performance but not all users know how to detect
+> this. Favour the common case and disable it by default. Users that are
+> sophisticated enough to know they need zone_reclaim_mode will detect it.
+> 
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
 
-Signed-off-by: Mel Gorman <mgorman@suse.de>
----
- include/linux/mmzone.h |  1 -
- mm/page_alloc.c        | 15 +--------------
- 2 files changed, 1 insertion(+), 15 deletions(-)
-
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 9b61b9b..564b169 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -757,7 +757,6 @@ typedef struct pglist_data {
- 	unsigned long node_spanned_pages; /* total size of physical page
- 					     range, including holes */
- 	int node_id;
--	nodemask_t reclaim_nodes;	/* Nodes allowed to reclaim from */
- 	wait_queue_head_t kswapd_wait;
- 	wait_queue_head_t pfmemalloc_wait;
- 	struct task_struct *kswapd;	/* Protected by lock_memory_hotplug() */
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index a256f85..574928e 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1863,16 +1863,7 @@ static bool zone_local(struct zone *local_zone, struct zone *zone)
- 
- static bool zone_allows_reclaim(struct zone *local_zone, struct zone *zone)
- {
--	return node_isset(local_zone->node, zone->zone_pgdat->reclaim_nodes);
--}
--
--static void __paginginit init_zone_allows_reclaim(int nid)
--{
--	int i;
--
--	for_each_online_node(i)
--		if (node_distance(nid, i) <= RECLAIM_DISTANCE)
--			node_set(i, NODE_DATA(nid)->reclaim_nodes);
-+	return node_distance(zone_to_nid(local_zone), zone_to_nid(zone)) < RECLAIM_DISTANCE;
- }
- 
- #else	/* CONFIG_NUMA */
-@@ -1906,9 +1897,6 @@ static bool zone_allows_reclaim(struct zone *local_zone, struct zone *zone)
- 	return true;
- }
- 
--static inline void init_zone_allows_reclaim(int nid)
--{
--}
- #endif	/* CONFIG_NUMA */
- 
- /*
-@@ -4917,7 +4905,6 @@ void __paginginit free_area_init_node(int nid, unsigned long *zones_size,
- 
- 	pgdat->node_id = nid;
- 	pgdat->node_start_pfn = node_start_pfn;
--	init_zone_allows_reclaim(nid);
- #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
- 	get_pfn_range_for_nid(nid, &start_pfn, &end_pfn);
- #endif
--- 
-1.8.4.5
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
