@@ -1,43 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f181.google.com (mail-lb0-f181.google.com [209.85.217.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 431E96B0037
-	for <linux-mm@kvack.org>; Mon,  7 Apr 2014 04:26:47 -0400 (EDT)
-Received: by mail-lb0-f181.google.com with SMTP id c11so4514024lbj.12
-        for <linux-mm@kvack.org>; Mon, 07 Apr 2014 01:26:46 -0700 (PDT)
+Received: from mail-la0-f48.google.com (mail-la0-f48.google.com [209.85.215.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 0D39E6B0031
+	for <linux-mm@kvack.org>; Mon,  7 Apr 2014 05:45:39 -0400 (EDT)
+Received: by mail-la0-f48.google.com with SMTP id gf5so4449218lab.7
+        for <linux-mm@kvack.org>; Mon, 07 Apr 2014 02:45:39 -0700 (PDT)
 Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id pr4si11551936lbc.198.2014.04.07.01.26.45
+        by mx.google.com with ESMTPS id h4si11754856lae.214.2014.04.07.02.45.37
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Apr 2014 01:26:45 -0700 (PDT)
-Message-ID: <5342613E.2090900@parallels.com>
-Date: Mon, 7 Apr 2014 12:26:38 +0400
+        Mon, 07 Apr 2014 02:45:38 -0700 (PDT)
 From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: [PATCH -mm v2 0/2] slab: cleanup mem hotplug synchronization
+Date: Mon, 7 Apr 2014 13:45:33 +0400
+Message-ID: <cover.1396857765.git.vdavydov@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH -mm 2/3] lockdep: mark rwsem_acquire_read as recursive
-References: <cover.1396779337.git.vdavydov@parallels.com> <8c6473e959a4557d8622a6d7ff24888cb3f7512d.1396779337.git.vdavydov@parallels.com> <20140407081336.GC11096@twins.programming.kicks-ass.net>
-In-Reply-To: <20140407081336.GC11096@twins.programming.kicks-ass.net>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, devel@openvz.org, Ingo Molnar <mingo@redhat.com>
+To: akpm@linux-foundation.org
+Cc: cl@linux-foundation.org, penberg@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, devel@openvz.org
 
-On 04/07/2014 12:13 PM, Peter Zijlstra wrote:
-> On Sun, Apr 06, 2014 at 07:33:51PM +0400, Vladimir Davydov wrote:
->> rw_semaphore implementation allows recursing calls to down_read, but
->> lockdep thinks that it doesn't. As a result, it will complain
->> false-positively, e.g. if we do not observe some predefined locking
->> order when taking an rw semaphore for reading and a mutex.
->>
->> This patch makes lockdep think rw semaphore is read-recursive, just like
->> rw spin lock.
-> Uhm no rwsem isn't read recursive.
+Hi,
 
-Yeah, I was mistaken and is already reworking my set. Please sorry for
-the noise.
+kmem_cache_{create,destroy,shrink} need to get a stable value of
+cpu/node online mask, because they init/destroy/access per-cpu/node
+kmem_cache parts, which can be allocated or destroyed on cpu/mem
+hotplug. To protect against cpu hotplug, these functions use
+{get,put}_online_cpus. However, they do nothing to synchronize with
+memory hotplug - taking the slab_mutex does not eliminate the
+possibility of race as described in patch 2.
 
-Thanks.
+What we need there is something like get_online_cpus, but for memory. We
+already have lock_memory_hotplug, which serves for the purpose, but it's
+a bit of a hammer right now, because it's backed by a mutex. As a
+result, it imposes some limitations to locking order, which are not
+desirable, and can't be used just like get_online_cpus. That's why in
+patch 1 I substitute it with get/put_online_mems, which work exactly
+like get/put_online_cpus except they block not cpu, but memory hotplug.
+
+[ v1 can be found at https://lkml.org/lkml/2014/4/6/68. I NAK'ed it by
+myself, because it used an rw semaphore for get/put_online_mems, making
+them dead lock prune. ]
+
+Thanks,
+
+Vladimir Davydov (2):
+  mem-hotplug: implement get/put_online_mems
+  slab: lock_memory_hotplug for kmem_cache_{create,destroy,shrink}
+
+ include/linux/memory_hotplug.h |   14 ++--
+ include/linux/mmzone.h         |    8 +--
+ mm/kmemleak.c                  |    4 +-
+ mm/memory-failure.c            |    8 +--
+ mm/memory_hotplug.c            |  142 ++++++++++++++++++++++++++++------------
+ mm/slab.c                      |   26 +-------
+ mm/slab.h                      |    1 +
+ mm/slab_common.c               |   35 +++++++++-
+ mm/slob.c                      |    3 +-
+ mm/slub.c                      |    9 ++-
+ mm/vmscan.c                    |    2 +-
+ 11 files changed, 155 insertions(+), 97 deletions(-)
+
+-- 
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
