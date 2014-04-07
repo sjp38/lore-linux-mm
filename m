@@ -1,256 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id D3B636B0070
-	for <linux-mm@kvack.org>; Mon,  7 Apr 2014 14:19:00 -0400 (EDT)
-Received: by mail-pa0-f48.google.com with SMTP id hz1so7108786pad.21
-        for <linux-mm@kvack.org>; Mon, 07 Apr 2014 11:19:00 -0700 (PDT)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.11.231])
-        by mx.google.com with ESMTPS id br3si5624071pbb.508.2014.04.07.11.18.59
+Received: from mail-ee0-f48.google.com (mail-ee0-f48.google.com [74.125.83.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D6006B0072
+	for <linux-mm@kvack.org>; Mon,  7 Apr 2014 14:29:01 -0400 (EDT)
+Received: by mail-ee0-f48.google.com with SMTP id b57so898960eek.7
+        for <linux-mm@kvack.org>; Mon, 07 Apr 2014 11:29:00 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id g45si25046793eev.10.2014.04.07.11.28.59
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 07 Apr 2014 11:19:00 -0700 (PDT)
-From: Mitchel Humpherys <mitchelh@codeaurora.org>
-Subject: [PATCH v3] mm: convert some level-less printks to pr_*
-Date: Mon,  7 Apr 2014 11:18:52 -0700
-Message-Id: <1396894732-17963-2-git-send-email-mitchelh@codeaurora.org>
-In-Reply-To: <1396894732-17963-1-git-send-email-mitchelh@codeaurora.org>
-References: <1396894732-17963-1-git-send-email-mitchelh@codeaurora.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 07 Apr 2014 11:28:59 -0700 (PDT)
+Date: Mon, 7 Apr 2014 19:28:54 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 2/3] x86: Define _PAGE_NUMA with unused physical address
+ bits PMD and PTE levels
+Message-ID: <20140407182854.GH7292@suse.de>
+References: <1396883443-11696-1-git-send-email-mgorman@suse.de>
+ <1396883443-11696-3-git-send-email-mgorman@suse.de>
+ <5342C517.2020305@citrix.com>
+ <20140407154935.GD7292@suse.de>
+ <20140407161910.GJ1444@moon>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20140407161910.GJ1444@moon>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Joe Perches <joe@perches.com>, linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Mitchel Humpherys <mitchelh@codeaurora.org>
+To: Cyrill Gorcunov <gorcunov@gmail.com>
+Cc: David Vrabel <david.vrabel@citrix.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Anvin <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, Steven Noonan <steven@uplinklabs.net>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Linux-MM <linux-mm@kvack.org>, Linux-X86 <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Pavel Emelyanov <xemul@parallels.com>
 
-printk is meant to be used with an associated log level. There are some
-instances of printk scattered around the mm code where the log level is
-missing. Add a log level and adhere to suggestions by
-scripts/checkpatch.pl by moving to the pr_* macros.
+On Mon, Apr 07, 2014 at 08:19:10PM +0400, Cyrill Gorcunov wrote:
+> On Mon, Apr 07, 2014 at 04:49:35PM +0100, Mel Gorman wrote:
+> > On Mon, Apr 07, 2014 at 04:32:39PM +0100, David Vrabel wrote:
+> > > On 07/04/14 16:10, Mel Gorman wrote:
+> > > > _PAGE_NUMA is currently an alias of _PROT_PROTNONE to trap NUMA hinting
+> > > > faults. As the bit is shared care is taken that _PAGE_NUMA is only used in
+> > > > places where _PAGE_PROTNONE could not reach but this still causes problems
+> > > > on Xen and conceptually difficult.
+> > > 
+> > > The problem with Xen guests occurred because mprotect() /was/ confusing
+> > > PROTNONE mappings with _PAGE_NUMA and clearing the non-existant NUMA hints.
+> > 
+> > I didn't bother spelling it out in case I gave the impression that I was
+> > blaming Xen for the problem.  As the bit is now changes, does it help
+> > the Xen problem or cause another collision of some sort? There is no
+> > guarantee _PAGE_NUMA will remain as bit 62 but at worst it'll use bit 11
+> > and NUMA_BALANCING will depend in !KMEMCHECK.
+> 
+> Fwiw, we're using bit 11 for soft-dirty tracking, so i really hope worst case
+> never happen. (At the moment I'm trying to figure out if with this set
+> it would be possible to clean up ugly macros in pgoff_to_pte for 2 level pages).
 
-Signed-off-by: Mitchel Humpherys <mitchelh@codeaurora.org>
----
- mm/bounce.c    |  7 +++++--
- mm/mempolicy.c |  5 ++++-
- mm/mmap.c      | 21 ++++++++++++---------
- mm/nommu.c     |  5 ++++-
- mm/vmscan.c    |  5 ++++-
- 5 files changed, 29 insertions(+), 14 deletions(-)
+I had considered the soft-dirty tracking usage of the same bit. I thought I'd
+be able to swizzle around it or a further worst case of having soft-dirty and
+automatic NUMA balancing mutually exclusive. Unfortunately upon examination
+it's not obvious how to have both of them share a bit and I suspect any
+attempt to will break CRIU.  In my current tree, NUMA_BALANCING cannot be
+set if MEM_SOFT_DIRTY which is not particularly satisfactory. Next on the
+list is examining if _PAGE_BIT_IOMAP can be used.
 
-diff --git a/mm/bounce.c b/mm/bounce.c
-index 523918b8c6..d35850895b 100644
---- a/mm/bounce.c
-+++ b/mm/bounce.c
-@@ -3,6 +3,8 @@
-  * - Split from highmem.c
-  */
- 
-+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-+
- #include <linux/mm.h>
- #include <linux/export.h>
- #include <linux/swap.h>
-@@ -15,6 +17,7 @@
- #include <linux/hash.h>
- #include <linux/highmem.h>
- #include <linux/bootmem.h>
-+#include <linux/printk.h>
- #include <asm/tlbflush.h>
- 
- #include <trace/events/block.h>
-@@ -34,7 +37,7 @@ static __init int init_emergency_pool(void)
- 
- 	page_pool = mempool_create_page_pool(POOL_SIZE, 0);
- 	BUG_ON(!page_pool);
--	printk("bounce pool size: %d pages\n", POOL_SIZE);
-+	pr_info("bounce pool size: %d pages\n", POOL_SIZE);
- 
- 	return 0;
- }
-@@ -86,7 +89,7 @@ int init_emergency_isa_pool(void)
- 				       mempool_free_pages, (void *) 0);
- 	BUG_ON(!isa_page_pool);
- 
--	printk("isa bounce pool size: %d pages\n", ISA_POOL_SIZE);
-+	pr_info("isa bounce pool size: %d pages\n", ISA_POOL_SIZE);
- 	return 0;
- }
- 
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index e3ab028227..ec6c90fc51 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -65,6 +65,8 @@
-    kernel is not always grateful with that.
- */
- 
-+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-+
- #include <linux/mempolicy.h>
- #include <linux/mm.h>
- #include <linux/highmem.h>
-@@ -91,6 +93,7 @@
- #include <linux/ctype.h>
- #include <linux/mm_inline.h>
- #include <linux/mmu_notifier.h>
-+#include <linux/printk.h>
- 
- #include <asm/tlbflush.h>
- #include <asm/uaccess.h>
-@@ -2679,7 +2682,7 @@ void __init numa_policy_init(void)
- 		node_set(prefer, interleave_nodes);
- 
- 	if (do_set_mempolicy(MPOL_INTERLEAVE, 0, &interleave_nodes))
--		printk("numa_policy_init: interleaving failed\n");
-+		pr_err("%s: interleaving failed\n", __func__);
- 
- 	check_numabalancing_enable();
- }
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 46433e137a..7cb79eb2fc 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -6,6 +6,8 @@
-  * Address space accounting code	<alan@lxorguk.ukuu.org.uk>
-  */
- 
-+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-+
- #include <linux/kernel.h>
- #include <linux/slab.h>
- #include <linux/backing-dev.h>
-@@ -36,6 +38,7 @@
- #include <linux/sched/sysctl.h>
- #include <linux/notifier.h>
- #include <linux/memory.h>
-+#include <linux/printk.h>
- 
- #include <asm/uaccess.h>
- #include <asm/cacheflush.h>
-@@ -360,20 +363,20 @@ static int browse_rb(struct rb_root *root)
- 		struct vm_area_struct *vma;
- 		vma = rb_entry(nd, struct vm_area_struct, vm_rb);
- 		if (vma->vm_start < prev) {
--			printk("vm_start %lx prev %lx\n", vma->vm_start, prev);
-+			pr_info("vm_start %lx prev %lx\n", vma->vm_start, prev);
- 			bug = 1;
- 		}
- 		if (vma->vm_start < pend) {
--			printk("vm_start %lx pend %lx\n", vma->vm_start, pend);
-+			pr_info("vm_start %lx pend %lx\n", vma->vm_start, pend);
- 			bug = 1;
- 		}
- 		if (vma->vm_start > vma->vm_end) {
--			printk("vm_end %lx < vm_start %lx\n",
-+			pr_info("vm_end %lx < vm_start %lx\n",
- 				vma->vm_end, vma->vm_start);
- 			bug = 1;
- 		}
- 		if (vma->rb_subtree_gap != vma_compute_subtree_gap(vma)) {
--			printk("free gap %lx, correct %lx\n",
-+			pr_info("free gap %lx, correct %lx\n",
- 			       vma->rb_subtree_gap,
- 			       vma_compute_subtree_gap(vma));
- 			bug = 1;
-@@ -387,7 +390,7 @@ static int browse_rb(struct rb_root *root)
- 	for (nd = pn; nd; nd = rb_prev(nd))
- 		j++;
- 	if (i != j) {
--		printk("backwards %d, forwards %d\n", j, i);
-+		pr_info("backwards %d, forwards %d\n", j, i);
- 		bug = 1;
- 	}
- 	return bug ? -1 : i;
-@@ -422,17 +425,17 @@ static void validate_mm(struct mm_struct *mm)
- 		i++;
- 	}
- 	if (i != mm->map_count) {
--		printk("map_count %d vm_next %d\n", mm->map_count, i);
-+		pr_info("map_count %d vm_next %d\n", mm->map_count, i);
- 		bug = 1;
- 	}
- 	if (highest_address != mm->highest_vm_end) {
--		printk("mm->highest_vm_end %lx, found %lx\n",
-+		pr_info("mm->highest_vm_end %lx, found %lx\n",
- 		       mm->highest_vm_end, highest_address);
- 		bug = 1;
- 	}
- 	i = browse_rb(&mm->mm_rb);
- 	if (i != mm->map_count) {
--		printk("map_count %d rb %d\n", mm->map_count, i);
-+		pr_info("map_count %d rb %d\n", mm->map_count, i);
- 		bug = 1;
- 	}
- 	BUG_ON(bug);
-@@ -3249,7 +3252,7 @@ static struct notifier_block reserve_mem_nb = {
- static int __meminit init_reserve_notifier(void)
- {
- 	if (register_hotmemory_notifier(&reserve_mem_nb))
--		printk("Failed registering memory add/remove notifier for admin reserve");
-+		pr_err("Failed registering memory add/remove notifier for admin reserve\n");
- 
- 	return 0;
- }
-diff --git a/mm/nommu.c b/mm/nommu.c
-index a554e5a451..4f6dc43dd4 100644
---- a/mm/nommu.c
-+++ b/mm/nommu.c
-@@ -13,6 +13,8 @@
-  *  Copyright (c) 2007-2010 Paul Mundt <lethal@linux-sh.org>
-  */
- 
-+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-+
- #include <linux/export.h>
- #include <linux/mm.h>
- #include <linux/mman.h>
-@@ -30,6 +32,7 @@
- #include <linux/syscalls.h>
- #include <linux/audit.h>
- #include <linux/sched/sysctl.h>
-+#include <linux/printk.h>
- 
- #include <asm/uaccess.h>
- #include <asm/tlb.h>
-@@ -1241,7 +1244,7 @@ error_free:
- 	return ret;
- 
- enomem:
--	printk("Allocation of length %lu from process %d (%s) failed\n",
-+	pr_err("Allocation of length %lu from process %d (%s) failed\n",
- 	       len, current->pid, current->comm);
- 	show_free_areas(0);
- 	return -ENOMEM;
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 1f56a80a7c..02e45967eb 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -11,6 +11,8 @@
-  *  Multiqueue VM started 5.8.00, Rik van Riel.
-  */
- 
-+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-+
- #include <linux/mm.h>
- #include <linux/module.h>
- #include <linux/gfp.h>
-@@ -43,6 +45,7 @@
- #include <linux/sysctl.h>
- #include <linux/oom.h>
- #include <linux/prefetch.h>
-+#include <linux/printk.h>
- 
- #include <asm/tlbflush.h>
- #include <asm/div64.h>
-@@ -477,7 +480,7 @@ static pageout_t pageout(struct page *page, struct address_space *mapping,
- 		if (page_has_private(page)) {
- 			if (try_to_free_buffers(page)) {
- 				ClearPageDirty(page);
--				printk("%s: orphaned page\n", __func__);
-+				pr_info("%s: orphaned page\n", __func__);
- 				return PAGE_CLEAN;
- 			}
- 		}
 -- 
-The Qualcomm Innovation Center, Inc. is a member of the Code Aurora Forum,
-hosted by The Linux Foundation
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
