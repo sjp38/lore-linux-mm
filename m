@@ -1,173 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f47.google.com (mail-pb0-f47.google.com [209.85.160.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 39FF46B0031
-	for <linux-mm@kvack.org>; Mon,  7 Apr 2014 14:38:00 -0400 (EDT)
-Received: by mail-pb0-f47.google.com with SMTP id up15so7063694pbc.6
-        for <linux-mm@kvack.org>; Mon, 07 Apr 2014 11:37:59 -0700 (PDT)
-Received: from mail-pb0-f51.google.com (mail-pb0-f51.google.com [209.85.160.51])
-        by mx.google.com with ESMTPS id b4si8779388pbl.130.2014.04.07.11.37.58
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 07 Apr 2014 11:37:59 -0700 (PDT)
-Received: by mail-pb0-f51.google.com with SMTP id uo5so7154282pbc.10
-        for <linux-mm@kvack.org>; Mon, 07 Apr 2014 11:37:58 -0700 (PDT)
-Message-ID: <5342F083.5020509@linaro.org>
-Date: Mon, 07 Apr 2014 11:37:55 -0700
-From: John Stultz <john.stultz@linaro.org>
-MIME-Version: 1.0
-Subject: Re: [PATCH 2/5] vrange: Add purged page detection on setting memory
- non-volatile
-References: <1395436655-21670-1-git-send-email-john.stultz@linaro.org> <1395436655-21670-3-git-send-email-john.stultz@linaro.org> <CAHGf_=pBUW1Za862NGeN2u2D8B9hjTk5DgP4SYqoM34KUnMMhQ@mail.gmail.com>
-In-Reply-To: <CAHGf_=pBUW1Za862NGeN2u2D8B9hjTk5DgP4SYqoM34KUnMMhQ@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail-ee0-f49.google.com (mail-ee0-f49.google.com [74.125.83.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 4DA906B005C
+	for <linux-mm@kvack.org>; Mon,  7 Apr 2014 14:50:02 -0400 (EDT)
+Received: by mail-ee0-f49.google.com with SMTP id c41so260eek.36
+        for <linux-mm@kvack.org>; Mon, 07 Apr 2014 11:50:01 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id z2si25086178eeo.184.2014.04.07.11.50.00
+        for <linux-mm@kvack.org>;
+        Mon, 07 Apr 2014 11:50:01 -0700 (PDT)
+Date: Mon, 7 Apr 2014 14:49:35 -0400
+From: Luiz Capitulino <lcapitulino@redhat.com>
+Subject: Re: [PATCH 4/4] hugetlb: add support for gigantic page allocation
+ at runtime
+Message-ID: <20140407144935.259d4301@redhat.com>
+In-Reply-To: <1396893509-x52fgnka@n-horiguchi@ah.jp.nec.com>
+References: <1396462128-32626-1-git-send-email-lcapitulino@redhat.com>
+	<1396462128-32626-5-git-send-email-lcapitulino@redhat.com>
+	<1396893509-x52fgnka@n-horiguchi@ah.jp.nec.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Johannes Weiner <hannes@cmpxchg.org>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@sr71.net>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Neil Brown <neilb@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Jan Kara <jack@suse.cz>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, mtosatti@redhat.com, aarcange@redhat.com, mgorman@suse.de, akpm@linux-foundation.org, andi@firstfloor.org, davidlohr@hp.com, rientjes@google.com, isimatu.yasuaki@jp.fujitsu.com, yinghai@kernel.org, riel@redhat.com
 
-On 03/23/2014 10:42 AM, KOSAKI Motohiro wrote:
-> On Fri, Mar 21, 2014 at 2:17 PM, John Stultz <john.stultz@linaro.org> wrote:
->> Users of volatile ranges will need to know if memory was discarded.
->> This patch adds the purged state tracking required to inform userland
->> when it marks memory as non-volatile that some memory in that range
->> was purged and needs to be regenerated.
->>
->> This simplified implementation which uses some of the logic from
->> Minchan's earlier efforts, so credit to Minchan for his work.
->>
->> Cc: Andrew Morton <akpm@linux-foundation.org>
->> Cc: Android Kernel Team <kernel-team@android.com>
->> Cc: Johannes Weiner <hannes@cmpxchg.org>
->> Cc: Robert Love <rlove@google.com>
->> Cc: Mel Gorman <mel@csn.ul.ie>
->> Cc: Hugh Dickins <hughd@google.com>
->> Cc: Dave Hansen <dave@sr71.net>
->> Cc: Rik van Riel <riel@redhat.com>
->> Cc: Dmitry Adamushko <dmitry.adamushko@gmail.com>
->> Cc: Neil Brown <neilb@suse.de>
->> Cc: Andrea Arcangeli <aarcange@redhat.com>
->> Cc: Mike Hommey <mh@glandium.org>
->> Cc: Taras Glek <tglek@mozilla.com>
->> Cc: Jan Kara <jack@suse.cz>
->> Cc: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
->> Cc: Michel Lespinasse <walken@google.com>
->> Cc: Minchan Kim <minchan@kernel.org>
->> Cc: linux-mm@kvack.org <linux-mm@kvack.org>
->> Signed-off-by: John Stultz <john.stultz@linaro.org>
->> ---
->>  include/linux/swap.h    | 15 ++++++++--
->>  include/linux/swapops.h | 10 +++++++
->>  include/linux/vrange.h  |  3 ++
->>  mm/vrange.c             | 75 +++++++++++++++++++++++++++++++++++++++++++++++++
->>  4 files changed, 101 insertions(+), 2 deletions(-)
->>
->> diff --git a/include/linux/swap.h b/include/linux/swap.h
->> index 46ba0c6..18c12f9 100644
->> --- a/include/linux/swap.h
->> +++ b/include/linux/swap.h
->> @@ -70,8 +70,19 @@ static inline int current_is_kswapd(void)
->>  #define SWP_HWPOISON_NUM 0
->>  #endif
->>
->> -#define MAX_SWAPFILES \
->> -       ((1 << MAX_SWAPFILES_SHIFT) - SWP_MIGRATION_NUM - SWP_HWPOISON_NUM)
->> +
->> +/*
->> + * Purged volatile range pages
->> + */
->> +#define SWP_VRANGE_PURGED_NUM 1
->> +#define SWP_VRANGE_PURGED (MAX_SWAPFILES + SWP_HWPOISON_NUM + SWP_MIGRATION_NUM)
->> +
->> +
->> +#define MAX_SWAPFILES ((1 << MAX_SWAPFILES_SHIFT)      \
->> +                               - SWP_MIGRATION_NUM     \
->> +                               - SWP_HWPOISON_NUM      \
->> +                               - SWP_VRANGE_PURGED_NUM \
->> +                       )
-> This change hwpoison and migration tag number. maybe ok, maybe not.
+On Mon, 07 Apr 2014 13:58:29 -0400
+Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
 
-Though depending on config can't these tag numbers change anyway?
+> On Wed, Apr 02, 2014 at 02:08:48PM -0400, Luiz Capitulino wrote:
+> > HugeTLB is limited to allocating hugepages whose size are less than
+> > MAX_ORDER order. This is so because HugeTLB allocates hugepages via
+> > the buddy allocator. Gigantic pages (that is, pages whose size is
+> > greater than MAX_ORDER order) have to be allocated at boottime.
+> > 
+> > However, boottime allocation has at least two serious problems. First,
+> > it doesn't support NUMA and second, gigantic pages allocated at
+> > boottime can't be freed.
+> > 
+> > This commit solves both issues by adding support for allocating gigantic
+> > pages during runtime. It works just like regular sized hugepages,
+> > meaning that the interface in sysfs is the same, it supports NUMA,
+> > and gigantic pages can be freed.
+> > 
+> > For example, on x86_64 gigantic pages are 1GB big. To allocate two 1G
+> > gigantic pages on node 1, one can do:
+> > 
+> >  # echo 2 > \
+> >    /sys/devices/system/node/node1/hugepages/hugepages-1048576kB/nr_hugepages
+> > 
+> > And to free them later:
+> > 
+> >  # echo 0 > \
+> >    /sys/devices/system/node/node1/hugepages/hugepages-1048576kB/nr_hugepages
+> > 
+> > The one problem with gigantic page allocation at runtime is that it
+> > can't be serviced by the buddy allocator. To overcome that problem, this
+> > series scans all zones from a node looking for a large enough contiguous
+> > region. When one is found, it's allocated by using CMA, that is, we call
+> > alloc_contig_range() to do the actual allocation. For example, on x86_64
+> > we scan all zones looking for a 1GB contiguous region. When one is found
+> > it's allocated by alloc_contig_range().
+> > 
+> > One expected issue with that approach is that such gigantic contiguous
+> > regions tend to vanish as time goes by. The best way to avoid this for
+> > now is to make gigantic page allocations very early during boot, say
+> > from a init script. Other possible optimization include using compaction,
+> > which is supported by CMA but is not explicitly used by this commit.
+> > 
+> > It's also important to note the following:
+> > 
+> >  1. My target systems are x86_64 machines, so I have only tested 1GB
+> >     pages allocation/release. I did try to make this arch indepedent
+> >     and expect it to work on other archs but didn't try it myself
+> > 
+> >  2. I didn't add support for hugepage overcommit, that is allocating
+> >     a gigantic page on demand when
+> >    /proc/sys/vm/nr_overcommit_hugepages > 0. The reason is that I don't
+> >    think it's reasonable to do the hard and long work required for
+> >    allocating a gigantic page at fault time. But it should be simple
+> >    to add this if wanted
+> > 
+> > Signed-off-by: Luiz Capitulino <lcapitulino@redhat.com>
+> 
+> I agree to the basic idea. One question below ...
 
+Good to hear that.
 
-> I'd suggest to use younger number than hwpoison.
-> (That's why hwpoison uses younger number than migration)
+> > ---
+> >  arch/x86/include/asm/hugetlb.h |  10 +++
+> >  mm/hugetlb.c                   | 177 ++++++++++++++++++++++++++++++++++++++---
+> >  2 files changed, 176 insertions(+), 11 deletions(-)
+> > 
+> > diff --git a/arch/x86/include/asm/hugetlb.h b/arch/x86/include/asm/hugetlb.h
+> > index a809121..2b262f7 100644
+> > --- a/arch/x86/include/asm/hugetlb.h
+> > +++ b/arch/x86/include/asm/hugetlb.h
+> > @@ -91,6 +91,16 @@ static inline void arch_release_hugepage(struct page *page)
+> >  {
+> >  }
+> >  
+> > +static inline int arch_prepare_gigantic_page(struct page *page)
+> > +{
+> > +	return 0;
+> > +}
+> > +
+> > +static inline void arch_release_gigantic_page(struct page *page)
+> > +{
+> > +}
+> > +
+> > +
+> >  static inline void arch_clear_hugepage_flags(struct page *page)
+> >  {
+> >  }
+> 
+> These are defined only on arch/x86, but called in generic code.
+> Does it cause build failure on other archs?
 
-So I can, but the way these are defined makes the results seem pretty
-terrible:
-
-#define SWP_MIGRATION_WRITE    (MAX_SWAPFILES + SWP_HWPOISON_NUM \
-                    + SWP_MVOLATILE_PURGED_NUM + 1)
-
-Particularly when:
-#define MAX_SWAPFILES ((1 << MAX_SWAPFILES_SHIFT)        \
-                - SWP_MIGRATION_NUM        \
-                - SWP_HWPOISON_NUM        \
-                - SWP_MVOLATILE_PURGED_NUM    \
-            )
-
-Its a lot of unnecessary mental gymnastics. Yuck.
-
-Would a general cleanup like the following be ok to try to make this
-more extensible?
-
-thanks
--john
-
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index 3507115..21387df 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -49,29 +49,38 @@ static inline int current_is_kswapd(void)
-  * actions on faults.
-  */
- 
-+enum {
-+	/*
-+	 * NOTE: We use the high bits here (subtracting from
-+	 * 1<<MAX_SWPFILES_SHIFT), so to preserve the values insert
-+	 * new entries here at the top of the enum, not at the bottom
-+	 */
-+#ifdef CONFIG_MEMORY_FAILURE
-+	SWP_HWPOISON_NR,
-+#endif
-+#ifdef CONFIG_MIGRATION
-+	SWP_MIGRATION_READ_NR,
-+	SWP_MIGRATION_WRITE_NR,
-+#endif
-+	SWP_MAX_NR,
-+};
-+#define MAX_SWAPFILES ((1 << MAX_SWAPFILES_SHIFT) - SWP_MAX_NR)
-+
- /*
-  * NUMA node memory migration support
-  */
- #ifdef CONFIG_MIGRATION
--#define SWP_MIGRATION_NUM 2
--#define SWP_MIGRATION_READ	(MAX_SWAPFILES + SWP_HWPOISON_NUM)
--#define SWP_MIGRATION_WRITE	(MAX_SWAPFILES + SWP_HWPOISON_NUM + 1)
--#else
--#define SWP_MIGRATION_NUM 0
-+#define SWP_MIGRATION_READ	(MAX_SWAPFILES + SWP_MIGRATION_READ_NR)
-+#define SWP_MIGRATION_WRITE	(MAX_SWAPFILES + SWP_MIGRATION_WRITE_NR)
- #endif
- 
- /*
-  * Handling of hardware poisoned pages with memory corruption.
-  */
- #ifdef CONFIG_MEMORY_FAILURE
--#define SWP_HWPOISON_NUM 1
--#define SWP_HWPOISON		MAX_SWAPFILES
--#else
--#define SWP_HWPOISON_NUM 0
-+#define SWP_HWPOISON		(MAX_SWAPFILES + SWP_HWPOISON_NR)
- #endif
- 
--#define MAX_SWAPFILES \
--	((1 << MAX_SWAPFILES_SHIFT) - SWP_MIGRATION_NUM - SWP_HWPOISON_NUM)
- 
- /*
-  * Magic header for a swap area. The first part of the union is
+Hmm, probably. The problem here is that I'm unable to test this
+code in other archs. So I think the best solution for the first
+merge is to make the build of this feature conditional to x86_64?
+Then the first person interested in making this work in other
+archs add the generic code. Sounds reasonable?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
