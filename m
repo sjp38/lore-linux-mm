@@ -1,54 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f47.google.com (mail-la0-f47.google.com [209.85.215.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 07BA96B0031
-	for <linux-mm@kvack.org>; Mon,  7 Apr 2014 12:19:14 -0400 (EDT)
-Received: by mail-la0-f47.google.com with SMTP id pn19so4914619lab.6
-        for <linux-mm@kvack.org>; Mon, 07 Apr 2014 09:19:13 -0700 (PDT)
-Received: from mail-la0-x22a.google.com (mail-la0-x22a.google.com [2a00:1450:4010:c03::22a])
-        by mx.google.com with ESMTPS id y6si12662332lal.131.2014.04.07.09.19.11
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 07 Apr 2014 09:19:12 -0700 (PDT)
-Received: by mail-la0-f42.google.com with SMTP id ec20so5090279lab.1
-        for <linux-mm@kvack.org>; Mon, 07 Apr 2014 09:19:11 -0700 (PDT)
-Date: Mon, 7 Apr 2014 20:19:10 +0400
-From: Cyrill Gorcunov <gorcunov@gmail.com>
-Subject: Re: [PATCH 2/3] x86: Define _PAGE_NUMA with unused physical address
- bits PMD and PTE levels
-Message-ID: <20140407161910.GJ1444@moon>
-References: <1396883443-11696-1-git-send-email-mgorman@suse.de>
- <1396883443-11696-3-git-send-email-mgorman@suse.de>
- <5342C517.2020305@citrix.com>
- <20140407154935.GD7292@suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140407154935.GD7292@suse.de>
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 35F216B0035
+	for <linux-mm@kvack.org>; Mon,  7 Apr 2014 13:13:07 -0400 (EDT)
+Received: by mail-pd0-f175.google.com with SMTP id x10so6836797pdj.20
+        for <linux-mm@kvack.org>; Mon, 07 Apr 2014 10:13:06 -0700 (PDT)
+Received: from qmta03.emeryville.ca.mail.comcast.net (qmta03.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:32])
+        by mx.google.com with ESMTP id ub3si8661374pac.71.2014.04.07.10.13.05
+        for <linux-mm@kvack.org>;
+        Mon, 07 Apr 2014 10:13:06 -0700 (PDT)
+Date: Mon, 7 Apr 2014 12:13:03 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: mm: slub: gpf in deactivate_slab
+In-Reply-To: <53401F56.5090507@oracle.com>
+Message-ID: <alpine.DEB.2.10.1404071212200.9896@nuc>
+References: <53208A87.2040907@oracle.com> <5331A6C3.2000303@oracle.com> <20140325165247.GA7519@dhcp22.suse.cz> <alpine.DEB.2.10.1403251205140.24534@nuc> <5331B9C8.7080106@oracle.com> <alpine.DEB.2.10.1403251308590.26471@nuc> <53321CB6.5050706@oracle.com>
+ <alpine.DEB.2.10.1403261042360.2057@nuc> <53401F56.5090507@oracle.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: David Vrabel <david.vrabel@citrix.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Anvin <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, Steven Noonan <steven@uplinklabs.net>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Linux-MM <linux-mm@kvack.org>, Linux-X86 <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Pavel Emelyanov <xemul@parallels.com>
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, Apr 07, 2014 at 04:49:35PM +0100, Mel Gorman wrote:
-> On Mon, Apr 07, 2014 at 04:32:39PM +0100, David Vrabel wrote:
-> > On 07/04/14 16:10, Mel Gorman wrote:
-> > > _PAGE_NUMA is currently an alias of _PROT_PROTNONE to trap NUMA hinting
-> > > faults. As the bit is shared care is taken that _PAGE_NUMA is only used in
-> > > places where _PAGE_PROTNONE could not reach but this still causes problems
-> > > on Xen and conceptually difficult.
-> > 
-> > The problem with Xen guests occurred because mprotect() /was/ confusing
-> > PROTNONE mappings with _PAGE_NUMA and clearing the non-existant NUMA hints.
-> 
-> I didn't bother spelling it out in case I gave the impression that I was
-> blaming Xen for the problem.  As the bit is now changes, does it help
-> the Xen problem or cause another collision of some sort? There is no
-> guarantee _PAGE_NUMA will remain as bit 62 but at worst it'll use bit 11
-> and NUMA_BALANCING will depend in !KMEMCHECK.
+On Sat, 5 Apr 2014, Sasha Levin wrote:
 
-Fwiw, we're using bit 11 for soft-dirty tracking, so i really hope worst case
-never happen. (At the moment I'm trying to figure out if with this set
-it would be possible to clean up ugly macros in pgoff_to_pte for 2 level pages).
+> Unfortunately I've been unable to reproduce the issue to get more debug info
+> out of it. However, I've hit something that seems to be somewhat similar
+> to that:
+
+Could you jsut run with "slub_debug" on the kernel command line to get us
+more diagnostics? Could be memory corruption.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
