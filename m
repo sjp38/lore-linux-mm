@@ -1,51 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 2BC986B0031
-	for <linux-mm@kvack.org>; Mon,  7 Apr 2014 15:48:00 -0400 (EDT)
-Received: by mail-pd0-f171.google.com with SMTP id r10so7002272pdi.16
-        for <linux-mm@kvack.org>; Mon, 07 Apr 2014 12:47:59 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id f1si8830318pbn.317.2014.04.07.12.47.58
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 07 Apr 2014 12:47:59 -0700 (PDT)
-Message-ID: <5342FF3E.6030306@oracle.com>
-Date: Mon, 07 Apr 2014 15:40:46 -0400
-From: Sasha Levin <sasha.levin@oracle.com>
+Received: from mail-pb0-f42.google.com (mail-pb0-f42.google.com [209.85.160.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 112C16B0031
+	for <linux-mm@kvack.org>; Mon,  7 Apr 2014 15:58:41 -0400 (EDT)
+Received: by mail-pb0-f42.google.com with SMTP id rr13so7256917pbb.29
+        for <linux-mm@kvack.org>; Mon, 07 Apr 2014 12:58:40 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id ic8si8856327pad.259.2014.04.07.12.58.38
+        for <linux-mm@kvack.org>;
+        Mon, 07 Apr 2014 12:58:39 -0700 (PDT)
+Message-ID: <5342E273.4070308@intel.com>
+Date: Mon, 07 Apr 2014 10:37:55 -0700
+From: Dave Hansen <dave.hansen@intel.com>
 MIME-Version: 1.0
-Subject: Re: mm: BUG in do_huge_pmd_wp_page
-References: <51559150.3040407@oracle.com> <515D882E.6040001@oracle.com> <533F09F0.1050206@oracle.com> <20140407144835.GA17774@node.dhcp.inet.fi>
-In-Reply-To: <20140407144835.GA17774@node.dhcp.inet.fi>
+Subject: Re: [PATCH 2/3] x86: Define _PAGE_NUMA with unused physical address
+ bits PMD and PTE levels
+References: <1396883443-11696-1-git-send-email-mgorman@suse.de> <1396883443-11696-3-git-send-email-mgorman@suse.de>
+In-Reply-To: <1396883443-11696-3-git-send-email-mgorman@suse.de>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>, Hugh Dickins <hughd@google.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Mel Gorman <mgorman@suse.de>, Dave Jones <davej@redhat.com>, linux-mm <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mgorman@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Cyrill Gorcunov <gorcunov@gmail.com>, Peter Anvin <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, Steven Noonan <steven@uplinklabs.net>, Rik van Riel <riel@redhat.com>, David Vrabel <david.vrabel@citrix.com>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Linux-MM <linux-mm@kvack.org>, Linux-X86 <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>
 
-It also breaks fairly quickly under testing because:
+On 04/07/2014 08:10 AM, Mel Gorman wrote:
+> +/*
+> + * Software bits ignored by the page table walker
+> + * At the time of writing, different levels have bits that are ignored. Due
+> + * to physical address limitations, bits 52:62 should be ignored for the PMD
+> + * and PTE levels and are available for use by software. Be aware that this
+> + * may change if the physical address space expands.
+> + */
+> +#define _PAGE_BIT_NUMA		62
 
-On 04/07/2014 10:48 AM, Kirill A. Shutemov wrote:
-> +	if (IS_ENABLED(CONFIG_DEBUG_PAGEALLOC)) {
-> +		spin_lock(ptl);
+Doesn't moving it up to the high bits break pte_modify()'s assumptions?
+ I was thinking of this nugget from change_pte_range():
 
-^ We go into atomic
+	ptent = ptep_modify_prot_start(mm, addr, pte);
+        if (pte_numa(ptent))
+        	ptent = pte_mknonnuma(ptent);
+	ptent = pte_modify(ptent, newprot);
 
-> +		if (unlikely(!pmd_same(*pmd, orig_pmd)))
-> +			goto out_race;
-> +	}
-> +
->  	if (!page)
->  		clear_huge_page(new_page, haddr, HPAGE_PMD_NR);
->  	else
->  		copy_user_huge_page(new_page, page, haddr, vma, HPAGE_PMD_NR);
-
-copy_user_huge_page() doesn't like running in atomic state,
-and asserts might_sleep().
-
-
-Thanks,
-Sasha
+pte_modify() pulls off all the high bits out of 'ptent' and only adds
+them back if they're in newprot (which as far as I can tell comes from
+the VMA).  So I _think_ it'll axe the _PAGE_NUMA out of 'ptent'.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
