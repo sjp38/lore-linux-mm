@@ -1,136 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f54.google.com (mail-ee0-f54.google.com [74.125.83.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 36A256B006E
-	for <linux-mm@kvack.org>; Mon,  7 Apr 2014 15:03:57 -0400 (EDT)
-Received: by mail-ee0-f54.google.com with SMTP id d49so13683eek.41
-        for <linux-mm@kvack.org>; Mon, 07 Apr 2014 12:03:56 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id u5si25171869een.53.2014.04.07.12.03.53
-        for <linux-mm@kvack.org>;
-        Mon, 07 Apr 2014 12:03:54 -0700 (PDT)
-Date: Mon, 07 Apr 2014 15:03:18 -0400
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <5342f69a.05c60e0a.286a.ffffc524SMTPIN_ADDED_BROKEN@mx.google.com>
-In-Reply-To: <20140407144935.259d4301@redhat.com>
-References: <1396462128-32626-1-git-send-email-lcapitulino@redhat.com>
- <1396462128-32626-5-git-send-email-lcapitulino@redhat.com>
- <1396893509-x52fgnka@n-horiguchi@ah.jp.nec.com>
- <20140407144935.259d4301@redhat.com>
-Subject: Re: [PATCH 4/4] hugetlb: add support for gigantic page allocation at
- runtime
-Mime-Version: 1.0
-Content-Type: text/plain;
- charset=iso-2022-jp
-Content-Transfer-Encoding: 7bit
+Received: from mail-lb0-f177.google.com (mail-lb0-f177.google.com [209.85.217.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 852166B006E
+	for <linux-mm@kvack.org>; Mon,  7 Apr 2014 15:16:26 -0400 (EDT)
+Received: by mail-lb0-f177.google.com with SMTP id z11so5112824lbi.22
+        for <linux-mm@kvack.org>; Mon, 07 Apr 2014 12:16:25 -0700 (PDT)
+Received: from mail-lb0-x22f.google.com (mail-lb0-x22f.google.com [2a00:1450:4010:c04::22f])
+        by mx.google.com with ESMTPS id u5si12983825laa.52.2014.04.07.12.16.23
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 07 Apr 2014 12:16:24 -0700 (PDT)
+Received: by mail-lb0-f175.google.com with SMTP id w7so5187134lbi.34
+        for <linux-mm@kvack.org>; Mon, 07 Apr 2014 12:16:23 -0700 (PDT)
+Date: Mon, 7 Apr 2014 23:16:22 +0400
+From: Cyrill Gorcunov <gorcunov@gmail.com>
+Subject: Re: [PATCH 2/3] x86: Define _PAGE_NUMA with unused physical address
+ bits PMD and PTE levels
+Message-ID: <20140407191622.GA23983@moon>
+References: <1396883443-11696-1-git-send-email-mgorman@suse.de>
+ <1396883443-11696-3-git-send-email-mgorman@suse.de>
+ <5342C517.2020305@citrix.com>
+ <20140407154935.GD7292@suse.de>
+ <20140407161910.GJ1444@moon>
+ <20140407182854.GH7292@suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20140407182854.GH7292@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: lcapitulino@redhat.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, mtosatti@redhat.com, aarcange@redhat.com, mgorman@suse.de, akpm@linux-foundation.org, andi@firstfloor.org, davidlohr@hp.com, rientjes@google.com, isimatu.yasuaki@jp.fujitsu.com, yinghai@kernel.org, riel@redhat.com
+To: Mel Gorman <mgorman@suse.de>
+Cc: David Vrabel <david.vrabel@citrix.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Anvin <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, Steven Noonan <steven@uplinklabs.net>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Linux-MM <linux-mm@kvack.org>, Linux-X86 <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Pavel Emelyanov <xemul@parallels.com>
 
-On Mon, Apr 07, 2014 at 02:49:35PM -0400, Luiz Capitulino wrote:
-> On Mon, 07 Apr 2014 13:58:29 -0400
-> Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
-> 
-> > On Wed, Apr 02, 2014 at 02:08:48PM -0400, Luiz Capitulino wrote:
-> > > HugeTLB is limited to allocating hugepages whose size are less than
-> > > MAX_ORDER order. This is so because HugeTLB allocates hugepages via
-> > > the buddy allocator. Gigantic pages (that is, pages whose size is
-> > > greater than MAX_ORDER order) have to be allocated at boottime.
-> > > 
-> > > However, boottime allocation has at least two serious problems. First,
-> > > it doesn't support NUMA and second, gigantic pages allocated at
-> > > boottime can't be freed.
-> > > 
-> > > This commit solves both issues by adding support for allocating gigantic
-> > > pages during runtime. It works just like regular sized hugepages,
-> > > meaning that the interface in sysfs is the same, it supports NUMA,
-> > > and gigantic pages can be freed.
-> > > 
-> > > For example, on x86_64 gigantic pages are 1GB big. To allocate two 1G
-> > > gigantic pages on node 1, one can do:
-> > > 
-> > >  # echo 2 > \
-> > >    /sys/devices/system/node/node1/hugepages/hugepages-1048576kB/nr_hugepages
-> > > 
-> > > And to free them later:
-> > > 
-> > >  # echo 0 > \
-> > >    /sys/devices/system/node/node1/hugepages/hugepages-1048576kB/nr_hugepages
-> > > 
-> > > The one problem with gigantic page allocation at runtime is that it
-> > > can't be serviced by the buddy allocator. To overcome that problem, this
-> > > series scans all zones from a node looking for a large enough contiguous
-> > > region. When one is found, it's allocated by using CMA, that is, we call
-> > > alloc_contig_range() to do the actual allocation. For example, on x86_64
-> > > we scan all zones looking for a 1GB contiguous region. When one is found
-> > > it's allocated by alloc_contig_range().
-> > > 
-> > > One expected issue with that approach is that such gigantic contiguous
-> > > regions tend to vanish as time goes by. The best way to avoid this for
-> > > now is to make gigantic page allocations very early during boot, say
-> > > from a init script. Other possible optimization include using compaction,
-> > > which is supported by CMA but is not explicitly used by this commit.
-> > > 
-> > > It's also important to note the following:
-> > > 
-> > >  1. My target systems are x86_64 machines, so I have only tested 1GB
-> > >     pages allocation/release. I did try to make this arch indepedent
-> > >     and expect it to work on other archs but didn't try it myself
-> > > 
-> > >  2. I didn't add support for hugepage overcommit, that is allocating
-> > >     a gigantic page on demand when
-> > >    /proc/sys/vm/nr_overcommit_hugepages > 0. The reason is that I don't
-> > >    think it's reasonable to do the hard and long work required for
-> > >    allocating a gigantic page at fault time. But it should be simple
-> > >    to add this if wanted
-> > > 
-> > > Signed-off-by: Luiz Capitulino <lcapitulino@redhat.com>
+On Mon, Apr 07, 2014 at 07:28:54PM +0100, Mel Gorman wrote:
+> > > I didn't bother spelling it out in case I gave the impression that I was
+> > > blaming Xen for the problem.  As the bit is now changes, does it help
+> > > the Xen problem or cause another collision of some sort? There is no
+> > > guarantee _PAGE_NUMA will remain as bit 62 but at worst it'll use bit 11
+> > > and NUMA_BALANCING will depend in !KMEMCHECK.
 > > 
-> > I agree to the basic idea. One question below ...
+> > Fwiw, we're using bit 11 for soft-dirty tracking, so i really hope worst case
+> > never happen. (At the moment I'm trying to figure out if with this set
+> > it would be possible to clean up ugly macros in pgoff_to_pte for 2 level pages).
 > 
-> Good to hear that.
-> 
-> > > ---
-> > >  arch/x86/include/asm/hugetlb.h |  10 +++
-> > >  mm/hugetlb.c                   | 177 ++++++++++++++++++++++++++++++++++++++---
-> > >  2 files changed, 176 insertions(+), 11 deletions(-)
-> > > 
-> > > diff --git a/arch/x86/include/asm/hugetlb.h b/arch/x86/include/asm/hugetlb.h
-> > > index a809121..2b262f7 100644
-> > > --- a/arch/x86/include/asm/hugetlb.h
-> > > +++ b/arch/x86/include/asm/hugetlb.h
-> > > @@ -91,6 +91,16 @@ static inline void arch_release_hugepage(struct page *page)
-> > >  {
-> > >  }
-> > >  
-> > > +static inline int arch_prepare_gigantic_page(struct page *page)
-> > > +{
-> > > +	return 0;
-> > > +}
-> > > +
-> > > +static inline void arch_release_gigantic_page(struct page *page)
-> > > +{
-> > > +}
-> > > +
-> > > +
-> > >  static inline void arch_clear_hugepage_flags(struct page *page)
-> > >  {
-> > >  }
-> > 
-> > These are defined only on arch/x86, but called in generic code.
-> > Does it cause build failure on other archs?
-> 
-> Hmm, probably. The problem here is that I'm unable to test this
-> code in other archs. So I think the best solution for the first
-> merge is to make the build of this feature conditional to x86_64?
+> I had considered the soft-dirty tracking usage of the same bit. I thought I'd
+> be able to swizzle around it or a further worst case of having soft-dirty and
+> automatic NUMA balancing mutually exclusive. Unfortunately upon examination
+> it's not obvious how to have both of them share a bit and I suspect any
+> attempt to will break CRIU.  In my current tree, NUMA_BALANCING cannot be
+> set if MEM_SOFT_DIRTY which is not particularly satisfactory. Next on the
+> list is examining if _PAGE_BIT_IOMAP can be used.
 
-Yes, I think that's safer.
-
-Naoya
-
-> Then the first person interested in making this work in other
-> archs add the generic code. Sounds reasonable?
+Thanks for info, Mel! It seems indeed if no more space left on x86-64 (in
+the very worst case which I still think won't happen anytime soon) we'll
+have to make them mut. exclusive. But for now (with 62 bit used for numa)
+they can live together, right?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
