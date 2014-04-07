@@ -1,66 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f51.google.com (mail-la0-f51.google.com [209.85.215.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 573C26B0031
-	for <linux-mm@kvack.org>; Mon,  7 Apr 2014 09:24:41 -0400 (EDT)
-Received: by mail-la0-f51.google.com with SMTP id pv20so4674515lab.24
-        for <linux-mm@kvack.org>; Mon, 07 Apr 2014 06:24:40 -0700 (PDT)
-Received: from mail-la0-x233.google.com (mail-la0-x233.google.com [2a00:1450:4010:c03::233])
-        by mx.google.com with ESMTPS id 1si12291386lam.90.2014.04.07.06.24.39
+Received: from mail-we0-f180.google.com (mail-we0-f180.google.com [74.125.82.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 306C36B0031
+	for <linux-mm@kvack.org>; Mon,  7 Apr 2014 10:40:16 -0400 (EDT)
+Received: by mail-we0-f180.google.com with SMTP id p61so6963083wes.11
+        for <linux-mm@kvack.org>; Mon, 07 Apr 2014 07:40:15 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id q10si2064956wjf.70.2014.04.07.07.40.14
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 07 Apr 2014 06:24:39 -0700 (PDT)
-Received: by mail-la0-f51.google.com with SMTP id pv20so4736169lab.38
-        for <linux-mm@kvack.org>; Mon, 07 Apr 2014 06:24:39 -0700 (PDT)
-Date: Mon, 7 Apr 2014 17:24:37 +0400
-From: Cyrill Gorcunov <gorcunov@gmail.com>
-Subject: Re: [rfc 0/3] Cleaning up soft-dirty bit usage
-Message-ID: <20140407132437.GH1444@moon>
-References: <20140403184844.260532690@openvz.org>
- <20140407130701.GA16677@node.dhcp.inet.fi>
+        Mon, 07 Apr 2014 07:40:14 -0700 (PDT)
+Message-ID: <5342B8CC.9020009@suse.cz>
+Date: Mon, 07 Apr 2014 16:40:12 +0200
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140407130701.GA16677@node.dhcp.inet.fi>
+Subject: Re: [PATCH 1/2] mm/compaction: clean up unused code lines
+References: <1396515424-18794-1-git-send-email-heesub.shin@samsung.com>
+In-Reply-To: <1396515424-18794-1-git-send-email-heesub.shin@samsung.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Heesub Shin <heesub.shin@samsung.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, Dongjun Shin <d.j.shin@samsung.com>, Sunghwan Yun <sunghwan.yun@samsung.com>
 
-On Mon, Apr 07, 2014 at 04:07:01PM +0300, Kirill A. Shutemov wrote:
-> On Thu, Apr 03, 2014 at 10:48:44PM +0400, Cyrill Gorcunov wrote:
-> > Hi! I've been trying to clean up soft-dirty bit usage. I can't cleanup
-> > "ridiculous macros in pgtable-2level.h" completely because I need to
-> > define _PAGE_FILE,_PAGE_PROTNONE,_PAGE_NUMA bits in sequence manner
-> > like
-> > 
-> > #define _PAGE_BIT_FILE		(_PAGE_BIT_PRESENT + 1)	/* _PAGE_BIT_RW */
-> > #define _PAGE_BIT_NUMA		(_PAGE_BIT_PRESENT + 2)	/* _PAGE_BIT_USER */
-> > #define _PAGE_BIT_PROTNONE	(_PAGE_BIT_PRESENT + 3)	/* _PAGE_BIT_PWT */
-> > 
-> > which can't be done right now because numa code needs to save original
-> > pte bits for example in __split_huge_page_map, if I'm not missing something
-> > obvious.
-> 
-> Sorry, I didn't get this. How __split_huge_page_map() does depend on pte
-> bits order?
+On 04/03/2014 10:57 AM, Heesub Shin wrote:
+> This commit removes code lines currently not in use or never called.
+>
+> Signed-off-by: Heesub Shin <heesub.shin@samsung.com>
+> Cc: Dongjun Shin <d.j.shin@samsung.com>
+> Cc: Sunghwan Yun <sunghwan.yun@samsung.com>
 
-__split_huge_page_map
-  ...
-  for (i = 0; i < HPAGE_PMD_NR; i++, haddr += PAGE_SIZE) {
-    ...
-    here we modify with pte bits
-    entry = pte_mknuma(entry); --> clean _PAGE_PRESENT and set _PAGE_NUMA
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
-    pte bits must remain valid and meaningful, for example we might
-    have set _PAGE_RW here
-
-> >     is it intentional, and @prot_numa argument is supposed to be passed
-> >     with prot_numa = 1 one day, or it's leftover from old times?
-> 
-> I see one more user of change_protection() -- change_prot_numa(), which
-> has .prot_numa == 1.
-
-Yeah, thanks, managed to miss this.
+> ---
+>   mm/compaction.c | 10 ----------
+>   1 file changed, 10 deletions(-)
+>
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index 9635083..1ef9144 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -208,12 +208,6 @@ static bool compact_checklock_irqsave(spinlock_t *lock, unsigned long *flags,
+>   	return true;
+>   }
+>
+> -static inline bool compact_trylock_irqsave(spinlock_t *lock,
+> -			unsigned long *flags, struct compact_control *cc)
+> -{
+> -	return compact_checklock_irqsave(lock, flags, false, cc);
+> -}
+> -
+>   /* Returns true if the page is within a block suitable for migration to */
+>   static bool suitable_migration_target(struct page *page)
+>   {
+> @@ -728,7 +722,6 @@ static void isolate_freepages(struct zone *zone,
+>   			continue;
+>
+>   		/* Found a block suitable for isolating free pages from */
+> -		isolated = 0;
+>
+>   		/*
+>   		 * As pfn may not start aligned, pfn+pageblock_nr_page
+> @@ -1160,9 +1153,6 @@ static void __compact_pgdat(pg_data_t *pgdat, struct compact_control *cc)
+>   			if (zone_watermark_ok(zone, cc->order,
+>   						low_wmark_pages(zone), 0, 0))
+>   				compaction_defer_reset(zone, cc->order, false);
+> -			/* Currently async compaction is never deferred. */
+> -			else if (cc->sync)
+> -				defer_compaction(zone, cc->order);
+>   		}
+>
+>   		VM_BUG_ON(!list_empty(&cc->freepages));
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
