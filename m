@@ -1,154 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 3EC956B0031
-	for <linux-mm@kvack.org>; Mon,  7 Apr 2014 01:48:31 -0400 (EDT)
-Received: by mail-pd0-f170.google.com with SMTP id v10so6099599pde.1
-        for <linux-mm@kvack.org>; Sun, 06 Apr 2014 22:48:30 -0700 (PDT)
+Received: from mail-pb0-f42.google.com (mail-pb0-f42.google.com [209.85.160.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 892CC6B0031
+	for <linux-mm@kvack.org>; Mon,  7 Apr 2014 02:10:53 -0400 (EDT)
+Received: by mail-pb0-f42.google.com with SMTP id rr13so6265383pbb.29
+        for <linux-mm@kvack.org>; Sun, 06 Apr 2014 23:10:53 -0700 (PDT)
 Received: from lgeamrelo01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
-        by mx.google.com with ESMTP id f8si7795787pbc.415.2014.04.06.22.48.29
+        by mx.google.com with ESMTP id l1si3480311paw.151.2014.04.06.23.10.51
         for <linux-mm@kvack.org>;
-        Sun, 06 Apr 2014 22:48:30 -0700 (PDT)
-Date: Mon, 7 Apr 2014 14:48:40 +0900
+        Sun, 06 Apr 2014 23:10:52 -0700 (PDT)
+Date: Mon, 7 Apr 2014 15:11:01 +0900
 From: Minchan Kim <minchan@kernel.org>
 Subject: Re: [PATCH 0/5] Volatile Ranges (v12) & LSF-MM discussion fodder
-Message-ID: <20140407054840.GC12144@bbox>
+Message-ID: <20140407061101.GE12144@bbox>
 References: <1395436655-21670-1-git-send-email-john.stultz@linaro.org>
  <20140401212102.GM4407@cmpxchg.org>
- <533B313E.5000403@zytor.com>
- <533B4555.3000608@sr71.net>
- <533B8E3C.3090606@linaro.org>
- <20140402163638.GQ14688@cmpxchg.org>
- <CALAqxLUNKJQs+q__fwqggaRtqLz5sJtuxKdVPja8X0htDyaT6A@mail.gmail.com>
+ <533B8C2D.9010108@linaro.org>
+ <20140402183113.GL1500@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CALAqxLUNKJQs+q__fwqggaRtqLz5sJtuxKdVPja8X0htDyaT6A@mail.gmail.com>
+In-Reply-To: <20140402183113.GL1500@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Stultz <john.stultz@linaro.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Dave Hansen <dave@sr71.net>, "H. Peter Anvin" <hpa@zytor.com>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Neil Brown <neilb@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: John Stultz <john.stultz@linaro.org>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@sr71.net>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Neil Brown <neilb@suse.de>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, "H. Peter Anvin" <hpa@zytor.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Wed, Apr 02, 2014 at 10:40:16AM -0700, John Stultz wrote:
-> On Wed, Apr 2, 2014 at 9:36 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
-> > On Tue, Apr 01, 2014 at 09:12:44PM -0700, John Stultz wrote:
-> >> On 04/01/2014 04:01 PM, Dave Hansen wrote:
-> >> > On 04/01/2014 02:35 PM, H. Peter Anvin wrote:
-> >> >> On 04/01/2014 02:21 PM, Johannes Weiner wrote:
-> >> > John, this was something that the Mozilla guys asked for, right?  Any
-> >> > idea why this isn't ever a problem for them?
-> >> So one of their use cases for it is for library text. Basically they
-> >> want to decompress a compressed library file into memory. Then they plan
-> >> to mark the uncompressed pages volatile, and then be able to call into
-> >> it. Ideally for them, the kernel would only purge cold pages, leaving
-> >> the hot pages in memory. When they traverse a purged page, they handle
-> >> the SIGBUS and patch the page up.
-> >
-> > How big are these libraries compared to overall system size?
+Hello Andrea,
+
+On Wed, Apr 02, 2014 at 08:31:13PM +0200, Andrea Arcangeli wrote:
+> Hi everyone,
 > 
-> Mike or Taras would have to refresh my memory on this detail. My
-> recollection is it mostly has to do with keeping the on-disk size of
-> the library small, so it can load off of slow media very quickly.
+> On Tue, Apr 01, 2014 at 09:03:57PM -0700, John Stultz wrote:
+> > So between zero-fill and SIGBUS, I think SIGBUS makes the most sense. If
+> > you have a third option you're thinking of, I'd of course be interested
+> > in hearing it.
 > 
-> >> Now.. this is not what I'd consider a normal use case, but was hoping to
-> >> illustrate some of the more interesting uses and demonstrate the
-> >> interfaces flexibility.
-> >
-> > I'm just dying to hear a "normal" use case then. :)
+> I actually thought the way of being notified with a page fault (sigbus
+> or whatever) was the most efficient way of using volatile ranges.
 > 
-> So the more "normal" use cause would be marking objects volatile and
-> then non-volatile w/o accessing them in-between. In this case the
-> zero-fill vs SIGBUS semantics don't really matter, its really just a
-> trade off in how we handle applications deviating (intentionally or
-> not) from this use case.
-> 
-> So to maybe flesh out the context here for folks who are following
-> along (but weren't in the hallway at LSF :),  Johannes made a fairly
-> interesting proposal (Johannes: Please correct me here where I'm maybe
-> slightly off here) to use only the dirty bits of the ptes to mark a
-> page as volatile. Then the kernel could reclaim these clean pages as
-> it needed, and when we marked the range as non-volatile, the pages
-> would be re-dirtied and if any of the pages were missing, we could
+> Why having to call a syscall to know if you can still access the
+> volatile range, if there was no VM pressure before the access?
+> syscalls are expensive, accessing the memory direct is not. Only if it
+> page was actually missing and a page fault would fire, you'd take the
+> slowpath.
 
-I'd like to know more clearly as Hannes and you are thinking.
-You mean that when we unmark the range, we should redirty of all of
-pages's pte? or SetPageDirty?
-If we redirty pte, maybe softdirty people(ie, CRIU) might be angry
-because it could make lots of diff.
-If we just do SetPageDirty, it would invalidate writeout-avoid logic
-of swapped page which were already on the swap. Yeb, but it could
-be minor and SetPageDirty model would be proper for shared-vrange
-implmenetation. But how could we know any pages were missing
-when unmarking time? Where do we keep the information?
-It's no problem for vrange-anon because we can keep the information
-on pte but how about vrange-file(ie, vrange-shared)? Using a shadow
-entry of radix tree? What are you thinking about?
-
-Another major concern is still syscall's overhead.
-Such page-based scheme has a trouble with syscall's speed so I'm
-afraid users might not use the syscall any more. :(
-Frankly speaking, we don't have concrete user so not sure how
-the overhead is severe but we could imagine easily that in future
-someuser might want to makr volatile huge GB memory.
-
-But I couldn't insist on range-based option because it has downside, too.
-If we don't work page-based model, reclaim path cleary have a big
-overhead to scan virtual memory to find a victim pages. As worst case,
-just a page in Huge GB vma. Even, a page might be other zone. :(
-If we could optimize that path to prevent CPU buring in future,
-it could make very complicated and not sure woking well.
-We already have similar issue with compaction. ;-)
-
-So, it's really dilemma.
-
-> return a flag with the purged state.  This had some different
-> semantics then what I've been working with for awhile (for example,
-> any writes to pages would implicitly clear volatility), so I wasn't
-> completely comfortable with it, but figured I'd think about it to see
-> if it could be done. Particularly since it would in some ways simplify
-> tmpfs/shm shared volatility that I'd eventually like to do.
-> 
-> After thinking it over in the hallway, I talked some of the details w/
-> Johnnes and there was one issue that while w/ anonymous memory, we can
-> still add a VM_VOLATILE flag on the vma, so we can get SIGBUS
-> semantics, but since on shared volatile ranges, we don't have anything
-> to hang a volatile flag on w/o adding some new vma like structure to
-> the address_space structure (much as we did in the past w/ earlier
-> volatile range implementations). This would negate much of the point
-> of using the dirty bits to simplify the shared volatility
-> implementation.
-> 
-> Thus Johannes is reasonably questioning the need for SIGBUS semantics,
-> since if it wasn't needed, the simpler page-cleaning based volatility
-> could potentially be used.
-
-I think SIGBUS scenario isn't common but in case of JIT, it is necessary
-and the amount of ram consumed would be never small for embedded world.
+True.
 
 > 
+> The usages I see for this are plenty, like for maintaining caches in
+> memory that may be big and would be nice to discard if there's VM
+> pressure, jpeg uncompressed images sounds like a candidate too. So the
+> browser size would shrink if there's VM pressure, instead of ending up
+> swapping out uncompressed image data that can be regenerated more
+> quickly with the CPU than with swapins.
+
+That's really typical case vrange is targetting.
+
 > 
-> Now, while for the case I'm personally most interested in (ashmem),
-> zero-fill would technically be ok, since that's what Android does.
-> Even so, I don't think its the best approach for the interface, since
-> applications may end up quite surprised by the results when they
-> accidentally don't follow the "don't touch volatile pages" rule.
+> > Now... once you've chosen SIGBUS semantics, there will be folks who will
+> > try to exploit the fact that we get SIGBUS on purged page access (at
+> > least on the user-space side) and will try to access pages that are
+> > volatile until they are purged and try to then handle the SIGBUS to fix
+> > things up. Those folks exploiting that will have to be particularly
+> > careful not to pass volatile data to the kernel, and if they do they'll
+> > have to be smart enough to handle the EFAULT, etc. That's really all
+> > their problem, because they're being clever. :)
 > 
-> That point beside, I think the other problem with the page-cleaning
-> volatility approach is that there are other awkward side effects. For
-> example: Say an application marks a range as volatile. One page in the
-> range is then purged. The application, due to a bug or otherwise,
-> reads the volatile range. This causes the page to be zero-filled in,
-> and the application silently uses the corrupted data (which isn't
-> great). More problematic though, is that by faulting the page in,
-> they've in effect lost the purge state for that page. When the
-> application then goes to mark the range as non-volatile, all pages are
-> present, so we'd return that no pages were purged.  From an
-> application perspective this is pretty ugly.
+> I'm actually working on feature that would solve the problem for the
+> syscalls accessing missing volatile pages. So you'd never see a
+> -EFAULT because all syscalls won't return even if they encounters a
+> missing page in the volatile range dropped by the VM pressure.
 > 
-> Johannes: Any thoughts on this potential issue with your proposal? Am
-> I missing something else?
+> It's called userfaultfd. You call sys_userfaultfd(flags) and it
+> connects the current mm to a pseudo filedescriptor. The filedescriptor
+> works similarly to eventfd but with a different protocol.
 > 
-> thanks
-> -john
+> You need a thread that will never access the userfault area with the
+> CPU, that is responsible to poll on the userfaultfd and talk the
+> userfaultfd protocol to fill-in missing pages. The userfault thread
+> after a POLLIN event reads the virtual addresses of the fault that
+> must have happened on some other thread of the same mm, and then
+> writes back an "handled" virtual range into the fd, after the page (or
+> pages if multiple) have been regenerated and mapped in with
+> sys_remap_anon_pages(), mremap or equivalent atomic pagetable page
+> swapping. Then depending on the "solved" range written back into the
+> fd, the kernel will wakeup the thread or threads that were waiting in
+> kernel mode on the "handled" virtual range, and retry the fault
+> without ever exiting kernel mode.
+
+Sounds flexible.
+
+> 
+> We need this in KVM for running the guest on memory that is on other
+> nodes or other processes (postcopy live migration is the most common
+> use case but there are others like memory externalization and
+> cross-node KSM in the cloud, to keep a single copy of memory across
+> multiple nodes and externalized to the VM and to the host node).
+> 
+> This thread made me wonder if we could mix the two features and you
+> would then depend on MADV_USERFAULT and userfaultfd to deliver to
+> userland the "faults" happening on the volatile pages that have been
+> purged as result of VM pressure.
+> 
+> I'm just saying this after Johannes mentioned the issue with syscalls
+> returning -EFAULT. Because that is the very issue that the userfaultfd
+> is going to solve for the KVM migration thread.
+> 
+> What I'm thinking now would be to mark the volatile range also
+> MADV_USERFAULT and then calling userfaultfd and instead of having the
+> cache regeneration "slow path" inside the SIGBUS handler, to run it in
+> the userfault thread that polls the userfaultfd. Then you could write
+> the volatile ranges to disk with a write() syscall (or use any other
+> syscall on the volatile ranges), without having to worry about -EFAULT
+> being returned because one page was discarded. And if MADV_USERFAULT
+> is not called in combination with vrange syscalls, then it'd still
+> work without the userfault, but with the vrange syscalls only.
+> 
+> In short the idea would be to let the userfault code solve the fault
+> delivery to userland for you, and make the vrange syscalls only focus
+> on the page purging problem, without having to worry about what
+> happens when something access a missing page.
+> 
+> But if you don't intend to solve the syscall -EFAULT problem, well
+> then probably the overlap is still as thin as I thought it was before
+> (like also mentioned in the below link).
+
+Sounds doable. I will look into your patch.
+Thanks for reminding!
+
+> 
+> Thanks,
+> Andrea
+> 
+> PS. my last email about this from a more KVM centric point of view:
+> 
+> http://www.spinics.net/lists/kvm/msg101449.html
 > 
 > --
 > To unsubscribe, send a message with 'unsubscribe linux-mm' in
