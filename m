@@ -1,34 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 544746B0035
-	for <linux-mm@kvack.org>; Mon,  7 Apr 2014 15:27:40 -0400 (EDT)
-Received: by mail-pd0-f180.google.com with SMTP id v10so7043443pde.11
-        for <linux-mm@kvack.org>; Mon, 07 Apr 2014 12:27:40 -0700 (PDT)
-Received: from qmta10.emeryville.ca.mail.comcast.net (qmta10.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:17])
-        by mx.google.com with ESMTP id m9si8804673pab.331.2014.04.07.12.27.39
-        for <linux-mm@kvack.org>;
-        Mon, 07 Apr 2014 12:27:39 -0700 (PDT)
-Date: Mon, 7 Apr 2014 14:27:36 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH v3] Some printk cleanup in mm
-In-Reply-To: <1396894732-17963-1-git-send-email-mitchelh@codeaurora.org>
-Message-ID: <alpine.DEB.2.10.1404071427120.4447@nuc>
-References: <1396894732-17963-1-git-send-email-mitchelh@codeaurora.org>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-wg0-f51.google.com (mail-wg0-f51.google.com [74.125.82.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 870366B0036
+	for <linux-mm@kvack.org>; Mon,  7 Apr 2014 15:28:10 -0400 (EDT)
+Received: by mail-wg0-f51.google.com with SMTP id k14so7355157wgh.22
+        for <linux-mm@kvack.org>; Mon, 07 Apr 2014 12:28:09 -0700 (PDT)
+Received: from mail.zytor.com (terminus.zytor.com. [2001:1868:205::10])
+        by mx.google.com with ESMTPS id dh4si6643348wjc.167.2014.04.07.12.28.04
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 07 Apr 2014 12:28:05 -0700 (PDT)
+Message-ID: <5342FC0E.9080701@zytor.com>
+Date: Mon, 07 Apr 2014 12:27:10 -0700
+From: "H. Peter Anvin" <hpa@zytor.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 2/3] x86: Define _PAGE_NUMA with unused physical address
+ bits PMD and PTE levels
+References: <1396883443-11696-1-git-send-email-mgorman@suse.de> <1396883443-11696-3-git-send-email-mgorman@suse.de> <5342C517.2020305@citrix.com> <20140407154935.GD7292@suse.de> <20140407161910.GJ1444@moon> <20140407182854.GH7292@suse.de>
+In-Reply-To: <20140407182854.GH7292@suse.de>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mitchel Humpherys <mitchelh@codeaurora.org>
-Cc: Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Joe Perches <joe@perches.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mel Gorman <mgorman@suse.de>, Cyrill Gorcunov <gorcunov@gmail.com>
+Cc: David Vrabel <david.vrabel@citrix.com>, Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Steven Noonan <steven@uplinklabs.net>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Linux-MM <linux-mm@kvack.org>, Linux-X86 <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Pavel Emelyanov <xemul@parallels.com>
 
-On Mon, 7 Apr 2014, Mitchel Humpherys wrote:
+On 04/07/2014 11:28 AM, Mel Gorman wrote:
+> 
+> I had considered the soft-dirty tracking usage of the same bit. I thought I'd
+> be able to swizzle around it or a further worst case of having soft-dirty and
+> automatic NUMA balancing mutually exclusive. Unfortunately upon examination
+> it's not obvious how to have both of them share a bit and I suspect any
+> attempt to will break CRIU.  In my current tree, NUMA_BALANCING cannot be
+> set if MEM_SOFT_DIRTY which is not particularly satisfactory. Next on the
+> list is examining if _PAGE_BIT_IOMAP can be used.
+> 
 
->   - v3: Leaving slub.c alone. It's using hand-tagged printk's
->     correctly so it's probably just churn to convert everything to the
->     pr_ macros.
+Didn't we smoke the last user of _PAGE_BIT_IOMAP?
 
-Ok.
-
-Ignored-by: Christoph Lameter <cl@linux.com>
+	-hpa
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
