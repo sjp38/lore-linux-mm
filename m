@@ -1,152 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 864786B0098
-	for <linux-mm@kvack.org>; Tue,  8 Apr 2014 05:36:07 -0400 (EDT)
-Received: by mail-pd0-f170.google.com with SMTP id v10so770111pde.1
-        for <linux-mm@kvack.org>; Tue, 08 Apr 2014 02:36:07 -0700 (PDT)
-Received: from mailout4.w1.samsung.com (mailout4.w1.samsung.com. [210.118.77.14])
-        by mx.google.com with ESMTPS id yl4si795393pbc.83.2014.04.08.02.36.05
+Received: from mail-vc0-f182.google.com (mail-vc0-f182.google.com [209.85.220.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 815946B009A
+	for <linux-mm@kvack.org>; Tue,  8 Apr 2014 06:21:20 -0400 (EDT)
+Received: by mail-vc0-f182.google.com with SMTP id ib6so583413vcb.13
+        for <linux-mm@kvack.org>; Tue, 08 Apr 2014 03:21:19 -0700 (PDT)
+Received: from mail-ve0-x234.google.com (mail-ve0-x234.google.com [2607:f8b0:400c:c01::234])
+        by mx.google.com with ESMTPS id sw4si305711vdc.156.2014.04.08.03.21.18
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Tue, 08 Apr 2014 02:36:06 -0700 (PDT)
-Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
- by mailout4.w1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0N3P005MMHC17090@mailout4.w1.samsung.com> for
- linux-mm@kvack.org; Tue, 08 Apr 2014 10:36:01 +0100 (BST)
-Message-id: <5343C301.3020702@samsung.com>
-Date: Tue, 08 Apr 2014 11:36:01 +0200
-From: Tomasz Stanislawski <t.stanislaws@samsung.com>
-MIME-version: 1.0
-Subject: [RFC] Faster mechanism for memory sharing with memfd
-Content-type: text/plain; charset=ISO-8859-1
-Content-transfer-encoding: 7bit
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 08 Apr 2014 03:21:18 -0700 (PDT)
+Received: by mail-ve0-f180.google.com with SMTP id jz11so550764veb.39
+        for <linux-mm@kvack.org>; Tue, 08 Apr 2014 03:21:18 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <CALZtONBQZYeRTx_=Z70H7v4g=39C=caJgoZV3mVFwoPHTHVTuQ@mail.gmail.com>
+References: <CALZtONDiOdYSSu02Eo78F4UL5OLTsk-9MR1hePc-XnSujRuvfw@mail.gmail.com>
+	<20140327222605.GB16495@medulla.variantweb.net>
+	<CALZtONDBNzL_S+UUxKgvNjEYu49eM5Fc2yJ37dJ8E+PEK+C7qg@mail.gmail.com>
+	<533587FD.7000006@redhat.com>
+	<CALZtONA=v+3_+6qEvyY0SruT=aGxAfV_N5fsHvLMJKFp4Stnww@mail.gmail.com>
+	<CAA_GA1er3d+_LJp67aD8tE0SLMod--FpRFvGBdKmpzU_aQNdUg@mail.gmail.com>
+	<CALZtONBQZYeRTx_=Z70H7v4g=39C=caJgoZV3mVFwoPHTHVTuQ@mail.gmail.com>
+Date: Tue, 8 Apr 2014 18:21:18 +0800
+Message-ID: <CAA_GA1e+241XDho9EjKc=eDRt3eN5rm27yE8RcNQRhswzf1vPA@mail.gmail.com>
+Subject: Re: Adding compression before/above swapcache
+From: Bob Liu <lliubbo@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: dh.herrmann@gmail.com, linux-mm@kvack.org
-Cc: "l.stelmach@samsung.com" <l.stelmach@samsung.com>
+To: Dan Streetman <ddstreet@ieee.org>
+Cc: Rik van Riel <riel@redhat.com>, Seth Jennings <sjennings@variantweb.net>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Bob Liu <bob.liu@oracle.com>, Minchan Kim <minchan@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Weijie Yang <weijie.yang@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 
-Hi everyone,
-I came up with an idea for speeding up memory sharing with memfd.
+On Mon, Mar 31, 2014 at 11:35 PM, Dan Streetman <ddstreet@ieee.org> wrote:
+> On Mon, Mar 31, 2014 at 8:43 AM, Bob Liu <lliubbo@gmail.com> wrote:
+>> On Fri, Mar 28, 2014 at 10:47 PM, Dan Streetman <ddstreet@ieee.org> wrote:
+>>> On Fri, Mar 28, 2014 at 10:32 AM, Rik van Riel <riel@redhat.com> wrote:
+>>>> On 03/28/2014 08:36 AM, Dan Streetman wrote:
+>>>>
+>>>>> Well my general idea was to modify shrink_page_list() so that instead
+>>>>> of calling add_to_swap() and then pageout(), anonymous pages would be
+>>>>> added to a compressed cache.  I haven't worked out all the specific
+>>>>> details, but I am initially thinking that the compressed cache could
+>>>>> simply repurpose incoming pages to use as the compressed cache storage
+>>>>> (using its own page mapping, similar to swap page mapping), and then
+>>>>> add_to_swap() the storage pages when the compressed cache gets to a
+>>>>> certain size.  Pages that don't compress well could just bypass the
+>>>>> compressed cache, and get sent the current route directly to
+>>>>> add_to_swap().
+>>>>
+>>>>
+>>>> That sounds a lot like what zswap does. How is your
+>>>> proposal different?
+>>>
+>>> Two main ways:
+>>> 1) it's above swap, so it would still work without any real swap.
+>>
+>> Zswap can also be extended without any real swap device.
+>
+> Ok I'm interested - how is that possible? :-)
+>
+>>> 2) compressed pages could be written to swap disk.
+>>>
+>>
+>> Yes, how to handle the write back of zswap is a problem. And I think
+>> your patch making zswap write through is a good start.
+>
+> but it's still writethrough of uncompressed pages.
+>
+>>> Essentially, the two existing memory compression approaches are both
+>>> tied to swap.  But, AFAIK there's no reason that memory compression
+>>> has to be tied to swap.  So my approach uncouples it.
+>>>
+>>
+>> Yes, it's not necessary but swap page is a good candidate and easy to
+>> handle. There are also clean file pages which may suitable for
+>> compression. See http://lwn.net/Articles/545244/.
+>
+> Yep, and what is the current state of cleancache?  Was there a
+> definitive reason it hasn't made it in yet?
+>
+>>>> And, is there an easier way to implement that difference? :)
+>>>
+>>> I'm hoping that it wouldn't actually be too complex.  But that's part
+>>> of why I emailed for feedback before digging into a prototype... :-)
+>>>
+>>
+>> I'm afraid your idea may not that easy to be implemented and need to
+>> add many tricky code to current mm subsystem, but the benefit is still
+>> uncertain. As Mel pointed out we really need better demonstration
+>> workloads for memory compression before changes.
+>> https://lwn.net/Articles/591961
+>
+> Well I think it's hard to argue that memory compression provides *no*
+> obvious benefit - I'm pretty sure it's quite useful for minor
+> overcommit on systems without any disk swap, and even for systems with
+> swap it at least softens the steep performance cliff that we currently
+> have when starting to overcommit memory into swap space.
+>
+> As far as its benefits for larger systems, or how realistic it is to
+> start routinely overcommitting systems with the expectation that
+> memory compression magically gives you more effective RAM, I certainly
+> don't know the answer, and I agree, more widespread testing and
+> demonstration surely will be needed.
+>
+> But to ask a more pointed question - what do you think would be the
+> tricky part(s)?
 
-The memfd introduced a idea of memory sealing. The memory is sealed
-when only one mapping is allowed to exist. This forces peers
-to repeat a costly mmap()/munmap() dance. Such an overhead
-makes memfd mechanism beneficial only for transfer larder than 512 kB.
+Just thought it may make things more complex and more race conditions
+might be introduced.
+That's why zswap was based on top of frontswap(a simple interface).
+Personally, I'd prefer to make zswap/zram better instead of a new one.
 
-My idea is to avoid calling mmap()/munmap() at all by modifying
-only 1st-lvel of process page tables (PT). This allows to use
-page fault mechanism to prevent accessing the buffer without
-destroying/recreating page tables.
-
-_INTERNALS_
-
-The new semantics consists of two operations LOCK and UNLOCK.
-The reader/writer functions is recognized by access flags passed
-to mmap() or to open().
-
-* - means a comment
-
-LOCK()
-  - if owner is not NULL return -EPERM
-  - set ownership of a buffer to the current process
-    * protection from multiple writers
-  FOR READER
-  - invalidate cache
-    * avoid reading no longer valid data from reader's L1 cache
-  FOR WRITER
-  - restore entry in 1st level PT (if any)
-    * accessing the memory will no longer cause page faults
-
-UNLOCK()
-  - set buffer owner to NULL
-    * allow other writers/readers to access a buffer
-  FOR WRITER
-  - store pointer to 2nd level page table (PT) in fd's private data
-    * allow to restore writer's PT without recreating it
-  - flush data cache for the buffer
-    * make sure that updated data reached L2 and data is visible for other processes
-  - set the entry in 1st level PT to PTE_NONE
-    * force a page fault on an access to the buffer without owning it
-  - invalidate TLB for the buffer region in VM
-    * prevent avoiding a page fault if the page table entry is cached in TLB
-
-
-Accessing a buffer by a writer outside LOCK() / UNLOCK() session
-will cause a page fault. The virtually indexed L1 cache is flushed,
-so CPU must use TLB to translate virtual-to-physical address.
-There is no such an entry after flushing TLB in UNLOCK() so
-CPU must do a page table walk. The walk will fail because
-the entry in 1st level PT is empty. This will cause a page fault.
-
-The page fault handler must check if a process has owenership
-of the process it tries to access to. If ownership is NULL or
-some other process then the page fault is "upgraded" to SEGFAULT,
-effectively killing the process that had broken the memfd protocol.
-
-
-_USE CASE_
-
-The simple use case for new semantics is described below.
-There are two processes called reader and writer.
-The writer mmap() a buffer with read/write access rights.
-The reader uses read-only permission.
-
-The writer fills the buffer and passes it to reader in following.
-
-1. open memfd descriptor and setup its size
-2. Pass fd to the reader using sockets
-3. mmap() the buffer
-   - reserve a region in virtual address space that refers to
-     single entry in 1st level page tables (1-4 MiB depending on architecture).
-4. LOCK(buffer) (details below).
-5. Fill the buffer with data
-   - populate the page table on write faults
-6. UNLOCK(buffer)
-7. Ping the reader using other API (like eventfd/sockets/signals)
-
-The reader process the buffer in following steps:
-
-Pre. Assume that fd is already shared with writer and mmaped with RDONLY flags.
-1. LOCK(buffer)
-2. Read a buffer
-3. UNLOCK (buffer)
-4. Ping the writer that the buffer was processed.
-
-
-_SUMMARY_
-
-The benefits.
-
-Basically it speeds up sharing on the writer's side.
-There is no need for destruction of writer's page tables sealing a buffer.
-Moreover, the page tables are cached in private data so there is no
-need to recreate PT after retrieving buffer's ownership.
-
-It is possible to modify LOCK/UNLOCK semantics to disallowing
-concurrent reads. This might be useful for deciphering buffer content in place
-on server's side.
-
-The Problems.
-
-The main disadvantage is difficult portability of presented solution.
-The size of 2nd level page tables may greatly differ from platform to
-platform. Moreover, the mechanism reserves the huge region in
-virtual space for usage a single buffer. This might be a great waste
-for a valuable resource on 32-bit machines. A possible workaround
-might be using 3rd level entries for smaller buffers.
-
-I understand that implementing such a change might require very good
-understanding of MM's 'infernals'.
-
-It should be investigated what is the actual bottleneck of the current
-mechanism for memfd sharing. If the slowdown is caused by update of PTs
-then the new mechanism will be very beneficial.
-If performance loss is caused by cache flushes and TLB flushing then
-the gain might be negligible. More profiling data are needed.
-
+-- 
 Regards,
-Tomasz Stanislawski
+--Bob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
