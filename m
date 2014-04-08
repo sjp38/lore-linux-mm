@@ -1,66 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f178.google.com (mail-ob0-f178.google.com [209.85.214.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 0ECF86B0038
-	for <linux-mm@kvack.org>; Tue,  8 Apr 2014 10:46:51 -0400 (EDT)
-Received: by mail-ob0-f178.google.com with SMTP id wp18so1098777obc.37
-        for <linux-mm@kvack.org>; Tue, 08 Apr 2014 07:46:50 -0700 (PDT)
-Received: from smtp.01.com (smtp.01.com. [199.36.142.181])
-        by mx.google.com with ESMTP id e3si1807156obp.178.2014.04.08.07.46.49
-        for <linux-mm@kvack.org>;
-        Tue, 08 Apr 2014 07:46:49 -0700 (PDT)
-Message-ID: <53440BD6.5030008@agliodbs.com>
-Date: Tue, 08 Apr 2014 10:46:46 -0400
-From: Josh Berkus <josh@agliodbs.com>
+Received: from mail-ee0-f42.google.com (mail-ee0-f42.google.com [74.125.83.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 17F756B003D
+	for <linux-mm@kvack.org>; Tue,  8 Apr 2014 10:47:43 -0400 (EDT)
+Received: by mail-ee0-f42.google.com with SMTP id d17so770999eek.15
+        for <linux-mm@kvack.org>; Tue, 08 Apr 2014 07:47:41 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id u5si3065707een.263.2014.04.08.07.47.40
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 08 Apr 2014 07:47:40 -0700 (PDT)
+Date: Tue, 8 Apr 2014 15:47:35 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 1/2] mm: Disable zone_reclaim_mode by default
+Message-ID: <20140408144735.GK7292@suse.de>
+References: <1396910068-11637-1-git-send-email-mgorman@suse.de>
+ <1396910068-11637-2-git-send-email-mgorman@suse.de>
+ <alpine.DEB.2.10.1404080910040.8782@nuc>
 MIME-Version: 1.0
-Subject: Re: [PATCH 0/2] Disable zone_reclaim_mode by default
-References: <1396910068-11637-1-git-send-email-mgorman@suse.de> <5343A494.9070707@suse.cz> <alpine.DEB.2.10.1404080914280.8782@nuc> <WM!ea1193ee171854a74828ee30c859d97ff2ce66405ffa3a0b8c31a1233c6a0b55530cdf3cbfcd989c0ec18fef1d533f81!@asav-3.01.com>
-In-Reply-To: <WM!ea1193ee171854a74828ee30c859d97ff2ce66405ffa3a0b8c31a1233c6a0b55530cdf3cbfcd989c0ec18fef1d533f81!@asav-3.01.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.10.1404080910040.8782@nuc>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>, Vlastimil Babka <vbabka@suse.cz>
-Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Robert Haas <robertmhaas@gmail.com>, Andres Freund <andres@2ndquadrant.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, sivanich@sgi.com
+To: Christoph Lameter <cl@linux.com>
+Cc: sivanich@sgi.com, Andrew Morton <akpm@linux-foundation.org>, Robert Haas <robertmhaas@gmail.com>, Josh Berkus <josh@agliodbs.com>, Andres Freund <andres@2ndquadrant.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 04/08/2014 10:17 AM, Christoph Lameter wrote:
+On Tue, Apr 08, 2014 at 09:14:05AM -0500, Christoph Lameter wrote:
+> On Mon, 7 Apr 2014, Mel Gorman wrote:
+> 
+> > zone_reclaim_mode causes processes to prefer reclaiming memory from local
+> > node instead of spilling over to other nodes. This made sense initially when
+> > NUMA machines were almost exclusively HPC and the workload was partitioned
+> > into nodes. The NUMA penalties were sufficiently high to justify reclaiming
+> > the memory. On current machines and workloads it is often the case that
+> > zone_reclaim_mode destroys performance but not all users know how to detect
+> > this. Favour the common case and disable it by default. Users that are
+> > sophisticated enough to know they need zone_reclaim_mode will detect it.
+> 
+> Ok that is going to require SGI machines to deal with zone_reclaim
+> configurations on bootup. Dimitri? Any comments?
+> 
 
-> Another solution here would be to increase the threshhold so that
-> 4 socket machines do not enable zone reclaim by default. The larger the
-> NUMA system is the more memory is off node from the perspective of a
-> processor and the larger the hit from remote memory.
-
-8 and 16 socket machines aren't common for nonspecialist workloads
-*now*, but by the time these changes make it into supported distribution
-kernels, they may very well be.  So having zone_reclaim_mode
-automatically turn itself on if you have more than 8 sockets would still
-be a booby-trap ("Boss, I dunno.  I installed the additional processors
-and memory performance went to hell!")
-
-For zone_reclaim_mode=1 to be useful on standard servers, both of the
-following need to be true:
-
-1. the user has to have set CPU affinity for their applications;
-
-2. the applications can't need more than one memory bank worth of cache.
-
-The thing is, there is *no way* for Linux to know if the above is true.
-
-Now, I can certainly imagine non-HPC workloads for which both of the
-above would be true; for example, I've set up VMware ESX servers where
-each VM has one socket and one memory bank. However, if the user knows
-enough to set up socket affinity, they know enough to set
-zone_reclaim_mode = 1.  The default should cover the know-nothing case,
-not the experienced specialist case.
-
-I'd also argue that there's a fundamental false assumption in the entire
-algorithm of zone_reclaim_mode, because there is no memory bank which is
-as distant as disk is, ever.  However, if it's off by default, then I
-don't care.
+The SGI machines are also likely to be managed by system administrators
+who are both aware of zone_reclaim_mode and know how to evaluate if it
+should be enabled or not. The pair of patches is really aimmed at the
+common case of 2-8 socket machines running workloads that are not NUMA
+aware.
 
 -- 
-Josh Berkus
-PostgreSQL Experts Inc.
-http://pgexperts.com
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
