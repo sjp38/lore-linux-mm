@@ -1,46 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f51.google.com (mail-ee0-f51.google.com [74.125.83.51])
-	by kanga.kvack.org (Postfix) with ESMTP id A630E6B0087
-	for <linux-mm@kvack.org>; Tue,  8 Apr 2014 04:23:08 -0400 (EDT)
-Received: by mail-ee0-f51.google.com with SMTP id c13so365671eek.38
-        for <linux-mm@kvack.org>; Tue, 08 Apr 2014 01:23:05 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m49si1695502eeo.161.2014.04.08.01.23.04
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
+	by kanga.kvack.org (Postfix) with ESMTP id A532B6B008A
+	for <linux-mm@kvack.org>; Tue,  8 Apr 2014 04:56:32 -0400 (EDT)
+Received: by mail-wi0-f170.google.com with SMTP id bs8so7491932wib.3
+        for <linux-mm@kvack.org>; Tue, 08 Apr 2014 01:56:30 -0700 (PDT)
+Received: from mail-wi0-x235.google.com (mail-wi0-x235.google.com [2a00:1450:400c:c05::235])
+        by mx.google.com with ESMTPS id o10si429678wiy.97.2014.04.08.01.56.29
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 08 Apr 2014 01:23:04 -0700 (PDT)
-From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 0/2] Disable zone_reclaim_mode by default v2
-Date: Tue,  8 Apr 2014 09:22:58 +0100
-Message-Id: <1396945380-18592-1-git-send-email-mgorman@suse.de>
+        Tue, 08 Apr 2014 01:56:30 -0700 (PDT)
+Received: by mail-wi0-f181.google.com with SMTP id hm4so924393wib.2
+        for <linux-mm@kvack.org>; Tue, 08 Apr 2014 01:56:28 -0700 (PDT)
+From: David CHANIAL <david.chanial@gmail.com>
+Content-Type: multipart/signed; boundary="Apple-Mail=_5EC7D185-1E36-490F-8D2B-F29DCB40DCEA"; protocol="application/pgp-signature"; micalg=pgp-sha512
+Date: Tue, 8 Apr 2014 10:56:24 +0200
+Subject: The scan_unevictable_pages sysctl/node-interface has been disabled for lack of a legitimate use case
+Message-Id: <E73F499E-8B54-4E32-A60B-59F2BB2023B2@gmail.com>
+Mime-Version: 1.0 (Mac OS X Mail 7.2 \(1874\))
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Robert Haas <robertmhaas@gmail.com>, Josh Berkus <josh@agliodbs.com>, Andres Freund <andres@2ndquadrant.com>, Christoph Lameter <cl@linux.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>
+To: linux-mm@kvack.org
 
-Changelog since v1
- o topology comment updates
 
-When it was introduced, zone_reclaim_mode made sense as NUMA distances
-punished and workloads were generally partitioned to fit into a NUMA
-node. NUMA machines are now common but few of the workloads are NUMA-aware
-and it's routine to see major performance due to zone_reclaim_mode being
-enabled but relatively few can identify the problem.
+--Apple-Mail=_5EC7D185-1E36-490F-8D2B-F29DCB40DCEA
+Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain;
+	charset=windows-1252
 
-Those that require zone_reclaim_mode are likely to be able to detect when
-it needs to be enabled and tune appropriately so lets have a sensible
-default for the bulk of users.
+Hi,
 
- Documentation/sysctl/vm.txt         | 17 +++++++++--------
- arch/ia64/include/asm/topology.h    |  3 ++-
- arch/powerpc/include/asm/topology.h |  8 ++------
- include/linux/mmzone.h              |  1 -
- include/linux/topology.h            |  3 ++-
- mm/page_alloc.c                     | 17 +----------------
- 6 files changed, 16 insertions(+), 33 deletions(-)
+I=92ve seen this message on my dmesg. What i have to care about ?
 
--- 
-1.8.4.5
+# dmesg -c
+[27035732.129884] sysctl: The scan_unevictable_pages =
+sysctl/node-interface has been disabled for lack of a legitimate use =
+case.  If you have one, please send an email to linux-mm@kvack.org.
+
+Best regards,
+=97=20
+David CHANIAL
+
+
+--Apple-Mail=_5EC7D185-1E36-490F-8D2B-F29DCB40DCEA
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment;
+	filename=signature.asc
+Content-Type: application/pgp-signature;
+	name=signature.asc
+Content-Description: Message signed with OpenPGP using GPGMail
+
+-----BEGIN PGP SIGNATURE-----
+Comment: GPGTools - https://gpgtools.org
+
+iQIcBAEBCgAGBQJTQ7m5AAoJEAofkXNv2UygRHMP/A6RzSP5JUykvoRQryecJUAp
+tmVIkLbFFMbdNVjQnkYtrA902JkMGTsjstXPUFMDVFTVACnpFl4+oS/WhiVImHvV
+6b5JHp3/i9KRih3lWKOMociYuLhACYaxDD8wz25Dw9eIUMDgzmrw0NkhQRm0jrQE
+Kyv+0ehE4i+6sKh9UE3VnpVzIlGDrUvEOZsV4xpW7qZIvuzi+TmeE+RUv4ws7jbl
+1GK+LK0kb7UQZK7OVBgIXBLshQ2nunedZk2ELaBzKEKVY3Ka/LML/PQPIgMLVFbd
+oaxiERamSgy9aMssilNqlSMY8tAaik9M8J/XoA60NxgOrbPxUwXKS2z8WXlBftEA
+yVK5DMltngFI5Cy6mpk/FIZcDKjRgs/V+eyL0rUHKgMGDnIQc6k/O2nxn17ojsKg
+im8visyHNBAyfHk5I5agVqTdooAuRcu7J72c7CV4Lfqfxl4vpta/ucsCBYfj86vM
+Rkgdfm3MybK2oyiZb9bhjIK4BHj5r4C4Iks6RtL+F7fwl/zsjizbYPFF3l+Z7uv0
+tUjrZrxB7AeMpBGScYx0HGGPCSlMUW2OgsMTgchFFQp9QgjW4qOnEFsV/xxWzd8Y
+Zhkcms7q0qn98ZlC8AwyLCbgG74lpJzpHgBHDeELRFQPVeKkvrNmKOScXV3unadK
+lZFq9qKg8X0TkZx89ndn
+=azea
+-----END PGP SIGNATURE-----
+
+--Apple-Mail=_5EC7D185-1E36-490F-8D2B-F29DCB40DCEA--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
