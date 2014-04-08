@@ -1,83 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 5341E6B009F
-	for <linux-mm@kvack.org>; Tue,  8 Apr 2014 09:09:44 -0400 (EDT)
-Received: by mail-wi0-f180.google.com with SMTP id q5so1304874wiv.13
-        for <linux-mm@kvack.org>; Tue, 08 Apr 2014 06:09:42 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z42si2733107eel.182.2014.04.08.06.09.41
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 08 Apr 2014 06:09:41 -0700 (PDT)
-From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 5/5] x86: Allow Xen to enable NUMA_BALANCING
-Date: Tue,  8 Apr 2014 14:09:30 +0100
-Message-Id: <1396962570-18762-6-git-send-email-mgorman@suse.de>
-In-Reply-To: <1396962570-18762-1-git-send-email-mgorman@suse.de>
-References: <1396962570-18762-1-git-send-email-mgorman@suse.de>
+Received: from mail-ee0-f45.google.com (mail-ee0-f45.google.com [74.125.83.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 3961C6B00A7
+	for <linux-mm@kvack.org>; Tue,  8 Apr 2014 09:26:49 -0400 (EDT)
+Received: by mail-ee0-f45.google.com with SMTP id d17so692607eek.32
+        for <linux-mm@kvack.org>; Tue, 08 Apr 2014 06:26:46 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id g47si2786350eet.234.2014.04.08.06.26.42
+        for <linux-mm@kvack.org>;
+        Tue, 08 Apr 2014 06:26:43 -0700 (PDT)
+Message-ID: <5343F2EC.3050508@redhat.com>
+Date: Tue, 08 Apr 2014 15:00:28 +0200
+From: Florian Weimer <fweimer@redhat.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 0/6] File Sealing & memfd_create()
+References: <1395256011-2423-1-git-send-email-dh.herrmann@gmail.com>
+In-Reply-To: <1395256011-2423-1-git-send-email-dh.herrmann@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux-X86 <x86@kernel.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Cyrill Gorcunov <gorcunov@gmail.com>, Mel Gorman <mgorman@suse.de>, Peter Anvin <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, Steven Noonan <steven@uplinklabs.net>, Rik van Riel <riel@redhat.com>, David Vrabel <david.vrabel@citrix.com>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: David Herrmann <dh.herrmann@gmail.com>, linux-kernel@vger.kernel.org
+Cc: Hugh Dickins <hughd@google.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Matthew Wilcox <matthew@wil.cx>, Karol Lewandowski <k.lewandowsk@samsung.com>, Kay Sievers <kay@vrfy.org>, Daniel Mack <zonque@gmail.com>, Lennart Poettering <lennart@poettering.net>, =?ISO-8859-1?Q?Kristian_H=F8gsberg?= <krh@bitplanet.net>, john.stultz@linaro.org, Greg Kroah-Hartman <greg@kroah.com>, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, dri-devel@lists.freedesktop.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ryan Lortie <desrt@desrt.ca>, "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
 
-Xen cannot use automatic NUMA balancing as they are depending on the same PTE
-bit. There is another software bit that is currently used by software dirty
-tracking of pages. This patch allows Xen to use that bit for automatic NUMA
-balancing if MEM_SOFT_DIRTY is not enabled. If KMEMCHECK is enabled then
-the bit is only set on global page tables so there should be no collision
-with NUMA_BALANCING. This shuffling can be disabled if/when Xen moves away
-from using _PAGE_BIT_IOMAP.
+On 03/19/2014 08:06 PM, David Herrmann wrote:
 
-Signed-off-by: Mel Gorman <mgorman@suse.de>
----
- arch/x86/Kconfig                     |  2 +-
- arch/x86/include/asm/pgtable_types.h | 14 +++++++++++++-
- 2 files changed, 14 insertions(+), 2 deletions(-)
+> Unlike existing techniques that provide similar protection, sealing allows
+> file-sharing without any trust-relationship. This is enforced by rejecting seal
+> modifications if you don't own an exclusive reference to the given file. So if
+> you own a file-descriptor, you can be sure that no-one besides you can modify
+> the seals on the given file. This allows mapping shared files from untrusted
+> parties without the fear of the file getting truncated or modified by an
+> attacker.
 
-diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index 4fab25a..3c4ba81 100644
---- a/arch/x86/Kconfig
-+++ b/arch/x86/Kconfig
-@@ -26,7 +26,7 @@ config X86
- 	select ARCH_MIGHT_HAVE_PC_SERIO
- 	select HAVE_AOUT if X86_32
- 	select HAVE_UNSTABLE_SCHED_CLOCK
--	select ARCH_SUPPORTS_NUMA_BALANCING if X86_64 && !XEN
-+	select ARCH_SUPPORTS_NUMA_BALANCING if X86_64 && (!XEN || !MEM_SOFT_DIRTY)
- 	select ARCH_SUPPORTS_INT128 if X86_64
- 	select ARCH_WANTS_PROT_NUMA_PROT_NONE
- 	select HAVE_IDE
-diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
-index 49b3e15..fa84d1f 100644
---- a/arch/x86/include/asm/pgtable_types.h
-+++ b/arch/x86/include/asm/pgtable_types.h
-@@ -24,11 +24,23 @@
- #define _PAGE_BIT_CPA_TEST	_PAGE_BIT_SOFTW1
- #define _PAGE_BIT_SPLITTING	_PAGE_BIT_SOFTW1 /* only valid on a PSE pmd */
- #define _PAGE_BIT_IOMAP		_PAGE_BIT_SOFTW2 /* flag used to indicate IO mapping */
--#define _PAGE_BIT_NUMA		_PAGE_BIT_SOFTW2 /* for NUMA balancing hinting */
- #define _PAGE_BIT_HIDDEN	_PAGE_BIT_SOFTW3 /* hidden by kmemcheck */
- #define _PAGE_BIT_SOFT_DIRTY	_PAGE_BIT_SOFTW3 /* software dirty tracking */
- #define _PAGE_BIT_NX           63       /* No execute: only valid after cpuid check */
- 
-+/*
-+ * Automatic NUMA balancing uses _PAGE_BIT_SOFTW2 if available as generally it
-+ * is only used on the kernel page tables and is easily shared. Unfortunately,
-+ * Xen also uses this bit so on those configurations it is necessary to use
-+ * _PAGE_BIT_SOFTW3 but then MEM_SOFT_DIRTY cannot be enabled at the same time
-+ * as it also requires that bit. Constraint is enforced by Kconfig.
-+ */
-+#ifndef CONFIG_XEN
-+#define _PAGE_BIT_NUMA		_PAGE_BIT_SOFTW2
-+#else
-+#define _PAGE_BIT_NUMA		_PAGE_BIT_SOFTW3
-+#endif
-+
- /* If _PAGE_BIT_PRESENT is clear, we use these: */
- /* - if the user mapped it with PROT_NONE; pte_present gives true */
- #define _PAGE_BIT_PROTNONE	_PAGE_BIT_GLOBAL
+How do you keep these promises on network and FUSE file systems?  Surely 
+there is still some trust involved for such descriptors?
+
+What happens if you create a loop device on a sealed descriptor?
+
+Why does memfd_create not create a file backed by a memory region in the 
+current process?  Wouldn't this be a far more generic primitive? 
+Creating aliases of memory regions would be interesting for many things 
+(not just libffi bypassing SELinux-enforced NX restrictions :-).
+
 -- 
-1.8.4.5
+Florian Weimer / Red Hat Product Security Team
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
