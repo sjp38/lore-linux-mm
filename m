@@ -1,77 +1,68 @@
-From: Kevin Easton <kevin@guarana.org>
-Subject: Re: [PATCH 0/5] Volatile Ranges (v12) & LSF-MM discussion fodder
-Date: Tue, 8 Apr 2014 14:32:33 +1000
-Message-ID: <20140408043233.GA11711@chicago.guarana.org>
-References: <1395436655-21670-1-git-send-email-john.stultz@linaro.org>
- <20140401212102.GM4407@cmpxchg.org>
- <533B313E.5000403@zytor.com>
- <533B4555.3000608@sr71.net>
- <533B8E3C.3090606@linaro.org>
- <20140402163638.GQ14688@cmpxchg.org>
- <CALAqxLUNKJQs+q__fwqggaRtqLz5sJtuxKdVPja8X0htDyaT6A@mail.gmail.com>
+From: Sasha Levin <sasha.levin@oracle.com>
+Subject: mm: kernel BUG at mm/huge_memory.c:1829!
+Date: Tue, 08 Apr 2014 10:37:05 -0400
+Message-ID: <53440991.9090001@oracle.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Return-path: <linux-kernel-owner@vger.kernel.org>
-Content-Disposition: inline
-In-Reply-To: <CALAqxLUNKJQs+q__fwqggaRtqLz5sJtuxKdVPja8X0htDyaT6A@mail.gmail.com>
 Sender: linux-kernel-owner@vger.kernel.org
-To: John Stultz <john.stultz@linaro.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Dave Hansen <dave@sr71.net>, "H. Peter Anvin" <hpa@zytor.com>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Neil Brown <neilb@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
+Cc: Dave Jones <davej@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>
 List-Id: linux-mm.kvack.org
 
-On Wed, Apr 02, 2014 at 10:40:16AM -0700, John Stultz wrote:
-> On Wed, Apr 2, 2014 at 9:36 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
-> > I'm just dying to hear a "normal" use case then. :)
-> 
-> So the more "normal" use cause would be marking objects volatile and
-> then non-volatile w/o accessing them in-between. In this case the
-> zero-fill vs SIGBUS semantics don't really matter, its really just a
-> trade off in how we handle applications deviating (intentionally or
-> not) from this use case.
-> 
-> So to maybe flesh out the context here for folks who are following
-> along (but weren't in the hallway at LSF :),  Johannes made a fairly
-> interesting proposal (Johannes: Please correct me here where I'm maybe
-> slightly off here) to use only the dirty bits of the ptes to mark a
-> page as volatile. Then the kernel could reclaim these clean pages as
-> it needed, and when we marked the range as non-volatile, the pages
-> would be re-dirtied and if any of the pages were missing, we could
-> return a flag with the purged state.  This had some different
-> semantics then what I've been working with for awhile (for example,
-> any writes to pages would implicitly clear volatility), so I wasn't
-> completely comfortable with it, but figured I'd think about it to see
-> if it could be done. Particularly since it would in some ways simplify
-> tmpfs/shm shared volatility that I'd eventually like to do.
-...
-> Now, while for the case I'm personally most interested in (ashmem),
-> zero-fill would technically be ok, since that's what Android does.
-> Even so, I don't think its the best approach for the interface, since
-> applications may end up quite surprised by the results when they
-> accidentally don't follow the "don't touch volatile pages" rule.
-> 
-> That point beside, I think the other problem with the page-cleaning
-> volatility approach is that there are other awkward side effects. For
-> example: Say an application marks a range as volatile. One page in the
-> range is then purged. The application, due to a bug or otherwise,
-> reads the volatile range. This causes the page to be zero-filled in,
-> and the application silently uses the corrupted data (which isn't
-> great). More problematic though, is that by faulting the page in,
-> they've in effect lost the purge state for that page. When the
-> application then goes to mark the range as non-volatile, all pages are
-> present, so we'd return that no pages were purged.  From an
-> application perspective this is pretty ugly.
+Hi all,
 
-The write-implicitly-clears-volatile semantics would actually be
-an advantage for some use cases.  If you have a volatile cache of
-many sub-page-size objects, the application can just include at
-the start of each page "int present, in_use;".  "present" is set
-to non-zero before marking volatile, and when the application wants
-unmark as volatile it writes to "in_use" and tests the value of 
-"present".  No need for a syscall at all, although it does take a
-minor fault.
+While fuzzing with trinity inside a KVM tools guest running the latest -next
+kernel, I've stumbled on the following:
 
-The syscall would be better for the case of large objects, though.
+[ 1275.253114] kernel BUG at mm/huge_memory.c:1829!
+[ 1275.253642] invalid opcode: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
+[ 1275.254775] Dumping ftrace buffer:
+[ 1275.255631]    (ftrace buffer empty)
+[ 1275.256440] Modules linked in:
+[ 1275.257347] CPU: 20 PID: 22807 Comm: trinity-c299 Not tainted 3.14.0-next-20140407-sasha-00023-gd35b0d6 #382
+[ 1275.258686] task: ffff8803e7873000 ti: ffff8803e7896000 task.ti: ffff8803e7896000
+[ 1275.259416] RIP: __split_huge_page (mm/huge_memory.c:1829 (discriminator 1))
+[ 1275.260527] RSP: 0018:ffff8803e7897bb8  EFLAGS: 00010297
+[ 1275.261323] RAX: 000000000000012c RBX: ffff8803e789d600 RCX: 0000000000000006
+[ 1275.261323] RDX: 0000000000005b80 RSI: ffff8803e7873d00 RDI: 0000000000000282
+[ 1275.261323] RBP: ffff8803e7897c68 R08: 0000000000000000 R09: 0000000000000000
+[ 1275.261323] R10: 0000000000000001 R11: 30303320746e756f R12: 0000000000000000
+[ 1275.261323] R13: 0000000000a00000 R14: ffff8803ede73000 R15: ffffea0010030000
+[ 1275.261323] FS:  00007f899d23f700(0000) GS:ffff880437000000(0000) knlGS:0000000000000000
+[ 1275.261323] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+[ 1275.261323] CR2: 00000000024cf048 CR3: 00000003e787f000 CR4: 00000000000006a0
+[ 1275.261323] DR0: 0000000000696000 DR1: 0000000000696000 DR2: 0000000000000000
+[ 1275.261323] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000600
+[ 1275.261323] Stack:
+[ 1275.261323]  ffff8803e7897bd8 ffff880024dab898 ffff8803e7897bd8 ffffffffac1bea0e
+[ 1275.261323]  ffff8803e7897c28 0000000000000282 00000014b06cc072 0000000000000000
+[ 1275.261323]  0000012be7897c28 0000000000000a00 ffff880024dab8d0 ffff880024dab898
+[ 1275.261323] Call Trace:
+[ 1275.261323] ? put_lock_stats.isra.12 (arch/x86/include/asm/preempt.h:98 kernel/locking/lockdep.c:254)
+[ 1275.261323] ? down_write (kernel/locking/rwsem.c:51 (discriminator 2))
+[ 1275.261323] ? split_huge_page_to_list (mm/huge_memory.c:1874)
+[ 1275.261323] split_huge_page_to_list (include/linux/vmstat.h:37 mm/huge_memory.c:1879)
+[ 1275.261323] __split_huge_page_pmd (mm/huge_memory.c:2811)
+[ 1275.261323] ? mutex_unlock (kernel/locking/mutex.c:220)
+[ 1275.261323] ? __mutex_unlock_slowpath (arch/x86/include/asm/paravirt.h:809 kernel/locking/mutex.c:713 kernel/locking/mutex.c:722)
+[ 1275.261323] ? get_parent_ip (kernel/sched/core.c:2471)
+[ 1275.261323] ? preempt_count_sub (kernel/sched/core.c:2526)
+[ 1275.261323] follow_page_mask (mm/memory.c:1518 (discriminator 1))
+[ 1275.261323] SYSC_move_pages (mm/migrate.c:1227 mm/migrate.c:1353 mm/migrate.c:1508)
+[ 1275.261323] ? SYSC_move_pages (include/linux/rcupdate.h:800 mm/migrate.c:1472)
+[ 1275.261323] ? sched_clock_local (kernel/sched/clock.c:213)
+[ 1275.261323] SyS_move_pages (mm/migrate.c:1456)
+[ 1275.261323] tracesys (arch/x86/kernel/entry_64.S:749)
+[ 1275.261323] Code: c0 01 39 45 94 74 18 41 8b 57 18 48 c7 c7 90 5e 6d b0 31 c0 8b 75 94 83 c2 01 e8 3d 6a 23 03 41 8b 47 18 83 c0 01 39 45 94 74 02 <0f> 0b 49 8b 07 48 89 c2 48 c1 e8 34 83 e0 03 48 c1 ea 36 4c 8d
+[ 1275.261323] RIP __split_huge_page (mm/huge_memory.c:1829 (discriminator 1))
+[ 1275.261323]  RSP <ffff8803e7897bb8>
 
-Or is that fatally flawed?
+Looking at the code, there was supposed to be a printk printing both
+mapcounts if they're different. However, there was no matching entry
+in the log for that.
 
-    - Kevin
+
+Thanks,
+Sasha
