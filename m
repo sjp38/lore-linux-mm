@@ -1,43 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oa0-f41.google.com (mail-oa0-f41.google.com [209.85.219.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 19E896B0031
-	for <linux-mm@kvack.org>; Tue,  8 Apr 2014 15:56:55 -0400 (EDT)
-Received: by mail-oa0-f41.google.com with SMTP id j17so1621167oag.14
-        for <linux-mm@kvack.org>; Tue, 08 Apr 2014 12:56:53 -0700 (PDT)
-Received: from smtp.01.com (smtp.01.com. [199.36.142.181])
-        by mx.google.com with ESMTP id pu6si2560229oeb.178.2014.04.08.12.56.53
+Received: from mail-ee0-f48.google.com (mail-ee0-f48.google.com [74.125.83.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A7956B0031
+	for <linux-mm@kvack.org>; Tue,  8 Apr 2014 16:26:07 -0400 (EDT)
+Received: by mail-ee0-f48.google.com with SMTP id b57so1102718eek.7
+        for <linux-mm@kvack.org>; Tue, 08 Apr 2014 13:26:06 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id v8si4313551eew.37.2014.04.08.13.26.04
         for <linux-mm@kvack.org>;
-        Tue, 08 Apr 2014 12:56:53 -0700 (PDT)
-Message-ID: <53445481.3030202@agliodbs.com>
-Date: Tue, 08 Apr 2014 15:56:49 -0400
-From: Josh Berkus <josh@agliodbs.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 0/2] Disable zone_reclaim_mode by default
-References: <1396910068-11637-1-git-send-email-mgorman@suse.de>	<5343A494.9070707@suse.cz>	<alpine.DEB.2.10.1404080914280.8782@nuc> <CA+TgmoY=vUdtdnJUEK1h-UcaNoqqLUctt44S8vj2B7EVUXUOyA@mail.gmail.com> <WM!55d2a092da9f6180473043487a4eb612ae8195f78d2ffdd83f673ed5cb2cb9659cf61e0c8d5bae23f5c914057bcd2ee4!@asav-3.01.com>
-In-Reply-To: <WM!55d2a092da9f6180473043487a4eb612ae8195f78d2ffdd83f673ed5cb2cb9659cf61e0c8d5bae23f5c914057bcd2ee4!@asav-3.01.com>
-Content-Type: text/plain; charset=UTF-8
+        Tue, 08 Apr 2014 13:26:05 -0700 (PDT)
+Date: Tue, 8 Apr 2014 16:25:39 -0400
+From: Luiz Capitulino <lcapitulino@redhat.com>
+Subject: Re: [PATCH 1/5] hugetlb: prep_compound_gigantic_page(): drop __init
+ marker
+Message-ID: <20140408162539.41f68428@redhat.com>
+In-Reply-To: <1396986711-o0m2kq1v@n-horiguchi@ah.jp.nec.com>
+References: <1396983740-26047-1-git-send-email-lcapitulino@redhat.com>
+	<1396983740-26047-2-git-send-email-lcapitulino@redhat.com>
+	<1396986711-o0m2kq1v@n-horiguchi@ah.jp.nec.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Robert Haas <robertmhaas@gmail.com>, Christoph Lameter <cl@linux.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Andres Freund <andres@2ndquadrant.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, sivanich@sgi.com
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, mtosatti@redhat.com, aarcange@redhat.com, mgorman@suse.de, akpm@linux-foundation.org, andi@firstfloor.org, davidlohr@hp.com, rientjes@google.com, isimatu.yasuaki@jp.fujitsu.com, yinghai@kernel.org, riel@redhat.com
 
-On 04/08/2014 03:53 PM, Robert Haas wrote:
-> In an ideal world, the kernel would put the hottest pages on the local
-> node and the less-hot pages on remote nodes, moving pages around as
-> the workload shifts.  In practice, that's probably pretty hard.
-> Fortunately, it's not nearly as important as making sure we don't
-> unnecessarily hit the disk, which is infinitely slower than any memory
-> bank.
+On Tue, 08 Apr 2014 15:51:51 -0400
+Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
 
-Even if the kernel could do this, we would *still* have to disable it
-for PostgreSQL, since our double-buffering makes our pages look "cold"
-to the kernel ... as discussed.
+> Hi Luiz,
+> 
+> On Tue, Apr 08, 2014 at 03:02:16PM -0400, Luiz Capitulino wrote:
+> > This function is going to be used by non-init code in a future
+> > commit.
+> > 
+> > Signed-off-by: Luiz Capitulino <lcapitulino@redhat.com>
+> > ---
+> >  mm/hugetlb.c | 3 +--
+> >  1 file changed, 1 insertion(+), 2 deletions(-)
+> > 
+> > diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> > index 7c02b9d..319db28 100644
+> > --- a/mm/hugetlb.c
+> > +++ b/mm/hugetlb.c
+> > @@ -689,8 +689,7 @@ static void prep_new_huge_page(struct hstate *h, struct page *page, int nid)
+> >  	put_page(page); /* free it into the hugepage allocator */
+> >  }
+> >  
+> > -static void __init prep_compound_gigantic_page(struct page *page,
+> > -					       unsigned long order)
+> > +static void prep_compound_gigantic_page(struct page *page, unsigned long order)
+> >  {
+> >  	int i;
+> >  	int nr_pages = 1 << order;
+> 
+> Is __ClearPageReserved() in this function relevant only in boot time
+> allocation? 
 
--- 
-Josh Berkus
-PostgreSQL Experts Inc.
-http://pgexperts.com
+Yes.
+
+> If yes, it might be good to avoid calling it in runtime
+> allocation.
+
+The problem is that prep_compound_gigantic_page() is good and used by
+both boottime and runtime allocations. Having two functions to do the
+same thing seems like overkill, especially because the runtime allocation
+code skips reserved pages. So the reserved bit should always be cleared
+for runtime allocated gigantic pages.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
