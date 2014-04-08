@@ -1,59 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f47.google.com (mail-ee0-f47.google.com [74.125.83.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 62A166B0036
-	for <linux-mm@kvack.org>; Tue,  8 Apr 2014 10:46:33 -0400 (EDT)
-Received: by mail-ee0-f47.google.com with SMTP id b15so772915eek.6
-        for <linux-mm@kvack.org>; Tue, 08 Apr 2014 07:46:31 -0700 (PDT)
-Received: from mail.zytor.com (terminus.zytor.com. [2001:1868:205::10])
-        by mx.google.com with ESMTPS id w48si3039892eel.356.2014.04.08.07.46.29
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Apr 2014 07:46:30 -0700 (PDT)
-Message-ID: <53440A5D.6050301@zytor.com>
-Date: Tue, 08 Apr 2014 07:40:29 -0700
-From: "H. Peter Anvin" <hpa@zytor.com>
+Received: from mail-ob0-f178.google.com (mail-ob0-f178.google.com [209.85.214.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 0ECF86B0038
+	for <linux-mm@kvack.org>; Tue,  8 Apr 2014 10:46:51 -0400 (EDT)
+Received: by mail-ob0-f178.google.com with SMTP id wp18so1098777obc.37
+        for <linux-mm@kvack.org>; Tue, 08 Apr 2014 07:46:50 -0700 (PDT)
+Received: from smtp.01.com (smtp.01.com. [199.36.142.181])
+        by mx.google.com with ESMTP id e3si1807156obp.178.2014.04.08.07.46.49
+        for <linux-mm@kvack.org>;
+        Tue, 08 Apr 2014 07:46:49 -0700 (PDT)
+Message-ID: <53440BD6.5030008@agliodbs.com>
+Date: Tue, 08 Apr 2014 10:46:46 -0400
+From: Josh Berkus <josh@agliodbs.com>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 0/5] Use an alternative to _PAGE_PROTNONE for _PAGE_NUMA
- v2
-References: <1396962570-18762-1-git-send-email-mgorman@suse.de>
-In-Reply-To: <1396962570-18762-1-git-send-email-mgorman@suse.de>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH 0/2] Disable zone_reclaim_mode by default
+References: <1396910068-11637-1-git-send-email-mgorman@suse.de> <5343A494.9070707@suse.cz> <alpine.DEB.2.10.1404080914280.8782@nuc> <WM!ea1193ee171854a74828ee30c859d97ff2ce66405ffa3a0b8c31a1233c6a0b55530cdf3cbfcd989c0ec18fef1d533f81!@asav-3.01.com>
+In-Reply-To: <WM!ea1193ee171854a74828ee30c859d97ff2ce66405ffa3a0b8c31a1233c6a0b55530cdf3cbfcd989c0ec18fef1d533f81!@asav-3.01.com>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>, Linux-X86 <x86@kernel.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Cyrill Gorcunov <gorcunov@gmail.com>, Ingo Molnar <mingo@kernel.org>, Steven Noonan <steven@uplinklabs.net>, Rik van Riel <riel@redhat.com>, David Vrabel <david.vrabel@citrix.com>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>David Vrabel <david.vrabel@citrix.com>
+To: Christoph Lameter <cl@linux.com>, Vlastimil Babka <vbabka@suse.cz>
+Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Robert Haas <robertmhaas@gmail.com>, Andres Freund <andres@2ndquadrant.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, sivanich@sgi.com
 
-On 04/08/2014 06:09 AM, Mel Gorman wrote:
-> Using unused physical bits is something that will break eventually.
-> 
-> Changelog since V1
-> o Reuse software-bits
-> o Use paravirt ops when modifying PTEs in the NUMA helpers
-> 
-> Aliasing _PAGE_NUMA and _PAGE_PROTNONE had some convenient properties but
-> it ultimately gave Xen a headache and pisses almost everybody off that
-> looks closely at it. Two discussions on "why this makes sense" is one
-> discussion too many so rather than having a third so here is this series.
-> This series reuses the PTE bits that are available to the programmer.
-> This adds some contraints on how and when automatic NUMA balancing can be
-> enabled but it should go away again when Xen stops using _PAGE_IOMAP.
-> 
-> The series also converts the NUMA helpers to use paravirt-friendly operations
-> but it needs a Tested-by from the Xen and powerpc people.
-> 
+On 04/08/2014 10:17 AM, Christoph Lameter wrote:
 
-It is proably simpler to just base this patchset on top of David
-Vrabel's which actually *does* remove _PAGE_IOMAP.
+> Another solution here would be to increase the threshhold so that
+> 4 socket machines do not enable zone reclaim by default. The larger the
+> NUMA system is the more memory is off node from the perspective of a
+> processor and the larger the hit from remote memory.
 
-David, is your patchset going to be pushed in this merge window as expected?
+8 and 16 socket machines aren't common for nonspecialist workloads
+*now*, but by the time these changes make it into supported distribution
+kernels, they may very well be.  So having zone_reclaim_mode
+automatically turn itself on if you have more than 8 sockets would still
+be a booby-trap ("Boss, I dunno.  I installed the additional processors
+and memory performance went to hell!")
 
-That being said, these bits are precious, and if this ends up being a
-case where "only Xen needs another bit" once again then Xen should
-expect to get kicked to the curb at a moment's notice.
+For zone_reclaim_mode=1 to be useful on standard servers, both of the
+following need to be true:
 
-	-hpa
+1. the user has to have set CPU affinity for their applications;
 
+2. the applications can't need more than one memory bank worth of cache.
+
+The thing is, there is *no way* for Linux to know if the above is true.
+
+Now, I can certainly imagine non-HPC workloads for which both of the
+above would be true; for example, I've set up VMware ESX servers where
+each VM has one socket and one memory bank. However, if the user knows
+enough to set up socket affinity, they know enough to set
+zone_reclaim_mode = 1.  The default should cover the know-nothing case,
+not the experienced specialist case.
+
+I'd also argue that there's a fundamental false assumption in the entire
+algorithm of zone_reclaim_mode, because there is no memory bank which is
+as distant as disk is, ever.  However, if it's off by default, then I
+don't care.
+
+-- 
+Josh Berkus
+PostgreSQL Experts Inc.
+http://pgexperts.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
