@@ -1,204 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 39D236B005C
-	for <linux-mm@kvack.org>; Mon,  7 Apr 2014 23:56:10 -0400 (EDT)
-Received: by mail-pa0-f48.google.com with SMTP id hz1so421056pad.35
-        for <linux-mm@kvack.org>; Mon, 07 Apr 2014 20:56:09 -0700 (PDT)
-Received: from fgwmail5.fujitsu.co.jp (fgwmail5.fujitsu.co.jp. [192.51.44.35])
-        by mx.google.com with ESMTPS id xv10si255243pab.261.2014.04.07.19.01.32
+Received: from mail-la0-f48.google.com (mail-la0-f48.google.com [209.85.215.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C0256B0068
+	for <linux-mm@kvack.org>; Tue,  8 Apr 2014 00:04:55 -0400 (EDT)
+Received: by mail-la0-f48.google.com with SMTP id gf5so321367lab.7
+        for <linux-mm@kvack.org>; Mon, 07 Apr 2014 21:04:54 -0700 (PDT)
+Received: from mail-lb0-f180.google.com (mail-lb0-f180.google.com [209.85.217.180])
+        by mx.google.com with ESMTPS id sz4si367710lbb.204.2014.04.07.21.04.53
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 07 Apr 2014 19:01:33 -0700 (PDT)
-Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 9F7A33EE1E1
-	for <linux-mm@kvack.org>; Tue,  8 Apr 2014 11:01:31 +0900 (JST)
-Received: from smail (m4 [127.0.0.1])
-	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 88B7945DEBF
-	for <linux-mm@kvack.org>; Tue,  8 Apr 2014 11:01:31 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (s4.gw.nic.fujitsu.com [10.0.50.94])
-	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 6053945DEB9
-	for <linux-mm@kvack.org>; Tue,  8 Apr 2014 11:01:31 +0900 (JST)
-Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 48D731DB8043
-	for <linux-mm@kvack.org>; Tue,  8 Apr 2014 11:01:31 +0900 (JST)
-Received: from g01jpfmpwkw03.exch.g01.fujitsu.local (g01jpfmpwkw03.exch.g01.fujitsu.local [10.0.193.57])
-	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id E30E01DB803F
-	for <linux-mm@kvack.org>; Tue,  8 Apr 2014 11:01:30 +0900 (JST)
-Message-ID: <53435848.1050601@jp.fujitsu.com>
-Date: Tue, 8 Apr 2014 11:00:40 +0900
-From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 07 Apr 2014 21:04:54 -0700 (PDT)
+Received: by mail-lb0-f180.google.com with SMTP id 10so318731lbg.25
+        for <linux-mm@kvack.org>; Mon, 07 Apr 2014 21:04:53 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/4] hugetlb: add hstate_is_gigantic()
-References: <1396462128-32626-1-git-send-email-lcapitulino@redhat.com> <1396462128-32626-2-git-send-email-lcapitulino@redhat.com>
-In-Reply-To: <1396462128-32626-2-git-send-email-lcapitulino@redhat.com>
-Content-Type: text/plain; charset="ISO-2022-JP"
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20140407212535.GJ7292@suse.de>
+References: <1396883443-11696-1-git-send-email-mgorman@suse.de>
+	<1396883443-11696-3-git-send-email-mgorman@suse.de>
+	<5342C517.2020305@citrix.com>
+	<20140407154935.GD7292@suse.de>
+	<20140407161910.GJ1444@moon>
+	<20140407182854.GH7292@suse.de>
+	<5342FC0E.9080701@zytor.com>
+	<20140407193646.GC23983@moon>
+	<5342FFB0.6010501@zytor.com>
+	<20140407212535.GJ7292@suse.de>
+Date: Mon, 7 Apr 2014 21:04:53 -0700
+Message-ID: <CAKbGBLhsWKVYnBqR0ZJ2kfaF_h=XAYkjq=v3RLoRBDkF_w=6ag@mail.gmail.com>
+Subject: Re: [PATCH 2/3] x86: Define _PAGE_NUMA with unused physical address
+ bits PMD and PTE levels
+From: Steven Noonan <steven@uplinklabs.net>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Luiz Capitulino <lcapitulino@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, mtosatti@redhat.com, aarcange@redhat.com, mgorman@suse.de, akpm@linux-foundation.org, andi@firstfloor.org, davidlohr@hp.com, rientjes@google.com, yinghai@kernel.org, riel@redhat.com
+To: Mel Gorman <mgorman@suse.de>
+Cc: "H. Peter Anvin" <hpa@zytor.com>, Cyrill Gorcunov <gorcunov@gmail.com>, David Vrabel <david.vrabel@citrix.com>, Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Linux-MM <linux-mm@kvack.org>, Linux-X86 <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Pavel Emelyanov <xemul@parallels.com>
 
-(2014/04/03 3:08), Luiz Capitulino wrote:
-> Signed-off-by: Luiz Capitulino <lcapitulino@redhat.com>
-> ---
+On Mon, Apr 7, 2014 at 2:25 PM, Mel Gorman <mgorman@suse.de> wrote:
+> On Mon, Apr 07, 2014 at 12:42:40PM -0700, H. Peter Anvin wrote:
+>> On 04/07/2014 12:36 PM, Cyrill Gorcunov wrote:
+>> > On Mon, Apr 07, 2014 at 12:27:10PM -0700, H. Peter Anvin wrote:
+>> >> On 04/07/2014 11:28 AM, Mel Gorman wrote:
+>> >>>
+>> >>> I had considered the soft-dirty tracking usage of the same bit. I thought I'd
+>> >>> be able to swizzle around it or a further worst case of having soft-dirty and
+>> >>> automatic NUMA balancing mutually exclusive. Unfortunately upon examination
+>> >>> it's not obvious how to have both of them share a bit and I suspect any
+>> >>> attempt to will break CRIU.  In my current tree, NUMA_BALANCING cannot be
+>> >>> set if MEM_SOFT_DIRTY which is not particularly satisfactory. Next on the
+>> >>> list is examining if _PAGE_BIT_IOMAP can be used.
+>> >>
+>> >> Didn't we smoke the last user of _PAGE_BIT_IOMAP?
+>> >
+>> > Seems so, at least for non-kernel pages (not considering this bit references in
+>> > xen code, which i simply don't know but i guess it's used for kernel pages only).
+>> >
+>>
+>> David Vrabel has a patchset which I presumed would be pulled through the
+>> Xen tree this merge window:
+>>
+>> [PATCHv5 0/8] x86/xen: fixes for mapping high MMIO regions (and remove
+>> _PAGE_IOMAP)
+>>
+>> That frees up this bit.
+>>
+>
+> Thanks, I was not aware of that patch.  Based on it, I intend to force
+> automatic NUMA balancing to depend on !XEN and see what the reaction is. If
+> support for Xen is really required then it potentially be re-enabled if/when
+> that series is merged assuming they do not need the bit for something else.
+>
 
-Reviewed-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
-
-Thanks,
-Yasuaki Ishimatsu
-
->   include/linux/hugetlb.h |  5 +++++
->   mm/hugetlb.c            | 28 ++++++++++++++--------------
->   2 files changed, 19 insertions(+), 14 deletions(-)
-> 
-> diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-> index 8c43cc4..8590134 100644
-> --- a/include/linux/hugetlb.h
-> +++ b/include/linux/hugetlb.h
-> @@ -333,6 +333,11 @@ static inline unsigned huge_page_shift(struct hstate *h)
->   	return h->order + PAGE_SHIFT;
->   }
->   
-> +static inline bool hstate_is_gigantic(struct hstate *h)
-> +{
-> +	return huge_page_order(h) >= MAX_ORDER;
-> +}
-> +
->   static inline unsigned int pages_per_huge_page(struct hstate *h)
->   {
->   	return 1 << h->order;
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index c01cb9f..8c50547 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -574,7 +574,7 @@ static void update_and_free_page(struct hstate *h, struct page *page)
->   {
->   	int i;
->   
-> -	VM_BUG_ON(h->order >= MAX_ORDER);
-> +	VM_BUG_ON(hstate_is_gigantic(h));
->   
->   	h->nr_huge_pages--;
->   	h->nr_huge_pages_node[page_to_nid(page)]--;
-> @@ -627,7 +627,7 @@ static void free_huge_page(struct page *page)
->   	if (restore_reserve)
->   		h->resv_huge_pages++;
->   
-> -	if (h->surplus_huge_pages_node[nid] && huge_page_order(h) < MAX_ORDER) {
-> +	if (h->surplus_huge_pages_node[nid] && !hstate_is_gigantic(h)) {
->   		/* remove the page from active list */
->   		list_del(&page->lru);
->   		update_and_free_page(h, page);
-> @@ -731,7 +731,7 @@ static struct page *alloc_fresh_huge_page_node(struct hstate *h, int nid)
->   {
->   	struct page *page;
->   
-> -	if (h->order >= MAX_ORDER)
-> +	if (hstate_is_gigantic(h))
->   		return NULL;
->   
->   	page = alloc_pages_exact_node(nid,
-> @@ -925,7 +925,7 @@ static struct page *alloc_buddy_huge_page(struct hstate *h, int nid)
->   	struct page *page;
->   	unsigned int r_nid;
->   
-> -	if (h->order >= MAX_ORDER)
-> +	if (hstate_is_gigantic(h))
->   		return NULL;
->   
->   	/*
-> @@ -1118,7 +1118,7 @@ static void return_unused_surplus_pages(struct hstate *h,
->   	h->resv_huge_pages -= unused_resv_pages;
->   
->   	/* Cannot return gigantic pages currently */
-> -	if (h->order >= MAX_ORDER)
-> +	if (hstate_is_gigantic(h))
->   		return;
->   
->   	nr_pages = min(unused_resv_pages, h->surplus_huge_pages);
-> @@ -1328,7 +1328,7 @@ static void __init gather_bootmem_prealloc(void)
->   		 * fix confusing memory reports from free(1) and another
->   		 * side-effects, like CommitLimit going negative.
->   		 */
-> -		if (h->order > (MAX_ORDER - 1))
-> +		if (hstate_is_gigantic(h))
->   			adjust_managed_page_count(page, 1 << h->order);
->   	}
->   }
-> @@ -1338,7 +1338,7 @@ static void __init hugetlb_hstate_alloc_pages(struct hstate *h)
->   	unsigned long i;
->   
->   	for (i = 0; i < h->max_huge_pages; ++i) {
-> -		if (h->order >= MAX_ORDER) {
-> +		if (hstate_is_gigantic(h)) {
->   			if (!alloc_bootmem_huge_page(h))
->   				break;
->   		} else if (!alloc_fresh_huge_page(h,
-> @@ -1354,7 +1354,7 @@ static void __init hugetlb_init_hstates(void)
->   
->   	for_each_hstate(h) {
->   		/* oversize hugepages were init'ed in early boot */
-> -		if (h->order < MAX_ORDER)
-> +		if (!hstate_is_gigantic(h))
->   			hugetlb_hstate_alloc_pages(h);
->   	}
->   }
-> @@ -1388,7 +1388,7 @@ static void try_to_free_low(struct hstate *h, unsigned long count,
->   {
->   	int i;
->   
-> -	if (h->order >= MAX_ORDER)
-> +	if (hstate_is_gigantic(h))
->   		return;
->   
->   	for_each_node_mask(i, *nodes_allowed) {
-> @@ -1451,7 +1451,7 @@ static unsigned long set_max_huge_pages(struct hstate *h, unsigned long count,
->   {
->   	unsigned long min_count, ret;
->   
-> -	if (h->order >= MAX_ORDER)
-> +	if (hstate_is_gigantic(h))
->   		return h->max_huge_pages;
->   
->   	/*
-> @@ -1577,7 +1577,7 @@ static ssize_t nr_hugepages_store_common(bool obey_mempolicy,
->   		goto out;
->   
->   	h = kobj_to_hstate(kobj, &nid);
-> -	if (h->order >= MAX_ORDER) {
-> +	if (hstate_is_gigantic(h)) {
->   		err = -EINVAL;
->   		goto out;
->   	}
-> @@ -1660,7 +1660,7 @@ static ssize_t nr_overcommit_hugepages_store(struct kobject *kobj,
->   	unsigned long input;
->   	struct hstate *h = kobj_to_hstate(kobj, NULL);
->   
-> -	if (h->order >= MAX_ORDER)
-> +	if (hstate_is_gigantic(h))
->   		return -EINVAL;
->   
->   	err = kstrtoul(buf, 10, &input);
-> @@ -2071,7 +2071,7 @@ static int hugetlb_sysctl_handler_common(bool obey_mempolicy,
->   
->   	tmp = h->max_huge_pages;
->   
-> -	if (write && h->order >= MAX_ORDER)
-> +	if (write && hstate_is_gigantic(h))
->   		return -EINVAL;
->   
->   	table->data = &tmp;
-> @@ -2124,7 +2124,7 @@ int hugetlb_overcommit_handler(struct ctl_table *table, int write,
->   
->   	tmp = h->nr_overcommit_huge_pages;
->   
-> -	if (write && h->order >= MAX_ORDER)
-> +	if (write && hstate_is_gigantic(h))
->   		return -EINVAL;
->   
->   	table->data = &tmp;
-> 
-
+Amazon EC2 does have large memory instance types with NUMA exposed to
+the guest (e.g. c3.8xlarge, i2.8xlarge, etc), so it'd be preferable
+(to me anyway) if we didn't require !XEN.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
