@@ -1,58 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f51.google.com (mail-ee0-f51.google.com [74.125.83.51])
-	by kanga.kvack.org (Postfix) with ESMTP id D72D56B0037
-	for <linux-mm@kvack.org>; Tue,  8 Apr 2014 12:06:13 -0400 (EDT)
-Received: by mail-ee0-f51.google.com with SMTP id c13so859943eek.38
-        for <linux-mm@kvack.org>; Tue, 08 Apr 2014 09:06:11 -0700 (PDT)
-Received: from mail.zytor.com (terminus.zytor.com. [2001:1868:205::10])
-        by mx.google.com with ESMTPS id 45si3346796eeh.243.2014.04.08.09.06.09
+Received: from mail-ie0-f174.google.com (mail-ie0-f174.google.com [209.85.223.174])
+	by kanga.kvack.org (Postfix) with ESMTP id D27DC6B0037
+	for <linux-mm@kvack.org>; Tue,  8 Apr 2014 12:10:31 -0400 (EDT)
+Received: by mail-ie0-f174.google.com with SMTP id rp18so1110820iec.5
+        for <linux-mm@kvack.org>; Tue, 08 Apr 2014 09:10:31 -0700 (PDT)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
+        by mx.google.com with ESMTPS id ij6si3964643igb.29.2014.04.08.09.10.27
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Apr 2014 09:06:10 -0700 (PDT)
-Message-ID: <53441E19.8090004@zytor.com>
-Date: Tue, 08 Apr 2014 09:04:41 -0700
-From: "H. Peter Anvin" <hpa@zytor.com>
+        Tue, 08 Apr 2014 09:10:27 -0700 (PDT)
+Date: Tue, 8 Apr 2014 18:10:23 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: sched: long running interrupts breaking spinlocks
+Message-ID: <20140408161023.GP10526@twins.programming.kicks-ass.net>
+References: <53441540.7070102@oracle.com>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 0/5] Use an alternative to _PAGE_PROTNONE for _PAGE_NUMA
- v2
-References: <1396962570-18762-1-git-send-email-mgorman@suse.de>	<53440A5D.6050301@zytor.com> <CA+55aFwc6Jdf+As9RJ3wJWuOGEGmiaYWNa-jp2aCb9=ZiiqV+A@mail.gmail.com>
-In-Reply-To: <CA+55aFwc6Jdf+As9RJ3wJWuOGEGmiaYWNa-jp2aCb9=ZiiqV+A@mail.gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <53441540.7070102@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, Linux-X86 <x86@kernel.org>, Cyrill Gorcunov <gorcunov@gmail.com>, Ingo Molnar <mingo@kernel.org>, Steven Noonan <steven@uplinklabs.net>, Rik van Riel <riel@redhat.com>, David Vrabel <david.vrabel@citrix.com>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Dave Jones <davej@redhat.com>, Thomas Gleixner <tglx@linutronix.de>
 
-On 04/08/2014 08:22 AM, Linus Torvalds wrote:
-> On Tue, Apr 8, 2014 at 7:40 AM, H. Peter Anvin <hpa@zytor.com> wrote:
->>
->> David, is your patchset going to be pushed in this merge window as expected?
+On Tue, Apr 08, 2014 at 11:26:56AM -0400, Sasha Levin wrote:
+> Hi all,
 > 
-> Apparently aiming for 3.16 right now.
+> (all the below happened inside mm/ code, so while I don't suspect
+> it's a mm/ issue you folks got cc'ed anyways!)
 > 
->> That being said, these bits are precious, and if this ends up being a
->> case where "only Xen needs another bit" once again then Xen should
->> expect to get kicked to the curb at a moment's notice.
+> While fuzzing with trinity inside a KVM tools guest running the latest -next
+> kernel, I've stumbled on the following:
 > 
-> Quite frankly, I don't think it's a Xen-only issue. The code was hard
-> to figure out even without the Xen issues. For example, nobody ever
-> explained to me why it
-> 
->  (a) could be the same as PROTNONE on x86
->  (b) could not be the same as PROTNONE in general
-> 
-> I think the best explanation for it so far was from the little voices
-> in my head that sang "It's a kind of Magic", and that isn't even
-> remotely the best song by Queen.
-> 
+> [ 4071.166362] BUG: spinlock lockup suspected on CPU#19, trinity-c19/17092
 
-Yes, I was hoping that the timing would work out so we could evict bit
-10 (which *is* a Xen-only issue) and then reuse it.  I don't think the
-NUMA bit is Xen-only.
+That's a heuristic in the spinlock code; triggering it with big machines
+(19 cpus is far bigger than anything at the time that code was written)
+and virt (yay for lock owner preemption; another thing we didn't have
+back when) is trivial.
 
-	-hpa
+I'd not worry too much about this.
 
+So DEBUG_SPINLOCKS turns spin_lock() into something like:
+
+  for (i = 0; i < loops; i++)
+  	if (spin_trylock())
+		return;
+
+  /* complain */
+
+And you simply ran out of loops.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
