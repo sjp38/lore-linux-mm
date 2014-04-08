@@ -1,43 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f48.google.com (mail-ee0-f48.google.com [74.125.83.48])
-	by kanga.kvack.org (Postfix) with ESMTP id BACE66B0036
-	for <linux-mm@kvack.org>; Tue,  8 Apr 2014 16:59:55 -0400 (EDT)
-Received: by mail-ee0-f48.google.com with SMTP id b57so1131432eek.7
-        for <linux-mm@kvack.org>; Tue, 08 Apr 2014 13:59:55 -0700 (PDT)
-Received: from mail.zytor.com (terminus.zytor.com. [2001:1868:205::10])
-        by mx.google.com with ESMTPS id z42si4409072eel.2.2014.04.08.13.59.53
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Apr 2014 13:59:54 -0700 (PDT)
-Message-ID: <5344631D.1050203@zytor.com>
-Date: Tue, 08 Apr 2014 13:59:09 -0700
-From: "H. Peter Anvin" <hpa@zytor.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 2/3] x86: Define _PAGE_NUMA with unused physical address
- bits PMD and PTE levels
-References: <1396883443-11696-1-git-send-email-mgorman@suse.de>	<1396883443-11696-3-git-send-email-mgorman@suse.de>	<5342C517.2020305@citrix.com>	<20140407154935.GD7292@suse.de>	<20140407161910.GJ1444@moon>	<20140407182854.GH7292@suse.de>	<5342FC0E.9080701@zytor.com>	<20140407193646.GC23983@moon>	<5342FFB0.6010501@zytor.com>	<20140407212535.GJ7292@suse.de>	<CAKbGBLhsWKVYnBqR0ZJ2kfaF_h=XAYkjq=v3RLoRBDkF_w=6ag@mail.gmail.com>	<e9801da2-3aa4-4c23-9a64-90c890b9ebbc@email.android.com> <CAKbGBLjO7pneg_5nXcRXK-9iToZvPkJVZ=AQBfaZkZjU9iN2BA@mail.gmail.com>
-In-Reply-To: <CAKbGBLjO7pneg_5nXcRXK-9iToZvPkJVZ=AQBfaZkZjU9iN2BA@mail.gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 0AE5E6B0031
+	for <linux-mm@kvack.org>; Tue,  8 Apr 2014 17:11:38 -0400 (EDT)
+Received: by mail-wi0-f171.google.com with SMTP id q5so7840114wiv.10
+        for <linux-mm@kvack.org>; Tue, 08 Apr 2014 14:11:37 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id fm9si1381050wjc.194.2014.04.08.14.11.35
+        for <linux-mm@kvack.org>;
+        Tue, 08 Apr 2014 14:11:36 -0700 (PDT)
+Date: Tue, 8 Apr 2014 17:11:08 -0400
+From: Luiz Capitulino <lcapitulino@redhat.com>
+Subject: Re: [PATCH 3/5] hugetlb: update_and_free_page(): don't clear
+ PG_reserved bit
+Message-ID: <20140408171108.4faf41b7@redhat.com>
+In-Reply-To: <20140408205126.GA2778@node.dhcp.inet.fi>
+References: <1396983740-26047-1-git-send-email-lcapitulino@redhat.com>
+	<1396983740-26047-4-git-send-email-lcapitulino@redhat.com>
+	<20140408205126.GA2778@node.dhcp.inet.fi>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Noonan <steven@uplinklabs.net>
-Cc: Mel Gorman <mgorman@suse.de>, Cyrill Gorcunov <gorcunov@gmail.com>, David Vrabel <david.vrabel@citrix.com>, Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Linux-MM <linux-mm@kvack.org>, Linux-X86 <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Pavel Emelyanov <xemul@parallels.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, mtosatti@redhat.com, aarcange@redhat.com, mgorman@suse.de, akpm@linux-foundation.org, andi@firstfloor.org, davidlohr@hp.com, rientjes@google.com, isimatu.yasuaki@jp.fujitsu.com, yinghai@kernel.org, riel@redhat.com, n-horiguchi@ah.jp.nec.com
 
-On 04/08/2014 01:51 PM, Steven Noonan wrote:
-> On Tue, Apr 8, 2014 at 8:16 AM, H. Peter Anvin <hpa@zytor.com> wrote:
->> <snark>
->>
->> Of course, it would also be preferable if Amazon (or anything else) didn't need Xen PV :(
+On Tue, 8 Apr 2014 23:51:26 +0300
+"Kirill A. Shutemov" <kirill@shutemov.name> wrote:
+
+> On Tue, Apr 08, 2014 at 03:02:18PM -0400, Luiz Capitulino wrote:
+> > Hugepages pages never get the PG_reserved bit set, so don't clear it. But
+> > add a warning just in case.
 > 
-> Well Amazon doesn't expose NUMA on PV, only on HVM guests.
-> 
+> I don't think WARN_ON() is needed. PG_reserved will be catched by
+> free_pages_check().
 
-Yes, but Amazon is one of the main things keeping Xen PV alive as far as
-I can tell, which means the support gets built in, and so on.
-
-	-hpa
-
+Correct. I'll drop it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
