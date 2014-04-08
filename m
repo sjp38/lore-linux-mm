@@ -1,57 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f48.google.com (mail-ee0-f48.google.com [74.125.83.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 654C16B0073
-	for <linux-mm@kvack.org>; Tue,  8 Apr 2014 03:14:55 -0400 (EDT)
-Received: by mail-ee0-f48.google.com with SMTP id b57so295759eek.7
-        for <linux-mm@kvack.org>; Tue, 08 Apr 2014 00:14:53 -0700 (PDT)
-Received: from moutng.kundenserver.de (moutng.kundenserver.de. [212.227.126.131])
-        by mx.google.com with ESMTPS id z2si1452784eeo.124.2014.04.08.00.14.51
+Received: from mail-ee0-f46.google.com (mail-ee0-f46.google.com [74.125.83.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B6CD6B007B
+	for <linux-mm@kvack.org>; Tue,  8 Apr 2014 03:26:16 -0400 (EDT)
+Received: by mail-ee0-f46.google.com with SMTP id t10so310146eei.5
+        for <linux-mm@kvack.org>; Tue, 08 Apr 2014 00:26:15 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 45si1506281eeh.63.2014.04.08.00.26.14
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Apr 2014 00:14:52 -0700 (PDT)
-Date: Tue, 8 Apr 2014 09:14:43 +0200
-From: Andres Freund <andres@2ndquadrant.com>
-Subject: Re: [PATCH 1/2] mm: Disable zone_reclaim_mode by default
-Message-ID: <20140408071443.GQ4161@awork2.anarazel.de>
-References: <1396910068-11637-1-git-send-email-mgorman@suse.de>
- <1396910068-11637-2-git-send-email-mgorman@suse.de>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 08 Apr 2014 00:26:14 -0700 (PDT)
+Message-ID: <5343A494.9070707@suse.cz>
+Date: Tue, 08 Apr 2014 09:26:12 +0200
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1396910068-11637-2-git-send-email-mgorman@suse.de>
+Subject: Re: [PATCH 0/2] Disable zone_reclaim_mode by default
+References: <1396910068-11637-1-git-send-email-mgorman@suse.de>
+In-Reply-To: <1396910068-11637-1-git-send-email-mgorman@suse.de>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Robert Haas <robertmhaas@gmail.com>, Josh Berkus <josh@agliodbs.com>, Christoph Lameter <cl@linux.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Robert Haas <robertmhaas@gmail.com>, Josh Berkus <josh@agliodbs.com>, Andres Freund <andres@2ndquadrant.com>, Christoph Lameter <cl@linux.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Hi,
+On 04/08/2014 12:34 AM, Mel Gorman wrote:
+> When it was introduced, zone_reclaim_mode made sense as NUMA distances
+> punished and workloads were generally partitioned to fit into a NUMA
+> node. NUMA machines are now common but few of the workloads are NUMA-aware
+> and it's routine to see major performance due to zone_reclaim_mode being
+> disabled but relatively few can identify the problem.
+     ^ I think you meant "enabled" here?
 
-On 2014-04-07 23:34:27 +0100, Mel Gorman wrote:
-> zone_reclaim_mode causes processes to prefer reclaiming memory from local
-> node instead of spilling over to other nodes. This made sense initially when
-> NUMA machines were almost exclusively HPC and the workload was partitioned
-> into nodes. The NUMA penalties were sufficiently high to justify reclaiming
-> the memory. On current machines and workloads it is often the case that
-> zone_reclaim_mode destroys performance but not all users know how to detect
-> this. Favour the common case and disable it by default. Users that are
-> sophisticated enough to know they need zone_reclaim_mode will detect it.
+Just in case the cover letter goes to the changelog...
 
-Unsurprisingly I am in favor of this.
+Vlastimil
 
->  Documentation/sysctl/vm.txt | 17 +++++++++--------
->  mm/page_alloc.c             |  2 --
->  2 files changed, 9 insertions(+), 10 deletions(-)
-
-But I think linux/topology.h's comment about RECLAIM_DISTANCE should be
-adapted as well.
-
-Thanks,
-
-Andres
-
--- 
- Andres Freund	                   http://www.2ndQuadrant.com/
- PostgreSQL Development, 24x7 Support, Training & Services
+> Those that require zone_reclaim_mode are likely to be able to detect when
+> it needs to be enabled and tune appropriately so lets have a sensible
+> default for the bulk of users.
+>
+>   Documentation/sysctl/vm.txt | 17 +++++++++--------
+>   include/linux/mmzone.h      |  1 -
+>   mm/page_alloc.c             | 17 +----------------
+>   3 files changed, 10 insertions(+), 25 deletions(-)
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
