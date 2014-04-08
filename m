@@ -1,48 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ve0-f173.google.com (mail-ve0-f173.google.com [209.85.128.173])
-	by kanga.kvack.org (Postfix) with ESMTP id EA4B66B0031
-	for <linux-mm@kvack.org>; Tue,  8 Apr 2014 14:55:22 -0400 (EDT)
-Received: by mail-ve0-f173.google.com with SMTP id oy12so1152598veb.18
-        for <linux-mm@kvack.org>; Tue, 08 Apr 2014 11:55:22 -0700 (PDT)
-Received: from mail-vc0-x234.google.com (mail-vc0-x234.google.com [2607:f8b0:400c:c03::234])
-        by mx.google.com with ESMTPS id fa16si571250veb.82.2014.04.08.11.55.22
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 08 Apr 2014 11:55:22 -0700 (PDT)
-Received: by mail-vc0-f180.google.com with SMTP id lf12so1133074vcb.39
-        for <linux-mm@kvack.org>; Tue, 08 Apr 2014 11:55:22 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20140408185146.GP7292@suse.de>
-References: <1396962570-18762-1-git-send-email-mgorman@suse.de>
-	<53440A5D.6050301@zytor.com>
-	<CA+55aFwc6Jdf+As9RJ3wJWuOGEGmiaYWNa-jp2aCb9=ZiiqV+A@mail.gmail.com>
-	<20140408164652.GL7292@suse.de>
-	<CA+55aFwrwYmWFXWpPeg-keKukW0=dwvmUBuN4NKA=JcseiUX3g@mail.gmail.com>
-	<20140408185146.GP7292@suse.de>
-Date: Tue, 8 Apr 2014 11:55:22 -0700
-Message-ID: <CA+55aFwXuwE8=4h2LrjfjjMhE35pj4W6oOXYFuWkkB65eya=XA@mail.gmail.com>
-Subject: Re: [RFC PATCH 0/5] Use an alternative to _PAGE_PROTNONE for
- _PAGE_NUMA v2
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8
+Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
+	by kanga.kvack.org (Postfix) with ESMTP id DFF8C6B0031
+	for <linux-mm@kvack.org>; Tue,  8 Apr 2014 15:02:56 -0400 (EDT)
+Received: by mail-wi0-f178.google.com with SMTP id bs8so1962988wib.17
+        for <linux-mm@kvack.org>; Tue, 08 Apr 2014 12:02:56 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id f20si1429253wic.51.2014.04.08.12.02.54
+        for <linux-mm@kvack.org>;
+        Tue, 08 Apr 2014 12:02:55 -0700 (PDT)
+From: Luiz Capitulino <lcapitulino@redhat.com>
+Subject: [PATCH 3/5] hugetlb: update_and_free_page(): don't clear PG_reserved bit
+Date: Tue,  8 Apr 2014 15:02:18 -0400
+Message-Id: <1396983740-26047-4-git-send-email-lcapitulino@redhat.com>
+In-Reply-To: <1396983740-26047-1-git-send-email-lcapitulino@redhat.com>
+References: <1396983740-26047-1-git-send-email-lcapitulino@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: "H. Peter Anvin" <hpa@zytor.com>, Linux-X86 <x86@kernel.org>, Cyrill Gorcunov <gorcunov@gmail.com>, Ingo Molnar <mingo@kernel.org>, Steven Noonan <steven@uplinklabs.net>, Rik van Riel <riel@redhat.com>, David Vrabel <david.vrabel@citrix.com>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, mtosatti@redhat.com, aarcange@redhat.com, mgorman@suse.de, akpm@linux-foundation.org, andi@firstfloor.org, davidlohr@hp.com, rientjes@google.com, isimatu.yasuaki@jp.fujitsu.com, yinghai@kernel.org, riel@redhat.com, n-horiguchi@ah.jp.nec.com
 
-On Tue, Apr 8, 2014 at 11:51 AM, Mel Gorman <mgorman@suse.de> wrote:
->
-> I picked a solution. The posted series uses a different bit.
+Hugepages pages never get the PG_reserved bit set, so don't clear it. But
+add a warning just in case.
 
-Yes, and I actually like that. I have nothing against your patch
-series. I'm ranting and raving because you then seemed to say "maybe
-we shouldn't pick a solution after all" when you said:
+Signed-off-by: Luiz Capitulino <lcapitulino@redhat.com>
+Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
+Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Reviewed-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+---
+ mm/hugetlb.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
 
-> > If you are ok with leaving _PAGE_NUMA as _PAGE_PROTNONE
-
-which was what I reacted to.
-
-             Linus
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 8674eda..c295bba 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -617,8 +617,9 @@ static void update_and_free_page(struct hstate *h, struct page *page)
+ 	for (i = 0; i < pages_per_huge_page(h); i++) {
+ 		page[i].flags &= ~(1 << PG_locked | 1 << PG_error |
+ 				1 << PG_referenced | 1 << PG_dirty |
+-				1 << PG_active | 1 << PG_reserved |
+-				1 << PG_private | 1 << PG_writeback);
++				1 << PG_active | 1 << PG_private |
++				1 << PG_writeback);
++		WARN_ON(PageReserved(&page[i]));
+ 	}
+ 	VM_BUG_ON_PAGE(hugetlb_cgroup_from_page(page), page);
+ 	set_compound_page_dtor(page, NULL);
+-- 
+1.8.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
