@@ -1,89 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f170.google.com (mail-we0-f170.google.com [74.125.82.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 411596B0036
-	for <linux-mm@kvack.org>; Tue,  8 Apr 2014 11:17:16 -0400 (EDT)
-Received: by mail-we0-f170.google.com with SMTP id w61so1126637wes.15
-        for <linux-mm@kvack.org>; Tue, 08 Apr 2014 08:17:11 -0700 (PDT)
-Received: from mail.zytor.com (terminus.zytor.com. [2001:1868:205::10])
-        by mx.google.com with ESMTPS id gt3si1063666wib.8.2014.04.08.08.17.08
+Received: from mail-vc0-f170.google.com (mail-vc0-f170.google.com [209.85.220.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 99C0F6B0038
+	for <linux-mm@kvack.org>; Tue,  8 Apr 2014 11:22:17 -0400 (EDT)
+Received: by mail-vc0-f170.google.com with SMTP id hu19so939790vcb.1
+        for <linux-mm@kvack.org>; Tue, 08 Apr 2014 08:22:16 -0700 (PDT)
+Received: from mail-vc0-x22e.google.com (mail-vc0-x22e.google.com [2607:f8b0:400c:c03::22e])
+        by mx.google.com with ESMTPS id e7si458368vch.16.2014.04.08.08.22.15
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 08 Apr 2014 08:17:09 -0700 (PDT)
-In-Reply-To: <CAKbGBLhsWKVYnBqR0ZJ2kfaF_h=XAYkjq=v3RLoRBDkF_w=6ag@mail.gmail.com>
-References: <1396883443-11696-1-git-send-email-mgorman@suse.de> <1396883443-11696-3-git-send-email-mgorman@suse.de> <5342C517.2020305@citrix.com> <20140407154935.GD7292@suse.de> <20140407161910.GJ1444@moon> <20140407182854.GH7292@suse.de> <5342FC0E.9080701@zytor.com> <20140407193646.GC23983@moon> <5342FFB0.6010501@zytor.com> <20140407212535.GJ7292@suse.de> <CAKbGBLhsWKVYnBqR0ZJ2kfaF_h=XAYkjq=v3RLoRBDkF_w=6ag@mail.gmail.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 08 Apr 2014 08:22:15 -0700 (PDT)
+Received: by mail-vc0-f174.google.com with SMTP id ld13so880541vcb.5
+        for <linux-mm@kvack.org>; Tue, 08 Apr 2014 08:22:15 -0700 (PDT)
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Content-Type: text/plain;
- charset=UTF-8
-Subject: Re: [PATCH 2/3] x86: Define _PAGE_NUMA with unused physical address bits PMD and PTE levels
-From: "H. Peter Anvin" <hpa@zytor.com>
-Date: Tue, 08 Apr 2014 08:16:14 -0700
-Message-ID: <e9801da2-3aa4-4c23-9a64-90c890b9ebbc@email.android.com>
+In-Reply-To: <53440A5D.6050301@zytor.com>
+References: <1396962570-18762-1-git-send-email-mgorman@suse.de>
+	<53440A5D.6050301@zytor.com>
+Date: Tue, 8 Apr 2014 08:22:15 -0700
+Message-ID: <CA+55aFwc6Jdf+As9RJ3wJWuOGEGmiaYWNa-jp2aCb9=ZiiqV+A@mail.gmail.com>
+Subject: Re: [RFC PATCH 0/5] Use an alternative to _PAGE_PROTNONE for
+ _PAGE_NUMA v2
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Noonan <steven@uplinklabs.net>, Mel Gorman <mgorman@suse.de>
-Cc: Cyrill Gorcunov <gorcunov@gmail.com>, David Vrabel <david.vrabel@citrix.com>, Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Linux-MM <linux-mm@kvack.org>, Linux-X86 <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Pavel Emelyanov <xemul@parallels.com>
+To: "H. Peter Anvin" <hpa@zytor.com>
+Cc: Mel Gorman <mgorman@suse.de>, Linux-X86 <x86@kernel.org>, Cyrill Gorcunov <gorcunov@gmail.com>, Ingo Molnar <mingo@kernel.org>, Steven Noonan <steven@uplinklabs.net>, Rik van Riel <riel@redhat.com>, David Vrabel <david.vrabel@citrix.com>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-<snark>
-
-Of course, it would also be preferable if Amazon (or anything else) didn't need Xen PV :(
-
-On April 7, 2014 9:04:53 PM PDT, Steven Noonan <steven@uplinklabs.net> wrote:
->On Mon, Apr 7, 2014 at 2:25 PM, Mel Gorman <mgorman@suse.de> wrote:
->> On Mon, Apr 07, 2014 at 12:42:40PM -0700, H. Peter Anvin wrote:
->>> On 04/07/2014 12:36 PM, Cyrill Gorcunov wrote:
->>> > On Mon, Apr 07, 2014 at 12:27:10PM -0700, H. Peter Anvin wrote:
->>> >> On 04/07/2014 11:28 AM, Mel Gorman wrote:
->>> >>>
->>> >>> I had considered the soft-dirty tracking usage of the same bit.
->I thought I'd
->>> >>> be able to swizzle around it or a further worst case of having
->soft-dirty and
->>> >>> automatic NUMA balancing mutually exclusive. Unfortunately upon
->examination
->>> >>> it's not obvious how to have both of them share a bit and I
->suspect any
->>> >>> attempt to will break CRIU.  In my current tree, NUMA_BALANCING
->cannot be
->>> >>> set if MEM_SOFT_DIRTY which is not particularly satisfactory.
->Next on the
->>> >>> list is examining if _PAGE_BIT_IOMAP can be used.
->>> >>
->>> >> Didn't we smoke the last user of _PAGE_BIT_IOMAP?
->>> >
->>> > Seems so, at least for non-kernel pages (not considering this bit
->references in
->>> > xen code, which i simply don't know but i guess it's used for
->kernel pages only).
->>> >
->>>
->>> David Vrabel has a patchset which I presumed would be pulled through
->the
->>> Xen tree this merge window:
->>>
->>> [PATCHv5 0/8] x86/xen: fixes for mapping high MMIO regions (and
->remove
->>> _PAGE_IOMAP)
->>>
->>> That frees up this bit.
->>>
->>
->> Thanks, I was not aware of that patch.  Based on it, I intend to
->force
->> automatic NUMA balancing to depend on !XEN and see what the reaction
->is. If
->> support for Xen is really required then it potentially be re-enabled
->if/when
->> that series is merged assuming they do not need the bit for something
->else.
->>
+On Tue, Apr 8, 2014 at 7:40 AM, H. Peter Anvin <hpa@zytor.com> wrote:
 >
->Amazon EC2 does have large memory instance types with NUMA exposed to
->the guest (e.g. c3.8xlarge, i2.8xlarge, etc), so it'd be preferable
->(to me anyway) if we didn't require !XEN.
+> David, is your patchset going to be pushed in this merge window as expected?
 
--- 
-Sent from my mobile phone.  Please pardon brevity and lack of formatting.
+Apparently aiming for 3.16 right now.
+
+> That being said, these bits are precious, and if this ends up being a
+> case where "only Xen needs another bit" once again then Xen should
+> expect to get kicked to the curb at a moment's notice.
+
+Quite frankly, I don't think it's a Xen-only issue. The code was hard
+to figure out even without the Xen issues. For example, nobody ever
+explained to me why it
+
+ (a) could be the same as PROTNONE on x86
+ (b) could not be the same as PROTNONE in general
+
+I think the best explanation for it so far was from the little voices
+in my head that sang "It's a kind of Magic", and that isn't even
+remotely the best song by Queen.
+
+              Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
