@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-ee0-f41.google.com (mail-ee0-f41.google.com [74.125.83.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 40C7D6B009F
+	by kanga.kvack.org (Postfix) with ESMTP id 3B5CF6B009D
 	for <linux-mm@kvack.org>; Tue,  8 Apr 2014 09:09:41 -0400 (EDT)
-Received: by mail-ee0-f41.google.com with SMTP id t10so672628eei.14
-        for <linux-mm@kvack.org>; Tue, 08 Apr 2014 06:09:40 -0700 (PDT)
+Received: by mail-ee0-f41.google.com with SMTP id t10so672617eei.14
+        for <linux-mm@kvack.org>; Tue, 08 Apr 2014 06:09:39 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d5si2764367eei.28.2014.04.08.06.09.38
+        by mx.google.com with ESMTPS id v8si2758564eew.67.2014.04.08.06.09.38
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 08 Apr 2014 06:09:39 -0700 (PDT)
+        Tue, 08 Apr 2014 06:09:38 -0700 (PDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 3/5] mm: Allow FOLL_NUMA on FOLL_FORCE
-Date: Tue,  8 Apr 2014 14:09:28 +0100
-Message-Id: <1396962570-18762-4-git-send-email-mgorman@suse.de>
+Subject: [PATCH 1/5] x86: Require x86-64 for automatic NUMA balancing
+Date: Tue,  8 Apr 2014 14:09:26 +0100
+Message-Id: <1396962570-18762-2-git-send-email-mgorman@suse.de>
 In-Reply-To: <1396962570-18762-1-git-send-email-mgorman@suse.de>
 References: <1396962570-18762-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -20,38 +20,29 @@ List-ID: <linux-mm.kvack.org>
 To: Linux-X86 <x86@kernel.org>
 Cc: Linus Torvalds <torvalds@linux-foundation.org>, Cyrill Gorcunov <gorcunov@gmail.com>, Mel Gorman <mgorman@suse.de>, Peter Anvin <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, Steven Noonan <steven@uplinklabs.net>, Rik van Riel <riel@redhat.com>, David Vrabel <david.vrabel@citrix.com>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-As _PAGE_NUMA is no longer aliased to _PAGE_PROTNONE there should be no
-confusion between them. It should be possible to kick away the special
-casing in __get_user_pages.
+32-bit support for NUMA is an oddity on its own but with automatic NUMA
+balancing on top there is a reasonable risk that the CPUPID information
+cannot be stored in the page flags. This patch removes support for
+automatic NUMA support on 32-bit x86.
 
 Signed-off-by: Mel Gorman <mgorman@suse.de>
 ---
- mm/memory.c | 12 ------------
- 1 file changed, 12 deletions(-)
+ arch/x86/Kconfig | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/mm/memory.c b/mm/memory.c
-index 22dfa61..b9c35a7 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -1714,18 +1714,6 @@ long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
- 	vm_flags &= (gup_flags & FOLL_FORCE) ?
- 			(VM_MAYREAD | VM_MAYWRITE) : (VM_READ | VM_WRITE);
- 
--	/*
--	 * If FOLL_FORCE and FOLL_NUMA are both set, handle_mm_fault
--	 * would be called on PROT_NONE ranges. We must never invoke
--	 * handle_mm_fault on PROT_NONE ranges or the NUMA hinting
--	 * page faults would unprotect the PROT_NONE ranges if
--	 * _PAGE_NUMA and _PAGE_PROTNONE are sharing the same pte/pmd
--	 * bitflag. So to avoid that, don't set FOLL_NUMA if
--	 * FOLL_FORCE is set.
--	 */
--	if (!(gup_flags & FOLL_FORCE))
--		gup_flags |= FOLL_NUMA;
--
- 	i = 0;
- 
- 	do {
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index 0af5250..084b1c1 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -26,7 +26,7 @@ config X86
+ 	select ARCH_MIGHT_HAVE_PC_SERIO
+ 	select HAVE_AOUT if X86_32
+ 	select HAVE_UNSTABLE_SCHED_CLOCK
+-	select ARCH_SUPPORTS_NUMA_BALANCING
++	select ARCH_SUPPORTS_NUMA_BALANCING if X86_64
+ 	select ARCH_SUPPORTS_INT128 if X86_64
+ 	select ARCH_WANTS_PROT_NUMA_PROT_NONE
+ 	select HAVE_IDE
 -- 
 1.8.4.5
 
