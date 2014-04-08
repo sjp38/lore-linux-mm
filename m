@@ -1,129 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id EC36C6B0031
-	for <linux-mm@kvack.org>; Tue,  8 Apr 2014 14:53:01 -0400 (EDT)
-Received: by mail-pd0-f177.google.com with SMTP id y10so1378284pdj.36
-        for <linux-mm@kvack.org>; Tue, 08 Apr 2014 11:53:01 -0700 (PDT)
-Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-        by mx.google.com with ESMTPS id yd10si1234021pab.412.2014.04.08.11.53.00
+Received: from mail-ve0-f173.google.com (mail-ve0-f173.google.com [209.85.128.173])
+	by kanga.kvack.org (Postfix) with ESMTP id EA4B66B0031
+	for <linux-mm@kvack.org>; Tue,  8 Apr 2014 14:55:22 -0400 (EDT)
+Received: by mail-ve0-f173.google.com with SMTP id oy12so1152598veb.18
+        for <linux-mm@kvack.org>; Tue, 08 Apr 2014 11:55:22 -0700 (PDT)
+Received: from mail-vc0-x234.google.com (mail-vc0-x234.google.com [2607:f8b0:400c:c03::234])
+        by mx.google.com with ESMTPS id fa16si571250veb.82.2014.04.08.11.55.22
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 08 Apr 2014 11:53:01 -0700 (PDT)
-Received: by mail-pd0-f180.google.com with SMTP id v10so1392716pde.11
-        for <linux-mm@kvack.org>; Tue, 08 Apr 2014 11:52:59 -0700 (PDT)
-Message-ID: <53444587.6040504@linaro.org>
-Date: Tue, 08 Apr 2014 11:52:55 -0700
-From: John Stultz <john.stultz@linaro.org>
+        Tue, 08 Apr 2014 11:55:22 -0700 (PDT)
+Received: by mail-vc0-f180.google.com with SMTP id lf12so1133074vcb.39
+        for <linux-mm@kvack.org>; Tue, 08 Apr 2014 11:55:22 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/5] vrange: Add vrange syscall and handle splitting/merging
- and marking vmas
-References: <1395436655-21670-1-git-send-email-john.stultz@linaro.org> <1395436655-21670-2-git-send-email-john.stultz@linaro.org> <CAHGf_=rKpOW5PSbAOZtg6GehJD6dOvRbBTSWV_2HOehw8xCa4g@mail.gmail.com>
-In-Reply-To: <CAHGf_=rKpOW5PSbAOZtg6GehJD6dOvRbBTSWV_2HOehw8xCa4g@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20140408185146.GP7292@suse.de>
+References: <1396962570-18762-1-git-send-email-mgorman@suse.de>
+	<53440A5D.6050301@zytor.com>
+	<CA+55aFwc6Jdf+As9RJ3wJWuOGEGmiaYWNa-jp2aCb9=ZiiqV+A@mail.gmail.com>
+	<20140408164652.GL7292@suse.de>
+	<CA+55aFwrwYmWFXWpPeg-keKukW0=dwvmUBuN4NKA=JcseiUX3g@mail.gmail.com>
+	<20140408185146.GP7292@suse.de>
+Date: Tue, 8 Apr 2014 11:55:22 -0700
+Message-ID: <CA+55aFwXuwE8=4h2LrjfjjMhE35pj4W6oOXYFuWkkB65eya=XA@mail.gmail.com>
+Subject: Re: [RFC PATCH 0/5] Use an alternative to _PAGE_PROTNONE for
+ _PAGE_NUMA v2
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Johannes Weiner <hannes@cmpxchg.org>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@sr71.net>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Neil Brown <neilb@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Jan Kara <jack@suse.cz>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: "H. Peter Anvin" <hpa@zytor.com>, Linux-X86 <x86@kernel.org>, Cyrill Gorcunov <gorcunov@gmail.com>, Ingo Molnar <mingo@kernel.org>, Steven Noonan <steven@uplinklabs.net>, Rik van Riel <riel@redhat.com>, David Vrabel <david.vrabel@citrix.com>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Hey Kosaki-san,
-   Sorry to not have replied to this earlier, I really appreciate your
-review! I'm now running through your feedback to make sure its all
-integrated into my upcoming v13 patch series, and while most of your
-comments have been addressed there are a few items outstanding, which I
-suspect is from misunderstanding on my part or yours.
-
-Anyway, thanks again for the comments. A few notes below.
-
-On 03/23/2014 09:50 AM, KOSAKI Motohiro wrote:
-> On Fri, Mar 21, 2014 at 2:17 PM, John Stultz <john.stultz@linaro.org> wrote:
->> RETURN VALUE
->>         On success vrange returns the number of bytes marked or unmarked.
->>         Similar to write(), it may return fewer bytes then specified
->>         if it ran into a problem.
-> This explanation doesn't match your implementation. You return the
-> last VMA - orig_start.
-> That said, when some hole is there at middle of the range marked (or
-> unmarked) bytes
-> aren't match the return value.
-
-As soon as we hit the hole, we will stop making further changes and will
-return the number of successfully modified bytes up to that part. Thus
-last VMA - orig_start should still match the modified values up to the hole.
-
-I'm not sure how this is inconsistent with the implementation or
-documentation, but there may still be bugs so I'd appreciate your
-clarification if you think this is still an issue in the v13 release.
-
-
+On Tue, Apr 8, 2014 at 11:51 AM, Mel Gorman <mgorman@suse.de> wrote:
 >
->>         When using VRANGE_NON_VOLATILE, if the return value is smaller
->>         then the specified length, then the value specified by the purged
->>         pointer will be set to 1 if any of the pages specified in the
->>         return value as successfully marked non-volatile had been purged.
->>
->>         If an error is returned, no changes were made.
-> At least, this explanation doesn't match the implementation. When you find file
-> mappings, you don't rollback prior changes.
-No. If we find a file mapping, we simply return the amount of
-successfully modified bytes prior to hitting that file mapping. This is
-much in the same way as if we hit a hole in the address space. Again,
-maybe you mis-read this or I am not understanding the issue you're
-pointing out.
+> I picked a solution. The posted series uses a different bit.
 
+Yes, and I actually like that. I have nothing against your patch
+series. I'm ranting and raving because you then seemed to say "maybe
+we shouldn't pick a solution after all" when you said:
 
+> > If you are ok with leaving _PAGE_NUMA as _PAGE_PROTNONE
 
->
->> diff --git a/include/linux/vrange.h b/include/linux/vrange.h
->> new file mode 100644
->> index 0000000..6e5331e
->> --- /dev/null
->> +++ b/include/linux/vrange.h
->> @@ -0,0 +1,8 @@
->> +#ifndef _LINUX_VRANGE_H
->> +#define _LINUX_VRANGE_H
->> +
->> +#define VRANGE_NONVOLATILE 0
->> +#define VRANGE_VOLATILE 1
-> Maybe, moving uapi is better?
+which was what I reacted to.
 
-Agreed! Fixed in my tree.
-
-
->> +
->> +       down_read(&mm->mmap_sem);
-> This should be down_write. VMA split and merge require write lock.
-
-Very true. Minchan has already sent a fix that I've folded into my tree.
-
-
-
->> +
->> +       len &= PAGE_MASK;
->> +       if (!len)
->> +               goto out;
-> This code doesn't match the explanation of "not page size units."
-
-Again, good eye! Fixed in my tree.
-
-
-
->> +       if (purged) {
->> +               if (put_user(p, purged)) {
->> +                       /*
->> +                        * This would be bad, since we've modified volatilty
->> +                        * and the change in purged state would be lost.
->> +                        */
->> +                       WARN_ONCE(1, "vrange: purge state possibly lost\n");
-> Don't do that.
-> If userland app unmap the page between do_vrange and here, it's just
-> their fault, not kernel.
-> Therefore kernel warning make no sense. Please just move 1st put_user to here.
-Yes, per Jan's suggestion I've changed this to return EFAULT.
-
-
-Thanks again for your great review here!
--john
+             Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
