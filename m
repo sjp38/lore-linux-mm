@@ -1,63 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-bk0-f42.google.com (mail-bk0-f42.google.com [209.85.214.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 6DFC36B0031
-	for <linux-mm@kvack.org>; Tue,  8 Apr 2014 15:52:25 -0400 (EDT)
-Received: by mail-bk0-f42.google.com with SMTP id mx12so1193139bkb.1
-        for <linux-mm@kvack.org>; Tue, 08 Apr 2014 12:52:24 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id f2si1321177wjn.128.2014.04.08.12.52.22
-        for <linux-mm@kvack.org>;
-        Tue, 08 Apr 2014 12:52:23 -0700 (PDT)
-Date: Tue, 08 Apr 2014 15:51:51 -0400
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <53445377.c22fc20a.4082.ffff890cSMTPIN_ADDED_BROKEN@mx.google.com>
-In-Reply-To: <1396983740-26047-2-git-send-email-lcapitulino@redhat.com>
-References: <1396983740-26047-1-git-send-email-lcapitulino@redhat.com>
- <1396983740-26047-2-git-send-email-lcapitulino@redhat.com>
-Subject: Re: [PATCH 1/5] hugetlb: prep_compound_gigantic_page(): drop __init
- marker
-Mime-Version: 1.0
-Content-Type: text/plain;
- charset=iso-2022-jp
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 708376B0035
+	for <linux-mm@kvack.org>; Tue,  8 Apr 2014 15:53:05 -0400 (EDT)
+Received: by mail-wg0-f45.google.com with SMTP id l18so1472185wgh.4
+        for <linux-mm@kvack.org>; Tue, 08 Apr 2014 12:53:04 -0700 (PDT)
+Received: from mail-we0-x232.google.com (mail-we0-x232.google.com [2a00:1450:400c:c03::232])
+        by mx.google.com with ESMTPS id eh10si1504177wib.58.2014.04.08.12.53.03
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 08 Apr 2014 12:53:03 -0700 (PDT)
+Received: by mail-we0-f178.google.com with SMTP id u56so1485738wes.9
+        for <linux-mm@kvack.org>; Tue, 08 Apr 2014 12:53:03 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <alpine.DEB.2.10.1404080914280.8782@nuc>
+References: <1396910068-11637-1-git-send-email-mgorman@suse.de>
+	<5343A494.9070707@suse.cz>
+	<alpine.DEB.2.10.1404080914280.8782@nuc>
+Date: Tue, 8 Apr 2014 15:53:02 -0400
+Message-ID: <CA+TgmoY=vUdtdnJUEK1h-UcaNoqqLUctt44S8vj2B7EVUXUOyA@mail.gmail.com>
+Subject: Re: [PATCH 0/2] Disable zone_reclaim_mode by default
+From: Robert Haas <robertmhaas@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: lcapitulino@redhat.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, mtosatti@redhat.com, aarcange@redhat.com, mgorman@suse.de, akpm@linux-foundation.org, andi@firstfloor.org, davidlohr@hp.com, rientjes@google.com, isimatu.yasuaki@jp.fujitsu.com, yinghai@kernel.org, riel@redhat.com
+To: Christoph Lameter <cl@linux.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Josh Berkus <josh@agliodbs.com>, Andres Freund <andres@2ndquadrant.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, sivanich@sgi.com
 
-Hi Luiz,
+On Tue, Apr 8, 2014 at 10:17 AM, Christoph Lameter <cl@linux.com> wrote:
+> Another solution here would be to increase the threshhold so that
+> 4 socket machines do not enable zone reclaim by default. The larger the
+> NUMA system is the more memory is off node from the perspective of a
+> processor and the larger the hit from remote memory.
 
-On Tue, Apr 08, 2014 at 03:02:16PM -0400, Luiz Capitulino wrote:
-> This function is going to be used by non-init code in a future
-> commit.
-> 
-> Signed-off-by: Luiz Capitulino <lcapitulino@redhat.com>
-> ---
->  mm/hugetlb.c | 3 +--
->  1 file changed, 1 insertion(+), 2 deletions(-)
-> 
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index 7c02b9d..319db28 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -689,8 +689,7 @@ static void prep_new_huge_page(struct hstate *h, struct page *page, int nid)
->  	put_page(page); /* free it into the hugepage allocator */
->  }
->  
-> -static void __init prep_compound_gigantic_page(struct page *page,
-> -					       unsigned long order)
-> +static void prep_compound_gigantic_page(struct page *page, unsigned long order)
->  {
->  	int i;
->  	int nr_pages = 1 << order;
+Well, as Josh quite rightly said, the hit from accessing remote memory
+is never going to be as large as the hit from disk.  If and when there
+is a machine where remote memory is more expensive to access than
+disk, that's a good argument for zone_reclaim_mode.  But I don't
+believe that's anywhere close to being true today, even on an 8-socket
+machine with an SSD.
 
-Is __ClearPageReserved() in this function relevant only in boot time
-allocation?  If yes, it might be good to avoid calling it in runtime
-allocation.
+Now, perhaps the fear is that if we access that remote memory
+*repeatedly* the aggregate cost will exceed what it would have cost to
+fault that page into the local node just once.  But it takes a lot of
+accesses for that to be true, and most of the time you won't get them.
+ Even if you do, I bet many workloads will prefer even performance
+across all the accesses over a very slow first access followed by
+slightly faster subsequent accesses.
 
-Thanks,
-Naoya Horiguchi
+In an ideal world, the kernel would put the hottest pages on the local
+node and the less-hot pages on remote nodes, moving pages around as
+the workload shifts.  In practice, that's probably pretty hard.
+Fortunately, it's not nearly as important as making sure we don't
+unnecessarily hit the disk, which is infinitely slower than any memory
+bank.
+
+-- 
+Robert Haas
+EnterpriseDB: http://www.enterprisedb.com
+The Enterprise PostgreSQL Company
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
