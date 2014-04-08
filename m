@@ -1,41 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 408C46B0031
-	for <linux-mm@kvack.org>; Tue,  8 Apr 2014 15:09:04 -0400 (EDT)
-Received: by mail-wi0-f174.google.com with SMTP id d1so7669675wiv.13
-        for <linux-mm@kvack.org>; Tue, 08 Apr 2014 12:09:03 -0700 (PDT)
+Received: from mail-bk0-f42.google.com (mail-bk0-f42.google.com [209.85.214.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 6DFC36B0031
+	for <linux-mm@kvack.org>; Tue,  8 Apr 2014 15:52:25 -0400 (EDT)
+Received: by mail-bk0-f42.google.com with SMTP id mx12so1193139bkb.1
+        for <linux-mm@kvack.org>; Tue, 08 Apr 2014 12:52:24 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id u18si1442479wiv.33.2014.04.08.12.09.02
+        by mx.google.com with ESMTP id f2si1321177wjn.128.2014.04.08.12.52.22
         for <linux-mm@kvack.org>;
-        Tue, 08 Apr 2014 12:09:02 -0700 (PDT)
-Message-ID: <53444926.4020504@redhat.com>
-Date: Tue, 08 Apr 2014 15:08:22 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [RFC PATCH 0/5] Use an alternative to _PAGE_PROTNONE for _PAGE_NUMA
- v2
-References: <1396962570-18762-1-git-send-email-mgorman@suse.de>	<53440A5D.6050301@zytor.com>	<CA+55aFwc6Jdf+As9RJ3wJWuOGEGmiaYWNa-jp2aCb9=ZiiqV+A@mail.gmail.com>	<20140408164652.GL7292@suse.de>	<CA+55aFwrwYmWFXWpPeg-keKukW0=dwvmUBuN4NKA=JcseiUX3g@mail.gmail.com>	<20140408185146.GP7292@suse.de> <CA+55aFwXuwE8=4h2LrjfjjMhE35pj4W6oOXYFuWkkB65eya=XA@mail.gmail.com>
-In-Reply-To: <CA+55aFwXuwE8=4h2LrjfjjMhE35pj4W6oOXYFuWkkB65eya=XA@mail.gmail.com>
-Content-Type: text/plain; charset=UTF-8
+        Tue, 08 Apr 2014 12:52:23 -0700 (PDT)
+Date: Tue, 08 Apr 2014 15:51:51 -0400
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Message-ID: <53445377.c22fc20a.4082.ffff890cSMTPIN_ADDED_BROKEN@mx.google.com>
+In-Reply-To: <1396983740-26047-2-git-send-email-lcapitulino@redhat.com>
+References: <1396983740-26047-1-git-send-email-lcapitulino@redhat.com>
+ <1396983740-26047-2-git-send-email-lcapitulino@redhat.com>
+Subject: Re: [PATCH 1/5] hugetlb: prep_compound_gigantic_page(): drop __init
+ marker
+Mime-Version: 1.0
+Content-Type: text/plain;
+ charset=iso-2022-jp
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>, Mel Gorman <mgorman@suse.de>
-Cc: "H. Peter Anvin" <hpa@zytor.com>, Linux-X86 <x86@kernel.org>, Cyrill Gorcunov <gorcunov@gmail.com>, Ingo Molnar <mingo@kernel.org>, Steven Noonan <steven@uplinklabs.net>, David Vrabel <david.vrabel@citrix.com>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: lcapitulino@redhat.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, mtosatti@redhat.com, aarcange@redhat.com, mgorman@suse.de, akpm@linux-foundation.org, andi@firstfloor.org, davidlohr@hp.com, rientjes@google.com, isimatu.yasuaki@jp.fujitsu.com, yinghai@kernel.org, riel@redhat.com
 
-On 04/08/2014 02:55 PM, Linus Torvalds wrote:
-> On Tue, Apr 8, 2014 at 11:51 AM, Mel Gorman <mgorman@suse.de> wrote:
->>
->> I picked a solution. The posted series uses a different bit.
+Hi Luiz,
+
+On Tue, Apr 08, 2014 at 03:02:16PM -0400, Luiz Capitulino wrote:
+> This function is going to be used by non-init code in a future
+> commit.
 > 
-> Yes, and I actually like that. I have nothing against your patch
-> series. I'm ranting and raving because you then seemed to say "maybe
-> we shouldn't pick a solution after all" when you said:
+> Signed-off-by: Luiz Capitulino <lcapitulino@redhat.com>
+> ---
+>  mm/hugetlb.c | 3 +--
+>  1 file changed, 1 insertion(+), 2 deletions(-)
+> 
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index 7c02b9d..319db28 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -689,8 +689,7 @@ static void prep_new_huge_page(struct hstate *h, struct page *page, int nid)
+>  	put_page(page); /* free it into the hugepage allocator */
+>  }
+>  
+> -static void __init prep_compound_gigantic_page(struct page *page,
+> -					       unsigned long order)
+> +static void prep_compound_gigantic_page(struct page *page, unsigned long order)
+>  {
+>  	int i;
+>  	int nr_pages = 1 << order;
 
-FWIW, Mel's patches look good to me.
+Is __ClearPageReserved() in this function relevant only in boot time
+allocation?  If yes, it might be good to avoid calling it in runtime
+allocation.
 
--- 
-All rights reversed
+Thanks,
+Naoya Horiguchi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
