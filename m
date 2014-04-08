@@ -1,101 +1,204 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com [209.85.160.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A9476B0055
-	for <linux-mm@kvack.org>; Mon,  7 Apr 2014 23:55:10 -0400 (EDT)
-Received: by mail-pb0-f54.google.com with SMTP id ma3so416300pbc.13
-        for <linux-mm@kvack.org>; Mon, 07 Apr 2014 20:55:10 -0700 (PDT)
-Received: from heian.cn.fujitsu.com ([59.151.112.132])
-        by mx.google.com with ESMTP id ub3si215811pac.153.2014.04.07.18.19.04
-        for <linux-mm@kvack.org>;
-        Mon, 07 Apr 2014 18:19:06 -0700 (PDT)
-Message-ID: <53434E41.1010306@cn.fujitsu.com>
-Date: Tue, 8 Apr 2014 09:17:53 +0800
-From: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 39D236B005C
+	for <linux-mm@kvack.org>; Mon,  7 Apr 2014 23:56:10 -0400 (EDT)
+Received: by mail-pa0-f48.google.com with SMTP id hz1so421056pad.35
+        for <linux-mm@kvack.org>; Mon, 07 Apr 2014 20:56:09 -0700 (PDT)
+Received: from fgwmail5.fujitsu.co.jp (fgwmail5.fujitsu.co.jp. [192.51.44.35])
+        by mx.google.com with ESMTPS id xv10si255243pab.261.2014.04.07.19.01.32
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 07 Apr 2014 19:01:33 -0700 (PDT)
+Received: from m4.gw.fujitsu.co.jp (unknown [10.0.50.74])
+	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 9F7A33EE1E1
+	for <linux-mm@kvack.org>; Tue,  8 Apr 2014 11:01:31 +0900 (JST)
+Received: from smail (m4 [127.0.0.1])
+	by outgoing.m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 88B7945DEBF
+	for <linux-mm@kvack.org>; Tue,  8 Apr 2014 11:01:31 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (s4.gw.nic.fujitsu.com [10.0.50.94])
+	by m4.gw.fujitsu.co.jp (Postfix) with ESMTP id 6053945DEB9
+	for <linux-mm@kvack.org>; Tue,  8 Apr 2014 11:01:31 +0900 (JST)
+Received: from s4.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id 48D731DB8043
+	for <linux-mm@kvack.org>; Tue,  8 Apr 2014 11:01:31 +0900 (JST)
+Received: from g01jpfmpwkw03.exch.g01.fujitsu.local (g01jpfmpwkw03.exch.g01.fujitsu.local [10.0.193.57])
+	by s4.gw.fujitsu.co.jp (Postfix) with ESMTP id E30E01DB803F
+	for <linux-mm@kvack.org>; Tue,  8 Apr 2014 11:01:30 +0900 (JST)
+Message-ID: <53435848.1050601@jp.fujitsu.com>
+Date: Tue, 8 Apr 2014 11:00:40 +0900
+From: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/2] mm: page_alloc: Do not cache reclaim distances
-References: <1396910068-11637-1-git-send-email-mgorman@suse.de> <1396910068-11637-3-git-send-email-mgorman@suse.de>
-In-Reply-To: <1396910068-11637-3-git-send-email-mgorman@suse.de>
-Content-Type: text/plain; charset="UTF-8"
+Subject: Re: [PATCH 1/4] hugetlb: add hstate_is_gigantic()
+References: <1396462128-32626-1-git-send-email-lcapitulino@redhat.com> <1396462128-32626-2-git-send-email-lcapitulino@redhat.com>
+In-Reply-To: <1396462128-32626-2-git-send-email-lcapitulino@redhat.com>
+Content-Type: text/plain; charset="ISO-2022-JP"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Robert Haas <robertmhaas@gmail.com>, Josh Berkus <josh@agliodbs.com>, Andres Freund <andres@2ndquadrant.com>, Christoph Lameter <cl@linux.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Luiz Capitulino <lcapitulino@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, mtosatti@redhat.com, aarcange@redhat.com, mgorman@suse.de, akpm@linux-foundation.org, andi@firstfloor.org, davidlohr@hp.com, rientjes@google.com, yinghai@kernel.org, riel@redhat.com
 
-On 04/08/2014 06:34 AM, Mel Gorman wrote:
-> pgdat->reclaim_nodes tracks if a remote node is allowed to be reclaimed by
-> zone_reclaim due to its distance. As it is expected that zone_reclaim_mode
-> will be rarely enabled it is unreasonable for all machines to take a penalty.
-> Fortunately, the zone_reclaim_mode() path is already slow and it is the path
-> that takes the hit.
-> 
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
-
-Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
-
+(2014/04/03 3:08), Luiz Capitulino wrote:
+> Signed-off-by: Luiz Capitulino <lcapitulino@redhat.com>
 > ---
->  include/linux/mmzone.h |  1 -
->  mm/page_alloc.c        | 15 +--------------
->  2 files changed, 1 insertion(+), 15 deletions(-)
+
+Reviewed-by: Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>
+
+Thanks,
+Yasuaki Ishimatsu
+
+>   include/linux/hugetlb.h |  5 +++++
+>   mm/hugetlb.c            | 28 ++++++++++++++--------------
+>   2 files changed, 19 insertions(+), 14 deletions(-)
 > 
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> index 9b61b9b..564b169 100644
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -757,7 +757,6 @@ typedef struct pglist_data {
->  	unsigned long node_spanned_pages; /* total size of physical page
->  					     range, including holes */
->  	int node_id;
-> -	nodemask_t reclaim_nodes;	/* Nodes allowed to reclaim from */
->  	wait_queue_head_t kswapd_wait;
->  	wait_queue_head_t pfmemalloc_wait;
->  	struct task_struct *kswapd;	/* Protected by lock_memory_hotplug() */
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index a256f85..574928e 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -1863,16 +1863,7 @@ static bool zone_local(struct zone *local_zone, struct zone *zone)
->  
->  static bool zone_allows_reclaim(struct zone *local_zone, struct zone *zone)
->  {
-> -	return node_isset(local_zone->node, zone->zone_pgdat->reclaim_nodes);
-> -}
-> -
-> -static void __paginginit init_zone_allows_reclaim(int nid)
-> -{
-> -	int i;
-> -
-> -	for_each_online_node(i)
-> -		if (node_distance(nid, i) <= RECLAIM_DISTANCE)
-> -			node_set(i, NODE_DATA(nid)->reclaim_nodes);
-> +	return node_distance(zone_to_nid(local_zone), zone_to_nid(zone)) < RECLAIM_DISTANCE;
->  }
->  
->  #else	/* CONFIG_NUMA */
-> @@ -1906,9 +1897,6 @@ static bool zone_allows_reclaim(struct zone *local_zone, struct zone *zone)
->  	return true;
->  }
->  
-> -static inline void init_zone_allows_reclaim(int nid)
-> -{
-> -}
->  #endif	/* CONFIG_NUMA */
->  
->  /*
-> @@ -4917,7 +4905,6 @@ void __paginginit free_area_init_node(int nid, unsigned long *zones_size,
->  
->  	pgdat->node_id = nid;
->  	pgdat->node_start_pfn = node_start_pfn;
-> -	init_zone_allows_reclaim(nid);
->  #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
->  	get_pfn_range_for_nid(nid, &start_pfn, &end_pfn);
->  #endif
+> diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+> index 8c43cc4..8590134 100644
+> --- a/include/linux/hugetlb.h
+> +++ b/include/linux/hugetlb.h
+> @@ -333,6 +333,11 @@ static inline unsigned huge_page_shift(struct hstate *h)
+>   	return h->order + PAGE_SHIFT;
+>   }
+>   
+> +static inline bool hstate_is_gigantic(struct hstate *h)
+> +{
+> +	return huge_page_order(h) >= MAX_ORDER;
+> +}
+> +
+>   static inline unsigned int pages_per_huge_page(struct hstate *h)
+>   {
+>   	return 1 << h->order;
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index c01cb9f..8c50547 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -574,7 +574,7 @@ static void update_and_free_page(struct hstate *h, struct page *page)
+>   {
+>   	int i;
+>   
+> -	VM_BUG_ON(h->order >= MAX_ORDER);
+> +	VM_BUG_ON(hstate_is_gigantic(h));
+>   
+>   	h->nr_huge_pages--;
+>   	h->nr_huge_pages_node[page_to_nid(page)]--;
+> @@ -627,7 +627,7 @@ static void free_huge_page(struct page *page)
+>   	if (restore_reserve)
+>   		h->resv_huge_pages++;
+>   
+> -	if (h->surplus_huge_pages_node[nid] && huge_page_order(h) < MAX_ORDER) {
+> +	if (h->surplus_huge_pages_node[nid] && !hstate_is_gigantic(h)) {
+>   		/* remove the page from active list */
+>   		list_del(&page->lru);
+>   		update_and_free_page(h, page);
+> @@ -731,7 +731,7 @@ static struct page *alloc_fresh_huge_page_node(struct hstate *h, int nid)
+>   {
+>   	struct page *page;
+>   
+> -	if (h->order >= MAX_ORDER)
+> +	if (hstate_is_gigantic(h))
+>   		return NULL;
+>   
+>   	page = alloc_pages_exact_node(nid,
+> @@ -925,7 +925,7 @@ static struct page *alloc_buddy_huge_page(struct hstate *h, int nid)
+>   	struct page *page;
+>   	unsigned int r_nid;
+>   
+> -	if (h->order >= MAX_ORDER)
+> +	if (hstate_is_gigantic(h))
+>   		return NULL;
+>   
+>   	/*
+> @@ -1118,7 +1118,7 @@ static void return_unused_surplus_pages(struct hstate *h,
+>   	h->resv_huge_pages -= unused_resv_pages;
+>   
+>   	/* Cannot return gigantic pages currently */
+> -	if (h->order >= MAX_ORDER)
+> +	if (hstate_is_gigantic(h))
+>   		return;
+>   
+>   	nr_pages = min(unused_resv_pages, h->surplus_huge_pages);
+> @@ -1328,7 +1328,7 @@ static void __init gather_bootmem_prealloc(void)
+>   		 * fix confusing memory reports from free(1) and another
+>   		 * side-effects, like CommitLimit going negative.
+>   		 */
+> -		if (h->order > (MAX_ORDER - 1))
+> +		if (hstate_is_gigantic(h))
+>   			adjust_managed_page_count(page, 1 << h->order);
+>   	}
+>   }
+> @@ -1338,7 +1338,7 @@ static void __init hugetlb_hstate_alloc_pages(struct hstate *h)
+>   	unsigned long i;
+>   
+>   	for (i = 0; i < h->max_huge_pages; ++i) {
+> -		if (h->order >= MAX_ORDER) {
+> +		if (hstate_is_gigantic(h)) {
+>   			if (!alloc_bootmem_huge_page(h))
+>   				break;
+>   		} else if (!alloc_fresh_huge_page(h,
+> @@ -1354,7 +1354,7 @@ static void __init hugetlb_init_hstates(void)
+>   
+>   	for_each_hstate(h) {
+>   		/* oversize hugepages were init'ed in early boot */
+> -		if (h->order < MAX_ORDER)
+> +		if (!hstate_is_gigantic(h))
+>   			hugetlb_hstate_alloc_pages(h);
+>   	}
+>   }
+> @@ -1388,7 +1388,7 @@ static void try_to_free_low(struct hstate *h, unsigned long count,
+>   {
+>   	int i;
+>   
+> -	if (h->order >= MAX_ORDER)
+> +	if (hstate_is_gigantic(h))
+>   		return;
+>   
+>   	for_each_node_mask(i, *nodes_allowed) {
+> @@ -1451,7 +1451,7 @@ static unsigned long set_max_huge_pages(struct hstate *h, unsigned long count,
+>   {
+>   	unsigned long min_count, ret;
+>   
+> -	if (h->order >= MAX_ORDER)
+> +	if (hstate_is_gigantic(h))
+>   		return h->max_huge_pages;
+>   
+>   	/*
+> @@ -1577,7 +1577,7 @@ static ssize_t nr_hugepages_store_common(bool obey_mempolicy,
+>   		goto out;
+>   
+>   	h = kobj_to_hstate(kobj, &nid);
+> -	if (h->order >= MAX_ORDER) {
+> +	if (hstate_is_gigantic(h)) {
+>   		err = -EINVAL;
+>   		goto out;
+>   	}
+> @@ -1660,7 +1660,7 @@ static ssize_t nr_overcommit_hugepages_store(struct kobject *kobj,
+>   	unsigned long input;
+>   	struct hstate *h = kobj_to_hstate(kobj, NULL);
+>   
+> -	if (h->order >= MAX_ORDER)
+> +	if (hstate_is_gigantic(h))
+>   		return -EINVAL;
+>   
+>   	err = kstrtoul(buf, 10, &input);
+> @@ -2071,7 +2071,7 @@ static int hugetlb_sysctl_handler_common(bool obey_mempolicy,
+>   
+>   	tmp = h->max_huge_pages;
+>   
+> -	if (write && h->order >= MAX_ORDER)
+> +	if (write && hstate_is_gigantic(h))
+>   		return -EINVAL;
+>   
+>   	table->data = &tmp;
+> @@ -2124,7 +2124,7 @@ int hugetlb_overcommit_handler(struct ctl_table *table, int write,
+>   
+>   	tmp = h->nr_overcommit_huge_pages;
+>   
+> -	if (write && h->order >= MAX_ORDER)
+> +	if (write && hstate_is_gigantic(h))
+>   		return -EINVAL;
+>   
+>   	table->data = &tmp;
 > 
 
-
--- 
-Thanks.
-Zhang Yanfei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
