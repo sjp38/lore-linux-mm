@@ -1,49 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f45.google.com (mail-ee0-f45.google.com [74.125.83.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 3961C6B00A7
-	for <linux-mm@kvack.org>; Tue,  8 Apr 2014 09:26:49 -0400 (EDT)
-Received: by mail-ee0-f45.google.com with SMTP id d17so692607eek.32
-        for <linux-mm@kvack.org>; Tue, 08 Apr 2014 06:26:46 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id g47si2786350eet.234.2014.04.08.06.26.42
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 1CF4A6B00AA
+	for <linux-mm@kvack.org>; Tue,  8 Apr 2014 10:14:10 -0400 (EDT)
+Received: by mail-pa0-f45.google.com with SMTP id kl14so1090922pab.18
+        for <linux-mm@kvack.org>; Tue, 08 Apr 2014 07:14:09 -0700 (PDT)
+Received: from qmta08.emeryville.ca.mail.comcast.net (qmta08.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:80])
+        by mx.google.com with ESMTP id ep2si1078020pbb.160.2014.04.08.07.14.08
         for <linux-mm@kvack.org>;
-        Tue, 08 Apr 2014 06:26:43 -0700 (PDT)
-Message-ID: <5343F2EC.3050508@redhat.com>
-Date: Tue, 08 Apr 2014 15:00:28 +0200
-From: Florian Weimer <fweimer@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 0/6] File Sealing & memfd_create()
-References: <1395256011-2423-1-git-send-email-dh.herrmann@gmail.com>
-In-Reply-To: <1395256011-2423-1-git-send-email-dh.herrmann@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+        Tue, 08 Apr 2014 07:14:09 -0700 (PDT)
+Date: Tue, 8 Apr 2014 09:14:05 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH 1/2] mm: Disable zone_reclaim_mode by default
+In-Reply-To: <1396910068-11637-2-git-send-email-mgorman@suse.de>
+Message-ID: <alpine.DEB.2.10.1404080910040.8782@nuc>
+References: <1396910068-11637-1-git-send-email-mgorman@suse.de> <1396910068-11637-2-git-send-email-mgorman@suse.de>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Herrmann <dh.herrmann@gmail.com>, linux-kernel@vger.kernel.org
-Cc: Hugh Dickins <hughd@google.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Matthew Wilcox <matthew@wil.cx>, Karol Lewandowski <k.lewandowsk@samsung.com>, Kay Sievers <kay@vrfy.org>, Daniel Mack <zonque@gmail.com>, Lennart Poettering <lennart@poettering.net>, =?ISO-8859-1?Q?Kristian_H=F8gsberg?= <krh@bitplanet.net>, john.stultz@linaro.org, Greg Kroah-Hartman <greg@kroah.com>, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, dri-devel@lists.freedesktop.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ryan Lortie <desrt@desrt.ca>, "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+To: sivanich@sgi.com
+Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Robert Haas <robertmhaas@gmail.com>, Josh Berkus <josh@agliodbs.com>, Andres Freund <andres@2ndquadrant.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 03/19/2014 08:06 PM, David Herrmann wrote:
+On Mon, 7 Apr 2014, Mel Gorman wrote:
 
-> Unlike existing techniques that provide similar protection, sealing allows
-> file-sharing without any trust-relationship. This is enforced by rejecting seal
-> modifications if you don't own an exclusive reference to the given file. So if
-> you own a file-descriptor, you can be sure that no-one besides you can modify
-> the seals on the given file. This allows mapping shared files from untrusted
-> parties without the fear of the file getting truncated or modified by an
-> attacker.
+> zone_reclaim_mode causes processes to prefer reclaiming memory from local
+> node instead of spilling over to other nodes. This made sense initially when
+> NUMA machines were almost exclusively HPC and the workload was partitioned
+> into nodes. The NUMA penalties were sufficiently high to justify reclaiming
+> the memory. On current machines and workloads it is often the case that
+> zone_reclaim_mode destroys performance but not all users know how to detect
+> this. Favour the common case and disable it by default. Users that are
+> sophisticated enough to know they need zone_reclaim_mode will detect it.
 
-How do you keep these promises on network and FUSE file systems?  Surely 
-there is still some trust involved for such descriptors?
-
-What happens if you create a loop device on a sealed descriptor?
-
-Why does memfd_create not create a file backed by a memory region in the 
-current process?  Wouldn't this be a far more generic primitive? 
-Creating aliases of memory regions would be interesting for many things 
-(not just libffi bypassing SELinux-enforced NX restrictions :-).
-
--- 
-Florian Weimer / Red Hat Product Security Team
+Ok that is going to require SGI machines to deal with zone_reclaim
+configurations on bootup. Dimitri? Any comments?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
