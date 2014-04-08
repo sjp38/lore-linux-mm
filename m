@@ -1,77 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f48.google.com (mail-la0-f48.google.com [209.85.215.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C0256B0068
-	for <linux-mm@kvack.org>; Tue,  8 Apr 2014 00:04:55 -0400 (EDT)
-Received: by mail-la0-f48.google.com with SMTP id gf5so321367lab.7
-        for <linux-mm@kvack.org>; Mon, 07 Apr 2014 21:04:54 -0700 (PDT)
-Received: from mail-lb0-f180.google.com (mail-lb0-f180.google.com [209.85.217.180])
-        by mx.google.com with ESMTPS id sz4si367710lbb.204.2014.04.07.21.04.53
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 07 Apr 2014 21:04:54 -0700 (PDT)
-Received: by mail-lb0-f180.google.com with SMTP id 10so318731lbg.25
-        for <linux-mm@kvack.org>; Mon, 07 Apr 2014 21:04:53 -0700 (PDT)
+Received: from mail-pb0-f44.google.com (mail-pb0-f44.google.com [209.85.160.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 10A356B0069
+	for <linux-mm@kvack.org>; Tue,  8 Apr 2014 00:12:45 -0400 (EDT)
+Received: by mail-pb0-f44.google.com with SMTP id rp16so432835pbb.17
+        for <linux-mm@kvack.org>; Mon, 07 Apr 2014 21:12:44 -0700 (PDT)
+Received: from heian.cn.fujitsu.com ([59.151.112.132])
+        by mx.google.com with ESMTP id gg7si220084pac.106.2014.04.07.18.18.49
+        for <linux-mm@kvack.org>;
+        Mon, 07 Apr 2014 18:18:51 -0700 (PDT)
+Message-ID: <53434E28.4040304@cn.fujitsu.com>
+Date: Tue, 8 Apr 2014 09:17:28 +0800
+From: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
 MIME-Version: 1.0
-In-Reply-To: <20140407212535.GJ7292@suse.de>
-References: <1396883443-11696-1-git-send-email-mgorman@suse.de>
-	<1396883443-11696-3-git-send-email-mgorman@suse.de>
-	<5342C517.2020305@citrix.com>
-	<20140407154935.GD7292@suse.de>
-	<20140407161910.GJ1444@moon>
-	<20140407182854.GH7292@suse.de>
-	<5342FC0E.9080701@zytor.com>
-	<20140407193646.GC23983@moon>
-	<5342FFB0.6010501@zytor.com>
-	<20140407212535.GJ7292@suse.de>
-Date: Mon, 7 Apr 2014 21:04:53 -0700
-Message-ID: <CAKbGBLhsWKVYnBqR0ZJ2kfaF_h=XAYkjq=v3RLoRBDkF_w=6ag@mail.gmail.com>
-Subject: Re: [PATCH 2/3] x86: Define _PAGE_NUMA with unused physical address
- bits PMD and PTE levels
-From: Steven Noonan <steven@uplinklabs.net>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH 1/2] mm: Disable zone_reclaim_mode by default
+References: <1396910068-11637-1-git-send-email-mgorman@suse.de> <1396910068-11637-2-git-send-email-mgorman@suse.de>
+In-Reply-To: <1396910068-11637-2-git-send-email-mgorman@suse.de>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Mel Gorman <mgorman@suse.de>
-Cc: "H. Peter Anvin" <hpa@zytor.com>, Cyrill Gorcunov <gorcunov@gmail.com>, David Vrabel <david.vrabel@citrix.com>, Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Linux-MM <linux-mm@kvack.org>, Linux-X86 <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Pavel Emelyanov <xemul@parallels.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Robert Haas <robertmhaas@gmail.com>, Josh Berkus <josh@agliodbs.com>, Andres Freund <andres@2ndquadrant.com>, Christoph Lameter <cl@linux.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, Apr 7, 2014 at 2:25 PM, Mel Gorman <mgorman@suse.de> wrote:
-> On Mon, Apr 07, 2014 at 12:42:40PM -0700, H. Peter Anvin wrote:
->> On 04/07/2014 12:36 PM, Cyrill Gorcunov wrote:
->> > On Mon, Apr 07, 2014 at 12:27:10PM -0700, H. Peter Anvin wrote:
->> >> On 04/07/2014 11:28 AM, Mel Gorman wrote:
->> >>>
->> >>> I had considered the soft-dirty tracking usage of the same bit. I thought I'd
->> >>> be able to swizzle around it or a further worst case of having soft-dirty and
->> >>> automatic NUMA balancing mutually exclusive. Unfortunately upon examination
->> >>> it's not obvious how to have both of them share a bit and I suspect any
->> >>> attempt to will break CRIU.  In my current tree, NUMA_BALANCING cannot be
->> >>> set if MEM_SOFT_DIRTY which is not particularly satisfactory. Next on the
->> >>> list is examining if _PAGE_BIT_IOMAP can be used.
->> >>
->> >> Didn't we smoke the last user of _PAGE_BIT_IOMAP?
->> >
->> > Seems so, at least for non-kernel pages (not considering this bit references in
->> > xen code, which i simply don't know but i guess it's used for kernel pages only).
->> >
->>
->> David Vrabel has a patchset which I presumed would be pulled through the
->> Xen tree this merge window:
->>
->> [PATCHv5 0/8] x86/xen: fixes for mapping high MMIO regions (and remove
->> _PAGE_IOMAP)
->>
->> That frees up this bit.
->>
->
-> Thanks, I was not aware of that patch.  Based on it, I intend to force
-> automatic NUMA balancing to depend on !XEN and see what the reaction is. If
-> support for Xen is really required then it potentially be re-enabled if/when
-> that series is merged assuming they do not need the bit for something else.
->
+On 04/08/2014 06:34 AM, Mel Gorman wrote:
+> zone_reclaim_mode causes processes to prefer reclaiming memory from local
+> node instead of spilling over to other nodes. This made sense initially when
+> NUMA machines were almost exclusively HPC and the workload was partitioned
+> into nodes. The NUMA penalties were sufficiently high to justify reclaiming
+> the memory. On current machines and workloads it is often the case that
+> zone_reclaim_mode destroys performance but not all users know how to detect
+> this. Favour the common case and disable it by default. Users that are
+> sophisticated enough to know they need zone_reclaim_mode will detect it.
+> 
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
 
-Amazon EC2 does have large memory instance types with NUMA exposed to
-the guest (e.g. c3.8xlarge, i2.8xlarge, etc), so it'd be preferable
-(to me anyway) if we didn't require !XEN.
+Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+
+> ---
+>  Documentation/sysctl/vm.txt | 17 +++++++++--------
+>  mm/page_alloc.c             |  2 --
+>  2 files changed, 9 insertions(+), 10 deletions(-)
+> 
+> diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
+> index d614a9b..ff5da70 100644
+> --- a/Documentation/sysctl/vm.txt
+> +++ b/Documentation/sysctl/vm.txt
+> @@ -751,16 +751,17 @@ This is value ORed together of
+>  2	= Zone reclaim writes dirty pages out
+>  4	= Zone reclaim swaps pages
+>  
+> -zone_reclaim_mode is set during bootup to 1 if it is determined that pages
+> -from remote zones will cause a measurable performance reduction. The
+> -page allocator will then reclaim easily reusable pages (those page
+> -cache pages that are currently not used) before allocating off node pages.
+> -
+> -It may be beneficial to switch off zone reclaim if the system is
+> -used for a file server and all of memory should be used for caching files
+> -from disk. In that case the caching effect is more important than
+> +zone_reclaim_mode is disabled by default.  For file servers or workloads
+> +that benefit from having their data cached, zone_reclaim_mode should be
+> +left disabled as the caching effect is likely to be more important than
+>  data locality.
+>  
+> +zone_reclaim may be enabled if it's known that the workload is partitioned
+> +such that each partition fits within a NUMA node and that accessing remote
+> +memory would cause a measurable performance reduction.  The page allocator
+> +will then reclaim easily reusable pages (those page cache pages that are
+> +currently not used) before allocating off node pages.
+> +
+>  Allowing zone reclaim to write out pages stops processes that are
+>  writing large amounts of data from dirtying pages on other nodes. Zone
+>  reclaim will write out dirty pages if a zone fills up and so effectively
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 3bac76a..a256f85 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -1873,8 +1873,6 @@ static void __paginginit init_zone_allows_reclaim(int nid)
+>  	for_each_online_node(i)
+>  		if (node_distance(nid, i) <= RECLAIM_DISTANCE)
+>  			node_set(i, NODE_DATA(nid)->reclaim_nodes);
+> -		else
+> -			zone_reclaim_mode = 1;
+>  }
+>  
+>  #else	/* CONFIG_NUMA */
+> 
+
+
+-- 
+Thanks.
+Zhang Yanfei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
