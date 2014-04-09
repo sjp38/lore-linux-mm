@@ -1,108 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f173.google.com (mail-we0-f173.google.com [74.125.82.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 1BC756B0031
-	for <linux-mm@kvack.org>; Wed,  9 Apr 2014 06:15:19 -0400 (EDT)
-Received: by mail-we0-f173.google.com with SMTP id w61so2215337wes.18
-        for <linux-mm@kvack.org>; Wed, 09 Apr 2014 03:15:17 -0700 (PDT)
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 518336B0031
+	for <linux-mm@kvack.org>; Wed,  9 Apr 2014 06:25:43 -0400 (EDT)
+Received: by mail-wi0-f181.google.com with SMTP id hm4so2903136wib.14
+        for <linux-mm@kvack.org>; Wed, 09 Apr 2014 03:25:41 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id db6si2489015wib.25.2014.04.09.03.15.15
+        by mx.google.com with ESMTPS id dd8si232969wjc.103.2014.04.09.03.25.40
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 09 Apr 2014 03:15:16 -0700 (PDT)
-Date: Wed, 9 Apr 2014 12:15:12 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH v7 18/22] xip: Add xip_zero_page_range
-Message-ID: <20140409101512.GL32103@quack.suse.cz>
-References: <cover.1395591795.git.matthew.r.wilcox@intel.com>
- <5a87acda8c3e4d2b7ea5dd1249fcbf8be23b9645.1395591795.git.matthew.r.wilcox@intel.com>
+        Wed, 09 Apr 2014 03:25:40 -0700 (PDT)
+Date: Wed, 9 Apr 2014 11:25:34 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: hugetlb: ensure hugepage access is denied if hugepages are not
+ supported
+Message-ID: <20140409102534.GA27270@suse.de>
+References: <20140403231413.GB17412@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <5a87acda8c3e4d2b7ea5dd1249fcbf8be23b9645.1395591795.git.matthew.r.wilcox@intel.com>
+In-Reply-To: <20140403231413.GB17412@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, willy@linux.intel.com, Ross Zwisler <ross.zwisler@linux.intel.com>
+To: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, nyc@holomorphy.com, benh@kernel.crashing.org, paulus@samba.org, anton@samba.org, aneesh.kumar@linux.vnet.ibm.com, akpm@linux-foundation.org
 
-On Sun 23-03-14 15:08:44, Matthew Wilcox wrote:
-> This new function allows us to support hole-punch for XIP files by zeroing
-> a partial page, as opposed to the xip_truncate_page() function which can
-> only truncate to the end of the page.  Reimplement xip_truncate_page() as
-> a macro that calls xip_zero_page_range().
+
+On Thu, Apr 03, 2014 at 04:14:13PM -0700, Nishanth Aravamudan wrote:
+> In KVM guests on Power, in a guest not backed by hugepages, we see the
+> following:
 > 
-> Signed-off-by: Matthew Wilcox <matthew.r.wilcox@intel.com>
-> [ported to 3.13-rc2]
-> Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
-  Two comments below...
+> AnonHugePages:         0 kB
+> HugePages_Total:       0
+> HugePages_Free:        0
+> HugePages_Rsvd:        0
+> HugePages_Surp:        0
+> Hugepagesize:         64 kB
+> 
+> HPAGE_SHIFT == 0 in this configuration, which indicates that hugepages
+> are not supported at boot-time, but this is only checked in
+> hugetlb_init(). Extract the check to a helper function, and use it in a
+> few relevant places.
+> 
+> This does make hugetlbfs not supported (not registered at all) in this
+> environment. I believe this is fine, as there are no valid hugepages and
+> that won't change at runtime.
+> 
+> Signed-off-by: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
 
-...
-> diff --git a/fs/dax.c b/fs/dax.c
-> index 45a0a41..2d6b4bc 100644
-> --- a/fs/dax.c
-> +++ b/fs/dax.c
-...
-> @@ -491,11 +494,16 @@ int dax_truncate_page(struct inode *inode, loff_t from, get_block_t get_block)
->  	if (buffer_written(&bh)) {
->  		void *addr;
->  		err = dax_get_addr(inode, &bh, &addr);
-> -		if (err)
-> +		if (err < 0)
->  			return err;
-> +		/*
-> +		 * ext4 sometimes asks to zero past the end of a block.  It
-> +		 * really just wants to zero to the end of the block.
-> +		 */
-  Then we should really fix ext4 I believe...
+Acked-by: Mel Gorman <mgorman@suse.de>
 
-> +		length = min_t(unsigned, length, PAGE_CACHE_SIZE - offset);
->  		memset(addr + offset, 0, length);
->  	}
->  
->  	return 0;
->  }
-> -EXPORT_SYMBOL_GPL(dax_truncate_page);
-> +EXPORT_SYMBOL_GPL(dax_zero_page_range);
-> diff --git a/include/linux/fs.h b/include/linux/fs.h
-> index bff394d..d0381ab 100644
-> --- a/include/linux/fs.h
-> +++ b/include/linux/fs.h
-> @@ -2521,6 +2521,7 @@ extern int nonseekable_open(struct inode * inode, struct file * filp);
->  
->  #ifdef CONFIG_FS_DAX
->  int dax_clear_blocks(struct inode *, sector_t block, long size);
-> +int dax_zero_page_range(struct inode *, loff_t from, unsigned len, get_block_t);
->  int dax_truncate_page(struct inode *, loff_t from, get_block_t);
->  ssize_t dax_do_io(int rw, struct kiocb *, struct inode *, const struct iovec *,
->  		loff_t, unsigned segs, get_block_t, dio_iodone_t, int flags);
-> @@ -2532,7 +2533,8 @@ static inline int dax_clear_blocks(struct inode *i, sector_t blk, long sz)
->  	return 0;
->  }
->  
-> -static inline int dax_truncate_page(struct inode *i, loff_t frm, get_block_t gb)
-> +static inline int dax_zero_page_range(struct inode *inode, loff_t from,
-> +						unsigned len, get_block_t gb)
->  {
->  	return 0;
->  }
-> @@ -2545,6 +2547,11 @@ static inline ssize_t dax_do_io(int rw, struct kiocb *iocb, struct inode *inode,
->  }
->  #endif
->  
-> +/* Can't be a function because PAGE_CACHE_SIZE is defined in pagemap.h */
-> +#define dax_truncate_page(inode, from, get_block)	\
-> +	dax_zero_page_range(inode, from, PAGE_CACHE_SIZE, get_block)
-                                         ^^^^
-This should be (PAGE_CACHE_SIZE - (from & (PAGE_CACHE_SIZE - 1))), shouldn't it?
+This patch looks ok but the changelog misses important information from
+the original report which is probably why it fell through the cracks.
+Add the fact that you encountered a problem during mount to the changelog
+and resend it directly to Andrew. This part from your original report;
 
+	Currently, I am seeing the following when I `mount -t hugetlbfs
+	/none /dev/hugetlbfs`, and then simply do a `ls /dev/hugetlbfs`. I
+	think it's related to the fact that hugetlbfs is properly not
+	correctly setting itself up in this state?:
+
+	Unable to handle kernel paging request for data at address 0x00000031
+	Faulting instruction address: 0xc000000000245710
+	Oops: Kernel access of bad area, sig: 11 [#1]
+	SMP NR_CPUS=2048 NUMA pSeries
+	....
+
+It probably slipped through the cracks because from the changelog this
+looks like a minor formatting issue and not a functional fix.
+
+> 
+> diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+> index d19b30a..cc8fcc7 100644
+> --- a/fs/hugetlbfs/inode.c
+> +++ b/fs/hugetlbfs/inode.c
+> @@ -1017,6 +1017,11 @@ static int __init init_hugetlbfs_fs(void)
+>  	int error;
+>  	int i;
+>  
+> +	if (!hugepages_supported()) {
+> +		printk(KERN_ERR "hugetlbfs: Disabling because there are no supported hugepage sizes\n");
+> +		return -ENOTSUPP;
+> +	}
 > +
-> +
->  #ifdef CONFIG_BLOCK
->  typedef void (dio_submit_t)(int rw, struct bio *bio, struct inode *inode,
+>  	error = bdi_init(&hugetlbfs_backing_dev_info);
+>  	if (error)
+>  		return error;
 
-								Honza
+KERN_ERR feels like overkill for this type of issue. KERN_INFO?
+
 -- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
