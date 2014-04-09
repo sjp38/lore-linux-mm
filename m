@@ -1,199 +1,144 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 322906B0031
-	for <linux-mm@kvack.org>; Wed,  9 Apr 2014 06:04:40 -0400 (EDT)
-Received: by mail-wi0-f173.google.com with SMTP id z2so8572657wiv.0
-        for <linux-mm@kvack.org>; Wed, 09 Apr 2014 03:04:39 -0700 (PDT)
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 819886B0035
+	for <linux-mm@kvack.org>; Wed,  9 Apr 2014 06:07:12 -0400 (EDT)
+Received: by mail-wi0-f180.google.com with SMTP id q5so2878417wiv.13
+        for <linux-mm@kvack.org>; Wed, 09 Apr 2014 03:07:12 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r2si798517wiz.79.2014.04.09.03.04.38
+        by mx.google.com with ESMTPS id ga9si212602wjb.116.2014.04.09.03.07.11
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 09 Apr 2014 03:04:38 -0700 (PDT)
-Date: Wed, 9 Apr 2014 12:04:35 +0200
+        Wed, 09 Apr 2014 03:07:11 -0700 (PDT)
+Date: Wed, 9 Apr 2014 12:07:09 +0200
 From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH v7 17/22] Get rid of most mentions of XIP in ext2
-Message-ID: <20140409100435.GJ32103@quack.suse.cz>
+Subject: Re: [PATCH v7 22/22] brd: Rename XIP to DAX
+Message-ID: <20140409100709.GK32103@quack.suse.cz>
 References: <cover.1395591795.git.matthew.r.wilcox@intel.com>
- <0b13a744db9bfca33938bc1576f7eb7bfc9c41c2.1395591795.git.matthew.r.wilcox@intel.com>
+ <7fd74703525f4077ed7c2b273ce6d082b03f0b61.1395591795.git.matthew.r.wilcox@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <0b13a744db9bfca33938bc1576f7eb7bfc9c41c2.1395591795.git.matthew.r.wilcox@intel.com>
+In-Reply-To: <7fd74703525f4077ed7c2b273ce6d082b03f0b61.1395591795.git.matthew.r.wilcox@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Matthew Wilcox <matthew.r.wilcox@intel.com>
-Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, willy@linux.intel.com
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Matthew Wilcox <willy@linux.intel.com>
 
-On Sun 23-03-14 15:08:43, Matthew Wilcox wrote:
-> The only remaining usage is userspace's 'xip' option.
+On Sun 23-03-14 15:08:48, Matthew Wilcox wrote:
+> From: Matthew Wilcox <willy@linux.intel.com>
+> 
+> Since this is relating to FS_XIP, not KERNEL_XIP, it should be called
+> DAX instead of XIP.
+> 
+> Signed-off-by: Matthew Wilcox <matthew.r.wilcox@intel.com>
   Looks good. You can add:
 Reviewed-by: Jan Kara <jack@suse.cz>
 
 								Honza
 > ---
->  fs/ext2/ext2.h  |  6 +++---
->  fs/ext2/file.c  |  2 +-
->  fs/ext2/inode.c |  6 +++---
->  fs/ext2/namei.c |  8 ++++----
->  fs/ext2/super.c | 16 ++++++++--------
->  5 files changed, 19 insertions(+), 19 deletions(-)
+>  drivers/block/Kconfig | 13 +++++++------
+>  drivers/block/brd.c   | 14 +++++++-------
+>  fs/Kconfig            |  4 ++--
+>  3 files changed, 16 insertions(+), 15 deletions(-)
 > 
-> diff --git a/fs/ext2/ext2.h b/fs/ext2/ext2.h
-> index b8b1c11..0e1fe9d 100644
-> --- a/fs/ext2/ext2.h
-> +++ b/fs/ext2/ext2.h
-> @@ -381,9 +381,9 @@ struct ext2_inode {
->  #define EXT2_MOUNT_XATTR_USER		0x004000  /* Extended user attributes */
->  #define EXT2_MOUNT_POSIX_ACL		0x008000  /* POSIX Access Control Lists */
->  #ifdef CONFIG_FS_DAX
-> -#define EXT2_MOUNT_XIP			0x010000  /* Execute in place */
-> +#define EXT2_MOUNT_DAX			0x010000  /* Direct Access */
->  #else
-> -#define EXT2_MOUNT_XIP			0
-> +#define EXT2_MOUNT_DAX			0
+> diff --git a/drivers/block/Kconfig b/drivers/block/Kconfig
+> index 014a1cf..1b8094d 100644
+> --- a/drivers/block/Kconfig
+> +++ b/drivers/block/Kconfig
+> @@ -393,14 +393,15 @@ config BLK_DEV_RAM_SIZE
+>  	  The default value is 4096 kilobytes. Only change this if you know
+>  	  what you are doing.
+>  
+> -config BLK_DEV_XIP
+> -	bool "Support XIP filesystems on RAM block device"
+> -	depends on BLK_DEV_RAM
+> +config BLK_DEV_RAM_DAX
+> +	bool "Support Direct Access (DAX) to RAM block devices"
+> +	depends on BLK_DEV_RAM && FS_DAX
+>  	default n
+>  	help
+> -	  Support XIP filesystems (such as ext2 with XIP support on) on
+> -	  top of block ram device. This will slightly enlarge the kernel, and
+> -	  will prevent RAM block device backing store memory from being
+> +	  Support filesystems using DAX to access RAM block devices.  This
+> +	  avoids double-buffering data in the page cache before copying it
+> +	  to the block device.  Answering Y will slightly enlarge the kernel,
+> +	  and will prevent RAM block device backing store memory from being
+>  	  allocated from highmem (only a problem for highmem systems).
+>  
+>  config CDROM_PKTCDVD
+> diff --git a/drivers/block/brd.c b/drivers/block/brd.c
+> index 00da60d..619e0e0 100644
+> --- a/drivers/block/brd.c
+> +++ b/drivers/block/brd.c
+> @@ -97,13 +97,13 @@ static struct page *brd_insert_page(struct brd_device *brd, sector_t sector)
+>  	 * Must use NOIO because we don't want to recurse back into the
+>  	 * block or filesystem layers from page reclaim.
+>  	 *
+> -	 * Cannot support XIP and highmem, because our ->direct_access
+> -	 * routine for XIP must return memory that is always addressable.
+> -	 * If XIP was reworked to use pfns and kmap throughout, this
+> +	 * Cannot support DAX and highmem, because our ->direct_access
+> +	 * routine for DAX must return memory that is always addressable.
+> +	 * If DAX was reworked to use pfns and kmap throughout, this
+>  	 * restriction might be able to be lifted.
+>  	 */
+>  	gfp_flags = GFP_NOIO | __GFP_ZERO;
+> -#ifndef CONFIG_BLK_DEV_XIP
+> +#ifndef CONFIG_BLK_DEV_RAM_DAX
+>  	gfp_flags |= __GFP_HIGHMEM;
 >  #endif
->  #define EXT2_MOUNT_USRQUOTA		0x020000  /* user quota */
->  #define EXT2_MOUNT_GRPQUOTA		0x040000  /* group quota */
-> @@ -789,7 +789,7 @@ extern int ext2_fsync(struct file *file, loff_t start, loff_t end,
->  		      int datasync);
->  extern const struct inode_operations ext2_file_inode_operations;
->  extern const struct file_operations ext2_file_operations;
-> -extern const struct file_operations ext2_xip_file_operations;
-> +extern const struct file_operations ext2_dax_file_operations;
->  
->  /* inode.c */
->  extern const struct address_space_operations ext2_aops;
-> diff --git a/fs/ext2/file.c b/fs/ext2/file.c
-> index ae7f000..f9bcb9b 100644
-> --- a/fs/ext2/file.c
-> +++ b/fs/ext2/file.c
-> @@ -110,7 +110,7 @@ const struct file_operations ext2_file_operations = {
->  };
->  
->  #ifdef CONFIG_FS_DAX
-> -const struct file_operations ext2_xip_file_operations = {
-> +const struct file_operations ext2_dax_file_operations = {
->  	.llseek		= generic_file_llseek,
->  	.read		= do_sync_read,
->  	.write		= do_sync_write,
-> diff --git a/fs/ext2/inode.c b/fs/ext2/inode.c
-> index 7ca76da..3776063 100644
-> --- a/fs/ext2/inode.c
-> +++ b/fs/ext2/inode.c
-> @@ -1285,7 +1285,7 @@ void ext2_set_inode_flags(struct inode *inode)
->  		inode->i_flags |= S_NOATIME;
->  	if (flags & EXT2_DIRSYNC_FL)
->  		inode->i_flags |= S_DIRSYNC;
-> -	if (test_opt(inode->i_sb, XIP))
-> +	if (test_opt(inode->i_sb, DAX))
->  		inode->i_flags |= S_DAX;
+>  	page = alloc_page(gfp_flags);
+> @@ -360,7 +360,7 @@ out:
+>  	bio_endio(bio, err);
 >  }
 >  
-> @@ -1387,9 +1387,9 @@ struct inode *ext2_iget (struct super_block *sb, unsigned long ino)
->  
->  	if (S_ISREG(inode->i_mode)) {
->  		inode->i_op = &ext2_file_inode_operations;
-> -		if (test_opt(inode->i_sb, XIP)) {
-> +		if (test_opt(inode->i_sb, DAX)) {
->  			inode->i_mapping->a_ops = &ext2_aops;
-> -			inode->i_fop = &ext2_xip_file_operations;
-> +			inode->i_fop = &ext2_dax_file_operations;
->  		} else if (test_opt(inode->i_sb, NOBH)) {
->  			inode->i_mapping->a_ops = &ext2_nobh_aops;
->  			inode->i_fop = &ext2_file_operations;
-> diff --git a/fs/ext2/namei.c b/fs/ext2/namei.c
-> index 0db888c..148f6e3 100644
-> --- a/fs/ext2/namei.c
-> +++ b/fs/ext2/namei.c
-> @@ -104,9 +104,9 @@ static int ext2_create (struct inode * dir, struct dentry * dentry, umode_t mode
->  		return PTR_ERR(inode);
->  
->  	inode->i_op = &ext2_file_inode_operations;
-> -	if (test_opt(inode->i_sb, XIP)) {
-> +	if (test_opt(inode->i_sb, DAX)) {
->  		inode->i_mapping->a_ops = &ext2_aops;
-> -		inode->i_fop = &ext2_xip_file_operations;
-> +		inode->i_fop = &ext2_dax_file_operations;
->  	} else if (test_opt(inode->i_sb, NOBH)) {
->  		inode->i_mapping->a_ops = &ext2_nobh_aops;
->  		inode->i_fop = &ext2_file_operations;
-> @@ -125,9 +125,9 @@ static int ext2_tmpfile(struct inode *dir, struct dentry *dentry, umode_t mode)
->  		return PTR_ERR(inode);
->  
->  	inode->i_op = &ext2_file_inode_operations;
-> -	if (test_opt(inode->i_sb, XIP)) {
-> +	if (test_opt(inode->i_sb, DAX)) {
->  		inode->i_mapping->a_ops = &ext2_aops;
-> -		inode->i_fop = &ext2_xip_file_operations;
-> +		inode->i_fop = &ext2_dax_file_operations;
->  	} else if (test_opt(inode->i_sb, NOBH)) {
->  		inode->i_mapping->a_ops = &ext2_nobh_aops;
->  		inode->i_fop = &ext2_file_operations;
-> diff --git a/fs/ext2/super.c b/fs/ext2/super.c
-> index fdcacf7..8062373 100644
-> --- a/fs/ext2/super.c
-> +++ b/fs/ext2/super.c
-> @@ -288,7 +288,7 @@ static int ext2_show_options(struct seq_file *seq, struct dentry *root)
+> -#ifdef CONFIG_BLK_DEV_XIP
+> +#ifdef CONFIG_BLK_DEV_RAM_DAX
+>  static long brd_direct_access(struct block_device *bdev, sector_t sector,
+>  			void **kaddr, unsigned long *pfn, long size)
+>  {
+> @@ -383,6 +383,8 @@ static long brd_direct_access(struct block_device *bdev, sector_t sector,
+>  	 * file is mapped to the next page of physical RAM */
+>  	return PAGE_SIZE;
+>  }
+> +#else
+> +#define brd_direct_access NULL
 >  #endif
 >  
->  #ifdef CONFIG_FS_DAX
-> -	if (sbi->s_mount_opt & EXT2_MOUNT_XIP)
-> +	if (sbi->s_mount_opt & EXT2_MOUNT_DAX)
->  		seq_puts(seq, ",xip");
->  #endif
->  
-> @@ -393,7 +393,7 @@ enum {
->  	Opt_resgid, Opt_resuid, Opt_sb, Opt_err_cont, Opt_err_panic,
->  	Opt_err_ro, Opt_nouid32, Opt_nocheck, Opt_debug,
->  	Opt_oldalloc, Opt_orlov, Opt_nobh, Opt_user_xattr, Opt_nouser_xattr,
-> -	Opt_acl, Opt_noacl, Opt_xip, Opt_ignore, Opt_err, Opt_quota,
-> +	Opt_acl, Opt_noacl, Opt_dax, Opt_ignore, Opt_err, Opt_quota,
->  	Opt_usrquota, Opt_grpquota, Opt_reservation, Opt_noreservation
+>  static int brd_ioctl(struct block_device *bdev, fmode_t mode,
+> @@ -422,9 +424,7 @@ static int brd_ioctl(struct block_device *bdev, fmode_t mode,
+>  static const struct block_device_operations brd_fops = {
+>  	.owner =		THIS_MODULE,
+>  	.ioctl =		brd_ioctl,
+> -#ifdef CONFIG_BLK_DEV_XIP
+>  	.direct_access =	brd_direct_access,
+> -#endif
 >  };
 >  
-> @@ -421,7 +421,7 @@ static const match_table_t tokens = {
->  	{Opt_nouser_xattr, "nouser_xattr"},
->  	{Opt_acl, "acl"},
->  	{Opt_noacl, "noacl"},
-> -	{Opt_xip, "xip"},
-> +	{Opt_dax, "xip"},
->  	{Opt_grpquota, "grpquota"},
->  	{Opt_ignore, "noquota"},
->  	{Opt_quota, "quota"},
-> @@ -548,9 +548,9 @@ static int parse_options(char *options, struct super_block *sb)
->  				"(no)acl options not supported");
->  			break;
->  #endif
-> -		case Opt_xip:
-> +		case Opt_dax:
->  #ifdef CONFIG_FS_DAX
-> -			set_opt (sbi->s_mount_opt, XIP);
-> +			set_opt (sbi->s_mount_opt, DAX);
->  #else
->  			ext2_msg(sb, KERN_INFO, "xip option not supported");
->  #endif
-> @@ -896,7 +896,7 @@ static int ext2_fill_super(struct super_block *sb, void *data, int silent)
+>  /*
+> diff --git a/fs/Kconfig b/fs/Kconfig
+> index 620ab73..376bd0a 100644
+> --- a/fs/Kconfig
+> +++ b/fs/Kconfig
+> @@ -34,7 +34,7 @@ source "fs/btrfs/Kconfig"
+>  source "fs/nilfs2/Kconfig"
 >  
->  	blocksize = BLOCK_SIZE << le32_to_cpu(sbi->s_es->s_log_block_size);
+>  config FS_DAX
+> -	bool "Direct Access support"
+> +	bool "Direct Access (DAX) support"
+>  	depends on MMU
+>  	help
+>  	  Direct Access (DAX) can be used on memory-backed block devices.
+> @@ -45,7 +45,7 @@ config FS_DAX
 >  
-> -	if (sbi->s_mount_opt & EXT2_MOUNT_XIP) {
-> +	if (sbi->s_mount_opt & EXT2_MOUNT_DAX) {
->  		if (blocksize != PAGE_SIZE) {
->  			ext2_msg(sb, KERN_ERR,
->  					"error: unsupported blocksize for xip");
-> @@ -1275,10 +1275,10 @@ static int ext2_remount (struct super_block * sb, int * flags, char * data)
->  		((sbi->s_mount_opt & EXT2_MOUNT_POSIX_ACL) ? MS_POSIXACL : 0);
+>  	  If you do not have a block device that is capable of using this,
+>  	  or if unsure, say N.  Saying Y will increase the size of the kernel
+> -	  by about 2kB.
+> +	  by about 5kB.
 >  
->  	es = sbi->s_es;
-> -	if ((sbi->s_mount_opt ^ old_opts.s_mount_opt) & EXT2_MOUNT_XIP) {
-> +	if ((sbi->s_mount_opt ^ old_opts.s_mount_opt) & EXT2_MOUNT_DAX) {
->  		ext2_msg(sb, KERN_WARNING, "warning: refusing change of "
->  			 "xip flag with busy inodes while remounting");
-> -		sbi->s_mount_opt ^= EXT2_MOUNT_XIP;
-> +		sbi->s_mount_opt ^= EXT2_MOUNT_DAX;
->  	}
->  	if ((*flags & MS_RDONLY) == (sb->s_flags & MS_RDONLY)) {
->  		spin_unlock(&sbi->s_lock);
+>  endif # BLOCK
+>  
 > -- 
 > 1.9.0
 > 
