@@ -1,73 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f45.google.com (mail-ee0-f45.google.com [74.125.83.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 1FB5B6B0031
-	for <linux-mm@kvack.org>; Wed,  9 Apr 2014 02:21:11 -0400 (EDT)
-Received: by mail-ee0-f45.google.com with SMTP id d17so1439415eek.4
-        for <linux-mm@kvack.org>; Tue, 08 Apr 2014 23:21:10 -0700 (PDT)
-Received: from mail-ee0-x22f.google.com (mail-ee0-x22f.google.com [2a00:1450:4013:c00::22f])
-        by mx.google.com with ESMTPS id l41si5661eef.158.2014.04.08.23.21.08
+Received: from mail-ie0-f177.google.com (mail-ie0-f177.google.com [209.85.223.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 8A7E46B0031
+	for <linux-mm@kvack.org>; Wed,  9 Apr 2014 04:20:21 -0400 (EDT)
+Received: by mail-ie0-f177.google.com with SMTP id rl12so2107490iec.22
+        for <linux-mm@kvack.org>; Wed, 09 Apr 2014 01:20:21 -0700 (PDT)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
+        by mx.google.com with ESMTPS id ce9si337722icc.139.2014.04.09.01.20.20
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 08 Apr 2014 23:21:09 -0700 (PDT)
-Received: by mail-ee0-f47.google.com with SMTP id b15so1426901eek.34
-        for <linux-mm@kvack.org>; Tue, 08 Apr 2014 23:21:07 -0700 (PDT)
-Date: Wed, 9 Apr 2014 08:21:03 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [RFC PATCH 0/5] Use an alternative to _PAGE_PROTNONE for
- _PAGE_NUMA v2
-Message-ID: <20140409062103.GA7294@gmail.com>
-References: <1396962570-18762-1-git-send-email-mgorman@suse.de>
- <53440A5D.6050301@zytor.com>
- <CA+55aFwc6Jdf+As9RJ3wJWuOGEGmiaYWNa-jp2aCb9=ZiiqV+A@mail.gmail.com>
- <20140408164652.GL7292@suse.de>
- <20140408173031.GS10526@twins.programming.kicks-ass.net>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 09 Apr 2014 01:20:20 -0700 (PDT)
+Date: Wed, 9 Apr 2014 10:20:08 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH V2 1/2] mm: move FAULT_AROUND_ORDER to arch/
+Message-ID: <20140409082008.GA10526@twins.programming.kicks-ass.net>
+References: <1396592835-24767-1-git-send-email-maddy@linux.vnet.ibm.com>
+ <1396592835-24767-2-git-send-email-maddy@linux.vnet.ibm.com>
+ <533EDB63.8090909@intel.com>
+ <5344A312.80802@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140408173031.GS10526@twins.programming.kicks-ass.net>
+In-Reply-To: <5344A312.80802@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Mel Gorman <mgorman@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>, "H. Peter Anvin" <hpa@zytor.com>, Linux-X86 <x86@kernel.org>, Cyrill Gorcunov <gorcunov@gmail.com>, Steven Noonan <steven@uplinklabs.net>, Rik van Riel <riel@redhat.com>, David Vrabel <david.vrabel@citrix.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Madhavan Srinivasan <maddy@linux.vnet.ibm.com>
+Cc: Dave Hansen <dave.hansen@intel.com>, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, x86@kernel.org, benh@kernel.crashing.org, paulus@samba.org, kirill.shutemov@linux.intel.com, rusty@rustcorp.com.au, akpm@linux-foundation.org, riel@redhat.com, mgorman@suse.de, ak@linux.intel.com, mingo@kernel.org
 
-
-* Peter Zijlstra <peterz@infradead.org> wrote:
-
-> On Tue, Apr 08, 2014 at 05:46:52PM +0100, Mel Gorman wrote:
-> > Someone will ask why automatic NUMA balancing hints do not use "real"
-> > PROT_NONE but as it would need VMA information to do that on all
-> > architectures it would mean that VMA-fixups would be required when marking
-> > PTEs for NUMA hinting faults so would be expensive.
+On Wed, Apr 09, 2014 at 07:02:02AM +0530, Madhavan Srinivasan wrote:
+> On Friday 04 April 2014 09:48 PM, Dave Hansen wrote:
+> > On 04/03/2014 11:27 PM, Madhavan Srinivasan wrote:
+> >> This patch creates infrastructure to move the FAULT_AROUND_ORDER
+> >> to arch/ using Kconfig. This will enable architecture maintainers
+> >> to decide on suitable FAULT_AROUND_ORDER value based on
+> >> performance data for that architecture. Patch also adds
+> >> FAULT_AROUND_ORDER Kconfig element in arch/X86.
+> > 
+> > Please don't do it this way.
+> > 
+> > In mm/Kconfig, put
+> > 
+> > 	config FAULT_AROUND_ORDER
+> > 		int
+> > 		default 1234 if POWERPC
+> > 		default 4
+> > 
+> > The way you have it now, every single architecture that needs to enable
+> > this has to go put that in their Kconfig.  That's madness.  This way,
 > 
-> Like this:
-> 
->   https://lkml.org/lkml/2012/11/13/431
-> 
-> That used the generic PROT_NONE infrastructure and compared, on fault,
-> the page protection bits against the vma->vm_page_prot bits?
-> 
-> So the objection to that approach was the vma-> dereference in
-> pte_numa() ?
+> I though about it and decided not to do this way because, in future,
+> sub platforms of the architecture may decide to change the values. Also,
+> adding an if line for each architecture with different sub platforms
+> oring to it will look messy.
 
-I think the real underlying objection was that PTE_NUMA was the last 
-leftover from AutoNUMA, and removing it would have made it not a 
-'compromise' patch set between 'AutoNUMA' and 'sched/numa', but would 
-have made the sched/numa approach 'win' by and large.
-
-The whole 'losing face' annoyance that plagues all of us (me 
-included).
-
-I didn't feel it was important to the general logic of adding access 
-pattern aware NUMA placement logic to the scheduler, and I obviously 
-could not ignore the NAKs from various mm folks insisting on PTE_NUMA, 
-so I conceded that point and Mel built on that approach as well.
-
-Nice it's being cleaned up, and I'm pretty happy about how NUMA 
-balancing ended up looking like.
-
-Thanks,
-
-	Ingo
+This still misses out on Ben's objection that its impossible to get this
+right at compile time for many kernels, since they can boot and run on
+many different subarchs.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
