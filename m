@@ -1,96 +1,145 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 518336B0031
-	for <linux-mm@kvack.org>; Wed,  9 Apr 2014 06:25:43 -0400 (EDT)
-Received: by mail-wi0-f181.google.com with SMTP id hm4so2903136wib.14
-        for <linux-mm@kvack.org>; Wed, 09 Apr 2014 03:25:41 -0700 (PDT)
+Received: from mail-we0-f171.google.com (mail-we0-f171.google.com [74.125.82.171])
+	by kanga.kvack.org (Postfix) with ESMTP id DBF876B0031
+	for <linux-mm@kvack.org>; Wed,  9 Apr 2014 06:28:03 -0400 (EDT)
+Received: by mail-we0-f171.google.com with SMTP id t61so2248415wes.16
+        for <linux-mm@kvack.org>; Wed, 09 Apr 2014 03:28:03 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id dd8si232969wjc.103.2014.04.09.03.25.40
+        by mx.google.com with ESMTPS id em16si220972wjd.244.2014.04.09.03.28.02
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 09 Apr 2014 03:25:40 -0700 (PDT)
-Date: Wed, 9 Apr 2014 11:25:34 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: hugetlb: ensure hugepage access is denied if hugepages are not
- supported
-Message-ID: <20140409102534.GA27270@suse.de>
-References: <20140403231413.GB17412@linux.vnet.ibm.com>
+        Wed, 09 Apr 2014 03:28:02 -0700 (PDT)
+Date: Wed, 9 Apr 2014 12:27:58 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH v7 07/22] Replace the XIP page fault handler with the DAX
+ page fault handler
+Message-ID: <20140409102758.GM32103@quack.suse.cz>
+References: <cover.1395591795.git.matthew.r.wilcox@intel.com>
+ <c2e602f401a580c4fac54b9b8f4a6f8dd0ac1071.1395591795.git.matthew.r.wilcox@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140403231413.GB17412@linux.vnet.ibm.com>
+In-Reply-To: <c2e602f401a580c4fac54b9b8f4a6f8dd0ac1071.1395591795.git.matthew.r.wilcox@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, nyc@holomorphy.com, benh@kernel.crashing.org, paulus@samba.org, anton@samba.org, aneesh.kumar@linux.vnet.ibm.com, akpm@linux-foundation.org
+To: Matthew Wilcox <matthew.r.wilcox@intel.com>
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, willy@linux.intel.com
 
+  One more comment:
 
-On Thu, Apr 03, 2014 at 04:14:13PM -0700, Nishanth Aravamudan wrote:
-> In KVM guests on Power, in a guest not backed by hugepages, we see the
-> following:
-> 
-> AnonHugePages:         0 kB
-> HugePages_Total:       0
-> HugePages_Free:        0
-> HugePages_Rsvd:        0
-> HugePages_Surp:        0
-> Hugepagesize:         64 kB
-> 
-> HPAGE_SHIFT == 0 in this configuration, which indicates that hugepages
-> are not supported at boot-time, but this is only checked in
-> hugetlb_init(). Extract the check to a helper function, and use it in a
-> few relevant places.
-> 
-> This does make hugetlbfs not supported (not registered at all) in this
-> environment. I believe this is fine, as there are no valid hugepages and
-> that won't change at runtime.
-> 
-> Signed-off-by: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
-
-Acked-by: Mel Gorman <mgorman@suse.de>
-
-This patch looks ok but the changelog misses important information from
-the original report which is probably why it fell through the cracks.
-Add the fact that you encountered a problem during mount to the changelog
-and resend it directly to Andrew. This part from your original report;
-
-	Currently, I am seeing the following when I `mount -t hugetlbfs
-	/none /dev/hugetlbfs`, and then simply do a `ls /dev/hugetlbfs`. I
-	think it's related to the fact that hugetlbfs is properly not
-	correctly setting itself up in this state?:
-
-	Unable to handle kernel paging request for data at address 0x00000031
-	Faulting instruction address: 0xc000000000245710
-	Oops: Kernel access of bad area, sig: 11 [#1]
-	SMP NR_CPUS=2048 NUMA pSeries
-	....
-
-It probably slipped through the cracks because from the changelog this
-looks like a minor formatting issue and not a functional fix.
-
-> 
-> diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-> index d19b30a..cc8fcc7 100644
-> --- a/fs/hugetlbfs/inode.c
-> +++ b/fs/hugetlbfs/inode.c
-> @@ -1017,6 +1017,11 @@ static int __init init_hugetlbfs_fs(void)
->  	int error;
->  	int i;
->  
-> +	if (!hugepages_supported()) {
-> +		printk(KERN_ERR "hugetlbfs: Disabling because there are no supported hugepage sizes\n");
-> +		return -ENOTSUPP;
+On Sun 23-03-14 15:08:33, Matthew Wilcox wrote:
+> +static int do_dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
+> +			get_block_t get_block)
+> +{
+> +	struct file *file = vma->vm_file;
+> +	struct inode *inode = file_inode(file);
+> +	struct address_space *mapping = file->f_mapping;
+> +	struct page *page;
+> +	struct buffer_head bh;
+> +	unsigned long vaddr = (unsigned long)vmf->virtual_address;
+> +	sector_t block;
+> +	pgoff_t size;
+> +	unsigned long pfn;
+> +	int error;
+> +	int major = 0;
+> +
+> +	size = (i_size_read(inode) + PAGE_SIZE - 1) >> PAGE_SHIFT;
+> +	if (vmf->pgoff >= size)
+> +		return VM_FAULT_SIGBUS;
+> +
+> +	memset(&bh, 0, sizeof(bh));
+> +	block = (sector_t)vmf->pgoff << (PAGE_SHIFT - inode->i_blkbits);
+> +	bh.b_size = PAGE_SIZE;
+> +
+> + repeat:
+> +	page = find_get_page(mapping, vmf->pgoff);
+> +	if (page) {
+> +		if (!lock_page_or_retry(page, vma->vm_mm, vmf->flags)) {
+> +			page_cache_release(page);
+> +			return VM_FAULT_RETRY;
+> +		}
+> +		if (unlikely(page->mapping != mapping)) {
+> +			unlock_page(page);
+> +			page_cache_release(page);
+> +			goto repeat;
+> +		}
 > +	}
 > +
->  	error = bdi_init(&hugetlbfs_backing_dev_info);
->  	if (error)
->  		return error;
+> +	error = get_block(inode, block, &bh, 0);
+> +	if (error || bh.b_size < PAGE_SIZE)
+> +		goto sigbus;
+> +
+> +	if (!buffer_written(&bh) && !vmf->cow_page) {
+> +		if (vmf->flags & FAULT_FLAG_WRITE) {
+> +			error = get_block(inode, block, &bh, 1);
+> +			count_vm_event(PGMAJFAULT);
+> +			mem_cgroup_count_vm_event(vma->vm_mm, PGMAJFAULT);
+> +			major = VM_FAULT_MAJOR;
+> +			if (error || bh.b_size < PAGE_SIZE)
+> +				goto sigbus;
+> +		} else {
+> +			return dax_load_hole(mapping, page, vmf);
+> +		}
+> +	}
+> +
+> +	/* Recheck i_size under i_mmap_mutex */
+> +	mutex_lock(&mapping->i_mmap_mutex);
+> +	size = (i_size_read(inode) + PAGE_SIZE - 1) >> PAGE_SHIFT;
+> +	if (unlikely(vmf->pgoff >= size)) {
+> +		mutex_unlock(&mapping->i_mmap_mutex);
+> +		goto sigbus;
+  You need to release the block you've got from the filesystem in case of
+error here an below.
 
-KERN_ERR feels like overkill for this type of issue. KERN_INFO?
+								Honza
 
+> +	}
+> +	if (vmf->cow_page) {
+> +		if (buffer_written(&bh))
+> +			copy_user_bh(vmf->cow_page, inode, &bh, vaddr);
+> +		else
+> +			clear_user_highpage(vmf->cow_page, vaddr);
+> +		if (page) {
+> +			unlock_page(page);
+> +			page_cache_release(page);
+> +		}
+> +		/* do_cow_fault() will release the i_mmap_mutex */
+> +		return VM_FAULT_COWED;
+> +	}
+> +
+> +	if (buffer_unwritten(&bh) || buffer_new(&bh))
+> +		dax_clear_blocks(inode, bh.b_blocknr, bh.b_size);
+> +
+> +	error = dax_get_pfn(inode, &bh, &pfn);
+> +	if (error > 0)
+> +		error = vm_insert_mixed(vma, vaddr, pfn);
+> +	mutex_unlock(&mapping->i_mmap_mutex);
+> +
+> +	if (page) {
+> +		delete_from_page_cache(page);
+> +		unmap_mapping_range(mapping, vmf->pgoff << PAGE_SHIFT,
+> +							PAGE_CACHE_SIZE, 0);
+> +		unlock_page(page);
+> +		page_cache_release(page);
+> +	}
+> +
+> +	if (error == -ENOMEM)
+> +		return VM_FAULT_OOM;
+> +	/* -EBUSY is fine, somebody else faulted on the same PTE */
+> +	if (error != -EBUSY)
+> +		BUG_ON(error);
+> +	return VM_FAULT_NOPAGE | major;
+> +
+> + sigbus:
+> +	if (page) {
+> +		unlock_page(page);
+> +		page_cache_release(page);
+> +	}
+> +	return VM_FAULT_SIGBUS;
+> +}
 -- 
-Mel Gorman
-SUSE Labs
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
