@@ -1,83 +1,155 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 08DE66B0037
-	for <linux-mm@kvack.org>; Wed,  9 Apr 2014 14:29:28 -0400 (EDT)
-Received: by mail-pd0-f180.google.com with SMTP id v10so2765577pde.25
-        for <linux-mm@kvack.org>; Wed, 09 Apr 2014 11:29:28 -0700 (PDT)
-Received: from mail-pb0-f42.google.com (mail-pb0-f42.google.com [209.85.160.42])
-        by mx.google.com with ESMTPS id my16si840894pab.197.2014.04.09.11.29.27
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 09 Apr 2014 11:29:27 -0700 (PDT)
-Received: by mail-pb0-f42.google.com with SMTP id rr13so2858885pbb.15
-        for <linux-mm@kvack.org>; Wed, 09 Apr 2014 11:29:26 -0700 (PDT)
-Message-ID: <53459182.5090506@linaro.org>
-Date: Wed, 09 Apr 2014 11:29:22 -0700
-From: John Stultz <john.stultz@linaro.org>
+	by kanga.kvack.org (Postfix) with ESMTP id B71606B0031
+	for <linux-mm@kvack.org>; Wed,  9 Apr 2014 16:49:06 -0400 (EDT)
+Received: by mail-pd0-f180.google.com with SMTP id v10so2902009pde.25
+        for <linux-mm@kvack.org>; Wed, 09 Apr 2014 13:49:05 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id jg5si977821pbb.254.2014.04.09.13.49.04
+        for <linux-mm@kvack.org>;
+        Wed, 09 Apr 2014 13:49:04 -0700 (PDT)
+Date: Wed, 9 Apr 2014 16:48:06 -0400
+From: Matthew Wilcox <willy@linux.intel.com>
+Subject: Re: [PATCH v7 07/22] Replace the XIP page fault handler with the DAX
+ page fault handler
+Message-ID: <20140409204806.GF5727@linux.intel.com>
+References: <cover.1395591795.git.matthew.r.wilcox@intel.com>
+ <c2e602f401a580c4fac54b9b8f4a6f8dd0ac1071.1395591795.git.matthew.r.wilcox@intel.com>
+ <20140408220525.GC26019@quack.suse.cz>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/5] vrange: Add purged page detection on setting memory
- non-volatile
-References: <1395436655-21670-1-git-send-email-john.stultz@linaro.org> <1395436655-21670-3-git-send-email-john.stultz@linaro.org> <CAHGf_=rUJwtM-DJ4-Xw9WR3UN3gsA6UdcEvwen=Ku7B03j_2JA@mail.gmail.com> <CALAqxLVR4PQCZ-UsGhh+486D5PgVVtu3Tk7878zA9oG0yNU_Eg@mail.gmail.com> <CAHGf_=qC1aUdoUg1QJc8DukXzkHVoJA+5rH6SLmj0x+cibxtig@mail.gmail.com>
-In-Reply-To: <CAHGf_=qC1aUdoUg1QJc8DukXzkHVoJA+5rH6SLmj0x+cibxtig@mail.gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140408220525.GC26019@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Johannes Weiner <hannes@cmpxchg.org>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@sr71.net>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Neil Brown <neilb@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Jan Kara <jack@suse.cz>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Jan Kara <jack@suse.cz>
+Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 03/23/2014 02:50 PM, KOSAKI Motohiro wrote:
-> On Sun, Mar 23, 2014 at 1:26 PM, John Stultz <john.stultz@linaro.org> wrote:
->> On Sun, Mar 23, 2014 at 10:50 AM, KOSAKI Motohiro
->> <kosaki.motohiro@gmail.com> wrote:
->>>> +/**
->>>> + * vrange_check_purged_pte - Checks ptes for purged pages
->>>> + *
->>>> + * Iterates over the ptes in the pmd checking if they have
->>>> + * purged swap entries.
->>>> + *
->>>> + * Sets the vrange_walker.pages_purged to 1 if any were purged.
->>>> + */
->>>> +static int vrange_check_purged_pte(pmd_t *pmd, unsigned long addr,
->>>> +                                       unsigned long end, struct mm_walk *walk)
->>>> +{
->>>> +       struct vrange_walker *vw = walk->private;
->>>> +       pte_t *pte;
->>>> +       spinlock_t *ptl;
->>>> +
->>>> +       if (pmd_trans_huge(*pmd))
->>>> +               return 0;
->>>> +       if (pmd_trans_unstable(pmd))
->>>> +               return 0;
->>>> +
->>>> +       pte = pte_offset_map_lock(walk->mm, pmd, addr, &ptl);
->>>> +       for (; addr != end; pte++, addr += PAGE_SIZE) {
->>>> +               if (!pte_present(*pte)) {
->>>> +                       swp_entry_t vrange_entry = pte_to_swp_entry(*pte);
->>>> +
->>>> +                       if (unlikely(is_vpurged_entry(vrange_entry))) {
->>>> +                               vw->page_was_purged = 1;
->>>> +                               break;
->>> This function only detect there is vpurge entry or not. But
->>> VRANGE_NONVOLATILE should remove all vpurge entries.
->>> Otherwise, non-volatiled range still makes SIGBUS.
->> So in the following patch (3/5), we only SIGBUS if the swap entry
->> is_vpurged_entry()  && the vma is still marked volatile, so this
->> shouldn't be an issue.
-> When VOLATILE -> NON-VOLATILE -> VOLATILE transition happen,
-> the page immediately marked "was purged"?
->
-> I don't understand why vma check help.
+On Wed, Apr 09, 2014 at 12:05:25AM +0200, Jan Kara wrote:
+> > +	if (!page)
+> > +		return VM_FAULT_OOM;
+> > +	size = (i_size_read(inode) + PAGE_SIZE - 1) >> PAGE_SHIFT;
+> > +	if (vmf->pgoff >= size) {
+>   Maybe comment here that we have to recheck i_size so that we don't create
+> pages in the area truncate_pagecache() has already evicted.
 
-Ok, you have a good point here. I've changed the code in my tree to
-traverse all the ptes being unmarked and zap any psudo swp entries. This
-is more expensive, but does provide simpler semantics for these corner
-cases.
+Done.
 
-Thanks again for the great review!
--john
+> > +	dax_get_addr(inode, bh, &vfrom);	/* XXX: error handling */
+>   The error handling here is missing as the comment suggests :)
+
+Added.
+
+> > +	if (buffer_unwritten(&bh) || buffer_new(&bh))
+> > +		dax_clear_blocks(inode, bh.b_blocknr, bh.b_size);
+>   Where is dax_clear_blocks() defined?
+
+Er ... patch 11.  I'll reorder the patches ;-)
+
+> > +
+> > +	error = dax_get_pfn(inode, &bh, &pfn);
+> > +	if (error > 0)
+> > +		error = vm_insert_mixed(vma, vaddr, pfn);
+>   When there's a hole (thus page != NULL) and we are called from
+> dax_mkwrite(), this will always return EBUSY, correct?
+
+Erm ... it will return -EBUSY if this was the task that previously
+faulted on it.  Drat.  See below.
+
+> > +	mutex_unlock(&mapping->i_mmap_mutex);
+> > +
+> > +	if (page) {
+> > +		delete_from_page_cache(page);
+> > +		unmap_mapping_range(mapping, vmf->pgoff << PAGE_SHIFT,
+> > +							PAGE_CACHE_SIZE, 0);
+>   Here we unmap the PTE pointing to the hole page but then we'll have to
+> retry the fault again to fill in the pfn we've got? This seems wrong. I'd
+> say we want to remap the PTE from the hole page to a pfn we've got while
+> holding i_mmap_mutex. remap_pfn_range() almost does what you need, except
+> that you also need that to work for normal pages. So you might need to
+> create a new helper in mm layer for that.
+
+I think it's easier than that.  How does this look?
+
+@@ -390,9 +389,8 @@ static int do_dax_fault(struct vm_area_struct *vma, struct v
+                dax_clear_blocks(inode, bh.b_blocknr, bh.b_size);
+ 
+        error = dax_get_pfn(&bh, &pfn, blkbits);
+-       if (error > 0)
+-               error = vm_insert_mixed(vma, vaddr, pfn);
+-       mutex_unlock(&mapping->i_mmap_mutex);
++       if (error <= 0)
++               goto unlock;
+ 
+        if (page) {
+                delete_from_page_cache(page);
+@@ -402,6 +400,9 @@ static int do_dax_fault(struct vm_area_struct *vma, struct v
+                page_cache_release(page);
+        }
+ 
++       error = vm_insert_mixed(vma, vaddr, pfn);
++       mutex_unlock(&mapping->i_mmap_mutex);
++
+        if (error == -ENOMEM)
+                return VM_FAULT_OOM;
+        /* -EBUSY is fine, somebody else faulted on the same PTE */
+@@ -409,6 +410,8 @@ static int do_dax_fault(struct vm_area_struct *vma, struct v
+                BUG_ON(error);
+        return VM_FAULT_NOPAGE | major;
+ 
++ unlock:
++       mutex_unlock(&mapping->i_mmap_mutex);
+  sigbus:
+        if (page) {
+                unlock_page(page);
 
 
+> > +int dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
+> > +			get_block_t get_block)
+> > +{
+> > +	int result;
+> > +	struct super_block *sb = file_inode(vma->vm_file)->i_sb;
+> > +
+> > +	sb_start_pagefault(sb);
+>   You don't need any filesystem freeze protection for the fault handler
+> since that's not going to modify the filesystem.
+
+Err ... we might allocate a block as a result of doing a write to a hole.
+Or does that not count as 'modifying the filesystem' in this context?
+
+> > +	file_update_time(vma->vm_file);
+>   Why do you update m/ctime? We are only reading the file...
+
+... except that it might be a write fault.  I think we modify the file
+iff we return VM_FAULT_MAJOR from do_dax_fault().  So I'd be open to
+something like this:
+
+	sb_start_pagefault(sb);
+	result = do_dax_fault(vma, vmf, get_block);
+	if (result & VM_FAULT_MAJOR)
+		file_update_time(vma->vm_file);
+	sb_end_pagefault(sb);
+
+Would that work better for you?
+
+> > @@ -70,7 +101,7 @@ const struct file_operations ext2_file_operations = {
+> >  #ifdef CONFIG_COMPAT
+> >  	.compat_ioctl	= ext2_compat_ioctl,
+> >  #endif
+> > -	.mmap		= generic_file_mmap,
+> > +	.mmap		= ext2_file_mmap,
+>   So what's the point of ext2_file_operations ever handling IS_DAX()
+> inodes? Actually ext2_file_operations and ext2_xip_file_operations seem to
+> be the same after this patch so either you drop ext2_xip_file_operations
+> (I'm for this) or you can leave generic_file_mmap here and assume
+> ext2_file_mmap is always called for IS_DAX() inodes.
+
+The goal is to get them the same.  At this point, the only sticky point is:
+
+        .splice_read    = generic_file_splice_read,
+        .splice_write   = generic_file_splice_write,
+
+And splice is pretty damn sticky for DAX.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
