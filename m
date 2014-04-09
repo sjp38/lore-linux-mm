@@ -1,75 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 20BF06B0031
-	for <linux-mm@kvack.org>; Tue,  8 Apr 2014 21:45:15 -0400 (EDT)
-Received: by mail-pa0-f53.google.com with SMTP id ld10so1818543pab.12
-        for <linux-mm@kvack.org>; Tue, 08 Apr 2014 18:45:14 -0700 (PDT)
-Received: from e23smtp08.au.ibm.com (e23smtp08.au.ibm.com. [202.81.31.141])
-        by mx.google.com with ESMTPS id w4si1876781paa.444.2014.04.08.18.45.12
+Received: from mail-ee0-f45.google.com (mail-ee0-f45.google.com [74.125.83.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 1FB5B6B0031
+	for <linux-mm@kvack.org>; Wed,  9 Apr 2014 02:21:11 -0400 (EDT)
+Received: by mail-ee0-f45.google.com with SMTP id d17so1439415eek.4
+        for <linux-mm@kvack.org>; Tue, 08 Apr 2014 23:21:10 -0700 (PDT)
+Received: from mail-ee0-x22f.google.com (mail-ee0-x22f.google.com [2a00:1450:4013:c00::22f])
+        by mx.google.com with ESMTPS id l41si5661eef.158.2014.04.08.23.21.08
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 08 Apr 2014 18:45:14 -0700 (PDT)
-Received: from /spool/local
-	by e23smtp08.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <maddy@linux.vnet.ibm.com>;
-	Wed, 9 Apr 2014 11:45:11 +1000
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
-	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 997A9357807A
-	for <linux-mm@kvack.org>; Wed,  9 Apr 2014 11:45:09 +1000 (EST)
-Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s391isdd2163156
-	for <linux-mm@kvack.org>; Wed, 9 Apr 2014 11:44:54 +1000
-Received: from d23av03.au.ibm.com (localhost [127.0.0.1])
-	by d23av03.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s391ipBQ030927
-	for <linux-mm@kvack.org>; Wed, 9 Apr 2014 11:44:51 +1000
-Message-ID: <5344A603.90305@linux.vnet.ibm.com>
-Date: Wed, 09 Apr 2014 07:14:35 +0530
-From: Madhavan Srinivasan <maddy@linux.vnet.ibm.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 08 Apr 2014 23:21:09 -0700 (PDT)
+Received: by mail-ee0-f47.google.com with SMTP id b15so1426901eek.34
+        for <linux-mm@kvack.org>; Tue, 08 Apr 2014 23:21:07 -0700 (PDT)
+Date: Wed, 9 Apr 2014 08:21:03 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [RFC PATCH 0/5] Use an alternative to _PAGE_PROTNONE for
+ _PAGE_NUMA v2
+Message-ID: <20140409062103.GA7294@gmail.com>
+References: <1396962570-18762-1-git-send-email-mgorman@suse.de>
+ <53440A5D.6050301@zytor.com>
+ <CA+55aFwc6Jdf+As9RJ3wJWuOGEGmiaYWNa-jp2aCb9=ZiiqV+A@mail.gmail.com>
+ <20140408164652.GL7292@suse.de>
+ <20140408173031.GS10526@twins.programming.kicks-ass.net>
 MIME-Version: 1.0
-Subject: Re: [PATCH V2 1/2] mm: move FAULT_AROUND_ORDER to arch/
-References: <1396592835-24767-1-git-send-email-maddy@linux.vnet.ibm.com> <1396592835-24767-2-git-send-email-maddy@linux.vnet.ibm.com> <533EDB63.8090909@intel.com> <20140404.135056.2103520199689146670.davem@davemloft.net>
-In-Reply-To: <20140404.135056.2103520199689146670.davem@davemloft.net>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140408173031.GS10526@twins.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Miller <davem@davemloft.net>, dave.hansen@intel.com
-Cc: linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, x86@kernel.org, benh@kernel.crashing.org, paulus@samba.org, kirill.shutemov@linux.intel.com, rusty@rustcorp.com.au, akpm@linux-foundation.org, riel@redhat.com, mgorman@suse.de, ak@linux.intel.com, peterz@infradead.org, mingo@kernel.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Mel Gorman <mgorman@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>, "H. Peter Anvin" <hpa@zytor.com>, Linux-X86 <x86@kernel.org>, Cyrill Gorcunov <gorcunov@gmail.com>, Steven Noonan <steven@uplinklabs.net>, Rik van Riel <riel@redhat.com>, David Vrabel <david.vrabel@citrix.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Friday 04 April 2014 11:20 PM, David Miller wrote:
-> From: Dave Hansen <dave.hansen@intel.com>
-> Date: Fri, 04 Apr 2014 09:18:43 -0700
-> 
->> On 04/03/2014 11:27 PM, Madhavan Srinivasan wrote:
->>> This patch creates infrastructure to move the FAULT_AROUND_ORDER
->>> to arch/ using Kconfig. This will enable architecture maintainers
->>> to decide on suitable FAULT_AROUND_ORDER value based on
->>> performance data for that architecture. Patch also adds
->>> FAULT_AROUND_ORDER Kconfig element in arch/X86.
->>
->> Please don't do it this way.
->>
->> In mm/Kconfig, put
->>
->> 	config FAULT_AROUND_ORDER
->> 		int
->> 		default 1234 if POWERPC
->> 		default 4
->>
->> The way you have it now, every single architecture that needs to enable
->> this has to go put that in their Kconfig.  That's madness.  This way,
->> you only put it in one place, and folks only have to care if they want
->> to change the default to be something other than 4.
-> 
-> It looks more like it's necessary only to change the default, not
-> to enable it.  Unless I read his patch wrong...
-> 
-Yes. With current patch, you only need to change the default by which
-you enable it.
 
-With regards
-Maddy
+* Peter Zijlstra <peterz@infradead.org> wrote:
+
+> On Tue, Apr 08, 2014 at 05:46:52PM +0100, Mel Gorman wrote:
+> > Someone will ask why automatic NUMA balancing hints do not use "real"
+> > PROT_NONE but as it would need VMA information to do that on all
+> > architectures it would mean that VMA-fixups would be required when marking
+> > PTEs for NUMA hinting faults so would be expensive.
 > 
+> Like this:
+> 
+>   https://lkml.org/lkml/2012/11/13/431
+> 
+> That used the generic PROT_NONE infrastructure and compared, on fault,
+> the page protection bits against the vma->vm_page_prot bits?
+> 
+> So the objection to that approach was the vma-> dereference in
+> pte_numa() ?
+
+I think the real underlying objection was that PTE_NUMA was the last 
+leftover from AutoNUMA, and removing it would have made it not a 
+'compromise' patch set between 'AutoNUMA' and 'sched/numa', but would 
+have made the sched/numa approach 'win' by and large.
+
+The whole 'losing face' annoyance that plagues all of us (me 
+included).
+
+I didn't feel it was important to the general logic of adding access 
+pattern aware NUMA placement logic to the scheduler, and I obviously 
+could not ignore the NAKs from various mm folks insisting on PTE_NUMA, 
+so I conceded that point and Mel built on that approach as well.
+
+Nice it's being cleaned up, and I'm pretty happy about how NUMA 
+balancing ended up looking like.
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
