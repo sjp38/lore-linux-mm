@@ -1,45 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id D12BE6B0039
-	for <linux-mm@kvack.org>; Thu, 10 Apr 2014 10:28:12 -0400 (EDT)
-Received: by mail-pd0-f181.google.com with SMTP id p10so3934952pdj.12
-        for <linux-mm@kvack.org>; Thu, 10 Apr 2014 07:28:12 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id zt8si2301552pbc.402.2014.04.10.07.28.11
+Received: from mail-ee0-f49.google.com (mail-ee0-f49.google.com [74.125.83.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B99B6B0038
+	for <linux-mm@kvack.org>; Thu, 10 Apr 2014 10:37:51 -0400 (EDT)
+Received: by mail-ee0-f49.google.com with SMTP id c41so3087285eek.22
+        for <linux-mm@kvack.org>; Thu, 10 Apr 2014 07:37:49 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id l41si6326860eef.68.2014.04.10.07.37.47
         for <linux-mm@kvack.org>;
-        Thu, 10 Apr 2014 07:28:11 -0700 (PDT)
-Date: Thu, 10 Apr 2014 10:27:29 -0400
-From: Matthew Wilcox <willy@linux.intel.com>
-Subject: Re: [PATCH v7 18/22] xip: Add xip_zero_page_range
-Message-ID: <20140410142729.GL5727@linux.intel.com>
-References: <cover.1395591795.git.matthew.r.wilcox@intel.com>
- <5a87acda8c3e4d2b7ea5dd1249fcbf8be23b9645.1395591795.git.matthew.r.wilcox@intel.com>
- <20140409101512.GL32103@quack.suse.cz>
+        Thu, 10 Apr 2014 07:37:48 -0700 (PDT)
+Date: Thu, 10 Apr 2014 10:37:34 -0400
+From: Dave Jones <davej@redhat.com>
+Subject: Re: mm: kernel BUG at mm/huge_memory.c:1829!
+Message-ID: <20140410143734.GA939@redhat.com>
+References: <53440991.9090001@oracle.com>
+ <CAA_GA1d_boVA67EBK5Rv7_F_8pb_5rBA10WB9ooCdjON93C03w@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140409101512.GL32103@quack.suse.cz>
+In-Reply-To: <CAA_GA1d_boVA67EBK5Rv7_F_8pb_5rBA10WB9ooCdjON93C03w@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ross Zwisler <ross.zwisler@linux.intel.com>
+To: Bob Liu <lliubbo@gmail.com>
+Cc: Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>
 
-On Wed, Apr 09, 2014 at 12:15:12PM +0200, Jan Kara wrote:
-> > +		/*
-> > +		 * ext4 sometimes asks to zero past the end of a block.  It
-> > +		 * really just wants to zero to the end of the block.
-> > +		 */
->   Then we should really fix ext4 I believe...
+On Thu, Apr 10, 2014 at 04:45:58PM +0800, Bob Liu wrote:
+ > On Tue, Apr 8, 2014 at 10:37 PM, Sasha Levin <sasha.levin@oracle.com> wrote:
+ > > Hi all,
+ > >
+ > > While fuzzing with trinity inside a KVM tools guest running the latest -next
+ > > kernel, I've stumbled on the following:
+ > >
+ > 
+ > Wow! There are so many huge memory related bugs recently.
+ > AFAIR, there were still several without fix. I wanna is there any
+ > place can track those bugs instead of lost in maillist?
+ > It seems this link is out of date
+ > http://codemonkey.org.uk/projects/trinity/bugs-unfixed.php
+ 
+It got to be too much for me to track tbh.
+Perhaps this is one of the cases where using bugzilla.kernel.org might
+be a useful thing ?
 
-Since I didn't want to do this ...
-
-> > +/* Can't be a function because PAGE_CACHE_SIZE is defined in pagemap.h */
-> > +#define dax_truncate_page(inode, from, get_block)	\
-> > +	dax_zero_page_range(inode, from, PAGE_CACHE_SIZE, get_block)
->                                          ^^^^
-> This should be (PAGE_CACHE_SIZE - (from & (PAGE_CACHE_SIZE - 1))), shouldn't it?
-
-... I could get away without doing that ;-)
+	Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
