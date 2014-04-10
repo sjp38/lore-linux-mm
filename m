@@ -1,123 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f42.google.com (mail-yh0-f42.google.com [209.85.213.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 0BF896B0035
-	for <linux-mm@kvack.org>; Thu, 10 Apr 2014 17:44:23 -0400 (EDT)
-Received: by mail-yh0-f42.google.com with SMTP id t59so4495911yho.15
-        for <linux-mm@kvack.org>; Thu, 10 Apr 2014 14:44:21 -0700 (PDT)
-Received: from g6t1524.atlanta.hp.com (g6t1524.atlanta.hp.com. [15.193.200.67])
-        by mx.google.com with ESMTPS id a3si6069682yhi.28.2014.04.10.14.44.21
+Received: from mail-ee0-f54.google.com (mail-ee0-f54.google.com [74.125.83.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 831D96B0037
+	for <linux-mm@kvack.org>; Thu, 10 Apr 2014 17:57:43 -0400 (EDT)
+Received: by mail-ee0-f54.google.com with SMTP id d49so3455568eek.41
+        for <linux-mm@kvack.org>; Thu, 10 Apr 2014 14:57:42 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 45si7653599eeh.93.2014.04.10.14.57.41
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 10 Apr 2014 14:44:21 -0700 (PDT)
-Message-ID: <1397166254.2608.51.camel@buesod1.americas.hpqcorp.net>
-Subject: Re: [PATCH v3 0/5] hugetlb: add support gigantic page allocation at
- runtime
-From: Davidlohr Bueso <davidlohr@hp.com>
-Date: Thu, 10 Apr 2014 14:44:14 -0700
-In-Reply-To: <1397152725-20990-1-git-send-email-lcapitulino@redhat.com>
-References: <1397152725-20990-1-git-send-email-lcapitulino@redhat.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 10 Apr 2014 14:57:41 -0700 (PDT)
+Date: Thu, 10 Apr 2014 23:57:38 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [RFC] Helper to abstract vma handling in media layer
+Message-ID: <20140410215738.GB12339@quack.suse.cz>
+References: <1395085776-8626-1-git-send-email-jack@suse.cz>
+ <53466C4A.2030107@samsung.com>
+ <20140410103220.GB28404@quack.suse.cz>
+ <53467B7E.5060408@xs4all.nl>
+ <20140410121554.GC28404@quack.suse.cz>
+ <53468CFC.2060707@xs4all.nl>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <53468CFC.2060707@xs4all.nl>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Luiz Capitulino <lcapitulino@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, mtosatti@redhat.com, aarcange@redhat.com, mgorman@suse.de, akpm@linux-foundation.org, andi@firstfloor.org, rientjes@google.com, isimatu.yasuaki@jp.fujitsu.com, yinghai@kernel.org, riel@redhat.com, n-horiguchi@ah.jp.nec.com, kirill@shutemov.name
+To: Hans Verkuil <hverkuil@xs4all.nl>
+Cc: Jan Kara <jack@suse.cz>, Marek Szyprowski <m.szyprowski@samsung.com>, linux-mm@kvack.org, linux-media@vger.kernel.org, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, 'Tomasz Stanislawski' <t.stanislaws@samsung.com>, Laurent Pinchart <laurent.pinchart@ideasonboard.com>
 
-On Thu, 2014-04-10 at 13:58 -0400, Luiz Capitulino wrote:
-> [Full introduction right after the changelog]
+On Thu 10-04-14 14:22:20, Hans Verkuil wrote:
+> On 04/10/14 14:15, Jan Kara wrote:
+> > On Thu 10-04-14 13:07:42, Hans Verkuil wrote:
+> >> On 04/10/14 12:32, Jan Kara wrote:
+> >>>   Hello,
+> >>>
+> >>> On Thu 10-04-14 12:02:50, Marek Szyprowski wrote:
+> >>>> On 2014-03-17 20:49, Jan Kara wrote:
+> >>>>>   The following patch series is my first stab at abstracting vma handling
+> >>>> >from the various media drivers. After this patch set drivers have to know
+> >>>>> much less details about vmas, their types, and locking. My motivation for
+> >>>>> the series is that I want to change get_user_pages() locking and I want
+> >>>>> to handle subtle locking details in as few places as possible.
+> >>>>>
+> >>>>> The core of the series is the new helper get_vaddr_pfns() which is given a
+> >>>>> virtual address and it fills in PFNs into provided array. If PFNs correspond to
+> >>>>> normal pages it also grabs references to these pages. The difference from
+> >>>>> get_user_pages() is that this function can also deal with pfnmap, mixed, and io
+> >>>>> mappings which is what the media drivers need.
+> >>>>>
+> >>>>> The patches are just compile tested (since I don't have any of the hardware
+> >>>>> I'm afraid I won't be able to do any more testing anyway) so please handle
+> >>>>> with care. I'm grateful for any comments.
+> >>>>
+> >>>> Thanks for posting this series! I will check if it works with our
+> >>>> hardware soon.  This is something I wanted to introduce some time ago to
+> >>>> simplify buffer handling in dma-buf, but I had no time to start working.
+> >>>   Thanks for having a look in the series.
+> >>>
+> >>>> However I would like to go even further with integration of your pfn
+> >>>> vector idea.  This structure looks like a best solution for a compact
+> >>>> representation of the memory buffer, which should be considered by the
+> >>>> hardware as contiguous (either contiguous in physical memory or mapped
+> >>>> contiguously into dma address space by the respective iommu). As you
+> >>>> already noticed it is widely used by graphics and video drivers.
+> >>>>
+> >>>> I would also like to add support for pfn vector directly to the
+> >>>> dma-mapping subsystem. This can be done quite easily (even with a
+> >>>> fallback for architectures which don't provide method for it). I will try
+> >>>> to prepare rfc soon.  This will finally remove the need for hacks in
+> >>>> media/v4l2-core/videobuf2-dma-contig.c
+> >>>   That would be a worthwhile thing to do. When I was reading the code this
+> >>> seemed like something which could be done but I delibrately avoided doing
+> >>> more unification than necessary for my purposes as I don't have any
+> >>> hardware to test and don't know all the subtleties in the code... BTW, is
+> >>> there some way to test the drivers without the physical video HW?
+> >>
+> >> You can use the vivi driver (drivers/media/platform/vivi) for this.
+> >> However, while the vivi driver can import dma buffers it cannot export
+> >> them. If you want that, then you have to use this tree:
+> >>
+> >> http://git.linuxtv.org/cgit.cgi/hverkuil/media_tree.git/log/?h=vb2-part4
+> >   Thanks for the pointer that looks good. I've also found
+> > drivers/media/platform/mem2mem_testdev.c which seems to do even more
+> > testing of the area I made changes to. So now I have to find some userspace
+> > tool which can issue proper ioctls to setup and use the buffers and I can
+> > start testing what I wrote :)
 > 
-> Changelog
-> ---------
+> Get the v4l-utils.git repository (http://git.linuxtv.org/cgit.cgi/v4l-utils.git/).
+> You want the v4l2-ctl tool. Don't use the version supplied by your distro,
+> that's often too old.
 > 
-> v3
+> 'v4l2-ctl --help-streaming' gives the available options for doing streaming.
 > 
-> - Dropped unnecessary WARN_ON() call [Kirill]
-> - Always check if the pfn range lies within a zone [Yasuaki]
-> - Renamed some function arguments for consistency
-> 
-> v2
-> 
-> - Rewrote allocation loop to avoid scanning unless PFNs [Yasuaki]
-> - Dropped incomplete multi-arch support [Naoya]
-> - Added patch to drop __init from prep_compound_gigantic_page()
-> - Restricted the feature to x86_64 (more details in patch 5/5)
-> - Added review-bys plus minor changelog changes
-> 
-> Introduction
-> ------------
-> 
-> The HugeTLB subsystem uses the buddy allocator to allocate hugepages during
-> runtime. This means that hugepages allocation during runtime is limited to
-> MAX_ORDER order. For archs supporting gigantic pages (that is, page sizes
-> greater than MAX_ORDER), this in turn means that those pages can't be
-> allocated at runtime.
-> 
-> HugeTLB supports gigantic page allocation during boottime, via the boot
-> allocator. To this end the kernel provides the command-line options
-> hugepagesz= and hugepages=, which can be used to instruct the kernel to
-> allocate N gigantic pages during boot.
-> 
-> For example, x86_64 supports 2M and 1G hugepages, but only 2M hugepages can
-> be allocated and freed at runtime. If one wants to allocate 1G gigantic pages,
-> this has to be done at boot via the hugepagesz= and hugepages= command-line
-> options.
-> 
-> Now, gigantic page allocation at boottime has two serious problems:
-> 
->  1. Boottime allocation is not NUMA aware. On a NUMA machine the kernel
->     evenly distributes boottime allocated hugepages among nodes.
-> 
->     For example, suppose you have a four-node NUMA machine and want
->     to allocate four 1G gigantic pages at boottime. The kernel will
->     allocate one gigantic page per node.
-> 
->     On the other hand, we do have users who want to be able to specify
->     which NUMA node gigantic pages should allocated from. So that they
->     can place virtual machines on a specific NUMA node.
-> 
->  2. Gigantic pages allocated at boottime can't be freed
-> 
-> At this point it's important to observe that regular hugepages allocated
-> at runtime don't have those problems. This is so because HugeTLB interface
-> for runtime allocation in sysfs supports NUMA and runtime allocated pages
-> can be freed just fine via the buddy allocator.
-> 
-> This series adds support for allocating gigantic pages at runtime. It does
-> so by allocating gigantic pages via CMA instead of the buddy allocator.
-> Releasing gigantic pages is also supported via CMA. As this series builds
-> on top of the existing HugeTLB interface, it makes gigantic page allocation
-> and releasing just like regular sized hugepages. This also means that NUMA
-> support just works.
-> 
-> For example, to allocate two 1G gigantic pages on node 1, one can do:
-> 
->  # echo 2 > \
->    /sys/devices/system/node/node1/hugepages/hugepages-1048576kB/nr_hugepages
-> 
-> And, to release all gigantic pages on the same node:
-> 
->  # echo 0 > \
->    /sys/devices/system/node/node1/hugepages/hugepages-1048576kB/nr_hugepages
-> 
-> Please, refer to patch 5/5 for full technical details.
-> 
-> Finally, please note that this series is a follow up for a previous series
-> that tried to extend the command-line options set to be NUMA aware:
-> 
->  http://marc.info/?l=linux-mm&m=139593335312191&w=2
-> 
-> During the discussion of that series it was agreed that having runtime
-> allocation support for gigantic pages was a better solution.
-> 
-> Luiz Capitulino (5):
->   hugetlb: prep_compound_gigantic_page(): drop __init marker
->   hugetlb: add hstate_is_gigantic()
->   hugetlb: update_and_free_page(): don't clear PG_reserved bit
->   hugetlb: move helpers up in the file
->   hugetlb: add support for gigantic page allocation at runtime
+> So simple capturing from vivi is 'v4l2-ctl --stream-mmap' or '--stream-user'.
+> You can't test dmabuf unless you switch to the vb2-part4 branch of my tree.
+  Great, it seems to be doing something and it shows there's some bug in my
+code. Thanks a lot for help.
 
-Reviewed-by: Davidlohr Bueso <davidlohr@hp.com>
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
