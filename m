@@ -1,64 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f52.google.com (mail-pb0-f52.google.com [209.85.160.52])
-	by kanga.kvack.org (Postfix) with ESMTP id D6AEA6B0035
-	for <linux-mm@kvack.org>; Thu, 10 Apr 2014 15:17:53 -0400 (EDT)
-Received: by mail-pb0-f52.google.com with SMTP id rr13so4337066pbb.25
-        for <linux-mm@kvack.org>; Thu, 10 Apr 2014 12:17:53 -0700 (PDT)
 Received: from mail-pb0-f53.google.com (mail-pb0-f53.google.com [209.85.160.53])
-        by mx.google.com with ESMTPS id hi3si2730442pac.287.2014.04.10.12.17.52
+	by kanga.kvack.org (Postfix) with ESMTP id AEAD26B0035
+	for <linux-mm@kvack.org>; Thu, 10 Apr 2014 15:49:51 -0400 (EDT)
+Received: by mail-pb0-f53.google.com with SMTP id rp16so4361273pbb.40
+        for <linux-mm@kvack.org>; Thu, 10 Apr 2014 12:49:50 -0700 (PDT)
+Received: from out1-smtp.messagingengine.com (out1-smtp.messagingengine.com. [66.111.4.25])
+        by mx.google.com with ESMTPS id dg5si2779039pbc.265.2014.04.10.12.49.48
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 10 Apr 2014 12:17:52 -0700 (PDT)
-Received: by mail-pb0-f53.google.com with SMTP id rp16so4303135pbb.26
-        for <linux-mm@kvack.org>; Thu, 10 Apr 2014 12:17:52 -0700 (PDT)
-Message-ID: <5346EE5D.2020503@amacapital.net>
-Date: Thu, 10 Apr 2014 12:17:49 -0700
-From: Andy Lutomirski <luto@amacapital.net>
-MIME-Version: 1.0
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 10 Apr 2014 12:49:49 -0700 (PDT)
+Date: Thu, 10 Apr 2014 19:45:38 +0000
+From: Colin Walters <walters@verbum.org>
 Subject: Re: [PATCH 0/6] File Sealing & memfd_create()
-References: <1395256011-2423-1-git-send-email-dh.herrmann@gmail.com> <5343F2EC.3050508@redhat.com>
-In-Reply-To: <5343F2EC.3050508@redhat.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Message-Id: <1397159378.4434.1@mail.messagingengine.com>
+In-Reply-To: <5346EDE8.2060004@amacapital.net>
+References: <1395256011-2423-1-git-send-email-dh.herrmann@gmail.com>
+	<20140320153250.GC20618@thunk.org>
+	<1397141388.16343.10@mail.messagingengine.com>
+	<5346EDE8.2060004@amacapital.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8; format=flowed
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Florian Weimer <fweimer@redhat.com>, David Herrmann <dh.herrmann@gmail.com>, linux-kernel@vger.kernel.org
-Cc: Hugh Dickins <hughd@google.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Matthew Wilcox <matthew@wil.cx>, Karol Lewandowski <k.lewandowsk@samsung.com>, Kay Sievers <kay@vrfy.org>, Daniel Mack <zonque@gmail.com>, Lennart Poettering <lennart@poettering.net>, =?ISO-8859-1?Q?Kristian_H=F8gsberg?= <krh@bitplanet.net>, john.stultz@linaro.org, Greg Kroah-Hartman <greg@kroah.com>, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, dri-devel@lists.freedesktop.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ryan Lortie <desrt@desrt.ca>, "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: tytso@mit.edu, David Herrmann <dh.herrmann@gmail.com>, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Matthew Wilcox <matthew@wil.cx>, Karol Lewandowski <k.lewandowsk@samsung.com>, Kay Sievers <kay@vrfy.org>, Daniel Mack <zonque@gmail.com>, Lennart Poettering <lennart@poettering.net>, Kristian@thunk.org, john.stultz@linaro.org, Greg Kroah-Hartman <greg@kroah.com>, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, dri-devel@lists.freedesktop.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ryan Lortie <desrt@desrt.ca>, mtk.manpages@gmail.com
 
-On 04/08/2014 06:00 AM, Florian Weimer wrote:
-> On 03/19/2014 08:06 PM, David Herrmann wrote:
+On Thu, Apr 10, 2014 at 3:15 PM, Andy Lutomirski <luto@amacapital.net> 
+wrote:
 > 
->> Unlike existing techniques that provide similar protection, sealing
->> allows
->> file-sharing without any trust-relationship. This is enforced by
->> rejecting seal
->> modifications if you don't own an exclusive reference to the given
->> file. So if
->> you own a file-descriptor, you can be sure that no-one besides you can
->> modify
->> the seals on the given file. This allows mapping shared files from
->> untrusted
->> parties without the fear of the file getting truncated or modified by an
->> attacker.
 > 
-> How do you keep these promises on network and FUSE file systems?  Surely
-> there is still some trust involved for such descriptors?
-> 
-> What happens if you create a loop device on a sealed descriptor?
-> 
-> Why does memfd_create not create a file backed by a memory region in the
-> current process?  Wouldn't this be a far more generic primitive?
-> Creating aliases of memory regions would be interesting for many things
-> (not just libffi bypassing SELinux-enforced NX restrictions :-).
+> COW links can do this already, I think.  Of course, you'll have to 
+> use a
+> filesystem that supports them.
 
-If you write a patch to prevent selinux from enforcing NX, I will ack
-that patch with all my might.  I don't know how far it would get me, but
-I think that selinux has no business going anywhere near execmem.
+COW is nice if the filesystem supports them, but my userspace code 
+needs to be filesystem agnostic.  Because of that, the design for 
+userspace simply doesn't allow arbitrary writes.
 
-Adding a clone mode to mremap might be a better bet.  But memfd solves
-that problem, too, albeit messily.
+Instead, I have to painfully audit every rpm %post/dpkg postinst type 
+script to ensure they break hardlinks, and furthermore only allow 
+executing scripts that are known to do so.
 
---Andy
+But I think even in a btrfs world it'd still be useful to mark files as 
+content-immutable.
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
