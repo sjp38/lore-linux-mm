@@ -1,95 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ve0-f176.google.com (mail-ve0-f176.google.com [209.85.128.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 53D556B0031
-	for <linux-mm@kvack.org>; Thu, 10 Apr 2014 04:45:59 -0400 (EDT)
-Received: by mail-ve0-f176.google.com with SMTP id db11so3075355veb.7
-        for <linux-mm@kvack.org>; Thu, 10 Apr 2014 01:45:58 -0700 (PDT)
-Received: from mail-ve0-x229.google.com (mail-ve0-x229.google.com [2607:f8b0:400c:c01::229])
-        by mx.google.com with ESMTPS id iy9si588352vec.33.2014.04.10.01.45.58
+Received: from mail-pb0-f41.google.com (mail-pb0-f41.google.com [209.85.160.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 98FE86B0031
+	for <linux-mm@kvack.org>; Thu, 10 Apr 2014 06:02:53 -0400 (EDT)
+Received: by mail-pb0-f41.google.com with SMTP id jt11so3749959pbb.14
+        for <linux-mm@kvack.org>; Thu, 10 Apr 2014 03:02:53 -0700 (PDT)
+Received: from mailout2.w1.samsung.com (mailout2.w1.samsung.com. [210.118.77.12])
+        by mx.google.com with ESMTPS id pm5si1882406pbc.441.2014.04.10.03.02.52
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 10 Apr 2014 01:45:58 -0700 (PDT)
-Received: by mail-ve0-f169.google.com with SMTP id pa12so3271917veb.28
-        for <linux-mm@kvack.org>; Thu, 10 Apr 2014 01:45:58 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <53440991.9090001@oracle.com>
-References: <53440991.9090001@oracle.com>
-Date: Thu, 10 Apr 2014 16:45:58 +0800
-Message-ID: <CAA_GA1d_boVA67EBK5Rv7_F_8pb_5rBA10WB9ooCdjON93C03w@mail.gmail.com>
-Subject: Re: mm: kernel BUG at mm/huge_memory.c:1829!
-From: Bob Liu <lliubbo@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Thu, 10 Apr 2014 03:02:52 -0700 (PDT)
+Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
+ by mailout2.w1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0N3T0036F7WGMV60@mailout2.w1.samsung.com> for
+ linux-mm@kvack.org; Thu, 10 Apr 2014 11:02:40 +0100 (BST)
+Message-id: <53466C4A.2030107@samsung.com>
+Date: Thu, 10 Apr 2014 12:02:50 +0200
+From: Marek Szyprowski <m.szyprowski@samsung.com>
+MIME-version: 1.0
+Subject: Re: [RFC] Helper to abstract vma handling in media layer
+References: <1395085776-8626-1-git-send-email-jack@suse.cz>
+In-reply-to: <1395085776-8626-1-git-send-email-jack@suse.cz>
+Content-type: text/plain; charset=UTF-8; format=flowed
+Content-transfer-encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Dave Jones <davej@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>
+To: Jan Kara <jack@suse.cz>, linux-mm@kvack.org
+Cc: linux-media@vger.kernel.org, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, 'Tomasz Stanislawski' <t.stanislaws@samsung.com>, Laurent Pinchart <laurent.pinchart@ideasonboard.com>
 
-On Tue, Apr 8, 2014 at 10:37 PM, Sasha Levin <sasha.levin@oracle.com> wrote:
-> Hi all,
->
-> While fuzzing with trinity inside a KVM tools guest running the latest -next
-> kernel, I've stumbled on the following:
->
+Hello,
 
-Wow! There are so many huge memory related bugs recently.
-AFAIR, there were still several without fix. I wanna is there any
-place can track those bugs instead of lost in maillist?
-It seems this link is out of date
-http://codemonkey.org.uk/projects/trinity/bugs-unfixed.php
+On 2014-03-17 20:49, Jan Kara wrote:
+>    The following patch series is my first stab at abstracting vma handling
+> from the various media drivers. After this patch set drivers have to know
+> much less details about vmas, their types, and locking. My motivation for
+> the series is that I want to change get_user_pages() locking and I want
+> to handle subtle locking details in as few places as possible.
+>
+> The core of the series is the new helper get_vaddr_pfns() which is given a
+> virtual address and it fills in PFNs into provided array. If PFNs correspond to
+> normal pages it also grabs references to these pages. The difference from
+> get_user_pages() is that this function can also deal with pfnmap, mixed, and io
+> mappings which is what the media drivers need.
+>
+> The patches are just compile tested (since I don't have any of the hardware
+> I'm afraid I won't be able to do any more testing anyway) so please handle
+> with care. I'm grateful for any comments.
 
-Thanks,
--Bob
+Thanks for posting this series! I will check if it works with our 
+hardware soon.
+This is something I wanted to introduce some time ago to simplify buffer
+handling in dma-buf, but I had no time to start working.
 
-> [ 1275.253114] kernel BUG at mm/huge_memory.c:1829!
-> [ 1275.253642] invalid opcode: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
-> [ 1275.254775] Dumping ftrace buffer:
-> [ 1275.255631]    (ftrace buffer empty)
-> [ 1275.256440] Modules linked in:
-> [ 1275.257347] CPU: 20 PID: 22807 Comm: trinity-c299 Not tainted 3.14.0-next-20140407-sasha-00023-gd35b0d6 #382
-> [ 1275.258686] task: ffff8803e7873000 ti: ffff8803e7896000 task.ti: ffff8803e7896000
-> [ 1275.259416] RIP: __split_huge_page (mm/huge_memory.c:1829 (discriminator 1))
-> [ 1275.260527] RSP: 0018:ffff8803e7897bb8  EFLAGS: 00010297
-> [ 1275.261323] RAX: 000000000000012c RBX: ffff8803e789d600 RCX: 0000000000000006
-> [ 1275.261323] RDX: 0000000000005b80 RSI: ffff8803e7873d00 RDI: 0000000000000282
-> [ 1275.261323] RBP: ffff8803e7897c68 R08: 0000000000000000 R09: 0000000000000000
-> [ 1275.261323] R10: 0000000000000001 R11: 30303320746e756f R12: 0000000000000000
-> [ 1275.261323] R13: 0000000000a00000 R14: ffff8803ede73000 R15: ffffea0010030000
-> [ 1275.261323] FS:  00007f899d23f700(0000) GS:ffff880437000000(0000) knlGS:0000000000000000
-> [ 1275.261323] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-> [ 1275.261323] CR2: 00000000024cf048 CR3: 00000003e787f000 CR4: 00000000000006a0
-> [ 1275.261323] DR0: 0000000000696000 DR1: 0000000000696000 DR2: 0000000000000000
-> [ 1275.261323] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000600
-> [ 1275.261323] Stack:
-> [ 1275.261323]  ffff8803e7897bd8 ffff880024dab898 ffff8803e7897bd8 ffffffffac1bea0e
-> [ 1275.261323]  ffff8803e7897c28 0000000000000282 00000014b06cc072 0000000000000000
-> [ 1275.261323]  0000012be7897c28 0000000000000a00 ffff880024dab8d0 ffff880024dab898
-> [ 1275.261323] Call Trace:
-> [ 1275.261323] ? put_lock_stats.isra.12 (arch/x86/include/asm/preempt.h:98 kernel/locking/lockdep.c:254)
-> [ 1275.261323] ? down_write (kernel/locking/rwsem.c:51 (discriminator 2))
-> [ 1275.261323] ? split_huge_page_to_list (mm/huge_memory.c:1874)
-> [ 1275.261323] split_huge_page_to_list (include/linux/vmstat.h:37 mm/huge_memory.c:1879)
-> [ 1275.261323] __split_huge_page_pmd (mm/huge_memory.c:2811)
-> [ 1275.261323] ? mutex_unlock (kernel/locking/mutex.c:220)
-> [ 1275.261323] ? __mutex_unlock_slowpath (arch/x86/include/asm/paravirt.h:809 kernel/locking/mutex.c:713 kernel/locking/mutex.c:722)
-> [ 1275.261323] ? get_parent_ip (kernel/sched/core.c:2471)
-> [ 1275.261323] ? preempt_count_sub (kernel/sched/core.c:2526)
-> [ 1275.261323] follow_page_mask (mm/memory.c:1518 (discriminator 1))
-> [ 1275.261323] SYSC_move_pages (mm/migrate.c:1227 mm/migrate.c:1353 mm/migrate.c:1508)
-> [ 1275.261323] ? SYSC_move_pages (include/linux/rcupdate.h:800 mm/migrate.c:1472)
-> [ 1275.261323] ? sched_clock_local (kernel/sched/clock.c:213)
-> [ 1275.261323] SyS_move_pages (mm/migrate.c:1456)
-> [ 1275.261323] tracesys (arch/x86/kernel/entry_64.S:749)
-> [ 1275.261323] Code: c0 01 39 45 94 74 18 41 8b 57 18 48 c7 c7 90 5e 6d b0 31 c0 8b 75 94 83 c2 01 e8 3d 6a 23 03 41 8b 47 18 83 c0 01 39 45 94 74 02 <0f> 0b 49 8b 07 48 89 c2 48 c1 e8 34 83 e0 03 48 c1 ea 36 4c 8d
-> [ 1275.261323] RIP __split_huge_page (mm/huge_memory.c:1829 (discriminator 1))
-> [ 1275.261323]  RSP <ffff8803e7897bb8>
->
-> Looking at the code, there was supposed to be a printk printing both
-> mapcounts if they're different. However, there was no matching entry
-> in the log for that.
->
->
-> Thanks,
-> Sasha
+However I would like to go even further with integration of your pfn 
+vector idea.
+This structure looks like a best solution for a compact representation 
+of the
+memory buffer, which should be considered by the hardware as contiguous 
+(either
+contiguous in physical memory or mapped contiguously into dma address 
+space by
+the respective iommu). As you already noticed it is widely used by 
+graphics and
+video drivers.
+
+I would also like to add support for pfn vector directly to the dma-mapping
+subsystem. This can be done quite easily (even with a fallback for 
+architectures
+which don't provide method for it). I will try to prepare rfc soon. This 
+will
+finally remove the need for hacks in media/v4l2-core/videobuf2-dma-contig.c
+
+Thanks for motivating me to finally start working on this!
+
+Best regards
+-- 
+Marek Szyprowski, PhD
+Samsung R&D Institute Poland
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
