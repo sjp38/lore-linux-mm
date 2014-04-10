@@ -1,110 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f48.google.com (mail-ee0-f48.google.com [74.125.83.48])
-	by kanga.kvack.org (Postfix) with ESMTP id B34426B0035
-	for <linux-mm@kvack.org>; Thu, 10 Apr 2014 18:18:23 -0400 (EDT)
-Received: by mail-ee0-f48.google.com with SMTP id b57so3452051eek.21
-        for <linux-mm@kvack.org>; Thu, 10 Apr 2014 15:18:21 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q2si7685858eep.162.2014.04.10.15.18.20
+Received: from mail-ig0-f181.google.com (mail-ig0-f181.google.com [209.85.213.181])
+	by kanga.kvack.org (Postfix) with ESMTP id B31C46B0035
+	for <linux-mm@kvack.org>; Thu, 10 Apr 2014 18:57:22 -0400 (EDT)
+Received: by mail-ig0-f181.google.com with SMTP id h18so109278igc.14
+        for <linux-mm@kvack.org>; Thu, 10 Apr 2014 15:57:20 -0700 (PDT)
+Received: from mail-ie0-x235.google.com (mail-ie0-x235.google.com [2607:f8b0:4001:c03::235])
+        by mx.google.com with ESMTPS id kk2si432567igb.1.2014.04.10.15.57.19
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 10 Apr 2014 15:18:21 -0700 (PDT)
-Date: Fri, 11 Apr 2014 00:18:18 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [RFC] Helper to abstract vma handling in media layer
-Message-ID: <20140410221818.GA14625@quack.suse.cz>
-References: <1395085776-8626-1-git-send-email-jack@suse.cz>
- <53466C4A.2030107@samsung.com>
- <20140410103220.GB28404@quack.suse.cz>
- <53467B7E.5060408@xs4all.nl>
- <20140410121554.GC28404@quack.suse.cz>
- <53468CFC.2060707@xs4all.nl>
- <20140410215738.GB12339@quack.suse.cz>
+        Thu, 10 Apr 2014 15:57:19 -0700 (PDT)
+Received: by mail-ie0-f181.google.com with SMTP id tp5so4622309ieb.40
+        for <linux-mm@kvack.org>; Thu, 10 Apr 2014 15:57:18 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140410215738.GB12339@quack.suse.cz>
+In-Reply-To: <CALCETrXVzLcVVSuPMFUgoRvpQgcQNy2_rW6=11CJAME0W2GyYQ@mail.gmail.com>
+References: <1395256011-2423-1-git-send-email-dh.herrmann@gmail.com>
+	<20140320153250.GC20618@thunk.org>
+	<CANq1E4SUXrzAV8FS8HVYxnRVb1oOR6HSTyucJzyFs5PuS5Y88A@mail.gmail.com>
+	<20140320163806.GA10440@thunk.org>
+	<5346ED93.9040500@amacapital.net>
+	<20140410203246.GB31614@thunk.org>
+	<CALCETrVmaGNCxo-L4-dPbUev3VXXEPR7xBzo3Fux6ny7yh_Gzw@mail.gmail.com>
+	<CANq1E4RofJ7CUWWBPW1Qb4pX3rxYHCh1CPtbtX241KtJO+=Qhw@mail.gmail.com>
+	<CALCETrXVzLcVVSuPMFUgoRvpQgcQNy2_rW6=11CJAME0W2GyYQ@mail.gmail.com>
+Date: Fri, 11 Apr 2014 00:57:17 +0200
+Message-ID: <CANq1E4Qa8N0G8whyW5OWQS4x9=CVOF0PpcLhDi4j3wGTHX0==w@mail.gmail.com>
+Subject: Re: [PATCH 0/6] File Sealing & memfd_create()
+From: David Herrmann <dh.herrmann@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hans Verkuil <hverkuil@xs4all.nl>
-Cc: Jan Kara <jack@suse.cz>, Marek Szyprowski <m.szyprowski@samsung.com>, linux-mm@kvack.org, linux-media@vger.kernel.org, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, 'Tomasz Stanislawski' <t.stanislaws@samsung.com>, Laurent Pinchart <laurent.pinchart@ideasonboard.com>
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: Theodore Ts'o <tytso@mit.edu>, linux-kernel <linux-kernel@vger.kernel.org>, Kay Sievers <kay@vrfy.org>, Daniel Mack <zonque@gmail.com>, Lennart Poettering <lennart@poettering.net>, John Stultz <john.stultz@linaro.org>, Greg Kroah-Hartman <greg@kroah.com>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ryan Lortie <desrt@desrt.ca>, "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
 
-On Thu 10-04-14 23:57:38, Jan Kara wrote:
-> On Thu 10-04-14 14:22:20, Hans Verkuil wrote:
-> > On 04/10/14 14:15, Jan Kara wrote:
-> > > On Thu 10-04-14 13:07:42, Hans Verkuil wrote:
-> > >> On 04/10/14 12:32, Jan Kara wrote:
-> > >>>   Hello,
-> > >>>
-> > >>> On Thu 10-04-14 12:02:50, Marek Szyprowski wrote:
-> > >>>> On 2014-03-17 20:49, Jan Kara wrote:
-> > >>>>>   The following patch series is my first stab at abstracting vma handling
-> > >>>> >from the various media drivers. After this patch set drivers have to know
-> > >>>>> much less details about vmas, their types, and locking. My motivation for
-> > >>>>> the series is that I want to change get_user_pages() locking and I want
-> > >>>>> to handle subtle locking details in as few places as possible.
-> > >>>>>
-> > >>>>> The core of the series is the new helper get_vaddr_pfns() which is given a
-> > >>>>> virtual address and it fills in PFNs into provided array. If PFNs correspond to
-> > >>>>> normal pages it also grabs references to these pages. The difference from
-> > >>>>> get_user_pages() is that this function can also deal with pfnmap, mixed, and io
-> > >>>>> mappings which is what the media drivers need.
-> > >>>>>
-> > >>>>> The patches are just compile tested (since I don't have any of the hardware
-> > >>>>> I'm afraid I won't be able to do any more testing anyway) so please handle
-> > >>>>> with care. I'm grateful for any comments.
-> > >>>>
-> > >>>> Thanks for posting this series! I will check if it works with our
-> > >>>> hardware soon.  This is something I wanted to introduce some time ago to
-> > >>>> simplify buffer handling in dma-buf, but I had no time to start working.
-> > >>>   Thanks for having a look in the series.
-> > >>>
-> > >>>> However I would like to go even further with integration of your pfn
-> > >>>> vector idea.  This structure looks like a best solution for a compact
-> > >>>> representation of the memory buffer, which should be considered by the
-> > >>>> hardware as contiguous (either contiguous in physical memory or mapped
-> > >>>> contiguously into dma address space by the respective iommu). As you
-> > >>>> already noticed it is widely used by graphics and video drivers.
-> > >>>>
-> > >>>> I would also like to add support for pfn vector directly to the
-> > >>>> dma-mapping subsystem. This can be done quite easily (even with a
-> > >>>> fallback for architectures which don't provide method for it). I will try
-> > >>>> to prepare rfc soon.  This will finally remove the need for hacks in
-> > >>>> media/v4l2-core/videobuf2-dma-contig.c
-> > >>>   That would be a worthwhile thing to do. When I was reading the code this
-> > >>> seemed like something which could be done but I delibrately avoided doing
-> > >>> more unification than necessary for my purposes as I don't have any
-> > >>> hardware to test and don't know all the subtleties in the code... BTW, is
-> > >>> there some way to test the drivers without the physical video HW?
-> > >>
-> > >> You can use the vivi driver (drivers/media/platform/vivi) for this.
-> > >> However, while the vivi driver can import dma buffers it cannot export
-> > >> them. If you want that, then you have to use this tree:
-> > >>
-> > >> http://git.linuxtv.org/cgit.cgi/hverkuil/media_tree.git/log/?h=vb2-part4
-> > >   Thanks for the pointer that looks good. I've also found
-> > > drivers/media/platform/mem2mem_testdev.c which seems to do even more
-> > > testing of the area I made changes to. So now I have to find some userspace
-> > > tool which can issue proper ioctls to setup and use the buffers and I can
-> > > start testing what I wrote :)
-> > 
-> > Get the v4l-utils.git repository (http://git.linuxtv.org/cgit.cgi/v4l-utils.git/).
-> > You want the v4l2-ctl tool. Don't use the version supplied by your distro,
-> > that's often too old.
-> > 
-> > 'v4l2-ctl --help-streaming' gives the available options for doing streaming.
-> > 
-> > So simple capturing from vivi is 'v4l2-ctl --stream-mmap' or '--stream-user'.
-> > You can't test dmabuf unless you switch to the vb2-part4 branch of my tree.
->   Great, it seems to be doing something and it shows there's some bug in my
-> code. Thanks a lot for help.
-  OK, so after a small fix the basic functionality seems to be working. It
-doesn't seem there's a way to test multiplanar buffers with vivi, is there?
+Hi
 
-								Honza
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+On Thu, Apr 10, 2014 at 11:16 PM, Andy Lutomirski <luto@amacapital.net> wrote:
+> Would it make sense for the initial mode on a memfd inode to be 000?
+> Anyone who finds this to be problematic could use fchmod to fix it.
+
+memfd_create() should be subject to umask() just like anything else.
+That should solve any possible race here, right?
+
+Thanks
+David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
