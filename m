@@ -1,90 +1,189 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f172.google.com (mail-qc0-f172.google.com [209.85.216.172])
-	by kanga.kvack.org (Postfix) with ESMTP id CC94D6B0035
-	for <linux-mm@kvack.org>; Thu, 10 Apr 2014 12:32:12 -0400 (EDT)
-Received: by mail-qc0-f172.google.com with SMTP id i8so4668594qcq.3
-        for <linux-mm@kvack.org>; Thu, 10 Apr 2014 09:32:11 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id x8si923073qar.226.2014.04.10.09.32.10
-        for <linux-mm@kvack.org>;
-        Thu, 10 Apr 2014 09:32:11 -0700 (PDT)
-Date: Thu, 10 Apr 2014 18:27:50 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: mm: kernel BUG at mm/huge_memory.c:1829!
-Message-ID: <20140410162750.GD2749@redhat.com>
-References: <53440991.9090001@oracle.com>
- <20140410102527.GA24111@node.dhcp.inet.fi>
- <20140410134436.GA25933@node.dhcp.inet.fi>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140410134436.GA25933@node.dhcp.inet.fi>
+Received: from mail-pb0-f50.google.com (mail-pb0-f50.google.com [209.85.160.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 81B8C6B0035
+	for <linux-mm@kvack.org>; Thu, 10 Apr 2014 12:41:39 -0400 (EDT)
+Received: by mail-pb0-f50.google.com with SMTP id md12so4188215pbc.37
+        for <linux-mm@kvack.org>; Thu, 10 Apr 2014 09:41:39 -0700 (PDT)
+Received: from smtp.gentoo.org (dev.gentoo.org. [2001:470:ea4a:1:214:c2ff:fe64:b2d3])
+        by mx.google.com with ESMTPS id ic8si2516002pad.218.2014.04.10.09.41.38
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 10 Apr 2014 09:41:38 -0700 (PDT)
+From: Richard Yao <ryao@gentoo.org>
+Subject: [PATCH] mm/vmalloc: Introduce DEBUG_VMALLOCINFO to reduce spinlock contention
+Date: Thu, 10 Apr 2014 12:40:58 -0400
+Message-Id: <1397148058-8737-1-git-send-email-ryao@gentoo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Michel Lespinasse <walken@google.com>, Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Jones <davej@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Bob Liu <lliubbo@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Zhang Yanfei <zhangyanfei.yes@gmail.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel@gentoo.org, Matthew Thode <mthode@mthode.org>, Richard Yao <ryao@gentoo.org>
 
-Hi,
+Performance analysis of software compilation by Gentoo portage on an
+Intel E5-2620 with 64GB of RAM revealed that a sizeable amount of time,
+anywhere from 5% to 15%, was spent in get_vmalloc_info(), with at least
+40% of that time spent in the _raw_spin_lock() invoked by it.
 
-On Thu, Apr 10, 2014 at 04:44:36PM +0300, Kirill A. Shutemov wrote:
-> Okay, below is my attempt to fix the bug. I'm not entirely sure it's
-> correct. Andrea, could you take a look?
+The spinlock call is done on vmap_area_lock to protect vmap_area_list,
+but changes to vmap_area_list are made under RCU. The only consumer that
+requires a spinlock on an RCU-ified list is /proc/vmallocinfo. That is
+only intended for use by kernel developers doing debugging, but even few
+kernel developers appear to use it. Introducing DEBUG_VMALLOCINFO allows
+us to fully RCU-ify the list, which eliminates this list as a source of
+contention.
 
-The possibility the interval tree implicitly broke the walk order of
-the anon_vma list didn't cross my mind, that's very good catch!
-Breakage of the rmap walk order definitely can explain that BUG_ON in
-split_huge_page that signals a pte was missed by the rmap walk.
+This patch brings a substantial reduction in time spent in spinlocks on
+my system. Flame graphs from my early analysis are available on my
+developer space. They were created by profiling the system under
+concurrent package builds done by emerge at a sample rate of 99Hz for 10
+seconds and using Brendan Gregg's scripts to process the data:
 
-Because this bug only fired on split_huge_page I guess you assumed I
-introduced this dependency on order with THP. But it's not actually
-the case, there was a place in the VM that already depended on perfect
-rmap walk. This is all about providing a perfect rmap walk. A perfect
-rmap walk is one where missing a pte is fatal. That other place that
-already existed before THP is migrate.c.
+http://dev.gentoo.org/~ryao/emerge.svg
+http://dev.gentoo.org/~ryao/emerge-patched.svg
 
-The other thing that could break the perfect rmap_walk in additon to a
-wrong rmap_walk order, is the exec path where we do an mremap without
-a vma covering the destination range (no vma means, no possible
-perfect rmap_walk as we need the vma to reach the pte) but that was
-handled by other means (see the invalid_migration_vma in migrate.c and
-the other checks for is_vma_temporary_stack in huge_memory.c, THP
-didn't need to handle it but migrate.c had to). Places using
-is_vma_temporary_stack can tell you the cases where a perfect rmap
-walk is required and I'm not aware of other locations other than these
-two.
+In this example, 6.64% of system time is spent in get_vmalloc_info()
+with 2.59% spent in the spinlock. The patched version sees only 0.50% of
+time spent in get_vmalloc_info() with neligible time spent in spin
+locks. The low utilization of get_vmalloc_info() in this is partly
+attributable to measurement error, but the reduction in time spent
+spinning is clear.
 
-split_huge_page might be more pedantic in making sure a pte wasn't
-missed (I haven't checked in detail to tell how migrate.c would behave
-in such case, split_huge_page just BUG_ON).
+Signed-off-by: Richard Yao <ryao@gentoo.org>
+---
+ lib/Kconfig.debug | 11 +++++++++++
+ mm/vmalloc.c      | 32 ++++++++++++++++++++++++++++++++
+ 2 files changed, 43 insertions(+)
 
-So I doubt making a local fix to huge_memory.c is enough, at least
-migrate.c (i.e. rmap_walk_anon) should be handled too somehow.
-
-While I'm positive the breakge of rmap_walk order explains the BUG_ON
-with trinity (as your forking testcase also shows), I'm quite
-uncomfortable to depend on comparison on atomic mapcount that is an
-atomic for a reason, to know if the order went wrong and we shall
-repeat the loop because fork created a pte we missed.
-
-The commit message doesn't explain how do you guarantee mapcount
-cannot change from under us in a racey way. If we go with this fix,
-I'd suggest to explain that crucial point about the safety of the
-page->mapcount comparison in that code path, in the commit message. It
-may be safe by other means! I'm not saying it's definitely not safe,
-but it's at least not obviously safe as it looks like the atomic
-mapcount could change while it is being read, and there was no obvious
-explaination of how it is safe despite it is not stable.
-
-The other downside is that an infinite loop in kernel mode with no
-debug message printed, would make this less debuggable too if a real
-functional bug hits (not as result of race because of rmap walk
-ordering breakage).
-
-I assume the interval tree ordering cannot be fixed, but I'd recommend
-to look closer into that possibility too before ruling it out.
-
-Thanks!
-Andrea
+diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
+index dd7f885..a3e6967 100644
+--- a/lib/Kconfig.debug
++++ b/lib/Kconfig.debug
+@@ -492,6 +492,17 @@ config DEBUG_STACK_USAGE
+ 
+ 	  This option will slow down process creation somewhat.
+ 
++config DEBUG_VMALLOCINFO
++	bool "Provide /proc/vmallocinfo"
++	depends on PROC_FS
++	help
++	  Provides a userland interface to view kernel virtual memory mappings.
++	  Enabling this places a RCU-ified list under spinlock protection. That
++	  hurts performance in concurrent workloads.
++
++	  If unsure, say N.
++
++
+ config DEBUG_VM
+ 	bool "Debug VM"
+ 	depends on DEBUG_KERNEL
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index bf233b2..12ab34b 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -1988,8 +1988,13 @@ long vread(char *buf, char *addr, unsigned long count)
+ 	if ((unsigned long) addr + count < count)
+ 		count = -(unsigned long) addr;
+ 
++#ifdef CONFIG_DEBUG_VMALLOCINFO
+ 	spin_lock(&vmap_area_lock);
+ 	list_for_each_entry(va, &vmap_area_list, list) {
++#else
++	rcu_read_lock();
++	list_for_each_entry_rcu(va, &vmap_area_list, list) {
++#endif
+ 		if (!count)
+ 			break;
+ 
+@@ -2020,7 +2025,11 @@ long vread(char *buf, char *addr, unsigned long count)
+ 		count -= n;
+ 	}
+ finished:
++#ifdef CONFIG_DEBUG_VMALLOCINFO
+ 	spin_unlock(&vmap_area_lock);
++#else
++	rcu_read_unlock();
++#endif
+ 
+ 	if (buf == buf_start)
+ 		return 0;
+@@ -2070,8 +2079,13 @@ long vwrite(char *buf, char *addr, unsigned long count)
+ 		count = -(unsigned long) addr;
+ 	buflen = count;
+ 
++#ifdef CONFIG_DEBUG_VMALLOCINFO
+ 	spin_lock(&vmap_area_lock);
+ 	list_for_each_entry(va, &vmap_area_list, list) {
++#else
++	rcu_read_lock();
++	list_for_each_entry_rcu(va, &vmap_area_list, list) {
++#endif
+ 		if (!count)
+ 			break;
+ 
+@@ -2101,7 +2115,11 @@ long vwrite(char *buf, char *addr, unsigned long count)
+ 		count -= n;
+ 	}
+ finished:
++#ifdef CONFIG_DEBUG_VMALLOCINFO
+ 	spin_unlock(&vmap_area_lock);
++#else
++	rcu_read_unlock();
++#endif
+ 	if (!copied)
+ 		return 0;
+ 	return buflen;
+@@ -2531,6 +2549,7 @@ void pcpu_free_vm_areas(struct vm_struct **vms, int nr_vms)
+ #endif	/* CONFIG_SMP */
+ 
+ #ifdef CONFIG_PROC_FS
++#ifdef CONFIG_DEBUG_VMALLOCINFO
+ static void *s_start(struct seq_file *m, loff_t *pos)
+ 	__acquires(&vmap_area_lock)
+ {
+@@ -2677,6 +2696,7 @@ static int __init proc_vmalloc_init(void)
+ 	return 0;
+ }
+ module_init(proc_vmalloc_init);
++#endif
+ 
+ void get_vmalloc_info(struct vmalloc_info *vmi)
+ {
+@@ -2689,14 +2709,22 @@ void get_vmalloc_info(struct vmalloc_info *vmi)
+ 
+ 	prev_end = VMALLOC_START;
+ 
++#ifdef CONFIG_DEBUG_VMALLOCINFO
+ 	spin_lock(&vmap_area_lock);
++#else
++	rcu_read_lock();
++#endif
+ 
+ 	if (list_empty(&vmap_area_list)) {
+ 		vmi->largest_chunk = VMALLOC_TOTAL;
+ 		goto out;
+ 	}
+ 
++#ifdef CONFIG_DEBUG_VMALLOCINFO
+ 	list_for_each_entry(va, &vmap_area_list, list) {
++#else
++	list_for_each_entry_rcu(va, &vmap_area_list, list) {
++#endif
+ 		unsigned long addr = va->va_start;
+ 
+ 		/*
+@@ -2723,7 +2751,11 @@ void get_vmalloc_info(struct vmalloc_info *vmi)
+ 		vmi->largest_chunk = VMALLOC_END - prev_end;
+ 
+ out:
++#ifdef CONFIG_DEBUG_VMALLOCINFO
+ 	spin_unlock(&vmap_area_lock);
++#else
++	rcu_read_unlock();
++#endif
+ }
+ #endif
+ 
+-- 
+1.8.3.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
