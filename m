@@ -1,49 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f178.google.com (mail-qc0-f178.google.com [209.85.216.178])
-	by kanga.kvack.org (Postfix) with ESMTP id E4A0782966
-	for <linux-mm@kvack.org>; Fri, 11 Apr 2014 18:08:00 -0400 (EDT)
-Received: by mail-qc0-f178.google.com with SMTP id i8so6721464qcq.9
-        for <linux-mm@kvack.org>; Fri, 11 Apr 2014 15:08:00 -0700 (PDT)
-Received: from mail-qg0-f45.google.com (mail-qg0-f45.google.com [209.85.192.45])
-        by mx.google.com with ESMTPS id s32si2592424qgd.143.2014.04.11.15.08.00
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 4DD2E6B0070
+	for <linux-mm@kvack.org>; Fri, 11 Apr 2014 18:14:00 -0400 (EDT)
+Received: by mail-pd0-f182.google.com with SMTP id y10so5774721pdj.41
+        for <linux-mm@kvack.org>; Fri, 11 Apr 2014 15:13:59 -0700 (PDT)
+Received: from mail-pb0-x233.google.com (mail-pb0-x233.google.com [2607:f8b0:400e:c01::233])
+        by mx.google.com with ESMTPS id qf5si4976386pac.211.2014.04.11.15.13.59
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 11 Apr 2014 15:08:00 -0700 (PDT)
-Received: by mail-qg0-f45.google.com with SMTP id j5so5958904qga.4
-        for <linux-mm@kvack.org>; Fri, 11 Apr 2014 15:07:59 -0700 (PDT)
+        Fri, 11 Apr 2014 15:13:59 -0700 (PDT)
+Received: by mail-pb0-f51.google.com with SMTP id uo5so5941774pbc.38
+        for <linux-mm@kvack.org>; Fri, 11 Apr 2014 15:13:57 -0700 (PDT)
+Date: Fri, 11 Apr 2014 15:13:56 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] drivers/base/node.c: export physical address range of
+ given node (Re: NUMA node information for pages)
+In-Reply-To: <53481724.8020304@intel.com>
+Message-ID: <alpine.DEB.2.02.1404111513040.17724@chino.kir.corp.google.com>
+References: <87eh1ix7g0.fsf@x240.local.i-did-not-set--mail-host-address--so-tickle-me> <533a1563.ad318c0a.6a93.182bSMTPIN_ADDED_BROKEN@mx.google.com> <CAOPLpQc8R2SfTB+=BsMa09tcQ-iBNJHg+tGnPK-9EDH1M47MJw@mail.gmail.com> <5343806c.100cc30a.0461.ffffc401SMTPIN_ADDED_BROKEN@mx.google.com>
+ <alpine.DEB.2.02.1404091734060.1857@chino.kir.corp.google.com> <5345fe27.82dab40a.0831.0af9SMTPIN_ADDED_BROKEN@mx.google.com> <alpine.DEB.2.02.1404101500280.11995@chino.kir.corp.google.com> <53474709.e59ec20a.3bd5.3b91SMTPIN_ADDED_BROKEN@mx.google.com>
+ <alpine.DEB.2.02.1404110325210.30610@chino.kir.corp.google.com> <53481724.8020304@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <CANq1E4TBtRcN+tpQW9bozQkRjJ7BJCK+KO0iw5k+8Q3Y3TcUeQ@mail.gmail.com>
-References: <53470E26.2030306@cybernetics.com> <CANq1E4RWf_VbzF+dPYhzHKJvnrh86me5KajmaaB1u9f9FLzftA@mail.gmail.com>
- <5347451C.4060106@amacapital.net> <5347F188.10408@cybernetics.com>
- <CANq1E4T=38VLezGH2XUZ9kc=Vtp6Ca++-ATwmEfaXZS6UrTPig@mail.gmail.com>
- <53486067.6090506@mit.edu> <CANq1E4TBtRcN+tpQW9bozQkRjJ7BJCK+KO0iw5k+8Q3Y3TcUeQ@mail.gmail.com>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Fri, 11 Apr 2014 15:07:38 -0700
-Message-ID: <CALCETrWYRmkM3hyYu8WmSd-M=3mNMU2=xF_bSuTfyfkUTys5sg@mail.gmail.com>
-Subject: Re: [PATCH 2/6] shm: add sealing API
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Herrmann <dh.herrmann@gmail.com>
-Cc: Tony Battersby <tonyb@cybernetics.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, drepper@gmail.com, anatol.pomozov@gmail.com, jkosina@suse.cz, akpm@linux-foundation.org, xemul@parallels.com, paul.gortmaker@windriver.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, Apr 11, 2014 at 2:42 PM, David Herrmann <dh.herrmann@gmail.com> wrote:
-> Hi
->
-> On Fri, Apr 11, 2014 at 11:36 PM, Andy Lutomirski <luto@amacapital.net> wrote:
->> A quick grep of the kernel tree finds exactly zero code paths
->> incrementing i_mmap_writable outside of mmap and fork.
->>
->> Or do you mean a different kind of write ref?  What am I missing here?
->
-> Sorry, I meant i_writecount.
+On Fri, 11 Apr 2014, Dave Hansen wrote:
 
-I bet this is missing from lots of places.  For example, I can't find
-any write_access stuff in the rdma code.
+> > So?  Who cares if there are non-addressable holes in part of the span?  
+> > Ulrich, correct me if I'm wrong, but it seems you're looking for just a 
+> > address-to-nodeid mapping (or pfn-to-nodeid mapping) and aren't actually 
+> > expecting that there are no holes in a node for things like acpi or I/O or 
+> > reserved memory.
+> ...
+> > I think trying to represent holes and handling different memory models and 
+> > hotplug in special ways is complete overkill.
+> 
+> This isn't just about memory hotplug or different memory models.  There
+> are systems out there today, in production, that have layouts like this:
+> 
+> |------Node0-----|
+>      |------Node1-----|
+> 
+> and this:
+> 
+> |------Node0-----|
+>      |-Node1-|
+> 
 
-I suspect that the VM_DENYWRITE code is just generally racy.
-
---Andy
+What additional information, in your opinion, can we export to assist 
+userspace in making this determination that $address is on $nid?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
