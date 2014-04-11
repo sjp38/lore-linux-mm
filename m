@@ -1,113 +1,46 @@
 From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH v3 0/5] hugetlb: add support gigantic page allocation at
- runtime
-Date: Fri, 11 Apr 2014 15:08:40 +0300
-Message-ID: <20140411120840.GA27458@node.dhcp.inet.fi>
-References: <1397152725-20990-1-git-send-email-lcapitulino@redhat.com>
+Subject: Re: [PATCH] mm: pass VM_BUG_ON() reason to dump_page()
+Date: Fri, 11 Apr 2014 23:36:57 +0300
+Message-ID: <20140411203657.GA672@node.dhcp.inet.fi>
+References: <20140411202125.01D1D100@viggo.jf.intel.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Return-path: <linux-kernel-owner@vger.kernel.org>
 Content-Disposition: inline
-In-Reply-To: <1397152725-20990-1-git-send-email-lcapitulino@redhat.com>
+In-Reply-To: <20140411202125.01D1D100@viggo.jf.intel.com>
 Sender: linux-kernel-owner@vger.kernel.org
-To: Luiz Capitulino <lcapitulino@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, mtosatti@redhat.com, aarcange@redhat.com, mgorman@suse.de, akpm@linux-foundation.org, andi@firstfloor.org, davidlohr@hp.com, rientjes@google.com, isimatu.yasuaki@jp.fujitsu.com, yinghai@kernel.org, riel@redhat.com, n-horiguchi@ah.jp.nec.com
+To: Dave Hansen <dave@sr71.net>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-Id: linux-mm.kvack.org
 
-On Thu, Apr 10, 2014 at 01:58:40PM -0400, Luiz Capitulino wrote:
-> [Full introduction right after the changelog]
+On Fri, Apr 11, 2014 at 01:21:25PM -0700, Dave Hansen wrote:
 > 
-> Changelog
-> ---------
+> From: Dave Hansen <dave.hansen@linux.intel.com>
 > 
-> v3
+> I recently added a patch to let folks pass a "reason" string
+> dump_page() which gets dumped out along with the page's data.
+> This essentially saves the bug-reader a trip in to the source
+> to figure out why we BUG_ON()'d.
 > 
-> - Dropped unnecessary WARN_ON() call [Kirill]
-> - Always check if the pfn range lies within a zone [Yasuaki]
-> - Renamed some function arguments for consistency
+> The new VM_BUG_ON_PAGE() passes in NULL for "reason".  It seems
+> like we might as well pass the BUG_ON() condition if we have it.
+> This will bloat kernels a bit with ~160 new strings, but this
+> is all under a debugging option anyway.
 > 
-> v2
+> 	page:ffffea0008560280 count:1 mapcount:0 mapping:(null) index:0x0
+> 	page flags: 0xbfffc0000000001(locked)
+> 	page dumped because: VM_BUG_ON_PAGE(PageLocked(page))
+> 	------------[ cut here ]------------
+> 	kernel BUG at /home/davehans/linux.git/mm/filemap.c:464!
+> 	invalid opcode: 0000 [#1] SMP
+> 	CPU: 0 PID: 1 Comm: swapper/0 Not tainted 3.14.0+ #251
+> 	Hardware name: Bochs Bochs, BIOS Bochs 01/01/2011
+> 	...
 > 
-> - Rewrote allocation loop to avoid scanning unless PFNs [Yasuaki]
-> - Dropped incomplete multi-arch support [Naoya]
-> - Added patch to drop __init from prep_compound_gigantic_page()
-> - Restricted the feature to x86_64 (more details in patch 5/5)
-> - Added review-bys plus minor changelog changes
 > 
-> Introduction
-> ------------
-> 
-> The HugeTLB subsystem uses the buddy allocator to allocate hugepages during
-> runtime. This means that hugepages allocation during runtime is limited to
-> MAX_ORDER order. For archs supporting gigantic pages (that is, page sizes
-> greater than MAX_ORDER), this in turn means that those pages can't be
-> allocated at runtime.
-> 
-> HugeTLB supports gigantic page allocation during boottime, via the boot
-> allocator. To this end the kernel provides the command-line options
-> hugepagesz= and hugepages=, which can be used to instruct the kernel to
-> allocate N gigantic pages during boot.
-> 
-> For example, x86_64 supports 2M and 1G hugepages, but only 2M hugepages can
-> be allocated and freed at runtime. If one wants to allocate 1G gigantic pages,
-> this has to be done at boot via the hugepagesz= and hugepages= command-line
-> options.
-> 
-> Now, gigantic page allocation at boottime has two serious problems:
-> 
->  1. Boottime allocation is not NUMA aware. On a NUMA machine the kernel
->     evenly distributes boottime allocated hugepages among nodes.
-> 
->     For example, suppose you have a four-node NUMA machine and want
->     to allocate four 1G gigantic pages at boottime. The kernel will
->     allocate one gigantic page per node.
-> 
->     On the other hand, we do have users who want to be able to specify
->     which NUMA node gigantic pages should allocated from. So that they
->     can place virtual machines on a specific NUMA node.
-> 
->  2. Gigantic pages allocated at boottime can't be freed
-> 
-> At this point it's important to observe that regular hugepages allocated
-> at runtime don't have those problems. This is so because HugeTLB interface
-> for runtime allocation in sysfs supports NUMA and runtime allocated pages
-> can be freed just fine via the buddy allocator.
-> 
-> This series adds support for allocating gigantic pages at runtime. It does
-> so by allocating gigantic pages via CMA instead of the buddy allocator.
-> Releasing gigantic pages is also supported via CMA. As this series builds
-> on top of the existing HugeTLB interface, it makes gigantic page allocation
-> and releasing just like regular sized hugepages. This also means that NUMA
-> support just works.
-> 
-> For example, to allocate two 1G gigantic pages on node 1, one can do:
-> 
->  # echo 2 > \
->    /sys/devices/system/node/node1/hugepages/hugepages-1048576kB/nr_hugepages
-> 
-> And, to release all gigantic pages on the same node:
-> 
->  # echo 0 > \
->    /sys/devices/system/node/node1/hugepages/hugepages-1048576kB/nr_hugepages
-> 
-> Please, refer to patch 5/5 for full technical details.
-> 
-> Finally, please note that this series is a follow up for a previous series
-> that tried to extend the command-line options set to be NUMA aware:
-> 
->  http://marc.info/?l=linux-mm&m=139593335312191&w=2
-> 
-> During the discussion of that series it was agreed that having runtime
-> allocation support for gigantic pages was a better solution.
-> 
-> Luiz Capitulino (5):
->   hugetlb: prep_compound_gigantic_page(): drop __init marker
->   hugetlb: add hstate_is_gigantic()
->   hugetlb: update_and_free_page(): don't clear PG_reserved bit
->   hugetlb: move helpers up in the file
->   hugetlb: add support for gigantic page allocation at runtime
+> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 
-Thanks for doing this. It was on my todo list for some time.
+I see space-before-tabs in few places, otherwise:
 
 Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 
