@@ -1,239 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f48.google.com (mail-qg0-f48.google.com [209.85.192.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C03F6B0035
-	for <linux-mm@kvack.org>; Fri, 11 Apr 2014 08:41:25 -0400 (EDT)
-Received: by mail-qg0-f48.google.com with SMTP id i50so5249067qgf.21
-        for <linux-mm@kvack.org>; Fri, 11 Apr 2014 05:41:23 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id g2si3171348qab.153.2014.04.11.05.41.22
-        for <linux-mm@kvack.org>;
-        Fri, 11 Apr 2014 05:41:23 -0700 (PDT)
-Date: Thu, 10 Apr 2014 21:35:51 -0400
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Message-ID: <5347e2f3.c214e00a.02fa.ffff8c61SMTPIN_ADDED_BROKEN@mx.google.com>
-In-Reply-To: <alpine.DEB.2.02.1404101500280.11995@chino.kir.corp.google.com>
-References: <87eh1ix7g0.fsf@x240.local.i-did-not-set--mail-host-address--so-tickle-me>
- <533a1563.ad318c0a.6a93.182bSMTPIN_ADDED_BROKEN@mx.google.com>
- <CAOPLpQc8R2SfTB+=BsMa09tcQ-iBNJHg+tGnPK-9EDH1M47MJw@mail.gmail.com>
- <5343806c.100cc30a.0461.ffffc401SMTPIN_ADDED_BROKEN@mx.google.com>
- <alpine.DEB.2.02.1404091734060.1857@chino.kir.corp.google.com>
- <5345fe27.82dab40a.0831.0af9SMTPIN_ADDED_BROKEN@mx.google.com>
- <alpine.DEB.2.02.1404101500280.11995@chino.kir.corp.google.com>
-Subject: [PATCH] drivers/base/node.c: export physical address range of given
- node (Re: NUMA node information for pages)
-Mime-Version: 1.0
-Content-Type: text/plain;
- charset=iso-2022-jp
+Received: from mail-yk0-f179.google.com (mail-yk0-f179.google.com [209.85.160.179])
+	by kanga.kvack.org (Postfix) with ESMTP id E082E6B0035
+	for <linux-mm@kvack.org>; Fri, 11 Apr 2014 08:50:14 -0400 (EDT)
+Received: by mail-yk0-f179.google.com with SMTP id 9so4801012ykp.38
+        for <linux-mm@kvack.org>; Fri, 11 Apr 2014 05:50:13 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id b21si7911307yhl.138.2014.04.11.05.50.13
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 11 Apr 2014 05:50:13 -0700 (PDT)
+Message-ID: <5347E4FB.2090705@oracle.com>
+Date: Fri, 11 Apr 2014 08:50:03 -0400
+From: Sasha Levin <sasha.levin@oracle.com>
+MIME-Version: 1.0
+Subject: mm,x86: warning at arch/x86/mm/pat.c:781 untrack_pfn+0x65/0xb0()
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: rientjes@google.com
-Cc: drepper@gmail.com, anatol.pomozov@gmail.com, jkosina@suse.cz, akpm@linux-foundation.org, xemul@parallels.com, paul.gortmaker@windriver.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <koct9i@gmail.com>, suresh.b.siddha@intel.com, Ingo Molnar <mingo@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, LKML <linux-kernel@vger.kernel.org>, Dave Jones <davej@redhat.com>
 
-(CC:ed linux-mm)
+Hi all,
 
-On Thu, Apr 10, 2014 at 03:06:49PM -0700, David Rientjes wrote:
-> On Wed, 9 Apr 2014, Naoya Horiguchi wrote:
-> 
-> > >  [ And that block_size_bytes file is absolutely horrid, why are we
-> > >    exporting all this information in hex and not telling anybody? ]
-> > 
-> > Indeed, this kind of implicit hex numbers are commonly used in many place.
-> > I guess that it's maybe for historical reasons.
-> > 
-> 
-> I think it was meant to be simple to that you could easily add the length 
-> to the start, but it should at least prefix this with `0x'.  That code has 
-> been around for years, though, so we probably can't fix it now.
-> 
-> > > I'd much prefer a single change that works for everybody and userspace can 
-> > > rely on exporting accurate information as long as sysfs is mounted, and 
-> > > not even need to rely on getpagesize() to convert from pfn to physical 
-> > > address: just simple {start,end}_phys_addr files added to 
-> > > /sys/devices/system/node/nodeN/ for node N.  Online information can 
-> > > already be parsed for these ranges from /sys/devices/system/node/online.
-> > 
-> > OK, so what if some node has multiple address ranges?  I don't think that
-> > start(end)_phys_addr simply returns minimum (maximum) possible address is optimal,
-> > because users can't know about void range between valid address ranges
-> > (non-exist pfn should not belong to any node).
-> > Are printing multilined (or comma-separated) ranges preferable for example
-> > like below?
-> > 
-> >   $ cat /sys/devices/system/node/nodeN/phys_addr
-> >   0x0-0x80000000
-> >   0x100000000-0x180000000
-> > 
-> 
-> What the...?  nodeN should represent the pgdat for that node and a pgdat 
-> can only have a single range.
+While fuzzing with trinity inside a KVM tools guest running the latest -next
+kernel I've stumbled on the following:
 
-Yes, that's right, but it seems to me that just node_start_pfn and node_end_pfn
-is not enough because there can be holes (without any page struct backed) inside
-[node_start_pfn, node_end_pfn), and it's not aware of memory hotplug.
 
-> I'm suggesting that 
-> /sys/devices/system/node/nodeN/start_phys_addr returns 
-> node_start_pfn(N) << PAGE_SHIFT and 
-> /sys/devices/system/node/nodeN/end_phys_addr returns
-> node_end_pfn(N) << PAGE_SHIFT and prefix them correctly this time with 
-> `0x'.
+[ 3431.738346] WARNING: CPU: 12 PID: 17371 at arch/x86/mm/pat.c:781 untrack_pfn+0x65/0xb0()
+[ 3431.741153] Modules linked in:
+[ 3431.742138] CPU: 12 PID: 17371 Comm: trinity-c361 Not tainted 3.14.0-next-20140410-sasha-00022-gb3d9015-dirty #390
+[ 3431.745365]  0000000000000009 ffff8801b5635be8 ffffffffae51f40b 0000000000005b10
+[ 3431.747699]  0000000000000000 ffff8801b5635c28 ffffffffab15a37c ffff8801b5635c38
+[ 3431.750401]  ffff8802e8fd2e00 0000000000000000 ffff8801b5635d68 ffff8801b5635d68
+[ 3431.752853] Call Trace:
+[ 3431.753625] dump_stack (lib/dump_stack.c:52)
+[ 3431.755244] warn_slowpath_common (kernel/panic.c:418)
+[ 3431.757062] warn_slowpath_null (kernel/panic.c:453)
+[ 3431.758828] untrack_pfn (arch/x86/mm/pat.c:781 (discriminator 3))
+[ 3431.760785] unmap_single_vma (mm/memory.c:1316)
+[ 3431.762703] ? sched_clock (arch/x86/include/asm/paravirt.h:192 arch/x86/kernel/tsc.c:305)
+[ 3431.764366] ? sched_clock_local (kernel/sched/clock.c:214)
+[ 3431.766253] ? move_page_tables (mm/mremap.c:156 mm/mremap.c:217)
+[ 3431.768071] unmap_vmas (mm/memory.c:1366 (discriminator 1))
+[ 3431.769686] unmap_region (mm/mmap.c:2361 (discriminator 3))
+[ 3431.771776] ? validate_mm_rb (mm/mmap.c:401)
+[ 3431.773606] ? vma_rb_erase (mm/mmap.c:446 include/linux/rbtree_augmented.h:219 include/linux/rbtree_augmented.h:227 mm/mmap.c:485)
+[ 3431.775268] do_munmap (mm/mmap.c:3259 mm/mmap.c:2559)
+[ 3431.777012] move_vma (mm/mremap.c:306)
+[ 3431.778621] SyS_mremap (mm/mremap.c:439 mm/mremap.c:501 mm/mremap.c:470)
+[ 3431.780576] tracesys (arch/x86/kernel/entry_64.S:749)
 
-Yes, we should have '0x' prefix for new interfaces.
-
-I wrote a patch, so could you take a look?
-
-I tested !CONFIG_MEMORY_HOTPLUG_SPARSE case too, and it works fine.
 
 Thanks,
-Naoya Horiguchi
----
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Date: Thu, 10 Apr 2014 20:59:59 -0400
-Subject: [PATCH] drivers/base/node.c: export physical address range of given
- node
-
-Userspace applications sometimes want to know which node a give page belongs to,
-so this patch adds a new interface /sys/devices/system/node/nodeN/phys_addr
-which gives the physical address ranges of node N. A reader gets multilined
-physical address ranges backed by valid pfn (neither holes within the zone nor
-offlined range are not included in the output.)
-
-Here is the example.
-
-  # cat /sys/devices/system/node/node0/phys_addr
-  0x1000-0x40000000
-  # cat /sys/devices/system/node/node3/phys_addr
-  0xc0000000-0xe0000000
-  0x100000000-0x120000000
-  # echo offline > /sys/devices/system/memory/memory33/state
-  # cat /sys/devices/system/node/node3/phys_addr
-  0xc0000000-0xe0000000
-  0x100000000-0x108000000
-  0x110000000-0x120000000
-
-Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
----
- drivers/base/node.c    | 60 ++++++++++++++++++++++++++++++++++++++++++++++++++
- include/linux/memory.h |  4 ++++
- include/linux/mmzone.h |  1 +
- 3 files changed, 65 insertions(+)
-
-diff --git a/drivers/base/node.c b/drivers/base/node.c
-index bc9f43bf7e29..21e87909ec4f 100644
---- a/drivers/base/node.c
-+++ b/drivers/base/node.c
-@@ -18,6 +18,7 @@
- #include <linux/device.h>
- #include <linux/swap.h>
- #include <linux/slab.h>
-+#include <linux/memblock.h>
- 
- static struct bus_type node_subsys = {
- 	.name = "node",
-@@ -185,6 +186,64 @@ static ssize_t node_read_vmstat(struct device *dev,
- }
- static DEVICE_ATTR(vmstat, S_IRUGO, node_read_vmstat, NULL);
- 
-+#ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
-+static bool valid_mem_section(unsigned long sec_nr)
-+{
-+	struct memory_block *memblk;
-+	if (!present_section_nr(sec_nr))
-+		return false;
-+	memblk = find_memory_block(__nr_to_section(sec_nr));
-+	if (!memblk || is_memblock_offlined(memblk))
-+		return false;
-+	return true;
-+}
-+#endif
-+
-+static ssize_t node_read_phys_addr(struct device *dev,
-+				struct device_attribute *attr, char *buf)
-+{
-+	struct pglist_data *pgdat = NODE_DATA(dev->id);
-+	unsigned long start, end;
-+	int n = 0;
-+	unsigned long pfn;
-+	unsigned long rstart = 0, rend = 0; /* range's start and end */
-+
-+	start = pgdat->node_start_pfn;
-+	end = pgdat_end_pfn(pgdat);
-+	pfn = start;
-+	while (pfn < end) {
-+#ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
-+		if (unlikely(!valid_mem_section(pfn_to_section_nr(pfn)))) {
-+			if (rstart) {
-+				n += sprintf(buf + n, "0x%llx-0x%llx\n",
-+					     PFN_PHYS(rstart), PFN_PHYS(rend));
-+				rstart = 0;
-+				rend = 0;
-+			}
-+			pfn = SECTION_NEXT_BOUNDARY(pfn);
-+			continue;
-+		}
-+#endif
-+		if (pfn_valid(pfn)) {
-+			if (!rstart)
-+				rstart = pfn;
-+			rend = pfn + 1;
-+		} else {
-+			if (rstart)
-+				n += sprintf(buf + n, "0x%llx-0x%llx\n",
-+					     PFN_PHYS(rstart), PFN_PHYS(rend));
-+			rstart = 0;
-+			rend = 0;
-+		}
-+		pfn++;
-+	}
-+	if (rstart)
-+		n += sprintf(buf + n, "0x%llx-0x%llx\n",
-+			     PFN_PHYS(rstart), PFN_PHYS(rend));
-+	return n;
-+}
-+static DEVICE_ATTR(phys_addr, S_IRUGO, node_read_phys_addr, NULL);
-+
- static ssize_t node_read_distance(struct device *dev,
- 			struct device_attribute *attr, char * buf)
- {
-@@ -288,6 +347,7 @@ static int register_node(struct node *node, int num, struct node *parent)
- 		device_create_file(&node->dev, &dev_attr_numastat);
- 		device_create_file(&node->dev, &dev_attr_distance);
- 		device_create_file(&node->dev, &dev_attr_vmstat);
-+		device_create_file(&node->dev, &dev_attr_phys_addr);
- 
- 		scan_unevictable_register_node(node);
- 
-diff --git a/include/linux/memory.h b/include/linux/memory.h
-index bb7384e3c3d8..b68e14f8818c 100644
---- a/include/linux/memory.h
-+++ b/include/linux/memory.h
-@@ -103,6 +103,10 @@ static inline int memory_isolate_notify(unsigned long val, void *v)
- {
- 	return 0;
- }
-+static inline struct memory_block *find_memory_block(struct mem_section *ms)
-+{
-+	return NULL;
-+}
- #else
- extern int register_memory_notifier(struct notifier_block *nb);
- extern void unregister_memory_notifier(struct notifier_block *nb);
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 9b61b9bf81ac..138a7a6684ab 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -1084,6 +1084,7 @@ static inline unsigned long early_pfn_to_nid(unsigned long pfn)
- 
- #define SECTION_ALIGN_UP(pfn)	(((pfn) + PAGES_PER_SECTION - 1) & PAGE_SECTION_MASK)
- #define SECTION_ALIGN_DOWN(pfn)	((pfn) & PAGE_SECTION_MASK)
-+#define SECTION_NEXT_BOUNDARY(pfn)	(SECTION_ALIGN_DOWN(pfn) + PAGES_PER_SECTION)
- 
- struct page;
- struct page_cgroup;
--- 
-1.9.0
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
