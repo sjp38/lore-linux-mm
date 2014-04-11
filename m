@@ -1,49 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 4EED06B0035
-	for <linux-mm@kvack.org>; Fri, 11 Apr 2014 12:07:52 -0400 (EDT)
-Received: by mail-pd0-f170.google.com with SMTP id v10so5480255pde.15
-        for <linux-mm@kvack.org>; Fri, 11 Apr 2014 09:07:51 -0700 (PDT)
-Received: from qmta09.emeryville.ca.mail.comcast.net (qmta09.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:96])
-        by mx.google.com with ESMTP id bi5si4524375pbb.148.2014.04.11.09.07.51
+Received: from mail-pb0-f51.google.com (mail-pb0-f51.google.com [209.85.160.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 735A56B0035
+	for <linux-mm@kvack.org>; Fri, 11 Apr 2014 12:24:24 -0400 (EDT)
+Received: by mail-pb0-f51.google.com with SMTP id uo5so5578169pbc.24
+        for <linux-mm@kvack.org>; Fri, 11 Apr 2014 09:24:24 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id ep2si4549627pbb.131.2014.04.11.09.24.23
         for <linux-mm@kvack.org>;
-        Fri, 11 Apr 2014 09:07:51 -0700 (PDT)
-Date: Fri, 11 Apr 2014 11:07:48 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH -mm v2.2] mm: get rid of __GFP_KMEMCG
-In-Reply-To: <1396537559-17453-1-git-send-email-vdavydov@parallels.com>
-Message-ID: <alpine.DEB.2.10.1404111104550.13278@nuc>
-References: <1396419365-351-1-git-send-email-vdavydov@parallels.com> <1396537559-17453-1-git-send-email-vdavydov@parallels.com>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        Fri, 11 Apr 2014 09:24:23 -0700 (PDT)
+Message-ID: <53481724.8020304@intel.com>
+Date: Fri, 11 Apr 2014 09:24:04 -0700
+From: Dave Hansen <dave.hansen@intel.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] drivers/base/node.c: export physical address range of
+ given node (Re: NUMA node information for pages)
+References: <87eh1ix7g0.fsf@x240.local.i-did-not-set--mail-host-address--so-tickle-me> <533a1563.ad318c0a.6a93.182bSMTPIN_ADDED_BROKEN@mx.google.com> <CAOPLpQc8R2SfTB+=BsMa09tcQ-iBNJHg+tGnPK-9EDH1M47MJw@mail.gmail.com> <5343806c.100cc30a.0461.ffffc401SMTPIN_ADDED_BROKEN@mx.google.com> <alpine.DEB.2.02.1404091734060.1857@chino.kir.corp.google.com> <5345fe27.82dab40a.0831.0af9SMTPIN_ADDED_BROKEN@mx.google.com> <alpine.DEB.2.02.1404101500280.11995@chino.kir.corp.google.com> <53474709.e59ec20a.3bd5.3b91SMTPIN_ADDED_BROKEN@mx.google.com> <alpine.DEB.2.02.1404110325210.30610@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.02.1404110325210.30610@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, devel@openvz.org, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Glauber Costa <glommer@gmail.com>, Pekka Enberg <penberg@kernel.org>
+To: David Rientjes <rientjes@google.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: drepper@gmail.com, anatol.pomozov@gmail.com, jkosina@suse.cz, akpm@linux-foundation.org, xemul@parallels.com, paul.gortmaker@windriver.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, 3 Apr 2014, Vladimir Davydov wrote:
+On 04/11/2014 04:00 AM, David Rientjes wrote:
+> On Thu, 10 Apr 2014, Naoya Horiguchi wrote:
+>> > Yes, that's right, but it seems to me that just node_start_pfn and node_end_pfn
+>> > is not enough because there can be holes (without any page struct backed) inside
+>> > [node_start_pfn, node_end_pfn), and it's not aware of memory hotplug.
+>> > 
+> So?  Who cares if there are non-addressable holes in part of the span?  
+> Ulrich, correct me if I'm wrong, but it seems you're looking for just a 
+> address-to-nodeid mapping (or pfn-to-nodeid mapping) and aren't actually 
+> expecting that there are no holes in a node for things like acpi or I/O or 
+> reserved memory.
+...
+> I think trying to represent holes and handling different memory models and 
+> hotplug in special ways is complete overkill.
 
-> --- a/include/linux/slab.h
-> +++ b/include/linux/slab.h
-> @@ -358,16 +358,7 @@ kmem_cache_alloc_node_trace(struct kmem_cache *s,
->  #include <linux/slub_def.h>
->  #endif
->
-> -static __always_inline void *
-> -kmalloc_order(size_t size, gfp_t flags, unsigned int order)
-> -{
-> -	void *ret;
-> -
-> -	flags |= (__GFP_COMP | __GFP_KMEMCG);
-> -	ret = (void *) __get_free_pages(flags, order);
-> -	kmemleak_alloc(ret, size, 1, flags);
-> -	return ret;
-> -}
-> +extern void *kmalloc_order(size_t size, gfp_t flags, unsigned int order);
+This isn't just about memory hotplug or different memory models.  There
+are systems out there today, in production, that have layouts like this:
 
+|------Node0-----|
+     |------Node1-----|
 
-Hmmm... This was intentional inlined to allow inline expansion for calls
-to kmalloc with large constants. The inline expansion directly converts
-these calls to page allocator calls avoiding slab overhead.
+and this:
+
+|------Node0-----|
+     |-Node1-|
+
+For those systems, this interface has no meaning.  Given a page in the
+shared-span areas, this interface provides no way to figure out which
+node it is in.
+
+If you want a non-portable hack that just works on one system, I'd
+suggest parsing the existing firmware tables.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
