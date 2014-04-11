@@ -1,65 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f45.google.com (mail-la0-f45.google.com [209.85.215.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 1C8026B0035
-	for <linux-mm@kvack.org>; Fri, 11 Apr 2014 02:10:05 -0400 (EDT)
-Received: by mail-la0-f45.google.com with SMTP id hr17so3118192lab.18
-        for <linux-mm@kvack.org>; Thu, 10 Apr 2014 23:10:04 -0700 (PDT)
-Received: from plane.gmane.org (plane.gmane.org. [80.91.229.3])
-        by mx.google.com with ESMTPS id sz4si4676559lbb.162.2014.04.10.23.10.02
+Received: from mail-ee0-f42.google.com (mail-ee0-f42.google.com [74.125.83.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 6FA016B0035
+	for <linux-mm@kvack.org>; Fri, 11 Apr 2014 02:59:38 -0400 (EDT)
+Received: by mail-ee0-f42.google.com with SMTP id d17so3743473eek.29
+        for <linux-mm@kvack.org>; Thu, 10 Apr 2014 23:59:37 -0700 (PDT)
+Received: from smtp-vbr9.xs4all.nl (smtp-vbr9.xs4all.nl. [194.109.24.29])
+        by mx.google.com with ESMTPS id u49si9039092eef.52.2014.04.10.23.59.36
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 10 Apr 2014 23:10:03 -0700 (PDT)
-Received: from list by plane.gmane.org with local (Exim 4.69)
-	(envelope-from <glkm-linux-mm-2@m.gmane.org>)
-	id 1WYUf2-0005JF-G5
-	for linux-mm@kvack.org; Fri, 11 Apr 2014 08:10:00 +0200
-Received: from 66-87-112-120.pools.spcsdns.net ([66.87.112.120])
-        by main.gmane.org with esmtp (Gmexim 0.1 (Debian))
-        id 1AlnuQ-0007hv-00
-        for <linux-mm@kvack.org>; Fri, 11 Apr 2014 08:10:00 +0200
-Received: from eternaleye by 66-87-112-120.pools.spcsdns.net with local (Gmexim 0.1 (Debian))
-        id 1AlnuQ-0007hv-00
-        for <linux-mm@kvack.org>; Fri, 11 Apr 2014 08:10:00 +0200
-From: Alex Elsayed <eternaleye@gmail.com>
-Subject: Re: [PATCH 0/6] File Sealing & memfd_create()
-Date: Thu, 10 Apr 2014 23:09:46 -0700
-Message-ID: <li80vb$n3m$2@ger.gmane.org>
-References: <1395256011-2423-1-git-send-email-dh.herrmann@gmail.com> <20140320153250.GC20618@thunk.org> <1397141388.16343.10@mail.messagingengine.com> <5346EDE8.2060004@amacapital.net> <1397159378.4434.1@mail.messagingengine.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7Bit
+        Thu, 10 Apr 2014 23:59:36 -0700 (PDT)
+Message-ID: <534792B3.1060709@xs4all.nl>
+Date: Fri, 11 Apr 2014 08:58:59 +0200
+From: Hans Verkuil <hverkuil@xs4all.nl>
+MIME-Version: 1.0
+Subject: Re: [RFC] Helper to abstract vma handling in media layer
+References: <1395085776-8626-1-git-send-email-jack@suse.cz> <53466C4A.2030107@samsung.com> <20140410103220.GB28404@quack.suse.cz> <53467B7E.5060408@xs4all.nl> <20140410121554.GC28404@quack.suse.cz> <53468CFC.2060707@xs4all.nl> <20140410215738.GB12339@quack.suse.cz> <20140410221818.GA14625@quack.suse.cz>
+In-Reply-To: <20140410221818.GA14625@quack.suse.cz>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org, linux-fsdevel@vger.kernel.org
+To: Jan Kara <jack@suse.cz>
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linux-mm@kvack.org, linux-media@vger.kernel.org, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, 'Tomasz Stanislawski' <t.stanislaws@samsung.com>, Laurent Pinchart <laurent.pinchart@ideasonboard.com>
 
-Colin Walters wrote:
+On 04/11/2014 12:18 AM, Jan Kara wrote:
+> On Thu 10-04-14 23:57:38, Jan Kara wrote:
+>> On Thu 10-04-14 14:22:20, Hans Verkuil wrote:
+>>> On 04/10/14 14:15, Jan Kara wrote:
+>>>> On Thu 10-04-14 13:07:42, Hans Verkuil wrote:
+>>>>> On 04/10/14 12:32, Jan Kara wrote:
+>>>>>>   Hello,
+>>>>>>
+>>>>>> On Thu 10-04-14 12:02:50, Marek Szyprowski wrote:
+>>>>>>> On 2014-03-17 20:49, Jan Kara wrote:
+>>>>>>>>   The following patch series is my first stab at abstracting vma handling
+>>>>>>> >from the various media drivers. After this patch set drivers have to know
+>>>>>>>> much less details about vmas, their types, and locking. My motivation for
+>>>>>>>> the series is that I want to change get_user_pages() locking and I want
+>>>>>>>> to handle subtle locking details in as few places as possible.
+>>>>>>>>
+>>>>>>>> The core of the series is the new helper get_vaddr_pfns() which is given a
+>>>>>>>> virtual address and it fills in PFNs into provided array. If PFNs correspond to
+>>>>>>>> normal pages it also grabs references to these pages. The difference from
+>>>>>>>> get_user_pages() is that this function can also deal with pfnmap, mixed, and io
+>>>>>>>> mappings which is what the media drivers need.
+>>>>>>>>
+>>>>>>>> The patches are just compile tested (since I don't have any of the hardware
+>>>>>>>> I'm afraid I won't be able to do any more testing anyway) so please handle
+>>>>>>>> with care. I'm grateful for any comments.
+>>>>>>>
+>>>>>>> Thanks for posting this series! I will check if it works with our
+>>>>>>> hardware soon.  This is something I wanted to introduce some time ago to
+>>>>>>> simplify buffer handling in dma-buf, but I had no time to start working.
+>>>>>>   Thanks for having a look in the series.
+>>>>>>
+>>>>>>> However I would like to go even further with integration of your pfn
+>>>>>>> vector idea.  This structure looks like a best solution for a compact
+>>>>>>> representation of the memory buffer, which should be considered by the
+>>>>>>> hardware as contiguous (either contiguous in physical memory or mapped
+>>>>>>> contiguously into dma address space by the respective iommu). As you
+>>>>>>> already noticed it is widely used by graphics and video drivers.
+>>>>>>>
+>>>>>>> I would also like to add support for pfn vector directly to the
+>>>>>>> dma-mapping subsystem. This can be done quite easily (even with a
+>>>>>>> fallback for architectures which don't provide method for it). I will try
+>>>>>>> to prepare rfc soon.  This will finally remove the need for hacks in
+>>>>>>> media/v4l2-core/videobuf2-dma-contig.c
+>>>>>>   That would be a worthwhile thing to do. When I was reading the code this
+>>>>>> seemed like something which could be done but I delibrately avoided doing
+>>>>>> more unification than necessary for my purposes as I don't have any
+>>>>>> hardware to test and don't know all the subtleties in the code... BTW, is
+>>>>>> there some way to test the drivers without the physical video HW?
+>>>>>
+>>>>> You can use the vivi driver (drivers/media/platform/vivi) for this.
+>>>>> However, while the vivi driver can import dma buffers it cannot export
+>>>>> them. If you want that, then you have to use this tree:
+>>>>>
+>>>>> http://git.linuxtv.org/cgit.cgi/hverkuil/media_tree.git/log/?h=vb2-part4
+>>>>   Thanks for the pointer that looks good. I've also found
+>>>> drivers/media/platform/mem2mem_testdev.c which seems to do even more
+>>>> testing of the area I made changes to. So now I have to find some userspace
+>>>> tool which can issue proper ioctls to setup and use the buffers and I can
+>>>> start testing what I wrote :)
+>>>
+>>> Get the v4l-utils.git repository (http://git.linuxtv.org/cgit.cgi/v4l-utils.git/).
+>>> You want the v4l2-ctl tool. Don't use the version supplied by your distro,
+>>> that's often too old.
+>>>
+>>> 'v4l2-ctl --help-streaming' gives the available options for doing streaming.
+>>>
+>>> So simple capturing from vivi is 'v4l2-ctl --stream-mmap' or '--stream-user'.
+>>> You can't test dmabuf unless you switch to the vb2-part4 branch of my tree.
+>>   Great, it seems to be doing something and it shows there's some bug in my
+>> code. Thanks a lot for help.
+>   OK, so after a small fix the basic functionality seems to be working. It
+> doesn't seem there's a way to test multiplanar buffers with vivi, is there?
 
-> On Thu, Apr 10, 2014 at 3:15 PM, Andy Lutomirski <luto@amacapital.net>
-> wrote:
->> 
->> 
->> COW links can do this already, I think.  Of course, you'll have to
->> use a
->> filesystem that supports them.
-> 
-> COW is nice if the filesystem supports them, but my userspace code
-> needs to be filesystem agnostic.  Because of that, the design for
-> userspace simply doesn't allow arbitrary writes.
-> 
-> Instead, I have to painfully audit every rpm %post/dpkg postinst type
-> script to ensure they break hardlinks, and furthermore only allow
-> executing scripts that are known to do so.
-> 
-> But I think even in a btrfs world it'd still be useful to mark files as
-> content-immutable.
+For that you need to switch to the vb2-part4 branch as well. That has support
+for multiplanar.
 
-If you create each tree as a subvolume and when it's complete put it in 
-place with btrfs subvolume snapshot -r FOO_inprogress /ostree/repo/FOO,
-you get exactly that.
+Regards,
 
-You can even use the new(ish) btrfs out-of-band dedup functionality to 
-deduplicate read-only snapshots safely.
+	Hans
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
