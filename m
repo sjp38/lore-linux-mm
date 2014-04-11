@@ -1,107 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f42.google.com (mail-ee0-f42.google.com [74.125.83.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 6FA016B0035
-	for <linux-mm@kvack.org>; Fri, 11 Apr 2014 02:59:38 -0400 (EDT)
-Received: by mail-ee0-f42.google.com with SMTP id d17so3743473eek.29
-        for <linux-mm@kvack.org>; Thu, 10 Apr 2014 23:59:37 -0700 (PDT)
-Received: from smtp-vbr9.xs4all.nl (smtp-vbr9.xs4all.nl. [194.109.24.29])
-        by mx.google.com with ESMTPS id u49si9039092eef.52.2014.04.10.23.59.36
+Received: from mail-pb0-f52.google.com (mail-pb0-f52.google.com [209.85.160.52])
+	by kanga.kvack.org (Postfix) with ESMTP id B74046B0035
+	for <linux-mm@kvack.org>; Fri, 11 Apr 2014 03:36:33 -0400 (EDT)
+Received: by mail-pb0-f52.google.com with SMTP id rr13so5066523pbb.39
+        for <linux-mm@kvack.org>; Fri, 11 Apr 2014 00:36:33 -0700 (PDT)
+Received: from out1-smtp.messagingengine.com (out1-smtp.messagingengine.com. [66.111.4.25])
+        by mx.google.com with ESMTPS id ep2si3638722pbb.131.2014.04.11.00.36.32
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 10 Apr 2014 23:59:36 -0700 (PDT)
-Message-ID: <534792B3.1060709@xs4all.nl>
-Date: Fri, 11 Apr 2014 08:58:59 +0200
-From: Hans Verkuil <hverkuil@xs4all.nl>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 11 Apr 2014 00:36:32 -0700 (PDT)
+Message-ID: <53479B7B.6050008@iki.fi>
+Date: Fri, 11 Apr 2014 10:36:27 +0300
+From: Pekka Enberg <penberg@iki.fi>
 MIME-Version: 1.0
-Subject: Re: [RFC] Helper to abstract vma handling in media layer
-References: <1395085776-8626-1-git-send-email-jack@suse.cz> <53466C4A.2030107@samsung.com> <20140410103220.GB28404@quack.suse.cz> <53467B7E.5060408@xs4all.nl> <20140410121554.GC28404@quack.suse.cz> <53468CFC.2060707@xs4all.nl> <20140410215738.GB12339@quack.suse.cz> <20140410221818.GA14625@quack.suse.cz>
-In-Reply-To: <20140410221818.GA14625@quack.suse.cz>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: oops in slab/leaks_show
+References: <20140307025703.GA30770@redhat.com> <alpine.DEB.2.10.1403071117230.21846@nuc> <20140311003459.GA25657@lge.com> <20140311010135.GA25845@lge.com> <20140311012455.GA5151@redhat.com> <20140311025811.GA601@lge.com> <20140311083009.GA32004@lge.com>
+In-Reply-To: <20140311083009.GA32004@lge.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linux-mm@kvack.org, linux-media@vger.kernel.org, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, 'Tomasz Stanislawski' <t.stanislaws@samsung.com>, Laurent Pinchart <laurent.pinchart@ideasonboard.com>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Dave Jones <davej@redhat.com>, Christoph Lameter <cl@linux.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Al Viro <viro@zeniv.linux.org.uk>
 
-On 04/11/2014 12:18 AM, Jan Kara wrote:
-> On Thu 10-04-14 23:57:38, Jan Kara wrote:
->> On Thu 10-04-14 14:22:20, Hans Verkuil wrote:
->>> On 04/10/14 14:15, Jan Kara wrote:
->>>> On Thu 10-04-14 13:07:42, Hans Verkuil wrote:
->>>>> On 04/10/14 12:32, Jan Kara wrote:
->>>>>>   Hello,
->>>>>>
->>>>>> On Thu 10-04-14 12:02:50, Marek Szyprowski wrote:
->>>>>>> On 2014-03-17 20:49, Jan Kara wrote:
->>>>>>>>   The following patch series is my first stab at abstracting vma handling
->>>>>>> >from the various media drivers. After this patch set drivers have to know
->>>>>>>> much less details about vmas, their types, and locking. My motivation for
->>>>>>>> the series is that I want to change get_user_pages() locking and I want
->>>>>>>> to handle subtle locking details in as few places as possible.
->>>>>>>>
->>>>>>>> The core of the series is the new helper get_vaddr_pfns() which is given a
->>>>>>>> virtual address and it fills in PFNs into provided array. If PFNs correspond to
->>>>>>>> normal pages it also grabs references to these pages. The difference from
->>>>>>>> get_user_pages() is that this function can also deal with pfnmap, mixed, and io
->>>>>>>> mappings which is what the media drivers need.
->>>>>>>>
->>>>>>>> The patches are just compile tested (since I don't have any of the hardware
->>>>>>>> I'm afraid I won't be able to do any more testing anyway) so please handle
->>>>>>>> with care. I'm grateful for any comments.
->>>>>>>
->>>>>>> Thanks for posting this series! I will check if it works with our
->>>>>>> hardware soon.  This is something I wanted to introduce some time ago to
->>>>>>> simplify buffer handling in dma-buf, but I had no time to start working.
->>>>>>   Thanks for having a look in the series.
->>>>>>
->>>>>>> However I would like to go even further with integration of your pfn
->>>>>>> vector idea.  This structure looks like a best solution for a compact
->>>>>>> representation of the memory buffer, which should be considered by the
->>>>>>> hardware as contiguous (either contiguous in physical memory or mapped
->>>>>>> contiguously into dma address space by the respective iommu). As you
->>>>>>> already noticed it is widely used by graphics and video drivers.
->>>>>>>
->>>>>>> I would also like to add support for pfn vector directly to the
->>>>>>> dma-mapping subsystem. This can be done quite easily (even with a
->>>>>>> fallback for architectures which don't provide method for it). I will try
->>>>>>> to prepare rfc soon.  This will finally remove the need for hacks in
->>>>>>> media/v4l2-core/videobuf2-dma-contig.c
->>>>>>   That would be a worthwhile thing to do. When I was reading the code this
->>>>>> seemed like something which could be done but I delibrately avoided doing
->>>>>> more unification than necessary for my purposes as I don't have any
->>>>>> hardware to test and don't know all the subtleties in the code... BTW, is
->>>>>> there some way to test the drivers without the physical video HW?
->>>>>
->>>>> You can use the vivi driver (drivers/media/platform/vivi) for this.
->>>>> However, while the vivi driver can import dma buffers it cannot export
->>>>> them. If you want that, then you have to use this tree:
->>>>>
->>>>> http://git.linuxtv.org/cgit.cgi/hverkuil/media_tree.git/log/?h=vb2-part4
->>>>   Thanks for the pointer that looks good. I've also found
->>>> drivers/media/platform/mem2mem_testdev.c which seems to do even more
->>>> testing of the area I made changes to. So now I have to find some userspace
->>>> tool which can issue proper ioctls to setup and use the buffers and I can
->>>> start testing what I wrote :)
->>>
->>> Get the v4l-utils.git repository (http://git.linuxtv.org/cgit.cgi/v4l-utils.git/).
->>> You want the v4l2-ctl tool. Don't use the version supplied by your distro,
->>> that's often too old.
->>>
->>> 'v4l2-ctl --help-streaming' gives the available options for doing streaming.
->>>
->>> So simple capturing from vivi is 'v4l2-ctl --stream-mmap' or '--stream-user'.
->>> You can't test dmabuf unless you switch to the vb2-part4 branch of my tree.
->>   Great, it seems to be doing something and it shows there's some bug in my
->> code. Thanks a lot for help.
->   OK, so after a small fix the basic functionality seems to be working. It
-> doesn't seem there's a way to test multiplanar buffers with vivi, is there?
+On 03/11/2014 10:30 AM, Joonsoo Kim wrote:
+> ---------8<---------------------
+>  From ff6fe77fb764ca5bf8705bf53d07d38e4111e84c Mon Sep 17 00:00:00 2001
+> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> Date: Tue, 11 Mar 2014 14:14:25 +0900
+> Subject: [PATCH] slab: remove kernel_map_pages() optimization in slab
+>   poisoning
+>
+> If CONFIG_DEBUG_PAGEALLOC enables, slab poisoning functionality uses
+> kernel_map_pages(), instead of real poisoning, to detect memory corruption
+> with low overhead. But, in that case, slab leak detector trigger oops.
+> Reason is that slab leak detector accesses all active objects, especially
+> including objects in cpu slab caches to get the caller information.
+> These objects are already unmapped via kernel_map_pages() to detect memory
+> corruption, so oops could be triggered.
+>
+> Following is oops message reported from Dave.
+>
+> It blew up when something tried to read /proc/slab_allocators
+> (Just cat it, and you should see the oops below)
+>
+>    Oops: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
+>    Modules linked in: fuse hidp snd_seq_dummy tun rfcomm bnep llc2 af_key can_raw ipt_ULOG can_bcm nfnetlink scsi_transport_iscsi nfc caif_socket caif af_802154 phonet af_rxrpc can pppoe pppox ppp_generic
+>    +slhc irda crc_ccitt rds rose x25 atm netrom appletalk ipx p8023 psnap p8022 llc ax25 cfg80211 xfs coretemp hwmon x86_pkg_temp_thermal kvm_intel kvm crct10dif_pclmul crc32c_intel ghash_clmulni_intel
+>    +libcrc32c usb_debug microcode snd_hda_codec_hdmi snd_hda_codec_realtek snd_hda_codec_generic pcspkr btusb bluetooth 6lowpan_iphc rfkill snd_hda_intel snd_hda_codec snd_hwdep snd_seq snd_seq_device snd_pcm
+>    +snd_timer e1000e snd ptp shpchp soundcore pps_core serio_raw
+>    CPU: 1 PID: 9386 Comm: trinity-c33 Not tainted 3.14.0-rc5+ #131
+>    task: ffff8801aa46e890 ti: ffff880076924000 task.ti: ffff880076924000
+>    RIP: 0010:[<ffffffffaa1a8f4a>]  [<ffffffffaa1a8f4a>] handle_slab+0x8a/0x180
+>    RSP: 0018:ffff880076925de0  EFLAGS: 00010002
+>    RAX: 0000000000001000 RBX: 0000000000000000 RCX: 000000005ce85ce7
+>    RDX: ffffea00079be100 RSI: 0000000000001000 RDI: ffff880107458000
+>    RBP: ffff880076925e18 R08: 0000000000000001 R09: 0000000000000000
+>    R10: 0000000000000000 R11: 000000000000000f R12: ffff8801e6f84000
+>    R13: ffffea00079be100 R14: ffff880107458000 R15: ffff88022bb8d2c0
+>    FS:  00007fb769e45740(0000) GS:ffff88024d040000(0000) knlGS:0000000000000000
+>    CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+>    CR2: ffff8801e6f84ff8 CR3: 00000000a22db000 CR4: 00000000001407e0
+>    DR0: 0000000002695000 DR1: 0000000002695000 DR2: 0000000000000000
+>    DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000070602
+>    Stack:
+>     ffff8802339dcfc0 ffff88022bb8d2c0 ffff880107458000 ffff88022bb8d2c0
+>     ffff8802339dd008 ffff8802339dcfc0 ffffea00079be100 ffff880076925e68
+>     ffffffffaa1ad9be ffff880203fe4f00 ffff88022bb8d318 0000000076925e98
+>    Call Trace:
+>     [<ffffffffaa1ad9be>] leaks_show+0xce/0x240
+>     [<ffffffffaa1e6c0e>] seq_read+0x28e/0x490
+>     [<ffffffffaa23008d>] proc_reg_read+0x3d/0x80
+>     [<ffffffffaa1c026b>] vfs_read+0x9b/0x160
+>     [<ffffffffaa1c0d88>] SyS_read+0x58/0xb0
+>     [<ffffffffaa7420aa>] tracesys+0xd4/0xd9
+>    Code: f5 00 00 00 0f 1f 44 00 00 48 63 c8 44 3b 0c 8a 0f 84 e3 00 00 00 83 c0 01 44 39 c0 72 eb 41 f6 47 1a 01 0f 84 e9 00 00 00 89 f0 <4d> 8b 4c 04 f8 4d 85 c9 0f 84 88 00 00 00 49 8b 7e 08 4d 8d 46
+>    RIP  [<ffffffffaa1a8f4a>] handle_slab+0x8a/0x180
+>     RSP <ffff880076925de0>
+>    CR2: ffff8801e6f84ff8
+>
+> There are two solutions to fix the problem. One is to disable
+> CONFIG_DEBUG_SLAB_LEAK if CONFIG_DEBUG_PAGEALLOC=y. The other is to remove
+> kernel_map_pages() optimization in slab poisoning. I think that
+> second one is better, since we can use all functionality with some more
+> overhead. slab poisoning is already heavy operation, so adding more
+> overhead doesn't weaken their value.
+>
+> Reported-by: Dave Jones <davej@redhat.com>
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-For that you need to switch to the vb2-part4 branch as well. That has support
-for multiplanar.
+Joonsoo, can you please resend against slab/next? I'm seeing some 
+rejects here.
 
-Regards,
-
-	Hans
+- Pekka
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
