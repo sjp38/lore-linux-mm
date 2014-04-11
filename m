@@ -1,94 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f43.google.com (mail-la0-f43.google.com [209.85.215.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 378BE6B0038
-	for <linux-mm@kvack.org>; Fri, 11 Apr 2014 13:33:22 -0400 (EDT)
-Received: by mail-la0-f43.google.com with SMTP id e16so3728847lan.2
-        for <linux-mm@kvack.org>; Fri, 11 Apr 2014 10:33:20 -0700 (PDT)
-Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id h8si6012699lam.53.2014.04.11.10.33.18
+Received: from mail-ee0-f43.google.com (mail-ee0-f43.google.com [74.125.83.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 1CFCD6B003B
+	for <linux-mm@kvack.org>; Fri, 11 Apr 2014 14:28:22 -0400 (EDT)
+Received: by mail-ee0-f43.google.com with SMTP id e53so4452959eek.30
+        for <linux-mm@kvack.org>; Fri, 11 Apr 2014 11:28:21 -0700 (PDT)
+Received: from mail-ee0-f46.google.com (mail-ee0-f46.google.com [74.125.83.46])
+        by mx.google.com with ESMTPS id v2si11549880eel.136.2014.04.11.11.28.19
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Apr 2014 10:33:19 -0700 (PDT)
-Message-ID: <53482754.1090102@parallels.com>
-Date: Fri, 11 Apr 2014 21:33:08 +0400
-From: Vladimir Davydov <vdavydov@parallels.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 11 Apr 2014 11:28:20 -0700 (PDT)
+Received: by mail-ee0-f46.google.com with SMTP id t10so4425156eei.19
+        for <linux-mm@kvack.org>; Fri, 11 Apr 2014 11:28:19 -0700 (PDT)
+Message-ID: <5348343F.6030300@colorfullife.com>
+Date: Fri, 11 Apr 2014 20:28:15 +0200
+From: Manfred Spraul <manfred@colorfullife.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH -mm v2.2] mm: get rid of __GFP_KMEMCG
-References: <1396419365-351-1-git-send-email-vdavydov@parallels.com> <1396537559-17453-1-git-send-email-vdavydov@parallels.com> <alpine.DEB.2.10.1404111104550.13278@nuc>
-In-Reply-To: <alpine.DEB.2.10.1404111104550.13278@nuc>
-Content-Type: text/plain; charset="ISO-8859-1"
+Subject: Re: [PATCH] ipc,shm: disable shmmax and shmall by default
+References: <1396235199.2507.2.camel@buesod1.americas.hpqcorp.net> <20140331170546.3b3e72f0.akpm@linux-foundation.org> <1396371699.25314.11.camel@buesod1.americas.hpqcorp.net> <CAHGf_=qsf6vN5k=-PLraG8Q_uU1pofoBDktjVH1N92o76xPadQ@mail.gmail.com> <1396377083.25314.17.camel@buesod1.americas.hpqcorp.net> <CAHGf_=rLLBDr5ptLMvFD-M+TPQSnK3EP=7R+27K8or84rY-KLA@mail.gmail.com> <1396386062.25314.24.camel@buesod1.americas.hpqcorp.net> <CAHGf_=rhXrBQSmDBJJ-vPxBbhjJ91Fh2iWe1cf_UQd-tCfpb2w@mail.gmail.com> <20140401142947.927642a408d84df27d581e36@linux-foundation.org> <CAHGf_=p70rLOYwP2OgtK+2b+41=GwMA9R=rZYBqRr1w_O5UnKA@mail.gmail.com> <20140401144801.603c288674ab8f417b42a043@linux-foundation.org> <CAHGf_=r5AUu6yvJgOzwYDghBo6iT2q+nNumpvqwer+igcfChrA@mail.gmail.com> <1396394931.25314.34.camel@buesod1.americas.hpqcorp.net> <CAHGf_=rH+vfFzRrh35TETxjFU2HM0xnDQFweQ+Bfw20Pm2nL3g@mail.gmail.com> <1396484447.2953.1.camel@buesod1.americas.hpqcorp.net>
+In-Reply-To: <1396484447.2953.1.camel@buesod1.americas.hpqcorp.net>
+Content-Type: text/plain; charset=UTF-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, devel@openvz.org, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Glauber Costa <glommer@gmail.com>, Pekka Enberg <penberg@kernel.org>
+To: Davidlohr Bueso <davidlohr@hp.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, aswin@hp.com, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Greg Thelen <gthelen@google.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 
-On 04/11/2014 08:07 PM, Christoph Lameter wrote:
-> On Thu, 3 Apr 2014, Vladimir Davydov wrote:
+Hi Davidlohr,
+
+On 04/03/2014 02:20 AM, Davidlohr Bueso wrote:
+> The default size for shmmax is, and always has been, 32Mb.
+> Today, in the XXI century, it seems that this value is rather small,
+> making users have to increase it via sysctl, which can cause
+> unnecessary work and userspace application workarounds[1].
 >
->> --- a/include/linux/slab.h
->> +++ b/include/linux/slab.h
->> @@ -358,16 +358,7 @@ kmem_cache_alloc_node_trace(struct kmem_cache *s,
->>  #include <linux/slub_def.h>
->>  #endif
->>
->> -static __always_inline void *
->> -kmalloc_order(size_t size, gfp_t flags, unsigned int order)
->> -{
->> -	void *ret;
->> -
->> -	flags |= (__GFP_COMP | __GFP_KMEMCG);
->> -	ret = (void *) __get_free_pages(flags, order);
->> -	kmemleak_alloc(ret, size, 1, flags);
->> -	return ret;
->> -}
->> +extern void *kmalloc_order(size_t size, gfp_t flags, unsigned int order);
+> [snip]
+> Running this patch through LTP, everything passes, except the following,
+> which, due to the nature of this change, is quite expected:
 >
-> Hmmm... This was intentional inlined to allow inline expansion for calls
-> to kmalloc with large constants. The inline expansion directly converts
-> these calls to page allocator calls avoiding slab overhead.
+> shmget02    1  TFAIL  :  call succeeded unexpectedly
+Why is this TFAIL expected?
+>
+> diff --git a/ipc/shm.c b/ipc/shm.c
+> index 7645961..ae01ffa 100644
+> --- a/ipc/shm.c
+> +++ b/ipc/shm.c
+> @@ -490,10 +490,12 @@ static int newseg(struct ipc_namespace *ns, struct ipc_params *params)
+>   	int id;
+>   	vm_flags_t acctflag = 0;
+>   
+> -	if (size < SHMMIN || size > ns->shm_ctlmax)
+> +	if (ns->shm_ctlmax &&
+> +	    (size < SHMMIN || size > ns->shm_ctlmax))
+>   		return -EINVAL;
+>   
+> -	if (ns->shm_tot + numpages > ns->shm_ctlall)
+> +	if (ns->shm_ctlall &&
+> +	    ns->shm_tot + numpages > ns->shm_ctlall)
+>   		return -ENOSPC;
+>   
+>   	shp = ipc_rcu_alloc(sizeof(*shp));
+Ok, I understand it:
+Your patch disables checking shmmax, shmall *AND* checking for SHMMIN.
 
-I moved kmalloc_order() to slab_common.c, because I can't call
-alloc_kmem_pages() directly from the header (we don't have
-page_address() defined there, and including mm.h to slab.h wouldn't be
-good I think), and I don't want to introduce __get_free_kmem_pages().
-Sorry that I didn't state this explicitly in the comment to the patch.
+a) Have you double checked that 0-sized shm segments work properly?
+  Does the swap code handle it properly, ...?
 
-However, would it be any better if I introduced __get_free_kmem_pages()
-and called it from kmalloc_order(), which could be inlined then? I don't
-think so, because I would have to place __get_free_kmem_pages() in
-page_alloc.c just like __get_free_pages() (again, because including mm.h
-to gfp.h for page_address() isn't an option), and we would get exactly
-the same number of function calls.
+b) It's that yet another risk for user space incompatibility?
 
-I admit that this patch adds one extra function call to large kmallocs:
+c) The patch summary is misleading, the impact on SHMMIN is not mentioned.
 
- - before: __get_free_pages -> alloc_pages
- - after: kmalloc_order -> alloc_kmem_pages -> alloc_pages
-
-but that's not because I move kmalloc_order from the header, but rather
-because I introduce alloc_kmem_pages, which is not inline.
-
-What can we do to eliminate it? We could place alloc_kmem_pages()
-definition to a header file, but since it needs memcontrol.h for kmemcg
-charging functions, that would lead to slab.h depending on memcontrol.h
-eventually, which is not good IMO.
-
-Alternatively, we could
-
-#ifndef MEMCG_KMEM
-# define alloc_kmem_pages alloc_pages
-#endif
-
-so that we would avoid any additional overhead if kmemcg is compiled out.
-
-However, do we need to bother about one function call at all? My point
-is that one function call can be neglected in case of large kmem
-allocations, which are rather rare.
-
-Any thoughts/objections?
-
-Thanks.
+--
+     Manfred
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
