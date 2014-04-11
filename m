@@ -1,60 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f177.google.com (mail-yk0-f177.google.com [209.85.160.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 11DFC82966
-	for <linux-mm@kvack.org>; Fri, 11 Apr 2014 17:23:47 -0400 (EDT)
-Received: by mail-yk0-f177.google.com with SMTP id q200so5397571ykb.8
-        for <linux-mm@kvack.org>; Fri, 11 Apr 2014 14:23:45 -0700 (PDT)
-Received: from g5t1625.atlanta.hp.com (g5t1625.atlanta.hp.com. [15.192.137.8])
-        by mx.google.com with ESMTPS id n1si9495982yhm.159.2014.04.11.14.23.45
+Received: from mail-ie0-f179.google.com (mail-ie0-f179.google.com [209.85.223.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 5FEC482966
+	for <linux-mm@kvack.org>; Fri, 11 Apr 2014 17:31:28 -0400 (EDT)
+Received: by mail-ie0-f179.google.com with SMTP id lx4so6012732iec.10
+        for <linux-mm@kvack.org>; Fri, 11 Apr 2014 14:31:28 -0700 (PDT)
+Received: from mail-ie0-x22f.google.com (mail-ie0-x22f.google.com [2607:f8b0:4001:c03::22f])
+        by mx.google.com with ESMTPS id mx10si7090235icb.32.2014.04.11.14.31.27
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 11 Apr 2014 14:23:45 -0700 (PDT)
-Message-ID: <1397251420.2503.25.camel@buesod1.americas.hpqcorp.net>
-Subject: Re: [PATCH] [v2] mm: pass VM_BUG_ON() reason to dump_page()
-From: Davidlohr Bueso <davidlohr@hp.com>
-Date: Fri, 11 Apr 2014 14:23:40 -0700
-In-Reply-To: <20140411204232.C8CF1A7A@viggo.jf.intel.com>
-References: <20140411204232.C8CF1A7A@viggo.jf.intel.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 11 Apr 2014 14:31:27 -0700 (PDT)
+Received: by mail-ie0-f175.google.com with SMTP id to1so5957003ieb.20
+        for <linux-mm@kvack.org>; Fri, 11 Apr 2014 14:31:27 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <5347F188.10408@cybernetics.com>
+References: <53470E26.2030306@cybernetics.com>
+	<CANq1E4RWf_VbzF+dPYhzHKJvnrh86me5KajmaaB1u9f9FLzftA@mail.gmail.com>
+	<5347451C.4060106@amacapital.net>
+	<5347F188.10408@cybernetics.com>
+Date: Fri, 11 Apr 2014 23:31:27 +0200
+Message-ID: <CANq1E4T=38VLezGH2XUZ9kc=Vtp6Ca++-ATwmEfaXZS6UrTPig@mail.gmail.com>
+Subject: Re: [PATCH 2/6] shm: add sealing API
+From: David Herrmann <dh.herrmann@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, dave.hansen@linux.intel.com, kirill.shutemov@linux.intel.com
+To: Tony Battersby <tonyb@cybernetics.com>
+Cc: Andy Lutomirski <luto@amacapital.net>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>
 
-On Fri, 2014-04-11 at 13:42 -0700, Dave Hansen wrote:
-> Changes from v1:
->  * Fix tabs before spaces in the multi-line #define
-> 
-> --
-> From: Dave Hansen <dave.hansen@linux.intel.com>
-> 
-> I recently added a patch to let folks pass a "reason" string
-> dump_page() which gets dumped out along with the page's data.
-> This essentially saves the bug-reader a trip in to the source
-> to figure out why we BUG_ON()'d.
-> 
-> The new VM_BUG_ON_PAGE() passes in NULL for "reason".  It seems
-> like we might as well pass the BUG_ON() condition if we have it.
-> This will bloat kernels a bit with ~160 new strings, but this
-> is all under a debugging option anyway.
-> 
-> 	page:ffffea0008560280 count:1 mapcount:0 mapping:(null) index:0x0
-> 	page flags: 0xbfffc0000000001(locked)
-> 	page dumped because: VM_BUG_ON_PAGE(PageLocked(page))
-> 	------------[ cut here ]------------
-> 	kernel BUG at /home/davehans/linux.git/mm/filemap.c:464!
-> 	invalid opcode: 0000 [#1] SMP
-> 	CPU: 0 PID: 1 Comm: swapper/0 Not tainted 3.14.0+ #251
-> 	Hardware name: Bochs Bochs, BIOS Bochs 01/01/2011
-> 	...
-> 
-> 
-> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-> Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Hi
 
-Acked-by: Davidlohr Bueso <davidlohr@hp.com>
+On Fri, Apr 11, 2014 at 3:43 PM, Tony Battersby <tonyb@cybernetics.com> wrote:
+> Exactly.  For O_DIRECT, that would be the call to get_user_pages_fast()
+> from dio_refill_pages() in fs/direct-io.c, which is ultimately called
+> from blkdev_direct_IO().
+
+If you drop mmap_sem after pinning a page without taking a write-ref,
+you break i_mmap_writable / VM_DENYWRITE. In memfd I rely on
+i_mmap_writable to work, same thing is done by exec() (and the old,
+now disabled, MAP_DENYWRITE).
+
+I don't know whether I should care. I mean, everyone pinning pages and
+writing to it without holding the mmap_sem has to take a write-ref for
+each page or it breaks i_mmap_writable. So this seems to be a bug in
+direct-IO, not in anyone relying on it, right?
+
+Thanks
+David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
