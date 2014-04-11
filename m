@@ -1,76 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f43.google.com (mail-ee0-f43.google.com [74.125.83.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 1CFCD6B003B
-	for <linux-mm@kvack.org>; Fri, 11 Apr 2014 14:28:22 -0400 (EDT)
-Received: by mail-ee0-f43.google.com with SMTP id e53so4452959eek.30
-        for <linux-mm@kvack.org>; Fri, 11 Apr 2014 11:28:21 -0700 (PDT)
-Received: from mail-ee0-f46.google.com (mail-ee0-f46.google.com [74.125.83.46])
-        by mx.google.com with ESMTPS id v2si11549880eel.136.2014.04.11.11.28.19
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id B97156B003D
+	for <linux-mm@kvack.org>; Fri, 11 Apr 2014 15:32:31 -0400 (EDT)
+Received: by mail-pd0-f175.google.com with SMTP id x10so5617463pdj.6
+        for <linux-mm@kvack.org>; Fri, 11 Apr 2014 12:32:31 -0700 (PDT)
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+        by mx.google.com with ESMTPS id iw3si4794056pac.178.2014.04.11.12.32.30
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 11 Apr 2014 11:28:20 -0700 (PDT)
-Received: by mail-ee0-f46.google.com with SMTP id t10so4425156eei.19
-        for <linux-mm@kvack.org>; Fri, 11 Apr 2014 11:28:19 -0700 (PDT)
-Message-ID: <5348343F.6030300@colorfullife.com>
-Date: Fri, 11 Apr 2014 20:28:15 +0200
-From: Manfred Spraul <manfred@colorfullife.com>
+        Fri, 11 Apr 2014 12:32:30 -0700 (PDT)
+Received: by mail-pa0-f44.google.com with SMTP id bj1so5830213pad.3
+        for <linux-mm@kvack.org>; Fri, 11 Apr 2014 12:32:30 -0700 (PDT)
+Message-ID: <53484349.1000806@linaro.org>
+Date: Fri, 11 Apr 2014 12:32:25 -0700
+From: John Stultz <john.stultz@linaro.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH] ipc,shm: disable shmmax and shmall by default
-References: <1396235199.2507.2.camel@buesod1.americas.hpqcorp.net> <20140331170546.3b3e72f0.akpm@linux-foundation.org> <1396371699.25314.11.camel@buesod1.americas.hpqcorp.net> <CAHGf_=qsf6vN5k=-PLraG8Q_uU1pofoBDktjVH1N92o76xPadQ@mail.gmail.com> <1396377083.25314.17.camel@buesod1.americas.hpqcorp.net> <CAHGf_=rLLBDr5ptLMvFD-M+TPQSnK3EP=7R+27K8or84rY-KLA@mail.gmail.com> <1396386062.25314.24.camel@buesod1.americas.hpqcorp.net> <CAHGf_=rhXrBQSmDBJJ-vPxBbhjJ91Fh2iWe1cf_UQd-tCfpb2w@mail.gmail.com> <20140401142947.927642a408d84df27d581e36@linux-foundation.org> <CAHGf_=p70rLOYwP2OgtK+2b+41=GwMA9R=rZYBqRr1w_O5UnKA@mail.gmail.com> <20140401144801.603c288674ab8f417b42a043@linux-foundation.org> <CAHGf_=r5AUu6yvJgOzwYDghBo6iT2q+nNumpvqwer+igcfChrA@mail.gmail.com> <1396394931.25314.34.camel@buesod1.americas.hpqcorp.net> <CAHGf_=rH+vfFzRrh35TETxjFU2HM0xnDQFweQ+Bfw20Pm2nL3g@mail.gmail.com> <1396484447.2953.1.camel@buesod1.americas.hpqcorp.net>
-In-Reply-To: <1396484447.2953.1.camel@buesod1.americas.hpqcorp.net>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Subject: Re: [PATCH 0/5] Volatile Ranges (v12) & LSF-MM discussion fodder
+References: <1395436655-21670-1-git-send-email-john.stultz@linaro.org> <20140401212102.GM4407@cmpxchg.org> <533B313E.5000403@zytor.com> <533B4555.3000608@sr71.net> <533B8E3C.3090606@linaro.org> <20140402163638.GQ14688@cmpxchg.org> <CALAqxLUNKJQs+q__fwqggaRtqLz5sJtuxKdVPja8X0htDyaT6A@mail.gmail.com> <20140402175852.GS14688@cmpxchg.org> <CALAqxLXs+tB3h6wqZ3m5qOFWfgeJcH03k-0dsj+NUoB5D5LEgQ@mail.gmail.com> <20140402194708.GV14688@cmpxchg.org> <533C6F6E.4080601@linaro.org>
+In-Reply-To: <533C6F6E.4080601@linaro.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <davidlohr@hp.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, aswin@hp.com, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Greg Thelen <gthelen@google.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Dave Hansen <dave@sr71.net>, "H. Peter Anvin" <hpa@zytor.com>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Neil Brown <neilb@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, Minchan Kim <minchan@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-Hi Davidlohr,
-
-On 04/03/2014 02:20 AM, Davidlohr Bueso wrote:
-> The default size for shmmax is, and always has been, 32Mb.
-> Today, in the XXI century, it seems that this value is rather small,
-> making users have to increase it via sysctl, which can cause
-> unnecessary work and userspace application workarounds[1].
+On 04/02/2014 01:13 PM, John Stultz wrote:
+> On 04/02/2014 12:47 PM, Johannes Weiner wrote:
 >
-> [snip]
-> Running this patch through LTP, everything passes, except the following,
-> which, due to the nature of this change, is quite expected:
+>> It's really nothing but a use-after-free bug that has consequences for
+>> no-one but the faulty application.  The thing that IS new is that even
+>> a read is enough to corrupt your data in this case.
+>>
+>> MADV_REVIVE could return 0 if all pages in the specified range were
+>> present, -Esomething if otherwise.  That would be semantically sound
+>> even if userspace messes up.
+> So its semantically more of just a combined mincore+dirty operation..
+> and nothing more?
 >
-> shmget02    1  TFAIL  :  call succeeded unexpectedly
-Why is this TFAIL expected?
+> What are other folks thinking about this? Although I don't particularly
+> like it, I probably could go along with Johannes' approach, forgoing
+> SIGBUS for zero-fill and adapting the semantics that are in my mind a
+> bit stranger. This would allow for ashmem-like style behavior w/ the
+> additional  write-clears-volatile-state and read-clears-purged-state
+> constraints (which I don't think would be problematic for Android, but
+> am not totally sure).
 >
-> diff --git a/ipc/shm.c b/ipc/shm.c
-> index 7645961..ae01ffa 100644
-> --- a/ipc/shm.c
-> +++ b/ipc/shm.c
-> @@ -490,10 +490,12 @@ static int newseg(struct ipc_namespace *ns, struct ipc_params *params)
->   	int id;
->   	vm_flags_t acctflag = 0;
->   
-> -	if (size < SHMMIN || size > ns->shm_ctlmax)
-> +	if (ns->shm_ctlmax &&
-> +	    (size < SHMMIN || size > ns->shm_ctlmax))
->   		return -EINVAL;
->   
-> -	if (ns->shm_tot + numpages > ns->shm_ctlall)
-> +	if (ns->shm_ctlall &&
-> +	    ns->shm_tot + numpages > ns->shm_ctlall)
->   		return -ENOSPC;
->   
->   	shp = ipc_rcu_alloc(sizeof(*shp));
-Ok, I understand it:
-Your patch disables checking shmmax, shmall *AND* checking for SHMMIN.
+> But I do worry that these semantics are easier for kernel-mm-developers
+> to grasp, but are much much harder for application developers to
+> understand.
 
-a) Have you double checked that 0-sized shm segments work properly?
-  Does the swap code handle it properly, ...?
+So I don't feel like we've gotten enough feedback for consensus here.
 
-b) It's that yet another risk for user space incompatibility?
+Thus, to at least address other issues pointed out at LSF-MM, I'm going
+to shortly send out a v13 of the patchset which keeps with the previous
+approach instead of adopting Johannes' suggested approach here.
 
-c) The patch summary is misleading, the impact on SHMMIN is not mentioned.
+If folks do prefer Johannes' approach, please speak up as I'm willing to
+give it a whirl, despite my concerns about the subtle semantics.
 
---
-     Manfred
+thanks
+-john
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
