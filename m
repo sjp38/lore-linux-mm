@@ -1,97 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f52.google.com (mail-pb0-f52.google.com [209.85.160.52])
-	by kanga.kvack.org (Postfix) with ESMTP id B74046B0035
-	for <linux-mm@kvack.org>; Fri, 11 Apr 2014 03:36:33 -0400 (EDT)
-Received: by mail-pb0-f52.google.com with SMTP id rr13so5066523pbb.39
-        for <linux-mm@kvack.org>; Fri, 11 Apr 2014 00:36:33 -0700 (PDT)
-Received: from out1-smtp.messagingengine.com (out1-smtp.messagingengine.com. [66.111.4.25])
-        by mx.google.com with ESMTPS id ep2si3638722pbb.131.2014.04.11.00.36.32
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 11 Apr 2014 00:36:32 -0700 (PDT)
-Message-ID: <53479B7B.6050008@iki.fi>
-Date: Fri, 11 Apr 2014 10:36:27 +0300
-From: Pekka Enberg <penberg@iki.fi>
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 339396B0035
+	for <linux-mm@kvack.org>; Fri, 11 Apr 2014 04:13:41 -0400 (EDT)
+Received: by mail-pd0-f181.google.com with SMTP id p10so4975595pdj.12
+        for <linux-mm@kvack.org>; Fri, 11 Apr 2014 01:13:40 -0700 (PDT)
+Received: from heian.cn.fujitsu.com ([59.151.112.132])
+        by mx.google.com with ESMTP id zw7si3691662pac.234.2014.04.11.01.13.38
+        for <linux-mm@kvack.org>;
+        Fri, 11 Apr 2014 01:13:40 -0700 (PDT)
+Message-ID: <5347A42D.9000503@cn.fujitsu.com>
+Date: Fri, 11 Apr 2014 16:13:33 +0800
+From: Tang Chen <tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
-Subject: Re: oops in slab/leaks_show
-References: <20140307025703.GA30770@redhat.com> <alpine.DEB.2.10.1403071117230.21846@nuc> <20140311003459.GA25657@lge.com> <20140311010135.GA25845@lge.com> <20140311012455.GA5151@redhat.com> <20140311025811.GA601@lge.com> <20140311083009.GA32004@lge.com>
-In-Reply-To: <20140311083009.GA32004@lge.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [PATCH 1/1] doc, mempolicy: Fix wrong document in numa_memory_policy.txt
+References: <1396410782-26208-1-git-send-email-tangchen@cn.fujitsu.com> <5347280B.3000303@infradead.org>
+In-Reply-To: <5347280B.3000303@infradead.org>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Dave Jones <davej@redhat.com>, Christoph Lameter <cl@linux.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Pekka Enberg <penberg@kernel.org>, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Al Viro <viro@zeniv.linux.org.uk>
+To: Randy Dunlap <rdunlap@infradead.org>
+Cc: hannes@cmpxchg.org, mhocko@suse.cz, bsingharora@gmail.com, kamezawa.hiroyu@jp.fujitsu.com, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, guz.fnst@cn.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>
 
-On 03/11/2014 10:30 AM, Joonsoo Kim wrote:
-> ---------8<---------------------
->  From ff6fe77fb764ca5bf8705bf53d07d38e4111e84c Mon Sep 17 00:00:00 2001
-> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> Date: Tue, 11 Mar 2014 14:14:25 +0900
-> Subject: [PATCH] slab: remove kernel_map_pages() optimization in slab
->   poisoning
->
-> If CONFIG_DEBUG_PAGEALLOC enables, slab poisoning functionality uses
-> kernel_map_pages(), instead of real poisoning, to detect memory corruption
-> with low overhead. But, in that case, slab leak detector trigger oops.
-> Reason is that slab leak detector accesses all active objects, especially
-> including objects in cpu slab caches to get the caller information.
-> These objects are already unmapped via kernel_map_pages() to detect memory
-> corruption, so oops could be triggered.
->
-> Following is oops message reported from Dave.
->
-> It blew up when something tried to read /proc/slab_allocators
-> (Just cat it, and you should see the oops below)
->
->    Oops: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
->    Modules linked in: fuse hidp snd_seq_dummy tun rfcomm bnep llc2 af_key can_raw ipt_ULOG can_bcm nfnetlink scsi_transport_iscsi nfc caif_socket caif af_802154 phonet af_rxrpc can pppoe pppox ppp_generic
->    +slhc irda crc_ccitt rds rose x25 atm netrom appletalk ipx p8023 psnap p8022 llc ax25 cfg80211 xfs coretemp hwmon x86_pkg_temp_thermal kvm_intel kvm crct10dif_pclmul crc32c_intel ghash_clmulni_intel
->    +libcrc32c usb_debug microcode snd_hda_codec_hdmi snd_hda_codec_realtek snd_hda_codec_generic pcspkr btusb bluetooth 6lowpan_iphc rfkill snd_hda_intel snd_hda_codec snd_hwdep snd_seq snd_seq_device snd_pcm
->    +snd_timer e1000e snd ptp shpchp soundcore pps_core serio_raw
->    CPU: 1 PID: 9386 Comm: trinity-c33 Not tainted 3.14.0-rc5+ #131
->    task: ffff8801aa46e890 ti: ffff880076924000 task.ti: ffff880076924000
->    RIP: 0010:[<ffffffffaa1a8f4a>]  [<ffffffffaa1a8f4a>] handle_slab+0x8a/0x180
->    RSP: 0018:ffff880076925de0  EFLAGS: 00010002
->    RAX: 0000000000001000 RBX: 0000000000000000 RCX: 000000005ce85ce7
->    RDX: ffffea00079be100 RSI: 0000000000001000 RDI: ffff880107458000
->    RBP: ffff880076925e18 R08: 0000000000000001 R09: 0000000000000000
->    R10: 0000000000000000 R11: 000000000000000f R12: ffff8801e6f84000
->    R13: ffffea00079be100 R14: ffff880107458000 R15: ffff88022bb8d2c0
->    FS:  00007fb769e45740(0000) GS:ffff88024d040000(0000) knlGS:0000000000000000
->    CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
->    CR2: ffff8801e6f84ff8 CR3: 00000000a22db000 CR4: 00000000001407e0
->    DR0: 0000000002695000 DR1: 0000000002695000 DR2: 0000000000000000
->    DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000070602
->    Stack:
->     ffff8802339dcfc0 ffff88022bb8d2c0 ffff880107458000 ffff88022bb8d2c0
->     ffff8802339dd008 ffff8802339dcfc0 ffffea00079be100 ffff880076925e68
->     ffffffffaa1ad9be ffff880203fe4f00 ffff88022bb8d318 0000000076925e98
->    Call Trace:
->     [<ffffffffaa1ad9be>] leaks_show+0xce/0x240
->     [<ffffffffaa1e6c0e>] seq_read+0x28e/0x490
->     [<ffffffffaa23008d>] proc_reg_read+0x3d/0x80
->     [<ffffffffaa1c026b>] vfs_read+0x9b/0x160
->     [<ffffffffaa1c0d88>] SyS_read+0x58/0xb0
->     [<ffffffffaa7420aa>] tracesys+0xd4/0xd9
->    Code: f5 00 00 00 0f 1f 44 00 00 48 63 c8 44 3b 0c 8a 0f 84 e3 00 00 00 83 c0 01 44 39 c0 72 eb 41 f6 47 1a 01 0f 84 e9 00 00 00 89 f0 <4d> 8b 4c 04 f8 4d 85 c9 0f 84 88 00 00 00 49 8b 7e 08 4d 8d 46
->    RIP  [<ffffffffaa1a8f4a>] handle_slab+0x8a/0x180
->     RSP <ffff880076925de0>
->    CR2: ffff8801e6f84ff8
->
-> There are two solutions to fix the problem. One is to disable
-> CONFIG_DEBUG_SLAB_LEAK if CONFIG_DEBUG_PAGEALLOC=y. The other is to remove
-> kernel_map_pages() optimization in slab poisoning. I think that
-> second one is better, since we can use all functionality with some more
-> overhead. slab poisoning is already heavy operation, so adding more
-> overhead doesn't weaken their value.
->
-> Reported-by: Dave Jones <davej@redhat.com>
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Joonsoo, can you please resend against slab/next? I'm seeing some 
-rejects here.
+Hi Randy,
 
-- Pekka
+On 04/11/2014 07:23 AM, Randy Dunlap wrote:
+> On 04/01/2014 08:53 PM, Tang Chen wrote:
+>> In document numa_memory_policy.txt, the following examples for flag
+>> MPOL_F_RELATIVE_NODES are incorrect.
+>>
+>> 	For example, consider a task that is attached to a cpuset with
+>> 	mems 2-5 that sets an Interleave policy over the same set with
+>> 	MPOL_F_RELATIVE_NODES.  If the cpuset's mems change to 3-7, the
+>> 	interleave now occurs over nodes 3,5-6.  If the cpuset's mems
+>> 	then change to 0,2-3,5, then the interleave occurs over nodes
+>> 	0,3,5.
+>>
+>> According to the comment of the patch adding flag MPOL_F_RELATIVE_NODES,
+>> the nodemasks the user specifies should be considered relative to the
+>> current task's mems_allowed.
+>> (https://lkml.org/lkml/2008/2/29/428)
+>>
+>> And according to numa_memory_policy.txt, if the user's nodemask includes
+>> nodes that are outside the range of the new set of allowed nodes, then
+>> the remap wraps around to the beginning of the nodemask and, if not already
+>> set, sets the node in the mempolicy nodemask.
+>>
+>> So in the example, if the user specifies 2-5, for a task whose mems_allowed
+>> is 3-7, the nodemasks should be remapped the third, fourth, fifth, sixth
+>> node in mems_allowed.  like the following:
+>>
+>> 	mems_allowed:       3  4  5  6  7
+>>
+>> 	relative index:     0  1  2  3  4
+>> 	                    5
+>>
+>> So the nodemasks should be remapped to 3,5-7, but not 3,5-6.
+>>
+>> And for a task whose mems_allowed is 0,2-3,5, the nodemasks should be
+>> remapped to 0,2-3,5, but not 0,3,5.
+>>
+>> 	mems_allowed:       0  2  3  5
+>>
+>>          relative index:     0  1  2  3
+>>                              4  5
+>>
+>>
+>> Signed-off-by: Tang Chen<tangchen@cn.fujitsu.com>
+>
+> Wow.  This was not an April fools joke, right?
+>
+> Have there been any acks of this?  I haven't seen any responses to it.
+
+Thanks for the reply. I found this problem when I was reading the doc.
+I think it is wrong. And according to the original patch:
+
+https://lkml.org/lkml/2008/2/29/428
+
+I think it should be fixed in the above way. But if I was wrong, please
+let me know, and I think we can at least improve the doc since it is
+not that easy to understand.
+
+Thanks. :)
+
+>
+> Andrew, do you want to merge it?
+>
+>
+>> ---
+>>   Documentation/vm/numa_memory_policy.txt | 5 ++---
+>>   1 file changed, 2 insertions(+), 3 deletions(-)
+>>
+>> diff --git a/Documentation/vm/numa_memory_policy.txt b/Documentation/vm/numa_memory_policy.txt
+>> index 4e7da65..badb050 100644
+>> --- a/Documentation/vm/numa_memory_policy.txt
+>> +++ b/Documentation/vm/numa_memory_policy.txt
+>> @@ -174,7 +174,6 @@ Components of Memory Policies
+>>   	allocation fails, the kernel will search other nodes, in order of
+>>   	increasing distance from the preferred node based on information
+>>   	provided by the platform firmware.
+>> -	containing the cpu where the allocation takes place.
+>>
+>>   	    Internally, the Preferred policy uses a single node--the
+>>   	    preferred_node member of struct mempolicy.  When the internal
+>> @@ -275,9 +274,9 @@ Components of Memory Policies
+>>   	    For example, consider a task that is attached to a cpuset with
+>>   	    mems 2-5 that sets an Interleave policy over the same set with
+>>   	    MPOL_F_RELATIVE_NODES.  If the cpuset's mems change to 3-7, the
+>> -	    interleave now occurs over nodes 3,5-6.  If the cpuset's mems
+>> +	    interleave now occurs over nodes 3,5-7.  If the cpuset's mems
+>>   	    then change to 0,2-3,5, then the interleave occurs over nodes
+>> -	    0,3,5.
+>> +	    0,2-3,5.
+>>
+>>   	    Thanks to the consistent remapping, applications preparing
+>>   	    nodemasks to specify memory policies using this flag should
+>>
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
