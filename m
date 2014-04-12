@@ -1,65 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f170.google.com (mail-ob0-f170.google.com [209.85.214.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 88C926B0099
-	for <linux-mm@kvack.org>; Sat, 12 Apr 2014 12:22:30 -0400 (EDT)
-Received: by mail-ob0-f170.google.com with SMTP id uz6so7497975obc.29
-        for <linux-mm@kvack.org>; Sat, 12 Apr 2014 09:22:29 -0700 (PDT)
-Received: from g2t2353.austin.hp.com (g2t2353.austin.hp.com. [15.217.128.52])
-        by mx.google.com with ESMTPS id me5si10404023obb.78.2014.04.12.09.22.28
+Received: from mail-qg0-f53.google.com (mail-qg0-f53.google.com [209.85.192.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 9DAA96B009B
+	for <linux-mm@kvack.org>; Sat, 12 Apr 2014 17:03:28 -0400 (EDT)
+Received: by mail-qg0-f53.google.com with SMTP id f51so6119504qge.12
+        for <linux-mm@kvack.org>; Sat, 12 Apr 2014 14:03:28 -0700 (PDT)
+Received: from mail-qc0-x234.google.com (mail-qc0-x234.google.com [2607:f8b0:400d:c01::234])
+        by mx.google.com with ESMTPS id d5si1312991qad.109.2014.04.12.14.03.27
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sat, 12 Apr 2014 09:22:28 -0700 (PDT)
-Message-ID: <1397319744.2686.16.camel@buesod1.americas.hpqcorp.net>
-Subject: Re: [PATCH] ipc/shm: disable SHMALL, SHMMAX
-From: Davidlohr Bueso <davidlohr@hp.com>
-Date: Sat, 12 Apr 2014 09:22:24 -0700
-In-Reply-To: <1397317199.2686.12.camel@buesod1.americas.hpqcorp.net>
-References: <1397303284-2216-1-git-send-email-manfred@colorfullife.com>
-	 <1397317199.2686.12.camel@buesod1.americas.hpqcorp.net>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Sat, 12 Apr 2014 14:03:27 -0700 (PDT)
+Received: by mail-qc0-f180.google.com with SMTP id w7so7379493qcr.39
+        for <linux-mm@kvack.org>; Sat, 12 Apr 2014 14:03:27 -0700 (PDT)
+From: Dan Streetman <ddstreet@ieee.org>
+Subject: [PATCH 0/2] swap: simplify/fix swap_list handling and iteration
+Date: Sat, 12 Apr 2014 17:00:52 -0400
+Message-Id: <1397336454-13855-1-git-send-email-ddstreet@ieee.org>
+In-Reply-To: <alpine.LSU.2.11.1402232344280.1890@eggly.anvils>
+References: <alpine.LSU.2.11.1402232344280.1890@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Manfred Spraul <manfred@colorfullife.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Davidlohr Bueso <davidlohr.bueso@hp.com>, LKML <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, gthelen@google.com, aswin@hp.com, linux-mm@kvack.org
+To: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>
+Cc: Dan Streetman <ddstreet@ieee.org>, Michal Hocko <mhocko@suse.cz>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Weijie Yang <weijieut@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Sat, 2014-04-12 at 08:39 -0700, Davidlohr Bueso wrote:
-> On Sat, 2014-04-12 at 13:48 +0200, Manfred Spraul wrote:
-> > Shared memory segment can be abused to trigger out-of-memory conditions and
-> > the standard measures against out-of-memory do not work:
-> > 
-> > - It is not possible to use setrlimit to limit the size of shm segments.
-> > 
-> > - Segments can exist without association with any processes, thus
-> >   the oom-killer is unable to free that memory.
-> > 
-> > Therefore Linux always limited the size of segments by default to 32 MB.
-> > As most systems do not need a protection against malicious user space apps,
-> > a default that forces most admins and distros to change it doesn't make
-> > sense.
-> > 
-> > The patch disables both limits by setting the limits to ULONG_MAX.
-> > 
-> > Admins who need a protection against out-of-memory conditions should
-> > reduce the limits again and/or enable shm_rmid_forced.
-> > 
-> > Davidlohr: What do you think?
-> > 
-> > I prefer this approach: No need to update the man pages, smaller change
-> > of the code, smaller risk of user space incompatibilities.
-> 
-> As I've mentioned before, both approaches are correct.
-> 
-> I still much prefer using 0 instead of ULONG_MAX, it's far easier to
-> understand. And considering the v2 which fixes the shmget(key, 0, flg)
-> usage, I _still_ don't see why it would cause legitimate user
-> incompatibilities.
+The logic controlling the singly-linked list of swap_info_struct entries
+for all active, i.e. swapon'ed, swap targets is rather complex, because:
+-it stores the entries in priority order
+-there is a pointer to the highest priority entry
+-there is a pointer to the highest priority not-full entry
+-there is a highest_priority_index variable set outside the swap_lock
+-swap entries of equal priority should be used equally
 
-Also, if the user overflows the variable (indicating that he/she wants
-to increase it to reflect something 'unlimited') and it ends up being 0,
-then it becomes a valid value, not something totally wrong as it is
-today.
+this complexity leads to bugs such as:
+https://lkml.org/lkml/2014/2/13/181
+where different priority swap targets are incorrectly used equally.
+
+That bug probably could be solved with the existing singly-linked lists,
+but I think it would only add more complexity to the already difficult
+to understand get_swap_page() swap_list iteration logic.
+
+The first patch changes from a singly-linked list to a doubly-linked
+list using list_heads; the highest_priority_index and related code are
+removed and get_swap_page() starts each iteration at the highest priority
+swap_info entry, even if it's full.  While this does introduce
+unnecessary list iteration (i.e. Schlemiel the painter's algorithm)
+in the case where one or more of the highest priority entries are full,
+the iteration and manipulation code is much simpler and behaves
+correctly re: the above bug; and the second patch removes the unnecessary
+iteration.
+
+The second patch adds a new list that contains only swap_info entries
+that are both active and not full, and a new spinlock to protect it.
+This allows swap_info entries to be added or removed from the new list
+immediately as they become full or not full.
+
+
+Dan Streetman (2):
+  swap: change swap_info singly-linked list to list_head
+  swap: use separate priority list for available swap_infos
+
+ include/linux/swap.h     |   8 +--
+ include/linux/swapfile.h |   2 +-
+ mm/frontswap.c           |  13 ++---
+ mm/swapfile.c            | 212 ++++++++++++++++++++++++++++++++++---------------------------------
+ 4 files changed, 114 insertions(+), 121 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
