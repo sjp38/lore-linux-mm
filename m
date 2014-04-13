@@ -1,49 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f41.google.com (mail-ee0-f41.google.com [74.125.83.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 88A9B6B00A7
-	for <linux-mm@kvack.org>; Sun, 13 Apr 2014 14:05:40 -0400 (EDT)
-Received: by mail-ee0-f41.google.com with SMTP id t10so5877656eei.0
-        for <linux-mm@kvack.org>; Sun, 13 Apr 2014 11:05:40 -0700 (PDT)
-Received: from mail-ee0-f45.google.com (mail-ee0-f45.google.com [74.125.83.45])
-        by mx.google.com with ESMTPS id p8si18104057eew.156.2014.04.13.11.05.38
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sun, 13 Apr 2014 11:05:39 -0700 (PDT)
-Received: by mail-ee0-f45.google.com with SMTP id d17so5752012eek.18
-        for <linux-mm@kvack.org>; Sun, 13 Apr 2014 11:05:38 -0700 (PDT)
-Message-ID: <534AD1EE.3050705@colorfullife.com>
-Date: Sun, 13 Apr 2014 20:05:34 +0200
-From: Manfred Spraul <manfred@colorfullife.com>
+Received: from mail-pb0-f41.google.com (mail-pb0-f41.google.com [209.85.160.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 989B96B00A9
+	for <linux-mm@kvack.org>; Sun, 13 Apr 2014 14:05:56 -0400 (EDT)
+Received: by mail-pb0-f41.google.com with SMTP id jt11so7434625pbb.28
+        for <linux-mm@kvack.org>; Sun, 13 Apr 2014 11:05:56 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id gg7si7505959pac.188.2014.04.13.11.05.55
+        for <linux-mm@kvack.org>;
+        Sun, 13 Apr 2014 11:05:55 -0700 (PDT)
+Date: Sun, 13 Apr 2014 14:05:52 -0400
+From: Matthew Wilcox <willy@linux.intel.com>
+Subject: Re: [PATCH v7 06/22] Replace XIP read and write with DAX I/O
+Message-ID: <20140413180552.GS5727@linux.intel.com>
+References: <cover.1395591795.git.matthew.r.wilcox@intel.com>
+ <3ebe329d8713f7db4c105021a845316a47a29797.1395591795.git.matthew.r.wilcox@intel.com>
+ <20140408175600.GE2713@quack.suse.cz>
+ <20140408202102.GB5727@linux.intel.com>
+ <20140409091450.GA32103@quack.suse.cz>
+ <20140409151908.GD5727@linux.intel.com>
+ <20140409205529.GO32103@quack.suse.cz>
 MIME-Version: 1.0
-Subject: Re: [PATCH] ipc,shm: increase default size for shmmax
-References: <1396235199.2507.2.camel@buesod1.americas.hpqcorp.net> <1396306773.18499.22.camel@buesod1.americas.hpqcorp.net> <20140331161308.6510381345cb9a1b419d5ec0@linux-foundation.org> <1396308332.18499.25.camel@buesod1.americas.hpqcorp.net> <20140331170546.3b3e72f0.akpm@linux-foundation.org> <1396371699.25314.11.camel@buesod1.americas.hpqcorp.net> <CAHGf_=qsf6vN5k=-PLraG8Q_uU1pofoBDktjVH1N92o76xPadQ@mail.gmail.com> <1396377083.25314.17.camel@buesod1.americas.hpqcorp.net> <CAHGf_=rLLBDr5ptLMvFD-M+TPQSnK3EP=7R+27K8or84rY-KLA@mail.gmail.com> <1396386062.25314.24.camel@buesod1.americas.hpqcorp.net> <CAHGf_=rhXrBQSmDBJJ-vPxBbhjJ91Fh2iWe1cf_UQd-tCfpb2w@mail.gmail.com> <20140401142947.927642a408d84df27d581e36@linux-foundation.org> <CAHGf_=p70rLOYwP2OgtK+2b+41=GwMA9R=rZYBqRr1w_O5UnKA@mail.gmail.com> <20140401144801.603c288674ab8f417b42a043@linux-foundation.org> <1396389751.25314.26.camel@buesod1.americas.hpqcorp.net> <20140401150843.13da3743554ad541629c936d@linux-foundation.org>
-In-Reply-To: <20140401150843.13da3743554ad541629c936d@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140409205529.GO32103@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Davidlohr Bueso <davidlohr@hp.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, aswin@hp.com, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Jan Kara <jack@suse.cz>
+Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi Andrew,
+On Wed, Apr 09, 2014 at 10:55:29PM +0200, Jan Kara wrote:
+> > In addition to writing back dirty pages, filemap_write_and_wait_range()
+> > will evict clean pages.  Unintuitive, I know, but it matches what the
+> > direct I/O path does.  Plus, if we fall back to buffered I/O for holes
+> > (see above), then this will do the right thing at that time.
+>   Ugh, I'm pretty certain filemap_write_and_wait_range() doesn't evict
+> anything ;). Direct IO path calls that function so that direct IO read
+> after buffered write returns the written data. In that case we don't evict
+> anything from page cache because direct IO read doesn't invalidate any
+> information we have cached. Only direct IO write does that and for that we
+> call invalidate_inode_pages2_range() after writing the pages. So I maintain
+> that what you do doesn't make sense to me. You might need to do some
+> invalidation of hole pages. But note that generic_file_direct_write() does
+> that for you and even though that isn't serialized in any way with page
+> faults which can instantiate the hole pages again, things should work out
+> fine for you since that function also invalidates the range again after
+> ->direct_IO callback is done. So AFAICT you don't have to do anything
+> except writing some nice comment about this ;).
 
-On 04/02/2014 12:08 AM, Andrew Morton wrote:
-> Well, I'm assuming 64GB==infinity. It *was* infinity in the RHEL5 
-> timeframe, but infinity has since become larger so pickanumber. 
-
-I think infinity is the right solution:
-The only common case where infinity is wrong would be Android - and 
-Android disables sysv shm entirely.
-
-There are two patches:
-http://marc.info/?l=linux-kernel&m=139730332306185&q=raw
-http://marc.info/?l=linux-kernel&m=139727299800644&q=raw
-
-Could you apply one of them?
-I wrote the first one, thus I'm biased which one is better.
-
---
-     Manfred
+You're right.  I'm not sure what I got confused with there.  I don't
+think there's a race I need to worry about ... even if another page gets
+instantiated (consider one thread furiously loading from a hole as fast
+as it can while another thread does a write), we'll shoot it down again.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
