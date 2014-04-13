@@ -1,44 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 7885D6B00B0
-	for <linux-mm@kvack.org>; Sun, 13 Apr 2014 18:37:14 -0400 (EDT)
-Received: by mail-pd0-f175.google.com with SMTP id x10so7356433pdj.20
-        for <linux-mm@kvack.org>; Sun, 13 Apr 2014 15:37:11 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id s8si7731470pas.303.2014.04.13.15.37.11
+Received: from mail-pb0-f43.google.com (mail-pb0-f43.google.com [209.85.160.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 10E746B00B2
+	for <linux-mm@kvack.org>; Sun, 13 Apr 2014 19:00:01 -0400 (EDT)
+Received: by mail-pb0-f43.google.com with SMTP id um1so7506479pbc.16
+        for <linux-mm@kvack.org>; Sun, 13 Apr 2014 16:00:01 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id si6si7753220pab.285.2014.04.13.16.00.00
         for <linux-mm@kvack.org>;
-        Sun, 13 Apr 2014 15:37:11 -0700 (PDT)
-Date: Sun, 13 Apr 2014 15:07:21 -0400
-From: Matthew Wilcox <willy@linux.intel.com>
-Subject: Re: [PATCH v7 08/22] Replace xip_truncate_page with dax_truncate_page
-Message-ID: <20140413190721.GA21460@linux.intel.com>
-References: <cover.1395591795.git.matthew.r.wilcox@intel.com>
- <fd328c564ddc79b41a3a8d754080e6e6e77bbf4f.1395591795.git.matthew.r.wilcox@intel.com>
- <20140408221759.GD26019@quack.suse.cz>
- <20140409092635.GB32103@quack.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140409092635.GB32103@quack.suse.cz>
+        Sun, 13 Apr 2014 16:00:01 -0700 (PDT)
+From: Matthew Wilcox <matthew.r.wilcox@intel.com>
+Subject: [PATCH v3 2/7] Factor clean_buffers() out of __mpage_writepage()
+Date: Sun, 13 Apr 2014 18:59:51 -0400
+Message-Id: <633307eab154ee954ee10f0e0cf2222dd4816006.1397429628.git.matthew.r.wilcox@intel.com>
+In-Reply-To: <cover.1397429628.git.matthew.r.wilcox@intel.com>
+References: <cover.1397429628.git.matthew.r.wilcox@intel.com>
+In-Reply-To: <cover.1397429628.git.matthew.r.wilcox@intel.com>
+References: <cover.1397429628.git.matthew.r.wilcox@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
+Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, willy@linux.intel.com
 
-On Wed, Apr 09, 2014 at 11:26:35AM +0200, Jan Kara wrote:
->   I thought about this for a while and classical IO, truncation etc. could
-> easily work for blocksize < pagesize. And for mmap() you could just use
-> pagecache. Not sure if it's worth the complications though. Anyway we
-> should decide whether we don't care about blocksize < PAGE_CACHE_SIZE at
-> all, or whether we try to make things which can work reasonably easily
-> functional. In that case dax_truncate_page() needs some tweaking because it
-> currently assumes blocksize == PAGE_CACHE_SIZE.
+__mpage_writepage() is over 200 lines long, has 20 local variables,
+four goto labels and could desperately use simplification.  Splitting
+clean_buffers() into a helper function improves matters a little,
+removing 20+ lines from it.
 
-I think it actually assumes that blocksize <= PAGE_CACHE_SIZE in that
-it doesn't contain a loop to iterate over all blocks.  It wouldn't be
-hard to fix but I'll just put in a comment noting what needs to be fixed
-... I don't think there's going to be a lot of enthusiasm for adding
-support for blocksize != PAGE_SIZE / PAGE_CACHE_SIZE.
+Signed-off-by: Matthew Wilcox <matthew.r.wilcox@intel.com>
+---
+ fs/mpage.c | 54 ++++++++++++++++++++++++++++++------------------------
+ 1 file changed, 30 insertions(+), 24 deletions(-)
+
+diff --git a/fs/mpage.c b/fs/mpage.c
+index 4979ffa..4cc9c5d 100644
+--- a/fs/mpage.c
++++ b/fs/mpage.c
+@@ -439,6 +439,35 @@ struct mpage_data {
+ 	unsigned use_writepage;
+ };
+ 
++/*
++ * We have our BIO, so we can now mark the buffers clean.  Make
++ * sure to only clean buffers which we know we'll be writing.
++ */
++static void clean_buffers(struct page *page, unsigned first_unmapped)
++{
++	unsigned buffer_counter = 0;
++	struct buffer_head *bh, *head;
++	if (!page_has_buffers(page))
++		return;
++	head = page_buffers(page);
++	bh = head;
++
++	do {
++		if (buffer_counter++ == first_unmapped)
++			break;
++		clear_buffer_dirty(bh);
++		bh = bh->b_this_page;
++	} while (bh != head);
++
++	/*
++	 * we cannot drop the bh if the page is not uptodate or a concurrent
++	 * readpage would fail to serialize with the bh and it would read from
++	 * disk before we reach the platter.
++	 */
++	if (buffer_heads_over_limit && PageUptodate(page))
++		try_to_free_buffers(page);
++}
++
+ static int __mpage_writepage(struct page *page, struct writeback_control *wbc,
+ 		      void *data)
+ {
+@@ -591,30 +620,7 @@ alloc_new:
+ 		goto alloc_new;
+ 	}
+ 
+-	/*
+-	 * OK, we have our BIO, so we can now mark the buffers clean.  Make
+-	 * sure to only clean buffers which we know we'll be writing.
+-	 */
+-	if (page_has_buffers(page)) {
+-		struct buffer_head *head = page_buffers(page);
+-		struct buffer_head *bh = head;
+-		unsigned buffer_counter = 0;
+-
+-		do {
+-			if (buffer_counter++ == first_unmapped)
+-				break;
+-			clear_buffer_dirty(bh);
+-			bh = bh->b_this_page;
+-		} while (bh != head);
+-
+-		/*
+-		 * we cannot drop the bh if the page is not uptodate
+-		 * or a concurrent readpage would fail to serialize with the bh
+-		 * and it would read from disk before we reach the platter.
+-		 */
+-		if (buffer_heads_over_limit && PageUptodate(page))
+-			try_to_free_buffers(page);
+-	}
++	clean_buffers(page, first_unmapped);
+ 
+ 	BUG_ON(PageWriteback(page));
+ 	set_page_writeback(page);
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
