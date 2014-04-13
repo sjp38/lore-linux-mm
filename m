@@ -1,59 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f50.google.com (mail-ee0-f50.google.com [74.125.83.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 4A1546B00AD
-	for <linux-mm@kvack.org>; Sun, 13 Apr 2014 14:46:33 -0400 (EDT)
-Received: by mail-ee0-f50.google.com with SMTP id c13so5808804eek.37
-        for <linux-mm@kvack.org>; Sun, 13 Apr 2014 11:46:31 -0700 (PDT)
-Received: from xavier.telenet-ops.be (xavier.telenet-ops.be. [195.130.132.52])
-        by mx.google.com with ESMTP id u49si18229609eef.52.2014.04.13.11.46.30
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 7885D6B00B0
+	for <linux-mm@kvack.org>; Sun, 13 Apr 2014 18:37:14 -0400 (EDT)
+Received: by mail-pd0-f175.google.com with SMTP id x10so7356433pdj.20
+        for <linux-mm@kvack.org>; Sun, 13 Apr 2014 15:37:11 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id s8si7731470pas.303.2014.04.13.15.37.11
         for <linux-mm@kvack.org>;
-        Sun, 13 Apr 2014 11:46:30 -0700 (PDT)
-From: Geert Uytterhoeven <geert@linux-m68k.org>
-Subject: [PATCH 2/2] mm: Initialize error in shmem_file_aio_read()
-Date: Sun, 13 Apr 2014 20:46:22 +0200
-Message-Id: <1397414783-28098-2-git-send-email-geert@linux-m68k.org>
-In-Reply-To: <1397414783-28098-1-git-send-email-geert@linux-m68k.org>
-References: <1397414783-28098-1-git-send-email-geert@linux-m68k.org>
+        Sun, 13 Apr 2014 15:37:11 -0700 (PDT)
+Date: Sun, 13 Apr 2014 15:07:21 -0400
+From: Matthew Wilcox <willy@linux.intel.com>
+Subject: Re: [PATCH v7 08/22] Replace xip_truncate_page with dax_truncate_page
+Message-ID: <20140413190721.GA21460@linux.intel.com>
+References: <cover.1395591795.git.matthew.r.wilcox@intel.com>
+ <fd328c564ddc79b41a3a8d754080e6e6e77bbf4f.1395591795.git.matthew.r.wilcox@intel.com>
+ <20140408221759.GD26019@quack.suse.cz>
+ <20140409092635.GB32103@quack.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140409092635.GB32103@quack.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Steve French <sfrench@samba.org>, linux-cifs@vger.kernel.org, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Geert Uytterhoeven <geert@linux-m68k.org>
+To: Jan Kara <jack@suse.cz>
+Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-mm/shmem.c: In function a??shmem_file_aio_reada??:
-mm/shmem.c:1414: warning: a??errora?? may be used uninitialized in this function
+On Wed, Apr 09, 2014 at 11:26:35AM +0200, Jan Kara wrote:
+>   I thought about this for a while and classical IO, truncation etc. could
+> easily work for blocksize < pagesize. And for mmap() you could just use
+> pagecache. Not sure if it's worth the complications though. Anyway we
+> should decide whether we don't care about blocksize < PAGE_CACHE_SIZE at
+> all, or whether we try to make things which can work reasonably easily
+> functional. In that case dax_truncate_page() needs some tweaking because it
+> currently assumes blocksize == PAGE_CACHE_SIZE.
 
-If the loop is aborted during the first iteration by one of the two first
-break statements, error will be uninitialized.
-
-Introduced by commit 6e58e79db8a16222b31fc8da1ca2ac2dccfc4237
-("introduce copy_page_to_iter, kill loop over iovec in
-generic_file_aio_read()").
-
-Signed-off-by: Geert Uytterhoeven <geert@linux-m68k.org>
----
-The code is too complex to see if this is an obvious false positive.
-
- mm/shmem.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/mm/shmem.c b/mm/shmem.c
-index 8f1a95406bae..9f70e02111c6 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -1411,7 +1411,7 @@ static ssize_t shmem_file_aio_read(struct kiocb *iocb,
- 	pgoff_t index;
- 	unsigned long offset;
- 	enum sgp_type sgp = SGP_READ;
--	int error;
-+	int error = 0;
- 	ssize_t retval;
- 	size_t count;
- 	loff_t *ppos = &iocb->ki_pos;
--- 
-1.7.9.5
+I think it actually assumes that blocksize <= PAGE_CACHE_SIZE in that
+it doesn't contain a loop to iterate over all blocks.  It wouldn't be
+hard to fix but I'll just put in a comment noting what needs to be fixed
+... I don't think there's going to be a lot of enthusiasm for adding
+support for blocksize != PAGE_SIZE / PAGE_CACHE_SIZE.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
