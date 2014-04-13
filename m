@@ -1,48 +1,36 @@
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH] mm: pass VM_BUG_ON() reason to dump_page()
-Date: Fri, 11 Apr 2014 23:36:57 +0300
-Message-ID: <20140411203657.GA672@node.dhcp.inet.fi>
-References: <20140411202125.01D1D100@viggo.jf.intel.com>
+From: Al Viro <viro-3bDd1+5oDREiFSDQTTA3OLVCufUGDwFn@public.gmane.org>
+Subject: Re: [PATCH 2/2] mm: Initialize error in shmem_file_aio_read()
+Date: Sun, 13 Apr 2014 21:50:29 +0100
+Message-ID: <20140413205029.GO18016@ZenIV.linux.org.uk>
+References: <1397414783-28098-1-git-send-email-geert@linux-m68k.org>
+ <1397414783-28098-2-git-send-email-geert@linux-m68k.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Return-path: <linux-kernel-owner@vger.kernel.org>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: QUOTED-PRINTABLE
+Return-path: <linux-cifs-owner-u79uwXL29TY76Z2rM5mHXA@public.gmane.org>
 Content-Disposition: inline
-In-Reply-To: <20140411202125.01D1D100@viggo.jf.intel.com>
-Sender: linux-kernel-owner@vger.kernel.org
-To: Dave Hansen <dave@sr71.net>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+In-Reply-To: <1397414783-28098-2-git-send-email-geert-Td1EMuHUCqxL1ZNQvxDV9g@public.gmane.org>
+Sender: linux-cifs-owner-u79uwXL29TY76Z2rM5mHXA@public.gmane.org
+To: Geert Uytterhoeven <geert-Td1EMuHUCqxL1ZNQvxDV9g@public.gmane.org>
+Cc: Linus Torvalds <torvalds-de/tnXTf+JLsfHDXvbKv3WD2FQJk+8+b@public.gmane.org>, Andrew Morton <akpm-de/tnXTf+JLsfHDXvbKv3WD2FQJk+8+b@public.gmane.org>, Steve French <sfrench-eUNUBHrolfbYtjvyW6yDsg@public.gmane.org>, linux-cifs-u79uwXL29TY76Z2rM5mHXA@public.gmane.org, Hugh Dickins <hughd-hpIqsD4AKlfQT0dZR+AlfA@public.gmane.org>, linux-mm-Bw31MaZKKs3YtjvyW6yDsg@public.gmane.org, linux-kernel-u79uwXL29TY76Z2rM5mHXA@public.gmane.org
 List-Id: linux-mm.kvack.org
 
-On Fri, Apr 11, 2014 at 01:21:25PM -0700, Dave Hansen wrote:
-> 
-> From: Dave Hansen <dave.hansen@linux.intel.com>
-> 
-> I recently added a patch to let folks pass a "reason" string
-> dump_page() which gets dumped out along with the page's data.
-> This essentially saves the bug-reader a trip in to the source
-> to figure out why we BUG_ON()'d.
-> 
-> The new VM_BUG_ON_PAGE() passes in NULL for "reason".  It seems
-> like we might as well pass the BUG_ON() condition if we have it.
-> This will bloat kernels a bit with ~160 new strings, but this
-> is all under a debugging option anyway.
-> 
-> 	page:ffffea0008560280 count:1 mapcount:0 mapping:(null) index:0x0
-> 	page flags: 0xbfffc0000000001(locked)
-> 	page dumped because: VM_BUG_ON_PAGE(PageLocked(page))
-> 	------------[ cut here ]------------
-> 	kernel BUG at /home/davehans/linux.git/mm/filemap.c:464!
-> 	invalid opcode: 0000 [#1] SMP
-> 	CPU: 0 PID: 1 Comm: swapper/0 Not tainted 3.14.0+ #251
-> 	Hardware name: Bochs Bochs, BIOS Bochs 01/01/2011
-> 	...
-> 
-> 
-> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+On Sun, Apr 13, 2014 at 08:46:22PM +0200, Geert Uytterhoeven wrote:
+> mm/shmem.c: In function =E2=80=98shmem_file_aio_read=E2=80=99:
+> mm/shmem.c:1414: warning: =E2=80=98error=E2=80=99 may be used uniniti=
+alized in this function
+>=20
+> If the loop is aborted during the first iteration by one of the two f=
+irst
+> break statements, error will be uninitialized.
+>=20
+> Introduced by commit 6e58e79db8a16222b31fc8da1ca2ac2dccfc4237
+> ("introduce copy_page_to_iter, kill loop over iovec in
+> generic_file_aio_read()").
+>=20
+> Signed-off-by: Geert Uytterhoeven <geert-Td1EMuHUCqxL1ZNQvxDV9g@public.gmane.org>
+> ---
+> The code is too complex to see if this is an obvious false positive.
 
-I see space-before-tabs in few places, otherwise:
-
-Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-
--- 
- Kirill A. Shutemov
+Good catch; sadly, it *can* be triggered - read() starting past the EOF
+will step into it.  Applied, will push today.
