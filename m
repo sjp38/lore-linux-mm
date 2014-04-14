@@ -1,78 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f43.google.com (mail-pb0-f43.google.com [209.85.160.43])
-	by kanga.kvack.org (Postfix) with ESMTP id B6F196B0036
-	for <linux-mm@kvack.org>; Mon, 14 Apr 2014 18:55:29 -0400 (EDT)
-Received: by mail-pb0-f43.google.com with SMTP id um1so8826133pbc.2
-        for <linux-mm@kvack.org>; Mon, 14 Apr 2014 15:55:29 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id f1si9643272pbn.188.2014.04.14.15.55.28
-        for <linux-mm@kvack.org>;
-        Mon, 14 Apr 2014 15:55:28 -0700 (PDT)
-Date: Mon, 14 Apr 2014 15:55:26 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2] mm: convert some level-less printks to pr_*
-Message-Id: <20140414155526.96b0832bf4660c026bc3a1d9@linux-foundation.org>
-In-Reply-To: <1395942859-11611-2-git-send-email-mitchelh@codeaurora.org>
-References: <1395942859-11611-1-git-send-email-mitchelh@codeaurora.org>
-	<1395942859-11611-2-git-send-email-mitchelh@codeaurora.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-ob0-f175.google.com (mail-ob0-f175.google.com [209.85.214.175])
+	by kanga.kvack.org (Postfix) with ESMTP id D95F86B0031
+	for <linux-mm@kvack.org>; Mon, 14 Apr 2014 19:57:29 -0400 (EDT)
+Received: by mail-ob0-f175.google.com with SMTP id vb8so3494230obc.6
+        for <linux-mm@kvack.org>; Mon, 14 Apr 2014 16:57:28 -0700 (PDT)
+Received: from g2t2354.austin.hp.com (g2t2354.austin.hp.com. [15.217.128.53])
+        by mx.google.com with ESMTPS id jh2si15128179obb.203.2014.04.14.16.57.28
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 14 Apr 2014 16:57:28 -0700 (PDT)
+From: Davidlohr Bueso <davidlohr@hp.com>
+Subject: [PATCH 0/3] mm: vmacache updates
+Date: Mon, 14 Apr 2014 16:57:18 -0700
+Message-Id: <1397519841-24847-1-git-send-email-davidlohr@hp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mitchel Humpherys <mitchelh@codeaurora.org>
-Cc: Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, Joe Perches <joe@perches.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, davidlohr@hp.com, aswin@hp.com
 
-On Thu, 27 Mar 2014 10:54:19 -0700 Mitchel Humpherys <mitchelh@codeaurora.org> wrote:
+Two additions really. The first patch adds some needed debugging info.
+The second one includes an optimization suggested by Oleg. I preferred
+waiting until 3.15 for these, giving the code a chance to settle a bit.
 
-> printk is meant to be used with an associated log level. There are some
-> instances of printk scattered around the mm code where the log level is
-> missing. Add a log level and adhere to suggestions by
-> scripts/checkpatch.pl by moving to the pr_* macros.
-> 
+Thanks!
 
-hm, this is a functional change.
+Davidlohr Bueso (3):
+  mm: fix CONFIG_DEBUG_VM_RB description
+  mm,vmacache: add debug data
+  mm,vmacache: optimize overflow system-wide flushing
 
-> --- a/mm/bounce.c
-> +++ b/mm/bounce.c
-> @@ -3,6 +3,8 @@
->   * - Split from highmem.c
->   */
->  
-> +#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+ include/linux/vm_event_item.h |  4 ++++
+ include/linux/vmstat.h        |  6 ++++++
+ lib/Kconfig.debug             | 13 +++++++++++--
+ mm/vmacache.c                 | 19 ++++++++++++++++++-
+ mm/vmstat.c                   |  4 ++++
+ 5 files changed, 43 insertions(+), 3 deletions(-)
 
-Because of this.
-
->  #include <linux/mm.h>
->  #include <linux/export.h>
->  #include <linux/swap.h>
-> @@ -15,6 +17,7 @@
->  #include <linux/hash.h>
->  #include <linux/highmem.h>
->  #include <linux/bootmem.h>
-> +#include <linux/printk.h>
->  #include <asm/tlbflush.h>
->  
->  #include <trace/events/block.h>
-> @@ -34,7 +37,7 @@ static __init int init_emergency_pool(void)
->  
->  	page_pool = mempool_create_page_pool(POOL_SIZE, 0);
->  	BUG_ON(!page_pool);
-> -	printk("bounce pool size: %d pages\n", POOL_SIZE);
-> +	pr_info("bounce pool size: %d pages\n", POOL_SIZE);
-
-This used to print "bounce pool size: N pages" but will now print
-"bounce: bounce pool size: N pages".
-
-It isn't necessarily a *bad* change but perhaps a little more thought
-could be put into it.  In this example it would be better remove the
-redundancy by using 
-
-	pr_info("pool size: %d pages\n"...);
-
-And all of this should be described and justified in the changelog,
-please.
-
+-- 
+1.8.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
