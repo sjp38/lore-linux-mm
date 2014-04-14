@@ -1,84 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A7796B00D6
-	for <linux-mm@kvack.org>; Mon, 14 Apr 2014 06:15:27 -0400 (EDT)
-Received: by mail-wi0-f177.google.com with SMTP id cc10so3747306wib.16
-        for <linux-mm@kvack.org>; Mon, 14 Apr 2014 03:15:25 -0700 (PDT)
-Received: from mail-we0-x236.google.com (mail-we0-x236.google.com [2a00:1450:400c:c03::236])
-        by mx.google.com with ESMTPS id ju8si5028909wjc.189.2014.04.14.03.15.24
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 14 Apr 2014 03:15:24 -0700 (PDT)
-Received: by mail-we0-f182.google.com with SMTP id p61so7979732wes.13
-        for <linux-mm@kvack.org>; Mon, 14 Apr 2014 03:15:22 -0700 (PDT)
-MIME-Version: 1.0
-From: Michael Kerrisk <mtk.manpages@gmail.com>
-Date: Mon, 14 Apr 2014 12:15:01 +0200
-Message-ID: <CAHO5Pa0VCzR7oqNXkwELuAsNQnnvF8Xoo=CuCaM64-GzjDuoFA@mail.gmail.com>
-Subject: Documenting prctl() PR_SET_THP_DISABLE and PR_GET_THP_DISABLE
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 888EA6B00D8
+	for <linux-mm@kvack.org>; Mon, 14 Apr 2014 06:37:52 -0400 (EDT)
+Received: by mail-pa0-f53.google.com with SMTP id ld10so8074013pab.12
+        for <linux-mm@kvack.org>; Mon, 14 Apr 2014 03:37:50 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id hu10si650489pbc.358.2014.04.14.03.37.50
+        for <linux-mm@kvack.org>;
+        Mon, 14 Apr 2014 03:37:50 -0700 (PDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+In-Reply-To: <534B46FE.1070704@cn.fujitsu.com>
+References: <534B46FE.1070704@cn.fujitsu.com>
+Subject: RE: ask for your help about a patch (commit: 9845cbb)
+Content-Transfer-Encoding: 7bit
+Message-Id: <20140414103747.70943E0098@blue.fi.intel.com>
+Date: Mon, 14 Apr 2014 13:37:47 +0300 (EEST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alex Thorlton <athorlton@sgi.com>
-Cc: Linux Kernel <linux-kernel@vger.kernel.org>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Paolo Bonzini <pbonzini@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Oleg Nesterov <oleg@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-mm <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>, linux-man@vger.kernel.org, Michael Kerrisk-manpages <mtk.manpages@gmail.com>
+To: "gux.fnst" <gux.fnst@cn.fujitsu.com>
+Cc: kirill.shutemov@linux.intel.com, linux-mm@kvack.org
 
-Alex,
+gux.fnst wrote:
+> Hi Kirill,
 
-Your commit a0715cc22601e8830ace98366c0c2bd8da52af52 added the prctl()
-PR_SET_THP_DISABLE and PR_GET_THP_DISABLE flags.
+Hi Xing,
 
-The text below attempts to document these flags for the prctl(3).
-Could you (and anyone else who is willing) please review the text
-below (one or two p[ieces of which are drawn from your commit message)
-to verify that it accurately reflects reality and your intent, and
-that I have not missed any significant details.
+Please always CC to mailing list for upstream-related questions.
+I've added linux-mm@ to CC.
 
-    DESCRIPTION
-    ...
-       PR_SET_THP_DISABLE (since Linux 3.15)
-              Set the state of the "THP disable" flag for the  calling
-              thread.   If  arg2 has a nonzero value, the flag is set,
-              otherwise it is cleared.  Setting this flag  provides  a
-              method  for disabling  transparent  huge  pages for jobs
-              where the code cannot be modified, and  using  a  malloc
-              hook  with madvise(2) is not an option (i.e., statically
-              allocated data).  The setting of the "THP disable"  flag
-              is  inherited by a child created via fork(2) and is pre=E2=80=
-=90
-              served across execve(2).
+> 
+> Currently I'm doing some kernel test work, including that reproducing
+> some existing kernel bugs. Here I may need your some help.
+> 
+> On 2014-02-25, you committed a patch (commit: 9845cbb) about thp.
+> 
+> mm, thp: fix infinite loop on memcg OOM
+> ---------------------------------------------------------------------------------------------------------------------------
+> Masayoshi Mizuma reported a bug with the hang of an application under 
+> the memcg limit.
+> It happens on write-protection fault to huge zero page.
+> 
+> If we successfully allocate a huge page to replace zero page but hit the 
+> memcg limit we
+> need to split the zero page with split_huge_page_pmd() and fallback to 
+> small pages.
+> 
+> The other part of the problem is that VM_FAULT_OOM has special meaning in
+> do_huge_pmd_wp_page() context. __handle_mm_fault() expects the page to 
+> be split if
+> it sees VM_FAULT_OOM and it will will retry page fault handling. This 
+> causes an infinite loop
+> if the page was not split.
+> 
+> do_huge_pmd_wp_zero_page_fallback() can return VM_FAULT_OOM if it failed 
+> to allocate
+> one small page, so fallback to small pages will not help.
+> 
+> The solution for this part is to replace VM_FAULT_OOM with 
+> VM_FAULT_FALLBACK is
+> fallback required.
+> ---------------------------------------------------------------------------------------------------------------------------
+> 
+> It is a little difficult to reproduce this problem fixed by this patch 
+> for me. Could you give me some
+> hint about how to do this - a??allocate a huge page to replace zero page 
+> but hit the memcg limit"?
 
-       PR_GET_THP_DISABLE (since Linux 3.15)
-              Return (via the function result) the current setting  of
-              the "THP disable" flag for the calling thread: either 1,
-              if the flag is set, or 0, if it is not.
-    ...
-    RETURN VALUE
-       On       success,       PR_GET_DUMPABLE,       PR_GET_KEEPCAPS,
-       PR_GET_NO_NEW_PRIVS,    PR_GET_THP_DISABLE,    PR_CAPBSET_READ,
-       PR_GET_TIMING,       PR_GET_TIMERSLACK,      PR_GET_SECUREBITS,
-       PR_MCE_KILL_GET, and (if it returns) PR_GET_SECCOMP return  the
-       nonnegative  values  described  above.  All other option values
-       return 0 on success.  On error, -1 is returned,  and  errno  is
-       set appropriately.
-    ...
-    ERRORS
-       EINVAL option is PR_SET_THP_DISABLE and arg3, arg4, or arg5  is
-              nonzero.
+I used this script:
 
-       EINVAL option  is  PR_GET_THP_DISABLE  and arg2, arg3, arg4, or
-              arg5 is nonzero.
+#!/bin/sh -efu
 
-Thanks,
+set -efux
 
-Michael
+mount -t cgroup none /sys/fs/cgroup
+mkdir /sys/fs/cgroup/test
+echo "10M" > /sys/fs/cgroup/test/memory.limit_in_bytes
+echo "10M" > /sys/fs/cgroup/test/memory.memsw.limit_in_bytes
 
+echo $$ > /sys/fs/cgroup/test/tasks
+/host/home/kas/var/mmaptest_zero
+echo ok
 
+Where /host/home/kas/var/mmaptest_zero is:
 
---=20
-Michael Kerrisk Linux man-pages maintainer;
-http://www.kernel.org/doc/man-pages/
-Author of "The Linux Programming Interface", http://blog.man7.org/
+#include <assert.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/mman.h>
+
+#define MB (1024 * 1024)
+#define SIZE (256 * MB)
+
+int main(int argc, char **argv)
+{
+	int i;
+	char *p;
+
+	posix_memalign((void **)&p, 2 * MB, SIZE);
+	printf("p: %p\n", p);
+	fork();
+	for (i = 0; i < SIZE; i += 4096)
+		assert(p[i] == 0);
+
+	for (i = 0; i < SIZE; i += 4096)
+		p[i] = 1;
+
+	pause();
+	return 0;
+}
+
+Without the patch it hangs, but should trigger OOM.
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
