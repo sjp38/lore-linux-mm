@@ -1,58 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f46.google.com (mail-pb0-f46.google.com [209.85.160.46])
-	by kanga.kvack.org (Postfix) with ESMTP id A41606B0031
-	for <linux-mm@kvack.org>; Mon, 14 Apr 2014 17:08:40 -0400 (EDT)
-Received: by mail-pb0-f46.google.com with SMTP id rq2so8738115pbb.33
-        for <linux-mm@kvack.org>; Mon, 14 Apr 2014 14:08:40 -0700 (PDT)
-Received: from mail-pd0-x22f.google.com (mail-pd0-x22f.google.com [2607:f8b0:400e:c02::22f])
-        by mx.google.com with ESMTPS id hi3si9542310pac.123.2014.04.14.14.08.39
+Received: from mail-ee0-f45.google.com (mail-ee0-f45.google.com [74.125.83.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 84F9E6B0031
+	for <linux-mm@kvack.org>; Mon, 14 Apr 2014 17:19:57 -0400 (EDT)
+Received: by mail-ee0-f45.google.com with SMTP id d17so7102778eek.32
+        for <linux-mm@kvack.org>; Mon, 14 Apr 2014 14:19:56 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id c48si5224730eeb.307.2014.04.14.14.19.55
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 14 Apr 2014 14:08:39 -0700 (PDT)
-Received: by mail-pd0-f175.google.com with SMTP id x10so8456326pdj.6
-        for <linux-mm@kvack.org>; Mon, 14 Apr 2014 14:08:39 -0700 (PDT)
+        Mon, 14 Apr 2014 14:19:55 -0700 (PDT)
+Date: Mon, 14 Apr 2014 23:19:51 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [RFC] Helper to abstract vma handling in media layer
+Message-ID: <20140414211951.GE13860@quack.suse.cz>
+References: <1395085776-8626-1-git-send-email-jack@suse.cz>
+ <53466C4A.2030107@samsung.com>
+ <20140410103220.GB28404@quack.suse.cz>
+ <53467B7E.5060408@xs4all.nl>
+ <20140410121554.GC28404@quack.suse.cz>
+ <53468CFC.2060707@xs4all.nl>
+ <20140410215738.GB12339@quack.suse.cz>
+ <20140410221818.GA14625@quack.suse.cz>
+ <534792B3.1060709@xs4all.nl>
 MIME-Version: 1.0
-Reply-To: mtk.manpages@gmail.com
-In-Reply-To: <20140414154911.GH3308@sgi.com>
-References: <CAHO5Pa0VCzR7oqNXkwELuAsNQnnvF8Xoo=CuCaM64-GzjDuoFA@mail.gmail.com>
- <20140414154911.GH3308@sgi.com>
-From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
-Date: Mon, 14 Apr 2014 23:08:16 +0200
-Message-ID: <CAKgNAkicfxhdsa_fa6MCOR-UtbjzYaTv2gRzWq2qKHCuYHc3KA@mail.gmail.com>
-Subject: Re: Documenting prctl() PR_SET_THP_DISABLE and PR_GET_THP_DISABLE
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <534792B3.1060709@xs4all.nl>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alex Thorlton <athorlton@sgi.com>
-Cc: Linux Kernel <linux-kernel@vger.kernel.org>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Paolo Bonzini <pbonzini@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Oleg Nesterov <oleg@redhat.com>, "Eric W. Biederman" <ebiederm@xmission.com>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-mm <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>, linux-man <linux-man@vger.kernel.org>
+To: Hans Verkuil <hverkuil@xs4all.nl>
+Cc: Jan Kara <jack@suse.cz>, Marek Szyprowski <m.szyprowski@samsung.com>, linux-mm@kvack.org, linux-media@vger.kernel.org, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>, 'Tomasz Stanislawski' <t.stanislaws@samsung.com>, Laurent Pinchart <laurent.pinchart@ideasonboard.com>
 
-On Mon, Apr 14, 2014 at 5:49 PM, Alex Thorlton <athorlton@sgi.com> wrote:
-> On Mon, Apr 14, 2014 at 12:15:01PM +0200, Michael Kerrisk wrote:
->> Alex,
->>
->> Your commit a0715cc22601e8830ace98366c0c2bd8da52af52 added the prctl()
->> PR_SET_THP_DISABLE and PR_GET_THP_DISABLE flags.
->>
->> The text below attempts to document these flags for the prctl(3).
->> Could you (and anyone else who is willing) please review the text
->> below (one or two p[ieces of which are drawn from your commit message)
->> to verify that it accurately reflects reality and your intent, and
->> that I have not missed any significant details.
->
-> Looks fine to me!
+On Fri 11-04-14 08:58:59, Hans Verkuil wrote:
+> On 04/11/2014 12:18 AM, Jan Kara wrote:
+> > On Thu 10-04-14 23:57:38, Jan Kara wrote:
+> >> On Thu 10-04-14 14:22:20, Hans Verkuil wrote:
+> >>> On 04/10/14 14:15, Jan Kara wrote:
+> >>>> On Thu 10-04-14 13:07:42, Hans Verkuil wrote:
+> >>>>> On 04/10/14 12:32, Jan Kara wrote:
+> >>>>>>   Hello,
+> >>>>>>
+> >>>>>> On Thu 10-04-14 12:02:50, Marek Szyprowski wrote:
+> >>>>>>> On 2014-03-17 20:49, Jan Kara wrote:
+> >>>>>>>>   The following patch series is my first stab at abstracting vma handling
+> >>>>>>> >from the various media drivers. After this patch set drivers have to know
+> >>>>>>>> much less details about vmas, their types, and locking. My motivation for
+> >>>>>>>> the series is that I want to change get_user_pages() locking and I want
+> >>>>>>>> to handle subtle locking details in as few places as possible.
+> >>>>>>>>
+> >>>>>>>> The core of the series is the new helper get_vaddr_pfns() which is given a
+> >>>>>>>> virtual address and it fills in PFNs into provided array. If PFNs correspond to
+> >>>>>>>> normal pages it also grabs references to these pages. The difference from
+> >>>>>>>> get_user_pages() is that this function can also deal with pfnmap, mixed, and io
+> >>>>>>>> mappings which is what the media drivers need.
+> >>>>>>>>
+> >>>>>>>> The patches are just compile tested (since I don't have any of the hardware
+> >>>>>>>> I'm afraid I won't be able to do any more testing anyway) so please handle
+> >>>>>>>> with care. I'm grateful for any comments.
+> >>>>>>>
+> >>>>>>> Thanks for posting this series! I will check if it works with our
+> >>>>>>> hardware soon.  This is something I wanted to introduce some time ago to
+> >>>>>>> simplify buffer handling in dma-buf, but I had no time to start working.
+> >>>>>>   Thanks for having a look in the series.
+> >>>>>>
+> >>>>>>> However I would like to go even further with integration of your pfn
+> >>>>>>> vector idea.  This structure looks like a best solution for a compact
+> >>>>>>> representation of the memory buffer, which should be considered by the
+> >>>>>>> hardware as contiguous (either contiguous in physical memory or mapped
+> >>>>>>> contiguously into dma address space by the respective iommu). As you
+> >>>>>>> already noticed it is widely used by graphics and video drivers.
+> >>>>>>>
+> >>>>>>> I would also like to add support for pfn vector directly to the
+> >>>>>>> dma-mapping subsystem. This can be done quite easily (even with a
+> >>>>>>> fallback for architectures which don't provide method for it). I will try
+> >>>>>>> to prepare rfc soon.  This will finally remove the need for hacks in
+> >>>>>>> media/v4l2-core/videobuf2-dma-contig.c
+> >>>>>>   That would be a worthwhile thing to do. When I was reading the code this
+> >>>>>> seemed like something which could be done but I delibrately avoided doing
+> >>>>>> more unification than necessary for my purposes as I don't have any
+> >>>>>> hardware to test and don't know all the subtleties in the code... BTW, is
+> >>>>>> there some way to test the drivers without the physical video HW?
+> >>>>>
+> >>>>> You can use the vivi driver (drivers/media/platform/vivi) for this.
+> >>>>> However, while the vivi driver can import dma buffers it cannot export
+> >>>>> them. If you want that, then you have to use this tree:
+> >>>>>
+> >>>>> http://git.linuxtv.org/cgit.cgi/hverkuil/media_tree.git/log/?h=vb2-part4
+> >>>>   Thanks for the pointer that looks good. I've also found
+> >>>> drivers/media/platform/mem2mem_testdev.c which seems to do even more
+> >>>> testing of the area I made changes to. So now I have to find some userspace
+> >>>> tool which can issue proper ioctls to setup and use the buffers and I can
+> >>>> start testing what I wrote :)
+> >>>
+> >>> Get the v4l-utils.git repository (http://git.linuxtv.org/cgit.cgi/v4l-utils.git/).
+> >>> You want the v4l2-ctl tool. Don't use the version supplied by your distro,
+> >>> that's often too old.
+> >>>
+> >>> 'v4l2-ctl --help-streaming' gives the available options for doing streaming.
+> >>>
+> >>> So simple capturing from vivi is 'v4l2-ctl --stream-mmap' or '--stream-user'.
+> >>> You can't test dmabuf unless you switch to the vb2-part4 branch of my tree.
+> >>   Great, it seems to be doing something and it shows there's some bug in my
+> >> code. Thanks a lot for help.
+> >   OK, so after a small fix the basic functionality seems to be working. It
+> > doesn't seem there's a way to test multiplanar buffers with vivi, is there?
+> 
+> For that you need to switch to the vb2-part4 branch as well. That has support
+> for multiplanar.
+  OK, I've merged that branch to my kernel but I failed to find the setting
+for vivi that would create multiplanar buffers and in fact I don't see
+multiplanar capabilities among the capabilities reported by the v4l2-ctl
+tool. Can you help me please?
 
-Thanks, Alex.
-
-Cheers,
-
-Michael
-
-
-
+								Honza
 -- 
-Michael Kerrisk
-Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
-Linux/UNIX System Programming Training: http://man7.org/training/
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
