@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f52.google.com (mail-pb0-f52.google.com [209.85.160.52])
-	by kanga.kvack.org (Postfix) with ESMTP id E9E8E6B0031
-	for <linux-mm@kvack.org>; Tue, 15 Apr 2014 17:48:42 -0400 (EDT)
-Received: by mail-pb0-f52.google.com with SMTP id rr13so10020929pbb.25
-        for <linux-mm@kvack.org>; Tue, 15 Apr 2014 14:48:42 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [143.182.124.21])
-        by mx.google.com with ESMTP id u6si11536625paa.134.2014.04.15.14.48.41
+Received: from mail-pb0-f42.google.com (mail-pb0-f42.google.com [209.85.160.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 290A46B0036
+	for <linux-mm@kvack.org>; Tue, 15 Apr 2014 17:49:27 -0400 (EDT)
+Received: by mail-pb0-f42.google.com with SMTP id rr13so10117764pbb.29
+        for <linux-mm@kvack.org>; Tue, 15 Apr 2014 14:49:26 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id hb10si7662558pbc.54.2014.04.15.14.49.25
         for <linux-mm@kvack.org>;
-        Tue, 15 Apr 2014 14:48:41 -0700 (PDT)
+        Tue, 15 Apr 2014 14:49:26 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 Subject: [PATCH] thp: close race between split and zap huge pages
-Date: Wed, 16 Apr 2014 00:48:35 +0300
-Message-Id: <1397598515-25017-1-git-send-email-kirill.shutemov@linux.intel.com>
+Date: Wed, 16 Apr 2014 00:48:56 +0300
+Message-Id: <1397598536-25074-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michel Lespinasse <walken@google.com>, Sasha Levin <sasha.levin@oracle.com>, Dave Jones <davej@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Bob Liu <lliubbo@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, stable@vger.kernel.org
+Cc: Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michel Lespinasse <walken@google.com>, Sasha Levin <sasha.levin@oracle.com>, Dave Jones <davej@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Bob Liu <lliubbo@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
 Sasha Levin has reported two THP BUGs[1][2]. I believe both of them have
 the same root cause. Let's look to them one by one.
