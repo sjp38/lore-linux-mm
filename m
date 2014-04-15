@@ -1,99 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f51.google.com (mail-ee0-f51.google.com [74.125.83.51])
-	by kanga.kvack.org (Postfix) with ESMTP id C24106B0035
-	for <linux-mm@kvack.org>; Tue, 15 Apr 2014 05:18:56 -0400 (EDT)
-Received: by mail-ee0-f51.google.com with SMTP id c13so7500478eek.38
-        for <linux-mm@kvack.org>; Tue, 15 Apr 2014 02:18:56 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y6si24665900eep.47.2014.04.15.02.18.53
+Received: from mail-yh0-f44.google.com (mail-yh0-f44.google.com [209.85.213.44])
+	by kanga.kvack.org (Postfix) with ESMTP id E36CF6B0031
+	for <linux-mm@kvack.org>; Tue, 15 Apr 2014 06:27:59 -0400 (EDT)
+Received: by mail-yh0-f44.google.com with SMTP id f10so9181419yha.31
+        for <linux-mm@kvack.org>; Tue, 15 Apr 2014 03:27:59 -0700 (PDT)
+Received: from SMTP.CITRIX.COM (smtp.citrix.com. [66.165.176.89])
+        by mx.google.com with ESMTPS id i19si18454023yhh.212.2014.04.15.03.27.59
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 15 Apr 2014 02:18:53 -0700 (PDT)
-From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH 2/2] mm/compaction: cleanup isolate_freepages()
-Date: Tue, 15 Apr 2014 11:18:27 +0200
-Message-Id: <1397553507-15330-2-git-send-email-vbabka@suse.cz>
-In-Reply-To: <1397553507-15330-1-git-send-email-vbabka@suse.cz>
-References: <5342BA34.8050006@suse.cz>
- <1397553507-15330-1-git-send-email-vbabka@suse.cz>
+        Tue, 15 Apr 2014 03:27:59 -0700 (PDT)
+Message-ID: <534D09AC.7020704@citrix.com>
+Date: Tue, 15 Apr 2014 11:27:56 +0100
+From: David Vrabel <david.vrabel@citrix.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 4/5] mm: use paravirt friendly ops for NUMA hinting ptes
+References: <1396962570-18762-1-git-send-email-mgorman@suse.de> <1396962570-18762-5-git-send-email-mgorman@suse.de>
+In-Reply-To: <1396962570-18762-5-git-send-email-mgorman@suse.de>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Heesub Shin <heesub.shin@samsung.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dongjun Shin <d.j.shin@samsung.com>, Sunghwan Yun <sunghwan.yun@samsung.com>, Vlastimil Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Linux-X86 <x86@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Cyrill Gorcunov <gorcunov@gmail.com>, Peter Anvin <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, Steven Noonan <steven@uplinklabs.net>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-isolate_freepages() is currently somewhat hard to follow thanks to many
-different pfn variables. Especially misleading is the name 'high_pfn' which
-looks like it is related to the 'low_pfn' variable, but in fact it is not.
+On 08/04/14 14:09, Mel Gorman wrote:
+> David Vrabel identified a regression when using automatic NUMA balancing
+> under Xen whereby page table entries were getting corrupted due to the
+> use of native PTE operations. Quoting him
+> 
+> 	Xen PV guest page tables require that their entries use machine
+> 	addresses if the preset bit (_PAGE_PRESENT) is set, and (for
+> 	successful migration) non-present PTEs must use pseudo-physical
+> 	addresses.  This is because on migration MFNs in present PTEs are
+> 	translated to PFNs (canonicalised) so they may be translated back
+> 	to the new MFN in the destination domain (uncanonicalised).
+> 
+> 	pte_mknonnuma(), pmd_mknonnuma(), pte_mknuma() and pmd_mknuma()
+> 	set and clear the _PAGE_PRESENT bit using pte_set_flags(),
+> 	pte_clear_flags(), etc.
+> 
+> 	In a Xen PV guest, these functions must translate MFNs to PFNs
+> 	when clearing _PAGE_PRESENT and translate PFNs to MFNs when setting
+> 	_PAGE_PRESENT.
+> 
+> His suggested fix converted p[te|md]_[set|clear]_flags to using
+> paravirt-friendly ops but this is overkill. He suggested an alternative of
+> using p[te|md]_modify in the NUMA page table operations but this is does
+> more work than necessary and would require looking up a VMA for protections.
+> 
+> This patch modifies the NUMA page table operations to use paravirt friendly
+> operations to set/clear the flags of interest. Unfortunately this will take
+> a performance hit when updating the PTEs on CONFIG_PARAVIRT but I do not
+> see a way around it that does not break Xen.
 
-This patch renames the 'high_pfn' variable to a hopefully less confusing name,
-and slightly changes its handling without a functional change. A comment made
-obsolete by recent changes is also updated.
+We're getting more reports of users hitting this regression with distro
+provided kernels.  Irrespective of the rest of this series, can we get
+at least this applied and tagged for stable, please?
 
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-Cc: Michal Nazarewicz <mina86@mina86.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Christoph Lameter <cl@linux.com>
-Cc: Rik van Riel <riel@redhat.com>
----
- mm/compaction.c | 17 ++++++++---------
- 1 file changed, 8 insertions(+), 9 deletions(-)
+http://lists.xenproject.org/archives/html/xen-devel/2014-04/msg01905.html
 
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 627dc2e..169c7b2 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -671,7 +671,7 @@ static void isolate_freepages(struct zone *zone,
- 				struct compact_control *cc)
- {
- 	struct page *page;
--	unsigned long high_pfn, low_pfn, pfn, z_end_pfn;
-+	unsigned long pfn, low_pfn, next_free_pfn, z_end_pfn;
- 	int nr_freepages = cc->nr_freepages;
- 	struct list_head *freelist = &cc->freepages;
- 
-@@ -688,11 +688,10 @@ static void isolate_freepages(struct zone *zone,
- 	low_pfn = ALIGN(cc->migrate_pfn + 1, pageblock_nr_pages);
- 
- 	/*
--	 * Take care that if the migration scanner is at the end of the zone
--	 * that the free scanner does not accidentally move to the next zone
--	 * in the next isolation cycle.
-+	 * Seed the value for max(next_free_pfn, pfn) updates. If there are
-+	 * none, the pfn < low_pfn check will kick in.
- 	 */
--	high_pfn = min(low_pfn, pfn);
-+	next_free_pfn = 0;
- 
- 	z_end_pfn = zone_end_pfn(zone);
- 
-@@ -754,7 +753,7 @@ static void isolate_freepages(struct zone *zone,
- 		 */
- 		if (isolated) {
- 			cc->finished_update_free = true;
--			high_pfn = max(high_pfn, pfn);
-+			next_free_pfn = max(next_free_pfn, pfn);
- 		}
- 	}
- 
-@@ -766,9 +765,9 @@ static void isolate_freepages(struct zone *zone,
- 	 * so that compact_finished() may detect this
- 	 */
- 	if (pfn < low_pfn)
--		cc->free_pfn = max(pfn, zone->zone_start_pfn);
--	else
--		cc->free_pfn = high_pfn;
-+		next_free_pfn = max(pfn, zone->zone_start_pfn);
-+
-+	cc->free_pfn = next_free_pfn;
- 	cc->nr_freepages = nr_freepages;
- }
- 
--- 
-1.8.4.5
+David
+
+> 
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
+> ---
+>  include/asm-generic/pgtable.h | 31 +++++++++++++++++++++++--------
+>  1 file changed, 23 insertions(+), 8 deletions(-)
+> 
+> diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
+> index 34c7bdc..38a7437 100644
+> --- a/include/asm-generic/pgtable.h
+> +++ b/include/asm-generic/pgtable.h
+> @@ -680,24 +680,35 @@ static inline int pmd_numa(pmd_t pmd)
+>  #ifndef pte_mknonnuma
+>  static inline pte_t pte_mknonnuma(pte_t pte)
+>  {
+> -	pte = pte_clear_flags(pte, _PAGE_NUMA);
+> -	return pte_set_flags(pte, _PAGE_PRESENT|_PAGE_ACCESSED);
+> +	pteval_t val = pte_val(pte);
+> +
+> +	val &= ~_PAGE_NUMA;
+> +	val |= (_PAGE_PRESENT|_PAGE_ACCESSED);
+> +	return __pte(val);
+>  }
+>  #endif
+>  
+>  #ifndef pmd_mknonnuma
+>  static inline pmd_t pmd_mknonnuma(pmd_t pmd)
+>  {
+> -	pmd = pmd_clear_flags(pmd, _PAGE_NUMA);
+> -	return pmd_set_flags(pmd, _PAGE_PRESENT|_PAGE_ACCESSED);
+> +	pmdval_t val = pmd_val(pmd);
+> +
+> +	val &= ~_PAGE_NUMA;
+> +	val |= (_PAGE_PRESENT|_PAGE_ACCESSED);
+> +
+> +	return __pmd(val);
+>  }
+>  #endif
+>  
+>  #ifndef pte_mknuma
+>  static inline pte_t pte_mknuma(pte_t pte)
+>  {
+> -	pte = pte_set_flags(pte, _PAGE_NUMA);
+> -	return pte_clear_flags(pte, _PAGE_PRESENT);
+> +	pteval_t val = pte_val(pte);
+> +
+> +	val &= ~_PAGE_PRESENT;
+> +	val |= _PAGE_NUMA;
+> +
+> +	return __pte(val);
+>  }
+>  #endif
+>  
+> @@ -716,8 +727,12 @@ static inline void ptep_set_numa(struct mm_struct *mm, unsigned long addr,
+>  #ifndef pmd_mknuma
+>  static inline pmd_t pmd_mknuma(pmd_t pmd)
+>  {
+> -	pmd = pmd_set_flags(pmd, _PAGE_NUMA);
+> -	return pmd_clear_flags(pmd, _PAGE_PRESENT);
+> +	pmdval_t val = pmd_val(pmd);
+> +
+> +	val &= ~_PAGE_PRESENT;
+> +	val |= _PAGE_NUMA;
+> +
+> +	return __pmd(val);
+>  }
+>  #endif
+>  
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
