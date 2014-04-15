@@ -1,59 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f42.google.com (mail-pb0-f42.google.com [209.85.160.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 41D386B0055
-	for <linux-mm@kvack.org>; Tue, 15 Apr 2014 14:52:22 -0400 (EDT)
-Received: by mail-pb0-f42.google.com with SMTP id rr13so9918802pbb.15
-        for <linux-mm@kvack.org>; Tue, 15 Apr 2014 11:52:21 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id bi5si11343272pbb.105.2014.04.15.11.52.20
-        for <linux-mm@kvack.org>;
-        Tue, 15 Apr 2014 11:52:21 -0700 (PDT)
-Date: Tue, 15 Apr 2014 11:52:19 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch 4/4] mm: Clear VM_SOFTDIRTY flag inside clear_refs_write
- instead of clear_soft_dirty
-Message-Id: <20140415115219.2676d2107b3f6b0dd5573062@linux-foundation.org>
-In-Reply-To: <20140415184851.GS23983@moon>
-References: <20140324122838.490106581@openvz.org>
-	<20140324125926.204897920@openvz.org>
-	<20140415110654.4dd9a97c216e2689316fa448@linux-foundation.org>
-	<20140415182935.GR23983@moon>
-	<20140415114449.c8732a56f9974c2819e4541a@linux-foundation.org>
-	<20140415184851.GS23983@moon>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail-lb0-f182.google.com (mail-lb0-f182.google.com [209.85.217.182])
+	by kanga.kvack.org (Postfix) with ESMTP id D4D676B0036
+	for <linux-mm@kvack.org>; Tue, 15 Apr 2014 15:08:38 -0400 (EDT)
+Received: by mail-lb0-f182.google.com with SMTP id n15so7353301lbi.13
+        for <linux-mm@kvack.org>; Tue, 15 Apr 2014 12:08:37 -0700 (PDT)
+Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
+        by mx.google.com with ESMTPS id c1si13663015lbp.128.2014.04.15.12.08.36
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 15 Apr 2014 12:08:36 -0700 (PDT)
+Message-ID: <534D83AB.6040107@parallels.com>
+Date: Tue, 15 Apr 2014 23:08:27 +0400
+From: Vladimir Davydov <vdavydov@parallels.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH -mm 1/4] memcg, slab: do not schedule cache destruction
+ when last page goes away
+References: <cover.1397054470.git.vdavydov@parallels.com> <8ea8b57d5264f16ee33497a4317240648645704a.1397054470.git.vdavydov@parallels.com> <20140415021614.GC7969@cmpxchg.org> <534CD08F.30702@parallels.com> <alpine.DEB.2.10.1404151016400.11231@gentwo.org>
+In-Reply-To: <alpine.DEB.2.10.1404151016400.11231@gentwo.org>
+Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cyrill Gorcunov <gorcunov@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, hughd@google.com, xemul@parallels.com, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, akpm@linux-foundation.org, mhocko@suse.cz, glommer@gmail.com, penberg@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, devel@openvz.org
 
-On Tue, 15 Apr 2014 22:48:51 +0400 Cyrill Gorcunov <gorcunov@gmail.com> wrote:
+Hi Christoph,
 
-> On Tue, Apr 15, 2014 at 11:44:49AM -0700, Andrew Morton wrote:
-> > On Tue, 15 Apr 2014 22:29:35 +0400 Cyrill Gorcunov <gorcunov@gmail.com> wrote:
-> > 
-> > > On Tue, Apr 15, 2014 at 11:06:54AM -0700, Andrew Morton wrote:
-> > > > 
-> > > > I resolved this by merging
-> > > > mm-softdirty-clear-vm_softdirty-flag-inside-clear_refs_write-instead-of-clear_soft_dirty.patch
-> > > > on top of the pagewalk patches as below - please carefully review.
-> > > 
-> > > Thanks a lot, Andrew! I've updated the patches and were planning to send them to you
-> > > tonightm but because you applied it on top of pagewal patches, I think i rather need to
-> > > fetch -next repo and review this patch and update the rest of the series on top (hope
-> > > i'll do that in 3-4 hours).
-> > 
-> > -mm isn't in -next at present.  I'll get a release done later today for
-> > tomorrow's -next.
-> 
-> OK. Could you please remind me the place I could fetch the patchwalk series from?
+15.04.2014 19:17, Christoph Lameter:
+> On Tue, 15 Apr 2014, Vladimir Davydov wrote:
+>
+>> 2) When freeing an object of a dead memcg cache, initiate thorough check
+>> if the cache is really empty and destroy it then. That could be
+>> implemented by poking the reaping thread on kfree, and actually does not
+>> require the schedule_work in memcg_release_pages IMO.
+>
+> There is already logic in both slub and slab that does that on cache
+> close.
 
-http://ozlabs.org/~akpm/mmots/
+Yeah, but here the question is when we should close caches left after 
+memcg offline. Obviously we should do it after all objects of such a 
+cache have gone, but when exactly? Do it immediately after the last 
+kfree (have to count objects per cache then AFAIU) or may be check 
+periodically (or on vmpressure) that the cache is empty by issuing 
+kmem_cache_shrink and looking if memcg_params::nr_pages = 0?
 
-> (or better to wait until -mm get merged into -next?)
-
-That's probably simpler.
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
