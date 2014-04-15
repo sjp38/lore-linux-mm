@@ -1,64 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f54.google.com (mail-ee0-f54.google.com [74.125.83.54])
-	by kanga.kvack.org (Postfix) with ESMTP id CD1B76B0031
-	for <linux-mm@kvack.org>; Mon, 14 Apr 2014 21:52:37 -0400 (EDT)
-Received: by mail-ee0-f54.google.com with SMTP id d49so7176288eek.13
-        for <linux-mm@kvack.org>; Mon, 14 Apr 2014 18:52:37 -0700 (PDT)
+Received: from mail-ee0-f45.google.com (mail-ee0-f45.google.com [74.125.83.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 4BF6E6B0031
+	for <linux-mm@kvack.org>; Mon, 14 Apr 2014 22:16:28 -0400 (EDT)
+Received: by mail-ee0-f45.google.com with SMTP id d17so7219863eek.32
+        for <linux-mm@kvack.org>; Mon, 14 Apr 2014 19:16:27 -0700 (PDT)
 Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id m49si23237187eeo.281.2014.04.14.18.52.36
+        by mx.google.com with ESMTPS id t3si23281043eeg.331.2014.04.14.19.16.26
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 14 Apr 2014 18:52:36 -0700 (PDT)
-Date: Mon, 14 Apr 2014 21:52:24 -0400
+        Mon, 14 Apr 2014 19:16:26 -0700 (PDT)
+Date: Mon, 14 Apr 2014 22:16:14 -0400
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] mm/memcontrol.c: make mem_cgroup_read_stat() read all
- interested stat item in one go
-Message-ID: <20140415015224.GB7969@cmpxchg.org>
-References: <1397149868-30401-1-git-send-email-nasa4836@gmail.com>
+Subject: Re: [PATCH -mm 1/4] memcg, slab: do not schedule cache destruction
+ when last page goes away
+Message-ID: <20140415021614.GC7969@cmpxchg.org>
+References: <cover.1397054470.git.vdavydov@parallels.com>
+ <8ea8b57d5264f16ee33497a4317240648645704a.1397054470.git.vdavydov@parallels.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1397149868-30401-1-git-send-email-nasa4836@gmail.com>
+In-Reply-To: <8ea8b57d5264f16ee33497a4317240648645704a.1397054470.git.vdavydov@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jianyu Zhan <nasa4836@gmail.com>
-Cc: mhocko@suse.cz, bsingharora@gmail.com, kamezawa.hiroyu@jp.fujitsu.com, akpm@linux-foundation.org, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: akpm@linux-foundation.org, mhocko@suse.cz, glommer@gmail.com, cl@linux-foundation.org, penberg@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, devel@openvz.org
 
-Hi Jianyu,
+On Wed, Apr 09, 2014 at 07:02:30PM +0400, Vladimir Davydov wrote:
+> After the memcg is offlined, we mark its kmem caches that cannot be
+> deleted right now due to pending objects as dead by setting the
+> memcg_cache_params::dead flag, so that memcg_release_pages will schedule
+> cache destruction (memcg_cache_params::destroy) as soon as the last slab
+> of the cache is freed (memcg_cache_params::nr_pages drops to zero).
+> 
+> I guess the idea was to destroy the caches as soon as possible, i.e.
+> immediately after freeing the last object. However, it just doesn't work
+> that way, because kmem caches always preserve some pages for the sake of
+> performance, so that nr_pages never gets to zero unless the cache is
+> shrunk explicitly using kmem_cache_shrink. Of course, we could account
+> the total number of objects on the cache or check if all the slabs
+> allocated for the cache are empty on kmem_cache_free and schedule
+> destruction if so, but that would be too costly.
+> 
+> Thus we have a piece of code that works only when we explicitly call
+> kmem_cache_shrink, but complicates the whole picture a lot. Moreover,
+> it's racy in fact. For instance, kmem_cache_shrink may free the last
+> slab and thus schedule cache destruction before it finishes checking
+> that the cache is empty, which can lead to use-after-free.
+> 
+> So I propose to remove this async cache destruction from
+> memcg_release_pages, and check if the cache is empty explicitly after
+> calling kmem_cache_shrink instead. This will simplify things a lot w/o
+> introducing any functional changes.
+> 
+> And regarding dead memcg caches (i.e. those that are left hanging around
+> after memcg offline for they have objects), I suppose we should reap
+> them either periodically or on vmpressure as Glauber suggested
+> initially. I'm going to implement this later.
 
-On Fri, Apr 11, 2014 at 01:11:08AM +0800, Jianyu Zhan wrote:
-> Currently, mem_cgroup_read_stat() is used for user interface. The
-> user accounts memory usage by memory cgroup and he _always_ requires
-> exact value because he accounts memory. So we don't use quick-and-fuzzy
-> -read-and-do-periodic-synchronization way. Thus, we iterate all cpus
-> for one read.
-> 
-> And we mem_cgroup_usage() and mem_cgroup_recursive_stat() both finally
-> call into mem_cgroup_read_stat().
-> 
-> However, these *stat snapshot* operations are implemented in a quite
-> coarse way: it takes M*N iteration for each stat item(M=nr_memcgs,
-> N=nr_possible_cpus). There are two deficiencies:
-> 
-> 1. for every stat item, we have to iterate over all percpu value, which
->    is not so cache friendly.
-> 2. for every stat item, we call mem_cgroup_read_stat() once, which
->    increase the probablity of contending on pcp_counter_lock.
-> 
-> So, this patch improve this a bit. Concretely, for all interested stat
-> items, mark them in a bitmap, and then make mem_cgroup_read_stat() read
-> them all in one go.
-> 
-> This is more efficient, and to some degree make it more like *stat snapshot*.
-> 
-> Signed-off-by: Jianyu Zhan <nasa4836@gmail.com>
-> ---
->  mm/memcontrol.c | 91 +++++++++++++++++++++++++++++++++++++++------------------
->  1 file changed, 62 insertions(+), 29 deletions(-)
+memcg_release_pages() can be called after cgroup destruction, and thus
+it *must* ensure that the now-empty cache is destroyed - or we'll leak
+it.
 
-This is when the user reads statistics or when OOM happens, neither of
-which I would consider fast paths.  I don't think it's worth the extra
-code, which looks more cumbersome than what we have.
+There is no excuse to downgrade to periodic reaping when we already
+directly hook into the event that makes the cache empty.  If slab
+needs to hold on to the cache for slightly longer than the final
+memcg_release_pages(), then it should grab a refcount to it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
