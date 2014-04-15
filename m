@@ -1,50 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 109766B0038
-	for <linux-mm@kvack.org>; Mon, 14 Apr 2014 19:57:30 -0400 (EDT)
-Received: by mail-pa0-f42.google.com with SMTP id fb1so8947016pad.1
-        for <linux-mm@kvack.org>; Mon, 14 Apr 2014 16:57:30 -0700 (PDT)
-Received: from g2t2353.austin.hp.com (g2t2353.austin.hp.com. [15.217.128.52])
-        by mx.google.com with ESMTPS id yb4si5455807pab.431.2014.04.14.16.57.29
+Received: from mail-oa0-f51.google.com (mail-oa0-f51.google.com [209.85.219.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 75C046B0031
+	for <linux-mm@kvack.org>; Mon, 14 Apr 2014 20:02:16 -0400 (EDT)
+Received: by mail-oa0-f51.google.com with SMTP id i4so9907163oah.24
+        for <linux-mm@kvack.org>; Mon, 14 Apr 2014 17:02:16 -0700 (PDT)
+Received: from g4t3426.houston.hp.com (g4t3426.houston.hp.com. [15.201.208.54])
+        by mx.google.com with ESMTPS id g2si15141545obv.159.2014.04.14.17.02.15
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 14 Apr 2014 16:57:29 -0700 (PDT)
+        Mon, 14 Apr 2014 17:02:15 -0700 (PDT)
+Message-ID: <1397520133.31076.24.camel@buesod1.americas.hpqcorp.net>
+Subject: Re: [PATCH 3/3] mm,vmacache: optimize overflow system-wide flushing
 From: Davidlohr Bueso <davidlohr@hp.com>
-Subject: [PATCH 1/3] mm: fix CONFIG_DEBUG_VM_RB description
-Date: Mon, 14 Apr 2014 16:57:19 -0700
-Message-Id: <1397519841-24847-2-git-send-email-davidlohr@hp.com>
-In-Reply-To: <1397519841-24847-1-git-send-email-davidlohr@hp.com>
+Date: Mon, 14 Apr 2014 17:02:13 -0700
+In-Reply-To: <1397519841-24847-4-git-send-email-davidlohr@hp.com>
 References: <1397519841-24847-1-git-send-email-davidlohr@hp.com>
+	 <1397519841-24847-4-git-send-email-davidlohr@hp.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, davidlohr@hp.com, aswin@hp.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, aswin@hp.com, Oleg Nesterov <oleg@redhat.com>
 
-This appears to be a copy/paste error. Update the description
-to reflect extra rbtree debug and checks for the config option
-instead of duplicating CONFIG_DEBUG_VM.
+Stupid script... Cc'ing Oleg.
 
-Signed-off-by: Davidlohr Bueso <davidlohr@hp.com>
----
- lib/Kconfig.debug | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
+On Mon, 2014-04-14 at 16:57 -0700, Davidlohr Bueso wrote:
+> For single threaded workloads, we can avoid flushing
+> and iterating through the entire list of tasks, making
+> the whole function a lot faster, requiring only a single
+> atomic read for the mm_users.
+> 
+> Suggested-by: Oleg Nesterov <oleg@redhat.com>
+> Signed-off-by: Davidlohr Bueso <davidlohr@hp.com>
+> ---
+>  mm/vmacache.c | 10 ++++++++++
+>  1 file changed, 10 insertions(+)
+> 
+> diff --git a/mm/vmacache.c b/mm/vmacache.c
+> index e167da2..61c38ae 100644
+> --- a/mm/vmacache.c
+> +++ b/mm/vmacache.c
+> @@ -17,6 +17,16 @@ void vmacache_flush_all(struct mm_struct *mm)
+>  {
+>  	struct task_struct *g, *p;
+>  
+> +	/*
+> +	 * Single threaded tasks need not iterate the entire
+> +	 * list of process. We can avoid the flushing as well
+> +	 * since the mm's seqnum was increased and don't have
+> +	 * to worry about other threads' seqnum. Current's
+> +	 * flush will occur upon the next lookup.
+> +	 */
+> +	if (atomic_read(&mm->mm_users) == 1)
+> +		return;
+> +
+>  	rcu_read_lock();
+>  	for_each_process_thread(g, p) {
+>  		/*
 
-diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
-index 140b66a..819ac51 100644
---- a/lib/Kconfig.debug
-+++ b/lib/Kconfig.debug
-@@ -505,8 +505,7 @@ config DEBUG_VM_RB
- 	bool "Debug VM red-black trees"
- 	depends on DEBUG_VM
- 	help
--	  Enable this to turn on more extended checks in the virtual-memory
--	  system that may impact performance.
-+	  Enable VM red-black tree debugging information and extra validations.
- 
- 	  If unsure, say N.
- 
--- 
-1.8.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
