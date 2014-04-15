@@ -1,101 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com [209.85.160.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E9056B0031
-	for <linux-mm@kvack.org>; Mon, 14 Apr 2014 21:03:05 -0400 (EDT)
-Received: by mail-pb0-f54.google.com with SMTP id ma3so8857183pbc.13
-        for <linux-mm@kvack.org>; Mon, 14 Apr 2014 18:03:04 -0700 (PDT)
-Received: from heian.cn.fujitsu.com ([59.151.112.132])
-        by mx.google.com with ESMTP id x5si9792879pax.64.2014.04.14.18.03.03
-        for <linux-mm@kvack.org>;
-        Mon, 14 Apr 2014 18:03:04 -0700 (PDT)
-Message-ID: <534C8534.6080008@cn.fujitsu.com>
-Date: Tue, 15 Apr 2014 09:02:44 +0800
-From: "gux.fnst" <gux.fnst@cn.fujitsu.com>
+Received: from mail-ee0-f54.google.com (mail-ee0-f54.google.com [74.125.83.54])
+	by kanga.kvack.org (Postfix) with ESMTP id CD1B76B0031
+	for <linux-mm@kvack.org>; Mon, 14 Apr 2014 21:52:37 -0400 (EDT)
+Received: by mail-ee0-f54.google.com with SMTP id d49so7176288eek.13
+        for <linux-mm@kvack.org>; Mon, 14 Apr 2014 18:52:37 -0700 (PDT)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id m49si23237187eeo.281.2014.04.14.18.52.36
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 14 Apr 2014 18:52:36 -0700 (PDT)
+Date: Mon, 14 Apr 2014 21:52:24 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] mm/memcontrol.c: make mem_cgroup_read_stat() read all
+ interested stat item in one go
+Message-ID: <20140415015224.GB7969@cmpxchg.org>
+References: <1397149868-30401-1-git-send-email-nasa4836@gmail.com>
 MIME-Version: 1.0
-Subject: Re: ask for your help about a patch (commit: 9845cbb)
-References: <534B46FE.1070704@cn.fujitsu.com> <20140414103747.70943E0098@blue.fi.intel.com>
-In-Reply-To: <20140414103747.70943E0098@blue.fi.intel.com>
-Content-Type: text/plain; charset="windows-1252"; format=flowed
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1397149868-30401-1-git-send-email-nasa4836@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: linux-mm@kvack.org
+To: Jianyu Zhan <nasa4836@gmail.com>
+Cc: mhocko@suse.cz, bsingharora@gmail.com, kamezawa.hiroyu@jp.fujitsu.com, akpm@linux-foundation.org, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
+Hi Jianyu,
 
-On 04/14/2014 06:37 PM, Kirill A. Shutemov wrote:
-> gux.fnst wrote:
->> Hi Kirill,
-> Hi Xing,
->
-> Please always CC to mailing list for upstream-related questions.
-> I've added linux-mm@ to CC.
+On Fri, Apr 11, 2014 at 01:11:08AM +0800, Jianyu Zhan wrote:
+> Currently, mem_cgroup_read_stat() is used for user interface. The
+> user accounts memory usage by memory cgroup and he _always_ requires
+> exact value because he accounts memory. So we don't use quick-and-fuzzy
+> -read-and-do-periodic-synchronization way. Thus, we iterate all cpus
+> for one read.
+> 
+> And we mem_cgroup_usage() and mem_cgroup_recursive_stat() both finally
+> call into mem_cgroup_read_stat().
+> 
+> However, these *stat snapshot* operations are implemented in a quite
+> coarse way: it takes M*N iteration for each stat item(M=nr_memcgs,
+> N=nr_possible_cpus). There are two deficiencies:
+> 
+> 1. for every stat item, we have to iterate over all percpu value, which
+>    is not so cache friendly.
+> 2. for every stat item, we call mem_cgroup_read_stat() once, which
+>    increase the probablity of contending on pcp_counter_lock.
+> 
+> So, this patch improve this a bit. Concretely, for all interested stat
+> items, mark them in a bitmap, and then make mem_cgroup_read_stat() read
+> them all in one go.
+> 
+> This is more efficient, and to some degree make it more like *stat snapshot*.
+> 
+> Signed-off-by: Jianyu Zhan <nasa4836@gmail.com>
+> ---
+>  mm/memcontrol.c | 91 +++++++++++++++++++++++++++++++++++++++------------------
+>  1 file changed, 62 insertions(+), 29 deletions(-)
 
-OK, got it.
-
-> VM_FAULT_FALLBACK is
-> fallback required.
-> -------------------------------------------------------------------------=
---------------------------------------------------
->
-> It is a little difficult to reproduce this problem fixed by this patch
-> for me. Could you give me some
-> hint about how to do this - =E2=80=9Callocate a huge page to replace zero=
- page
-> but hit the memcg limit"?
-> I used this script:
->
-> #!/bin/sh -efu
->
-> set -efux
->
-> mount -t cgroup none /sys/fs/cgroup
-> mkdir /sys/fs/cgroup/test
-> echo "10M" > /sys/fs/cgroup/test/memory.limit_in_bytes
-> echo "10M" > /sys/fs/cgroup/test/memory.memsw.limit_in_bytes
->
-> echo $$ > /sys/fs/cgroup/test/tasks
-> /host/home/kas/var/mmaptest_zero
-> echo ok
->
-> Where /host/home/kas/var/mmaptest_zero is:
->
-> #include <assert.h>
-> #include <fcntl.h>
-> #include <stdio.h>
-> #include <stdlib.h>
-> #include <unistd.h>
-> #include <sys/types.h>
-> #include <sys/mman.h>
->
-> #define MB (1024 * 1024)
-> #define SIZE (256 * MB)
->
-> int main(int argc, char **argv)
-> {
-> 	int i;
-> 	char *p;
->
-> 	posix_memalign((void **)&p, 2 * MB, SIZE);
-> 	printf("p: %p\n", p);
-> 	fork();
-> 	for (i =3D 0; i < SIZE; i +=3D 4096)
-> 		assert(p[i] =3D=3D 0);
->
-> 	for (i =3D 0; i < SIZE; i +=3D 4096)
-> 		p[i] =3D 1;
->
-> 	pause();
-> 	return 0;
-> }
->
-> Without the patch it hangs, but should trigger OOM.
->
-
-Thank you very much.
-
-Regards,
-Xing Gu
+This is when the user reads statistics or when OOM happens, neither of
+which I would consider fast paths.  I don't think it's worth the extra
+code, which looks more cumbersome than what we have.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
