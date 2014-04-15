@@ -1,77 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f43.google.com (mail-ee0-f43.google.com [74.125.83.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 20B306B0031
-	for <linux-mm@kvack.org>; Tue, 15 Apr 2014 10:44:30 -0400 (EDT)
-Received: by mail-ee0-f43.google.com with SMTP id e53so7840739eek.2
-        for <linux-mm@kvack.org>; Tue, 15 Apr 2014 07:44:29 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 45si25876064eeh.63.2014.04.15.07.44.27
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 15 Apr 2014 07:44:28 -0700 (PDT)
-Date: Tue, 15 Apr 2014 15:44:24 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 4/5] mm: use paravirt friendly ops for NUMA hinting ptes
-Message-ID: <20140415144423.GV7292@suse.de>
-References: <1396962570-18762-1-git-send-email-mgorman@suse.de>
- <1396962570-18762-5-git-send-email-mgorman@suse.de>
- <534D09AC.7020704@citrix.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <534D09AC.7020704@citrix.com>
+Received: from mail-qg0-f46.google.com (mail-qg0-f46.google.com [209.85.192.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 80C9B6B0031
+	for <linux-mm@kvack.org>; Tue, 15 Apr 2014 11:17:09 -0400 (EDT)
+Received: by mail-qg0-f46.google.com with SMTP id 63so9640560qgz.19
+        for <linux-mm@kvack.org>; Tue, 15 Apr 2014 08:17:09 -0700 (PDT)
+Received: from qmta10.emeryville.ca.mail.comcast.net (qmta10.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:17])
+        by mx.google.com with ESMTP id 68si8361697qgn.64.2014.04.15.08.17.08
+        for <linux-mm@kvack.org>;
+        Tue, 15 Apr 2014 08:17:08 -0700 (PDT)
+Date: Tue, 15 Apr 2014 10:17:04 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH -mm 1/4] memcg, slab: do not schedule cache destruction
+ when last page goes away
+In-Reply-To: <534CD08F.30702@parallels.com>
+Message-ID: <alpine.DEB.2.10.1404151016400.11231@gentwo.org>
+References: <cover.1397054470.git.vdavydov@parallels.com> <8ea8b57d5264f16ee33497a4317240648645704a.1397054470.git.vdavydov@parallels.com> <20140415021614.GC7969@cmpxchg.org> <534CD08F.30702@parallels.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Vrabel <david.vrabel@citrix.com>
-Cc: Linux-X86 <x86@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Cyrill Gorcunov <gorcunov@gmail.com>, Peter Anvin <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, Steven Noonan <steven@uplinklabs.net>, Rik van Riel <riel@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, akpm@linux-foundation.org, mhocko@suse.cz, glommer@gmail.com, penberg@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, devel@openvz.org
 
-On Tue, Apr 15, 2014 at 11:27:56AM +0100, David Vrabel wrote:
-> On 08/04/14 14:09, Mel Gorman wrote:
-> > David Vrabel identified a regression when using automatic NUMA balancing
-> > under Xen whereby page table entries were getting corrupted due to the
-> > use of native PTE operations. Quoting him
-> > 
-> > 	Xen PV guest page tables require that their entries use machine
-> > 	addresses if the preset bit (_PAGE_PRESENT) is set, and (for
-> > 	successful migration) non-present PTEs must use pseudo-physical
-> > 	addresses.  This is because on migration MFNs in present PTEs are
-> > 	translated to PFNs (canonicalised) so they may be translated back
-> > 	to the new MFN in the destination domain (uncanonicalised).
-> > 
-> > 	pte_mknonnuma(), pmd_mknonnuma(), pte_mknuma() and pmd_mknuma()
-> > 	set and clear the _PAGE_PRESENT bit using pte_set_flags(),
-> > 	pte_clear_flags(), etc.
-> > 
-> > 	In a Xen PV guest, these functions must translate MFNs to PFNs
-> > 	when clearing _PAGE_PRESENT and translate PFNs to MFNs when setting
-> > 	_PAGE_PRESENT.
-> > 
-> > His suggested fix converted p[te|md]_[set|clear]_flags to using
-> > paravirt-friendly ops but this is overkill. He suggested an alternative of
-> > using p[te|md]_modify in the NUMA page table operations but this is does
-> > more work than necessary and would require looking up a VMA for protections.
-> > 
-> > This patch modifies the NUMA page table operations to use paravirt friendly
-> > operations to set/clear the flags of interest. Unfortunately this will take
-> > a performance hit when updating the PTEs on CONFIG_PARAVIRT but I do not
-> > see a way around it that does not break Xen.
-> 
-> We're getting more reports of users hitting this regression with distro
-> provided kernels.  Irrespective of the rest of this series, can we get
-> at least this applied and tagged for stable, please?
-> 
-> http://lists.xenproject.org/archives/html/xen-devel/2014-04/msg01905.html
-> 
+On Tue, 15 Apr 2014, Vladimir Davydov wrote:
 
-The resending of the series got delayed until today. Fengguang Wu hit
-problems testing the series and I ran into a number of similarly shaped
-problems that took time to resolve. I sent out a v4 of the series with this
-patch at the front and a note on the leader saying it should be picked up
-for stable regardless of what happens with the patches 2 and 3.
+> 2) When freeing an object of a dead memcg cache, initiate thorough check
+> if the cache is really empty and destroy it then. That could be
+> implemented by poking the reaping thread on kfree, and actually does not
+> require the schedule_work in memcg_release_pages IMO.
 
--- 
-Mel Gorman
-SUSE Labs
+There is already logic in both slub and slab that does that on cache
+close.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
