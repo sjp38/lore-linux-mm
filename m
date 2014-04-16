@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f43.google.com (mail-ee0-f43.google.com [74.125.83.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 3DD016B006E
-	for <linux-mm@kvack.org>; Wed, 16 Apr 2014 00:19:38 -0400 (EDT)
-Received: by mail-ee0-f43.google.com with SMTP id e53so8299604eek.2
-        for <linux-mm@kvack.org>; Tue, 15 Apr 2014 21:19:37 -0700 (PDT)
+Received: from mail-ee0-f41.google.com (mail-ee0-f41.google.com [74.125.83.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 4FDC16B0071
+	for <linux-mm@kvack.org>; Wed, 16 Apr 2014 00:19:45 -0400 (EDT)
+Received: by mail-ee0-f41.google.com with SMTP id t10so8348696eei.14
+        for <linux-mm@kvack.org>; Tue, 15 Apr 2014 21:19:44 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 43si28164055eer.27.2014.04.15.21.19.36
+        by mx.google.com with ESMTPS id r9si28130813eew.198.2014.04.15.21.19.43
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 15 Apr 2014 21:19:37 -0700 (PDT)
+        Tue, 15 Apr 2014 21:19:44 -0700 (PDT)
 From: NeilBrown <neilb@suse.de>
 Date: Wed, 16 Apr 2014 14:03:37 +1000
-Subject: [PATCH 15/19] nfsd: set PF_FSTRANS when client_mutex is held.
-Message-ID: <20140416040336.10604.67828.stgit@notabene.brown>
+Subject: [PATCH 16/19] VFS: use GFP_NOFS rather than GFP_KERNEL in __d_alloc.
+Message-ID: <20140416040337.10604.61837.stgit@notabene.brown>
 In-Reply-To: <20140416033623.10604.69237.stgit@notabene.brown>
 References: <20140416033623.10604.69237.stgit@notabene.brown>
 MIME-Version: 1.0
@@ -23,43 +23,40 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org
 Cc: xfs@oss.sgi.com
 
-When loop-back NFS with NFSv4 is in use, client_mutex might be needed
-to reclaim memory, so any memory allocation while client_mutex is held
-must avoid __GFP_FS, so best to set PF_FSTRANS.
+__d_alloc can be called with i_mutex held, so it is safer to
+use GFP_NOFS.
+
+lockdep reports this can deadlock when loop-back NFS is in use,
+as nfsd may be required to write out for reclaim, and nfsd certainly
+takes i_mutex.
 
 Signed-off-by: NeilBrown <neilb@suse.de>
 ---
- fs/nfsd/nfs4state.c |    3 +++
- 1 file changed, 3 insertions(+)
+ fs/dcache.c |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/fs/nfsd/nfs4state.c b/fs/nfsd/nfs4state.c
-index d5d070fbeb35..7b7fbcbe20cb 100644
---- a/fs/nfsd/nfs4state.c
-+++ b/fs/nfsd/nfs4state.c
-@@ -75,6 +75,7 @@ static int check_for_locks(struct nfs4_file *filp, struct nfs4_lockowner *lowner
+diff --git a/fs/dcache.c b/fs/dcache.c
+index ca02c13a84aa..3651ff6185b4 100644
+--- a/fs/dcache.c
++++ b/fs/dcache.c
+@@ -1483,7 +1483,7 @@ struct dentry *__d_alloc(struct super_block *sb, const struct qstr *name)
+ 	struct dentry *dentry;
+ 	char *dname;
  
- /* Currently used for almost all code touching nfsv4 state: */
- static DEFINE_MUTEX(client_mutex);
-+static unsigned int client_mutex_pflags;
+-	dentry = kmem_cache_alloc(dentry_cache, GFP_KERNEL);
++	dentry = kmem_cache_alloc(dentry_cache, GFP_NOFS);
+ 	if (!dentry)
+ 		return NULL;
  
- /*
-  * Currently used for the del_recall_lru and file hash table.  In an
-@@ -93,6 +94,7 @@ void
- nfs4_lock_state(void)
- {
- 	mutex_lock(&client_mutex);
-+	current_set_flags_nested(&client_mutex_pflags, PF_FSTRANS);
- }
- 
- static void free_session(struct nfsd4_session *);
-@@ -127,6 +129,7 @@ static __be32 nfsd4_get_session_locked(struct nfsd4_session *ses)
- void
- nfs4_unlock_state(void)
- {
-+	current_restore_flags_nested(&client_mutex_pflags, PF_FSTRANS);
- 	mutex_unlock(&client_mutex);
- }
- 
+@@ -1495,7 +1495,7 @@ struct dentry *__d_alloc(struct super_block *sb, const struct qstr *name)
+ 	 */
+ 	dentry->d_iname[DNAME_INLINE_LEN-1] = 0;
+ 	if (name->len > DNAME_INLINE_LEN-1) {
+-		dname = kmalloc(name->len + 1, GFP_KERNEL);
++		dname = kmalloc(name->len + 1, GFP_NOFS);
+ 		if (!dname) {
+ 			kmem_cache_free(dentry_cache, dentry); 
+ 			return NULL;
 
 
 --
