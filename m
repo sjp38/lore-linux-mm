@@ -1,98 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f51.google.com (mail-pb0-f51.google.com [209.85.160.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 5548A6B0035
-	for <linux-mm@kvack.org>; Wed, 16 Apr 2014 01:38:41 -0400 (EDT)
-Received: by mail-pb0-f51.google.com with SMTP id uo5so10453643pbc.38
-        for <linux-mm@kvack.org>; Tue, 15 Apr 2014 22:38:40 -0700 (PDT)
-Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [2001:44b8:8060:ff02:300:1:6:6])
-        by mx.google.com with ESMTP id w4si12040940paa.157.2014.04.15.22.38.38
-        for <linux-mm@kvack.org>;
-        Tue, 15 Apr 2014 22:38:40 -0700 (PDT)
-Date: Wed, 16 Apr 2014 15:37:56 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 04/19] Make effect of PF_FSTRANS to disable __GFP_FS
- universal.
-Message-ID: <20140416053756.GC15995@dastard>
+Received: from mail-ee0-f51.google.com (mail-ee0-f51.google.com [74.125.83.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D53D6B0038
+	for <linux-mm@kvack.org>; Wed, 16 Apr 2014 01:47:56 -0400 (EDT)
+Received: by mail-ee0-f51.google.com with SMTP id c13so8437013eek.10
+        for <linux-mm@kvack.org>; Tue, 15 Apr 2014 22:47:55 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 43si28426267eei.325.2014.04.15.22.47.54
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 15 Apr 2014 22:47:54 -0700 (PDT)
+Date: Wed, 16 Apr 2014 15:47:46 +1000
+From: NeilBrown <neilb@suse.de>
+Subject: Re: [PATCH 10/19] NET: set PF_FSTRANS while holding sk_lock
+Message-ID: <20140416154746.7dbb4485@notabene.brown>
+In-Reply-To: <1397625226.4222.113.camel@edumazet-glaptop2.roam.corp.google.com>
 References: <20140416033623.10604.69237.stgit@notabene.brown>
- <20140416040336.10604.58240.stgit@notabene.brown>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140416040336.10604.58240.stgit@notabene.brown>
+	<20140416040336.10604.96000.stgit@notabene.brown>
+	<1397625226.4222.113.camel@edumazet-glaptop2.roam.corp.google.com>
+Mime-Version: 1.0
+Content-Type: multipart/signed; micalg=PGP-SHA1;
+ boundary="Sig_/YX/W05=F6X9qrxW7nKLwnOj"; protocol="application/pgp-signature"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: NeilBrown <neilb@suse.de>
-Cc: linux-mm@kvack.org, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org, Ming Lei <ming.lei@canonical.com>, xfs@oss.sgi.com
+To: Eric Dumazet <eric.dumazet@gmail.com>
+Cc: linux-mm@kvack.org, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org, xfs@oss.sgi.com, netdev@vger.kernel.org
 
-On Wed, Apr 16, 2014 at 02:03:36PM +1000, NeilBrown wrote:
-> Currently both xfs and nfs will handle PF_FSTRANS by disabling
-> __GFP_FS.
-> 
-> Make this effect global by repurposing memalloc_noio_flags (which
-> does the same thing for PF_MEMALLOC_NOIO and __GFP_IO) to generally
-> impost the task flags on a gfp_t.
-> Due to this repurposing we change the name of memalloc_noio_flags
-> to gfp_from_current().
-> 
-> As PF_FSTRANS now uniformly removes __GFP_FS we can remove special
-> code for this from xfs and nfs.
-> 
-> As we can now expect other code to set PF_FSTRANS, its meaning is more
-> general, so the WARN_ON in xfs_vm_writepage() which checks PF_FSTRANS
-> is not set is no longer appropriate.  PF_FSTRANS may be set for other
-> reasons than an XFS transaction.
+--Sig_/YX/W05=F6X9qrxW7nKLwnOj
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
 
-So PF_FSTRANS no longer means "filesystem in transaction context".
-Are you going to rename to match whatever it's meaning is now?
-I'm not exactly clear on what it means now...
+On Tue, 15 Apr 2014 22:13:46 -0700 Eric Dumazet <eric.dumazet@gmail.com>
+wrote:
+
+> On Wed, 2014-04-16 at 14:03 +1000, NeilBrown wrote:
+> > sk_lock can be taken while reclaiming memory (in nfsd for loop-back
+> > NFS mounts, and presumably in nfs), and memory can be allocated while
+> > holding sk_lock, at least via:
+> >=20
+> >  inet_listen -> inet_csk_listen_start ->reqsk_queue_alloc
+> >=20
+> > So to avoid deadlocks, always set PF_FSTRANS while holding sk_lock.
+> >=20
+> > This deadlock was found by lockdep.
+>=20
+> Wow, this is adding expensive stuff in fast path, only for nfsd :(
+
+Yes, this was probably one part that I was least comfortable about.
+
+>=20
+> BTW, why should the current->flags should be saved on a socket field,
+> and not a current->save_flags. This really looks a thread property, not
+> a socket one.
+>=20
+> Why nfsd could not have PF_FSTRANS in its current->flags ?
+
+nfsd does have PF_FSTRANS set in current->flags.  But some other processes
+might not.
+
+If any process takes sk_lock, allocates memory, and then blocks in reclaim =
+it
+could be waiting for nfsd.  If nfsd waits for that sk_lock, it would cause a
+deadlock.
+
+Thinking a bit more carefully .... I suspect that any socket that nfsd
+created would only ever be locked by nfsd.  If that is the case then the
+problem can be resolved entirely within nfsd.  We would need to tell lockdep
+that there are two sorts of sk_locks, those which nfsd uses and all the
+rest.  That might get a little messy, but wouldn't impact performance.
+
+Is it justified to assume that sockets created by nfsd threads would only
+ever be locked by nfsd threads (and interrupts, which won't be allocating
+memory so don't matter), or might there be locked by other threads - e.g for
+'netstat -a' etc??
 
 
-> As lockdep cares about __GFP_FS, we need to translate PF_FSTRANS to
-> __GFP_FS before calling lockdep_alloc_trace() in various places.
-> 
-> Signed-off-by: NeilBrown <neilb@suse.de>
-....
-> diff --git a/fs/xfs/kmem.h b/fs/xfs/kmem.h
-> index 64db0e53edea..882b86270ebe 100644
-> --- a/fs/xfs/kmem.h
-> +++ b/fs/xfs/kmem.h
-> @@ -50,8 +50,6 @@ kmem_flags_convert(xfs_km_flags_t flags)
->  		lflags = GFP_ATOMIC | __GFP_NOWARN;
->  	} else {
->  		lflags = GFP_KERNEL | __GFP_NOWARN;
-> -		if ((current->flags & PF_FSTRANS) || (flags & KM_NOFS))
-> -			lflags &= ~__GFP_FS;
->  	}
+>=20
+> For applications handling millions of sockets, this makes a difference.
+>=20
 
-I think KM_NOFS needs to remain here, as it has use outside of
-transaction contexts that set PF_FSTRANS....
+Thanks,
+NeilBrown
 
->  	if (flags & KM_ZERO)
-> diff --git a/fs/xfs/xfs_aops.c b/fs/xfs/xfs_aops.c
-> index db2cfb067d0b..207a7f86d5d7 100644
-> --- a/fs/xfs/xfs_aops.c
-> +++ b/fs/xfs/xfs_aops.c
-> @@ -952,13 +952,6 @@ xfs_vm_writepage(
->  			PF_MEMALLOC))
->  		goto redirty;
->  
-> -	/*
-> -	 * Given that we do not allow direct reclaim to call us, we should
-> -	 * never be called while in a filesystem transaction.
-> -	 */
-> -	if (WARN_ON(current->flags & PF_FSTRANS))
-> -		goto redirty;
 
-We still need to ensure this rule isn't broken. If it is, the
-filesystem will silently deadlock in delayed allocation rather than
-gracefully handle the problem with a warning....
+--Sig_/YX/W05=F6X9qrxW7nKLwnOj
+Content-Type: application/pgp-signature; name=signature.asc
+Content-Disposition: attachment; filename=signature.asc
 
-Cheers,
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2.0.22 (GNU/Linux)
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+iQIVAwUBU04Zgjnsnt1WYoG5AQKvxBAAv9gDOMnc/LfCUMBQxzIaIokErrHkCKxM
+8u1W93ux2PFls2k6qTlSCVSBpO6chk1Avr9SWPyJZvTFYUnh98PiDV1tKVxJCek8
+42kflXGTxHUFXkSBV1ue21mOdn7gw0R3myuMZ8zXD/JFl9sDylwuUbg28hexfWky
+sPEu3OCd9DiKm+2uWSe+wlFDWDHkzknRw6g0Ym5/PfuiOl6SgNcHT4w97+Jp1hkd
+Xs/TQSIv3aRevVoBtFdtQ90vHE2lEakCOShqyH+oH2ryYmaCsAV2nJzOcpYxZTsL
+FTo3Xh+NqDIWUZEsulJtN1vrkOpAIEeJgRcGxwIEauYi/+mGEFF6O+Xo2QK8Dq0c
+/rJrDsNvzJ0EHkaIZACsYXQRHljRPzYGmRCoSnsSnnea/Uqda9sluxPzR7Gsxc0B
+DqyJd00t6fTQHwWGBG/XEvf1htts4s7rFwLysfBOnK5W5Rc3rih6/ue+i4Ebptmu
+tzekBzYicl83hb8KXhpUD4h+PkW1UtUJsbmP5qhMK8wRqzhnsyliil8yxJDY2YTo
+Z+qCD7lsacI2NtAvB0hwNQmXG1rq7oYn0rF7s/1vwl+AQSEaYHELWUm6cb9cE+42
+OhlnV7nle5yy/mPF93G54m+qwRDlFM8xM7PH7t9JoGdFRXDW/QMh7ma9k2HjVBH/
+jxxIu5TYBIw=
+=PGsl
+-----END PGP SIGNATURE-----
+
+--Sig_/YX/W05=F6X9qrxW7nKLwnOj--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
