@@ -1,102 +1,279 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f53.google.com (mail-pb0-f53.google.com [209.85.160.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 0FBAA6B0083
-	for <linux-mm@kvack.org>; Wed, 16 Apr 2014 05:00:55 -0400 (EDT)
-Received: by mail-pb0-f53.google.com with SMTP id rp16so10527271pbb.26
-        for <linux-mm@kvack.org>; Wed, 16 Apr 2014 02:00:55 -0700 (PDT)
-Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [2001:44b8:8060:ff02:300:1:6:6])
-        by mx.google.com with ESMTP id j4si12314317pad.309.2014.04.16.02.00.53
-        for <linux-mm@kvack.org>;
-        Wed, 16 Apr 2014 02:00:54 -0700 (PDT)
-Date: Wed, 16 Apr 2014 19:00:51 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 16/19] VFS: use GFP_NOFS rather than GFP_KERNEL in
- __d_alloc.
-Message-ID: <20140416090051.GK15995@dastard>
-References: <20140416033623.10604.69237.stgit@notabene.brown>
- <20140416040337.10604.61837.stgit@notabene.brown>
- <20140416062520.GG15995@dastard>
- <20140416164941.37587da6@notabene.brown>
+Received: from mail-ee0-f41.google.com (mail-ee0-f41.google.com [74.125.83.41])
+	by kanga.kvack.org (Postfix) with ESMTP id D7F6E6B003C
+	for <linux-mm@kvack.org>; Wed, 16 Apr 2014 05:22:48 -0400 (EDT)
+Received: by mail-ee0-f41.google.com with SMTP id t10so8678070eei.28
+        for <linux-mm@kvack.org>; Wed, 16 Apr 2014 02:22:48 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id x44si29272041eep.210.2014.04.16.02.22.46
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 16 Apr 2014 02:22:47 -0700 (PDT)
+Date: Wed, 16 Apr 2014 11:22:45 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] mm/memcontrol.c: make mem_cgroup_read_stat() read all
+ interested stat item in one go
+Message-ID: <20140416092245.GD12866@dhcp22.suse.cz>
+References: <1397149868-30401-1-git-send-email-nasa4836@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140416164941.37587da6@notabene.brown>
+In-Reply-To: <1397149868-30401-1-git-send-email-nasa4836@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: NeilBrown <neilb@suse.de>
-Cc: linux-mm@kvack.org, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org, xfs@oss.sgi.com
+To: Jianyu Zhan <nasa4836@gmail.com>
+Cc: hannes@cmpxchg.org, bsingharora@gmail.com, kamezawa.hiroyu@jp.fujitsu.com, akpm@linux-foundation.org, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Apr 16, 2014 at 04:49:41PM +1000, NeilBrown wrote:
-> On Wed, 16 Apr 2014 16:25:20 +1000 Dave Chinner <david@fromorbit.com> wrote:
+On Fri 11-04-14 01:11:08, Jianyu Zhan wrote:
+> Currently, mem_cgroup_read_stat() is used for user interface. The
+> user accounts memory usage by memory cgroup and he _always_ requires
+> exact value because he accounts memory. So we don't use quick-and-fuzzy
+> -read-and-do-periodic-synchronization way. Thus, we iterate all cpus
+> for one read.
 > 
-> > On Wed, Apr 16, 2014 at 02:03:37PM +1000, NeilBrown wrote:
-> > > __d_alloc can be called with i_mutex held, so it is safer to
-> > > use GFP_NOFS.
-> > > 
-> > > lockdep reports this can deadlock when loop-back NFS is in use,
-> > > as nfsd may be required to write out for reclaim, and nfsd certainly
-> > > takes i_mutex.
-> > 
-> > But not the same i_mutex as is currently held. To me, this seems
-> > like a false positive? If you are holding the i_mutex on an inode,
-> > then you have a reference to the inode and hence memory reclaim
-> > won't ever take the i_mutex on that inode.
-> > 
-> > FWIW, this sort of false positive was a long stabding problem for
-> > XFS - we managed to get rid of most of the false positives like this
-> > by ensuring that only the ilock is taken within memory reclaim and
-> > memory reclaim can't be entered while we hold the ilock.
-> > 
-> > You can't do that with the i_mutex, though....
-> > 
-> > Cheers,
-> > 
-> > Dave.
+> And we mem_cgroup_usage() and mem_cgroup_recursive_stat() both finally
+> call into mem_cgroup_read_stat().
 > 
-> I'm not sure this is a false positive.
-> You can call __d_alloc when creating a file and so are holding i_mutex on the
-> directory.
-> nfsd might also want to access that directory.
+> However, these *stat snapshot* operations are implemented in a quite
+> coarse way: it takes M*N iteration for each stat item(M=nr_memcgs,
+> N=nr_possible_cpus). There are two deficiencies:
 > 
-> If there was only 1 nfsd thread, it would need to get i_mutex and do it's
-> thing before replying to that request and so before it could handle the
-> COMMIT which __d_alloc is waiting for.
+> 1. for every stat item, we have to iterate over all percpu value, which
+>    is not so cache friendly.
+> 2. for every stat item, we call mem_cgroup_read_stat() once, which
+>    increase the probablity of contending on pcp_counter_lock.
+> 
+> So, this patch improve this a bit.
 
-That seems wrong - the NFS client in __d_alloc holds a mutex on a
-NFS client directory inode. The NFS server can't access that
-specific mutex - it's on the other side of the "network". The NFS
-server accesses mutexs from local filesystems, so __d_alloc would
-have to be blocked on a local filesystem inode i_mutex for the nfsd
-to get hung up behind it...
+How much and under what kind of load?
 
-However, my confusion comes from the fact that we do GFP_KERNEL
-memory allocation with the i_mutex held all over the place. If the
-problem is:
+> Concretely, for all interested stat
+> items, mark them in a bitmap, and then make mem_cgroup_read_stat() read
+> them all in one go.
+> 
+> This is more efficient, and to some degree make it more like *stat snapshot*.
+> 
+> Signed-off-by: Jianyu Zhan <nasa4836@gmail.com>
+> ---
+>  mm/memcontrol.c | 91 +++++++++++++++++++++++++++++++++++++++------------------
+>  1 file changed, 62 insertions(+), 29 deletions(-)
 
-	local fs access -> i_mutex
-.....
-	nfsd -> i_mutex (blocked)
-.....
-	local fs access -> kmalloc(GFP_KERNEL)
-			-> direct reclaim
-			-> nfs_release_page
-			-> <send write/commit request to blocked nfsds>
-			   <deadlock>
+I cannot say I like the new code much more than the previous one and
+I've never seen the old one being a bottleneck. So I am not entirely
+fond of optimization without a good reason. (Hint, if you are optimizing
+something always show us numbers which support the optimization)
 
-then why is it just __d_alloc that needs this fix?  Either this is a
-problem *everywhere* or it's not a problem at all.
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 29501f0..009357e 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -347,7 +347,7 @@ struct mem_cgroup {
+>  	struct mem_cgroup_stat_cpu __percpu *stat;
+>  	/*
+>  	 * used when a cpu is offlined or other synchronizations
+> -	 * See mem_cgroup_read_stat().
+> +	 * See mem_cgroup_read_stat_vec().
+>  	 */
+>  	struct mem_cgroup_stat_cpu nocpu_base;
+>  	spinlock_t pcp_counter_lock;
+> @@ -855,7 +855,13 @@ mem_cgroup_largest_soft_limit_node(struct mem_cgroup_tree_per_zone *mctz)
+>  	return mz;
+>  }
+>  
+> -/*
+> +/**
+> + * @memcg: the mem_cgroup to account for.
+> + * @stat_bitmask: a bitmap record which stat items to read,
+> + *		each mem_cgroup_stat_index has its corresponding bit.
+> + * @stat_vec: a stat vector to hold the stat value for returing, caller
+> + *		shall take care of initializing it.
+> + *
+>   * Implementation Note: reading percpu statistics for memcg.
+>   *
+>   * Both of vmstat[] and percpu_counter has threshold and do periodic
+> @@ -874,22 +880,25 @@ mem_cgroup_largest_soft_limit_node(struct mem_cgroup_tree_per_zone *mctz)
+>   * common workload, threashold and synchonization as vmstat[] should be
+>   * implemented.
+>   */
+> -static long mem_cgroup_read_stat(struct mem_cgroup *memcg,
+> -				 enum mem_cgroup_stat_index idx)
+> +static void mem_cgroup_read_stat_vec(struct mem_cgroup *memcg,
+> +				 unsigned long *stat_bitmask,
+> +				 long long *stat_vec)
+>  {
+> -	long val = 0;
+>  	int cpu;
+> +	int i;
+>  
+>  	get_online_cpus();
+>  	for_each_online_cpu(cpu)
+> -		val += per_cpu(memcg->stat->count[idx], cpu);
+> +		for_each_set_bit(i, stat_bitmask, MEM_CGROUP_STAT_NSTATS)
+> +			stat_vec[i] += per_cpu(memcg->stat->count[i], cpu);
+> +
+>  #ifdef CONFIG_HOTPLUG_CPU
+>  	spin_lock(&memcg->pcp_counter_lock);
+> -	val += memcg->nocpu_base.count[idx];
+> +	for_each_set_bit(i, stat_bitmask, MEM_CGROUP_STAT_NSTATS)
+> +		stat_vec[i] += memcg->nocpu_base.count[i];
+>  	spin_unlock(&memcg->pcp_counter_lock);
+>  #endif
+>  	put_online_cpus();
+> -	return val;
+>  }
+>  
+>  static void mem_cgroup_swap_statistics(struct mem_cgroup *memcg,
+> @@ -1674,6 +1683,7 @@ void mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
+>  	static DEFINE_MUTEX(oom_info_lock);
+>  	struct mem_cgroup *iter;
+>  	unsigned int i;
+> +	DECLARE_BITMAP(stat_bitmask, MEM_CGROUP_STAT_NSTATS);
+>  
+>  	if (!p)
+>  		return;
+> @@ -1702,16 +1712,22 @@ void mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
+>  		res_counter_read_u64(&memcg->kmem, RES_LIMIT) >> 10,
+>  		res_counter_read_u64(&memcg->kmem, RES_FAILCNT));
+>  
+> +	bitmap_fill(stat_bitmask, MEM_CGROUP_STAT_NSTATS);
+> +	if (!do_swap_account)
+> +		clear_bit(MEM_CGROUP_STAT_SWAP, stat_bitmask);
+>  	for_each_mem_cgroup_tree(iter, memcg) {
+> +		long long stat_vec[MEM_CGROUP_STAT_NSTATS] = {0};
+> +
+>  		pr_info("Memory cgroup stats for ");
+>  		pr_cont_cgroup_path(iter->css.cgroup);
+>  		pr_cont(":");
+>  
+> +		mem_cgroup_read_stat_vec(iter, stat_bitmask, stat_vec);
+>  		for (i = 0; i < MEM_CGROUP_STAT_NSTATS; i++) {
+>  			if (i == MEM_CGROUP_STAT_SWAP && !do_swap_account)
+>  				continue;
+> -			pr_cont(" %s:%ldKB", mem_cgroup_stat_names[i],
+> -				K(mem_cgroup_read_stat(iter, i)));
+> +			pr_cont(" %s:%lldKB", mem_cgroup_stat_names[i],
+> +				K(stat_vec[i]));
+>  		}
+>  
+>  		for (i = 0; i < NR_LRU_LISTS; i++)
+> @@ -4940,25 +4956,28 @@ out:
+>  	return retval;
+>  }
+>  
+> -
+> -static unsigned long mem_cgroup_recursive_stat(struct mem_cgroup *memcg,
+> -					       enum mem_cgroup_stat_index idx)
+> +/* Callers should take care of initialize stat_vec array */
+> +static void mem_cgroup_recursive_stat(struct mem_cgroup *memcg,
+> +					unsigned long *stat_bitmask,
+> +					long long *stat_vec)
+>  {
+>  	struct mem_cgroup *iter;
+> -	long val = 0;
+> +	int idx;
+>  
+>  	/* Per-cpu values can be negative, use a signed accumulator */
+>  	for_each_mem_cgroup_tree(iter, memcg)
+> -		val += mem_cgroup_read_stat(iter, idx);
+> +		mem_cgroup_read_stat_vec(iter, stat_bitmask, stat_vec);
+>  
+> -	if (val < 0) /* race ? */
+> -		val = 0;
+> -	return val;
+> +	for_each_set_bit(idx, stat_bitmask, MEM_CGROUP_STAT_NSTATS)
+> +		if (stat_vec[idx] < 0) /* race ? */
+> +			stat_vec[idx] = 0;
+>  }
+>  
+>  static inline u64 mem_cgroup_usage(struct mem_cgroup *memcg, bool swap)
+>  {
+>  	u64 val;
+> +	DECLARE_BITMAP(stat_bitmask, MEM_CGROUP_STAT_NSTATS);
+> +	long long stat_vec[MEM_CGROUP_STAT_NSTATS] = {0};
+>  
+>  	if (!mem_cgroup_is_root(memcg)) {
+>  		if (!swap)
+> @@ -4967,15 +4986,21 @@ static inline u64 mem_cgroup_usage(struct mem_cgroup *memcg, bool swap)
+>  			return res_counter_read_u64(&memcg->memsw, RES_USAGE);
+>  	}
+>  
+> +
+>  	/*
+>  	 * Transparent hugepages are still accounted for in MEM_CGROUP_STAT_RSS
+>  	 * as well as in MEM_CGROUP_STAT_RSS_HUGE.
+>  	 */
+> -	val = mem_cgroup_recursive_stat(memcg, MEM_CGROUP_STAT_CACHE);
+> -	val += mem_cgroup_recursive_stat(memcg, MEM_CGROUP_STAT_RSS);
+> -
+> +	bitmap_zero(stat_bitmask, MEM_CGROUP_STAT_NSTATS);
+> +	set_bit(MEM_CGROUP_STAT_CACHE, stat_bitmask);
+> +	set_bit(MEM_CGROUP_STAT_RSS, stat_bitmask);
+>  	if (swap)
+> -		val += mem_cgroup_recursive_stat(memcg, MEM_CGROUP_STAT_SWAP);
+> +		set_bit(MEM_CGROUP_STAT_SWAP, stat_bitmask);
+> +
+> +	mem_cgroup_recursive_stat(memcg, stat_bitmask, stat_vec);
+> +
+> +	val = stat_vec[MEM_CGROUP_STAT_CACHE] + stat_vec[MEM_CGROUP_STAT_RSS] +
+> +	      (swap ? stat_vec[MEM_CGROUP_STAT_SWAP] : 0);
+>  
+>  	return val << PAGE_SHIFT;
+>  }
+> @@ -5349,12 +5374,19 @@ static int memcg_stat_show(struct seq_file *m, void *v)
+>  	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
+>  	struct mem_cgroup *mi;
+>  	unsigned int i;
+> +	DECLARE_BITMAP(stat_bitmask, MEM_CGROUP_STAT_NSTATS);
+> +	long long stat_vec[MEM_CGROUP_STAT_NSTATS] = {0};
+> +
+> +	bitmap_fill(stat_bitmask, MEM_CGROUP_STAT_NSTATS);
+> +	if (!do_swap_account)
+> +		clear_bit(MEM_CGROUP_STAT_SWAP, stat_bitmask);
+> +	mem_cgroup_read_stat_vec(memcg, stat_bitmask, stat_vec);
+>  
+>  	for (i = 0; i < MEM_CGROUP_STAT_NSTATS; i++) {
+>  		if (i == MEM_CGROUP_STAT_SWAP && !do_swap_account)
+>  			continue;
+> -		seq_printf(m, "%s %ld\n", mem_cgroup_stat_names[i],
+> -			   mem_cgroup_read_stat(memcg, i) * PAGE_SIZE);
+> +		seq_printf(m, "%s %lld\n", mem_cgroup_stat_names[i],
+> +			   stat_vec[i] * PAGE_SIZE);
+>  	}
+>  
+>  	for (i = 0; i < MEM_CGROUP_EVENTS_NSTATS; i++)
+> @@ -5375,14 +5407,15 @@ static int memcg_stat_show(struct seq_file *m, void *v)
+>  				   memsw_limit);
+>  	}
+>  
+> +	for (i = 0; i < MEM_CGROUP_STAT_NSTATS; i++)
+> +		stat_vec[i] = 0;
+> +	mem_cgroup_recursive_stat(memcg, stat_bitmask, stat_vec);
+>  	for (i = 0; i < MEM_CGROUP_STAT_NSTATS; i++) {
+> -		long long val = 0;
+> -
+>  		if (i == MEM_CGROUP_STAT_SWAP && !do_swap_account)
+>  			continue;
+> -		for_each_mem_cgroup_tree(mi, memcg)
+> -			val += mem_cgroup_read_stat(mi, i) * PAGE_SIZE;
+> -		seq_printf(m, "total_%s %lld\n", mem_cgroup_stat_names[i], val);
+> +
+> +		seq_printf(m, "total_%s %lld\n", mem_cgroup_stat_names[i],
+> +				stat_vec[i] * PAGE_SIZE);
+>  	}
+>  
+>  	for (i = 0; i < MEM_CGROUP_EVENTS_NSTATS; i++) {
+> -- 
+> 1.9.0.GIT
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-If it's a problem everywhere it means that we simply can't allow
-reclaim from localhost NFS mounts to run from contexts that could
-block an NFSD. i.e. you cannot run NFS client memory reclaim from
-filesystems that are NFS server exported filesystems.....
-
-Cheers,
-
-Dave.
 -- 
-Dave Chinner
-david@fromorbit.com
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
