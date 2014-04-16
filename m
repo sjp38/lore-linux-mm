@@ -1,202 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f43.google.com (mail-qa0-f43.google.com [209.85.216.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 9153D6B004D
-	for <linux-mm@kvack.org>; Wed, 16 Apr 2014 10:42:41 -0400 (EDT)
-Received: by mail-qa0-f43.google.com with SMTP id j15so10712099qaq.16
-        for <linux-mm@kvack.org>; Wed, 16 Apr 2014 07:42:40 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id gv6si9200639qcb.69.2014.04.16.07.42.36
-        for <linux-mm@kvack.org>;
-        Wed, 16 Apr 2014 07:42:36 -0700 (PDT)
-Date: Wed, 16 Apr 2014 10:42:07 -0400
-From: Jeff Layton <jlayton@redhat.com>
-Subject: Re: [PATCH/RFC 00/19] Support loop-back NFS mounts
-Message-ID: <20140416104207.75b044e8@tlielax.poochiereds.net>
-In-Reply-To: <20140416033623.10604.69237.stgit@notabene.brown>
+Received: from mail-qg0-f53.google.com (mail-qg0-f53.google.com [209.85.192.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 05D5B6B0070
+	for <linux-mm@kvack.org>; Wed, 16 Apr 2014 10:47:05 -0400 (EDT)
+Received: by mail-qg0-f53.google.com with SMTP id j5so562456qga.26
+        for <linux-mm@kvack.org>; Wed, 16 Apr 2014 07:47:05 -0700 (PDT)
+Received: from mail-qc0-f169.google.com (mail-qc0-f169.google.com [209.85.216.169])
+        by mx.google.com with ESMTPS id p17si9298127qgp.195.2014.04.16.07.47.04
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 16 Apr 2014 07:47:04 -0700 (PDT)
+Received: by mail-qc0-f169.google.com with SMTP id i17so12123651qcy.0
+        for <linux-mm@kvack.org>; Wed, 16 Apr 2014 07:47:04 -0700 (PDT)
+Date: Wed, 16 Apr 2014 10:47:02 -0400
+From: Jeff Layton <jlayton@poochiereds.net>
+Subject: Re: [PATCH 05/19] SUNRPC: track whether a request is coming from a
+ loop-back interface.
+Message-ID: <20140416104702.264cde48@tlielax.poochiereds.net>
+In-Reply-To: <20140416040336.10604.14822.stgit@notabene.brown>
 References: <20140416033623.10604.69237.stgit@notabene.brown>
+	<20140416040336.10604.14822.stgit@notabene.brown>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: NeilBrown <neilb@suse.de>
-Cc: linux-mm@kvack.org, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org, xfs@oss.sgi.com, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, Ming Lei <ming.lei@canonical.com>, netdev@vger.kernel.org
+Cc: linux-mm@kvack.org, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org, xfs@oss.sgi.com, netdev@vger.kernel.org
 
-On Wed, 16 Apr 2014 14:03:35 +1000
+On Wed, 16 Apr 2014 14:03:36 +1000
 NeilBrown <neilb@suse.de> wrote:
 
-> Loop-back NFS mounts are when the NFS client and server run on the
-> same host.
+> If an incoming NFS request is coming from the local host, then
+> nfsd will need to perform some special handling.  So detect that
+> possibility and make the source visible in rq_local.
 > 
-> The use-case for this is a high availability cluster with shared
-> storage.  The shared filesystem is mounted on any one machine and
-> NFS-mounted on the others.
-> If the nfs server fails, some other node will take over that service,
-> and then it will have a loop-back NFS mount which needs to keep
-> working.
-> 
-> This patch set addresses the "keep working" bit and specifically
-> addresses deadlocks and livelocks.
-> Allowing the fail-over itself to be deadlock free is a separate
-> challenge for another day.
-> 
-> The short description of how this works is:
-> 
-> deadlocks:
->   - Elevate PF_FSTRANS to apply globally instead of just in NFS and XFS.
->     PF_FSTRANS disables __GFP_NS in the same way that PF_MEMALLOC_NOIO
->     disables __GFP_IO.
->   - Set PF_FSTRANS in nfsd when handling requests related to
->     memory reclaim, or requests which could block requests related
->     to memory reclaim.
->   - Use lockdep to find all consequent deadlocks from some other
->     thread allocating memory while holding a lock that nfsd might
->     want.
->   - Fix those other deadlocks by setting PF_FSTRANS or using GFP_NOFS
->     as appropriate.
-> 
-> livelocks:
->   - identify throttling during reclaim and bypass it when
->     PF_LESS_THROTTLE is set
->   - only set PF_LESS_THROTTLE for nfsd when handling write requests
->     from the local host.
-> 
-> The last 12 patches address various deadlocks due to locking chains.
-> 11 were found by lockdep, 2 by testing.  There is a reasonable chance
-> that there are more, I just need to exercise more code while
-> testing....
-> 
-> There is one issue that lockdep reports which I haven't fixed (I've
-> just hacked the code out for my testing).  That issue relates to
-> freeze_super().
-> I may not be interpreting the lockdep reports perfectly, but I think
-> they are basically saying that if I were to freeze a filesystem that
-> was exported to the local host, then we could end up deadlocking.
-> This is to be expected.  The NFS filesystem would need to be frozen
-> first.  I don't know how to tell lockdep that I know that is a problem
-> and I don't want to be warned about it.  Suggestions welcome.
-> Until this is addressed I cannot really ask others to test the code
-> with lockdep enabled.
-> 
-> There are more subsidiary places that I needed to add PF_FSTRANS than
-> I would have liked.  The thought keeps crossing my mind that maybe we
-> can get rid of __GFP_FS and require that memory reclaim never ever
-> block on a filesystem.  Then most of these patches go away.
-> 
-> Now that writeback doesn't happen from reclaim (but from kswapd) much
-> of the calls from reclaim to FS are gone.
-> The ->releasepage call is the only one that I *know* causes me
-> problems so I'd like to just say that that must never block.  I don't
-> really understand the consequences of that though.
-> There are a couple of other places where __GFP_FS is used and I'd need
-> to carefully analyze those.  But if someone just said "no, that is
-> impossible", I could be happy and stick with the current approach....
-> 
-> I've cc:ed Peter Zijlstra and Ingo Molnar only on the lockdep-related
-> patches, Ming Lei only on the PF_MEMALLOC_NOIO related patches,
-> and net-dev only on the network-related patches.
-> There are probably other people I should CC.  Apologies if I missed you.
-> I'll ensure better coverage if the nfs/mm/xfs people are reasonably happy.
-> 
-> Comments, criticisms, etc most welcome.
-> 
-> Thanks,
-> NeilBrown
-> 
-
-I've only given this a once-over, but the basic concept seems a bit
-flawed. IIUC, the basic idea is to disallow allocations done in knfsd
-threads context from doing fs-based reclaim.
-
-This seems very heavy-handed, and like it could cause problems on a
-busy NFS server. Those sorts of servers are likely to have a lot of
-data in pagecache and thus we generally want to allow them to do do
-writeback when memory is tight.
-
-It's generally acceptable for knfsd to recurse into local filesystem
-code for writeback. What you want to avoid in this situation is reclaim
-on NFS filesystems that happen to be from knfsd on the same box.
-
-If you really want to fix this, what may make more sense is trying to
-plumb that information down more granularly. Maybe GFP_NONETFS and/or
-PF_NETFSTRANS flags?
-
-> 
+> Signed-off-by: NeilBrown <neilb@suse.de>
 > ---
-> 
-> NeilBrown (19):
->       Promote current_{set,restore}_flags_nested from xfs to global.
->       lockdep: lockdep_set_current_reclaim_state should save old value
->       lockdep: improve scenario messages for RECLAIM_FS errors.
->       Make effect of PF_FSTRANS to disable __GFP_FS universal.
->       SUNRPC: track whether a request is coming from a loop-back interface.
->       nfsd: set PF_FSTRANS for nfsd threads.
->       nfsd and VM: use PF_LESS_THROTTLE to avoid throttle in shrink_inactive_list.
->       Set PF_FSTRANS while write_cache_pages calls ->writepage
->       XFS: ensure xfs_file_*_read cannot deadlock in memory allocation.
->       NET: set PF_FSTRANS while holding sk_lock
->       FS: set PF_FSTRANS while holding mmap_sem in exec.c
->       NET: set PF_FSTRANS while holding rtnl_lock
->       MM: set PF_FSTRANS while allocating per-cpu memory to avoid deadlock.
->       driver core: set PF_FSTRANS while holding gdp_mutex
->       nfsd: set PF_FSTRANS when client_mutex is held.
->       VFS: use GFP_NOFS rather than GFP_KERNEL in __d_alloc.
->       VFS: set PF_FSTRANS while namespace_sem is held.
->       nfsd: set PF_FSTRANS during nfsd4_do_callback_rpc.
->       XFS: set PF_FSTRANS while ilock is held in xfs_free_eofblocks
-> 
-> 
->  drivers/base/core.c             |    3 ++
->  drivers/base/power/runtime.c    |    6 ++---
->  drivers/block/nbd.c             |    6 ++---
->  drivers/md/dm-bufio.c           |    6 ++---
->  drivers/md/dm-ioctl.c           |    6 ++---
->  drivers/mtd/nand/nandsim.c      |   28 ++++++---------------
->  drivers/scsi/iscsi_tcp.c        |    6 ++---
->  drivers/usb/core/hub.c          |    6 ++---
->  fs/dcache.c                     |    4 ++-
->  fs/exec.c                       |    6 +++++
->  fs/fs-writeback.c               |    5 ++--
->  fs/namespace.c                  |    4 +++
->  fs/nfs/file.c                   |    3 +-
->  fs/nfsd/nfs4callback.c          |    5 ++++
->  fs/nfsd/nfs4state.c             |    3 ++
->  fs/nfsd/nfssvc.c                |   24 ++++++++++++++----
->  fs/nfsd/vfs.c                   |    6 +++++
->  fs/xfs/kmem.h                   |    2 --
->  fs/xfs/xfs_aops.c               |    7 -----
->  fs/xfs/xfs_bmap_util.c          |    4 +++
->  fs/xfs/xfs_file.c               |   12 +++++++++
->  fs/xfs/xfs_linux.h              |    7 -----
->  include/linux/lockdep.h         |    8 +++---
->  include/linux/sched.h           |   32 +++++++++---------------
->  include/linux/sunrpc/svc.h      |    2 ++
+>  include/linux/sunrpc/svc.h      |    1 +
 >  include/linux/sunrpc/svc_xprt.h |    1 +
->  include/net/sock.h              |    1 +
->  kernel/locking/lockdep.c        |   51 ++++++++++++++++++++++++++++-----------
->  kernel/softirq.c                |    6 ++---
->  mm/migrate.c                    |    9 +++----
->  mm/page-writeback.c             |    3 ++
->  mm/page_alloc.c                 |   18 ++++++++------
->  mm/percpu.c                     |    4 +++
->  mm/slab.c                       |    2 ++
->  mm/slob.c                       |    2 ++
->  mm/slub.c                       |    1 +
->  mm/vmscan.c                     |   31 +++++++++++++++---------
->  net/core/dev.c                  |    6 ++---
->  net/core/rtnetlink.c            |    9 ++++++-
->  net/core/sock.c                 |    8 ++++--
->  net/sunrpc/sched.c              |    5 ++--
->  net/sunrpc/svc.c                |    6 +++++
->  net/sunrpc/svcsock.c            |   10 ++++++++
->  net/sunrpc/xprtrdma/transport.c |    5 ++--
->  net/sunrpc/xprtsock.c           |   17 ++++++++-----
->  45 files changed, 247 insertions(+), 149 deletions(-)
+>  net/sunrpc/svcsock.c            |   10 ++++++++++
+>  3 files changed, 12 insertions(+)
 > 
+> diff --git a/include/linux/sunrpc/svc.h b/include/linux/sunrpc/svc.h
+> index 04e763221246..a0dbbd1e00e9 100644
+> --- a/include/linux/sunrpc/svc.h
+> +++ b/include/linux/sunrpc/svc.h
+> @@ -254,6 +254,7 @@ struct svc_rqst {
+>  	u32			rq_prot;	/* IP protocol */
+>  	unsigned short
+>  				rq_secure  : 1;	/* secure port */
+> +	unsigned short		rq_local   : 1;	/* local request */
+>  
+>  	void *			rq_argp;	/* decoded arguments */
+>  	void *			rq_resp;	/* xdr'd results */
+> diff --git a/include/linux/sunrpc/svc_xprt.h b/include/linux/sunrpc/svc_xprt.h
+> index b05963f09ebf..b99bdfb0fcf9 100644
+> --- a/include/linux/sunrpc/svc_xprt.h
+> +++ b/include/linux/sunrpc/svc_xprt.h
+> @@ -63,6 +63,7 @@ struct svc_xprt {
+>  #define	XPT_DETACHED	10		/* detached from tempsocks list */
+>  #define XPT_LISTENER	11		/* listening endpoint */
+>  #define XPT_CACHE_AUTH	12		/* cache auth info */
+> +#define XPT_LOCAL	13		/* connection from loopback interface */
+>  
+>  	struct svc_serv		*xpt_server;	/* service for transport */
+>  	atomic_t    	    	xpt_reserved;	/* space on outq that is rsvd */
+> diff --git a/net/sunrpc/svcsock.c b/net/sunrpc/svcsock.c
+> index b6e59f0a9475..193115fe968c 100644
+> --- a/net/sunrpc/svcsock.c
+> +++ b/net/sunrpc/svcsock.c
+> @@ -811,6 +811,7 @@ static struct svc_xprt *svc_tcp_accept(struct svc_xprt *xprt)
+>  	struct socket	*newsock;
+>  	struct svc_sock	*newsvsk;
+>  	int		err, slen;
+> +	struct dst_entry *dst;
+>  	RPC_IFDEBUG(char buf[RPC_MAX_ADDRBUFLEN]);
+>  
+>  	dprintk("svc: tcp_accept %p sock %p\n", svsk, sock);
+> @@ -867,6 +868,14 @@ static struct svc_xprt *svc_tcp_accept(struct svc_xprt *xprt)
+>  	}
+>  	svc_xprt_set_local(&newsvsk->sk_xprt, sin, slen);
+>  
+> +	clear_bit(XPT_LOCAL, &newsvsk->sk_xprt.xpt_flags);
+> +	rcu_read_lock();
+> +	dst = rcu_dereference(newsock->sk->sk_dst_cache);
+> +	if (dst && dst->dev &&
+> +	    (dst->dev->features & NETIF_F_LOOPBACK))
+> +		set_bit(XPT_LOCAL, &newsvsk->sk_xprt.xpt_flags);
+> +	rcu_read_unlock();
+> +
+
+In the use-case you describe, the client is unlikely to have mounted
+"localhost", but is more likely to be mounting a floating address in
+the cluster.
+
+Will this flag end up being set in such a situation? It looks like
+NETIF_F_LOOPBACK isn't set on all adapters -- mostly on "lo" and a few
+others that support MAC-LOOPBACK.
+
+
+>  	if (serv->sv_stats)
+>  		serv->sv_stats->nettcpconn++;
+>  
+> @@ -1112,6 +1121,7 @@ static int svc_tcp_recvfrom(struct svc_rqst *rqstp)
+>  
+>  	rqstp->rq_xprt_ctxt   = NULL;
+>  	rqstp->rq_prot	      = IPPROTO_TCP;
+> +	rqstp->rq_local	      = !!test_bit(XPT_LOCAL, &svsk->sk_xprt.xpt_flags);
+>  
+>  	p = (__be32 *)rqstp->rq_arg.head[0].iov_base;
+>  	calldir = p[1];
+> 
+> 
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-nfs" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
 
 
 -- 
-Jeff Layton <jlayton@redhat.com>
+Jeff Layton <jlayton@poochiereds.net>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
