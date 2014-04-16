@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f49.google.com (mail-pb0-f49.google.com [209.85.160.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E1A76B0073
-	for <linux-mm@kvack.org>; Wed, 16 Apr 2014 04:22:02 -0400 (EDT)
-Received: by mail-pb0-f49.google.com with SMTP id jt11so10476061pbb.8
-        for <linux-mm@kvack.org>; Wed, 16 Apr 2014 01:22:01 -0700 (PDT)
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 52B2C6B0083
+	for <linux-mm@kvack.org>; Wed, 16 Apr 2014 04:22:09 -0400 (EDT)
+Received: by mail-pa0-f54.google.com with SMTP id lf10so10723652pab.27
+        for <linux-mm@kvack.org>; Wed, 16 Apr 2014 01:22:03 -0700 (PDT)
 Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id iw3si12265102pac.301.2014.04.16.01.22.00
+        by mx.google.com with ESMTP id iw3si12265102pac.301.2014.04.16.01.22.03
         for <linux-mm@kvack.org>;
-        Wed, 16 Apr 2014 01:22:01 -0700 (PDT)
-Date: Wed, 16 Apr 2014 14:59:58 +0800
+        Wed, 16 Apr 2014 01:22:03 -0700 (PDT)
+Date: Wed, 16 Apr 2014 15:57:58 +0800
 From: kbuild test robot <fengguang.wu@intel.com>
-Subject: [next:master 103/113] include/linux/blkdev.h:25:29: fatal error:
- asm/scatterlist.h: No such file or directory
-Message-ID: <534e2a6e.Ldm85XovY2CX2Ogp%fengguang.wu@intel.com>
+Subject: [next:master 103/113] arch/powerpc/platforms/52xx/efika.c:210:2:
+ error: 'ISA_DMA_THRESHOLD' undeclared
+Message-ID: <534e3806.dEDbrOl+B+miaF+8%fengguang.wu@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
@@ -24,62 +24,42 @@ Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux
 tree:   git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
 head:   2db08cc65391d73dc8cbcaefdb55c42a774d9e1a
 commit: ff35bd54456e18878c361a8a2deeb41c9688458f [103/113] lib/scatterlist: make ARCH_HAS_SG_CHAIN an actual Kconfig
-config: make ARCH=um SUBARCH=i386 defconfig
+config: make ARCH=powerpc ppc6xx_defconfig
 
 All error/warnings:
 
-   In file included from init/main.c:75:0:
->> include/linux/blkdev.h:25:29: fatal error: asm/scatterlist.h: No such file or directory
-    #include <asm/scatterlist.h>
-                                ^
-   compilation terminated.
---
-   In file included from mm/page_io.c:19:0:
-   include/linux/swapops.h: In function 'is_swap_pte':
-   include/linux/swapops.h:57:2: error: implicit declaration of function 'pte_present_nonuma' [-Werror=implicit-function-declaration]
-     return !pte_none(pte) && !pte_present_nonuma(pte) && !pte_file(pte);
+   arch/powerpc/platforms/52xx/efika.c: In function 'efika_probe':
+>> arch/powerpc/platforms/52xx/efika.c:210:2: error: 'ISA_DMA_THRESHOLD' undeclared (first use in this function)
+     ISA_DMA_THRESHOLD = ~0L;
      ^
-   In file included from mm/page_io.c:24:0:
-   include/linux/blkdev.h: At top level:
->> include/linux/blkdev.h:25:29: fatal error: asm/scatterlist.h: No such file or directory
-    #include <asm/scatterlist.h>
-                                ^
-   cc1: some warnings being treated as errors
-   compilation terminated.
+   arch/powerpc/platforms/52xx/efika.c:210:2: note: each undeclared identifier is reported only once for each function it appears in
+>> arch/powerpc/platforms/52xx/efika.c:211:2: error: 'DMA_MODE_READ' undeclared (first use in this function)
+     DMA_MODE_READ = 0x44;
+     ^
+>> arch/powerpc/platforms/52xx/efika.c:212:2: error: 'DMA_MODE_WRITE' undeclared (first use in this function)
+     DMA_MODE_WRITE = 0x48;
+     ^
 
-vim +25 include/linux/blkdev.h
+vim +/ISA_DMA_THRESHOLD +210 arch/powerpc/platforms/52xx/efika.c
 
-^1da177e Linus Torvalds    2005-04-16   9  #include <linux/genhd.h>
-^1da177e Linus Torvalds    2005-04-16  10  #include <linux/list.h>
-320ae51f Jens Axboe        2013-10-24  11  #include <linux/llist.h>
-^1da177e Linus Torvalds    2005-04-16  12  #include <linux/timer.h>
-^1da177e Linus Torvalds    2005-04-16  13  #include <linux/workqueue.h>
-^1da177e Linus Torvalds    2005-04-16  14  #include <linux/pagemap.h>
-^1da177e Linus Torvalds    2005-04-16  15  #include <linux/backing-dev.h>
-^1da177e Linus Torvalds    2005-04-16  16  #include <linux/wait.h>
-^1da177e Linus Torvalds    2005-04-16  17  #include <linux/mempool.h>
-^1da177e Linus Torvalds    2005-04-16  18  #include <linux/bio.h>
-^1da177e Linus Torvalds    2005-04-16  19  #include <linux/stringify.h>
-3e6053d7 Hugh Dickins      2008-09-11  20  #include <linux/gfp.h>
-d351af01 FUJITA Tomonori   2007-07-09  21  #include <linux/bsg.h>
-c7c22e4d Jens Axboe        2008-09-13  22  #include <linux/smp.h>
-548bc8e1 Tejun Heo         2013-01-09  23  #include <linux/rcupdate.h>
-^1da177e Linus Torvalds    2005-04-16  24  
-^1da177e Linus Torvalds    2005-04-16 @25  #include <asm/scatterlist.h>
-^1da177e Linus Torvalds    2005-04-16  26  
-de477254 Paul Gortmaker    2011-05-26  27  struct module;
-21b2f0c8 Christoph Hellwig 2006-03-22  28  struct scsi_ioctl_command;
-21b2f0c8 Christoph Hellwig 2006-03-22  29  
-^1da177e Linus Torvalds    2005-04-16  30  struct request_queue;
-^1da177e Linus Torvalds    2005-04-16  31  struct elevator_queue;
-^1da177e Linus Torvalds    2005-04-16  32  struct request_pm_state;
-2056a782 Jens Axboe        2006-03-23  33  struct blk_trace;
+9724b86f Sylvain Munaut 2007-02-12  204  
+9724b86f Sylvain Munaut 2007-02-12  205  	if (model == NULL)
+9724b86f Sylvain Munaut 2007-02-12  206  		return 0;
+9724b86f Sylvain Munaut 2007-02-12  207  	if (strcmp(model, "EFIKA5K2"))
+9724b86f Sylvain Munaut 2007-02-12  208  		return 0;
+9724b86f Sylvain Munaut 2007-02-12  209  
+9724b86f Sylvain Munaut 2007-02-12 @210  	ISA_DMA_THRESHOLD = ~0L;
+9724b86f Sylvain Munaut 2007-02-12 @211  	DMA_MODE_READ = 0x44;
+9724b86f Sylvain Munaut 2007-02-12 @212  	DMA_MODE_WRITE = 0x48;
+9724b86f Sylvain Munaut 2007-02-12  213  
+9724b86f Sylvain Munaut 2007-02-12  214  	return 1;
+9724b86f Sylvain Munaut 2007-02-12  215  }
 
-:::::: The code at line 25 was first introduced by commit
-:::::: 1da177e4c3f41524e886b7f1b8a0c1fc7321cac2 Linux-2.6.12-rc2
+:::::: The code at line 210 was first introduced by commit
+:::::: 9724b86f0706ca9b552d82e013cb0c208b4f5529 [POWERPC] Small cleanup of EFIKA platform
 
-:::::: TO: Linus Torvalds <torvalds@ppc970.osdl.org>
-:::::: CC: Linus Torvalds <torvalds@ppc970.osdl.org>
+:::::: TO: Sylvain Munaut <tnt@246tNt.com>
+:::::: CC: Paul Mackerras <paulus@samba.org>
 
 ---
 0-DAY kernel build testing backend              Open Source Technology Center
