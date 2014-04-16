@@ -1,45 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B4096B0031
-	for <linux-mm@kvack.org>; Tue, 15 Apr 2014 20:27:39 -0400 (EDT)
-Received: by mail-pd0-f172.google.com with SMTP id p10so10046913pdj.31
-        for <linux-mm@kvack.org>; Tue, 15 Apr 2014 17:27:39 -0700 (PDT)
-Received: from lgeamrelo02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
-        by mx.google.com with ESMTP id pu6si9583500pac.143.2014.04.15.17.27.37
+Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 34DBB6B0031
+	for <linux-mm@kvack.org>; Tue, 15 Apr 2014 20:56:22 -0400 (EDT)
+Received: by mail-pa0-f47.google.com with SMTP id lj1so10167764pab.6
+        for <linux-mm@kvack.org>; Tue, 15 Apr 2014 17:56:21 -0700 (PDT)
+Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
+        by mx.google.com with ESMTP id as3si11721216pbc.264.2014.04.15.17.56.20
         for <linux-mm@kvack.org>;
-        Tue, 15 Apr 2014 17:27:39 -0700 (PDT)
-Date: Wed, 16 Apr 2014 09:28:04 +0900
+        Tue, 15 Apr 2014 17:56:21 -0700 (PDT)
+Date: Wed, 16 Apr 2014 09:56:47 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH] mm/vmalloc: Introduce DEBUG_VMALLOCINFO to reduce
- spinlock contention
-Message-ID: <20140416002804.GB17350@js1304-P5Q-DELUXE>
-References: <1397148058-8737-1-git-send-email-ryao@gentoo.org>
+Subject: Re: [PATCH 1/2] mm/page_alloc: prevent MIGRATE_RESERVE pages from
+ being misplaced
+Message-ID: <20140416005647.GC17350@js1304-P5Q-DELUXE>
+References: <533D8015.1000106@suse.cz>
+ <1396539618-31362-1-git-send-email-vbabka@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1397148058-8737-1-git-send-email-ryao@gentoo.org>
+In-Reply-To: <1396539618-31362-1-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Richard Yao <ryao@gentoo.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Zhang Yanfei <zhangyanfei.yes@gmail.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel@gentoo.org, Matthew Thode <mthode@mthode.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Yong-Taek Lee <ytk.lee@samsung.com>, Minchan Kim <minchan@kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Michal Nazarewicz <mina86@mina86.com>
 
-On Thu, Apr 10, 2014 at 12:40:58PM -0400, Richard Yao wrote:
-> Performance analysis of software compilation by Gentoo portage on an
-> Intel E5-2620 with 64GB of RAM revealed that a sizeable amount of time,
-> anywhere from 5% to 15%, was spent in get_vmalloc_info(), with at least
-> 40% of that time spent in the _raw_spin_lock() invoked by it.
+On Thu, Apr 03, 2014 at 05:40:17PM +0200, Vlastimil Babka wrote:
+> For the MIGRATE_RESERVE pages, it is important they do not get misplaced
+> on free_list of other migratetype, otherwise the whole MIGRATE_RESERVE
+> pageblock might be changed to other migratetype in try_to_steal_freepages().
 > 
-> The spinlock call is done on vmap_area_lock to protect vmap_area_list,
-> but changes to vmap_area_list are made under RCU. The only consumer that
-> requires a spinlock on an RCU-ified list is /proc/vmallocinfo. That is
+> Currently, it is however possible for this to happen when MIGRATE_RESERVE
+> page is allocated on pcplist through rmqueue_bulk() as a fallback for other
+> desired migratetype, and then later freed back through free_pcppages_bulk()
+> without being actually used. This happens because free_pcppages_bulk() uses
+> get_freepage_migratetype() to choose the free_list, and rmqueue_bulk() calls
+> set_freepage_migratetype() with the *desired* migratetype and not the page's
+> original MIGRATE_RESERVE migratetype.
+> 
+> This patch fixes the problem by moving the call to set_freepage_migratetype()
+> from rmqueue_bulk() down to __rmqueue_smallest() and __rmqueue_fallback() where
+> the actual page's migratetype (e.g. from which free_list the page is taken
+> from) is used. Note that this migratetype might be different from the
+> pageblock's migratetype due to freepage stealing decisions. This is OK, as page
+> stealing never uses MIGRATE_RESERVE as a fallback, and also takes care to leave
+> all MIGRATE_CMA pages on the correct freelist.
+> 
+> Therefore, as an additional benefit, the call to get_pageblock_migratetype()
+> from rmqueue_bulk() when CMA is enabled, can be removed completely. This relies
+> on the fact that MIGRATE_CMA pageblocks are created only during system init,
+> and the above. The related is_migrate_isolate() check is also unnecessary, as
+> memory isolation has other ways to move pages between freelists, and drain
+> pcp lists containing pages that should be isolated.
+> The buffered_rmqueue() can also benefit from calling get_freepage_migratetype()
+> instead of get_pageblock_migratetype().
+> 
+> A separate patch will add VM_BUG_ON checks for the invariant that for
+> MIGRATE_RESERVE and MIGRATE_CMA pageblocks, freepage_migratetype must equal to
+> pageblock_migratetype so that these pages always go to the correct free_list.
+> 
+> Reported-by: Yong-Taek Lee <ytk.lee@samsung.com>
+> Reported-by: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+> Suggested-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> Suggested-by: Mel Gorman <mgorman@suse.de>
+> Cc: Minchan Kim <minchan@kernel.org>
+> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Cc: Marek Szyprowski <m.szyprowski@samsung.com>
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: Michal Nazarewicz <mina86@mina86.com>
+> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 
-Why only '/proc/vmallocinfo' needs the spinlock?
-List iterators which access va->vm such as vread() and vwrite() needs
-the spinlock too.
-But, I think that get_vmalloc_info() doesn't need it, so you can use
-rcu list iteration on that function and it would fix your problem.
+Looks good to me.
 
-Thanks.
+Acked-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
