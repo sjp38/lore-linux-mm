@@ -1,121 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
-	by kanga.kvack.org (Postfix) with ESMTP id C4F866B0044
-	for <linux-mm@kvack.org>; Wed, 16 Apr 2014 18:44:09 -0400 (EDT)
-Received: by mail-wi0-f178.google.com with SMTP id bs8so19231wib.5
-        for <linux-mm@kvack.org>; Wed, 16 Apr 2014 15:44:09 -0700 (PDT)
-Received: from pandora.arm.linux.org.uk (pandora.arm.linux.org.uk. [2001:4d48:ad52:3201:214:fdff:fe10:1be6])
-        by mx.google.com with ESMTPS id lm4si219822wic.116.2014.04.16.15.44.06
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 16 Apr 2014 15:44:07 -0700 (PDT)
-Date: Wed, 16 Apr 2014 23:43:24 +0100
-From: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Subject: Re: kmalloc and uncached memory
-Message-ID: <20140416224324.GO24070@n2100.arm.linux.org.uk>
-References: <CAF1ivSaAQ_8byv+a9NQebtL4kBYFEPOTJHn-JA-bYY=wLFpv2Q@mail.gmail.com> <534ECCEB.6090007@codeaurora.org> <CAF1ivSaMRj_V_NHBBDfPmNmZ+CNfCnAywfWGudpoAv_8j_FrwA@mail.gmail.com> <534ED412.1040909@codeaurora.org> <CAF1ivSafFWU6xmPrAxCWbcY3weZRuHyhDY+yOVGRAPqkYMqfRA@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAF1ivSafFWU6xmPrAxCWbcY3weZRuHyhDY+yOVGRAPqkYMqfRA@mail.gmail.com>
+Received: from mail-pb0-f44.google.com (mail-pb0-f44.google.com [209.85.160.44])
+	by kanga.kvack.org (Postfix) with ESMTP id F2D146B0044
+	for <linux-mm@kvack.org>; Wed, 16 Apr 2014 18:46:33 -0400 (EDT)
+Received: by mail-pb0-f44.google.com with SMTP id rp16so11394816pbb.17
+        for <linux-mm@kvack.org>; Wed, 16 Apr 2014 15:46:33 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id m8si13473239pbd.331.2014.04.16.15.46.32
+        for <linux-mm@kvack.org>;
+        Wed, 16 Apr 2014 15:46:33 -0700 (PDT)
+Date: Wed, 16 Apr 2014 15:46:31 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] ipc,shm: increase default size for shmmax
+Message-Id: <20140416154631.6d0173498c60619d454ae651@linux-foundation.org>
+In-Reply-To: <534AD1EE.3050705@colorfullife.com>
+References: <1396235199.2507.2.camel@buesod1.americas.hpqcorp.net>
+	<20140331161308.6510381345cb9a1b419d5ec0@linux-foundation.org>
+	<1396308332.18499.25.camel@buesod1.americas.hpqcorp.net>
+	<20140331170546.3b3e72f0.akpm@linux-foundation.org>
+	<1396371699.25314.11.camel@buesod1.americas.hpqcorp.net>
+	<CAHGf_=qsf6vN5k=-PLraG8Q_uU1pofoBDktjVH1N92o76xPadQ@mail.gmail.com>
+	<1396377083.25314.17.camel@buesod1.americas.hpqcorp.net>
+	<CAHGf_=rLLBDr5ptLMvFD-M+TPQSnK3EP=7R+27K8or84rY-KLA@mail.gmail.com>
+	<1396386062.25314.24.camel@buesod1.americas.hpqcorp.net>
+	<CAHGf_=rhXrBQSmDBJJ-vPxBbhjJ91Fh2iWe1cf_UQd-tCfpb2w@mail.gmail.com>
+	<20140401142947.927642a408d84df27d581e36@linux-foundation.org>
+	<CAHGf_=p70rLOYwP2OgtK+2b+41=GwMA9R=rZYBqRr1w_O5UnKA@mail.gmail.com>
+	<20140401144801.603c288674ab8f417b42a043@linux-foundation.org>
+	<1396389751.25314.26.camel@buesod1.americas.hpqcorp.net>
+	<20140401150843.13da3743554ad541629c936d@linux-foundation.org>
+	<534AD1EE.3050705@colorfullife.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Lin Ming <minggr@gmail.com>
-Cc: Laura Abbott <lauraa@codeaurora.org>, Peter Zijlstra <peterz@infradead.org>, linux-mm <linux-mm@kvack.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+To: Manfred Spraul <manfred@colorfullife.com>
+Cc: Davidlohr Bueso <davidlohr@hp.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, aswin@hp.com, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Wed, Apr 16, 2014 at 02:28:45PM -0700, Lin Ming wrote:
-> On Wed, Apr 16, 2014 at 12:03 PM, Laura Abbott <lauraa@codeaurora.org> wrote:
-> > On 4/16/2014 11:50 AM, Lin Ming wrote:
-> >> On Wed, Apr 16, 2014 at 11:33 AM, Laura Abbott <lauraa@codeaurora.org> wrote:
-> >>> On 4/16/2014 11:11 AM, Lin Ming wrote:
-> >>>> Hi Peter,
-> >>>>
-> >>>> I have a performance problem(on ARM board) that cpu is very bus at
-> >>>> cache invalidation.
-> >>>> So I'm trying to alloc an uncached memory to eliminate cache invalidation.
-> >>>>
-> >>>> But I also have problem with dma_alloc_coherent().
-> >>>> If I don't use dma_alloc_coherent(), is it OK to use below code to
-> >>>> alloc uncached memory?
-> >>>>
-> >>>> struct page *page;
-> >>>> pgd_t *pgd;
-> >>>> pud_t *pud;
-> >>>> pmd_t *pmd;
-> >>>> pte_t *pte;
-> >>>> void *cpu_addr;
-> >>>> dma_addr_t dma_addr;
-> >>>> unsigned int vaddr;
-> >>>>
-> >>>> cpu_addr = kmalloc(PAGE_SIZE, GFP_KERNEL);
-> >>>> dma_addr = pci_map_single(NULL, cpu_addr, PAGE_SIZE, (int)DMA_FROM_DEVICE);
-> >>>> vaddr = (unsigned int)uncached->cpu_addr;
-> >>>> pgd = pgd_offset_k(vaddr);
-> >>>> pud = pud_offset(pgd, vaddr);
-> >>>> pmd = pmd_offset(pud, vaddr);
-> >>>> pte = pte_offset_kernel(pmd, vaddr);
-> >>>> page = virt_to_page(vaddr);
-> >>>> set_pte_ext(pte, mk_pte(page,  pgprot_dmacoherent(pgprot_kernel)), 0);
-> >>>>
-> >>>> /* This kmalloc memory won't be freed  */
-> >>>>
-> >>>
-> >>> No, that will not work. lowmem pages are mapped with 1MB sections underneath
-> >>> which cannot be (easily) changed at runtime. You really want to be using
-> >>> dma_alloc_coherent here.
-> >>
-> >> For "lowmem pages", do you mean the first 16M physical memory?
-> >> How about that if I only use highmem pages(>16M)?
-> >>
-> >
-> > By lowmem pages I am referring to the direct mapped kernel area. Highmem refers
-> > to pages which do not have a permanent mapping in the kernel address space. If
-> > you are calling kmalloc with GFP_KERNEL you will be getting a page from the lowmem
-> > region.
+On Sun, 13 Apr 2014 20:05:34 +0200 Manfred Spraul <manfred@colorfullife.com> wrote:
+
+> Hi Andrew,
 > 
-> Thanks for the explanation.
+> On 04/02/2014 12:08 AM, Andrew Morton wrote:
+> > Well, I'm assuming 64GB==infinity. It *was* infinity in the RHEL5 
+> > timeframe, but infinity has since become larger so pickanumber. 
 > 
-> >
-> > What's the reason you can't use dma_alloc_coherent?
+> I think infinity is the right solution:
+> The only common case where infinity is wrong would be Android - and 
+> Android disables sysv shm entirely.
 > 
-> I'm actually testing WIFI RX performance on a ARM based AP.
-> WIFI to Ethernet traffic, that is WIFI driver RX packets and then
-> Ethernet driver TX packets.
+> There are two patches:
+> http://marc.info/?l=linux-kernel&m=139730332306185&q=raw
+> http://marc.info/?l=linux-kernel&m=139727299800644&q=raw
 > 
-> I used dma_alloc_coherent() to allocate uncached buffer in WIFI driver
-> to receive packets.
-> But then Ethernet driver can't send packets successfully.
-> 
-> If I used kmalloc() to allocate buffers in WIFI driver, then everything is OK.
-> 
-> I know this is too platform/drivers specific problem, but any
-> suggestion would be appreciated.
+> Could you apply one of them?
+> I wrote the first one, thus I'm biased which one is better.
 
-So why are you trying to map the memory into userspace?
+I like your patch because applying it might encourage you to send more
+kernel patches - I miss the old days ;)
 
-Given your fragment above, what you're doing there will be no different
-from using dma_alloc_coherent() - think about what type of mapping you
-end up with.
+But I do worry about disrupting existing systems so I like Davidlohr's
+idea of making the change a no-op for people who are currently
+explicitly setting shmmax and shmall.
 
-You have two options on ARM:
+In an ideal world, system administrators would review this change,
+would remove their explicit limit-setting and would retest everything
+then roll it out.  But in the real world with Davidlohr's patch, they
+just won't know that we did this and they'll still be manually
+configuring shmmax/shmall ten years from now.  I almost wonder if we
+should drop a printk_once("hey, you don't need to do that any more")
+when shmmax/shmall are altered?
 
-1. Use dma_alloc_coherent() - recommended for data which both the CPU and
-   DMA can update simultaneously - eg, descriptor ring buffers typically
-   found on ethernet devices.
 
-2. Use dma_map_page/dma_map_single() for what we call streaming support,
-   which can use kmalloc memory.  *But* there is only exactly *one* owner
-   of the buffer at any one time - either the CPU owns it *or* the DMA
-   device owns it.  *Only* the current owner may access the buffer.
-   Such mappings must be unmapped before they are freed.
-
-Since there's the requirement for ownership in (2), these are not really
-suitable to be mapped into userspace while DMA is happening - accesses to
-the buffer while DMA is in progress /can/ corrupt the data.
-
--- 
-FTTC broadband for 0.8mile line: now at 9.7Mbps down 460kbps up... slowly
-improving, and getting towards what was expected from it.
+I think the changelogs for both patches could afford to spend much more
+time talking about *why* we're making this change.  What problem is
+the current code causing?  This is a somewhat risky change and we
+should demonstrate good reasons for making it.  If people end up taking
+damage because of this change, they are going to be looking at that
+changelog trying to work out why we did this to them, so let's explain
+it carefully.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
