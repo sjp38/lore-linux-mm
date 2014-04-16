@@ -1,114 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f42.google.com (mail-pb0-f42.google.com [209.85.160.42])
-	by kanga.kvack.org (Postfix) with ESMTP id D7AC66B004D
-	for <linux-mm@kvack.org>; Wed, 16 Apr 2014 10:48:01 -0400 (EDT)
-Received: by mail-pb0-f42.google.com with SMTP id rr13so10981091pbb.15
-        for <linux-mm@kvack.org>; Wed, 16 Apr 2014 07:48:01 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id wh4si12847567pbc.348.2014.04.16.07.48.00
+Received: from mail-yh0-f45.google.com (mail-yh0-f45.google.com [209.85.213.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 9854C6B0069
+	for <linux-mm@kvack.org>; Wed, 16 Apr 2014 11:06:27 -0400 (EDT)
+Received: by mail-yh0-f45.google.com with SMTP id a41so10941843yho.18
+        for <linux-mm@kvack.org>; Wed, 16 Apr 2014 08:06:26 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id m27si23421508yha.60.2014.04.16.08.06.26
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 16 Apr 2014 07:48:00 -0700 (PDT)
-Message-ID: <534E97D7.4060903@oracle.com>
-Date: Wed, 16 Apr 2014 10:46:47 -0400
+        Wed, 16 Apr 2014 08:06:26 -0700 (PDT)
+Message-ID: <534E9ACA.2090008@oracle.com>
+Date: Wed, 16 Apr 2014 10:59:22 -0400
 From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] thp: close race between split and zap huge pages
-References: <1397598515-25017-1-git-send-email-kirill.shutemov@linux.intel.com>
-In-Reply-To: <1397598515-25017-1-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: mm: NULL ptr deref in remove_migration_pte
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michel Lespinasse <walken@google.com>, Dave Jones <davej@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Bob Liu <lliubbo@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: Hugh Dickins <hughd@google.com>, Christoph Lameter <cl@gentwo.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Dave Jones <davej@redhat.com>
 
-On 04/15/2014 05:48 PM, Kirill A. Shutemov wrote:
-> Sasha Levin has reported two THP BUGs[1][2]. I believe both of them have
-> the same root cause. Let's look to them one by one.
-> 
-> The first bug[1] is "kernel BUG at mm/huge_memory.c:1829!".
-> It's BUG_ON(mapcount != page_mapcount(page)) in __split_huge_page().
-> From my testing I see that page_mapcount() is higher than mapcount here.
-> 
-> I think it happens due to race between zap_huge_pmd() and
-> page_check_address_pmd(). page_check_address_pmd() misses PMD
-> which is under zap:
-> 
-> 	CPU0						CPU1
-> 						zap_huge_pmd()
-> 						  pmdp_get_and_clear()
-> __split_huge_page()
->   anon_vma_interval_tree_foreach()
->     __split_huge_page_splitting()
->       page_check_address_pmd()
->         mm_find_pmd()
-> 	  /*
-> 	   * We check if PMD present without taking ptl: no
-> 	   * serialization against zap_huge_pmd(). We miss this PMD,
-> 	   * it's not accounted to 'mapcount' in __split_huge_page().
-> 	   */
-> 	  pmd_present(pmd) == 0
-> 
->   BUG_ON(mapcount != page_mapcount(page)) // CRASH!!!
-> 
-> 						  page_remove_rmap(page)
-> 						    atomic_add_negative(-1, &page->_mapcount)
-> 
-> The second bug[2] is "kernel BUG at mm/huge_memory.c:1371!".
-> It's VM_BUG_ON_PAGE(!PageHead(page), page) in zap_huge_pmd().
-> 
-> This happens in similar way:
-> 
-> 	CPU0						CPU1
-> 						zap_huge_pmd()
-> 						  pmdp_get_and_clear()
-> 						  page_remove_rmap(page)
-> 						    atomic_add_negative(-1, &page->_mapcount)
-> __split_huge_page()
->   anon_vma_interval_tree_foreach()
->     __split_huge_page_splitting()
->       page_check_address_pmd()
->         mm_find_pmd()
-> 	  pmd_present(pmd) == 0	/* The same comment as above */
->   /*
->    * No crash this time since we already decremented page->_mapcount in
->    * zap_huge_pmd().
->    */
->   BUG_ON(mapcount != page_mapcount(page))
-> 
->   /*
->    * We split the compound page here into small pages without
->    * serialization against zap_huge_pmd()
->    */
->   __split_huge_page_refcount()
-> 						VM_BUG_ON_PAGE(!PageHead(page), page); // CRASH!!!
-> 
-> So my understanding the problem is pmd_present() check in mm_find_pmd()
-> without taking page table lock.
-> 
-> The bug was introduced by me commit with commit 117b0791ac42. Sorry for
-> that. :(
-> 
-> Let's open code mm_find_pmd() in page_check_address_pmd() and do the
-> check under page table lock.
-> 
-> Note that __page_check_address() does the same for PTE entires
-> if sync != 0.
-> 
-> I've stress tested split and zap code paths for 36+ hours by now and
-> don't see crashes with the patch applied. Before it took <20 min to
-> trigger the first bug and few hours for second one (if we ignore
-> first).
-> 
-> [1] https://lkml.kernel.org/g/<53440991.9090001@oracle.com>
-> [2] https://lkml.kernel.org/g/<5310C56C.60709@oracle.com>
-> 
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Reported-by: Sasha Levin <sasha.levin@oracle.com>
-> Cc: <stable@vger.kernel.org> #3.13+
+Hi all,
 
-Seems to work for me, thanks!
+While fuzzing with trinity inside a KVM tools guest running latest -next
+kernel I've stumbled on the following:
+
+[ 2552.313602] BUG: unable to handle kernel NULL pointer dereference at 0000000000000018
+[ 2552.315878] IP: __lock_acquire (kernel/locking/lockdep.c:3070 (discriminator 1))
+[ 2552.315878] PGD 465836067 PUD 465837067 PMD 0
+[ 2552.315878] Oops: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
+[ 2552.315878] Dumping ftrace buffer:
+[ 2552.315878]    (ftrace buffer empty)
+[ 2552.315878] Modules linked in:
+[ 2552.315878] CPU: 6 PID: 16173 Comm: trinity-c364 Tainted: G        W     3.15.0-rc1-next-20140415-sasha-00020-gaa90d09 #398
+[ 2552.315878] task: ffff88046548b000 ti: ffff88044e532000 task.ti: ffff88044e532000
+[ 2552.320286] RIP: __lock_acquire (kernel/locking/lockdep.c:3070 (discriminator 1))
+[ 2552.320286] RSP: 0018:ffff88044e5339c8  EFLAGS: 00010002
+[ 2552.320286] RAX: 0000000000000082 RBX: ffff88046548b000 RCX: 0000000000000000
+[ 2552.320286] RDX: 0000000000000000 RSI: 0000000000000000 RDI: 0000000000000018
+[ 2552.320286] RBP: ffff88044e533ab8 R08: 0000000000000001 R09: 0000000000000000
+[ 2552.320286] R10: ffff88046548b000 R11: 0000000000000001 R12: 0000000000000000
+[ 2552.320286] R13: 0000000000000018 R14: 0000000000000000 R15: 0000000000000000
+[ 2552.320286] FS:  00007fd286a9a700(0000) GS:ffff88018b000000(0000) knlGS:0000000000000000
+[ 2552.320286] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+[ 2552.320286] CR2: 0000000000000018 CR3: 0000000442c17000 CR4: 00000000000006a0
+[ 2552.320286] DR0: 0000000000695000 DR1: 0000000000000000 DR2: 0000000000000000
+[ 2552.320286] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000600
+[ 2552.320286] Stack:
+[ 2552.320286]  ffff88044e5339e8 ffffffff9f56e761 0000000000000000 ffff880315c13000
+[ 2552.320286]  ffff88044e533a38 ffffffff9c193f0d ffffffff9c193e34 ffff8804654e8000
+[ 2552.320286]  ffff8804654e8000 0000000000000001 ffff88046548b000 0000000000000007
+[ 2552.320286] Call Trace:
+[ 2552.320286] ? _raw_spin_unlock_irq (arch/x86/include/asm/preempt.h:98 include/linux/spinlock_api_smp.h:169 kernel/locking/spinlock.c:199)
+[ 2552.320286] ? finish_task_switch (include/linux/tick.h:206 kernel/sched/core.c:2163)
+[ 2552.320286] ? finish_task_switch (arch/x86/include/asm/current.h:14 kernel/sched/sched.h:993 kernel/sched/core.c:2145)
+[ 2552.320286] ? retint_restore_args (arch/x86/kernel/entry_64.S:1040)
+[ 2552.320286] ? __this_cpu_preempt_check (lib/smp_processor_id.c:63)
+[ 2552.320286] ? trace_hardirqs_on_caller (kernel/locking/lockdep.c:2557 kernel/locking/lockdep.c:2599)
+[ 2552.320286] lock_acquire (arch/x86/include/asm/current.h:14 kernel/locking/lockdep.c:3602)
+[ 2552.320286] ? remove_migration_pte (mm/migrate.c:137)
+[ 2552.320286] ? retint_restore_args (arch/x86/kernel/entry_64.S:1040)
+[ 2552.320286] _raw_spin_lock (include/linux/spinlock_api_smp.h:143 kernel/locking/spinlock.c:151)
+[ 2552.320286] ? remove_migration_pte (mm/migrate.c:137)
+[ 2552.320286] remove_migration_pte (mm/migrate.c:137)
+[ 2552.320286] rmap_walk (mm/rmap.c:1628 mm/rmap.c:1699)
+[ 2552.320286] remove_migration_ptes (mm/migrate.c:224)
+[ 2552.320286] ? new_page_node (mm/migrate.c:107)
+[ 2552.320286] ? remove_migration_pte (mm/migrate.c:195)
+[ 2552.320286] migrate_pages (mm/migrate.c:922 mm/migrate.c:960 mm/migrate.c:1126)
+[ 2552.320286] ? perf_trace_mm_numa_migrate_ratelimit (mm/migrate.c:1574)
+[ 2552.320286] migrate_misplaced_page (mm/migrate.c:1733)
+[ 2552.320286] __handle_mm_fault (mm/memory.c:3762 mm/memory.c:3812 mm/memory.c:3925)
+[ 2552.320286] ? __const_udelay (arch/x86/lib/delay.c:126)
+[ 2552.320286] ? __rcu_read_unlock (kernel/rcu/update.c:97)
+[ 2552.320286] handle_mm_fault (mm/memory.c:3948)
+[ 2552.320286] __get_user_pages (mm/memory.c:1851)
+[ 2552.320286] ? preempt_count_sub (kernel/sched/core.c:2527)
+[ 2552.320286] __mlock_vma_pages_range (mm/mlock.c:255)
+[ 2552.320286] __mm_populate (mm/mlock.c:711)
+[ 2552.320286] SyS_mlockall (include/linux/mm.h:1799 mm/mlock.c:817 mm/mlock.c:791)
+[ 2552.320286] tracesys (arch/x86/kernel/entry_64.S:749)
+[ 2552.320286] Code: 85 2d 1e 00 00 48 c7 c1 d7 68 6c a0 48 c7 c2 47 11 6c a0 31 c0 be fa 0b 00 00 48 c7 c7 91 68 6c a0 e8 1c 6d f9 ff e9 07 1e 00 00 <49> 81 7d 00 80 31 76 a2 b8 00 00 00 00 44 0f 44 c0 eb 07 0f 1f
+[ 2552.320286] RIP __lock_acquire (kernel/locking/lockdep.c:3070 (discriminator 1))
+[ 2552.320286]  RSP <ffff88044e5339c8>
+[ 2552.320286] CR2: 0000000000000018
 
 
 Thanks,
