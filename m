@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f51.google.com (mail-ee0-f51.google.com [74.125.83.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 332AE6B0035
-	for <linux-mm@kvack.org>; Wed, 16 Apr 2014 00:18:11 -0400 (EDT)
-Received: by mail-ee0-f51.google.com with SMTP id c13so8258761eek.24
-        for <linux-mm@kvack.org>; Tue, 15 Apr 2014 21:18:10 -0700 (PDT)
+Received: from mail-ee0-f46.google.com (mail-ee0-f46.google.com [74.125.83.46])
+	by kanga.kvack.org (Postfix) with ESMTP id E29166B0036
+	for <linux-mm@kvack.org>; Wed, 16 Apr 2014 00:18:18 -0400 (EDT)
+Received: by mail-ee0-f46.google.com with SMTP id t10so8150544eei.5
+        for <linux-mm@kvack.org>; Tue, 15 Apr 2014 21:18:18 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m49si28115423eeo.221.2014.04.15.21.18.09
+        by mx.google.com with ESMTPS id r9si28084186eew.348.2014.04.15.21.18.17
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 15 Apr 2014 21:18:10 -0700 (PDT)
+        Tue, 15 Apr 2014 21:18:17 -0700 (PDT)
 From: NeilBrown <neilb@suse.de>
 Date: Wed, 16 Apr 2014 14:03:36 +1000
-Subject: [PATCH 03/19] lockdep: improve scenario messages for RECLAIM_FS
- errors.
-Message-ID: <20140416040336.10604.19304.stgit@notabene.brown>
+Subject: [PATCH 04/19] Make effect of PF_FSTRANS to disable __GFP_FS
+ universal.
+Message-ID: <20140416040336.10604.58240.stgit@notabene.brown>
 In-Reply-To: <20140416033623.10604.69237.stgit@notabene.brown>
 References: <20140416033623.10604.69237.stgit@notabene.brown>
 MIME-Version: 1.0
@@ -22,158 +22,200 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org
-Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, xfs@oss.sgi.com
+Cc: xfs@oss.sgi.com, Ming Lei <ming.lei@canonical.com>
 
-lockdep can check for locking problems involving reclaim using
-the same infrastructure as used for interrupts.
+Currently both xfs and nfs will handle PF_FSTRANS by disabling
+__GFP_FS.
 
-However a number of the messages still refer to interrupts even
-if it was actually a reclaim-related problem.
+Make this effect global by repurposing memalloc_noio_flags (which
+does the same thing for PF_MEMALLOC_NOIO and __GFP_IO) to generally
+impost the task flags on a gfp_t.
+Due to this repurposing we change the name of memalloc_noio_flags
+to gfp_from_current().
 
-So determine where the problem was caused by reclaim or irq and adjust
-messages accordingly.
+As PF_FSTRANS now uniformly removes __GFP_FS we can remove special
+code for this from xfs and nfs.
+
+As we can now expect other code to set PF_FSTRANS, its meaning is more
+general, so the WARN_ON in xfs_vm_writepage() which checks PF_FSTRANS
+is not set is no longer appropriate.  PF_FSTRANS may be set for other
+reasons than an XFS transaction.
+
+As lockdep cares about __GFP_FS, we need to translate PF_FSTRANS to
+__GFP_FS before calling lockdep_alloc_trace() in various places.
 
 Signed-off-by: NeilBrown <neilb@suse.de>
 ---
- kernel/locking/lockdep.c |   43 ++++++++++++++++++++++++++++++++-----------
- 1 file changed, 32 insertions(+), 11 deletions(-)
+ fs/nfs/file.c         |    3 +--
+ fs/xfs/kmem.h         |    2 --
+ fs/xfs/xfs_aops.c     |    7 -------
+ include/linux/sched.h |    5 ++++-
+ mm/page_alloc.c       |    3 ++-
+ mm/slab.c             |    2 ++
+ mm/slob.c             |    2 ++
+ mm/slub.c             |    1 +
+ mm/vmscan.c           |    4 ++--
+ 9 files changed, 14 insertions(+), 15 deletions(-)
 
-diff --git a/kernel/locking/lockdep.c b/kernel/locking/lockdep.c
-index e05b82e92373..33d2ac7519dc 100644
---- a/kernel/locking/lockdep.c
-+++ b/kernel/locking/lockdep.c
-@@ -1423,7 +1423,8 @@ static void
- print_irq_lock_scenario(struct lock_list *safe_entry,
- 			struct lock_list *unsafe_entry,
- 			struct lock_class *prev_class,
--			struct lock_class *next_class)
-+			struct lock_class *next_class,
-+			int reclaim)
- {
- 	struct lock_class *safe_class = safe_entry->class;
- 	struct lock_class *unsafe_class = unsafe_entry->class;
-@@ -1455,20 +1456,27 @@ print_irq_lock_scenario(struct lock_list *safe_entry,
- 		printk("\n\n");
+diff --git a/fs/nfs/file.c b/fs/nfs/file.c
+index 5bb790a69c71..ed863f52bae7 100644
+--- a/fs/nfs/file.c
++++ b/fs/nfs/file.c
+@@ -472,8 +472,7 @@ static int nfs_release_page(struct page *page, gfp_t gfp)
+ 	/* Only do I/O if gfp is a superset of GFP_KERNEL, and we're not
+ 	 * doing this memory reclaim for a fs-related allocation.
+ 	 */
+-	if (mapping && (gfp & GFP_KERNEL) == GFP_KERNEL &&
+-	    !(current->flags & PF_FSTRANS)) {
++	if (mapping && (gfp & GFP_KERNEL) == GFP_KERNEL) {
+ 		int how = FLUSH_SYNC;
+ 
+ 		/* Don't let kswapd deadlock waiting for OOM RPC calls */
+diff --git a/fs/xfs/kmem.h b/fs/xfs/kmem.h
+index 64db0e53edea..882b86270ebe 100644
+--- a/fs/xfs/kmem.h
++++ b/fs/xfs/kmem.h
+@@ -50,8 +50,6 @@ kmem_flags_convert(xfs_km_flags_t flags)
+ 		lflags = GFP_ATOMIC | __GFP_NOWARN;
+ 	} else {
+ 		lflags = GFP_KERNEL | __GFP_NOWARN;
+-		if ((current->flags & PF_FSTRANS) || (flags & KM_NOFS))
+-			lflags &= ~__GFP_FS;
  	}
  
--	printk(" Possible interrupt unsafe locking scenario:\n\n");
-+	if (reclaim)
-+		printk(" Possible reclaim unsafe locking scenario:\n\n");
-+	else
-+		printk(" Possible interrupt unsafe locking scenario:\n\n");
- 	printk("       CPU0                    CPU1\n");
- 	printk("       ----                    ----\n");
- 	printk("  lock(");
- 	__print_lock_name(unsafe_class);
- 	printk(");\n");
--	printk("                               local_irq_disable();\n");
-+	if (!reclaim)
-+		printk("                               local_irq_disable();\n");
- 	printk("                               lock(");
- 	__print_lock_name(safe_class);
- 	printk(");\n");
- 	printk("                               lock(");
- 	__print_lock_name(middle_class);
- 	printk(");\n");
--	printk("  <Interrupt>\n");
-+	if (reclaim)
-+		printk("  <Memory allocation/reclaim>\n");
-+	else
-+		printk("  <Interrupt>\n");
- 	printk("    lock(");
- 	__print_lock_name(safe_class);
- 	printk(");\n");
-@@ -1487,6 +1495,8 @@ print_bad_irq_dependency(struct task_struct *curr,
- 			 enum lock_usage_bit bit2,
- 			 const char *irqclass)
+ 	if (flags & KM_ZERO)
+diff --git a/fs/xfs/xfs_aops.c b/fs/xfs/xfs_aops.c
+index db2cfb067d0b..207a7f86d5d7 100644
+--- a/fs/xfs/xfs_aops.c
++++ b/fs/xfs/xfs_aops.c
+@@ -952,13 +952,6 @@ xfs_vm_writepage(
+ 			PF_MEMALLOC))
+ 		goto redirty;
+ 
+-	/*
+-	 * Given that we do not allow direct reclaim to call us, we should
+-	 * never be called while in a filesystem transaction.
+-	 */
+-	if (WARN_ON(current->flags & PF_FSTRANS))
+-		goto redirty;
+-
+ 	/* Is this page beyond the end of the file? */
+ 	offset = i_size_read(inode);
+ 	end_index = offset >> PAGE_CACHE_SHIFT;
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index 56fa52a0654c..f3291ed33c27 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -1860,10 +1860,13 @@ extern void thread_group_cputime_adjusted(struct task_struct *p, cputime_t *ut,
+ #define used_math() tsk_used_math(current)
+ 
+ /* __GFP_IO isn't allowed if PF_MEMALLOC_NOIO is set in current->flags */
+-static inline gfp_t memalloc_noio_flags(gfp_t flags)
++/* __GFP_FS isn't allowed if PF_FSTRANS is set in current->flags */
++static inline gfp_t gfp_from_current(gfp_t flags)
  {
-+	int reclaim = strncmp(irqclass, "RECLAIM", 7) == 0;
-+
- 	if (!debug_locks_off_graph_unlock() || debug_locks_silent)
- 		return 0;
- 
-@@ -1528,7 +1538,7 @@ print_bad_irq_dependency(struct task_struct *curr,
- 
- 	printk("\nother info that might help us debug this:\n\n");
- 	print_irq_lock_scenario(backwards_entry, forwards_entry,
--				hlock_class(prev), hlock_class(next));
-+				hlock_class(prev), hlock_class(next), reclaim);
- 
- 	lockdep_print_held_locks(curr);
- 
-@@ -2200,7 +2210,7 @@ static void check_chain_key(struct task_struct *curr)
+ 	if (unlikely(current->flags & PF_MEMALLOC_NOIO))
+ 		flags &= ~__GFP_IO;
++	if (unlikely(current->flags & PF_FSTRANS))
++		flags &= ~__GFP_FS;
+ 	return flags;
  }
  
- static void
--print_usage_bug_scenario(struct held_lock *lock)
-+print_usage_bug_scenario(struct held_lock *lock, enum lock_usage_bit new_bit)
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index ff8b91aa0b87..5e9225df3447 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2718,6 +2718,7 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+ 	struct mem_cgroup *memcg = NULL;
+ 
+ 	gfp_mask &= gfp_allowed_mask;
++	gfp_mask = gfp_from_current(gfp_mask);
+ 
+ 	lockdep_trace_alloc(gfp_mask);
+ 
+@@ -2765,7 +2766,7 @@ retry_cpuset:
+ 		 * can deadlock because I/O on the device might not
+ 		 * complete.
+ 		 */
+-		gfp_mask = memalloc_noio_flags(gfp_mask);
++		gfp_mask = gfp_from_current(gfp_mask);
+ 		page = __alloc_pages_slowpath(gfp_mask, order,
+ 				zonelist, high_zoneidx, nodemask,
+ 				preferred_zone, migratetype);
+diff --git a/mm/slab.c b/mm/slab.c
+index b264214c77ea..914d88661f3d 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -3206,6 +3206,7 @@ slab_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid,
+ 	int slab_node = numa_mem_id();
+ 
+ 	flags &= gfp_allowed_mask;
++	flags = gfp_from_current(flags);
+ 
+ 	lockdep_trace_alloc(flags);
+ 
+@@ -3293,6 +3294,7 @@ slab_alloc(struct kmem_cache *cachep, gfp_t flags, unsigned long caller)
+ 	void *objp;
+ 
+ 	flags &= gfp_allowed_mask;
++	flags = gfp_from_current(flags);
+ 
+ 	lockdep_trace_alloc(flags);
+ 
+diff --git a/mm/slob.c b/mm/slob.c
+index 4bf8809dfcce..18206f54d227 100644
+--- a/mm/slob.c
++++ b/mm/slob.c
+@@ -431,6 +431,7 @@ __do_kmalloc_node(size_t size, gfp_t gfp, int node, unsigned long caller)
+ 	void *ret;
+ 
+ 	gfp &= gfp_allowed_mask;
++	flags = gfp_from_current(flags);
+ 
+ 	lockdep_trace_alloc(gfp);
+ 
+@@ -539,6 +540,7 @@ void *slob_alloc_node(struct kmem_cache *c, gfp_t flags, int node)
+ 	void *b;
+ 
+ 	flags &= gfp_allowed_mask;
++	flags = gfp_from_current(flags);
+ 
+ 	lockdep_trace_alloc(flags);
+ 
+diff --git a/mm/slub.c b/mm/slub.c
+index 25f14ad8f817..ff7c15e977da 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -961,6 +961,7 @@ static inline void kfree_hook(const void *x)
+ static inline int slab_pre_alloc_hook(struct kmem_cache *s, gfp_t flags)
  {
- 	struct lock_class *class = hlock_class(lock);
+ 	flags &= gfp_allowed_mask;
++	flags = gfp_from_current(flags);
+ 	lockdep_trace_alloc(flags);
+ 	might_sleep_if(flags & __GFP_WAIT);
  
-@@ -2210,7 +2220,11 @@ print_usage_bug_scenario(struct held_lock *lock)
- 	printk("  lock(");
- 	__print_lock_name(class);
- 	printk(");\n");
--	printk("  <Interrupt>\n");
-+	if (new_bit == LOCK_USED_IN_RECLAIM_FS ||
-+	    new_bit == LOCK_USED_IN_RECLAIM_FS_READ)
-+		printk("  <Memory allocation/reclaim>\n");
-+	else
-+		printk("  <Interrupt>\n");
- 	printk("    lock(");
- 	__print_lock_name(class);
- 	printk(");\n");
-@@ -2246,7 +2260,7 @@ print_usage_bug(struct task_struct *curr, struct held_lock *this,
- 
- 	print_irqtrace_events(curr);
- 	printk("\nother info that might help us debug this:\n");
--	print_usage_bug_scenario(this);
-+	print_usage_bug_scenario(this, new_bit);
- 
- 	lockdep_print_held_locks(curr);
- 
-@@ -2285,13 +2299,17 @@ print_irq_inversion_bug(struct task_struct *curr,
- 	struct lock_list *entry = other;
- 	struct lock_list *middle = NULL;
- 	int depth;
-+	int reclaim = strncmp(irqclass, "RECLAIM", 7) == 0;
- 
- 	if (!debug_locks_off_graph_unlock() || debug_locks_silent)
- 		return 0;
- 
- 	printk("\n");
- 	printk("=========================================================\n");
--	printk("[ INFO: possible irq lock inversion dependency detected ]\n");
-+	if (reclaim)
-+		printk("[ INFO: possible memory reclaim lock inversion dependency detected ]\n");
-+	else
-+		printk("[ INFO: possible irq lock inversion dependency detected ]\n");
- 	print_kernel_ident();
- 	printk("---------------------------------------------------------\n");
- 	printk("%s/%d just changed the state of lock:\n",
-@@ -2302,6 +2320,9 @@ print_irq_inversion_bug(struct task_struct *curr,
- 	else
- 		printk("but this lock was taken by another, %s-safe lock in the past:\n", irqclass);
- 	print_lock_name(other->class);
-+	if (reclaim)
-+		printk("\n\nand memory reclaim could create inverse lock ordering between them.\n\n");
-+	else
- 	printk("\n\nand interrupts could create inverse lock ordering between them.\n\n");
- 
- 	printk("\nother info that might help us debug this:\n");
-@@ -2319,10 +2340,10 @@ print_irq_inversion_bug(struct task_struct *curr,
- 	} while (entry && entry != root && (depth >= 0));
- 	if (forwards)
- 		print_irq_lock_scenario(root, other,
--			middle ? middle->class : root->class, other->class);
-+			middle ? middle->class : root->class, other->class, reclaim);
- 	else
- 		print_irq_lock_scenario(other, root,
--			middle ? middle->class : other->class, root->class);
-+			middle ? middle->class : other->class, root->class, reclaim);
- 
- 	lockdep_print_held_locks(curr);
- 
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 67165f839936..05de3289d031 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2592,7 +2592,7 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
+ {
+ 	unsigned long nr_reclaimed;
+ 	struct scan_control sc = {
+-		.gfp_mask = (gfp_mask = memalloc_noio_flags(gfp_mask)),
++		.gfp_mask = (gfp_mask = gfp_from_current(gfp_mask)),
+ 		.may_writepage = !laptop_mode,
+ 		.nr_to_reclaim = SWAP_CLUSTER_MAX,
+ 		.may_unmap = 1,
+@@ -3524,7 +3524,7 @@ static int __zone_reclaim(struct zone *zone, gfp_t gfp_mask, unsigned int order)
+ 		.may_unmap = !!(zone_reclaim_mode & RECLAIM_SWAP),
+ 		.may_swap = 1,
+ 		.nr_to_reclaim = max(nr_pages, SWAP_CLUSTER_MAX),
+-		.gfp_mask = (gfp_mask = memalloc_noio_flags(gfp_mask)),
++		.gfp_mask = (gfp_mask = gfp_from_current(gfp_mask)),
+ 		.order = order,
+ 		.priority = ZONE_RECLAIM_PRIORITY,
+ 	};
 
 
 --
