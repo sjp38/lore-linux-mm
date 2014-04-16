@@ -1,84 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f52.google.com (mail-pb0-f52.google.com [209.85.160.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 7374A6B0082
-	for <linux-mm@kvack.org>; Wed, 16 Apr 2014 15:03:49 -0400 (EDT)
-Received: by mail-pb0-f52.google.com with SMTP id rr13so11225461pbb.39
-        for <linux-mm@kvack.org>; Wed, 16 Apr 2014 12:03:49 -0700 (PDT)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.11.231])
-        by mx.google.com with ESMTPS id pb4si13207171pac.154.2014.04.16.12.03.47
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 16 Apr 2014 12:03:48 -0700 (PDT)
-Message-ID: <534ED412.1040909@codeaurora.org>
-Date: Wed, 16 Apr 2014 12:03:46 -0700
-From: Laura Abbott <lauraa@codeaurora.org>
-MIME-Version: 1.0
-Subject: Re: kmalloc and uncached memory
-References: <CAF1ivSaAQ_8byv+a9NQebtL4kBYFEPOTJHn-JA-bYY=wLFpv2Q@mail.gmail.com>	<534ECCEB.6090007@codeaurora.org> <CAF1ivSaMRj_V_NHBBDfPmNmZ+CNfCnAywfWGudpoAv_8j_FrwA@mail.gmail.com>
-In-Reply-To: <CAF1ivSaMRj_V_NHBBDfPmNmZ+CNfCnAywfWGudpoAv_8j_FrwA@mail.gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 843FA6B003C
+	for <linux-mm@kvack.org>; Wed, 16 Apr 2014 16:19:46 -0400 (EDT)
+Received: by mail-pa0-f48.google.com with SMTP id hz1so11362355pad.35
+        for <linux-mm@kvack.org>; Wed, 16 Apr 2014 13:19:46 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id m8si13323200pbd.245.2014.04.16.13.19.45
+        for <linux-mm@kvack.org>;
+        Wed, 16 Apr 2014 13:19:45 -0700 (PDT)
+Date: Wed, 16 Apr 2014 13:19:42 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] thp: close race between split and zap huge pages
+Message-Id: <20140416131942.aaf8e560e45062c9857a2648@linux-foundation.org>
+In-Reply-To: <1397598515-25017-1-git-send-email-kirill.shutemov@linux.intel.com>
+References: <1397598515-25017-1-git-send-email-kirill.shutemov@linux.intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Lin Ming <minggr@gmail.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, linux-mm <linux-mm@kvack.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michel Lespinasse <walken@google.com>, Sasha Levin <sasha.levin@oracle.com>, Dave Jones <davej@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Bob Liu <lliubbo@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org
 
-On 4/16/2014 11:50 AM, Lin Ming wrote:
-> On Wed, Apr 16, 2014 at 11:33 AM, Laura Abbott <lauraa@codeaurora.org> wrote:
->> On 4/16/2014 11:11 AM, Lin Ming wrote:
->>> Hi Peter,
->>>
->>> I have a performance problem(on ARM board) that cpu is very bus at
->>> cache invalidation.
->>> So I'm trying to alloc an uncached memory to eliminate cache invalidation.
->>>
->>> But I also have problem with dma_alloc_coherent().
->>> If I don't use dma_alloc_coherent(), is it OK to use below code to
->>> alloc uncached memory?
->>>
->>> struct page *page;
->>> pgd_t *pgd;
->>> pud_t *pud;
->>> pmd_t *pmd;
->>> pte_t *pte;
->>> void *cpu_addr;
->>> dma_addr_t dma_addr;
->>> unsigned int vaddr;
->>>
->>> cpu_addr = kmalloc(PAGE_SIZE, GFP_KERNEL);
->>> dma_addr = pci_map_single(NULL, cpu_addr, PAGE_SIZE, (int)DMA_FROM_DEVICE);
->>> vaddr = (unsigned int)uncached->cpu_addr;
->>> pgd = pgd_offset_k(vaddr);
->>> pud = pud_offset(pgd, vaddr);
->>> pmd = pmd_offset(pud, vaddr);
->>> pte = pte_offset_kernel(pmd, vaddr);
->>> page = virt_to_page(vaddr);
->>> set_pte_ext(pte, mk_pte(page,  pgprot_dmacoherent(pgprot_kernel)), 0);
->>>
->>> /* This kmalloc memory won't be freed  */
->>>
->>
->> No, that will not work. lowmem pages are mapped with 1MB sections underneath
->> which cannot be (easily) changed at runtime. You really want to be using
->> dma_alloc_coherent here.
+On Wed, 16 Apr 2014 00:48:35 +0300 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
+
+> Sasha Levin has reported two THP BUGs[1][2]. I believe both of them have
+> the same root cause. Let's look to them one by one.
 > 
-> For "lowmem pages", do you mean the first 16M physical memory?
-> How about that if I only use highmem pages(>16M)?
+> The first bug[1] is "kernel BUG at mm/huge_memory.c:1829!".
+> It's BUG_ON(mapcount != page_mapcount(page)) in __split_huge_page().
+> >From my testing I see that page_mapcount() is higher than mapcount here.
 > 
+> I think it happens due to race between zap_huge_pmd() and
+> page_check_address_pmd(). page_check_address_pmd() misses PMD
+> which is under zap:
 
-By lowmem pages I am referring to the direct mapped kernel area. Highmem refers
-to pages which do not have a permanent mapping in the kernel address space. If
-you are calling kmalloc with GFP_KERNEL you will be getting a page from the lowmem
-region.
+Why did this bug happen?
 
-What's the reason you can't use dma_alloc_coherent?
+In other words, what earlier mistakes had we made which led to you
+getting this locking wrong?  
 
-Thanks,
-Laura
+Based on that knowledge, what can we do to reduce the likelihood of
+such mistakes being made in the future?  (Hint: the answer to this
+will involve making changes to this patch).
 
--- 
-Qualcomm Innovation Center, Inc. is a member of Code Aurora Forum,
-hosted by The Linux Foundation
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -1536,16 +1536,23 @@ pmd_t *page_check_address_pmd(struct page *page,
+>  			      enum page_check_address_pmd_flag flag,
+>  			      spinlock_t **ptl)
+>  {
+> +	pgd_t *pgd;
+> +	pud_t *pud;
+>  	pmd_t *pmd;
+>  
+>  	if (address & ~HPAGE_PMD_MASK)
+>  		return NULL;
+>  
+> -	pmd = mm_find_pmd(mm, address);
+> -	if (!pmd)
+> +	pgd = pgd_offset(mm, address);
+> +	if (!pgd_present(*pgd))
+>  		return NULL;
+> +	pud = pud_offset(pgd, address);
+> +	if (!pud_present(*pud))
+> +		return NULL;
+> +	pmd = pmd_offset(pud, address);
+> +
+>  	*ptl = pmd_lock(mm, pmd);
+> -	if (pmd_none(*pmd))
+> +	if (!pmd_present(*pmd))
+>  		goto unlock;
+>  	if (pmd_page(*pmd) != page)
+>  		goto unlock;
+
+So how do other callers of mm_find_pmd() manage to avoid this race, or
+are they all buggy?
+
+Is mm_find_pmd() really so simple and obvious that we can afford to
+leave it undocumented?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
