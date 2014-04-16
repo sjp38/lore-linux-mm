@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f48.google.com (mail-ee0-f48.google.com [74.125.83.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 70A096B007B
-	for <linux-mm@kvack.org>; Wed, 16 Apr 2014 00:19:52 -0400 (EDT)
-Received: by mail-ee0-f48.google.com with SMTP id b57so8238661eek.35
-        for <linux-mm@kvack.org>; Tue, 15 Apr 2014 21:19:51 -0700 (PDT)
+Received: from mail-ee0-f52.google.com (mail-ee0-f52.google.com [74.125.83.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 50E696B007D
+	for <linux-mm@kvack.org>; Wed, 16 Apr 2014 00:19:59 -0400 (EDT)
+Received: by mail-ee0-f52.google.com with SMTP id e49so8113160eek.25
+        for <linux-mm@kvack.org>; Tue, 15 Apr 2014 21:19:58 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u5si28115538een.263.2014.04.15.21.19.50
+        by mx.google.com with ESMTPS id s46si28130546eeg.165.2014.04.15.21.19.57
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 15 Apr 2014 21:19:51 -0700 (PDT)
+        Tue, 15 Apr 2014 21:19:58 -0700 (PDT)
 From: NeilBrown <neilb@suse.de>
 Date: Wed, 16 Apr 2014 14:03:37 +1000
-Subject: [PATCH 17/19] VFS: set PF_FSTRANS while namespace_sem is held.
-Message-ID: <20140416040337.10604.86740.stgit@notabene.brown>
+Subject: [PATCH 18/19] nfsd: set PF_FSTRANS during nfsd4_do_callback_rpc.
+Message-ID: <20140416040337.10604.52860.stgit@notabene.brown>
 In-Reply-To: <20140416033623.10604.69237.stgit@notabene.brown>
 References: <20140416033623.10604.69237.stgit@notabene.brown>
 MIME-Version: 1.0
@@ -23,57 +23,44 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org
 Cc: xfs@oss.sgi.com
 
-namespace_sem can be taken while various i_mutex locks are held, so we
-need to avoid reclaim from blocking on an FS (particularly loop-back
-NFS).
-
-A memory allocation happens under namespace_sem at least in:
-
-[<ffffffff8119d16f>] kmem_cache_alloc+0x4f/0x290
-[<ffffffff811c2fff>] alloc_vfsmnt+0x1f/0x1d0
-[<ffffffff811c339a>] clone_mnt+0x2a/0x310
-[<ffffffff811c57e3>] copy_tree+0x53/0x380
-[<ffffffff811c6aef>] copy_mnt_ns+0x7f/0x280
-[<ffffffff810c16fc>] create_new_namespaces+0x5c/0x190
-[<ffffffff810c1ab9>] unshare_nsproxy_namespaces+0x59/0x90
-
-So set PF_FSTRANS in namespace_lock() and restore in
-namespace_unlock().
+nfsd will sometimes call flush_workqueue on the workqueue running
+nfsd4_do_callback_rpc, so we must ensure that it doesn't block in
+filesystem reclaim.
+So set PF_FSTRANS.
 
 Signed-off-by: NeilBrown <neilb@suse.de>
 ---
- fs/namespace.c |    4 ++++
- 1 file changed, 4 insertions(+)
+ fs/nfsd/nfs4callback.c |    5 +++++
+ 1 file changed, 5 insertions(+)
 
-diff --git a/fs/namespace.c b/fs/namespace.c
-index 2ffc5a2905d4..83dcd5083dbb 100644
---- a/fs/namespace.c
-+++ b/fs/namespace.c
-@@ -63,6 +63,7 @@ static struct hlist_head *mount_hashtable __read_mostly;
- static struct hlist_head *mountpoint_hashtable __read_mostly;
- static struct kmem_cache *mnt_cache __read_mostly;
- static DECLARE_RWSEM(namespace_sem);
-+static unsigned long namespace_sem_pflags;
- 
- /* /sys/fs */
- struct kobject *fs_kobj;
-@@ -1196,6 +1197,8 @@ static void namespace_unlock(void)
- 	struct mount *mnt;
- 	struct hlist_head head = unmounted;
- 
-+	current_restore_flags_nested(&namespace_sem_pflags, PF_FSTRANS);
+diff --git a/fs/nfsd/nfs4callback.c b/fs/nfsd/nfs4callback.c
+index 7f05cd140de3..7784b5d4edf0 100644
+--- a/fs/nfsd/nfs4callback.c
++++ b/fs/nfsd/nfs4callback.c
+@@ -997,6 +997,9 @@ static void nfsd4_do_callback_rpc(struct work_struct *w)
+ 	struct nfsd4_callback *cb = container_of(w, struct nfsd4_callback, cb_work);
+ 	struct nfs4_client *clp = cb->cb_clp;
+ 	struct rpc_clnt *clnt;
++	unsigned int pflags;
 +
- 	if (likely(hlist_empty(&head))) {
- 		up_write(&namespace_sem);
++	current_set_flags_nested(&pflags, PF_FSTRANS);
+ 
+ 	if (clp->cl_flags & NFSD4_CLIENT_CB_FLAG_MASK)
+ 		nfsd4_process_cb_update(cb);
+@@ -1005,11 +1008,13 @@ static void nfsd4_do_callback_rpc(struct work_struct *w)
+ 	if (!clnt) {
+ 		/* Callback channel broken, or client killed; give up: */
+ 		nfsd4_release_cb(cb);
++		current_restore_flags_nested(&pflags, PF_FSTRANS);
  		return;
-@@ -1220,6 +1223,7 @@ static void namespace_unlock(void)
- static inline void namespace_lock(void)
- {
- 	down_write(&namespace_sem);
-+	current_set_flags_nested(&namespace_sem_pflags, PF_FSTRANS);
+ 	}
+ 	cb->cb_msg.rpc_cred = clp->cl_cb_cred;
+ 	rpc_call_async(clnt, &cb->cb_msg, RPC_TASK_SOFT | RPC_TASK_SOFTCONN,
+ 			cb->cb_ops, cb);
++	current_restore_flags_nested(&pflags, PF_FSTRANS);
  }
  
- /*
+ void nfsd4_init_callback(struct nfsd4_callback *cb)
 
 
 --
