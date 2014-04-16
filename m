@@ -1,67 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 34DBB6B0031
-	for <linux-mm@kvack.org>; Tue, 15 Apr 2014 20:56:22 -0400 (EDT)
-Received: by mail-pa0-f47.google.com with SMTP id lj1so10167764pab.6
-        for <linux-mm@kvack.org>; Tue, 15 Apr 2014 17:56:21 -0700 (PDT)
-Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
-        by mx.google.com with ESMTP id as3si11721216pbc.264.2014.04.15.17.56.20
+Received: from mail-pb0-f46.google.com (mail-pb0-f46.google.com [209.85.160.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 68A026B0031
+	for <linux-mm@kvack.org>; Tue, 15 Apr 2014 21:08:54 -0400 (EDT)
+Received: by mail-pb0-f46.google.com with SMTP id rq2so10190307pbb.19
+        for <linux-mm@kvack.org>; Tue, 15 Apr 2014 18:08:54 -0700 (PDT)
+Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
+        by mx.google.com with ESMTP id xf3si8483746pab.343.2014.04.15.18.08.52
         for <linux-mm@kvack.org>;
-        Tue, 15 Apr 2014 17:56:21 -0700 (PDT)
-Date: Wed, 16 Apr 2014 09:56:47 +0900
+        Tue, 15 Apr 2014 18:08:53 -0700 (PDT)
+Date: Wed, 16 Apr 2014 10:09:17 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 1/2] mm/page_alloc: prevent MIGRATE_RESERVE pages from
- being misplaced
-Message-ID: <20140416005647.GC17350@js1304-P5Q-DELUXE>
+Subject: Re: [PATCH 2/2] mm/page_alloc: DEBUG_VM checks for free_list
+ placement of CMA and RESERVE pages
+Message-ID: <20140416010917.GA17653@js1304-P5Q-DELUXE>
 References: <533D8015.1000106@suse.cz>
  <1396539618-31362-1-git-send-email-vbabka@suse.cz>
+ <1396539618-31362-2-git-send-email-vbabka@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1396539618-31362-1-git-send-email-vbabka@suse.cz>
+In-Reply-To: <1396539618-31362-2-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Vlastimil Babka <vbabka@suse.cz>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Yong-Taek Lee <ytk.lee@samsung.com>, Minchan Kim <minchan@kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Michal Nazarewicz <mina86@mina86.com>
 
-On Thu, Apr 03, 2014 at 05:40:17PM +0200, Vlastimil Babka wrote:
+On Thu, Apr 03, 2014 at 05:40:18PM +0200, Vlastimil Babka wrote:
 > For the MIGRATE_RESERVE pages, it is important they do not get misplaced
 > on free_list of other migratetype, otherwise the whole MIGRATE_RESERVE
 > pageblock might be changed to other migratetype in try_to_steal_freepages().
+> For MIGRATE_CMA, the pages also must not go to a different free_list, otherwise
+> they could get allocated as unmovable and result in CMA failure.
 > 
-> Currently, it is however possible for this to happen when MIGRATE_RESERVE
-> page is allocated on pcplist through rmqueue_bulk() as a fallback for other
-> desired migratetype, and then later freed back through free_pcppages_bulk()
-> without being actually used. This happens because free_pcppages_bulk() uses
-> get_freepage_migratetype() to choose the free_list, and rmqueue_bulk() calls
-> set_freepage_migratetype() with the *desired* migratetype and not the page's
-> original MIGRATE_RESERVE migratetype.
+> This is ensured by setting the freepage_migratetype appropriately when placing
+> pages on pcp lists, and using the information when releasing them back to
+> free_list. It is also assumed that CMA and RESERVE pageblocks are created only
+> in the init phase. This patch adds DEBUG_VM checks to catch any regressions
+> introduced for this invariant.
+
+Hello, Vlastimil.
+
+Idea looks good to me.
+
 > 
-> This patch fixes the problem by moving the call to set_freepage_migratetype()
-> from rmqueue_bulk() down to __rmqueue_smallest() and __rmqueue_fallback() where
-> the actual page's migratetype (e.g. from which free_list the page is taken
-> from) is used. Note that this migratetype might be different from the
-> pageblock's migratetype due to freepage stealing decisions. This is OK, as page
-> stealing never uses MIGRATE_RESERVE as a fallback, and also takes care to leave
-> all MIGRATE_CMA pages on the correct freelist.
-> 
-> Therefore, as an additional benefit, the call to get_pageblock_migratetype()
-> from rmqueue_bulk() when CMA is enabled, can be removed completely. This relies
-> on the fact that MIGRATE_CMA pageblocks are created only during system init,
-> and the above. The related is_migrate_isolate() check is also unnecessary, as
-> memory isolation has other ways to move pages between freelists, and drain
-> pcp lists containing pages that should be isolated.
-> The buffered_rmqueue() can also benefit from calling get_freepage_migratetype()
-> instead of get_pageblock_migratetype().
-> 
-> A separate patch will add VM_BUG_ON checks for the invariant that for
-> MIGRATE_RESERVE and MIGRATE_CMA pageblocks, freepage_migratetype must equal to
-> pageblock_migratetype so that these pages always go to the correct free_list.
-> 
-> Reported-by: Yong-Taek Lee <ytk.lee@samsung.com>
-> Reported-by: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-> Suggested-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> Suggested-by: Mel Gorman <mgorman@suse.de>
+> Cc: Yong-Taek Lee <ytk.lee@samsung.com>
+> Cc: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> Cc: Mel Gorman <mgorman@suse.de>
 > Cc: Minchan Kim <minchan@kernel.org>
 > Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 > Cc: Marek Szyprowski <m.szyprowski@samsung.com>
@@ -69,8 +54,6 @@ On Thu, Apr 03, 2014 at 05:40:17PM +0200, Vlastimil Babka wrote:
 > Cc: Rik van Riel <riel@redhat.com>
 > Cc: Michal Nazarewicz <mina86@mina86.com>
 > Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-
-Looks good to me.
 
 Acked-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
