@@ -1,164 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
-	by kanga.kvack.org (Postfix) with ESMTP id DFF8C6B0080
-	for <linux-mm@kvack.org>; Wed, 16 Apr 2014 07:46:59 -0400 (EDT)
-Received: by mail-wi0-f172.google.com with SMTP id hi2so1218701wib.11
-        for <linux-mm@kvack.org>; Wed, 16 Apr 2014 04:46:59 -0700 (PDT)
-Received: from mail-we0-f173.google.com (mail-we0-f173.google.com [74.125.82.173])
-        by mx.google.com with ESMTPS id ma4si7807369wic.20.2014.04.16.04.46.58
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 16 Apr 2014 04:46:58 -0700 (PDT)
-Received: by mail-we0-f173.google.com with SMTP id w61so10628769wes.18
-        for <linux-mm@kvack.org>; Wed, 16 Apr 2014 04:46:58 -0700 (PDT)
-From: Steve Capper <steve.capper@linaro.org>
-Subject: [PATCH V2 5/5] arm: mm: Add Transparent HugePage support for non-LPAE
-Date: Wed, 16 Apr 2014 12:46:43 +0100
-Message-Id: <1397648803-15961-6-git-send-email-steve.capper@linaro.org>
-In-Reply-To: <1397648803-15961-1-git-send-email-steve.capper@linaro.org>
-References: <1397648803-15961-1-git-send-email-steve.capper@linaro.org>
+Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 8722D6B0031
+	for <linux-mm@kvack.org>; Wed, 16 Apr 2014 08:29:00 -0400 (EDT)
+Received: by mail-wi0-f179.google.com with SMTP id z2so1280195wiv.6
+        for <linux-mm@kvack.org>; Wed, 16 Apr 2014 05:28:59 -0700 (PDT)
+Received: from collaborate-mta1.arm.com (fw-tnat.austin.arm.com. [217.140.110.23])
+        by mx.google.com with ESMTP id r7si6624273wjw.198.2014.04.16.05.28.58
+        for <linux-mm@kvack.org>;
+        Wed, 16 Apr 2014 05:28:59 -0700 (PDT)
+Message-ID: <534E777C.1090605@arm.com>
+Date: Wed, 16 Apr 2014 13:28:44 +0100
+From: Marc Zyngier <marc.zyngier@arm.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v2] ARM: mm: support big-endian page tables
+References: <5301B4AF.1040305@huawei.com> <5327F75F.1010406@huawei.com> <20140414104300.GA3530@arm.com> <534BC31A.7060705@arm.com> <534DEEDD.5030203@huawei.com>
+In-Reply-To: <534DEEDD.5030203@huawei.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux@arm.linux.org.uk, akpm@linux-foundation.org
-Cc: will.deacon@arm.com, catalin.marinas@arm.com, robherring2@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, gerald.schaefer@de.ibm.com, Steve Capper <steve.capper@linaro.org>
+To: Jianguo Wu <wujianguo@huawei.com>
+Cc: Will Deacon <Will.Deacon@arm.com>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>, Wang Nan <wangnan0@huawei.com>, "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Li Zefan <lizefan@huawei.com>, Catalin Marinas <Catalin.Marinas@arm.com>, Ben Dooks <ben.dooks@codethink.co.uk>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
 
-Much of the required code for THP has been implemented in the
-earlier non-LPAE HugeTLB patch.
+On 16/04/14 03:45, Jianguo Wu wrote:
+> On 2014/4/14 19:14, Marc Zyngier wrote:
+> 
+>> On 14/04/14 11:43, Will Deacon wrote:
+>>> (catching up on old email)
+>>>
+>>> On Tue, Mar 18, 2014 at 07:35:59AM +0000, Jianguo Wu wrote:
+>>>> Cloud you please take a look at this?
+>>>
+>>> [...]
+>>>
+>>>> On 2014/2/17 15:05, Jianguo Wu wrote:
+>>>>> When enable LPAE and big-endian in a hisilicon board, while specify
+>>>>> mem=384M mem=512M@7680M, will get bad page state:
+>>>>>
+>>>>> Freeing unused kernel memory: 180K (c0466000 - c0493000)
+>>>>> BUG: Bad page state in process init  pfn:fa442
+>>>>> page:c7749840 count:0 mapcount:-1 mapping:  (null) index:0x0
+>>>>> page flags: 0x40000400(reserved)
+>>>>> Modules linked in:
+>>>>> CPU: 0 PID: 1 Comm: init Not tainted 3.10.27+ #66
+>>>>> [<c000f5f0>] (unwind_backtrace+0x0/0x11c) from [<c000cbc4>] (show_stack+0x10/0x14)
+>>>>> [<c000cbc4>] (show_stack+0x10/0x14) from [<c009e448>] (bad_page+0xd4/0x104)
+>>>>> [<c009e448>] (bad_page+0xd4/0x104) from [<c009e520>] (free_pages_prepare+0xa8/0x14c)
+>>>>> [<c009e520>] (free_pages_prepare+0xa8/0x14c) from [<c009f8ec>] (free_hot_cold_page+0x18/0xf0)
+>>>>> [<c009f8ec>] (free_hot_cold_page+0x18/0xf0) from [<c00b5444>] (handle_pte_fault+0xcf4/0xdc8)
+>>>>> [<c00b5444>] (handle_pte_fault+0xcf4/0xdc8) from [<c00b6458>] (handle_mm_fault+0xf4/0x120)
+>>>>> [<c00b6458>] (handle_mm_fault+0xf4/0x120) from [<c0013754>] (do_page_fault+0xfc/0x354)
+>>>>> [<c0013754>] (do_page_fault+0xfc/0x354) from [<c0008400>] (do_DataAbort+0x2c/0x90)
+>>>>> [<c0008400>] (do_DataAbort+0x2c/0x90) from [<c0008fb4>] (__dabt_usr+0x34/0x40)
+>>>
+>>> [...]
+>>>
+>>>>> The bug is happened in cpu_v7_set_pte_ext(ptep, pte):
+>>>>> when pte is 64-bit, for little-endian, will store low 32-bit in r2,
+>>>>> high 32-bit in r3; for big-endian, will store low 32-bit in r3,
+>>>>> high 32-bit in r2, this will cause wrong pfn stored in pte,
+>>>>> so we should exchange r2 and r3 for big-endian.
+>>>
+> 
+> Hi Marc,
+> How about this:
+> 
+> The bug is happened in cpu_v7_set_pte_ext(ptep, pte):
+> - It tests the L_PTE_NONE in one word on the other, and possibly clear L_PTE_VALID
+>   tst	r3, #1 << (57 - 32)		@ L_PTE_NONE
+>   bicne	r2, #L_PTE_VALID
+> - Same for L_PTE_DIRTY, respectively setting L_PTE_RDONLY
+> 
+> As for LPAE, the pte is 64-bits, and the value of r2/r3 is depending on the endianness,
+> for little-endian, will store low 32-bit in r2, high 32-bit in r3,
+> for big-endian, will store low 32-bit in r3, high 32-bit in r2, 
+> this will cause wrong bit is cleared or set, and get wrong pfn.
+> So we should exchange r2 and r3 for big-endian.
 
-One more domain bit is used (to store whether or not the THP is
-splitting).
+May I suggest the following instead:
 
-Some THP helper functions are defined; and we have to re-define
-pmd_page such that it distinguishes between page tables and
-sections.
+"An LPAE PTE is a 64bit quantity, passed to cpu_v7_set_pte_ext in the
+ r2 and r3 registers.
+ On an LE kernel, r2 contains the LSB of the PTE, and r3 the MSB.
+ On a BE kernel, the assignment is reversed.
 
-Signed-off-by: Steve Capper <steve.capper@linaro.org>
----
- arch/arm/Kconfig                      |  2 +-
- arch/arm/include/asm/pgtable-2level.h | 32 ++++++++++++++++++++++++++++++++
- arch/arm/include/asm/pgtable-3level.h |  1 +
- arch/arm/include/asm/pgtable.h        |  2 --
- arch/arm/include/asm/tlb.h            |  3 +++
- 5 files changed, 37 insertions(+), 3 deletions(-)
+ Unfortunately, the current code always assumes the LE case,
+ leading to corruption of the PTE when clearing/setting bits.
 
-diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
-index 5e80fad..f5d4354 100644
---- a/arch/arm/Kconfig
-+++ b/arch/arm/Kconfig
-@@ -1836,7 +1836,7 @@ config SYS_SUPPORTS_HUGETLBFS
- 
- config HAVE_ARCH_TRANSPARENT_HUGEPAGE
-        def_bool y
--       depends on ARM_LPAE
-+       depends on SYS_SUPPORTS_HUGETLBFS
- 
- config ARCH_WANT_GENERAL_HUGETLB
- 	def_bool y
-diff --git a/arch/arm/include/asm/pgtable-2level.h b/arch/arm/include/asm/pgtable-2level.h
-index 323e19f..bc1a7b8 100644
---- a/arch/arm/include/asm/pgtable-2level.h
-+++ b/arch/arm/include/asm/pgtable-2level.h
-@@ -212,6 +212,7 @@ static inline pmd_t *pmd_offset(pud_t *pud, unsigned long addr)
-  */
- #define PMD_DSECT_DIRTY		(_AT(pmdval_t, 1) << 5)
- #define PMD_DSECT_AF		(_AT(pmdval_t, 1) << 6)
-+#define PMD_DSECT_SPLITTING	(_AT(pmdval_t, 1) << 7)
- 
- #define PMD_BIT_FUNC(fn,op) \
- static inline pmd_t pmd_##fn(pmd_t pmd) { pmd_val(pmd) op; return pmd; }
-@@ -232,6 +233,16 @@ extern pgprot_t get_huge_pgprot(pgprot_t newprot);
- 
- #define pfn_pmd(pfn,prot) __pmd(__pfn_to_phys(pfn) | pgprot_val(prot));
- #define mk_pmd(page,prot) pfn_pmd(page_to_pfn(page),get_huge_pgprot(prot));
-+#define pmd_mkhuge(pmd)	(pmd)
-+
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+#define pmd_trans_splitting(pmd)       (pmd_val(pmd) & PMD_DSECT_SPLITTING)
-+#define pmd_trans_huge(pmd)            (pmd_thp_or_huge(pmd))
-+#else
-+static inline int pmd_trans_huge(pmd_t pmd);
-+#endif
-+
-+#define pmd_mknotpresent(pmd)  (__pmd(0))
- 
- PMD_BIT_FUNC(mkdirty, |= PMD_DSECT_DIRTY);
- PMD_BIT_FUNC(mkwrite, |= PMD_SECT_AP_WRITE);
-@@ -239,6 +250,8 @@ PMD_BIT_FUNC(wrprotect,	&= ~PMD_SECT_AP_WRITE);
- PMD_BIT_FUNC(mknexec,	|= PMD_SECT_XN);
- PMD_BIT_FUNC(rmprotnone, |= PMD_TYPE_SECT);
- PMD_BIT_FUNC(mkyoung, |= PMD_DSECT_AF);
-+PMD_BIT_FUNC(mkold, &= ~PMD_DSECT_AF);
-+PMD_BIT_FUNC(mksplitting, |= PMD_DSECT_SPLITTING);
- 
- #define pmd_young(pmd)			(pmd_val(pmd) & PMD_DSECT_AF)
- #define pmd_write(pmd)			(pmd_val(pmd) & PMD_SECT_AP_WRITE)
-@@ -279,6 +292,25 @@ static inline pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
- 	return pmd;
- }
- 
-+static inline int has_transparent_hugepage(void)
-+{
-+	return 1;
-+}
-+
-+static inline struct page *pmd_page(pmd_t pmd)
-+{
-+	/*
-+	 * for a section, we need to mask off more of the pmd
-+	 * before looking up the page as it is a section descriptor.
-+	 *
-+	 * pmd_page only gets sections from the thp code.
-+	 */
-+	if (pmd_trans_huge(pmd))
-+		return (phys_to_page(pmd_val(pmd) & HPAGE_MASK));
-+
-+	return phys_to_page(pmd_val(pmd) & PHYS_MASK);
-+}
-+
- #endif /* __ASSEMBLY__ */
- 
- #endif /* _ASM_PGTABLE_2LEVEL_H */
-diff --git a/arch/arm/include/asm/pgtable-3level.h b/arch/arm/include/asm/pgtable-3level.h
-index a4b71c1..82c61d6 100644
---- a/arch/arm/include/asm/pgtable-3level.h
-+++ b/arch/arm/include/asm/pgtable-3level.h
-@@ -214,6 +214,7 @@ static inline pmd_t *pmd_offset(pud_t *pud, unsigned long addr)
- 
- #define pmd_hugewillfault(pmd)	(!pmd_young(pmd) || !pmd_write(pmd))
- #define pmd_thp_or_huge(pmd)	(pmd_val(pmd) && !(pmd_val(pmd) & PMD_TABLE_BIT))
-+#define pmd_page(pmd)		pfn_to_page(__phys_to_pfn(pmd_val(pmd) & PHYS_MASK))
- 
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
- #define pmd_trans_huge(pmd)	(pmd_val(pmd) && !(pmd_val(pmd) & PMD_TABLE_BIT))
-diff --git a/arch/arm/include/asm/pgtable.h b/arch/arm/include/asm/pgtable.h
-index 576511f2..95f1909 100644
---- a/arch/arm/include/asm/pgtable.h
-+++ b/arch/arm/include/asm/pgtable.h
-@@ -189,8 +189,6 @@ static inline pte_t *pmd_page_vaddr(pmd_t pmd)
- 	return __va(pmd_val(pmd) & PHYS_MASK & (s32)PAGE_MASK);
- }
- 
--#define pmd_page(pmd)		pfn_to_page(__phys_to_pfn(pmd_val(pmd) & PHYS_MASK))
--
- #ifndef CONFIG_HIGHPTE
- #define __pte_map(pmd)		pmd_page_vaddr(*(pmd))
- #define __pte_unmap(pte)	do { } while (0)
-diff --git a/arch/arm/include/asm/tlb.h b/arch/arm/include/asm/tlb.h
-index b2498e6..77037d9 100644
---- a/arch/arm/include/asm/tlb.h
-+++ b/arch/arm/include/asm/tlb.h
-@@ -218,6 +218,9 @@ static inline void
- tlb_remove_pmd_tlb_entry(struct mmu_gather *tlb, pmd_t *pmdp, unsigned long addr)
- {
- 	tlb_add_flush(tlb, addr);
-+#ifndef CONFIG_ARM_LPAE
-+	tlb_add_flush(tlb, addr + SZ_1M);
-+#endif
- }
- 
- #define pte_free_tlb(tlb, ptep, addr)	__pte_free_tlb(tlb, ptep, addr)
+ This patch fixes this issue much like it has been done already in the
+ cpu_v7_switch_mm case."
+
+Cheers,
+
+	M.
 -- 
-1.8.1.4
+Jazz is not dead. It just smells funny...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
