@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f44.google.com (mail-wg0-f44.google.com [74.125.82.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 77A906B0072
-	for <linux-mm@kvack.org>; Wed, 16 Apr 2014 07:46:53 -0400 (EDT)
-Received: by mail-wg0-f44.google.com with SMTP id m15so10893330wgh.27
-        for <linux-mm@kvack.org>; Wed, 16 Apr 2014 04:46:52 -0700 (PDT)
-Received: from mail-we0-f177.google.com (mail-we0-f177.google.com [74.125.82.177])
-        by mx.google.com with ESMTPS id hg2si7372490wjc.163.2014.04.16.04.46.51
+Received: from mail-we0-f170.google.com (mail-we0-f170.google.com [74.125.82.170])
+	by kanga.kvack.org (Postfix) with ESMTP id D7B6A6B0078
+	for <linux-mm@kvack.org>; Wed, 16 Apr 2014 07:46:54 -0400 (EDT)
+Received: by mail-we0-f170.google.com with SMTP id w61so10855546wes.1
+        for <linux-mm@kvack.org>; Wed, 16 Apr 2014 04:46:54 -0700 (PDT)
+Received: from mail-wg0-f48.google.com (mail-wg0-f48.google.com [74.125.82.48])
+        by mx.google.com with ESMTPS id ho3si7368161wjb.208.2014.04.16.04.46.53
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 16 Apr 2014 04:46:52 -0700 (PDT)
-Received: by mail-we0-f177.google.com with SMTP id u57so10790785wes.36
-        for <linux-mm@kvack.org>; Wed, 16 Apr 2014 04:46:51 -0700 (PDT)
+        Wed, 16 Apr 2014 04:46:53 -0700 (PDT)
+Received: by mail-wg0-f48.google.com with SMTP id l18so10904681wgh.19
+        for <linux-mm@kvack.org>; Wed, 16 Apr 2014 04:46:53 -0700 (PDT)
 From: Steve Capper <steve.capper@linaro.org>
-Subject: [PATCH V2 1/5] mm: hugetlb: Introduce huge_pte_{page,present,young}
-Date: Wed, 16 Apr 2014 12:46:39 +0100
-Message-Id: <1397648803-15961-2-git-send-email-steve.capper@linaro.org>
+Subject: [PATCH V2 2/5] arm: mm: Adjust the parameters for __sync_icache_dcache
+Date: Wed, 16 Apr 2014 12:46:40 +0100
+Message-Id: <1397648803-15961-3-git-send-email-steve.capper@linaro.org>
 In-Reply-To: <1397648803-15961-1-git-send-email-steve.capper@linaro.org>
 References: <1397648803-15961-1-git-send-email-steve.capper@linaro.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,173 +22,77 @@ List-ID: <linux-mm.kvack.org>
 To: linux@arm.linux.org.uk, akpm@linux-foundation.org
 Cc: will.deacon@arm.com, catalin.marinas@arm.com, robherring2@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, gerald.schaefer@de.ibm.com, Steve Capper <steve.capper@linaro.org>
 
-Introduce huge pte versions of pte_page, pte_present and pte_young.
+Rather than take a pte_t as an input, break this down to the pfn
+and whether or not the memory is executable.
 
-This allows ARM (without LPAE) to use alternative pte processing logic
-for huge ptes.
-
-Generic implementations that call the standard pte versions are also
-added to asm-generic/hugetlb.h.
+This allows us to use this function for ptes and pmds.
 
 Signed-off-by: Steve Capper <steve.capper@linaro.org>
-Acked-by: Gerald Schaefer <gerald.schaefer@de.ibm.com>
 ---
- arch/s390/include/asm/hugetlb.h | 15 +++++++++++++++
- include/asm-generic/hugetlb.h   | 15 +++++++++++++++
- mm/hugetlb.c                    | 22 +++++++++++-----------
- 3 files changed, 41 insertions(+), 11 deletions(-)
+ arch/arm/include/asm/pgtable.h | 6 +++---
+ arch/arm/mm/flush.c            | 9 ++++-----
+ 2 files changed, 7 insertions(+), 8 deletions(-)
 
-diff --git a/arch/s390/include/asm/hugetlb.h b/arch/s390/include/asm/hugetlb.h
-index 11eae5f..7b13ec0 100644
---- a/arch/s390/include/asm/hugetlb.h
-+++ b/arch/s390/include/asm/hugetlb.h
-@@ -112,4 +112,19 @@ static inline pte_t huge_pte_modify(pte_t pte, pgprot_t newprot)
- 	return pte_modify(pte, newprot);
+diff --git a/arch/arm/include/asm/pgtable.h b/arch/arm/include/asm/pgtable.h
+index 5478e5d..3a9c238 100644
+--- a/arch/arm/include/asm/pgtable.h
++++ b/arch/arm/include/asm/pgtable.h
+@@ -228,11 +228,11 @@ static inline pte_t *pmd_page_vaddr(pmd_t pmd)
+ 	(pte_valid(pte) && (pte_val(pte) & L_PTE_USER) && pte_young(pte))
+ 
+ #if __LINUX_ARM_ARCH__ < 6
+-static inline void __sync_icache_dcache(pte_t pteval)
++static inline void __sync_icache_dcache(unsigned long pfn, int exec);
+ {
+ }
+ #else
+-extern void __sync_icache_dcache(pte_t pteval);
++extern void __sync_icache_dcache(unsigned long pfn, int exec);
+ #endif
+ 
+ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
+@@ -241,7 +241,7 @@ static inline void set_pte_at(struct mm_struct *mm, unsigned long addr,
+ 	unsigned long ext = 0;
+ 
+ 	if (addr < TASK_SIZE && pte_valid_user(pteval)) {
+-		__sync_icache_dcache(pteval);
++		__sync_icache_dcache(pte_pfn(pteval), pte_exec(pteval));
+ 		ext |= PTE_EXT_NG;
+ 	}
+ 
+diff --git a/arch/arm/mm/flush.c b/arch/arm/mm/flush.c
+index 3387e60..df0d5ca 100644
+--- a/arch/arm/mm/flush.c
++++ b/arch/arm/mm/flush.c
+@@ -232,16 +232,15 @@ static void __flush_dcache_aliases(struct address_space *mapping, struct page *p
  }
  
-+static inline struct page *huge_pte_page(pte_t pte)
-+{
-+	return pte_page(pte);
-+}
+ #if __LINUX_ARM_ARCH__ >= 6
+-void __sync_icache_dcache(pte_t pteval)
++void __sync_icache_dcache(unsigned long pfn, int exec)
+ {
+-	unsigned long pfn;
+ 	struct page *page;
+ 	struct address_space *mapping;
+ 
+-	if (cache_is_vipt_nonaliasing() && !pte_exec(pteval))
++	if (cache_is_vipt_nonaliasing() && !exec)
+ 		/* only flush non-aliasing VIPT caches for exec mappings */
+ 		return;
+-	pfn = pte_pfn(pteval);
 +
-+static inline unsigned long huge_pte_present(pte_t pte)
-+{
-+	return pte_present(pte);
-+}
-+
-+static inline pte_t huge_pte_mkyoung(pte_t pte)
-+{
-+	return pte_mkyoung(pte);
-+}
-+
- #endif /* _ASM_S390_HUGETLB_H */
-diff --git a/include/asm-generic/hugetlb.h b/include/asm-generic/hugetlb.h
-index 99b490b..2dc68fe 100644
---- a/include/asm-generic/hugetlb.h
-+++ b/include/asm-generic/hugetlb.h
-@@ -37,4 +37,19 @@ static inline void huge_pte_clear(struct mm_struct *mm, unsigned long addr,
- 	pte_clear(mm, addr, ptep);
+ 	if (!pfn_valid(pfn))
+ 		return;
+ 
+@@ -254,7 +253,7 @@ void __sync_icache_dcache(pte_t pteval)
+ 	if (!test_and_set_bit(PG_dcache_clean, &page->flags))
+ 		__flush_dcache_page(mapping, page);
+ 
+-	if (pte_exec(pteval))
++	if (exec)
+ 		__flush_icache_all();
  }
- 
-+static inline struct page *huge_pte_page(pte_t pte)
-+{
-+	return pte_page(pte);
-+}
-+
-+static inline unsigned long huge_pte_present(pte_t pte)
-+{
-+	return pte_present(pte);
-+}
-+
-+static inline pte_t huge_pte_mkyoung(pte_t pte)
-+{
-+	return pte_mkyoung(pte);
-+}
-+
- #endif /* _ASM_GENERIC_HUGETLB_H */
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index dd30f22..1e77c07 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -2350,7 +2350,7 @@ static pte_t make_huge_pte(struct vm_area_struct *vma, struct page *page,
- 		entry = huge_pte_wrprotect(mk_huge_pte(page,
- 					   vma->vm_page_prot));
- 	}
--	entry = pte_mkyoung(entry);
-+	entry = huge_pte_mkyoung(entry);
- 	entry = pte_mkhuge(entry);
- 	entry = arch_make_huge_pte(entry, vma, page, writable);
- 
-@@ -2410,7 +2410,7 @@ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
- 			if (cow)
- 				huge_ptep_set_wrprotect(src, addr, src_pte);
- 			entry = huge_ptep_get(src_pte);
--			ptepage = pte_page(entry);
-+			ptepage = huge_pte_page(entry);
- 			get_page(ptepage);
- 			page_dup_rmap(ptepage);
- 			set_huge_pte_at(dst, addr, dst_pte, entry);
-@@ -2429,7 +2429,7 @@ static int is_hugetlb_entry_migration(pte_t pte)
- {
- 	swp_entry_t swp;
- 
--	if (huge_pte_none(pte) || pte_present(pte))
-+	if (huge_pte_none(pte) || huge_pte_present(pte))
- 		return 0;
- 	swp = pte_to_swp_entry(pte);
- 	if (non_swap_entry(swp) && is_migration_entry(swp))
-@@ -2442,7 +2442,7 @@ static int is_hugetlb_entry_hwpoisoned(pte_t pte)
- {
- 	swp_entry_t swp;
- 
--	if (huge_pte_none(pte) || pte_present(pte))
-+	if (huge_pte_none(pte) || huge_pte_present(pte))
- 		return 0;
- 	swp = pte_to_swp_entry(pte);
- 	if (non_swap_entry(swp) && is_hwpoison_entry(swp))
-@@ -2495,7 +2495,7 @@ again:
- 			goto unlock;
- 		}
- 
--		page = pte_page(pte);
-+		page = huge_pte_page(pte);
- 		/*
- 		 * If a reference page is supplied, it is because a specific
- 		 * page is being unmapped, not a range. Ensure the page we
-@@ -2645,7 +2645,7 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
- 	unsigned long mmun_start;	/* For mmu_notifiers */
- 	unsigned long mmun_end;		/* For mmu_notifiers */
- 
--	old_page = pte_page(pte);
-+	old_page = huge_pte_page(pte);
- 
- retry_avoidcopy:
- 	/* If no-one else is actually using this page, avoid the copy
-@@ -3033,7 +3033,7 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 	 * Note that locking order is always pagecache_page -> page,
- 	 * so no worry about deadlock.
- 	 */
--	page = pte_page(entry);
-+	page = huge_pte_page(entry);
- 	get_page(page);
- 	if (page != pagecache_page)
- 		lock_page(page);
-@@ -3053,7 +3053,7 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 		}
- 		entry = huge_pte_mkdirty(entry);
- 	}
--	entry = pte_mkyoung(entry);
-+	entry = huge_pte_mkyoung(entry);
- 	if (huge_ptep_set_access_flags(vma, address, ptep, entry,
- 						flags & FAULT_FLAG_WRITE))
- 		update_mmu_cache(vma, address, ptep);
-@@ -3144,7 +3144,7 @@ long follow_hugetlb_page(struct mm_struct *mm, struct vm_area_struct *vma,
- 		}
- 
- 		pfn_offset = (vaddr & ~huge_page_mask(h)) >> PAGE_SHIFT;
--		page = pte_page(huge_ptep_get(pte));
-+		page = huge_pte_page(huge_ptep_get(pte));
- same_page:
- 		if (pages) {
- 			pages[i] = mem_map_offset(page, pfn_offset);
-@@ -3501,7 +3501,7 @@ follow_huge_pmd(struct mm_struct *mm, unsigned long address,
- {
- 	struct page *page;
- 
--	page = pte_page(*(pte_t *)pmd);
-+	page = huge_pte_page(*(pte_t *)pmd);
- 	if (page)
- 		page += ((address & ~PMD_MASK) >> PAGE_SHIFT);
- 	return page;
-@@ -3513,7 +3513,7 @@ follow_huge_pud(struct mm_struct *mm, unsigned long address,
- {
- 	struct page *page;
- 
--	page = pte_page(*(pte_t *)pud);
-+	page = huge_pte_page(*(pte_t *)pud);
- 	if (page)
- 		page += ((address & ~PUD_MASK) >> PAGE_SHIFT);
- 	return page;
+ #endif
 -- 
 1.8.1.4
 
