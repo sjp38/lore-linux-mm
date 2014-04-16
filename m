@@ -1,19 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f48.google.com (mail-ee0-f48.google.com [74.125.83.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 71AF86B003C
-	for <linux-mm@kvack.org>; Wed, 16 Apr 2014 00:18:55 -0400 (EDT)
-Received: by mail-ee0-f48.google.com with SMTP id b57so8241742eek.21
-        for <linux-mm@kvack.org>; Tue, 15 Apr 2014 21:18:54 -0700 (PDT)
+Received: from mail-ee0-f41.google.com (mail-ee0-f41.google.com [74.125.83.41])
+	by kanga.kvack.org (Postfix) with ESMTP id D4D9D6B003C
+	for <linux-mm@kvack.org>; Wed, 16 Apr 2014 00:19:02 -0400 (EDT)
+Received: by mail-ee0-f41.google.com with SMTP id t10so8404240eei.28
+        for <linux-mm@kvack.org>; Tue, 15 Apr 2014 21:19:02 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x46si28099371eea.299.2014.04.15.21.18.53
+        by mx.google.com with ESMTPS id 43si28084703eer.297.2014.04.15.21.19.01
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 15 Apr 2014 21:18:54 -0700 (PDT)
+        Tue, 15 Apr 2014 21:19:01 -0700 (PDT)
 From: NeilBrown <neilb@suse.de>
 Date: Wed, 16 Apr 2014 14:03:36 +1000
-Subject: [PATCH 09/19] XFS: ensure xfs_file_*_read cannot deadlock in memory
- allocation.
-Message-ID: <20140416040336.10604.90380.stgit@notabene.brown>
+Subject: [PATCH 10/19] NET: set PF_FSTRANS while holding sk_lock
+Message-ID: <20140416040336.10604.96000.stgit@notabene.brown>
 In-Reply-To: <20140416033623.10604.69237.stgit@notabene.brown>
 References: <20140416033623.10604.69237.stgit@notabene.brown>
 MIME-Version: 1.0
@@ -22,83 +21,56 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org
-Cc: xfs@oss.sgi.com
+Cc: xfs@oss.sgi.com, netdev@vger.kernel.org
 
-xfs_file_*_read holds an inode lock while calling a generic 'read'
-function.  These functions perform read-ahead and are quite likely to
-allocate memory.
-So set PF_FSTRANS to ensure they avoid __GFP_FS and so don't recurse
-into a filesystem to free memory.
+sk_lock can be taken while reclaiming memory (in nfsd for loop-back
+NFS mounts, and presumably in nfs), and memory can be allocated while
+holding sk_lock, at least via:
 
-This can be a problem with loop-back NFS mounts, if free_pages ends up
-wating in nfs_release_page(), and nfsd is blocked waiting for the lock
-that this code holds.
+ inet_listen -> inet_csk_listen_start ->reqsk_queue_alloc
 
-This was found both by lockdep and as a real deadlock during testing.
+So to avoid deadlocks, always set PF_FSTRANS while holding sk_lock.
+
+This deadlock was found by lockdep.
 
 Signed-off-by: NeilBrown <neilb@suse.de>
 ---
- fs/xfs/xfs_file.c |   12 ++++++++++++
- 1 file changed, 12 insertions(+)
+ include/net/sock.h |    1 +
+ net/core/sock.c    |    2 ++
+ 2 files changed, 3 insertions(+)
 
-diff --git a/fs/xfs/xfs_file.c b/fs/xfs/xfs_file.c
-index 64b48eade91d..88b33ef64668 100644
---- a/fs/xfs/xfs_file.c
-+++ b/fs/xfs/xfs_file.c
-@@ -243,6 +243,7 @@ xfs_file_aio_read(
- 	ssize_t			ret = 0;
- 	int			ioflags = 0;
- 	xfs_fsize_t		n;
-+	unsigned int		pflags;
+diff --git a/include/net/sock.h b/include/net/sock.h
+index b9586a137cad..27c355637e44 100644
+--- a/include/net/sock.h
++++ b/include/net/sock.h
+@@ -324,6 +324,7 @@ struct sock {
+ #define sk_v6_rcv_saddr	__sk_common.skc_v6_rcv_saddr
  
- 	XFS_STATS_INC(xs_read_calls);
- 
-@@ -290,6 +291,10 @@ xfs_file_aio_read(
- 	 * proceeed concurrently without serialisation.
+ 	socket_lock_t		sk_lock;
++	unsigned int		sk_pflags; /* process flags before taking lock */
+ 	struct sk_buff_head	sk_receive_queue;
+ 	/*
+ 	 * The backlog queue is special, it is always used with
+diff --git a/net/core/sock.c b/net/core/sock.c
+index cf9bd24e4099..8bc677ef072e 100644
+--- a/net/core/sock.c
++++ b/net/core/sock.c
+@@ -2341,6 +2341,7 @@ void lock_sock_nested(struct sock *sk, int subclass)
+ 	/*
+ 	 * The sk_lock has mutex_lock() semantics here:
  	 */
- 	xfs_rw_ilock(ip, XFS_IOLOCK_SHARED);
-+	/* As we hold a lock, we must ensure that any allocation
-+	 * in generic_file_aio_read avoid __GFP_FS
-+	 */
-+	current_set_flags_nested(&pflags, PF_FSTRANS);
- 	if ((ioflags & IO_ISDIRECT) && inode->i_mapping->nrpages) {
- 		xfs_rw_iunlock(ip, XFS_IOLOCK_SHARED);
- 		xfs_rw_ilock(ip, XFS_IOLOCK_EXCL);
-@@ -313,6 +318,7 @@ xfs_file_aio_read(
- 	if (ret > 0)
- 		XFS_STATS_ADD(xs_read_bytes, ret);
- 
-+	current_restore_flags_nested(&pflags, PF_FSTRANS);
- 	xfs_rw_iunlock(ip, XFS_IOLOCK_SHARED);
- 	return ret;
++	current_set_flags_nested(&sk->sk_pflags, PF_FSTRANS);
+ 	mutex_acquire(&sk->sk_lock.dep_map, subclass, 0, _RET_IP_);
+ 	local_bh_enable();
  }
-@@ -328,6 +334,7 @@ xfs_file_splice_read(
- 	struct xfs_inode	*ip = XFS_I(infilp->f_mapping->host);
- 	int			ioflags = 0;
- 	ssize_t			ret;
-+	unsigned int		pflags;
+@@ -2352,6 +2353,7 @@ void release_sock(struct sock *sk)
+ 	 * The sk_lock has mutex_unlock() semantics:
+ 	 */
+ 	mutex_release(&sk->sk_lock.dep_map, 1, _RET_IP_);
++	current_restore_flags_nested(&sk->sk_pflags, PF_FSTRANS);
  
- 	XFS_STATS_INC(xs_read_calls);
- 
-@@ -338,6 +345,10 @@ xfs_file_splice_read(
- 		return -EIO;
- 
- 	xfs_rw_ilock(ip, XFS_IOLOCK_SHARED);
-+	/* As we hold a lock, we must ensure that any allocation
-+	 * in generic_file_splice_read avoid __GFP_FS
-+	 */
-+	current_set_flags_nested(&pflags, PF_FSTRANS);
- 
- 	trace_xfs_file_splice_read(ip, count, *ppos, ioflags);
- 
-@@ -345,6 +356,7 @@ xfs_file_splice_read(
- 	if (ret > 0)
- 		XFS_STATS_ADD(xs_read_bytes, ret);
- 
-+	current_restore_flags_nested(&pflags, PF_FSTRANS);
- 	xfs_rw_iunlock(ip, XFS_IOLOCK_SHARED);
- 	return ret;
- }
+ 	spin_lock_bh(&sk->sk_lock.slock);
+ 	if (sk->sk_backlog.tail)
 
 
 --
