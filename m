@@ -1,169 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 399486B0081
-	for <linux-mm@kvack.org>; Thu, 17 Apr 2014 06:54:14 -0400 (EDT)
-Received: by mail-wi0-f170.google.com with SMTP id bs8so2560057wib.1
-        for <linux-mm@kvack.org>; Thu, 17 Apr 2014 03:54:13 -0700 (PDT)
-Received: from mail-we0-x236.google.com (mail-we0-x236.google.com [2a00:1450:400c:c03::236])
-        by mx.google.com with ESMTPS id eh10si1134649wib.58.2014.04.17.03.54.12
+Received: from mail-ee0-f46.google.com (mail-ee0-f46.google.com [74.125.83.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 092466B008A
+	for <linux-mm@kvack.org>; Thu, 17 Apr 2014 08:57:05 -0400 (EDT)
+Received: by mail-ee0-f46.google.com with SMTP id t10so644372eei.19
+        for <linux-mm@kvack.org>; Thu, 17 Apr 2014 05:57:05 -0700 (PDT)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id m49si35254678eeo.71.2014.04.17.05.57.03
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 17 Apr 2014 03:54:12 -0700 (PDT)
-Received: by mail-we0-f182.google.com with SMTP id p61so279420wes.13
-        for <linux-mm@kvack.org>; Thu, 17 Apr 2014 03:54:12 -0700 (PDT)
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 17 Apr 2014 05:57:04 -0700 (PDT)
+Date: Thu, 17 Apr 2014 08:56:57 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch] mm: memcontrol: remove hierarchy restrictions for
+ swappiness and oom_control
+Message-ID: <20140417125657.GA23470@cmpxchg.org>
+References: <1397682798-22906-1-git-send-email-hannes@cmpxchg.org>
+ <20140416143425.c2b6f511cf4c6cd7336134b3@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <1397272942.2686.4.camel@buesod1.americas.hpqcorp.net>
-References: <1397272942.2686.4.camel@buesod1.americas.hpqcorp.net>
-From: Michael Kerrisk <mtk.manpages@gmail.com>
-Date: Thu, 17 Apr 2014 12:53:52 +0200
-Message-ID: <CAHO5Pa3BOgJGCm7NvE4xbm3O1WbRLRBS0pgvErPudypP_iiZ3g@mail.gmail.com>
-Subject: Re: [PATCH v2] ipc,shm: disable shmmax and shmall by default
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140416143425.c2b6f511cf4c6cd7336134b3@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <davidlohr@hp.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Manfred Spraul <manfred@colorfullife.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, aswin@hp.com, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Michael Kerrisk-manpages <mtk.manpages@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.cz>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Sat, Apr 12, 2014 at 5:22 AM, Davidlohr Bueso <davidlohr@hp.com> wrote:
-> From: Davidlohr Bueso <davidlohr@hp.com>
->
-> The default size for shmmax is, and always has been, 32Mb.
-> Today, in the XXI century, it seems that this value is rather small,
-> making users have to increase it via sysctl, which can cause
-> unnecessary work and userspace application workarounds[1].
->
-> Instead of choosing yet another arbitrary value, larger than 32Mb,
-> this patch disables the use of both shmmax and shmall by default,
-> allowing users to create segments of unlimited sizes. Users and
-> applications that already explicitly set these values through sysctl
-> are left untouched, and thus does not change any of the behavior.
->
-> So a value of 0 bytes or pages, for shmmax and shmall, respectively,
-> implies unlimited memory, as opposed to disabling sysv shared memory.
-> This is safe as 0 cannot possibly be used previously as SHMMIN is
-> hardcoded to 1 and cannot be modified.
->
-> This change allows Linux to treat shm just as regular anonymous memory.
-> One important difference between them, though, is handling out-of-memory
-> conditions: as opposed to regular anon memory, the OOM killer will not
-> free the memory as it is shm, allowing users to potentially abuse this.
-> To overcome this situation, the shm_rmid_forced option must be enabled.
->
-> [1]: http://rhaas.blogspot.com/2012/06/absurd-shared-memory-limits.html
->
-> Signed-off-by: Davidlohr Bueso <davidlohr@hp.com>
-> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+On Wed, Apr 16, 2014 at 02:34:25PM -0700, Andrew Morton wrote:
+> On Wed, 16 Apr 2014 17:13:18 -0400 Johannes Weiner <hannes@cmpxchg.org> wrote:
+> 
+> > Per-memcg swappiness and oom killing can currently not be tweaked on a
+> > memcg that is part of a hierarchy, but not the root of that hierarchy.
+> > Users have complained that they can't configure this when they turned
+> > on hierarchy mode.  In fact, with hierarchy mode becoming the default,
+> > this restriction disables the tunables entirely.
+> > 
+> > But there is no good reason for this restriction.  The settings for
+> > swappiness and OOM killing are taken from whatever memcg whose limit
+> > triggered reclaim and OOM invocation, regardless of its position in
+> > the hierarchy tree.
+> > 
+> > Allow setting swappiness on any group.  The knob on the root memcg
+> > already reads the global VM swappiness, make it writable as well.
+> > 
+> > Allow disabling the OOM killer on any non-root memcg.
+> 
+> Documentation/cgroups/memory.txt needs updates?
 
-Of the two proposed approaches (the other being
-marc.info/?l=linux-kernel&m=139730332306185), this looks preferable to
-me, since it allows strange users to maintain historical behavior
-(i.e., the ability to set a limit) if they really want it, so:
+Yes, that makes sense, thanks.  How about this?
 
-Acked-by: Michael Kerrisk <mtk.manpages@gmail.com>
+---
+Subject: [patch] mm: memcontrol: remove hierarchy restrictions for swappiness and oom_control fix
 
-One or two comments below, that you might consider for your v3 patch.
+Update Documentation/cgroups/memory.txt
 
-> ---
-> Changes from v1:
->  - Respect SHMMIN even when shmmax is 0 (unlimited).
->    This fixes the shmget02 test that broke in v1. (per Manfred)
->
->  - Update changelog regarding OOM description (per Kosaki)
->
->  include/linux/shm.h      | 2 +-
->  include/uapi/linux/shm.h | 8 ++++----
->  ipc/shm.c                | 6 ++++--
->  3 files changed, 9 insertions(+), 7 deletions(-)
->
-> diff --git a/include/linux/shm.h b/include/linux/shm.h
-> index 1e2cd2e..0ca06a3 100644
-> --- a/include/linux/shm.h
-> +++ b/include/linux/shm.h
-> @@ -4,7 +4,7 @@
->  #include <asm/page.h>
->  #include <uapi/linux/shm.h>
->
-> -#define SHMALL (SHMMAX/PAGE_SIZE*(SHMMNI/16)) /* max shm system wide (pages) */
-> +#define SHMALL 0 /* max shm system wide (pages) */
->  #include <asm/shmparam.h>
->  struct shmid_kernel /* private to the kernel */
->  {
-> diff --git a/include/uapi/linux/shm.h b/include/uapi/linux/shm.h
-> index 78b6941..5f0ef28 100644
-> --- a/include/uapi/linux/shm.h
-> +++ b/include/uapi/linux/shm.h
-> @@ -9,14 +9,14 @@
->
->  /*
->   * SHMMAX, SHMMNI and SHMALL are upper limits are defaults which can
-> - * be increased by sysctl
-> + * be increased by sysctl. By default, disable SHMMAX and SHMALL with
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+---
 
-s/increased/modified/
-
-> + * 0 bytes, thus allowing processes to have unlimited shared memory.
->   */
-> -
-> -#define SHMMAX 0x2000000                /* max shared seg size (bytes) */
-> +#define SHMMAX 0                        /* max shared seg size (bytes) */
-
-I suggest: s/(bytes)/(bytes); 0 means "no limit" */
-
->  #define SHMMIN 1                        /* min shared seg size (bytes) */
->  #define SHMMNI 4096                     /* max num of segs system wide */
->  #ifndef __KERNEL__
-> -#define SHMALL (SHMMAX/getpagesize()*(SHMMNI/16))
-> +#define SHMALL 0
-
-As long as we're here, let's add a meaningful comment to that one:
-
-/* system-wide limit on number of pages of shared memory; 0 means "no limit" */
-
-Cheers,
-
-Michael
-
-
->  #endif
->  #define SHMSEG SHMMNI                   /* max shared segs per process */
->
-> diff --git a/ipc/shm.c b/ipc/shm.c
-> index 7645961..8630561 100644
-> --- a/ipc/shm.c
-> +++ b/ipc/shm.c
-> @@ -490,10 +490,12 @@ static int newseg(struct ipc_namespace *ns, struct ipc_params *params)
->         int id;
->         vm_flags_t acctflag = 0;
->
-> -       if (size < SHMMIN || size > ns->shm_ctlmax)
-> +       if (size < SHMMIN ||
-> +           (ns->shm_ctlmax && size > ns->shm_ctlmax))
->                 return -EINVAL;
->
-> -       if (ns->shm_tot + numpages > ns->shm_ctlall)
-> +       if (ns->shm_ctlall &&
-> +           ns->shm_tot + numpages > ns->shm_ctlall)
->                 return -ENOSPC;
->
->         shp = ipc_rcu_alloc(sizeof(*shp));
-> --
-> 1.8.1.4
->
->
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
-
-
--- 
-Michael Kerrisk Linux man-pages maintainer;
-http://www.kernel.org/doc/man-pages/
-Author of "The Linux Programming Interface", http://blog.man7.org/
+diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
+index 2622115276aa..1829c65f8371 100644
+--- a/Documentation/cgroups/memory.txt
++++ b/Documentation/cgroups/memory.txt
+@@ -535,17 +535,15 @@ Note:
+ 
+ 5.3 swappiness
+ 
+-Similar to /proc/sys/vm/swappiness, but affecting a hierarchy of groups only.
++Similar to /proc/sys/vm/swappiness, but only affecting reclaim that is
++triggered by this cgroup's hard limit.  The tunable in the root cgroup
++corresponds to the global swappiness setting.
++
+ Please note that unlike the global swappiness, memcg knob set to 0
+ really prevents from any swapping even if there is a swap storage
+ available. This might lead to memcg OOM killer if there are no file
+ pages to reclaim.
+ 
+-Following cgroups' swappiness can't be changed.
+-- root cgroup (uses /proc/sys/vm/swappiness).
+-- a cgroup which uses hierarchy and it has other cgroup(s) below it.
+-- a cgroup which uses hierarchy and not the root of hierarchy.
+-
+ 5.4 failcnt
+ 
+ A memory cgroup provides memory.failcnt and memory.memsw.failcnt files.
+@@ -754,7 +752,6 @@ You can disable the OOM-killer by writing "1" to memory.oom_control file, as:
+ 
+ 	#echo 1 > memory.oom_control
+ 
+-This operation is only allowed to the top cgroup of a sub-hierarchy.
+ If OOM-killer is disabled, tasks under cgroup will hang/sleep
+ in memory cgroup's OOM-waitqueue when they request accountable memory.
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
