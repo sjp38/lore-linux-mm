@@ -1,117 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id AFC3C6B003B
-	for <linux-mm@kvack.org>; Thu, 17 Apr 2014 16:19:45 -0400 (EDT)
-Received: by mail-pd0-f174.google.com with SMTP id y13so715369pdi.5
-        for <linux-mm@kvack.org>; Thu, 17 Apr 2014 13:19:45 -0700 (PDT)
-Received: from mail-pd0-x22e.google.com (mail-pd0-x22e.google.com [2607:f8b0:400e:c02::22e])
-        by mx.google.com with ESMTPS id tc10si12202605pbc.31.2014.04.17.13.19.44
+Received: from mail-pb0-f49.google.com (mail-pb0-f49.google.com [209.85.160.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 79D346B003B
+	for <linux-mm@kvack.org>; Thu, 17 Apr 2014 16:23:55 -0400 (EDT)
+Received: by mail-pb0-f49.google.com with SMTP id jt11so737160pbb.36
+        for <linux-mm@kvack.org>; Thu, 17 Apr 2014 13:23:55 -0700 (PDT)
+Received: from mail-pb0-x22a.google.com (mail-pb0-x22a.google.com [2607:f8b0:400e:c01::22a])
+        by mx.google.com with ESMTPS id ov9si13864520pbc.41.2014.04.17.13.23.54
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 17 Apr 2014 13:19:44 -0700 (PDT)
-Received: by mail-pd0-f174.google.com with SMTP id y13so721350pdi.19
-        for <linux-mm@kvack.org>; Thu, 17 Apr 2014 13:19:44 -0700 (PDT)
+        Thu, 17 Apr 2014 13:23:54 -0700 (PDT)
+Received: by mail-pb0-f42.google.com with SMTP id rr13so750750pbb.1
+        for <linux-mm@kvack.org>; Thu, 17 Apr 2014 13:23:54 -0700 (PDT)
 MIME-Version: 1.0
 Reply-To: mtk.manpages@gmail.com
-In-Reply-To: <5350042F.4040904@colorfullife.com>
-References: <1396235199.2507.2.camel@buesod1.americas.hpqcorp.net>
- <20140331170546.3b3e72f0.akpm@linux-foundation.org> <1396371699.25314.11.camel@buesod1.americas.hpqcorp.net>
- <CAHGf_=qsf6vN5k=-PLraG8Q_uU1pofoBDktjVH1N92o76xPadQ@mail.gmail.com>
- <1396377083.25314.17.camel@buesod1.americas.hpqcorp.net> <CAHGf_=rLLBDr5ptLMvFD-M+TPQSnK3EP=7R+27K8or84rY-KLA@mail.gmail.com>
- <1396386062.25314.24.camel@buesod1.americas.hpqcorp.net> <CAHGf_=rhXrBQSmDBJJ-vPxBbhjJ91Fh2iWe1cf_UQd-tCfpb2w@mail.gmail.com>
- <20140401142947.927642a408d84df27d581e36@linux-foundation.org>
- <CAHGf_=p70rLOYwP2OgtK+2b+41=GwMA9R=rZYBqRr1w_O5UnKA@mail.gmail.com>
- <20140401144801.603c288674ab8f417b42a043@linux-foundation.org>
- <1396389751.25314.26.camel@buesod1.americas.hpqcorp.net> <20140401150843.13da3743554ad541629c936d@linux-foundation.org>
- <534AD1EE.3050705@colorfullife.com> <20140416154631.6d0173498c60619d454ae651@linux-foundation.org>
- <CAHO5Pa2zguBEpg-S0Zx26qEStF5ZyvrnbU8-sQZfNJEZRMQPqg@mail.gmail.com> <5350042F.4040904@colorfullife.com>
+In-Reply-To: <534FFFC2.6050601@colorfullife.com>
+References: <1397272942.2686.4.camel@buesod1.americas.hpqcorp.net>
+ <CAHO5Pa3BOgJGCm7NvE4xbm3O1WbRLRBS0pgvErPudypP_iiZ3g@mail.gmail.com> <534FFFC2.6050601@colorfullife.com>
 From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
-Date: Thu, 17 Apr 2014 22:19:23 +0200
-Message-ID: <CAKgNAkiL+m35MffVheq90rNS7Tv3nANNZh8GJbh8FHkr3ot_tg@mail.gmail.com>
-Subject: Re: [PATCH] ipc,shm: increase default size for shmmax
+Date: Thu, 17 Apr 2014 22:23:32 +0200
+Message-ID: <CAKgNAkjCenvWr9A69-=j-55nyW1EM1Fy+=rSDWSxXvq5qFtGTw@mail.gmail.com>
+Subject: Re: [PATCH v2] ipc,shm: disable shmmax and shmall by default
 Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Manfred Spraul <manfred@colorfullife.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Davidlohr Bueso <davidlohr@hp.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, aswin@hp.com, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: Davidlohr Bueso <davidlohr@hp.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, aswin@hp.com, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Thu, Apr 17, 2014 at 6:41 PM, Manfred Spraul
+Hi Manfred!
+
+On Thu, Apr 17, 2014 at 6:22 PM, Manfred Spraul
 <manfred@colorfullife.com> wrote:
-> On 04/17/2014 12:41 PM, Michael Kerrisk wrote:
->>
->> On Thu, Apr 17, 2014 at 12:46 AM, Andrew Morton
->> <akpm@linux-foundation.org> wrote:
->>>
->>> On Sun, 13 Apr 2014 20:05:34 +0200 Manfred Spraul
->>> <manfred@colorfullife.com> wrote:
->>>
->>>> Hi Andrew,
->>>>
->>>> On 04/02/2014 12:08 AM, Andrew Morton wrote:
->>>>>
->>>>> Well, I'm assuming 64GB==infinity. It *was* infinity in the RHEL5
->>>>> timeframe, but infinity has since become larger so pickanumber.
->>>>
->>>> I think infinity is the right solution:
->>>> The only common case where infinity is wrong would be Android - and
->>>> Android disables sysv shm entirely.
->>>>
->>>> There are two patches:
->>>> http://marc.info/?l=linux-kernel&m=139730332306185&q=raw
->>>> http://marc.info/?l=linux-kernel&m=139727299800644&q=raw
->>>>
->>>> Could you apply one of them?
->>>> I wrote the first one, thus I'm biased which one is better.
->>>
->>> I like your patch because applying it might encourage you to send more
->>> kernel patches - I miss the old days ;)
->>>
->>> But I do worry about disrupting existing systems so I like Davidlohr's
->>> idea of making the change a no-op for people who are currently
->>> explicitly setting shmmax and shmall.
->>
->> Agreed. It's hard to imagine situations where people might care
->> nowadays, but there's no limits to people's insane inventiveness. Some
->> people really might want to set an upper limit.
+> Hi Michael,
 >
-> I don't understand that: neither patch has any impact after an explicit
-> sysctl that overwrites shmmax.
-
-You don't understand it, because I was being dense :-}. I
-misunderstood your patch. I think I was thrown by this line in the
-commit message:
-
-    The patch disables both limits by setting the limits to ULONG_MAX.
-
-Of course, you patch doesn't *disable* the limits, it simply sets the
-defaults to the maximum.
-
->>> In an ideal world, system administrators would review this change,
->>
->> And in the ideal world, patches such as this would CC
->> linux-api@vger.kernel.org, as described in
->> Documentation/SubmitChecklist, so that users who care about getting
->> advance warning on API changes could be alerted and might even review
->> and comment...
 >
-> Good point.
-> Davidlohr: Your patch has an impact on shmctl(,IPC_INFO,).
-> Could you add that for v3?
+> On 04/17/2014 12:53 PM, Michael Kerrisk wrote:
+>>
+>> On Sat, Apr 12, 2014 at 5:22 AM, Davidlohr Bueso <davidlohr@hp.com> wrote:
+>>>
+>>> From: Davidlohr Bueso <davidlohr@hp.com>
+>>>
+>>> The default size for shmmax is, and always has been, 32Mb.
+>>> Today, in the XXI century, it seems that this value is rather small,
+>>> making users have to increase it via sysctl, which can cause
+>>> unnecessary work and userspace application workarounds[1].
+>>>
+>>> Instead of choosing yet another arbitrary value, larger than 32Mb,
+>>> this patch disables the use of both shmmax and shmall by default,
+>>> allowing users to create segments of unlimited sizes. Users and
+>>> applications that already explicitly set these values through sysctl
+>>> are left untouched, and thus does not change any of the behavior.
+>>>
+>>> So a value of 0 bytes or pages, for shmmax and shmall, respectively,
+>>> implies unlimited memory, as opposed to disabling sysv shared memory.
+>>> This is safe as 0 cannot possibly be used previously as SHMMIN is
+>>> hardcoded to 1 and cannot be modified.
+>>>
+>>> This change allows Linux to treat shm just as regular anonymous memory.
+>>> One important difference between them, though, is handling out-of-memory
+>>> conditions: as opposed to regular anon memory, the OOM killer will not
+>>> free the memory as it is shm, allowing users to potentially abuse this.
+>>> To overcome this situation, the shm_rmid_forced option must be enabled.
+>>>
+>>> [1]: http://rhaas.blogspot.com/2012/06/absurd-shared-memory-limits.html
+>>>
+>>> Signed-off-by: Davidlohr Bueso <davidlohr@hp.com>
+>>> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+>>> Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+>>
+>> Of the two proposed approaches (the other being
+>> marc.info/?l=linux-kernel&m=139730332306185), this looks preferable to
+>> me, since it allows strange users to maintain historical behavior
+>> (i.e., the ability to set a limit) if they really want it, so:
+>>
+>> Acked-by: Michael Kerrisk <mtk.manpages@gmail.com>
+>>
+>> One or two comments below, that you might consider for your v3 patch.
+>
+> I don't understand what you mean.
 
-Well, actually, BOTH patches change the API, because they both affect
-SHMALL/SHMMAX.
+As noted in the other mail, you don't understand, because I was being
+dense (and misled a little by the commit message).
+
+> After a
+>     # echo 33554432 > /proc/sys/kernel/shmmax
+>     # echo 2097152 > /proc/sys/kernel/shmmax
+>
+> both patches behave exactly identical.
+
+Yes.
+
+> There are only two differences:
+> - Davidlohr's patch handles
+>     # echo <really huge number that doesn't fit into 64-bit> >
+> /proc/sys/kernel/shmmax
+>    With my patch, shmmax would end up as 0 and all allocations fail.
+>
+> - My patch handles the case if some startup code/installer checks
+>    shmmax and complains if it is below the requirement of the application.
+
+Thanks for that clarification. I withdraw my Ack. In fact, maybe I
+even like your approach a little more, because of that last point. Did
+one of you not yet manage to persuade the other to his point of view
+yet?
 
 Cheers,
 
 Michael
-
-
-> I'll try to make a v2 (with your update to the uapi header file) tomorrow.
->
-> --
->     Manfred
-
-
 
 -- 
 Michael Kerrisk
