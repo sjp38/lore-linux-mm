@@ -1,52 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f181.google.com (mail-ig0-f181.google.com [209.85.213.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 76DA26B008A
-	for <linux-mm@kvack.org>; Thu, 17 Apr 2014 10:52:00 -0400 (EDT)
-Received: by mail-ig0-f181.google.com with SMTP id h18so754670igc.2
-        for <linux-mm@kvack.org>; Thu, 17 Apr 2014 07:52:00 -0700 (PDT)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
-        by mx.google.com with ESMTPS id g1si2922885igd.14.2014.04.17.07.51.59
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Apr 2014 07:51:59 -0700 (PDT)
-Message-ID: <534FEA83.1010603@infradead.org>
-Date: Thu, 17 Apr 2014 07:51:47 -0700
-From: Randy Dunlap <rdunlap@infradead.org>
-MIME-Version: 1.0
-Subject: Re: 0/N patch emails - to use or not to use?
-References: <CALZtONCR-ewaZjmZ_CznwqtGvzkmdTC0hQbbm2YDaSBvWv8XqA@mail.gmail.com> <20140416155730.b2dc1a551307f736438a85d7@linux-foundation.org>
-In-Reply-To: <20140416155730.b2dc1a551307f736438a85d7@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
+	by kanga.kvack.org (Postfix) with ESMTP id C3C2C6B0092
+	for <linux-mm@kvack.org>; Thu, 17 Apr 2014 11:13:31 -0400 (EDT)
+Received: by mail-wi0-f174.google.com with SMTP id d1so3083039wiv.1
+        for <linux-mm@kvack.org>; Thu, 17 Apr 2014 08:13:31 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id fa13si9119110wjc.105.2014.04.17.08.13.29
+        for <linux-mm@kvack.org>;
+        Thu, 17 Apr 2014 08:13:30 -0700 (PDT)
+Date: Thu, 17 Apr 2014 11:13:05 -0400
+From: Luiz Capitulino <lcapitulino@redhat.com>
+Subject: Re: [PATCH v3 0/5] hugetlb: add support gigantic page allocation at
+ runtime
+Message-ID: <20140417111305.485fa956@redhat.com>
+In-Reply-To: <1397152725-20990-1-git-send-email-lcapitulino@redhat.com>
+References: <1397152725-20990-1-git-send-email-lcapitulino@redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Dan Streetman <ddstreet@ieee.org>
-Cc: Linux-MM <linux-mm@kvack.org>
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, mtosatti@redhat.com, aarcange@redhat.com, mgorman@suse.de, andi@firstfloor.org, davidlohr@hp.com, rientjes@google.com, isimatu.yasuaki@jp.fujitsu.com, yinghai@kernel.org, riel@redhat.com, n-horiguchi@ah.jp.nec.com, kirill@shutemov.name
 
-On 04/16/2014 03:57 PM, Andrew Morton wrote:
-> On Sat, 12 Apr 2014 17:23:31 -0400 Dan Streetman <ddstreet@ieee.org> wrote:
+On Thu, 10 Apr 2014 13:58:40 -0400
+Luiz Capitulino <lcapitulino@redhat.com> wrote:
+
+> [Full introduction right after the changelog]
 > 
->> Hi Andrew,
->>
->> I noticed in your The Perfect Patch doc:
->> http://www.ozlabs.org/~akpm/stuff/tpp.txt
->> Section 6b says you don't like 0/N patch series description-only
->> emails.  Is that still true?  Because it seems the majority of patch
->> series do include a 0/N descriptive email...
+> Changelog
+> ---------
 > 
-> hm, I think what I said about git there isn't true - merge commits can
-> contain changelogs.
+> v3
 > 
-> Whatever.  0/n is OK and is more email-reader-friendly.
+> - Dropped unnecessary WARN_ON() call [Kirill]
+> - Always check if the pfn range lies within a zone [Yasuaki]
+> - Renamed some function arguments for consistency
 
-I don't mind a 0/n patch if there is lots of history or background
-or data to be presented, but I find it silly to use a patch 0/1 and
-patch 1/1 for a single, small patch, like some people do because that
-is what git wants to do.
-
-
--- 
-~Randy
+Andrew, this series got four ACKs but it seems that you haven't picked
+it yet. Is there anything missing to be addressed?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
