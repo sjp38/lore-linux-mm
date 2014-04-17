@@ -1,98 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f43.google.com (mail-qg0-f43.google.com [209.85.192.43])
-	by kanga.kvack.org (Postfix) with ESMTP id CEE1C6B005C
-	for <linux-mm@kvack.org>; Wed, 16 Apr 2014 21:28:13 -0400 (EDT)
-Received: by mail-qg0-f43.google.com with SMTP id a108so1293259qge.2
-        for <linux-mm@kvack.org>; Wed, 16 Apr 2014 18:28:13 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id gq5si9891105qab.95.2014.04.16.18.28.12
-        for <linux-mm@kvack.org>;
-        Wed, 16 Apr 2014 18:28:13 -0700 (PDT)
-Date: Thu, 17 Apr 2014 02:31:28 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: mm: kernel BUG at mm/huge_memory.c:1829!
-Message-ID: <20140417003128.GG10119@redhat.com>
-References: <53440991.9090001@oracle.com>
- <20140410102527.GA24111@node.dhcp.inet.fi>
- <20140410134436.GA25933@node.dhcp.inet.fi>
- <20140410162750.GD2749@redhat.com>
- <20140414144218.GA26515@node.dhcp.inet.fi>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140414144218.GA26515@node.dhcp.inet.fi>
+Received: from mail-ee0-f46.google.com (mail-ee0-f46.google.com [74.125.83.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 2C97A6B0070
+	for <linux-mm@kvack.org>; Wed, 16 Apr 2014 21:50:31 -0400 (EDT)
+Received: by mail-ee0-f46.google.com with SMTP id t10so81041eei.5
+        for <linux-mm@kvack.org>; Wed, 16 Apr 2014 18:50:30 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 43si32737644eer.297.2014.04.16.18.50.28
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 16 Apr 2014 18:50:29 -0700 (PDT)
+Date: Thu, 17 Apr 2014 11:50:18 +1000
+From: NeilBrown <neilb@suse.de>
+Subject: Re: [PATCH/RFC 00/19] Support loop-back NFS mounts
+Message-ID: <20140417115018.460345d0@notabene.brown>
+In-Reply-To: <20140417012739.GU15995@dastard>
+References: <20140416033623.10604.69237.stgit@notabene.brown>
+	<20140416104207.75b044e8@tlielax.poochiereds.net>
+	<20140417102048.2fc8275c@notabene.brown>
+	<20140417012739.GU15995@dastard>
+Mime-Version: 1.0
+Content-Type: multipart/signed; micalg=PGP-SHA1;
+ boundary="Sig_/aR.nJzAOWD3tAtDyjyGs6Ar"; protocol="application/pgp-signature"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Jones <davej@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Bob Liu <lliubbo@gmail.com>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Jeff Layton <jlayton@redhat.com>, linux-nfs@vger.kernel.org, Peter Zijlstra <peterz@infradead.org>, netdev@vger.kernel.org, Ming Lei <ming.lei@canonical.com>, linux-kernel@vger.kernel.org, xfs@oss.sgi.com, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>
 
-Hi Kirill,
+--Sig_/aR.nJzAOWD3tAtDyjyGs6Ar
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
 
-On Mon, Apr 14, 2014 at 05:42:18PM +0300, Kirill A. Shutemov wrote:
-> I've spent few day trying to understand rmap code. And now I think my
-> patch is wrong.
-> 
-> I actually don't see where walk order requirement comes from. It seems all
-> operations (insert, remove, foreach) on anon_vma is serialized with
-> anon_vma->root->rwsem. Andrea, could you explain this for me?
+On Thu, 17 Apr 2014 11:27:39 +1000 Dave Chinner <david@fromorbit.com> wrote:
 
-It's true the locking protects and freezes the view of all anon_vma
-structures associated with the page, but that only guarantees you not
-to miss the vma. Not missing the vma is not enough. You can still miss
-a pte during the rmap_walk if the order is wrong, because the pte/pmds
-are still moving freely under the vmas (absent of the PT lock and the
-mmap_sem).
+> On Thu, Apr 17, 2014 at 10:20:48AM +1000, NeilBrown wrote:
+> > A good example is the deadlock with the flush-* threads.
+> > flush-* will lock a page, and  then call ->writepage.  If ->writepage
+> > allocates memory it can enter reclaim, call ->releasepage on NFS, and b=
+lock
+> > waiting for a COMMIT to complete.
+> > The COMMIT might already be running, performing fsync on that same file=
+ that
+> > flush-* is flushing.  It locks each page in turn.  When it  gets to the=
+ page
+> > that flush-* has locked, it will deadlock.
+>=20
+> It's nfs_release_page() again....
+>=20
+> > In general, if nfsd is allowed to block on local filesystem, and local
+> > filesystem is allowed to block on NFS, then a deadlock can happen.
+> > We would need a clear hierarchy
+> >=20
+> >    __GFP_NETFS > __GFP_FS > __GFP_IO
+> >=20
+> > for it to work.  I'm not sure the extra level really helps a lot and it=
+ would
+> > be a lot of churn.
+>=20
+> I think you are looking at this the wrong way - it's not the other
+> filesystems that have to avoid memory reclaim recursion, it's the
+> NFS client mount that is on loopback that needs to avoid recursion.
+>=20
+> IMO, the fix should be that the NFS client cannot block on messages sent =
+to the NFSD
+> on the same host during memory reclaim. That is, nfs_release_page()
+> cannot send commit messages to the server if the server is on
+> localhost. Instead, it just tells memory reclaim that it can't
+> reclaim that page.
+>=20
+> If nfs_release_page() no longer blocks in memory reclaim, and all
+> these nfsd-gets-blocked-in-GFP_KERNEL-memory-allocation recursion
+> problems go away. Do the same for all the other memory reclaim
+> operations in the NFS client, and you've got a solution that should
+> work without needing to walk all over the rest of the kernel....
 
-The problem are all MM operations that copies or move a page mapping
-from a source to destination vma (fork and mremap). They take the
-anon_vma lock, insert the destination vma with the proper anon_vma
-chains and then they _drop_ the anon vma lock, and only later they
-start moving ptes and pmds around (by taking the proper PT locks).
+Maybe.
+It is nfs_release_page() today. I wonder if it could be other things another
+day.  I want to be sure I have a solution that really makes sense.
 
-anon_vma -> src_vma -> dst_vma
+However ... the thing that nfs_release_page is doing it sending a COMMIT to
+tell the server to flush to stable storage.  It does that so that if the
+server crashes, then the client can re-send.
+Of course when it is a loop-back mount the client is the server so the COMM=
+IT
+is completely pointless.  If the client notices that it is sending a COMMIT
+to itself, it can simply assume a positive reply.
 
-If the order is like above (guaranteed before the interval tree was
-introduced), if the rmap_walk of split_huge_page and migrate
-encounters the source pte/pmd and split/unmap it before it gets
-copied, then the copy or move will retain the processed state (regular
-pte instead of trans_huge_pmd for split_huge_page or migration pte for
-migrate). If instead the pmd/pte was already copied by the time the
-src_vma is scanned, then it will encounter the copy to process in the
-dst_vma too. The rmap_walk can't miss a pte/pmd if the anon_vma chain
-is walked in insertion order (i.e. older vma first).
+You are right, that would make the patch set a lot less intrusive.  I'll gi=
+ve
+it some serious thought - thanks.
 
-anon_vma -> dst_vma -> src_vma
+NeilBrown
 
-If the anon_vma walk order is reversed vs the insertion order, things
-falls apart because you will scan dst_vma in split_huge_page while it
-still empty, find nothing, then the trans_huge_pmd is moved or copied
-from src_vma to dst_vma by the MM code only holding PT lock and
-mmap_sem for writing (we cannot hold those across the whole duration
-of split_huge_page and migrate). So if the rmap_walk order is not
-right, the rmap_walk can miss the contents of the dst_vma that was
-still empty at the time it was processed.
+--Sig_/aR.nJzAOWD3tAtDyjyGs6Ar
+Content-Type: application/pgp-signature; name=signature.asc
+Content-Disposition: attachment; filename=signature.asc
 
-If the interval tree walk order cannot be fixed without screwing with
-the computation complexity of the structure, a more black and white
-fix could be to add a anon_vma templist to scan in O(N) after the
-interval tree has been scanned, where you add newly inserted vmas.
-The templist shall then be flushed back to the interval tree only
-after the pte/pmd mangling of the MM operation is completed. That
-requires identifying the closure of the critical section for those
-problematic MM operations. The main drawback is actually having to
-take the anon_vma lock twice, the second time for the flush to the
-interval tree.
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2.0.22 (GNU/Linux)
 
-Looping like in your previous patch would be much simpler if it could
-be made reliable, but it looked like it wouldn't close the bug
-entirely because any concurrent unmap operation could lead to false
-negative hiding the pmd/pte walk miss (by decreasing page->mapcount
-under us).
+iQIVAwUBU08zWjnsnt1WYoG5AQKfQw//WIl8Mf1G0vzy816TBvi7fx3VCp6SUV7s
+jQeCJSD0IPRzCFmxH1ZJFzy3jIK8J3dbT8cSGjxXYegOq+kyyVjbHXOG2msC1riY
+ytOGUQnOS8MHscbcAOR7r61t/1t7FZiSJ51Th7pykepQmbm9QNEna+U0wzna3poK
+NNRDrs1J0eySpLTydegKoyg4w6KP6MLXqlYQm1FigvkreDEZ9mvBW7NrGycwDQF8
+NZgq8+dGCL3MAq+uZ7WMqAoCZwZUrusVZBc3zvXYWepSMFSW1FOmQP971QZ9DgI2
+KzarhdGOSFTbVHLhZafYV0X2k/hATVoIJpXh3Kl2ak0qdnuuUPJ/s64zxvQ3N4wo
+3zBU0/TvcEVs6toQfcT/Zi91rCIvVvl8BOssIosbwknfLyi/JEYtnDJ+MxWBlg1G
+xlaEF1pDaQYEix5Ocg1qyU7oroFv98+pZ4BZeDI7Y/A6gasVvR3NKBOFcadozYuo
+FBTuYO6ZTSVPZ1+ASqykb5hh3GGKO5oM4x7xX0dQRSADk4qo4FLfv6ONKK2OfjQo
+r6FBlpw9OU6su26F4XzDkFLPb3xUDgfY7gMG6vIZYmCS7JGOvTg2rpk6inZxzATb
+40mX+gFDXs5oE9XGaqz2Fl7Lw/BNluPNDEpkmWJX42+7cdClnc2XPSJyvpFx7nLH
+lfrN+yaHFBM=
+=c/XS
+-----END PGP SIGNATURE-----
 
-Comments?
-
-Thanks,
-Andrea
+--Sig_/aR.nJzAOWD3tAtDyjyGs6Ar--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
