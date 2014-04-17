@@ -1,83 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f42.google.com (mail-ee0-f42.google.com [74.125.83.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 5E09A6B0073
-	for <linux-mm@kvack.org>; Wed, 16 Apr 2014 22:38:48 -0400 (EDT)
-Received: by mail-ee0-f42.google.com with SMTP id d17so101182eek.1
-        for <linux-mm@kvack.org>; Wed, 16 Apr 2014 19:38:47 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 43si32921493eei.235.2014.04.16.19.38.46
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 16 Apr 2014 19:38:46 -0700 (PDT)
-Date: Thu, 17 Apr 2014 12:38:37 +1000
-From: NeilBrown <neilb@suse.de>
-Subject: Re: [PATCH 10/19] NET: set PF_FSTRANS while holding sk_lock
-Message-ID: <20140417123837.5987e5e9@notabene.brown>
-In-Reply-To: <20140416.090002.2186526865564557549.davem@davemloft.net>
-References: <20140416033623.10604.69237.stgit@notabene.brown>
-	<20140416040336.10604.96000.stgit@notabene.brown>
-	<1397625226.4222.113.camel@edumazet-glaptop2.roam.corp.google.com>
-	<20140416.090002.2186526865564557549.davem@davemloft.net>
-Mime-Version: 1.0
-Content-Type: multipart/signed; micalg=PGP-SHA1;
- boundary="Sig_/SSVtvNA+Qn7U/.GV8.0daYz"; protocol="application/pgp-signature"
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id CB7256B007B
+	for <linux-mm@kvack.org>; Wed, 16 Apr 2014 22:59:24 -0400 (EDT)
+Received: by mail-pd0-f171.google.com with SMTP id r10so11433125pdi.16
+        for <linux-mm@kvack.org>; Wed, 16 Apr 2014 19:59:24 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id sp5si3597024pbb.210.2014.04.16.19.59.22
+        for <linux-mm@kvack.org>;
+        Wed, 16 Apr 2014 19:59:23 -0700 (PDT)
+Date: Thu, 17 Apr 2014 10:59:12 +0800
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: Re: [PATCH 0/3] Use an alternative to _PAGE_PROTNONE for _PAGE_NUMA
+ v4
+Message-ID: <20140417025912.GA7797@localhost>
+References: <1397572876-1610-1-git-send-email-mgorman@suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1397572876-1610-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Miller <davem@davemloft.net>
-Cc: eric.dumazet@gmail.com, linux-mm@kvack.org, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org, xfs@oss.sgi.com, netdev@vger.kernel.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Ingo Molnar <mingo@kernel.org>, Peter Anvin <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Steven Noonan <steven@uplinklabs.net>, Rik van Riel <riel@redhat.com>, David Vrabel <david.vrabel@citrix.com>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Linux-X86 <x86@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
---Sig_/SSVtvNA+Qn7U/.GV8.0daYz
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: quoted-printable
+On Tue, Apr 15, 2014 at 03:41:13PM +0100, Mel Gorman wrote:
+> Fengguang Wu found that an earlier version crashed on his
+> tests. This version passed tests running with DEBUG_VM and
+> DEBUG_PAGEALLOC. Fengguang, another test would be appreciated and
+> if it helps this series is the mm-numa-use-high-bit-v4r3 branch in
+> git://git.kernel.org/pub/scm/linux/kernel/git/mel/linux-balancenuma.git
 
-On Wed, 16 Apr 2014 09:00:02 -0400 (EDT) David Miller <davem@davemloft.net>
-wrote:
+Hi Mel,
 
-> From: Eric Dumazet <eric.dumazet@gmail.com>
-> Date: Tue, 15 Apr 2014 22:13:46 -0700
->=20
-> > For applications handling millions of sockets, this makes a difference.
->=20
-> Indeed, this really is not acceptable.
+We noticed the below changes. The last_state.is_incomplete_run 0=>1 change
+means the test box failed to boot up. Unfortunately we don't have
+serial console output of this testbox, it may be hard to check the
+root cause. Anyway, I'll try to bisect it to make the debug easier.
 
-As you say...
-I've just discovered that I can get rid of the lockdep message (and hence
-presumably the deadlock risk) with a well placed:
+Fengguang
 
-		newsock->sk->sk_allocation =3D GFP_NOFS;
+          v3.14  685561ea2d015cb90c45504ec  
+---------------  -------------------------  
+    864.70 ~ 5%     -27.5%     627.28       snb-drag/sysbench/fileio/600s-100%-1HDD-ext4-64G-1024-seqwr-sync
+    178.20 ~104%     -99.9%       0.13       snb-drag/sysbench/fileio/600s-100%-1HDD-xfs-64G-1024-rndwr-sync
+   1042.90 ~22%     -39.8%     627.41       TOTAL fileio.request_latency_max_ms
 
-which surprised me as it seemed to be an explicit GFP_KERNEL allocation that
-was mentioned in the lockdep trace.  Obviously these traces require quite
-some sophistication to understand.
+          v3.14  685561ea2d015cb90c45504ec  
+---------------  -------------------------  
+         0           +Inf%          1 ~ 0%  lkp-a04/fake/boot/1
+         0           +Inf%          1 ~ 0%  TOTAL last_state.is_incomplete_run
 
-So - thanks for the feedback, patch can be ignored.
+          v3.14  685561ea2d015cb90c45504ec  
+---------------  -------------------------  
+        10 ~10%   +1560.0%        166       lkp-ws02/micro/dd-write/11HDD-JBOD-cfq-ext4-10dd
+        10 ~10%   +1560.0%        166       TOTAL ftrace.writeback_single_inode.sdg.age
 
-Thanks,
-NeilBrown
+          v3.14  685561ea2d015cb90c45504ec  
+---------------  -------------------------  
+      9662 ~19%  +17955.3%    1744594       lkp-snb01/micro/hackbench/1600%-process-socket
+      4235 ~22%   +6497.6%     279443       lkp-snb01/micro/hackbench/1600%-threads-socket
+      3842 ~ 4%   +1468.7%      60278       lkp-snb01/micro/hackbench/50%-process-pipe
+     17181 ~ 3%    +393.1%      84722       lkp-snb01/micro/hackbench/50%-process-socket
+     34922 ~10%   +6111.0%    2169037       TOTAL cpuidle.POLL.time
 
---Sig_/SSVtvNA+Qn7U/.GV8.0daYz
-Content-Type: application/pgp-signature; name=signature.asc
-Content-Disposition: attachment; filename=signature.asc
+          v3.14  685561ea2d015cb90c45504ec  
+---------------  -------------------------  
+        34 ~ 1%     +61.8%         56       lkp-ws02/micro/dd-write/11HDD-JBOD-cfq-ext4-10dd
+        34 ~ 1%     +61.8%         56       TOTAL ftrace.balance_dirty_pages.sdl.period
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2.0.22 (GNU/Linux)
+          v3.14  685561ea2d015cb90c45504ec  
+---------------  -------------------------  
+       312 ~ 0%     -10.4%        280       snb-drag/sysbench/fileio/600s-100%-1HDD-xfs-64G-1024-rndwr-sync
+       312 ~ 0%     -10.4%        280       TOTAL vmstat.memory.buff
 
-iQIVAwUBU08+rTnsnt1WYoG5AQLRZhAAw2OqHGStjcH4tCI4w3eDMVb87MK1AVtQ
-U3pUF/WbzPSl0yhxDaa3vIg6L2ogkASESK6Oiiu8PZbG3TunCNwq63XXTKvE6EIY
-nABc2yOb9u/cixXtIuMC9E8ydnZa/dEkIyFY9oMXBjuOwb3L/ugKFm0upzBUVokw
-VtyZs8rl9s9IwgvuErpFbDR3ZxEk0VaMdREFwGCpkUD6DjknMTpGdaUelPxe+DEd
-Ffy6B7fjrkdG/8B4vYZKlW2c5on1lLqc+hgY24LrLUpLxHwu4HCuIrAuhzILDex/
-X5hZbQQhj2reLB8rsqJWOjmKn19/y8EbapUwa6BUMkSVHDCf0voCUjkHI8dOYcvM
-TnrmEzJS3Ym/x5rbenUCr2hEOEbZ80UEcMbdbrVm3rhPoMDtSifdtU2LEKro8oCk
-GPoOR3fYSLyxXNGQTlGiG3vSuSAIxF8tznBLnuCPIAPXK8LtXIn3oIOxNsN1J/LK
-TxZJsdA+I9YmV5uIn7cJarNYKdXvhR6x0YPoxUFzQZkngChosN3ZkGOHQeG2moyA
-JewuEtWT5Z1n1as19big3XukdBNnhJ/B11DpyI3TlfhIYN0mROFEAQkvXuOYYO+o
-CqkHfQp765IaTt0WOiVFu9bibhdxWwt1jwfasn1TE9LtvVlwlUlbPVL/8NrMXnOa
-Nkz7UZ1IxWU=
-=WfY/
------END PGP SIGNATURE-----
+          v3.14  685561ea2d015cb90c45504ec  
+---------------  -------------------------  
+       350 ~ 3%   +3056.4%      11057       lkp-ws02/micro/dd-write/11HDD-JBOD-cfq-ext4-100dd
+       340 ~ 2%   +1792.2%       6443       lkp-ws02/micro/dd-write/11HDD-JBOD-cfq-ext4-10dd
+       690 ~ 3%   +2433.3%      17500       TOTAL interrupts.125:PCI-MSI-edge.eth1-TxRx-4
 
---Sig_/SSVtvNA+Qn7U/.GV8.0daYz--
+          v3.14  685561ea2d015cb90c45504ec  
+---------------  -------------------------  
+       310 ~ 1%   +2021.3%       6595       lkp-ws02/micro/dd-write/11HDD-JBOD-cfq-ext4-1dd
+       310 ~ 1%   +2021.3%       6595       TOTAL interrupts.127:PCI-MSI-edge.eth1-TxRx-6
+
+          v3.14  685561ea2d015cb90c45504ec  
+---------------  -------------------------  
+       157 ~ 4%    +118.4%        344       lkp-sb03/micro/nepim/300s-100%-udp
+       157 ~ 4%    +118.4%        344       TOTAL interrupts.101:PCI-MSI-edge.eth1-TxRx-1
+
+          v3.14  685561ea2d015cb90c45504ec  
+---------------  -------------------------  
+     40.55 ~ 0%     -50.6%      20.02       lkp-a05/fake/boot/1
+     40.55 ~ 0%     -50.6%      20.02       TOTAL boottime.dhcp
+
+          v3.14  685561ea2d015cb90c45504ec  
+---------------  -------------------------  
+     60.79 ~ 0%     -47.8%      31.74       lkp-a05/fake/boot/1
+     60.79 ~ 0%     -47.8%      31.74       TOTAL boottime.boot
+
+          v3.14  685561ea2d015cb90c45504ec  
+---------------  -------------------------  
+       186 ~ 0%     -46.1%        100       lkp-a05/fake/boot/1
+       186 ~ 0%     -46.1%        100       TOTAL boottime.idle
+
+          v3.14  685561ea2d015cb90c45504ec  
+---------------  -------------------------  
+       157 ~ 3%     +84.7%        290       lkp-a05/micro/iperf/300s-tcp
+       157 ~ 3%     +84.7%        290       TOTAL interrupts.50:PCI-MSI-edge.eth0-tx-0
+
+          v3.14  685561ea2d015cb90c45504ec  
+---------------  -------------------------  
+    212639 ~ 1%     +48.1%     314887       lkp-sb03/micro/nepim/300s-25%-udp
+    212639 ~ 1%     +48.1%     314887       TOTAL interrupts.LOC
+
+          v3.14  685561ea2d015cb90c45504ec  
+---------------  -------------------------  
+       207 ~ 2%     +35.8%        282       lkp-a05/micro/iperf/300s-tcp
+       207 ~ 2%     +35.8%        282       TOTAL interrupts.47:PCI-MSI-edge.eth0-rx-1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
