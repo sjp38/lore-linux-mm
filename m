@@ -1,56 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f181.google.com (mail-we0-f181.google.com [74.125.82.181])
-	by kanga.kvack.org (Postfix) with ESMTP id AEFDA6B003B
-	for <linux-mm@kvack.org>; Thu, 17 Apr 2014 15:09:50 -0400 (EDT)
-Received: by mail-we0-f181.google.com with SMTP id q58so814913wes.40
-        for <linux-mm@kvack.org>; Thu, 17 Apr 2014 12:09:49 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id e3si1872899wix.110.2014.04.17.12.09.48
-        for <linux-mm@kvack.org>;
-        Thu, 17 Apr 2014 12:09:49 -0700 (PDT)
-Date: Thu, 17 Apr 2014 15:09:19 -0400
-From: Luiz Capitulino <lcapitulino@redhat.com>
-Subject: Re: [PATCH v3 0/5] hugetlb: add support gigantic page allocation at
- runtime
-Message-ID: <20140417150919.6d59e360@redhat.com>
-In-Reply-To: <20140417115242.1081267213b26d10a41d2266@linux-foundation.org>
-References: <1397152725-20990-1-git-send-email-lcapitulino@redhat.com>
-	<20140417111305.485fa956@redhat.com>
-	<20140417115242.1081267213b26d10a41d2266@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 279EC6B003B
+	for <linux-mm@kvack.org>; Thu, 17 Apr 2014 15:47:52 -0400 (EDT)
+Received: by mail-pd0-f170.google.com with SMTP id v10so697181pde.29
+        for <linux-mm@kvack.org>; Thu, 17 Apr 2014 12:47:51 -0700 (PDT)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.11.231])
+        by mx.google.com with ESMTPS id gr5si12762194pac.32.2014.04.17.12.47.50
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 17 Apr 2014 12:47:51 -0700 (PDT)
+From: Mitchel Humpherys <mitchelh@codeaurora.org>
+Subject: [PATCH] ion: only use the CMA heap when CONFIG_CMA is enabled
+Date: Thu, 17 Apr 2014 12:47:46 -0700
+Message-Id: <1397764066-22527-1-git-send-email-mitchelh@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, mtosatti@redhat.com, aarcange@redhat.com, mgorman@suse.de, andi@firstfloor.org, davidlohr@hp.com, rientjes@google.com, isimatu.yasuaki@jp.fujitsu.com, yinghai@kernel.org, riel@redhat.com, n-horiguchi@ah.jp.nec.com, kirill@shutemov.name
+To: linux-mm@kvack.org, Colin Cross <ccross@android.com>
+Cc: linux-kernel@vger.kernel.org, Mitchel Humpherys <mitchelh@codeaurora.org>
 
-On Thu, 17 Apr 2014 11:52:42 -0700
-Andrew Morton <akpm@linux-foundation.org> wrote:
+The CMA heap is intended to be used with CMA (as the name
+suggests). Don't compile or use it if CONFIG_CMA is not
+enabled.
 
-> On Thu, 17 Apr 2014 11:13:05 -0400 Luiz Capitulino <lcapitulino@redhat.com> wrote:
-> 
-> > On Thu, 10 Apr 2014 13:58:40 -0400
-> > Luiz Capitulino <lcapitulino@redhat.com> wrote:
-> > 
-> > > [Full introduction right after the changelog]
-> > > 
-> > > Changelog
-> > > ---------
-> > > 
-> > > v3
-> > > 
-> > > - Dropped unnecessary WARN_ON() call [Kirill]
-> > > - Always check if the pfn range lies within a zone [Yasuaki]
-> > > - Renamed some function arguments for consistency
-> > 
-> > Andrew, this series got four ACKs but it seems that you haven't picked
-> > it yet. Is there anything missing to be addressed?
-> 
-> I don't look at new features until after -rc1.  Then it takes a week or
-> more to work through the backlog.  We'll get there.
+Currently, if CONFIG_CMA=n and someone creates and uses a CMA heap, some
+of their allocations might actually succeed (since the CMA heap is just
+using generic DMA API routines) but the fact that the memory isn't
+coming from CMA is confusing.
 
-I see, just wanted to make sure it was in your radar. Thanks a lot.
+Signed-off-by: Mitchel Humpherys <mitchelh@codeaurora.org>
+---
+ drivers/staging/android/ion/Makefile   | 3 ++-
+ drivers/staging/android/ion/ion_heap.c | 4 ++++
+ drivers/staging/android/ion/ion_priv.h | 3 +++
+ 3 files changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/staging/android/ion/Makefile b/drivers/staging/android/ion/Makefile
+index b56fd2bf2b..83923eac97 100644
+--- a/drivers/staging/android/ion/Makefile
++++ b/drivers/staging/android/ion/Makefile
+@@ -1,5 +1,6 @@
+ obj-$(CONFIG_ION) +=	ion.o ion_heap.o ion_page_pool.o ion_system_heap.o \
+-			ion_carveout_heap.o ion_chunk_heap.o ion_cma_heap.o
++			ion_carveout_heap.o ion_chunk_heap.o
++obj-$(CONFIG_CMA) += ion_cma_heap.o
+ obj-$(CONFIG_ION_TEST) += ion_test.o
+ ifdef CONFIG_COMPAT
+ obj-$(CONFIG_ION) += compat_ion.o
+diff --git a/drivers/staging/android/ion/ion_heap.c b/drivers/staging/android/ion/ion_heap.c
+index bdc6a28ba8..d72940e631 100644
+--- a/drivers/staging/android/ion/ion_heap.c
++++ b/drivers/staging/android/ion/ion_heap.c
+@@ -332,9 +332,11 @@ struct ion_heap *ion_heap_create(struct ion_platform_heap *heap_data)
+ 	case ION_HEAP_TYPE_CHUNK:
+ 		heap = ion_chunk_heap_create(heap_data);
+ 		break;
++#ifdef CONFIG_CMA
+ 	case ION_HEAP_TYPE_DMA:
+ 		heap = ion_cma_heap_create(heap_data);
+ 		break;
++#endif
+ 	default:
+ 		pr_err("%s: Invalid heap type %d\n", __func__,
+ 		       heap_data->type);
+@@ -371,9 +373,11 @@ void ion_heap_destroy(struct ion_heap *heap)
+ 	case ION_HEAP_TYPE_CHUNK:
+ 		ion_chunk_heap_destroy(heap);
+ 		break;
++#ifdef CONFIG_CMA
+ 	case ION_HEAP_TYPE_DMA:
+ 		ion_cma_heap_destroy(heap);
+ 		break;
++#endif
+ 	default:
+ 		pr_err("%s: Invalid heap type %d\n", __func__,
+ 		       heap->type);
+diff --git a/drivers/staging/android/ion/ion_priv.h b/drivers/staging/android/ion/ion_priv.h
+index 1eba3f2076..42e541e961 100644
+--- a/drivers/staging/android/ion/ion_priv.h
++++ b/drivers/staging/android/ion/ion_priv.h
+@@ -323,8 +323,11 @@ void ion_carveout_heap_destroy(struct ion_heap *);
+ 
+ struct ion_heap *ion_chunk_heap_create(struct ion_platform_heap *);
+ void ion_chunk_heap_destroy(struct ion_heap *);
++
++#ifdef CONFIG_CMA
+ struct ion_heap *ion_cma_heap_create(struct ion_platform_heap *);
+ void ion_cma_heap_destroy(struct ion_heap *);
++#endif
+ 
+ /**
+  * kernel api to allocate/free from carveout -- used when carveout is
+-- 
+The Qualcomm Innovation Center, Inc. is a member of the Code Aurora Forum,
+hosted by The Linux Foundation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
