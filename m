@@ -1,116 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f49.google.com (mail-pb0-f49.google.com [209.85.160.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 79D346B003B
-	for <linux-mm@kvack.org>; Thu, 17 Apr 2014 16:23:55 -0400 (EDT)
-Received: by mail-pb0-f49.google.com with SMTP id jt11so737160pbb.36
-        for <linux-mm@kvack.org>; Thu, 17 Apr 2014 13:23:55 -0700 (PDT)
-Received: from mail-pb0-x22a.google.com (mail-pb0-x22a.google.com [2607:f8b0:400e:c01::22a])
-        by mx.google.com with ESMTPS id ov9si13864520pbc.41.2014.04.17.13.23.54
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 17 Apr 2014 13:23:54 -0700 (PDT)
-Received: by mail-pb0-f42.google.com with SMTP id rr13so750750pbb.1
-        for <linux-mm@kvack.org>; Thu, 17 Apr 2014 13:23:54 -0700 (PDT)
+Received: from mail-qc0-f170.google.com (mail-qc0-f170.google.com [209.85.216.170])
+	by kanga.kvack.org (Postfix) with ESMTP id D39E36B0031
+	for <linux-mm@kvack.org>; Thu, 17 Apr 2014 16:25:01 -0400 (EDT)
+Received: by mail-qc0-f170.google.com with SMTP id x13so975307qcv.29
+        for <linux-mm@kvack.org>; Thu, 17 Apr 2014 13:25:01 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id z3si11028489qcl.62.2014.04.17.13.25.00
+        for <linux-mm@kvack.org>;
+        Thu, 17 Apr 2014 13:25:01 -0700 (PDT)
+Date: Thu, 17 Apr 2014 22:16:02 +0200
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH] thp: close race between split and zap huge pages
+Message-ID: <20140417201602.GI10119@redhat.com>
+References: <1397598536-25074-1-git-send-email-kirill.shutemov@linux.intel.com>
 MIME-Version: 1.0
-Reply-To: mtk.manpages@gmail.com
-In-Reply-To: <534FFFC2.6050601@colorfullife.com>
-References: <1397272942.2686.4.camel@buesod1.americas.hpqcorp.net>
- <CAHO5Pa3BOgJGCm7NvE4xbm3O1WbRLRBS0pgvErPudypP_iiZ3g@mail.gmail.com> <534FFFC2.6050601@colorfullife.com>
-From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
-Date: Thu, 17 Apr 2014 22:23:32 +0200
-Message-ID: <CAKgNAkjCenvWr9A69-=j-55nyW1EM1Fy+=rSDWSxXvq5qFtGTw@mail.gmail.com>
-Subject: Re: [PATCH v2] ipc,shm: disable shmmax and shmall by default
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1397598536-25074-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Manfred Spraul <manfred@colorfullife.com>
-Cc: Davidlohr Bueso <davidlohr@hp.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, aswin@hp.com, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Michel Lespinasse <walken@google.com>, Sasha Levin <sasha.levin@oracle.com>, Dave Jones <davej@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Bob Liu <lliubbo@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi Manfred!
+Hi everyone,
 
-On Thu, Apr 17, 2014 at 6:22 PM, Manfred Spraul
-<manfred@colorfullife.com> wrote:
-> Hi Michael,
->
->
-> On 04/17/2014 12:53 PM, Michael Kerrisk wrote:
->>
->> On Sat, Apr 12, 2014 at 5:22 AM, Davidlohr Bueso <davidlohr@hp.com> wrote:
->>>
->>> From: Davidlohr Bueso <davidlohr@hp.com>
->>>
->>> The default size for shmmax is, and always has been, 32Mb.
->>> Today, in the XXI century, it seems that this value is rather small,
->>> making users have to increase it via sysctl, which can cause
->>> unnecessary work and userspace application workarounds[1].
->>>
->>> Instead of choosing yet another arbitrary value, larger than 32Mb,
->>> this patch disables the use of both shmmax and shmall by default,
->>> allowing users to create segments of unlimited sizes. Users and
->>> applications that already explicitly set these values through sysctl
->>> are left untouched, and thus does not change any of the behavior.
->>>
->>> So a value of 0 bytes or pages, for shmmax and shmall, respectively,
->>> implies unlimited memory, as opposed to disabling sysv shared memory.
->>> This is safe as 0 cannot possibly be used previously as SHMMIN is
->>> hardcoded to 1 and cannot be modified.
->>>
->>> This change allows Linux to treat shm just as regular anonymous memory.
->>> One important difference between them, though, is handling out-of-memory
->>> conditions: as opposed to regular anon memory, the OOM killer will not
->>> free the memory as it is shm, allowing users to potentially abuse this.
->>> To overcome this situation, the shm_rmid_forced option must be enabled.
->>>
->>> [1]: http://rhaas.blogspot.com/2012/06/absurd-shared-memory-limits.html
->>>
->>> Signed-off-by: Davidlohr Bueso <davidlohr@hp.com>
->>> Acked-by: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
->>> Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
->>
->> Of the two proposed approaches (the other being
->> marc.info/?l=linux-kernel&m=139730332306185), this looks preferable to
->> me, since it allows strange users to maintain historical behavior
->> (i.e., the ability to set a limit) if they really want it, so:
->>
->> Acked-by: Michael Kerrisk <mtk.manpages@gmail.com>
->>
->> One or two comments below, that you might consider for your v3 patch.
->
-> I don't understand what you mean.
+On Wed, Apr 16, 2014 at 12:48:56AM +0300, Kirill A. Shutemov wrote:
+> -	pmd = mm_find_pmd(mm, address);
+> -	if (!pmd)
+> +	pgd = pgd_offset(mm, address);
+> +	if (!pgd_present(*pgd))
+>  		return NULL;
+> +	pud = pud_offset(pgd, address);
+> +	if (!pud_present(*pud))
+> +		return NULL;
+> +	pmd = pmd_offset(pud, address);
 
-As noted in the other mail, you don't understand, because I was being
-dense (and misled a little by the commit message).
+This fix looks good to me and it was another potential source of
+trouble making the BUG_ON flakey. But the rmap_walk out of order
+problem still exists too I think. Possibly the testcase doesn't
+exercise that.
 
-> After a
->     # echo 33554432 > /proc/sys/kernel/shmmax
->     # echo 2097152 > /proc/sys/kernel/shmmax
->
-> both patches behave exactly identical.
+> -	if (pmd_none(*pmd))
+> +	if (!pmd_present(*pmd))
+>  		goto unlock;
 
-Yes.
+pmd_present is a bit slower, but functionally it's equivalent, the
+pmd_present check is just more pedantic (kind of defining the
+invariants for how a mapped pmd should look like).
 
-> There are only two differences:
-> - Davidlohr's patch handles
->     # echo <really huge number that doesn't fit into 64-bit> >
-> /proc/sys/kernel/shmmax
->    With my patch, shmmax would end up as 0 and all allocations fail.
->
-> - My patch handles the case if some startup code/installer checks
->    shmmax and complains if it is below the requirement of the application.
+If we'd add native THP swapout later !pmd_present would be more
+correct for the VM calls to page_check_address_pmd, but something
+would need changing anyway if split_huge_page is the callee as I don't
+think we can skip the conversion from trans huge swap entry to linear
+swap entries and the pmd2pte conversion.
 
-Thanks for that clarification. I withdraw my Ack. In fact, maybe I
-even like your approach a little more, because of that last point. Did
-one of you not yet manage to persuade the other to his point of view
-yet?
+The main reason that most places that could run into a trans huge pmd
+would use pmd_none and never pmd_present is that originally
+pmd_present wouldn't check _PAGE_PSE and _PAGE_PRESENT can be
+temporarily be cleared with pmdp_invalidate on trans huge pmds. Now
+pmd_present is safe too so there's no problem in using it on trans
+huge pmds.
 
-Cheers,
+So either pmd_none !pmd_present are fine, the functional fix is the
+part above.
 
-Michael
-
--- 
-Michael Kerrisk
-Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
-Linux/UNIX System Programming Training: http://man7.org/training/
+Thanks!
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
