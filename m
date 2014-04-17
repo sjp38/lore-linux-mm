@@ -1,98 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 279EC6B003B
-	for <linux-mm@kvack.org>; Thu, 17 Apr 2014 15:47:52 -0400 (EDT)
-Received: by mail-pd0-f170.google.com with SMTP id v10so697181pde.29
-        for <linux-mm@kvack.org>; Thu, 17 Apr 2014 12:47:51 -0700 (PDT)
-Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.11.231])
-        by mx.google.com with ESMTPS id gr5si12762194pac.32.2014.04.17.12.47.50
+Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id AFC3C6B003B
+	for <linux-mm@kvack.org>; Thu, 17 Apr 2014 16:19:45 -0400 (EDT)
+Received: by mail-pd0-f174.google.com with SMTP id y13so715369pdi.5
+        for <linux-mm@kvack.org>; Thu, 17 Apr 2014 13:19:45 -0700 (PDT)
+Received: from mail-pd0-x22e.google.com (mail-pd0-x22e.google.com [2607:f8b0:400e:c02::22e])
+        by mx.google.com with ESMTPS id tc10si12202605pbc.31.2014.04.17.13.19.44
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 17 Apr 2014 12:47:51 -0700 (PDT)
-From: Mitchel Humpherys <mitchelh@codeaurora.org>
-Subject: [PATCH] ion: only use the CMA heap when CONFIG_CMA is enabled
-Date: Thu, 17 Apr 2014 12:47:46 -0700
-Message-Id: <1397764066-22527-1-git-send-email-mitchelh@codeaurora.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 17 Apr 2014 13:19:44 -0700 (PDT)
+Received: by mail-pd0-f174.google.com with SMTP id y13so721350pdi.19
+        for <linux-mm@kvack.org>; Thu, 17 Apr 2014 13:19:44 -0700 (PDT)
+MIME-Version: 1.0
+Reply-To: mtk.manpages@gmail.com
+In-Reply-To: <5350042F.4040904@colorfullife.com>
+References: <1396235199.2507.2.camel@buesod1.americas.hpqcorp.net>
+ <20140331170546.3b3e72f0.akpm@linux-foundation.org> <1396371699.25314.11.camel@buesod1.americas.hpqcorp.net>
+ <CAHGf_=qsf6vN5k=-PLraG8Q_uU1pofoBDktjVH1N92o76xPadQ@mail.gmail.com>
+ <1396377083.25314.17.camel@buesod1.americas.hpqcorp.net> <CAHGf_=rLLBDr5ptLMvFD-M+TPQSnK3EP=7R+27K8or84rY-KLA@mail.gmail.com>
+ <1396386062.25314.24.camel@buesod1.americas.hpqcorp.net> <CAHGf_=rhXrBQSmDBJJ-vPxBbhjJ91Fh2iWe1cf_UQd-tCfpb2w@mail.gmail.com>
+ <20140401142947.927642a408d84df27d581e36@linux-foundation.org>
+ <CAHGf_=p70rLOYwP2OgtK+2b+41=GwMA9R=rZYBqRr1w_O5UnKA@mail.gmail.com>
+ <20140401144801.603c288674ab8f417b42a043@linux-foundation.org>
+ <1396389751.25314.26.camel@buesod1.americas.hpqcorp.net> <20140401150843.13da3743554ad541629c936d@linux-foundation.org>
+ <534AD1EE.3050705@colorfullife.com> <20140416154631.6d0173498c60619d454ae651@linux-foundation.org>
+ <CAHO5Pa2zguBEpg-S0Zx26qEStF5ZyvrnbU8-sQZfNJEZRMQPqg@mail.gmail.com> <5350042F.4040904@colorfullife.com>
+From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+Date: Thu, 17 Apr 2014 22:19:23 +0200
+Message-ID: <CAKgNAkiL+m35MffVheq90rNS7Tv3nANNZh8GJbh8FHkr3ot_tg@mail.gmail.com>
+Subject: Re: [PATCH] ipc,shm: increase default size for shmmax
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, Colin Cross <ccross@android.com>
-Cc: linux-kernel@vger.kernel.org, Mitchel Humpherys <mitchelh@codeaurora.org>
+To: Manfred Spraul <manfred@colorfullife.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Davidlohr Bueso <davidlohr@hp.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, aswin@hp.com, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-The CMA heap is intended to be used with CMA (as the name
-suggests). Don't compile or use it if CONFIG_CMA is not
-enabled.
+On Thu, Apr 17, 2014 at 6:41 PM, Manfred Spraul
+<manfred@colorfullife.com> wrote:
+> On 04/17/2014 12:41 PM, Michael Kerrisk wrote:
+>>
+>> On Thu, Apr 17, 2014 at 12:46 AM, Andrew Morton
+>> <akpm@linux-foundation.org> wrote:
+>>>
+>>> On Sun, 13 Apr 2014 20:05:34 +0200 Manfred Spraul
+>>> <manfred@colorfullife.com> wrote:
+>>>
+>>>> Hi Andrew,
+>>>>
+>>>> On 04/02/2014 12:08 AM, Andrew Morton wrote:
+>>>>>
+>>>>> Well, I'm assuming 64GB==infinity. It *was* infinity in the RHEL5
+>>>>> timeframe, but infinity has since become larger so pickanumber.
+>>>>
+>>>> I think infinity is the right solution:
+>>>> The only common case where infinity is wrong would be Android - and
+>>>> Android disables sysv shm entirely.
+>>>>
+>>>> There are two patches:
+>>>> http://marc.info/?l=linux-kernel&m=139730332306185&q=raw
+>>>> http://marc.info/?l=linux-kernel&m=139727299800644&q=raw
+>>>>
+>>>> Could you apply one of them?
+>>>> I wrote the first one, thus I'm biased which one is better.
+>>>
+>>> I like your patch because applying it might encourage you to send more
+>>> kernel patches - I miss the old days ;)
+>>>
+>>> But I do worry about disrupting existing systems so I like Davidlohr's
+>>> idea of making the change a no-op for people who are currently
+>>> explicitly setting shmmax and shmall.
+>>
+>> Agreed. It's hard to imagine situations where people might care
+>> nowadays, but there's no limits to people's insane inventiveness. Some
+>> people really might want to set an upper limit.
+>
+> I don't understand that: neither patch has any impact after an explicit
+> sysctl that overwrites shmmax.
 
-Currently, if CONFIG_CMA=n and someone creates and uses a CMA heap, some
-of their allocations might actually succeed (since the CMA heap is just
-using generic DMA API routines) but the fact that the memory isn't
-coming from CMA is confusing.
+You don't understand it, because I was being dense :-}. I
+misunderstood your patch. I think I was thrown by this line in the
+commit message:
 
-Signed-off-by: Mitchel Humpherys <mitchelh@codeaurora.org>
----
- drivers/staging/android/ion/Makefile   | 3 ++-
- drivers/staging/android/ion/ion_heap.c | 4 ++++
- drivers/staging/android/ion/ion_priv.h | 3 +++
- 3 files changed, 9 insertions(+), 1 deletion(-)
+    The patch disables both limits by setting the limits to ULONG_MAX.
 
-diff --git a/drivers/staging/android/ion/Makefile b/drivers/staging/android/ion/Makefile
-index b56fd2bf2b..83923eac97 100644
---- a/drivers/staging/android/ion/Makefile
-+++ b/drivers/staging/android/ion/Makefile
-@@ -1,5 +1,6 @@
- obj-$(CONFIG_ION) +=	ion.o ion_heap.o ion_page_pool.o ion_system_heap.o \
--			ion_carveout_heap.o ion_chunk_heap.o ion_cma_heap.o
-+			ion_carveout_heap.o ion_chunk_heap.o
-+obj-$(CONFIG_CMA) += ion_cma_heap.o
- obj-$(CONFIG_ION_TEST) += ion_test.o
- ifdef CONFIG_COMPAT
- obj-$(CONFIG_ION) += compat_ion.o
-diff --git a/drivers/staging/android/ion/ion_heap.c b/drivers/staging/android/ion/ion_heap.c
-index bdc6a28ba8..d72940e631 100644
---- a/drivers/staging/android/ion/ion_heap.c
-+++ b/drivers/staging/android/ion/ion_heap.c
-@@ -332,9 +332,11 @@ struct ion_heap *ion_heap_create(struct ion_platform_heap *heap_data)
- 	case ION_HEAP_TYPE_CHUNK:
- 		heap = ion_chunk_heap_create(heap_data);
- 		break;
-+#ifdef CONFIG_CMA
- 	case ION_HEAP_TYPE_DMA:
- 		heap = ion_cma_heap_create(heap_data);
- 		break;
-+#endif
- 	default:
- 		pr_err("%s: Invalid heap type %d\n", __func__,
- 		       heap_data->type);
-@@ -371,9 +373,11 @@ void ion_heap_destroy(struct ion_heap *heap)
- 	case ION_HEAP_TYPE_CHUNK:
- 		ion_chunk_heap_destroy(heap);
- 		break;
-+#ifdef CONFIG_CMA
- 	case ION_HEAP_TYPE_DMA:
- 		ion_cma_heap_destroy(heap);
- 		break;
-+#endif
- 	default:
- 		pr_err("%s: Invalid heap type %d\n", __func__,
- 		       heap->type);
-diff --git a/drivers/staging/android/ion/ion_priv.h b/drivers/staging/android/ion/ion_priv.h
-index 1eba3f2076..42e541e961 100644
---- a/drivers/staging/android/ion/ion_priv.h
-+++ b/drivers/staging/android/ion/ion_priv.h
-@@ -323,8 +323,11 @@ void ion_carveout_heap_destroy(struct ion_heap *);
- 
- struct ion_heap *ion_chunk_heap_create(struct ion_platform_heap *);
- void ion_chunk_heap_destroy(struct ion_heap *);
-+
-+#ifdef CONFIG_CMA
- struct ion_heap *ion_cma_heap_create(struct ion_platform_heap *);
- void ion_cma_heap_destroy(struct ion_heap *);
-+#endif
- 
- /**
-  * kernel api to allocate/free from carveout -- used when carveout is
+Of course, you patch doesn't *disable* the limits, it simply sets the
+defaults to the maximum.
+
+>>> In an ideal world, system administrators would review this change,
+>>
+>> And in the ideal world, patches such as this would CC
+>> linux-api@vger.kernel.org, as described in
+>> Documentation/SubmitChecklist, so that users who care about getting
+>> advance warning on API changes could be alerted and might even review
+>> and comment...
+>
+> Good point.
+> Davidlohr: Your patch has an impact on shmctl(,IPC_INFO,).
+> Could you add that for v3?
+
+Well, actually, BOTH patches change the API, because they both affect
+SHMALL/SHMMAX.
+
+Cheers,
+
+Michael
+
+
+> I'll try to make a v2 (with your update to the uapi header file) tomorrow.
+>
+> --
+>     Manfred
+
+
+
 -- 
-The Qualcomm Innovation Center, Inc. is a member of the Code Aurora Forum,
-hosted by The Linux Foundation
+Michael Kerrisk
+Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
+Linux/UNIX System Programming Training: http://man7.org/training/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
