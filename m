@@ -1,93 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id BD2DC6B0081
-	for <linux-mm@kvack.org>; Thu, 17 Apr 2014 00:23:20 -0400 (EDT)
-Received: by mail-pd0-f182.google.com with SMTP id y10so11558689pdj.13
-        for <linux-mm@kvack.org>; Wed, 16 Apr 2014 21:23:20 -0700 (PDT)
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id E195A6B0082
+	for <linux-mm@kvack.org>; Thu, 17 Apr 2014 00:42:00 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id fa1so11828329pad.28
+        for <linux-mm@kvack.org>; Wed, 16 Apr 2014 21:42:00 -0700 (PDT)
 Received: from ipmail04.adl6.internode.on.net (ipmail04.adl6.internode.on.net. [2001:44b8:8060:ff02:300:1:6:4])
-        by mx.google.com with ESMTP id rb6si13850100pab.272.2014.04.16.21.23.18
+        by mx.google.com with ESMTP id cq4si8093905pbc.141.2014.04.16.21.41.58
         for <linux-mm@kvack.org>;
-        Wed, 16 Apr 2014 21:23:19 -0700 (PDT)
-Date: Thu, 17 Apr 2014 14:23:13 +1000
+        Wed, 16 Apr 2014 21:41:59 -0700 (PDT)
+Date: Thu, 17 Apr 2014 14:41:52 +1000
 From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH/RFC 00/19] Support loop-back NFS mounts
-Message-ID: <20140417042313.GV15995@dastard>
+Subject: Re: [PATCH 04/19] Make effect of PF_FSTRANS to disable __GFP_FS
+ universal.
+Message-ID: <20140417044152.GW15995@dastard>
 References: <20140416033623.10604.69237.stgit@notabene.brown>
- <20140416104207.75b044e8@tlielax.poochiereds.net>
- <20140417102048.2fc8275c@notabene.brown>
- <20140417012739.GU15995@dastard>
- <20140417115018.460345d0@notabene.brown>
+ <20140416040336.10604.58240.stgit@notabene.brown>
+ <20140416053756.GC15995@dastard>
+ <20140416161726.51b506e2@notabene.brown>
+ <20140417110350.0470feba@notabene.brown>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140417115018.460345d0@notabene.brown>
+In-Reply-To: <20140417110350.0470feba@notabene.brown>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: NeilBrown <neilb@suse.de>
-Cc: Jeff Layton <jlayton@redhat.com>, linux-nfs@vger.kernel.org, Peter Zijlstra <peterz@infradead.org>, netdev@vger.kernel.org, Ming Lei <ming.lei@canonical.com>, linux-kernel@vger.kernel.org, xfs@oss.sgi.com, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>
+Cc: linux-mm@kvack.org, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org, Ming Lei <ming.lei@canonical.com>, xfs@oss.sgi.com
 
-On Thu, Apr 17, 2014 at 11:50:18AM +1000, NeilBrown wrote:
-> On Thu, 17 Apr 2014 11:27:39 +1000 Dave Chinner <david@fromorbit.com> wrote:
+On Thu, Apr 17, 2014 at 11:03:50AM +1000, NeilBrown wrote:
+> On Wed, 16 Apr 2014 16:17:26 +1000 NeilBrown <neilb@suse.de> wrote:
 > 
-> > On Thu, Apr 17, 2014 at 10:20:48AM +1000, NeilBrown wrote:
-> > > A good example is the deadlock with the flush-* threads.
-> > > flush-* will lock a page, and  then call ->writepage.  If ->writepage
-> > > allocates memory it can enter reclaim, call ->releasepage on NFS, and block
-> > > waiting for a COMMIT to complete.
-> > > The COMMIT might already be running, performing fsync on that same file that
-> > > flush-* is flushing.  It locks each page in turn.  When it  gets to the page
-> > > that flush-* has locked, it will deadlock.
+> > On Wed, 16 Apr 2014 15:37:56 +1000 Dave Chinner <david@fromorbit.com> wrote:
 > > 
-> > It's nfs_release_page() again....
-> > 
-> > > In general, if nfsd is allowed to block on local filesystem, and local
-> > > filesystem is allowed to block on NFS, then a deadlock can happen.
-> > > We would need a clear hierarchy
-> > > 
-> > >    __GFP_NETFS > __GFP_FS > __GFP_IO
-> > > 
-> > > for it to work.  I'm not sure the extra level really helps a lot and it would
-> > > be a lot of churn.
-> > 
-> > I think you are looking at this the wrong way - it's not the other
-> > filesystems that have to avoid memory reclaim recursion, it's the
-> > NFS client mount that is on loopback that needs to avoid recursion.
-> > 
-> > IMO, the fix should be that the NFS client cannot block on messages sent to the NFSD
-> > on the same host during memory reclaim. That is, nfs_release_page()
-> > cannot send commit messages to the server if the server is on
-> > localhost. Instead, it just tells memory reclaim that it can't
-> > reclaim that page.
-> > 
-> > If nfs_release_page() no longer blocks in memory reclaim, and all
-> > these nfsd-gets-blocked-in-GFP_KERNEL-memory-allocation recursion
-> > problems go away. Do the same for all the other memory reclaim
-> > operations in the NFS client, and you've got a solution that should
-> > work without needing to walk all over the rest of the kernel....
+> > > On Wed, Apr 16, 2014 at 02:03:36PM +1000, NeilBrown wrote:
 > 
-> Maybe.
-> It is nfs_release_page() today. I wonder if it could be other things another
-> day.  I want to be sure I have a solution that really makes sense.
+> > > > -	/*
+> > > > -	 * Given that we do not allow direct reclaim to call us, we should
+> > > > -	 * never be called while in a filesystem transaction.
+> > > > -	 */
+> > > > -	if (WARN_ON(current->flags & PF_FSTRANS))
+> > > > -		goto redirty;
+> > > 
+> > > We still need to ensure this rule isn't broken. If it is, the
+> > > filesystem will silently deadlock in delayed allocation rather than
+> > > gracefully handle the problem with a warning....
+> > 
+> > Hmm... that might be tricky.  The 'new' PF_FSTRANS can definitely be set when
+> > xfs_vm_writepage is called and we really want the write to happen.
+> > I don't suppose there is any other way to detect if a transaction is
+> > happening?
+> 
+> I've been thinking about this some more....
+> 
+> That code is in xfs_vm_writepage which is only called as ->writepage.
+> xfs never calls that directly so it could only possibly be called during
+> reclaim?
 
-There could be other things, but in the absence of those things,
-I don't think that adding another layer to memory reclaim
-dependencies for this niche corner case makes a lot of sense. ;)
+    __filemap_fdatawrite_range or __writeback_single_inode
+      do_writepages
+	->writepages
+	  xfs_vm_writepages
+	    write_cache_pages
+	      ->writepage
+	        xfs_vm_writepage
 
-> However ... the thing that nfs_release_page is doing it sending a COMMIT to
-> tell the server to flush to stable storage.  It does that so that if the
-> server crashes, then the client can re-send.
-> Of course when it is a loop-back mount the client is the server so the COMMIT
-> is completely pointless.  If the client notices that it is sending a COMMIT
-> to itself, it can simply assume a positive reply.
+So explicit data flushes or background writeback still end up in
+xfs_vm_writepage.
 
-Yes, that's very true. You might have to treat ->writepage
-specially, too, if that can block, say, on the number of outstanding
-requests that can be sent to the server.
+> We know that doesn't happen, but if it does then PF_MEMALLOC would be set,
+> but PF_KSWAPD would not... and you already have a test for that.
+> 
+> How about every time we set PF_FSTRANS, we store the corresponding
+> xfs_trans_t in current->journal_info, and clear that field when PF_FSTRANS is
+> cleared.  Then xfs_vm_writepage can test for current->journal_info being
+> clear.
+> That is the field that several other filesystems use to keep track of the
+> 'current' transaction.
 
-> You are right, that would make the patch set a lot less intrusive.  I'll give
-> it some serious thought - thanks.
+The difference is that we have an explicit transaction handle in XFS
+which defines the transaction context. i.e. we don't hide
+transactions in thread contexts - the transaction defines the atomic
+context of the modification being made.....
 
-No worries. :)
+> I don't know what xfs_trans_t we would use in
+> xfs_bmapi_allocate_worker, but I suspect you do :-)
+
+The same one we use now.
+
+But that's exactly my point.  i.e. the transaction handle belongs to
+the operation being executed, not the thread that is currently
+executing it.  We also hand transaction contexts to IO completion,
+do interesting things with log space reservations for operations
+that require multiple commits to complete and so pass state when
+handles are duplicated prior to commit, etc. We still need direct
+manipulation and control of the transaction structure, regardless of
+where it is stored.
 
 Cheers,
 
