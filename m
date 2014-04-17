@@ -1,95 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f46.google.com (mail-ee0-f46.google.com [74.125.83.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 092466B008A
-	for <linux-mm@kvack.org>; Thu, 17 Apr 2014 08:57:05 -0400 (EDT)
-Received: by mail-ee0-f46.google.com with SMTP id t10so644372eei.19
-        for <linux-mm@kvack.org>; Thu, 17 Apr 2014 05:57:05 -0700 (PDT)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id m49si35254678eeo.71.2014.04.17.05.57.03
+Received: from mail-ig0-f181.google.com (mail-ig0-f181.google.com [209.85.213.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 76DA26B008A
+	for <linux-mm@kvack.org>; Thu, 17 Apr 2014 10:52:00 -0400 (EDT)
+Received: by mail-ig0-f181.google.com with SMTP id h18so754670igc.2
+        for <linux-mm@kvack.org>; Thu, 17 Apr 2014 07:52:00 -0700 (PDT)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
+        by mx.google.com with ESMTPS id g1si2922885igd.14.2014.04.17.07.51.59
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 17 Apr 2014 05:57:04 -0700 (PDT)
-Date: Thu, 17 Apr 2014 08:56:57 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch] mm: memcontrol: remove hierarchy restrictions for
- swappiness and oom_control
-Message-ID: <20140417125657.GA23470@cmpxchg.org>
-References: <1397682798-22906-1-git-send-email-hannes@cmpxchg.org>
- <20140416143425.c2b6f511cf4c6cd7336134b3@linux-foundation.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 17 Apr 2014 07:51:59 -0700 (PDT)
+Message-ID: <534FEA83.1010603@infradead.org>
+Date: Thu, 17 Apr 2014 07:51:47 -0700
+From: Randy Dunlap <rdunlap@infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140416143425.c2b6f511cf4c6cd7336134b3@linux-foundation.org>
+Subject: Re: 0/N patch emails - to use or not to use?
+References: <CALZtONCR-ewaZjmZ_CznwqtGvzkmdTC0hQbbm2YDaSBvWv8XqA@mail.gmail.com> <20140416155730.b2dc1a551307f736438a85d7@linux-foundation.org>
+In-Reply-To: <20140416155730.b2dc1a551307f736438a85d7@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.cz>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, Dan Streetman <ddstreet@ieee.org>
+Cc: Linux-MM <linux-mm@kvack.org>
 
-On Wed, Apr 16, 2014 at 02:34:25PM -0700, Andrew Morton wrote:
-> On Wed, 16 Apr 2014 17:13:18 -0400 Johannes Weiner <hannes@cmpxchg.org> wrote:
+On 04/16/2014 03:57 PM, Andrew Morton wrote:
+> On Sat, 12 Apr 2014 17:23:31 -0400 Dan Streetman <ddstreet@ieee.org> wrote:
 > 
-> > Per-memcg swappiness and oom killing can currently not be tweaked on a
-> > memcg that is part of a hierarchy, but not the root of that hierarchy.
-> > Users have complained that they can't configure this when they turned
-> > on hierarchy mode.  In fact, with hierarchy mode becoming the default,
-> > this restriction disables the tunables entirely.
-> > 
-> > But there is no good reason for this restriction.  The settings for
-> > swappiness and OOM killing are taken from whatever memcg whose limit
-> > triggered reclaim and OOM invocation, regardless of its position in
-> > the hierarchy tree.
-> > 
-> > Allow setting swappiness on any group.  The knob on the root memcg
-> > already reads the global VM swappiness, make it writable as well.
-> > 
-> > Allow disabling the OOM killer on any non-root memcg.
+>> Hi Andrew,
+>>
+>> I noticed in your The Perfect Patch doc:
+>> http://www.ozlabs.org/~akpm/stuff/tpp.txt
+>> Section 6b says you don't like 0/N patch series description-only
+>> emails.  Is that still true?  Because it seems the majority of patch
+>> series do include a 0/N descriptive email...
 > 
-> Documentation/cgroups/memory.txt needs updates?
+> hm, I think what I said about git there isn't true - merge commits can
+> contain changelogs.
+> 
+> Whatever.  0/n is OK and is more email-reader-friendly.
 
-Yes, that makes sense, thanks.  How about this?
+I don't mind a 0/n patch if there is lots of history or background
+or data to be presented, but I find it silly to use a patch 0/1 and
+patch 1/1 for a single, small patch, like some people do because that
+is what git wants to do.
 
----
-Subject: [patch] mm: memcontrol: remove hierarchy restrictions for swappiness and oom_control fix
 
-Update Documentation/cgroups/memory.txt
-
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
----
-
-diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
-index 2622115276aa..1829c65f8371 100644
---- a/Documentation/cgroups/memory.txt
-+++ b/Documentation/cgroups/memory.txt
-@@ -535,17 +535,15 @@ Note:
- 
- 5.3 swappiness
- 
--Similar to /proc/sys/vm/swappiness, but affecting a hierarchy of groups only.
-+Similar to /proc/sys/vm/swappiness, but only affecting reclaim that is
-+triggered by this cgroup's hard limit.  The tunable in the root cgroup
-+corresponds to the global swappiness setting.
-+
- Please note that unlike the global swappiness, memcg knob set to 0
- really prevents from any swapping even if there is a swap storage
- available. This might lead to memcg OOM killer if there are no file
- pages to reclaim.
- 
--Following cgroups' swappiness can't be changed.
--- root cgroup (uses /proc/sys/vm/swappiness).
--- a cgroup which uses hierarchy and it has other cgroup(s) below it.
--- a cgroup which uses hierarchy and not the root of hierarchy.
--
- 5.4 failcnt
- 
- A memory cgroup provides memory.failcnt and memory.memsw.failcnt files.
-@@ -754,7 +752,6 @@ You can disable the OOM-killer by writing "1" to memory.oom_control file, as:
- 
- 	#echo 1 > memory.oom_control
- 
--This operation is only allowed to the top cgroup of a sub-hierarchy.
- If OOM-killer is disabled, tasks under cgroup will hang/sleep
- in memory cgroup's OOM-waitqueue when they request accountable memory.
- 
+-- 
+~Randy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
