@@ -1,37 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id E214F6B0035
-	for <linux-mm@kvack.org>; Thu, 17 Apr 2014 19:01:13 -0400 (EDT)
-Received: by mail-pa0-f50.google.com with SMTP id kq14so858731pab.9
-        for <linux-mm@kvack.org>; Thu, 17 Apr 2014 16:01:13 -0700 (PDT)
+Received: from mail-pb0-f44.google.com (mail-pb0-f44.google.com [209.85.160.44])
+	by kanga.kvack.org (Postfix) with ESMTP id B26EF6B0031
+	for <linux-mm@kvack.org>; Thu, 17 Apr 2014 19:18:30 -0400 (EDT)
+Received: by mail-pb0-f44.google.com with SMTP id rp16so867614pbb.17
+        for <linux-mm@kvack.org>; Thu, 17 Apr 2014 16:18:30 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id ug9si15316751pab.458.2014.04.17.16.01.12
+        by mx.google.com with ESMTP id ic8si15343716pad.218.2014.04.17.16.18.29
         for <linux-mm@kvack.org>;
-        Thu, 17 Apr 2014 16:01:12 -0700 (PDT)
-Date: Thu, 17 Apr 2014 16:01:10 -0700
+        Thu, 17 Apr 2014 16:18:29 -0700 (PDT)
+Date: Thu, 17 Apr 2014 16:18:28 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v3 0/5] hugetlb: add support gigantic page allocation at
- runtime
-Message-Id: <20140417160110.3f36b972b25525fbbe23681b@linux-foundation.org>
-In-Reply-To: <1397152725-20990-1-git-send-email-lcapitulino@redhat.com>
-References: <1397152725-20990-1-git-send-email-lcapitulino@redhat.com>
+Subject: Re: [PATCH] mm/vmalloc: Introduce DEBUG_VMALLOCINFO to reduce
+ spinlock contention
+Message-Id: <20140417161828.b1740b30bf9d5462f46562cc@linux-foundation.org>
+In-Reply-To: <1397148058-8737-1-git-send-email-ryao@gentoo.org>
+References: <1397148058-8737-1-git-send-email-ryao@gentoo.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Luiz Capitulino <lcapitulino@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, mtosatti@redhat.com, aarcange@redhat.com, mgorman@suse.de, andi@firstfloor.org, davidlohr@hp.com, rientjes@google.com, isimatu.yasuaki@jp.fujitsu.com, yinghai@kernel.org, riel@redhat.com, n-horiguchi@ah.jp.nec.com, kirill@shutemov.name
+To: Richard Yao <ryao@gentoo.org>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Zhang Yanfei <zhangyanfei.yes@gmail.com>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, HATAYAMA Daisuke <d.hatayama@jp.fujitsu.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel@gentoo.org, Matthew Thode <mthode@mthode.org>
 
-On Thu, 10 Apr 2014 13:58:40 -0400 Luiz Capitulino <lcapitulino@redhat.com> wrote:
+On Thu, 10 Apr 2014 12:40:58 -0400 Richard Yao <ryao@gentoo.org> wrote:
 
-> The HugeTLB subsystem uses the buddy allocator to allocate hugepages during
-> runtime. This means that hugepages allocation during runtime is limited to
-> MAX_ORDER order. For archs supporting gigantic pages (that is, page sizes
-> greater than MAX_ORDER), this in turn means that those pages can't be
-> allocated at runtime.
+> Performance analysis of software compilation by Gentoo portage on an
+> Intel E5-2620 with 64GB of RAM revealed that a sizeable amount of time,
+> anywhere from 5% to 15%, was spent in get_vmalloc_info(), with at least
+> 40% of that time spent in the _raw_spin_lock() invoked by it.
 
-Dumb question: what's wrong with just increasing MAX_ORDER?
+This means that something in userspace is beating the crap out of
+/proc/meminfo.  What is it and why is it doing this?
+
+/proc/meminfo reads a large amount of stuff and gathering it will
+always be expensive.  I don't think we really want to be doing
+significant work and adding significant complexity to optimize meminfo.
+
+If there really is a legitimate need to be reading meminfo with this
+frequency then it would be pretty simple to optimise
+get_vmalloc_info(): all it does is to return two ulongs and we could
+maintain those at vmalloc/vfree time rather than doing the big list
+walk.
+
+If we can address these things then the vmap_area_lock problem should
+just go away - the kernel shouldn't be calling vmalloc/vfree at high
+frequency, especially during a compilation workload.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
