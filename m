@@ -1,124 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f46.google.com (mail-ee0-f46.google.com [74.125.83.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 39FF36B0031
-	for <linux-mm@kvack.org>; Fri, 18 Apr 2014 10:17:51 -0400 (EDT)
-Received: by mail-ee0-f46.google.com with SMTP id t10so1670288eei.33
-        for <linux-mm@kvack.org>; Fri, 18 Apr 2014 07:17:50 -0700 (PDT)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id q2si40487044eep.72.2014.04.18.07.17.49
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 18 Apr 2014 07:17:50 -0700 (PDT)
-Date: Fri, 18 Apr 2014 10:17:34 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH RFC -mm v2 3/3] memcg, slab: simplify synchronization
- scheme
-Message-ID: <20140418141734.GD26283@cmpxchg.org>
-References: <cover.1397804745.git.vdavydov@parallels.com>
- <c3c36df83d582f8fac94bb716b82406e24229cad.1397804745.git.vdavydov@parallels.com>
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id D89E16B0031
+	for <linux-mm@kvack.org>; Fri, 18 Apr 2014 10:40:52 -0400 (EDT)
+Received: by mail-pa0-f45.google.com with SMTP id kl14so1526286pab.32
+        for <linux-mm@kvack.org>; Fri, 18 Apr 2014 07:40:52 -0700 (PDT)
+Received: from smtp106.biz.mail.gq1.yahoo.com (smtp106.biz.mail.gq1.yahoo.com. [98.137.12.181])
+        by mx.google.com with SMTP id vv4si3471572pbc.365.2014.04.18.07.40.50
+        for <linux-mm@kvack.org>;
+        Fri, 18 Apr 2014 07:40:50 -0700 (PDT)
+From: Steven King <sfking@fdwdc.com>
+Subject: Re: [PATCH] slab: fix the type of the index on freelist index accessor
+Date: Fri, 18 Apr 2014 07:40:47 -0700
+References: <1397805849-4913-1-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <1397805849-4913-1-git-send-email-iamjoonsoo.kim@lge.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain;
+  charset="iso-8859-1"
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <c3c36df83d582f8fac94bb716b82406e24229cad.1397804745.git.vdavydov@parallels.com>
+Message-Id: <201404180740.48445.sfking@fdwdc.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: mhocko@suse.cz, akpm@linux-foundation.org, glommer@gmail.com, cl@linux-foundation.org, penberg@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, devel@openvz.org
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Geert Uytterhoeven <geert@linux-m68k.org>
 
-I like this patch, but the API names are confusing.  Could we fix up
-that whole thing by any chance?  Some suggestions below, but they
-might only be marginally better...
-
-On Fri, Apr 18, 2014 at 12:04:49PM +0400, Vladimir Davydov wrote:
-> @@ -3156,24 +3157,34 @@ void memcg_free_cache_params(struct kmem_cache *s)
->  	kfree(s->memcg_params);
+On Friday 18 April 2014 12:24:09 am Joonsoo Kim wrote:
+> commit 8dcc774 (slab: introduce byte sized index for the freelist of
+> a slab) changes the size of freelist index and also changes prototype
+> of accessor function to freelist index. And there was a mistake.
+>
+> The mistake is that although it changes the size of freelist index
+> correctly, it changes the size of the index of freelist index incorrectly.
+> With patch, freelist index can be 1 byte or 2 bytes, that means that
+> num of object on on a slab can be more than 255. So we need more than 1
+> byte for the index to find the index of free object on freelist. But,
+> above patch makes this index type 1 byte, so slab which have more than
+> 255 objects cannot work properly and in consequence of it, the system
+> cannot boot.
+>
+> This issue was reported by Steven King on m68knommu which would use
+> 2 bytes freelist index. Please refer following link.
+>
+> https://lkml.org/lkml/2014/4/16/433
+>
+> To fix it is so easy. To change the type of the index of freelist index
+> on accessor functions is enough to fix this bug. Although 2 bytes is
+> enough, I use 4 bytes since it have no bad effect and make things
+> more easier. This fix was suggested and tested by Steven in his
+> original report.
+>
+> Reported-by: Steven King <sfking@fdwdc.com>
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> ---
+> Hello, Pekka.
+>
+> Could you send this for v3.15-rc2?
+> Without this patch, many architecture using 2 bytes freelist index cannot
+> work properly, I guess.
+>
+> This patch is based on v3.15-rc1.
+>
+> Thanks.
+>
+> diff --git a/mm/slab.c b/mm/slab.c
+> index 388cb1a..d7f9f44 100644
+> --- a/mm/slab.c
+> +++ b/mm/slab.c
+> @@ -2572,13 +2572,13 @@ static void *alloc_slabmgmt(struct kmem_cache
+> *cachep, return freelist;
 >  }
->  
-> -void memcg_register_cache(struct kmem_cache *s)
-> +static void memcg_kmem_create_cache(struct mem_cgroup *memcg,
-> +				    struct kmem_cache *root_cache)
-
-memcg_copy_kmem_cache()?
-
-> @@ -3182,49 +3193,30 @@ void memcg_register_cache(struct kmem_cache *s)
->  	 */
->  	smp_wmb();
->  
-> -	/*
-> -	 * Initialize the pointer to this cache in its parent's memcg_params
-> -	 * before adding it to the memcg_slab_caches list, otherwise we can
-> -	 * fail to convert memcg_params_to_cache() while traversing the list.
-> -	 */
-> -	VM_BUG_ON(root->memcg_params->memcg_caches[id]);
-> -	root->memcg_params->memcg_caches[id] = s;
-> -
-> -	mutex_lock(&memcg->slab_caches_mutex);
-> -	list_add(&s->memcg_params->list, &memcg->memcg_slab_caches);
-> -	mutex_unlock(&memcg->slab_caches_mutex);
-> +	BUG_ON(root_cache->memcg_params->memcg_caches[id]);
-> +	root_cache->memcg_params->memcg_caches[id] = cachep;
+>
+> -static inline freelist_idx_t get_free_obj(struct page *page, unsigned char
+> idx) +static inline freelist_idx_t get_free_obj(struct page *page, unsigned
+> int idx) {
+>  	return ((freelist_idx_t *)page->freelist)[idx];
 >  }
->  
-> -void memcg_unregister_cache(struct kmem_cache *s)
-> +static void memcg_kmem_destroy_cache(struct kmem_cache *cachep)
-
-memcg_destroy_kmem_cache()?
-
-> @@ -3258,70 +3250,42 @@ static inline void memcg_resume_kmem_account(void)
->  	current->memcg_kmem_skip_account--;
->  }
->  
-> -static void kmem_cache_destroy_work_func(struct work_struct *w)
-> -{
-> -	struct kmem_cache *cachep;
-> -	struct memcg_cache_params *p;
-> -
-> -	p = container_of(w, struct memcg_cache_params, destroy);
-> -
-> -	cachep = memcg_params_to_cache(p);
-> -
-> -	kmem_cache_shrink(cachep);
-> -	if (atomic_read(&cachep->memcg_params->nr_pages) == 0)
-> -		kmem_cache_destroy(cachep);
-> -}
-> -
->  int __kmem_cache_destroy_memcg_children(struct kmem_cache *s)
-
-kmem_cache_destroy_memcg_copies()?
-
->  static void mem_cgroup_destroy_all_caches(struct mem_cgroup *memcg)
-
-memcg_destroy_kmem_cache_copies()?
-
-> @@ -266,22 +265,15 @@ EXPORT_SYMBOL(kmem_cache_create);
->   * requests going from @memcg to @root_cache. The new cache inherits properties
->   * from its parent.
->   */
-> -void kmem_cache_create_memcg(struct mem_cgroup *memcg, struct kmem_cache *root_cache)
-> +struct kmem_cache *kmem_cache_create_memcg(struct mem_cgroup *memcg,
-> +					   struct kmem_cache *root_cache)
-
-kmem_cache_request_memcg_copy()?
-
+>
+>  static inline void set_free_obj(struct page *page,
+> -					unsigned char idx, freelist_idx_t val)
+> +					unsigned int idx, freelist_idx_t val)
 >  {
-> -	struct kmem_cache *s;
-> +	struct kmem_cache *s = NULL;
->  	char *cache_name;
->  
->  	get_online_cpus();
->  	mutex_lock(&slab_mutex);
->  
-> -	/*
-> -	 * Since per-memcg caches are created asynchronously on first
-> -	 * allocation (see memcg_kmem_get_cache()), several threads can try to
-> -	 * create the same cache, but only one of them may succeed.
-> -	 */
-> -	if (cache_from_memcg_idx(root_cache, memcg_cache_id(memcg)))
-> -		goto out_unlock;
-> -
->  	cache_name = memcg_create_cache_name(memcg, root_cache);
+>  	((freelist_idx_t *)(page->freelist))[idx] = val;
+>  }
 
-memcg_name_kmem_cache()?
+Acked-by: Steven King <sfking@fdwdc.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
