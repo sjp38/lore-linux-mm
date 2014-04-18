@@ -1,50 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id D542A6B0031
-	for <linux-mm@kvack.org>; Fri, 18 Apr 2014 16:18:31 -0400 (EDT)
-Received: by mail-pd0-f169.google.com with SMTP id fp1so1740520pdb.14
-        for <linux-mm@kvack.org>; Fri, 18 Apr 2014 13:18:31 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id c7si15545275pay.150.2014.04.18.13.18.30
-        for <linux-mm@kvack.org>;
-        Fri, 18 Apr 2014 13:18:30 -0700 (PDT)
-Date: Fri, 18 Apr 2014 13:18:28 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH -mm v2 1/2] mem-hotplug: implement get/put_online_mems
-Message-Id: <20140418131828.804a181e5b4364a704d786cc@linux-foundation.org>
-In-Reply-To: <b65ff63d5805c86fa288bc09db4f378492c6c543.1396857765.git.vdavydov@parallels.com>
-References: <cover.1396857765.git.vdavydov@parallels.com>
-	<b65ff63d5805c86fa288bc09db4f378492c6c543.1396857765.git.vdavydov@parallels.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail-ee0-f41.google.com (mail-ee0-f41.google.com [74.125.83.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 62C946B0037
+	for <linux-mm@kvack.org>; Fri, 18 Apr 2014 16:48:43 -0400 (EDT)
+Received: by mail-ee0-f41.google.com with SMTP id t10so1953223eei.28
+        for <linux-mm@kvack.org>; Fri, 18 Apr 2014 13:48:42 -0700 (PDT)
+Received: from mycroft.westnet.com (Mycroft.westnet.com. [216.187.52.7])
+        by mx.google.com with ESMTPS id u5si41867809een.173.2014.04.18.13.48.40
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 18 Apr 2014 13:48:41 -0700 (PDT)
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
+Message-ID: <21329.36761.970643.523119@quad.stoffel.home>
+Date: Fri, 18 Apr 2014 16:48:25 -0400
+From: "John Stoffel" <john@stoffel.org>
+Subject: Re: [PATCH 0/2] Disable zone_reclaim_mode by default v2
+In-Reply-To: <20140418130543.8619064c0e5d26cd914c4c3c@linux-foundation.org>
+References: <1396945380-18592-1-git-send-email-mgorman@suse.de>
+	<20140418130543.8619064c0e5d26cd914c4c3c@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: cl@linux-foundation.org, penberg@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, devel@openvz.org, Tang Chen <tangchen@cn.fujitsu.com>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Toshi Kani <toshi.kani@hp.com>, Xishi Qiu <qiuxishi@huawei.com>, Jiang Liu <liuj97@gmail.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, David Rientjes <rientjes@google.com>, Wen Congyang <wency@cn.fujitsu.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Lai Jiangshan <laijs@cn.fujitsu.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, Robert Haas <robertmhaas@gmail.com>, Josh Berkus <josh@agliodbs.com>, Andres Freund <andres@2ndquadrant.com>, Christoph Lameter <cl@linux.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>
 
-On Mon, 7 Apr 2014 13:45:34 +0400 Vladimir Davydov <vdavydov@parallels.com> wrote:
+>>>>> "Andrew" == Andrew Morton <akpm@linux-foundation.org> writes:
 
-> {un}lock_memory_hotplug, which is used to synchronize against memory
-> hotplug, is currently backed by a mutex, which makes it a bit of a
-> hammer - threads that only want to get a stable value of online nodes
-> mask won't be able to proceed concurrently. Also, it imposes some strong
-> locking ordering rules on it, which narrows down the set of its usage
-> scenarios.
-> 
-> This patch introduces get/put_online_mems, which are the same as
-> get/put_online_cpus, but for memory hotplug, i.e. executing a code
-> inside a get/put_online_mems section will guarantee a stable value of
-> online nodes, present pages, etc.
+Andrew> On Tue,  8 Apr 2014 09:22:58 +0100 Mel Gorman <mgorman@suse.de> wrote:
+>> Changelog since v1
+>> o topology comment updates
+>> 
+>> When it was introduced, zone_reclaim_mode made sense as NUMA distances
+>> punished and workloads were generally partitioned to fit into a NUMA
+>> node. NUMA machines are now common but few of the workloads are NUMA-aware
+>> and it's routine to see major performance due to zone_reclaim_mode being
+>> enabled but relatively few can identify the problem.
 
-Well that seems a nice change.  I added the important paragraph
 
-"lock_memory_hotplug()/unlock_memory_hotplug() are removed altogether."
-
-I'll Cc a large number of people who have recently worked on the memory
-hotplug code.  Hopefully some of them will have time to review and test
-these patches, thanks.
-
+This is unclear here.  "see major performance <what> due" doesn't make
+sense to me.  
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
