@@ -1,65 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f171.google.com (mail-lb0-f171.google.com [209.85.217.171])
-	by kanga.kvack.org (Postfix) with ESMTP id AE73B6B0031
-	for <linux-mm@kvack.org>; Fri, 18 Apr 2014 13:57:58 -0400 (EDT)
-Received: by mail-lb0-f171.google.com with SMTP id w7so1546336lbi.2
-        for <linux-mm@kvack.org>; Fri, 18 Apr 2014 10:57:57 -0700 (PDT)
-Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id on7si19436822lbb.95.2014.04.18.10.57.56
+Received: from mail-ee0-f50.google.com (mail-ee0-f50.google.com [74.125.83.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F6436B0031
+	for <linux-mm@kvack.org>; Fri, 18 Apr 2014 14:03:13 -0400 (EDT)
+Received: by mail-ee0-f50.google.com with SMTP id c13so1863598eek.9
+        for <linux-mm@kvack.org>; Fri, 18 Apr 2014 11:03:12 -0700 (PDT)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id s46si41326989eeg.75.2014.04.18.11.03.11
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 18 Apr 2014 10:57:56 -0700 (PDT)
-Message-ID: <5351679F.5040908@parallels.com>
-Date: Fri, 18 Apr 2014 21:57:51 +0400
-From: Vladimir Davydov <vdavydov@parallels.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 18 Apr 2014 11:03:11 -0700 (PDT)
+Date: Fri, 18 Apr 2014 14:03:09 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 06/16] mm: page_alloc: Calculate classzone_idx once from
+ the zonelist ref
+Message-ID: <20140418180309.GC29210@cmpxchg.org>
+References: <1397832643-14275-1-git-send-email-mgorman@suse.de>
+ <1397832643-14275-7-git-send-email-mgorman@suse.de>
 MIME-Version: 1.0
-Subject: Re: memcg with kmem limit doesn't recover after disk i/o causes limit
- to be hit
-References: <20140416154650.GA3034@alpha.arachsys.com> <20140418155939.GE4523@dhcp22.suse.cz>
-In-Reply-To: <20140418155939.GE4523@dhcp22.suse.cz>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1397832643-14275-7-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Richard Davies <richard@arachsys.com>
-Cc: Michal Hocko <mhocko@suse.cz>, cgroups@vger.kernel.org, linux-mm@kvack.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>
 
-Hi Richard,
+On Fri, Apr 18, 2014 at 03:50:33PM +0100, Mel Gorman wrote:
+> @@ -2463,7 +2462,7 @@ static inline struct page *
+>  __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+>  	struct zonelist *zonelist, enum zone_type high_zoneidx,
+>  	nodemask_t *nodemask, struct zone *preferred_zone,
+> -	int migratetype)
+> +	int classzone_idx, int migratetype)
+>  {
+>  	const gfp_t wait = gfp_mask & __GFP_WAIT;
+>  	struct page *page = NULL;
 
-18.04.2014 19:59, Michal Hocko:
-> [CC Vladimir]
-> 
-> On Wed 16-04-14 16:46:50, Richard Davies wrote:
->> Hi all,
->>
->> I have a simple reproducible test case in which untar in a memcg with a kmem
->> limit gets into trouble during heavy disk i/o (on ext3) and never properly
->> recovers. This is simplified from real world problems with heavy disk i/o
->> inside containers.
->>
->> I feel there are probably two bugs here
->> - the disk i/o is not successfully managed within the kmem limit
->> - the cgroup never recovers, despite the untar i/o process exiting
+There is another potential update of preferred_zone in this function
+after which the classzone_idx should probably be refreshed:
 
-Unfortunately, work on per cgroup kmem limits is not completed yet.
-Currently it lacks kmem reclaim on per cgroup memory pressure, which is
-vital for using kmem limits in real life. Basically that means that if a
-process inside a memory cgroup reaches its kmem limit, it will be
-returned ENOMEM on any allocation attempt, and no attempt will be made
-to reclaim old cached data.
-
-In your case untar consumes all kmem available to the cgroup by
-allocating memory for storing fs metadata (inodes, dentries). Those
-metadata are left cached in memory after untar dies, because they can be
-potentially used by other processes. As a result, any further attempt to
-allocate kmem (e.g. to create a process) will fail. It should try to
-reclaim the cached metadata instead, but this functionality is not
-implemented yet.
-
-In short, kmem limiting for memory cgroups is currently broken. Do not
-use it. We are working on making it usable though.
-
-Thanks.
+	/*
+	 * Find the true preferred zone if the allocation is unconstrained by
+	 * cpusets.
+	 */
+	if (!(alloc_flags & ALLOC_CPUSET) && !nodemask)
+		first_zones_zonelist(zonelist, high_zoneidx, NULL,
+					&preferred_zone);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
