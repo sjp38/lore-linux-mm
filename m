@@ -1,57 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f46.google.com (unknown [74.125.83.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 893FF6B0068
-	for <linux-mm@kvack.org>; Fri, 18 Apr 2014 10:50:59 -0400 (EDT)
-Received: by mail-ee0-f46.google.com with SMTP id t10so1698049eei.33
-        for <linux-mm@kvack.org>; Fri, 18 Apr 2014 07:50:48 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m49si40636408eeo.11.2014.04.18.07.50.47
+Received: from mail-ie0-f172.google.com (mail-ie0-f172.google.com [209.85.223.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 74DC56B0038
+	for <linux-mm@kvack.org>; Fri, 18 Apr 2014 10:55:02 -0400 (EDT)
+Received: by mail-ie0-f172.google.com with SMTP id as1so1691053iec.31
+        for <linux-mm@kvack.org>; Fri, 18 Apr 2014 07:55:02 -0700 (PDT)
+Received: from fujitsu25.fnanic.fujitsu.com (fujitsu25.fnanic.fujitsu.com. [192.240.6.15])
+        by mx.google.com with ESMTPS id ac8si18531630icc.18.2014.04.18.07.55.00
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 18 Apr 2014 07:50:48 -0700 (PDT)
-From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 08/16] mm: page_alloc: Only check the alloc flags and gfp_mask for dirty once
-Date: Fri, 18 Apr 2014 15:50:35 +0100
-Message-Id: <1397832643-14275-9-git-send-email-mgorman@suse.de>
-In-Reply-To: <1397832643-14275-1-git-send-email-mgorman@suse.de>
-References: <1397832643-14275-1-git-send-email-mgorman@suse.de>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 18 Apr 2014 07:55:01 -0700 (PDT)
+From: Motohiro Kosaki <Motohiro.Kosaki@us.fujitsu.com>
+Date: Fri, 18 Apr 2014 07:54:36 -0700
+Subject: RE: [PATCH] ipc/shm: Increase the defaults for SHMALL, SHMMAX to
+ infinity
+Message-ID: <6B2BA408B38BA1478B473C31C3D2074E30986F0FF0@SV-EXCHANGE1.Corp.FC.LOCAL>
+References: <1397812720-5629-1-git-send-email-manfred@colorfullife.com>
+In-Reply-To: <1397812720-5629-1-git-send-email-manfred@colorfullife.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux-MM <linux-mm@kvack.org>
-Cc: Linux-FSDevel <linux-fsdevel@vger.kernel.org>
+To: Manfred Spraul <manfred@colorfullife.com>, Andrew Morton <akpm@linux-foundation.org>, Davidlohr Bueso <davidlohr.bueso@hp.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Motohiro Kosaki JP <kosaki.motohiro@jp.fujitsu.com>, "gthelen@google.com" <gthelen@google.com>, "aswin@hp.com" <aswin@hp.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mtk.manpages@gmail.com" <mtk.manpages@gmail.com>
 
-Currently it's calculated once per zone in the zonelist.
 
-Signed-off-by: Mel Gorman <mgorman@suse.de>
----
- mm/page_alloc.c | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index c5933a5..770735a 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1911,6 +1911,8 @@ get_page_from_freelist(gfp_t gfp_mask, nodemask_t *nodemask, unsigned int order,
- 	nodemask_t *allowednodes = NULL;/* zonelist_cache approximation */
- 	int zlc_active = 0;		/* set if using zonelist_cache */
- 	int did_zlc_setup = 0;		/* just call zlc_setup() one time */
-+	bool consider_zone_dirty = (alloc_flags & ALLOC_WMARK_LOW) &&
-+				(gfp_mask & __GFP_WRITE);
- 
- zonelist_scan:
- 	/*
-@@ -1969,8 +1971,7 @@ zonelist_scan:
- 		 * will require awareness of zones in the
- 		 * dirty-throttling and the flusher threads.
- 		 */
--		if ((alloc_flags & ALLOC_WMARK_LOW) &&
--		    (gfp_mask & __GFP_WRITE) && !zone_dirty_ok(zone))
-+		if (consider_zone_dirty && !zone_dirty_ok(zone))
- 			continue;
- 
- 		mark = zone->watermark[alloc_flags & ALLOC_WMARK_MASK];
--- 
-1.8.4.5
+> -----Original Message-----
+> From: Manfred Spraul [mailto:manfred@colorfullife.com]
+> Sent: Friday, April 18, 2014 2:19 AM
+> To: Andrew Morton; Davidlohr Bueso
+> Cc: LKML; KAMEZAWA Hiroyuki; Motohiro Kosaki JP; gthelen@google.com; aswi=
+n@hp.com; linux-mm@kvack.org; Manfred Spraul;
+> mtk.manpages@gmail.com
+> Subject: [PATCH] ipc/shm: Increase the defaults for SHMALL, SHMMAX to inf=
+inity
+>=20
+> System V shared memory
+>=20
+> a) can be abused to trigger out-of-memory conditions and the standard
+>    measures against out-of-memory do not work:
+>=20
+>     - it is not possible to use setrlimit to limit the size of shm segmen=
+ts.
+>=20
+>     - segments can exist without association with any processes, thus
+>       the oom-killer is unable to free that memory.
+>=20
+> b) is typically used for shared information - today often multiple GB.
+>    (e.g. database shared buffers)
+>=20
+> The current default is a maximum segment size of 32 MB and a maximum tota=
+l size of 8 GB. This is often too much for a) and not
+> enough for b), which means that lots of users must change the defaults.
+>=20
+> This patch increases the default limits to ULONG_MAX, which is perfect fo=
+r case b). The defaults are used after boot and as the initial
+> value for each new namespace.
+>=20
+> Admins/distros that need a protection against a) should reduce the limits=
+ and/or enable shm_rmid_forced.
+>=20
+> Further notes:
+> - The patch only changes the boot time default, overrides behave as befor=
+e:
+> 	# sysctl kernel/shmall=3D33554432
+>   would recreate the previous limit for SHMMAX (for the current namespace=
+).
+>=20
+> - Disabling sysv shm allocation is possible with:
+> 	# sysctl kernel.shmall=3D0
+>   (not a new feature, also per-namespace)
+>=20
+> - ULONG_MAX is not really infinity, but 18 Exabyte segment size and
+>   75 Zettabyte total size. This should be enough for the next few weeks.
+>   (assuming a 64-bit system with 4k pages)
+>=20
+> Risks:
+> - The patch breaks installations that use "take current value and increas=
+e
+>   it a bit". [seems to exist, http://marc.info/?l=3Dlinux-mm&m=3D13963833=
+4330127]
+>   After a:
+> 	# CUR=3D`sysctl -n kernel.shmmax`
+> 	# NEW=3D`echo $CUR+1 | bc -l`
+> 	# sysctl -n kernel.shmmax=3D$NEW
+>   shmmax ends up as 0, which disables shm allocations.
+>=20
+> - There is no wrap-around protection for ns->shm_ctlall, i.e. the 75 ZB
+>   limit is not enforced.
+>=20
+> Signed-off-by: Manfred Spraul <manfred@colorfullife.com>
+> Reported-by: Davidlohr Bueso <davidlohr@hp.com>
+> Cc: mtk.manpages@gmail.com
+
+I'm ok either ULONG_MAX or 0 (special value of infinity).
+
+Acked-by: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
