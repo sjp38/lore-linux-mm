@@ -1,100 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 604146B0031
-	for <linux-mm@kvack.org>; Fri, 18 Apr 2014 18:22:48 -0400 (EDT)
-Received: by mail-pa0-f50.google.com with SMTP id kq14so1853939pab.9
-        for <linux-mm@kvack.org>; Fri, 18 Apr 2014 15:22:48 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id l4si4853648pav.405.2014.04.18.15.22.47
-        for <linux-mm@kvack.org>;
-        Fri, 18 Apr 2014 15:22:47 -0700 (PDT)
-Date: Fri, 18 Apr 2014 15:22:45 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 0/5] get_user_pages() cleanup
-Message-Id: <20140418152245.b6d41e544ff5467ec8c3df67@linux-foundation.org>
-In-Reply-To: <1396535722-31108-1-git-send-email-kirill.shutemov@linux.intel.com>
-References: <1396535722-31108-1-git-send-email-kirill.shutemov@linux.intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-pb0-f53.google.com (mail-pb0-f53.google.com [209.85.160.53])
+	by kanga.kvack.org (Postfix) with ESMTP id D6A936B0031
+	for <linux-mm@kvack.org>; Fri, 18 Apr 2014 18:59:51 -0400 (EDT)
+Received: by mail-pb0-f53.google.com with SMTP id rp16so1859439pbb.40
+        for <linux-mm@kvack.org>; Fri, 18 Apr 2014 15:59:51 -0700 (PDT)
+Received: from mail-pa0-x22d.google.com (mail-pa0-x22d.google.com [2607:f8b0:400e:c03::22d])
+        by mx.google.com with ESMTPS id ic8si17051585pad.177.2014.04.18.15.59.50
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 18 Apr 2014 15:59:50 -0700 (PDT)
+Received: by mail-pa0-f45.google.com with SMTP id kl14so1863022pab.18
+        for <linux-mm@kvack.org>; Fri, 18 Apr 2014 15:59:50 -0700 (PDT)
+From: Jianyu Zhan <nasa4836@gmail.com>
+Subject: [PATCH 1/2] mm/memcontrol.c: remove meaningless while loop in mem_cgroup_iter()
+Date: Sat, 19 Apr 2014 06:58:55 +0800
+Message-Id: <1397861935-31595-1-git-send-email-nasa4836@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: linux-mm@kvack.org, Jan Kara <jack@suse.cz>
+To: hannes@cmpxchg.org, mhocko@suse.cz, bsingharora@gmail.com, kamezawa.hiroyu@jp.fujitsu.com
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, nasa4836@gmail.com
 
-On Thu,  3 Apr 2014 17:35:17 +0300 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
+Currently, the iteration job in mem_cgroup_iter() all delegates
+to __mem_cgroup_iter_next(), which will skip dead node.
 
-> Here's my attempt to cleanup of get_user_pages() code in order to make it
-> more maintainable.
-> 
-> Tested on my laptop for few hours. No crashes so far ;)
-> 
-> Let me know if it makes sense. Any suggestions are welcome.
-> 
-> Kirill A. Shutemov (5):
->   mm: move get_user_pages()-related code to separate file
->   mm: extract in_gate_area() case from __get_user_pages()
->   mm: cleanup follow_page_mask()
->   mm: extract code to fault in a page from __get_user_pages()
->   mm: cleanup __get_user_pages()
-> 
->  mm/Makefile |   2 +-
->  mm/gup.c    | 638 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
->  mm/memory.c | 611 ---------------------------------------------------------
+Thus, the outer while loop in mem_cgroup_iter() is meaningless.
+It could be proven by this:
 
-Fair enough.
+1. memcg != NULL
+    we are done, no loop needed.
+2. memcg == NULL
+   2.1 prev != NULL, a round-trip is done, break out, no loop.
+   2.2 prev == NULL, this is impossible, since prev==NULL means
+       the initial interation, it will returns memcg==root.
 
-We don't have anything like enough #includes in the new gup.c so
-there's a risk of Kconfig-dependent breakage.  I plugged in a few
-obvious ones, but many more are surely missing.
+So, this patches remove this meaningless while loop.
 
-
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: mm/gup.c: tweaks
-
-- include some more header files, but many are still missed
-- fix some 80-col overflows by removing unneeded `inline'
-
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Jianyu Zhan <nasa4836@gmail.com>
 ---
+ mm/memcontrol.c | 49 ++++++++++++++++++++++---------------------------
+ 1 file changed, 22 insertions(+), 27 deletions(-)
 
- mm/gup.c |   11 ++++++++---
- 1 file changed, 8 insertions(+), 3 deletions(-)
-
-diff -puN mm/gup.c~a mm/gup.c
---- a/mm/gup.c~a
-+++ a/mm/gup.c
-@@ -1,3 +1,8 @@
-+#include <linux/kernel.h>
-+#include <linux/errno.h>
-+#include <linux/err.h>
-+#include <linux/spinlock.h>
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 29501f0..e0ce15c 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1212,6 +1212,8 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
+ {
+ 	struct mem_cgroup *memcg = NULL;
+ 	struct mem_cgroup *last_visited = NULL;
++	struct mem_cgroup_reclaim_iter *uninitialized_var(iter);
++	int uninitialized_var(seq);
+ 
+ 	if (mem_cgroup_disabled())
+ 		return NULL;
+@@ -1229,40 +1231,33 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
+ 	}
+ 
+ 	rcu_read_lock();
+-	while (!memcg) {
+-		struct mem_cgroup_reclaim_iter *uninitialized_var(iter);
+-		int uninitialized_var(seq);
+-
+-		if (reclaim) {
+-			int nid = zone_to_nid(reclaim->zone);
+-			int zid = zone_idx(reclaim->zone);
+-			struct mem_cgroup_per_zone *mz;
+-
+-			mz = mem_cgroup_zoneinfo(root, nid, zid);
+-			iter = &mz->reclaim_iter[reclaim->priority];
+-			if (prev && reclaim->generation != iter->generation) {
+-				iter->last_visited = NULL;
+-				goto out_unlock;
+-			}
++	if (reclaim) {
++		int nid = zone_to_nid(reclaim->zone);
++		int zid = zone_idx(reclaim->zone);
++		struct mem_cgroup_per_zone *mz;
+ 
+-			last_visited = mem_cgroup_iter_load(iter, root, &seq);
++		mz = mem_cgroup_zoneinfo(root, nid, zid);
++		iter = &mz->reclaim_iter[reclaim->priority];
++		if (prev && reclaim->generation != iter->generation) {
++			iter->last_visited = NULL;
++			goto out_unlock;
+ 		}
+ 
+-		memcg = __mem_cgroup_iter_next(root, last_visited);
++		last_visited = mem_cgroup_iter_load(iter, root, &seq);
++	}
+ 
+-		if (reclaim) {
+-			mem_cgroup_iter_update(iter, last_visited, memcg, root,
+-					seq);
++	memcg = __mem_cgroup_iter_next(root, last_visited);
+ 
+-			if (!memcg)
+-				iter->generation++;
+-			else if (!prev && memcg)
+-				reclaim->generation = iter->generation;
+-		}
++	if (reclaim) {
++		mem_cgroup_iter_update(iter, last_visited, memcg, root,
++				seq);
+ 
+-		if (prev && !memcg)
+-			goto out_unlock;
++		if (!memcg)
++			iter->generation++;
++		else if (!prev && memcg)
++			reclaim->generation = iter->generation;
+ 	}
 +
- #include <linux/hugetlb.h>
- #include <linux/mm.h>
- #include <linux/rmap.h>
-@@ -6,8 +11,8 @@
- 
- #include "internal.h"
- 
--static inline struct page *no_page_table(struct vm_area_struct *vma,
--		unsigned int flags)
-+static struct page *no_page_table(struct vm_area_struct *vma,
-+				  unsigned int flags)
- {
- 	/*
- 	 * When core dumping an enormous anonymous area that nobody
-@@ -208,7 +213,7 @@ struct page *follow_page_mask(struct vm_
- 	return follow_page_pte(vma, address, pmd, flags);
- }
- 
--static inline int stack_guard_page(struct vm_area_struct *vma, unsigned long addr)
-+static int stack_guard_page(struct vm_area_struct *vma, unsigned long addr)
- {
- 	return stack_guard_page_start(vma, addr) ||
- 	       stack_guard_page_end(vma, addr+PAGE_SIZE);
-_
+ out_unlock:
+ 	rcu_read_unlock();
+ out_css_put:
+-- 
+1.9.0.GIT
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
