@@ -1,78 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f53.google.com (mail-la0-f53.google.com [209.85.215.53])
-	by kanga.kvack.org (Postfix) with ESMTP id EBB196B0031
-	for <linux-mm@kvack.org>; Fri, 18 Apr 2014 04:08:17 -0400 (EDT)
-Received: by mail-la0-f53.google.com with SMTP id b8so1146079lan.26
-        for <linux-mm@kvack.org>; Fri, 18 Apr 2014 01:08:17 -0700 (PDT)
-Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id e6si18534131lah.142.2014.04.18.01.08.15
+Received: from mail-ee0-f52.google.com (mail-ee0-f52.google.com [74.125.83.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 553D16B0031
+	for <linux-mm@kvack.org>; Fri, 18 Apr 2014 05:18:48 -0400 (EDT)
+Received: by mail-ee0-f52.google.com with SMTP id e49so1373422eek.25
+        for <linux-mm@kvack.org>; Fri, 18 Apr 2014 02:18:47 -0700 (PDT)
+Received: from mail-ee0-f47.google.com (mail-ee0-f47.google.com [74.125.83.47])
+        by mx.google.com with ESMTPS id x46si39345136eea.119.2014.04.18.02.18.46
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 18 Apr 2014 01:08:16 -0700 (PDT)
-Message-ID: <5350DD6A.1020804@parallels.com>
-Date: Fri, 18 Apr 2014 12:08:10 +0400
-From: Vladimir Davydov <vdavydov@parallels.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH RFC -mm v2 0/3] kmemcg: simplify work-flow (was "memcg-vs-slab
- cleanup")
-References: <cover.1397804745.git.vdavydov@parallels.com>
-In-Reply-To: <cover.1397804745.git.vdavydov@parallels.com>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 18 Apr 2014 02:18:46 -0700 (PDT)
+Received: by mail-ee0-f47.google.com with SMTP id b15so1395400eek.6
+        for <linux-mm@kvack.org>; Fri, 18 Apr 2014 02:18:46 -0700 (PDT)
+From: Manfred Spraul <manfred@colorfullife.com>
+Subject: [PATCH] ipc/shm: Increase the defaults for SHMALL, SHMMAX to infinity
+Date: Fri, 18 Apr 2014 11:18:40 +0200
+Message-Id: <1397812720-5629-1-git-send-email-manfred@colorfullife.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@suse.cz, hannes@cmpxchg.org
-Cc: akpm@linux-foundation.org, glommer@gmail.com, cl@linux-foundation.org, penberg@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, devel@openvz.org
+To: Andrew Morton <akpm@linux-foundation.org>, Davidlohr Bueso <davidlohr.bueso@hp.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, gthelen@google.com, aswin@hp.com, linux-mm@kvack.org, Manfred Spraul <manfred@colorfullife.com>, mtk.manpages@gmail.com
 
-On 04/18/2014 12:04 PM, Vladimir Davydov wrote:
-> Hi Michal, Johannes,
->
-> This patch-set is a part of preparations for kmemcg re-parenting. It
-> targets at simplifying kmemcg work-flows and synchronization.
->
-> First, it removes async per memcg cache destruction (see patches 1, 2).
-> Now caches are only destroyed on memcg offline. That means the caches
-> that are not empty on memcg offline will be leaked. However, they are
-> already leaked, because memcg_cache_params::nr_pages normally never
-> drops to 0 so the destruction work is never scheduled except
-> kmem_cache_shrink is called explicitly. In the future I'm planning
-> reaping such dead caches on vmpressure or periodically.
->
-> Second, it substitutes per memcg slab_caches_mutex's with the global
-> memcg_slab_mutex, which should be taken during the whole per memcg cache
-> creation/destruction path before the slab_mutex (see patch 3). This
-> greatly simplifies synchronization among various per memcg cache
-> creation/destruction paths.
+System V shared memory
 
-v1 can be found here: https://lkml.org/lkml/2014/4/9/298
+a) can be abused to trigger out-of-memory conditions and the standard
+   measures against out-of-memory do not work:
 
-Changes in v2:
-  - substitute per memcg slab_caches_mutex's with the global
-    memcg_slab_mutex and re-split the set.
+    - it is not possible to use setrlimit to limit the size of shm segments.
 
->
-> I really need your help, because I'm far not sure if what I'm doing here
-> is right. So I would appreciate if you could look through the patches
-> and share your thoughts about the design changes they introduce.
->
-> Thanks,
->
-> Vladimir Davydov (3):
->    memcg, slab: do not schedule cache destruction when last page goes
->      away
->    memcg, slab: merge memcg_{bind,release}_pages to
->      memcg_{un}charge_slab
->    memcg, slab: simplify synchronization scheme
->
->   include/linux/memcontrol.h |   15 +--
->   include/linux/slab.h       |    8 +-
->   mm/memcontrol.c            |  231 +++++++++++++++-----------------------------
->   mm/slab.c                  |    2 -
->   mm/slab.h                  |   28 +-----
->   mm/slab_common.c           |   22 ++---
->   mm/slub.c                  |    2 -
->   7 files changed, 92 insertions(+), 216 deletions(-)
->
+    - segments can exist without association with any processes, thus
+      the oom-killer is unable to free that memory.
+
+b) is typically used for shared information - today often multiple GB.
+   (e.g. database shared buffers)
+
+The current default is a maximum segment size of 32 MB and a maximum total
+size of 8 GB. This is often too much for a) and not enough for b), which
+means that lots of users must change the defaults.
+
+This patch increases the default limits to ULONG_MAX, which is perfect for
+case b). The defaults are used after boot and as the initial value for
+each new namespace.
+
+Admins/distros that need a protection against a) should reduce the limits
+and/or enable shm_rmid_forced.
+
+Further notes:
+- The patch only changes the boot time default, overrides behave as before:
+	# sysctl kernel/shmall=33554432
+  would recreate the previous limit for SHMMAX (for the current namespace).
+
+- Disabling sysv shm allocation is possible with:
+	# sysctl kernel.shmall=0
+  (not a new feature, also per-namespace)
+
+- ULONG_MAX is not really infinity, but 18 Exabyte segment size and
+  75 Zettabyte total size. This should be enough for the next few weeks.
+  (assuming a 64-bit system with 4k pages)
+
+Risks:
+- The patch breaks installations that use "take current value and increase
+  it a bit". [seems to exist, http://marc.info/?l=linux-mm&m=139638334330127]
+  After a:
+	# CUR=`sysctl -n kernel.shmmax`
+	# NEW=`echo $CUR+1 | bc -l`
+	# sysctl -n kernel.shmmax=$NEW
+  shmmax ends up as 0, which disables shm allocations.
+
+- There is no wrap-around protection for ns->shm_ctlall, i.e. the 75 ZB
+  limit is not enforced.
+
+Signed-off-by: Manfred Spraul <manfred@colorfullife.com>
+Reported-by: Davidlohr Bueso <davidlohr@hp.com>
+Cc: mtk.manpages@gmail.com
+---
+ include/linux/shm.h      | 1 -
+ include/uapi/linux/shm.h | 8 +++-----
+ 2 files changed, 3 insertions(+), 6 deletions(-)
+
+diff --git a/include/linux/shm.h b/include/linux/shm.h
+index 1e2cd2e..b33bbeb 100644
+--- a/include/linux/shm.h
++++ b/include/linux/shm.h
+@@ -4,7 +4,6 @@
+ #include <asm/page.h>
+ #include <uapi/linux/shm.h>
+ 
+-#define SHMALL (SHMMAX/PAGE_SIZE*(SHMMNI/16)) /* max shm system wide (pages) */
+ #include <asm/shmparam.h>
+ struct shmid_kernel /* private to the kernel */
+ {	
+diff --git a/include/uapi/linux/shm.h b/include/uapi/linux/shm.h
+index 78b6941..b7370f9 100644
+--- a/include/uapi/linux/shm.h
++++ b/include/uapi/linux/shm.h
+@@ -9,15 +9,13 @@
+ 
+ /*
+  * SHMMAX, SHMMNI and SHMALL are upper limits are defaults which can
+- * be increased by sysctl
++ * be modified by sysctl
+  */
+ 
+-#define SHMMAX 0x2000000		 /* max shared seg size (bytes) */
++#define SHMMAX ULONG_MAX		 /* max shared seg size (bytes) */
+ #define SHMMIN 1			 /* min shared seg size (bytes) */
+ #define SHMMNI 4096			 /* max num of segs system wide */
+-#ifndef __KERNEL__
+-#define SHMALL (SHMMAX/getpagesize()*(SHMMNI/16))
+-#endif
++#define SHMALL ULONG_MAX		 /* max shm system wide (pages) */
+ #define SHMSEG SHMMNI			 /* max shared segs per process */
+ 
+ 
+-- 
+1.9.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
