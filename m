@@ -1,72 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f45.google.com (mail-ee0-f45.google.com [74.125.83.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 579436B0031
-	for <linux-mm@kvack.org>; Fri, 18 Apr 2014 05:26:07 -0400 (EDT)
-Received: by mail-ee0-f45.google.com with SMTP id d17so1396298eek.18
-        for <linux-mm@kvack.org>; Fri, 18 Apr 2014 02:26:06 -0700 (PDT)
-Received: from mail-ee0-f48.google.com (mail-ee0-f48.google.com [74.125.83.48])
-        by mx.google.com with ESMTPS id 49si39405119een.5.2014.04.18.02.26.05
+Received: from mail-ee0-f53.google.com (mail-ee0-f53.google.com [74.125.83.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 47D466B0031
+	for <linux-mm@kvack.org>; Fri, 18 Apr 2014 07:36:15 -0400 (EDT)
+Received: by mail-ee0-f53.google.com with SMTP id b57so1529156eek.12
+        for <linux-mm@kvack.org>; Fri, 18 Apr 2014 04:36:14 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id g45si39801803eev.250.2014.04.18.04.36.12
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 18 Apr 2014 02:26:06 -0700 (PDT)
-Received: by mail-ee0-f48.google.com with SMTP id b57so1396403eek.7
-        for <linux-mm@kvack.org>; Fri, 18 Apr 2014 02:26:05 -0700 (PDT)
-Message-ID: <5350EFAA.2030607@colorfullife.com>
-Date: Fri, 18 Apr 2014 11:26:02 +0200
-From: Manfred Spraul <manfred@colorfullife.com>
+        Fri, 18 Apr 2014 04:36:13 -0700 (PDT)
+Date: Fri, 18 Apr 2014 13:36:11 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch] mm: memcontrol: remove hierarchy restrictions for
+ swappiness and oom_control
+Message-ID: <20140418113611.GA7568@dhcp22.suse.cz>
+References: <1397682798-22906-1-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH v3] ipc,shm: disable shmmax and shmall by default
-References: <1397784345.2556.26.camel@buesod1.americas.hpqcorp.net>
-In-Reply-To: <1397784345.2556.26.camel@buesod1.americas.hpqcorp.net>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1397682798-22906-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <davidlohr@hp.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Michael Kerrisk <mtk.manpages@gmail.com>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, aswin@hp.com, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-api@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Hi Davidlohr,
+On Wed 16-04-14 17:13:18, Johannes Weiner wrote:
+> Per-memcg swappiness and oom killing can currently not be tweaked on a
+> memcg that is part of a hierarchy, but not the root of that hierarchy.
+> Users have complained that they can't configure this when they turned
+> on hierarchy mode.  In fact, with hierarchy mode becoming the default,
+> this restriction disables the tunables entirely.
 
-On 04/18/2014 03:25 AM, Davidlohr Bueso wrote:
-> So a value of 0 bytes or pages, for shmmax and shmall, respectively,
-> implies unlimited memory, as opposed to disabling sysv shared memory.
-That might be a second risk:
-Right now, a sysadmin can prevent sysv memory allocations with
+Except when we would handle the first level under root differently,
+which is ugly.
 
-     # sysctl kernel.shmall=0
+> But there is no good reason for this restriction. 
 
-After your patch is applied, this line allows unlimited allocations.
+I had a patch for this somewhere on the think_more pile. I wasn't
+particularly happy about the semantic so I haven't posted it.
 
-Obviously my patch has the opposite problem: 64-bit wrap-arounds.
+> The settings for
+> swappiness and OOM killing are taken from whatever memcg whose limit
+> triggered reclaim and OOM invocation, regardless of its position in
+> the hierarchy tree.
 
-> --- a/include/uapi/linux/shm.h
-> +++ b/include/uapi/linux/shm.h
-> @@ -9,14 +9,14 @@
->   
->   /*
->    * SHMMAX, SHMMNI and SHMALL are upper limits are defaults which can
-> - * be increased by sysctl
-> + * be modified by sysctl. By default, disable SHMMAX and SHMALL with
-> + * 0 bytes, thus allowing processes to have unlimited shared memory.
->    */
-> -
-> -#define SHMMAX 0x2000000		 /* max shared seg size (bytes) */
-> +#define SHMMAX 0		         /* max shared seg size (bytes) */
->   #define SHMMIN 1			 /* min shared seg size (bytes) */
->   #define SHMMNI 4096			 /* max num of segs system wide */
->   #ifndef __KERNEL__
-> -#define SHMALL (SHMMAX/getpagesize()*(SHMMNI/16))
-> +#define SHMALL 0
->   #endif
->   #define SHMSEG SHMMNI			 /* max shared segs per process */
->   
-The "#ifndef __KERNEL__" is not required:
-As there is no reference to PAGE_SIZE anymore, one definition for SHMALL 
-is sufficient.
+This is OK for the OOM knob because the memory pressure cannot be
+handled at that level in hierarchy and that is where the OOM happens.
 
+I am not so sure about the swappiness though. The swappiness tells us
+how to proportionally scan anon vs. file LRUs and those are per-memcg,
+not per-hierarchy (unlike the charge) so it makes sense to use it
+per-memcg IMO.
 
---
-     Manfred
+Besides that using the reclaim target value might be quite confusing.
+Say, somebody wants to prevent from swapping in a certain group and
+yet the pages find their way to swap depending on where the reclaim is
+triggered from.
+Another thing would be that setting swappiness on an unlimited group has
+no effect although I would argue it makes some sense in configuration
+when parent is controlled by somebody else. I would like to tell how
+to reclaim me when I cannot say how much memory I can have. 
+
+It is true that we have a different behavior for the global reclaim
+already but I am not entirely happy about that. Having a different
+behavior for the global vs. limit reclaims just calls for troubles and
+should be avoided as much as possible.
+
+So let's think what is the best semantic before we merge this. I would
+be more inclined for using per-memcg swappiness all the time (root using
+the global knob) for all reclaims.
+
+> Allow setting swappiness on any group.  The knob on the root memcg
+> already reads the global VM swappiness, make it writable as well.
+
+I am OK with the change but I think we should discuss the semantic
+first.
+
+[...]
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
