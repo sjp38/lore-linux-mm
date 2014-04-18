@@ -1,51 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f49.google.com (mail-pb0-f49.google.com [209.85.160.49])
-	by kanga.kvack.org (Postfix) with ESMTP id ADB2F6B0031
-	for <linux-mm@kvack.org>; Fri, 18 Apr 2014 13:26:34 -0400 (EDT)
-Received: by mail-pb0-f49.google.com with SMTP id jt11so1647867pbb.36
-        for <linux-mm@kvack.org>; Fri, 18 Apr 2014 10:26:34 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [143.182.124.21])
-        by mx.google.com with ESMTP id zj1si7348279pbb.323.2014.04.18.10.26.32
-        for <linux-mm@kvack.org>;
-        Fri, 18 Apr 2014 10:26:33 -0700 (PDT)
-From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH 01/16] mm: Disable zone_reclaim_mode by default
-References: <1397832643-14275-1-git-send-email-mgorman@suse.de>
-	<1397832643-14275-2-git-send-email-mgorman@suse.de>
-Date: Fri, 18 Apr 2014 10:26:28 -0700
-In-Reply-To: <1397832643-14275-2-git-send-email-mgorman@suse.de> (Mel Gorman's
-	message of "Fri, 18 Apr 2014 15:50:28 +0100")
-Message-ID: <87tx9q35x7.fsf@tassilo.jf.intel.com>
+Received: from mail-ee0-f42.google.com (mail-ee0-f42.google.com [74.125.83.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 99AEB6B0031
+	for <linux-mm@kvack.org>; Fri, 18 Apr 2014 13:51:09 -0400 (EDT)
+Received: by mail-ee0-f42.google.com with SMTP id d17so1835762eek.1
+        for <linux-mm@kvack.org>; Fri, 18 Apr 2014 10:51:08 -0700 (PDT)
+Received: from mail-ee0-f42.google.com (mail-ee0-f42.google.com [74.125.83.42])
+        by mx.google.com with ESMTPS id u5si41276026een.173.2014.04.18.10.51.07
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 18 Apr 2014 10:51:08 -0700 (PDT)
+Received: by mail-ee0-f42.google.com with SMTP id d17so1835746eek.1
+        for <linux-mm@kvack.org>; Fri, 18 Apr 2014 10:51:07 -0700 (PDT)
+Message-ID: <53516608.8090409@colorfullife.com>
+Date: Fri, 18 Apr 2014 19:51:04 +0200
+From: Manfred Spraul <manfred@colorfullife.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Subject: Re: [PATCH v3] ipc,shm: disable shmmax and shmall by default
+References: <1397784345.2556.26.camel@buesod1.americas.hpqcorp.net> <5350EFAA.2030607@colorfullife.com> <CAKgNAkhY94Y5Nut9+Jj1gcnio81CEmE5sQL_gH_zFnHD-yNx2Q@mail.gmail.com>
+In-Reply-To: <CAKgNAkhY94Y5Nut9+Jj1gcnio81CEmE5sQL_gH_zFnHD-yNx2Q@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>
+To: mtk.manpages@gmail.com
+Cc: Davidlohr Bueso <davidlohr@hp.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, aswin@hp.com, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>
 
-Mel Gorman <mgorman@suse.de> writes:
+On 04/18/2014 05:36 PM, Michael Kerrisk (man-pages) wrote:
+> On Fri, Apr 18, 2014 at 11:26 AM, Manfred Spraul
+> <manfred@colorfullife.com> wrote:
+>> Obviously my patch has the opposite problem: 64-bit wrap-arounds.
+> I know you alluded to a case in another thread, but I couldn't quite
+> work out from the mail you referred to whether this was really the
+> problem. (And I assume those folks were forced to fix their set-up
+> scripts anyway.) So, it's not clear to me whether this is a real
+> problem. (And your patch does not worsen things from the current
+> situation, right?)
+a) When I wrote the comment it was just an idea.
+But now I think wrap-around could be an issue, e.g. 
+find_vma_intersection(,addr,addr+ULONG_MAX) always returns false, even 
+if there are vmas inbetween.
 
-> zone_reclaim_mode causes processes to prefer reclaiming memory from local
-> node instead of spilling over to other nodes. This made sense initially when
-> NUMA machines were almost exclusively HPC and the workload was partitioned
-> into nodes. The NUMA penalties were sufficiently high to justify reclaiming
-> the memory. On current machines and workloads it is often the case that
-> zone_reclaim_mode destroys performance but not all users know how to detect
-> this. 
+b) If we make ULONG_MAX the default, then it should work.
 
-Non local memory also often destroys performance.
-
-> Favour the common case and disable it by default. Users that are
-> sophisticated enough to know they need zone_reclaim_mode will detect it.
-
-While I'm not totally against this change, it will destroy many
-carefully tuned configurations as the default NUMA behavior may be completely
-different now. So it seems like a big hammer, and it's not even clear
-what problem you're exactly solving here.
-
--Andi
--- 
-ak@linux.intel.com -- Speaking for myself only
+--
+     Manfred
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
