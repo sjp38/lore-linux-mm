@@ -1,22 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f172.google.com (mail-lb0-f172.google.com [209.85.217.172])
-	by kanga.kvack.org (Postfix) with ESMTP id E2FC46B0035
-	for <linux-mm@kvack.org>; Fri, 18 Apr 2014 12:06:04 -0400 (EDT)
-Received: by mail-lb0-f172.google.com with SMTP id c11so1506463lbj.3
-        for <linux-mm@kvack.org>; Fri, 18 Apr 2014 09:06:04 -0700 (PDT)
+Received: from mail-la0-f45.google.com (mail-la0-f45.google.com [209.85.215.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 136C26B0031
+	for <linux-mm@kvack.org>; Fri, 18 Apr 2014 12:07:32 -0400 (EDT)
+Received: by mail-la0-f45.google.com with SMTP id hr17so1488054lab.18
+        for <linux-mm@kvack.org>; Fri, 18 Apr 2014 09:07:32 -0700 (PDT)
 Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id sz4si19244853lbb.225.2014.04.18.09.06.02
+        by mx.google.com with ESMTPS id am6si19302558lbc.24.2014.04.18.09.07.30
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 18 Apr 2014 09:06:03 -0700 (PDT)
-Message-ID: <53514D66.1010607@parallels.com>
-Date: Fri, 18 Apr 2014 20:05:58 +0400
+        Fri, 18 Apr 2014 09:07:31 -0700 (PDT)
+Message-ID: <53514DBF.3040508@parallels.com>
+Date: Fri, 18 Apr 2014 20:07:27 +0400
 From: Vladimir Davydov <vdavydov@parallels.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH RFC -mm v2 1/3] memcg, slab: do not schedule cache destruction
- when last page goes away
-References: <cover.1397804745.git.vdavydov@parallels.com> <e929fb6cc3a10ce1a9dcee0440e6995bdf427090.1397804745.git.vdavydov@parallels.com> <20140418134122.GB26283@cmpxchg.org>
-In-Reply-To: <20140418134122.GB26283@cmpxchg.org>
+Subject: Re: [PATCH RFC -mm v2 2/3] memcg, slab: merge memcg_{bind,release}_pages
+ to memcg_{un}charge_slab
+References: <cover.1397804745.git.vdavydov@parallels.com> <49f7f2d048e56fac4d29dd5b39f6f76c7bdd6bec.1397804745.git.vdavydov@parallels.com> <20140418134453.GC26283@cmpxchg.org>
+In-Reply-To: <20140418134453.GC26283@cmpxchg.org>
 Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -24,25 +24,46 @@ List-ID: <linux-mm.kvack.org>
 To: Johannes Weiner <hannes@cmpxchg.org>
 Cc: mhocko@suse.cz, akpm@linux-foundation.org, glommer@gmail.com, cl@linux-foundation.org, penberg@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, devel@openvz.org
 
-On 04/18/2014 05:41 PM, Johannes Weiner wrote:
->> Thus we have a piece of code that works only when we explicitly call
->> kmem_cache_shrink, but complicates the whole picture a lot. Moreover,
->> it's racy in fact. For instance, kmem_cache_shrink may free the last
->> slab and thus schedule cache destruction before it finishes checking
->> that the cache is empty, which can lead to use-after-free.
+On 04/18/2014 05:44 PM, Johannes Weiner wrote:
+> On Fri, Apr 18, 2014 at 12:04:48PM +0400, Vladimir Davydov wrote:
+>> Currently we have two pairs of kmemcg-related functions that are called
+>> on slab alloc/free. The first is memcg_{bind,release}_pages that count
+>> the total number of pages allocated on a kmem cache. The second is
+>> memcg_{un}charge_slab that {un}charge slab pages to kmemcg resource
+>> counter. Let's just merge them to keep the code clean.
+>>
+>> Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
+>> ---
+>>   include/linux/memcontrol.h |    4 ++--
+>>   mm/memcontrol.c            |   22 ++++++++++++++++++++--
+>>   mm/slab.c                  |    2 --
+>>   mm/slab.h                  |   25 ++-----------------------
+>>   mm/slub.c                  |    2 --
+>>   5 files changed, 24 insertions(+), 31 deletions(-)
+>>
+>> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+>> index 087a45314181..d38d190f4cec 100644
+>> --- a/include/linux/memcontrol.h
+>> +++ b/include/linux/memcontrol.h
+>> @@ -506,8 +506,8 @@ void memcg_update_array_size(int num_groups);
+>>   struct kmem_cache *
+>>   __memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp);
+>>
+>> -int memcg_charge_kmem(struct mem_cgroup *memcg, gfp_t gfp, u64 size);
+>> -void memcg_uncharge_kmem(struct mem_cgroup *memcg, u64 size);
+>> +int __memcg_charge_slab(struct kmem_cache *cachep, gfp_t gfp, int order);
+>> +void __memcg_uncharge_slab(struct kmem_cache *cachep, int order);
 >
-> Can't this still happen when the last object free races with css
-> destruction?
+> I like the patch overall, but why the __prefix and not just
+> memcg_charge_slab() and memcg_uncharge_slab()?
 
-AFAIU, yes, it still can happen, but we have less places to fix now. I'm
-planning to sort this out by rearranging operations inside
-kmem_cache_free so that we do not touch the cache after we've
-decremented memcg_cache_params::nr_pages and made the cache potentially
-destroyable.
+Because I have memcg_{un}charge_slab (without underscores) in mm/slab.h.
+Those functions are inline so that we only issue a function call if the
+memcg_kmem_enabled static key is on and the cache is not a global one.
 
-Or, if we could reparent individual slabs as you proposed earlier, we
-wouldn't have to bother about it at all any more as well as about per
-memcg cache destruction.
+Actually I'm not sure if we really need such an optimization in slab
+allocation/free paths, which are not very hot, but it wouldn't hurt,
+would it?
 
 Thanks.
 
