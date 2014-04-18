@@ -1,68 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f177.google.com (mail-ie0-f177.google.com [209.85.223.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 648716B0031
-	for <linux-mm@kvack.org>; Thu, 17 Apr 2014 23:56:46 -0400 (EDT)
-Received: by mail-ie0-f177.google.com with SMTP id rl12so1223124iec.36
-        for <linux-mm@kvack.org>; Thu, 17 Apr 2014 20:56:46 -0700 (PDT)
-Received: from mail-ie0-x22f.google.com (mail-ie0-x22f.google.com [2607:f8b0:4001:c03::22f])
-        by mx.google.com with ESMTPS id nz8si17672259icb.33.2014.04.17.20.56.45
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F1216B0031
+	for <linux-mm@kvack.org>; Fri, 18 Apr 2014 01:28:32 -0400 (EDT)
+Received: by mail-pd0-f182.google.com with SMTP id y10so1105220pdj.41
+        for <linux-mm@kvack.org>; Thu, 17 Apr 2014 22:28:31 -0700 (PDT)
+Received: from mail-pd0-x232.google.com (mail-pd0-x232.google.com [2607:f8b0:400e:c02::232])
+        by mx.google.com with ESMTPS id c7si14384783pay.68.2014.04.17.22.28.29
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 17 Apr 2014 20:56:45 -0700 (PDT)
-Received: by mail-ie0-f175.google.com with SMTP id to1so1219413ieb.34
-        for <linux-mm@kvack.org>; Thu, 17 Apr 2014 20:56:45 -0700 (PDT)
+        Thu, 17 Apr 2014 22:28:29 -0700 (PDT)
+Received: by mail-pd0-f178.google.com with SMTP id x10so1106150pdj.37
+        for <linux-mm@kvack.org>; Thu, 17 Apr 2014 22:28:29 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <alpine.LSU.2.11.1402032014140.29889@eggly.anvils>
-References: <000c01cf1b47$ce280170$6a780450$%yang@samsung.com>
-	<20140203153628.5e186b0e4e81400773faa7ac@linux-foundation.org>
-	<alpine.LSU.2.11.1402032014140.29889@eggly.anvils>
-Date: Fri, 18 Apr 2014 11:56:45 +0800
-Message-ID: <CAL1ERfO2u838hnY2NVKVd7Tr_=2o=nVpBf_hTKGHms+QFGTFPQ@mail.gmail.com>
-Subject: Re: [PATCH 3/8] mm/swap: prevent concurrent swapon on the same
- S_ISBLK blockdev
-From: Weijie Yang <weijie.yang.kh@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Reply-To: mtk.manpages@gmail.com
+In-Reply-To: <1397773919.2556.22.camel@buesod1.americas.hpqcorp.net>
+References: <1397272942.2686.4.camel@buesod1.americas.hpqcorp.net>
+ <CAHO5Pa3BOgJGCm7NvE4xbm3O1WbRLRBS0pgvErPudypP_iiZ3g@mail.gmail.com>
+ <534FFFC2.6050601@colorfullife.com> <CAKgNAkjCenvWr9A69-=j-55nyW1EM1Fy+=rSDWSxXvq5qFtGTw@mail.gmail.com>
+ <1397773919.2556.22.camel@buesod1.americas.hpqcorp.net>
+From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+Date: Fri, 18 Apr 2014 07:28:09 +0200
+Message-ID: <CAKgNAkh5s+U4hYhpCwMcFpKmxen9ztd8aAPoyGQOWyadTMYfOw@mail.gmail.com>
+Subject: Re: [PATCH v2] ipc,shm: disable shmmax and shmall by default
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Weijie Yang <weijie.yang@samsung.com>, Minchan Kim <minchan@kernel.org>, shli@kernel.org, Bob Liu <bob.liu@oracle.com>, Seth Jennings <sjennings@variantweb.net>, Heesub Shin <heesub.shin@samsung.com>, mquzik@redhat.com, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Davidlohr Bueso <davidlohr@hp.com>
+Cc: Manfred Spraul <manfred@colorfullife.com>, Andrew Morton <akpm@linux-foundation.org>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Kamezawa Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, aswin@hp.com, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Tue, Feb 4, 2014 at 12:20 PM, Hugh Dickins <hughd@google.com> wrote:
-> On Mon, 3 Feb 2014, Andrew Morton wrote:
->> On Mon, 27 Jan 2014 18:03:04 +0800 Weijie Yang <weijie.yang@samsung.com> wrote:
+Hello Davidlohr,
+
+On Fri, Apr 18, 2014 at 12:31 AM, Davidlohr Bueso <davidlohr@hp.com> wrote:
+> On Thu, 2014-04-17 at 22:23 +0200, Michael Kerrisk (man-pages) wrote:
+>> Hi Manfred!
 >>
->> > When swapon the same S_ISBLK blockdev concurrent, the allocated two
->> > swap_info could hold the same block_device, because claim_swapfile()
->> > allow the same holder(here, it is sys_swapon function).
+>> On Thu, Apr 17, 2014 at 6:22 PM, Manfred Spraul
+>> <manfred@colorfullife.com> wrote:
+>> > Hi Michael,
 >> >
->> > To prevent this situation, This patch adds swap_lock protect to ensure
->> > we can find this situation and return -EBUSY for one swapon call.
 >> >
->> > As for S_ISREG swapfile, claim_swapfile() already prevent this scenario
->> > by holding inode->i_mutex.
+>> > On 04/17/2014 12:53 PM, Michael Kerrisk wrote:
+>> >>
+>> >> On Sat, Apr 12, 2014 at 5:22 AM, Davidlohr Bueso <davidlohr@hp.com> wrote:
+
+[...]
+
+>> >> Of the two proposed approaches (the other being
+>> >> marc.info/?l=linux-kernel&m=139730332306185), this looks preferable to
+>> >> me, since it allows strange users to maintain historical behavior
+>> >> (i.e., the ability to set a limit) if they really want it, so:
+>> >>
+>> >> Acked-by: Michael Kerrisk <mtk.manpages@gmail.com>
+>> >>
+>> >> One or two comments below, that you might consider for your v3 patch.
 >> >
->> > This patch is just for a rare scenario, aim to correct of code.
->> >
+>> > I don't understand what you mean.
 >>
->> hm, OK.  Would it be saner to pass a unique `holder' to
->> claim_swapfile()?  Say, `p'?
+>> As noted in the other mail, you don't understand, because I was being
+>> dense (and misled a little by the commit message).
 >>
->> Truly, I am fed up with silly swapon/swapoff races.  How often does
->> anyone call these things?  Let's slap a huge lock around the whole
->> thing and be done with it?
+>> > After a
+>> >     # echo 33554432 > /proc/sys/kernel/shmmax
+>> >     # echo 2097152 > /proc/sys/kernel/shmmax
+>> >
+>> > both patches behave exactly identical.
+>>
+>> Yes.
+>>
+>> > There are only two differences:
+>> > - Davidlohr's patch handles
+>> >     # echo <really huge number that doesn't fit into 64-bit> >
+>> > /proc/sys/kernel/shmmax
+>> >    With my patch, shmmax would end up as 0 and all allocations fail.
+>> >
+>> > - My patch handles the case if some startup code/installer checks
+>> >    shmmax and complains if it is below the requirement of the application.
+>>
+>> Thanks for that clarification. I withdraw my Ack.
 >
-> That answer makes me sad: we can't be bothered to get it right,
-> even when Weijie goes to the trouble of presenting a series to do so.
-> But I sure don't deserve a vote until I've actually looked through it.
+> :(
 >
+>> In fact, maybe I
+>> even like your approach a little more, because of that last point.
+>
+> And it is a fair point. However, this is my counter argument: if users
+> are checking shmmax then they sure better be checking shmmin as well! So
+> if my patch causes shmctl(,IPC_INFO,) to return shminfo.shmmax = 0 and a
+> user only checks this value and breaks the application, then *he's*
+> doing it wrong. Checking shmmin is just as important...  0 value is
+> *bogus*,
 
-Hi,
+That counter-argument sounds bogus. On all systems that I know/knew
+of, SHMIN always defaulted to 1. (Stevens APUE 1e documents this as
+the typical default even as far back as 1992.) Furthermore, the limit
+was always 1 on Linux, and as far as I know it has always been
+immutable. I very much doubt any sysadmin ever changed SHMMIN (why
+would they?), even on those systems where it was possible (and both
+SHMMIN and SHMMAX seem to have been obsolete on Solaris for some time
+now), or that any application ever checked the limit.
 
-This is a ping email. Could I get some options about these patch series?
+Probably the only thing that matters in this discussion is the Linux
+behavior (set-up scripts will in any case be tailored to different
+OSes): SHMMIN has always been fixed at 1, and so, likely ignored by
+apps and install scripts. Thus, it seems difficult to argue that
+checking SHMMIN is just as important as checking SHMMAX.
 
-Thanks.
+> heck it even says so in shmctl's manpage.
 
-> Hugh
+All it says in the man page is that the limit is (always) 1. A 0 value
+isn't bogus; it's merely impossible.
+
+>
+>>  Did
+>> one of you not yet manage to persuade the other to his point of view
+>> yet?
+>
+> I think we've left that up to akpm.
+
+Well, I mean, it's not like Andrew needs the extra work, right? It's a
+small thing, but it makes Andrew's life a little easier when you can
+give him an agreed solution, rather than asking him to make a
+decision.
+
+Cheers,
+
+Michael
+
+-- 
+Michael Kerrisk
+Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
+Linux/UNIX System Programming Training: http://man7.org/training/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
