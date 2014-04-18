@@ -1,57 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f42.google.com (mail-pb0-f42.google.com [209.85.160.42])
-	by kanga.kvack.org (Postfix) with ESMTP id BC3F26B0035
-	for <linux-mm@kvack.org>; Fri, 18 Apr 2014 17:15:33 -0400 (EDT)
-Received: by mail-pb0-f42.google.com with SMTP id rr13so1816701pbb.15
-        for <linux-mm@kvack.org>; Fri, 18 Apr 2014 14:15:33 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id yd10si16940557pab.412.2014.04.18.14.15.32
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 604146B0031
+	for <linux-mm@kvack.org>; Fri, 18 Apr 2014 18:22:48 -0400 (EDT)
+Received: by mail-pa0-f50.google.com with SMTP id kq14so1853939pab.9
+        for <linux-mm@kvack.org>; Fri, 18 Apr 2014 15:22:48 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id l4si4853648pav.405.2014.04.18.15.22.47
         for <linux-mm@kvack.org>;
-        Fri, 18 Apr 2014 14:15:32 -0700 (PDT)
-Message-ID: <535195F3.8040009@intel.com>
-Date: Fri, 18 Apr 2014 14:15:31 -0700
-From: Dave Hansen <dave.hansen@intel.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH 01/16] mm: Disable zone_reclaim_mode by default
-References: <1397832643-14275-1-git-send-email-mgorman@suse.de>	<1397832643-14275-2-git-send-email-mgorman@suse.de> <87tx9q35x7.fsf@tassilo.jf.intel.com>
-In-Reply-To: <87tx9q35x7.fsf@tassilo.jf.intel.com>
-Content-Type: text/plain; charset=ISO-8859-1
+        Fri, 18 Apr 2014 15:22:47 -0700 (PDT)
+Date: Fri, 18 Apr 2014 15:22:45 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 0/5] get_user_pages() cleanup
+Message-Id: <20140418152245.b6d41e544ff5467ec8c3df67@linux-foundation.org>
+In-Reply-To: <1396535722-31108-1-git-send-email-kirill.shutemov@linux.intel.com>
+References: <1396535722-31108-1-git-send-email-kirill.shutemov@linux.intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>, Mel Gorman <mgorman@suse.de>
-Cc: Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: linux-mm@kvack.org, Jan Kara <jack@suse.cz>
 
-On 04/18/2014 10:26 AM, Andi Kleen wrote:
-> Mel Gorman <mgorman@suse.de> writes:
->> Favour the common case and disable it by default. Users that are
->> sophisticated enough to know they need zone_reclaim_mode will detect it.
+On Thu,  3 Apr 2014 17:35:17 +0300 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
+
+> Here's my attempt to cleanup of get_user_pages() code in order to make it
+> more maintainable.
 > 
-> While I'm not totally against this change, it will destroy many
-> carefully tuned configurations as the default NUMA behavior may be completely
-> different now. So it seems like a big hammer, and it's not even clear
-> what problem you're exactly solving here.
+> Tested on my laptop for few hours. No crashes so far ;)
+> 
+> Let me know if it makes sense. Any suggestions are welcome.
+> 
+> Kirill A. Shutemov (5):
+>   mm: move get_user_pages()-related code to separate file
+>   mm: extract in_gate_area() case from __get_user_pages()
+>   mm: cleanup follow_page_mask()
+>   mm: extract code to fault in a page from __get_user_pages()
+>   mm: cleanup __get_user_pages()
+> 
+>  mm/Makefile |   2 +-
+>  mm/gup.c    | 638 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+>  mm/memory.c | 611 ---------------------------------------------------------
 
-I'm not 100% sure what the common case _is_.  Folks who want good NUMA
-affinity are happy now and are happy by default.  Folks who want to fill
-memory with page cache are mad and mad by default, and they're the ones
-complaining.  It's hard to count the happy ones. :)
+Fair enough.
 
-But, on the other hand, the current situation is easy to debug.  Someone
-complains that they have too much free memory, and it ends up being
-pretty easy to solve just looking at statistics, and things go horribly
-wrong quickly.  If we apply this patch, it's much less obvious when
-things are going wrong, and we have no statistics to help.  We'll need
-to get folks running more things like numatop:
+We don't have anything like enough #includes in the new gup.c so
+there's a risk of Kconfig-dependent breakage.  I plugged in a few
+obvious ones, but many more are surely missing.
 
-	https://01.org/numatop
 
-That said, as a recipient of angry calls from customers who don't like
-zone_reclaim_mode, I _do_ think this is the path we should take at the
-moment.  Maybe we'll be reverting it in a few years once all of our
-customers are angry about lack of NUMA locality.
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: mm/gup.c: tweaks
 
-Acked-by: Dave Hansen <dave.hansen@linux.intel.com>
+- include some more header files, but many are still missed
+- fix some 80-col overflows by removing unneeded `inline'
+
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+---
+
+ mm/gup.c |   11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)
+
+diff -puN mm/gup.c~a mm/gup.c
+--- a/mm/gup.c~a
++++ a/mm/gup.c
+@@ -1,3 +1,8 @@
++#include <linux/kernel.h>
++#include <linux/errno.h>
++#include <linux/err.h>
++#include <linux/spinlock.h>
++
+ #include <linux/hugetlb.h>
+ #include <linux/mm.h>
+ #include <linux/rmap.h>
+@@ -6,8 +11,8 @@
+ 
+ #include "internal.h"
+ 
+-static inline struct page *no_page_table(struct vm_area_struct *vma,
+-		unsigned int flags)
++static struct page *no_page_table(struct vm_area_struct *vma,
++				  unsigned int flags)
+ {
+ 	/*
+ 	 * When core dumping an enormous anonymous area that nobody
+@@ -208,7 +213,7 @@ struct page *follow_page_mask(struct vm_
+ 	return follow_page_pte(vma, address, pmd, flags);
+ }
+ 
+-static inline int stack_guard_page(struct vm_area_struct *vma, unsigned long addr)
++static int stack_guard_page(struct vm_area_struct *vma, unsigned long addr)
+ {
+ 	return stack_guard_page_start(vma, addr) ||
+ 	       stack_guard_page_end(vma, addr+PAGE_SIZE);
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
