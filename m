@@ -1,74 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 07E376B0031
-	for <linux-mm@kvack.org>; Fri, 18 Apr 2014 15:17:35 -0400 (EDT)
-Received: by mail-pd0-f177.google.com with SMTP id y10so1694640pdj.36
-        for <linux-mm@kvack.org>; Fri, 18 Apr 2014 12:17:35 -0700 (PDT)
-Received: from mail-pa0-x229.google.com (mail-pa0-x229.google.com [2607:f8b0:400e:c03::229])
-        by mx.google.com with ESMTPS id fd9si16809383pad.429.2014.04.18.12.17.34
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 3BD956B0031
+	for <linux-mm@kvack.org>; Fri, 18 Apr 2014 16:02:10 -0400 (EDT)
+Received: by mail-pd0-f182.google.com with SMTP id y10so1722699pdj.41
+        for <linux-mm@kvack.org>; Fri, 18 Apr 2014 13:02:09 -0700 (PDT)
+Received: from mail-pa0-x22d.google.com (mail-pa0-x22d.google.com [2607:f8b0:400e:c03::22d])
+        by mx.google.com with ESMTPS id m8si16864198pbd.374.2014.04.18.13.02.08
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 18 Apr 2014 12:17:35 -0700 (PDT)
-Received: by mail-pa0-f41.google.com with SMTP id fa1so1745080pad.0
-        for <linux-mm@kvack.org>; Fri, 18 Apr 2014 12:17:34 -0700 (PDT)
-Date: Fri, 18 Apr 2014 12:16:23 -0700 (PDT)
+        Fri, 18 Apr 2014 13:02:09 -0700 (PDT)
+Received: by mail-pa0-f45.google.com with SMTP id kl14so1760292pab.4
+        for <linux-mm@kvack.org>; Fri, 18 Apr 2014 13:02:08 -0700 (PDT)
+Date: Fri, 18 Apr 2014 13:01:01 -0700 (PDT)
 From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 16/16] mm: filemap: Prefetch page->flags if
- !PageUptodate
-In-Reply-To: <1397832643-14275-17-git-send-email-mgorman@suse.de>
-Message-ID: <alpine.LSU.2.11.1404181149310.13030@eggly.anvils>
-References: <1397832643-14275-1-git-send-email-mgorman@suse.de> <1397832643-14275-17-git-send-email-mgorman@suse.de>
+Subject: Re: [PATCH 3/8] mm/swap: prevent concurrent swapon on the same
+ S_ISBLK blockdev
+In-Reply-To: <CAL1ERfO2u838hnY2NVKVd7Tr_=2o=nVpBf_hTKGHms+QFGTFPQ@mail.gmail.com>
+Message-ID: <alpine.LSU.2.11.1404181253200.13251@eggly.anvils>
+References: <000c01cf1b47$ce280170$6a780450$%yang@samsung.com> <20140203153628.5e186b0e4e81400773faa7ac@linux-foundation.org> <alpine.LSU.2.11.1402032014140.29889@eggly.anvils> <CAL1ERfO2u838hnY2NVKVd7Tr_=2o=nVpBf_hTKGHms+QFGTFPQ@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>
+To: Weijie Yang <weijie.yang.kh@gmail.com>
+Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Weijie Yang <weijie.yang@samsung.com>, Minchan Kim <minchan@kernel.org>, shli@kernel.org, Bob Liu <bob.liu@oracle.com>, Seth Jennings <sjennings@variantweb.net>, Heesub Shin <heesub.shin@samsung.com>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 
-On Fri, 18 Apr 2014, Mel Gorman wrote:
-
-> The write_end handler is likely to call SetPageUptodate which is an atomic
-> operation so prefetch the line.
+On Fri, 18 Apr 2014, Weijie Yang wrote:
+> On Tue, Feb 4, 2014 at 12:20 PM, Hugh Dickins <hughd@google.com> wrote:
+> >>
+> >> Truly, I am fed up with silly swapon/swapoff races.  How often does
+> >> anyone call these things?  Let's slap a huge lock around the whole
+> >> thing and be done with it?
+> >
+> > That answer makes me sad: we can't be bothered to get it right,
+> > even when Weijie goes to the trouble of presenting a series to do so.
+> > But I sure don't deserve a vote until I've actually looked through it.
 > 
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
+> Hi,
+> 
+> This is a ping email. Could I get some options about these patch series?
 
-This one seems a little odd to me: it feels as if you're compensating
-for your mark_page_accessed() movement, but in too shmem-specific a way.
-
-I see write_ends do SetPageUptodate more often than I was expecting
-(with __block_commit_write() doing so even when PageUptodate already),
-but even so...
-
-Given that the write_end is likely to want to SetPageDirty, and sure
-to want to clear_bit_unlock(PG_locked, &page->flags), wouldn't it be
-better and less mysterious just to prefetchw(&page->flags) here
-unconditionally?
-
-(But I'm also afraid that this sets a precedent for an avalanche of
-dubious prefetchw patches all over.)
+Sorry, this is no more than a pong in return: I've not lost or
+forgotten these, I shall get to them, but priorities intervene.
 
 Hugh
-
-> ---
->  mm/filemap.c | 3 +++
->  1 file changed, 3 insertions(+)
-> 
-> diff --git a/mm/filemap.c b/mm/filemap.c
-> index c28f69c..40713da 100644
-> --- a/mm/filemap.c
-> +++ b/mm/filemap.c
-> @@ -2551,6 +2551,9 @@ again:
->  		copied = iov_iter_copy_from_user_atomic(page, i, offset, bytes);
->  		flush_dcache_page(page);
->  
-> +		if (!PageUptodate(page))
-> +			prefetchw(&page->flags);
-> +
->  		status = a_ops->write_end(file, mapping, pos, bytes, copied,
->  						page, fsdata);
->  		if (unlikely(status < 0))
-> -- 
-> 1.8.4.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
