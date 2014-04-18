@@ -1,49 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 3BD956B0031
-	for <linux-mm@kvack.org>; Fri, 18 Apr 2014 16:02:10 -0400 (EDT)
-Received: by mail-pd0-f182.google.com with SMTP id y10so1722699pdj.41
-        for <linux-mm@kvack.org>; Fri, 18 Apr 2014 13:02:09 -0700 (PDT)
-Received: from mail-pa0-x22d.google.com (mail-pa0-x22d.google.com [2607:f8b0:400e:c03::22d])
-        by mx.google.com with ESMTPS id m8si16864198pbd.374.2014.04.18.13.02.08
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 18 Apr 2014 13:02:09 -0700 (PDT)
-Received: by mail-pa0-f45.google.com with SMTP id kl14so1760292pab.4
-        for <linux-mm@kvack.org>; Fri, 18 Apr 2014 13:02:08 -0700 (PDT)
-Date: Fri, 18 Apr 2014 13:01:01 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 3/8] mm/swap: prevent concurrent swapon on the same
- S_ISBLK blockdev
-In-Reply-To: <CAL1ERfO2u838hnY2NVKVd7Tr_=2o=nVpBf_hTKGHms+QFGTFPQ@mail.gmail.com>
-Message-ID: <alpine.LSU.2.11.1404181253200.13251@eggly.anvils>
-References: <000c01cf1b47$ce280170$6a780450$%yang@samsung.com> <20140203153628.5e186b0e4e81400773faa7ac@linux-foundation.org> <alpine.LSU.2.11.1402032014140.29889@eggly.anvils> <CAL1ERfO2u838hnY2NVKVd7Tr_=2o=nVpBf_hTKGHms+QFGTFPQ@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 18CEC6B0031
+	for <linux-mm@kvack.org>; Fri, 18 Apr 2014 16:05:46 -0400 (EDT)
+Received: by mail-pd0-f172.google.com with SMTP id p10so1745154pdj.3
+        for <linux-mm@kvack.org>; Fri, 18 Apr 2014 13:05:45 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id ev1si11681198pbb.294.2014.04.18.13.05.44
+        for <linux-mm@kvack.org>;
+        Fri, 18 Apr 2014 13:05:45 -0700 (PDT)
+Date: Fri, 18 Apr 2014 13:05:43 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 0/2] Disable zone_reclaim_mode by default v2
+Message-Id: <20140418130543.8619064c0e5d26cd914c4c3c@linux-foundation.org>
+In-Reply-To: <1396945380-18592-1-git-send-email-mgorman@suse.de>
+References: <1396945380-18592-1-git-send-email-mgorman@suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Weijie Yang <weijie.yang.kh@gmail.com>
-Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Weijie Yang <weijie.yang@samsung.com>, Minchan Kim <minchan@kernel.org>, shli@kernel.org, Bob Liu <bob.liu@oracle.com>, Seth Jennings <sjennings@variantweb.net>, Heesub Shin <heesub.shin@samsung.com>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Robert Haas <robertmhaas@gmail.com>, Josh Berkus <josh@agliodbs.com>, Andres Freund <andres@2ndquadrant.com>, Christoph Lameter <cl@linux.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>
 
-On Fri, 18 Apr 2014, Weijie Yang wrote:
-> On Tue, Feb 4, 2014 at 12:20 PM, Hugh Dickins <hughd@google.com> wrote:
-> >>
-> >> Truly, I am fed up with silly swapon/swapoff races.  How often does
-> >> anyone call these things?  Let's slap a huge lock around the whole
-> >> thing and be done with it?
-> >
-> > That answer makes me sad: we can't be bothered to get it right,
-> > even when Weijie goes to the trouble of presenting a series to do so.
-> > But I sure don't deserve a vote until I've actually looked through it.
+On Tue,  8 Apr 2014 09:22:58 +0100 Mel Gorman <mgorman@suse.de> wrote:
+
+> Changelog since v1
+>  o topology comment updates
 > 
-> Hi,
+> When it was introduced, zone_reclaim_mode made sense as NUMA distances
+> punished and workloads were generally partitioned to fit into a NUMA
+> node. NUMA machines are now common but few of the workloads are NUMA-aware
+> and it's routine to see major performance due to zone_reclaim_mode being
+> enabled but relatively few can identify the problem.
 > 
-> This is a ping email. Could I get some options about these patch series?
+> Those that require zone_reclaim_mode are likely to be able to detect when
+> it needs to be enabled and tune appropriately so lets have a sensible
+> default for the bulk of users.
+> 
 
-Sorry, this is no more than a pong in return: I've not lost or
-forgotten these, I shall get to them, but priorities intervene.
+This patchset conflicts with  
 
-Hugh
+commit 70ef57e6c22c3323dce179b7d0d433c479266612
+Author:     Michal Hocko <mhocko@suse.cz>
+AuthorDate: Mon Apr 7 15:37:01 2014 -0700
+Commit:     Linus Torvalds <torvalds@linux-foundation.org>
+CommitDate: Mon Apr 7 16:35:50 2014 -0700
+
+    mm: exclude memoryless nodes from zone_reclaim
+
+It was pretty simple to resolve, but please check that I didn't miss
+anything.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
