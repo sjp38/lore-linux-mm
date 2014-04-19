@@ -1,57 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f49.google.com (mail-ee0-f49.google.com [74.125.83.49])
-	by kanga.kvack.org (Postfix) with ESMTP id F13FB6B0039
-	for <linux-mm@kvack.org>; Sat, 19 Apr 2014 07:44:06 -0400 (EDT)
-Received: by mail-ee0-f49.google.com with SMTP id c41so2316660eek.36
-        for <linux-mm@kvack.org>; Sat, 19 Apr 2014 04:44:01 -0700 (PDT)
-Received: from mail-ee0-f42.google.com (mail-ee0-f42.google.com [74.125.83.42])
-        by mx.google.com with ESMTPS id t3si44504353eeg.331.2014.04.19.04.43.59
+Received: from mail-qa0-f49.google.com (mail-qa0-f49.google.com [209.85.216.49])
+	by kanga.kvack.org (Postfix) with ESMTP id CAF8D6B0035
+	for <linux-mm@kvack.org>; Sat, 19 Apr 2014 11:53:18 -0400 (EDT)
+Received: by mail-qa0-f49.google.com with SMTP id j7so2460975qaq.22
+        for <linux-mm@kvack.org>; Sat, 19 Apr 2014 08:53:18 -0700 (PDT)
+Received: from mail-qa0-x231.google.com (mail-qa0-x231.google.com [2607:f8b0:400d:c00::231])
+        by mx.google.com with ESMTPS id di5si13231080qcb.56.2014.04.19.08.53.18
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sat, 19 Apr 2014 04:44:00 -0700 (PDT)
-Received: by mail-ee0-f42.google.com with SMTP id d17so2335010eek.1
-        for <linux-mm@kvack.org>; Sat, 19 Apr 2014 04:43:59 -0700 (PDT)
-From: Manfred Spraul <manfred@colorfullife.com>
-Subject: [PATCH 2/4] ipc/shm.c: check for overflows of shm_tot
-Date: Sat, 19 Apr 2014 13:43:39 +0200
-Message-Id: <1397907821-29319-3-git-send-email-manfred@colorfullife.com>
-In-Reply-To: <1397907821-29319-2-git-send-email-manfred@colorfullife.com>
-References: <1397907821-29319-1-git-send-email-manfred@colorfullife.com>
- <1397907821-29319-2-git-send-email-manfred@colorfullife.com>
+        Sat, 19 Apr 2014 08:53:18 -0700 (PDT)
+Received: by mail-qa0-f49.google.com with SMTP id j7so2469822qaq.36
+        for <linux-mm@kvack.org>; Sat, 19 Apr 2014 08:53:18 -0700 (PDT)
+From: Dan Streetman <ddstreet@ieee.org>
+Subject: [PATCH 0/4] mm: zpool: add common api for zswap to use zbud/zsmalloc
+Date: Sat, 19 Apr 2014 11:52:40 -0400
+Message-Id: <1397922764-1512-1-git-send-email-ddstreet@ieee.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <davidlohr.bueso@hp.com>, Michael Kerrisk <mtk.manpages@gmail.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, gthelen@google.com, aswin@hp.com, linux-mm@kvack.org, Manfred Spraul <manfred@colorfullife.com>
+To: Seth Jennings <sjennings@variantweb.net>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>
+Cc: Dan Streetman <ddstreet@ieee.org>, Andrew Morton <akpm@linux-foundation.org>, Bob Liu <bob.liu@oracle.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Weijie Yang <weijie.yang@samsung.com>, Johannes Weiner <hannes@cmpxchg.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 
-shm_tot counts the total number of pages used by shm segments.
+In order to allow zswap users to choose between zbud and zsmalloc for
+the compressed storage pool, this patch set adds a new api "zpool" that
+provides an interface to both zbud and zsmalloc.  Only a minor change
+to zbud's interface was needed, as detailed in the first patch;
+zsmalloc required shrinking to be added and a minor interface change,
+as detailed in the second patch.
 
-If SHMALL is ULONG_MAX (or nearly ULONG_MAX), then the number
-can overflow.  Subsequent calls to shmctl(,SHM_INFO,) would return
-wrong values for shm_tot.
+I believe Seth originally was using zsmalloc for swap, but there were
+concerns about how significant the impact of shrinking zsmalloc would
+be when zswap had to start reclaiming pages.  That still may be an
+issue, but this at least allows users to choose themselves whether
+they want a lower-density or higher-density compressed storage medium.
+At least for situations where zswap reclaim is never or rarely reached,
+it probably makes sense to use the higher density of zsmalloc.
 
-The patch adds a detection for overflows.
+Note this patch series does not change zram to use zpool, although that
+change should be possible as well.
 
-Signed-off-by: Manfred Spraul <manfred@colorfullife.com>
----
- ipc/shm.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
 
-diff --git a/ipc/shm.c b/ipc/shm.c
-index 382e2fb..2dfa3d6 100644
---- a/ipc/shm.c
-+++ b/ipc/shm.c
-@@ -493,7 +493,8 @@ static int newseg(struct ipc_namespace *ns, struct ipc_params *params)
- 	if (size < SHMMIN || size > ns->shm_ctlmax)
- 		return -EINVAL;
- 
--	if (ns->shm_tot + numpages > ns->shm_ctlall)
-+	if (ns->shm_tot + numpages < ns->shm_tot ||
-+			ns->shm_tot + numpages > ns->shm_ctlall)
- 		return -ENOSPC;
- 
- 	shp = ipc_rcu_alloc(sizeof(*shp));
+Dan Streetman (4):
+  mm: zpool: zbud_alloc() minor param change
+  mm: zpool: implement zsmalloc shrinking
+  mm: zpool: implement common zpool api to zbud/zsmalloc
+  mm: zpool: update zswap to use zpool
+
+ drivers/block/zram/zram_drv.c |   2 +-
+ include/linux/zbud.h          |   3 +-
+ include/linux/zpool.h         | 166 ++++++++++++++++++
+ include/linux/zsmalloc.h      |   7 +-
+ mm/Kconfig                    |  43 +++--
+ mm/Makefile                   |   1 +
+ mm/zbud.c                     |  28 ++--
+ mm/zpool.c                    | 380 ++++++++++++++++++++++++++++++++++++++++++
+ mm/zsmalloc.c                 | 168 +++++++++++++++++--
+ mm/zswap.c                    |  70 ++++----
+ 10 files changed, 787 insertions(+), 81 deletions(-)
+ create mode 100644 include/linux/zpool.h
+ create mode 100644 mm/zpool.c
+
 -- 
-1.9.0
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
