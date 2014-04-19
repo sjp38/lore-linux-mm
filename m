@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f47.google.com (mail-qg0-f47.google.com [209.85.192.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 66CE06B0035
-	for <linux-mm@kvack.org>; Sat, 19 Apr 2014 11:53:22 -0400 (EDT)
-Received: by mail-qg0-f47.google.com with SMTP id i50so2620286qgf.20
-        for <linux-mm@kvack.org>; Sat, 19 Apr 2014 08:53:22 -0700 (PDT)
-Received: from mail-qa0-x235.google.com (mail-qa0-x235.google.com [2607:f8b0:400d:c00::235])
-        by mx.google.com with ESMTPS id l5si13230154qai.215.2014.04.19.08.53.21
+Received: from mail-qa0-f44.google.com (mail-qa0-f44.google.com [209.85.216.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C78E6B0035
+	for <linux-mm@kvack.org>; Sat, 19 Apr 2014 11:53:25 -0400 (EDT)
+Received: by mail-qa0-f44.google.com with SMTP id hw13so2531643qab.31
+        for <linux-mm@kvack.org>; Sat, 19 Apr 2014 08:53:25 -0700 (PDT)
+Received: from mail-qa0-x22c.google.com (mail-qa0-x22c.google.com [2607:f8b0:400d:c00::22c])
+        by mx.google.com with ESMTPS id d5si9596935qad.109.2014.04.19.08.53.25
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sat, 19 Apr 2014 08:53:21 -0700 (PDT)
-Received: by mail-qa0-f53.google.com with SMTP id w8so2466339qac.40
-        for <linux-mm@kvack.org>; Sat, 19 Apr 2014 08:53:21 -0700 (PDT)
+        Sat, 19 Apr 2014 08:53:25 -0700 (PDT)
+Received: by mail-qa0-f44.google.com with SMTP id hw13so2514806qab.3
+        for <linux-mm@kvack.org>; Sat, 19 Apr 2014 08:53:25 -0700 (PDT)
 From: Dan Streetman <ddstreet@ieee.org>
-Subject: [PATCH 1/4] mm: zpool: zbud_alloc() minor param change
-Date: Sat, 19 Apr 2014 11:52:41 -0400
-Message-Id: <1397922764-1512-2-git-send-email-ddstreet@ieee.org>
+Subject: [PATCH 2/4] mm: zpool: implement zsmalloc shrinking
+Date: Sat, 19 Apr 2014 11:52:42 -0400
+Message-Id: <1397922764-1512-3-git-send-email-ddstreet@ieee.org>
 In-Reply-To: <1397922764-1512-1-git-send-email-ddstreet@ieee.org>
 References: <1397922764-1512-1-git-send-email-ddstreet@ieee.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,147 +22,316 @@ List-ID: <linux-mm.kvack.org>
 To: Seth Jennings <sjennings@variantweb.net>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>
 Cc: Dan Streetman <ddstreet@ieee.org>, Andrew Morton <akpm@linux-foundation.org>, Bob Liu <bob.liu@oracle.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Weijie Yang <weijie.yang@samsung.com>, Johannes Weiner <hannes@cmpxchg.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 
-Change zbud to store gfp_t flags passed at pool creation to use for
-each alloc; this allows the api to be closer to the existing zsmalloc
-interface, and the only current zbud user (zswap) uses the same gfp
-flags for all allocs.  Update zswap to use changed interface.
+Add zs_shrink() and helper functions to zsmalloc.  Update zsmalloc
+zs_create_pool() creation function to include ops param that provides
+an evict() function for use during shrinking.  Update helper function
+fix_fullness_group() to always reinsert changed zspages even if the
+fullness group did not change, so they are updated in the fullness
+group lru.  Also update zram to use the new zsmalloc pool creation
+function but pass NULL as the ops param, since zram does not use
+pool shrinking.
 
 Signed-off-by: Dan Streetman <ddstreet@ieee.org>
 
 ---
- include/linux/zbud.h |  3 +--
- mm/zbud.c            | 28 +++++++++++++++-------------
- mm/zswap.c           |  6 +++---
- 3 files changed, 19 insertions(+), 18 deletions(-)
 
-diff --git a/include/linux/zbud.h b/include/linux/zbud.h
-index 2571a5c..50563b6 100644
---- a/include/linux/zbud.h
-+++ b/include/linux/zbud.h
-@@ -11,8 +11,7 @@ struct zbud_ops {
+To find all the used objects inside a zspage, I had to do a full scan
+of the zspage->freelist for each object, since there's no list of used
+objects, and no way to keep a list of used objects without allocating
+more memory for each zspage (that I could see).  Of course, by taking
+a byte (or really only a bit) out of each object's memory area to use
+as a flag, we could just check that instead of scanning ->freelist
+for each zspage object, but that would (slightly) reduce the available
+size of each zspage object.
+
+
+ drivers/block/zram/zram_drv.c |   2 +-
+ include/linux/zsmalloc.h      |   7 +-
+ mm/zsmalloc.c                 | 168 ++++++++++++++++++++++++++++++++++++++----
+ 3 files changed, 160 insertions(+), 17 deletions(-)
+
+diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+index 9849b52..dacf343 100644
+--- a/drivers/block/zram/zram_drv.c
++++ b/drivers/block/zram/zram_drv.c
+@@ -249,7 +249,7 @@ static struct zram_meta *zram_meta_alloc(u64 disksize)
+ 		goto free_meta;
+ 	}
  
- struct zbud_pool *zbud_create_pool(gfp_t gfp, struct zbud_ops *ops);
- void zbud_destroy_pool(struct zbud_pool *pool);
--int zbud_alloc(struct zbud_pool *pool, int size, gfp_t gfp,
--	unsigned long *handle);
-+int zbud_alloc(struct zbud_pool *pool, int size, unsigned long *handle);
- void zbud_free(struct zbud_pool *pool, unsigned long handle);
- int zbud_reclaim_page(struct zbud_pool *pool, unsigned int retries);
- void *zbud_map(struct zbud_pool *pool, unsigned long handle);
-diff --git a/mm/zbud.c b/mm/zbud.c
-index 9451361..e02f53f 100644
---- a/mm/zbud.c
-+++ b/mm/zbud.c
-@@ -94,6 +94,7 @@ struct zbud_pool {
- 	struct list_head lru;
- 	u64 pages_nr;
- 	struct zbud_ops *ops;
-+	gfp_t gfp;
+-	meta->mem_pool = zs_create_pool(GFP_NOIO | __GFP_HIGHMEM);
++	meta->mem_pool = zs_create_pool(GFP_NOIO | __GFP_HIGHMEM, NULL);
+ 	if (!meta->mem_pool) {
+ 		pr_err("Error creating memory pool\n");
+ 		goto free_table;
+diff --git a/include/linux/zsmalloc.h b/include/linux/zsmalloc.h
+index e44d634..a75ab6e 100644
+--- a/include/linux/zsmalloc.h
++++ b/include/linux/zsmalloc.h
+@@ -36,11 +36,16 @@ enum zs_mapmode {
+ 
+ struct zs_pool;
+ 
+-struct zs_pool *zs_create_pool(gfp_t flags);
++struct zs_ops {
++	int (*evict)(struct zs_pool *pool, unsigned long handle);
++};
++
++struct zs_pool *zs_create_pool(gfp_t flags, struct zs_ops *ops);
+ void zs_destroy_pool(struct zs_pool *pool);
+ 
+ unsigned long zs_malloc(struct zs_pool *pool, size_t size);
+ void zs_free(struct zs_pool *pool, unsigned long obj);
++int zs_shrink(struct zs_pool *pool, size_t size);
+ 
+ void *zs_map_object(struct zs_pool *pool, unsigned long handle,
+ 			enum zs_mapmode mm);
+diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+index 36b4591..b99bec0 100644
+--- a/mm/zsmalloc.c
++++ b/mm/zsmalloc.c
+@@ -219,6 +219,8 @@ struct zs_pool {
+ 	struct size_class size_class[ZS_SIZE_CLASSES];
+ 
+ 	gfp_t flags;	/* allocation flags used when growing pool */
++
++	struct zs_ops *ops;
  };
  
  /*
-@@ -193,9 +194,12 @@ static int num_free_chunks(struct zbud_header *zhdr)
- *****************/
- /**
-  * zbud_create_pool() - create a new zbud pool
-- * @gfp:	gfp flags when allocating the zbud pool structure
-+ * @gfp:	gfp flags when growing the pool
-  * @ops:	user-defined operations for the zbud pool
-  *
-+ * gfp should not set __GFP_HIGHMEM as highmem pages cannot be used
-+ * as zbud pool pages.
-+ *
-  * Return: pointer to the new zbud pool or NULL if the metadata allocation
-  * failed.
-  */
-@@ -204,7 +208,9 @@ struct zbud_pool *zbud_create_pool(gfp_t gfp, struct zbud_ops *ops)
- 	struct zbud_pool *pool;
- 	int i;
+@@ -389,16 +391,14 @@ static enum fullness_group fix_fullness_group(struct zs_pool *pool,
+ 	BUG_ON(!is_first_page(page));
  
--	pool = kmalloc(sizeof(struct zbud_pool), gfp);
-+	if (gfp & __GFP_HIGHMEM)
-+		return NULL;
-+	pool = kmalloc(sizeof(struct zbud_pool), GFP_KERNEL);
- 	if (!pool)
- 		return NULL;
- 	spin_lock_init(&pool->lock);
-@@ -214,6 +220,7 @@ struct zbud_pool *zbud_create_pool(gfp_t gfp, struct zbud_ops *ops)
- 	INIT_LIST_HEAD(&pool->lru);
- 	pool->pages_nr = 0;
- 	pool->ops = ops;
-+	pool->gfp = gfp;
- 	return pool;
+ 	get_zspage_mapping(page, &class_idx, &currfg);
+-	newfg = get_fullness_group(page);
+-	if (newfg == currfg)
+-		goto out;
+-
+ 	class = &pool->size_class[class_idx];
++	newfg = get_fullness_group(page);
++	/* Need to do this even if currfg == newfg, to update lru */
+ 	remove_zspage(page, class, currfg);
+ 	insert_zspage(page, class, newfg);
+-	set_zspage_mapping(page, class_idx, newfg);
++	if (currfg != newfg)
++		set_zspage_mapping(page, class_idx, newfg);
+ 
+-out:
+ 	return newfg;
  }
  
-@@ -232,7 +239,6 @@ void zbud_destroy_pool(struct zbud_pool *pool)
-  * zbud_alloc() - allocates a region of a given size
-  * @pool:	zbud pool from which to allocate
-  * @size:	size in bytes of the desired allocation
-- * @gfp:	gfp flags used if the pool needs to grow
-  * @handle:	handle of the new allocation
-  *
-  * This function will attempt to find a free region in the pool large enough to
-@@ -240,22 +246,18 @@ void zbud_destroy_pool(struct zbud_pool *pool)
-  * performed first. If no suitable free region is found, then a new page is
-  * allocated and added to the pool to satisfy the request.
-  *
-- * gfp should not set __GFP_HIGHMEM as highmem pages cannot be used
-- * as zbud pool pages.
-- *
-- * Return: 0 if success and handle is set, otherwise -EINVAL if the size or
-- * gfp arguments are invalid or -ENOMEM if the pool was unable to allocate
-- * a new page.
-+ * Return: 0 if success and @handle is set, -ENOSPC if the @size is too large,
-+ * -EINVAL if the @size is 0 or less, or -ENOMEM if the pool was unable to
-+ * allocate a new page.
-  */
--int zbud_alloc(struct zbud_pool *pool, int size, gfp_t gfp,
--			unsigned long *handle)
-+int zbud_alloc(struct zbud_pool *pool, int size, unsigned long *handle)
+@@ -438,6 +438,36 @@ static int get_pages_per_zspage(int class_size)
+ }
+ 
+ /*
++ * To determine which class to use when shrinking, we find the
++ * first zspage class that is greater than the requested shrink
++ * size, and has at least one zspage.  This returns the class
++ * with the class lock held, or NULL.
++ */
++static struct size_class *get_class_to_shrink(struct zs_pool *pool,
++			size_t size)
++{
++	struct size_class *class;
++	int i;
++	bool in_use, large_enough;
++
++	for (i = 0; i <= ZS_SIZE_CLASSES; i++) {
++		class = &pool->size_class[i];
++
++		spin_lock(&class->lock);
++
++		in_use = class->pages_allocated > 0;
++		large_enough = class->pages_per_zspage * PAGE_SIZE >= size;
++
++		if (in_use && large_enough)
++			return class;
++
++		spin_unlock(&class->lock);
++	}
++
++	return NULL;
++}
++
++/*
+  * A single 'zspage' is composed of many system pages which are
+  * linked together using fields in struct page. This function finds
+  * the first/head page, given any component page of a zspage.
+@@ -508,6 +538,48 @@ static unsigned long obj_idx_to_offset(struct page *page,
+ 	return off + obj_idx * class_size;
+ }
+ 
++static bool obj_handle_is_free(struct page *first_page,
++			struct size_class *class, unsigned long handle)
++{
++	unsigned long obj, idx, offset;
++	struct page *page;
++	struct link_free *link;
++
++	BUG_ON(!is_first_page(first_page));
++
++	obj = (unsigned long)first_page->freelist;
++
++	while (obj) {
++		if (obj == handle)
++			return true;
++
++		obj_handle_to_location(obj, &page, &idx);
++		offset = obj_idx_to_offset(page, idx, class->size);
++
++		link = (struct link_free *)kmap_atomic(page) +
++					offset / sizeof(*link);
++		obj = (unsigned long)link->next;
++		kunmap_atomic(link);
++	}
++
++	return false;
++}
++
++static void obj_free(unsigned long obj, struct page *page, unsigned long offset)
++{
++	struct page *first_page = get_first_page(page);
++	struct link_free *link;
++
++	/* Insert this object in containing zspage's freelist */
++	link = (struct link_free *)((unsigned char *)kmap_atomic(page)
++							+ offset);
++	link->next = first_page->freelist;
++	kunmap_atomic(link);
++	first_page->freelist = (void *)obj;
++
++	first_page->inuse--;
++}
++
+ static void reset_page(struct page *page)
  {
- 	int chunks, i, freechunks;
- 	struct zbud_header *zhdr = NULL;
- 	enum buddy bud;
- 	struct page *page;
+ 	clear_bit(PG_private, &page->flags);
+@@ -651,6 +723,39 @@ cleanup:
+ 	return first_page;
+ }
  
--	if (size <= 0 || gfp & __GFP_HIGHMEM)
-+	if (size <= 0)
- 		return -EINVAL;
- 	if (size > PAGE_SIZE - ZHDR_SIZE_ALIGNED - CHUNK_SIZE)
- 		return -ENOSPC;
-@@ -279,7 +281,7 @@ int zbud_alloc(struct zbud_pool *pool, int size, gfp_t gfp,
++static int reclaim_zspage(struct zs_pool *pool, struct size_class *class,
++			struct page *first_page)
++{
++	struct page *page = first_page;
++	unsigned long offset = 0, handle, idx, objs;
++	int ret = 0;
++
++	BUG_ON(!is_first_page(page));
++	BUG_ON(!pool->ops);
++	BUG_ON(!pool->ops->evict);
++
++	while (page) {
++		objs = DIV_ROUND_UP(PAGE_SIZE - offset, class->size);
++
++		for (idx = 0; idx < objs; idx++) {
++			handle = (unsigned long)obj_location_to_handle(page,
++									idx);
++			if (!obj_handle_is_free(first_page, class, handle))
++				ret = pool->ops->evict(pool, handle);
++			if (ret)
++				return ret;
++			else
++				obj_free(handle, page, offset);
++		}
++
++		page = get_next_page(page);
++		if (page)
++			offset = page->index;
++	}
++
++	return 0;
++}
++
+ static struct page *find_get_zspage(struct size_class *class)
+ {
+ 	int i;
+@@ -856,7 +961,7 @@ fail:
+  * On success, a pointer to the newly created pool is returned,
+  * otherwise NULL.
+  */
+-struct zs_pool *zs_create_pool(gfp_t flags)
++struct zs_pool *zs_create_pool(gfp_t flags, struct zs_ops *ops)
+ {
+ 	int i, ovhd_size;
+ 	struct zs_pool *pool;
+@@ -883,6 +988,7 @@ struct zs_pool *zs_create_pool(gfp_t flags)
+ 	}
  
- 	/* Couldn't find unbuddied zbud page, create new one */
- 	spin_unlock(&pool->lock);
--	page = alloc_page(gfp);
-+	page = alloc_page(pool->gfp);
- 	if (!page)
- 		return -ENOMEM;
- 	spin_lock(&pool->lock);
-diff --git a/mm/zswap.c b/mm/zswap.c
-index aeaef0f..1cc6770 100644
---- a/mm/zswap.c
-+++ b/mm/zswap.c
-@@ -679,8 +679,7 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
+ 	pool->flags = flags;
++	pool->ops = ops;
  
- 	/* store */
- 	len = dlen + sizeof(struct zswap_header);
--	ret = zbud_alloc(zswap_pool, len, __GFP_NORETRY | __GFP_NOWARN,
--		&handle);
-+	ret = zbud_alloc(zswap_pool, len, &handle);
- 	if (ret == -ENOSPC) {
- 		zswap_reject_compress_poor++;
- 		goto freepage;
-@@ -900,7 +899,8 @@ static int __init init_zswap(void)
+ 	return pool;
+ }
+@@ -968,7 +1074,6 @@ EXPORT_SYMBOL_GPL(zs_malloc);
  
- 	pr_info("loading zswap\n");
+ void zs_free(struct zs_pool *pool, unsigned long obj)
+ {
+-	struct link_free *link;
+ 	struct page *first_page, *f_page;
+ 	unsigned long f_objidx, f_offset;
  
--	zswap_pool = zbud_create_pool(GFP_KERNEL, &zswap_zbud_ops);
-+	zswap_pool = zbud_create_pool(__GFP_NORETRY | __GFP_NOWARN,
-+			&zswap_zbud_ops);
- 	if (!zswap_pool) {
- 		pr_err("zbud pool creation failed\n");
- 		goto error;
+@@ -988,14 +1093,8 @@ void zs_free(struct zs_pool *pool, unsigned long obj)
+ 
+ 	spin_lock(&class->lock);
+ 
+-	/* Insert this object in containing zspage's freelist */
+-	link = (struct link_free *)((unsigned char *)kmap_atomic(f_page)
+-							+ f_offset);
+-	link->next = first_page->freelist;
+-	kunmap_atomic(link);
+-	first_page->freelist = (void *)obj;
++	obj_free(obj, f_page, f_offset);
+ 
+-	first_page->inuse--;
+ 	fullness = fix_fullness_group(pool, first_page);
+ 
+ 	if (fullness == ZS_EMPTY)
+@@ -1008,6 +1107,45 @@ void zs_free(struct zs_pool *pool, unsigned long obj)
+ }
+ EXPORT_SYMBOL_GPL(zs_free);
+ 
++int zs_shrink(struct zs_pool *pool, size_t size)
++{
++	struct size_class *class;
++	struct page *first_page;
++	enum fullness_group fullness;
++	int ret;
++
++	if (!pool->ops || !pool->ops->evict)
++		return -EINVAL;
++
++	/* the class is returned locked */
++	class = get_class_to_shrink(pool, size);
++	if (!class)
++		return -ENOENT;
++
++	first_page = find_get_zspage(class);
++	if (!first_page) {
++		spin_unlock(&class->lock);
++		return -ENOENT;
++	}
++
++	ret = reclaim_zspage(pool, class, first_page);
++
++	if (ret) {
++		fullness = fix_fullness_group(pool, first_page);
++
++		if (fullness == ZS_EMPTY)
++			class->pages_allocated -= class->pages_per_zspage;
++	}
++
++	spin_unlock(&class->lock);
++
++	if (!ret || fullness == ZS_EMPTY)
++		free_zspage(first_page);
++
++	return ret;
++}
++EXPORT_SYMBOL_GPL(zs_shrink);
++
+ /**
+  * zs_map_object - get address of allocated object from handle.
+  * @pool: pool from which the object was allocated
 -- 
 1.8.3.1
 
