@@ -1,59 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f54.google.com (mail-ee0-f54.google.com [74.125.83.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E70F6B0031
-	for <linux-mm@kvack.org>; Sat, 19 Apr 2014 07:16:28 -0400 (EDT)
-Received: by mail-ee0-f54.google.com with SMTP id d49so2337931eek.27
-        for <linux-mm@kvack.org>; Sat, 19 Apr 2014 04:16:27 -0700 (PDT)
+Received: from mail-ee0-f47.google.com (mail-ee0-f47.google.com [74.125.83.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 914216B0031
+	for <linux-mm@kvack.org>; Sat, 19 Apr 2014 07:18:59 -0400 (EDT)
+Received: by mail-ee0-f47.google.com with SMTP id b15so2290938eek.6
+        for <linux-mm@kvack.org>; Sat, 19 Apr 2014 04:18:58 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q2si44489625eep.42.2014.04.19.04.16.26
+        by mx.google.com with ESMTPS id 43si44479724eer.27.2014.04.19.04.18.57
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sat, 19 Apr 2014 04:16:26 -0700 (PDT)
-Date: Sat, 19 Apr 2014 12:15:32 +0100
+        Sat, 19 Apr 2014 04:18:58 -0700 (PDT)
+Date: Sat, 19 Apr 2014 12:18:05 +0100
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re:  [PATCH 01/16] mm: Disablezone_eclaim_mode by default
-Message-ID: <20140419111515.GA4225@suse.de>
+Subject: Re: [PATCH 06/16] mm: page_alloc: Calculate classzone_idx once from
+ the zonelist ref
+Message-ID: <20140419111805.GB4225@suse.de>
+References: <1397832643-14275-1-git-send-email-mgorman@suse.de>
+ <1397832643-14275-7-git-send-email-mgorman@suse.de>
+ <20140418180309.GC29210@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
+In-Reply-To: <20140418180309.GC29210@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <andi@firstfloor.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
 Cc: Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>
 
-On Fri, Apr 18, 2014 at 10:26:28AM -0700, Andi Kleen wrote:
-> Mel Gorman <mgorman@suse.de> writes:
+On Fri, Apr 18, 2014 at 02:03:09PM -0400, Johannes Weiner wrote:
+> On Fri, Apr 18, 2014 at 03:50:33PM +0100, Mel Gorman wrote:
+> > @@ -2463,7 +2462,7 @@ static inline struct page *
+> >  __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+> >  	struct zonelist *zonelist, enum zone_type high_zoneidx,
+> >  	nodemask_t *nodemask, struct zone *preferred_zone,
+> > -	int migratetype)
+> > +	int classzone_idx, int migratetype)
+> >  {
+> >  	const gfp_t wait = gfp_mask & __GFP_WAIT;
+> >  	struct page *page = NULL;
 > 
-> > zone_reclaim_mode causes processes to prefer reclaiming memory from local
-> > node instead of spilling over to other nodes. This made sense initially when
-> > NUMA machines were almost exclusively HPC and the workload was partitioned
-> > into nodes. The NUMA penalties were sufficiently high to justify reclaiming
-> > the memory. On current machines and workloads it is often the case that
-> > zone_reclaim_mode destroys performance but not all users know how to detect
-> > this. 
+> There is another potential update of preferred_zone in this function
+> after which the classzone_idx should probably be refreshed:
 > 
-> Non local memory also often destroys performance.
-> 
+> 	/*
+> 	 * Find the true preferred zone if the allocation is unconstrained by
+> 	 * cpusets.
+> 	 */
+> 	if (!(alloc_flags & ALLOC_CPUSET) && !nodemask)
+> 		first_zones_zonelist(zonelist, high_zoneidx, NULL,
+> 					&preferred_zone);
 
-True, but if they are sophisticated enough to detect it, they should
-also know about the tunable.
-
-> > Favour the common case and disable it by default. Users that are
-> > sophisticated enough to know they need zone_reclaim_mode will detect it.
-> 
-> While I'm not totally against this change, it will destroy many
-> carefully tuned configurations as the default NUMA behavior may be completely
-> different now. So it seems like a big hammer, and it's not even clear
-> what problem you're exactly solving here.
-> 
-
-It's a sysctl entry for them to add.
-
-The problem is that many users do not know or cannot detect why page
-reclaim is happening early. They do not have the people on staff to
-detect it where as the NUMA people appear to generally do. I see bugs
-semi-regularly on the problem albeit generally against the distribution
-rather than upstream.
+Thanks, I'll fix it up for v2.
 
 -- 
 Mel Gorman
