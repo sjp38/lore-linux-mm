@@ -1,87 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oa0-f52.google.com (mail-oa0-f52.google.com [209.85.219.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B0DE6B003D
-	for <linux-mm@kvack.org>; Sat, 19 Apr 2014 22:26:57 -0400 (EDT)
-Received: by mail-oa0-f52.google.com with SMTP id l6so3115316oag.11
-        for <linux-mm@kvack.org>; Sat, 19 Apr 2014 19:26:52 -0700 (PDT)
-Received: from g2t2353.austin.hp.com (g2t2353.austin.hp.com. [15.217.128.52])
-        by mx.google.com with ESMTPS id jh2si26032365obb.113.2014.04.19.19.26.51
+Received: from mail-lb0-f177.google.com (mail-lb0-f177.google.com [209.85.217.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F48B6B0035
+	for <linux-mm@kvack.org>; Sun, 20 Apr 2014 04:04:05 -0400 (EDT)
+Received: by mail-lb0-f177.google.com with SMTP id z11so2402410lbi.36
+        for <linux-mm@kvack.org>; Sun, 20 Apr 2014 01:04:05 -0700 (PDT)
+Received: from mail-lb0-x22c.google.com (mail-lb0-x22c.google.com [2a00:1450:4010:c04::22c])
+        by mx.google.com with ESMTPS id sn7si21919887lbb.151.2014.04.20.01.04.02
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sat, 19 Apr 2014 19:26:52 -0700 (PDT)
-From: Davidlohr Bueso <davidlohr@hp.com>
-Subject: [PATCH 5/6] drivers,sgi-gru/grufault.c: call find_vma with the mmap_sem held
-Date: Sat, 19 Apr 2014 19:26:30 -0700
-Message-Id: <1397960791-16320-6-git-send-email-davidlohr@hp.com>
-In-Reply-To: <1397960791-16320-1-git-send-email-davidlohr@hp.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Sun, 20 Apr 2014 01:04:03 -0700 (PDT)
+Received: by mail-lb0-f172.google.com with SMTP id c11so2424279lbj.31
+        for <linux-mm@kvack.org>; Sun, 20 Apr 2014 01:04:02 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <1397960791-16320-3-git-send-email-davidlohr@hp.com>
 References: <1397960791-16320-1-git-send-email-davidlohr@hp.com>
+	<1397960791-16320-3-git-send-email-davidlohr@hp.com>
+Date: Sun, 20 Apr 2014 10:04:02 +0200
+Message-ID: <CAMuHMdVBZSC3Kvwsw5pa-m8ZAUCjpkF8gjJH1XbOK2iFbU1KEg@mail.gmail.com>
+Subject: Re: [PATCH 2/6] m68k: call find_vma with the mmap_sem held in sys_cacheflush()
+From: Geert Uytterhoeven <geert@linux-m68k.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: zeus@gnu.org, aswin@hp.com, davidlohr@hp.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dimitri@domain.invalid, "Sivanich <sivanich"@sgi.com
+To: Davidlohr Bueso <davidlohr@hp.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, zeus@gnu.org, Aswin Chandramouleeswaran <aswin@hp.com>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-m68k <linux-m68k@lists.linux-m68k.org>
 
-From: Jonathan Gonzalez V <zeus@gnu.org>
+Hi David,
 
-Performing vma lookups without taking the mm->mmap_sem is asking
-for trouble. While doing the search, the vma in question can
-be modified or even removed before returning to the caller.
-Take the lock in order to avoid races while iterating through
-the vmacache and/or rbtree.
+On Sun, Apr 20, 2014 at 4:26 AM, Davidlohr Bueso <davidlohr@hp.com> wrote:
+> Performing vma lookups without taking the mm->mmap_sem is asking
+> for trouble. While doing the search, the vma in question can be
+> modified or even removed before returning to the caller. Take the
+> lock (shared) in order to avoid races while iterating through
+> the vmacache and/or rbtree.
 
-This patch is completely *untested*.
+Thanks for your patch!
 
-Signed-off-by: Jonathan Gonzalez V <zeus@gnu.org>
-Signed-off-by: Davidlohr Bueso <davidlohr@hp.com>
-Cc: Dimitri Sivanich <sivanich@sgi.com
----
- drivers/misc/sgi-gru/grufault.c | 13 +++++++++----
- 1 file changed, 9 insertions(+), 4 deletions(-)
+> This patch is completely *untested*.
+>
+> Signed-off-by: Davidlohr Bueso <davidlohr@hp.com>
+> Cc: Geert Uytterhoeven <geert@linux-m68k.org>
+> Cc: linux-m68k@lists.linux-m68k.org
+> ---
+>  arch/m68k/kernel/sys_m68k.c | 18 ++++++++++++------
+>  1 file changed, 12 insertions(+), 6 deletions(-)
+>
+> diff --git a/arch/m68k/kernel/sys_m68k.c b/arch/m68k/kernel/sys_m68k.c
+> index 3a480b3..d2263a0 100644
+> --- a/arch/m68k/kernel/sys_m68k.c
+> +++ b/arch/m68k/kernel/sys_m68k.c
+> @@ -376,7 +376,6 @@ cache_flush_060 (unsigned long addr, int scope, int cache, unsigned long len)
+>  asmlinkage int
+>  sys_cacheflush (unsigned long addr, int scope, int cache, unsigned long len)
+>  {
+> -       struct vm_area_struct *vma;
+>         int ret = -EINVAL;
+>
+>         if (scope < FLUSH_SCOPE_LINE || scope > FLUSH_SCOPE_ALL ||
+> @@ -389,16 +388,23 @@ sys_cacheflush (unsigned long addr, int scope, int cache, unsigned long len)
+>                 if (!capable(CAP_SYS_ADMIN))
+>                         goto out;
+>         } else {
+> +               struct vm_area_struct *vma;
+> +               bool invalid;
+> +
+> +               /* Check for overflow.  */
+> +               if (addr + len < addr)
+> +                       goto out;
+> +
+>                 /*
+>                  * Verify that the specified address region actually belongs
+>                  * to this process.
+>                  */
+> -               vma = find_vma (current->mm, addr);
+>                 ret = -EINVAL;
+> -               /* Check for overflow.  */
+> -               if (addr + len < addr)
+> -                       goto out;
+> -               if (vma == NULL || addr < vma->vm_start || addr + len > vma->vm_end)
+> +               down_read(&current->mm->mmap_sem);
+> +               vma = find_vma(current->mm, addr);
+> +               invalid = !vma || addr < vma->vm_start || addr + len > vma->vm_end;
+> +               up_read(&current->mm->mmap_sem);
+> +               if (invalid)
+>                         goto out;
+>         }
 
-diff --git a/drivers/misc/sgi-gru/grufault.c b/drivers/misc/sgi-gru/grufault.c
-index f74fc0c..15adc84 100644
---- a/drivers/misc/sgi-gru/grufault.c
-+++ b/drivers/misc/sgi-gru/grufault.c
-@@ -266,6 +266,7 @@ static int gru_vtop(struct gru_thread_state *gts, unsigned long vaddr,
- 	unsigned long paddr;
- 	int ret, ps;
- 
-+	down_write(&mm->mmap_sem);
- 	vma = find_vma(mm, vaddr);
- 	if (!vma)
- 		goto inval;
-@@ -277,22 +278,26 @@ static int gru_vtop(struct gru_thread_state *gts, unsigned long vaddr,
- 	rmb();	/* Must/check ms_range_active before loading PTEs */
- 	ret = atomic_pte_lookup(vma, vaddr, write, &paddr, &ps);
- 	if (ret) {
--		if (atomic)
--			goto upm;
-+		if (atomic) {
-+			up_write(&mm->mmap_sem);
-+			return VTOP_RETRY;
-+		}
- 		if (non_atomic_pte_lookup(vma, vaddr, write, &paddr, &ps))
- 			goto inval;
- 	}
- 	if (is_gru_paddr(paddr))
- 		goto inval;
-+
-+	up_write(&mm->mmap_sem);
-+
- 	paddr = paddr & ~((1UL << ps) - 1);
- 	*gpa = uv_soc_phys_ram_to_gpa(paddr);
- 	*pageshift = ps;
- 	return VTOP_SUCCESS;
- 
- inval:
-+	up_write(&mm->mmap_sem);
- 	return VTOP_INVALID;
--upm:
--	return VTOP_RETRY;
- }
- 
- 
--- 
-1.8.1.4
+Shouldn't the up_read() be moved to the end of the function?
+The vma may still be modified or destroyed between the call to find_vma(),
+and the actual cache flush?
+
+Am I missing something?
+
+Gr{oetje,eeting}s,
+
+                        Geert
+
+--
+Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k.org
+
+In personal conversations with technical people, I call myself a hacker. But
+when I'm talking to journalists I just say "programmer" or something like that.
+                                -- Linus Torvalds
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
