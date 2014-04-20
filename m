@@ -1,53 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f50.google.com (mail-ee0-f50.google.com [74.125.83.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F28E6B0035
-	for <linux-mm@kvack.org>; Sun, 20 Apr 2014 16:59:32 -0400 (EDT)
-Received: by mail-ee0-f50.google.com with SMTP id c13so3150634eek.23
-        for <linux-mm@kvack.org>; Sun, 20 Apr 2014 13:59:31 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u5si51174388een.143.2014.04.20.13.59.30
+Received: from mail-pb0-f51.google.com (mail-pb0-f51.google.com [209.85.160.51])
+	by kanga.kvack.org (Postfix) with ESMTP id E2ABD6B0035
+	for <linux-mm@kvack.org>; Sun, 20 Apr 2014 18:28:26 -0400 (EDT)
+Received: by mail-pb0-f51.google.com with SMTP id uo5so3090512pbc.24
+        for <linux-mm@kvack.org>; Sun, 20 Apr 2014 15:28:26 -0700 (PDT)
+Received: from g2t2354.austin.hp.com (g2t2354.austin.hp.com. [15.217.128.53])
+        by mx.google.com with ESMTPS id ai4si15179827pbd.125.2014.04.20.15.28.25
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sun, 20 Apr 2014 13:59:30 -0700 (PDT)
-Date: Sun, 20 Apr 2014 21:59:23 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 0/2] Disable zone_reclaim_mode by default v2
-Message-ID: <20140420205923.GA23991@suse.de>
-References: <1396945380-18592-1-git-send-email-mgorman@suse.de>
- <20140418130543.8619064c0e5d26cd914c4c3c@linux-foundation.org>
- <21329.36761.970643.523119@quad.stoffel.home>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <21329.36761.970643.523119@quad.stoffel.home>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Sun, 20 Apr 2014 15:28:26 -0700 (PDT)
+Message-ID: <1398032896.19331.25.camel@buesod1.americas.hpqcorp.net>
+Subject: Re: [PATCH 2/6] m68k: call find_vma with the mmap_sem held in
+ sys_cacheflush()
+From: Davidlohr Bueso <davidlohr@hp.com>
+Date: Sun, 20 Apr 2014 15:28:16 -0700
+In-Reply-To: <CAMuHMdVBZSC3Kvwsw5pa-m8ZAUCjpkF8gjJH1XbOK2iFbU1KEg@mail.gmail.com>
+References: <1397960791-16320-1-git-send-email-davidlohr@hp.com>
+	 <1397960791-16320-3-git-send-email-davidlohr@hp.com>
+	 <CAMuHMdVBZSC3Kvwsw5pa-m8ZAUCjpkF8gjJH1XbOK2iFbU1KEg@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Stoffel <john@stoffel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Robert Haas <robertmhaas@gmail.com>, Josh Berkus <josh@agliodbs.com>, Andres Freund <andres@2ndquadrant.com>, Christoph Lameter <cl@linux.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.cz>
+To: Geert Uytterhoeven <geert@linux-m68k.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, zeus@gnu.org, Aswin Chandramouleeswaran <aswin@hp.com>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-m68k <linux-m68k@lists.linux-m68k.org>
 
-On Fri, Apr 18, 2014 at 04:48:25PM -0400, John Stoffel wrote:
-> >>>>> "Andrew" == Andrew Morton <akpm@linux-foundation.org> writes:
+On Sun, 2014-04-20 at 10:04 +0200, Geert Uytterhoeven wrote:
+> Hi David,
 > 
-> Andrew> On Tue,  8 Apr 2014 09:22:58 +0100 Mel Gorman <mgorman@suse.de> wrote:
-> >> Changelog since v1
-> >> o topology comment updates
-> >> 
-> >> When it was introduced, zone_reclaim_mode made sense as NUMA distances
-> >> punished and workloads were generally partitioned to fit into a NUMA
-> >> node. NUMA machines are now common but few of the workloads are NUMA-aware
-> >> and it's routine to see major performance due to zone_reclaim_mode being
-> >> enabled but relatively few can identify the problem.
+> On Sun, Apr 20, 2014 at 4:26 AM, Davidlohr Bueso <davidlohr@hp.com> wrote:
+> > Performing vma lookups without taking the mm->mmap_sem is asking
+> > for trouble. While doing the search, the vma in question can be
+> > modified or even removed before returning to the caller. Take the
+> > lock (shared) in order to avoid races while iterating through
+> > the vmacache and/or rbtree.
 > 
+> Thanks for your patch!
 > 
-> This is unclear here.  "see major performance <what> due" doesn't make
-> sense to me.  
+> > This patch is completely *untested*.
+> >
+> > Signed-off-by: Davidlohr Bueso <davidlohr@hp.com>
+> > Cc: Geert Uytterhoeven <geert@linux-m68k.org>
+> > Cc: linux-m68k@lists.linux-m68k.org
+> > ---
+> >  arch/m68k/kernel/sys_m68k.c | 18 ++++++++++++------
+> >  1 file changed, 12 insertions(+), 6 deletions(-)
+> >
+> > diff --git a/arch/m68k/kernel/sys_m68k.c b/arch/m68k/kernel/sys_m68k.c
+> > index 3a480b3..d2263a0 100644
+> > --- a/arch/m68k/kernel/sys_m68k.c
+> > +++ b/arch/m68k/kernel/sys_m68k.c
+> > @@ -376,7 +376,6 @@ cache_flush_060 (unsigned long addr, int scope, int cache, unsigned long len)
+> >  asmlinkage int
+> >  sys_cacheflush (unsigned long addr, int scope, int cache, unsigned long len)
+> >  {
+> > -       struct vm_area_struct *vma;
+> >         int ret = -EINVAL;
+> >
+> >         if (scope < FLUSH_SCOPE_LINE || scope > FLUSH_SCOPE_ALL ||
+> > @@ -389,16 +388,23 @@ sys_cacheflush (unsigned long addr, int scope, int cache, unsigned long len)
+> >                 if (!capable(CAP_SYS_ADMIN))
+> >                         goto out;
+> >         } else {
+> > +               struct vm_area_struct *vma;
+> > +               bool invalid;
+> > +
+> > +               /* Check for overflow.  */
+> > +               if (addr + len < addr)
+> > +                       goto out;
+> > +
+> >                 /*
+> >                  * Verify that the specified address region actually belongs
+> >                  * to this process.
+> >                  */
+> > -               vma = find_vma (current->mm, addr);
+> >                 ret = -EINVAL;
+> > -               /* Check for overflow.  */
+> > -               if (addr + len < addr)
+> > -                       goto out;
+> > -               if (vma == NULL || addr < vma->vm_start || addr + len > vma->vm_end)
+> > +               down_read(&current->mm->mmap_sem);
+> > +               vma = find_vma(current->mm, addr);
+> > +               invalid = !vma || addr < vma->vm_start || addr + len > vma->vm_end;
+> > +               up_read(&current->mm->mmap_sem);
+> > +               if (invalid)
+> >                         goto out;
+> >         }
 > 
+> Shouldn't the up_read() be moved to the end of the function?
+> The vma may still be modified or destroyed between the call to find_vma(),
+> and the actual cache flush?
 
-Degradation
+I don't think so. afaict the vma is only searched to check upon validity
+for the address being passed. Once the sem is dropped, the call doesn't
+do absolutely anything else with the returned vma.
 
--- 
-Mel Gorman
-SUSE Labs
+Thanks,
+Davidlohr
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
