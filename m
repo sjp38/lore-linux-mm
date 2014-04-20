@@ -1,142 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f182.google.com (mail-lb0-f182.google.com [209.85.217.182])
-	by kanga.kvack.org (Postfix) with ESMTP id D7DA26B0038
-	for <linux-mm@kvack.org>; Sun, 20 Apr 2014 06:39:37 -0400 (EDT)
-Received: by mail-lb0-f182.google.com with SMTP id n15so2485647lbi.13
-        for <linux-mm@kvack.org>; Sun, 20 Apr 2014 03:39:37 -0700 (PDT)
-Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id g7si22133970lag.81.2014.04.20.03.39.35
+Received: from mail-wg0-f43.google.com (mail-wg0-f43.google.com [74.125.82.43])
+	by kanga.kvack.org (Postfix) with ESMTP id AECBD6B0035
+	for <linux-mm@kvack.org>; Sun, 20 Apr 2014 10:29:16 -0400 (EDT)
+Received: by mail-wg0-f43.google.com with SMTP id x13so1903492wgg.26
+        for <linux-mm@kvack.org>; Sun, 20 Apr 2014 07:29:15 -0700 (PDT)
+Received: from alpha.arachsys.com (alpha.arachsys.com. [2001:9d8:200a:0:9f:9fff:fe90:dbe3])
+        by mx.google.com with ESMTPS id gw4si1586628wib.114.2014.04.20.07.29.14
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 20 Apr 2014 03:39:36 -0700 (PDT)
-Message-ID: <5353A3E3.4020302@parallels.com>
-Date: Sun, 20 Apr 2014 14:39:31 +0400
-From: Vladimir Davydov <vdavydov@parallels.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Sun, 20 Apr 2014 07:29:15 -0700 (PDT)
+Date: Sun, 20 Apr 2014 15:28:30 +0100
+From: Richard Davies <richard@arachsys.com>
+Subject: Protection against container fork bombs [WAS: Re: memcg with kmem
+ limit doesn't recover after disk i/o causes limit to be hit]
+Message-ID: <20140420142830.GC22077@alpha.arachsys.com>
+References: <20140416154650.GA3034@alpha.arachsys.com>
+ <20140418155939.GE4523@dhcp22.suse.cz>
+ <5351679F.5040908@parallels.com>
 MIME-Version: 1.0
-Subject: [RFC] how should we deal with dead memcgs' kmem caches?
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5351679F.5040908@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Glauber Costa <glommer@gmail.com>, LKML <linux-kernel@vger.kernel.org>, Linux Memory
- Management List <linux-mm@kvack.org>, devel@openvz.org
+To: Vladimir Davydov <vdavydov@parallels.com>, Frederic Weisbecker <fweisbec@gmail.com>, David Rientjes <rientjes@google.com>, Glauber Costa <glommer@parallels.com>, Tejun Heo <tj@kernel.org>, Max Kellermann <mk@cm4all.com>, Johannes Weiner <hannes@cmpxchg.org>, William Dauchy <wdauchy@gmail.com>, Tim Hockin <thockin@hockin.org>, Michal Hocko <mhocko@suse.cz>, Daniel Walsh <dwalsh@redhat.com>, Daniel Berrange <berrange@redhat.com>
+Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, containers@lists.linux-foundation.org
 
-Hi,
+Vladimir Davydov wrote:
+> Richard Davies wrote:
+> > I have a simple reproducible test case in which untar in a memcg with a
+> > kmem limit gets into trouble during heavy disk i/o (on ext3) and never
+> > properly recovers. This is simplified from real world problems with
+> > heavy disk i/o inside containers.
+>
+> Unfortunately, work on per cgroup kmem limits is not completed yet.
+> Currently it lacks kmem reclaim on per cgroup memory pressure, which is
+> vital for using kmem limits in real life.
+...
+> In short, kmem limiting for memory cgroups is currently broken. Do not
+> use it. We are working on making it usable though.
 
->From my pov one of the biggest problems in kmemcg implementation is how
-to handle per memcg kmem caches that have objects when the owner memcg
-is turned offline. Actually there are two issues here. First, when and
-where we should initiate cache destruction (e.g. schedule destruction
-work from kmem_cache_free when the last object goes away, or reap them
-periodically). Second, how to prevent races between kmem_cache_destroy
-and kmem_cache_free for a dead cache: the point is kmem_cache_free may
-want to access the kmem_cache structure after it releases the object
-potentially making the cache destroyable.
-
-Here I'd like to present possible ways of sorting out this problem,
-their pros and cons, in the hope that you will share your thoughts on
-them and perhaps we will be able to come to a consensus about which way
-we should choose.
+Thanks for explaining the strange errors I got.
 
 
-* How it works now *
+My motivation is to prevent a fork bomb in a container from affecting other
+processes outside that container.
 
-We count pages (slabs) allocated to a per memcg cache in
-memcg_cache_params::nr_pages. When a memcg is turned offline, we set the
-memcg_cache_params::dead flag, which makes slab freeing functions
-schedule the memcg_cache_params::destroy work, which destroys the cache
-(see memcg_release_pages), as soon as nr_pages reaches 0.
-
-Actually, it does not work as expected: kmem caches that have objects on
-memcg offline will be leaked, because both slab and slub designs never
-free all pages on kmem_cache_free to speed up further allocs/frees.
-
-Furthermore, currently we don't handle possible races between
-kmem_cache_free/shrink and the destruction work - we can still use the
-cache in kmem_cache_free/shrink after we freed the last page and
-initiated destruction.
+kmem limits were the preferred mechanism in several previous discussions
+about two years ago (I'm copying in participants from those previous
+discussions and give links below). So I tried kmem first but found bugs.
 
 
-* Way #1 - prevent dead kmem caches from caching slabs on free *
+What is the best mechanism available today, until kmem limits mature?
 
-We can modify sl[au]b implementation so that it won't cache any objects
-on free if the kmem cache belongs to a dead memcg. Then it'd be enough
-to drain per-cpu pools of all dead kmem caches on css offline - no new
-slabs will be added there on further frees, and the last object will go
-away along with the last slab.
+RLIMIT_NPROC exists but is per-user, not per-container.
 
-Pros: don't see any
-Cons:
- - have to intrude into sl[au]b internals
- - frees to dead caches will be noticeably slowed down
-
-We still have to solve kmem_cache_free vs destroy race somehow, e.g. by
-rearranging operations in kmem_cache_free so that nr_pages is always
-decremented in the end.
+Perhaps there is an up-to-date task counter patchset or similar?
 
 
-* Way #2 - reap caches periodically or on vmpressure *
+Thank you all,
 
-We can remove the async work scheduling from kmem_cache_free completely,
-and instead walk over all dead kmem caches either periodically or on
-vmpressure to shrink and destroy those of them that become empty.
-
-That is what I had in mind when submitting the patch set titled "kmemcg:
-simplify work-flow":
-	https://lkml.org/lkml/2014/4/18/42
-
-Pros: easy to implement
-Cons: instead of being destroyed asap, dead caches will hang around
-until some point in time or, even worse, memory pressure condition.
-
-Again, it has nothing to say about the free-vs-destroy race. I was
-planning to rearrange operations in kmem_cache_free as I described above.
+Richard.
 
 
-* Way #3 - re-parent individual slabs *
 
-Theoretically, we could move all slab pages belonging to a kmem cache of
-a dead memcg to its parent memcg's cache. Then we could remove all dead
-caches immediately on css offline.
+Some references to previous discussions:
 
-Pros:
- - slabs of dead caches could be reused by parent memcg
- - should solve the cache free-vs-destroy race
-Cons:
- - difficult to implement - requires deep knowledge of sl[au]b design
-   and individual approach to both algorithms
- - will require heavy intrusion into sl[au]b internals
+Fork bomb limitation in memcg WAS: Re: [PATCH 00/11] kmem controller for memcg: stripped down version
+http://thread.gmane.org/gmane.linux.kernel/1318266/focus=1319372
 
+Re: [PATCH 00/10] cgroups: Task counter subsystem v8
+http://thread.gmane.org/gmane.linux.kernel/1246704/focus=1467310
 
-* Way #4 - count active objects per memcg cache *
+[RFD] Merge task counter into memcg
+http://thread.gmane.org/gmane.linux.kernel/1280302
 
-We could count not pages allocated to per memcg kmem caches, but
-individual objects. To minimize performance impact we could use percpu
-counters (something like percpu_ref).
+Re: [PATCH -mm] cgroup: Fix task counter common ancestor logic
+http://thread.gmane.org/gmane.linux.kernel/1212650/focus=1220186
 
-Pros:
- - very simple and clear implementation independent of slab algorithm
- - caches are destroyed as soon as they become empty
- - solves the problem with free-vs-destroy race automatically - cache
-   destruction will be initiated in the end of the last kfree, so that
-   no races are possible
-Cons:
- - will impact performance of alloc/free for per memcg caches,
-   especially for dead ones, for which we have to switch to an atomic
-   counter
- - existing implementation of percpu_ref can only hold 2^31-1 values;
-   although currently we can hardly have 2G kmem objects of one kind
-   even in a global cache, not speaking of per memcg, we should use
-   long counter to avoid overflows in future; therefore we should
-   either extend the existing implementation or introduce new percpu
-   long counter or use in-place solution
+[PATCH] new cgroup controller "fork"
+http://thread.gmane.org/gmane.linux.kernel/1210878
 
+Re: Process Limit cgroups
+http://thread.gmane.org/gmane.linux.kernel.cgroups/9368/focus=9369
 
-I'd appreciate if you could vote for the solution you like most or
-propose other approaches.
-
-Thank you.
+Re: [lxc-devel] process number limit
+https://www.mail-archive.com/lxc-devel@lists.sourceforge.net/msg03309.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
