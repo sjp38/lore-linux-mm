@@ -1,118 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f174.google.com (mail-lb0-f174.google.com [209.85.217.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 4EB286B0035
-	for <linux-mm@kvack.org>; Mon, 21 Apr 2014 03:52:35 -0400 (EDT)
-Received: by mail-lb0-f174.google.com with SMTP id u14so2937916lbd.19
-        for <linux-mm@kvack.org>; Mon, 21 Apr 2014 00:52:34 -0700 (PDT)
-Received: from mail-la0-x229.google.com (mail-la0-x229.google.com [2a00:1450:4010:c03::229])
-        by mx.google.com with ESMTPS id pw3si23682045lbb.22.2014.04.21.00.52.32
+Received: from mail-ee0-f52.google.com (mail-ee0-f52.google.com [74.125.83.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 2FC0D6B0035
+	for <linux-mm@kvack.org>; Mon, 21 Apr 2014 08:18:55 -0400 (EDT)
+Received: by mail-ee0-f52.google.com with SMTP id e49so3532468eek.25
+        for <linux-mm@kvack.org>; Mon, 21 Apr 2014 05:18:54 -0700 (PDT)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id i49si2048704eem.12.2014.04.21.05.18.53
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 21 Apr 2014 00:52:33 -0700 (PDT)
-Received: by mail-la0-f41.google.com with SMTP id gl10so3059250lab.28
-        for <linux-mm@kvack.org>; Mon, 21 Apr 2014 00:52:32 -0700 (PDT)
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 21 Apr 2014 05:18:53 -0700 (PDT)
+Date: Mon, 21 Apr 2014 08:18:40 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [RFC] how should we deal with dead memcgs' kmem caches?
+Message-ID: <20140421121840.GA11622@cmpxchg.org>
+References: <5353A3E3.4020302@parallels.com>
 MIME-Version: 1.0
-In-Reply-To: <1398032896.19331.25.camel@buesod1.americas.hpqcorp.net>
-References: <1397960791-16320-1-git-send-email-davidlohr@hp.com>
-	<1397960791-16320-3-git-send-email-davidlohr@hp.com>
-	<CAMuHMdVBZSC3Kvwsw5pa-m8ZAUCjpkF8gjJH1XbOK2iFbU1KEg@mail.gmail.com>
-	<1398032896.19331.25.camel@buesod1.americas.hpqcorp.net>
-Date: Mon, 21 Apr 2014 09:52:32 +0200
-Message-ID: <CAMuHMdV5HKvzE6H_JCH=01med8mVuXbVBz92tpNk7poH4ymXOQ@mail.gmail.com>
-Subject: Re: [PATCH 2/6] m68k: call find_vma with the mmap_sem held in sys_cacheflush()
-From: Geert Uytterhoeven <geert@linux-m68k.org>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5353A3E3.4020302@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <davidlohr@hp.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, zeus@gnu.org, Aswin Chandramouleeswaran <aswin@hp.com>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-m68k <linux-m68k@lists.linux-m68k.org>
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Glauber Costa <glommer@gmail.com>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, devel@openvz.org
 
-Hi David,
+On Sun, Apr 20, 2014 at 02:39:31PM +0400, Vladimir Davydov wrote:
+> * Way #2 - reap caches periodically or on vmpressure *
+> 
+> We can remove the async work scheduling from kmem_cache_free completely,
+> and instead walk over all dead kmem caches either periodically or on
+> vmpressure to shrink and destroy those of them that become empty.
+> 
+> That is what I had in mind when submitting the patch set titled "kmemcg:
+> simplify work-flow":
+> 	https://lkml.org/lkml/2014/4/18/42
+> 
+> Pros: easy to implement
+> Cons: instead of being destroyed asap, dead caches will hang around
+> until some point in time or, even worse, memory pressure condition.
 
-On Mon, Apr 21, 2014 at 12:28 AM, Davidlohr Bueso <davidlohr@hp.com> wrote:
-> On Sun, 2014-04-20 at 10:04 +0200, Geert Uytterhoeven wrote:
->> On Sun, Apr 20, 2014 at 4:26 AM, Davidlohr Bueso <davidlohr@hp.com> wrote:
->> > Performing vma lookups without taking the mm->mmap_sem is asking
->> > for trouble. While doing the search, the vma in question can be
->> > modified or even removed before returning to the caller. Take the
->> > lock (shared) in order to avoid races while iterating through
->> > the vmacache and/or rbtree.
->>
->> Thanks for your patch!
->>
->> > This patch is completely *untested*.
->> >
->> > Signed-off-by: Davidlohr Bueso <davidlohr@hp.com>
->> > Cc: Geert Uytterhoeven <geert@linux-m68k.org>
->> > Cc: linux-m68k@lists.linux-m68k.org
->> > ---
->> >  arch/m68k/kernel/sys_m68k.c | 18 ++++++++++++------
->> >  1 file changed, 12 insertions(+), 6 deletions(-)
->> >
->> > diff --git a/arch/m68k/kernel/sys_m68k.c b/arch/m68k/kernel/sys_m68k.c
->> > index 3a480b3..d2263a0 100644
->> > --- a/arch/m68k/kernel/sys_m68k.c
->> > +++ b/arch/m68k/kernel/sys_m68k.c
->> > @@ -376,7 +376,6 @@ cache_flush_060 (unsigned long addr, int scope, int cache, unsigned long len)
->> >  asmlinkage int
->> >  sys_cacheflush (unsigned long addr, int scope, int cache, unsigned long len)
->> >  {
->> > -       struct vm_area_struct *vma;
->> >         int ret = -EINVAL;
->> >
->> >         if (scope < FLUSH_SCOPE_LINE || scope > FLUSH_SCOPE_ALL ||
->> > @@ -389,16 +388,23 @@ sys_cacheflush (unsigned long addr, int scope, int cache, unsigned long len)
->> >                 if (!capable(CAP_SYS_ADMIN))
->> >                         goto out;
->> >         } else {
->> > +               struct vm_area_struct *vma;
->> > +               bool invalid;
->> > +
->> > +               /* Check for overflow.  */
->> > +               if (addr + len < addr)
->> > +                       goto out;
->> > +
->> >                 /*
->> >                  * Verify that the specified address region actually belongs
->> >                  * to this process.
->> >                  */
->> > -               vma = find_vma (current->mm, addr);
->> >                 ret = -EINVAL;
->> > -               /* Check for overflow.  */
->> > -               if (addr + len < addr)
->> > -                       goto out;
->> > -               if (vma == NULL || addr < vma->vm_start || addr + len > vma->vm_end)
->> > +               down_read(&current->mm->mmap_sem);
->> > +               vma = find_vma(current->mm, addr);
->> > +               invalid = !vma || addr < vma->vm_start || addr + len > vma->vm_end;
->> > +               up_read(&current->mm->mmap_sem);
->> > +               if (invalid)
->> >                         goto out;
->> >         }
->>
->> Shouldn't the up_read() be moved to the end of the function?
->> The vma may still be modified or destroyed between the call to find_vma(),
->> and the actual cache flush?
->
-> I don't think so. afaict the vma is only searched to check upon validity
-> for the address being passed. Once the sem is dropped, the call doesn't
-> do absolutely anything else with the returned vma.
+This would continue to pin css after cgroup destruction indefinitely,
+or at least for an arbitrary amount of time.  To reduce the waste from
+such pinning, we currently have to tear down other parts of the memcg
+optimistically from css_offline(), which is called before the last
+reference disappears and out of hierarchy order, making the teardown
+unnecessarily complicated and error prone.
 
-The function indeed doesn't do anything anymore with the vma itself, but
-it does do something with the addr/len pair, which may no longer match
-with the vma if it changes after the up_read(). I.e. the address may no longer
-be valid when the cache is actually flushed.
+So I think "easy to implement" is misleading.  What we really care
+about is "easy to maintain", and this basically excludes any async
+schemes.
 
-Gr{oetje,eeting}s,
+As far as synchronous cache teardown goes, I think everything that
+introduces object accounting into the slab hotpaths will also be a
+tough sell.
 
-                        Geert
-
---
-Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k.org
-
-In personal conversations with technical people, I call myself a hacker. But
-when I'm talking to journalists I just say "programmer" or something like that.
-                                -- Linus Torvalds
+Personally, I would prefer the cache merging, where remaining child
+slab pages are moved to the parent's cache on cgroup destruction.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
