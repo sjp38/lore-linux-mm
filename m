@@ -1,72 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f53.google.com (mail-la0-f53.google.com [209.85.215.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 31E6B6B0035
-	for <linux-mm@kvack.org>; Mon, 21 Apr 2014 03:47:05 -0400 (EDT)
-Received: by mail-la0-f53.google.com with SMTP id b8so2973778lan.12
-        for <linux-mm@kvack.org>; Mon, 21 Apr 2014 00:47:04 -0700 (PDT)
-Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id q7si23634206lbw.155.2014.04.21.00.47.02
+Received: from mail-lb0-f174.google.com (mail-lb0-f174.google.com [209.85.217.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 4EB286B0035
+	for <linux-mm@kvack.org>; Mon, 21 Apr 2014 03:52:35 -0400 (EDT)
+Received: by mail-lb0-f174.google.com with SMTP id u14so2937916lbd.19
+        for <linux-mm@kvack.org>; Mon, 21 Apr 2014 00:52:34 -0700 (PDT)
+Received: from mail-la0-x229.google.com (mail-la0-x229.google.com [2a00:1450:4010:c03::229])
+        by mx.google.com with ESMTPS id pw3si23682045lbb.22.2014.04.21.00.52.32
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 Apr 2014 00:47:02 -0700 (PDT)
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH] Documentation/memcg: warn about incomplete kmemcg state
-Date: Mon, 21 Apr 2014 11:47:00 +0400
-Message-ID: <1398066420-30707-1-git-send-email-vdavydov@parallels.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 21 Apr 2014 00:52:33 -0700 (PDT)
+Received: by mail-la0-f41.google.com with SMTP id gl10so3059250lab.28
+        for <linux-mm@kvack.org>; Mon, 21 Apr 2014 00:52:32 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <1398032896.19331.25.camel@buesod1.americas.hpqcorp.net>
+References: <1397960791-16320-1-git-send-email-davidlohr@hp.com>
+	<1397960791-16320-3-git-send-email-davidlohr@hp.com>
+	<CAMuHMdVBZSC3Kvwsw5pa-m8ZAUCjpkF8gjJH1XbOK2iFbU1KEg@mail.gmail.com>
+	<1398032896.19331.25.camel@buesod1.americas.hpqcorp.net>
+Date: Mon, 21 Apr 2014 09:52:32 +0200
+Message-ID: <CAMuHMdV5HKvzE6H_JCH=01med8mVuXbVBz92tpNk7poH4ymXOQ@mail.gmail.com>
+Subject: Re: [PATCH 2/6] m68k: call find_vma with the mmap_sem held in sys_cacheflush()
+From: Geert Uytterhoeven <geert@linux-m68k.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: mhocko@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Davidlohr Bueso <davidlohr@hp.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, zeus@gnu.org, Aswin Chandramouleeswaran <aswin@hp.com>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-m68k <linux-m68k@lists.linux-m68k.org>
 
-Kmemcg is currently under development and lacks some important features.
-In particular, it does not have support of kmem reclaim on memory
-pressure inside cgroup, which practically makes it unusable in real
-life. Let's warn about it in both Kconfig and Documentation to prevent
-complaints arising.
+Hi David,
 
-Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
----
- Documentation/cgroups/memory.txt |    5 +++++
- init/Kconfig                     |    6 ++++++
- 2 files changed, 11 insertions(+)
+On Mon, Apr 21, 2014 at 12:28 AM, Davidlohr Bueso <davidlohr@hp.com> wrote:
+> On Sun, 2014-04-20 at 10:04 +0200, Geert Uytterhoeven wrote:
+>> On Sun, Apr 20, 2014 at 4:26 AM, Davidlohr Bueso <davidlohr@hp.com> wrote:
+>> > Performing vma lookups without taking the mm->mmap_sem is asking
+>> > for trouble. While doing the search, the vma in question can be
+>> > modified or even removed before returning to the caller. Take the
+>> > lock (shared) in order to avoid races while iterating through
+>> > the vmacache and/or rbtree.
+>>
+>> Thanks for your patch!
+>>
+>> > This patch is completely *untested*.
+>> >
+>> > Signed-off-by: Davidlohr Bueso <davidlohr@hp.com>
+>> > Cc: Geert Uytterhoeven <geert@linux-m68k.org>
+>> > Cc: linux-m68k@lists.linux-m68k.org
+>> > ---
+>> >  arch/m68k/kernel/sys_m68k.c | 18 ++++++++++++------
+>> >  1 file changed, 12 insertions(+), 6 deletions(-)
+>> >
+>> > diff --git a/arch/m68k/kernel/sys_m68k.c b/arch/m68k/kernel/sys_m68k.c
+>> > index 3a480b3..d2263a0 100644
+>> > --- a/arch/m68k/kernel/sys_m68k.c
+>> > +++ b/arch/m68k/kernel/sys_m68k.c
+>> > @@ -376,7 +376,6 @@ cache_flush_060 (unsigned long addr, int scope, int cache, unsigned long len)
+>> >  asmlinkage int
+>> >  sys_cacheflush (unsigned long addr, int scope, int cache, unsigned long len)
+>> >  {
+>> > -       struct vm_area_struct *vma;
+>> >         int ret = -EINVAL;
+>> >
+>> >         if (scope < FLUSH_SCOPE_LINE || scope > FLUSH_SCOPE_ALL ||
+>> > @@ -389,16 +388,23 @@ sys_cacheflush (unsigned long addr, int scope, int cache, unsigned long len)
+>> >                 if (!capable(CAP_SYS_ADMIN))
+>> >                         goto out;
+>> >         } else {
+>> > +               struct vm_area_struct *vma;
+>> > +               bool invalid;
+>> > +
+>> > +               /* Check for overflow.  */
+>> > +               if (addr + len < addr)
+>> > +                       goto out;
+>> > +
+>> >                 /*
+>> >                  * Verify that the specified address region actually belongs
+>> >                  * to this process.
+>> >                  */
+>> > -               vma = find_vma (current->mm, addr);
+>> >                 ret = -EINVAL;
+>> > -               /* Check for overflow.  */
+>> > -               if (addr + len < addr)
+>> > -                       goto out;
+>> > -               if (vma == NULL || addr < vma->vm_start || addr + len > vma->vm_end)
+>> > +               down_read(&current->mm->mmap_sem);
+>> > +               vma = find_vma(current->mm, addr);
+>> > +               invalid = !vma || addr < vma->vm_start || addr + len > vma->vm_end;
+>> > +               up_read(&current->mm->mmap_sem);
+>> > +               if (invalid)
+>> >                         goto out;
+>> >         }
+>>
+>> Shouldn't the up_read() be moved to the end of the function?
+>> The vma may still be modified or destroyed between the call to find_vma(),
+>> and the actual cache flush?
+>
+> I don't think so. afaict the vma is only searched to check upon validity
+> for the address being passed. Once the sem is dropped, the call doesn't
+> do absolutely anything else with the returned vma.
 
-diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
-index 2622115276aa..af3cdfa3c07a 100644
---- a/Documentation/cgroups/memory.txt
-+++ b/Documentation/cgroups/memory.txt
-@@ -270,6 +270,11 @@ When oom event notifier is registered, event will be delivered.
- 
- 2.7 Kernel Memory Extension (CONFIG_MEMCG_KMEM)
- 
-+WARNING: Current implementation lacks reclaim support. That means allocation
-+	 attempts will fail when close to the limit even if there are plenty of
-+	 kmem available for reclaim. That makes this option unusable in real
-+	 life so DO NOT SELECT IT unless for development purposes.
-+
- With the Kernel memory extension, the Memory Controller is able to limit
- the amount of kernel memory used by the system. Kernel memory is fundamentally
- different than user memory, since it can't be swapped out, which makes it
-diff --git a/init/Kconfig b/init/Kconfig
-index 427ba60d638f..4d6e645c8ad4 100644
---- a/init/Kconfig
-+++ b/init/Kconfig
-@@ -993,6 +993,12 @@ config MEMCG_KMEM
- 	  the kmem extension can use it to guarantee that no group of processes
- 	  will ever exhaust kernel resources alone.
- 
-+	  WARNING: Current implementation lacks reclaim support. That means
-+	  allocation attempts will fail when close to the limit even if there
-+	  are plenty of kmem available for reclaim. That makes this option
-+	  unusable in real life so DO NOT SELECT IT unless for development
-+	  purposes.
-+
- config CGROUP_HUGETLB
- 	bool "HugeTLB Resource Controller for Control Groups"
- 	depends on RESOURCE_COUNTERS && HUGETLB_PAGE
--- 
-1.7.10.4
+The function indeed doesn't do anything anymore with the vma itself, but
+it does do something with the addr/len pair, which may no longer match
+with the vma if it changes after the up_read(). I.e. the address may no longer
+be valid when the cache is actually flushed.
+
+Gr{oetje,eeting}s,
+
+                        Geert
+
+--
+Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k.org
+
+In personal conversations with technical people, I call myself a hacker. But
+when I'm talking to journalists I just say "programmer" or something like that.
+                                -- Linus Torvalds
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
