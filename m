@@ -1,48 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f54.google.com (mail-la0-f54.google.com [209.85.215.54])
-	by kanga.kvack.org (Postfix) with ESMTP id C60F06B0038
-	for <linux-mm@kvack.org>; Mon, 21 Apr 2014 13:56:23 -0400 (EDT)
-Received: by mail-la0-f54.google.com with SMTP id mc6so3455423lab.13
-        for <linux-mm@kvack.org>; Mon, 21 Apr 2014 10:56:22 -0700 (PDT)
-Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id g7si24670269lab.124.2014.04.21.10.56.21
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 21 Apr 2014 10:56:21 -0700 (PDT)
-Message-ID: <53555BBE.2020804@parallels.com>
-Date: Mon, 21 Apr 2014 21:56:14 +0400
-From: Vladimir Davydov <vdavydov@parallels.com>
-MIME-Version: 1.0
-Subject: Re: [RFC] how should we deal with dead memcgs' kmem caches?
-References: <5353A3E3.4020302@parallels.com> <alpine.DEB.2.10.1404211128450.28094@gentwo.org>
-In-Reply-To: <alpine.DEB.2.10.1404211128450.28094@gentwo.org>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id DF1CD6B0038
+	for <linux-mm@kvack.org>; Mon, 21 Apr 2014 14:08:18 -0400 (EDT)
+Received: by mail-pd0-f171.google.com with SMTP id r10so3929301pdi.30
+        for <linux-mm@kvack.org>; Mon, 21 Apr 2014 11:08:18 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id eg2si21257408pac.305.2014.04.21.11.08.10
+        for <linux-mm@kvack.org>;
+        Mon, 21 Apr 2014 11:08:11 -0700 (PDT)
+Subject: [PATCH] mm: debug: make bad_range() output more usable and readable
+From: Dave Hansen <dave@sr71.net>
+Date: Mon, 21 Apr 2014 11:07:33 -0700
+Message-Id: <20140421180733.30BD5EFE@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Glauber Costa <glommer@gmail.com>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, devel@openvz.org
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, Dave Hansen <dave@sr71.net>, dave.hansen@linux.intel.com
 
-21.04.2014 20:29, Christoph Lameter:
-> On Sun, 20 Apr 2014, Vladimir Davydov wrote:
-> 
->> * Way #1 - prevent dead kmem caches from caching slabs on free *
->>
->> We can modify sl[au]b implementation so that it won't cache any objects
->> on free if the kmem cache belongs to a dead memcg. Then it'd be enough
->> to drain per-cpu pools of all dead kmem caches on css offline - no new
->> slabs will be added there on further frees, and the last object will go
->> away along with the last slab.
-> 
-> You can call kmem_cache_shrink() to force slab allocators to drop cached
-> objects after a free.
 
-Yes, but the question is when and how often should we do that? Calling
-it after each kfree would be an overkill, because there may be plenty of
-objects in a dead cache. Calling it periodically or on vmpressure is the
-first thing that springs to mind - that's covered by "way #2".
+From: Dave Hansen <dave.hansen@linux.intel.com>
 
-Thanks.
+Nobody outputs memory addresses in decimal.  PFNs are essentially
+addresses, and they're gibberish in decimal.  Output them in hex.
+
+Also, add the nid and zone name to give a little more context to
+the message.
+
+Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+---
+
+ b/mm/page_alloc.c |    5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff -puN mm/page_alloc.c~range-in-hex mm/page_alloc.c
+--- a/mm/page_alloc.c~range-in-hex	2014-04-21 10:11:32.274712151 -0700
++++ b/mm/page_alloc.c	2014-04-21 10:11:32.279712378 -0700
+@@ -261,8 +261,9 @@ static int page_outside_zone_boundaries(
+ 	} while (zone_span_seqretry(zone, seq));
+ 
+ 	if (ret)
+-		pr_err("page %lu outside zone [ %lu - %lu ]\n",
+-			pfn, start_pfn, start_pfn + sp);
++		pr_err("page 0x%lx outside node %d zone %s [ 0x%lx - 0x%lx ]\n",
++			pfn, zone_to_nid(zone), zone->name,
++			start_pfn, start_pfn + sp);
+ 
+ 	return ret;
+ }
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
