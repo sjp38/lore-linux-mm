@@ -1,103 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f41.google.com (mail-qa0-f41.google.com [209.85.216.41])
-	by kanga.kvack.org (Postfix) with ESMTP id B0E7A6B0038
-	for <linux-mm@kvack.org>; Mon, 21 Apr 2014 09:36:28 -0400 (EDT)
-Received: by mail-qa0-f41.google.com with SMTP id j5so3835123qaq.0
-        for <linux-mm@kvack.org>; Mon, 21 Apr 2014 06:36:28 -0700 (PDT)
-Received: from relay.sgi.com (relay3.sgi.com. [192.48.152.1])
-        by mx.google.com with ESMTP id u10si15315020qcz.58.2014.04.21.06.36.27
-        for <linux-mm@kvack.org>;
-        Mon, 21 Apr 2014 06:36:28 -0700 (PDT)
-Date: Mon, 21 Apr 2014 08:36:25 -0500
-From: Dimitri Sivanich <sivanich@sgi.com>
-Subject: Re: [PATCH 5/6] drivers,sgi-gru/grufault.c: call find_vma with the
- mmap_sem held
-Message-ID: <20140421133625.GA17522@sgi.com>
-References: <1397960791-16320-1-git-send-email-davidlohr@hp.com>
- <1397960791-16320-6-git-send-email-davidlohr@hp.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1397960791-16320-6-git-send-email-davidlohr@hp.com>
+Received: from mail-ee0-f41.google.com (mail-ee0-f41.google.com [74.125.83.41])
+	by kanga.kvack.org (Postfix) with ESMTP id C46076B0035
+	for <linux-mm@kvack.org>; Mon, 21 Apr 2014 10:31:41 -0400 (EDT)
+Received: by mail-ee0-f41.google.com with SMTP id t10so3731347eei.28
+        for <linux-mm@kvack.org>; Mon, 21 Apr 2014 07:31:41 -0700 (PDT)
+Received: from mail-ee0-f44.google.com (mail-ee0-f44.google.com [74.125.83.44])
+        by mx.google.com with ESMTPS id y6si54724694eep.317.2014.04.21.07.31.39
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 21 Apr 2014 07:31:40 -0700 (PDT)
+Received: by mail-ee0-f44.google.com with SMTP id e49so3739398eek.3
+        for <linux-mm@kvack.org>; Mon, 21 Apr 2014 07:31:39 -0700 (PDT)
+From: Manfred Spraul <manfred@colorfullife.com>
+Subject: [PATCH 0/4] ipc/shm.c: increase the limits for SHMMAX, SHMALL
+Date: Mon, 21 Apr 2014 16:26:33 +0200
+Message-Id: <1398090397-2397-1-git-send-email-manfred@colorfullife.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <davidlohr@hp.com>
-Cc: akpm@linux-foundation.org, zeus@gnu.org, aswin@hp.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dimitri@domain.invalid, "Sivanich <sivanich"@sgi.com
+To: Davidlohr Bueso <davidlohr.bueso@hp.com>, Michael Kerrisk <mtk.manpages@gmail.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, gthelen@google.com, aswin@hp.com, linux-mm@kvack.org, Manfred Spraul <manfred@colorfullife.com>
 
-On Sat, Apr 19, 2014 at 07:26:30PM -0700, Davidlohr Bueso wrote:
-> From: Jonathan Gonzalez V <zeus@gnu.org>
-> 
-> Performing vma lookups without taking the mm->mmap_sem is asking
-> for trouble. While doing the search, the vma in question can
-> be modified or even removed before returning to the caller.
-> Take the lock in order to avoid races while iterating through
-> the vmacache and/or rbtree.
-> 
-> This patch is completely *untested*.
+Hi all,
 
-The mmap_sem is already taken in all paths calling gru_vtop().
+the increase of SHMMAX/SHMALL is now a 4 patch series.
+I don't have ideas how to improve it further.
 
-The gru_intr() function takes it before calling gru_try_dropin(), from which
-all calls to gru_vtop() originate.
+The change itself is trivial, the only problem are interger overflows.
+The overflows are not new, but if we make huge values the default,
+then the code should be free from overflows.
 
-The gru_find_lock_gts() function takes it when called from
-gru_handle_user_call_os(), which then calls gru_user_dropin()->gru_try_dropin().
+SHMMAX:
 
-Nacked-by: Dimitri Sivanich <sivanich@sgi.com>
+- shmmem_file_setup places a hard limit on the segment size:
+  MAX_LFS_FILESIZE.
 
-> 
-> Signed-off-by: Jonathan Gonzalez V <zeus@gnu.org>
-> Signed-off-by: Davidlohr Bueso <davidlohr@hp.com>
-> Cc: Dimitri Sivanich <sivanich@sgi.com
-> ---
->  drivers/misc/sgi-gru/grufault.c | 13 +++++++++----
->  1 file changed, 9 insertions(+), 4 deletions(-)
-> 
-> diff --git a/drivers/misc/sgi-gru/grufault.c b/drivers/misc/sgi-gru/grufault.c
-> index f74fc0c..15adc84 100644
-> --- a/drivers/misc/sgi-gru/grufault.c
-> +++ b/drivers/misc/sgi-gru/grufault.c
-> @@ -266,6 +266,7 @@ static int gru_vtop(struct gru_thread_state *gts, unsigned long vaddr,
->  	unsigned long paddr;
->  	int ret, ps;
->  
-> +	down_write(&mm->mmap_sem);
->  	vma = find_vma(mm, vaddr);
->  	if (!vma)
->  		goto inval;
-> @@ -277,22 +278,26 @@ static int gru_vtop(struct gru_thread_state *gts, unsigned long vaddr,
->  	rmb();	/* Must/check ms_range_active before loading PTEs */
->  	ret = atomic_pte_lookup(vma, vaddr, write, &paddr, &ps);
->  	if (ret) {
-> -		if (atomic)
-> -			goto upm;
-> +		if (atomic) {
-> +			up_write(&mm->mmap_sem);
-> +			return VTOP_RETRY;
-> +		}
->  		if (non_atomic_pte_lookup(vma, vaddr, write, &paddr, &ps))
->  			goto inval;
->  	}
->  	if (is_gru_paddr(paddr))
->  		goto inval;
-> +
-> +	up_write(&mm->mmap_sem);
-> +
->  	paddr = paddr & ~((1UL << ps) - 1);
->  	*gpa = uv_soc_phys_ram_to_gpa(paddr);
->  	*pageshift = ps;
->  	return VTOP_SUCCESS;
->  
->  inval:
-> +	up_write(&mm->mmap_sem);
->  	return VTOP_INVALID;
-> -upm:
-> -	return VTOP_RETRY;
->  }
->  
->  
-> -- 
-> 1.8.1.4
+  On 32-bit, the limit is > 1 TB, i.e. 4 GB-1 byte segments are
+  possible. Rounded up to full pages the actual allocated size
+  is 0. --> must be fixed, patch 3
+
+- shmat:
+  - find_vma_intersection does not handle overflows properly.
+    --> must be fixed, patch 1
+
+  - the rest is fine, do_mmap_pgoff limits mappings to TASK_SIZE
+    and checks for overflows (i.e.: map 2 GB, starting from
+    addr=2.5GB fails).
+
+SHMALL:
+- after creating 8192 segments size (1L<<63)-1, shm_tot overflows and
+  returns 0.  --> must be fixed, patch 2.
+
+User space:
+- Obviuosly, there could be overflows in user space. There is nothing
+  we can do, only use values smaller than ULONG_MAX.
+  I ended with "ULONG_MAX - 1L<<24":
+
+  - TASK_SIZE cannot be used because it is the size of the current
+    task. Could be 4G if it's a 32-bit task on a 64-bit kernel.
+
+  - The maximum size is not standardized across archs:
+    I found TASK_MAX_SIZE, TASK_SIZE_MAX and TASK_SIZE_64.
+
+  - Just in case some arch revives a 4G/4G split, nearly
+    ULONG_MAX is a valid segment size.
+
+  - Using "0" as a magic value for infinity is even worse, because
+    right now 0 means 0, i.e. fail all allocations.
+
+Andrew: Could you add it into -akpm and move it towards linux-next?
+
+--
+	Manfred
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
