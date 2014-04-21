@@ -1,60 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f52.google.com (mail-ee0-f52.google.com [74.125.83.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 2FC0D6B0035
-	for <linux-mm@kvack.org>; Mon, 21 Apr 2014 08:18:55 -0400 (EDT)
-Received: by mail-ee0-f52.google.com with SMTP id e49so3532468eek.25
-        for <linux-mm@kvack.org>; Mon, 21 Apr 2014 05:18:54 -0700 (PDT)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id i49si2048704eem.12.2014.04.21.05.18.53
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 21 Apr 2014 05:18:53 -0700 (PDT)
-Date: Mon, 21 Apr 2014 08:18:40 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [RFC] how should we deal with dead memcgs' kmem caches?
-Message-ID: <20140421121840.GA11622@cmpxchg.org>
-References: <5353A3E3.4020302@parallels.com>
+Received: from mail-qa0-f41.google.com (mail-qa0-f41.google.com [209.85.216.41])
+	by kanga.kvack.org (Postfix) with ESMTP id B0E7A6B0038
+	for <linux-mm@kvack.org>; Mon, 21 Apr 2014 09:36:28 -0400 (EDT)
+Received: by mail-qa0-f41.google.com with SMTP id j5so3835123qaq.0
+        for <linux-mm@kvack.org>; Mon, 21 Apr 2014 06:36:28 -0700 (PDT)
+Received: from relay.sgi.com (relay3.sgi.com. [192.48.152.1])
+        by mx.google.com with ESMTP id u10si15315020qcz.58.2014.04.21.06.36.27
+        for <linux-mm@kvack.org>;
+        Mon, 21 Apr 2014 06:36:28 -0700 (PDT)
+Date: Mon, 21 Apr 2014 08:36:25 -0500
+From: Dimitri Sivanich <sivanich@sgi.com>
+Subject: Re: [PATCH 5/6] drivers,sgi-gru/grufault.c: call find_vma with the
+ mmap_sem held
+Message-ID: <20140421133625.GA17522@sgi.com>
+References: <1397960791-16320-1-git-send-email-davidlohr@hp.com>
+ <1397960791-16320-6-git-send-email-davidlohr@hp.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <5353A3E3.4020302@parallels.com>
+In-Reply-To: <1397960791-16320-6-git-send-email-davidlohr@hp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Glauber Costa <glommer@gmail.com>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, devel@openvz.org
+To: Davidlohr Bueso <davidlohr@hp.com>
+Cc: akpm@linux-foundation.org, zeus@gnu.org, aswin@hp.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Dimitri@domain.invalid, "Sivanich <sivanich"@sgi.com
 
-On Sun, Apr 20, 2014 at 02:39:31PM +0400, Vladimir Davydov wrote:
-> * Way #2 - reap caches periodically or on vmpressure *
+On Sat, Apr 19, 2014 at 07:26:30PM -0700, Davidlohr Bueso wrote:
+> From: Jonathan Gonzalez V <zeus@gnu.org>
 > 
-> We can remove the async work scheduling from kmem_cache_free completely,
-> and instead walk over all dead kmem caches either periodically or on
-> vmpressure to shrink and destroy those of them that become empty.
+> Performing vma lookups without taking the mm->mmap_sem is asking
+> for trouble. While doing the search, the vma in question can
+> be modified or even removed before returning to the caller.
+> Take the lock in order to avoid races while iterating through
+> the vmacache and/or rbtree.
 > 
-> That is what I had in mind when submitting the patch set titled "kmemcg:
-> simplify work-flow":
-> 	https://lkml.org/lkml/2014/4/18/42
+> This patch is completely *untested*.
+
+The mmap_sem is already taken in all paths calling gru_vtop().
+
+The gru_intr() function takes it before calling gru_try_dropin(), from which
+all calls to gru_vtop() originate.
+
+The gru_find_lock_gts() function takes it when called from
+gru_handle_user_call_os(), which then calls gru_user_dropin()->gru_try_dropin().
+
+Nacked-by: Dimitri Sivanich <sivanich@sgi.com>
+
 > 
-> Pros: easy to implement
-> Cons: instead of being destroyed asap, dead caches will hang around
-> until some point in time or, even worse, memory pressure condition.
-
-This would continue to pin css after cgroup destruction indefinitely,
-or at least for an arbitrary amount of time.  To reduce the waste from
-such pinning, we currently have to tear down other parts of the memcg
-optimistically from css_offline(), which is called before the last
-reference disappears and out of hierarchy order, making the teardown
-unnecessarily complicated and error prone.
-
-So I think "easy to implement" is misleading.  What we really care
-about is "easy to maintain", and this basically excludes any async
-schemes.
-
-As far as synchronous cache teardown goes, I think everything that
-introduces object accounting into the slab hotpaths will also be a
-tough sell.
-
-Personally, I would prefer the cache merging, where remaining child
-slab pages are moved to the parent's cache on cgroup destruction.
+> Signed-off-by: Jonathan Gonzalez V <zeus@gnu.org>
+> Signed-off-by: Davidlohr Bueso <davidlohr@hp.com>
+> Cc: Dimitri Sivanich <sivanich@sgi.com
+> ---
+>  drivers/misc/sgi-gru/grufault.c | 13 +++++++++----
+>  1 file changed, 9 insertions(+), 4 deletions(-)
+> 
+> diff --git a/drivers/misc/sgi-gru/grufault.c b/drivers/misc/sgi-gru/grufault.c
+> index f74fc0c..15adc84 100644
+> --- a/drivers/misc/sgi-gru/grufault.c
+> +++ b/drivers/misc/sgi-gru/grufault.c
+> @@ -266,6 +266,7 @@ static int gru_vtop(struct gru_thread_state *gts, unsigned long vaddr,
+>  	unsigned long paddr;
+>  	int ret, ps;
+>  
+> +	down_write(&mm->mmap_sem);
+>  	vma = find_vma(mm, vaddr);
+>  	if (!vma)
+>  		goto inval;
+> @@ -277,22 +278,26 @@ static int gru_vtop(struct gru_thread_state *gts, unsigned long vaddr,
+>  	rmb();	/* Must/check ms_range_active before loading PTEs */
+>  	ret = atomic_pte_lookup(vma, vaddr, write, &paddr, &ps);
+>  	if (ret) {
+> -		if (atomic)
+> -			goto upm;
+> +		if (atomic) {
+> +			up_write(&mm->mmap_sem);
+> +			return VTOP_RETRY;
+> +		}
+>  		if (non_atomic_pte_lookup(vma, vaddr, write, &paddr, &ps))
+>  			goto inval;
+>  	}
+>  	if (is_gru_paddr(paddr))
+>  		goto inval;
+> +
+> +	up_write(&mm->mmap_sem);
+> +
+>  	paddr = paddr & ~((1UL << ps) - 1);
+>  	*gpa = uv_soc_phys_ram_to_gpa(paddr);
+>  	*pageshift = ps;
+>  	return VTOP_SUCCESS;
+>  
+>  inval:
+> +	up_write(&mm->mmap_sem);
+>  	return VTOP_INVALID;
+> -upm:
+> -	return VTOP_RETRY;
+>  }
+>  
+>  
+> -- 
+> 1.8.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
