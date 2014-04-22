@@ -1,81 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f53.google.com (mail-ee0-f53.google.com [74.125.83.53])
-	by kanga.kvack.org (Postfix) with ESMTP id E9E7E6B0035
-	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 06:01:07 -0400 (EDT)
-Received: by mail-ee0-f53.google.com with SMTP id b57so4414898eek.12
-        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 03:01:07 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i49si6823481eem.102.2014.04.22.03.01.06
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 22 Apr 2014 03:01:06 -0700 (PDT)
-Date: Tue, 22 Apr 2014 12:01:03 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 2/4] mm/memcontrol.c: use accessor to get id from css
-Message-ID: <20140422100103.GE29311@dhcp22.suse.cz>
-References: <cover.1398147734.git.nasa4836@gmail.com>
- <2c63c535f8202c6b605300a834cdf1c07d1bafc3.1398147734.git.nasa4836@gmail.com>
+Received: from mail-qc0-f178.google.com (mail-qc0-f178.google.com [209.85.216.178])
+	by kanga.kvack.org (Postfix) with ESMTP id A889D6B0035
+	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 06:04:41 -0400 (EDT)
+Received: by mail-qc0-f178.google.com with SMTP id i8so5107958qcq.37
+        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 03:04:41 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id v10si16594602qat.93.2014.04.22.03.04.40
+        for <linux-mm@kvack.org>;
+        Tue, 22 Apr 2014 03:04:41 -0700 (PDT)
+Message-ID: <535631EB.4060906@redhat.com>
+Date: Tue, 22 Apr 2014 11:10:03 +0200
+From: Florian Weimer <fweimer@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <2c63c535f8202c6b605300a834cdf1c07d1bafc3.1398147734.git.nasa4836@gmail.com>
+Subject: Re: [PATCH 0/6] File Sealing & memfd_create()
+References: <1395256011-2423-1-git-send-email-dh.herrmann@gmail.com>	<5343F2EC.3050508@redhat.com> <CANq1E4TmtR=gSgR25PGC_EN=xrEEg1+F=zkTUGXZ4SHvjFNbag@mail.gmail.com>
+In-Reply-To: <CANq1E4TmtR=gSgR25PGC_EN=xrEEg1+F=zkTUGXZ4SHvjFNbag@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jianyu Zhan <nasa4836@gmail.com>
-Cc: hannes@cmpxchg.org, bsingharora@gmail.com, kamezawa.hiroyu@jp.fujitsu.com, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: David Herrmann <dh.herrmann@gmail.com>
+Cc: linux-kernel <linux-kernel@vger.kernel.org>, Kay Sievers <kay@vrfy.org>, Daniel Mack <zonque@gmail.com>, Lennart Poettering <lennart@poettering.net>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 
-On Tue 22-04-14 14:30:41, Jianyu Zhan wrote:
-> This is a prepared patch for converting from per-cgroup id to
-> per-subsystem id.
-> 
-> We should not access per-cgroup id directly, since this is implemetation
-> detail. Use the accessor css_from_id() instead.
-> 
-> This patch has no functional change.
-> 
-> Signed-off-by: Jianyu Zhan <nasa4836@gmail.com>
+On 04/09/2014 11:31 PM, David Herrmann wrote:
 
-Acked-by: Michal Hocko <mhocko@suse.cz>
-Thanks!
+> On Tue, Apr 8, 2014 at 3:00 PM, Florian Weimer <fweimer@redhat.com> wrote:
+>> How do you keep these promises on network and FUSE file systems?
+>
+> I don't. This is shmem only.
 
-> ---
->  mm/memcontrol.c | 8 ++++----
->  1 file changed, 4 insertions(+), 4 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 80d9e38..46333cb 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -528,10 +528,10 @@ static inline bool mem_cgroup_is_root(struct mem_cgroup *memcg)
->  static inline unsigned short mem_cgroup_id(struct mem_cgroup *memcg)
->  {
->  	/*
-> -	 * The ID of the root cgroup is 0, but memcg treat 0 as an
-> -	 * invalid ID, so we return (cgroup_id + 1).
-> +	 * The ID of css for the root cgroup is 0, but memcg treat 0 as an
-> +	 * invalid ID, so we return (id + 1).
->  	 */
-> -	return memcg->css.cgroup->id + 1;
-> +	return css_to_id(&memcg->css) + 1;
->  }
->  
->  static inline struct mem_cgroup *mem_cgroup_from_id(unsigned short id)
-> @@ -6407,7 +6407,7 @@ mem_cgroup_css_online(struct cgroup_subsys_state *css)
->  	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
->  	struct mem_cgroup *parent = mem_cgroup_from_css(css_parent(css));
->  
-> -	if (css->cgroup->id > MEM_CGROUP_ID_MAX)
-> +	if (css_to_id(css) > MEM_CGROUP_ID_MAX)
->  		return -ENOSPC;
->  
->  	if (!parent)
-> -- 
-> 2.0.0-rc0
-> 
+Ah.  What do you recommend for recipient to recognize such descriptors? 
+  Would they just try to seal them and reject them if this fails?
 
 -- 
-Michal Hocko
-SUSE Labs
+Florian Weimer / Red Hat Product Security Team
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
