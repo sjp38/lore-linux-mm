@@ -1,102 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f49.google.com (mail-pb0-f49.google.com [209.85.160.49])
-	by kanga.kvack.org (Postfix) with ESMTP id A96226B0070
-	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 16:18:49 -0400 (EDT)
-Received: by mail-pb0-f49.google.com with SMTP id rr13so88851pbb.8
-        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 13:18:49 -0700 (PDT)
-Received: from mail-pd0-x22f.google.com (mail-pd0-x22f.google.com [2607:f8b0:400e:c02::22f])
-        by mx.google.com with ESMTPS id ef1si13622794pbc.429.2014.04.22.13.18.48
+Received: from mail-ig0-f178.google.com (mail-ig0-f178.google.com [209.85.213.178])
+	by kanga.kvack.org (Postfix) with ESMTP id D1DA16B0070
+	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 16:18:54 -0400 (EDT)
+Received: by mail-ig0-f178.google.com with SMTP id hn18so139819igb.11
+        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 13:18:54 -0700 (PDT)
+Received: from fujitsu24.fnanic.fujitsu.com (fujitsu24.fnanic.fujitsu.com. [192.240.6.14])
+        by mx.google.com with ESMTPS id rv8si13475948igb.32.2014.04.22.13.18.54
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 22 Apr 2014 13:18:48 -0700 (PDT)
-Received: by mail-pd0-f175.google.com with SMTP id x10so5184754pdj.6
-        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 13:18:48 -0700 (PDT)
-Date: Tue, 22 Apr 2014 13:17:33 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: 3.15rc2 hanging processes on exit.
-In-Reply-To: <CA+55aFxjADAB80AV6qK-b4QPzP7fgog_EyH-7dSpWVgzpZmL8Q@mail.gmail.com>
-Message-ID: <alpine.LSU.2.11.1404221303060.6220@eggly.anvils>
-References: <20140422180308.GA19038@redhat.com> <CA+55aFxjADAB80AV6qK-b4QPzP7fgog_EyH-7dSpWVgzpZmL8Q@mail.gmail.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 22 Apr 2014 13:18:54 -0700 (PDT)
+From: Motohiro Kosaki <Motohiro.Kosaki@us.fujitsu.com>
+Date: Tue, 22 Apr 2014 13:15:44 -0700
+Subject: RE: [PATCH 1/4] ipc/shm.c: check for ulong overflows in shmat
+Message-ID: <6B2BA408B38BA1478B473C31C3D2074E30989E9D7A@SV-EXCHANGE1.Corp.FC.LOCAL>
+References: <1398090397-2397-1-git-send-email-manfred@colorfullife.com>
+	 <1398090397-2397-2-git-send-email-manfred@colorfullife.com>
+ <1398190717.2473.8.camel@buesod1.americas.hpqcorp.net>
+In-Reply-To: <1398190717.2473.8.camel@buesod1.americas.hpqcorp.net>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Dave Jones <davej@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Davidlohr Bueso <davidlohr@hp.com>, Manfred Spraul <manfred@colorfullife.com>
+Cc: Davidlohr Bueso <davidlohr.bueso@hp.com>, Michael Kerrisk <mtk.manpages@gmail.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Motohiro Kosaki JP <kosaki.motohiro@jp.fujitsu.com>, "gthelen@google.com" <gthelen@google.com>, "aswin@hp.com" <aswin@hp.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Tue, 22 Apr 2014, Linus Torvalds wrote:
-> On Tue, Apr 22, 2014 at 11:03 AM, Dave Jones <davej@redhat.com> wrote:
-> > I've got a test box that's running my fuzzer that is in an odd state.
-> > The processes are about to end, but they don't seem to be making any
-> > progress.  They've been spinning in the same state for a few hours now..
-> >
-> > perf top -a is showing a lot of time is being spent in page_fault and bad_gs
-> >
-> > there's a large trace file here from the function tracer:
-> > http://codemonkey.org.uk/junk/trace.out
-> 
-> The trace says that it's one of the infinite loops that do
-> 
->  - cmpxchg_futex_value_locked() fails
->  - we do fault_in_user_writeable(FAULT_FLAG_WRITE) and that succeeds
->  - so we try again
-> 
-> So it implies that handle_mm_fault() returned without VM_FAULT_ERROR,
-> but the page still isn't actually writable.
-> 
-> And to me that smells like (vm_flags & VM_WRITE) isn't set. We'll
-> fault in the page all right, but the resulting page table entry still
-> isn't writable.
-> 
-> Are you testing anything new? Or is this strictly new to 3.15? The
-> only thing in this area we do differently is commit cda540ace6a1 ("mm:
-> get_user_pages(write,force) refuse to COW in shared areas"), but
-> fault_in_user_writeable() never used the force bit afaik. Adding Hugh
-> just in case.
-> 
-> So I think we should make fault_in_user_writeable() just check the
-> vm_flags. Something like the attached (UNTESTED!) patch.
-> 
-> Guys? Comments?
-
-Your patch looks to me correct and to the point; but I agree that
-we haven't made a relevant change there recently, so I suppose it
-comes from a trinity improvement rather than a new bug in 3.15.
-
-(Dave, do you have time to confirm that by running new trinity on 3.14?)
-
-One nit: we're inconsistent, and shall never move VM_READ,VM_WRITE bits,
-but it would set a better example to declare "vm_flags_t vm_flags"
-in your patch below, instead of "unsigned vm_flags".
-
-Hugh
----
-
- mm/memory.c | 5 +++++
- 1 file changed, 5 insertions(+)
-
-diff --git a/mm/memory.c b/mm/memory.c
-index d0f0bef3be48..91a3e848745d 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -1955,12 +1955,17 @@ int fixup_user_fault(struct task_struct *tsk, struct mm_struct *mm,
- 		     unsigned long address, unsigned int fault_flags)
- {
- 	struct vm_area_struct *vma;
-+	unsigned vm_flags;
- 	int ret;
- 
- 	vma = find_extend_vma(mm, address);
- 	if (!vma || address < vma->vm_start)
- 		return -EFAULT;
- 
-+	vm_flags = (fault_flags & FAULT_FLAG_WRITE) ? VM_WRITE : VM_READ;
-+	if (!(vm_flags & vma->vm_flags))
-+		return -EFAULT;
-+
- 	ret = handle_mm_fault(mm, vma, address, fault_flags);
- 	if (ret & VM_FAULT_ERROR) {
- 		if (ret & VM_FAULT_OOM)
+PiA+IGZpbmRfdm1hX2ludGVyc2VjdGlvbiBkb2VzIG5vdCB3b3JrIGFzIGludGVuZGVkIGlmIGFk
+ZHIrc2l6ZSBvdmVyZmxvd3MuDQo+ID4gVGhlIHBhdGNoIGFkZHMgYSBtYW51YWwgY2hlY2sgYmVm
+b3JlIHRoZSBjYWxsIHRvIGZpbmRfdm1hX2ludGVyc2VjdGlvbi4NCj4gPg0KPiA+IFNpZ25lZC1v
+ZmYtYnk6IE1hbmZyZWQgU3ByYXVsIDxtYW5mcmVkQGNvbG9yZnVsbGlmZS5jb20+DQo+IA0KPiBB
+Y2tlZC1ieTogRGF2aWRsb2hyIEJ1ZXNvIDxkYXZpZGxvaHJAaHAuY29tPg0KDQpBY2tlZC1ieTog
+S09TQUtJIE1vdG9oaXJvIDxrb3Nha2kubW90b2hpcm9AanAuZnVqaXRzdS5jb20+DQoNCg==
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
