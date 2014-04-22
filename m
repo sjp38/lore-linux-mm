@@ -1,126 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id DCBCA6B0038
-	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 08:04:38 -0400 (EDT)
-Received: by mail-wg0-f45.google.com with SMTP id l18so3750374wgh.28
-        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 05:04:38 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e20si13829316wjq.66.2014.04.22.05.04.36
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 22 Apr 2014 05:04:37 -0700 (PDT)
-Date: Tue, 22 Apr 2014 14:04:32 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: + slub-fix-memcg_propagate_slab_attrs.patch added to -mm tree
-Message-ID: <20140422120432.GL29311@dhcp22.suse.cz>
-References: <53518631.cuNCoAbpOk1NRWDf%akpm@linux-foundation.org>
- <20140422103051.GH29311@dhcp22.suse.cz>
- <53564A09.3090008@parallels.com>
+Received: from mail-qa0-f48.google.com (mail-qa0-f48.google.com [209.85.216.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 025786B0035
+	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 08:44:30 -0400 (EDT)
+Received: by mail-qa0-f48.google.com with SMTP id dc16so932401qab.35
+        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 05:44:30 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id x7si16788202qaj.94.2014.04.22.05.44.29
+        for <linux-mm@kvack.org>;
+        Tue, 22 Apr 2014 05:44:30 -0700 (PDT)
+Message-ID: <53566428.9080005@redhat.com>
+Date: Tue, 22 Apr 2014 14:44:24 +0200
+From: Florian Weimer <fweimer@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <53564A09.3090008@parallels.com>
+Subject: Re: [PATCH 0/6] File Sealing & memfd_create()
+References: <1395256011-2423-1-git-send-email-dh.herrmann@gmail.com>	<5343F2EC.3050508@redhat.com>	<CANq1E4TmtR=gSgR25PGC_EN=xrEEg1+F=zkTUGXZ4SHvjFNbag@mail.gmail.com>	<535631EB.4060906@redhat.com> <CANq1E4TufnELwEDZAkzH94Zn3gb46qvxfDboN5y2mK=Q2gk9-Q@mail.gmail.com>
+In-Reply-To: <CANq1E4TufnELwEDZAkzH94Zn3gb46qvxfDboN5y2mK=Q2gk9-Q@mail.gmail.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: mm-commits@vger.kernel.org, penberg@kernel.org, hannes@cmpxchg.org, cl@linux.com, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: David Herrmann <dh.herrmann@gmail.com>
+Cc: linux-kernel <linux-kernel@vger.kernel.org>, Kay Sievers <kay@vrfy.org>, Daniel Mack <zonque@gmail.com>, Lennart Poettering <lennart@poettering.net>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 
-On Tue 22-04-14 14:52:57, Vladimir Davydov wrote:
-> On 04/22/2014 02:30 PM, Michal Hocko wrote:
-> > On Fri 18-04-14 13:08:17, Andrew Morton wrote:
-> > [...]
-> >> From: Vladimir Davydov <vdavydov@parallels.com>
-> >> Subject: slub: fix memcg_propagate_slab_attrs
-> >>
-> >> After creating a cache for a memcg we should initialize its sysfs attrs
-> >> with the values from its parent.  That's what memcg_propagate_slab_attrs
-> >> is for.  Currently it's broken - we clearly muddled root-vs-memcg caches
-> >> there.  Let's fix it up.
-> > 
-> > Andrew didn't so I'll do. What is the effect of the mismatch? I am
-> > really drowning in that code...
-> 
-> If we tune a kmem cache's params via sysfs and then create a memcg that
-> wants to allocate from the cache, the memcg's copy of the cache will
-> have default values of the sysfs params instead of those of the global
-> cache.
+On 04/22/2014 01:55 PM, David Herrmann wrote:
+> Hi
+>
+> On Tue, Apr 22, 2014 at 11:10 AM, Florian Weimer <fweimer@redhat.com> wrote:
+>> Ah.  What do you recommend for recipient to recognize such descriptors?
+>> Would they just try to seal them and reject them if this fails?
+>
+> This highly depends on your use-case. Please see the initial email in
+> this thread. It describes 2 example use-cases. In both cases, the
+> recipients read the current set of seals and verify that a given set
+> of seals is set.
 
-Ahh, ok, I see. Thanks for the clarification.
- 
-> >> Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
-> >> Cc: Christoph Lameter <cl@linux.com>
-> >> Cc: Pekka Enberg <penberg@kernel.org>
-> >> Cc: Michal Hocko <mhocko@suse.cz>
-> >> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> >> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-> >> ---
-> >>
-> >>  mm/slub.c |   11 +++++++----
-> >>  1 file changed, 7 insertions(+), 4 deletions(-)
-> >>
-> >> diff -puN mm/slub.c~slub-fix-memcg_propagate_slab_attrs mm/slub.c
-> >> --- a/mm/slub.c~slub-fix-memcg_propagate_slab_attrs
-> >> +++ a/mm/slub.c
-> >> @@ -5071,15 +5071,18 @@ static void memcg_propagate_slab_attrs(s
-> >>  #ifdef CONFIG_MEMCG_KMEM
-> >>  	int i;
-> >>  	char *buffer = NULL;
-> >> +	struct kmem_cache *root_cache;
-> >>  
-> >> -	if (!is_root_cache(s))
-> >> +	if (is_root_cache(s))
-> >>  		return;
-> >>  
-> >> +	root_cache = s->memcg_params->root_cache;
-> >> +
-> >>  	/*
-> >>  	 * This mean this cache had no attribute written. Therefore, no point
-> >>  	 * in copying default values around
-> >>  	 */
-> >> -	if (!s->max_attr_size)
-> >> +	if (!root_cache->max_attr_size)
-> >>  		return;
-> >>  
-> >>  	for (i = 0; i < ARRAY_SIZE(slab_attrs); i++) {
-> >> @@ -5101,7 +5104,7 @@ static void memcg_propagate_slab_attrs(s
-> >>  		 */
-> >>  		if (buffer)
-> >>  			buf = buffer;
-> >> -		else if (s->max_attr_size < ARRAY_SIZE(mbuf))
-> >> +		else if (root_cache->max_attr_size < ARRAY_SIZE(mbuf))
-> >>  			buf = mbuf;
-> >>  		else {
-> >>  			buffer = (char *) get_zeroed_page(GFP_KERNEL);
-> >> @@ -5110,7 +5113,7 @@ static void memcg_propagate_slab_attrs(s
-> >>  			buf = buffer;
-> >>  		}
-> >>  
-> >> -		attr->show(s->memcg_params->root_cache, buf);
-> >> +		attr->show(root_cache, buf);
-> >>  		attr->store(s, buf, strlen(buf));
-> >>  	}
-> >>  
-> >> _
-> >>
-> >> Patches currently in -mm which might be from vdavydov@parallels.com are
-> >>
-> >> slub-fix-memcg_propagate_slab_attrs.patch
-> >> slb-charge-slabs-to-kmemcg-explicitly.patch
-> >> mm-get-rid-of-__gfp_kmemcg.patch
-> >> mm-get-rid-of-__gfp_kmemcg-fix.patch
-> >> slab-document-kmalloc_order.patch
-> >>
-> > 
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+I didn't find that very convincing.  But in v2, seals are monotonic, so 
+checking them should be reliable enough.
+
+What happens when you create a loop device on a write-sealed descriptor?
 
 -- 
-Michal Hocko
-SUSE Labs
+Florian Weimer / Red Hat Product Security Team
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
