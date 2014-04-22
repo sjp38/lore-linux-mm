@@ -1,57 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com [209.85.160.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F2296B0035
-	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 03:15:24 -0400 (EDT)
-Received: by mail-pb0-f54.google.com with SMTP id ma3so4636906pbc.13
-        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 00:15:24 -0700 (PDT)
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [119.145.14.65])
-        by mx.google.com with ESMTPS id vv4si9220121pbc.21.2014.04.22.00.15.22
+Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id EB8DD6B0035
+	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 03:39:14 -0400 (EDT)
+Received: by mail-pd0-f176.google.com with SMTP id r10so4574382pdi.35
+        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 00:39:14 -0700 (PDT)
+Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
+        by mx.google.com with ESMTPS id w4si22222701paa.485.2014.04.22.00.39.13
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 22 Apr 2014 00:15:23 -0700 (PDT)
-Message-ID: <535616D9.8060702@huawei.com>
-Date: Tue, 22 Apr 2014 15:14:33 +0800
-From: Li Zefan <lizefan@huawei.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 22 Apr 2014 00:39:13 -0700 (PDT)
+From: Rusty Russell <rusty@rustcorp.com.au>
+Subject: Re: [PATCH V2 1/2] mm: move FAULT_AROUND_ORDER to arch/
+In-Reply-To: <53456B61.1040901@intel.com>
+References: <1396592835-24767-1-git-send-email-maddy@linux.vnet.ibm.com> <1396592835-24767-2-git-send-email-maddy@linux.vnet.ibm.com> <533EDB63.8090909@intel.com> <5344A312.80802@linux.vnet.ibm.com> <53456B61.1040901@intel.com>
+Date: Tue, 22 Apr 2014 16:52:17 +0930
+Message-ID: <87vbu1hlqu.fsf@rustcorp.com.au>
 MIME-Version: 1.0
-Subject: Re: [PATCH] hugetlb_cgroup: explicitly init the early_init field
-References: <1398144620-9630-1-git-send-email-nasa4836@gmail.com> <CAJd=RBA6ZUZ2UBetmcwGciqY8snme-aY60ZhW9F=8CO6kDzMBA@mail.gmail.com> <CAHz2CGXsvdtVdwZfyFAwtRHJ_vkeJZXtLv4fTGTYEeEwN7H6Qw@mail.gmail.com>
-In-Reply-To: <CAHz2CGXsvdtVdwZfyFAwtRHJ_vkeJZXtLv4fTGTYEeEwN7H6Qw@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jianyu Zhan <nasa4836@gmail.com>
-Cc: Hillf Danton <dhillf@gmail.com>, Tejun Heo <tj@kernel.org>, containers@lists.linux-foundation.org, Cgroups <cgroups@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Dave Hansen <dave.hansen@intel.com>, Madhavan Srinivasan <maddy@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, x86@kernel.org
+Cc: benh@kernel.crashing.org, paulus@samba.org, kirill.shutemov@linux.intel.com, akpm@linux-foundation.org, riel@redhat.com, mgorman@suse.de, ak@linux.intel.com, peterz@infradead.org, mingo@kernel.org
 
-On 2014/4/22 15:01, Jianyu Zhan wrote:
-> Hi, hillf,
-> 
-> On Tue, Apr 22, 2014 at 2:47 PM, Hillf Danton <dhillf@gmail.com> wrote:
->> But other fields still missed, if any. Fair?
-> 
-> yep, it is not fair.
-> 
-> Sure for this global variable struct, if not initailized, its all
-> fields will be initialized
-> to 0 or null(depending on its type).  The point here is no to deprive
-> the rights of
-> compiler/linker of doing this initialization, it is mainly for
-> documentation reason.
-> Actually this field's value would affect how ->css_alloc should implemented.
-> 
-> Concretely, if early_init is nonzero, then ->css_alloc *must not* call kzalloc,
-> because in cgroup implementation, ->css_alloc will be called earlier before
-> mm_init().
-> 
-> I don't think that the value of one field(early_init) has a so subtle
-> restrition on the
-> another field(css_alloc) is a good thing, but since it is there,
-> docment it should
-> be needed.
-> 
+Dave Hansen <dave.hansen@intel.com> writes:
+> On 04/08/2014 06:32 PM, Madhavan Srinivasan wrote:
+>>> > In mm/Kconfig, put
+>>> > 
+>>> > 	config FAULT_AROUND_ORDER
+>>> > 		int
+>>> > 		default 1234 if POWERPC
+>>> > 		default 4
+>>> > 
+>>> > The way you have it now, every single architecture that needs to enable
+>>> > this has to go put that in their Kconfig.  That's madness.  This way,
+>> I though about it and decided not to do this way because, in future,
+>> sub platforms of the architecture may decide to change the values. Also,
+>> adding an if line for each architecture with different sub platforms
+>> oring to it will look messy.
+>
+> I'm not sure why I'm trying here any more.  You do seem quite content to
+> add as much cruft to ppc and every other architecture as possible.  If
+> your theoretical scenario pops up, you simply do this in ppc:
+>
+> config ARCH_FAULT_AROUND_ORDER
+> 	int
+> 	default 999
+> 	default 888 if OTHER_SILLY_POWERPC_SUBARCH
+>
+> But *ONLY* in the architectures that care about doing that stuff.  You
+> leave every other architecture on the planet alone.  Then, in mm/Kconfig:
+>
+> config FAULT_AROUND_ORDER
+> 	int
+> 	default ARCH_FAULT_AROUND_ORDER if ARCH_FAULT_AROUND_ORDER
+> 	default 4
+>
+> Your way still requires going and individually touching every single
+> architecture's Kconfig that wants to enable fault around.  That's not an
+> acceptable solution.
 
-I don't see how things can be improved by initializing it to 0 explicitly,
-if anything needs to be improved.
+Why bother with Kconfig at all?  It seems like a weird indirection.
+
+And talking about future tuning seems like a separate issue, if and when
+someone does the work.  For the moment, let's keep it simple (as below).
+
+If you really want Kconfig, then just go straight from
+ARCH_FAULT_AROUND_ORDER, ie:
+
+        #ifdef CONFIG_ARCH_FAULT_AROUND_ORDER
+        #define FAULT_AROUND_ORDER CONFIG_ARCH_FAULT_AROUND_ORDER
+        #else
+        #define FAULT_AROUND_ORDER 4
+        #endif
+
+Then powerpc's Kconfig defines CONFIG_ARCH_FAULT_AROUND_ORDER, and
+we're done.
+
+Cheers,
+Rusty.
+
+diff --git a/arch/powerpc/include/asm/page.h b/arch/powerpc/include/asm/page.h
+index 32e4e212b9c1..b519c5c53cfc 100644
+--- a/arch/powerpc/include/asm/page.h
++++ b/arch/powerpc/include/asm/page.h
+@@ -412,4 +412,7 @@ typedef struct page *pgtable_t;
+ #include <asm-generic/memory_model.h>
+ #endif /* __ASSEMBLY__ */
+ 
++/* Measured on a 4 socket Power7 system (128 Threads and 128GB memory) */
++#define FAULT_AROUND_ORDER 3
++
+ #endif /* _ASM_POWERPC_PAGE_H */
+diff --git a/mm/memory.c b/mm/memory.c
+index d0f0bef3be48..9aa47e9ec7ba 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -3382,7 +3382,10 @@ void do_set_pte(struct vm_area_struct *vma, unsigned long address,
+ 	update_mmu_cache(vma, address, pte);
+ }
+ 
++/* Archs can override, but this seems to work for x86. */
++#ifndef FAULT_AROUND_ORDER
+ #define FAULT_AROUND_ORDER 4
++#endif
+ 
+ #ifdef CONFIG_DEBUG_FS
+ static unsigned int fault_around_order = FAULT_AROUND_ORDER;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
