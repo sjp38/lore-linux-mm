@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f180.google.com (mail-we0-f180.google.com [74.125.82.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D26D6B005A
-	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 17:32:06 -0400 (EDT)
-Received: by mail-we0-f180.google.com with SMTP id k48so59794wev.11
-        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 14:32:05 -0700 (PDT)
+Received: from mail-ee0-f47.google.com (mail-ee0-f47.google.com [74.125.83.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 3890D6B0070
+	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 17:34:08 -0400 (EDT)
+Received: by mail-ee0-f47.google.com with SMTP id b15so135908eek.34
+        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 14:34:07 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id n17si24735wiv.20.2014.04.22.14.32.03
+        by mx.google.com with ESMTP id o46si100102eem.9.2014.04.22.14.34.05
         for <linux-mm@kvack.org>;
-        Tue, 22 Apr 2014 14:32:04 -0700 (PDT)
-Message-ID: <5356DFC8.1060601@redhat.com>
-Date: Tue, 22 Apr 2014 17:31:52 -0400
+        Tue, 22 Apr 2014 14:34:06 -0700 (PDT)
+Message-ID: <5356E041.3060709@redhat.com>
+Date: Tue, 22 Apr 2014 17:33:53 -0400
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 5/6] x86: mm: new tunable for single vs full TLB flush
-References: <20140421182418.81CF7519@viggo.jf.intel.com> <20140421182426.D6DD1E8F@viggo.jf.intel.com>
-In-Reply-To: <20140421182426.D6DD1E8F@viggo.jf.intel.com>
+Subject: Re: [PATCH 6/6] x86: mm: set TLB flush tunable to sane value (33)
+References: <20140421182418.81CF7519@viggo.jf.intel.com> <20140421182428.FC2104C1@viggo.jf.intel.com>
+In-Reply-To: <20140421182428.FC2104C1@viggo.jf.intel.com>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -25,21 +25,19 @@ Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org,
 On 04/21/2014 02:24 PM, Dave Hansen wrote:
 > From: Dave Hansen <dave.hansen@linux.intel.com>
 > 
-> Most of the logic here is in the documentation file.  Please take
-> a look at it.
+> This has been run through Intel's LKP tests across a wide range
+> of modern sytems and workloads and it wasn't shown to make a
+> measurable performance difference positive or negative.
 > 
-> I know we've come full-circle here back to a tunable, but this
-> new one is *WAY* simpler.  I challenge anyone to describe in one
-> sentence how the old one worked.  Here's the way the new one
-> works:
+> Now that we have some shiny new tracepoints, we can actually
+> figure out what the heck is going on.
 > 
-> 	If we are flushing more pages than the ceiling, we use
-> 	the full flush, otherwise we use per-page flushes.
-> 
+> During a kernel compile, 60% of the flush_tlb_mm_range() calls
+> are for a single page.  It breaks down like this:
+
 > Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 
 Acked-by: Rik van Riel <riel@redhat.com>
-
 
 -- 
 All rights reversed
