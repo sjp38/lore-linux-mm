@@ -1,80 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f181.google.com (mail-ob0-f181.google.com [209.85.214.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D2516B0035
-	for <linux-mm@kvack.org>; Mon, 21 Apr 2014 23:07:52 -0400 (EDT)
-Received: by mail-ob0-f181.google.com with SMTP id gq1so4995606obb.26
-        for <linux-mm@kvack.org>; Mon, 21 Apr 2014 20:07:52 -0700 (PDT)
-Received: from mail-ob0-x229.google.com (mail-ob0-x229.google.com [2607:f8b0:4003:c01::229])
-        by mx.google.com with ESMTPS id w1si30346605oey.176.2014.04.21.20.07.51
+Received: from mail-ee0-f42.google.com (mail-ee0-f42.google.com [74.125.83.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E0D26B0035
+	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 00:23:35 -0400 (EDT)
+Received: by mail-ee0-f42.google.com with SMTP id d17so4092770eek.15
+        for <linux-mm@kvack.org>; Mon, 21 Apr 2014 21:23:34 -0700 (PDT)
+Received: from mail-ee0-f51.google.com (mail-ee0-f51.google.com [74.125.83.51])
+        by mx.google.com with ESMTPS id 45si57751070eeh.123.2014.04.21.21.23.33
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 21 Apr 2014 20:07:51 -0700 (PDT)
-Received: by mail-ob0-f169.google.com with SMTP id uz6so2688191obc.14
-        for <linux-mm@kvack.org>; Mon, 21 Apr 2014 20:07:51 -0700 (PDT)
+        Mon, 21 Apr 2014 21:23:33 -0700 (PDT)
+Received: by mail-ee0-f51.google.com with SMTP id c13so4052733eek.24
+        for <linux-mm@kvack.org>; Mon, 21 Apr 2014 21:23:33 -0700 (PDT)
+Message-ID: <5355EEC2.4010304@colorfullife.com>
+Date: Tue, 22 Apr 2014 06:23:30 +0200
+From: Manfred Spraul <manfred@colorfullife.com>
 MIME-Version: 1.0
-In-Reply-To: <1397960791-16320-2-git-send-email-davidlohr@hp.com>
-References: <1397960791-16320-1-git-send-email-davidlohr@hp.com>
-	<1397960791-16320-2-git-send-email-davidlohr@hp.com>
-Date: Tue, 22 Apr 2014 11:07:51 +0800
-Message-ID: <CAMk6uBmoqERYT=ZKMtUM29Q-FPd5tMR9J+i8eUikJhph6rJFEA@mail.gmail.com>
-Subject: Re: [PATCH 1/6] blackfin/ptrace: call find_vma with the mmap_sem held
-From: Steven Miao <realmz6@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH 0/4] ipc/shm.c: increase the limits for SHMMAX, SHMALL
+References: <1398090397-2397-1-git-send-email-manfred@colorfullife.com> <1398101106.2623.6.camel@buesod1.americas.hpqcorp.net>
+In-Reply-To: <1398101106.2623.6.camel@buesod1.americas.hpqcorp.net>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Davidlohr Bueso <davidlohr@hp.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, zeus@gnu.org, aswin@hp.com, linux-mm@kvack.org, "open list:CAN NETWORK DRIVERS <linux-can@vger.kernel.org>, open list:NETWORKING DRIVERS <netdev@vger.kernel.org>, open list" <linux-kernel@vger.kernel.org>, bfin <adi-buildroot-devel@lists.sourceforge.net>
+Cc: Davidlohr Bueso <davidlohr.bueso@hp.com>, Michael Kerrisk <mtk.manpages@gmail.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, gthelen@google.com, aswin@hp.com, linux-mm@kvack.org
 
-Hi Davidlohr,
+On 04/21/2014 07:25 PM, Davidlohr Bueso wrote:
+> On Mon, 2014-04-21 at 16:26 +0200, Manfred Spraul wrote:
+>> Hi all,
+>>
+>> the increase of SHMMAX/SHMALL is now a 4 patch series.
+>> I don't have ideas how to improve it further.
+> Manfred, is there any difference between this set and the one you sent a
+> couple of days ago?
+a) I updated the comments.
+b) the initial set used TASK_SIZE, not I switch to ULONG_MAX-(1L<<24)
 
-On Sun, Apr 20, 2014 at 10:26 AM, Davidlohr Bueso <davidlohr@hp.com> wrote:
-> Performing vma lookups without taking the mm->mmap_sem is asking
-> for trouble. While doing the search, the vma in question can be
-> modified or even removed before returning to the caller. Take the
-> lock (shared) in order to avoid races while iterating through the
-> vmacache and/or rbtree.
-Yes, mm->mmap_sem should lock here. Applied, thanks.
->
-> This patch is completely *untested*.
->
-> Signed-off-by: Davidlohr Bueso <davidlohr@hp.com>
-> Cc: Steven Miao <realmz6@gmail.com>
-> Cc: adi-buildroot-devel@lists.sourceforge.net
-> ---
->  arch/blackfin/kernel/ptrace.c | 8 ++++++--
->  1 file changed, 6 insertions(+), 2 deletions(-)
->
-> diff --git a/arch/blackfin/kernel/ptrace.c b/arch/blackfin/kernel/ptrace.c
-> index e1f88e0..8b8fe67 100644
-> --- a/arch/blackfin/kernel/ptrace.c
-> +++ b/arch/blackfin/kernel/ptrace.c
-> @@ -117,6 +117,7 @@ put_reg(struct task_struct *task, unsigned long regno, unsigned long data)
->  int
->  is_user_addr_valid(struct task_struct *child, unsigned long start, unsigned long len)
->  {
-> +       bool valid;
->         struct vm_area_struct *vma;
->         struct sram_list_struct *sraml;
->
-> @@ -124,9 +125,12 @@ is_user_addr_valid(struct task_struct *child, unsigned long start, unsigned long
->         if (start + len < start)
->                 return -EIO;
->
-> +       down_read(&child->mm->mmap_sem);
->         vma = find_vma(child->mm, start);
-> -       if (vma && start >= vma->vm_start && start + len <= vma->vm_end)
-> -                       return 0;
-> +       valid = vma && start >= vma->vm_start && start + len <= vma->vm_end;
-> +       up_read(&child->mm->mmap_sem);
-> +       if (valid)
-> +               return 0;
->
->         for (sraml = child->mm->context.sram_list; sraml; sraml = sraml->next)
->                 if (start >= (unsigned long)sraml->addr
-> --
-> 1.8.1.4
->
--steven
+>>    - Using "0" as a magic value for infinity is even worse, because
+>>      right now 0 means 0, i.e. fail all allocations.
+> Sorry but I don't quite get this. Using 0 eliminates the need for all
+> these patches, no? I mean overflows have existed since forever, and
+> taking this route would naturally solve the problem. 0 allocations are a
+> no no anyways.
+No. The patches are required to handle e.g. shmget(,ULONG_MAX,):
+Right now, shmget(,ULONG_MAX,) results in a 0-byte segment.
+
+The risk of using 0 is that it reverses the current behavior:
+Up to now,
+     # sysctl kernel.shmall=0
+disables allocations.
+If we define 0 a infinity, then the same configuration would allow 
+unlimited allocations.
+
+--
+     Manfred
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
