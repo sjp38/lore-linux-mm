@@ -1,45 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f169.google.com (mail-ig0-f169.google.com [209.85.213.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 958636B0035
-	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 04:08:45 -0400 (EDT)
-Received: by mail-ig0-f169.google.com with SMTP id h18so2590325igc.2
-        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 01:08:45 -0700 (PDT)
-Received: from mail-ie0-x22c.google.com (mail-ie0-x22c.google.com [2607:f8b0:4001:c03::22c])
-        by mx.google.com with ESMTPS id k7si24584471icu.45.2014.04.22.01.08.44
+Received: from mail-ee0-f50.google.com (mail-ee0-f50.google.com [74.125.83.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 373256B0035
+	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 04:38:57 -0400 (EDT)
+Received: by mail-ee0-f50.google.com with SMTP id c13so4249351eek.23
+        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 01:38:56 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id g47si58661196eet.324.2014.04.22.01.38.55
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 22 Apr 2014 01:08:44 -0700 (PDT)
-Received: by mail-ie0-f172.google.com with SMTP id as1so4922199iec.17
-        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 01:08:44 -0700 (PDT)
+        Tue, 22 Apr 2014 01:38:55 -0700 (PDT)
+Date: Tue, 22 Apr 2014 09:38:52 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: [PATCH] mm: vmscan: Do not throttle based on pfmemalloc reserves if
+ node has no ZONE_NORMAL
+Message-ID: <20140422083852.GB23991@suse.de>
 MIME-Version: 1.0
-In-Reply-To: <2c63c535f8202c6b605300a834cdf1c07d1bafc3.1398147734.git.nasa4836@gmail.com>
-References: <cover.1398147734.git.nasa4836@gmail.com> <2c63c535f8202c6b605300a834cdf1c07d1bafc3.1398147734.git.nasa4836@gmail.com>
-From: Jianyu Zhan <nasa4836@gmail.com>
-Date: Tue, 22 Apr 2014 16:08:04 +0800
-Message-ID: <CAHz2CGW62TMEVuqj8ixpPP_hOW6r4Q6VkZRtG_kKc6ibd2V=jA@mail.gmail.com>
-Subject: Re: [PATCH 2/4] mm/memcontrol.c: use accessor to get id from css
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, kamezawa.hiroyu@jp.fujitsu.com
-Cc: Cgroups <cgroups@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Jianyu Zhan <nasa4836@gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Apr 22, 2014 at 2:30 PM, Jianyu Zhan <nasa4836@gmail.com> wrote:
-> This is a prepared patch for converting from per-cgroup id to
-> per-subsystem id.
->
-> We should not access per-cgroup id directly, since this is implemetation
-> detail. Use the accessor css_from_id() instead.
->
-> This patch has no functional change.
+throttle_direct_reclaim() is meant to trigger during swap-over-network
+during which the min watermark is treated as a pfmemalloc reserve. It
+throttes on the first node in the zonelist but this is flawed.
 
-Hi,  I'm sorry.  This patch should be applied on top of its previous patch:
-https://lkml.org/lkml/2014/4/22/54
+On a NUMA machine running a 32-bit kernel (I know) allocation requests
+freom CPUs on node 1 would detect no pfmemalloc reserves and the process
+gets throttled. This patch adjusts throttling of direct reclaim to throttle
+based on the first node in the zonelist that has a usable ZONE_NORMAL or
+lower zone.
 
-Sorry for my fault , not cc'ing this mail-list in that patch.
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+---
+ mm/vmscan.c | 33 +++++++++++++++++++++++++++------
+ 1 file changed, 27 insertions(+), 6 deletions(-)
 
-Thanks,
-Jianyu Zhan
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 3f56c8d..9c4918e9 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2507,10 +2507,17 @@ static bool pfmemalloc_watermark_ok(pg_data_t *pgdat)
+ 
+ 	for (i = 0; i <= ZONE_NORMAL; i++) {
+ 		zone = &pgdat->node_zones[i];
++		if (!populated_zone(zone))
++			continue;
++
+ 		pfmemalloc_reserve += min_wmark_pages(zone);
+ 		free_pages += zone_page_state(zone, NR_FREE_PAGES);
+ 	}
+ 
++	/* If there are no reserves (unexpected config) then do not throttle */
++	if (!pfmemalloc_reserve)
++		return true;
++
+ 	wmark_ok = free_pages > pfmemalloc_reserve / 2;
+ 
+ 	/* kswapd must be awake if processes are being throttled */
+@@ -2535,9 +2542,9 @@ static bool pfmemalloc_watermark_ok(pg_data_t *pgdat)
+ static bool throttle_direct_reclaim(gfp_t gfp_mask, struct zonelist *zonelist,
+ 					nodemask_t *nodemask)
+ {
++	struct zoneref *z;
+ 	struct zone *zone;
+-	int high_zoneidx = gfp_zone(gfp_mask);
+-	pg_data_t *pgdat;
++	pg_data_t *pgdat = NULL;
+ 
+ 	/*
+ 	 * Kernel threads should not be throttled as they may be indirectly
+@@ -2556,10 +2563,24 @@ static bool throttle_direct_reclaim(gfp_t gfp_mask, struct zonelist *zonelist,
+ 	if (fatal_signal_pending(current))
+ 		goto out;
+ 
+-	/* Check if the pfmemalloc reserves are ok */
+-	first_zones_zonelist(zonelist, high_zoneidx, NULL, &zone);
+-	pgdat = zone->zone_pgdat;
+-	if (pfmemalloc_watermark_ok(pgdat))
++	/*
++	 * Check if the pfmemalloc reserves are ok by finding the first node
++	 * with a usable ZONE_NORMAL or lower zone
++	 */
++        for_each_zone_zonelist_nodemask(zone, z, zonelist,
++                                        gfp_mask, nodemask) {
++		if (zone_idx(zone) > ZONE_NORMAL)
++			continue;
++
++		/* Throttle based on the first usable node */
++		pgdat = zone->zone_pgdat;
++		if (pfmemalloc_watermark_ok(pgdat))
++			goto out;
++		break;
++	}
++
++	/* If no zone was usable by the allocation flags then do not throttle */
++	if (!pgdat)
+ 		goto out;
+ 
+ 	/* Account for the throttling */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
