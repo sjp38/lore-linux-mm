@@ -1,69 +1,179 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com [209.85.160.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 80B626B0037
-	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 02:30:56 -0400 (EDT)
-Received: by mail-pb0-f54.google.com with SMTP id ma3so4614310pbc.27
-        for <linux-mm@kvack.org>; Mon, 21 Apr 2014 23:30:56 -0700 (PDT)
-Received: from mail-pa0-x22b.google.com (mail-pa0-x22b.google.com [2607:f8b0:400e:c03::22b])
-        by mx.google.com with ESMTPS id rb6si22164126pab.149.2014.04.21.23.30.55
+Received: from mail-ee0-f44.google.com (mail-ee0-f44.google.com [74.125.83.44])
+	by kanga.kvack.org (Postfix) with ESMTP id AA1A36B0035
+	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 02:33:32 -0400 (EDT)
+Received: by mail-ee0-f44.google.com with SMTP id e49so4146557eek.17
+        for <linux-mm@kvack.org>; Mon, 21 Apr 2014 23:33:32 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id r9si58285564eew.78.2014.04.21.23.33.30
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 21 Apr 2014 23:30:55 -0700 (PDT)
-Received: by mail-pa0-f43.google.com with SMTP id bj1so4596528pad.30
-        for <linux-mm@kvack.org>; Mon, 21 Apr 2014 23:30:55 -0700 (PDT)
-From: Jianyu Zhan <nasa4836@gmail.com>
-Subject: [PATCH 2/4] mm/memcontrol.c: use accessor to get id from css
-Date: Tue, 22 Apr 2014 14:30:41 +0800
-Message-Id: <2c63c535f8202c6b605300a834cdf1c07d1bafc3.1398147734.git.nasa4836@gmail.com>
-In-Reply-To: <cover.1398147734.git.nasa4836@gmail.com>
-References: <cover.1398147734.git.nasa4836@gmail.com>
+        Mon, 21 Apr 2014 23:33:31 -0700 (PDT)
+Message-ID: <53560D3F.2030002@suse.cz>
+Date: Tue, 22 Apr 2014 08:33:35 +0200
+From: Vlastimil Babka <vbabka@suse.cz>
+MIME-Version: 1.0
+Subject: Re: [PATCH 2/2] mm/compaction: cleanup isolate_freepages()
+References: <5342BA34.8050006@suse.cz> <1397553507-15330-1-git-send-email-vbabka@suse.cz> <1397553507-15330-2-git-send-email-vbabka@suse.cz> <20140417000745.GF27534@bbox> <20140421124146.c8beacf0d58aafff2085a461@linux-foundation.org> <535590FC.10607@suse.cz> <20140421235319.GD7178@bbox>
+In-Reply-To: <20140421235319.GD7178@bbox>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: hannes@cmpxchg.org, mhocko@suse.cz, bsingharora@gmail.com, kamezawa.hiroyu@jp.fujitsu.com
-Cc: cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, nasa4836@gmail.com
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Heesub Shin <heesub.shin@samsung.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dongjun Shin <d.j.shin@samsung.com>, Sunghwan Yun <sunghwan.yun@samsung.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>
 
-This is a prepared patch for converting from per-cgroup id to
-per-subsystem id.
+On 22.4.2014 1:53, Minchan Kim wrote:
+> On Mon, Apr 21, 2014 at 11:43:24PM +0200, Vlastimil Babka wrote:
+>> On 21.4.2014 21:41, Andrew Morton wrote:
+>>> On Thu, 17 Apr 2014 09:07:45 +0900 Minchan Kim <minchan@kernel.org> wrote:
+>>>
+>>>> Hi Vlastimil,
+>>>>
+>>>> Below just nitpicks.
+>>> It seems you were ignored ;)
+>> Oops, I managed to miss your e-mail, sorry.
+>>
+>>>>>   {
+>>>>>   	struct page *page;
+>>>>> -	unsigned long high_pfn, low_pfn, pfn, z_end_pfn;
+>>>>> +	unsigned long pfn, low_pfn, next_free_pfn, z_end_pfn;
+>>>> Could you add comment for each variable?
+>>>>
+>>>> unsigned long pfn; /* scanning cursor */
+>>>> unsigned long low_pfn; /* lowest pfn free scanner is able to scan */
+>>>> unsigned long next_free_pfn; /* start pfn for scaning at next truen */
+>>>> unsigned long z_end_pfn; /* zone's end pfn */
+>>>>
+>>>>
+>>>>> @@ -688,11 +688,10 @@ static void isolate_freepages(struct zone *zone,
+>>>>>   	low_pfn = ALIGN(cc->migrate_pfn + 1, pageblock_nr_pages);
+>>>>>   	/*
+>>>>> -	 * Take care that if the migration scanner is at the end of the zone
+>>>>> -	 * that the free scanner does not accidentally move to the next zone
+>>>>> -	 * in the next isolation cycle.
+>>>>> +	 * Seed the value for max(next_free_pfn, pfn) updates. If there are
+>>>>> +	 * none, the pfn < low_pfn check will kick in.
+>>>>         "none" what? I'd like to clear more.
+>> If there are no updates to next_free_pfn within the for cycle. Which
+>> matches Andrew's formulation below.
+>>
+>>> I did this:
+>> Thanks!
+>>
+>>> --- a/mm/compaction.c~mm-compaction-cleanup-isolate_freepages-fix
+>>> +++ a/mm/compaction.c
+>>> @@ -662,7 +662,10 @@ static void isolate_freepages(struct zon
+>>>   				struct compact_control *cc)
+>>>   {
+>>>   	struct page *page;
+>>> -	unsigned long pfn, low_pfn, next_free_pfn, z_end_pfn;
+>>> +	unsigned long pfn;	     /* scanning cursor */
+>>> +	unsigned long low_pfn;	     /* lowest pfn scanner is able to scan */
+>>> +	unsigned long next_free_pfn; /* start pfn for scaning at next round */
+>>> +	unsigned long z_end_pfn;     /* zone's end pfn */
+>> Yes that works.
+>>
+>>>   	int nr_freepages = cc->nr_freepages;
+>>>   	struct list_head *freelist = &cc->freepages;
+>>> @@ -679,8 +682,8 @@ static void isolate_freepages(struct zon
+>>>   	low_pfn = ALIGN(cc->migrate_pfn + 1, pageblock_nr_pages);
+>>>   	/*
+>>> -	 * Seed the value for max(next_free_pfn, pfn) updates. If there are
+>>> -	 * none, the pfn < low_pfn check will kick in.
+>>> +	 * Seed the value for max(next_free_pfn, pfn) updates. If no pages are
+>>> +	 * isolated, the pfn < low_pfn check will kick in.
+>> OK.
+>>
+>>>   	 */
+>>>   	next_free_pfn = 0;
+>>>>> @@ -766,9 +765,9 @@ static void isolate_freepages(struct zone *zone,
+>>>>>   	 * so that compact_finished() may detect this
+>>>>>   	 */
+>>>>>   	if (pfn < low_pfn)
+>>>>> -		cc->free_pfn = max(pfn, zone->zone_start_pfn);
+>>>>> -	else
+>>>>> -		cc->free_pfn = high_pfn;
+>>>>> +		next_free_pfn = max(pfn, zone->zone_start_pfn);
+>>>> Why we need max operation?
+>>>> IOW, what's the problem if we do (next_free_pfn = pfn)?
+>>> An answer to this would be useful, thanks.
+>> The idea (originally, not new here) is that the free scanner wants
+>> to remember the highest-pfn
+>> block where it managed to isolate some pages. If the following page
+>> migration fails, these isolated
+>> pages might be put back and would be skipped in further compaction
+>> attempt if we used just
+>> "next_free_pfn = pfn", until the scanners get reset.
+>>
+>> The question of course is if such situations are frequent and makes
+>> any difference to compaction
+>> outcome. And the downsides are potentially useless rescans and code
+>> complexity. Maybe Mel
+>> remembers how important this is? It should probably be profiled
+>> before changes are made.
+> I didn't mean it. What I mean is code snippet you introduced in 7ed695e069c3c.
+> At that time, I didn't Cced so I missed that code so let's ask this time.
+> In that patch, you added this.
+>
+> if (pfn < low_pfn)
+>    cc->free_pfn = max(pfn, zone->zone_start_pfn);
+> else
+>    cc->free_pfn = high_pfn;
 
-We should not access per-cgroup id directly, since this is implemetation
-detail. Use the accessor css_from_id() instead.
+Oh, right, this max(), not the one in the for loop. Sorry, I should have 
+read more closely.
+But still maybe it's a good opportunity to kill the other max() as well. 
+I'll try some testing.
 
-This patch has no functional change.
+Anyway, this is what I answered to Mel when he asked the same thing when 
+I sent
+that 7ed695069c3c patch:
 
-Signed-off-by: Jianyu Zhan <nasa4836@gmail.com>
----
- mm/memcontrol.c | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+If a zone starts in a middle of a pageblock and migrate scanner isolates
+enough pages early to stay within that pageblock, low_pfn will be at the
+end of that pageblock and after the for cycle in this function ends, pfn
+might be at the beginning of that pageblock. It might not be an actual
+problem (this compaction will finish at this point, and if someone else
+is racing, he will probably check the boundaries himself), but I played
+it safe.
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 80d9e38..46333cb 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -528,10 +528,10 @@ static inline bool mem_cgroup_is_root(struct mem_cgroup *memcg)
- static inline unsigned short mem_cgroup_id(struct mem_cgroup *memcg)
- {
- 	/*
--	 * The ID of the root cgroup is 0, but memcg treat 0 as an
--	 * invalid ID, so we return (cgroup_id + 1).
-+	 * The ID of css for the root cgroup is 0, but memcg treat 0 as an
-+	 * invalid ID, so we return (id + 1).
- 	 */
--	return memcg->css.cgroup->id + 1;
-+	return css_to_id(&memcg->css) + 1;
- }
- 
- static inline struct mem_cgroup *mem_cgroup_from_id(unsigned short id)
-@@ -6407,7 +6407,7 @@ mem_cgroup_css_online(struct cgroup_subsys_state *css)
- 	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
- 	struct mem_cgroup *parent = mem_cgroup_from_css(css_parent(css));
- 
--	if (css->cgroup->id > MEM_CGROUP_ID_MAX)
-+	if (css_to_id(css) > MEM_CGROUP_ID_MAX)
- 		return -ENOSPC;
- 
- 	if (!parent)
--- 
-2.0.0-rc0
+
+> So the purpose of max(pfn, zone->zone_start_pfn) is to be detected by
+> compact_finished to stop compaction. And your [1/2] patch in this patchset
+> always makes free page scanner start on pageblock boundary so when the
+> loop in isolate_freepages is finished and pfn is lower low_pfn, the pfn
+> would be lower than migration scanner so compact_finished will always detect
+> it so I think you could just do
+>
+> if (pfn < low_pfn)
+>    next_free_pfn = pfn;
+>
+> cc->free_pfn = next_free_pfn;
+
+That could work. I was probably wrong about danger of racing in the 
+reply to Mel,
+because free_pfn is stored in cc (private), not zone (shared).
+
+>
+> Or, if you want to clear *reset*,
+> if (pfn < lown_pfn)
+>    next_free_pfn = zone->zone_start_pfn;
+>
+> cc->free_pfn = next_free_pfn;
+
+That would work as well but is less straightforward I think. Might be 
+misleading if
+someone added tracepoints to track the free scanner progress with pfn's 
+(which
+might happen soon...)
+
+> That's why I asked about max operation. What am I missing?
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
