@@ -1,22 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f181.google.com (mail-yk0-f181.google.com [209.85.160.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C15E6B0072
-	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 14:18:56 -0400 (EDT)
-Received: by mail-yk0-f181.google.com with SMTP id 131so4849779ykp.40
-        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 11:18:56 -0700 (PDT)
-Received: from g6t1526.atlanta.hp.com (g6t1526.atlanta.hp.com. [15.193.200.69])
-        by mx.google.com with ESMTPS id q56si41844404yhi.56.2014.04.22.11.18.55
+Received: from mail-yh0-f43.google.com (mail-yh0-f43.google.com [209.85.213.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 376FD6B0073
+	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 14:19:08 -0400 (EDT)
+Received: by mail-yh0-f43.google.com with SMTP id b6so5195300yha.30
+        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 11:19:07 -0700 (PDT)
+Received: from g5t1626.atlanta.hp.com (g5t1626.atlanta.hp.com. [15.192.137.9])
+        by mx.google.com with ESMTPS id q49si41855675yhe.34.2014.04.22.11.19.07
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 22 Apr 2014 11:18:55 -0700 (PDT)
-Message-ID: <1398190732.2473.9.camel@buesod1.americas.hpqcorp.net>
-Subject: Re: [PATCH 2/4] ipc/shm.c: check for overflows of shm_tot
+        Tue, 22 Apr 2014 11:19:07 -0700 (PDT)
+Message-ID: <1398190745.2473.10.camel@buesod1.americas.hpqcorp.net>
+Subject: Re: [PATCH 3/4] ipc/shm.c: check for integer overflow during shmget.
 From: Davidlohr Bueso <davidlohr@hp.com>
-Date: Tue, 22 Apr 2014 11:18:52 -0700
-In-Reply-To: <1398090397-2397-3-git-send-email-manfred@colorfullife.com>
+Date: Tue, 22 Apr 2014 11:19:05 -0700
+In-Reply-To: <1398090397-2397-4-git-send-email-manfred@colorfullife.com>
 References: <1398090397-2397-1-git-send-email-manfred@colorfullife.com>
 	 <1398090397-2397-2-git-send-email-manfred@colorfullife.com>
 	 <1398090397-2397-3-git-send-email-manfred@colorfullife.com>
+	 <1398090397-2397-4-git-send-email-manfred@colorfullife.com>
 Content-Type: text/plain; charset="UTF-8"
 Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
@@ -26,13 +27,11 @@ To: Manfred Spraul <manfred@colorfullife.com>
 Cc: Davidlohr Bueso <davidlohr.bueso@hp.com>, Michael Kerrisk <mtk.manpages@gmail.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, gthelen@google.com, aswin@hp.com, linux-mm@kvack.org
 
 On Mon, 2014-04-21 at 16:26 +0200, Manfred Spraul wrote:
-> shm_tot counts the total number of pages used by shm segments.
-> 
-> If SHMALL is ULONG_MAX (or nearly ULONG_MAX), then the number
-> can overflow.  Subsequent calls to shmctl(,SHM_INFO,) would return
-> wrong values for shm_tot.
-> 
-> The patch adds a detection for overflows.
+> SHMMAX is the upper limit for the size of a shared memory segment,
+> counted in bytes. The actual allocation is that size, rounded up to
+> the next full page.
+> Add a check that prevents the creation of segments where the
+> rounded up size causes an integer overflow.
 > 
 > Signed-off-by: Manfred Spraul <manfred@colorfullife.com>
 
