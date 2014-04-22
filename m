@@ -1,706 +1,208 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f53.google.com (mail-ee0-f53.google.com [74.125.83.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 38C566B0035
-	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 06:05:15 -0400 (EDT)
-Received: by mail-ee0-f53.google.com with SMTP id b57so4419692eek.12
-        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 03:05:14 -0700 (PDT)
-Received: from mail-ee0-x231.google.com (mail-ee0-x231.google.com [2a00:1450:4013:c00::231])
-        by mx.google.com with ESMTPS id g47si59054871eet.144.2014.04.22.03.05.13
+Received: from mail-ee0-f45.google.com (mail-ee0-f45.google.com [74.125.83.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 66DD06B0035
+	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 06:13:20 -0400 (EDT)
+Received: by mail-ee0-f45.google.com with SMTP id d17so4435342eek.4
+        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 03:13:19 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id n46si14845834eeo.7.2014.04.22.03.13.18
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 22 Apr 2014 03:05:13 -0700 (PDT)
-Received: by mail-ee0-f49.google.com with SMTP id c41so4356656eek.22
-        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 03:05:13 -0700 (PDT)
-Date: Tue, 22 Apr 2014 13:05:05 +0300
-From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Subject: Re: [PATCH 3/4] mm: zpool: implement common zpool api to
- zbud/zsmalloc
-Message-ID: <20140422100505.GB937@swordfish.minsk.epam.com>
-References: <1397922764-1512-1-git-send-email-ddstreet@ieee.org>
- <1397922764-1512-4-git-send-email-ddstreet@ieee.org>
+        Tue, 22 Apr 2014 03:13:18 -0700 (PDT)
+Date: Tue, 22 Apr 2014 12:13:15 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: + mm-disable-zone_reclaim_mode-by-default.patch added to -mm tree
+Message-ID: <20140422101315.GF29311@dhcp22.suse.cz>
+References: <535185cd./jfAC9DnY3vEWVmh%akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1397922764-1512-4-git-send-email-ddstreet@ieee.org>
+In-Reply-To: <535185cd./jfAC9DnY3vEWVmh%akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Streetman <ddstreet@ieee.org>
-Cc: Seth Jennings <sjennings@variantweb.net>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Andrew Morton <akpm@linux-foundation.org>, Bob Liu <bob.liu@oracle.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Weijie Yang <weijie.yang@samsung.com>, Johannes Weiner <hannes@cmpxchg.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: akpm@linux-foundation.org
+Cc: mm-commits@vger.kernel.org, zhangyanfei@cn.fujitsu.com, hannes@cmpxchg.org, mgorman@suse.de, linux-mm@kvack.org
 
-Hello,
+On Fri 18-04-14 13:06:37, Andrew Morton wrote:
+> Subject: + mm-disable-zone_reclaim_mode-by-default.patch added to -mm tree
+> To: mgorman@suse.de,hannes@cmpxchg.org,mhocko@suse.cz,zhangyanfei@cn.fujitsu.com
+> From: akpm@linux-foundation.org
+> Date: Fri, 18 Apr 2014 13:06:37 -0700
+> 
+> 
+> The patch titled
+>      Subject: mm: disable zone_reclaim_mode by default
+> has been added to the -mm tree.  Its filename is
+>      mm-disable-zone_reclaim_mode-by-default.patch
+> 
+> This patch should soon appear at
+>     http://ozlabs.org/~akpm/mmots/broken-out/mm-disable-zone_reclaim_mode-by-default.patch
+> and later at
+>     http://ozlabs.org/~akpm/mmotm/broken-out/mm-disable-zone_reclaim_mode-by-default.patch
+> 
+> Before you just go and hit "reply", please:
+>    a) Consider who else should be cc'ed
+>    b) Prefer to cc a suitable mailing list as well
+>    c) Ideally: find the original patch on the mailing list and do a
+>       reply-to-all to that, adding suitable additional cc's
+> 
+> *** Remember to use Documentation/SubmitChecklist when testing your code ***
+> 
+> The -mm tree is included into linux-next and is updated
+> there every 3-4 working days
+> 
+> ------------------------------------------------------
+> From: Mel Gorman <mgorman@suse.de>
+> Subject: mm: disable zone_reclaim_mode by default
+> 
+> When it was introduced, zone_reclaim_mode made sense as NUMA distances
+> punished and workloads were generally partitioned to fit into a NUMA node.
+>  NUMA machines are now common but few of the workloads are NUMA-aware and
+> it's routine to see major performance due to zone_reclaim_mode being
+> enabled but relatively few can identify the problem.
+> 
+> Those that require zone_reclaim_mode are likely to be able to detect when
+> it needs to be enabled and tune appropriately so lets have a sensible
+> default for the bulk of users.
+> 
+> 
+> 
+> This patch (of 2):
+> 
+> zone_reclaim_mode causes processes to prefer reclaiming memory from local
+> node instead of spilling over to other nodes. This made sense initially when
+> NUMA machines were almost exclusively HPC and the workload was partitioned
+> into nodes. The NUMA penalties were sufficiently high to justify reclaiming
+> the memory. On current machines and workloads it is often the case that
+> zone_reclaim_mode destroys performance but not all users know how to detect
+> this. Favour the common case and disable it by default. Users that are
+> sophisticated enough to know they need zone_reclaim_mode will detect it.
+> 
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
+> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+> Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+> Cc: Michal Hocko <mhocko@suse.cz>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 
-On (04/19/14 11:52), Dan Streetman wrote:
-> 
-> Add zpool api.
-> 
-> zpool provides an interface for memory storage, typically of compressed
-> memory.  Users can select what backend to use; currently the only
-> implementations are zbud, a low density implementation with exactly
-> two compressed pages per storage page, and zsmalloc, a higher density
-> implementation with multiple compressed pages per storage page.
-> 
-> Signed-off-by: Dan Streetman <ddstreet@ieee.org>
+FWIW
+Acked-by: Michal Hocko <mhocko@suse.cz>
+
 > ---
->  include/linux/zpool.h | 166 ++++++++++++++++++++++
->  mm/Kconfig            |  43 +++---
->  mm/Makefile           |   1 +
->  mm/zpool.c            | 380 ++++++++++++++++++++++++++++++++++++++++++++++++++
->  4 files changed, 572 insertions(+), 18 deletions(-)
->  create mode 100644 include/linux/zpool.h
->  create mode 100644 mm/zpool.c
 > 
-> diff --git a/include/linux/zpool.h b/include/linux/zpool.h
-> new file mode 100644
-> index 0000000..82d81c6
-> --- /dev/null
-> +++ b/include/linux/zpool.h
-> @@ -0,0 +1,166 @@
-> +/*
-> + * zpool memory storage api
-> + *
-> + * Copyright (C) 2014 Dan Streetman
-> + *
-> + * This is a common frontend for the zbud and zsmalloc memory
-> + * storage pool implementations.  Typically, this is used to
-> + * store compressed memory.
-> + */
-> +
-> +#ifndef _ZPOOL_H_
-> +#define _ZPOOL_H_
-> +
-> +struct zpool;
-> +
-> +struct zpool_ops {
-> +	int (*evict)(struct zpool *pool, unsigned long handle);
-> +};
-> +
-> +#define ZPOOL_TYPE_ZSMALLOC "zsmalloc"
-> +#define ZPOOL_TYPE_ZBUD "zbud"
-> +
-> +/*
-> + * Control how a handle is mapped.  It will be ignored if the
-> + * implementation does not support it.  Its use is optional.
-> + * Note that this does not refer to memory protection, it
-> + * refers to how the memory will be copied in/out if copying
-> + * is necessary during mapping; read-write is the safest as
-> + * it copies the existing memory in on map, and copies the
-> + * changed memory back out on unmap.  Write-only does not copy
-> + * in the memory and should only be used for initialization.
-> + * If in doubt, use ZPOOL_MM_DEFAULT which is read-write.
-> + */
-> +enum zpool_mapmode {
-> +	ZPOOL_MM_RW, /* normal read-write mapping */
-> +	ZPOOL_MM_RO, /* read-only (no copy-out at unmap time) */
-> +	ZPOOL_MM_WO, /* write-only (no copy-in at map time) */
-> +
-> +	ZPOOL_MM_DEFAULT = ZPOOL_MM_RW
-> +};
-> +
-> +/**
-> + * zpool_create_pool() - Create a new zpool
-> + * @type	The type of the zpool to create (e.g. zbud, zsmalloc)
-> + * @flags	What GFP flags should be used when the zpool allocates memory.
-> + * @ops		The optional ops callback.
-> + * @fallback	If other implementations should be used
-> + *
-> + * This creates a new zpool of the specified type.  The zpool will use the
-> + * given flags when allocating any memory.  If the ops param is NULL, then
-> + * the created zpool will not be shrinkable.
-> + *
-> + * If creation of the implementation @type fails, and @fallback is true,
-> + * then other implementation(s) are tried.  If @fallback is false or no
-> + * implementations could be created, then NULL is returned.
-> + *
-> + * Returns: New zpool on success, NULL on failure.
-> + */
-> +struct zpool *zpool_create_pool(char *type, gfp_t flags,
-> +			struct zpool_ops *ops, bool fallback);
-> +
-> +/**
-> + * zpool_get_type() - Get the type of the zpool
-> + * @pool	The zpool to check
-> + *
-> + * This returns the type of the pool, which will match one of the
-> + * ZPOOL_TYPE_* defined values.  This can be useful after calling
-> + * zpool_create_pool() with @fallback set to true.
-> + *
-> + * Returns: The type of zpool.
-> + */
-> +char *zpool_get_type(struct zpool *pool);
-> +
-> +/**
-> + * zpool_destroy_pool() - Destroy a zpool
-> + * @pool	The zpool to destroy.
-> + *
-> + * This destroys an existing zpool.  The zpool should not be in use.
-> + */
-> +void zpool_destroy_pool(struct zpool *pool);
-> +
-> +/**
-> + * zpool_malloc() - Allocate memory
-> + * @pool	The zpool to allocate from.
-> + * @size	The amount of memory to allocate.
-> + * @handle	Pointer to the handle to set
-> + *
-> + * This allocates the requested amount of memory from the pool.
-> + * The provided @handle will be set to the allocated object handle.
-> + *
-> + * Returns: 0 on success, negative value on error.
-> + */
-> +int zpool_malloc(struct zpool *pool, size_t size, unsigned long *handle);
-> +
-> +/**
-> + * zpool_free() - Free previously allocated memory
-> + * @pool	The zpool that allocated the memory.
-> + * @handle	The handle to the memory to free.
-> + *
-> + * This frees previously allocated memory.  This does not guarantee
-> + * that the pool will actually free memory, only that the memory
-> + * in the pool will become available for use by the pool.
-> + */
-> +void zpool_free(struct zpool *pool, unsigned long handle);
-> +
-> +/**
-> + * zpool_shrink() - Shrink the pool size
-> + * @pool	The zpool to shrink.
-> + * @size	The minimum amount to shrink the pool.
-> + *
-> + * This attempts to shrink the actual memory size of the pool
-> + * by evicting currently used handle(s).  If the pool was
-> + * created with no zpool_ops, or the evict call fails for any
-> + * of the handles, this will fail.
-> + *
-> + * Returns: 0 on success, negative value on error/failure.
-> + */
-> +int zpool_shrink(struct zpool *pool, size_t size);
-> +
-> +/**
-> + * zpool_map_handle() - Map a previously allocated handle into memory
-> + * @pool	The zpool that the handle was allocated from
-> + * @handle	The handle to map
-> + * @mm	How the memory should be mapped
-> + *
-> + * This maps a previously allocated handle into memory.  The @mm
-> + * param indicates to the implemenation how the memory will be
-> + * used, i.e. read-only, write-only, read-write.  If the
-> + * implementation does not support it, the memory will be treated
-> + * as read-write.
-> + *
-> + * This may hold locks, disable interrupts, and/or preemption,
-> + * and the zpool_unmap_handle() must be called to undo those
-> + * actions.  The code that uses the mapped handle should complete
-> + * its operatons on the mapped handle memory quickly and unmap
-> + * as soon as possible.  Multiple handles should not be mapped
-> + * concurrently on a cpu.
-> + *
-> + * Returns: A pointer to the handle's mapped memory area.
-> + */
-> +void *zpool_map_handle(struct zpool *pool, unsigned long handle,
-> +			enum zpool_mapmode mm);
-> +
-> +/**
-> + * zpool_unmap_handle() - Unmap a previously mapped handle
-> + * @pool	The zpool that the handle was allocated from
-> + * @handle	The handle to unmap
-> + *
-> + * This unmaps a previously mapped handle.  Any locks or other
-> + * actions that the implemenation took in zpool_map_handle()
-> + * will be undone here.  The memory area returned from
-> + * zpool_map_handle() should no longer be used after this.
-> + */
-> +void zpool_unmap_handle(struct zpool *pool, unsigned long handle);
-> +
-> +/**
-> + * zpool_get_total_size() - The total size of the pool
-> + * @pool	The zpool to check
-> + *
-> + * This returns the total size in bytes of the pool.
-> + *
-> + * Returns: Total size of the zpool in bytes.
-> + */
-> +u64 zpool_get_total_size(struct zpool *pool);
-> +
-> +#endif
-> diff --git a/mm/Kconfig b/mm/Kconfig
-> index ebe5880..ed7715c 100644
-> --- a/mm/Kconfig
-> +++ b/mm/Kconfig
-> @@ -512,21 +512,23 @@ config CMA_DEBUG
->  	  processing calls such as dma_alloc_from_contiguous().
->  	  This option does not affect warning and error messages.
->  
-> -config ZBUD
-> -	tristate
-> -	default n
-> +config MEM_SOFT_DIRTY
-> +	bool "Track memory changes"
-> +	depends on CHECKPOINT_RESTORE && HAVE_ARCH_SOFT_DIRTY && PROC_FS
-> +	select PROC_PAGE_MONITOR
->  	help
-> -	  A special purpose allocator for storing compressed pages.
-> -	  It is designed to store up to two compressed pages per physical
-> -	  page.  While this design limits storage density, it has simple and
-> -	  deterministic reclaim properties that make it preferable to a higher
-> -	  density approach when reclaim will be used.
-> +	  This option enables memory changes tracking by introducing a
-> +	  soft-dirty bit on pte-s. This bit it set when someone writes
-> +	  into a page just as regular dirty bit, but unlike the latter
-> +	  it can be cleared by hands.
-> +
-> +	  See Documentation/vm/soft-dirty.txt for more details.
->  
->  config ZSWAP
->  	bool "Compressed cache for swap pages (EXPERIMENTAL)"
->  	depends on FRONTSWAP && CRYPTO=y
->  	select CRYPTO_LZO
-> -	select ZBUD
-> +	select ZPOOL
->  	default n
->  	help
->  	  A lightweight compressed cache for swap pages.  It takes
-> @@ -542,17 +544,22 @@ config ZSWAP
->  	  they have not be fully explored on the large set of potential
->  	  configurations and workloads that exist.
->  
-> -config MEM_SOFT_DIRTY
-> -	bool "Track memory changes"
-> -	depends on CHECKPOINT_RESTORE && HAVE_ARCH_SOFT_DIRTY && PROC_FS
-> -	select PROC_PAGE_MONITOR
-> +config ZPOOL
-> +	tristate "Common API for compressed memory storage"
-> +	default n
->  	help
-> -	  This option enables memory changes tracking by introducing a
-> -	  soft-dirty bit on pte-s. This bit it set when someone writes
-> -	  into a page just as regular dirty bit, but unlike the latter
-> -	  it can be cleared by hands.
-> +	  Compressed memory storage API.  This allows using either zbud or
-> +	  zsmalloc.
->  
-> -	  See Documentation/vm/soft-dirty.txt for more details.
-> +config ZBUD
-> +	tristate "Low density storage for compressed pages"
-> +	default n
-> +	help
-> +	  A special purpose allocator for storing compressed pages.
-> +	  It is designed to store up to two compressed pages per physical
-> +	  page.  While this design limits storage density, it has simple and
-> +	  deterministic reclaim properties that make it preferable to a higher
-> +	  density approach when reclaim will be used.
->  
->  config ZSMALLOC
->  	bool "Memory allocator for compressed pages"
-> diff --git a/mm/Makefile b/mm/Makefile
-> index 60cacbb..4135f7c 100644
-> --- a/mm/Makefile
-> +++ b/mm/Makefile
-> @@ -60,6 +60,7 @@ obj-$(CONFIG_DEBUG_KMEMLEAK_TEST) += kmemleak-test.o
->  obj-$(CONFIG_CLEANCACHE) += cleancache.o
->  obj-$(CONFIG_MEMORY_ISOLATION) += page_isolation.o
->  obj-$(CONFIG_PAGE_OWNER) += pageowner.o
-> +obj-$(CONFIG_ZPOOL)	+= zpool.o
-
-side note, this fails to apply on linux-next. mm/Makefile does not contain
-CONFIG_PAGE_OWNER
-
-https://git.kernel.org/cgit/linux/kernel/git/next/linux-next.git/tree/mm/Makefile?id=refs/tags/next-20140422
-
-what tree this patchset is against of?
-
-	-ss
-
->  obj-$(CONFIG_ZBUD)	+= zbud.o
->  obj-$(CONFIG_ZSMALLOC)	+= zsmalloc.o
->  obj-$(CONFIG_GENERIC_EARLY_IOREMAP) += early_ioremap.o
-> diff --git a/mm/zpool.c b/mm/zpool.c
-> new file mode 100644
-> index 0000000..592cc0d
-> --- /dev/null
-> +++ b/mm/zpool.c
-> @@ -0,0 +1,380 @@
-> +/*
-> + * zpool memory storage api
-> + *
-> + * Copyright (C) 2014 Dan Streetman
-> + *
-> + * This is a common frontend for the zbud and zsmalloc memory
-> + * storage pool implementations.  Typically, this is used to
-> + * store compressed memory.
-> + */
-> +
-> +#include <linux/list.h>
-> +#include <linux/types.h>
-> +#include <linux/mm.h>
-> +#include <linux/slab.h>
-> +#include <linux/spinlock.h>
-> +#include <linux/zpool.h>
-> +#include <linux/zbud.h>
-> +#include <linux/zsmalloc.h>
-> +
-> +struct zpool_imp {
-> +	void (*destroy)(struct zpool *pool);
-> +
-> +	int (*malloc)(struct zpool *pool, size_t size, unsigned long *handle);
-> +	void (*free)(struct zpool *pool, unsigned long handle);
-> +
-> +	int (*shrink)(struct zpool *pool, size_t size);
-> +
-> +	void *(*map)(struct zpool *pool, unsigned long handle,
-> +				enum zpool_mapmode mm);
-> +	void (*unmap)(struct zpool *pool, unsigned long handle);
-> +
-> +	u64 (*total_size)(struct zpool *pool);
-> +};
-> +
-> +struct zpool {
-> +	char *type;
-> +
-> +	union {
-> +#ifdef CONFIG_ZSMALLOC
-> +	struct zs_pool *zsmalloc_pool;
-> +#endif
-> +#ifdef CONFIG_ZBUD
-> +	struct zbud_pool *zbud_pool;
-> +#endif
-> +	};
-> +
-> +	struct zpool_imp *imp;
-> +	struct zpool_ops *ops;
-> +
-> +	struct list_head list;
-> +};
-> +
-> +static LIST_HEAD(zpools);
-> +static DEFINE_SPINLOCK(zpools_lock);
-> +
-> +static int zpool_noop_evict(struct zpool *pool, unsigned long handle)
-> +{
-> +	return -EINVAL;
-> +}
-> +static struct zpool_ops zpool_noop_ops = {
-> +	.evict = zpool_noop_evict
-> +};
-> +
-> +
-> +/* zsmalloc */
-> +
-> +#ifdef CONFIG_ZSMALLOC
-> +
-> +static void zpool_zsmalloc_destroy(struct zpool *zpool)
-> +{
-> +	spin_lock(&zpools_lock);
-> +	list_del(&zpool->list);
-> +	spin_unlock(&zpools_lock);
-> +
-> +	zs_destroy_pool(zpool->zsmalloc_pool);
-> +	kfree(zpool);
-> +}
-> +
-> +static int zpool_zsmalloc_malloc(struct zpool *pool, size_t size,
-> +			unsigned long *handle)
-> +{
-> +	*handle = zs_malloc(pool->zsmalloc_pool, size);
-> +	return *handle ? 0 : -1;
-> +}
-> +
-> +static void zpool_zsmalloc_free(struct zpool *pool, unsigned long handle)
-> +{
-> +	zs_free(pool->zsmalloc_pool, handle);
-> +}
-> +
-> +static int zpool_zsmalloc_shrink(struct zpool *pool, size_t size)
-> +{
-> +	return zs_shrink(pool->zsmalloc_pool, size);
-> +}
-> +
-> +static void *zpool_zsmalloc_map(struct zpool *pool, unsigned long handle,
-> +			enum zpool_mapmode zpool_mapmode)
-> +{
-> +	enum zs_mapmode zs_mapmode;
-> +
-> +	switch (zpool_mapmode) {
-> +	case ZPOOL_MM_RO:
-> +		zs_mapmode = ZS_MM_RO; break;
-> +	case ZPOOL_MM_WO:
-> +		zs_mapmode = ZS_MM_WO; break;
-> +	case ZPOOL_MM_RW: /* fallthrough */
-> +	default:
-> +		zs_mapmode = ZS_MM_RW; break;
-> +	}
-> +	return zs_map_object(pool->zsmalloc_pool, handle, zs_mapmode);
-> +}
-> +
-> +static void zpool_zsmalloc_unmap(struct zpool *pool, unsigned long handle)
-> +{
-> +	zs_unmap_object(pool->zsmalloc_pool, handle);
-> +}
-> +
-> +static u64 zpool_zsmalloc_total_size(struct zpool *pool)
-> +{
-> +	return zs_get_total_size_bytes(pool->zsmalloc_pool);
-> +}
-> +
-> +static int zpool_zsmalloc_evict(struct zs_pool *zsmalloc_pool,
-> +			unsigned long handle)
-> +{
-> +	struct zpool *zpool;
-> +
-> +	spin_lock(&zpools_lock);
-> +	list_for_each_entry(zpool, &zpools, list) {
-> +		if (zpool->zsmalloc_pool == zsmalloc_pool) {
-> +			spin_unlock(&zpools_lock);
-> +			return zpool->ops->evict(zpool, handle);
-> +		}
-> +	}
-> +	spin_unlock(&zpools_lock);
-> +	return -EINVAL;
-> +}
-> +
-> +static struct zpool_imp zpool_zsmalloc_imp = {
-> +	.destroy = zpool_zsmalloc_destroy,
-> +	.malloc = zpool_zsmalloc_malloc,
-> +	.free = zpool_zsmalloc_free,
-> +	.shrink = zpool_zsmalloc_shrink,
-> +	.map = zpool_zsmalloc_map,
-> +	.unmap = zpool_zsmalloc_unmap,
-> +	.total_size = zpool_zsmalloc_total_size
-> +};
-> +
-> +static struct zs_ops zpool_zsmalloc_ops = {
-> +	.evict = zpool_zsmalloc_evict
-> +};
-> +
-> +static struct zpool *zpool_zsmalloc_create(gfp_t flags, struct zpool_ops *ops)
-> +{
-> +	struct zpool *zpool;
-> +	struct zs_ops *zs_ops = (ops ? &zpool_zsmalloc_ops : NULL);
-> +
-> +	zpool = kmalloc(sizeof(*zpool), GFP_KERNEL);
-> +	if (!zpool)
-> +		return NULL;
-> +
-> +	zpool->zsmalloc_pool = zs_create_pool(flags, zs_ops);
-> +	if (!zpool->zsmalloc_pool) {
-> +		kfree(zpool);
-> +		return NULL;
-> +	}
-> +
-> +	zpool->type = ZPOOL_TYPE_ZSMALLOC;
-> +	zpool->imp = &zpool_zsmalloc_imp;
-> +	zpool->ops = (ops ? ops : &zpool_noop_ops);
-> +	spin_lock(&zpools_lock);
-> +	list_add(&zpool->list, &zpools);
-> +	spin_unlock(&zpools_lock);
-> +
-> +	return zpool;
-> +}
-> +
-> +#else
-> +
-> +static struct zpool *zpool_zsmalloc_create(gfp_t flags, struct zpool_ops *ops)
-> +{
-> +	pr_info("zpool: no zsmalloc in this kernel\n");
-> +	return NULL;
-> +}
-> +
-> +#endif /* CONFIG_ZSMALLOC */
-> +
-> +
-> +/* zbud */
-> +
-> +#ifdef CONFIG_ZBUD
-> +
-> +static void zpool_zbud_destroy(struct zpool *zpool)
-> +{
-> +	spin_lock(&zpools_lock);
-> +	list_del(&zpool->list);
-> +	spin_unlock(&zpools_lock);
-> +
-> +	zbud_destroy_pool(zpool->zbud_pool);
-> +	kfree(zpool);
-> +}
-> +
-> +static int zpool_zbud_malloc(struct zpool *pool, size_t size,
-> +			unsigned long *handle)
-> +{
-> +	return zbud_alloc(pool->zbud_pool, size, handle);
-> +}
-> +
-> +static void zpool_zbud_free(struct zpool *pool, unsigned long handle)
-> +{
-> +	zbud_free(pool->zbud_pool, handle);
-> +}
-> +
-> +static int zpool_zbud_shrink(struct zpool *pool, size_t size)
-> +{
-> +	return zbud_reclaim_page(pool->zbud_pool, 3);
-> +}
-> +
-> +static void *zpool_zbud_map(struct zpool *pool, unsigned long handle,
-> +			enum zpool_mapmode zpool_mapmode)
-> +{
-> +	return zbud_map(pool->zbud_pool, handle);
-> +}
-> +
-> +static void zpool_zbud_unmap(struct zpool *pool, unsigned long handle)
-> +{
-> +	zbud_unmap(pool->zbud_pool, handle);
-> +}
-> +
-> +static u64 zpool_zbud_total_size(struct zpool *pool)
-> +{
-> +	return zbud_get_pool_size(pool->zbud_pool) * PAGE_SIZE;
-> +}
-> +
-> +static int zpool_zbud_evict(struct zbud_pool *zbud_pool, unsigned long handle)
-> +{
-> +	struct zpool *zpool;
-> +
-> +	spin_lock(&zpools_lock);
-> +	list_for_each_entry(zpool, &zpools, list) {
-> +		if (zpool->zbud_pool == zbud_pool) {
-> +			spin_unlock(&zpools_lock);
-> +			return zpool->ops->evict(zpool, handle);
-> +		}
-> +	}
-> +	spin_unlock(&zpools_lock);
-> +	return -EINVAL;
-> +}
-> +
-> +static struct zpool_imp zpool_zbud_imp = {
-> +	.destroy = zpool_zbud_destroy,
-> +	.malloc = zpool_zbud_malloc,
-> +	.free = zpool_zbud_free,
-> +	.shrink = zpool_zbud_shrink,
-> +	.map = zpool_zbud_map,
-> +	.unmap = zpool_zbud_unmap,
-> +	.total_size = zpool_zbud_total_size
-> +};
-> +
-> +static struct zbud_ops zpool_zbud_ops = {
-> +	.evict = zpool_zbud_evict
-> +};
-> +
-> +static struct zpool *zpool_zbud_create(gfp_t flags, struct zpool_ops *ops)
-> +{
-> +	struct zpool *zpool;
-> +	struct zbud_ops *zbud_ops = (ops ? &zpool_zbud_ops : NULL);
-> +
-> +	zpool = kmalloc(sizeof(*zpool), GFP_KERNEL);
-> +	if (!zpool)
-> +		return NULL;
-> +
-> +	zpool->zbud_pool = zbud_create_pool(flags, zbud_ops);
-> +	if (!zpool->zbud_pool) {
-> +		kfree(zpool);
-> +		return NULL;
-> +	}
-> +
-> +	zpool->type = ZPOOL_TYPE_ZBUD;
-> +	zpool->imp = &zpool_zbud_imp;
-> +	zpool->ops = (ops ? ops : &zpool_noop_ops);
-> +	spin_lock(&zpools_lock);
-> +	list_add(&zpool->list, &zpools);
-> +	spin_unlock(&zpools_lock);
-> +
-> +	return zpool;
-> +}
-> +
-> +#else
-> +
-> +static struct zpool *zpool_zbud_create(gfp_t flags, struct zpool_ops *ops)
-> +{
-> +	pr_info("zpool: no zbud in this kernel\n");
-> +	return NULL;
-> +}
-> +
-> +#endif /* CONFIG_ZBUD */
-> +
-> +
-> +struct zpool *zpool_fallback_create(gfp_t flags, struct zpool_ops *ops)
-> +{
-> +	struct zpool *pool = NULL;
-> +
-> +#ifdef CONFIG_ZSMALLOC
-> +	pool = zpool_zsmalloc_create(flags, ops);
-> +	if (pool)
-> +		return pool;
-> +	pr_info("zpool: fallback unable to create zsmalloc pool\n");
-> +#endif
-> +
-> +#ifdef CONFIG_ZBUD
-> +	pool = zpool_zbud_create(flags, ops);
-> +	if (!pool)
-> +		pr_info("zpool: fallback unable to create zbud pool\n");
-> +#endif
-> +
-> +	return pool;
-> +}
-> +
-> +struct zpool *zpool_create_pool(char *type, gfp_t flags,
-> +			struct zpool_ops *ops, bool fallback)
-> +{
-> +	struct zpool *pool = NULL;
-> +
-> +	if (!strcmp(type, ZPOOL_TYPE_ZSMALLOC))
-> +		pool = zpool_zsmalloc_create(flags, ops);
-> +	else if (!strcmp(type, ZPOOL_TYPE_ZBUD))
-> +		pool = zpool_zbud_create(flags, ops);
-> +	else
-> +		pr_err("zpool: unknown type %s\n", type);
-> +
-> +	if (!pool && fallback)
-> +		pool = zpool_fallback_create(flags, ops);
-> +
-> +	if (!pool)
-> +		pr_err("zpool: couldn't create zpool\n");
-> +
-> +	return pool;
-> +}
-> +
-> +char *zpool_get_type(struct zpool *pool)
-> +{
-> +	return pool->type;
-> +}
-> +
-> +void zpool_destroy_pool(struct zpool *pool)
-> +{
-> +	pool->imp->destroy(pool);
-> +}
-> +
-> +int zpool_malloc(struct zpool *pool, size_t size, unsigned long *handle)
-> +{
-> +	return pool->imp->malloc(pool, size, handle);
-> +}
-> +
-> +void zpool_free(struct zpool *pool, unsigned long handle)
-> +{
-> +	pool->imp->free(pool, handle);
-> +}
-> +
-> +int zpool_shrink(struct zpool *pool, size_t size)
-> +{
-> +	return pool->imp->shrink(pool, size);
-> +}
-> +
-> +void *zpool_map_handle(struct zpool *pool, unsigned long handle,
-> +			enum zpool_mapmode mapmode)
-> +{
-> +	return pool->imp->map(pool, handle, mapmode);
-> +}
-> +
-> +void zpool_unmap_handle(struct zpool *pool, unsigned long handle)
-> +{
-> +	pool->imp->unmap(pool, handle);
-> +}
-> +
-> +u64 zpool_get_total_size(struct zpool *pool)
-> +{
-> +	return pool->imp->total_size(pool);
-> +}
-> -- 
-> 1.8.3.1
+>  Documentation/sysctl/vm.txt         |   17 +++++++++--------
+>  arch/ia64/include/asm/topology.h    |    3 ++-
+>  arch/powerpc/include/asm/topology.h |    8 ++------
+>  include/linux/topology.h            |    3 ++-
+>  mm/page_alloc.c                     |    2 --
+>  5 files changed, 15 insertions(+), 18 deletions(-)
 > 
+> diff -puN Documentation/sysctl/vm.txt~mm-disable-zone_reclaim_mode-by-default Documentation/sysctl/vm.txt
+> --- a/Documentation/sysctl/vm.txt~mm-disable-zone_reclaim_mode-by-default
+> +++ a/Documentation/sysctl/vm.txt
+> @@ -772,16 +772,17 @@ This is value ORed together of
+>  2	= Zone reclaim writes dirty pages out
+>  4	= Zone reclaim swaps pages
+>  
+> -zone_reclaim_mode is set during bootup to 1 if it is determined that pages
+> -from remote zones will cause a measurable performance reduction. The
+> -page allocator will then reclaim easily reusable pages (those page
+> -cache pages that are currently not used) before allocating off node pages.
+> -
+> -It may be beneficial to switch off zone reclaim if the system is
+> -used for a file server and all of memory should be used for caching files
+> -from disk. In that case the caching effect is more important than
+> +zone_reclaim_mode is disabled by default.  For file servers or workloads
+> +that benefit from having their data cached, zone_reclaim_mode should be
+> +left disabled as the caching effect is likely to be more important than
+>  data locality.
+>  
+> +zone_reclaim may be enabled if it's known that the workload is partitioned
+> +such that each partition fits within a NUMA node and that accessing remote
+> +memory would cause a measurable performance reduction.  The page allocator
+> +will then reclaim easily reusable pages (those page cache pages that are
+> +currently not used) before allocating off node pages.
+> +
+>  Allowing zone reclaim to write out pages stops processes that are
+>  writing large amounts of data from dirtying pages on other nodes. Zone
+>  reclaim will write out dirty pages if a zone fills up and so effectively
+> diff -puN arch/ia64/include/asm/topology.h~mm-disable-zone_reclaim_mode-by-default arch/ia64/include/asm/topology.h
+> --- a/arch/ia64/include/asm/topology.h~mm-disable-zone_reclaim_mode-by-default
+> +++ a/arch/ia64/include/asm/topology.h
+> @@ -21,7 +21,8 @@
+>  #define PENALTY_FOR_NODE_WITH_CPUS 255
+>  
+>  /*
+> - * Distance above which we begin to use zone reclaim
+> + * Nodes within this distance are eligible for reclaim by zone_reclaim() when
+> + * zone_reclaim_mode is enabled.
+>   */
+>  #define RECLAIM_DISTANCE 15
+>  
+> diff -puN arch/powerpc/include/asm/topology.h~mm-disable-zone_reclaim_mode-by-default arch/powerpc/include/asm/topology.h
+> --- a/arch/powerpc/include/asm/topology.h~mm-disable-zone_reclaim_mode-by-default
+> +++ a/arch/powerpc/include/asm/topology.h
+> @@ -9,12 +9,8 @@ struct device_node;
+>  #ifdef CONFIG_NUMA
+>  
+>  /*
+> - * Before going off node we want the VM to try and reclaim from the local
+> - * node. It does this if the remote distance is larger than RECLAIM_DISTANCE.
+> - * With the default REMOTE_DISTANCE of 20 and the default RECLAIM_DISTANCE of
+> - * 20, we never reclaim and go off node straight away.
+> - *
+> - * To fix this we choose a smaller value of RECLAIM_DISTANCE.
+> + * If zone_reclaim_mode is enabled, a RECLAIM_DISTANCE of 10 will mean that
+> + * all zones on all nodes will be eligible for zone_reclaim().
+>   */
+>  #define RECLAIM_DISTANCE 10
+>  
+> diff -puN include/linux/topology.h~mm-disable-zone_reclaim_mode-by-default include/linux/topology.h
+> --- a/include/linux/topology.h~mm-disable-zone_reclaim_mode-by-default
+> +++ a/include/linux/topology.h
+> @@ -58,7 +58,8 @@ int arch_update_cpu_topology(void);
+>  /*
+>   * If the distance between nodes in a system is larger than RECLAIM_DISTANCE
+>   * (in whatever arch specific measurement units returned by node_distance())
+> - * then switch on zone reclaim on boot.
+> + * and zone_reclaim_mode is enabled then the VM will only call zone_reclaim()
+> + * on nodes within this distance.
+>   */
+>  #define RECLAIM_DISTANCE 30
+>  #endif
+> diff -puN mm/page_alloc.c~mm-disable-zone_reclaim_mode-by-default mm/page_alloc.c
+> --- a/mm/page_alloc.c~mm-disable-zone_reclaim_mode-by-default
+> +++ a/mm/page_alloc.c
+> @@ -1860,8 +1860,6 @@ static void __paginginit init_zone_allow
+>  	for_each_node_state(i, N_MEMORY)
+>  		if (node_distance(nid, i) <= RECLAIM_DISTANCE)
+>  			node_set(i, NODE_DATA(nid)->reclaim_nodes);
+> -		else
+> -			zone_reclaim_mode = 1;
+>  }
+>  
+>  #else	/* CONFIG_NUMA */
+> _
+> 
+> Patches currently in -mm which might be from mgorman@suse.de are
+> 
+> mm-use-paravirt-friendly-ops-for-numa-hinting-ptes.patch
+> thp-close-race-between-split-and-zap-huge-pages.patch
+> x86-require-x86-64-for-automatic-numa-balancing.patch
+> x86-define-_page_numa-by-reusing-software-bits-on-the-pmd-and-pte-levels.patch
+> x86-define-_page_numa-by-reusing-software-bits-on-the-pmd-and-pte-levels-fix-2.patch
+> mm-introduce-do_shared_fault-and-drop-do_fault-fix-fix.patch
+> mm-compactionc-isolate_freepages_block-small-tuneup.patch
+> mm-only-force-scan-in-reclaim-when-none-of-the-lrus-are-big-enough.patch
+> mm-huge_memoryc-complete-conversion-to-pr_foo.patch
+> mm-disable-zone_reclaim_mode-by-default.patch
+> mm-page_alloc-do-not-cache-reclaim-distances.patch
+> do_shared_fault-check-that-mmap_sem-is-held.patch
+> linux-next.patch
+> 
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
