@@ -1,57 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f182.google.com (mail-ie0-f182.google.com [209.85.223.182])
-	by kanga.kvack.org (Postfix) with ESMTP id DE1E36B0035
-	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 03:01:45 -0400 (EDT)
-Received: by mail-ie0-f182.google.com with SMTP id y20so4880529ier.13
-        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 00:01:45 -0700 (PDT)
-Received: from mail-ie0-x232.google.com (mail-ie0-x232.google.com [2607:f8b0:4001:c03::232])
-        by mx.google.com with ESMTPS id qg3si10910022igb.35.2014.04.22.00.01.45
+Received: from mail-ie0-f170.google.com (mail-ie0-f170.google.com [209.85.223.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 077D26B0035
+	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 03:04:11 -0400 (EDT)
+Received: by mail-ie0-f170.google.com with SMTP id rd18so4895226iec.29
+        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 00:04:11 -0700 (PDT)
+Received: from mail-ig0-x22d.google.com (mail-ig0-x22d.google.com [2607:f8b0:4001:c05::22d])
+        by mx.google.com with ESMTPS id l9si10926195igm.4.2014.04.22.00.04.11
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 22 Apr 2014 00:01:45 -0700 (PDT)
-Received: by mail-ie0-f178.google.com with SMTP id lx4so4905999iec.9
-        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 00:01:45 -0700 (PDT)
+        Tue, 22 Apr 2014 00:04:11 -0700 (PDT)
+Received: by mail-ig0-f173.google.com with SMTP id hl10so2644055igb.0
+        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 00:04:11 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <CAJd=RBA6ZUZ2UBetmcwGciqY8snme-aY60ZhW9F=8CO6kDzMBA@mail.gmail.com>
-References: <1398144620-9630-1-git-send-email-nasa4836@gmail.com> <CAJd=RBA6ZUZ2UBetmcwGciqY8snme-aY60ZhW9F=8CO6kDzMBA@mail.gmail.com>
+In-Reply-To: <2c63c535f8202c6b605300a834cdf1c07d1bafc3.1398147734.git.nasa4836@gmail.com>
+References: <cover.1398147734.git.nasa4836@gmail.com> <2c63c535f8202c6b605300a834cdf1c07d1bafc3.1398147734.git.nasa4836@gmail.com>
 From: Jianyu Zhan <nasa4836@gmail.com>
-Date: Tue, 22 Apr 2014 15:01:04 +0800
-Message-ID: <CAHz2CGXsvdtVdwZfyFAwtRHJ_vkeJZXtLv4fTGTYEeEwN7H6Qw@mail.gmail.com>
-Subject: Re: [PATCH] hugetlb_cgroup: explicitly init the early_init field
+Date: Tue, 22 Apr 2014 15:03:31 +0800
+Message-ID: <CAHz2CGW+yjt6yXDDn-pjykSf-q03YsD5acmuhDkSCg_iXKA88Q@mail.gmail.com>
+Subject: Re: [PATCH 2/4] mm/memcontrol.c: use accessor to get id from css
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hillf Danton <dhillf@gmail.com>
-Cc: Tejun Heo <tj@kernel.org>, Li Zefan <lizefan@huawei.com>, containers@lists.linux-foundation.org, Cgroups <cgroups@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Balbir Singh <bsingharora@gmail.com>, kamezawa.hiroyu@jp.fujitsu.com
+Cc: Cgroups <cgroups@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Jianyu Zhan <nasa4836@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
 
-Hi, hillf,
-
-On Tue, Apr 22, 2014 at 2:47 PM, Hillf Danton <dhillf@gmail.com> wrote:
-> But other fields still missed, if any. Fair?
-
-yep, it is not fair.
-
-Sure for this global variable struct, if not initailized, its all
-fields will be initialized
-to 0 or null(depending on its type).  The point here is no to deprive
-the rights of
-compiler/linker of doing this initialization, it is mainly for
-documentation reason.
-Actually this field's value would affect how ->css_alloc should implemented.
-
-Concretely, if early_init is nonzero, then ->css_alloc *must not* call kzalloc,
-because in cgroup implementation, ->css_alloc will be called earlier before
-mm_init().
-
-I don't think that the value of one field(early_init) has a so subtle
-restrition on the
-another field(css_alloc) is a good thing, but since it is there,
-docment it should
-be needed.
-
+Cc Andrew.
 
 Thanks,
 Jianyu Zhan
+
+
+On Tue, Apr 22, 2014 at 2:30 PM, Jianyu Zhan <nasa4836@gmail.com> wrote:
+> This is a prepared patch for converting from per-cgroup id to
+> per-subsystem id.
+>
+> We should not access per-cgroup id directly, since this is implemetation
+> detail. Use the accessor css_from_id() instead.
+>
+> This patch has no functional change.
+>
+> Signed-off-by: Jianyu Zhan <nasa4836@gmail.com>
+> ---
+>  mm/memcontrol.c | 8 ++++----
+>  1 file changed, 4 insertions(+), 4 deletions(-)
+>
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 80d9e38..46333cb 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -528,10 +528,10 @@ static inline bool mem_cgroup_is_root(struct mem_cgroup *memcg)
+>  static inline unsigned short mem_cgroup_id(struct mem_cgroup *memcg)
+>  {
+>         /*
+> -        * The ID of the root cgroup is 0, but memcg treat 0 as an
+> -        * invalid ID, so we return (cgroup_id + 1).
+> +        * The ID of css for the root cgroup is 0, but memcg treat 0 as an
+> +        * invalid ID, so we return (id + 1).
+>          */
+> -       return memcg->css.cgroup->id + 1;
+> +       return css_to_id(&memcg->css) + 1;
+>  }
+>
+>  static inline struct mem_cgroup *mem_cgroup_from_id(unsigned short id)
+> @@ -6407,7 +6407,7 @@ mem_cgroup_css_online(struct cgroup_subsys_state *css)
+>         struct mem_cgroup *memcg = mem_cgroup_from_css(css);
+>         struct mem_cgroup *parent = mem_cgroup_from_css(css_parent(css));
+>
+> -       if (css->cgroup->id > MEM_CGROUP_ID_MAX)
+> +       if (css_to_id(css) > MEM_CGROUP_ID_MAX)
+>                 return -ENOSPC;
+>
+>         if (!parent)
+> --
+> 2.0.0-rc0
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
