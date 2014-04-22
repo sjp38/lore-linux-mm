@@ -1,81 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f52.google.com (mail-ee0-f52.google.com [74.125.83.52])
-	by kanga.kvack.org (Postfix) with ESMTP id E7A9A6B0035
-	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 05:25:14 -0400 (EDT)
-Received: by mail-ee0-f52.google.com with SMTP id e49so4382318eek.11
-        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 02:25:14 -0700 (PDT)
+Received: from mail-wg0-f52.google.com (mail-wg0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id E4BFD6B0035
+	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 05:48:03 -0400 (EDT)
+Received: by mail-wg0-f52.google.com with SMTP id k14so3604536wgh.11
+        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 02:48:03 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u5si58891860een.143.2014.04.22.02.25.12
+        by mx.google.com with ESMTPS id ep8si4532921wid.5.2014.04.22.02.48.01
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 22 Apr 2014 02:25:13 -0700 (PDT)
-Date: Tue, 22 Apr 2014 11:25:08 +0200
+        Tue, 22 Apr 2014 02:48:02 -0700 (PDT)
+Date: Tue, 22 Apr 2014 11:47:59 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] Documentation/memcg: warn about incomplete kmemcg state
-Message-ID: <20140422092508.GA29311@dhcp22.suse.cz>
-References: <1398066420-30707-1-git-send-email-vdavydov@parallels.com>
+Subject: Re: [PATCH 1/2] mm/memcontrol.c: remove meaningless while loop in
+ mem_cgroup_iter()
+Message-ID: <20140422094759.GC29311@dhcp22.suse.cz>
+References: <1397861935-31595-1-git-send-email-nasa4836@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1398066420-30707-1-git-send-email-vdavydov@parallels.com>
+In-Reply-To: <1397861935-31595-1-git-send-email-nasa4836@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Jianyu Zhan <nasa4836@gmail.com>
+Cc: hannes@cmpxchg.org, bsingharora@gmail.com, kamezawa.hiroyu@jp.fujitsu.com, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon 21-04-14 11:47:00, Vladimir Davydov wrote:
-> Kmemcg is currently under development and lacks some important features.
-> In particular, it does not have support of kmem reclaim on memory
-> pressure inside cgroup, which practically makes it unusable in real
-> life. Let's warn about it in both Kconfig and Documentation to prevent
-> complaints arising.
+On Sat 19-04-14 06:58:55, Jianyu Zhan wrote:
+> Currently, the iteration job in mem_cgroup_iter() all delegates
+> to __mem_cgroup_iter_next(), which will skip dead node.
 > 
-> Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
+> Thus, the outer while loop in mem_cgroup_iter() is meaningless.
+> It could be proven by this:
+> 
+> 1. memcg != NULL
+>     we are done, no loop needed.
+> 2. memcg == NULL
+>    2.1 prev != NULL, a round-trip is done, break out, no loop.
+>    2.2 prev == NULL, this is impossible, since prev==NULL means
+>        the initial interation, it will returns memcg==root.
 
-Thanks! This should have been merged log time ago...
+What about
+  3. last_visited == last_node in the tree
 
-Acked-by: Michal Hocko <mhocko@suse.cz>
+__mem_cgroup_iter_next returns NULL and the iterator would return
+without visiting anything.
 
+The patch is not correct, I am afraid.
+
+> So, this patches remove this meaningless while loop.
+> 
+> Signed-off-by: Jianyu Zhan <nasa4836@gmail.com>
 > ---
->  Documentation/cgroups/memory.txt |    5 +++++
->  init/Kconfig                     |    6 ++++++
->  2 files changed, 11 insertions(+)
+>  mm/memcontrol.c | 49 ++++++++++++++++++++++---------------------------
+>  1 file changed, 22 insertions(+), 27 deletions(-)
 > 
-> diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
-> index 2622115276aa..af3cdfa3c07a 100644
-> --- a/Documentation/cgroups/memory.txt
-> +++ b/Documentation/cgroups/memory.txt
-> @@ -270,6 +270,11 @@ When oom event notifier is registered, event will be delivered.
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 29501f0..e0ce15c 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -1212,6 +1212,8 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
+>  {
+>  	struct mem_cgroup *memcg = NULL;
+>  	struct mem_cgroup *last_visited = NULL;
+> +	struct mem_cgroup_reclaim_iter *uninitialized_var(iter);
+> +	int uninitialized_var(seq);
 >  
->  2.7 Kernel Memory Extension (CONFIG_MEMCG_KMEM)
+>  	if (mem_cgroup_disabled())
+>  		return NULL;
+> @@ -1229,40 +1231,33 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
+>  	}
 >  
-> +WARNING: Current implementation lacks reclaim support. That means allocation
-> +	 attempts will fail when close to the limit even if there are plenty of
-> +	 kmem available for reclaim. That makes this option unusable in real
-> +	 life so DO NOT SELECT IT unless for development purposes.
+>  	rcu_read_lock();
+> -	while (!memcg) {
+> -		struct mem_cgroup_reclaim_iter *uninitialized_var(iter);
+> -		int uninitialized_var(seq);
+> -
+> -		if (reclaim) {
+> -			int nid = zone_to_nid(reclaim->zone);
+> -			int zid = zone_idx(reclaim->zone);
+> -			struct mem_cgroup_per_zone *mz;
+> -
+> -			mz = mem_cgroup_zoneinfo(root, nid, zid);
+> -			iter = &mz->reclaim_iter[reclaim->priority];
+> -			if (prev && reclaim->generation != iter->generation) {
+> -				iter->last_visited = NULL;
+> -				goto out_unlock;
+> -			}
+> +	if (reclaim) {
+> +		int nid = zone_to_nid(reclaim->zone);
+> +		int zid = zone_idx(reclaim->zone);
+> +		struct mem_cgroup_per_zone *mz;
+>  
+> -			last_visited = mem_cgroup_iter_load(iter, root, &seq);
+> +		mz = mem_cgroup_zoneinfo(root, nid, zid);
+> +		iter = &mz->reclaim_iter[reclaim->priority];
+> +		if (prev && reclaim->generation != iter->generation) {
+> +			iter->last_visited = NULL;
+> +			goto out_unlock;
+>  		}
+>  
+> -		memcg = __mem_cgroup_iter_next(root, last_visited);
+> +		last_visited = mem_cgroup_iter_load(iter, root, &seq);
+> +	}
+>  
+> -		if (reclaim) {
+> -			mem_cgroup_iter_update(iter, last_visited, memcg, root,
+> -					seq);
+> +	memcg = __mem_cgroup_iter_next(root, last_visited);
+>  
+> -			if (!memcg)
+> -				iter->generation++;
+> -			else if (!prev && memcg)
+> -				reclaim->generation = iter->generation;
+> -		}
+> +	if (reclaim) {
+> +		mem_cgroup_iter_update(iter, last_visited, memcg, root,
+> +				seq);
+>  
+> -		if (prev && !memcg)
+> -			goto out_unlock;
+> +		if (!memcg)
+> +			iter->generation++;
+> +		else if (!prev && memcg)
+> +			reclaim->generation = iter->generation;
+>  	}
 > +
->  With the Kernel memory extension, the Memory Controller is able to limit
->  the amount of kernel memory used by the system. Kernel memory is fundamentally
->  different than user memory, since it can't be swapped out, which makes it
-> diff --git a/init/Kconfig b/init/Kconfig
-> index 427ba60d638f..4d6e645c8ad4 100644
-> --- a/init/Kconfig
-> +++ b/init/Kconfig
-> @@ -993,6 +993,12 @@ config MEMCG_KMEM
->  	  the kmem extension can use it to guarantee that no group of processes
->  	  will ever exhaust kernel resources alone.
->  
-> +	  WARNING: Current implementation lacks reclaim support. That means
-> +	  allocation attempts will fail when close to the limit even if there
-> +	  are plenty of kmem available for reclaim. That makes this option
-> +	  unusable in real life so DO NOT SELECT IT unless for development
-> +	  purposes.
-> +
->  config CGROUP_HUGETLB
->  	bool "HugeTLB Resource Controller for Control Groups"
->  	depends on RESOURCE_COUNTERS && HUGETLB_PAGE
+>  out_unlock:
+>  	rcu_read_unlock();
+>  out_css_put:
 > -- 
-> 1.7.10.4
+> 1.9.0.GIT
 > 
 
 -- 
