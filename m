@@ -1,44 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 3894F6B0070
-	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 19:19:56 -0400 (EDT)
-Received: by mail-pa0-f44.google.com with SMTP id bj1so124922pad.3
-        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 16:19:55 -0700 (PDT)
-Received: from mail-pb0-x22c.google.com (mail-pb0-x22c.google.com [2607:f8b0:400e:c01::22c])
-        by mx.google.com with ESMTPS id ps1si2614775pbc.336.2014.04.22.16.19.54
+Received: from mail-qa0-f52.google.com (mail-qa0-f52.google.com [209.85.216.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 9A2F96B0070
+	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 19:35:44 -0400 (EDT)
+Received: by mail-qa0-f52.google.com with SMTP id ih12so183899qab.11
+        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 16:35:44 -0700 (PDT)
+Received: from mail.zytor.com (terminus.zytor.com. [2001:1868:205::10])
+        by mx.google.com with ESMTPS id g92si6455253qge.52.2014.04.22.16.35.43
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 22 Apr 2014 16:19:54 -0700 (PDT)
-Received: by mail-pb0-f44.google.com with SMTP id rp16so121817pbb.31
-        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 16:19:54 -0700 (PDT)
-Date: Tue, 22 Apr 2014 16:19:52 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mm: debug: make bad_range() output more usable and
- readable
-In-Reply-To: <20140421180733.30BD5EFE@viggo.jf.intel.com>
-Message-ID: <alpine.DEB.2.02.1404221619150.16896@chino.kir.corp.google.com>
-References: <20140421180733.30BD5EFE@viggo.jf.intel.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 22 Apr 2014 16:35:44 -0700 (PDT)
+Message-ID: <5356FCC1.6060807@zytor.com>
+Date: Tue, 22 Apr 2014 16:35:29 -0700
+From: "H. Peter Anvin" <hpa@zytor.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Why do we set _PAGE_DIRTY for page tables?
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, dave.hansen@linux.intel.com
+To: Ingo Molnar <mingo@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Mon, 21 Apr 2014, Dave Hansen wrote:
+I just noticed this:
 
-> 
-> From: Dave Hansen <dave.hansen@linux.intel.com>
-> 
-> Nobody outputs memory addresses in decimal.  PFNs are essentially
-> addresses, and they're gibberish in decimal.  Output them in hex.
-> 
-> Also, add the nid and zone name to give a little more context to
-> the message.
-> 
-> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+#define _PAGE_TABLE     (_PAGE_PRESENT | _PAGE_RW | _PAGE_USER |       \
+                         _PAGE_ACCESSED | _PAGE_DIRTY)
+#define _KERNPG_TABLE   (_PAGE_PRESENT | _PAGE_RW | _PAGE_ACCESSED |   \
+                         _PAGE_DIRTY)
 
-Acked-by: David Rientjes <rientjes@google.com>
+Is there a reason we set _PAGE_DIRTY for page tables?  It has no
+function, but doesn't do any harm either (the dirty bit is ignored for
+page tables)... it just looks funny to me.
+
+	-hpa
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
