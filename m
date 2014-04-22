@@ -1,44 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f181.google.com (mail-ie0-f181.google.com [209.85.223.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 9AB536B0038
-	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 07:54:31 -0400 (EDT)
-Received: by mail-ie0-f181.google.com with SMTP id tp5so4821914ieb.26
-        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 04:54:31 -0700 (PDT)
-Received: from mail-ie0-x22f.google.com (mail-ie0-x22f.google.com [2607:f8b0:4001:c03::22f])
-        by mx.google.com with ESMTPS id nv8si15133466icc.39.2014.04.22.04.54.30
+Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 744E16B0038
+	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 07:55:04 -0400 (EDT)
+Received: by mail-ig0-f180.google.com with SMTP id c1so2866160igq.7
+        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 04:55:04 -0700 (PDT)
+Received: from mail-ie0-x236.google.com (mail-ie0-x236.google.com [2607:f8b0:4001:c03::236])
+        by mx.google.com with ESMTPS id bs7si24875559icc.145.2014.04.22.04.55.03
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 22 Apr 2014 04:54:31 -0700 (PDT)
-Received: by mail-ie0-f175.google.com with SMTP id to1so4907166ieb.6
-        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 04:54:30 -0700 (PDT)
+        Tue, 22 Apr 2014 04:55:03 -0700 (PDT)
+Received: by mail-ie0-f182.google.com with SMTP id y20so5142441ier.27
+        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 04:55:03 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20140422114838.GK29311@dhcp22.suse.cz>
-References: <1397861935-31595-1-git-send-email-nasa4836@gmail.com>
- <20140422094759.GC29311@dhcp22.suse.cz> <CAHz2CGWrk3kuR=BLt2vT-8gxJVtJcj6h17ase9=1CoWXwK6a3w@mail.gmail.com>
- <20140422103420.GI29311@dhcp22.suse.cz> <CAHz2CGUZyv-dvUUoSi2Vk_vgPAMqRN4yEg4F4XsKQ8udHeo2bQ@mail.gmail.com>
- <20140422114838.GK29311@dhcp22.suse.cz>
-From: Jianyu Zhan <nasa4836@gmail.com>
-Date: Tue, 22 Apr 2014 19:53:50 +0800
-Message-ID: <CAHz2CGXETcRq3cBDvkPm8JKcRA4qkhJefxz_VsmMouqfsGN5SA@mail.gmail.com>
-Subject: Re: [PATCH 1/2] mm/memcontrol.c: remove meaningless while loop in mem_cgroup_iter()
+In-Reply-To: <535631EB.4060906@redhat.com>
+References: <1395256011-2423-1-git-send-email-dh.herrmann@gmail.com>
+	<5343F2EC.3050508@redhat.com>
+	<CANq1E4TmtR=gSgR25PGC_EN=xrEEg1+F=zkTUGXZ4SHvjFNbag@mail.gmail.com>
+	<535631EB.4060906@redhat.com>
+Date: Tue, 22 Apr 2014 13:55:03 +0200
+Message-ID: <CANq1E4TufnELwEDZAkzH94Zn3gb46qvxfDboN5y2mK=Q2gk9-Q@mail.gmail.com>
+Subject: Re: [PATCH 0/6] File Sealing & memfd_create()
+From: David Herrmann <dh.herrmann@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <bsingharora@gmail.com>, kamezawa.hiroyu@jp.fujitsu.com, Cgroups <cgroups@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Florian Weimer <fweimer@redhat.com>
+Cc: linux-kernel <linux-kernel@vger.kernel.org>, Kay Sievers <kay@vrfy.org>, Daniel Mack <zonque@gmail.com>, Lennart Poettering <lennart@poettering.net>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 
-On Tue, Apr 22, 2014 at 7:48 PM, Michal Hocko <mhocko@suse.cz> wrote:
-> Dunno, this particular case is more explicit but it is also uglier so I
-> do not think this is an overall improvement. I would rather keep the
-> current state unless the change either simplifies the generated code
-> or it is much better to read.
+Hi
 
-hmm, I agree.  I will give it more thinking.
+On Tue, Apr 22, 2014 at 11:10 AM, Florian Weimer <fweimer@redhat.com> wrote:
+> Ah.  What do you recommend for recipient to recognize such descriptors?
+> Would they just try to seal them and reject them if this fails?
 
-Seem this has been merged into -mm.  Andrew, please drop it!
+This highly depends on your use-case. Please see the initial email in
+this thread. It describes 2 example use-cases. In both cases, the
+recipients read the current set of seals and verify that a given set
+of seals is set.
 
-Thanks,
-Jianyu Zhan
+Thanks
+David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
