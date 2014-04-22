@@ -1,67 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 00C276B0070
-	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 17:55:48 -0400 (EDT)
-Received: by mail-pa0-f54.google.com with SMTP id lf10so63709pab.13
-        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 14:55:48 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id ip5si116425pbd.125.2014.04.22.14.55.47
-        for <linux-mm@kvack.org>;
-        Tue, 22 Apr 2014 14:55:48 -0700 (PDT)
-Date: Tue, 22 Apr 2014 14:55:46 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v3 0/5] hugetlb: add support gigantic page allocation at
- runtime
-Message-Id: <20140422145546.7e1ddb763072edaa286736f9@linux-foundation.org>
-In-Reply-To: <20140422173726.738d0635@redhat.com>
-References: <1397152725-20990-1-git-send-email-lcapitulino@redhat.com>
-	<20140417160110.3f36b972b25525fbbe23681b@linux-foundation.org>
-	<20140422173726.738d0635@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-ve0-f179.google.com (mail-ve0-f179.google.com [209.85.128.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 187946B005A
+	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 18:08:16 -0400 (EDT)
+Received: by mail-ve0-f179.google.com with SMTP id db12so133713veb.10
+        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 15:08:15 -0700 (PDT)
+Received: from mail-ve0-x22d.google.com (mail-ve0-x22d.google.com [2607:f8b0:400c:c01::22d])
+        by mx.google.com with ESMTPS id ls10si7128351vec.10.2014.04.22.15.08.15
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 22 Apr 2014 15:08:15 -0700 (PDT)
+Received: by mail-ve0-f173.google.com with SMTP id oy12so130234veb.32
+        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 15:08:15 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <5356E33F.3000908@intel.com>
+References: <1398032742.19682.11.camel@pasglop>
+	<CA+55aFz1sK+PF96LYYZY7OB7PBpxZu-uNLWLvPiRz-tJsBqX3w@mail.gmail.com>
+	<1398054064.19682.32.camel@pasglop>
+	<1398057630.19682.38.camel@pasglop>
+	<CA+55aFwWHBtihC3w9E4+j4pz+6w7iTnYhTf4N3ie15BM9thxLQ@mail.gmail.com>
+	<53558507.9050703@zytor.com>
+	<CA+55aFxGm6J6N=4L7exLUFMr1_siNGHpK=wApd9GPCH1=63PPA@mail.gmail.com>
+	<53559F48.8040808@intel.com>
+	<CA+55aFwDtjA4Vp0yt0K5x6b6sAMtcn=61SEnOOs_En+3UXNpuA@mail.gmail.com>
+	<CA+55aFzFxBDJ2rWo9DggdNsq-qBCr11OVXnm64jx04KMSVCBAw@mail.gmail.com>
+	<20140422075459.GD11182@twins.programming.kicks-ass.net>
+	<CA+55aFzM+NpE-EzJdDeYX=cqWRzkGv9o-vybDR=oFtDLMRK-mA@mail.gmail.com>
+	<5356E33F.3000908@intel.com>
+Date: Tue, 22 Apr 2014 15:08:14 -0700
+Message-ID: <CA+55aFxcPzHZ28CSyzq4sLakDLXVWgzQzk_D0SqU0qq5kW9cAg@mail.gmail.com>
+Subject: Re: Dirty/Access bits vs. page content
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Luiz Capitulino <lcapitulino@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, mtosatti@redhat.com, aarcange@redhat.com, mgorman@suse.de, andi@firstfloor.org, davidlohr@hp.com, rientjes@google.com, isimatu.yasuaki@jp.fujitsu.com, yinghai@kernel.org, riel@redhat.com, n-horiguchi@ah.jp.nec.com, kirill@shutemov.name
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Hugh Dickins <hughd@google.com>, "H. Peter Anvin" <hpa@zytor.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Tony Luck <tony.luck@intel.com>
 
-On Tue, 22 Apr 2014 17:37:26 -0400 Luiz Capitulino <lcapitulino@redhat.com> wrote:
+On Tue, Apr 22, 2014 at 2:46 PM, Dave Hansen <dave.hansen@intel.com> wrote:
+>
+> I just triggered it a second time.  It only happens with my debugging
+> config[1] *and* those two fix patches.  It doesn't happen on the vanilla
+> kernel with lost dirty bit.
 
-> On Thu, 17 Apr 2014 16:01:10 -0700
-> Andrew Morton <akpm@linux-foundation.org> wrote:
-> 
-> > On Thu, 10 Apr 2014 13:58:40 -0400 Luiz Capitulino <lcapitulino@redhat.com> wrote:
-> > 
-> > > The HugeTLB subsystem uses the buddy allocator to allocate hugepages during
-> > > runtime. This means that hugepages allocation during runtime is limited to
-> > > MAX_ORDER order. For archs supporting gigantic pages (that is, page sizes
-> > > greater than MAX_ORDER), this in turn means that those pages can't be
-> > > allocated at runtime.
-> > 
-> > Dumb question: what's wrong with just increasing MAX_ORDER?
-> 
-> To be honest I'm not a buddy allocator expert and I'm not familiar with
-> what is involved in increasing MAX_ORDER. What I do know though is that it's
-> not just a matter of increasing a macro's value. For example, for sparsemem
-> support we have this check (include/linux/mmzone.h:1084):
-> 
-> #if (MAX_ORDER - 1 + PAGE_SHIFT) > SECTION_SIZE_BITS
-> #error Allocator MAX_ORDER exceeds SECTION_SIZE
-> #endif
-> 
-> I _guess_ it's because we can't allocate more pages than what's within a
-> section on sparsemem. Can sparsemem and the other stuff be changed to
-> accommodate a bigger MAX_ORDER? I don't know. Is it worth it to increase
-> MAX_ORDER and do all the required changes, given that a bigger MAX_ORDER is
-> only useful for HugeTLB and the archs supporting gigantic pages? I'd guess not.
+Ok. So looking at it some more, I'm becoming more and more convinced
+that we do need to make that set_page_dirty() call in
+free_pages_and_swap_cache() be a set_page_dirty_lock() instead.
 
-afacit we'd need to increase SECTION_SIZE_BITS to 29 or more to
-accommodate 1G MAX_ORDER.  I assume this means that some machines with
-sparse physical memory layout may not be able to use all (or as much)
-of the physical memory.  Perhaps Yinghai can advise?
+Does that make things work for you?
 
-I do think we should fully explore this option before giving up and
-adding new special-case code. 
+             Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
