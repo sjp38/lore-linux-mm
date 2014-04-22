@@ -1,34 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f50.google.com (mail-qg0-f50.google.com [209.85.192.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 4BB9B6B0035
-	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 11:19:51 -0400 (EDT)
-Received: by mail-qg0-f50.google.com with SMTP id 63so2168653qgz.9
-        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 08:19:51 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id j94si2126714qge.138.2014.04.22.08.19.45
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 22 Apr 2014 08:19:45 -0700 (PDT)
-Date: Tue, 22 Apr 2014 08:19:39 -0700
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH] Export kmem tracepoints for use by kernel modules
-Message-ID: <20140422151939.GA19369@infradead.org>
-References: <20140422142244.GA21121@dreric01-Precision-T1600>
+Received: from mail-ee0-f45.google.com (mail-ee0-f45.google.com [74.125.83.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 974FB6B0044
+	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 12:54:13 -0400 (EDT)
+Received: by mail-ee0-f45.google.com with SMTP id d17so4788001eek.18
+        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 09:54:13 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id u5si60585979een.113.2014.04.22.09.54.10
+        for <linux-mm@kvack.org>;
+        Tue, 22 Apr 2014 09:54:11 -0700 (PDT)
+Message-ID: <53569EA4.2000308@redhat.com>
+Date: Tue, 22 Apr 2014 12:53:56 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140422142244.GA21121@dreric01-Precision-T1600>
+Subject: Re: [PATCH 1/6] x86: mm: clean up tlb flushing code
+References: <20140421182418.81CF7519@viggo.jf.intel.com> <20140421182420.307A0C57@viggo.jf.intel.com>
+In-Reply-To: <20140421182420.307A0C57@viggo.jf.intel.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Drew Richardson <drew.richardson@arm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jerome Marchand <jmarchan@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michel Lespinasse <walken@google.com>, Mikulas Patocka <mpatocka@redhat.com>, William Roberts <bill.c.roberts@gmail.com>, Gideon Israel Dsouza <gidisrael@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Pawel Moll <pawel.moll@arm.com>
+To: Dave Hansen <dave@sr71.net>, x86@kernel.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, mgorman@suse.de, ak@linux.intel.com, alex.shi@linaro.org, dave.hansen@linux.intel.com
 
-On Tue, Apr 22, 2014 at 07:22:45AM -0700, Drew Richardson wrote:
-> After commit de7b2973903c6cc50b31ee5682a69b2219b9919d ("tracepoint:
-> Use struct pointer instead of name hash for reg/unreg tracepoints"),
-> any tracepoints used in a kernel module must be exported.
+On 04/21/2014 02:24 PM, Dave Hansen wrote:
+> From: Dave Hansen <dave.hansen@linux.intel.com>
+> 
+> The
+> 
+> 	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
+> 
+> line of code is not exactly the easiest to audit, especially when
+> it ends up at two different indentation levels.  This eliminates
+> one of the the copy-n-paste versions.  It also gives us a unified
+> exit point for each path through this function.  We need this in
+> a minute for our tracepoint.
+> 
+> 
+> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 
-But none of them are used by any in-tree module, so this isn't relevant.
+Acked-by: Rik van Riel <riel@redhat.com>
+
+
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
