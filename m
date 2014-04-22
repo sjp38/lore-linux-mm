@@ -1,101 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f46.google.com (mail-ee0-f46.google.com [74.125.83.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 6CF906B0035
-	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 06:25:05 -0400 (EDT)
-Received: by mail-ee0-f46.google.com with SMTP id t10so4361556eei.5
-        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 03:25:04 -0700 (PDT)
+Received: from mail-ee0-f41.google.com (mail-ee0-f41.google.com [74.125.83.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 60EBF6B0035
+	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 06:30:58 -0400 (EDT)
+Received: by mail-ee0-f41.google.com with SMTP id t10so4498780eei.0
+        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 03:30:57 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w48si59115513een.74.2014.04.22.03.25.03
+        by mx.google.com with ESMTPS id u49si59045942eef.352.2014.04.22.03.30.56
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 22 Apr 2014 03:25:03 -0700 (PDT)
-Date: Tue, 22 Apr 2014 12:25:00 +0200
+        Tue, 22 Apr 2014 03:30:56 -0700 (PDT)
+Date: Tue, 22 Apr 2014 12:30:51 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: + mm-page_alloc-do-not-cache-reclaim-distances.patch added to
- -mm tree
-Message-ID: <20140422102500.GG29311@dhcp22.suse.cz>
-References: <535185ce.+shpjTaPUTpb3Ija%akpm@linux-foundation.org>
+Subject: Re: + slub-fix-memcg_propagate_slab_attrs.patch added to -mm tree
+Message-ID: <20140422103051.GH29311@dhcp22.suse.cz>
+References: <53518631.cuNCoAbpOk1NRWDf%akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <535185ce.+shpjTaPUTpb3Ija%akpm@linux-foundation.org>
+In-Reply-To: <53518631.cuNCoAbpOk1NRWDf%akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: mm-commits@vger.kernel.org, zhangyanfei@cn.fujitsu.com, hannes@cmpxchg.org, mgorman@suse.de, linux-mm@kvack.org
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: mm-commits@vger.kernel.org, penberg@kernel.org, hannes@cmpxchg.org, cl@linux.com, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
-On Fri 18-04-14 13:06:38, Andrew Morton wrote:
-> From: Mel Gorman <mgorman@suse.de>
-> Subject: mm: page_alloc: do not cache reclaim distances
+On Fri 18-04-14 13:08:17, Andrew Morton wrote:
+[...]
+> From: Vladimir Davydov <vdavydov@parallels.com>
+> Subject: slub: fix memcg_propagate_slab_attrs
 > 
-> pgdat->reclaim_nodes tracks if a remote node is allowed to be reclaimed by
-> zone_reclaim due to its distance. As it is expected that zone_reclaim_mode
-> will be rarely enabled it is unreasonable for all machines to take a penalty.
-> Fortunately, the zone_reclaim_mode() path is already slow and it is the path
-> that takes the hit.
-> 
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
-> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-> Reviewed-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+> After creating a cache for a memcg we should initialize its sysfs attrs
+> with the values from its parent.  That's what memcg_propagate_slab_attrs
+> is for.  Currently it's broken - we clearly muddled root-vs-memcg caches
+> there.  Let's fix it up.
+
+Andrew didn't so I'll do. What is the effect of the mismatch? I am
+really drowning in that code...
+
+> Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
+> Cc: Christoph Lameter <cl@linux.com>
+> Cc: Pekka Enberg <penberg@kernel.org>
 > Cc: Michal Hocko <mhocko@suse.cz>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
 > Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 > ---
 > 
->  include/linux/mmzone.h |    1 -
->  mm/page_alloc.c        |   15 ++-------------
->  2 files changed, 2 insertions(+), 14 deletions(-)
+>  mm/slub.c |   11 +++++++----
+>  1 file changed, 7 insertions(+), 4 deletions(-)
 > 
-> diff -puN include/linux/mmzone.h~mm-page_alloc-do-not-cache-reclaim-distances include/linux/mmzone.h
-> --- a/include/linux/mmzone.h~mm-page_alloc-do-not-cache-reclaim-distances
-> +++ a/include/linux/mmzone.h
-> @@ -763,7 +763,6 @@ typedef struct pglist_data {
->  	unsigned long node_spanned_pages; /* total size of physical page
->  					     range, including holes */
->  	int node_id;
-> -	nodemask_t reclaim_nodes;	/* Nodes allowed to reclaim from */
->  	wait_queue_head_t kswapd_wait;
->  	wait_queue_head_t pfmemalloc_wait;
->  	struct task_struct *kswapd;	/* Protected by lock_memory_hotplug() */
-> diff -puN mm/page_alloc.c~mm-page_alloc-do-not-cache-reclaim-distances mm/page_alloc.c
-> --- a/mm/page_alloc.c~mm-page_alloc-do-not-cache-reclaim-distances
-> +++ a/mm/page_alloc.c
-> @@ -1850,16 +1850,8 @@ static bool zone_local(struct zone *loca
+> diff -puN mm/slub.c~slub-fix-memcg_propagate_slab_attrs mm/slub.c
+> --- a/mm/slub.c~slub-fix-memcg_propagate_slab_attrs
+> +++ a/mm/slub.c
+> @@ -5071,15 +5071,18 @@ static void memcg_propagate_slab_attrs(s
+>  #ifdef CONFIG_MEMCG_KMEM
+>  	int i;
+>  	char *buffer = NULL;
+> +	struct kmem_cache *root_cache;
 >  
->  static bool zone_allows_reclaim(struct zone *local_zone, struct zone *zone)
->  {
-> -	return node_isset(local_zone->node, zone->zone_pgdat->reclaim_nodes);
-> -}
-> -
-> -static void __paginginit init_zone_allows_reclaim(int nid)
-> -{
-> -	int i;
-> -
-> -	for_each_node_state(i, N_MEMORY)
-> -		if (node_distance(nid, i) <= RECLAIM_DISTANCE)
-> -			node_set(i, NODE_DATA(nid)->reclaim_nodes);
-> +	return node_distance(zone_to_nid(local_zone), zone_to_nid(zone)) <
-> +				RECLAIM_DISTANCE;
+> -	if (!is_root_cache(s))
+> +	if (is_root_cache(s))
+>  		return;
+>  
+> +	root_cache = s->memcg_params->root_cache;
+> +
+>  	/*
+>  	 * This mean this cache had no attribute written. Therefore, no point
+>  	 * in copying default values around
+>  	 */
+> -	if (!s->max_attr_size)
+> +	if (!root_cache->max_attr_size)
+>  		return;
+>  
+>  	for (i = 0; i < ARRAY_SIZE(slab_attrs); i++) {
+> @@ -5101,7 +5104,7 @@ static void memcg_propagate_slab_attrs(s
+>  		 */
+>  		if (buffer)
+>  			buf = buffer;
+> -		else if (s->max_attr_size < ARRAY_SIZE(mbuf))
+> +		else if (root_cache->max_attr_size < ARRAY_SIZE(mbuf))
+>  			buf = mbuf;
+>  		else {
+>  			buffer = (char *) get_zeroed_page(GFP_KERNEL);
+> @@ -5110,7 +5113,7 @@ static void memcg_propagate_slab_attrs(s
+>  			buf = buffer;
+>  		}
+>  
+> -		attr->show(s->memcg_params->root_cache, buf);
+> +		attr->show(root_cache, buf);
+>  		attr->store(s, buf, strlen(buf));
+>  	}
+>  
+> _
+> 
+> Patches currently in -mm which might be from vdavydov@parallels.com are
+> 
+> slub-fix-memcg_propagate_slab_attrs.patch
+> slb-charge-slabs-to-kmemcg-explicitly.patch
+> mm-get-rid-of-__gfp_kmemcg.patch
+> mm-get-rid-of-__gfp_kmemcg-fix.patch
+> slab-document-kmalloc_order.patch
+> 
 
-It is not clear to me why we do not have to care about memory less
-nodes in zone_allows_reclaim anymore. Those were excluded during the
-initialization previously but we can consider them now if they are in
-the zonelist. I have seen such memoryless nodes only on ppc and the
-distance was > RECLAIM_DISTANCE so it is probably not a problem, but who
-knows what will come later and a comment wouldn't hurt.
-
->  }
->  
->  #else	/* CONFIG_NUMA */
-> @@ -1893,9 +1885,6 @@ static bool zone_allows_reclaim(struct z
->  	return true;
->  }
->  
-> -static inline void init_zone_allows_reclaim(int nid)
-> -{
-> -}
->  #endif	/* CONFIG_NUMA */
->  
->  /*
 -- 
 Michal Hocko
 SUSE Labs
