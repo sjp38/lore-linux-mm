@@ -1,60 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f41.google.com (mail-pb0-f41.google.com [209.85.160.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B1096B0070
-	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 17:46:41 -0400 (EDT)
-Received: by mail-pb0-f41.google.com with SMTP id rr13so55280pbb.28
-        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 14:46:41 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id qe5si17106805pbc.324.2014.04.22.14.46.40
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 00C276B0070
+	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 17:55:48 -0400 (EDT)
+Received: by mail-pa0-f54.google.com with SMTP id lf10so63709pab.13
+        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 14:55:48 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id ip5si116425pbd.125.2014.04.22.14.55.47
         for <linux-mm@kvack.org>;
-        Tue, 22 Apr 2014 14:46:40 -0700 (PDT)
-Message-ID: <5356E33F.3000908@intel.com>
-Date: Tue, 22 Apr 2014 14:46:39 -0700
-From: Dave Hansen <dave.hansen@intel.com>
-MIME-Version: 1.0
-Subject: Re: Dirty/Access bits vs. page content
-References: <1398032742.19682.11.camel@pasglop>	<CA+55aFz1sK+PF96LYYZY7OB7PBpxZu-uNLWLvPiRz-tJsBqX3w@mail.gmail.com>	<1398054064.19682.32.camel@pasglop>	<1398057630.19682.38.camel@pasglop>	<CA+55aFwWHBtihC3w9E4+j4pz+6w7iTnYhTf4N3ie15BM9thxLQ@mail.gmail.com>	<53558507.9050703@zytor.com>	<CA+55aFxGm6J6N=4L7exLUFMr1_siNGHpK=wApd9GPCH1=63PPA@mail.gmail.com>	<53559F48.8040808@intel.com>	<CA+55aFwDtjA4Vp0yt0K5x6b6sAMtcn=61SEnOOs_En+3UXNpuA@mail.gmail.com>	<CA+55aFzFxBDJ2rWo9DggdNsq-qBCr11OVXnm64jx04KMSVCBAw@mail.gmail.com>	<20140422075459.GD11182@twins.programming.kicks-ass.net> <CA+55aFzM+NpE-EzJdDeYX=cqWRzkGv9o-vybDR=oFtDLMRK-mA@mail.gmail.com>
-In-Reply-To: <CA+55aFzM+NpE-EzJdDeYX=cqWRzkGv9o-vybDR=oFtDLMRK-mA@mail.gmail.com>
-Content-Type: text/plain; charset=UTF-8
+        Tue, 22 Apr 2014 14:55:48 -0700 (PDT)
+Date: Tue, 22 Apr 2014 14:55:46 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v3 0/5] hugetlb: add support gigantic page allocation at
+ runtime
+Message-Id: <20140422145546.7e1ddb763072edaa286736f9@linux-foundation.org>
+In-Reply-To: <20140422173726.738d0635@redhat.com>
+References: <1397152725-20990-1-git-send-email-lcapitulino@redhat.com>
+	<20140417160110.3f36b972b25525fbbe23681b@linux-foundation.org>
+	<20140422173726.738d0635@redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Hugh Dickins <hughd@google.com>
-Cc: "H. Peter Anvin" <hpa@zytor.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Tony Luck <tony.luck@intel.com>
+To: Luiz Capitulino <lcapitulino@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, mtosatti@redhat.com, aarcange@redhat.com, mgorman@suse.de, andi@firstfloor.org, davidlohr@hp.com, rientjes@google.com, isimatu.yasuaki@jp.fujitsu.com, yinghai@kernel.org, riel@redhat.com, n-horiguchi@ah.jp.nec.com, kirill@shutemov.name
 
-On 04/22/2014 02:36 PM, Linus Torvalds wrote:
-> That said, Dave Hansen did report a BUG_ON() in
-> mpage_prepare_extent_to_map(). His line number was odd, but I assume
-> it's this one:
+On Tue, 22 Apr 2014 17:37:26 -0400 Luiz Capitulino <lcapitulino@redhat.com> wrote:
+
+> On Thu, 17 Apr 2014 16:01:10 -0700
+> Andrew Morton <akpm@linux-foundation.org> wrote:
 > 
->         BUG_ON(PageWriteback(page));
+> > On Thu, 10 Apr 2014 13:58:40 -0400 Luiz Capitulino <lcapitulino@redhat.com> wrote:
+> > 
+> > > The HugeTLB subsystem uses the buddy allocator to allocate hugepages during
+> > > runtime. This means that hugepages allocation during runtime is limited to
+> > > MAX_ORDER order. For archs supporting gigantic pages (that is, page sizes
+> > > greater than MAX_ORDER), this in turn means that those pages can't be
+> > > allocated at runtime.
+> > 
+> > Dumb question: what's wrong with just increasing MAX_ORDER?
 > 
-> which may be indicative of some oddity here wrt the dirty bit.
+> To be honest I'm not a buddy allocator expert and I'm not familiar with
+> what is involved in increasing MAX_ORDER. What I do know though is that it's
+> not just a matter of increasing a macro's value. For example, for sparsemem
+> support we have this check (include/linux/mmzone.h:1084):
+> 
+> #if (MAX_ORDER - 1 + PAGE_SHIFT) > SECTION_SIZE_BITS
+> #error Allocator MAX_ORDER exceeds SECTION_SIZE
+> #endif
+> 
+> I _guess_ it's because we can't allocate more pages than what's within a
+> section on sparsemem. Can sparsemem and the other stuff be changed to
+> accommodate a bigger MAX_ORDER? I don't know. Is it worth it to increase
+> MAX_ORDER and do all the required changes, given that a bigger MAX_ORDER is
+> only useful for HugeTLB and the archs supporting gigantic pages? I'd guess not.
 
-I just triggered it a second time.  It only happens with my debugging
-config[1] *and* those two fix patches.  It doesn't happen on the vanilla
-kernel with lost dirty bit.
+afacit we'd need to increase SECTION_SIZE_BITS to 29 or more to
+accommodate 1G MAX_ORDER.  I assume this means that some machines with
+sparse physical memory layout may not be able to use all (or as much)
+of the physical memory.  Perhaps Yinghai can advise?
 
-The line numbers point to the
-
-	head = page_buffers(page);
-
-which is:
-
-#define page_buffers(page)                                      \
-        ({                                                      \
-                BUG_ON(!PagePrivate(page));                     \
-                ((struct buffer_head *)page_private(page));     \
-        })
-
-1.
-http://sr71.net/~dave/intel/20140422-lostdirtybit/config-ext4-bugon.20140422
-Config that doesn't trigger it:
-http://sr71.net/~dave/intel/20140422-lostdirtybit/config-ext4-nobug.20140422
-
-
-
-
+I do think we should fully explore this option before giving up and
+adding new special-case code. 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
