@@ -1,45 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 744E16B0038
-	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 07:55:04 -0400 (EDT)
-Received: by mail-ig0-f180.google.com with SMTP id c1so2866160igq.7
-        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 04:55:04 -0700 (PDT)
-Received: from mail-ie0-x236.google.com (mail-ie0-x236.google.com [2607:f8b0:4001:c03::236])
-        by mx.google.com with ESMTPS id bs7si24875559icc.145.2014.04.22.04.55.03
+Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
+	by kanga.kvack.org (Postfix) with ESMTP id DCBCA6B0038
+	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 08:04:38 -0400 (EDT)
+Received: by mail-wg0-f45.google.com with SMTP id l18so3750374wgh.28
+        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 05:04:38 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id e20si13829316wjq.66.2014.04.22.05.04.36
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 22 Apr 2014 04:55:03 -0700 (PDT)
-Received: by mail-ie0-f182.google.com with SMTP id y20so5142441ier.27
-        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 04:55:03 -0700 (PDT)
+        Tue, 22 Apr 2014 05:04:37 -0700 (PDT)
+Date: Tue, 22 Apr 2014 14:04:32 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: + slub-fix-memcg_propagate_slab_attrs.patch added to -mm tree
+Message-ID: <20140422120432.GL29311@dhcp22.suse.cz>
+References: <53518631.cuNCoAbpOk1NRWDf%akpm@linux-foundation.org>
+ <20140422103051.GH29311@dhcp22.suse.cz>
+ <53564A09.3090008@parallels.com>
 MIME-Version: 1.0
-In-Reply-To: <535631EB.4060906@redhat.com>
-References: <1395256011-2423-1-git-send-email-dh.herrmann@gmail.com>
-	<5343F2EC.3050508@redhat.com>
-	<CANq1E4TmtR=gSgR25PGC_EN=xrEEg1+F=zkTUGXZ4SHvjFNbag@mail.gmail.com>
-	<535631EB.4060906@redhat.com>
-Date: Tue, 22 Apr 2014 13:55:03 +0200
-Message-ID: <CANq1E4TufnELwEDZAkzH94Zn3gb46qvxfDboN5y2mK=Q2gk9-Q@mail.gmail.com>
-Subject: Re: [PATCH 0/6] File Sealing & memfd_create()
-From: David Herrmann <dh.herrmann@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <53564A09.3090008@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Florian Weimer <fweimer@redhat.com>
-Cc: linux-kernel <linux-kernel@vger.kernel.org>, Kay Sievers <kay@vrfy.org>, Daniel Mack <zonque@gmail.com>, Lennart Poettering <lennart@poettering.net>, "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: mm-commits@vger.kernel.org, penberg@kernel.org, hannes@cmpxchg.org, cl@linux.com, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
-Hi
+On Tue 22-04-14 14:52:57, Vladimir Davydov wrote:
+> On 04/22/2014 02:30 PM, Michal Hocko wrote:
+> > On Fri 18-04-14 13:08:17, Andrew Morton wrote:
+> > [...]
+> >> From: Vladimir Davydov <vdavydov@parallels.com>
+> >> Subject: slub: fix memcg_propagate_slab_attrs
+> >>
+> >> After creating a cache for a memcg we should initialize its sysfs attrs
+> >> with the values from its parent.  That's what memcg_propagate_slab_attrs
+> >> is for.  Currently it's broken - we clearly muddled root-vs-memcg caches
+> >> there.  Let's fix it up.
+> > 
+> > Andrew didn't so I'll do. What is the effect of the mismatch? I am
+> > really drowning in that code...
+> 
+> If we tune a kmem cache's params via sysfs and then create a memcg that
+> wants to allocate from the cache, the memcg's copy of the cache will
+> have default values of the sysfs params instead of those of the global
+> cache.
 
-On Tue, Apr 22, 2014 at 11:10 AM, Florian Weimer <fweimer@redhat.com> wrote:
-> Ah.  What do you recommend for recipient to recognize such descriptors?
-> Would they just try to seal them and reject them if this fails?
+Ahh, ok, I see. Thanks for the clarification.
+ 
+> >> Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
+> >> Cc: Christoph Lameter <cl@linux.com>
+> >> Cc: Pekka Enberg <penberg@kernel.org>
+> >> Cc: Michal Hocko <mhocko@suse.cz>
+> >> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> >> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> >> ---
+> >>
+> >>  mm/slub.c |   11 +++++++----
+> >>  1 file changed, 7 insertions(+), 4 deletions(-)
+> >>
+> >> diff -puN mm/slub.c~slub-fix-memcg_propagate_slab_attrs mm/slub.c
+> >> --- a/mm/slub.c~slub-fix-memcg_propagate_slab_attrs
+> >> +++ a/mm/slub.c
+> >> @@ -5071,15 +5071,18 @@ static void memcg_propagate_slab_attrs(s
+> >>  #ifdef CONFIG_MEMCG_KMEM
+> >>  	int i;
+> >>  	char *buffer = NULL;
+> >> +	struct kmem_cache *root_cache;
+> >>  
+> >> -	if (!is_root_cache(s))
+> >> +	if (is_root_cache(s))
+> >>  		return;
+> >>  
+> >> +	root_cache = s->memcg_params->root_cache;
+> >> +
+> >>  	/*
+> >>  	 * This mean this cache had no attribute written. Therefore, no point
+> >>  	 * in copying default values around
+> >>  	 */
+> >> -	if (!s->max_attr_size)
+> >> +	if (!root_cache->max_attr_size)
+> >>  		return;
+> >>  
+> >>  	for (i = 0; i < ARRAY_SIZE(slab_attrs); i++) {
+> >> @@ -5101,7 +5104,7 @@ static void memcg_propagate_slab_attrs(s
+> >>  		 */
+> >>  		if (buffer)
+> >>  			buf = buffer;
+> >> -		else if (s->max_attr_size < ARRAY_SIZE(mbuf))
+> >> +		else if (root_cache->max_attr_size < ARRAY_SIZE(mbuf))
+> >>  			buf = mbuf;
+> >>  		else {
+> >>  			buffer = (char *) get_zeroed_page(GFP_KERNEL);
+> >> @@ -5110,7 +5113,7 @@ static void memcg_propagate_slab_attrs(s
+> >>  			buf = buffer;
+> >>  		}
+> >>  
+> >> -		attr->show(s->memcg_params->root_cache, buf);
+> >> +		attr->show(root_cache, buf);
+> >>  		attr->store(s, buf, strlen(buf));
+> >>  	}
+> >>  
+> >> _
+> >>
+> >> Patches currently in -mm which might be from vdavydov@parallels.com are
+> >>
+> >> slub-fix-memcg_propagate_slab_attrs.patch
+> >> slb-charge-slabs-to-kmemcg-explicitly.patch
+> >> mm-get-rid-of-__gfp_kmemcg.patch
+> >> mm-get-rid-of-__gfp_kmemcg-fix.patch
+> >> slab-document-kmalloc_order.patch
+> >>
+> > 
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-This highly depends on your use-case. Please see the initial email in
-this thread. It describes 2 example use-cases. In both cases, the
-recipients read the current set of seals and verify that a given set
-of seals is set.
-
-Thanks
-David
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
