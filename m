@@ -1,108 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f46.google.com (mail-pb0-f46.google.com [209.85.160.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D8CB6B0070
-	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 14:40:16 -0400 (EDT)
-Received: by mail-pb0-f46.google.com with SMTP id rq2so5210959pbb.5
-        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 11:40:15 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id xf3si20032116pab.15.2014.04.22.11.40.14
+Received: from mail-ve0-f176.google.com (mail-ve0-f176.google.com [209.85.128.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F5BE6B0070
+	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 14:57:51 -0400 (EDT)
+Received: by mail-ve0-f176.google.com with SMTP id db11so10116321veb.35
+        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 11:57:51 -0700 (PDT)
+Received: from mail-vc0-x236.google.com (mail-vc0-x236.google.com [2607:f8b0:400c:c03::236])
+        by mx.google.com with ESMTPS id sw4si7031015vdc.192.2014.04.22.11.57.50
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 22 Apr 2014 11:40:14 -0700 (PDT)
-Date: Tue, 22 Apr 2014 14:39:43 -0400
-From: Dwight Engen <dwight.engen@oracle.com>
-Subject: Re: Protection against container fork bombs [WAS: Re: memcg with
- kmem limit doesn't recover after disk i/o causes limit to be hit]
-Message-ID: <20140422143943.20609800@oracle.com>
-In-Reply-To: <20140420142830.GC22077@alpha.arachsys.com>
-References: <20140416154650.GA3034@alpha.arachsys.com>
-	<20140418155939.GE4523@dhcp22.suse.cz>
-	<5351679F.5040908@parallels.com>
-	<20140420142830.GC22077@alpha.arachsys.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 22 Apr 2014 11:57:50 -0700 (PDT)
+Received: by mail-vc0-f182.google.com with SMTP id ib6so3168379vcb.13
+        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 11:57:50 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20140422180308.GA19038@redhat.com>
+References: <20140422180308.GA19038@redhat.com>
+Date: Tue, 22 Apr 2014 11:57:50 -0700
+Message-ID: <CA+55aFxjADAB80AV6qK-b4QPzP7fgog_EyH-7dSpWVgzpZmL8Q@mail.gmail.com>
+Subject: Re: 3.15rc2 hanging processes on exit.
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Content-Type: multipart/mixed; boundary=089e0158a82a4b5d7704f7a63140
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Richard Davies <richard@arachsys.com>
-Cc: Vladimir Davydov <vdavydov@parallels.com>, Frederic Weisbecker <fweisbec@gmail.com>, David Rientjes <rientjes@google.com>, Glauber Costa <glommer@parallels.com>, Tejun Heo <tj@kernel.org>, Max Kellermann <mk@cm4all.com>, Johannes Weiner <hannes@cmpxchg.org>, William Dauchy <wdauchy@gmail.com>, Tim Hockin <thockin@hockin.org>, Michal Hocko <mhocko@suse.cz>, Daniel Walsh <dwalsh@redhat.com>, Daniel Berrange <berrange@redhat.com>, cgroups@vger.kernel.org, containers@lists.linux-foundation.org, linux-mm@kvack.org
+To: Dave Jones <davej@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>
 
-On Sun, 20 Apr 2014 15:28:30 +0100
-Richard Davies <richard@arachsys.com> wrote:
+--089e0158a82a4b5d7704f7a63140
+Content-Type: text/plain; charset=UTF-8
 
-> Vladimir Davydov wrote:
-> > Richard Davies wrote:
-> > > I have a simple reproducible test case in which untar in a memcg
-> > > with a kmem limit gets into trouble during heavy disk i/o (on
-> > > ext3) and never properly recovers. This is simplified from real
-> > > world problems with heavy disk i/o inside containers.
-> >
-> > Unfortunately, work on per cgroup kmem limits is not completed yet.
-> > Currently it lacks kmem reclaim on per cgroup memory pressure,
-> > which is vital for using kmem limits in real life.
-> ...
-> > In short, kmem limiting for memory cgroups is currently broken. Do
-> > not use it. We are working on making it usable though.
-> 
-> Thanks for explaining the strange errors I got.
-> 
-> 
-> My motivation is to prevent a fork bomb in a container from affecting
-> other processes outside that container.
-> 
-> kmem limits were the preferred mechanism in several previous
-> discussions about two years ago (I'm copying in participants from
-> those previous discussions and give links below). So I tried kmem
-> first but found bugs.
-> 
-> 
-> What is the best mechanism available today, until kmem limits mature?
-> 
-> RLIMIT_NPROC exists but is per-user, not per-container.
-> 
-> Perhaps there is an up-to-date task counter patchset or similar?
+On Tue, Apr 22, 2014 at 11:03 AM, Dave Jones <davej@redhat.com> wrote:
+> I've got a test box that's running my fuzzer that is in an odd state.
+> The processes are about to end, but they don't seem to be making any
+> progress.  They've been spinning in the same state for a few hours now..
+>
+> perf top -a is showing a lot of time is being spent in page_fault and bad_gs
+>
+> there's a large trace file here from the function tracer:
+> http://codemonkey.org.uk/junk/trace.out
 
-I updated Frederic's task counter patches and included Max Kellermann's
-fork limiter here:
+The trace says that it's one of the infinite loops that do
 
-http://thread.gmane.org/gmane.linux.kernel.containers/27212
+ - cmpxchg_futex_value_locked() fails
+ - we do fault_in_user_writeable(FAULT_FLAG_WRITE) and that succeeds
+ - so we try again
 
-I can send you a more recent patchset (against 3.13.10) if you would
-find it useful.
+So it implies that handle_mm_fault() returned without VM_FAULT_ERROR,
+but the page still isn't actually writable.
 
-> Thank you all,
-> 
-> Richard.
-> 
-> 
-> 
-> Some references to previous discussions:
-> 
-> Fork bomb limitation in memcg WAS: Re: [PATCH 00/11] kmem controller
-> for memcg: stripped down version
-> http://thread.gmane.org/gmane.linux.kernel/1318266/focus=1319372
-> 
-> Re: [PATCH 00/10] cgroups: Task counter subsystem v8
-> http://thread.gmane.org/gmane.linux.kernel/1246704/focus=1467310
-> 
-> [RFD] Merge task counter into memcg
-> http://thread.gmane.org/gmane.linux.kernel/1280302
-> 
-> Re: [PATCH -mm] cgroup: Fix task counter common ancestor logic
-> http://thread.gmane.org/gmane.linux.kernel/1212650/focus=1220186
-> 
-> [PATCH] new cgroup controller "fork"
-> http://thread.gmane.org/gmane.linux.kernel/1210878
-> 
-> Re: Process Limit cgroups
-> http://thread.gmane.org/gmane.linux.kernel.cgroups/9368/focus=9369
-> 
-> Re: [lxc-devel] process number limit
-> https://www.mail-archive.com/lxc-devel@lists.sourceforge.net/msg03309.html
-> _______________________________________________
-> Containers mailing list
-> Containers@lists.linux-foundation.org
-> https://lists.linuxfoundation.org/mailman/listinfo/containers
+And to me that smells like (vm_flags & VM_WRITE) isn't set. We'll
+fault in the page all right, but the resulting page table entry still
+isn't writable.
+
+Are you testing anything new? Or is this strictly new to 3.15? The
+only thing in this area we do differently is commit cda540ace6a1 ("mm:
+get_user_pages(write,force) refuse to COW in shared areas"), but
+fault_in_user_writeable() never used the force bit afaik. Adding Hugh
+just in case.
+
+So I think we should make fault_in_user_writeable() just check the
+vm_flags. Something like the attached (UNTESTED!) patch.
+
+Guys? Comments?
+
+                    Linus
+
+--089e0158a82a4b5d7704f7a63140
+Content-Type: text/plain; charset=US-ASCII; name="patch.diff"
+Content-Disposition: attachment; filename="patch.diff"
+Content-Transfer-Encoding: base64
+X-Attachment-Id: f_hubk1h2i0
+
+IG1tL21lbW9yeS5jIHwgNSArKysrKwogMSBmaWxlIGNoYW5nZWQsIDUgaW5zZXJ0aW9ucygrKQoK
+ZGlmZiAtLWdpdCBhL21tL21lbW9yeS5jIGIvbW0vbWVtb3J5LmMKaW5kZXggZDBmMGJlZjNiZTQ4
+Li45MWEzZTg0ODc0NWQgMTAwNjQ0Ci0tLSBhL21tL21lbW9yeS5jCisrKyBiL21tL21lbW9yeS5j
+CkBAIC0xOTU1LDEyICsxOTU1LDE3IEBAIGludCBmaXh1cF91c2VyX2ZhdWx0KHN0cnVjdCB0YXNr
+X3N0cnVjdCAqdHNrLCBzdHJ1Y3QgbW1fc3RydWN0ICptbSwKIAkJICAgICB1bnNpZ25lZCBsb25n
+IGFkZHJlc3MsIHVuc2lnbmVkIGludCBmYXVsdF9mbGFncykKIHsKIAlzdHJ1Y3Qgdm1fYXJlYV9z
+dHJ1Y3QgKnZtYTsKKwl1bnNpZ25lZCB2bV9mbGFnczsKIAlpbnQgcmV0OwogCiAJdm1hID0gZmlu
+ZF9leHRlbmRfdm1hKG1tLCBhZGRyZXNzKTsKIAlpZiAoIXZtYSB8fCBhZGRyZXNzIDwgdm1hLT52
+bV9zdGFydCkKIAkJcmV0dXJuIC1FRkFVTFQ7CiAKKwl2bV9mbGFncyA9IChmYXVsdF9mbGFncyAm
+IEZBVUxUX0ZMQUdfV1JJVEUpID8gVk1fV1JJVEUgOiBWTV9SRUFEOworCWlmICghKHZtX2ZsYWdz
+ICYgdm1hLT52bV9mbGFncykpCisJCXJldHVybiAtRUZBVUxUOworCiAJcmV0ID0gaGFuZGxlX21t
+X2ZhdWx0KG1tLCB2bWEsIGFkZHJlc3MsIGZhdWx0X2ZsYWdzKTsKIAlpZiAocmV0ICYgVk1fRkFV
+TFRfRVJST1IpIHsKIAkJaWYgKHJldCAmIFZNX0ZBVUxUX09PTSkK
+--089e0158a82a4b5d7704f7a63140--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
