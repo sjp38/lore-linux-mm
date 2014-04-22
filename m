@@ -1,132 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f52.google.com (mail-wg0-f52.google.com [74.125.82.52])
-	by kanga.kvack.org (Postfix) with ESMTP id E4BFD6B0035
-	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 05:48:03 -0400 (EDT)
-Received: by mail-wg0-f52.google.com with SMTP id k14so3604536wgh.11
-        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 02:48:03 -0700 (PDT)
+Received: from mail-ee0-f50.google.com (mail-ee0-f50.google.com [74.125.83.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 422B96B0035
+	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 05:59:28 -0400 (EDT)
+Received: by mail-ee0-f50.google.com with SMTP id c13so4476874eek.9
+        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 02:59:27 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ep8si4532921wid.5.2014.04.22.02.48.01
+        by mx.google.com with ESMTPS id n7si58980817eeu.259.2014.04.22.02.59.26
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 22 Apr 2014 02:48:02 -0700 (PDT)
-Date: Tue, 22 Apr 2014 11:47:59 +0200
+        Tue, 22 Apr 2014 02:59:26 -0700 (PDT)
+Date: Tue, 22 Apr 2014 11:59:23 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 1/2] mm/memcontrol.c: remove meaningless while loop in
- mem_cgroup_iter()
-Message-ID: <20140422094759.GC29311@dhcp22.suse.cz>
-References: <1397861935-31595-1-git-send-email-nasa4836@gmail.com>
+Subject: Re: [PATCH 2/2] mm/memcontrol.c: introduce helper
+ mem_cgroup_zoneinfo_zone()
+Message-ID: <20140422095923.GD29311@dhcp22.suse.cz>
+References: <1397862103-31982-1-git-send-email-nasa4836@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1397861935-31595-1-git-send-email-nasa4836@gmail.com>
+In-Reply-To: <1397862103-31982-1-git-send-email-nasa4836@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Jianyu Zhan <nasa4836@gmail.com>
 Cc: hannes@cmpxchg.org, bsingharora@gmail.com, kamezawa.hiroyu@jp.fujitsu.com, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Sat 19-04-14 06:58:55, Jianyu Zhan wrote:
-> Currently, the iteration job in mem_cgroup_iter() all delegates
-> to __mem_cgroup_iter_next(), which will skip dead node.
-> 
-> Thus, the outer while loop in mem_cgroup_iter() is meaningless.
-> It could be proven by this:
-> 
-> 1. memcg != NULL
->     we are done, no loop needed.
-> 2. memcg == NULL
->    2.1 prev != NULL, a round-trip is done, break out, no loop.
->    2.2 prev == NULL, this is impossible, since prev==NULL means
->        the initial interation, it will returns memcg==root.
+On Sat 19-04-14 07:01:43, Jianyu Zhan wrote:
+> introduce helper mem_cgroup_zoneinfo_zone(). This will make
+> mem_cgroup_iter() code more compact.
 
-What about
-  3. last_visited == last_node in the tree
+I dunno. Helpers are usually nice but this one adds more code then it
+removes. It also doesn't help the generated code.
 
-__mem_cgroup_iter_next returns NULL and the iterator would return
-without visiting anything.
-
-The patch is not correct, I am afraid.
-
-> So, this patches remove this meaningless while loop.
-> 
+So I don't see any reason to merge it.
+ 
 > Signed-off-by: Jianyu Zhan <nasa4836@gmail.com>
 > ---
->  mm/memcontrol.c | 49 ++++++++++++++++++++++---------------------------
->  1 file changed, 22 insertions(+), 27 deletions(-)
+>  mm/memcontrol.c | 15 +++++++++++----
+>  1 file changed, 11 insertions(+), 4 deletions(-)
 > 
 > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 29501f0..e0ce15c 100644
+> index e0ce15c..80d9e38 100644
 > --- a/mm/memcontrol.c
 > +++ b/mm/memcontrol.c
-> @@ -1212,6 +1212,8 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
->  {
->  	struct mem_cgroup *memcg = NULL;
->  	struct mem_cgroup *last_visited = NULL;
-> +	struct mem_cgroup_reclaim_iter *uninitialized_var(iter);
-> +	int uninitialized_var(seq);
+> @@ -683,6 +683,15 @@ mem_cgroup_zoneinfo(struct mem_cgroup *memcg, int nid, int zid)
+>  	return &memcg->nodeinfo[nid]->zoneinfo[zid];
+>  }
 >  
->  	if (mem_cgroup_disabled())
->  		return NULL;
-> @@ -1229,40 +1231,33 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
->  	}
+> +static struct mem_cgroup_per_zone *
+> +mem_cgroup_zoneinfo_zone(struct mem_cgroup *memcg, struct zone *zone)
+> +{
+> +       int nid = zone_to_nid(zone);
+> +       int zid = zone_idx(zone);
+> +
+> +       return mem_cgroup_zoneinfo(memcg, nid, zid);
+> +}
+> +
+>  struct cgroup_subsys_state *mem_cgroup_css(struct mem_cgroup *memcg)
+>  {
+>  	return &memcg->css;
+> @@ -1232,11 +1241,9 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
 >  
 >  	rcu_read_lock();
-> -	while (!memcg) {
-> -		struct mem_cgroup_reclaim_iter *uninitialized_var(iter);
-> -		int uninitialized_var(seq);
-> -
-> -		if (reclaim) {
-> -			int nid = zone_to_nid(reclaim->zone);
-> -			int zid = zone_idx(reclaim->zone);
-> -			struct mem_cgroup_per_zone *mz;
-> -
-> -			mz = mem_cgroup_zoneinfo(root, nid, zid);
-> -			iter = &mz->reclaim_iter[reclaim->priority];
-> -			if (prev && reclaim->generation != iter->generation) {
-> -				iter->last_visited = NULL;
-> -				goto out_unlock;
-> -			}
-> +	if (reclaim) {
-> +		int nid = zone_to_nid(reclaim->zone);
-> +		int zid = zone_idx(reclaim->zone);
-> +		struct mem_cgroup_per_zone *mz;
+>  	if (reclaim) {
+> -		int nid = zone_to_nid(reclaim->zone);
+> -		int zid = zone_idx(reclaim->zone);
+>  		struct mem_cgroup_per_zone *mz;
 >  
-> -			last_visited = mem_cgroup_iter_load(iter, root, &seq);
-> +		mz = mem_cgroup_zoneinfo(root, nid, zid);
-> +		iter = &mz->reclaim_iter[reclaim->priority];
-> +		if (prev && reclaim->generation != iter->generation) {
-> +			iter->last_visited = NULL;
-> +			goto out_unlock;
->  		}
->  
-> -		memcg = __mem_cgroup_iter_next(root, last_visited);
-> +		last_visited = mem_cgroup_iter_load(iter, root, &seq);
-> +	}
->  
-> -		if (reclaim) {
-> -			mem_cgroup_iter_update(iter, last_visited, memcg, root,
-> -					seq);
-> +	memcg = __mem_cgroup_iter_next(root, last_visited);
->  
-> -			if (!memcg)
-> -				iter->generation++;
-> -			else if (!prev && memcg)
-> -				reclaim->generation = iter->generation;
-> -		}
-> +	if (reclaim) {
-> +		mem_cgroup_iter_update(iter, last_visited, memcg, root,
-> +				seq);
->  
-> -		if (prev && !memcg)
-> -			goto out_unlock;
-> +		if (!memcg)
-> +			iter->generation++;
-> +		else if (!prev && memcg)
-> +			reclaim->generation = iter->generation;
+> -		mz = mem_cgroup_zoneinfo(root, nid, zid);
+> +		mz = mem_cgroup_zoneinfo_zone(root, reclaim->zone);
+>  		iter = &mz->reclaim_iter[reclaim->priority];
+>  		if (prev && reclaim->generation != iter->generation) {
+>  			iter->last_visited = NULL;
+> @@ -1340,7 +1347,7 @@ struct lruvec *mem_cgroup_zone_lruvec(struct zone *zone,
+>  		goto out;
 >  	}
-> +
->  out_unlock:
->  	rcu_read_unlock();
->  out_css_put:
+>  
+> -	mz = mem_cgroup_zoneinfo(memcg, zone_to_nid(zone), zone_idx(zone));
+> +	mz = mem_cgroup_zoneinfo_zone(memcg, zone);
+>  	lruvec = &mz->lruvec;
+>  out:
+>  	/*
 > -- 
 > 1.9.0.GIT
 > 
