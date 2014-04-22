@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F7496B0070
-	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 14:21:19 -0400 (EDT)
-Received: by mail-pd0-f175.google.com with SMTP id x10so5145054pdj.34
-        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 11:21:19 -0700 (PDT)
-Received: from g2t2353.austin.hp.com (g2t2353.austin.hp.com. [15.217.128.52])
-        by mx.google.com with ESMTPS id s9si9690150pbj.360.2014.04.22.11.21.18
+Received: from mail-yh0-f43.google.com (mail-yh0-f43.google.com [209.85.213.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F1256B0062
+	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 14:28:55 -0400 (EDT)
+Received: by mail-yh0-f43.google.com with SMTP id b6so5161970yha.2
+        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 11:28:55 -0700 (PDT)
+Received: from g5t1625.atlanta.hp.com (g5t1625.atlanta.hp.com. [15.192.137.8])
+        by mx.google.com with ESMTPS id i68si41895615yhf.71.2014.04.22.11.28.54
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 22 Apr 2014 11:21:18 -0700 (PDT)
-Message-ID: <1398190871.2473.12.camel@buesod1.americas.hpqcorp.net>
+        Tue, 22 Apr 2014 11:28:54 -0700 (PDT)
+Message-ID: <1398191332.2473.14.camel@buesod1.americas.hpqcorp.net>
 Subject: Re: [PATCH 4/4] ipc/shm.c: Increase the defaults for SHMALL, SHMMAX.
 From: Davidlohr Bueso <davidlohr@hp.com>
-Date: Tue, 22 Apr 2014 11:21:11 -0700
+Date: Tue, 22 Apr 2014 11:28:52 -0700
 In-Reply-To: <1398090397-2397-5-git-send-email-manfred@colorfullife.com>
 References: <1398090397-2397-1-git-send-email-manfred@colorfullife.com>
 	 <1398090397-2397-2-git-send-email-manfred@colorfullife.com>
@@ -44,7 +44,22 @@ On Mon, 2014-04-21 at 16:26 +0200, Manfred Spraul wrote:
 > The current default is a maximum segment size of 32 MB and a maximum total
 > size of 8 GB. This is often too much for a) and not enough for b), which
 > means that lots of users must change the defaults.
-> 
+
+Per Andrew's request, I think the following should go here from the
+changelog of my patch:
+
+Unix has historically required setting these limits for shared
+memory, and Linux inherited such behavior. The consequence of this
+is added complexity for users and administrators. One very common
+example are Database setup/installation documents and scripts,
+where users must manually calculate the values for these limits.
+This also requires (some) knowledge of how the underlying memory
+management works, thus causing, in many occasions, the limits to
+just be flat out wrong. Disabling these limits sooner could have
+saved companies a lot of time, headaches and money for support.
+But it's never too late, simplify users life now.
+
+
 > This patch increases the default limits (nearly) to the maximum, which is
 > perfect for case b). The defaults are used after boot and as the initial
 > value for each new namespace.
@@ -68,11 +83,6 @@ On Mon, 2014-04-21 at 16:26 +0200, Manfred Spraul wrote:
 > Signed-off-by: Manfred Spraul <manfred@colorfullife.com>
 > Reported-by: Davidlohr Bueso <davidlohr@hp.com>
 > Cc: mtk.manpages@gmail.com
-
-Signed-off-by: Davidlohr Bueso <davidlohr@hp.com>
-
-With one comment below.
-
 > ---
 >  include/linux/shm.h      | 3 +--
 >  include/uapi/linux/shm.h | 8 +++-----
@@ -113,14 +123,10 @@ With one comment below.
 > -#endif
 > +#define SHMMAX (ULONG_MAX - (1L<<24))	 /* max shared seg size (bytes) */
 > +#define SHMALL (ULONG_MAX - (1L<<24))	 /* max shm system wide (pages) */
+>  #define SHMSEG SHMMNI			 /* max shared segs per process */
+>  
+> 
 
-It's quite clear in the changelog, but could you please add a big fat
-comment explaining this option, and that there's no point in enlarging
-it. In fact if the user wants to make it bigger, we should display some
-printk_once mentioning that this is the upper limit.
-
-Thanks,
-Davidlohr
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
