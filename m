@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f181.google.com (mail-qc0-f181.google.com [209.85.216.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 90BB36B0062
+Received: from mail-qc0-f174.google.com (mail-qc0-f174.google.com [209.85.216.174])
+	by kanga.kvack.org (Postfix) with ESMTP id D65D16B0062
 	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 15:58:32 -0400 (EDT)
-Received: by mail-qc0-f181.google.com with SMTP id x3so5866032qcv.40
+Received: by mail-qc0-f174.google.com with SMTP id c9so5811690qcz.5
         for <linux-mm@kvack.org>; Tue, 22 Apr 2014 12:58:32 -0700 (PDT)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id h5si17462170qas.73.2014.04.22.12.58.31
+        by mx.google.com with ESMTPS id l5si17440676qai.169.2014.04.22.12.58.31
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Tue, 22 Apr 2014 12:58:31 -0700 (PDT)
-Date: Tue, 22 Apr 2014 09:54:59 +0200
+Date: Tue, 22 Apr 2014 09:34:43 +0200
 From: Peter Zijlstra <peterz@infradead.org>
 Subject: Re: Dirty/Access bits vs. page content
-Message-ID: <20140422075459.GD11182@twins.programming.kicks-ass.net>
+Message-ID: <20140422073443.GC11182@twins.programming.kicks-ass.net>
 References: <1398032742.19682.11.camel@pasglop>
  <CA+55aFz1sK+PF96LYYZY7OB7PBpxZu-uNLWLvPiRz-tJsBqX3w@mail.gmail.com>
  <1398054064.19682.32.camel@pasglop>
@@ -30,19 +30,38 @@ In-Reply-To: <CA+55aFzFxBDJ2rWo9DggdNsq-qBCr11OVXnm64jx04KMSVCBAw@mail.gmail.com
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Dave Hansen <dave.hansen@intel.com>, "H. Peter Anvin" <hpa@zytor.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Tony Luck <tony.luck@intel.com>
+Cc: Dave Hansen <dave.hansen@intel.com>, "H. Peter Anvin" <hpa@zytor.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Tony Luck <tony.luck@intel.com>, kirill.shutemov@linux.intel.com
 
-On Mon, Apr 21, 2014 at 05:44:45PM -0700, Linus Torvalds wrote:
-> From d26515fe19d5850aa69881ee6ae193e068f22ba1 Mon Sep 17 00:00:00 2001
+> From 21819f790e3d206ad77cd20d6e7cae86311fc87d Mon Sep 17 00:00:00 2001
 > From: Linus Torvalds <torvalds@linux-foundation.org>
-> Date: Mon, 21 Apr 2014 17:35:35 -0700
-> Subject: [PATCH 2/2] mm: make the generic TLB flush batching correctly dirty
->  the page at the end
+> Date: Mon, 21 Apr 2014 15:29:49 -0700
+> Subject: [PATCH 1/2] mm: move page table dirty state into TLB gather operation
 > 
-> When unmapping dirty shared mappings, the page should be dirtied after
-> doing the TLB flush.  This does that by hiding the dirty bit in the low
-> bit of the "struct page" pointer in the TLB gather batching array, and
-> teaching free_pages_and_swap_cache() to mark the pages dirty at the end.
+> When tearing down a memory mapping, we have long delayed the actual
+> freeing of the pages until after the (batched) TLB flush, since only
+> after the TLB entries have been flushed from all CPU's do we know that
+> none of the pages will be accessed any more.
+> 
+> HOWEVER.
+> 
+> Ben Herrenschmidt points out that we need to do the same thing for
+> marking a shared mapped page dirty.  Because if we mark the underlying
+> page dirty before we have flushed the TLB's, other CPU's may happily
+> continue to write to the page (using their stale TLB contents) after
+> we've marked the page dirty, and they can thus race with any cleaning
+> operation.
+> 
+> Now, in practice, any page cleaning operations will take much longer to
+> start the IO on the page than it will have taken us to get to the TLB
+> flush, so this is going to be hard to trigger in real life.  In fact, so
+> far nobody has even come up with a reasonable test-case for this to show
+> it happening.
+> 
+> But what we do now (set_page_dirty() before flushing the TLB) really is
+> wrong.  And this commit does not fix it, but by moving the dirty
+> handling into the TLB gather operation at least the internal interfaces
+> now support the notion of those TLB gather interfaces doing the rigth
+> thing.
 > 
 > Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
 > Cc: Peter Anvin <hpa@zytor.com>
@@ -54,115 +73,47 @@ Acked-by: Peter Zijlstra <peterz@infradead.org>
 > Cc: linux-mm@kvack.org
 > Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
 > ---
->  mm/memory.c     |  5 +----
->  mm/swap.c       |  8 +++++++-
->  mm/swap_state.c | 14 ++++++++++++--
->  3 files changed, 20 insertions(+), 7 deletions(-)
+>  arch/arm/include/asm/tlb.h  |  6 ++++--
+>  arch/ia64/include/asm/tlb.h |  6 ++++--
+>  arch/s390/include/asm/tlb.h |  4 +++-
+>  arch/sh/include/asm/tlb.h   |  6 ++++--
+>  arch/um/include/asm/tlb.h   |  6 ++++--
+>  include/asm-generic/tlb.h   |  4 ++--
+>  mm/hugetlb.c                |  4 +---
+>  mm/memory.c                 | 15 +++++++++------
+>  8 files changed, 31 insertions(+), 20 deletions(-)
 > 
-> diff --git a/mm/memory.c b/mm/memory.c
-> index 62fdcd1995f4..174542ab2b90 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -283,11 +283,8 @@ int __tlb_remove_page(struct mmu_gather *tlb, struct page *page, bool dirty)
+> diff --git a/arch/arm/include/asm/tlb.h b/arch/arm/include/asm/tlb.h
+> index 0baf7f0d9394..ac9c16af8e63 100644
+> --- a/arch/arm/include/asm/tlb.h
+> +++ b/arch/arm/include/asm/tlb.h
+> @@ -165,8 +165,10 @@ tlb_end_vma(struct mmu_gather *tlb, struct vm_area_struct *vma)
+>  		tlb_flush(tlb);
+>  }
 >  
->  	VM_BUG_ON(!tlb->need_flush);
->  
-> -	/* FIXME! This needs to be batched too */
-> -	if (dirty)
-> -		set_page_dirty(page);
->  	batch = tlb->active;
-> -	batch->pages[batch->nr++] = page;
-> +	batch->pages[batch->nr++] = (void *) (dirty + (unsigned long)page);
-
-Space between cast and expression.
-
->  	if (batch->nr == batch->max) {
->  		if (!tlb_next_batch(tlb))
->  			return 0;
-> diff --git a/mm/swap.c b/mm/swap.c
-> index 9ce43ba4498b..1a58c58c7f41 100644
-> --- a/mm/swap.c
-> +++ b/mm/swap.c
-> @@ -821,8 +821,14 @@ void release_pages(struct page **pages, int nr, int cold)
->  	struct lruvec *lruvec;
->  	unsigned long uninitialized_var(flags);
->  
-> +	/*
-> +	 * NOTE! The low bit of the struct page pointer in
-> +	 * the "pages[]" array is used as a dirty bit, so
-> +	 * we ignore it
-> +	 */
->  	for (i = 0; i < nr; i++) {
-> -		struct page *page = pages[i];
-> +		unsigned long pageval = (unsigned long)pages[i];
-> +		struct page *page = (void *)(~1ul & pageval);
-
-No space between cast and expression.
-
-Should we create some pointer bitops helpers? We do this casting all
-over the place, maybe its time to make it pretty?
-
-static inline void *ptr_or(void *ptr, unsigned long val)
-{
-	WARN_ON(val & ~0x03); /* too bad __alignof__ is 'broken' */
-	return (void *)((unsigned long)ptr | val);
-}
-
-static inline void *ptr_mask(void *ptr)
-{
-	return (void *)((unsigned long)ptr & ~0x03);
-}
-
-static inline unsigned long ptr_and(void *ptr, unsigned long val)
-{
-	WARN_ON(val & ~0x03);
-	return (unsigned long)ptr & val;
-}
-
->  		if (unlikely(PageCompound(page))) {
->  			if (zone) {
-> diff --git a/mm/swap_state.c b/mm/swap_state.c
-> index e76ace30d436..bb0b2d675a82 100644
-> --- a/mm/swap_state.c
-> +++ b/mm/swap_state.c
-> @@ -258,6 +258,11 @@ void free_page_and_swap_cache(struct page *page)
->  /*
->   * Passed an array of pages, drop them all from swapcache and then release
->   * them.  They are removed from the LRU and freed if this is their last use.
-> + *
-> + * NOTE! The low bit of the "struct page" pointers passed in is a dirty
-> + * indicator, saying that the page needs to be marked dirty before freeing.
-> + *
-> + * release_pages() itself ignores that bit.
->   */
->  void free_pages_and_swap_cache(struct page **pages, int nr)
+> -static inline int __tlb_remove_page(struct mmu_gather *tlb, struct page *page)
+> +static inline int __tlb_remove_page(struct mmu_gather *tlb, struct page *page, bool dirty)
 >  {
-> @@ -268,8 +273,13 @@ void free_pages_and_swap_cache(struct page **pages, int nr)
->  		int todo = min(nr, PAGEVEC_SIZE);
->  		int i;
+> +	if (dirty)
+> +		set_page_dirty(page);
+>  	tlb->pages[tlb->nr++] = page;
+>  	VM_BUG_ON(tlb->nr > tlb->max);
+>  	return tlb->max - tlb->nr;
+> @@ -174,7 +176,7 @@ static inline int __tlb_remove_page(struct mmu_gather *tlb, struct page *page)
 >  
-> -		for (i = 0; i < todo; i++)
-> -			free_swap_cache(pagep[i]);
-> +		for (i = 0; i < todo; i++) {
-> +			unsigned long pageval = (unsigned long) pagep[i];
-> +			struct page *page = (void *)(~1ul & pageval);
-> +			if (pageval & 1)
-> +				set_page_dirty(page);
-> +			free_swap_cache(page);
-> +		}
->  		release_pages(pagep, todo, 0);
->  		pagep += todo;
->  		nr -= todo;
+>  static inline void tlb_remove_page(struct mmu_gather *tlb, struct page *page)
+>  {
+> -	if (!__tlb_remove_page(tlb, page))
+> +	if (!__tlb_remove_page(tlb, page, 0))
+>  		tlb_flush_mmu(tlb);
+>  }
 
-So PAGE_FLAGS_CHECK_AT_FREE doesn't include PG_dirty, so while we now
-properly mark the page dirty, we could continue and simply free the
-thing?
+So I checked this, and currently the only users of tlb_remove_page() are
+the archs for freeing the page table pages and THP. The latter is OK
+because it is strictly Anon (for now).
 
-I suppose the pagecache has a ref on and there's no window where we
-could drop that before doing this free (didn't check).
-
-But my main point was; should we check for the dirty bit when freeing
-the page?
+Anybody (/me looks at Kiryl) thinking of making THP work for shared
+pages should also cure this.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
