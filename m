@@ -1,51 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ve0-f177.google.com (mail-ve0-f177.google.com [209.85.128.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 30DD76B0035
-	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 01:15:28 -0400 (EDT)
-Received: by mail-ve0-f177.google.com with SMTP id sa20so8766456veb.8
-        for <linux-mm@kvack.org>; Mon, 21 Apr 2014 22:15:27 -0700 (PDT)
-Received: from mail-vc0-x22c.google.com (mail-vc0-x22c.google.com [2607:f8b0:400c:c03::22c])
-        by mx.google.com with ESMTPS id vb6si6684879vec.74.2014.04.21.22.15.27
+Received: from mail-pb0-f49.google.com (mail-pb0-f49.google.com [209.85.160.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 54C036B0038
+	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 01:30:30 -0400 (EDT)
+Received: by mail-pb0-f49.google.com with SMTP id jt11so4478082pbb.8
+        for <linux-mm@kvack.org>; Mon, 21 Apr 2014 22:30:29 -0700 (PDT)
+Received: from mail-pb0-x234.google.com (mail-pb0-x234.google.com [2607:f8b0:400e:c01::234])
+        by mx.google.com with ESMTPS id as3si22050327pbc.479.2014.04.21.22.30.29
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 21 Apr 2014 22:15:27 -0700 (PDT)
-Received: by mail-vc0-f172.google.com with SMTP id la4so2009146vcb.17
-        for <linux-mm@kvack.org>; Mon, 21 Apr 2014 22:15:27 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <CA+55aFzFxBDJ2rWo9DggdNsq-qBCr11OVXnm64jx04KMSVCBAw@mail.gmail.com>
-References: <1398032742.19682.11.camel@pasglop>
-	<CA+55aFz1sK+PF96LYYZY7OB7PBpxZu-uNLWLvPiRz-tJsBqX3w@mail.gmail.com>
-	<1398054064.19682.32.camel@pasglop>
-	<1398057630.19682.38.camel@pasglop>
-	<CA+55aFwWHBtihC3w9E4+j4pz+6w7iTnYhTf4N3ie15BM9thxLQ@mail.gmail.com>
-	<53558507.9050703@zytor.com>
-	<CA+55aFxGm6J6N=4L7exLUFMr1_siNGHpK=wApd9GPCH1=63PPA@mail.gmail.com>
-	<53559F48.8040808@intel.com>
-	<CA+55aFwDtjA4Vp0yt0K5x6b6sAMtcn=61SEnOOs_En+3UXNpuA@mail.gmail.com>
-	<CA+55aFzFxBDJ2rWo9DggdNsq-qBCr11OVXnm64jx04KMSVCBAw@mail.gmail.com>
-Date: Mon, 21 Apr 2014 22:15:27 -0700
-Message-ID: <CA+8MBbLvWuSfP+7CFwAmSwNX7Uekob5p52BuwfkW=oz9=202HQ@mail.gmail.com>
-Subject: Re: Dirty/Access bits vs. page content
-From: Tony Luck <tony.luck@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+        Mon, 21 Apr 2014 22:30:29 -0700 (PDT)
+Received: by mail-pb0-f52.google.com with SMTP id rq2so562598pbb.39
+        for <linux-mm@kvack.org>; Mon, 21 Apr 2014 22:30:29 -0700 (PDT)
+From: Jianyu Zhan <nasa4836@gmail.com>
+Subject: [PATCH] hugetlb_cgroup: explicitly init the early_init field
+Date: Tue, 22 Apr 2014 13:30:20 +0800
+Message-Id: <1398144620-9630-1-git-send-email-nasa4836@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Dave Hansen <dave.hansen@intel.com>, "H. Peter Anvin" <hpa@zytor.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Peter Zijlstra <peterz@infradead.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>
+To: tj@kernel.org, lizefan@huawei.com
+Cc: containers@lists.linux-foundation.org, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, nasa4836@gmail.com
 
-On Mon, Apr 21, 2014 at 5:44 PM, Linus Torvalds
-<torvalds@linux-foundation.org> wrote:
-> I think Russell and Tony are both on linux-arch, so they probably saw
-> at least part of this discussion flow past already, but just in case
-> I'm adding them explicitly to the cc, because both ia64 and arm seem
-> to implement their own version of TLB batching rather than use the
-> generic code.
+For a cgroup subsystem who should init early, then it should carefully
+take care of the implementation of css_alloc, because it will be called
+before mm_init() setup the world.
 
-It builds and boots on ia64 with no new warnings.  I haven't done
-anything more stressful than booting though - so unsure whether
-there are any corners cases that might show up under load.
+Luckily we don't, and we better explicitly assign the early_init field
+to 0, for document reason.
 
--Tony
+Signed-off-by: Jianyu Zhan <nasa4836@gmail.com>
+---
+ mm/hugetlb_cgroup.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/mm/hugetlb_cgroup.c b/mm/hugetlb_cgroup.c
+index 595d7fd..b5368f8 100644
+--- a/mm/hugetlb_cgroup.c
++++ b/mm/hugetlb_cgroup.c
+@@ -405,4 +405,5 @@ struct cgroup_subsys hugetlb_cgrp_subsys = {
+ 	.css_alloc	= hugetlb_cgroup_css_alloc,
+ 	.css_offline	= hugetlb_cgroup_css_offline,
+ 	.css_free	= hugetlb_cgroup_css_free,
++	.early_init	= 0,
+ };
+-- 
+2.0.0-rc0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
