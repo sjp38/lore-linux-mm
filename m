@@ -1,105 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f50.google.com (mail-ee0-f50.google.com [74.125.83.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 373256B0035
-	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 04:38:57 -0400 (EDT)
-Received: by mail-ee0-f50.google.com with SMTP id c13so4249351eek.23
-        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 01:38:56 -0700 (PDT)
+Received: from mail-ee0-f52.google.com (mail-ee0-f52.google.com [74.125.83.52])
+	by kanga.kvack.org (Postfix) with ESMTP id E7A9A6B0035
+	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 05:25:14 -0400 (EDT)
+Received: by mail-ee0-f52.google.com with SMTP id e49so4382318eek.11
+        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 02:25:14 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g47si58661196eet.324.2014.04.22.01.38.55
+        by mx.google.com with ESMTPS id u5si58891860een.143.2014.04.22.02.25.12
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 22 Apr 2014 01:38:55 -0700 (PDT)
-Date: Tue, 22 Apr 2014 09:38:52 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH] mm: vmscan: Do not throttle based on pfmemalloc reserves if
- node has no ZONE_NORMAL
-Message-ID: <20140422083852.GB23991@suse.de>
+        Tue, 22 Apr 2014 02:25:13 -0700 (PDT)
+Date: Tue, 22 Apr 2014 11:25:08 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH] Documentation/memcg: warn about incomplete kmemcg state
+Message-ID: <20140422092508.GA29311@dhcp22.suse.cz>
+References: <1398066420-30707-1-git-send-email-vdavydov@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <1398066420-30707-1-git-send-email-vdavydov@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-throttle_direct_reclaim() is meant to trigger during swap-over-network
-during which the min watermark is treated as a pfmemalloc reserve. It
-throttes on the first node in the zonelist but this is flawed.
+On Mon 21-04-14 11:47:00, Vladimir Davydov wrote:
+> Kmemcg is currently under development and lacks some important features.
+> In particular, it does not have support of kmem reclaim on memory
+> pressure inside cgroup, which practically makes it unusable in real
+> life. Let's warn about it in both Kconfig and Documentation to prevent
+> complaints arising.
+> 
+> Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
 
-On a NUMA machine running a 32-bit kernel (I know) allocation requests
-freom CPUs on node 1 would detect no pfmemalloc reserves and the process
-gets throttled. This patch adjusts throttling of direct reclaim to throttle
-based on the first node in the zonelist that has a usable ZONE_NORMAL or
-lower zone.
+Thanks! This should have been merged log time ago...
 
-Signed-off-by: Mel Gorman <mgorman@suse.de>
----
- mm/vmscan.c | 33 +++++++++++++++++++++++++++------
- 1 file changed, 27 insertions(+), 6 deletions(-)
+Acked-by: Michal Hocko <mhocko@suse.cz>
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 3f56c8d..9c4918e9 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2507,10 +2507,17 @@ static bool pfmemalloc_watermark_ok(pg_data_t *pgdat)
- 
- 	for (i = 0; i <= ZONE_NORMAL; i++) {
- 		zone = &pgdat->node_zones[i];
-+		if (!populated_zone(zone))
-+			continue;
-+
- 		pfmemalloc_reserve += min_wmark_pages(zone);
- 		free_pages += zone_page_state(zone, NR_FREE_PAGES);
- 	}
- 
-+	/* If there are no reserves (unexpected config) then do not throttle */
-+	if (!pfmemalloc_reserve)
-+		return true;
-+
- 	wmark_ok = free_pages > pfmemalloc_reserve / 2;
- 
- 	/* kswapd must be awake if processes are being throttled */
-@@ -2535,9 +2542,9 @@ static bool pfmemalloc_watermark_ok(pg_data_t *pgdat)
- static bool throttle_direct_reclaim(gfp_t gfp_mask, struct zonelist *zonelist,
- 					nodemask_t *nodemask)
- {
-+	struct zoneref *z;
- 	struct zone *zone;
--	int high_zoneidx = gfp_zone(gfp_mask);
--	pg_data_t *pgdat;
-+	pg_data_t *pgdat = NULL;
- 
- 	/*
- 	 * Kernel threads should not be throttled as they may be indirectly
-@@ -2556,10 +2563,24 @@ static bool throttle_direct_reclaim(gfp_t gfp_mask, struct zonelist *zonelist,
- 	if (fatal_signal_pending(current))
- 		goto out;
- 
--	/* Check if the pfmemalloc reserves are ok */
--	first_zones_zonelist(zonelist, high_zoneidx, NULL, &zone);
--	pgdat = zone->zone_pgdat;
--	if (pfmemalloc_watermark_ok(pgdat))
-+	/*
-+	 * Check if the pfmemalloc reserves are ok by finding the first node
-+	 * with a usable ZONE_NORMAL or lower zone
-+	 */
-+        for_each_zone_zonelist_nodemask(zone, z, zonelist,
-+                                        gfp_mask, nodemask) {
-+		if (zone_idx(zone) > ZONE_NORMAL)
-+			continue;
-+
-+		/* Throttle based on the first usable node */
-+		pgdat = zone->zone_pgdat;
-+		if (pfmemalloc_watermark_ok(pgdat))
-+			goto out;
-+		break;
-+	}
-+
-+	/* If no zone was usable by the allocation flags then do not throttle */
-+	if (!pgdat)
- 		goto out;
- 
- 	/* Account for the throttling */
+> ---
+>  Documentation/cgroups/memory.txt |    5 +++++
+>  init/Kconfig                     |    6 ++++++
+>  2 files changed, 11 insertions(+)
+> 
+> diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
+> index 2622115276aa..af3cdfa3c07a 100644
+> --- a/Documentation/cgroups/memory.txt
+> +++ b/Documentation/cgroups/memory.txt
+> @@ -270,6 +270,11 @@ When oom event notifier is registered, event will be delivered.
+>  
+>  2.7 Kernel Memory Extension (CONFIG_MEMCG_KMEM)
+>  
+> +WARNING: Current implementation lacks reclaim support. That means allocation
+> +	 attempts will fail when close to the limit even if there are plenty of
+> +	 kmem available for reclaim. That makes this option unusable in real
+> +	 life so DO NOT SELECT IT unless for development purposes.
+> +
+>  With the Kernel memory extension, the Memory Controller is able to limit
+>  the amount of kernel memory used by the system. Kernel memory is fundamentally
+>  different than user memory, since it can't be swapped out, which makes it
+> diff --git a/init/Kconfig b/init/Kconfig
+> index 427ba60d638f..4d6e645c8ad4 100644
+> --- a/init/Kconfig
+> +++ b/init/Kconfig
+> @@ -993,6 +993,12 @@ config MEMCG_KMEM
+>  	  the kmem extension can use it to guarantee that no group of processes
+>  	  will ever exhaust kernel resources alone.
+>  
+> +	  WARNING: Current implementation lacks reclaim support. That means
+> +	  allocation attempts will fail when close to the limit even if there
+> +	  are plenty of kmem available for reclaim. That makes this option
+> +	  unusable in real life so DO NOT SELECT IT unless for development
+> +	  purposes.
+> +
+>  config CGROUP_HUGETLB
+>  	bool "HugeTLB Resource Controller for Control Groups"
+>  	depends on RESOURCE_COUNTERS && HUGETLB_PAGE
+> -- 
+> 1.7.10.4
+> 
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
