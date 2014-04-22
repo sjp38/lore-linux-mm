@@ -1,54 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f47.google.com (mail-ee0-f47.google.com [74.125.83.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 1DD8B6B0037
-	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 06:34:25 -0400 (EDT)
-Received: by mail-ee0-f47.google.com with SMTP id b15so4462168eek.34
-        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 03:34:24 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 45si59101916eeh.213.2014.04.22.03.34.23
+Received: from mail-lb0-f172.google.com (mail-lb0-f172.google.com [209.85.217.172])
+	by kanga.kvack.org (Postfix) with ESMTP id B1D6C6B0035
+	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 06:53:05 -0400 (EDT)
+Received: by mail-lb0-f172.google.com with SMTP id c11so4151284lbj.31
+        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 03:53:04 -0700 (PDT)
+Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
+        by mx.google.com with ESMTPS id on7si26138753lbb.137.2014.04.22.03.53.03
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 22 Apr 2014 03:34:23 -0700 (PDT)
-Date: Tue, 22 Apr 2014 12:34:21 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 1/2] mm/memcontrol.c: remove meaningless while loop in
- mem_cgroup_iter()
-Message-ID: <20140422103420.GI29311@dhcp22.suse.cz>
-References: <1397861935-31595-1-git-send-email-nasa4836@gmail.com>
- <20140422094759.GC29311@dhcp22.suse.cz>
- <CAHz2CGWrk3kuR=BLt2vT-8gxJVtJcj6h17ase9=1CoWXwK6a3w@mail.gmail.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 22 Apr 2014 03:53:03 -0700 (PDT)
+Message-ID: <53564A09.3090008@parallels.com>
+Date: Tue, 22 Apr 2014 14:52:57 +0400
+From: Vladimir Davydov <vdavydov@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAHz2CGWrk3kuR=BLt2vT-8gxJVtJcj6h17ase9=1CoWXwK6a3w@mail.gmail.com>
+Subject: Re: + slub-fix-memcg_propagate_slab_attrs.patch added to -mm tree
+References: <53518631.cuNCoAbpOk1NRWDf%akpm@linux-foundation.org> <20140422103051.GH29311@dhcp22.suse.cz>
+In-Reply-To: <20140422103051.GH29311@dhcp22.suse.cz>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jianyu Zhan <nasa4836@gmail.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Balbir Singh <bsingharora@gmail.com>, kamezawa.hiroyu@jp.fujitsu.com, Cgroups <cgroups@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: mm-commits@vger.kernel.org, penberg@kernel.org, hannes@cmpxchg.org, cl@linux.com, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
-On Tue 22-04-14 18:17:09, Jianyu Zhan wrote:
-> On Tue, Apr 22, 2014 at 5:47 PM, Michal Hocko <mhocko@suse.cz> wrote:
-> > What about
-> >   3. last_visited == last_node in the tree
-> >
-> > __mem_cgroup_iter_next returns NULL and the iterator would return
-> > without visiting anything.
+On 04/22/2014 02:30 PM, Michal Hocko wrote:
+> On Fri 18-04-14 13:08:17, Andrew Morton wrote:
+> [...]
+>> From: Vladimir Davydov <vdavydov@parallels.com>
+>> Subject: slub: fix memcg_propagate_slab_attrs
+>>
+>> After creating a cache for a memcg we should initialize its sysfs attrs
+>> with the values from its parent.  That's what memcg_propagate_slab_attrs
+>> is for.  Currently it's broken - we clearly muddled root-vs-memcg caches
+>> there.  Let's fix it up.
 > 
-> Hi,  Michal,
+> Andrew didn't so I'll do. What is the effect of the mismatch? I am
+> really drowning in that code...
+
+If we tune a kmem cache's params via sysfs and then create a memcg that
+wants to allocate from the cache, the memcg's copy of the cache will
+have default values of the sysfs params instead of those of the global
+cache.
+
 > 
-> yep,  if 3 last_visited == last_node, then this means we have done a round-trip,
-> thus __mem_cgroup_iter_next returns NULL, in turn mem_cgroup_iter() return NULL.
-
-Sorry, I should have been more specific that I was talking about
-mem_cgroup_reclaim_cookie path where the iteration for this particular
-zone and priority ended at the last node without finishing the full
-roundtrip last time. This new iteration (prev==NULL) wants to continue
-and it should start a new roundtrip.
-
-Makes sense?
--- 
-Michal Hocko
-SUSE Labs
+>> Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
+>> Cc: Christoph Lameter <cl@linux.com>
+>> Cc: Pekka Enberg <penberg@kernel.org>
+>> Cc: Michal Hocko <mhocko@suse.cz>
+>> Cc: Johannes Weiner <hannes@cmpxchg.org>
+>> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+>> ---
+>>
+>>  mm/slub.c |   11 +++++++----
+>>  1 file changed, 7 insertions(+), 4 deletions(-)
+>>
+>> diff -puN mm/slub.c~slub-fix-memcg_propagate_slab_attrs mm/slub.c
+>> --- a/mm/slub.c~slub-fix-memcg_propagate_slab_attrs
+>> +++ a/mm/slub.c
+>> @@ -5071,15 +5071,18 @@ static void memcg_propagate_slab_attrs(s
+>>  #ifdef CONFIG_MEMCG_KMEM
+>>  	int i;
+>>  	char *buffer = NULL;
+>> +	struct kmem_cache *root_cache;
+>>  
+>> -	if (!is_root_cache(s))
+>> +	if (is_root_cache(s))
+>>  		return;
+>>  
+>> +	root_cache = s->memcg_params->root_cache;
+>> +
+>>  	/*
+>>  	 * This mean this cache had no attribute written. Therefore, no point
+>>  	 * in copying default values around
+>>  	 */
+>> -	if (!s->max_attr_size)
+>> +	if (!root_cache->max_attr_size)
+>>  		return;
+>>  
+>>  	for (i = 0; i < ARRAY_SIZE(slab_attrs); i++) {
+>> @@ -5101,7 +5104,7 @@ static void memcg_propagate_slab_attrs(s
+>>  		 */
+>>  		if (buffer)
+>>  			buf = buffer;
+>> -		else if (s->max_attr_size < ARRAY_SIZE(mbuf))
+>> +		else if (root_cache->max_attr_size < ARRAY_SIZE(mbuf))
+>>  			buf = mbuf;
+>>  		else {
+>>  			buffer = (char *) get_zeroed_page(GFP_KERNEL);
+>> @@ -5110,7 +5113,7 @@ static void memcg_propagate_slab_attrs(s
+>>  			buf = buffer;
+>>  		}
+>>  
+>> -		attr->show(s->memcg_params->root_cache, buf);
+>> +		attr->show(root_cache, buf);
+>>  		attr->store(s, buf, strlen(buf));
+>>  	}
+>>  
+>> _
+>>
+>> Patches currently in -mm which might be from vdavydov@parallels.com are
+>>
+>> slub-fix-memcg_propagate_slab_attrs.patch
+>> slb-charge-slabs-to-kmemcg-explicitly.patch
+>> mm-get-rid-of-__gfp_kmemcg.patch
+>> mm-get-rid-of-__gfp_kmemcg-fix.patch
+>> slab-document-kmalloc_order.patch
+>>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
