@@ -1,20 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f45.google.com (mail-ee0-f45.google.com [74.125.83.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 974FB6B0044
-	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 12:54:13 -0400 (EDT)
-Received: by mail-ee0-f45.google.com with SMTP id d17so4788001eek.18
-        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 09:54:13 -0700 (PDT)
+Received: from mail-ee0-f49.google.com (mail-ee0-f49.google.com [74.125.83.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 801F36B004D
+	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 12:54:57 -0400 (EDT)
+Received: by mail-ee0-f49.google.com with SMTP id c41so4816898eek.8
+        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 09:54:56 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id u5si60585979een.113.2014.04.22.09.54.10
+        by mx.google.com with ESMTP id n7si60548824eeu.169.2014.04.22.09.54.54
         for <linux-mm@kvack.org>;
-        Tue, 22 Apr 2014 09:54:11 -0700 (PDT)
-Message-ID: <53569EA4.2000308@redhat.com>
-Date: Tue, 22 Apr 2014 12:53:56 -0400
+        Tue, 22 Apr 2014 09:54:55 -0700 (PDT)
+Message-ID: <53569ED3.2080206@redhat.com>
+Date: Tue, 22 Apr 2014 12:54:43 -0400
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/6] x86: mm: clean up tlb flushing code
-References: <20140421182418.81CF7519@viggo.jf.intel.com> <20140421182420.307A0C57@viggo.jf.intel.com>
-In-Reply-To: <20140421182420.307A0C57@viggo.jf.intel.com>
+Subject: Re: [PATCH 2/6] x86: mm: rip out complicated, out-of-date, buggy
+ TLB flushing
+References: <20140421182418.81CF7519@viggo.jf.intel.com> <20140421182421.DFAAD16A@viggo.jf.intel.com>
+In-Reply-To: <20140421182421.DFAAD16A@viggo.jf.intel.com>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -25,16 +26,32 @@ Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org,
 On 04/21/2014 02:24 PM, Dave Hansen wrote:
 > From: Dave Hansen <dave.hansen@linux.intel.com>
 > 
-> The
+> I think the flush_tlb_mm_range() code that tries to tune the
+> flush sizes based on the CPU needs to get ripped out for
+> several reasons:
 > 
-> 	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
+> 1. It is obviously buggy.  It uses mm->total_vm to judge the
+>    task's footprint in the TLB.  It should certainly be using
+>    some measure of RSS, *NOT* ->total_vm since only resident
+>    memory can populate the TLB.
+> 2. Haswell, and several other CPUs are missing from the
+>    intel_tlb_flushall_shift_set() function.  Thus, it has been
+>    demonstrated to bitrot quickly in practice.
+> 3. It is plain wrong in my vm:
+> 	[    0.037444] Last level iTLB entries: 4KB 0, 2MB 0, 4MB 0
+> 	[    0.037444] Last level dTLB entries: 4KB 0, 2MB 0, 4MB 0
+> 	[    0.037444] tlb_flushall_shift: 6
+>    Which leads to it to never use invlpg.
+> 4. The assumptions about TLB refill costs are wrong:
+> 	http://lkml.kernel.org/r/1337782555-8088-3-git-send-email-alex.shi@intel.com
+>     (more on this in later patches)
+> 5. I can not reproduce the original data: https://lkml.org/lkml/2012/5/17/59
+>    I believe the sample times were too short.  Running the
+>    benchmark in a loop yields times that vary quite a bit.
 > 
-> line of code is not exactly the easiest to audit, especially when
-> it ends up at two different indentation levels.  This eliminates
-> one of the the copy-n-paste versions.  It also gives us a unified
-> exit point for each path through this function.  We need this in
-> a minute for our tracepoint.
-> 
+> Note that this leaves us with a static ceiling of 1 page.  This
+> is a conservative, dumb setting, and will be revised in a later
+> patch.
 > 
 > Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 
