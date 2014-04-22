@@ -1,51 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ve0-f177.google.com (mail-ve0-f177.google.com [209.85.128.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 795A26B0035
-	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 10:55:39 -0400 (EDT)
-Received: by mail-ve0-f177.google.com with SMTP id sa20so9503294veb.22
-        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 07:55:39 -0700 (PDT)
-Received: from mail-ve0-x231.google.com (mail-ve0-x231.google.com [2607:f8b0:400c:c01::231])
-        by mx.google.com with ESMTPS id iz10si6937014vec.6.2014.04.22.07.55.38
+Received: from mail-ee0-f42.google.com (mail-ee0-f42.google.com [74.125.83.42])
+	by kanga.kvack.org (Postfix) with ESMTP id A53596B0035
+	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 11:12:10 -0400 (EDT)
+Received: by mail-ee0-f42.google.com with SMTP id d17so4758756eek.15
+        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 08:12:09 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id r9si60149227eew.288.2014.04.22.08.12.08
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 22 Apr 2014 07:55:38 -0700 (PDT)
-Received: by mail-ve0-f177.google.com with SMTP id sa20so9550617veb.36
-        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 07:55:38 -0700 (PDT)
+        Tue, 22 Apr 2014 08:12:09 -0700 (PDT)
+Date: Tue, 22 Apr 2014 16:12:03 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 0/3] Use an alternative to _PAGE_PROTNONE for _PAGE_NUMA
+ v4
+Message-ID: <20140422151203.GF23991@suse.de>
+References: <1397572876-1610-1-git-send-email-mgorman@suse.de>
+ <20140417025912.GA7797@localhost>
+ <20140417090655.GZ7292@suse.de>
+ <20140419074600.GA26343@localhost>
 MIME-Version: 1.0
-In-Reply-To: <CA+8MBbLvWuSfP+7CFwAmSwNX7Uekob5p52BuwfkW=oz9=202HQ@mail.gmail.com>
-References: <1398032742.19682.11.camel@pasglop>
-	<CA+55aFz1sK+PF96LYYZY7OB7PBpxZu-uNLWLvPiRz-tJsBqX3w@mail.gmail.com>
-	<1398054064.19682.32.camel@pasglop>
-	<1398057630.19682.38.camel@pasglop>
-	<CA+55aFwWHBtihC3w9E4+j4pz+6w7iTnYhTf4N3ie15BM9thxLQ@mail.gmail.com>
-	<53558507.9050703@zytor.com>
-	<CA+55aFxGm6J6N=4L7exLUFMr1_siNGHpK=wApd9GPCH1=63PPA@mail.gmail.com>
-	<53559F48.8040808@intel.com>
-	<CA+55aFwDtjA4Vp0yt0K5x6b6sAMtcn=61SEnOOs_En+3UXNpuA@mail.gmail.com>
-	<CA+55aFzFxBDJ2rWo9DggdNsq-qBCr11OVXnm64jx04KMSVCBAw@mail.gmail.com>
-	<CA+8MBbLvWuSfP+7CFwAmSwNX7Uekob5p52BuwfkW=oz9=202HQ@mail.gmail.com>
-Date: Tue, 22 Apr 2014 07:55:38 -0700
-Message-ID: <CA+55aFye7U7LAewDv=Lpb8V+g0FWiVtuAZdy-b6cAoRQXZZZcw@mail.gmail.com>
-Subject: Re: Dirty/Access bits vs. page content
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20140419074600.GA26343@localhost>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tony Luck <tony.luck@gmail.com>
-Cc: Dave Hansen <dave.hansen@intel.com>, "H. Peter Anvin" <hpa@zytor.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Peter Zijlstra <peterz@infradead.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>
+To: Fengguang Wu <fengguang.wu@intel.com>
+Cc: Ingo Molnar <mingo@kernel.org>, Peter Anvin <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Steven Noonan <steven@uplinklabs.net>, Rik van Riel <riel@redhat.com>, David Vrabel <david.vrabel@citrix.com>, Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, Cyrill Gorcunov <gorcunov@gmail.com>, Linux-X86 <x86@kernel.org>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, Apr 21, 2014 at 10:15 PM, Tony Luck <tony.luck@gmail.com> wrote:
->
-> It builds and boots on ia64 with no new warnings.  I haven't done
-> anything more stressful than booting though - so unsure whether
-> there are any corners cases that might show up under load.
+On Sat, Apr 19, 2014 at 03:46:00PM +0800, Fengguang Wu wrote:
+> On Thu, Apr 17, 2014 at 10:06:55AM +0100, Mel Gorman wrote:
+> > On Thu, Apr 17, 2014 at 10:59:12AM +0800, Fengguang Wu wrote:
+> > > On Tue, Apr 15, 2014 at 03:41:13PM +0100, Mel Gorman wrote:
+> > > > Fengguang Wu found that an earlier version crashed on his
+> > > > tests. This version passed tests running with DEBUG_VM and
+> > > > DEBUG_PAGEALLOC. Fengguang, another test would be appreciated and
+> > > > if it helps this series is the mm-numa-use-high-bit-v4r3 branch in
+> > > > git://git.kernel.org/pub/scm/linux/kernel/git/mel/linux-balancenuma.git
+> > > 
+> > > Hi Mel,
+> > > 
+> > > We noticed the below changes. The last_state.is_incomplete_run 0=>1 change
+> > > means the test box failed to boot up. Unfortunately we don't have
+> > > serial console output of this testbox, it may be hard to check the
+> > > root cause. Anyway, I'll try to bisect it to make the debug easier.
+> > > 
+> > 
+> > The bisection will be pretty small and probably point to the last patch.
+> 
+> Sorry I find it is lkp-a04 that is not reliable: by increasing test
+> count of v3.14, it boot hangs, too..
+> 
 
-Thanks. It shouldn't actually change any behavior on ia64 (you'd have
-to do any dirty bit batching yourself), I was mainly worried about
-compile warnings due to not having the set_page_dirty() declaration
-due to some odd header file issues.
+Is there any chance this is a regression introduced for 3.14 then?
 
-               Linus
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
