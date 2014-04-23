@@ -1,98 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f43.google.com (mail-ee0-f43.google.com [74.125.83.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 261B66B0035
-	for <linux-mm@kvack.org>; Wed, 23 Apr 2014 14:41:51 -0400 (EDT)
-Received: by mail-ee0-f43.google.com with SMTP id e53so1093141eek.30
-        for <linux-mm@kvack.org>; Wed, 23 Apr 2014 11:41:50 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r9si4438126eew.48.2014.04.23.11.41.48
+Received: from mail-qc0-f177.google.com (mail-qc0-f177.google.com [209.85.216.177])
+	by kanga.kvack.org (Postfix) with ESMTP id CAF136B0035
+	for <linux-mm@kvack.org>; Wed, 23 Apr 2014 15:25:10 -0400 (EDT)
+Received: by mail-qc0-f177.google.com with SMTP id w7so1436459qcr.22
+        for <linux-mm@kvack.org>; Wed, 23 Apr 2014 12:25:10 -0700 (PDT)
+Received: from e9.ny.us.ibm.com (e9.ny.us.ibm.com. [32.97.182.139])
+        by mx.google.com with ESMTPS id 68si1006967qgk.162.2014.04.23.12.25.09
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 23 Apr 2014 11:41:49 -0700 (PDT)
-Date: Wed, 23 Apr 2014 20:41:45 +0200
-From: Jan Kara <jack@suse.cz>
-Subject: Re: Dirty/Access bits vs. page content
-Message-ID: <20140423184145.GH17824@quack.suse.cz>
-References: <1398057630.19682.38.camel@pasglop>
- <CA+55aFwWHBtihC3w9E4+j4pz+6w7iTnYhTf4N3ie15BM9thxLQ@mail.gmail.com>
- <53558507.9050703@zytor.com>
- <CA+55aFxGm6J6N=4L7exLUFMr1_siNGHpK=wApd9GPCH1=63PPA@mail.gmail.com>
- <53559F48.8040808@intel.com>
- <CA+55aFwDtjA4Vp0yt0K5x6b6sAMtcn=61SEnOOs_En+3UXNpuA@mail.gmail.com>
- <CA+55aFzFxBDJ2rWo9DggdNsq-qBCr11OVXnm64jx04KMSVCBAw@mail.gmail.com>
- <20140422075459.GD11182@twins.programming.kicks-ass.net>
- <CA+55aFzM+NpE-EzJdDeYX=cqWRzkGv9o-vybDR=oFtDLMRK-mA@mail.gmail.com>
- <alpine.LSU.2.11.1404221847120.1759@eggly.anvils>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 23 Apr 2014 12:25:10 -0700 (PDT)
+Received: from /spool/local
+	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <nacc@linux.vnet.ibm.com>;
+	Wed, 23 Apr 2014 15:25:09 -0400
+Received: from b01cxnp23033.gho.pok.ibm.com (b01cxnp23033.gho.pok.ibm.com [9.57.198.28])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id 7BD9F38C803D
+	for <linux-mm@kvack.org>; Wed, 23 Apr 2014 15:25:06 -0400 (EDT)
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by b01cxnp23033.gho.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s3NJP60J4915536
+	for <linux-mm@kvack.org>; Wed, 23 Apr 2014 19:25:06 GMT
+Received: from d01av03.pok.ibm.com (localhost [127.0.0.1])
+	by d01av03.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s3NJP5RC029054
+	for <linux-mm@kvack.org>; Wed, 23 Apr 2014 15:25:06 -0400
+Date: Wed, 23 Apr 2014 12:24:59 -0700
+From: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
+Subject: Re: mmotm 2014-04-22-15-20 uploaded (uml 32- and 64-bit defconfigs)
+Message-ID: <20140423192459.GG4335@linux.vnet.ibm.com>
+References: <20140422222121.2FAB45A431E@corp2gmr1-2.hot.corp.google.com>
+ <5357F405.20205@infradead.org>
+ <20140423134131.778f0d0a@redhat.com>
+ <5357FCEB.2060507@infradead.org>
+ <20140423141600.4a303d95@redhat.com>
+ <20140423112442.5a5c8f23d580a65575e0c5fc@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1404221847120.1759@eggly.anvils>
+In-Reply-To: <20140423112442.5a5c8f23d580a65575e0c5fc@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@intel.com>, "H. Peter Anvin" <hpa@zytor.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Tony Luck <tony.luck@intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Luiz Capitulino <lcapitulino@redhat.com>, Randy Dunlap <rdunlap@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-next@vger.kernel.org, Richard Weinberger <richard@nod.at>
 
-On Tue 22-04-14 20:08:59, Hugh Dickins wrote:
-> On Tue, 22 Apr 2014, Linus Torvalds wrote:
-> > On Tue, Apr 22, 2014 at 12:54 AM, Peter Zijlstra <peterz@infradead.org> wrote:
-> > That said, Dave Hansen did report a BUG_ON() in
-> > mpage_prepare_extent_to_map(). His line number was odd, but I assume
-> > it's this one:
+On 23.04.2014 [11:24:42 -0700], Andrew Morton wrote:
+> On Wed, 23 Apr 2014 14:16:00 -0400 Luiz Capitulino <lcapitulino@redhat.com> wrote:
+> 
+> > On Wed, 23 Apr 2014 10:48:27 -0700
+> > > >>> You will need quilt to apply these patches to the latest Linus release (3.x
+> > > >>> or 3.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
+> > > >>> http://ozlabs.org/~akpm/mmotm/series
+> > > >>>
+> > > >>
+> > > >> include/linux/hugetlb.h:468:9: error: 'HPAGE_SHIFT' undeclared (first use in this function)
+> > > > 
+> > > > The patch adding HPAGE_SHIFT usage to hugetlb.h in current mmotm is this:
+> > > > 
+> > > > http://www.ozlabs.org/~akpm/mmotm/broken-out/hugetlb-ensure-hugepage-access-is-denied-if-hugepages-are-not-supported.patch
+> > > > 
+> > > > But I can't reproduce the issue to be sure what the problem is. Are you
+> > > > building the kernel on 32bits? Can you provide the output of
+> > > > "grep -i huge .config" or send your .config in private?
+> > > > 
+> > > 
+> > > [adding Richard to cc:]
+> > > 
+> > > 
+> > > As in $subject, if I build uml x86 32-bit or 64-bit defconfig, the build fails with
+> > > this error.
 > > 
-> >         BUG_ON(PageWriteback(page));
+> > Oh, I missed the subject info completely. Sorry about that.
 > > 
-> > which may be indicative of some oddity here wrt the dirty bit.
+> > So, the issue really seems to be introduced by patch:
+> > 
+> >  hugetlb-ensure-hugepage-access-is-denied-if-hugepages-are-not-supported.patch
+> > 
+> > And the problem is that UML doesn't define HPAGE_SHIFT. The following patch
+> > fixes it, but I'll let Nishanth decide what to do here.
 > 
-> Whereas later mail from Dave showed it to be the
-> 	BUG_ON(!PagePrivate(page));
-> in page_buffers() from fs/ext4/inode.c mpage_prepare_extent_to_map().
-> But still presumably some kind of fallout from your patches.
+> I'll try moving hugepages_supported() into the #ifdef
+> CONFIG_HUGETLB_PAGE section.
+
+This does seem like the right fix, I apologize for not doing enough
+build coverage!
+
+Acked-by: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
+
+> --- a/include/linux/hugetlb.h~hugetlb-ensure-hugepage-access-is-denied-if-hugepages-are-not-supported-fix-fix
+> +++ a/include/linux/hugetlb.h
+> @@ -412,6 +412,16 @@ static inline spinlock_t *huge_pte_lockp
+>  	return &mm->page_table_lock;
+>  }
 > 
-> Once upon a time there was a page_has_buffers() check in there,
-> but Honza decided that's nowadays unnecessary in f8bec37037ac
-> "ext4: dirty page has always buffers attached".  Cc'ed,
-> he may very well have some good ideas.
+> +static inline bool hugepages_supported(void)
+> +{
+> +	/*
+> +	 * Some platform decide whether they support huge pages at boot
+> +	 * time. On these, such as powerpc, HPAGE_SHIFT is set to 0 when
+> +	 * there is no such support
+> +	 */
+> +	return HPAGE_SHIFT != 0;
+> +}
+> +
+>  #else	/* CONFIG_HUGETLB_PAGE */
+>  struct hstate {};
+>  #define alloc_huge_page_node(h, nid) NULL
+> @@ -460,14 +470,4 @@ static inline spinlock_t *huge_pte_lock(
+>  	return ptl;
+>  }
 > 
-> Reading that commit reminded me of how we actually don't expect that
-> set_page_dirty() in zap_pte_range() to do anything at all on the usual
-> mapping_cap_account_dirty()/page_mkwrite() filesystems, do we?  Or do we?
-  Yes, for shared file mappings we (as in filesystems implementing
-page_mkwrite() handler) expect a page is writeably mmapped iff the page is
-dirty. So in particular we don't expect set_page_dirty() in zap_pte_range()
-to do anything because if the pte has dirty bit set, we are tearing down a
-writeable mapping of the page and thus the page should be already dirty.
-
-Now the devil is in synchronization of different places where transitions
-from/to writeably-mapped state happen. In the fault path (do_wp_page())
-where transition to writeably-mapped happens we hold page lock while
-calling set_page_dirty(). In the writeout path (clear_page_dirty_for_io())
-where we transition from writeably-mapped we hold the page lock as well
-while calling page_mkclean() and possibly set_page_dirty(). So these two
-places are nicely serialized. However zap_pte_range() doesn't hold page
-lock so it can race with the previous two places. Before Linus' patches we
-called set_page_dirty() under pte lock in zap_pte_range() and also before
-decrementing page->mapcount. So if zap_pte_range() raced with
-clear_page_dirty_for_io() we were guaranteed that by the time
-clear_page_dirty_for_io() returns, pte dirty bit is cleared and
-set_page_dirty() was called (either from clear_page_dirty_for_io() or from
-zap_pte_range()).
-
-However with Linus' patches set_page_dirty() from zap_pte_range() gets
-called after decremeting page->mapcount so page_mkclean() won't event try
-to walk rmap. And even if page_mkclean() did walk the rmap, zap_pte_range()
-calls set_page_dirty() after dropping pte lock so it can get called long
-after page_mkclean() (and clear_page_dirty_for_io()) has returned.
-
-Now I'm not sure how to fix Linus' patches. For all I care we could just
-rip out pte dirty bit handling for file mappings. However last time I
-suggested this you corrected me that tmpfs & ramfs need this. I assume this
-is still the case - however, given we unconditionally mark the page dirty
-for write faults, where exactly do we need this?
-
-								Honza
--- 
-Jan Kara <jack@suse.cz>
-SUSE Labs, CR
+> -static inline bool hugepages_supported(void)
+> -{
+> -	/*
+> -	 * Some platform decide whether they support huge pages at boot
+> -	 * time. On these, such as powerpc, HPAGE_SHIFT is set to 0 when
+> -	 * there is no such support
+> -	 */
+> -	return HPAGE_SHIFT != 0;
+> -}
+> -
+>  #endif /* _LINUX_HUGETLB_H */
+> _
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
