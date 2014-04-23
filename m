@@ -1,64 +1,161 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yh0-f50.google.com (mail-yh0-f50.google.com [209.85.213.50])
-	by kanga.kvack.org (Postfix) with ESMTP id D01726B0035
-	for <linux-mm@kvack.org>; Wed, 23 Apr 2014 09:20:46 -0400 (EDT)
-Received: by mail-yh0-f50.google.com with SMTP id t59so801054yho.23
-        for <linux-mm@kvack.org>; Wed, 23 Apr 2014 06:20:46 -0700 (PDT)
-Received: from cam-admin0.cambridge.arm.com (cam-admin0.cambridge.arm.com. [217.140.96.50])
-        by mx.google.com with ESMTP id o24si1038655yhn.145.2014.04.23.06.20.45
-        for <linux-mm@kvack.org>;
-        Wed, 23 Apr 2014 06:20:46 -0700 (PDT)
-Date: Wed, 23 Apr 2014 14:20:33 +0100
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [PATCH v3] ARM: mm: support big-endian page tables
-Message-ID: <20140423132033.GE5649@arm.com>
-References: <534F9F79.9050503@huawei.com>
- <87ob00wau2.fsf@approximate.cambridge.arm.com>
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id A88116B0035
+	for <linux-mm@kvack.org>; Wed, 23 Apr 2014 09:44:37 -0400 (EDT)
+Received: by mail-pd0-f172.google.com with SMTP id w10so789832pde.31
+        for <linux-mm@kvack.org>; Wed, 23 Apr 2014 06:44:37 -0700 (PDT)
+Received: from mx11.netapp.com (mx11.netapp.com. [216.240.18.76])
+        by mx.google.com with ESMTPS id td10si675615pac.17.2014.04.23.06.44.35
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 23 Apr 2014 06:44:36 -0700 (PDT)
+Message-ID: <5357C3AC.9090203@netapp.com>
+Date: Wed, 23 Apr 2014 09:44:12 -0400
+From: Anna Schumaker <Anna.Schumaker@netapp.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <87ob00wau2.fsf@approximate.cambridge.arm.com>
+Subject: Re: [PATCH 4/5] SUNRPC: track when a client connection is routed
+ to the local host.
+References: <20140423022441.4725.89693.stgit@notabene.brown> <20140423024058.4725.7703.stgit@notabene.brown>
+In-Reply-To: <20140423024058.4725.7703.stgit@notabene.brown>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marc Zyngier <marc.zyngier@arm.com>
-Cc: Jianguo Wu <wujianguo@huawei.com>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>, Ben Dooks <ben.dooks@codethink.co.uk>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Catalin Marinas <Catalin.Marinas@arm.com>, Li Zefan <lizefan@huawei.com>, Wang Nan <wangnan0@huawei.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: NeilBrown <neilb@suse.de>, Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@redhat.com>, Trond Myklebust <trond.myklebust@primarydata.com>, Dave Chinner <david@fromorbit.com>, "J. Bruce Fields" <bfields@fieldses.org>, Mel Gorman <mgorman@suse.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Hi Jianguo,
+On 04/22/2014 10:40 PM, NeilBrown wrote:
+> If requests are being sent to the local host, then NFS will
+> need to take care to avoid deadlocks.
+>
+> So keep track when accepting a connection or sending a UDP request
+> and set a flag in the svc_xprt when the peer connected to is local.
+>
+> The interface rpc_is_foreign() is provided to check is a given client
+> is connected to a foreign server.  When it returns zero it is either
+> not connected or connected to a local server and in either case
+> greater care is needed.
+>
+> Signed-off-by: NeilBrown <neilb@suse.de>
+> ---
+>  include/linux/sunrpc/clnt.h |    1 +
+>  include/linux/sunrpc/xprt.h |    1 +
+>  net/sunrpc/clnt.c           |   25 +++++++++++++++++++++++++
+>  net/sunrpc/xprtsock.c       |   17 +++++++++++++++++
+>  4 files changed, 44 insertions(+)
+>
+> diff --git a/include/linux/sunrpc/clnt.h b/include/linux/sunrpc/clnt.h
+> index 8af2804bab16..5d626cc5ab01 100644
+> --- a/include/linux/sunrpc/clnt.h
+> +++ b/include/linux/sunrpc/clnt.h
+> @@ -173,6 +173,7 @@ void		rpc_force_rebind(struct rpc_clnt *);
+>  size_t		rpc_peeraddr(struct rpc_clnt *, struct sockaddr *, size_t);
+>  const char	*rpc_peeraddr2str(struct rpc_clnt *, enum rpc_display_format_t);
+>  int		rpc_localaddr(struct rpc_clnt *, struct sockaddr *, size_t);
+> +int		rpc_is_foreign(struct rpc_clnt *);
+>  
+>  #endif /* __KERNEL__ */
+>  #endif /* _LINUX_SUNRPC_CLNT_H */
+> diff --git a/include/linux/sunrpc/xprt.h b/include/linux/sunrpc/xprt.h
+> index 8097b9df6773..318ee37bc358 100644
+> --- a/include/linux/sunrpc/xprt.h
+> +++ b/include/linux/sunrpc/xprt.h
+> @@ -340,6 +340,7 @@ int			xs_swapper(struct rpc_xprt *xprt, int enable);
+>  #define XPRT_CONNECTION_ABORT	(7)
+>  #define XPRT_CONNECTION_CLOSE	(8)
+>  #define XPRT_CONGESTED		(9)
+> +#define XPRT_LOCAL		(10)
+>  
+>  static inline void xprt_set_connected(struct rpc_xprt *xprt)
+>  {
+> diff --git a/net/sunrpc/clnt.c b/net/sunrpc/clnt.c
+> index 0edada973434..454cea69b373 100644
+> --- a/net/sunrpc/clnt.c
+> +++ b/net/sunrpc/clnt.c
+> @@ -1109,6 +1109,31 @@ const char *rpc_peeraddr2str(struct rpc_clnt *clnt,
+>  }
+>  EXPORT_SYMBOL_GPL(rpc_peeraddr2str);
+>  
+> +/**
+> + * rpc_is_foreign - report is rpc client was recently connected to
+> + *                  remote host
+> + * @clnt: RPC client structure
+> + *
+> + * If the client is not connected, or connected to the local host
+> + * (any IP address), then return 0.  Only return non-zero if the
+> + * most recent state was a connection to a remote host.
+> + * For UDP the client always appears to be connected, and the
+> + * remoteness of the host is of the destination of the last transmission.
+> + */
+> +int rpc_is_foreign(struct rpc_clnt *clnt)
+> +{
+> +	struct rpc_xprt *xprt;
+> +	int conn_foreign;
+> +
+> +	rcu_read_lock();
+> +	xprt = rcu_dereference(clnt->cl_xprt);
+> +	conn_foreign = (xprt && xprt_connected(xprt)
+> +			&& !test_bit(XPRT_LOCAL, &xprt->state));
+> +	rcu_read_unlock();
+> +	return conn_foreign;
+> +}
+> +EXPORT_SYMBOL_GPL(rpc_is_foreign);
+> +
+>  static const struct sockaddr_in rpc_inaddr_loopback = {
+>  	.sin_family		= AF_INET,
+>  	.sin_addr.s_addr	= htonl(INADDR_ANY),
+> diff --git a/net/sunrpc/xprtsock.c b/net/sunrpc/xprtsock.c
+> index 0addefca8e77..74796cf37d5b 100644
+> --- a/net/sunrpc/xprtsock.c
+> +++ b/net/sunrpc/xprtsock.c
+> @@ -642,6 +642,15 @@ static int xs_udp_send_request(struct rpc_task *task)
+>  			xdr->len - req->rq_bytes_sent, status);
+>  
+>  	if (status >= 0) {
+> +		struct dst_entry *dst;
+> +		rcu_read_lock();
+> +		dst = rcu_dereference(transport->sock->sk->sk_dst_cache);
+> +		if (dst && dst->dev && (dst->dev->features & NETIF_F_LOOPBACK))
+> +			set_bit(XPRT_LOCAL, &xprt->state);
+> +		else
+> +			clear_bit(XPRT_LOCAL, &xprt->state);
+> +		rcu_read_unlock();
+> +
+You repeat this block of code a bit later.  Can you please make it an inline helper function?
 
-On Thu, Apr 17, 2014 at 10:43:01AM +0100, Marc Zyngier wrote:
-> On Thu, Apr 17 2014 at 10:31:37 am BST, Jianguo Wu <wujianguo@huawei.com> wrote:
-> > When enable LPAE and big-endian in a hisilicon board, while specify
-> > mem=384M mem=512M@7680M, will get bad page state:
-> >
-> > Freeing unused kernel memory: 180K (c0466000 - c0493000)
-> > BUG: Bad page state in process init  pfn:fa442
-> > page:c7749840 count:0 mapcount:-1 mapping:  (null) index:0x0
-> > page flags: 0x40000400(reserved)
-> > Modules linked in:
-> > CPU: 0 PID: 1 Comm: init Not tainted 3.10.27+ #66
-> > [<c000f5f0>] (unwind_backtrace+0x0/0x11c) from [<c000cbc4>] (show_stack+0x10/0x14)
-> > [<c000cbc4>] (show_stack+0x10/0x14) from [<c009e448>] (bad_page+0xd4/0x104)
-> > [<c009e448>] (bad_page+0xd4/0x104) from [<c009e520>] (free_pages_prepare+0xa8/0x14c)
-> > [<c009e520>] (free_pages_prepare+0xa8/0x14c) from [<c009f8ec>] (free_hot_cold_page+0x18/0xf0)
-> > [<c009f8ec>] (free_hot_cold_page+0x18/0xf0) from [<c00b5444>] (handle_pte_fault+0xcf4/0xdc8)
-> > [<c00b5444>] (handle_pte_fault+0xcf4/0xdc8) from [<c00b6458>] (handle_mm_fault+0xf4/0x120)
-> > [<c00b6458>] (handle_mm_fault+0xf4/0x120) from [<c0013754>] (do_page_fault+0xfc/0x354)
-> > [<c0013754>] (do_page_fault+0xfc/0x354) from [<c0008400>] (do_DataAbort+0x2c/0x90)
-> > [<c0008400>] (do_DataAbort+0x2c/0x90) from [<c0008fb4>] (__dabt_usr+0x34/0x40)
+Anna
 
-
-[...]
-
-Please can you put this into Russell's patch system? You can also add my
-ack:
-
-  Acked-by: Will Deacon <will.deacon@arm.com>
-
-You should also CC stable <stable@vger.kernel.org> in the commit log.
-
-Cheers,
-
-Will
+>  		req->rq_xmit_bytes_sent += status;
+>  		if (status >= req->rq_slen)
+>  			return 0;
+> @@ -1527,6 +1536,7 @@ static void xs_sock_mark_closed(struct rpc_xprt *xprt)
+>  static void xs_tcp_state_change(struct sock *sk)
+>  {
+>  	struct rpc_xprt *xprt;
+> +	struct dst_entry *dst;
+>  
+>  	read_lock_bh(&sk->sk_callback_lock);
+>  	if (!(xprt = xprt_from_sock(sk)))
+> @@ -1556,6 +1566,13 @@ static void xs_tcp_state_change(struct sock *sk)
+>  
+>  			xprt_wake_pending_tasks(xprt, -EAGAIN);
+>  		}
+> +		rcu_read_lock();
+> +		dst = rcu_dereference(sk->sk_dst_cache);
+> +		if (dst && dst->dev && (dst->dev->features & NETIF_F_LOOPBACK))
+> +			set_bit(XPRT_LOCAL, &xprt->state);
+> +		else
+> +			clear_bit(XPRT_LOCAL, &xprt->state);
+> +		rcu_read_unlock();
+>  		spin_unlock(&xprt->transport_lock);
+>  		break;
+>  	case TCP_FIN_WAIT1:
+>
+>
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-nfs" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
