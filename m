@@ -1,88 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f48.google.com (mail-ee0-f48.google.com [74.125.83.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 17DE26B0035
-	for <linux-mm@kvack.org>; Wed, 23 Apr 2014 08:55:05 -0400 (EDT)
-Received: by mail-ee0-f48.google.com with SMTP id b57so745135eek.35
-        for <linux-mm@kvack.org>; Wed, 23 Apr 2014 05:55:05 -0700 (PDT)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id d5si3107830eei.58.2014.04.23.05.55.04
+Received: from mail-ee0-f50.google.com (mail-ee0-f50.google.com [74.125.83.50])
+	by kanga.kvack.org (Postfix) with ESMTP id A0C326B0035
+	for <linux-mm@kvack.org>; Wed, 23 Apr 2014 09:14:09 -0400 (EDT)
+Received: by mail-ee0-f50.google.com with SMTP id c13so772209eek.23
+        for <linux-mm@kvack.org>; Wed, 23 Apr 2014 06:14:08 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id y41si3167246eel.110.2014.04.23.06.14.07
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 23 Apr 2014 05:55:04 -0700 (PDT)
-Date: Wed, 23 Apr 2014 08:54:55 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH -mm -repost] memcg: do not hang on OOM when killed by
- userspace OOM access to memory reserves
-Message-ID: <20140423125455.GA31836@cmpxchg.org>
-References: <1398247922-2374-1-git-send-email-mhocko@suse.cz>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 23 Apr 2014 06:14:08 -0700 (PDT)
+Date: Wed, 23 Apr 2014 14:14:04 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 2/2] swap: use separate priority list for available
+ swap_infos
+Message-ID: <20140423131404.GI23991@suse.de>
+References: <alpine.LSU.2.11.1402232344280.1890@eggly.anvils>
+ <1397336454-13855-1-git-send-email-ddstreet@ieee.org>
+ <1397336454-13855-3-git-send-email-ddstreet@ieee.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1398247922-2374-1-git-send-email-mhocko@suse.cz>
+In-Reply-To: <1397336454-13855-3-git-send-email-ddstreet@ieee.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, "Eric W. Biederman" <ebiederm@xmission.com>, David Rientjes <rientjes@google.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, stable@vger.kernel.org
+To: Dan Streetman <ddstreet@ieee.org>
+Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Weijie Yang <weijieut@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Apr 23, 2014 at 12:12:02PM +0200, Michal Hocko wrote:
-> Eric has reported that he can see task(s) stuck in memcg OOM handler
-> regularly.  The only way out is to
+On Sat, Apr 12, 2014 at 05:00:54PM -0400, Dan Streetman wrote:
+> Originally get_swap_page() started iterating through the singly-linked
+> list of swap_info_structs using swap_list.next or highest_priority_index,
+> which both were intended to point to the highest priority active swap
+> target that was not full.  The previous patch in this series changed the
+> singly-linked list to a doubly-linked list, and removed the logic to start
+> at the highest priority non-full entry; it starts scanning at the highest
+> priority entry each time, even if the entry is full.
 > 
-> 	echo 0 > $GROUP/memory.oom_controll
+> Add a new list, also priority ordered, to track only swap_info_structs
+> that are available, i.e. active and not full.  Use a new spinlock so that
+> entries can be added/removed outside of get_swap_page; that wasn't possible
+> previously because the main list is protected by swap_lock, which can't be
+> taken when holding a swap_info_struct->lock because of locking order.
+> The get_swap_page() logic now does not need to hold the swap_lock, and it
+> iterates only through swap_info_structs that are available.
 > 
-> His usecase is:
+> Signed-off-by: Dan Streetman <ddstreet@ieee.org>
+> ---
+>  include/linux/swap.h |   1 +
+>  mm/swapfile.c        | 128 ++++++++++++++++++++++++++++++++++-----------------
+>  2 files changed, 87 insertions(+), 42 deletions(-)
 > 
-> - Setup a hierarchy with memory and the freezer (disable kernel oom and
->   have a process watch for oom).
-> 
-> - In that memory cgroup add a process with one thread per cpu.
-> 
-> - In one thread slowly allocate once per second I think it is 16M of ram
->   and mlock and dirty it (just to force the pages into ram and stay
->   there).
-> 
-> - When oom is achieved loop:
->   * attempt to freeze all of the tasks.
->   * if frozen send every task SIGKILL, unfreeze, remove the directory in
->     cgroupfs.
-> 
-> Eric has then pinpointed the issue to be memcg specific.
-> 
-> All tasks are sitting on the memcg_oom_waitq when memcg oom is disabled.
-> Those that have received fatal signal will bypass the charge and should
-> continue on their way out.  The tricky part is that the exit path might
-> trigger a page fault (e.g.  exit_robust_list), thus the memcg charge,
-> while its memcg is still under OOM because nobody has released any charges
-> yet.
-> 
-> Unlike with the in-kernel OOM handler the exiting task doesn't get
-> TIF_MEMDIE set so it doesn't shortcut further charges of the killed task
-> and falls to the memcg OOM again without any way out of it as there are no
-> fatal signals pending anymore.
-> 
-> This patch fixes the issue by checking PF_EXITING early in
-> mem_cgroup_try_charge and bypass the charge same as if it had fatal
-> signal pending or TIF_MEMDIE set.
-> 
-> Normally exiting tasks (aka not killed) will bypass the charge now but
-> this should be OK as the task is leaving and will release memory and
-> increasing the memory pressure just to release it in a moment seems
-> dubious wasting of cycles.  Besides that charges after exit_signals should
-> be rare.
-> 
-> Reported-by: Eric W. Biederman <ebiederm@xmission.com>
-> Signed-off-by: Michal Hocko <mhocko@suse.cz>
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Cc: <stable@vger.kernel.org>
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> diff --git a/include/linux/swap.h b/include/linux/swap.h
+> index 96662d8..d9263db 100644
+> --- a/include/linux/swap.h
+> +++ b/include/linux/swap.h
+> @@ -214,6 +214,7 @@ struct percpu_cluster {
+>  struct swap_info_struct {
+>  	unsigned long	flags;		/* SWP_USED etc: see above */
+>  	signed short	prio;		/* swap priority of this type */
+> +	struct list_head prio_list;	/* entry in priority list */
+>  	struct list_head list;		/* entry in swap list */
+>  	signed char	type;		/* strange name for an index */
+>  	unsigned int	max;		/* extent of the swap_map */
+> diff --git a/mm/swapfile.c b/mm/swapfile.c
+> index b958645..3c38461 100644
+> --- a/mm/swapfile.c
+> +++ b/mm/swapfile.c
+> @@ -57,9 +57,13 @@ static const char Unused_file[] = "Unused swap file entry ";
+>  static const char Bad_offset[] = "Bad swap offset entry ";
+>  static const char Unused_offset[] = "Unused swap offset entry ";
+>  
+> -/* all active swap_info */
+> +/* all active swap_info; protected with swap_lock */
+>  LIST_HEAD(swap_list_head);
+>  
+> +/* all available (active, not full) swap_info, priority ordered */
+> +static LIST_HEAD(prio_head);
+> +static DEFINE_SPINLOCK(prio_lock);
+> +
 
-We're allowing fatal_signal_pending() tasks to bypass the limit
-already, so I don't see why we shouldn't do the same for tasks that
-cleared the signal and are in fact exiting.
+I get why you maintain two lists with separate locking but it's code that
+is specific to swap and in many respects, it's very similar to a plist. Is
+there a reason why plist was not used at least for prio_head? They're used
+for futex's so presumably the performance is reasonable. It might reduce
+the size of swapfile.c further.
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+It is the case that plist does not have the equivalent of rotate which
+you need to recycle the entries of equal priority but you could add a
+plist_shuffle helper that "rotates the list left if the next entry is of
+equal priority".
+
+I was going to suggest that you could then get rid of swap_list_head but
+it's a relatively big change. swapoff wouldn't care but frontswap would
+suffer if it had to walk all of swap_info[] to find all active swap
+files.
+
+>  struct swap_info_struct *swap_info[MAX_SWAPFILES];
+>  
+>  static DEFINE_MUTEX(swapon_mutex);
+> @@ -73,6 +77,27 @@ static inline unsigned char swap_count(unsigned char ent)
+>  	return ent & ~SWAP_HAS_CACHE;	/* may include SWAP_HAS_CONT flag */
+>  }
+>  
+> +/*
+> + * add, in priority order, swap_info (p)->(le) list_head to list (lh)
+> + * this list-generic function is needed because both swap_list_head
+> + * and prio_head need to be priority ordered:
+> + * swap_list_head in swapoff to adjust lower negative prio swap_infos
+> + * prio_list in get_swap_page to scan highest prio swap_info first
+> + */
+> +#define swap_info_list_add(p, lh, le) do {			\
+> +	struct swap_info_struct *_si;				\
+> +	BUG_ON(!list_empty(&(p)->le));				\
+> +	list_for_each_entry(_si, (lh), le) {			\
+> +		if ((p)->prio >= _si->prio) {			\
+> +			list_add_tail(&(p)->le, &_si->le);	\
+> +			break;					\
+> +		}						\
+> +	}							\
+> +	/* lh empty, or p lowest prio */			\
+> +	if (list_empty(&(p)->le))				\
+> +		list_add_tail(&(p)->le, (lh));			\
+> +} while (0)
+> +
+
+Why is this a #define instead of a static uninlined function?
+
+That aside, it's again very similar to what a plist does with some
+minor structure modifications.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
