@@ -1,89 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 939216B0035
-	for <linux-mm@kvack.org>; Wed, 23 Apr 2014 19:28:23 -0400 (EDT)
-Received: by mail-pd0-f169.google.com with SMTP id y13so341883pdi.14
-        for <linux-mm@kvack.org>; Wed, 23 Apr 2014 16:28:23 -0700 (PDT)
-Received: from mail-pa0-x22d.google.com (mail-pa0-x22d.google.com [2607:f8b0:400e:c03::22d])
-        by mx.google.com with ESMTPS id ng4si1462606pbc.405.2014.04.23.16.28.22
+Received: from mail-yh0-f49.google.com (mail-yh0-f49.google.com [209.85.213.49])
+	by kanga.kvack.org (Postfix) with ESMTP id C1B606B0035
+	for <linux-mm@kvack.org>; Wed, 23 Apr 2014 19:31:34 -0400 (EDT)
+Received: by mail-yh0-f49.google.com with SMTP id z6so1545078yhz.22
+        for <linux-mm@kvack.org>; Wed, 23 Apr 2014 16:31:34 -0700 (PDT)
+Received: from e39.co.us.ibm.com (e39.co.us.ibm.com. [32.97.110.160])
+        by mx.google.com with ESMTPS id e62si3059408yhm.21.2014.04.23.16.31.33
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 23 Apr 2014 16:28:22 -0700 (PDT)
-Received: by mail-pa0-f45.google.com with SMTP id kq14so612332pab.18
-        for <linux-mm@kvack.org>; Wed, 23 Apr 2014 16:28:22 -0700 (PDT)
-Date: Wed, 23 Apr 2014 16:28:14 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH -mm -repost] memcg: do not hang on OOM when killed by
- userspace OOM access to memory reserves
-In-Reply-To: <1398247922-2374-1-git-send-email-mhocko@suse.cz>
-Message-ID: <alpine.DEB.2.02.1404231627410.11506@chino.kir.corp.google.com>
-References: <1398247922-2374-1-git-send-email-mhocko@suse.cz>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 23 Apr 2014 16:31:34 -0700 (PDT)
+Received: from /spool/local
+	by e39.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <nacc@linux.vnet.ibm.com>;
+	Wed, 23 Apr 2014 17:31:33 -0600
+Received: from b01cxnp22035.gho.pok.ibm.com (b01cxnp22035.gho.pok.ibm.com [9.57.198.25])
+	by d01dlp01.pok.ibm.com (Postfix) with ESMTP id C289F38C8029
+	for <linux-mm@kvack.org>; Wed, 23 Apr 2014 19:31:29 -0400 (EDT)
+Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
+	by b01cxnp22035.gho.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s3NNVTiQ3277272
+	for <linux-mm@kvack.org>; Wed, 23 Apr 2014 23:31:29 GMT
+Received: from d01av04.pok.ibm.com (localhost [127.0.0.1])
+	by d01av04.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s3NNVT5B027151
+	for <linux-mm@kvack.org>; Wed, 23 Apr 2014 19:31:29 -0400
+Date: Wed, 23 Apr 2014 16:31:24 -0700
+From: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
+Subject: Re: mmotm 2014-04-22-15-20 uploaded (uml 32- and 64-bit defconfigs)
+Message-ID: <20140423233124.GA3869@linux.vnet.ibm.com>
+References: <20140422222121.2FAB45A431E@corp2gmr1-2.hot.corp.google.com>
+ <5357F405.20205@infradead.org>
+ <20140423134131.778f0d0a@redhat.com>
+ <5357FCEB.2060507@infradead.org>
+ <20140423141600.4a303d95@redhat.com>
+ <20140423112442.5a5c8f23d580a65575e0c5fc@linux-foundation.org>
+ <20140424081019.596b5d23c624f5721ba0480a@canb.auug.org.au>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140424081019.596b5d23c624f5721ba0480a@canb.auug.org.au>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, "Eric W. Biederman" <ebiederm@xmission.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, stable@vger.kernel.org
+To: Stephen Rothwell <sfr@canb.auug.org.au>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Luiz Capitulino <lcapitulino@redhat.com>, Randy Dunlap <rdunlap@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-next@vger.kernel.org, Richard Weinberger <richard@nod.at>
 
-On Wed, 23 Apr 2014, Michal Hocko wrote:
+On 24.04.2014 [08:10:19 +1000], Stephen Rothwell wrote:
+> Hi all,
+> 
+> On Wed, 23 Apr 2014 11:24:42 -0700 Andrew Morton <akpm@linux-foundation.org> wrote:
+> >
+> > I'll try moving hugepages_supported() into the #ifdef
+> > CONFIG_HUGETLB_PAGE section.
+> > 
+> > --- a/include/linux/hugetlb.h~hugetlb-ensure-hugepage-access-is-denied-if-hugepages-are-not-supported-fix-fix
+> > +++ a/include/linux/hugetlb.h
+> > @@ -412,6 +412,16 @@ static inline spinlock_t *huge_pte_lockp
+> >  	return &mm->page_table_lock;
+> >  }
+> >  
+> > +static inline bool hugepages_supported(void)
+> > +{
+> > +	/*
+> > +	 * Some platform decide whether they support huge pages at boot
+> > +	 * time. On these, such as powerpc, HPAGE_SHIFT is set to 0 when
+> > +	 * there is no such support
+> > +	 */
+> > +	return HPAGE_SHIFT != 0;
+> > +}
+> > +
+> >  #else	/* CONFIG_HUGETLB_PAGE */
+> >  struct hstate {};
+> >  #define alloc_huge_page_node(h, nid) NULL
+> > @@ -460,14 +470,4 @@ static inline spinlock_t *huge_pte_lock(
+> >  	return ptl;
+> >  }
+> >  
+> > -static inline bool hugepages_supported(void)
+> > -{
+> > -	/*
+> > -	 * Some platform decide whether they support huge pages at boot
+> > -	 * time. On these, such as powerpc, HPAGE_SHIFT is set to 0 when
+> > -	 * there is no such support
+> > -	 */
+> > -	return HPAGE_SHIFT != 0;
+> > -}
+> > -
+> >  #endif /* _LINUX_HUGETLB_H */
+> 
+> Clearly, noone reads my emails :-(
+> 
+> This is exactly what I reported and the fix I applied to yesterday's
+> linux-next ...
 
-> Eric has reported that he can see task(s) stuck in memcg OOM handler
-> regularly.  The only way out is to
-> 
-> 	echo 0 > $GROUP/memory.oom_controll
-> 
-> His usecase is:
-> 
-> - Setup a hierarchy with memory and the freezer (disable kernel oom and
->   have a process watch for oom).
-> 
-> - In that memory cgroup add a process with one thread per cpu.
-> 
-> - In one thread slowly allocate once per second I think it is 16M of ram
->   and mlock and dirty it (just to force the pages into ram and stay
->   there).
-> 
-> - When oom is achieved loop:
->   * attempt to freeze all of the tasks.
->   * if frozen send every task SIGKILL, unfreeze, remove the directory in
->     cgroupfs.
-> 
-> Eric has then pinpointed the issue to be memcg specific.
-> 
-> All tasks are sitting on the memcg_oom_waitq when memcg oom is disabled.
-> Those that have received fatal signal will bypass the charge and should
-> continue on their way out.  The tricky part is that the exit path might
-> trigger a page fault (e.g.  exit_robust_list), thus the memcg charge,
-> while its memcg is still under OOM because nobody has released any charges
-> yet.
-> 
-> Unlike with the in-kernel OOM handler the exiting task doesn't get
-> TIF_MEMDIE set so it doesn't shortcut further charges of the killed task
-> and falls to the memcg OOM again without any way out of it as there are no
-> fatal signals pending anymore.
-> 
-> This patch fixes the issue by checking PF_EXITING early in
-> mem_cgroup_try_charge and bypass the charge same as if it had fatal
-> signal pending or TIF_MEMDIE set.
-> 
-> Normally exiting tasks (aka not killed) will bypass the charge now but
-> this should be OK as the task is leaving and will release memory and
-> increasing the memory pressure just to release it in a moment seems
-> dubious wasting of cycles.  Besides that charges after exit_signals should
-> be rare.
-> 
-> Reported-by: Eric W. Biederman <ebiederm@xmission.com>
-> Signed-off-by: Michal Hocko <mhocko@suse.cz>
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
-> Cc: <stable@vger.kernel.org>
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+Actually, I think (based upon the context) that your fix is slightly
+different. Your fix puts hugepages_supported() under CONFIG_HUGETLBFS.
+Andrew's puts it under CONFIG_HUGETLB_PAGE. I think they are effectively
+tied together as options go, but it semantically makes more sense with
+CONFIG_HUGETLB_PAGE.
 
-Acked-by: David Rientjes <rientjes@google.com>
-
-I think we should wait for a Tested-by from Eric if this is going to be 
-backported to stable, though, to meet the criteria.
+Thanks,
+Nish
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
