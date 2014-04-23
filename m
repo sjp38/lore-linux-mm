@@ -1,50 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f44.google.com (mail-ee0-f44.google.com [74.125.83.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C5AB6B0037
-	for <linux-mm@kvack.org>; Wed, 23 Apr 2014 14:18:41 -0400 (EDT)
-Received: by mail-ee0-f44.google.com with SMTP id e49so1060382eek.31
-        for <linux-mm@kvack.org>; Wed, 23 Apr 2014 11:18:40 -0700 (PDT)
-Received: from mail-ee0-f46.google.com (mail-ee0-f46.google.com [74.125.83.46])
-        by mx.google.com with ESMTPS id r9si4306566eew.288.2014.04.23.11.18.39
+Received: from mail-ig0-f176.google.com (mail-ig0-f176.google.com [209.85.213.176])
+	by kanga.kvack.org (Postfix) with ESMTP id DDAEC6B0038
+	for <linux-mm@kvack.org>; Wed, 23 Apr 2014 14:20:43 -0400 (EDT)
+Received: by mail-ig0-f176.google.com with SMTP id uy17so4679058igb.15
+        for <linux-mm@kvack.org>; Wed, 23 Apr 2014 11:20:43 -0700 (PDT)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:4978:20e::2])
+        by mx.google.com with ESMTPS id h20si17069341igq.11.2014.04.23.11.20.41
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 23 Apr 2014 11:18:40 -0700 (PDT)
-Received: by mail-ee0-f46.google.com with SMTP id t10so1045375eei.5
-        for <linux-mm@kvack.org>; Wed, 23 Apr 2014 11:18:39 -0700 (PDT)
-Message-ID: <535803FC.1040605@colorfullife.com>
-Date: Wed, 23 Apr 2014 20:18:36 +0200
-From: Manfred Spraul <manfred@colorfullife.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 23 Apr 2014 11:20:42 -0700 (PDT)
+Message-ID: <53580476.6040801@infradead.org>
+Date: Wed, 23 Apr 2014 11:20:38 -0700
+From: Randy Dunlap <rdunlap@infradead.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 5/4] ipc,shm: minor cleanups
-References: <1398090397-2397-1-git-send-email-manfred@colorfullife.com> <1398221636.6345.9.camel@buesod1.americas.hpqcorp.net>
-In-Reply-To: <1398221636.6345.9.camel@buesod1.americas.hpqcorp.net>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Subject: Re: mmotm 2014-04-22-15-20 uploaded (uml 32- and 64-bit defconfigs)
+References: <20140422222121.2FAB45A431E@corp2gmr1-2.hot.corp.google.com>	<5357F405.20205@infradead.org>	<20140423134131.778f0d0a@redhat.com>	<5357FCEB.2060507@infradead.org> <20140423141600.4a303d95@redhat.com>
+In-Reply-To: <20140423141600.4a303d95@redhat.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <davidlohr@hp.com>
-Cc: Davidlohr Bueso <davidlohr.bueso@hp.com>, Michael Kerrisk <mtk.manpages@gmail.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, gthelen@google.com, aswin@hp.com, linux-mm@kvack.org
+To: Luiz Capitulino <lcapitulino@redhat.com>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-next@vger.kernel.org, nacc@linux.vnet.ibm.com, Richard Weinberger <richard@nod.at>
 
-On 04/23/2014 04:53 AM, Davidlohr Bueso wrote:
-> -  Breakup long function names/args.
-> -  Cleaup variable declaration.
-s/Cleaup/Cleanup/
-> -  s/current->mm/mm
->
-> Signed-off-by: Davidlohr Bueso <davidlohr@hp.com>
-Signed-off-by: Manfred Spraul <manfred@colorfullife.com>
+On 04/23/14 11:16, Luiz Capitulino wrote:
+> On Wed, 23 Apr 2014 10:48:27 -0700
+> Randy Dunlap <rdunlap@infradead.org> wrote:
+> 
+>> On 04/23/14 10:41, Luiz Capitulino wrote:
+>>> On Wed, 23 Apr 2014 10:10:29 -0700
+>>> Randy Dunlap <rdunlap@infradead.org> wrote:
+>>>
+>>>> On 04/22/14 15:21, akpm@linux-foundation.org wrote:
+>>>>> The mm-of-the-moment snapshot 2014-04-22-15-20 has been uploaded to
+>>>>>
+>>>>>    http://www.ozlabs.org/~akpm/mmotm/
+>>>>>
+>>>>> mmotm-readme.txt says
+>>>>>
+>>>>> README for mm-of-the-moment:
+>>>>>
+>>>>> http://www.ozlabs.org/~akpm/mmotm/
+>>>>>
+>>>>> This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
+>>>>> more than once a week.
+>>>>>
+>>>>> You will need quilt to apply these patches to the latest Linus release (3.x
+>>>>> or 3.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
+>>>>> http://ozlabs.org/~akpm/mmotm/series
+>>>>>
+>>>>
+>>>> include/linux/hugetlb.h:468:9: error: 'HPAGE_SHIFT' undeclared (first use in this function)
+>>>
+>>> The patch adding HPAGE_SHIFT usage to hugetlb.h in current mmotm is this:
+>>>
+>>> http://www.ozlabs.org/~akpm/mmotm/broken-out/hugetlb-ensure-hugepage-access-is-denied-if-hugepages-are-not-supported.patch
+>>>
+>>> But I can't reproduce the issue to be sure what the problem is. Are you
+>>> building the kernel on 32bits? Can you provide the output of
+>>> "grep -i huge .config" or send your .config in private?
+>>>
+>>
+>> [adding Richard to cc:]
+>>
+>>
+>> As in $subject, if I build uml x86 32-bit or 64-bit defconfig, the build fails with
+>> this error.
+> 
+> Oh, I missed the subject info completely. Sorry about that.
+> 
+> So, the issue really seems to be introduced by patch:
+> 
+>  hugetlb-ensure-hugepage-access-is-denied-if-hugepages-are-not-supported.patch
+> 
+> And the problem is that UML doesn't define HPAGE_SHIFT. The following patch
+> fixes it, but I'll let Nishanth decide what to do here.
 
-> @@ -681,7 +679,8 @@ copy_shmid_from_user(struct shmid64_ds *out, void __user *buf, int version)
->   	}
->   }
->   
-> -static inline unsigned long copy_shminfo_to_user(void __user *buf, struct shminfo64 *in, int version)
-> +static inline unsigned long copy_shminfo_to_user(void __user *buf,
-> +						 struct shminfo64 *in, int version)
-Checkpatch still complains - does removing one tab help?
+Thanks for tracking it down.
 
---
-     Manfred
+
+> diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+> index 4eace5e..3aab7df 100644
+> --- a/include/linux/hugetlb.h
+> +++ b/include/linux/hugetlb.h
+> @@ -458,6 +458,10 @@ static inline spinlock_t *huge_pte_lock(struct hstate *h,
+>  	return ptl;
+>  }
+>  
+> +#ifndef HPAGE_SHIFT
+> +#define HPAGE_SHIFT 0
+> +#endif
+> +
+>  static inline bool hugepages_supported(void)
+>  {
+>  	/*
+> 
+
+
+-- 
+~Randy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
