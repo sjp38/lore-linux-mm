@@ -1,54 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ve0-f182.google.com (mail-ve0-f182.google.com [209.85.128.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 361506B0070
-	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 22:44:48 -0400 (EDT)
-Received: by mail-ve0-f182.google.com with SMTP id jw12so412268veb.27
-        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 19:44:47 -0700 (PDT)
-Received: from mail-ve0-x232.google.com (mail-ve0-x232.google.com [2607:f8b0:400c:c01::232])
-        by mx.google.com with ESMTPS id b5si7205356vej.191.2014.04.22.19.44.47
+Received: from mail-vc0-f182.google.com (mail-vc0-f182.google.com [209.85.220.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 2DAA26B0070
+	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 22:48:55 -0400 (EDT)
+Received: by mail-vc0-f182.google.com with SMTP id ib6so389926vcb.41
+        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 19:48:54 -0700 (PDT)
+Received: from mail-ve0-x22a.google.com (mail-ve0-x22a.google.com [2607:f8b0:400c:c01::22a])
+        by mx.google.com with ESMTPS id at8si7198876vec.199.2014.04.22.19.48.54
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 22 Apr 2014 19:44:47 -0700 (PDT)
-Received: by mail-ve0-f178.google.com with SMTP id jw12so389866veb.23
-        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 19:44:47 -0700 (PDT)
+        Tue, 22 Apr 2014 19:48:54 -0700 (PDT)
+Received: by mail-ve0-f170.google.com with SMTP id pa12so412878veb.29
+        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 19:48:54 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <5356E33F.3000908@intel.com>
-References: <1398032742.19682.11.camel@pasglop>
-	<CA+55aFz1sK+PF96LYYZY7OB7PBpxZu-uNLWLvPiRz-tJsBqX3w@mail.gmail.com>
-	<1398054064.19682.32.camel@pasglop>
-	<1398057630.19682.38.camel@pasglop>
-	<CA+55aFwWHBtihC3w9E4+j4pz+6w7iTnYhTf4N3ie15BM9thxLQ@mail.gmail.com>
-	<53558507.9050703@zytor.com>
-	<CA+55aFxGm6J6N=4L7exLUFMr1_siNGHpK=wApd9GPCH1=63PPA@mail.gmail.com>
-	<53559F48.8040808@intel.com>
-	<CA+55aFwDtjA4Vp0yt0K5x6b6sAMtcn=61SEnOOs_En+3UXNpuA@mail.gmail.com>
-	<CA+55aFzFxBDJ2rWo9DggdNsq-qBCr11OVXnm64jx04KMSVCBAw@mail.gmail.com>
-	<20140422075459.GD11182@twins.programming.kicks-ass.net>
-	<CA+55aFzM+NpE-EzJdDeYX=cqWRzkGv9o-vybDR=oFtDLMRK-mA@mail.gmail.com>
-	<5356E33F.3000908@intel.com>
-Date: Tue, 22 Apr 2014 19:44:47 -0700
-Message-ID: <CA+55aFws4q-ASm33ApBK8Cz8pnTHYWagyDu-58YSCicHVmMRHw@mail.gmail.com>
-Subject: Re: Dirty/Access bits vs. page content
+In-Reply-To: <5356FCC1.6060807@zytor.com>
+References: <5356FCC1.6060807@zytor.com>
+Date: Tue, 22 Apr 2014 19:48:54 -0700
+Message-ID: <CA+55aFwsPs12_57YEBHdb4ti1BXSuDX_RPSf6S4JSRLGK_2X7Q@mail.gmail.com>
+Subject: Re: Why do we set _PAGE_DIRTY for page tables?
 From: Linus Torvalds <torvalds@linux-foundation.org>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Hugh Dickins <hughd@google.com>, "H. Peter Anvin" <hpa@zytor.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Tony Luck <tony.luck@intel.com>
+To: "H. Peter Anvin" <hpa@zytor.com>
+Cc: Ingo Molnar <mingo@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Tue, Apr 22, 2014 at 2:46 PM, Dave Hansen <dave.hansen@intel.com> wrote:
+On Tue, Apr 22, 2014 at 4:35 PM, H. Peter Anvin <hpa@zytor.com> wrote:
+> I just noticed this:
 >
-> The line numbers point to the
+> #define _PAGE_TABLE     (_PAGE_PRESENT | _PAGE_RW | _PAGE_USER |       \
+>                          _PAGE_ACCESSED | _PAGE_DIRTY)
+> #define _KERNPG_TABLE   (_PAGE_PRESENT | _PAGE_RW | _PAGE_ACCESSED |   \
+>                          _PAGE_DIRTY)
 >
->         head = page_buffers(page);
+> Is there a reason we set _PAGE_DIRTY for page tables?  It has no
+> function, but doesn't do any harm either (the dirty bit is ignored for
+> page tables)... it just looks funny to me.
 
-Ahh. My tree has an ext4 update, so for me that wasn't the case, and
-your line numbers were off.
-
-Hmm. I've stared at it, and I can make neither heads nor tails of it.
-I really don't see why moving the set_page_dirty() would matter for
-that case. Very odd. I'll mull on it and maybe it comes to me
-overnight.
+I think it just got copied, and at least the A bit does matter even in
+page tables (well, it gets updated, I don't know how much that
+"matters"). So the fact that D is ignored is actually the odd man out.
 
                Linus
 
