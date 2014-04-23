@@ -1,114 +1,166 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f50.google.com (mail-ee0-f50.google.com [74.125.83.50])
-	by kanga.kvack.org (Postfix) with ESMTP id DFB4B6B0073
-	for <linux-mm@kvack.org>; Wed, 23 Apr 2014 01:05:58 -0400 (EDT)
-Received: by mail-ee0-f50.google.com with SMTP id c13so288394eek.23
-        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 22:05:58 -0700 (PDT)
-Received: from mail-ee0-x232.google.com (mail-ee0-x232.google.com [2a00:1450:4013:c00::232])
-        by mx.google.com with ESMTPS id q5si1268508eem.321.2014.04.22.22.05.57
+Received: from mail-ee0-f42.google.com (mail-ee0-f42.google.com [74.125.83.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 52F156B0070
+	for <linux-mm@kvack.org>; Wed, 23 Apr 2014 01:07:52 -0400 (EDT)
+Received: by mail-ee0-f42.google.com with SMTP id d17so292970eek.15
+        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 22:07:51 -0700 (PDT)
+Received: from mail-ee0-x22c.google.com (mail-ee0-x22c.google.com [2a00:1450:4013:c00::22c])
+        by mx.google.com with ESMTPS id 43si1301739eer.207.2014.04.22.22.07.50
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 22 Apr 2014 22:05:57 -0700 (PDT)
-Received: by mail-ee0-f50.google.com with SMTP id c13so282809eek.37
-        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 22:05:57 -0700 (PDT)
-Message-ID: <5357490E.1010505@gmail.com>
-Date: Wed, 23 Apr 2014 07:01:02 +0200
+        Tue, 22 Apr 2014 22:07:51 -0700 (PDT)
+Received: by mail-ee0-f44.google.com with SMTP id e49so297595eek.3
+        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 22:07:50 -0700 (PDT)
+Message-ID: <53574AA5.1060205@gmail.com>
+Date: Wed, 23 Apr 2014 07:07:49 +0200
 From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 4/4] ipc/shm.c: Increase the defaults for SHMALL, SHMMAX.
-References: <1398090397-2397-1-git-send-email-manfred@colorfullife.com> <1398090397-2397-2-git-send-email-manfred@colorfullife.com> <1398090397-2397-3-git-send-email-manfred@colorfullife.com> <1398090397-2397-4-git-send-email-manfred@colorfullife.com> <1398090397-2397-5-git-send-email-manfred@colorfullife.com>
-In-Reply-To: <1398090397-2397-5-git-send-email-manfred@colorfullife.com>
-Content-Type: text/plain; charset=ISO-8859-1
+Subject: Re: [PATCH 5/4] ipc,shm: minor cleanups
+References: <1398090397-2397-1-git-send-email-manfred@colorfullife.com> <1398221636.6345.9.camel@buesod1.americas.hpqcorp.net>
+In-Reply-To: <1398221636.6345.9.camel@buesod1.americas.hpqcorp.net>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Manfred Spraul <manfred@colorfullife.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>
-Cc: mtk.manpages@gmail.com, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, gthelen@google.com, aswin@hp.com, linux-mm@kvack.org
+To: Davidlohr Bueso <davidlohr@hp.com>, Manfred Spraul <manfred@colorfullife.com>
+Cc: mtk.manpages@gmail.com, Davidlohr Bueso <davidlohr.bueso@hp.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, gthelen@google.com, aswin@hp.com, linux-mm@kvack.org
 
-On 04/21/2014 04:26 PM, Manfred Spraul wrote:
-> System V shared memory
+On 04/23/2014 04:53 AM, Davidlohr Bueso wrote:
+> -  Breakup long function names/args.
+> -  Cleaup variable declaration.
+> -  s/current->mm/mm
 > 
-> a) can be abused to trigger out-of-memory conditions and the standard
->    measures against out-of-memory do not work:
-> 
->     - it is not possible to use setrlimit to limit the size of shm segments.
-> 
->     - segments can exist without association with any processes, thus
->       the oom-killer is unable to free that memory.
-> 
-> b) is typically used for shared information - today often multiple GB.
->    (e.g. database shared buffers)
-> 
-> The current default is a maximum segment size of 32 MB and a maximum total
-> size of 8 GB. This is often too much for a) and not enough for b), which
-> means that lots of users must change the defaults.
-> 
-> This patch increases the default limits (nearly) to the maximum, which is
-> perfect for case b). The defaults are used after boot and as the initial
-> value for each new namespace.
-> 
-> Admins/distros that need a protection against a) should reduce the limits
-> and/or enable shm_rmid_forced.
-> 
-> Further notes:
-> - The patch only changes default, overrides behave as before:
->         # sysctl kernel.shmall=33554432
->   would recreate the previous limit for SHMMAX (for the current namespace).
-> 
-> - Disabling sysv shm allocation is possible with:
->         # sysctl kernel.shmall=0
->   (not a new feature, also per-namespace)
-> 
-> - The limits are intentionally set to a value slightly less than ULONG_MAX,
->   to avoid triggering overflows in user space apps.
->   [not unreasonable, see http://marc.info/?l=linux-mm&m=139638334330127]
-> 
-> Signed-off-by: Manfred Spraul <manfred@colorfullife.com>
-> Reported-by: Davidlohr Bueso <davidlohr@hp.com>
-> Cc: mtk.manpages@gmail.com
+> Signed-off-by: Davidlohr Bueso <davidlohr@hp.com>
 > ---
->  include/linux/shm.h      | 3 +--
->  include/uapi/linux/shm.h | 8 +++-----
->  2 files changed, 4 insertions(+), 7 deletions(-)
+>  ipc/shm.c | 40 +++++++++++++++++-----------------------
+>  1 file changed, 17 insertions(+), 23 deletions(-)
 > 
-> diff --git a/include/linux/shm.h b/include/linux/shm.h
-> index 1e2cd2e..57d7770 100644
-> --- a/include/linux/shm.h
-> +++ b/include/linux/shm.h
-> @@ -3,9 +3,8 @@
->  
->  #include <asm/page.h>
->  #include <uapi/linux/shm.h>
-> -
-> -#define SHMALL (SHMMAX/PAGE_SIZE*(SHMMNI/16)) /* max shm system wide (pages) */
->  #include <asm/shmparam.h>
-> +
->  struct shmid_kernel /* private to the kernel */
->  {	
->  	struct kern_ipc_perm	shm_perm;
-> diff --git a/include/uapi/linux/shm.h b/include/uapi/linux/shm.h
-> index 78b6941..74e786d 100644
-> --- a/include/uapi/linux/shm.h
-> +++ b/include/uapi/linux/shm.h
-> @@ -9,15 +9,13 @@
->  
->  /*
->   * SHMMAX, SHMMNI and SHMALL are upper limits are defaults which can
-> - * be increased by sysctl
-> + * be modified by sysctl.
->   */
->  
-> -#define SHMMAX 0x2000000		 /* max shared seg size (bytes) */
->  #define SHMMIN 1			 /* min shared seg size (bytes) */
->  #define SHMMNI 4096			 /* max num of segs system wide */
-> -#ifndef __KERNEL__
-> -#define SHMALL (SHMMAX/getpagesize()*(SHMMNI/16))
-> -#endif
-> +#define SHMMAX (ULONG_MAX - (1L<<24))	 /* max shared seg size (bytes) */
-> +#define SHMALL (ULONG_MAX - (1L<<24))	 /* max shm system wide (pages) */
->  #define SHMSEG SHMMNI			 /* max shared segs per process */
+> diff --git a/ipc/shm.c b/ipc/shm.c
+> index f000696..584d02e 100644
+> --- a/ipc/shm.c
+> +++ b/ipc/shm.c
+> @@ -480,15 +480,13 @@ static const struct vm_operations_struct shm_vm_ops = {
+>  static int newseg(struct ipc_namespace *ns, struct ipc_params *params)
+>  {
+>  	key_t key = params->key;
+> -	int shmflg = params->flg;
+> +	int id, error, shmflg = params->flg;
 
-Acked-by: Michael Kerrisk <mtk.manpages@gmail.com>
+It's largely a matter of taste (and I may be in a minority), and I know
+there's certainly precedent in the kernel code, but I don't much like the 
+style of mixing variable declarations that have initializers, with other
+unrelated declarations (e.g., variables without initializers). What is 
+the gain? One less line of text? That's (IMO) more than offset by the 
+small loss of readability.
+
+Cheers,
+
+Michael
+
+>  	size_t size = params->u.size;
+> -	int error;
+> -	struct shmid_kernel *shp;
+>  	size_t numpages = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
+> -	struct file *file;
+>  	char name[13];
+> -	int id;
+>  	vm_flags_t acctflag = 0;
+> +	struct shmid_kernel *shp;
+> +	struct file *file;
+>  
+>  	if (size < SHMMIN || size > ns->shm_ctlmax)
+>  		return -EINVAL;
+> @@ -681,7 +679,8 @@ copy_shmid_from_user(struct shmid64_ds *out, void __user *buf, int version)
+>  	}
+>  }
+>  
+> -static inline unsigned long copy_shminfo_to_user(void __user *buf, struct shminfo64 *in, int version)
+> +static inline unsigned long copy_shminfo_to_user(void __user *buf,
+> +						 struct shminfo64 *in, int version)
+>  {
+>  	switch (version) {
+>  	case IPC_64:
+> @@ -711,8 +710,8 @@ static inline unsigned long copy_shminfo_to_user(void __user *buf, struct shminf
+>   * Calculate and add used RSS and swap pages of a shm.
+>   * Called with shm_ids.rwsem held as a reader
+>   */
+> -static void shm_add_rss_swap(struct shmid_kernel *shp,
+> -	unsigned long *rss_add, unsigned long *swp_add)
+> +static void shm_add_rss_swap(struct shmid_kernel *shp, unsigned long *rss_add,
+> +			     unsigned long *swp_add)
+>  {
+>  	struct inode *inode;
+>  
+> @@ -739,7 +738,7 @@ static void shm_add_rss_swap(struct shmid_kernel *shp,
+>   * Called with shm_ids.rwsem held as a reader
+>   */
+>  static void shm_get_stat(struct ipc_namespace *ns, unsigned long *rss,
+> -		unsigned long *swp)
+> +			 unsigned long *swp)
+>  {
+>  	int next_id;
+>  	int total, in_use;
+> @@ -1047,21 +1046,16 @@ out_unlock1:
+>  long do_shmat(int shmid, char __user *shmaddr, int shmflg, ulong *raddr,
+>  	      unsigned long shmlba)
+>  {
+> -	struct shmid_kernel *shp;
+> -	unsigned long addr;
+> -	unsigned long size;
+> +	unsigned long addr, size, flags, prot, populate = 0;
+>  	struct file *file;
+> -	int    err;
+> -	unsigned long flags;
+> -	unsigned long prot;
+> -	int acc_mode;
+> +	int acc_mode, err = -EINVAL;
+>  	struct ipc_namespace *ns;
+>  	struct shm_file_data *sfd;
+> +	struct shmid_kernel *shp;
+>  	struct path path;
+>  	fmode_t f_mode;
+> -	unsigned long populate = 0;
+> +	struct mm_struct *mm = current->mm;
+>  
+> -	err = -EINVAL;
+>  	if (shmid < 0)
+>  		goto out;
+>  	else if ((addr = (ulong)shmaddr)) {
+> @@ -1161,20 +1155,20 @@ long do_shmat(int shmid, char __user *shmaddr, int shmflg, ulong *raddr,
+>  	if (err)
+>  		goto out_fput;
+>  
+> -	down_write(&current->mm->mmap_sem);
+> +	down_write(&mm->mmap_sem);
+>  	if (addr && !(shmflg & SHM_REMAP)) {
+>  		err = -EINVAL;
+>  		if (addr + size < addr)
+>  			goto invalid;
+>  
+> -		if (find_vma_intersection(current->mm, addr, addr + size))
+> +		if (find_vma_intersection(mm, addr, addr + size))
+>  			goto invalid;
+>  		/*
+>  		 * If shm segment goes below stack, make sure there is some
+>  		 * space left for the stack to grow (at least 4 pages).
+>  		 */
+> -		if (addr < current->mm->start_stack &&
+> -		    addr > current->mm->start_stack - size - PAGE_SIZE * 5)
+> +		if (addr < mm->start_stack &&
+> +		    addr > mm->start_stack - size - PAGE_SIZE * 5)
+>  			goto invalid;
+>  	}
+>  
+> @@ -1184,7 +1178,7 @@ long do_shmat(int shmid, char __user *shmaddr, int shmflg, ulong *raddr,
+>  	if (IS_ERR_VALUE(addr))
+>  		err = (long)addr;
+>  invalid:
+> -	up_write(&current->mm->mmap_sem);
+> +	up_write(&mm->mmap_sem);
+>  	if (populate)
+>  		mm_populate(addr, populate);
+>  
+> 
 
 
 -- 
