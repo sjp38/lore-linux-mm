@@ -1,103 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id E96916B003B
-	for <linux-mm@kvack.org>; Wed, 23 Apr 2014 14:24:44 -0400 (EDT)
-Received: by mail-pa0-f54.google.com with SMTP id lf10so1019352pab.27
-        for <linux-mm@kvack.org>; Wed, 23 Apr 2014 11:24:44 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id ef1si1085243pbc.343.2014.04.23.11.24.43
+Received: from mail-qa0-f49.google.com (mail-qa0-f49.google.com [209.85.216.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 70D186B003B
+	for <linux-mm@kvack.org>; Wed, 23 Apr 2014 14:37:25 -0400 (EDT)
+Received: by mail-qa0-f49.google.com with SMTP id j7so1215961qaq.36
+        for <linux-mm@kvack.org>; Wed, 23 Apr 2014 11:37:25 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id c4si929654qad.187.2014.04.23.11.37.24
         for <linux-mm@kvack.org>;
-        Wed, 23 Apr 2014 11:24:43 -0700 (PDT)
-Date: Wed, 23 Apr 2014 11:24:42 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: mmotm 2014-04-22-15-20 uploaded (uml 32- and 64-bit defconfigs)
-Message-Id: <20140423112442.5a5c8f23d580a65575e0c5fc@linux-foundation.org>
-In-Reply-To: <20140423141600.4a303d95@redhat.com>
-References: <20140422222121.2FAB45A431E@corp2gmr1-2.hot.corp.google.com>
-	<5357F405.20205@infradead.org>
-	<20140423134131.778f0d0a@redhat.com>
-	<5357FCEB.2060507@infradead.org>
-	<20140423141600.4a303d95@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Wed, 23 Apr 2014 11:37:24 -0700 (PDT)
+Date: Wed, 23 Apr 2014 14:16:12 -0400
+From: Dave Jones <davej@redhat.com>
+Subject: Re: 3.15rc2 hanging processes on exit.
+Message-ID: <20140423181612.GA10236@redhat.com>
+References: <20140422180308.GA19038@redhat.com>
+ <CA+55aFxjADAB80AV6qK-b4QPzP7fgog_EyH-7dSpWVgzpZmL8Q@mail.gmail.com>
+ <alpine.LSU.2.11.1404221303060.6220@eggly.anvils>
+ <20140423144901.GA24220@redhat.com>
+ <CA+55aFziPHmSP5yjxDP6h_hRY-H2VgWZKsqC7w8+B9d9wXqn6Q@mail.gmail.com>
+ <alpine.LSU.2.11.1404231057470.2678@eggly.anvils>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.11.1404231057470.2678@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Luiz Capitulino <lcapitulino@redhat.com>
-Cc: Randy Dunlap <rdunlap@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-next@vger.kernel.org, nacc@linux.vnet.ibm.com, Richard Weinberger <richard@nod.at>
+To: Hugh Dickins <hughd@google.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 
-On Wed, 23 Apr 2014 14:16:00 -0400 Luiz Capitulino <lcapitulino@redhat.com> wrote:
+On Wed, Apr 23, 2014 at 11:11:53AM -0700, Hugh Dickins wrote:
+ > > Very odd.  Does anybody see anything I missed?
+ > 
+ > Easily explained (correct me if I'm wrong): Dave is reporting this from
+ > his testing of 3.14,
 
-> On Wed, 23 Apr 2014 10:48:27 -0700
-> > >>> You will need quilt to apply these patches to the latest Linus release (3.x
-> > >>> or 3.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
-> > >>> http://ozlabs.org/~akpm/mmotm/series
-> > >>>
-> > >>
-> > >> include/linux/hugetlb.h:468:9: error: 'HPAGE_SHIFT' undeclared (first use in this function)
-> > > 
-> > > The patch adding HPAGE_SHIFT usage to hugetlb.h in current mmotm is this:
-> > > 
-> > > http://www.ozlabs.org/~akpm/mmotm/broken-out/hugetlb-ensure-hugepage-access-is-denied-if-hugepages-are-not-supported.patch
-> > > 
-> > > But I can't reproduce the issue to be sure what the problem is. Are you
-> > > building the kernel on 32bits? Can you provide the output of
-> > > "grep -i huge .config" or send your .config in private?
-> > > 
-> > 
-> > [adding Richard to cc:]
-> > 
-> > 
-> > As in $subject, if I build uml x86 32-bit or 64-bit defconfig, the build fails with
-> > this error.
-> 
-> Oh, I missed the subject info completely. Sorry about that.
-> 
-> So, the issue really seems to be introduced by patch:
-> 
->  hugetlb-ensure-hugepage-access-is-denied-if-hugepages-are-not-supported.patch
-> 
-> And the problem is that UML doesn't define HPAGE_SHIFT. The following patch
-> fixes it, but I'll let Nishanth decide what to do here.
+correct.
 
-I'll try moving hugepages_supported() into the #ifdef
-CONFIG_HUGETLB_PAGE section.
+ > but Linus is looking at his 3.15-rc git tree, which now contains
+ > 
+ > commit 57e68e9cd65b4b8eb4045a1e0d0746458502554c
+ > Author: Vlastimil Babka <vbabka@suse.cz>
+ > Date:   Mon Apr 7 15:37:50 2014 -0700
+ >     mm: try_to_unmap_cluster() should lock_page() before mlocking
+ > 
+ > precisely to fix this (long-standing but long-unnoticed) issue,
+ > which Sasha reported a couple of months ago.
 
---- a/include/linux/hugetlb.h~hugetlb-ensure-hugepage-access-is-denied-if-hugepages-are-not-supported-fix-fix
-+++ a/include/linux/hugetlb.h
-@@ -412,6 +412,16 @@ static inline spinlock_t *huge_pte_lockp
- 	return &mm->page_table_lock;
- }
- 
-+static inline bool hugepages_supported(void)
-+{
-+	/*
-+	 * Some platform decide whether they support huge pages at boot
-+	 * time. On these, such as powerpc, HPAGE_SHIFT is set to 0 when
-+	 * there is no such support
-+	 */
-+	return HPAGE_SHIFT != 0;
-+}
-+
- #else	/* CONFIG_HUGETLB_PAGE */
- struct hstate {};
- #define alloc_huge_page_node(h, nid) NULL
-@@ -460,14 +470,4 @@ static inline spinlock_t *huge_pte_lock(
- 	return ptl;
- }
- 
--static inline bool hugepages_supported(void)
--{
--	/*
--	 * Some platform decide whether they support huge pages at boot
--	 * time. On these, such as powerpc, HPAGE_SHIFT is set to 0 when
--	 * there is no such support
--	 */
--	return HPAGE_SHIFT != 0;
--}
--
- #endif /* _LINUX_HUGETLB_H */
-_
+ah, great. as long as it's fixed, I'm happy :)
+
+	Dave
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
