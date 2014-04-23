@@ -1,161 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id A88116B0035
-	for <linux-mm@kvack.org>; Wed, 23 Apr 2014 09:44:37 -0400 (EDT)
-Received: by mail-pd0-f172.google.com with SMTP id w10so789832pde.31
-        for <linux-mm@kvack.org>; Wed, 23 Apr 2014 06:44:37 -0700 (PDT)
-Received: from mx11.netapp.com (mx11.netapp.com. [216.240.18.76])
-        by mx.google.com with ESMTPS id td10si675615pac.17.2014.04.23.06.44.35
+Received: from mail-ee0-f43.google.com (mail-ee0-f43.google.com [74.125.83.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 3EDC46B0036
+	for <linux-mm@kvack.org>; Wed, 23 Apr 2014 09:52:15 -0400 (EDT)
+Received: by mail-ee0-f43.google.com with SMTP id e53so815388eek.2
+        for <linux-mm@kvack.org>; Wed, 23 Apr 2014 06:52:14 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id z42si3336584eel.2.2014.04.23.06.52.12
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 23 Apr 2014 06:44:36 -0700 (PDT)
-Message-ID: <5357C3AC.9090203@netapp.com>
-Date: Wed, 23 Apr 2014 09:44:12 -0400
-From: Anna Schumaker <Anna.Schumaker@netapp.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 23 Apr 2014 06:52:13 -0700 (PDT)
+Date: Wed, 23 Apr 2014 14:52:10 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH] mm: vmscan: Do not throttle based on pfmemalloc reserves
+ if node has no ZONE_NORMAL
+Message-ID: <20140423135210.GK23991@suse.de>
+References: <20140422083852.GB23991@suse.de>
+ <20140422123149.d406e5cbef5c01eb6dc5c89b@linux-foundation.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH 4/5] SUNRPC: track when a client connection is routed
- to the local host.
-References: <20140423022441.4725.89693.stgit@notabene.brown> <20140423024058.4725.7703.stgit@notabene.brown>
-In-Reply-To: <20140423024058.4725.7703.stgit@notabene.brown>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20140422123149.d406e5cbef5c01eb6dc5c89b@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: NeilBrown <neilb@suse.de>, Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@redhat.com>, Trond Myklebust <trond.myklebust@primarydata.com>, Dave Chinner <david@fromorbit.com>, "J. Bruce Fields" <bfields@fieldses.org>, Mel Gorman <mgorman@suse.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 04/22/2014 10:40 PM, NeilBrown wrote:
-> If requests are being sent to the local host, then NFS will
-> need to take care to avoid deadlocks.
->
-> So keep track when accepting a connection or sending a UDP request
-> and set a flag in the svc_xprt when the peer connected to is local.
->
-> The interface rpc_is_foreign() is provided to check is a given client
-> is connected to a foreign server.  When it returns zero it is either
-> not connected or connected to a local server and in either case
-> greater care is needed.
->
-> Signed-off-by: NeilBrown <neilb@suse.de>
-> ---
->  include/linux/sunrpc/clnt.h |    1 +
->  include/linux/sunrpc/xprt.h |    1 +
->  net/sunrpc/clnt.c           |   25 +++++++++++++++++++++++++
->  net/sunrpc/xprtsock.c       |   17 +++++++++++++++++
->  4 files changed, 44 insertions(+)
->
-> diff --git a/include/linux/sunrpc/clnt.h b/include/linux/sunrpc/clnt.h
-> index 8af2804bab16..5d626cc5ab01 100644
-> --- a/include/linux/sunrpc/clnt.h
-> +++ b/include/linux/sunrpc/clnt.h
-> @@ -173,6 +173,7 @@ void		rpc_force_rebind(struct rpc_clnt *);
->  size_t		rpc_peeraddr(struct rpc_clnt *, struct sockaddr *, size_t);
->  const char	*rpc_peeraddr2str(struct rpc_clnt *, enum rpc_display_format_t);
->  int		rpc_localaddr(struct rpc_clnt *, struct sockaddr *, size_t);
-> +int		rpc_is_foreign(struct rpc_clnt *);
->  
->  #endif /* __KERNEL__ */
->  #endif /* _LINUX_SUNRPC_CLNT_H */
-> diff --git a/include/linux/sunrpc/xprt.h b/include/linux/sunrpc/xprt.h
-> index 8097b9df6773..318ee37bc358 100644
-> --- a/include/linux/sunrpc/xprt.h
-> +++ b/include/linux/sunrpc/xprt.h
-> @@ -340,6 +340,7 @@ int			xs_swapper(struct rpc_xprt *xprt, int enable);
->  #define XPRT_CONNECTION_ABORT	(7)
->  #define XPRT_CONNECTION_CLOSE	(8)
->  #define XPRT_CONGESTED		(9)
-> +#define XPRT_LOCAL		(10)
->  
->  static inline void xprt_set_connected(struct rpc_xprt *xprt)
->  {
-> diff --git a/net/sunrpc/clnt.c b/net/sunrpc/clnt.c
-> index 0edada973434..454cea69b373 100644
-> --- a/net/sunrpc/clnt.c
-> +++ b/net/sunrpc/clnt.c
-> @@ -1109,6 +1109,31 @@ const char *rpc_peeraddr2str(struct rpc_clnt *clnt,
->  }
->  EXPORT_SYMBOL_GPL(rpc_peeraddr2str);
->  
-> +/**
-> + * rpc_is_foreign - report is rpc client was recently connected to
-> + *                  remote host
-> + * @clnt: RPC client structure
-> + *
-> + * If the client is not connected, or connected to the local host
-> + * (any IP address), then return 0.  Only return non-zero if the
-> + * most recent state was a connection to a remote host.
-> + * For UDP the client always appears to be connected, and the
-> + * remoteness of the host is of the destination of the last transmission.
-> + */
-> +int rpc_is_foreign(struct rpc_clnt *clnt)
-> +{
-> +	struct rpc_xprt *xprt;
-> +	int conn_foreign;
-> +
-> +	rcu_read_lock();
-> +	xprt = rcu_dereference(clnt->cl_xprt);
-> +	conn_foreign = (xprt && xprt_connected(xprt)
-> +			&& !test_bit(XPRT_LOCAL, &xprt->state));
-> +	rcu_read_unlock();
-> +	return conn_foreign;
-> +}
-> +EXPORT_SYMBOL_GPL(rpc_is_foreign);
-> +
->  static const struct sockaddr_in rpc_inaddr_loopback = {
->  	.sin_family		= AF_INET,
->  	.sin_addr.s_addr	= htonl(INADDR_ANY),
-> diff --git a/net/sunrpc/xprtsock.c b/net/sunrpc/xprtsock.c
-> index 0addefca8e77..74796cf37d5b 100644
-> --- a/net/sunrpc/xprtsock.c
-> +++ b/net/sunrpc/xprtsock.c
-> @@ -642,6 +642,15 @@ static int xs_udp_send_request(struct rpc_task *task)
->  			xdr->len - req->rq_bytes_sent, status);
->  
->  	if (status >= 0) {
-> +		struct dst_entry *dst;
-> +		rcu_read_lock();
-> +		dst = rcu_dereference(transport->sock->sk->sk_dst_cache);
-> +		if (dst && dst->dev && (dst->dev->features & NETIF_F_LOOPBACK))
-> +			set_bit(XPRT_LOCAL, &xprt->state);
-> +		else
-> +			clear_bit(XPRT_LOCAL, &xprt->state);
-> +		rcu_read_unlock();
-> +
-You repeat this block of code a bit later.  Can you please make it an inline helper function?
+On Tue, Apr 22, 2014 at 12:31:49PM -0700, Andrew Morton wrote:
+> On Tue, 22 Apr 2014 09:38:52 +0100 Mel Gorman <mgorman@suse.de> wrote:
+> 
+> > throttle_direct_reclaim() is meant to trigger during swap-over-network
+> > during which the min watermark is treated as a pfmemalloc reserve. It
+> > throttes on the first node in the zonelist but this is flawed.
+> > 
+> > On a NUMA machine running a 32-bit kernel (I know) allocation requests
+> > freom CPUs on node 1 would detect no pfmemalloc reserves and the process
+> > gets throttled. This patch adjusts throttling of direct reclaim to throttle
+> > based on the first node in the zonelist that has a usable ZONE_NORMAL or
+> > lower zone.
+> 
+> I'm unable to determine from the above whether we should backport this
+> fix.  Please don't forget to describe the end-user visible effects of
+> a bug when that isn't obvious.  
+> 
 
-Anna
+The user-visible impact is that a process running on CPU whose local
+memory node has no ZONE_NORMAL will stall for prolonged periods of time,
+possibly indefintely. This is due to throttle_direct_reclaim thinking the
+pfmemalloc reserves are depleted when in fact they don't exist on that node.
 
->  		req->rq_xmit_bytes_sent += status;
->  		if (status >= req->rq_slen)
->  			return 0;
-> @@ -1527,6 +1536,7 @@ static void xs_sock_mark_closed(struct rpc_xprt *xprt)
->  static void xs_tcp_state_change(struct sock *sk)
->  {
->  	struct rpc_xprt *xprt;
-> +	struct dst_entry *dst;
->  
->  	read_lock_bh(&sk->sk_callback_lock);
->  	if (!(xprt = xprt_from_sock(sk)))
-> @@ -1556,6 +1566,13 @@ static void xs_tcp_state_change(struct sock *sk)
->  
->  			xprt_wake_pending_tasks(xprt, -EAGAIN);
->  		}
-> +		rcu_read_lock();
-> +		dst = rcu_dereference(sk->sk_dst_cache);
-> +		if (dst && dst->dev && (dst->dev->features & NETIF_F_LOOPBACK))
-> +			set_bit(XPRT_LOCAL, &xprt->state);
-> +		else
-> +			clear_bit(XPRT_LOCAL, &xprt->state);
-> +		rcu_read_unlock();
->  		spin_unlock(&xprt->transport_lock);
->  		break;
->  	case TCP_FIN_WAIT1:
->
->
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-nfs" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+Strictly speaking this is stable material. I should have flagged it as
+such but hadn't as I was treating 32-bit kernels running on NUMA hardware
+as being a poor choice.
+
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+> > @@ -2507,10 +2507,17 @@ static bool pfmemalloc_watermark_ok(pg_data_t *pgdat)
+> >  
+> >  	for (i = 0; i <= ZONE_NORMAL; i++) {
+> >  		zone = &pgdat->node_zones[i];
+> > +		if (!populated_zone(zone))
+> > +			continue;
+> 
+> What's this?  Performance tweak?  Or does min_wmark_pages() return
+> non-zero for an unpopulated zone, which seems odd.
+> 
+
+Minor performance tweak. It's a force of habit to skip populated zones
+when doing a zone walk like this.
+
+> >  		pfmemalloc_reserve += min_wmark_pages(zone);
+> >  		free_pages += zone_page_state(zone, NR_FREE_PAGES);
+> >  	}
+> >  
+> > +	/* If there are no reserves (unexpected config) then do not throttle */
+> > +	if (!pfmemalloc_reserve)
+> > +		return true;
+> > +
+> >  	wmark_ok = free_pages > pfmemalloc_reserve / 2;
+> >  
+> >  	/* kswapd must be awake if processes are being throttled */
+> > @@ -2535,9 +2542,9 @@ static bool pfmemalloc_watermark_ok(pg_data_t *pgdat)
+> >  static bool throttle_direct_reclaim(gfp_t gfp_mask, struct zonelist *zonelist,
+> >  					nodemask_t *nodemask)
+> >  {
+> > +	struct zoneref *z;
+> >  	struct zone *zone;
+> > -	int high_zoneidx = gfp_zone(gfp_mask);
+> > -	pg_data_t *pgdat;
+> > +	pg_data_t *pgdat = NULL;
+> >  
+> >  	/*
+> >  	 * Kernel threads should not be throttled as they may be indirectly
+> > @@ -2556,10 +2563,24 @@ static bool throttle_direct_reclaim(gfp_t gfp_mask, struct zonelist *zonelist,
+> >  	if (fatal_signal_pending(current))
+> >  		goto out;
+> >  
+> > -	/* Check if the pfmemalloc reserves are ok */
+> > -	first_zones_zonelist(zonelist, high_zoneidx, NULL, &zone);
+> > -	pgdat = zone->zone_pgdat;
+> > -	if (pfmemalloc_watermark_ok(pgdat))
+> > +	/*
+> > +	 * Check if the pfmemalloc reserves are ok by finding the first node
+> > +	 * with a usable ZONE_NORMAL or lower zone
+> > +	 */
+> 
+> That comment tells us what the code does but not why it does it.
+> 
+> - Why do we ignore zones >= ZONE_NORMAL?
+> 
+> - Why do we throttle when there may be as-yet-unexamined nodes which
+>   have reclaimable pages?
+> 
+
+/*
+ * Check if the pfmemalloc reserves are ok by finding the first node
+ * with a usable ZONE_NORMAL or lower zone. The expectation is that
+ * GFP_KERNEL will be required for allocating network buffers when
+ * swapping over the network so ZONE_HIGHMEM is unusable.
+ * 
+ * Throttling is based on the first usable node and throttled processes
+ * wait on a queue until kswapd makes progress and wakes them. There
+ * is an affinity then between processes waking up and where reclaim
+ * progress has been made assuming the process wakes on the same node.
+ * More importantly, processes running on remote nodes will not compete
+ * for remote pfmemalloc reserves and processes on different nodes
+ * should make reasonable progress.
+ */
+
+?
+
+> 
+> > +        for_each_zone_zonelist_nodemask(zone, z, zonelist,
+> > +                                        gfp_mask, nodemask) {
+> 
+> Those two lines have spaces-instead-of-tabs.
+> 
+
+Sorry, that was careless.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
