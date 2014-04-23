@@ -1,54 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f49.google.com (mail-qa0-f49.google.com [209.85.216.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 70D186B003B
-	for <linux-mm@kvack.org>; Wed, 23 Apr 2014 14:37:25 -0400 (EDT)
-Received: by mail-qa0-f49.google.com with SMTP id j7so1215961qaq.36
-        for <linux-mm@kvack.org>; Wed, 23 Apr 2014 11:37:25 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id c4si929654qad.187.2014.04.23.11.37.24
-        for <linux-mm@kvack.org>;
-        Wed, 23 Apr 2014 11:37:24 -0700 (PDT)
-Date: Wed, 23 Apr 2014 14:16:12 -0400
-From: Dave Jones <davej@redhat.com>
-Subject: Re: 3.15rc2 hanging processes on exit.
-Message-ID: <20140423181612.GA10236@redhat.com>
-References: <20140422180308.GA19038@redhat.com>
- <CA+55aFxjADAB80AV6qK-b4QPzP7fgog_EyH-7dSpWVgzpZmL8Q@mail.gmail.com>
- <alpine.LSU.2.11.1404221303060.6220@eggly.anvils>
- <20140423144901.GA24220@redhat.com>
- <CA+55aFziPHmSP5yjxDP6h_hRY-H2VgWZKsqC7w8+B9d9wXqn6Q@mail.gmail.com>
- <alpine.LSU.2.11.1404231057470.2678@eggly.anvils>
+Received: from mail-ee0-f43.google.com (mail-ee0-f43.google.com [74.125.83.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 261B66B0035
+	for <linux-mm@kvack.org>; Wed, 23 Apr 2014 14:41:51 -0400 (EDT)
+Received: by mail-ee0-f43.google.com with SMTP id e53so1093141eek.30
+        for <linux-mm@kvack.org>; Wed, 23 Apr 2014 11:41:50 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id r9si4438126eew.48.2014.04.23.11.41.48
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 23 Apr 2014 11:41:49 -0700 (PDT)
+Date: Wed, 23 Apr 2014 20:41:45 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: Dirty/Access bits vs. page content
+Message-ID: <20140423184145.GH17824@quack.suse.cz>
+References: <1398057630.19682.38.camel@pasglop>
+ <CA+55aFwWHBtihC3w9E4+j4pz+6w7iTnYhTf4N3ie15BM9thxLQ@mail.gmail.com>
+ <53558507.9050703@zytor.com>
+ <CA+55aFxGm6J6N=4L7exLUFMr1_siNGHpK=wApd9GPCH1=63PPA@mail.gmail.com>
+ <53559F48.8040808@intel.com>
+ <CA+55aFwDtjA4Vp0yt0K5x6b6sAMtcn=61SEnOOs_En+3UXNpuA@mail.gmail.com>
+ <CA+55aFzFxBDJ2rWo9DggdNsq-qBCr11OVXnm64jx04KMSVCBAw@mail.gmail.com>
+ <20140422075459.GD11182@twins.programming.kicks-ass.net>
+ <CA+55aFzM+NpE-EzJdDeYX=cqWRzkGv9o-vybDR=oFtDLMRK-mA@mail.gmail.com>
+ <alpine.LSU.2.11.1404221847120.1759@eggly.anvils>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1404231057470.2678@eggly.anvils>
+In-Reply-To: <alpine.LSU.2.11.1404221847120.1759@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Hugh Dickins <hughd@google.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@intel.com>, "H. Peter Anvin" <hpa@zytor.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Tony Luck <tony.luck@intel.com>
 
-On Wed, Apr 23, 2014 at 11:11:53AM -0700, Hugh Dickins wrote:
- > > Very odd.  Does anybody see anything I missed?
- > 
- > Easily explained (correct me if I'm wrong): Dave is reporting this from
- > his testing of 3.14,
+On Tue 22-04-14 20:08:59, Hugh Dickins wrote:
+> On Tue, 22 Apr 2014, Linus Torvalds wrote:
+> > On Tue, Apr 22, 2014 at 12:54 AM, Peter Zijlstra <peterz@infradead.org> wrote:
+> > That said, Dave Hansen did report a BUG_ON() in
+> > mpage_prepare_extent_to_map(). His line number was odd, but I assume
+> > it's this one:
+> > 
+> >         BUG_ON(PageWriteback(page));
+> > 
+> > which may be indicative of some oddity here wrt the dirty bit.
+> 
+> Whereas later mail from Dave showed it to be the
+> 	BUG_ON(!PagePrivate(page));
+> in page_buffers() from fs/ext4/inode.c mpage_prepare_extent_to_map().
+> But still presumably some kind of fallout from your patches.
+> 
+> Once upon a time there was a page_has_buffers() check in there,
+> but Honza decided that's nowadays unnecessary in f8bec37037ac
+> "ext4: dirty page has always buffers attached".  Cc'ed,
+> he may very well have some good ideas.
+> 
+> Reading that commit reminded me of how we actually don't expect that
+> set_page_dirty() in zap_pte_range() to do anything at all on the usual
+> mapping_cap_account_dirty()/page_mkwrite() filesystems, do we?  Or do we?
+  Yes, for shared file mappings we (as in filesystems implementing
+page_mkwrite() handler) expect a page is writeably mmapped iff the page is
+dirty. So in particular we don't expect set_page_dirty() in zap_pte_range()
+to do anything because if the pte has dirty bit set, we are tearing down a
+writeable mapping of the page and thus the page should be already dirty.
 
-correct.
+Now the devil is in synchronization of different places where transitions
+from/to writeably-mapped state happen. In the fault path (do_wp_page())
+where transition to writeably-mapped happens we hold page lock while
+calling set_page_dirty(). In the writeout path (clear_page_dirty_for_io())
+where we transition from writeably-mapped we hold the page lock as well
+while calling page_mkclean() and possibly set_page_dirty(). So these two
+places are nicely serialized. However zap_pte_range() doesn't hold page
+lock so it can race with the previous two places. Before Linus' patches we
+called set_page_dirty() under pte lock in zap_pte_range() and also before
+decrementing page->mapcount. So if zap_pte_range() raced with
+clear_page_dirty_for_io() we were guaranteed that by the time
+clear_page_dirty_for_io() returns, pte dirty bit is cleared and
+set_page_dirty() was called (either from clear_page_dirty_for_io() or from
+zap_pte_range()).
 
- > but Linus is looking at his 3.15-rc git tree, which now contains
- > 
- > commit 57e68e9cd65b4b8eb4045a1e0d0746458502554c
- > Author: Vlastimil Babka <vbabka@suse.cz>
- > Date:   Mon Apr 7 15:37:50 2014 -0700
- >     mm: try_to_unmap_cluster() should lock_page() before mlocking
- > 
- > precisely to fix this (long-standing but long-unnoticed) issue,
- > which Sasha reported a couple of months ago.
+However with Linus' patches set_page_dirty() from zap_pte_range() gets
+called after decremeting page->mapcount so page_mkclean() won't event try
+to walk rmap. And even if page_mkclean() did walk the rmap, zap_pte_range()
+calls set_page_dirty() after dropping pte lock so it can get called long
+after page_mkclean() (and clear_page_dirty_for_io()) has returned.
 
-ah, great. as long as it's fixed, I'm happy :)
+Now I'm not sure how to fix Linus' patches. For all I care we could just
+rip out pte dirty bit handling for file mappings. However last time I
+suggested this you corrected me that tmpfs & ramfs need this. I assume this
+is still the case - however, given we unconditionally mark the page dirty
+for write faults, where exactly do we need this?
 
-	Dave
-
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
