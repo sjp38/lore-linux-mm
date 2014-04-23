@@ -1,18 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f51.google.com (mail-ee0-f51.google.com [74.125.83.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A23E6B0070
-	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 23:48:14 -0400 (EDT)
-Received: by mail-ee0-f51.google.com with SMTP id c13so257672eek.38
-        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 20:48:13 -0700 (PDT)
+Received: from mail-ee0-f46.google.com (mail-ee0-f46.google.com [74.125.83.46])
+	by kanga.kvack.org (Postfix) with ESMTP id CFA1B6B0070
+	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 23:48:23 -0400 (EDT)
+Received: by mail-ee0-f46.google.com with SMTP id t10so259300eei.19
+        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 20:48:23 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x44si1006333eep.270.2014.04.22.20.48.11
+        by mx.google.com with ESMTPS id i49si1016562eem.222.2014.04.22.20.48.20
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 22 Apr 2014 20:48:12 -0700 (PDT)
+        Tue, 22 Apr 2014 20:48:21 -0700 (PDT)
 From: NeilBrown <neilb@suse.de>
 Date: Wed, 23 Apr 2014 12:40:58 +1000
-Subject: [PATCH/RFC 0/5] Support loop-back NFS mounts - take 2
-Message-ID: <20140423022441.4725.89693.stgit@notabene.brown>
+Subject: [PATCH 1/5] MM: avoid throttling reclaim for loop-back nfsd threads.
+Message-ID: <20140423024058.4725.71995.stgit@notabene.brown>
+In-Reply-To: <20140423022441.4725.89693.stgit@notabene.brown>
+References: <20140423022441.4725.89693.stgit@notabene.brown>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
@@ -21,78 +23,75 @@ List-ID: <linux-mm.kvack.org>
 To: Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@redhat.com>, Trond Myklebust <trond.myklebust@primarydata.com>, Dave Chinner <david@fromorbit.com>, "J. Bruce Fields" <bfields@fieldses.org>, Mel Gorman <mgorman@suse.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org
 
-This is a somewhat shorter patchset for loop-back NFS support than
-last time, thanks to the excellent feedback and particularly to Dave
-Chinner.  Thanks.
+When a loop-back NFS mount is active and the backing device for the
+NFS mount becomes congested, that can impose throttling delays on the
+nfsd threads.
 
-Avoiding the wait-for-congestion which can trigger a livelock is much
-the same, though I've reduced the cases in which the wait is
-by-passed.
-I did this using current->backing_dev_info which is otherwise serving
-no purpose on the current kernel.
+These delays significantly reduce throughput and so the NFS mount
+remains congested.
 
-Avoiding the deadlocks has been turned on its head.
-Instead of nfsd checking if it is a loop-back mount and setting
-PF_FSTRANS, which then needs lots of changes too PF_FSTRANS and
-__GFP_FS handling, it is now NFS which checks for a loop-back
-filesystem.
+This results in a live lock and the reduced throughput persists.
 
-There is more verbosity in that patch (Fifth of Five) but the essence
-is that nfs_release_page will now not wait indefinitely for a COMMIT
-request to complete when sent to the local host.  It still waits a
-little while as some delay can be important. But it won't wait
-forever.
-The duration of "a little while" is currently 100ms, though I do
-wonder if a bigger number would serve just as well.
+This live lock has been found in testing with the 'wait_iff_congested'
+call, and could possibly be caused by the 'congestion_wait' call.
 
-Unlike the previous series, this set should remove deadlocks that
-could happen during the actual fail-over process.  This is achieved by
-having nfs_release_page monitor the connection and if it changes from
-a remote to a local connection, or just disconnects, then it will
-timeout.  It currently polls every second, though this probably could
-be longer too.  It only needs to be the same order of magnitude as the
-time it takes node failure to be detected and failover to happen, and
-I suspect that is closer to 1 minute.  So maybe a 10 or 20 second poll
-interval would be just as good.
+This livelock is similar to the deadlock which justified the
+introduction of PF_LESS_THROTTLE, and the same flag can be used to
+remove this livelock.
 
-Implementing this timeout requires some horrible code as the
-wait_on_bit functions don't support timeouts.  If the general approach
-is found acceptable I'll explore ways to improve the timeout code.
+To minimise the impact of the change, we still throttle nfsd when the
+filesystem it is writing to is congested, but not when some separate
+filesystem (e.g. the NFS filesystem) is congested.
 
-Comments, criticism, etc very welcome as always,
-
-Thanks,
-NeilBrown
-
-
+Signed-off-by: NeilBrown <neilb@suse.de>
 ---
+ mm/vmscan.c |   18 ++++++++++++++++--
+ 1 file changed, 16 insertions(+), 2 deletions(-)
 
-NeilBrown (5):
-      MM: avoid throttling reclaim for loop-back nfsd threads.
-      SUNRPC: track whether a request is coming from a loop-back interface.
-      nfsd: Only set PF_LESS_THROTTLE when really needed.
-      SUNRPC: track when a client connection is routed to the local host.
-      NFS: avoid deadlocks with loop-back mounted NFS filesystems.
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index a9c74b409681..e011a646de95 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1424,6 +1424,18 @@ putback_inactive_pages(struct lruvec *lruvec, struct list_head *page_list)
+ 	list_splice(&pages_to_free, page_list);
+ }
+ 
++/* If a kernel thread (such as nfsd for loop-back mounts) services
++ * a backing device by writing to the page cache it sets PF_LESS_THROTTLE.
++ * In that case we should only throttle if the backing device it is
++ * writing to is congested.  In other cases it is safe to throttle.
++ */
++static int current_may_throttle(void)
++{
++	return !(current->flags & PF_LESS_THROTTLE) ||
++		current->backing_dev_info == NULL ||
++		bdi_write_congested(current->backing_dev_info);
++}
++
+ /*
+  * shrink_inactive_list() is a helper for shrink_zone().  It returns the number
+  * of reclaimed pages
+@@ -1552,7 +1564,8 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
+ 		 * implies that pages are cycling through the LRU faster than
+ 		 * they are written so also forcibly stall.
+ 		 */
+-		if (nr_unqueued_dirty == nr_taken || nr_immediate)
++		if ((nr_unqueued_dirty == nr_taken || nr_immediate)
++		    && current_may_throttle())
+ 			congestion_wait(BLK_RW_ASYNC, HZ/10);
+ 	}
+ 
+@@ -1561,7 +1574,8 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
+ 	 * is congested. Allow kswapd to continue until it starts encountering
+ 	 * unqueued dirty pages or cycling through the LRU too quickly.
+ 	 */
+-	if (!sc->hibernation_mode && !current_is_kswapd())
++	if (!sc->hibernation_mode && !current_is_kswapd()
++	    && current_may_throttle())
+ 		wait_iff_congested(zone, BLK_RW_ASYNC, HZ/10);
+ 
+ 	trace_mm_vmscan_lru_shrink_inactive(zone->zone_pgdat->node_id,
 
-
- fs/nfs/file.c                   |    2 +
- fs/nfs/write.c                  |   73 +++++++++++++++++++++++++++++++++++----
- fs/nfsd/nfssvc.c                |    6 ---
- fs/nfsd/vfs.c                   |   12 ++++++
- include/linux/freezer.h         |   10 +++++
- include/linux/sunrpc/clnt.h     |    1 +
- include/linux/sunrpc/svc.h      |    1 +
- include/linux/sunrpc/svc_xprt.h |    1 +
- include/linux/sunrpc/xprt.h     |    1 +
- include/uapi/linux/nfs_fs.h     |    3 ++
- mm/vmscan.c                     |   18 +++++++++-
- net/sunrpc/clnt.c               |   25 +++++++++++++
- net/sunrpc/svcsock.c            |   10 +++++
- net/sunrpc/xprtsock.c           |   17 +++++++++
- 14 files changed, 163 insertions(+), 17 deletions(-)
-
--- 
-Signature
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
