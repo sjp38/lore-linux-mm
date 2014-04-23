@@ -1,18 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f50.google.com (mail-ee0-f50.google.com [74.125.83.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 6142F6B0071
-	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 23:48:40 -0400 (EDT)
-Received: by mail-ee0-f50.google.com with SMTP id c13so251199eek.37
-        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 20:48:39 -0700 (PDT)
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
+	by kanga.kvack.org (Postfix) with ESMTP id F31756B0074
+	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 23:48:49 -0400 (EDT)
+Received: by mail-wi0-f180.google.com with SMTP id q5so502084wiv.1
+        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 20:48:49 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v2si1050274eel.76.2014.04.22.20.48.38
+        by mx.google.com with ESMTPS id i49si998671eem.312.2014.04.22.20.48.48
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 22 Apr 2014 20:48:39 -0700 (PDT)
+        Tue, 22 Apr 2014 20:48:48 -0700 (PDT)
 From: NeilBrown <neilb@suse.de>
 Date: Wed, 23 Apr 2014 12:40:58 +1000
-Subject: [PATCH 3/5] nfsd: Only set PF_LESS_THROTTLE when really needed.
-Message-ID: <20140423024058.4725.38098.stgit@notabene.brown>
+Subject: [PATCH 4/5] SUNRPC: track when a client connection is routed to the
+ local host.
+Message-ID: <20140423024058.4725.7703.stgit@notabene.brown>
 In-Reply-To: <20140423022441.4725.89693.stgit@notabene.brown>
 References: <20140423022441.4725.89693.stgit@notabene.brown>
 MIME-Version: 1.0
@@ -23,73 +24,127 @@ List-ID: <linux-mm.kvack.org>
 To: Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@redhat.com>, Trond Myklebust <trond.myklebust@primarydata.com>, Dave Chinner <david@fromorbit.com>, "J. Bruce Fields" <bfields@fieldses.org>, Mel Gorman <mgorman@suse.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org
 
-PF_LESS_THROTTLE has a very specific use case: to avoid deadlocks
-and live-locks while writing to the page cache in a loop-back
-NFS mount situation.
+If requests are being sent to the local host, then NFS will
+need to take care to avoid deadlocks.
 
-It therefore makes sense to *only* set PF_LESS_THROTTLE in this
-situation.
-We now know when a request came from the local-host so it could be a
-loop-back mount.  We already know when we are handling write requests,
-and when we are doing anything else.
+So keep track when accepting a connection or sending a UDP request
+and set a flag in the svc_xprt when the peer connected to is local.
 
-So combine those two to allow nfsd to still be throttled (like any
-other process) in every situation except when it is known to be
-problematic.
+The interface rpc_is_foreign() is provided to check is a given client
+is connected to a foreign server.  When it returns zero it is either
+not connected or connected to a local server and in either case
+greater care is needed.
 
 Signed-off-by: NeilBrown <neilb@suse.de>
 ---
- fs/nfsd/nfssvc.c |    6 ------
- fs/nfsd/vfs.c    |   12 ++++++++++++
- 2 files changed, 12 insertions(+), 6 deletions(-)
+ include/linux/sunrpc/clnt.h |    1 +
+ include/linux/sunrpc/xprt.h |    1 +
+ net/sunrpc/clnt.c           |   25 +++++++++++++++++++++++++
+ net/sunrpc/xprtsock.c       |   17 +++++++++++++++++
+ 4 files changed, 44 insertions(+)
 
-diff --git a/fs/nfsd/nfssvc.c b/fs/nfsd/nfssvc.c
-index 9a4a5f9e7468..1879e43f2868 100644
---- a/fs/nfsd/nfssvc.c
-+++ b/fs/nfsd/nfssvc.c
-@@ -591,12 +591,6 @@ nfsd(void *vrqstp)
- 	nfsdstats.th_cnt++;
- 	mutex_unlock(&nfsd_mutex);
+diff --git a/include/linux/sunrpc/clnt.h b/include/linux/sunrpc/clnt.h
+index 8af2804bab16..5d626cc5ab01 100644
+--- a/include/linux/sunrpc/clnt.h
++++ b/include/linux/sunrpc/clnt.h
+@@ -173,6 +173,7 @@ void		rpc_force_rebind(struct rpc_clnt *);
+ size_t		rpc_peeraddr(struct rpc_clnt *, struct sockaddr *, size_t);
+ const char	*rpc_peeraddr2str(struct rpc_clnt *, enum rpc_display_format_t);
+ int		rpc_localaddr(struct rpc_clnt *, struct sockaddr *, size_t);
++int		rpc_is_foreign(struct rpc_clnt *);
  
--	/*
--	 * We want less throttling in balance_dirty_pages() so that nfs to
--	 * localhost doesn't cause nfsd to lock up due to all the client's
--	 * dirty pages.
--	 */
--	current->flags |= PF_LESS_THROTTLE;
- 	set_freezable();
+ #endif /* __KERNEL__ */
+ #endif /* _LINUX_SUNRPC_CLNT_H */
+diff --git a/include/linux/sunrpc/xprt.h b/include/linux/sunrpc/xprt.h
+index 8097b9df6773..318ee37bc358 100644
+--- a/include/linux/sunrpc/xprt.h
++++ b/include/linux/sunrpc/xprt.h
+@@ -340,6 +340,7 @@ int			xs_swapper(struct rpc_xprt *xprt, int enable);
+ #define XPRT_CONNECTION_ABORT	(7)
+ #define XPRT_CONNECTION_CLOSE	(8)
+ #define XPRT_CONGESTED		(9)
++#define XPRT_LOCAL		(10)
  
- 	/*
-diff --git a/fs/nfsd/vfs.c b/fs/nfsd/vfs.c
-index 6d7be3f80356..2acd00445ad0 100644
---- a/fs/nfsd/vfs.c
-+++ b/fs/nfsd/vfs.c
-@@ -913,6 +913,16 @@ nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
- 	int			stable = *stablep;
- 	int			use_wgather;
- 	loff_t			pos = offset;
-+	unsigned int		pflags = current->flags;
-+
-+	if (rqstp->rq_local)
-+		/*
-+		 * We want less throttling in balance_dirty_pages()
-+		 * and shrink_inactive_list() so that nfs to
-+		 * localhost doesn't cause nfsd to lock up due to all
-+		 * the client's dirty pages or its congested queue.
-+		 */
-+		current->flags |= PF_LESS_THROTTLE;
- 
- 	dentry = file->f_path.dentry;
- 	inode = dentry->d_inode;
-@@ -950,6 +960,8 @@ out_nfserr:
- 		err = 0;
- 	else
- 		err = nfserrno(host_err);
-+	if (rqstp->rq_local)
-+		tsk_restore_flags(current, pflags, PF_LESS_THROTTLE);
- 	return err;
+ static inline void xprt_set_connected(struct rpc_xprt *xprt)
+ {
+diff --git a/net/sunrpc/clnt.c b/net/sunrpc/clnt.c
+index 0edada973434..454cea69b373 100644
+--- a/net/sunrpc/clnt.c
++++ b/net/sunrpc/clnt.c
+@@ -1109,6 +1109,31 @@ const char *rpc_peeraddr2str(struct rpc_clnt *clnt,
  }
+ EXPORT_SYMBOL_GPL(rpc_peeraddr2str);
  
++/**
++ * rpc_is_foreign - report is rpc client was recently connected to
++ *                  remote host
++ * @clnt: RPC client structure
++ *
++ * If the client is not connected, or connected to the local host
++ * (any IP address), then return 0.  Only return non-zero if the
++ * most recent state was a connection to a remote host.
++ * For UDP the client always appears to be connected, and the
++ * remoteness of the host is of the destination of the last transmission.
++ */
++int rpc_is_foreign(struct rpc_clnt *clnt)
++{
++	struct rpc_xprt *xprt;
++	int conn_foreign;
++
++	rcu_read_lock();
++	xprt = rcu_dereference(clnt->cl_xprt);
++	conn_foreign = (xprt && xprt_connected(xprt)
++			&& !test_bit(XPRT_LOCAL, &xprt->state));
++	rcu_read_unlock();
++	return conn_foreign;
++}
++EXPORT_SYMBOL_GPL(rpc_is_foreign);
++
+ static const struct sockaddr_in rpc_inaddr_loopback = {
+ 	.sin_family		= AF_INET,
+ 	.sin_addr.s_addr	= htonl(INADDR_ANY),
+diff --git a/net/sunrpc/xprtsock.c b/net/sunrpc/xprtsock.c
+index 0addefca8e77..74796cf37d5b 100644
+--- a/net/sunrpc/xprtsock.c
++++ b/net/sunrpc/xprtsock.c
+@@ -642,6 +642,15 @@ static int xs_udp_send_request(struct rpc_task *task)
+ 			xdr->len - req->rq_bytes_sent, status);
+ 
+ 	if (status >= 0) {
++		struct dst_entry *dst;
++		rcu_read_lock();
++		dst = rcu_dereference(transport->sock->sk->sk_dst_cache);
++		if (dst && dst->dev && (dst->dev->features & NETIF_F_LOOPBACK))
++			set_bit(XPRT_LOCAL, &xprt->state);
++		else
++			clear_bit(XPRT_LOCAL, &xprt->state);
++		rcu_read_unlock();
++
+ 		req->rq_xmit_bytes_sent += status;
+ 		if (status >= req->rq_slen)
+ 			return 0;
+@@ -1527,6 +1536,7 @@ static void xs_sock_mark_closed(struct rpc_xprt *xprt)
+ static void xs_tcp_state_change(struct sock *sk)
+ {
+ 	struct rpc_xprt *xprt;
++	struct dst_entry *dst;
+ 
+ 	read_lock_bh(&sk->sk_callback_lock);
+ 	if (!(xprt = xprt_from_sock(sk)))
+@@ -1556,6 +1566,13 @@ static void xs_tcp_state_change(struct sock *sk)
+ 
+ 			xprt_wake_pending_tasks(xprt, -EAGAIN);
+ 		}
++		rcu_read_lock();
++		dst = rcu_dereference(sk->sk_dst_cache);
++		if (dst && dst->dev && (dst->dev->features & NETIF_F_LOOPBACK))
++			set_bit(XPRT_LOCAL, &xprt->state);
++		else
++			clear_bit(XPRT_LOCAL, &xprt->state);
++		rcu_read_unlock();
+ 		spin_unlock(&xprt->transport_lock);
+ 		break;
+ 	case TCP_FIN_WAIT1:
 
 
 --
