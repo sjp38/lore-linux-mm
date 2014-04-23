@@ -1,115 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 9ECA06B0035
-	for <linux-mm@kvack.org>; Wed, 23 Apr 2014 18:03:21 -0400 (EDT)
-Received: by mail-pd0-f178.google.com with SMTP id x10so1200703pdj.23
-        for <linux-mm@kvack.org>; Wed, 23 Apr 2014 15:03:21 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id tk5si1366676pbc.338.2014.04.23.15.03.20
-        for <linux-mm@kvack.org>;
-        Wed, 23 Apr 2014 15:03:20 -0700 (PDT)
-Date: Wed, 23 Apr 2014 15:03:18 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/5] MM: avoid throttling reclaim for loop-back nfsd
- threads.
-Message-Id: <20140423150318.d4bcf234faa5bea7fcb57b9b@linux-foundation.org>
-In-Reply-To: <20140423024058.4725.71995.stgit@notabene.brown>
-References: <20140423022441.4725.89693.stgit@notabene.brown>
-	<20140423024058.4725.71995.stgit@notabene.brown>
+Received: from mail-pb0-f42.google.com (mail-pb0-f42.google.com [209.85.160.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 21DA26B0035
+	for <linux-mm@kvack.org>; Wed, 23 Apr 2014 18:10:32 -0400 (EDT)
+Received: by mail-pb0-f42.google.com with SMTP id un15so1221883pbc.15
+        for <linux-mm@kvack.org>; Wed, 23 Apr 2014 15:10:31 -0700 (PDT)
+Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
+        by mx.google.com with ESMTPS id bi5si1395758pbb.62.2014.04.23.15.10.30
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 23 Apr 2014 15:10:30 -0700 (PDT)
+Date: Thu, 24 Apr 2014 08:10:19 +1000
+From: Stephen Rothwell <sfr@canb.auug.org.au>
+Subject: Re: mmotm 2014-04-22-15-20 uploaded (uml 32- and 64-bit defconfigs)
+Message-Id: <20140424081019.596b5d23c624f5721ba0480a@canb.auug.org.au>
+In-Reply-To: <20140423112442.5a5c8f23d580a65575e0c5fc@linux-foundation.org>
+References: <20140422222121.2FAB45A431E@corp2gmr1-2.hot.corp.google.com>
+	<5357F405.20205@infradead.org>
+	<20140423134131.778f0d0a@redhat.com>
+	<5357FCEB.2060507@infradead.org>
+	<20140423141600.4a303d95@redhat.com>
+	<20140423112442.5a5c8f23d580a65575e0c5fc@linux-foundation.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/signed; protocol="application/pgp-signature";
+ micalg="PGP-SHA256";
+ boundary="Signature=_Thu__24_Apr_2014_08_10_19_+1000_C5fgHkTa+5.T.lB_"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: NeilBrown <neilb@suse.de>
-Cc: Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@redhat.com>, Trond Myklebust <trond.myklebust@primarydata.com>, Dave Chinner <david@fromorbit.com>, "J. Bruce Fields" <bfields@fieldses.org>, Mel Gorman <mgorman@suse.com>, linux-mm@kvack.org, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Luiz Capitulino <lcapitulino@redhat.com>, Randy Dunlap <rdunlap@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-next@vger.kernel.org, nacc@linux.vnet.ibm.com, Richard Weinberger <richard@nod.at>
 
-On Wed, 23 Apr 2014 12:40:58 +1000 NeilBrown <neilb@suse.de> wrote:
+--Signature=_Thu__24_Apr_2014_08_10_19_+1000_C5fgHkTa+5.T.lB_
+Content-Type: text/plain; charset=US-ASCII
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-> When a loop-back NFS mount is active and the backing device for the
-> NFS mount becomes congested, that can impose throttling delays on the
-> nfsd threads.
-> 
-> These delays significantly reduce throughput and so the NFS mount
-> remains congested.
-> 
-> This results in a live lock and the reduced throughput persists.
-> 
-> This live lock has been found in testing with the 'wait_iff_congested'
-> call, and could possibly be caused by the 'congestion_wait' call.
-> 
-> This livelock is similar to the deadlock which justified the
-> introduction of PF_LESS_THROTTLE, and the same flag can be used to
-> remove this livelock.
-> 
-> To minimise the impact of the change, we still throttle nfsd when the
-> filesystem it is writing to is congested, but not when some separate
-> filesystem (e.g. the NFS filesystem) is congested.
-> 
-> Signed-off-by: NeilBrown <neilb@suse.de>
-> ---
->  mm/vmscan.c |   18 ++++++++++++++++--
->  1 file changed, 16 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index a9c74b409681..e011a646de95 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -1424,6 +1424,18 @@ putback_inactive_pages(struct lruvec *lruvec, struct list_head *page_list)
->  	list_splice(&pages_to_free, page_list);
+Hi all,
+
+On Wed, 23 Apr 2014 11:24:42 -0700 Andrew Morton <akpm@linux-foundation.org=
+> wrote:
+>
+> I'll try moving hugepages_supported() into the #ifdef
+> CONFIG_HUGETLB_PAGE section.
+>=20
+> --- a/include/linux/hugetlb.h~hugetlb-ensure-hugepage-access-is-denied-if=
+-hugepages-are-not-supported-fix-fix
+> +++ a/include/linux/hugetlb.h
+> @@ -412,6 +412,16 @@ static inline spinlock_t *huge_pte_lockp
+>  	return &mm->page_table_lock;
 >  }
->  
-> +/* If a kernel thread (such as nfsd for loop-back mounts) services
-
-/*
- * If ...
-
-please
-
-> + * a backing device by writing to the page cache it sets PF_LESS_THROTTLE.
-> + * In that case we should only throttle if the backing device it is
-> + * writing to is congested.  In other cases it is safe to throttle.
-> + */
-> +static int current_may_throttle(void)
+> =20
+> +static inline bool hugepages_supported(void)
 > +{
-> +	return !(current->flags & PF_LESS_THROTTLE) ||
-> +		current->backing_dev_info == NULL ||
-> +		bdi_write_congested(current->backing_dev_info);
+> +	/*
+> +	 * Some platform decide whether they support huge pages at boot
+> +	 * time. On these, such as powerpc, HPAGE_SHIFT is set to 0 when
+> +	 * there is no such support
+> +	 */
+> +	return HPAGE_SHIFT !=3D 0;
 > +}
 > +
->  /*
->   * shrink_inactive_list() is a helper for shrink_zone().  It returns the number
->   * of reclaimed pages
-> @@ -1552,7 +1564,8 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
->  		 * implies that pages are cycling through the LRU faster than
->  		 * they are written so also forcibly stall.
->  		 */
-> -		if (nr_unqueued_dirty == nr_taken || nr_immediate)
-> +		if ((nr_unqueued_dirty == nr_taken || nr_immediate)
-> +		    && current_may_throttle())
+>  #else	/* CONFIG_HUGETLB_PAGE */
+>  struct hstate {};
+>  #define alloc_huge_page_node(h, nid) NULL
+> @@ -460,14 +470,4 @@ static inline spinlock_t *huge_pte_lock(
+>  	return ptl;
+>  }
+> =20
+> -static inline bool hugepages_supported(void)
+> -{
+> -	/*
+> -	 * Some platform decide whether they support huge pages at boot
+> -	 * time. On these, such as powerpc, HPAGE_SHIFT is set to 0 when
+> -	 * there is no such support
+> -	 */
+> -	return HPAGE_SHIFT !=3D 0;
+> -}
+> -
+>  #endif /* _LINUX_HUGETLB_H */
 
-	foo &&
-	bar
+Clearly, noone reads my emails :-(
 
-please.  As you did in in current_may_throttle().
+This is exactly what I reported and the fix I applied to yesterday's
+linux-next ...
 
->  			congestion_wait(BLK_RW_ASYNC, HZ/10);
->  	}
->  
-> @@ -1561,7 +1574,8 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
->  	 * is congested. Allow kswapd to continue until it starts encountering
->  	 * unqueued dirty pages or cycling through the LRU too quickly.
->  	 */
-> -	if (!sc->hibernation_mode && !current_is_kswapd())
-> +	if (!sc->hibernation_mode && !current_is_kswapd()
-> +	    && current_may_throttle())
+--=20
+Cheers,
+Stephen Rothwell                    sfr@canb.auug.org.au
 
-ditto
+--Signature=_Thu__24_Apr_2014_08_10_19_+1000_C5fgHkTa+5.T.lB_
+Content-Type: application/pgp-signature
 
->  		wait_iff_congested(zone, BLK_RW_ASYNC, HZ/10);
->  
->  	trace_mm_vmscan_lru_shrink_inactive(zone->zone_pgdat->node_id,
-> 
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2.0.22 (GNU/Linux)
+
+iQIcBAEBCAAGBQJTWDpRAAoJEMDTa8Ir7ZwVKVAP/AkvWVgtYaFlN2HpaXXZ2b86
+6149Yd/RBCxH3exY5J0hBrSYtc2nvsA60p/d6TfWll0EBA9cVPv5AyNhWqmEtjlS
+QMfCnlgaK4MMR2R+E2xL764sQsGQZRilgdDShe0ukgyfT6+CcPRrWCN3WaoCQTl4
+SEF8gFmdPeZ0I242CXJnBvge6/gRlssSyXhExP+63aqPi9mJiM1/Aj396el413hx
+o1uBRcN8ur3d9x2iyrOsMTwdVdd40Q1f1b+4rHpsiHkLgrbpK6Rx6LZy7KPdCsHI
+Pykpd2ccXvIHCo7tfF7CURRlu/iIyJFSFnHy1JErVcJC5tyx3AMiQDbKb/vYQdeN
+YVIYVybX0TX20cVLz2cua5sW3o/gPmtIaibELGmz05LGP0aHd+sQ/82DBrTHrW9T
+0limrH7vIk3WkO8T1fRzPxg3Dq4VsD/suWD6SllsZlYEMJpdQH9Y+oDiPlF5uisL
+2uGG5J3qvkmu1DR3MGT449zebYjF8NtvYeBLxM+oN/Nbw4+tQiG10yMoL5LasaRQ
+f1D8EPcTSxU618j0/22VJC1fIpkNrV0rmqnAT6+MO+gYxbylpZFjVp61X3y5JwOT
+y9dkPW9sU4SdG1Q3MDOaZx9SuNDfsM1F8W1NyLEUEwSUi6pdPIPd3kRUISCmpQp7
+7EiBVPN49Ol6GFGbKdyV
+=Z0Qm
+-----END PGP SIGNATURE-----
+
+--Signature=_Thu__24_Apr_2014_08_10_19_+1000_C5fgHkTa+5.T.lB_--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
