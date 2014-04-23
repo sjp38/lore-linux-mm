@@ -1,337 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f51.google.com (mail-ee0-f51.google.com [74.125.83.51])
-	by kanga.kvack.org (Postfix) with ESMTP id C26696B0070
-	for <linux-mm@kvack.org>; Wed, 23 Apr 2014 03:30:25 -0400 (EDT)
-Received: by mail-ee0-f51.google.com with SMTP id c13so401812eek.24
-        for <linux-mm@kvack.org>; Wed, 23 Apr 2014 00:30:25 -0700 (PDT)
+Received: from mail-ee0-f52.google.com (mail-ee0-f52.google.com [74.125.83.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F4C06B0035
+	for <linux-mm@kvack.org>; Wed, 23 Apr 2014 06:12:19 -0400 (EDT)
+Received: by mail-ee0-f52.google.com with SMTP id e49so590355eek.11
+        for <linux-mm@kvack.org>; Wed, 23 Apr 2014 03:12:18 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 43si1819518eei.295.2014.04.23.00.30.23
+        by mx.google.com with ESMTPS id x44si2496510eep.0.2014.04.23.03.12.17
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 23 Apr 2014 00:30:23 -0700 (PDT)
-Message-ID: <53576C08.2080003@suse.cz>
-Date: Wed, 23 Apr 2014 09:30:16 +0200
-From: Vlastimil Babka <vbabka@suse.cz>
-MIME-Version: 1.0
-Subject: Re: [PATCH 2/2] mm/compaction: cleanup isolate_freepages()
-References: <5342BA34.8050006@suse.cz> <1397553507-15330-1-git-send-email-vbabka@suse.cz> <1397553507-15330-2-git-send-email-vbabka@suse.cz> <20140417000745.GF27534@bbox> <20140421124146.c8beacf0d58aafff2085a461@linux-foundation.org> <535590FC.10607@suse.cz> <20140421235319.GD7178@bbox> <53560D3F.2030002@suse.cz> <20140422065224.GE24292@bbox> <53566BEA.2060808@suse.cz> <20140423025806.GA11184@js1304-P5Q-DELUXE>
-In-Reply-To: <20140423025806.GA11184@js1304-P5Q-DELUXE>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+        Wed, 23 Apr 2014 03:12:17 -0700 (PDT)
+From: Michal Hocko <mhocko@suse.cz>
+Subject: [PATCH -mm -repost] memcg: do not hang on OOM when killed by userspace OOM access to memory reserves
+Date: Wed, 23 Apr 2014 12:12:02 +0200
+Message-Id: <1398247922-2374-1-git-send-email-mhocko@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Heesub Shin <heesub.shin@samsung.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dongjun Shin <d.j.shin@samsung.com>, Sunghwan Yun <sunghwan.yun@samsung.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, "Eric W. Biederman" <ebiederm@xmission.com>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, stable@vger.kernel.org
 
-On 04/23/2014 04:58 AM, Joonsoo Kim wrote:
-> On Tue, Apr 22, 2014 at 03:17:30PM +0200, Vlastimil Babka wrote:
->> On 04/22/2014 08:52 AM, Minchan Kim wrote:
->>> On Tue, Apr 22, 2014 at 08:33:35AM +0200, Vlastimil Babka wrote:
->>>> On 22.4.2014 1:53, Minchan Kim wrote:
->>>>> On Mon, Apr 21, 2014 at 11:43:24PM +0200, Vlastimil Babka wrote:
->>>>>> On 21.4.2014 21:41, Andrew Morton wrote:
->>>>>>> On Thu, 17 Apr 2014 09:07:45 +0900 Minchan Kim <minchan@kernel.org> wrote:
->>>>>>>
->>>>>>>> Hi Vlastimil,
->>>>>>>>
->>>>>>>> Below just nitpicks.
->>>>>>> It seems you were ignored ;)
->>>>>> Oops, I managed to miss your e-mail, sorry.
->>>>>>
->>>>>>>>>  {
->>>>>>>>>  	struct page *page;
->>>>>>>>> -	unsigned long high_pfn, low_pfn, pfn, z_end_pfn;
->>>>>>>>> +	unsigned long pfn, low_pfn, next_free_pfn, z_end_pfn;
->>>>>>>> Could you add comment for each variable?
->>>>>>>>
->>>>>>>> unsigned long pfn; /* scanning cursor */
->>>>>>>> unsigned long low_pfn; /* lowest pfn free scanner is able to scan */
->>>>>>>> unsigned long next_free_pfn; /* start pfn for scaning at next truen */
->>>>>>>> unsigned long z_end_pfn; /* zone's end pfn */
->>>>>>>>
->>>>>>>>
->>>>>>>>> @@ -688,11 +688,10 @@ static void isolate_freepages(struct zone *zone,
->>>>>>>>>  	low_pfn = ALIGN(cc->migrate_pfn + 1, pageblock_nr_pages);
->>>>>>>>>  	/*
->>>>>>>>> -	 * Take care that if the migration scanner is at the end of the zone
->>>>>>>>> -	 * that the free scanner does not accidentally move to the next zone
->>>>>>>>> -	 * in the next isolation cycle.
->>>>>>>>> +	 * Seed the value for max(next_free_pfn, pfn) updates. If there are
->>>>>>>>> +	 * none, the pfn < low_pfn check will kick in.
->>>>>>>>        "none" what? I'd like to clear more.
->>>>>> If there are no updates to next_free_pfn within the for cycle. Which
->>>>>> matches Andrew's formulation below.
->>>>>>
->>>>>>> I did this:
->>>>>> Thanks!
->>>>>>
->>>>>>> --- a/mm/compaction.c~mm-compaction-cleanup-isolate_freepages-fix
->>>>>>> +++ a/mm/compaction.c
->>>>>>> @@ -662,7 +662,10 @@ static void isolate_freepages(struct zon
->>>>>>>  				struct compact_control *cc)
->>>>>>>  {
->>>>>>>  	struct page *page;
->>>>>>> -	unsigned long pfn, low_pfn, next_free_pfn, z_end_pfn;
->>>>>>> +	unsigned long pfn;	     /* scanning cursor */
->>>>>>> +	unsigned long low_pfn;	     /* lowest pfn scanner is able to scan */
->>>>>>> +	unsigned long next_free_pfn; /* start pfn for scaning at next round */
->>>>>>> +	unsigned long z_end_pfn;     /* zone's end pfn */
->>>>>> Yes that works.
->>>>>>
->>>>>>>  	int nr_freepages = cc->nr_freepages;
->>>>>>>  	struct list_head *freelist = &cc->freepages;
->>>>>>> @@ -679,8 +682,8 @@ static void isolate_freepages(struct zon
->>>>>>>  	low_pfn = ALIGN(cc->migrate_pfn + 1, pageblock_nr_pages);
->>>>>>>  	/*
->>>>>>> -	 * Seed the value for max(next_free_pfn, pfn) updates. If there are
->>>>>>> -	 * none, the pfn < low_pfn check will kick in.
->>>>>>> +	 * Seed the value for max(next_free_pfn, pfn) updates. If no pages are
->>>>>>> +	 * isolated, the pfn < low_pfn check will kick in.
->>>>>> OK.
->>>>>>
->>>>>>>  	 */
->>>>>>>  	next_free_pfn = 0;
->>>>>>>>> @@ -766,9 +765,9 @@ static void isolate_freepages(struct zone *zone,
->>>>>>>>>  	 * so that compact_finished() may detect this
->>>>>>>>>  	 */
->>>>>>>>>  	if (pfn < low_pfn)
->>>>>>>>> -		cc->free_pfn = max(pfn, zone->zone_start_pfn);
->>>>>>>>> -	else
->>>>>>>>> -		cc->free_pfn = high_pfn;
->>>>>>>>> +		next_free_pfn = max(pfn, zone->zone_start_pfn);
->>>>>>>> Why we need max operation?
->>>>>>>> IOW, what's the problem if we do (next_free_pfn = pfn)?
->>>>>>> An answer to this would be useful, thanks.
->>>>>> The idea (originally, not new here) is that the free scanner wants
->>>>>> to remember the highest-pfn
->>>>>> block where it managed to isolate some pages. If the following page
->>>>>> migration fails, these isolated
->>>>>> pages might be put back and would be skipped in further compaction
->>>>>> attempt if we used just
->>>>>> "next_free_pfn = pfn", until the scanners get reset.
->>>>>>
->>>>>> The question of course is if such situations are frequent and makes
->>>>>> any difference to compaction
->>>>>> outcome. And the downsides are potentially useless rescans and code
->>>>>> complexity. Maybe Mel
->>>>>> remembers how important this is? It should probably be profiled
->>>>>> before changes are made.
->>>>> I didn't mean it. What I mean is code snippet you introduced in 7ed695e069c3c.
->>>>> At that time, I didn't Cced so I missed that code so let's ask this time.
->>>>> In that patch, you added this.
->>>>>
->>>>> if (pfn < low_pfn)
->>>>>   cc->free_pfn = max(pfn, zone->zone_start_pfn);
->>>>> else
->>>>>   cc->free_pfn = high_pfn;
->>>>
->>>> Oh, right, this max(), not the one in the for loop. Sorry, I should
->>>> have read more closely.
->>>> But still maybe it's a good opportunity to kill the other max() as
->>>> well. I'll try some testing.
->>>>
->>>> Anyway, this is what I answered to Mel when he asked the same thing
->>>> when I sent
->>>> that 7ed695069c3c patch:
->>>>
->>>> If a zone starts in a middle of a pageblock and migrate scanner isolates
->>>> enough pages early to stay within that pageblock, low_pfn will be at the
->>>> end of that pageblock and after the for cycle in this function ends, pfn
->>>> might be at the beginning of that pageblock. It might not be an actual
->>>> problem (this compaction will finish at this point, and if someone else
->>>> is racing, he will probably check the boundaries himself), but I played
->>>> it safe.
->>>>
->>>>
->>>>> So the purpose of max(pfn, zone->zone_start_pfn) is to be detected by
->>>>> compact_finished to stop compaction. And your [1/2] patch in this patchset
->>>>> always makes free page scanner start on pageblock boundary so when the
->>>>> loop in isolate_freepages is finished and pfn is lower low_pfn, the pfn
->>>>> would be lower than migration scanner so compact_finished will always detect
->>>>> it so I think you could just do
->>>>>
->>>>> if (pfn < low_pfn)
->>>>>   next_free_pfn = pfn;
->>>>>
->>>>> cc->free_pfn = next_free_pfn;
->>>>
->>>> That could work. I was probably wrong about danger of racing in the
->>>> reply to Mel,
->>>> because free_pfn is stored in cc (private), not zone (shared).
->>>>
->>>>>
->>>>> Or, if you want to clear *reset*,
->>>>> if (pfn < lown_pfn)
->>>>>   next_free_pfn = zone->zone_start_pfn;
->>>>>
->>>>> cc->free_pfn = next_free_pfn;
->>>>
->>>> That would work as well but is less straightforward I think. Might
->>>> be misleading if
->>>> someone added tracepoints to track the free scanner progress with
->>>> pfn's (which
->>>> might happen soon...)
->>>
->>> My preference is to add following with pair of compact_finished
->>>
->>> static inline void finish_compact(struct compact_control *cc)
->>> {
->>>   cc->free_pfn = cc->migrate_pfn;
->>> }
->>
->> Yes setting free_pfn to migrate_pfn is probably the best way, as these
->> are the values compared in compact_finished. But I wouldn't introduce a
->> new function just for one instance of this. Also compact_finished()
->> doesn't test just the scanners to decide whether compaction should
->> continue, so the pairing would be imperfect anyway.
->> So Andrew, if you agree can you please fold in the patch below.
->>
->>> But I don't care.
->>> If you didn't send this patch as clean up, I would never interrupt
->>> on the way but you said it's cleanup patch and the one made me spend a
->>> few minutes to understand the code so it's not a clean up patch. ;-).
->>> So, IMO, it's worth to tidy it up.
->>
->> Yes, I understand and agree.
->>
->> ------8<------
->> From: Vlastimil Babka <vbabka@suse.cz>
->> Date: Tue, 22 Apr 2014 13:55:36 +0200
->> Subject: mm-compaction-cleanup-isolate_freepages-fix2
->>
->> Cleanup detection of compaction scanners crossing in isolate_freepages().
->> To make sure compact_finished() observes scanners crossing, we can just set
->> free_pfn to migrate_pfn instead of confusing max() construct.
->>
->> Suggested-by: Minchan Kim <minchan@kernel.org>
->> Cc: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
->> Cc: Christoph Lameter <cl@linux.com>
->> Cc: Dongjun Shin <d.j.shin@samsung.com>
->> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
->> Cc: Mel Gorman <mgorman@suse.de>
->> Cc: Michal Nazarewicz <mina86@mina86.com>
->> Cc: Minchan Kim <minchan@kernel.org>
->> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
->> Cc: Rik van Riel <riel@redhat.com>
->> Cc: Sunghwan Yun <sunghwan.yun@samsung.com>
->> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
->>
->> ---
->>  mm/compaction.c | 2 +-
->>  1 file changed, 1 insertion(+), 1 deletion(-)
->>
->> diff --git a/mm/compaction.c b/mm/compaction.c
->> index 37c15fe..1c992dc 100644
->> --- a/mm/compaction.c
->> +++ b/mm/compaction.c
->> @@ -768,7 +768,7 @@ static void isolate_freepages(struct zone *zone,
->>  	 * so that compact_finished() may detect this
->>  	 */
->>  	if (pfn < low_pfn)
->> -		next_free_pfn = max(pfn, zone->zone_start_pfn);
->> +		next_free_pfn = cc->migrate_pfn;
->>  
->>  	cc->free_pfn = next_free_pfn;
->>  	cc->nr_freepages = nr_freepages;
->> -- 
->> 1.8.4.5
->>
-> 
-> Hello,
-> 
-> How about doing more clean-up at this time?
-> 
-> What I did is that taking end_pfn out of the loop and consider zone
-> boundary once. After then, we just subtract pageblock_nr_pages on
-> every iteration. With this change, we can remove local variable, z_end_pfn.
-> Another things I did are removing max() operation and un-needed
-> assignment to isolate variable.
-> 
-> Thanks.
-> 
-> --------->8------------
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index 1c992dc..95a506d 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -671,10 +671,10 @@ static void isolate_freepages(struct zone *zone,
->  				struct compact_control *cc)
->  {
->  	struct page *page;
-> -	unsigned long pfn;	     /* scanning cursor */
-> +	unsigned long pfn;	     /* start of scanning window */
-> +	unsigned long end_pfn;	     /* end of scanning window */
->  	unsigned long low_pfn;	     /* lowest pfn scanner is able to scan */
->  	unsigned long next_free_pfn; /* start pfn for scaning at next round */
-> -	unsigned long z_end_pfn;     /* zone's end pfn */
->  	int nr_freepages = cc->nr_freepages;
->  	struct list_head *freelist = &cc->freepages;
->  
-> @@ -688,15 +688,16 @@ static void isolate_freepages(struct zone *zone,
->  	 * is using.
->  	 */
->  	pfn = cc->free_pfn & ~(pageblock_nr_pages-1);
-> -	low_pfn = ALIGN(cc->migrate_pfn + 1, pageblock_nr_pages);
->  
->  	/*
-> -	 * Seed the value for max(next_free_pfn, pfn) updates. If no pages are
-> -	 * isolated, the pfn < low_pfn check will kick in.
-> +	 * Take care when isolating in last pageblock of a zone which
-> +	 * ends in the middle of a pageblock.
->  	 */
-> -	next_free_pfn = 0;
-> +	end_pfn = min(pfn + pageblock_nr_pages, zone_end_pfn(zone));
-> +	low_pfn = ALIGN(cc->migrate_pfn + 1, pageblock_nr_pages);
->  
-> -	z_end_pfn = zone_end_pfn(zone);
-> +	/* If no pages are isolated, the pfn < low_pfn check will kick in. */
-> +	next_free_pfn = 0;
->  
->  	/*
->  	 * Isolate free pages until enough are available to migrate the
-> @@ -704,9 +705,8 @@ static void isolate_freepages(struct zone *zone,
->  	 * and free page scanners meet or enough free pages are isolated.
->  	 */
->  	for (; pfn >= low_pfn && cc->nr_migratepages > nr_freepages;
-> -					pfn -= pageblock_nr_pages) {
-> +		pfn -= pageblock_nr_pages, end_pfn -= pageblock_nr_pages) {
+Eric has reported that he can see task(s) stuck in memcg OOM handler
+regularly.  The only way out is to
 
-If zone_end_pfn was in the middle of a pageblock, then your end_pfn will
-always be in the middle of a pageblock and you will not scan half of all
-pageblocks.
+	echo 0 > $GROUP/memory.oom_controll
 
->  		unsigned long isolated;
-> -		unsigned long end_pfn;
->  
->  		/*
->  		 * This can iterate a massively long zone without finding any
-> @@ -738,13 +738,6 @@ static void isolate_freepages(struct zone *zone,
->  			continue;
->  
->  		/* Found a block suitable for isolating free pages from */
-> -		isolated = 0;
-> -
-> -		/*
-> -		 * Take care when isolating in last pageblock of a zone which
-> -		 * ends in the middle of a pageblock.
-> -		 */
-> -		end_pfn = min(pfn + pageblock_nr_pages, z_end_pfn);
->  		isolated = isolate_freepages_block(cc, pfn, end_pfn,
->  						   freelist, false);
->  		nr_freepages += isolated;
-> @@ -754,9 +747,9 @@ static void isolate_freepages(struct zone *zone,
->  		 * looking for free pages, the search will restart here as
->  		 * page migration may have returned some pages to the allocator
->  		 */
-> -		if (isolated) {
-> +		if (isolated && next_free_pfn == 0) {
->  			cc->finished_update_free = true;
-> -			next_free_pfn = max(next_free_pfn, pfn);
-> +			next_free_pfn = pfn;
->  		}
->  	}
->  
-> 
+His usecase is:
+
+- Setup a hierarchy with memory and the freezer (disable kernel oom and
+  have a process watch for oom).
+
+- In that memory cgroup add a process with one thread per cpu.
+
+- In one thread slowly allocate once per second I think it is 16M of ram
+  and mlock and dirty it (just to force the pages into ram and stay
+  there).
+
+- When oom is achieved loop:
+  * attempt to freeze all of the tasks.
+  * if frozen send every task SIGKILL, unfreeze, remove the directory in
+    cgroupfs.
+
+Eric has then pinpointed the issue to be memcg specific.
+
+All tasks are sitting on the memcg_oom_waitq when memcg oom is disabled.
+Those that have received fatal signal will bypass the charge and should
+continue on their way out.  The tricky part is that the exit path might
+trigger a page fault (e.g.  exit_robust_list), thus the memcg charge,
+while its memcg is still under OOM because nobody has released any charges
+yet.
+
+Unlike with the in-kernel OOM handler the exiting task doesn't get
+TIF_MEMDIE set so it doesn't shortcut further charges of the killed task
+and falls to the memcg OOM again without any way out of it as there are no
+fatal signals pending anymore.
+
+This patch fixes the issue by checking PF_EXITING early in
+mem_cgroup_try_charge and bypass the charge same as if it had fatal
+signal pending or TIF_MEMDIE set.
+
+Normally exiting tasks (aka not killed) will bypass the charge now but
+this should be OK as the task is leaving and will release memory and
+increasing the memory pressure just to release it in a moment seems
+dubious wasting of cycles.  Besides that charges after exit_signals should
+be rare.
+
+Reported-by: Eric W. Biederman <ebiederm@xmission.com>
+Signed-off-by: Michal Hocko <mhocko@suse.cz>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+Cc: <stable@vger.kernel.org>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+---
+
+I am bringing this patch again (rebased on the current mmotm tree). I
+hope we can move forward finally. If there is still an opposition then
+I would really appreciate a concurrent approach so that we can discuss
+alternatives.
+
+http://comments.gmane.org/gmane.linux.kernel.stable/77650 is a reference
+to the followup discussion when the patch has been dropped from the
+mmotm last time.
+
+ mm/memcontrol.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index e59f5729e5e6..48d109af1fa8 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2675,7 +2675,8 @@ static int mem_cgroup_try_charge(struct mem_cgroup *memcg,
+ 	 * free their memory.
+ 	 */
+ 	if (unlikely(test_thread_flag(TIF_MEMDIE) ||
+-		     fatal_signal_pending(current)))
++		     fatal_signal_pending(current) ||
++		     current->flags & PF_EXITING))
+ 		goto bypass;
+ 
+ 	if (unlikely(task_in_memcg_oom(current)))
+-- 
+1.9.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
