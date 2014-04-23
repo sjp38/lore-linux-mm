@@ -1,70 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f53.google.com (mail-ee0-f53.google.com [74.125.83.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 73C5A6B0070
-	for <linux-mm@kvack.org>; Wed, 23 Apr 2014 01:28:57 -0400 (EDT)
-Received: by mail-ee0-f53.google.com with SMTP id b57so303925eek.12
-        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 22:28:56 -0700 (PDT)
-Received: from mail-ee0-x22c.google.com (mail-ee0-x22c.google.com [2a00:1450:4013:c00::22c])
-        by mx.google.com with ESMTPS id q5si1356107eem.321.2014.04.22.22.28.55
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 22 Apr 2014 22:28:56 -0700 (PDT)
-Received: by mail-ee0-f44.google.com with SMTP id e49so303858eek.31
-        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 22:28:55 -0700 (PDT)
-Message-ID: <53574F94.4060402@gmail.com>
-Date: Wed, 23 Apr 2014 07:28:52 +0200
-From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+Received: from mail-ee0-f52.google.com (mail-ee0-f52.google.com [74.125.83.52])
+	by kanga.kvack.org (Postfix) with ESMTP id C2BF26B0070
+	for <linux-mm@kvack.org>; Wed, 23 Apr 2014 02:07:33 -0400 (EDT)
+Received: by mail-ee0-f52.google.com with SMTP id e49so324958eek.39
+        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 23:07:33 -0700 (PDT)
+Received: from BlackPearl.yuhu.biz (mail.bgservers.net. [85.14.7.126])
+        by mx.google.com with ESMTP id x47si1568479eel.43.2014.04.22.23.07.31
+        for <linux-mm@kvack.org>;
+        Tue, 22 Apr 2014 23:07:31 -0700 (PDT)
+Message-ID: <535758A0.5000500@yuhu.biz>
+Date: Wed, 23 Apr 2014 09:07:28 +0300
+From: Marian Marinov <mm@yuhu.biz>
 MIME-Version: 1.0
-Subject: Re: [PATCH 5/4] ipc,shm: minor cleanups
-References: <1398090397-2397-1-git-send-email-manfred@colorfullife.com>	 <1398221636.6345.9.camel@buesod1.americas.hpqcorp.net>	 <53574AA5.1060205@gmail.com> <1398230745.27667.2.camel@buesod1.americas.hpqcorp.net>
-In-Reply-To: <1398230745.27667.2.camel@buesod1.americas.hpqcorp.net>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: Protection against container fork bombs [WAS: Re: memcg with
+ kmem limit doesn't recover after disk i/o causes limit to be hit]
+References: <20140416154650.GA3034@alpha.arachsys.com> <20140418155939.GE4523@dhcp22.suse.cz> <5351679F.5040908@parallels.com> <20140420142830.GC22077@alpha.arachsys.com> <20140422143943.20609800@oracle.com> <20140422200531.GA19334@alpha.arachsys.com>
+In-Reply-To: <20140422200531.GA19334@alpha.arachsys.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <davidlohr@hp.com>
-Cc: mtk.manpages@gmail.com, Manfred Spraul <manfred@colorfullife.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, gthelen@google.com, aswin@hp.com, linux-mm@kvack.org
+To: Richard Davies <richard@arachsys.com>, Dwight Engen <dwight.engen@oracle.com>
+Cc: Vladimir Davydov <vdavydov@parallels.com>, Frederic Weisbecker <fweisbec@gmail.com>, David Rientjes <rientjes@google.com>, Glauber Costa <glommer@parallels.com>, Tejun Heo <tj@kernel.org>, Max Kellermann <mk@cm4all.com>, Johannes Weiner <hannes@cmpxchg.org>, William Dauchy <wdauchy@gmail.com>, Tim Hockin <thockin@hockin.org>, Michal Hocko <mhocko@suse.cz>, Daniel Walsh <dwalsh@redhat.com>, Daniel Berrange <berrange@redhat.com>, cgroups@vger.kernel.org, containers@lists.linux-foundation.org, linux-mm@kvack.org
 
-On 04/23/2014 07:25 AM, Davidlohr Bueso wrote:
-> On Wed, 2014-04-23 at 07:07 +0200, Michael Kerrisk (man-pages) wrote:
->> On 04/23/2014 04:53 AM, Davidlohr Bueso wrote:
->>> -  Breakup long function names/args.
->>> -  Cleaup variable declaration.
->>> -  s/current->mm/mm
+On 04/22/2014 11:05 PM, Richard Davies wrote:
+> Dwight Engen wrote:
+>> Richard Davies wrote:
+>>> Vladimir Davydov wrote:
+>>>> In short, kmem limiting for memory cgroups is currently broken. Do
+>>>> not use it. We are working on making it usable though.
+> ...
+>>> What is the best mechanism available today, until kmem limits mature?
 >>>
->>> Signed-off-by: Davidlohr Bueso <davidlohr@hp.com>
->>> ---
->>>  ipc/shm.c | 40 +++++++++++++++++-----------------------
->>>  1 file changed, 17 insertions(+), 23 deletions(-)
+>>> RLIMIT_NPROC exists but is per-user, not per-container.
 >>>
->>> diff --git a/ipc/shm.c b/ipc/shm.c
->>> index f000696..584d02e 100644
->>> --- a/ipc/shm.c
->>> +++ b/ipc/shm.c
->>> @@ -480,15 +480,13 @@ static const struct vm_operations_struct shm_vm_ops = {
->>>  static int newseg(struct ipc_namespace *ns, struct ipc_params *params)
->>>  {
->>>  	key_t key = params->key;
->>> -	int shmflg = params->flg;
->>> +	int id, error, shmflg = params->flg;
+>>> Perhaps there is an up-to-date task counter patchset or similar?
 >>
->> It's largely a matter of taste (and I may be in a minority), and I know
->> there's certainly precedent in the kernel code, but I don't much like the 
->> style of mixing variable declarations that have initializers, with other
->> unrelated declarations (e.g., variables without initializers). What is 
->> the gain? One less line of text? That's (IMO) more than offset by the 
->> small loss of readability.
-> 
-> Yes, it's taste. And yes, your in the minority, at least in many core
-> kernel components and ipc.
+>> I updated Frederic's task counter patches and included Max Kellermann's
+>> fork limiter here:
+>>
+>> http://thread.gmane.org/gmane.linux.kernel.containers/27212
+>>
+>> I can send you a more recent patchset (against 3.13.10) if you would
+>> find it useful.
+>
+> Yes please, I would be interested in that. Ideally even against 3.14.1 if
+> you have that too.
 
-I figured so. Just giving the minority a small voice ;-).
+Dwight, do you have these patches in any public repo?
 
+I would like to test them also.
 
--- 
-Michael Kerrisk
-Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
-Linux/UNIX System Programming Training: http://man7.org/training/
+Marian
+
+>
+> Thanks,
+>
+> Richard.
+> --
+> To unsubscribe from this list: send the line "unsubscribe cgroups" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
