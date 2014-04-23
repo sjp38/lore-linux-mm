@@ -1,341 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pb0-f48.google.com (mail-pb0-f48.google.com [209.85.160.48])
-	by kanga.kvack.org (Postfix) with ESMTP id DEE2A6B0070
-	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 22:57:15 -0400 (EDT)
-Received: by mail-pb0-f48.google.com with SMTP id md12so284987pbc.35
-        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 19:57:15 -0700 (PDT)
-Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
-        by mx.google.com with ESMTP id yl4si23891753pbc.40.2014.04.22.19.57.13
-        for <linux-mm@kvack.org>;
-        Tue, 22 Apr 2014 19:57:14 -0700 (PDT)
-Date: Wed, 23 Apr 2014 11:58:06 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 2/2] mm/compaction: cleanup isolate_freepages()
-Message-ID: <20140423025806.GA11184@js1304-P5Q-DELUXE>
-References: <5342BA34.8050006@suse.cz>
- <1397553507-15330-1-git-send-email-vbabka@suse.cz>
- <1397553507-15330-2-git-send-email-vbabka@suse.cz>
- <20140417000745.GF27534@bbox>
- <20140421124146.c8beacf0d58aafff2085a461@linux-foundation.org>
- <535590FC.10607@suse.cz>
- <20140421235319.GD7178@bbox>
- <53560D3F.2030002@suse.cz>
- <20140422065224.GE24292@bbox>
- <53566BEA.2060808@suse.cz>
+	by kanga.kvack.org (Postfix) with ESMTP id 1A5356B0070
+	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 23:10:24 -0400 (EDT)
+Received: by mail-pb0-f48.google.com with SMTP id md12so295409pbc.21
+        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 20:10:23 -0700 (PDT)
+Received: from mail-pd0-x236.google.com (mail-pd0-x236.google.com [2607:f8b0:400e:c02::236])
+        by mx.google.com with ESMTPS id xy8si2302920pab.283.2014.04.22.20.10.21
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 22 Apr 2014 20:10:21 -0700 (PDT)
+Received: by mail-pd0-f182.google.com with SMTP id y10so296327pdj.13
+        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 20:10:21 -0700 (PDT)
+Date: Tue, 22 Apr 2014 20:08:59 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: Dirty/Access bits vs. page content
+In-Reply-To: <CA+55aFzM+NpE-EzJdDeYX=cqWRzkGv9o-vybDR=oFtDLMRK-mA@mail.gmail.com>
+Message-ID: <alpine.LSU.2.11.1404221847120.1759@eggly.anvils>
+References: <1398032742.19682.11.camel@pasglop> <CA+55aFz1sK+PF96LYYZY7OB7PBpxZu-uNLWLvPiRz-tJsBqX3w@mail.gmail.com> <1398054064.19682.32.camel@pasglop> <1398057630.19682.38.camel@pasglop> <CA+55aFwWHBtihC3w9E4+j4pz+6w7iTnYhTf4N3ie15BM9thxLQ@mail.gmail.com>
+ <53558507.9050703@zytor.com> <CA+55aFxGm6J6N=4L7exLUFMr1_siNGHpK=wApd9GPCH1=63PPA@mail.gmail.com> <53559F48.8040808@intel.com> <CA+55aFwDtjA4Vp0yt0K5x6b6sAMtcn=61SEnOOs_En+3UXNpuA@mail.gmail.com> <CA+55aFzFxBDJ2rWo9DggdNsq-qBCr11OVXnm64jx04KMSVCBAw@mail.gmail.com>
+ <20140422075459.GD11182@twins.programming.kicks-ass.net> <CA+55aFzM+NpE-EzJdDeYX=cqWRzkGv9o-vybDR=oFtDLMRK-mA@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <53566BEA.2060808@suse.cz>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Heesub Shin <heesub.shin@samsung.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dongjun Shin <d.j.shin@samsung.com>, Sunghwan Yun <sunghwan.yun@samsung.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Jan Kara <jack@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@intel.com>, "H. Peter Anvin" <hpa@zytor.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Tony Luck <tony.luck@intel.com>
 
-On Tue, Apr 22, 2014 at 03:17:30PM +0200, Vlastimil Babka wrote:
-> On 04/22/2014 08:52 AM, Minchan Kim wrote:
-> > On Tue, Apr 22, 2014 at 08:33:35AM +0200, Vlastimil Babka wrote:
-> >> On 22.4.2014 1:53, Minchan Kim wrote:
-> >>> On Mon, Apr 21, 2014 at 11:43:24PM +0200, Vlastimil Babka wrote:
-> >>>> On 21.4.2014 21:41, Andrew Morton wrote:
-> >>>>> On Thu, 17 Apr 2014 09:07:45 +0900 Minchan Kim <minchan@kernel.org> wrote:
-> >>>>>
-> >>>>>> Hi Vlastimil,
-> >>>>>>
-> >>>>>> Below just nitpicks.
-> >>>>> It seems you were ignored ;)
-> >>>> Oops, I managed to miss your e-mail, sorry.
-> >>>>
-> >>>>>>>  {
-> >>>>>>>  	struct page *page;
-> >>>>>>> -	unsigned long high_pfn, low_pfn, pfn, z_end_pfn;
-> >>>>>>> +	unsigned long pfn, low_pfn, next_free_pfn, z_end_pfn;
-> >>>>>> Could you add comment for each variable?
-> >>>>>>
-> >>>>>> unsigned long pfn; /* scanning cursor */
-> >>>>>> unsigned long low_pfn; /* lowest pfn free scanner is able to scan */
-> >>>>>> unsigned long next_free_pfn; /* start pfn for scaning at next truen */
-> >>>>>> unsigned long z_end_pfn; /* zone's end pfn */
-> >>>>>>
-> >>>>>>
-> >>>>>>> @@ -688,11 +688,10 @@ static void isolate_freepages(struct zone *zone,
-> >>>>>>>  	low_pfn = ALIGN(cc->migrate_pfn + 1, pageblock_nr_pages);
-> >>>>>>>  	/*
-> >>>>>>> -	 * Take care that if the migration scanner is at the end of the zone
-> >>>>>>> -	 * that the free scanner does not accidentally move to the next zone
-> >>>>>>> -	 * in the next isolation cycle.
-> >>>>>>> +	 * Seed the value for max(next_free_pfn, pfn) updates. If there are
-> >>>>>>> +	 * none, the pfn < low_pfn check will kick in.
-> >>>>>>        "none" what? I'd like to clear more.
-> >>>> If there are no updates to next_free_pfn within the for cycle. Which
-> >>>> matches Andrew's formulation below.
-> >>>>
-> >>>>> I did this:
-> >>>> Thanks!
-> >>>>
-> >>>>> --- a/mm/compaction.c~mm-compaction-cleanup-isolate_freepages-fix
-> >>>>> +++ a/mm/compaction.c
-> >>>>> @@ -662,7 +662,10 @@ static void isolate_freepages(struct zon
-> >>>>>  				struct compact_control *cc)
-> >>>>>  {
-> >>>>>  	struct page *page;
-> >>>>> -	unsigned long pfn, low_pfn, next_free_pfn, z_end_pfn;
-> >>>>> +	unsigned long pfn;	     /* scanning cursor */
-> >>>>> +	unsigned long low_pfn;	     /* lowest pfn scanner is able to scan */
-> >>>>> +	unsigned long next_free_pfn; /* start pfn for scaning at next round */
-> >>>>> +	unsigned long z_end_pfn;     /* zone's end pfn */
-> >>>> Yes that works.
-> >>>>
-> >>>>>  	int nr_freepages = cc->nr_freepages;
-> >>>>>  	struct list_head *freelist = &cc->freepages;
-> >>>>> @@ -679,8 +682,8 @@ static void isolate_freepages(struct zon
-> >>>>>  	low_pfn = ALIGN(cc->migrate_pfn + 1, pageblock_nr_pages);
-> >>>>>  	/*
-> >>>>> -	 * Seed the value for max(next_free_pfn, pfn) updates. If there are
-> >>>>> -	 * none, the pfn < low_pfn check will kick in.
-> >>>>> +	 * Seed the value for max(next_free_pfn, pfn) updates. If no pages are
-> >>>>> +	 * isolated, the pfn < low_pfn check will kick in.
-> >>>> OK.
-> >>>>
-> >>>>>  	 */
-> >>>>>  	next_free_pfn = 0;
-> >>>>>>> @@ -766,9 +765,9 @@ static void isolate_freepages(struct zone *zone,
-> >>>>>>>  	 * so that compact_finished() may detect this
-> >>>>>>>  	 */
-> >>>>>>>  	if (pfn < low_pfn)
-> >>>>>>> -		cc->free_pfn = max(pfn, zone->zone_start_pfn);
-> >>>>>>> -	else
-> >>>>>>> -		cc->free_pfn = high_pfn;
-> >>>>>>> +		next_free_pfn = max(pfn, zone->zone_start_pfn);
-> >>>>>> Why we need max operation?
-> >>>>>> IOW, what's the problem if we do (next_free_pfn = pfn)?
-> >>>>> An answer to this would be useful, thanks.
-> >>>> The idea (originally, not new here) is that the free scanner wants
-> >>>> to remember the highest-pfn
-> >>>> block where it managed to isolate some pages. If the following page
-> >>>> migration fails, these isolated
-> >>>> pages might be put back and would be skipped in further compaction
-> >>>> attempt if we used just
-> >>>> "next_free_pfn = pfn", until the scanners get reset.
-> >>>>
-> >>>> The question of course is if such situations are frequent and makes
-> >>>> any difference to compaction
-> >>>> outcome. And the downsides are potentially useless rescans and code
-> >>>> complexity. Maybe Mel
-> >>>> remembers how important this is? It should probably be profiled
-> >>>> before changes are made.
-> >>> I didn't mean it. What I mean is code snippet you introduced in 7ed695e069c3c.
-> >>> At that time, I didn't Cced so I missed that code so let's ask this time.
-> >>> In that patch, you added this.
-> >>>
-> >>> if (pfn < low_pfn)
-> >>>   cc->free_pfn = max(pfn, zone->zone_start_pfn);
-> >>> else
-> >>>   cc->free_pfn = high_pfn;
-> >>
-> >> Oh, right, this max(), not the one in the for loop. Sorry, I should
-> >> have read more closely.
-> >> But still maybe it's a good opportunity to kill the other max() as
-> >> well. I'll try some testing.
-> >>
-> >> Anyway, this is what I answered to Mel when he asked the same thing
-> >> when I sent
-> >> that 7ed695069c3c patch:
-> >>
-> >> If a zone starts in a middle of a pageblock and migrate scanner isolates
-> >> enough pages early to stay within that pageblock, low_pfn will be at the
-> >> end of that pageblock and after the for cycle in this function ends, pfn
-> >> might be at the beginning of that pageblock. It might not be an actual
-> >> problem (this compaction will finish at this point, and if someone else
-> >> is racing, he will probably check the boundaries himself), but I played
-> >> it safe.
-> >>
-> >>
-> >>> So the purpose of max(pfn, zone->zone_start_pfn) is to be detected by
-> >>> compact_finished to stop compaction. And your [1/2] patch in this patchset
-> >>> always makes free page scanner start on pageblock boundary so when the
-> >>> loop in isolate_freepages is finished and pfn is lower low_pfn, the pfn
-> >>> would be lower than migration scanner so compact_finished will always detect
-> >>> it so I think you could just do
-> >>>
-> >>> if (pfn < low_pfn)
-> >>>   next_free_pfn = pfn;
-> >>>
-> >>> cc->free_pfn = next_free_pfn;
-> >>
-> >> That could work. I was probably wrong about danger of racing in the
-> >> reply to Mel,
-> >> because free_pfn is stored in cc (private), not zone (shared).
-> >>
-> >>>
-> >>> Or, if you want to clear *reset*,
-> >>> if (pfn < lown_pfn)
-> >>>   next_free_pfn = zone->zone_start_pfn;
-> >>>
-> >>> cc->free_pfn = next_free_pfn;
-> >>
-> >> That would work as well but is less straightforward I think. Might
-> >> be misleading if
-> >> someone added tracepoints to track the free scanner progress with
-> >> pfn's (which
-> >> might happen soon...)
-> > 
-> > My preference is to add following with pair of compact_finished
-> > 
-> > static inline void finish_compact(struct compact_control *cc)
-> > {
-> >   cc->free_pfn = cc->migrate_pfn;
-> > }
+On Tue, 22 Apr 2014, Linus Torvalds wrote:
+> On Tue, Apr 22, 2014 at 12:54 AM, Peter Zijlstra <peterz@infradead.org> wrote:
+> That said, Dave Hansen did report a BUG_ON() in
+> mpage_prepare_extent_to_map(). His line number was odd, but I assume
+> it's this one:
 > 
-> Yes setting free_pfn to migrate_pfn is probably the best way, as these
-> are the values compared in compact_finished. But I wouldn't introduce a
-> new function just for one instance of this. Also compact_finished()
-> doesn't test just the scanners to decide whether compaction should
-> continue, so the pairing would be imperfect anyway.
-> So Andrew, if you agree can you please fold in the patch below.
+>         BUG_ON(PageWriteback(page));
 > 
-> > But I don't care.
-> > If you didn't send this patch as clean up, I would never interrupt
-> > on the way but you said it's cleanup patch and the one made me spend a
-> > few minutes to understand the code so it's not a clean up patch. ;-).
-> > So, IMO, it's worth to tidy it up.
-> 
-> Yes, I understand and agree.
-> 
-> ------8<------
-> From: Vlastimil Babka <vbabka@suse.cz>
-> Date: Tue, 22 Apr 2014 13:55:36 +0200
-> Subject: mm-compaction-cleanup-isolate_freepages-fix2
-> 
-> Cleanup detection of compaction scanners crossing in isolate_freepages().
-> To make sure compact_finished() observes scanners crossing, we can just set
-> free_pfn to migrate_pfn instead of confusing max() construct.
-> 
-> Suggested-by: Minchan Kim <minchan@kernel.org>
-> Cc: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-> Cc: Christoph Lameter <cl@linux.com>
-> Cc: Dongjun Shin <d.j.shin@samsung.com>
-> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> Cc: Mel Gorman <mgorman@suse.de>
-> Cc: Michal Nazarewicz <mina86@mina86.com>
-> Cc: Minchan Kim <minchan@kernel.org>
-> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Cc: Rik van Riel <riel@redhat.com>
-> Cc: Sunghwan Yun <sunghwan.yun@samsung.com>
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-> 
-> ---
->  mm/compaction.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index 37c15fe..1c992dc 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -768,7 +768,7 @@ static void isolate_freepages(struct zone *zone,
->  	 * so that compact_finished() may detect this
->  	 */
->  	if (pfn < low_pfn)
-> -		next_free_pfn = max(pfn, zone->zone_start_pfn);
-> +		next_free_pfn = cc->migrate_pfn;
->  
->  	cc->free_pfn = next_free_pfn;
->  	cc->nr_freepages = nr_freepages;
-> -- 
-> 1.8.4.5
-> 
+> which may be indicative of some oddity here wrt the dirty bit.
 
-Hello,
+Whereas later mail from Dave showed it to be the
+	BUG_ON(!PagePrivate(page));
+in page_buffers() from fs/ext4/inode.c mpage_prepare_extent_to_map().
+But still presumably some kind of fallout from your patches.
 
-How about doing more clean-up at this time?
+Once upon a time there was a page_has_buffers() check in there,
+but Honza decided that's nowadays unnecessary in f8bec37037ac
+"ext4: dirty page has always buffers attached".  Cc'ed,
+he may very well have some good ideas.
 
-What I did is that taking end_pfn out of the loop and consider zone
-boundary once. After then, we just subtract pageblock_nr_pages on
-every iteration. With this change, we can remove local variable, z_end_pfn.
-Another things I did are removing max() operation and un-needed
-assignment to isolate variable.
+Reading that commit reminded me of how we actually don't expect that
+set_page_dirty() in zap_pte_range() to do anything at all on the usual
+mapping_cap_account_dirty()/page_mkwrite() filesystems, do we?  Or do we?
+ 
+> So I'm a bit worried.  I'm starting to think that we need to do
+> "set_page_dirty_lock()". It *used* to be the case that because we held
+> the page table lock and the page used to be mapped (even if we then
+> unmapped it), page_mapping() could not go away from under us because
+> truncate would see it in the rmap list and then get serialized on that
+> page table lock. But moving the set_page_dirty() later - and to
+> outside the page table lock - means that we probably need to use that
+> version that takes the page lock.
+> 
+> Which might kind of suck from a performance angle. But it might
+> explain DaveH's BUG_ON() when testing those patches?
+> 
+> I wonder if we could hold on to the page mapping some other way than
+> taking that page lock, because taking that page lock sounds
+> potentially damn expensive.
 
-Thanks.
+At first I thought you were right, and set_page_dirty_lock() needed;
+but now I think not.  We only(?) need set_page_dirty_lock() when
+there's a danger that the struct address_space itself might be
+evicted beneath us.
 
---------->8------------
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 1c992dc..95a506d 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -671,10 +671,10 @@ static void isolate_freepages(struct zone *zone,
- 				struct compact_control *cc)
- {
- 	struct page *page;
--	unsigned long pfn;	     /* scanning cursor */
-+	unsigned long pfn;	     /* start of scanning window */
-+	unsigned long end_pfn;	     /* end of scanning window */
- 	unsigned long low_pfn;	     /* lowest pfn scanner is able to scan */
- 	unsigned long next_free_pfn; /* start pfn for scaning at next round */
--	unsigned long z_end_pfn;     /* zone's end pfn */
- 	int nr_freepages = cc->nr_freepages;
- 	struct list_head *freelist = &cc->freepages;
- 
-@@ -688,15 +688,16 @@ static void isolate_freepages(struct zone *zone,
- 	 * is using.
- 	 */
- 	pfn = cc->free_pfn & ~(pageblock_nr_pages-1);
--	low_pfn = ALIGN(cc->migrate_pfn + 1, pageblock_nr_pages);
- 
- 	/*
--	 * Seed the value for max(next_free_pfn, pfn) updates. If no pages are
--	 * isolated, the pfn < low_pfn check will kick in.
-+	 * Take care when isolating in last pageblock of a zone which
-+	 * ends in the middle of a pageblock.
- 	 */
--	next_free_pfn = 0;
-+	end_pfn = min(pfn + pageblock_nr_pages, zone_end_pfn(zone));
-+	low_pfn = ALIGN(cc->migrate_pfn + 1, pageblock_nr_pages);
- 
--	z_end_pfn = zone_end_pfn(zone);
-+	/* If no pages are isolated, the pfn < low_pfn check will kick in. */
-+	next_free_pfn = 0;
- 
- 	/*
- 	 * Isolate free pages until enough are available to migrate the
-@@ -704,9 +705,8 @@ static void isolate_freepages(struct zone *zone,
- 	 * and free page scanners meet or enough free pages are isolated.
- 	 */
- 	for (; pfn >= low_pfn && cc->nr_migratepages > nr_freepages;
--					pfn -= pageblock_nr_pages) {
-+		pfn -= pageblock_nr_pages, end_pfn -= pageblock_nr_pages) {
- 		unsigned long isolated;
--		unsigned long end_pfn;
- 
- 		/*
- 		 * This can iterate a massively long zone without finding any
-@@ -738,13 +738,6 @@ static void isolate_freepages(struct zone *zone,
- 			continue;
- 
- 		/* Found a block suitable for isolating free pages from */
--		isolated = 0;
--
--		/*
--		 * Take care when isolating in last pageblock of a zone which
--		 * ends in the middle of a pageblock.
--		 */
--		end_pfn = min(pfn + pageblock_nr_pages, z_end_pfn);
- 		isolated = isolate_freepages_block(cc, pfn, end_pfn,
- 						   freelist, false);
- 		nr_freepages += isolated;
-@@ -754,9 +747,9 @@ static void isolate_freepages(struct zone *zone,
- 		 * looking for free pages, the search will restart here as
- 		 * page migration may have returned some pages to the allocator
- 		 */
--		if (isolated) {
-+		if (isolated && next_free_pfn == 0) {
- 			cc->finished_update_free = true;
--			next_free_pfn = max(next_free_pfn, pfn);
-+			next_free_pfn = pfn;
- 		}
- 	}
- 
+But here (even without relying on Al's delayed_fput) the fput()
+is done by remove_vma() called _after_ the tlb_finish_mmu().
+So I see no danger of struct address_space being freed:
+set_page_dirty_lock() is for, say, people who did get_user_pages(),
+and cannot be sure that the original range is still mapped when
+they come to do the final set_page_dirtys and put_pages.
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+page->mapping might be truncated to NULL at any moment without page
+lock and without mapping->tree_lock (and without page table lock
+helping to serialize page_mapped against unmap_mapping_range); but
+__set_page_dirty_nobuffers() (admittedly not the only set_page_dirty)
+is careful about that, and it's just not the problem Dave is seeing.
+
+However... Virginia and I get rather giddy when it comes to the
+clear_page_dirty_for_io() page_mkclean() dance: we trust you and
+Peter and Jan on that, and page lock there has some part to play.
+
+My suspicion, not backed up at all, is that by leaving the
+set_page_dirty() until after the page has been unmapped (and page
+table lock dropped), that dance has been disturbed in such a way
+that ext4 can be tricked into freeing page buffers before it will
+need them again for a final dirty writeout.
+
+Kind words deleted :) Your 2 patches below for easier reference.
+
+Hugh
