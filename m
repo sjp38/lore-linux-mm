@@ -1,19 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f53.google.com (mail-ee0-f53.google.com [74.125.83.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F5746B0070
-	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 23:48:31 -0400 (EDT)
-Received: by mail-ee0-f53.google.com with SMTP id b57so259956eek.12
-        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 20:48:30 -0700 (PDT)
+Received: from mail-ee0-f50.google.com (mail-ee0-f50.google.com [74.125.83.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 6142F6B0071
+	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 23:48:40 -0400 (EDT)
+Received: by mail-ee0-f50.google.com with SMTP id c13so251199eek.37
+        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 20:48:39 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m49si997731eeo.311.2014.04.22.20.48.29
+        by mx.google.com with ESMTPS id v2si1050274eel.76.2014.04.22.20.48.38
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 22 Apr 2014 20:48:30 -0700 (PDT)
+        Tue, 22 Apr 2014 20:48:39 -0700 (PDT)
 From: NeilBrown <neilb@suse.de>
 Date: Wed, 23 Apr 2014 12:40:58 +1000
-Subject: [PATCH 2/5] SUNRPC: track whether a request is coming from a
- loop-back interface.
-Message-ID: <20140423024058.4725.71307.stgit@notabene.brown>
+Subject: [PATCH 3/5] nfsd: Only set PF_LESS_THROTTLE when really needed.
+Message-ID: <20140423024058.4725.38098.stgit@notabene.brown>
 In-Reply-To: <20140423022441.4725.89693.stgit@notabene.brown>
 References: <20140423022441.4725.89693.stgit@notabene.brown>
 MIME-Version: 1.0
@@ -24,76 +23,73 @@ List-ID: <linux-mm.kvack.org>
 To: Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@redhat.com>, Trond Myklebust <trond.myklebust@primarydata.com>, Dave Chinner <david@fromorbit.com>, "J. Bruce Fields" <bfields@fieldses.org>, Mel Gorman <mgorman@suse.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org
 
-If an incoming NFS request is coming from the local host, then
-nfsd will need to perform some special handling.  So detect that
-possibility and make the source visible in rq_local.
+PF_LESS_THROTTLE has a very specific use case: to avoid deadlocks
+and live-locks while writing to the page cache in a loop-back
+NFS mount situation.
+
+It therefore makes sense to *only* set PF_LESS_THROTTLE in this
+situation.
+We now know when a request came from the local-host so it could be a
+loop-back mount.  We already know when we are handling write requests,
+and when we are doing anything else.
+
+So combine those two to allow nfsd to still be throttled (like any
+other process) in every situation except when it is known to be
+problematic.
 
 Signed-off-by: NeilBrown <neilb@suse.de>
 ---
- include/linux/sunrpc/svc.h      |    1 +
- include/linux/sunrpc/svc_xprt.h |    1 +
- net/sunrpc/svcsock.c            |   10 ++++++++++
- 3 files changed, 12 insertions(+)
+ fs/nfsd/nfssvc.c |    6 ------
+ fs/nfsd/vfs.c    |   12 ++++++++++++
+ 2 files changed, 12 insertions(+), 6 deletions(-)
 
-diff --git a/include/linux/sunrpc/svc.h b/include/linux/sunrpc/svc.h
-index 04e763221246..a0dbbd1e00e9 100644
---- a/include/linux/sunrpc/svc.h
-+++ b/include/linux/sunrpc/svc.h
-@@ -254,6 +254,7 @@ struct svc_rqst {
- 	u32			rq_prot;	/* IP protocol */
- 	unsigned short
- 				rq_secure  : 1;	/* secure port */
-+	unsigned short		rq_local   : 1;	/* local request */
+diff --git a/fs/nfsd/nfssvc.c b/fs/nfsd/nfssvc.c
+index 9a4a5f9e7468..1879e43f2868 100644
+--- a/fs/nfsd/nfssvc.c
++++ b/fs/nfsd/nfssvc.c
+@@ -591,12 +591,6 @@ nfsd(void *vrqstp)
+ 	nfsdstats.th_cnt++;
+ 	mutex_unlock(&nfsd_mutex);
  
- 	void *			rq_argp;	/* decoded arguments */
- 	void *			rq_resp;	/* xdr'd results */
-diff --git a/include/linux/sunrpc/svc_xprt.h b/include/linux/sunrpc/svc_xprt.h
-index b05963f09ebf..b99bdfb0fcf9 100644
---- a/include/linux/sunrpc/svc_xprt.h
-+++ b/include/linux/sunrpc/svc_xprt.h
-@@ -63,6 +63,7 @@ struct svc_xprt {
- #define	XPT_DETACHED	10		/* detached from tempsocks list */
- #define XPT_LISTENER	11		/* listening endpoint */
- #define XPT_CACHE_AUTH	12		/* cache auth info */
-+#define XPT_LOCAL	13		/* connection from loopback interface */
+-	/*
+-	 * We want less throttling in balance_dirty_pages() so that nfs to
+-	 * localhost doesn't cause nfsd to lock up due to all the client's
+-	 * dirty pages.
+-	 */
+-	current->flags |= PF_LESS_THROTTLE;
+ 	set_freezable();
  
- 	struct svc_serv		*xpt_server;	/* service for transport */
- 	atomic_t    	    	xpt_reserved;	/* space on outq that is rsvd */
-diff --git a/net/sunrpc/svcsock.c b/net/sunrpc/svcsock.c
-index b6e59f0a9475..193115fe968c 100644
---- a/net/sunrpc/svcsock.c
-+++ b/net/sunrpc/svcsock.c
-@@ -811,6 +811,7 @@ static struct svc_xprt *svc_tcp_accept(struct svc_xprt *xprt)
- 	struct socket	*newsock;
- 	struct svc_sock	*newsvsk;
- 	int		err, slen;
-+	struct dst_entry *dst;
- 	RPC_IFDEBUG(char buf[RPC_MAX_ADDRBUFLEN]);
- 
- 	dprintk("svc: tcp_accept %p sock %p\n", svsk, sock);
-@@ -867,6 +868,14 @@ static struct svc_xprt *svc_tcp_accept(struct svc_xprt *xprt)
- 	}
- 	svc_xprt_set_local(&newsvsk->sk_xprt, sin, slen);
- 
-+	clear_bit(XPT_LOCAL, &newsvsk->sk_xprt.xpt_flags);
-+	rcu_read_lock();
-+	dst = rcu_dereference(newsock->sk->sk_dst_cache);
-+	if (dst && dst->dev &&
-+	    (dst->dev->features & NETIF_F_LOOPBACK))
-+		set_bit(XPT_LOCAL, &newsvsk->sk_xprt.xpt_flags);
-+	rcu_read_unlock();
+ 	/*
+diff --git a/fs/nfsd/vfs.c b/fs/nfsd/vfs.c
+index 6d7be3f80356..2acd00445ad0 100644
+--- a/fs/nfsd/vfs.c
++++ b/fs/nfsd/vfs.c
+@@ -913,6 +913,16 @@ nfsd_vfs_write(struct svc_rqst *rqstp, struct svc_fh *fhp, struct file *file,
+ 	int			stable = *stablep;
+ 	int			use_wgather;
+ 	loff_t			pos = offset;
++	unsigned int		pflags = current->flags;
 +
- 	if (serv->sv_stats)
- 		serv->sv_stats->nettcpconn++;
++	if (rqstp->rq_local)
++		/*
++		 * We want less throttling in balance_dirty_pages()
++		 * and shrink_inactive_list() so that nfs to
++		 * localhost doesn't cause nfsd to lock up due to all
++		 * the client's dirty pages or its congested queue.
++		 */
++		current->flags |= PF_LESS_THROTTLE;
  
-@@ -1112,6 +1121,7 @@ static int svc_tcp_recvfrom(struct svc_rqst *rqstp)
+ 	dentry = file->f_path.dentry;
+ 	inode = dentry->d_inode;
+@@ -950,6 +960,8 @@ out_nfserr:
+ 		err = 0;
+ 	else
+ 		err = nfserrno(host_err);
++	if (rqstp->rq_local)
++		tsk_restore_flags(current, pflags, PF_LESS_THROTTLE);
+ 	return err;
+ }
  
- 	rqstp->rq_xprt_ctxt   = NULL;
- 	rqstp->rq_prot	      = IPPROTO_TCP;
-+	rqstp->rq_local	      = !!test_bit(XPT_LOCAL, &svsk->sk_xprt.xpt_flags);
- 
- 	p = (__be32 *)rqstp->rq_arg.head[0].iov_base;
- 	calldir = p[1];
 
 
 --
