@@ -1,188 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f46.google.com (mail-ee0-f46.google.com [74.125.83.46])
-	by kanga.kvack.org (Postfix) with ESMTP id D9A926B0035
-	for <linux-mm@kvack.org>; Wed, 23 Apr 2014 19:14:31 -0400 (EDT)
-Received: by mail-ee0-f46.google.com with SMTP id t10so1222289eei.5
-        for <linux-mm@kvack.org>; Wed, 23 Apr 2014 16:14:31 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z42si5370470eel.2.2014.04.23.16.14.29
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 939216B0035
+	for <linux-mm@kvack.org>; Wed, 23 Apr 2014 19:28:23 -0400 (EDT)
+Received: by mail-pd0-f169.google.com with SMTP id y13so341883pdi.14
+        for <linux-mm@kvack.org>; Wed, 23 Apr 2014 16:28:23 -0700 (PDT)
+Received: from mail-pa0-x22d.google.com (mail-pa0-x22d.google.com [2607:f8b0:400e:c03::22d])
+        by mx.google.com with ESMTPS id ng4si1462606pbc.405.2014.04.23.16.28.22
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 23 Apr 2014 16:14:30 -0700 (PDT)
-Date: Thu, 24 Apr 2014 09:14:19 +1000
-From: NeilBrown <neilb@suse.de>
-Subject: Re: [PATCH 4/5] SUNRPC: track when a client connection is routed to
- the local host.
-Message-ID: <20140424091419.0ba0cfd3@notabene.brown>
-In-Reply-To: <5357C3AC.9090203@netapp.com>
-References: <20140423022441.4725.89693.stgit@notabene.brown>
-	<20140423024058.4725.7703.stgit@notabene.brown>
-	<5357C3AC.9090203@netapp.com>
-Mime-Version: 1.0
-Content-Type: multipart/signed; micalg=PGP-SHA1;
- boundary="Sig_/cOLNjfjwl9x5Dua.BH=I80E"; protocol="application/pgp-signature"
+        Wed, 23 Apr 2014 16:28:22 -0700 (PDT)
+Received: by mail-pa0-f45.google.com with SMTP id kq14so612332pab.18
+        for <linux-mm@kvack.org>; Wed, 23 Apr 2014 16:28:22 -0700 (PDT)
+Date: Wed, 23 Apr 2014 16:28:14 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH -mm -repost] memcg: do not hang on OOM when killed by
+ userspace OOM access to memory reserves
+In-Reply-To: <1398247922-2374-1-git-send-email-mhocko@suse.cz>
+Message-ID: <alpine.DEB.2.02.1404231627410.11506@chino.kir.corp.google.com>
+References: <1398247922-2374-1-git-send-email-mhocko@suse.cz>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anna Schumaker <Anna.Schumaker@netapp.com>
-Cc: Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@redhat.com>, Trond Myklebust <trond.myklebust@primarydata.com>, Dave Chinner <david@fromorbit.com>, "J. Bruce Fields" <bfields@fieldses.org>, Mel
- Gorman <mgorman@suse.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, "Eric W. Biederman" <ebiederm@xmission.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, stable@vger.kernel.org
 
---Sig_/cOLNjfjwl9x5Dua.BH=I80E
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: quoted-printable
+On Wed, 23 Apr 2014, Michal Hocko wrote:
 
-On Wed, 23 Apr 2014 09:44:12 -0400 Anna Schumaker <Anna.Schumaker@netapp.co=
-m>
-wrote:
+> Eric has reported that he can see task(s) stuck in memcg OOM handler
+> regularly.  The only way out is to
+> 
+> 	echo 0 > $GROUP/memory.oom_controll
+> 
+> His usecase is:
+> 
+> - Setup a hierarchy with memory and the freezer (disable kernel oom and
+>   have a process watch for oom).
+> 
+> - In that memory cgroup add a process with one thread per cpu.
+> 
+> - In one thread slowly allocate once per second I think it is 16M of ram
+>   and mlock and dirty it (just to force the pages into ram and stay
+>   there).
+> 
+> - When oom is achieved loop:
+>   * attempt to freeze all of the tasks.
+>   * if frozen send every task SIGKILL, unfreeze, remove the directory in
+>     cgroupfs.
+> 
+> Eric has then pinpointed the issue to be memcg specific.
+> 
+> All tasks are sitting on the memcg_oom_waitq when memcg oom is disabled.
+> Those that have received fatal signal will bypass the charge and should
+> continue on their way out.  The tricky part is that the exit path might
+> trigger a page fault (e.g.  exit_robust_list), thus the memcg charge,
+> while its memcg is still under OOM because nobody has released any charges
+> yet.
+> 
+> Unlike with the in-kernel OOM handler the exiting task doesn't get
+> TIF_MEMDIE set so it doesn't shortcut further charges of the killed task
+> and falls to the memcg OOM again without any way out of it as there are no
+> fatal signals pending anymore.
+> 
+> This patch fixes the issue by checking PF_EXITING early in
+> mem_cgroup_try_charge and bypass the charge same as if it had fatal
+> signal pending or TIF_MEMDIE set.
+> 
+> Normally exiting tasks (aka not killed) will bypass the charge now but
+> this should be OK as the task is leaving and will release memory and
+> increasing the memory pressure just to release it in a moment seems
+> dubious wasting of cycles.  Besides that charges after exit_signals should
+> be rare.
+> 
+> Reported-by: Eric W. Biederman <ebiederm@xmission.com>
+> Signed-off-by: Michal Hocko <mhocko@suse.cz>
+> Cc: David Rientjes <rientjes@google.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
+> Cc: <stable@vger.kernel.org>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 
-> On 04/22/2014 10:40 PM, NeilBrown wrote:
-> > If requests are being sent to the local host, then NFS will
-> > need to take care to avoid deadlocks.
-> >
-> > So keep track when accepting a connection or sending a UDP request
-> > and set a flag in the svc_xprt when the peer connected to is local.
-> >
-> > The interface rpc_is_foreign() is provided to check is a given client
-> > is connected to a foreign server.  When it returns zero it is either
-> > not connected or connected to a local server and in either case
-> > greater care is needed.
-> >
-> > Signed-off-by: NeilBrown <neilb@suse.de>
-> > ---
-> >  include/linux/sunrpc/clnt.h |    1 +
-> >  include/linux/sunrpc/xprt.h |    1 +
-> >  net/sunrpc/clnt.c           |   25 +++++++++++++++++++++++++
-> >  net/sunrpc/xprtsock.c       |   17 +++++++++++++++++
-> >  4 files changed, 44 insertions(+)
-> >
-> > diff --git a/include/linux/sunrpc/clnt.h b/include/linux/sunrpc/clnt.h
-> > index 8af2804bab16..5d626cc5ab01 100644
-> > --- a/include/linux/sunrpc/clnt.h
-> > +++ b/include/linux/sunrpc/clnt.h
-> > @@ -173,6 +173,7 @@ void		rpc_force_rebind(struct rpc_clnt *);
-> >  size_t		rpc_peeraddr(struct rpc_clnt *, struct sockaddr *, size_t);
-> >  const char	*rpc_peeraddr2str(struct rpc_clnt *, enum rpc_display_forma=
-t_t);
-> >  int		rpc_localaddr(struct rpc_clnt *, struct sockaddr *, size_t);
-> > +int		rpc_is_foreign(struct rpc_clnt *);
-> > =20
-> >  #endif /* __KERNEL__ */
-> >  #endif /* _LINUX_SUNRPC_CLNT_H */
-> > diff --git a/include/linux/sunrpc/xprt.h b/include/linux/sunrpc/xprt.h
-> > index 8097b9df6773..318ee37bc358 100644
-> > --- a/include/linux/sunrpc/xprt.h
-> > +++ b/include/linux/sunrpc/xprt.h
-> > @@ -340,6 +340,7 @@ int			xs_swapper(struct rpc_xprt *xprt, int enable);
-> >  #define XPRT_CONNECTION_ABORT	(7)
-> >  #define XPRT_CONNECTION_CLOSE	(8)
-> >  #define XPRT_CONGESTED		(9)
-> > +#define XPRT_LOCAL		(10)
-> > =20
-> >  static inline void xprt_set_connected(struct rpc_xprt *xprt)
-> >  {
-> > diff --git a/net/sunrpc/clnt.c b/net/sunrpc/clnt.c
-> > index 0edada973434..454cea69b373 100644
-> > --- a/net/sunrpc/clnt.c
-> > +++ b/net/sunrpc/clnt.c
-> > @@ -1109,6 +1109,31 @@ const char *rpc_peeraddr2str(struct rpc_clnt *cl=
-nt,
-> >  }
-> >  EXPORT_SYMBOL_GPL(rpc_peeraddr2str);
-> > =20
-> > +/**
-> > + * rpc_is_foreign - report is rpc client was recently connected to
-> > + *                  remote host
-> > + * @clnt: RPC client structure
-> > + *
-> > + * If the client is not connected, or connected to the local host
-> > + * (any IP address), then return 0.  Only return non-zero if the
-> > + * most recent state was a connection to a remote host.
-> > + * For UDP the client always appears to be connected, and the
-> > + * remoteness of the host is of the destination of the last transmissi=
-on.
-> > + */
-> > +int rpc_is_foreign(struct rpc_clnt *clnt)
-> > +{
-> > +	struct rpc_xprt *xprt;
-> > +	int conn_foreign;
-> > +
-> > +	rcu_read_lock();
-> > +	xprt =3D rcu_dereference(clnt->cl_xprt);
-> > +	conn_foreign =3D (xprt && xprt_connected(xprt)
-> > +			&& !test_bit(XPRT_LOCAL, &xprt->state));
-> > +	rcu_read_unlock();
-> > +	return conn_foreign;
-> > +}
-> > +EXPORT_SYMBOL_GPL(rpc_is_foreign);
-> > +
-> >  static const struct sockaddr_in rpc_inaddr_loopback =3D {
-> >  	.sin_family		=3D AF_INET,
-> >  	.sin_addr.s_addr	=3D htonl(INADDR_ANY),
-> > diff --git a/net/sunrpc/xprtsock.c b/net/sunrpc/xprtsock.c
-> > index 0addefca8e77..74796cf37d5b 100644
-> > --- a/net/sunrpc/xprtsock.c
-> > +++ b/net/sunrpc/xprtsock.c
-> > @@ -642,6 +642,15 @@ static int xs_udp_send_request(struct rpc_task *ta=
-sk)
-> >  			xdr->len - req->rq_bytes_sent, status);
-> > =20
-> >  	if (status >=3D 0) {
-> > +		struct dst_entry *dst;
-> > +		rcu_read_lock();
-> > +		dst =3D rcu_dereference(transport->sock->sk->sk_dst_cache);
-> > +		if (dst && dst->dev && (dst->dev->features & NETIF_F_LOOPBACK))
-> > +			set_bit(XPRT_LOCAL, &xprt->state);
-> > +		else
-> > +			clear_bit(XPRT_LOCAL, &xprt->state);
-> > +		rcu_read_unlock();
-> > +
-> You repeat this block of code a bit later.  Can you please make it an inl=
-ine helper function?
+Acked-by: David Rientjes <rientjes@google.com>
 
-Thanks for the suggestion.
-I've put
-
-static inline int sock_is_loopback(struct sock *sk)
-{
-	struct dst_entry *dst;
-	int loopback =3D 0;
-	rcu_read_lock();
-	dst =3D rcu_dereference(sk->sk_dst_cache);
-	if (dst && dst->dev &&
-	    (dst->dev->features & NETIF_F_LOOPBACK))
-		loopback =3D 1;
-	rcu_read_unlock();
-	return loopback;
-}
-
-
-in sunrpc.h, and used it for both the server-side and the client side.
-
-NeilBrown
-
---Sig_/cOLNjfjwl9x5Dua.BH=I80E
-Content-Type: application/pgp-signature; name=signature.asc
-Content-Disposition: attachment; filename=signature.asc
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2.0.22 (GNU/Linux)
-
-iQIVAwUBU1hJSznsnt1WYoG5AQIuPg/9EScpKqpA9AEORKfK9w/MreIQOaHAPItr
-2ZAoUbPa6N0aoSWZBLk4GA9oPZLvDMi/3gDbWpGjJoAR4osi+PSA8f078GNnSAFM
-JGsuO+xnP1HMQAd2QjEY3fDg+ns9si2BORfWtpebDmTqZNjxiP0VyeBJEvTfR97I
-w48aD4cJn8VGi4bs7kqa7fBPBktenUAD1/I9pQCK3gjfFuOkUjCDEGD8Uj+aWb12
-5hT+adr+Z1y/c35J45AG86YKQQDdUIib1nMELwQ/RwrJoC3qkaudkyJNROUqUot1
-tH1jHl5DClMvWzbIdEUNh2SRoQ13tbvile3N32oN3rDmRHiHM3eYOwc9GFgLFent
-xlLB73fbJLvO8lnRqsWdXwLtM9BCCN+t6yzDWnCHD1bTTxs+rMbfx+UWKI98bsPF
-NOUuVr0c0UD3HTM2GsKrR91lb7ZBZcTdwJIhswaSq0ZTjmkTiQC7Y7UC1MfXVBlA
-pO6PvEQUQXKcoVKVHBqv2VmZLD1ll2PDhh010dg4iwVTPLUCT+Zt/JkHbvV+rD9L
-sSiHXzdVGWPft5W1d1zZkRXwDA34e1cCp2JibBrsKIXMcUp7zksuN23kPwJFVdPl
-GznVzho/oGIanVF8QhHO219zD2/+x65OG8iDH27SFJjVvpcyRVfM3xOx7DqD6m9W
-LpXIcr1FmSE=
-=mIQG
------END PGP SIGNATURE-----
-
---Sig_/cOLNjfjwl9x5Dua.BH=I80E--
+I think we should wait for a Tested-by from Eric if this is going to be 
+backported to stable, though, to meet the criteria.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
