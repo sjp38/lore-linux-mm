@@ -1,93 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f46.google.com (mail-pb0-f46.google.com [209.85.160.46])
-	by kanga.kvack.org (Postfix) with ESMTP id E51D16B0035
-	for <linux-mm@kvack.org>; Wed, 23 Apr 2014 14:13:10 -0400 (EDT)
-Received: by mail-pb0-f46.google.com with SMTP id rq2so1028806pbb.33
-        for <linux-mm@kvack.org>; Wed, 23 Apr 2014 11:13:10 -0700 (PDT)
-Received: from mail-pb0-x235.google.com (mail-pb0-x235.google.com [2607:f8b0:400e:c01::235])
-        by mx.google.com with ESMTPS id px1si1059081pbb.499.2014.04.23.11.13.08
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 23 Apr 2014 11:13:08 -0700 (PDT)
-Received: by mail-pb0-f53.google.com with SMTP id rp16so1027319pbb.40
-        for <linux-mm@kvack.org>; Wed, 23 Apr 2014 11:13:08 -0700 (PDT)
-Date: Wed, 23 Apr 2014 11:11:53 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: 3.15rc2 hanging processes on exit.
-In-Reply-To: <CA+55aFziPHmSP5yjxDP6h_hRY-H2VgWZKsqC7w8+B9d9wXqn6Q@mail.gmail.com>
-Message-ID: <alpine.LSU.2.11.1404231057470.2678@eggly.anvils>
-References: <20140422180308.GA19038@redhat.com> <CA+55aFxjADAB80AV6qK-b4QPzP7fgog_EyH-7dSpWVgzpZmL8Q@mail.gmail.com> <alpine.LSU.2.11.1404221303060.6220@eggly.anvils> <20140423144901.GA24220@redhat.com>
- <CA+55aFziPHmSP5yjxDP6h_hRY-H2VgWZKsqC7w8+B9d9wXqn6Q@mail.gmail.com>
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 1FC926B0037
+	for <linux-mm@kvack.org>; Wed, 23 Apr 2014 14:16:29 -0400 (EDT)
+Received: by mail-wi0-f173.google.com with SMTP id z2so5370709wiv.0
+        for <linux-mm@kvack.org>; Wed, 23 Apr 2014 11:16:28 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id c8si7760492wix.26.2014.04.23.11.16.26
+        for <linux-mm@kvack.org>;
+        Wed, 23 Apr 2014 11:16:27 -0700 (PDT)
+Date: Wed, 23 Apr 2014 14:16:00 -0400
+From: Luiz Capitulino <lcapitulino@redhat.com>
+Subject: Re: mmotm 2014-04-22-15-20 uploaded (uml 32- and 64-bit defconfigs)
+Message-ID: <20140423141600.4a303d95@redhat.com>
+In-Reply-To: <5357FCEB.2060507@infradead.org>
+References: <20140422222121.2FAB45A431E@corp2gmr1-2.hot.corp.google.com>
+	<5357F405.20205@infradead.org>
+	<20140423134131.778f0d0a@redhat.com>
+	<5357FCEB.2060507@infradead.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Dave Jones <davej@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+To: Randy Dunlap <rdunlap@infradead.org>
+Cc: akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-next@vger.kernel.org, nacc@linux.vnet.ibm.com, Richard Weinberger <richard@nod.at>
 
-On Wed, 23 Apr 2014, Linus Torvalds wrote:
-> On Wed, Apr 23, 2014 at 7:49 AM, Dave Jones <davej@redhat.com> wrote:
-> >
-> > So for reasons I can't figure out, I've not been able to hit it on 3.14
+On Wed, 23 Apr 2014 10:48:27 -0700
+Randy Dunlap <rdunlap@infradead.org> wrote:
 
-Thanks for trying.  Not the reassuring answer that I was hoping for,
-so I'd better give it a little more thought, to see if we have some
-reason in 3.15-rc why it should now appear.  Not worth spending too
-much effort on, though: Linus's fix looked good whatever.
-
-> > The only 'interesting' thing I've hit in overnight testing is this, which
-> > I'm not sure if I've also seen in my .15rc testing, but it doesn't look
-> > familiar to me.  (Though the vm oopses I've seen the last few months
-> > are starting to all blur together in my memory)
-> >
-> >
-> > kernel BUG at mm/mlock.c:82!
+> On 04/23/14 10:41, Luiz Capitulino wrote:
+> > On Wed, 23 Apr 2014 10:10:29 -0700
+> > Randy Dunlap <rdunlap@infradead.org> wrote:
+> > 
+> >> On 04/22/14 15:21, akpm@linux-foundation.org wrote:
+> >>> The mm-of-the-moment snapshot 2014-04-22-15-20 has been uploaded to
+> >>>
+> >>>    http://www.ozlabs.org/~akpm/mmotm/
+> >>>
+> >>> mmotm-readme.txt says
+> >>>
+> >>> README for mm-of-the-moment:
+> >>>
+> >>> http://www.ozlabs.org/~akpm/mmotm/
+> >>>
+> >>> This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
+> >>> more than once a week.
+> >>>
+> >>> You will need quilt to apply these patches to the latest Linus release (3.x
+> >>> or 3.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
+> >>> http://ozlabs.org/~akpm/mmotm/series
+> >>>
+> >>
+> >> include/linux/hugetlb.h:468:9: error: 'HPAGE_SHIFT' undeclared (first use in this function)
+> > 
+> > The patch adding HPAGE_SHIFT usage to hugetlb.h in current mmotm is this:
+> > 
+> > http://www.ozlabs.org/~akpm/mmotm/broken-out/hugetlb-ensure-hugepage-access-is-denied-if-hugepages-are-not-supported.patch
+> > 
+> > But I can't reproduce the issue to be sure what the problem is. Are you
+> > building the kernel on 32bits? Can you provide the output of
+> > "grep -i huge .config" or send your .config in private?
+> > 
 > 
-> That's
+> [adding Richard to cc:]
 > 
->   mlock_vma_page:
->     BUG_ON(!PageLocked(page));
 > 
-> which is odd, because:
-> 
-> > Call Trace:
-> >  [<ffffffffbe196612>] try_to_unmap_nonlinear+0x2a2/0x530
-> >  [<ffffffffbe1972a7>] rmap_walk+0x157/0x320
-> >  [<ffffffffbe1976e3>] try_to_unmap+0x93/0xf0
-> >  [<ffffffffbe1bb8f6>] migrate_pages+0x3b6/0x7b0
-> 
-> All the calls to "try_to_unmap()" in mm/migrate.c are preceded by the pattern
-> 
->         if (!trylock_page(page)) {
->                  ....
->                 lock_page(page);
->         }
+> As in $subject, if I build uml x86 32-bit or 64-bit defconfig, the build fails with
+> this error.
 
-Yes, that's true of the mm/migrate.c end, but the nonlinear
-try_to_unmap_cluster() (Being unable to point directly to the desired
-page) does this thing of unmapping a cluster of (likely unrelated) pages,
-in the hope that if it keeps getting called repeatedly, it will sooner or
-later have unmapped everything required.
+Oh, I missed the subject info completely. Sorry about that.
 
-> 
-> where there are just a few "goto out" style cases for the "ok, we're
-> not going to wait for this page lock" in there.
-> 
-> Very odd.  Does anybody see anything I missed?
+So, the issue really seems to be introduced by patch:
 
-Easily explained (correct me if I'm wrong): Dave is reporting this from
-his testing of 3.14, but Linus is looking at his 3.15-rc git tree, which
-now contains
+ hugetlb-ensure-hugepage-access-is-denied-if-hugepages-are-not-supported.patch
 
-commit 57e68e9cd65b4b8eb4045a1e0d0746458502554c
-Author: Vlastimil Babka <vbabka@suse.cz>
-Date:   Mon Apr 7 15:37:50 2014 -0700
-    mm: try_to_unmap_cluster() should lock_page() before mlocking
+And the problem is that UML doesn't define HPAGE_SHIFT. The following patch
+fixes it, but I'll let Nishanth decide what to do here.
 
-precisely to fix this (long-standing but long-unnoticed) issue,
-which Sasha reported a couple of months ago.
-
-Hugh
+diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+index 4eace5e..3aab7df 100644
+--- a/include/linux/hugetlb.h
++++ b/include/linux/hugetlb.h
+@@ -458,6 +458,10 @@ static inline spinlock_t *huge_pte_lock(struct hstate *h,
+ 	return ptl;
+ }
+ 
++#ifndef HPAGE_SHIFT
++#define HPAGE_SHIFT 0
++#endif
++
+ static inline bool hugepages_supported(void)
+ {
+ 	/*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
