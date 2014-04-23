@@ -1,18 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f46.google.com (mail-ee0-f46.google.com [74.125.83.46])
-	by kanga.kvack.org (Postfix) with ESMTP id CFA1B6B0070
-	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 23:48:23 -0400 (EDT)
-Received: by mail-ee0-f46.google.com with SMTP id t10so259300eei.19
-        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 20:48:23 -0700 (PDT)
+Received: from mail-ee0-f53.google.com (mail-ee0-f53.google.com [74.125.83.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F5746B0070
+	for <linux-mm@kvack.org>; Tue, 22 Apr 2014 23:48:31 -0400 (EDT)
+Received: by mail-ee0-f53.google.com with SMTP id b57so259956eek.12
+        for <linux-mm@kvack.org>; Tue, 22 Apr 2014 20:48:30 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i49si1016562eem.222.2014.04.22.20.48.20
+        by mx.google.com with ESMTPS id m49si997731eeo.311.2014.04.22.20.48.29
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 22 Apr 2014 20:48:21 -0700 (PDT)
+        Tue, 22 Apr 2014 20:48:30 -0700 (PDT)
 From: NeilBrown <neilb@suse.de>
 Date: Wed, 23 Apr 2014 12:40:58 +1000
-Subject: [PATCH 1/5] MM: avoid throttling reclaim for loop-back nfsd threads.
-Message-ID: <20140423024058.4725.71995.stgit@notabene.brown>
+Subject: [PATCH 2/5] SUNRPC: track whether a request is coming from a
+ loop-back interface.
+Message-ID: <20140423024058.4725.71307.stgit@notabene.brown>
 In-Reply-To: <20140423022441.4725.89693.stgit@notabene.brown>
 References: <20140423022441.4725.89693.stgit@notabene.brown>
 MIME-Version: 1.0
@@ -23,74 +24,76 @@ List-ID: <linux-mm.kvack.org>
 To: Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@redhat.com>, Trond Myklebust <trond.myklebust@primarydata.com>, Dave Chinner <david@fromorbit.com>, "J. Bruce Fields" <bfields@fieldses.org>, Mel Gorman <mgorman@suse.com>, Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org
 
-When a loop-back NFS mount is active and the backing device for the
-NFS mount becomes congested, that can impose throttling delays on the
-nfsd threads.
-
-These delays significantly reduce throughput and so the NFS mount
-remains congested.
-
-This results in a live lock and the reduced throughput persists.
-
-This live lock has been found in testing with the 'wait_iff_congested'
-call, and could possibly be caused by the 'congestion_wait' call.
-
-This livelock is similar to the deadlock which justified the
-introduction of PF_LESS_THROTTLE, and the same flag can be used to
-remove this livelock.
-
-To minimise the impact of the change, we still throttle nfsd when the
-filesystem it is writing to is congested, but not when some separate
-filesystem (e.g. the NFS filesystem) is congested.
+If an incoming NFS request is coming from the local host, then
+nfsd will need to perform some special handling.  So detect that
+possibility and make the source visible in rq_local.
 
 Signed-off-by: NeilBrown <neilb@suse.de>
 ---
- mm/vmscan.c |   18 ++++++++++++++++--
- 1 file changed, 16 insertions(+), 2 deletions(-)
+ include/linux/sunrpc/svc.h      |    1 +
+ include/linux/sunrpc/svc_xprt.h |    1 +
+ net/sunrpc/svcsock.c            |   10 ++++++++++
+ 3 files changed, 12 insertions(+)
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index a9c74b409681..e011a646de95 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1424,6 +1424,18 @@ putback_inactive_pages(struct lruvec *lruvec, struct list_head *page_list)
- 	list_splice(&pages_to_free, page_list);
- }
+diff --git a/include/linux/sunrpc/svc.h b/include/linux/sunrpc/svc.h
+index 04e763221246..a0dbbd1e00e9 100644
+--- a/include/linux/sunrpc/svc.h
++++ b/include/linux/sunrpc/svc.h
+@@ -254,6 +254,7 @@ struct svc_rqst {
+ 	u32			rq_prot;	/* IP protocol */
+ 	unsigned short
+ 				rq_secure  : 1;	/* secure port */
++	unsigned short		rq_local   : 1;	/* local request */
  
-+/* If a kernel thread (such as nfsd for loop-back mounts) services
-+ * a backing device by writing to the page cache it sets PF_LESS_THROTTLE.
-+ * In that case we should only throttle if the backing device it is
-+ * writing to is congested.  In other cases it is safe to throttle.
-+ */
-+static int current_may_throttle(void)
-+{
-+	return !(current->flags & PF_LESS_THROTTLE) ||
-+		current->backing_dev_info == NULL ||
-+		bdi_write_congested(current->backing_dev_info);
-+}
-+
- /*
-  * shrink_inactive_list() is a helper for shrink_zone().  It returns the number
-  * of reclaimed pages
-@@ -1552,7 +1564,8 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
- 		 * implies that pages are cycling through the LRU faster than
- 		 * they are written so also forcibly stall.
- 		 */
--		if (nr_unqueued_dirty == nr_taken || nr_immediate)
-+		if ((nr_unqueued_dirty == nr_taken || nr_immediate)
-+		    && current_may_throttle())
- 			congestion_wait(BLK_RW_ASYNC, HZ/10);
+ 	void *			rq_argp;	/* decoded arguments */
+ 	void *			rq_resp;	/* xdr'd results */
+diff --git a/include/linux/sunrpc/svc_xprt.h b/include/linux/sunrpc/svc_xprt.h
+index b05963f09ebf..b99bdfb0fcf9 100644
+--- a/include/linux/sunrpc/svc_xprt.h
++++ b/include/linux/sunrpc/svc_xprt.h
+@@ -63,6 +63,7 @@ struct svc_xprt {
+ #define	XPT_DETACHED	10		/* detached from tempsocks list */
+ #define XPT_LISTENER	11		/* listening endpoint */
+ #define XPT_CACHE_AUTH	12		/* cache auth info */
++#define XPT_LOCAL	13		/* connection from loopback interface */
+ 
+ 	struct svc_serv		*xpt_server;	/* service for transport */
+ 	atomic_t    	    	xpt_reserved;	/* space on outq that is rsvd */
+diff --git a/net/sunrpc/svcsock.c b/net/sunrpc/svcsock.c
+index b6e59f0a9475..193115fe968c 100644
+--- a/net/sunrpc/svcsock.c
++++ b/net/sunrpc/svcsock.c
+@@ -811,6 +811,7 @@ static struct svc_xprt *svc_tcp_accept(struct svc_xprt *xprt)
+ 	struct socket	*newsock;
+ 	struct svc_sock	*newsvsk;
+ 	int		err, slen;
++	struct dst_entry *dst;
+ 	RPC_IFDEBUG(char buf[RPC_MAX_ADDRBUFLEN]);
+ 
+ 	dprintk("svc: tcp_accept %p sock %p\n", svsk, sock);
+@@ -867,6 +868,14 @@ static struct svc_xprt *svc_tcp_accept(struct svc_xprt *xprt)
  	}
+ 	svc_xprt_set_local(&newsvsk->sk_xprt, sin, slen);
  
-@@ -1561,7 +1574,8 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
- 	 * is congested. Allow kswapd to continue until it starts encountering
- 	 * unqueued dirty pages or cycling through the LRU too quickly.
- 	 */
--	if (!sc->hibernation_mode && !current_is_kswapd())
-+	if (!sc->hibernation_mode && !current_is_kswapd()
-+	    && current_may_throttle())
- 		wait_iff_congested(zone, BLK_RW_ASYNC, HZ/10);
++	clear_bit(XPT_LOCAL, &newsvsk->sk_xprt.xpt_flags);
++	rcu_read_lock();
++	dst = rcu_dereference(newsock->sk->sk_dst_cache);
++	if (dst && dst->dev &&
++	    (dst->dev->features & NETIF_F_LOOPBACK))
++		set_bit(XPT_LOCAL, &newsvsk->sk_xprt.xpt_flags);
++	rcu_read_unlock();
++
+ 	if (serv->sv_stats)
+ 		serv->sv_stats->nettcpconn++;
  
- 	trace_mm_vmscan_lru_shrink_inactive(zone->zone_pgdat->node_id,
+@@ -1112,6 +1121,7 @@ static int svc_tcp_recvfrom(struct svc_rqst *rqstp)
+ 
+ 	rqstp->rq_xprt_ctxt   = NULL;
+ 	rqstp->rq_prot	      = IPPROTO_TCP;
++	rqstp->rq_local	      = !!test_bit(XPT_LOCAL, &svsk->sk_xprt.xpt_flags);
+ 
+ 	p = (__be32 *)rqstp->rq_arg.head[0].iov_base;
+ 	calldir = p[1];
 
 
 --
