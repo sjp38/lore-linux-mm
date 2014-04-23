@@ -1,136 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f50.google.com (mail-ee0-f50.google.com [74.125.83.50])
-	by kanga.kvack.org (Postfix) with ESMTP id A0C326B0035
-	for <linux-mm@kvack.org>; Wed, 23 Apr 2014 09:14:09 -0400 (EDT)
-Received: by mail-ee0-f50.google.com with SMTP id c13so772209eek.23
-        for <linux-mm@kvack.org>; Wed, 23 Apr 2014 06:14:08 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y41si3167246eel.110.2014.04.23.06.14.07
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 23 Apr 2014 06:14:08 -0700 (PDT)
-Date: Wed, 23 Apr 2014 14:14:04 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 2/2] swap: use separate priority list for available
- swap_infos
-Message-ID: <20140423131404.GI23991@suse.de>
-References: <alpine.LSU.2.11.1402232344280.1890@eggly.anvils>
- <1397336454-13855-1-git-send-email-ddstreet@ieee.org>
- <1397336454-13855-3-git-send-email-ddstreet@ieee.org>
+Received: from mail-yh0-f50.google.com (mail-yh0-f50.google.com [209.85.213.50])
+	by kanga.kvack.org (Postfix) with ESMTP id D01726B0035
+	for <linux-mm@kvack.org>; Wed, 23 Apr 2014 09:20:46 -0400 (EDT)
+Received: by mail-yh0-f50.google.com with SMTP id t59so801054yho.23
+        for <linux-mm@kvack.org>; Wed, 23 Apr 2014 06:20:46 -0700 (PDT)
+Received: from cam-admin0.cambridge.arm.com (cam-admin0.cambridge.arm.com. [217.140.96.50])
+        by mx.google.com with ESMTP id o24si1038655yhn.145.2014.04.23.06.20.45
+        for <linux-mm@kvack.org>;
+        Wed, 23 Apr 2014 06:20:46 -0700 (PDT)
+Date: Wed, 23 Apr 2014 14:20:33 +0100
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: [PATCH v3] ARM: mm: support big-endian page tables
+Message-ID: <20140423132033.GE5649@arm.com>
+References: <534F9F79.9050503@huawei.com>
+ <87ob00wau2.fsf@approximate.cambridge.arm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1397336454-13855-3-git-send-email-ddstreet@ieee.org>
+In-Reply-To: <87ob00wau2.fsf@approximate.cambridge.arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Streetman <ddstreet@ieee.org>
-Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Weijie Yang <weijieut@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Marc Zyngier <marc.zyngier@arm.com>
+Cc: Jianguo Wu <wujianguo@huawei.com>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>, Ben Dooks <ben.dooks@codethink.co.uk>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Catalin Marinas <Catalin.Marinas@arm.com>, Li Zefan <lizefan@huawei.com>, Wang Nan <wangnan0@huawei.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Sat, Apr 12, 2014 at 05:00:54PM -0400, Dan Streetman wrote:
-> Originally get_swap_page() started iterating through the singly-linked
-> list of swap_info_structs using swap_list.next or highest_priority_index,
-> which both were intended to point to the highest priority active swap
-> target that was not full.  The previous patch in this series changed the
-> singly-linked list to a doubly-linked list, and removed the logic to start
-> at the highest priority non-full entry; it starts scanning at the highest
-> priority entry each time, even if the entry is full.
-> 
-> Add a new list, also priority ordered, to track only swap_info_structs
-> that are available, i.e. active and not full.  Use a new spinlock so that
-> entries can be added/removed outside of get_swap_page; that wasn't possible
-> previously because the main list is protected by swap_lock, which can't be
-> taken when holding a swap_info_struct->lock because of locking order.
-> The get_swap_page() logic now does not need to hold the swap_lock, and it
-> iterates only through swap_info_structs that are available.
-> 
-> Signed-off-by: Dan Streetman <ddstreet@ieee.org>
-> ---
->  include/linux/swap.h |   1 +
->  mm/swapfile.c        | 128 ++++++++++++++++++++++++++++++++++-----------------
->  2 files changed, 87 insertions(+), 42 deletions(-)
-> 
-> diff --git a/include/linux/swap.h b/include/linux/swap.h
-> index 96662d8..d9263db 100644
-> --- a/include/linux/swap.h
-> +++ b/include/linux/swap.h
-> @@ -214,6 +214,7 @@ struct percpu_cluster {
->  struct swap_info_struct {
->  	unsigned long	flags;		/* SWP_USED etc: see above */
->  	signed short	prio;		/* swap priority of this type */
-> +	struct list_head prio_list;	/* entry in priority list */
->  	struct list_head list;		/* entry in swap list */
->  	signed char	type;		/* strange name for an index */
->  	unsigned int	max;		/* extent of the swap_map */
-> diff --git a/mm/swapfile.c b/mm/swapfile.c
-> index b958645..3c38461 100644
-> --- a/mm/swapfile.c
-> +++ b/mm/swapfile.c
-> @@ -57,9 +57,13 @@ static const char Unused_file[] = "Unused swap file entry ";
->  static const char Bad_offset[] = "Bad swap offset entry ";
->  static const char Unused_offset[] = "Unused swap offset entry ";
->  
-> -/* all active swap_info */
-> +/* all active swap_info; protected with swap_lock */
->  LIST_HEAD(swap_list_head);
->  
-> +/* all available (active, not full) swap_info, priority ordered */
-> +static LIST_HEAD(prio_head);
-> +static DEFINE_SPINLOCK(prio_lock);
-> +
+Hi Jianguo,
 
-I get why you maintain two lists with separate locking but it's code that
-is specific to swap and in many respects, it's very similar to a plist. Is
-there a reason why plist was not used at least for prio_head? They're used
-for futex's so presumably the performance is reasonable. It might reduce
-the size of swapfile.c further.
+On Thu, Apr 17, 2014 at 10:43:01AM +0100, Marc Zyngier wrote:
+> On Thu, Apr 17 2014 at 10:31:37 am BST, Jianguo Wu <wujianguo@huawei.com> wrote:
+> > When enable LPAE and big-endian in a hisilicon board, while specify
+> > mem=384M mem=512M@7680M, will get bad page state:
+> >
+> > Freeing unused kernel memory: 180K (c0466000 - c0493000)
+> > BUG: Bad page state in process init  pfn:fa442
+> > page:c7749840 count:0 mapcount:-1 mapping:  (null) index:0x0
+> > page flags: 0x40000400(reserved)
+> > Modules linked in:
+> > CPU: 0 PID: 1 Comm: init Not tainted 3.10.27+ #66
+> > [<c000f5f0>] (unwind_backtrace+0x0/0x11c) from [<c000cbc4>] (show_stack+0x10/0x14)
+> > [<c000cbc4>] (show_stack+0x10/0x14) from [<c009e448>] (bad_page+0xd4/0x104)
+> > [<c009e448>] (bad_page+0xd4/0x104) from [<c009e520>] (free_pages_prepare+0xa8/0x14c)
+> > [<c009e520>] (free_pages_prepare+0xa8/0x14c) from [<c009f8ec>] (free_hot_cold_page+0x18/0xf0)
+> > [<c009f8ec>] (free_hot_cold_page+0x18/0xf0) from [<c00b5444>] (handle_pte_fault+0xcf4/0xdc8)
+> > [<c00b5444>] (handle_pte_fault+0xcf4/0xdc8) from [<c00b6458>] (handle_mm_fault+0xf4/0x120)
+> > [<c00b6458>] (handle_mm_fault+0xf4/0x120) from [<c0013754>] (do_page_fault+0xfc/0x354)
+> > [<c0013754>] (do_page_fault+0xfc/0x354) from [<c0008400>] (do_DataAbort+0x2c/0x90)
+> > [<c0008400>] (do_DataAbort+0x2c/0x90) from [<c0008fb4>] (__dabt_usr+0x34/0x40)
 
-It is the case that plist does not have the equivalent of rotate which
-you need to recycle the entries of equal priority but you could add a
-plist_shuffle helper that "rotates the list left if the next entry is of
-equal priority".
 
-I was going to suggest that you could then get rid of swap_list_head but
-it's a relatively big change. swapoff wouldn't care but frontswap would
-suffer if it had to walk all of swap_info[] to find all active swap
-files.
+[...]
 
->  struct swap_info_struct *swap_info[MAX_SWAPFILES];
->  
->  static DEFINE_MUTEX(swapon_mutex);
-> @@ -73,6 +77,27 @@ static inline unsigned char swap_count(unsigned char ent)
->  	return ent & ~SWAP_HAS_CACHE;	/* may include SWAP_HAS_CONT flag */
->  }
->  
-> +/*
-> + * add, in priority order, swap_info (p)->(le) list_head to list (lh)
-> + * this list-generic function is needed because both swap_list_head
-> + * and prio_head need to be priority ordered:
-> + * swap_list_head in swapoff to adjust lower negative prio swap_infos
-> + * prio_list in get_swap_page to scan highest prio swap_info first
-> + */
-> +#define swap_info_list_add(p, lh, le) do {			\
-> +	struct swap_info_struct *_si;				\
-> +	BUG_ON(!list_empty(&(p)->le));				\
-> +	list_for_each_entry(_si, (lh), le) {			\
-> +		if ((p)->prio >= _si->prio) {			\
-> +			list_add_tail(&(p)->le, &_si->le);	\
-> +			break;					\
-> +		}						\
-> +	}							\
-> +	/* lh empty, or p lowest prio */			\
-> +	if (list_empty(&(p)->le))				\
-> +		list_add_tail(&(p)->le, (lh));			\
-> +} while (0)
-> +
+Please can you put this into Russell's patch system? You can also add my
+ack:
 
-Why is this a #define instead of a static uninlined function?
+  Acked-by: Will Deacon <will.deacon@arm.com>
 
-That aside, it's again very similar to what a plist does with some
-minor structure modifications.
+You should also CC stable <stable@vger.kernel.org> in the commit log.
 
--- 
-Mel Gorman
-SUSE Labs
+Cheers,
+
+Will
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
