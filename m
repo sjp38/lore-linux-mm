@@ -1,86 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oa0-f53.google.com (mail-oa0-f53.google.com [209.85.219.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 630EB6B0036
-	for <linux-mm@kvack.org>; Thu, 24 Apr 2014 13:21:42 -0400 (EDT)
-Received: by mail-oa0-f53.google.com with SMTP id j17so2964861oag.40
-        for <linux-mm@kvack.org>; Thu, 24 Apr 2014 10:21:42 -0700 (PDT)
-Received: from g4t3427.houston.hp.com (g4t3427.houston.hp.com. [15.201.208.55])
-        by mx.google.com with ESMTPS id sm4si4034813obb.130.2014.04.24.10.21.41
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 24 Apr 2014 10:21:41 -0700 (PDT)
-Message-ID: <1398360099.2744.8.camel@buesod1.americas.hpqcorp.net>
-Subject: Re: [PATCH 5/4] ipc,shm: minor cleanups
-From: Davidlohr Bueso <davidlohr@hp.com>
-Date: Thu, 24 Apr 2014 10:21:39 -0700
-In-Reply-To: <53589E8E.1040000@gmail.com>
-References: <1398090397-2397-1-git-send-email-manfred@colorfullife.com>
-		 <1398221636.6345.9.camel@buesod1.americas.hpqcorp.net>
-		 <53574AA5.1060205@gmail.com>
-	 <1398230745.27667.2.camel@buesod1.americas.hpqcorp.net>
-	 <53589E8E.1040000@gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id AA60B6B0036
+	for <linux-mm@kvack.org>; Thu, 24 Apr 2014 13:25:58 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id fa1so2155707pad.28
+        for <linux-mm@kvack.org>; Thu, 24 Apr 2014 10:25:58 -0700 (PDT)
+Received: from blackbird.sr71.net ([2001:19d0:2:6:209:6bff:fe9a:902])
+        by mx.google.com with ESMTP id hi3si3090723pac.82.2014.04.24.10.25.54
+        for <linux-mm@kvack.org>;
+        Thu, 24 Apr 2014 10:25:54 -0700 (PDT)
+Message-ID: <53594920.8030203@sr71.net>
+Date: Thu, 24 Apr 2014 10:25:52 -0700
+From: Dave Hansen <dave@sr71.net>
+MIME-Version: 1.0
+Subject: Re: [PATCH 5/6] x86: mm: new tunable for single vs full TLB flush
+References: <20140421182418.81CF7519@viggo.jf.intel.com> <20140421182426.D6DD1E8F@viggo.jf.intel.com> <20140424103727.GT23991@suse.de>
+In-Reply-To: <20140424103727.GT23991@suse.de>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
-Cc: Manfred Spraul <manfred@colorfullife.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, gthelen@google.com, aswin@hp.com, linux-mm@kvack.org
+To: Mel Gorman <mgorman@suse.de>
+Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, ak@linux.intel.com, riel@redhat.com, alex.shi@linaro.org, dave.hansen@linux.intel.com, "H. Peter Anvin" <hpa@zytor.com>
 
-On Thu, 2014-04-24 at 07:18 +0200, Michael Kerrisk (man-pages) wrote:
-> On 04/23/2014 07:25 AM, Davidlohr Bueso wrote:
-> > On Wed, 2014-04-23 at 07:07 +0200, Michael Kerrisk (man-pages) wrote:
-> >> On 04/23/2014 04:53 AM, Davidlohr Bueso wrote:
-> >>> -  Breakup long function names/args.
-> >>> -  Cleaup variable declaration.
-> >>> -  s/current->mm/mm
-> >>>
-> >>> Signed-off-by: Davidlohr Bueso <davidlohr@hp.com>
-> >>> ---
-> >>>  ipc/shm.c | 40 +++++++++++++++++-----------------------
-> >>>  1 file changed, 17 insertions(+), 23 deletions(-)
-> >>>
-> >>> diff --git a/ipc/shm.c b/ipc/shm.c
-> >>> index f000696..584d02e 100644
-> >>> --- a/ipc/shm.c
-> >>> +++ b/ipc/shm.c
-> >>> @@ -480,15 +480,13 @@ static const struct vm_operations_struct shm_vm_ops = {
-> >>>  static int newseg(struct ipc_namespace *ns, struct ipc_params *params)
-> >>>  {
-> >>>  	key_t key = params->key;
-> >>> -	int shmflg = params->flg;
-> >>> +	int id, error, shmflg = params->flg;
-> >>
-> >> It's largely a matter of taste (and I may be in a minority), and I know
-> >> there's certainly precedent in the kernel code, but I don't much like the 
-> >> style of mixing variable declarations that have initializers, with other
-> >> unrelated declarations (e.g., variables without initializers). What is 
-> >> the gain? One less line of text? That's (IMO) more than offset by the 
-> >> small loss of readability.
-> > 
-> > Yes, it's taste. And yes, your in the minority, at least in many core
-> > kernel components and ipc.
+On 04/24/2014 03:37 AM, Mel Gorman wrote:
+> On Mon, Apr 21, 2014 at 11:24:26AM -0700, Dave Hansen wrote:
+>> +This will cause us to do the global flush for more cases.
+>> +Lowering it to 0 will disable the use of the individual flushes.
+>> +Setting it to 1 is a very conservative setting and it should
+>> +never need to be 0 under normal circumstances.
+>> +
+>> +Despite the fact that a single individual flush on x86 is
+>> +guaranteed to flush a full 2MB, hugetlbfs always uses the full
+>> +flushes.  THP is treated exactly the same as normal memory.
+>> +
 > 
-> Davidlohr,
-> 
-> So, noting that the minority is less small than we thought, I'll just
-> add this: I'd have appreciated it if your reply had been less 
-> dismissive, and you'd actually responded to my concrete point about 
-> loss of readability.
+> You are the second person that told me this and I felt the manual was
+> unclear on this subject. I was told that it might be a documentation bug
+> but because this discussion was in a bar I completely failed to follow up
+> on it. Specifically this part in 4.10.2.3 caused me problems when I last
+> looked at the area.
+<snip>
 
-Apologies, I didn't mean to sound dismissive. It's just that I don't
-like arguing over this kind of things. The idea of the cleanups wasn't
-"lets remove LoC", but more "lets make the style suck less" -- and
-believe me, ipc code is pretty darn ugly wrt. Over the last few months
-we've improved it some, but still so much horror. The changes I make are
-aligned with the general coding style we have in the rest of the kernel,
-but yes, ultimately it comes down to taste.
+My understanding comes from "4.10.4.2 Recommended Invalidation":
 
-Anyway, I am in favor of single line declarations with initializers
-which are *meaningful*. The variables I moved around are not.
+	a?c If software modifies a paging-structure entry that identifies
+	the final page frame for a page number (either a PTE or a
+	paging-structure entry in which the PS flag is 1), it should
+	execute INVLPG for any linear address with a page number whose
+	translation uses that PTE. 2
 
-Thanks,
-Davidlohr
+and especially the footnote:
+
+	2. One execution of INVLPG is sufficient even for a page with
+	size greater than 4 KBytes.
+
+I do agree that it's ambiguous at best.  I'll go see if anybody cares to
+update that bit.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
