@@ -1,89 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f54.google.com (mail-ee0-f54.google.com [74.125.83.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 50B7D6B0035
-	for <linux-mm@kvack.org>; Thu, 24 Apr 2014 10:27:09 -0400 (EDT)
-Received: by mail-ee0-f54.google.com with SMTP id d49so1960874eek.27
-        for <linux-mm@kvack.org>; Thu, 24 Apr 2014 07:27:08 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g45si8597281eev.160.2014.04.24.07.27.06
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 24 Apr 2014 07:27:07 -0700 (PDT)
-Date: Thu, 24 Apr 2014 16:27:04 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: [RFC PATCH] vmscan: memcg: Always use swappiness of the reclaimed
- memcg swappiness and oom_control
-Message-ID: <20140424142704.GC7644@dhcp22.suse.cz>
-References: <1397682798-22906-1-git-send-email-hannes@cmpxchg.org>
- <20140418113611.GA7568@dhcp22.suse.cz>
- <20140424121917.GB4107@cmpxchg.org>
+Received: from mail-pb0-f48.google.com (mail-pb0-f48.google.com [209.85.160.48])
+	by kanga.kvack.org (Postfix) with ESMTP id D12696B0035
+	for <linux-mm@kvack.org>; Thu, 24 Apr 2014 11:26:55 -0400 (EDT)
+Received: by mail-pb0-f48.google.com with SMTP id md12so2076619pbc.35
+        for <linux-mm@kvack.org>; Thu, 24 Apr 2014 08:26:55 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id nj10si2884365pbc.476.2014.04.24.08.26.54
+        for <linux-mm@kvack.org>;
+        Thu, 24 Apr 2014 08:26:54 -0700 (PDT)
+Message-ID: <53592C16.8000906@intel.com>
+Date: Thu, 24 Apr 2014 08:21:58 -0700
+From: Dave Hansen <dave.hansen@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140424121917.GB4107@cmpxchg.org>
+Subject: Re: [PATCH] mm: Throttle shrinkers harder
+References: <1397113506-9177-1-git-send-email-chris@chris-wilson.co.uk> <20140418121416.c022eca055da1b6d81b2cf1b@linux-foundation.org> <20140422193041.GD10722@phenom.ffwll.local> <53582D3C.1010509@intel.com> <20140424055836.GB31221@nuc-i3427.alporthouse.com>
+In-Reply-To: <20140424055836.GB31221@nuc-i3427.alporthouse.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Chris Wilson <chris@chris-wilson.co.uk>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, intel-gfx@lists.freedesktop.org, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Dave Chinner <dchinner@redhat.com>, Glauber Costa <glommer@openvz.org>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>
 
-On Thu 24-04-14 08:19:17, Johannes Weiner wrote:
-> On Fri, Apr 18, 2014 at 01:36:11PM +0200, Michal Hocko wrote:
-> > On Wed 16-04-14 17:13:18, Johannes Weiner wrote:
-> > > Per-memcg swappiness and oom killing can currently not be tweaked on a
-> > > memcg that is part of a hierarchy, but not the root of that hierarchy.
-> > > Users have complained that they can't configure this when they turned
-> > > on hierarchy mode.  In fact, with hierarchy mode becoming the default,
-> > > this restriction disables the tunables entirely.
-> > 
-> > Except when we would handle the first level under root differently,
-> > which is ugly.
-> > 
-> > > But there is no good reason for this restriction. 
-> > 
-> > I had a patch for this somewhere on the think_more pile. I wasn't
-> > particularly happy about the semantic so I haven't posted it.
-> > 
-> > > The settings for
-> > > swappiness and OOM killing are taken from whatever memcg whose limit
-> > > triggered reclaim and OOM invocation, regardless of its position in
-> > > the hierarchy tree.
-> > 
-> > This is OK for the OOM knob because the memory pressure cannot be
-> > handled at that level in hierarchy and that is where the OOM happens.
-> > 
-> > I am not so sure about the swappiness though. The swappiness tells us
-> > how to proportionally scan anon vs. file LRUs and those are per-memcg,
-> > not per-hierarchy (unlike the charge) so it makes sense to use it
-> > per-memcg IMO.
-> > 
-> > Besides that using the reclaim target value might be quite confusing.
-> > Say, somebody wants to prevent from swapping in a certain group and
-> > yet the pages find their way to swap depending on where the reclaim is
-> > triggered from.
-> > Another thing would be that setting swappiness on an unlimited group has
-> > no effect although I would argue it makes some sense in configuration
-> > when parent is controlled by somebody else. I would like to tell how
-> > to reclaim me when I cannot say how much memory I can have. 
-> > 
-> > It is true that we have a different behavior for the global reclaim
-> > already but I am not entirely happy about that. Having a different
-> > behavior for the global vs. limit reclaims just calls for troubles and
-> > should be avoided as much as possible.
-> > 
-> > So let's think what is the best semantic before we merge this. I would
-> > be more inclined for using per-memcg swappiness all the time (root using
-> > the global knob) for all reclaims.
-> 
-> Yeah, we've always used the triggering group's swappiness value but at
-> the same time forced the whole hierarchy to have the same setting as
-> the root.
-> 
-> I don't really feel strongly about this.  If you prefer the per-memcg
-> swappiness I can send a followup patch - or you can.
+On 04/23/2014 10:58 PM, Chris Wilson wrote:
+> [ 4756.750938] Node 0 DMA free:14664kB min:32kB low:40kB high:48kB active_anon:0kB inactive_anon:1024kB active_file:0kB inactive_file:4kB unevictable:0kB isolated(anon):0kB isolated(file):0kB present:15992kB managed:15908kB mlocked:0kB dirty:0kB writeback:0kB mapped:0kB shmem:412kB slab_reclaimable:80kB slab_unreclaimable:24kB kernel_stack:0kB pagetables:48kB unstable:0kB bounce:0kB free_cma:0kB writeback_tmp:0kB pages_scanned:76 all_unreclaimable? yes
+> [ 4756.751103] lowmem_reserve[]: 0 3337 3660 3660
+> [ 4756.751133] Node 0 DMA32 free:7208kB min:7044kB low:8804kB high:10564kB active_anon:36172kB inactive_anon:3351408kB active_file:92kB inactive_file:72kB unevictable:0kB isolated(anon):0kB isolated(file):0kB present:3518336kB managed:3440548kB mlocked:0kB dirty:0kB writeback:0kB mapped:12kB shmem:1661420kB slab_reclaimable:17624kB slab_unreclaimable:14400kB kernel_stack:696kB pagetables:4324kB unstable:0kB bounce:0kB free_cma:0kB writeback_tmp:0kB pages_scanned:327 all_unreclaimable? yes
+> [ 4756.751341] lowmem_reserve[]: 0 0 322 322
+> [ 4756.752889] Node 0 Normal free:328kB min:680kB low:848kB high:1020kB active_anon:61372kB inactive_anon:250740kB active_file:0kB inactive_file:4kB unevictable:0kB isolated(anon):0kB isolated(file):0kB present:393216kB managed:330360kB mlocked:0kB dirty:0kB writeback:0kB mapped:0kB shmem:227740kB slab_reclaimable:3032kB slab_unreclaimable:5128kB kernel_stack:400kB pagetables:624kB unstable:0kB bounce:0kB free_cma:0kB writeback_tmp:0kB pages_scanned:6 all_unreclaimable? yes
+> [ 4756.757635] lowmem_reserve[]: 0 0 0 0
+> [ 4756.759294] Node 0 DMA: 2*4kB (UM) 2*8kB (UM) 3*16kB (UEM) 4*32kB (UEM) 2*64kB (UM) 4*128kB (UEM) 2*256kB (EM) 2*512kB (EM) 2*1024kB (UM) 3*2048kB (EMR) 1*4096kB (M) = 14664kB
+> [ 4756.762776] Node 0 DMA32: 424*4kB (UEM) 171*8kB (UEM) 21*16kB (UEM) 1*32kB (R) 1*64kB (R) 1*128kB (R) 0*256kB 1*512kB (R) 1*1024kB (R) 1*2048kB (R) 0*4096kB = 7208kB
+> [ 4756.766284] Node 0 Normal: 26*4kB (UER) 18*8kB (UER) 3*16kB (E) 1*32kB (R) 0*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 328kB
+> [ 4756.768198] Node 0 hugepages_total=0 hugepages_free=0 hugepages_surp=0 hugepages_size=2048kB
+> [ 4756.770026] 916139 total pagecache pages
+> [ 4756.771857] 443703 pages in swap cache
+> [ 4756.773695] Swap cache stats: add 15363874, delete 14920171, find 6533699/7512215
+> [ 4756.775592] Free swap  = 0kB
+> [ 4756.777505] Total swap = 2047996kB
 
-OK, I originally thought this would be in the same patch but now that I
-think about it some more it would be better to have it separate in case
-it turns out this will cause some issues (at least
-global_reclaim-always-use-global-vm_swappiness is a behavior change).
-So what do you think about this?
----
+OK, so here's my theory as to what happens:
+
+1. The graphics pages got put on the LRU
+2. System is low on memory, they get on (and *STAY* on) the inactive
+   LRU.
+3. VM adds graphics pages to the swap cache, and writes them out, and
+   we see the writeout from the vmstat, and lots of adds/removes from
+   the swap cache.
+4. But, despite all the swap writeout, we don't get helped by seeing
+   much memory get freed.  Why?
+
+I _suspect_ that the graphics drivers here are holding a reference to
+the page.  During reclaim, we're mostly concerned with the pages being
+mapped.  If we manage to get them unmapped, we'll go ahead and swap
+them, which I _think_ is what we're seeing.  But, when it comes time to
+_actually_ free them, that last reference on the page keeps them from
+being freed.
+
+Is it possible that there's still a get_page() reference that's holding
+those pages in place from the graphics code?
+
+>> Also, the vmstat output from the bug:
+>>
+>>> https://bugs.freedesktop.org/show_bug.cgi?id=72742
+>>
+>> shows there being an *AWFUL* lot of swap I/O going on here.  From the
+>> looks of it, we stuck ~2GB in swap and evicted another 1.5GB of page
+>> cache (although I guess that could be double-counting tmpfs getting
+>> swapped out too).  Hmmm, was this one of the cases where you actually
+>> ran _out_ of swap?
+> 
+> Yes. This bug is a little odd because they always run out of swap. We
+> have another category of bug (which appears to be fixed, touch wood)
+> where we trigger oom without even touching swap. The test case is
+> designed to only just swap (use at most 1/4 of the available swap space)
+> and checks that its working set should fit into available memory + swap.
+> However, when QA run the test, their systems run completely out of
+> virtual memory. There is a discrepancy on their machines where
+> anon_inactive is reported as being 2x shmem, but we only expect
+> anon_inactive to be our own shmem allocations. I don't know how to track
+> what else is using anon_inactive. Suggestions?
+
+Let's tackle one bug at a time.  They might be the same thing.
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
