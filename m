@@ -1,111 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f49.google.com (mail-ee0-f49.google.com [74.125.83.49])
-	by kanga.kvack.org (Postfix) with ESMTP id EF0616B0035
-	for <linux-mm@kvack.org>; Thu, 24 Apr 2014 06:46:58 -0400 (EDT)
-Received: by mail-ee0-f49.google.com with SMTP id c41so1689705eek.8
-        for <linux-mm@kvack.org>; Thu, 24 Apr 2014 03:46:58 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m49si7753041eeo.221.2014.04.24.03.46.56
+Received: from mail-yk0-f173.google.com (mail-yk0-f173.google.com [209.85.160.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 04B4E6B0035
+	for <linux-mm@kvack.org>; Thu, 24 Apr 2014 06:55:57 -0400 (EDT)
+Received: by mail-yk0-f173.google.com with SMTP id 10so1907088ykt.18
+        for <linux-mm@kvack.org>; Thu, 24 Apr 2014 03:55:57 -0700 (PDT)
+Received: from mail-yh0-f52.google.com (mail-yh0-f52.google.com [209.85.213.52])
+        by mx.google.com with ESMTPS id w9si4508013yhk.19.2014.04.24.03.55.56
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 24 Apr 2014 03:46:57 -0700 (PDT)
-Date: Thu, 24 Apr 2014 11:46:53 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 6/6] x86: mm: set TLB flush tunable to sane value (33)
-Message-ID: <20140424104147.GU23991@suse.de>
-References: <20140421182418.81CF7519@viggo.jf.intel.com>
- <20140421182428.FC2104C1@viggo.jf.intel.com>
+        Thu, 24 Apr 2014 03:55:56 -0700 (PDT)
+Received: by mail-yh0-f52.google.com with SMTP id 29so2017376yhl.25
+        for <linux-mm@kvack.org>; Thu, 24 Apr 2014 03:55:56 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20140421182428.FC2104C1@viggo.jf.intel.com>
+In-Reply-To: <20140424104232.GK26756@n2100.arm.linux.org.uk>
+References: <1397648803-15961-1-git-send-email-steve.capper@linaro.org>
+	<20140424102229.GA28014@linaro.org>
+	<20140424103639.GC19564@arm.com>
+	<20140424104232.GK26756@n2100.arm.linux.org.uk>
+Date: Thu, 24 Apr 2014 11:55:56 +0100
+Message-ID: <CAPvkgC3P8iZp5nECiGHdeGzRwmdh=ouiAREqKwk1tYzZxHTWvg@mail.gmail.com>
+Subject: Re: [PATCH V2 0/5] Huge pages for short descriptors on ARM
+From: Steve Capper <steve.capper@linaro.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>
-Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, ak@linux.intel.com, riel@redhat.com, alex.shi@linaro.org, dave.hansen@linux.intel.com
+To: Russell King - ARM Linux <linux@arm.linux.org.uk>
+Cc: Will Deacon <will.deacon@arm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Catalin Marinas <Catalin.Marinas@arm.com>, "robherring2@gmail.com" <robherring2@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "gerald.schaefer@de.ibm.com" <gerald.schaefer@de.ibm.com>
 
-On Mon, Apr 21, 2014 at 11:24:28AM -0700, Dave Hansen wrote:
-> 
-> From: Dave Hansen <dave.hansen@linux.intel.com>
-> 
-> This has been run through Intel's LKP tests across a wide range
-> of modern sytems and workloads and it wasn't shown to make a
-> measurable performance difference positive or negative.
-> 
-> Now that we have some shiny new tracepoints, we can actually
-> figure out what the heck is going on.
-> 
+On 24 April 2014 11:42, Russell King - ARM Linux <linux@arm.linux.org.uk> wrote:
+> On Thu, Apr 24, 2014 at 11:36:39AM +0100, Will Deacon wrote:
+>> I guess I'm after some commitment that this is (a) useful to somebody and
+>> (b) going to be tested regularly, otherwise it will go the way of things
+>> like big-endian, where we end up carrying around code which is broken more
+>> often than not (although big-endian is more self-contained).
+>
+> It may be something worth considering adding to my nightly builder/boot
+> testing, but I suspect that's impractical as it probably requires a BE
+> userspace, which would then mean that the platform can't boot LE.
+>
+> I suspect that we will just have to rely on BE users staying around and
+> reporting problems when they occur.
 
-Good stuff. This is the type of thing I should have done the last time
-to set the parameters for the tlbflush microbench. Nice one out of you!
+The huge page support is for standard LE, I think Will was saying that
+this will be like BE if no-one uses it.
+I would appreciate any extra testing a *lot*. :-).
 
-> During a kernel compile, 60% of the flush_tlb_mm_range() calls
-> are for a single page.  It breaks down like this:
-> 
->  size   percent  percent<=
->   V        V        V
-> GLOBAL:   2.20%   2.20% avg cycles:  2283
->      1:  56.92%  59.12% avg cycles:  1276
->      2:  13.78%  72.90% avg cycles:  1505
->      3:   8.26%  81.16% avg cycles:  1880
->      4:   7.41%  88.58% avg cycles:  2447
->      5:   1.73%  90.31% avg cycles:  2358
->      6:   1.32%  91.63% avg cycles:  2563
->      7:   1.14%  92.77% avg cycles:  2862
->      8:   0.62%  93.39% avg cycles:  3542
->      9:   0.08%  93.47% avg cycles:  3289
->     10:   0.43%  93.90% avg cycles:  3570
->     11:   0.20%  94.10% avg cycles:  3767
->     12:   0.08%  94.18% avg cycles:  3996
->     13:   0.03%  94.20% avg cycles:  4077
->     14:   0.02%  94.23% avg cycles:  4836
->     15:   0.04%  94.26% avg cycles:  5699
->     16:   0.06%  94.32% avg cycles:  5041
->     17:   0.57%  94.89% avg cycles:  5473
->     18:   0.02%  94.91% avg cycles:  5396
->     19:   0.03%  94.95% avg cycles:  5296
->     20:   0.02%  94.96% avg cycles:  6749
->     21:   0.18%  95.14% avg cycles:  6225
->     22:   0.01%  95.15% avg cycles:  6393
->     23:   0.01%  95.16% avg cycles:  6861
->     24:   0.12%  95.28% avg cycles:  6912
->     25:   0.05%  95.32% avg cycles:  7190
->     26:   0.01%  95.33% avg cycles:  7793
->     27:   0.01%  95.34% avg cycles:  7833
->     28:   0.01%  95.35% avg cycles:  8253
->     29:   0.08%  95.42% avg cycles:  8024
->     30:   0.03%  95.45% avg cycles:  9670
->     31:   0.01%  95.46% avg cycles:  8949
->     32:   0.01%  95.46% avg cycles:  9350
->     33:   3.11%  98.57% avg cycles:  8534
->     34:   0.02%  98.60% avg cycles: 10977
->     35:   0.02%  98.62% avg cycles: 11400
-> 
-> We get in to dimishing returns pretty quickly.  On pre-IvyBridge
-> CPUs, we used to set the limit at 8 pages, and it was set at 128
-> on IvyBrige.  That 128 number looks pretty silly considering that
-> less than 0.5% of the flushes are that large.
-> 
-> The previous code tried to size this number based on the size of
-> the TLB.  Good idea, but it's error-prone, needs maintenance
-> (which it didn't get up to now), and probably would not matter in
-> practice much.
-> 
-> Settting it to 33 means that we cover the mallopt
-> M_TRIM_THRESHOLD, which is the most universally common size to do
-> flushes.
-> 
+It's somewhat unfair to compare huge pages on short descriptors with
+BE. For a start, the userspace that works with LPAE will work on the
+short-descriptor kernel too. Great care has been taken to ensure that
+programmers can just port their huge page code over to ARM from other
+architectures without any issues. As things like libhugetlbfs (which
+fully supports ARM) get incorporated into distros on ARM, huge pages
+become the norm as opposed to the exception.
 
-A kernel compile is hardly a representative workload but I accept the
-logic of tuning it based on current settings for M_TRIM_THRESHOLD and
-the tools are there to do a more detailed analysis if tlb flush times
-for people are identified as being a problem.
+Some devices have very few TLBs and I believe this series will be very
+beneficial for people using those devices.
 
-Acked-by: Mel Gorman <mgorman@suse.de>
-
+Cheers,
 -- 
-Mel Gorman
-SUSE Labs
+Steve
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
