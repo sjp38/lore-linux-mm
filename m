@@ -1,74 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f169.google.com (mail-we0-f169.google.com [74.125.82.169])
-	by kanga.kvack.org (Postfix) with ESMTP id BF7166B0035
-	for <linux-mm@kvack.org>; Thu, 24 Apr 2014 13:56:26 -0400 (EDT)
-Received: by mail-we0-f169.google.com with SMTP id u56so1401704wes.28
-        for <linux-mm@kvack.org>; Thu, 24 Apr 2014 10:56:26 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id r9si224056wia.53.2014.04.24.10.56.24
-        for <linux-mm@kvack.org>;
-        Thu, 24 Apr 2014 10:56:25 -0700 (PDT)
-Message-ID: <53594FB3.9050505@redhat.com>
-Date: Thu, 24 Apr 2014 13:53:55 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail-ee0-f46.google.com (mail-ee0-f46.google.com [74.125.83.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 7200C6B0035
+	for <linux-mm@kvack.org>; Thu, 24 Apr 2014 14:00:37 -0400 (EDT)
+Received: by mail-ee0-f46.google.com with SMTP id t10so2119122eei.19
+        for <linux-mm@kvack.org>; Thu, 24 Apr 2014 11:00:36 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id y6si9422183eep.137.2014.04.24.11.00.35
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 24 Apr 2014 11:00:35 -0700 (PDT)
+Date: Thu, 24 Apr 2014 19:00:30 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 2/6] x86: mm: rip out complicated, out-of-date, buggy TLB
+ flushing
+Message-ID: <20140424180030.GX23991@suse.de>
+References: <20140421182418.81CF7519@viggo.jf.intel.com>
+ <20140421182421.DFAAD16A@viggo.jf.intel.com>
+ <20140424084552.GQ23991@suse.de>
+ <535942A3.3020800@sr71.net>
 MIME-Version: 1.0
-Subject: Re: [PATCH 5/6] x86: mm: new tunable for single vs full TLB flush
-References: <20140421182418.81CF7519@viggo.jf.intel.com> <20140421182426.D6DD1E8F@viggo.jf.intel.com> <20140424103727.GT23991@suse.de> <53594920.8030203@sr71.net>
-In-Reply-To: <53594920.8030203@sr71.net>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <535942A3.3020800@sr71.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave@sr71.net>, Mel Gorman <mgorman@suse.de>
-Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, ak@linux.intel.com, alex.shi@linaro.org, dave.hansen@linux.intel.com, "H. Peter Anvin" <hpa@zytor.com>
+To: Dave Hansen <dave@sr71.net>
+Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, ak@linux.intel.com, riel@redhat.com, alex.shi@linaro.org, dave.hansen@linux.intel.com
 
-On 04/24/2014 01:25 PM, Dave Hansen wrote:
-> On 04/24/2014 03:37 AM, Mel Gorman wrote:
->> On Mon, Apr 21, 2014 at 11:24:26AM -0700, Dave Hansen wrote:
->>> +This will cause us to do the global flush for more cases.
->>> +Lowering it to 0 will disable the use of the individual flushes.
->>> +Setting it to 1 is a very conservative setting and it should
->>> +never need to be 0 under normal circumstances.
->>> +
->>> +Despite the fact that a single individual flush on x86 is
->>> +guaranteed to flush a full 2MB, hugetlbfs always uses the full
->>> +flushes.  THP is treated exactly the same as normal memory.
->>> +
->>
->> You are the second person that told me this and I felt the manual was
->> unclear on this subject. I was told that it might be a documentation bug
->> but because this discussion was in a bar I completely failed to follow up
->> on it. Specifically this part in 4.10.2.3 caused me problems when I last
->> looked at the area.
-> <snip>
->
-> My understanding comes from "4.10.4.2 Recommended Invalidation":
->
-> 	a?c If software modifies a paging-structure entry that identifies
-> 	the final page frame for a page number (either a PTE or a
-> 	paging-structure entry in which the PS flag is 1), it should
-> 	execute INVLPG for any linear address with a page number whose
-> 	translation uses that PTE. 2
->
-> and especially the footnote:
->
-> 	2. One execution of INVLPG is sufficient even for a page with
-> 	size greater than 4 KBytes.
->
-> I do agree that it's ambiguous at best.  I'll go see if anybody cares to
-> update that bit.
+On Thu, Apr 24, 2014 at 09:58:11AM -0700, Dave Hansen wrote:
+> On 04/24/2014 01:45 AM, Mel Gorman wrote:
+> >> +/*
+> >> + * See Documentation/x86/tlb.txt for details.  We choose 33
+> >> + * because it is large enough to cover the vast majority (at
+> >> + * least 95%) of allocations, and is small enough that we are
+> >> + * confident it will not cause too much overhead.  Each single
+> >> + * flush is about 100 cycles, so this caps the maximum overhead
+> >> + * at _about_ 3,000 cycles.
+> >> + */
+> >> +/* in units of pages */
+> >> +unsigned long tlb_single_page_flush_ceiling = 1;
+> >> +
+> > 
+> > This comment is premature. The documentation file does not exist yet and
+> > 33 means nothing yet. Out of curiousity though, how confident are you
+> > that a TLB flush is generally 100 cycles across different generations
+> > and manufacturers of CPUs? I'm not suggesting you change it or auto-tune
+> > it, am just curious.
+> 
+> Yeah, the comment belongs in the later patch where I set it to 33.
+> 
+> I looked at this on the last few generations of Intel CPUs.  "100
+> cycles" was a very general statement, and not precise at all.  My laptop
+> averages out to 113 cycles overall, but the flushes of 25 pages averaged
+> 96 cycles/page while the flushes of 2 averaged 219/page.
+> 
+> Those cycles include some costs of from the instrumentation as well.
+> 
+> I did not test on other CPU manufacturers, but this should be pretty
+> easy to reproduce.  I'm happy to help folks re-run it on other hardware.
+> 
+> I also believe with the modalias stuff we've got in sysfs for the CPU
+> objects we can do this in the future with udev rules instead of
+> hard-coding it in the kernel.
+> 
 
-I suspect that IF the TLB actually uses a 2MB entry for the
-translation, a single INVLPG will work.
+You convinced me. Regardless of whether you move the comment or update
+the changelog;
 
-However, the CPU is free to cache the translations for a 2MB
-region with a bunch of 4kB entries, if it wanted to, so in
-the end we have no guarantee that an INVLPG will actually do
-the right thing...
+Acked-by: Mel Gorman <mgorman@suse.de>
 
-The same is definitely true for 1GB vs 2MB entries, with
-some CPUs being capable of parsing page tables with 1GB
-entries, but having no TLB entries for 1GB translations.
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
