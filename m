@@ -1,88 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 7CC206B0035
-	for <linux-mm@kvack.org>; Thu, 24 Apr 2014 12:58:15 -0400 (EDT)
-Received: by mail-pd0-f173.google.com with SMTP id p10so1779104pdj.4
-        for <linux-mm@kvack.org>; Thu, 24 Apr 2014 09:58:15 -0700 (PDT)
-Received: from blackbird.sr71.net (www.sr71.net. [198.145.64.142])
-        by mx.google.com with ESMTP id zm10si3032525pbc.404.2014.04.24.09.58.12
-        for <linux-mm@kvack.org>;
-        Thu, 24 Apr 2014 09:58:13 -0700 (PDT)
-Message-ID: <535942A3.3020800@sr71.net>
-Date: Thu, 24 Apr 2014 09:58:11 -0700
-From: Dave Hansen <dave@sr71.net>
-MIME-Version: 1.0
-Subject: Re: [PATCH 2/6] x86: mm: rip out complicated, out-of-date, buggy
- TLB flushing
-References: <20140421182418.81CF7519@viggo.jf.intel.com> <20140421182421.DFAAD16A@viggo.jf.intel.com> <20140424084552.GQ23991@suse.de>
-In-Reply-To: <20140424084552.GQ23991@suse.de>
-Content-Type: text/plain; charset=ISO-8859-15
+Received: from mail-oa0-f53.google.com (mail-oa0-f53.google.com [209.85.219.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 630EB6B0036
+	for <linux-mm@kvack.org>; Thu, 24 Apr 2014 13:21:42 -0400 (EDT)
+Received: by mail-oa0-f53.google.com with SMTP id j17so2964861oag.40
+        for <linux-mm@kvack.org>; Thu, 24 Apr 2014 10:21:42 -0700 (PDT)
+Received: from g4t3427.houston.hp.com (g4t3427.houston.hp.com. [15.201.208.55])
+        by mx.google.com with ESMTPS id sm4si4034813obb.130.2014.04.24.10.21.41
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 24 Apr 2014 10:21:41 -0700 (PDT)
+Message-ID: <1398360099.2744.8.camel@buesod1.americas.hpqcorp.net>
+Subject: Re: [PATCH 5/4] ipc,shm: minor cleanups
+From: Davidlohr Bueso <davidlohr@hp.com>
+Date: Thu, 24 Apr 2014 10:21:39 -0700
+In-Reply-To: <53589E8E.1040000@gmail.com>
+References: <1398090397-2397-1-git-send-email-manfred@colorfullife.com>
+		 <1398221636.6345.9.camel@buesod1.americas.hpqcorp.net>
+		 <53574AA5.1060205@gmail.com>
+	 <1398230745.27667.2.camel@buesod1.americas.hpqcorp.net>
+	 <53589E8E.1040000@gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, ak@linux.intel.com, riel@redhat.com, alex.shi@linaro.org, dave.hansen@linux.intel.com
+To: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+Cc: Manfred Spraul <manfred@colorfullife.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, gthelen@google.com, aswin@hp.com, linux-mm@kvack.org
 
-On 04/24/2014 01:45 AM, Mel Gorman wrote:
->> +/*
->> + * See Documentation/x86/tlb.txt for details.  We choose 33
->> + * because it is large enough to cover the vast majority (at
->> + * least 95%) of allocations, and is small enough that we are
->> + * confident it will not cause too much overhead.  Each single
->> + * flush is about 100 cycles, so this caps the maximum overhead
->> + * at _about_ 3,000 cycles.
->> + */
->> +/* in units of pages */
->> +unsigned long tlb_single_page_flush_ceiling = 1;
->> +
+On Thu, 2014-04-24 at 07:18 +0200, Michael Kerrisk (man-pages) wrote:
+> On 04/23/2014 07:25 AM, Davidlohr Bueso wrote:
+> > On Wed, 2014-04-23 at 07:07 +0200, Michael Kerrisk (man-pages) wrote:
+> >> On 04/23/2014 04:53 AM, Davidlohr Bueso wrote:
+> >>> -  Breakup long function names/args.
+> >>> -  Cleaup variable declaration.
+> >>> -  s/current->mm/mm
+> >>>
+> >>> Signed-off-by: Davidlohr Bueso <davidlohr@hp.com>
+> >>> ---
+> >>>  ipc/shm.c | 40 +++++++++++++++++-----------------------
+> >>>  1 file changed, 17 insertions(+), 23 deletions(-)
+> >>>
+> >>> diff --git a/ipc/shm.c b/ipc/shm.c
+> >>> index f000696..584d02e 100644
+> >>> --- a/ipc/shm.c
+> >>> +++ b/ipc/shm.c
+> >>> @@ -480,15 +480,13 @@ static const struct vm_operations_struct shm_vm_ops = {
+> >>>  static int newseg(struct ipc_namespace *ns, struct ipc_params *params)
+> >>>  {
+> >>>  	key_t key = params->key;
+> >>> -	int shmflg = params->flg;
+> >>> +	int id, error, shmflg = params->flg;
+> >>
+> >> It's largely a matter of taste (and I may be in a minority), and I know
+> >> there's certainly precedent in the kernel code, but I don't much like the 
+> >> style of mixing variable declarations that have initializers, with other
+> >> unrelated declarations (e.g., variables without initializers). What is 
+> >> the gain? One less line of text? That's (IMO) more than offset by the 
+> >> small loss of readability.
+> > 
+> > Yes, it's taste. And yes, your in the minority, at least in many core
+> > kernel components and ipc.
 > 
-> This comment is premature. The documentation file does not exist yet and
-> 33 means nothing yet. Out of curiousity though, how confident are you
-> that a TLB flush is generally 100 cycles across different generations
-> and manufacturers of CPUs? I'm not suggesting you change it or auto-tune
-> it, am just curious.
-
-Yeah, the comment belongs in the later patch where I set it to 33.
-
-I looked at this on the last few generations of Intel CPUs.  "100
-cycles" was a very general statement, and not precise at all.  My laptop
-averages out to 113 cycles overall, but the flushes of 25 pages averaged
-96 cycles/page while the flushes of 2 averaged 219/page.
-
-Those cycles include some costs of from the instrumentation as well.
-
-I did not test on other CPU manufacturers, but this should be pretty
-easy to reproduce.  I'm happy to help folks re-run it on other hardware.
-
-I also believe with the modalias stuff we've got in sysfs for the CPU
-objects we can do this in the future with udev rules instead of
-hard-coding it in the kernel.
-
->> -	/* In modern CPU, last level tlb used for both data/ins */
->> -	if (vmflag & VM_EXEC)
->> -		tlb_entries = tlb_lli_4k[ENTRIES];
->> -	else
->> -		tlb_entries = tlb_lld_4k[ENTRIES];
->> -
->> -	/* Assume all of TLB entries was occupied by this task */
->> -	act_entries = tlb_entries >> tlb_flushall_shift;
->> -	act_entries = mm->total_vm > act_entries ? act_entries : mm->total_vm;
->> -	nr_base_pages = (end - start) >> PAGE_SHIFT;
->> -
->> -	/* tlb_flushall_shift is on balance point, details in commit log */
->> -	if (nr_base_pages > act_entries) {
->> +	if ((end - start) > tlb_single_page_flush_ceiling * PAGE_SIZE) {
->>  		count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
->>  		local_flush_tlb();
->>  	} else {
+> Davidlohr,
 > 
-> We lose the different tuning based on whether the flush is for instructions
-> or data. However, I cannot think of a good reason for keeping it as I
-> expect that flushes of instructions is relatively rare. The benefit, if
-> any, will be marginal. Still, if you do another revision it would be
-> nice to call this out in the changelog.
+> So, noting that the minority is less small than we thought, I'll just
+> add this: I'd have appreciated it if your reply had been less 
+> dismissive, and you'd actually responded to my concrete point about 
+> loss of readability.
 
-Will do.
+Apologies, I didn't mean to sound dismissive. It's just that I don't
+like arguing over this kind of things. The idea of the cleanups wasn't
+"lets remove LoC", but more "lets make the style suck less" -- and
+believe me, ipc code is pretty darn ugly wrt. Over the last few months
+we've improved it some, but still so much horror. The changes I make are
+aligned with the general coding style we have in the rest of the kernel,
+but yes, ultimately it comes down to taste.
+
+Anyway, I am in favor of single line declarations with initializers
+which are *meaningful*. The variables I moved around are not.
+
+Thanks,
+Davidlohr
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
