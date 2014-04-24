@@ -1,73 +1,168 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f52.google.com (mail-qg0-f52.google.com [209.85.192.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 934716B0035
-	for <linux-mm@kvack.org>; Thu, 24 Apr 2014 02:51:52 -0400 (EDT)
-Received: by mail-qg0-f52.google.com with SMTP id j5so2050153qga.25
-        for <linux-mm@kvack.org>; Wed, 23 Apr 2014 23:51:52 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id u89si1753278qga.83.2014.04.23.23.51.51
+Received: from mail-ee0-f53.google.com (mail-ee0-f53.google.com [74.125.83.53])
+	by kanga.kvack.org (Postfix) with ESMTP id F047C6B0035
+	for <linux-mm@kvack.org>; Thu, 24 Apr 2014 04:30:25 -0400 (EDT)
+Received: by mail-ee0-f53.google.com with SMTP id b57so1534540eek.40
+        for <linux-mm@kvack.org>; Thu, 24 Apr 2014 01:30:25 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id r9si7249079eew.228.2014.04.24.01.30.24
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 23 Apr 2014 23:51:51 -0700 (PDT)
-Date: Thu, 24 Apr 2014 08:51:33 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: Dirty/Access bits vs. page content
-Message-ID: <20140424065133.GX26782@laptop.programming.kicks-ass.net>
-References: <53558507.9050703@zytor.com>
- <CA+55aFxGm6J6N=4L7exLUFMr1_siNGHpK=wApd9GPCH1=63PPA@mail.gmail.com>
- <53559F48.8040808@intel.com>
- <CA+55aFwDtjA4Vp0yt0K5x6b6sAMtcn=61SEnOOs_En+3UXNpuA@mail.gmail.com>
- <CA+55aFzFxBDJ2rWo9DggdNsq-qBCr11OVXnm64jx04KMSVCBAw@mail.gmail.com>
- <20140422075459.GD11182@twins.programming.kicks-ass.net>
- <CA+55aFzM+NpE-EzJdDeYX=cqWRzkGv9o-vybDR=oFtDLMRK-mA@mail.gmail.com>
- <alpine.LSU.2.11.1404221847120.1759@eggly.anvils>
- <20140423184145.GH17824@quack.suse.cz>
- <CA+55aFwm9BT4ecXF7dD+OM0-+1Wz5vd4ts44hOkS8JdQ74SLZQ@mail.gmail.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 24 Apr 2014 01:30:24 -0700 (PDT)
+Date: Thu, 24 Apr 2014 09:30:18 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 1/2] swap: change swap_info singly-linked list to
+ list_head
+Message-ID: <20140424083018.GO23991@suse.de>
+References: <alpine.LSU.2.11.1402232344280.1890@eggly.anvils>
+ <1397336454-13855-1-git-send-email-ddstreet@ieee.org>
+ <1397336454-13855-2-git-send-email-ddstreet@ieee.org>
+ <20140423103400.GH23991@suse.de>
+ <20140424001705.GA8066@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <CA+55aFwm9BT4ecXF7dD+OM0-+1Wz5vd4ts44hOkS8JdQ74SLZQ@mail.gmail.com>
+In-Reply-To: <20140424001705.GA8066@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Jan Kara <jack@suse.cz>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, "H. Peter Anvin" <hpa@zytor.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Tony Luck <tony.luck@intel.com>
+To: Shaohua Li <shli@kernel.org>
+Cc: Dan Streetman <ddstreet@ieee.org>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Shaohua Li <shli@fusionio.com>, Weijie Yang <weijieut@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Apr 23, 2014 at 12:33:15PM -0700, Linus Torvalds wrote:
-> On Wed, Apr 23, 2014 at 11:41 AM, Jan Kara <jack@suse.cz> wrote:
-> >
-> > Now I'm not sure how to fix Linus' patches. For all I care we could just
-> > rip out pte dirty bit handling for file mappings. However last time I
-> > suggested this you corrected me that tmpfs & ramfs need this. I assume this
-> > is still the case - however, given we unconditionally mark the page dirty
-> > for write faults, where exactly do we need this?
+On Thu, Apr 24, 2014 at 08:17:05AM +0800, Shaohua Li wrote:
+> On Wed, Apr 23, 2014 at 11:34:00AM +0100, Mel Gorman wrote:
+> > > @@ -366,7 +361,7 @@ static int __frontswap_unuse_pages(unsigned long total, unsigned long *unused,
+> > >  		}
+> > >  		vm_unacct_memory(pages);
+> > >  		*unused = pages_to_unuse;
+> > > -		*swapid = type;
+> > > +		*swapid = si->type;
+> > >  		ret = 0;
+> > >  		break;
+> > >  	}
+> > > @@ -413,7 +408,7 @@ void frontswap_shrink(unsigned long target_pages)
+> > >  	/*
+> > >  	 * we don't want to hold swap_lock while doing a very
+> > >  	 * lengthy try_to_unuse, but swap_list may change
+> > > -	 * so restart scan from swap_list.head each time
+> > > +	 * so restart scan from swap_list_head each time
+> > >  	 */
+> > >  	spin_lock(&swap_lock);
+> > >  	ret = __frontswap_shrink(target_pages, &pages_to_unuse, &type);
+> > > diff --git a/mm/swapfile.c b/mm/swapfile.c
+> > > index 4a7f7e6..b958645 100644
+> > > --- a/mm/swapfile.c
+> > > +++ b/mm/swapfile.c
+> > > @@ -51,14 +51,14 @@ atomic_long_t nr_swap_pages;
+> > >  /* protected with swap_lock. reading in vm_swap_full() doesn't need lock */
+> > >  long total_swap_pages;
+> > >  static int least_priority;
+> > > -static atomic_t highest_priority_index = ATOMIC_INIT(-1);
+> > >  
+> > >  static const char Bad_file[] = "Bad swap file entry ";
+> > >  static const char Unused_file[] = "Unused swap file entry ";
+> > >  static const char Bad_offset[] = "Bad swap offset entry ";
+> > >  static const char Unused_offset[] = "Unused swap offset entry ";
+> > >  
+> > > -struct swap_list_t swap_list = {-1, -1};
+> > > +/* all active swap_info */
+> > > +LIST_HEAD(swap_list_head);
+> > >  
+> > >  struct swap_info_struct *swap_info[MAX_SWAPFILES];
+> > >  
+> > > @@ -640,66 +640,50 @@ no_page:
+> > >  
+> > >  swp_entry_t get_swap_page(void)
+> > >  {
+> > > -	struct swap_info_struct *si;
+> > > +	struct swap_info_struct *si, *next;
+> > >  	pgoff_t offset;
+> > > -	int type, next;
+> > > -	int wrapped = 0;
+> > > -	int hp_index;
+> > > +	struct list_head *tmp;
+> > >  
+> > >  	spin_lock(&swap_lock);
+> > >  	if (atomic_long_read(&nr_swap_pages) <= 0)
+> > >  		goto noswap;
+> > >  	atomic_long_dec(&nr_swap_pages);
+> > >  
+> > > -	for (type = swap_list.next; type >= 0 && wrapped < 2; type = next) {
+> > > -		hp_index = atomic_xchg(&highest_priority_index, -1);
+> > > -		/*
+> > > -		 * highest_priority_index records current highest priority swap
+> > > -		 * type which just frees swap entries. If its priority is
+> > > -		 * higher than that of swap_list.next swap type, we use it.  It
+> > > -		 * isn't protected by swap_lock, so it can be an invalid value
+> > > -		 * if the corresponding swap type is swapoff. We double check
+> > > -		 * the flags here. It's even possible the swap type is swapoff
+> > > -		 * and swapon again and its priority is changed. In such rare
+> > > -		 * case, low prority swap type might be used, but eventually
+> > > -		 * high priority swap will be used after several rounds of
+> > > -		 * swap.
+> > > -		 */
+> > > -		if (hp_index != -1 && hp_index != type &&
+> > > -		    swap_info[type]->prio < swap_info[hp_index]->prio &&
+> > > -		    (swap_info[hp_index]->flags & SWP_WRITEOK)) {
+> > > -			type = hp_index;
+> > > -			swap_list.next = type;
+> > > -		}
+> > > -
+> > > -		si = swap_info[type];
+> > > -		next = si->next;
+> > > -		if (next < 0 ||
+> > > -		    (!wrapped && si->prio != swap_info[next]->prio)) {
+> > > -			next = swap_list.head;
+> > > -			wrapped++;
+> > > -		}
+> > > -
+> > > +	list_for_each(tmp, &swap_list_head) {
+> > > +		si = list_entry(tmp, typeof(*si), list);
+> > >  		spin_lock(&si->lock);
+> > > -		if (!si->highest_bit) {
+> > > -			spin_unlock(&si->lock);
+> > > -			continue;
+> > > -		}
+> > > -		if (!(si->flags & SWP_WRITEOK)) {
+> > > +		if (!si->highest_bit || !(si->flags & SWP_WRITEOK)) {
+> > >  			spin_unlock(&si->lock);
+> > >  			continue;
+> > >  		}
+> > >  
+> > > -		swap_list.next = next;
+> > > +		/*
+> > > +		 * rotate the current swap_info that we're going to use
+> > > +		 * to after any other swap_info that have the same prio,
+> > > +		 * so that all equal-priority swap_info get used equally
+> > > +		 */
+> > > +		next = si;
+> > > +		list_for_each_entry_continue(next, &swap_list_head, list) {
+> > > +			if (si->prio != next->prio)
+> > > +				break;
+> > > +			list_rotate_left(&si->list);
+> > > +			next = si;
+> > > +		}
+> > >  
+> > 
+> > The list manipulations will be a lot of cache writes as the list is shuffled
+> > around. On slow storage I do not think this will be noticable but it may
+> > be noticable on faster swap devices that are SSD based. I've added Shaohua
+> > Li to the cc as he has been concerned with the performance of swap in the
+> > past. Shaohua, can you run this patchset through any of your test cases
+> > with the addition that multiple swap files are used to see if the cache
+> > writes are noticable? You'll need multiple swap files, some of which are
+> > at equal priority so the list shuffling logic is triggered.
 > 
-> Honza, you're missing the important part: it does not matter one whit
-> that we unconditionally mark the page dirty, when we do it *early*,
-> and it can be then be marked clean before it's actually clean!
+> get_swap_page isn't hot so far (and we hold the swap_lock, which isn't
+> contended), guess it's because other problems hide it, for example tlb flush
+> overhead.
 > 
-> The problem is that page cleaning can clean the page when there are
-> still writers dirtying the page. Page table tear-down removes the
-> entry from the page tables, but it's still there in the TLB on other
-> CPU's. 
 
-> So other CPU's are possibly writing to the page, when
-> clear_page_dirty_for_io() has marked it clean (because it didn't see
-> the page table entries that got torn down, and it hasn't seen the
-> dirty bit in the page yet).
+The old method was not free either but I wanted to be sure you were
+aware of the series just in case. Thanks.
 
-So page_mkclean() does an rmap walk to mark the page RO, it does mm wide
-TLB invalidations while doing so.
-
-zap_pte_range() only removes the rmap entry after it does the
-ptep_get_and_clear_full(), which doesn't do any TLB invalidates.
-
-So as Linus says the page_mkclean() can actually miss a page, because
-it's already removed from rmap() but due to zap_pte_range() can still
-have active TLB entries.
-
-So in order to fix this we'd have to delay the page_remove_rmap() as
-well, but that's tricky because rmap walkers cannot deal with
-in-progress teardown. Will need to think on this.
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
