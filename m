@@ -1,82 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f53.google.com (mail-ee0-f53.google.com [74.125.83.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F3866B0038
-	for <linux-mm@kvack.org>; Thu, 24 Apr 2014 11:40:11 -0400 (EDT)
-Received: by mail-ee0-f53.google.com with SMTP id b57so1997760eek.26
-        for <linux-mm@kvack.org>; Thu, 24 Apr 2014 08:40:10 -0700 (PDT)
-Received: from fireflyinternet.com (mail.fireflyinternet.com. [87.106.93.118])
-        by mx.google.com with ESMTP id s46si8836592eeg.345.2014.04.24.08.40.09
-        for <linux-mm@kvack.org>;
-        Thu, 24 Apr 2014 08:40:10 -0700 (PDT)
-Date: Thu, 24 Apr 2014 16:39:20 +0100
-From: Chris Wilson <chris@chris-wilson.co.uk>
-Subject: Re: [PATCH] mm: Throttle shrinkers harder
-Message-ID: <20140424153920.GM31221@nuc-i3427.alporthouse.com>
-References: <1397113506-9177-1-git-send-email-chris@chris-wilson.co.uk>
- <20140418121416.c022eca055da1b6d81b2cf1b@linux-foundation.org>
- <20140422193041.GD10722@phenom.ffwll.local>
- <53582D3C.1010509@intel.com>
- <20140424055836.GB31221@nuc-i3427.alporthouse.com>
- <53592C16.8000906@intel.com>
+Received: from mail-ob0-f172.google.com (mail-ob0-f172.google.com [209.85.214.172])
+	by kanga.kvack.org (Postfix) with ESMTP id D0DE26B0035
+	for <linux-mm@kvack.org>; Thu, 24 Apr 2014 12:40:47 -0400 (EDT)
+Received: by mail-ob0-f172.google.com with SMTP id wo20so2943517obc.17
+        for <linux-mm@kvack.org>; Thu, 24 Apr 2014 09:40:47 -0700 (PDT)
+Received: from mail-ob0-f172.google.com (mail-ob0-f172.google.com [209.85.214.172])
+        by mx.google.com with ESMTPS id sd1si3969992obb.46.2014.04.24.09.40.46
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 24 Apr 2014 09:40:46 -0700 (PDT)
+Received: by mail-ob0-f172.google.com with SMTP id wo20so2965201obc.3
+        for <linux-mm@kvack.org>; Thu, 24 Apr 2014 09:40:46 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <53592C16.8000906@intel.com>
+In-Reply-To: <1397805849-4913-1-git-send-email-iamjoonsoo.kim@lge.com>
+References: <1397805849-4913-1-git-send-email-iamjoonsoo.kim@lge.com>
+Date: Thu, 24 Apr 2014 17:40:46 +0100
+Message-ID: <CAAG0J9-8WbO48jXpUfOq6CmHinL9dMg5Ee9-J9qndBEtZgWYJg@mail.gmail.com>
+Subject: Re: [PATCH] slab: fix the type of the index on freelist index accessor
+From: James Hogan <james.hogan@imgtec.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, intel-gfx@lists.freedesktop.org, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Dave Chinner <dchinner@redhat.com>, Glauber Costa <glommer@openvz.org>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, David Rientjes <rientjes@google.com>, Steven King <sfking@fdwdc.com>, Geert Uytterhoeven <geert@linux-m68k.org>
 
-On Thu, Apr 24, 2014 at 08:21:58AM -0700, Dave Hansen wrote:
-> On 04/23/2014 10:58 PM, Chris Wilson wrote:
-> > [ 4756.750938] Node 0 DMA free:14664kB min:32kB low:40kB high:48kB active_anon:0kB inactive_anon:1024kB active_file:0kB inactive_file:4kB unevictable:0kB isolated(anon):0kB isolated(file):0kB present:15992kB managed:15908kB mlocked:0kB dirty:0kB writeback:0kB mapped:0kB shmem:412kB slab_reclaimable:80kB slab_unreclaimable:24kB kernel_stack:0kB pagetables:48kB unstable:0kB bounce:0kB free_cma:0kB writeback_tmp:0kB pages_scanned:76 all_unreclaimable? yes
-> > [ 4756.751103] lowmem_reserve[]: 0 3337 3660 3660
-> > [ 4756.751133] Node 0 DMA32 free:7208kB min:7044kB low:8804kB high:10564kB active_anon:36172kB inactive_anon:3351408kB active_file:92kB inactive_file:72kB unevictable:0kB isolated(anon):0kB isolated(file):0kB present:3518336kB managed:3440548kB mlocked:0kB dirty:0kB writeback:0kB mapped:12kB shmem:1661420kB slab_reclaimable:17624kB slab_unreclaimable:14400kB kernel_stack:696kB pagetables:4324kB unstable:0kB bounce:0kB free_cma:0kB writeback_tmp:0kB pages_scanned:327 all_unreclaimable? yes
-> > [ 4756.751341] lowmem_reserve[]: 0 0 322 322
-> > [ 4756.752889] Node 0 Normal free:328kB min:680kB low:848kB high:1020kB active_anon:61372kB inactive_anon:250740kB active_file:0kB inactive_file:4kB unevictable:0kB isolated(anon):0kB isolated(file):0kB present:393216kB managed:330360kB mlocked:0kB dirty:0kB writeback:0kB mapped:0kB shmem:227740kB slab_reclaimable:3032kB slab_unreclaimable:5128kB kernel_stack:400kB pagetables:624kB unstable:0kB bounce:0kB free_cma:0kB writeback_tmp:0kB pages_scanned:6 all_unreclaimable? yes
-> > [ 4756.757635] lowmem_reserve[]: 0 0 0 0
-> > [ 4756.759294] Node 0 DMA: 2*4kB (UM) 2*8kB (UM) 3*16kB (UEM) 4*32kB (UEM) 2*64kB (UM) 4*128kB (UEM) 2*256kB (EM) 2*512kB (EM) 2*1024kB (UM) 3*2048kB (EMR) 1*4096kB (M) = 14664kB
-> > [ 4756.762776] Node 0 DMA32: 424*4kB (UEM) 171*8kB (UEM) 21*16kB (UEM) 1*32kB (R) 1*64kB (R) 1*128kB (R) 0*256kB 1*512kB (R) 1*1024kB (R) 1*2048kB (R) 0*4096kB = 7208kB
-> > [ 4756.766284] Node 0 Normal: 26*4kB (UER) 18*8kB (UER) 3*16kB (E) 1*32kB (R) 0*64kB 0*128kB 0*256kB 0*512kB 0*1024kB 0*2048kB 0*4096kB = 328kB
-> > [ 4756.768198] Node 0 hugepages_total=0 hugepages_free=0 hugepages_surp=0 hugepages_size=2048kB
-> > [ 4756.770026] 916139 total pagecache pages
-> > [ 4756.771857] 443703 pages in swap cache
-> > [ 4756.773695] Swap cache stats: add 15363874, delete 14920171, find 6533699/7512215
-> > [ 4756.775592] Free swap  = 0kB
-> > [ 4756.777505] Total swap = 2047996kB
-> 
-> OK, so here's my theory as to what happens:
-> 
-> 1. The graphics pages got put on the LRU
-> 2. System is low on memory, they get on (and *STAY* on) the inactive
->    LRU.
-> 3. VM adds graphics pages to the swap cache, and writes them out, and
->    we see the writeout from the vmstat, and lots of adds/removes from
->    the swap cache.
-> 4. But, despite all the swap writeout, we don't get helped by seeing
->    much memory get freed.  Why?
-> 
-> I _suspect_ that the graphics drivers here are holding a reference to
-> the page.  During reclaim, we're mostly concerned with the pages being
-> mapped.  If we manage to get them unmapped, we'll go ahead and swap
-> them, which I _think_ is what we're seeing.  But, when it comes time to
-> _actually_ free them, that last reference on the page keeps them from
-> being freed.
-> 
-> Is it possible that there's still a get_page() reference that's holding
-> those pages in place from the graphics code?
+On 18 April 2014 08:24, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+> commit 8dcc774 (slab: introduce byte sized index for the freelist of
+> a slab) changes the size of freelist index and also changes prototype
+> of accessor function to freelist index. And there was a mistake.
+>
+> The mistake is that although it changes the size of freelist index
+> correctly, it changes the size of the index of freelist index incorrectly.
+> With patch, freelist index can be 1 byte or 2 bytes, that means that
+> num of object on on a slab can be more than 255. So we need more than 1
+> byte for the index to find the index of free object on freelist. But,
+> above patch makes this index type 1 byte, so slab which have more than
+> 255 objects cannot work properly and in consequence of it, the system
+> cannot boot.
+>
+> This issue was reported by Steven King on m68knommu which would use
+> 2 bytes freelist index. Please refer following link.
+>
+> https://lkml.org/lkml/2014/4/16/433
+>
+> To fix it is so easy. To change the type of the index of freelist index
+> on accessor functions is enough to fix this bug. Although 2 bytes is
+> enough, I use 4 bytes since it have no bad effect and make things
+> more easier. This fix was suggested and tested by Steven in his
+> original report.
+>
+> Reported-by: Steven King <sfking@fdwdc.com>
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Not from i915.ko. The last resort of our shrinker is to drop all page
-refs held by the GPU, which is invoked if we are asked to free memory
-and we have no inactive objects left.
+I also hit this problem on MIPS with v3.15-rc2 and 16K pages. With
+this patch it boots fine.
 
-If we could get a callback for the oom report, I could dump some details
-about what the GPU is holding onto. That seems like a useful extension to
-add to the shrinkers.
--Chris
+Tested-by: James Hogan <james.hogan@imgtec.com>
 
--- 
-Chris Wilson, Intel Open Source Technology Centre
+Thanks
+James
+
+> ---
+> Hello, Pekka.
+>
+> Could you send this for v3.15-rc2?
+> Without this patch, many architecture using 2 bytes freelist index cannot
+> work properly, I guess.
+>
+> This patch is based on v3.15-rc1.
+>
+> Thanks.
+>
+> diff --git a/mm/slab.c b/mm/slab.c
+> index 388cb1a..d7f9f44 100644
+> --- a/mm/slab.c
+> +++ b/mm/slab.c
+> @@ -2572,13 +2572,13 @@ static void *alloc_slabmgmt(struct kmem_cache *cachep,
+>         return freelist;
+>  }
+>
+> -static inline freelist_idx_t get_free_obj(struct page *page, unsigned char idx)
+> +static inline freelist_idx_t get_free_obj(struct page *page, unsigned int idx)
+>  {
+>         return ((freelist_idx_t *)page->freelist)[idx];
+>  }
+>
+>  static inline void set_free_obj(struct page *page,
+> -                                       unsigned char idx, freelist_idx_t val)
+> +                                       unsigned int idx, freelist_idx_t val)
+>  {
+>         ((freelist_idx_t *)(page->freelist))[idx] = val;
+>  }
+> --
+> 1.7.9.5
+>
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
