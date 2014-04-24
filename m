@@ -1,71 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f179.google.com (mail-ob0-f179.google.com [209.85.214.179])
-	by kanga.kvack.org (Postfix) with ESMTP id C0EA76B0035
-	for <linux-mm@kvack.org>; Wed, 23 Apr 2014 23:59:58 -0400 (EDT)
-Received: by mail-ob0-f179.google.com with SMTP id vb8so2049037obc.24
-        for <linux-mm@kvack.org>; Wed, 23 Apr 2014 20:59:58 -0700 (PDT)
-Received: from mail-ob0-f174.google.com (mail-ob0-f174.google.com [209.85.214.174])
-        by mx.google.com with ESMTPS id n4si2397107oew.162.2014.04.23.20.59.57
+Received: from mail-ee0-f41.google.com (mail-ee0-f41.google.com [74.125.83.41])
+	by kanga.kvack.org (Postfix) with ESMTP id B067B6B0035
+	for <linux-mm@kvack.org>; Thu, 24 Apr 2014 01:38:32 -0400 (EDT)
+Received: by mail-ee0-f41.google.com with SMTP id t10so1409474eei.28
+        for <linux-mm@kvack.org>; Wed, 23 Apr 2014 22:38:31 -0700 (PDT)
+Received: from mail-ee0-x22c.google.com (mail-ee0-x22c.google.com [2a00:1450:4013:c00::22c])
+        by mx.google.com with ESMTPS id d5si6605107eei.268.2014.04.23.22.38.30
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 23 Apr 2014 20:59:58 -0700 (PDT)
-Received: by mail-ob0-f174.google.com with SMTP id gq1so2056799obb.19
-        for <linux-mm@kvack.org>; Wed, 23 Apr 2014 20:59:57 -0700 (PDT)
+        Wed, 23 Apr 2014 22:38:30 -0700 (PDT)
+Received: by mail-ee0-f44.google.com with SMTP id e49so1369951eek.17
+        for <linux-mm@kvack.org>; Wed, 23 Apr 2014 22:38:30 -0700 (PDT)
+Message-ID: <53589E8E.1040000@gmail.com>
+Date: Thu, 24 Apr 2014 07:18:06 +0200
+From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <5357EF4D.6080302@qti.qualcomm.com>
-References: <000001417f6834f1-32b83f22-8bde-4b9e-b591-bc31329660e4-000000@email.amazonses.com>
-	<CAOh2x==yrBdFDcObdz+La0y=jDERj=sxOBMvU-Kk6eGEvvwZQw@mail.gmail.com>
-	<5357EF4D.6080302@qti.qualcomm.com>
-Date: Thu, 24 Apr 2014 09:29:57 +0530
-Message-ID: <CAKohponJFZcXSyGhGRVSr+T0iWvJowfBThnZxoWCvpitpQTGuw@mail.gmail.com>
-Subject: Re: vmstat: On demand vmstat workers V3
-From: Viresh Kumar <viresh.kumar@linaro.org>
+Subject: Re: [PATCH 5/4] ipc,shm: minor cleanups
+References: <1398090397-2397-1-git-send-email-manfred@colorfullife.com>	 <1398221636.6345.9.camel@buesod1.americas.hpqcorp.net>	 <53574AA5.1060205@gmail.com> <1398230745.27667.2.camel@buesod1.americas.hpqcorp.net>
+In-Reply-To: <1398230745.27667.2.camel@buesod1.americas.hpqcorp.net>
 Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Max Krasnyansky <maxk@qti.qualcomm.com>, Frederic Weisbecker <fweisbec@gmail.com>, Kevin Hilman <khilman@linaro.org>
-Cc: Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Gilad Ben-Yossef <gilad@benyossef.com>, Thomas Gleixner <tglx@linutronix.de>, Tejun Heo <tj@kernel.org>, John Stultz <johnstul@us.ibm.com>, Mike Frysinger <vapier@gentoo.org>, Minchan Kim <minchan.kim@gmail.com>, Hakan Akkan <hakanakkan@gmail.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Davidlohr Bueso <davidlohr@hp.com>
+Cc: mtk.manpages@gmail.com, Manfred Spraul <manfred@colorfullife.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, gthelen@google.com, aswin@hp.com, linux-mm@kvack.org
 
-On 23 April 2014 22:20, Max Krasnyansky <maxk@qti.qualcomm.com> wrote:
-> On 04/22/2014 03:32 AM, Viresh Kumar wrote:
->> This vmstat interrupt is disturbing my core isolation :), have you got
->> any far with this patchset?
->
-> You don't mean an interrupt, right?
+On 04/23/2014 07:25 AM, Davidlohr Bueso wrote:
+> On Wed, 2014-04-23 at 07:07 +0200, Michael Kerrisk (man-pages) wrote:
+>> On 04/23/2014 04:53 AM, Davidlohr Bueso wrote:
+>>> -  Breakup long function names/args.
+>>> -  Cleaup variable declaration.
+>>> -  s/current->mm/mm
+>>>
+>>> Signed-off-by: Davidlohr Bueso <davidlohr@hp.com>
+>>> ---
+>>>  ipc/shm.c | 40 +++++++++++++++++-----------------------
+>>>  1 file changed, 17 insertions(+), 23 deletions(-)
+>>>
+>>> diff --git a/ipc/shm.c b/ipc/shm.c
+>>> index f000696..584d02e 100644
+>>> --- a/ipc/shm.c
+>>> +++ b/ipc/shm.c
+>>> @@ -480,15 +480,13 @@ static const struct vm_operations_struct shm_vm_ops = {
+>>>  static int newseg(struct ipc_namespace *ns, struct ipc_params *params)
+>>>  {
+>>>  	key_t key = params->key;
+>>> -	int shmflg = params->flg;
+>>> +	int id, error, shmflg = params->flg;
+>>
+>> It's largely a matter of taste (and I may be in a minority), and I know
+>> there's certainly precedent in the kernel code, but I don't much like the 
+>> style of mixing variable declarations that have initializers, with other
+>> unrelated declarations (e.g., variables without initializers). What is 
+>> the gain? One less line of text? That's (IMO) more than offset by the 
+>> small loss of readability.
+> 
+> Yes, it's taste. And yes, your in the minority, at least in many core
+> kernel components and ipc.
 
-Sorry for not being clear enough. I meant the interruption caused due to these
-works.
+Davidlohr,
 
-> The updates are done via the regular priority workqueue.
->
-> I'm playing with isolation as well (has been more or less a background thing
-> for the last 6+ years). Our threads that run on the isolated cores are SCHED_FIFO
-> and therefor low prio workqueue stuff, like vmstat, doesn't get in the way.
+So, noting that the minority is less small than we thought, I'll just
+add this: I'd have appreciated it if your reply had been less 
+dismissive, and you'd actually responded to my concrete point about 
+loss of readability.
 
-Initially I thought that's not enough. As there were queued with a delayed work
-and so a timer+work. Because there is a timer to fire, kernel wouldn't stop
-the tick for long  with NO_HZ_FULL as get_next_timer_interrupt() wouldn't
-return KTIME_MAX. And so we will stop the tick for some time but will still
-queue a hrtimer after say 'n' seconds. But the clockevent device will have
-a max value of counter it is running and it will disturb isolation
-with a interrupt
-after end of counter, for me it is 90 seconds.
+Cheers,
 
-BUT, it looks there is something else as well here. For the first time this
-theory would probably work, but because we wouldn't allow the work
-to run, the timer wouldn't get queued again. And so things will start working
-soon after.
+Michael
 
-While writing this mail, I got another vision at this point. Because there will
-be one task running and another queued for the work, tick wouldn't be
-stopped (nr_running > 1) :( .. And so isolation wouldn't work again.
 
-@Frederic/Kevin: Did we ever had a discussion about stopping tick even if
-we have more than a task in queue but are SCHED_FIFO ?
-
-> I do have a few patches for the workqueues to make things better for isolation.
-
-Please share them, even if they aren't mainlinable.
+-- 
+Michael Kerrisk
+Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
+Linux/UNIX System Programming Training: http://man7.org/training/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
