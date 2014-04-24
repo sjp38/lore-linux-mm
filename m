@@ -1,53 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id DAF576B0035
-	for <linux-mm@kvack.org>; Thu, 24 Apr 2014 18:03:59 -0400 (EDT)
-Received: by mail-pd0-f179.google.com with SMTP id g10so2386522pdj.38
-        for <linux-mm@kvack.org>; Thu, 24 Apr 2014 15:03:59 -0700 (PDT)
-Received: from blackbird.sr71.net (www.sr71.net. [198.145.64.142])
-        by mx.google.com with ESMTP id rj9si933455pbc.246.2014.04.24.15.03.55
+Received: from mail-pb0-f49.google.com (mail-pb0-f49.google.com [209.85.160.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 588936B0035
+	for <linux-mm@kvack.org>; Thu, 24 Apr 2014 18:36:22 -0400 (EDT)
+Received: by mail-pb0-f49.google.com with SMTP id rr13so2416674pbb.8
+        for <linux-mm@kvack.org>; Thu, 24 Apr 2014 15:36:22 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id et3si3481060pbc.463.2014.04.24.15.36.15
         for <linux-mm@kvack.org>;
-        Thu, 24 Apr 2014 15:03:55 -0700 (PDT)
-Message-ID: <53598A48.2090909@sr71.net>
-Date: Thu, 24 Apr 2014 15:03:52 -0700
-From: Dave Hansen <dave@sr71.net>
+        Thu, 24 Apr 2014 15:36:21 -0700 (PDT)
+Message-ID: <535991C3.9080808@intel.com>
+Date: Thu, 24 Apr 2014 15:35:47 -0700
+From: Dave Hansen <dave.hansen@intel.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 5/6] x86: mm: new tunable for single vs full TLB flush
-References: <20140421182418.81CF7519@viggo.jf.intel.com> <20140421182426.D6DD1E8F@viggo.jf.intel.com> <20140424103727.GT23991@suse.de> <53594920.8030203@sr71.net> <53594FB3.9050505@redhat.com>
-In-Reply-To: <53594FB3.9050505@redhat.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH] mm: Throttle shrinkers harder
+References: <1397113506-9177-1-git-send-email-chris@chris-wilson.co.uk> <20140418121416.c022eca055da1b6d81b2cf1b@linux-foundation.org> <20140422193041.GD10722@phenom.ffwll.local> <53582D3C.1010509@intel.com> <20140424055836.GB31221@nuc-i3427.alporthouse.com> <53592C16.8000906@intel.com> <20140424153920.GM31221@nuc-i3427.alporthouse.com>
+In-Reply-To: <20140424153920.GM31221@nuc-i3427.alporthouse.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>
-Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, ak@linux.intel.com, alex.shi@linaro.org, dave.hansen@linux.intel.com, "H. Peter Anvin" <hpa@zytor.com>
+To: Chris Wilson <chris@chris-wilson.co.uk>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, intel-gfx@lists.freedesktop.org, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Dave Chinner <dchinner@redhat.com>, Glauber Costa <glommer@openvz.org>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>
 
-On 04/24/2014 10:53 AM, Rik van Riel wrote:
->> I do agree that it's ambiguous at best.  I'll go see if anybody cares to
->> update that bit.
+On 04/24/2014 08:39 AM, Chris Wilson wrote:
+> On Thu, Apr 24, 2014 at 08:21:58AM -0700, Dave Hansen wrote:
+>> Is it possible that there's still a get_page() reference that's holding
+>> those pages in place from the graphics code?
 > 
-> I suspect that IF the TLB actually uses a 2MB entry for the
-> translation, a single INVLPG will work.
-> 
-> However, the CPU is free to cache the translations for a 2MB
-> region with a bunch of 4kB entries, if it wanted to, so in
-> the end we have no guarantee that an INVLPG will actually do
-> the right thing...
-> 
-> The same is definitely true for 1GB vs 2MB entries, with
-> some CPUs being capable of parsing page tables with 1GB
-> entries, but having no TLB entries for 1GB translations.
+> Not from i915.ko. The last resort of our shrinker is to drop all page
+> refs held by the GPU, which is invoked if we are asked to free memory
+> and we have no inactive objects left.
 
-I believe we _do_ have such a guarantee.  There's another bit in the SDM
-that someone pointed out to me in a footnote in "4.10.4.1":
+How sure are we that this was performed before the OOM?
 
-	1. If the paging structures map the linear address using a page
-	larger than 4 KBytes and there are multiple TLB entries for
-	that page (see Section 4.10.2.3), the instruction invalidates
-	all of them.
+Also, forgive me for being an idiot wrt the way graphics work, but are
+there any good candidates that you can think of that could be holding a
+reference?  I've honestly never seen an OOM like this.
 
-While that's not in the easiest-to-find place in the documents, it looks
-pretty clear.
+Somewhat rhetorical question for the mm folks on cc: should we be
+sticking the pages on which you're holding a reference on our
+unreclaimable list?
+
+> If we could get a callback for the oom report, I could dump some details
+> about what the GPU is holding onto. That seems like a useful extension to
+> add to the shrinkers.
+
+There's a register_oom_notifier().  Is that sufficient for your use, or
+is there something additional that would help?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
