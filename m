@@ -1,50 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 7EE7A6B0037
-	for <linux-mm@kvack.org>; Thu, 24 Apr 2014 14:57:44 -0400 (EDT)
-Received: by mail-pd0-f178.google.com with SMTP id fp1so69340pdb.23
-        for <linux-mm@kvack.org>; Thu, 24 Apr 2014 11:57:44 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id hp1si3225680pad.57.2014.04.24.11.57.43
-        for <linux-mm@kvack.org>;
-        Thu, 24 Apr 2014 11:57:43 -0700 (PDT)
-Date: Thu, 24 Apr 2014 14:57:40 -0400
-From: Matthew Wilcox <willy@linux.intel.com>
-Subject: Re: [PATCH v3 5/7] swap: Use bdev_read_page() / bdev_write_page()
-Message-ID: <20140424185740.GE5886@linux.intel.com>
-References: <cover.1397429628.git.matthew.r.wilcox@intel.com>
- <9fb0b4031b0fba312963a7cc21bf258d944cddcf.1397429628.git.matthew.r.wilcox@intel.com>
- <20140424111817.9cc62b2ff1e368c5cf27d262@linux-foundation.org>
+Received: from mail-ve0-f181.google.com (mail-ve0-f181.google.com [209.85.128.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 38FD76B0035
+	for <linux-mm@kvack.org>; Thu, 24 Apr 2014 15:45:38 -0400 (EDT)
+Received: by mail-ve0-f181.google.com with SMTP id oy12so3569864veb.12
+        for <linux-mm@kvack.org>; Thu, 24 Apr 2014 12:45:37 -0700 (PDT)
+Received: from mail-vc0-x22c.google.com (mail-vc0-x22c.google.com [2607:f8b0:400c:c03::22c])
+        by mx.google.com with ESMTPS id iy9si1186006vec.33.2014.04.24.12.45.37
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 24 Apr 2014 12:45:37 -0700 (PDT)
+Received: by mail-vc0-f172.google.com with SMTP id la4so3585520vcb.17
+        for <linux-mm@kvack.org>; Thu, 24 Apr 2014 12:45:37 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140424111817.9cc62b2ff1e368c5cf27d262@linux-foundation.org>
+In-Reply-To: <alpine.LSU.2.11.1404241110160.2443@eggly.anvils>
+References: <53558507.9050703@zytor.com>
+	<CA+55aFxGm6J6N=4L7exLUFMr1_siNGHpK=wApd9GPCH1=63PPA@mail.gmail.com>
+	<53559F48.8040808@intel.com>
+	<CA+55aFwDtjA4Vp0yt0K5x6b6sAMtcn=61SEnOOs_En+3UXNpuA@mail.gmail.com>
+	<CA+55aFzFxBDJ2rWo9DggdNsq-qBCr11OVXnm64jx04KMSVCBAw@mail.gmail.com>
+	<20140422075459.GD11182@twins.programming.kicks-ass.net>
+	<CA+55aFzM+NpE-EzJdDeYX=cqWRzkGv9o-vybDR=oFtDLMRK-mA@mail.gmail.com>
+	<alpine.LSU.2.11.1404221847120.1759@eggly.anvils>
+	<20140423184145.GH17824@quack.suse.cz>
+	<CA+55aFwm9BT4ecXF7dD+OM0-+1Wz5vd4ts44hOkS8JdQ74SLZQ@mail.gmail.com>
+	<20140424065133.GX26782@laptop.programming.kicks-ass.net>
+	<alpine.LSU.2.11.1404241110160.2443@eggly.anvils>
+Date: Thu, 24 Apr 2014 12:45:36 -0700
+Message-ID: <CA+55aFwVgCshsVHNqr2EA1aFY18A2L17gNj0wtgHB39qLErTrg@mail.gmail.com>
+Subject: Re: Dirty/Access bits vs. page content
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Jan Kara <jack@suse.cz>, Dave Hansen <dave.hansen@intel.com>, "H. Peter Anvin" <hpa@zytor.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Tony Luck <tony.luck@intel.com>
 
-On Thu, Apr 24, 2014 at 11:18:17AM -0700, Andrew Morton wrote:
-> On Sun, 13 Apr 2014 18:59:54 -0400 Matthew Wilcox <matthew.r.wilcox@intel.com> wrote:
-> 
-> >  mm/page_io.c | 23 +++++++++++++++++++++--
-> >  1 file changed, 21 insertions(+), 2 deletions(-)
-> 
-> Some changelog here would be nice.  What were the reasons for the
-> change?  Any observable performance changes?
+On Thu, Apr 24, 2014 at 11:40 AM, Hugh Dickins <hughd@google.com> wrote:
+> safely with page_mkclean(), as it stands at present anyway.
+>
+> I think that (in the exceptional case when a shared file pte_dirty has
+> been encountered, and this mm is active on other cpus) zap_pte_range()
+> needs to flush TLB on other cpus of this mm, just before its
+> pte_unmap_unlock(): then it respects the usual page_mkclean() protocol.
+>
+> Or has that already been rejected earlier in the thread,
+> as too costly for some common case?
 
-Whoops ... I could swear I wrote one.  Wonder what happened to it.  Here
-was all I had:
+Hmm. The problem is that right now we actually try very hard to batch
+as much as possible in order to avoid extra TLB flushes (we limit it
+to around 10k pages per batch, but that's still a *lot* of pages). The
+TLB flush IPI calls are noticeable under some loads.
 
-We can avoid allocating a BIO if we use the writepage path instead of
-the Direct I/O path.
+And it's certainly much too much to free 10k pages under a spinlock.
+The latencies would be horrendous.
 
-But that's kind of lame.  I don't have any performance numbers right now,
-so how about we go with:
+We could add some special logic that only triggers for the dirty pages
+case, but it would still have to handle the case of "we batched up
+9000 clean pages, and then we hit a dirty page", so it would get
+rather costly quickly.
 
-By calling the device driver to write the page directly, we avoid
-allocating a BIO, which allows us to free memory without allocating
-memory.
+Or we could have a separate array for dirty pages, and limit those to
+a much smaller number, and do just the dirty pages under the lock, and
+then the rest after releasing the lock. Again, a fair amount of new
+complexity.
+
+I would almost prefer to have some special (per-mapping?) lock or
+something, and make page_mkclean() be serialize with the unmapping
+case.
+
+              Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
