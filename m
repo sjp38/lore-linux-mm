@@ -1,95 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f48.google.com (mail-ee0-f48.google.com [74.125.83.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B99E6B0035
-	for <linux-mm@kvack.org>; Thu, 24 Apr 2014 09:31:16 -0400 (EDT)
-Received: by mail-ee0-f48.google.com with SMTP id b57so1855274eek.35
-        for <linux-mm@kvack.org>; Thu, 24 Apr 2014 06:31:15 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id y6si8391106eep.167.2014.04.24.06.31.13
-        for <linux-mm@kvack.org>;
-        Thu, 24 Apr 2014 06:31:14 -0700 (PDT)
-Date: Thu, 24 Apr 2014 15:30:55 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH] mm: get_user_pages(write,force) refuse to COW in
-	shared areas
-Message-ID: <20140424133055.GA13269@redhat.com>
-References: <alpine.LSU.2.11.1404040120110.6880@eggly.anvils>
+Received: from mail-vc0-f174.google.com (mail-vc0-f174.google.com [209.85.220.174])
+	by kanga.kvack.org (Postfix) with ESMTP id D3E5A6B0035
+	for <linux-mm@kvack.org>; Thu, 24 Apr 2014 09:33:20 -0400 (EDT)
+Received: by mail-vc0-f174.google.com with SMTP id ld13so2885217vcb.19
+        for <linux-mm@kvack.org>; Thu, 24 Apr 2014 06:33:20 -0700 (PDT)
+Received: from mail-vc0-x235.google.com (mail-vc0-x235.google.com [2607:f8b0:400c:c03::235])
+        by mx.google.com with ESMTPS id ls10si916896vec.172.2014.04.24.06.33.20
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 24 Apr 2014 06:33:20 -0700 (PDT)
+Received: by mail-vc0-f181.google.com with SMTP id id10so2868769vcb.40
+        for <linux-mm@kvack.org>; Thu, 24 Apr 2014 06:33:19 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1404040120110.6880@eggly.anvils>
+In-Reply-To: <20140424103639.GC19564@arm.com>
+References: <1397648803-15961-1-git-send-email-steve.capper@linaro.org>
+	<20140424102229.GA28014@linaro.org>
+	<20140424103639.GC19564@arm.com>
+Date: Thu, 24 Apr 2014 08:33:19 -0500
+Message-ID: <CAL_JsqLC4GzVXQ0ei26JEn5cL9JdmfYUr31_qGgUvU2HyezBWQ@mail.gmail.com>
+Subject: Re: [PATCH V2 0/5] Huge pages for short descriptors on ARM
+From: Rob Herring <robherring2@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Roland Dreier <roland@kernel.org>, Konstantin Khlebnikov <koct9i@gmail.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mauro Carvalho Chehab <m.chehab@samsung.com>, Omar Ramirez Luna <omar.ramirez@copitl.com>, Inki Dae <inki.dae@samsung.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-rdma@vger.kernel.org, linux-media@vger.kernel.org
+To: Will Deacon <will.deacon@arm.com>
+Cc: Steve Capper <steve.capper@linaro.org>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Catalin Marinas <Catalin.Marinas@arm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "gerald.schaefer@de.ibm.com" <gerald.schaefer@de.ibm.com>
 
-Hi Hugh,
-
-Sorry for late reply. First of all, to avoid the confusion, I think the
-patch is fine.
-
-When I saw this patch I decided that uprobes should be updated accordingly,
-but I just realized that I do not understand what should I write in the
-changelog.
-
-On 04/04, Hugh Dickins wrote:
+On Thu, Apr 24, 2014 at 5:36 AM, Will Deacon <will.deacon@arm.com> wrote:
+> Hi Steve,
 >
-> +		if (gup_flags & FOLL_WRITE) {
-> +			if (!(vm_flags & VM_WRITE)) {
-> +				if (!(gup_flags & FOLL_FORCE))
-> +					goto efault;
-> +				/*
-> +				 * We used to let the write,force case do COW
-> +				 * in a VM_MAYWRITE VM_SHARED !VM_WRITE vma, so
-> +				 * ptrace could set a breakpoint in a read-only
-> +				 * mapping of an executable, without corrupting
-> +				 * the file (yet only when that file had been
-> +				 * opened for writing!).  Anon pages in shared
-> +				 * mappings are surprising: now just reject it.
-> +				 */
-> +				if (!is_cow_mapping(vm_flags)) {
-> +					WARN_ON_ONCE(vm_flags & VM_MAYWRITE);
-> +					goto efault;
-> +				}
+> On Thu, Apr 24, 2014 at 11:22:29AM +0100, Steve Capper wrote:
+>> On Wed, Apr 16, 2014 at 12:46:38PM +0100, Steve Capper wrote:
 
-OK. But could you please clarify "Anon pages in shared mappings are surprising" ?
-I mean, does this only apply to "VM_MAYWRITE VM_SHARED !VM_WRITE vma" mentioned
-above or this is bad even if a !FMODE_WRITE file was mmaped as MAP_SHARED ?
+[...]
 
-Yes, in this case this vma is not VM_SHARED and it is not VM_MAYWRITE, it is only
-VM_MAYSHARE. This is in fact private mapping except mprotect(PROT_WRITE) will not
-work.
+>> I'm not sure how to proceed with these patches. I was thinking that
+>> they could be picked up into linux-next? If that sounds reasonable;
+>> Andrew, would you like to take the mm/ patch and Russell could you
+>> please take the arch/arm patches?
+>>
+>> Also, I was hoping to get these into 3.16. Are there any objections to
+>> that?
+>
+> Who is asking for this code? We already support hugepages for LPAE systems,
+> so this would be targetting what? A9? I'm reluctant to add ~400 lines of
+> subtle, low-level mm code to arch/arm/ if it doesn't have any active users.
 
-But with or without this patch gup(FOLL_WRITE | FOLL_FORCE) won't work in this case,
-(although perhaps it could ?), is_cow_mapping() == F because of !VM_MAYWRITE.
+I can't really speak to the who so much anymore. I can say on the
+server front, it was not only Calxeda asking for this.
 
-However, currently uprobes assumes that a cowed anon page is fine in this case, and
-this differs from gup().
+Presumably there are also performance benefits on older systems even
+with 128MB-1GB of RAM. Given that KVM guests can only use 3GB of RAM,
+enabling LPAE in guest kernels has little benefit. So this may still
+be useful on LPAE capable systems. Also, Oracle Java will use
+hugetlbfs if available and Java performance needs all the help it can
+get.
 
-So, what do you think about the patch below? It is probably fine in any case,
-but is there any "strong" reason to follow the gup's behaviour and forbid the
-anon page in VM_MAYSHARE && !VM_MAYWRITE vma?
+> I guess I'm after some commitment that this is (a) useful to somebody and
+> (b) going to be tested regularly, otherwise it will go the way of things
+> like big-endian, where we end up carrying around code which is broken more
+> often than not (although big-endian is more self-contained).
 
-Oleg.
+One key difference here is enabling THP is or should be transparent
+(to state the obvious) to users. While the BE code itself may be
+self-contained, using BE is very much not in that category.
+Potentially every driver on a platform could be broken for BE. Case in
+point, the Calxeda xgmac driver is broken on BE due to using __raw i/o
+accessors instead of relaxed variants.
 
---- x/kernel/events/uprobes.c
-+++ x/kernel/events/uprobes.c
-@@ -127,12 +127,13 @@ struct xol_area {
-  */
- static bool valid_vma(struct vm_area_struct *vma, bool is_register)
- {
--	vm_flags_t flags = VM_HUGETLB | VM_MAYEXEC | VM_SHARED;
-+	vm_flags_t flags = VM_HUGETLB | VM_MAYEXEC;
- 
- 	if (is_register)
- 		flags |= VM_WRITE;
- 
--	return vma->vm_file && (vma->vm_flags & flags) == VM_MAYEXEC;
-+	return 	vma->vm_file && is_cow_mapping(vma->vm_flags) &&
-+		(vma->vm_flags & flags) == VM_MAYEXEC;
- }
- 
- static unsigned long offset_to_vaddr(struct vm_area_struct *vma, loff_t offset)
+Rob
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
