@@ -1,51 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f49.google.com (mail-pb0-f49.google.com [209.85.160.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 588936B0035
-	for <linux-mm@kvack.org>; Thu, 24 Apr 2014 18:36:22 -0400 (EDT)
-Received: by mail-pb0-f49.google.com with SMTP id rr13so2416674pbb.8
-        for <linux-mm@kvack.org>; Thu, 24 Apr 2014 15:36:22 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id et3si3481060pbc.463.2014.04.24.15.36.15
-        for <linux-mm@kvack.org>;
-        Thu, 24 Apr 2014 15:36:21 -0700 (PDT)
-Message-ID: <535991C3.9080808@intel.com>
-Date: Thu, 24 Apr 2014 15:35:47 -0700
-From: Dave Hansen <dave.hansen@intel.com>
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id B3E5C6B0035
+	for <linux-mm@kvack.org>; Thu, 24 Apr 2014 19:16:12 -0400 (EDT)
+Received: by mail-pd0-f182.google.com with SMTP id y10so2456778pdj.27
+        for <linux-mm@kvack.org>; Thu, 24 Apr 2014 16:16:12 -0700 (PDT)
+Received: from mail-pd0-x236.google.com (mail-pd0-x236.google.com [2607:f8b0:400e:c02::236])
+        by mx.google.com with ESMTPS id rj9si1016442pbc.461.2014.04.24.16.16.11
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 24 Apr 2014 16:16:11 -0700 (PDT)
+Received: by mail-pd0-f182.google.com with SMTP id y10so2445957pdj.13
+        for <linux-mm@kvack.org>; Thu, 24 Apr 2014 16:16:11 -0700 (PDT)
+Date: Thu, 24 Apr 2014 16:14:56 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH] mm: get_user_pages(write,force) refuse to COW in shared
+ areas
+In-Reply-To: <20140424133055.GA13269@redhat.com>
+Message-ID: <alpine.LSU.2.11.1404241518510.4454@eggly.anvils>
+References: <alpine.LSU.2.11.1404040120110.6880@eggly.anvils> <20140424133055.GA13269@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: Throttle shrinkers harder
-References: <1397113506-9177-1-git-send-email-chris@chris-wilson.co.uk> <20140418121416.c022eca055da1b6d81b2cf1b@linux-foundation.org> <20140422193041.GD10722@phenom.ffwll.local> <53582D3C.1010509@intel.com> <20140424055836.GB31221@nuc-i3427.alporthouse.com> <53592C16.8000906@intel.com> <20140424153920.GM31221@nuc-i3427.alporthouse.com>
-In-Reply-To: <20140424153920.GM31221@nuc-i3427.alporthouse.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chris Wilson <chris@chris-wilson.co.uk>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, intel-gfx@lists.freedesktop.org, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Dave Chinner <dchinner@redhat.com>, Glauber Costa <glommer@openvz.org>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>
+To: Oleg Nesterov <oleg@redhat.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Roland Dreier <roland@kernel.org>, Konstantin Khlebnikov <koct9i@gmail.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mauro Carvalho Chehab <m.chehab@samsung.com>, Omar Ramirez Luna <omar.ramirez@copitl.com>, Inki Dae <inki.dae@samsung.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-rdma@vger.kernel.org, linux-media@vger.kernel.org
 
-On 04/24/2014 08:39 AM, Chris Wilson wrote:
-> On Thu, Apr 24, 2014 at 08:21:58AM -0700, Dave Hansen wrote:
->> Is it possible that there's still a get_page() reference that's holding
->> those pages in place from the graphics code?
+On Thu, 24 Apr 2014, Oleg Nesterov wrote:
+
+> Hi Hugh,
 > 
-> Not from i915.ko. The last resort of our shrinker is to drop all page
-> refs held by the GPU, which is invoked if we are asked to free memory
-> and we have no inactive objects left.
+> Sorry for late reply. First of all, to avoid the confusion, I think the
+> patch is fine.
+> 
+> When I saw this patch I decided that uprobes should be updated accordingly,
+> but I just realized that I do not understand what should I write in the
+> changelog.
 
-How sure are we that this was performed before the OOM?
+Thanks a lot for considering similar issues in uprobes, Oleg: I merely
+checked that its uses of get_user_pages() would not be problematic,
+and didn't look around to rediscover the worrying mm business that
+goes on down there in kernel/events.
 
-Also, forgive me for being an idiot wrt the way graphics work, but are
-there any good candidates that you can think of that could be holding a
-reference?  I've honestly never seen an OOM like this.
+> 
+> On 04/04, Hugh Dickins wrote:
+> >
+> > +		if (gup_flags & FOLL_WRITE) {
+> > +			if (!(vm_flags & VM_WRITE)) {
+> > +				if (!(gup_flags & FOLL_FORCE))
+> > +					goto efault;
+> > +				/*
+> > +				 * We used to let the write,force case do COW
+> > +				 * in a VM_MAYWRITE VM_SHARED !VM_WRITE vma, so
+> > +				 * ptrace could set a breakpoint in a read-only
+> > +				 * mapping of an executable, without corrupting
+> > +				 * the file (yet only when that file had been
+> > +				 * opened for writing!).  Anon pages in shared
+> > +				 * mappings are surprising: now just reject it.
+> > +				 */
+> > +				if (!is_cow_mapping(vm_flags)) {
+> > +					WARN_ON_ONCE(vm_flags & VM_MAYWRITE);
+> > +					goto efault;
+> > +				}
+> 
+> OK. But could you please clarify "Anon pages in shared mappings are surprising" ?
+> I mean, does this only apply to "VM_MAYWRITE VM_SHARED !VM_WRITE vma" mentioned
+> above or this is bad even if a !FMODE_WRITE file was mmaped as MAP_SHARED ?
 
-Somewhat rhetorical question for the mm folks on cc: should we be
-sticking the pages on which you're holding a reference on our
-unreclaimable list?
+Good question. I simply didn't consider that - and (as you have realized)
+didn't need to consider it, because I was just stopping the problematic
+behaviour in gup(), and didn't need to consider whether other behaviour
+prohibited by gup() was actually unproblematic.
 
-> If we could get a callback for the oom report, I could dump some details
-> about what the GPU is holding onto. That seems like a useful extension to
-> add to the shrinkers.
+> 
+> Yes, in this case this vma is not VM_SHARED and it is not VM_MAYWRITE, it is only
+> VM_MAYSHARE. This is in fact private mapping except mprotect(PROT_WRITE) will not
+> work.
+> 
+> But with or without this patch gup(FOLL_WRITE | FOLL_FORCE) won't work in this case,
+                     "this" meaning my patch rather than yours below
+> (although perhaps it could ?), is_cow_mapping() == F because of !VM_MAYWRITE.
+> 
+> However, currently uprobes assumes that a cowed anon page is fine in this case, and
+> this differs from gup().
+> 
+> So, what do you think about the patch below? It is probably fine in any case,
+> but is there any "strong" reason to follow the gup's behaviour and forbid the
+> anon page in VM_MAYSHARE && !VM_MAYWRITE vma?
 
-There's a register_oom_notifier().  Is that sufficient for your use, or
-is there something additional that would help?
+I don't think there is a "strong" reason to forbid it.
+
+The strongest reason is simply that it's much safer if uprobes follows
+the same conventions as mm, and get_user_pages() happens to have
+forbidden that all along.
+
+The philosophical reason to forbid it is that the user mmapped with
+MAP_SHARED, and it's merely a kernel-internal detail that we flip off
+VM_SHARED and treat these read-only shared mappings very much like
+private mappings.  The user asked for MAP_SHARED, and we prefer to
+respect that by not letting private COWs creep in.
+
+We could treat those mappings even more like private mappings, and
+allow the COWs; but better to be strict about it, so long as doing
+so doesn't give you regressions.
+
+> 
+> Oleg.
+> 
+> --- x/kernel/events/uprobes.c
+> +++ x/kernel/events/uprobes.c
+> @@ -127,12 +127,13 @@ struct xol_area {
+>   */
+>  static bool valid_vma(struct vm_area_struct *vma, bool is_register)
+>  {
+> -	vm_flags_t flags = VM_HUGETLB | VM_MAYEXEC | VM_SHARED;
+> +	vm_flags_t flags = VM_HUGETLB | VM_MAYEXEC;
+
+I think a one-line patch changing VM_SHARED to VM_MAYSHARE would do it,
+wouldn't it?  And save you from having to export is_cow_mapping()
+from mm/memory.c.  (I used is_cow_mapping() because I had to make the
+test more complex anyway, just to exclude the case which had been
+oddly handled before.)
+
+Hugh
+
+>  
+>  	if (is_register)
+>  		flags |= VM_WRITE;
+>  
+> -	return vma->vm_file && (vma->vm_flags & flags) == VM_MAYEXEC;
+> +	return 	vma->vm_file && is_cow_mapping(vma->vm_flags) &&
+> +		(vma->vm_flags & flags) == VM_MAYEXEC;
+>  }
+>  
+>  static unsigned long offset_to_vaddr(struct vm_area_struct *vma, loff_t offset)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
