@@ -1,87 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vc0-f169.google.com (mail-vc0-f169.google.com [209.85.220.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 1979E6B0035
-	for <linux-mm@kvack.org>; Wed, 23 Apr 2014 23:23:03 -0400 (EDT)
-Received: by mail-vc0-f169.google.com with SMTP id im17so2231959vcb.14
-        for <linux-mm@kvack.org>; Wed, 23 Apr 2014 20:23:02 -0700 (PDT)
-Received: from mail-ve0-x236.google.com (mail-ve0-x236.google.com [2607:f8b0:400c:c01::236])
-        by mx.google.com with ESMTPS id p8si657004vef.14.2014.04.23.20.23.01
+Received: from mail-ob0-f179.google.com (mail-ob0-f179.google.com [209.85.214.179])
+	by kanga.kvack.org (Postfix) with ESMTP id C0EA76B0035
+	for <linux-mm@kvack.org>; Wed, 23 Apr 2014 23:59:58 -0400 (EDT)
+Received: by mail-ob0-f179.google.com with SMTP id vb8so2049037obc.24
+        for <linux-mm@kvack.org>; Wed, 23 Apr 2014 20:59:58 -0700 (PDT)
+Received: from mail-ob0-f174.google.com (mail-ob0-f174.google.com [209.85.214.174])
+        by mx.google.com with ESMTPS id n4si2397107oew.162.2014.04.23.20.59.57
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 23 Apr 2014 20:23:01 -0700 (PDT)
-Received: by mail-ve0-f182.google.com with SMTP id jw12so2259986veb.13
-        for <linux-mm@kvack.org>; Wed, 23 Apr 2014 20:23:01 -0700 (PDT)
+        Wed, 23 Apr 2014 20:59:58 -0700 (PDT)
+Received: by mail-ob0-f174.google.com with SMTP id gq1so2056799obb.19
+        for <linux-mm@kvack.org>; Wed, 23 Apr 2014 20:59:57 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <alpine.LSU.2.11.1404231957060.975@eggly.anvils>
-References: <1396235259-2394-1-git-send-email-bob.liu@oracle.com>
-	<alpine.LSU.2.11.1404042358030.12542@eggly.anvils>
-	<CAA_GA1fj=OXeK44NYPt205TqB8OKxOeevOpDorMoytZJebXA=Q@mail.gmail.com>
-	<alpine.LSU.2.11.1404231957060.975@eggly.anvils>
-Date: Thu, 24 Apr 2014 11:23:01 +0800
-Message-ID: <CAA_GA1f1nr4BLkbPM6rOFOYJA9-LJ5KFmDFa5bmW_FtRw2rijg@mail.gmail.com>
-Subject: Re: [PATCH] mm: rmap: don't try to add an unevictable page to lru list
-From: Bob Liu <lliubbo@gmail.com>
+In-Reply-To: <5357EF4D.6080302@qti.qualcomm.com>
+References: <000001417f6834f1-32b83f22-8bde-4b9e-b591-bc31329660e4-000000@email.amazonses.com>
+	<CAOh2x==yrBdFDcObdz+La0y=jDERj=sxOBMvU-Kk6eGEvvwZQw@mail.gmail.com>
+	<5357EF4D.6080302@qti.qualcomm.com>
+Date: Thu, 24 Apr 2014 09:29:57 +0530
+Message-ID: <CAKohponJFZcXSyGhGRVSr+T0iWvJowfBThnZxoWCvpitpQTGuw@mail.gmail.com>
+Subject: Re: vmstat: On demand vmstat workers V3
+From: Viresh Kumar <viresh.kumar@linaro.org>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Linux-MM <linux-mm@kvack.org>, Rik van Riel <riel@redhat.com>, Sasha Levin <sasha.levin@oracle.com>, Bob Liu <bob.liu@oracle.com>
+To: Max Krasnyansky <maxk@qti.qualcomm.com>, Frederic Weisbecker <fweisbec@gmail.com>, Kevin Hilman <khilman@linaro.org>
+Cc: Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Gilad Ben-Yossef <gilad@benyossef.com>, Thomas Gleixner <tglx@linutronix.de>, Tejun Heo <tj@kernel.org>, John Stultz <johnstul@us.ibm.com>, Mike Frysinger <vapier@gentoo.org>, Minchan Kim <minchan.kim@gmail.com>, Hakan Akkan <hakanakkan@gmail.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On Thu, Apr 24, 2014 at 11:08 AM, Hugh Dickins <hughd@google.com> wrote:
-> On Tue, 8 Apr 2014, Bob Liu wrote:
->> On Sat, Apr 5, 2014 at 5:04 PM, Hugh Dickins <hughd@google.com> wrote:
->> > On Mon, 31 Mar 2014, Bob Liu wrote:
->> >
->> >> VM_BUG_ON_PAGE(PageActive(page) && PageUnevictable(page), page) in
->> >> lru_cache_add() was triggered during migrate_misplaced_transhuge_page.
->> >>...
->> >> From vmscan.c:
->> >>  * Reasons page might not be evictable:
->> >>  * (1) page's mapping marked unevictable
->> >>  * (2) page is part of an mlocked VMA
->> >>
->> >> But page_add_new_anon_rmap() only checks reason (2), we may hit this
->> >> VM_BUG_ON_PAGE() if PageUnevictable(old_page) was originally set by reason (1).
->> >
->> > But (1) always reports evictable on an anon page, doesn't it?
->> >
->> >>
->> >> Reported-by: Sasha Levin <sasha.levin@oracle.com>
->> >> Signed-off-by: Bob Liu <bob.liu@oracle.com>
->> >
->> > I can't quite assert NAK, but I suspect this is not the proper fix.
-> ...
->> >
->> > (Yet now I'm wavering again: if down_write mmap_sem is needed to
->> > munlock() the vma, and migrate_misplaced_transhuge_page() is only
->> > migrating a singly-mapped THP under down_read mmap_sem, how could
->> > VM_LOCKED have changed during the migration?  I've lost sight of
->>
->> I think you are right, I'll do more investigation about why this BUG
->> was triggered.
+On 23 April 2014 22:20, Max Krasnyansky <maxk@qti.qualcomm.com> wrote:
+> On 04/22/2014 03:32 AM, Viresh Kumar wrote:
+>> This vmstat interrupt is disturbing my core isolation :), have you got
+>> any far with this patchset?
 >
-> Andrew, if Bob agrees, please drop
+> You don't mean an interrupt, right?
+
+Sorry for not being clear enough. I meant the interruption caused due to these
+works.
+
+> The updates are done via the regular priority workqueue.
 >
-> mm-rmap-dont-try-to-add-an-unevictable-page-to-lru-list.patch
->
+> I'm playing with isolation as well (has been more or less a background thing
+> for the last 6+ years). Our threads that run on the isolated cores are SCHED_FIFO
+> and therefor low prio workqueue stuff, like vmstat, doesn't get in the way.
 
-I agree!
+Initially I thought that's not enough. As there were queued with a delayed work
+and so a timer+work. Because there is a timer to fire, kernel wouldn't stop
+the tick for long  with NO_HZ_FULL as get_next_timer_interrupt() wouldn't
+return KTIME_MAX. And so we will stop the tick for some time but will still
+queue a hrtimer after say 'n' seconds. But the clockevent device will have
+a max value of counter it is running and it will disturb isolation
+with a interrupt
+after end of counter, for me it is 90 seconds.
 
-> from mmotm now.  We have not heard any such report yet on 3.15-rc,
+BUT, it looks there is something else as well here. For the first time this
+theory would probably work, but because we wouldn't allow the work
+to run, the timer wouldn't get queued again. And so things will start working
+soon after.
 
-Yes, I can't reproduce it on 3.15-rc1 neither.
+While writing this mail, I got another vision at this point. Because there will
+be one task running and another queued for the work, tick wouldn't be
+stopped (nr_running > 1) :( .. And so isolation wouldn't work again.
 
-> and neither Bob nor I have yet come up with a convincing explanation
-> for how it came about.  It's tempting to suppose it was a side-effect
-> of something temporarily wrong on a 3.14-next, and now okay; but we'll
-> learn more quickly whether that's so if mmotm stops working around it.
->
+@Frederic/Kevin: Did we ever had a discussion about stopping tick even if
+we have more than a task in queue but are SCHED_FIFO ?
 
-Agree! Thank you for taking look at this issue.
+> I do have a few patches for the workqueues to make things better for isolation.
 
--- 
-Regards,
---Bob
+Please share them, even if they aren't mainlinable.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
