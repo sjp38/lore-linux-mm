@@ -1,163 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pb0-f43.google.com (mail-pb0-f43.google.com [209.85.160.43])
-	by kanga.kvack.org (Postfix) with ESMTP id A89B36B0035
-	for <linux-mm@kvack.org>; Wed, 23 Apr 2014 20:17:16 -0400 (EDT)
-Received: by mail-pb0-f43.google.com with SMTP id um1so1313340pbc.16
-        for <linux-mm@kvack.org>; Wed, 23 Apr 2014 17:17:16 -0700 (PDT)
-Received: from mail-pa0-x235.google.com (mail-pa0-x235.google.com [2607:f8b0:400e:c03::235])
-        by mx.google.com with ESMTPS id si6si1512543pab.367.2014.04.23.17.17.15
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 23 Apr 2014 17:17:15 -0700 (PDT)
-Received: by mail-pa0-f53.google.com with SMTP id ld10so1270132pab.26
-        for <linux-mm@kvack.org>; Wed, 23 Apr 2014 17:17:15 -0700 (PDT)
-Date: Thu, 24 Apr 2014 08:17:05 +0800
-From: Shaohua Li <shli@kernel.org>
-Subject: Re: [PATCH 1/2] swap: change swap_info singly-linked list to
- list_head
-Message-ID: <20140424001705.GA8066@kernel.org>
-References: <alpine.LSU.2.11.1402232344280.1890@eggly.anvils>
- <1397336454-13855-1-git-send-email-ddstreet@ieee.org>
- <1397336454-13855-2-git-send-email-ddstreet@ieee.org>
- <20140423103400.GH23991@suse.de>
+	by kanga.kvack.org (Postfix) with ESMTP id 99C696B0035
+	for <linux-mm@kvack.org>; Wed, 23 Apr 2014 21:21:22 -0400 (EDT)
+Received: by mail-pb0-f43.google.com with SMTP id um1so1370913pbc.30
+        for <linux-mm@kvack.org>; Wed, 23 Apr 2014 18:21:22 -0700 (PDT)
+Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [2001:44b8:8060:ff02:300:1:2:6])
+        by mx.google.com with ESMTP id xy8si1611912pab.160.2014.04.23.18.21.20
+        for <linux-mm@kvack.org>;
+        Wed, 23 Apr 2014 18:21:21 -0700 (PDT)
+Date: Thu, 24 Apr 2014 11:20:22 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH/RFC 0/5] Support loop-back NFS mounts - take 2
+Message-ID: <20140424012022.GX15995@dastard>
+References: <20140423022441.4725.89693.stgit@notabene.brown>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140423103400.GH23991@suse.de>
+In-Reply-To: <20140423022441.4725.89693.stgit@notabene.brown>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Dan Streetman <ddstreet@ieee.org>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Shaohua Li <shli@fusionio.com>, Weijie Yang <weijieut@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: NeilBrown <neilb@suse.de>
+Cc: Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@redhat.com>, Trond Myklebust <trond.myklebust@primarydata.com>, "J. Bruce Fields" <bfields@fieldses.org>, Mel Gorman <mgorman@suse.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Wed, Apr 23, 2014 at 11:34:00AM +0100, Mel Gorman wrote:
-> > @@ -366,7 +361,7 @@ static int __frontswap_unuse_pages(unsigned long total, unsigned long *unused,
-> >  		}
-> >  		vm_unacct_memory(pages);
-> >  		*unused = pages_to_unuse;
-> > -		*swapid = type;
-> > +		*swapid = si->type;
-> >  		ret = 0;
-> >  		break;
-> >  	}
-> > @@ -413,7 +408,7 @@ void frontswap_shrink(unsigned long target_pages)
-> >  	/*
-> >  	 * we don't want to hold swap_lock while doing a very
-> >  	 * lengthy try_to_unuse, but swap_list may change
-> > -	 * so restart scan from swap_list.head each time
-> > +	 * so restart scan from swap_list_head each time
-> >  	 */
-> >  	spin_lock(&swap_lock);
-> >  	ret = __frontswap_shrink(target_pages, &pages_to_unuse, &type);
-> > diff --git a/mm/swapfile.c b/mm/swapfile.c
-> > index 4a7f7e6..b958645 100644
-> > --- a/mm/swapfile.c
-> > +++ b/mm/swapfile.c
-> > @@ -51,14 +51,14 @@ atomic_long_t nr_swap_pages;
-> >  /* protected with swap_lock. reading in vm_swap_full() doesn't need lock */
-> >  long total_swap_pages;
-> >  static int least_priority;
-> > -static atomic_t highest_priority_index = ATOMIC_INIT(-1);
-> >  
-> >  static const char Bad_file[] = "Bad swap file entry ";
-> >  static const char Unused_file[] = "Unused swap file entry ";
-> >  static const char Bad_offset[] = "Bad swap offset entry ";
-> >  static const char Unused_offset[] = "Unused swap offset entry ";
-> >  
-> > -struct swap_list_t swap_list = {-1, -1};
-> > +/* all active swap_info */
-> > +LIST_HEAD(swap_list_head);
-> >  
-> >  struct swap_info_struct *swap_info[MAX_SWAPFILES];
-> >  
-> > @@ -640,66 +640,50 @@ no_page:
-> >  
-> >  swp_entry_t get_swap_page(void)
-> >  {
-> > -	struct swap_info_struct *si;
-> > +	struct swap_info_struct *si, *next;
-> >  	pgoff_t offset;
-> > -	int type, next;
-> > -	int wrapped = 0;
-> > -	int hp_index;
-> > +	struct list_head *tmp;
-> >  
-> >  	spin_lock(&swap_lock);
-> >  	if (atomic_long_read(&nr_swap_pages) <= 0)
-> >  		goto noswap;
-> >  	atomic_long_dec(&nr_swap_pages);
-> >  
-> > -	for (type = swap_list.next; type >= 0 && wrapped < 2; type = next) {
-> > -		hp_index = atomic_xchg(&highest_priority_index, -1);
-> > -		/*
-> > -		 * highest_priority_index records current highest priority swap
-> > -		 * type which just frees swap entries. If its priority is
-> > -		 * higher than that of swap_list.next swap type, we use it.  It
-> > -		 * isn't protected by swap_lock, so it can be an invalid value
-> > -		 * if the corresponding swap type is swapoff. We double check
-> > -		 * the flags here. It's even possible the swap type is swapoff
-> > -		 * and swapon again and its priority is changed. In such rare
-> > -		 * case, low prority swap type might be used, but eventually
-> > -		 * high priority swap will be used after several rounds of
-> > -		 * swap.
-> > -		 */
-> > -		if (hp_index != -1 && hp_index != type &&
-> > -		    swap_info[type]->prio < swap_info[hp_index]->prio &&
-> > -		    (swap_info[hp_index]->flags & SWP_WRITEOK)) {
-> > -			type = hp_index;
-> > -			swap_list.next = type;
-> > -		}
-> > -
-> > -		si = swap_info[type];
-> > -		next = si->next;
-> > -		if (next < 0 ||
-> > -		    (!wrapped && si->prio != swap_info[next]->prio)) {
-> > -			next = swap_list.head;
-> > -			wrapped++;
-> > -		}
-> > -
-> > +	list_for_each(tmp, &swap_list_head) {
-> > +		si = list_entry(tmp, typeof(*si), list);
-> >  		spin_lock(&si->lock);
-> > -		if (!si->highest_bit) {
-> > -			spin_unlock(&si->lock);
-> > -			continue;
-> > -		}
-> > -		if (!(si->flags & SWP_WRITEOK)) {
-> > +		if (!si->highest_bit || !(si->flags & SWP_WRITEOK)) {
-> >  			spin_unlock(&si->lock);
-> >  			continue;
-> >  		}
-> >  
-> > -		swap_list.next = next;
-> > +		/*
-> > +		 * rotate the current swap_info that we're going to use
-> > +		 * to after any other swap_info that have the same prio,
-> > +		 * so that all equal-priority swap_info get used equally
-> > +		 */
-> > +		next = si;
-> > +		list_for_each_entry_continue(next, &swap_list_head, list) {
-> > +			if (si->prio != next->prio)
-> > +				break;
-> > +			list_rotate_left(&si->list);
-> > +			next = si;
-> > +		}
-> >  
+On Wed, Apr 23, 2014 at 12:40:58PM +1000, NeilBrown wrote:
+> This is a somewhat shorter patchset for loop-back NFS support than
+> last time, thanks to the excellent feedback and particularly to Dave
+> Chinner.  Thanks.
 > 
-> The list manipulations will be a lot of cache writes as the list is shuffled
-> around. On slow storage I do not think this will be noticable but it may
-> be noticable on faster swap devices that are SSD based. I've added Shaohua
-> Li to the cc as he has been concerned with the performance of swap in the
-> past. Shaohua, can you run this patchset through any of your test cases
-> with the addition that multiple swap files are used to see if the cache
-> writes are noticable? You'll need multiple swap files, some of which are
-> at equal priority so the list shuffling logic is triggered.
+> Avoiding the wait-for-congestion which can trigger a livelock is much
+> the same, though I've reduced the cases in which the wait is
+> by-passed.
+> I did this using current->backing_dev_info which is otherwise serving
+> no purpose on the current kernel.
+> 
+> Avoiding the deadlocks has been turned on its head.
+> Instead of nfsd checking if it is a loop-back mount and setting
+> PF_FSTRANS, which then needs lots of changes too PF_FSTRANS and
+> __GFP_FS handling, it is now NFS which checks for a loop-back
+> filesystem.
+> 
+> There is more verbosity in that patch (Fifth of Five) but the essence
+> is that nfs_release_page will now not wait indefinitely for a COMMIT
+> request to complete when sent to the local host.  It still waits a
+> little while as some delay can be important. But it won't wait
+> forever.
+> The duration of "a little while" is currently 100ms, though I do
+> wonder if a bigger number would serve just as well.
+> 
+> Unlike the previous series, this set should remove deadlocks that
+> could happen during the actual fail-over process.  This is achieved by
+> having nfs_release_page monitor the connection and if it changes from
+> a remote to a local connection, or just disconnects, then it will
+> timeout.  It currently polls every second, though this probably could
+> be longer too.  It only needs to be the same order of magnitude as the
+> time it takes node failure to be detected and failover to happen, and
+> I suspect that is closer to 1 minute.  So maybe a 10 or 20 second poll
+> interval would be just as good.
+> 
+> Implementing this timeout requires some horrible code as the
+> wait_on_bit functions don't support timeouts.  If the general approach
+> is found acceptable I'll explore ways to improve the timeout code.
+> 
+> Comments, criticism, etc very welcome as always,
 
-get_swap_page isn't hot so far (and we hold the swap_lock, which isn't
-contended), guess it's because other problems hide it, for example tlb flush
-overhead.
+Looks much less intrusive to me, and doesn't appear to affect any
+other filesystem or the recursion patterns of memory reclaim,
+so I like it very much more than the previous patchset. Nice work!
+:)
 
-Thanks,
-Shaohua
+The code changes are really outside my area of expertise now, so I
+don't really feel qualified to review the changes. However, consider
+the overall approach:
+
+Acked-by: Dave Chinner <dchinner@redhat.com>
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
