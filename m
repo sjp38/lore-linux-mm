@@ -1,52 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 41EDF6B0035
-	for <linux-mm@kvack.org>; Fri, 25 Apr 2014 16:08:17 -0400 (EDT)
-Received: by mail-pd0-f180.google.com with SMTP id x10so86279pdj.39
-        for <linux-mm@kvack.org>; Fri, 25 Apr 2014 13:08:16 -0700 (PDT)
-Received: from mail-pb0-x234.google.com (mail-pb0-x234.google.com [2607:f8b0:400e:c01::234])
-        by mx.google.com with ESMTPS id oz6si5492127pac.420.2014.04.25.13.08.16
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 25 Apr 2014 13:08:16 -0700 (PDT)
-Received: by mail-pb0-f52.google.com with SMTP id rq2so3562161pbb.25
-        for <linux-mm@kvack.org>; Fri, 25 Apr 2014 13:08:15 -0700 (PDT)
-Date: Fri, 25 Apr 2014 13:07:01 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH] mm: get_user_pages(write,force) refuse to COW in shared
- areas
-In-Reply-To: <20140425190931.GA11323@redhat.com>
-Message-ID: <alpine.LSU.2.11.1404251254230.6272@eggly.anvils>
-References: <alpine.LSU.2.11.1404040120110.6880@eggly.anvils> <20140424133055.GA13269@redhat.com> <alpine.LSU.2.11.1404241518510.4454@eggly.anvils> <20140425190931.GA11323@redhat.com>
+Received: from mail-ee0-f49.google.com (mail-ee0-f49.google.com [74.125.83.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 28CD36B0037
+	for <linux-mm@kvack.org>; Fri, 25 Apr 2014 16:19:09 -0400 (EDT)
+Received: by mail-ee0-f49.google.com with SMTP id c41so3084348eek.8
+        for <linux-mm@kvack.org>; Fri, 25 Apr 2014 13:19:08 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id v2si14340202eel.166.2014.04.25.13.19.06
+        for <linux-mm@kvack.org>;
+        Fri, 25 Apr 2014 13:19:07 -0700 (PDT)
+Date: Fri, 25 Apr 2014 16:18:35 -0400
+From: Luiz Capitulino <lcapitulino@redhat.com>
+Subject: Re: [PATCH v3 0/5] hugetlb: add support gigantic page allocation at
+ runtime
+Message-ID: <20140425161835.4dda4383@redhat.com>
+In-Reply-To: <20140422145546.7e1ddb763072edaa286736f9@linux-foundation.org>
+References: <1397152725-20990-1-git-send-email-lcapitulino@redhat.com>
+	<20140417160110.3f36b972b25525fbbe23681b@linux-foundation.org>
+	<20140422173726.738d0635@redhat.com>
+	<20140422145546.7e1ddb763072edaa286736f9@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Roland Dreier <roland@kernel.org>, Konstantin Khlebnikov <koct9i@gmail.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mauro Carvalho Chehab <m.chehab@samsung.com>, Omar Ramirez Luna <omar.ramirez@copitl.com>, Inki Dae <inki.dae@samsung.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-rdma@vger.kernel.org, linux-media@vger.kernel.org
+To: yinghai@kernel.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, mtosatti@redhat.com, aarcange@redhat.com, mgorman@suse.de, andi@firstfloor.org, davidlohr@hp.com, rientjes@google.com, isimatu.yasuaki@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, riel@redhat.com, n-horiguchi@ah.jp.nec.com, kirill@shutemov.name
 
-On Fri, 25 Apr 2014, Oleg Nesterov wrote:
+On Tue, 22 Apr 2014 14:55:46 -0700
+Andrew Morton <akpm@linux-foundation.org> wrote:
+
+> On Tue, 22 Apr 2014 17:37:26 -0400 Luiz Capitulino <lcapitulino@redhat.com> wrote:
 > 
-> And I forgot to mention, there is another reason why I would like to
-> change uprobes to follow the same convention. I still think it would
-> be better to kill __replace_page() and use gup(FOLL_WRITE | FORCE)
-> in uprobe_write_opcode().
+> > On Thu, 17 Apr 2014 16:01:10 -0700
+> > Andrew Morton <akpm@linux-foundation.org> wrote:
+> > 
+> > > On Thu, 10 Apr 2014 13:58:40 -0400 Luiz Capitulino <lcapitulino@redhat.com> wrote:
+> > > 
+> > > > The HugeTLB subsystem uses the buddy allocator to allocate hugepages during
+> > > > runtime. This means that hugepages allocation during runtime is limited to
+> > > > MAX_ORDER order. For archs supporting gigantic pages (that is, page sizes
+> > > > greater than MAX_ORDER), this in turn means that those pages can't be
+> > > > allocated at runtime.
+> > > 
+> > > Dumb question: what's wrong with just increasing MAX_ORDER?
+> > 
+> > To be honest I'm not a buddy allocator expert and I'm not familiar with
+> > what is involved in increasing MAX_ORDER. What I do know though is that it's
+> > not just a matter of increasing a macro's value. For example, for sparsemem
+> > support we have this check (include/linux/mmzone.h:1084):
+> > 
+> > #if (MAX_ORDER - 1 + PAGE_SHIFT) > SECTION_SIZE_BITS
+> > #error Allocator MAX_ORDER exceeds SECTION_SIZE
+> > #endif
+> > 
+> > I _guess_ it's because we can't allocate more pages than what's within a
+> > section on sparsemem. Can sparsemem and the other stuff be changed to
+> > accommodate a bigger MAX_ORDER? I don't know. Is it worth it to increase
+> > MAX_ORDER and do all the required changes, given that a bigger MAX_ORDER is
+> > only useful for HugeTLB and the archs supporting gigantic pages? I'd guess not.
+> 
+> afacit we'd need to increase SECTION_SIZE_BITS to 29 or more to
+> accommodate 1G MAX_ORDER.  I assume this means that some machines with
+> sparse physical memory layout may not be able to use all (or as much)
+> of the physical memory.  Perhaps Yinghai can advise?
 
-Oh, please please do!  I assumed there was a good atomicity reason
-for doing it that way, but if you can do it with gup() please do so.
+Yinghai?
 
-I went off into a little rant about __replace_page() in my reply to you;
-but then felt that you had approached with an honest enquiry, and didn't
-deserve a rant in response, so I deleted it.
+> I do think we should fully explore this option before giving up and
+> adding new special-case code. 
 
-And, of course, I'm conscious that I have from start to finish withheld
-my involvement from uprobes, and refused to review that __replace_page()
-(beyond insisting that it not be put in a common place for sharing with
-KSM, because I just couldn't guarantee it for uprobes).  I'm afraid that
-it's much like HWPoison to me, a complexity (nastiness?) way beyond what
-I have time to support myself.
-
-Hugh
+I'll look into that, but it may take a bit.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
