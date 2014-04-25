@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f175.google.com (mail-lb0-f175.google.com [209.85.217.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 45FC76B0038
-	for <linux-mm@kvack.org>; Fri, 25 Apr 2014 08:33:26 -0400 (EDT)
-Received: by mail-lb0-f175.google.com with SMTP id p9so63160lbv.6
-        for <linux-mm@kvack.org>; Fri, 25 Apr 2014 05:33:25 -0700 (PDT)
+Received: from mail-la0-f50.google.com (mail-la0-f50.google.com [209.85.215.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D49E6B0035
+	for <linux-mm@kvack.org>; Fri, 25 Apr 2014 09:12:24 -0400 (EDT)
+Received: by mail-la0-f50.google.com with SMTP id pv20so3014370lab.23
+        for <linux-mm@kvack.org>; Fri, 25 Apr 2014 06:12:24 -0700 (PDT)
 Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id tv3si3469691lbb.49.2014.04.25.05.33.24
+        by mx.google.com with ESMTPS id ui8si5680221lbb.223.2014.04.25.06.12.22
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 25 Apr 2014 05:33:24 -0700 (PDT)
+        Fri, 25 Apr 2014 06:12:23 -0700 (PDT)
 From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH -mm 6/6] memcg: cleanup kmem_id-related naming
-Date: Fri, 25 Apr 2014 16:33:12 +0400
-Message-ID: <029f244b5be9378cef938a75624edbba108370b7.1398428532.git.vdavydov@parallels.com>
-In-Reply-To: <cover.1398428532.git.vdavydov@parallels.com>
-References: <cover.1398428532.git.vdavydov@parallels.com>
+Subject: [PATCH -mm v1.1] memcg: cleanup kmem_id-related naming
+Date: Fri, 25 Apr 2014 17:12:16 +0400
+Message-ID: <1398431536-22391-1-git-send-email-vdavydov@parallels.com>
+In-Reply-To: <029f244b5be9378cef938a75624edbba108370b7.1398428532.git.vdavydov@parallels.com>
+References: <029f244b5be9378cef938a75624edbba108370b7.1398428532.git.vdavydov@parallels.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
@@ -50,13 +50,17 @@ MEMCG_CACHES_MAX_SIZE                   MEMCG_KMEM_ID_MAX + 1
 
 Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
 ---
+Changes in v1.1:
+ - rename memcg_init_cache_id -> memcg_init_kmem_id
+   (lost that hunk somehow in v1)
+
  include/linux/memcontrol.h |   19 +++-----
- mm/memcontrol.c            |  110 ++++++++++++++++++++------------------------
+ mm/memcontrol.c            |  114 ++++++++++++++++++++------------------------
  mm/slab.c                  |    4 +-
  mm/slab.h                  |   24 +++++++---
  mm/slab_common.c           |   10 ++--
  mm/slub.c                  |   10 ++--
- 6 files changed, 88 insertions(+), 89 deletions(-)
+ 6 files changed, 90 insertions(+), 91 deletions(-)
 
 diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
 index 3ee73da2991b..4080a6418c72 100644
@@ -111,7 +115,7 @@ index 3ee73da2991b..4080a6418c72 100644
  	return -1;
  }
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index bdd3d373cdca..076cf986f40c 100644
+index bdd3d373cdca..7ecbae9b7800 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
 @@ -357,11 +357,22 @@ struct mem_cgroup {
@@ -210,7 +214,7 @@ index bdd3d373cdca..076cf986f40c 100644
  }
  
  #ifdef CONFIG_SLABINFO
-@@ -3017,14 +3015,9 @@ static void memcg_uncharge_kmem(struct mem_cgroup *memcg, u64 size)
+@@ -3017,29 +3015,24 @@ static void memcg_uncharge_kmem(struct mem_cgroup *memcg, u64 size)
  		css_put(&memcg->css);
  }
  
@@ -226,8 +230,11 @@ index bdd3d373cdca..076cf986f40c 100644
 +	return memcg ? memcg->kmem_id : -1;
  }
  
- static int memcg_init_cache_id(struct mem_cgroup *memcg)
-@@ -3034,12 +3027,12 @@ static int memcg_init_cache_id(struct mem_cgroup *memcg)
+-static int memcg_init_cache_id(struct mem_cgroup *memcg)
++static int memcg_init_kmem_id(struct mem_cgroup *memcg)
+ {
+ 	int err = 0;
+ 	int id, size;
  
  	lockdep_assert_held(&activate_kmem_mutex);
  
@@ -347,6 +354,15 @@ index bdd3d373cdca..076cf986f40c 100644
  	if (likely(memcg_cachep)) {
  		cachep = memcg_cachep;
  		goto out;
+@@ -4962,7 +4954,7 @@ static int __memcg_activate_kmem(struct mem_cgroup *memcg,
+ 	if (err)
+ 		goto out;
+ 
+-	err = memcg_init_cache_id(memcg);
++	err = memcg_init_kmem_id(memcg);
+ 	if (err)
+ 		goto out;
+ 
 @@ -5693,7 +5685,7 @@ static int memcg_init_kmem(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
  {
  	int ret;
