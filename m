@@ -1,58 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id B1BB06B0036
-	for <linux-mm@kvack.org>; Fri, 25 Apr 2014 11:17:44 -0400 (EDT)
-Received: by mail-pa0-f46.google.com with SMTP id kp14so3253138pab.5
-        for <linux-mm@kvack.org>; Fri, 25 Apr 2014 08:17:44 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [143.182.124.21])
-        by mx.google.com with ESMTP id pu6si5054138pac.184.2014.04.25.08.17.43
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 04B8E6B0035
+	for <linux-mm@kvack.org>; Fri, 25 Apr 2014 12:30:58 -0400 (EDT)
+Received: by mail-pa0-f43.google.com with SMTP id rd3so1502199pab.16
+        for <linux-mm@kvack.org>; Fri, 25 Apr 2014 09:30:58 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id wg2si5195667pab.44.2014.04.25.09.30.56
         for <linux-mm@kvack.org>;
-        Fri, 25 Apr 2014 08:17:43 -0700 (PDT)
-Date: Fri, 25 Apr 2014 23:17:25 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: [mmotm:master 81/302] drivers/iommu/intel-iommu.c:3214:3: error:
- implicit declaration of function 'dma_alloc_from_contiguous'
-Message-ID: <20140425151725.GH31117@localhost>
+        Fri, 25 Apr 2014 09:30:56 -0700 (PDT)
+Message-ID: <535A8DBC.4010202@intel.com>
+Date: Fri, 25 Apr 2014 09:30:52 -0700
+From: Dave Hansen <dave.hansen@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Subject: Re: Dirty/Access bits vs. page content
+References: <53558507.9050703@zytor.com>	<CA+55aFxGm6J6N=4L7exLUFMr1_siNGHpK=wApd9GPCH1=63PPA@mail.gmail.com>	<53559F48.8040808@intel.com>	<CA+55aFwDtjA4Vp0yt0K5x6b6sAMtcn=61SEnOOs_En+3UXNpuA@mail.gmail.com>	<CA+55aFzFxBDJ2rWo9DggdNsq-qBCr11OVXnm64jx04KMSVCBAw@mail.gmail.com>	<20140422075459.GD11182@twins.programming.kicks-ass.net>	<CA+55aFzM+NpE-EzJdDeYX=cqWRzkGv9o-vybDR=oFtDLMRK-mA@mail.gmail.com>	<alpine.LSU.2.11.1404221847120.1759@eggly.anvils>	<20140423184145.GH17824@quack.suse.cz>	<CA+55aFwm9BT4ecXF7dD+OM0-+1Wz5vd4ts44hOkS8JdQ74SLZQ@mail.gmail.com>	<20140424065133.GX26782@laptop.programming.kicks-ass.net>	<alpine.LSU.2.11.1404241110160.2443@eggly.anvils>	<CA+55aFwVgCshsVHNqr2EA1aFY18A2L17gNj0wtgHB39qLErTrg@mail.gmail.com>	<alpine.LSU.2.11.1404241252520.3455@eggly.anvils> <CA+55aFyUyD_BASjhig9OPerYcMrUgYJUfRLA9JyB_x7anV1d7Q@mail.gmail.com>
+In-Reply-To: <CA+55aFyUyD_BASjhig9OPerYcMrUgYJUfRLA9JyB_x7anV1d7Q@mail.gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Akinobu Mita <akinobu.mita@gmail.com>
-Cc: kbuild-all@01.org, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hughd@google.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Jan Kara <jack@suse.cz>, "H. Peter Anvin" <hpa@zytor.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Tony Luck <tony.luck@intel.com>
 
-tree:   git://git.cmpxchg.org/linux-mmotm.git master
-head:   25153c2ef8124ecd930de79236e7fe25ad2507cb
-commit: f57578494f69571fa12bae97cc67884c3522e7c6 [81/302] intel-iommu: integrate DMA CMA
-config: make ARCH=ia64 allmodconfig
+On 04/24/2014 04:46 PM, Linus Torvalds wrote:
+> IOW, how about the attached patch that entirely replaces my previous
+> two patches. DaveH - does this fix your test-case, while _not_
+> introducing any new BUG_ON() triggers?
+> 
+> I didn't test the patch, maybe I did something stupid. It compiles for
+> me, but it only works for the HAVE_GENERIC_MMU_GATHER case, but
+> introducing tlb_flush_mmu_tlbonly() and tlb_flush_mmu_free() into the
+> non-generic cases should be trivial, since they really are just that
+> old "tlb_flush_mmu()" function split up (the tlb_flush_mmu() function
+> remains available for other non-forced flush users)
+> 
+> So assuming this does work for DaveH, then the arm/ia64/um/whatever
+> people would need to do those trivial transforms too, but it really
+> shouldn't be too painful.
 
-All error/warnings:
+It looks happy on both my debugging kernel (which was triggering it
+before) and the one without lockdep and all the things that normally
+slow it down and change timing.
 
-   drivers/iommu/intel-iommu.c: In function 'intel_alloc_coherent':
->> drivers/iommu/intel-iommu.c:3214:3: error: implicit declaration of function 'dma_alloc_from_contiguous' [-Werror=implicit-function-declaration]
->> drivers/iommu/intel-iommu.c:3214:8: warning: assignment makes pointer from integer without a cast [enabled by default]
->> drivers/iommu/intel-iommu.c:3217:4: error: implicit declaration of function 'dma_release_from_contiguous' [-Werror=implicit-function-declaration]
-   cc1: some warnings being treated as errors
-
-vim +/dma_alloc_from_contiguous +3214 drivers/iommu/intel-iommu.c
-
-e8bb910d drivers/pci/intel-iommu.c   Alex Williamson       2009-11-04  3208  			flags |= GFP_DMA32;
-e8bb910d drivers/pci/intel-iommu.c   Alex Williamson       2009-11-04  3209  	}
-ba395927 drivers/pci/intel-iommu.c   Keshavamurthy, Anil S 2007-10-21  3210  
-f5757849 drivers/iommu/intel-iommu.c Akinobu Mita          2014-04-24  3211  	if (flags & __GFP_WAIT) {
-f5757849 drivers/iommu/intel-iommu.c Akinobu Mita          2014-04-24  3212  		unsigned int count = size >> PAGE_SHIFT;
-f5757849 drivers/iommu/intel-iommu.c Akinobu Mita          2014-04-24  3213  
-f5757849 drivers/iommu/intel-iommu.c Akinobu Mita          2014-04-24 @3214  		page = dma_alloc_from_contiguous(dev, count, order);
-f5757849 drivers/iommu/intel-iommu.c Akinobu Mita          2014-04-24  3215  		if (page && iommu_no_mapping(dev) &&
-f5757849 drivers/iommu/intel-iommu.c Akinobu Mita          2014-04-24  3216  		    page_to_phys(page) + size > dev->coherent_dma_mask) {
-f5757849 drivers/iommu/intel-iommu.c Akinobu Mita          2014-04-24 @3217  			dma_release_from_contiguous(dev, page, count);
-f5757849 drivers/iommu/intel-iommu.c Akinobu Mita          2014-04-24  3218  			page = NULL;
-f5757849 drivers/iommu/intel-iommu.c Akinobu Mita          2014-04-24  3219  		}
-f5757849 drivers/iommu/intel-iommu.c Akinobu Mita          2014-04-24  3220  	}
-
----
-0-DAY kernel build testing backend              Open Source Technology Center
-http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
