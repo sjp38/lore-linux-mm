@@ -1,71 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f44.google.com (mail-ee0-f44.google.com [74.125.83.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 989EC6B0035
-	for <linux-mm@kvack.org>; Fri, 25 Apr 2014 03:24:07 -0400 (EDT)
-Received: by mail-ee0-f44.google.com with SMTP id e49so2478072eek.17
-        for <linux-mm@kvack.org>; Fri, 25 Apr 2014 00:24:06 -0700 (PDT)
-Received: from fireflyinternet.com (mail.fireflyinternet.com. [87.106.93.118])
-        by mx.google.com with ESMTP id n7si11840055eeu.229.2014.04.25.00.24.05
-        for <linux-mm@kvack.org>;
-        Fri, 25 Apr 2014 00:24:05 -0700 (PDT)
-Date: Fri, 25 Apr 2014 08:23:25 +0100
-From: Chris Wilson <chris@chris-wilson.co.uk>
-Subject: Re: [PATCH] mm: Throttle shrinkers harder
-Message-ID: <20140425072325.GO31221@nuc-i3427.alporthouse.com>
-References: <1397113506-9177-1-git-send-email-chris@chris-wilson.co.uk>
- <20140418121416.c022eca055da1b6d81b2cf1b@linux-foundation.org>
- <20140422193041.GD10722@phenom.ffwll.local>
- <53582D3C.1010509@intel.com>
- <20140424055836.GB31221@nuc-i3427.alporthouse.com>
- <53592C16.8000906@intel.com>
- <20140424153920.GM31221@nuc-i3427.alporthouse.com>
- <535991C3.9080808@intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <535991C3.9080808@intel.com>
+Received: from mail-la0-f49.google.com (mail-la0-f49.google.com [209.85.215.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B41A6B0035
+	for <linux-mm@kvack.org>; Fri, 25 Apr 2014 04:20:47 -0400 (EDT)
+Received: by mail-la0-f49.google.com with SMTP id ec20so2488070lab.22
+        for <linux-mm@kvack.org>; Fri, 25 Apr 2014 01:20:46 -0700 (PDT)
+Received: from mail-lb0-x233.google.com (mail-lb0-x233.google.com [2a00:1450:4010:c04::233])
+        by mx.google.com with ESMTPS id le2si5025908lbc.19.2014.04.25.01.20.44
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 25 Apr 2014 01:20:45 -0700 (PDT)
+Received: by mail-lb0-f179.google.com with SMTP id q8so2845723lbi.10
+        for <linux-mm@kvack.org>; Fri, 25 Apr 2014 01:20:44 -0700 (PDT)
+Message-Id: <20140425082042.737179159@openvz.org>
+Date: Fri, 25 Apr 2014 12:10:31 +0400
+From: Cyrill Gorcunov <gorcunov@openvz.org>
+Subject: [patch 1/2] mm: pgtable -- Drop unneeded preprocessor ifdef
+References: <20140425081030.185969086@openvz.org>
+Content-Disposition: inline; filename=pgbits-drop-if
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, intel-gfx@lists.freedesktop.org, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Dave Chinner <dchinner@redhat.com>, Glauber Costa <glommer@openvz.org>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, torvalds@linux-foundation.org, mgorman@suse.de, hpa@zytor.com, mingo@kernel.org, steven@uplinklabs.net, riel@redhat.com, david.vrabel@citrix.com, akpm@linux-foundation.org, peterz@infradead.org, xemul@parallels.com, gorcunov@openvz.org
 
-On Thu, Apr 24, 2014 at 03:35:47PM -0700, Dave Hansen wrote:
-> On 04/24/2014 08:39 AM, Chris Wilson wrote:
-> > On Thu, Apr 24, 2014 at 08:21:58AM -0700, Dave Hansen wrote:
-> >> Is it possible that there's still a get_page() reference that's holding
-> >> those pages in place from the graphics code?
-> > 
-> > Not from i915.ko. The last resort of our shrinker is to drop all page
-> > refs held by the GPU, which is invoked if we are asked to free memory
-> > and we have no inactive objects left.
-> 
-> How sure are we that this was performed before the OOM?
+_PAGE_BIT_FILE (bit 6) is always less than _PAGE_BIT_PROTNONE (bit 8),
+so drop redundant #ifdef.
 
-Only by virtue of how shrink_slabs() works. Thanks for the pointer to
-register_oom_notifier(), I can use that to make sure that we do purge
-everything from the GPU, and do a sanity check at the same time, before
-we start killing processes.
+CC: Linus Torvalds <torvalds@linux-foundation.org>
+CC: Mel Gorman <mgorman@suse.de>
+CC: Peter Anvin <hpa@zytor.com>
+CC: Ingo Molnar <mingo@kernel.org>
+CC: Steven Noonan <steven@uplinklabs.net>
+CC: Rik van Riel <riel@redhat.com>
+CC: David Vrabel <david.vrabel@citrix.com>
+CC: Andrew Morton <akpm@linux-foundation.org>
+CC: Peter Zijlstra <peterz@infradead.org>
+CC: Pavel Emelyanov <xemul@parallels.com>
+Signed-off-by: Cyrill Gorcunov <gorcunov@openvz.org>
+---
+ arch/x86/include/asm/pgtable-2level.h |   10 ----------
+ arch/x86/include/asm/pgtable_64.h     |    8 --------
+ 2 files changed, 18 deletions(-)
+
+Index: linux-2.6.git/arch/x86/include/asm/pgtable-2level.h
+===================================================================
+--- linux-2.6.git.orig/arch/x86/include/asm/pgtable-2level.h
++++ linux-2.6.git/arch/x86/include/asm/pgtable-2level.h
+@@ -115,13 +115,8 @@ static __always_inline pte_t pgoff_to_pt
+  */
+ #define PTE_FILE_MAX_BITS	29
+ #define PTE_FILE_SHIFT1		(_PAGE_BIT_PRESENT + 1)
+-#if _PAGE_BIT_FILE < _PAGE_BIT_PROTNONE
+ #define PTE_FILE_SHIFT2		(_PAGE_BIT_FILE + 1)
+ #define PTE_FILE_SHIFT3		(_PAGE_BIT_PROTNONE + 1)
+-#else
+-#define PTE_FILE_SHIFT2		(_PAGE_BIT_PROTNONE + 1)
+-#define PTE_FILE_SHIFT3		(_PAGE_BIT_FILE + 1)
+-#endif
+ #define PTE_FILE_BITS1		(PTE_FILE_SHIFT2 - PTE_FILE_SHIFT1 - 1)
+ #define PTE_FILE_BITS2		(PTE_FILE_SHIFT3 - PTE_FILE_SHIFT2 - 1)
  
-> Also, forgive me for being an idiot wrt the way graphics work, but are
-> there any good candidates that you can think of that could be holding a
-> reference?  I've honestly never seen an OOM like this.
-
-Here the only place that we take a page reference is in
-i915_gem_object_get_pages(). We do this when we first bind the pages
-into the GPU's translation table, but we only release the pages once the
-object is destroyed or the system experiences memory pressure. (Once the
-GPU touches the pages, we no longer consider them to be cache coherent
-with the CPU and so migrating them between the GPU and CPU requires
-clflushing, which is expensive.)
-
-Aside from CPU mmaps of the shmemfs filp, all operations on our
-graphical objects should lead to i915_gem_object_get_pages(). However
-not all objects are recoverable as some may be pinned due to hardware
-access.
--Chris
-
--- 
-Chris Wilson, Intel Open Source Technology Centre
+@@ -153,13 +148,8 @@ static __always_inline pte_t pgoff_to_pt
+ #endif /* CONFIG_MEM_SOFT_DIRTY */
+ 
+ /* Encode and de-code a swap entry */
+-#if _PAGE_BIT_FILE < _PAGE_BIT_PROTNONE
+ #define SWP_TYPE_BITS (_PAGE_BIT_FILE - _PAGE_BIT_PRESENT - 1)
+ #define SWP_OFFSET_SHIFT (_PAGE_BIT_PROTNONE + 1)
+-#else
+-#define SWP_TYPE_BITS (_PAGE_BIT_PROTNONE - _PAGE_BIT_PRESENT - 1)
+-#define SWP_OFFSET_SHIFT (_PAGE_BIT_FILE + 1)
+-#endif
+ 
+ #define MAX_SWAPFILES_CHECK() BUILD_BUG_ON(MAX_SWAPFILES_SHIFT > SWP_TYPE_BITS)
+ 
+Index: linux-2.6.git/arch/x86/include/asm/pgtable_64.h
+===================================================================
+--- linux-2.6.git.orig/arch/x86/include/asm/pgtable_64.h
++++ linux-2.6.git/arch/x86/include/asm/pgtable_64.h
+@@ -143,7 +143,6 @@ static inline int pgd_large(pgd_t pgd) {
+ #define pte_unmap(pte) ((void)(pte))/* NOP */
+ 
+ /* Encode and de-code a swap entry */
+-#if _PAGE_BIT_FILE < _PAGE_BIT_PROTNONE
+ #define SWP_TYPE_BITS (_PAGE_BIT_FILE - _PAGE_BIT_PRESENT - 1)
+ #ifdef CONFIG_NUMA_BALANCING
+ /* Automatic NUMA balancing needs to be distinguishable from swap entries */
+@@ -151,13 +150,6 @@ static inline int pgd_large(pgd_t pgd) {
+ #else
+ #define SWP_OFFSET_SHIFT (_PAGE_BIT_PROTNONE + 1)
+ #endif
+-#else
+-#ifdef CONFIG_NUMA_BALANCING
+-#error Incompatible format for automatic NUMA balancing
+-#endif
+-#define SWP_TYPE_BITS (_PAGE_BIT_PROTNONE - _PAGE_BIT_PRESENT - 1)
+-#define SWP_OFFSET_SHIFT (_PAGE_BIT_FILE + 1)
+-#endif
+ 
+ #define MAX_SWAPFILES_CHECK() BUILD_BUG_ON(MAX_SWAPFILES_SHIFT > SWP_TYPE_BITS)
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
