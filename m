@@ -1,167 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f46.google.com (mail-ee0-f46.google.com [74.125.83.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 581DA6B0035
-	for <linux-mm@kvack.org>; Fri, 25 Apr 2014 04:49:08 -0400 (EDT)
-Received: by mail-ee0-f46.google.com with SMTP id t10so2532044eei.5
-        for <linux-mm@kvack.org>; Fri, 25 Apr 2014 01:49:07 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w48si12175825een.104.2014.04.25.01.49.06
+Received: from mail-pb0-f53.google.com (mail-pb0-f53.google.com [209.85.160.53])
+	by kanga.kvack.org (Postfix) with ESMTP id ABF8F6B0035
+	for <linux-mm@kvack.org>; Fri, 25 Apr 2014 08:02:41 -0400 (EDT)
+Received: by mail-pb0-f53.google.com with SMTP id jt11so1403213pbb.40
+        for <linux-mm@kvack.org>; Fri, 25 Apr 2014 05:02:41 -0700 (PDT)
+Received: from mail-pd0-x22d.google.com (mail-pd0-x22d.google.com [2607:f8b0:400e:c02::22d])
+        by mx.google.com with ESMTPS id rj9si2185090pbc.504.2014.04.25.05.02.40
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 25 Apr 2014 01:49:06 -0700 (PDT)
-Date: Fri, 25 Apr 2014 09:49:02 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 2/2] swap: use separate priority list for available
- swap_infos
-Message-ID: <20140425084902.GZ23991@suse.de>
-References: <alpine.LSU.2.11.1402232344280.1890@eggly.anvils>
- <1397336454-13855-1-git-send-email-ddstreet@ieee.org>
- <1397336454-13855-3-git-send-email-ddstreet@ieee.org>
- <20140423131404.GI23991@suse.de>
- <CALZtONCpnrFTzZkoKx75Ev-NutACD2SAnTA0xBf6JAdoeFx9jQ@mail.gmail.com>
+        Fri, 25 Apr 2014 05:02:40 -0700 (PDT)
+Received: by mail-pd0-f173.google.com with SMTP id p10so2725136pdj.4
+        for <linux-mm@kvack.org>; Fri, 25 Apr 2014 05:02:40 -0700 (PDT)
+Date: Fri, 25 Apr 2014 05:01:23 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: Dirty/Access bits vs. page content
+In-Reply-To: <CA+55aFzktDDr5zNh-7gDhXW6-7_BP_MvKHEoLi9=td6XvwzaUA@mail.gmail.com>
+Message-ID: <alpine.LSU.2.11.1404250414590.5198@eggly.anvils>
+References: <53558507.9050703@zytor.com> <CA+55aFzFxBDJ2rWo9DggdNsq-qBCr11OVXnm64jx04KMSVCBAw@mail.gmail.com> <20140422075459.GD11182@twins.programming.kicks-ass.net> <CA+55aFzM+NpE-EzJdDeYX=cqWRzkGv9o-vybDR=oFtDLMRK-mA@mail.gmail.com>
+ <alpine.LSU.2.11.1404221847120.1759@eggly.anvils> <20140423184145.GH17824@quack.suse.cz> <CA+55aFwm9BT4ecXF7dD+OM0-+1Wz5vd4ts44hOkS8JdQ74SLZQ@mail.gmail.com> <20140424065133.GX26782@laptop.programming.kicks-ass.net> <alpine.LSU.2.11.1404241110160.2443@eggly.anvils>
+ <CA+55aFwVgCshsVHNqr2EA1aFY18A2L17gNj0wtgHB39qLErTrg@mail.gmail.com> <alpine.LSU.2.11.1404241252520.3455@eggly.anvils> <CA+55aFyUyD_BASjhig9OPerYcMrUgYJUfRLA9JyB_x7anV1d7Q@mail.gmail.com> <1398389846.8437.6.camel@pasglop> <1398393700.8437.22.camel@pasglop>
+ <CA+55aFyO+-GehPiOAPy7-N0ejFrsNupWHG+j5hAs=R=RuPQtDg@mail.gmail.com> <5359CD7C.5020604@zytor.com> <CA+55aFzktDDr5zNh-7gDhXW6-7_BP_MvKHEoLi9=td6XvwzaUA@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <CALZtONCpnrFTzZkoKx75Ev-NutACD2SAnTA0xBf6JAdoeFx9jQ@mail.gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Streetman <ddstreet@ieee.org>
-Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Weijie Yang <weijieut@gmail.com>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: "H. Peter Anvin" <hpa@zytor.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Peter Zijlstra <peterz@infradead.org>, Jan Kara <jack@suse.cz>, Dave Hansen <dave.hansen@intel.com>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Tony Luck <tony.luck@intel.com>
 
-On Thu, Apr 24, 2014 at 01:52:00PM -0400, Dan Streetman wrote:
-> On Wed, Apr 23, 2014 at 9:14 AM, Mel Gorman <mgorman@suse.de> wrote:
-> > On Sat, Apr 12, 2014 at 05:00:54PM -0400, Dan Streetman wrote:
-> >> Originally get_swap_page() started iterating through the singly-linked
-> >> list of swap_info_structs using swap_list.next or highest_priority_index,
-> >> which both were intended to point to the highest priority active swap
-> >> target that was not full.  The previous patch in this series changed the
-> >> singly-linked list to a doubly-linked list, and removed the logic to start
-> >> at the highest priority non-full entry; it starts scanning at the highest
-> >> priority entry each time, even if the entry is full.
-> >>
-> >> Add a new list, also priority ordered, to track only swap_info_structs
-> >> that are available, i.e. active and not full.  Use a new spinlock so that
-> >> entries can be added/removed outside of get_swap_page; that wasn't possible
-> >> previously because the main list is protected by swap_lock, which can't be
-> >> taken when holding a swap_info_struct->lock because of locking order.
-> >> The get_swap_page() logic now does not need to hold the swap_lock, and it
-> >> iterates only through swap_info_structs that are available.
-> >>
-> >> Signed-off-by: Dan Streetman <ddstreet@ieee.org>
-> >> ---
-> >>  include/linux/swap.h |   1 +
-> >>  mm/swapfile.c        | 128 ++++++++++++++++++++++++++++++++++-----------------
-> >>  2 files changed, 87 insertions(+), 42 deletions(-)
-> >>
-> >> diff --git a/include/linux/swap.h b/include/linux/swap.h
-> >> index 96662d8..d9263db 100644
-> >> --- a/include/linux/swap.h
-> >> +++ b/include/linux/swap.h
-> >> @@ -214,6 +214,7 @@ struct percpu_cluster {
-> >>  struct swap_info_struct {
-> >>       unsigned long   flags;          /* SWP_USED etc: see above */
-> >>       signed short    prio;           /* swap priority of this type */
-> >> +     struct list_head prio_list;     /* entry in priority list */
-> >>       struct list_head list;          /* entry in swap list */
-> >>       signed char     type;           /* strange name for an index */
-> >>       unsigned int    max;            /* extent of the swap_map */
-> >> diff --git a/mm/swapfile.c b/mm/swapfile.c
-> >> index b958645..3c38461 100644
-> >> --- a/mm/swapfile.c
-> >> +++ b/mm/swapfile.c
-> >> @@ -57,9 +57,13 @@ static const char Unused_file[] = "Unused swap file entry ";
-> >>  static const char Bad_offset[] = "Bad swap offset entry ";
-> >>  static const char Unused_offset[] = "Unused swap offset entry ";
-> >>
-> >> -/* all active swap_info */
-> >> +/* all active swap_info; protected with swap_lock */
-> >>  LIST_HEAD(swap_list_head);
-> >>
-> >> +/* all available (active, not full) swap_info, priority ordered */
-> >> +static LIST_HEAD(prio_head);
-> >> +static DEFINE_SPINLOCK(prio_lock);
-> >> +
+On Thu, 24 Apr 2014, Linus Torvalds wrote:
+> On Thu, Apr 24, 2014 at 7:50 PM, H. Peter Anvin <hpa@zytor.com> wrote:
 > >
-> > I get why you maintain two lists with separate locking but it's code that
-> > is specific to swap and in many respects, it's very similar to a plist. Is
-> > there a reason why plist was not used at least for prio_head? They're used
-> > for futex's so presumably the performance is reasonable. It might reduce
-> > the size of swapfile.c further.
-> >
-> > It is the case that plist does not have the equivalent of rotate which
-> > you need to recycle the entries of equal priority but you could add a
-> > plist_shuffle helper that "rotates the list left if the next entry is of
-> > equal priority".
+> > The cases where they occur the mappings tend to be highly stable, i.e.
+> > map once *specifically* to be able to do a whole bunch of things without
+> > system calls, and then unmap when done.
 > 
-> I did look at plist, but as you said there's no plist_rotate_left() so
-> that would either need to be implemented in plist or a helper specific
-> to swap added.
+> Yes. But even that tends to be unusual. mmap() really is bad at
+> writing, since you inevitably get read-modify-write patterns etc. So
+> it's only useful for fixing up things after-the-fact, which in itself
+> is a horrible pattern.
 > 
-
-Which in itself should not be impossible and improves an existing structure
-that might be usable elsewhere again.
-
-> The plist sort order is also reverse from swap sort order; plist
-> orders low->high while swap orders high->low.  So either the prio
-> would need to be negated when storing in the plist to correct the
-> order, or plist_for_each_entry_reverse() would need to be added (or
-> another helper specific for swap).
+> Don't get me wrong - it exists, but it's really quite rare because it
+> has so many problems. Even people who do "fixup" kind of stuff tend to
+> map things privately, change things, and then write out the end
+> result. That way you can get atomicity by then doing a single
+> "rename()" at the end, for example.
 > 
+> The traditional case for it used to be the nntp index, and these days
+> I know some imap indexer (dovecot?) uses it. Every other example of it
+> I have ever seen has been a VM stress tester..
 
-Or add a new plist iterator that wraps around list_for_each_entry_reverse
-instead of list_for_each_entry? I admit I didn't actually check if this
-would work.
+Your patch looks good to me (nice use of force_flush), and runs fine
+here in normal usage; but I've not actually tried Dave's racewrite.c.
 
-> I think the main (only?) benefit of plist is during adds; insertion
-> for lists is O(N) while insertion for plists is O(K) where K is the
-> number of different priorities.  And for swap, the add only happens in
-> two places: on swapon (or if swapoff fails and reinserts it) and in
-> swap_entry_free() when the swap_info_struct changes from full to
-> not-full.  The swapon and swapoff failure cases don't matter, and a
-> swap_info_struct changing from full to not-full is (probably?) going
-> to be a relatively rare occurrence.  And even then, unless there are a
-> significant number of not-full same-priority swap_info_structs that
-> are higher prio than the one being added, there should (?) be no
-> difference between plist and normal list add speed.
-> 
+However, I have had a couple of contrarian half-thoughts, that
+ordinarily I'd prefer to mull over more before blurting out,
+but in the circumstances better say sooner than later.
 
-I'm not angling towards plist for performance reasons but for maintenance
-reasons. It would just be preferable to use existing structures and
-iterators instead of adding new swap-specific code.
+One, regarding dirty shared mappings: you're thinking above of
+mmap()'ing proper filesystem files, but this case also includes
+shared memory - I expect there are uses of giant amounts of shared
+memory, for which we really would prefer not to slow the teardown.
 
-> Finally, using a plist further increases the size of each swap_info_struct.
-> 
+And confusingly, those are not subject to the special page_mkclean()
+constraints, but still need to be handled in a correct manner: your
+patch is fine, but might be overkill for them - I'm not yet sure.
 
-Considering how many of them there are in the system I would not worry
-too much about the memory footprint in this case. IT's not like we are
-increasing the size of struct page :)
+Two, Ben said earlier that he's more worried about users of
+unmap_mapping_range() than concurrent munmap(); and you said
+earlier that you would almost prefer to have some special lock
+to serialize with page_mkclean().
 
-> So to me, it seemed list plists were best used in situations where
-> list entries were constantly being added/removed, and the add speed
-> needed to be as fast as possible.  That isn't typically the case with
-> the swap_info_struct priority list, where adding/removing is a
-> relatively rare occurrence.  However, in the case where there are
-> multiple groups of many same-priority swap devices/files, using plists
-> may reduce the add insertion time when one of the lower-priority
-> swap_info_struct changes from full to not-full after some of the
-> higher prio ones also have changed from full to not-full.  If you
-> think it would be good to change to using a plist, I can update the
-> patch.
-> 
+Er, i_mmap_mutex.
 
-The full to not-full case is a concern but I also think it's a corner case
-that's only going to be commonly hit on stress tests and rarely on "normal"
-workloads. For maintenance reasons I would prefer if plist was used to
-reduce the amount of swap-specific code and move to swap-specific code only
-if there is a measurable gain from doing that. If that is not possible
-or the performance would suck in the normal case then just update the
-changelog accordingly so the next reviewer does not bring up the same topic.
+That's what unmap_mapping_range(), and page_mkclean()'s rmap_walk,
+take to iterate over the file vmas.  So perhaps there's no race at all
+in the unmap_mapping_range() case.  And easy (I imagine) to fix the
+race in Dave's racewrite.c use of MADV_DONTNEED: untested patch below.
 
-Thanks!
+But exit and munmap() don't take i_mmap_mutex: perhaps they should
+when encountering a VM_SHARED vma (I believe VM_SHARED should be
+peculiar to having vm_file set, but test both below because I don't
+want to oops in some odd corner where a special vma is set up).
 
--- 
-Mel Gorman
-SUSE Labs
+Hugh
+
+--- 3.15-rc2/mm/madvise.c	2013-11-03 15:41:51.000000000 -0800
++++ linux/mm/madvise.c	2014-04-25 04:10:40.124514427 -0700
+@@ -274,10 +274,16 @@ static long madvise_dontneed(struct vm_a
+ 			     struct vm_area_struct **prev,
+ 			     unsigned long start, unsigned long end)
+ {
++	struct address_space *mapping = NULL;
++
+ 	*prev = vma;
+ 	if (vma->vm_flags & (VM_LOCKED|VM_HUGETLB|VM_PFNMAP))
+ 		return -EINVAL;
+ 
++	if (vma->vm_file && (vma->vm_flags & VM_SHARED)) {
++		mapping = vma->vm_file->f_mapping;
++		mutex_lock(&mapping->i_mmap_mutex);
++	}
+ 	if (unlikely(vma->vm_flags & VM_NONLINEAR)) {
+ 		struct zap_details details = {
+ 			.nonlinear_vma = vma,
+@@ -286,6 +292,8 @@ static long madvise_dontneed(struct vm_a
+ 		zap_page_range(vma, start, end - start, &details);
+ 	} else
+ 		zap_page_range(vma, start, end - start, NULL);
++	if (mapping)
++		mutex_unlock(&mapping->i_mmap_mutex);
+ 	return 0;
+ }
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
