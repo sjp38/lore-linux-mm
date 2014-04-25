@@ -1,94 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id E021F6B0039
-	for <linux-mm@kvack.org>; Fri, 25 Apr 2014 13:19:21 -0400 (EDT)
-Received: by mail-pd0-f179.google.com with SMTP id g10so3364802pdj.38
-        for <linux-mm@kvack.org>; Fri, 25 Apr 2014 10:19:21 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id tv5si5269220pbc.244.2014.04.25.10.19.20
-        for <linux-mm@kvack.org>;
-        Fri, 25 Apr 2014 10:19:20 -0700 (PDT)
-Message-ID: <535A9901.6090607@intel.com>
-Date: Fri, 25 Apr 2014 10:18:57 -0700
-From: Dave Hansen <dave.hansen@intel.com>
+Received: from mail-ve0-f179.google.com (mail-ve0-f179.google.com [209.85.128.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B3CD6B0035
+	for <linux-mm@kvack.org>; Fri, 25 Apr 2014 13:56:28 -0400 (EDT)
+Received: by mail-ve0-f179.google.com with SMTP id db12so5053683veb.24
+        for <linux-mm@kvack.org>; Fri, 25 Apr 2014 10:56:27 -0700 (PDT)
+Received: from mail-vc0-x229.google.com (mail-vc0-x229.google.com [2607:f8b0:400c:c03::229])
+        by mx.google.com with ESMTPS id kp14si1878357vcb.2.2014.04.25.10.56.27
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 25 Apr 2014 10:56:27 -0700 (PDT)
+Received: by mail-vc0-f169.google.com with SMTP id im17so5286365vcb.0
+        for <linux-mm@kvack.org>; Fri, 25 Apr 2014 10:56:27 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: Throttle shrinkers harder
-References: <1397113506-9177-1-git-send-email-chris@chris-wilson.co.uk> <20140418121416.c022eca055da1b6d81b2cf1b@linux-foundation.org> <20140422193041.GD10722@phenom.ffwll.local> <53582D3C.1010509@intel.com> <20140424055836.GB31221@nuc-i3427.alporthouse.com> <53592C16.8000906@intel.com> <20140424153920.GM31221@nuc-i3427.alporthouse.com> <535991C3.9080808@intel.com> <20140425072325.GO31221@nuc-i3427.alporthouse.com>
-In-Reply-To: <20140425072325.GO31221@nuc-i3427.alporthouse.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <alpine.LSU.2.11.1404250414590.5198@eggly.anvils>
+References: <53558507.9050703@zytor.com>
+	<CA+55aFzFxBDJ2rWo9DggdNsq-qBCr11OVXnm64jx04KMSVCBAw@mail.gmail.com>
+	<20140422075459.GD11182@twins.programming.kicks-ass.net>
+	<CA+55aFzM+NpE-EzJdDeYX=cqWRzkGv9o-vybDR=oFtDLMRK-mA@mail.gmail.com>
+	<alpine.LSU.2.11.1404221847120.1759@eggly.anvils>
+	<20140423184145.GH17824@quack.suse.cz>
+	<CA+55aFwm9BT4ecXF7dD+OM0-+1Wz5vd4ts44hOkS8JdQ74SLZQ@mail.gmail.com>
+	<20140424065133.GX26782@laptop.programming.kicks-ass.net>
+	<alpine.LSU.2.11.1404241110160.2443@eggly.anvils>
+	<CA+55aFwVgCshsVHNqr2EA1aFY18A2L17gNj0wtgHB39qLErTrg@mail.gmail.com>
+	<alpine.LSU.2.11.1404241252520.3455@eggly.anvils>
+	<CA+55aFyUyD_BASjhig9OPerYcMrUgYJUfRLA9JyB_x7anV1d7Q@mail.gmail.com>
+	<1398389846.8437.6.camel@pasglop>
+	<1398393700.8437.22.camel@pasglop>
+	<CA+55aFyO+-GehPiOAPy7-N0ejFrsNupWHG+j5hAs=R=RuPQtDg@mail.gmail.com>
+	<5359CD7C.5020604@zytor.com>
+	<CA+55aFzktDDr5zNh-7gDhXW6-7_BP_MvKHEoLi9=td6XvwzaUA@mail.gmail.com>
+	<alpine.LSU.2.11.1404250414590.5198@eggly.anvils>
+Date: Fri, 25 Apr 2014 10:56:26 -0700
+Message-ID: <CA+55aFz=fwpGegGXfyWh9bh_iVM7g4q=0ywugS+sR=L+Od7j5g@mail.gmail.com>
+Subject: Re: Dirty/Access bits vs. page content
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chris Wilson <chris@chris-wilson.co.uk>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, intel-gfx@lists.freedesktop.org, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Dave Chinner <dchinner@redhat.com>, Glauber Costa <glommer@openvz.org>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: "H. Peter Anvin" <hpa@zytor.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Peter Zijlstra <peterz@infradead.org>, Jan Kara <jack@suse.cz>, Dave Hansen <dave.hansen@intel.com>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Tony Luck <tony.luck@intel.com>
 
-On 04/25/2014 12:23 AM, Chris Wilson wrote:
-> On Thu, Apr 24, 2014 at 03:35:47PM -0700, Dave Hansen wrote:
->> On 04/24/2014 08:39 AM, Chris Wilson wrote:
->>> On Thu, Apr 24, 2014 at 08:21:58AM -0700, Dave Hansen wrote:
->>>> Is it possible that there's still a get_page() reference that's holding
->>>> those pages in place from the graphics code?
->>>
->>> Not from i915.ko. The last resort of our shrinker is to drop all page
->>> refs held by the GPU, which is invoked if we are asked to free memory
->>> and we have no inactive objects left.
->>
->> How sure are we that this was performed before the OOM?
-> 
-> Only by virtue of how shrink_slabs() works.
+On Fri, Apr 25, 2014 at 5:01 AM, Hugh Dickins <hughd@google.com> wrote:
+>
+> Two, Ben said earlier that he's more worried about users of
+> unmap_mapping_range() than concurrent munmap(); and you said
+> earlier that you would almost prefer to have some special lock
+> to serialize with page_mkclean().
+>
+> Er, i_mmap_mutex.
+>
+> That's what unmap_mapping_range(), and page_mkclean()'s rmap_walk,
+> take to iterate over the file vmas.  So perhaps there's no race at all
+> in the unmap_mapping_range() case.  And easy (I imagine) to fix the
+> race in Dave's racewrite.c use of MADV_DONTNEED: untested patch below.
 
-Could we try to raise the level of assurance there, please? :)
+Hmm. unmap_mapping_range() is just abotu the only thing that _does_
+take i_mmap_mutex. unmap_single_vma() does it for
+is_vm_hugetlb_page(), which is a bit confusing. And normally we only
+take it for the actual final vma link/unlink, not for the actual
+traversal. So we'd have to change that all quite radically (or we'd
+have to drop and re-take it).
 
-So this "last resort" is i915_gem_shrink_all()?  It seems like we might
-have some problems getting down to that part of the code if we have
-problems getting the mutex.
+So I'm not quite convinced. Your simple patch looks simple and should
+certainly fix DaveH's test-case, but then leaves munmap/exit as a
+separate thing to fix. And I don't see how to do that cleanly (it
+really looks like "we'll just have to take that semaphore again
+separately).
 
-We have tracepoints for the shrinkers in here (it says slab, but it's
-all the shrinkers, I checked):
+i_mmap_mutex is likely not contended, but we *do* take it for private
+mappings too (and for read-only ones), so this lock is actually much
+more common than the dirty shared mapping.
 
-/sys/kernel/debug/tracing/events/vmscan/mm_shrink_slab_*/enable
-and another for OOMs:
-/sys/kernel/debug/tracing/events/oom/enable
+So I think I prefer my patch, even if that may be partly due to just
+it being mine ;)
 
-Could you collect a trace during one of these OOM events and see what
-the i915 shrinker is doing?  Just enable those two and then collect a
-copy of:
-
-	/sys/kernel/debug/tracing/trace
-
-That'll give us some insight about how well the shrinker is working.  If
-the VM gave up on calling in to it, it might reveal why we didn't get
-all the way down in to i915_gem_shrink_all().
-
-> Thanks for the pointer to
-> register_oom_notifier(), I can use that to make sure that we do purge
-> everything from the GPU, and do a sanity check at the same time, before
-> we start killing processes.
-
-Actually, that one doesn't get called until we're *SURE* we are going to
-OOM.  Any action taken in there won't be taken in to account.
-
->> Also, forgive me for being an idiot wrt the way graphics work, but are
->> there any good candidates that you can think of that could be holding a
->> reference?  I've honestly never seen an OOM like this.
-> 
-> Here the only place that we take a page reference is in
-> i915_gem_object_get_pages(). We do this when we first bind the pages
-> into the GPU's translation table, but we only release the pages once the
-> object is destroyed or the system experiences memory pressure. (Once the
-> GPU touches the pages, we no longer consider them to be cache coherent
-> with the CPU and so migrating them between the GPU and CPU requires
-> clflushing, which is expensive.)
-> 
-> Aside from CPU mmaps of the shmemfs filp, all operations on our
-> graphical objects should lead to i915_gem_object_get_pages(). However
-> not all objects are recoverable as some may be pinned due to hardware
-> access.
-
-In that oom callback, could you dump out the aggregate number of
-obj->pages_pin_count across all the objects?  That would be a very
-interesting piece of information to have.  It would also be very
-insightful for folks who see OOMs in practice with i915 in their systems.
-
+          Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
