@@ -1,75 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f49.google.com (mail-ee0-f49.google.com [74.125.83.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 28CD36B0037
-	for <linux-mm@kvack.org>; Fri, 25 Apr 2014 16:19:09 -0400 (EDT)
-Received: by mail-ee0-f49.google.com with SMTP id c41so3084348eek.8
-        for <linux-mm@kvack.org>; Fri, 25 Apr 2014 13:19:08 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id v2si14340202eel.166.2014.04.25.13.19.06
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 26C9F6B0035
+	for <linux-mm@kvack.org>; Fri, 25 Apr 2014 17:40:05 -0400 (EDT)
+Received: by mail-pd0-f169.google.com with SMTP id y13so2642340pdi.14
+        for <linux-mm@kvack.org>; Fri, 25 Apr 2014 14:40:04 -0700 (PDT)
+Received: from blackbird.sr71.net ([2001:19d0:2:6:209:6bff:fe9a:902])
+        by mx.google.com with ESMTP id hp1si5617809pad.303.2014.04.25.14.39.59
         for <linux-mm@kvack.org>;
-        Fri, 25 Apr 2014 13:19:07 -0700 (PDT)
-Date: Fri, 25 Apr 2014 16:18:35 -0400
-From: Luiz Capitulino <lcapitulino@redhat.com>
-Subject: Re: [PATCH v3 0/5] hugetlb: add support gigantic page allocation at
- runtime
-Message-ID: <20140425161835.4dda4383@redhat.com>
-In-Reply-To: <20140422145546.7e1ddb763072edaa286736f9@linux-foundation.org>
-References: <1397152725-20990-1-git-send-email-lcapitulino@redhat.com>
-	<20140417160110.3f36b972b25525fbbe23681b@linux-foundation.org>
-	<20140422173726.738d0635@redhat.com>
-	<20140422145546.7e1ddb763072edaa286736f9@linux-foundation.org>
+        Fri, 25 Apr 2014 14:39:59 -0700 (PDT)
+Message-ID: <535AD62D.20509@sr71.net>
+Date: Fri, 25 Apr 2014 14:39:57 -0700
+From: Dave Hansen <dave@sr71.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Subject: Re: [PATCH 2/6] x86: mm: rip out complicated, out-of-date, buggy
+ TLB flushing
+References: <20140421182418.81CF7519@viggo.jf.intel.com> <20140421182421.DFAAD16A@viggo.jf.intel.com> <20140424084552.GQ23991@suse.de>
+In-Reply-To: <20140424084552.GQ23991@suse.de>
+Content-Type: text/plain; charset=ISO-8859-15
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: yinghai@kernel.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, mtosatti@redhat.com, aarcange@redhat.com, mgorman@suse.de, andi@firstfloor.org, davidlohr@hp.com, rientjes@google.com, isimatu.yasuaki@jp.fujitsu.com, Andrew Morton <akpm@linux-foundation.org>, riel@redhat.com, n-horiguchi@ah.jp.nec.com, kirill@shutemov.name
+To: Mel Gorman <mgorman@suse.de>
+Cc: x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, ak@linux.intel.com, riel@redhat.com, alex.shi@linaro.org, dave.hansen@linux.intel.com
 
-On Tue, 22 Apr 2014 14:55:46 -0700
-Andrew Morton <akpm@linux-foundation.org> wrote:
+On 04/24/2014 01:45 AM, Mel Gorman wrote:
+>> > +/*
+>> > + * See Documentation/x86/tlb.txt for details.  We choose 33
+>> > + * because it is large enough to cover the vast majority (at
+>> > + * least 95%) of allocations, and is small enough that we are
+>> > + * confident it will not cause too much overhead.  Each single
+>> > + * flush is about 100 cycles, so this caps the maximum overhead
+>> > + * at _about_ 3,000 cycles.
+>> > + */
+>> > +/* in units of pages */
+>> > +unsigned long tlb_single_page_flush_ceiling = 1;
+>> > +
+> This comment is premature. The documentation file does not exist yet and
+> 33 means nothing yet. Out of curiousity though, how confident are you
+> that a TLB flush is generally 100 cycles across different generations
+> and manufacturers of CPUs? I'm not suggesting you change it or auto-tune
+> it, am just curious.
 
-> On Tue, 22 Apr 2014 17:37:26 -0400 Luiz Capitulino <lcapitulino@redhat.com> wrote:
-> 
-> > On Thu, 17 Apr 2014 16:01:10 -0700
-> > Andrew Morton <akpm@linux-foundation.org> wrote:
-> > 
-> > > On Thu, 10 Apr 2014 13:58:40 -0400 Luiz Capitulino <lcapitulino@redhat.com> wrote:
-> > > 
-> > > > The HugeTLB subsystem uses the buddy allocator to allocate hugepages during
-> > > > runtime. This means that hugepages allocation during runtime is limited to
-> > > > MAX_ORDER order. For archs supporting gigantic pages (that is, page sizes
-> > > > greater than MAX_ORDER), this in turn means that those pages can't be
-> > > > allocated at runtime.
-> > > 
-> > > Dumb question: what's wrong with just increasing MAX_ORDER?
-> > 
-> > To be honest I'm not a buddy allocator expert and I'm not familiar with
-> > what is involved in increasing MAX_ORDER. What I do know though is that it's
-> > not just a matter of increasing a macro's value. For example, for sparsemem
-> > support we have this check (include/linux/mmzone.h:1084):
-> > 
-> > #if (MAX_ORDER - 1 + PAGE_SHIFT) > SECTION_SIZE_BITS
-> > #error Allocator MAX_ORDER exceeds SECTION_SIZE
-> > #endif
-> > 
-> > I _guess_ it's because we can't allocate more pages than what's within a
-> > section on sparsemem. Can sparsemem and the other stuff be changed to
-> > accommodate a bigger MAX_ORDER? I don't know. Is it worth it to increase
-> > MAX_ORDER and do all the required changes, given that a bigger MAX_ORDER is
-> > only useful for HugeTLB and the archs supporting gigantic pages? I'd guess not.
-> 
-> afacit we'd need to increase SECTION_SIZE_BITS to 29 or more to
-> accommodate 1G MAX_ORDER.  I assume this means that some machines with
-> sparse physical memory layout may not be able to use all (or as much)
-> of the physical memory.  Perhaps Yinghai can advise?
+First of all, I changed the units here at some point, and I screwed up
+the comments.  I meant 100 nanoseconds, *not* cycles.
 
-Yinghai?
+For the sake of completeness, here are the data on a Westmere CPU.  I'm
+not _quite_ sure why the <=5 pages cases are so slow per-page compared
+to when we're flushing larger numbers of pages.  (I also only printed
+out the flush sizes with >100 samples):
 
-> I do think we should fully explore this option before giving up and
-> adding new special-case code. 
+The overall average was 151ns, and for 6 pages and up it was 107ns.
 
-I'll look into that, but it may take a bit.
+     1  1560658    279861777 avg/page:   179
+     2   179981     85329139 avg/page:   237
+     3    99797    146972011 avg/page:   490
+     4   161470    133072233 avg/page:   206
+     5    44150     42142670 avg/page:   190
+     6    17364     12063833 avg/page:   115
+     7    12325      9899412 avg/page:   114
+     8     4202      3838077 avg/page:   114
+     9      811       990320 avg/page:   135
+    10     4448      4955283 avg/page:   111
+    11    69051     86723229 avg/page:   114
+    12      465       642204 avg/page:   115
+    13      157       226814 avg/page:   111
+    16      781      1741461 avg/page:   139
+    17     1506      2778201 avg/page:   108
+    18      110       211216 avg/page:   106
+    19    13322     27941893 avg/page:   110
+    21     1828      4092988 avg/page:   106
+    24     1566      4057605 avg/page:   107
+    25      246       646463 avg/page:   105
+    29      411      1275101 avg/page:   106
+    33     3191     11775818 avg/page:   111
+    52     3096     17297873 avg/page:   107
+    65     2244     15349445 avg/page:   105
+   129     2278     33246120 avg/page:   113
+   240    12181    305529055 avg/page:   104
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
