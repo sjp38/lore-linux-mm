@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f51.google.com (mail-pb0-f51.google.com [209.85.160.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 4DB8E6B003D
-	for <linux-mm@kvack.org>; Fri, 25 Apr 2014 18:37:54 -0400 (EDT)
-Received: by mail-pb0-f51.google.com with SMTP id uo5so3699986pbc.38
-        for <linux-mm@kvack.org>; Fri, 25 Apr 2014 15:37:53 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id wt1si5693794pbc.462.2014.04.25.15.37.52
+Received: from mail-pb0-f53.google.com (mail-pb0-f53.google.com [209.85.160.53])
+	by kanga.kvack.org (Postfix) with ESMTP id E88748298E
+	for <linux-mm@kvack.org>; Fri, 25 Apr 2014 18:38:04 -0400 (EDT)
+Received: by mail-pb0-f53.google.com with SMTP id jt11so1960058pbb.40
+        for <linux-mm@kvack.org>; Fri, 25 Apr 2014 15:37:59 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [143.182.124.21])
+        by mx.google.com with ESMTP id nt4si5719162pbb.199.2014.04.25.15.37.55
         for <linux-mm@kvack.org>;
-        Fri, 25 Apr 2014 15:37:53 -0700 (PDT)
-Subject: [PATCH 7/8] x86: mm: set TLB flush tunable to sane value (33)
+        Fri, 25 Apr 2014 15:37:55 -0700 (PDT)
+Subject: [PATCH 8/8] x86: mm: instrument flush times
 From: Dave Hansen <dave@sr71.net>
-Date: Fri, 25 Apr 2014 15:37:51 -0700
+Date: Fri, 25 Apr 2014 15:37:53 -0700
 References: <20140425223742.0A27E42E@viggo.jf.intel.com>
 In-Reply-To: <20140425223742.0A27E42E@viggo.jf.intel.com>
-Message-Id: <20140425223751.B8CE9542@viggo.jf.intel.com>
+Message-Id: <20140425223753.DC1CB0C0@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
@@ -22,267 +22,278 @@ Cc: linux-mm@kvack.org, x86@kernel.org, Dave Hansen <dave@sr71.net>
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-This has been run through Intel's LKP tests across a wide range
-of modern sytems and workloads and it wasn't shown to make a
-measurable performance difference positive or negative.
+The tracepoint code is a _bit_ too much overhead, so use some
+percpu counters to aggregate it instead.
 
-Now that we have some shiny new tracepoints, we can actually
-figure out what the heck is going on.
+This is pretty quick and dirty, (like the big old kmalloc())
+but it should be safe and function enough for developer use.
 
-During a kernel compile, 60% of the flush_tlb_mm_range() calls
-are for a single page.  It breaks down like this:
+This is not fundamentally arch-dependent, so a move of this code
+to mm/ would be prudent once a second user pops up.
 
- size   percent  percent<=
-  V        V        V
-GLOBAL:   2.20%   2.20% avg cycles:  2283
-     1:  56.92%  59.12% avg cycles:  1276
-     2:  13.78%  72.90% avg cycles:  1505
-     3:   8.26%  81.16% avg cycles:  1880
-     4:   7.41%  88.58% avg cycles:  2447
-     5:   1.73%  90.31% avg cycles:  2358
-     6:   1.32%  91.63% avg cycles:  2563
-     7:   1.14%  92.77% avg cycles:  2862
-     8:   0.62%  93.39% avg cycles:  3542
-     9:   0.08%  93.47% avg cycles:  3289
-    10:   0.43%  93.90% avg cycles:  3570
-    11:   0.20%  94.10% avg cycles:  3767
-    12:   0.08%  94.18% avg cycles:  3996
-    13:   0.03%  94.20% avg cycles:  4077
-    14:   0.02%  94.23% avg cycles:  4836
-    15:   0.04%  94.26% avg cycles:  5699
-    16:   0.06%  94.32% avg cycles:  5041
-    17:   0.57%  94.89% avg cycles:  5473
-    18:   0.02%  94.91% avg cycles:  5396
-    19:   0.03%  94.95% avg cycles:  5296
-    20:   0.02%  94.96% avg cycles:  6749
-    21:   0.18%  95.14% avg cycles:  6225
-    22:   0.01%  95.15% avg cycles:  6393
-    23:   0.01%  95.16% avg cycles:  6861
-    24:   0.12%  95.28% avg cycles:  6912
-    25:   0.05%  95.32% avg cycles:  7190
-    26:   0.01%  95.33% avg cycles:  7793
-    27:   0.01%  95.34% avg cycles:  7833
-    28:   0.01%  95.35% avg cycles:  8253
-    29:   0.08%  95.42% avg cycles:  8024
-    30:   0.03%  95.45% avg cycles:  9670
-    31:   0.01%  95.46% avg cycles:  8949
-    32:   0.01%  95.46% avg cycles:  9350
-    33:   3.11%  98.57% avg cycles:  8534
-    34:   0.02%  98.60% avg cycles: 10977
-    35:   0.02%  98.62% avg cycles: 11400
+I'm posting this so that others can replicate my experiments on
+the per-page TLB flush limits on CPUs other than Intel's.  I
+don't have a strong opinion about getting it in to mainline,
+although it would make my life easier if it were merged.
 
-We get in to dimishing returns pretty quickly.  On pre-IvyBridge
-CPUs, we used to set the limit at 8 pages, and it was set at 128
-on IvyBrige.  That 128 number looks pretty silly considering that
-less than 0.5% of the flushes are that large.
+The output looks like this:
 
-The previous code tried to size this number based on the size of
-the TLB.  Good idea, but it's error-prone, needs maintenance
-(which it didn't get up to now), and probably would not matter in
-practice much.
-
-Settting it to 33 means that we cover the mallopt
-M_TRIM_THRESHOLD, which is the most universally common size to do
-flushes.
-
-That's the short version.  Here's the long one for why I chose 33:
-
-1. These numbers have a constant bias in the timestamps from the
-   tracing.  Probably counts for a couple hundred cycles in each of
-   these tests, but it should be fairly _even_ across all of them.
-   The smallest delta between the tracepoints I have ever seen is
-   335 cycles.  This is one reason the cycles/page cost goes down in
-   general as the flushes get larger.  The true cost is nearer to
-   100 cycles.
-2. A full flush is more expensive than a single invlpg, but not
-   by much (single percentages).
-3. A dtlb miss is 17.1ns (~45 cycles) and a itlb miss is 13.0ns
-   (~34 cycles).  At those rates, refilling the 512-entry dTLB takes
-   22,000 cycles.
-4. 22,000 cycles is approximately the equivalent of doing 85
-   invlpg operations.  But, the odds are that the TLB can
-   actually be filled up faster than that because TLB misses that
-   are close in time also tend to leverage the same caches.
-6. ~98% of flushes are <=33 pages.  There are a lot of flushes of
-   33 pages, probably because libc's M_TRIM_THRESHOLD is set to
-   128k (32 pages)
-7. I've found no consistent data to support changing the IvyBridge
-   vs. SandyBridge tunable by a factor of 16
-
-I used the performance counters on this hardware (IvyBridge i5-3320M)
-to figure out the tlb miss costs:
-
-ocperf.py stat -e dtlb_load_misses.walk_duration,dtlb_load_misses.walk_completed,dtlb_store_misses.walk_duration,dtlb_store_misses.walk_completed,itlb_misses.walk_duration,itlb_misses.walk_completed,itlb.itlb_flush
-
-     7,720,030,970      dtlb_load_misses_walk_duration                                    [57.13%]
-       169,856,353      dtlb_load_misses_walk_completed                                    [57.15%]
-       708,832,859      dtlb_store_misses_walk_duration                                    [57.17%]
-        19,346,823      dtlb_store_misses_walk_completed                                    [57.17%]
-     2,779,687,402      itlb_misses_walk_duration                                    [57.15%]
-        82,241,148      itlb_misses_walk_completed                                    [57.13%]
-           770,717      itlb_itlb_flush                                              [57.11%]
-
-Show that a dtlb miss is 17.1ns (~45 cycles) and a itlb miss is 13.0ns
-(~34 cycles).  At those rates, refilling the 512-entry dTLB takes
-22,000 cycles.  On a SandyBridge system with more cores and larger
-caches, those are dtlb=13.4ns and itlb=9.5ns.
-
-cat perf.stat.txt | perl -pe 's/,//g'
-	| awk '/itlb_misses_walk_duration/ { icyc+=$1 }
-		/itlb_misses_walk_completed/ { imiss+=$1 }
-		/dtlb_.*_walk_duration/ { dcyc+=$1 }
-		/dtlb_.*.*completed/ { dmiss+=$1 }
-		END {print "itlb cyc/miss: ", icyc/imiss, " dtlb cyc/miss: ", dcyc/dmiss, "   -----    ", icyc,imiss, dcyc,dmiss }
-
-On Westmere CPUs, the counters to use are: itlb_flush,itlb_misses.walk_cycles,itlb_misses.any,dtlb_misses.walk_cycles,dtlb_misses.any
-
-The assumptions that this code went in under:
-https://lkml.org/lkml/2012/6/12/119 say that a flush and a refill are
-about 100ns.  Being generous, that is over by a factor of 6 on the
-refill side, although it is fairly close on the cost of an invlpg.
-An increase of a single invlpg operation seems to lengthen the flush
-range operation by about 200 cycles.  Here is one example of the data
-collected for flushing 10 and 11 pages (full data are below):
-
-    10:   0.43%  93.90% avg cycles:  3570 cycles/page:  357 samples: 4714
-    11:   0.20%  94.10% avg cycles:  3767 cycles/page:  342 samples: 2145
-
-How to generate this table:
-
-	echo 10000 > /sys/kernel/debug/tracing/buffer_size_kb
-	echo x86-tsc > /sys/kernel/debug/tracing/trace_clock
-	echo 'reason != 0' > /sys/kernel/debug/tracing/events/tlb/tlb_flush/filter 
-	echo 1 > /sys/kernel/debug/tracing/events/tlb/tlb_flush/enable
-
-Pipe the trace output in to this script:
-
-	http://sr71.net/~dave/intel/201402-tlb/trace-time-diff-process.pl.txt
-
-Note that these data were gathered with the invlpg threshold set to
-150 pages.  Only data points with >=50 of samples were printed:
-
-Flush    % of     %<=
-in       flush    this
-pages      es     size
-------------------------------------------------------------------------------
-    -1:   2.20%   2.20% avg cycles:  2283 cycles/page: xxxx samples: 23960
-     1:  56.92%  59.12% avg cycles:  1276 cycles/page: 1276 samples: 620895
-     2:  13.78%  72.90% avg cycles:  1505 cycles/page:  752 samples: 150335
-     3:   8.26%  81.16% avg cycles:  1880 cycles/page:  626 samples: 90131
-     4:   7.41%  88.58% avg cycles:  2447 cycles/page:  611 samples: 80877
-     5:   1.73%  90.31% avg cycles:  2358 cycles/page:  471 samples: 18885
-     6:   1.32%  91.63% avg cycles:  2563 cycles/page:  427 samples: 14397
-     7:   1.14%  92.77% avg cycles:  2862 cycles/page:  408 samples: 12441
-     8:   0.62%  93.39% avg cycles:  3542 cycles/page:  442 samples: 6721
-     9:   0.08%  93.47% avg cycles:  3289 cycles/page:  365 samples: 917
-    10:   0.43%  93.90% avg cycles:  3570 cycles/page:  357 samples: 4714
-    11:   0.20%  94.10% avg cycles:  3767 cycles/page:  342 samples: 2145
-    12:   0.08%  94.18% avg cycles:  3996 cycles/page:  333 samples: 864
-    13:   0.03%  94.20% avg cycles:  4077 cycles/page:  313 samples: 289
-    14:   0.02%  94.23% avg cycles:  4836 cycles/page:  345 samples: 236
-    15:   0.04%  94.26% avg cycles:  5699 cycles/page:  379 samples: 390
-    16:   0.06%  94.32% avg cycles:  5041 cycles/page:  315 samples: 643
-    17:   0.57%  94.89% avg cycles:  5473 cycles/page:  321 samples: 6229
-    18:   0.02%  94.91% avg cycles:  5396 cycles/page:  299 samples: 224
-    19:   0.03%  94.95% avg cycles:  5296 cycles/page:  278 samples: 367
-    20:   0.02%  94.96% avg cycles:  6749 cycles/page:  337 samples: 185
-    21:   0.18%  95.14% avg cycles:  6225 cycles/page:  296 samples: 1964
-    22:   0.01%  95.15% avg cycles:  6393 cycles/page:  290 samples: 83
-    23:   0.01%  95.16% avg cycles:  6861 cycles/page:  298 samples: 61
-    24:   0.12%  95.28% avg cycles:  6912 cycles/page:  288 samples: 1307
-    25:   0.05%  95.32% avg cycles:  7190 cycles/page:  287 samples: 533
-    26:   0.01%  95.33% avg cycles:  7793 cycles/page:  299 samples: 94
-    27:   0.01%  95.34% avg cycles:  7833 cycles/page:  290 samples: 66
-    28:   0.01%  95.35% avg cycles:  8253 cycles/page:  294 samples: 73
-    29:   0.08%  95.42% avg cycles:  8024 cycles/page:  276 samples: 846
-    30:   0.03%  95.45% avg cycles:  9670 cycles/page:  322 samples: 296
-    31:   0.01%  95.46% avg cycles:  8949 cycles/page:  288 samples: 79
-    32:   0.01%  95.46% avg cycles:  9350 cycles/page:  292 samples: 60
-    33:   3.11%  98.57% avg cycles:  8534 cycles/page:  258 samples: 33936
-    34:   0.02%  98.60% avg cycles: 10977 cycles/page:  322 samples: 268
-    35:   0.02%  98.62% avg cycles: 11400 cycles/page:  325 samples: 177
-    36:   0.01%  98.63% avg cycles: 11504 cycles/page:  319 samples: 161
-    37:   0.02%  98.65% avg cycles: 11596 cycles/page:  313 samples: 182
-    38:   0.02%  98.66% avg cycles: 11850 cycles/page:  311 samples: 195
-    39:   0.01%  98.68% avg cycles: 12158 cycles/page:  311 samples: 128
-    40:   0.01%  98.68% avg cycles: 11626 cycles/page:  290 samples: 78
-    41:   0.04%  98.73% avg cycles: 11435 cycles/page:  278 samples: 477
-    42:   0.01%  98.73% avg cycles: 12571 cycles/page:  299 samples: 74
-    43:   0.01%  98.74% avg cycles: 12562 cycles/page:  292 samples: 78
-    44:   0.01%  98.75% avg cycles: 12991 cycles/page:  295 samples: 108
-    45:   0.01%  98.76% avg cycles: 13169 cycles/page:  292 samples: 78
-    46:   0.02%  98.78% avg cycles: 12891 cycles/page:  280 samples: 261
-    47:   0.01%  98.79% avg cycles: 13099 cycles/page:  278 samples: 67
-    48:   0.01%  98.80% avg cycles: 13851 cycles/page:  288 samples: 77
-    49:   0.01%  98.80% avg cycles: 13749 cycles/page:  280 samples: 66
-    50:   0.01%  98.81% avg cycles: 13949 cycles/page:  278 samples: 73
-    52:   0.00%  98.82% avg cycles: 14243 cycles/page:  273 samples: 52
-    54:   0.01%  98.83% avg cycles: 15312 cycles/page:  283 samples: 87
-    55:   0.01%  98.84% avg cycles: 15197 cycles/page:  276 samples: 109
-    56:   0.02%  98.86% avg cycles: 15234 cycles/page:  272 samples: 208
-    57:   0.00%  98.86% avg cycles: 14888 cycles/page:  261 samples: 53
-    58:   0.01%  98.87% avg cycles: 15037 cycles/page:  259 samples: 59
-    59:   0.01%  98.87% avg cycles: 15752 cycles/page:  266 samples: 63
-    62:   0.00%  98.89% avg cycles: 16222 cycles/page:  261 samples: 54
-    64:   0.02%  98.91% avg cycles: 17179 cycles/page:  268 samples: 248
-    65:   0.12%  99.03% avg cycles: 18762 cycles/page:  288 samples: 1324
-    85:   0.00%  99.10% avg cycles: 21649 cycles/page:  254 samples: 50
-   127:   0.01%  99.18% avg cycles: 32397 cycles/page:  255 samples: 75
-   128:   0.13%  99.31% avg cycles: 31711 cycles/page:  247 samples: 1466
-   129:   0.18%  99.49% avg cycles: 33017 cycles/page:  255 samples: 1927
-   181:   0.33%  99.84% avg cycles:  2489 cycles/page:   13 samples: 3547
-   256:   0.05%  99.91% avg cycles:  2305 cycles/page:    9 samples: 550
-   512:   0.03%  99.95% avg cycles:  2133 cycles/page:    4 samples: 304
-  1512:   0.01%  99.99% avg cycles:  3038 cycles/page:    2 samples: 65
-
-Here are the tlb counters during a 10-second slice of a kernel compile
-for a SandyBridge system.  It's better than IvyBridge, but probably
-due to the larger caches since this was one of the 'X' extreme parts.
-
-    10,873,007,282      dtlb_load_misses_walk_duration
-       250,711,333      dtlb_load_misses_walk_completed
-     1,212,395,865      dtlb_store_misses_walk_duration
-        31,615,772      dtlb_store_misses_walk_completed
-     5,091,010,274      itlb_misses_walk_duration
-       163,193,511      itlb_misses_walk_completed
-         1,321,980      itlb_itlb_flush
-
-      10.008045158 seconds time elapsed
-
-# cat perf.stat.1392743721.txt | perl -pe 's/,//g' | awk '/itlb_misses_walk_duration/ { icyc+=$1 } /itlb_misses_walk_completed/ { imiss+=$1 } /dtlb_.*_walk_duration/ { dcyc+=$1 } /dtlb_.*.*completed/ { dmiss+=$1 } END {print "itlb cyc/miss: ", icyc/imiss/3.3, " dtlb cyc/miss: ", dcyc/dmiss/3.3, "   -----    ", icyc,imiss, dcyc,dmiss }'
-itlb ns/miss:  9.45338  dtlb ns/miss:  12.9716
+# cat /sys/kernel/debug/x86/tlb_flush_stats
+[FULL] 1037 285286
+[1] 8159 3536885
+[2] 1846 1095170
+[3] 80 49731
+[4] 842 699780
+[6] 2 2665
+[7] 773 1172234
+[8] 8 11230
+[10] 4 7014
+[11] 1 1736
+[15] 1 2081
+[16] 101 227937
+[19] 2 5581
+[21] 4 11908
+[25] 1 3204
+[26] 4 14608
+[27] 7 29729
+[28] 2 7145
+[32] 3 12690
+[33] 3 12232
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-Acked-by: Rik van Riel <riel@redhat.com>
-Acked-by: Mel Gorman <mgorman@suse.de>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Mel Gorman <mgorman@suse.de>
 ---
 
- b/arch/x86/mm/tlb.c |   13 +++++++++++--
- 1 file changed, 11 insertions(+), 2 deletions(-)
+ b/arch/x86/mm/tlb.c |  137 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ b/lib/Kconfig.debug |   15 +++++
+ 2 files changed, 152 insertions(+)
 
-diff -puN arch/x86/mm/tlb.c~set-tunable-to-sane-value arch/x86/mm/tlb.c
---- a/arch/x86/mm/tlb.c~set-tunable-to-sane-value	2014-04-25 15:33:13.938096568 -0700
-+++ b/arch/x86/mm/tlb.c	2014-04-25 15:33:13.941096703 -0700
-@@ -167,8 +167,17 @@ void flush_tlb_current_task(void)
- 	preempt_enable();
- }
+diff -puN arch/x86/mm/tlb.c~instrument-flush-times arch/x86/mm/tlb.c
+--- a/arch/x86/mm/tlb.c~instrument-flush-times	2014-04-25 15:33:14.194108105 -0700
++++ b/arch/x86/mm/tlb.c	2014-04-25 15:33:14.199108331 -0700
+@@ -6,6 +6,7 @@
+ #include <linux/interrupt.h>
+ #include <linux/module.h>
+ #include <linux/cpu.h>
++#include <linux/slab.h>
  
--/* in units of pages */
--unsigned long tlb_single_page_flush_ceiling = 1;
+ #include <asm/tlbflush.h>
+ #include <asm/mmu_context.h>
+@@ -17,6 +18,129 @@
+ #define CREATE_TRACE_POINTS
+ #include <trace/events/tlb.h>
+ 
++#ifndef CONFIG_DETAILED_TLB_FLUSH_STATS
++static inline void inc_tlb_stat(u64 flush_size, u64 time) {}
++static inline u64 tlb_clock(void) { return 0; }
++#else
++static inline u64 tlb_clock(void)
++{
++	return sched_clock();
++}
++struct one_tlb_stat {
++	u64 flushes;
++	u64 time;
++};
 +/*
-+ * See Documentation/x86/tlb.txt for details.  We choose 33
-+ * because it is large enough to cover the vast majority (at
-+ * least 95%) of allocations, and is small enough that we are
-+ * confident it will not cause too much overhead.  Each single
-+ * flush is about 100 ns, so this caps the maximum overhead at
-+ * _about_ 3,000 ns.
-+ *
-+ * This is in units of pages.
++ * make sure to bump TLB_STAT_LINE_SIZE if you make this
++ * larger than 4 digits
 + */
-+unsigned long tlb_single_page_flush_ceiling = 33;
++#define NR_TO_TRACK 1024
++struct tlb_stats {
++	struct one_tlb_stat stats[NR_TO_TRACK];
++};
++
++DEFINE_PER_CPU(struct tlb_stats, tlb_stats);
++
++/*
++ * This is only called from two contexts: flush_tlb_mm_range(),
++ * during which preeption is off, and flush_tlb_func() which is
++ * called from an IPI.  That makes the use of smp_processor_id()
++ * safe.
++ */
++void inc_tlb_stat(u64 flush_size, u64 time)
++{
++	struct tlb_stats *thiscpu = &per_cpu(tlb_stats, smp_processor_id());
++	struct one_tlb_stat *stat;
++
++	if (flush_size == TLB_FLUSH_ALL)
++		flush_size = 0;
++	if (flush_size >= NR_TO_TRACK)
++		flush_size = NR_TO_TRACK-1;
++
++	stat = &thiscpu->stats[flush_size];
++	stat->time += time;
++	stat->flushes++;
++}
++
++/*
++ * '[' + 4-digits + ']' + space
++ * 20-digit long + space
++ * + \n
++ */
++#define TLB_STAT_LINE_SIZE (1+4+1+1+20+1+20+1)
++static ssize_t tlb_stat_read_file(struct file *file, char __user *user_buf,
++			     size_t count, loff_t *ppos)
++{
++	int cpu;
++	int flush_size;
++	unsigned int len = 0;
++	char *printbuf = kmalloc(TLB_STAT_LINE_SIZE * NR_TO_TRACK, GFP_KERNEL);
++
++	if (!printbuf)
++		return -ENOMEM;
++
++	for (flush_size = 0; flush_size < NR_TO_TRACK; flush_size++) {
++		struct one_tlb_stat tot;
++		tot.flushes = 0;
++		tot.time = 0;
++
++		for_each_online_cpu(cpu){
++			struct tlb_stats *thiscpu = &per_cpu(tlb_stats, cpu);
++			struct one_tlb_stat *stat;
++			stat = &thiscpu->stats[flush_size];
++			tot.flushes += stat->flushes;
++			tot.time += stat->time;
++		}
++		if (!tot.flushes)
++			continue;
++		if (flush_size == 0)
++			len += sprintf(&printbuf[len], "[FULL]");
++		else if (flush_size == NR_TO_TRACK-1)
++			len += sprintf(&printbuf[len], "[FBIG]");
++		else
++			len += sprintf(&printbuf[len], "[%d]", flush_size);
++
++		len += sprintf(&printbuf[len], " %lld %lld\n",
++			tot.flushes, tot.time);
++	}
++
++	kfree(printbuf);
++	return simple_read_from_buffer(user_buf, count, ppos, printbuf, len);
++}
++
++static ssize_t tlb_stat_write_file(struct file *file,
++		 const char __user *user_buf, size_t count, loff_t *ppos)
++{
++	int cpu;
++	int flush_size;
++
++	for_each_online_cpu(cpu){
++		struct tlb_stats *thiscpu = &per_cpu(tlb_stats, cpu);
++		for (flush_size = 0; flush_size < NR_TO_TRACK; flush_size++) {
++			struct one_tlb_stat *stat;
++			stat = &thiscpu->stats[flush_size];
++			stat->time = 0;
++			stat->flushes = 0;
++		}
++	}
++	return count;
++}
++
++static const struct file_operations fops_tlb_stat = {
++	.read = tlb_stat_read_file,
++	.write = tlb_stat_write_file,
++	.llseek = default_llseek,
++};
++
++static int __init create_tlb_stats(void)
++{
++	debugfs_create_file("tlb_flush_stats", S_IRUSR | S_IWUSR,
++			    arch_debugfs_dir, NULL, &fops_tlb_stat);
++	return 0;
++}
++late_initcall(create_tlb_stats);
++#endif /* CONFIG_DETAILED_TLB_FLUSH_STATS */
++
+ DEFINE_PER_CPU_SHARED_ALIGNED(struct tlb_state, cpu_tlbstate)
+ 			= { &init_mm, 0, };
  
+@@ -112,18 +236,25 @@ static void flush_tlb_func(void *info)
+ 	count_vm_tlb_event(NR_TLB_REMOTE_FLUSH_RECEIVED);
+ 	if (this_cpu_read(cpu_tlbstate.state) == TLBSTATE_OK) {
+ 		if (f->flush_end == TLB_FLUSH_ALL) {
++			u64 start_ns = tlb_clock();
+ 			local_flush_tlb();
++			inc_tlb_stat(TLB_FLUSH_ALL, tlb_clock() - start_ns);
+ 			trace_tlb_flush(TLB_REMOTE_SHOOTDOWN, TLB_FLUSH_ALL);
+ 		} else {
+ 			unsigned long addr;
+ 			unsigned long nr_pages =
+ 				f->flush_end - f->flush_start / PAGE_SIZE;
++			u64 start_ns;
++
++			start_ns = tlb_clock();
+ 			addr = f->flush_start;
+ 			while (addr < f->flush_end) {
+ 				__flush_tlb_single(addr);
+ 				addr += PAGE_SIZE;
+ 			}
+ 			trace_tlb_flush(TLB_REMOTE_SHOOTDOWN, nr_pages);
++			inc_tlb_stat((f->flush_end - f->flush_start) / PAGE_SIZE,
++				     tlb_clock() - start_ns);
+ 		}
+ 	} else
+ 		leave_mm(smp_processor_id());
+@@ -182,6 +313,8 @@ unsigned long tlb_single_page_flush_ceil
  void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
  				unsigned long end, unsigned long vmflag)
+ {
++	u64 start_ns = 0;
++	u64 end_ns;
+ 	unsigned long addr;
+ 	/* do a global flush by default */
+ 	unsigned long base_pages_to_flush = TLB_FLUSH_ALL;
+@@ -198,6 +331,7 @@ void flush_tlb_mm_range(struct mm_struct
+ 	if ((end != TLB_FLUSH_ALL) && !(vmflag & VM_HUGETLB))
+ 		base_pages_to_flush = (end - start) >> PAGE_SHIFT;
+ 
++	start_ns = tlb_clock();
+ 	if (base_pages_to_flush > tlb_single_page_flush_ceiling) {
+ 		base_pages_to_flush = TLB_FLUSH_ALL;
+ 		count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ALL);
+@@ -209,12 +343,15 @@ void flush_tlb_mm_range(struct mm_struct
+ 			__flush_tlb_single(addr);
+ 		}
+ 	}
++	end_ns = tlb_clock();
+ 	trace_tlb_flush(TLB_LOCAL_MM_SHOOTDOWN, base_pages_to_flush);
+ out:
+ 	if (base_pages_to_flush == TLB_FLUSH_ALL) {
+ 		start = 0UL;
+ 		end = TLB_FLUSH_ALL;
+ 	}
++	if (start_ns)
++		inc_tlb_stat(base_pages_to_flush, end_ns - start_ns);
+ 	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
+ 		flush_tlb_others(mm_cpumask(mm), mm, start, end);
+ 	preempt_enable();
+diff -puN lib/Kconfig.debug~instrument-flush-times lib/Kconfig.debug
+--- a/lib/Kconfig.debug~instrument-flush-times	2014-04-25 15:33:14.196108195 -0700
++++ b/lib/Kconfig.debug	2014-04-25 15:33:14.200108376 -0700
+@@ -599,6 +599,21 @@ config DEBUG_STACKOVERFLOW
+ 
+ 	  If in doubt, say "N".
+ 
++config DETAILED_TLB_FLUSH_STATS
++	bool "Detailed TLB flush statistics"
++	depends on X86
++	---help---
++	  This creates a file at
++
++	  	/sys/kernel/debug/x86/tlb_flush_stats
++
++	  which exposes two bits of information:
++	  	1. The number of TLB flushes of each size
++		2. The amount of time spend doing those flushes
++
++	  If in doubt, say "N".  This option may have performance
++	  overhead and should only be used for debugging.
++
+ source "lib/Kconfig.kmemcheck"
+ 
+ endmenu # "Memory Debugging"
 _
 
 --
