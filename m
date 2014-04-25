@@ -1,55 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f173.google.com (mail-qc0-f173.google.com [209.85.216.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C6F36B0035
-	for <linux-mm@kvack.org>; Fri, 25 Apr 2014 14:42:15 -0400 (EDT)
-Received: by mail-qc0-f173.google.com with SMTP id r5so4321257qcx.4
-        for <linux-mm@kvack.org>; Fri, 25 Apr 2014 11:42:14 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id v39si4320965qge.179.2014.04.25.11.42.14
-        for <linux-mm@kvack.org>;
-        Fri, 25 Apr 2014 11:42:14 -0700 (PDT)
-Date: Fri, 25 Apr 2014 14:41:47 -0400
-From: Rik van Riel <riel@redhat.com>
-Subject: [PATCH] mm,numa: remove BUG_ON in __handle_mm_fault
-Message-ID: <20140425144147.679a7608@annuminas.surriel.com>
+Received: from mail-pb0-f52.google.com (mail-pb0-f52.google.com [209.85.160.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 688AA6B0036
+	for <linux-mm@kvack.org>; Fri, 25 Apr 2014 14:43:10 -0400 (EDT)
+Received: by mail-pb0-f52.google.com with SMTP id rq2so3503876pbb.39
+        for <linux-mm@kvack.org>; Fri, 25 Apr 2014 11:43:10 -0700 (PDT)
+Received: from mail-pb0-x233.google.com (mail-pb0-x233.google.com [2607:f8b0:400e:c01::233])
+        by mx.google.com with ESMTPS id ps1si5405533pbc.121.2014.04.25.11.43.09
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 25 Apr 2014 11:43:09 -0700 (PDT)
+Received: by mail-pb0-f51.google.com with SMTP id uo5so3494259pbc.24
+        for <linux-mm@kvack.org>; Fri, 25 Apr 2014 11:43:09 -0700 (PDT)
+Date: Fri, 25 Apr 2014 11:41:54 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: Dirty/Access bits vs. page content
+In-Reply-To: <535A9356.8060608@intel.com>
+Message-ID: <alpine.LSU.2.11.1404251138050.5909@eggly.anvils>
+References: <53558507.9050703@zytor.com> <20140422075459.GD11182@twins.programming.kicks-ass.net> <CA+55aFzM+NpE-EzJdDeYX=cqWRzkGv9o-vybDR=oFtDLMRK-mA@mail.gmail.com> <alpine.LSU.2.11.1404221847120.1759@eggly.anvils> <20140423184145.GH17824@quack.suse.cz>
+ <CA+55aFwm9BT4ecXF7dD+OM0-+1Wz5vd4ts44hOkS8JdQ74SLZQ@mail.gmail.com> <20140424065133.GX26782@laptop.programming.kicks-ass.net> <alpine.LSU.2.11.1404241110160.2443@eggly.anvils> <CA+55aFwVgCshsVHNqr2EA1aFY18A2L17gNj0wtgHB39qLErTrg@mail.gmail.com>
+ <alpine.LSU.2.11.1404241252520.3455@eggly.anvils> <CA+55aFyUyD_BASjhig9OPerYcMrUgYJUfRLA9JyB_x7anV1d7Q@mail.gmail.com> <1398389846.8437.6.camel@pasglop> <1398393700.8437.22.camel@pasglop> <CA+55aFyO+-GehPiOAPy7-N0ejFrsNupWHG+j5hAs=R=RuPQtDg@mail.gmail.com>
+ <5359CD7C.5020604@zytor.com> <CA+55aFzktDDr5zNh-7gDhXW6-7_BP_MvKHEoLi9=td6XvwzaUA@mail.gmail.com> <alpine.LSU.2.11.1404250414590.5198@eggly.anvils> <535A9356.8060608@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, lwoodman@redhat.com, peterz@infradead.org, mgorman@suse.de, dave.hansen@intel.com, sunil.k.pandey@intel.com
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, "H. Peter Anvin" <hpa@zytor.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Peter Zijlstra <peterz@infradead.org>, Jan Kara <jack@suse.cz>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Tony Luck <tony.luck@intel.com>
 
-Changing PTEs and PMDs to pte_numa & pmd_numa is done with the
-mmap_sem held for reading, which means a pmd can be instantiated
-and/or turned into a numa one while __handle_mm_fault is examining
-the value of orig_pmd.
+On Fri, 25 Apr 2014, Dave Hansen wrote:
+> On 04/25/2014 05:01 AM, Hugh Dickins wrote:
+> > Er, i_mmap_mutex.
+> > 
+> > That's what unmap_mapping_range(), and page_mkclean()'s rmap_walk,
+> > take to iterate over the file vmas.  So perhaps there's no race at all
+> > in the unmap_mapping_range() case.  And easy (I imagine) to fix the
+> > race in Dave's racewrite.c use of MADV_DONTNEED: untested patch below.
+> > 
+> > But exit and munmap() don't take i_mmap_mutex: perhaps they should
+> > when encountering a VM_SHARED vma (I believe VM_SHARED should be
+> > peculiar to having vm_file set, but test both below because I don't
+> > want to oops in some odd corner where a special vma is set up).
+> 
+> Hey Hugh,
+> 
+> Do you want some testing on this?
 
-If that happens, __handle_mm_fault should just return and let
-the page fault retry, instead of throwing an oops.
+Yes, please do: I just haven't gotten around to cloning the git
+tree and trying it.  It's quite likely that we shall go Linus's
+way rather than this, but still useful to have the information
+as to whether this way really is viable.
 
-Signed-off-by: Rik van Riel <riel@redhat.com>
-Reported-by: Sunil Pandey <sunil.k.pandey@intel.com>
----
- mm/memory.c | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
-
-diff --git a/mm/memory.c b/mm/memory.c
-index d0f0bef..9edccb2 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -3900,8 +3900,9 @@ static int __handle_mm_fault(struct mm_struct *mm, struct vm_area_struct *vma,
- 		}
- 	}
- 
--	/* THP should already have been handled */
--	BUG_ON(pmd_numa(*pmd));
-+	/* The PMD became NUMA while we examined orig_pmd. Return & retry */
-+	if (pmd_numa(*pmd))
-+		return 0;
- 
- 	/*
- 	 * Use __pte_alloc instead of pte_alloc_map, because we can't
+Thanks,
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
