@@ -1,368 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f176.google.com (mail-ie0-f176.google.com [209.85.223.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B93C6B0036
-	for <linux-mm@kvack.org>; Sat, 26 Apr 2014 04:37:33 -0400 (EDT)
-Received: by mail-ie0-f176.google.com with SMTP id rd18so4630148iec.7
-        for <linux-mm@kvack.org>; Sat, 26 Apr 2014 01:37:32 -0700 (PDT)
-Received: from mail-ig0-x229.google.com (mail-ig0-x229.google.com [2607:f8b0:4001:c05::229])
-        by mx.google.com with ESMTPS id ng1si7034853icc.52.2014.04.26.01.37.31
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sat, 26 Apr 2014 01:37:32 -0700 (PDT)
-Received: by mail-ig0-f169.google.com with SMTP id h18so3077678igc.0
-        for <linux-mm@kvack.org>; Sat, 26 Apr 2014 01:37:31 -0700 (PDT)
+Received: from mail-ee0-f48.google.com (mail-ee0-f48.google.com [74.125.83.48])
+	by kanga.kvack.org (Postfix) with ESMTP id E82C26B0036
+	for <linux-mm@kvack.org>; Sat, 26 Apr 2014 09:11:15 -0400 (EDT)
+Received: by mail-ee0-f48.google.com with SMTP id b57so3452022eek.35
+        for <linux-mm@kvack.org>; Sat, 26 Apr 2014 06:11:15 -0700 (PDT)
+Received: from fireflyinternet.com (mail.fireflyinternet.com. [87.106.93.118])
+        by mx.google.com with ESMTP id x46si16629922eea.209.2014.04.26.06.11.13
+        for <linux-mm@kvack.org>;
+        Sat, 26 Apr 2014 06:11:13 -0700 (PDT)
+Date: Sat, 26 Apr 2014 14:10:26 +0100
+From: Chris Wilson <chris@chris-wilson.co.uk>
+Subject: Re: [PATCH] mm: Throttle shrinkers harder
+Message-ID: <20140426131026.GA4418@nuc-i3427.alporthouse.com>
+References: <1397113506-9177-1-git-send-email-chris@chris-wilson.co.uk>
+ <20140418121416.c022eca055da1b6d81b2cf1b@linux-foundation.org>
+ <20140422193041.GD10722@phenom.ffwll.local>
+ <53582D3C.1010509@intel.com>
+ <20140424055836.GB31221@nuc-i3427.alporthouse.com>
+ <53592C16.8000906@intel.com>
+ <20140424153920.GM31221@nuc-i3427.alporthouse.com>
+ <535991C3.9080808@intel.com>
+ <20140425072325.GO31221@nuc-i3427.alporthouse.com>
+ <535A9901.6090607@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <1397922764-1512-3-git-send-email-ddstreet@ieee.org>
-References: <1397922764-1512-1-git-send-email-ddstreet@ieee.org>
-	<1397922764-1512-3-git-send-email-ddstreet@ieee.org>
-Date: Sat, 26 Apr 2014 16:37:31 +0800
-Message-ID: <CAL1ERfMPcfyUeACnmZ2QF5WxJUQ2PaKbtRzis8sPbQsjnvf_GQ@mail.gmail.com>
-Subject: Re: [PATCH 2/4] mm: zpool: implement zsmalloc shrinking
-From: Weijie Yang <weijie.yang.kh@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <535A9901.6090607@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Streetman <ddstreet@ieee.org>
-Cc: Seth Jennings <sjennings@variantweb.net>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Andrew Morton <akpm@linux-foundation.org>, Bob Liu <bob.liu@oracle.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Weijie Yang <weijie.yang@samsung.com>, Johannes Weiner <hannes@cmpxchg.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, intel-gfx@lists.freedesktop.org, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Dave Chinner <dchinner@redhat.com>, Glauber Costa <glommer@openvz.org>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>
 
-On Sat, Apr 19, 2014 at 11:52 PM, Dan Streetman <ddstreet@ieee.org> wrote:
-> Add zs_shrink() and helper functions to zsmalloc.  Update zsmalloc
-> zs_create_pool() creation function to include ops param that provides
-> an evict() function for use during shrinking.  Update helper function
-> fix_fullness_group() to always reinsert changed zspages even if the
-> fullness group did not change, so they are updated in the fullness
-> group lru.  Also update zram to use the new zsmalloc pool creation
-> function but pass NULL as the ops param, since zram does not use
-> pool shrinking.
->
+On Fri, Apr 25, 2014 at 10:18:57AM -0700, Dave Hansen wrote:
+> On 04/25/2014 12:23 AM, Chris Wilson wrote:
+> > On Thu, Apr 24, 2014 at 03:35:47PM -0700, Dave Hansen wrote:
+> >> On 04/24/2014 08:39 AM, Chris Wilson wrote:
+> >>> On Thu, Apr 24, 2014 at 08:21:58AM -0700, Dave Hansen wrote:
+> >>>> Is it possible that there's still a get_page() reference that's holding
+> >>>> those pages in place from the graphics code?
+> >>>
+> >>> Not from i915.ko. The last resort of our shrinker is to drop all page
+> >>> refs held by the GPU, which is invoked if we are asked to free memory
+> >>> and we have no inactive objects left.
+> >>
+> >> How sure are we that this was performed before the OOM?
+> > 
+> > Only by virtue of how shrink_slabs() works.
+> 
+> Could we try to raise the level of assurance there, please? :)
+> 
+> So this "last resort" is i915_gem_shrink_all()?  It seems like we might
+> have some problems getting down to that part of the code if we have
+> problems getting the mutex.
 
-I only review the code without test, however, I think this patch is
-not acceptable.
+In general, but not in this example where the load is tightly controlled.
+ 
+> We have tracepoints for the shrinkers in here (it says slab, but it's
+> all the shrinkers, I checked):
+> 
+> /sys/kernel/debug/tracing/events/vmscan/mm_shrink_slab_*/enable
+> and another for OOMs:
+> /sys/kernel/debug/tracing/events/oom/enable
+> 
+> Could you collect a trace during one of these OOM events and see what
+> the i915 shrinker is doing?  Just enable those two and then collect a
+> copy of:
+> 
+> 	/sys/kernel/debug/tracing/trace
+> 
+> That'll give us some insight about how well the shrinker is working.  If
+> the VM gave up on calling in to it, it might reveal why we didn't get
+> all the way down in to i915_gem_shrink_all().
 
-The biggest problem is it will call zswap_writeback_entry() under lock,
-zswap_writeback_entry() may sleep, so it is a bug. see below
+I'll add it to the list for QA to try.
+ 
+> > Thanks for the pointer to
+> > register_oom_notifier(), I can use that to make sure that we do purge
+> > everything from the GPU, and do a sanity check at the same time, before
+> > we start killing processes.
+> 
+> Actually, that one doesn't get called until we're *SURE* we are going to
+> OOM.  Any action taken in there won't be taken in to account.
 
-The 3/4 patch has a lot of #ifdef, I don't think it's a good kind of
-abstract way.
+blocking_notifier_call_chain(&oom_notify_list, 0, &freed);
+if (freed > 0)
+	/* Got some memory back in the last second. */
+	return;
 
-What about just disable zswap reclaim when using zsmalloc?
-There is a long way to optimize writeback reclaim(both zswap and zram) ,
-Maybe a small and simple step forward is better.
+That looks like it should abort the oom and so repeat the allocation
+attempt? Or is that too hopeful?
 
-Regards,
+> >> Also, forgive me for being an idiot wrt the way graphics work, but are
+> >> there any good candidates that you can think of that could be holding a
+> >> reference?  I've honestly never seen an OOM like this.
+> > 
+> > Here the only place that we take a page reference is in
+> > i915_gem_object_get_pages(). We do this when we first bind the pages
+> > into the GPU's translation table, but we only release the pages once the
+> > object is destroyed or the system experiences memory pressure. (Once the
+> > GPU touches the pages, we no longer consider them to be cache coherent
+> > with the CPU and so migrating them between the GPU and CPU requires
+> > clflushing, which is expensive.)
+> > 
+> > Aside from CPU mmaps of the shmemfs filp, all operations on our
+> > graphical objects should lead to i915_gem_object_get_pages(). However
+> > not all objects are recoverable as some may be pinned due to hardware
+> > access.
+> 
+> In that oom callback, could you dump out the aggregate number of
+> obj->pages_pin_count across all the objects?  That would be a very
+> interesting piece of information to have.  It would also be very
+> insightful for folks who see OOMs in practice with i915 in their systems.
 
-> Signed-off-by: Dan Streetman <ddstreet@ieee.org>
->
-> ---
->
-> To find all the used objects inside a zspage, I had to do a full scan
-> of the zspage->freelist for each object, since there's no list of used
-> objects, and no way to keep a list of used objects without allocating
-> more memory for each zspage (that I could see).  Of course, by taking
-> a byte (or really only a bit) out of each object's memory area to use
-> as a flag, we could just check that instead of scanning ->freelist
-> for each zspage object, but that would (slightly) reduce the available
-> size of each zspage object.
->
->
->  drivers/block/zram/zram_drv.c |   2 +-
->  include/linux/zsmalloc.h      |   7 +-
->  mm/zsmalloc.c                 | 168 ++++++++++++++++++++++++++++++++++++++----
->  3 files changed, 160 insertions(+), 17 deletions(-)
->
-> diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
-> index 9849b52..dacf343 100644
-> --- a/drivers/block/zram/zram_drv.c
-> +++ b/drivers/block/zram/zram_drv.c
-> @@ -249,7 +249,7 @@ static struct zram_meta *zram_meta_alloc(u64 disksize)
->                 goto free_meta;
->         }
->
-> -       meta->mem_pool = zs_create_pool(GFP_NOIO | __GFP_HIGHMEM);
-> +       meta->mem_pool = zs_create_pool(GFP_NOIO | __GFP_HIGHMEM, NULL);
->         if (!meta->mem_pool) {
->                 pr_err("Error creating memory pool\n");
->                 goto free_table;
-> diff --git a/include/linux/zsmalloc.h b/include/linux/zsmalloc.h
-> index e44d634..a75ab6e 100644
-> --- a/include/linux/zsmalloc.h
-> +++ b/include/linux/zsmalloc.h
-> @@ -36,11 +36,16 @@ enum zs_mapmode {
->
->  struct zs_pool;
->
-> -struct zs_pool *zs_create_pool(gfp_t flags);
-> +struct zs_ops {
-> +       int (*evict)(struct zs_pool *pool, unsigned long handle);
-> +};
-> +
-> +struct zs_pool *zs_create_pool(gfp_t flags, struct zs_ops *ops);
->  void zs_destroy_pool(struct zs_pool *pool);
->
->  unsigned long zs_malloc(struct zs_pool *pool, size_t size);
->  void zs_free(struct zs_pool *pool, unsigned long obj);
-> +int zs_shrink(struct zs_pool *pool, size_t size);
->
->  void *zs_map_object(struct zs_pool *pool, unsigned long handle,
->                         enum zs_mapmode mm);
-> diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-> index 36b4591..b99bec0 100644
-> --- a/mm/zsmalloc.c
-> +++ b/mm/zsmalloc.c
-> @@ -219,6 +219,8 @@ struct zs_pool {
->         struct size_class size_class[ZS_SIZE_CLASSES];
->
->         gfp_t flags;    /* allocation flags used when growing pool */
-> +
-> +       struct zs_ops *ops;
->  };
->
->  /*
-> @@ -389,16 +391,14 @@ static enum fullness_group fix_fullness_group(struct zs_pool *pool,
->         BUG_ON(!is_first_page(page));
->
->         get_zspage_mapping(page, &class_idx, &currfg);
-> -       newfg = get_fullness_group(page);
-> -       if (newfg == currfg)
-> -               goto out;
-> -
->         class = &pool->size_class[class_idx];
-> +       newfg = get_fullness_group(page);
-> +       /* Need to do this even if currfg == newfg, to update lru */
->         remove_zspage(page, class, currfg);
->         insert_zspage(page, class, newfg);
-> -       set_zspage_mapping(page, class_idx, newfg);
-> +       if (currfg != newfg)
-> +               set_zspage_mapping(page, class_idx, newfg);
->
-> -out:
->         return newfg;
->  }
->
-> @@ -438,6 +438,36 @@ static int get_pages_per_zspage(int class_size)
->  }
->
->  /*
-> + * To determine which class to use when shrinking, we find the
-> + * first zspage class that is greater than the requested shrink
-> + * size, and has at least one zspage.  This returns the class
-> + * with the class lock held, or NULL.
-> + */
-> +static struct size_class *get_class_to_shrink(struct zs_pool *pool,
-> +                       size_t size)
-> +{
-> +       struct size_class *class;
-> +       int i;
-> +       bool in_use, large_enough;
-> +
-> +       for (i = 0; i <= ZS_SIZE_CLASSES; i++) {
-> +               class = &pool->size_class[i];
-> +
-> +               spin_lock(&class->lock);
-> +
-> +               in_use = class->pages_allocated > 0;
-> +               large_enough = class->pages_per_zspage * PAGE_SIZE >= size;
-> +
-> +               if (in_use && large_enough)
-> +                       return class;
-> +
-> +               spin_unlock(&class->lock);
-> +       }
-> +
-> +       return NULL;
-> +}
-> +
-> +/*
->   * A single 'zspage' is composed of many system pages which are
->   * linked together using fields in struct page. This function finds
->   * the first/head page, given any component page of a zspage.
-> @@ -508,6 +538,48 @@ static unsigned long obj_idx_to_offset(struct page *page,
->         return off + obj_idx * class_size;
->  }
->
-> +static bool obj_handle_is_free(struct page *first_page,
-> +                       struct size_class *class, unsigned long handle)
-> +{
-> +       unsigned long obj, idx, offset;
-> +       struct page *page;
-> +       struct link_free *link;
-> +
-> +       BUG_ON(!is_first_page(first_page));
-> +
-> +       obj = (unsigned long)first_page->freelist;
-> +
-> +       while (obj) {
-> +               if (obj == handle)
-> +                       return true;
-> +
-> +               obj_handle_to_location(obj, &page, &idx);
-> +               offset = obj_idx_to_offset(page, idx, class->size);
-> +
-> +               link = (struct link_free *)kmap_atomic(page) +
-> +                                       offset / sizeof(*link);
-> +               obj = (unsigned long)link->next;
-> +               kunmap_atomic(link);
-> +       }
-> +
-> +       return false;
-> +}
-> +
-> +static void obj_free(unsigned long obj, struct page *page, unsigned long offset)
-> +{
-> +       struct page *first_page = get_first_page(page);
-> +       struct link_free *link;
-> +
-> +       /* Insert this object in containing zspage's freelist */
-> +       link = (struct link_free *)((unsigned char *)kmap_atomic(page)
-> +                                                       + offset);
-> +       link->next = first_page->freelist;
-> +       kunmap_atomic(link);
-> +       first_page->freelist = (void *)obj;
-> +
-> +       first_page->inuse--;
-> +}
-> +
->  static void reset_page(struct page *page)
->  {
->         clear_bit(PG_private, &page->flags);
-> @@ -651,6 +723,39 @@ cleanup:
->         return first_page;
->  }
->
-> +static int reclaim_zspage(struct zs_pool *pool, struct size_class *class,
-> +                       struct page *first_page)
-> +{
-> +       struct page *page = first_page;
-> +       unsigned long offset = 0, handle, idx, objs;
-> +       int ret = 0;
-> +
-> +       BUG_ON(!is_first_page(page));
-> +       BUG_ON(!pool->ops);
-> +       BUG_ON(!pool->ops->evict);
-> +
-> +       while (page) {
-> +               objs = DIV_ROUND_UP(PAGE_SIZE - offset, class->size);
-> +
-> +               for (idx = 0; idx < objs; idx++) {
-> +                       handle = (unsigned long)obj_location_to_handle(page,
-> +                                                                       idx);
-> +                       if (!obj_handle_is_free(first_page, class, handle))
-> +                               ret = pool->ops->evict(pool, handle);
+Indeed.
+-Chris
 
-call zswap_writeback_entry() under class->lock.
-
-> +                       if (ret)
-> +                               return ret;
-> +                       else
-> +                               obj_free(handle, page, offset);
-> +               }
-> +
-> +               page = get_next_page(page);
-> +               if (page)
-> +                       offset = page->index;
-> +       }
-> +
-> +       return 0;
-> +}
-> +
->  static struct page *find_get_zspage(struct size_class *class)
->  {
->         int i;
-> @@ -856,7 +961,7 @@ fail:
->   * On success, a pointer to the newly created pool is returned,
->   * otherwise NULL.
->   */
-> -struct zs_pool *zs_create_pool(gfp_t flags)
-> +struct zs_pool *zs_create_pool(gfp_t flags, struct zs_ops *ops)
->  {
->         int i, ovhd_size;
->         struct zs_pool *pool;
-> @@ -883,6 +988,7 @@ struct zs_pool *zs_create_pool(gfp_t flags)
->         }
->
->         pool->flags = flags;
-> +       pool->ops = ops;
->
->         return pool;
->  }
-> @@ -968,7 +1074,6 @@ EXPORT_SYMBOL_GPL(zs_malloc);
->
->  void zs_free(struct zs_pool *pool, unsigned long obj)
->  {
-> -       struct link_free *link;
->         struct page *first_page, *f_page;
->         unsigned long f_objidx, f_offset;
->
-> @@ -988,14 +1093,8 @@ void zs_free(struct zs_pool *pool, unsigned long obj)
->
->         spin_lock(&class->lock);
->
-> -       /* Insert this object in containing zspage's freelist */
-> -       link = (struct link_free *)((unsigned char *)kmap_atomic(f_page)
-> -                                                       + f_offset);
-> -       link->next = first_page->freelist;
-> -       kunmap_atomic(link);
-> -       first_page->freelist = (void *)obj;
-> +       obj_free(obj, f_page, f_offset);
->
-> -       first_page->inuse--;
->         fullness = fix_fullness_group(pool, first_page);
->
->         if (fullness == ZS_EMPTY)
-> @@ -1008,6 +1107,45 @@ void zs_free(struct zs_pool *pool, unsigned long obj)
->  }
->  EXPORT_SYMBOL_GPL(zs_free);
->
-> +int zs_shrink(struct zs_pool *pool, size_t size)
-> +{
-> +       struct size_class *class;
-> +       struct page *first_page;
-> +       enum fullness_group fullness;
-> +       int ret;
-> +
-> +       if (!pool->ops || !pool->ops->evict)
-> +               return -EINVAL;
-> +
-> +       /* the class is returned locked */
-> +       class = get_class_to_shrink(pool, size);
-> +       if (!class)
-> +               return -ENOENT;
-> +
-> +       first_page = find_get_zspage(class);
-> +       if (!first_page) {
-> +               spin_unlock(&class->lock);
-> +               return -ENOENT;
-> +       }
-> +
-> +       ret = reclaim_zspage(pool, class, first_page);
-> +
-> +       if (ret) {
-> +               fullness = fix_fullness_group(pool, first_page);
-> +
-> +               if (fullness == ZS_EMPTY)
-> +                       class->pages_allocated -= class->pages_per_zspage;
-> +       }
-> +
-> +       spin_unlock(&class->lock);
-> +
-> +       if (!ret || fullness == ZS_EMPTY)
-> +               free_zspage(first_page);
-> +
-> +       return ret;
-> +}
-> +EXPORT_SYMBOL_GPL(zs_shrink);
-> +
->  /**
->   * zs_map_object - get address of allocated object from handle.
->   * @pool: pool from which the object was allocated
-> --
-> 1.8.3.1
->
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+-- 
+Chris Wilson, Intel Open Source Technology Centre
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
