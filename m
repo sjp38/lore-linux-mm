@@ -1,46 +1,72 @@
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Subject: Re: Dirty/Access bits vs. page content
-Date: Fri, 25 Apr 2014 12:41:40 +1000
-Message-ID: <1398393700.8437.22.camel@pasglop>
-References: <53558507.9050703@zytor.com>
-	 <CA+55aFxGm6J6N=4L7exLUFMr1_siNGHpK=wApd9GPCH1=63PPA@mail.gmail.com>
-	 <53559F48.8040808@intel.com>
-	 <CA+55aFwDtjA4Vp0yt0K5x6b6sAMtcn=61SEnOOs_En+3UXNpuA@mail.gmail.com>
-	 <CA+55aFzFxBDJ2rWo9DggdNsq-qBCr11OVXnm64jx04KMSVCBAw@mail.gmail.com>
-	 <20140422075459.GD11182@twins.programming.kicks-ass.net>
-	 <CA+55aFzM+NpE-EzJdDeYX=cqWRzkGv9o-vybDR=oFtDLMRK-mA@mail.gmail.com>
-	 <alpine.LSU.2.11.1404221847120.1759@eggly.anvils>
-	 <20140423184145.GH17824@quack.suse.cz>
-	 <CA+55aFwm9BT4ecXF7dD+OM0-+1Wz5vd4ts44hOkS8JdQ74SLZQ@mail.gmail.com>
-	 <20140424065133.GX26782@laptop.programming.kicks-ass.net>
-	 <alpine.LSU.2.11.1404241110160.2443@eggly.anvils>
-	 <CA+55aFwVgCshsVHNqr2EA1aFY18A2L17gNj0wtgHB39qLErTrg@mail.gmail.com>
-	 <alpine.LSU.2.11.1404241252520.3455@eggly.anvils>
-	 <CA+55aFyUyD_BASjhig9OPerYcMrUgYJUfRLA9JyB_x7anV1d7Q@mail.gmail.com>
-	 <1398389846.8437.6.camel@pasglop>
+From: Bruno =?UTF-8?B?UHLDqW1vbnQ=?= <bonbons@linux-vserver.org>
+Subject: On a 3.14.1 system dirty count goes negative
+Date: Sun, 27 Apr 2014 13:06:51 +0200
+Message-ID: <20140427130651.07839e7f@neptune.home>
 Mime-Version: 1.0
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Return-path: <linux-arch-owner@vger.kernel.org>
-In-Reply-To: <1398389846.8437.6.camel@pasglop>
-Sender: linux-arch-owner@vger.kernel.org
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Hugh Dickins <hughd@google.com>, Peter Zijlstra <peterz@infradead.org>, Jan Kara <jack@suse.cz>, Dave Hansen <dave.hansen@intel.com>, "H. Peter Anvin" <hpa@zytor.com>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Tony Luck <tony.luck@intel.com>
+Return-path: <linux-kernel-owner@vger.kernel.org>
+Sender: linux-kernel-owner@vger.kernel.org
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 List-Id: linux-mm.kvack.org
 
-On Fri, 2014-04-25 at 11:37 +1000, Benjamin Herrenschmidt wrote:
-> On Thu, 2014-04-24 at 16:46 -0700, Linus Torvalds wrote:
-> > - we do the TLB shootdown holding the page table lock (but that's not
-> > new - ptep_get_and_flush does the same
-> > 
-> 
-> The flip side is that we do a lot more IPIs for large invalidates,
-> since we drop the PTL on every page table page.
+On a 3.14 system (KVM virtual machine 512MB RAM, x86_64) I'm seeing
+/proc/meminfo/Dirty getting extreemly large (u64 going "nevative").
 
-Oh I missed that your patch was smart enough to only do that in the
-presence of non-anonymous dirty pages. That should take care of the
-common case of short lived programs, those should still fit in a
-single big batch.
+Note, this is not the first time I'm seeing it.
 
-Cheers,
-Ben.
+The system is not doing too much but has a rather small amount of
+memory.
+
+MemTotal:         508512 kB
+MemFree:           23076 kB
+MemAvailable:     282092 kB
+Buffers:               0 kB
+Cached:           194548 kB
+SwapCached:         1500 kB
+Active:           168060 kB
+Inactive:         203080 kB
+Active(anon):      82300 kB
+Inactive(anon):    95992 kB
+Active(file):      85760 kB
+Inactive(file):   107088 kB
+Unevictable:           0 kB
+Mlocked:               0 kB
+SwapTotal:        524284 kB
+SwapFree:         515820 kB
+Dirty:          18446744073709550284 kB
+Writeback:             4 kB
+AnonPages:        175600 kB
+Mapped:            28784 kB
+Shmem:              1700 kB
+Slab:              92244 kB
+SReclaimable:      76812 kB
+SUnreclaim:        15432 kB
+KernelStack:        1128 kB
+PageTables:         5588 kB
+NFS_Unstable:          0 kB
+Bounce:                0 kB
+WritebackTmp:          0 kB
+CommitLimit:      778540 kB
+Committed_AS:    1036592 kB
+VmallocTotal:   34359738367 kB
+VmallocUsed:        4440 kB
+VmallocChunk:   34359711231 kB
+AnonHugePages:         0 kB
+DirectMap4k:       10228 kB
+DirectMap2M:      514048 kB
+
+Some tasks end up being stuck in balance_dirty_pages_ratelimited()
+because of this.
+
+I have no idea what triggers Dirty to go mad but it happens.
+It might be facilitated by some heavier IO (rsync of some data)
+while rrdcached (rrdtool) is touching RRDs or writing its data log.
+rrdcached is the one getting stuck in balance_dirty_pages_ratelimited().
+
+Is there a way to get the system rolling again (making
+dirty pages temporarily unlimited) or a way to determine why/when
+Dirty goes negative and possibly get a hint on the trigger?
+
+Thanks,
+Bruno
