@@ -1,71 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f50.google.com (mail-wg0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id B1C526B0039
-	for <linux-mm@kvack.org>; Sun, 27 Apr 2014 00:13:52 -0400 (EDT)
-Received: by mail-wg0-f50.google.com with SMTP id k14so617374wgh.9
-        for <linux-mm@kvack.org>; Sat, 26 Apr 2014 21:13:52 -0700 (PDT)
-Received: from mail-wg0-x229.google.com (mail-wg0-x229.google.com [2a00:1450:400c:c00::229])
-        by mx.google.com with ESMTPS id jp8si5429083wjc.117.2014.04.26.21.13.50
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 045676B003C
+	for <linux-mm@kvack.org>; Sun, 27 Apr 2014 00:19:36 -0400 (EDT)
+Received: by mail-pd0-f182.google.com with SMTP id v10so227075pde.13
+        for <linux-mm@kvack.org>; Sat, 26 Apr 2014 21:19:36 -0700 (PDT)
+Received: from mail-pb0-x22f.google.com (mail-pb0-x22f.google.com [2607:f8b0:400e:c01::22f])
+        by mx.google.com with ESMTPS id eg2si7808637pac.305.2014.04.26.21.19.35
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sat, 26 Apr 2014 21:13:51 -0700 (PDT)
-Received: by mail-wg0-f41.google.com with SMTP id y10so2437754wgg.24
-        for <linux-mm@kvack.org>; Sat, 26 Apr 2014 21:13:50 -0700 (PDT)
+        Sat, 26 Apr 2014 21:19:35 -0700 (PDT)
+Received: by mail-pb0-f47.google.com with SMTP id up15so4599200pbc.34
+        for <linux-mm@kvack.org>; Sat, 26 Apr 2014 21:19:35 -0700 (PDT)
+Message-ID: <535C854C.1070105@gmail.com>
+Date: Sun, 27 Apr 2014 12:19:24 +0800
+From: Wang Sheng-Hui <shhuiw@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <CAL1ERfMPcfyUeACnmZ2QF5WxJUQ2PaKbtRzis8sPbQsjnvf_GQ@mail.gmail.com>
-References: <1397922764-1512-1-git-send-email-ddstreet@ieee.org>
- <1397922764-1512-3-git-send-email-ddstreet@ieee.org> <CAL1ERfMPcfyUeACnmZ2QF5WxJUQ2PaKbtRzis8sPbQsjnvf_GQ@mail.gmail.com>
-From: Dan Streetman <ddstreet@ieee.org>
-Date: Sun, 27 Apr 2014 00:13:30 -0400
-Message-ID: <CALZtONB4j=yd=cGBnkHy0+H0nyUCwG3PGb4K6XYCyRHA=mqt-g@mail.gmail.com>
-Subject: Re: [PATCH 2/4] mm: zpool: implement zsmalloc shrinking
-Content-Type: text/plain; charset=UTF-8
+Subject: [PATCH] mm: update the comment for high_memory
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Weijie Yang <weijie.yang.kh@gmail.com>
-Cc: Seth Jennings <sjennings@variantweb.net>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Andrew Morton <akpm@linux-foundation.org>, Bob Liu <bob.liu@oracle.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Weijie Yang <weijie.yang@samsung.com>, Johannes Weiner <hannes@cmpxchg.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, peterz@infradead.org, mingo@kernel.org, riel@redhat.com, mgorman@suse.de, hannes@cmpxchg.org, hughd@google.com, linux-mm@kvack.org
 
-On Sat, Apr 26, 2014 at 4:37 AM, Weijie Yang <weijie.yang.kh@gmail.com> wrote:
-> On Sat, Apr 19, 2014 at 11:52 PM, Dan Streetman <ddstreet@ieee.org> wrote:
->> Add zs_shrink() and helper functions to zsmalloc.  Update zsmalloc
->> zs_create_pool() creation function to include ops param that provides
->> an evict() function for use during shrinking.  Update helper function
->> fix_fullness_group() to always reinsert changed zspages even if the
->> fullness group did not change, so they are updated in the fullness
->> group lru.  Also update zram to use the new zsmalloc pool creation
->> function but pass NULL as the ops param, since zram does not use
->> pool shrinking.
->>
->
-> I only review the code without test, however, I think this patch is
-> not acceptable.
->
-> The biggest problem is it will call zswap_writeback_entry() under lock,
-> zswap_writeback_entry() may sleep, so it is a bug. see below
 
-thanks for catching that!
+The system variable is not used for x86 only now. Remove the
+"x86" strings.
 
->
-> The 3/4 patch has a lot of #ifdef, I don't think it's a good kind of
-> abstract way.
+Signed-off-by: Wang Sheng-Hui <shhuiw@gmail.com>
+---
+ mm/memory.c | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)
 
-it has the #ifdef's because there's no point in compiling in code to
-use zbud/zsmalloc if zbud/zsmalloc isn't compiled...what alternative
-to #ifdef's would you suggest?  Or are there just specific #ifdefs you
-suggest to remove?
+diff --git a/mm/memory.c b/mm/memory.c
+index 93e332d..1615a64 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -85,14 +85,13 @@ EXPORT_SYMBOL(mem_map);
+ #endif
 
->
-> What about just disable zswap reclaim when using zsmalloc?
-> There is a long way to optimize writeback reclaim(both zswap and zram) ,
-> Maybe a small and simple step forward is better.
+ /*
+- * A number of key systems in x86 including ioremap() rely on the assumption
+- * that high_memory defines the upper bound on direct map memory, then end
+- * of ZONE_NORMAL.  Under CONFIG_DISCONTIG this means that max_low_pfn and
++ * A number of key systems including ioremap() rely on the assumption that
++ * high_memory defines the upper bound on direct map memory, then end of
++ * ZONE_NORMAL.  Under CONFIG_DISCONTIG this means that max_low_pfn and
+  * highstart_pfn must be the same; there must be no gap between ZONE_NORMAL
+  * and ZONE_HIGHMEM.
+  */
+ void * high_memory;
+-
+ EXPORT_SYMBOL(high_memory);
 
-I think it's possible to just remove the zspage from the class while
-under lock, then unlock and reclaim it.  As long as there's a
-guarantee that zswap (or any zpool/zsmalloc reclaim user) doesn't
-map/access the handle after evict() completes successfully, that
-should work.  There does need to be some synchronization between
-zs_free() and each handle's eviction though, similar to zbud's
-under_reclaim flag.  I'll work on a v2 patch.
+ /*
+-- 
+1.8.3.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
