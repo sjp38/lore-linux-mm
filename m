@@ -1,81 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f48.google.com (mail-pb0-f48.google.com [209.85.160.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 156636B0035
-	for <linux-mm@kvack.org>; Sun, 27 Apr 2014 16:11:06 -0400 (EDT)
-Received: by mail-pb0-f48.google.com with SMTP id md12so5040179pbc.21
-        for <linux-mm@kvack.org>; Sun, 27 Apr 2014 13:11:05 -0700 (PDT)
-Received: from mail-pb0-x231.google.com (mail-pb0-x231.google.com [2607:f8b0:400e:c01::231])
-        by mx.google.com with ESMTPS id sf3si8990987pac.1.2014.04.27.13.11.04
+Received: from mail-we0-f174.google.com (mail-we0-f174.google.com [74.125.82.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 11D396B0035
+	for <linux-mm@kvack.org>; Mon, 28 Apr 2014 01:03:48 -0400 (EDT)
+Received: by mail-we0-f174.google.com with SMTP id w62so4515801wes.5
+        for <linux-mm@kvack.org>; Sun, 27 Apr 2014 22:03:48 -0700 (PDT)
+Received: from mail-wg0-x22c.google.com (mail-wg0-x22c.google.com [2a00:1450:400c:c00::22c])
+        by mx.google.com with ESMTPS id gi5si3019667wib.15.2014.04.27.22.03.47
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sun, 27 Apr 2014 13:11:04 -0700 (PDT)
-Received: by mail-pb0-f49.google.com with SMTP id rr13so4979669pbb.8
-        for <linux-mm@kvack.org>; Sun, 27 Apr 2014 13:11:04 -0700 (PDT)
-Date: Sun, 27 Apr 2014 13:09:54 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: Dirty/Access bits vs. page content
-In-Reply-To: <alpine.LSU.2.11.1404270459160.2688@eggly.anvils>
-Message-ID: <alpine.LSU.2.11.1404271220100.3724@eggly.anvils>
-References: <CA+55aFyUyD_BASjhig9OPerYcMrUgYJUfRLA9JyB_x7anV1d7Q@mail.gmail.com> <1398389846.8437.6.camel@pasglop> <1398393700.8437.22.camel@pasglop> <CA+55aFyO+-GehPiOAPy7-N0ejFrsNupWHG+j5hAs=R=RuPQtDg@mail.gmail.com> <5359CD7C.5020604@zytor.com>
- <CA+55aFzktDDr5zNh-7gDhXW6-7_BP_MvKHEoLi9=td6XvwzaUA@mail.gmail.com> <alpine.LSU.2.11.1404250414590.5198@eggly.anvils> <20140425135101.GE11096@twins.programming.kicks-ass.net> <alpine.LSU.2.11.1404251215280.5909@eggly.anvils> <20140426180711.GM26782@laptop.programming.kicks-ass.net>
- <20140427072034.GC1429@laptop.programming.kicks-ass.net> <alpine.LSU.2.11.1404270459160.2688@eggly.anvils>
+        Sun, 27 Apr 2014 22:03:47 -0700 (PDT)
+Received: by mail-wg0-f44.google.com with SMTP id m15so5886401wgh.27
+        for <linux-mm@kvack.org>; Sun, 27 Apr 2014 22:03:47 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20140427114600.GA21935@gmail.com>
+References: <535C854C.1070105@gmail.com>
+	<20140427114600.GA21935@gmail.com>
+Date: Mon, 28 Apr 2014 13:03:46 +0800
+Message-ID: <CAKXJSOEB4seBWOjGyQ2ZvCxPNcb5rBfHOQP-jH3p_kJCa8EAUQ@mail.gmail.com>
+Subject: Re: [PATCH] mm: update the comment for high_memory
+From: Wang Sheng-Hui <shhuiw@gmail.com>
+Content-Type: multipart/alternative; boundary=e89a8f5034f884a57e04f8133daa
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>
-Cc: "H. Peter Anvin" <hpa@zytor.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Jan Kara <jack@suse.cz>, Dave Hansen <dave.hansen@intel.com>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Tony Luck <tony.luck@intel.com>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, kirill.shutemov@linux.intel.com, peterz@infradead.org, riel@redhat.com, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org
 
-On Sun, 27 Apr 2014, Hugh Dickins wrote:
-> 
-> But woke with a panic attack that we have overlooked the question
-> of how page reclaim's page_mapped() checks are serialized.
-> Perhaps this concern will evaporate with the morning dew,
-> perhaps it will not...
+--e89a8f5034f884a57e04f8133daa
+Content-Type: text/plain; charset=UTF-8
 
-It was a real concern, but we happen to be rescued by the innocuous-
-looking is_page_cache_freeable() check at the beginning of pageout():
-which will deserve its own comment, but that can follow later.
+Got it, Ingo.
 
-My concern was with page reclaim's shrink_page_list() racing against
-munmap's or exit's (or madvise's) zap_pte_range() unmapping the page.
+Will figure out more fine comment.
 
-Once zap_pte_range() has cleared the pte from a vma, neither
-try_to_unmap() nor page_mkclean() will see that vma as containing
-the page, so neither will do its own flush TLB of the cpus involved,
-before proceeding to writepage.
 
-Linus's patch (serialializing with ptlock) or my patch (serializing
-with i_mmap_mutex) both almost fix that, but it seemed not entirely:
-because try_to_unmap() is only called when page_mapped(), and
-page_mkclean() quits early without taking locks when !page_mapped().
+2014-04-27 19:46 GMT+08:00 Ingo Molnar <mingo@kernel.org>:
 
-So in the interval when zap_pte_range() has brought page_mapcount()
-down to 0, but not yet flushed TLB on all mapping cpus, it looked as
-if we still had a problem - neither try_to_unmap() nor page_mkclean()
-would take the lock either of us rely upon for serialization.
+>
+> * Wang Sheng-Hui <shhuiw@gmail.com> wrote:
+>
+> >
+> > The system variable is not used for x86 only now. Remove the
+> > "x86" strings.
+> >
+> > Signed-off-by: Wang Sheng-Hui <shhuiw@gmail.com>
+> > ---
+> >  mm/memory.c | 7 +++----
+> >  1 file changed, 3 insertions(+), 4 deletions(-)
+> >
+> > diff --git a/mm/memory.c b/mm/memory.c
+> > index 93e332d..1615a64 100644
+> > --- a/mm/memory.c
+> > +++ b/mm/memory.c
+> > @@ -85,14 +85,13 @@ EXPORT_SYMBOL(mem_map);
+> >  #endif
+> >
+> >  /*
+> > - * A number of key systems in x86 including ioremap() rely on the
+> assumption
+> > - * that high_memory defines the upper bound on direct map memory, then
+> end
+> > - * of ZONE_NORMAL.  Under CONFIG_DISCONTIG this means that max_low_pfn
+> and
+> > + * A number of key systems including ioremap() rely on the assumption
+> that
+> > + * high_memory defines the upper bound on direct map memory, then end of
+> > + * ZONE_NORMAL.  Under CONFIG_DISCONTIG this means that max_low_pfn and
+> >   * highstart_pfn must be the same; there must be no gap between
+> ZONE_NORMAL
+> >   * and ZONE_HIGHMEM.
+>
+> ioremap() is not a 'key system', so if we are touching it then the
+> comment should be fixed in other ways as well.
+>
+> Thanks,
+>
+>         Ingo
+>
 
-But pageout()'s preliminary is_page_cache_freeable() check makes
-it safe in the end: although page_mapcount() has gone down to 0,
-page_count() remains raised until the free_pages_and_swap_cache()
-after the TLB flush.
+--e89a8f5034f884a57e04f8133daa
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 
-So I now believe we're safe after all with either patch, and happy
-for Linus to go ahead with his.
+<div dir=3D"ltr"><div>Got it, Ingo.<br><br></div>Will figure out more fine =
+comment.<br></div><div class=3D"gmail_extra"><br><br><div class=3D"gmail_qu=
+ote">2014-04-27 19:46 GMT+08:00 Ingo Molnar <span dir=3D"ltr">&lt;<a href=
+=3D"mailto:mingo@kernel.org" target=3D"_blank">mingo@kernel.org</a>&gt;</sp=
+an>:<br>
+<blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;border-left:1p=
+x #ccc solid;padding-left:1ex"><div class=3D"HOEnZb"><div class=3D"h5"><br>
+* Wang Sheng-Hui &lt;<a href=3D"mailto:shhuiw@gmail.com">shhuiw@gmail.com</=
+a>&gt; wrote:<br>
+<br>
+&gt;<br>
+&gt; The system variable is not used for x86 only now. Remove the<br>
+&gt; &quot;x86&quot; strings.<br>
+&gt;<br>
+&gt; Signed-off-by: Wang Sheng-Hui &lt;<a href=3D"mailto:shhuiw@gmail.com">=
+shhuiw@gmail.com</a>&gt;<br>
+&gt; ---<br>
+&gt; =C2=A0mm/memory.c | 7 +++----<br>
+&gt; =C2=A01 file changed, 3 insertions(+), 4 deletions(-)<br>
+&gt;<br>
+&gt; diff --git a/mm/memory.c b/mm/memory.c<br>
+&gt; index 93e332d..1615a64 100644<br>
+&gt; --- a/mm/memory.c<br>
+&gt; +++ b/mm/memory.c<br>
+&gt; @@ -85,14 +85,13 @@ EXPORT_SYMBOL(mem_map);<br>
+&gt; =C2=A0#endif<br>
+&gt;<br>
+&gt; =C2=A0/*<br>
+&gt; - * A number of key systems in x86 including ioremap() rely on the ass=
+umption<br>
+&gt; - * that high_memory defines the upper bound on direct map memory, the=
+n end<br>
+&gt; - * of ZONE_NORMAL. =C2=A0Under CONFIG_DISCONTIG this means that max_l=
+ow_pfn and<br>
+&gt; + * A number of key systems including ioremap() rely on the assumption=
+ that<br>
+&gt; + * high_memory defines the upper bound on direct map memory, then end=
+ of<br>
+&gt; + * ZONE_NORMAL. =C2=A0Under CONFIG_DISCONTIG this means that max_low_=
+pfn and<br>
+&gt; =C2=A0 * highstart_pfn must be the same; there must be no gap between =
+ZONE_NORMAL<br>
+&gt; =C2=A0 * and ZONE_HIGHMEM.<br>
+<br>
+</div></div>ioremap() is not a &#39;key system&#39;, so if we are touching =
+it then the<br>
+comment should be fixed in other ways as well.<br>
+<br>
+Thanks,<br>
+<br>
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 Ingo<br>
+</blockquote></div><br></div>
 
-Peter, returning at last to your question of whether we could exempt
-shmem from the added overhead of either patch.  Until just now I
-thought not, because of the possibility that the shmem_writepage()
-could occur while one of the mm's cpus remote from zap_pte_range()
-cpu was still modifying the page.  But now that I see the role
-played by is_page_cache_freeable(), and of course the zapping end
-has never dropped its reference on the page before the TLB flush,
-however late that occurred, hmmm, maybe yes, shmem can be exempted.
-
-But I'd prefer to dwell on that a bit longer: we can add that as
-an optimization later if it holds up to scrutiny.
-
-Hugh
+--e89a8f5034f884a57e04f8133daa--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
