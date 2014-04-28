@@ -1,143 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f46.google.com (mail-ee0-f46.google.com [74.125.83.46])
-	by kanga.kvack.org (Postfix) with ESMTP id B5D116B0035
-	for <linux-mm@kvack.org>; Mon, 28 Apr 2014 05:16:32 -0400 (EDT)
-Received: by mail-ee0-f46.google.com with SMTP id t10so4543973eei.5
-        for <linux-mm@kvack.org>; Mon, 28 Apr 2014 02:16:32 -0700 (PDT)
-Received: from relay1.mentorg.com (relay1.mentorg.com. [192.94.38.131])
-        by mx.google.com with ESMTPS id 45si22253248eeh.153.2014.04.28.02.09.15
+Received: from mail-we0-f170.google.com (mail-we0-f170.google.com [74.125.82.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 3E2A86B0035
+	for <linux-mm@kvack.org>; Mon, 28 Apr 2014 05:25:51 -0400 (EDT)
+Received: by mail-we0-f170.google.com with SMTP id w61so6143324wes.29
+        for <linux-mm@kvack.org>; Mon, 28 Apr 2014 02:25:50 -0700 (PDT)
+Received: from casper.infradead.org (casper.infradead.org. [2001:770:15f::2])
+        by mx.google.com with ESMTPS id xw5si2679559wjc.12.2014.04.28.02.25.49
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 28 Apr 2014 02:09:45 -0700 (PDT)
-From: Thomas Schwinge <thomas@codesourcery.com>
-Subject: Re: radeon: screen garbled after page allocator change, was: Re: [patch v2 3/3] mm: page_alloc: fair zone allocator policy
-In-Reply-To: <87sioxq3rx.fsf@schwinge.name>
-References: <1375457846-21521-1-git-send-email-hannes@cmpxchg.org> <1375457846-21521-4-git-send-email-hannes@cmpxchg.org> <87r45fajun.fsf@schwinge.name> <20140424133722.GD4107@cmpxchg.org> <20140425214746.GC5915@gmail.com> <20140425215055.GD5915@gmail.com> <20140425230321.GG5915@gmail.com> <87sioxq3rx.fsf@schwinge.name>
-Date: Mon, 28 Apr 2014 11:09:00 +0200
-Message-ID: <87k3a9q0r7.fsf@schwinge.name>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 28 Apr 2014 02:25:49 -0700 (PDT)
+Date: Mon, 28 Apr 2014 11:25:40 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: Dirty/Access bits vs. page content
+Message-ID: <20140428092540.GO11096@twins.programming.kicks-ass.net>
+References: <CA+55aFyO+-GehPiOAPy7-N0ejFrsNupWHG+j5hAs=R=RuPQtDg@mail.gmail.com>
+ <5359CD7C.5020604@zytor.com>
+ <CA+55aFzktDDr5zNh-7gDhXW6-7_BP_MvKHEoLi9=td6XvwzaUA@mail.gmail.com>
+ <alpine.LSU.2.11.1404250414590.5198@eggly.anvils>
+ <20140425135101.GE11096@twins.programming.kicks-ass.net>
+ <alpine.LSU.2.11.1404251215280.5909@eggly.anvils>
+ <20140426180711.GM26782@laptop.programming.kicks-ass.net>
+ <20140427072034.GC1429@laptop.programming.kicks-ass.net>
+ <alpine.LSU.2.11.1404270459160.2688@eggly.anvils>
+ <alpine.LSU.2.11.1404271220100.3724@eggly.anvils>
 MIME-Version: 1.0
-Content-Type: multipart/signed; boundary="=-=-="; micalg=pgp-sha1;
-	protocol="application/pgp-signature"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.11.1404271220100.3724@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <j.glisse@gmail.com>
-Cc: Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@surriel.com>, Andrea
- Arcangeli <aarcange@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Alex Deucher <alexander.deucher@amd.com>, Christian =?utf-8?Q?K=C3=B6nig?= <christian.koenig@amd.com>, dri-devel@lists.freedesktop.org, Johannes
- Weiner <hannes@cmpxchg.org>
+To: Hugh Dickins <hughd@google.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, "H. Peter Anvin" <hpa@zytor.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Jan Kara <jack@suse.cz>, Dave Hansen <dave.hansen@intel.com>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Tony Luck <tony.luck@intel.com>
 
---=-=-=
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+On Sun, Apr 27, 2014 at 01:09:54PM -0700, Hugh Dickins wrote:
+> On Sun, 27 Apr 2014, Hugh Dickins wrote:
+> > 
+> > But woke with a panic attack that we have overlooked the question
+> > of how page reclaim's page_mapped() checks are serialized.
+> > Perhaps this concern will evaporate with the morning dew,
+> > perhaps it will not...
+> 
+> It was a real concern, but we happen to be rescued by the innocuous-
+> looking is_page_cache_freeable() check at the beginning of pageout():
+> which will deserve its own comment, but that can follow later.
+> 
+> My concern was with page reclaim's shrink_page_list() racing against
+> munmap's or exit's (or madvise's) zap_pte_range() unmapping the page.
+> 
+> Once zap_pte_range() has cleared the pte from a vma, neither
+> try_to_unmap() nor page_mkclean() will see that vma as containing
+> the page, so neither will do its own flush TLB of the cpus involved,
+> before proceeding to writepage.
+> 
+> Linus's patch (serialializing with ptlock) or my patch (serializing
+> with i_mmap_mutex) both almost fix that, but it seemed not entirely:
+> because try_to_unmap() is only called when page_mapped(), and
+> page_mkclean() quits early without taking locks when !page_mapped().
 
-Hi!
+Argh!! very good spotting that.
 
-On Mon, 28 Apr 2014 10:03:46 +0200, I wrote:
-> On Fri, 25 Apr 2014 19:03:22 -0400, Jerome Glisse <j.glisse@gmail.com> wr=
-ote:
-> > On Fri, Apr 25, 2014 at 05:50:57PM -0400, Jerome Glisse wrote:
-> > > On Fri, Apr 25, 2014 at 05:47:48PM -0400, Jerome Glisse wrote:
-> > > > On Thu, Apr 24, 2014 at 09:37:22AM -0400, Johannes Weiner wrote:
-> > > > > On Wed, Apr 02, 2014 at 04:26:08PM +0200, Thomas Schwinge wrote:
-> > > > > > On Fri,  2 Aug 2013 11:37:26 -0400, Johannes Weiner <hannes@cmp=
-xchg.org> wrote:
-> > > > > > > Each zone that holds userspace pages of one workload must be =
-aged at a
-> > > > > > > speed proportional to the zone size.  [...]
-> > > > > >=20
-> > > > > > > Fix this with a very simple round robin allocator.  [...]
-> > > > > >=20
-> > > > > > This patch, adding NR_ALLOC_BATCH, eventually landed in mainlin=
-e as
-> > > > > > commit 81c0a2bb515fd4daae8cab64352877480792b515 (2013-09-11).
-> > > > > >=20
-> > > > > > I recently upgraded a Debian testing system from a 3.11 kernel =
-to 3.12,
-> > > > > > and it started to exhibit "strange" issues, which I then bisect=
-ed to this
-> > > > > > patch.  I'm not saying that the patch is faulty, as it seems to=
- be
-> > > > > > working fine for everyone else, so I rather assume that somethi=
-ng in a
-> > > > > > (vastly?) different corner of the kernel (or my hardware?) is b=
-roken.
-> > > > > > ;-)
-> > > > > >=20
-> > > > > > The issue is that when X.org/lightdm starts up, there are "garb=
-led"
-> > > > > > section on the screen, for example, rectangular boxes that are =
-just black
-> > > > > > or otherwise "distorted", and/or sets of glyphs (corresponding =
-to a set
-> > > > > > of characters; but not all characters) are displayed as rectang=
-ular gray
-> > > > > > or black boxes, and/or icons in a GNOME session are not display=
-ed
-> > > > > > properly, and so on.  (Can take a snapshot if that helps?)  Swi=
-tching to
-> > > > > > a Linux console, I can use that one fine.  Switching back to X,=
- in the
-> > > > > > majority of all cases, the screen will be completely black, but=
- with the
-> > > > > > mouse cursor still rendered properly (done in hardware, I assum=
-e).
-> > > > > >=20
-> > > > > > Reverting commit 81c0a2bb515fd4daae8cab64352877480792b515, for =
-example on
-> > > > > > top of v3.12, and everything is back to normal.  The problem al=
-so
-> > > > > > persists with a v3.14 kernel that I just built.
+> So in the interval when zap_pte_range() has brought page_mapcount()
+> down to 0, but not yet flushed TLB on all mapping cpus, it looked as
+> if we still had a problem - neither try_to_unmap() nor page_mkclean()
+> would take the lock either of us rely upon for serialization.
+> 
+> But pageout()'s preliminary is_page_cache_freeable() check makes
+> it safe in the end: although page_mapcount() has gone down to 0,
+> page_count() remains raised until the free_pages_and_swap_cache()
+> after the TLB flush.
+> 
+> So I now believe we're safe after all with either patch, and happy
+> for Linus to go ahead with his.
 
-> > > > My guess is that the pcie bridge can only remap dma page with 32bit=
- dma
-> > > > mask while the gpu is fine with 40bit dma mask. I always thought th=
-at the
-> > > > pcie/pci code did take care of such thing for us.
-> > >=20
-> > > Forgot to attach patch to test my theory. Does the attached patch fix
-> > > the issue ?
->=20
-> Unfortunately it does not.  :-/
+OK, so I'm just not seeing that atm. Will have another peek later,
+hopefully when more fully awake.
 
-Ha, the following seems to do it: additionally to dma_bits (your patch),
-I'm also overriding need_dma32 for later use in
-drivers/gpu/drm/ttm/ttm_bo.c:ttm_bo_add_ttm, I assume.  With that hack
-applied, I have now rebooted a v3.14 build a few times, and so far things
-"look" fine.
+> Peter, returning at last to your question of whether we could exempt
+> shmem from the added overhead of either patch.  Until just now I
+> thought not, because of the possibility that the shmem_writepage()
+> could occur while one of the mm's cpus remote from zap_pte_range()
+> cpu was still modifying the page.  But now that I see the role
+> played by is_page_cache_freeable(), and of course the zapping end
+> has never dropped its reference on the page before the TLB flush,
+> however late that occurred, hmmm, maybe yes, shmem can be exempted.
+> 
+> But I'd prefer to dwell on that a bit longer: we can add that as
+> an optimization later if it holds up to scrutiny.
 
-diff --git drivers/gpu/drm/radeon/radeon_device.c drivers/gpu/drm/radeon/ra=
-deon_device.c
-index 044bc98..90baf2f 100644
-=2D-- drivers/gpu/drm/radeon/radeon_device.c
-+++ drivers/gpu/drm/radeon/radeon_device.c
-@@ -1243,6 +1243,8 @@ int radeon_device_init(struct radeon_device *rdev,
- 		rdev->need_dma32 =3D true;
-=20
- 	dma_bits =3D rdev->need_dma32 ? 32 : 40;
-+	dma_bits =3D 32;
-+	rdev->need_dma32 =3D true;
- 	r =3D pci_set_dma_mask(rdev->pdev, DMA_BIT_MASK(dma_bits));
- 	if (r) {
- 		rdev->need_dma32 =3D true;
-
-
-Gr=C3=BC=C3=9Fe,
- Thomas
-
---=-=-=
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.12 (GNU/Linux)
-
-iQEcBAEBAgAGBQJTXhqsAAoJENuKOtuXzphJGMIH/RCTzpPcqXgxlpnyXYYGY1Hs
-B9HYAtTZZS2QN0zQUo02ZG2CPqSUCNSyVEKvSR3Q9XcQw0y8SXVxc/nY3UxaJ1Bc
-Ul9eRavAZJg1XOjJz/oqAonI6lQdz4uDX8xD7asqs7rKzlpb35dg4cSwXvvz1zdi
-cD9xxVkaQRec0uQLEenToRGfB0LGa1u7bg3JPyRg1vtSOX6AGs2KA26CABLThxWm
-7uU3pl05vtgeqJo9f0aveN1wXrkHMML1QxCOYLmZnYwcY20BwUPgon+V22f5Ioin
-ZTQXSqAo2S69RN7eez8el6hO0gYofPgNzsTjJglU66FSYqAXKTsPd+nIVknmNog=
-=coWV
------END PGP SIGNATURE-----
---=-=-=--
+For sure.. No need to rush that. And if a (performance) regression shows
+up in the meantime, we immediately have a good test case too :-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
