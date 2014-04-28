@@ -1,40 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f181.google.com (mail-ie0-f181.google.com [209.85.223.181])
-	by kanga.kvack.org (Postfix) with ESMTP id AD2A56B003A
-	for <linux-mm@kvack.org>; Mon, 28 Apr 2014 11:55:28 -0400 (EDT)
-Received: by mail-ie0-f181.google.com with SMTP id y20so4646152ier.26
-        for <linux-mm@kvack.org>; Mon, 28 Apr 2014 08:55:28 -0700 (PDT)
-Received: from mail-ie0-x236.google.com (mail-ie0-x236.google.com [2607:f8b0:4001:c03::236])
-        by mx.google.com with ESMTPS id gw5si13033573icb.202.2014.04.28.08.55.27
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
+	by kanga.kvack.org (Postfix) with ESMTP id EFEB96B003B
+	for <linux-mm@kvack.org>; Mon, 28 Apr 2014 11:55:48 -0400 (EDT)
+Received: by mail-wi0-f174.google.com with SMTP id d1so5964431wiv.7
+        for <linux-mm@kvack.org>; Mon, 28 Apr 2014 08:55:48 -0700 (PDT)
+Received: from casper.infradead.org (casper.infradead.org. [2001:770:15f::2])
+        by mx.google.com with ESMTPS id g3si3944378wiy.17.2014.04.28.08.55.46
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 28 Apr 2014 08:55:27 -0700 (PDT)
-Received: by mail-ie0-f182.google.com with SMTP id tp5so3386094ieb.41
-        for <linux-mm@kvack.org>; Mon, 28 Apr 2014 08:55:27 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20140428150034.GC7839@dhcp22.suse.cz>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 28 Apr 2014 08:55:46 -0700 (PDT)
+Date: Mon, 28 Apr 2014 17:55:40 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH RFC 2/2] mm: introdule compound_head_by_tail()
+Message-ID: <20140428155540.GJ27561@twins.programming.kicks-ass.net>
 References: <c232030f96bdc60aef967b0d350208e74dc7f57d.1398605516.git.nasa4836@gmail.com>
- <20140428150034.GC7839@dhcp22.suse.cz>
-From: Jianyu Zhan <nasa4836@gmail.com>
-Date: Mon, 28 Apr 2014 23:54:47 +0800
-Message-ID: <CAHz2CGUObc=5g2TspQK-JX0GU9X3HJQ9s4t1ApfNR7qbdH71fw@mail.gmail.com>
-Subject: Re: [PATCH RFC 1/2] mm/swap.c: split put_compound_page function
-Content-Type: text/plain; charset=UTF-8
+ <2c87e00d633153ba7b710bab12710cc3a58704dd.1398605516.git.nasa4836@gmail.com>
+ <20140428145440.GB7839@dhcp22.suse.cz>
+ <CAHz2CGUueeXR2UdLXBRihVN3R8qEUR8wWhpxYjA6pu3ONO0cJA@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAHz2CGUueeXR2UdLXBRihVN3R8qEUR8wWhpxYjA6pu3ONO0cJA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Mel Gorman <mgorman@suse.de>, khalid.aziz@oracle.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Jianyu Zhan <nasa4836@gmail.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, kirill.shutemov@linux.intel.com, Rik van Riel <riel@redhat.com>, Jiang Liu <liuj97@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, sasha.levin@oracle.com, liwanp@linux.vnet.ibm.com, khalid.aziz@oracle.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, Apr 28, 2014 at 11:00 PM, Michal Hocko <mhocko@suse.cz> wrote:
-> This is a big change and really hard to review to be honest. Maybe a
-> split up would make it easier to follow.
+On Mon, Apr 28, 2014 at 11:53:28PM +0800, Jianyu Zhan wrote:
+> Actually, I checked the assembled code, the compiler is _not_
+> so smart to recognize this case. It just does optimization as
+> the hint unlikely() told it.
 
-Ok,  actually it is quite simple, but the diff looks messy, I will try
-to split up
-this patch to several phases.
-
-Thanks,
-Jianyu Zhan
+What version, and why didn't your changelog include this useful
+information?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
