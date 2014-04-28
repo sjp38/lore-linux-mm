@@ -1,140 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f45.google.com (mail-ee0-f45.google.com [74.125.83.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 5131D6B0035
-	for <linux-mm@kvack.org>; Mon, 28 Apr 2014 15:51:28 -0400 (EDT)
-Received: by mail-ee0-f45.google.com with SMTP id d17so5231600eek.32
-        for <linux-mm@kvack.org>; Mon, 28 Apr 2014 12:51:27 -0700 (PDT)
-Received: from mout.gmx.net (mout.gmx.net. [212.227.17.22])
-        by mx.google.com with ESMTPS id t3si24306401eeg.121.2014.04.28.12.51.26
+Received: from mail-ve0-f177.google.com (mail-ve0-f177.google.com [209.85.128.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 21C306B0035
+	for <linux-mm@kvack.org>; Mon, 28 Apr 2014 17:20:50 -0400 (EDT)
+Received: by mail-ve0-f177.google.com with SMTP id sa20so8658748veb.8
+        for <linux-mm@kvack.org>; Mon, 28 Apr 2014 14:20:49 -0700 (PDT)
+Received: from mail-vc0-x234.google.com (mail-vc0-x234.google.com [2607:f8b0:400c:c03::234])
+        by mx.google.com with ESMTPS id t5si3982788vcp.40.2014.04.28.14.20.49
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Apr 2014 12:51:26 -0700 (PDT)
-Message-ID: <535EB138.3090202@gmx.de>
-Date: Mon, 28 Apr 2014 21:51:20 +0200
-From: Helge Deller <deller@gmx.de>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 28 Apr 2014 14:20:49 -0700 (PDT)
+Received: by mail-vc0-f180.google.com with SMTP id hq16so6518426vcb.11
+        for <linux-mm@kvack.org>; Mon, 28 Apr 2014 14:20:49 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [RFC,PATCH] mm,parisc: keep track of last mmap'ed address
-References: <20140417204545.GA4567@ls3530.fritz.box>
-In-Reply-To: <20140417204545.GA4567@ls3530.fritz.box>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <535EA976.1080402@linux.vnet.ibm.com>
+References: <535EA976.1080402@linux.vnet.ibm.com>
+Date: Mon, 28 Apr 2014 14:20:49 -0700
+Message-ID: <CA+55aFxgW0fS=6xJsKP-WiOUw=aiCEvydj+pc+zDF8Pvn4v+Jw@mail.gmail.com>
+Subject: Re: [BUG] kernel BUG at mm/vmacache.c:85!
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-parisc@vger.kernel.org, James Bottomley <James.Bottomley@HansenPartnership.com>
+To: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
+Cc: Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Davidlohr Bueso <davidlohr@hp.com>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Hugh Dickins <hughd@google.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 
-No objections?
-Then I assume this is OK...
+On Mon, Apr 28, 2014 at 12:18 PM, Srivatsa S. Bhat
+<srivatsa.bhat@linux.vnet.ibm.com> wrote:
+>
+> I hit this during boot on v3.15-rc3, just once so far.
+> Subsequent reboots went fine, and a few quick runs of multi-
+> threaded ebizzy also didn't recreate the problem.
+>
+> The kernel I was running was v3.15-rc3 + some totally
+> unrelated cpufreq patches.
+>
+> The BUG_ON triggered from the following code:
+>
+>  74 struct vm_area_struct *vmacache_find(struct mm_struct *mm, unsigned long addr)
+>  84                 if (vma && vma->vm_start <= addr && vma->vm_end > addr) {
+>  85                         BUG_ON(vma->vm_mm != mm);
+>  86                         return vma;
+>  87                 }
 
-Helge
+Hmm. Andrew, Davidlohr, I thought we agreed that he non-current mm
+case can actually happen, and that the BUG_ON() was wrong and we
+should compare the mm pointer. But the patch that got merged obviously
+has the BUG_ON(), so my memory must be wrong.
 
-On 04/17/2014 10:45 PM, Helge Deller wrote:
-> Would the following patch be acceptable?
-> It adds an additional field to struct address_space which will most likely only
-> be used by the parisc arch.
-> 
-> If it's acceptable, I would like to push it through the parisc tree, if not,
-> I'm of course open to other ideas too.
-> 
-> Thanks,
-> Helge
-> 
-> PATCH:
-> [RFC,PATCH] mm,parisc: keep track of last mmap'ed address
-> 
-> Because of parisc's cache aliasing constraints we need to map shared pages at a
-> multiple of 4MB while most other architectures can map files at any multiple of
-> PAGE_SIZE. In the past this constraint was ensured by calculating a virtual
-> offset into this 4MB region which is based on the physical address of the
-> kernel mapping variable (right-shift value of filp->f_mapping by 8 bits).
-> Since we only have a 32bit userspace (even when running on a 64bit kernel) this
-> often leads to large gaps in the maps of the userspace processes and to out of
-> memory situations even if physical memory was still free.  Of course I did
-> played with other variants of shifting the f_mapping value to find better
-> offsets but this didn't helped either.
-> 
-> This patch chooses a different approach.
-> It adds the additional field i_mmap_lastmmap to the address_space struct to
-> keep track of the last mapping of a shared file. With this bookkeeping it's
-> possible for the parisc memory allocator to 
-> a) choose a new mapping offset if the file hasn't been mapped yet, and
-> b) take the last-used mapping if it was already mapped by another process.
-> 
-> Overall this approach leads to a more condensed memory usage on parisc because
-> the shared files will now be mapped much closer to each other. This is e.g.
-> visible with shared libraries which are now not any longer cluttered around
-> in the userspace process but close to each other at the top of the userspace
-> memory.
-> 
-> Signed-off-by: Helge Deller <deller@gmx.de>
-> 
-> diff --git a/include/linux/fs.h b/include/linux/fs.h
-> index 81048f9..f757a5c 100644
-> --- a/include/linux/fs.h
-> +++ b/include/linux/fs.h
-> @@ -416,6 +416,9 @@ struct address_space {
->  	unsigned int		i_mmap_writable;/* count VM_SHARED mappings */
->  	struct rb_root		i_mmap;		/* tree of private and shared mappings */
->  	struct list_head	i_mmap_nonlinear;/*list VM_NONLINEAR mappings */
-> +#ifdef CONFIG_MMAP_TRACKING
-> +	unsigned long		i_mmap_lastmmap; /* address of last mmap */
-> +#endif
->  	struct mutex		i_mmap_mutex;	/* protect tree, count, list */
->  	/* Protected by tree_lock together with the radix tree */
->  	unsigned long		nrpages;	/* number of total pages */
-> diff --git a/mm/mmap.c b/mm/mmap.c
-> index b1202cf..e2659c3 100644
-> --- a/mm/mmap.c
-> +++ b/mm/mmap.c
-> @@ -212,8 +212,13 @@ static void __remove_shared_vm_struct(struct vm_area_struct *vma,
->  {
->  	if (vma->vm_flags & VM_DENYWRITE)
->  		atomic_inc(&file_inode(file)->i_writecount);
-> -	if (vma->vm_flags & VM_SHARED)
-> +	if (vma->vm_flags & VM_SHARED) {
->  		mapping->i_mmap_writable--;
-> +#ifdef CONFIG_MMAP_TRACKING
-> +		if (mapping->i_mmap_writable == 0)
-> +			mapping->i_mmap_lastmmap = 0;
-> +#endif
-> +	}
->  
->  	flush_dcache_mmap_lock(mapping);
->  	if (unlikely(vma->vm_flags & VM_NONLINEAR))
-> diff --git a/arch/parisc/Kconfig b/arch/parisc/Kconfig
-> index bb2a8ec..9518361 100644
-> --- a/arch/parisc/Kconfig
-> +++ b/arch/parisc/Kconfig
-> @@ -38,6 +38,9 @@ config PARISC
->  config MMU
->  	def_bool y
->  
-> +config MMAP_TRACKING
-> +	def_bool y
-> +
->  config STACK_GROWSUP
->  	def_bool y
->  
-> diff --git a/arch/parisc/kernel/sys_parisc.c b/arch/parisc/kernel/sys_parisc.c
-> index 31ffa9b..7d8cbd1 100644
-> --- a/arch/parisc/kernel/sys_parisc.c
-> +++ b/arch/parisc/kernel/sys_parisc.c
-> @@ -36,12 +36,12 @@
->  #include <linux/personality.h>
->  #include <linux/random.h>
->  
-> -/* we construct an artificial offset for the mapping based on the physical
-> - * address of the kernel mapping variable */
-> +/* the address_space struct holds a field i_mmap_lastmmap with the last mapping
-> + * of this file for us */
->  #define GET_LAST_MMAP(filp)		\
-> -	(filp ? ((unsigned long) filp->f_mapping) >> 8 : 0UL)
-> +	(filp ? filp->f_mapping->i_mmap_lastmmap : 0UL)
->  #define SET_LAST_MMAP(filp, val)	\
-> -	 { /* nothing */ }
-> +	{ if (filp) filp->f_mapping->i_mmap_lastmmap = (val); }
->  
->  static int get_offset(unsigned int last_mmap)
->  {
+Regardless, I absolutely *detest* random BUG_ON() calls that turn a
+debuggability problem totally unnecessarily into a hard failure, so
+that BUG_ON() really needs to go away. I *know* I suggested using
+WARN_ON_ONCE() when the discussion was about whether the condition
+could happen or not, and the fact that it got turned into a BUG_ON()
+is a damn shame.
+
+Andrew, I think I blame you for that particular BUG_ON() addition,
+because I don't see it in the original patch. There is *no* excuse for
+a BUG_ON(), when a
+
+   if (WARN_ON_ONCE(vma->vm_mm != mm))
+      return NULL;
+
+would have worked equally well without killing the box and making
+things harder to debug.
+
+This BUG_ON() insanity needs to stop. The thing is a f*cking menace,
+and it's not the first time we hit a BUG_ON() that damn well shouldn't
+have been a BUG_ON() to begin with.
+
+That said, the bug does seem to be that some path doesn't invalidate
+the vmacache sufficiently, or something inserts a vmacache entry into
+the current process when looking up a remote process or whatever.
+Davidlohr, ideas?
+
+              Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
