@@ -1,77 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f174.google.com (mail-ie0-f174.google.com [209.85.223.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A04C6B0044
-	for <linux-mm@kvack.org>; Mon, 28 Apr 2014 12:24:23 -0400 (EDT)
-Received: by mail-ie0-f174.google.com with SMTP id ar20so1707890iec.5
-        for <linux-mm@kvack.org>; Mon, 28 Apr 2014 09:24:22 -0700 (PDT)
-Received: from mail-ie0-x232.google.com (mail-ie0-x232.google.com [2607:f8b0:4001:c03::232])
-        by mx.google.com with ESMTPS id gw5si13108700icb.184.2014.04.28.09.24.22
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 28 Apr 2014 09:24:22 -0700 (PDT)
-Received: by mail-ie0-f178.google.com with SMTP id lx4so6846504iec.37
-        for <linux-mm@kvack.org>; Mon, 28 Apr 2014 09:24:22 -0700 (PDT)
+Received: from mail-pb0-f53.google.com (mail-pb0-f53.google.com [209.85.160.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F9E66B0037
+	for <linux-mm@kvack.org>; Mon, 28 Apr 2014 12:39:00 -0400 (EDT)
+Received: by mail-pb0-f53.google.com with SMTP id jt11so4328181pbb.12
+        for <linux-mm@kvack.org>; Mon, 28 Apr 2014 09:39:00 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id rb6si10827228pab.67.2014.04.28.09.38.59
+        for <linux-mm@kvack.org>;
+        Mon, 28 Apr 2014 09:38:59 -0700 (PDT)
+Message-ID: <535E8411.3050304@intel.com>
+Date: Mon, 28 Apr 2014 09:38:41 -0700
+From: Dave Hansen <dave.hansen@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20140428155540.GJ27561@twins.programming.kicks-ass.net>
-References: <c232030f96bdc60aef967b0d350208e74dc7f57d.1398605516.git.nasa4836@gmail.com>
- <2c87e00d633153ba7b710bab12710cc3a58704dd.1398605516.git.nasa4836@gmail.com>
- <20140428145440.GB7839@dhcp22.suse.cz> <CAHz2CGUueeXR2UdLXBRihVN3R8qEUR8wWhpxYjA6pu3ONO0cJA@mail.gmail.com>
- <20140428155540.GJ27561@twins.programming.kicks-ass.net>
-From: Jianyu Zhan <nasa4836@gmail.com>
-Date: Tue, 29 Apr 2014 00:23:41 +0800
-Message-ID: <CAHz2CGWJjU5U=pDuyzX=L+gev4cpNxkjCnVAvRpY=vO35tBDLg@mail.gmail.com>
-Subject: Re: [PATCH RFC 2/2] mm: introdule compound_head_by_tail()
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH] mm: Throttle shrinkers harder
+References: <1397113506-9177-1-git-send-email-chris@chris-wilson.co.uk> <20140418121416.c022eca055da1b6d81b2cf1b@linux-foundation.org> <20140422193041.GD10722@phenom.ffwll.local> <53582D3C.1010509@intel.com> <20140424055836.GB31221@nuc-i3427.alporthouse.com> <53592C16.8000906@intel.com> <20140424153920.GM31221@nuc-i3427.alporthouse.com> <535991C3.9080808@intel.com> <20140425072325.GO31221@nuc-i3427.alporthouse.com> <535A9901.6090607@intel.com> <20140426131026.GA4418@nuc-i3427.alporthouse.com>
+In-Reply-To: <20140426131026.GA4418@nuc-i3427.alporthouse.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, kirill.shutemov@linux.intel.com, Rik van Riel <riel@redhat.com>, Jiang Liu <liuj97@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, sasha.levin@oracle.com, liwanp@linux.vnet.ibm.com, khalid.aziz@oracle.com, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Chris Wilson <chris@chris-wilson.co.uk>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, intel-gfx@lists.freedesktop.org, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Dave Chinner <dchinner@redhat.com>, Glauber Costa <glommer@openvz.org>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>
 
-On Mon, Apr 28, 2014 at 11:55 PM, Peter Zijlstra <peterz@infradead.org> wrote:
-> What version,
+On 04/26/2014 06:10 AM, Chris Wilson wrote:
+>>> > > Thanks for the pointer to
+>>> > > register_oom_notifier(), I can use that to make sure that we do purge
+>>> > > everything from the GPU, and do a sanity check at the same time, before
+>>> > > we start killing processes.
+>> > 
+>> > Actually, that one doesn't get called until we're *SURE* we are going to
+>> > OOM.  Any action taken in there won't be taken in to account.
+> blocking_notifier_call_chain(&oom_notify_list, 0, &freed);
+> if (freed > 0)
+> 	/* Got some memory back in the last second. */
+> 	return;
+> 
+> That looks like it should abort the oom and so repeat the allocation
+> attempt? Or is that too hopeful?
 
-the code snipt in question is extracted from v3.15-rc3.
-
-
-for the (1) check in previous email, its assembled code looks like:
-
-       --- (1) snipt ---
-       mov    (%rdi),%rax                               (a)
-       test   $0x80,%ah                                  (b)
-       jne    754 <put_compound_page+0x74> (c)
-       --- (1) snipt ---
-
-      (a) %rdi is the struct page pointer
-      (b) check if PG_tail(0x80) set(likely not set, we tell the compiler)
-      (c) if set, jump; not set, fall through (good, credit to  our hint)
-
-===================================================
-
-for the (3) check in previous email, its assembled code looks like:
-
-        --- (3) snipt ---
-        mov    (%rdi),%rax                                    (A)
-        mov    %rdi,%r12
-        test   $0x80,%ah                                      (B)
-        jne    8f8 <put_compound_page+0x218>     (C)
-        --- (3) snipt ---
-
-      (A) %rdi is the struct page pointer
-      (B) check if PG_tail(0x80) set(likely set in this case, but we
-tell compiler unlikely)
-      (C) if set, jump; not set, fall through (god! it would better
-not jump if set,  but we
-           tell compiler unlikely, so it happily did as we told it)
-
-
-# all code are compiled by gcc (GCC) 4.8.2
-
-> and why didn't your changelog include this useful information?
-
-Sorry, I would have done so.  I will resend the patch.
-
-Thanks,
-Jianyu Zhan
+You're correct.  I was reading the code utterly wrong.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
