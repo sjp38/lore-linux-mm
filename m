@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f41.google.com (mail-ee0-f41.google.com [74.125.83.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 83A5D6B0037
-	for <linux-mm@kvack.org>; Mon, 28 Apr 2014 08:27:07 -0400 (EDT)
-Received: by mail-ee0-f41.google.com with SMTP id t10so4882476eei.28
-        for <linux-mm@kvack.org>; Mon, 28 Apr 2014 05:27:06 -0700 (PDT)
+Received: from mail-ee0-f49.google.com (mail-ee0-f49.google.com [74.125.83.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 769116B0037
+	for <linux-mm@kvack.org>; Mon, 28 Apr 2014 08:27:09 -0400 (EDT)
+Received: by mail-ee0-f49.google.com with SMTP id c41so4758133eek.22
+        for <linux-mm@kvack.org>; Mon, 28 Apr 2014 05:27:08 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m49si22936229eeo.101.2014.04.28.05.27.05
+        by mx.google.com with ESMTPS id t3si22938891eeg.91.2014.04.28.05.27.07
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 28 Apr 2014 05:27:06 -0700 (PDT)
+        Mon, 28 Apr 2014 05:27:08 -0700 (PDT)
 From: Michal Hocko <mhocko@suse.cz>
-Subject: [PATCH 2/4] memcg: Allow setting low_limit
-Date: Mon, 28 Apr 2014 14:26:43 +0200
-Message-Id: <1398688005-26207-3-git-send-email-mhocko@suse.cz>
+Subject: [PATCH 3/4] memcg, doc: clarify global vs. limit reclaims
+Date: Mon, 28 Apr 2014 14:26:44 +0200
+Message-Id: <1398688005-26207-4-git-send-email-mhocko@suse.cz>
 In-Reply-To: <1398688005-26207-1-git-send-email-mhocko@suse.cz>
 References: <1398688005-26207-1-git-send-email-mhocko@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,120 +20,58 @@ List-ID: <linux-mm.kvack.org>
 To: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, Tejun Heo <tj@kernel.org>, Hugh Dickins <hughd@google.com>, Roman Gushchin <klamm@yandex-team.ru>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-Export memory.low_limit_in_bytes knob with the same rules as the hard
-limit represented by limit_in_bytes knob (e.g. no limit to be set for
-the root cgroup). There is no memsw alternative for low_limit_in_bytes
-because the primary motivation behind this limit is to protect the
-working set of the group and so considering swap doesn't make much
-sense. There is also no kmem variant exported because we do not have any
-easy way to protect kernel allocations now.
-
-Please note that the low limit might exceed the hard limit which
-basically means that the group is not reclaimable if there is other
-reclaim target in the hierarchy under pressure.
+Be explicit about global and hard limit reclaims in our documentation.
 
 Signed-off-by: Michal Hocko <mhocko@suse.cz>
 ---
- include/linux/res_counter.h | 13 +++++++++++++
- kernel/res_counter.c        |  2 ++
- mm/memcontrol.c             | 27 ++++++++++++++++++++++++++-
- 3 files changed, 41 insertions(+), 1 deletion(-)
+ Documentation/cgroups/memory.txt | 31 +++++++++++++++++--------------
+ 1 file changed, 17 insertions(+), 14 deletions(-)
 
-diff --git a/include/linux/res_counter.h b/include/linux/res_counter.h
-index 408724eeec71..b810855024f9 100644
---- a/include/linux/res_counter.h
-+++ b/include/linux/res_counter.h
-@@ -93,6 +93,7 @@ enum {
- 	RES_LIMIT,
- 	RES_FAILCNT,
- 	RES_SOFT_LIMIT,
-+	RES_LOW_LIMIT,
- };
+diff --git a/Documentation/cgroups/memory.txt b/Documentation/cgroups/memory.txt
+index 4937e6fff9b4..add1be001416 100644
+--- a/Documentation/cgroups/memory.txt
++++ b/Documentation/cgroups/memory.txt
+@@ -236,23 +236,26 @@ it by cgroup.
+ 2.5 Reclaim
  
- /*
-@@ -247,4 +248,16 @@ res_counter_set_soft_limit(struct res_counter *cnt,
- 	return 0;
- }
- 
-+static inline int
-+res_counter_set_low_limit(struct res_counter *cnt,
-+				unsigned long long low_limit)
-+{
-+	unsigned long flags;
+ Each cgroup maintains a per cgroup LRU which has the same structure as
+-global VM. When a cgroup goes over its limit, we first try
+-to reclaim memory from the cgroup so as to make space for the new
+-pages that the cgroup has touched. If the reclaim is unsuccessful,
+-an OOM routine is invoked to select and kill the bulkiest task in the
+-cgroup. (See 10. OOM Control below.)
+-
+-The reclaim algorithm has not been modified for cgroups, except that
+-pages that are selected for reclaiming come from the per-cgroup LRU
+-list.
+-
+-NOTE: Reclaim does not work for the root cgroup, since we cannot set any
+-limits on the root cgroup.
++global VM. Cgroups can get reclaimed basically under two conditions
++ - under global memory pressure when all cgroups are reclaimed
++   proportionally wrt. their LRU size in a round robin fashion
++ - when a cgroup or its hierarchical parent (see 6. Hierarchical support)
++   hits hard limit. If the reclaim is unsuccessful, an OOM routine is invoked
++   to select and kill the bulkiest task in the cgroup. (See 10. OOM Control
++   below.)
 +
-+	spin_lock_irqsave(&cnt->lock, flags);
-+	cnt->low_limit = low_limit;
-+	spin_unlock_irqrestore(&cnt->lock, flags);
-+	return 0;
-+}
++Global and hard-limit reclaims share the same code the only difference
++is the objective of the reclaim. The global reclaim aims at balancing
++zones' watermarks while the limit reclaim frees some memory to allow new
++charges.
 +
- #endif
-diff --git a/kernel/res_counter.c b/kernel/res_counter.c
-index 51dbac6a3633..e851a9ad50bf 100644
---- a/kernel/res_counter.c
-+++ b/kernel/res_counter.c
-@@ -136,6 +136,8 @@ res_counter_member(struct res_counter *counter, int member)
- 		return &counter->failcnt;
- 	case RES_SOFT_LIMIT:
- 		return &counter->soft_limit;
-+	case RES_LOW_LIMIT:
-+		return &counter->low_limit;
- 	};
++NOTE: Hard limit reclaim does not work for the root cgroup, since we cannot set
++any limits on the root cgroup.
  
- 	BUG();
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 40e517630138..53193fec8c50 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1695,8 +1695,9 @@ void mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
+ Note2: When panic_on_oom is set to "2", the whole system will panic.
  
- 	rcu_read_unlock();
+-When oom event notifier is registered, event will be delivered.
+-(See oom_control section)
++When oom event notifier is registered, event will be delivered to the root
++of the memory pressure which cannot be handled (See oom_control section)
  
--	pr_info("memory: usage %llukB, limit %llukB, failcnt %llu\n",
-+	pr_info("memory: usage %llukB, low_limit %llukB limit %llukB, failcnt %llu\n",
- 		res_counter_read_u64(&memcg->res, RES_USAGE) >> 10,
-+		res_counter_read_u64(&memcg->res, RES_LOW_LIMIT) >> 10,
- 		res_counter_read_u64(&memcg->res, RES_LIMIT) >> 10,
- 		res_counter_read_u64(&memcg->res, RES_FAILCNT));
- 	pr_info("memory+swap: usage %llukB, limit %llukB, failcnt %llu\n",
-@@ -5134,6 +5135,24 @@ static int mem_cgroup_write(struct cgroup_subsys_state *css, struct cftype *cft,
- 		else
- 			return -EINVAL;
- 		break;
-+	case RES_LOW_LIMIT:
-+		if (mem_cgroup_is_root(memcg)) { /* Can't set limit on root */
-+			ret = -EINVAL;
-+			break;
-+		}
-+		ret = res_counter_memparse_write_strategy(buffer, &val);
-+		if (ret)
-+			break;
-+		if (type == _MEM) {
-+			ret = res_counter_set_low_limit(&memcg->res, val);
-+			break;
-+		}
-+		/*
-+		 * memsw low limit doesn't make any sense and kmem is not
-+		 * implemented yet - if ever
-+		 */
-+		return -EINVAL;
-+
- 	case RES_SOFT_LIMIT:
- 		ret = res_counter_memparse_write_strategy(buffer, &val);
- 		if (ret)
-@@ -6056,6 +6075,12 @@ static struct cftype mem_cgroup_files[] = {
- 		.read_u64 = mem_cgroup_read_u64,
- 	},
- 	{
-+		.name = "low_limit_in_bytes",
-+		.private = MEMFILE_PRIVATE(_MEM, RES_LOW_LIMIT),
-+		.write_string = mem_cgroup_write,
-+		.read_u64 = mem_cgroup_read_u64,
-+	},
-+	{
- 		.name = "soft_limit_in_bytes",
- 		.private = MEMFILE_PRIVATE(_MEM, RES_SOFT_LIMIT),
- 		.write_string = mem_cgroup_write,
+ 2.6 Locking
+ 
 -- 
 2.0.0.rc0
 
