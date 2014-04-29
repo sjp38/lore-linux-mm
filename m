@@ -1,86 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f45.google.com (mail-ee0-f45.google.com [74.125.83.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 2FDFC6B0037
-	for <linux-mm@kvack.org>; Tue, 29 Apr 2014 03:25:22 -0400 (EDT)
-Received: by mail-ee0-f45.google.com with SMTP id d17so5463507eek.18
-        for <linux-mm@kvack.org>; Tue, 29 Apr 2014 00:25:21 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y41si25811885eel.260.2014.04.29.00.25.20
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 9824A6B0035
+	for <linux-mm@kvack.org>; Tue, 29 Apr 2014 03:42:21 -0400 (EDT)
+Received: by mail-pd0-f178.google.com with SMTP id fp1so4532439pdb.9
+        for <linux-mm@kvack.org>; Tue, 29 Apr 2014 00:42:21 -0700 (PDT)
+Received: from mail-pd0-x22e.google.com (mail-pd0-x22e.google.com [2607:f8b0:400e:c02::22e])
+        by mx.google.com with ESMTPS id pb4si12065931pac.482.2014.04.29.00.42.20
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 29 Apr 2014 00:25:20 -0700 (PDT)
-Date: Tue, 29 Apr 2014 09:25:15 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: Protection against container fork bombs [WAS: Re: memcg with
- kmem limit doesn't recover after disk i/o causes limit to be hit]
-Message-ID: <20140429072515.GB15058@dhcp22.suse.cz>
-References: <20140416154650.GA3034@alpha.arachsys.com>
- <20140418155939.GE4523@dhcp22.suse.cz>
- <5351679F.5040908@parallels.com>
- <20140420142830.GC22077@alpha.arachsys.com>
- <20140422143943.20609800@oracle.com>
- <20140422200531.GA19334@alpha.arachsys.com>
- <535758A0.5000500@yuhu.biz>
- <20140423084942.560ae837@oracle.com>
- <20140428180025.GC25689@ubuntumail>
+        Tue, 29 Apr 2014 00:42:20 -0700 (PDT)
+Received: by mail-pd0-f174.google.com with SMTP id z10so5833099pdj.5
+        for <linux-mm@kvack.org>; Tue, 29 Apr 2014 00:42:20 -0700 (PDT)
+Message-ID: <535F57D5.7030606@gmail.com>
+Date: Tue, 29 Apr 2014 15:42:13 +0800
+From: Wang Sheng-Hui <shhuiw@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140428180025.GC25689@ubuntumail>
+Subject: [PATCH] bootmem: trivial cleanup the comment for BOOTMEM_ flags
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Serge Hallyn <serge.hallyn@ubuntu.com>
-Cc: Dwight Engen <dwight.engen@oracle.com>, Marian Marinov <mm@yuhu.biz>, Richard Davies <richard@arachsys.com>, Vladimir Davydov <vdavydov@parallels.com>, Daniel Walsh <dwalsh@redhat.com>, Max Kellermann <mk@cm4all.com>, Tim Hockin <thockin@hockin.org>, Frederic Weisbecker <fweisbec@gmail.com>, containers@lists.linux-foundation.org, Johannes Weiner <hannes@cmpxchg.org>, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, William Dauchy <wdauchy@gmail.com>, David Rientjes <rientjes@google.com>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
 
-On Mon 28-04-14 18:00:25, Serge Hallyn wrote:
-> Quoting Dwight Engen (dwight.engen@oracle.com):
-> > On Wed, 23 Apr 2014 09:07:28 +0300
-> > Marian Marinov <mm@yuhu.biz> wrote:
-> > 
-> > > On 04/22/2014 11:05 PM, Richard Davies wrote:
-> > > > Dwight Engen wrote:
-> > > >> Richard Davies wrote:
-> > > >>> Vladimir Davydov wrote:
-> > > >>>> In short, kmem limiting for memory cgroups is currently broken.
-> > > >>>> Do not use it. We are working on making it usable though.
-> > > > ...
-> > > >>> What is the best mechanism available today, until kmem limits
-> > > >>> mature?
-> > > >>>
-> > > >>> RLIMIT_NPROC exists but is per-user, not per-container.
-> > > >>>
-> > > >>> Perhaps there is an up-to-date task counter patchset or similar?
-> > > >>
-> > > >> I updated Frederic's task counter patches and included Max
-> > > >> Kellermann's fork limiter here:
-> > > >>
-> > > >> http://thread.gmane.org/gmane.linux.kernel.containers/27212
-> > > >>
-> > > >> I can send you a more recent patchset (against 3.13.10) if you
-> > > >> would find it useful.
-> > > >
-> > > > Yes please, I would be interested in that. Ideally even against
-> > > > 3.14.1 if you have that too.
-> > > 
-> > > Dwight, do you have these patches in any public repo?
-> > > 
-> > > I would like to test them also.
-> > 
-> > Hi Marian, I put the patches against 3.13.11 and 3.14.1 up at:
-> > 
-> > git://github.com/dwengen/linux.git cpuacct-task-limit-3.13
-> > git://github.com/dwengen/linux.git cpuacct-task-limit-3.14
-> 
-> Thanks, Dwight.  FWIW I'm agreed with Tim, Dwight, Richard, and Marian
-> that a task limit would be a proper cgroup extension, and specifically
-> that approximating that with a kmem limit is not a reasonable substitute.
 
-The current state of the kmem limit, which is improving a lot thanks to
-Vladimir, is not a reason for a new extension/controller. We are just
-not yet there.
+Use BOOTMEM_DEFAULT instead of 0 in the comment.
+
+Signed-off-by: Wang Sheng-Hui <shhuiw@gmail.com>
+---
+ include/linux/bootmem.h | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/include/linux/bootmem.h b/include/linux/bootmem.h
+index db51fe4..4e2bd4c 100644
+--- a/include/linux/bootmem.h
++++ b/include/linux/bootmem.h
+@@ -58,9 +58,9 @@ extern void free_bootmem_late(unsigned long physaddr, unsigned long size);
+  * Flags for reserve_bootmem (also if CONFIG_HAVE_ARCH_BOOTMEM_NODE,
+  * the architecture-specific code should honor this).
+  *
+- * If flags is 0, then the return value is always 0 (success). If
+- * flags contains BOOTMEM_EXCLUSIVE, then -EBUSY is returned if the
+- * memory already was reserved.
++ * If flags is BOOTMEM_DEFAULT, then the return value is always 0 (success).
++ * If flags contains BOOTMEM_EXCLUSIVE, then -EBUSY is returned if the memory
++ * already was reserved.
+  */
+ #define BOOTMEM_DEFAULT                0
+ #define BOOTMEM_EXCLUSIVE      (1<<0)
 -- 
-Michal Hocko
-SUSE Labs
+1.8.3.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
