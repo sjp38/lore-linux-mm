@@ -1,69 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id E4F476B0035
-	for <linux-mm@kvack.org>; Tue, 29 Apr 2014 17:45:00 -0400 (EDT)
-Received: by mail-wg0-f49.google.com with SMTP id x13so857824wgg.20
-        for <linux-mm@kvack.org>; Tue, 29 Apr 2014 14:45:00 -0700 (PDT)
-Received: from mail-wg0-x229.google.com (mail-wg0-x229.google.com [2a00:1450:400c:c00::229])
-        by mx.google.com with ESMTPS id z3si6359468wiw.1.2014.04.29.14.44.59
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 29 Apr 2014 14:44:59 -0700 (PDT)
-Received: by mail-wg0-f41.google.com with SMTP id y10so859902wgg.24
-        for <linux-mm@kvack.org>; Tue, 29 Apr 2014 14:44:59 -0700 (PDT)
-Date: Tue, 29 Apr 2014 23:44:56 +0200
-From: Frederic Weisbecker <fweisbec@gmail.com>
-Subject: Re: Protection against container fork bombs [WAS: Re: memcg with
- kmem limit doesn't recover after disk i/o causes limit to be hit]
-Message-ID: <20140429214454.GF6129@localhost.localdomain>
-References: <20140422200531.GA19334@alpha.arachsys.com>
- <535758A0.5000500@yuhu.biz>
- <20140423084942.560ae837@oracle.com>
- <20140428180025.GC25689@ubuntumail>
- <20140429072515.GB15058@dhcp22.suse.cz>
- <20140429130353.GA27354@ubuntumail>
- <20140429154345.GH15058@dhcp22.suse.cz>
- <CAO_RewYZDGLBAKit4CudTbqVk+zfDRX8kP0W6Zz90xJh7abM9Q@mail.gmail.com>
- <20140429165114.GE6129@localhost.localdomain>
- <CAO_Rewa20dneL8e3T4UPnu2Dkv28KTgFJR9_YSmRBKp-_yqewg@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAO_Rewa20dneL8e3T4UPnu2Dkv28KTgFJR9_YSmRBKp-_yqewg@mail.gmail.com>
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id CB1126B0035
+	for <linux-mm@kvack.org>; Tue, 29 Apr 2014 18:24:40 -0400 (EDT)
+Received: by mail-pa0-f49.google.com with SMTP id kq14so946533pab.36
+        for <linux-mm@kvack.org>; Tue, 29 Apr 2014 15:24:40 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id vw5si14447068pab.292.2014.04.29.15.24.39
+        for <linux-mm@kvack.org>;
+        Tue, 29 Apr 2014 15:24:39 -0700 (PDT)
+Date: Tue, 29 Apr 2014 15:24:37 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [Bug 75101] New: [bisected] s2disk / hibernate blocks on
+ "Saving 506031 image data pages () ..."
+Message-Id: <20140429152437.7324080a75d6fee914eb8307@linux-foundation.org>
+In-Reply-To: <bug-75101-27@https.bugzilla.kernel.org/>
+References: <bug-75101-27@https.bugzilla.kernel.org/>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tim Hockin <thockin@google.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Serge Hallyn <serge.hallyn@ubuntu.com>, Richard Davies <richard@arachsys.com>, Vladimir Davydov <vdavydov@parallels.com>, Marian Marinov <mm@yuhu.biz>, Max Kellermann <mk@cm4all.com>, Tim Hockin <thockin@hockin.org>, containers@lists.linux-foundation.org, Daniel Walsh <dwalsh@redhat.com>, cgroups@vger.kernel.org, Glauber Costa <glommer@parallels.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, William Dauchy <wdauchy@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, David Rientjes <rientjes@google.com>
+To: oliverml1@oli1170.net
+Cc: bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>
 
-On Tue, Apr 29, 2014 at 09:59:30AM -0700, Tim Hockin wrote:
-> Here's the reason it doesn't work for us: It doesn't work.  It was
-> something like 2 YEARS since we first wanted this, and it STILL does
-> not work.
 
-When I was working on the task counter cgroup subsystem 2 years
-ago, the patches were actually pushed back by google people, in favour
-of task stack kmem cgroup subsystem.
+(switched to email.  Please respond via emailed reply-to-all, not via the
+bugzilla web interface).
 
-The reason was that expressing the forkbomb issue in terms of
-number of tasks as a resource is awkward and that the real resource
-in the game comes from kernel memory exhaustion due to task stack being
-allocated over and over, swap ping-pong and stuffs...
+On Tue, 29 Apr 2014 20:13:44 +0000 bugzilla-daemon@bugzilla.kernel.org wrote:
 
-And that was a pretty good argument. I still agree with that. Especially
-since that could solve others people issues at the same time. kmem
-cgroup has a quite large domain of application.
+> https://bugzilla.kernel.org/show_bug.cgi?id=75101
+> 
+>             Bug ID: 75101
+>            Summary: [bisected] s2disk / hibernate blocks on "Saving 506031
+>                     image data pages () ..."
+>            Product: Memory Management
+>            Version: 2.5
+>     Kernel Version: v3.14
+>           Hardware: All
+>                 OS: Linux
+>               Tree: Mainline
+>             Status: NEW
+>           Severity: normal
+>           Priority: P1
+>          Component: Other
+>           Assignee: akpm@linux-foundation.org
+>           Reporter: oliverml1@oli1170.net
+>         Regression: No
+> 
+> Created attachment 134271
+>   --> https://bugzilla.kernel.org/attachment.cgi?id=134271&action=edit
+> Full console trace with various SysRq outputs
+> 
+> Since v3.14 under normal desktop usage my s2disk/hibernate often blocks on the
+> saving of the image data ("Saving 506031 image data pages () ...").
 
-> You're postponing a pretty simple request indefinitely in
-> favor of a much more complex feature, which still doesn't really give
-> me what I want.  What I want is an API that works like rlimit but
-> per-cgroup, rather than per-UID.
+A means to reproduce as well as a bisection result.  Nice!  Thanks.
 
-The request is simple but I don't think that adding the task counter
-cgroup subsystem is simpler than extending the kmem code to apply limits
-to only task stack. Especially in terms of maintainance.
+Johannes, could you please take a look?
 
-Also you guys have very good mm kernel developers who are already
-familiar with this.
+> With following test I can reproduce the problem reliably:
+> ---
+> 0) Boot
+> 
+> 1) Fill ram with 2GiB (+50% in my case)
+> 
+> mount -t tmpfs tmpfs /media/test/
+> dd if=/dev/zero of=/media/test/test0.bin bs=1k count=$[1024*1024]
+> dd if=/dev/zero of=/media/test/test1.bin bs=1k count=$[1024*1024]
+> 
+> 2) Do s2disk 
+> 
+> s2disk
+> 
+> ---
+> s2disk: Unable to switch virtual terminals, using the current console.
+> s2disk: Snapshotting system
+> s2disk: System snapshot ready. Preparing to write
+> s2disk: Image size: 2024124 kilobytes
+> s2disk: Free swap: 3791208 kilobytes
+> s2disk: Saving 506031 image data pages (press backspace to abort) ...   0%
+> 
+> #Problem>: ... there is stays and blocks. SysRq still responds, so that I could
+> trigger various debug outputs.
+> ---
+> 
+> I've bisected this to following commit:
+> ---
+> commit a1c3bfb2f67ef766de03f1f56bdfff9c8595ab14 (HEAD, refs/bisect/bad)
+> Author: Johannes Weiner <hannes@cmpxchg.org>
+> Date:   Wed Jan 29 14:05:41 2014 -0800
+> 
+>     mm/page-writeback.c: do not count anon pages as dirtyable memory
+> 
+> [...]
+> ---
+> 
+> Reverting a1c3bfb2 fixes s2disk for me again - so basically I'm ok ;). But
+> maybe there is still another better solution.
+> 
+> Attached is a full console trace with various SysRq outputs, possibly useful
+> for analyzing.
+> 
+> BR, Oliver
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
