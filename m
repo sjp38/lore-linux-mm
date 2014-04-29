@@ -1,82 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f48.google.com (mail-ee0-f48.google.com [74.125.83.48])
-	by kanga.kvack.org (Postfix) with ESMTP id EF8706B0035
-	for <linux-mm@kvack.org>; Tue, 29 Apr 2014 08:55:01 -0400 (EDT)
-Received: by mail-ee0-f48.google.com with SMTP id b57so294854eek.21
-        for <linux-mm@kvack.org>; Tue, 29 Apr 2014 05:55:01 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o46si26886352eem.249.2014.04.29.05.54.59
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 29 Apr 2014 05:55:00 -0700 (PDT)
-Date: Tue, 29 Apr 2014 14:54:57 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v2 0/4] memcg: Low-limit reclaim
-Message-ID: <20140429125457.GG15058@dhcp22.suse.cz>
-References: <1398688005-26207-1-git-send-email-mhocko@suse.cz>
- <10861398700008@webcorp2f.yandex-team.ru>
- <xr938uqoa8ei.fsf@gthelen.mtv.corp.google.com>
- <7441398768618@webcorp2f.yandex-team.ru>
+Received: from mail-we0-f177.google.com (mail-we0-f177.google.com [74.125.82.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 600CC6B0035
+	for <linux-mm@kvack.org>; Tue, 29 Apr 2014 09:04:10 -0400 (EDT)
+Received: by mail-we0-f177.google.com with SMTP id t60so173368wes.36
+        for <linux-mm@kvack.org>; Tue, 29 Apr 2014 06:04:09 -0700 (PDT)
+Received: from youngberry.canonical.com (youngberry.canonical.com. [91.189.89.112])
+        by mx.google.com with ESMTP id z6si1309853wiy.45.2014.04.29.06.04.08
+        for <linux-mm@kvack.org>;
+        Tue, 29 Apr 2014 06:04:08 -0700 (PDT)
+Date: Tue, 29 Apr 2014 13:03:53 +0000
+From: Serge Hallyn <serge.hallyn@ubuntu.com>
+Subject: Re: Protection against container fork bombs [WAS: Re: memcg with
+ kmem limit doesn't recover after disk i/o causes limit to be hit]
+Message-ID: <20140429130353.GA27354@ubuntumail>
+References: <20140416154650.GA3034@alpha.arachsys.com>
+ <20140418155939.GE4523@dhcp22.suse.cz>
+ <5351679F.5040908@parallels.com>
+ <20140420142830.GC22077@alpha.arachsys.com>
+ <20140422143943.20609800@oracle.com>
+ <20140422200531.GA19334@alpha.arachsys.com>
+ <535758A0.5000500@yuhu.biz>
+ <20140423084942.560ae837@oracle.com>
+ <20140428180025.GC25689@ubuntumail>
+ <20140429072515.GB15058@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <7441398768618@webcorp2f.yandex-team.ru>
+In-Reply-To: <20140429072515.GB15058@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Gushchin <klamm@yandex-team.ru>
-Cc: Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Michel Lespinasse <walken@google.com>, Tejun Heo <tj@kernel.org>, Hugh Dickins <hughd@google.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Richard Davies <richard@arachsys.com>, Vladimir Davydov <vdavydov@parallels.com>, Marian Marinov <mm@yuhu.biz>, Max Kellermann <mk@cm4all.com>, Tim Hockin <thockin@hockin.org>, Frederic Weisbecker <fweisbec@gmail.com>, containers@lists.linux-foundation.org, Daniel Walsh <dwalsh@redhat.com>, cgroups@vger.kernel.org, Glauber Costa <glommer@parallels.com>, linux-mm@kvack.org, William Dauchy <wdauchy@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, David Rientjes <rientjes@google.com>
 
-On Tue 29-04-14 14:50:18, Roman Gushchin wrote:
-> 29.04.2014, 11:42, "Greg Thelen" <gthelen@google.com>:
-> > On Mon, Apr 28 2014, Roman Gushchin <klamm@yandex-team.ru> wrote:
-> >
-> >>  28.04.2014, 16:27, "Michal Hocko" <mhocko@suse.cz>:
-> >>>  The series is based on top of the current mmotm tree. Once the series
-> >>>  gets accepted I will post a patch which will mark the soft limit as
-> >>>  deprecated with a note that it will be eventually dropped. Let me know
-> >>>  if you would prefer to have such a patch a part of the series.
-> >>>
-> >>>  Thoughts?
-> >>  Looks good to me.
-> >>
-> >>  The only question is: are there any ideas how the hierarchy support
-> >>  will be used in this case in practice?
-> >>  Will someone set low limit for non-leaf cgroups? Why?
-> >>
-> >>  Thanks,
-> >>  Roman
-> >
-> > I imagine that a hosting service may want to give X MB to a top level
-> > memcg (/a) with sub-jobs (/a/b, /a/c) which may(not) have their own
-> > low-limits.
-
-I would expect the limit would be set on leaf nodes most of the time
-because intermediate nodes have charges inter-mixed with charges from
-children so it is not entirely clear who to protect.
-On the on the other hand I can imagine that the higher level node might
-get some portion of memory by an admin without any way to set the limit
-down the hierarchy for its user as described by Greg.
-
-> > Examples:
-> >
-> > case_1) only set low limit on /a.  /a/b and /a/c may overcommit /a's
-> >         memory (b.limit_in_bytes + c.limit_in_bytes > a.limit_in_bytes).
-> >
-> > case_2) low limits on all memcg.  But not overcommitting low_limits
-> >         (b.low_limit_in_in_bytes + c.low_limit_in_in_bytes <=
-> >         a.low_limit_in_in_bytes).
+Quoting Michal Hocko (mhocko@suse.cz):
+> On Mon 28-04-14 18:00:25, Serge Hallyn wrote:
+> > Quoting Dwight Engen (dwight.engen@oracle.com):
+> > > On Wed, 23 Apr 2014 09:07:28 +0300
+> > > Marian Marinov <mm@yuhu.biz> wrote:
+> > > 
+> > > > On 04/22/2014 11:05 PM, Richard Davies wrote:
+> > > > > Dwight Engen wrote:
+> > > > >> Richard Davies wrote:
+> > > > >>> Vladimir Davydov wrote:
+> > > > >>>> In short, kmem limiting for memory cgroups is currently broken.
+> > > > >>>> Do not use it. We are working on making it usable though.
+> > > > > ...
+> > > > >>> What is the best mechanism available today, until kmem limits
+> > > > >>> mature?
+> > > > >>>
+> > > > >>> RLIMIT_NPROC exists but is per-user, not per-container.
+> > > > >>>
+> > > > >>> Perhaps there is an up-to-date task counter patchset or similar?
+> > > > >>
+> > > > >> I updated Frederic's task counter patches and included Max
+> > > > >> Kellermann's fork limiter here:
+> > > > >>
+> > > > >> http://thread.gmane.org/gmane.linux.kernel.containers/27212
+> > > > >>
+> > > > >> I can send you a more recent patchset (against 3.13.10) if you
+> > > > >> would find it useful.
+> > > > >
+> > > > > Yes please, I would be interested in that. Ideally even against
+> > > > > 3.14.1 if you have that too.
+> > > > 
+> > > > Dwight, do you have these patches in any public repo?
+> > > > 
+> > > > I would like to test them also.
+> > > 
+> > > Hi Marian, I put the patches against 3.13.11 and 3.14.1 up at:
+> > > 
+> > > git://github.com/dwengen/linux.git cpuacct-task-limit-3.13
+> > > git://github.com/dwengen/linux.git cpuacct-task-limit-3.14
+> > 
+> > Thanks, Dwight.  FWIW I'm agreed with Tim, Dwight, Richard, and Marian
+> > that a task limit would be a proper cgroup extension, and specifically
+> > that approximating that with a kmem limit is not a reasonable substitute.
 > 
-> Thanks!
-> 
-> With use_hierarchy turned on it looks perfectly usable.
+> The current state of the kmem limit, which is improving a lot thanks to
+> Vladimir, is not a reason for a new extension/controller. We are just
+> not yet there.
 
-use_hierarchy is becoming the default and we even complain about deeper
-directory structures without it being enabled.
+It has nothing to do with the state of the limit.  I simply don't
+believe that emulating RLIMIT_NPROC by controlling stack size is a
+good idea.
 
--- 
-Michal Hocko
-SUSE Labs
+-serge
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
