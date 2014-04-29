@@ -1,153 +1,155 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 82B116B0039
-	for <linux-mm@kvack.org>; Tue, 29 Apr 2014 05:43:15 -0400 (EDT)
-Received: by mail-pd0-f178.google.com with SMTP id fp1so4634169pdb.37
-        for <linux-mm@kvack.org>; Tue, 29 Apr 2014 02:43:15 -0700 (PDT)
-Received: from mail-pa0-x22e.google.com (mail-pa0-x22e.google.com [2607:f8b0:400e:c03::22e])
-        by mx.google.com with ESMTPS id rb6si12281559pab.395.2014.04.29.02.43.14
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id ABB916B003A
+	for <linux-mm@kvack.org>; Tue, 29 Apr 2014 05:43:47 -0400 (EDT)
+Received: by mail-pd0-f170.google.com with SMTP id x10so3391740pdj.1
+        for <linux-mm@kvack.org>; Tue, 29 Apr 2014 02:43:47 -0700 (PDT)
+Received: from e23smtp08.au.ibm.com (e23smtp08.au.ibm.com. [202.81.31.141])
+        by mx.google.com with ESMTPS id zp5si8857170pac.24.2014.04.29.02.43.45
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 29 Apr 2014 02:43:14 -0700 (PDT)
-Received: by mail-pa0-f46.google.com with SMTP id kp14so6882863pab.33
-        for <linux-mm@kvack.org>; Tue, 29 Apr 2014 02:43:14 -0700 (PDT)
-From: Jianyu Zhan <nasa4836@gmail.com>
-Subject: [PATCH 3/3] mm: introdule compound_head_by_tail()
-Date: Tue, 29 Apr 2014 17:42:48 +0800
-Message-Id: <809ea3d4f8b83698117e97b55ab4ec33d3b03ea7.1398764420.git.nasa4836@gmail.com>
-In-Reply-To: <b1987d6fb09745a5274895efbde79e37ff9557a3.1398764420.git.nasa4836@gmail.com>
-References: <b1987d6fb09745a5274895efbde79e37ff9557a3.1398764420.git.nasa4836@gmail.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 29 Apr 2014 02:43:46 -0700 (PDT)
+Received: from /spool/local
+	by e23smtp08.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <maddy@linux.vnet.ibm.com>;
+	Tue, 29 Apr 2014 19:43:43 +1000
+Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
+	by d23dlp03.au.ibm.com (Postfix) with ESMTP id C029E3578052
+	for <linux-mm@kvack.org>; Tue, 29 Apr 2014 19:41:38 +1000 (EST)
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s3T9FfFs45219988
+	for <linux-mm@kvack.org>; Tue, 29 Apr 2014 19:16:02 +1000
+Received: from d23av02.au.ibm.com (localhost [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s3T9Zn45030526
+	for <linux-mm@kvack.org>; Tue, 29 Apr 2014 19:35:50 +1000
+Message-ID: <535F7271.2010504@linux.vnet.ibm.com>
+Date: Tue, 29 Apr 2014 15:05:45 +0530
+From: Madhavan Srinivasan <maddy@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Subject: Re: [PATCH V3 1/2] mm: move FAULT_AROUND_ORDER to arch/
+References: <1398675690-16186-1-git-send-email-maddy@linux.vnet.ibm.com> <1398675690-16186-2-git-send-email-maddy@linux.vnet.ibm.com> <20140428093606.95B90E009B@blue.fi.intel.com>
+In-Reply-To: <20140428093606.95B90E009B@blue.fi.intel.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, riel@redhat.com, liuj97@gmail.com, peterz@infradead.org, hannes@cmpxchg.org, mgorman@suse.de, aarcange@redhat.com, sasha.levin@oracle.com, liwanp@linux.vnet.ibm.com, nasa4836@gmail.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, x86@kernel.org, benh@kernel.crashing.org, paulus@samba.org, rusty@rustcorp.com.au, akpm@linux-foundation.org, riel@redhat.com, mgorman@suse.de, ak@linux.intel.com, peterz@infradead.org, mingo@kernel.org, dave.hansen@intel.com
 
-Currently, in put_compound_page(), we have such code
+On Monday 28 April 2014 03:06 PM, Kirill A. Shutemov wrote:
+> Madhavan Srinivasan wrote:
+>> Kirill A. Shutemov with 8c6e50b029 commit introduced
+>> vm_ops->map_pages() for mapping easy accessible pages around
+>> fault address in hope to reduce number of minor page faults.
+>>
+>> This patch creates infrastructure to modify the FAULT_AROUND_ORDER
+>> value using mm/Kconfig. This will enable architecture maintainers
+>> to decide on suitable FAULT_AROUND_ORDER value based on
+>> performance data for that architecture. Patch also defaults
+>> FAULT_AROUND_ORDER Kconfig element to 4.
+>>
+>> Signed-off-by: Madhavan Srinivasan <maddy@linux.vnet.ibm.com>
+>> ---
+>>  mm/Kconfig  |    8 ++++++++
+>>  mm/memory.c |   11 ++++-------
+>>  2 files changed, 12 insertions(+), 7 deletions(-)
+>>
+>> diff --git a/mm/Kconfig b/mm/Kconfig
+>> index ebe5880..c7fc4f1 100644
+>> --- a/mm/Kconfig
+>> +++ b/mm/Kconfig
+>> @@ -176,6 +176,14 @@ config MOVABLE_NODE
+>>  config HAVE_BOOTMEM_INFO_NODE
+>>  	def_bool n
+>>  
+>> +#
+>> +# Fault around order is a control knob to decide the fault around pages.
+>> +# Default value is set to 4 , but the arch can override it as desired.
+>> +#
+>> +config FAULT_AROUND_ORDER
+>> +	int
+>> +	default	4
+>> +
+>>  # eventually, we can have this option just 'select SPARSEMEM'
+>>  config MEMORY_HOTPLUG
+>>  	bool "Allow for memory hot-add"
+>> diff --git a/mm/memory.c b/mm/memory.c
+>> index d0f0bef..457436d 100644
+>> --- a/mm/memory.c
+>> +++ b/mm/memory.c
+>> @@ -3382,11 +3382,9 @@ void do_set_pte(struct vm_area_struct *vma, unsigned long address,
+>>  	update_mmu_cache(vma, address, pte);
+>>  }
+>>  
+>> -#define FAULT_AROUND_ORDER 4
+>> +unsigned int fault_around_order = CONFIG_FAULT_AROUND_ORDER;
+>>  
+>>  #ifdef CONFIG_DEBUG_FS
+>> -static unsigned int fault_around_order = FAULT_AROUND_ORDER;
+>> -
+>>  static int fault_around_order_get(void *data, u64 *val)
+>>  {
+>>  	*val = fault_around_order;
+>> @@ -3395,7 +3393,6 @@ static int fault_around_order_get(void *data, u64 *val)
+>>  
+>>  static int fault_around_order_set(void *data, u64 val)
+>>  {
+>> -	BUILD_BUG_ON((1UL << FAULT_AROUND_ORDER) > PTRS_PER_PTE);
+>>  	if (1UL << val > PTRS_PER_PTE)
+>>  		return -EINVAL;
+>>  	fault_around_order = val;
+>> @@ -3430,14 +3427,14 @@ static inline unsigned long fault_around_pages(void)
+>>  {
+>>  	unsigned long nr_pages;
+>>  
+>> -	nr_pages = 1UL << FAULT_AROUND_ORDER;
+>> +	nr_pages = 1UL << fault_around_order;
+>>  	BUILD_BUG_ON(nr_pages > PTRS_PER_PTE);
+> 
+> This BUILD_BUG_ON() doesn't make sense any more since compiler usually can't
+> prove anything about extern variable.
+> 
+> Drop it or change to VM_BUG_ON() or something.
+> 
 
---- snipt ----
-if (likely(!PageTail(page))) {                  <------  (1)
-        if (put_page_testzero(page)) {
-                 /*
-                 A|* By the time all refcounts have been released
-                 A|* split_huge_page cannot run anymore from under us.
-                 A|*/
-                 if (PageHead(page))
-                         __put_compound_page(page);
-                 else
-                         __put_single_page(page);
-         }
-         return;
-}
+Ok.
 
-/* __split_huge_page_refcount can run under us */
-page_head = compound_head(page);        <------------ (2)
---- snipt ---
+>>  	return nr_pages;
+>>  }
+>>  
+>>  static inline unsigned long fault_around_mask(void)
+>>  {
+>> -	return ~((1UL << (PAGE_SHIFT + FAULT_AROUND_ORDER)) - 1);
+>> +	return ~((1UL << (PAGE_SHIFT + fault_around_order)) - 1);
+> 
+> fault_around_pages() and fault_around_mask() should be moved outside of
+> #ifdef CONFIG_DEBUG_FS and consolidated since they are practically identical
+> both branches after the changes.
+> 
 
-if at (1) ,  we fail the check, this means page is *likely* a tail page.
+Agreed. Will change it.
 
-Then at (2), as compoud_head(page) is inlined, it is :
+>>  }
+>>  #endif
+>>  
+>> @@ -3495,7 +3492,7 @@ static int do_read_fault(struct mm_struct *mm, struct vm_area_struct *vma,
+>>  	 * if page by the offset is not ready to be mapped (cold cache or
+>>  	 * something).
+>>  	 */
+>> -	if (vma->vm_ops->map_pages) {
+>> +	if ((vma->vm_ops->map_pages) && (fault_around_order)) {
+> 
+> Way too many parentheses.
+> 
 
---- snipt ---
-static inline struct page *compound_head(struct page *page)
-{
-          if (unlikely(PageTail(page))) {           <----------- (3)
-              struct page *head = page->first_page;
+Sure. Will modify it.
 
-                smp_rmb();
-                if (likely(PageTail(page)))
-                        return head;
-        }
-        return page;
-}
---- snipt ---
-
-here, the (3) unlikely in the case is  a negative hint, because it
-is *likely* a tail page. So the check (3) in this case is not good,
-so I introduce a helper for this case.
-
-So this patch introduces compound_head_by_tail() which deal with
-a possible tail page(though it could be spilt by a racy thread),
-and make compound_head() a wrapper on it.
-
-This patch has no functional change, and it reduces the object
-size slightly:
-   text    data     bss     dec     hex  filename
-  11003    1328      16   12347    303b  mm/swap.o.orig
-  10971    1328      16   12315    301b  mm/swap.o.patched
-
-I've ran "perf top -e branch-miss" to observe branch-miss in this
-case. As Michael points out, it's a slow path, so only very few
-times this case happens. But I grep'ed the code base, and found there
-still are some other call sites could be benifited from this helper. And
-given that it only bloating up the source by only 5 lines, but with
-a reduced object size. I still believe this helper deserves to exsit.
-
-Signed-off-by: Jianyu Zhan <nasa4836@gmail.com>
----
- include/linux/mm.h | 29 +++++++++++++++++------------
- mm/swap.c          |  2 +-
- 2 files changed, 18 insertions(+), 13 deletions(-)
-
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index bf9811e..a606a3e 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -405,20 +405,25 @@ static inline void compound_unlock_irqrestore(struct page *page,
- #endif
- }
- 
-+static inline struct page *compound_head_by_tail(struct page *tail)
-+{
-+	struct page *head = tail->first_page;
-+
-+	/*
-+	 * page->first_page may be a dangling pointer to an old
-+	 * compound page, so recheck that it is still a tail
-+	 * page before returning.
-+	 */
-+	smp_rmb();
-+	if (likely(PageTail(tail)))
-+		return head;
-+	return tail;
-+}
-+
- static inline struct page *compound_head(struct page *page)
- {
--	if (unlikely(PageTail(page))) {
--		struct page *head = page->first_page;
--
--		/*
--		 * page->first_page may be a dangling pointer to an old
--		 * compound page, so recheck that it is still a tail
--		 * page before returning.
--		 */
--		smp_rmb();
--		if (likely(PageTail(page)))
--			return head;
--	}
-+	if (unlikely(PageTail(page)))
-+		return compound_head_by_tail(page);
- 	return page;
- }
- 
-diff --git a/mm/swap.c b/mm/swap.c
-index d8654d8..a061107 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -253,7 +253,7 @@ static void put_compound_page(struct page *page)
- 	 *  Case 3 is possible, as we may race with
- 	 *  __split_huge_page_refcount tearing down a THP page.
- 	 */
--	page_head = compound_head(page);
-+	page_head = compound_head_by_tail(page);
- 	if (!__compound_tail_refcounted(page_head))
- 		put_unrefcounted_compound_page(page_head, page);
- 	else
--- 
-2.0.0-rc1
+Thanks for review
+with regards
+Maddy
+>>  		pte = pte_offset_map_lock(mm, pmd, address, &ptl);
+>>  		do_fault_around(vma, address, pte, pgoff, flags);
+>>  		if (!pte_same(*pte, orig_pte))
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
