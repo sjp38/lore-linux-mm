@@ -1,44 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 02A4A6B0035
-	for <linux-mm@kvack.org>; Mon, 28 Apr 2014 22:36:48 -0400 (EDT)
-Received: by mail-pd0-f181.google.com with SMTP id y13so161243pdi.26
-        for <linux-mm@kvack.org>; Mon, 28 Apr 2014 19:36:48 -0700 (PDT)
-Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
-        by mx.google.com with ESMTPS id uc7si11662037pbc.389.2014.04.28.19.36.47
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 196AC6B0035
+	for <linux-mm@kvack.org>; Mon, 28 Apr 2014 22:53:41 -0400 (EDT)
+Received: by mail-pd0-f178.google.com with SMTP id fp1so4266171pdb.23
+        for <linux-mm@kvack.org>; Mon, 28 Apr 2014 19:53:40 -0700 (PDT)
+Received: from mail-pa0-x22d.google.com (mail-pa0-x22d.google.com [2607:f8b0:400e:c03::22d])
+        by mx.google.com with ESMTPS id rj9si9149562pbc.289.2014.04.28.19.53.39
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 28 Apr 2014 19:36:48 -0700 (PDT)
-From: Rusty Russell <rusty@rustcorp.com.au>
-Subject: Re: [PATCH V3 2/2] powerpc/pseries: init fault_around_order for pseries
-In-Reply-To: <1398675690-16186-3-git-send-email-maddy@linux.vnet.ibm.com>
-References: <1398675690-16186-1-git-send-email-maddy@linux.vnet.ibm.com> <1398675690-16186-3-git-send-email-maddy@linux.vnet.ibm.com>
-Date: Tue, 29 Apr 2014 11:48:40 +0930
-Message-ID: <877g686fpb.fsf@rustcorp.com.au>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 28 Apr 2014 19:53:40 -0700 (PDT)
+Received: by mail-pa0-f45.google.com with SMTP id kq14so5885307pab.18
+        for <linux-mm@kvack.org>; Mon, 28 Apr 2014 19:53:39 -0700 (PDT)
+Date: Tue, 29 Apr 2014 11:53:10 +0900
+From: Daeseok Youn <daeseok.youn@gmail.com>
+Subject: [PATCH] dmapool: remove redundant NULL check for dev in
+ dma_pool_create()
+Message-ID: <20140429025310.GA5913@devel>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Madhavan Srinivasan <maddy@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, x86@kernel.org
-Cc: benh@kernel.crashing.org, paulus@samba.org, kirill.shutemov@linux.intel.com, akpm@linux-foundation.org, riel@redhat.com, mgorman@suse.de, ak@linux.intel.com, peterz@infradead.org, mingo@kernel.org, dave.hansen@intel.com
+To: akpm@linux-foundation.org
+Cc: daeseok.youn@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Madhavan Srinivasan <maddy@linux.vnet.ibm.com> writes:
-> diff --git a/arch/powerpc/platforms/pseries/setup.c b/arch/powerpc/platforms/pseries/setup.c
-> index 2db8cc6..c87e6b6 100644
-> --- a/arch/powerpc/platforms/pseries/setup.c
-> +++ b/arch/powerpc/platforms/pseries/setup.c
-> @@ -74,6 +74,8 @@ int CMO_SecPSP = -1;
->  unsigned long CMO_PageSize = (ASM_CONST(1) << IOMMU_PAGE_SHIFT_4K);
->  EXPORT_SYMBOL(CMO_PageSize);
->  
-> +extern unsigned int fault_around_order;
-> +
+"dev" cannot be NULL because it is already checked before
+calling dma_pool_create().
 
-It's considered bad form to do this.  Put the declaration in linux/mm.h.
+Signed-off-by: Daeseok Youn <daeseok.youn@gmail.com>
+---
+If dev can be NULL, it has NULL deferencing when kmalloc_node()
+is called after enabling CONFIG_NUMA.
 
-Thanks,
-Rusty.
-PS.  But we're getting there! :)
+ mm/dmapool.c |   26 +++++++++-----------------
+ 1 files changed, 9 insertions(+), 17 deletions(-)
+
+diff --git a/mm/dmapool.c b/mm/dmapool.c
+index c69781e..38dfcdd 100644
+--- a/mm/dmapool.c
++++ b/mm/dmapool.c
+@@ -170,24 +170,16 @@ struct dma_pool *dma_pool_create(const char *name, struct device *dev,
+ 	retval->boundary = boundary;
+ 	retval->allocation = allocation;
+ 
+-	if (dev) {
+-		int ret;
++	INIT_LIST_HEAD(&retval->pools);
+ 
+-		mutex_lock(&pools_lock);
+-		if (list_empty(&dev->dma_pools))
+-			ret = device_create_file(dev, &dev_attr_pools);
+-		else
+-			ret = 0;
+-		/* note:  not currently insisting "name" be unique */
+-		if (!ret)
+-			list_add(&retval->pools, &dev->dma_pools);
+-		else {
+-			kfree(retval);
+-			retval = NULL;
+-		}
+-		mutex_unlock(&pools_lock);
++	mutex_lock(&pools_lock);
++	if (list_empty(&dev->dma_pools) &&
++	    device_create_file(dev, &dev_attr_pools)) {
++		kfree(retval);
++		return NULL;
+ 	} else
+-		INIT_LIST_HEAD(&retval->pools);
++		list_add(&retval->pools, &dev->dma_pools);
++	mutex_unlock(&pools_lock);
+ 
+ 	return retval;
+ }
+-- 
+1.7.4.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
