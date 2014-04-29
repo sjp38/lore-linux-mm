@@ -1,62 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f169.google.com (mail-yk0-f169.google.com [209.85.160.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 8FE226B0037
-	for <linux-mm@kvack.org>; Tue, 29 Apr 2014 03:42:47 -0400 (EDT)
-Received: by mail-yk0-f169.google.com with SMTP id 142so6726408ykq.0
-        for <linux-mm@kvack.org>; Tue, 29 Apr 2014 00:42:47 -0700 (PDT)
-Received: from mail-yk0-x24a.google.com (mail-yk0-x24a.google.com [2607:f8b0:4002:c07::24a])
-        by mx.google.com with ESMTPS id y72si11642187yhe.210.2014.04.29.00.42.47
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 942186B003A
+	for <linux-mm@kvack.org>; Tue, 29 Apr 2014 04:00:40 -0400 (EDT)
+Received: by mail-pd0-f178.google.com with SMTP id fp1so4520052pdb.23
+        for <linux-mm@kvack.org>; Tue, 29 Apr 2014 01:00:40 -0700 (PDT)
+Received: from e28smtp08.in.ibm.com (e28smtp08.in.ibm.com. [122.248.162.8])
+        by mx.google.com with ESMTPS id hp1si12118801pad.98.2014.04.29.01.00.37
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 29 Apr 2014 00:42:47 -0700 (PDT)
-Received: by mail-yk0-f202.google.com with SMTP id 9so136711ykp.3
-        for <linux-mm@kvack.org>; Tue, 29 Apr 2014 00:42:46 -0700 (PDT)
-References: <1398688005-26207-1-git-send-email-mhocko@suse.cz> <10861398700008@webcorp2f.yandex-team.ru>
-From: Greg Thelen <gthelen@google.com>
-Subject: Re: [PATCH v2 0/4] memcg: Low-limit reclaim
-In-reply-to: <10861398700008@webcorp2f.yandex-team.ru>
-Date: Tue, 29 Apr 2014 00:42:45 -0700
-Message-ID: <xr938uqoa8ei.fsf@gthelen.mtv.corp.google.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 29 Apr 2014 01:00:39 -0700 (PDT)
+Received: from /spool/local
+	by e28smtp08.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <srivatsa.bhat@linux.vnet.ibm.com>;
+	Tue, 29 Apr 2014 13:30:34 +0530
+Received: from d28relay03.in.ibm.com (d28relay03.in.ibm.com [9.184.220.60])
+	by d28dlp01.in.ibm.com (Postfix) with ESMTP id 0ECC3E0053
+	for <linux-mm@kvack.org>; Tue, 29 Apr 2014 13:30:50 +0530 (IST)
+Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
+	by d28relay03.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s3T80QqZ60948720
+	for <linux-mm@kvack.org>; Tue, 29 Apr 2014 13:30:26 +0530
+Received: from d28av04.in.ibm.com (localhost [127.0.0.1])
+	by d28av04.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s3T80U9f027235
+	for <linux-mm@kvack.org>; Tue, 29 Apr 2014 13:30:30 +0530
+Message-ID: <535F5BF1.6020405@linux.vnet.ibm.com>
+Date: Tue, 29 Apr 2014 13:29:45 +0530
+From: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Subject: Re: [BUG] kernel BUG at mm/vmacache.c:85!
+References: <535EA976.1080402@linux.vnet.ibm.com> <CA+55aFxgW0fS=6xJsKP-WiOUw=aiCEvydj+pc+zDF8Pvn4v+Jw@mail.gmail.com> <CA+55aFzXAnTzfNL-bfUFnu15=4Z9HNigoo-XyjmwRvAWX_xz0A@mail.gmail.com>
+In-Reply-To: <CA+55aFzXAnTzfNL-bfUFnu15=4Z9HNigoo-XyjmwRvAWX_xz0A@mail.gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Gushchin <klamm@yandex-team.ru>
-Cc: Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Michel Lespinasse <walken@google.com>, Tejun Heo <tj@kernel.org>, Hugh Dickins <hughd@google.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Davidlohr Bueso <davidlohr@hp.com>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Hugh Dickins <hughd@google.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 
-
-On Mon, Apr 28 2014, Roman Gushchin <klamm@yandex-team.ru> wrote:
-
-> 28.04.2014, 16:27, "Michal Hocko" <mhocko@suse.cz>:
->> The series is based on top of the current mmotm tree. Once the series
->> gets accepted I will post a patch which will mark the soft limit as
->> deprecated with a note that it will be eventually dropped. Let me know
->> if you would prefer to have such a patch a part of the series.
+On 04/29/2014 03:25 AM, Linus Torvalds wrote:
+> On Mon, Apr 28, 2014 at 2:20 PM, Linus Torvalds
+> <torvalds@linux-foundation.org> wrote:
 >>
->> Thoughts?
->
->
-> Looks good to me.
->
-> The only question is: are there any ideas how the hierarchy support
-> will be used in this case in practice?
-> Will someone set low limit for non-leaf cgroups? Why?
->
-> Thanks,
-> Roman
+>> That said, the bug does seem to be that some path doesn't invalidate
+>> the vmacache sufficiently, or something inserts a vmacache entry into
+>> the current process when looking up a remote process or whatever.
+>> Davidlohr, ideas?
+> 
+> Maybe we missed some use_mm() call. That will change the current mm
+> without flushing the vma cache. The code considers kernel threads to
+> be bad targets for vma caching for this reason (and perhaps others),
+> but maybe we missed something.
+> 
+> I wonder if we should just invalidate the vma cache in use_mm(), and
+> remote the "kernel tasks are special" check.
+> 
+> Srivatsa, are you doing something peculiar on that system that would
+> trigger this? I see some kdump failures in the log, anything else?
+> 
 
-I imagine that a hosting service may want to give X MB to a top level
-memcg (/a) with sub-jobs (/a/b, /a/c) which may(not) have their own
-low-limits.
+No, it was just plain booting. The machine is simply configured with
+kdump, that's all. I'm surprised that so many processes got segfaults
+during boot. Looks like an mm bug in the kernel.
 
-Examples:
-
-case_1) only set low limit on /a.  /a/b and /a/c may overcommit /a's
-        memory (b.limit_in_bytes + c.limit_in_bytes > a.limit_in_bytes).
-
-case_2) low limits on all memcg.  But not overcommitting low_limits
-        (b.low_limit_in_in_bytes + c.low_limit_in_in_bytes <=
-        a.low_limit_in_in_bytes).
+Regards,
+Srivatsa S. Bhat
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
