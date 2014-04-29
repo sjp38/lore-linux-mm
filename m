@@ -1,65 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f41.google.com (mail-ee0-f41.google.com [74.125.83.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F97B6B0035
-	for <linux-mm@kvack.org>; Tue, 29 Apr 2014 08:53:13 -0400 (EDT)
-Received: by mail-ee0-f41.google.com with SMTP id t10so301039eei.0
-        for <linux-mm@kvack.org>; Tue, 29 Apr 2014 05:53:12 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id w48si26881500eel.236.2014.04.29.05.53.10
-        for <linux-mm@kvack.org>;
-        Tue, 29 Apr 2014 05:53:11 -0700 (PDT)
-Date: Tue, 29 Apr 2014 14:52:55 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: [PATCH] vmacache: change vmacache_find() to always check ->vm_mm
-Message-ID: <20140429125255.GA13934@redhat.com>
-References: <535EA976.1080402@linux.vnet.ibm.com> <CA+55aFxgW0fS=6xJsKP-WiOUw=aiCEvydj+pc+zDF8Pvn4v+Jw@mail.gmail.com> <CA+55aFzXAnTzfNL-bfUFnu15=4Z9HNigoo-XyjmwRvAWX_xz0A@mail.gmail.com> <1398724754.25549.35.camel@buesod1.americas.hpqcorp.net> <CA+55aFz0jrk-O9gq9VQrFBeWTpLt_5zPt9RsJO9htrqh+nKTfA@mail.gmail.com> <20140428161120.4cad719dc321e3c837db3fd6@linux-foundation.org> <CA+55aFwLSW3V76Y_O37Y8r_yaKQ+y0VMk=6SEEBpeFfGzsJUKA@mail.gmail.com> <1398730319.25549.40.camel@buesod1.americas.hpqcorp.net> <535F78A8.80403@linux.vnet.ibm.com>
+Received: from mail-ee0-f48.google.com (mail-ee0-f48.google.com [74.125.83.48])
+	by kanga.kvack.org (Postfix) with ESMTP id EF8706B0035
+	for <linux-mm@kvack.org>; Tue, 29 Apr 2014 08:55:01 -0400 (EDT)
+Received: by mail-ee0-f48.google.com with SMTP id b57so294854eek.21
+        for <linux-mm@kvack.org>; Tue, 29 Apr 2014 05:55:01 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id o46si26886352eem.249.2014.04.29.05.54.59
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 29 Apr 2014 05:55:00 -0700 (PDT)
+Date: Tue, 29 Apr 2014 14:54:57 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v2 0/4] memcg: Low-limit reclaim
+Message-ID: <20140429125457.GG15058@dhcp22.suse.cz>
+References: <1398688005-26207-1-git-send-email-mhocko@suse.cz>
+ <10861398700008@webcorp2f.yandex-team.ru>
+ <xr938uqoa8ei.fsf@gthelen.mtv.corp.google.com>
+ <7441398768618@webcorp2f.yandex-team.ru>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <535F78A8.80403@linux.vnet.ibm.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <7441398768618@webcorp2f.yandex-team.ru>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
-Cc: Davidlohr Bueso <davidlohr@hp.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Hugh Dickins <hughd@google.com>
+To: Roman Gushchin <klamm@yandex-team.ru>
+Cc: Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Michel Lespinasse <walken@google.com>, Tejun Heo <tj@kernel.org>, Hugh Dickins <hughd@google.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On 04/29, Srivatsa S. Bhat wrote:
->
-> I guess I'll hold off on testing this fix until I get to reproduce
-> the bug more reliably..
+On Tue 29-04-14 14:50:18, Roman Gushchin wrote:
+> 29.04.2014, 11:42, "Greg Thelen" <gthelen@google.com>:
+> > On Mon, Apr 28 2014, Roman Gushchin <klamm@yandex-team.ru> wrote:
+> >
+> >>  28.04.2014, 16:27, "Michal Hocko" <mhocko@suse.cz>:
+> >>>  The series is based on top of the current mmotm tree. Once the series
+> >>>  gets accepted I will post a patch which will mark the soft limit as
+> >>>  deprecated with a note that it will be eventually dropped. Let me know
+> >>>  if you would prefer to have such a patch a part of the series.
+> >>>
+> >>>  Thoughts?
+> >>  Looks good to me.
+> >>
+> >>  The only question is: are there any ideas how the hierarchy support
+> >>  will be used in this case in practice?
+> >>  Will someone set low limit for non-leaf cgroups? Why?
+> >>
+> >>  Thanks,
+> >>  Roman
+> >
+> > I imagine that a hosting service may want to give X MB to a top level
+> > memcg (/a) with sub-jobs (/a/b, /a/c) which may(not) have their own
+> > low-limits.
 
-perhaps the patch below can help a bit?
+I would expect the limit would be set on leaf nodes most of the time
+because intermediate nodes have charges inter-mixed with charges from
+children so it is not entirely clear who to protect.
+On the on the other hand I can imagine that the higher level node might
+get some portion of memory by an admin without any way to set the limit
+down the hierarchy for its user as described by Greg.
 
--------------------------------------------------------------------------------
-Subject: [PATCH] vmacache: change vmacache_find() to always check ->vm_mm
+> > Examples:
+> >
+> > case_1) only set low limit on /a.  /a/b and /a/c may overcommit /a's
+> >         memory (b.limit_in_bytes + c.limit_in_bytes > a.limit_in_bytes).
+> >
+> > case_2) low limits on all memcg.  But not overcommitting low_limits
+> >         (b.low_limit_in_in_bytes + c.low_limit_in_in_bytes <=
+> >         a.low_limit_in_in_bytes).
+> 
+> Thanks!
+> 
+> With use_hierarchy turned on it looks perfectly usable.
 
-If ->vmacache was corrupted it would be better to detect and report
-the problem asap, check vma->vm_mm before vm_start/vm_end.
+use_hierarchy is becoming the default and we even complain about deeper
+directory structures without it being enabled.
 
-Signed-off-by: Oleg Nesterov <oleg@redhat.com>
----
- mm/vmacache.c |    5 +++--
- 1 files changed, 3 insertions(+), 2 deletions(-)
-
-diff --git a/mm/vmacache.c b/mm/vmacache.c
-index d4224b3..952a324 100644
---- a/mm/vmacache.c
-+++ b/mm/vmacache.c
-@@ -81,9 +81,10 @@ struct vm_area_struct *vmacache_find(struct mm_struct *mm, unsigned long addr)
- 	for (i = 0; i < VMACACHE_SIZE; i++) {
- 		struct vm_area_struct *vma = current->vmacache[i];
- 
--		if (vma && vma->vm_start <= addr && vma->vm_end > addr) {
-+		if (vma) {
- 			BUG_ON(vma->vm_mm != mm);
--			return vma;
-+			if (vma->vm_start <= addr && vma->vm_end > addr)
-+				return vma;
- 		}
- 	}
- 
 -- 
-1.5.5.1
-
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
