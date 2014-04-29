@@ -1,133 +1,260 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id A25B66B0037
-	for <linux-mm@kvack.org>; Tue, 29 Apr 2014 04:35:25 -0400 (EDT)
-Received: by mail-pd0-f173.google.com with SMTP id p10so6364981pdj.4
-        for <linux-mm@kvack.org>; Tue, 29 Apr 2014 01:35:25 -0700 (PDT)
-Received: from mailout4.w1.samsung.com (mailout4.w1.samsung.com. [210.118.77.14])
-        by mx.google.com with ESMTPS id iv2si7190612pbd.211.2014.04.29.01.35.24
+Received: from mail-ee0-f44.google.com (mail-ee0-f44.google.com [74.125.83.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 430AD6B0037
+	for <linux-mm@kvack.org>; Tue, 29 Apr 2014 04:40:38 -0400 (EDT)
+Received: by mail-ee0-f44.google.com with SMTP id c41so7490eek.3
+        for <linux-mm@kvack.org>; Tue, 29 Apr 2014 01:40:37 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id u5si26049876een.353.2014.04.29.01.40.35
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Tue, 29 Apr 2014 01:35:24 -0700 (PDT)
-Received: from eucpsbgm2.samsung.com (unknown [203.254.199.245])
- by mailout4.w1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0N4S00CFFAIVPJ60@mailout4.w1.samsung.com> for
- linux-mm@kvack.org; Tue, 29 Apr 2014 09:35:19 +0100 (BST)
-Message-id: <535F6451.1030403@samsung.com>
-Date: Tue, 29 Apr 2014 10:35:29 +0200
-From: Marek Szyprowski <m.szyprowski@samsung.com>
-MIME-version: 1.0
-Subject: Re: [PATCH 7/6] media: videobuf2-dma-sg: call find_vma with the
- mmap_sem held
-References: <1397960791-16320-1-git-send-email-davidlohr@hp.com>
- <1398708571.25549.10.camel@buesod1.americas.hpqcorp.net>
-In-reply-to: <1398708571.25549.10.camel@buesod1.americas.hpqcorp.net>
-Content-type: text/plain; charset=UTF-8; format=flowed
-Content-transfer-encoding: 7bit
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 29 Apr 2014 01:40:36 -0700 (PDT)
+Message-ID: <535F657D.3060809@suse.cz>
+Date: Tue, 29 Apr 2014 10:40:29 +0200
+From: Vlastimil Babka <vbabka@suse.cz>
+MIME-Version: 1.0
+Subject: Re: [PATCH 2/2] mm/compaction: cleanup isolate_freepages()
+References: <20140421124146.c8beacf0d58aafff2085a461@linux-foundation.org> <535590FC.10607@suse.cz> <20140421235319.GD7178@bbox> <53560D3F.2030002@suse.cz> <20140422065224.GE24292@bbox> <53566BEA.2060808@suse.cz> <20140423025806.GA11184@js1304-P5Q-DELUXE> <53576C08.2080003@suse.cz> <CAAmzW4OjKcrzXYNG6KN8acbOVfVtFmu-1COKpNQJrraBTmWGiA@mail.gmail.com> <5357CEB2.1070900@suse.cz> <20140425082941.GA11428@js1304-P5Q-DELUXE>
+In-Reply-To: <20140425082941.GA11428@js1304-P5Q-DELUXE>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <davidlohr@hp.com>, akpm@linux-foundation.org
-Cc: aswin@hp.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Pawel Osciak <pawel@osciak.com>, Kyungmin Park <kyungmin.park@samsung.com>, Mauro Carvalho Chehab <m.chehab@samsung.com>, linux-media@vger.kernel.org
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Heesub Shin <heesub.shin@samsung.com>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Dongjun Shin <d.j.shin@samsung.com>, Sunghwan Yun <sunghwan.yun@samsung.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>
 
-Hello,
-
-On 2014-04-28 20:09, Davidlohr Bueso wrote:
-> Performing vma lookups without taking the mm->mmap_sem is asking
-> for trouble. While doing the search, the vma in question can
-> be modified or even removed before returning to the caller.
-> Take the lock in order to avoid races while iterating through
-> the vmacache and/or rbtree.
+On 04/25/2014 10:29 AM, Joonsoo Kim wrote:
+> On Wed, Apr 23, 2014 at 04:31:14PM +0200, Vlastimil Babka wrote:
+>>>>>
+>>>>> Hello,
+>>>>>
+>>>>> How about doing more clean-up at this time?
+>>>>>
+>>>>> What I did is that taking end_pfn out of the loop and consider zone
+>>>>> boundary once. After then, we just subtract pageblock_nr_pages on
+>>>>> every iteration. With this change, we can remove local variable, z_end_pfn.
+>>>>> Another things I did are removing max() operation and un-needed
+>>>>> assignment to isolate variable.
+>>>>>
+>>>>> Thanks.
+>>>>>
+>>>>> --------->8------------
+>>>>> diff --git a/mm/compaction.c b/mm/compaction.c
+>>>>> index 1c992dc..95a506d 100644
+>>>>> --- a/mm/compaction.c
+>>>>> +++ b/mm/compaction.c
+>>>>> @@ -671,10 +671,10 @@ static void isolate_freepages(struct zone *zone,
+>>>>>                                struct compact_control *cc)
+>>>>>   {
+>>>>>        struct page *page;
+>>>>> -     unsigned long pfn;           /* scanning cursor */
+>>>>> +     unsigned long pfn;           /* start of scanning window */
+>>>>> +     unsigned long end_pfn;       /* end of scanning window */
+>>>>>        unsigned long low_pfn;       /* lowest pfn scanner is able to scan */
+>>>>>        unsigned long next_free_pfn; /* start pfn for scaning at next round */
+>>>>> -     unsigned long z_end_pfn;     /* zone's end pfn */
+>>>>>        int nr_freepages = cc->nr_freepages;
+>>>>>        struct list_head *freelist = &cc->freepages;
+>>>>>
+>>>>> @@ -688,15 +688,16 @@ static void isolate_freepages(struct zone *zone,
+>>>>>         * is using.
+>>>>>         */
+>>>>>        pfn = cc->free_pfn & ~(pageblock_nr_pages-1);
+>>>>> -     low_pfn = ALIGN(cc->migrate_pfn + 1, pageblock_nr_pages);
+>>>>>
+>>>>>        /*
+>>>>> -      * Seed the value for max(next_free_pfn, pfn) updates. If no pages are
+>>>>> -      * isolated, the pfn < low_pfn check will kick in.
+>>>>> +      * Take care when isolating in last pageblock of a zone which
+>>>>> +      * ends in the middle of a pageblock.
+>>>>>         */
+>>>>> -     next_free_pfn = 0;
+>>>>> +     end_pfn = min(pfn + pageblock_nr_pages, zone_end_pfn(zone));
+>>>>> +     low_pfn = ALIGN(cc->migrate_pfn + 1, pageblock_nr_pages);
+>>>>>
+>>>>> -     z_end_pfn = zone_end_pfn(zone);
+>>>>> +     /* If no pages are isolated, the pfn < low_pfn check will kick in. */
+>>>>> +     next_free_pfn = 0;
+>>>>>
+>>>>>        /*
+>>>>>         * Isolate free pages until enough are available to migrate the
+>>>>> @@ -704,9 +705,8 @@ static void isolate_freepages(struct zone *zone,
+>>>>>         * and free page scanners meet or enough free pages are isolated.
+>>>>>         */
+>>>>>        for (; pfn >= low_pfn && cc->nr_migratepages > nr_freepages;
+>>>>> -                                     pfn -= pageblock_nr_pages) {
+>>>>> +             pfn -= pageblock_nr_pages, end_pfn -= pageblock_nr_pages) {
+>>>>
+>>>> If zone_end_pfn was in the middle of a pageblock, then your end_pfn will
+>>>> always be in the middle of a pageblock and you will not scan half of all
+>>>> pageblocks.
+>>>>
+>>>
+>>> Okay. I think a way to fix it.
+>>> By assigning pfn(start of scanning window) to
+>>> end_pfn(end of scanning window) for the next loop, we can solve the problem
+>>> you mentioned. How about below?
+>>>
+>>> -             pfn -= pageblock_nr_pages, end_pfn -= pageblock_nr_pages) {
+>>> +            end_pfn = pfn, pfn -= pageblock_nr_pages) {
+>>
+>> Hm that's perhaps a bit subtle but it would work.
+>> Maybe better names for pfn and end_pfn would be block_start_pfn and
+>> block_end_pfn. And in those comments, s/scanning window/current pageblock/.
+>> And please don't move the low_pfn assignment like you did. The comment
+>> above the original location explains it, the comment above the new
+>> location doesn't. It's use in the loop is also related to 'pfn', not
+>> 'end_pfn'.
 >
-> Also do some very minor cleanup changes.
+> Okay.
+> Following patch solves all your concerns.
+> End result looks so nice to me. :)
+
+Great, thanks!
+
+> Thanks.
 >
-> This patch is only compile tested.
-
-NACK.
-
-mm->mmap_sem is taken by videobuf2-core to avoid AB-BA deadlock with v4l2 core lock. For more information, please check videobuf2-core.c. However you are right that this is a bit confusing and we need more comments about the place where mmap_sem is taken. Here is some background for this decision:
-
-https://www.mail-archive.com/linux-media@vger.kernel.org/msg38599.html
-http://www.spinics.net/lists/linux-media/msg40225.html
-
-> Signed-off-by: Davidlohr Bueso <davidlohr@hp.com>
-> Cc: Pawel Osciak <pawel@osciak.com>
-> Cc: Marek Szyprowski <m.szyprowski@samsung.com>
-> Cc: Kyungmin Park <kyungmin.park@samsung.com>
-> Cc: Mauro Carvalho Chehab <m.chehab@samsung.com>
-> Cc: linux-media@vger.kernel.org
-> ---
-> It would seem this is the last offending user.
-> v4l2 is a maze but I believe that this is needed as I don't
-> see the mmap_sem being taken by any callers of vb2_dma_sg_get_userptr().
+> --------->8----------------
+>  From ae653cf8b9f8c7423cad73af38cde94eec564b50 Mon Sep 17 00:00:00 2001
+> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> Date: Fri, 25 Apr 2014 17:12:58 +0900
+> Subject: [PATCH] mm-compaction-cleanup-isolate_freepages-fix3
 >
->   drivers/media/v4l2-core/videobuf2-dma-sg.c | 12 ++++++++----
->   1 file changed, 8 insertions(+), 4 deletions(-)
+> What I did here is taking end_pfn out of the loop and considering zone
+> boundary once. After then, we can just set previous pfn to end_pfn on
+> every iteration to move scanning window. With this change, we can remove
+> local variable, z_end_pfn.
 >
-> diff --git a/drivers/media/v4l2-core/videobuf2-dma-sg.c b/drivers/media/v4l2-core/videobuf2-dma-sg.c
-> index c779f21..2a21100 100644
-> --- a/drivers/media/v4l2-core/videobuf2-dma-sg.c
-> +++ b/drivers/media/v4l2-core/videobuf2-dma-sg.c
-> @@ -168,8 +168,9 @@ static void *vb2_dma_sg_get_userptr(void *alloc_ctx, unsigned long vaddr,
->   	unsigned long first, last;
->   	int num_pages_from_user;
->   	struct vm_area_struct *vma;
-> +	struct mm_struct *mm = current->mm;
->   
-> -	buf = kzalloc(sizeof *buf, GFP_KERNEL);
-> +	buf = kzalloc(sizeof(*buf), GFP_KERNEL);
->   	if (!buf)
->   		return NULL;
->   
-> @@ -178,7 +179,7 @@ static void *vb2_dma_sg_get_userptr(void *alloc_ctx, unsigned long vaddr,
->   	buf->offset = vaddr & ~PAGE_MASK;
->   	buf->size = size;
->   
-> -	first = (vaddr           & PAGE_MASK) >> PAGE_SHIFT;
-> +	first = (vaddr & PAGE_MASK) >> PAGE_SHIFT;
->   	last  = ((vaddr + size - 1) & PAGE_MASK) >> PAGE_SHIFT;
->   	buf->num_pages = last - first + 1;
->   
-> @@ -187,7 +188,8 @@ static void *vb2_dma_sg_get_userptr(void *alloc_ctx, unsigned long vaddr,
->   	if (!buf->pages)
->   		goto userptr_fail_alloc_pages;
->   
-> -	vma = find_vma(current->mm, vaddr);
-> +	down_write(&mm->mmap_sem);
-> +	vma = find_vma(mm, vaddr);
->   	if (!vma) {
->   		dprintk(1, "no vma for address %lu\n", vaddr);
->   		goto userptr_fail_find_vma;
-> @@ -218,7 +220,7 @@ static void *vb2_dma_sg_get_userptr(void *alloc_ctx, unsigned long vaddr,
->   			buf->pages[num_pages_from_user] = pfn_to_page(pfn);
+> Another things I did are removing max() operation and un-needed
+> assignment to isolate variable.
+>
+> In addition, I change both the variable names, from pfn and
+> end_pfn to block_start_pfn and block_end_pfn, respectively.
+> They represent their meaning perfectly.
+>
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+
+Acked-by: Vlastimil Babka <vbabka@suse.de>
+
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index 1c992dc..ba80bea 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -671,10 +671,10 @@ static void isolate_freepages(struct zone *zone,
+>   				struct compact_control *cc)
+>   {
+>   	struct page *page;
+> -	unsigned long pfn;	     /* scanning cursor */
+> +	unsigned long block_start_pfn;	/* start of current pageblock */
+> +	unsigned long block_end_pfn;	/* end of current pageblock */
+>   	unsigned long low_pfn;	     /* lowest pfn scanner is able to scan */
+>   	unsigned long next_free_pfn; /* start pfn for scaning at next round */
+> -	unsigned long z_end_pfn;     /* zone's end pfn */
+>   	int nr_freepages = cc->nr_freepages;
+>   	struct list_head *freelist = &cc->freepages;
+>
+> @@ -682,31 +682,33 @@ static void isolate_freepages(struct zone *zone,
+>   	 * Initialise the free scanner. The starting point is where we last
+>   	 * successfully isolated from, zone-cached value, or the end of the
+>   	 * zone when isolating for the first time. We need this aligned to
+> -	 * the pageblock boundary, because we do pfn -= pageblock_nr_pages
+> -	 * in the for loop.
+> +	 * the pageblock boundary, because we do
+> +	 * block_start_pfn -= pageblock_nr_pages in the for loop.
+> +	 * For ending point, take care when isolating in last pageblock of a
+> +	 * a zone which ends in the middle of a pageblock.
+>   	 * The low boundary is the end of the pageblock the migration scanner
+>   	 * is using.
+>   	 */
+> -	pfn = cc->free_pfn & ~(pageblock_nr_pages-1);
+> +	block_start_pfn = cc->free_pfn & ~(pageblock_nr_pages-1);
+> +	block_end_pfn = min(block_start_pfn + pageblock_nr_pages,
+> +						zone_end_pfn(zone));
+>   	low_pfn = ALIGN(cc->migrate_pfn + 1, pageblock_nr_pages);
+>
+>   	/*
+> -	 * Seed the value for max(next_free_pfn, pfn) updates. If no pages are
+> -	 * isolated, the pfn < low_pfn check will kick in.
+> +	 * If no pages are isolated, the block_start_pfn < low_pfn check
+> +	 * will kick in.
+>   	 */
+>   	next_free_pfn = 0;
+>
+> -	z_end_pfn = zone_end_pfn(zone);
+> -
+>   	/*
+>   	 * Isolate free pages until enough are available to migrate the
+>   	 * pages on cc->migratepages. We stop searching if the migrate
+>   	 * and free page scanners meet or enough free pages are isolated.
+>   	 */
+> -	for (; pfn >= low_pfn && cc->nr_migratepages > nr_freepages;
+> -					pfn -= pageblock_nr_pages) {
+> +	for (;block_start_pfn >= low_pfn && cc->nr_migratepages > nr_freepages;
+> +				block_end_pfn = block_start_pfn,
+> +				block_start_pfn -= pageblock_nr_pages) {
+>   		unsigned long isolated;
+> -		unsigned long end_pfn;
+>
+>   		/*
+>   		 * This can iterate a massively long zone without finding any
+> @@ -715,7 +717,7 @@ static void isolate_freepages(struct zone *zone,
+>   		 */
+>   		cond_resched();
+>
+> -		if (!pfn_valid(pfn))
+> +		if (!pfn_valid(block_start_pfn))
+>   			continue;
+>
+>   		/*
+> @@ -725,7 +727,7 @@ static void isolate_freepages(struct zone *zone,
+>   		 * i.e. it's possible that all pages within a zones range of
+>   		 * pages do not belong to a single zone.
+>   		 */
+> -		page = pfn_to_page(pfn);
+> +		page = pfn_to_page(block_start_pfn);
+>   		if (page_zone(page) != zone)
+>   			continue;
+>
+> @@ -738,15 +740,8 @@ static void isolate_freepages(struct zone *zone,
+>   			continue;
+>
+>   		/* Found a block suitable for isolating free pages from */
+> -		isolated = 0;
+> -
+> -		/*
+> -		 * Take care when isolating in last pageblock of a zone which
+> -		 * ends in the middle of a pageblock.
+> -		 */
+> -		end_pfn = min(pfn + pageblock_nr_pages, z_end_pfn);
+> -		isolated = isolate_freepages_block(cc, pfn, end_pfn,
+> -						   freelist, false);
+> +		isolated = isolate_freepages_block(cc, block_start_pfn,
+> +					block_end_pfn, freelist, false);
+>   		nr_freepages += isolated;
+>
+>   		/*
+> @@ -754,9 +749,9 @@ static void isolate_freepages(struct zone *zone,
+>   		 * looking for free pages, the search will restart here as
+>   		 * page migration may have returned some pages to the allocator
+>   		 */
+> -		if (isolated) {
+> +		if (isolated && next_free_pfn == 0) {
+>   			cc->finished_update_free = true;
+> -			next_free_pfn = max(next_free_pfn, pfn);
+> +			next_free_pfn = block_start_pfn;
 >   		}
->   	} else
-> -		num_pages_from_user = get_user_pages(current, current->mm,
-> +		num_pages_from_user = get_user_pages(current, mm,
->   					     vaddr & PAGE_MASK,
->   					     buf->num_pages,
->   					     write,
-> @@ -233,6 +235,7 @@ static void *vb2_dma_sg_get_userptr(void *alloc_ctx, unsigned long vaddr,
->   			buf->num_pages, buf->offset, size, 0))
->   		goto userptr_fail_alloc_table_from_pages;
->   
-> +	up_write(&mm->mmap_sem);
->   	return buf;
->   
->   userptr_fail_alloc_table_from_pages:
-> @@ -244,6 +247,7 @@ userptr_fail_get_user_pages:
->   			put_page(buf->pages[num_pages_from_user]);
->   	vb2_put_vma(buf->vma);
->   userptr_fail_find_vma:
-> +	up_write(&mm->mmap_sem);
->   	kfree(buf->pages);
->   userptr_fail_alloc_pages:
->   	kfree(buf);
-
-Best regards
--- 
-Marek Szyprowski, PhD
-Samsung R&D Institute Poland
+>   	}
+>
+> @@ -767,7 +762,7 @@ static void isolate_freepages(struct zone *zone,
+>   	 * If we crossed the migrate scanner, we want to keep it that way
+>   	 * so that compact_finished() may detect this
+>   	 */
+> -	if (pfn < low_pfn)
+> +	if (block_start_pfn < low_pfn)
+>   		next_free_pfn = cc->migrate_pfn;
+>
+>   	cc->free_pfn = next_free_pfn;
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
