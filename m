@@ -1,81 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id A00E56B0035
-	for <linux-mm@kvack.org>; Wed, 30 Apr 2014 16:13:56 -0400 (EDT)
-Received: by mail-pa0-f53.google.com with SMTP id ld10so2568039pab.12
-        for <linux-mm@kvack.org>; Wed, 30 Apr 2014 13:13:56 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id wh9si18092904pac.418.2014.04.30.13.13.55
-        for <linux-mm@kvack.org>;
-        Wed, 30 Apr 2014 13:13:55 -0700 (PDT)
-Date: Wed, 30 Apr 2014 13:13:53 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v4] mm,writeback: fix divide by zero in
- pos_ratio_polynom
-Message-Id: <20140430131353.fa9f49604ea39425bc93c24a@linux-foundation.org>
-In-Reply-To: <20140430160218.442863e0@cuia.bos.redhat.com>
-References: <20140429151910.53f740ef@annuminas.surriel.com>
-	<5360C9E7.6010701@jp.fujitsu.com>
-	<20140430093035.7e7226f2@annuminas.surriel.com>
-	<20140430134826.GH4357@dhcp22.suse.cz>
-	<20140430104114.4bdc588e@cuia.bos.redhat.com>
-	<20140430120001.b4b95061ac7252a976b8a179@linux-foundation.org>
-	<53614F3C.8020009@redhat.com>
-	<20140430123526.bc6a229c1ea4addad1fb483d@linux-foundation.org>
-	<20140430160218.442863e0@cuia.bos.redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-ee0-f52.google.com (mail-ee0-f52.google.com [74.125.83.52])
+	by kanga.kvack.org (Postfix) with ESMTP id A1F626B0035
+	for <linux-mm@kvack.org>; Wed, 30 Apr 2014 16:25:54 -0400 (EDT)
+Received: by mail-ee0-f52.google.com with SMTP id e53so1696409eek.25
+        for <linux-mm@kvack.org>; Wed, 30 Apr 2014 13:25:54 -0700 (PDT)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id x44si32028712eep.150.2014.04.30.13.25.52
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 30 Apr 2014 13:25:53 -0700 (PDT)
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: [patch 0/9] mm: memcontrol: naturalize charge lifetime
+Date: Wed, 30 Apr 2014 16:25:34 -0400
+Message-Id: <1398889543-23671-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Masayoshi Mizuma <m.mizuma@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, sandeen@redhat.com, jweiner@redhat.com, kosaki.motohiro@jp.fujitsu.com, fengguang.wu@intel.com, mpatlasov@parallels.com, Motohiro.Kosaki@us.fujitsu.com
+To: linux-mm@kvack.org
+Cc: Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Wed, 30 Apr 2014 16:02:18 -0400 Rik van Riel <riel@redhat.com> wrote:
+Hi,
 
-> I believe this should do the trick.
-> 
-> ---8<---
-> 
-> Subject: mm,writeback: fix divide by zero in pos_ratio_polynom
-> 
-> It is possible for "limit - setpoint + 1" to equal zero, leading to a
-> divide by zero error. Blindly adding 1 to "limit - setpoint" is not
-> working, so we need to actually test the divisor before calling div64.
-> 
+these patches rework memcg charge lifetime to integrate more naturally
+with the lifetime of user pages.  This drastically simplifies the code
+and reduces charging and uncharging overhead.  The most expensive part
+of charging and uncharging is the page_cgroup bit spinlock, which is
+removed entirely after this series.
 
-Changelog is a bit stale.
+Here are the top-10 profile entries of a stress test that reads a 128G
+sparse file on a freshly booted box, without a dedicated cgroup
+(i.e. executing in the root memcg).  Before:
 
-> ---
->  mm/page-writeback.c | 19 ++++++++++++++-----
->  1 file changed, 14 insertions(+), 5 deletions(-)
-> 
-> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-> index ef41349..37f56bb 100644
-> --- a/mm/page-writeback.c
-> +++ b/mm/page-writeback.c
-> @@ -593,15 +593,20 @@ unsigned long bdi_dirty_limit(struct backing_dev_info *bdi, unsigned long dirty)
->   * (5) the closer to setpoint, the smaller |df/dx| (and the reverse)
->   *     => fast response on large errors; small oscillation near setpoint
->   */
-> -static inline long long pos_ratio_polynom(unsigned long setpoint,
-> +static long long pos_ratio_polynom(unsigned long setpoint,
->  					  unsigned long dirty,
->  					  unsigned long limit)
->  {
-> +	unsigned long divisor;
->  	long long pos_ratio;
->  	long x;
->  
-> -	x = div_s64(((s64)setpoint - (s64)dirty) << RATELIMIT_CALC_SHIFT,
-> -		    limit - setpoint + 1);
-> +	divisor = limit - setpoint;
-> +	if (!divisor)
-> +		divisor = 1;	/* Avoid div-by-zero */
+    15.36%              cat  [kernel.kallsyms]   [k] copy_user_generic_string                  
+    13.31%              cat  [kernel.kallsyms]   [k] memset                                    
+    11.48%              cat  [kernel.kallsyms]   [k] do_mpage_readpage                         
+     4.23%              cat  [kernel.kallsyms]   [k] get_page_from_freelist                    
+     2.38%              cat  [kernel.kallsyms]   [k] put_page                                  
+     2.32%              cat  [kernel.kallsyms]   [k] __mem_cgroup_commit_charge                
+     2.18%          kswapd0  [kernel.kallsyms]   [k] __mem_cgroup_uncharge_common              
+     1.92%          kswapd0  [kernel.kallsyms]   [k] shrink_page_list                          
+     1.86%              cat  [kernel.kallsyms]   [k] __radix_tree_lookup                       
+     1.62%              cat  [kernel.kallsyms]   [k] __pagevec_lru_add_fn                      
 
-This was a consequence of 64->32 truncation and it can't happen any
-more, can it?
+And after:
 
+    15.67%           cat  [kernel.kallsyms]   [k] copy_user_generic_string                  
+    13.48%           cat  [kernel.kallsyms]   [k] memset                                    
+    11.42%           cat  [kernel.kallsyms]   [k] do_mpage_readpage                         
+     3.98%           cat  [kernel.kallsyms]   [k] get_page_from_freelist                    
+     2.46%           cat  [kernel.kallsyms]   [k] put_page                                  
+     2.13%       kswapd0  [kernel.kallsyms]   [k] shrink_page_list                          
+     1.88%           cat  [kernel.kallsyms]   [k] __radix_tree_lookup                       
+     1.67%           cat  [kernel.kallsyms]   [k] __pagevec_lru_add_fn                      
+     1.39%       kswapd0  [kernel.kallsyms]   [k] free_pcppages_bulk                        
+     1.30%           cat  [kernel.kallsyms]   [k] kfree                                     
+
+The code also survived some prolonged stress testing with a swapping
+workload being moved continuously between memcgs.
+
+My apologies in advance for the reviewability.  I tried to split out
+the rewrite into more steps, but had to declare the current code as
+unsalvagaeble after it took me more than a day to convince myself how
+the swap accounting works.  It's probably easiest to read this as
+newly written code.
+
+ Documentation/cgroups/memcg_test.txt |  160 +--
+ include/linux/memcontrol.h           |   94 +-
+ include/linux/page_cgroup.h          |   43 +-
+ include/linux/swap.h                 |   15 +-
+ kernel/events/uprobes.c              |    1 +
+ mm/filemap.c                         |   13 +-
+ mm/huge_memory.c                     |   51 +-
+ mm/memcontrol.c                      | 1724 ++++++++++++--------------------
+ mm/memory.c                          |   41 +-
+ mm/migrate.c                         |   46 +-
+ mm/rmap.c                            |    6 -
+ mm/shmem.c                           |   28 +-
+ mm/swap.c                            |   22 +
+ mm/swap_state.c                      |    8 +-
+ mm/swapfile.c                        |   21 +-
+ mm/truncate.c                        |    1 -
+ mm/vmscan.c                          |    9 +-
+ mm/zswap.c                           |    2 +-
+ 18 files changed, 833 insertions(+), 1452 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
