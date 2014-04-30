@@ -1,70 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 220DA6B0035
-	for <linux-mm@kvack.org>; Wed, 30 Apr 2014 13:21:57 -0400 (EDT)
-Received: by mail-pd0-f171.google.com with SMTP id r10so2067636pdi.2
-        for <linux-mm@kvack.org>; Wed, 30 Apr 2014 10:21:56 -0700 (PDT)
-Received: from collaborate-mta1.arm.com (fw-tnat.austin.arm.com. [217.140.110.23])
-        by mx.google.com with ESMTP id ho7si17641930pad.151.2014.04.30.10.21.55
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 308826B0035
+	for <linux-mm@kvack.org>; Wed, 30 Apr 2014 15:00:09 -0400 (EDT)
+Received: by mail-pd0-f177.google.com with SMTP id v10so2075422pde.22
+        for <linux-mm@kvack.org>; Wed, 30 Apr 2014 12:00:08 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id ho7si17896598pad.233.2014.04.30.12.00.04
         for <linux-mm@kvack.org>;
-        Wed, 30 Apr 2014 10:21:55 -0700 (PDT)
-Date: Wed, 30 Apr 2014 18:21:14 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [RFC PATCH V4 6/7] arm64: mm: Enable HAVE_RCU_TABLE_FREE logic
-Message-ID: <20140430172114.GI31220@arm.com>
-References: <1396018892-6773-1-git-send-email-steve.capper@linaro.org>
- <1396018892-6773-7-git-send-email-steve.capper@linaro.org>
- <20140430152047.GF31220@arm.com>
- <20140430153317.GG31220@arm.com>
- <20140430153824.GA7166@linaro.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140430153824.GA7166@linaro.org>
+        Wed, 30 Apr 2014 12:00:04 -0700 (PDT)
+Date: Wed, 30 Apr 2014 12:00:01 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v3] mm,writeback: fix divide by zero in
+ pos_ratio_polynom
+Message-Id: <20140430120001.b4b95061ac7252a976b8a179@linux-foundation.org>
+In-Reply-To: <20140430104114.4bdc588e@cuia.bos.redhat.com>
+References: <20140429151910.53f740ef@annuminas.surriel.com>
+	<5360C9E7.6010701@jp.fujitsu.com>
+	<20140430093035.7e7226f2@annuminas.surriel.com>
+	<20140430134826.GH4357@dhcp22.suse.cz>
+	<20140430104114.4bdc588e@cuia.bos.redhat.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steve Capper <steve.capper@linaro.org>
-Cc: "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "peterz@infradead.org" <peterz@infradead.org>, "gary.robertson@linaro.org" <gary.robertson@linaro.org>, "anders.roxell@linaro.org" <anders.roxell@linaro.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: Rik van Riel <riel@redhat.com>
+Cc: Michal Hocko <mhocko@suse.cz>, Masayoshi Mizuma <m.mizuma@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, sandeen@redhat.com, jweiner@redhat.com, kosaki.motohiro@jp.fujitsu.com, fengguang.wu@intel.com, mpatlasov@parallels.com, Motohiro.Kosaki@us.fujitsu.com
 
-On Wed, Apr 30, 2014 at 04:38:25PM +0100, Steve Capper wrote:
-> On Wed, Apr 30, 2014 at 04:33:17PM +0100, Catalin Marinas wrote:
-> > On Wed, Apr 30, 2014 at 04:20:47PM +0100, Catalin Marinas wrote:
-> > > On Fri, Mar 28, 2014 at 03:01:31PM +0000, Steve Capper wrote:
-> > > > In order to implement fast_get_user_pages we need to ensure that the
-> > > > page table walker is protected from page table pages being freed from
-> > > > under it.
-> > > > 
-> > > > This patch enables HAVE_RCU_TABLE_FREE, any page table pages belonging
-> > > > to address spaces with multiple users will be call_rcu_sched freed.
-> > > > Meaning that disabling interrupts will block the free and protect the
-> > > > fast gup page walker.
-> > > > 
-> > > > Signed-off-by: Steve Capper <steve.capper@linaro.org>
-> > > 
-> > > While this patch is simple, I'd like to better understand the reason for
-> > > it. Currently HAVE_RCU_TABLE_FREE is enabled for powerpc and sparc while
-> > > __get_user_pages_fast() is supported by a few other architectures that
-> > > don't select HAVE_RCU_TABLE_FREE. So why do we need it for fast gup on
-> > > arm/arm64 while not all the other archs need it?
-> > 
-> > OK, replying to myself. I assume the other architectures that don't need
-> > HAVE_RCU_TABLE_FREE use IPI for TLB shootdown, hence they gup_fast
-> > synchronisation for free.
+On Wed, 30 Apr 2014 10:41:14 -0400 Rik van Riel <riel@redhat.com> wrote:
+
+> It is possible for "limit - setpoint + 1" to equal zero, leading to a
+> divide by zero error. Blindly adding 1 to "limit - setpoint" is not
+> working, so we need to actually test the divisor before calling div64.
 > 
-> Yes that is roughly the case.
-> Essentially we want to RCU free the page table backing pages at a
-> later time when we aren't walking on them.
-> 
-> Other arches use IPI, some others have their own RCU logic. I opted to
-> activate some existing logic to reduce code duplication.
+> ...
+>
+> --- a/mm/page-writeback.c
+> +++ b/mm/page-writeback.c
+> @@ -598,10 +598,15 @@ static inline long long pos_ratio_polynom(unsigned long setpoint,
+>  					  unsigned long limit)
+>  {
+>  	long long pos_ratio;
+> +	long divisor;
+>  	long x;
+>  
+> +	divisor = limit - setpoint;
+> +	if (!(s32)divisor)
+> +		divisor = 1;	/* Avoid div-by-zero */
+> +
+>  	x = div_s64(((s64)setpoint - (s64)dirty) << RATELIMIT_CALC_SHIFT,
+> -		    limit - setpoint + 1);
+> +		    (s32)divisor);
 
-Both powerpc and sparc use tlb_remove_table() via their __pte_free_tlb()
-etc. which implies an IPI for synchronisation if mm_users > 1. For
-gup_fast we may not need it since we use the RCU for protection. Am I
-missing anything?
+Doesn't this just paper over the bug one time in four billion?  The
+other 3999999999 times, pos_ratio_polynom() returns an incorect result?
 
--- 
-Catalin
+If it is indeed the case that pos_ratio_polynom() callers are
+legitimately passing a setpoint which is more than 2^32 less than limit
+then it would be better to handle that input correctly.
+
+Writing a new suite of div functions sounds overkillish.  At some loss
+of precision could we do something like
+
+	if (divisor > 2^32) {
+		divisor >>= log2(divisor) - 32;
+		dividend >>= log2(divisor) - 32;
+	}
+	x = div(dividend, divisor);
+
+?
+
+And let's uninline the sorry thing while we're in there ;)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
