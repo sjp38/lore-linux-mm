@@ -1,58 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id A40A76B0035
-	for <linux-mm@kvack.org>; Tue, 29 Apr 2014 18:53:56 -0400 (EDT)
-Received: by mail-pd0-f177.google.com with SMTP id v10so834113pde.36
-        for <linux-mm@kvack.org>; Tue, 29 Apr 2014 15:53:56 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id yb4si14520161pab.349.2014.04.29.15.53.55
-        for <linux-mm@kvack.org>;
-        Tue, 29 Apr 2014 15:53:55 -0700 (PDT)
-Date: Tue, 29 Apr 2014 15:53:53 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm,writeback: fix divide by zero in pos_ratio_polynom
-Message-Id: <20140429155353.8fe070101d3b4faa0c825d99@linux-foundation.org>
-In-Reply-To: <53602C2B.50604@redhat.com>
-References: <20140429151910.53f740ef@annuminas.surriel.com>
-	<20140429153936.49a2710c0c2bba4d233032f2@linux-foundation.org>
-	<53602C2B.50604@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-oa0-f43.google.com (mail-oa0-f43.google.com [209.85.219.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 3E29D6B0035
+	for <linux-mm@kvack.org>; Tue, 29 Apr 2014 23:31:40 -0400 (EDT)
+Received: by mail-oa0-f43.google.com with SMTP id eb12so1321770oac.2
+        for <linux-mm@kvack.org>; Tue, 29 Apr 2014 20:31:39 -0700 (PDT)
+Received: from mail-ob0-x232.google.com (mail-ob0-x232.google.com [2607:f8b0:4003:c01::232])
+        by mx.google.com with ESMTPS id c10si17935605oed.199.2014.04.29.20.31.39
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 29 Apr 2014 20:31:39 -0700 (PDT)
+Received: by mail-ob0-f178.google.com with SMTP id wn1so1341527obc.9
+        for <linux-mm@kvack.org>; Tue, 29 Apr 2014 20:31:39 -0700 (PDT)
+MIME-Version: 1.0
+Date: Tue, 29 Apr 2014 23:31:38 -0400
+Message-ID: <CAG4AFWaemUiR1HTx5dUUQf3V4twuwuiBdtDLNEeEoF-ikTThpQ@mail.gmail.com>
+Subject: Is heap_stack_gap useless?
+From: Jidong Xiao <jidong.xiao@gmail.com>
+Content-Type: multipart/alternative; boundary=047d7b472148b4dfed04f83a2f75
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, sandeen@redhat.com, jweiner@redhat.com, kosaki.motohiro@jp.fujitsu.com, mhocko@suse.cz, fengguang.wu@intel.com, mpatlasov@parallels.com
+To: Kernel development list <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On Tue, 29 Apr 2014 18:48:11 -0400 Rik van Riel <riel@redhat.com> wrote:
+--047d7b472148b4dfed04f83a2f75
+Content-Type: text/plain; charset=UTF-8
 
-> On 04/29/2014 06:39 PM, Andrew Morton wrote:
-> > On Tue, 29 Apr 2014 15:19:10 -0400 Rik van Riel <riel@redhat.com> wrote:
-> > 
-> >> It is possible for "limit - setpoint + 1" to equal zero, leading to a
-> >> divide by zero error. Blindly adding 1 to "limit - setpoint" is not
-> >> working, so we need to actually test the divisor before calling div64.
-> >>
-> >> ...
-> >>
-> >> --- a/mm/page-writeback.c
-> >> +++ b/mm/page-writeback.c
-> >> @@ -597,11 +597,16 @@ static inline long long pos_ratio_polynom(unsigned long setpoint,
-> >>  					  unsigned long dirty,
-> >>  					  unsigned long limit)
-> >>  {
-> >> +	unsigned int divisor;
-> > 
-> > I'm thinking this would be better as a ulong so I don't have to worry
-> > my pretty head over truncation things?
-> 
-> I looked at div_*64, and the second argument is a 32 bit
-> variable. I guess a long would be ok, since if we are
-> dividing by more than 4 billion we don't really care :)
-> 
-> static inline s64 div_s64(s64 dividend, s32 divisor)
+Hi,
 
-ah, good point.  Switching to ulong is perhaps a bit misleading then.
+I noticed this variable, defined in mm/nommu.c,
+
+mm/nommu.c:int heap_stack_gap = 0;
+
+This variable only shows up once, and never shows up in elsewhere.
+
+Can some one tell me is this useless? If so, I will submit a patch to
+remove it.
+
+-Jidong
+
+--047d7b472148b4dfed04f83a2f75
+Content-Type: text/html; charset=UTF-8
+
+<div dir="ltr"><div>Hi,</div><div><br></div><div>I noticed this variable, defined in mm/nommu.c,</div><div><br></div>mm/nommu.c:int heap_stack_gap = 0;<br><div><br></div><div>This variable only shows up once, and never shows up in elsewhere.</div>
+<div><br></div><div>Can some one tell me is this useless? If so, I will submit a patch to remove it.</div><div><br></div><div>-Jidong</div></div>
+
+--047d7b472148b4dfed04f83a2f75--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
