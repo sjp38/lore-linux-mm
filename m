@@ -1,126 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f53.google.com (mail-ee0-f53.google.com [74.125.83.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D8F16B0038
-	for <linux-mm@kvack.org>; Wed, 30 Apr 2014 11:42:36 -0400 (EDT)
-Received: by mail-ee0-f53.google.com with SMTP id b15so384385eek.12
-        for <linux-mm@kvack.org>; Wed, 30 Apr 2014 08:42:35 -0700 (PDT)
-Received: from jenni1.inet.fi (mta-out1.inet.fi. [62.71.2.198])
-        by mx.google.com with ESMTP id s46si31259813eeg.285.2014.04.30.08.42.34
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 220DA6B0035
+	for <linux-mm@kvack.org>; Wed, 30 Apr 2014 13:21:57 -0400 (EDT)
+Received: by mail-pd0-f171.google.com with SMTP id r10so2067636pdi.2
+        for <linux-mm@kvack.org>; Wed, 30 Apr 2014 10:21:56 -0700 (PDT)
+Received: from collaborate-mta1.arm.com (fw-tnat.austin.arm.com. [217.140.110.23])
+        by mx.google.com with ESMTP id ho7si17641930pad.151.2014.04.30.10.21.55
         for <linux-mm@kvack.org>;
-        Wed, 30 Apr 2014 08:42:34 -0700 (PDT)
-Date: Wed, 30 Apr 2014 18:42:30 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: mm: hangs in collapse_huge_page
-Message-ID: <20140430154230.GA23371@node.dhcp.inet.fi>
-References: <534DE5C0.2000408@oracle.com>
+        Wed, 30 Apr 2014 10:21:55 -0700 (PDT)
+Date: Wed, 30 Apr 2014 18:21:14 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [RFC PATCH V4 6/7] arm64: mm: Enable HAVE_RCU_TABLE_FREE logic
+Message-ID: <20140430172114.GI31220@arm.com>
+References: <1396018892-6773-1-git-send-email-steve.capper@linaro.org>
+ <1396018892-6773-7-git-send-email-steve.capper@linaro.org>
+ <20140430152047.GF31220@arm.com>
+ <20140430153317.GG31220@arm.com>
+ <20140430153824.GA7166@linaro.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <534DE5C0.2000408@oracle.com>
+In-Reply-To: <20140430153824.GA7166@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>, Andrea Arcangeli <aarcange@redhat.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Dave Jones <davej@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Steve Capper <steve.capper@linaro.org>
+Cc: "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "peterz@infradead.org" <peterz@infradead.org>, "gary.robertson@linaro.org" <gary.robertson@linaro.org>, "anders.roxell@linaro.org" <anders.roxell@linaro.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 
-On Tue, Apr 15, 2014 at 10:06:56PM -0400, Sasha Levin wrote:
-> Hi all,
+On Wed, Apr 30, 2014 at 04:38:25PM +0100, Steve Capper wrote:
+> On Wed, Apr 30, 2014 at 04:33:17PM +0100, Catalin Marinas wrote:
+> > On Wed, Apr 30, 2014 at 04:20:47PM +0100, Catalin Marinas wrote:
+> > > On Fri, Mar 28, 2014 at 03:01:31PM +0000, Steve Capper wrote:
+> > > > In order to implement fast_get_user_pages we need to ensure that the
+> > > > page table walker is protected from page table pages being freed from
+> > > > under it.
+> > > > 
+> > > > This patch enables HAVE_RCU_TABLE_FREE, any page table pages belonging
+> > > > to address spaces with multiple users will be call_rcu_sched freed.
+> > > > Meaning that disabling interrupts will block the free and protect the
+> > > > fast gup page walker.
+> > > > 
+> > > > Signed-off-by: Steve Capper <steve.capper@linaro.org>
+> > > 
+> > > While this patch is simple, I'd like to better understand the reason for
+> > > it. Currently HAVE_RCU_TABLE_FREE is enabled for powerpc and sparc while
+> > > __get_user_pages_fast() is supported by a few other architectures that
+> > > don't select HAVE_RCU_TABLE_FREE. So why do we need it for fast gup on
+> > > arm/arm64 while not all the other archs need it?
+> > 
+> > OK, replying to myself. I assume the other architectures that don't need
+> > HAVE_RCU_TABLE_FREE use IPI for TLB shootdown, hence they gup_fast
+> > synchronisation for free.
 > 
-> I often see hung task triggering in khugepaged within collapse_huge_page().
+> Yes that is roughly the case.
+> Essentially we want to RCU free the page table backing pages at a
+> later time when we aren't walking on them.
 > 
-> I've initially assumed the case may be that the guests are too loaded and
-> the warning occurs because of load, but after increasing the timeout to
-> 1200 sec I still see the warning.
+> Other arches use IPI, some others have their own RCU logic. I opted to
+> activate some existing logic to reduce code duplication.
 
-I suspect it's race (although I didn't track down exact scenario) with
-__khugepaged_exit().
+Both powerpc and sparc use tlb_remove_table() via their __pte_free_tlb()
+etc. which implies an IPI for synchronisation if mm_users > 1. For
+gup_fast we may not need it since we use the RCU for protection. Am I
+missing anything?
 
-Comment in __khugepaged_exit() says that khugepaged_test_exit() always
-called under mmap_sem:
-
-2045 void __khugepaged_exit(struct mm_struct *mm)
-...
-2063         } else if (mm_slot) {
-2064                 /*
-2065                  * This is required to serialize against
-2066                  * khugepaged_test_exit() (which is guaranteed to run
-2067                  * under mmap sem read mode). Stop here (after we
-2068                  * return all pagetables will be destroyed) until
-2069                  * khugepaged has finished working on the pagetables
-2070                  * under the mmap_sem.
-2071                  */
-2072                 down_write(&mm->mmap_sem);
-2073                 up_write(&mm->mmap_sem);
-2074         }
-2075 }
-
-But this is not true. At least khugepaged_scan_mm_slot() calls it without
-the sem:
-
-2566 static unsigned int khugepaged_scan_mm_slot(unsigned int pages,
-2567                                             struct page **hpage)
-...
-2046 {
-2047         struct mm_slot *mm_slot;
-2048         int free = 0;
-2049 
-2050         spin_lock(&khugepaged_mm_lock);
-2051         mm_slot = get_mm_slot(mm);
-2052         if (mm_slot && khugepaged_scan.mm_slot != mm_slot) {
-2053                 hash_del(&mm_slot->hash);
-2054                 list_del(&mm_slot->mm_node);
-2055                 free = 1;
-2056         }
-2057         spin_unlock(&khugepaged_mm_lock);
-2058 
-2059         if (free) {
-2060                 clear_bit(MMF_VM_HUGEPAGE, &mm->flags);
-2061                 free_mm_slot(mm_slot);
-2062                 mmdrop(mm);
-
-Not sure yet if it's a real problem or not. Andrea, could you comment on
-this?
-
-Sasha, please try patch below.
-
-Not-Yet-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index b4b1feba6472..1c6ace5207b9 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1986,6 +1986,8 @@ static void insert_to_mm_slots_hash(struct mm_struct *mm,
- 
- static inline int khugepaged_test_exit(struct mm_struct *mm)
- {
-+       VM_BUG_ON(!rwsem_is_locked(&mm->mmap_sem) &&
-+                       !spin_is_locked(&khugepaged_mm_lock));
-        return atomic_read(&mm->mm_users) == 0;
- }
- 
-@@ -2062,14 +2064,16 @@ void __khugepaged_exit(struct mm_struct *mm)
-                mmdrop(mm);
-        } else if (mm_slot) {
-                /*
--                * This is required to serialize against
--                * khugepaged_test_exit() (which is guaranteed to run
--                * under mmap sem read mode). Stop here (after we
--                * return all pagetables will be destroyed) until
--                * khugepaged has finished working on the pagetables
-+                * This is required to serialize against khugepaged_test_exit()
-+                * (which is guaranteed to run under mmap sem read mode or
-+                * khugepaged_mm_lock).
-+                * Stop here (after we return all pagetables will be destroyed)
-+                * until khugepaged has finished working on the pagetables
-                 * under the mmap_sem.
-                 */
-                down_write(&mm->mmap_sem);
-+               spin_lock(&khugepaged_mm_lock);
-+               spin_unlock(&khugepaged_mm_lock);
-                up_write(&mm->mmap_sem);
-        }
- }
 -- 
- Kirill A. Shutemov
+Catalin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
