@@ -1,106 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f42.google.com (mail-ee0-f42.google.com [74.125.83.42])
-	by kanga.kvack.org (Postfix) with ESMTP id D21396B0035
-	for <linux-mm@kvack.org>; Wed, 30 Apr 2014 16:50:18 -0400 (EDT)
-Received: by mail-ee0-f42.google.com with SMTP id d17so1779319eek.1
-        for <linux-mm@kvack.org>; Wed, 30 Apr 2014 13:50:18 -0700 (PDT)
-Received: from jenni1.inet.fi (mta-out1.inet.fi. [62.71.2.198])
-        by mx.google.com with ESMTP id g47si32088149eet.84.2014.04.30.13.50.17
+Received: from mail-ee0-f53.google.com (mail-ee0-f53.google.com [74.125.83.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 95D1D6B0035
+	for <linux-mm@kvack.org>; Wed, 30 Apr 2014 16:54:13 -0400 (EDT)
+Received: by mail-ee0-f53.google.com with SMTP id b15so622774eek.12
+        for <linux-mm@kvack.org>; Wed, 30 Apr 2014 13:54:12 -0700 (PDT)
+Received: from jenni2.inet.fi (mta-out1.inet.fi. [62.71.2.199])
+        by mx.google.com with ESMTP id v2si32110792eel.46.2014.04.30.13.54.11
         for <linux-mm@kvack.org>;
-        Wed, 30 Apr 2014 13:50:17 -0700 (PDT)
-Date: Wed, 30 Apr 2014 23:50:11 +0300
+        Wed, 30 Apr 2014 13:54:12 -0700 (PDT)
+Date: Wed, 30 Apr 2014 23:54:08 +0300
 From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 1/3] mm/swap.c: introduce
- put_[un]refcounted_compound_page helpers for spliting put_compound_page
-Message-ID: <20140430205011.GA27455@node.dhcp.inet.fi>
+Subject: Re: [PATCH 2/3] mm/swap.c: split put_compound_page function
+Message-ID: <20140430205408.GB27455@node.dhcp.inet.fi>
 References: <b1987d6fb09745a5274895efbde79e37ff9557a3.1398764420.git.nasa4836@gmail.com>
+ <1fc028045336844fe9ba9ee27c406e6ebe4726f4.1398764420.git.nasa4836@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <b1987d6fb09745a5274895efbde79e37ff9557a3.1398764420.git.nasa4836@gmail.com>
+In-Reply-To: <1fc028045336844fe9ba9ee27c406e6ebe4726f4.1398764420.git.nasa4836@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Jianyu Zhan <nasa4836@gmail.com>
-Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, riel@redhat.com, aarcange@redhat.com, mgorman@suse.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, riel@redhat.com, mgorman@suse.de, aarcange@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Apr 29, 2014 at 05:42:07PM +0800, Jianyu Zhan wrote:
+On Tue, Apr 29, 2014 at 05:42:28PM +0800, Jianyu Zhan wrote:
 > Currently, put_compound_page should carefully handle tricky case
 > to avoid racing with compound page releasing or spliting, which
 > makes it growing quite lenthy(about 200+ lines) and need deep
 > tab indention, which makes it quite hard to follow and maintain.
 > 
-> This patch(and the next patch) tries to refactor this function.
-> It is a prepared patch.
+> Now based on two helpers introduced in the previous patch
+> ("mm/swap.c: introduce put_[un]refcounted_compound_page helpers
+> for spliting put_compound_page"), this patch just replaces those
+> two lenthy code path with these two helpers, respectively.
+> Also, it has some comment rephrasing.
 > 
-> Based on the code skeleton of put_compound_page:
+> After this patch, the put_compound_page() will be very compact,
+> thus easy to read and maintain.
 > 
-> put_compound_pge:
-
-Typo.
-
->         if !PageTail(page)
->         	put head page fastpath;
-> 		return;
+> After spliting, the object file is of same size as the original one.
+> Actually, I've diff'ed put_compound_page()'s orginal disassemble code
+> and the patched disassemble code, the are 100% the same!
 > 
->         /* else PageTail */
->         page_head = compound_head(page)
->         if !__compound_tail_refcounted(page_head)
-> 		put head page optimal path; <---(1)
-> 		return;
->         else
-> 		put head page slowpath; <--- (2)
->                 return;
+> This fact shows that this spliting has no functinal change,
+> but it brings readability.
 > 
-> This patch introduces two helpers, put_[un]refcounted_compound_page,
-> handling the code path (1) and code path (2), respectively. They both
-> are tagged __always_inline, thus it elmiates function call overhead,
-> making them operating the same way as before.
-> 
-> They are almost copied verbatim(except one place, a "goto out_put_single"
-> is expanded), with some comments rephrasing.
+> This patch and the previous one blow the code by 32 lines, which
+> mostly credits to comments.
 > 
 > Signed-off-by: Jianyu Zhan <nasa4836@gmail.com>
 > ---
->  mm/swap.c | 142 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
->  1 file changed, 142 insertions(+)
+>  mm/swap.c | 142 +++++++-------------------------------------------------------
+>  1 file changed, 16 insertions(+), 126 deletions(-)
 > 
 > diff --git a/mm/swap.c b/mm/swap.c
-> index c0cd7d0..a576449 100644
+> index a576449..d8654d8 100644
 > --- a/mm/swap.c
 > +++ b/mm/swap.c
-> @@ -79,6 +79,148 @@ static void __put_compound_page(struct page *page)
->  	(*dtor)(page);
->  }
+> @@ -225,6 +225,11 @@ static void put_compound_page(struct page *page)
+>  {
+>  	struct page *page_head;
 >  
-> +/**
-> + * Two special cases here: we could avoid taking compound_lock_irqsave
-> + * and could skip the tail refcounting(in _mapcount).
-> + *
-> + * 1. Hugetlbfs page:
-> + *
-> + *    PageHeadHuge will remain true until the compound page
-> + *    is released and enters the buddy allocator, and it could
-> + *    not be split by __split_huge_page_refcount().
-> + *
-> + *    So if we see PageHeadHuge set, and we have the tail page pin,
-> + *    then we could safely put head page.
-> + *
-> + * 2. Slab THP page:
+> +	/*
+> +	 * We see the PageCompound set and PageTail not set, so @page maybe:
+> +	 *  1. hugetlbfs head page, or
+> +	 *  2. THP head page.
 
-There's no such thing. It called Slab compound page.
+3. Head of slab compound page.
 
-> + *
-> + *    PG_slab is cleared before the slab frees the head page, and
-> + *    tail pin cannot be the last reference left on the head page,
-> + *    because the slab code is free to reuse the compound page
-> + *    after a kfree/kmem_cache_free without having to check if
-> + *    there's any tail pin left.  In turn all tail pinsmust be always
-> + *    released while the head is still pinned by the slab code
-> + *    and so we know PG_slab will be still set too.
-> + *
-> + *    So if we see PageSlab set, and we have the tail page pin,
-> + *    then we could safely put head page.
-> + */
+> +	 */
+>  	if (likely(!PageTail(page))) {
+>  		if (put_page_testzero(page)) {
+>  			/*
+> @@ -239,135 +244,20 @@ static void put_compound_page(struct page *page)
+>  		return;
+>  	}
+>  
+
+...
+
+> +	 * We see the PageCompound set and PageTail set, so @page maybe:
+> +	 *  1. a tail hugetlbfs page, or
+> +	 *  2. a tail THP page, or
+> +	 *  3. a split THP page.
+
+4. Tail of slab compound page
+
 -- 
  Kirill A. Shutemov
 
