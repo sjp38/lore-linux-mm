@@ -1,63 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f43.google.com (mail-ee0-f43.google.com [74.125.83.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 0736D6B0035
-	for <linux-mm@kvack.org>; Wed, 30 Apr 2014 18:49:34 -0400 (EDT)
-Received: by mail-ee0-f43.google.com with SMTP id e51so1801228eek.16
-        for <linux-mm@kvack.org>; Wed, 30 Apr 2014 15:49:34 -0700 (PDT)
+Received: from mail-ee0-f41.google.com (mail-ee0-f41.google.com [74.125.83.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 91F436B0035
+	for <linux-mm@kvack.org>; Wed, 30 Apr 2014 18:56:01 -0400 (EDT)
+Received: by mail-ee0-f41.google.com with SMTP id t10so1843041eei.0
+        for <linux-mm@kvack.org>; Wed, 30 Apr 2014 15:56:00 -0700 (PDT)
 Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id z42si32322545eel.92.2014.04.30.15.49.32
+        by mx.google.com with ESMTPS id m49si32291435eeo.341.2014.04.30.15.55.59
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 30 Apr 2014 15:49:33 -0700 (PDT)
-Date: Wed, 30 Apr 2014 18:49:14 -0400
+        Wed, 30 Apr 2014 15:56:00 -0700 (PDT)
+Date: Wed, 30 Apr 2014 18:55:50 -0400
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH v2 0/4] memcg: Low-limit reclaim
-Message-ID: <20140430224914.GC26041@cmpxchg.org>
+Subject: Re: [PATCH 1/4] memcg, mm: introduce lowlimit reclaim
+Message-ID: <20140430225550.GD26041@cmpxchg.org>
 References: <1398688005-26207-1-git-send-email-mhocko@suse.cz>
- <20140430145238.4215f914f7ad025da4db5470@linux-foundation.org>
+ <1398688005-26207-2-git-send-email-mhocko@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140430145238.4215f914f7ad025da4db5470@linux-foundation.org>
+In-Reply-To: <1398688005-26207-2-git-send-email-mhocko@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.cz>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, Tejun Heo <tj@kernel.org>, Hugh Dickins <hughd@google.com>, Roman Gushchin <klamm@yandex-team.ru>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, Tejun Heo <tj@kernel.org>, Hugh Dickins <hughd@google.com>, Roman Gushchin <klamm@yandex-team.ru>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On Wed, Apr 30, 2014 at 02:52:38PM -0700, Andrew Morton wrote:
-> On Mon, 28 Apr 2014 14:26:41 +0200 Michal Hocko <mhocko@suse.cz> wrote:
-> 
-> > Hi,
-> > previous discussions have shown that soft limits cannot be reformed
-> > (http://lwn.net/Articles/555249/). This series introduces an alternative
-> > approach for protecting memory allocated to processes executing within
-> > a memory cgroup controller. It is based on a new tunable that was
-> > discussed with Johannes and Tejun held during the kernel summit 2013 and
-> > at LSF 2014.
-> > 
-> > This patchset introduces such low limit that is functionally similar
-> > to a minimum guarantee. Memcgs which are under their lowlimit are not
-> > considered eligible for the reclaim (both global and hardlimit) unless
-> > all groups under the reclaimed hierarchy are below the low limit when
-> > all of them are considered eligible.
-> 
-> Permitting containers to avoid global reclaim sounds rather worrisome.
-> 
-> Fairness: won't it permit processes to completely protect their memory
-> while everything else in the system is getting utterly pounded?  We
-> need to consider global-vs-memcg fairness as well as memcg-vs-memgc.
+On Mon, Apr 28, 2014 at 02:26:42PM +0200, Michal Hocko wrote:
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 19d620b3d69c..40e517630138 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -2808,6 +2808,29 @@ static struct mem_cgroup *mem_cgroup_lookup(unsigned short id)
+>  	return mem_cgroup_from_id(id);
+>  }
+>  
+> +/**
+> + * mem_cgroup_reclaim_eligible - checks whether given memcg is eligible for the
+> + * reclaim
+> + * @memcg: target memcg for the reclaim
+> + * @root: root of the reclaim hierarchy (null for the global reclaim)
+> + *
+> + * The given group is reclaimable if it is above its low limit and the same
+> + * applies for all parents up the hierarchy until root (including).
+> + */
+> +bool mem_cgroup_reclaim_eligible(struct mem_cgroup *memcg,
+> +		struct mem_cgroup *root)
 
-Yes.
+Could you please rename this to something that is more descriptive in
+the reclaim callsite?  How about mem_cgroup_within_low_limit()?
 
-> Security: can this feature be used to DoS the machine?  Set up enough
-> hierarchies which are below their low limit and we risk memory
-> exhaustion and swap-thrashing and oom-killings for other processes.
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index c1cd99a5074b..0f428158254e 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2215,9 +2215,11 @@ static inline bool should_continue_reclaim(struct zone *zone,
+>  	}
+>  }
+>  
+> -static void shrink_zone(struct zone *zone, struct scan_control *sc)
+> +static unsigned __shrink_zone(struct zone *zone, struct scan_control *sc,
+> +		bool follow_low_limit)
+>  {
+>  	unsigned long nr_reclaimed, nr_scanned;
+> +	unsigned nr_scanned_groups = 0;
+>  
+>  	do {
+>  		struct mem_cgroup *root = sc->target_mem_cgroup;
+> @@ -2234,7 +2236,23 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
+>  		do {
+>  			struct lruvec *lruvec;
+>  
+> +			/*
+> +			 * Memcg might be under its low limit so we have to
+> +			 * skip it during the first reclaim round
+> +			 */
+> +			if (follow_low_limit &&
+> +					!mem_cgroup_reclaim_eligible(memcg, root)) {
+> +				/*
+> +				 * It would be more optimal to skip the memcg
+> +				 * subtree now but we do not have a memcg iter
+> +				 * helper for that. Anyone?
+> +				 */
+> +				memcg = mem_cgroup_iter(root, memcg, &reclaim);
+> +				continue;
+> +			}
+> +
+>  			lruvec = mem_cgroup_zone_lruvec(zone, memcg);
+> +			nr_scanned_groups++;
+>  
+>  			shrink_lruvec(lruvec, sc);
+>  
+> @@ -2262,6 +2280,20 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
+>  
+>  	} while (should_continue_reclaim(zone, sc->nr_reclaimed - nr_reclaimed,
+>  					 sc->nr_scanned - nr_scanned, sc));
+> +
+> +	return nr_scanned_groups;
+> +}
+> +
+> +static void shrink_zone(struct zone *zone, struct scan_control *sc)
+> +{
+> +	if (!__shrink_zone(zone, sc, true)) {
+> +		/*
+> +		 * First round of reclaim didn't find anything to reclaim
+> +		 * because of low limit protection so try again and ignore
+> +		 * the low limit this time.
+> +		 */
+> +		__shrink_zone(zone, sc, false);
+> +	}
+>  }
+>  
+>  /* Returns true if compaction should go ahead for a high-order request */
 
-And yes.
-
-However, setting the low limit is a priviliged operation, so I don't
-see how you could do worse with it than with mlock, disabling swap
-etc.
+I would actually prefer not having a second round here, and make the
+low limit behave more like mlock memory.  If there is no reclaimable
+memory, go OOM.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
