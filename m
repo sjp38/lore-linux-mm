@@ -1,94 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 840CD6B0035
-	for <linux-mm@kvack.org>; Wed, 30 Apr 2014 16:45:31 -0400 (EDT)
-Received: by mail-wi0-f180.google.com with SMTP id hi2so2881029wib.7
-        for <linux-mm@kvack.org>; Wed, 30 Apr 2014 13:45:30 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id u6si9979678wjq.106.2014.04.30.13.45.29
+Received: from mail-ee0-f42.google.com (mail-ee0-f42.google.com [74.125.83.42])
+	by kanga.kvack.org (Postfix) with ESMTP id D21396B0035
+	for <linux-mm@kvack.org>; Wed, 30 Apr 2014 16:50:18 -0400 (EDT)
+Received: by mail-ee0-f42.google.com with SMTP id d17so1779319eek.1
+        for <linux-mm@kvack.org>; Wed, 30 Apr 2014 13:50:18 -0700 (PDT)
+Received: from jenni1.inet.fi (mta-out1.inet.fi. [62.71.2.198])
+        by mx.google.com with ESMTP id g47si32088149eet.84.2014.04.30.13.50.17
         for <linux-mm@kvack.org>;
-        Wed, 30 Apr 2014 13:45:30 -0700 (PDT)
-Date: Wed, 30 Apr 2014 16:42:55 -0400
-From: Rik van Riel <riel@redhat.com>
-Subject: [PATCH v5] mm,writeback: fix divide by zero in pos_ratio_polynom
-Message-ID: <20140430164255.7a753a8e@cuia.bos.redhat.com>
-In-Reply-To: <20140430131353.fa9f49604ea39425bc93c24a@linux-foundation.org>
-References: <20140429151910.53f740ef@annuminas.surriel.com>
-	<5360C9E7.6010701@jp.fujitsu.com>
-	<20140430093035.7e7226f2@annuminas.surriel.com>
-	<20140430134826.GH4357@dhcp22.suse.cz>
-	<20140430104114.4bdc588e@cuia.bos.redhat.com>
-	<20140430120001.b4b95061ac7252a976b8a179@linux-foundation.org>
-	<53614F3C.8020009@redhat.com>
-	<20140430123526.bc6a229c1ea4addad1fb483d@linux-foundation.org>
-	<20140430160218.442863e0@cuia.bos.redhat.com>
-	<20140430131353.fa9f49604ea39425bc93c24a@linux-foundation.org>
+        Wed, 30 Apr 2014 13:50:17 -0700 (PDT)
+Date: Wed, 30 Apr 2014 23:50:11 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH 1/3] mm/swap.c: introduce
+ put_[un]refcounted_compound_page helpers for spliting put_compound_page
+Message-ID: <20140430205011.GA27455@node.dhcp.inet.fi>
+References: <b1987d6fb09745a5274895efbde79e37ff9557a3.1398764420.git.nasa4836@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <b1987d6fb09745a5274895efbde79e37ff9557a3.1398764420.git.nasa4836@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.cz>, Masayoshi Mizuma <m.mizuma@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, sandeen@redhat.com, jweiner@redhat.com, kosaki.motohiro@jp.fujitsu.com, fengguang.wu@intel.com, mpatlasov@parallels.com, Motohiro.Kosaki@us.fujitsu.com
+To: Jianyu Zhan <nasa4836@gmail.com>
+Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, riel@redhat.com, aarcange@redhat.com, mgorman@suse.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, 30 Apr 2014 13:13:53 -0700
-Andrew Morton <akpm@linux-foundation.org> wrote:
+On Tue, Apr 29, 2014 at 05:42:07PM +0800, Jianyu Zhan wrote:
+> Currently, put_compound_page should carefully handle tricky case
+> to avoid racing with compound page releasing or spliting, which
+> makes it growing quite lenthy(about 200+ lines) and need deep
+> tab indention, which makes it quite hard to follow and maintain.
+> 
+> This patch(and the next patch) tries to refactor this function.
+> It is a prepared patch.
+> 
+> Based on the code skeleton of put_compound_page:
+> 
+> put_compound_pge:
 
-> This was a consequence of 64->32 truncation and it can't happen any
-> more, can it?
+Typo.
 
-Andrew, this is cleaner indeed :)
+>         if !PageTail(page)
+>         	put head page fastpath;
+> 		return;
+> 
+>         /* else PageTail */
+>         page_head = compound_head(page)
+>         if !__compound_tail_refcounted(page_head)
+> 		put head page optimal path; <---(1)
+> 		return;
+>         else
+> 		put head page slowpath; <--- (2)
+>                 return;
+> 
+> This patch introduces two helpers, put_[un]refcounted_compound_page,
+> handling the code path (1) and code path (2), respectively. They both
+> are tagged __always_inline, thus it elmiates function call overhead,
+> making them operating the same way as before.
+> 
+> They are almost copied verbatim(except one place, a "goto out_put_single"
+> is expanded), with some comments rephrasing.
+> 
+> Signed-off-by: Jianyu Zhan <nasa4836@gmail.com>
+> ---
+>  mm/swap.c | 142 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+>  1 file changed, 142 insertions(+)
+> 
+> diff --git a/mm/swap.c b/mm/swap.c
+> index c0cd7d0..a576449 100644
+> --- a/mm/swap.c
+> +++ b/mm/swap.c
+> @@ -79,6 +79,148 @@ static void __put_compound_page(struct page *page)
+>  	(*dtor)(page);
+>  }
+>  
+> +/**
+> + * Two special cases here: we could avoid taking compound_lock_irqsave
+> + * and could skip the tail refcounting(in _mapcount).
+> + *
+> + * 1. Hugetlbfs page:
+> + *
+> + *    PageHeadHuge will remain true until the compound page
+> + *    is released and enters the buddy allocator, and it could
+> + *    not be split by __split_huge_page_refcount().
+> + *
+> + *    So if we see PageHeadHuge set, and we have the tail page pin,
+> + *    then we could safely put head page.
+> + *
+> + * 2. Slab THP page:
 
-Masayoshi-san, does the bug still happen with this version, or does
-this fix the problem?
+There's no such thing. It called Slab compound page.
 
----8<---
-
-Subject: mm,writeback: fix divide by zero in pos_ratio_polynom
-
-It is possible for "limit - setpoint + 1" to equal zero, after
-getting truncated to a 32 bit variable, and resulting in a divide
-by zero error.
-
-Using the fully 64 bit divide functions avoids this problem.
-
-Also uninline pos_ratio_polynom, at Andrew's request.
-
-Signed-off-by: Rik van Riel <riel@redhat.com>
----
- mm/page-writeback.c | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
-
-diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index ef41349..a4317da 100644
---- a/mm/page-writeback.c
-+++ b/mm/page-writeback.c
-@@ -593,14 +593,14 @@ unsigned long bdi_dirty_limit(struct backing_dev_info *bdi, unsigned long dirty)
-  * (5) the closer to setpoint, the smaller |df/dx| (and the reverse)
-  *     => fast response on large errors; small oscillation near setpoint
-  */
--static inline long long pos_ratio_polynom(unsigned long setpoint,
-+static long long pos_ratio_polynom(unsigned long setpoint,
- 					  unsigned long dirty,
- 					  unsigned long limit)
- {
- 	long long pos_ratio;
- 	long x;
- 
--	x = div_s64(((s64)setpoint - (s64)dirty) << RATELIMIT_CALC_SHIFT,
-+	x = div64_s64(((s64)setpoint - (s64)dirty) << RATELIMIT_CALC_SHIFT,
- 		    limit - setpoint + 1);
- 	pos_ratio = x;
- 	pos_ratio = pos_ratio * x >> RATELIMIT_CALC_SHIFT;
-@@ -842,7 +842,7 @@ static unsigned long bdi_position_ratio(struct backing_dev_info *bdi,
- 	x_intercept = bdi_setpoint + span;
- 
- 	if (bdi_dirty < x_intercept - span / 4) {
--		pos_ratio = div_u64(pos_ratio * (x_intercept - bdi_dirty),
-+		pos_ratio = div64_u64(pos_ratio * (x_intercept - bdi_dirty),
- 				    x_intercept - bdi_setpoint + 1);
- 	} else
- 		pos_ratio /= 4;
+> + *
+> + *    PG_slab is cleared before the slab frees the head page, and
+> + *    tail pin cannot be the last reference left on the head page,
+> + *    because the slab code is free to reuse the compound page
+> + *    after a kfree/kmem_cache_free without having to check if
+> + *    there's any tail pin left.  In turn all tail pinsmust be always
+> + *    released while the head is still pinned by the slab code
+> + *    and so we know PG_slab will be still set too.
+> + *
+> + *    So if we see PageSlab set, and we have the tail page pin,
+> + *    then we could safely put head page.
+> + */
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
