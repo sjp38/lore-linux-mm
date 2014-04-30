@@ -1,85 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f50.google.com (mail-ee0-f50.google.com [74.125.83.50])
-	by kanga.kvack.org (Postfix) with ESMTP id B8CCF6B0035
-	for <linux-mm@kvack.org>; Wed, 30 Apr 2014 10:49:08 -0400 (EDT)
-Received: by mail-ee0-f50.google.com with SMTP id c13so1493744eek.9
-        for <linux-mm@kvack.org>; Wed, 30 Apr 2014 07:49:07 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 49si31170678een.5.2014.04.30.07.49.06
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 30 Apr 2014 07:49:06 -0700 (PDT)
-Date: Wed, 30 Apr 2014 16:49:03 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v2] mm,writeback: fix divide by zero in pos_ratio_polynom
-Message-ID: <20140430144903.GI4357@dhcp22.suse.cz>
-References: <20140429151910.53f740ef@annuminas.surriel.com>
- <5360C9E7.6010701@jp.fujitsu.com>
- <20140430093035.7e7226f2@annuminas.surriel.com>
- <20140430134826.GH4357@dhcp22.suse.cz>
- <53610941.8030309@redhat.com>
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 26F216B0038
+	for <linux-mm@kvack.org>; Wed, 30 Apr 2014 11:27:24 -0400 (EDT)
+Received: by mail-pd0-f172.google.com with SMTP id g10so1846831pdj.31
+        for <linux-mm@kvack.org>; Wed, 30 Apr 2014 08:27:23 -0700 (PDT)
+Received: from collaborate-mta1.arm.com (fw-tnat.austin.arm.com. [217.140.110.23])
+        by mx.google.com with ESMTP id uu10si9169327pac.241.2014.04.30.08.21.25
+        for <linux-mm@kvack.org>;
+        Wed, 30 Apr 2014 08:21:26 -0700 (PDT)
+Date: Wed, 30 Apr 2014 16:20:47 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [RFC PATCH V4 6/7] arm64: mm: Enable HAVE_RCU_TABLE_FREE logic
+Message-ID: <20140430152047.GF31220@arm.com>
+References: <1396018892-6773-1-git-send-email-steve.capper@linaro.org>
+ <1396018892-6773-7-git-send-email-steve.capper@linaro.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <53610941.8030309@redhat.com>
+In-Reply-To: <1396018892-6773-7-git-send-email-steve.capper@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Masayoshi Mizuma <m.mizuma@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, sandeen@redhat.com, akpm@linux-foundation.org, jweiner@redhat.com, kosaki.motohiro@jp.fujitsu.com, fengguang.wu@intel.com, mpatlasov@parallels.com, Motohiro.Kosaki@us.fujitsu.com
+To: Steve Capper <steve.capper@linaro.org>
+Cc: "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "peterz@infradead.org" <peterz@infradead.org>, "gary.robertson@linaro.org" <gary.robertson@linaro.org>, "anders.roxell@linaro.org" <anders.roxell@linaro.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 
-On Wed 30-04-14 10:31:29, Rik van Riel wrote:
-> On 04/30/2014 09:48 AM, Michal Hocko wrote:
-> >On Wed 30-04-14 09:30:35, Rik van Riel wrote:
-> >[...]
-> >>Subject: mm,writeback: fix divide by zero in pos_ratio_polynom
-> >>
-> >>It is possible for "limit - setpoint + 1" to equal zero, leading to a
-> >>divide by zero error. Blindly adding 1 to "limit - setpoint" is not
-> >>working, so we need to actually test the divisor before calling div64.
-> >>
-> >>Signed-off-by: Rik van Riel <riel@redhat.com>
-> >>---
-> >>  mm/page-writeback.c | 13 +++++++++++--
-> >>  1 file changed, 11 insertions(+), 2 deletions(-)
-> >>
-> >>diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-> >>index ef41349..f98a297 100644
-> >>--- a/mm/page-writeback.c
-> >>+++ b/mm/page-writeback.c
-> >>@@ -597,11 +597,16 @@ static inline long long pos_ratio_polynom(unsigned long setpoint,
-> >>  					  unsigned long dirty,
-> >>  					  unsigned long limit)
-> >>  {
-> >>+	unsigned long divisor;
-> >>  	long long pos_ratio;
-> >>  	long x;
-> >>
-> >>+	divisor = limit - setpoint;
-> >>+	if (!divisor)
-> >>+		divisor = 1;	/* Avoid div-by-zero */
-> >>+
-> >
-> >This is still prone to u64 -> s32 issue, isn't it?
-> >What was the original problem anyway? Was it really setpoint > limit or
-> >rather the overflow?
+On Fri, Mar 28, 2014 at 03:01:31PM +0000, Steve Capper wrote:
+> In order to implement fast_get_user_pages we need to ensure that the
+> page table walker is protected from page table pages being freed from
+> under it.
 > 
-> Thinking about it some more, is it possible that
-> limit and/or setpoint are larger than 32 bits, but
-> the difference between them is not?
+> This patch enables HAVE_RCU_TABLE_FREE, any page table pages belonging
+> to address spaces with multiple users will be call_rcu_sched freed.
+> Meaning that disabling interrupts will block the free and protect the
+> fast gup page walker.
 > 
-> In that case, truncating both to 32 bits before
-> doing the subtraction would be troublesome, and
-> it would be better to do a cast in the comparison:
-> 
-> if (!(s32)divisor)
-> 	divisor = 1;
+> Signed-off-by: Steve Capper <steve.capper@linaro.org>
 
-How is that any different than defining divisor as 32b directly?
- 
+While this patch is simple, I'd like to better understand the reason for
+it. Currently HAVE_RCU_TABLE_FREE is enabled for powerpc and sparc while
+__get_user_pages_fast() is supported by a few other architectures that
+don't select HAVE_RCU_TABLE_FREE. So why do we need it for fast gup on
+arm/arm64 while not all the other archs need it?
+
+Thanks.
 
 -- 
-Michal Hocko
-SUSE Labs
+Catalin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
