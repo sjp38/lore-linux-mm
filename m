@@ -1,62 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C6326B0035
-	for <linux-mm@kvack.org>; Wed, 30 Apr 2014 17:01:01 -0400 (EDT)
-Received: by mail-pa0-f52.google.com with SMTP id kx10so2664588pab.39
-        for <linux-mm@kvack.org>; Wed, 30 Apr 2014 14:01:01 -0700 (PDT)
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 135646B0035
+	for <linux-mm@kvack.org>; Wed, 30 Apr 2014 17:19:27 -0400 (EDT)
+Received: by mail-pd0-f172.google.com with SMTP id g10so2296224pdj.3
+        for <linux-mm@kvack.org>; Wed, 30 Apr 2014 14:19:26 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id fd9si18242170pad.60.2014.04.30.14.00.59
+        by mx.google.com with ESMTP id td10si18283517pac.304.2014.04.30.14.19.25
         for <linux-mm@kvack.org>;
-        Wed, 30 Apr 2014 14:01:00 -0700 (PDT)
-Date: Wed, 30 Apr 2014 14:00:57 -0700
+        Wed, 30 Apr 2014 14:19:25 -0700 (PDT)
+Date: Wed, 30 Apr 2014 14:19:24 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v5] mm,writeback: fix divide by zero in
- pos_ratio_polynom
-Message-Id: <20140430140057.7d2a6e984b2ec987182d2a4e@linux-foundation.org>
-In-Reply-To: <20140430164255.7a753a8e@cuia.bos.redhat.com>
-References: <20140429151910.53f740ef@annuminas.surriel.com>
-	<5360C9E7.6010701@jp.fujitsu.com>
-	<20140430093035.7e7226f2@annuminas.surriel.com>
-	<20140430134826.GH4357@dhcp22.suse.cz>
-	<20140430104114.4bdc588e@cuia.bos.redhat.com>
-	<20140430120001.b4b95061ac7252a976b8a179@linux-foundation.org>
-	<53614F3C.8020009@redhat.com>
-	<20140430123526.bc6a229c1ea4addad1fb483d@linux-foundation.org>
-	<20140430160218.442863e0@cuia.bos.redhat.com>
-	<20140430131353.fa9f49604ea39425bc93c24a@linux-foundation.org>
-	<20140430164255.7a753a8e@cuia.bos.redhat.com>
+Subject: Re: [PATCH] dmapool: remove redundant NULL check for dev in
+ dma_pool_create()
+Message-Id: <20140430141924.8d84f7fdcac3ac3996802aa9@linux-foundation.org>
+In-Reply-To: <20140429025310.GA5913@devel>
+References: <20140429025310.GA5913@devel>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Masayoshi Mizuma <m.mizuma@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, sandeen@redhat.com, jweiner@redhat.com, kosaki.motohiro@jp.fujitsu.com, fengguang.wu@intel.com, mpatlasov@parallels.com, Motohiro.Kosaki@us.fujitsu.com
+To: Daeseok Youn <daeseok.youn@gmail.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, 30 Apr 2014 16:42:55 -0400 Rik van Riel <riel@redhat.com> wrote:
+On Tue, 29 Apr 2014 11:53:10 +0900 Daeseok Youn <daeseok.youn@gmail.com> wrote:
 
-> On Wed, 30 Apr 2014 13:13:53 -0700
-> Andrew Morton <akpm@linux-foundation.org> wrote:
+> "dev" cannot be NULL because it is already checked before
+> calling dma_pool_create().
 > 
-> > This was a consequence of 64->32 truncation and it can't happen any
-> > more, can it?
-> 
-> Andrew, this is cleaner indeed :)
+> Signed-off-by: Daeseok Youn <daeseok.youn@gmail.com>
+> ---
+> If dev can be NULL, it has NULL deferencing when kmalloc_node()
+> is called after enabling CONFIG_NUMA.
 
-I'm starting to get worried about 32-bit wraparound in the patch
-version number ;)
+hm, this is unclear.
 
-> Masayoshi-san, does the bug still happen with this version, or does
-> this fix the problem?
-> 
+The code which handles the dev==NULL case was obviously put there
+deliberately, presumably with the intention of permitting drivers to
+call dma_pool_create() without a device*.  This code is very old.
 
-We could put something like
+A lot of drivers call dma_pool_create() (I doubt if you audited all of
+them!) and perhaps there are some which use this feature and have never
+been run on NUMA hardware.
 
-	if (WARN_ON_ONCE(setpoint == limit))
-		setpoint--;
+I think I'll apply the patch anyway because such drivers (if they
+exist) probably need some attending to.
 
-in there if we're not sure.  But it's better to be sure!
+I rewrote the changelog thusly:
 
+
+: "dev" cannot be NULL because it is already checked before calling
+: dma_pool_create().
+: 
+: If dev ever was NULL, the code would oops in dev_to_node() after enabling
+: CONFIG_NUMA.
+: 
+: It is possible that some driver is using dev==NULL and has never been run
+: on a NUMA machine.  Such a driver is probably outdated, possibly buggy and
+: will need some attention if it starts triggering NULL derefs.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
