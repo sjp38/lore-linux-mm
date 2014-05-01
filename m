@@ -1,53 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 1265D6B0035
-	for <linux-mm@kvack.org>; Thu,  1 May 2014 07:44:24 -0400 (EDT)
-Received: by mail-wi0-f179.google.com with SMTP id bs8so523217wib.12
-        for <linux-mm@kvack.org>; Thu, 01 May 2014 04:44:24 -0700 (PDT)
-Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
-        by mx.google.com with ESMTPS id gi11si686102wic.92.2014.05.01.04.44.23
+Received: from mail-ee0-f51.google.com (mail-ee0-f51.google.com [74.125.83.51])
+	by kanga.kvack.org (Postfix) with ESMTP id AB4446B0035
+	for <linux-mm@kvack.org>; Thu,  1 May 2014 08:55:04 -0400 (EDT)
+Received: by mail-ee0-f51.google.com with SMTP id c13so2244033eek.38
+        for <linux-mm@kvack.org>; Thu, 01 May 2014 05:55:03 -0700 (PDT)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id x44si34067622eep.270.2014.05.01.05.55.02
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 01 May 2014 04:44:23 -0700 (PDT)
-Received: by mail-wi0-f170.google.com with SMTP id f8so577317wiw.5
-        for <linux-mm@kvack.org>; Thu, 01 May 2014 04:44:23 -0700 (PDT)
-Date: Thu, 1 May 2014 12:44:08 +0100
-From: Steve Capper <steve.capper@linaro.org>
-Subject: Re: [RFC PATCH V4 3/7] arm: mm: Enable HAVE_RCU_TABLE_FREE logic
-Message-ID: <20140501114408.GA4501@linaro.org>
-References: <1396018892-6773-1-git-send-email-steve.capper@linaro.org>
- <1396018892-6773-4-git-send-email-steve.capper@linaro.org>
- <20140501111120.GF22316@arm.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 01 May 2014 05:55:03 -0700 (PDT)
+Date: Thu, 1 May 2014 08:54:50 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 2/2] mm/memcontrol.c: introduce helper
+ mem_cgroup_zoneinfo_zone()
+Message-ID: <20140501125450.GA23420@cmpxchg.org>
+References: <1397862103-31982-1-git-send-email-nasa4836@gmail.com>
+ <20140422095923.GD29311@dhcp22.suse.cz>
+ <20140428150426.GB24807@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140501111120.GF22316@arm.com>
+In-Reply-To: <20140428150426.GB24807@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "peterz@infradead.org" <peterz@infradead.org>, "gary.robertson@linaro.org" <gary.robertson@linaro.org>, "anders.roxell@linaro.org" <anders.roxell@linaro.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Jianyu Zhan <nasa4836@gmail.com>, bsingharora@gmail.com, kamezawa.hiroyu@jp.fujitsu.com, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.com
 
-On Thu, May 01, 2014 at 12:11:21PM +0100, Catalin Marinas wrote:
-> On Fri, Mar 28, 2014 at 03:01:28PM +0000, Steve Capper wrote:
-> > diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
-> > index 1594945..7d5340d 100644
-> > --- a/arch/arm/Kconfig
-> > +++ b/arch/arm/Kconfig
-> > @@ -58,6 +58,7 @@ config ARM
-> >  	select HAVE_PERF_EVENTS
-> >  	select HAVE_PERF_REGS
-> >  	select HAVE_PERF_USER_STACK_DUMP
-> > +	select HAVE_RCU_TABLE_FREE if SMP
+On Mon, Apr 28, 2014 at 05:04:26PM +0200, Michal Hocko wrote:
+> On Tue 22-04-14 11:59:23, Michal Hocko wrote:
+> > On Sat 19-04-14 07:01:43, Jianyu Zhan wrote:
+> > > introduce helper mem_cgroup_zoneinfo_zone(). This will make
+> > > mem_cgroup_iter() code more compact.
+> > 
+> > I dunno. Helpers are usually nice but this one adds more code then it
+> > removes. It also doesn't help the generated code.
+> > 
+> > So I don't see any reason to merge it.
 > 
-> You select this if (SMP && CPU_V7). On ARMv6 SMP systems we use IPI for
-> TLB maintenance already.
+> So should we drop it from mmotm?
 
-Thanks, I'll add that to the next series.
--- 
-Steve
-> 
-> -- 
-> Catalin
+Yes, please.
+
+> > > Signed-off-by: Jianyu Zhan <nasa4836@gmail.com>
+> > > ---
+> > >  mm/memcontrol.c | 15 +++++++++++----
+> > >  1 file changed, 11 insertions(+), 4 deletions(-)
+
+This helper adds no value, but more code and indirection.
+
+Cc'd Andrew - this is about
+mm-memcontrolc-introduce-helper-mem_cgroup_zoneinfo_zone.patch
+mm-memcontrolc-introduce-helper-mem_cgroup_zoneinfo_zone-checkpatch-fixes.patch
+
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
