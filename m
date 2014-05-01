@@ -1,129 +1,170 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vc0-f178.google.com (mail-vc0-f178.google.com [209.85.220.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 39F956B0036
-	for <linux-mm@kvack.org>; Thu,  1 May 2014 12:20:23 -0400 (EDT)
-Received: by mail-vc0-f178.google.com with SMTP id hu19so4222819vcb.9
-        for <linux-mm@kvack.org>; Thu, 01 May 2014 09:20:22 -0700 (PDT)
-Received: from mail-vc0-x233.google.com (mail-vc0-x233.google.com [2607:f8b0:400c:c03::233])
-        by mx.google.com with ESMTPS id cb3si6124223vdc.167.2014.05.01.09.20.21
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 01 May 2014 09:20:21 -0700 (PDT)
-Received: by mail-vc0-f179.google.com with SMTP id ij19so4216752vcb.10
-        for <linux-mm@kvack.org>; Thu, 01 May 2014 09:20:21 -0700 (PDT)
+Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 6DCB76B0036
+	for <linux-mm@kvack.org>; Thu,  1 May 2014 13:07:02 -0400 (EDT)
+Received: by mail-wi0-f178.google.com with SMTP id hm4so1109233wib.17
+        for <linux-mm@kvack.org>; Thu, 01 May 2014 10:07:01 -0700 (PDT)
+Received: from collaborate-mta1.arm.com (fw-tnat.austin.arm.com. [217.140.110.23])
+        by mx.google.com with ESMTP id am1si10896010wjc.201.2014.05.01.10.07.00
+        for <linux-mm@kvack.org>;
+        Thu, 01 May 2014 10:07:00 -0700 (PDT)
+Date: Thu, 1 May 2014 18:06:10 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [BUG] kmemleak on __radix_tree_preload
+Message-ID: <20140501170610.GB28745@arm.com>
+References: <1398390340.4283.36.camel@kjgkr>
 MIME-Version: 1.0
-In-Reply-To: <alpine.LSU.2.11.1404161239320.6778@eggly.anvils>
-References: <20140415190936.GA24654@redhat.com>
-	<alpine.LSU.2.11.1404161239320.6778@eggly.anvils>
-Date: Thu, 1 May 2014 18:20:21 +0200
-Message-ID: <CAFLxGvxZxWf6nzJ5cXM--b02axz9u8UL_MTUyo3WgLPvbpCFAg@mail.gmail.com>
-Subject: Re: [3.15rc1] BUG at mm/filemap.c:202!
-From: Richard Weinberger <richard.weinberger@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1398390340.4283.36.camel@kjgkr>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Dave Jones <davej@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Sasha Levin <sasha.levin@oracle.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Jaegeuk Kim <jaegeuk.kim@samsung.com>
+Cc: "Linux Kernel, Mailing List" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Wed, Apr 16, 2014 at 10:40 PM, Hugh Dickins <hughd@google.com> wrote:
-> On Tue, 15 Apr 2014, Dave Jones wrote:
->
->> kernel BUG at mm/filemap.c:202!
->> invalid opcode: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
->> Modules linked in: tun fuse bnep rfcomm nfnetlink llc2 af_key ipt_ULOG can_raw can_bcm scsi_transport_iscsi nfc caif_socket caif af_802154 ieee802154 phonet af_r
->> xrpc can pppoe pppox ppp_generic slhc irda crc_ccitt rds rose x25 atm netrom appletalk ipx p8023 psnap p8022 llc ax25 cfg80211 coretemp hwmon x86_pkg_temp_thermal kvm_intel kvm
->>  xfs libcrc32c snd_hda_codec_hdmi snd_hda_codec_realtek snd_hda_codec_generic crct10dif_pclmul crc32c_intel ghash_clmulni_intel snd_hda_intel snd_hda_controller snd_hda_codec e
->> 1000e btusb bluetooth microcode pcspkr serio_raw snd_hwdep snd_seq snd_seq_device snd_pcm 6lowpan_iphc usb_debug rfkill ptp pps_core shpchp snd_timer snd soundcore
->> CPU: 3 PID: 14244 Comm: trinity-main Not tainted 3.15.0-rc1+ #188
->> task: ffff8801be2c50a0 ti: ffff8801d6830000 task.ti: ffff8801d6830000
->> RIP: 0010:[<ffffffff9915b4d5>]  [<ffffffff9915b4d5>] __delete_from_page_cache+0x315/0x320
->> RSP: 0018:ffff8801d6831b10  EFLAGS: 00010046
->> RAX: 0000000000000000 RBX: 0000000000000003 RCX: 000000000000001d
->> RDX: 000000000000012a RSI: ffffffff99a9a1c0 RDI: ffffffff99a6dad5
->> RBP: ffff8801d6831b60 R08: 000000000000005d R09: ffff8801b0361530
->> R10: ffff8801d6831b28 R11: 0000000000000000 R12: ffffea000734d440
->> R13: ffff880241235008 R14: 0000000000000000 R15: ffff880241235010
->> FS:  00007f81925cf740(0000) GS:ffff880244600000(0000) knlGS:0000000000000000
->> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
->> CR2: 0000000000630058 CR3: 0000000019c0e000 CR4: 00000000001407e0
->> DR0: 0000000000df3000 DR1: 0000000000000000 DR2: 0000000000000000
->> DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000600
->> Stack:
->>  ffff880241235020 ffff880241235038 ffff8801b0361530 ffff8801b0361640
->>  000000001da16adc ffffea000734d440 ffff880241235020 0000000000000000
->>  0000000000000000 000000000000005d ffff8801d6831b88 ffffffff9915b51d
->> Call Trace:
->>  [<ffffffff9915b51d>] delete_from_page_cache+0x3d/0x70
->>  [<ffffffff9916ab7b>] truncate_inode_page+0x5b/0x90
->>  [<ffffffff991759ab>] shmem_undo_range+0x30b/0x780
->>  [<ffffffff990a99e5>] ? local_clock+0x25/0x30
->>  [<ffffffff99175e34>] shmem_truncate_range+0x14/0x30
->>  [<ffffffff99175f1d>] shmem_evict_inode+0xcd/0x150
->>  [<ffffffff991e46e7>] evict+0xa7/0x170
->>  [<ffffffff991e5005>] iput+0xf5/0x180
->>  [<ffffffff991df390>] dentry_kill+0x210/0x250
->>  [<ffffffff991df43c>] dput+0x6c/0x110
->>  [<ffffffff991c8c19>] __fput+0x189/0x200
->>  [<ffffffff991c8cde>] ____fput+0xe/0x10
->>  [<ffffffff990900b4>] task_work_run+0xb4/0xe0
->>  [<ffffffff9906ea92>] do_exit+0x302/0xb80
->>  [<ffffffff99349843>] ? __this_cpu_preempt_check+0x13/0x20
->>  [<ffffffff9907038c>] do_group_exit+0x4c/0xc0
->>  [<ffffffff99070414>] SyS_exit_group+0x14/0x20
->>  [<ffffffff9975a964>] tracesys+0xdd/0xe2
->> Code: 4c 89 30 e9 80 fe ff ff 48 8b 75 c0 4c 89 ff e8 e2 8e 1c 00 84 c0 0f 85 6c fe ff ff e9 4f fe ff ff 0f 1f 44 00 00 e8 4e 85 5e 00 <0f> 0b e8 84 1d f1 ff 0f :
->>
->>
->>  202         BUG_ON(page_mapped(page));
->
-> I've been wrestling with this report, but made no progress;
-> maybe if I set down a few thoughts, someone can help us forward.
->
-> It is reasonable to assume (but unreasonable to hold on too tightly
-> to the assumption) that this is related to Dave's contemporaneous
-> report of BUG: Bad rss-counter state mm:ffff88023fc73c00 idx:0 val:5
->
-> I don't know if they both occurred in the same session; but whether
-> or not they did, the BUG_ON(page_mapped(page)) from inode eviction
-> implies that not every pte mapping a shmem file page had been located
-> when its last mapper exited; and the rss-counter message implies that
-> there were five pte mappings of file(s) which could not be located
-> when their mapper exited.
->
-> It is also reasonable to assume (but unreasonable to hold on too
-> tightly to the assumption) that this is another manifestation of
-> the same unsolved mm/filemap.c:202 that Sasha reported on rc5-next
-> a month ago, https://lkml.org/lkml/2014/3/7/298
->
-> Now that one occurred, not while evicting a shmem inode, but while
-> punching a hole in it with madvise(,,MADV_REMOVE).  At the time I
-> set it aside to consider when improving shmem_fallocate(), but now
-> it looks more like a precursor of Dave's.
->
-> One way this could happen is if we have racing tasks setting up
-> ptes without the necessary locking, one placing its pte on top of
-> another's, so page_mapcount goes up by 2 but comes down by 1 later.
-> But I failed to find anywhere in the code in danger of doing that.
->
-> Another way it could happen is if a vma is removed from i_mmap tree
-> and i_mmap_nonlinear list, without zap_pte_range() having zapped all
-> of its ptes; but I don't see where that could happen either.
->
-> Sasha's came before shmem participated in Kirill's filemap_map_pages
-> fault-around; but his pte_same/pte_none checking under ptl there looks
-> correct anyway.  I've not found any recent change likely to blame.
->
-> Help!
+On Fri, Apr 25, 2014 at 10:45:40AM +0900, Jaegeuk Kim wrote:
+> 2. Bug
+>  This is one of the results, but all the results indicate
+> __radix_tree_preload.
+> 
+> unreferenced object 0xffff88002ae2a238 (size 576):
+> comm "fsstress", pid 25019, jiffies 4295651360 (age 2276.104s)
+> hex dump (first 32 bytes):
+> 01 00 00 00 81 ff ff ff 00 00 00 00 00 00 00 00  ................
+> 40 7d 37 81 ff ff ff ff 50 a2 e2 2a 00 88 ff ff  @}7.....P..*....
+> backtrace:
+>  [<ffffffff8170e546>] kmemleak_alloc+0x26/0x50
+>  [<ffffffff8119feac>] kmem_cache_alloc+0xdc/0x190
+>  [<ffffffff81378709>] __radix_tree_preload+0x49/0xc0
+>  [<ffffffff813787a1>] radix_tree_maybe_preload+0x21/0x30
+>  [<ffffffff8114bbbc>] add_to_page_cache_lru+0x3c/0xc0
+>  [<ffffffff8114c778>] grab_cache_page_write_begin+0x98/0xf0
+>  [<ffffffffa02d3151>] f2fs_write_begin+0xa1/0x370 [f2fs]
+>  [<ffffffff8114af47>] generic_perform_write+0xc7/0x1e0
+>  [<ffffffff8114d230>] __generic_file_aio_write+0x1d0/0x400
+>  [<ffffffff8114d4c0>] generic_file_aio_write+0x60/0xe0
+>  [<ffffffff811b281a>] do_sync_write+0x5a/0x90
+>  [<ffffffff811b3575>] vfs_write+0xc5/0x1f0
+>  [<ffffffff811b3a92>] SyS_write+0x52/0xb0
+>  [<ffffffff81730912>] system_call_fastpath+0x16/0x1b
+>  [<ffffffffffffffff>] 0xffffffffffffffff
 
-Using a trinity as of today I'm able to trigger this bug on UML within seconds.
-If you want me to test patch, I can help.
+Do all the backtraces look like the above (coming from
+add_to_page_cache_lru)?
 
-I'm also observing one strange fact, I can trigger this on any kernel version.
-So far I've managed UML to crash on 3.0 to 3.15-rc...
+There were some changes in lib/radix-tree.c since 3.14, maybe you could
+try reverting them and see if the leaks still appear (cc'ing Johannes).
+It could also be a false positive.
 
--- 
-Thanks,
-//richard
+An issue with debugging such cases is that the preloading is common for
+multiple radix trees, so the actual radix_tree_node_alloc() could be on
+a different path. You could give the patch below a try to see what
+backtrace you get (it updates backtrace in radix_tree_node_alloc()).
+
+
+diff --git a/Documentation/kmemleak.txt b/Documentation/kmemleak.txt
+index a7563ec4ea7b..b772418bf064 100644
+--- a/Documentation/kmemleak.txt
++++ b/Documentation/kmemleak.txt
+@@ -142,6 +142,7 @@ kmemleak_alloc_percpu	 - notify of a percpu memory block allocation
+ kmemleak_free		 - notify of a memory block freeing
+ kmemleak_free_part	 - notify of a partial memory block freeing
+ kmemleak_free_percpu	 - notify of a percpu memory block freeing
++kmemleak_update_trace	 - update object allocation stack trace
+ kmemleak_not_leak	 - mark an object as not a leak
+ kmemleak_ignore		 - do not scan or report an object as leak
+ kmemleak_scan_area	 - add scan areas inside a memory block
+diff --git a/include/linux/kmemleak.h b/include/linux/kmemleak.h
+index 5bb424659c04..057e95971014 100644
+--- a/include/linux/kmemleak.h
++++ b/include/linux/kmemleak.h
+@@ -30,6 +30,7 @@ extern void kmemleak_alloc_percpu(const void __percpu *ptr, size_t size) __ref;
+ extern void kmemleak_free(const void *ptr) __ref;
+ extern void kmemleak_free_part(const void *ptr, size_t size) __ref;
+ extern void kmemleak_free_percpu(const void __percpu *ptr) __ref;
++extern void kmemleak_update_trace(const void *ptr) __ref;
+ extern void kmemleak_not_leak(const void *ptr) __ref;
+ extern void kmemleak_ignore(const void *ptr) __ref;
+ extern void kmemleak_scan_area(const void *ptr, size_t size, gfp_t gfp) __ref;
+@@ -83,6 +84,9 @@ static inline void kmemleak_free_recursive(const void *ptr, unsigned long flags)
+ static inline void kmemleak_free_percpu(const void __percpu *ptr)
+ {
+ }
++static inline void kmemleak_update_trace(const void *ptr)
++{
++}
+ static inline void kmemleak_not_leak(const void *ptr)
+ {
+ }
+diff --git a/lib/radix-tree.c b/lib/radix-tree.c
+index 9599aa72d7a0..5297f8e09096 100644
+--- a/lib/radix-tree.c
++++ b/lib/radix-tree.c
+@@ -27,6 +27,7 @@
+ #include <linux/radix-tree.h>
+ #include <linux/percpu.h>
+ #include <linux/slab.h>
++#include <linux/kmemleak.h>
+ #include <linux/notifier.h>
+ #include <linux/cpu.h>
+ #include <linux/string.h>
+@@ -200,6 +201,11 @@ radix_tree_node_alloc(struct radix_tree_root *root)
+ 			rtp->nodes[rtp->nr - 1] = NULL;
+ 			rtp->nr--;
+ 		}
++		/*
++		 * Update the allocation stack trace as this is more useful
++		 * for debugging.
++		 */
++		kmemleak_update_trace(ret);
+ 	}
+ 	if (ret == NULL)
+ 		ret = kmem_cache_alloc(radix_tree_node_cachep, gfp_mask);
+diff --git a/mm/kmemleak.c b/mm/kmemleak.c
+index 3a36e2b16cba..61a64ed2fbef 100644
+--- a/mm/kmemleak.c
++++ b/mm/kmemleak.c
+@@ -990,6 +990,40 @@ void __ref kmemleak_free_percpu(const void __percpu *ptr)
+ EXPORT_SYMBOL_GPL(kmemleak_free_percpu);
+ 
+ /**
++ * kmemleak_update_trace - update object allocation stack trace
++ * @ptr:	pointer to beginning of the object
++ *
++ * Override the object allocation stack trace for cases where the actual
++ * allocation place is not always useful.
++ */
++void __ref kmemleak_update_trace(const void *ptr)
++{
++	struct kmemleak_object *object;
++	unsigned long flags;
++
++	pr_debug("%s(0x%p)\n", __func__, ptr);
++
++	if (!kmemleak_enabled || IS_ERR_OR_NULL(ptr))
++		return;
++
++	object = find_and_get_object((unsigned long)ptr, 1);
++	if (!object) {
++#ifdef DEBUG
++		kmemleak_warn("Updating stack trace for unknown object at %p\n",
++			      ptr);
++#endif
++		return;
++	}
++
++	spin_lock_irqsave(&object->lock, flags);
++	object->trace_len = __save_stack_trace(object->trace);
++	spin_unlock_irqrestore(&object->lock, flags);
++
++	put_object(object);
++}
++EXPORT_SYMBOL(kmemleak_update_trace);
++
++/**
+  * kmemleak_not_leak - mark an allocated object as false positive
+  * @ptr:	pointer to beginning of the object
+  *
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
