@@ -1,46 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f42.google.com (mail-ee0-f42.google.com [74.125.83.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 47F626B0036
-	for <linux-mm@kvack.org>; Thu,  1 May 2014 09:33:44 -0400 (EDT)
-Received: by mail-ee0-f42.google.com with SMTP id d17so2246377eek.15
-        for <linux-mm@kvack.org>; Thu, 01 May 2014 06:33:43 -0700 (PDT)
+Received: from mail-ee0-f47.google.com (mail-ee0-f47.google.com [74.125.83.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 2129B6B0035
+	for <linux-mm@kvack.org>; Thu,  1 May 2014 09:36:13 -0400 (EDT)
+Received: by mail-ee0-f47.google.com with SMTP id b15so2274079eek.20
+        for <linux-mm@kvack.org>; Thu, 01 May 2014 06:36:12 -0700 (PDT)
 Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id t3si34208256eeg.91.2014.05.01.06.33.42
+        by mx.google.com with ESMTPS id x47si34222355eel.13.2014.05.01.06.36.11
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 01 May 2014 06:33:42 -0700 (PDT)
-Date: Thu, 1 May 2014 09:33:40 -0400
+        Thu, 01 May 2014 06:36:11 -0700 (PDT)
+Date: Thu, 1 May 2014 09:36:03 -0400
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 15/17] mm: Do not use unnecessary atomic operations when
- adding pages to the LRU
-Message-ID: <20140501133340.GE23420@cmpxchg.org>
-References: <1398933888-4940-1-git-send-email-mgorman@suse.de>
- <1398933888-4940-16-git-send-email-mgorman@suse.de>
+Subject: Re: [PATCH 2/2] mm/memcontrol.c: introduce helper
+ mem_cgroup_zoneinfo_zone()
+Message-ID: <20140501133603.GA25536@cmpxchg.org>
+References: <1397862103-31982-1-git-send-email-nasa4836@gmail.com>
+ <20140422095923.GD29311@dhcp22.suse.cz>
+ <20140428150426.GB24807@dhcp22.suse.cz>
+ <20140501125450.GA23420@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1398933888-4940-16-git-send-email-mgorman@suse.de>
+In-Reply-To: <20140501125450.GA23420@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Linux Kernel <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Jianyu Zhan <nasa4836@gmail.com>, bsingharora@gmail.com, kamezawa.hiroyu@jp.fujitsu.com, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org
 
-On Thu, May 01, 2014 at 09:44:46AM +0100, Mel Gorman wrote:
-> When adding pages to the LRU we clear the active bit unconditionally. As the
-> page could be reachable from other paths we cannot use unlocked operations
-> without risk of corruption such as a parallel mark_page_accessed. This
-> patch test if is necessary to clear the atomic flag before using an atomic
-> operation. In the unlikely even this races with mark_page_accesssed the
+[fix Andrew's email address]
 
-                             event
-
-> consequences are simply that the page may be promoted to the active list
-> that might have been left on the inactive list before the patch. This is
-> a marginal consequence.
+On Thu, May 01, 2014 at 08:54:50AM -0400, Johannes Weiner wrote:
+> On Mon, Apr 28, 2014 at 05:04:26PM +0200, Michal Hocko wrote:
+> > On Tue 22-04-14 11:59:23, Michal Hocko wrote:
+> > > On Sat 19-04-14 07:01:43, Jianyu Zhan wrote:
+> > > > introduce helper mem_cgroup_zoneinfo_zone(). This will make
+> > > > mem_cgroup_iter() code more compact.
+> > > 
+> > > I dunno. Helpers are usually nice but this one adds more code then it
+> > > removes. It also doesn't help the generated code.
+> > > 
+> > > So I don't see any reason to merge it.
+> > 
+> > So should we drop it from mmotm?
 > 
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
-
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+> Yes, please.
+> 
+> > > > Signed-off-by: Jianyu Zhan <nasa4836@gmail.com>
+> > > > ---
+> > > >  mm/memcontrol.c | 15 +++++++++++----
+> > > >  1 file changed, 11 insertions(+), 4 deletions(-)
+> 
+> This helper adds no value, but more code and indirection.
+> 
+> Cc'd Andrew - this is about
+> mm-memcontrolc-introduce-helper-mem_cgroup_zoneinfo_zone.patch
+> mm-memcontrolc-introduce-helper-mem_cgroup_zoneinfo_zone-checkpatch-fixes.patch
+> 
+> Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
