@@ -1,59 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f44.google.com (mail-qa0-f44.google.com [209.85.216.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 63BFF6B003C
-	for <linux-mm@kvack.org>; Thu,  1 May 2014 05:31:45 -0400 (EDT)
-Received: by mail-qa0-f44.google.com with SMTP id k15so2800107qaq.3
-        for <linux-mm@kvack.org>; Thu, 01 May 2014 02:31:45 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id d5si12373033qad.201.2014.05.01.02.31.44
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 01 May 2014 02:31:44 -0700 (PDT)
-Date: Thu, 1 May 2014 11:31:40 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH] SCHED: remove proliferation of wait_on_bit action
- functions.
-Message-ID: <20140501093140.GN11096@twins.programming.kicks-ass.net>
-References: <20140501123738.3e64b2d2@notabene.brown>
- <20140501074257.GK11096@twins.programming.kicks-ass.net>
- <20140501192605.6b5383f8@notabene.brown>
+Received: from mail-qa0-f47.google.com (mail-qa0-f47.google.com [209.85.216.47])
+	by kanga.kvack.org (Postfix) with ESMTP id CD50F6B0035
+	for <linux-mm@kvack.org>; Thu,  1 May 2014 05:53:28 -0400 (EDT)
+Received: by mail-qa0-f47.google.com with SMTP id j7so2746077qaq.6
+        for <linux-mm@kvack.org>; Thu, 01 May 2014 02:53:28 -0700 (PDT)
+Received: from collaborate-mta1.arm.com (fw-tnat.austin.arm.com. [217.140.110.23])
+        by mx.google.com with ESMTP id v9si12398092qar.128.2014.05.01.02.53.27
+        for <linux-mm@kvack.org>;
+        Thu, 01 May 2014 02:53:28 -0700 (PDT)
+Date: Thu, 1 May 2014 10:52:47 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [RFC PATCH V4 6/7] arm64: mm: Enable HAVE_RCU_TABLE_FREE logic
+Message-ID: <20140501095246.GB22316@arm.com>
+References: <1396018892-6773-1-git-send-email-steve.capper@linaro.org>
+ <1396018892-6773-7-git-send-email-steve.capper@linaro.org>
+ <20140430152047.GF31220@arm.com>
+ <20140430153317.GG31220@arm.com>
+ <20140430153824.GA7166@linaro.org>
+ <20140430172114.GI31220@arm.com>
+ <20140501073402.GA30358@linaro.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140501192605.6b5383f8@notabene.brown>
+In-Reply-To: <20140501073402.GA30358@linaro.org>
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: NeilBrown <neilb@suse.de>
-Cc: Oleg Nesterov <oleg@redhat.com>, David Howells <dhowells@redhat.com>, Steven Whitehouse <swhiteho@redhat.com>, dm-devel@redhat.com, Chris Mason <clm@fb.com>, Josef Bacik <jbacik@fb.com>, Steve French <sfrench@samba.org>, Theodore Ts'o <tytso@mit.edu>, Trond Myklebust <trond.myklebust@primarydata.com>, Ingo Molnar <mingo@redhat.com>, Roland McGrath <roland@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-nfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Steve Capper <steve.capper@linaro.org>
+Cc: "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "peterz@infradead.org" <peterz@infradead.org>, "gary.robertson@linaro.org" <gary.robertson@linaro.org>, "anders.roxell@linaro.org" <anders.roxell@linaro.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 
-On Thu, May 01, 2014 at 07:26:05PM +1000, NeilBrown wrote:
-> On Thu, 1 May 2014 09:42:57 +0200 Peter Zijlstra <peterz@infradead.org> wrote:
+On Thu, May 01, 2014 at 08:34:03AM +0100, Steve Capper wrote:
+> On Wed, Apr 30, 2014 at 06:21:14PM +0100, Catalin Marinas wrote:
+> > Both powerpc and sparc use tlb_remove_table() via their __pte_free_tlb()
+> > etc. which implies an IPI for synchronisation if mm_users > 1. For
+> > gup_fast we may not need it since we use the RCU for protection. Am I
+> > missing anything?
 > 
-> > On Thu, May 01, 2014 at 12:37:38PM +1000, NeilBrown wrote:
-> > > +static inline int
-> > > +wait_on_bit(void *word, int bit, unsigned mode)
-> > > +{
-> > > +	if (!test_bit(bit, word))
-> > > +		return 0;
-> > > +	return out_of_line_wait_on_bit(word, bit,
-> > > +				       bit_wait,
-> > > +				       mode & 65535);
-> > > +}
-> > 
-> > Still puzzled by the 16 bit mask there ;-)
+> So my understanding is:
 > 
-> I clearly remember removing that!
-> And I've just done it again.
-> I hope it doesn't re-reappear!
-> :-)
-> NeilBrown
+> tlb_remove_table will just immediately free any pages where there's a
+> single user as there's no need to consider a gup walking.
 
-Seems dead now, I'll hold out for a little while so that dhowells can
-explain this fscache thing.
+Does gup_fast walking increment the mm_users? Or is it a requirement of
+the calling code? I can't seem to find where this happens.
 
-Then I'll queue it. Ingo is currently enjoying a long weekend and is
-fighting (well I am now) a stability issue in -tip kernels, so it might
-be a little while before it actually shows up in the git tree.
+> For the case of multiple users we have an mmu_table_batch structure
+> that holds references to pages that should be freed at a later point.
+
+Yes.
+
+> This batch is contained on a page that is allocated on the fly. If, for
+> any reason, we can't allocate the batch container we fallback to a slow
+> path which is to issue an IPI (via tlb_remove_table_one). This IPI will
+> block on the gup walker. We need this fallback behaviour on ARM/ARM64.
+
+That's my main point: this batch page allocation on the fly for table
+pages happens in tlb_remove_table(). With your patch for arm64
+HAVE_RCU_TABLE_FREE, I can comment out tlb_remove_table() and it
+compiles just fine because you don't call it from functions like
+__pte_free_tlb() (as powerpc and sparc do). The __tlb_remove_page() that
+we currently use doesn't give us any RCU protection here.
+
+-- 
+Catalin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
