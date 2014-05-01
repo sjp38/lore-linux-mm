@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f44.google.com (mail-qa0-f44.google.com [209.85.216.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 64AF96B0035
-	for <linux-mm@kvack.org>; Thu,  1 May 2014 01:09:49 -0400 (EDT)
-Received: by mail-qa0-f44.google.com with SMTP id k15so2666777qaq.31
-        for <linux-mm@kvack.org>; Wed, 30 Apr 2014 22:09:49 -0700 (PDT)
+Received: from mail-qg0-f44.google.com (mail-qg0-f44.google.com [209.85.192.44])
+	by kanga.kvack.org (Postfix) with ESMTP id F0E236B0035
+	for <linux-mm@kvack.org>; Thu,  1 May 2014 01:26:01 -0400 (EDT)
+Received: by mail-qg0-f44.google.com with SMTP id i50so1524292qgf.17
+        for <linux-mm@kvack.org>; Wed, 30 Apr 2014 22:26:01 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id em3si12166768qcb.11.2014.04.30.22.09.47
+        by mx.google.com with ESMTP id n7si12164509qas.194.2014.04.30.22.26.00
         for <linux-mm@kvack.org>;
-        Wed, 30 Apr 2014 22:09:48 -0700 (PDT)
+        Wed, 30 Apr 2014 22:26:01 -0700 (PDT)
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [patch 1/2] mm, migration: add destination page freeing callback
-Date: Thu,  1 May 2014 01:08:56 -0400
-Message-Id: <5361d71c.03c6e50a.23c3.6433SMTPIN_ADDED_BROKEN@mx.google.com>
-In-Reply-To: <alpine.DEB.2.02.1404301744110.8415@chino.kir.corp.google.com>
-References: <alpine.DEB.2.02.1404301744110.8415@chino.kir.corp.google.com>
+Subject: Re: [patch 2/2] mm, compaction: return failed migration target pages back to freelist
+Date: Thu,  1 May 2014 01:10:05 -0400
+Message-Id: <5361dae9.4781e00a.74f8.ffff8c8eSMTPIN_ADDED_BROKEN@mx.google.com>
+In-Reply-To: <alpine.DEB.2.02.1404301744400.8415@chino.kir.corp.google.com>
+References: <alpine.DEB.2.02.1404301744110.8415@chino.kir.corp.google.com> <alpine.DEB.2.02.1404301744400.8415@chino.kir.corp.google.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
@@ -23,61 +23,49 @@ List-ID: <linux-mm.kvack.org>
 To: David Rientjes <rientjes@google.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, vbabka@suse.cz, iamjoonsoo.kim@lge.com, gthelen@google.com, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hi David,
-
-On Wed, Apr 30, 2014 at 05:45:24PM -0700, David Rientjes wrote:
-> Memory migration uses a callback defined by the caller to determine how to
-> allocate destination pages.  When migration fails for a source page, however, it 
-> frees the destination page back to the system.
+On Wed, Apr 30, 2014 at 05:45:27PM -0700, David Rientjes wrote:
+> Memory compaction works by having a "freeing scanner" scan from one end of a 
+> zone which isolates pages as migration targets while another "migrating scanner" 
+> scans from the other end of the same zone which isolates pages for migration.
 > 
-> This patch adds a memory migration callback defined by the caller to determine 
-> how to free destination pages.  If a caller, such as memory compaction, builds 
-> its own freelist for migration targets, this can reuse already freed memory 
-> instead of scanning additional memory.
+> When page migration fails for an isolated page, the target page is returned to 
+> the system rather than the freelist built by the freeing scanner.  This may 
+> require the freeing scanner to continue scanning memory after suitable migration 
+> targets have already been returned to the system needlessly.
 > 
-> If the caller provides a function to handle freeing of destination pages, it is 
-> called when page migration fails.  Otherwise, it may pass NULL and freeing back 
-> to the system will be handled as usual.  This patch introduces no functional 
-> change.
+> This patch returns destination pages to the freeing scanner freelist when page 
+> migration fails.  This prevents unnecessary work done by the freeing scanner but 
+> also encourages memory to be as compacted as possible at the end of the zone.
 > 
+> Reported-by: Greg Thelen <gthelen@google.com>
 > Signed-off-by: David Rientjes <rientjes@google.com>
-
-Looks good to me.
-Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-
-I have one comment below ...
-
-[snip]
-
-> @@ -1056,20 +1059,30 @@ static int unmap_and_move_huge_page(new_page_t get_new_page,
->  	if (!page_mapped(hpage))
->  		rc = move_to_new_page(new_hpage, hpage, 1, mode);
+> ---
+>  mm/compaction.c | 17 +++++++++++++++--
+>  1 file changed, 15 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -797,6 +797,19 @@ static struct page *compaction_alloc(struct page *migratepage,
+>  }
 >  
-> -	if (rc)
-> +	if (rc != MIGRATEPAGE_SUCCESS)
->  		remove_migration_ptes(hpage, hpage);
->  
->  	if (anon_vma)
->  		put_anon_vma(anon_vma);
->  
-> -	if (!rc)
-> +	if (rc == MIGRATEPAGE_SUCCESS)
->  		hugetlb_cgroup_migrate(hpage, new_hpage);
->  
->  	unlock_page(hpage);
->  out:
->  	if (rc != -EAGAIN)
->  		putback_active_hugepage(hpage);
-> -	put_page(new_hpage);
+>  /*
+> + * This is a migrate-callback that "frees" freepages back to the isolated
+> + * freelist.  All pages on the freelist are from the same zone, so there is no
+> + * special handling needed for NUMA.
+> + */
+> +static void compaction_free(struct page *page, unsigned long data)
+> +{
+> +	struct compact_control *cc = (struct compact_control *)data;
 > +
-> +	/*
-> +	 * If migration was not successful and there's a freeing callback, use
-> +	 * it.  Otherwise, put_page() will drop the reference grabbed during
-> +	 * isolation.
-> +	 */
+> +	list_add(&page->lru, &cc->freepages);
+> +	cc->nr_freepages++;
 
-This comment is true both for normal page and huge page, and people more likely
-to see unmap_and_move() at first, so this had better be (also) in unmap_and_move().
+With this change, migration_page() handles cc->nr_freepages consistently, so
+we don't have to run over freelist to update this count in update_nr_listpages()?
+
+I'm not sure if that's also true for cc->nr_migratepages, but if it is,
+we can completely remove update_nr_listpages().
 
 Thanks,
 Naoya Horiguchi
