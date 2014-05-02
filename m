@@ -1,303 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f54.google.com (mail-ee0-f54.google.com [74.125.83.54])
-	by kanga.kvack.org (Postfix) with ESMTP id CBDA56B0036
-	for <linux-mm@kvack.org>; Fri,  2 May 2014 09:16:30 -0400 (EDT)
-Received: by mail-ee0-f54.google.com with SMTP id b57so1245286eek.27
-        for <linux-mm@kvack.org>; Fri, 02 May 2014 06:16:30 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id n46si1615734eeo.127.2014.05.02.06.16.27
+Received: from mail-qa0-f52.google.com (mail-qa0-f52.google.com [209.85.216.52])
+	by kanga.kvack.org (Postfix) with ESMTP id C5BE66B0037
+	for <linux-mm@kvack.org>; Fri,  2 May 2014 09:16:59 -0400 (EDT)
+Received: by mail-qa0-f52.google.com with SMTP id cm18so3147869qab.25
+        for <linux-mm@kvack.org>; Fri, 02 May 2014 06:16:59 -0700 (PDT)
+Received: from mail-qa0-x22e.google.com (mail-qa0-x22e.google.com [2607:f8b0:400d:c00::22e])
+        by mx.google.com with ESMTPS id j6si14022329qan.32.2014.05.02.06.16.59
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 02 May 2014 06:16:28 -0700 (PDT)
-Message-ID: <53639AA9.7050005@suse.cz>
-Date: Fri, 02 May 2014 15:16:25 +0200
-From: Vlastimil Babka <vbabka@suse.cz>
+        Fri, 02 May 2014 06:16:59 -0700 (PDT)
+Received: by mail-qa0-f46.google.com with SMTP id w8so4195203qac.5
+        for <linux-mm@kvack.org>; Fri, 02 May 2014 06:16:59 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [patch 1/2] mm, migration: add destination page freeing callback
-References: <alpine.DEB.2.02.1404301744110.8415@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.02.1404301744110.8415@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Reply-To: mtk.manpages@gmail.com
+In-Reply-To: <1398090397-2397-1-git-send-email-manfred@colorfullife.com>
+References: <1398090397-2397-1-git-send-email-manfred@colorfullife.com>
+From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+Date: Fri, 2 May 2014 15:16:39 +0200
+Message-ID: <CAKgNAkjuU68hgyMOVGBVoBTOhhGdBytQh6H0ExiLoXfujKyP_w@mail.gmail.com>
+Subject: Re: [PATCH 0/4] ipc/shm.c: increase the limits for SHMMAX, SHMALL
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Manfred Spraul <manfred@colorfullife.com>
+Cc: Davidlohr Bueso <davidlohr.bueso@hp.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, aswin@hp.com, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On 05/01/2014 02:45 AM, David Rientjes wrote:
-> Memory migration uses a callback defined by the caller to determine how to
-> allocate destination pages.  When migration fails for a source page, however, it
-> frees the destination page back to the system.
->
-> This patch adds a memory migration callback defined by the caller to determine
-> how to free destination pages.  If a caller, such as memory compaction, builds
-> its own freelist for migration targets, this can reuse already freed memory
-> instead of scanning additional memory.
->
-> If the caller provides a function to handle freeing of destination pages, it is
-> called when page migration fails.  Otherwise, it may pass NULL and freeing back
-> to the system will be handled as usual.  This patch introduces no functional
-> change.
->
-> Signed-off-by: David Rientjes <rientjes@google.com>
+Hi Manfred,
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+On Mon, Apr 21, 2014 at 4:26 PM, Manfred Spraul
+<manfred@colorfullife.com> wrote:
+> Hi all,
+>
+> the increase of SHMMAX/SHMALL is now a 4 patch series.
+> I don't have ideas how to improve it further.
 
-> ---
->   include/linux/migrate.h | 11 ++++++----
->   mm/compaction.c         |  2 +-
->   mm/memory-failure.c     |  4 ++--
->   mm/memory_hotplug.c     |  2 +-
->   mm/mempolicy.c          |  4 ++--
->   mm/migrate.c            | 54 ++++++++++++++++++++++++++++++++-----------------
->   mm/page_alloc.c         |  2 +-
->   7 files changed, 50 insertions(+), 29 deletions(-)
+On the assumption that your patches are heading to mainline, could you
+send me a man-pages patch for the changes?
+
+Thanks,
+
+Michael
+
+
+> The change itself is trivial, the only problem are interger overflows.
+> The overflows are not new, but if we make huge values the default,
+> then the code should be free from overflows.
 >
-> diff --git a/include/linux/migrate.h b/include/linux/migrate.h
-> --- a/include/linux/migrate.h
-> +++ b/include/linux/migrate.h
-> @@ -5,7 +5,9 @@
->   #include <linux/mempolicy.h>
->   #include <linux/migrate_mode.h>
+> SHMMAX:
 >
-> -typedef struct page *new_page_t(struct page *, unsigned long private, int **);
-> +typedef struct page *new_page_t(struct page *page, unsigned long private,
-> +				int **reason);
-> +typedef void free_page_t(struct page *page, unsigned long private);
+> - shmmem_file_setup places a hard limit on the segment size:
+>   MAX_LFS_FILESIZE.
 >
->   /*
->    * Return values from addresss_space_operations.migratepage():
-> @@ -38,7 +40,7 @@ enum migrate_reason {
->   extern void putback_movable_pages(struct list_head *l);
->   extern int migrate_page(struct address_space *,
->   			struct page *, struct page *, enum migrate_mode);
-> -extern int migrate_pages(struct list_head *l, new_page_t x,
-> +extern int migrate_pages(struct list_head *l, new_page_t new, free_page_t free,
->   		unsigned long private, enum migrate_mode mode, int reason);
+>   On 32-bit, the limit is > 1 TB, i.e. 4 GB-1 byte segments are
+>   possible. Rounded up to full pages the actual allocated size
+>   is 0. --> must be fixed, patch 3
 >
->   extern int migrate_prep(void);
-> @@ -56,8 +58,9 @@ extern int migrate_page_move_mapping(struct address_space *mapping,
->   #else
+> - shmat:
+>   - find_vma_intersection does not handle overflows properly.
+>     --> must be fixed, patch 1
 >
->   static inline void putback_movable_pages(struct list_head *l) {}
-> -static inline int migrate_pages(struct list_head *l, new_page_t x,
-> -		unsigned long private, enum migrate_mode mode, int reason)
-> +static inline int migrate_pages(struct list_head *l, new_page_t new,
-> +		free_page_t free, unsigned long private, enum migrate_mode mode,
-> +		int reason)
->   	{ return -ENOSYS; }
+>   - the rest is fine, do_mmap_pgoff limits mappings to TASK_SIZE
+>     and checks for overflows (i.e.: map 2 GB, starting from
+>     addr=2.5GB fails).
 >
->   static inline int migrate_prep(void) { return -ENOSYS; }
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -1023,7 +1023,7 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
->   		}
+> SHMALL:
+> - after creating 8192 segments size (1L<<63)-1, shm_tot overflows and
+>   returns 0.  --> must be fixed, patch 2.
 >
->   		nr_migrate = cc->nr_migratepages;
-> -		err = migrate_pages(&cc->migratepages, compaction_alloc,
-> +		err = migrate_pages(&cc->migratepages, compaction_alloc, NULL,
->   				(unsigned long)cc,
->   				cc->sync ? MIGRATE_SYNC_LIGHT : MIGRATE_ASYNC,
->   				MR_COMPACTION);
-> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-> --- a/mm/memory-failure.c
-> +++ b/mm/memory-failure.c
-> @@ -1500,7 +1500,7 @@ static int soft_offline_huge_page(struct page *page, int flags)
+> User space:
+> - Obviuosly, there could be overflows in user space. There is nothing
+>   we can do, only use values smaller than ULONG_MAX.
+>   I ended with "ULONG_MAX - 1L<<24":
 >
->   	/* Keep page count to indicate a given hugepage is isolated. */
->   	list_move(&hpage->lru, &pagelist);
-> -	ret = migrate_pages(&pagelist, new_page, MPOL_MF_MOVE_ALL,
-> +	ret = migrate_pages(&pagelist, new_page, NULL, MPOL_MF_MOVE_ALL,
->   				MIGRATE_SYNC, MR_MEMORY_FAILURE);
->   	if (ret) {
->   		pr_info("soft offline: %#lx: migration failed %d, type %lx\n",
-> @@ -1581,7 +1581,7 @@ static int __soft_offline_page(struct page *page, int flags)
->   		inc_zone_page_state(page, NR_ISOLATED_ANON +
->   					page_is_file_cache(page));
->   		list_add(&page->lru, &pagelist);
-> -		ret = migrate_pages(&pagelist, new_page, MPOL_MF_MOVE_ALL,
-> +		ret = migrate_pages(&pagelist, new_page, NULL, MPOL_MF_MOVE_ALL,
->   					MIGRATE_SYNC, MR_MEMORY_FAILURE);
->   		if (ret) {
->   			if (!list_empty(&pagelist)) {
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -1332,7 +1332,7 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
->   		 * alloc_migrate_target should be improooooved!!
->   		 * migrate_pages returns # of failed pages.
->   		 */
-> -		ret = migrate_pages(&source, alloc_migrate_target, 0,
-> +		ret = migrate_pages(&source, alloc_migrate_target, NULL, 0,
->   					MIGRATE_SYNC, MR_MEMORY_HOTPLUG);
->   		if (ret)
->   			putback_movable_pages(&source);
-> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-> --- a/mm/mempolicy.c
-> +++ b/mm/mempolicy.c
-> @@ -1028,7 +1028,7 @@ static int migrate_to_node(struct mm_struct *mm, int source, int dest,
->   			flags | MPOL_MF_DISCONTIG_OK, &pagelist);
+>   - TASK_SIZE cannot be used because it is the size of the current
+>     task. Could be 4G if it's a 32-bit task on a 64-bit kernel.
 >
->   	if (!list_empty(&pagelist)) {
-> -		err = migrate_pages(&pagelist, new_node_page, dest,
-> +		err = migrate_pages(&pagelist, new_node_page, NULL, dest,
->   					MIGRATE_SYNC, MR_SYSCALL);
->   		if (err)
->   			putback_movable_pages(&pagelist);
-> @@ -1277,7 +1277,7 @@ static long do_mbind(unsigned long start, unsigned long len,
->   		if (!list_empty(&pagelist)) {
->   			WARN_ON_ONCE(flags & MPOL_MF_LAZY);
->   			nr_failed = migrate_pages(&pagelist, new_vma_page,
-> -					(unsigned long)vma,
-> +					NULL, (unsigned long)vma,
->   					MIGRATE_SYNC, MR_MEMPOLICY_MBIND);
->   			if (nr_failed)
->   				putback_movable_pages(&pagelist);
-> diff --git a/mm/migrate.c b/mm/migrate.c
-> --- a/mm/migrate.c
-> +++ b/mm/migrate.c
-> @@ -938,8 +938,9 @@ out:
->    * Obtain the lock on page, remove all ptes and migrate the page
->    * to the newly allocated page in newpage.
->    */
-> -static int unmap_and_move(new_page_t get_new_page, unsigned long private,
-> -			struct page *page, int force, enum migrate_mode mode)
-> +static int unmap_and_move(new_page_t get_new_page, free_page_t put_new_page,
-> +			unsigned long private, struct page *page, int force,
-> +			enum migrate_mode mode)
->   {
->   	int rc = 0;
->   	int *result = NULL;
-> @@ -983,11 +984,12 @@ out:
->   				page_is_file_cache(page));
->   		putback_lru_page(page);
->   	}
-> -	/*
-> -	 * Move the new page to the LRU. If migration was not successful
-> -	 * then this will free the page.
-> -	 */
-> -	putback_lru_page(newpage);
-> +
-> +	if (rc != MIGRATEPAGE_SUCCESS && put_new_page)
-> +		put_new_page(newpage, private);
-> +	else
-> +		putback_lru_page(newpage);
-> +
->   	if (result) {
->   		if (rc)
->   			*result = rc;
-> @@ -1016,8 +1018,9 @@ out:
->    * will wait in the page fault for migration to complete.
->    */
->   static int unmap_and_move_huge_page(new_page_t get_new_page,
-> -				unsigned long private, struct page *hpage,
-> -				int force, enum migrate_mode mode)
-> +				free_page_t put_new_page, unsigned long private,
-> +				struct page *hpage, int force,
-> +				enum migrate_mode mode)
->   {
->   	int rc = 0;
->   	int *result = NULL;
-> @@ -1056,20 +1059,30 @@ static int unmap_and_move_huge_page(new_page_t get_new_page,
->   	if (!page_mapped(hpage))
->   		rc = move_to_new_page(new_hpage, hpage, 1, mode);
+>   - The maximum size is not standardized across archs:
+>     I found TASK_MAX_SIZE, TASK_SIZE_MAX and TASK_SIZE_64.
 >
-> -	if (rc)
-> +	if (rc != MIGRATEPAGE_SUCCESS)
->   		remove_migration_ptes(hpage, hpage);
+>   - Just in case some arch revives a 4G/4G split, nearly
+>     ULONG_MAX is a valid segment size.
 >
->   	if (anon_vma)
->   		put_anon_vma(anon_vma);
+>   - Using "0" as a magic value for infinity is even worse, because
+>     right now 0 means 0, i.e. fail all allocations.
 >
-> -	if (!rc)
-> +	if (rc == MIGRATEPAGE_SUCCESS)
->   		hugetlb_cgroup_migrate(hpage, new_hpage);
+> Andrew: Could you add it into -akpm and move it towards linux-next?
 >
->   	unlock_page(hpage);
->   out:
->   	if (rc != -EAGAIN)
->   		putback_active_hugepage(hpage);
-> -	put_page(new_hpage);
-> +
-> +	/*
-> +	 * If migration was not successful and there's a freeing callback, use
-> +	 * it.  Otherwise, put_page() will drop the reference grabbed during
-> +	 * isolation.
-> +	 */
-> +	if (rc != MIGRATEPAGE_SUCCESS && put_new_page)
-> +		put_new_page(new_hpage, private);
-> +	else
-> +		put_page(new_hpage);
-> +
->   	if (result) {
->   		if (rc)
->   			*result = rc;
-> @@ -1086,6 +1099,8 @@ out:
->    * @from:		The list of pages to be migrated.
->    * @get_new_page:	The function used to allocate free pages to be used
->    *			as the target of the page migration.
-> + * @put_new_page:	The function used to free target pages if migration
-> + *			fails, or NULL if no special handling is necessary.
->    * @private:		Private data to be passed on to get_new_page()
->    * @mode:		The migration mode that specifies the constraints for
->    *			page migration, if any.
-> @@ -1099,7 +1114,8 @@ out:
->    * Returns the number of pages that were not migrated, or an error code.
->    */
->   int migrate_pages(struct list_head *from, new_page_t get_new_page,
-> -		unsigned long private, enum migrate_mode mode, int reason)
-> +		free_page_t put_new_page, unsigned long private,
-> +		enum migrate_mode mode, int reason)
->   {
->   	int retry = 1;
->   	int nr_failed = 0;
-> @@ -1121,10 +1137,11 @@ int migrate_pages(struct list_head *from, new_page_t get_new_page,
->
->   			if (PageHuge(page))
->   				rc = unmap_and_move_huge_page(get_new_page,
-> -						private, page, pass > 2, mode);
-> +						put_new_page, private, page,
-> +						pass > 2, mode);
->   			else
-> -				rc = unmap_and_move(get_new_page, private,
-> -						page, pass > 2, mode);
-> +				rc = unmap_and_move(get_new_page, put_new_page,
-> +						private, page, pass > 2, mode);
->
->   			switch(rc) {
->   			case -ENOMEM:
-> @@ -1273,7 +1290,7 @@ set_status:
->
->   	err = 0;
->   	if (!list_empty(&pagelist)) {
-> -		err = migrate_pages(&pagelist, new_page_node,
-> +		err = migrate_pages(&pagelist, new_page_node, NULL,
->   				(unsigned long)pm, MIGRATE_SYNC, MR_SYSCALL);
->   		if (err)
->   			putback_movable_pages(&pagelist);
-> @@ -1729,7 +1746,8 @@ int migrate_misplaced_page(struct page *page, struct vm_area_struct *vma,
->
->   	list_add(&page->lru, &migratepages);
->   	nr_remaining = migrate_pages(&migratepages, alloc_misplaced_dst_page,
-> -				     node, MIGRATE_ASYNC, MR_NUMA_MISPLACED);
-> +				     NULL, node, MIGRATE_ASYNC,
-> +				     MR_NUMA_MISPLACED);
->   	if (nr_remaining) {
->   		if (!list_empty(&migratepages)) {
->   			list_del(&page->lru);
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -6215,7 +6215,7 @@ static int __alloc_contig_migrate_range(struct compact_control *cc,
->   		cc->nr_migratepages -= nr_reclaimed;
->
->   		ret = migrate_pages(&cc->migratepages, alloc_migrate_target,
-> -				    0, MIGRATE_SYNC, MR_CMA);
-> +				    NULL, 0, MIGRATE_SYNC, MR_CMA);
->   	}
->   	if (ret < 0) {
->   		putback_movable_pages(&cc->migratepages);
->
+> --
+>         Manfred
+
+
+
+-- 
+Michael Kerrisk
+Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
+Linux/UNIX System Programming Training: http://man7.org/training/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
