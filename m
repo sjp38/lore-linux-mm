@@ -1,76 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f41.google.com (mail-qa0-f41.google.com [209.85.216.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 46C146B0036
-	for <linux-mm@kvack.org>; Fri,  2 May 2014 12:39:37 -0400 (EDT)
-Received: by mail-qa0-f41.google.com with SMTP id dc16so2794441qab.14
-        for <linux-mm@kvack.org>; Fri, 02 May 2014 09:39:37 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id g6si47219480yhd.80.2014.05.02.09.39.36
+Received: from mail-ee0-f41.google.com (mail-ee0-f41.google.com [74.125.83.41])
+	by kanga.kvack.org (Postfix) with ESMTP id D65F16B0038
+	for <linux-mm@kvack.org>; Fri,  2 May 2014 12:49:33 -0400 (EDT)
+Received: by mail-ee0-f41.google.com with SMTP id d49so591515eek.0
+        for <linux-mm@kvack.org>; Fri, 02 May 2014 09:49:33 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 43si2158913eer.267.2014.05.02.09.49.31
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 02 May 2014 09:39:36 -0700 (PDT)
-Message-ID: <5363CA40.2000808@oracle.com>
-Date: Fri, 02 May 2014 12:39:28 -0400
-From: Sasha Levin <sasha.levin@oracle.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 02 May 2014 09:49:32 -0700 (PDT)
+Date: Fri, 2 May 2014 18:49:30 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 1/4] memcg, mm: introduce lowlimit reclaim
+Message-ID: <20140502164930.GP3446@dhcp22.suse.cz>
+References: <1398688005-26207-1-git-send-email-mhocko@suse.cz>
+ <1398688005-26207-2-git-send-email-mhocko@suse.cz>
+ <20140430225550.GD26041@cmpxchg.org>
+ <20140502093628.GC3446@dhcp22.suse.cz>
+ <20140502155805.GO23420@cmpxchg.org>
 MIME-Version: 1.0
-Subject: mm: invalid memory access in zap_pte_range
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140502155805.GO23420@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Dave Jones <davej@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, Tejun Heo <tj@kernel.org>, Hugh Dickins <hughd@google.com>, Roman Gushchin <klamm@yandex-team.ru>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-Hi all,
+On Fri 02-05-14 11:58:05, Johannes Weiner wrote:
+> On Fri, May 02, 2014 at 11:36:28AM +0200, Michal Hocko wrote:
+> > On Wed 30-04-14 18:55:50, Johannes Weiner wrote:
+> > > On Mon, Apr 28, 2014 at 02:26:42PM +0200, Michal Hocko wrote:
+> > > > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> > > > index 19d620b3d69c..40e517630138 100644
+> > > > --- a/mm/memcontrol.c
+> > > > +++ b/mm/memcontrol.c
+> > > > @@ -2808,6 +2808,29 @@ static struct mem_cgroup *mem_cgroup_lookup(unsigned short id)
+> > > >  	return mem_cgroup_from_id(id);
+> > > >  }
+> > > >  
+> > > > +/**
+> > > > + * mem_cgroup_reclaim_eligible - checks whether given memcg is eligible for the
+> > > > + * reclaim
+> > > > + * @memcg: target memcg for the reclaim
+> > > > + * @root: root of the reclaim hierarchy (null for the global reclaim)
+> > > > + *
+> > > > + * The given group is reclaimable if it is above its low limit and the same
+> > > > + * applies for all parents up the hierarchy until root (including).
+> > > > + */
+> > > > +bool mem_cgroup_reclaim_eligible(struct mem_cgroup *memcg,
+> > > > +		struct mem_cgroup *root)
+> > > 
+> > > Could you please rename this to something that is more descriptive in
+> > > the reclaim callsite?  How about mem_cgroup_within_low_limit()?
+> > 
+> > I have intentionally used somethig that is not low_limit specific. The
+> > generic reclaim code does't have to care about the reason why a memcg is
+> > not reclaimable. I agree that having follow_low_limit paramter explicit
+> > and mem_cgroup_reclaim_eligible not is messy. So something should be
+> > renamed. I would probably go with s@follow_low_limit@check_reclaim_eligible@
+> > but I do not have a strong preference.
+> > 
+> > > > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > > > index c1cd99a5074b..0f428158254e 100644
+> > > > --- a/mm/vmscan.c
+> > > > +++ b/mm/vmscan.c
+> > [...]
+> > > > +static void shrink_zone(struct zone *zone, struct scan_control *sc)
+> > > > +{
+> > > > +	if (!__shrink_zone(zone, sc, true)) {
+> > > > +		/*
+> > > > +		 * First round of reclaim didn't find anything to reclaim
+> > > > +		 * because of low limit protection so try again and ignore
+> > > > +		 * the low limit this time.
+> > > > +		 */
+> > > > +		__shrink_zone(zone, sc, false);
+> > > > +	}
+> 
+> So I don't think this can work as it is, because we are not actually
+> changing priority levels yet. 
 
-While fuzzing with trinity inside a KVM tools guest running latest -next
-kernel I've stumbled on the following:
+__shrink_zone returns with 0 only if the whole hierarchy is is under low
+limit. This means that they are over-committed and it doesn't make much
+sense to play with priority. Low limit reclaimability is independent on
+the priority.
 
-[ 5470.347501] BUG: unable to handle kernel paging request at ffffea0003480088
-[ 5470.349619] IP: zap_pte_range (mm/memory.c:1137)
-[ 5470.350338] PGD 37fcc067 PUD 37fcb067 PMD 0
-[ 5470.350338] Oops: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
-[ 5470.350338] Dumping ftrace buffer:
-[ 5470.350338]    (ftrace buffer empty)
-[ 5470.350338] Modules linked in:
-[ 5470.350338] CPU: 3 PID: 38591 Comm: trinity-c207 Tainted: G        W     3.15.0-rc3-next-20140430-sasha-00016-g4e281fa-dirty #429
-[ 5470.361024] task: ffff88017136b000 ti: ffff88016f068000 task.ti: ffff88016f068000
-[ 5470.361024] RIP: zap_pte_range (mm/memory.c:1137)
-[ 5470.361024] RSP: 0018:ffff88016f069c88  EFLAGS: 00010246
-[ 5470.361024] RAX: ffffea0003480080 RBX: ffff880341a2fd88 RCX: 0000000003480080
-[ 5470.361024] RDX: ffff880341a2fd88 RSI: 00000000403b1000 RDI: ffff880159b05000
-[ 5470.361024] RBP: ffff88016f069d28 R08: ffff88034beb6400 R09: ffff88017136bcf0
-[ 5470.361024] R10: 0000000000000001 R11: 0000000000000000 R12: ffffea0003480080
-[ 5470.361024] R13: ffff88016f069e18 R14: 00000000403b2000 R15: 00000000403b1000
-[ 5470.361024] FS:  00007f59dec96700(0000) GS:ffff88010cc00000(0000) knlGS:0000000000000000
-[ 5470.361024] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-[ 5470.361024] CR2: ffffea0003480088 CR3: 00000001748b7000 CR4: 00000000000006a0
-[ 5470.361024] DR0: 00000000006de000 DR1: 0000000000000000 DR2: 0000000000000000
-[ 5470.361024] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000600
-[ 5470.361024] Stack:
-[ 5470.361024]  ffff88016f069e18 00000000d2002000 00000000d2002fff ffff88017136b000
-[ 5470.361024]  0000000000000000 0000000000000001 ffff880354664008 ffff88033fcfc640
-[ 5470.361024]  00000000d2002730 ffff88034beb6400 0000000000000000 ffff880159b05000
-[ 5470.361024] Call Trace:
-[ 5470.361024] unmap_single_vma (mm/memory.c:1261 mm/memory.c:1282 mm/memory.c:1307 mm/memory.c:1353)
-[ 5470.361024] unmap_vmas (mm/memory.c:1382 (discriminator 1))
-[ 5470.361024] unmap_region (mm/mmap.c:2368 (discriminator 3))
-[ 5470.361024] ? put_lock_stats.isra.12 (kernel/locking/lockdep.c:254)
-[ 5470.361024] ? validate_mm_rb (mm/mmap.c:409)
-[ 5470.361024] ? vma_rb_erase (mm/mmap.c:454 include/linux/rbtree_augmented.h:219 include/linux/rbtree_augmented.h:227 mm/mmap.c:493)
-[ 5470.361024] do_munmap (mm/mmap.c:3264 mm/mmap.c:2566)
-[ 5470.361024] ? vm_munmap (mm/mmap.c:2577)
-[ 5470.361024] vm_munmap (mm/mmap.c:2578)
-[ 5470.361024] SyS_munmap (mm/mmap.c:2583)
-[ 5470.361024] tracesys (arch/x86/kernel/entry_64.S:746)
-[ 5470.361024] Code: e8 de a6 26 03 49 8b 4c 24 10 48 39 c8 74 1c 48 8b 7d b8 48 c1 e1 0c 48 89 da 48 83 c9 40 4c 89 fe e8 95 db ff ff 0f 1f 44 00 00 <41> f6 44 24 08 01 74 08 83 6d c8 01 eb 33 66 90 f6 45 a0 40 74
-[ 5470.361024] RIP zap_pte_range (mm/memory.c:1137)
-[ 5470.361024]  RSP <ffff88016f069c88>
-[ 5470.361024] CR2: ffffea0003480088
+> It will give up on the guarantees of bigger groups way before smaller
+> groups are even seriously looked at.
 
+How would that happen? Those (smaller) groups would get reclaimed and we
+wouldn't fallback. Or am I missing your point?
 
-Thanks,
-Sasha
+> > > I would actually prefer not having a second round here, and make the
+> > > low limit behave more like mlock memory.  If there is no reclaimable
+> > > memory, go OOM.
+> > 
+> > This was done in my previous attempt and I prefer OOM myself but it is
+> > also true that starting with a more relaxed limit and adding an
+> > option for hard guarantee later when we have a clear usecase is a better
+> > approach. Although I can see potential in go-oom-rather-than-reclaim
+> > configurations, usecases I am primarily interested in won't overcommit on
+> > low_limit.
+> > 
+> > That being said, I like the idea of having the hard guarantee but I also
+> > think it should be configurable. I can post those patches in this thread
+> > but I feel it is too early as nobody has explicitly asked for this yet.
+> 
+> As per above, this makes the semantics so much more fishy.  When
+> exactly do we stop honoring the guarantees in the process?
+
+When the reclaimed hierarchy is bellow low_limit. In other words when we
+would go and OOM without fallback.
+
+> This is not even guarantees anymore, but rather another reclaim
+> prioritization scheme with best-effort semantics.  That went over
+> horribly with soft limits, and I don't want to repeat this.
+> 
+> Overcommitting on guarantees makes no sense, and you even agree you
+> are not interested in it.  We also agree that we can always add a knob
+> later on to change semantics when an actual usecase presents itself,
+> so why not start with the clear and simple semantics, and the simpler
+> implementation?
+
+So you are really preferring an OOM instead? That was the original
+implementation posted at the end of last year and some people
+had concerns about it. This is the primary reason I came up with a
+weaker version which fallbacks rather than OOM.
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
