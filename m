@@ -1,72 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oa0-f49.google.com (mail-oa0-f49.google.com [209.85.219.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 2DF5E6B0038
-	for <linux-mm@kvack.org>; Fri,  2 May 2014 16:01:56 -0400 (EDT)
-Received: by mail-oa0-f49.google.com with SMTP id o6so5719771oag.36
-        for <linux-mm@kvack.org>; Fri, 02 May 2014 13:01:55 -0700 (PDT)
-Received: from mail-oa0-x229.google.com (mail-oa0-x229.google.com [2607:f8b0:4003:c02::229])
-        by mx.google.com with ESMTPS id c10si24850537oed.109.2014.05.02.13.01.55
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 2C7FC6B0038
+	for <linux-mm@kvack.org>; Fri,  2 May 2014 16:29:38 -0400 (EDT)
+Received: by mail-pa0-f42.google.com with SMTP id bj1so5946219pad.15
+        for <linux-mm@kvack.org>; Fri, 02 May 2014 13:29:37 -0700 (PDT)
+Received: from mail-pa0-x22e.google.com (mail-pa0-x22e.google.com [2607:f8b0:400e:c03::22e])
+        by mx.google.com with ESMTPS id fd9si10771pad.265.2014.05.02.13.29.36
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 02 May 2014 13:01:55 -0700 (PDT)
-Received: by mail-oa0-f41.google.com with SMTP id m1so3205372oag.14
-        for <linux-mm@kvack.org>; Fri, 02 May 2014 13:01:55 -0700 (PDT)
-Date: Fri, 2 May 2014 15:01:52 -0500
-From: Seth Jennings <sjennings@variantweb.net>
-Subject: Re: [PATCH 2/4] mm: zpool: implement zsmalloc shrinking
-Message-ID: <20140502200152.GA18670@cerebellum.variantweb.net>
-References: <1397922764-1512-1-git-send-email-ddstreet@ieee.org>
- <1397922764-1512-3-git-send-email-ddstreet@ieee.org>
- <CAL1ERfMPcfyUeACnmZ2QF5WxJUQ2PaKbtRzis8sPbQsjnvf_GQ@mail.gmail.com>
+        Fri, 02 May 2014 13:29:36 -0700 (PDT)
+Received: by mail-pa0-f46.google.com with SMTP id kx10so3203088pab.19
+        for <linux-mm@kvack.org>; Fri, 02 May 2014 13:29:36 -0700 (PDT)
+Date: Fri, 2 May 2014 13:29:33 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch v2 4/4] mm, thp: do not perform sync compaction on
+ pagefault
+In-Reply-To: <20140502115834.GR23991@suse.de>
+Message-ID: <alpine.DEB.2.02.1405021319350.24195@chino.kir.corp.google.com>
+References: <alpine.DEB.2.02.1404301744110.8415@chino.kir.corp.google.com> <alpine.DEB.2.02.1405011434140.23898@chino.kir.corp.google.com> <alpine.DEB.2.02.1405011435210.23898@chino.kir.corp.google.com> <20140502102231.GQ23991@suse.de>
+ <alpine.DEB.2.02.1405020402500.19297@chino.kir.corp.google.com> <20140502115834.GR23991@suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAL1ERfMPcfyUeACnmZ2QF5WxJUQ2PaKbtRzis8sPbQsjnvf_GQ@mail.gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Weijie Yang <weijie.yang.kh@gmail.com>
-Cc: Dan Streetman <ddstreet@ieee.org>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Andrew Morton <akpm@linux-foundation.org>, Bob Liu <bob.liu@oracle.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Weijie Yang <weijie.yang@samsung.com>, Johannes Weiner <hannes@cmpxchg.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Sat, Apr 26, 2014 at 04:37:31PM +0800, Weijie Yang wrote:
-> On Sat, Apr 19, 2014 at 11:52 PM, Dan Streetman <ddstreet@ieee.org> wrote:
-> > Add zs_shrink() and helper functions to zsmalloc.  Update zsmalloc
-> > zs_create_pool() creation function to include ops param that provides
-> > an evict() function for use during shrinking.  Update helper function
-> > fix_fullness_group() to always reinsert changed zspages even if the
-> > fullness group did not change, so they are updated in the fullness
-> > group lru.  Also update zram to use the new zsmalloc pool creation
-> > function but pass NULL as the ops param, since zram does not use
-> > pool shrinking.
-> >
+On Fri, 2 May 2014, Mel Gorman wrote:
+
+> > The page locks I'm referring to is the lock_page() in __unmap_and_move() 
+> > that gets called for sync compaction after the migrate_pages() iteration 
+> > makes a few passes and unsuccessfully grabs it.  This becomes a forced 
+> > migration since __unmap_and_move() returns -EAGAIN when the trylock fails.
+> > 
 > 
-> I only review the code without test, however, I think this patch is
-> not acceptable.
+> Can that be fixed then instead of disabling it entirely?
 > 
-> The biggest problem is it will call zswap_writeback_entry() under lock,
-> zswap_writeback_entry() may sleep, so it is a bug. see below
+
+We could return -EAGAIN when the trylock_page() fails for 
+MIGRATE_SYNC_LIGHT.  It would become a forced migration but we ignore that 
+currently for MIGRATE_ASYNC, and I could extend it to be ignored for 
+MIGRATE_SYNC_LIGHT as well.
+
+> > We have perf profiles from one workload in particular that shows 
+> > contention on i_mmap_mutex (anon isn't interesting since the vast majority 
+> > of memory on this workload [120GB on a 128GB machine] is has a gup pin and 
+> > doesn't get isolated because of 119d6d59dcc0 ("mm, compaction: avoid 
+> > isolating pinned pages")) between cpus all doing memory compaction trying 
+> > to fault thp memory.
+> > 
 > 
-> The 3/4 patch has a lot of #ifdef, I don't think it's a good kind of
-> abstract way.
+> Abort SYNC_LIGHT compaction if the mutex is contended.
 > 
-> What about just disable zswap reclaim when using zsmalloc?
 
-I agree here.  Making a generic allocator layer and zsmalloc reclaim
-support should be two different efforts, since zsmalloc reclaim is
-fraught with peril.
+Yeah, I have patches for that as well but we're waiting to see if they are 
+actually needed when sync compaction is disabled for thp.  If we aren't 
+actually going to disable it entirely, then I can revive those patches if 
+the contention becomes such an issue.
 
-The generic layer can be done though, as long as you provide a way for
-the backend to indicate that it doesn't support reclaim, which just
-results in lru-inverse overflow to the swap device at the zswap layer.
-Hopefully, if the user overrides the default to use zsmalloc, they
-understand the implications and have sized their workload properly.
+> > That's one example that we've seen, but the fact remains that at times 
+> > sync compaction will iterate the entire 128GB machine and not allow an 
+> > order-9 page to be allocated and there's nothing to preempt it like the 
+> > need_resched() or lock contention checks that async compaction has. 
+> 
+> Make compact_control->sync the same enum field and check for contention
+> on the async/sync_light case but leave it for sync if compacting via the
+> proc interface?
+> 
 
-Also, the fallback logic shouldn't be in this generic layer.  It should
-not be transparent to the user.  The user (in this case zswap) should
-implement the fallback if they care to have it.  The generic allocator
-layer makes it trivial for the user to implement.
-
-Thanks,
-Seth
+Ok, that certainly can be done, I wasn't sure you would be happy with such 
+a change.  I'm not sure there's so much of a difference between the new 
+compact_control->sync == MIGRATE_ASYNC and == MIGRATE_SYNC_LIGHT now, 
+though.  Would it make sense to remove MIGRATE_SYNC_LIGHT entirely from 
+the page allocator, i.e. remove sync_migration entirely, and just retry 
+with a second call to compaction before failing instead? 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
