@@ -1,71 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f48.google.com (mail-qa0-f48.google.com [209.85.216.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 374BE6B0036
-	for <linux-mm@kvack.org>; Fri,  2 May 2014 15:55:29 -0400 (EDT)
-Received: by mail-qa0-f48.google.com with SMTP id j15so4733604qaq.7
-        for <linux-mm@kvack.org>; Fri, 02 May 2014 12:55:28 -0700 (PDT)
-Received: from mail-qg0-f44.google.com (mail-qg0-f44.google.com [209.85.192.44])
-        by mx.google.com with ESMTPS id b52si4525289qgd.15.2014.05.02.12.55.28
+Received: from mail-wg0-f44.google.com (mail-wg0-f44.google.com [74.125.82.44])
+	by kanga.kvack.org (Postfix) with ESMTP id 1BD666B0036
+	for <linux-mm@kvack.org>; Fri,  2 May 2014 16:00:31 -0400 (EDT)
+Received: by mail-wg0-f44.google.com with SMTP id a1so2520790wgh.15
+        for <linux-mm@kvack.org>; Fri, 02 May 2014 13:00:30 -0700 (PDT)
+Received: from mail-we0-x234.google.com (mail-we0-x234.google.com [2a00:1450:400c:c03::234])
+        by mx.google.com with ESMTPS id lg1si1042697wjb.13.2014.05.02.13.00.29
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 02 May 2014 12:55:28 -0700 (PDT)
-Received: by mail-qg0-f44.google.com with SMTP id i50so3866768qgf.3
-        for <linux-mm@kvack.org>; Fri, 02 May 2014 12:55:28 -0700 (PDT)
-Date: Fri, 2 May 2014 15:55:25 -0400
-From: Jeff Layton <jlayton@poochiereds.net>
-Subject: Re: [PATCH 1/2] cifs: Use min_t() when comparing "size_t" and
- "unsigned long"
-Message-ID: <20140502155525.02dde4de@tlielax.poochiereds.net>
-In-Reply-To: <1397414783-28098-1-git-send-email-geert@linux-m68k.org>
-References: <1397414783-28098-1-git-send-email-geert@linux-m68k.org>
+        Fri, 02 May 2014 13:00:29 -0700 (PDT)
+Received: by mail-we0-f180.google.com with SMTP id x48so356667wes.39
+        for <linux-mm@kvack.org>; Fri, 02 May 2014 13:00:29 -0700 (PDT)
 MIME-Version: 1.0
+In-Reply-To: <CAL1ERfP16T68OzHwhuN9S=QiqzuuVAyq5Wu=-pDEkiHrNNiH1g@mail.gmail.com>
+References: <alpine.LSU.2.11.1402232344280.1890@eggly.anvils>
+ <1397336454-13855-1-git-send-email-ddstreet@ieee.org> <1397336454-13855-2-git-send-email-ddstreet@ieee.org>
+ <20140423103400.GH23991@suse.de> <CALZtONCa3jLrYkPSFPNnV84zePxFtdkWJBu092ScgUe2AugMxQ@mail.gmail.com>
+ <CAL1ERfP16T68OzHwhuN9S=QiqzuuVAyq5Wu=-pDEkiHrNNiH1g@mail.gmail.com>
+From: Dan Streetman <ddstreet@ieee.org>
+Date: Fri, 2 May 2014 16:00:09 -0400
+Message-ID: <CALZtONBDdo7KGKPZHuH-gHUS8ntBW+mYGPKKnh5GcQAsL5Zrfw@mail.gmail.com>
+Subject: Re: [PATCH 1/2] swap: change swap_info singly-linked list to list_head
 Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Geert Uytterhoeven <geert@linux-m68k.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Steve French <sfrench@samba.org>, linux-cifs@vger.kernel.org, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Weijie Yang <weijie.yang.kh@gmail.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, xen-devel@lists.xenproject.org
+Cc: Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Shaohua Li <shli@fusionio.com>, Weijie Yang <weijieut@gmail.com>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, David Vrabel <david.vrabel@citrix.com>
 
-On Sun, 13 Apr 2014 20:46:21 +0200
-Geert Uytterhoeven <geert@linux-m68k.org> wrote:
+On Fri, Apr 25, 2014 at 12:15 AM, Weijie Yang <weijie.yang.kh@gmail.com> wrote:
+> On Fri, Apr 25, 2014 at 2:48 AM, Dan Streetman <ddstreet@ieee.org> wrote:
+>> On Wed, Apr 23, 2014 at 6:34 AM, Mel Gorman <mgorman@suse.de> wrote:
+>>> On Sat, Apr 12, 2014 at 05:00:53PM -0400, Dan Streetman wrote:
+<SNIP>
+>>>> diff --git a/mm/frontswap.c b/mm/frontswap.c
+>>>> index 1b24bdc..fae1160 100644
+>>>> --- a/mm/frontswap.c
+>>>> +++ b/mm/frontswap.c
+>>>> @@ -327,15 +327,12 @@ EXPORT_SYMBOL(__frontswap_invalidate_area);
+>>>>
+>>>>  static unsigned long __frontswap_curr_pages(void)
+>>>>  {
+>>>> -     int type;
+>>>>       unsigned long totalpages = 0;
+>>>>       struct swap_info_struct *si = NULL;
+>>>>
+>>>>       assert_spin_locked(&swap_lock);
+>>>> -     for (type = swap_list.head; type >= 0; type = si->next) {
+>>>> -             si = swap_info[type];
+>>>> +     list_for_each_entry(si, &swap_list_head, list)
+>>>>               totalpages += atomic_read(&si->frontswap_pages);
+>>>> -     }
+>>>>       return totalpages;
+>>>>  }
+>>>>
+>>>> @@ -347,11 +344,9 @@ static int __frontswap_unuse_pages(unsigned long total, unsigned long *unused,
+>>>>       int si_frontswap_pages;
+>>>>       unsigned long total_pages_to_unuse = total;
+>>>>       unsigned long pages = 0, pages_to_unuse = 0;
+>>>> -     int type;
+>>>>
+>>>>       assert_spin_locked(&swap_lock);
+>>>> -     for (type = swap_list.head; type >= 0; type = si->next) {
+>>>> -             si = swap_info[type];
+>>>> +     list_for_each_entry(si, &swap_list_head, list) {
+>>>>               si_frontswap_pages = atomic_read(&si->frontswap_pages);
+>>>>               if (total_pages_to_unuse < si_frontswap_pages) {
+>>>>                       pages = pages_to_unuse = total_pages_to_unuse;
+>>>
+>>> The frontswap shrink code looks suspicious. If the target is smaller than
+>>> the total number of frontswap pages then it does nothing. The callers
+>>> appear to get this right at least. Similarly, if the first swapfile has
+>>> fewer frontswap pages than the target then it does not unuse the target
+>>> number of pages because it only handles one swap file. It's outside the
+>>> scope of your patch to address this or wonder if xen balloon driver is
+>>> really using it the way it's expected.
+>>
+>> I didn't look into the frontswap shrinking code, but I agree the
+>> existing logic there doesn't look right.  I'll review frontswap in
+>> more detail to see if it needs changing here, unless anyone else gets
+>> it to first :-)
+>>
+>
+> FYI, I drop the frontswap_shrink code in a patch
+> see: https://lkml.org/lkml/2014/1/27/98
 
-> On 32 bit, size_t is "unsigned int", not "unsigned long", causing the
-> following warning when comparing with PAGE_SIZE, which is always "unsigned
-> long":
->=20
-> fs/cifs/file.c: In function =E2=80=98cifs_readdata_to_iov=E2=80=99:
-> fs/cifs/file.c:2757: warning: comparison of distinct pointer types lacks =
-a cast
->=20
-> Introduced by commit 7f25bba819a38ab7310024a9350655f374707e20
-> ("cifs_iovec_read: keep iov_iter between the calls of
-> cifs_readdata_to_iov()"), which changed the signedness of "remaining"
-> and the code from min_t() to min().
->=20
-> Signed-off-by: Geert Uytterhoeven <geert@linux-m68k.org>
-> ---
-> PAGE_SIZE should really be size_t, but that would require lots of changes
-> all over the place.
->=20
->  fs/cifs/file.c |    2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
->=20
-> diff --git a/fs/cifs/file.c b/fs/cifs/file.c
-> index 8807442c94dd..8add25538a3b 100644
-> --- a/fs/cifs/file.c
-> +++ b/fs/cifs/file.c
-> @@ -2754,7 +2754,7 @@ cifs_readdata_to_iov(struct cifs_readdata *rdata, s=
-truct iov_iter *iter)
-> =20
->  	for (i =3D 0; i < rdata->nr_pages; i++) {
->  		struct page *page =3D rdata->pages[i];
-> -		size_t copy =3D min(remaining, PAGE_SIZE);
-> +		size_t copy =3D min_t(size_t, remaining, PAGE_SIZE);
->  		size_t written =3D copy_page_to_iter(page, 0, copy, iter);
->  		remaining -=3D written;
->  		if (written < copy && iov_iter_count(iter) > 0)
+frontswap_shrink() is actually used (only) by drivers/xen/xen-selfballoon.c.
 
-Reviewed-by: Jeff Layton <jlayton@poochiereds.net>
+However, I completely agree with you that the backend should be doing
+the shrinking, not from a frontswap api.  Forcing frontswap to shrink
+is backwards - xen-selfballoon appears to be assuming that xem/tmem is
+the only possible frontswap backend.  It certainly doensn't make any
+sense for xen-selfballoon to force zswap to shrink itself, does it?
+
+If xen-selfballoon wants to shrink its frontswap backend tmem, it
+should do that by telling tmem directly to shrink itself (which it
+looks like tmem would have to implement, just like zswap sends its LRU
+pages back to swapcache when it becomes full).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
