@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f179.google.com (mail-qc0-f179.google.com [209.85.216.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 140296B0062
-	for <linux-mm@kvack.org>; Fri,  2 May 2014 09:53:13 -0400 (EDT)
-Received: by mail-qc0-f179.google.com with SMTP id x3so1465292qcv.24
-        for <linux-mm@kvack.org>; Fri, 02 May 2014 06:53:12 -0700 (PDT)
-Received: from mail-qg0-x232.google.com (mail-qg0-x232.google.com [2607:f8b0:400d:c04::232])
-        by mx.google.com with ESMTPS id k5si14172572qgf.166.2014.05.02.06.53.12
+Received: from mail-qa0-f54.google.com (mail-qa0-f54.google.com [209.85.216.54])
+	by kanga.kvack.org (Postfix) with ESMTP id E507682963
+	for <linux-mm@kvack.org>; Fri,  2 May 2014 09:53:14 -0400 (EDT)
+Received: by mail-qa0-f54.google.com with SMTP id s7so4347791qap.27
+        for <linux-mm@kvack.org>; Fri, 02 May 2014 06:53:14 -0700 (PDT)
+Received: from mail-qc0-x22a.google.com (mail-qc0-x22a.google.com [2607:f8b0:400d:c01::22a])
+        by mx.google.com with ESMTPS id d5si14054721qad.132.2014.05.02.06.53.14
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 02 May 2014 06:53:12 -0700 (PDT)
-Received: by mail-qg0-f50.google.com with SMTP id 63so4661519qgz.37
-        for <linux-mm@kvack.org>; Fri, 02 May 2014 06:53:12 -0700 (PDT)
+        Fri, 02 May 2014 06:53:14 -0700 (PDT)
+Received: by mail-qc0-f170.google.com with SMTP id x13so4885835qcv.1
+        for <linux-mm@kvack.org>; Fri, 02 May 2014 06:53:14 -0700 (PDT)
 From: j.glisse@gmail.com
-Subject: [PATCH 09/11] fs/ext4: add support for hmm migration to remote memory of pagecache.
-Date: Fri,  2 May 2014 09:52:08 -0400
-Message-Id: <1399038730-25641-10-git-send-email-j.glisse@gmail.com>
+Subject: [PATCH 10/11] hmm/dummy: dummy driver to showcase the hmm api.
+Date: Fri,  2 May 2014 09:52:09 -0400
+Message-Id: <1399038730-25641-11-git-send-email-j.glisse@gmail.com>
 In-Reply-To: <1399038730-25641-1-git-send-email-j.glisse@gmail.com>
 References: <1399038730-25641-1-git-send-email-j.glisse@gmail.com>
 MIME-Version: 1.0
@@ -27,337 +27,1227 @@ Cc: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
 
 From: JA(C)rA'me Glisse <jglisse@redhat.com>
 
-This add support for migrating page of ext4 filesystem to remote device
-memory using the hmm infrastructure. Writeback need special handling as
-we want to keep content inside remote memory.
+This is a dummy driver which full fill two purposes :
+  - showcase the hmm api and gives references on how to use it.
+  - provide an extensive user space api to stress test hmm.
+
+This is a particularly dangerous module as it allow to access a
+mirror of a process address space through its device file. Hence
+it should not be enabled by default and only people actively
+developing for hmm should use it.
 
 Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
 ---
- fs/ext4/file.c  |  20 +++++++
- fs/ext4/inode.c | 175 +++++++++++++++++++++++++++++++++++++++++++++++++-------
- 2 files changed, 174 insertions(+), 21 deletions(-)
+ drivers/char/Kconfig           |    9 +
+ drivers/char/Makefile          |    1 +
+ drivers/char/hmm_dummy.c       | 1128 ++++++++++++++++++++++++++++++++++++++++
+ include/uapi/linux/hmm_dummy.h |   34 ++
+ 4 files changed, 1172 insertions(+)
+ create mode 100644 drivers/char/hmm_dummy.c
+ create mode 100644 include/uapi/linux/hmm_dummy.h
 
-diff --git a/fs/ext4/file.c b/fs/ext4/file.c
-index 708aad7..7c787d5 100644
---- a/fs/ext4/file.c
-+++ b/fs/ext4/file.c
-@@ -26,6 +26,7 @@
- #include <linux/aio.h>
- #include <linux/quotaops.h>
- #include <linux/pagevec.h>
+diff --git a/drivers/char/Kconfig b/drivers/char/Kconfig
+index 6e9f74a..199e111 100644
+--- a/drivers/char/Kconfig
++++ b/drivers/char/Kconfig
+@@ -600,5 +600,14 @@ config TILE_SROM
+ 	  device appear much like a simple EEPROM, and knows
+ 	  how to partition a single ROM for multiple purposes.
+ 
++config HMM_DUMMY
++	tristate "hmm dummy driver to test hmm."
++	depends on HMM
++	default n
++	help
++	  Say Y here if you want to build the hmm dummy driver that allow you
++	  to test the hmm infrastructure by mapping a process address space
++	  in hmm dummy driver device file. When in doubt, say "N".
++
+ endmenu
+ 
+diff --git a/drivers/char/Makefile b/drivers/char/Makefile
+index a324f93..83d89b8 100644
+--- a/drivers/char/Makefile
++++ b/drivers/char/Makefile
+@@ -61,3 +61,4 @@ obj-$(CONFIG_JS_RTC)		+= js-rtc.o
+ js-rtc-y = rtc.o
+ 
+ obj-$(CONFIG_TILE_SROM)		+= tile-srom.o
++obj-$(CONFIG_HMM_DUMMY)		+= hmm_dummy.o
+diff --git a/drivers/char/hmm_dummy.c b/drivers/char/hmm_dummy.c
+new file mode 100644
+index 0000000..e87dc7c
+--- /dev/null
++++ b/drivers/char/hmm_dummy.c
+@@ -0,0 +1,1128 @@
++/*
++ * Copyright 2013 Red Hat Inc.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
++ *
++ * Authors: JA(C)rA'me Glisse <jglisse@redhat.com>
++ */
++/* This is a dummy driver made to exercice the HMM (hardware memory management)
++ * API of the kernel. It allow an userspace program to map its whole address
++ * space through the hmm dummy driver file.
++ *
++ * In here mirror address are address in the process address space that is
++ * being mirrored. While virtual address are the address in the current
++ * process that has the hmm dummy dev file mapped (address of the file
++ * mapping).
++ *
++ * You must be carefull to not mix one and another.
++ */
++#include <linux/init.h>
++#include <linux/fs.h>
++#include <linux/mm.h>
 +#include <linux/hmm.h>
- #include "ext4.h"
- #include "ext4_jbd2.h"
- #include "xattr.h"
-@@ -304,6 +305,7 @@ static int ext4_find_unwritten_pgoff(struct inode *inode,
- 		unsigned long nr_pages;
- 
- 		num = min_t(pgoff_t, end - index, PAGEVEC_SIZE);
-+retry:
- 		nr_pages = pagevec_lookup(&pvec, inode->i_mapping, index,
- 					  (pgoff_t)num);
- 		if (nr_pages == 0) {
-@@ -321,6 +323,24 @@ static int ext4_find_unwritten_pgoff(struct inode *inode,
- 			break;
- 		}
- 
-+		for (i = 0; i < nr_pages; i++) {
-+			struct page *page = pvec.pages[i];
++#include <linux/module.h>
++#include <linux/kernel.h>
++#include <linux/major.h>
++#include <linux/cdev.h>
++#include <linux/device.h>
++#include <linux/mutex.h>
++#include <linux/rwsem.h>
++#include <linux/sched.h>
++#include <linux/slab.h>
++#include <linux/highmem.h>
++#include <linux/delay.h>
 +
-+			if (radix_tree_exception(page)) {
-+				swp_entry_t swap = radix_to_swp_entry(page);
++#include <uapi/linux/hmm_dummy.h>
 +
-+				/* FIXME How to handle hmm migration failure ? */
-+				hmm_pagecache_migrate(inode->i_mapping, swap);
-+				for (; i < nr_pages; i++) {
-+					if (radix_tree_exception(pvec.pages[i])) {
-+						pvec.pages[i] = NULL;
-+					}
-+				}
-+				pagevec_release(&pvec);
-+				goto retry;
-+			}
-+		}
++#define HMM_DUMMY_DEVICE_NAME		"hmm_dummy_device"
++#define HMM_DUMMY_DEVICE_MAX_MIRRORS	4
 +
- 		/*
- 		 * If this is the first time to go into the loop and
- 		 * offset is smaller than the first page offset, it will be a
-diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
-index b1dc334..f2558e2 100644
---- a/fs/ext4/inode.c
-+++ b/fs/ext4/inode.c
-@@ -39,6 +39,7 @@
- #include <linux/ratelimit.h>
- #include <linux/aio.h>
- #include <linux/bitops.h>
-+#include <linux/hmm.h>
- 
- #include "ext4_jbd2.h"
- #include "xattr.h"
-@@ -1462,16 +1463,37 @@ static void mpage_release_unused_pages(struct mpage_da_data *mpd,
- 			break;
- 		for (i = 0; i < nr_pages; i++) {
- 			struct page *page = pvec.pages[i];
--			if (page->index > end)
--				break;
--			BUG_ON(!PageLocked(page));
--			BUG_ON(PageWriteback(page));
--			if (invalidate) {
--				block_invalidatepage(page, 0, PAGE_CACHE_SIZE);
--				ClearPageUptodate(page);
++struct hmm_dummy_device;
 +
-+			if (radix_tree_exceptional_entry(page)) {
-+				swp_entry_t swap = radix_to_swp_entry(page);
++struct hmm_dummy_mirror {
++	struct file		*filp;
++	struct hmm_dummy_device	*ddevice;
++	struct hmm_mirror	mirror;
++	unsigned		minor;
++	pid_t			pid;
++	struct mm_struct	*mm;
++	unsigned long		*pgdp;
++	struct mutex		mutex;
++	bool			stop;
++};
 +
-+				page = hmm_pagecache_page(mapping, swap);
-+				pvec.pages[i] = page;
-+				if (page->index > end)
-+					break;
-+			} else {
-+				if (page->index > end)
-+					break;
-+				BUG_ON(!PageLocked(page));
-+				BUG_ON(PageWriteback(page));
-+				if (invalidate) {
-+					block_invalidatepage(page, 0, PAGE_CACHE_SIZE);
-+					ClearPageUptodate(page);
-+				}
- 			}
- 			unlock_page(page);
- 		}
-+		for (; i < nr_pages; i++) {
-+			struct page *page = pvec.pages[i];
++struct hmm_dummy_device {
++	struct cdev		cdev;
++	struct hmm_device	device;
++	dev_t			dev;
++	int			major;
++	struct mutex		mutex;
++	char			name[32];
++	/* device file mapping tracking (keep track of all vma) */
++	struct hmm_dummy_mirror	*dmirrors[HMM_DUMMY_DEVICE_MAX_MIRRORS];
++	struct address_space	*fmapping[HMM_DUMMY_DEVICE_MAX_MIRRORS];
++};
 +
-+			if (radix_tree_exceptional_entry(page)) {
-+				swp_entry_t swap = radix_to_swp_entry(page);
 +
-+				page = hmm_pagecache_page(mapping, swap);
-+				unlock_page(page);
-+				pvec.pages[i] = page;
-+			}
-+		}
- 		index = pvec.pages[nr_pages - 1]->index + 1;
- 		pagevec_release(&pvec);
- 	}
-@@ -2060,6 +2082,20 @@ static int mpage_map_and_submit_buffers(struct mpage_da_data *mpd)
- 					  PAGEVEC_SIZE);
- 		if (nr_pages == 0)
- 			break;
++/* We only create 2 device to show the inter device rmem sharing/migration
++ * capabilities.
++ */
++static struct hmm_dummy_device ddevices[2];
 +
-+		/* Replace hmm entry with the page backing it. At this point
-+		 * they are uptodate and locked.
-+		 */
-+		for (i = 0; i < nr_pages; i++) {
-+			struct page *page = pvec.pages[i];
++static void hmm_dummy_device_print(struct hmm_dummy_device *device,
++				   unsigned minor,
++				   const char *format,
++				   ...)
++{
++	va_list args;
 +
-+			if (radix_tree_exceptional_entry(page)) {
-+				swp_entry_t swap = radix_to_swp_entry(page);
++	printk(KERN_INFO "[%s:%d] ", device->name, minor);
++	va_start(args, format);
++	vprintk(format, args);
++	va_end(args);
++}
 +
-+				 pvec.pages[i] = hmm_pagecache_page(inode->i_mapping, swap);
-+			}
-+		}
 +
- 		for (i = 0; i < nr_pages; i++) {
- 			struct page *page = pvec.pages[i];
- 
-@@ -2331,13 +2367,61 @@ static int mpage_prepare_extent_to_map(struct mpage_da_data *mpd)
- 	mpd->map.m_len = 0;
- 	mpd->next_page = index;
- 	while (index <= end) {
-+		pgoff_t save_index = index;
-+		bool migrated;
++/* hmm_dummy_pt - dummy page table, the dummy device fake its own page table.
++ *
++ * Helper function to manage the dummy device page table.
++ */
++#define HMM_DUMMY_PTE_VALID_PAGE	(1UL << 0UL)
++#define HMM_DUMMY_PTE_VALID_ZERO	(1UL << 1UL)
++#define HMM_DUMMY_PTE_READ		(1UL << 2UL)
++#define HMM_DUMMY_PTE_WRITE		(1UL << 3UL)
++#define HMM_DUMMY_PTE_DIRTY		(1UL << 4UL)
++#define HMM_DUMMY_PFN_SHIFT		(PAGE_SHIFT)
 +
- 		nr_pages = pagevec_lookup_tag(&pvec, mapping, &index, tag,
- 			      min(end - index, (pgoff_t)PAGEVEC_SIZE-1) + 1);
- 		if (nr_pages == 0)
- 			goto out;
- 
-+		for (i = 0, migrated = false; i < nr_pages; i++) {
-+			struct page *page = pvec.pages[i];
++#define ARCH_PAGE_SIZE			((unsigned long)PAGE_SIZE)
++#define ARCH_PAGE_SHIFT			((unsigned long)PAGE_SHIFT)
 +
-+			if (radix_tree_exceptional_entry(page)) {
-+				swp_entry_t swap = radix_to_swp_entry(page);
++#define HMM_DUMMY_PTRS_PER_LEVEL	(ARCH_PAGE_SIZE / sizeof(long))
++#ifdef CONFIG_64BIT
++#define HMM_DUMMY_BITS_PER_LEVEL	(ARCH_PAGE_SHIFT - 3UL)
++#else
++#define HMM_DUMMY_BITS_PER_LEVEL	(ARCH_PAGE_SHIFT - 2UL)
++#endif
++#define HMM_DUMMY_PLD_SHIFT		(ARCH_PAGE_SHIFT)
++#define HMM_DUMMY_PMD_SHIFT		(HMM_DUMMY_PLD_SHIFT + HMM_DUMMY_BITS_PER_LEVEL)
++#define HMM_DUMMY_PUD_SHIFT		(HMM_DUMMY_PMD_SHIFT + HMM_DUMMY_BITS_PER_LEVEL)
++#define HMM_DUMMY_PGD_SHIFT		(HMM_DUMMY_PUD_SHIFT + HMM_DUMMY_BITS_PER_LEVEL)
++#define HMM_DUMMY_PGD_NPTRS		(1UL << HMM_DUMMY_BITS_PER_LEVEL)
++#define HMM_DUMMY_PMD_NPTRS		(1UL << HMM_DUMMY_BITS_PER_LEVEL)
++#define HMM_DUMMY_PUD_NPTRS		(1UL << HMM_DUMMY_BITS_PER_LEVEL)
++#define HMM_DUMMY_PLD_NPTRS		(1UL << HMM_DUMMY_BITS_PER_LEVEL)
++#define HMM_DUMMY_PLD_SIZE		(1UL << (HMM_DUMMY_PLD_SHIFT + HMM_DUMMY_BITS_PER_LEVEL))
++#define HMM_DUMMY_PMD_SIZE		(1UL << (HMM_DUMMY_PMD_SHIFT + HMM_DUMMY_BITS_PER_LEVEL))
++#define HMM_DUMMY_PUD_SIZE		(1UL << (HMM_DUMMY_PUD_SHIFT + HMM_DUMMY_BITS_PER_LEVEL))
++#define HMM_DUMMY_PGD_SIZE		(1UL << (HMM_DUMMY_PGD_SHIFT + HMM_DUMMY_BITS_PER_LEVEL))
++#define HMM_DUMMY_PLD_MASK		(~(HMM_DUMMY_PLD_SIZE - 1UL))
++#define HMM_DUMMY_PMD_MASK		(~(HMM_DUMMY_PMD_SIZE - 1UL))
++#define HMM_DUMMY_PUD_MASK		(~(HMM_DUMMY_PUD_SIZE - 1UL))
++#define HMM_DUMMY_PGD_MASK		(~(HMM_DUMMY_PGD_SIZE - 1UL))
++#define HMM_DUMMY_MAX_ADDR		(1UL << (HMM_DUMMY_PGD_SHIFT + HMM_DUMMY_BITS_PER_LEVEL))
 +
-+				/* This can not happen ! */
-+				VM_BUG_ON(!is_hmm_entry(swap));
-+				page = hmm_pagecache_writeback(mapping, swap);
-+				if (page == NULL) {
-+					migrated = true;
-+					pvec.pages[i] = NULL;
-+				}
-+			}
-+		}
++static inline unsigned long hmm_dummy_pld_index(unsigned long addr)
++{
++	return (addr >> HMM_DUMMY_PLD_SHIFT) & (HMM_DUMMY_PLD_NPTRS - 1UL);
++}
 +
-+		/* Some rmem was migrated we need to redo the page cache lookup. */
-+		if (migrated) {
-+			for (i = 0; i < nr_pages; i++) {
-+				struct page *page = pvec.pages[i];
++static inline unsigned long hmm_dummy_pmd_index(unsigned long addr)
++{
++	return (addr >> HMM_DUMMY_PMD_SHIFT) & (HMM_DUMMY_PMD_NPTRS - 1UL);
++}
 +
-+				if (page && radix_tree_exceptional_entry(page)) {
-+					swp_entry_t swap = radix_to_swp_entry(page);
++static inline unsigned long hmm_dummy_pud_index(unsigned long addr)
++{
++	return (addr >> HMM_DUMMY_PUD_SHIFT) & (HMM_DUMMY_PUD_NPTRS - 1UL);
++}
 +
-+					page = hmm_pagecache_page(mapping, swap);
-+					unlock_page(page);
-+					page_cache_release(page);
-+					pvec.pages[i] = page;
-+				}
-+			}
-+			pagevec_release(&pvec);
-+			cond_resched();
-+			index = save_index;
-+			continue;
-+		}
++static inline unsigned long hmm_dummy_pgd_index(unsigned long addr)
++{
++	return (addr >> HMM_DUMMY_PGD_SHIFT) & (HMM_DUMMY_PGD_NPTRS - 1UL);
++}
 +
- 		for (i = 0; i < nr_pages; i++) {
- 			struct page *page = pvec.pages[i];
-+			struct page *hmm_page = NULL;
++static inline unsigned long hmm_dummy_pld_base(unsigned long addr)
++{
++	return (addr & HMM_DUMMY_PLD_MASK);
++}
 +
-+			if (radix_tree_exceptional_entry(page)) {
-+				swp_entry_t swap = radix_to_swp_entry(page);
++static inline unsigned long hmm_dummy_pmd_base(unsigned long addr)
++{
++	return (addr & HMM_DUMMY_PMD_MASK);
++}
 +
-+				pvec.pages[i] = hmm_pagecache_page(mapping, swap);
-+				hmm_page = page = pvec.pages[i];
-+				page_cache_release(hmm_page);
-+			}
- 
- 			/*
- 			 * At this point, the page may be truncated or
-@@ -2364,20 +2448,24 @@ static int mpage_prepare_extent_to_map(struct mpage_da_data *mpd)
- 			if (mpd->map.m_len > 0 && mpd->next_page != page->index)
- 				goto out;
- 
--			lock_page(page);
--			/*
--			 * If the page is no longer dirty, or its mapping no
--			 * longer corresponds to inode we are writing (which
--			 * means it has been truncated or invalidated), or the
--			 * page is already under writeback and we are not doing
--			 * a data integrity writeback, skip the page
--			 */
--			if (!PageDirty(page) ||
--			    (PageWriteback(page) &&
--			     (mpd->wbc->sync_mode == WB_SYNC_NONE)) ||
--			    unlikely(page->mapping != mapping)) {
--				unlock_page(page);
--				continue;
-+			if (!hmm_page) {
-+				lock_page(page);
++static inline unsigned long hmm_dummy_pud_base(unsigned long addr)
++{
++	return (addr & HMM_DUMMY_PUD_MASK);
++}
 +
-+				/* If the page is no longer dirty, or its
-+				 * mapping no longer corresponds to inode
-+				 * we are writing (which means it has been
-+				 * truncated or invalidated), or the page
-+				 * is already under writeback and we are
-+				 * not doing a data integrity writeback,
-+				 * skip the page
-+				 */
-+				if (!PageDirty(page) ||
-+				    (PageWriteback(page) &&
-+				     (mpd->wbc->sync_mode == WB_SYNC_NONE)) ||
-+				    unlikely(page->mapping != mapping)) {
-+					unlock_page(page);
-+					continue;
-+				}
- 			}
- 
- 			wait_on_page_writeback(page);
-@@ -2396,11 +2484,37 @@ static int mpage_prepare_extent_to_map(struct mpage_da_data *mpd)
- 			err = 0;
- 			left--;
- 		}
-+		/* Some entry of pvec might still be exceptional ! */
-+		for (i = 0; i < nr_pages; i++) {
-+			struct page *page = pvec.pages[i];
++static inline unsigned long hmm_dummy_pgd_base(unsigned long addr)
++{
++	return (addr & HMM_DUMMY_PGD_MASK);
++}
 +
-+			if (radix_tree_exceptional_entry(page)) {
-+				swp_entry_t swap = radix_to_swp_entry(page);
++static inline unsigned long hmm_dummy_pld_next(unsigned long addr)
++{
++	return (addr & HMM_DUMMY_PLD_MASK) + HMM_DUMMY_PLD_SIZE;
++}
 +
-+				page = hmm_pagecache_page(mapping, swap);
-+				unlock_page(page);
-+				page_cache_release(page);
-+				pvec.pages[i] = page;
-+			}
-+		}
- 		pagevec_release(&pvec);
- 		cond_resched();
- 	}
- 	return 0;
- out:
-+	/* Some entry of pvec might still be exceptional ! */
-+	for (i = 0; i < nr_pages; i++) {
-+		struct page *page = pvec.pages[i];
++static inline unsigned long hmm_dummy_pmd_next(unsigned long addr)
++{
++	return (addr & HMM_DUMMY_PMD_MASK) + HMM_DUMMY_PMD_SIZE;
++}
 +
-+		if (radix_tree_exceptional_entry(page)) {
-+			swp_entry_t swap = radix_to_swp_entry(page);
++static inline unsigned long hmm_dummy_pud_next(unsigned long addr)
++{
++	return (addr & HMM_DUMMY_PUD_MASK) + HMM_DUMMY_PUD_SIZE;
++}
 +
-+			page = hmm_pagecache_page(mapping, swap);
-+			unlock_page(page);
-+			page_cache_release(page);
-+			pvec.pages[i] = page;
-+		}
++static inline unsigned long hmm_dummy_pgd_next(unsigned long addr)
++{
++	return (addr & HMM_DUMMY_PGD_MASK) + HMM_DUMMY_PGD_SIZE;
++}
++
++static inline struct page *hmm_dummy_pte_to_page(unsigned long pte)
++{
++	if (!(pte & (HMM_DUMMY_PTE_VALID_PAGE | HMM_DUMMY_PTE_VALID_ZERO))) {
++		return NULL;
 +	}
- 	pagevec_release(&pvec);
- 	return err;
- }
-@@ -3281,6 +3395,7 @@ static const struct address_space_operations ext4_aops = {
- 	.migratepage		= buffer_migrate_page,
- 	.is_partially_uptodate  = block_is_partially_uptodate,
- 	.error_remove_page	= generic_error_remove_page,
-+	.features		= AOPS_FEATURE_HMM,
- };
- 
- static const struct address_space_operations ext4_journalled_aops = {
-@@ -3297,6 +3412,7 @@ static const struct address_space_operations ext4_journalled_aops = {
- 	.direct_IO		= ext4_direct_IO,
- 	.is_partially_uptodate  = block_is_partially_uptodate,
- 	.error_remove_page	= generic_error_remove_page,
-+	.features		= AOPS_FEATURE_HMM,
- };
- 
- static const struct address_space_operations ext4_da_aops = {
-@@ -3313,6 +3429,7 @@ static const struct address_space_operations ext4_da_aops = {
- 	.migratepage		= buffer_migrate_page,
- 	.is_partially_uptodate  = block_is_partially_uptodate,
- 	.error_remove_page	= generic_error_remove_page,
-+	.features		= AOPS_FEATURE_HMM,
- };
- 
- void ext4_set_aops(struct inode *inode)
-@@ -3355,11 +3472,20 @@ static int ext4_block_zero_page_range(handle_t *handle,
- 	struct page *page;
- 	int err = 0;
- 
-+retry:
- 	page = find_or_create_page(mapping, from >> PAGE_CACHE_SHIFT,
- 				   mapping_gfp_mask(mapping) & ~__GFP_FS);
- 	if (!page)
- 		return -ENOMEM;
- 
-+	if (radix_tree_exception(page)) {
-+		swp_entry_t swap = radix_to_swp_entry(page);
++	return pfn_to_page((pte >> HMM_DUMMY_PFN_SHIFT));
++}
 +
-+		/* FIXME How to handle hmm migration failure ? */
-+		hmm_pagecache_migrate(mapping, swap);
-+		goto retry;
++struct hmm_dummy_pt_map {
++	struct hmm_dummy_mirror	*dmirror;
++	struct page		*pud_page;
++	struct page		*pmd_page;
++	struct page		*pld_page;
++	unsigned long		pgd_idx;
++	unsigned long		pud_idx;
++	unsigned long		pmd_idx;
++	unsigned long		*pudp;
++	unsigned long		*pmdp;
++	unsigned long		*pldp;
++};
++
++static inline unsigned long *hmm_dummy_pt_pud_map(struct hmm_dummy_pt_map *pt_map,
++						  unsigned long addr)
++{
++	struct hmm_dummy_mirror *dmirror = pt_map->dmirror;
++	unsigned long *pdep;
++
++	if (!dmirror->pgdp) {
++		return NULL;
 +	}
 +
- 	blocksize = inode->i_sb->s_blocksize;
- 	max = blocksize - (offset & (blocksize - 1));
- 
-@@ -4529,6 +4655,13 @@ static void ext4_wait_for_tail_page_commit(struct inode *inode)
- 				      inode->i_size >> PAGE_CACHE_SHIFT);
- 		if (!page)
- 			return;
-+		if (radix_tree_exception(page)) {
-+			swp_entry_t swap = radix_to_swp_entry(page);
++	if (!pt_map->pud_page || pt_map->pgd_idx != hmm_dummy_pgd_index(addr)) {
++		if (pt_map->pud_page) {
++			kunmap(pt_map->pud_page);
++			pt_map->pud_page = NULL;
++			pt_map->pudp = NULL;
++		}
++		pt_map->pgd_idx = hmm_dummy_pgd_index(addr);
++		pdep = &dmirror->pgdp[pt_map->pgd_idx];
++		if (!((*pdep) & HMM_DUMMY_PTE_VALID_PAGE)) {
++			return NULL;
++		}
++		pt_map->pud_page = pfn_to_page((*pdep) >> HMM_DUMMY_PFN_SHIFT);
++		pt_map->pudp = kmap(pt_map->pud_page);
++	}
++	return pt_map->pudp;
++}
 +
-+			/* FIXME How to handle hmm migration failure ? */
-+			hmm_pagecache_migrate(inode->i_mapping, swap);
++static inline unsigned long *hmm_dummy_pt_pmd_map(struct hmm_dummy_pt_map *pt_map,
++						  unsigned long addr)
++{
++	unsigned long *pdep;
++
++	if (!hmm_dummy_pt_pud_map(pt_map, addr)) {
++		return NULL;
++	}
++
++	if (!pt_map->pmd_page || pt_map->pud_idx != hmm_dummy_pud_index(addr)) {
++		if (pt_map->pmd_page) {
++			kunmap(pt_map->pmd_page);
++			pt_map->pmd_page = NULL;
++			pt_map->pmdp = NULL;
++		}
++		pt_map->pud_idx = hmm_dummy_pud_index(addr);
++		pdep = &pt_map->pudp[pt_map->pud_idx];
++		if (!((*pdep) & HMM_DUMMY_PTE_VALID_PAGE)) {
++			return NULL;
++		}
++		pt_map->pmd_page = pfn_to_page((*pdep) >> HMM_DUMMY_PFN_SHIFT);
++		pt_map->pmdp = kmap(pt_map->pmd_page);
++	}
++	return pt_map->pmdp;
++}
++
++static inline unsigned long *hmm_dummy_pt_pld_map(struct hmm_dummy_pt_map *pt_map,
++						  unsigned long addr)
++{
++	unsigned long *pdep;
++
++	if (!hmm_dummy_pt_pmd_map(pt_map, addr)) {
++		return NULL;
++	}
++
++	if (!pt_map->pld_page || pt_map->pmd_idx != hmm_dummy_pmd_index(addr)) {
++		if (pt_map->pld_page) {
++			kunmap(pt_map->pld_page);
++			pt_map->pld_page = NULL;
++			pt_map->pldp = NULL;
++		}
++		pt_map->pmd_idx = hmm_dummy_pmd_index(addr);
++		pdep = &pt_map->pmdp[pt_map->pmd_idx];
++		if (!((*pdep) & HMM_DUMMY_PTE_VALID_PAGE)) {
++			return NULL;
++		}
++		pt_map->pld_page = pfn_to_page((*pdep) >> HMM_DUMMY_PFN_SHIFT);
++		pt_map->pldp = kmap(pt_map->pld_page);
++	}
++	return pt_map->pldp;
++}
++
++static inline void hmm_dummy_pt_pld_unmap(struct hmm_dummy_pt_map *pt_map)
++{
++	if (pt_map->pld_page) {
++		kunmap(pt_map->pld_page);
++		pt_map->pld_page = NULL;
++		pt_map->pldp = NULL;
++	}
++}
++
++static inline void hmm_dummy_pt_pmd_unmap(struct hmm_dummy_pt_map *pt_map)
++{
++	hmm_dummy_pt_pld_unmap(pt_map);
++	if (pt_map->pmd_page) {
++		kunmap(pt_map->pmd_page);
++		pt_map->pmd_page = NULL;
++		pt_map->pmdp = NULL;
++	}
++}
++
++static inline void hmm_dummy_pt_pud_unmap(struct hmm_dummy_pt_map *pt_map)
++{
++	hmm_dummy_pt_pmd_unmap(pt_map);
++	if (pt_map->pud_page) {
++		kunmap(pt_map->pud_page);
++		pt_map->pud_page = NULL;
++		pt_map->pudp = NULL;
++	}
++}
++
++static inline void hmm_dummy_pt_unmap(struct hmm_dummy_pt_map *pt_map)
++{
++	hmm_dummy_pt_pud_unmap(pt_map);
++}
++
++static int hmm_dummy_pt_alloc(struct hmm_dummy_mirror *dmirror,
++			      unsigned long faddr,
++			      unsigned long laddr)
++{
++	unsigned long *pgdp, *pudp, *pmdp;
++
++	if (dmirror->stop) {
++		return -EINVAL;
++	}
++
++	if (dmirror->pgdp == NULL) {
++		dmirror->pgdp = kzalloc(PAGE_SIZE, GFP_KERNEL);
++		if (dmirror->pgdp == NULL) {
++			return -ENOMEM;
++		}
++	}
++
++	for (; faddr < laddr; faddr = hmm_dummy_pld_next(faddr)) {
++		struct page *pud_page, *pmd_page;
++
++		pgdp = &dmirror->pgdp[hmm_dummy_pgd_index(faddr)];
++		if (!((*pgdp) & HMM_DUMMY_PTE_VALID_PAGE)) {
++			pud_page = alloc_page(GFP_KERNEL | __GFP_ZERO);
++			if (!pud_page) {
++				return -ENOMEM;
++			}
++			*pgdp  = (page_to_pfn(pud_page)<<HMM_DUMMY_PFN_SHIFT);
++			*pgdp |= HMM_DUMMY_PTE_VALID_PAGE;
++		}
++
++		pud_page = pfn_to_page((*pgdp) >> HMM_DUMMY_PFN_SHIFT);
++		pudp = kmap(pud_page);
++		pudp = &pudp[hmm_dummy_pud_index(faddr)];
++		if (!((*pudp) & HMM_DUMMY_PTE_VALID_PAGE)) {
++			pmd_page = alloc_page(GFP_KERNEL | __GFP_ZERO);
++			if (!pmd_page) {
++				kunmap(pud_page);
++				return -ENOMEM;
++			}
++			*pudp  = (page_to_pfn(pmd_page)<<HMM_DUMMY_PFN_SHIFT);
++			*pudp |= HMM_DUMMY_PTE_VALID_PAGE;
++		}
++
++		pmd_page = pfn_to_page((*pudp) >> HMM_DUMMY_PFN_SHIFT);
++		pmdp = kmap(pmd_page);
++		pmdp = &pmdp[hmm_dummy_pmd_index(faddr)];
++		if (!((*pmdp) & HMM_DUMMY_PTE_VALID_PAGE)) {
++			struct page *page;
++
++			page = alloc_page(GFP_KERNEL | __GFP_ZERO);
++			if (!page) {
++				kunmap(pmd_page);
++				kunmap(pud_page);
++				return -ENOMEM;
++			}
++			*pmdp  = (page_to_pfn(page) << HMM_DUMMY_PFN_SHIFT);
++			*pmdp |= HMM_DUMMY_PTE_VALID_PAGE;
++		}
++
++		kunmap(pmd_page);
++		kunmap(pud_page);
++	}
++
++	return 0;
++}
++
++static void hmm_dummy_pt_free_pmd(struct hmm_dummy_pt_map *pt_map,
++				  unsigned long faddr,
++				  unsigned long laddr)
++{
++	for (; faddr < laddr; faddr = hmm_dummy_pld_next(faddr)) {
++		unsigned long pfn, *pmdp, next;
++		struct page *page;
++
++		next = min(hmm_dummy_pld_next(faddr), laddr);
++		if (faddr > hmm_dummy_pld_base(faddr) || laddr < next) {
 +			continue;
 +		}
- 		ret = __ext4_journalled_invalidatepage(page, offset,
- 						PAGE_CACHE_SIZE - offset);
- 		unlock_page(page);
++		pmdp = hmm_dummy_pt_pmd_map(pt_map, faddr);
++		if (!pmdp) {
++			continue;
++		}
++		if (!(pmdp[hmm_dummy_pmd_index(faddr)] & HMM_DUMMY_PTE_VALID_PAGE)) {
++			continue;
++		}
++		pfn = pmdp[hmm_dummy_pmd_index(faddr)] >> HMM_DUMMY_PFN_SHIFT;
++		page = pfn_to_page(pfn);
++		pmdp[hmm_dummy_pmd_index(faddr)] = 0;
++		__free_page(page);
++	}
++}
++
++static void hmm_dummy_pt_free_pud(struct hmm_dummy_pt_map *pt_map,
++				  unsigned long faddr,
++				  unsigned long laddr)
++{
++	for (; faddr < laddr; faddr = hmm_dummy_pmd_next(faddr)) {
++		unsigned long pfn, *pudp, next;
++		struct page *page;
++
++		next = min(hmm_dummy_pmd_next(faddr), laddr);
++		hmm_dummy_pt_free_pmd(pt_map, faddr, next);
++		hmm_dummy_pt_pmd_unmap(pt_map);
++		if (faddr > hmm_dummy_pmd_base(faddr) || laddr < next) {
++			continue;
++		}
++		pudp = hmm_dummy_pt_pud_map(pt_map, faddr);
++		if (!pudp) {
++			continue;
++		}
++		if (!(pudp[hmm_dummy_pud_index(faddr)] & HMM_DUMMY_PTE_VALID_PAGE)) {
++			continue;
++		}
++		pfn = pudp[hmm_dummy_pud_index(faddr)] >> HMM_DUMMY_PFN_SHIFT;
++		page = pfn_to_page(pfn);
++		pudp[hmm_dummy_pud_index(faddr)] = 0;
++		__free_page(page);
++	}
++}
++
++static void hmm_dummy_pt_free(struct hmm_dummy_mirror *dmirror,
++			      unsigned long faddr,
++			      unsigned long laddr)
++{
++	struct hmm_dummy_pt_map pt_map = {0};
++
++	if (!dmirror->pgdp || (laddr - faddr) < HMM_DUMMY_PLD_SIZE) {
++		return;
++	}
++
++	pt_map.dmirror = dmirror;
++
++	for (; faddr < laddr; faddr = hmm_dummy_pud_next(faddr)) {
++		unsigned long pfn, *pgdp, next;
++		struct page *page;
++
++		next = min(hmm_dummy_pud_next(faddr), laddr);
++		pgdp = dmirror->pgdp;
++		hmm_dummy_pt_free_pud(&pt_map, faddr, next);
++		hmm_dummy_pt_pud_unmap(&pt_map);
++		if (faddr > hmm_dummy_pud_base(faddr) || laddr < next) {
++			continue;
++		}
++		if (!(pgdp[hmm_dummy_pgd_index(faddr)] & HMM_DUMMY_PTE_VALID_PAGE)) {
++			continue;
++		}
++		pfn = pgdp[hmm_dummy_pgd_index(faddr)] >> HMM_DUMMY_PFN_SHIFT;
++		page = pfn_to_page(pfn);
++		pgdp[hmm_dummy_pgd_index(faddr)] = 0;
++		__free_page(page);
++	}
++	hmm_dummy_pt_unmap(&pt_map);
++}
++
++
++/* hmm_ops - hmm callback for the hmm dummy driver.
++ *
++ * Below are the various callback that the hmm api require for a device. The
++ * implementation of the dummy device driver is necessarily simpler that what
++ * a real device driver would do. We do not have interrupt nor any kind of
++ * command buffer on to which schedule memory invalidation and updates.
++ */
++static void hmm_dummy_device_destroy(struct hmm_device *device)
++{
++	/* No-op for the dummy driver. */
++}
++
++static void hmm_dummy_mirror_release(struct hmm_mirror *mirror)
++{
++	struct hmm_dummy_mirror *dmirror;
++
++	dmirror = container_of(mirror, struct hmm_dummy_mirror, mirror);
++	dmirror->stop = true;
++	mutex_lock(&dmirror->mutex);
++	hmm_dummy_pt_free(dmirror, 0, HMM_DUMMY_MAX_ADDR);
++	if (dmirror->pgdp) {
++		kfree(dmirror->pgdp);
++		dmirror->pgdp = NULL;
++	}
++	mutex_unlock(&dmirror->mutex);
++}
++
++static void hmm_dummy_mirror_destroy(struct hmm_mirror *mirror)
++{
++	/* No-op for the dummy driver. */
++	// FIXME print that the pid is no longer mirror
++}
++
++static int hmm_dummy_fence_wait(struct hmm_fence *fence)
++{
++	/* FIXME use some kind of fake event and delay dirty and dummy page
++	 * clearing to this function.
++	 */
++	return 0;
++}
++
++static struct hmm_fence *hmm_dummy_lmem_update(struct hmm_mirror *mirror,
++					       unsigned long faddr,
++					       unsigned long laddr,
++					       enum hmm_etype etype,
++					       bool dirty)
++{
++	struct hmm_dummy_mirror *dmirror;
++	struct hmm_dummy_pt_map pt_map = {0};
++	unsigned long addr, i, mask, or;
++
++	dmirror = container_of(mirror, struct hmm_dummy_mirror, mirror);
++	pt_map.dmirror = dmirror;
++
++	/* Sanity check for debugging hmm real device driver do not have to do that. */
++	switch (etype) {
++	case HMM_UNREGISTER:
++	case HMM_UNMAP:
++	case HMM_MUNMAP:
++	case HMM_MPROT_WONLY:
++	case HMM_MIGRATE_TO_RMEM:
++	case HMM_MIGRATE_TO_LMEM:
++		mask = 0;
++		or = 0;
++		break;
++	case HMM_MPROT_RONLY:
++		mask = ~HMM_DUMMY_PTE_WRITE;
++		or = 0;
++		break;
++	case HMM_MPROT_RANDW:
++		mask = -1L;
++		or = HMM_DUMMY_PTE_WRITE;
++		break;
++	default:
++		printk(KERN_ERR "%4d:%s invalid event type %d\n",
++		       __LINE__, __func__, etype);
++		return ERR_PTR(-EIO);
++	}
++
++	mutex_lock(&dmirror->mutex);
++	for (i = 0, addr = faddr; addr < laddr; ++i, addr += PAGE_SIZE) {
++		unsigned long *pldp;
++
++		pldp = hmm_dummy_pt_pld_map(&pt_map, addr);
++		if (!pldp) {
++			continue;
++		}
++		if (dirty && ((*pldp) & HMM_DUMMY_PTE_DIRTY)) {
++			struct page *page;
++
++			page = hmm_dummy_pte_to_page(*pldp);
++			if (page) {
++				set_page_dirty(page);
++			}
++		}
++		*pldp &= ~HMM_DUMMY_PTE_DIRTY;
++		*pldp &= mask;
++		*pldp |= or;
++		if ((*pldp) & HMM_DUMMY_PTE_VALID_ZERO) {
++			*pldp &= ~HMM_DUMMY_PTE_WRITE;
++		}
++	}
++	hmm_dummy_pt_unmap(&pt_map);
++
++	switch (etype) {
++	case HMM_UNREGISTER:
++	case HMM_MUNMAP:
++		hmm_dummy_pt_free(dmirror, faddr, laddr);
++		break;
++	default:
++		break;
++	}
++	mutex_unlock(&dmirror->mutex);
++	return NULL;
++}
++
++static int hmm_dummy_lmem_fault(struct hmm_mirror *mirror,
++				unsigned long faddr,
++				unsigned long laddr,
++				unsigned long *pfns,
++				struct hmm_fault *fault)
++{
++	struct hmm_dummy_mirror *dmirror;
++	struct hmm_dummy_pt_map pt_map = {0};
++	unsigned long i;
++
++	dmirror = container_of(mirror, struct hmm_dummy_mirror, mirror);
++	pt_map.dmirror = dmirror;
++
++	mutex_lock(&dmirror->mutex);
++	for (i = 0; faddr < laddr; ++i, faddr += PAGE_SIZE) {
++		unsigned long *pldp, pld_idx;
++
++		pldp = hmm_dummy_pt_pld_map(&pt_map, faddr);
++		if (!pldp || !hmm_pfn_to_page(pfns[i])) {
++			continue;
++		}
++		pld_idx = hmm_dummy_pld_index(faddr);
++		pldp[pld_idx]  = ((pfns[i] >> HMM_PFN_SHIFT) << HMM_DUMMY_PFN_SHIFT);
++		pldp[pld_idx] |= test_bit(HMM_PFN_WRITE, &pfns[i]) ? HMM_DUMMY_PTE_WRITE : 0;
++		pldp[pld_idx] |= test_bit(HMM_PFN_VALID_PAGE, &pfns[i]) ?
++			HMM_DUMMY_PTE_VALID_PAGE : HMM_DUMMY_PTE_VALID_ZERO;
++		pldp[pld_idx] |= HMM_DUMMY_PTE_READ;
++	}
++	hmm_dummy_pt_unmap(&pt_map);
++	mutex_unlock(&dmirror->mutex);
++	return 0;
++}
++
++static const struct hmm_device_ops hmm_dummy_ops = {
++	.device_destroy		= &hmm_dummy_device_destroy,
++	.mirror_release		= &hmm_dummy_mirror_release,
++	.mirror_destroy		= &hmm_dummy_mirror_destroy,
++	.fence_wait		= &hmm_dummy_fence_wait,
++	.lmem_update		= &hmm_dummy_lmem_update,
++	.lmem_fault		= &hmm_dummy_lmem_fault,
++};
++
++
++/* hmm_dummy_mmap - hmm dummy device file mmap operations.
++ *
++ * The hmm dummy driver does not allow mmap of its device file. The main reason
++ * is because the kernel lack the ability to insert page with specific custom
++ * protections inside a vma.
++ */
++static int hmm_dummy_mmap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
++{
++	return VM_FAULT_SIGBUS;
++}
++
++static void hmm_dummy_mmap_open(struct vm_area_struct *vma)
++{
++	/* nop */
++}
++
++static void hmm_dummy_mmap_close(struct vm_area_struct *vma)
++{
++	/* nop */
++}
++
++static const struct vm_operations_struct mmap_mem_ops = {
++	.fault			= hmm_dummy_mmap_fault,
++	.open			= hmm_dummy_mmap_open,
++	.close			= hmm_dummy_mmap_close,
++};
++
++
++/* hmm_dummy_fops - hmm dummy device file operations.
++ *
++ * The hmm dummy driver allow to read/write to the mirrored process through
++ * the device file. Below are the read and write and others device file
++ * callback that implement access to the mirrored address space.
++ */
++static int hmm_dummy_mirror_fault(struct hmm_dummy_mirror *dmirror,
++				  unsigned long addr,
++				  bool write)
++{
++	struct hmm_mirror *mirror = &dmirror->mirror;
++	struct hmm_fault fault;
++	unsigned long faddr, laddr, npages = 4;
++	int ret;
++
++	fault.pfns = kmalloc(npages * sizeof(long), GFP_KERNEL);
++	fault.flags = write ? HMM_FAULT_WRITE : 0;
++
++	/* Showcase hmm api fault a 64k range centered on the address. */
++	fault.faddr = faddr = addr > (npages << 8) ? addr - (npages << 8) : 0;
++	fault.laddr = laddr = faddr + (npages << 10);
++
++	/* Pre-allocate device page table. */
++	mutex_lock(&dmirror->mutex);
++	ret = hmm_dummy_pt_alloc(dmirror, faddr, laddr);
++	mutex_unlock(&dmirror->mutex);
++	if (ret) {
++		goto out;
++	}
++
++	for (; faddr < laddr; faddr = fault.faddr) {
++		ret = hmm_mirror_fault(mirror, &fault);
++		/* Ignore any error that do not concern the fault address. */
++		if (addr >= fault.laddr) {
++			fault.faddr = fault.laddr;
++			fault.laddr = laddr;
++			continue;
++		}
++		if (addr < fault.faddr) {
++			/* The address was faulted successfully ignore error
++			 * for address above the one we were interested in.
++			 */
++			ret = 0;
++		}
++		goto out;
++	}
++
++out:
++	kfree(fault.pfns);
++	return ret;
++}
++
++static ssize_t hmm_dummy_fops_read(struct file *filp,
++				   char __user *buf,
++				   size_t count,
++				   loff_t *ppos)
++{
++	struct hmm_dummy_device *ddevice;
++	struct hmm_dummy_mirror *dmirror;
++	struct hmm_dummy_pt_map pt_map = {0};
++	unsigned long faddr, laddr, offset;
++	unsigned minor;
++	ssize_t retval = 0;
++	void *tmp;
++	long r;
++
++	tmp = kmalloc(PAGE_SIZE, GFP_KERNEL);
++	if (!tmp) {
++		return -ENOMEM;
++	}
++
++	/* Check if we are mirroring anything */
++	minor = iminor(file_inode(filp));
++	ddevice = filp->private_data;
++	mutex_lock(&ddevice->mutex);
++	if (ddevice->dmirrors[minor] == NULL) {
++		mutex_unlock(&ddevice->mutex);
++		kfree(tmp);
++		return 0;
++	}
++	dmirror = ddevice->dmirrors[minor];
++	mutex_unlock(&ddevice->mutex);
++	if (dmirror->stop) {
++		kfree(tmp);
++		return 0;
++	}
++
++	/* The range of address to lookup. */
++	faddr = (*ppos) & PAGE_MASK;
++	offset = (*ppos) - faddr;
++	laddr = PAGE_ALIGN(faddr + count);
++	BUG_ON(faddr == laddr);
++	pt_map.dmirror = dmirror;
++
++	for (; count; faddr += PAGE_SIZE, offset = 0) {
++		unsigned long *pldp, pld_idx;
++		unsigned long size = min(PAGE_SIZE - offset, count);
++		struct page *page;
++		char *ptr;
++
++		mutex_lock(&dmirror->mutex);
++		pldp = hmm_dummy_pt_pld_map(&pt_map, faddr);
++		pld_idx = hmm_dummy_pld_index(faddr);
++		if (!pldp || !(pldp[pld_idx] & (HMM_DUMMY_PTE_VALID_PAGE | HMM_DUMMY_PTE_VALID_ZERO))) {
++			hmm_dummy_pt_unmap(&pt_map);
++			mutex_unlock(&dmirror->mutex);
++			goto fault;
++		}
++		page = hmm_dummy_pte_to_page(pldp[pld_idx]);
++		if (!page) {
++			mutex_unlock(&dmirror->mutex);
++			BUG();
++			kfree(tmp);
++			return -EFAULT;
++		}
++		ptr = kmap(page);
++		memcpy(tmp, ptr + offset, size);
++		kunmap(page);
++		hmm_dummy_pt_unmap(&pt_map);
++		mutex_unlock(&dmirror->mutex);
++
++		r = copy_to_user(buf, tmp, size);
++		if (r) {
++			kfree(tmp);
++			return -EFAULT;
++		}
++		retval += size;
++		*ppos += size;
++		count -= size;
++		buf += size;
++	}
++
++	return retval;
++
++fault:
++	kfree(tmp);
++	r = hmm_dummy_mirror_fault(dmirror, faddr, false);
++	if (r) {
++		return r;
++	}
++
++	/* Force userspace to retry read if nothing was read. */
++	return retval ? retval : -EINTR;
++}
++
++static ssize_t hmm_dummy_fops_write(struct file *filp,
++				    const char __user *buf,
++				    size_t count,
++				    loff_t *ppos)
++{
++	struct hmm_dummy_device *ddevice;
++	struct hmm_dummy_mirror *dmirror;
++	struct hmm_dummy_pt_map pt_map = {0};
++	unsigned long faddr, laddr, offset;
++	unsigned minor;
++	ssize_t retval = 0;
++	void *tmp;
++	long r;
++
++	tmp = kmalloc(PAGE_SIZE, GFP_KERNEL);
++	if (!tmp) {
++		return -ENOMEM;
++	}
++
++	/* Check if we are mirroring anything */
++	minor = iminor(file_inode(filp));
++	ddevice = filp->private_data;
++	mutex_lock(&ddevice->mutex);
++	if (ddevice->dmirrors[minor] == NULL) {
++		mutex_unlock(&ddevice->mutex);
++		kfree(tmp);
++		return 0;
++	}
++	dmirror = ddevice->dmirrors[minor];
++	mutex_unlock(&ddevice->mutex);
++	if (dmirror->stop) {
++		kfree(tmp);
++		return 0;
++	}
++
++	/* The range of address to lookup. */
++	faddr = (*ppos) & PAGE_MASK;
++	offset = (*ppos) - faddr;
++	laddr = PAGE_ALIGN(faddr + count);
++	BUG_ON(faddr == laddr);
++	pt_map.dmirror = dmirror;
++
++	for (; count; faddr += PAGE_SIZE, offset = 0) {
++		unsigned long *pldp, pld_idx;
++		unsigned long size = min(PAGE_SIZE - offset, count);
++		struct page *page;
++		char *ptr;
++
++		r = copy_from_user(tmp, buf, size);
++		if (r) {
++			kfree(tmp);
++			return -EFAULT;
++		}
++
++		mutex_lock(&dmirror->mutex);
++
++		pldp = hmm_dummy_pt_pld_map(&pt_map, faddr);
++		pld_idx = hmm_dummy_pld_index(faddr);
++		if (!pldp || !(pldp[pld_idx] & HMM_DUMMY_PTE_VALID_PAGE)) {
++			hmm_dummy_pt_unmap(&pt_map);
++			mutex_unlock(&dmirror->mutex);
++			goto fault;
++		}
++		if (!(pldp[pld_idx] & HMM_DUMMY_PTE_WRITE)) {
++			hmm_dummy_pt_unmap(&pt_map);
++			mutex_unlock(&dmirror->mutex);
++				goto fault;
++		}
++		pldp[pld_idx] |= HMM_DUMMY_PTE_DIRTY;
++		page = hmm_dummy_pte_to_page(pldp[pld_idx]);
++		if (!page) {
++			mutex_unlock(&dmirror->mutex);
++			BUG();
++			kfree(tmp);
++			return -EFAULT;
++		}
++		ptr = kmap(page);
++		memcpy(ptr + offset, tmp, size);
++		kunmap(page);
++		hmm_dummy_pt_unmap(&pt_map);
++		mutex_unlock(&dmirror->mutex);
++
++		retval += size;
++		*ppos += size;
++		count -= size;
++		buf += size;
++	}
++
++	kfree(tmp);
++	return retval;
++
++fault:
++	kfree(tmp);
++	r = hmm_dummy_mirror_fault(dmirror, faddr, true);
++	if (r) {
++		return r;
++	}
++
++	/* Force userspace to retry write if nothing was writen. */
++	return retval ? retval : -EINTR;
++}
++
++static int hmm_dummy_fops_mmap(struct file *filp, struct vm_area_struct *vma)
++{
++	return -EINVAL;
++}
++
++static int hmm_dummy_fops_open(struct inode *inode, struct file *filp)
++{
++	struct hmm_dummy_device *ddevice;
++	struct cdev *cdev = inode->i_cdev;
++	const int minor = iminor(inode);
++
++	/* No exclusive opens */
++	if (filp->f_flags & O_EXCL) {
++		return -EINVAL;
++	}
++
++	ddevice = container_of(cdev, struct hmm_dummy_device, cdev);
++	filp->private_data = ddevice;
++	ddevice->fmapping[minor] = &inode->i_data;
++
++	return 0;
++}
++
++static int hmm_dummy_fops_release(struct inode *inode,
++				  struct file *filp)
++{
++	struct hmm_dummy_device *ddevice;
++	struct hmm_dummy_mirror *dmirror;
++	struct cdev *cdev = inode->i_cdev;
++	const int minor = iminor(inode);
++
++	ddevice = container_of(cdev, struct hmm_dummy_device, cdev);
++	dmirror = ddevice->dmirrors[minor];
++	if (dmirror && dmirror->filp == filp) {
++		if (!dmirror->stop) {
++			hmm_mirror_unregister(&dmirror->mirror);
++		}
++		ddevice->dmirrors[minor] = NULL;
++		kfree(dmirror);
++	}
++
++	return 0;
++}
++
++static long hmm_dummy_fops_unlocked_ioctl(struct file *filp,
++					  unsigned int command,
++					  unsigned long arg)
++{
++	struct hmm_dummy_device *ddevice;
++	struct hmm_dummy_mirror *dmirror;
++	unsigned minor;
++	int ret;
++
++	minor = iminor(file_inode(filp));
++	ddevice = filp->private_data;
++	switch (command) {
++	case HMM_DUMMY_EXPOSE_MM:
++		mutex_lock(&ddevice->mutex);
++		dmirror = ddevice->dmirrors[minor];
++		if (dmirror) {
++			mutex_unlock(&ddevice->mutex);
++			return -EBUSY;
++		}
++		/* Mirror this process address space */
++		dmirror = kzalloc(sizeof(*dmirror), GFP_KERNEL);
++		if (dmirror == NULL) {
++			mutex_unlock(&ddevice->mutex);
++			return -ENOMEM;
++		}
++		dmirror->mm = NULL;
++		dmirror->stop = false;
++		dmirror->pid = task_pid_nr(current);
++		dmirror->ddevice = ddevice;
++		dmirror->minor = minor;
++		dmirror->filp = filp;
++		dmirror->pgdp = NULL;
++		mutex_init(&dmirror->mutex);
++		ddevice->dmirrors[minor] = dmirror;
++		mutex_unlock(&ddevice->mutex);
++
++		ret = hmm_mirror_register(&dmirror->mirror,
++					  &ddevice->device,
++					  current->mm);
++		if (ret) {
++			mutex_lock(&ddevice->mutex);
++			ddevice->dmirrors[minor] = NULL;
++			mutex_unlock(&ddevice->mutex);
++			kfree(dmirror);
++			return ret;
++		}
++		/* Success. */
++		hmm_dummy_device_print(ddevice, dmirror->minor,
++				       "mirroring address space of %d\n",
++				       dmirror->pid);
++		return 0;
++	default:
++		return -EINVAL;
++	}
++	return 0;
++}
++
++static const struct file_operations hmm_dummy_fops = {
++	.read		= hmm_dummy_fops_read,
++	.write		= hmm_dummy_fops_write,
++	.mmap		= hmm_dummy_fops_mmap,
++	.open		= hmm_dummy_fops_open,
++	.release	= hmm_dummy_fops_release,
++	.unlocked_ioctl = hmm_dummy_fops_unlocked_ioctl,
++	.llseek		= default_llseek,
++	.owner		= THIS_MODULE,
++};
++
++
++/*
++ * char device driver
++ */
++static int hmm_dummy_device_init(struct hmm_dummy_device *ddevice)
++{
++	int ret, i;
++
++	ret = alloc_chrdev_region(&ddevice->dev, 0,
++				  HMM_DUMMY_DEVICE_MAX_MIRRORS,
++				  ddevice->name);
++	if (ret < 0) {
++		printk(KERN_ERR "alloc_chrdev_region() failed for hmm_dummy\n");
++		goto error;
++	}
++	ddevice->major = MAJOR(ddevice->dev);
++
++	cdev_init(&ddevice->cdev, &hmm_dummy_fops);
++	ret = cdev_add(&ddevice->cdev, ddevice->dev, HMM_DUMMY_DEVICE_MAX_MIRRORS);
++	if (ret) {
++		unregister_chrdev_region(ddevice->dev, HMM_DUMMY_DEVICE_MAX_MIRRORS);
++		goto error;
++	}
++
++	/* Register the hmm device. */
++	for (i = 0; i < HMM_DUMMY_DEVICE_MAX_MIRRORS; i++) {
++		ddevice->dmirrors[i] = NULL;
++	}
++	mutex_init(&ddevice->mutex);
++	ddevice->device.ops = &hmm_dummy_ops;
++
++	ret = hmm_device_register(&ddevice->device, ddevice->name);
++	if (ret) {
++		cdev_del(&ddevice->cdev);
++		unregister_chrdev_region(ddevice->dev, HMM_DUMMY_DEVICE_MAX_MIRRORS);
++		goto error;
++	}
++
++	return 0;
++
++error:
++	return ret;
++}
++
++static void hmm_dummy_device_fini(struct hmm_dummy_device *ddevice)
++{
++	unsigned i;
++
++	/* First finish hmm. */
++	for (i = 0; i < HMM_DUMMY_DEVICE_MAX_MIRRORS; i++) {
++		struct hmm_dummy_mirror *dmirror;
++
++		dmirror = ddevices->dmirrors[i];
++		if (!dmirror) {
++			continue;
++		}
++		hmm_mirror_unregister(&dmirror->mirror);
++		kfree(dmirror);
++	}
++	hmm_device_unref(&ddevice->device);
++
++	cdev_del(&ddevice->cdev);
++	unregister_chrdev_region(ddevice->dev,
++				 HMM_DUMMY_DEVICE_MAX_MIRRORS);
++}
++
++static int __init hmm_dummy_init(void)
++{
++	int ret;
++
++	snprintf(ddevices[0].name, sizeof(ddevices[0].name),
++		 "%s%d", HMM_DUMMY_DEVICE_NAME, 0);
++	ret = hmm_dummy_device_init(&ddevices[0]);
++	if (ret) {
++		return ret;
++	}
++
++	snprintf(ddevices[1].name, sizeof(ddevices[1].name),
++		 "%s%d", HMM_DUMMY_DEVICE_NAME, 1);
++	ret = hmm_dummy_device_init(&ddevices[1]);
++	if (ret) {
++		hmm_dummy_device_fini(&ddevices[0]);
++		return ret;
++	}
++
++	printk(KERN_INFO "hmm_dummy loaded THIS IS A DANGEROUS MODULE !!!\n");
++	return 0;
++}
++
++static void __exit hmm_dummy_exit(void)
++{
++	hmm_dummy_device_fini(&ddevices[1]);
++	hmm_dummy_device_fini(&ddevices[0]);
++}
++
++module_init(hmm_dummy_init);
++module_exit(hmm_dummy_exit);
++MODULE_LICENSE("GPL");
+diff --git a/include/uapi/linux/hmm_dummy.h b/include/uapi/linux/hmm_dummy.h
+new file mode 100644
+index 0000000..16ae0d3
+--- /dev/null
++++ b/include/uapi/linux/hmm_dummy.h
+@@ -0,0 +1,34 @@
++/*
++ * Copyright 2013 Red Hat Inc.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License
++ * along with this program; if not, write to the Free Software
++ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
++ *
++ * Authors: JA(C)rA'me Glisse <jglisse@redhat.com>
++ */
++/* This is a dummy driver made to exercice the HMM (hardware memory management)
++ * API of the kernel. It allow an userspace program to map its whole address
++ * space through the hmm dummy driver file.
++ */
++#ifndef _UAPI_LINUX_HMM_DUMMY_H
++#define _UAPI_LINUX_HMM_DUMMY_H
++
++#include <linux/types.h>
++#include <linux/ioctl.h>
++#include <linux/irqnr.h>
++
++/* Expose the address space of the calling process through hmm dummy dev file */
++#define HMM_DUMMY_EXPOSE_MM	_IO( 'R', 0x00 )
++
++#endif /* _UAPI_LINUX_RANDOM_H */
 -- 
 1.9.0
 
