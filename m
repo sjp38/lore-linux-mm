@@ -1,49 +1,40 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f44.google.com (mail-pb0-f44.google.com [209.85.160.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 0FE416B0035
-	for <linux-mm@kvack.org>; Sat, 31 May 2014 17:18:13 -0400 (EDT)
-Received: by mail-pb0-f44.google.com with SMTP id rq2so2900702pbb.31
-        for <linux-mm@kvack.org>; Sat, 31 May 2014 14:18:12 -0700 (PDT)
-Received: from mail-pd0-x22c.google.com (mail-pd0-x22c.google.com [2607:f8b0:400e:c02::22c])
-        by mx.google.com with ESMTPS id bv3si10949550pad.79.2014.05.31.14.18.11
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sat, 31 May 2014 14:18:12 -0700 (PDT)
-Received: by mail-pd0-f172.google.com with SMTP id fp1so2116160pdb.17
-        for <linux-mm@kvack.org>; Sat, 31 May 2014 14:18:11 -0700 (PDT)
-Date: Sat, 31 May 2014 14:16:55 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: sleeping function warning from __put_anon_vma
-In-Reply-To: <538A43E0.5070706@suse.cz>
-Message-ID: <alpine.LSU.2.11.1405311411420.1125@eggly.anvils>
-References: <20140530000944.GA29942@redhat.com> <alpine.LSU.2.11.1405311321340.10272@eggly.anvils> <538A43E0.5070706@suse.cz>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Dave Jones <davej@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [patch v2 1/4] mm, migration: add destination page freeing
+ callback
+Date: Fri, 2 May 2014 11:10:28 +0100
+Message-ID: <20140502101028.GO23991@suse.de>
+References: <alpine.DEB.2.02.1404301744110.8415@chino.kir.corp.google.com>
+ <alpine.DEB.2.02.1405011434140.23898@chino.kir.corp.google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Return-path: <linux-kernel-owner@vger.kernel.org>
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.02.1405011434140.23898@chino.kir.corp.google.com>
+Sender: linux-kernel-owner@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+List-Id: linux-mm.kvack.org
 
-On Sat, 31 May 2014, Vlastimil Babka wrote:
-> On 05/31/2014 10:33 PM, Hugh Dickins wrote:
-> > On Thu, 29 May 2014, Dave Jones wrote:
-> > 
-> >> BUG: sleeping function called from invalid context at kernel/locking/rwsem.c:47
-> >> in_atomic(): 0, irqs_disabled(): 0, pid: 5787, name: trinity-c27
-> >> Preemption disabled at:[<ffffffff990acc7e>] vtime_account_system+0x1e/0x50
+On Thu, May 01, 2014 at 02:35:37PM -0700, David Rientjes wrote:
+> Memory migration uses a callback defined by the caller to determine how to
+> allocate destination pages.  When migration fails for a source page, however, it 
+> frees the destination page back to the system.
 > 
-> Just wondering, since I'm not familiar with this kind of bug, is the line above
-> bogus or what does it mean? I don't see how the stack trace or the fix patch is
-> related to vtime_account_system?
+> This patch adds a memory migration callback defined by the caller to determine 
+> how to free destination pages.  If a caller, such as memory compaction, builds 
+> its own freelist for migration targets, this can reuse already freed memory 
+> instead of scanning additional memory.
+> 
+> If the caller provides a function to handle freeing of destination pages, it is 
+> called when page migration fails.  Otherwise, it may pass NULL and freeing back 
+> to the system will be handled as usual.  This patch introduces no functional 
+> change.
+> 
+> Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Signed-off-by: David Rientjes <rientjes@google.com>
 
-I know no more about it than you do, never noticed such a message before,
-and clearly not helpful here.  I expect it's like those "last sysfs file"
-messages, occasionally useful but mostly noise.
+Acked-by: Mel Gorman <mgorman@suse.de>
 
-Hugh
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+-- 
+Mel Gorman
+SUSE Labs
