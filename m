@@ -1,101 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f48.google.com (mail-ee0-f48.google.com [74.125.83.48])
-	by kanga.kvack.org (Postfix) with ESMTP id E1A636B0038
-	for <linux-mm@kvack.org>; Fri,  2 May 2014 05:16:45 -0400 (EDT)
-Received: by mail-ee0-f48.google.com with SMTP id e49so1788351eek.7
-        for <linux-mm@kvack.org>; Fri, 02 May 2014 02:16:45 -0700 (PDT)
+Received: from mail-ee0-f53.google.com (mail-ee0-f53.google.com [74.125.83.53])
+	by kanga.kvack.org (Postfix) with ESMTP id A65A36B0036
+	for <linux-mm@kvack.org>; Fri,  2 May 2014 05:36:31 -0400 (EDT)
+Received: by mail-ee0-f53.google.com with SMTP id b15so1819654eek.12
+        for <linux-mm@kvack.org>; Fri, 02 May 2014 02:36:31 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z2si1051590eeo.214.2014.05.02.02.16.43
+        by mx.google.com with ESMTPS id v41si1111835eew.74.2014.05.02.02.36.29
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 02 May 2014 02:16:44 -0700 (PDT)
-Date: Fri, 2 May 2014 11:16:41 +0200
+        Fri, 02 May 2014 02:36:30 -0700 (PDT)
+Date: Fri, 2 May 2014 11:36:28 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v5] mm,writeback: fix divide by zero in pos_ratio_polynom
-Message-ID: <20140502091641.GB3446@dhcp22.suse.cz>
-References: <5360C9E7.6010701@jp.fujitsu.com>
- <20140430093035.7e7226f2@annuminas.surriel.com>
- <20140430134826.GH4357@dhcp22.suse.cz>
- <20140430104114.4bdc588e@cuia.bos.redhat.com>
- <20140430120001.b4b95061ac7252a976b8a179@linux-foundation.org>
- <53614F3C.8020009@redhat.com>
- <20140430123526.bc6a229c1ea4addad1fb483d@linux-foundation.org>
- <20140430160218.442863e0@cuia.bos.redhat.com>
- <20140430131353.fa9f49604ea39425bc93c24a@linux-foundation.org>
- <20140430164255.7a753a8e@cuia.bos.redhat.com>
+Subject: Re: [PATCH 1/4] memcg, mm: introduce lowlimit reclaim
+Message-ID: <20140502093628.GC3446@dhcp22.suse.cz>
+References: <1398688005-26207-1-git-send-email-mhocko@suse.cz>
+ <1398688005-26207-2-git-send-email-mhocko@suse.cz>
+ <20140430225550.GD26041@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140430164255.7a753a8e@cuia.bos.redhat.com>
+In-Reply-To: <20140430225550.GD26041@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Masayoshi Mizuma <m.mizuma@jp.fujitsu.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, sandeen@redhat.com, jweiner@redhat.com, kosaki.motohiro@jp.fujitsu.com, fengguang.wu@intel.com, mpatlasov@parallels.com, Motohiro.Kosaki@us.fujitsu.com
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, Tejun Heo <tj@kernel.org>, Hugh Dickins <hughd@google.com>, Roman Gushchin <klamm@yandex-team.ru>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On Wed 30-04-14 16:42:55, Rik van Riel wrote:
-> On Wed, 30 Apr 2014 13:13:53 -0700
-> Andrew Morton <akpm@linux-foundation.org> wrote:
+On Wed 30-04-14 18:55:50, Johannes Weiner wrote:
+> On Mon, Apr 28, 2014 at 02:26:42PM +0200, Michal Hocko wrote:
+> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> > index 19d620b3d69c..40e517630138 100644
+> > --- a/mm/memcontrol.c
+> > +++ b/mm/memcontrol.c
+> > @@ -2808,6 +2808,29 @@ static struct mem_cgroup *mem_cgroup_lookup(unsigned short id)
+> >  	return mem_cgroup_from_id(id);
+> >  }
+> >  
+> > +/**
+> > + * mem_cgroup_reclaim_eligible - checks whether given memcg is eligible for the
+> > + * reclaim
+> > + * @memcg: target memcg for the reclaim
+> > + * @root: root of the reclaim hierarchy (null for the global reclaim)
+> > + *
+> > + * The given group is reclaimable if it is above its low limit and the same
+> > + * applies for all parents up the hierarchy until root (including).
+> > + */
+> > +bool mem_cgroup_reclaim_eligible(struct mem_cgroup *memcg,
+> > +		struct mem_cgroup *root)
 > 
-> > This was a consequence of 64->32 truncation and it can't happen any
-> > more, can it?
-> 
-> Andrew, this is cleaner indeed :)
-> 
-> Masayoshi-san, does the bug still happen with this version, or does
-> this fix the problem?
-> 
-> ---8<---
-> 
-> Subject: mm,writeback: fix divide by zero in pos_ratio_polynom
-> 
-> It is possible for "limit - setpoint + 1" to equal zero, after
-> getting truncated to a 32 bit variable, and resulting in a divide
-> by zero error.
-> 
-> Using the fully 64 bit divide functions avoids this problem.
-> 
-> Also uninline pos_ratio_polynom, at Andrew's request.
-> 
-> Signed-off-by: Rik van Riel <riel@redhat.com>
+> Could you please rename this to something that is more descriptive in
+> the reclaim callsite?  How about mem_cgroup_within_low_limit()?
 
-This looks much better.
-Reviewed-by: Michal Hocko <mhocko@suse.cz>
+I have intentionally used somethig that is not low_limit specific. The
+generic reclaim code does't have to care about the reason why a memcg is
+not reclaimable. I agree that having follow_low_limit paramter explicit
+and mem_cgroup_reclaim_eligible not is messy. So something should be
+renamed. I would probably go with s@follow_low_limit@check_reclaim_eligible@
+but I do not have a strong preference.
 
-> ---
->  mm/page-writeback.c | 6 +++---
->  1 file changed, 3 insertions(+), 3 deletions(-)
+> > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > index c1cd99a5074b..0f428158254e 100644
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+[...]
+> > +static void shrink_zone(struct zone *zone, struct scan_control *sc)
+> > +{
+> > +	if (!__shrink_zone(zone, sc, true)) {
+> > +		/*
+> > +		 * First round of reclaim didn't find anything to reclaim
+> > +		 * because of low limit protection so try again and ignore
+> > +		 * the low limit this time.
+> > +		 */
+> > +		__shrink_zone(zone, sc, false);
+> > +	}
+> >  }
+> >  
+> >  /* Returns true if compaction should go ahead for a high-order request */
 > 
-> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-> index ef41349..a4317da 100644
-> --- a/mm/page-writeback.c
-> +++ b/mm/page-writeback.c
-> @@ -593,14 +593,14 @@ unsigned long bdi_dirty_limit(struct backing_dev_info *bdi, unsigned long dirty)
->   * (5) the closer to setpoint, the smaller |df/dx| (and the reverse)
->   *     => fast response on large errors; small oscillation near setpoint
->   */
-> -static inline long long pos_ratio_polynom(unsigned long setpoint,
-> +static long long pos_ratio_polynom(unsigned long setpoint,
->  					  unsigned long dirty,
->  					  unsigned long limit)
->  {
->  	long long pos_ratio;
->  	long x;
->  
-> -	x = div_s64(((s64)setpoint - (s64)dirty) << RATELIMIT_CALC_SHIFT,
-> +	x = div64_s64(((s64)setpoint - (s64)dirty) << RATELIMIT_CALC_SHIFT,
->  		    limit - setpoint + 1);
->  	pos_ratio = x;
->  	pos_ratio = pos_ratio * x >> RATELIMIT_CALC_SHIFT;
-> @@ -842,7 +842,7 @@ static unsigned long bdi_position_ratio(struct backing_dev_info *bdi,
->  	x_intercept = bdi_setpoint + span;
->  
->  	if (bdi_dirty < x_intercept - span / 4) {
-> -		pos_ratio = div_u64(pos_ratio * (x_intercept - bdi_dirty),
-> +		pos_ratio = div64_u64(pos_ratio * (x_intercept - bdi_dirty),
->  				    x_intercept - bdi_setpoint + 1);
->  	} else
->  		pos_ratio /= 4;
-> 
+> I would actually prefer not having a second round here, and make the
+> low limit behave more like mlock memory.  If there is no reclaimable
+> memory, go OOM.
+
+This was done in my previous attempt and I prefer OOM myself but it is
+also true that starting with a more relaxed limit and adding an
+option for hard guarantee later when we have a clear usecase is a better
+approach. Although I can see potential in go-oom-rather-than-reclaim
+configurations, usecases I am primarily interested in won't overcommit on
+low_limit.
+
+That being said, I like the idea of having the hard guarantee but I also
+think it should be configurable. I can post those patches in this thread
+but I feel it is too early as nobody has explicitly asked for this yet.
 
 -- 
 Michal Hocko
