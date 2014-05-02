@@ -1,101 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f44.google.com (mail-wg0-f44.google.com [74.125.82.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 1BD666B0036
-	for <linux-mm@kvack.org>; Fri,  2 May 2014 16:00:31 -0400 (EDT)
-Received: by mail-wg0-f44.google.com with SMTP id a1so2520790wgh.15
-        for <linux-mm@kvack.org>; Fri, 02 May 2014 13:00:30 -0700 (PDT)
-Received: from mail-we0-x234.google.com (mail-we0-x234.google.com [2a00:1450:400c:c03::234])
-        by mx.google.com with ESMTPS id lg1si1042697wjb.13.2014.05.02.13.00.29
+Received: from mail-oa0-f49.google.com (mail-oa0-f49.google.com [209.85.219.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 2DF5E6B0038
+	for <linux-mm@kvack.org>; Fri,  2 May 2014 16:01:56 -0400 (EDT)
+Received: by mail-oa0-f49.google.com with SMTP id o6so5719771oag.36
+        for <linux-mm@kvack.org>; Fri, 02 May 2014 13:01:55 -0700 (PDT)
+Received: from mail-oa0-x229.google.com (mail-oa0-x229.google.com [2607:f8b0:4003:c02::229])
+        by mx.google.com with ESMTPS id c10si24850537oed.109.2014.05.02.13.01.55
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 02 May 2014 13:00:29 -0700 (PDT)
-Received: by mail-we0-f180.google.com with SMTP id x48so356667wes.39
-        for <linux-mm@kvack.org>; Fri, 02 May 2014 13:00:29 -0700 (PDT)
+        Fri, 02 May 2014 13:01:55 -0700 (PDT)
+Received: by mail-oa0-f41.google.com with SMTP id m1so3205372oag.14
+        for <linux-mm@kvack.org>; Fri, 02 May 2014 13:01:55 -0700 (PDT)
+Date: Fri, 2 May 2014 15:01:52 -0500
+From: Seth Jennings <sjennings@variantweb.net>
+Subject: Re: [PATCH 2/4] mm: zpool: implement zsmalloc shrinking
+Message-ID: <20140502200152.GA18670@cerebellum.variantweb.net>
+References: <1397922764-1512-1-git-send-email-ddstreet@ieee.org>
+ <1397922764-1512-3-git-send-email-ddstreet@ieee.org>
+ <CAL1ERfMPcfyUeACnmZ2QF5WxJUQ2PaKbtRzis8sPbQsjnvf_GQ@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <CAL1ERfP16T68OzHwhuN9S=QiqzuuVAyq5Wu=-pDEkiHrNNiH1g@mail.gmail.com>
-References: <alpine.LSU.2.11.1402232344280.1890@eggly.anvils>
- <1397336454-13855-1-git-send-email-ddstreet@ieee.org> <1397336454-13855-2-git-send-email-ddstreet@ieee.org>
- <20140423103400.GH23991@suse.de> <CALZtONCa3jLrYkPSFPNnV84zePxFtdkWJBu092ScgUe2AugMxQ@mail.gmail.com>
- <CAL1ERfP16T68OzHwhuN9S=QiqzuuVAyq5Wu=-pDEkiHrNNiH1g@mail.gmail.com>
-From: Dan Streetman <ddstreet@ieee.org>
-Date: Fri, 2 May 2014 16:00:09 -0400
-Message-ID: <CALZtONBDdo7KGKPZHuH-gHUS8ntBW+mYGPKKnh5GcQAsL5Zrfw@mail.gmail.com>
-Subject: Re: [PATCH 1/2] swap: change swap_info singly-linked list to list_head
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAL1ERfMPcfyUeACnmZ2QF5WxJUQ2PaKbtRzis8sPbQsjnvf_GQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Weijie Yang <weijie.yang.kh@gmail.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, xen-devel@lists.xenproject.org
-Cc: Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Shaohua Li <shli@fusionio.com>, Weijie Yang <weijieut@gmail.com>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, David Vrabel <david.vrabel@citrix.com>
+To: Weijie Yang <weijie.yang.kh@gmail.com>
+Cc: Dan Streetman <ddstreet@ieee.org>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Andrew Morton <akpm@linux-foundation.org>, Bob Liu <bob.liu@oracle.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Weijie Yang <weijie.yang@samsung.com>, Johannes Weiner <hannes@cmpxchg.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 
-On Fri, Apr 25, 2014 at 12:15 AM, Weijie Yang <weijie.yang.kh@gmail.com> wrote:
-> On Fri, Apr 25, 2014 at 2:48 AM, Dan Streetman <ddstreet@ieee.org> wrote:
->> On Wed, Apr 23, 2014 at 6:34 AM, Mel Gorman <mgorman@suse.de> wrote:
->>> On Sat, Apr 12, 2014 at 05:00:53PM -0400, Dan Streetman wrote:
-<SNIP>
->>>> diff --git a/mm/frontswap.c b/mm/frontswap.c
->>>> index 1b24bdc..fae1160 100644
->>>> --- a/mm/frontswap.c
->>>> +++ b/mm/frontswap.c
->>>> @@ -327,15 +327,12 @@ EXPORT_SYMBOL(__frontswap_invalidate_area);
->>>>
->>>>  static unsigned long __frontswap_curr_pages(void)
->>>>  {
->>>> -     int type;
->>>>       unsigned long totalpages = 0;
->>>>       struct swap_info_struct *si = NULL;
->>>>
->>>>       assert_spin_locked(&swap_lock);
->>>> -     for (type = swap_list.head; type >= 0; type = si->next) {
->>>> -             si = swap_info[type];
->>>> +     list_for_each_entry(si, &swap_list_head, list)
->>>>               totalpages += atomic_read(&si->frontswap_pages);
->>>> -     }
->>>>       return totalpages;
->>>>  }
->>>>
->>>> @@ -347,11 +344,9 @@ static int __frontswap_unuse_pages(unsigned long total, unsigned long *unused,
->>>>       int si_frontswap_pages;
->>>>       unsigned long total_pages_to_unuse = total;
->>>>       unsigned long pages = 0, pages_to_unuse = 0;
->>>> -     int type;
->>>>
->>>>       assert_spin_locked(&swap_lock);
->>>> -     for (type = swap_list.head; type >= 0; type = si->next) {
->>>> -             si = swap_info[type];
->>>> +     list_for_each_entry(si, &swap_list_head, list) {
->>>>               si_frontswap_pages = atomic_read(&si->frontswap_pages);
->>>>               if (total_pages_to_unuse < si_frontswap_pages) {
->>>>                       pages = pages_to_unuse = total_pages_to_unuse;
->>>
->>> The frontswap shrink code looks suspicious. If the target is smaller than
->>> the total number of frontswap pages then it does nothing. The callers
->>> appear to get this right at least. Similarly, if the first swapfile has
->>> fewer frontswap pages than the target then it does not unuse the target
->>> number of pages because it only handles one swap file. It's outside the
->>> scope of your patch to address this or wonder if xen balloon driver is
->>> really using it the way it's expected.
->>
->> I didn't look into the frontswap shrinking code, but I agree the
->> existing logic there doesn't look right.  I'll review frontswap in
->> more detail to see if it needs changing here, unless anyone else gets
->> it to first :-)
->>
->
-> FYI, I drop the frontswap_shrink code in a patch
-> see: https://lkml.org/lkml/2014/1/27/98
+On Sat, Apr 26, 2014 at 04:37:31PM +0800, Weijie Yang wrote:
+> On Sat, Apr 19, 2014 at 11:52 PM, Dan Streetman <ddstreet@ieee.org> wrote:
+> > Add zs_shrink() and helper functions to zsmalloc.  Update zsmalloc
+> > zs_create_pool() creation function to include ops param that provides
+> > an evict() function for use during shrinking.  Update helper function
+> > fix_fullness_group() to always reinsert changed zspages even if the
+> > fullness group did not change, so they are updated in the fullness
+> > group lru.  Also update zram to use the new zsmalloc pool creation
+> > function but pass NULL as the ops param, since zram does not use
+> > pool shrinking.
+> >
+> 
+> I only review the code without test, however, I think this patch is
+> not acceptable.
+> 
+> The biggest problem is it will call zswap_writeback_entry() under lock,
+> zswap_writeback_entry() may sleep, so it is a bug. see below
+> 
+> The 3/4 patch has a lot of #ifdef, I don't think it's a good kind of
+> abstract way.
+> 
+> What about just disable zswap reclaim when using zsmalloc?
 
-frontswap_shrink() is actually used (only) by drivers/xen/xen-selfballoon.c.
+I agree here.  Making a generic allocator layer and zsmalloc reclaim
+support should be two different efforts, since zsmalloc reclaim is
+fraught with peril.
 
-However, I completely agree with you that the backend should be doing
-the shrinking, not from a frontswap api.  Forcing frontswap to shrink
-is backwards - xen-selfballoon appears to be assuming that xem/tmem is
-the only possible frontswap backend.  It certainly doensn't make any
-sense for xen-selfballoon to force zswap to shrink itself, does it?
+The generic layer can be done though, as long as you provide a way for
+the backend to indicate that it doesn't support reclaim, which just
+results in lru-inverse overflow to the swap device at the zswap layer.
+Hopefully, if the user overrides the default to use zsmalloc, they
+understand the implications and have sized their workload properly.
 
-If xen-selfballoon wants to shrink its frontswap backend tmem, it
-should do that by telling tmem directly to shrink itself (which it
-looks like tmem would have to implement, just like zswap sends its LRU
-pages back to swapcache when it becomes full).
+Also, the fallback logic shouldn't be in this generic layer.  It should
+not be transparent to the user.  The user (in this case zswap) should
+implement the fallback if they care to have it.  The generic allocator
+layer makes it trivial for the user to implement.
+
+Thanks,
+Seth
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
