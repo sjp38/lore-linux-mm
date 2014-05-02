@@ -1,135 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f41.google.com (mail-ee0-f41.google.com [74.125.83.41])
-	by kanga.kvack.org (Postfix) with ESMTP id D65F16B0038
-	for <linux-mm@kvack.org>; Fri,  2 May 2014 12:49:33 -0400 (EDT)
-Received: by mail-ee0-f41.google.com with SMTP id d49so591515eek.0
-        for <linux-mm@kvack.org>; Fri, 02 May 2014 09:49:33 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 43si2158913eer.267.2014.05.02.09.49.31
+Received: from mail-oa0-f43.google.com (mail-oa0-f43.google.com [209.85.219.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 0E7DC6B0036
+	for <linux-mm@kvack.org>; Fri,  2 May 2014 14:54:45 -0400 (EDT)
+Received: by mail-oa0-f43.google.com with SMTP id eb12so5661924oac.30
+        for <linux-mm@kvack.org>; Fri, 02 May 2014 11:54:44 -0700 (PDT)
+Received: from mail-ob0-x22d.google.com (mail-ob0-x22d.google.com [2607:f8b0:4003:c01::22d])
+        by mx.google.com with ESMTPS id rk8si24721971oeb.93.2014.05.02.11.54.44
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 02 May 2014 09:49:32 -0700 (PDT)
-Date: Fri, 2 May 2014 18:49:30 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 1/4] memcg, mm: introduce lowlimit reclaim
-Message-ID: <20140502164930.GP3446@dhcp22.suse.cz>
-References: <1398688005-26207-1-git-send-email-mhocko@suse.cz>
- <1398688005-26207-2-git-send-email-mhocko@suse.cz>
- <20140430225550.GD26041@cmpxchg.org>
- <20140502093628.GC3446@dhcp22.suse.cz>
- <20140502155805.GO23420@cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140502155805.GO23420@cmpxchg.org>
+        Fri, 02 May 2014 11:54:44 -0700 (PDT)
+Received: by mail-ob0-f173.google.com with SMTP id wm4so2407328obc.32
+        for <linux-mm@kvack.org>; Fri, 02 May 2014 11:54:43 -0700 (PDT)
+From: "Seth Jennings" <sjennings@variantweb.net>
+Subject: [PATCH] MAINTAINERS: zswap/zbud: change maintainer email address
+Date: Fri,  2 May 2014 13:54:41 -0500
+Message-Id: <1399056881-18153-1-git-send-email-sjennings@variantweb.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, Tejun Heo <tj@kernel.org>, Hugh Dickins <hughd@google.com>, Roman Gushchin <klamm@yandex-team.ru>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Seth Jennings <sjennings@variantweb.net>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Fabian Frederick <fabf@skynet.be>
 
-On Fri 02-05-14 11:58:05, Johannes Weiner wrote:
-> On Fri, May 02, 2014 at 11:36:28AM +0200, Michal Hocko wrote:
-> > On Wed 30-04-14 18:55:50, Johannes Weiner wrote:
-> > > On Mon, Apr 28, 2014 at 02:26:42PM +0200, Michal Hocko wrote:
-> > > > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> > > > index 19d620b3d69c..40e517630138 100644
-> > > > --- a/mm/memcontrol.c
-> > > > +++ b/mm/memcontrol.c
-> > > > @@ -2808,6 +2808,29 @@ static struct mem_cgroup *mem_cgroup_lookup(unsigned short id)
-> > > >  	return mem_cgroup_from_id(id);
-> > > >  }
-> > > >  
-> > > > +/**
-> > > > + * mem_cgroup_reclaim_eligible - checks whether given memcg is eligible for the
-> > > > + * reclaim
-> > > > + * @memcg: target memcg for the reclaim
-> > > > + * @root: root of the reclaim hierarchy (null for the global reclaim)
-> > > > + *
-> > > > + * The given group is reclaimable if it is above its low limit and the same
-> > > > + * applies for all parents up the hierarchy until root (including).
-> > > > + */
-> > > > +bool mem_cgroup_reclaim_eligible(struct mem_cgroup *memcg,
-> > > > +		struct mem_cgroup *root)
-> > > 
-> > > Could you please rename this to something that is more descriptive in
-> > > the reclaim callsite?  How about mem_cgroup_within_low_limit()?
-> > 
-> > I have intentionally used somethig that is not low_limit specific. The
-> > generic reclaim code does't have to care about the reason why a memcg is
-> > not reclaimable. I agree that having follow_low_limit paramter explicit
-> > and mem_cgroup_reclaim_eligible not is messy. So something should be
-> > renamed. I would probably go with s@follow_low_limit@check_reclaim_eligible@
-> > but I do not have a strong preference.
-> > 
-> > > > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > > > index c1cd99a5074b..0f428158254e 100644
-> > > > --- a/mm/vmscan.c
-> > > > +++ b/mm/vmscan.c
-> > [...]
-> > > > +static void shrink_zone(struct zone *zone, struct scan_control *sc)
-> > > > +{
-> > > > +	if (!__shrink_zone(zone, sc, true)) {
-> > > > +		/*
-> > > > +		 * First round of reclaim didn't find anything to reclaim
-> > > > +		 * because of low limit protection so try again and ignore
-> > > > +		 * the low limit this time.
-> > > > +		 */
-> > > > +		__shrink_zone(zone, sc, false);
-> > > > +	}
-> 
-> So I don't think this can work as it is, because we are not actually
-> changing priority levels yet. 
+sjenning@linux.vnet.ibm.com is no longer a viable entity.
 
-__shrink_zone returns with 0 only if the whole hierarchy is is under low
-limit. This means that they are over-committed and it doesn't make much
-sense to play with priority. Low limit reclaimability is independent on
-the priority.
+Resend from 2013-10-16.  Just noticed that it didn't get upstream.
 
-> It will give up on the guarantees of bigger groups way before smaller
-> groups are even seriously looked at.
+Signed-off-by: Seth Jennings <sjennings@variantweb.net>
+---
+ MAINTAINERS | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-How would that happen? Those (smaller) groups would get reclaimed and we
-wouldn't fallback. Or am I missing your point?
-
-> > > I would actually prefer not having a second round here, and make the
-> > > low limit behave more like mlock memory.  If there is no reclaimable
-> > > memory, go OOM.
-> > 
-> > This was done in my previous attempt and I prefer OOM myself but it is
-> > also true that starting with a more relaxed limit and adding an
-> > option for hard guarantee later when we have a clear usecase is a better
-> > approach. Although I can see potential in go-oom-rather-than-reclaim
-> > configurations, usecases I am primarily interested in won't overcommit on
-> > low_limit.
-> > 
-> > That being said, I like the idea of having the hard guarantee but I also
-> > think it should be configurable. I can post those patches in this thread
-> > but I feel it is too early as nobody has explicitly asked for this yet.
-> 
-> As per above, this makes the semantics so much more fishy.  When
-> exactly do we stop honoring the guarantees in the process?
-
-When the reclaimed hierarchy is bellow low_limit. In other words when we
-would go and OOM without fallback.
-
-> This is not even guarantees anymore, but rather another reclaim
-> prioritization scheme with best-effort semantics.  That went over
-> horribly with soft limits, and I don't want to repeat this.
-> 
-> Overcommitting on guarantees makes no sense, and you even agree you
-> are not interested in it.  We also agree that we can always add a knob
-> later on to change semantics when an actual usecase presents itself,
-> so why not start with the clear and simple semantics, and the simpler
-> implementation?
-
-So you are really preferring an OOM instead? That was the original
-implementation posted at the end of last year and some people
-had concerns about it. This is the primary reason I came up with a
-weaker version which fallbacks rather than OOM.
-
+diff --git a/MAINTAINERS b/MAINTAINERS
+index 900d98e..b538cdf 100644
+--- a/MAINTAINERS
++++ b/MAINTAINERS
+@@ -9808,7 +9808,7 @@ F:	drivers/net/hamradio/*scc.c
+ F:	drivers/net/hamradio/z8530.h
+ 
+ ZBUD COMPRESSED PAGE ALLOCATOR
+-M:	Seth Jennings <sjenning@linux.vnet.ibm.com>
++M:	Seth Jennings <sjennings@variantweb.net>
+ L:	linux-mm@kvack.org
+ S:	Maintained
+ F:	mm/zbud.c
+@@ -9853,7 +9853,7 @@ F:	mm/zsmalloc.c
+ F:	include/linux/zsmalloc.h
+ 
+ ZSWAP COMPRESSED SWAP CACHING
+-M:	Seth Jennings <sjenning@linux.vnet.ibm.com>
++M:	Seth Jennings <sjennings@variantweb.net>
+ L:	linux-mm@kvack.org
+ S:	Maintained
+ F:	mm/zswap.c
 -- 
-Michal Hocko
-SUSE Labs
+1.9.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
