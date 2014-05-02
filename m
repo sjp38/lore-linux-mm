@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f181.google.com (mail-qc0-f181.google.com [209.85.216.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E7386B0044
-	for <linux-mm@kvack.org>; Fri,  2 May 2014 09:53:04 -0400 (EDT)
-Received: by mail-qc0-f181.google.com with SMTP id m20so1633023qcx.12
-        for <linux-mm@kvack.org>; Fri, 02 May 2014 06:53:03 -0700 (PDT)
-Received: from mail-qa0-x22e.google.com (mail-qa0-x22e.google.com [2607:f8b0:400d:c00::22e])
-        by mx.google.com with ESMTPS id c43si14185480qge.49.2014.05.02.06.53.03
+Received: from mail-qc0-f171.google.com (mail-qc0-f171.google.com [209.85.216.171])
+	by kanga.kvack.org (Postfix) with ESMTP id AE3976B004D
+	for <linux-mm@kvack.org>; Fri,  2 May 2014 09:53:05 -0400 (EDT)
+Received: by mail-qc0-f171.google.com with SMTP id c9so4751062qcz.2
+        for <linux-mm@kvack.org>; Fri, 02 May 2014 06:53:05 -0700 (PDT)
+Received: from mail-qg0-x233.google.com (mail-qg0-x233.google.com [2607:f8b0:400d:c04::233])
+        by mx.google.com with ESMTPS id j6si14042780qan.262.2014.05.02.06.53.05
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 02 May 2014 06:53:03 -0700 (PDT)
-Received: by mail-qa0-f46.google.com with SMTP id w8so4344116qac.33
-        for <linux-mm@kvack.org>; Fri, 02 May 2014 06:53:03 -0700 (PDT)
+        Fri, 02 May 2014 06:53:05 -0700 (PDT)
+Received: by mail-qg0-f51.google.com with SMTP id q107so298616qgd.10
+        for <linux-mm@kvack.org>; Fri, 02 May 2014 06:53:05 -0700 (PDT)
 From: j.glisse@gmail.com
-Subject: [PATCH 04/11] interval_tree: helper to find previous item of a node in rb interval tree
-Date: Fri,  2 May 2014 09:52:03 -0400
-Message-Id: <1399038730-25641-5-git-send-email-j.glisse@gmail.com>
+Subject: [PATCH 05/11] mm/memcg: support accounting null page and transfering null charge to new page.
+Date: Fri,  2 May 2014 09:52:04 -0400
+Message-Id: <1399038730-25641-6-git-send-email-j.glisse@gmail.com>
 In-Reply-To: <1399038730-25641-1-git-send-email-j.glisse@gmail.com>
 References: <1399038730-25641-1-git-send-email-j.glisse@gmail.com>
 MIME-Version: 1.0
@@ -27,102 +27,291 @@ Cc: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
 
 From: JA(C)rA'me Glisse <jglisse@redhat.com>
 
-It is often usefull to find the entry right before a given one in an rb
-interval tree.
+When migrating memory to some device specific memory we still want to properly
+account memcg memory usage. To do so we need to be able to account for page not
+allocated in system memory. We also need to be able to transfer previous charge
+from device memory to a page in an atomic way from memcg point of view.
+
+Also introduce helper function to clear page memcg.
 
 Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
 ---
- include/linux/interval_tree_generic.h | 79 +++++++++++++++++++++++++++++++++++
- 1 file changed, 79 insertions(+)
+ include/linux/memcontrol.h |  17 +++++
+ mm/memcontrol.c            | 161 +++++++++++++++++++++++++++++++++++++++------
+ 2 files changed, 159 insertions(+), 19 deletions(-)
 
-diff --git a/include/linux/interval_tree_generic.h b/include/linux/interval_tree_generic.h
-index 58370e1..97dd71b 100644
---- a/include/linux/interval_tree_generic.h
-+++ b/include/linux/interval_tree_generic.h
-@@ -188,4 +188,83 @@ ITPREFIX ## _iter_next(ITSTRUCT *node, ITTYPE start, ITTYPE last)	      \
- 		else if (start <= ITLAST(node))		/* Cond2 */	      \
- 			return node;					      \
- 	}								      \
-+}									      \
-+									      \
-+static ITSTRUCT *							      \
-+ITPREFIX ## _subtree_rmost(ITSTRUCT *node, ITTYPE start, ITTYPE last)	      \
-+{									      \
-+	while (true) {							      \
-+		/*							      \
-+		 * Loop invariant: last >= ITSTART(node)		      \
-+		 * (Cond1 is satisfied)					      \
-+		 */							      \
-+		if (node->ITRB.rb_right) {				      \
-+			ITSTRUCT *right = rb_entry(node->ITRB.rb_right,	      \
-+						   ITSTRUCT, ITRB);	      \
-+			if (last >= ITSTART(right)) {			      \
-+				/*					      \
-+				 * Some nodes in right subtree satisfy Cond1. \
-+				 * Iterate to find the rightmost such node N. \
-+				 * If it also satisfies Cond2, that's the     \
-+				 * match we are looking for.		      \
-+				 */					      \
-+				node = right;				      \
-+				continue;				      \
-+			}						      \
-+			/* Left branch might still have a candidate. */	      \
-+			if (right->ITRB.rb_left) {			      \
-+				right = rb_entry(right->ITRB.rb_left,	      \
-+						 ITSTRUCT, ITRB);	      \
-+				if (last >= ITSTART(right)) {		      \
-+					node = right;			      \
-+					continue;			      \
-+				}					      \
-+			}						      \
-+		}							      \
-+		/* At this point node is the rightmost candidate. */	      \
-+		if (last >= ITSTART(node)) {		/* Cond1 */	      \
-+			if (start <= ITLAST(node))	/* Cond2 */	      \
-+				return node;	/* node is rightmost match */ \
-+		}							      \
-+		return NULL;	/* No match */				      \
-+	}								      \
-+}									      \
-+									      \
-+ITSTATIC ITSTRUCT *							      \
-+ITPREFIX ## _iter_prev(ITSTRUCT *node, ITTYPE start, ITTYPE last)	      \
-+{									      \
-+	struct rb_node *rb = node->ITRB.rb_left, *prev;			      \
-+									      \
-+	while (true) {							      \
-+		/*							      \
-+		 * Loop invariants:					      \
-+		 *   Cond2: start <= ITLAST(node)			      \
-+		 *   rb == node->ITRB.rb_left				      \
-+		 *							      \
-+		 * First, search left subtree if suitable		      \
-+		 */							      \
-+		if (rb) {						      \
-+			ITSTRUCT *left = rb_entry(rb, ITSTRUCT, ITRB);	      \
-+			if (start <= left->ITSUBTREE)			      \
-+				return ITPREFIX ## _subtree_rmost(left,       \
-+								  start,      \
-+								  last);      \
-+		}							      \
-+									      \
-+		/* Move up the tree until we come from a node's right child */\
-+		do {							      \
-+			rb = rb_parent(&node->ITRB);			      \
-+			if (!rb)					      \
-+				return NULL;				      \
-+			prev = &node->ITRB;				      \
-+			node = rb_entry(rb, ITSTRUCT, ITRB);		      \
-+			rb = node->ITRB.rb_left;			      \
-+		} while (prev == rb);					      \
-+									      \
-+		/* Check if the node intersects [start;last] */		      \
-+		if (start > ITLAST(node))		/* !Cond2 */	      \
-+			return NULL;					      \
-+		else if (ITSTART(node) <= last)		/* Cond1 */	      \
-+			return node;					      \
-+	}								      \
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 1fa2324..1737323 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -67,6 +67,8 @@ struct mem_cgroup_reclaim_cookie {
+ 
+ extern int mem_cgroup_charge_anon(struct page *page, struct mm_struct *mm,
+ 				gfp_t gfp_mask);
++extern void mem_cgroup_transfer_charge_anon(struct page *page,
++					    struct mm_struct *mm);
+ /* for swap handling */
+ extern int mem_cgroup_try_charge_swapin(struct mm_struct *mm,
+ 		struct page *page, gfp_t mask, struct mem_cgroup **memcgp);
+@@ -85,6 +87,8 @@ extern void mem_cgroup_uncharge_start(void);
+ extern void mem_cgroup_uncharge_end(void);
+ 
+ extern void mem_cgroup_uncharge_page(struct page *page);
++extern void mem_cgroup_uncharge_mm(struct mm_struct *mm);
++extern void mem_cgroup_clear_page(struct page *page);
+ extern void mem_cgroup_uncharge_cache_page(struct page *page);
+ 
+ bool __mem_cgroup_same_or_subtree(const struct mem_cgroup *root_memcg,
+@@ -245,6 +249,11 @@ static inline int mem_cgroup_charge_file(struct page *page,
+ 	return 0;
  }
+ 
++static inline void mem_cgroup_transfer_charge_anon(struct page *page,
++						   struct mm_struct *mm)
++{
++}
++
+ static inline int mem_cgroup_try_charge_swapin(struct mm_struct *mm,
+ 		struct page *page, gfp_t gfp_mask, struct mem_cgroup **memcgp)
+ {
+@@ -272,6 +281,14 @@ static inline void mem_cgroup_uncharge_page(struct page *page)
+ {
+ }
+ 
++static inline void mem_cgroup_uncharge_mm(struct mm_struct *mm)
++{
++}
++
++static inline void mem_cgroup_clear_page(struct page *page)
++{
++}
++
+ static inline void mem_cgroup_uncharge_cache_page(struct page *page)
+ {
+ }
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 19d620b..ceaf4d7 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -940,7 +940,7 @@ static void mem_cgroup_charge_statistics(struct mem_cgroup *memcg,
+ 		__this_cpu_add(memcg->stat->count[MEM_CGROUP_STAT_CACHE],
+ 				nr_pages);
+ 
+-	if (PageTransHuge(page))
++	if (page && PageTransHuge(page))
+ 		__this_cpu_add(memcg->stat->count[MEM_CGROUP_STAT_RSS_HUGE],
+ 				nr_pages);
+ 
+@@ -2842,12 +2842,17 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *memcg,
+ 				       enum charge_type ctype,
+ 				       bool lrucare)
+ {
+-	struct page_cgroup *pc = lookup_page_cgroup(page);
++	struct page_cgroup *pc;
+ 	struct zone *uninitialized_var(zone);
+ 	struct lruvec *lruvec;
+ 	bool was_on_lru = false;
+ 	bool anon;
+ 
++	if (page == NULL) {
++		goto charge;
++	}
++
++	pc = lookup_page_cgroup(page);
+ 	lock_page_cgroup(pc);
+ 	VM_BUG_ON_PAGE(PageCgroupUsed(pc), page);
+ 	/*
+@@ -2891,20 +2896,24 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *memcg,
+ 		spin_unlock_irq(&zone->lru_lock);
+ 	}
+ 
++charge:
+ 	if (ctype == MEM_CGROUP_CHARGE_TYPE_ANON)
+ 		anon = true;
+ 	else
+ 		anon = false;
+ 
+ 	mem_cgroup_charge_statistics(memcg, page, anon, nr_pages);
+-	unlock_page_cgroup(pc);
+ 
+-	/*
+-	 * "charge_statistics" updated event counter. Then, check it.
+-	 * Insert ancestor (and ancestor's ancestors), to softlimit RB-tree.
+-	 * if they exceeds softlimit.
+-	 */
+-	memcg_check_events(memcg, page);
++	if (page) {
++		unlock_page_cgroup(pc);
++
++		/*
++		 * "charge_statistics" updated event counter. Then, check it.
++		 * Insert ancestor (and ancestor's ancestors), to softlimit RB-tree.
++		 * if they exceeds softlimit.
++		 */
++		memcg_check_events(memcg, page);
++	}
+ }
+ 
+ static DEFINE_MUTEX(set_limit_mutex);
+@@ -3745,20 +3754,23 @@ int mem_cgroup_charge_anon(struct page *page,
+ 	if (mem_cgroup_disabled())
+ 		return 0;
+ 
+-	VM_BUG_ON_PAGE(page_mapped(page), page);
+-	VM_BUG_ON_PAGE(page->mapping && !PageAnon(page), page);
+ 	VM_BUG_ON(!mm);
++	if (page) {
++		VM_BUG_ON_PAGE(page_mapped(page), page);
++		VM_BUG_ON_PAGE(page->mapping && !PageAnon(page), page);
+ 
+-	if (PageTransHuge(page)) {
+-		nr_pages <<= compound_order(page);
+-		VM_BUG_ON_PAGE(!PageTransHuge(page), page);
+-		/*
+-		 * Never OOM-kill a process for a huge page.  The
+-		 * fault handler will fall back to regular pages.
+-		 */
+-		oom = false;
++		if (PageTransHuge(page)) {
++			nr_pages <<= compound_order(page);
++			VM_BUG_ON_PAGE(!PageTransHuge(page), page);
++			/*
++			 * Never OOM-kill a process for a huge page.  The
++			 * fault handler will fall back to regular pages.
++			 */
++			oom = false;
++		}
+ 	}
+ 
++
+ 	memcg = mem_cgroup_try_charge_mm(mm, gfp_mask, nr_pages, oom);
+ 	if (!memcg)
+ 		return -ENOMEM;
+@@ -3767,6 +3779,60 @@ int mem_cgroup_charge_anon(struct page *page,
+ 	return 0;
+ }
+ 
++void mem_cgroup_transfer_charge_anon(struct page *page, struct mm_struct *mm)
++{
++	struct page_cgroup *pc;
++	struct task_struct *task;
++	struct mem_cgroup *memcg;
++	struct zone *uninitialized_var(zone);
++
++	if (mem_cgroup_disabled())
++		return;
++
++	VM_BUG_ON(page->mapping && !PageAnon(page));
++	VM_BUG_ON(!mm);
++
++	rcu_read_lock();
++	task = rcu_dereference(mm->owner);
++	/*
++	 * Because we don't have task_lock(), "p" can exit.
++	 * In that case, "memcg" can point to root or p can be NULL with
++	 * race with swapoff. Then, we have small risk of mis-accouning.
++	 * But such kind of mis-account by race always happens because
++	 * we don't have cgroup_mutex(). It's overkill and we allo that
++	 * small race, here.
++	 * (*) swapoff at el will charge against mm-struct not against
++	 * task-struct. So, mm->owner can be NULL.
++	 */
++	memcg = mem_cgroup_from_task(task);
++	if (!memcg) {
++		memcg = root_mem_cgroup;
++	}
++	rcu_read_unlock();
++
++	pc = lookup_page_cgroup(page);
++	lock_page_cgroup(pc);
++	VM_BUG_ON(PageCgroupUsed(pc));
++	/*
++	 * we don't need page_cgroup_lock about tail pages, becase they are not
++	 * accessed by any other context at this point.
++	 */
++
++	pc->mem_cgroup = memcg;
++	/*
++	 * We access a page_cgroup asynchronously without lock_page_cgroup().
++	 * Especially when a page_cgroup is taken from a page, pc->mem_cgroup
++	 * is accessed after testing USED bit. To make pc->mem_cgroup visible
++	 * before USED bit, we need memory barrier here.
++	 * See mem_cgroup_add_lru_list(), etc.
++	 */
++	smp_wmb();
++	SetPageCgroupUsed(pc);
++
++	unlock_page_cgroup(pc);
++	memcg_check_events(memcg, page);
++}
++
+ /*
+  * While swap-in, try_charge -> commit or cancel, the page is locked.
+  * And when try_charge() successfully returns, one refcnt to memcg without
+@@ -4087,6 +4153,63 @@ void mem_cgroup_uncharge_page(struct page *page)
+ 	__mem_cgroup_uncharge_common(page, MEM_CGROUP_CHARGE_TYPE_ANON, false);
+ }
+ 
++void mem_cgroup_uncharge_mm(struct mm_struct *mm)
++{
++	struct mem_cgroup *memcg;
++	struct task_struct *task;
++
++	if (mem_cgroup_disabled())
++		return;
++
++	VM_BUG_ON(!mm);
++
++	rcu_read_lock();
++	task = rcu_dereference(mm->owner);
++	/*
++	 * Because we don't have task_lock(), "p" can exit.
++	 * In that case, "memcg" can point to root or p can be NULL with
++	 * race with swapoff. Then, we have small risk of mis-accouning.
++	 * But such kind of mis-account by race always happens because
++	 * we don't have cgroup_mutex(). It's overkill and we allo that
++	 * small race, here.
++	 * (*) swapoff at el will charge against mm-struct not against
++	 * task-struct. So, mm->owner can be NULL.
++	 */
++	memcg = mem_cgroup_from_task(task);
++	if (!memcg) {
++		memcg = root_mem_cgroup;
++	}
++	rcu_read_unlock();
++
++	mem_cgroup_charge_statistics(memcg, NULL, true, -1);
++	if (!mem_cgroup_is_root(memcg))
++		mem_cgroup_do_uncharge(memcg, 1, MEM_CGROUP_CHARGE_TYPE_ANON);
++}
++
++void mem_cgroup_clear_page(struct page *page)
++{
++	struct page_cgroup *pc;
++
++	if (mem_cgroup_disabled())
++		return;
++
++	/*
++	 * Check if our page_cgroup is valid
++	 */
++	pc = lookup_page_cgroup(page);
++	if (unlikely(!PageCgroupUsed(pc)))
++		return;
++	lock_page_cgroup(pc);
++	ClearPageCgroupUsed(pc);
++	/*
++	 * pc->mem_cgroup is not cleared here. It will be accessed when it's
++	 * freed from LRU. This is safe because uncharged page is expected not
++	 * to be reused (freed soon). Exception is SwapCache, it's handled by
++	 * special functions.
++	 */
++	unlock_page_cgroup(pc);
++}
++
+ void mem_cgroup_uncharge_cache_page(struct page *page)
+ {
+ 	VM_BUG_ON_PAGE(page_mapped(page), page);
 -- 
 1.9.0
 
