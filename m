@@ -1,123 +1,222 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f179.google.com (mail-ig0-f179.google.com [209.85.213.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 51AC16B0036
-	for <linux-mm@kvack.org>; Sun,  4 May 2014 05:46:33 -0400 (EDT)
-Received: by mail-ig0-f179.google.com with SMTP id hn18so3589295igb.12
-        for <linux-mm@kvack.org>; Sun, 04 May 2014 02:46:33 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id bs7si5556158icc.19.2014.05.04.02.46.32
+Received: from mail-ee0-f52.google.com (mail-ee0-f52.google.com [74.125.83.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 23B7E6B0036
+	for <linux-mm@kvack.org>; Sun,  4 May 2014 09:15:01 -0400 (EDT)
+Received: by mail-ee0-f52.google.com with SMTP id e53so4511490eek.39
+        for <linux-mm@kvack.org>; Sun, 04 May 2014 06:15:00 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id u49si7305761eef.112.2014.05.04.06.14.59
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sun, 04 May 2014 02:46:32 -0700 (PDT)
-Message-ID: <53660ADC.8000306@oracle.com>
-Date: Sun, 04 May 2014 17:39:40 +0800
-From: Bob Liu <bob.liu@oracle.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Sun, 04 May 2014 06:14:59 -0700 (PDT)
+Date: Sun, 4 May 2014 14:14:54 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 08/17] mm: page_alloc: Use word-based accesses for
+ get/set pageblock bitmaps
+Message-ID: <20140504131454.GS23991@suse.de>
+References: <1398933888-4940-1-git-send-email-mgorman@suse.de>
+ <1398933888-4940-9-git-send-email-mgorman@suse.de>
+ <53641D8C.6040601@oracle.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 1/2] swap: change swap_info singly-linked list to list_head
-References: <alpine.LSU.2.11.1402232344280.1890@eggly.anvils> <1397336454-13855-1-git-send-email-ddstreet@ieee.org> <1397336454-13855-2-git-send-email-ddstreet@ieee.org> <20140423103400.GH23991@suse.de> <CALZtONCa3jLrYkPSFPNnV84zePxFtdkWJBu092ScgUe2AugMxQ@mail.gmail.com> <CAL1ERfP16T68OzHwhuN9S=QiqzuuVAyq5Wu=-pDEkiHrNNiH1g@mail.gmail.com> <CALZtONBDdo7KGKPZHuH-gHUS8ntBW+mYGPKKnh5GcQAsL5Zrfw@mail.gmail.com>
-In-Reply-To: <CALZtONBDdo7KGKPZHuH-gHUS8ntBW+mYGPKKnh5GcQAsL5Zrfw@mail.gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <53641D8C.6040601@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Streetman <ddstreet@ieee.org>
-Cc: Weijie Yang <weijie.yang.kh@gmail.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, xen-devel@lists.xenproject.org, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Shaohua Li <shli@fusionio.com>, Weijie Yang <weijieut@gmail.com>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, David Vrabel <david.vrabel@citrix.com>
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Linux Kernel <linux-kernel@vger.kernel.org>
 
-
-On 05/03/2014 04:00 AM, Dan Streetman wrote:
-> On Fri, Apr 25, 2014 at 12:15 AM, Weijie Yang <weijie.yang.kh@gmail.com> wrote:
->> On Fri, Apr 25, 2014 at 2:48 AM, Dan Streetman <ddstreet@ieee.org> wrote:
->>> On Wed, Apr 23, 2014 at 6:34 AM, Mel Gorman <mgorman@suse.de> wrote:
->>>> On Sat, Apr 12, 2014 at 05:00:53PM -0400, Dan Streetman wrote:
-> <SNIP>
->>>>> diff --git a/mm/frontswap.c b/mm/frontswap.c
->>>>> index 1b24bdc..fae1160 100644
->>>>> --- a/mm/frontswap.c
->>>>> +++ b/mm/frontswap.c
->>>>> @@ -327,15 +327,12 @@ EXPORT_SYMBOL(__frontswap_invalidate_area);
->>>>>
->>>>>  static unsigned long __frontswap_curr_pages(void)
->>>>>  {
->>>>> -     int type;
->>>>>       unsigned long totalpages = 0;
->>>>>       struct swap_info_struct *si = NULL;
->>>>>
->>>>>       assert_spin_locked(&swap_lock);
->>>>> -     for (type = swap_list.head; type >= 0; type = si->next) {
->>>>> -             si = swap_info[type];
->>>>> +     list_for_each_entry(si, &swap_list_head, list)
->>>>>               totalpages += atomic_read(&si->frontswap_pages);
->>>>> -     }
->>>>>       return totalpages;
->>>>>  }
->>>>>
->>>>> @@ -347,11 +344,9 @@ static int __frontswap_unuse_pages(unsigned long total, unsigned long *unused,
->>>>>       int si_frontswap_pages;
->>>>>       unsigned long total_pages_to_unuse = total;
->>>>>       unsigned long pages = 0, pages_to_unuse = 0;
->>>>> -     int type;
->>>>>
->>>>>       assert_spin_locked(&swap_lock);
->>>>> -     for (type = swap_list.head; type >= 0; type = si->next) {
->>>>> -             si = swap_info[type];
->>>>> +     list_for_each_entry(si, &swap_list_head, list) {
->>>>>               si_frontswap_pages = atomic_read(&si->frontswap_pages);
->>>>>               if (total_pages_to_unuse < si_frontswap_pages) {
->>>>>                       pages = pages_to_unuse = total_pages_to_unuse;
->>>>
->>>> The frontswap shrink code looks suspicious. If the target is smaller than
->>>> the total number of frontswap pages then it does nothing. The callers
-
-__frontswap_unuse_pages() is called only to get the correct value of
-pages_to_unuse which will pass to try_to_unuse(), perhaps we should
-rename it to __frontswap_unuse_pages_nr()..
-
-------
-ret = __frontswap_shrink(target_pages, &pages_to_unuse, &type);
-	->  __frontswap_unuse_pages(total_pages_to_unuse, pages_to_unuse, type);
-
-try_to_unuse(type, true, pages_to_unuse);
-------
-
->>>> appear to get this right at least. Similarly, if the first swapfile has
->>>> fewer frontswap pages than the target then it does not unuse the target
->>>> number of pages because it only handles one swap file. It's outside the
->>>> scope of your patch to address this or wonder if xen balloon driver is
->>>> really using it the way it's expected.
->>>
->>> I didn't look into the frontswap shrinking code, but I agree the
->>> existing logic there doesn't look right.  I'll review frontswap in
->>> more detail to see if it needs changing here, unless anyone else gets
->>> it to first :-)
->>>
->>
->> FYI, I drop the frontswap_shrink code in a patch
->> see: https://lkml.org/lkml/2014/1/27/98
+On Fri, May 02, 2014 at 06:34:52PM -0400, Sasha Levin wrote:
+> Hi Mel,
 > 
-> frontswap_shrink() is actually used (only) by drivers/xen/xen-selfballoon.c.
-> 
-> However, I completely agree with you that the backend should be doing
-> the shrinking, not from a frontswap api.  Forcing frontswap to shrink
-> is backwards - xen-selfballoon appears to be assuming that xem/tmem is
-> the only possible frontswap backend.  It certainly doensn't make any
-> sense for xen-selfballoon to force zswap to shrink itself, does it?
-> 
-> If xen-selfballoon wants to shrink its frontswap backend tmem, it
-> should do that by telling tmem directly to shrink itself (which it
-> looks like tmem would have to implement, just like zswap sends its LRU
-> pages back to swapcache when it becomes full).
+> Vlastimil Babka suggested I should try this patch to work around a different
+> issue I'm seeing, and noticed that it doesn't build because:
 > 
 
-Yes, it's possible in theory, but tmem is located in xen(host) which
-can't put back pages to swap cache(in guest os) directly. Use
-frontswap_shrink() can make things simple and easier.
+Rebasing SNAFU. Can you try this instead?
 
-And I think frontswap shrink isn't a blocker of this patch set, so
-please keep it.
+---8<---
+mm: page_alloc: Use word-based accesses for get/set pageblock bitmaps
 
--- 
-Regards,
--Bob
+The test_bit operations in get/set pageblock flags are expensive. This patch
+reads the bitmap on a word basis and use shifts and masks to isolate the bits
+of interest. Similarly masks are used to set a local copy of the bitmap and then
+use cmpxchg to update the bitmap if there have been no other changes made in
+parallel.
+
+In a test running dd onto tmpfs the overhead of the pageblock-related
+functions went from 1.27% in profiles to 0.5%.
+
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index fac5509..c84703d 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -75,9 +75,14 @@ enum {
+ 
+ extern int page_group_by_mobility_disabled;
+ 
++#define NR_MIGRATETYPE_BITS (PB_migrate_end - PB_migrate + 1)
++#define MIGRATETYPE_MASK ((1UL << NR_MIGRATETYPE_BITS) - 1)
++
+ static inline int get_pageblock_migratetype(struct page *page)
+ {
+-	return get_pageblock_flags_group(page, PB_migrate, PB_migrate_end);
++	BUILD_BUG_ON(PB_migrate_end - PB_migrate != 2);
++	return get_pageblock_flags_mask(page, PB_migrate_end,
++					NR_MIGRATETYPE_BITS, MIGRATETYPE_MASK);
+ }
+ 
+ struct free_area {
+diff --git a/include/linux/pageblock-flags.h b/include/linux/pageblock-flags.h
+index 2ee8cd2..bc37036 100644
+--- a/include/linux/pageblock-flags.h
++++ b/include/linux/pageblock-flags.h
+@@ -30,9 +30,12 @@ enum pageblock_bits {
+ 	PB_migrate,
+ 	PB_migrate_end = PB_migrate + 3 - 1,
+ 			/* 3 bits required for migrate types */
+-#ifdef CONFIG_COMPACTION
+ 	PB_migrate_skip,/* If set the block is skipped by compaction */
+-#endif /* CONFIG_COMPACTION */
++
++	/*
++	 * Assume the bits will always align on a word. If this assumption
++	 * changes then get/set pageblock needs updating.
++	 */
+ 	NR_PAGEBLOCK_BITS
+ };
+ 
+@@ -62,11 +65,35 @@ extern int pageblock_order;
+ /* Forward declaration */
+ struct page;
+ 
++unsigned long get_pageblock_flags_mask(struct page *page,
++				unsigned long end_bitidx,
++				unsigned long nr_flag_bits,
++				unsigned long mask);
++void set_pageblock_flags_mask(struct page *page,
++				unsigned long flags,
++				unsigned long end_bitidx,
++				unsigned long nr_flag_bits,
++				unsigned long mask);
++
+ /* Declarations for getting and setting flags. See mm/page_alloc.c */
+-unsigned long get_pageblock_flags_group(struct page *page,
+-					int start_bitidx, int end_bitidx);
+-void set_pageblock_flags_group(struct page *page, unsigned long flags,
+-					int start_bitidx, int end_bitidx);
++static inline unsigned long get_pageblock_flags_group(struct page *page,
++					int start_bitidx, int end_bitidx)
++{
++	unsigned long nr_flag_bits = end_bitidx - start_bitidx + 1;
++	unsigned long mask = (1 << nr_flag_bits) - 1;
++
++	return get_pageblock_flags_mask(page, end_bitidx, nr_flag_bits, mask);
++}
++
++static inline void set_pageblock_flags_group(struct page *page,
++					unsigned long flags,
++					int start_bitidx, int end_bitidx)
++{
++	unsigned long nr_flag_bits = end_bitidx - start_bitidx + 1;
++	unsigned long mask = (1 << nr_flag_bits) - 1;
++
++	set_pageblock_flags_mask(page, flags, end_bitidx, nr_flag_bits, mask);
++}
+ 
+ #ifdef CONFIG_COMPACTION
+ #define get_pageblock_skip(page) \
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index dc123ff..f393b0e 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -6032,53 +6032,64 @@ static inline int pfn_to_bitidx(struct zone *zone, unsigned long pfn)
+  * @end_bitidx: The last bit of interest
+  * returns pageblock_bits flags
+  */
+-unsigned long get_pageblock_flags_group(struct page *page,
+-					int start_bitidx, int end_bitidx)
++unsigned long get_pageblock_flags_mask(struct page *page,
++					unsigned long end_bitidx,
++					unsigned long nr_flag_bits,
++					unsigned long mask)
+ {
+ 	struct zone *zone;
+ 	unsigned long *bitmap;
+-	unsigned long pfn, bitidx;
+-	unsigned long flags = 0;
+-	unsigned long value = 1;
++	unsigned long pfn, bitidx, word_bitidx;
++	unsigned long word;
+ 
+ 	zone = page_zone(page);
+ 	pfn = page_to_pfn(page);
+ 	bitmap = get_pageblock_bitmap(zone, pfn);
+ 	bitidx = pfn_to_bitidx(zone, pfn);
++	word_bitidx = bitidx / BITS_PER_LONG;
++	bitidx &= (BITS_PER_LONG-1);
+ 
+-	for (; start_bitidx <= end_bitidx; start_bitidx++, value <<= 1)
+-		if (test_bit(bitidx + start_bitidx, bitmap))
+-			flags |= value;
+-
+-	return flags;
++	word = bitmap[word_bitidx];
++	bitidx += end_bitidx;
++	return (word >> (BITS_PER_LONG - bitidx - 1)) & mask;
+ }
+ 
+ /**
+- * set_pageblock_flags_group - Set the requested group of flags for a pageblock_nr_pages block of pages
++ * set_pageblock_flags_mask - Set the requested group of flags for a pageblock_nr_pages block of pages
+  * @page: The page within the block of interest
+  * @start_bitidx: The first bit of interest
+  * @end_bitidx: The last bit of interest
+  * @flags: The flags to set
+  */
+-void set_pageblock_flags_group(struct page *page, unsigned long flags,
+-					int start_bitidx, int end_bitidx)
++void set_pageblock_flags_mask(struct page *page, unsigned long flags,
++					unsigned long end_bitidx,
++					unsigned long nr_flag_bits,
++					unsigned long mask)
+ {
+ 	struct zone *zone;
+ 	unsigned long *bitmap;
+-	unsigned long pfn, bitidx;
+-	unsigned long value = 1;
++	unsigned long pfn, bitidx, word_bitidx;
++	unsigned long old_word, new_word;
++
++	BUILD_BUG_ON(NR_PAGEBLOCK_BITS != 4);
+ 
+ 	zone = page_zone(page);
+ 	pfn = page_to_pfn(page);
+ 	bitmap = get_pageblock_bitmap(zone, pfn);
+ 	bitidx = pfn_to_bitidx(zone, pfn);
++	word_bitidx = bitidx / BITS_PER_LONG;
++	bitidx &= (BITS_PER_LONG-1);
++
+ 	VM_BUG_ON_PAGE(!zone_spans_pfn(zone, pfn), page);
+ 
+-	for (; start_bitidx <= end_bitidx; start_bitidx++, value <<= 1)
+-		if (flags & value)
+-			__set_bit(bitidx + start_bitidx, bitmap);
+-		else
+-			__clear_bit(bitidx + start_bitidx, bitmap);
++	bitidx += end_bitidx;
++	mask <<= (BITS_PER_LONG - bitidx - 1);
++	flags <<= (BITS_PER_LONG - bitidx - 1);
++
++	do {
++		old_word = ACCESS_ONCE(bitmap[word_bitidx]);
++		new_word = (old_word & ~mask) | flags;
++	} while (cmpxchg(&bitmap[word_bitidx], old_word, new_word) != old_word);
+ }
+ 
+ /*
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
