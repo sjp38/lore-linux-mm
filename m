@@ -1,222 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-ee0-f52.google.com (mail-ee0-f52.google.com [74.125.83.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 23B7E6B0036
-	for <linux-mm@kvack.org>; Sun,  4 May 2014 09:15:01 -0400 (EDT)
-Received: by mail-ee0-f52.google.com with SMTP id e53so4511490eek.39
-        for <linux-mm@kvack.org>; Sun, 04 May 2014 06:15:00 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u49si7305761eef.112.2014.05.04.06.14.59
+	by kanga.kvack.org (Postfix) with ESMTP id 87BE56B0036
+	for <linux-mm@kvack.org>; Sun,  4 May 2014 10:32:58 -0400 (EDT)
+Received: by mail-ee0-f52.google.com with SMTP id e53so4460429eek.25
+        for <linux-mm@kvack.org>; Sun, 04 May 2014 07:32:57 -0700 (PDT)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id w48si7482967eel.116.2014.05.04.07.32.56
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sun, 04 May 2014 06:14:59 -0700 (PDT)
-Date: Sun, 4 May 2014 14:14:54 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 08/17] mm: page_alloc: Use word-based accesses for
- get/set pageblock bitmaps
-Message-ID: <20140504131454.GS23991@suse.de>
-References: <1398933888-4940-1-git-send-email-mgorman@suse.de>
- <1398933888-4940-9-git-send-email-mgorman@suse.de>
- <53641D8C.6040601@oracle.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Sun, 04 May 2014 07:32:56 -0700 (PDT)
+Date: Sun, 4 May 2014 10:32:51 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 9/9] mm: memcontrol: rewrite uncharge API
+Message-ID: <20140504143251.GA1524@cmpxchg.org>
+References: <1398889543-23671-1-git-send-email-hannes@cmpxchg.org>
+ <1398889543-23671-10-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <53641D8C.6040601@oracle.com>
+In-Reply-To: <1398889543-23671-10-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Linux Kernel <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org
+Cc: Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Fri, May 02, 2014 at 06:34:52PM -0400, Sasha Levin wrote:
-> Hi Mel,
+On Wed, Apr 30, 2014 at 04:25:43PM -0400, Johannes Weiner wrote:
+> The memcg uncharging code that is involved towards the end of a page's
+> lifetime - truncation, reclaim, swapout, migration - is impressively
+> complicated and fragile.
 > 
-> Vlastimil Babka suggested I should try this patch to work around a different
-> issue I'm seeing, and noticed that it doesn't build because:
+> Because anonymous and file pages were always charged before they had
+> their page->mapping established, uncharges had to happen when the page
+> type could be known from the context, as in unmap for anonymous, page
+> cache removal for file and shmem pages, and swap cache truncation for
+> swap pages.  However, these operations also happen well before the
+> page is actually freed, and so a lot of synchronization is necessary:
 > 
+> - On page migration, the old page might be unmapped but then reused,
+>   so memcg code has to prevent an untimely uncharge in that case.
+>   Because this code - which should be a simple charge transfer - is so
+>   special-cased, it is not reusable for replace_page_cache().
+> 
+> - Swap cache truncation happens during both swap-in and swap-out, and
+>   possibly repeatedly before the page is actually freed.  This means
+>   that the memcg swapout code is called from many contexts that make
+>   no sense and it has to figure out the direction from page state to
+>   make sure memory and memory+swap are always correctly charged.
+> 
+> But now that charged pages always have a page->mapping, introduce
+> mem_cgroup_uncharge(), which is called after the final put_page(),
+> when we know for sure that nobody is looking at the page anymore.
+> 
+> For page migration, introduce mem_cgroup_migrate(), which is called
+> after the migration is successful and the new page is fully rmapped.
+> Because the old page is no longer uncharged after migration, prevent
+> double charges by decoupling the page's memcg association (PCG_USED
+> and pc->mem_cgroup) from the page holding an actual charge.  The new
+> bits PCG_MEM and PCG_MEMSW represent the respective charges and are
+> transferred to the new page during migration.
+> 
+> mem_cgroup_migrate() is suitable for replace_page_cache() as well.
+> 
+> Swap accounting is massively simplified: because the page is no longer
+> uncharged as early as swap cache deletion, a new mem_cgroup_swapout()
+> can transfer the page's memory+swap charge (PCG_MEMSW) to the swap
+> entry before the final put_page() in page reclaim.
+> 
+> Finally, because pages are now charged under proper serialization
+> (anon: exclusive; cache: page lock; swapin: page lock; migration: page
+> lock), and uncharged under full exclusion, they can not race with
+> themselves.  Because they are also off-LRU during charge/uncharge,
+> charge migration can not race, with that, either.  Remove the crazily
+> expensive the page_cgroup lock and set pc->flags non-atomically.
+> 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
-Rebasing SNAFU. Can you try this instead?
+Follow-up fixlets to this change that fell out of more testing in
+production and more auditing so far:
 
----8<---
-mm: page_alloc: Use word-based accesses for get/set pageblock bitmaps
+- Document mem_cgroup_move_account() exclusion
+- Catch uncharged swapin readahead pages in mem_cgroup_swapout()
+- Fix DEBUG_VM build after last-minute identifier rename
+- Drop duplicate lru_cache_add_active_or_unevictable() in THP migration
 
-The test_bit operations in get/set pageblock flags are expensive. This patch
-reads the bitmap on a word basis and use shifts and masks to isolate the bits
-of interest. Similarly masks are used to set a local copy of the bitmap and then
-use cmpxchg to update the bitmap if there have been no other changes made in
-parallel.
-
-In a test running dd onto tmpfs the overhead of the pageblock-related
-functions went from 1.27% in profiles to 0.5%.
-
-Signed-off-by: Mel Gorman <mgorman@suse.de>
-
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index fac5509..c84703d 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -75,9 +75,14 @@ enum {
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 0add8b7b3a6c..f73df16b8115 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -3387,6 +3387,12 @@ static int mem_cgroup_move_account(struct page *page,
  
- extern int page_group_by_mobility_disabled;
+ 	mem_cgroup_charge_statistics(from, page, -nr_pages);
  
-+#define NR_MIGRATETYPE_BITS (PB_migrate_end - PB_migrate + 1)
-+#define MIGRATETYPE_MASK ((1UL << NR_MIGRATETYPE_BITS) - 1)
-+
- static inline int get_pageblock_migratetype(struct page *page)
- {
--	return get_pageblock_flags_group(page, PB_migrate, PB_migrate_end);
-+	BUILD_BUG_ON(PB_migrate_end - PB_migrate != 2);
-+	return get_pageblock_flags_mask(page, PB_migrate_end,
-+					NR_MIGRATETYPE_BITS, MIGRATETYPE_MASK);
- }
- 
- struct free_area {
-diff --git a/include/linux/pageblock-flags.h b/include/linux/pageblock-flags.h
-index 2ee8cd2..bc37036 100644
---- a/include/linux/pageblock-flags.h
-+++ b/include/linux/pageblock-flags.h
-@@ -30,9 +30,12 @@ enum pageblock_bits {
- 	PB_migrate,
- 	PB_migrate_end = PB_migrate + 3 - 1,
- 			/* 3 bits required for migrate types */
--#ifdef CONFIG_COMPACTION
- 	PB_migrate_skip,/* If set the block is skipped by compaction */
--#endif /* CONFIG_COMPACTION */
-+
 +	/*
-+	 * Assume the bits will always align on a word. If this assumption
-+	 * changes then get/set pageblock needs updating.
++	 * It is safe to change pc->mem_cgroup here because the page
++	 * is referenced, charged, and isolated - we can't race with
++	 * uncharging, charging, migration, or LRU putback.
 +	 */
- 	NR_PAGEBLOCK_BITS
- };
- 
-@@ -62,11 +65,35 @@ extern int pageblock_order;
- /* Forward declaration */
- struct page;
- 
-+unsigned long get_pageblock_flags_mask(struct page *page,
-+				unsigned long end_bitidx,
-+				unsigned long nr_flag_bits,
-+				unsigned long mask);
-+void set_pageblock_flags_mask(struct page *page,
-+				unsigned long flags,
-+				unsigned long end_bitidx,
-+				unsigned long nr_flag_bits,
-+				unsigned long mask);
 +
- /* Declarations for getting and setting flags. See mm/page_alloc.c */
--unsigned long get_pageblock_flags_group(struct page *page,
--					int start_bitidx, int end_bitidx);
--void set_pageblock_flags_group(struct page *page, unsigned long flags,
--					int start_bitidx, int end_bitidx);
-+static inline unsigned long get_pageblock_flags_group(struct page *page,
-+					int start_bitidx, int end_bitidx)
-+{
-+	unsigned long nr_flag_bits = end_bitidx - start_bitidx + 1;
-+	unsigned long mask = (1 << nr_flag_bits) - 1;
+ 	/* caller should have done css_get */
+ 	pc->mem_cgroup = to;
+ 	mem_cgroup_charge_statistics(to, page, nr_pages);
+@@ -6234,6 +6240,12 @@ void mem_cgroup_swapout(struct page *page, swp_entry_t entry)
+ 
+ 	pc = lookup_page_cgroup(page);
+ 
++	/* Readahead page, never charged */
++	if (!PageCgroupUsed(pc))
++		return;
 +
-+	return get_pageblock_flags_mask(page, end_bitidx, nr_flag_bits, mask);
-+}
++	VM_BUG_ON_PAGE(!(pc->flags & PCG_MEMSW), page);
 +
-+static inline void set_pageblock_flags_group(struct page *page,
-+					unsigned long flags,
-+					int start_bitidx, int end_bitidx)
-+{
-+	unsigned long nr_flag_bits = end_bitidx - start_bitidx + 1;
-+	unsigned long mask = (1 << nr_flag_bits) - 1;
-+
-+	set_pageblock_flags_mask(page, flags, end_bitidx, nr_flag_bits, mask);
-+}
+ 	oldid = swap_cgroup_record(entry, mem_cgroup_id(pc->mem_cgroup));
+ 	VM_BUG_ON_PAGE(oldid, page);
  
- #ifdef CONFIG_COMPACTION
- #define get_pageblock_skip(page) \
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index dc123ff..f393b0e 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -6032,53 +6032,64 @@ static inline int pfn_to_bitidx(struct zone *zone, unsigned long pfn)
-  * @end_bitidx: The last bit of interest
-  * returns pageblock_bits flags
-  */
--unsigned long get_pageblock_flags_group(struct page *page,
--					int start_bitidx, int end_bitidx)
-+unsigned long get_pageblock_flags_mask(struct page *page,
-+					unsigned long end_bitidx,
-+					unsigned long nr_flag_bits,
-+					unsigned long mask)
- {
- 	struct zone *zone;
- 	unsigned long *bitmap;
--	unsigned long pfn, bitidx;
--	unsigned long flags = 0;
--	unsigned long value = 1;
-+	unsigned long pfn, bitidx, word_bitidx;
-+	unsigned long word;
+@@ -6723,8 +6735,8 @@ void mem_cgroup_migrate(struct page *oldpage, struct page *newpage,
+ 	if (!PageCgroupUsed(pc))
+ 		return;
  
- 	zone = page_zone(page);
- 	pfn = page_to_pfn(page);
- 	bitmap = get_pageblock_bitmap(zone, pfn);
- 	bitidx = pfn_to_bitidx(zone, pfn);
-+	word_bitidx = bitidx / BITS_PER_LONG;
-+	bitidx &= (BITS_PER_LONG-1);
+-	VM_BUG_ON_PAGE(!(pc->flags & PCG_MEM), page);
+-	VM_BUG_ON_PAGE(!(pc->flags & PCG_MEMSW), page);
++	VM_BUG_ON_PAGE(!(pc->flags & PCG_MEM), oldpage);
++	VM_BUG_ON_PAGE(!(pc->flags & PCG_MEMSW), oldpage);
+ 	pc->flags &= ~(PCG_MEM | PCG_MEMSW);
  
--	for (; start_bitidx <= end_bitidx; start_bitidx++, value <<= 1)
--		if (test_bit(bitidx + start_bitidx, bitmap))
--			flags |= value;
--
--	return flags;
-+	word = bitmap[word_bitidx];
-+	bitidx += end_bitidx;
-+	return (word >> (BITS_PER_LONG - bitidx - 1)) & mask;
- }
- 
- /**
-- * set_pageblock_flags_group - Set the requested group of flags for a pageblock_nr_pages block of pages
-+ * set_pageblock_flags_mask - Set the requested group of flags for a pageblock_nr_pages block of pages
-  * @page: The page within the block of interest
-  * @start_bitidx: The first bit of interest
-  * @end_bitidx: The last bit of interest
-  * @flags: The flags to set
-  */
--void set_pageblock_flags_group(struct page *page, unsigned long flags,
--					int start_bitidx, int end_bitidx)
-+void set_pageblock_flags_mask(struct page *page, unsigned long flags,
-+					unsigned long end_bitidx,
-+					unsigned long nr_flag_bits,
-+					unsigned long mask)
- {
- 	struct zone *zone;
- 	unsigned long *bitmap;
--	unsigned long pfn, bitidx;
--	unsigned long value = 1;
-+	unsigned long pfn, bitidx, word_bitidx;
-+	unsigned long old_word, new_word;
-+
-+	BUILD_BUG_ON(NR_PAGEBLOCK_BITS != 4);
- 
- 	zone = page_zone(page);
- 	pfn = page_to_pfn(page);
- 	bitmap = get_pageblock_bitmap(zone, pfn);
- 	bitidx = pfn_to_bitidx(zone, pfn);
-+	word_bitidx = bitidx / BITS_PER_LONG;
-+	bitidx &= (BITS_PER_LONG-1);
-+
- 	VM_BUG_ON_PAGE(!zone_spans_pfn(zone, pfn), page);
- 
--	for (; start_bitidx <= end_bitidx; start_bitidx++, value <<= 1)
--		if (flags & value)
--			__set_bit(bitidx + start_bitidx, bitmap);
--		else
--			__clear_bit(bitidx + start_bitidx, bitmap);
-+	bitidx += end_bitidx;
-+	mask <<= (BITS_PER_LONG - bitidx - 1);
-+	flags <<= (BITS_PER_LONG - bitidx - 1);
-+
-+	do {
-+		old_word = ACCESS_ONCE(bitmap[word_bitidx]);
-+		new_word = (old_word & ~mask) | flags;
-+	} while (cmpxchg(&bitmap[word_bitidx], old_word, new_word) != old_word);
- }
- 
- /*
+ 	if (PageTransHuge(oldpage)) {
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 80d33e62eb16..afe688021699 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -1839,7 +1839,6 @@ fail_putback:
+ 	 */
+ 	flush_cache_range(vma, mmun_start, mmun_end);
+ 	page_add_new_anon_rmap(new_page, vma, mmun_start);
+-	lru_cache_add_active_or_unevictable(new_page, vma);
+ 	pmdp_clear_flush(vma, mmun_start, pmd);
+ 	set_pmd_at(mm, mmun_start, pmd, entry);
+ 	flush_tlb_range(vma, mmun_start, mmun_end);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
