@@ -1,213 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f48.google.com (mail-ee0-f48.google.com [74.125.83.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 536006B007D
-	for <linux-mm@kvack.org>; Mon,  5 May 2014 05:34:56 -0400 (EDT)
-Received: by mail-ee0-f48.google.com with SMTP id e49so4003477eek.35
-        for <linux-mm@kvack.org>; Mon, 05 May 2014 02:34:55 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id n7si9429683eeu.349.2014.05.05.02.34.53
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id EC9D56B0080
+	for <linux-mm@kvack.org>; Mon,  5 May 2014 05:51:35 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id lj1so6303298pab.14
+        for <linux-mm@kvack.org>; Mon, 05 May 2014 02:51:35 -0700 (PDT)
+Received: from mail-pa0-x229.google.com (mail-pa0-x229.google.com [2607:f8b0:400e:c03::229])
+        by mx.google.com with ESMTPS id ci3si7912891pad.455.2014.05.05.02.51.34
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 05 May 2014 02:34:53 -0700 (PDT)
-Message-ID: <53675B3A.5090607@suse.cz>
-Date: Mon, 05 May 2014 11:34:50 +0200
-From: Vlastimil Babka <vbabka@suse.cz>
-MIME-Version: 1.0
+        Mon, 05 May 2014 02:51:35 -0700 (PDT)
+Received: by mail-pa0-f41.google.com with SMTP id lj1so6417558pab.28
+        for <linux-mm@kvack.org>; Mon, 05 May 2014 02:51:34 -0700 (PDT)
+Date: Mon, 5 May 2014 02:51:32 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
 Subject: Re: [patch v2 3/4] mm, compaction: add per-zone migration pfn cache
  for async compaction
-References: <alpine.DEB.2.02.1404301744110.8415@chino.kir.corp.google.com> <alpine.DEB.2.02.1405011434140.23898@chino.kir.corp.google.com> <alpine.DEB.2.02.1405011435000.23898@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.02.1405011435000.23898@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <53675B3A.5090607@suse.cz>
+Message-ID: <alpine.DEB.2.02.1405050243490.11071@chino.kir.corp.google.com>
+References: <alpine.DEB.2.02.1404301744110.8415@chino.kir.corp.google.com> <alpine.DEB.2.02.1405011434140.23898@chino.kir.corp.google.com> <alpine.DEB.2.02.1405011435000.23898@chino.kir.corp.google.com> <53675B3A.5090607@suse.cz>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 05/01/2014 11:35 PM, David Rientjes wrote:
-> Each zone has a cached migration scanner pfn for memory compaction so that
-> subsequent calls to memory compaction can start where the previous call left
-> off.
->
-> Currently, the compaction migration scanner only updates the per-zone cached pfn
-> when pageblocks were not skipped for async compaction.  This creates a
-> dependency on calling sync compaction to avoid having subsequent calls to async
-> compaction from scanning an enormous amount of non-MOVABLE pageblocks each time
-> it is called.  On large machines, this could be potentially very expensive.
+On Mon, 5 May 2014, Vlastimil Babka wrote:
 
-OK that's due to my commit 50b5b094e6 ("mm: compaction: do not mark 
-unmovable pageblocks as skipped in async compaction") and the intention 
-was to avoid marking pageblocks as to-be-skipped just because they were 
-ignored by async compaction, which would make the following sync 
-compaction ignore them as well. However it's true that 
-update_pageblock_skip() also updates the cached pfn's and not updating 
-them is a sideeffect of this change.
+> OK that's due to my commit 50b5b094e6 ("mm: compaction: do not mark unmovable
+> pageblocks as skipped in async compaction") and the intention was to avoid
+> marking pageblocks as to-be-skipped just because they were ignored by async
+> compaction, which would make the following sync compaction ignore them as
+> well. However it's true that update_pageblock_skip() also updates the cached
+> pfn's and not updating them is a sideeffect of this change.
+> 
 
-I didn't think that would be a problem as skipping whole pageblocks due 
-to being non-movable should be fast and without taking locks. But if 
-your testing shows that this is a problem, then OK.
+It's not necessary just that commit, update_pageblock_skip() won't do 
+anything if cc->finished_update_migrate is true which still happens before 
+the commit.  This issue was noticed on a kernel without your commit.
 
-> This patch adds a per-zone cached migration scanner pfn only for async
-> compaction.  It is updated everytime a pageblock has been scanned in its
-> entirety and when no pages from it were successfully isolated.  The cached
-> migration scanner pfn for sync compaction is updated only when called for sync
-> compaction.
+> I didn't think that would be a problem as skipping whole pageblocks due to
+> being non-movable should be fast and without taking locks. But if your testing
+> shows that this is a problem, then OK.
+> 
 
-I think this might be an overkill and maybe just decoupling the cached 
-pfn update from the update_pageblock_skip() would be enough, i.e. 
-restore pre-50b5b094e6 behavior for the cached pfn (but not for the skip 
-bits)? I wonder if your new sync migration scanner would make any 
-difference. Presumably when async compaction finishes without success by 
-having the scanners meet, compact_finished() will reset the cached pfn's 
-and the sync compaction will not have a chance to use any previously 
-cached value anyway?
+Async compaction terminates early when lru_lock is contended or 
+need_resched() and on zones that are so large for a 128GB machine, this 
+happens often.  A thp allocation returns immediately because of 
+contended_compaction in the page allocator.  When the next thp is 
+allocated, async compaction starts from where the former iteration started 
+because we don't do any caching of the pfns and nothing called sync 
+compaction.  It's simply unnecessary overhead that can be prevented on the 
+next call and it leaves a potentially large part of the zone unscanned if 
+we continuously fail because of contention.  This patch fixes that.
 
-> Signed-off-by: David Rientjes <rientjes@google.com>
-> ---
->   include/linux/mmzone.h |  5 +++--
->   mm/compaction.c        | 55 ++++++++++++++++++++++++++------------------------
->   2 files changed, 32 insertions(+), 28 deletions(-)
->
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -360,9 +360,10 @@ struct zone {
->   	/* Set to true when the PG_migrate_skip bits should be cleared */
->   	bool			compact_blockskip_flush;
->
-> -	/* pfns where compaction scanners should start */
-> +	/* pfn where compaction free scanner should start */
->   	unsigned long		compact_cached_free_pfn;
-> -	unsigned long		compact_cached_migrate_pfn;
-> +	/* pfn where async and sync compaction migration scanner should start */
-> +	unsigned long		compact_cached_migrate_pfn[2];
->   #endif
->   #ifdef CONFIG_MEMORY_HOTPLUG
->   	/* see spanned/present_pages for more description */
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -89,7 +89,8 @@ static void __reset_isolation_suitable(struct zone *zone)
->   	unsigned long end_pfn = zone_end_pfn(zone);
->   	unsigned long pfn;
->
-> -	zone->compact_cached_migrate_pfn = start_pfn;
-> +	zone->compact_cached_migrate_pfn[0] = start_pfn;
-> +	zone->compact_cached_migrate_pfn[1] = start_pfn;
->   	zone->compact_cached_free_pfn = end_pfn;
->   	zone->compact_blockskip_flush = false;
->
-> @@ -134,6 +135,7 @@ static void update_pageblock_skip(struct compact_control *cc,
->   			bool migrate_scanner)
->   {
->   	struct zone *zone = cc->zone;
-> +	unsigned long pfn;
->
->   	if (cc->ignore_skip_hint)
->   		return;
-> @@ -141,20 +143,25 @@ static void update_pageblock_skip(struct compact_control *cc,
->   	if (!page)
->   		return;
->
-> -	if (!nr_isolated) {
-> -		unsigned long pfn = page_to_pfn(page);
-> -		set_pageblock_skip(page);
-> -
-> -		/* Update where compaction should restart */
-> -		if (migrate_scanner) {
-> -			if (!cc->finished_update_migrate &&
-> -			    pfn > zone->compact_cached_migrate_pfn)
-> -				zone->compact_cached_migrate_pfn = pfn;
-> -		} else {
-> -			if (!cc->finished_update_free &&
-> -			    pfn < zone->compact_cached_free_pfn)
-> -				zone->compact_cached_free_pfn = pfn;
-> -		}
-> +	if (nr_isolated)
-> +		return;
-> +
-> +	set_pageblock_skip(page);
-> +	pfn = page_to_pfn(page);
-> +
-> +	/* Update where async and sync compaction should restart */
-> +	if (migrate_scanner) {
-> +		if (cc->finished_update_migrate)
-> +			return;
-> +		if (pfn > zone->compact_cached_migrate_pfn[0])
-> +			zone->compact_cached_migrate_pfn[0] = pfn;
-> +		if (cc->sync && pfn > zone->compact_cached_migrate_pfn[1])
-> +			zone->compact_cached_migrate_pfn[1] = pfn;
-> +	} else {
-> +		if (cc->finished_update_free)
-> +			return;
-> +		if (pfn < zone->compact_cached_free_pfn)
-> +			zone->compact_cached_free_pfn = pfn;
->   	}
->   }
->   #else
-> @@ -464,7 +471,6 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
->   	unsigned long flags;
->   	bool locked = false;
->   	struct page *page = NULL, *valid_page = NULL;
-> -	bool skipped_async_unsuitable = false;
->   	const isolate_mode_t mode = (!cc->sync ? ISOLATE_ASYNC_MIGRATE : 0) |
->   				    (unevictable ? ISOLATE_UNEVICTABLE : 0);
->
-> @@ -540,11 +546,8 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
->   			 * the minimum amount of work satisfies the allocation
->   			 */
->   			mt = get_pageblock_migratetype(page);
-> -			if (!cc->sync && !migrate_async_suitable(mt)) {
-> -				cc->finished_update_migrate = true;
-> -				skipped_async_unsuitable = true;
-> +			if (!cc->sync && !migrate_async_suitable(mt))
->   				goto next_pageblock;
-> -			}
->   		}
->
->   		/*
-> @@ -646,10 +649,8 @@ next_pageblock:
->   	/*
->   	 * Update the pageblock-skip information and cached scanner pfn,
->   	 * if the whole pageblock was scanned without isolating any page.
-> -	 * This is not done when pageblock was skipped due to being unsuitable
-> -	 * for async compaction, so that eventual sync compaction can try.
->   	 */
-> -	if (low_pfn == end_pfn && !skipped_async_unsuitable)
-> +	if (low_pfn == end_pfn)
->   		update_pageblock_skip(cc, valid_page, nr_isolated, true);
->
->   	trace_mm_compaction_isolate_migratepages(nr_scanned, nr_isolated);
-> @@ -875,7 +876,8 @@ static int compact_finished(struct zone *zone,
->   	/* Compaction run completes if the migrate and free scanner meet */
->   	if (cc->free_pfn <= cc->migrate_pfn) {
->   		/* Let the next compaction start anew. */
-> -		zone->compact_cached_migrate_pfn = zone->zone_start_pfn;
-> +		zone->compact_cached_migrate_pfn[0] = zone->zone_start_pfn;
-> +		zone->compact_cached_migrate_pfn[1] = zone->zone_start_pfn;
->   		zone->compact_cached_free_pfn = zone_end_pfn(zone);
->
->   		/*
-> @@ -1000,7 +1002,7 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
->   	 * information on where the scanners should start but check that it
->   	 * is initialised by ensuring the values are within zone boundaries.
->   	 */
-> -	cc->migrate_pfn = zone->compact_cached_migrate_pfn;
-> +	cc->migrate_pfn = zone->compact_cached_migrate_pfn[cc->sync];
->   	cc->free_pfn = zone->compact_cached_free_pfn;
->   	if (cc->free_pfn < start_pfn || cc->free_pfn > end_pfn) {
->   		cc->free_pfn = end_pfn & ~(pageblock_nr_pages-1);
-> @@ -1008,7 +1010,8 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
->   	}
->   	if (cc->migrate_pfn < start_pfn || cc->migrate_pfn > end_pfn) {
->   		cc->migrate_pfn = start_pfn;
-> -		zone->compact_cached_migrate_pfn = cc->migrate_pfn;
-> +		zone->compact_cached_migrate_pfn[0] = cc->migrate_pfn;
-> +		zone->compact_cached_migrate_pfn[1] = cc->migrate_pfn;
->   	}
->
->   	trace_mm_compaction_begin(start_pfn, cc->migrate_pfn, cc->free_pfn, end_pfn);
->
+> > This patch adds a per-zone cached migration scanner pfn only for async
+> > compaction.  It is updated everytime a pageblock has been scanned in its
+> > entirety and when no pages from it were successfully isolated.  The cached
+> > migration scanner pfn for sync compaction is updated only when called for
+> > sync
+> > compaction.
+> 
+> I think this might be an overkill and maybe just decoupling the cached pfn
+> update from the update_pageblock_skip() would be enough, i.e. restore
+> pre-50b5b094e6 behavior for the cached pfn (but not for the skip bits)? I
+> wonder if your new sync migration scanner would make any difference.
+> Presumably when async compaction finishes without success by having the
+> scanners meet, compact_finished() will reset the cached pfn's and the sync
+> compaction will not have a chance to use any previously cached value anyway?
+> 
+
+When a zone has 32GB or 64GB to scan, as is in this case (and will become 
+larger in the future), async compaction will always terminate early.  It 
+may never cause a migration destination page to even be allocated, the 
+freeing scanner may never move and there's no guarantee they will ever 
+meet if we never call sync compaction.
+
+The logic presented in this patch will avoid rescanning the non-movable 
+pageblocks, for example, for async compaction until all other memory has 
+been scanned.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
