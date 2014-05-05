@@ -1,192 +1,448 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f49.google.com (mail-ee0-f49.google.com [74.125.83.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 745236B00A5
-	for <linux-mm@kvack.org>; Mon,  5 May 2014 11:50:51 -0400 (EDT)
-Received: by mail-ee0-f49.google.com with SMTP id e53so5556078eek.8
-        for <linux-mm@kvack.org>; Mon, 05 May 2014 08:50:50 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v2si10626470eel.76.2014.05.05.08.50.49
+Received: from mail-we0-f169.google.com (mail-we0-f169.google.com [74.125.82.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 175516B00A6
+	for <linux-mm@kvack.org>; Mon,  5 May 2014 11:51:21 -0400 (EDT)
+Received: by mail-we0-f169.google.com with SMTP id u56so7817530wes.28
+        for <linux-mm@kvack.org>; Mon, 05 May 2014 08:51:21 -0700 (PDT)
+Received: from mail-wi0-x233.google.com (mail-wi0-x233.google.com [2a00:1450:400c:c05::233])
+        by mx.google.com with ESMTPS id ej2si3286041wib.118.2014.05.05.08.51.20
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 05 May 2014 08:50:50 -0700 (PDT)
-Message-ID: <5367B356.1030403@suse.cz>
-Date: Mon, 05 May 2014 17:50:46 +0200
-From: Vlastimil Babka <vbabka@suse.cz>
+        Mon, 05 May 2014 08:51:20 -0700 (PDT)
+Received: by mail-wi0-f179.google.com with SMTP id bs8so5790170wib.0
+        for <linux-mm@kvack.org>; Mon, 05 May 2014 08:51:20 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/2] mm/page_alloc: DEBUG_VM checks for free_list placement
- of CMA and RESERVE pages
-References: <533D8015.1000106@suse.cz> <1396539618-31362-1-git-send-email-vbabka@suse.cz> <1396539618-31362-2-git-send-email-vbabka@suse.cz> <53616F39.2070001@oracle.com> <53638ADA.5040200@suse.cz> <5367A1E5.2020903@oracle.com>
-In-Reply-To: <5367A1E5.2020903@oracle.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1399057350-16300-5-git-send-email-ddstreet@ieee.org>
+References: <1397336454-13855-1-git-send-email-ddstreet@ieee.org>
+ <1399057350-16300-1-git-send-email-ddstreet@ieee.org> <1399057350-16300-5-git-send-email-ddstreet@ieee.org>
+From: Dan Streetman <ddstreet@ieee.org>
+Date: Mon, 5 May 2014 11:51:00 -0400
+Message-ID: <CALZtONDMJiQVQDKAnLNt2tyLo6d9EaEtSog9RQELNEN6hjVUdA@mail.gmail.com>
+Subject: Re: [PATCH 4/4] swap: change swap_list_head to plist, add swap_avail_head
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Yong-Taek Lee <ytk.lee@samsung.com>, Minchan Kim <minchan@kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Michal Nazarewicz <mina86@mina86.com>, Dave Jones <davej@redhat.com>
+To: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>
+Cc: Dan Streetman <ddstreet@ieee.org>, Michal Hocko <mhocko@suse.cz>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Weijie Yang <weijieut@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Shaohua Li <shli@fusionio.com>
 
-On 05/05/2014 04:36 PM, Sasha Levin wrote:
-> On 05/02/2014 08:08 AM, Vlastimil Babka wrote:
->> On 04/30/2014 11:46 PM, Sasha Levin wrote:
->>>> On 04/03/2014 11:40 AM, Vlastimil Babka wrote:
->>>>>> For the MIGRATE_RESERVE pages, it is important they do not get misplaced
->>>>>> on free_list of other migratetype, otherwise the whole MIGRATE_RESERVE
->>>>>> pageblock might be changed to other migratetype in try_to_steal_freepages().
->>>>>> For MIGRATE_CMA, the pages also must not go to a different free_list, otherwise
->>>>>> they could get allocated as unmovable and result in CMA failure.
->>>>>>
->>>>>> This is ensured by setting the freepage_migratetype appropriately when placing
->>>>>> pages on pcp lists, and using the information when releasing them back to
->>>>>> free_list. It is also assumed that CMA and RESERVE pageblocks are created only
->>>>>> in the init phase. This patch adds DEBUG_VM checks to catch any regressions
->>>>>> introduced for this invariant.
->>>>>>
->>>>>> Cc: Yong-Taek Lee <ytk.lee@samsung.com>
->>>>>> Cc: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
->>>>>> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
->>>>>> Cc: Mel Gorman <mgorman@suse.de>
->>>>>> Cc: Minchan Kim <minchan@kernel.org>
->>>>>> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
->>>>>> Cc: Marek Szyprowski <m.szyprowski@samsung.com>
->>>>>> Cc: Hugh Dickins <hughd@google.com>
->>>>>> Cc: Rik van Riel <riel@redhat.com>
->>>>>> Cc: Michal Nazarewicz <mina86@mina86.com>
->>>>>> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
->>>>
->>>> Two issues with this patch.
->>>>
->>>> First:
->>>>
->>>> [ 3446.320082] kernel BUG at mm/page_alloc.c:1197!
->>>> [ 3446.320082] invalid opcode: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
->>>> [ 3446.320082] Dumping ftrace buffer:
->>>> [ 3446.320082]    (ftrace buffer empty)
->>>> [ 3446.320082] Modules linked in:
->>>> [ 3446.320082] CPU: 1 PID: 8923 Comm: trinity-c42 Not tainted 3.15.0-rc3-next-20140429-sasha-00015-g7c7e0a7-dirty #427
->>>> [ 3446.320082] task: ffff88053e208000 ti: ffff88053e246000 task.ti: ffff88053e246000
->>>> [ 3446.320082] RIP: get_page_from_freelist (mm/page_alloc.c:1197 mm/page_alloc.c:1548 mm/page_alloc.c:2036)
->>>> [ 3446.320082] RSP: 0018:ffff88053e247778  EFLAGS: 00010002
->>>> [ 3446.320082] RAX: 0000000000000003 RBX: ffffea0000f40000 RCX: 0000000000000008
->>>> [ 3446.320082] RDX: 0000000000000002 RSI: 0000000000000003 RDI: 00000000000000a0
->>>> [ 3446.320082] RBP: ffff88053e247868 R08: 0000000000000007 R09: 0000000000000000
->>>> [ 3446.320082] R10: ffff88006ffcef00 R11: 0000000000000000 R12: 0000000000000014
->>>> [ 3446.335888] R13: ffffea000115ffe0 R14: ffffea000115ffe0 R15: 0000000000000000
->>>> [ 3446.335888] FS:  00007f8c9f059700(0000) GS:ffff88006ec00000(0000) knlGS:0000000000000000
->>>> [ 3446.335888] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
->>>> [ 3446.335888] CR2: 0000000002cbc048 CR3: 000000054cdb4000 CR4: 00000000000006a0
->>>> [ 3446.335888] DR0: 00000000006de000 DR1: 00000000006de000 DR2: 0000000000000000
->>>> [ 3446.335888] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000602
->>>> [ 3446.335888] Stack:
->>>> [ 3446.335888]  ffff88053e247798 ffff88006eddc0b8 0000000000000016 0000000000000000
->>>> [ 3446.335888]  ffff88006ffd2068 ffff88006ffdb008 0000000100000000 0000000000000000
->>>> [ 3446.335888]  ffff88006ffdb000 0000000000000000 0000000000000003 0000000000000001
->>>> [ 3446.335888] Call Trace:
->>>> [ 3446.335888] __alloc_pages_nodemask (mm/page_alloc.c:2731)
->>>> [ 3446.335888] ? __this_cpu_preempt_check (lib/smp_processor_id.c:63)
->>>> [ 3446.335888] alloc_pages_vma (include/linux/mempolicy.h:76 mm/mempolicy.c:1998)
->>>> [ 3446.335888] ? shmem_alloc_page (mm/shmem.c:881)
->>>> [ 3446.335888] ? kvm_clock_read (arch/x86/include/asm/preempt.h:90 arch/x86/kernel/kvmclock.c:86)
->>>> [ 3446.335888] shmem_alloc_page (mm/shmem.c:881)
->>>> [ 3446.335888] ? __const_udelay (arch/x86/lib/delay.c:126)
->>>> [ 3446.335888] ? __rcu_read_unlock (kernel/rcu/update.c:97)
->>>> [ 3446.335888] ? find_get_entry (mm/filemap.c:979)
->>>> [ 3446.335888] ? find_get_entry (mm/filemap.c:940)
->>>> [ 3446.335888] ? find_lock_entry (mm/filemap.c:1024)
->>>> [ 3446.335888] shmem_getpage_gfp (mm/shmem.c:1130)
->>>> [ 3446.335888] ? sched_clock_local (kernel/sched/clock.c:214)
->>>> [ 3446.335888] ? do_read_fault.isra.42 (mm/memory.c:3523)
->>>> [ 3446.335888] shmem_fault (mm/shmem.c:1237)
->>>> [ 3446.335888] ? do_read_fault.isra.42 (mm/memory.c:3523)
->>>> [ 3446.335888] __do_fault (mm/memory.c:3344)
->>>> [ 3446.335888] ? _raw_spin_unlock (arch/x86/include/asm/preempt.h:98 include/linux/spinlock_api_smp.h:152 kernel/locking/spinlock.c:183)
->>>> [ 3446.335888] do_read_fault.isra.42 (mm/memory.c:3524)
->>>> [ 3446.335888] ? get_parent_ip (kernel/sched/core.c:2485)
->>>> [ 3446.335888] ? get_parent_ip (kernel/sched/core.c:2485)
->>>> [ 3446.335888] __handle_mm_fault (mm/memory.c:3662 mm/memory.c:3823 mm/memory.c:3950)
->>>> [ 3446.335888] ? __const_udelay (arch/x86/lib/delay.c:126)
->>>> [ 3446.335888] ? __rcu_read_unlock (kernel/rcu/update.c:97)
->>>> [ 3446.335888] handle_mm_fault (mm/memory.c:3973)
->>>> [ 3446.335888] __get_user_pages (mm/memory.c:1863)
->>>> [ 3446.335888] ? preempt_count_sub (kernel/sched/core.c:2541)
->>>> [ 3446.335888] __mlock_vma_pages_range (mm/mlock.c:255)
->>>> [ 3446.335888] __mm_populate (mm/mlock.c:711)
->>>> [ 3446.335888] vm_mmap_pgoff (include/linux/mm.h:1841 mm/util.c:402)
->>>> [ 3446.335888] SyS_mmap_pgoff (mm/mmap.c:1378)
->>>> [ 3446.335888] ? syscall_trace_enter (include/linux/context_tracking.h:27 arch/x86/kernel/ptrace.c:1461)
->>>> [ 3446.335888] ia32_do_call (arch/x86/ia32/ia32entry.S:430)
->>>> [ 3446.335888] Code: 00 66 0f 1f 44 00 00 ba 02 00 00 00 31 f6 48 89 c7 e8 c1 c3 ff ff 48 8b 53 10 83 f8 03 74 08 83 f8 04 75 13 0f 1f 00 39 d0 74 0c <0f> 0b 66 2e 0f 1f 84 00 00 00 00 00 45 85 ff 75 15 49 8b 55 00
->>>> [ 3446.335888] RIP get_page_from_freelist (mm/page_alloc.c:1197 mm/page_alloc.c:1548 mm/page_alloc.c:2036)
->>>> [ 3446.335888]  RSP <ffff88053e247778>
->> Hey, that's not an issue, that means the patch works as intended :) And
->> I believe it's not a bug introduced by PATCH 1/2.
->>
->> So, according to my decodecode reading, RAX is the results of
->> get_pageblock_migratetype() and it's MIGRATE_RESERVE. RDX is the result
->> of get_freepage_migratetype() and it's MIGRATE_UNMOVABLE. The
->> freepage_migratetype has just been set either by __rmqueue_smallest() or
->> __rmqueue_fallback(), according to the free_list the page has been taken
->> from. So this looks like a page from MIGRATE_RESERVE pageblock found on
->> the !MIGRATE_RESERVE free_list, which is exactly what the patch intends
->> to catch.
->>
->> I think there are two possible explanations.
->>
->> 1) the pageblock is genuinely MIGRATE_RESERVE and it was misplaced by
->> mistake. I think it wasn't in free_pcppages_bulk() as there's the same
->> VM_BUG_ON which would supposedly trigger at the moment of displacing. In
->> theory it's possible that there's a race through __free_pages_ok() ->
->> free_one_page() where the get_pageblock_migratetype() in
->> __free_pages_ok() would race with set_pageblock_migratetype() and result
->> in bogus value. But nobody should be calling set_pageblock_migratetype()
->> on a MIGRATE_RESERVE pageblock.
->>
->> 2) the pageblock was marked as MIGRATE_RESERVE due to a race between
->> set_pageblock_migratetype() and set_pageblock_skip(). The latter is
->> currently not serialized by zone->lock, nor it uses atomic bit set. So
->> it may result in lost updates in a racing set_pageblock_migratetype(). I
->> think a well-placed race when changing pageblock from MIGRATE_MOVABLE to
->> MIGRATE_RECLAIMABLE could result in MIGRATE_RESERVE value. Similar races
->> have been already observed to be a problem where frequent changing
->> to/from MIGRATE_ISOLATE is involved, and I did a patch series to address
->> this, but it was not complete and I postponed it after Mel's changes
->> that remove the racy for-cycles completely. So it might be that his
->> "[PATCH 08/17] mm: page_alloc: Use word-based accesses for get/set
->> pageblock bitmaps" already solves this bug (but maybe only on certain
->> architectures where you don't need atomic operations). You might try
->> that patch if you can reproduce this bug frequently enough?
+On Fri, May 2, 2014 at 3:02 PM, Dan Streetman <ddstreet@ieee.org> wrote:
+> Originally get_swap_page() started iterating through the singly-linked
+> list of swap_info_structs using swap_list.next or highest_priority_index,
+> which both were intended to point to the highest priority active swap
+> target that was not full.  The first patch in this series changed the
+> singly-linked list to a doubly-linked list, and removed the logic to start
+> at the highest priority non-full entry; it starts scanning at the highest
+> priority entry each time, even if the entry is full.
 >
-> I've tried that patch, but still see the same BUG_ON.
+> Replace the manually ordered swap_list_head with a plist, renamed to
+> swap_active_head for clarity.  Add a new plist, swap_avail_head.
+> The original swap_active_head plist contains all active swap_info_structs,
+> as before, while the new swap_avail_head plist contains only
+> swap_info_structs that are active and available, i.e. not full.
+> Add a new spinlock, swap_avail_lock, to protect the swap_avail_head list.
+>
+> Mel Gorman suggested using plists since they internally handle ordering
+> the list entries based on priority, which is exactly what swap was doing
+> manually.  All the ordering code is now removed, and swap_info_struct
+> entries and simply added to their corresponding plist and automatically
+> ordered correctly.
+>
+> Using a new plist for available swap_info_structs simplifies and
+> optimizes get_swap_page(), which no longer has to iterate over full
+> swap_info_structs.  Using a new spinlock for swap_avail_head plist
+> allows each swap_info_struct to add or remove themselves from the
+> plist when they become full or not-full; previously they could not
+> do so because the swap_info_struct->lock is held when they change
+> from full<->not-full, and the swap_lock protecting the main
+> swap_active_head must be ordered before any swap_info_struct->lock.
+>
+> Signed-off-by: Dan Streetman <ddstreet@ieee.org>
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: Shaohua Li <shli@fusionio.com>
+>
+> ---
+>
+> Mel, I tried moving the ordering and rotating code into common list functions
+> and I also tried plists, and you were right, using plists is much simpler and
+> more maintainable.  The only required update to plist is the plist_rotate()
+> function, which is even simpler to use in get_swap_page() than the
+> list_rotate_left() function.
+>
+> After looking more closely at plists, I don't see how they would reduce
+> performance, so I don't think there is any concern there, although Shaohua if
+> you have time it might be nice to check this updated patch set's performance.
+> I will note that if CONFIG_DEBUG_PI_LIST is set, there's quite a lot of list
+> checking going on for each list modification including rotate; that config is
+> set if "RT Mutex debugging, deadlock detection" is set, so I assume in that
+> case overall system performance is expected to be less than optimal.
+>
+> Also, I might have over-commented in this patch; if so I can remove/reduce
+> some of it. :)
+>
+> Changelog since v1 https://lkml.org/lkml/2014/4/12/73
+>   -use plists instead of regular lists
+>   -update/add comments
+>
+>  include/linux/swap.h     |   3 +-
+>  include/linux/swapfile.h |   2 +-
+>  mm/frontswap.c           |   6 +-
+>  mm/swapfile.c            | 142 +++++++++++++++++++++++++++++------------------
+>  4 files changed, 94 insertions(+), 59 deletions(-)
+>
+> diff --git a/include/linux/swap.h b/include/linux/swap.h
+> index 8bb85d6..9155bcd 100644
+> --- a/include/linux/swap.h
+> +++ b/include/linux/swap.h
+> @@ -214,7 +214,8 @@ struct percpu_cluster {
+>  struct swap_info_struct {
+>         unsigned long   flags;          /* SWP_USED etc: see above */
+>         signed short    prio;           /* swap priority of this type */
+> -       struct list_head list;          /* entry in swap list */
+> +       struct plist_node list;         /* entry in swap_active_head */
+> +       struct plist_node avail_list;   /* entry in swap_avail_head */
+>         signed char     type;           /* strange name for an index */
+>         unsigned int    max;            /* extent of the swap_map */
+>         unsigned char *swap_map;        /* vmalloc'ed array of usage counts */
+> diff --git a/include/linux/swapfile.h b/include/linux/swapfile.h
+> index 2eab382..388293a 100644
+> --- a/include/linux/swapfile.h
+> +++ b/include/linux/swapfile.h
+> @@ -6,7 +6,7 @@
+>   * want to expose them to the dozens of source files that include swap.h
+>   */
+>  extern spinlock_t swap_lock;
+> -extern struct list_head swap_list_head;
+> +extern struct plist_head swap_active_head;
+>  extern struct swap_info_struct *swap_info[];
+>  extern int try_to_unuse(unsigned int, bool, unsigned long);
+>
+> diff --git a/mm/frontswap.c b/mm/frontswap.c
+> index fae1160..c30eec5 100644
+> --- a/mm/frontswap.c
+> +++ b/mm/frontswap.c
+> @@ -331,7 +331,7 @@ static unsigned long __frontswap_curr_pages(void)
+>         struct swap_info_struct *si = NULL;
+>
+>         assert_spin_locked(&swap_lock);
+> -       list_for_each_entry(si, &swap_list_head, list)
+> +       plist_for_each_entry(si, &swap_active_head, list)
+>                 totalpages += atomic_read(&si->frontswap_pages);
+>         return totalpages;
+>  }
+> @@ -346,7 +346,7 @@ static int __frontswap_unuse_pages(unsigned long total, unsigned long *unused,
+>         unsigned long pages = 0, pages_to_unuse = 0;
+>
+>         assert_spin_locked(&swap_lock);
+> -       list_for_each_entry(si, &swap_list_head, list) {
+> +       plist_for_each_entry(si, &swap_active_head, list) {
+>                 si_frontswap_pages = atomic_read(&si->frontswap_pages);
+>                 if (total_pages_to_unuse < si_frontswap_pages) {
+>                         pages = pages_to_unuse = total_pages_to_unuse;
+> @@ -408,7 +408,7 @@ void frontswap_shrink(unsigned long target_pages)
+>         /*
+>          * we don't want to hold swap_lock while doing a very
+>          * lengthy try_to_unuse, but swap_list may change
+> -        * so restart scan from swap_list_head each time
+> +        * so restart scan from swap_active_head each time
+>          */
+>         spin_lock(&swap_lock);
+>         ret = __frontswap_shrink(target_pages, &pages_to_unuse, &type);
+> diff --git a/mm/swapfile.c b/mm/swapfile.c
+> index 6c95a8c..ec230e3 100644
+> --- a/mm/swapfile.c
+> +++ b/mm/swapfile.c
+> @@ -61,7 +61,22 @@ static const char Unused_offset[] = "Unused swap offset entry ";
+>   * all active swap_info_structs
+>   * protected with swap_lock, and ordered by priority.
+>   */
+> -LIST_HEAD(swap_list_head);
+> +PLIST_HEAD(swap_active_head);
+> +
+> +/*
+> + * all available (active, not full) swap_info_structs
+> + * protected with swap_avail_lock, ordered by priority.
+> + * This is used by get_swap_page() instead of swap_active_head
+> + * because swap_active_head includes all swap_info_structs,
+> + * but get_swap_page() doesn't need to look at full ones.
+> + * This uses its own lock instead of swap_lock because when a
+> + * swap_info_struct changes between not-full/full, it needs to
+> + * add/remove itself to/from this list, but the swap_info_struct->lock
+> + * is held and the locking order requires swap_lock to be taken
+> + * before any swap_info_struct->lock.
+> + */
+> +static PLIST_HEAD(swap_avail_head);
+> +static DEFINE_SPINLOCK(swap_avail_lock);
+>
+>  struct swap_info_struct *swap_info[MAX_SWAPFILES];
+>
+> @@ -594,6 +609,9 @@ checks:
+>         if (si->inuse_pages == si->pages) {
+>                 si->lowest_bit = si->max;
+>                 si->highest_bit = 0;
+> +               spin_lock(&swap_avail_lock);
+> +               plist_del(&si->avail_list, &swap_avail_head);
+> +               spin_unlock(&swap_avail_lock);
+>         }
+>         si->swap_map[offset] = usage;
+>         inc_cluster_info_page(si, si->cluster_info, offset);
+> @@ -645,57 +663,60 @@ swp_entry_t get_swap_page(void)
+>  {
+>         struct swap_info_struct *si, *next;
+>         pgoff_t offset;
+> -       struct list_head *tmp;
+>
+> -       spin_lock(&swap_lock);
+>         if (atomic_long_read(&nr_swap_pages) <= 0)
+>                 goto noswap;
+>         atomic_long_dec(&nr_swap_pages);
+>
+> -       list_for_each(tmp, &swap_list_head) {
+> -               si = list_entry(tmp, typeof(*si), list);
+> +       spin_lock(&swap_avail_lock);
+> +start_over:
+> +       plist_for_each_entry_safe(si, next, &swap_avail_head, avail_list) {
+> +               /* rotate si to tail of same-priority siblings */
+> +               plist_rotate(&si->avail_list, &swap_avail_head);
+> +               spin_unlock(&swap_avail_lock);
+>                 spin_lock(&si->lock);
+>                 if (!si->highest_bit || !(si->flags & SWP_WRITEOK)) {
+> +                       spin_lock(&swap_avail_lock);
+> +                       if (plist_node_empty(&si->avail_list)) {
+> +                               spin_unlock(&si->lock);
+> +                               goto nextsi;
+> +                       }
+> +                       WARN(!si->highest_bit,
+> +                            "swap_info %d in list but !highest_bit\n",
+> +                            si->type);
+> +                       WARN(!(si->flags & SWP_WRITEOK),
+> +                            "swap_info %d in list but !SWP_WRITEOK\n",
+> +                            si->type);
+> +                       plist_del(&si->avail_list, &swap_avail_head);
+>                         spin_unlock(&si->lock);
+> -                       continue;
+> +                       goto nextsi;
+>                 }
+>
+> -               /*
+> -                * rotate the current swap_info that we're going to use
+> -                * to after any other swap_info that have the same prio,
+> -                * so that all equal-priority swap_info get used equally
+> -                */
+> -               next = si;
+> -               list_for_each_entry_continue(next, &swap_list_head, list) {
+> -                       if (si->prio != next->prio)
+> -                               break;
+> -                       list_rotate_left(&si->list);
+> -                       next = si;
+> -               }
+> -
+> -               spin_unlock(&swap_lock);
+>                 /* This is called for allocating swap entry for cache */
+>                 offset = scan_swap_map(si, SWAP_HAS_CACHE);
+>                 spin_unlock(&si->lock);
+>                 if (offset)
+>                         return swp_entry(si->type, offset);
+> -               spin_lock(&swap_lock);
+> +               pr_debug("scan_swap_map of si %d failed to find offset\n",
+> +                      si->type);
 
-Oh damn, I've realized that my assumptions about MIGRATE_RESERVE 
-pageblocks being created only on zone init time were wrong. 
-setup_zone_migrate_reserve() is called also from the handler of 
-min_free_kbytes sysctl... does trinity try to change that while running?
-The function will change MOVABLE pageblocks to RESERVE and try to move 
-all free pages to the RESERVE free_list, but of course pages on pcplists 
-will remain MOVABLE and may trigger the VM_BUG_ON. You triggered the bug 
-with page on MOVABLE free_list (in the first reply I said its UNMOVABLE 
-by mistake) so this might be good explanation if trinity changes 
-min_free_kbytes.
+I forgot to mention I changed this from printk(KERN_DEBUG to pr_debug
+between v1 and v2.  Not sure if a scan_swap_map() failure should be
+always printed or only during debug...
 
-Furthermore, I think there's a problem that setup_zone_migrate_reserve() 
-operates on pageblocks, but as MAX_ODER is higher than pageblock_order, 
-RESERVE pages might be merged with buddies of different migratetype and 
-end up on their free_list. That seems to me like a flaw in the design of 
-reserves, but perhaps others won't think it's serious enough to fix?
+> +               spin_lock(&swap_avail_lock);
+> +nextsi:
+>                 /*
+>                  * if we got here, it's likely that si was almost full before,
+>                  * and since scan_swap_map() can drop the si->lock, multiple
+>                  * callers probably all tried to get a page from the same si
+> -                * and it filled up before we could get one.  So we need to
+> -                * try again.  Since we dropped the swap_lock, there may now
+> -                * be non-full higher priority swap_infos, and this si may have
+> -                * even been removed from the list (although very unlikely).
+> -                * Let's start over.
+> +                * and it filled up before we could get one; or, the si filled
+> +                * up between us dropping swap_avail_lock and taking si->lock.
+> +                * Since we dropped the swap_avail_lock, the swap_avail_head
+> +                * list may have been modified; so if next is still in the
+> +                * swap_avail_head list then try it, otherwise start over.
+>                  */
+> -               tmp = &swap_list_head;
+> +               if (plist_node_empty(&next->avail_list))
+> +                       goto start_over;
 
-So in the end this VM_DEBUG check probably cannot work anymore for 
-MIGRATE_RESERVE, only for CMA. I'm not sure if it's worth keeping it 
-only for CMA, what are the CMA guys' opinions on that?
+One note I want to point out...if we get here, we tried the highest
+priority swap_info_struct, and it filled up; so the options are
+either:
+1. start over at the beginning
+2. continue at next
 
-Also this means that the 1/2 patch "prevent MIGRATE_RESERVE pages from 
-being misplaced" still won't prevent stealing a MIGRATE_RESERVE 
-pageblock when __rmqueue_fallback() encounters a strayed MIGRATE_RESERVE 
-page on e.g. a MOVABLE freelist. This is fixable by having 
-__rmqueue_fallback() not trusting the migratetype of free_list and 
-checking for pageblock_migratetype. I hate that, but at least it's not 
-on the fast path...
+Under most circumstances, the beginning == next.  But, a higher
+priority swap_info_struct may have freed page(s) and been added back
+into the list.
 
-> Thanks,
-> Sasha
+The danger of continuing with next, if it's still in the list, appears
+(to me) to be if next was the last swap_info_struct in the list, and
+it also fills up and fails, then get_swap_page() will fail, even
+though there may be higher priority swap_info_struct(s) that became
+available.
+
+However the danger of starting over in every case, I think, is
+continuing to fail repeatedly in scan_swap_map() - for example under
+heavy swap, if swap_info_struct(s) are bouncing between full and
+not-full (I don't know how likely/common this is).  Especially if
+there are lower priority swap_info_struct(s) with plenty of room, that
+may unnecessarily delay threads trying to get a swap page.
+
+So I'm not sure if doing it this way, continuing with next, is better
+than just always starting over.
+
+One option may be to continue at next, but also after the
+plist_for_each_safe loop (i.e. complete failure), do:
+
+if (!plist_head_empty(&swap_avail_head))
+  goto start_over;
+
+so as to prevent a get_swap_page() failure when there actually are
+still some pages available...of course, that probably would only ever
+get reached if the system is very, very close to completely filling up
+swap, so will it really matter if get_swap_page() fails slightly
+before all swap is full or if threads battle until the bitter end when
+there is actually no swap left...
+
+
+>         }
+>
+>         atomic_long_inc(&nr_swap_pages);
+>  noswap:
+> -       spin_unlock(&swap_lock);
+>         return (swp_entry_t) {0};
+>  }
+>
+> @@ -798,8 +819,18 @@ static unsigned char swap_entry_free(struct swap_info_struct *p,
+>                 dec_cluster_info_page(p, p->cluster_info, offset);
+>                 if (offset < p->lowest_bit)
+>                         p->lowest_bit = offset;
+> -               if (offset > p->highest_bit)
+> +               if (offset > p->highest_bit) {
+> +                       bool was_full = !p->highest_bit;
+>                         p->highest_bit = offset;
+> +                       if (was_full && (p->flags & SWP_WRITEOK)) {
+> +                               spin_lock(&swap_avail_lock);
+> +                               WARN_ON(!plist_node_empty(&p->avail_list));
+> +                               if (plist_node_empty(&p->avail_list))
+> +                                       plist_add(&p->avail_list,
+> +                                                 &swap_avail_head);
+> +                               spin_unlock(&swap_avail_lock);
+> +                       }
+> +               }
+>                 atomic_long_inc(&nr_swap_pages);
+>                 p->inuse_pages--;
+>                 frontswap_invalidate_page(p->type, offset);
+> @@ -1734,12 +1765,16 @@ static void _enable_swap_info(struct swap_info_struct *p, int prio,
+>                                 unsigned char *swap_map,
+>                                 struct swap_cluster_info *cluster_info)
+>  {
+> -       struct swap_info_struct *si;
+> -
+>         if (prio >= 0)
+>                 p->prio = prio;
+>         else
+>                 p->prio = --least_priority;
+> +       /*
+> +        * the plist prio is negated because plist ordering is
+> +        * low-to-high, while swap ordering is high-to-low
+> +        */
+> +       p->list.prio = -p->prio;
+> +       p->avail_list.prio = -p->prio;
+>         p->swap_map = swap_map;
+>         p->cluster_info = cluster_info;
+>         p->flags |= SWP_WRITEOK;
+> @@ -1747,27 +1782,20 @@ static void _enable_swap_info(struct swap_info_struct *p, int prio,
+>         total_swap_pages += p->pages;
+>
+>         assert_spin_locked(&swap_lock);
+> -       BUG_ON(!list_empty(&p->list));
+> -       /*
+> -        * insert into swap list; the list is in priority order,
+> -        * so that get_swap_page() can get a page from the highest
+> -        * priority swap_info_struct with available page(s), and
+> -        * swapoff can adjust the auto-assigned (i.e. negative) prio
+> -        * values for any lower-priority swap_info_structs when
+> -        * removing a negative-prio swap_info_struct
+> -        */
+> -       list_for_each_entry(si, &swap_list_head, list) {
+> -               if (p->prio >= si->prio) {
+> -                       list_add_tail(&p->list, &si->list);
+> -                       return;
+> -               }
+> -       }
+>         /*
+> -        * this covers two cases:
+> -        * 1) p->prio is less than all existing prio
+> -        * 2) the swap list is empty
+> +        * both lists are plists, and thus priority ordered.
+> +        * swap_active_head needs to be priority ordered for swapoff(),
+> +        * which on removal of any swap_info_struct with an auto-assigned
+> +        * (i.e. negative) priority increments the auto-assigned priority
+> +        * of any lower-priority swap_info_structs.
+> +        * swap_avail_head needs to be priority ordered for get_swap_page(),
+> +        * which allocates swap pages from the highest available priority
+> +        * swap_info_struct.
+>          */
+> -       list_add_tail(&p->list, &swap_list_head);
+> +       plist_add(&p->list, &swap_active_head);
+> +       spin_lock(&swap_avail_lock);
+> +       plist_add(&p->avail_list, &swap_avail_head);
+> +       spin_unlock(&swap_avail_lock);
+>  }
+>
+>  static void enable_swap_info(struct swap_info_struct *p, int prio,
+> @@ -1821,7 +1849,7 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
+>
+>         mapping = victim->f_mapping;
+>         spin_lock(&swap_lock);
+> -       list_for_each_entry(p, &swap_list_head, list) {
+> +       plist_for_each_entry(p, &swap_active_head, list) {
+>                 if (p->flags & SWP_WRITEOK) {
+>                         if (p->swap_file->f_mapping == mapping) {
+>                                 found = 1;
+> @@ -1841,16 +1869,21 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
+>                 spin_unlock(&swap_lock);
+>                 goto out_dput;
+>         }
+> +       spin_lock(&swap_avail_lock);
+> +       plist_del(&p->avail_list, &swap_avail_head);
+> +       spin_unlock(&swap_avail_lock);
+>         spin_lock(&p->lock);
+>         if (p->prio < 0) {
+>                 struct swap_info_struct *si = p;
+>
+> -               list_for_each_entry_continue(si, &swap_list_head, list) {
+> +               plist_for_each_entry_continue(si, &swap_active_head, list) {
+>                         si->prio++;
+> +                       si->list.prio--;
+> +                       si->avail_list.prio--;
+>                 }
+>                 least_priority++;
+>         }
+> -       list_del_init(&p->list);
+> +       plist_del(&p->list, &swap_active_head);
+>         atomic_long_sub(p->pages, &nr_swap_pages);
+>         total_swap_pages -= p->pages;
+>         p->flags &= ~SWP_WRITEOK;
+> @@ -2115,7 +2148,8 @@ static struct swap_info_struct *alloc_swap_info(void)
+>                  */
+>         }
+>         INIT_LIST_HEAD(&p->first_swap_extent.list);
+> -       INIT_LIST_HEAD(&p->list);
+> +       plist_node_init(&p->list, 0);
+> +       plist_node_init(&p->avail_list, 0);
+>         p->flags = SWP_USED;
+>         spin_unlock(&swap_lock);
+>         spin_lock_init(&p->lock);
+> --
+> 1.8.3.1
 >
 
 --
