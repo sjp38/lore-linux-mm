@@ -1,242 +1,261 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oa0-f46.google.com (mail-oa0-f46.google.com [209.85.219.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 038746B009B
-	for <linux-mm@kvack.org>; Mon,  5 May 2014 11:20:18 -0400 (EDT)
-Received: by mail-oa0-f46.google.com with SMTP id i4so7876919oah.19
-        for <linux-mm@kvack.org>; Mon, 05 May 2014 08:20:18 -0700 (PDT)
-Received: from mail-oa0-x236.google.com (mail-oa0-x236.google.com [2607:f8b0:4003:c02::236])
-        by mx.google.com with ESMTPS id q5si334160oew.166.2014.05.05.08.20.17
+Received: from mail-ee0-f46.google.com (mail-ee0-f46.google.com [74.125.83.46])
+	by kanga.kvack.org (Postfix) with ESMTP id CB9BF6B009C
+	for <linux-mm@kvack.org>; Mon,  5 May 2014 11:31:50 -0400 (EDT)
+Received: by mail-ee0-f46.google.com with SMTP id t10so1884411eei.33
+        for <linux-mm@kvack.org>; Mon, 05 May 2014 08:31:50 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id z2si10578205eeo.34.2014.05.05.08.31.48
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 05 May 2014 08:20:18 -0700 (PDT)
-Received: by mail-oa0-f54.google.com with SMTP id j17so4182458oag.41
-        for <linux-mm@kvack.org>; Mon, 05 May 2014 08:20:17 -0700 (PDT)
-Date: Mon, 5 May 2014 10:20:14 -0500
-From: Seth Jennings <sjennings@variantweb.net>
-Subject: Re: [PATCH] zram: remove global tb_lock by using lock-free CAS
-Message-ID: <20140505152014.GA8551@cerebellum.variantweb.net>
-References: <000001cf6816$d538c370$7faa4a50$%yang@samsung.com>
+        Mon, 05 May 2014 08:31:49 -0700 (PDT)
+Date: Mon, 5 May 2014 17:31:44 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 2/2] mm/memcontrol.c: introduce helper
+ mem_cgroup_zoneinfo_zone()
+Message-ID: <20140505153144.GD32598@dhcp22.suse.cz>
+References: <1397862103-31982-1-git-send-email-nasa4836@gmail.com>
+ <20140422095923.GD29311@dhcp22.suse.cz>
+ <20140428150426.GB24807@dhcp22.suse.cz>
+ <20140501125450.GA23420@cmpxchg.org>
+ <20140502150516.d42792bad53d86fb727816bd@linux-foundation.org>
+ <20140502232908.GQ23420@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <000001cf6816$d538c370$7faa4a50$%yang@samsung.com>
+In-Reply-To: <20140502232908.GQ23420@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Weijie Yang <weijie.yang@samsung.com>
-Cc: 'Minchan Kim' <minchan@kernel.org>, 'Andrew Morton' <akpm@linux-foundation.org>, 'Nitin Gupta' <ngupta@vflare.org>, 'Sergey Senozhatsky' <sergey.senozhatsky@gmail.com>, 'Bob Liu' <bob.liu@oracle.com>, 'Dan Streetman' <ddstreet@ieee.org>, weijie.yang.kh@gmail.com, heesub.shin@samsung.com, 'linux-kernel' <linux-kernel@vger.kernel.org>, 'Linux-MM' <linux-mm@kvack.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jianyu Zhan <nasa4836@gmail.com>, bsingharora@gmail.com, kamezawa.hiroyu@jp.fujitsu.com, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.com
 
-On Mon, May 05, 2014 at 12:01:21PM +0800, Weijie Yang wrote:
-> Currently, we use a rwlock tb_lock to protect concurrent access to
-> whole zram meta table. However, according to the actual access model,
-> there is only a small chance for upper user access the same table[index],
-> so the current lock granularity is too big.
+On Fri 02-05-14 19:29:08, Johannes Weiner wrote:
+[...]
+> From: Jianyu Zhan <nasa4836@gmail.com>
+> Subject: [patch] mm: memcontrol: clean up memcg zoneinfo lookup
 > 
-> This patch add a atomic state for every table[index] to record its access,
-> by using CAS operation, protect concurrent access to the same table[index],
-> meanwhile allow the maximum concurrency.
+> Memcg zoneinfo lookup sites have either the page, the zone, or the
+> node id and zone index, but sites that only have the zone have to look
+> up the node id and zone index themselves, whereas sites that already
+> have those two integers use a function for a simple pointer chase.
 > 
-> On 64-bit system, it will not increase the meta table memory overhead, and
-> on 32-bit system with 4K page_size, it will increase about 1MB memory overhead
-> for 1GB zram. So, it is cost-efficient.
+> Provide mem_cgroup_zone_zoneinfo() that takes a zone pointer and let
+> sites that already have node id and zone index - all for each node,
+> for each zone iterators - use &memcg->nodeinfo[nid]->zoneinfo[zid].
 > 
-> Test result:
-> (x86-64 Intel Core2 Q8400, system memory 4GB, Ubuntu 12.04,
-> kernel v3.15.0-rc3, zram 1GB with 4 max_comp_streams LZO,
-> take the average of 5 tests)
+> Rename page_cgroup_zoneinfo() to mem_cgroup_page_zoneinfo() to match.
 > 
-> iozone -t 4 -R -r 16K -s 200M -I +Z
-> 
->       Test          base	   lock-free	ratio
-> ------------------------------------------------------
->  Initial write   1348017.60    1424141.62   +5.6%
->        Rewrite   1520189.16    1652504.81   +8.7%
->           Read   8294445.45   11404668.35   +37.5%
->        Re-read   8134448.83   11555483.75   +42.1%
->   Reverse Read   6748717.97    8394478.17   +24.4%
->    Stride read   7220276.66    9372229.95   +29.8%
->    Random read   7133010.06    9187221.90   +28.8%
-> Mixed workload   4056980.71    5843370.85   +44.0%
->   Random write   1470106.17    1608947.04   +9.4%
->         Pwrite   1259493.72    1311055.32   +4.1%
->          Pread   4247583.17    4652056.11   +9.5%
-> 
-> Signed-off-by: Weijie Yang <weijie.yang@samsung.com>
+> Signed-off-by: Jianyu Zhan <nasa4836@gmail.com>
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+
+OK, this looks better. The naming is more descriptive and it even
+removes some code. Good. The opencoded zoneinfo dereference is not that
+nice but I guess I can live with it.
+
+Acked-by: Michal Hocko <mhocko@suse.cz>
+
 > ---
+>  mm/memcontrol.c | 89 +++++++++++++++++++++++++--------------------------------
+>  1 file changed, 39 insertions(+), 50 deletions(-)
 > 
-> This patch is based on linux-next tree, commit b5c8d48bf8f42 
-> 
->  drivers/block/zram/zram_drv.c |   41 ++++++++++++++++++++++++++---------------
->  drivers/block/zram/zram_drv.h |    5 ++++-
->  2 files changed, 30 insertions(+), 16 deletions(-)
-> 
-> diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
-> index 48eccb3..8b70945
-> --- a/drivers/block/zram/zram_drv.c
-> +++ b/drivers/block/zram/zram_drv.c
-> @@ -255,7 +255,6 @@ static struct zram_meta *zram_meta_alloc(u64 disksize)
->  		goto free_table;
->  	}
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 29501f040568..83cbd5a0e62f 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -677,9 +677,11 @@ static void disarm_static_keys(struct mem_cgroup *memcg)
+>  static void drain_all_stock_async(struct mem_cgroup *memcg);
 >  
-> -	rwlock_init(&meta->tb_lock);
->  	return meta;
->  
->  free_table:
-> @@ -339,12 +338,14 @@ static int zram_decompress_page(struct zram *zram, char *mem, u32 index)
->  	unsigned long handle;
->  	u16 size;
->  
-> -	read_lock(&meta->tb_lock);
-> +	while(atomic_cmpxchg(&meta->table[index].state, IDLE, ACCESS) != IDLE)
-> +		cpu_relax();
-> +
-
-So... this might be dumb question, but this looks like a spinlock
-implementation.
-
-What advantage does this have over a standard spinlock?
-
-Seth
-
->  	handle = meta->table[index].handle;
->  	size = meta->table[index].size;
->  
->  	if (!handle || zram_test_flag(meta, index, ZRAM_ZERO)) {
-> -		read_unlock(&meta->tb_lock);
-> +		atomic_set(&meta->table[index].state, IDLE);
->  		clear_page(mem);
->  		return 0;
->  	}
-> @@ -355,7 +356,7 @@ static int zram_decompress_page(struct zram *zram, char *mem, u32 index)
->  	else
->  		ret = zcomp_decompress(zram->comp, cmem, size, mem);
->  	zs_unmap_object(meta->mem_pool, handle);
-> -	read_unlock(&meta->tb_lock);
-> +	atomic_set(&meta->table[index].state, IDLE);
->  
->  	/* Should NEVER happen. Return bio error if it does. */
->  	if (unlikely(ret)) {
-> @@ -376,14 +377,16 @@ static int zram_bvec_read(struct zram *zram, struct bio_vec *bvec,
->  	struct zram_meta *meta = zram->meta;
->  	page = bvec->bv_page;
->  
-> -	read_lock(&meta->tb_lock);
-> +	while(atomic_cmpxchg(&meta->table[index].state, IDLE, ACCESS) != IDLE)
-> +		cpu_relax();
-> +
->  	if (unlikely(!meta->table[index].handle) ||
->  			zram_test_flag(meta, index, ZRAM_ZERO)) {
-> -		read_unlock(&meta->tb_lock);
-> +		atomic_set(&meta->table[index].state, IDLE);
->  		handle_zero_page(bvec);
->  		return 0;
->  	}
-> -	read_unlock(&meta->tb_lock);
-> +	atomic_set(&meta->table[index].state, IDLE);
->  
->  	if (is_partial_io(bvec))
->  		/* Use  a temporary buffer to decompress the page */
-> @@ -461,10 +464,13 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
->  	if (page_zero_filled(uncmem)) {
->  		kunmap_atomic(user_mem);
->  		/* Free memory associated with this sector now. */
-> -		write_lock(&zram->meta->tb_lock);
-> +		while(atomic_cmpxchg(&meta->table[index].state,
-> +				IDLE, ACCESS) != IDLE)
-> +			cpu_relax();
-> +
->  		zram_free_page(zram, index);
->  		zram_set_flag(meta, index, ZRAM_ZERO);
-> -		write_unlock(&zram->meta->tb_lock);
-> +		atomic_set(&meta->table[index].state, IDLE);
->  
->  		atomic64_inc(&zram->stats.zero_pages);
->  		ret = 0;
-> @@ -514,12 +520,13 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
->  	 * Free memory associated with this sector
->  	 * before overwriting unused sectors.
->  	 */
-> -	write_lock(&zram->meta->tb_lock);
-> +	while(atomic_cmpxchg(&meta->table[index].state, IDLE, ACCESS) != IDLE)
-> +		cpu_relax();
->  	zram_free_page(zram, index);
->  
->  	meta->table[index].handle = handle;
->  	meta->table[index].size = clen;
-> -	write_unlock(&zram->meta->tb_lock);
-> +	atomic_set(&meta->table[index].state, IDLE);
->  
->  	/* Update stats */
->  	atomic64_add(clen, &zram->stats.compr_data_size);
-> @@ -560,6 +567,7 @@ static void zram_bio_discard(struct zram *zram, u32 index,
->  			     int offset, struct bio *bio)
+>  static struct mem_cgroup_per_zone *
+> -mem_cgroup_zoneinfo(struct mem_cgroup *memcg, int nid, int zid)
+> +mem_cgroup_zone_zoneinfo(struct mem_cgroup *memcg, struct zone *zone)
 >  {
->  	size_t n = bio->bi_iter.bi_size;
-> +	struct zram_meta *meta = zram->meta;
->  
->  	/*
->  	 * zram manages data in physical block size units. Because logical block
-> @@ -584,9 +592,11 @@ static void zram_bio_discard(struct zram *zram, u32 index,
->  		 * Discard request can be large so the lock hold times could be
->  		 * lengthy.  So take the lock once per page.
->  		 */
-> -		write_lock(&zram->meta->tb_lock);
-> +		while(atomic_cmpxchg(&meta->table[index].state,
-> +				IDLE, ACCESS) != IDLE)
-> +			cpu_relax();
->  		zram_free_page(zram, index);
-> -		write_unlock(&zram->meta->tb_lock);
-> +		atomic_set(&meta->table[index].state, IDLE);
->  		index++;
->  		n -= PAGE_SIZE;
->  	}
-> @@ -804,9 +814,10 @@ static void zram_slot_free_notify(struct block_device *bdev,
->  	zram = bdev->bd_disk->private_data;
->  	meta = zram->meta;
->  
-> -	write_lock(&meta->tb_lock);
-> +	while(atomic_cmpxchg(&meta->table[index].state, IDLE, ACCESS) != IDLE)
-> +		cpu_relax();
->  	zram_free_page(zram, index);
-> -	write_unlock(&meta->tb_lock);
-> +	atomic_set(&meta->table[index].state, IDLE);
->  	atomic64_inc(&zram->stats.notify_free);
+> -	VM_BUG_ON((unsigned)nid >= nr_node_ids);
+> +	int nid = zone_to_nid(zone);
+> +	int zid = zone_idx(zone);
+> +
+>  	return &memcg->nodeinfo[nid]->zoneinfo[zid];
 >  }
 >  
-> diff --git a/drivers/block/zram/zram_drv.h b/drivers/block/zram/zram_drv.h
-> index 7f21c14..76b2bb5
-> --- a/drivers/block/zram/zram_drv.h
-> +++ b/drivers/block/zram/zram_drv.h
-> @@ -61,9 +61,13 @@ enum zram_pageflags {
+> @@ -689,12 +691,12 @@ struct cgroup_subsys_state *mem_cgroup_css(struct mem_cgroup *memcg)
+>  }
 >  
->  /*-- Data structures */
+>  static struct mem_cgroup_per_zone *
+> -page_cgroup_zoneinfo(struct mem_cgroup *memcg, struct page *page)
+> +mem_cgroup_page_zoneinfo(struct mem_cgroup *memcg, struct page *page)
+>  {
+>  	int nid = page_to_nid(page);
+>  	int zid = page_zonenum(page);
 >  
-> +#define IDLE   0
-> +#define ACCESS 1
+> -	return mem_cgroup_zoneinfo(memcg, nid, zid);
+> +	return &memcg->nodeinfo[nid]->zoneinfo[zid];
+>  }
+>  
+>  static struct mem_cgroup_tree_per_zone *
+> @@ -773,16 +775,14 @@ static void mem_cgroup_update_tree(struct mem_cgroup *memcg, struct page *page)
+>  	unsigned long long excess;
+>  	struct mem_cgroup_per_zone *mz;
+>  	struct mem_cgroup_tree_per_zone *mctz;
+> -	int nid = page_to_nid(page);
+> -	int zid = page_zonenum(page);
+> -	mctz = soft_limit_tree_from_page(page);
+>  
+> +	mctz = soft_limit_tree_from_page(page);
+>  	/*
+>  	 * Necessary to update all ancestors when hierarchy is used.
+>  	 * because their event counter is not touched.
+>  	 */
+>  	for (; memcg; memcg = parent_mem_cgroup(memcg)) {
+> -		mz = mem_cgroup_zoneinfo(memcg, nid, zid);
+> +		mz = mem_cgroup_page_zoneinfo(memcg, page);
+>  		excess = res_counter_soft_limit_excess(&memcg->res);
+>  		/*
+>  		 * We have to update the tree if mz is on RB-tree or
+> @@ -805,14 +805,14 @@ static void mem_cgroup_update_tree(struct mem_cgroup *memcg, struct page *page)
+>  
+>  static void mem_cgroup_remove_from_trees(struct mem_cgroup *memcg)
+>  {
+> -	int node, zone;
+> -	struct mem_cgroup_per_zone *mz;
+>  	struct mem_cgroup_tree_per_zone *mctz;
+> +	struct mem_cgroup_per_zone *mz;
+> +	int nid, zid;
+>  
+> -	for_each_node(node) {
+> -		for (zone = 0; zone < MAX_NR_ZONES; zone++) {
+> -			mz = mem_cgroup_zoneinfo(memcg, node, zone);
+> -			mctz = soft_limit_tree_node_zone(node, zone);
+> +	for_each_node(nid) {
+> +		for (zid = 0; zid < MAX_NR_ZONES; zid++) {
+> +			mz = &memcg->nodeinfo[nid]->zoneinfo[zid];
+> +			mctz = soft_limit_tree_node_zone(nid, zid);
+>  			mem_cgroup_remove_exceeded(memcg, mz, mctz);
+>  		}
+>  	}
+> @@ -947,8 +947,7 @@ static void mem_cgroup_charge_statistics(struct mem_cgroup *memcg,
+>  	__this_cpu_add(memcg->stat->nr_page_events, nr_pages);
+>  }
+>  
+> -unsigned long
+> -mem_cgroup_get_lru_size(struct lruvec *lruvec, enum lru_list lru)
+> +unsigned long mem_cgroup_get_lru_size(struct lruvec *lruvec, enum lru_list lru)
+>  {
+>  	struct mem_cgroup_per_zone *mz;
+>  
+> @@ -956,46 +955,38 @@ mem_cgroup_get_lru_size(struct lruvec *lruvec, enum lru_list lru)
+>  	return mz->lru_size[lru];
+>  }
+>  
+> -static unsigned long
+> -mem_cgroup_zone_nr_lru_pages(struct mem_cgroup *memcg, int nid, int zid,
+> -			unsigned int lru_mask)
+> -{
+> -	struct mem_cgroup_per_zone *mz;
+> -	enum lru_list lru;
+> -	unsigned long ret = 0;
+> -
+> -	mz = mem_cgroup_zoneinfo(memcg, nid, zid);
+> -
+> -	for_each_lru(lru) {
+> -		if (BIT(lru) & lru_mask)
+> -			ret += mz->lru_size[lru];
+> -	}
+> -	return ret;
+> -}
+> -
+> -static unsigned long
+> -mem_cgroup_node_nr_lru_pages(struct mem_cgroup *memcg,
+> -			int nid, unsigned int lru_mask)
+> +static unsigned long mem_cgroup_node_nr_lru_pages(struct mem_cgroup *memcg,
+> +						  int nid,
+> +						  unsigned int lru_mask)
+>  {
+> -	u64 total = 0;
+> +	unsigned long nr = 0;
+>  	int zid;
+>  
+> -	for (zid = 0; zid < MAX_NR_ZONES; zid++)
+> -		total += mem_cgroup_zone_nr_lru_pages(memcg,
+> -						nid, zid, lru_mask);
+> +	VM_BUG_ON((unsigned)nid >= nr_node_ids);
 > +
->  /* Allocated for each disk page */
->  struct table {
->  	unsigned long handle;
-> +	atomic_t state;
->  	u16 size;	/* object size (excluding header) */
->  	u8 flags;
->  } __aligned(4);
-> @@ -81,7 +85,6 @@ struct zram_stats {
->  };
+> +	for (zid = 0; zid < MAX_NR_ZONES; zid++) {
+> +		struct mem_cgroup_per_zone *mz;
+> +		enum lru_list lru;
 >  
->  struct zram_meta {
-> -	rwlock_t tb_lock;	/* protect table */
->  	struct table *table;
->  	struct zs_pool *mem_pool;
->  };
+> -	return total;
+> +		for_each_lru(lru) {
+> +			if (!(BIT(lru) & lru_mask))
+> +				continue;
+> +			mz = &memcg->nodeinfo[nid]->zoneinfo[zid];
+> +			nr += mz->lru_size[lru];
+> +		}
+> +	}
+> +	return nr;
+>  }
+>  
+>  static unsigned long mem_cgroup_nr_lru_pages(struct mem_cgroup *memcg,
+>  			unsigned int lru_mask)
+>  {
+> +	unsigned long nr = 0;
+>  	int nid;
+> -	u64 total = 0;
+>  
+>  	for_each_node_state(nid, N_MEMORY)
+> -		total += mem_cgroup_node_nr_lru_pages(memcg, nid, lru_mask);
+> -	return total;
+> +		nr += mem_cgroup_node_nr_lru_pages(memcg, nid, lru_mask);
+> +	return nr;
+>  }
+>  
+>  static bool mem_cgroup_event_ratelimit(struct mem_cgroup *memcg,
+> @@ -1234,11 +1225,9 @@ struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *root,
+>  		int uninitialized_var(seq);
+>  
+>  		if (reclaim) {
+> -			int nid = zone_to_nid(reclaim->zone);
+> -			int zid = zone_idx(reclaim->zone);
+>  			struct mem_cgroup_per_zone *mz;
+>  
+> -			mz = mem_cgroup_zoneinfo(root, nid, zid);
+> +			mz = mem_cgroup_zone_zoneinfo(root, reclaim->zone);
+>  			iter = &mz->reclaim_iter[reclaim->priority];
+>  			if (prev && reclaim->generation != iter->generation) {
+>  				iter->last_visited = NULL;
+> @@ -1345,7 +1334,7 @@ struct lruvec *mem_cgroup_zone_lruvec(struct zone *zone,
+>  		goto out;
+>  	}
+>  
+> -	mz = mem_cgroup_zoneinfo(memcg, zone_to_nid(zone), zone_idx(zone));
+> +	mz = mem_cgroup_zone_zoneinfo(memcg, zone);
+>  	lruvec = &mz->lruvec;
+>  out:
+>  	/*
+> @@ -1404,7 +1393,7 @@ struct lruvec *mem_cgroup_page_lruvec(struct page *page, struct zone *zone)
+>  	if (!PageLRU(page) && !PageCgroupUsed(pc) && memcg != root_mem_cgroup)
+>  		pc->mem_cgroup = memcg = root_mem_cgroup;
+>  
+> -	mz = page_cgroup_zoneinfo(memcg, page);
+> +	mz = mem_cgroup_page_zoneinfo(memcg, page);
+>  	lruvec = &mz->lruvec;
+>  out:
+>  	/*
+> @@ -5412,7 +5401,7 @@ static int memcg_stat_show(struct seq_file *m, void *v)
+>  
+>  		for_each_online_node(nid)
+>  			for (zid = 0; zid < MAX_NR_ZONES; zid++) {
+> -				mz = mem_cgroup_zoneinfo(memcg, nid, zid);
+> +				mz = &memcg->nodeinfo[nid]->zoneinfo[zid];
+>  				rstat = &mz->lruvec.reclaim_stat;
+>  
+>  				recent_rotated[0] += rstat->recent_rotated[0];
 > -- 
-> 1.7.10.4
+> 1.9.2
 > 
 > 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
