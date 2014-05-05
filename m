@@ -1,104 +1,148 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F6C06B00AA
-	for <linux-mm@kvack.org>; Mon,  5 May 2014 11:58:06 -0400 (EDT)
-Received: by mail-pa0-f51.google.com with SMTP id kq14so3059431pab.10
-        for <linux-mm@kvack.org>; Mon, 05 May 2014 08:58:06 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id wg2si8959062pab.372.2014.05.05.08.58.04
+Received: from mail-ee0-f46.google.com (mail-ee0-f46.google.com [74.125.83.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 973166B00AE
+	for <linux-mm@kvack.org>; Mon,  5 May 2014 12:10:58 -0400 (EDT)
+Received: by mail-ee0-f46.google.com with SMTP id t10so1924276eei.19
+        for <linux-mm@kvack.org>; Mon, 05 May 2014 09:10:57 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id y41si10684405eel.110.2014.05.05.09.10.55
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 05 May 2014 08:58:05 -0700 (PDT)
-Message-ID: <5367B365.1070709@oracle.com>
-Date: Mon, 05 May 2014 11:51:01 -0400
-From: Sasha Levin <sasha.levin@oracle.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 05 May 2014 09:10:56 -0700 (PDT)
+Date: Mon, 5 May 2014 18:10:53 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [Bug 75101] New: [bisected] s2disk / hibernate blocks on "Saving
+ 506031 image data pages () ..."
+Message-ID: <20140505161053.GF23927@quack.suse.cz>
+References: <bug-75101-27@https.bugzilla.kernel.org/>
+ <20140429152437.7324080a75d6fee914eb8307@linux-foundation.org>
+ <20140505153541.GB19914@cmpxchg.org>
 MIME-Version: 1.0
-Subject: Re: mm: NULL ptr deref in remove_migration_pte
-References: <534E9ACA.2090008@oracle.com>
-In-Reply-To: <534E9ACA.2090008@oracle.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140505153541.GB19914@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: Hugh Dickins <hughd@google.com>, Christoph Lameter <cl@gentwo.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Dave Jones <davej@redhat.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, oliverml1@oli1170.net, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, Maxim Patlasov <mpatlasov@parallels.com>, Jan Kara <jack@suse.cz>, Fengguang Wu <fengguang.wu@intel.com>
 
-Did anyone have a chance to look at it? I still see it in -next.
+  Hello,
 
+On Mon 05-05-14 11:35:41, Johannes Weiner wrote:
+> On Tue, Apr 29, 2014 at 03:24:37PM -0700, Andrew Morton wrote:
+> > (switched to email.  Please respond via emailed reply-to-all, not via the
+> > bugzilla web interface).
+> > 
+> > On Tue, 29 Apr 2014 20:13:44 +0000 bugzilla-daemon@bugzilla.kernel.org wrote:
+> > 
+> > > https://bugzilla.kernel.org/show_bug.cgi?id=75101
+> > > 
+> > >             Bug ID: 75101
+> > >            Summary: [bisected] s2disk / hibernate blocks on "Saving 506031
+> > >                     image data pages () ..."
+> > >            Product: Memory Management
+> > >            Version: 2.5
+> > >     Kernel Version: v3.14
+> > >           Hardware: All
+> > >                 OS: Linux
+> > >               Tree: Mainline
+> > >             Status: NEW
+> > >           Severity: normal
+> > >           Priority: P1
+> > >          Component: Other
+> > >           Assignee: akpm@linux-foundation.org
+> > >           Reporter: oliverml1@oli1170.net
+> > >         Regression: No
+> > > 
+> > > Created attachment 134271
+> > >   --> https://bugzilla.kernel.org/attachment.cgi?id=134271&action=edit
+> > > Full console trace with various SysRq outputs
+> > > 
+> > > Since v3.14 under normal desktop usage my s2disk/hibernate often blocks on the
+> > > saving of the image data ("Saving 506031 image data pages () ...").
+> > 
+> > A means to reproduce as well as a bisection result.  Nice!  Thanks.
+> > 
+> > Johannes, could you please take a look?
+> > 
+> > > With following test I can reproduce the problem reliably:
+> > > ---
+> > > 0) Boot
+> > > 
+> > > 1) Fill ram with 2GiB (+50% in my case)
+> > > 
+> > > mount -t tmpfs tmpfs /media/test/
+> > > dd if=/dev/zero of=/media/test/test0.bin bs=1k count=$[1024*1024]
+> > > dd if=/dev/zero of=/media/test/test1.bin bs=1k count=$[1024*1024]
+> > > 
+> > > 2) Do s2disk 
+> > > 
+> > > s2disk
+> > > 
+> > > ---
+> > > s2disk: Unable to switch virtual terminals, using the current console.
+> > > s2disk: Snapshotting system
+> > > s2disk: System snapshot ready. Preparing to write
+> > > s2disk: Image size: 2024124 kilobytes
+> > > s2disk: Free swap: 3791208 kilobytes
+> > > s2disk: Saving 506031 image data pages (press backspace to abort) ...   0%
+> > > 
+> > > #Problem>: ... there is stays and blocks. SysRq still responds, so that I could
+> > > trigger various debug outputs.
+> 
+> According to your dmesg s2disk is stuck in balance_dirty_pages():
+> 
+> [  215.645240] s2disk          D ffff88011fd93100     0  3323   3261 0x00000000
+> [  215.645240]  ffff8801196d4110 0000000000000082 0000000000013100 ffff8801196d4110
+> [  215.645240]  ffff8800365cdfd8 ffff880119ed9190 00000000ffffc16c ffff8800365cdbe8
+> [  215.645240]  0000000000000032 0000000000000032 ffff8801196d4110 0000000000000000
+> [  215.645240] Call Trace:
+> [  215.645240]  [<ffffffff8162fdce>] ? schedule_timeout+0xde/0xff
+> [  215.645240]  [<ffffffff81041be1>] ? ftrace_raw_output_tick_stop+0x55/0x55
+> [  215.645240]  [<ffffffff81630987>] ? io_schedule_timeout+0x5d/0x7e
+> [  215.645240]  [<ffffffff810cb035>] ? balance_dirty_pages_ratelimited+0x588/0x747
+> [  215.645240]  [<ffffffff812d0795>] ? radix_tree_tag_set+0x69/0xc4
+> [  215.645240]  [<ffffffff810c244e>] ? generic_file_buffered_write+0x1a8/0x21c
+> [  215.645240]  [<ffffffff810c351e>] ? __generic_file_aio_write+0x1c7/0x1fe
+> [  215.645240]  [<ffffffff81134ab5>] ? blkdev_aio_write+0x44/0x79
+> [  215.645240]  [<ffffffff8110c02a>] ? do_sync_write+0x56/0x76
+> [  215.645240]  [<ffffffff8110c33c>] ? vfs_write+0xa1/0xfb
+> [  215.645240]  [<ffffffff8110ca08>] ? SyS_write+0x41/0x74
+> [  215.645240]  [<ffffffff81637622>] ? system_call_fastpath+0x16/0x1b
+> 
+> but I don't see a flusher thread anywhere.
+> 
+> What the bisected change does is allow the effective dirty threshold
+> to drop fairly low, because anonymous pages are no longer considered
+> dirtyable, and your usecase has particularly low free + cache pages:
+> 
+> [  196.375988] active_anon:328150 inactive_anon:118571 isolated_anon:0
+> [  196.375988]  active_file:1658 inactive_file:1823 isolated_file:0
+> [  196.375988]  unevictable:867 dirty:616 writeback:0 unstable:0
+> [  196.375988]  free:32320 slab_reclaimable:5129 slab_unreclaimable:5080
+> [  196.375988]  mapped:2684 shmem:424844 pagetables:1528 bounce:0
+> [  196.375988]  free_cma:0
+> 
+> Ignoring free pages due to dirty_balance_reserve, inactive+active file
+> yields 3481 dirtyable pages, which sets the global limits to 174 pages
+> background and 348 pages foreground with the default configuration.
+> It's low, but not 0.
+  OK, so we are over the dirty_limit.
 
-Thanks,
-Sasha
+> So why is the dirtier throttled to starvation when the background flusher
+> is not even running?  Shouldn't they be looking at the same numbers and
+> behave inversely?
+  These days there isn't a background flusher thread but a workqueue which
+handles the flushing work. But still you should see that in a process list
+like "flush-$dev". Can you check whether balance_dirty_pages() properly
+calls bdi_start_background_writeback() and whether wb_do_writeback() gets
+to run (there are tracepoints in there)?  Also can you have a look in
+/sys/kernel/debug/bdi/<dev>/stats? What is the estimated bandwith?
 
-On 04/16/2014 10:59 AM, Sasha Levin wrote:
-> Hi all,
-> 
-> While fuzzing with trinity inside a KVM tools guest running latest -next
-> kernel I've stumbled on the following:
-> 
-> [ 2552.313602] BUG: unable to handle kernel NULL pointer dereference at 0000000000000018
-> [ 2552.315878] IP: __lock_acquire (kernel/locking/lockdep.c:3070 (discriminator 1))
-> [ 2552.315878] PGD 465836067 PUD 465837067 PMD 0
-> [ 2552.315878] Oops: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
-> [ 2552.315878] Dumping ftrace buffer:
-> [ 2552.315878]    (ftrace buffer empty)
-> [ 2552.315878] Modules linked in:
-> [ 2552.315878] CPU: 6 PID: 16173 Comm: trinity-c364 Tainted: G        W     3.15.0-rc1-next-20140415-sasha-00020-gaa90d09 #398
-> [ 2552.315878] task: ffff88046548b000 ti: ffff88044e532000 task.ti: ffff88044e532000
-> [ 2552.320286] RIP: __lock_acquire (kernel/locking/lockdep.c:3070 (discriminator 1))
-> [ 2552.320286] RSP: 0018:ffff88044e5339c8  EFLAGS: 00010002
-> [ 2552.320286] RAX: 0000000000000082 RBX: ffff88046548b000 RCX: 0000000000000000
-> [ 2552.320286] RDX: 0000000000000000 RSI: 0000000000000000 RDI: 0000000000000018
-> [ 2552.320286] RBP: ffff88044e533ab8 R08: 0000000000000001 R09: 0000000000000000
-> [ 2552.320286] R10: ffff88046548b000 R11: 0000000000000001 R12: 0000000000000000
-> [ 2552.320286] R13: 0000000000000018 R14: 0000000000000000 R15: 0000000000000000
-> [ 2552.320286] FS:  00007fd286a9a700(0000) GS:ffff88018b000000(0000) knlGS:0000000000000000
-> [ 2552.320286] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-> [ 2552.320286] CR2: 0000000000000018 CR3: 0000000442c17000 CR4: 00000000000006a0
-> [ 2552.320286] DR0: 0000000000695000 DR1: 0000000000000000 DR2: 0000000000000000
-> [ 2552.320286] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000600
-> [ 2552.320286] Stack:
-> [ 2552.320286]  ffff88044e5339e8 ffffffff9f56e761 0000000000000000 ffff880315c13000
-> [ 2552.320286]  ffff88044e533a38 ffffffff9c193f0d ffffffff9c193e34 ffff8804654e8000
-> [ 2552.320286]  ffff8804654e8000 0000000000000001 ffff88046548b000 0000000000000007
-> [ 2552.320286] Call Trace:
-> [ 2552.320286] ? _raw_spin_unlock_irq (arch/x86/include/asm/preempt.h:98 include/linux/spinlock_api_smp.h:169 kernel/locking/spinlock.c:199)
-> [ 2552.320286] ? finish_task_switch (include/linux/tick.h:206 kernel/sched/core.c:2163)
-> [ 2552.320286] ? finish_task_switch (arch/x86/include/asm/current.h:14 kernel/sched/sched.h:993 kernel/sched/core.c:2145)
-> [ 2552.320286] ? retint_restore_args (arch/x86/kernel/entry_64.S:1040)
-> [ 2552.320286] ? __this_cpu_preempt_check (lib/smp_processor_id.c:63)
-> [ 2552.320286] ? trace_hardirqs_on_caller (kernel/locking/lockdep.c:2557 kernel/locking/lockdep.c:2599)
-> [ 2552.320286] lock_acquire (arch/x86/include/asm/current.h:14 kernel/locking/lockdep.c:3602)
-> [ 2552.320286] ? remove_migration_pte (mm/migrate.c:137)
-> [ 2552.320286] ? retint_restore_args (arch/x86/kernel/entry_64.S:1040)
-> [ 2552.320286] _raw_spin_lock (include/linux/spinlock_api_smp.h:143 kernel/locking/spinlock.c:151)
-> [ 2552.320286] ? remove_migration_pte (mm/migrate.c:137)
-> [ 2552.320286] remove_migration_pte (mm/migrate.c:137)
-> [ 2552.320286] rmap_walk (mm/rmap.c:1628 mm/rmap.c:1699)
-> [ 2552.320286] remove_migration_ptes (mm/migrate.c:224)
-> [ 2552.320286] ? new_page_node (mm/migrate.c:107)
-> [ 2552.320286] ? remove_migration_pte (mm/migrate.c:195)
-> [ 2552.320286] migrate_pages (mm/migrate.c:922 mm/migrate.c:960 mm/migrate.c:1126)
-> [ 2552.320286] ? perf_trace_mm_numa_migrate_ratelimit (mm/migrate.c:1574)
-> [ 2552.320286] migrate_misplaced_page (mm/migrate.c:1733)
-> [ 2552.320286] __handle_mm_fault (mm/memory.c:3762 mm/memory.c:3812 mm/memory.c:3925)
-> [ 2552.320286] ? __const_udelay (arch/x86/lib/delay.c:126)
-> [ 2552.320286] ? __rcu_read_unlock (kernel/rcu/update.c:97)
-> [ 2552.320286] handle_mm_fault (mm/memory.c:3948)
-> [ 2552.320286] __get_user_pages (mm/memory.c:1851)
-> [ 2552.320286] ? preempt_count_sub (kernel/sched/core.c:2527)
-> [ 2552.320286] __mlock_vma_pages_range (mm/mlock.c:255)
-> [ 2552.320286] __mm_populate (mm/mlock.c:711)
-> [ 2552.320286] SyS_mlockall (include/linux/mm.h:1799 mm/mlock.c:817 mm/mlock.c:791)
-> [ 2552.320286] tracesys (arch/x86/kernel/entry_64.S:749)
-> [ 2552.320286] Code: 85 2d 1e 00 00 48 c7 c1 d7 68 6c a0 48 c7 c2 47 11 6c a0 31 c0 be fa 0b 00 00 48 c7 c7 91 68 6c a0 e8 1c 6d f9 ff e9 07 1e 00 00 <49> 81 7d 00 80 31 76 a2 b8 00 00 00 00 44 0f 44 c0 eb 07 0f 1f
-> [ 2552.320286] RIP __lock_acquire (kernel/locking/lockdep.c:3070 (discriminator 1))
-> [ 2552.320286]  RSP <ffff88044e5339c8>
-> [ 2552.320286] CR2: 0000000000000018
-> 
-> 
-> Thanks,
-> Sasha
-> 
+								Honza
+-- 
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
