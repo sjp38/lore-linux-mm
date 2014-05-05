@@ -1,66 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f180.google.com (mail-ob0-f180.google.com [209.85.214.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 019246B00CC
-	for <linux-mm@kvack.org>; Mon,  5 May 2014 18:22:33 -0400 (EDT)
-Received: by mail-ob0-f180.google.com with SMTP id va2so6400731obc.25
-        for <linux-mm@kvack.org>; Mon, 05 May 2014 15:22:33 -0700 (PDT)
-Received: from g4t3425.houston.hp.com (g4t3425.houston.hp.com. [15.201.208.53])
-        by mx.google.com with ESMTPS id v1si7233147obz.61.2014.05.05.15.22.33
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 05 May 2014 15:22:33 -0700 (PDT)
-Message-ID: <1399328550.2646.5.camel@buesod1.americas.hpqcorp.net>
-Subject: Re: [PATCH] zram: remove global tb_lock by using lock-free CAS
-From: Davidlohr Bueso <davidlohr@hp.com>
-Date: Mon, 05 May 2014 15:22:30 -0700
-In-Reply-To: <20140505134615.04cb627bb2784cabcb844655@linux-foundation.org>
-References: <000001cf6816$d538c370$7faa4a50$%yang@samsung.com>
-	 <20140505152014.GA8551@cerebellum.variantweb.net>
-	 <1399312844.2570.28.camel@buesod1.americas.hpqcorp.net>
-	 <20140505134615.04cb627bb2784cabcb844655@linux-foundation.org>
-Content-Type: text/plain; charset="UTF-8"
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A4FF6B00D0
+	for <linux-mm@kvack.org>; Mon,  5 May 2014 19:31:26 -0400 (EDT)
+Received: by mail-pd0-f177.google.com with SMTP id p10so3189314pdj.8
+        for <linux-mm@kvack.org>; Mon, 05 May 2014 16:31:25 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id xx4si10053465pac.314.2014.05.05.16.31.24
+        for <linux-mm@kvack.org>;
+        Mon, 05 May 2014 16:31:24 -0700 (PDT)
+Date: Mon, 5 May 2014 16:31:23 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch 2/2] mm: pgtable -- Require X86_64 for soft-dirty
+ tracker
+Message-Id: <20140505163123.65e6f8853cdf0646f26bd5b4@linux-foundation.org>
+In-Reply-To: <20140425082042.848656782@openvz.org>
+References: <20140425081030.185969086@openvz.org>
+	<20140425082042.848656782@openvz.org>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Seth Jennings <sjennings@variantweb.net>, Weijie Yang <weijie.yang@samsung.com>, 'Minchan Kim' <minchan@kernel.org>, 'Nitin Gupta' <ngupta@vflare.org>, 'Sergey Senozhatsky' <sergey.senozhatsky@gmail.com>, 'Bob Liu' <bob.liu@oracle.com>, 'Dan Streetman' <ddstreet@ieee.org>, weijie.yang.kh@gmail.com, heesub.shin@samsung.com, 'linux-kernel' <linux-kernel@vger.kernel.org>, 'Linux-MM' <linux-mm@kvack.org>
+To: Cyrill Gorcunov <gorcunov@openvz.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org, mgorman@suse.de, hpa@zytor.com, mingo@kernel.org, steven@uplinklabs.net, riel@redhat.com, david.vrabel@citrix.com, peterz@infradead.org, xemul@parallels.com
 
-On Mon, 2014-05-05 at 13:46 -0700, Andrew Morton wrote:
-> On Mon, 05 May 2014 11:00:44 -0700 Davidlohr Bueso <davidlohr@hp.com> wrote:
+On Fri, 25 Apr 2014 12:10:32 +0400 Cyrill Gorcunov <gorcunov@openvz.org> wrote:
+
+> Tracking dirty status on 2 level pages requires very ugly macros
+> and taking into account how old the machines who can operate
+> without PAE mode only are, lets drop soft dirty tracker from
+> them for code simplicity (note I can't drop all the macros
+> from 2 level pages by now since _PAGE_BIT_PROTNONE and
+> _PAGE_BIT_FILE are still used even without tracker).
 > 
-> > > > @@ -339,12 +338,14 @@ static int zram_decompress_page(struct zram *zram, char *mem, u32 index)
-> > > >  	unsigned long handle;
-> > > >  	u16 size;
-> > > >  
-> > > > -	read_lock(&meta->tb_lock);
-> > > > +	while(atomic_cmpxchg(&meta->table[index].state, IDLE, ACCESS) != IDLE)
-> > > > +		cpu_relax();
-> > > > +
-> > > 
-> > > So... this might be dumb question, but this looks like a spinlock
-> > > implementation.
-> > > 
-> > > What advantage does this have over a standard spinlock?
-> > 
-> > I was wondering the same thing. Furthermore by doing this you'll loose
-> > the benefits of sharing the lock... your numbers do indicate that it is
-> > for the better. Also, note that hopefully rwlock_t will soon be updated
-> > to be fair and perform up to par with spinlocks, something which is long
-> > overdue. So you could reduce the critical region by implementing the
-> > same granularity, just don't implement your own locking schemes, like
-> > this.
+> Linus proposed to completely rip off softdirty support on
+> x86-32 (even with PAE) and since for CRIU we're not planning
+> to support native x86-32 mode, lets do that.
 > 
-> It sounds like seqlocks will match this access pattern pretty well?
+> (Softdirty tracker is relatively new feature which mostly used
+>  by CRIU so I don't expect if such API change would cause problems
+>  on userspace).
 
-Indeed. And after a closer look, except for zram_slot_free_notify(),
-that lock is always shared. So, unless fine graining it implies taking
-the lock exclusively like in this patch (if so, that needs to be
-explicitly documented in the changelog), we would ideally continue to
-share it. That _should_ provide nicer performance numbers when using the
-correct lock.
+i386 allnoconfig:
 
-
+In file included from /usr/src/25/arch/x86/include/asm/pgtable.h:886,
+                 from include/linux/mm.h:51,
+                 from include/linux/suspend.h:8,
+                 from arch/x86/kernel/asm-offsets.c:12:
+include/asm-generic/pgtable.h:414: error: redefinition of 'pte_soft_dirty'
+/usr/src/25/arch/x86/include/asm/pgtable.h:300: note: previous definition of 'pte_soft_dirty' was here
+include/asm-generic/pgtable.h:419: error: redefinition of 'pmd_soft_dirty'
+/usr/src/25/arch/x86/include/asm/pgtable.h:305: note: previous definition of 'pmd_soft_dirty' was here
+include/asm-generic/pgtable.h:424: error: redefinition of 'pte_mksoft_dirty'
+/usr/src/25/arch/x86/include/asm/pgtable.h:310: note: previous definition of 'pte_mksoft_dirty' was here
+include/asm-generic/pgtable.h:429: error: redefinition of 'pmd_mksoft_dirty'
+/usr/src/25/arch/x86/include/asm/pgtable.h:315: note: previous definition of 'pmd_mksoft_dirty' was here
+include/asm-generic/pgtable.h:434: error: redefinition of 'pte_swp_mksoft_dirty'
+/usr/src/25/arch/x86/include/asm/pgtable.h:868: note: previous definition of 'pte_swp_mksoft_dirty' was here
+include/asm-generic/pgtable.h:439: error: redefinition of 'pte_swp_soft_dirty'
+/usr/src/25/arch/x86/include/asm/pgtable.h:874: note: previous definition of 'pte_swp_soft_dirty' was here
+include/asm-generic/pgtable.h:444: error: redefinition of 'pte_swp_clear_soft_dirty'
+/usr/src/25/arch/x86/include/asm/pgtable.h:880: note: previous definition of 'pte_swp_clear_soft_dirty' was here
+include/asm-generic/pgtable.h:449: error: redefinition of 'pte_file_clear_soft_dirty'
+/usr/src/25/arch/x86/include/asm/pgtable.h:320: note: previous definition of 'pte_file_clear_soft_dirty' was here
+include/asm-generic/pgtable.h:454: error: redefinition of 'pte_file_mksoft_dirty'
+/usr/src/25/arch/x86/include/asm/pgtable.h:325: note: previous definition of 'pte_file_mksoft_dirty' was here
+include/asm-generic/pgtable.h:459: error: redefinition of 'pte_file_soft_dirty'
+/usr/src/25/arch/x86/include/asm/pgtable.h:330: note: previous definition of 'pte_file_soft_dirty' was here
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
