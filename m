@@ -1,54 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
-	by kanga.kvack.org (Postfix) with ESMTP id E070B6B00C7
-	for <linux-mm@kvack.org>; Mon,  5 May 2014 17:36:49 -0400 (EDT)
-Received: by mail-pd0-f174.google.com with SMTP id w10so7367329pde.5
-        for <linux-mm@kvack.org>; Mon, 05 May 2014 14:36:49 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id ug9si9789314pab.376.2014.05.05.14.36.48
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B1906B00CB
+	for <linux-mm@kvack.org>; Mon,  5 May 2014 18:13:40 -0400 (EDT)
+Received: by mail-pd0-f172.google.com with SMTP id g10so8610566pdj.31
+        for <linux-mm@kvack.org>; Mon, 05 May 2014 15:13:39 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id pq7si9888648pac.358.2014.05.05.15.13.38
         for <linux-mm@kvack.org>;
-        Mon, 05 May 2014 14:36:48 -0700 (PDT)
-Date: Mon, 5 May 2014 14:36:46 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 2/2] mm/memcontrol.c: introduce helper
- mem_cgroup_zoneinfo_zone()
-Message-Id: <20140505143646.c0591119522b869b79d9c77b@linux-foundation.org>
-In-Reply-To: <20140502232908.GQ23420@cmpxchg.org>
-References: <1397862103-31982-1-git-send-email-nasa4836@gmail.com>
-	<20140422095923.GD29311@dhcp22.suse.cz>
-	<20140428150426.GB24807@dhcp22.suse.cz>
-	<20140501125450.GA23420@cmpxchg.org>
-	<20140502150516.d42792bad53d86fb727816bd@linux-foundation.org>
-	<20140502232908.GQ23420@cmpxchg.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Mon, 05 May 2014 15:13:39 -0700 (PDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCH] mm, thp: close race between mremap() and split_huge_page()
+Date: Tue,  6 May 2014 01:13:31 +0300
+Message-Id: <1399328011-15317-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@suse.cz>, Jianyu Zhan <nasa4836@gmail.com>, bsingharora@gmail.com, kamezawa.hiroyu@jp.fujitsu.com, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Dave Jones <davej@redhat.com>, stable@vger.kernel.org
 
-On Fri, 2 May 2014 19:29:08 -0400 Johannes Weiner <hannes@cmpxchg.org> wrote:
+It's critical for split_huge_page() (and migration) to catch and freeze
+all PMDs on rmap walk. It gets tricky if there's concurrent fork() or
+mremap() since usually we copy/move page table entries on dup_mm() or
+move_page_tables() without rmap lock taken. To get it work we rely on
+rmap walk order to not miss any entry. We expect to see destination VMA
+after source one to work correctly.
 
-> Memcg zoneinfo lookup sites have either the page, the zone, or the
-> node id and zone index, but sites that only have the zone have to look
-> up the node id and zone index themselves, whereas sites that already
-> have those two integers use a function for a simple pointer chase.
-> 
-> Provide mem_cgroup_zone_zoneinfo() that takes a zone pointer and let
-> sites that already have node id and zone index - all for each node,
-> for each zone iterators - use &memcg->nodeinfo[nid]->zoneinfo[zid].
-> 
-> Rename page_cgroup_zoneinfo() to mem_cgroup_page_zoneinfo() to match.
+But after switching rmap implementation to interval tree it's not always
+possible to preserve expected walk order.
 
-Patch shrinks my mm/memcontrol.o nicely:
+It works fine for dup_mm() since new VMA has the same vma_start_pgoff()
+/ vma_last_pgoff() and explicitly insert dst VMA after src one with
+vma_interval_tree_insert_after().
 
-   text    data     bss     dec     hex filename
-  55702   15681   24560   95943   176c7 mm/memcontrol.o-before
-  55489   15681   24464   95634   17592 mm/memcontrol.o-after
+But on move_vma() destination VMA can be merged into adjacent one and as
+result shifted left in interval tree. Fortunately, we can detect the
+situation and prevent race with rmap walk by moving page table entries
+under rmap lock. See commit 38a76013ad80.
 
-The bss size changes are weird - the patch doesn't touch bss afaict. 
-This often happens.  One day I'll get in there and work out why.
+Problem is that we miss the lock when we move transhuge PMD. Most likely
+this bug caused the crash[1].
+
+[1] http://thread.gmane.org/gmane.linux.kernel.mm/96473
+
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Michel Lespinasse <walken@google.com>
+Cc: Dave Jones <davej@redhat.com>
+Cc: <stable@vger.kernel.org>        [3.7+]
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
+ mm/mremap.c | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/mm/mremap.c b/mm/mremap.c
+index 0843feb66f3d..05f1180e9f21 100644
+--- a/mm/mremap.c
++++ b/mm/mremap.c
+@@ -194,10 +194,17 @@ unsigned long move_page_tables(struct vm_area_struct *vma,
+ 			break;
+ 		if (pmd_trans_huge(*old_pmd)) {
+ 			int err = 0;
+-			if (extent == HPAGE_PMD_SIZE)
++			if (extent == HPAGE_PMD_SIZE) {
++				VM_BUG_ON(vma->vm_file || !vma->anon_vma);
++				/* See comment in move_ptes() */
++				if (need_rmap_locks)
++					anon_vma_lock_write(vma->anon_vma);
+ 				err = move_huge_pmd(vma, new_vma, old_addr,
+ 						    new_addr, old_end,
+ 						    old_pmd, new_pmd);
++				if (need_rmap_locks)
++					anon_vma_unlock_write(vma->anon_vma);
++			}
+ 			if (err > 0) {
+ 				need_flush = true;
+ 				continue;
+-- 
+2.0.0.rc0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
