@@ -1,79 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f52.google.com (mail-ee0-f52.google.com [74.125.83.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 420AC6B008C
-	for <linux-mm@kvack.org>; Mon,  5 May 2014 10:21:04 -0400 (EDT)
-Received: by mail-ee0-f52.google.com with SMTP id e53so5450006eek.39
-        for <linux-mm@kvack.org>; Mon, 05 May 2014 07:21:03 -0700 (PDT)
+Received: from mail-ee0-f45.google.com (mail-ee0-f45.google.com [74.125.83.45])
+	by kanga.kvack.org (Postfix) with ESMTP id D0D236B0092
+	for <linux-mm@kvack.org>; Mon,  5 May 2014 10:24:25 -0400 (EDT)
+Received: by mail-ee0-f45.google.com with SMTP id d49so1438818eek.4
+        for <linux-mm@kvack.org>; Mon, 05 May 2014 07:24:25 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f45si10315567eet.309.2014.05.05.07.21.02
+        by mx.google.com with ESMTPS id o49si7731517eef.188.2014.05.05.07.24.23
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 05 May 2014 07:21:02 -0700 (PDT)
-Date: Mon, 5 May 2014 16:21:00 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 1/4] memcg, mm: introduce lowlimit reclaim
-Message-ID: <20140505142100.GC32598@dhcp22.suse.cz>
-References: <1398688005-26207-1-git-send-email-mhocko@suse.cz>
- <1398688005-26207-2-git-send-email-mhocko@suse.cz>
- <20140430225550.GD26041@cmpxchg.org>
- <20140502093628.GC3446@dhcp22.suse.cz>
- <20140502155805.GO23420@cmpxchg.org>
- <20140502164930.GP3446@dhcp22.suse.cz>
- <20140502220056.GP23420@cmpxchg.org>
+        Mon, 05 May 2014 07:24:24 -0700 (PDT)
+Message-ID: <53679F16.8020007@suse.cz>
+Date: Mon, 05 May 2014 16:24:22 +0200
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140502220056.GP23420@cmpxchg.org>
+Subject: Re: [patch v2 3/4] mm, compaction: add per-zone migration pfn cache
+ for async compaction
+References: <alpine.DEB.2.02.1404301744110.8415@chino.kir.corp.google.com> <alpine.DEB.2.02.1405011434140.23898@chino.kir.corp.google.com> <alpine.DEB.2.02.1405011435000.23898@chino.kir.corp.google.com> <53675B3A.5090607@suse.cz> <alpine.DEB.2.02.1405050243490.11071@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.02.1405050243490.11071@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, Tejun Heo <tj@kernel.org>, Hugh Dickins <hughd@google.com>, Roman Gushchin <klamm@yandex-team.ru>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri 02-05-14 18:00:56, Johannes Weiner wrote:
-> On Fri, May 02, 2014 at 06:49:30PM +0200, Michal Hocko wrote:
-> > On Fri 02-05-14 11:58:05, Johannes Weiner wrote:
-> > > On Fri, May 02, 2014 at 11:36:28AM +0200, Michal Hocko wrote:
-> > > > On Wed 30-04-14 18:55:50, Johannes Weiner wrote:
-> > > > > On Mon, Apr 28, 2014 at 02:26:42PM +0200, Michal Hocko wrote:
-[...]
-> > > > > > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > > > > > index c1cd99a5074b..0f428158254e 100644
-> > > > > > --- a/mm/vmscan.c
-> > > > > > +++ b/mm/vmscan.c
-> > > > [...]
-> > > > > > +static void shrink_zone(struct zone *zone, struct scan_control *sc)
-> > > > > > +{
-> > > > > > +	if (!__shrink_zone(zone, sc, true)) {
-> > > > > > +		/*
-> > > > > > +		 * First round of reclaim didn't find anything to reclaim
-> > > > > > +		 * because of low limit protection so try again and ignore
-> > > > > > +		 * the low limit this time.
-> > > > > > +		 */
-> > > > > > +		__shrink_zone(zone, sc, false);
-> > > > > > +	}
-> > > 
-> > > So I don't think this can work as it is, because we are not actually
-> > > changing priority levels yet. 
-> > 
-> > __shrink_zone returns with 0 only if the whole hierarchy is is under low
-> > limit. This means that they are over-committed and it doesn't make much
-> > sense to play with priority. Low limit reclaimability is independent on
-> > the priority.
-> > 
-> > > It will give up on the guarantees of bigger groups way before smaller
-> > > groups are even seriously looked at.
-> > 
-> > How would that happen? Those (smaller) groups would get reclaimed and we
-> > wouldn't fallback. Or am I missing your point?
-> 
-> Lol, I hadn't updated my brain to a394cb8ee632 ("memcg,vmscan: do not
-> break out targeted reclaim without reclaimed pages") yet...  Yes, you
-> are right.
+On 05/05/2014 11:51 AM, David Rientjes wrote:
+> On Mon, 5 May 2014, Vlastimil Babka wrote:
+>
+>> OK that's due to my commit 50b5b094e6 ("mm: compaction: do not mark unmovable
+>> pageblocks as skipped in async compaction") and the intention was to avoid
+>> marking pageblocks as to-be-skipped just because they were ignored by async
+>> compaction, which would make the following sync compaction ignore them as
+>> well. However it's true that update_pageblock_skip() also updates the cached
+>> pfn's and not updating them is a sideeffect of this change.
+>>
+>
+> It's not necessary just that commit, update_pageblock_skip() won't do
+> anything if cc->finished_update_migrate is true which still happens before
+> the commit.  This issue was noticed on a kernel without your commit.
 
-You made me think about this more and you are right ;).
-The code as is doesn't cope with many racing reclaimers when some
-threads can fallback to ignore the lowlimit although there are groups to
-scan in the hierarchy but they were visited by other reclaimers.
-The patch bellow should help with that. What do you think?
-I am also thinking we want to add a fallback counter in memory.stat?
----
+OK.
+
+>> I didn't think that would be a problem as skipping whole pageblocks due to
+>> being non-movable should be fast and without taking locks. But if your testing
+>> shows that this is a problem, then OK.
+>>
+>
+> Async compaction terminates early when lru_lock is contended or
+> need_resched() and on zones that are so large for a 128GB machine, this
+> happens often.  A thp allocation returns immediately because of
+> contended_compaction in the page allocator.  When the next thp is
+> allocated, async compaction starts from where the former iteration started
+> because we don't do any caching of the pfns and nothing called sync
+> compaction.  It's simply unnecessary overhead that can be prevented on the
+> next call and it leaves a potentially large part of the zone unscanned if
+> we continuously fail because of contention.  This patch fixes that.
+
+OK.
+
+>>> This patch adds a per-zone cached migration scanner pfn only for async
+>>> compaction.  It is updated everytime a pageblock has been scanned in its
+>>> entirety and when no pages from it were successfully isolated.  The cached
+>>> migration scanner pfn for sync compaction is updated only when called for
+>>> sync
+>>> compaction.
+>>
+>> I think this might be an overkill and maybe just decoupling the cached pfn
+>> update from the update_pageblock_skip() would be enough, i.e. restore
+>> pre-50b5b094e6 behavior for the cached pfn (but not for the skip bits)? I
+>> wonder if your new sync migration scanner would make any difference.
+>> Presumably when async compaction finishes without success by having the
+>> scanners meet, compact_finished() will reset the cached pfn's and the sync
+>> compaction will not have a chance to use any previously cached value anyway?
+>>
+>
+> When a zone has 32GB or 64GB to scan, as is in this case (and will become
+> larger in the future), async compaction will always terminate early.  It
+> may never cause a migration destination page to even be allocated, the
+> freeing scanner may never move and there's no guarantee they will ever
+> meet if we never call sync compaction.
+>
+> The logic presented in this patch will avoid rescanning the non-movable
+> pageblocks, for example, for async compaction until all other memory has
+> been scanned.
+
+I see, although I would still welcome some numbers to back such change.
+What I still don't like is the removal of the intent of commit 
+50b5b094e6. You now again call set_pageblock_skip() unconditionally, 
+thus also on pageblocks that async compaction skipped due to being 
+non-MOVABLE. The sync compaction will thus ignore them.
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
