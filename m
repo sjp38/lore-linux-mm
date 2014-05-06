@@ -1,105 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f52.google.com (mail-ee0-f52.google.com [74.125.83.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 6274C6B00D8
-	for <linux-mm@kvack.org>; Tue,  6 May 2014 07:41:04 -0400 (EDT)
-Received: by mail-ee0-f52.google.com with SMTP id e53so6294861eek.39
-        for <linux-mm@kvack.org>; Tue, 06 May 2014 04:41:03 -0700 (PDT)
-Received: from BlackPearl.yuhu.biz (blackpearl.yuhu.biz. [85.14.7.126])
-        by mx.google.com with ESMTP id z2si13112336eeo.334.2014.05.06.04.41.01
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id EA56E6B00D8
+	for <linux-mm@kvack.org>; Tue,  6 May 2014 07:41:22 -0400 (EDT)
+Received: by mail-pd0-f170.google.com with SMTP id v10so2702654pde.1
+        for <linux-mm@kvack.org>; Tue, 06 May 2014 04:41:22 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id ln8si11813668pab.285.2014.05.06.04.41.21
         for <linux-mm@kvack.org>;
-        Tue, 06 May 2014 04:41:02 -0700 (PDT)
-Message-ID: <5368CA47.7030007@yuhu.biz>
-Date: Tue, 06 May 2014 14:40:55 +0300
-From: Marian Marinov <mm@yuhu.biz>
+        Tue, 06 May 2014 04:41:21 -0700 (PDT)
+Date: Tue, 06 May 2014 19:39:39 +0800
+From: kbuild test robot <fengguang.wu@intel.com>
+Subject: [next:master 183/372] mm/gup.c:531:53: sparse: implicit cast to
+ nocast type
+Message-ID: <5368c9fb.s1CMchptQlr44pT6%fengguang.wu@intel.com>
 MIME-Version: 1.0
-Subject: Re: Protection against container fork bombs [WAS: Re: memcg with
- kmem limit doesn't recover after disk i/o causes limit to be hit]
-References: <20140416154650.GA3034@alpha.arachsys.com>	<20140418155939.GE4523@dhcp22.suse.cz>	<5351679F.5040908@parallels.com>	<20140420142830.GC22077@alpha.arachsys.com>	<20140422143943.20609800@oracle.com>	<20140422200531.GA19334@alpha.arachsys.com>	<535758A0.5000500@yuhu.biz> <20140423084942.560ae837@oracle.com>
-In-Reply-To: <20140423084942.560ae837@oracle.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dwight Engen <dwight.engen@oracle.com>
-Cc: Richard Davies <richard@arachsys.com>, Vladimir Davydov <vdavydov@parallels.com>, Frederic Weisbecker <fweisbec@gmail.com>, David Rientjes <rientjes@google.com>, Glauber Costa <glommer@parallels.com>, Tejun Heo <tj@kernel.org>, Max Kellermann <mk@cm4all.com>, Johannes Weiner <hannes@cmpxchg.org>, William Dauchy <wdauchy@gmail.com>, Tim Hockin <thockin@hockin.org>, Michal Hocko <mhocko@suse.cz>, Daniel Walsh <dwalsh@redhat.com>, Daniel Berrange <berrange@redhat.com>, cgroups@vger.kernel.org, containers@lists.linux-foundation.org, linux-mm@kvack.org
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, kbuild-all@01.org
 
-On 04/23/2014 03:49 PM, Dwight Engen wrote:
-> On Wed, 23 Apr 2014 09:07:28 +0300
-> Marian Marinov <mm@yuhu.biz> wrote:
->
->> On 04/22/2014 11:05 PM, Richard Davies wrote:
->>> Dwight Engen wrote:
->>>> Richard Davies wrote:
->>>>> Vladimir Davydov wrote:
->>>>>> In short, kmem limiting for memory cgroups is currently broken.
->>>>>> Do not use it. We are working on making it usable though.
->>> ...
->>>>> What is the best mechanism available today, until kmem limits
->>>>> mature?
->>>>>
->>>>> RLIMIT_NPROC exists but is per-user, not per-container.
->>>>>
->>>>> Perhaps there is an up-to-date task counter patchset or similar?
->>>>
->>>> I updated Frederic's task counter patches and included Max
->>>> Kellermann's fork limiter here:
->>>>
->>>> http://thread.gmane.org/gmane.linux.kernel.containers/27212
->>>>
->>>> I can send you a more recent patchset (against 3.13.10) if you
->>>> would find it useful.
->>>
->>> Yes please, I would be interested in that. Ideally even against
->>> 3.14.1 if you have that too.
->>
->> Dwight, do you have these patches in any public repo?
->>
->> I would like to test them also.
->
-> Hi Marian, I put the patches against 3.13.11 and 3.14.1 up at:
->
-> git://github.com/dwengen/linux.git cpuacct-task-limit-3.13
-> git://github.com/dwengen/linux.git cpuacct-task-limit-3.14
->
-Guys I tested the patches with 3.12.16. However I see a problem with them.
+tree:   git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
+head:   7df9f89cbcffc4f7bd8feea287af7b8d32b9ed96
+commit: b28f3d3d605378f4d5b4b037033ebfeee74be1c2 [183/372] mm: move get_user_pages()-related code to separate file
+reproduce: make C=1 CF=-D__CHECK_ENDIAN__
 
-Trying to set the limit to a cgroup which already have processes in it does not work:
 
-[root@sp2 lxc]# echo 50 > cpuacct.task_limit
--bash: echo: write error: Device or resource busy
-[root@sp2 lxc]# echo 0 > cpuacct.task_limit
--bash: echo: write error: Device or resource busy
-[root@sp2 lxc]#
+sparse warnings: (new ones prefixed by >>)
 
-I have even tried to remove this check:
-+               if (cgroup_task_count(cgrp) || !list_empty(&cgrp->children))
-+                       return -EBUSY;
-But still give me 'Device or resource busy'.
+>> mm/gup.c:531:53: sparse: implicit cast to nocast type
 
-Any pointers of why is this happening ?
+vim +531 mm/gup.c
 
-Marian
+   515	 * such architectures, gup() will not be enough to make a subsequent access
+   516	 * succeed.
+   517	 *
+   518	 * This should be called with the mm_sem held for read.
+   519	 */
+   520	int fixup_user_fault(struct task_struct *tsk, struct mm_struct *mm,
+   521			     unsigned long address, unsigned int fault_flags)
+   522	{
+   523		struct vm_area_struct *vma;
+   524		vm_flags_t vm_flags;
+   525		int ret;
+   526	
+   527		vma = find_extend_vma(mm, address);
+   528		if (!vma || address < vma->vm_start)
+   529			return -EFAULT;
+   530	
+ > 531		vm_flags = (fault_flags & FAULT_FLAG_WRITE) ? VM_WRITE : VM_READ;
+   532		if (!(vm_flags & vma->vm_flags))
+   533			return -EFAULT;
+   534	
+   535		ret = handle_mm_fault(mm, vma, address, fault_flags);
+   536		if (ret & VM_FAULT_ERROR) {
+   537			if (ret & VM_FAULT_OOM)
+   538				return -ENOMEM;
+   539			if (ret & (VM_FAULT_HWPOISON | VM_FAULT_HWPOISON_LARGE))
 
->> Marian
->>
->>>
->>> Thanks,
->>>
->>> Richard.
->>> --
->>> To unsubscribe from this list: send the line "unsubscribe cgroups"
->>> in the body of a message to majordomo@vger.kernel.org
->>> More majordomo info at  http://vger.kernel.org/majordomo-info.html
->>>
->>>
->>
->
-> --
-> To unsubscribe from this list: send the line "unsubscribe cgroups" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
->
->
+---
+0-DAY kernel build testing backend              Open Source Technology Center
+http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
