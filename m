@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f49.google.com (mail-qg0-f49.google.com [209.85.192.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C5416B003C
-	for <linux-mm@kvack.org>; Tue,  6 May 2014 14:54:33 -0400 (EDT)
-Received: by mail-qg0-f49.google.com with SMTP id a108so3044845qge.8
-        for <linux-mm@kvack.org>; Tue, 06 May 2014 11:54:33 -0700 (PDT)
+Received: from mail-qc0-f180.google.com (mail-qc0-f180.google.com [209.85.216.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 466ED6B0035
+	for <linux-mm@kvack.org>; Tue,  6 May 2014 15:21:10 -0400 (EDT)
+Received: by mail-qc0-f180.google.com with SMTP id i17so9462343qcy.11
+        for <linux-mm@kvack.org>; Tue, 06 May 2014 12:21:09 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id u7si3441727qab.259.2014.05.06.11.54.32
+        by mx.google.com with ESMTP id b39si5695526qge.6.2014.05.06.12.21.09
         for <linux-mm@kvack.org>;
-        Tue, 06 May 2014 11:54:33 -0700 (PDT)
-Message-ID: <53692FE4.6000905@redhat.com>
-Date: Tue, 06 May 2014 14:54:28 -0400
+        Tue, 06 May 2014 12:21:09 -0700 (PDT)
+Message-ID: <53692ED7.9080700@redhat.com>
+Date: Tue, 06 May 2014 14:49:59 -0400
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 14/17] mm: Do not use atomic operations when releasing
- pages
-References: <1398933888-4940-1-git-send-email-mgorman@suse.de> <1398933888-4940-15-git-send-email-mgorman@suse.de>
-In-Reply-To: <1398933888-4940-15-git-send-email-mgorman@suse.de>
+Subject: Re: [PATCH 12/17] mm: page_alloc: Convert hot/cold parameter and
+ immediate callers to bool
+References: <1398933888-4940-1-git-send-email-mgorman@suse.de> <1398933888-4940-13-git-send-email-mgorman@suse.de>
+In-Reply-To: <1398933888-4940-13-git-send-email-mgorman@suse.de>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -24,12 +24,14 @@ To: Mel Gorman <mgorman@suse.de>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <
 Cc: Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Linux Kernel <linux-kernel@vger.kernel.org>
 
 On 05/01/2014 04:44 AM, Mel Gorman wrote:
-> There should be no references to it any more and a parallel mark should
-> not be reordered against us. Use non-locked varient to clear page active.
+> cold is a bool, make it one. Make the likely case the "if" part of the
+> block instead of the else as according to the optimisation manual this
+> is preferred.
 > 
 > Signed-off-by: Mel Gorman <mgorman@suse.de>
 
 Acked-by: Rik van Riel <riel@redhat.com>
+
 
 -- 
 All rights reversed
