@@ -1,67 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id EA56E6B00D8
-	for <linux-mm@kvack.org>; Tue,  6 May 2014 07:41:22 -0400 (EDT)
-Received: by mail-pd0-f170.google.com with SMTP id v10so2702654pde.1
-        for <linux-mm@kvack.org>; Tue, 06 May 2014 04:41:22 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id ln8si11813668pab.285.2014.05.06.04.41.21
-        for <linux-mm@kvack.org>;
-        Tue, 06 May 2014 04:41:21 -0700 (PDT)
-Date: Tue, 06 May 2014 19:39:39 +0800
-From: kbuild test robot <fengguang.wu@intel.com>
-Subject: [next:master 183/372] mm/gup.c:531:53: sparse: implicit cast to
- nocast type
-Message-ID: <5368c9fb.s1CMchptQlr44pT6%fengguang.wu@intel.com>
+Received: from mail-ee0-f41.google.com (mail-ee0-f41.google.com [74.125.83.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 99BDB6B00DE
+	for <linux-mm@kvack.org>; Tue,  6 May 2014 07:52:06 -0400 (EDT)
+Received: by mail-ee0-f41.google.com with SMTP id t10so2715593eei.14
+        for <linux-mm@kvack.org>; Tue, 06 May 2014 04:52:06 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id w2si24964eel.356.2014.05.06.04.52.04
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 06 May 2014 04:52:05 -0700 (PDT)
+Message-ID: <5368CCE2.2050602@suse.cz>
+Date: Tue, 06 May 2014 13:52:02 +0200
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Subject: Re: [patch v2 3/4] mm, compaction: add per-zone migration pfn cache
+ for async compaction
+References: <alpine.DEB.2.02.1404301744110.8415@chino.kir.corp.google.com> <alpine.DEB.2.02.1405011434140.23898@chino.kir.corp.google.com> <alpine.DEB.2.02.1405011435000.23898@chino.kir.corp.google.com> <53675B3A.5090607@suse.cz> <alpine.DEB.2.02.1405050243490.11071@chino.kir.corp.google.com> <53679F16.8020007@suse.cz> <alpine.DEB.2.02.1405051726210.4720@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.02.1405051726210.4720@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, kbuild-all@01.org
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-tree:   git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
-head:   7df9f89cbcffc4f7bd8feea287af7b8d32b9ed96
-commit: b28f3d3d605378f4d5b4b037033ebfeee74be1c2 [183/372] mm: move get_user_pages()-related code to separate file
-reproduce: make C=1 CF=-D__CHECK_ENDIAN__
+On 05/06/2014 02:29 AM, David Rientjes wrote:
+> On Mon, 5 May 2014, Vlastimil Babka wrote:
+>
+>> I see, although I would still welcome some numbers to back such change.
+>
+> It's pretty difficult to capture numbers for this in real-world scenarios
+> since it happens rarely (and when it happens, it's very significant
+> latency) and without an instrumented kernel that will determine how many
+> pageblocks have been skipped.  I could create a synthetic example of it in
+> the kernel and get numbers for a worst-case scenario with a 64GB zone if
+> you'd like, I'm not sure how representative it will be.
+>
+>> What I still don't like is the removal of the intent of commit 50b5b094e6. You
+>> now again call set_pageblock_skip() unconditionally, thus also on pageblocks
+>> that async compaction skipped due to being non-MOVABLE. The sync compaction
+>> will thus ignore them.
+>>
+>
+> I'm not following you, with this patch there are two cached pfns for the
+> migration scanner: one is used for sync and one is used for async.  When
+> cc->sync == true, both cached pfns are updated (async is not going to
+> succeed for a pageblock when sync failed for that pageblock); when
+> cc->sync == false, the async cached pfn is updated only and we pick up
+> again where we left off for subsequent async compactions.  Sync compaction
+> will still begin where it last left off and consider these non-MOVABLE
+> pageblocks.
+>
 
-
-sparse warnings: (new ones prefixed by >>)
-
->> mm/gup.c:531:53: sparse: implicit cast to nocast type
-
-vim +531 mm/gup.c
-
-   515	 * such architectures, gup() will not be enough to make a subsequent access
-   516	 * succeed.
-   517	 *
-   518	 * This should be called with the mm_sem held for read.
-   519	 */
-   520	int fixup_user_fault(struct task_struct *tsk, struct mm_struct *mm,
-   521			     unsigned long address, unsigned int fault_flags)
-   522	{
-   523		struct vm_area_struct *vma;
-   524		vm_flags_t vm_flags;
-   525		int ret;
-   526	
-   527		vma = find_extend_vma(mm, address);
-   528		if (!vma || address < vma->vm_start)
-   529			return -EFAULT;
-   530	
- > 531		vm_flags = (fault_flags & FAULT_FLAG_WRITE) ? VM_WRITE : VM_READ;
-   532		if (!(vm_flags & vma->vm_flags))
-   533			return -EFAULT;
-   534	
-   535		ret = handle_mm_fault(mm, vma, address, fault_flags);
-   536		if (ret & VM_FAULT_ERROR) {
-   537			if (ret & VM_FAULT_OOM)
-   538				return -ENOMEM;
-   539			if (ret & (VM_FAULT_HWPOISON | VM_FAULT_HWPOISON_LARGE))
-
----
-0-DAY kernel build testing backend              Open Source Technology Center
-http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporation
+Yeah I understand, the cached pfn's are not the problem. The problem is 
+that with your patch, set_pageblock_skip() will be called through 
+update_pageblock_skip() in async compaction, since you removed the 
+skipped_async_unsuitable variable. So in sync compaction, such pageblock 
+will be skipped thanks to the isolation_suitable() check which uses 
+get_pageblock_skip() to read the bit set by the async compaction.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
