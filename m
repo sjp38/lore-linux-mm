@@ -1,44 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f169.google.com (mail-qc0-f169.google.com [209.85.216.169])
-	by kanga.kvack.org (Postfix) with ESMTP id D32EE6B005A
-	for <linux-mm@kvack.org>; Tue,  6 May 2014 13:25:20 -0400 (EDT)
-Received: by mail-qc0-f169.google.com with SMTP id e16so7281719qcx.0
-        for <linux-mm@kvack.org>; Tue, 06 May 2014 10:25:20 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id t1si5441390qap.230.2014.05.06.10.25.18
-        for <linux-mm@kvack.org>;
-        Tue, 06 May 2014 10:25:18 -0700 (PDT)
-Message-ID: <53691AF9.7080608@redhat.com>
-Date: Tue, 06 May 2014 13:25:13 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail-qc0-f172.google.com (mail-qc0-f172.google.com [209.85.216.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A0FE6B0035
+	for <linux-mm@kvack.org>; Tue,  6 May 2014 13:29:02 -0400 (EDT)
+Received: by mail-qc0-f172.google.com with SMTP id l6so5194245qcy.31
+        for <linux-mm@kvack.org>; Tue, 06 May 2014 10:29:02 -0700 (PDT)
+Received: from mail-qa0-x231.google.com (mail-qa0-x231.google.com [2607:f8b0:400d:c00::231])
+        by mx.google.com with ESMTPS id t40si4749315qge.104.2014.05.06.10.29.01
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 06 May 2014 10:29:01 -0700 (PDT)
+Received: by mail-qa0-f49.google.com with SMTP id cm18so7648221qab.8
+        for <linux-mm@kvack.org>; Tue, 06 May 2014 10:29:01 -0700 (PDT)
+Date: Tue, 6 May 2014 13:28:55 -0400
+From: Jerome Glisse <j.glisse@gmail.com>
+Subject: Re: [RFC] Heterogeneous memory management (mirror process address
+ space on a device mmu).
+Message-ID: <20140506172853.GF6731@gmail.com>
+References: <1399038730-25641-1-git-send-email-j.glisse@gmail.com>
+ <20140506102925.GD11096@twins.programming.kicks-ass.net>
+ <CA+55aFzt47Jpp-KK-ocLGgzYt_w-vheqFLfaGZOUSjwVrgGUtw@mail.gmail.com>
+ <20140506150014.GA6731@gmail.com>
+ <CA+55aFwM-g01tCZ1NknwvMeSMpwyKyTm6hysN-GmrZ_APtk7UA@mail.gmail.com>
+ <20140506153315.GB6731@gmail.com>
+ <CA+55aFzzPtTkC22WvHNy6srN9PFzer0-_mgRXWO03NwmCdfy4g@mail.gmail.com>
+ <20140506161836.GC6731@gmail.com>
+ <CA+55aFweCGWQMSxP09MJMhJ0XySZqvw=QaoUWwsWU4KaqDgOhw@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 07/17] mm: page_alloc: Take the ALLOC_NO_WATERMARK check
- out of the fast path
-References: <1398933888-4940-1-git-send-email-mgorman@suse.de> <1398933888-4940-8-git-send-email-mgorman@suse.de>
-In-Reply-To: <1398933888-4940-8-git-send-email-mgorman@suse.de>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CA+55aFweCGWQMSxP09MJMhJ0XySZqvw=QaoUWwsWU4KaqDgOhw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Linux Kernel <linux-kernel@vger.kernel.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Peter Zijlstra <peterz@infradead.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Linda Wang <lwang@redhat.com>, Kevin E Martin <kem@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Jeff Law <law@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Haggai Eran <haggaie@mellanox.com>, Or Gerlitz <ogerlitz@mellanox.com>, Sagi Grimberg <sagig@mellanox.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, "Sander, Ben" <ben.sander@amd.com>, "Stoner, Greg" <Greg.Stoner@amd.com>, "Bridgman, John" <John.Bridgman@amd.com>, "Mantor, Michael" <Michael.Mantor@amd.com>, "Blinzer, Paul" <Paul.Blinzer@amd.com>, "Morichetti, Laurent" <Laurent.Morichetti@amd.com>, "Deucher, Alexander" <Alexander.Deucher@amd.com>, "Gabbay, Oded" <Oded.Gabbay@amd.com>, Davidlohr Bueso <davidlohr@hp.com>
 
-On 05/01/2014 04:44 AM, Mel Gorman wrote:
-> ALLOC_NO_WATERMARK is set in a few cases. Always by kswapd, always for
-> __GFP_MEMALLOC, sometimes for swap-over-nfs, tasks etc. Each of these cases
-> are relatively rare events but the ALLOC_NO_WATERMARK check is an unlikely
-> branch in the fast path.  This patch moves the check out of the fast path
-> and after it has been determined that the watermarks have not been met. This
-> helps the common fast path at the cost of making the slow path slower and
-> hitting kswapd with a performance cost. It's a reasonable tradeoff.
+On Tue, May 06, 2014 at 09:32:16AM -0700, Linus Torvalds wrote:
+> On Tue, May 6, 2014 at 9:18 AM, Jerome Glisse <j.glisse@gmail.com> wrote:
+> >
+> > I do understand that i was pointing out that if i move to, tlb which i
+> > am fine with, i will still need to sleep there.
 > 
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
-> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+> No can do. The TLB flushing itself is called with a spinlock held, and
+> we need to continue to do that.
+> 
+> Why do you really need to sleep? Because that sounds bogus.
+> 
+> What you *should* do is send the flush message, and not wait for any
+> reply. You can then possibly wait for the result later on: we already
+> have this multi-stage TLB flush model (using the "mmu_gather"
+> structure) that has three phases:
+> 
+>  - create mmu_gather (allocate space for batching etc). This can sleep.
+>  - do the actual flushing (possibly multiple times). This is the
+> "synchronous with the VM" part and cannot sleep.
+>  - tear down the mmu_gather data structures and actually free the
+> pages we batched. This can sleep.
+> 
+> and what I think a GPU flush has to do is to do the actual flushes
+> when asked to (because that's what it will need to do to work with a
+> real TLB eventually), but if there's some crazy asynchronous
+> acknowledge thing from hardware, it's possible to perhaps wait for
+> that in the final phase (*before* we free the pages we gathered).
+> 
+> Now, such an asynchronous model had better not mark page tables dirty
+> after we flushed (we'd lose that information), but quite frankly,
+> anything that is remote enough to need some async flush thing cannor
+> sanely be close enough to be closely tied to the actual real page
+> tables, so I don't think we need to care.
+> 
+> Anyway, I really think that the existing mmu_gather model *should*
+> work fine for this all. It may be a bit inconvenient for crazy
+> hardware, but the important part is that it definitely should work for
+> any future hardware that actually gets this right.
+> 
+> It does likely involve adding some kind of device list to "struct
+> mm_struct", and I'm sure there's some extension to "struct mmu_gather"
+> too, but _conceptually_ it should all be reasonably non-invasive.
+> 
+> Knock wood.
+> 
+>             Linus
 
-Reviewed-by: Rik van Riel <riel@redhat.com>
+Also, just to be sure, are my changes to the radix tree otherwise
+acceptable at least in principle. As explained in my long email
+when migrating file backed page to device memory we want to make
+sure that no one else try to use those pages.
 
--- 
-All rights reversed
+The way i have done it is described in my long email but in a nutshell
+it use special swap entry inside the radix tree and have filesystem
+code knows about that and call into the hmm to migrate back to memory
+if needed. Writeback use a temporary bounce page (ie once writeback is
+done the gpu page can be remapped writeable and the bounce page forgotten).
+
+Cheers,
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
