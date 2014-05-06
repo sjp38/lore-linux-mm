@@ -1,59 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f44.google.com (mail-qa0-f44.google.com [209.85.216.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 3CCDC8299E
-	for <linux-mm@kvack.org>; Tue,  6 May 2014 11:00:28 -0400 (EDT)
-Received: by mail-qa0-f44.google.com with SMTP id j7so3069517qaq.3
-        for <linux-mm@kvack.org>; Tue, 06 May 2014 08:00:27 -0700 (PDT)
-Received: from mail-qg0-x230.google.com (mail-qg0-x230.google.com [2607:f8b0:400d:c04::230])
-        by mx.google.com with ESMTPS id t40si4511125qge.104.2014.05.06.08.00.26
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 06 May 2014 08:00:27 -0700 (PDT)
-Received: by mail-qg0-f48.google.com with SMTP id i50so8004285qgf.21
-        for <linux-mm@kvack.org>; Tue, 06 May 2014 08:00:26 -0700 (PDT)
-Date: Tue, 6 May 2014 11:00:17 -0400
-From: Jerome Glisse <j.glisse@gmail.com>
-Subject: Re: [RFC] Heterogeneous memory management (mirror process address
- space on a device mmu).
-Message-ID: <20140506150014.GA6731@gmail.com>
-References: <1399038730-25641-1-git-send-email-j.glisse@gmail.com>
- <20140506102925.GD11096@twins.programming.kicks-ass.net>
- <CA+55aFzt47Jpp-KK-ocLGgzYt_w-vheqFLfaGZOUSjwVrgGUtw@mail.gmail.com>
+Received: from mail-qa0-f43.google.com (mail-qa0-f43.google.com [209.85.216.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E5168299E
+	for <linux-mm@kvack.org>; Tue,  6 May 2014 11:04:23 -0400 (EDT)
+Received: by mail-qa0-f43.google.com with SMTP id m5so5294999qaj.2
+        for <linux-mm@kvack.org>; Tue, 06 May 2014 08:04:23 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id 110si5271943qgv.113.2014.05.06.08.04.22
+        for <linux-mm@kvack.org>;
+        Tue, 06 May 2014 08:04:22 -0700 (PDT)
+Message-ID: <5368F9F0.5070702@redhat.com>
+Date: Tue, 06 May 2014 11:04:16 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CA+55aFzt47Jpp-KK-ocLGgzYt_w-vheqFLfaGZOUSjwVrgGUtw@mail.gmail.com>
+Subject: Re: [PATCH 01/17] mm: page_alloc: Do not update zlc unless the zlc
+ is active
+References: <1398933888-4940-1-git-send-email-mgorman@suse.de> <1398933888-4940-2-git-send-email-mgorman@suse.de>
+In-Reply-To: <1398933888-4940-2-git-send-email-mgorman@suse.de>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Peter Zijlstra <peterz@infradead.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Linda Wang <lwang@redhat.com>, Kevin E Martin <kem@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Jeff Law <law@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Haggai Eran <haggaie@mellanox.com>, Or Gerlitz <ogerlitz@mellanox.com>, Sagi Grimberg <sagig@mellanox.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, "Sander, Ben" <ben.sander@amd.com>, "Stoner, Greg" <Greg.Stoner@amd.com>, "Bridgman, John" <John.Bridgman@amd.com>, "Mantor, Michael" <Michael.Mantor@amd.com>, "Blinzer, Paul" <Paul.Blinzer@amd.com>, "Morichetti, Laurent" <Laurent.Morichetti@amd.com>, "Deucher, Alexander" <Alexander.Deucher@amd.com>, "Gabbay, Oded" <Oded.Gabbay@amd.com>, Davidlohr Bueso <davidlohr@hp.com>
+To: Mel Gorman <mgorman@suse.de>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Linux Kernel <linux-kernel@vger.kernel.org>
 
-On Tue, May 06, 2014 at 07:57:02AM -0700, Linus Torvalds wrote:
-> On Tue, May 6, 2014 at 3:29 AM, Peter Zijlstra <peterz@infradead.org> wrote:
-> >
-> > So you forgot to CC Linus, Linus has expressed some dislike for
-> > preemptible mmu_notifiers in the recent past:
+On 05/01/2014 04:44 AM, Mel Gorman wrote:
+> The zlc is used on NUMA machines to quickly skip over zones that are full.
+> However it is always updated, even for the first zone scanned when the
+> zlc might not even be active. As it's a write to a bitmap that potentially
+> bounces cache line it's deceptively expensive and most machines will not
+> care. Only update the zlc if it was active.
 > 
-> Indeed. I think we *really* should change that anonvma rwsem into an
-> rwlock. We had performance numbers that showed it needs to be done.
-> 
-> The *last* thing we want is to have random callbacks that can block in
-> this critical region. So now I think making it an rwlock is a good
-> idea just to make sure that never happens.
-> 
-> Seriously, the mmu_notifiers were misdesigned to begin with, and much
-> too deep. We're not screwing up the VM any more because of them.
-> 
->                  Linus
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
 
-So question becomes how to implement process address space mirroring
-without pinning memory and track cpu page table update knowing that
-device page table update is unbound can not be atomic from cpu point
-of view.
+Reviewed-by: Rik van Riel <riel@redhat.com>
 
-Cheers,
-Jerome
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
