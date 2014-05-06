@@ -1,123 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f51.google.com (mail-ee0-f51.google.com [74.125.83.51])
-	by kanga.kvack.org (Postfix) with ESMTP id EFB648299E
-	for <linux-mm@kvack.org>; Tue,  6 May 2014 11:21:28 -0400 (EDT)
-Received: by mail-ee0-f51.google.com with SMTP id e51so1870450eek.24
-        for <linux-mm@kvack.org>; Tue, 06 May 2014 08:21:28 -0700 (PDT)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id y6si13677932eep.347.2014.05.06.08.21.27
+Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
+	by kanga.kvack.org (Postfix) with ESMTP id EA47D8299E
+	for <linux-mm@kvack.org>; Tue,  6 May 2014 11:30:26 -0400 (EDT)
+Received: by mail-wi0-f175.google.com with SMTP id f8so3715230wiw.8
+        for <linux-mm@kvack.org>; Tue, 06 May 2014 08:30:25 -0700 (PDT)
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+        by mx.google.com with ESMTPS id sg12si4647849wic.23.2014.05.06.08.30.24
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 06 May 2014 08:21:27 -0700 (PDT)
-Date: Tue, 6 May 2014 11:21:12 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 1/4] memcg, mm: introduce lowlimit reclaim
-Message-ID: <20140506152112.GG19914@cmpxchg.org>
-References: <1398688005-26207-1-git-send-email-mhocko@suse.cz>
- <1398688005-26207-2-git-send-email-mhocko@suse.cz>
- <20140430225550.GD26041@cmpxchg.org>
- <20140502093628.GC3446@dhcp22.suse.cz>
- <20140502155805.GO23420@cmpxchg.org>
- <20140502164930.GP3446@dhcp22.suse.cz>
- <20140502220056.GP23420@cmpxchg.org>
- <20140506132932.GF19914@cmpxchg.org>
- <20140506143242.GB19672@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140506143242.GB19672@dhcp22.suse.cz>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 06 May 2014 08:30:24 -0700 (PDT)
+Received: by mail-wi0-f173.google.com with SMTP id bs8so7515201wib.0
+        for <linux-mm@kvack.org>; Tue, 06 May 2014 08:30:24 -0700 (PDT)
+From: Steve Capper <steve.capper@linaro.org>
+Subject: [RFC PATCH V5 0/6] get_user_pages_fast for ARM and ARM64
+Date: Tue,  6 May 2014 16:30:03 +0100
+Message-Id: <1399390209-1756-1-git-send-email-steve.capper@linaro.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, Tejun Heo <tj@kernel.org>, Hugh Dickins <hughd@google.com>, Roman Gushchin <klamm@yandex-team.ru>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: linux-arm-kernel@lists.infradead.org, catalin.marinas@arm.com, linux@arm.linux.org.uk, linux-arch@vger.kernel.org, linux-mm@kvack.org
+Cc: will.deacon@arm.com, gary.robertson@linaro.org, christoffer.dall@linaro.org, peterz@infradead.org, anders.roxell@linaro.org, akpm@linux-foundation.org, Steve Capper <steve.capper@linaro.org>
 
-On Tue, May 06, 2014 at 04:32:42PM +0200, Michal Hocko wrote:
-> On Tue 06-05-14 09:29:32, Johannes Weiner wrote:
-> > On Fri, May 02, 2014 at 06:00:56PM -0400, Johannes Weiner wrote:
-> > > On Fri, May 02, 2014 at 06:49:30PM +0200, Michal Hocko wrote:
-> > > > On Fri 02-05-14 11:58:05, Johannes Weiner wrote:
-> > > > > This is not even guarantees anymore, but rather another reclaim
-> > > > > prioritization scheme with best-effort semantics.  That went over
-> > > > > horribly with soft limits, and I don't want to repeat this.
-> > > > > 
-> > > > > Overcommitting on guarantees makes no sense, and you even agree you
-> > > > > are not interested in it.  We also agree that we can always add a knob
-> > > > > later on to change semantics when an actual usecase presents itself,
-> > > > > so why not start with the clear and simple semantics, and the simpler
-> > > > > implementation?
-> > > > 
-> > > > So you are really preferring an OOM instead? That was the original
-> > > > implementation posted at the end of last year and some people
-> > > > had concerns about it. This is the primary reason I came up with a
-> > > > weaker version which fallbacks rather than OOM.
-> > > 
-> > > I'll dig through the archives on this then, thanks.
-> > 
-> > The most recent discussion on this I could find was between you and
-> > Greg, where the final outcome was (excerpt):
-> > 
-> > ---
-> > 
-> > From: Greg Thelen <gthelen@google.com>
-> > To: Michal Hocko <mhocko@suse.cz>
-> > Cc: linux-mm@kvack.org,  Johannes Weiner <hannes@cmpxchg.org>,  Andrew Morton <akpm@linux-foundation.org>,  KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>,  LKML <linux-kernel@vger.kernel.org>,  Ying Han <yinghan@google.com>,  Hugh Dickins <hughd@google.com>,  Michel Lespinasse <walken@google.com>,  KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>,  Tejun Heo <tj@kernel.org>
-> > Subject: Re: [RFC 0/4] memcg: Low-limit reclaim
-> > References: <1386771355-21805-1-git-send-email-mhocko@suse.cz>
-> > 	<xr93sis6obb5.fsf@gthelen.mtv.corp.google.com>
-> > 	<20140130123044.GB13509@dhcp22.suse.cz>
-> > 	<xr931tzphu50.fsf@gthelen.mtv.corp.google.com>
-> > 	<20140203144341.GI2495@dhcp22.suse.cz>
-> > Date: Mon, 03 Feb 2014 17:33:13 -0800
-> > Message-ID: <xr93zjm7br1i.fsf@gthelen.mtv.corp.google.com>
-> > List-ID: <linux-mm.kvack.org>
-> > 
-> > On Mon, Feb 03 2014, Michal Hocko wrote:
-> > 
-> > > On Thu 30-01-14 16:28:27, Greg Thelen wrote:
-> > >> But this soft_limit,priority extension can be added later.
-> > >
-> > > Yes, I would like to have the strong semantic first and then deal with a
-> > > weaker form. Either by a new limit or a flag.
-> > 
-> > Sounds good.
-> > 
-> > ---
-> > 
-> > So I think everybody involved in the discussions so far are preferring
-> > a hard guarantee, and then later, if needed, to either add a knob to
-> > make it a soft guarantee or to actually implement a usable soft limit.
-> 
-> I am afraid the most of that discussion happened off-list :( Sadly not
-> much of a discussion happened on the list.
+Hello,
+This RFC series implements get_user_pages_fast and __get_user_pages_fast.
+These are required for Transparent HugePages to function correctly, as
+a futex on a THP tail will otherwise result in an infinite loop (due to
+the core implementation of __get_user_pages_fast always returning 0).
+This series may also be beneficial for direct-IO heavy workloads and
+certain KVM workloads.
 
-Time to do it now, then :)
+The main changes since RFC V4 are:
+ * corrected the arm64 logic so it now correctly rcu-frees page
+   table backing pages.
+ * rcu free logic relaxed for pre-ARMv7 ARM as we need an IPI to
+   invalidate TLBs anyway.
+ * rebased to 3.15-rc3 (some minor changes were needed to allow it to merge).
+ * dropped Catalin's mmu_gather patch as that's been merged already.
 
-> Sorry I should have been specific and mention that the discussions
-> happened at LSF and partly at the KS.
-> 
-> The strongest point was made by Rik when he claimed that memcg is not
-> aware of memory zones and so one memcg with lowlimit larger than the
-> size of a zone can eat up that zone without any way to free it.
+I would really appreciate any comments (especially on the validity or
+otherwise of the core fast_gup implementation) and/or testers.
 
-But who actually cares if an individual zone can be reclaimed?
+Cheers,
+--
+Steve
 
-Userspace allocations can fall back to any other zone.  Unless there
-are hard bindings, but hopefully nobody binds a memcg to a node that
-is smaller than that memcg's guarantee.  And while the pages are not
-reclaimable, they are still movable, so the NUMA balancer is free to
-correct any allocation mistakes later on.
 
-As to kernel allocations, watermarks and lowmem protection prevent any
-single zone from filling up with userspace pages, regardless of their
-reclaimability.
 
-> This can cause additional troubles (permanent reclaim on that zone
-> and OOM in an extreme situations).
+Steve Capper (6):
+  mm: Introduce a general RCU get_user_pages_fast.
+  arm: mm: Introduce special ptes for LPAE
+  arm: mm: Enable HAVE_RCU_TABLE_FREE logic
+  arm: mm: Enable RCU fast_gup
+  arm64: mm: Enable HAVE_RCU_TABLE_FREE logic
+  arm64: mm: Enable RCU fast_gup
 
-We have protection against wasting CPU cycles on unreclaimable zones.
+ arch/arm/Kconfig                      |   4 +
+ arch/arm/include/asm/pgtable-2level.h |   2 +
+ arch/arm/include/asm/pgtable-3level.h |  14 ++
+ arch/arm/include/asm/pgtable.h        |   6 +-
+ arch/arm/include/asm/tlb.h            |  38 ++++-
+ arch/arm/mm/flush.c                   |  19 +++
+ arch/arm64/Kconfig                    |   4 +
+ arch/arm64/include/asm/pgtable.h      |   8 +-
+ arch/arm64/include/asm/tlb.h          |  18 ++-
+ arch/arm64/mm/flush.c                 |  19 +++
+ mm/Kconfig                            |   3 +
+ mm/Makefile                           |   1 +
+ mm/gup.c                              | 297 ++++++++++++++++++++++++++++++++++
+ 13 files changed, 424 insertions(+), 9 deletions(-)
+ create mode 100644 mm/gup.c
 
-So how is it different than anonymous/shared memory without swap?  Or
-mlocked memory?
+-- 
+1.8.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
