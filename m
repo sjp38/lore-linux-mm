@@ -1,75 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f48.google.com (mail-qg0-f48.google.com [209.85.192.48])
-	by kanga.kvack.org (Postfix) with ESMTP id F35526B0035
-	for <linux-mm@kvack.org>; Tue,  6 May 2014 16:34:53 -0400 (EDT)
-Received: by mail-qg0-f48.google.com with SMTP id i50so28521qgf.7
-        for <linux-mm@kvack.org>; Tue, 06 May 2014 13:34:53 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id l5si5736136qai.77.2014.05.06.13.34.53
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 May 2014 13:34:53 -0700 (PDT)
-Date: Tue, 6 May 2014 22:34:49 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH 08/17] mm: page_alloc: Use word-based accesses for
- get/set pageblock bitmaps
-Message-ID: <20140506203449.GG1429@laptop.programming.kicks-ass.net>
-References: <1398933888-4940-1-git-send-email-mgorman@suse.de>
- <1398933888-4940-9-git-send-email-mgorman@suse.de>
+Received: from mail-qg0-f53.google.com (mail-qg0-f53.google.com [209.85.192.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 0730B6B0035
+	for <linux-mm@kvack.org>; Tue,  6 May 2014 16:39:54 -0400 (EDT)
+Received: by mail-qg0-f53.google.com with SMTP id f51so32063qge.26
+        for <linux-mm@kvack.org>; Tue, 06 May 2014 13:39:54 -0700 (PDT)
+Received: from cdptpa-oedge-vip.email.rr.com (cdptpa-outbound-snat.email.rr.com. [107.14.166.232])
+        by mx.google.com with ESMTP id e7si5748551qai.19.2014.05.06.13.39.54
+        for <linux-mm@kvack.org>;
+        Tue, 06 May 2014 13:39:54 -0700 (PDT)
+Date: Tue, 6 May 2014 16:39:50 -0400
+From: Steven Rostedt <rostedt@goodmis.org>
+Subject: Re: [PATCH 3/4] plist: add plist_rotate
+Message-ID: <20140506163950.7e278f7c@gandalf.local.home>
+In-Reply-To: <CALZtONAr7XGMB8LHwKRjqeEaWTEKBbwkUuP1RAZd04YQiwxrGw@mail.gmail.com>
+References: <1397336454-13855-1-git-send-email-ddstreet@ieee.org>
+	<1399057350-16300-1-git-send-email-ddstreet@ieee.org>
+	<1399057350-16300-4-git-send-email-ddstreet@ieee.org>
+	<20140505221846.4564e04d@gandalf.local.home>
+	<CALZtONAr7XGMB8LHwKRjqeEaWTEKBbwkUuP1RAZd04YQiwxrGw@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
-In-Reply-To: <1398933888-4940-9-git-send-email-mgorman@suse.de>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Linux Kernel <linux-kernel@vger.kernel.org>
+To: Dan Streetman <ddstreet@ieee.org>
+Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Weijie Yang <weijieut@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Paul Gortmaker <paul.gortmaker@windriver.com>, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <peterz@infradead.org>
 
-On Thu, May 01, 2014 at 09:44:39AM +0100, Mel Gorman wrote:
-> +void set_pfnblock_flags_group(struct page *page, unsigned long flags,
-> +					unsigned long end_bitidx,
-> +					unsigned long nr_flag_bits,
-> +					unsigned long mask)
->  {
->  	struct zone *zone;
->  	unsigned long *bitmap;
-> +	unsigned long pfn, bitidx, word_bitidx;
-> +	unsigned long old_word, new_word;
-> +
-> +	BUILD_BUG_ON(NR_PAGEBLOCK_BITS !=3D 4);
-> =20
->  	zone =3D page_zone(page);
->  	pfn =3D page_to_pfn(page);
->  	bitmap =3D get_pageblock_bitmap(zone, pfn);
->  	bitidx =3D pfn_to_bitidx(zone, pfn);
-> +	word_bitidx =3D bitidx / BITS_PER_LONG;
-> +	bitidx &=3D (BITS_PER_LONG-1);
-> +
->  	VM_BUG_ON_PAGE(!zone_spans_pfn(zone, pfn), page);
-> =20
-> +	bitidx +=3D end_bitidx;
-> +	mask <<=3D (BITS_PER_LONG - bitidx - 1);
-> +	flags <<=3D (BITS_PER_LONG - bitidx - 1);
-> +
-> +	do {
-> +		old_word =3D ACCESS_ONCE(bitmap[word_bitidx]);
-> +		new_word =3D (old_word & ~mask) | flags;
-> +	} while (cmpxchg(&bitmap[word_bitidx], old_word, new_word) !=3D old_wor=
-d);
->  }
+On Tue, 6 May 2014 16:12:54 -0400
+Dan Streetman <ddstreet@ieee.org> wrote:
 
-You could write it like:
+> On Mon, May 5, 2014 at 10:18 PM, Steven Rostedt <rostedt@goodmis.org> wrote:
+> > On Fri,  2 May 2014 15:02:29 -0400
+> > Dan Streetman <ddstreet@ieee.org> wrote:
+> >
+> >> Add plist_rotate(), which moves the specified plist_node after
+> >> all other same-priority plist_nodes in the list.
+> >
+> > This is a little confusing? You mean it takes a plist_node from a plist
+> > and simply moves it to the end of the list of all other nodes of the
+> > same priority?
+> 
+> yes, exactly
+> 
+> > Kind of like what a sched_yield() would do with a
+> > SCHED_FIFO task? I wonder if we should call this "plist_yield()" then?
+> 
+> I suppose it is similar, yes...I'll rename it in a v2 patch.
 
-	word =3D ACCESS_ONCE(bitmap[word_bitidx]);
-	for (;;) {
-		old_word =3D cmpxchg(&bitmap[word_bitidx], word, (word & ~mask) | flags);
-		if (word =3D=3D old_word);
-			break;
-		word =3D old_word;
-	}
+I'm open to other suggestions as well. What else can give you the idea
+that it's putting a node at the end of its priority?
 
-It has a slightly tighter loop by avoiding the read being included.
+I added Peter to the Cc list because I know how much he loves
+sched_yield() :-)
+
+> 
+> >
+> >>
+> >> This is needed by swap, which has a plist of swap_info_structs
+> >> and needs to use each same-priority swap_info_struct equally.
+> >
+> > "needs to use each same-priority swap_info_struct equally"
+> >
+> > -ENOCOMPUTE
+> 
+> heh, yeah that needs a bit more explaining doesn't it :-)
+> 
+> by "equally", I mean as swap writes pages out to its swap devices, it
+> must write to any same-priority devices on a round-robin basis.
+
+OK, I think you are suffering from "being too involved to explain
+clearly" syndrome. :)
+
+I still don't see the connection between swap pages and plist, and even
+more so, why something would already be in a plist and then needs to be
+pushed to the end of its priority.
+
+> 
+> I'll update the comment in the v2 patch to try to explain clearer.
+> 
+
+Please do. But explain it to someone that has no idea how plists are
+used by the swap subsystem, and why you need to move a node to the end
+of its priority.
+
+Thanks,
+
+-- Steve
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
