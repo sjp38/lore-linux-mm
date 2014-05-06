@@ -1,91 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f53.google.com (mail-qg0-f53.google.com [209.85.192.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 0730B6B0035
-	for <linux-mm@kvack.org>; Tue,  6 May 2014 16:39:54 -0400 (EDT)
-Received: by mail-qg0-f53.google.com with SMTP id f51so32063qge.26
-        for <linux-mm@kvack.org>; Tue, 06 May 2014 13:39:54 -0700 (PDT)
-Received: from cdptpa-oedge-vip.email.rr.com (cdptpa-outbound-snat.email.rr.com. [107.14.166.232])
-        by mx.google.com with ESMTP id e7si5748551qai.19.2014.05.06.13.39.54
-        for <linux-mm@kvack.org>;
-        Tue, 06 May 2014 13:39:54 -0700 (PDT)
-Date: Tue, 6 May 2014 16:39:50 -0400
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [PATCH 3/4] plist: add plist_rotate
-Message-ID: <20140506163950.7e278f7c@gandalf.local.home>
-In-Reply-To: <CALZtONAr7XGMB8LHwKRjqeEaWTEKBbwkUuP1RAZd04YQiwxrGw@mail.gmail.com>
-References: <1397336454-13855-1-git-send-email-ddstreet@ieee.org>
-	<1399057350-16300-1-git-send-email-ddstreet@ieee.org>
-	<1399057350-16300-4-git-send-email-ddstreet@ieee.org>
-	<20140505221846.4564e04d@gandalf.local.home>
-	<CALZtONAr7XGMB8LHwKRjqeEaWTEKBbwkUuP1RAZd04YQiwxrGw@mail.gmail.com>
+Received: from mail-qg0-f44.google.com (mail-qg0-f44.google.com [209.85.192.44])
+	by kanga.kvack.org (Postfix) with ESMTP id A9E806B0035
+	for <linux-mm@kvack.org>; Tue,  6 May 2014 16:40:44 -0400 (EDT)
+Received: by mail-qg0-f44.google.com with SMTP id i50so33368qgf.31
+        for <linux-mm@kvack.org>; Tue, 06 May 2014 13:40:44 -0700 (PDT)
+Received: from mail-qg0-x236.google.com (mail-qg0-x236.google.com [2607:f8b0:400d:c04::236])
+        by mx.google.com with ESMTPS id g10si3416741qge.17.2014.05.06.13.40.44
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 06 May 2014 13:40:44 -0700 (PDT)
+Received: by mail-qg0-f54.google.com with SMTP id q108so33130qgd.27
+        for <linux-mm@kvack.org>; Tue, 06 May 2014 13:40:44 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Reply-To: mtk.manpages@gmail.com
+In-Reply-To: <1399406800.13799.20.camel@buesod1.americas.hpqcorp.net>
+References: <1398090397-2397-1-git-send-email-manfred@colorfullife.com>
+ <CAKgNAkjuU68hgyMOVGBVoBTOhhGdBytQh6H0ExiLoXfujKyP_w@mail.gmail.com> <1399406800.13799.20.camel@buesod1.americas.hpqcorp.net>
+From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+Date: Tue, 6 May 2014 22:40:23 +0200
+Message-ID: <CAKgNAkjOKP7P9veOpnokNkVXSszVZt5asFsNp7rm7AXJdjcLLA@mail.gmail.com>
+Subject: Re: [PATCH 0/4] ipc/shm.c: increase the limits for SHMMAX, SHMALL
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Streetman <ddstreet@ieee.org>
-Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Weijie Yang <weijieut@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Paul Gortmaker <paul.gortmaker@windriver.com>, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <peterz@infradead.org>
+To: Davidlohr Bueso <davidlohr@hp.com>
+Cc: Manfred Spraul <manfred@colorfullife.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, aswin@hp.com, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Tue, 6 May 2014 16:12:54 -0400
-Dan Streetman <ddstreet@ieee.org> wrote:
+Hi Davidlohr,
 
-> On Mon, May 5, 2014 at 10:18 PM, Steven Rostedt <rostedt@goodmis.org> wrote:
-> > On Fri,  2 May 2014 15:02:29 -0400
-> > Dan Streetman <ddstreet@ieee.org> wrote:
-> >
-> >> Add plist_rotate(), which moves the specified plist_node after
-> >> all other same-priority plist_nodes in the list.
-> >
-> > This is a little confusing? You mean it takes a plist_node from a plist
-> > and simply moves it to the end of the list of all other nodes of the
-> > same priority?
-> 
-> yes, exactly
-> 
-> > Kind of like what a sched_yield() would do with a
-> > SCHED_FIFO task? I wonder if we should call this "plist_yield()" then?
-> 
-> I suppose it is similar, yes...I'll rename it in a v2 patch.
+On Tue, May 6, 2014 at 10:06 PM, Davidlohr Bueso <davidlohr@hp.com> wrote:
+> On Fri, 2014-05-02 at 15:16 +0200, Michael Kerrisk (man-pages) wrote:
+>> Hi Manfred,
+>>
+>> On Mon, Apr 21, 2014 at 4:26 PM, Manfred Spraul
+>> <manfred@colorfullife.com> wrote:
+>> > Hi all,
+>> >
+>> > the increase of SHMMAX/SHMALL is now a 4 patch series.
+>> > I don't have ideas how to improve it further.
+>>
+>> On the assumption that your patches are heading to mainline, could you
+>> send me a man-pages patch for the changes?
+>
+> Btw, I think that the code could still use some love wrt documentation.
 
-I'm open to other suggestions as well. What else can give you the idea
-that it's putting a node at the end of its priority?
+(Agreed.)
 
-I added Peter to the Cc list because I know how much he loves
-sched_yield() :-)
+> Andrew, please consider this for -next if folks agree. Thanks.
+>
+> 8<----------------------------------------------------------
+>
+> From: Davidlohr Bueso <davidlohr@hp.com>
+> Subject: [PATCH] ipc,shm: document new limits in the uapi header
+>
+> This is useful in the future and allows users to
+> better understand the reasoning behind the changes.
+>
+> Also use UL as we're dealing with it anyways.
+>
+> Signed-off-by: Davidlohr Bueso <davidlohr@hp.com>
+> ---
+>  include/uapi/linux/shm.h | 14 ++++++++------
+>  1 file changed, 8 insertions(+), 6 deletions(-)
+>
+> diff --git a/include/uapi/linux/shm.h b/include/uapi/linux/shm.h
+> index 74e786d..e37fb08 100644
+> --- a/include/uapi/linux/shm.h
+> +++ b/include/uapi/linux/shm.h
+> @@ -8,17 +8,19 @@
+>  #endif
+>
+>  /*
+> - * SHMMAX, SHMMNI and SHMALL are upper limits are defaults which can
 
-> 
-> >
-> >>
-> >> This is needed by swap, which has a plist of swap_info_structs
-> >> and needs to use each same-priority swap_info_struct equally.
-> >
-> > "needs to use each same-priority swap_info_struct equally"
-> >
-> > -ENOCOMPUTE
-> 
-> heh, yeah that needs a bit more explaining doesn't it :-)
-> 
-> by "equally", I mean as swap writes pages out to its swap devices, it
-> must write to any same-priority devices on a round-robin basis.
+Something is wrong in the line above (missing word(s)?) ("are upper
+limits are defaults")
 
-OK, I think you are suffering from "being too involved to explain
-clearly" syndrome. :)
+> - * be modified by sysctl.
+> + * SHMMNI, SHMMAX and SHMALL are the default upper limits which can be
+> + * modified by sysctl. Both SHMMAX and SHMALL have their default values
+> + * to the maximum limit which is as large as it can be without helping
+> + * userspace overflow the values. There is really nothing the kernel
+> + * can do to avoid this any variables. It is therefore not advised to
 
-I still don't see the connection between swap pages and plist, and even
-more so, why something would already be in a plist and then needs to be
-pushed to the end of its priority.
+Something is missing in that last line.
 
-> 
-> I'll update the comment in the v2 patch to try to explain clearer.
-> 
+> + * make them any larger. This is suitable for both 32 and 64-bit systems.
 
-Please do. But explain it to someone that has no idea how plists are
-used by the swap subsystem, and why you need to move a node to the end
-of its priority.
+"This" is not so clear. I suggest replacing with an actual noun.
 
-Thanks,
+>   */
+> -
+>  #define SHMMIN 1                        /* min shared seg size (bytes) */
+>  #define SHMMNI 4096                     /* max num of segs system wide */
+> -#define SHMMAX (ULONG_MAX - (1L<<24))   /* max shared seg size (bytes) */
+> -#define SHMALL (ULONG_MAX - (1L<<24))   /* max shm system wide (pages) */
+> +#define SHMMAX (ULONG_MAX - (1UL << 24)) /* max shared seg size (bytes) */
+> +#define SHMALL (ULONG_MAX - (1UL << 24)) /* max shm system wide (pages) */
+>  #define SHMSEG SHMMNI                   /* max shared segs per process */
+>
+> -
+>  /* Obsolete, used only for backwards compatibility and libc5 compiles */
+>  struct shmid_ds {
+>         struct ipc_perm         shm_perm;       /* operation perms */
 
--- Steve
+Cheers,
+
+Michael
+
+-- 
+Michael Kerrisk
+Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
+Linux/UNIX System Programming Training: http://man7.org/training/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
