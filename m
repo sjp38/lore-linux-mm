@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f47.google.com (mail-qa0-f47.google.com [209.85.216.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 706876B0037
-	for <linux-mm@kvack.org>; Tue,  6 May 2014 13:24:35 -0400 (EDT)
-Received: by mail-qa0-f47.google.com with SMTP id s7so3157047qap.6
-        for <linux-mm@kvack.org>; Tue, 06 May 2014 10:24:35 -0700 (PDT)
+Received: from mail-qc0-f169.google.com (mail-qc0-f169.google.com [209.85.216.169])
+	by kanga.kvack.org (Postfix) with ESMTP id D32EE6B005A
+	for <linux-mm@kvack.org>; Tue,  6 May 2014 13:25:20 -0400 (EDT)
+Received: by mail-qc0-f169.google.com with SMTP id e16so7281719qcx.0
+        for <linux-mm@kvack.org>; Tue, 06 May 2014 10:25:20 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id a67si1204352qgf.20.2014.05.06.10.24.33
+        by mx.google.com with ESMTP id t1si5441390qap.230.2014.05.06.10.25.18
         for <linux-mm@kvack.org>;
-        Tue, 06 May 2014 10:24:33 -0700 (PDT)
-Message-ID: <53691AC9.8070104@redhat.com>
-Date: Tue, 06 May 2014 13:24:25 -0400
+        Tue, 06 May 2014 10:25:18 -0700 (PDT)
+Message-ID: <53691AF9.7080608@redhat.com>
+Date: Tue, 06 May 2014 13:25:13 -0400
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 06/17] mm: page_alloc: Only check the alloc flags and
- gfp_mask for dirty once
-References: <1398933888-4940-1-git-send-email-mgorman@suse.de> <1398933888-4940-7-git-send-email-mgorman@suse.de>
-In-Reply-To: <1398933888-4940-7-git-send-email-mgorman@suse.de>
+Subject: Re: [PATCH 07/17] mm: page_alloc: Take the ALLOC_NO_WATERMARK check
+ out of the fast path
+References: <1398933888-4940-1-git-send-email-mgorman@suse.de> <1398933888-4940-8-git-send-email-mgorman@suse.de>
+In-Reply-To: <1398933888-4940-8-git-send-email-mgorman@suse.de>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -24,7 +24,13 @@ To: Mel Gorman <mgorman@suse.de>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <
 Cc: Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Linux Kernel <linux-kernel@vger.kernel.org>
 
 On 05/01/2014 04:44 AM, Mel Gorman wrote:
-> Currently it's calculated once per zone in the zonelist.
+> ALLOC_NO_WATERMARK is set in a few cases. Always by kswapd, always for
+> __GFP_MEMALLOC, sometimes for swap-over-nfs, tasks etc. Each of these cases
+> are relatively rare events but the ALLOC_NO_WATERMARK check is an unlikely
+> branch in the fast path.  This patch moves the check out of the fast path
+> and after it has been determined that the watermarks have not been met. This
+> helps the common fast path at the cost of making the slow path slower and
+> hitting kswapd with a performance cost. It's a reasonable tradeoff.
 > 
 > Signed-off-by: Mel Gorman <mgorman@suse.de>
 > Acked-by: Johannes Weiner <hannes@cmpxchg.org>
