@@ -1,20 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f179.google.com (mail-qc0-f179.google.com [209.85.216.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 82FFB6B0037
-	for <linux-mm@kvack.org>; Tue,  6 May 2014 14:53:26 -0400 (EDT)
-Received: by mail-qc0-f179.google.com with SMTP id x3so6543664qcv.24
-        for <linux-mm@kvack.org>; Tue, 06 May 2014 11:53:26 -0700 (PDT)
+Received: from mail-qg0-f49.google.com (mail-qg0-f49.google.com [209.85.192.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C5416B003C
+	for <linux-mm@kvack.org>; Tue,  6 May 2014 14:54:33 -0400 (EDT)
+Received: by mail-qg0-f49.google.com with SMTP id a108so3044845qge.8
+        for <linux-mm@kvack.org>; Tue, 06 May 2014 11:54:33 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id e19si3558158qgd.46.2014.05.06.11.53.25
+        by mx.google.com with ESMTP id u7si3441727qab.259.2014.05.06.11.54.32
         for <linux-mm@kvack.org>;
-        Tue, 06 May 2014 11:53:25 -0700 (PDT)
-Message-ID: <53692F9F.1050000@redhat.com>
-Date: Tue, 06 May 2014 14:53:19 -0400
+        Tue, 06 May 2014 11:54:33 -0700 (PDT)
+Message-ID: <53692FE4.6000905@redhat.com>
+Date: Tue, 06 May 2014 14:54:28 -0400
 From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 13/17] mm: shmem: Avoid atomic operation during shmem_getpage_gfp
-References: <1398933888-4940-1-git-send-email-mgorman@suse.de> <1398933888-4940-14-git-send-email-mgorman@suse.de>
-In-Reply-To: <1398933888-4940-14-git-send-email-mgorman@suse.de>
+Subject: Re: [PATCH 14/17] mm: Do not use atomic operations when releasing
+ pages
+References: <1398933888-4940-1-git-send-email-mgorman@suse.de> <1398933888-4940-15-git-send-email-mgorman@suse.de>
+In-Reply-To: <1398933888-4940-15-git-send-email-mgorman@suse.de>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
@@ -23,12 +24,10 @@ To: Mel Gorman <mgorman@suse.de>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <
 Cc: Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Linux Kernel <linux-kernel@vger.kernel.org>
 
 On 05/01/2014 04:44 AM, Mel Gorman wrote:
-> shmem_getpage_gfp uses an atomic operation to set the SwapBacked field
-> before it's even added to the LRU or visible. This is unnecessary as what
-> could it possible race against?  Use an unlocked variant.
+> There should be no references to it any more and a parallel mark should
+> not be reordered against us. Use non-locked varient to clear page active.
 > 
 > Signed-off-by: Mel Gorman <mgorman@suse.de>
-> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 Acked-by: Rik van Riel <riel@redhat.com>
 
