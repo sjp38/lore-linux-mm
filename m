@@ -1,213 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f175.google.com (mail-lb0-f175.google.com [209.85.217.175])
-	by kanga.kvack.org (Postfix) with ESMTP id EE3D46B00DF
-	for <linux-mm@kvack.org>; Tue,  6 May 2014 04:25:46 -0400 (EDT)
-Received: by mail-lb0-f175.google.com with SMTP id l4so2470290lbv.6
-        for <linux-mm@kvack.org>; Tue, 06 May 2014 01:25:46 -0700 (PDT)
-Received: from mail-lb0-x232.google.com (mail-lb0-x232.google.com [2a00:1450:4010:c04::232])
-        by mx.google.com with ESMTPS id pc8si1198026lbb.76.2014.05.06.01.25.44
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 06 May 2014 01:25:45 -0700 (PDT)
-Received: by mail-lb0-f178.google.com with SMTP id w7so1701483lbi.23
-        for <linux-mm@kvack.org>; Tue, 06 May 2014 01:25:44 -0700 (PDT)
-Date: Tue, 6 May 2014 12:25:42 +0400
-From: Cyrill Gorcunov <gorcunov@gmail.com>
-Subject: [patch 2/2] mm: pgtable -- Require X86_64 for soft-dirty tracker, v2
-Message-ID: <20140506082542.GI28248@moon>
-References: <20140425081030.185969086@openvz.org>
- <20140425082042.848656782@openvz.org>
- <20140505163123.65e6f8853cdf0646f26bd5b4@linux-foundation.org>
+Received: from mail-ee0-f51.google.com (mail-ee0-f51.google.com [74.125.83.51])
+	by kanga.kvack.org (Postfix) with ESMTP id D5CF66B00E0
+	for <linux-mm@kvack.org>; Tue,  6 May 2014 04:43:39 -0400 (EDT)
+Received: by mail-ee0-f51.google.com with SMTP id e51so1471989eek.10
+        for <linux-mm@kvack.org>; Tue, 06 May 2014 01:43:39 -0700 (PDT)
+Received: from jenni1.inet.fi (mta-out1.inet.fi. [62.71.2.198])
+        by mx.google.com with ESMTP id n7si12720590eeu.109.2014.05.06.01.43.37
+        for <linux-mm@kvack.org>;
+        Tue, 06 May 2014 01:43:38 -0700 (PDT)
+Date: Tue, 6 May 2014 11:43:33 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH] mm, thp: close race between mremap() and
+ split_huge_page()
+Message-ID: <20140506084333.GA5575@node.dhcp.inet.fi>
+References: <1399328011-15317-1-git-send-email-kirill.shutemov@linux.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140505163123.65e6f8853cdf0646f26bd5b4@linux-foundation.org>
+In-Reply-To: <1399328011-15317-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, torvalds@linux-foundation.org, mgorman@suse.de, hpa@zytor.com, mingo@kernel.org, steven@uplinklabs.net, riel@redhat.com, david.vrabel@citrix.com, peterz@infradead.org, xemul@parallels.com
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Dave Jones <davej@redhat.com>, stable@vger.kernel.org
 
-On Mon, May 05, 2014 at 04:31:23PM -0700, Andrew Morton wrote:
-> On Fri, 25 Apr 2014 12:10:32 +0400 Cyrill Gorcunov <gorcunov@openvz.org> wrote:
+On Tue, May 06, 2014 at 01:13:31AM +0300, Kirill A. Shutemov wrote:
+> It's critical for split_huge_page() (and migration) to catch and freeze
+> all PMDs on rmap walk. It gets tricky if there's concurrent fork() or
+> mremap() since usually we copy/move page table entries on dup_mm() or
+> move_page_tables() without rmap lock taken. To get it work we rely on
+> rmap walk order to not miss any entry. We expect to see destination VMA
+> after source one to work correctly.
 > 
-> > Tracking dirty status on 2 level pages requires very ugly macros
-> > and taking into account how old the machines who can operate
-> > without PAE mode only are, lets drop soft dirty tracker from
-> > them for code simplicity (note I can't drop all the macros
-> > from 2 level pages by now since _PAGE_BIT_PROTNONE and
-> > _PAGE_BIT_FILE are still used even without tracker).
-> > 
-> > Linus proposed to completely rip off softdirty support on
-> > x86-32 (even with PAE) and since for CRIU we're not planning
-> > to support native x86-32 mode, lets do that.
-> > 
-> > (Softdirty tracker is relatively new feature which mostly used
-> >  by CRIU so I don't expect if such API change would cause problems
-> >  on userspace).
+> But after switching rmap implementation to interval tree it's not always
+> possible to preserve expected walk order.
 > 
-> i386 allnoconfig:
+> It works fine for dup_mm() since new VMA has the same vma_start_pgoff()
+> / vma_last_pgoff() and explicitly insert dst VMA after src one with
+> vma_interval_tree_insert_after().
 > 
-> In file included from /usr/src/25/arch/x86/include/asm/pgtable.h:886,
+> But on move_vma() destination VMA can be merged into adjacent one and as
+> result shifted left in interval tree. Fortunately, we can detect the
+> situation and prevent race with rmap walk by moving page table entries
+> under rmap lock. See commit 38a76013ad80.
+> 
+> Problem is that we miss the lock when we move transhuge PMD. Most likely
+> this bug caused the crash[1].
+> 
+> [1] http://thread.gmane.org/gmane.linux.kernel.mm/96473
 
-Thanks! Here is an updated version.
----
-From: Cyrill Gorcunov <gorcunov@openvz.org>
-Subject: [PATCH -next] mm: pgtable -- Require X86_64 for soft-dirty tracker
+It took a night but I was able to trigger crash which this patch fixes.
 
-Tracking dirty status on 2 level pages requires very ugly macros
-and taking into account how old the machines who can operate
-without PAE mode only are, lets drop soft dirty tracker from
-them for code simplicity (note I can't drop all the macros
-from 2 level pages by now since _PAGE_BIT_PROTNONE and
-_PAGE_BIT_FILE are still used even without tracker).
+Test case:
 
-Linus proposed to completely rip off softdirty support on
-x86-32 (even with PAE) and since for CRIU we're not planning
-to support native x86-32 mode, lets do that.
+#define _GNU_SOURCE
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/mman.h>
+#include <sys/wait.h>
 
-(Softdirty tracker is relatively new feature which mostly used
- by CRIU so I don't expect if such API change would cause problems
- on userspace).
+#define MB (1024UL*1024)
+#define SIZE (4*MB)
+#define BASE ((void *)0x400000000000)
 
-v2 (by akpm@):
- - guard helpers with CONFIG_HAVE_ARCH_SOFT_DIRTY on i386, otherwise
-   it fails to build because we've a generic definitions in
-   asm-generic/pgtable.h
+int main()
+{
+	char *x1, *x2;
 
-CC: Linus Torvalds <torvalds@linux-foundation.org>
-CC: Mel Gorman <mgorman@suse.de>
-CC: Peter Anvin <hpa@zytor.com>
-CC: Ingo Molnar <mingo@kernel.org>
-CC: Steven Noonan <steven@uplinklabs.net>
-CC: Rik van Riel <riel@redhat.com>
-CC: David Vrabel <david.vrabel@citrix.com>
-CC: Andrew Morton <akpm@linux-foundation.org>
-CC: Peter Zijlstra <peterz@infradead.org>
-CC: Pavel Emelyanov <xemul@parallels.com>
-Signed-off-by: Cyrill Gorcunov <gorcunov@openvz.org>
----
- arch/x86/Kconfig                      |    2 -
- arch/x86/include/asm/pgtable-2level.h |   49 ----------------------------------
- arch/x86/include/asm/pgtable.h        |    5 +++
- 3 files changed, 6 insertions(+), 50 deletions(-)
+	for (;;) {
+		x1 = mmap(BASE, 2 * SIZE, PROT_READ | PROT_WRITE,
+			MAP_PRIVATE | MAP_ANONYMOUS | MAP_POPULATE | MAP_FIXED,
+			-1, 0);
+                if (x1 == MAP_FAILED)
+                        perror("x1"), exit(1);
+		x2 = mremap(x1 + SIZE, SIZE, SIZE,
+				MREMAP_FIXED | MREMAP_MAYMOVE,
+				x1 + 2 * SIZE);
+                if (x2 == MAP_FAILED)
+                        perror("x2"), exit(1);
 
-Index: linux-2.6.git/arch/x86/Kconfig
-===================================================================
---- linux-2.6.git.orig/arch/x86/Kconfig
-+++ linux-2.6.git/arch/x86/Kconfig
-@@ -106,7 +106,7 @@ config X86
- 	select HAVE_ARCH_SECCOMP_FILTER
- 	select BUILDTIME_EXTABLE_SORT
- 	select GENERIC_CMOS_UPDATE
--	select HAVE_ARCH_SOFT_DIRTY
-+	select HAVE_ARCH_SOFT_DIRTY if X86_64
- 	select CLOCKSOURCE_WATCHDOG
- 	select GENERIC_CLOCKEVENTS
- 	select ARCH_CLOCKSOURCE_DATA
-Index: linux-2.6.git/arch/x86/include/asm/pgtable-2level.h
-===================================================================
---- linux-2.6.git.orig/arch/x86/include/asm/pgtable-2level.h
-+++ linux-2.6.git/arch/x86/include/asm/pgtable-2level.h
-@@ -62,53 +62,6 @@ static inline unsigned long pte_bitop(un
- 	return ((value >> rightshift) & mask) << leftshift;
- }
- 
--#ifdef CONFIG_MEM_SOFT_DIRTY
--
--/*
-- * Bits _PAGE_BIT_PRESENT, _PAGE_BIT_FILE, _PAGE_BIT_SOFT_DIRTY and
-- * _PAGE_BIT_PROTNONE are taken, split up the 28 bits of offset
-- * into this range.
-- */
--#define PTE_FILE_MAX_BITS	28
--#define PTE_FILE_SHIFT1		(_PAGE_BIT_PRESENT + 1)
--#define PTE_FILE_SHIFT2		(_PAGE_BIT_FILE + 1)
--#define PTE_FILE_SHIFT3		(_PAGE_BIT_PROTNONE + 1)
--#define PTE_FILE_SHIFT4		(_PAGE_BIT_SOFT_DIRTY + 1)
--#define PTE_FILE_BITS1		(PTE_FILE_SHIFT2 - PTE_FILE_SHIFT1 - 1)
--#define PTE_FILE_BITS2		(PTE_FILE_SHIFT3 - PTE_FILE_SHIFT2 - 1)
--#define PTE_FILE_BITS3		(PTE_FILE_SHIFT4 - PTE_FILE_SHIFT3 - 1)
--
--#define PTE_FILE_MASK1		((1U << PTE_FILE_BITS1) - 1)
--#define PTE_FILE_MASK2		((1U << PTE_FILE_BITS2) - 1)
--#define PTE_FILE_MASK3		((1U << PTE_FILE_BITS3) - 1)
--
--#define PTE_FILE_LSHIFT2	(PTE_FILE_BITS1)
--#define PTE_FILE_LSHIFT3	(PTE_FILE_BITS1 + PTE_FILE_BITS2)
--#define PTE_FILE_LSHIFT4	(PTE_FILE_BITS1 + PTE_FILE_BITS2 + PTE_FILE_BITS3)
--
--static __always_inline pgoff_t pte_to_pgoff(pte_t pte)
--{
--	return (pgoff_t)
--		(pte_bitop(pte.pte_low, PTE_FILE_SHIFT1, PTE_FILE_MASK1,  0)		    +
--		 pte_bitop(pte.pte_low, PTE_FILE_SHIFT2, PTE_FILE_MASK2,  PTE_FILE_LSHIFT2) +
--		 pte_bitop(pte.pte_low, PTE_FILE_SHIFT3, PTE_FILE_MASK3,  PTE_FILE_LSHIFT3) +
--		 pte_bitop(pte.pte_low, PTE_FILE_SHIFT4,           -1UL,  PTE_FILE_LSHIFT4));
--}
--
--static __always_inline pte_t pgoff_to_pte(pgoff_t off)
--{
--	return (pte_t){
--		.pte_low =
--			pte_bitop(off,                0, PTE_FILE_MASK1,  PTE_FILE_SHIFT1) +
--			pte_bitop(off, PTE_FILE_LSHIFT2, PTE_FILE_MASK2,  PTE_FILE_SHIFT2) +
--			pte_bitop(off, PTE_FILE_LSHIFT3, PTE_FILE_MASK3,  PTE_FILE_SHIFT3) +
--			pte_bitop(off, PTE_FILE_LSHIFT4,           -1UL,  PTE_FILE_SHIFT4) +
--			_PAGE_FILE,
--	};
--}
--
--#else /* CONFIG_MEM_SOFT_DIRTY */
--
- /*
-  * Bits _PAGE_BIT_PRESENT, _PAGE_BIT_FILE and _PAGE_BIT_PROTNONE are taken,
-  * split up the 29 bits of offset into this range.
-@@ -145,8 +98,6 @@ static __always_inline pte_t pgoff_to_pt
- 	};
- }
- 
--#endif /* CONFIG_MEM_SOFT_DIRTY */
--
- /* Encode and de-code a swap entry */
- #define SWP_TYPE_BITS (_PAGE_BIT_FILE - _PAGE_BIT_PRESENT - 1)
- #define SWP_OFFSET_SHIFT (_PAGE_BIT_PROTNONE + 1)
-Index: linux-2.6.git/arch/x86/include/asm/pgtable.h
-===================================================================
---- linux-2.6.git.orig/arch/x86/include/asm/pgtable.h
-+++ linux-2.6.git/arch/x86/include/asm/pgtable.h
-@@ -297,6 +297,7 @@ static inline pmd_t pmd_mknotpresent(pmd
- 	return pmd_clear_flags(pmd, _PAGE_PRESENT);
- }
- 
-+#ifdef CONFIG_HAVE_ARCH_SOFT_DIRTY
- static inline int pte_soft_dirty(pte_t pte)
- {
- 	return pte_flags(pte) & _PAGE_SOFT_DIRTY;
-@@ -332,6 +333,8 @@ static inline int pte_file_soft_dirty(pt
- 	return pte_flags(pte) & _PAGE_SOFT_DIRTY;
- }
- 
-+#endif /* CONFIG_HAVE_ARCH_SOFT_DIRTY */
-+
- /*
-  * Mask out unsupported bits in a present pgprot.  Non-present pgprots
-  * can use those bits for other purposes, so leave them be.
-@@ -865,6 +868,7 @@ static inline void update_mmu_cache_pmd(
- {
- }
- 
-+#ifdef CONFIG_HAVE_ARCH_SOFT_DIRTY
- static inline pte_t pte_swp_mksoft_dirty(pte_t pte)
- {
- 	VM_BUG_ON(pte_present_nonuma(pte));
-@@ -882,6 +886,7 @@ static inline pte_t pte_swp_clear_soft_d
- 	VM_BUG_ON(pte_present_nonuma(pte));
- 	return pte_clear_flags(pte, _PAGE_SWP_SOFT_DIRTY);
- }
-+#endif
- 
- #include <asm-generic/pgtable.h>
- #endif	/* __ASSEMBLY__ */
+		if (!fork())
+			return 0;
+
+		if (!fork()) {
+			if (!fork())
+				return 0;
+
+			mprotect(x2, 4096, PROT_NONE);
+			return 0;
+		}
+
+		x2 = mremap(x2, SIZE, SIZE,
+				MREMAP_FIXED | MREMAP_MAYMOVE,
+				x1 + SIZE);
+		if (x2 == MAP_FAILED)
+			perror("x2"), exit(1);
+		munmap(x1, SIZE);
+		munmap(x2, SIZE);
+		while (waitpid(-1, NULL, WNOHANG) > 0);
+	}
+	return 0;
+}
+
+Crash:
+
+[54438.764230] mapcount 2 page_mapcount 3
+[54438.764985] ------------[ cut here ]------------
+[54438.765735] kernel BUG at /home/space/kas/git/public/linux/mm/huge_memory.c:1836!
+[54438.766926] invalid opcode: 0000 [#1] SMP 
+[54438.767637] Modules linked in:
+[54438.768078] CPU: 0 PID: 12638 Comm: test_split Not tainted 3.15.0-rc4-00001-gdb77ce6c9fe5-dirty #1282
+[54438.768078] Hardware name: QEMU Standard PC (Q35 + ICH9, 2009), BIOS Bochs 01/01/2011
+[54438.768078] task: ffff8804633c8410 ti: ffff88046376c000 task.ti: ffff88046376c000
+[54438.768078] RIP: 0010:[<ffffffff81140594>]  [<ffffffff81140594>] split_huge_page_to_list+0x434/0x6c0
+[54438.768078] RSP: 0018:ffff88046376dcc8  EFLAGS: 00010297
+[54438.768078] RAX: 0000000000000003 RBX: ffff88046881c520 RCX: 0000000000000006
+[54438.768078] RDX: 0000000000000006 RSI: ffff8804633c8b18 RDI: ffff8804633c8410
+[54438.768078] RBP: ffff88046376dd30 R08: 0000000000000001 R09: 0000000000000000
+[54438.768078] R10: 0000000000000000 R11: 0000000000000000 R12: 0000000000000000
+[54438.768078] R13: 0000400000800000 R14: ffffea000ede4000 R15: 0000000400000400
+[54438.768078] FS:  00007fea6a7be700(0000) GS:ffff88047fc00000(0000) knlGS:0000000000000000
+[54438.768078] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[54438.768078] CR2: 00007fea6a2db7d0 CR3: 0000000469bdf000 CR4: 00000000001407f0
+[54438.768078] Stack:
+[54438.768078]  ffff8804698f4020 0000400000a00000 0000000000000000 ffff880467a04900
+[54438.768078]  0000000000000000 ffff880467a04880 ffff880400000002 ffff880462b5ccf8
+[54438.768078]  0000400000800000 ffff88046370ac50 ffff8804698f4020 0000400000a00000
+[54438.768078] Call Trace:
+[54438.768078]  [<ffffffff81141050>] __split_huge_page_pmd+0xc0/0x1f0
+[54438.768078]  [<ffffffff8114196e>] split_huge_page_pmd_mm+0x3e/0x40
+[54438.768078]  [<ffffffff81141995>] split_huge_page_address+0x25/0x30
+[54438.768078]  [<ffffffff81141a3c>] __vma_adjust_trans_huge+0x9c/0xf0
+[54438.768078]  [<ffffffff8132268d>] ? __rb_insert_augmented+0xcd/0x1f0
+[54438.768078]  [<ffffffff81116f06>] vma_adjust+0x626/0x6a0
+[54438.768078]  [<ffffffff811170ad>] __split_vma.isra.35+0x12d/0x200
+[54438.768078]  [<ffffffff81117e94>] split_vma+0x24/0x30
+[54438.768078]  [<ffffffff8111a3ca>] mprotect_fixup+0x22a/0x260
+[54438.768078]  [<ffffffff8111a542>] SyS_mprotect+0x142/0x230
+[54438.768078]  [<ffffffff8173cb62>] system_call_fastpath+0x16/0x1b
+[54438.768078] Code: 0f 1f 80 00 00 00 00 0f 0b 66 0f 1f 44 00 00 0f 0b 66 0f 1f 44 00 00 0f 0b 66 0f 1f 44 00 00 0f 0b 0f 0b 0f 0b 0f 0b 0f 0b 0f 0b <0f> 0b 0f 0b 0f 0b 0f 0b 0f 0b 0f 0b 0f 0b 49 8b 16 4c 89 f0 80 
+[54438.768078] RIP  [<ffffffff81140594>] split_huge_page_to_list+0x434/0x6c0
+[54438.768078]  RSP <ffff88046376dcc8>
+[54438.805154] ---[ end trace 12d4dde45cf392c6 ]---
+
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
