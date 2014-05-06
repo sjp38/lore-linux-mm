@@ -1,103 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f42.google.com (mail-ee0-f42.google.com [74.125.83.42])
-	by kanga.kvack.org (Postfix) with ESMTP id B4D946B00E2
-	for <linux-mm@kvack.org>; Tue,  6 May 2014 04:55:21 -0400 (EDT)
-Received: by mail-ee0-f42.google.com with SMTP id d49so2141172eek.1
-        for <linux-mm@kvack.org>; Tue, 06 May 2014 01:55:21 -0700 (PDT)
+Received: from mail-ee0-f52.google.com (mail-ee0-f52.google.com [74.125.83.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 190C86B00E5
+	for <linux-mm@kvack.org>; Tue,  6 May 2014 05:13:41 -0400 (EDT)
+Received: by mail-ee0-f52.google.com with SMTP id e53so6160979eek.11
+        for <linux-mm@kvack.org>; Tue, 06 May 2014 02:13:41 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w48si12720084eel.356.2014.05.06.01.55.19
+        by mx.google.com with ESMTPS id n46si12769711eeo.337.2014.05.06.02.13.40
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 06 May 2014 01:55:20 -0700 (PDT)
-Date: Tue, 6 May 2014 09:55:15 +0100
+        Tue, 06 May 2014 02:13:40 -0700 (PDT)
+Date: Tue, 6 May 2014 10:13:36 +0100
 From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [patch v2 4/4] mm, thp: do not perform sync compaction on
- pagefault
-Message-ID: <20140506085515.GW23991@suse.de>
-References: <alpine.DEB.2.02.1404301744110.8415@chino.kir.corp.google.com>
- <alpine.DEB.2.02.1405011434140.23898@chino.kir.corp.google.com>
- <alpine.DEB.2.02.1405011435210.23898@chino.kir.corp.google.com>
- <20140502102231.GQ23991@suse.de>
- <alpine.DEB.2.02.1405020402500.19297@chino.kir.corp.google.com>
- <20140502115834.GR23991@suse.de>
- <alpine.DEB.2.02.1405021319350.24195@chino.kir.corp.google.com>
+Subject: Re: [PATCH 08/17] mm: page_alloc: Use word-based accesses for
+ get/set pageblock bitmaps
+Message-ID: <20140506091336.GX23991@suse.de>
+References: <1398933888-4940-1-git-send-email-mgorman@suse.de>
+ <1398933888-4940-9-git-send-email-mgorman@suse.de>
+ <53641D8C.6040601@oracle.com>
+ <20140504131454.GS23991@suse.de>
+ <536786C6.8040805@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.02.1405021319350.24195@chino.kir.corp.google.com>
+In-Reply-To: <536786C6.8040805@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Sasha Levin <sasha.levin@oracle.com>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Linux Kernel <linux-kernel@vger.kernel.org>
 
-On Fri, May 02, 2014 at 01:29:33PM -0700, David Rientjes wrote:
-> On Fri, 2 May 2014, Mel Gorman wrote:
+On Mon, May 05, 2014 at 02:40:38PM +0200, Vlastimil Babka wrote:
+> >@@ -62,11 +65,35 @@ extern int pageblock_order;
+> >  /* Forward declaration */
+> >  struct page;
+> >
+> >+unsigned long get_pageblock_flags_mask(struct page *page,
+> >+				unsigned long end_bitidx,
+> >+				unsigned long nr_flag_bits,
+> >+				unsigned long mask);
+> >+void set_pageblock_flags_mask(struct page *page,
+> >+				unsigned long flags,
+> >+				unsigned long end_bitidx,
+> >+				unsigned long nr_flag_bits,
+> >+				unsigned long mask);
+> >+
 > 
-> > > The page locks I'm referring to is the lock_page() in __unmap_and_move() 
-> > > that gets called for sync compaction after the migrate_pages() iteration 
-> > > makes a few passes and unsuccessfully grabs it.  This becomes a forced 
-> > > migration since __unmap_and_move() returns -EAGAIN when the trylock fails.
-> > > 
-> > 
-> > Can that be fixed then instead of disabling it entirely?
-> > 
+> The nr_flag_bits parameter is not used anymore and can be dropped.
 > 
-> We could return -EAGAIN when the trylock_page() fails for 
-> MIGRATE_SYNC_LIGHT.  It would become a forced migration but we ignore that 
-> currently for MIGRATE_ASYNC, and I could extend it to be ignored for 
-> MIGRATE_SYNC_LIGHT as well.
-> 
-> > > We have perf profiles from one workload in particular that shows 
-> > > contention on i_mmap_mutex (anon isn't interesting since the vast majority 
-> > > of memory on this workload [120GB on a 128GB machine] is has a gup pin and 
-> > > doesn't get isolated because of 119d6d59dcc0 ("mm, compaction: avoid 
-> > > isolating pinned pages")) between cpus all doing memory compaction trying 
-> > > to fault thp memory.
-> > > 
-> > 
-> > Abort SYNC_LIGHT compaction if the mutex is contended.
-> > 
-> 
-> Yeah, I have patches for that as well but we're waiting to see if they are 
-> actually needed when sync compaction is disabled for thp.  If we aren't 
-> actually going to disable it entirely, then I can revive those patches if 
-> the contention becomes such an issue.
-> 
-> > > That's one example that we've seen, but the fact remains that at times 
-> > > sync compaction will iterate the entire 128GB machine and not allow an 
-> > > order-9 page to be allocated and there's nothing to preempt it like the 
-> > > need_resched() or lock contention checks that async compaction has. 
-> > 
-> > Make compact_control->sync the same enum field and check for contention
-> > on the async/sync_light case but leave it for sync if compacting via the
-> > proc interface?
-> > 
-> 
-> Ok, that certainly can be done, I wasn't sure you would be happy with such 
-> a change. 
 
-I'm not super-keen as the success rates are already very poor for allocations
-under pressure. It's something Vlastimil is working on so it may be possible
-to get some of the success rates back. It has always been the case that
-compaction should not severely impact overall performance as THP gains
-must offset compaction. While I'm not happy to reduce the success rates
-further I do not think we should leave a known performance impact on
-128G machines wait on Vlastimil's series.
+Fixed
 
-Vlastimil, what do you think?
+> >  /* Declarations for getting and setting flags. See mm/page_alloc.c */
+> >-unsigned long get_pageblock_flags_group(struct page *page,
+> >-					int start_bitidx, int end_bitidx);
+> >-void set_pageblock_flags_group(struct page *page, unsigned long flags,
+> >-					int start_bitidx, int end_bitidx);
+> >+static inline unsigned long get_pageblock_flags_group(struct page *page,
+> >+					int start_bitidx, int end_bitidx)
+> >+{
+> >+	unsigned long nr_flag_bits = end_bitidx - start_bitidx + 1;
+> >+	unsigned long mask = (1 << nr_flag_bits) - 1;
+> >+
+> >+	return get_pageblock_flags_mask(page, end_bitidx, nr_flag_bits, mask);
+> >+}
+> >+
+> >+static inline void set_pageblock_flags_group(struct page *page,
+> >+					unsigned long flags,
+> >+					int start_bitidx, int end_bitidx)
+> >+{
+> >+	unsigned long nr_flag_bits = end_bitidx - start_bitidx + 1;
+> >+	unsigned long mask = (1 << nr_flag_bits) - 1;
+> >+
+> >+	set_pageblock_flags_mask(page, flags, end_bitidx, nr_flag_bits, mask);
+> >+}
+> >
+> >  #ifdef CONFIG_COMPACTION
+> >  #define get_pageblock_skip(page) \
+> >diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> >index dc123ff..f393b0e 100644
+> >--- a/mm/page_alloc.c
+> >+++ b/mm/page_alloc.c
+> >@@ -6032,53 +6032,64 @@ static inline int pfn_to_bitidx(struct zone *zone, unsigned long pfn)
+> >   * @end_bitidx: The last bit of interest
+> >   * returns pageblock_bits flags
+> >   */
+> >-unsigned long get_pageblock_flags_group(struct page *page,
+> >-					int start_bitidx, int end_bitidx)
+> >+unsigned long get_pageblock_flags_mask(struct page *page,
+> >+					unsigned long end_bitidx,
+> >+					unsigned long nr_flag_bits,
+> >+					unsigned long mask)
+> >  {
+> >  	struct zone *zone;
+> >  	unsigned long *bitmap;
+> >-	unsigned long pfn, bitidx;
+> >-	unsigned long flags = 0;
+> >-	unsigned long value = 1;
+> >+	unsigned long pfn, bitidx, word_bitidx;
+> >+	unsigned long word;
+> >
+> >  	zone = page_zone(page);
+> >  	pfn = page_to_pfn(page);
+> >  	bitmap = get_pageblock_bitmap(zone, pfn);
+> >  	bitidx = pfn_to_bitidx(zone, pfn);
+> >+	word_bitidx = bitidx / BITS_PER_LONG;
+> >+	bitidx &= (BITS_PER_LONG-1);
+> >
+> >-	for (; start_bitidx <= end_bitidx; start_bitidx++, value <<= 1)
+> >-		if (test_bit(bitidx + start_bitidx, bitmap))
+> >-			flags |= value;
+> >-
+> >-	return flags;
+> >+	word = bitmap[word_bitidx];
+> 
+> I wonder if on some architecture this may result in inconsistent
+> word when racing with set(), i.e. cmpxchg? We need consistency at
+> least on the granularity of byte to prevent the problem with bogus
+> migratetype values being read.
+> 
 
-> I'm not sure there's so much of a difference between the new 
-> compact_control->sync == MIGRATE_ASYNC and == MIGRATE_SYNC_LIGHT now, 
-> though.  Would it make sense to remove MIGRATE_SYNC_LIGHT entirely from 
-> the page allocator, i.e. remove sync_migration entirely, and just retry 
-> with a second call to compaction before failing instead? 
+The number of bits align on the byte boundary so I do not think there is
+a problem there. There is a BUILD_BUG_ON check in set_pageblock_flags_mask
+in case this changes so it can be revisited if necessary.
 
-Would it be possible if only khugepaged entered SYNC_LIGHT migration and
-kswapd and direct THP allocations used only MIGRATE_ASYNC? That would
-allow khugepaged to continue locking pages and buffers in a slow path
-while still not allowing it to issue IO or wait on writeback. It would
-also give a chance for Vlastimil's series to shake out a bit without him
-having to reintroduce SYNC_LIGHT as part of that series.
+> >+	bitidx += end_bitidx;
+> >+	return (word >> (BITS_PER_LONG - bitidx - 1)) & mask;
+> 
+> Yes that looks correct to me, bits don't seem to overlap anymore.
+> 
+
+Thanks.
 
 -- 
 Mel Gorman
