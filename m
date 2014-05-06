@@ -1,189 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f171.google.com (mail-lb0-f171.google.com [209.85.217.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 494896B0035
-	for <linux-mm@kvack.org>; Tue,  6 May 2014 15:58:13 -0400 (EDT)
-Received: by mail-lb0-f171.google.com with SMTP id 10so2282646lbg.16
-        for <linux-mm@kvack.org>; Tue, 06 May 2014 12:58:12 -0700 (PDT)
-Received: from mail-lb0-x232.google.com (mail-lb0-x232.google.com [2a00:1450:4010:c04::232])
-        by mx.google.com with ESMTPS id og9si5534160lbb.192.2014.05.06.12.58.11
+Received: from mail-pd0-f180.google.com (mail-pd0-f180.google.com [209.85.192.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 508CB6B0035
+	for <linux-mm@kvack.org>; Tue,  6 May 2014 16:06:51 -0400 (EDT)
+Received: by mail-pd0-f180.google.com with SMTP id y10so3211470pdj.25
+        for <linux-mm@kvack.org>; Tue, 06 May 2014 13:06:50 -0700 (PDT)
+Received: from g2t2352.austin.hp.com (g2t2352.austin.hp.com. [15.217.128.51])
+        by mx.google.com with ESMTPS id iv2si614794pbd.426.2014.05.06.13.06.49
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 06 May 2014 12:58:11 -0700 (PDT)
-Received: by mail-lb0-f178.google.com with SMTP id w7so2935780lbi.37
-        for <linux-mm@kvack.org>; Tue, 06 May 2014 12:58:11 -0700 (PDT)
-Date: Tue, 6 May 2014 21:58:07 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 1/4] memcg, mm: introduce lowlimit reclaim
-Message-ID: <20140506195807.GD30921@dhcp22.suse.cz>
-References: <1398688005-26207-2-git-send-email-mhocko@suse.cz>
- <20140430225550.GD26041@cmpxchg.org>
- <20140502093628.GC3446@dhcp22.suse.cz>
- <20140502120715.GI3446@dhcp22.suse.cz>
- <20140502130118.GK23420@cmpxchg.org>
- <20140502141515.GJ3446@dhcp22.suse.cz>
- <20140502150434.GM23420@cmpxchg.org>
- <20140502151120.GN3446@dhcp22.suse.cz>
- <20140502153451.GN23420@cmpxchg.org>
- <20140502154852.GO3446@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140502154852.GO3446@dhcp22.suse.cz>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 06 May 2014 13:06:50 -0700 (PDT)
+Message-ID: <1399406800.13799.20.camel@buesod1.americas.hpqcorp.net>
+Subject: Re: [PATCH 0/4] ipc/shm.c: increase the limits for SHMMAX, SHMALL
+From: Davidlohr Bueso <davidlohr@hp.com>
+Date: Tue, 06 May 2014 13:06:40 -0700
+In-Reply-To: <CAKgNAkjuU68hgyMOVGBVoBTOhhGdBytQh6H0ExiLoXfujKyP_w@mail.gmail.com>
+References: <1398090397-2397-1-git-send-email-manfred@colorfullife.com>
+	 <CAKgNAkjuU68hgyMOVGBVoBTOhhGdBytQh6H0ExiLoXfujKyP_w@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, Tejun Heo <tj@kernel.org>, Hugh Dickins <hughd@google.com>, Roman Gushchin <klamm@yandex-team.ru>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: mtk.manpages@gmail.com
+Cc: Manfred Spraul <manfred@colorfullife.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, aswin@hp.com, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-Andrew, could you queue/fold this one, please?
+On Fri, 2014-05-02 at 15:16 +0200, Michael Kerrisk (man-pages) wrote:
+> Hi Manfred,
+> 
+> On Mon, Apr 21, 2014 at 4:26 PM, Manfred Spraul
+> <manfred@colorfullife.com> wrote:
+> > Hi all,
+> >
+> > the increase of SHMMAX/SHMALL is now a 4 patch series.
+> > I don't have ideas how to improve it further.
+> 
+> On the assumption that your patches are heading to mainline, could you
+> send me a man-pages patch for the changes?
 
-On Fri 02-05-14 17:48:52, Michal Hocko wrote:
-[...]
-> From 3101ce41cc8c0c9691d98054e8811c66a77cd079 Mon Sep 17 00:00:00 2001
-> From: Michal Hocko <mhocko@suse.cz>
-> Date: Fri, 2 May 2014 17:47:32 +0200
-> Subject: [PATCH] mmotm: memcg-mm-introduce-lowlimit-reclaim-fix.patch
-> 
-> mem_cgroup_reclaim_eligible -> mem_cgroup_within_guarantee
-> follow_low_limit -> honor_memcg_guarantee
-> and as suggested by Johannes.
-> ---
->  include/linux/memcontrol.h |  6 +++---
->  mm/memcontrol.c            | 15 ++++++++-------
->  mm/vmscan.c                | 25 ++++++++++++++++---------
->  3 files changed, 27 insertions(+), 19 deletions(-)
-> 
-> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> index 6c59056f4bc6..c00ccc5f70b9 100644
-> --- a/include/linux/memcontrol.h
-> +++ b/include/linux/memcontrol.h
-> @@ -92,7 +92,7 @@ bool __mem_cgroup_same_or_subtree(const struct mem_cgroup *root_memcg,
->  bool task_in_mem_cgroup(struct task_struct *task,
->  			const struct mem_cgroup *memcg);
->  
-> -extern bool mem_cgroup_reclaim_eligible(struct mem_cgroup *memcg,
-> +extern bool mem_cgroup_within_guarantee(struct mem_cgroup *memcg,
->  		struct mem_cgroup *root);
->  
->  extern struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page);
-> @@ -291,10 +291,10 @@ static inline struct lruvec *mem_cgroup_page_lruvec(struct page *page,
->  	return &zone->lruvec;
->  }
->  
-> -static inline bool mem_cgroup_reclaim_eligible(struct mem_cgroup *memcg,
-> +static inline bool mem_cgroup_within_guarantee(struct mem_cgroup *memcg,
->  		struct mem_cgroup *root)
->  {
-> -	return true;
-> +	return false;
->  }
->  
->  static inline struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page)
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 7a276c0d141e..58982d18f6ea 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -2810,26 +2810,27 @@ static struct mem_cgroup *mem_cgroup_lookup(unsigned short id)
->  }
->  
->  /**
-> - * mem_cgroup_reclaim_eligible - checks whether given memcg is eligible for the
-> - * reclaim
-> + * mem_cgroup_within_guarantee - checks whether given memcg is within its
-> + * memory guarantee
->   * @memcg: target memcg for the reclaim
->   * @root: root of the reclaim hierarchy (null for the global reclaim)
->   *
-> - * The given group is reclaimable if it is above its low limit and the same
-> - * applies for all parents up the hierarchy until root (including).
-> + * The given group is within its reclaim gurantee if it is below its low limit
-> + * or the same applies for any parent up the hierarchy until root (including).
-> + * Such a group might be excluded from the reclaim.
->   */
-> -bool mem_cgroup_reclaim_eligible(struct mem_cgroup *memcg,
-> +bool mem_cgroup_within_guarantee(struct mem_cgroup *memcg,
->  		struct mem_cgroup *root)
->  {
->  	do {
->  		if (!res_counter_low_limit_excess(&memcg->res))
-> -			return false;
-> +			return true;
->  		if (memcg == root)
->  			break;
->  
->  	} while ((memcg = parent_mem_cgroup(memcg)));
->  
-> -	return true;
-> +	return false;
->  }
->  
->  struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page)
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 0f428158254e..5f923999bb79 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -2215,8 +2215,18 @@ static inline bool should_continue_reclaim(struct zone *zone,
->  	}
->  }
->  
-> +/**
-> + * __shrink_zone - shrinks a given zone
-> + *
-> + * @zone: zone to shrink
-> + * @sc: scan control with additional reclaim parameters
-> + * @honor_memcg_guarantee: do not reclaim memcgs which are within their memory
-> + * guarantee
-> + *
-> + * Returns the number of reclaimed memcgs.
-> + */
->  static unsigned __shrink_zone(struct zone *zone, struct scan_control *sc,
-> -		bool follow_low_limit)
-> +		bool honor_memcg_guarantee)
->  {
->  	unsigned long nr_reclaimed, nr_scanned;
->  	unsigned nr_scanned_groups = 0;
-> @@ -2236,12 +2246,9 @@ static unsigned __shrink_zone(struct zone *zone, struct scan_control *sc,
->  		do {
->  			struct lruvec *lruvec;
->  
-> -			/*
-> -			 * Memcg might be under its low limit so we have to
-> -			 * skip it during the first reclaim round
-> -			 */
-> -			if (follow_low_limit &&
-> -					!mem_cgroup_reclaim_eligible(memcg, root)) {
-> +			/* Memcg might be protected from the reclaim */
-> +			if (honor_memcg_guarantee &&
-> +					mem_cgroup_within_guarantee(memcg, root)) {
->  				/*
->  				 * It would be more optimal to skip the memcg
->  				 * subtree now but we do not have a memcg iter
-> @@ -2289,8 +2296,8 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
->  	if (!__shrink_zone(zone, sc, true)) {
->  		/*
->  		 * First round of reclaim didn't find anything to reclaim
-> -		 * because of low limit protection so try again and ignore
-> -		 * the low limit this time.
-> +		 * because of the memory guantees for all memcgs in the
-> +		 * reclaim target so try again and ignore guarantees this time.
->  		 */
->  		__shrink_zone(zone, sc, false);
->  	}
-> -- 
-> 2.0.0.rc0
-> 
-> -- 
-> Michal Hocko
-> SUSE Labs
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Btw, I think that the code could still use some love wrt documentation.
+Andrew, please consider this for -next if folks agree. Thanks.
 
+8<----------------------------------------------------------
+
+From: Davidlohr Bueso <davidlohr@hp.com>
+Subject: [PATCH] ipc,shm: document new limits in the uapi header
+
+This is useful in the future and allows users to
+better understand the reasoning behind the changes.
+
+Also use UL as we're dealing with it anyways.
+
+Signed-off-by: Davidlohr Bueso <davidlohr@hp.com>
+---
+ include/uapi/linux/shm.h | 14 ++++++++------
+ 1 file changed, 8 insertions(+), 6 deletions(-)
+
+diff --git a/include/uapi/linux/shm.h b/include/uapi/linux/shm.h
+index 74e786d..e37fb08 100644
+--- a/include/uapi/linux/shm.h
++++ b/include/uapi/linux/shm.h
+@@ -8,17 +8,19 @@
+ #endif
+ 
+ /*
+- * SHMMAX, SHMMNI and SHMALL are upper limits are defaults which can
+- * be modified by sysctl.
++ * SHMMNI, SHMMAX and SHMALL are the default upper limits which can be
++ * modified by sysctl. Both SHMMAX and SHMALL have their default values
++ * to the maximum limit which is as large as it can be without helping
++ * userspace overflow the values. There is really nothing the kernel
++ * can do to avoid this any variables. It is therefore not advised to
++ * make them any larger. This is suitable for both 32 and 64-bit systems.
+  */
+-
+ #define SHMMIN 1			 /* min shared seg size (bytes) */
+ #define SHMMNI 4096			 /* max num of segs system wide */
+-#define SHMMAX (ULONG_MAX - (1L<<24))	 /* max shared seg size (bytes) */
+-#define SHMALL (ULONG_MAX - (1L<<24))	 /* max shm system wide (pages) */
++#define SHMMAX (ULONG_MAX - (1UL << 24)) /* max shared seg size (bytes) */
++#define SHMALL (ULONG_MAX - (1UL << 24)) /* max shm system wide (pages) */
+ #define SHMSEG SHMMNI			 /* max shared segs per process */
+ 
+-
+ /* Obsolete, used only for backwards compatibility and libc5 compiles */
+ struct shmid_ds {
+ 	struct ipc_perm		shm_perm;	/* operation perms */
 -- 
-Michal Hocko
-SUSE Labs
+1.8.1.4
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
