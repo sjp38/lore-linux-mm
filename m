@@ -1,151 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f51.google.com (mail-ee0-f51.google.com [74.125.83.51])
-	by kanga.kvack.org (Postfix) with ESMTP id D5CF66B00E0
-	for <linux-mm@kvack.org>; Tue,  6 May 2014 04:43:39 -0400 (EDT)
-Received: by mail-ee0-f51.google.com with SMTP id e51so1471989eek.10
-        for <linux-mm@kvack.org>; Tue, 06 May 2014 01:43:39 -0700 (PDT)
-Received: from jenni1.inet.fi (mta-out1.inet.fi. [62.71.2.198])
-        by mx.google.com with ESMTP id n7si12720590eeu.109.2014.05.06.01.43.37
-        for <linux-mm@kvack.org>;
-        Tue, 06 May 2014 01:43:38 -0700 (PDT)
-Date: Tue, 6 May 2014 11:43:33 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH] mm, thp: close race between mremap() and
- split_huge_page()
-Message-ID: <20140506084333.GA5575@node.dhcp.inet.fi>
-References: <1399328011-15317-1-git-send-email-kirill.shutemov@linux.intel.com>
+Received: from mail-ee0-f42.google.com (mail-ee0-f42.google.com [74.125.83.42])
+	by kanga.kvack.org (Postfix) with ESMTP id B4D946B00E2
+	for <linux-mm@kvack.org>; Tue,  6 May 2014 04:55:21 -0400 (EDT)
+Received: by mail-ee0-f42.google.com with SMTP id d49so2141172eek.1
+        for <linux-mm@kvack.org>; Tue, 06 May 2014 01:55:21 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id w48si12720084eel.356.2014.05.06.01.55.19
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 06 May 2014 01:55:20 -0700 (PDT)
+Date: Tue, 6 May 2014 09:55:15 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [patch v2 4/4] mm, thp: do not perform sync compaction on
+ pagefault
+Message-ID: <20140506085515.GW23991@suse.de>
+References: <alpine.DEB.2.02.1404301744110.8415@chino.kir.corp.google.com>
+ <alpine.DEB.2.02.1405011434140.23898@chino.kir.corp.google.com>
+ <alpine.DEB.2.02.1405011435210.23898@chino.kir.corp.google.com>
+ <20140502102231.GQ23991@suse.de>
+ <alpine.DEB.2.02.1405020402500.19297@chino.kir.corp.google.com>
+ <20140502115834.GR23991@suse.de>
+ <alpine.DEB.2.02.1405021319350.24195@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1399328011-15317-1-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <alpine.DEB.2.02.1405021319350.24195@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Dave Jones <davej@redhat.com>, stable@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, May 06, 2014 at 01:13:31AM +0300, Kirill A. Shutemov wrote:
-> It's critical for split_huge_page() (and migration) to catch and freeze
-> all PMDs on rmap walk. It gets tricky if there's concurrent fork() or
-> mremap() since usually we copy/move page table entries on dup_mm() or
-> move_page_tables() without rmap lock taken. To get it work we rely on
-> rmap walk order to not miss any entry. We expect to see destination VMA
-> after source one to work correctly.
+On Fri, May 02, 2014 at 01:29:33PM -0700, David Rientjes wrote:
+> On Fri, 2 May 2014, Mel Gorman wrote:
 > 
-> But after switching rmap implementation to interval tree it's not always
-> possible to preserve expected walk order.
+> > > The page locks I'm referring to is the lock_page() in __unmap_and_move() 
+> > > that gets called for sync compaction after the migrate_pages() iteration 
+> > > makes a few passes and unsuccessfully grabs it.  This becomes a forced 
+> > > migration since __unmap_and_move() returns -EAGAIN when the trylock fails.
+> > > 
+> > 
+> > Can that be fixed then instead of disabling it entirely?
+> > 
 > 
-> It works fine for dup_mm() since new VMA has the same vma_start_pgoff()
-> / vma_last_pgoff() and explicitly insert dst VMA after src one with
-> vma_interval_tree_insert_after().
+> We could return -EAGAIN when the trylock_page() fails for 
+> MIGRATE_SYNC_LIGHT.  It would become a forced migration but we ignore that 
+> currently for MIGRATE_ASYNC, and I could extend it to be ignored for 
+> MIGRATE_SYNC_LIGHT as well.
 > 
-> But on move_vma() destination VMA can be merged into adjacent one and as
-> result shifted left in interval tree. Fortunately, we can detect the
-> situation and prevent race with rmap walk by moving page table entries
-> under rmap lock. See commit 38a76013ad80.
+> > > We have perf profiles from one workload in particular that shows 
+> > > contention on i_mmap_mutex (anon isn't interesting since the vast majority 
+> > > of memory on this workload [120GB on a 128GB machine] is has a gup pin and 
+> > > doesn't get isolated because of 119d6d59dcc0 ("mm, compaction: avoid 
+> > > isolating pinned pages")) between cpus all doing memory compaction trying 
+> > > to fault thp memory.
+> > > 
+> > 
+> > Abort SYNC_LIGHT compaction if the mutex is contended.
+> > 
 > 
-> Problem is that we miss the lock when we move transhuge PMD. Most likely
-> this bug caused the crash[1].
+> Yeah, I have patches for that as well but we're waiting to see if they are 
+> actually needed when sync compaction is disabled for thp.  If we aren't 
+> actually going to disable it entirely, then I can revive those patches if 
+> the contention becomes such an issue.
 > 
-> [1] http://thread.gmane.org/gmane.linux.kernel.mm/96473
+> > > That's one example that we've seen, but the fact remains that at times 
+> > > sync compaction will iterate the entire 128GB machine and not allow an 
+> > > order-9 page to be allocated and there's nothing to preempt it like the 
+> > > need_resched() or lock contention checks that async compaction has. 
+> > 
+> > Make compact_control->sync the same enum field and check for contention
+> > on the async/sync_light case but leave it for sync if compacting via the
+> > proc interface?
+> > 
+> 
+> Ok, that certainly can be done, I wasn't sure you would be happy with such 
+> a change. 
 
-It took a night but I was able to trigger crash which this patch fixes.
+I'm not super-keen as the success rates are already very poor for allocations
+under pressure. It's something Vlastimil is working on so it may be possible
+to get some of the success rates back. It has always been the case that
+compaction should not severely impact overall performance as THP gains
+must offset compaction. While I'm not happy to reduce the success rates
+further I do not think we should leave a known performance impact on
+128G machines wait on Vlastimil's series.
 
-Test case:
+Vlastimil, what do you think?
 
-#define _GNU_SOURCE
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <sys/mman.h>
-#include <sys/wait.h>
+> I'm not sure there's so much of a difference between the new 
+> compact_control->sync == MIGRATE_ASYNC and == MIGRATE_SYNC_LIGHT now, 
+> though.  Would it make sense to remove MIGRATE_SYNC_LIGHT entirely from 
+> the page allocator, i.e. remove sync_migration entirely, and just retry 
+> with a second call to compaction before failing instead? 
 
-#define MB (1024UL*1024)
-#define SIZE (4*MB)
-#define BASE ((void *)0x400000000000)
-
-int main()
-{
-	char *x1, *x2;
-
-	for (;;) {
-		x1 = mmap(BASE, 2 * SIZE, PROT_READ | PROT_WRITE,
-			MAP_PRIVATE | MAP_ANONYMOUS | MAP_POPULATE | MAP_FIXED,
-			-1, 0);
-                if (x1 == MAP_FAILED)
-                        perror("x1"), exit(1);
-		x2 = mremap(x1 + SIZE, SIZE, SIZE,
-				MREMAP_FIXED | MREMAP_MAYMOVE,
-				x1 + 2 * SIZE);
-                if (x2 == MAP_FAILED)
-                        perror("x2"), exit(1);
-
-		if (!fork())
-			return 0;
-
-		if (!fork()) {
-			if (!fork())
-				return 0;
-
-			mprotect(x2, 4096, PROT_NONE);
-			return 0;
-		}
-
-		x2 = mremap(x2, SIZE, SIZE,
-				MREMAP_FIXED | MREMAP_MAYMOVE,
-				x1 + SIZE);
-		if (x2 == MAP_FAILED)
-			perror("x2"), exit(1);
-		munmap(x1, SIZE);
-		munmap(x2, SIZE);
-		while (waitpid(-1, NULL, WNOHANG) > 0);
-	}
-	return 0;
-}
-
-Crash:
-
-[54438.764230] mapcount 2 page_mapcount 3
-[54438.764985] ------------[ cut here ]------------
-[54438.765735] kernel BUG at /home/space/kas/git/public/linux/mm/huge_memory.c:1836!
-[54438.766926] invalid opcode: 0000 [#1] SMP 
-[54438.767637] Modules linked in:
-[54438.768078] CPU: 0 PID: 12638 Comm: test_split Not tainted 3.15.0-rc4-00001-gdb77ce6c9fe5-dirty #1282
-[54438.768078] Hardware name: QEMU Standard PC (Q35 + ICH9, 2009), BIOS Bochs 01/01/2011
-[54438.768078] task: ffff8804633c8410 ti: ffff88046376c000 task.ti: ffff88046376c000
-[54438.768078] RIP: 0010:[<ffffffff81140594>]  [<ffffffff81140594>] split_huge_page_to_list+0x434/0x6c0
-[54438.768078] RSP: 0018:ffff88046376dcc8  EFLAGS: 00010297
-[54438.768078] RAX: 0000000000000003 RBX: ffff88046881c520 RCX: 0000000000000006
-[54438.768078] RDX: 0000000000000006 RSI: ffff8804633c8b18 RDI: ffff8804633c8410
-[54438.768078] RBP: ffff88046376dd30 R08: 0000000000000001 R09: 0000000000000000
-[54438.768078] R10: 0000000000000000 R11: 0000000000000000 R12: 0000000000000000
-[54438.768078] R13: 0000400000800000 R14: ffffea000ede4000 R15: 0000000400000400
-[54438.768078] FS:  00007fea6a7be700(0000) GS:ffff88047fc00000(0000) knlGS:0000000000000000
-[54438.768078] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-[54438.768078] CR2: 00007fea6a2db7d0 CR3: 0000000469bdf000 CR4: 00000000001407f0
-[54438.768078] Stack:
-[54438.768078]  ffff8804698f4020 0000400000a00000 0000000000000000 ffff880467a04900
-[54438.768078]  0000000000000000 ffff880467a04880 ffff880400000002 ffff880462b5ccf8
-[54438.768078]  0000400000800000 ffff88046370ac50 ffff8804698f4020 0000400000a00000
-[54438.768078] Call Trace:
-[54438.768078]  [<ffffffff81141050>] __split_huge_page_pmd+0xc0/0x1f0
-[54438.768078]  [<ffffffff8114196e>] split_huge_page_pmd_mm+0x3e/0x40
-[54438.768078]  [<ffffffff81141995>] split_huge_page_address+0x25/0x30
-[54438.768078]  [<ffffffff81141a3c>] __vma_adjust_trans_huge+0x9c/0xf0
-[54438.768078]  [<ffffffff8132268d>] ? __rb_insert_augmented+0xcd/0x1f0
-[54438.768078]  [<ffffffff81116f06>] vma_adjust+0x626/0x6a0
-[54438.768078]  [<ffffffff811170ad>] __split_vma.isra.35+0x12d/0x200
-[54438.768078]  [<ffffffff81117e94>] split_vma+0x24/0x30
-[54438.768078]  [<ffffffff8111a3ca>] mprotect_fixup+0x22a/0x260
-[54438.768078]  [<ffffffff8111a542>] SyS_mprotect+0x142/0x230
-[54438.768078]  [<ffffffff8173cb62>] system_call_fastpath+0x16/0x1b
-[54438.768078] Code: 0f 1f 80 00 00 00 00 0f 0b 66 0f 1f 44 00 00 0f 0b 66 0f 1f 44 00 00 0f 0b 66 0f 1f 44 00 00 0f 0b 0f 0b 0f 0b 0f 0b 0f 0b 0f 0b <0f> 0b 0f 0b 0f 0b 0f 0b 0f 0b 0f 0b 0f 0b 49 8b 16 4c 89 f0 80 
-[54438.768078] RIP  [<ffffffff81140594>] split_huge_page_to_list+0x434/0x6c0
-[54438.768078]  RSP <ffff88046376dcc8>
-[54438.805154] ---[ end trace 12d4dde45cf392c6 ]---
-
+Would it be possible if only khugepaged entered SYNC_LIGHT migration and
+kswapd and direct THP allocations used only MIGRATE_ASYNC? That would
+allow khugepaged to continue locking pages and buffers in a slow path
+while still not allowing it to issue IO or wait on writeback. It would
+also give a chance for Vlastimil's series to shake out a bit without him
+having to reintroduce SYNC_LIGHT as part of that series.
 
 -- 
- Kirill A. Shutemov
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
