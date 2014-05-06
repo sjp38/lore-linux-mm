@@ -1,97 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f54.google.com (mail-ee0-f54.google.com [74.125.83.54])
-	by kanga.kvack.org (Postfix) with ESMTP id EF85B6B00CF
-	for <linux-mm@kvack.org>; Tue,  6 May 2014 07:29:23 -0400 (EDT)
-Received: by mail-ee0-f54.google.com with SMTP id b57so4387349eek.41
-        for <linux-mm@kvack.org>; Tue, 06 May 2014 04:29:23 -0700 (PDT)
-Received: from mail-ee0-x235.google.com (mail-ee0-x235.google.com [2a00:1450:4013:c00::235])
-        by mx.google.com with ESMTPS id z42si13094247eel.332.2014.05.06.04.29.21
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 06 May 2014 04:29:22 -0700 (PDT)
-Received: by mail-ee0-f53.google.com with SMTP id c13so594688eek.40
-        for <linux-mm@kvack.org>; Tue, 06 May 2014 04:29:21 -0700 (PDT)
-Date: Tue, 6 May 2014 13:29:17 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH V3 2/2] powerpc/pseries: init fault_around_order for
- pseries
-Message-ID: <20140506112917.GA29525@gmail.com>
-References: <1398675690-16186-1-git-send-email-maddy@linux.vnet.ibm.com>
- <1398675690-16186-3-git-send-email-maddy@linux.vnet.ibm.com>
- <20140429070632.GB27951@gmail.com>
- <87d2fz47tg.fsf@rustcorp.com.au>
+Received: from mail-ee0-f52.google.com (mail-ee0-f52.google.com [74.125.83.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 6274C6B00D8
+	for <linux-mm@kvack.org>; Tue,  6 May 2014 07:41:04 -0400 (EDT)
+Received: by mail-ee0-f52.google.com with SMTP id e53so6294861eek.39
+        for <linux-mm@kvack.org>; Tue, 06 May 2014 04:41:03 -0700 (PDT)
+Received: from BlackPearl.yuhu.biz (blackpearl.yuhu.biz. [85.14.7.126])
+        by mx.google.com with ESMTP id z2si13112336eeo.334.2014.05.06.04.41.01
+        for <linux-mm@kvack.org>;
+        Tue, 06 May 2014 04:41:02 -0700 (PDT)
+Message-ID: <5368CA47.7030007@yuhu.biz>
+Date: Tue, 06 May 2014 14:40:55 +0300
+From: Marian Marinov <mm@yuhu.biz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <87d2fz47tg.fsf@rustcorp.com.au>
+Subject: Re: Protection against container fork bombs [WAS: Re: memcg with
+ kmem limit doesn't recover after disk i/o causes limit to be hit]
+References: <20140416154650.GA3034@alpha.arachsys.com>	<20140418155939.GE4523@dhcp22.suse.cz>	<5351679F.5040908@parallels.com>	<20140420142830.GC22077@alpha.arachsys.com>	<20140422143943.20609800@oracle.com>	<20140422200531.GA19334@alpha.arachsys.com>	<535758A0.5000500@yuhu.biz> <20140423084942.560ae837@oracle.com>
+In-Reply-To: <20140423084942.560ae837@oracle.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rusty Russell <rusty@rustcorp.com.au>
-Cc: Madhavan Srinivasan <maddy@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, x86@kernel.org, benh@kernel.crashing.org, paulus@samba.org, kirill.shutemov@linux.intel.com, akpm@linux-foundation.org, riel@redhat.com, mgorman@suse.de, ak@linux.intel.com, peterz@infradead.org, dave.hansen@intel.com, Linus Torvalds <torvalds@linux-foundation.org>
+To: Dwight Engen <dwight.engen@oracle.com>
+Cc: Richard Davies <richard@arachsys.com>, Vladimir Davydov <vdavydov@parallels.com>, Frederic Weisbecker <fweisbec@gmail.com>, David Rientjes <rientjes@google.com>, Glauber Costa <glommer@parallels.com>, Tejun Heo <tj@kernel.org>, Max Kellermann <mk@cm4all.com>, Johannes Weiner <hannes@cmpxchg.org>, William Dauchy <wdauchy@gmail.com>, Tim Hockin <thockin@hockin.org>, Michal Hocko <mhocko@suse.cz>, Daniel Walsh <dwalsh@redhat.com>, Daniel Berrange <berrange@redhat.com>, cgroups@vger.kernel.org, containers@lists.linux-foundation.org, linux-mm@kvack.org
 
+On 04/23/2014 03:49 PM, Dwight Engen wrote:
+> On Wed, 23 Apr 2014 09:07:28 +0300
+> Marian Marinov <mm@yuhu.biz> wrote:
+>
+>> On 04/22/2014 11:05 PM, Richard Davies wrote:
+>>> Dwight Engen wrote:
+>>>> Richard Davies wrote:
+>>>>> Vladimir Davydov wrote:
+>>>>>> In short, kmem limiting for memory cgroups is currently broken.
+>>>>>> Do not use it. We are working on making it usable though.
+>>> ...
+>>>>> What is the best mechanism available today, until kmem limits
+>>>>> mature?
+>>>>>
+>>>>> RLIMIT_NPROC exists but is per-user, not per-container.
+>>>>>
+>>>>> Perhaps there is an up-to-date task counter patchset or similar?
+>>>>
+>>>> I updated Frederic's task counter patches and included Max
+>>>> Kellermann's fork limiter here:
+>>>>
+>>>> http://thread.gmane.org/gmane.linux.kernel.containers/27212
+>>>>
+>>>> I can send you a more recent patchset (against 3.13.10) if you
+>>>> would find it useful.
+>>>
+>>> Yes please, I would be interested in that. Ideally even against
+>>> 3.14.1 if you have that too.
+>>
+>> Dwight, do you have these patches in any public repo?
+>>
+>> I would like to test them also.
+>
+> Hi Marian, I put the patches against 3.13.11 and 3.14.1 up at:
+>
+> git://github.com/dwengen/linux.git cpuacct-task-limit-3.13
+> git://github.com/dwengen/linux.git cpuacct-task-limit-3.14
+>
+Guys I tested the patches with 3.12.16. However I see a problem with them.
 
-* Rusty Russell <rusty@rustcorp.com.au> wrote:
+Trying to set the limit to a cgroup which already have processes in it does not work:
 
-> Ingo Molnar <mingo@kernel.org> writes:
-> > * Madhavan Srinivasan <maddy@linux.vnet.ibm.com> wrote:
-> >
-> >> Performance data for different FAULT_AROUND_ORDER values from 4 socket
-> >> Power7 system (128 Threads and 128GB memory). perf stat with repeat of 5
-> >> is used to get the stddev values. Test ran in v3.14 kernel (Baseline) and
-> >> v3.15-rc1 for different fault around order values.
-> >> 
-> >> FAULT_AROUND_ORDER      Baseline        1               3               4               5               8
-> >> 
-> >> Linux build (make -j64)
-> >> minor-faults            47,437,359      35,279,286      25,425,347      23,461,275      22,002,189      21,435,836
-> >> times in seconds        347.302528420   344.061588460   340.974022391   348.193508116   348.673900158   350.986543618
-> >>  stddev for time        ( +-  1.50% )   ( +-  0.73% )   ( +-  1.13% )   ( +-  1.01% )   ( +-  1.89% )   ( +-  1.55% )
-> >>  %chg time to baseline                  -0.9%           -1.8%           0.2%            0.39%           1.06%
-> >
-> > Probably too noisy.
-> 
-> A little, but 3 still looks like the winner.
-> 
-> >> Linux rebuild (make -j64)
-> >> minor-faults            941,552         718,319         486,625         440,124         410,510         397,416
-> >> times in seconds        30.569834718    31.219637539    31.319370649    31.434285472    31.972367174    31.443043580
-> >>  stddev for time        ( +-  1.07% )   ( +-  0.13% )   ( +-  0.43% )   ( +-  0.18% )   ( +-  0.95% )   ( +-  0.58% )
-> >>  %chg time to baseline                  2.1%            2.4%            2.8%            4.58%           2.85%
-> >
-> > Here it looks like a speedup. Optimal value: 5+.
-> 
-> No, lower time is better.  Baseline (no faultaround) wins.
-> 
-> 
-> etc.
+[root@sp2 lxc]# echo 50 > cpuacct.task_limit
+-bash: echo: write error: Device or resource busy
+[root@sp2 lxc]# echo 0 > cpuacct.task_limit
+-bash: echo: write error: Device or resource busy
+[root@sp2 lxc]#
 
-ah, yeah, you are right. Brainfart of the week...
+I have even tried to remove this check:
++               if (cgroup_task_count(cgrp) || !list_empty(&cgrp->children))
++                       return -EBUSY;
+But still give me 'Device or resource busy'.
 
-> It's not a huge surprise that a 64k page arch wants a smaller value 
-> than a 4k system.  But I agree: I don't see much upside for FAO > 0, 
-> but I do see downside.
-> 
-> Most extreme results:
-> Order 1: 2% loss on recompile.  10% win 4% loss on seq.  9% loss random.
-> Order 3: 2% loss on recompile.  6% win 5% loss on seq.  14% loss on random.
-> Order 4: 2.8% loss on recompile. 10% win 7% loss on seq.  9% loss on random.
-> 
-> > I'm starting to suspect that maybe workloads ought to be given a 
-> > choice in this matter, via madvise() or such.
-> 
-> I really don't think they'll be able to use it; it'll change far too 
-> much with machine and kernel updates. [...]
+Any pointers of why is this happening ?
 
-Do we know that?
+Marian
 
-> [...] I think we should apply patch
-> #1 (with fixes) to make it a variable, then set it to 0 for PPC.
-
-Ok, agreed - at least until contrary data comes around.
-
-Thanks,
-
-	Ingo
+>> Marian
+>>
+>>>
+>>> Thanks,
+>>>
+>>> Richard.
+>>> --
+>>> To unsubscribe from this list: send the line "unsubscribe cgroups"
+>>> in the body of a message to majordomo@vger.kernel.org
+>>> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+>>>
+>>>
+>>
+>
+> --
+> To unsubscribe from this list: send the line "unsubscribe cgroups" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
