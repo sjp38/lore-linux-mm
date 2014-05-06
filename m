@@ -1,113 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f47.google.com (mail-qa0-f47.google.com [209.85.216.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 879A26B0035
-	for <linux-mm@kvack.org>; Tue,  6 May 2014 18:43:44 -0400 (EDT)
-Received: by mail-qa0-f47.google.com with SMTP id s7so170915qap.6
-        for <linux-mm@kvack.org>; Tue, 06 May 2014 15:43:44 -0700 (PDT)
-Received: from cdptpa-oedge-vip.email.rr.com (cdptpa-outbound-snat.email.rr.com. [107.14.166.229])
-        by mx.google.com with ESMTP id u7si3725331qab.52.2014.05.06.15.43.43
+Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
+	by kanga.kvack.org (Postfix) with ESMTP id CEE776B0036
+	for <linux-mm@kvack.org>; Tue,  6 May 2014 18:44:45 -0400 (EDT)
+Received: by mail-wi0-f175.google.com with SMTP id f8so4357162wiw.8
+        for <linux-mm@kvack.org>; Tue, 06 May 2014 15:44:45 -0700 (PDT)
+Received: from mx4-phx2.redhat.com (mx4-phx2.redhat.com. [209.132.183.25])
+        by mx.google.com with ESMTP id l7si4996351wie.71.2014.05.06.15.44.42
         for <linux-mm@kvack.org>;
-        Tue, 06 May 2014 15:43:43 -0700 (PDT)
-Date: Tue, 6 May 2014 18:43:41 -0400
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [PATCH 3/4] plist: add plist_rotate
-Message-ID: <20140506184341.6e12e80a@gandalf.local.home>
-In-Reply-To: <CALZtONAUXiv6jfy8vW9NTotPR=V0q6Worcy9_rvou4A0s0whPw@mail.gmail.com>
-References: <1397336454-13855-1-git-send-email-ddstreet@ieee.org>
-	<1399057350-16300-1-git-send-email-ddstreet@ieee.org>
-	<1399057350-16300-4-git-send-email-ddstreet@ieee.org>
-	<20140505221846.4564e04d@gandalf.local.home>
-	<CALZtONAr7XGMB8LHwKRjqeEaWTEKBbwkUuP1RAZd04YQiwxrGw@mail.gmail.com>
-	<20140506163950.7e278f7c@gandalf.local.home>
-	<CALZtONAUXiv6jfy8vW9NTotPR=V0q6Worcy9_rvou4A0s0whPw@mail.gmail.com>
+        Tue, 06 May 2014 15:44:43 -0700 (PDT)
+Date: Tue, 6 May 2014 18:44:08 -0400 (EDT)
+From: David Airlie <airlied@redhat.com>
+Message-ID: <1960794033.1414346.1399416248431.JavaMail.zimbra@redhat.com>
+In-Reply-To: <CA+55aFwQWRKpcaR_-GvhMbUXE-n5yjEi_a_Um7=Bb_xbdQtFFg@mail.gmail.com>
+References: <1399038730-25641-1-git-send-email-j.glisse@gmail.com> <CA+55aFzt47Jpp-KK-ocLGgzYt_w-vheqFLfaGZOUSjwVrgGUtw@mail.gmail.com> <20140506150014.GA6731@gmail.com> <CA+55aFwM-g01tCZ1NknwvMeSMpwyKyTm6hysN-GmrZ_APtk7UA@mail.gmail.com> <20140506153315.GB6731@gmail.com> <CA+55aFzzPtTkC22WvHNy6srN9PFzer0-_mgRXWO03NwmCdfy4g@mail.gmail.com> <53690E29.7060602@redhat.com> <CA+55aFwQWRKpcaR_-GvhMbUXE-n5yjEi_a_Um7=Bb_xbdQtFFg@mail.gmail.com>
+Subject: Re: [RFC] Heterogeneous memory management (mirror process address
+ space on a device mmu).
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Streetman <ddstreet@ieee.org>
-Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Weijie Yang <weijieut@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, Paul Gortmaker <paul.gortmaker@windriver.com>, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <peterz@infradead.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Rik van Riel <riel@redhat.com>, Jerome Glisse <j.glisse@gmail.com>, Peter Zijlstra <peterz@infradead.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Linda Wang <lwang@redhat.com>, Kevin E Martin <kem@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Jeff Law <law@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Haggai Eran <haggaie@mellanox.com>, Or Gerlitz <ogerlitz@mellanox.com>, Sagi Grimberg <sagig@mellanox.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, Ben Sander <ben.sander@amd.com>, Greg Stoner <Greg.Stoner@amd.com>, John Bridgman <John.Bridgman@amd.com>, Michael Mantor <Michael.Mantor@amd.com>, Paul Blinzer <Paul.Blinzer@amd.com>, Laurent Morichetti <Laurent.Morichetti@amd.com>, Alexander Deucher <Alexander.Deucher@amd.com>, Oded Gabbay <Oded.Gabbay@amd.com>, Davidlohr Bueso <davidlohr@hp.com>
 
-On Tue, 6 May 2014 17:47:16 -0400
-Dan Streetman <ddstreet@ieee.org> wrote:
-
-
-> well the specific reason in swap's case is the need to use
-> same-priority entries in a round-robin basis, but I don't know if
-> plist_round_robin() is very clear.
-
-No, that's not very clear.
 
 > 
-> Maybe plist_demote()?  Although demote might imply actually changing priority.
-
-Agreed.
-
+> On Tue, May 6, 2014 at 9:30 AM, Rik van Riel <riel@redhat.com> wrote:
+> >
+> > The GPU runs a lot faster when using video memory, instead
+> > of system memory, on the other side of the PCIe bus.
 > 
-> plist_shuffle()?  That might imply random shuffling though.
-
-Yep.
-
+> The nineties called, and they want their old broken model back.
 > 
-> plist_readd() or plist_requeue()?  That might make sense since
-> technically the function could be replicated by just plist_del() and
-> plist_add(), based on the implementation detail that plist_add()
-> inserts after all other same-priority entries, instead of before.
-
-plist_requeue() sounds like the best so far.
-
+> Get with the times. No high-performance future GPU will ever run
+> behind the PCIe bus. We still have a few straggling historical
+> artifacts, but everybody knows where the future is headed.
 > 
-> Or add priority into the name explicitly, like plist_priority_yield(),
-> or plist_priority_rotate(), plist_priority_requeue()?
+> They are already cache-coherent because flushing caches etc was too
+> damn expensive. They're getting more so.
 
-No, even plist_yield() assumes priority is the same, thus adding
-priority to a plist that means "priority list" is rather redundant.
+The future might be closer coupled, but it still might not be cache coherent, it might also just be a faster PCIE, considering the current one is a lot faster than the 90s PCI you talk about.
 
-I think its up between plist_yield() and plist_requeue(), where I'm
-leaning towards plist_requeue().
+No current high-performance GPU runs in front of the PCIe bus, Intel are still catching up to the performance level of anyone else and others still remain ahead. Even intel make MIC cards for compute that put stuff on the other side of the PCIE divide.
 
-Unless others have any better ideas or objections, lets go with
-plist_requeue(). I think that's rather self explanatory and it sounds
-just like what you said. It's basically an optimized version of
-plist_del() followed by a plist_add().
-
- 
-> Ok here's try 3, before I update the patch :)  Does this make sense?
-> 
-> This is needed by the next patch in this series, which changes swap
-> from using regular lists to track its available swap devices
-> (partitions or files) to using plists.  Each swap device has a
-> priority, and swap allocates pages from devices in priority order,
-> filling up the highest priority device first (and then removing it
-> from the available list), by allocating a page from the swap device
-> that is first in the priority-ordered list.  With regular lists, swap
-> was managing the ordering by priority, while with plists the ordering
-> is automatically handled.  However, swap requires special handling of
-> swap devices with the same priority; pages must be allocated from them
-> in round-robin order.  To accomplish this with a plist, this new
-> function is used; when a page is allocated from the first swap device
-> in the plist, that entry is moved to the end of any same-priority
-> entries.  Then the next time a page needs to be allocated, the next
-> swap device will be used, and so on.
-
-OK, I read the above a few times and I think I know where my confusion
-is coming from. I was thinking that the pages were being added to the
-plist. I believe you are saying that the swap devices themselves are
-added to the plist, and when the device is empty (no more pages left)
-it is removed from the plist. When dealing with memory and swap one
-thinks of managing pages. But here we are managing the devices.
-
-Please state clearly at the beginning of your explanation that the swap
-devices are being stored in the plist and stay there as long as they
-still have pages left to be allocated from. In order to treat swap
-devices of the same priority in a round robin fashion, after a device
-has pages allocated from it, it needs to be requeued at the end of it's
-priority, behind other swap devices of the same priority in order to
-make sure the next allocation comes from a different device (of same
-priority).
-
-
--- Steve
+Dave.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
