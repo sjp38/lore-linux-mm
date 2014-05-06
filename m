@@ -1,88 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 97A9E6B0036
-	for <linux-mm@kvack.org>; Tue,  6 May 2014 17:52:19 -0400 (EDT)
-Received: by mail-wi0-f172.google.com with SMTP id hi2so3937535wib.5
-        for <linux-mm@kvack.org>; Tue, 06 May 2014 14:52:19 -0700 (PDT)
-Received: from mail-wi0-x22f.google.com (mail-wi0-x22f.google.com [2a00:1450:400c:c05::22f])
-        by mx.google.com with ESMTPS id vo1si6106871wjc.237.2014.05.06.14.52.18
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 56EF76B0035
+	for <linux-mm@kvack.org>; Tue,  6 May 2014 18:08:06 -0400 (EDT)
+Received: by mail-pa0-f49.google.com with SMTP id lj1so109244pab.22
+        for <linux-mm@kvack.org>; Tue, 06 May 2014 15:08:05 -0700 (PDT)
+Received: from g2t2354.austin.hp.com (g2t2354.austin.hp.com. [15.217.128.53])
+        by mx.google.com with ESMTPS id lp6si1402974pab.241.2014.05.06.15.08.05
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 06 May 2014 14:52:18 -0700 (PDT)
-Received: by mail-wi0-f175.google.com with SMTP id f8so4305553wiw.2
-        for <linux-mm@kvack.org>; Tue, 06 May 2014 14:52:18 -0700 (PDT)
-Subject: Re: [PATCH 6/6] mm: Postpone the disabling of kmemleak early logging
-Mime-Version: 1.0 (Mac OS X Mail 7.2 \(1874\))
-Content-Type: text/plain; charset=windows-1252
-From: Catalin Marinas <catalin.marinas@arm.com>
-In-Reply-To: <536926DD.30402@oracle.com>
-Date: Tue, 6 May 2014 22:52:16 +0100
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <49655FE2-17CA-433C-8F4A-76DD6C2FEF61@arm.com>
-References: <1399038070-1540-1-git-send-email-catalin.marinas@arm.com> <1399038070-1540-7-git-send-email-catalin.marinas@arm.com> <5368FDBB.8070106@oracle.com> <20140506170549.GM23957@arm.com> <536926DD.30402@oracle.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 06 May 2014 15:08:05 -0700 (PDT)
+Message-ID: <1399414081.30629.2.camel@buesod1.americas.hpqcorp.net>
+Subject: Re: [PATCH 0/4] ipc/shm.c: increase the limits for SHMMAX, SHMALL
+From: Davidlohr Bueso <davidlohr@hp.com>
+Date: Tue, 06 May 2014 15:08:01 -0700
+In-Reply-To: <CAKgNAkjOKP7P9veOpnokNkVXSszVZt5asFsNp7rm7AXJdjcLLA@mail.gmail.com>
+References: <1398090397-2397-1-git-send-email-manfred@colorfullife.com>
+	 <CAKgNAkjuU68hgyMOVGBVoBTOhhGdBytQh6H0ExiLoXfujKyP_w@mail.gmail.com>
+	 <1399406800.13799.20.camel@buesod1.americas.hpqcorp.net>
+	 <CAKgNAkjOKP7P9veOpnokNkVXSszVZt5asFsNp7rm7AXJdjcLLA@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Li Zefan <lizefan@huawei.com>
+To: mtk.manpages@gmail.com
+Cc: Manfred Spraul <manfred@colorfullife.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, aswin@hp.com, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On 6 May 2014, at 19:15, Sasha Levin <sasha.levin@oracle.com> wrote:
-> On 05/06/2014 01:05 PM, Catalin Marinas wrote:
->> On Tue, May 06, 2014 at 04:20:27PM +0100, Sasha Levin wrote:
->>> On 05/02/2014 09:41 AM, Catalin Marinas wrote:
->>>> Currently, kmemleak_early_log is disabled at the beginning of the
->>>> kmemleak_init() function, before the full kmemleak tracing is =
-actually
->>>> enabled. In this small window, kmem_cache_create() is called by =
-kmemleak
->>>> which triggers additional memory allocation that are not traced. =
-This
->>>> patch moves the kmemleak_early_log disabling further down and at =
-the
->>>> same time with full kmemleak enabling.
->>>>=20
->>>> Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
->>>> Cc: Andrew Morton <akpm@linux-foundation.org>
->>>=20
->>> This patch makes the kernel die during the boot process:
->>>=20
->>> [   24.471801] BUG: unable to handle kernel paging request at =
-ffffffff922f2b93
->>> [   24.472496] IP: [<ffffffff922f2b93>] log_early+0x0/0xcd
->>=20
->> Thanks for reporting this. I assume you run with
->> CONFIG_DEBUG_KMEMLEAK_DEFAULT_OFF enabled and kmemleak_early_log =
-remains
->> set even though kmemleak is not in use.
->>=20
->> Does the patch below fix it?
->=20
-> Nope, that didn't help as I don't have DEBUG_KMEMLEAK_DEFAULT_OFF =
-enabled.
->=20
-> For reference:
->=20
-> $ cat .config | grep KMEMLEAK
-> CONFIG_HAVE_DEBUG_KMEMLEAK=3Dy
-> CONFIG_DEBUG_KMEMLEAK=3Dy
-> CONFIG_DEBUG_KMEMLEAK_EARLY_LOG_SIZE=3D400
-> # CONFIG_DEBUG_KMEMLEAK_TEST is not set
-> # CONFIG_DEBUG_KMEMLEAK_DEFAULT_OFF is not set
+On Tue, 2014-05-06 at 22:40 +0200, Michael Kerrisk (man-pages) wrote:
+> Hi Davidlohr,
+> 
+> On Tue, May 6, 2014 at 10:06 PM, Davidlohr Bueso <davidlohr@hp.com> wrote:
+> > On Fri, 2014-05-02 at 15:16 +0200, Michael Kerrisk (man-pages) wrote:
+> >> Hi Manfred,
+> >>
+> >> On Mon, Apr 21, 2014 at 4:26 PM, Manfred Spraul
+> >> <manfred@colorfullife.com> wrote:
+> >> > Hi all,
+> >> >
+> >> > the increase of SHMMAX/SHMALL is now a 4 patch series.
+> >> > I don't have ideas how to improve it further.
+> >>
+> >> On the assumption that your patches are heading to mainline, could you
+> >> send me a man-pages patch for the changes?
+> >
+> > Btw, I think that the code could still use some love wrt documentation.
+> 
+> (Agreed.)
+> 
+> > Andrew, please consider this for -next if folks agree. Thanks.
+> >
+> > 8<----------------------------------------------------------
+> >
+> > From: Davidlohr Bueso <davidlohr@hp.com>
+> > Subject: [PATCH] ipc,shm: document new limits in the uapi header
+> >
+> > This is useful in the future and allows users to
+> > better understand the reasoning behind the changes.
+> >
+> > Also use UL as we're dealing with it anyways.
+> >
+> > Signed-off-by: Davidlohr Bueso <davidlohr@hp.com>
+> > ---
+> >  include/uapi/linux/shm.h | 14 ++++++++------
+> >  1 file changed, 8 insertions(+), 6 deletions(-)
+> >
+> > diff --git a/include/uapi/linux/shm.h b/include/uapi/linux/shm.h
+> > index 74e786d..e37fb08 100644
+> > --- a/include/uapi/linux/shm.h
+> > +++ b/include/uapi/linux/shm.h
+> > @@ -8,17 +8,19 @@
+> >  #endif
+> >
+> >  /*
+> > - * SHMMAX, SHMMNI and SHMALL are upper limits are defaults which can
+> 
+> Something is wrong in the line above (missing word(s)?) ("are upper
+> limits are defaults")
+> 
+> > - * be modified by sysctl.
+> > + * SHMMNI, SHMMAX and SHMALL are the default upper limits which can be
+> > + * modified by sysctl. Both SHMMAX and SHMALL have their default values
+> > + * to the maximum limit which is as large as it can be without helping
+> > + * userspace overflow the values. There is really nothing the kernel
+> > + * can do to avoid this any variables. It is therefore not advised to
+> 
+> Something is missing in that last line.
+> 
+> > + * make them any larger. This is suitable for both 32 and 64-bit systems.
+> 
+> "This" is not so clear. I suggest replacing with an actual noun.
 
-I assume your dmesg shows some kmemleak error during boot? I=92ll send
-another patch tomorrow.
+Good point. Perhaps 'These values are ...' would do instead. 
 
-The code around kmemleak_init was changed by commit 8910ae896c8c
-(kmemleak: change some global variables to int). It looks like it
-wasn=92t just a simple conversion but slightly changed the
-kmemleak_early_log logic which led to false positives for the kmemleak
-cache objects and that=92s what my patch was trying to solve.
-
-The failure is caused by kmemleak_alloc() still calling log_early() much
-later after the __init section has been freed because kmemleak_early_log
-hasn=92t been set to 0 (the default off is one path, another is the
-kmemleak_error path).
-
-Catalin=
+Thanks,
+Davidlohr
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
