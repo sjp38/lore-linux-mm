@@ -1,109 +1,162 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f180.google.com (mail-qc0-f180.google.com [209.85.216.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 092D56B0036
-	for <linux-mm@kvack.org>; Tue,  6 May 2014 12:49:41 -0400 (EDT)
-Received: by mail-qc0-f180.google.com with SMTP id i17so8793500qcy.25
-        for <linux-mm@kvack.org>; Tue, 06 May 2014 09:49:40 -0700 (PDT)
-Received: from mail-qa0-x231.google.com (mail-qa0-x231.google.com [2607:f8b0:400d:c00::231])
-        by mx.google.com with ESMTPS id j6si5407410qan.32.2014.05.06.09.49.39
+Received: from mail-ee0-f47.google.com (mail-ee0-f47.google.com [74.125.83.47])
+	by kanga.kvack.org (Postfix) with ESMTP id A64BA6B0036
+	for <linux-mm@kvack.org>; Tue,  6 May 2014 12:52:09 -0400 (EDT)
+Received: by mail-ee0-f47.google.com with SMTP id c13so915276eek.20
+        for <linux-mm@kvack.org>; Tue, 06 May 2014 09:52:09 -0700 (PDT)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id f45si13898082eet.219.2014.05.06.09.52.07
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 06 May 2014 09:49:39 -0700 (PDT)
-Received: by mail-qa0-f49.google.com with SMTP id cm18so7585825qab.8
-        for <linux-mm@kvack.org>; Tue, 06 May 2014 09:49:39 -0700 (PDT)
-Date: Tue, 6 May 2014 12:49:33 -0400
-From: Jerome Glisse <j.glisse@gmail.com>
-Subject: Re: [RFC] Heterogeneous memory management (mirror process address
- space on a device mmu).
-Message-ID: <20140506164931.GD6731@gmail.com>
-References: <1399038730-25641-1-git-send-email-j.glisse@gmail.com>
- <20140506102925.GD11096@twins.programming.kicks-ass.net>
- <CA+55aFzt47Jpp-KK-ocLGgzYt_w-vheqFLfaGZOUSjwVrgGUtw@mail.gmail.com>
- <20140506150014.GA6731@gmail.com>
- <CA+55aFwM-g01tCZ1NknwvMeSMpwyKyTm6hysN-GmrZ_APtk7UA@mail.gmail.com>
- <20140506153315.GB6731@gmail.com>
- <CA+55aFzzPtTkC22WvHNy6srN9PFzer0-_mgRXWO03NwmCdfy4g@mail.gmail.com>
- <20140506161836.GC6731@gmail.com>
- <CA+55aFweCGWQMSxP09MJMhJ0XySZqvw=QaoUWwsWU4KaqDgOhw@mail.gmail.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 06 May 2014 09:52:08 -0700 (PDT)
+Date: Tue, 6 May 2014 12:51:50 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 1/4] memcg, mm: introduce lowlimit reclaim
+Message-ID: <20140506165150.GI19914@cmpxchg.org>
+References: <1398688005-26207-2-git-send-email-mhocko@suse.cz>
+ <20140430225550.GD26041@cmpxchg.org>
+ <20140502093628.GC3446@dhcp22.suse.cz>
+ <20140502155805.GO23420@cmpxchg.org>
+ <20140502164930.GP3446@dhcp22.suse.cz>
+ <20140502220056.GP23420@cmpxchg.org>
+ <20140506132932.GF19914@cmpxchg.org>
+ <20140506143242.GB19672@dhcp22.suse.cz>
+ <20140506152112.GG19914@cmpxchg.org>
+ <20140506161256.GE19672@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CA+55aFweCGWQMSxP09MJMhJ0XySZqvw=QaoUWwsWU4KaqDgOhw@mail.gmail.com>
+In-Reply-To: <20140506161256.GE19672@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Peter Zijlstra <peterz@infradead.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Linda Wang <lwang@redhat.com>, Kevin E Martin <kem@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Jeff Law <law@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Haggai Eran <haggaie@mellanox.com>, Or Gerlitz <ogerlitz@mellanox.com>, Sagi Grimberg <sagig@mellanox.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, "Sander, Ben" <ben.sander@amd.com>, "Stoner, Greg" <Greg.Stoner@amd.com>, "Bridgman, John" <John.Bridgman@amd.com>, "Mantor, Michael" <Michael.Mantor@amd.com>, "Blinzer, Paul" <Paul.Blinzer@amd.com>, "Morichetti, Laurent" <Laurent.Morichetti@amd.com>, "Deucher, Alexander" <Alexander.Deucher@amd.com>, "Gabbay, Oded" <Oded.Gabbay@amd.com>, Davidlohr Bueso <davidlohr@hp.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, Tejun Heo <tj@kernel.org>, Hugh Dickins <hughd@google.com>, Roman Gushchin <klamm@yandex-team.ru>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>
 
-On Tue, May 06, 2014 at 09:32:16AM -0700, Linus Torvalds wrote:
-> On Tue, May 6, 2014 at 9:18 AM, Jerome Glisse <j.glisse@gmail.com> wrote:
-> >
-> > I do understand that i was pointing out that if i move to, tlb which i
-> > am fine with, i will still need to sleep there.
+On Tue, May 06, 2014 at 06:12:56PM +0200, Michal Hocko wrote:
+> I am adding Rik to CC (sorry to put you in the middle of a thread -
+> we have started here: https://lkml.org/lkml/2014/4/28/237). You were
+> stressing out risks of using lowlimit as a hard guarantee at LSF. Could
+> you repeat your concerns here as well, please?
 > 
-> No can do. The TLB flushing itself is called with a spinlock held, and
-> we need to continue to do that.
+> Short summary:
+> We are basically discussing how to handle lowlimit overcommit situation,
+> when no group is reclaimable because it either doesn't have any pages on
+> the LRU or it is bellow its lowlimit (aka guaranteed memory).
 > 
-> Why do you really need to sleep? Because that sounds bogus.
+> The solution proposed in this series is to fallback and reclaim
+> everybody rather than OOM with a note that if somebody really needs an
+> OOM then we can add a per-memcg knob which tells whether to fallback or oom.
 > 
-> What you *should* do is send the flush message, and not wait for any
-> reply. You can then possibly wait for the result later on: we already
-> have this multi-stage TLB flush model (using the "mmu_gather"
-> structure) that has three phases:
+> Previously I was suggesting OOM as a default but I realized that this
+> might be too risky for the default behavior although I can see some
+> point in that behavior as well (it would allow to have a group which
+> would never reclaim memory and rather go OOM where the memory demand can
+> be handled more specifically). I do not have any call for such a hard
+> guarantee requirement usecase now and it would be quite trivial to build
+> it on top of the more relaxed implementation so I am more inclined to
+> the fallback default now.
 > 
->  - create mmu_gather (allocate space for batching etc). This can sleep.
->  - do the actual flushing (possibly multiple times). This is the
-> "synchronous with the VM" part and cannot sleep.
->  - tear down the mmu_gather data structures and actually free the
-> pages we batched. This can sleep.
+> More comments inlined below.
 > 
-> and what I think a GPU flush has to do is to do the actual flushes
-> when asked to (because that's what it will need to do to work with a
-> real TLB eventually), but if there's some crazy asynchronous
-> acknowledge thing from hardware, it's possible to perhaps wait for
-> that in the final phase (*before* we free the pages we gathered).
+> On Tue 06-05-14 11:21:12, Johannes Weiner wrote:
+> > On Tue, May 06, 2014 at 04:32:42PM +0200, Michal Hocko wrote:
+> > > On Tue 06-05-14 09:29:32, Johannes Weiner wrote:
+> > > > On Fri, May 02, 2014 at 06:00:56PM -0400, Johannes Weiner wrote:
+> > > > > On Fri, May 02, 2014 at 06:49:30PM +0200, Michal Hocko wrote:
+> > > > > > On Fri 02-05-14 11:58:05, Johannes Weiner wrote:
+> > > > > > > This is not even guarantees anymore, but rather another reclaim
+> > > > > > > prioritization scheme with best-effort semantics.  That went over
+> > > > > > > horribly with soft limits, and I don't want to repeat this.
+> > > > > > > 
+> > > > > > > Overcommitting on guarantees makes no sense, and you even agree you
+> > > > > > > are not interested in it.  We also agree that we can always add a knob
+> > > > > > > later on to change semantics when an actual usecase presents itself,
+> > > > > > > so why not start with the clear and simple semantics, and the simpler
+> > > > > > > implementation?
+> > > > > > 
+> > > > > > So you are really preferring an OOM instead? That was the original
+> > > > > > implementation posted at the end of last year and some people
+> > > > > > had concerns about it. This is the primary reason I came up with a
+> > > > > > weaker version which fallbacks rather than OOM.
+> > > > > 
+> > > > > I'll dig through the archives on this then, thanks.
+> > > > 
+> > > > The most recent discussion on this I could find was between you and
+> > > > Greg, where the final outcome was (excerpt):
+> > > > 
+> > > > ---
+> > > > 
+> > > > From: Greg Thelen <gthelen@google.com>
+> > > > To: Michal Hocko <mhocko@suse.cz>
+> > > > Cc: linux-mm@kvack.org,  Johannes Weiner <hannes@cmpxchg.org>,  Andrew Morton <akpm@linux-foundation.org>,  KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>,  LKML <linux-kernel@vger.kernel.org>,  Ying Han <yinghan@google.com>,  Hugh Dickins <hughd@google.com>,  Michel Lespinasse <walken@google.com>,  KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>,  Tejun Heo <tj@kernel.org>
+> > > > Subject: Re: [RFC 0/4] memcg: Low-limit reclaim
+> > > > References: <1386771355-21805-1-git-send-email-mhocko@suse.cz>
+> > > > 	<xr93sis6obb5.fsf@gthelen.mtv.corp.google.com>
+> > > > 	<20140130123044.GB13509@dhcp22.suse.cz>
+> > > > 	<xr931tzphu50.fsf@gthelen.mtv.corp.google.com>
+> > > > 	<20140203144341.GI2495@dhcp22.suse.cz>
+> > > > Date: Mon, 03 Feb 2014 17:33:13 -0800
+> > > > Message-ID: <xr93zjm7br1i.fsf@gthelen.mtv.corp.google.com>
+> > > > List-ID: <linux-mm.kvack.org>
+> > > > 
+> > > > On Mon, Feb 03 2014, Michal Hocko wrote:
+> > > > 
+> > > > > On Thu 30-01-14 16:28:27, Greg Thelen wrote:
+> > > > >> But this soft_limit,priority extension can be added later.
+> > > > >
+> > > > > Yes, I would like to have the strong semantic first and then deal with a
+> > > > > weaker form. Either by a new limit or a flag.
+> > > > 
+> > > > Sounds good.
+> > > > 
+> > > > ---
+> > > > 
+> > > > So I think everybody involved in the discussions so far are preferring
+> > > > a hard guarantee, and then later, if needed, to either add a knob to
+> > > > make it a soft guarantee or to actually implement a usable soft limit.
+> > > 
+> > > I am afraid the most of that discussion happened off-list :( Sadly not
+> > > much of a discussion happened on the list.
+> > 
+> > Time to do it now, then :)
+> > 
+> > > Sorry I should have been specific and mention that the discussions
+> > > happened at LSF and partly at the KS.
+> > > 
+> > > The strongest point was made by Rik when he claimed that memcg is not
+> > > aware of memory zones and so one memcg with lowlimit larger than the
+> > > size of a zone can eat up that zone without any way to free it.
+> > 
+> > But who actually cares if an individual zone can be reclaimed?
+> > 
+> > Userspace allocations can fall back to any other zone.  Unless there
+> > are hard bindings, but hopefully nobody binds a memcg to a node that
+> > is smaller than that memcg's guarantee. 
+> 
+> The protected group might spill over to another group and eat it when
+> another group would be simply pushed out from the node it is bound to.
 
-Plan i had in mind was to add an item atomicly inside mmu notifier to
-schedule work on the gpu and have the tlb wait on the gpu to acknowledge
-that it did update its page table and it is done using those pages.
-This would happen in tlb_flush_mmu
+I don't really understand the point you're trying to make.
 
+> > And while the pages are not
+> > reclaimable, they are still movable, so the NUMA balancer is free to
+> > correct any allocation mistakes later on.
 > 
-> Now, such an asynchronous model had better not mark page tables dirty
-> after we flushed (we'd lose that information), but quite frankly,
-> anything that is remote enough to need some async flush thing cannor
-> sanely be close enough to be closely tied to the actual real page
-> tables, so I don't think we need to care.
+> Do we want to depend on NUMA balancer, though?
 
-That's an issue as soon as i schedule the work (read as early on as i
-can) the gpu can report any of the page as dirty and it can possibly
-do so only once we wait for it in tlb_flush_mmu.
+You're missing my point.
 
-> 
-> Anyway, I really think that the existing mmu_gather model *should*
-> work fine for this all. It may be a bit inconvenient for crazy
-> hardware, but the important part is that it definitely should work for
-> any future hardware that actually gets this right.
-> 
+This is about which functionality of the system is actually impeded by
+having large portions of a zone unreclaimable.  Freeing pages in a
+zone is means to an end, not an end in itself.
 
-I stress again the GPU with dedicated memory is not going away on the
-opposite you might see more dedicated memory not accessible from the
-CPU.
+We wouldn't depend on the NUMA balancer to "free" a zone, I'm just
+saying that the NUMA balancer would be unaffected by a zone full of
+unreclaimable pages, as long as they are movable.
 
-> It does likely involve adding some kind of device list to "struct
-> mm_struct", and I'm sure there's some extension to "struct mmu_gather"
-> too, but _conceptually_ it should all be reasonably non-invasive.
-> 
-> Knock wood.
-> 
->             Linus
-
-I will port over to piggy back on mmu gather and other tlb flush. I will
-post as soon as i have something that works with features this patchset
-has.
-
-Cheers,
-Jerome
+So who exactly cares about the ability to reclaim individual zones and
+how is it a new type of problem compared to existing unreclaimable but
+movable memory?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
