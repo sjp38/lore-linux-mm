@@ -1,63 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f41.google.com (mail-ee0-f41.google.com [74.125.83.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 99BDB6B00DE
-	for <linux-mm@kvack.org>; Tue,  6 May 2014 07:52:06 -0400 (EDT)
-Received: by mail-ee0-f41.google.com with SMTP id t10so2715593eei.14
-        for <linux-mm@kvack.org>; Tue, 06 May 2014 04:52:06 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w2si24964eel.356.2014.05.06.04.52.04
+Received: from mail-ee0-f50.google.com (mail-ee0-f50.google.com [74.125.83.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 8EE8B900002
+	for <linux-mm@kvack.org>; Tue,  6 May 2014 09:07:03 -0400 (EDT)
+Received: by mail-ee0-f50.google.com with SMTP id e51so1775685eek.9
+        for <linux-mm@kvack.org>; Tue, 06 May 2014 06:07:02 -0700 (PDT)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id v41si13338479eew.314.2014.05.06.06.07.01
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 06 May 2014 04:52:05 -0700 (PDT)
-Message-ID: <5368CCE2.2050602@suse.cz>
-Date: Tue, 06 May 2014 13:52:02 +0200
-From: Vlastimil Babka <vbabka@suse.cz>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 06 May 2014 06:07:01 -0700 (PDT)
+Date: Tue, 6 May 2014 09:06:55 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] mm, thp: close race between mremap() and
+ split_huge_page()
+Message-ID: <20140506130655.GE19914@cmpxchg.org>
+References: <1399328011-15317-1-git-send-email-kirill.shutemov@linux.intel.com>
 MIME-Version: 1.0
-Subject: Re: [patch v2 3/4] mm, compaction: add per-zone migration pfn cache
- for async compaction
-References: <alpine.DEB.2.02.1404301744110.8415@chino.kir.corp.google.com> <alpine.DEB.2.02.1405011434140.23898@chino.kir.corp.google.com> <alpine.DEB.2.02.1405011435000.23898@chino.kir.corp.google.com> <53675B3A.5090607@suse.cz> <alpine.DEB.2.02.1405050243490.11071@chino.kir.corp.google.com> <53679F16.8020007@suse.cz> <alpine.DEB.2.02.1405051726210.4720@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.02.1405051726210.4720@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1399328011-15317-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Rik van Riel <riel@redhat.com>, Michel Lespinasse <walken@google.com>, Dave Jones <davej@redhat.com>, stable@vger.kernel.org
 
-On 05/06/2014 02:29 AM, David Rientjes wrote:
-> On Mon, 5 May 2014, Vlastimil Babka wrote:
->
->> I see, although I would still welcome some numbers to back such change.
->
-> It's pretty difficult to capture numbers for this in real-world scenarios
-> since it happens rarely (and when it happens, it's very significant
-> latency) and without an instrumented kernel that will determine how many
-> pageblocks have been skipped.  I could create a synthetic example of it in
-> the kernel and get numbers for a worst-case scenario with a 64GB zone if
-> you'd like, I'm not sure how representative it will be.
->
->> What I still don't like is the removal of the intent of commit 50b5b094e6. You
->> now again call set_pageblock_skip() unconditionally, thus also on pageblocks
->> that async compaction skipped due to being non-MOVABLE. The sync compaction
->> will thus ignore them.
->>
->
-> I'm not following you, with this patch there are two cached pfns for the
-> migration scanner: one is used for sync and one is used for async.  When
-> cc->sync == true, both cached pfns are updated (async is not going to
-> succeed for a pageblock when sync failed for that pageblock); when
-> cc->sync == false, the async cached pfn is updated only and we pick up
-> again where we left off for subsequent async compactions.  Sync compaction
-> will still begin where it last left off and consider these non-MOVABLE
-> pageblocks.
->
+On Tue, May 06, 2014 at 01:13:31AM +0300, Kirill A. Shutemov wrote:
+> It's critical for split_huge_page() (and migration) to catch and freeze
+> all PMDs on rmap walk. It gets tricky if there's concurrent fork() or
+> mremap() since usually we copy/move page table entries on dup_mm() or
+> move_page_tables() without rmap lock taken. To get it work we rely on
+> rmap walk order to not miss any entry. We expect to see destination VMA
+> after source one to work correctly.
+> 
+> But after switching rmap implementation to interval tree it's not always
+> possible to preserve expected walk order.
 
-Yeah I understand, the cached pfn's are not the problem. The problem is 
-that with your patch, set_pageblock_skip() will be called through 
-update_pageblock_skip() in async compaction, since you removed the 
-skipped_async_unsuitable variable. So in sync compaction, such pageblock 
-will be skipped thanks to the isolation_suitable() check which uses 
-get_pageblock_skip() to read the bit set by the async compaction.
+Yeah, I think the actual bug was introduced in preparation of the
+interval tree, when the optimization of moving the target anon_vma to
+the tail of the chain was replaced by explicit locking again.  That
+missed the THP case.
+
+> It works fine for dup_mm() since new VMA has the same vma_start_pgoff()
+> / vma_last_pgoff() and explicitly insert dst VMA after src one with
+> vma_interval_tree_insert_after().
+> 
+> But on move_vma() destination VMA can be merged into adjacent one and as
+> result shifted left in interval tree. Fortunately, we can detect the
+> situation and prevent race with rmap walk by moving page table entries
+> under rmap lock. See commit 38a76013ad80.
+> 
+> Problem is that we miss the lock when we move transhuge PMD. Most likely
+> this bug caused the crash[1].
+> 
+> [1] http://thread.gmane.org/gmane.linux.kernel.mm/96473
+> 
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Cc: Andrea Arcangeli <aarcange@redhat.com>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: Michel Lespinasse <walken@google.com>
+> Cc: Dave Jones <davej@redhat.com>
+> Cc: <stable@vger.kernel.org>        [3.7+]
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+
+Fixes: 108d6642ad81 ("mm anon rmap: remove anon_vma_moveto_tail")
+
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
