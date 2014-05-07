@@ -1,52 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f49.google.com (mail-qg0-f49.google.com [209.85.192.49])
-	by kanga.kvack.org (Postfix) with ESMTP id CE3E76B0035
-	for <linux-mm@kvack.org>; Wed,  7 May 2014 03:20:17 -0400 (EDT)
-Received: by mail-qg0-f49.google.com with SMTP id a108so619896qge.22
-        for <linux-mm@kvack.org>; Wed, 07 May 2014 00:20:17 -0700 (PDT)
-Received: from gate.crashing.org (gate.crashing.org. [63.228.1.57])
-        by mx.google.com with ESMTPS id 105si6350199qgw.110.2014.05.07.00.20.15
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id DD7106B0035
+	for <linux-mm@kvack.org>; Wed,  7 May 2014 03:52:53 -0400 (EDT)
+Received: by mail-pa0-f46.google.com with SMTP id kx10so825059pab.33
+        for <linux-mm@kvack.org>; Wed, 07 May 2014 00:52:53 -0700 (PDT)
+Received: from mailout4.samsung.com (mailout4.samsung.com. [203.254.224.34])
+        by mx.google.com with ESMTPS id gr5si13340949pac.237.2014.05.07.00.52.52
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 07 May 2014 00:20:16 -0700 (PDT)
-Message-ID: <1399447116.4161.36.camel@pasglop>
-Subject: Re: [RFC] Heterogeneous memory management (mirror process address
- space on a device mmu).
-From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Date: Wed, 07 May 2014 17:18:36 +1000
-In-Reply-To: <CA+55aFweCGWQMSxP09MJMhJ0XySZqvw=QaoUWwsWU4KaqDgOhw@mail.gmail.com>
-References: <1399038730-25641-1-git-send-email-j.glisse@gmail.com>
-	 <20140506102925.GD11096@twins.programming.kicks-ass.net>
-	 <CA+55aFzt47Jpp-KK-ocLGgzYt_w-vheqFLfaGZOUSjwVrgGUtw@mail.gmail.com>
-	 <20140506150014.GA6731@gmail.com>
-	 <CA+55aFwM-g01tCZ1NknwvMeSMpwyKyTm6hysN-GmrZ_APtk7UA@mail.gmail.com>
-	 <20140506153315.GB6731@gmail.com>
-	 <CA+55aFzzPtTkC22WvHNy6srN9PFzer0-_mgRXWO03NwmCdfy4g@mail.gmail.com>
-	 <20140506161836.GC6731@gmail.com>
-	 <CA+55aFweCGWQMSxP09MJMhJ0XySZqvw=QaoUWwsWU4KaqDgOhw@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Wed, 07 May 2014 00:52:52 -0700 (PDT)
+Received: from epcpsbgm1.samsung.com (epcpsbgm1 [203.254.230.26])
+ by mailout4.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0N57005901W2P5E0@mailout4.samsung.com> for
+ linux-mm@kvack.org; Wed, 07 May 2014 16:52:50 +0900 (KST)
+From: Weijie Yang <weijie.yang@samsung.com>
+References: <000001cf6816$d538c370$7faa4a50$%yang@samsung.com>
+ <20140505152014.GA8551@cerebellum.variantweb.net>
+ <1399312844.2570.28.camel@buesod1.americas.hpqcorp.net>
+ <20140505134615.04cb627bb2784cabcb844655@linux-foundation.org>
+ <1399328550.2646.5.camel@buesod1.americas.hpqcorp.net>
+In-reply-to: <1399328550.2646.5.camel@buesod1.americas.hpqcorp.net>
+Subject: RE: [PATCH] zram: remove global tb_lock by using lock-free CAS
+Date: Wed, 07 May 2014 15:51:35 +0800
+Message-id: <000001cf69c9$5776f330$0664d990$%yang@samsung.com>
+MIME-version: 1.0
+Content-type: text/plain; charset=utf-8
+Content-transfer-encoding: 7bit
+Content-language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Jerome Glisse <j.glisse@gmail.com>, Peter Zijlstra <peterz@infradead.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>, "H. Peter
- Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Linda Wang <lwang@redhat.com>, Kevin E Martin <kem@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Jeff Law <law@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Haggai Eran <haggaie@mellanox.com>, Or Gerlitz <ogerlitz@mellanox.com>, Sagi Grimberg <sagig@mellanox.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, "Sander,
- Ben" <ben.sander@amd.com>, "Stoner, Greg" <Greg.Stoner@amd.com>, "Bridgman, John" <John.Bridgman@amd.com>, "Mantor, Michael" <Michael.Mantor@amd.com>, "Blinzer, Paul" <Paul.Blinzer@amd.com>, "Morichetti, Laurent" <Laurent.Morichetti@amd.com>, "Deucher, Alexander" <Alexander.Deucher@amd.com>, "Gabbay, Oded" <Oded.Gabbay@amd.com>, Davidlohr Bueso <davidlohr@hp.com>
+To: 'Davidlohr Bueso' <davidlohr@hp.com>, 'Andrew Morton' <akpm@linux-foundation.org>
+Cc: 'Seth Jennings' <sjennings@variantweb.net>, 'Minchan Kim' <minchan@kernel.org>, 'Nitin Gupta' <ngupta@vflare.org>, 'Sergey Senozhatsky' <sergey.senozhatsky@gmail.com>, 'Bob Liu' <bob.liu@oracle.com>, 'Dan Streetman' <ddstreet@ieee.org>, weijie.yang.kh@gmail.com, heesub.shin@samsung.com, 'linux-kernel' <linux-kernel@vger.kernel.org>, 'Linux-MM' <linux-mm@kvack.org>
 
-On Tue, 2014-05-06 at 09:32 -0700, Linus Torvalds wrote:
-> and what I think a GPU flush has to do is to do the actual flushes
-> when asked to (because that's what it will need to do to work with a
-> real TLB eventually), but if there's some crazy asynchronous
-> acknowledge thing from hardware, it's possible to perhaps wait for
-> that in the final phase (*before* we free the pages we gathered).
+On Tue, May 6, 2014 at 6:22 AM, Davidlohr Bueso <davidlohr@hp.com> wrote:
+> On Mon, 2014-05-05 at 13:46 -0700, Andrew Morton wrote:
+>> On Mon, 05 May 2014 11:00:44 -0700 Davidlohr Bueso <davidlohr@hp.com> wrote:
+>>
+>> > > > @@ -339,12 +338,14 @@ static int zram_decompress_page(struct zram *zram, char *mem, u32 index)
+>> > > >         unsigned long handle;
+>> > > >         u16 size;
+>> > > >
+>> > > > -       read_lock(&meta->tb_lock);
+>> > > > +       while(atomic_cmpxchg(&meta->table[index].state, IDLE, ACCESS) != IDLE)
+>> > > > +               cpu_relax();
+>> > > > +
+>> > >
+>> > > So... this might be dumb question, but this looks like a spinlock
+>> > > implementation.
+>> > >
+>> > > What advantage does this have over a standard spinlock?
+>> >
+>> > I was wondering the same thing. Furthermore by doing this you'll loose
+>> > the benefits of sharing the lock... your numbers do indicate that it is
+>> > for the better. Also, note that hopefully rwlock_t will soon be updated
+>> > to be fair and perform up to par with spinlocks, something which is long
+>> > overdue. So you could reduce the critical region by implementing the
+>> > same granularity, just don't implement your own locking schemes, like
+>> > this.
 
-Hrm, difficult. We have some pretty strong assumptions that
-ptep_clear_flush() is fully synchronous as far as I can tell... ie, your
-trick would work for the unmap case but everything else is still
-problematic.
+Actually, the main reason I use a CAS rather than a standard lock here is
+that I want to minimize the meta table memory overhead. A tiny reason is
+my fuzzy memory that CAS is more efficient than spinlock (please correct me
+if I am wrong).
 
-Ben.
+Anyway, I changed the CAS to spinlock and rwlock, re-test them:
+
+      Test       lock-free	   spinlock     rwlock
+------------------------------------------------------
+ Initial write   1424141.62   1426372.84   1423019.21
+       Rewrite   1652504.81   1623307.14   1653682.04
+          Read  11404668.35  11242885.05  10938125.00
+       Re-read  11555483.75   11253906.6  10837773.50
+  Reverse Read   8394478.17   8277250.34   7768057.39
+   Stride read   9372229.95   9010498.53   8692871.77
+   Random read   9187221.90   8988080.55   8661184.60
+Mixed workload   5843370.85   5414729.54   5451055.03
+  Random write   1608947.04   1572276.64   1588866.51
+        Pwrite   1311055.32   1302463.04   1302001.06
+         Pread   4652056.11   4555802.18   4469672.34
+
+And I cann't say which one is the best, they have the similar performance.
+
+Wait, iozone will create temporary files for every test thread, so there is no
+possibility that these threads access the same table[index] concurrenctly.
+So, I use fio to test the raw zram block device.
+To enhance the possibility of access the same table[index] conflictly, I set zram
+with a small disksize(10M) and let thread run with large loop count.
+
+On the same test machine, the fio test command is:
+fio --bs=32k --randrepeat=1 --randseed=100 --refill_buffers
+--scramble_buffers=1 --direct=1 --loops=3000 --numjobs=4
+--filename=/dev/zram0 --name=seq-write --rw=write --stonewall
+--name=seq-read --rw=read --stonewall --name=seq-readwrite
+--rw=rw --stonewall --name=rand-readwrite --rw=randrw --stonewall
+
+    Test      base    lock-free   spinlock   rwlock
+------------------------------------------------------
+seq-write   935109.2   999580.5   998134.8   994384.6
+ seq-read  5598064.6  6444011.5  6243184.6  6197514.2
+   seq-rw  1403963.0  1635673.0  1633823.0  1635972.2
+  rand-rw  1389864.4  1612520.4  1613403.6  1612129.8
+
+This result(KB/s, average of 5 tests) shows the performance improvement
+on base version, however, I cann't say which method is the best.
+
+>>
+>> It sounds like seqlocks will match this access pattern pretty well?
+>
+> Indeed. And after a closer look, except for zram_slot_free_notify(),
+> that lock is always shared. So, unless fine graining it implies taking
+> the lock exclusively like in this patch (if so, that needs to be
+> explicitly documented in the changelog), we would ideally continue to
+> share it. That _should_ provide nicer performance numbers when using the
+> correct lock.
+>
+
+Andrew mentioned seqlocks, however, I think it is hard the use seqlocks here
+after I recheck the codes. No matter use it as a meta global lock or a
+table[index] lock. The main reason is the writer will free the handle rather than
+just change some value.
+If I misunderstand you, please let me know.
+
+Now, I am in a delimma. For minimizing the memory overhead, I like to use CAS.
+However, it is not a standard way.
+
+Any complaint or suggestions are welcomed.
+
+Regards,
+
+>
+>
 
 
 --
