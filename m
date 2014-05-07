@@ -1,65 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f43.google.com (mail-ee0-f43.google.com [74.125.83.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 1CE3A6B0035
-	for <linux-mm@kvack.org>; Wed,  7 May 2014 09:29:20 -0400 (EDT)
-Received: by mail-ee0-f43.google.com with SMTP id d17so754469eek.30
-        for <linux-mm@kvack.org>; Wed, 07 May 2014 06:29:19 -0700 (PDT)
-Received: from cam-smtp0.cambridge.arm.com (fw-tnat.cambridge.arm.com. [217.140.96.21])
-        by mx.google.com with ESMTPS id l44si8492460eem.283.2014.05.07.06.29.18
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 07 May 2014 06:29:18 -0700 (PDT)
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: [PATCH] mm: Postpone the disabling of kmemleak early logging
-Date: Wed,  7 May 2014 14:28:35 +0100
-Message-Id: <1399469315-29239-1-git-send-email-catalin.marinas@arm.com>
+Received: from mail-qg0-f46.google.com (mail-qg0-f46.google.com [209.85.192.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 6BFE36B0035
+	for <linux-mm@kvack.org>; Wed,  7 May 2014 10:14:50 -0400 (EDT)
+Received: by mail-qg0-f46.google.com with SMTP id q108so1093621qgd.5
+        for <linux-mm@kvack.org>; Wed, 07 May 2014 07:14:50 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id l5si6765226qai.169.2014.05.07.07.14.48
+        for <linux-mm@kvack.org>;
+        Wed, 07 May 2014 07:14:48 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [patch v3 2/6] mm, compaction: return failed migration target pages back to freelist
+Date: Wed,  7 May 2014 10:14:37 -0400
+Message-Id: <536a3fd8.0542e00a.02f8.66c4SMTPIN_ADDED_BROKEN@mx.google.com>
+In-Reply-To: <alpine.DEB.2.02.1405061921040.18635@chino.kir.corp.google.com>
+References: <alpine.DEB.2.02.1404301744110.8415@chino.kir.corp.google.com> <alpine.DEB.2.02.1405011434140.23898@chino.kir.corp.google.com> <alpine.DEB.2.02.1405061920470.18635@chino.kir.corp.google.com> <alpine.DEB.2.02.1405061921040.18635@chino.kir.corp.google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Li Zefan <lizefan@huawei.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, vbabka@suse.cz, iamjoonsoo.kim@lge.com, gthelen@google.com, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Commit 8910ae896c8c (kmemleak: change some global variables to int), in
-addition to the atomic -> int conversion, moved the kmemleak_early_log
-disabling at the beginning of the kmemleak_init() function, before the
-full kmemleak tracing is actually enabled. In this small window,
-kmem_cache_create() is called by kmemleak which triggers additional
-memory allocation that are not traced. This patch restores the original
-logic with kmemleak_early_log disabling when kmemleak is fully
-functional.
+On Tue, May 06, 2014 at 07:22:43PM -0700, David Rientjes wrote:
+> Memory compaction works by having a "freeing scanner" scan from one end of a 
+> zone which isolates pages as migration targets while another "migrating scanner" 
+> scans from the other end of the same zone which isolates pages for migration.
+> 
+> When page migration fails for an isolated page, the target page is returned to 
+> the system rather than the freelist built by the freeing scanner.  This may 
+> require the freeing scanner to continue scanning memory after suitable migration 
+> targets have already been returned to the system needlessly.
+> 
+> This patch returns destination pages to the freeing scanner freelist when page 
+> migration fails.  This prevents unnecessary work done by the freeing scanner but 
+> also encourages memory to be as compacted as possible at the end of the zone.
+> 
+> Reported-by: Greg Thelen <gthelen@google.com>
+> Acked-by: Mel Gorman <mgorman@suse.de>
+> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+> Signed-off-by: David Rientjes <rientjes@google.com>
 
-Fixes: 8910ae896c8c (kmemleak: change some global variables to int)
-Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Sasha Levin <sasha.levin@oracle.com>
-Cc: Li Zefan <lizefan@huawei.com>
----
- mm/kmemleak.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
-
-diff --git a/mm/kmemleak.c b/mm/kmemleak.c
-index 61a64ed2fbef..33599ba0cd8d 100644
---- a/mm/kmemleak.c
-+++ b/mm/kmemleak.c
-@@ -1809,10 +1809,9 @@ void __init kmemleak_init(void)
- 	int i;
- 	unsigned long flags;
- 
--	kmemleak_early_log = 0;
--
- #ifdef CONFIG_DEBUG_KMEMLEAK_DEFAULT_OFF
- 	if (!kmemleak_skip_disable) {
-+		kmemleak_early_log = 0;
- 		kmemleak_disable();
- 		return;
- 	}
-@@ -1830,6 +1829,7 @@ void __init kmemleak_init(void)
- 
- 	/* the kernel is still in UP mode, so disabling the IRQs is enough */
- 	local_irq_save(flags);
-+	kmemleak_early_log = 0;
- 	if (kmemleak_error) {
- 		local_irq_restore(flags);
- 		return;
+Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
