@@ -1,71 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 0BD5F6B0099
-	for <linux-mm@kvack.org>; Wed,  7 May 2014 18:02:54 -0400 (EDT)
-Received: by mail-pd0-f179.google.com with SMTP id g10so1546481pdj.24
-        for <linux-mm@kvack.org>; Wed, 07 May 2014 15:02:54 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id xf3si14482259pab.56.2014.05.07.15.02.53
-        for <linux-mm@kvack.org>;
-        Wed, 07 May 2014 15:02:54 -0700 (PDT)
-Date: Wed, 7 May 2014 15:02:52 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: mm: gpf in global_dirty_limits
-Message-Id: <20140507150252.243bb40c69b973f534d29e25@linux-foundation.org>
-In-Reply-To: <536A6670.5070107@oracle.com>
-References: <536A6670.5070107@oracle.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 59D586B009A
+	for <linux-mm@kvack.org>; Wed,  7 May 2014 18:05:25 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id lj1so1721007pab.14
+        for <linux-mm@kvack.org>; Wed, 07 May 2014 15:05:25 -0700 (PDT)
+Received: from mail-pa0-x231.google.com (mail-pa0-x231.google.com [2607:f8b0:400e:c03::231])
+        by mx.google.com with ESMTPS id to1si14469413pab.199.2014.05.07.15.05.24
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 07 May 2014 15:05:24 -0700 (PDT)
+Received: by mail-pa0-f49.google.com with SMTP id lj1so1736198pab.36
+        for <linux-mm@kvack.org>; Wed, 07 May 2014 15:05:24 -0700 (PDT)
+Date: Wed, 7 May 2014 15:05:22 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH v2 03/10] slab: move up code to get kmem_cache_node in
+ free_block()
+In-Reply-To: <20140507215012.11213.qmail@ns.horizon.com>
+Message-ID: <alpine.DEB.2.02.1405071502040.25024@chino.kir.corp.google.com>
+References: <20140507215012.11213.qmail@ns.horizon.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, LKML <linux-kernel@vger.kernel.org>, Dave Jones <davej@redhat.com>
+To: George Spelvin <linux@horizon.com>
+Cc: cl@linux.com, iamjoonsoo.kim@lge.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, 07 May 2014 12:59:28 -0400 Sasha Levin <sasha.levin@oracle.com> wrote:
+On Wed, 7 May 2014, George Spelvin wrote:
 
-> Hi all,
+> > I think this unnecessarily obfuscates the code.
 > 
-> While fuzzing with trinity inside a KVM tools guest running the latest -next
-> kernel I've stumbled on the following spew:
+> Thanks for the feedback!  (Even if it's negative, I appreciate it.)
 > 
-> [ 1139.410483] general protection fault: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
-> [ 1139.413202] Dumping ftrace buffer:
-> [ 1139.414152]    (ftrace buffer empty)
-> [ 1139.415069] Modules linked in:
-> [ 1139.415846] CPU: 10 PID: 39777 Comm: kworker/u115:2 Tainted: G        W     3.15.0-rc4-next-20140506-sasha-00021-gc164334-dirty #447
-> [ 1139.418931] Workqueue: writeback bdi_writeback_workfn (flush-7:10)
-> [ 1139.420320] task: ffff880285848000 ti: ffff880282dbc000 task.ti: ffff880282dbc000
-> [ 1139.420320] RIP: global_dirty_limits (include/trace/events/writeback.h:308 mm/page-writeback.c:309)
-> [ 1139.420320] RSP: 0018:ffff880282dbdc28  EFLAGS: 00010282
-> [ 1139.420320] RAX: 6b6b6b6b6b6b6b6b RBX: 0000000000088034 RCX: 0000000000000001
-> [ 1139.420320] RDX: 0000000000110068 RSI: 0000000000088034 RDI: 6b6b6b6b6b6b6b6b
-> [ 1139.420320] RBP: ffff880282dbdc48 R08: 00000000000abad6 R09: ffff880285848cf0
-> [ 1139.420320] R10: 0000000000000001 R11: 0000000000000000 R12: 0000000000110068
-> [ 1139.420320] R13: ffff8805bc5932a8 R14: ffff880282dbdc60 R15: 0000000000001cc0
-> [ 1139.420320] FS:  0000000000000000(0000) GS:ffff880292c00000(0000) knlGS:0000000000000000
-> [ 1139.420320] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-> [ 1139.420320] CR2: 0000000000000001 CR3: 0000000025e2d000 CR4: 00000000000006a0
-> [ 1139.438692] Stack:
-> [ 1139.438692]  ffff8804e3ed0278 ffff8804e3ed0570 0000000000000000 ffff8804e3ed06c8
-> [ 1139.438692]  ffff880282dbdc78 ffffffffa1342180 0000000000088034 0000000000110068
-> [ 1139.438692]  0000000000000000 ffff8804e3ed0570 ffff880282dbdd38 ffffffffa1346f3a
-> [ 1139.438692] Call Trace:
-> [ 1139.438692] over_bground_thresh (arch/x86/include/asm/atomic64_64.h:21 include/asm-generic/atomic-long.h:31 include/linux/vmstat.h:122 fs/fs-writeback.c:772)
-> [ 1139.438692] bdi_writeback_workfn (fs/fs-writeback.c:934 fs/fs-writeback.c:1014 fs/fs-writeback.c:1043)
-> [ 1139.438692] process_one_work (kernel/workqueue.c:2227 include/linux/jump_label.h:105 include/trace/events/workqueue.h:111 kernel/workqueue.c:2232)
-> [ 1139.438692] ? process_one_work (include/linux/workqueue.h:186 kernel/workqueue.c:611 kernel/workqueue.c:638 kernel/workqueue.c:2220)
-> [ 1139.438692] worker_thread (kernel/workqueue.c:2354)
-> [ 1139.438692] ? rescuer_thread (kernel/workqueue.c:2303)
-> [ 1139.438692] kthread (kernel/kthread.c:210)
-> [ 1139.438692] ? kthread_create_on_node (kernel/kthread.c:176)
-> [ 1139.438692] ret_from_fork (arch/x86/kernel/entry_64.S:553)
-> [ 1139.438692] ? kthread_create_on_node (kernel/kthread.c:176)
-> [ 1139.438692] Code: 25 a0 da 00 00 0f 84 82 00 00 00 66 90 eb 2e 66 0f 1f 44 00 00 49 8b 45 00 0f 1f 40 00 49 8b 7d 08 4c 89 e2 49 83 c5 10 48 89 de <ff> d0 49 8b 45 00 48 85 c0 75 e7 eb c5 0f 1f 44 00 00 eb 53 66
-> [ 1139.438692] RIP global_dirty_limits (include/trace/events/writeback.h:308 mm/page-writeback.c:309)
-> [ 1139.438692]  RSP <ffff880282dbdc28>
+> To me, the confusing thing is the whole passing-a-pointer-to-a-pointer
+> business.  How about the following, which makes set_obj_pfmemalloc and
+> clear_obj_pfmemalloc take void *, not void **?  Is this better, or worse?
+> 
 
-Did this die somewhere within trace_global_dirty_state()?
+A function called clear_obj_pfmemalloc() doesn't indicate it's returning 
+anything, I think the vast majority of people would believe that it 
+returns void just as it does.  There's no complier generated code 
+optimization with this patch and I'm not sure it's even correct since 
+you're now clearing after doing recheck_pfmemalloc_active().
+
+I think it does make sense to remove the pointless "return;" in 
+set_obj_pfmemalloc(), however.  Not sure it's worth asking someone to 
+merge it, though.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
