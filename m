@@ -1,228 +1,306 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 58E966B0035
-	for <linux-mm@kvack.org>; Tue,  6 May 2014 21:31:37 -0400 (EDT)
-Received: by mail-pd0-f173.google.com with SMTP id y10so307573pdj.4
-        for <linux-mm@kvack.org>; Tue, 06 May 2014 18:31:36 -0700 (PDT)
-Received: from lgeamrelo02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
-        by mx.google.com with ESMTP id ci3si12875508pad.332.2014.05.06.18.31.34
-        for <linux-mm@kvack.org>;
-        Tue, 06 May 2014 18:31:36 -0700 (PDT)
-Date: Wed, 7 May 2014 10:33:33 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 2/2] mm/page_alloc: DEBUG_VM checks for free_list
- placement of CMA and RESERVE pages
-Message-ID: <20140507013333.GB26212@bbox>
-References: <533D8015.1000106@suse.cz>
- <1396539618-31362-1-git-send-email-vbabka@suse.cz>
- <1396539618-31362-2-git-send-email-vbabka@suse.cz>
- <53616F39.2070001@oracle.com>
- <53638ADA.5040200@suse.cz>
- <5367A1E5.2020903@oracle.com>
- <5367B356.1030403@suse.cz>
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id D34F66B0035
+	for <linux-mm@kvack.org>; Tue,  6 May 2014 22:22:45 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id lj1so401617pab.0
+        for <linux-mm@kvack.org>; Tue, 06 May 2014 19:22:45 -0700 (PDT)
+Received: from mail-pa0-x22c.google.com (mail-pa0-x22c.google.com [2607:f8b0:400e:c03::22c])
+        by mx.google.com with ESMTPS id tf5si9129506pac.131.2014.05.06.19.22.43
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 06 May 2014 19:22:43 -0700 (PDT)
+Received: by mail-pa0-f44.google.com with SMTP id ld10so390844pab.31
+        for <linux-mm@kvack.org>; Tue, 06 May 2014 19:22:43 -0700 (PDT)
+Date: Tue, 6 May 2014 19:22:41 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch v3 1/6] mm, migration: add destination page freeing
+ callback
+In-Reply-To: <alpine.DEB.2.02.1405011434140.23898@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.02.1405061920470.18635@chino.kir.corp.google.com>
+References: <alpine.DEB.2.02.1404301744110.8415@chino.kir.corp.google.com> <alpine.DEB.2.02.1405011434140.23898@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5367B356.1030403@suse.cz>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Yong-Taek Lee <ytk.lee@samsung.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Michal Nazarewicz <mina86@mina86.com>, Dave Jones <davej@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, May 05, 2014 at 05:50:46PM +0200, Vlastimil Babka wrote:
-> On 05/05/2014 04:36 PM, Sasha Levin wrote:
-> >On 05/02/2014 08:08 AM, Vlastimil Babka wrote:
-> >>On 04/30/2014 11:46 PM, Sasha Levin wrote:
-> >>>>On 04/03/2014 11:40 AM, Vlastimil Babka wrote:
-> >>>>>>For the MIGRATE_RESERVE pages, it is important they do not get misplaced
-> >>>>>>on free_list of other migratetype, otherwise the whole MIGRATE_RESERVE
-> >>>>>>pageblock might be changed to other migratetype in try_to_steal_freepages().
-> >>>>>>For MIGRATE_CMA, the pages also must not go to a different free_list, otherwise
-> >>>>>>they could get allocated as unmovable and result in CMA failure.
-> >>>>>>
-> >>>>>>This is ensured by setting the freepage_migratetype appropriately when placing
-> >>>>>>pages on pcp lists, and using the information when releasing them back to
-> >>>>>>free_list. It is also assumed that CMA and RESERVE pageblocks are created only
-> >>>>>>in the init phase. This patch adds DEBUG_VM checks to catch any regressions
-> >>>>>>introduced for this invariant.
-> >>>>>>
-> >>>>>>Cc: Yong-Taek Lee <ytk.lee@samsung.com>
-> >>>>>>Cc: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-> >>>>>>Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> >>>>>>Cc: Mel Gorman <mgorman@suse.de>
-> >>>>>>Cc: Minchan Kim <minchan@kernel.org>
-> >>>>>>Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
-> >>>>>>Cc: Marek Szyprowski <m.szyprowski@samsung.com>
-> >>>>>>Cc: Hugh Dickins <hughd@google.com>
-> >>>>>>Cc: Rik van Riel <riel@redhat.com>
-> >>>>>>Cc: Michal Nazarewicz <mina86@mina86.com>
-> >>>>>>Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-> >>>>
-> >>>>Two issues with this patch.
-> >>>>
-> >>>>First:
-> >>>>
-> >>>>[ 3446.320082] kernel BUG at mm/page_alloc.c:1197!
-> >>>>[ 3446.320082] invalid opcode: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
-> >>>>[ 3446.320082] Dumping ftrace buffer:
-> >>>>[ 3446.320082]    (ftrace buffer empty)
-> >>>>[ 3446.320082] Modules linked in:
-> >>>>[ 3446.320082] CPU: 1 PID: 8923 Comm: trinity-c42 Not tainted 3.15.0-rc3-next-20140429-sasha-00015-g7c7e0a7-dirty #427
-> >>>>[ 3446.320082] task: ffff88053e208000 ti: ffff88053e246000 task.ti: ffff88053e246000
-> >>>>[ 3446.320082] RIP: get_page_from_freelist (mm/page_alloc.c:1197 mm/page_alloc.c:1548 mm/page_alloc.c:2036)
-> >>>>[ 3446.320082] RSP: 0018:ffff88053e247778  EFLAGS: 00010002
-> >>>>[ 3446.320082] RAX: 0000000000000003 RBX: ffffea0000f40000 RCX: 0000000000000008
-> >>>>[ 3446.320082] RDX: 0000000000000002 RSI: 0000000000000003 RDI: 00000000000000a0
-> >>>>[ 3446.320082] RBP: ffff88053e247868 R08: 0000000000000007 R09: 0000000000000000
-> >>>>[ 3446.320082] R10: ffff88006ffcef00 R11: 0000000000000000 R12: 0000000000000014
-> >>>>[ 3446.335888] R13: ffffea000115ffe0 R14: ffffea000115ffe0 R15: 0000000000000000
-> >>>>[ 3446.335888] FS:  00007f8c9f059700(0000) GS:ffff88006ec00000(0000) knlGS:0000000000000000
-> >>>>[ 3446.335888] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-> >>>>[ 3446.335888] CR2: 0000000002cbc048 CR3: 000000054cdb4000 CR4: 00000000000006a0
-> >>>>[ 3446.335888] DR0: 00000000006de000 DR1: 00000000006de000 DR2: 0000000000000000
-> >>>>[ 3446.335888] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000602
-> >>>>[ 3446.335888] Stack:
-> >>>>[ 3446.335888]  ffff88053e247798 ffff88006eddc0b8 0000000000000016 0000000000000000
-> >>>>[ 3446.335888]  ffff88006ffd2068 ffff88006ffdb008 0000000100000000 0000000000000000
-> >>>>[ 3446.335888]  ffff88006ffdb000 0000000000000000 0000000000000003 0000000000000001
-> >>>>[ 3446.335888] Call Trace:
-> >>>>[ 3446.335888] __alloc_pages_nodemask (mm/page_alloc.c:2731)
-> >>>>[ 3446.335888] ? __this_cpu_preempt_check (lib/smp_processor_id.c:63)
-> >>>>[ 3446.335888] alloc_pages_vma (include/linux/mempolicy.h:76 mm/mempolicy.c:1998)
-> >>>>[ 3446.335888] ? shmem_alloc_page (mm/shmem.c:881)
-> >>>>[ 3446.335888] ? kvm_clock_read (arch/x86/include/asm/preempt.h:90 arch/x86/kernel/kvmclock.c:86)
-> >>>>[ 3446.335888] shmem_alloc_page (mm/shmem.c:881)
-> >>>>[ 3446.335888] ? __const_udelay (arch/x86/lib/delay.c:126)
-> >>>>[ 3446.335888] ? __rcu_read_unlock (kernel/rcu/update.c:97)
-> >>>>[ 3446.335888] ? find_get_entry (mm/filemap.c:979)
-> >>>>[ 3446.335888] ? find_get_entry (mm/filemap.c:940)
-> >>>>[ 3446.335888] ? find_lock_entry (mm/filemap.c:1024)
-> >>>>[ 3446.335888] shmem_getpage_gfp (mm/shmem.c:1130)
-> >>>>[ 3446.335888] ? sched_clock_local (kernel/sched/clock.c:214)
-> >>>>[ 3446.335888] ? do_read_fault.isra.42 (mm/memory.c:3523)
-> >>>>[ 3446.335888] shmem_fault (mm/shmem.c:1237)
-> >>>>[ 3446.335888] ? do_read_fault.isra.42 (mm/memory.c:3523)
-> >>>>[ 3446.335888] __do_fault (mm/memory.c:3344)
-> >>>>[ 3446.335888] ? _raw_spin_unlock (arch/x86/include/asm/preempt.h:98 include/linux/spinlock_api_smp.h:152 kernel/locking/spinlock.c:183)
-> >>>>[ 3446.335888] do_read_fault.isra.42 (mm/memory.c:3524)
-> >>>>[ 3446.335888] ? get_parent_ip (kernel/sched/core.c:2485)
-> >>>>[ 3446.335888] ? get_parent_ip (kernel/sched/core.c:2485)
-> >>>>[ 3446.335888] __handle_mm_fault (mm/memory.c:3662 mm/memory.c:3823 mm/memory.c:3950)
-> >>>>[ 3446.335888] ? __const_udelay (arch/x86/lib/delay.c:126)
-> >>>>[ 3446.335888] ? __rcu_read_unlock (kernel/rcu/update.c:97)
-> >>>>[ 3446.335888] handle_mm_fault (mm/memory.c:3973)
-> >>>>[ 3446.335888] __get_user_pages (mm/memory.c:1863)
-> >>>>[ 3446.335888] ? preempt_count_sub (kernel/sched/core.c:2541)
-> >>>>[ 3446.335888] __mlock_vma_pages_range (mm/mlock.c:255)
-> >>>>[ 3446.335888] __mm_populate (mm/mlock.c:711)
-> >>>>[ 3446.335888] vm_mmap_pgoff (include/linux/mm.h:1841 mm/util.c:402)
-> >>>>[ 3446.335888] SyS_mmap_pgoff (mm/mmap.c:1378)
-> >>>>[ 3446.335888] ? syscall_trace_enter (include/linux/context_tracking.h:27 arch/x86/kernel/ptrace.c:1461)
-> >>>>[ 3446.335888] ia32_do_call (arch/x86/ia32/ia32entry.S:430)
-> >>>>[ 3446.335888] Code: 00 66 0f 1f 44 00 00 ba 02 00 00 00 31 f6 48 89 c7 e8 c1 c3 ff ff 48 8b 53 10 83 f8 03 74 08 83 f8 04 75 13 0f 1f 00 39 d0 74 0c <0f> 0b 66 2e 0f 1f 84 00 00 00 00 00 45 85 ff 75 15 49 8b 55 00
-> >>>>[ 3446.335888] RIP get_page_from_freelist (mm/page_alloc.c:1197 mm/page_alloc.c:1548 mm/page_alloc.c:2036)
-> >>>>[ 3446.335888]  RSP <ffff88053e247778>
-> >>Hey, that's not an issue, that means the patch works as intended :) And
-> >>I believe it's not a bug introduced by PATCH 1/2.
-> >>
-> >>So, according to my decodecode reading, RAX is the results of
-> >>get_pageblock_migratetype() and it's MIGRATE_RESERVE. RDX is the result
-> >>of get_freepage_migratetype() and it's MIGRATE_UNMOVABLE. The
-> >>freepage_migratetype has just been set either by __rmqueue_smallest() or
-> >>__rmqueue_fallback(), according to the free_list the page has been taken
-> >>from. So this looks like a page from MIGRATE_RESERVE pageblock found on
-> >>the !MIGRATE_RESERVE free_list, which is exactly what the patch intends
-> >>to catch.
-> >>
-> >>I think there are two possible explanations.
-> >>
-> >>1) the pageblock is genuinely MIGRATE_RESERVE and it was misplaced by
-> >>mistake. I think it wasn't in free_pcppages_bulk() as there's the same
-> >>VM_BUG_ON which would supposedly trigger at the moment of displacing. In
-> >>theory it's possible that there's a race through __free_pages_ok() ->
-> >>free_one_page() where the get_pageblock_migratetype() in
-> >>__free_pages_ok() would race with set_pageblock_migratetype() and result
-> >>in bogus value. But nobody should be calling set_pageblock_migratetype()
-> >>on a MIGRATE_RESERVE pageblock.
-> >>
-> >>2) the pageblock was marked as MIGRATE_RESERVE due to a race between
-> >>set_pageblock_migratetype() and set_pageblock_skip(). The latter is
-> >>currently not serialized by zone->lock, nor it uses atomic bit set. So
-> >>it may result in lost updates in a racing set_pageblock_migratetype(). I
-> >>think a well-placed race when changing pageblock from MIGRATE_MOVABLE to
-> >>MIGRATE_RECLAIMABLE could result in MIGRATE_RESERVE value. Similar races
-> >>have been already observed to be a problem where frequent changing
-> >>to/from MIGRATE_ISOLATE is involved, and I did a patch series to address
-> >>this, but it was not complete and I postponed it after Mel's changes
-> >>that remove the racy for-cycles completely. So it might be that his
-> >>"[PATCH 08/17] mm: page_alloc: Use word-based accesses for get/set
-> >>pageblock bitmaps" already solves this bug (but maybe only on certain
-> >>architectures where you don't need atomic operations). You might try
-> >>that patch if you can reproduce this bug frequently enough?
-> >
-> >I've tried that patch, but still see the same BUG_ON.
-> 
-> Oh damn, I've realized that my assumptions about MIGRATE_RESERVE
-> pageblocks being created only on zone init time were wrong.
-> setup_zone_migrate_reserve() is called also from the handler of
-> min_free_kbytes sysctl... does trinity try to change that while
-> running?
-> The function will change MOVABLE pageblocks to RESERVE and try to
-> move all free pages to the RESERVE free_list, but of course pages on
-> pcplists will remain MOVABLE and may trigger the VM_BUG_ON. You
-> triggered the bug with page on MOVABLE free_list (in the first reply
-> I said its UNMOVABLE by mistake) so this might be good explanation
-> if trinity changes min_free_kbytes.
-> 
-> Furthermore, I think there's a problem that
-> setup_zone_migrate_reserve() operates on pageblocks, but as MAX_ODER
-> is higher than pageblock_order, RESERVE pages might be merged with
-> buddies of different migratetype and end up on their free_list. That
-> seems to me like a flaw in the design of reserves, but perhaps
-> others won't think it's serious enough to fix?
-> 
-> So in the end this VM_DEBUG check probably cannot work anymore for
-> MIGRATE_RESERVE, only for CMA. I'm not sure if it's worth keeping it
-> only for CMA, what are the CMA guys' opinions on that?
+Memory migration uses a callback defined by the caller to determine how to
+allocate destination pages.  When migration fails for a source page, however, it 
+frees the destination page back to the system.
 
-I really don't want it. That was I didn't add my Acked-by at that time.
-For a long time, I never wanted to add more overhead hot path due to
-CMA unless it's really critical. It's same to this.
-Although such debug patch helps to notice something goes wrong for CMA,
-more information would be helpful to know why CMA failed because
-there are another potential reasons to fail CMA allocation.
+This patch adds a memory migration callback defined by the caller to determine 
+how to free destination pages.  If a caller, such as memory compaction, builds 
+its own freelist for migration targets, this can reuse already freed memory 
+instead of scanning additional memory.
 
-One of the idea about that is to store alloc trace into somewhere(ex,
-naive idea is page description like page-owner) and then we could investigate
-what's the owner of that page so we could know why we fail to migrate it out.
-With that, we would figure out how on earth such page is allocated from CMA
-and it would be more helpful rather just VM_BUG_ON notice.
+If the caller provides a function to handle freeing of destination pages, it is 
+called when page migration fails.  Otherwise, it may pass NULL and freeing back 
+to the system will be handled as usual.  This patch introduces no functional 
+change.
 
-The whole point is I'd like to avoid adding more overhead to hot path for
-rare case although it's debugging feature.
+Acked-by: Mel Gorman <mgorman@suse.de>
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
+Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Signed-off-by: David Rientjes <rientjes@google.com>
+---
+ include/linux/migrate.h | 11 ++++++----
+ mm/compaction.c         |  2 +-
+ mm/memory-failure.c     |  4 ++--
+ mm/memory_hotplug.c     |  2 +-
+ mm/mempolicy.c          |  4 ++--
+ mm/migrate.c            | 55 +++++++++++++++++++++++++++++++++++--------------
+ mm/page_alloc.c         |  2 +-
+ 7 files changed, 53 insertions(+), 27 deletions(-)
 
-> 
-> Also this means that the 1/2 patch "prevent MIGRATE_RESERVE pages
-> from being misplaced" still won't prevent stealing a MIGRATE_RESERVE
-> pageblock when __rmqueue_fallback() encounters a strayed
-> MIGRATE_RESERVE page on e.g. a MOVABLE freelist. This is fixable by
-> having __rmqueue_fallback() not trusting the migratetype of
-> free_list and checking for pageblock_migratetype. I hate that, but
-> at least it's not on the fast path...
-> 
-> >Thanks,
-> >Sasha
-> >
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
-Kind regards,
-Minchan Kim
+diff --git a/include/linux/migrate.h b/include/linux/migrate.h
+--- a/include/linux/migrate.h
++++ b/include/linux/migrate.h
+@@ -5,7 +5,9 @@
+ #include <linux/mempolicy.h>
+ #include <linux/migrate_mode.h>
+ 
+-typedef struct page *new_page_t(struct page *, unsigned long private, int **);
++typedef struct page *new_page_t(struct page *page, unsigned long private,
++				int **reason);
++typedef void free_page_t(struct page *page, unsigned long private);
+ 
+ /*
+  * Return values from addresss_space_operations.migratepage():
+@@ -38,7 +40,7 @@ enum migrate_reason {
+ extern void putback_movable_pages(struct list_head *l);
+ extern int migrate_page(struct address_space *,
+ 			struct page *, struct page *, enum migrate_mode);
+-extern int migrate_pages(struct list_head *l, new_page_t x,
++extern int migrate_pages(struct list_head *l, new_page_t new, free_page_t free,
+ 		unsigned long private, enum migrate_mode mode, int reason);
+ 
+ extern int migrate_prep(void);
+@@ -56,8 +58,9 @@ extern int migrate_page_move_mapping(struct address_space *mapping,
+ #else
+ 
+ static inline void putback_movable_pages(struct list_head *l) {}
+-static inline int migrate_pages(struct list_head *l, new_page_t x,
+-		unsigned long private, enum migrate_mode mode, int reason)
++static inline int migrate_pages(struct list_head *l, new_page_t new,
++		free_page_t free, unsigned long private, enum migrate_mode mode,
++		int reason)
+ 	{ return -ENOSYS; }
+ 
+ static inline int migrate_prep(void) { return -ENOSYS; }
+diff --git a/mm/compaction.c b/mm/compaction.c
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -1023,7 +1023,7 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
+ 		}
+ 
+ 		nr_migrate = cc->nr_migratepages;
+-		err = migrate_pages(&cc->migratepages, compaction_alloc,
++		err = migrate_pages(&cc->migratepages, compaction_alloc, NULL,
+ 				(unsigned long)cc,
+ 				cc->sync ? MIGRATE_SYNC_LIGHT : MIGRATE_ASYNC,
+ 				MR_COMPACTION);
+diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+--- a/mm/memory-failure.c
++++ b/mm/memory-failure.c
+@@ -1500,7 +1500,7 @@ static int soft_offline_huge_page(struct page *page, int flags)
+ 
+ 	/* Keep page count to indicate a given hugepage is isolated. */
+ 	list_move(&hpage->lru, &pagelist);
+-	ret = migrate_pages(&pagelist, new_page, MPOL_MF_MOVE_ALL,
++	ret = migrate_pages(&pagelist, new_page, NULL, MPOL_MF_MOVE_ALL,
+ 				MIGRATE_SYNC, MR_MEMORY_FAILURE);
+ 	if (ret) {
+ 		pr_info("soft offline: %#lx: migration failed %d, type %lx\n",
+@@ -1581,7 +1581,7 @@ static int __soft_offline_page(struct page *page, int flags)
+ 		inc_zone_page_state(page, NR_ISOLATED_ANON +
+ 					page_is_file_cache(page));
+ 		list_add(&page->lru, &pagelist);
+-		ret = migrate_pages(&pagelist, new_page, MPOL_MF_MOVE_ALL,
++		ret = migrate_pages(&pagelist, new_page, NULL, MPOL_MF_MOVE_ALL,
+ 					MIGRATE_SYNC, MR_MEMORY_FAILURE);
+ 		if (ret) {
+ 			if (!list_empty(&pagelist)) {
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -1332,7 +1332,7 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
+ 		 * alloc_migrate_target should be improooooved!!
+ 		 * migrate_pages returns # of failed pages.
+ 		 */
+-		ret = migrate_pages(&source, alloc_migrate_target, 0,
++		ret = migrate_pages(&source, alloc_migrate_target, NULL, 0,
+ 					MIGRATE_SYNC, MR_MEMORY_HOTPLUG);
+ 		if (ret)
+ 			putback_movable_pages(&source);
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -1028,7 +1028,7 @@ static int migrate_to_node(struct mm_struct *mm, int source, int dest,
+ 			flags | MPOL_MF_DISCONTIG_OK, &pagelist);
+ 
+ 	if (!list_empty(&pagelist)) {
+-		err = migrate_pages(&pagelist, new_node_page, dest,
++		err = migrate_pages(&pagelist, new_node_page, NULL, dest,
+ 					MIGRATE_SYNC, MR_SYSCALL);
+ 		if (err)
+ 			putback_movable_pages(&pagelist);
+@@ -1277,7 +1277,7 @@ static long do_mbind(unsigned long start, unsigned long len,
+ 		if (!list_empty(&pagelist)) {
+ 			WARN_ON_ONCE(flags & MPOL_MF_LAZY);
+ 			nr_failed = migrate_pages(&pagelist, new_vma_page,
+-					(unsigned long)vma,
++					NULL, (unsigned long)vma,
+ 					MIGRATE_SYNC, MR_MEMPOLICY_MBIND);
+ 			if (nr_failed)
+ 				putback_movable_pages(&pagelist);
+diff --git a/mm/migrate.c b/mm/migrate.c
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -938,8 +938,9 @@ out:
+  * Obtain the lock on page, remove all ptes and migrate the page
+  * to the newly allocated page in newpage.
+  */
+-static int unmap_and_move(new_page_t get_new_page, unsigned long private,
+-			struct page *page, int force, enum migrate_mode mode)
++static int unmap_and_move(new_page_t get_new_page, free_page_t put_new_page,
++			unsigned long private, struct page *page, int force,
++			enum migrate_mode mode)
+ {
+ 	int rc = 0;
+ 	int *result = NULL;
+@@ -983,11 +984,17 @@ out:
+ 				page_is_file_cache(page));
+ 		putback_lru_page(page);
+ 	}
++
+ 	/*
+-	 * Move the new page to the LRU. If migration was not successful
+-	 * then this will free the page.
++	 * If migration was not successful and there's a freeing callback, use
++	 * it.  Otherwise, putback_lru_page() will drop the reference grabbed
++	 * during isolation.
+ 	 */
+-	putback_lru_page(newpage);
++	if (rc != MIGRATEPAGE_SUCCESS && put_new_page)
++		put_new_page(newpage, private);
++	else
++		putback_lru_page(newpage);
++
+ 	if (result) {
+ 		if (rc)
+ 			*result = rc;
+@@ -1016,8 +1023,9 @@ out:
+  * will wait in the page fault for migration to complete.
+  */
+ static int unmap_and_move_huge_page(new_page_t get_new_page,
+-				unsigned long private, struct page *hpage,
+-				int force, enum migrate_mode mode)
++				free_page_t put_new_page, unsigned long private,
++				struct page *hpage, int force,
++				enum migrate_mode mode)
+ {
+ 	int rc = 0;
+ 	int *result = NULL;
+@@ -1056,20 +1064,30 @@ static int unmap_and_move_huge_page(new_page_t get_new_page,
+ 	if (!page_mapped(hpage))
+ 		rc = move_to_new_page(new_hpage, hpage, 1, mode);
+ 
+-	if (rc)
++	if (rc != MIGRATEPAGE_SUCCESS)
+ 		remove_migration_ptes(hpage, hpage);
+ 
+ 	if (anon_vma)
+ 		put_anon_vma(anon_vma);
+ 
+-	if (!rc)
++	if (rc == MIGRATEPAGE_SUCCESS)
+ 		hugetlb_cgroup_migrate(hpage, new_hpage);
+ 
+ 	unlock_page(hpage);
+ out:
+ 	if (rc != -EAGAIN)
+ 		putback_active_hugepage(hpage);
+-	put_page(new_hpage);
++
++	/*
++	 * If migration was not successful and there's a freeing callback, use
++	 * it.  Otherwise, put_page() will drop the reference grabbed during
++	 * isolation.
++	 */
++	if (rc != MIGRATEPAGE_SUCCESS && put_new_page)
++		put_new_page(new_hpage, private);
++	else
++		put_page(new_hpage);
++
+ 	if (result) {
+ 		if (rc)
+ 			*result = rc;
+@@ -1086,6 +1104,8 @@ out:
+  * @from:		The list of pages to be migrated.
+  * @get_new_page:	The function used to allocate free pages to be used
+  *			as the target of the page migration.
++ * @put_new_page:	The function used to free target pages if migration
++ *			fails, or NULL if no special handling is necessary.
+  * @private:		Private data to be passed on to get_new_page()
+  * @mode:		The migration mode that specifies the constraints for
+  *			page migration, if any.
+@@ -1099,7 +1119,8 @@ out:
+  * Returns the number of pages that were not migrated, or an error code.
+  */
+ int migrate_pages(struct list_head *from, new_page_t get_new_page,
+-		unsigned long private, enum migrate_mode mode, int reason)
++		free_page_t put_new_page, unsigned long private,
++		enum migrate_mode mode, int reason)
+ {
+ 	int retry = 1;
+ 	int nr_failed = 0;
+@@ -1121,10 +1142,11 @@ int migrate_pages(struct list_head *from, new_page_t get_new_page,
+ 
+ 			if (PageHuge(page))
+ 				rc = unmap_and_move_huge_page(get_new_page,
+-						private, page, pass > 2, mode);
++						put_new_page, private, page,
++						pass > 2, mode);
+ 			else
+-				rc = unmap_and_move(get_new_page, private,
+-						page, pass > 2, mode);
++				rc = unmap_and_move(get_new_page, put_new_page,
++						private, page, pass > 2, mode);
+ 
+ 			switch(rc) {
+ 			case -ENOMEM:
+@@ -1273,7 +1295,7 @@ set_status:
+ 
+ 	err = 0;
+ 	if (!list_empty(&pagelist)) {
+-		err = migrate_pages(&pagelist, new_page_node,
++		err = migrate_pages(&pagelist, new_page_node, NULL,
+ 				(unsigned long)pm, MIGRATE_SYNC, MR_SYSCALL);
+ 		if (err)
+ 			putback_movable_pages(&pagelist);
+@@ -1729,7 +1751,8 @@ int migrate_misplaced_page(struct page *page, struct vm_area_struct *vma,
+ 
+ 	list_add(&page->lru, &migratepages);
+ 	nr_remaining = migrate_pages(&migratepages, alloc_misplaced_dst_page,
+-				     node, MIGRATE_ASYNC, MR_NUMA_MISPLACED);
++				     NULL, node, MIGRATE_ASYNC,
++				     MR_NUMA_MISPLACED);
+ 	if (nr_remaining) {
+ 		if (!list_empty(&migratepages)) {
+ 			list_del(&page->lru);
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -6215,7 +6215,7 @@ static int __alloc_contig_migrate_range(struct compact_control *cc,
+ 		cc->nr_migratepages -= nr_reclaimed;
+ 
+ 		ret = migrate_pages(&cc->migratepages, alloc_migrate_target,
+-				    0, MIGRATE_SYNC, MR_CMA);
++				    NULL, 0, MIGRATE_SYNC, MR_CMA);
+ 	}
+ 	if (ret < 0) {
+ 		putback_movable_pages(&cc->migratepages);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
