@@ -1,137 +1,159 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id DD7106B0035
-	for <linux-mm@kvack.org>; Wed,  7 May 2014 03:52:53 -0400 (EDT)
-Received: by mail-pa0-f46.google.com with SMTP id kx10so825059pab.33
-        for <linux-mm@kvack.org>; Wed, 07 May 2014 00:52:53 -0700 (PDT)
-Received: from mailout4.samsung.com (mailout4.samsung.com. [203.254.224.34])
-        by mx.google.com with ESMTPS id gr5si13340949pac.237.2014.05.07.00.52.52
+Received: from mail-lb0-f170.google.com (mail-lb0-f170.google.com [209.85.217.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 20DE46B0035
+	for <linux-mm@kvack.org>; Wed,  7 May 2014 04:15:35 -0400 (EDT)
+Received: by mail-lb0-f170.google.com with SMTP id w7so835857lbi.15
+        for <linux-mm@kvack.org>; Wed, 07 May 2014 01:15:34 -0700 (PDT)
+Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
+        by mx.google.com with ESMTPS id yp3si6424104lbb.16.2014.05.07.01.15.32
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Wed, 07 May 2014 00:52:52 -0700 (PDT)
-Received: from epcpsbgm1.samsung.com (epcpsbgm1 [203.254.230.26])
- by mailout4.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0N57005901W2P5E0@mailout4.samsung.com> for
- linux-mm@kvack.org; Wed, 07 May 2014 16:52:50 +0900 (KST)
-From: Weijie Yang <weijie.yang@samsung.com>
-References: <000001cf6816$d538c370$7faa4a50$%yang@samsung.com>
- <20140505152014.GA8551@cerebellum.variantweb.net>
- <1399312844.2570.28.camel@buesod1.americas.hpqcorp.net>
- <20140505134615.04cb627bb2784cabcb844655@linux-foundation.org>
- <1399328550.2646.5.camel@buesod1.americas.hpqcorp.net>
-In-reply-to: <1399328550.2646.5.camel@buesod1.americas.hpqcorp.net>
-Subject: RE: [PATCH] zram: remove global tb_lock by using lock-free CAS
-Date: Wed, 07 May 2014 15:51:35 +0800
-Message-id: <000001cf69c9$5776f330$0664d990$%yang@samsung.com>
-MIME-version: 1.0
-Content-type: text/plain; charset=utf-8
-Content-transfer-encoding: 7bit
-Content-language: zh-cn
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 07 May 2014 01:15:33 -0700 (PDT)
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: [PATCH -mm 1/2] memcg: get rid of memcg_create_cache_name
+Date: Wed, 7 May 2014 12:15:29 +0400
+Message-ID: <a4aa62026c10fc709e8bf13542b29cf771381394.1399450112.git.vdavydov@parallels.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Davidlohr Bueso' <davidlohr@hp.com>, 'Andrew Morton' <akpm@linux-foundation.org>
-Cc: 'Seth Jennings' <sjennings@variantweb.net>, 'Minchan Kim' <minchan@kernel.org>, 'Nitin Gupta' <ngupta@vflare.org>, 'Sergey Senozhatsky' <sergey.senozhatsky@gmail.com>, 'Bob Liu' <bob.liu@oracle.com>, 'Dan Streetman' <ddstreet@ieee.org>, weijie.yang.kh@gmail.com, heesub.shin@samsung.com, 'linux-kernel' <linux-kernel@vger.kernel.org>, 'Linux-MM' <linux-mm@kvack.org>
+To: akpm@linux-foundation.org
+Cc: hannes@cmpxchg.org, mhocko@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, May 6, 2014 at 6:22 AM, Davidlohr Bueso <davidlohr@hp.com> wrote:
-> On Mon, 2014-05-05 at 13:46 -0700, Andrew Morton wrote:
->> On Mon, 05 May 2014 11:00:44 -0700 Davidlohr Bueso <davidlohr@hp.com> wrote:
->>
->> > > > @@ -339,12 +338,14 @@ static int zram_decompress_page(struct zram *zram, char *mem, u32 index)
->> > > >         unsigned long handle;
->> > > >         u16 size;
->> > > >
->> > > > -       read_lock(&meta->tb_lock);
->> > > > +       while(atomic_cmpxchg(&meta->table[index].state, IDLE, ACCESS) != IDLE)
->> > > > +               cpu_relax();
->> > > > +
->> > >
->> > > So... this might be dumb question, but this looks like a spinlock
->> > > implementation.
->> > >
->> > > What advantage does this have over a standard spinlock?
->> >
->> > I was wondering the same thing. Furthermore by doing this you'll loose
->> > the benefits of sharing the lock... your numbers do indicate that it is
->> > for the better. Also, note that hopefully rwlock_t will soon be updated
->> > to be fair and perform up to par with spinlocks, something which is long
->> > overdue. So you could reduce the critical region by implementing the
->> > same granularity, just don't implement your own locking schemes, like
->> > this.
+Instead of calling back to memcontrol.c from kmem_cache_create_memcg in
+order to just create the name of a per memcg cache, let's allocate it in
+place. We only need to pass the memcg name to kmem_cache_create_memcg
+for that - everything else can be done in slab_common.c.
 
-Actually, the main reason I use a CAS rather than a standard lock here is
-that I want to minimize the meta table memory overhead. A tiny reason is
-my fuzzy memory that CAS is more efficient than spinlock (please correct me
-if I am wrong).
+Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
+---
+Initially this was a part of "memcg/kmem: cleanup naming and callflows"
+patch set (https://lkml.org/lkml/2014/4/27/345).
 
-Anyway, I changed the CAS to spinlock and rwlock, re-test them:
+ include/linux/memcontrol.h |    2 --
+ include/linux/slab.h       |    3 ++-
+ mm/memcontrol.c            |   33 +++++++++------------------------
+ mm/slab_common.c           |    7 +++++--
+ 4 files changed, 16 insertions(+), 29 deletions(-)
 
-      Test       lock-free	   spinlock     rwlock
-------------------------------------------------------
- Initial write   1424141.62   1426372.84   1423019.21
-       Rewrite   1652504.81   1623307.14   1653682.04
-          Read  11404668.35  11242885.05  10938125.00
-       Re-read  11555483.75   11253906.6  10837773.50
-  Reverse Read   8394478.17   8277250.34   7768057.39
-   Stride read   9372229.95   9010498.53   8692871.77
-   Random read   9187221.90   8988080.55   8661184.60
-Mixed workload   5843370.85   5414729.54   5451055.03
-  Random write   1608947.04   1572276.64   1588866.51
-        Pwrite   1311055.32   1302463.04   1302001.06
-         Pread   4652056.11   4555802.18   4469672.34
-
-And I cann't say which one is the best, they have the similar performance.
-
-Wait, iozone will create temporary files for every test thread, so there is no
-possibility that these threads access the same table[index] concurrenctly.
-So, I use fio to test the raw zram block device.
-To enhance the possibility of access the same table[index] conflictly, I set zram
-with a small disksize(10M) and let thread run with large loop count.
-
-On the same test machine, the fio test command is:
-fio --bs=32k --randrepeat=1 --randseed=100 --refill_buffers
---scramble_buffers=1 --direct=1 --loops=3000 --numjobs=4
---filename=/dev/zram0 --name=seq-write --rw=write --stonewall
---name=seq-read --rw=read --stonewall --name=seq-readwrite
---rw=rw --stonewall --name=rand-readwrite --rw=randrw --stonewall
-
-    Test      base    lock-free   spinlock   rwlock
-------------------------------------------------------
-seq-write   935109.2   999580.5   998134.8   994384.6
- seq-read  5598064.6  6444011.5  6243184.6  6197514.2
-   seq-rw  1403963.0  1635673.0  1633823.0  1635972.2
-  rand-rw  1389864.4  1612520.4  1613403.6  1612129.8
-
-This result(KB/s, average of 5 tests) shows the performance improvement
-on base version, however, I cann't say which method is the best.
-
->>
->> It sounds like seqlocks will match this access pattern pretty well?
->
-> Indeed. And after a closer look, except for zram_slot_free_notify(),
-> that lock is always shared. So, unless fine graining it implies taking
-> the lock exclusively like in this patch (if so, that needs to be
-> explicitly documented in the changelog), we would ideally continue to
-> share it. That _should_ provide nicer performance numbers when using the
-> correct lock.
->
-
-Andrew mentioned seqlocks, however, I think it is hard the use seqlocks here
-after I recheck the codes. No matter use it as a meta global lock or a
-table[index] lock. The main reason is the writer will free the handle rather than
-just change some value.
-If I misunderstand you, please let me know.
-
-Now, I am in a delimma. For minimizing the memory overhead, I like to use CAS.
-However, it is not a standard way.
-
-Any complaint or suggestions are welcomed.
-
-Regards,
-
->
->
-
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 6c59056f4bc6..7b639ab48aa8 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -501,8 +501,6 @@ void __memcg_kmem_uncharge_pages(struct page *page, int order);
+ 
+ int memcg_cache_id(struct mem_cgroup *memcg);
+ 
+-char *memcg_create_cache_name(struct mem_cgroup *memcg,
+-			      struct kmem_cache *root_cache);
+ int memcg_alloc_cache_params(struct mem_cgroup *memcg, struct kmem_cache *s,
+ 			     struct kmem_cache *root_cache);
+ void memcg_free_cache_params(struct kmem_cache *s);
+diff --git a/include/linux/slab.h b/include/linux/slab.h
+index ecbec9ccb80d..86e5b26fbdab 100644
+--- a/include/linux/slab.h
++++ b/include/linux/slab.h
+@@ -117,7 +117,8 @@ struct kmem_cache *kmem_cache_create(const char *, size_t, size_t,
+ 			void (*)(void *));
+ #ifdef CONFIG_MEMCG_KMEM
+ struct kmem_cache *kmem_cache_create_memcg(struct mem_cgroup *,
+-					   struct kmem_cache *);
++					   struct kmem_cache *,
++					   const char *);
+ #endif
+ void kmem_cache_destroy(struct kmem_cache *);
+ int kmem_cache_shrink(struct kmem_cache *);
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index f381239ab402..f401f227a099 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -3101,29 +3101,6 @@ int memcg_update_cache_size(struct kmem_cache *s, int num_groups)
+ 	return 0;
+ }
+ 
+-char *memcg_create_cache_name(struct mem_cgroup *memcg,
+-			      struct kmem_cache *root_cache)
+-{
+-	static char *buf;
+-
+-	/*
+-	 * We need a mutex here to protect the shared buffer. Since this is
+-	 * expected to be called only on cache creation, we can employ the
+-	 * slab_mutex for that purpose.
+-	 */
+-	lockdep_assert_held(&slab_mutex);
+-
+-	if (!buf) {
+-		buf = kmalloc(NAME_MAX + 1, GFP_KERNEL);
+-		if (!buf)
+-			return NULL;
+-	}
+-
+-	cgroup_name(memcg->css.cgroup, buf, NAME_MAX + 1);
+-	return kasprintf(GFP_KERNEL, "%s(%d:%s)", root_cache->name,
+-			 memcg_cache_id(memcg), buf);
+-}
+-
+ int memcg_alloc_cache_params(struct mem_cgroup *memcg, struct kmem_cache *s,
+ 			     struct kmem_cache *root_cache)
+ {
+@@ -3164,6 +3141,7 @@ void memcg_free_cache_params(struct kmem_cache *s)
+ static void memcg_kmem_create_cache(struct mem_cgroup *memcg,
+ 				    struct kmem_cache *root_cache)
+ {
++	static char *memcg_name_buf;
+ 	struct kmem_cache *cachep;
+ 	int id;
+ 
+@@ -3179,7 +3157,14 @@ static void memcg_kmem_create_cache(struct mem_cgroup *memcg,
+ 	if (cache_from_memcg_idx(root_cache, id))
+ 		return;
+ 
+-	cachep = kmem_cache_create_memcg(memcg, root_cache);
++	if (!memcg_name_buf) {
++		memcg_name_buf = kmalloc(NAME_MAX + 1, GFP_KERNEL);
++		if (!memcg_name_buf)
++			return;
++	}
++
++	cgroup_name(memcg->css.cgroup, memcg_name_buf, NAME_MAX + 1);
++	cachep = kmem_cache_create_memcg(memcg, root_cache, memcg_name_buf);
+ 	/*
+ 	 * If we could not create a memcg cache, do not complain, because
+ 	 * that's not critical at all as we can always proceed with the root
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index 7e348cff814d..32175617cb75 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -264,13 +264,15 @@ EXPORT_SYMBOL(kmem_cache_create);
+  * kmem_cache_create_memcg - Create a cache for a memory cgroup.
+  * @memcg: The memory cgroup the new cache is for.
+  * @root_cache: The parent of the new cache.
++ * @memcg_name: The name of the memory cgroup (used for naming the new cache).
+  *
+  * This function attempts to create a kmem cache that will serve allocation
+  * requests going from @memcg to @root_cache. The new cache inherits properties
+  * from its parent.
+  */
+ struct kmem_cache *kmem_cache_create_memcg(struct mem_cgroup *memcg,
+-					   struct kmem_cache *root_cache)
++					   struct kmem_cache *root_cache,
++					   const char *memcg_name)
+ {
+ 	struct kmem_cache *s = NULL;
+ 	char *cache_name;
+@@ -280,7 +282,8 @@ struct kmem_cache *kmem_cache_create_memcg(struct mem_cgroup *memcg,
+ 
+ 	mutex_lock(&slab_mutex);
+ 
+-	cache_name = memcg_create_cache_name(memcg, root_cache);
++	cache_name = kasprintf(GFP_KERNEL, "%s(%d:%s)", root_cache->name,
++			       memcg_cache_id(memcg), memcg_name);
+ 	if (!cache_name)
+ 		goto out_unlock;
+ 
+-- 
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
