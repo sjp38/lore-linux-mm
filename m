@@ -1,60 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 53BA66B007D
-	for <linux-mm@kvack.org>; Wed,  7 May 2014 17:47:09 -0400 (EDT)
-Received: by mail-pa0-f48.google.com with SMTP id rd3so1727548pab.7
-        for <linux-mm@kvack.org>; Wed, 07 May 2014 14:47:08 -0700 (PDT)
-Received: from mail-pa0-x22c.google.com (mail-pa0-x22c.google.com [2607:f8b0:400e:c03::22c])
-        by mx.google.com with ESMTPS id xf3si14406620pab.425.2014.05.07.14.47.08
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 07 May 2014 14:47:08 -0700 (PDT)
-Received: by mail-pa0-f44.google.com with SMTP id ld10so1770406pab.3
-        for <linux-mm@kvack.org>; Wed, 07 May 2014 14:47:08 -0700 (PDT)
-Date: Wed, 7 May 2014 14:47:05 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH v2 2/2] mm/compaction: avoid rescanning pageblocks in
- isolate_freepages
-In-Reply-To: <1399464550-26447-2-git-send-email-vbabka@suse.cz>
-Message-ID: <alpine.DEB.2.02.1405071446520.8454@chino.kir.corp.google.com>
-References: <alpine.DEB.2.02.1405061922220.18635@chino.kir.corp.google.com> <1399464550-26447-1-git-send-email-vbabka@suse.cz> <1399464550-26447-2-git-send-email-vbabka@suse.cz>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 055DE6B0081
+	for <linux-mm@kvack.org>; Wed,  7 May 2014 17:49:00 -0400 (EDT)
+Received: by mail-pd0-f179.google.com with SMTP id g10so1533945pdj.24
+        for <linux-mm@kvack.org>; Wed, 07 May 2014 14:49:00 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id iu4si2527242pbc.430.2014.05.07.14.48.59
+        for <linux-mm@kvack.org>;
+        Wed, 07 May 2014 14:49:00 -0700 (PDT)
+Date: Wed, 7 May 2014 14:48:58 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch] mm, slab: suppress out of memory warning unless debug
+ is enabled
+Message-Id: <20140507144858.9aee4e420908ccf9334dfdf2@linux-foundation.org>
+In-Reply-To: <alpine.DEB.2.02.1405071431580.8454@chino.kir.corp.google.com>
+References: <alpine.DEB.2.02.1405071418410.8389@chino.kir.corp.google.com>
+	<20140507142925.b0e31514d4cd8d5857b10850@linux-foundation.org>
+	<alpine.DEB.2.02.1405071431580.8454@chino.kir.corp.google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Greg Thelen <gthelen@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, 7 May 2014, Vlastimil Babka wrote:
+On Wed, 7 May 2014 14:36:34 -0700 (PDT) David Rientjes <rientjes@google.com> wrote:
 
-> The compaction free scanner in isolate_freepages() currently remembers PFN of
-> the highest pageblock where it successfully isolates, to be used as the
-> starting pageblock for the next invocation. The rationale behind this is that
-> page migration might return free pages to the allocator when migration fails
-> and we don't want to skip them if the compaction continues.
+> On Wed, 7 May 2014, Andrew Morton wrote:
 > 
-> Since migration now returns free pages back to compaction code where they can
-> be reused, this is no longer a concern. This patch changes isolate_freepages()
-> so that the PFN for restarting is updated with each pageblock where isolation
-> is attempted. Using stress-highalloc from mmtests, this resulted in 10%
-> reduction of the pages scanned by the free scanner.
+> > > When the slab or slub allocators cannot allocate additional slab pages, they 
+> > > emit diagnostic information to the kernel log such as current number of slabs, 
+> > > number of objects, active objects, etc.  This is always coupled with a page 
+> > > allocation failure warning since it is controlled by !__GFP_NOWARN.
+> > > 
+> > > Suppress this out of memory warning if the allocator is configured without debug 
+> > > supported.  The page allocation failure warning will indicate it is a failed 
+> > > slab allocation, so this is only useful to diagnose allocator bugs.
+> > > 
+> > > Since CONFIG_SLUB_DEBUG is already enabled by default for the slub allocator, 
+> > > there is no functional change with this patch.  If debug is disabled, however, 
+> > > the warnings are now suppressed.
+> > > 
+> > 
+> > I'm not seeing any reason for making this change.
+> > 
 > 
-> Note that the somewhat similar functionality that records highest successful
-> pageblock in zone->compact_cached_free_pfn, remains unchanged. This cache is
-> used when the whole compaction is restarted, not for multiple invocations of
-> the free scanner during single compaction.
+> You think the spam in http://marc.info/?l=linux-kernel&m=139927773010514 
+> is meaningful?  It also looks like two different errors when in reality it 
+> is a single allocation.
 > 
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-> Cc: Minchan Kim <minchan@kernel.org>
-> Cc: Mel Gorman <mgorman@suse.de>
-> Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> Cc: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-> Cc: Michal Nazarewicz <mina86@mina86.com>
-> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Cc: Christoph Lameter <cl@linux.com>
-> Cc: Rik van Riel <riel@redhat.com>
+> Unless you're debugging a slab issue, all the pertinent information is 
+> already available in the page allocation failure warning emitted by the 
+> page allocator: we already have the order and gfp mask.  We also know it's 
+> a slab allocation because of the __kmalloc in the call trace.
+> 
+> Does this user care about that there are 207 slabs on node 0 with 207 
+> objects?  Probably only if they are diagnosing a slab problem.
 
-Acked-by: David Rientjes <rientjes@google.com>
+I'd prefer something which can be added to the changelog to address
+this omission over a series of rhetorical questions.
+
+> > > @@ -1621,11 +1621,17 @@ __initcall(cpucache_init);
+> > >  static noinline void
+> > >  slab_out_of_memory(struct kmem_cache *cachep, gfp_t gfpflags, int nodeid)
+> > >  {
+> > > +#if DEBUG
+> > >  	struct kmem_cache_node *n;
+> > >  	struct page *page;
+> > >  	unsigned long flags;
+> > >  	int node;
+> > >  
+> > > +	if (gfpflags & __GFP_NOWARN)
+> > > +		return;
+> > > +	if (!printk_ratelimit())
+> > > +		return;
+> > 
+> > printk_ratelimit() is lame - it uses a single global state.  So if
+> > random net driver is using printk_ratelimit(), that driver and slab
+> > will interfere with each other.
+> > 
+> 
+> Agreed, but it is a testiment to the uselessness of this information 
+> already.  The page allocation failure warnings are controlled by their own 
+> ratelimiter, nopage_rs, but that's local to the page allocator.  Do you 
+> prefer that all these ratelimiters be moved to the global namespace for 
+> generic use?
+
+As these messages are related then it probably makes sense for them to
+use a common ratelimit_state, hopefully local to slab.c.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
