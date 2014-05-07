@@ -1,153 +1,220 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f41.google.com (mail-qg0-f41.google.com [209.85.192.41])
-	by kanga.kvack.org (Postfix) with ESMTP id D9D886B009E
-	for <linux-mm@kvack.org>; Wed,  7 May 2014 18:39:58 -0400 (EDT)
-Received: by mail-qg0-f41.google.com with SMTP id j5so1885076qga.0
-        for <linux-mm@kvack.org>; Wed, 07 May 2014 15:39:58 -0700 (PDT)
-Received: from mail.siteground.com (mail.siteground.com. [67.19.240.234])
-        by mx.google.com with ESMTPS id 35si4590588qgy.136.2014.05.07.15.39.57
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 0CF626B00A0
+	for <linux-mm@kvack.org>; Wed,  7 May 2014 19:16:27 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id lj1so1837692pab.0
+        for <linux-mm@kvack.org>; Wed, 07 May 2014 16:16:27 -0700 (PDT)
+Received: from mailout2.samsung.com (mailout2.samsung.com. [203.254.224.25])
+        by mx.google.com with ESMTPS id vv4si2614096pbc.193.2014.05.07.16.16.26
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 07 May 2014 15:39:57 -0700 (PDT)
-Message-ID: <536AB626.9070005@1h.com>
-Date: Thu, 08 May 2014 01:39:34 +0300
-From: Marian Marinov <mm@1h.com>
-MIME-Version: 1.0
-Subject: Re: Protection against container fork bombs [WAS: Re: memcg with
- kmem limit doesn't recover after disk i/o causes limit to be hit]
-References: <20140416154650.GA3034@alpha.arachsys.com>	<20140418155939.GE4523@dhcp22.suse.cz>	<5351679F.5040908@parallels.com>	<20140420142830.GC22077@alpha.arachsys.com>	<20140422143943.20609800@oracle.com>	<20140422200531.GA19334@alpha.arachsys.com>	<535758A0.5000500@yuhu.biz> <20140423084942.560ae837@oracle.com>	<5368CA47.7030007@yuhu.biz> <20140507131514.43716518@oracle.com>
-In-Reply-To: <20140507131514.43716518@oracle.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Wed, 07 May 2014 16:16:27 -0700 (PDT)
+Received: from epcpsbgr2.samsung.com
+ (u142.gpu120.samsung.co.kr [203.254.230.142])
+ by mailout2.samsung.com (Oracle Communications Messaging Server 7u4-24.01
+ (7.0.4.24.0) 64bit (built Nov 17 2011))
+ with ESMTP id <0N5800NEE8NC3480@mailout2.samsung.com> for linux-mm@kvack.org;
+ Thu, 08 May 2014 08:16:24 +0900 (KST)
+From: Namjae Jeon <namjae.jeon@samsung.com>
+Subject: [PATCH v3] ext4: fix data integrity sync in ordered mode
+Date: Thu, 08 May 2014 08:16:24 +0900
+Message-id: <000801cf6a4a$5d5c2dc0$18148940$@samsung.com>
+MIME-version: 1.0
+Content-type: text/plain; charset=us-ascii
+Content-transfer-encoding: 7bit
+Content-language: ko
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dwight Engen <dwight.engen@oracle.com>, Marian Marinov <mm@yuhu.biz>
-Cc: Richard Davies <richard@arachsys.com>, Vladimir Davydov <vdavydov@parallels.com>, Daniel Walsh <dwalsh@redhat.com>, Max Kellermann <mk@cm4all.com>, Tim Hockin <thockin@hockin.org>, Frederic Weisbecker <fweisbec@gmail.com>, containers@lists.linux-foundation.org, Johannes Weiner <hannes@cmpxchg.org>, Glauber Costa <glommer@parallels.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, William Dauchy <wdauchy@gmail.com>, David Rientjes <rientjes@google.com>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org
+To: Theodore Ts'o <tytso@mit.edu>
+Cc: linux-ext4 <linux-ext4@vger.kernel.org>, linux-mm@kvack.org, Jan Kara <jack@suse.cz>
 
-On 05/07/2014 08:15 PM, Dwight Engen wrote:
-> On Tue, 06 May 2014 14:40:55 +0300
-> Marian Marinov <mm@yuhu.biz> wrote:
->
->> On 04/23/2014 03:49 PM, Dwight Engen wrote:
->>> On Wed, 23 Apr 2014 09:07:28 +0300
->>> Marian Marinov <mm@yuhu.biz> wrote:
->>>
->>>> On 04/22/2014 11:05 PM, Richard Davies wrote:
->>>>> Dwight Engen wrote:
->>>>>> Richard Davies wrote:
->>>>>>> Vladimir Davydov wrote:
->>>>>>>> In short, kmem limiting for memory cgroups is currently broken.
->>>>>>>> Do not use it. We are working on making it usable though.
->>>>> ...
->>>>>>> What is the best mechanism available today, until kmem limits
->>>>>>> mature?
->>>>>>>
->>>>>>> RLIMIT_NPROC exists but is per-user, not per-container.
->>>>>>>
->>>>>>> Perhaps there is an up-to-date task counter patchset or similar?
->>>>>>
->>>>>> I updated Frederic's task counter patches and included Max
->>>>>> Kellermann's fork limiter here:
->>>>>>
->>>>>> http://thread.gmane.org/gmane.linux.kernel.containers/27212
->>>>>>
->>>>>> I can send you a more recent patchset (against 3.13.10) if you
->>>>>> would find it useful.
->>>>>
->>>>> Yes please, I would be interested in that. Ideally even against
->>>>> 3.14.1 if you have that too.
->>>>
->>>> Dwight, do you have these patches in any public repo?
->>>>
->>>> I would like to test them also.
->>>
->>> Hi Marian, I put the patches against 3.13.11 and 3.14.1 up at:
->>>
->>> git://github.com/dwengen/linux.git cpuacct-task-limit-3.13
->>> git://github.com/dwengen/linux.git cpuacct-task-limit-3.14
->>>
->> Guys I tested the patches with 3.12.16. However I see a problem with
->> them.
->>
->> Trying to set the limit to a cgroup which already have processes in
->> it does not work:
->
-> This is a similar check/limitation to the one for kmem in memcg, and is
-> done here to keep the res_counters consistent and from going negative.
-> It could probably be relaxed slightly by using res_counter_set_limit()
-> instead, but you would still need to initially set a limit before
-> adding tasks to the group.
+When we perform a data integrity sync we tag all the dirty pages with
+PAGECACHE_TAG_TOWRITE at start of ext4_da_writepages.
+Later we check for this tag in write_cache_pages_da and creates a
+struct mpage_da_data containing contiguously indexed pages tagged with this
+tag and sync these pages with a call to mpage_da_map_and_submit.
+This process is done in while loop until all the PAGECACHE_TAG_TOWRITE pages
+are synced. We also do journal start and stop in each iteration.
+journal_stop could initiate journal commit which would call ext4_writepage
+which in turn will call ext4_bio_write_page even for delayed OR unwritten
+buffers. When ext4_bio_write_page is called for such buffers, even though it
+does not sync them but it clears the PAGECACHE_TAG_TOWRITE of the corresponding
+page and hence these pages are also not synced by the currently running data
+integrity sync. We will end up with dirty pages although sync is completed.
 
-I have removed the check entirely and still receive the EBUSY... I just don't understand what is returning it. If you 
-have any pointers, I would be happy to take a look.
+This could cause a potential data loss when the sync call is followed by a
+truncate_pagecache call, which is exactly the case in collapse_range.
+(It will cause generic/127 failure in xfstests)
 
-I'll look at set_limit(), thanks for pointing that one.
+To avoid this issue, we can use set_page_writeback_keepwrite instead of
+set_page_writeback, which doesn't clear TOWRITE tag.
 
-What I'm proposing is the following checks:
+Signed-off-by: Namjae Jeon <namjae.jeon@samsung.com>
+Signed-off-by: Ashish Sangwan <a.sangwan@samsung.com>
+Reviewed-by: Jan Kara <jack@suse.cz>
+---
 
-     if (val > RES_COUNTER_MAX || val < 0)
-         return -EBUSY;
-     if (val != 0 && val <= cgroup_task_count(cgrp))
-         return -EBUSY;
+Changelog
+v3:
+ - define test_set_page_writeback() and test_set_page_writeback_keepwrite()
+   as calls to __test_set_page_writeback(page, keep_write)
 
-     res_counter_write_u64(&ca->task_limit, type, val);
+v2:
+ - As Jan Kara suggested, Create set_page_writeback_keepwrite which doesn't
+   clear TOWRITE tag.
 
-This way we ensure that val is within the limits > 0 and < RES_COUNTER_MAX. And also allow only values of 0 or greater 
-then the current task count.
+ fs/ext4/ext4.h             |  3 ++-
+ fs/ext4/inode.c            |  6 ++++--
+ fs/ext4/page-io.c          |  8 ++++++--
+ include/linux/page-flags.h | 12 +++++++++++-
+ mm/page-writeback.c        | 11 ++++++-----
+ 5 files changed, 29 insertions(+), 11 deletions(-)
 
-Marian
->
->> [root@sp2 lxc]# echo 50 > cpuacct.task_limit
->> -bash: echo: write error: Device or resource busy
->> [root@sp2 lxc]# echo 0 > cpuacct.task_limit
->> -bash: echo: write error: Device or resource busy
->> [root@sp2 lxc]#
->>
->> I have even tried to remove this check:
->> +               if (cgroup_task_count(cgrp)
->> || !list_empty(&cgrp->children))
->> +                       return -EBUSY;
->> But still give me 'Device or resource busy'.
->>
->> Any pointers of why is this happening ?
->>
->> Marian
->>
->>>> Marian
->>>>
->>>>>
->>>>> Thanks,
->>>>>
->>>>> Richard.
->>>>> --
->>>>> To unsubscribe from this list: send the line "unsubscribe cgroups"
->>>>> in the body of a message to majordomo@vger.kernel.org
->>>>> More majordomo info at  http://vger.kernel.org/majordomo-info.html
->>>>>
->>>>>
->>>>
->>>
->>> --
->>> To unsubscribe from this list: send the line "unsubscribe cgroups"
->>> in the body of a message to majordomo@vger.kernel.org
->>> More majordomo info at  http://vger.kernel.org/majordomo-info.html
->>>
->>>
->>
->
-> _______________________________________________
-> Containers mailing list
-> Containers@lists.linux-foundation.org
-> https://lists.linuxfoundation.org/mailman/listinfo/containers
->
-
-
+diff --git a/fs/ext4/ext4.h b/fs/ext4/ext4.h
+index 6b45afa..78fed7b 100644
+--- a/fs/ext4/ext4.h
++++ b/fs/ext4/ext4.h
+@@ -2771,7 +2771,8 @@ extern void ext4_io_submit(struct ext4_io_submit *io);
+ extern int ext4_bio_write_page(struct ext4_io_submit *io,
+ 			       struct page *page,
+ 			       int len,
+-			       struct writeback_control *wbc);
++			       struct writeback_control *wbc,
++			       bool keep_towrite);
+ 
+ /* mmp.c */
+ extern int ext4_multi_mount_protect(struct super_block *, ext4_fsblk_t);
+diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
+index b1dc334..8d9cb26 100644
+--- a/fs/ext4/inode.c
++++ b/fs/ext4/inode.c
+@@ -1846,6 +1846,7 @@ static int ext4_writepage(struct page *page,
+ 	struct buffer_head *page_bufs = NULL;
+ 	struct inode *inode = page->mapping->host;
+ 	struct ext4_io_submit io_submit;
++	bool keep_towrite = false;
+ 
+ 	trace_ext4_writepage(page);
+ 	size = i_size_read(inode);
+@@ -1876,6 +1877,7 @@ static int ext4_writepage(struct page *page,
+ 			unlock_page(page);
+ 			return 0;
+ 		}
++		keep_towrite = true;
+ 	}
+ 
+ 	if (PageChecked(page) && ext4_should_journal_data(inode))
+@@ -1892,7 +1894,7 @@ static int ext4_writepage(struct page *page,
+ 		unlock_page(page);
+ 		return -ENOMEM;
+ 	}
+-	ret = ext4_bio_write_page(&io_submit, page, len, wbc);
++	ret = ext4_bio_write_page(&io_submit, page, len, wbc, keep_towrite);
+ 	ext4_io_submit(&io_submit);
+ 	/* Drop io_end reference we got from init */
+ 	ext4_put_io_end_defer(io_submit.io_end);
+@@ -1911,7 +1913,7 @@ static int mpage_submit_page(struct mpage_da_data *mpd, struct page *page)
+ 	else
+ 		len = PAGE_CACHE_SIZE;
+ 	clear_page_dirty_for_io(page);
+-	err = ext4_bio_write_page(&mpd->io_submit, page, len, mpd->wbc);
++	err = ext4_bio_write_page(&mpd->io_submit, page, len, mpd->wbc, false);
+ 	if (!err)
+ 		mpd->wbc->nr_to_write--;
+ 	mpd->first_page++;
+diff --git a/fs/ext4/page-io.c b/fs/ext4/page-io.c
+index 1a64e7a..4a2dd07 100644
+--- a/fs/ext4/page-io.c
++++ b/fs/ext4/page-io.c
+@@ -401,7 +401,8 @@ submit_and_retry:
+ int ext4_bio_write_page(struct ext4_io_submit *io,
+ 			struct page *page,
+ 			int len,
+-			struct writeback_control *wbc)
++			struct writeback_control *wbc,
++			bool keep_towrite)
+ {
+ 	struct inode *inode = page->mapping->host;
+ 	unsigned block_start, blocksize;
+@@ -414,7 +415,10 @@ int ext4_bio_write_page(struct ext4_io_submit *io,
+ 	BUG_ON(!PageLocked(page));
+ 	BUG_ON(PageWriteback(page));
+ 
+-	set_page_writeback(page);
++	if (keep_towrite)
++		set_page_writeback_keepwrite(page);
++	else
++		set_page_writeback(page);
+ 	ClearPageError(page);
+ 
+ 	/*
+diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+index bc2007e..9b68718 100644
+--- a/include/linux/page-flags.h
++++ b/include/linux/page-flags.h
+@@ -317,13 +317,23 @@ CLEARPAGEFLAG(Uptodate, uptodate)
+ extern void cancel_dirty_page(struct page *page, unsigned int account_size);
+ 
+ int test_clear_page_writeback(struct page *page);
+-int test_set_page_writeback(struct page *page);
++int __test_set_page_writeback(struct page *page, bool keep_write);
++
++#define test_set_page_writeback(page)			\
++	__test_set_page_writeback(page, false)
++#define test_set_page_writeback_keepwrite(page)	\
++	__test_set_page_writeback(page, true)
+ 
+ static inline void set_page_writeback(struct page *page)
+ {
+ 	test_set_page_writeback(page);
+ }
+ 
++static inline void set_page_writeback_keepwrite(struct page *page)
++{
++	test_set_page_writeback_keepwrite(page);
++}
++
+ #ifdef CONFIG_PAGEFLAGS_EXTENDED
+ /*
+  * System with lots of page flags available. This allows separate
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index 310d329..ba037e3 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -2398,7 +2398,7 @@ int test_clear_page_writeback(struct page *page)
+ 	return ret;
+ }
+ 
+-int test_set_page_writeback(struct page *page)
++int __test_set_page_writeback(struct page *page, bool keep_write)
+ {
+ 	struct address_space *mapping = page_mapping(page);
+ 	int ret;
+@@ -2423,9 +2423,10 @@ int test_set_page_writeback(struct page *page)
+ 			radix_tree_tag_clear(&mapping->page_tree,
+ 						page_index(page),
+ 						PAGECACHE_TAG_DIRTY);
+-		radix_tree_tag_clear(&mapping->page_tree,
+-				     page_index(page),
+-				     PAGECACHE_TAG_TOWRITE);
++		if (!keep_write)
++			radix_tree_tag_clear(&mapping->page_tree,
++						page_index(page),
++						PAGECACHE_TAG_TOWRITE);
+ 		spin_unlock_irqrestore(&mapping->tree_lock, flags);
+ 	} else {
+ 		ret = TestSetPageWriteback(page);
+@@ -2436,7 +2437,7 @@ int test_set_page_writeback(struct page *page)
+ 	return ret;
+ 
+ }
+-EXPORT_SYMBOL(test_set_page_writeback);
++EXPORT_SYMBOL(__test_set_page_writeback);
+ 
+ /*
+  * Return true if any of the pages in the mapping are marked with the
 -- 
-Marian Marinov
-Founder & CEO of 1H Ltd.
-Jabber/GTalk: hackman@jabber.org
-ICQ: 7556201
-Mobile: +359 886 660 270
+1.7.11-rc0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
