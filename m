@@ -1,165 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f48.google.com (mail-ee0-f48.google.com [74.125.83.48])
-	by kanga.kvack.org (Postfix) with ESMTP id C54A16B0035
-	for <linux-mm@kvack.org>; Wed,  7 May 2014 07:19:44 -0400 (EDT)
-Received: by mail-ee0-f48.google.com with SMTP id e49so622209eek.7
-        for <linux-mm@kvack.org>; Wed, 07 May 2014 04:19:44 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o41si1197320eem.33.2014.05.07.04.19.41
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 07 May 2014 04:19:43 -0700 (PDT)
-Date: Wed, 7 May 2014 13:19:40 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH -mm 1/2] memcg: get rid of memcg_create_cache_name
-Message-ID: <20140507111940.GE9489@dhcp22.suse.cz>
-References: <a4aa62026c10fc709e8bf13542b29cf771381394.1399450112.git.vdavydov@parallels.com>
- <20140507095127.GC9489@dhcp22.suse.cz>
- <20140507104514.GC4757@esperanza>
+Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F1236B0035
+	for <linux-mm@kvack.org>; Wed,  7 May 2014 07:40:12 -0400 (EDT)
+Received: by mail-pd0-f176.google.com with SMTP id y13so954406pdi.21
+        for <linux-mm@kvack.org>; Wed, 07 May 2014 04:40:11 -0700 (PDT)
+Received: from collaborate-mta1.arm.com (fw-tnat.austin.arm.com. [217.140.110.23])
+        by mx.google.com with ESMTP id pb4si13655367pac.195.2014.05.07.04.40.10
+        for <linux-mm@kvack.org>;
+        Wed, 07 May 2014 04:40:10 -0700 (PDT)
+Date: Wed, 7 May 2014 12:39:28 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [BUG] kmemleak on __radix_tree_preload
+Message-ID: <20140507113928.GB17253@arm.com>
+References: <1398390340.4283.36.camel@kjgkr>
+ <20140501170610.GB28745@arm.com>
+ <20140501184112.GH23420@cmpxchg.org>
+ <1399431488.13268.29.camel@kjgkr>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140507104514.GC4757@esperanza>
+In-Reply-To: <1399431488.13268.29.camel@kjgkr>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Jaegeuk Kim <jaegeuk.kim@samsung.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, "Linux Kernel, Mailing List" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Wed 07-05-14 14:45:16, Vladimir Davydov wrote:
-[...]
-> From: Vladimir Davydov <vdavydov@parallels.com>
-> Subject: [PATCH] memcg: get rid of memcg_create_cache_name
-> 
-> Instead of calling back to memcontrol.c from kmem_cache_create_memcg in
-> order to just create the name of a per memcg cache, let's allocate it in
-> place. We only need to pass the memcg name to kmem_cache_create_memcg
-> for that - everything else can be done in slab_common.c.
-> 
-> Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
+On Wed, May 07, 2014 at 03:58:08AM +0100, Jaegeuk Kim wrote:
+> And then when I tested again with Catalin's patch, it still throws the
+> following warning.
+> Is it false alarm?
 
-Acked-by: Michal Hocko <mhocko@suse.cz>
+BTW, you can try this kmemleak branch:
 
-> 
-> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> index 6c59056f4bc6..7b639ab48aa8 100644
-> --- a/include/linux/memcontrol.h
-> +++ b/include/linux/memcontrol.h
-> @@ -501,8 +501,6 @@ void __memcg_kmem_uncharge_pages(struct page *page, int order);
->  
->  int memcg_cache_id(struct mem_cgroup *memcg);
->  
-> -char *memcg_create_cache_name(struct mem_cgroup *memcg,
-> -			      struct kmem_cache *root_cache);
->  int memcg_alloc_cache_params(struct mem_cgroup *memcg, struct kmem_cache *s,
->  			     struct kmem_cache *root_cache);
->  void memcg_free_cache_params(struct kmem_cache *s);
-> diff --git a/include/linux/slab.h b/include/linux/slab.h
-> index ecbec9ccb80d..86e5b26fbdab 100644
-> --- a/include/linux/slab.h
-> +++ b/include/linux/slab.h
-> @@ -117,7 +117,8 @@ struct kmem_cache *kmem_cache_create(const char *, size_t, size_t,
->  			void (*)(void *));
->  #ifdef CONFIG_MEMCG_KMEM
->  struct kmem_cache *kmem_cache_create_memcg(struct mem_cgroup *,
-> -					   struct kmem_cache *);
-> +					   struct kmem_cache *,
-> +					   const char *);
->  #endif
->  void kmem_cache_destroy(struct kmem_cache *);
->  int kmem_cache_shrink(struct kmem_cache *);
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index f381239ab402..9ff3742f4154 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -3101,29 +3101,6 @@ int memcg_update_cache_size(struct kmem_cache *s, int num_groups)
->  	return 0;
->  }
->  
-> -char *memcg_create_cache_name(struct mem_cgroup *memcg,
-> -			      struct kmem_cache *root_cache)
-> -{
-> -	static char *buf;
-> -
-> -	/*
-> -	 * We need a mutex here to protect the shared buffer. Since this is
-> -	 * expected to be called only on cache creation, we can employ the
-> -	 * slab_mutex for that purpose.
-> -	 */
-> -	lockdep_assert_held(&slab_mutex);
-> -
-> -	if (!buf) {
-> -		buf = kmalloc(NAME_MAX + 1, GFP_KERNEL);
-> -		if (!buf)
-> -			return NULL;
-> -	}
-> -
-> -	cgroup_name(memcg->css.cgroup, buf, NAME_MAX + 1);
-> -	return kasprintf(GFP_KERNEL, "%s(%d:%s)", root_cache->name,
-> -			 memcg_cache_id(memcg), buf);
-> -}
-> -
->  int memcg_alloc_cache_params(struct mem_cgroup *memcg, struct kmem_cache *s,
->  			     struct kmem_cache *root_cache)
->  {
-> @@ -3164,6 +3141,7 @@ void memcg_free_cache_params(struct kmem_cache *s)
->  static void memcg_kmem_create_cache(struct mem_cgroup *memcg,
->  				    struct kmem_cache *root_cache)
->  {
-> +	static char *memcg_name_buf;	/* protected by memcg_slab_mutex */
->  	struct kmem_cache *cachep;
->  	int id;
->  
-> @@ -3179,7 +3157,14 @@ static void memcg_kmem_create_cache(struct mem_cgroup *memcg,
->  	if (cache_from_memcg_idx(root_cache, id))
->  		return;
->  
-> -	cachep = kmem_cache_create_memcg(memcg, root_cache);
-> +	if (!memcg_name_buf) {
-> +		memcg_name_buf = kmalloc(NAME_MAX + 1, GFP_KERNEL);
-> +		if (!memcg_name_buf)
-> +			return;
-> +	}
-> +
-> +	cgroup_name(memcg->css.cgroup, memcg_name_buf, NAME_MAX + 1);
-> +	cachep = kmem_cache_create_memcg(memcg, root_cache, memcg_name_buf);
->  	/*
->  	 * If we could not create a memcg cache, do not complain, because
->  	 * that's not critical at all as we can always proceed with the root
-> diff --git a/mm/slab_common.c b/mm/slab_common.c
-> index 7e348cff814d..32175617cb75 100644
-> --- a/mm/slab_common.c
-> +++ b/mm/slab_common.c
-> @@ -264,13 +264,15 @@ EXPORT_SYMBOL(kmem_cache_create);
->   * kmem_cache_create_memcg - Create a cache for a memory cgroup.
->   * @memcg: The memory cgroup the new cache is for.
->   * @root_cache: The parent of the new cache.
-> + * @memcg_name: The name of the memory cgroup (used for naming the new cache).
->   *
->   * This function attempts to create a kmem cache that will serve allocation
->   * requests going from @memcg to @root_cache. The new cache inherits properties
->   * from its parent.
->   */
->  struct kmem_cache *kmem_cache_create_memcg(struct mem_cgroup *memcg,
-> -					   struct kmem_cache *root_cache)
-> +					   struct kmem_cache *root_cache,
-> +					   const char *memcg_name)
->  {
->  	struct kmem_cache *s = NULL;
->  	char *cache_name;
-> @@ -280,7 +282,8 @@ struct kmem_cache *kmem_cache_create_memcg(struct mem_cgroup *memcg,
->  
->  	mutex_lock(&slab_mutex);
->  
-> -	cache_name = memcg_create_cache_name(memcg, root_cache);
-> +	cache_name = kasprintf(GFP_KERNEL, "%s(%d:%s)", root_cache->name,
-> +			       memcg_cache_id(memcg), memcg_name);
->  	if (!cache_name)
->  		goto out_unlock;
->  
+git://git.kernel.org/pub/scm/linux/kernel/git/cmarinas/linux-aarch64.git kmemleak
+
+> unreferenced object 0xffff880004226da0 (size 576):
+>   comm "fsstress", pid 14590, jiffies 4295191259 (age 706.308s)
+>   hex dump (first 32 bytes):
+>     01 00 00 00 81 ff ff ff 00 00 00 00 00 00 00 00  ................
+>     50 89 34 81 ff ff ff ff b8 6d 22 04 00 88 ff ff  P.4......m".....
+>   backtrace:
+>     [<ffffffff816c02e8>] kmemleak_update_trace+0x58/0x80
+>     [<ffffffff81349517>] radix_tree_node_alloc+0x77/0xa0
+>     [<ffffffff81349718>] __radix_tree_create+0x1d8/0x230
+>     [<ffffffff8113286c>] __add_to_page_cache_locked+0x9c/0x1b0
+>     [<ffffffff811329a8>] add_to_page_cache_lru+0x28/0x80
+>     [<ffffffff81132f58>] grab_cache_page_write_begin+0x98/0xf0
+>     [<ffffffffa02e4bf4>] f2fs_write_begin+0xb4/0x3c0 [f2fs]
+>     [<ffffffff81131b77>] generic_perform_write+0xc7/0x1c0
+>     [<ffffffff81133b7d>] __generic_file_aio_write+0x1cd/0x3f0
+>     [<ffffffff81133dfe>] generic_file_aio_write+0x5e/0xe0
+>     [<ffffffff81195c5a>] do_sync_write+0x5a/0x90
+>     [<ffffffff811968d2>] vfs_write+0xc2/0x1d0
+>     [<ffffffff81196daf>] SyS_write+0x4f/0xb0
+>     [<ffffffff816dead2>] system_call_fastpath+0x16/0x1b
+>     [<ffffffffffffffff>] 0xffffffffffffffff
+
+OK, it shows that the allocation happens via add_to_page_cache_locked()
+and I guess it's page_cache_tree_insert() which calls
+__radix_tree_create() (the latter reusing the preloaded node). I'm not
+familiar enough to this code (radix-tree.c and filemap.c) to tell where
+the node should have been freed, who keeps track of it.
+
+At a quick look at the hex dump (assuming that the above leak is struct
+radix_tree_node):
+
+	.path = 1
+	.count = -0x7f (or 0xffffff81 as unsigned int)
+	union {
+		{
+			.parent = NULL
+			.private_data = 0xffffffff81348950
+		}
+		{
+			.rcu_head.next = NULL
+			.rcu_head.func = 0xffffffff81348950
+		}
+	}
+
+The count is a bit suspicious.
+
+>From the union, it looks most likely like rcu_head information. Is
+radix_tree_node_rcu_free() function at the above rcu_head.func?
+
+Could you please send us your .config file?
+
+Also, if you run echo scan > /sys/kernel/debug/kmemleak a few times, do
+any of the above leaks disappear (in case the above are some transient
+rcu freeing reports; normally this shouldn't happen as the objects are
+still referred but I'll look at the relevant code once I have your
+.config).
+
+Thanks.
 
 -- 
-Michal Hocko
-SUSE Labs
+Catalin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
