@@ -1,97 +1,180 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f50.google.com (mail-qg0-f50.google.com [209.85.192.50])
-	by kanga.kvack.org (Postfix) with ESMTP id F243B6B0035
-	for <linux-mm@kvack.org>; Wed,  7 May 2014 05:13:04 -0400 (EDT)
-Received: by mail-qg0-f50.google.com with SMTP id z60so712179qgd.37
-        for <linux-mm@kvack.org>; Wed, 07 May 2014 02:13:04 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id 100si6457037qgf.137.2014.05.07.02.13.04
+Received: from mail-ig0-f171.google.com (mail-ig0-f171.google.com [209.85.213.171])
+	by kanga.kvack.org (Postfix) with ESMTP id E74166B0035
+	for <linux-mm@kvack.org>; Wed,  7 May 2014 05:16:53 -0400 (EDT)
+Received: by mail-ig0-f171.google.com with SMTP id c1so7421736igq.10
+        for <linux-mm@kvack.org>; Wed, 07 May 2014 02:16:53 -0700 (PDT)
+Received: from mail-ig0-x230.google.com (mail-ig0-x230.google.com [2607:f8b0:4001:c05::230])
+        by mx.google.com with ESMTPS id ac8si12809620icc.36.2014.05.07.02.16.53
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 07 May 2014 02:13:04 -0700 (PDT)
-Date: Wed, 7 May 2014 11:12:58 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [RFC, PATCH 0/8] remap_file_pages() decommission
-Message-ID: <20140507091258.GP11096@twins.programming.kicks-ass.net>
-References: <1399387052-31660-1-git-send-email-kirill.shutemov@linux.intel.com>
- <20140506143542.1d4e5f41be58b3ad3543ffe3@linux-foundation.org>
- <CA+55aFwUO5ubckFFEF+R=yos-Qd3Br4Fy3-LpXL0bDWCmMhb6g@mail.gmail.com>
- <20140506230323.GA14821@node.dhcp.inet.fi>
- <20140506162856.2a94db336b91db5525ed0457@linux-foundation.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 07 May 2014 02:16:53 -0700 (PDT)
+Received: by mail-ig0-f176.google.com with SMTP id hl10so7410250igb.15
+        for <linux-mm@kvack.org>; Wed, 07 May 2014 02:16:52 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="tgO4DUqb0GCKXXLG"
-Content-Disposition: inline
-In-Reply-To: <20140506162856.2a94db336b91db5525ed0457@linux-foundation.org>
+In-Reply-To: <20140507085743.GA31680@bbox>
+References: <000001cf6816$d538c370$7faa4a50$%yang@samsung.com>
+	<20140505152014.GA8551@cerebellum.variantweb.net>
+	<1399312844.2570.28.camel@buesod1.americas.hpqcorp.net>
+	<20140505134615.04cb627bb2784cabcb844655@linux-foundation.org>
+	<1399328550.2646.5.camel@buesod1.americas.hpqcorp.net>
+	<000001cf69c9$5776f330$0664d990$%yang@samsung.com>
+	<20140507085743.GA31680@bbox>
+Date: Wed, 7 May 2014 17:16:52 +0800
+Message-ID: <CAL1ERfOXNrfKqMVs-Yz8yJjKKU3L5fjUEOb0Aeyqc37py-BWEg@mail.gmail.com>
+Subject: Re: [PATCH] zram: remove global tb_lock by using lock-free CAS
+From: Weijie Yang <weijie.yang.kh@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Linus Torvalds <torvalds@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm <linux-mm@kvack.org>, Ingo Molnar <mingo@kernel.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Weijie Yang <weijie.yang@samsung.com>, Davidlohr Bueso <davidlohr@hp.com>, Andrew Morton <akpm@linux-foundation.org>, Seth Jennings <sjennings@variantweb.net>, Nitin Gupta <ngupta@vflare.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Bob Liu <bob.liu@oracle.com>, Dan Streetman <ddstreet@ieee.org>, Heesub Shin <heesub.shin@samsung.com>, linux-kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
+On Wed, May 7, 2014 at 4:57 PM, Minchan Kim <minchan@kernel.org> wrote:
+> On Wed, May 07, 2014 at 03:51:35PM +0800, Weijie Yang wrote:
+>> On Tue, May 6, 2014 at 6:22 AM, Davidlohr Bueso <davidlohr@hp.com> wrote:
+>> > On Mon, 2014-05-05 at 13:46 -0700, Andrew Morton wrote:
+>> >> On Mon, 05 May 2014 11:00:44 -0700 Davidlohr Bueso <davidlohr@hp.com> wrote:
+>> >>
+>> >> > > > @@ -339,12 +338,14 @@ static int zram_decompress_page(struct zram *zram, char *mem, u32 index)
+>> >> > > >         unsigned long handle;
+>> >> > > >         u16 size;
+>> >> > > >
+>> >> > > > -       read_lock(&meta->tb_lock);
+>> >> > > > +       while(atomic_cmpxchg(&meta->table[index].state, IDLE, ACCESS) != IDLE)
+>> >> > > > +               cpu_relax();
+>> >> > > > +
+>> >> > >
+>> >> > > So... this might be dumb question, but this looks like a spinlock
+>> >> > > implementation.
+>> >> > >
+>> >> > > What advantage does this have over a standard spinlock?
+>> >> >
+>> >> > I was wondering the same thing. Furthermore by doing this you'll loose
+>> >> > the benefits of sharing the lock... your numbers do indicate that it is
+>> >> > for the better. Also, note that hopefully rwlock_t will soon be updated
+>> >> > to be fair and perform up to par with spinlocks, something which is long
+>> >> > overdue. So you could reduce the critical region by implementing the
+>> >> > same granularity, just don't implement your own locking schemes, like
+>> >> > this.
+>>
+>> Actually, the main reason I use a CAS rather than a standard lock here is
+>> that I want to minimize the meta table memory overhead. A tiny reason is
+>> my fuzzy memory that CAS is more efficient than spinlock (please correct me
+>> if I am wrong).
+>>
+>> Anyway, I changed the CAS to spinlock and rwlock, re-test them:
+>>
+>>       Test       lock-free       spinlock     rwlock
+>> ------------------------------------------------------
+>>  Initial write   1424141.62   1426372.84   1423019.21
+>>        Rewrite   1652504.81   1623307.14   1653682.04
+>>           Read  11404668.35  11242885.05  10938125.00
+>>        Re-read  11555483.75   11253906.6  10837773.50
+>>   Reverse Read   8394478.17   8277250.34   7768057.39
+>>    Stride read   9372229.95   9010498.53   8692871.77
+>>    Random read   9187221.90   8988080.55   8661184.60
+>> Mixed workload   5843370.85   5414729.54   5451055.03
+>>   Random write   1608947.04   1572276.64   1588866.51
+>>         Pwrite   1311055.32   1302463.04   1302001.06
+>>          Pread   4652056.11   4555802.18   4469672.34
+>
+> I'd like to clear it out.
+> The spinlock and rwlock you mentioned is per-meta entry lock like state
+> you added or global lock for meta? If it's latter, rwlock means base?
 
---tgO4DUqb0GCKXXLG
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+The spinlock and rwlock is per-meta entry lock like state.
+Because the base data is added in the first mail, I don't mention
+them here.
 
-On Tue, May 06, 2014 at 04:28:56PM -0700, Andrew Morton wrote:
-> On Wed, 7 May 2014 02:03:23 +0300 "Kirill A. Shutemov" <kirill@shutemov.n=
-ame> wrote:
->=20
-> > remap_file_pages(2) was invented to be able efficiently map parts of
-> > huge file into limited 32-bit virtual address space such as in database
-> > workloads.
-> >=20
-> > Nonlinear mappings are pain to support and it seems there's no
-> > legitimate use-cases nowadays since 64-bit systems are widely available.
-> >=20
-> > Let's deprecate remap_file_pages() syscall in hope to get rid of code
-> > one day.
->=20
-> Before we do this we should ensure that your proposed replacement is viab=
-le
-> and desirable.  If we later decide not to proceed with it, this patch will
-> sow confusion.
+>>
+>> And I cann't say which one is the best, they have the similar performance.
+>
+> Most popular use of zram is the in-memory swap for small embedded system
+> so I don't want to increase memory footprint without good reason although
+> it makes synthetic benchmark. Alhought it's 1M for 1G, it isn't small if we
+> consider compression ratio and real free memory after boot(But data I have
+> an interest is mixed workload enhancement. It would be important for heavy
+> memory pressure for latency so it attractives me a lot. Anyway, I need number
+> for back up the justification with real swap usecase rather than zram-blk.
+> Recently, I have considered per-process reclaim  based on zram so maybe I will
+> have a test for that).
+> But recently, I have received private mail from some server folks to use
+> zram-blk, not zram-swap so in case of that, such enhancement would be
+> desirable so my point is I'm not saying the drop of the patch and let's
+> find proper solution to meet both and gather more data.
+>
+>>
+>> Wait, iozone will create temporary files for every test thread, so there is no
+>> possibility that these threads access the same table[index] concurrenctly.
+>> So, I use fio to test the raw zram block device.
+>> To enhance the possibility of access the same table[index] conflictly, I set zram
+>> with a small disksize(10M) and let thread run with large loop count.
+>>
+>> On the same test machine, the fio test command is:
+>> fio --bs=32k --randrepeat=1 --randseed=100 --refill_buffers
+>> --scramble_buffers=1 --direct=1 --loops=3000 --numjobs=4
+>> --filename=/dev/zram0 --name=seq-write --rw=write --stonewall
+>> --name=seq-read --rw=read --stonewall --name=seq-readwrite
+>> --rw=rw --stonewall --name=rand-readwrite --rw=randrw --stonewall
+>>
+>>     Test      base    lock-free   spinlock   rwlock
+>> ------------------------------------------------------
+>> seq-write   935109.2   999580.5   998134.8   994384.6
+>>  seq-read  5598064.6  6444011.5  6243184.6  6197514.2
+>>    seq-rw  1403963.0  1635673.0  1633823.0  1635972.2
+>>   rand-rw  1389864.4  1612520.4  1613403.6  1612129.8
+>
+> What's the difference between base and rwlock?
+> Base means global rwlock while rwlock means per-meta entry rwlock?
+>
 
-Chicken meet Egg ?
+Base means  global rwlock, it is the 3.15.0-rc3 code.
+rwlock means per-meta entry rwlock.
 
-How are we supposed to test if its viable if we have no known users? The
-printk() might maybe (hopefully) get us some reaction in say a years
-time, much longer if we're really unlucky.
+Sorry to confuse you.
 
-That said, we could make the syscall return -ENOSYS unless a sysctl was
-touched. The printk() would indeed have to mention said sysctl and a
-place to find information about why we're doing this..
-
-But by creating more pain (people have to actually set the sysctl, and
-we'll have to universally agree to inflict pain on distro people that
-set it by default -- say, starve them from beer at the next conf.) we're
-more likely to get an answer sooner.
-
-
-
---tgO4DUqb0GCKXXLG
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.12 (GNU/Linux)
-
-iQIcBAEBAgAGBQJTafkaAAoJEHZH4aRLwOS6dh0P/R4aD4PcQTnFviFy5YYyWiP9
-TUUY53h/0MThhd61zYM1adtwE7hGrsD/SGZ+9k7vaqjUSqI6dcVBm9d6QiFei9jR
-/FnWBnOHCEa2QvEa1IGDtunHlU1Ab04ML7f6xxmpjCsnPw0UtM/6+pRFkyb0z+mq
-eVLc/f+CyLsUmqlZvgFlMTu8cYBIYf0jX22lDXhVBAcX7ll9exw7lJRc3ZGAdqgP
-Vvz9nzzPsNwNkvPld/xHi1A0u9Wp2r/9SUyh850PO2jx8uWFBlMAAPkjr7vCaji6
-e+SvL5aj2lKHsHBmdXYTdhbTl2n6egq55cpzNFmi2y+SSlYrIHOZaEYNfWy+xjdm
-C93XH4nw0N8GfUW1gDCwtEEFbhpcSmgaPnw91bnwAUuhvxOdB7JrmhRVg+IvRFgm
-xVWOGBwDi20U5bL153Mc++jMBrvy0/Mgp83unzeI2Ftl5X25AzZJeKjRGCFNXgmD
-hf3l1jJiEuoLjQWDsdqGZa1va6mm3j+2ZqfpKNsDSrKbNu+A2AQ9iVwPwRL8Whve
-1yBjNEYtknDuWjoKNkLa+H/C+Q7kwtz1iakCxwlPgtE0iHYv7PbJ1DBj7gCWjhqk
-0OfJJ/yoDKD2bD9i0+qISFV4xM0gB2rlqKHw4BVAoJH3t189LsN97YosSvQEN0G8
-xs0V8Qf+HpAcCju3oli2
-=tzLB
------END PGP SIGNATURE-----
-
---tgO4DUqb0GCKXXLG--
+>>
+>> This result(KB/s, average of 5 tests) shows the performance improvement
+>> on base version, however, I cann't say which method is the best.
+>>
+>> >>
+>> >> It sounds like seqlocks will match this access pattern pretty well?
+>> >
+>> > Indeed. And after a closer look, except for zram_slot_free_notify(),
+>> > that lock is always shared. So, unless fine graining it implies taking
+>> > the lock exclusively like in this patch (if so, that needs to be
+>> > explicitly documented in the changelog), we would ideally continue to
+>> > share it. That _should_ provide nicer performance numbers when using the
+>> > correct lock.
+>> >
+>>
+>> Andrew mentioned seqlocks, however, I think it is hard the use seqlocks here
+>> after I recheck the codes. No matter use it as a meta global lock or a
+>> table[index] lock. The main reason is the writer will free the handle rather than
+>> just change some value.
+>> If I misunderstand you, please let me know.
+>>
+>> Now, I am in a delimma. For minimizing the memory overhead, I like to use CAS.
+>> However, it is not a standard way.
+>>
+>> Any complaint or suggestions are welcomed.
+>>
+>> Regards,
+>>
+>> >
+>> >
+>>
+>>
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
+> --
+> Kind regards,
+> Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
