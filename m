@@ -1,86 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E78F6B0071
-	for <linux-mm@kvack.org>; Wed,  7 May 2014 17:36:37 -0400 (EDT)
-Received: by mail-pa0-f47.google.com with SMTP id fa1so1694947pad.6
-        for <linux-mm@kvack.org>; Wed, 07 May 2014 14:36:36 -0700 (PDT)
-Received: from mail-pd0-x235.google.com (mail-pd0-x235.google.com [2607:f8b0:400e:c02::235])
-        by mx.google.com with ESMTPS id db3si174561pbc.101.2014.05.07.14.36.36
+Received: from mail-ig0-f178.google.com (mail-ig0-f178.google.com [209.85.213.178])
+	by kanga.kvack.org (Postfix) with ESMTP id C52436B0073
+	for <linux-mm@kvack.org>; Wed,  7 May 2014 17:39:26 -0400 (EDT)
+Received: by mail-ig0-f178.google.com with SMTP id hl10so1697616igb.5
+        for <linux-mm@kvack.org>; Wed, 07 May 2014 14:39:26 -0700 (PDT)
+Received: from mail-ie0-x249.google.com (mail-ie0-x249.google.com [2607:f8b0:4001:c03::249])
+        by mx.google.com with ESMTPS id nx5si14360177icb.206.2014.05.07.14.39.26
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 07 May 2014 14:36:36 -0700 (PDT)
-Received: by mail-pd0-f181.google.com with SMTP id w10so1526189pde.26
-        for <linux-mm@kvack.org>; Wed, 07 May 2014 14:36:36 -0700 (PDT)
-Date: Wed, 7 May 2014 14:36:34 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch] mm, slab: suppress out of memory warning unless debug
- is enabled
-In-Reply-To: <20140507142925.b0e31514d4cd8d5857b10850@linux-foundation.org>
-Message-ID: <alpine.DEB.2.02.1405071431580.8454@chino.kir.corp.google.com>
-References: <alpine.DEB.2.02.1405071418410.8389@chino.kir.corp.google.com> <20140507142925.b0e31514d4cd8d5857b10850@linux-foundation.org>
+        Wed, 07 May 2014 14:39:26 -0700 (PDT)
+Received: by mail-ie0-f201.google.com with SMTP id rd18so358766iec.4
+        for <linux-mm@kvack.org>; Wed, 07 May 2014 14:39:26 -0700 (PDT)
+References: <alpine.DEB.2.02.1404301744110.8415@chino.kir.corp.google.com> <alpine.DEB.2.02.1405011434140.23898@chino.kir.corp.google.com> <alpine.DEB.2.02.1405061920470.18635@chino.kir.corp.google.com> <alpine.DEB.2.02.1405061921040.18635@chino.kir.corp.google.com> <20140507141534.d4def933b3a9999e7826df5c@linux-foundation.org>
+From: Greg Thelen <gthelen@google.com>
+Subject: Re: [patch v3 2/6] mm, compaction: return failed migration target pages back to freelist
+In-reply-to: <20140507141534.d4def933b3a9999e7826df5c@linux-foundation.org>
+Date: Wed, 07 May 2014 14:39:24 -0700
+Message-ID: <xr93ha512rqr.fsf@gthelen.mtv.corp.google.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, 7 May 2014, Andrew Morton wrote:
 
-> > When the slab or slub allocators cannot allocate additional slab pages, they 
-> > emit diagnostic information to the kernel log such as current number of slabs, 
-> > number of objects, active objects, etc.  This is always coupled with a page 
-> > allocation failure warning since it is controlled by !__GFP_NOWARN.
-> > 
-> > Suppress this out of memory warning if the allocator is configured without debug 
-> > supported.  The page allocation failure warning will indicate it is a failed 
-> > slab allocation, so this is only useful to diagnose allocator bugs.
-> > 
-> > Since CONFIG_SLUB_DEBUG is already enabled by default for the slub allocator, 
-> > there is no functional change with this patch.  If debug is disabled, however, 
-> > the warnings are now suppressed.
-> > 
-> 
-> I'm not seeing any reason for making this change.
-> 
+On Wed, May 07 2014, Andrew Morton <akpm@linux-foundation.org> wrote:
 
-You think the spam in http://marc.info/?l=linux-kernel&m=139927773010514 
-is meaningful?  It also looks like two different errors when in reality it 
-is a single allocation.
+> On Tue, 6 May 2014 19:22:43 -0700 (PDT) David Rientjes <rientjes@google.com> wrote:
+>
+>> Memory compaction works by having a "freeing scanner" scan from one end of a 
+>> zone which isolates pages as migration targets while another "migrating scanner" 
+>> scans from the other end of the same zone which isolates pages for migration.
+>> 
+>> When page migration fails for an isolated page, the target page is returned to 
+>> the system rather than the freelist built by the freeing scanner.  This may 
+>> require the freeing scanner to continue scanning memory after suitable migration 
+>> targets have already been returned to the system needlessly.
+>> 
+>> This patch returns destination pages to the freeing scanner freelist when page 
+>> migration fails.  This prevents unnecessary work done by the freeing scanner but 
+>> also encourages memory to be as compacted as possible at the end of the zone.
+>> 
+>> Reported-by: Greg Thelen <gthelen@google.com>
+>
+> What did Greg actually report?  IOW, what if any observable problem is
+> being fixed here?
 
-Unless you're debugging a slab issue, all the pertinent information is 
-already available in the page allocation failure warning emitted by the 
-page allocator: we already have the order and gfp mask.  We also know it's 
-a slab allocation because of the __kmalloc in the call trace.
-
-Does this user care about that there are 207 slabs on node 0 with 207 
-objects?  Probably only if they are diagnosing a slab problem.
-
-> > @@ -1621,11 +1621,17 @@ __initcall(cpucache_init);
-> >  static noinline void
-> >  slab_out_of_memory(struct kmem_cache *cachep, gfp_t gfpflags, int nodeid)
-> >  {
-> > +#if DEBUG
-> >  	struct kmem_cache_node *n;
-> >  	struct page *page;
-> >  	unsigned long flags;
-> >  	int node;
-> >  
-> > +	if (gfpflags & __GFP_NOWARN)
-> > +		return;
-> > +	if (!printk_ratelimit())
-> > +		return;
-> 
-> printk_ratelimit() is lame - it uses a single global state.  So if
-> random net driver is using printk_ratelimit(), that driver and slab
-> will interfere with each other.
-> 
-
-Agreed, but it is a testiment to the uselessness of this information 
-already.  The page allocation failure warnings are controlled by their own 
-ratelimiter, nopage_rs, but that's local to the page allocator.  Do you 
-prefer that all these ratelimiters be moved to the global namespace for 
-generic use?
+I detected the problem at runtime seeing that ext4 metadata pages (esp
+the ones read by "sbi->s_group_desc[i] = sb_bread(sb, block)") were
+constantly visited by compaction calls of migrate_pages().  These pages
+had a non-zero b_count which caused fallback_migrate_page() ->
+try_to_release_page() -> try_to_free_buffers() to fail.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
