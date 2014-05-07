@@ -1,62 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oa0-f41.google.com (mail-oa0-f41.google.com [209.85.219.41])
-	by kanga.kvack.org (Postfix) with ESMTP id D88836B0036
-	for <linux-mm@kvack.org>; Wed,  7 May 2014 13:34:38 -0400 (EDT)
-Received: by mail-oa0-f41.google.com with SMTP id m1so1670737oag.0
-        for <linux-mm@kvack.org>; Wed, 07 May 2014 10:34:38 -0700 (PDT)
-Received: from g4t3426.houston.hp.com (g4t3426.houston.hp.com. [15.201.208.54])
-        by mx.google.com with ESMTPS id ta10si11301285obc.150.2014.05.07.10.34.37
+Received: from mail-ee0-f43.google.com (mail-ee0-f43.google.com [74.125.83.43])
+	by kanga.kvack.org (Postfix) with ESMTP id C76E96B0035
+	for <linux-mm@kvack.org>; Wed,  7 May 2014 13:49:27 -0400 (EDT)
+Received: by mail-ee0-f43.google.com with SMTP id d17so988149eek.2
+        for <linux-mm@kvack.org>; Wed, 07 May 2014 10:49:27 -0700 (PDT)
+Received: from mail-ee0-x230.google.com (mail-ee0-x230.google.com [2a00:1450:4013:c00::230])
+        by mx.google.com with ESMTPS id 43si17015836eei.55.2014.05.07.10.49.25
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 07 May 2014 10:34:38 -0700 (PDT)
-Message-ID: <1399484069.4567.5.camel@buesod1.americas.hpqcorp.net>
-Subject: Re: [RFC] Heterogeneous memory management (mirror process address
- space on a device mmu).
-From: Davidlohr Bueso <davidlohr@hp.com>
-Date: Wed, 07 May 2014 10:34:29 -0700
-In-Reply-To: <20140507130032.GM30445@twins.programming.kicks-ass.net>
-References: <1399038730-25641-1-git-send-email-j.glisse@gmail.com>
-	 <20140506102925.GD11096@twins.programming.kicks-ass.net>
-	 <1399429987.2581.25.camel@buesod1.americas.hpqcorp.net>
-	 <20140507130032.GM30445@twins.programming.kicks-ass.net>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 07 May 2014 10:49:26 -0700 (PDT)
+Received: by mail-ee0-f48.google.com with SMTP id e49so977200eek.7
+        for <linux-mm@kvack.org>; Wed, 07 May 2014 10:49:25 -0700 (PDT)
+Message-ID: <5369C43D.1000206@gmail.com>
+Date: Wed, 07 May 2014 07:27:25 +0200
+From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 0/4] ipc/shm.c: increase the limits for SHMMAX, SHMALL
+References: <1398090397-2397-1-git-send-email-manfred@colorfullife.com>	 <CAKgNAkjuU68hgyMOVGBVoBTOhhGdBytQh6H0ExiLoXfujKyP_w@mail.gmail.com>	 <1399406800.13799.20.camel@buesod1.americas.hpqcorp.net>	 <CAKgNAkjOKP7P9veOpnokNkVXSszVZt5asFsNp7rm7AXJdjcLLA@mail.gmail.com> <1399414081.30629.2.camel@buesod1.americas.hpqcorp.net>
+In-Reply-To: <1399414081.30629.2.camel@buesod1.americas.hpqcorp.net>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: j.glisse@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, "H. Peter
- Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Linda Wang <lwang@redhat.com>, Kevin E Martin <kem@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Jeff Law <law@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Haggai Eran <haggaie@mellanox.com>, Or Gerlitz <ogerlitz@mellanox.com>, Sagi Grimberg <sagig@mellanox.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, "Sander,
- Ben" <ben.sander@amd.com>, "Stoner, Greg" <Greg.Stoner@amd.com>, "Bridgman,
- John" <John.Bridgman@amd.com>, "Mantor, Michael" <Michael.Mantor@amd.com>, "Blinzer, Paul" <Paul.Blinzer@amd.com>, "Morichetti, Laurent" <Laurent.Morichetti@amd.com>, "Deucher, Alexander" <Alexander.Deucher@amd.com>, "Gabbay, Oded" <Oded.Gabbay@amd.com>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Davidlohr Bueso <davidlohr@hp.com>
+Cc: mtk.manpages@gmail.com, Manfred Spraul <manfred@colorfullife.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, aswin@hp.com, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Wed, 2014-05-07 at 15:00 +0200, Peter Zijlstra wrote:
-> On Tue, May 06, 2014 at 07:33:07PM -0700, Davidlohr Bueso wrote:
+On 05/07/2014 12:08 AM, Davidlohr Bueso wrote:
+> On Tue, 2014-05-06 at 22:40 +0200, Michael Kerrisk (man-pages) wrote:
+>> Hi Davidlohr,
+>>
+>> On Tue, May 6, 2014 at 10:06 PM, Davidlohr Bueso <davidlohr@hp.com> wrote:
+>>> On Fri, 2014-05-02 at 15:16 +0200, Michael Kerrisk (man-pages) wrote:
+>>>> Hi Manfred,
+>>>>
+>>>> On Mon, Apr 21, 2014 at 4:26 PM, Manfred Spraul
+>>>> <manfred@colorfullife.com> wrote:
+>>>>> Hi all,
+>>>>>
+>>>>> the increase of SHMMAX/SHMALL is now a 4 patch series.
+>>>>> I don't have ideas how to improve it further.
+>>>>
+>>>> On the assumption that your patches are heading to mainline, could you
+>>>> send me a man-pages patch for the changes?
+>>>
+>>> Btw, I think that the code could still use some love wrt documentation.
+>>
+>> (Agreed.)
+>>
+>>> Andrew, please consider this for -next if folks agree. Thanks.
+>>>
+>>> 8<----------------------------------------------------------
+>>>
+>>> From: Davidlohr Bueso <davidlohr@hp.com>
+>>> Subject: [PATCH] ipc,shm: document new limits in the uapi header
+>>>
+>>> This is useful in the future and allows users to
+>>> better understand the reasoning behind the changes.
+>>>
+>>> Also use UL as we're dealing with it anyways.
+>>>
+>>> Signed-off-by: Davidlohr Bueso <davidlohr@hp.com>
+>>> ---
+>>>  include/uapi/linux/shm.h | 14 ++++++++------
+>>>  1 file changed, 8 insertions(+), 6 deletions(-)
+>>>
+>>> diff --git a/include/uapi/linux/shm.h b/include/uapi/linux/shm.h
+>>> index 74e786d..e37fb08 100644
+>>> --- a/include/uapi/linux/shm.h
+>>> +++ b/include/uapi/linux/shm.h
+>>> @@ -8,17 +8,19 @@
+>>>  #endif
+>>>
+>>>  /*
+>>> - * SHMMAX, SHMMNI and SHMALL are upper limits are defaults which can
+>>
+>> Something is wrong in the line above (missing word(s)?) ("are upper
+>> limits are defaults")
+>>
+>>> - * be modified by sysctl.
+>>> + * SHMMNI, SHMMAX and SHMALL are the default upper limits which can be
+>>> + * modified by sysctl. Both SHMMAX and SHMALL have their default values
+>>> + * to the maximum limit which is as large as it can be without helping
+>>> + * userspace overflow the values. There is really nothing the kernel
+>>> + * can do to avoid this any variables. It is therefore not advised to
+>>
+>> Something is missing in that last line.
+>>
+>>> + * make them any larger. This is suitable for both 32 and 64-bit systems.
+>>
+>> "This" is not so clear. I suggest replacing with an actual noun.
 > 
-> > So I've been running benchmarks (mostly aim7, which nicely exercises our
-> > locks) comparing my recent v4 for rwsem optimistic spinning against
-> > previous implementation ideas for the anon-vma lock, mostly:
-> 
-> > - rwlock_t
-> > - qrwlock_t
-> 
-> Which reminds me; can you provide the numbers for rwlock_t vs qrwlock_t
-> in a numeric form so I can include them in the qrwlock_t changelog.
+> Good point. Perhaps 'These values are ...' would do instead. 
 
-Ah, right. I was lazy and just showed you the graphs.
+That's better.
 
-> That way I can queue those patches for inclusion, I think we want a fair
-> rwlock_t if we can show (and you graphs do iirc) that it doesn't cost us
-> performance.
+Did you miss the first point I raised above?
 
-I agree, fairness is much welcome here. And I agree that despite my good
-numbers, and that we should keep the anon vma lock as a rwsem, its still
-worth merging the qrwlock stuff. I'll cookup my regular numeric table
-today.
+Cheers,
 
-Thanks,
-Davidlohr
+Michael
 
+
+-- 
+Michael Kerrisk
+Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
+Linux/UNIX System Programming Training: http://man7.org/training/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
