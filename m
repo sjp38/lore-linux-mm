@@ -1,70 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E28F6B0068
-	for <linux-mm@kvack.org>; Wed,  7 May 2014 17:29:28 -0400 (EDT)
-Received: by mail-pd0-f182.google.com with SMTP id v10so1515022pde.13
-        for <linux-mm@kvack.org>; Wed, 07 May 2014 14:29:28 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id hs1si2502332pbc.478.2014.05.07.14.29.27
-        for <linux-mm@kvack.org>;
-        Wed, 07 May 2014 14:29:27 -0700 (PDT)
-Date: Wed, 7 May 2014 14:29:25 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch] mm, slab: suppress out of memory warning unless debug
- is enabled
-Message-Id: <20140507142925.b0e31514d4cd8d5857b10850@linux-foundation.org>
-In-Reply-To: <alpine.DEB.2.02.1405071418410.8389@chino.kir.corp.google.com>
-References: <alpine.DEB.2.02.1405071418410.8389@chino.kir.corp.google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 02D626B006E
+	for <linux-mm@kvack.org>; Wed,  7 May 2014 17:30:03 -0400 (EDT)
+Received: by mail-pa0-f50.google.com with SMTP id fb1so1716333pad.9
+        for <linux-mm@kvack.org>; Wed, 07 May 2014 14:30:03 -0700 (PDT)
+Received: from mail-pd0-x234.google.com (mail-pd0-x234.google.com [2607:f8b0:400e:c02::234])
+        by mx.google.com with ESMTPS id rb6si14431734pab.272.2014.05.07.14.30.02
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 07 May 2014 14:30:03 -0700 (PDT)
+Received: by mail-pd0-f180.google.com with SMTP id y10so1557131pdj.11
+        for <linux-mm@kvack.org>; Wed, 07 May 2014 14:30:02 -0700 (PDT)
+Date: Wed, 7 May 2014 14:30:01 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH v2 03/10] slab: move up code to get kmem_cache_node in
+ free_block()
+In-Reply-To: <20140507212224.9085.qmail@ns.horizon.com>
+Message-ID: <alpine.DEB.2.02.1405071429310.8454@chino.kir.corp.google.com>
+References: <20140507212224.9085.qmail@ns.horizon.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: George Spelvin <linux@horizon.com>
+Cc: cl@linux.com, iamjoonsoo.kim@lge.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, 7 May 2014 14:19:19 -0700 (PDT) David Rientjes <rientjes@google.com> wrote:
+On Wed, 7 May 2014, George Spelvin wrote:
 
-> When the slab or slub allocators cannot allocate additional slab pages, they 
-> emit diagnostic information to the kernel log such as current number of slabs, 
-> number of objects, active objects, etc.  This is always coupled with a page 
-> allocation failure warning since it is controlled by !__GFP_NOWARN.
-> 
-> Suppress this out of memory warning if the allocator is configured without debug 
-> supported.  The page allocation failure warning will indicate it is a failed 
-> slab allocation, so this is only useful to diagnose allocator bugs.
-> 
-> Since CONFIG_SLUB_DEBUG is already enabled by default for the slub allocator, 
-> there is no functional change with this patch.  If debug is disabled, however, 
-> the warnings are now suppressed.
-> 
-
-I'm not seeing any reason for making this change.
-
-> @@ -1621,11 +1621,17 @@ __initcall(cpucache_init);
->  static noinline void
->  slab_out_of_memory(struct kmem_cache *cachep, gfp_t gfpflags, int nodeid)
->  {
-> +#if DEBUG
->  	struct kmem_cache_node *n;
->  	struct page *page;
->  	unsigned long flags;
->  	int node;
+> diff --git a/mm/slab.c b/mm/slab.c
+> index 388cb1ae6f..7fdc8df104 100644
+> --- a/mm/slab.c
+> +++ b/mm/slab.c
+> @@ -215,9 +215,9 @@ static inline void set_obj_pfmemalloc(void **objp)
+>  	return;
+>  }
 >  
-> +	if (gfpflags & __GFP_NOWARN)
-> +		return;
-> +	if (!printk_ratelimit())
-> +		return;
+> -static inline void clear_obj_pfmemalloc(void **objp)
+> +static inline void *clear_obj_pfmemalloc(void **objp)
+>  {
+> -	*objp = (void *)((unsigned long)*objp & ~SLAB_OBJ_PFMEMALLOC);
+> +	return *objp = (void *)((unsigned long)*objp & ~SLAB_OBJ_PFMEMALLOC);
+>  }
+>  
+>  /*
+> @@ -809,10 +809,8 @@ static void *__ac_get_obj(struct kmem_cache *cachep, struct array_cache *ac,
+>  	if (unlikely(is_obj_pfmemalloc(objp))) {
+>  		struct kmem_cache_node *n;
+>  
+> -		if (gfp_pfmemalloc_allowed(flags)) {
+> -			clear_obj_pfmemalloc(&objp);
+> -			return objp;
+> -		}
+> +		if (gfp_pfmemalloc_allowed(flags))
+> +			return clear_obj_pfmemalloc(&objp);
+>  
+>  		/* The caller cannot use PFMEMALLOC objects, find another one */
+>  		for (i = 0; i < ac->avail; i++) {
+> @@ -833,9 +831,8 @@ static void *__ac_get_obj(struct kmem_cache *cachep, struct array_cache *ac,
+>  		if (!list_empty(&n->slabs_free) && force_refill) {
+>  			struct page *page = virt_to_head_page(objp);
+>  			ClearPageSlabPfmemalloc(page);
+> -			clear_obj_pfmemalloc(&objp);
+>  			recheck_pfmemalloc_active(cachep, ac);
+> -			return objp;
+> +			return clear_obj_pfmemalloc(&objp);
+>  		}
+>  
+>  		/* No !PFMEMALLOC objects available */
+> @@ -3362,17 +3359,12 @@ static void free_block(struct kmem_cache *cachep, void **objpp, int nr_objects,
+>  		       int node)
+>  {
+>  	int i;
+> -	struct kmem_cache_node *n;
+> +	struct kmem_cache_node *n = cachep->node[node];
+>  
+>  	for (i = 0; i < nr_objects; i++) {
+> -		void *objp;
+> -		struct page *page;
+> -
+> -		clear_obj_pfmemalloc(&objpp[i]);
+> -		objp = objpp[i];
+> +		void *objp = clear_obj_pfmemalloc(&objpp[i]);
+> +		struct page *page = virt_to_head_page(objp);
+>  
+> -		page = virt_to_head_page(objp);
+> -		n = cachep->node[node];
+>  		list_del(&page->lru);
+>  		check_spinlock_acquired_node(cachep, node);
+>  		slab_put_obj(cachep, page, objp, node);
 
-printk_ratelimit() is lame - it uses a single global state.  So if
-random net driver is using printk_ratelimit(), that driver and slab
-will interfere with each other.
-
-We don't appear to presently have a handy macro to do this properly -
-you might care to add one and switch printk_ratelimited() and
-pr_debug_ratelimited() over to using it.  And various sites in
-include/linux/device.h, I guess.
-
+I think this unnecessarily obfuscates the code.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
