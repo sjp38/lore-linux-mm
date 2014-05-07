@@ -1,341 +1,173 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 154026B0035
-	for <linux-mm@kvack.org>; Wed,  7 May 2014 06:36:50 -0400 (EDT)
-Received: by mail-pa0-f45.google.com with SMTP id ey11so1033051pad.4
-        for <linux-mm@kvack.org>; Wed, 07 May 2014 03:36:49 -0700 (PDT)
-Received: from mail-pa0-x22c.google.com (mail-pa0-x22c.google.com [2607:f8b0:400e:c03::22c])
-        by mx.google.com with ESMTPS id ke1si13545639pad.378.2014.05.07.03.36.48
+Received: from mail-lb0-f169.google.com (mail-lb0-f169.google.com [209.85.217.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C5D36B0035
+	for <linux-mm@kvack.org>; Wed,  7 May 2014 06:45:28 -0400 (EDT)
+Received: by mail-lb0-f169.google.com with SMTP id s7so1079300lbd.0
+        for <linux-mm@kvack.org>; Wed, 07 May 2014 03:45:28 -0700 (PDT)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id on7si6666979lbb.53.2014.05.07.03.45.26
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 07 May 2014 03:36:48 -0700 (PDT)
-Received: by mail-pa0-f44.google.com with SMTP id ld10so1049084pab.3
-        for <linux-mm@kvack.org>; Wed, 07 May 2014 03:36:48 -0700 (PDT)
-Date: Wed, 7 May 2014 03:36:46 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch v4 4/6] mm, compaction: embed migration mode in
- compact_control
-In-Reply-To: <536A030D.4070407@suse.cz>
-Message-ID: <alpine.DEB.2.02.1405070336200.16568@chino.kir.corp.google.com>
-References: <alpine.DEB.2.02.1404301744110.8415@chino.kir.corp.google.com> <alpine.DEB.2.02.1405011434140.23898@chino.kir.corp.google.com> <alpine.DEB.2.02.1405061920470.18635@chino.kir.corp.google.com> <alpine.DEB.2.02.1405061921420.18635@chino.kir.corp.google.com>
- <536A030D.4070407@suse.cz>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 07 May 2014 03:45:27 -0700 (PDT)
+Date: Wed, 7 May 2014 14:45:16 +0400
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: Re: [PATCH -mm 1/2] memcg: get rid of memcg_create_cache_name
+Message-ID: <20140507104514.GC4757@esperanza>
+References: <a4aa62026c10fc709e8bf13542b29cf771381394.1399450112.git.vdavydov@parallels.com>
+ <20140507095127.GC9489@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20140507095127.GC9489@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-We're going to want to manipulate the migration mode for compaction in the page 
-allocator, and currently compact_control's sync field is only a bool.  
+On Wed, May 07, 2014 at 11:51:27AM +0200, Michal Hocko wrote:
+> On Wed 07-05-14 12:15:29, Vladimir Davydov wrote:
+> [...]
+> >  static void memcg_kmem_create_cache(struct mem_cgroup *memcg,
+> >  				    struct kmem_cache *root_cache)
+> >  {
+> > +	static char *memcg_name_buf;
+> >  	struct kmem_cache *cachep;
+> >  	int id;
+> 
+> So we are relying on memcg_slab_mutex now, right? Worth a comment I
+> suppose.
 
-Currently, we only do MIGRATE_ASYNC or MIGRATE_SYNC_LIGHT compaction depending 
-on the value of this bool.  Convert the bool to enum migrate_mode and pass the 
-migration mode in directly.  Later, we'll want to avoid MIGRATE_SYNC_LIGHT for 
-thp allocations in the pagefault patch to avoid unnecessary latency.
+Sure. The updated version is attached below.
 
-This also alters compaction triggered from sysfs, either for the entire system 
-or for a node, to force MIGRATE_SYNC.
+Thanks.
+--
 
-Suggested-by: Mel Gorman <mgorman@suse.de>
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- v4 of this patch only: converted name of formal from "sync" to "mode" for
-                        try_to_compact_pages() per Vlastimil
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: [PATCH] memcg: get rid of memcg_create_cache_name
 
- include/linux/compaction.h |  4 ++--
- mm/compaction.c            | 38 ++++++++++++++++++++------------------
- mm/internal.h              |  2 +-
- mm/page_alloc.c            | 37 ++++++++++++++++---------------------
- 4 files changed, 39 insertions(+), 42 deletions(-)
+Instead of calling back to memcontrol.c from kmem_cache_create_memcg in
+order to just create the name of a per memcg cache, let's allocate it in
+place. We only need to pass the memcg name to kmem_cache_create_memcg
+for that - everything else can be done in slab_common.c.
 
-diff --git a/include/linux/compaction.h b/include/linux/compaction.h
---- a/include/linux/compaction.h
-+++ b/include/linux/compaction.h
-@@ -22,7 +22,7 @@ extern int sysctl_extfrag_handler(struct ctl_table *table, int write,
- extern int fragmentation_index(struct zone *zone, unsigned int order);
- extern unsigned long try_to_compact_pages(struct zonelist *zonelist,
- 			int order, gfp_t gfp_mask, nodemask_t *mask,
--			bool sync, bool *contended);
-+			enum migrate_mode mode, bool *contended);
- extern void compact_pgdat(pg_data_t *pgdat, int order);
- extern void reset_isolation_suitable(pg_data_t *pgdat);
- extern unsigned long compaction_suitable(struct zone *zone, int order);
-@@ -91,7 +91,7 @@ static inline bool compaction_restarting(struct zone *zone, int order)
- #else
- static inline unsigned long try_to_compact_pages(struct zonelist *zonelist,
- 			int order, gfp_t gfp_mask, nodemask_t *nodemask,
--			bool sync, bool *contended)
-+			enum migrate_mode mode, bool *contended)
- {
- 	return COMPACT_CONTINUE;
+Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
+
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 6c59056f4bc6..7b639ab48aa8 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -501,8 +501,6 @@ void __memcg_kmem_uncharge_pages(struct page *page, int order);
+ 
+ int memcg_cache_id(struct mem_cgroup *memcg);
+ 
+-char *memcg_create_cache_name(struct mem_cgroup *memcg,
+-			      struct kmem_cache *root_cache);
+ int memcg_alloc_cache_params(struct mem_cgroup *memcg, struct kmem_cache *s,
+ 			     struct kmem_cache *root_cache);
+ void memcg_free_cache_params(struct kmem_cache *s);
+diff --git a/include/linux/slab.h b/include/linux/slab.h
+index ecbec9ccb80d..86e5b26fbdab 100644
+--- a/include/linux/slab.h
++++ b/include/linux/slab.h
+@@ -117,7 +117,8 @@ struct kmem_cache *kmem_cache_create(const char *, size_t, size_t,
+ 			void (*)(void *));
+ #ifdef CONFIG_MEMCG_KMEM
+ struct kmem_cache *kmem_cache_create_memcg(struct mem_cgroup *,
+-					   struct kmem_cache *);
++					   struct kmem_cache *,
++					   const char *);
+ #endif
+ void kmem_cache_destroy(struct kmem_cache *);
+ int kmem_cache_shrink(struct kmem_cache *);
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index f381239ab402..9ff3742f4154 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -3101,29 +3101,6 @@ int memcg_update_cache_size(struct kmem_cache *s, int num_groups)
+ 	return 0;
  }
-diff --git a/mm/compaction.c b/mm/compaction.c
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -161,7 +161,8 @@ static void update_pageblock_skip(struct compact_control *cc,
- 			return;
- 		if (pfn > zone->compact_cached_migrate_pfn[0])
- 			zone->compact_cached_migrate_pfn[0] = pfn;
--		if (cc->sync && pfn > zone->compact_cached_migrate_pfn[1])
-+		if (cc->mode != MIGRATE_ASYNC &&
-+		    pfn > zone->compact_cached_migrate_pfn[1])
- 			zone->compact_cached_migrate_pfn[1] = pfn;
- 	} else {
- 		if (cc->finished_update_free)
-@@ -208,7 +209,7 @@ static bool compact_checklock_irqsave(spinlock_t *lock, unsigned long *flags,
- 		}
  
- 		/* async aborts if taking too long or contended */
--		if (!cc->sync) {
-+		if (cc->mode == MIGRATE_ASYNC) {
- 			cc->contended = true;
- 			return false;
- 		}
-@@ -479,7 +480,8 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
- 	bool locked = false;
- 	struct page *page = NULL, *valid_page = NULL;
- 	bool set_unsuitable = true;
--	const isolate_mode_t mode = (!cc->sync ? ISOLATE_ASYNC_MIGRATE : 0) |
-+	const isolate_mode_t mode = (cc->mode == MIGRATE_ASYNC ?
-+					ISOLATE_ASYNC_MIGRATE : 0) |
- 				    (unevictable ? ISOLATE_UNEVICTABLE : 0);
+-char *memcg_create_cache_name(struct mem_cgroup *memcg,
+-			      struct kmem_cache *root_cache)
+-{
+-	static char *buf;
+-
+-	/*
+-	 * We need a mutex here to protect the shared buffer. Since this is
+-	 * expected to be called only on cache creation, we can employ the
+-	 * slab_mutex for that purpose.
+-	 */
+-	lockdep_assert_held(&slab_mutex);
+-
+-	if (!buf) {
+-		buf = kmalloc(NAME_MAX + 1, GFP_KERNEL);
+-		if (!buf)
+-			return NULL;
+-	}
+-
+-	cgroup_name(memcg->css.cgroup, buf, NAME_MAX + 1);
+-	return kasprintf(GFP_KERNEL, "%s(%d:%s)", root_cache->name,
+-			 memcg_cache_id(memcg), buf);
+-}
+-
+ int memcg_alloc_cache_params(struct mem_cgroup *memcg, struct kmem_cache *s,
+ 			     struct kmem_cache *root_cache)
+ {
+@@ -3164,6 +3141,7 @@ void memcg_free_cache_params(struct kmem_cache *s)
+ static void memcg_kmem_create_cache(struct mem_cgroup *memcg,
+ 				    struct kmem_cache *root_cache)
+ {
++	static char *memcg_name_buf;	/* protected by memcg_slab_mutex */
+ 	struct kmem_cache *cachep;
+ 	int id;
  
+@@ -3179,7 +3157,14 @@ static void memcg_kmem_create_cache(struct mem_cgroup *memcg,
+ 	if (cache_from_memcg_idx(root_cache, id))
+ 		return;
+ 
+-	cachep = kmem_cache_create_memcg(memcg, root_cache);
++	if (!memcg_name_buf) {
++		memcg_name_buf = kmalloc(NAME_MAX + 1, GFP_KERNEL);
++		if (!memcg_name_buf)
++			return;
++	}
++
++	cgroup_name(memcg->css.cgroup, memcg_name_buf, NAME_MAX + 1);
++	cachep = kmem_cache_create_memcg(memcg, root_cache, memcg_name_buf);
  	/*
-@@ -489,7 +491,7 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
- 	 */
- 	while (unlikely(too_many_isolated(zone))) {
- 		/* async migration should just abort */
--		if (!cc->sync)
-+		if (cc->mode == MIGRATE_ASYNC)
- 			return 0;
- 
- 		congestion_wait(BLK_RW_ASYNC, HZ/10);
-@@ -554,7 +556,8 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
- 			 * the minimum amount of work satisfies the allocation
- 			 */
- 			mt = get_pageblock_migratetype(page);
--			if (!cc->sync && !migrate_async_suitable(mt)) {
-+			if (cc->mode == MIGRATE_ASYNC &&
-+			    !migrate_async_suitable(mt)) {
- 				set_unsuitable = false;
- 				goto next_pageblock;
- 			}
-@@ -990,6 +993,7 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
- 	int ret;
- 	unsigned long start_pfn = zone->zone_start_pfn;
- 	unsigned long end_pfn = zone_end_pfn(zone);
-+	const bool sync = cc->mode != MIGRATE_ASYNC;
- 
- 	ret = compaction_suitable(zone, cc->order);
- 	switch (ret) {
-@@ -1015,7 +1019,7 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
- 	 * information on where the scanners should start but check that it
- 	 * is initialised by ensuring the values are within zone boundaries.
- 	 */
--	cc->migrate_pfn = zone->compact_cached_migrate_pfn[cc->sync];
-+	cc->migrate_pfn = zone->compact_cached_migrate_pfn[sync];
- 	cc->free_pfn = zone->compact_cached_free_pfn;
- 	if (cc->free_pfn < start_pfn || cc->free_pfn > end_pfn) {
- 		cc->free_pfn = end_pfn & ~(pageblock_nr_pages-1);
-@@ -1049,8 +1053,7 @@ static int compact_zone(struct zone *zone, struct compact_control *cc)
- 
- 		nr_migrate = cc->nr_migratepages;
- 		err = migrate_pages(&cc->migratepages, compaction_alloc,
--				compaction_free, (unsigned long)cc,
--				cc->sync ? MIGRATE_SYNC_LIGHT : MIGRATE_ASYNC,
-+				compaction_free, (unsigned long)cc, cc->mode,
- 				MR_COMPACTION);
- 		update_nr_listpages(cc);
- 		nr_remaining = cc->nr_migratepages;
-@@ -1083,9 +1086,8 @@ out:
- 	return ret;
- }
- 
--static unsigned long compact_zone_order(struct zone *zone,
--				 int order, gfp_t gfp_mask,
--				 bool sync, bool *contended)
-+static unsigned long compact_zone_order(struct zone *zone, int order,
-+		gfp_t gfp_mask, enum migrate_mode mode, bool *contended)
- {
- 	unsigned long ret;
- 	struct compact_control cc = {
-@@ -1094,7 +1096,7 @@ static unsigned long compact_zone_order(struct zone *zone,
- 		.order = order,
- 		.migratetype = allocflags_to_migratetype(gfp_mask),
- 		.zone = zone,
--		.sync = sync,
-+		.mode = mode,
- 	};
- 	INIT_LIST_HEAD(&cc.freepages);
- 	INIT_LIST_HEAD(&cc.migratepages);
-@@ -1116,7 +1118,7 @@ int sysctl_extfrag_threshold = 500;
-  * @order: The order of the current allocation
-  * @gfp_mask: The GFP mask of the current allocation
-  * @nodemask: The allowed nodes to allocate from
-- * @sync: Whether migration is synchronous or not
-+ * @mode: The migration mode for async, sync light, or sync migration
-  * @contended: Return value that is true if compaction was aborted due to lock contention
-  * @page: Optionally capture a free page of the requested order during compaction
+ 	 * If we could not create a memcg cache, do not complain, because
+ 	 * that's not critical at all as we can always proceed with the root
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index 7e348cff814d..32175617cb75 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -264,13 +264,15 @@ EXPORT_SYMBOL(kmem_cache_create);
+  * kmem_cache_create_memcg - Create a cache for a memory cgroup.
+  * @memcg: The memory cgroup the new cache is for.
+  * @root_cache: The parent of the new cache.
++ * @memcg_name: The name of the memory cgroup (used for naming the new cache).
   *
-@@ -1124,7 +1126,7 @@ int sysctl_extfrag_threshold = 500;
+  * This function attempts to create a kmem cache that will serve allocation
+  * requests going from @memcg to @root_cache. The new cache inherits properties
+  * from its parent.
   */
- unsigned long try_to_compact_pages(struct zonelist *zonelist,
- 			int order, gfp_t gfp_mask, nodemask_t *nodemask,
--			bool sync, bool *contended)
-+			enum migrate_mode mode, bool *contended)
+ struct kmem_cache *kmem_cache_create_memcg(struct mem_cgroup *memcg,
+-					   struct kmem_cache *root_cache)
++					   struct kmem_cache *root_cache,
++					   const char *memcg_name)
  {
- 	enum zone_type high_zoneidx = gfp_zone(gfp_mask);
- 	int may_enter_fs = gfp_mask & __GFP_FS;
-@@ -1149,7 +1151,7 @@ unsigned long try_to_compact_pages(struct zonelist *zonelist,
- 								nodemask) {
- 		int status;
+ 	struct kmem_cache *s = NULL;
+ 	char *cache_name;
+@@ -280,7 +282,8 @@ struct kmem_cache *kmem_cache_create_memcg(struct mem_cgroup *memcg,
  
--		status = compact_zone_order(zone, order, gfp_mask, sync,
-+		status = compact_zone_order(zone, order, gfp_mask, mode,
- 						contended);
- 		rc = max(status, rc);
+ 	mutex_lock(&slab_mutex);
  
-@@ -1189,7 +1191,7 @@ static void __compact_pgdat(pg_data_t *pgdat, struct compact_control *cc)
- 						low_wmark_pages(zone), 0, 0))
- 				compaction_defer_reset(zone, cc->order, false);
- 			/* Currently async compaction is never deferred. */
--			else if (cc->sync)
-+			else if (cc->mode != MIGRATE_ASYNC)
- 				defer_compaction(zone, cc->order);
- 		}
+-	cache_name = memcg_create_cache_name(memcg, root_cache);
++	cache_name = kasprintf(GFP_KERNEL, "%s(%d:%s)", root_cache->name,
++			       memcg_cache_id(memcg), memcg_name);
+ 	if (!cache_name)
+ 		goto out_unlock;
  
-@@ -1202,7 +1204,7 @@ void compact_pgdat(pg_data_t *pgdat, int order)
- {
- 	struct compact_control cc = {
- 		.order = order,
--		.sync = false,
-+		.mode = MIGRATE_ASYNC,
- 	};
- 
- 	if (!order)
-@@ -1215,7 +1217,7 @@ static void compact_node(int nid)
- {
- 	struct compact_control cc = {
- 		.order = -1,
--		.sync = true,
-+		.mode = MIGRATE_SYNC,
- 		.ignore_skip_hint = true,
- 	};
- 
-diff --git a/mm/internal.h b/mm/internal.h
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -134,7 +134,7 @@ struct compact_control {
- 	unsigned long nr_migratepages;	/* Number of pages to migrate */
- 	unsigned long free_pfn;		/* isolate_freepages search base */
- 	unsigned long migrate_pfn;	/* isolate_migratepages search base */
--	bool sync;			/* Synchronous migration */
-+	enum migrate_mode mode;		/* Async or sync migration mode */
- 	bool ignore_skip_hint;		/* Scan blocks even if marked skip */
- 	bool finished_update_free;	/* True when the zone cached pfns are
- 					 * no longer being updated
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2226,7 +2226,7 @@ static struct page *
- __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
- 	struct zonelist *zonelist, enum zone_type high_zoneidx,
- 	nodemask_t *nodemask, int alloc_flags, struct zone *preferred_zone,
--	int migratetype, bool sync_migration,
-+	int migratetype, enum migrate_mode mode,
- 	bool *contended_compaction, bool *deferred_compaction,
- 	unsigned long *did_some_progress)
- {
-@@ -2240,7 +2240,7 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
- 
- 	current->flags |= PF_MEMALLOC;
- 	*did_some_progress = try_to_compact_pages(zonelist, order, gfp_mask,
--						nodemask, sync_migration,
-+						nodemask, mode,
- 						contended_compaction);
- 	current->flags &= ~PF_MEMALLOC;
- 
-@@ -2273,7 +2273,7 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
- 		 * As async compaction considers a subset of pageblocks, only
- 		 * defer if the failure was a sync compaction failure.
- 		 */
--		if (sync_migration)
-+		if (mode != MIGRATE_ASYNC)
- 			defer_compaction(preferred_zone, order);
- 
- 		cond_resched();
-@@ -2286,9 +2286,8 @@ static inline struct page *
- __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
- 	struct zonelist *zonelist, enum zone_type high_zoneidx,
- 	nodemask_t *nodemask, int alloc_flags, struct zone *preferred_zone,
--	int migratetype, bool sync_migration,
--	bool *contended_compaction, bool *deferred_compaction,
--	unsigned long *did_some_progress)
-+	int migratetype, enum migrate_mode mode, bool *contended_compaction,
-+	bool *deferred_compaction, unsigned long *did_some_progress)
- {
- 	return NULL;
- }
-@@ -2483,7 +2482,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 	int alloc_flags;
- 	unsigned long pages_reclaimed = 0;
- 	unsigned long did_some_progress;
--	bool sync_migration = false;
-+	enum migrate_mode migration_mode = MIGRATE_ASYNC;
- 	bool deferred_compaction = false;
- 	bool contended_compaction = false;
- 
-@@ -2577,17 +2576,15 @@ rebalance:
- 	 * Try direct compaction. The first pass is asynchronous. Subsequent
- 	 * attempts after direct reclaim are synchronous
- 	 */
--	page = __alloc_pages_direct_compact(gfp_mask, order,
--					zonelist, high_zoneidx,
--					nodemask,
--					alloc_flags, preferred_zone,
--					migratetype, sync_migration,
--					&contended_compaction,
-+	page = __alloc_pages_direct_compact(gfp_mask, order, zonelist,
-+					high_zoneidx, nodemask, alloc_flags,
-+					preferred_zone, migratetype,
-+					migration_mode, &contended_compaction,
- 					&deferred_compaction,
- 					&did_some_progress);
- 	if (page)
- 		goto got_pg;
--	sync_migration = true;
-+	migration_mode = MIGRATE_SYNC_LIGHT;
- 
- 	/*
- 	 * If compaction is deferred for high-order allocations, it is because
-@@ -2662,12 +2659,10 @@ rebalance:
- 		 * direct reclaim and reclaim/compaction depends on compaction
- 		 * being called after reclaim so call directly if necessary
- 		 */
--		page = __alloc_pages_direct_compact(gfp_mask, order,
--					zonelist, high_zoneidx,
--					nodemask,
--					alloc_flags, preferred_zone,
--					migratetype, sync_migration,
--					&contended_compaction,
-+		page = __alloc_pages_direct_compact(gfp_mask, order, zonelist,
-+					high_zoneidx, nodemask, alloc_flags,
-+					preferred_zone, migratetype,
-+					migration_mode, &contended_compaction,
- 					&deferred_compaction,
- 					&did_some_progress);
- 		if (page)
-@@ -6254,7 +6249,7 @@ int alloc_contig_range(unsigned long start, unsigned long end,
- 		.nr_migratepages = 0,
- 		.order = -1,
- 		.zone = page_zone(pfn_to_page(start)),
--		.sync = true,
-+		.sync = MIGRATE_SYNC_LIGHT,
- 		.ignore_skip_hint = true,
- 	};
- 	INIT_LIST_HEAD(&cc.migratepages);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
