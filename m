@@ -1,74 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 7646F6B005C
-	for <linux-mm@kvack.org>; Wed,  7 May 2014 17:28:42 -0400 (EDT)
-Received: by mail-pd0-f177.google.com with SMTP id p10so1507247pdj.22
-        for <linux-mm@kvack.org>; Wed, 07 May 2014 14:28:42 -0700 (PDT)
-Received: from mail-pa0-x22a.google.com (mail-pa0-x22a.google.com [2607:f8b0:400e:c03::22a])
-        by mx.google.com with ESMTPS id ci3si14458130pad.4.2014.05.07.14.28.41
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 07 May 2014 14:28:41 -0700 (PDT)
-Received: by mail-pa0-f42.google.com with SMTP id rd3so1712081pab.29
-        for <linux-mm@kvack.org>; Wed, 07 May 2014 14:28:41 -0700 (PDT)
-Date: Wed, 7 May 2014 14:28:39 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch v3 6/6] mm, compaction: terminate async compaction when
- rescheduling
-In-Reply-To: <20140507142033.1ec148fe35059121db547f25@linux-foundation.org>
-Message-ID: <alpine.DEB.2.02.1405071421580.8454@chino.kir.corp.google.com>
-References: <alpine.DEB.2.02.1404301744110.8415@chino.kir.corp.google.com> <alpine.DEB.2.02.1405011434140.23898@chino.kir.corp.google.com> <alpine.DEB.2.02.1405061920470.18635@chino.kir.corp.google.com> <alpine.DEB.2.02.1405061922220.18635@chino.kir.corp.google.com>
- <20140507142033.1ec148fe35059121db547f25@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E28F6B0068
+	for <linux-mm@kvack.org>; Wed,  7 May 2014 17:29:28 -0400 (EDT)
+Received: by mail-pd0-f182.google.com with SMTP id v10so1515022pde.13
+        for <linux-mm@kvack.org>; Wed, 07 May 2014 14:29:28 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id hs1si2502332pbc.478.2014.05.07.14.29.27
+        for <linux-mm@kvack.org>;
+        Wed, 07 May 2014 14:29:27 -0700 (PDT)
+Date: Wed, 7 May 2014 14:29:25 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [patch] mm, slab: suppress out of memory warning unless debug
+ is enabled
+Message-Id: <20140507142925.b0e31514d4cd8d5857b10850@linux-foundation.org>
+In-Reply-To: <alpine.DEB.2.02.1405071418410.8389@chino.kir.corp.google.com>
+References: <alpine.DEB.2.02.1405071418410.8389@chino.kir.corp.google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, 7 May 2014, Andrew Morton wrote:
+On Wed, 7 May 2014 14:19:19 -0700 (PDT) David Rientjes <rientjes@google.com> wrote:
 
-> > --- a/mm/compaction.c
-> > +++ b/mm/compaction.c
-> > @@ -500,8 +500,13 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
-> >  			return 0;
-> >  	}
-> >  
-> > +	if (cond_resched()) {
-> > +		/* Async terminates prematurely on need_resched() */
-> > +		if (cc->mode == MIGRATE_ASYNC)
-> > +			return 0;
-> > +	}
+> When the slab or slub allocators cannot allocate additional slab pages, they 
+> emit diagnostic information to the kernel log such as current number of slabs, 
+> number of objects, active objects, etc.  This is always coupled with a page 
+> allocation failure warning since it is controlled by !__GFP_NOWARN.
 > 
-> Comment comments the obvious.  What is less obvious is *why* we do this.
+> Suppress this out of memory warning if the allocator is configured without debug 
+> supported.  The page allocation failure warning will indicate it is a failed 
+> slab allocation, so this is only useful to diagnose allocator bugs.
 > 
-
-Async compaction is most prevalent for thp pagefaults and without 
-zone->lru_lock contention we have no other termination criteria.  Without 
-this, we would scan a potentially very long zone (zones 64GB in length in 
-my testing) and it would be very expensive for pagefault.  Async is best 
-effort, so if it is becoming too expensive then it's better to just 
-fallback to PAGE_SIZE pages instead and rely on khugepaged to collapse 
-later.
-
-> Someone please remind my why sync and async compaction use different
-> scanning cursors?
+> Since CONFIG_SLUB_DEBUG is already enabled by default for the slub allocator, 
+> there is no functional change with this patch.  If debug is disabled, however, 
+> the warnings are now suppressed.
 > 
 
-It's introduced in this patchset.  Async compaction does not consider 
-pageblocks unless it is MIGRATE_MOVABLE since it is best effort, sync 
-compaction considers all pageblocks.  In the past, we only updated the 
-cursor for sync compaction since it would be wrong to update it for async 
-compaction if it can skip certain pageblocks.  Unfortunately, if async 
-compaction is relied upon solely for certain allocations (such as thp 
-pagefaults), it is possible to scan an enormous amount of a 64GB zone, for 
-example, pointlessly every time if none of the memory can be isolated.
+I'm not seeing any reason for making this change.
 
-The result is that sync compaction always updates both scanners and async 
-compaction only updates its own scanner.  Either scanner is only updated 
-if the new cursor is "beyond" the previous cursor.  ("Beyond" is _after_ 
-the previous migration scanner pfn and _before_ the previous free scanner 
-pfn.)
+> @@ -1621,11 +1621,17 @@ __initcall(cpucache_init);
+>  static noinline void
+>  slab_out_of_memory(struct kmem_cache *cachep, gfp_t gfpflags, int nodeid)
+>  {
+> +#if DEBUG
+>  	struct kmem_cache_node *n;
+>  	struct page *page;
+>  	unsigned long flags;
+>  	int node;
+>  
+> +	if (gfpflags & __GFP_NOWARN)
+> +		return;
+> +	if (!printk_ratelimit())
+> +		return;
+
+printk_ratelimit() is lame - it uses a single global state.  So if
+random net driver is using printk_ratelimit(), that driver and slab
+will interfere with each other.
+
+We don't appear to presently have a handy macro to do this properly -
+you might care to add one and switch printk_ratelimited() and
+pr_debug_ratelimited() over to using it.  And various sites in
+include/linux/device.h, I guess.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
