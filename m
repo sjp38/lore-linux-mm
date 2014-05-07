@@ -1,75 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
-	by kanga.kvack.org (Postfix) with ESMTP id EBF226B0035
-	for <linux-mm@kvack.org>; Wed,  7 May 2014 09:00:42 -0400 (EDT)
-Received: by mail-wi0-f176.google.com with SMTP id n15so6299160wiw.9
-        for <linux-mm@kvack.org>; Wed, 07 May 2014 06:00:42 -0700 (PDT)
-Received: from casper.infradead.org (casper.infradead.org. [2001:770:15f::2])
-        by mx.google.com with ESMTPS id gd15si5714886wic.121.2014.05.07.06.00.41
+Received: from mail-ee0-f43.google.com (mail-ee0-f43.google.com [74.125.83.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 1CE3A6B0035
+	for <linux-mm@kvack.org>; Wed,  7 May 2014 09:29:20 -0400 (EDT)
+Received: by mail-ee0-f43.google.com with SMTP id d17so754469eek.30
+        for <linux-mm@kvack.org>; Wed, 07 May 2014 06:29:19 -0700 (PDT)
+Received: from cam-smtp0.cambridge.arm.com (fw-tnat.cambridge.arm.com. [217.140.96.21])
+        by mx.google.com with ESMTPS id l44si8492460eem.283.2014.05.07.06.29.18
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 07 May 2014 06:00:41 -0700 (PDT)
-Date: Wed, 7 May 2014 15:00:32 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [RFC] Heterogeneous memory management (mirror process address
- space on a device mmu).
-Message-ID: <20140507130032.GM30445@twins.programming.kicks-ass.net>
-References: <1399038730-25641-1-git-send-email-j.glisse@gmail.com>
- <20140506102925.GD11096@twins.programming.kicks-ass.net>
- <1399429987.2581.25.camel@buesod1.americas.hpqcorp.net>
-MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="dFWYt1i2NyOo1oI9"
-Content-Disposition: inline
-In-Reply-To: <1399429987.2581.25.camel@buesod1.americas.hpqcorp.net>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 07 May 2014 06:29:18 -0700 (PDT)
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: [PATCH] mm: Postpone the disabling of kmemleak early logging
+Date: Wed,  7 May 2014 14:28:35 +0100
+Message-Id: <1399469315-29239-1-git-send-email-catalin.marinas@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <davidlohr@hp.com>
-Cc: j.glisse@gmail.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Linda Wang <lwang@redhat.com>, Kevin E Martin <kem@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Jeff Law <law@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Haggai Eran <haggaie@mellanox.com>, Or Gerlitz <ogerlitz@mellanox.com>, Sagi Grimberg <sagig@mellanox.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, "Sander, Ben" <ben.sander@amd.com>, "Stoner, Greg" <Greg.Stoner@amd.com>, "Bridgman, John" <John.Bridgman@amd.com>, "Mantor, Michael" <Michael.Mantor@amd.com>, "Blinzer, Paul" <Paul.Blinzer@amd.com>, "Morichetti, Laurent" <Laurent.Morichetti@amd.com>, "Deucher, Alexander" <Alexander.Deucher@amd.com>, "Gabbay, Oded" <Oded.Gabbay@amd.com>, Linus Torvalds <torvalds@linux-foundation.org>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, Li Zefan <lizefan@huawei.com>
 
+Commit 8910ae896c8c (kmemleak: change some global variables to int), in
+addition to the atomic -> int conversion, moved the kmemleak_early_log
+disabling at the beginning of the kmemleak_init() function, before the
+full kmemleak tracing is actually enabled. In this small window,
+kmem_cache_create() is called by kmemleak which triggers additional
+memory allocation that are not traced. This patch restores the original
+logic with kmemleak_early_log disabling when kmemleak is fully
+functional.
 
---dFWYt1i2NyOo1oI9
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Fixes: 8910ae896c8c (kmemleak: change some global variables to int)
+Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Sasha Levin <sasha.levin@oracle.com>
+Cc: Li Zefan <lizefan@huawei.com>
+---
+ mm/kmemleak.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-On Tue, May 06, 2014 at 07:33:07PM -0700, Davidlohr Bueso wrote:
-
-> So I've been running benchmarks (mostly aim7, which nicely exercises our
-> locks) comparing my recent v4 for rwsem optimistic spinning against
-> previous implementation ideas for the anon-vma lock, mostly:
-
-> - rwlock_t
-> - qrwlock_t
-
-Which reminds me; can you provide the numbers for rwlock_t vs qrwlock_t
-in a numeric form so I can include them in the qrwlock_t changelog.
-
-That way I can queue those patches for inclusion, I think we want a fair
-rwlock_t if we can show (and you graphs do iirc) that it doesn't cost us
-performance.
-
---dFWYt1i2NyOo1oI9
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.12 (GNU/Linux)
-
-iQIcBAEBAgAGBQJTai5vAAoJEHZH4aRLwOS6YYUP/RtUsgGqFomp72pmfY168EHN
-qMrtaqJo+4IyBSOkXoZJAF3m+7zAUo3tvkE0KzMf21LMCYHqcHvUlKxR9DZPmv9T
-28JNn7aZ1tbYYRb6NqsfNrdfX/0pfb4exLaf4v2mr8dFsRUyntnr6WxMzfFR/uSm
-kwuGTVfTmxvDHZxafDIbq4C9p8uEApK8CvP1zYRATyDeziKnxaVhgUcj2Sob2ez4
-kwLqUyJgwlqF7sMEprgftceMqGu9PEuvNhJtBFI2x8c4ns7yY5QAj+WAbfjoiB7i
-guRnS+PoPN6jNg9QZO9aDq478OlukcZ1GYLi05EG8n2SVjEv4U558ZNwUiBZ7wQy
-g52QT1tBGUNj8pQVbi+xtu+A7opXrfrTeokSHQDStyf1kCUzbkImeqjFsu7McJsW
-dx/bnouiVWXgNFtyGqAnOUFeKJvC6k+E7rgBNIReN172tnTQCjONMGet8VKJ6HEj
-4HFwJ3zxhwr34CXg1YBZALIAC7wshFMxIYFedNKlRJEjiK5X5og/0VEfFA3Ud3OB
-vqfWX71wnSwZ5VLs+qxN+sTLkxIqOwhlhQCZBShQZmQmIL1RDrjNQ8lgGwsfQnEt
-opJUcXqV54Tzs5MHTdJOnbcpuN2XV/sUWbQdxfnwT+XZX1P+V0ya4gfXAbaznbxQ
-Wz8aDpj+naso6pc6b3aA
-=wd3z
------END PGP SIGNATURE-----
-
---dFWYt1i2NyOo1oI9--
+diff --git a/mm/kmemleak.c b/mm/kmemleak.c
+index 61a64ed2fbef..33599ba0cd8d 100644
+--- a/mm/kmemleak.c
++++ b/mm/kmemleak.c
+@@ -1809,10 +1809,9 @@ void __init kmemleak_init(void)
+ 	int i;
+ 	unsigned long flags;
+ 
+-	kmemleak_early_log = 0;
+-
+ #ifdef CONFIG_DEBUG_KMEMLEAK_DEFAULT_OFF
+ 	if (!kmemleak_skip_disable) {
++		kmemleak_early_log = 0;
+ 		kmemleak_disable();
+ 		return;
+ 	}
+@@ -1830,6 +1829,7 @@ void __init kmemleak_init(void)
+ 
+ 	/* the kernel is still in UP mode, so disabling the IRQs is enough */
+ 	local_irq_save(flags);
++	kmemleak_early_log = 0;
+ 	if (kmemleak_error) {
+ 		local_irq_restore(flags);
+ 		return;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
