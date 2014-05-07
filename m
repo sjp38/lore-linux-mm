@@ -1,19 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f177.google.com (mail-qc0-f177.google.com [209.85.216.177])
-	by kanga.kvack.org (Postfix) with ESMTP id DF57D6B0037
-	for <linux-mm@kvack.org>; Wed,  7 May 2014 10:21:44 -0400 (EDT)
-Received: by mail-qc0-f177.google.com with SMTP id i17so1107199qcy.8
-        for <linux-mm@kvack.org>; Wed, 07 May 2014 07:21:44 -0700 (PDT)
-Received: from qmta14.emeryville.ca.mail.comcast.net (qmta14.emeryville.ca.mail.comcast.net. [2001:558:fe2d:44:76:96:27:212])
-        by mx.google.com with ESMTP id t9si7833466qct.17.2014.05.07.07.21.42
+Received: from mail-qg0-f50.google.com (mail-qg0-f50.google.com [209.85.192.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 39FAA6B0038
+	for <linux-mm@kvack.org>; Wed,  7 May 2014 10:22:34 -0400 (EDT)
+Received: by mail-qg0-f50.google.com with SMTP id z60so1133529qgd.9
+        for <linux-mm@kvack.org>; Wed, 07 May 2014 07:22:33 -0700 (PDT)
+Received: from qmta12.emeryville.ca.mail.comcast.net (qmta12.emeryville.ca.mail.comcast.net. [2001:558:fe2d:44:76:96:27:227])
+        by mx.google.com with ESMTP id m17si6814485qgd.119.2014.05.07.07.22.33
         for <linux-mm@kvack.org>;
-        Wed, 07 May 2014 07:21:43 -0700 (PDT)
-Date: Wed, 7 May 2014 09:21:40 -0500 (CDT)
+        Wed, 07 May 2014 07:22:33 -0700 (PDT)
+Date: Wed, 7 May 2014 09:22:31 -0500 (CDT)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH v2 01/10] slab: add unlikely macro to help compiler
-In-Reply-To: <1399442780-28748-2-git-send-email-iamjoonsoo.kim@lge.com>
-Message-ID: <alpine.DEB.2.10.1405070921280.12543@gentwo.org>
-References: <1399442780-28748-1-git-send-email-iamjoonsoo.kim@lge.com> <1399442780-28748-2-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH v2 02/10] slab: makes clear_obj_pfmemalloc() just return
+ masked value
+In-Reply-To: <1399442780-28748-3-git-send-email-iamjoonsoo.kim@lge.com>
+Message-ID: <alpine.DEB.2.10.1405070922150.12543@gentwo.org>
+References: <1399442780-28748-1-git-send-email-iamjoonsoo.kim@lge.com> <1399442780-28748-3-git-send-email-iamjoonsoo.kim@lge.com>
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
@@ -22,10 +23,10 @@ Cc: Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
 On Wed, 7 May 2014, Joonsoo Kim wrote:
 
-> slab_should_failslab() is called on every allocation, so to optimize it
-> is reasonable. We normally don't allocate from kmem_cache. It is just
-> used when new kmem_cache is created, so it's very rare case. Therefore,
-> add unlikely macro to help compiler optimization.
+> clear_obj_pfmemalloc() takes the pointer to pointer to store masked value
+> back into this address. But this is useless, since we don't use this stored
+> value anymore. All we need is just masked value so makes clear_obj_pfmemalloc()
+> just return masked value.
 
 Acked-by: Christoph Lameter <cl@linux.com>
 
