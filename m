@@ -1,129 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 141186B0096
-	for <linux-mm@kvack.org>; Wed,  7 May 2014 18:00:28 -0400 (EDT)
-Received: by mail-pa0-f43.google.com with SMTP id hz1so1710489pad.16
-        for <linux-mm@kvack.org>; Wed, 07 May 2014 15:00:27 -0700 (PDT)
-Received: from mail-pa0-x22a.google.com (mail-pa0-x22a.google.com [2607:f8b0:400e:c03::22a])
-        by mx.google.com with ESMTPS id ef1si2536667pbc.429.2014.05.07.15.00.26
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 07 May 2014 15:00:27 -0700 (PDT)
-Received: by mail-pa0-f42.google.com with SMTP id rd3so1738072pab.1
-        for <linux-mm@kvack.org>; Wed, 07 May 2014 15:00:26 -0700 (PDT)
-Date: Wed, 7 May 2014 15:00:25 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch v2] mm, slab: suppress out of memory warning unless debug is
- enabled
-In-Reply-To: <20140507144858.9aee4e420908ccf9334dfdf2@linux-foundation.org>
-Message-ID: <alpine.DEB.2.02.1405071500030.25024@chino.kir.corp.google.com>
-References: <alpine.DEB.2.02.1405071418410.8389@chino.kir.corp.google.com> <20140507142925.b0e31514d4cd8d5857b10850@linux-foundation.org> <alpine.DEB.2.02.1405071431580.8454@chino.kir.corp.google.com>
- <20140507144858.9aee4e420908ccf9334dfdf2@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 0BD5F6B0099
+	for <linux-mm@kvack.org>; Wed,  7 May 2014 18:02:54 -0400 (EDT)
+Received: by mail-pd0-f179.google.com with SMTP id g10so1546481pdj.24
+        for <linux-mm@kvack.org>; Wed, 07 May 2014 15:02:54 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id xf3si14482259pab.56.2014.05.07.15.02.53
+        for <linux-mm@kvack.org>;
+        Wed, 07 May 2014 15:02:54 -0700 (PDT)
+Date: Wed, 7 May 2014 15:02:52 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: mm: gpf in global_dirty_limits
+Message-Id: <20140507150252.243bb40c69b973f534d29e25@linux-foundation.org>
+In-Reply-To: <536A6670.5070107@oracle.com>
+References: <536A6670.5070107@oracle.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>
-Cc: Christoph Lameter <cl@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.cz>, LKML <linux-kernel@vger.kernel.org>, Dave Jones <davej@redhat.com>
 
-When the slab or slub allocators cannot allocate additional slab pages, they 
-emit diagnostic information to the kernel log such as current number of slabs, 
-number of objects, active objects, etc.  This is always coupled with a page 
-allocation failure warning since it is controlled by !__GFP_NOWARN.
+On Wed, 07 May 2014 12:59:28 -0400 Sasha Levin <sasha.levin@oracle.com> wrote:
 
-Suppress this out of memory warning if the allocator is configured without debug 
-supported.  The page allocation failure warning will indicate it is a failed 
-slab allocation, the order, and the gfp mask, so this is only useful to diagnose 
-allocator issues.
+> Hi all,
+> 
+> While fuzzing with trinity inside a KVM tools guest running the latest -next
+> kernel I've stumbled on the following spew:
+> 
+> [ 1139.410483] general protection fault: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
+> [ 1139.413202] Dumping ftrace buffer:
+> [ 1139.414152]    (ftrace buffer empty)
+> [ 1139.415069] Modules linked in:
+> [ 1139.415846] CPU: 10 PID: 39777 Comm: kworker/u115:2 Tainted: G        W     3.15.0-rc4-next-20140506-sasha-00021-gc164334-dirty #447
+> [ 1139.418931] Workqueue: writeback bdi_writeback_workfn (flush-7:10)
+> [ 1139.420320] task: ffff880285848000 ti: ffff880282dbc000 task.ti: ffff880282dbc000
+> [ 1139.420320] RIP: global_dirty_limits (include/trace/events/writeback.h:308 mm/page-writeback.c:309)
+> [ 1139.420320] RSP: 0018:ffff880282dbdc28  EFLAGS: 00010282
+> [ 1139.420320] RAX: 6b6b6b6b6b6b6b6b RBX: 0000000000088034 RCX: 0000000000000001
+> [ 1139.420320] RDX: 0000000000110068 RSI: 0000000000088034 RDI: 6b6b6b6b6b6b6b6b
+> [ 1139.420320] RBP: ffff880282dbdc48 R08: 00000000000abad6 R09: ffff880285848cf0
+> [ 1139.420320] R10: 0000000000000001 R11: 0000000000000000 R12: 0000000000110068
+> [ 1139.420320] R13: ffff8805bc5932a8 R14: ffff880282dbdc60 R15: 0000000000001cc0
+> [ 1139.420320] FS:  0000000000000000(0000) GS:ffff880292c00000(0000) knlGS:0000000000000000
+> [ 1139.420320] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+> [ 1139.420320] CR2: 0000000000000001 CR3: 0000000025e2d000 CR4: 00000000000006a0
+> [ 1139.438692] Stack:
+> [ 1139.438692]  ffff8804e3ed0278 ffff8804e3ed0570 0000000000000000 ffff8804e3ed06c8
+> [ 1139.438692]  ffff880282dbdc78 ffffffffa1342180 0000000000088034 0000000000110068
+> [ 1139.438692]  0000000000000000 ffff8804e3ed0570 ffff880282dbdd38 ffffffffa1346f3a
+> [ 1139.438692] Call Trace:
+> [ 1139.438692] over_bground_thresh (arch/x86/include/asm/atomic64_64.h:21 include/asm-generic/atomic-long.h:31 include/linux/vmstat.h:122 fs/fs-writeback.c:772)
+> [ 1139.438692] bdi_writeback_workfn (fs/fs-writeback.c:934 fs/fs-writeback.c:1014 fs/fs-writeback.c:1043)
+> [ 1139.438692] process_one_work (kernel/workqueue.c:2227 include/linux/jump_label.h:105 include/trace/events/workqueue.h:111 kernel/workqueue.c:2232)
+> [ 1139.438692] ? process_one_work (include/linux/workqueue.h:186 kernel/workqueue.c:611 kernel/workqueue.c:638 kernel/workqueue.c:2220)
+> [ 1139.438692] worker_thread (kernel/workqueue.c:2354)
+> [ 1139.438692] ? rescuer_thread (kernel/workqueue.c:2303)
+> [ 1139.438692] kthread (kernel/kthread.c:210)
+> [ 1139.438692] ? kthread_create_on_node (kernel/kthread.c:176)
+> [ 1139.438692] ret_from_fork (arch/x86/kernel/entry_64.S:553)
+> [ 1139.438692] ? kthread_create_on_node (kernel/kthread.c:176)
+> [ 1139.438692] Code: 25 a0 da 00 00 0f 84 82 00 00 00 66 90 eb 2e 66 0f 1f 44 00 00 49 8b 45 00 0f 1f 40 00 49 8b 7d 08 4c 89 e2 49 83 c5 10 48 89 de <ff> d0 49 8b 45 00 48 85 c0 75 e7 eb c5 0f 1f 44 00 00 eb 53 66
+> [ 1139.438692] RIP global_dirty_limits (include/trace/events/writeback.h:308 mm/page-writeback.c:309)
+> [ 1139.438692]  RSP <ffff880282dbdc28>
 
-Since CONFIG_SLUB_DEBUG is already enabled by default for the slub allocator, 
-there is no functional change with this patch.  If debug is disabled, however, 
-the warnings are now suppressed.
-
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- v2: added ratelimit state for slab out of memory warnings per Andrew
-     added gfp mask and order to changelog per Andrew
-
- mm/slab.c | 10 ++++++++--
- mm/slub.c | 11 ++++++++---
- 2 files changed, 16 insertions(+), 5 deletions(-)
-
-diff --git a/mm/slab.c b/mm/slab.c
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -1621,10 +1621,16 @@ __initcall(cpucache_init);
- static noinline void
- slab_out_of_memory(struct kmem_cache *cachep, gfp_t gfpflags, int nodeid)
- {
-+#if DEBUG
- 	struct kmem_cache_node *n;
- 	struct page *page;
- 	unsigned long flags;
- 	int node;
-+	static DEFINE_RATELIMIT_STATE(slab_oom_rs, DEFAULT_RATELIMIT_INTERVAL,
-+				      DEFAULT_RATELIMIT_BURST);
-+
-+	if ((gfpflags & __GFP_NOWARN) || !__ratelimit(&slab_oom_rs))
-+		return;
- 
- 	printk(KERN_WARNING
- 		"SLAB: Unable to allocate memory on node %d (gfp=0x%x)\n",
-@@ -1662,6 +1668,7 @@ slab_out_of_memory(struct kmem_cache *cachep, gfp_t gfpflags, int nodeid)
- 			node, active_slabs, num_slabs, active_objs, num_objs,
- 			free_objects);
- 	}
-+#endif
- }
- 
- /*
-@@ -1683,8 +1690,7 @@ static struct page *kmem_getpages(struct kmem_cache *cachep, gfp_t flags,
- 
- 	page = alloc_pages_exact_node(nodeid, flags | __GFP_NOTRACK, cachep->gfporder);
- 	if (!page) {
--		if (!(flags & __GFP_NOWARN) && printk_ratelimit())
--			slab_out_of_memory(cachep, flags, nodeid);
-+		slab_out_of_memory(cachep, flags, nodeid);
- 		return NULL;
- 	}
- 
-diff --git a/mm/slub.c b/mm/slub.c
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -2152,8 +2152,14 @@ static inline unsigned long node_nr_objs(struct kmem_cache_node *n)
- static noinline void
- slab_out_of_memory(struct kmem_cache *s, gfp_t gfpflags, int nid)
- {
-+#ifdef CONFIG_SLUB_DEBUG
-+	static DEFINE_RATELIMIT_STATE(slub_oom_rs, DEFAULT_RATELIMIT_INTERVAL,
-+				      DEFAULT_RATELIMIT_BURST);
- 	int node;
- 
-+	if ((gfpflags & __GFP_NOWARN) || !__ratelimit(&slub_oom_rs))
-+		return;
-+
- 	printk(KERN_WARNING
- 		"SLUB: Unable to allocate memory on node %d (gfp=0x%x)\n",
- 		nid, gfpflags);
-@@ -2182,6 +2188,7 @@ slab_out_of_memory(struct kmem_cache *s, gfp_t gfpflags, int nid)
- 			"  node %d: slabs: %ld, objs: %ld, free: %ld\n",
- 			node, nr_slabs, nr_objs, nr_free);
- 	}
-+#endif
- }
- 
- static inline void *new_slab_objects(struct kmem_cache *s, gfp_t flags,
-@@ -2360,9 +2367,7 @@ new_slab:
- 	freelist = new_slab_objects(s, gfpflags, node, &c);
- 
- 	if (unlikely(!freelist)) {
--		if (!(gfpflags & __GFP_NOWARN) && printk_ratelimit())
--			slab_out_of_memory(s, gfpflags, node);
--
-+		slab_out_of_memory(s, gfpflags, node);
- 		local_irq_restore(flags);
- 		return NULL;
- 	}
+Did this die somewhere within trace_global_dirty_state()?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
