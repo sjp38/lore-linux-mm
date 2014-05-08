@@ -1,103 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f43.google.com (mail-wg0-f43.google.com [74.125.82.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 242136B00D7
-	for <linux-mm@kvack.org>; Thu,  8 May 2014 05:27:31 -0400 (EDT)
-Received: by mail-wg0-f43.google.com with SMTP id l18so2176655wgh.2
-        for <linux-mm@kvack.org>; Thu, 08 May 2014 02:27:30 -0700 (PDT)
-Received: from collaborate-mta1.arm.com (fw-tnat.austin.arm.com. [217.140.110.23])
-        by mx.google.com with ESMTP id i4si156537wjf.190.2014.05.08.02.27.29
-        for <linux-mm@kvack.org>;
-        Thu, 08 May 2014 02:27:29 -0700 (PDT)
-Date: Thu, 8 May 2014 10:26:46 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: [BUG] kmemleak on __radix_tree_preload
-Message-ID: <20140508092646.GA17349@arm.com>
-References: <1398390340.4283.36.camel@kjgkr>
- <20140501170610.GB28745@arm.com>
- <20140501184112.GH23420@cmpxchg.org>
- <1399431488.13268.29.camel@kjgkr>
- <20140507113928.GB17253@arm.com>
- <1399540611.13268.45.camel@kjgkr>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1399540611.13268.45.camel@kjgkr>
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 85AF96B00D8
+	for <linux-mm@kvack.org>; Thu,  8 May 2014 05:28:30 -0400 (EDT)
+Received: by mail-pa0-f53.google.com with SMTP id kp14so2539267pab.26
+        for <linux-mm@kvack.org>; Thu, 08 May 2014 02:28:30 -0700 (PDT)
+Received: from e28smtp09.in.ibm.com (e28smtp09.in.ibm.com. [122.248.162.9])
+        by mx.google.com with ESMTPS id ko6si234171pbc.141.2014.05.08.02.28.27
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 08 May 2014 02:28:29 -0700 (PDT)
+Received: from /spool/local
+	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <maddy@linux.vnet.ibm.com>;
+	Thu, 8 May 2014 14:58:24 +0530
+Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
+	by d28dlp03.in.ibm.com (Postfix) with ESMTP id 7CEA71258055
+	for <linux-mm@kvack.org>; Thu,  8 May 2014 14:57:18 +0530 (IST)
+Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s489SS1b3080582
+	for <linux-mm@kvack.org>; Thu, 8 May 2014 14:58:29 +0530
+Received: from d28av02.in.ibm.com (localhost [127.0.0.1])
+	by d28av02.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s489SIiS027839
+	for <linux-mm@kvack.org>; Thu, 8 May 2014 14:58:19 +0530
+From: Madhavan Srinivasan <maddy@linux.vnet.ibm.com>
+Subject: [PATCH V4 0/2] mm: FAULT_AROUND_ORDER patchset performance data for powerpc
+Date: Thu,  8 May 2014 14:58:14 +0530
+Message-Id: <1399541296-18810-1-git-send-email-maddy@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jaegeuk Kim <jaegeuk.kim@samsung.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, "Linux Kernel, Mailing List" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, x86@kernel.org
+Cc: benh@kernel.crashing.org, paulus@samba.org, kirill.shutemov@linux.intel.com, rusty@rustcorp.com.au, akpm@linux-foundation.org, riel@redhat.com, mgorman@suse.de, ak@linux.intel.com, peterz@infradead.org, mingo@kernel.org, dave.hansen@intel.com, Madhavan Srinivasan <maddy@linux.vnet.ibm.com>
 
-On Thu, May 08, 2014 at 06:16:51PM +0900, Jaegeuk Kim wrote:
-> 2014-05-07 (i??), 12:39 +0100, Catalin Marinas:
-> > On Wed, May 07, 2014 at 03:58:08AM +0100, Jaegeuk Kim wrote:
-> > > unreferenced object 0xffff880004226da0 (size 576):
-> > >   comm "fsstress", pid 14590, jiffies 4295191259 (age 706.308s)
-> > >   hex dump (first 32 bytes):
-> > >     01 00 00 00 81 ff ff ff 00 00 00 00 00 00 00 00  ................
-> > >     50 89 34 81 ff ff ff ff b8 6d 22 04 00 88 ff ff  P.4......m".....
-> > >   backtrace:
-> > >     [<ffffffff816c02e8>] kmemleak_update_trace+0x58/0x80
-> > >     [<ffffffff81349517>] radix_tree_node_alloc+0x77/0xa0
-> > >     [<ffffffff81349718>] __radix_tree_create+0x1d8/0x230
-> > >     [<ffffffff8113286c>] __add_to_page_cache_locked+0x9c/0x1b0
-> > >     [<ffffffff811329a8>] add_to_page_cache_lru+0x28/0x80
-> > >     [<ffffffff81132f58>] grab_cache_page_write_begin+0x98/0xf0
-> > >     [<ffffffffa02e4bf4>] f2fs_write_begin+0xb4/0x3c0 [f2fs]
-> > >     [<ffffffff81131b77>] generic_perform_write+0xc7/0x1c0
-> > >     [<ffffffff81133b7d>] __generic_file_aio_write+0x1cd/0x3f0
-> > >     [<ffffffff81133dfe>] generic_file_aio_write+0x5e/0xe0
-> > >     [<ffffffff81195c5a>] do_sync_write+0x5a/0x90
-> > >     [<ffffffff811968d2>] vfs_write+0xc2/0x1d0
-> > >     [<ffffffff81196daf>] SyS_write+0x4f/0xb0
-> > >     [<ffffffff816dead2>] system_call_fastpath+0x16/0x1b
-> > >     [<ffffffffffffffff>] 0xffffffffffffffff
-> > 
-> > OK, it shows that the allocation happens via add_to_page_cache_locked()
-> > and I guess it's page_cache_tree_insert() which calls
-> > __radix_tree_create() (the latter reusing the preloaded node). I'm not
-> > familiar enough to this code (radix-tree.c and filemap.c) to tell where
-> > the node should have been freed, who keeps track of it.
-> > 
-> > At a quick look at the hex dump (assuming that the above leak is struct
-> > radix_tree_node):
-> > 
-> > 	.path = 1
-> > 	.count = -0x7f (or 0xffffff81 as unsigned int)
-> > 	union {
-> > 		{
-> > 			.parent = NULL
-> > 			.private_data = 0xffffffff81348950
-> > 		}
-> > 		{
-> > 			.rcu_head.next = NULL
-> > 			.rcu_head.func = 0xffffffff81348950
-> > 		}
-> > 	}
-> > 
-> > The count is a bit suspicious.
-> > 
-> > From the union, it looks most likely like rcu_head information. Is
-> > radix_tree_node_rcu_free() function at the above rcu_head.func?
+Kirill A. Shutemov with 8c6e50b029 commit introduced
+vm_ops->map_pages() for mapping easy accessible pages around
+fault address in hope to reduce number of minor page faults.
 
-Thanks for the config. Could you please confirm that 0xffffffff81348950
-address corresponds to the radix_tree_node_rcu_free() function in your
-System.map (or something else)?
+This patch creates infrastructure to modify the FAULT_AROUND_ORDER
+value using mm/Kconfig. This will enable architecture maintainers
+to decide on suitable FAULT_AROUND_ORDER value based on
+performance data for that architecture. First patch also defaults
+FAULT_AROUND_ORDER Kconfig element to 4. Second patch list
+out the performance numbers for powerpc (platform pseries) and
+initialize the fault around order variable for pseries platform of
+powerpc.
 
-> > Also, if you run echo scan > /sys/kernel/debug/kmemleak a few times, do
-> > any of the above leaks disappear (in case the above are some transient
-> > rcu freeing reports; normally this shouldn't happen as the objects are
-> > still referred but I'll look at the relevant code once I have your
-> > .config).
-> 
-> Once I run the echo, the leaks are still remained.
+V4 Changes:
+  Replaced the BUILD_BUG_ON with VM_BUG_ON.
+  Moved fault_around_pages() and fault_around_mask() functions outside of
+   #ifdef CONFIG_DEBUG_FS.
 
-OK, so they aren't just transient.
+V3 Changes:
+  Replaced FAULT_AROUND_ORDER macro to a variable to support arch's that
+   supports sub platforms.
+  Made changes in commit messages.
 
-Thanks.
+V2 Changes:
+  Created Kconfig parameter for FAULT_AROUND_ORDER
+  Added check in do_read_fault to handle FAULT_AROUND_ORDER value of 0
+  Made changes in commit messages.
+
+Madhavan Srinivasan (2):
+  mm: move FAULT_AROUND_ORDER to arch/
+  powerpc/pseries: init fault_around_order for pseries
+
+ arch/powerpc/platforms/pseries/pseries.h |    2 ++
+ arch/powerpc/platforms/pseries/setup.c   |    5 +++++
+ mm/Kconfig                               |    8 ++++++++
+ mm/memory.c                              |   25 ++++++-------------------
+ 4 files changed, 21 insertions(+), 19 deletions(-)
 
 -- 
-Catalin
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
