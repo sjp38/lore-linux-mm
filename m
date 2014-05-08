@@ -1,167 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f169.google.com (mail-yk0-f169.google.com [209.85.160.169])
-	by kanga.kvack.org (Postfix) with ESMTP id B0D996B00EF
-	for <linux-mm@kvack.org>; Thu,  8 May 2014 11:00:39 -0400 (EDT)
-Received: by mail-yk0-f169.google.com with SMTP id 200so2241421ykr.14
-        for <linux-mm@kvack.org>; Thu, 08 May 2014 08:00:39 -0700 (PDT)
-Received: from e39.co.us.ibm.com (e39.co.us.ibm.com. [32.97.110.160])
-        by mx.google.com with ESMTPS id e62si1173123yhj.8.2014.05.08.08.00.38
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
+	by kanga.kvack.org (Postfix) with ESMTP id DF1806B00F1
+	for <linux-mm@kvack.org>; Thu,  8 May 2014 11:25:43 -0400 (EDT)
+Received: by mail-wi0-f180.google.com with SMTP id hi2so3304252wib.1
+        for <linux-mm@kvack.org>; Thu, 08 May 2014 08:25:43 -0700 (PDT)
+Received: from alpha.arachsys.com (alpha.arachsys.com. [2001:9d8:200a:0:9f:9fff:fe90:dbe3])
+        by mx.google.com with ESMTPS id m10si1027873wic.35.2014.05.08.08.25.42
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 08 May 2014 08:00:39 -0700 (PDT)
-Received: from /spool/local
-	by e39.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Thu, 8 May 2014 09:00:38 -0600
-Received: from b03cxnp08027.gho.boulder.ibm.com (b03cxnp08027.gho.boulder.ibm.com [9.17.130.19])
-	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id C176219D8039
-	for <linux-mm@kvack.org>; Thu,  8 May 2014 09:00:30 -0600 (MDT)
-Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
-	by b03cxnp08027.gho.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s48Exk864129044
-	for <linux-mm@kvack.org>; Thu, 8 May 2014 16:59:47 +0200
-Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id s48F4Q0W029835
-	for <linux-mm@kvack.org>; Thu, 8 May 2014 09:04:26 -0600
-Date: Thu, 8 May 2014 08:00:27 -0700
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: [BUG] kmemleak on __radix_tree_preload
-Message-ID: <20140508150026.GA8754@linux.vnet.ibm.com>
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <1398390340.4283.36.camel@kjgkr>
- <20140501170610.GB28745@arm.com>
- <20140501184112.GH23420@cmpxchg.org>
- <1399431488.13268.29.camel@kjgkr>
- <20140507113928.GB17253@arm.com>
- <1399540611.13268.45.camel@kjgkr>
- <20140508092646.GA17349@arm.com>
- <1399541860.13268.48.camel@kjgkr>
- <20140508102436.GC17344@arm.com>
+        Thu, 08 May 2014 08:25:42 -0700 (PDT)
+Date: Thu, 8 May 2014 16:25:18 +0100
+From: Richard Davies <richard@arachsys.com>
+Subject: Re: Protection against container fork bombs [WAS: Re: memcg with
+ kmem limit doesn't recover after disk i/o causes limit to be hit]
+Message-ID: <20140508152518.GA1091@alpha.arachsys.com>
+References: <20140418155939.GE4523@dhcp22.suse.cz>
+ <5351679F.5040908@parallels.com>
+ <20140420142830.GC22077@alpha.arachsys.com>
+ <20140422143943.20609800@oracle.com>
+ <20140422200531.GA19334@alpha.arachsys.com>
+ <535758A0.5000500@yuhu.biz>
+ <20140423084942.560ae837@oracle.com>
+ <5368CA47.7030007@yuhu.biz>
+ <20140507131514.43716518@oracle.com>
+ <536AB626.9070005@1h.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20140508102436.GC17344@arm.com>
+In-Reply-To: <536AB626.9070005@1h.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Jaegeuk Kim <jaegeuk.kim@samsung.com>, Johannes Weiner <hannes@cmpxchg.org>, "Linux Kernel, Mailing List" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Marian Marinov <mm@1h.com>
+Cc: Dwight Engen <dwight.engen@oracle.com>, Marian Marinov <mm@yuhu.biz>, Vladimir Davydov <vdavydov@parallels.com>, Daniel Walsh <dwalsh@redhat.com>, Max Kellermann <mk@cm4all.com>, Tim Hockin <thockin@hockin.org>, Frederic Weisbecker <fweisbec@gmail.com>, containers@lists.linux-foundation.org, Johannes Weiner <hannes@cmpxchg.org>, Glauber Costa <glommer@parallels.com>, Michal Hocko <mhocko@suse.cz>, linux-mm@kvack.org, William Dauchy <wdauchy@gmail.com>, David Rientjes <rientjes@google.com>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org
 
-On Thu, May 08, 2014 at 11:24:36AM +0100, Catalin Marinas wrote:
-> On Thu, May 08, 2014 at 10:37:40AM +0100, Jaegeuk Kim wrote:
-> > 2014-05-08 (ea(C)), 10:26 +0100, Catalin Marinas:
-> > > On Thu, May 08, 2014 at 06:16:51PM +0900, Jaegeuk Kim wrote:
-> > > > 2014-05-07 (i??), 12:39 +0100, Catalin Marinas:
-> > > > > On Wed, May 07, 2014 at 03:58:08AM +0100, Jaegeuk Kim wrote:
-> > > > > > unreferenced object 0xffff880004226da0 (size 576):
-> > > > > >   comm "fsstress", pid 14590, jiffies 4295191259 (age 706.308s)
-> > > > > >   hex dump (first 32 bytes):
-> > > > > >     01 00 00 00 81 ff ff ff 00 00 00 00 00 00 00 00  ................
-> > > > > >     50 89 34 81 ff ff ff ff b8 6d 22 04 00 88 ff ff  P.4......m".....
-> > > > > >   backtrace:
-> > > > > >     [<ffffffff816c02e8>] kmemleak_update_trace+0x58/0x80
-> > > > > >     [<ffffffff81349517>] radix_tree_node_alloc+0x77/0xa0
-> > > > > >     [<ffffffff81349718>] __radix_tree_create+0x1d8/0x230
-> > > > > >     [<ffffffff8113286c>] __add_to_page_cache_locked+0x9c/0x1b0
-> > > > > >     [<ffffffff811329a8>] add_to_page_cache_lru+0x28/0x80
-> > > > > >     [<ffffffff81132f58>] grab_cache_page_write_begin+0x98/0xf0
-> > > > > >     [<ffffffffa02e4bf4>] f2fs_write_begin+0xb4/0x3c0 [f2fs]
-> > > > > >     [<ffffffff81131b77>] generic_perform_write+0xc7/0x1c0
-> > > > > >     [<ffffffff81133b7d>] __generic_file_aio_write+0x1cd/0x3f0
-> > > > > >     [<ffffffff81133dfe>] generic_file_aio_write+0x5e/0xe0
-> > > > > >     [<ffffffff81195c5a>] do_sync_write+0x5a/0x90
-> > > > > >     [<ffffffff811968d2>] vfs_write+0xc2/0x1d0
-> > > > > >     [<ffffffff81196daf>] SyS_write+0x4f/0xb0
-> > > > > >     [<ffffffff816dead2>] system_call_fastpath+0x16/0x1b
-> > > > > >     [<ffffffffffffffff>] 0xffffffffffffffff
-> > > > >
-> > > > > OK, it shows that the allocation happens via add_to_page_cache_locked()
-> > > > > and I guess it's page_cache_tree_insert() which calls
-> > > > > __radix_tree_create() (the latter reusing the preloaded node). I'm not
-> > > > > familiar enough to this code (radix-tree.c and filemap.c) to tell where
-> > > > > the node should have been freed, who keeps track of it.
-> > > > >
-> > > > > At a quick look at the hex dump (assuming that the above leak is struct
-> > > > > radix_tree_node):
-> > > > >
-> > > > > 	.path = 1
-> > > > > 	.count = -0x7f (or 0xffffff81 as unsigned int)
-> > > > > 	union {
-> > > > > 		{
-> > > > > 			.parent = NULL
-> > > > > 			.private_data = 0xffffffff81348950
-> > > > > 		}
-> > > > > 		{
-> > > > > 			.rcu_head.next = NULL
-> > > > > 			.rcu_head.func = 0xffffffff81348950
-> > > > > 		}
-> > > > > 	}
-> > > > >
-> > > > > The count is a bit suspicious.
-> > > > >
-> > > > > From the union, it looks most likely like rcu_head information. Is
-> > > > > radix_tree_node_rcu_free() function at the above rcu_head.func?
-> > >
-> > > Thanks for the config. Could you please confirm that 0xffffffff81348950
-> > > address corresponds to the radix_tree_node_rcu_free() function in your
-> > > System.map (or something else)?
-> > 
-> > Yap, the address is matched to radix_tree_node_rcu_free().
+Marian Marinov wrote:
+> On 05/07/2014 08:15 PM, Dwight Engen wrote:
+> >On Tue, 06 May 2014 14:40:55 +0300
+> >Marian Marinov <mm@yuhu.biz> wrote:
+> >
+> >>On 04/23/2014 03:49 PM, Dwight Engen wrote:
+> >>>On Wed, 23 Apr 2014 09:07:28 +0300
+> >>>Marian Marinov <mm@yuhu.biz> wrote:
+> >>>
+> >>>>On 04/22/2014 11:05 PM, Richard Davies wrote:
+> >>>>>Dwight Engen wrote:
+> >>>>>>Richard Davies wrote:
+> >>>>>>>Vladimir Davydov wrote:
+> >>>>>>>>In short, kmem limiting for memory cgroups is currently broken.
+> >>>>>>>>Do not use it. We are working on making it usable though.
+> >>>>>...
+> >>>>>>>What is the best mechanism available today, until kmem limits
+> >>>>>>>mature?
+> >>>>>>>
+> >>>>>>>RLIMIT_NPROC exists but is per-user, not per-container.
+> >>>>>>>
+> >>>>>>>Perhaps there is an up-to-date task counter patchset or similar?
+> >>>>>>
+> >>>>>>I updated Frederic's task counter patches and included Max
+> >>>>>>Kellermann's fork limiter here:
+> >>>>>>
+> >>>>>>http://thread.gmane.org/gmane.linux.kernel.containers/27212
+> >>>>>>
+> >>>>>>I can send you a more recent patchset (against 3.13.10) if you
+> >>>>>>would find it useful.
+> >>>>>
+> >>>>>Yes please, I would be interested in that. Ideally even against
+> >>>>>3.14.1 if you have that too.
+> >>>>
+> >>>>Dwight, do you have these patches in any public repo?
+> >>>>
+> >>>>I would like to test them also.
+> >>>
+> >>>Hi Marian, I put the patches against 3.13.11 and 3.14.1 up at:
+> >>>
+> >>>git://github.com/dwengen/linux.git cpuacct-task-limit-3.13
+> >>>git://github.com/dwengen/linux.git cpuacct-task-limit-3.14
+> >>>
+> >>Guys I tested the patches with 3.12.16. However I see a problem with
+> >>them.
+> >>
+> >>Trying to set the limit to a cgroup which already have processes in
+> >>it does not work:
+> >
+> >This is a similar check/limitation to the one for kmem in memcg, and is
+> >done here to keep the res_counters consistent and from going negative.
+> >It could probably be relaxed slightly by using res_counter_set_limit()
+> >instead, but you would still need to initially set a limit before
+> >adding tasks to the group.
 > 
-> Cc'ing Paul as well, not that I blame RCU ;), but maybe he could shed
-> some light on why kmemleak can't track this object.
-
-Do we have any information on how long it has been since that data
-structure was handed to call_rcu()?  If that time is short, then it
-is quite possible that its grace period simply has not yet completed.
-
-It might also be that one of the CPUs is stuck (e.g., spinning with
-interrupts disabled), which would prevent the grace period from
-completing, in turn preventing any memory waiting for that grace period
-from being freed.
-
-> My summary so far:
+> I have removed the check entirely and still receive the EBUSY... I
+> just don't understand what is returning it. If you have any
+> pointers, I would be happy to take a look.
 > 
-> - radix_tree_node reported by kmemleak as it cannot find any trace of it
->   when scanning the memory
-> - at allocation time, radix_tree_node is memzero'ed by
->   radix_tree_node_ctor(). Given that node->rcu_head.func ==
->   radix_tree_node_rcu_free, my guess is that radix_tree_node_free() has
->   been called
-> - some time later, kmemleak still hasn't received any callback for
->   kmem_cache_free(node). Possibly radix_tree_node_rcu_free() hasn't been
->   called either since node->count is not NULL.
+> I'll look at set_limit(), thanks for pointing that one.
 > 
-> For RCU queued objects, kmemleak should still track references to them
-> via rcu_sched_state and rcu_head members. But even if this went wrong, I
-> would expect the object to be freed eventually and kmemleak notified (so
-> just a temporary leak report which doesn't seem to be the case here).
-
-OK, so you are saying that this memory has been in this state for quite
-some time?
-
-If the system is responsive during this time, I recommend building with
-CONFIG_RCU_TRACE=y, then polling the debugfs rcu/*/rcugp files.  The value
-of "*" will be "rcu_sched" for kernels built with CONFIG_PREEMPT=n and
-"rcu_preempt" for kernels built with CONFIG_PREEMPT=y.
-
-If the number printed does not advance, then the RCU grace period is
-stalled, which will prevent memory waiting for that grace period from
-ever being freed.
-
-Of course, if the value of node->count is preventing call_rcu() from
-being invoked in the first place, then the needed grace period won't
-start, much less finish.  ;-)
-
-							Thanx, Paul
-
-> I still cannot explain the node->count value above and how it can get
-> there (too many node->count--?). Maybe Johannes could shed some light.
+> What I'm proposing is the following checks:
 > 
-> Thanks.
+>     if (val > RES_COUNTER_MAX || val < 0)
+>         return -EBUSY;
+>     if (val != 0 && val <= cgroup_task_count(cgrp))
+>         return -EBUSY;
 > 
-> -- 
-> Catalin
+>     res_counter_write_u64(&ca->task_limit, type, val);
 > 
+> This way we ensure that val is within the limits > 0 and <
+> RES_COUNTER_MAX. And also allow only values of 0 or greater then the
+> current task count.
+
+I have also noticed that I can't change many different cgroup limits while
+there are tasks running in the cgroup - not just cpuacct.task_limit, but
+also kmem and even normal memory.limit_in_bytes
+
+I would like to be able to change all of these limits, as long as the new
+limit is greater than the actual current use.
+
+Could a method like this be used for all of the others too?
+
+Richard.
+
+> >>[root@sp2 lxc]# echo 50 > cpuacct.task_limit
+> >>-bash: echo: write error: Device or resource busy
+> >>[root@sp2 lxc]# echo 0 > cpuacct.task_limit
+> >>-bash: echo: write error: Device or resource busy
+> >>[root@sp2 lxc]#
+> >>
+> >>I have even tried to remove this check:
+> >>+               if (cgroup_task_count(cgrp)
+> >>|| !list_empty(&cgrp->children))
+> >>+                       return -EBUSY;
+> >>But still give me 'Device or resource busy'.
+> >>
+> >>Any pointers of why is this happening ?
+> >>
+> >>Marian
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
