@@ -1,22 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F5FB6B00B3
-	for <linux-mm@kvack.org>; Wed,  7 May 2014 21:01:56 -0400 (EDT)
-Received: by mail-pa0-f42.google.com with SMTP id rd3so1916911pab.1
-        for <linux-mm@kvack.org>; Wed, 07 May 2014 18:01:55 -0700 (PDT)
-Received: from mail-pa0-x236.google.com (mail-pa0-x236.google.com [2607:f8b0:400e:c03::236])
-        by mx.google.com with ESMTPS id wt1si2710695pbc.376.2014.05.07.18.01.53
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 2434B6B00B4
+	for <linux-mm@kvack.org>; Wed,  7 May 2014 21:19:16 -0400 (EDT)
+Received: by mail-pd0-f169.google.com with SMTP id z10so1730707pdj.14
+        for <linux-mm@kvack.org>; Wed, 07 May 2014 18:19:15 -0700 (PDT)
+Received: from mail-pd0-x231.google.com (mail-pd0-x231.google.com [2607:f8b0:400e:c02::231])
+        by mx.google.com with ESMTPS id fm5si2145686pbc.120.2014.05.07.18.19.15
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 07 May 2014 18:01:53 -0700 (PDT)
-Received: by mail-pa0-f54.google.com with SMTP id bj1so635504pad.41
-        for <linux-mm@kvack.org>; Wed, 07 May 2014 18:01:53 -0700 (PDT)
-Date: Wed, 7 May 2014 18:01:50 -0700 (PDT)
+        Wed, 07 May 2014 18:19:15 -0700 (PDT)
+Received: by mail-pd0-f177.google.com with SMTP id p10so1739608pdj.8
+        for <linux-mm@kvack.org>; Wed, 07 May 2014 18:19:15 -0700 (PDT)
+Date: Wed, 7 May 2014 18:19:13 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH v2 04/10] slab: defer slab_destroy in free_block()
-In-Reply-To: <1399442780-28748-5-git-send-email-iamjoonsoo.kim@lge.com>
-Message-ID: <alpine.DEB.2.02.1405071801040.1128@chino.kir.corp.google.com>
-References: <1399442780-28748-1-git-send-email-iamjoonsoo.kim@lge.com> <1399442780-28748-5-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH v2 05/10] slab: factor out initialization of arracy
+ cache
+In-Reply-To: <1399442780-28748-6-git-send-email-iamjoonsoo.kim@lge.com>
+Message-ID: <alpine.DEB.2.02.1405071818060.5305@chino.kir.corp.google.com>
+References: <1399442780-28748-1-git-send-email-iamjoonsoo.kim@lge.com> <1399442780-28748-6-git-send-email-iamjoonsoo.kim@lge.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -26,24 +27,75 @@ Cc: Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux.com>, Andrew 
 
 On Wed, 7 May 2014, Joonsoo Kim wrote:
 
-> In free_block(), if freeing object makes new free slab and number of
-> free_objects exceeds free_limit, we start to destroy this new free slab
-> with holding the kmem_cache node lock. Holding the lock is useless and,
-> generally, holding a lock as least as possible is good thing. I never
-> measure performance effect of this, but we'd be better not to hold the lock
-> as much as possible.
-> 
-> Commented by Christoph:
->   This is also good because kmem_cache_free is no longer called while
->   holding the node lock. So we avoid one case of recursion.
+> Factor out initialization of array cache to use it in following patch.
 > 
 > Acked-by: Christoph Lameter <cl@linux.com>
 > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> 
 
 Acked-by: David Rientjes <rientjes@google.com>
 
-Nice optimization.  I think it could have benefited from a comment 
-describing what the free_block() list formal is, though.
+s/arracy/array/ in patch title.
+
+> diff --git a/mm/slab.c b/mm/slab.c
+> index 7647728..755fb57 100644
+> --- a/mm/slab.c
+> +++ b/mm/slab.c
+> @@ -741,13 +741,8 @@ static void start_cpu_timer(int cpu)
+>  	}
+>  }
+>  
+> -static struct array_cache *alloc_arraycache(int node, int entries,
+> -					    int batchcount, gfp_t gfp)
+> +static void init_arraycache(struct array_cache *ac, int limit, int batch)
+>  {
+> -	int memsize = sizeof(void *) * entries + sizeof(struct array_cache);
+> -	struct array_cache *nc = NULL;
+> -
+> -	nc = kmalloc_node(memsize, gfp, node);
+>  	/*
+>  	 * The array_cache structures contain pointers to free object.
+>  	 * However, when such objects are allocated or transferred to another
+> @@ -755,15 +750,25 @@ static struct array_cache *alloc_arraycache(int node, int entries,
+>  	 * valid references during a kmemleak scan. Therefore, kmemleak must
+>  	 * not scan such objects.
+>  	 */
+> -	kmemleak_no_scan(nc);
+> -	if (nc) {
+> -		nc->avail = 0;
+> -		nc->limit = entries;
+> -		nc->batchcount = batchcount;
+> -		nc->touched = 0;
+> -		spin_lock_init(&nc->lock);
+> +	kmemleak_no_scan(ac);
+> +	if (ac) {
+> +		ac->avail = 0;
+> +		ac->limit = limit;
+> +		ac->batchcount = batch;
+> +		ac->touched = 0;
+> +		spin_lock_init(&ac->lock);
+>  	}
+> -	return nc;
+> +}
+> +
+> +static struct array_cache *alloc_arraycache(int node, int entries,
+> +					    int batchcount, gfp_t gfp)
+> +{
+> +	int memsize = sizeof(void *) * entries + sizeof(struct array_cache);
+
+const?
+
+> +	struct array_cache *ac = NULL;
+> +
+> +	ac = kmalloc_node(memsize, gfp, node);
+
+I thought nc meant node cache, but I agree that ac is clearer.
+
+> +	init_arraycache(ac, entries, batchcount);
+> +	return ac;
+>  }
+>  
+>  static inline bool is_slab_pfmemalloc(struct page *page)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
