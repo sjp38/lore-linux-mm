@@ -1,54 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f47.google.com (mail-qa0-f47.google.com [209.85.216.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F9F86B00EC
-	for <linux-mm@kvack.org>; Thu,  8 May 2014 09:51:44 -0400 (EDT)
-Received: by mail-qa0-f47.google.com with SMTP id s7so2548350qap.20
-        for <linux-mm@kvack.org>; Thu, 08 May 2014 06:51:44 -0700 (PDT)
-Received: from qmta02.emeryville.ca.mail.comcast.net (qmta02.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:24])
-        by mx.google.com with ESMTP id 68si452169qgk.162.2014.05.08.06.51.43
+Received: from mail-qc0-f172.google.com (mail-qc0-f172.google.com [209.85.216.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 04F466B00EA
+	for <linux-mm@kvack.org>; Thu,  8 May 2014 09:54:13 -0400 (EDT)
+Received: by mail-qc0-f172.google.com with SMTP id l6so2924494qcy.3
+        for <linux-mm@kvack.org>; Thu, 08 May 2014 06:54:13 -0700 (PDT)
+Received: from qmta14.emeryville.ca.mail.comcast.net (qmta14.emeryville.ca.mail.comcast.net. [2001:558:fe2d:44:76:96:27:212])
+        by mx.google.com with ESMTP id x1si492966qal.211.2014.05.08.06.54.13
         for <linux-mm@kvack.org>;
-        Thu, 08 May 2014 06:51:43 -0700 (PDT)
-Date: Thu, 8 May 2014 08:51:40 -0500 (CDT)
+        Thu, 08 May 2014 06:54:13 -0700 (PDT)
+Date: Thu, 8 May 2014 08:54:10 -0500 (CDT)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH v2 03/10] slab: move up code to get kmem_cache_node in
- free_block()
-In-Reply-To: <alpine.DEB.2.02.1405071429310.8454@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.10.1405080850420.22626@gentwo.org>
-References: <20140507212224.9085.qmail@ns.horizon.com> <alpine.DEB.2.02.1405071429310.8454@chino.kir.corp.google.com>
+Subject: Re: [patch v2] mm, slab: suppress out of memory warning unless debug
+ is enabled
+In-Reply-To: <alpine.DEB.2.02.1405071500030.25024@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.10.1405080853421.22626@gentwo.org>
+References: <alpine.DEB.2.02.1405071418410.8389@chino.kir.corp.google.com> <20140507142925.b0e31514d4cd8d5857b10850@linux-foundation.org> <alpine.DEB.2.02.1405071431580.8454@chino.kir.corp.google.com> <20140507144858.9aee4e420908ccf9334dfdf2@linux-foundation.org>
+ <alpine.DEB.2.02.1405071500030.25024@chino.kir.corp.google.com>
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: David Rientjes <rientjes@google.com>
-Cc: George Spelvin <linux@horizon.com>, iamjoonsoo.kim@lge.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
 On Wed, 7 May 2014, David Rientjes wrote:
 
-> > @@ -3362,17 +3359,12 @@ static void free_block(struct kmem_cache *cachep, void **objpp, int nr_objects,
-> >  		       int node)
-> >  {
-> >  	int i;
-> > -	struct kmem_cache_node *n;
-> > +	struct kmem_cache_node *n = cachep->node[node];
-> >
-> >  	for (i = 0; i < nr_objects; i++) {
-> > -		void *objp;
-> > -		struct page *page;
-> > -
-> > -		clear_obj_pfmemalloc(&objpp[i]);
-> > -		objp = objpp[i];
-> > +		void *objp = clear_obj_pfmemalloc(&objpp[i]);
-> > +		struct page *page = virt_to_head_page(objp);
-> >
-> > -		page = virt_to_head_page(objp);
-> > -		n = cachep->node[node];
-> >  		list_del(&page->lru);
-> >  		check_spinlock_acquired_node(cachep, node);
-> >  		slab_put_obj(cachep, page, objp, node);
->
-> I think this unnecessarily obfuscates the code.
+> Suppress this out of memory warning if the allocator is configured without debug
+> supported.  The page allocation failure warning will indicate it is a failed
+> slab allocation, the order, and the gfp mask, so this is only useful to diagnose
+> allocator issues.
 
-It takes the lookup out of the loop. What does the obfuscation?
-
+Acked-by: Christoph Lameter <cl@linux.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
