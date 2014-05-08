@@ -1,55 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f173.google.com (mail-qc0-f173.google.com [209.85.216.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E94A6B00E8
-	for <linux-mm@kvack.org>; Thu,  8 May 2014 08:41:55 -0400 (EDT)
-Received: by mail-qc0-f173.google.com with SMTP id i8so2705007qcq.4
-        for <linux-mm@kvack.org>; Thu, 08 May 2014 05:41:55 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id ot5si474035pbc.123.2014.05.08.05.41.54
+Received: from mail-qa0-f47.google.com (mail-qa0-f47.google.com [209.85.216.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F9F86B00EC
+	for <linux-mm@kvack.org>; Thu,  8 May 2014 09:51:44 -0400 (EDT)
+Received: by mail-qa0-f47.google.com with SMTP id s7so2548350qap.20
+        for <linux-mm@kvack.org>; Thu, 08 May 2014 06:51:44 -0700 (PDT)
+Received: from qmta02.emeryville.ca.mail.comcast.net (qmta02.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:24])
+        by mx.google.com with ESMTP id 68si452169qgk.162.2014.05.08.06.51.43
         for <linux-mm@kvack.org>;
-        Thu, 08 May 2014 05:41:55 -0700 (PDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv2 0/2] remap_file_pages() decommission
-Date: Thu,  8 May 2014 15:41:26 +0300
-Message-Id: <1399552888-11024-1-git-send-email-kirill.shutemov@linux.intel.com>
+        Thu, 08 May 2014 06:51:43 -0700 (PDT)
+Date: Thu, 8 May 2014 08:51:40 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH v2 03/10] slab: move up code to get kmem_cache_node in
+ free_block()
+In-Reply-To: <alpine.DEB.2.02.1405071429310.8454@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.10.1405080850420.22626@gentwo.org>
+References: <20140507212224.9085.qmail@ns.horizon.com> <alpine.DEB.2.02.1405071429310.8454@chino.kir.corp.google.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, peterz@infradead.org, mingo@kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: David Rientjes <rientjes@google.com>
+Cc: George Spelvin <linux@horizon.com>, iamjoonsoo.kim@lge.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hi Andrew and Linus,
+On Wed, 7 May 2014, David Rientjes wrote:
 
-These two patches demonstrate how we can get rid nonlinear mappings.
+> > @@ -3362,17 +3359,12 @@ static void free_block(struct kmem_cache *cachep, void **objpp, int nr_objects,
+> >  		       int node)
+> >  {
+> >  	int i;
+> > -	struct kmem_cache_node *n;
+> > +	struct kmem_cache_node *n = cachep->node[node];
+> >
+> >  	for (i = 0; i < nr_objects; i++) {
+> > -		void *objp;
+> > -		struct page *page;
+> > -
+> > -		clear_obj_pfmemalloc(&objpp[i]);
+> > -		objp = objpp[i];
+> > +		void *objp = clear_obj_pfmemalloc(&objpp[i]);
+> > +		struct page *page = virt_to_head_page(objp);
+> >
+> > -		page = virt_to_head_page(objp);
+> > -		n = cachep->node[node];
+> >  		list_del(&page->lru);
+> >  		check_spinlock_acquired_node(cachep, node);
+> >  		slab_put_obj(cachep, page, objp, node);
+>
+> I think this unnecessarily obfuscates the code.
 
-The first patch documents remap_file_pages(2) deprecation and add printk
-into syscall code. The patch could be propagated through stable kernel if
-the approach with remap_file_pages() emulation is okay.
+It takes the lookup out of the loop. What does the obfuscation?
 
-The second patch replaces remap_file_pages(2) with and emulation. I didn't
-find any real code (apart LTP) to test it on. So I wrote simple test case.
-See commit message for numbers.
-
-I will prepare separate patchset to cleanup all nonlinear mappings
-leftovers if the approach with emulation is desirable.
-
-Comments?
-
-Kirill A. Shutemov (2):
-  mm: mark remap_file_pages() syscall as deprecated
-  mm: replace remap_file_pages() syscall with emulation
-
- Documentation/vm/remap_file_pages.txt |  27 ++++
- include/linux/fs.h                    |   8 +-
- mm/Makefile                           |   2 +-
- mm/fremap.c                           | 282 ----------------------------------
- mm/mmap.c                             |  66 ++++++++
- mm/nommu.c                            |   8 -
- 6 files changed, 100 insertions(+), 293 deletions(-)
- create mode 100644 Documentation/vm/remap_file_pages.txt
- delete mode 100644 mm/fremap.c
-
--- 
-2.0.0.rc2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
