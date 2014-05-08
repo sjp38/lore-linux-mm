@@ -1,177 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f46.google.com (mail-ee0-f46.google.com [74.125.83.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 1908F6B010D
-	for <linux-mm@kvack.org>; Thu,  8 May 2014 13:52:33 -0400 (EDT)
-Received: by mail-ee0-f46.google.com with SMTP id t10so1956382eei.19
-        for <linux-mm@kvack.org>; Thu, 08 May 2014 10:52:33 -0700 (PDT)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id c6si2193048eem.60.2014.05.08.10.52.32
+Received: from mail-qg0-f42.google.com (mail-qg0-f42.google.com [209.85.192.42])
+	by kanga.kvack.org (Postfix) with ESMTP id C83BA6B010F
+	for <linux-mm@kvack.org>; Thu,  8 May 2014 13:56:35 -0400 (EDT)
+Received: by mail-qg0-f42.google.com with SMTP id q107so3237988qgd.29
+        for <linux-mm@kvack.org>; Thu, 08 May 2014 10:56:35 -0700 (PDT)
+Received: from mail-qg0-x236.google.com (mail-qg0-x236.google.com [2607:f8b0:400d:c04::236])
+        by mx.google.com with ESMTPS id l59si867837qga.108.2014.05.08.10.56.35
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 08 May 2014 10:52:32 -0700 (PDT)
-Date: Thu, 8 May 2014 13:52:22 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [BUG] kmemleak on __radix_tree_preload
-Message-ID: <20140508175222.GM19914@cmpxchg.org>
-References: <20140501184112.GH23420@cmpxchg.org>
- <1399431488.13268.29.camel@kjgkr>
- <20140507113928.GB17253@arm.com>
- <1399540611.13268.45.camel@kjgkr>
- <20140508092646.GA17349@arm.com>
- <1399541860.13268.48.camel@kjgkr>
- <20140508102436.GC17344@arm.com>
- <20140508150026.GA8754@linux.vnet.ibm.com>
- <20140508152946.GA10470@localhost>
- <20140508155330.GE8754@linux.vnet.ibm.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 08 May 2014 10:56:35 -0700 (PDT)
+Received: by mail-qg0-f54.google.com with SMTP id q108so3119046qgd.41
+        for <linux-mm@kvack.org>; Thu, 08 May 2014 10:56:35 -0700 (PDT)
+Date: Thu, 8 May 2014 13:56:26 -0400
+From: Jerome Glisse <j.glisse@gmail.com>
+Subject: Re: [RFC] Heterogeneous memory management (mirror process address
+ space on a device mmu).
+Message-ID: <20140508175624.GA3121@gmail.com>
+References: <1399038730-25641-1-git-send-email-j.glisse@gmail.com>
+ <20140506102925.GD11096@twins.programming.kicks-ass.net>
+ <1399429987.2581.25.camel@buesod1.americas.hpqcorp.net>
+ <536BB508.2020704@mellanox.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <20140508155330.GE8754@linux.vnet.ibm.com>
+In-Reply-To: <536BB508.2020704@mellanox.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Cc: Catalin Marinas <catalin.marinas@arm.com>, Jaegeuk Kim <jaegeuk.kim@samsung.com>, "Linux Kernel, Mailing List" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: sagi grimberg <sagig@mellanox.com>
+Cc: Davidlohr Bueso <davidlohr@hp.com>, Peter Zijlstra <peterz@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Linda Wang <lwang@redhat.com>, Kevin E Martin <kem@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Jeff Law <law@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Haggai Eran <haggaie@mellanox.com>, Or Gerlitz <ogerlitz@mellanox.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, "Sander, Ben" <ben.sander@amd.com>, "Stoner, Greg" <Greg.Stoner@amd.com>, "Bridgman, John" <John.Bridgman@amd.com>, "Mantor, Michael" <Michael.Mantor@amd.com>, "Blinzer, Paul" <Paul.Blinzer@amd.com>, "Morichetti, Laurent" <Laurent.Morichetti@amd.com>, "Deucher, Alexander" <Alexander.Deucher@amd.com>, "Gabbay, Oded" <Oded.Gabbay@amd.com>, Linus Torvalds <torvalds@linux-foundation.org>
 
-On Thu, May 08, 2014 at 08:53:30AM -0700, Paul E. McKenney wrote:
-> On Thu, May 08, 2014 at 04:29:48PM +0100, Catalin Marinas wrote:
-> > On Thu, May 08, 2014 at 04:00:27PM +0100, Paul E. McKenney wrote:
-> > > On Thu, May 08, 2014 at 11:24:36AM +0100, Catalin Marinas wrote:
-> > > > On Thu, May 08, 2014 at 10:37:40AM +0100, Jaegeuk Kim wrote:
-> > > > > 2014-05-08 (ea(C)), 10:26 +0100, Catalin Marinas:
-> > > > > > On Thu, May 08, 2014 at 06:16:51PM +0900, Jaegeuk Kim wrote:
-> > > > > > > 2014-05-07 (i??), 12:39 +0100, Catalin Marinas:
-> > > > > > > > On Wed, May 07, 2014 at 03:58:08AM +0100, Jaegeuk Kim wrote:
-> > > > > > > > > unreferenced object 0xffff880004226da0 (size 576):
-> > > > > > > > >   comm "fsstress", pid 14590, jiffies 4295191259 (age 706.308s)
-> > > > > > > > >   hex dump (first 32 bytes):
-> > > > > > > > >     01 00 00 00 81 ff ff ff 00 00 00 00 00 00 00 00  ................
-> > > > > > > > >     50 89 34 81 ff ff ff ff b8 6d 22 04 00 88 ff ff  P.4......m".....
-> > > > > > > > >   backtrace:
-> > > > > > > > >     [<ffffffff816c02e8>] kmemleak_update_trace+0x58/0x80
-> > > > > > > > >     [<ffffffff81349517>] radix_tree_node_alloc+0x77/0xa0
-> > > > > > > > >     [<ffffffff81349718>] __radix_tree_create+0x1d8/0x230
-> > > > > > > > >     [<ffffffff8113286c>] __add_to_page_cache_locked+0x9c/0x1b0
-> > > > > > > > >     [<ffffffff811329a8>] add_to_page_cache_lru+0x28/0x80
-> > > > > > > > >     [<ffffffff81132f58>] grab_cache_page_write_begin+0x98/0xf0
-> > > > > > > > >     [<ffffffffa02e4bf4>] f2fs_write_begin+0xb4/0x3c0 [f2fs]
-> > > > > > > > >     [<ffffffff81131b77>] generic_perform_write+0xc7/0x1c0
-> > > > > > > > >     [<ffffffff81133b7d>] __generic_file_aio_write+0x1cd/0x3f0
-> > > > > > > > >     [<ffffffff81133dfe>] generic_file_aio_write+0x5e/0xe0
-> > > > > > > > >     [<ffffffff81195c5a>] do_sync_write+0x5a/0x90
-> > > > > > > > >     [<ffffffff811968d2>] vfs_write+0xc2/0x1d0
-> > > > > > > > >     [<ffffffff81196daf>] SyS_write+0x4f/0xb0
-> > > > > > > > >     [<ffffffff816dead2>] system_call_fastpath+0x16/0x1b
-> > > > > > > > >     [<ffffffffffffffff>] 0xffffffffffffffff
-> > > > > > > >
-> > > > > > > > OK, it shows that the allocation happens via add_to_page_cache_locked()
-> > > > > > > > and I guess it's page_cache_tree_insert() which calls
-> > > > > > > > __radix_tree_create() (the latter reusing the preloaded node). I'm not
-> > > > > > > > familiar enough to this code (radix-tree.c and filemap.c) to tell where
-> > > > > > > > the node should have been freed, who keeps track of it.
-> > > > > > > >
-> > > > > > > > At a quick look at the hex dump (assuming that the above leak is struct
-> > > > > > > > radix_tree_node):
-> > > > > > > >
-> > > > > > > > 	.path = 1
-> > > > > > > > 	.count = -0x7f (or 0xffffff81 as unsigned int)
-> > > > > > > > 	union {
-> > > > > > > > 		{
-> > > > > > > > 			.parent = NULL
-> > > > > > > > 			.private_data = 0xffffffff81348950
-> > > > > > > > 		}
-> > > > > > > > 		{
-> > > > > > > > 			.rcu_head.next = NULL
-> > > > > > > > 			.rcu_head.func = 0xffffffff81348950
-> > > > > > > > 		}
-> > > > > > > > 	}
-> > > > > > > >
-> > > > > > > > The count is a bit suspicious.
-> > > > > > > >
-> > > > > > > > From the union, it looks most likely like rcu_head information. Is
-> > > > > > > > radix_tree_node_rcu_free() function at the above rcu_head.func?
-
-> > > > My summary so far:
-> > > > 
-> > > > - radix_tree_node reported by kmemleak as it cannot find any trace of it
-> > > >   when scanning the memory
-> > > > - at allocation time, radix_tree_node is memzero'ed by
-> > > >   radix_tree_node_ctor(). Given that node->rcu_head.func ==
-> > > >   radix_tree_node_rcu_free, my guess is that radix_tree_node_free() has
-> > > >   been called
-
-The constructor is called once when the slab is initially allocated,
-not on every object allocation.  The user is expected to return
-objects in a pristine form or overwrite fields on reallocation, so
-it's possible that the RCU values are left over from the previous
-allocation.
-
-> > > > - some time later, kmemleak still hasn't received any callback for
-> > > >   kmem_cache_free(node). Possibly radix_tree_node_rcu_free() hasn't been
-> > > >   called either since node->count is not NULL.
-> > > > 
-> > > > For RCU queued objects, kmemleak should still track references to them
-> > > > via rcu_sched_state and rcu_head members. But even if this went wrong, I
-> > > > would expect the object to be freed eventually and kmemleak notified (so
-> > > > just a temporary leak report which doesn't seem to be the case here).
-> > > 
-> > > OK, so you are saying that this memory has been in this state for quite
-> > > some time?
-> > 
-> > These leaks don't seem to disappear (time lapsed to be confirmed) and
-> > the object checksum not changed either (otherwise kmemleak would not
-> > report it).
-> > 
-> > > If the system is responsive during this time, I recommend building with
-> > > CONFIG_RCU_TRACE=y, then polling the debugfs rcu/*/rcugp files.  The value
-> > > of "*" will be "rcu_sched" for kernels built with CONFIG_PREEMPT=n and
-> > > "rcu_preempt" for kernels built with CONFIG_PREEMPT=y.
-> > > 
-> > > If the number printed does not advance, then the RCU grace period is
-> > > stalled, which will prevent memory waiting for that grace period from
-> > > ever being freed.
-> > 
-> > Thanks for the suggestions
-> > 
-> > > Of course, if the value of node->count is preventing call_rcu() from
-> > > being invoked in the first place, then the needed grace period won't
-> > > start, much less finish.  ;-)
-> > 
-> > Given the rcu_head.func value, my assumption is that call_rcu() has
-> > already been called.
+On Thu, May 08, 2014 at 07:47:04PM +0300, sagi grimberg wrote:
+> On 5/7/2014 5:33 AM, Davidlohr Bueso wrote:
+> >On Tue, 2014-05-06 at 12:29 +0200, Peter Zijlstra wrote:
+> >>So you forgot to CC Linus, Linus has expressed some dislike for
+> >>preemptible mmu_notifiers in the recent past:
+> >>
+> >>   https://lkml.org/lkml/2013/9/30/385
+> >I'm glad this came up again.
+> >
+> >So I've been running benchmarks (mostly aim7, which nicely exercises our
+> >locks) comparing my recent v4 for rwsem optimistic spinning against
+> >previous implementation ideas for the anon-vma lock, mostly:
+> >
+> >- rwsem (currently)
+> >- rwlock_t
+> >- qrwlock_t
+> >- rwsem+optspin
+> >
+> >Of course, *any* change provides significant improvement in throughput
+> >for several workloads, by avoiding to block -- there are more
+> >performance numbers in the different patches. This is fairly obvious.
+> >
+> >What is perhaps not so obvious is that rwsem+optimistic spinning beats
+> >all others, including the improved qrwlock from Waiman and Peter. This
+> >is mostly because of the idea of cancelable MCS, which was mimic'ed from
+> >mutexes. The delta in most cases is around +10-15%, which is non
+> >trivial.
 > 
-> Fair point -- given that it is a union, you would expect this field to
-> be overwritten upon reuse.
-
-.parent is overwritten immediately on reuse, but .private_data is
-actually unlikely to be used during the lifetime of the node.
-
-This could explain why .rcu.head.next is NULL like parent, and
-.private_data/.rcu.head.func is untouched and retains RCU stuff: to me
-it doesn't look like the node is lost in RCU-freeing, rather it was
-previously RCU freed and then lost somewhere after reallocation.
-
-> > BTW, is it safe to have a union overlapping node->parent and
-> > node->rcu_head.next? I'm still staring at the radix-tree code but a
-> > scenario I have in mind is that call_rcu() has been raised for a few
-> > nodes, other CPU may have some reference to one of them and set
-> > node->parent to NULL (e.g. concurrent calls to radix_tree_shrink()),
-> > breaking the RCU linking. I can't confirm this theory yet ;)
-
-Only writers shrink the tree and free nodes, and they have to be
-properly serialized.
-
-> If this were reproducible, I would suggest retrying with non-overlapping
-> node->parent and node->rcu_head.next, but you knew that already.  ;-)
+> These are great news David!
 > 
-> But the usual practice would be to make node removal exclude shrinking.
-> And the radix-tree code seems to delegate locking to the caller.
+> >I mention this because from a performance PoV, we'll stop caring so much
+> >about the type of lock we require in the notifier related code. So while
+> >this is not conclusive, I'm not as opposed to keeping the locks blocking
+> >as I once was. Now this might still imply things like poor design
+> >choices, but that's neither here nor there.
 > 
-> So, is the correct locking present in the page cache?  The radix-tree
-> code seems to assume that all update operations for a given tree are
-> protected by a lock global to that tree.
+> So is the rwsem+opt strategy the way to go Given it keeps everyone happy?
+> We will be more than satisfied with it as it will allow us to
+> guarantee device
+> MMU update.
+> 
+> >/me sees Sagi smiling ;)
+> 
+> :)
 
-Yep, mapping->tree_lock protects all mapping->page_tree modifications.
+So i started doing thing with tlb flush but i must say things looks ugly.
+I need a new page flag (goodbye 32bits platform) and i need my own lru and
+page reclaimation for any page in use by a device, i need to hook up inside
+try_to_unmap or migrate (but i will do the former). I am trying to be smart
+by trying to schedule a worker on another cpu before before sending the ipi
+so that while the ipi is in progress hopefully another cpu might schedule
+the invalidation on the GPU and the wait after ipi for the gpu will be quick.
+
+So all in all this is looking ugly and it does not change the fact that i
+sleep (well need to be able to sleep). It just move the sleeping to another
+part.
+
+Maybe i should stress that with the mmu_notifier version it only sleep for
+process that are using the GPU those process are using userspace API like
+OpenCL which are not playing well with fork, ie read do not use fork if
+you are using such API.
+
+So for my case if a process has mm->hmm set to something that would mean
+that there is a GPU using that address space and that it is unlikely to
+go under the massive workload that people try to optimize the anon_vma
+lock for.
+
+My point is that with rwsem+optspin it could try spinning if mm->hmm
+was NULL and make the massive fork workload go fast, or it could sleep
+directly if mm->hmm is set.
+
+This way my addition are not damaging anyone workload, only the workload
+that would use hmm would likely have lock contention on fork but those
+workload should not fork in the first place and if they do they should
+pay a price.
+
+I will finish up the tlb hackish version of hmm so people can judge how
+ugly it is (in my view) and send it here as soon as i can.
+
+But i think it's clear that with rwsem+optspin we can make all workload
+happy and fast.
+
+Cheers,
+Jerome Glisse
+
+> 
+> Sagi.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
