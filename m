@@ -1,45 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ve0-f171.google.com (mail-ve0-f171.google.com [209.85.128.171])
-	by kanga.kvack.org (Postfix) with ESMTP id DF0116B00F4
-	for <linux-mm@kvack.org>; Thu,  8 May 2014 11:35:21 -0400 (EDT)
-Received: by mail-ve0-f171.google.com with SMTP id oz11so3490827veb.2
-        for <linux-mm@kvack.org>; Thu, 08 May 2014 08:35:21 -0700 (PDT)
-Received: from mail-ve0-x22d.google.com (mail-ve0-x22d.google.com [2607:f8b0:400c:c01::22d])
-        by mx.google.com with ESMTPS id sj10si235101vcb.123.2014.05.08.08.35.21
+Received: from mail-qa0-f45.google.com (mail-qa0-f45.google.com [209.85.216.45])
+	by kanga.kvack.org (Postfix) with ESMTP id C8AB06B00F9
+	for <linux-mm@kvack.org>; Thu,  8 May 2014 11:45:27 -0400 (EDT)
+Received: by mail-qa0-f45.google.com with SMTP id hw13so2684667qab.4
+        for <linux-mm@kvack.org>; Thu, 08 May 2014 08:45:27 -0700 (PDT)
+Received: from mail-qg0-x22b.google.com (mail-qg0-x22b.google.com [2607:f8b0:400d:c04::22b])
+        by mx.google.com with ESMTPS id g67si683453qgf.64.2014.05.08.08.45.26
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 08 May 2014 08:35:21 -0700 (PDT)
-Received: by mail-ve0-f173.google.com with SMTP id pa12so3460001veb.4
-        for <linux-mm@kvack.org>; Thu, 08 May 2014 08:35:21 -0700 (PDT)
+        Thu, 08 May 2014 08:45:27 -0700 (PDT)
+Received: by mail-qg0-f43.google.com with SMTP id 63so2955389qgz.2
+        for <linux-mm@kvack.org>; Thu, 08 May 2014 08:45:26 -0700 (PDT)
 MIME-Version: 1.0
 In-Reply-To: <1399552888-11024-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1399552888-11024-1-git-send-email-kirill.shutemov@linux.intel.com>
-Date: Thu, 8 May 2014 08:35:20 -0700
-Message-ID: <CA+55aFyQyZM_qKFeThXA=PJzPReb8-VYoKpcrRHP+0UydqqaGw@mail.gmail.com>
+From: Armin Rigo <arigo@tunes.org>
+Date: Thu, 8 May 2014 17:44:46 +0200
+Message-ID: <CAMSv6X0+3-uNeiyEPD3sA5dA6Af_M+BT0aeVpa3qMv1aga0q9g@mail.gmail.com>
 Subject: Re: [PATCHv2 0/2] remap_file_pages() decommission
-From: Linus Torvalds <torvalds@linux-foundation.org>
 Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, peterz@infradead.org, mingo@kernel.org
 
-On Thu, May 8, 2014 at 5:41 AM, Kirill A. Shutemov
-<kirill.shutemov@linux.intel.com> wrote:
->
-> The second patch replaces remap_file_pages(2) with and emulation. I didn't
-> find any real code (apart LTP) to test it on. So I wrote simple test case.
-> See commit message for numbers.
+Hi everybody,
 
-I'm certainly ok with this. It removes code even in the "no cleanup of
-the core VM" case, and performance doesn't seem to be horrible.
+Here is a note from the PyPy project (mentioned earlier in this
+thread, and at https://lwn.net/Articles/587923/ ).
 
-That said, I *really* want to get at least some minimal testing on
-something that actually uses it as more than just a test-program. I'm
-sure somebody inside RH has to have a 32-bit Oracle setup for
-performance testing. Guys?
+Yes, we use remap_file_pages() heavily on the x86-64 architecture.
+However, the individual calls to remap_file_pages() are not
+performance-critical, so it is easy to switch to using multiple
+mmap()s.  We need to perform more measurements to know exactly what
+the overhead would be, in terms notably of kernel memory.
 
-             Linus
+However, an issue with that approach is the upper bound on the number
+of VMAs.  By default, it is not large enough.  Right now, it is
+possible to remap say 10% of the individual pages from an anonymous
+mmap of multiple GBs in size; but doing so with individual calls to
+mmap hits this arbitrary limit.  I have no particular weight to give
+for or against keeping remap_file_pages() in the kernel, but if it is
+removed or emulated, it would be a plus if the programs would run on a
+machine with the default configuration --- i.e. if you remove or
+emulate remap_file_pages(), please increase the default limit as well.
+
+
+A bient=C3=B4t,
+
+Armin.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
