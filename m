@@ -1,47 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f44.google.com (mail-ee0-f44.google.com [74.125.83.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 008C86B0117
-	for <linux-mm@kvack.org>; Thu,  8 May 2014 14:30:07 -0400 (EDT)
-Received: by mail-ee0-f44.google.com with SMTP id c41so1941242eek.31
-        for <linux-mm@kvack.org>; Thu, 08 May 2014 11:30:07 -0700 (PDT)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id v2si2250531eel.136.2014.05.08.11.30.06
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 08 May 2014 11:30:06 -0700 (PDT)
-Date: Thu, 8 May 2014 14:30:04 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 4/9] mm: memcontrol: catch root bypass in move precharge
-Message-ID: <20140508183004.GQ19914@cmpxchg.org>
-References: <1398889543-23671-1-git-send-email-hannes@cmpxchg.org>
- <1398889543-23671-5-git-send-email-hannes@cmpxchg.org>
- <20140507145553.GJ9489@dhcp22.suse.cz>
+Received: from mail-we0-f169.google.com (mail-we0-f169.google.com [74.125.82.169])
+	by kanga.kvack.org (Postfix) with ESMTP id C846E6B0118
+	for <linux-mm@kvack.org>; Thu,  8 May 2014 16:07:29 -0400 (EDT)
+Received: by mail-we0-f169.google.com with SMTP id u56so3069730wes.0
+        for <linux-mm@kvack.org>; Thu, 08 May 2014 13:07:29 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id 43si2398524eer.267.2014.05.08.13.07.27
+        for <linux-mm@kvack.org>;
+        Thu, 08 May 2014 13:07:28 -0700 (PDT)
+Message-ID: <536BE351.1050005@redhat.com>
+Date: Thu, 08 May 2014 16:04:33 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140507145553.GJ9489@dhcp22.suse.cz>
+Subject: Re: [PATCH v5] mm: support madvise(MADV_FREE)
+References: <1398045368-2586-1-git-send-email-minchan@kernel.org>
+In-Reply-To: <1398045368-2586-1-git-send-email-minchan@kernel.org>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dave Hansen <dave.hansen@intel.com>, John Stultz <john.stultz@linaro.org>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Jason Evans <je@fb.com>
 
-On Wed, May 07, 2014 at 04:55:53PM +0200, Michal Hocko wrote:
-> On Wed 30-04-14 16:25:38, Johannes Weiner wrote:
-> [...]
-> > @@ -6546,8 +6546,9 @@ one_by_one:
-> >  			cond_resched();
-> >  		}
-> >  		ret = mem_cgroup_try_charge(memcg, GFP_KERNEL, 1, false);
-> > +		if (ret == -EINTR)
-> > +			__mem_cgroup_cancel_charge(root_mem_cgroup, 1);
-> >  		if (ret)
-> > -			/* mem_cgroup_clear_mc() will do uncharge later */
-> 
-> I would prefer to keep the comment and explain that we will loose return
-> code on the way and that is why cancel on root has to be done here.
+On 04/20/2014 09:56 PM, Minchan Kim wrote:
 
-That makes sense, I'll add an explanation of who is (un)charged when
-and where.  Thanks!
+> In summary, MADV_FREE is about 2 time faster than MADV_DONTNEED.
+
+This is awesome.
+
+I have a few nitpicks with the patch, though :)
+
+> +static long madvise_lazyfree(struct vm_area_struct *vma,
+> +			     struct vm_area_struct **prev,
+> +			     unsigned long start, unsigned long end)
+> +{
+> +	*prev = vma;
+> +	if (vma->vm_flags & (VM_LOCKED|VM_HUGETLB|VM_PFNMAP))
+> +		return -EINVAL;
+> +
+> +	/* MADV_FREE works for only anon vma at the moment */
+> +	if (vma->vm_file)
+> +		return -EINVAL;
+> +
+> +	lazyfree_range(vma, start, end - start);
+> +	return 0;
+> +}
+
+This code checks whether lazyfree_range would work on
+the VMA...
+
+> diff --git a/mm/memory.c b/mm/memory.c
+> index c4b5bc250820..ca427f258204 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -1270,6 +1270,104 @@ static inline unsigned long zap_pud_range(struct mmu_gather *tlb,
+>   	return addr;
+>   }
+>
+> +static unsigned long lazyfree_pte_range(struct mmu_gather *tlb,
+> +				struct vm_area_struct *vma, pmd_t *pmd,
+> +				unsigned long addr, unsigned long end)
+> +{
+> +	struct mm_struct *mm = tlb->mm;
+> +	spinlock_t *ptl;
+> +	pte_t *start_pte;
+> +	pte_t *pte;
+> +
+> +	start_pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
+> +	pte = start_pte;
+> +	arch_enter_lazy_mmu_mode();
+> +	do {
+> +		pte_t ptent = *pte;
+> +
+> +		if (pte_none(ptent))
+> +			continue;
+> +
+> +		if (!pte_present(ptent))
+> +			continue;
+> +
+> +		ptent = pte_mkold(ptent);
+> +		ptent = pte_mkclean(ptent);
+> +		set_pte_at(mm, addr, pte, ptent);
+> +		tlb_remove_tlb_entry(tlb, pte, addr);
+
+This may not work on PPC, which has a weird hash table for
+its TLB. You will find that tlb_remove_tlb_entry does
+nothing for PPC64, and set_pte_at does not remove the hash
+table entry either.
+
+> @@ -1370,6 +1485,31 @@ void unmap_vmas(struct mmu_gather *tlb,
+>   }
+>
+>   /**
+> + * lazyfree_range - clear dirty bit of pte in a given range
+> + * @vma: vm_area_struct holding the applicable pages
+> + * @start: starting address of pages
+> + * @size: number of bytes to do lazyfree
+> + *
+> + * Caller must protect the VMA list
+> + */
+> +void lazyfree_range(struct vm_area_struct *vma, unsigned long start,
+> +		unsigned long size)
+> +{
+> +	struct mm_struct *mm = vma->vm_mm;
+> +	struct mmu_gather tlb;
+> +	unsigned long end = start + size;
+> +
+> +	lru_add_drain();
+> +	tlb_gather_mmu(&tlb, mm, start, end);
+> +	update_hiwater_rss(mm);
+> +	mmu_notifier_invalidate_range_start(mm, start, end);
+> +	for ( ; vma && vma->vm_start < end; vma = vma->vm_next)
+> +		lazyfree_single_vma(&tlb, vma, start, end);
+> +	mmu_notifier_invalidate_range_end(mm, start, end);
+> +	tlb_finish_mmu(&tlb, start, end);
+> +}
+
+This function, called by madvise_lazyfree, can iterate
+over multiple VMAs.
+
+However, madvise_lazyfree only checked one of them.
+
+What should happen when the code encounters a VMA where
+MADV_FREE does not work?  Should it return an error?
+Should it skip over it?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
