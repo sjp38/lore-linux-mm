@@ -1,118 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C5836B00E0
-	for <linux-mm@kvack.org>; Thu,  8 May 2014 06:17:54 -0400 (EDT)
-Received: by mail-pa0-f43.google.com with SMTP id hz1so2676159pad.30
-        for <linux-mm@kvack.org>; Thu, 08 May 2014 03:17:54 -0700 (PDT)
-Received: from fgwmail5.fujitsu.co.jp (fgwmail5.fujitsu.co.jp. [192.51.44.35])
-        by mx.google.com with ESMTPS id zp5si303287pac.24.2014.05.08.03.17.53
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 08 May 2014 03:17:53 -0700 (PDT)
-Received: from m2.gw.fujitsu.co.jp (unknown [10.0.50.72])
-	by fgwmail5.fujitsu.co.jp (Postfix) with ESMTP id 0C0043EE1A8
-	for <linux-mm@kvack.org>; Thu,  8 May 2014 19:17:52 +0900 (JST)
-Received: from smail (m2 [127.0.0.1])
-	by outgoing.m2.gw.fujitsu.co.jp (Postfix) with ESMTP id EF7C345DE50
-	for <linux-mm@kvack.org>; Thu,  8 May 2014 19:17:51 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (s2.gw.nic.fujitsu.com [10.0.50.92])
-	by m2.gw.fujitsu.co.jp (Postfix) with ESMTP id CC18C45DE3E
-	for <linux-mm@kvack.org>; Thu,  8 May 2014 19:17:51 +0900 (JST)
-Received: from s2.gw.fujitsu.co.jp (localhost.localdomain [127.0.0.1])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id B97081DB803F
-	for <linux-mm@kvack.org>; Thu,  8 May 2014 19:17:51 +0900 (JST)
-Received: from g01jpfmpwkw01.exch.g01.fujitsu.local (g01jpfmpwkw01.exch.g01.fujitsu.local [10.0.193.38])
-	by s2.gw.fujitsu.co.jp (Postfix) with ESMTP id 607D71DB8038
-	for <linux-mm@kvack.org>; Thu,  8 May 2014 19:17:51 +0900 (JST)
-Message-ID: <536B59A1.3000602@jp.fujitsu.com>
-Date: Thu, 8 May 2014 19:17:05 +0900
-From: Masayoshi Mizuma <m.mizuma@jp.fujitsu.com>
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id F144C6B00E1
+	for <linux-mm@kvack.org>; Thu,  8 May 2014 06:25:14 -0400 (EDT)
+Received: by mail-pa0-f52.google.com with SMTP id kx10so2673104pab.39
+        for <linux-mm@kvack.org>; Thu, 08 May 2014 03:25:14 -0700 (PDT)
+Received: from collaborate-mta1.arm.com (fw-tnat.austin.arm.com. [217.140.110.23])
+        by mx.google.com with ESMTP id yi3si310029pbb.54.2014.05.08.03.25.13
+        for <linux-mm@kvack.org>;
+        Thu, 08 May 2014 03:25:14 -0700 (PDT)
+Date: Thu, 8 May 2014 11:24:36 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: [BUG] kmemleak on __radix_tree_preload
+Message-ID: <20140508102436.GC17344@arm.com>
+References: <1398390340.4283.36.camel@kjgkr>
+ <20140501170610.GB28745@arm.com>
+ <20140501184112.GH23420@cmpxchg.org>
+ <1399431488.13268.29.camel@kjgkr>
+ <20140507113928.GB17253@arm.com>
+ <1399540611.13268.45.camel@kjgkr>
+ <20140508092646.GA17349@arm.com>
+ <1399541860.13268.48.camel@kjgkr>
 MIME-Version: 1.0
-Subject: Re: [PATCH v5] mm,writeback: fix divide by zero in pos_ratio_polynom
-References: <20140429151910.53f740ef@annuminas.surriel.com>	<5360C9E7.6010701@jp.fujitsu.com>	<20140430093035.7e7226f2@annuminas.surriel.com>	<20140430134826.GH4357@dhcp22.suse.cz>	<20140430104114.4bdc588e@cuia.bos.redhat.com>	<20140430120001.b4b95061ac7252a976b8a179@linux-foundation.org>	<53614F3C.8020009@redhat.com>	<20140430123526.bc6a229c1ea4addad1fb483d@linux-foundation.org>	<20140430160218.442863e0@cuia.bos.redhat.com>	<20140430131353.fa9f49604ea39425bc93c24a@linux-foundation.org> <20140430164255.7a753a8e@cuia.bos.redhat.com>
-In-Reply-To: <20140430164255.7a753a8e@cuia.bos.redhat.com>
-Content-Type: text/plain; charset="ISO-2022-JP"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <1399541860.13268.48.camel@kjgkr>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, sandeen@redhat.com, jweiner@redhat.com, kosaki.motohiro@jp.fujitsu.com, fengguang.wu@intel.com, mpatlasov@parallels.com, Motohiro.Kosaki@us.fujitsu.com
+To: Jaegeuk Kim <jaegeuk.kim@samsung.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, "Linux Kernel, Mailing List" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 
-Hi Rik, 
+On Thu, May 08, 2014 at 10:37:40AM +0100, Jaegeuk Kim wrote:
+> 2014-05-08 (ea(C)), 10:26 +0100, Catalin Marinas:
+> > On Thu, May 08, 2014 at 06:16:51PM +0900, Jaegeuk Kim wrote:
+> > > 2014-05-07 (i??), 12:39 +0100, Catalin Marinas:
+> > > > On Wed, May 07, 2014 at 03:58:08AM +0100, Jaegeuk Kim wrote:
+> > > > > unreferenced object 0xffff880004226da0 (size 576):
+> > > > >   comm "fsstress", pid 14590, jiffies 4295191259 (age 706.308s)
+> > > > >   hex dump (first 32 bytes):
+> > > > >     01 00 00 00 81 ff ff ff 00 00 00 00 00 00 00 00  ................
+> > > > >     50 89 34 81 ff ff ff ff b8 6d 22 04 00 88 ff ff  P.4......m".....
+> > > > >   backtrace:
+> > > > >     [<ffffffff816c02e8>] kmemleak_update_trace+0x58/0x80
+> > > > >     [<ffffffff81349517>] radix_tree_node_alloc+0x77/0xa0
+> > > > >     [<ffffffff81349718>] __radix_tree_create+0x1d8/0x230
+> > > > >     [<ffffffff8113286c>] __add_to_page_cache_locked+0x9c/0x1b0
+> > > > >     [<ffffffff811329a8>] add_to_page_cache_lru+0x28/0x80
+> > > > >     [<ffffffff81132f58>] grab_cache_page_write_begin+0x98/0xf0
+> > > > >     [<ffffffffa02e4bf4>] f2fs_write_begin+0xb4/0x3c0 [f2fs]
+> > > > >     [<ffffffff81131b77>] generic_perform_write+0xc7/0x1c0
+> > > > >     [<ffffffff81133b7d>] __generic_file_aio_write+0x1cd/0x3f0
+> > > > >     [<ffffffff81133dfe>] generic_file_aio_write+0x5e/0xe0
+> > > > >     [<ffffffff81195c5a>] do_sync_write+0x5a/0x90
+> > > > >     [<ffffffff811968d2>] vfs_write+0xc2/0x1d0
+> > > > >     [<ffffffff81196daf>] SyS_write+0x4f/0xb0
+> > > > >     [<ffffffff816dead2>] system_call_fastpath+0x16/0x1b
+> > > > >     [<ffffffffffffffff>] 0xffffffffffffffff
+> > > >
+> > > > OK, it shows that the allocation happens via add_to_page_cache_locked()
+> > > > and I guess it's page_cache_tree_insert() which calls
+> > > > __radix_tree_create() (the latter reusing the preloaded node). I'm not
+> > > > familiar enough to this code (radix-tree.c and filemap.c) to tell where
+> > > > the node should have been freed, who keeps track of it.
+> > > >
+> > > > At a quick look at the hex dump (assuming that the above leak is struct
+> > > > radix_tree_node):
+> > > >
+> > > > 	.path = 1
+> > > > 	.count = -0x7f (or 0xffffff81 as unsigned int)
+> > > > 	union {
+> > > > 		{
+> > > > 			.parent = NULL
+> > > > 			.private_data = 0xffffffff81348950
+> > > > 		}
+> > > > 		{
+> > > > 			.rcu_head.next = NULL
+> > > > 			.rcu_head.func = 0xffffffff81348950
+> > > > 		}
+> > > > 	}
+> > > >
+> > > > The count is a bit suspicious.
+> > > >
+> > > > From the union, it looks most likely like rcu_head information. Is
+> > > > radix_tree_node_rcu_free() function at the above rcu_head.func?
+> >
+> > Thanks for the config. Could you please confirm that 0xffffffff81348950
+> > address corresponds to the radix_tree_node_rcu_free() function in your
+> > System.map (or something else)?
+> 
+> Yap, the address is matched to radix_tree_node_rcu_free().
 
-On Wed, 30 Apr 2014 16:42:55 -0400 Rik van Riel wrote:
-> On Wed, 30 Apr 2014 13:13:53 -0700
-> Andrew Morton <akpm@linux-foundation.org> wrote:
-> 
->> This was a consequence of 64->32 truncation and it can't happen any
->> more, can it?
-> 
-> Andrew, this is cleaner indeed :)
-> 
-> Masayoshi-san, does the bug still happen with this version, or does
-> this fix the problem?
+Cc'ing Paul as well, not that I blame RCU ;), but maybe he could shed
+some light on why kmemleak can't track this object.
 
-I applied the v5 patch and the divide error did not happen when I ran the test.
-Thank you for fixing it!
+My summary so far:
 
-Thanks,
-Masayoshi Mizuma
+- radix_tree_node reported by kmemleak as it cannot find any trace of it
+  when scanning the memory
+- at allocation time, radix_tree_node is memzero'ed by
+  radix_tree_node_ctor(). Given that node->rcu_head.func ==
+  radix_tree_node_rcu_free, my guess is that radix_tree_node_free() has
+  been called
+- some time later, kmemleak still hasn't received any callback for
+  kmem_cache_free(node). Possibly radix_tree_node_rcu_free() hasn't been
+  called either since node->count is not NULL.
 
-> 
-> ---8<---
-> 
-> Subject: mm,writeback: fix divide by zero in pos_ratio_polynom
-> 
-> It is possible for "limit - setpoint + 1" to equal zero, after
-> getting truncated to a 32 bit variable, and resulting in a divide
-> by zero error.
-> 
-> Using the fully 64 bit divide functions avoids this problem.
-> 
-> Also uninline pos_ratio_polynom, at Andrew's request.
-> 
-> Signed-off-by: Rik van Riel <riel@redhat.com>
-> ---
->   mm/page-writeback.c | 6 +++---
->   1 file changed, 3 insertions(+), 3 deletions(-)
-> 
-> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-> index ef41349..a4317da 100644
-> --- a/mm/page-writeback.c
-> +++ b/mm/page-writeback.c
-> @@ -593,14 +593,14 @@ unsigned long bdi_dirty_limit(struct backing_dev_info *bdi, unsigned long dirty)
->    * (5) the closer to setpoint, the smaller |df/dx| (and the reverse)
->    *     => fast response on large errors; small oscillation near setpoint
->    */
-> -static inline long long pos_ratio_polynom(unsigned long setpoint,
-> +static long long pos_ratio_polynom(unsigned long setpoint,
->   					  unsigned long dirty,
->   					  unsigned long limit)
->   {
->   	long long pos_ratio;
->   	long x;
->   
-> -	x = div_s64(((s64)setpoint - (s64)dirty) << RATELIMIT_CALC_SHIFT,
-> +	x = div64_s64(((s64)setpoint - (s64)dirty) << RATELIMIT_CALC_SHIFT,
->   		    limit - setpoint + 1);
->   	pos_ratio = x;
->   	pos_ratio = pos_ratio * x >> RATELIMIT_CALC_SHIFT;
-> @@ -842,7 +842,7 @@ static unsigned long bdi_position_ratio(struct backing_dev_info *bdi,
->   	x_intercept = bdi_setpoint + span;
->   
->   	if (bdi_dirty < x_intercept - span / 4) {
-> -		pos_ratio = div_u64(pos_ratio * (x_intercept - bdi_dirty),
-> +		pos_ratio = div64_u64(pos_ratio * (x_intercept - bdi_dirty),
->   				    x_intercept - bdi_setpoint + 1);
->   	} else
->   		pos_ratio /= 4;
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+For RCU queued objects, kmemleak should still track references to them
+via rcu_sched_state and rcu_head members. But even if this went wrong, I
+would expect the object to be freed eventually and kmemleak notified (so
+just a temporary leak report which doesn't seem to be the case here).
+
+I still cannot explain the node->count value above and how it can get
+there (too many node->count--?). Maybe Johannes could shed some light.
+
+Thanks.
+
+-- 
+Catalin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
