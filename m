@@ -1,165 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B5226B0036
-	for <linux-mm@kvack.org>; Fri,  9 May 2014 11:15:10 -0400 (EDT)
-Received: by mail-wi0-f181.google.com with SMTP id n15so1491081wiw.14
-        for <linux-mm@kvack.org>; Fri, 09 May 2014 08:15:10 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id gr4si1104714wib.53.2014.05.09.08.15.08
-        for <linux-mm@kvack.org>;
-        Fri, 09 May 2014 08:15:09 -0700 (PDT)
-Message-ID: <536CF041.5070007@redhat.com>
-Date: Fri, 09 May 2014 11:12:01 -0400
-From: Rik van Riel <riel@redhat.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v5] mm: support madvise(MADV_FREE)
-References: <1398045368-2586-1-git-send-email-minchan@kernel.org> <536BE351.1050005@redhat.com> <20140509061714.GF25951@bbox> <20140509062803.GG25951@bbox>
-In-Reply-To: <20140509062803.GG25951@bbox>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 97D046B0035
+	for <linux-mm@kvack.org>; Fri,  9 May 2014 11:18:34 -0400 (EDT)
+Received: by mail-pd0-f173.google.com with SMTP id y10so3836463pdj.4
+        for <linux-mm@kvack.org>; Fri, 09 May 2014 08:18:34 -0700 (PDT)
+Received: from mail-pd0-x236.google.com (mail-pd0-x236.google.com [2607:f8b0:400e:c02::236])
+        by mx.google.com with ESMTPS id qm15si2153543pab.185.2014.05.09.08.18.33
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 09 May 2014 08:18:33 -0700 (PDT)
+Received: by mail-pd0-f182.google.com with SMTP id v10so3857391pde.27
+        for <linux-mm@kvack.org>; Fri, 09 May 2014 08:18:33 -0700 (PDT)
+From: Jianyu Zhan <nasa4836@gmail.com>
+Subject: [PATCH] mm: use a irq-safe __mod_zone_page_state in mlocked_vma_newpage()
+Date: Fri,  9 May 2014 23:17:48 +0800
+Message-Id: <1399648668-17420-1-git-send-email-nasa4836@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dave Hansen <dave.hansen@intel.com>, John Stultz <john.stultz@linaro.org>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Jason Evans <je@fb.com>
+To: akpm@linux-foundation.org, hannes@cmpxchg.org, riel@redhat.com, mhocko@suse.cz, aarcange@redhat.com, hanpt@linux.vnet.ibm.com, mgorman@suse.de, oleg@redhat.com, cldu@marvell.com, fabf@skynet.be, sasha.levin@oracle.com, zhangyanfei@cn.fujitsu.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, nasa4836@gmail.com
 
-On 05/09/2014 02:28 AM, Minchan Kim wrote:
-> On Fri, May 09, 2014 at 03:17:14PM +0900, Minchan Kim wrote:
->> Hello Rik,
->>
->> On Thu, May 08, 2014 at 04:04:33PM -0400, Rik van Riel wrote:
->>> On 04/20/2014 09:56 PM, Minchan Kim wrote:
->>>
->>>> In summary, MADV_FREE is about 2 time faster than MADV_DONTNEED.
->>>
->>> This is awesome.
->>
->> Thanks!
->>
->>>
->>> I have a few nitpicks with the patch, though :)
->>>
->>>> +static long madvise_lazyfree(struct vm_area_struct *vma,
->>>> +			     struct vm_area_struct **prev,
->>>> +			     unsigned long start, unsigned long end)
->>>> +{
->>>> +	*prev = vma;
->>>> +	if (vma->vm_flags & (VM_LOCKED|VM_HUGETLB|VM_PFNMAP))
->>>> +		return -EINVAL;
->>>> +
->>>> +	/* MADV_FREE works for only anon vma at the moment */
->>>> +	if (vma->vm_file)
->>>> +		return -EINVAL;
->>>> +
->>>> +	lazyfree_range(vma, start, end - start);
->>>> +	return 0;
->>>> +}
->>>
->>> This code checks whether lazyfree_range would work on
->>> the VMA...
->>>
->>>> diff --git a/mm/memory.c b/mm/memory.c
->>>> index c4b5bc250820..ca427f258204 100644
->>>> --- a/mm/memory.c
->>>> +++ b/mm/memory.c
->>>> @@ -1270,6 +1270,104 @@ static inline unsigned long zap_pud_range(struct mmu_gather *tlb,
->>>>   	return addr;
->>>>   }
->>>>
->>>> +static unsigned long lazyfree_pte_range(struct mmu_gather *tlb,
->>>> +				struct vm_area_struct *vma, pmd_t *pmd,
->>>> +				unsigned long addr, unsigned long end)
->>>> +{
->>>> +	struct mm_struct *mm = tlb->mm;
->>>> +	spinlock_t *ptl;
->>>> +	pte_t *start_pte;
->>>> +	pte_t *pte;
->>>> +
->>>> +	start_pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
->>>> +	pte = start_pte;
->>>> +	arch_enter_lazy_mmu_mode();
->>>> +	do {
->>>> +		pte_t ptent = *pte;
->>>> +
->>>> +		if (pte_none(ptent))
->>>> +			continue;
->>>> +
->>>> +		if (!pte_present(ptent))
->>>> +			continue;
->>>> +
->>>> +		ptent = pte_mkold(ptent);
->>>> +		ptent = pte_mkclean(ptent);
->>>> +		set_pte_at(mm, addr, pte, ptent);
->>>> +		tlb_remove_tlb_entry(tlb, pte, addr);
->>>
->>> This may not work on PPC, which has a weird hash table for
->>> its TLB. You will find that tlb_remove_tlb_entry does
->>> nothing for PPC64, and set_pte_at does not remove the hash
->>> table entry either.
->>
->> Hmm, I didn't notice that. Thanks Rik.
->>
->> Maybe I need this in asm-generic.
->>
->> static inline void ptep_set_lazyfree(struct mm_struct *mm, unsigned addr, pte_t *ptep)
->> {
->>          pte_t ptent = *ptep;
->>          ptent = pte_mkold(ptent);
->>          ptent = pte_mkclean(ptent);
->>          set_pte_at(mm, addr, ptep, ptent);
->> }
->>
->> For arch/powerpc/include/asm/pgtable.h
->>
->> static inline void ptep_set_lazyfree(struct mm_struct *mm, unsigned long addr,
->>                          pte_t *ptep)
->> {
->>          pte_update(mm, addr, ptep, _PAGE_DIRTY|_PAGE_ACCESSED, 0, 0);
->> }
->>
->>>
->>>> @@ -1370,6 +1485,31 @@ void unmap_vmas(struct mmu_gather *tlb,
->>>>   }
->>>>
->>>>   /**
->>>> + * lazyfree_range - clear dirty bit of pte in a given range
->>>> + * @vma: vm_area_struct holding the applicable pages
->>>> + * @start: starting address of pages
->>>> + * @size: number of bytes to do lazyfree
->>>> + *
->>>> + * Caller must protect the VMA list
->>>> + */
->>>> +void lazyfree_range(struct vm_area_struct *vma, unsigned long start,
->>>> +		unsigned long size)
->>>> +{
->>>> +	struct mm_struct *mm = vma->vm_mm;
->>>> +	struct mmu_gather tlb;
->>>> +	unsigned long end = start + size;
->>>> +
->>>> +	lru_add_drain();
->>>> +	tlb_gather_mmu(&tlb, mm, start, end);
->>>> +	update_hiwater_rss(mm);
->>>> +	mmu_notifier_invalidate_range_start(mm, start, end);
->>>> +	for ( ; vma && vma->vm_start < end; vma = vma->vm_next)
->>>> +		lazyfree_single_vma(&tlb, vma, start, end);
->>>> +	mmu_notifier_invalidate_range_end(mm, start, end);
->>>> +	tlb_finish_mmu(&tlb, start, end);
->>>> +}
->>>
->>> This function, called by madvise_lazyfree, can iterate
->>> over multiple VMAs.
->>>
->>> However, madvise_lazyfree only checked one of them.
->>
->> Oops, the check should have been lazyfree_range.
->> Will fix.
->
-> Now that I see the code, madvise_vma always pass *a* vma so madvise_lazyfree
-> doesn't cover multiple vma all at once so the current sematic is same with
-> dontneed. So, I don't see any problem. If I miss something, let me know it.
->
+mlocked_vma_newpage() is only called in fault path by
+page_add_new_anon_rmap(), which is called on a *new* page.
+And such page is initially only visible via the pagetables, and the
+pte is locked while calling page_add_new_anon_rmap(), so we could use
+a irq-safe version of __mod_zone_page_state() here.
 
-Does that mean lazyfree_range is unnecessary, and everything
-can be done inside lazyfree_single_vma ?
+Signed-off-by: Jianyu Zhan <nasa4836@gmail.com>
+---
+ mm/internal.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mm/internal.h b/mm/internal.h
+index 07b6736..69079b1 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -196,7 +196,7 @@ static inline int mlocked_vma_newpage(struct vm_area_struct *vma,
+ 		return 0;
+ 
+ 	if (!TestSetPageMlocked(page)) {
+-		mod_zone_page_state(page_zone(page), NR_MLOCK,
++		__mod_zone_page_state(page_zone(page), NR_MLOCK,
+ 				    hpage_nr_pages(page));
+ 		count_vm_event(UNEVICTABLE_PGMLOCKED);
+ 	}
+-- 
+2.0.0-rc1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
