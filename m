@@ -1,127 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f46.google.com (mail-qa0-f46.google.com [209.85.216.46])
-	by kanga.kvack.org (Postfix) with ESMTP id E2D736B013D
-	for <linux-mm@kvack.org>; Thu,  8 May 2014 21:45:50 -0400 (EDT)
-Received: by mail-qa0-f46.google.com with SMTP id w8so3339704qac.5
-        for <linux-mm@kvack.org>; Thu, 08 May 2014 18:45:50 -0700 (PDT)
-Received: from mail-qc0-x22c.google.com (mail-qc0-x22c.google.com [2607:f8b0:400d:c01::22c])
-        by mx.google.com with ESMTPS id c4si1372578qad.164.2014.05.08.18.45.50
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id E9FFA6B013F
+	for <linux-mm@kvack.org>; Thu,  8 May 2014 22:39:20 -0400 (EDT)
+Received: by mail-pd0-f179.google.com with SMTP id g10so3100807pdj.10
+        for <linux-mm@kvack.org>; Thu, 08 May 2014 19:39:20 -0700 (PDT)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
+        by mx.google.com with ESMTPS id tx10si270436pac.112.2014.05.08.19.39.18
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 08 May 2014 18:45:50 -0700 (PDT)
-Received: by mail-qc0-f172.google.com with SMTP id l6so3955479qcy.31
-        for <linux-mm@kvack.org>; Thu, 08 May 2014 18:45:50 -0700 (PDT)
-Date: Thu, 8 May 2014 21:45:45 -0400
-From: Jerome Glisse <j.glisse@gmail.com>
-Subject: Re: [RFC] Heterogeneous memory management (mirror process address
- space on a device mmu).
-Message-ID: <20140509014544.GB2906@gmail.com>
-References: <1399038730-25641-1-git-send-email-j.glisse@gmail.com>
- <20140506102925.GD11096@twins.programming.kicks-ass.net>
- <1399429987.2581.25.camel@buesod1.americas.hpqcorp.net>
- <536BB508.2020704@mellanox.com>
- <20140508175624.GA3121@gmail.com>
- <1399599734.2497.2.camel@buesod1.americas.hpqcorp.net>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 08 May 2014 19:39:20 -0700 (PDT)
+Message-ID: <536C3FC7.2030402@huawei.com>
+Date: Fri, 9 May 2014 10:39:03 +0800
+From: Zhang Zhen <zhenzhang.zhang@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1399599734.2497.2.camel@buesod1.americas.hpqcorp.net>
+Subject: Kernel panic related with OOM-killer
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <davidlohr@hp.com>
-Cc: sagi grimberg <sagig@mellanox.com>, Peter Zijlstra <peterz@infradead.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Linda Wang <lwang@redhat.com>, Kevin E Martin <kem@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Jeff Law <law@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Haggai Eran <haggaie@mellanox.com>, Or Gerlitz <ogerlitz@mellanox.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, "Sander, Ben" <ben.sander@amd.com>, "Stoner, Greg" <Greg.Stoner@amd.com>, "Bridgman, John" <John.Bridgman@amd.com>, "Mantor, Michael" <Michael.Mantor@amd.com>, "Blinzer, Paul" <Paul.Blinzer@amd.com>, "Morichetti, Laurent" <Laurent.Morichetti@amd.com>, "Deucher, Alexander" <Alexander.Deucher@amd.com>, "Gabbay, Oded" <Oded.Gabbay@amd.com>, Linus Torvalds <torvalds@linux-foundation.org>
+To: linux-mm@kvack.org
+Cc: Wang Nan <wangnan0@huawei.com>
 
-On Thu, May 08, 2014 at 06:42:14PM -0700, Davidlohr Bueso wrote:
-> On Thu, 2014-05-08 at 13:56 -0400, Jerome Glisse wrote:
-> > On Thu, May 08, 2014 at 07:47:04PM +0300, sagi grimberg wrote:
-> > > On 5/7/2014 5:33 AM, Davidlohr Bueso wrote:
-> > > >On Tue, 2014-05-06 at 12:29 +0200, Peter Zijlstra wrote:
-> > > >>So you forgot to CC Linus, Linus has expressed some dislike for
-> > > >>preemptible mmu_notifiers in the recent past:
-> > > >>
-> > > >>   https://lkml.org/lkml/2013/9/30/385
-> > > >I'm glad this came up again.
-> > > >
-> > > >So I've been running benchmarks (mostly aim7, which nicely exercises our
-> > > >locks) comparing my recent v4 for rwsem optimistic spinning against
-> > > >previous implementation ideas for the anon-vma lock, mostly:
-> > > >
-> > > >- rwsem (currently)
-> > > >- rwlock_t
-> > > >- qrwlock_t
-> > > >- rwsem+optspin
-> > > >
-> > > >Of course, *any* change provides significant improvement in throughput
-> > > >for several workloads, by avoiding to block -- there are more
-> > > >performance numbers in the different patches. This is fairly obvious.
-> > > >
-> > > >What is perhaps not so obvious is that rwsem+optimistic spinning beats
-> > > >all others, including the improved qrwlock from Waiman and Peter. This
-> > > >is mostly because of the idea of cancelable MCS, which was mimic'ed from
-> > > >mutexes. The delta in most cases is around +10-15%, which is non
-> > > >trivial.
-> > > 
-> > > These are great news David!
-> > > 
-> > > >I mention this because from a performance PoV, we'll stop caring so much
-> > > >about the type of lock we require in the notifier related code. So while
-> > > >this is not conclusive, I'm not as opposed to keeping the locks blocking
-> > > >as I once was. Now this might still imply things like poor design
-> > > >choices, but that's neither here nor there.
-> > > 
-> > > So is the rwsem+opt strategy the way to go Given it keeps everyone happy?
-> > > We will be more than satisfied with it as it will allow us to
-> > > guarantee device
-> > > MMU update.
-> > > 
-> > > >/me sees Sagi smiling ;)
-> > > 
-> > > :)
-> > 
-> > So i started doing thing with tlb flush but i must say things looks ugly.
-> > I need a new page flag (goodbye 32bits platform) and i need my own lru and
-> > page reclaimation for any page in use by a device, i need to hook up inside
-> > try_to_unmap or migrate (but i will do the former). I am trying to be smart
-> > by trying to schedule a worker on another cpu before before sending the ipi
-> > so that while the ipi is in progress hopefully another cpu might schedule
-> > the invalidation on the GPU and the wait after ipi for the gpu will be quick.
-> > 
-> > So all in all this is looking ugly and it does not change the fact that i
-> > sleep (well need to be able to sleep). It just move the sleeping to another
-> > part.
-> > 
-> > Maybe i should stress that with the mmu_notifier version it only sleep for
-> > process that are using the GPU those process are using userspace API like
-> > OpenCL which are not playing well with fork, ie read do not use fork if
-> > you are using such API.
-> > 
-> > So for my case if a process has mm->hmm set to something that would mean
-> > that there is a GPU using that address space and that it is unlikely to
-> > go under the massive workload that people try to optimize the anon_vma
-> > lock for.
-> > 
-> > My point is that with rwsem+optspin it could try spinning if mm->hmm
-> > was NULL and make the massive fork workload go fast, or it could sleep
-> > directly if mm->hmm is set.
-> 
-> Sorry? Unless I'm misunderstanding you, we don't do such things. Our
-> locks are generic and need to work for any circumstance, no special
-> cases here and there... _specially_ with these kind of things. So no,
-> rwsem will spin as long as the owner is set, just like any other users.
-> 
-> Thanks,
-> Davidlohr
-> 
+Hi,
 
-I do not mind spining all time i was just thinking that it could be optimize
-away in case there is hmm for the current mm as it means that any way there
-very much likely gonna be a schedule inside the mmu_notifier.
+We have a question about Kernel panic related with OOM-killer on an ARM-A15 board.
+But it reproduced randomly.
 
-But if you prefer keep code generic i am fine with wasting cpu cycle.
+Does anyone has some issues like this or some suggestion?
+Thank you so much.
 
-Cheers,
-Jerome Glisse
+The Logs when kernel panic was occurred as follows.
+
+[59313.549221] Killed process 15479 (server) total-vm:9984kB, anon-rss:68kB, file-rss:0kB
+[59318.531080] Out of memory: Kill process 15485 (server) score 0 or sacrifice child
+[59318.618689] Killed process 15485 (server) total-vm:9984kB, anon-rss:68kB, file-rss:0kB
+[59321.839161] Out of memory: Kill process 1339 (portmap) score 0 or sacrifice child
+[59321.926735] Killed process 1339 (portmap) total-vm:1732kB, anon-rss:64kB, file-rss:0kB
+[59327.626410] Kernel panic - not syncing: Out of memory and no killable processes...
+[59327.626410]
+[59327.732711] CPU: 15 PID: 28026 Comm: rmap-test Tainted: G           O 3.10.37 #1
+[59327.821217] [<c0011a6c>] (unwind_backtrace+0x0/0x12c) from [<c000d0b0>] (show_stack+0x20/0x24)
+[59327.924275] [<c000d0b0>] (show_stack+0x20/0x24) from [<c0310f74>] (dump_stack+0x20/0x28)
+[59328.021090] [<c0310f74>] (dump_stack+0x20/0x28) from [<c030e2f0>] (panic+0x98/0x1fc)
+[59328.113748] [<c030e2f0>] (panic+0x98/0x1fc) from [<c00c2d20>] (out_of_memory+0x23c/0x2b4)
+[59328.211609] [<c00c2d20>] (out_of_memory+0x23c/0x2b4) from [<c00c6ba0>] (__alloc_pages_nodemask+0x604/0x7e8)
+[59328.328207] [<c00c6ba0>] (__alloc_pages_nodemask+0x604/0x7e8) from [<c00df164>] (__pte_alloc+0x30/0x16c)
+[59328.441685] [<c00df164>] (__pte_alloc+0x30/0x16c) from [<c00e2ba4>] (handle_mm_fault+0x158/0x184)
+[59328.547872] [<c00e2ba4>] (handle_mm_fault+0x158/0x184) from [<c03164c8>] (do_page_fault+0x150/0x3ac)
+[59328.657181] [<c03164c8>] (do_page_fault+0x150/0x3ac) from [<c0316750>] (do_translation_fault+0x2c/0x100)
+[59328.770658] [<c0316750>] (do_translation_fault+0x2c/0x100) from [<c000842c>] (do_DataAbort+0x3c/0xa0)
+[59328.881012] [<c000842c>] (do_DataAbort+0x3c/0xa0) from [<c0314c78>] (__dabt_usr+0x38/0x40)
+[59328.979907] Exception stack(0xc1b73fb0 to 0xc1b73ff8)
+[59329.040289] 3fa0:                                     b4d9f000 00000000 00012a00 00000064
+[59329.138150] 3fc0: 00000000 00000000 b4d9f000 000129d4 00012a24 00000001 00000000 00000051
+[59329.236011] 3fe0: 00000000 be8b9608 00009198 00008dc0 60000010 ffffffff
+[59329.315145] CPU3: stopping
+[59329.347408] CPU: 3 PID: 28191 Comm: rmap-test Tainted: G           O 3.10.37 #1
+[59329.434869] [<c0011a6c>] (unwind_backtrace+0x0/0x12c) from [<c000d0b0>] (show_stack+0x20/0x24)
+[59329.537927] [<c000d0b0>] (show_stack+0x20/0x24) from [<c0310f74>] (dump_stack+0x20/0x28)
+[59329.634745] [<c0310f74>] (dump_stack+0x20/0x28) from [<c000f450>] (handle_IPI+0xd0/0x134)
+[59329.732604] [<c000f450>] (handle_IPI+0xd0/0x134) from [<c00085d0>] (gic_handle_irq+0x68/0x70)
+[59329.834628] [<c00085d0>] (gic_handle_irq+0x68/0x70) from [<c0314b40>] (__irq_svc+0x40/0x50)
+[59329.934564] Exception stack(0xc32d5a28 to 0xc32d5a70)
+[59329.994948] 5a20:                   00000001 0000000a 00000000 00000003 c32d4000 00000002
+[59330.092809] 5a40: c04f50b4 c32d5b5c 00000000 c05212c0 3fb23f7c c32d5abc c32d5a70 c32d5a70
+[59330.190666] 5a60: c0026c1c c0027e44 60000113 ffffffff
+[59330.251057] [<c0314b40>] (__irq_svc+0x40/0x50) from [<c0027e44>] (__do_softirq+0x94/0x26c)
+[59330.349955] [<c0027e44>] (__do_softirq+0x94/0x26c) from [<c00280d0>] (do_softirq+0x54/0x60)
+[59330.449896] [<c00280d0>] (do_softirq+0x54/0x60) from [<c002836c>] (irq_exit+0x84/0x98)
+[59330.465136] SMP: failed to stop secondary CPUs
+[59330.597728] [<c002836c>] (irq_exit+0x84/0x98) from [<c0009ee4>] (handle_IRQ+0x78/0x9c)
+[59330.692465] [<c0009ee4>] (handle_IRQ+0x78/0x9c) from [<c00085b4>] (gic_handle_irq+0x4c/0x70)
+[59330.793449] [<c00085b4>] (gic_handle_irq+0x4c/0x70) from [<c0314b40>] (__irq_svc+0x40/0x50)
+[59330.893385] Exception stack(0xc32d5b28 to 0xc32d5b70)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
