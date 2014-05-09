@@ -1,22 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vc0-f169.google.com (mail-vc0-f169.google.com [209.85.220.169])
-	by kanga.kvack.org (Postfix) with ESMTP id A1C9A6B0036
-	for <linux-mm@kvack.org>; Fri,  9 May 2014 11:45:40 -0400 (EDT)
-Received: by mail-vc0-f169.google.com with SMTP id ij19so5594214vcb.28
-        for <linux-mm@kvack.org>; Fri, 09 May 2014 08:45:40 -0700 (PDT)
-Received: from mail-pd0-x22a.google.com (mail-pd0-x22a.google.com [2607:f8b0:400e:c02::22a])
-        by mx.google.com with ESMTPS id py5si2434987pbc.443.2014.05.09.08.45.39
+Received: from mail-pd0-f174.google.com (mail-pd0-f174.google.com [209.85.192.174])
+	by kanga.kvack.org (Postfix) with ESMTP id E15F16B0035
+	for <linux-mm@kvack.org>; Fri,  9 May 2014 11:46:57 -0400 (EDT)
+Received: by mail-pd0-f174.google.com with SMTP id w10so3792685pde.19
+        for <linux-mm@kvack.org>; Fri, 09 May 2014 08:46:57 -0700 (PDT)
+Received: from mail-pd0-x22e.google.com (mail-pd0-x22e.google.com [2607:f8b0:400e:c02::22e])
+        by mx.google.com with ESMTPS id se7si2470283pbb.10.2014.05.09.08.46.56
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 09 May 2014 08:45:40 -0700 (PDT)
-Received: by mail-pd0-f170.google.com with SMTP id v10so3871453pde.29
-        for <linux-mm@kvack.org>; Fri, 09 May 2014 08:45:39 -0700 (PDT)
+        Fri, 09 May 2014 08:46:57 -0700 (PDT)
+Received: by mail-pd0-f174.google.com with SMTP id w10so3792673pde.19
+        for <linux-mm@kvack.org>; Fri, 09 May 2014 08:46:56 -0700 (PDT)
 From: Michal Nazarewicz <mina86@mina86.com>
-Subject: Re: [RFC PATCH 2/3] CMA: aggressively allocate the pages on cma reserved memory when not used
-In-Reply-To: <1399509144-8898-3-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1399509144-8898-1-git-send-email-iamjoonsoo.kim@lge.com> <1399509144-8898-3-git-send-email-iamjoonsoo.kim@lge.com>
-Date: Fri, 09 May 2014 08:45:32 -0700
-Message-ID: <xa1t4n0zx8f7.fsf@mina86.com>
+Subject: Re: [RFC PATCH 3/3] CMA: always treat free cma pages as non-free on watermark checking
+In-Reply-To: <1399509144-8898-4-git-send-email-iamjoonsoo.kim@lge.com>
+References: <1399509144-8898-1-git-send-email-iamjoonsoo.kim@lge.com> <1399509144-8898-4-git-send-email-iamjoonsoo.kim@lge.com>
+Date: Fri, 09 May 2014 08:46:50 -0700
+Message-ID: <xa1t1tw3x8d1.fsf@mina86.com>
 MIME-Version: 1.0
 Content-Type: multipart/mixed; boundary="=-=-="
 Sender: owner-linux-mm@kvack.org
@@ -29,10 +29,15 @@ Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: quoted-printable
 
 On Wed, May 07 2014, Joonsoo Kim wrote:
+> commit d95ea5d1('cma: fix watermark checking') introduces ALLOC_CMA flag
+> for alloc flag and treats free cma pages as free pages if this flag is
+> passed to watermark checking. Intention of that patch is that movable page
+> allocation can be be handled from cma reserved region without starting
+> kswapd. Now, previous patch changes the behaviour of allocator that
+> movable allocation uses the page on cma reserved region aggressively,
+> so this watermark hack isn't needed anymore. Therefore remove it.
+>
 > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-
-The code looks good to me, but I don't feel competent on whether the
-approach is beneficial or not.  Still:
 
 Acked-by: Michal Nazarewicz <mina86@mina86.com>
 
@@ -58,19 +63,19 @@ Content-Type: application/pgp-signature; name="signature.asc"
 -----BEGIN PGP SIGNATURE-----
 Version: GnuPG v1.4.11 (GNU/Linux)
 
-iQIbBAEBAgAGBQJTbPgcAAoJECBgQBJQdR/0V5EP9iwYwqxiwv9ZPYqFtCjjAsHH
-tJomWa/nlEKJ+eVoTwFT2FjpORmux2MHNDCWL+ncpV4Gh3SODbstkiRhJNksiOsz
-CKrc/amtefoiCkZOLf478Mn845t4a9TitUN3fAPqG4/iPulf1alelymFqaSiTU+I
-wV5JaQK5KWUnUADR/5UzMCEG1pgyu9SbIHYM2pKljbtFDNrrcE+h10UFepUgiNda
-onZvB002cdV4KR3ZA1Dw7UcMarL/gSL1GbWiqHuQz0Za2yoPZNtWJtuBoYBfNjfq
-Nlq0aIrKmx0viXfC4XkdRIJ0lJkEaWz560exmeEXWrO3egd3TtbYjPdZ5nheDUBZ
-21ZkTTSYggR33oIasTGiAGFrJNDdX2TebAvulC1vIYZ+7wP53iwHNBQqU6UkpPw+
-0PrLQa1a7THDpoalRkfBCC+HBHBwJvsSGHYlgSvUA/b0EdzuI9CN29Ht+lC/kDqg
-vCJiO0yykygOaj/JATdP/kNnmF7KhRAJhUc2HQgrGCQ6wpyQ5Tlk8vtL9OUdaH7G
-W8VnqdRTU39S3j/1YXpJCjOxNr7m5mC6hl9pSkBaWzQ0x/bBi21jWiHdOPNWQnxK
-Qb+DpilW5ZoSmULo5dwyXIbjVxdoUKJuF9JotBoSP6tDppvXv2LD0a7PoN4oYN6l
-FEtcIJ2A1XPixQOfVFk=
-=4Tff
+iQIcBAEBAgAGBQJTbPhqAAoJECBgQBJQdR/0W00P/2lA4due77ZgrKd3+b1G+hZW
+54DbdgQdTTJZQJZGeCtCKx/v9O4nY6suKmeGQXpleMog4BGEUa/+UMVM8ZGZSwYv
+DZjqTM4l/lwuK4fU0jEdSKwBmpYL9PnvtLhduY6iEuqW4zxqqZFo3Hkp5fdi++eh
+XSUl2TTD/p97HqIJrRCjNsBwk67iQ06uH1Xn3BPdPFem4sXiyyuUbWwv2+kwcfJk
+OICFmLXgMw4SDybGcADT7KTHp94BpDmqIOK4fu+hOGoGYzEQ0ECPZDnVgILRAbc/
+mzecpMZWKYdsr/QXboAO7BU9V23x1DedJsJs87/Vq6MjB0PRUIAhUA4q52aI4Q9p
+i03xO9ulah32J38Xium37xXmTj1unKd2V92q+nyJWd8tMTyAwiTwFZycU7WoeT+7
+oSUzVXfqW/Lq9idLFyALyRjs7iq0ofaeW1xaQs+qeVNK/Pq6X0NtEsB8n2AEjZuh
+Upy2h873IHhpT/YM4ZmxkL0VihqZOd6ofojgGXAj3Z+M9z8iQMEYeV9SwxM0URy0
+d3IFE1fR0zWWZGJeWikKuv+iQk1lqIpD7fyEcqHJER2F8SBirtKFtIxbNec1tXEU
+vbPOogilTy8lzdRq9dlft/iF93ogOcGAzGSrgtJshYlMdsH7yWWN0d/KCYjjuF7T
+Q0ACZTmO0v/QIsNfEU4y
+=BUaR
 -----END PGP SIGNATURE-----
 --==-=-=--
 
