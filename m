@@ -1,164 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 260CD6B0137
-	for <linux-mm@kvack.org>; Thu,  8 May 2014 20:39:40 -0400 (EDT)
-Received: by mail-pa0-f46.google.com with SMTP id kx10so3576777pab.33
-        for <linux-mm@kvack.org>; Thu, 08 May 2014 17:39:39 -0700 (PDT)
-Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
-        by mx.google.com with ESMTP id gj9si16404pac.49.2014.05.08.17.39.37
-        for <linux-mm@kvack.org>;
-        Thu, 08 May 2014 17:39:39 -0700 (PDT)
-Date: Fri, 9 May 2014 09:41:44 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 2/4] MADV_VOLATILE: Add MADV_VOLATILE/NONVOLATILE hooks
- and handle marking vmas
-Message-ID: <20140509004144.GE25951@bbox>
-References: <1398806483-19122-1-git-send-email-john.stultz@linaro.org>
- <1398806483-19122-3-git-send-email-john.stultz@linaro.org>
- <20140508012142.GA5282@bbox>
- <536BB310.1050105@linaro.org>
- <20140508231259.GA25951@bbox>
- <536C168B.6090702@linaro.org>
- <20140509000752.GD25951@bbox>
- <536C2049.6020308@linaro.org>
+Received: from mail-qg0-f42.google.com (mail-qg0-f42.google.com [209.85.192.42])
+	by kanga.kvack.org (Postfix) with ESMTP id B06AA6B0139
+	for <linux-mm@kvack.org>; Thu,  8 May 2014 21:26:25 -0400 (EDT)
+Received: by mail-qg0-f42.google.com with SMTP id q107so3833423qgd.1
+        for <linux-mm@kvack.org>; Thu, 08 May 2014 18:26:25 -0700 (PDT)
+Received: from mail-qg0-x232.google.com (mail-qg0-x232.google.com [2607:f8b0:400d:c04::232])
+        by mx.google.com with ESMTPS id s6si1367534qaj.62.2014.05.08.18.26.25
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 08 May 2014 18:26:25 -0700 (PDT)
+Received: by mail-qg0-f50.google.com with SMTP id z60so3769909qgd.9
+        for <linux-mm@kvack.org>; Thu, 08 May 2014 18:26:25 -0700 (PDT)
+Date: Thu, 8 May 2014 21:26:03 -0400
+From: Jerome Glisse <j.glisse@gmail.com>
+Subject: Re: [RFC] Heterogeneous memory management (mirror process address
+ space on a device mmu).
+Message-ID: <20140509012601.GA2906@gmail.com>
+References: <1399038730-25641-1-git-send-email-j.glisse@gmail.com>
+ <20140506102925.GD11096@twins.programming.kicks-ass.net>
+ <CA+55aFzt47Jpp-KK-ocLGgzYt_w-vheqFLfaGZOUSjwVrgGUtw@mail.gmail.com>
+ <20140506150014.GA6731@gmail.com>
+ <CA+55aFwM-g01tCZ1NknwvMeSMpwyKyTm6hysN-GmrZ_APtk7UA@mail.gmail.com>
+ <20140506153315.GB6731@gmail.com>
+ <CA+55aFzzPtTkC22WvHNy6srN9PFzer0-_mgRXWO03NwmCdfy4g@mail.gmail.com>
+ <20140506161836.GC6731@gmail.com>
+ <1399446892.4161.34.camel@pasglop>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <536C2049.6020308@linaro.org>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <1399446892.4161.34.camel@pasglop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Stultz <john.stultz@linaro.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Android Kernel Team <kernel-team@android.com>, Johannes Weiner <hannes@cmpxchg.org>, Robert Love <rlove@google.com>, Mel Gorman <mel@csn.ul.ie>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave@sr71.net>, Rik van Riel <riel@redhat.com>, Dmitry Adamushko <dmitry.adamushko@gmail.com>, Neil Brown <neilb@suse.de>, Andrea Arcangeli <aarcange@redhat.com>, Mike Hommey <mh@glandium.org>, Taras Glek <tglek@mozilla.com>, Jan Kara <jack@suse.cz>, KOSAKI Motohiro <kosaki.motohiro@gmail.com>, Michel Lespinasse <walken@google.com>, Keith Packard <keithp@keithp.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Peter Zijlstra <peterz@infradead.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Linda Wang <lwang@redhat.com>, Kevin E Martin <kem@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Jeff Law <law@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Haggai Eran <haggaie@mellanox.com>, Or Gerlitz <ogerlitz@mellanox.com>, Sagi Grimberg <sagig@mellanox.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, "Sander, Ben" <ben.sander@amd.com>, "Stoner, Greg" <Greg.Stoner@amd.com>, "Bridgman, John" <John.Bridgman@amd.com>, "Mantor, Michael" <Michael.Mantor@amd.com>, "Blinzer, Paul" <Paul.Blinzer@amd.com>, "Morichetti, Laurent" <Laurent.Morichetti@amd.com>, "Deucher, Alexander" <Alexander.Deucher@amd.com>, "Gabbay, Oded" <Oded.Gabbay@amd.com>, Davidlohr Bueso <davidlohr@hp.com>
 
-On Thu, May 08, 2014 at 05:24:41PM -0700, John Stultz wrote:
-> On 05/08/2014 05:07 PM, Minchan Kim wrote:
-> > On Thu, May 08, 2014 at 04:43:07PM -0700, John Stultz wrote:
-> >> On 05/08/2014 04:12 PM, Minchan Kim wrote:
-> >>> On Thu, May 08, 2014 at 09:38:40AM -0700, John Stultz wrote:
-> >>>> On 05/07/2014 06:21 PM, Minchan Kim wrote:
-> >>>>> Hey John,
-> >>>>>
-> >>>>> On Tue, Apr 29, 2014 at 02:21:21PM -0700, John Stultz wrote:
-> >>>>>> This patch introduces MADV_VOLATILE/NONVOLATILE flags to madvise(),
-> >>>>>> which allows for specifying ranges of memory as volatile, and able
-> >>>>>> to be discarded by the system.
-> >>>>>>
-> >>>>>> This initial patch simply adds flag handling to madvise, and the
-> >>>>>> vma handling, splitting and merging the vmas as needed, and marking
-> >>>>>> them with VM_VOLATILE.
-> >>>>>>
-> >>>>>> No purging or discarding of volatile ranges is done at this point.
-> >>>>>>
-> >>>>>> This a simplified implementation which reuses some of the logic
-> >>>>>> from Minchan's earlier efforts. So credit to Minchan for his work.
-> >>>>> Remove purged argument is really good thing but I'm not sure merging
-> >>>>> the feature into madvise syscall is good idea.
-> >>>>> My concern is how we support user who don't want SIGBUS.
-> >>>>> I believe we should support them because someuser(ex, sanitizer) really
-> >>>>> want to avoid MADV_NONVOLATILE call right before overwriting their cache
-> >>>>> (ex, If there was purged page for cyclic cache, user should call NONVOLATILE
-> >>>>> right before overwriting to avoid SIGBUS).
-> >>>> So... Why not use MADV_FREE then for this case?
-> >>> MADV_FREE is one-shot operation. I mean we should call it again to make
-> >>> them lazyfree while vrange could preserve volatility.
-> >>> Pz, think about thread-sanitizer usecase. They do mmap 70TB once start up
-> >>> and want to mark the range as volatile. If they uses MADV_FREE instead of
-> >>> volatile, they should mark 70TB as lazyfree periodically, which is terrible
-> >>> because MADV_FREE's cost is O(N).
-> >> I still have had difficulty seeing the thread-sanitizer usage as a
-> >> generic enough model for other applications. I realize they want to
-> >> avoid marking and unmarking ranges (and they want that marking and
-> >> unmarking to be very cheap), but the zero-fill purged page (while still
-> >> preserving volatility) causes lots of *very* strange behavior:
-> >  
-> > I don't think it's for only thread-sanitizer.
-> > Pz, think following usecase.
-> >
-> > Let's assume big volatile cache.
-> > If there is request for cache, it should find a object in a cache
-> > and if it found, it should call vrange(NOVOLATILE) right before
-> > passing it to the user and investigate it was purged or not.
-> > If it wasn't purged, cache manager could pass the object to the user.
-> > But it's circular cache so if there is no request from user, cache manager
-> > always overwrites objects so it could encounter SIGBUS easily
-> > so as current sematic, cache manager always should call vrange(NOVOLATILE)
-> > right before the overwriting. Otherwise, it should register SIGBUS handler
-> > to unmark volatile by page unit. SIGH.
-> >
-> > If we support zero-fill, cache manager could overwrite object without
-> > SIGBUS handling or vrange(NOVOLATILE) call right before overwriting.
-> > Just what we need is vrange(NOVOLATILE) call right before passing it
-> > to user.
+On Wed, May 07, 2014 at 05:14:52PM +1000, Benjamin Herrenschmidt wrote:
+> On Tue, 2014-05-06 at 12:18 -0400, Jerome Glisse wrote:
+> > 
+> > I do understand that i was pointing out that if i move to, tlb which i
+> > am fine with, i will still need to sleep there. That's all i wanted to
+> > stress, i did not wanted force using mmu_notifier, i am fine with them
+> > becoming atomic as long as i have a place where i can intercept cpu
+> > page table update and propagate them to device mmu.
 > 
-> But that wouldn't work. If the page was purged half way through writing
-> it, we end up with a page of half zero data and half written data. What
-> would the page state be at that point? Purged? Not purged?
+> Your MMU notifier can maintain a map of "dirty" PTEs and you do the
+> actual synchronization in the subsequent flush_tlb_* , you need to add
+> hooks there but it's much less painful than in the notifiers.
+> 
+> *However* Linus, even then we can't sleep. We do things like
+> ptep_clear_flush() that need the PTL and have the synchronous flush
+> semantics.
+> 
+> Sure, today we wait, possibly for a long time, with IPIs, but we do not
+> sleep. Jerome would have to operate within a similar context. No sleep
+> for you :)
+> 
+> Cheers,
+> Ben.
+> 
+> 
 
-You're right. Application might detect it with adding a sentinel in the
-header but I don't think it should be generic model with zero-fill semantic
-although some of application could do it.
+So Linus, Benjamin is right there was couple case i did not think about.
+For instance with cow page, one thread might trigger copy on write allocate
+new page and update page table and another cpu thread might start using the
+new page before we even get a chance to update the GPU page table thus GPU
+could be working on outdated data.
 
-> 
-> * If its not purged (since a write was done to the page after being
-> zero-filled), we will silently return to the user corrupted data.
-> 
-> * If it is considered purged, how do we store that data? Since we
-> currently detect purged pages by checking if they are present when we
-> mark non-volatile.
-> 
-> 
-> This sort of zero-fill behavior on volatile pages only seems to make
-> sense if pages are written atomically.
-> 
-> The SIGBUS handling solution you SIGH'ed at above actually seems
-> reasonable, because it would allow the page to be safely filled
-> atomically (marking it non-volatile, filling it and then re-marking it
-> volatile). Sure it would cost more, fast and wrong isn't really a valid
-> option.
+Same kind of race exist on fork when we write protect a page or on when we
+split a huge page.
 
-Got it. My scenario was totally broken so I don't insist on such model any more.
-First of all, let's go with SIGBUS model first if there is no strong requirement
-from user folks.
+I thought that i only needed to special case page reclaimation, migration
+and forbid things like ksm but i am wrong.
 
-Thanks for pointing out, John!
+So with that in mind are you ok if i pursue the mmu_notifier case taking
+into account the result about rwsem+optspin that would allow to make the
+many fork workload fast while still allowing mmu_notifier callback to
+sleep ?
 
-> 
-> 
-> 
-> >
-> >> * How do general applications know the difference between a purged page
-> >> and a valid empty page?
-> >> * When reading/writing a page, what happens if half-way the application
-> >> is preempted, and the page is purged?
-> >> * If a volatile page is purged, then zero-filled on a read or write,
-> >> what is its purged state when we're marking it non-volatile?
-> > Maybe above scenario goes your questions to VOID.
-> 
-> I'm not sure I understand this.
-> 
-> 
-> >
-> >> These use cases don't seem completely baked, or maybe I've just not been
-> >> able to comprehend them yet. But I don't quite understand the desire to
-> >> prioritize this style of usage over other simpler and more well
-> >> established usage?
-> > I think it's one of typical usecase of vrange syscall.
-> 
-> I apologize if I'm seeming stubborn, but I just can't see how it would
-> work sanely.
-> 
-> thanks
-> -john
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Otherwise i have no other choice than to add something like mmu_notifier
+in the place where there can a be race (huge page split, cow, ...). Which
+sounds like a bad idea to me when mmu_notifier is perfect for the job.
 
--- 
-Kind regards,
-Minchan Kim
+Cheers,
+Jerome Glisse
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
