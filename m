@@ -1,41 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f49.google.com (mail-qg0-f49.google.com [209.85.192.49])
-	by kanga.kvack.org (Postfix) with ESMTP id CB95B6B0037
-	for <linux-mm@kvack.org>; Fri,  9 May 2014 11:56:23 -0400 (EDT)
-Received: by mail-qg0-f49.google.com with SMTP id a108so4617217qge.36
-        for <linux-mm@kvack.org>; Fri, 09 May 2014 08:56:23 -0700 (PDT)
-Received: from qmta12.emeryville.ca.mail.comcast.net (qmta12.emeryville.ca.mail.comcast.net. [2001:558:fe2d:44:76:96:27:227])
-        by mx.google.com with ESMTP id e10si2048750qco.33.2014.05.09.08.56.23
-        for <linux-mm@kvack.org>;
-        Fri, 09 May 2014 08:56:23 -0700 (PDT)
-Date: Fri, 9 May 2014 10:56:19 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH] mm: use a irq-safe __mod_zone_page_state in
- mlocked_vma_newpage()
-In-Reply-To: <1399648668-17420-1-git-send-email-nasa4836@gmail.com>
-Message-ID: <alpine.DEB.2.10.1405091050520.11318@gentwo.org>
-References: <1399648668-17420-1-git-send-email-nasa4836@gmail.com>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id AD7B06B0037
+	for <linux-mm@kvack.org>; Fri,  9 May 2014 12:16:59 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id lj1so4638778pab.0
+        for <linux-mm@kvack.org>; Fri, 09 May 2014 09:16:59 -0700 (PDT)
+Received: from mail-pa0-x235.google.com (mail-pa0-x235.google.com [2607:f8b0:400e:c03::235])
+        by mx.google.com with ESMTPS id ov9si2490355pbc.299.2014.05.09.09.16.58
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 09 May 2014 09:16:58 -0700 (PDT)
+Received: by mail-pa0-f53.google.com with SMTP id kp14so4552869pab.12
+        for <linux-mm@kvack.org>; Fri, 09 May 2014 09:16:58 -0700 (PDT)
+From: Jianyu Zhan <nasa4836@gmail.com>
+Subject: Re: [PATCH] mm: use a irq-safe __mod_zone_page_state in mlocked_vma_newpage()
+Date: Sat, 10 May 2014 00:16:48 +0800
+Message-Id: <1399652208-18987-1-git-send-email-nasa4836@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jianyu Zhan <nasa4836@gmail.com>
-Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, riel@redhat.com, mhocko@suse.cz, aarcange@redhat.com, hanpt@linux.vnet.ibm.com, mgorman@suse.de, oleg@redhat.com, cldu@marvell.com, fabf@skynet.be, sasha.levin@oracle.com, zhangyanfei@cn.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: cl@linux.com, akpm@linux-foundation.org, mhocko@suse.cz, hannes@cmpxchg.org, riel@redhat.com, minchan@kernel.org, zhangyanfei@cn.fujitsu.com, hanpt@linux.vnet.ibm.com, sasha.levin@oracle.com, oleg@redhat.com, fabf@skynet.be, mgorman@suse.de, aarcange@redhat.com, cldu@marvell.com, nasa4836@gmail.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
+>You are changing from the irq safe variant to __mod_zone_page_state which
+>is *not* irq safe. Its legit to do so since presumably irqs are disabled
+>anyways so you do not have to worry about irq safeness of
+>__mod_zone_page_state.
 
-On Fri, 9 May 2014, Jianyu Zhan wrote:
+>Please update the description. Its a bit confusing right now.
 
-> mlocked_vma_newpage() is only called in fault path by
-> page_add_new_anon_rmap(), which is called on a *new* page.
-> And such page is initially only visible via the pagetables, and the
-> pte is locked while calling page_add_new_anon_rmap(), so we could use
-> a irq-safe version of __mod_zone_page_state() here.
+Hi, Christoph, I'm sorry for the misleading phrasing. 
+Would be this one OK? Thanks.
 
-You are changing from the irq safe variant to __mod_zone_page_state which
-is *not* irq safe. Its legit to do so since presumably irqs are disabled
-anyways so you do not have to worry about irq safeness of
-__mod_zone_page_state.
+--------<8---------
+mm: use a light-weight __mod_zone_page_state in mlocked_vma_newpage()
 
-Please update the description. Its a bit confusing right now.
+mlocked_vma_newpage() is only called in fault path by
+page_add_new_anon_rmap(), which is called on a *new* page.
+And such page is initially only visible via the pagetables, and the
+pte is locked while calling page_add_new_anon_rmap(), so we need not
+use an irq-safe mod_zone_page_state() here, using a light-weight version
+__mod_zone_page_state() would be OK.
+
+Signed-off-by: Jianyu Zhan <nasa4836@gmail.com>
+---
+ mm/internal.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mm/internal.h b/mm/internal.h
+index 07b6736..69079b1 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -196,7 +196,7 @@ static inline int mlocked_vma_newpage(struct vm_area_struct *vma,
+ 		return 0;
+ 
+ 	if (!TestSetPageMlocked(page)) {
+-		mod_zone_page_state(page_zone(page), NR_MLOCK,
++		__mod_zone_page_state(page_zone(page), NR_MLOCK,
+ 				    hpage_nr_pages(page));
+ 		count_vm_event(UNEVICTABLE_PGMLOCKED);
+ 	}
+-- 
+2.0.0-rc1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
