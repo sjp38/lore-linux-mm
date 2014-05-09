@@ -1,166 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 27A716B0074
-	for <linux-mm@kvack.org>; Fri,  9 May 2014 02:25:58 -0400 (EDT)
-Received: by mail-pd0-f181.google.com with SMTP id w10so3286688pde.26
-        for <linux-mm@kvack.org>; Thu, 08 May 2014 23:25:57 -0700 (PDT)
-Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
-        by mx.google.com with ESMTP id rw8si1733073pbc.147.2014.05.08.23.25.56
-        for <linux-mm@kvack.org>;
-        Thu, 08 May 2014 23:25:57 -0700 (PDT)
-Date: Fri, 9 May 2014 15:28:03 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v5] mm: support madvise(MADV_FREE)
-Message-ID: <20140509062803.GG25951@bbox>
-References: <1398045368-2586-1-git-send-email-minchan@kernel.org>
- <536BE351.1050005@redhat.com>
- <20140509061714.GF25951@bbox>
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id DFFEA6B0036
+	for <linux-mm@kvack.org>; Fri,  9 May 2014 04:04:47 -0400 (EDT)
+Received: by mail-pd0-f182.google.com with SMTP id v10so3374356pde.41
+        for <linux-mm@kvack.org>; Fri, 09 May 2014 01:04:47 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [119.145.14.64])
+        by mx.google.com with ESMTPS id tj2si1028013pab.1.2014.05.09.01.04.41
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 09 May 2014 01:04:47 -0700 (PDT)
+Message-ID: <536C8A75.4080401@huawei.com>
+Date: Fri, 9 May 2014 15:57:41 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140509061714.GF25951@bbox>
+Subject: kmemcheck: got WARNING when dynamicly adjust /proc/sys/kernel/kmemcheck
+ to 0/1
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rik van Riel <riel@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dave Hansen <dave.hansen@intel.com>, John Stultz <john.stultz@linaro.org>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Jason Evans <je@fb.com>
+To: Vegard Nossum <vegard.nossum@oracle.com>, Pekka Enberg <penberg@kernel.org>, Peter Zijlstra <peterz@infradead.org>, David Rientjes <rientjes@google.com>, Vegard Nossum <vegard.nossum@gmail.com>
+Cc: Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Xishi Qiu <qiuxishi@huawei.com>
 
-On Fri, May 09, 2014 at 03:17:14PM +0900, Minchan Kim wrote:
-> Hello Rik,
-> 
-> On Thu, May 08, 2014 at 04:04:33PM -0400, Rik van Riel wrote:
-> > On 04/20/2014 09:56 PM, Minchan Kim wrote:
-> > 
-> > >In summary, MADV_FREE is about 2 time faster than MADV_DONTNEED.
-> > 
-> > This is awesome.
-> 
-> Thanks!
-> 
-> > 
-> > I have a few nitpicks with the patch, though :)
-> > 
-> > >+static long madvise_lazyfree(struct vm_area_struct *vma,
-> > >+			     struct vm_area_struct **prev,
-> > >+			     unsigned long start, unsigned long end)
-> > >+{
-> > >+	*prev = vma;
-> > >+	if (vma->vm_flags & (VM_LOCKED|VM_HUGETLB|VM_PFNMAP))
-> > >+		return -EINVAL;
-> > >+
-> > >+	/* MADV_FREE works for only anon vma at the moment */
-> > >+	if (vma->vm_file)
-> > >+		return -EINVAL;
-> > >+
-> > >+	lazyfree_range(vma, start, end - start);
-> > >+	return 0;
-> > >+}
-> > 
-> > This code checks whether lazyfree_range would work on
-> > the VMA...
-> > 
-> > >diff --git a/mm/memory.c b/mm/memory.c
-> > >index c4b5bc250820..ca427f258204 100644
-> > >--- a/mm/memory.c
-> > >+++ b/mm/memory.c
-> > >@@ -1270,6 +1270,104 @@ static inline unsigned long zap_pud_range(struct mmu_gather *tlb,
-> > >  	return addr;
-> > >  }
-> > >
-> > >+static unsigned long lazyfree_pte_range(struct mmu_gather *tlb,
-> > >+				struct vm_area_struct *vma, pmd_t *pmd,
-> > >+				unsigned long addr, unsigned long end)
-> > >+{
-> > >+	struct mm_struct *mm = tlb->mm;
-> > >+	spinlock_t *ptl;
-> > >+	pte_t *start_pte;
-> > >+	pte_t *pte;
-> > >+
-> > >+	start_pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
-> > >+	pte = start_pte;
-> > >+	arch_enter_lazy_mmu_mode();
-> > >+	do {
-> > >+		pte_t ptent = *pte;
-> > >+
-> > >+		if (pte_none(ptent))
-> > >+			continue;
-> > >+
-> > >+		if (!pte_present(ptent))
-> > >+			continue;
-> > >+
-> > >+		ptent = pte_mkold(ptent);
-> > >+		ptent = pte_mkclean(ptent);
-> > >+		set_pte_at(mm, addr, pte, ptent);
-> > >+		tlb_remove_tlb_entry(tlb, pte, addr);
-> > 
-> > This may not work on PPC, which has a weird hash table for
-> > its TLB. You will find that tlb_remove_tlb_entry does
-> > nothing for PPC64, and set_pte_at does not remove the hash
-> > table entry either.
-> 
-> Hmm, I didn't notice that. Thanks Rik.
-> 
-> Maybe I need this in asm-generic.
-> 
-> static inline void ptep_set_lazyfree(struct mm_struct *mm, unsigned addr, pte_t *ptep)
-> {
->         pte_t ptent = *ptep;
->         ptent = pte_mkold(ptent);
->         ptent = pte_mkclean(ptent);
->         set_pte_at(mm, addr, ptep, ptent);
-> }
-> 
-> For arch/powerpc/include/asm/pgtable.h
-> 
-> static inline void ptep_set_lazyfree(struct mm_struct *mm, unsigned long addr,
->                         pte_t *ptep)
-> {
->         pte_update(mm, addr, ptep, _PAGE_DIRTY|_PAGE_ACCESSED, 0, 0);
-> }
-> 
-> > 
-> > >@@ -1370,6 +1485,31 @@ void unmap_vmas(struct mmu_gather *tlb,
-> > >  }
-> > >
-> > >  /**
-> > >+ * lazyfree_range - clear dirty bit of pte in a given range
-> > >+ * @vma: vm_area_struct holding the applicable pages
-> > >+ * @start: starting address of pages
-> > >+ * @size: number of bytes to do lazyfree
-> > >+ *
-> > >+ * Caller must protect the VMA list
-> > >+ */
-> > >+void lazyfree_range(struct vm_area_struct *vma, unsigned long start,
-> > >+		unsigned long size)
-> > >+{
-> > >+	struct mm_struct *mm = vma->vm_mm;
-> > >+	struct mmu_gather tlb;
-> > >+	unsigned long end = start + size;
-> > >+
-> > >+	lru_add_drain();
-> > >+	tlb_gather_mmu(&tlb, mm, start, end);
-> > >+	update_hiwater_rss(mm);
-> > >+	mmu_notifier_invalidate_range_start(mm, start, end);
-> > >+	for ( ; vma && vma->vm_start < end; vma = vma->vm_next)
-> > >+		lazyfree_single_vma(&tlb, vma, start, end);
-> > >+	mmu_notifier_invalidate_range_end(mm, start, end);
-> > >+	tlb_finish_mmu(&tlb, start, end);
-> > >+}
-> > 
-> > This function, called by madvise_lazyfree, can iterate
-> > over multiple VMAs.
-> > 
-> > However, madvise_lazyfree only checked one of them.
-> 
-> Oops, the check should have been lazyfree_range.
-> Will fix.
+OS boot with kmemcheck=0, then set 1, do something, set 0, do something, set 1...
+then I got the WARNING log. Does kmemcheck support dynamicly adjust?
 
-Now that I see the code, madvise_vma always pass *a* vma so madvise_lazyfree
-doesn't cover multiple vma all at once so the current sematic is same with
-dontneed. So, I don't see any problem. If I miss something, let me know it.
+Thanks,
+Xishi Qiu
 
--- 
-Kind regards,
-Minchan Kim
+[   20.200305] igb: eth0 NIC Link is Up 1000 Mbps Full Duplex, Flow Control: RX
+[   20.208652] ADDRCONF(NETDEV_UP): eth0: link is not ready
+[   20.216504] ADDRCONF(NETDEV_CHANGE): eth0: link becomes ready
+[   22.647385] auditd (3116): /proc/3116/oom_adj is deprecated, please use /proc/3116/oom_score_adj instead.
+[   24.845214] BIOS EDD facility v0.16 2004-Jun-25, 1 devices found
+[   30.434764] eth0: no IPv6 routers present
+[  340.154608] NOHZ: local_softirq_pending 01
+[  340.154639] WARNING: kmemcheck: Caught 64-bit read from uninitialized memory (ffff88083f43a550)
+[  340.154644] c000000002000000000000000000000080ff5d0100c9ffff400ed34e0888ffff
+[  340.154667]  u u u u u u u u u u u u u u u u u u u u u u u u u u u u u u u u
+[  340.154687]                                  ^
+[  340.154690]
+[  340.154694] Pid: 3, comm: ksoftirqd/0 Tainted: G         C   3.4.24-qiuxishi.19-0.1-default+ #2 Huawei Technologies Co., Ltd. Tecal RH2285 V2-24S/BC11SRSC1
+[  340.154702] RIP: 0010:[<ffffffff81217d72>]  [<ffffffff81217d72>] d_namespace_path+0x132/0x270
+[  340.154714] RSP: 0018:ffff8808515a1c88  EFLAGS: 00010202
+[  340.154718] RAX: ffff88083f43a540 RBX: ffff880852e718f3 RCX: 0000000000000001
+[  340.154721] RDX: ffff8808515a1d28 RSI: 0000000000000000 RDI: ffff881053855a60
+[  340.154725] RBP: ffff8808515a1ce8 R08: ffff8808515a1c50 R09: ffff880852e75800
+[  340.154728] R10: 00000000000156f0 R11: 0000000000000000 R12: 0000000000000001
+[  340.154731] R13: 0000000000000100 R14: ffff880852e71510 R15: ffff880852e71800
+[  340.154736] FS:  0000000000000000(0000) GS:ffff88085f600000(0000) knlGS:0000000000000000
+[  340.154740] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+[  340.154743] CR2: ffff880852e71570 CR3: 00000008513f2000 CR4: 00000000000407f0
+[  340.154746] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+[  340.154750] DR3: 0000000000000000 DR6: 00000000ffff4ff0 DR7: 0000000000000400
+[  340.154753]  [<ffffffff81217f35>] aa_path_name+0x85/0x180
+[  340.154758]  [<ffffffff812187d6>] apparmor_bprm_set_creds+0x126/0x520
+[  340.154763]  [<ffffffff811f60ae>] security_bprm_set_creds+0xe/0x10
+[  340.154771]  [<ffffffff81170d65>] prepare_binprm+0xa5/0x100
+[  340.154777]  [<ffffffff811716c2>] do_execve_common+0x232/0x430
+[  340.154781]  [<ffffffff8117194a>] do_execve+0x3a/0x40
+[  340.154785]  [<ffffffff8100abb9>] sys_execve+0x49/0x70
+[  340.154793]  [<ffffffff814764bc>] stub_execve+0x6c/0xc0
+[  340.154801]  [<ffffffffffffffff>] 0xffffffffffffffff
+[  340.154813] WARNING: kmemcheck: Caught 64-bit read from uninitialized memory (ffff88083f43a570)
+[  340.154817] 746f70000300000078a5433f0888fffff86d433f0888ffff746f700000730000
+[  340.154839]  u u u u u u u u u u u u u u u u u u u u u u u u u u u u u u u u
+[  340.154858]                                  ^
+[  340.154861]
+[  340.154864] Pid: 3, comm: ksoftirqd/0 Tainted: G         C   3.4.24-qiuxishi.19-0.1-default+ #2 Huawei Technologies Co., Ltd. Tecal RH2285 V2-24S/BC11SRSC1
+[  340.154871] RIP: 0010:[<ffffffff811691f4>]  [<ffffffff811691f4>] rw_verify_area+0x24/0x100
+[  340.154880] RSP: 0018:ffff8808515a1dc8  EFLAGS: 00010202
+[  340.154883] RAX: ffff88083f43a540 RBX: 0000000000000080 RCX: 0000000000000080
+[  340.154887] RDX: ffff8808515a1e30 RSI: ffff880852e71500 RDI: 0000000000000000
+[  340.154890] RBP: ffff8808515a1de8 R08: ffff880852e73200 R09: ffff88085f004900
+[  340.154894] R10: ffff880852e72600 R11: 0000000000000000 R12: ffff880852e71500
+[  340.154897] R13: 0000000000000000 R14: ffff880852e73200 R15: 0000000000000001
+[  340.154901] FS:  0000000000000000(0000) GS:ffff88085f600000(0000) knlGS:0000000000000000
+[  340.154905] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+[  340.154908] CR2: ffff880852e71570 CR3: 00000008513f2000 CR4: 00000000000407f0
+[  340.154911] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+[  340.154914] DR3: 0000000000000000 DR6: 00000000ffff4ff0 DR7: 0000000000000400
+[  340.154917]  [<ffffffff811698f4>] vfs_read+0xa4/0x130
+[  340.154922]  [<ffffffff81170ca4>] kernel_read+0x44/0x60
+[  340.154926]  [<ffffffff81170d90>] prepare_binprm+0xd0/0x100
+[  340.154931]  [<ffffffff811716c2>] do_execve_common+0x232/0x430
+[  340.154935]  [<ffffffff8117194a>] do_execve+0x3a/0x40
+[  340.154939]  [<ffffffff8100abb9>] sys_execve+0x49/0x70
+[  340.154944]  [<ffffffff814764bc>] stub_execve+0x6c/0xc0
+[  340.154950]  [<ffffffffffffffff>] 0xffffffffffffffff
+[  340.154955] WARNING: kmemcheck: Caught 32-bit read from uninitialized memory (ffff88083f43a540)
+[  340.154959] c000000002000000000000000000000080ff5d0100c9ffff400ed34e0888ffff
+[  340.154981]  u u u u u u u u u u u u u u u u i i i i i i i i u u u u u u u u
+[  340.155000]  ^
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
