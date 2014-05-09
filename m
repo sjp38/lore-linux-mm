@@ -1,51 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 97D046B0035
-	for <linux-mm@kvack.org>; Fri,  9 May 2014 11:18:34 -0400 (EDT)
-Received: by mail-pd0-f173.google.com with SMTP id y10so3836463pdj.4
-        for <linux-mm@kvack.org>; Fri, 09 May 2014 08:18:34 -0700 (PDT)
-Received: from mail-pd0-x236.google.com (mail-pd0-x236.google.com [2607:f8b0:400e:c02::236])
-        by mx.google.com with ESMTPS id qm15si2153543pab.185.2014.05.09.08.18.33
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 09 May 2014 08:18:33 -0700 (PDT)
-Received: by mail-pd0-f182.google.com with SMTP id v10so3857391pde.27
-        for <linux-mm@kvack.org>; Fri, 09 May 2014 08:18:33 -0700 (PDT)
-From: Jianyu Zhan <nasa4836@gmail.com>
-Subject: [PATCH] mm: use a irq-safe __mod_zone_page_state in mlocked_vma_newpage()
-Date: Fri,  9 May 2014 23:17:48 +0800
-Message-Id: <1399648668-17420-1-git-send-email-nasa4836@gmail.com>
+Received: from mail-qa0-f42.google.com (mail-qa0-f42.google.com [209.85.216.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C76D6B0035
+	for <linux-mm@kvack.org>; Fri,  9 May 2014 11:28:32 -0400 (EDT)
+Received: by mail-qa0-f42.google.com with SMTP id j5so4266794qaq.29
+        for <linux-mm@kvack.org>; Fri, 09 May 2014 08:28:32 -0700 (PDT)
+Received: from qmta08.emeryville.ca.mail.comcast.net (qmta08.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:80])
+        by mx.google.com with ESMTP id u7si2202330qab.6.2014.05.09.08.28.31
+        for <linux-mm@kvack.org>;
+        Fri, 09 May 2014 08:28:32 -0700 (PDT)
+Date: Fri, 9 May 2014 10:28:27 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: vmstat: On demand vmstat workers V4
+In-Reply-To: <alpine.DEB.2.02.1405091659350.6261@ionos.tec.linutronix.de>
+Message-ID: <alpine.DEB.2.10.1405091027040.11318@gentwo.org>
+References: <alpine.DEB.2.10.1405081033090.23786@gentwo.org> <20140508142903.c2ef166c95d2b8acd0d7ea7d@linux-foundation.org> <alpine.DEB.2.02.1405090003120.6261@ionos.tec.linutronix.de> <alpine.DEB.2.10.1405090949170.11318@gentwo.org>
+ <alpine.DEB.2.02.1405091659350.6261@ionos.tec.linutronix.de>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, hannes@cmpxchg.org, riel@redhat.com, mhocko@suse.cz, aarcange@redhat.com, hanpt@linux.vnet.ibm.com, mgorman@suse.de, oleg@redhat.com, cldu@marvell.com, fabf@skynet.be, sasha.levin@oracle.com, zhangyanfei@cn.fujitsu.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, nasa4836@gmail.com
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Gilad Ben-Yossef <gilad@benyossef.com>, Tejun Heo <tj@kernel.org>, John Stultz <johnstul@us.ibm.com>, Mike Frysinger <vapier@gentoo.org>, Minchan Kim <minchan.kim@gmail.com>, Hakan Akkan <hakanakkan@gmail.com>, Max Krasnyansky <maxk@qualcomm.com>, Frederic Weisbecker <fweisbec@gmail.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hughd@google.com, viresh.kumar@linaro.org
 
-mlocked_vma_newpage() is only called in fault path by
-page_add_new_anon_rmap(), which is called on a *new* page.
-And such page is initially only visible via the pagetables, and the
-pte is locked while calling page_add_new_anon_rmap(), so we could use
-a irq-safe version of __mod_zone_page_state() here.
+On Fri, 9 May 2014, Thomas Gleixner wrote:
 
-Signed-off-by: Jianyu Zhan <nasa4836@gmail.com>
----
- mm/internal.h | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+> > Ok how do I figure out that cpu? I'd rather have a specific cpu that
+> > never changes.
+>
+> I followed the full nohz development only losely, but back then when
+> all started here at my place with frederic, we had a way to define the
+> housekeeper cpu. I think we lazily had it hardwired to 0 :)
 
-diff --git a/mm/internal.h b/mm/internal.h
-index 07b6736..69079b1 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -196,7 +196,7 @@ static inline int mlocked_vma_newpage(struct vm_area_struct *vma,
- 		return 0;
- 
- 	if (!TestSetPageMlocked(page)) {
--		mod_zone_page_state(page_zone(page), NR_MLOCK,
-+		__mod_zone_page_state(page_zone(page), NR_MLOCK,
- 				    hpage_nr_pages(page));
- 		count_vm_event(UNEVICTABLE_PGMLOCKED);
- 	}
--- 
-2.0.0-rc1
+Yes that would be the easiest and simplest. We dedicate cpu 0 to OS
+services around
+here anyways.
+
+> That probably changed, but I'm sure there is still a way to define a
+> housekeeper. And we should simply force the timekeeping on that
+> housekeeper. That comes with the price, that the housekeeper is not
+> allowed to go deep idle, but I bet that in HPC scenarios this does not
+> matter at all simply because the whole machine is under full load.
+
+Excellent. Yes. Good.
+
+> >
+> > The vmstat kworker thread checks every 2 seconds if there are vmstat
+> > updates that need to be folded into the global statistics. This is not
+> > necessary if the application is running and no OS services are being used.
+> > Thus we could switch off vmstat updates and avoid taking the processor
+> > away from the application.
+> >
+> > This has also been noted by multiple other people at was brought up at the
+> > mm summit by others who noted the same issues.
+>
+> I understand why you want to get this done by a housekeeper, I just
+> did not understand why we need this whole move it around business is
+> required.
+
+This came about because of another objection against having it simply
+fixed to a processor. After all that processor may be disabled etc etc.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
