@@ -1,53 +1,165 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ve0-f174.google.com (mail-ve0-f174.google.com [209.85.128.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D4016B0035
-	for <linux-mm@kvack.org>; Fri,  9 May 2014 11:14:09 -0400 (EDT)
-Received: by mail-ve0-f174.google.com with SMTP id jw12so5393210veb.33
-        for <linux-mm@kvack.org>; Fri, 09 May 2014 08:14:09 -0700 (PDT)
-Received: from mail-ve0-x231.google.com (mail-ve0-x231.google.com [2607:f8b0:400c:c01::231])
-        by mx.google.com with ESMTPS id dr8si772135vcb.121.2014.05.09.08.14.08
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 09 May 2014 08:14:08 -0700 (PDT)
-Received: by mail-ve0-f177.google.com with SMTP id db11so5336994veb.36
-        for <linux-mm@kvack.org>; Fri, 09 May 2014 08:14:08 -0700 (PDT)
+Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B5226B0036
+	for <linux-mm@kvack.org>; Fri,  9 May 2014 11:15:10 -0400 (EDT)
+Received: by mail-wi0-f181.google.com with SMTP id n15so1491081wiw.14
+        for <linux-mm@kvack.org>; Fri, 09 May 2014 08:15:10 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id gr4si1104714wib.53.2014.05.09.08.15.08
+        for <linux-mm@kvack.org>;
+        Fri, 09 May 2014 08:15:09 -0700 (PDT)
+Message-ID: <536CF041.5070007@redhat.com>
+Date: Fri, 09 May 2014 11:12:01 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20140509140536.F06BFE009B@blue.fi.intel.com>
-References: <1399552888-11024-1-git-send-email-kirill.shutemov@linux.intel.com>
-	<CAMSv6X0+3-uNeiyEPD3sA5dA6Af_M+BT0aeVpa3qMv1aga0q9g@mail.gmail.com>
-	<20140508160205.A0EC7E009B@blue.fi.intel.com>
-	<CA+55aFw9eiaFtr+c4gcGSWG=pPeqDnX5aPQMVMqX1XkPF30ahg@mail.gmail.com>
-	<20140509140536.F06BFE009B@blue.fi.intel.com>
-Date: Fri, 9 May 2014 08:14:08 -0700
-Message-ID: <CA+55aFz9Yo7OC03tKt2wsdd8cDi00yxvMwszrsOsx0ZVEh6zqQ@mail.gmail.com>
-Subject: Re: [PATCHv2 0/2] remap_file_pages() decommission
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8
+Subject: Re: [PATCH v5] mm: support madvise(MADV_FREE)
+References: <1398045368-2586-1-git-send-email-minchan@kernel.org> <536BE351.1050005@redhat.com> <20140509061714.GF25951@bbox> <20140509062803.GG25951@bbox>
+In-Reply-To: <20140509062803.GG25951@bbox>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Armin Rigo <arigo@tunes.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dave Hansen <dave.hansen@intel.com>, John Stultz <john.stultz@linaro.org>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Jason Evans <je@fb.com>
 
-On Fri, May 9, 2014 at 7:05 AM, Kirill A. Shutemov
-<kirill.shutemov@linux.intel.com> wrote:
+On 05/09/2014 02:28 AM, Minchan Kim wrote:
+> On Fri, May 09, 2014 at 03:17:14PM +0900, Minchan Kim wrote:
+>> Hello Rik,
+>>
+>> On Thu, May 08, 2014 at 04:04:33PM -0400, Rik van Riel wrote:
+>>> On 04/20/2014 09:56 PM, Minchan Kim wrote:
+>>>
+>>>> In summary, MADV_FREE is about 2 time faster than MADV_DONTNEED.
+>>>
+>>> This is awesome.
+>>
+>> Thanks!
+>>
+>>>
+>>> I have a few nitpicks with the patch, though :)
+>>>
+>>>> +static long madvise_lazyfree(struct vm_area_struct *vma,
+>>>> +			     struct vm_area_struct **prev,
+>>>> +			     unsigned long start, unsigned long end)
+>>>> +{
+>>>> +	*prev = vma;
+>>>> +	if (vma->vm_flags & (VM_LOCKED|VM_HUGETLB|VM_PFNMAP))
+>>>> +		return -EINVAL;
+>>>> +
+>>>> +	/* MADV_FREE works for only anon vma at the moment */
+>>>> +	if (vma->vm_file)
+>>>> +		return -EINVAL;
+>>>> +
+>>>> +	lazyfree_range(vma, start, end - start);
+>>>> +	return 0;
+>>>> +}
+>>>
+>>> This code checks whether lazyfree_range would work on
+>>> the VMA...
+>>>
+>>>> diff --git a/mm/memory.c b/mm/memory.c
+>>>> index c4b5bc250820..ca427f258204 100644
+>>>> --- a/mm/memory.c
+>>>> +++ b/mm/memory.c
+>>>> @@ -1270,6 +1270,104 @@ static inline unsigned long zap_pud_range(struct mmu_gather *tlb,
+>>>>   	return addr;
+>>>>   }
+>>>>
+>>>> +static unsigned long lazyfree_pte_range(struct mmu_gather *tlb,
+>>>> +				struct vm_area_struct *vma, pmd_t *pmd,
+>>>> +				unsigned long addr, unsigned long end)
+>>>> +{
+>>>> +	struct mm_struct *mm = tlb->mm;
+>>>> +	spinlock_t *ptl;
+>>>> +	pte_t *start_pte;
+>>>> +	pte_t *pte;
+>>>> +
+>>>> +	start_pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
+>>>> +	pte = start_pte;
+>>>> +	arch_enter_lazy_mmu_mode();
+>>>> +	do {
+>>>> +		pte_t ptent = *pte;
+>>>> +
+>>>> +		if (pte_none(ptent))
+>>>> +			continue;
+>>>> +
+>>>> +		if (!pte_present(ptent))
+>>>> +			continue;
+>>>> +
+>>>> +		ptent = pte_mkold(ptent);
+>>>> +		ptent = pte_mkclean(ptent);
+>>>> +		set_pte_at(mm, addr, pte, ptent);
+>>>> +		tlb_remove_tlb_entry(tlb, pte, addr);
+>>>
+>>> This may not work on PPC, which has a weird hash table for
+>>> its TLB. You will find that tlb_remove_tlb_entry does
+>>> nothing for PPC64, and set_pte_at does not remove the hash
+>>> table entry either.
+>>
+>> Hmm, I didn't notice that. Thanks Rik.
+>>
+>> Maybe I need this in asm-generic.
+>>
+>> static inline void ptep_set_lazyfree(struct mm_struct *mm, unsigned addr, pte_t *ptep)
+>> {
+>>          pte_t ptent = *ptep;
+>>          ptent = pte_mkold(ptent);
+>>          ptent = pte_mkclean(ptent);
+>>          set_pte_at(mm, addr, ptep, ptent);
+>> }
+>>
+>> For arch/powerpc/include/asm/pgtable.h
+>>
+>> static inline void ptep_set_lazyfree(struct mm_struct *mm, unsigned long addr,
+>>                          pte_t *ptep)
+>> {
+>>          pte_update(mm, addr, ptep, _PAGE_DIRTY|_PAGE_ACCESSED, 0, 0);
+>> }
+>>
+>>>
+>>>> @@ -1370,6 +1485,31 @@ void unmap_vmas(struct mmu_gather *tlb,
+>>>>   }
+>>>>
+>>>>   /**
+>>>> + * lazyfree_range - clear dirty bit of pte in a given range
+>>>> + * @vma: vm_area_struct holding the applicable pages
+>>>> + * @start: starting address of pages
+>>>> + * @size: number of bytes to do lazyfree
+>>>> + *
+>>>> + * Caller must protect the VMA list
+>>>> + */
+>>>> +void lazyfree_range(struct vm_area_struct *vma, unsigned long start,
+>>>> +		unsigned long size)
+>>>> +{
+>>>> +	struct mm_struct *mm = vma->vm_mm;
+>>>> +	struct mmu_gather tlb;
+>>>> +	unsigned long end = start + size;
+>>>> +
+>>>> +	lru_add_drain();
+>>>> +	tlb_gather_mmu(&tlb, mm, start, end);
+>>>> +	update_hiwater_rss(mm);
+>>>> +	mmu_notifier_invalidate_range_start(mm, start, end);
+>>>> +	for ( ; vma && vma->vm_start < end; vma = vma->vm_next)
+>>>> +		lazyfree_single_vma(&tlb, vma, start, end);
+>>>> +	mmu_notifier_invalidate_range_end(mm, start, end);
+>>>> +	tlb_finish_mmu(&tlb, start, end);
+>>>> +}
+>>>
+>>> This function, called by madvise_lazyfree, can iterate
+>>> over multiple VMAs.
+>>>
+>>> However, madvise_lazyfree only checked one of them.
+>>
+>> Oops, the check should have been lazyfree_range.
+>> Will fix.
 >
-> Hm. I'm confused here. Do we have any limit forced per-user?
+> Now that I see the code, madvise_vma always pass *a* vma so madvise_lazyfree
+> doesn't cover multiple vma all at once so the current sematic is same with
+> dontneed. So, I don't see any problem. If I miss something, let me know it.
+>
 
-Sure we do. See "struct user_struct". We limit max number of
-processes, open files, signals etc.
-
-> I only see things like rlimits which are copied from parrent.
-> Is it what you want?
-
-No, rlimits are per process (although in some cases what they limit
-are counted per user despite the _limits_ of those resources then
-being settable per thread).
-
-So I was just thinking that if we raise the per-mm default limits,
-maybe we should add a global per-user limit to make it harder for a
-user to use tons and toms of vma's.
-
-          Linus
+Does that mean lazyfree_range is unnecessary, and everything
+can be done inside lazyfree_single_vma ?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
