@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E13F6B0035
-	for <linux-mm@kvack.org>; Fri,  9 May 2014 22:13:41 -0400 (EDT)
-Received: by mail-pa0-f48.google.com with SMTP id rd3so5089487pab.7
-        for <linux-mm@kvack.org>; Fri, 09 May 2014 19:13:41 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id yd1si743111pbb.478.2014.05.09.19.13.40
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id C86056B0036
+	for <linux-mm@kvack.org>; Fri,  9 May 2014 22:35:49 -0400 (EDT)
+Received: by mail-pa0-f43.google.com with SMTP id hz1so5146450pad.30
+        for <linux-mm@kvack.org>; Fri, 09 May 2014 19:35:49 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [143.182.124.21])
+        by mx.google.com with ESMTP id nw5si796077pbb.16.2014.05.09.19.35.48
         for <linux-mm@kvack.org>;
-        Fri, 09 May 2014 19:13:40 -0700 (PDT)
-Date: Sat, 10 May 2014 10:09:08 +0800
+        Fri, 09 May 2014 19:35:48 -0700 (PDT)
+Date: Sat, 10 May 2014 10:32:41 +0800
 From: kbuild test robot <fengguang.wu@intel.com>
-Subject: [mmotm:master 230/459] mm/gup.c:208: error: size of array 'type
- name' is negative
-Message-ID: <536d8a44.JMhW0mjaIqKB2qV2%fengguang.wu@intel.com>
+Subject: [mmotm:master 230/459] include/linux/radix-tree.h:260:9: sparse:
+ incorrect type in assignment (different address spaces)
+Message-ID: <536d8fc9.irVvmfyfuwCw+szX%fengguang.wu@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
@@ -24,66 +24,67 @@ Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux
 tree:   git://git.cmpxchg.org/linux-mmotm.git master
 head:   9567896580328249f6519fda78cf9fe185a8486d
 commit: 849ba771e4fd9d334940e79d19c824608d06d393 [230/459] compiler.h: don't use temporary variable in __compiletime_assert()
-config: make ARCH=avr32 atngw100_defconfig
+reproduce: make C=1 CF=-D__CHECK_ENDIAN__
 
-All error/warnings:
 
-   mm/gup.c: In function 'follow_page_mask':
->> mm/gup.c:208: error: size of array 'type name' is negative
+sparse warnings: (new ones prefixed by >>)
+
+>> include/linux/radix-tree.h:260:9: sparse: incorrect type in assignment (different address spaces)
+   include/linux/radix-tree.h:260:9:    expected void *volatile <noident>
+   include/linux/radix-tree.h:260:9:    got void [noderef] <asn:4>*<noident>
+>> include/linux/radix-tree.h:260:9: sparse: incorrect type in assignment (different address spaces)
+   include/linux/radix-tree.h:260:9:    expected void *volatile <noident>
+   include/linux/radix-tree.h:260:9:    got void [noderef] <asn:4>*<noident>
+   include/linux/radix-tree.h:212:16: sparse: incompatible types in comparison expression (different address spaces)
+   include/linux/radix-tree.h:196:16: sparse: incompatible types in comparison expression (different address spaces)
+   include/linux/radix-tree.h:196:16: sparse: incompatible types in comparison expression (different address spaces)
+   include/linux/radix-tree.h:196:16: sparse: incompatible types in comparison expression (different address spaces)
+   include/linux/radix-tree.h:196:16: sparse: incompatible types in comparison expression (different address spaces)
+   include/linux/radix-tree.h:196:16: sparse: incompatible types in comparison expression (different address spaces)
+   include/linux/radix-tree.h:196:16: sparse: incompatible types in comparison expression (different address spaces)
 --
-   mm/memory.c: In function 'copy_pmd_range':
->> mm/memory.c:965: error: size of array 'type name' is negative
-   mm/memory.c: In function 'zap_pmd_range':
->> mm/memory.c:1232: error: size of array 'type name' is negative
+>> include/linux/radix-tree.h:260:9: sparse: incorrect type in assignment (different address spaces)
+   include/linux/radix-tree.h:260:9:    expected void *volatile <noident>
+   include/linux/radix-tree.h:260:9:    got void [noderef] <asn:4>*<noident>
 --
-   mm/mprotect.c: In function 'change_pmd_range':
->> mm/mprotect.c:164: error: size of array 'type name' is negative
->> mm/mprotect.c:171: error: size of array 'type name' is negative
->> mm/mprotect.c:172: error: size of array 'type name' is negative
---
-   mm/mremap.c: In function 'move_page_tables':
->> mm/mremap.c:197: error: size of array 'type name' is negative
---
-   mm/pgtable-generic.c: In function 'pmdp_clear_flush_young':
->> mm/pgtable-generic.c:104: error: size of array 'type name' is negative
---
-   fs/proc/task_mmu.c: In function 'smaps_pmd':
->> fs/proc/task_mmu.c:502: error: size of array 'type name' is negative
->> fs/proc/task_mmu.c:504: error: size of array 'type name' is negative
+>> drivers/md/dm-era-target.c:640:9: sparse: incorrect type in assignment (different address spaces)
+   drivers/md/dm-era-target.c:640:9:    expected struct writeset *volatile <noident>
+   drivers/md/dm-era-target.c:640:9:    got struct writeset [noderef] <asn:4>*<noident>
+   drivers/md/dm-era-target.c:939:14: sparse: incompatible types in comparison expression (different address spaces)
 
-vim +208 mm/gup.c
+vim +260 include/linux/radix-tree.h
 
-cd31ead0 Kirill A. Shutemov 2014-05-10  192  	if ((flags & FOLL_NUMA) && pmd_numa(*pmd))
-cd31ead0 Kirill A. Shutemov 2014-05-10  193  		return no_page_table(vma, flags);
-cd31ead0 Kirill A. Shutemov 2014-05-10  194  	if (pmd_trans_huge(*pmd)) {
-cd31ead0 Kirill A. Shutemov 2014-05-10  195  		if (flags & FOLL_SPLIT) {
-cd31ead0 Kirill A. Shutemov 2014-05-10  196  			split_huge_page_pmd(vma, address, pmd);
-cd31ead0 Kirill A. Shutemov 2014-05-10  197  			return follow_page_pte(vma, address, pmd, flags);
-cd31ead0 Kirill A. Shutemov 2014-05-10  198  		}
-cd31ead0 Kirill A. Shutemov 2014-05-10  199  		ptl = pmd_lock(mm, pmd);
-cd31ead0 Kirill A. Shutemov 2014-05-10  200  		if (likely(pmd_trans_huge(*pmd))) {
-cd31ead0 Kirill A. Shutemov 2014-05-10  201  			if (unlikely(pmd_trans_splitting(*pmd))) {
-cd31ead0 Kirill A. Shutemov 2014-05-10  202  				spin_unlock(ptl);
-cd31ead0 Kirill A. Shutemov 2014-05-10  203  				wait_split_huge_page(vma->anon_vma, pmd);
-cd31ead0 Kirill A. Shutemov 2014-05-10  204  			} else {
-cd31ead0 Kirill A. Shutemov 2014-05-10  205  				page = follow_trans_huge_pmd(vma, address,
-cd31ead0 Kirill A. Shutemov 2014-05-10  206  							     pmd, flags);
-cd31ead0 Kirill A. Shutemov 2014-05-10  207  				spin_unlock(ptl);
-cd31ead0 Kirill A. Shutemov 2014-05-10 @208  				*page_mask = HPAGE_PMD_NR - 1;
-cd31ead0 Kirill A. Shutemov 2014-05-10  209  				return page;
-cd31ead0 Kirill A. Shutemov 2014-05-10  210  			}
-cd31ead0 Kirill A. Shutemov 2014-05-10  211  		} else
-cd31ead0 Kirill A. Shutemov 2014-05-10  212  			spin_unlock(ptl);
-cd31ead0 Kirill A. Shutemov 2014-05-10  213  	}
-cd31ead0 Kirill A. Shutemov 2014-05-10  214  	return follow_page_pte(vma, address, pmd, flags);
-55b65f76 Kirill A. Shutemov 2014-05-10  215  }
-55b65f76 Kirill A. Shutemov 2014-05-10  216  
+6328650b Hugh Dickins    2011-08-03  244  {
+6328650b Hugh Dickins    2011-08-03  245  	return unlikely((unsigned long)arg &
+6328650b Hugh Dickins    2011-08-03  246  		(RADIX_TREE_INDIRECT_PTR | RADIX_TREE_EXCEPTIONAL_ENTRY));
+6328650b Hugh Dickins    2011-08-03  247  }
+6328650b Hugh Dickins    2011-08-03  248  
+6328650b Hugh Dickins    2011-08-03  249  /**
+7cf9c2c7 Nick Piggin     2006-12-06  250   * radix_tree_replace_slot	- replace item in a slot
+7cf9c2c7 Nick Piggin     2006-12-06  251   * @pslot:	pointer to slot, returned by radix_tree_lookup_slot
+7cf9c2c7 Nick Piggin     2006-12-06  252   * @item:	new item to store in the slot.
+7cf9c2c7 Nick Piggin     2006-12-06  253   *
+7cf9c2c7 Nick Piggin     2006-12-06  254   * For use with radix_tree_lookup_slot().  Caller must hold tree write locked
+7cf9c2c7 Nick Piggin     2006-12-06  255   * across slot lookup and replacement.
+7cf9c2c7 Nick Piggin     2006-12-06  256   */
+7cf9c2c7 Nick Piggin     2006-12-06  257  static inline void radix_tree_replace_slot(void **pslot, void *item)
+7cf9c2c7 Nick Piggin     2006-12-06  258  {
+c0bc9875 Nick Piggin     2007-10-16  259  	BUG_ON(radix_tree_is_indirect_ptr(item));
+c0bc9875 Nick Piggin     2007-10-16 @260  	rcu_assign_pointer(*pslot, item);
+7cf9c2c7 Nick Piggin     2006-12-06  261  }
+7cf9c2c7 Nick Piggin     2006-12-06  262  
+139e5616 Johannes Weiner 2014-04-03  263  int __radix_tree_create(struct radix_tree_root *root, unsigned long index,
+139e5616 Johannes Weiner 2014-04-03  264  			struct radix_tree_node **nodep, void ***slotp);
+^1da177e Linus Torvalds  2005-04-16  265  int radix_tree_insert(struct radix_tree_root *, unsigned long, void *);
+139e5616 Johannes Weiner 2014-04-03  266  void *__radix_tree_lookup(struct radix_tree_root *root, unsigned long index,
+139e5616 Johannes Weiner 2014-04-03  267  			  struct radix_tree_node **nodep, void ***slotp);
+^1da177e Linus Torvalds  2005-04-16  268  void *radix_tree_lookup(struct radix_tree_root *, unsigned long);
 
-:::::: The code at line 208 was first introduced by commit
-:::::: cd31ead03cee7e815634acb9c0c8fc58eac73409 mm: cleanup follow_page_mask()
+:::::: The code at line 260 was first introduced by commit
+:::::: c0bc9875b701c588e448302d41181995c21e8040 radix-tree: use indirect bit
 
-:::::: TO: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-:::::: CC: Johannes Weiner <hannes@cmpxchg.org>
+:::::: TO: Nick Piggin <npiggin@suse.de>
+:::::: CC: Linus Torvalds <torvalds@woody.linux-foundation.org>
 
 ---
 0-DAY kernel build testing backend              Open Source Technology Center
