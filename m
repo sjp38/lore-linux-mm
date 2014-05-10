@@ -1,95 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f172.google.com (mail-ig0-f172.google.com [209.85.213.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 28F226B0038
-	for <linux-mm@kvack.org>; Fri,  9 May 2014 23:01:58 -0400 (EDT)
-Received: by mail-ig0-f172.google.com with SMTP id uy17so1901314igb.17
-        for <linux-mm@kvack.org>; Fri, 09 May 2014 20:01:58 -0700 (PDT)
-Received: from nm45.bullet.mail.ne1.yahoo.com (nm45.bullet.mail.ne1.yahoo.com. [98.138.120.52])
-        by mx.google.com with SMTP id k4si1723554igx.11.2014.05.09.20.01.57
-        for <linux-mm@kvack.org>;
-        Fri, 09 May 2014 20:01:57 -0700 (PDT)
-Message-ID: <1399690747.69805.YahooMailNeo@web160104.mail.bf1.yahoo.com>
-Date: Fri, 9 May 2014 19:59:07 -0700 (PDT)
-From: PINTU KUMAR <pintu_agarwal@yahoo.com>
-Reply-To: PINTU KUMAR <pintu_agarwal@yahoo.com>
-Subject: [MM]: IOMMU and CMA buffer sharing
-MIME-Version: 1.0
-Content-Type: multipart/alternative; boundary="-1615118150-2088370353-1399690747=:69805"
+Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
+	by kanga.kvack.org (Postfix) with ESMTP id CC1AC6B0038
+	for <linux-mm@kvack.org>; Fri,  9 May 2014 23:14:40 -0400 (EDT)
+Received: by mail-pd0-f176.google.com with SMTP id y13so4382033pdi.35
+        for <linux-mm@kvack.org>; Fri, 09 May 2014 20:14:40 -0700 (PDT)
+Received: from mail-pa0-x229.google.com (mail-pa0-x229.google.com [2607:f8b0:400e:c03::229])
+        by mx.google.com with ESMTPS id yi3si3165318pbb.183.2014.05.09.20.14.39
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 09 May 2014 20:14:40 -0700 (PDT)
+Received: by mail-pa0-f41.google.com with SMTP id lj1so5212566pab.0
+        for <linux-mm@kvack.org>; Fri, 09 May 2014 20:14:39 -0700 (PDT)
+Message-ID: <1399691674.29028.1.camel@cyc>
+Subject: [PATCH] HWPOSION, hugetlb: lock_page/unlock_page does not match for
+ handling a free hugepage
+From: Chen Yucong <slaoub@gmail.com>
+Date: Sat, 10 May 2014 11:14:34 +0800
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>
+To: linux-mm <linux-mm@kvack.org>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Wu Fengguang <fengguang.wu@intel.com>, Andi Kleen <ak@linux.intel.com>
 
----1615118150-2088370353-1399690747=:69805
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+For handling a free hugepage in memory failure, the race will happen if
+another thread hwpoisoned this hugepage concurrently. So we need to
+check PageHWPoison instead of !PageHWPoison.
 
-Hi,=0A=0AI have some queries regarding IOMMU and CMA buffer sharing.=0A=0AW=
-e have an embedded linux device (kernel 3.10, RAM: 256Mb) in which camera a=
-nd codec supports IOMMU but the display does not support IOMMU.=0AThus for =
-camera capture we are using iommu buffers using ION/DMABUF. But for all dis=
-play rendering we are using CMA buffers.=0ASo, the question is how to achie=
-ve buffer sharing (zero-copy) between Camera and Display using only IOMMU?=
-=0A=0ACurrently we are achieving zero-copy using CMA. And we are exploring =
-options to use IOMMU.=0ANow we wanted to know which option is better? To us=
-e IOMMU or CMA?=0A=0AIf anybody have come across these design please share =
-your thoughts and results.=0A=0A=0AThank You!=0ARegards,=0APintu=0A
----1615118150-2088370353-1399690747=:69805
-Content-Type: text/html; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+If hwpoison_filter(p) returns true or a race happens, then we need to
+unlock_page(hpage).
 
-<html><body><div style=3D"color:#000; background-color:#fff; font-family:Co=
-urier New, courier, monaco, monospace, sans-serif;font-size:12pt"><div>Hi,<=
-/div><div><br></div><div style=3D"color: rgb(0, 0, 0); font-size: 16px; fon=
-t-family: 'Courier New', courier, monaco, monospace, sans-serif; background=
--color: transparent; font-style: normal;">I have some queries regarding IOM=
-MU and CMA buffer sharing.</div><div style=3D"color: rgb(0, 0, 0); font-siz=
-e: 16px; font-family: 'Courier New', courier, monaco, monospace, sans-serif=
-; background-color: transparent; font-style: normal;"><br></div><div style=
-=3D"color: rgb(0, 0, 0); font-size: 16px; font-family: 'Courier New', couri=
-er, monaco, monospace, sans-serif; background-color: transparent; font-styl=
-e: normal;">We have an embedded linux device (kernel 3.10, RAM: 256Mb) in w=
-hich camera and codec supports IOMMU but the display does not support IOMMU=
-.</div><div style=3D"color: rgb(0, 0, 0); font-size: 16px; font-family:
- 'Courier New', courier, monaco, monospace, sans-serif; background-color: t=
-ransparent; font-style: normal;">Thus for camera capture we are using iommu=
- buffers using ION/DMABUF. But for all display rendering we are using CMA b=
-uffers.</div><div style=3D"color: rgb(0, 0, 0); font-size: 16px; font-famil=
-y: 'Courier New', courier, monaco, monospace, sans-serif; background-color:=
- transparent; font-style: normal;">So, the question is how to achieve buffe=
-r sharing (zero-copy) between Camera and Display using only IOMMU?</div><di=
-v style=3D"color: rgb(0, 0, 0); font-size: 16px; font-family: 'Courier New'=
-, courier, monaco, monospace, sans-serif; background-color: transparent; fo=
-nt-style: normal;"><br></div><div style=3D"color: rgb(0, 0, 0); font-size: =
-16px; font-family: 'Courier New', courier, monaco, monospace, sans-serif; b=
-ackground-color: transparent; font-style: normal;">Currently we are achievi=
-ng zero-copy using CMA. And we are exploring options to use
- IOMMU.</div><div style=3D"color: rgb(0, 0, 0); font-size: 16px; font-famil=
-y: 'Courier New', courier, monaco, monospace, sans-serif; background-color:=
- transparent; font-style: normal;">Now we wanted to know which option is be=
-tter? To use IOMMU or CMA?</div><div style=3D"color: rgb(0, 0, 0); font-siz=
-e: 16px; font-family: 'Courier New', courier, monaco, monospace, sans-serif=
-; background-color: transparent; font-style: normal;"><br></div><div style=
-=3D"color: rgb(0, 0, 0); font-size: 16px; font-family: 'Courier New', couri=
-er, monaco, monospace, sans-serif; background-color: transparent; font-styl=
-e: normal;">If anybody have come across these design please share your thou=
-ghts and results.</div><div style=3D"color: rgb(0, 0, 0); font-size: 16px; =
-font-family: 'Courier New', courier, monaco, monospace, sans-serif; backgro=
-und-color: transparent; font-style: normal;"><br></div><div style=3D"color:=
- rgb(0, 0, 0); font-size: 16px; font-family: 'Courier New', courier, monaco=
-,
- monospace, sans-serif; background-color: transparent; font-style: normal;"=
-><br></div><div style=3D"color: rgb(0, 0, 0); font-size: 16px; font-family:=
- 'Courier New', courier, monaco, monospace, sans-serif; background-color: t=
-ransparent; font-style: normal;">Thank You!</div><div style=3D"color: rgb(0=
-, 0, 0); font-size: 16px; font-family: 'Courier New', courier, monaco, mono=
-space, sans-serif; background-color: transparent; font-style: normal;">Rega=
-rds,</div><div style=3D"color: rgb(0, 0, 0); font-size: 16px; font-family: =
-'Courier New', courier, monaco, monospace, sans-serif; background-color: tr=
-ansparent; font-style: normal;">Pintu</div><div style=3D"color: rgb(0, 0, 0=
-); font-size: 16px; font-family: 'Courier New', courier, monaco, monospace,=
- sans-serif; background-color: transparent; font-style: normal;"><br></div>=
-</div></body></html>
----1615118150-2088370353-1399690747=:69805--
+Signed-off-by: Chen Yucong <slaoub@gmail.com>
+Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+---
+mm/memory-failure.c |   15 ++++++++-------
+1 file changed, 8 insertions(+), 7 deletions(-)
+
+diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+index 35ef28a..dbf8922 100644
+--- a/mm/memory-failure.c
++++ b/mm/memory-failure.c
+@@ -1081,15 +1081,16 @@ int memory_failure(unsigned long pfn, int
+trapno, int flags)
+ 			return 0;
+ 		} else if (PageHuge(hpage)) {
+ 			/*
+-			 * Check "just unpoisoned", "filter hit", and
+-			 * "race with other subpage."
++			 * Check "filter hit" and "race with other subpage."
+ 			 */
+ 			lock_page(hpage);
+-			if (!PageHWPoison(hpage)
+-			    || (hwpoison_filter(p) && TestClearPageHWPoison(p))
+-			    || (p != hpage && TestSetPageHWPoison(hpage))) {
+-				atomic_long_sub(nr_pages, &num_poisoned_pages);
+-				return 0;
++			if (PageHWPoison(hpage)) {
++				if ((hwpoison_filter(p) && TestClearPageHWPoison(p))
++				    || (p != hpage && TestSetPageHWPoison(hpage))) {
++					atomic_long_sub(nr_pages, &num_poisoned_pages);
++					unlock_page(hpage);
++					return 0;
++				}
+ 			}
+ 			set_page_hwpoison_huge_page(hpage);
+ 			res = dequeue_hwpoisoned_huge_page(hpage);
+-- 
+1.7.10.4
+
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
