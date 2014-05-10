@@ -1,38 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f182.google.com (mail-ig0-f182.google.com [209.85.213.182])
-	by kanga.kvack.org (Postfix) with ESMTP id EC1A16B003B
-	for <linux-mm@kvack.org>; Fri,  9 May 2014 23:25:19 -0400 (EDT)
-Received: by mail-ig0-f182.google.com with SMTP id uy17so1910041igb.3
-        for <linux-mm@kvack.org>; Fri, 09 May 2014 20:25:19 -0700 (PDT)
-Received: from nm40.bullet.mail.ne1.yahoo.com (nm40.bullet.mail.ne1.yahoo.com. [98.138.229.33])
-        by mx.google.com with ESMTPS id aa7si4486058icc.48.2014.05.09.20.25.19
+Received: from mail-qc0-f180.google.com (mail-qc0-f180.google.com [209.85.216.180])
+	by kanga.kvack.org (Postfix) with ESMTP id E785D6B0036
+	for <linux-mm@kvack.org>; Sat, 10 May 2014 00:29:51 -0400 (EDT)
+Received: by mail-qc0-f180.google.com with SMTP id i17so5610775qcy.39
+        for <linux-mm@kvack.org>; Fri, 09 May 2014 21:29:51 -0700 (PDT)
+Received: from gate.crashing.org (gate.crashing.org. [63.228.1.57])
+        by mx.google.com with ESMTPS id t1si2997768qga.72.2014.05.09.21.29.50
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 09 May 2014 20:25:19 -0700 (PDT)
-References: <1399690747.69805.YahooMailNeo@web160104.mail.bf1.yahoo.com>
-Message-ID: <1399692147.36921.YahooMailNeo@web160101.mail.bf1.yahoo.com>
-Date: Fri, 9 May 2014 20:22:27 -0700 (PDT)
-From: PINTU KUMAR <pintu_agarwal@yahoo.com>
-Reply-To: PINTU KUMAR <pintu_agarwal@yahoo.com>
-Subject: [MM]: IOMMU and CMA buffer sharing
-In-Reply-To: <1399690747.69805.YahooMailNeo@web160104.mail.bf1.yahoo.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+        Fri, 09 May 2014 21:29:51 -0700 (PDT)
+Message-ID: <1399696115.4481.48.camel@pasglop>
+Subject: Re: [RFC] Heterogeneous memory management (mirror process address
+ space on a device mmu).
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Date: Sat, 10 May 2014 14:28:35 +1000
+In-Reply-To: <20140509012601.GA2906@gmail.com>
+References: <1399038730-25641-1-git-send-email-j.glisse@gmail.com>
+	 <20140506102925.GD11096@twins.programming.kicks-ass.net>
+	 <CA+55aFzt47Jpp-KK-ocLGgzYt_w-vheqFLfaGZOUSjwVrgGUtw@mail.gmail.com>
+	 <20140506150014.GA6731@gmail.com>
+	 <CA+55aFwM-g01tCZ1NknwvMeSMpwyKyTm6hysN-GmrZ_APtk7UA@mail.gmail.com>
+	 <20140506153315.GB6731@gmail.com>
+	 <CA+55aFzzPtTkC22WvHNy6srN9PFzer0-_mgRXWO03NwmCdfy4g@mail.gmail.com>
+	 <20140506161836.GC6731@gmail.com> <1399446892.4161.34.camel@pasglop>
+	 <20140509012601.GA2906@gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>
+To: Jerome Glisse <j.glisse@gmail.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Mel Gorman <mgorman@suse.de>, "H. Peter
+ Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Linda Wang <lwang@redhat.com>, Kevin E Martin <kem@redhat.com>, Jerome Glisse <jglisse@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <jweiner@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Rik van Riel <riel@redhat.com>, Dave Airlie <airlied@redhat.com>, Jeff Law <law@redhat.com>, Brendan Conoboy <blc@redhat.com>, Joe Donohue <jdonohue@redhat.com>, Duncan Poole <dpoole@nvidia.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, Lucien Dunning <ldunning@nvidia.com>, Cameron Buschardt <cabuschardt@nvidia.com>, Arvind Gopalakrishnan <arvindg@nvidia.com>, Haggai Eran <haggaie@mellanox.com>, Or Gerlitz <ogerlitz@mellanox.com>, Sagi Grimberg <sagig@mellanox.com>, Shachar Raindel <raindel@mellanox.com>, Liran Liss <liranl@mellanox.com>, Roland Dreier <roland@purestorage.com>, "Sander,
+ Ben" <ben.sander@amd.com>, "Stoner, Greg" <Greg.Stoner@amd.com>, "Bridgman,
+ John" <John.Bridgman@amd.com>, "Mantor, Michael" <Michael.Mantor@amd.com>, "Blinzer, Paul" <Paul.Blinzer@amd.com>, "Morichetti, Laurent" <Laurent.Morichetti@amd.com>, "Deucher, Alexander" <Alexander.Deucher@amd.com>, "Gabbay, Oded" <Oded.Gabbay@amd.com>, Davidlohr Bueso <davidlohr@hp.com>
 
-Hi, =0AI have some queries regarding IOMMU and CMA buffer sharing. =0AWe ha=
-ve an embedded linux device (kernel 3.10, RAM: 256Mb) in which camera and c=
-odec supports IOMMU but the display does not support IOMMU. =0AThus for cam=
-era capture we are using iommu buffers using ION/DMABUF. But for all displa=
-y rendering we are using CMA buffers. =0ASo, the question is how to achieve=
- buffer sharing (zero-copy) between Camera and Display using only IOMMU? =
-=0ACurrently we are achieving zero-copy using CMA. And we are exploring opt=
-ions to use IOMMU. =0ANow we wanted to know which option is better? To use =
-IOMMU or CMA? =0AIf anybody have come across these design please share your=
- thoughts and results. =0AThank You! =0ARegards, =0APintu
+On Thu, 2014-05-08 at 21:26 -0400, Jerome Glisse wrote:
+> Otherwise i have no other choice than to add something like mmu_notifier
+> in the place where there can a be race (huge page split, cow, ...). Which
+> sounds like a bad idea to me when mmu_notifier is perfect for the job.
+
+Even there, how are you going to find a sleepable context ? All that stuff
+has the PTL held.
+
+Cheers,
+Ben.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
