@@ -1,94 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id C86056B0036
-	for <linux-mm@kvack.org>; Fri,  9 May 2014 22:35:49 -0400 (EDT)
-Received: by mail-pa0-f43.google.com with SMTP id hz1so5146450pad.30
-        for <linux-mm@kvack.org>; Fri, 09 May 2014 19:35:49 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [143.182.124.21])
-        by mx.google.com with ESMTP id nw5si796077pbb.16.2014.05.09.19.35.48
+Received: from mail-ig0-f172.google.com (mail-ig0-f172.google.com [209.85.213.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 28F226B0038
+	for <linux-mm@kvack.org>; Fri,  9 May 2014 23:01:58 -0400 (EDT)
+Received: by mail-ig0-f172.google.com with SMTP id uy17so1901314igb.17
+        for <linux-mm@kvack.org>; Fri, 09 May 2014 20:01:58 -0700 (PDT)
+Received: from nm45.bullet.mail.ne1.yahoo.com (nm45.bullet.mail.ne1.yahoo.com. [98.138.120.52])
+        by mx.google.com with SMTP id k4si1723554igx.11.2014.05.09.20.01.57
         for <linux-mm@kvack.org>;
-        Fri, 09 May 2014 19:35:48 -0700 (PDT)
-Date: Sat, 10 May 2014 10:32:41 +0800
-From: kbuild test robot <fengguang.wu@intel.com>
-Subject: [mmotm:master 230/459] include/linux/radix-tree.h:260:9: sparse:
- incorrect type in assignment (different address spaces)
-Message-ID: <536d8fc9.irVvmfyfuwCw+szX%fengguang.wu@intel.com>
+        Fri, 09 May 2014 20:01:57 -0700 (PDT)
+Message-ID: <1399690747.69805.YahooMailNeo@web160104.mail.bf1.yahoo.com>
+Date: Fri, 9 May 2014 19:59:07 -0700 (PDT)
+From: PINTU KUMAR <pintu_agarwal@yahoo.com>
+Reply-To: PINTU KUMAR <pintu_agarwal@yahoo.com>
+Subject: [MM]: IOMMU and CMA buffer sharing
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/alternative; boundary="-1615118150-2088370353-1399690747=:69805"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Berg <johannes.berg@intel.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, kbuild-all@01.org
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>
 
-tree:   git://git.cmpxchg.org/linux-mmotm.git master
-head:   9567896580328249f6519fda78cf9fe185a8486d
-commit: 849ba771e4fd9d334940e79d19c824608d06d393 [230/459] compiler.h: don't use temporary variable in __compiletime_assert()
-reproduce: make C=1 CF=-D__CHECK_ENDIAN__
+---1615118150-2088370353-1399690747=:69805
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 
+Hi,=0A=0AI have some queries regarding IOMMU and CMA buffer sharing.=0A=0AW=
+e have an embedded linux device (kernel 3.10, RAM: 256Mb) in which camera a=
+nd codec supports IOMMU but the display does not support IOMMU.=0AThus for =
+camera capture we are using iommu buffers using ION/DMABUF. But for all dis=
+play rendering we are using CMA buffers.=0ASo, the question is how to achie=
+ve buffer sharing (zero-copy) between Camera and Display using only IOMMU?=
+=0A=0ACurrently we are achieving zero-copy using CMA. And we are exploring =
+options to use IOMMU.=0ANow we wanted to know which option is better? To us=
+e IOMMU or CMA?=0A=0AIf anybody have come across these design please share =
+your thoughts and results.=0A=0A=0AThank You!=0ARegards,=0APintu=0A
+---1615118150-2088370353-1399690747=:69805
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 
-sparse warnings: (new ones prefixed by >>)
-
->> include/linux/radix-tree.h:260:9: sparse: incorrect type in assignment (different address spaces)
-   include/linux/radix-tree.h:260:9:    expected void *volatile <noident>
-   include/linux/radix-tree.h:260:9:    got void [noderef] <asn:4>*<noident>
->> include/linux/radix-tree.h:260:9: sparse: incorrect type in assignment (different address spaces)
-   include/linux/radix-tree.h:260:9:    expected void *volatile <noident>
-   include/linux/radix-tree.h:260:9:    got void [noderef] <asn:4>*<noident>
-   include/linux/radix-tree.h:212:16: sparse: incompatible types in comparison expression (different address spaces)
-   include/linux/radix-tree.h:196:16: sparse: incompatible types in comparison expression (different address spaces)
-   include/linux/radix-tree.h:196:16: sparse: incompatible types in comparison expression (different address spaces)
-   include/linux/radix-tree.h:196:16: sparse: incompatible types in comparison expression (different address spaces)
-   include/linux/radix-tree.h:196:16: sparse: incompatible types in comparison expression (different address spaces)
-   include/linux/radix-tree.h:196:16: sparse: incompatible types in comparison expression (different address spaces)
-   include/linux/radix-tree.h:196:16: sparse: incompatible types in comparison expression (different address spaces)
---
->> include/linux/radix-tree.h:260:9: sparse: incorrect type in assignment (different address spaces)
-   include/linux/radix-tree.h:260:9:    expected void *volatile <noident>
-   include/linux/radix-tree.h:260:9:    got void [noderef] <asn:4>*<noident>
---
->> drivers/md/dm-era-target.c:640:9: sparse: incorrect type in assignment (different address spaces)
-   drivers/md/dm-era-target.c:640:9:    expected struct writeset *volatile <noident>
-   drivers/md/dm-era-target.c:640:9:    got struct writeset [noderef] <asn:4>*<noident>
-   drivers/md/dm-era-target.c:939:14: sparse: incompatible types in comparison expression (different address spaces)
-
-vim +260 include/linux/radix-tree.h
-
-6328650b Hugh Dickins    2011-08-03  244  {
-6328650b Hugh Dickins    2011-08-03  245  	return unlikely((unsigned long)arg &
-6328650b Hugh Dickins    2011-08-03  246  		(RADIX_TREE_INDIRECT_PTR | RADIX_TREE_EXCEPTIONAL_ENTRY));
-6328650b Hugh Dickins    2011-08-03  247  }
-6328650b Hugh Dickins    2011-08-03  248  
-6328650b Hugh Dickins    2011-08-03  249  /**
-7cf9c2c7 Nick Piggin     2006-12-06  250   * radix_tree_replace_slot	- replace item in a slot
-7cf9c2c7 Nick Piggin     2006-12-06  251   * @pslot:	pointer to slot, returned by radix_tree_lookup_slot
-7cf9c2c7 Nick Piggin     2006-12-06  252   * @item:	new item to store in the slot.
-7cf9c2c7 Nick Piggin     2006-12-06  253   *
-7cf9c2c7 Nick Piggin     2006-12-06  254   * For use with radix_tree_lookup_slot().  Caller must hold tree write locked
-7cf9c2c7 Nick Piggin     2006-12-06  255   * across slot lookup and replacement.
-7cf9c2c7 Nick Piggin     2006-12-06  256   */
-7cf9c2c7 Nick Piggin     2006-12-06  257  static inline void radix_tree_replace_slot(void **pslot, void *item)
-7cf9c2c7 Nick Piggin     2006-12-06  258  {
-c0bc9875 Nick Piggin     2007-10-16  259  	BUG_ON(radix_tree_is_indirect_ptr(item));
-c0bc9875 Nick Piggin     2007-10-16 @260  	rcu_assign_pointer(*pslot, item);
-7cf9c2c7 Nick Piggin     2006-12-06  261  }
-7cf9c2c7 Nick Piggin     2006-12-06  262  
-139e5616 Johannes Weiner 2014-04-03  263  int __radix_tree_create(struct radix_tree_root *root, unsigned long index,
-139e5616 Johannes Weiner 2014-04-03  264  			struct radix_tree_node **nodep, void ***slotp);
-^1da177e Linus Torvalds  2005-04-16  265  int radix_tree_insert(struct radix_tree_root *, unsigned long, void *);
-139e5616 Johannes Weiner 2014-04-03  266  void *__radix_tree_lookup(struct radix_tree_root *root, unsigned long index,
-139e5616 Johannes Weiner 2014-04-03  267  			  struct radix_tree_node **nodep, void ***slotp);
-^1da177e Linus Torvalds  2005-04-16  268  void *radix_tree_lookup(struct radix_tree_root *, unsigned long);
-
-:::::: The code at line 260 was first introduced by commit
-:::::: c0bc9875b701c588e448302d41181995c21e8040 radix-tree: use indirect bit
-
-:::::: TO: Nick Piggin <npiggin@suse.de>
-:::::: CC: Linus Torvalds <torvalds@woody.linux-foundation.org>
-
----
-0-DAY kernel build testing backend              Open Source Technology Center
-http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporation
+<html><body><div style=3D"color:#000; background-color:#fff; font-family:Co=
+urier New, courier, monaco, monospace, sans-serif;font-size:12pt"><div>Hi,<=
+/div><div><br></div><div style=3D"color: rgb(0, 0, 0); font-size: 16px; fon=
+t-family: 'Courier New', courier, monaco, monospace, sans-serif; background=
+-color: transparent; font-style: normal;">I have some queries regarding IOM=
+MU and CMA buffer sharing.</div><div style=3D"color: rgb(0, 0, 0); font-siz=
+e: 16px; font-family: 'Courier New', courier, monaco, monospace, sans-serif=
+; background-color: transparent; font-style: normal;"><br></div><div style=
+=3D"color: rgb(0, 0, 0); font-size: 16px; font-family: 'Courier New', couri=
+er, monaco, monospace, sans-serif; background-color: transparent; font-styl=
+e: normal;">We have an embedded linux device (kernel 3.10, RAM: 256Mb) in w=
+hich camera and codec supports IOMMU but the display does not support IOMMU=
+.</div><div style=3D"color: rgb(0, 0, 0); font-size: 16px; font-family:
+ 'Courier New', courier, monaco, monospace, sans-serif; background-color: t=
+ransparent; font-style: normal;">Thus for camera capture we are using iommu=
+ buffers using ION/DMABUF. But for all display rendering we are using CMA b=
+uffers.</div><div style=3D"color: rgb(0, 0, 0); font-size: 16px; font-famil=
+y: 'Courier New', courier, monaco, monospace, sans-serif; background-color:=
+ transparent; font-style: normal;">So, the question is how to achieve buffe=
+r sharing (zero-copy) between Camera and Display using only IOMMU?</div><di=
+v style=3D"color: rgb(0, 0, 0); font-size: 16px; font-family: 'Courier New'=
+, courier, monaco, monospace, sans-serif; background-color: transparent; fo=
+nt-style: normal;"><br></div><div style=3D"color: rgb(0, 0, 0); font-size: =
+16px; font-family: 'Courier New', courier, monaco, monospace, sans-serif; b=
+ackground-color: transparent; font-style: normal;">Currently we are achievi=
+ng zero-copy using CMA. And we are exploring options to use
+ IOMMU.</div><div style=3D"color: rgb(0, 0, 0); font-size: 16px; font-famil=
+y: 'Courier New', courier, monaco, monospace, sans-serif; background-color:=
+ transparent; font-style: normal;">Now we wanted to know which option is be=
+tter? To use IOMMU or CMA?</div><div style=3D"color: rgb(0, 0, 0); font-siz=
+e: 16px; font-family: 'Courier New', courier, monaco, monospace, sans-serif=
+; background-color: transparent; font-style: normal;"><br></div><div style=
+=3D"color: rgb(0, 0, 0); font-size: 16px; font-family: 'Courier New', couri=
+er, monaco, monospace, sans-serif; background-color: transparent; font-styl=
+e: normal;">If anybody have come across these design please share your thou=
+ghts and results.</div><div style=3D"color: rgb(0, 0, 0); font-size: 16px; =
+font-family: 'Courier New', courier, monaco, monospace, sans-serif; backgro=
+und-color: transparent; font-style: normal;"><br></div><div style=3D"color:=
+ rgb(0, 0, 0); font-size: 16px; font-family: 'Courier New', courier, monaco=
+,
+ monospace, sans-serif; background-color: transparent; font-style: normal;"=
+><br></div><div style=3D"color: rgb(0, 0, 0); font-size: 16px; font-family:=
+ 'Courier New', courier, monaco, monospace, sans-serif; background-color: t=
+ransparent; font-style: normal;">Thank You!</div><div style=3D"color: rgb(0=
+, 0, 0); font-size: 16px; font-family: 'Courier New', courier, monaco, mono=
+space, sans-serif; background-color: transparent; font-style: normal;">Rega=
+rds,</div><div style=3D"color: rgb(0, 0, 0); font-size: 16px; font-family: =
+'Courier New', courier, monaco, monospace, sans-serif; background-color: tr=
+ansparent; font-style: normal;">Pintu</div><div style=3D"color: rgb(0, 0, 0=
+); font-size: 16px; font-family: 'Courier New', courier, monaco, monospace,=
+ sans-serif; background-color: transparent; font-style: normal;"><br></div>=
+</div></body></html>
+---1615118150-2088370353-1399690747=:69805--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
