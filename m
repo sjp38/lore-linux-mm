@@ -1,130 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id BEDA86B0036
-	for <linux-mm@kvack.org>; Sat, 10 May 2014 02:11:34 -0400 (EDT)
-Received: by mail-pa0-f45.google.com with SMTP id ey11so5289077pad.18
-        for <linux-mm@kvack.org>; Fri, 09 May 2014 23:11:34 -0700 (PDT)
-Received: from mailout2.samsung.com (mailout2.samsung.com. [203.254.224.25])
-        by mx.google.com with ESMTPS id rk7si3963794pab.174.2014.05.09.23.11.33
+Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 609D66B0035
+	for <linux-mm@kvack.org>; Sat, 10 May 2014 03:15:58 -0400 (EDT)
+Received: by mail-pd0-f170.google.com with SMTP id v10so4605929pde.29
+        for <linux-mm@kvack.org>; Sat, 10 May 2014 00:15:58 -0700 (PDT)
+Received: from mail-pd0-x22e.google.com (mail-pd0-x22e.google.com [2607:f8b0:400e:c02::22e])
+        by mx.google.com with ESMTPS id dh1si3395723pbc.69.2014.05.10.00.15.57
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Fri, 09 May 2014 23:11:33 -0700 (PDT)
-Received: from epcpsbgm1.samsung.com (epcpsbgm1 [203.254.230.26])
- by mailout2.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0N5C0005UH77Z1D0@mailout2.samsung.com> for
- linux-mm@kvack.org; Sat, 10 May 2014 15:11:31 +0900 (KST)
-From: Weijie Yang <weijie.yang@samsung.com>
-References: <000001cf6816$d538c370$7faa4a50$%yang@samsung.com>
- <20140505152014.GA8551@cerebellum.variantweb.net>
- <1399312844.2570.28.camel@buesod1.americas.hpqcorp.net>
- <20140505134615.04cb627bb2784cabcb844655@linux-foundation.org>
- <1399328550.2646.5.camel@buesod1.americas.hpqcorp.net>
- <000001cf69c9$5776f330$0664d990$%yang@samsung.com>
- <20140507085743.GA31680@bbox>
- <CAL1ERfOXNrfKqMVs-Yz8yJjKKU3L5fjUEOb0Aeyqc37py-BWEg@mail.gmail.com>
- <CAAmzW4Pn2VUEnQ8FyOaBffqfUiHt6ocLEEvyaJrSKmTjaNp_wQ@mail.gmail.com>
- <20140508062418.GF5282@bbox>
-In-reply-to: <20140508062418.GF5282@bbox>
-Subject: RE: [PATCH] zram: remove global tb_lock by using lock-free CAS
-Date: Sat, 10 May 2014 14:10:08 +0800
-Message-id: <000001cf6c16$afe73800$0fb5a800$%yang@samsung.com>
-MIME-version: 1.0
-Content-type: text/plain; charset=Windows-1252
-Content-transfer-encoding: 7bit
-Content-language: zh-cn
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Sat, 10 May 2014 00:15:57 -0700 (PDT)
+Received: by mail-pd0-f174.google.com with SMTP id w10so4589167pde.33
+        for <linux-mm@kvack.org>; Sat, 10 May 2014 00:15:57 -0700 (PDT)
+From: Jianyu Zhan <nasa4836@gmail.com>
+Subject: [PATCH 1/3] mm: add comment for __mod_zone_page_stat
+Date: Sat, 10 May 2014 15:15:39 +0800
+Message-Id: <1d32d83e54542050dba3f711a8d10b1e951a9a58.1399705884.git.nasa4836@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Minchan Kim' <minchan@kernel.org>, 'Joonsoo Kim' <js1304@gmail.com>
-Cc: 'Weijie Yang' <weijie.yang.kh@gmail.com>, 'Davidlohr Bueso' <davidlohr@hp.com>, 'Andrew Morton' <akpm@linux-foundation.org>, 'Seth Jennings' <sjennings@variantweb.net>, 'Nitin Gupta' <ngupta@vflare.org>, 'Sergey Senozhatsky' <sergey.senozhatsky@gmail.com>, 'Bob Liu' <bob.liu@oracle.com>, 'Dan Streetman' <ddstreet@ieee.org>, 'Heesub Shin' <heesub.shin@samsung.com>, 'linux-kernel' <linux-kernel@vger.kernel.org>, 'Linux-MM' <linux-mm@kvack.org>
+To: akpm@linux-foundation.org, mgorman@suse.de, cody@linux.vnet.ibm.com, liuj97@gmail.com, zhangyanfei@cn.fujitsu.com, srivatsa.bhat@linux.vnet.ibm.com, dave@sr71.net, iamjoonsoo.kim@lge.com, n-horiguchi@ah.jp.nec.com, kirill.shutemov@linux.intel.com, schwidefsky@de.ibm.com, nasa4836@gmail.com, gorcunov@gmail.com, riel@redhat.com, cl@linux.com, toshi.kani@hp.com, paul.gortmaker@windriver.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, May 8, 2014 at 2:24 PM, Minchan Kim <minchan@kernel.org> wrote:
-> On Wed, May 07, 2014 at 11:52:59PM +0900, Joonsoo Kim wrote:
->> >> Most popular use of zram is the in-memory swap for small embedded system
->> >> so I don't want to increase memory footprint without good reason although
->> >> it makes synthetic benchmark. Alhought it's 1M for 1G, it isn't small if we
->> >> consider compression ratio and real free memory after boot
->>
->> We can use bit spin lock and this would not increase memory footprint for 32 bit
->> platform.
->
-> Sounds like a idea.
-> Weijie, Do you mind testing with bit spin lock?
+__mod_zone_page_stat() is not irq-safe, so it should be used carefully.
+And it is not appropirately documented now. This patch adds comment for
+it, and also documents for some of its call sites.
 
-Yes, I re-test them.
-This time, I test each case 10 times, and take the average(KS/s).
-(the test machine and method are same like previous mail's)
+Suggested-by: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Jianyu Zhan <nasa4836@gmail.com>
+---
+ mm/page_alloc.c |  2 ++
+ mm/rmap.c       |  6 ++++++
+ mm/vmstat.c     | 16 +++++++++++++++-
+ 3 files changed, 23 insertions(+), 1 deletion(-)
 
-Iozone test result:
-
-      Test       BASE     CAS   spinlock   rwlock  bit_spinlock
---------------------------------------------------------------
- Initial write  1381094   1425435   1422860   1423075   1421521
-       Rewrite  1529479   1641199   1668762   1672855   1654910
-          Read  8468009  11324979  11305569  11117273  10997202
-       Re-read  8467476  11260914  11248059  11145336  10906486
-  Reverse Read  6821393   8106334   8282174   8279195   8109186
-   Stride read  7191093   8994306   9153982   8961224   9004434
-   Random read  7156353   8957932   9167098   8980465   8940476
-Mixed workload  4172747   5680814   5927825   5489578   5972253
-  Random write  1483044   1605588   1594329   1600453   1596010
-        Pwrite  1276644   1303108   1311612   1314228   1300960
-         Pread  4324337   4632869   4618386   4457870   4500166
-
-Fio test result:
-
-    Test     base     CAS    spinlock    rwlock  bit_spinlock
--------------------------------------------------------------
-seq-write   933789   999357   1003298    995961   1001958
- seq-read  5634130  6577930   6380861   6243912   6230006
-   seq-rw  1405687  1638117   1640256   1633903   1634459
-  rand-rw  1386119  1614664   1617211   1609267   1612471
-
-
-The base is v3.15.0-rc3, the others are per-meta entry lock.
-Every optimization method shows higher performance than the base, however,
-it is hard to say which method is the most appropriate.
-
-To bit_spinlock, the modified code is mainly like this:
-
-+#define ZRAM_FLAG_SHIFT 16
-+
-enum zram_pageflags {
- 	/* Page consists entirely of zeros */
--	ZRAM_ZERO,
-+	ZRAM_ZERO = ZRAM_FLAG_SHIFT + 1,
-+	ZRAM_ACCESS,
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 5dba293..9d6f474 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -659,6 +659,8 @@ static inline int free_pages_check(struct page *page)
+  *
+  * And clear the zone's pages_scanned counter, to hold off the "all pages are
+  * pinned" detection logic.
++ *
++ * Note: this function should be used with irq disabled.
+  */
+ static void free_pcppages_bulk(struct zone *zone, int count,
+ 					struct per_cpu_pages *pcp)
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 9c3e773..6078a30 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -979,6 +979,8 @@ void page_add_anon_rmap(struct page *page,
+ /*
+  * Special version of the above for do_swap_page, which often runs
+  * into pages that are exclusively owned by the current process.
++ * So we could use the irq-unsafe version __{inc|mod}_zone_page_stat
++ * here without others racing change it in between.
+  * Everybody else should continue to use page_add_anon_rmap above.
+  */
+ void do_page_add_anon_rmap(struct page *page,
+@@ -1077,6 +1079,10 @@ void page_remove_rmap(struct page *page)
+ 	/*
+ 	 * Hugepages are not counted in NR_ANON_PAGES nor NR_FILE_MAPPED
+ 	 * and not charged by memcg for now.
++	 *
++	 * And we are the last user of this page, so it is safe to use
++	 * the irq-unsafe version __{mod|dec}_zone_page here, since we
++	 * have no racer.
+ 	 */
+ 	if (unlikely(PageHuge(page)))
+ 		goto out;
+diff --git a/mm/vmstat.c b/mm/vmstat.c
+index 302dd07..778f154 100644
+--- a/mm/vmstat.c
++++ b/mm/vmstat.c
+@@ -207,7 +207,21 @@ void set_pgdat_percpu_threshold(pg_data_t *pgdat,
+ }
  
- 	__NR_ZRAM_PAGEFLAGS,
- };
- 
- /* Allocated for each disk page */
- struct table {
- 	unsigned long handle;
--	u16 size;	/* object size (excluding header) */
--	u8 flags;
-+	unsigned long value;
- } __aligned(4);
-
-The lower ZRAM_FLAG_SHIFT bits of table.value is size, the higher bits
-is for zram_pageflags. By this means, it doesn't increase any memory
-overhead on both 32-bit and 64-bit system.
-
-Any complaint or suggestions are welcomed.
-
->>
->> Thanks.
->>
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
->
-> --
-> Kind regards,
-> Minchan Kim
-
+ /*
+- * For use when we know that interrupts are disabled.
++ * Optimized modificatoin function.
++ *
++ * The code basically does the modification in two steps:
++ *
++ *  1. read the current counter based on the processor number
++ *  2. modificate the counter write it back.
++ *
++ * So this function should be used with the guarantee that
++ *
++ *  1. interrupts are disabled, or
++ *  2. interrupts are enabled, but no other sites would race to
++ *     modify this counter in between.
++ *
++ * Otherwise, an irq-safe version mod_zone_page_state() should
++ * be used instead.
+  */
+ void __mod_zone_page_state(struct zone *zone, enum zone_stat_item item,
+ 				int delta)
+-- 
+2.0.0-rc1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
