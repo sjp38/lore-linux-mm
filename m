@@ -1,130 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id DCF156B0035
-	for <linux-mm@kvack.org>; Mon, 12 May 2014 12:33:55 -0400 (EDT)
-Received: by mail-pa0-f41.google.com with SMTP id lj1so8858782pab.14
-        for <linux-mm@kvack.org>; Mon, 12 May 2014 09:33:55 -0700 (PDT)
-Received: from mail-pa0-x229.google.com (mail-pa0-x229.google.com [2607:f8b0:400e:c03::229])
-        by mx.google.com with ESMTPS id yy11si10513813pac.80.2014.05.12.09.33.54
+Received: from mail-yh0-f47.google.com (mail-yh0-f47.google.com [209.85.213.47])
+	by kanga.kvack.org (Postfix) with ESMTP id D3C3C6B0035
+	for <linux-mm@kvack.org>; Mon, 12 May 2014 12:38:46 -0400 (EDT)
+Received: by mail-yh0-f47.google.com with SMTP id z6so6105940yhz.20
+        for <linux-mm@kvack.org>; Mon, 12 May 2014 09:38:46 -0700 (PDT)
+Received: from mail-yh0-x22b.google.com (mail-yh0-x22b.google.com [2607:f8b0:4002:c01::22b])
+        by mx.google.com with ESMTPS id a45si16684681yhf.58.2014.05.12.09.38.46
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 12 May 2014 09:33:55 -0700 (PDT)
-Received: by mail-pa0-f41.google.com with SMTP id lj1so9047259pab.0
-        for <linux-mm@kvack.org>; Mon, 12 May 2014 09:33:54 -0700 (PDT)
-From: Jianyu Zhan <nasa4836@gmail.com>
-Subject: Re: [PATCH 1/3] mm: add comment for __mod_zone_page_stat
-Date: Tue, 13 May 2014 00:33:43 +0800
-Message-Id: <1399912423-25601-1-git-send-email-nasa4836@gmail.com>
+        Mon, 12 May 2014 09:38:46 -0700 (PDT)
+Received: by mail-yh0-f43.google.com with SMTP id v1so1906406yhn.16
+        for <linux-mm@kvack.org>; Mon, 12 May 2014 09:38:46 -0700 (PDT)
+From: Dan Streetman <ddstreet@ieee.org>
+Subject: [PATCHv3 0/4] swap: simplify/fix swap_list handling and iteration
+Date: Mon, 12 May 2014 12:38:16 -0400
+Message-Id: <1399912700-30100-1-git-send-email-ddstreet@ieee.org>
+In-Reply-To: <1399057350-16300-1-git-send-email-ddstreet@ieee.org>
+References: <1399057350-16300-1-git-send-email-ddstreet@ieee.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: cl@linux.com, akpm@linux-foundation.org, riel@redhat.com, aarcange@redhat.com, oleg@redhat.com, cldu@marvell.com, fabf@skynet.be, nasa4836@gmail.com, sasha.levin@oracle.com, zhangyanfei@cn.fujitsu.com, iamjoonsoo.kim@lge.com, n-horiguchi@ah.jp.nec.com, kirill.shutemov@linux.intel.com, liwanp@linux.vnet.ibm.com, gorcunov@gmail.com, minchan@kernel.org, dave.hansen@linux.intel.com, toshi.kani@hp.com, paul.gortmaker@windriver.com, srivatsa.bhat@linux.vnet.ibm.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>
+To: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>
+Cc: Dan Streetman <ddstreet@ieee.org>, Michal Hocko <mhocko@suse.cz>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Weijie Yang <weijieut@gmail.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Bob Liu <bob.liu@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
->> This means they guarantee that even they are preemted the vm
->> counter won't be modified incorrectly.  Because the counter is page-related
->> (e.g., a new anon page added), and they are exclusively hold the pte lock.
->
->But there are multiple pte locks for numerous page. Another process could
->modify the counter because the pte lock for a different page was
->available which would cause counter corruption.
->
->
->> So, as you concludes in the other mail that __modd_zone_page_stat
->> couldn't be used.
->> in mlocked_vma_newpage, then what qualifies other call sites for using
->> it, in the same situation?
+Changes since v2 https://lkml.org/lkml/2014/5/2/497
+Update patches 3 and 4; the third patch is changed mainly to use
+plist_requeue() instead of plist_rotate(), and the forth patch
+adds a missing spin_unlock() in get_swap_page() in the total failure
+case.
 
-Thanks, now everything is clear.
 
-I've renewed the patch, would you please review it? Thanks!
+The logic controlling the singly-linked list of swap_info_struct entries
+for all active, i.e. swapon'ed, swap targets is rather complex, because:
+-it stores the entries in priority order
+-there is a pointer to the highest priority entry
+-there is a pointer to the highest priority not-full entry
+-there is a highest_priority_index variable set outside the swap_lock
+-swap entries of equal priority should be used equally
 
----<8---
-mm: use the light version __mod_zone_page_state in mlocked_vma_newpage()
+this complexity leads to bugs such as:
+https://lkml.org/lkml/2014/2/13/181
+where different priority swap targets are incorrectly used equally.
 
-mlocked_vma_newpage() is called with pte lock held(a spinlock), which
-implies preemtion disabled, and the vm stat counter is not modified from
-interrupt context, so we need not use an irq-safe mod_zone_page_state() here,
-using a light-weight version __mod_zone_page_state() would be OK.
+That bug probably could be solved with the existing singly-linked lists,
+but I think it would only add more complexity to the already difficult
+to understand get_swap_page() swap_list iteration logic.
 
-This patch also documents __mod_zone_page_state() and some of its
-callsites. The comment above __mod_zone_page_state() is from Hugh
-Dickins, and acked by Christoph.
+The first patch changes from a singly-linked list to a doubly-linked
+list using list_heads; the highest_priority_index and related code are
+removed and get_swap_page() starts each iteration at the highest priority
+swap_info entry, even if it's full.  While this does introduce
+unnecessary list iteration (i.e. Schlemiel the painter's algorithm)
+in the case where one or more of the highest priority entries are full,
+the iteration and manipulation code is much simpler and behaves
+correctly re: the above bug; and the fourth patch removes the unnecessary
+iteration.
 
-Most credits to Hugh and Christoph for the clarification on the usage of
-the __mod_zone_page_state().
+The second patch adds some minor plist helper functions; nothing new
+really, just functions to match existing regular list functions.  These
+are used by the next two patches.
 
-Suggested-by: Andrew Morton <akpm@linux-foundation.org>
-Signed-off-by: Hugh Dickins <hughd@google.com>
-Signed-off-by: Jianyu Zhan <nasa4836@gmail.com>
----
- mm/internal.h |  7 ++++++-
- mm/rmap.c     | 10 ++++++++++
- mm/vmstat.c   |  4 +++-
- 3 files changed, 19 insertions(+), 2 deletions(-)
+The third patch adds plist_requeue(), which is used by get_swap_page()
+in the next patch - it performs the requeueing of same-priority entries
+(which moves the entry to the end of its priority in the plist), so that
+all equal-priority swap_info_structs get used equally.
 
-diff --git a/mm/internal.h b/mm/internal.h
-index 07b6736..53d439e 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -196,7 +196,12 @@ static inline int mlocked_vma_newpage(struct vm_area_struct *vma,
- 		return 0;
- 
- 	if (!TestSetPageMlocked(page)) {
--		mod_zone_page_state(page_zone(page), NR_MLOCK,
-+		/*
-+		 * We use the irq-unsafe __mod_zone_page_stat because
-+		 * this counter is not modified from interrupt context, and the
-+		 * pte lock is held(spinlock), which implies preemtion disabled.
-+		 */
-+		__mod_zone_page_state(page_zone(page), NR_MLOCK,
- 				    hpage_nr_pages(page));
- 		count_vm_event(UNEVICTABLE_PGMLOCKED);
- 	}
-diff --git a/mm/rmap.c b/mm/rmap.c
-index 9c3e773..2fa4375 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -986,6 +986,11 @@ void do_page_add_anon_rmap(struct page *page,
- {
- 	int first = atomic_inc_and_test(&page->_mapcount);
- 	if (first) {
-+		/*
-+		 * We use the irq-unsafe __{inc|mod}_zone_page_stat because
-+		 * these counters are not modified in interrupt context, and
-+		 * pte lock(a spinlock) is held, which implies preemtion disabled.
-+		 */
- 		if (PageTransHuge(page))
- 			__inc_zone_page_state(page,
- 					      NR_ANON_TRANSPARENT_HUGEPAGES);
-@@ -1077,6 +1082,11 @@ void page_remove_rmap(struct page *page)
- 	/*
- 	 * Hugepages are not counted in NR_ANON_PAGES nor NR_FILE_MAPPED
- 	 * and not charged by memcg for now.
-+	 *
-+	 * We use the irq-unsafe __{inc|mod}_zone_page_stat because
-+	 * these counters are not modified in interrupt context, and
-+	 * these counters are not modified in interrupt context, and
-+	 * pte lock(a spinlock) is held, which implies preemtion disabled.
- 	 */
- 	if (unlikely(PageHuge(page)))
- 		goto out;
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 302dd07..704928e 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -207,7 +207,9 @@ void set_pgdat_percpu_threshold(pg_data_t *pgdat,
- }
- 
- /*
-- * For use when we know that interrupts are disabled.
-+ * For use when we know that interrupts are disabled,
-+ * or when we know that preemption is disabled and that
-+ * particular counter cannot be updated from interrupt context.
-  */
- void __mod_zone_page_state(struct zone *zone, enum zone_stat_item item,
- 				int delta)
+The fourth patch converts the main list into a plist, and adds a new plist
+that contains only swap_info entries that are both active and not full.
+As Mel suggested using plists allows removing all the ordering code from
+swap - plists handle ordering automatically.  The list naming is also
+clarified now that there are two lists, with the original list changed
+from swap_list_head to swap_active_head and the new list named
+swap_avail_head.  A new spinlock is also added for the new list, so
+swap_info entries can be added or removed from the new list immediately
+as they become full or not full.
+
+
+
+Dan Streetman (4):
+  swap: change swap_info singly-linked list to list_head
+  plist: add helper functions
+  plist: add plist_requeue
+  swap: change swap_list_head to plist, add swap_avail_head
+
+ include/linux/plist.h    |  45 ++++++++++
+ include/linux/swap.h     |   8 +-
+ include/linux/swapfile.h |   2 +-
+ lib/plist.c              |  52 +++++++++++
+ mm/frontswap.c           |  13 +--
+ mm/swapfile.c            | 224 +++++++++++++++++++++++++----------------------
+ 6 files changed, 221 insertions(+), 123 deletions(-)
+
 -- 
-2.0.0-rc1
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
