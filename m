@@ -1,81 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f174.google.com (mail-ob0-f174.google.com [209.85.214.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D4086B0036
-	for <linux-mm@kvack.org>; Sun, 11 May 2014 16:46:34 -0400 (EDT)
-Received: by mail-ob0-f174.google.com with SMTP id uz6so7168401obc.5
-        for <linux-mm@kvack.org>; Sun, 11 May 2014 13:46:34 -0700 (PDT)
-Received: from g4t3427.houston.hp.com (g4t3427.houston.hp.com. [15.201.208.55])
-        by mx.google.com with ESMTPS id ea3si9852924obb.81.2014.05.11.13.46.33
+Received: from mail-ee0-f49.google.com (mail-ee0-f49.google.com [74.125.83.49])
+	by kanga.kvack.org (Postfix) with ESMTP id D191B6B0035
+	for <linux-mm@kvack.org>; Sun, 11 May 2014 21:04:50 -0400 (EDT)
+Received: by mail-ee0-f49.google.com with SMTP id e53so4149605eek.8
+        for <linux-mm@kvack.org>; Sun, 11 May 2014 18:04:50 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id r44si7687541eeo.244.2014.05.11.18.04.48
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sun, 11 May 2014 13:46:33 -0700 (PDT)
-Message-ID: <1399841186.8629.6.camel@buesod1.americas.hpqcorp.net>
-Subject: Re: [PATCH v2] ipc,shm: document new limits in the uapi header
-From: Davidlohr Bueso <davidlohr@hp.com>
-Date: Sun, 11 May 2014 13:46:26 -0700
-In-Reply-To: <CAKgNAkgZ+7=EB4jkCdvq5EK1ce03rq9j+rEss9N1XnUQytBcGg@mail.gmail.com>
-References: <1398090397-2397-1-git-send-email-manfred@colorfullife.com>
-	 <CAKgNAkjuU68hgyMOVGBVoBTOhhGdBytQh6H0ExiLoXfujKyP_w@mail.gmail.com>
-	 <1399406800.13799.20.camel@buesod1.americas.hpqcorp.net>
-	 <CAKgNAkjOKP7P9veOpnokNkVXSszVZt5asFsNp7rm7AXJdjcLLA@mail.gmail.com>
-	 <1399414081.30629.2.camel@buesod1.americas.hpqcorp.net>
-	 <5369C43D.1000206@gmail.com>
-	 <1399486965.4567.9.camel@buesod1.americas.hpqcorp.net>
-	 <1399490251.4567.24.camel@buesod1.americas.hpqcorp.net>
-	 <CAKgNAkgZ+7=EB4jkCdvq5EK1ce03rq9j+rEss9N1XnUQytBcGg@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Sun, 11 May 2014 18:04:49 -0700 (PDT)
+Date: Mon, 12 May 2014 11:04:37 +1000
+From: NeilBrown <neilb@suse.de>
+Subject: Re: [PATCH 3/5] nfsd: Only set PF_LESS_THROTTLE when really needed.
+Message-ID: <20140512110437.296846ad@notabene.brown>
+In-Reply-To: <53694E7D.6060706@redhat.com>
+References: <20140423022441.4725.89693.stgit@notabene.brown>
+	<20140423024058.4725.38098.stgit@notabene.brown>
+	<53694E7D.6060706@redhat.com>
 Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/signed; micalg=PGP-SHA1;
+ boundary="Sig_/AJmmn/ARs1yKwSWry_iKHYP"; protocol="application/pgp-signature"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mtk.manpages@gmail.com
-Cc: Manfred Spraul <manfred@colorfullife.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, aswin@hp.com, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Rik van Riel <riel@redhat.com>
+Cc: Jan Kara <jack@suse.cz>, Jeff Layton <jlayton@redhat.com>, Trond Myklebust <trond.myklebust@primarydata.com>, Dave Chinner <david@fromorbit.com>, "J. Bruce Fields" <bfields@fieldses.org>, Mel Gorman <mgorman@suse.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-nfs@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Fri, 2014-05-09 at 10:44 +0200, Michael Kerrisk (man-pages) wrote:
-> On Wed, May 7, 2014 at 9:17 PM, Davidlohr Bueso <davidlohr@hp.com> wrote:
-> > This is useful in the future and allows users to
-> > better understand the reasoning behind the changes.
-> >
-> > Signed-off-by: Davidlohr Bueso <davidlohr@hp.com>
-> > ---
-> >  include/uapi/linux/shm.h | 15 +++++++++------
-> >  1 file changed, 9 insertions(+), 6 deletions(-)
-> >
-> > diff --git a/include/uapi/linux/shm.h b/include/uapi/linux/shm.h
-> > index 74e786d..3400b6e 100644
-> > --- a/include/uapi/linux/shm.h
-> > +++ b/include/uapi/linux/shm.h
-> > @@ -8,17 +8,20 @@
-> >  #endif
-> >
-> >  /*
-> > - * SHMMAX, SHMMNI and SHMALL are upper limits are defaults which can
-> > - * be modified by sysctl.
-> > + * SHMMNI, SHMMAX and SHMALL are the default upper limits which can be
-> > + * modified by sysctl. Both SHMMAX and SHMALL have their default values
-> > + * to the maximum limit which is as large as it can be without helping
-> > + * userspace overflow the values. There is really nothing the kernel
-> > + * can do to avoid this any further. It is therefore not advised to
-> > + * make them any larger. These limits are suitable for both 32 and
-> > + * 64-bit systems.
-> 
-> I somehow find that text still rather impenetrable. What about this:
-> 
-> SHMMNI, SHMMAX and SHMALL are default upper limits which can be
-> modified by sysctl. The SHMMAX and SHMALL values have been chosen to
-> be as large possible without facilitating scenarios where userspace
-> causes overflows when adjusting the limits via operations of the form
-> "retrieve current limit; add X; update limit". It is therefore not
-> advised to make SHMMAX and SHMALL any larger. These limits are
-> suitable for both 32 and 64-bit systems.
+--Sig_/AJmmn/ARs1yKwSWry_iKHYP
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: quoted-printable
 
-I don't really have much preference, imho both read pretty much the
-same, specially considering this is still code after all. If you guys
-really prefer updating it, let me know and I'll send a v3. But perhaps
-your text is a bit more suitable in the svipc manpage?
+On Tue, 06 May 2014 17:05:01 -0400 Rik van Riel <riel@redhat.com> wrote:
+
+> On 04/22/2014 10:40 PM, NeilBrown wrote:
+> > PF_LESS_THROTTLE has a very specific use case: to avoid deadlocks
+> > and live-locks while writing to the page cache in a loop-back
+> > NFS mount situation.
+> >=20
+> > It therefore makes sense to *only* set PF_LESS_THROTTLE in this
+> > situation.
+> > We now know when a request came from the local-host so it could be a
+> > loop-back mount.  We already know when we are handling write requests,
+> > and when we are doing anything else.
+> >=20
+> > So combine those two to allow nfsd to still be throttled (like any
+> > other process) in every situation except when it is known to be
+> > problematic.
+>=20
+> The FUSE code has something similar, but on the "client"
+> side.
+>=20
+> See BDI_CAP_STRICTLIMIT in mm/writeback.c
+>=20
+> Would it make sense to use that flag on loopback-mounted
+> NFS filesystems?
+>=20
+
+I don't think so.
+
+I don't fully understand BDI_CAP_STRICTLIMIT, but it seems to be very
+fuse-specific and relates to NR_WRITEBACK_TEMP, which only fuse uses.  NFS
+doesn't need any 'strict' limits.
+i.e. it looks like fuse-specific code inside core-vm code, which I would
+rather steer clear of.
+
+Setting a bdi flag for a loopback-mounted NFS filesystem isn't really
+possible because it "is it loopback mounted" state is fluid.  IP addresses =
+can
+be migrated (for HA cluster failover) and what was originally a remote-NFS
+mount can become a loopback NFS mount (and that is exactly the case I need =
+to
+deal with).
+
+So we can only really assess "is it loop-back" on a per-request basis.
+
+This patch does that assessment in nfsd to limit the use of PF_LESS_THROTTL=
+E.
+Another patch does it in nfs to limit the waiting in nfs_release_page.
 
 Thanks,
-Davidlohr
+NeilBrown
+
+--Sig_/AJmmn/ARs1yKwSWry_iKHYP
+Content-Type: application/pgp-signature; name=signature.asc
+Content-Disposition: attachment; filename=signature.asc
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2.0.22 (GNU/Linux)
+
+iQIVAwUBU3AeJTnsnt1WYoG5AQLqpQ/+JhTfVJK5+OlYBCZpAz72iqjM6JuP3MZx
+hHJddRliF7uDm/9ehSZC6wQzTwTjPpyEFTiAyGyPiAnMG3rFs3AHde1hKS2Hbd1y
+BUbAKYIQtIHG903TMlAB0cMrRjoUaF4Q2MpwwDTQwcSHnX8T02qrVY0gtdqWTTLv
+x+QT1iTJIMUkUD4tD67Z01pg6c7isYbtoiigmUtNK1hlgmjbibhKpg8lwJjjFnCE
++kx4WYv1bnK3WFptxdYCasLRYA39ZwbhcVyapcsc39YDj+4WCDpTUDLgAslOeJ82
+xCCy6G/3LpNinEWTCMW4pbud2IgxwqI7cklWeLs5bYJ6hLQB3i49MDqBLx6lloqi
+D8FkzarefjHz27xYgiZcQLEZB0tN/VIupe/W9DKSAMTJyBUjQcLTcUhoQwdffMNm
+zS1j8vlzNIUf3+sfyh4rkjjzMFVQy2OCIjPd4caGMbfoJ8a5kSl7bsO9+5YgkcLb
+RBO77xpExY6ClCbBU4VIpXUD7SudEZgxCHc7AgcEBDHakj+aba3wizBPrVLRjltu
+sino7ir0uNbVydwz4AtPPlNcSymlChsHy7hPrGRBK0uLsqnJZFDwMLsGe98dMz0L
+/UnpyRrMDB1nweObac2QOEm97EH3o+fKElsW9pK2srS8bRljNmE2EsaHE9EaGeJq
+Stx7ywdOUb4=
+=DIYI
+-----END PGP SIGNATURE-----
+
+--Sig_/AJmmn/ARs1yKwSWry_iKHYP--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
