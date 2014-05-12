@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f170.google.com (mail-qc0-f170.google.com [209.85.216.170])
-	by kanga.kvack.org (Postfix) with ESMTP id F1F416B0035
-	for <linux-mm@kvack.org>; Mon, 12 May 2014 12:05:28 -0400 (EDT)
-Received: by mail-qc0-f170.google.com with SMTP id i8so8228299qcq.1
-        for <linux-mm@kvack.org>; Mon, 12 May 2014 09:05:28 -0700 (PDT)
-Received: from qmta06.emeryville.ca.mail.comcast.net (qmta06.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:56])
-        by mx.google.com with ESMTP id j6si6174199qan.147.2014.05.12.09.05.27
+Received: from mail-qc0-f174.google.com (mail-qc0-f174.google.com [209.85.216.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 1AC4E6B0038
+	for <linux-mm@kvack.org>; Mon, 12 May 2014 12:07:16 -0400 (EDT)
+Received: by mail-qc0-f174.google.com with SMTP id x13so8103331qcv.33
+        for <linux-mm@kvack.org>; Mon, 12 May 2014 09:07:15 -0700 (PDT)
+Received: from qmta07.emeryville.ca.mail.comcast.net (qmta07.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:64])
+        by mx.google.com with ESMTP id x7si6230910qaj.117.2014.05.12.09.07.15
         for <linux-mm@kvack.org>;
-        Mon, 12 May 2014 09:05:27 -0700 (PDT)
-Date: Mon, 12 May 2014 11:05:24 -0500 (CDT)
+        Mon, 12 May 2014 09:07:15 -0700 (PDT)
+Date: Mon, 12 May 2014 11:07:12 -0500 (CDT)
 From: Christoph Lameter <cl@linux.com>
 Subject: Re: [PATCH 1/3] mm: add comment for __mod_zone_page_stat
 In-Reply-To: <CAHz2CGUfLx7DNgdNoAL0G3a9Ht6yf3bhWaojjNx91aF7L-iDQw@mail.gmail.com>
-Message-ID: <alpine.DEB.2.10.1405121102170.17673@gentwo.org>
+Message-ID: <alpine.DEB.2.10.1405121106080.17673@gentwo.org>
 References: <1399811500-14472-1-git-send-email-nasa4836@gmail.com> <alpine.DEB.2.10.1405120858040.3090@gentwo.org> <CAHz2CGUfLx7DNgdNoAL0G3a9Ht6yf3bhWaojjNx91aF7L-iDQw@mail.gmail.com>
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -26,18 +26,8 @@ On Mon, 12 May 2014, Jianyu Zhan wrote:
 > counter won't be modified incorrectly.  Because the counter is page-related
 > (e.g., a new anon page added), and they are exclusively hold the pte lock.
 
-But there are multiple pte locks for numerous page. Another process could
-modify the counter because the pte lock for a different page was
-available which would cause counter corruption.
-
-
-> So, as you concludes in the other mail that __modd_zone_page_stat
-> couldn't be used.
-> in mlocked_vma_newpage, then what qualifies other call sites for using
-> it, in the same situation?
-
-Preemption should be off in those functions because a spinlock is being
-held.
+Ok. if these locations hold the pte lock then preemption is disabled and
+you are ok to use __mod_zone_page_state. Has nothing to do with the page.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
