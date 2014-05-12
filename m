@@ -1,49 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f50.google.com (mail-pb0-f50.google.com [209.85.160.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 4EEFF6B0038
-	for <linux-mm@kvack.org>; Mon, 12 May 2014 16:36:56 -0400 (EDT)
-Received: by mail-pb0-f50.google.com with SMTP id ma3so70364pbc.9
-        for <linux-mm@kvack.org>; Mon, 12 May 2014 13:36:56 -0700 (PDT)
-Received: from mail-pa0-x22a.google.com (mail-pa0-x22a.google.com [2607:f8b0:400e:c03::22a])
-        by mx.google.com with ESMTPS id bn5si6887089pbb.65.2014.05.12.13.36.55
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 12 May 2014 13:36:55 -0700 (PDT)
-Received: by mail-pa0-f42.google.com with SMTP id rd3so9325239pab.15
-        for <linux-mm@kvack.org>; Mon, 12 May 2014 13:36:55 -0700 (PDT)
-Date: Mon, 12 May 2014 13:36:53 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: randconfig build error with next-20140512, in mm/slub.c
-In-Reply-To: <537118C6.7050203@iki.fi>
-Message-ID: <alpine.DEB.2.02.1405121336180.961@chino.kir.corp.google.com>
-References: <CA+r1Zhg4JzViQt=J0XBu4dRwFUZGwi52QLefkzwcwn4NUfk8Sw@mail.gmail.com> <alpine.DEB.2.10.1405121346370.30318@gentwo.org> <537118C6.7050203@iki.fi>
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 4578C6B0035
+	for <linux-mm@kvack.org>; Mon, 12 May 2014 17:01:19 -0400 (EDT)
+Received: by mail-pa0-f46.google.com with SMTP id kq14so5165278pab.33
+        for <linux-mm@kvack.org>; Mon, 12 May 2014 14:01:18 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id dh1si6903492pbc.112.2014.05.12.14.01.17
+        for <linux-mm@kvack.org>;
+        Mon, 12 May 2014 14:01:18 -0700 (PDT)
+Date: Mon, 12 May 2014 14:01:07 -0700
+From: Andi Kleen <ak@linux.intel.com>
+Subject: Re: [PATCH] HWPOSION, hugetlb: lock_page/unlock_page does not match
+ for handling a free hugepage
+Message-ID: <20140512210107.GX19657@tassilo.jf.intel.com>
+References: <1399691674.29028.1.camel@cyc>
+ <1399926246-nyqrlpg9@n-horiguchi@ah.jp.nec.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1399926246-nyqrlpg9@n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@iki.fi>
-Cc: Christoph Lameter <cl@linux.com>, Jim Davis <jim.epost@gmail.com>, Stephen Rothwell <sfr@canb.auug.org.au>, linux-next <linux-next@vger.kernel.org>, linux-kernel <linux-kernel@vger.kernel.org>, penberg@kernel.org, mpm@selenic.com, linux-mm@kvack.org
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: slaoub@gmail.com, linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Mon, 12 May 2014, Pekka Enberg wrote:
+On Mon, May 12, 2014 at 04:24:07PM -0400, Naoya Horiguchi wrote:
+> (Cced: Andrew)
+> 
+> On Sat, May 10, 2014 at 11:14:34AM +0800, Chen Yucong wrote:
+> > For handling a free hugepage in memory failure, the race will happen if
+> > another thread hwpoisoned this hugepage concurrently. So we need to
+> > check PageHWPoison instead of !PageHWPoison.
+> > 
+> > If hwpoison_filter(p) returns true or a race happens, then we need to
+> > unlock_page(hpage).
+> > 
+> > Signed-off-by: Chen Yucong <slaoub@gmail.com>
+> > Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> 
+> I tested this patch on latest linux-next, and confirmed that memory error
+> on a tail page of a free hugepage is properly handled.
 
-> On 05/12/2014 09:47 PM, Christoph Lameter wrote:
-> > A patch was posted today for this issue.
+Patch looks good to me too.
+
+Reviewed-by: Andi Kleen <ak@linux.intel.com> 
+
+-Andi
 > 
-> AFAICT, it's coming from -mm. Andrew, can you pick up the fix?
+> Tested-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 > 
-> > Date: Mon, 12 May 2014 09:36:30 -0300
-> > From: Fabio Estevam <fabio.estevam@freescale.com>
-> > To: akpm@linux-foundation.org
-> > Cc: linux-mm@kvack.org, festevam@gmail.com, Fabio Estevam
-> > <fabio.estevam@freescale.com>,    Christoph Lameter <cl@linux.com>, David
-> > Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>
-> > Subject: [PATCH] mm: slub: Place count_partial() outside CONFIG_SLUB_DEBUG
-> > if block
+> And I think this patch should go into all recent stable trees, since this
+> bug exists since 2.6.36 (because of my patch, sorry.)
+> 
+> > ---
+> > mm/memory-failure.c |   15 ++++++++-------
+> > 1 file changed, 8 insertions(+), 7 deletions(-)
+> > 
+> > diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+> > index 35ef28a..dbf8922 100644
+> > --- a/mm/memory-failure.c
+> > +++ b/mm/memory-failure.c
+> > @@ -1081,15 +1081,16 @@ int memory_failure(unsigned long pfn, int
+> > trapno, int flags)
+> 
+> This linebreak breaks patch format. I guess it's done by your email
+> client or copy and paste. If it's true, git-send-email might be helpful
+> to avoid such errors.
+> 
+> Thanks,
+> Naoya
+> 
+> 
+> >  			return 0;
+> >  		} else if (PageHuge(hpage)) {
+> >  			/*
+> > -			 * Check "just unpoisoned", "filter hit", and
+> > -			 * "race with other subpage."
+> > +			 * Check "filter hit" and "race with other subpage."
+> >  			 */
+> >  			lock_page(hpage);
+> > -			if (!PageHWPoison(hpage)
+> > -			    || (hwpoison_filter(p) && TestClearPageHWPoison(p))
+> > -			    || (p != hpage && TestSetPageHWPoison(hpage))) {
+> > -				atomic_long_sub(nr_pages, &num_poisoned_pages);
+> > -				return 0;
+> > +			if (PageHWPoison(hpage)) {
+> > +				if ((hwpoison_filter(p) && TestClearPageHWPoison(p))
+> > +				    || (p != hpage && TestSetPageHWPoison(hpage))) {
+> > +					atomic_long_sub(nr_pages, &num_poisoned_pages);
+> > +					unlock_page(hpage);
+> > +					return 0;
+> > +				}
+> >  			}
+> >  			set_page_hwpoison_huge_page(hpage);
+> >  			res = dequeue_hwpoisoned_huge_page(hpage);
+> > -- 
+> > 1.7.10.4
+> > 
+> > 
+> > 
+> > 
+> > 
+> > 
+> > --
+> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> > the body to majordomo@kvack.org.  For more info on Linux MM,
+> > see: http://www.linux-mm.org/ .
+> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 > > 
 
-That's the wrong fix since it doesn't work properly when sysfs is 
-disabled.  We want http://marc.info/?l=linux-mm-commits&m=139992385527040 
-which was merged into -mm already.
+-- 
+ak@linux.intel.com -- Speaking for myself only
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
