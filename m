@@ -1,55 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f53.google.com (mail-ee0-f53.google.com [74.125.83.53])
-	by kanga.kvack.org (Postfix) with ESMTP id AE4426B0035
-	for <linux-mm@kvack.org>; Mon, 12 May 2014 08:01:13 -0400 (EDT)
-Received: by mail-ee0-f53.google.com with SMTP id c13so4625839eek.12
-        for <linux-mm@kvack.org>; Mon, 12 May 2014 05:01:13 -0700 (PDT)
-Received: from mout.kundenserver.de (mout.kundenserver.de. [212.227.126.187])
-        by mx.google.com with ESMTPS id l44si10358690eem.253.2014.05.12.05.01.11
+Received: from mail-qc0-f174.google.com (mail-qc0-f174.google.com [209.85.216.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 70AA26B0035
+	for <linux-mm@kvack.org>; Mon, 12 May 2014 08:36:47 -0400 (EDT)
+Received: by mail-qc0-f174.google.com with SMTP id x13so7517653qcv.5
+        for <linux-mm@kvack.org>; Mon, 12 May 2014 05:36:47 -0700 (PDT)
+Received: from na01-bn1-obe.outbound.protection.outlook.com (mail-bn1blp0187.outbound.protection.outlook.com. [207.46.163.187])
+        by mx.google.com with ESMTPS id t1si5943641qga.172.2014.05.12.05.36.46
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 12 May 2014 05:01:12 -0700 (PDT)
-From: Arnd Bergmann <arnd@arndb.de>
-Subject: Re: Questions regarding DMA buffer sharing using IOMMU
-Date: Mon, 12 May 2014 14:00:57 +0200
-Message-ID: <5218408.5YRJXjS4BX@wuerfel>
-In-Reply-To: <BAY169-W12541AD089785F8BFBD4E26EF350@phx.gbl>
-References: <BAY169-W12541AD089785F8BFBD4E26EF350@phx.gbl>
+        (version=TLSv1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 12 May 2014 05:36:46 -0700 (PDT)
+From: Fabio Estevam <fabio.estevam@freescale.com>
+Subject: [PATCH] mm: slub: Place count_partial() outside CONFIG_SLUB_DEBUG if block
+Date: Mon, 12 May 2014 09:36:30 -0300
+Message-ID: <1399898190-18376-1-git-send-email-fabio.estevam@freescale.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7Bit
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-arm-kernel@lists.infradead.org
-Cc: Pintu Kumar <pintu.k@outlook.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, festevam@gmail.com, Fabio Estevam <fabio.estevam@freescale.com>, Christoph Lameter <cl@linux.com>, David
+ Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>
 
-On Monday 12 May 2014 15:12:41 Pintu Kumar wrote:
-> Hi, 
-> I have some queries regarding IOMMU and CMA buffer sharing. 
-> We have an embedded linux device (kernel 3.10, RAM: 256Mb) in 
-> which camera and codec supports IOMMU but the display does not support IOMMU. 
-> Thus for camera capture we are using iommu buffers using
-> ION/DMABUF. But for all display rendering we are using CMA buffers. 
-> So, the question is how to achieve buffer sharing (zero-copy)
-> between Camera and Display using only IOMMU? 
-> Currently we are achieving zero-copy using CMA. And we are
-> exploring options to use IOMMU. 
-> Now we wanted to know which option is better? To use IOMMU or CMA? 
-> If anybody have come across these design please share your thoughts and results. 
+Commit f7f15520731 (mm-slab-suppress-out-of-memory-warning-unless-debug-is-enabled-fix)
+caused the following build error when CONFIG_SLUB_DEBUG=n:
 
-There is a slight performance overhead in using the IOMMU in general,
-because the IOMMU has to fetch the page table entries from memory
-at least some of the time.
+mm/slub.c:4361:5: error: implicit declaration of function 'count_partial' [-Werror=implicit-function-declaration
 
-If that overhead is within the constraints you have for transfers between
-camera and codec, you are always better off using IOMMU since that
-means you don't have to do memory migration.
+Place count_partial() outside CONFIG_SLUB_DEBUG if block, as it is also used
+when CONFIG_SLUB_DEBUG=n.
 
-Note however, that we don't have a way to describe IOMMU relations
-to devices in DT, so whatever you come up with to do this will most
-likely be incompatible with what we do in future kernel versions.
+Cc: Christoph Lameter <cl@linux.com>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Pekka Enberg <penberg@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Fabio Estevam <fabio.estevam@freescale.com>
+---
+ mm/slub.c | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
 
-	Arnd
+diff --git a/mm/slub.c b/mm/slub.c
+index 4d5002f..0a642a4 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -2127,12 +2127,6 @@ static inline int node_match(struct page *page, int node)
+ 	return 1;
+ }
+ 
+-#ifdef CONFIG_SLUB_DEBUG
+-static int count_free(struct page *page)
+-{
+-	return page->objects - page->inuse;
+-}
+-
+ static unsigned long count_partial(struct kmem_cache_node *n,
+ 					int (*get_count)(struct page *))
+ {
+@@ -2147,6 +2141,12 @@ static unsigned long count_partial(struct kmem_cache_node *n,
+ 	return x;
+ }
+ 
++#ifdef CONFIG_SLUB_DEBUG
++static int count_free(struct page *page)
++{
++	return page->objects - page->inuse;
++}
++
+ static inline unsigned long node_nr_objs(struct kmem_cache_node *n)
+ {
+ 	return atomic_long_read(&n->total_objects);
+-- 
+1.8.3.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
