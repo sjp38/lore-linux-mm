@@ -1,61 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f43.google.com (mail-ee0-f43.google.com [74.125.83.43])
-	by kanga.kvack.org (Postfix) with ESMTP id ECE296B0035
-	for <linux-mm@kvack.org>; Mon, 12 May 2014 04:37:18 -0400 (EDT)
-Received: by mail-ee0-f43.google.com with SMTP id d17so4361443eek.16
-        for <linux-mm@kvack.org>; Mon, 12 May 2014 01:37:18 -0700 (PDT)
+Received: from mail-ee0-f41.google.com (mail-ee0-f41.google.com [74.125.83.41])
+	by kanga.kvack.org (Postfix) with ESMTP id D1CBA6B0038
+	for <linux-mm@kvack.org>; Mon, 12 May 2014 05:09:30 -0400 (EDT)
+Received: by mail-ee0-f41.google.com with SMTP id t10so4540197eei.28
+        for <linux-mm@kvack.org>; Mon, 12 May 2014 02:09:30 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t3si9937072eeg.211.2014.05.12.01.37.17
+        by mx.google.com with ESMTPS id i49si9993050eem.342.2014.05.12.02.09.28
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 12 May 2014 01:37:17 -0700 (PDT)
-Message-ID: <5370883C.5080105@suse.cz>
-Date: Mon, 12 May 2014 10:37:16 +0200
+        Mon, 12 May 2014 02:09:29 -0700 (PDT)
+Message-ID: <53708FC5.4000100@suse.cz>
+Date: Mon, 12 May 2014 11:09:25 +0200
 From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Subject: Re: [patch v3 2/6] mm, compaction: return failed migration target
- pages back to freelist
-References: <alpine.DEB.2.02.1404301744110.8415@chino.kir.corp.google.com> <alpine.DEB.2.02.1405011434140.23898@chino.kir.corp.google.com> <alpine.DEB.2.02.1405061920470.18635@chino.kir.corp.google.com> <alpine.DEB.2.02.1405061921040.18635@chino.kir.corp.google.com> <20140507141534.d4def933b3a9999e7826df5c@linux-foundation.org> <xr93ha512rqr.fsf@gthelen.mtv.corp.google.com>
-In-Reply-To: <xr93ha512rqr.fsf@gthelen.mtv.corp.google.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Subject: Re: [PATCH v2 2/2] mm/compaction: avoid rescanning pageblocks in
+ isolate_freepages
+References: <alpine.DEB.2.02.1405061922220.18635@chino.kir.corp.google.com> <1399464550-26447-1-git-send-email-vbabka@suse.cz> <1399464550-26447-2-git-send-email-vbabka@suse.cz> <20140508052845.GB9161@js1304-P5Q-DELUXE>
+In-Reply-To: <20140508052845.GB9161@js1304-P5Q-DELUXE>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Thelen <gthelen@google.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: David Rientjes <rientjes@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Greg Thelen <gthelen@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>
 
-On 05/07/2014 11:39 PM, Greg Thelen wrote:
->
-> On Wed, May 07 2014, Andrew Morton <akpm@linux-foundation.org> wrote:
->
->> On Tue, 6 May 2014 19:22:43 -0700 (PDT) David Rientjes <rientjes@google.com> wrote:
+On 05/08/2014 07:28 AM, Joonsoo Kim wrote:
+> On Wed, May 07, 2014 at 02:09:10PM +0200, Vlastimil Babka wrote:
+>> The compaction free scanner in isolate_freepages() currently remembers PFN of
+>> the highest pageblock where it successfully isolates, to be used as the
+>> starting pageblock for the next invocation. The rationale behind this is that
+>> page migration might return free pages to the allocator when migration fails
+>> and we don't want to skip them if the compaction continues.
 >>
->>> Memory compaction works by having a "freeing scanner" scan from one end of a
->>> zone which isolates pages as migration targets while another "migrating scanner"
->>> scans from the other end of the same zone which isolates pages for migration.
->>>
->>> When page migration fails for an isolated page, the target page is returned to
->>> the system rather than the freelist built by the freeing scanner.  This may
->>> require the freeing scanner to continue scanning memory after suitable migration
->>> targets have already been returned to the system needlessly.
->>>
->>> This patch returns destination pages to the freeing scanner freelist when page
->>> migration fails.  This prevents unnecessary work done by the freeing scanner but
->>> also encourages memory to be as compacted as possible at the end of the zone.
->>>
->>> Reported-by: Greg Thelen <gthelen@google.com>
->>
->> What did Greg actually report?  IOW, what if any observable problem is
->> being fixed here?
+>> Since migration now returns free pages back to compaction code where they can
+>> be reused, this is no longer a concern. This patch changes isolate_freepages()
+>> so that the PFN for restarting is updated with each pageblock where isolation
+>> is attempted. Using stress-highalloc from mmtests, this resulted in 10%
+>> reduction of the pages scanned by the free scanner.
 >
-> I detected the problem at runtime seeing that ext4 metadata pages (esp
-> the ones read by "sbi->s_group_desc[i] = sb_bread(sb, block)") were
-> constantly visited by compaction calls of migrate_pages().  These pages
-> had a non-zero b_count which caused fallback_migrate_page() ->
-> try_to_release_page() -> try_to_free_buffers() to fail.
+> Hello,
+>
+> Although this patch could reduce page scanned, it is possible to skip
+> scanning fresh pageblock. If there is zone lock contention and we are on
+> asyn compaction, we stop scanning this pageblock immediately. And
+> then, we will continue to scan next pageblock. With this patch,
+> next_free_pfn is updated in this case, so we never come back again to this
+> pageblock. Possibly this makes compaction success rate low, doesn't
+> it?
 
-That sounds like something the "mm, compaction: add per-zone migration 
-pfn cache for async compaction" patch would fix, not this one, though.
+Hm, you're right and thanks for catching that, but I think this is a 
+sign of a worse and older issue than skipping a pageblock?
+When isolate_freepages_block() breaks loop due to lock contention, then 
+isolate_freepages() (which called it) should also immediately quit its 
+loop. Trying another pageblock in the same zone with the same zone->lock 
+makes no sense here? If this is fixed, then the issue you're pointing 
+out will also be fixed as next_free_pfn will still point to the 
+pageblock where the break occured.
+
+> Thanks.
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
