@@ -1,50 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f179.google.com (mail-ig0-f179.google.com [209.85.213.179])
-	by kanga.kvack.org (Postfix) with ESMTP id CD7246B0038
-	for <linux-mm@kvack.org>; Mon, 12 May 2014 08:41:08 -0400 (EDT)
-Received: by mail-ig0-f179.google.com with SMTP id hn18so3743940igb.6
-        for <linux-mm@kvack.org>; Mon, 12 May 2014 05:41:08 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id nx5si9149388icb.26.2014.05.12.05.41.07
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 12 May 2014 05:41:08 -0700 (PDT)
-From: Sasha Levin <sasha.levin@oracle.com>
-Subject: [PATCH] mm: remap_file_pages: initialize populate before usage
-Date: Mon, 12 May 2014 08:40:54 -0400
-Message-Id: <1399898454-14915-1-git-send-email-sasha.levin@oracle.com>
+Received: from mail-ee0-f41.google.com (mail-ee0-f41.google.com [74.125.83.41])
+	by kanga.kvack.org (Postfix) with ESMTP id C65066B0038
+	for <linux-mm@kvack.org>; Mon, 12 May 2014 08:46:22 -0400 (EDT)
+Received: by mail-ee0-f41.google.com with SMTP id t10so4756135eei.28
+        for <linux-mm@kvack.org>; Mon, 12 May 2014 05:46:22 -0700 (PDT)
+Received: from jenni1.inet.fi (mta-out1.inet.fi. [62.71.2.198])
+        by mx.google.com with ESMTP id v2si10469462eel.76.2014.05.12.05.46.20
+        for <linux-mm@kvack.org>;
+        Mon, 12 May 2014 05:46:21 -0700 (PDT)
+Date: Mon, 12 May 2014 15:43:44 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCHv2 0/2] remap_file_pages() decommission
+Message-ID: <20140512124344.GA26865@node.dhcp.inet.fi>
+References: <1399552888-11024-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <CAMSv6X0+3-uNeiyEPD3sA5dA6Af_M+BT0aeVpa3qMv1aga0q9g@mail.gmail.com>
+ <20140508160205.A0EC7E009B@blue.fi.intel.com>
+ <CA+55aFw9eiaFtr+c4gcGSWG=pPeqDnX5aPQMVMqX1XkPF30ahg@mail.gmail.com>
+ <20140509140536.F06BFE009B@blue.fi.intel.com>
+ <CA+55aFz9Yo7OC03tKt2wsdd8cDi00yxvMwszrsOsx0ZVEh6zqQ@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CA+55aFz9Yo7OC03tKt2wsdd8cDi00yxvMwszrsOsx0ZVEh6zqQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, kirill.shutemov@linux.intel.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sasha Levin <sasha.levin@oracle.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Armin Rigo <arigo@tunes.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>
 
-'populate' wasn't initialized before being used in error paths,
-causing panics when mm_populate() would get called with invalid
-values.
+On Fri, May 09, 2014 at 08:14:08AM -0700, Linus Torvalds wrote:
+> On Fri, May 9, 2014 at 7:05 AM, Kirill A. Shutemov
+> <kirill.shutemov@linux.intel.com> wrote:
+> >
+> > Hm. I'm confused here. Do we have any limit forced per-user?
+> 
+> Sure we do. See "struct user_struct". We limit max number of
+> processes, open files, signals etc.
+> 
+> > I only see things like rlimits which are copied from parrent.
+> > Is it what you want?
+> 
+> No, rlimits are per process (although in some cases what they limit
+> are counted per user despite the _limits_ of those resources then
+> being settable per thread).
+> 
+> So I was just thinking that if we raise the per-mm default limits,
+> maybe we should add a global per-user limit to make it harder for a
+> user to use tons and toms of vma's.
 
-Signed-off-by: Sasha Levin <sasha.levin@oracle.com>
----
- mm/mmap.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+Here's the first attempt.
 
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 84dcfc7..2a0e0a8 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -2591,7 +2591,7 @@ SYSCALL_DEFINE5(remap_file_pages, unsigned long, start, unsigned long, size,
- 
- 	struct mm_struct *mm = current->mm;
- 	struct vm_area_struct *vma;
--	unsigned long populate;
-+	unsigned long populate = 0;
- 	unsigned long ret = -EINVAL;
- 
- 	pr_warn_once("%s (%d) uses deprecated remap_file_pages() syscall. "
--- 
-1.7.10.4
+I'm not completely happy about current_user(). It means we rely on that
+user of mm owner task is always equal to user of current. Not sure if it's
+always the case.
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Other option is to make MM_OWNER is always on and lookup proper user
+through task_cred_xxx(rcu_dereference(mm->owner), user).
