@@ -1,56 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vc0-f170.google.com (mail-vc0-f170.google.com [209.85.220.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A3F86B0035
-	for <linux-mm@kvack.org>; Mon, 12 May 2014 11:08:16 -0400 (EDT)
-Received: by mail-vc0-f170.google.com with SMTP id lf12so8929960vcb.15
-        for <linux-mm@kvack.org>; Mon, 12 May 2014 08:08:16 -0700 (PDT)
-Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTP id sq9si2109248vdc.179.2014.05.12.08.08.15
-        for <linux-mm@kvack.org>;
-        Mon, 12 May 2014 08:08:15 -0700 (PDT)
-Message-ID: <5370E3E0.4050109@fb.com>
-Date: Mon, 12 May 2014 09:08:16 -0600
-From: Jens Axboe <axboe@fb.com>
+Received: from mail-oa0-f51.google.com (mail-oa0-f51.google.com [209.85.219.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 9400B6B0035
+	for <linux-mm@kvack.org>; Mon, 12 May 2014 11:12:25 -0400 (EDT)
+Received: by mail-oa0-f51.google.com with SMTP id n16so8413072oag.10
+        for <linux-mm@kvack.org>; Mon, 12 May 2014 08:12:25 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id hf10si9457885icc.136.2014.05.12.08.12.24
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 12 May 2014 08:12:24 -0700 (PDT)
+Message-ID: <5370E4B4.1060802@oracle.com>
+Date: Mon, 12 May 2014 11:11:48 -0400
+From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] Avoid always dirtying mapping->flags on O_DIRECT
-References: <20140509213907.GA20698@kernel.dk> <x49r43z837o.fsf@segfault.boston.devel.redhat.com>
-In-Reply-To: <x49r43z837o.fsf@segfault.boston.devel.redhat.com>
-Content-Type: text/plain; charset="ISO-8859-1"
+Subject: Re: [PATCH 2/2] mm: replace remap_file_pages() syscall with emulation
+References: <1399552888-11024-1-git-send-email-kirill.shutemov@linux.intel.com>	<1399552888-11024-3-git-send-email-kirill.shutemov@linux.intel.com> <20140508145729.3d82d2c989cfc483c94eb324@linux-foundation.org>
+In-Reply-To: <20140508145729.3d82d2c989cfc483c94eb324@linux-foundation.org>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jeff Moyer <jmoyer@redhat.com>
-Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, peterz@infradead.org, mingo@kernel.org
 
-On 05/12/2014 08:46 AM, Jeff Moyer wrote:
-> Jens Axboe <axboe@fb.com> writes:
+On 05/08/2014 05:57 PM, Andrew Morton wrote:
+> On Thu,  8 May 2014 15:41:28 +0300 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
 > 
->> Hi,
->>
->> In some testing I ran today, we end up spending 40% of the time in
->> filemap_check_errors(). That smells fishy. Looking further, this is
->> basically what happens:
->>
->> blkdev_aio_read()
->>     generic_file_aio_read()
->>         filemap_write_and_wait_range()
->>             if (!mapping->nr_pages)
->>                 filemap_check_errors()
->>
->> and filemap_check_errors() always attempts two test_and_clear_bit() on
->> the mapping flags, thus dirtying it for every single invocation. The
->> patch below tests each of these bits before clearing them, avoiding this
->> issue. In my test case (4-socket box), performance went from 1.7M IOPS
->> to 4.0M IOPS.
+>> > remap_file_pages(2) was invented to be able efficiently map parts of
+>> > huge file into limited 32-bit virtual address space such as in database
+>> > workloads.
+>> > 
+>> > Nonlinear mappings are pain to support and it seems there's no
+>> > legitimate use-cases nowadays since 64-bit systems are widely available.
+>> > 
+>> > Let's drop it and get rid of all these special-cased code.
+>> > 
+>> > The patch replaces the syscall with emulation which creates new VMA on
+>> > each remap_file_pages(), unless they it can be merged with an adjacent
+>> > one.
+>> > 
+>> > I didn't find *any* real code that uses remap_file_pages(2) to test
+>> > emulation impact on. I've checked Debian code search and source of all
+>> > packages in ALT Linux. No real users: libc wrappers, mentions in strace,
+>> > gdb, valgrind and this kind of stuff.
+>> > 
+>> > There are few basic tests in LTP for the syscall. They work just fine
+>> > with emulation.
+>> > 
+>> > To test performance impact, I've written small test case which
+>> > demonstrate pretty much worst case scenario: map 4G shmfs file, write to
+>> > begin of every page pgoff of the page, remap pages in reverse order,
+>> > read every page.
+>> > 
+>> > The test creates 1 million of VMAs if emulation is in use, so I had to
+>> > set vm.max_map_count to 1100000 to avoid -ENOMEM.
+>> > 
+>> > Before:		23.3 ( +-  4.31% ) seconds
+>> > After:		43.9 ( +-  0.85% ) seconds
+>> > Slowdown:	1.88x
+>> > 
+>> > I believe we can live with that.
+>> > 
+> There's still all the special-case goop around the place to be cleaned
+> up - VM_NONLINEAR is a decent search term.  As is "grep nonlinear
+> mm/*.c".  And although this cleanup is the main reason for the
+> patchset, let's not do it now - we can do all that if/after this patch
+> get merged.
 > 
-> It might help to use the word cacheline somewhere in here.  ;-) Out of
+> I'll queue the patches for some linux-next exposure and shall send
+> [1/2] Linuswards for 3.16 if nothing terrible happens.  Once we've
+> sorted out the too-many-vmas issue we'll need to work out when to merge
+> [2/2].
 
-I thought that was self-evident, but yes, I could add that :-)
+It seems that since no one is really using it, it's also impossible to
+properly test it. I've sent a fix that deals with panics in error paths
+that are very easy to trigger, but I'm worried that there are a lot more
+of those hiding over there.
 
-> curiosity, what workload were you running?
+Since we can't find any actual users, testing suites are very incomplete
+w.r.t this syscall, and the amount of work required to "remove" it is
+non-trivial, can we just kill this syscall off?
 
-Nothing fancy, just some fio jobs that spread over two nodes.
+It sounds to me like a better option than to ship a new, buggy and possibly
+security dangerous version which we can't even test.
 
+
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
