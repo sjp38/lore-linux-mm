@@ -1,130 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f43.google.com (mail-ee0-f43.google.com [74.125.83.43])
-	by kanga.kvack.org (Postfix) with ESMTP id A96F56B0035
-	for <linux-mm@kvack.org>; Mon, 12 May 2014 10:15:26 -0400 (EDT)
-Received: by mail-ee0-f43.google.com with SMTP id d17so4694272eek.16
-        for <linux-mm@kvack.org>; Mon, 12 May 2014 07:15:26 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t3si10684185eeg.61.2014.05.12.07.15.24
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id CD7F76B0035
+	for <linux-mm@kvack.org>; Mon, 12 May 2014 10:26:32 -0400 (EDT)
+Received: by mail-pa0-f52.google.com with SMTP id fa1so4519657pad.39
+        for <linux-mm@kvack.org>; Mon, 12 May 2014 07:26:32 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id xr7si10174902pab.35.2014.05.12.07.26.31
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 12 May 2014 07:15:25 -0700 (PDT)
-From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH] mm, compaction: properly signal and act upon lock and need_sched() contention
-Date: Mon, 12 May 2014 16:15:11 +0200
-Message-Id: <1399904111-23520-1-git-send-email-vbabka@suse.cz>
-In-Reply-To: <20140508051747.GA9161@js1304-P5Q-DELUXE>
-References: <20140508051747.GA9161@js1304-P5Q-DELUXE>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 12 May 2014 07:26:31 -0700 (PDT)
+Message-ID: <5370DA09.7020801@oracle.com>
+Date: Mon, 12 May 2014 10:26:17 -0400
+From: Sasha Levin <sasha.levin@oracle.com>
+MIME-Version: 1.0
+Subject: mm: shmem: NULL ptr deref in shmem_fault
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>
-Cc: Hugh Dickins <hughd@google.com>, Greg Thelen <gthelen@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>
+To: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Dave Jones <davej@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-Compaction uses compact_checklock_irqsave() function to periodically check for
-lock contention and need_resched() to either abort async compaction, or to
-free the lock, schedule and retake the lock. When aborting, cc->contended is
-set to signal the contended state to the caller. Two problems have been
-identified in this mechanism.
+Hi all,
 
-First, compaction also calls directly cond_resched() in both scanners when no
-lock is yet taken. This call either does not abort async compaction, or set
-cc->contended appropriately. This patch introduces a new
-compact_check_resched() function to achieve both.
+While fuzzing with trinity inside a KVM tools guest running the latest -next
+kernel I've stumbled on the following spew.
 
-Second, isolate_freepages() does not check if isolate_freepages_block()
-aborted due to contention, and advances to the next pageblock. This violates
-the principle of aborting on contention, and might result in pageblocks not
-being scanned completely, since the scanning cursor is advanced. This patch
-makes isolate_freepages_block() check the cc->contended flag and abort.
+It seems that in this case, 'inode->i_mapping' was NULL, and the deref happened
+when we tried to get it's flags in mapping_gfp_mask().
 
-Reported-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-Cc: Michal Nazarewicz <mina86@mina86.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Christoph Lameter <cl@linux.com>
-Cc: Rik van Riel <riel@redhat.com>
----
- mm/compaction.c | 40 +++++++++++++++++++++++++++++++++-------
- 1 file changed, 33 insertions(+), 7 deletions(-)
+[ 4431.615828] BUG: unable to handle kernel NULL pointer dereference at 0000000000000030
+[ 4431.617708] IP: shmem_fault (mm/shmem.c:2960 mm/shmem.c:1236)
+[ 4431.621711] PGD 1d7fb5067 PUD 1d7fb4067 PMD 0
+[ 4431.621945] Oops: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
+[ 4431.621945] Dumping ftrace buffer:
+[ 4431.621945]    (ftrace buffer empty)
+[ 4431.621945] Modules linked in:
+[ 4431.621945] CPU: 1 PID: 20571 Comm: trinity-c61 Not tainted 3.15.0-rc5-next-20140512-sasha-00019-ga20bc00-dirty #456
+[ 4431.621945] task: ffff8803333e0000 ti: ffff88032b562000 task.ti: ffff88032b562000
+[ 4431.621945] RIP: shmem_fault (mm/shmem.c:2960 mm/shmem.c:1236)
+[ 4431.621945] RSP: 0018:ffff88032b5639b8  EFLAGS: 00010296
+[ 4431.621945] RAX: ffff88005daab100 RBX: ffff88005db19e00 RCX: 0000000000000001
+[ 4431.621945] RDX: 0000000000000001 RSI: ffff88032b5639f8 RDI: 0000000000000000
+[ 4431.621945] RBP: ffff88032b5639d8 R08: ffff88032b563a70 R09: ffff88032b5639c4
+[ 4431.621945] R10: 0000000000000000 R11: 0000000000000000 R12: ffff8801caad2ed0
+[ 4431.621945] R13: ffff8801ca27c7e8 R14: 0000000000000000 R15: ffff88005db19e00
+[ 4431.621945] FS:  00007f8c3b4ef700(0000) GS:ffff88006ec00000(0000) knlGS:0000000000000000
+[ 4431.621945] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
+[ 4431.621945] CR2: 0000000000000030 CR3: 00000001d7fb6000 CR4: 00000000000006a0
+[ 4431.621945] DR0: 00000000006df000 DR1: 0000000000000000 DR2: 0000000000000000
+[ 4431.621945] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000600
+[ 4431.621945] Stack:
+[ 4431.621945]  ffffffff8a2bb583 0000020000000286 ffff88032b563a18 ffff88032b563a70
+[ 4431.621945]  ffff88032b563a38 ffffffff8a2b83d9 ffff8801e71f8338 00000000ffffffff
+[ 4431.621945]  ffff880300000000 0000000000000001 00007f8c3b4fd000 0000000000000000
+[ 4431.621945] Call Trace:
+[ 4431.621945] ? do_read_fault.isra.40 (mm/memory.c:2882)
+[ 4431.621945] __do_fault (mm/memory.c:2703)
+[ 4431.621945] ? _raw_spin_unlock (arch/x86/include/asm/preempt.h:98 include/linux/spinlock_api_smp.h:152 kernel/locking/spinlock.c:183)
+[ 4431.621945] do_read_fault.isra.40 (mm/memory.c:2883)
+[ 4431.621945] ? get_parent_ip (kernel/sched/core.c:2519)
+[ 4431.621945] ? get_parent_ip (kernel/sched/core.c:2519)
+[ 4431.621945] __handle_mm_fault (mm/memory.c:3021 mm/memory.c:3182 mm/memory.c:3306)
+[ 4431.621945] ? __const_udelay (arch/x86/lib/delay.c:126)
+[ 4431.621945] ? __rcu_read_unlock (kernel/rcu/update.c:97)
+[ 4431.621945] handle_mm_fault (mm/memory.c:3329)
+[ 4431.621945] __get_user_pages (mm/gup.c:281 mm/gup.c:466)
+[ 4431.621945] ? preempt_count_sub (kernel/sched/core.c:2575)
+[ 4431.621945] get_user_pages (mm/gup.c:632)
+[ 4431.621945] get_user_pages_fast (arch/x86/mm/gup.c:394)
+[ 4431.621945] vmsplice_to_pipe (fs/splice.c:1487 fs/splice.c:1607)
+[ 4431.621945] ? page_cache_pipe_buf_release (fs/splice.c:267)
+[ 4431.621945] ? kvm_clock_read (arch/x86/include/asm/preempt.h:90 arch/x86/kernel/kvmclock.c:86)
+[ 4431.621945] ? sched_clock (arch/x86/include/asm/paravirt.h:192 arch/x86/kernel/tsc.c:305)
+[ 4431.621945] ? sched_clock_local (kernel/sched/clock.c:214)
+[ 4431.621945] ? vtime_account_user (kernel/sched/cputime.c:687)
+[ 4431.621945] ? debug_smp_processor_id (lib/smp_processor_id.c:57)
+[ 4431.621945] ? put_lock_stats.isra.12 (arch/x86/include/asm/preempt.h:98 kernel/locking/lockdep.c:254)
+[ 4431.621945] ? vtime_account_user (kernel/sched/cputime.c:687)
+[ 4431.621945] ? get_parent_ip (kernel/sched/core.c:2519)
+[ 4431.621945] ? get_parent_ip (kernel/sched/core.c:2519)
+[ 4431.621945] ? __fget_light (include/linux/rcupdate.h:428 include/linux/fdtable.h:80 fs/file.c:684)
+[ 4431.621945] SyS_vmsplice (fs/splice.c:1650 fs/splice.c:1636)
+[ 4431.621945] tracesys (arch/x86/kernel/entry_64.S:746)
+[ 4431.621945] Code: 66 66 66 90 55 b9 01 00 00 00 48 89 e5 53 48 89 fb 4c 8d 4d ec 48 83 ec 18 c7 45 ec 00 02 00 00 48 8b 87 a0 00 00 00 48 8b 78 20 <48> 8b 57 30 4c 8b 82 48 01 00 00 48 8d 56 18 48 8b 76 08 41 81
+[ 4431.621945] RIP shmem_fault (mm/shmem.c:2960 mm/shmem.c:1236)
+[ 4431.621945]  RSP <ffff88032b5639b8>
+[ 4431.621945] CR2: 0000000000000030
 
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 83ca6f9..b34ab7c 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -222,6 +222,27 @@ static bool compact_checklock_irqsave(spinlock_t *lock, unsigned long *flags,
- 	return true;
- }
- 
-+/*
-+ * Similar to compact_checklock_irqsave() (see its comment) for places where
-+ * a zone lock is not concerned.
-+ *
-+ * Returns false when compaction should abort.
-+ */
-+static inline bool compact_check_resched(struct compact_control *cc)
-+{
-+	/* async compaction aborts if contended */
-+	if (need_resched()) {
-+		if (cc->mode == MIGRATE_ASYNC) {
-+			cc->contended = true;
-+			return false;
-+		}
-+
-+		cond_resched();
-+	}
-+
-+	return true;
-+}
-+
- /* Returns true if the page is within a block suitable for migration to */
- static bool suitable_migration_target(struct page *page)
- {
-@@ -491,11 +512,8 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
- 			return 0;
- 	}
- 
--	if (cond_resched()) {
--		/* Async terminates prematurely on need_resched() */
--		if (cc->mode == MIGRATE_ASYNC)
--			return 0;
--	}
-+	if (!compact_check_resched(cc))
-+		return 0;
- 
- 	/* Time to isolate some pages for migration */
- 	for (; low_pfn < end_pfn; low_pfn++) {
-@@ -718,9 +736,10 @@ static void isolate_freepages(struct zone *zone,
- 		/*
- 		 * This can iterate a massively long zone without finding any
- 		 * suitable migration targets, so periodically check if we need
--		 * to schedule.
-+		 * to schedule, or even abort async compaction.
- 		 */
--		cond_resched();
-+		if (!compact_check_resched(cc))
-+			break;
- 
- 		if (!pfn_valid(block_start_pfn))
- 			continue;
-@@ -758,6 +777,13 @@ static void isolate_freepages(struct zone *zone,
- 		 */
- 		if (isolated)
- 			cc->finished_update_free = true;
-+
-+		/*
-+		 * isolate_freepages_block() might have aborted due to async
-+		 * compaction being contended
-+		 */
-+		if (cc->contended)
-+			break;
- 	}
- 
- 	/* split_free_page does not map the pages */
--- 
-1.8.4.5
+
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
