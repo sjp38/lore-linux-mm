@@ -1,60 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f179.google.com (mail-qc0-f179.google.com [209.85.216.179])
-	by kanga.kvack.org (Postfix) with ESMTP id A93D26B0038
-	for <linux-mm@kvack.org>; Mon, 12 May 2014 12:25:50 -0400 (EDT)
-Received: by mail-qc0-f179.google.com with SMTP id x3so7993649qcv.38
-        for <linux-mm@kvack.org>; Mon, 12 May 2014 09:25:50 -0700 (PDT)
-Received: from qmta11.emeryville.ca.mail.comcast.net (qmta11.emeryville.ca.mail.comcast.net. [2001:558:fe2d:44:76:96:27:211])
-        by mx.google.com with ESMTP id w107si6295213qgw.132.2014.05.12.09.25.49
-        for <linux-mm@kvack.org>;
-        Mon, 12 May 2014 09:25:50 -0700 (PDT)
-Date: Mon, 12 May 2014 11:25:46 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: vmstat: On demand vmstat workers V4
-In-Reply-To: <20140508142903.c2ef166c95d2b8acd0d7ea7d@linux-foundation.org>
-Message-ID: <alpine.DEB.2.10.1405121120081.17673@gentwo.org>
-References: <alpine.DEB.2.10.1405081033090.23786@gentwo.org> <20140508142903.c2ef166c95d2b8acd0d7ea7d@linux-foundation.org>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-vc0-f182.google.com (mail-vc0-f182.google.com [209.85.220.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D38C6B0038
+	for <linux-mm@kvack.org>; Mon, 12 May 2014 12:27:11 -0400 (EDT)
+Received: by mail-vc0-f182.google.com with SMTP id la4so9159273vcb.13
+        for <linux-mm@kvack.org>; Mon, 12 May 2014 09:27:10 -0700 (PDT)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.11.231])
+        by mx.google.com with ESMTPS id ko6si6601141pbc.98.2014.05.12.09.27.10
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 12 May 2014 09:27:10 -0700 (PDT)
+Message-ID: <5370F66F.7060204@codeaurora.org>
+Date: Mon, 12 May 2014 09:27:27 -0700
+From: Laura Abbott <lauraa@codeaurora.org>
+MIME-Version: 1.0
+Subject: Re: Questions regarding DMA buffer sharing using IOMMU
+References: <BAY169-W12541AD089785F8BFBD4E26EF350@phx.gbl>,<5218408.5YRJXjS4BX@wuerfel> <BAY169-W1156E6803829CAB545274BCEF350@phx.gbl>
+In-Reply-To: <BAY169-W1156E6803829CAB545274BCEF350@phx.gbl>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Gilad Ben-Yossef <gilad@benyossef.com>, Thomas Gleixner <tglx@linutronix.de>, Tejun Heo <tj@kernel.org>, John Stultz <johnstul@us.ibm.com>, Mike Frysinger <vapier@gentoo.org>, Minchan Kim <minchan.kim@gmail.com>, Hakan Akkan <hakanakkan@gmail.com>, Max Krasnyansky <maxk@qualcomm.com>, Frederic Weisbecker <fweisbec@gmail.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hughd@google.com, viresh.kumar@linaro.org
+To: Pintu Kumar <pintu.k@outlook.com>, Arnd Bergmann <arnd@arndb.de>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linaro-mm-sig@lists.linaro.org" <linaro-mm-sig@lists.linaro.org>
 
-On Thu, 8 May 2014, Andrew Morton wrote:
+On 5/12/2014 7:37 AM, Pintu Kumar wrote:
+> Hi,
+> Thanks for the reply.
+> 
+> ----------------------------------------
+>> From: arnd@arndb.de
+>> To: linux-arm-kernel@lists.infradead.org
+>> CC: pintu.k@outlook.com; linux-mm@kvack.org; linux-kernel@vger.kernel.org; linaro-mm-sig@lists.linaro.org
+>> Subject: Re: Questions regarding DMA buffer sharing using IOMMU
+>> Date: Mon, 12 May 2014 14:00:57 +0200
+>>
+>> On Monday 12 May 2014 15:12:41 Pintu Kumar wrote:
+>>> Hi,
+>>> I have some queries regarding IOMMU and CMA buffer sharing.
+>>> We have an embedded linux device (kernel 3.10, RAM: 256Mb) in
+>>> which camera and codec supports IOMMU but the display does not support IOMMU.
+>>> Thus for camera capture we are using iommu buffers using
+>>> ION/DMABUF. But for all display rendering we are using CMA buffers.
+>>> So, the question is how to achieve buffer sharing (zero-copy)
+>>> between Camera and Display using only IOMMU?
+>>> Currently we are achieving zero-copy using CMA. And we are
+>>> exploring options to use IOMMU.
+>>> Now we wanted to know which option is better? To use IOMMU or CMA?
+>>> If anybody have come across these design please share your thoughts and results.
+>>
+>> There is a slight performance overhead in using the IOMMU in general,
+>> because the IOMMU has to fetch the page table entries from memory
+>> at least some of the time.
+> 
+> Ok, we need to check performance later
+> 
+>>
+>> If that overhead is within the constraints you have for transfers between
+>> camera and codec, you are always better off using IOMMU since that
+>> means you don't have to do memory migration.
+> 
+> Transfer between camera is codec is fine. But our major concern is single buffer 
+> sharing between camera & display. Here camera supports iommu but display does not support iommu.
+> Is it possible to render camera preview (iommu buffers) on display (not iommu and required physical contiguous overlay memory)?
+> 
 
-> Some explanation of the changes to kernel/time/tick-common.c would be
-> appropriate.
+I'm pretty sure the answer is no for zero copy IOMMU buffers if one of your
+devices does not support IOMMU. If the data is coming in as individual pages
+and the hardware does not support scattered pages there isn't much you can
+do except copy to a contiguous buffer. At least with Ion, the heap types can
+be set up in a particular way such that the client need never know about the
+existence of an IOMMU or not. 
 
-I dropped those after the discussion related to housekeepig cpus.
+> Also is it possible to buffer sharing between 2 iommu supported devices?
+> 
 
-> > +		cancel_delayed_work_sync(d);
-> > +		cpumask_set_cpu(smp_processor_id(), monitored_cpus);
-> > +		cpumask_clear_cpu(s, monitored_cpus);
-> > +		INIT_DELAYED_WORK(d, vmstat_shepherd);
->
-> INIT_DELAYED_WORK() seems inappropriate here.  It's generally used for
-> once-off initialisation of a freshly allocated work item.  Look at all
-> the stuff it does - do we really want to run debug_object_init()
-> against an active object?
+I don't see why not but there isn't a lot of information to go on here.
 
-Well this function is the one off initialization. INIT_DEFERRABLE_WORK in
-vmstat_shepherd() is a case of repeatedly initializing the per cpu
-structure when the worker thread is started again. In order to remove
-that I would have to do a loop initializing the structures at startup
-time. In V4 there were different function depending on the processor
-and they could change. With the housekeeping processor fixed that is no
-longer the case. Should I loop over the whole structure and set the
-functions at init time?
+Thanks,
+Laura
 
-> >  	case CPU_DOWN_PREPARE_FROZEN:
-> > -		cancel_delayed_work_sync(&per_cpu(vmstat_work, cpu));
-> > +		if (!cpumask_test_cpu(cpu, monitored_cpus))
->
-> This test is inverted isn't it?
-
-If the monitoring cpu bit is not set then the worker thread is active
-and needs to be cancelled. There is a race here so I used test_and_clear
-here in the new revision.
+-- 
+Qualcomm Innovation Center, Inc. is a member of Code Aurora Forum,
+hosted by The Linux Foundation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
