@@ -1,105 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f48.google.com (mail-ee0-f48.google.com [74.125.83.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 9267D6B0035
-	for <linux-mm@kvack.org>; Mon, 12 May 2014 16:24:27 -0400 (EDT)
-Received: by mail-ee0-f48.google.com with SMTP id e49so5008750eek.21
-        for <linux-mm@kvack.org>; Mon, 12 May 2014 13:24:26 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id u49si11375187eef.142.2014.05.12.13.24.25
-        for <linux-mm@kvack.org>;
-        Mon, 12 May 2014 13:24:26 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH] HWPOSION, hugetlb: lock_page/unlock_page does not match for handling a free hugepage
-Date: Mon, 12 May 2014 16:24:07 -0400
-Message-Id: <53712dfa.49620e0a.270a.14bdSMTPIN_ADDED_BROKEN@mx.google.com>
-In-Reply-To: <1399691674.29028.1.camel@cyc>
-References: <1399691674.29028.1.camel@cyc>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 4DC1A6B0035
+	for <linux-mm@kvack.org>; Mon, 12 May 2014 16:28:18 -0400 (EDT)
+Received: by mail-pa0-f46.google.com with SMTP id kq14so5095197pab.5
+        for <linux-mm@kvack.org>; Mon, 12 May 2014 13:28:17 -0700 (PDT)
+Received: from mail-pa0-x230.google.com (mail-pa0-x230.google.com [2607:f8b0:400e:c03::230])
+        by mx.google.com with ESMTPS id gd2si6877733pbd.33.2014.05.12.13.28.17
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 12 May 2014 13:28:17 -0700 (PDT)
+Received: by mail-pa0-f48.google.com with SMTP id rd3so9282206pab.7
+        for <linux-mm@kvack.org>; Mon, 12 May 2014 13:28:17 -0700 (PDT)
+Date: Mon, 12 May 2014 13:28:15 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] mm, compaction: properly signal and act upon lock and
+ need_sched() contention
+In-Reply-To: <1399904111-23520-1-git-send-email-vbabka@suse.cz>
+Message-ID: <alpine.DEB.2.02.1405121326080.961@chino.kir.corp.google.com>
+References: <20140508051747.GA9161@js1304-P5Q-DELUXE> <1399904111-23520-1-git-send-email-vbabka@suse.cz>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: slaoub@gmail.com
-Cc: linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>, ak@linux.intel.com, Andrew Morton <akpm@linux-foundation.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Greg Thelen <gthelen@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>
 
-(Cced: Andrew)
+On Mon, 12 May 2014, Vlastimil Babka wrote:
 
-On Sat, May 10, 2014 at 11:14:34AM +0800, Chen Yucong wrote:
-> For handling a free hugepage in memory failure, the race will happen if
-> another thread hwpoisoned this hugepage concurrently. So we need to
-> check PageHWPoison instead of !PageHWPoison.
-> 
-> If hwpoison_filter(p) returns true or a race happens, then we need to
-> unlock_page(hpage).
-> 
-> Signed-off-by: Chen Yucong <slaoub@gmail.com>
-> Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index 83ca6f9..b34ab7c 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -222,6 +222,27 @@ static bool compact_checklock_irqsave(spinlock_t *lock, unsigned long *flags,
+>  	return true;
+>  }
+>  
+> +/*
+> + * Similar to compact_checklock_irqsave() (see its comment) for places where
+> + * a zone lock is not concerned.
+> + *
+> + * Returns false when compaction should abort.
+> + */
 
-I tested this patch on latest linux-next, and confirmed that memory error
-on a tail page of a free hugepage is properly handled.
+I think we should have some sufficient commentary in the code that 
+describes why we do this.
 
-Tested-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> +static inline bool compact_check_resched(struct compact_control *cc)
+> +{
 
-And I think this patch should go into all recent stable trees, since this
-bug exists since 2.6.36 (because of my patch, sorry.)
+I'm not sure that compact_check_resched() is the appropriate name.  Sure, 
+it specifies what the current implementation is, but what it's really 
+actually doing is determining when compaction should abort prematurely.
 
-> ---
-> mm/memory-failure.c |   15 ++++++++-------
-> 1 file changed, 8 insertions(+), 7 deletions(-)
-> 
-> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-> index 35ef28a..dbf8922 100644
-> --- a/mm/memory-failure.c
-> +++ b/mm/memory-failure.c
-> @@ -1081,15 +1081,16 @@ int memory_failure(unsigned long pfn, int
-> trapno, int flags)
-
-This linebreak breaks patch format. I guess it's done by your email
-client or copy and paste. If it's true, git-send-email might be helpful
-to avoid such errors.
-
-Thanks,
-Naoya
-
-
->  			return 0;
->  		} else if (PageHuge(hpage)) {
->  			/*
-> -			 * Check "just unpoisoned", "filter hit", and
-> -			 * "race with other subpage."
-> +			 * Check "filter hit" and "race with other subpage."
->  			 */
->  			lock_page(hpage);
-> -			if (!PageHWPoison(hpage)
-> -			    || (hwpoison_filter(p) && TestClearPageHWPoison(p))
-> -			    || (p != hpage && TestSetPageHWPoison(hpage))) {
-> -				atomic_long_sub(nr_pages, &num_poisoned_pages);
-> -				return 0;
-> +			if (PageHWPoison(hpage)) {
-> +				if ((hwpoison_filter(p) && TestClearPageHWPoison(p))
-> +				    || (p != hpage && TestSetPageHWPoison(hpage))) {
-> +					atomic_long_sub(nr_pages, &num_poisoned_pages);
-> +					unlock_page(hpage);
-> +					return 0;
-> +				}
->  			}
->  			set_page_hwpoison_huge_page(hpage);
->  			res = dequeue_hwpoisoned_huge_page(hpage);
-> -- 
-> 1.7.10.4
-> 
-> 
-> 
-> 
-> 
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+Something like compact_should_abort()?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
