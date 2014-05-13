@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f48.google.com (mail-ee0-f48.google.com [74.125.83.48])
-	by kanga.kvack.org (Postfix) with ESMTP id BC5BD6B0062
-	for <linux-mm@kvack.org>; Tue, 13 May 2014 05:46:14 -0400 (EDT)
-Received: by mail-ee0-f48.google.com with SMTP id e49so202552eek.35
-        for <linux-mm@kvack.org>; Tue, 13 May 2014 02:46:14 -0700 (PDT)
+Received: from mail-ee0-f53.google.com (mail-ee0-f53.google.com [74.125.83.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 241566B006E
+	for <linux-mm@kvack.org>; Tue, 13 May 2014 05:46:16 -0400 (EDT)
+Received: by mail-ee0-f53.google.com with SMTP id c13so211228eek.12
+        for <linux-mm@kvack.org>; Tue, 13 May 2014 02:46:15 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id c6si12666589eem.240.2014.05.13.02.46.13
+        by mx.google.com with ESMTPS id p43si8665772eem.153.2014.05.13.02.46.14
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 13 May 2014 02:46:13 -0700 (PDT)
+        Tue, 13 May 2014 02:46:15 -0700 (PDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 16/19] mm: Do not use unnecessary atomic operations when adding pages to the LRU
-Date: Tue, 13 May 2014 10:45:47 +0100
-Message-Id: <1399974350-11089-17-git-send-email-mgorman@suse.de>
+Subject: [PATCH 17/19] fs: buffer: Do not use unnecessary atomic operations when discarding buffers
+Date: Tue, 13 May 2014 10:45:48 +0100
+Message-Id: <1399974350-11089-18-git-send-email-mgorman@suse.de>
 In-Reply-To: <1399974350-11089-1-git-send-email-mgorman@suse.de>
 References: <1399974350-11089-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -20,45 +20,60 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>
 
-When adding pages to the LRU we clear the active bit unconditionally. As the
-page could be reachable from other paths we cannot use unlocked operations
-without risk of corruption such as a parallel mark_page_accessed. This
-patch tests if is necessary to clear the active flag before using an atomic
-operation. This potentially opens a tiny race when PageActive is checked
-as mark_page_accessed could be called after PageActive was checked. The
-race already exists but this patch changes it slightly. The consequence
-is that that the page may be promoted to the active list that might have
-been left on the inactive list before the patch. It's too tiny a race and
-too marginal a consequence to always use atomic operations for.
+Discarding buffers uses a bunch of atomic operations when discarding buffers
+because ...... I can't think of a reason. Use a cmpxchg loop to clear all the
+necessary flags. In most (all?) cases this will be a single atomic operations.
 
 Signed-off-by: Mel Gorman <mgorman@suse.de>
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 ---
- include/linux/swap.h | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
+ fs/buffer.c                 | 14 +++++++++-----
+ include/linux/buffer_head.h |  5 +++++
+ 2 files changed, 14 insertions(+), 5 deletions(-)
 
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index da8a250..395dcab 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -329,13 +329,15 @@ extern void add_page_to_unevictable_list(struct page *page);
+diff --git a/fs/buffer.c b/fs/buffer.c
+index 9ddb9fc..e80012d 100644
+--- a/fs/buffer.c
++++ b/fs/buffer.c
+@@ -1485,14 +1485,18 @@ EXPORT_SYMBOL(set_bh_page);
   */
- static inline void lru_cache_add_anon(struct page *page)
+ static void discard_buffer(struct buffer_head * bh)
  {
--	ClearPageActive(page);
-+	if (PageActive(page))
-+		ClearPageActive(page);
- 	__lru_cache_add(page);
++	unsigned long b_state, b_state_old;
++
+ 	lock_buffer(bh);
+ 	clear_buffer_dirty(bh);
+ 	bh->b_bdev = NULL;
+-	clear_buffer_mapped(bh);
+-	clear_buffer_req(bh);
+-	clear_buffer_new(bh);
+-	clear_buffer_delay(bh);
+-	clear_buffer_unwritten(bh);
++	b_state = bh->b_state;
++	for (;;) {
++		b_state_old = cmpxchg(&bh->b_state, b_state, (b_state & ~BUFFER_FLAGS_DISCARD));
++		if (b_state_old == b_state)
++			break;
++		b_state = b_state_old;
++	}
+ 	unlock_buffer(bh);
  }
  
- static inline void lru_cache_add_file(struct page *page)
- {
--	ClearPageActive(page);
-+	if (PageActive(page))
-+		ClearPageActive(page);
- 	__lru_cache_add(page);
- }
+diff --git a/include/linux/buffer_head.h b/include/linux/buffer_head.h
+index c40302f..95f565a 100644
+--- a/include/linux/buffer_head.h
++++ b/include/linux/buffer_head.h
+@@ -77,6 +77,11 @@ struct buffer_head {
+ 	atomic_t b_count;		/* users using this buffer_head */
+ };
  
++/* Bits that are cleared during an invalidate */
++#define BUFFER_FLAGS_DISCARD \
++	(1 << BH_Mapped | 1 << BH_New | 1 << BH_Req | \
++	 1 << BH_Delay | 1 << BH_Unwritten)
++
+ /*
+  * macro tricks to expand the set_buffer_foo(), clear_buffer_foo()
+  * and buffer_foo() functions.
 -- 
 1.8.4.5
 
