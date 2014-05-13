@@ -1,94 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 857B76B0039
-	for <linux-mm@kvack.org>; Mon, 12 May 2014 20:31:43 -0400 (EDT)
-Received: by mail-pa0-f49.google.com with SMTP id lj1so9453114pab.22
-        for <linux-mm@kvack.org>; Mon, 12 May 2014 17:31:43 -0700 (PDT)
-Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
-        by mx.google.com with ESMTPS id gd2si7083113pbd.420.2014.05.12.17.31.41
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 12 May 2014 17:31:42 -0700 (PDT)
-Date: Tue, 13 May 2014 10:31:33 +1000
-From: Stephen Rothwell <sfr@canb.auug.org.au>
-Subject: Re: randconfig build error with next-20140512, in mm/slub.c
-Message-ID: <20140513103133.6bc4f22c@canb.auug.org.au>
-In-Reply-To: <alpine.DEB.2.02.1405121336180.961@chino.kir.corp.google.com>
-References: <CA+r1Zhg4JzViQt=J0XBu4dRwFUZGwi52QLefkzwcwn4NUfk8Sw@mail.gmail.com>
-	<alpine.DEB.2.10.1405121346370.30318@gentwo.org>
-	<537118C6.7050203@iki.fi>
-	<alpine.DEB.2.02.1405121336180.961@chino.kir.corp.google.com>
+Received: from mail-pb0-f43.google.com (mail-pb0-f43.google.com [209.85.160.43])
+	by kanga.kvack.org (Postfix) with ESMTP id B3E086B003C
+	for <linux-mm@kvack.org>; Mon, 12 May 2014 20:42:21 -0400 (EDT)
+Received: by mail-pb0-f43.google.com with SMTP id up15so284683pbc.30
+        for <linux-mm@kvack.org>; Mon, 12 May 2014 17:42:21 -0700 (PDT)
+Received: from lgeamrelo01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
+        by mx.google.com with ESMTP id sr9si11520246pab.7.2014.05.12.17.42.19
+        for <linux-mm@kvack.org>;
+        Mon, 12 May 2014 17:42:20 -0700 (PDT)
+Date: Tue, 13 May 2014 09:44:10 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH] mm, compaction: properly signal and act upon lock and
+ need_sched() contention
+Message-ID: <20140513004410.GA23803@js1304-P5Q-DELUXE>
+References: <20140508051747.GA9161@js1304-P5Q-DELUXE>
+ <1399904111-23520-1-git-send-email-vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha256;
- boundary="Sig_/B=G6tMlww+oykd_M.dSPIsr"; protocol="application/pgp-signature"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1399904111-23520-1-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Pekka Enberg <penberg@iki.fi>, Christoph Lameter <cl@linux.com>, Jim Davis <jim.epost@gmail.com>, linux-next <linux-next@vger.kernel.org>, linux-kernel <linux-kernel@vger.kernel.org>, penberg@kernel.org, mpm@selenic.com, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Greg Thelen <gthelen@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>
 
---Sig_/B=G6tMlww+oykd_M.dSPIsr
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: quoted-printable
+On Mon, May 12, 2014 at 04:15:11PM +0200, Vlastimil Babka wrote:
+> Compaction uses compact_checklock_irqsave() function to periodically check for
+> lock contention and need_resched() to either abort async compaction, or to
+> free the lock, schedule and retake the lock. When aborting, cc->contended is
+> set to signal the contended state to the caller. Two problems have been
+> identified in this mechanism.
+> 
+> First, compaction also calls directly cond_resched() in both scanners when no
+> lock is yet taken. This call either does not abort async compaction, or set
+> cc->contended appropriately. This patch introduces a new
+> compact_check_resched() function to achieve both.
+> 
+> Second, isolate_freepages() does not check if isolate_freepages_block()
+> aborted due to contention, and advances to the next pageblock. This violates
+> the principle of aborting on contention, and might result in pageblocks not
+> being scanned completely, since the scanning cursor is advanced. This patch
+> makes isolate_freepages_block() check the cc->contended flag and abort.
+> 
+> Reported-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+> Cc: Minchan Kim <minchan@kernel.org>
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+> Cc: Michal Nazarewicz <mina86@mina86.com>
+> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Cc: Christoph Lameter <cl@linux.com>
+> Cc: Rik van Riel <riel@redhat.com>
+> ---
+>  mm/compaction.c | 40 +++++++++++++++++++++++++++++++++-------
+>  1 file changed, 33 insertions(+), 7 deletions(-)
+> 
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index 83ca6f9..b34ab7c 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -222,6 +222,27 @@ static bool compact_checklock_irqsave(spinlock_t *lock, unsigned long *flags,
+>  	return true;
+>  }
+>  
+> +/*
+> + * Similar to compact_checklock_irqsave() (see its comment) for places where
+> + * a zone lock is not concerned.
+> + *
+> + * Returns false when compaction should abort.
+> + */
+> +static inline bool compact_check_resched(struct compact_control *cc)
+> +{
+> +	/* async compaction aborts if contended */
+> +	if (need_resched()) {
+> +		if (cc->mode == MIGRATE_ASYNC) {
+> +			cc->contended = true;
+> +			return false;
+> +		}
+> +
+> +		cond_resched();
+> +	}
+> +
+> +	return true;
+> +}
+> +
+>  /* Returns true if the page is within a block suitable for migration to */
+>  static bool suitable_migration_target(struct page *page)
+>  {
+> @@ -491,11 +512,8 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
+>  			return 0;
+>  	}
+>  
+> -	if (cond_resched()) {
+> -		/* Async terminates prematurely on need_resched() */
+> -		if (cc->mode == MIGRATE_ASYNC)
+> -			return 0;
+> -	}
+> +	if (!compact_check_resched(cc))
+> +		return 0;
+>  
+>  	/* Time to isolate some pages for migration */
+>  	for (; low_pfn < end_pfn; low_pfn++) {
+> @@ -718,9 +736,10 @@ static void isolate_freepages(struct zone *zone,
+>  		/*
+>  		 * This can iterate a massively long zone without finding any
+>  		 * suitable migration targets, so periodically check if we need
+> -		 * to schedule.
+> +		 * to schedule, or even abort async compaction.
+>  		 */
+> -		cond_resched();
+> +		if (!compact_check_resched(cc))
+> +			break;
+>  
+>  		if (!pfn_valid(block_start_pfn))
+>  			continue;
+> @@ -758,6 +777,13 @@ static void isolate_freepages(struct zone *zone,
+>  		 */
+>  		if (isolated)
+>  			cc->finished_update_free = true;
+> +
+> +		/*
+> +		 * isolate_freepages_block() might have aborted due to async
+> +		 * compaction being contended
+> +		 */
+> +		if (cc->contended)
+> +			break;
+>  	}
 
-Hi all,
+Hello,
 
-On Mon, 12 May 2014 13:36:53 -0700 (PDT) David Rientjes <rientjes@google.co=
-m> wrote:
->
-> On Mon, 12 May 2014, Pekka Enberg wrote:
->=20
-> > On 05/12/2014 09:47 PM, Christoph Lameter wrote:
-> > > A patch was posted today for this issue.
-> >=20
-> > AFAICT, it's coming from -mm. Andrew, can you pick up the fix?
-> >=20
-> > > Date: Mon, 12 May 2014 09:36:30 -0300
-> > > From: Fabio Estevam <fabio.estevam@freescale.com>
-> > > To: akpm@linux-foundation.org
-> > > Cc: linux-mm@kvack.org, festevam@gmail.com, Fabio Estevam
-> > > <fabio.estevam@freescale.com>,    Christoph Lameter <cl@linux.com>, D=
-avid
-> > > Rientjes <rientjes@google.com>, Pekka Enberg <penberg@kernel.org>
-> > > Subject: [PATCH] mm: slub: Place count_partial() outside CONFIG_SLUB_=
-DEBUG
-> > > if block
-> > >=20
->=20
-> That's the wrong fix since it doesn't work properly when sysfs is=20
-> disabled.  We want http://marc.info/?l=3Dlinux-mm-commits&m=3D13999238552=
-7040=20
-> which was merged into -mm already.
+I think that we can do further.
 
-I have added that to the akpm-current tree in linux-next today (pending
-Andrew uploading a new mmotm series).
+The problem is that this cc->contended is checked only in
+isolate_migratepages() to break out the compaction. So if there are
+free pages we are already taken, compaction wouldn't stopped
+immediately and isolate_freepages() could be invoked again on next
+compaction_alloc(). If there is no contention at this time, we would try
+to get free pages from one pageblock because cc->contended checking is
+on bottom of the loop in isolate_migratepages() and will continue to
+run compaction. AFAIK, we want to stop the compaction in this case. 
 
---=20
-Cheers,
-Stephen Rothwell                    sfr@canb.auug.org.au
+Moreover, if this isolate_freepages() don't stop the compaction,
+next isolate_migratepages() will be invoked and it would be stopped
+by checking cc->contended after isolating some pages for migration.
+This is useless overhead so should be removed.
 
---Sig_/B=G6tMlww+oykd_M.dSPIsr
-Content-Type: application/pgp-signature; name=signature.asc
-Content-Disposition: attachment; filename=signature.asc
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2.0.22 (GNU/Linux)
-
-iQIcBAEBCAAGBQJTcWfqAAoJEMDTa8Ir7ZwVFOMP/2L/ChH7fzCE3PirPajR+PYt
-R8poy1StN+KM0ih9Cyo+2dVpcWxSk4AmoZUMzbi2kq7RyuqZzplnmRibC9++hG/7
-Y4VoqoyK+7R5029Qk+ZpdKy8QbhgCZM9dPQ8NxhB4CEdt6pR2f8JKm6RNoqm8ucT
-TFo/4BXsjqkeGiBA741Q0Ew0T8g6d2mJA8FpkheN1qXF4H8SaZVnXXepgY1Y0suI
-UXcNyzWvWz9ilMf3QzyWbkU/HHo/WhJlO7UxIz0B3RrqWl5c92rrX6Cto5n9LSzU
-DkpHbbHG8kQ2ZH5eWurZPh6z/36H5C3X4sTbr3t3DY4qihmPyenvA8ZkdzqRNasa
-XW1yTFPmSCJuiQM/k7XIPJeJWaagZEig/YACio6IdBjIbkKjWfsGuUJPcT3CQS/G
-gKZShQKJEek3C5Cd5NtsfNFPaswfU3FmfJ5ULl7nVMrOu3TqWGg8fZjI7kAL9Acx
-igL/L6uanpqQ77ODrqmxFuvQbeg3nTHq1XLlXbFK7THssa4wWRO3wHIuyBgYhmQT
-0duZ39JiETpuukwHjPFsaYqcdchZyQwnkM1rJIzVf57Tg6i2ns3hXKnBA/MAuY2h
-T8tKPu2Ho/Ixkl99y4Z8nOEa1xgtrIG5K/ta5rgGLvixmyOyu397BPiyZTpQxYmH
-8hflewb9t6yALaEQ2aJd
-=OARB
------END PGP SIGNATURE-----
-
---Sig_/B=G6tMlww+oykd_M.dSPIsr--
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
