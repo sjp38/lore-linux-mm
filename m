@@ -1,74 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f48.google.com (mail-ee0-f48.google.com [74.125.83.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C19F6B0070
-	for <linux-mm@kvack.org>; Tue, 13 May 2014 06:34:52 -0400 (EDT)
-Received: by mail-ee0-f48.google.com with SMTP id e49so254235eek.21
-        for <linux-mm@kvack.org>; Tue, 13 May 2014 03:34:51 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id h41si47538eeo.58.2014.05.13.03.34.50
+Received: from mail-wg0-f41.google.com (mail-wg0-f41.google.com [74.125.82.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D4486B0038
+	for <linux-mm@kvack.org>; Tue, 13 May 2014 06:59:00 -0400 (EDT)
+Received: by mail-wg0-f41.google.com with SMTP id z12so185519wgg.0
+        for <linux-mm@kvack.org>; Tue, 13 May 2014 03:58:59 -0700 (PDT)
+Received: from casper.infradead.org (casper.infradead.org. [2001:770:15f::2])
+        by mx.google.com with ESMTPS id ey10si3668998wib.76.2014.05.13.03.58.58
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 13 May 2014 03:34:51 -0700 (PDT)
-Date: Tue, 13 May 2014 11:34:47 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCHv2 4/4] swap: change swap_list_head to plist, add
- swap_avail_head
-Message-ID: <20140513103446.GO23991@suse.de>
-References: <1399057350-16300-1-git-send-email-ddstreet@ieee.org>
- <1399912700-30100-1-git-send-email-ddstreet@ieee.org>
- <1399912700-30100-5-git-send-email-ddstreet@ieee.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 13 May 2014 03:58:59 -0700 (PDT)
+Date: Tue, 13 May 2014 12:58:51 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH 04/19] mm: page_alloc: Use jump labels to avoid checking
+ number_of_cpusets
+Message-ID: <20140513105851.GA30445@twins.programming.kicks-ass.net>
+References: <1399974350-11089-1-git-send-email-mgorman@suse.de>
+ <1399974350-11089-5-git-send-email-mgorman@suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="4c4BJozgj/kzMVO6"
 Content-Disposition: inline
-In-Reply-To: <1399912700-30100-5-git-send-email-ddstreet@ieee.org>
+In-Reply-To: <1399974350-11089-5-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Streetman <ddstreet@ieee.org>
-Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.cz>, Christian Ehrhardt <ehrhardt@linux.vnet.ibm.com>, Weijie Yang <weijieut@gmail.com>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Bob Liu <bob.liu@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Shaohua Li <shli@fusionio.com>, Steven Rostedt <rostedt@goodmis.org>, Peter Zijlstra <peterz@infradead.org>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>
 
-On Mon, May 12, 2014 at 12:38:20PM -0400, Dan Streetman wrote:
-> Originally get_swap_page() started iterating through the singly-linked
-> list of swap_info_structs using swap_list.next or highest_priority_index,
-> which both were intended to point to the highest priority active swap
-> target that was not full.  The first patch in this series changed the
-> singly-linked list to a doubly-linked list, and removed the logic to start
-> at the highest priority non-full entry; it starts scanning at the highest
-> priority entry each time, even if the entry is full.
-> 
-> Replace the manually ordered swap_list_head with a plist, swap_active_head.
-> Add a new plist, swap_avail_head.  The original swap_active_head plist
-> contains all active swap_info_structs, as before, while the new
-> swap_avail_head plist contains only swap_info_structs that are active and
-> available, i.e. not full.  Add a new spinlock, swap_avail_lock, to protect
-> the swap_avail_head list.
-> 
-> Mel Gorman suggested using plists since they internally handle ordering
-> the list entries based on priority, which is exactly what swap was doing
-> manually.  All the ordering code is now removed, and swap_info_struct
-> entries and simply added to their corresponding plist and automatically
-> ordered correctly.
-> 
-> Using a new plist for available swap_info_structs simplifies and
-> optimizes get_swap_page(), which no longer has to iterate over full
-> swap_info_structs.  Using a new spinlock for swap_avail_head plist
-> allows each swap_info_struct to add or remove themselves from the
-> plist when they become full or not-full; previously they could not
-> do so because the swap_info_struct->lock is held when they change
-> from full<->not-full, and the swap_lock protecting the main
-> swap_active_head must be ordered before any swap_info_struct->lock.
-> 
-> Signed-off-by: Dan Streetman <ddstreet@ieee.org>
-> Cc: Mel Gorman <mgorman@suse.de>
-> Cc: Shaohua Li <shli@fusionio.com>
-> Cc: Steven Rostedt <rostedt@goodmis.org>
-> Cc: Peter Zijlstra <peterz@infradead.org>
-> 
 
-Acked-by: Mel Gorman <mgorman@suse.de>
+--4c4BJozgj/kzMVO6
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
--- 
-Mel Gorman
-SUSE Labs
+On Tue, May 13, 2014 at 10:45:35AM +0100, Mel Gorman wrote:
+> +#ifdef HAVE_JUMP_LABEL
+> +extern struct static_key cpusets_enabled_key;
+> +static inline bool cpusets_enabled(void)
+> +{
+> +	return static_key_false(&cpusets_enabled_key);
+> +}
+> +
+> +/* jump label reference count + the top-level cpuset */
+> +#define number_of_cpusets (static_key_count(&cpusets_enabled_key) + 1)
+> +
+> +static inline void cpuset_inc(void)
+> +{
+> +	static_key_slow_inc(&cpusets_enabled_key);
+> +}
+> +
+> +static inline void cpuset_dec(void)
+> +{
+> +	static_key_slow_dec(&cpusets_enabled_key);
+> +}
+> +
+> +static inline void cpuset_init_count(void) { }
+> +
+> +#else
+>  extern int number_of_cpusets;	/* How many cpusets are defined in system?=
+ */
+> =20
+> +static inline bool cpusets_enabled(void)
+> +{
+> +	return number_of_cpusets > 1;
+> +}
+> +
+> +static inline void cpuset_inc(void)
+> +{
+> +	number_of_cpusets++;
+> +}
+> +
+> +static inline void cpuset_dec(void)
+> +{
+> +	number_of_cpusets--;
+> +}
+> +
+> +static inline void cpuset_init_count(void)
+> +{
+> +	number_of_cpusets =3D 1;
+> +}
+> +#endif /* HAVE_JUMP_LABEL */
+
+I'm still puzzled by the whole #else branch here, why not
+unconditionally use the jump-label one? Without HAVE_JUMP_LABEL we'll
+revert to a simple atomic_t counter, which should be perfectly fine, no?
+
+--4c4BJozgj/kzMVO6
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.12 (GNU/Linux)
+
+iQIcBAEBAgAGBQJTcfrrAAoJEHZH4aRLwOS6XoAP/jmtiAj7/XQEYREzCkOSstsD
+SayN+T3PUPpyB+BIjPU/n5RrY2Xp7O4dKJKIEmW4oACYmvT4l1jQP17J08Sm8wPn
+YdRYg/28pFiTPTpbhrdLlqlWumyb9Ef7a9M37otQ7NOCVboNhN5AKoZjEpH5Tf5/
+ISVny4MDhJ1pYe4dl9SIR7iRrznIO6hS3YaVBPp1cfYI2L30/Hz/UNuhFMEgKgXC
+a0qau1SycwmsuS+xwaLw6KM+wseKtkPknQ3uwf4ClJzZRAdyXaukOR8LU7+ZLknV
+fFQ4JncnOwaSHMNrnmQkhOIhPIuQwMmyZvSzRSX9gKh++G9SD16QWAfiu8u25Hna
+8kHDYQxkG/5z0BlzHojQ2qETGVks+8thgY6niq7GuNEfEwNTrr/QIi3se+XZOfSJ
+SPdPkQgIHil2PQt/NYKLAxVjaR961tondV6Ye8les+xB/pdX61x1mnculG3TTrVe
+NPVsHebK16C1LZQBtVIvpEO+XVTufWgrGbKdCXYaHNiVY8gOF12kJQ+4Gnjf4XyF
++koylH+2o13CEeiS85Uc21vA9JJNGWnxe4b0VPX93Ifu88lp//1sKvIrHmY2wweL
+PpInagsXwYpMlVhFBbkfse74ch7cwes+LH1KOGcguCsjHboIgl14JSXdRietO//V
+TAHAD/fy/Jre5SVnMhRg
+=L/qV
+-----END PGP SIGNATURE-----
+
+--4c4BJozgj/kzMVO6--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
