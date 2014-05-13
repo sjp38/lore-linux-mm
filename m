@@ -1,57 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f41.google.com (mail-qg0-f41.google.com [209.85.192.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 09A9D6B0035
-	for <linux-mm@kvack.org>; Tue, 13 May 2014 03:32:55 -0400 (EDT)
-Received: by mail-qg0-f41.google.com with SMTP id j5so9011407qga.0
-        for <linux-mm@kvack.org>; Tue, 13 May 2014 00:32:54 -0700 (PDT)
-Received: from mail-qc0-x22f.google.com (mail-qc0-x22f.google.com [2607:f8b0:400d:c01::22f])
-        by mx.google.com with ESMTPS id e10si7096700qco.51.2014.05.13.00.32.54
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 13 May 2014 00:32:54 -0700 (PDT)
-Received: by mail-qc0-f175.google.com with SMTP id w7so8981423qcr.6
-        for <linux-mm@kvack.org>; Tue, 13 May 2014 00:32:54 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <5370E4B4.1060802@oracle.com>
-References: <1399552888-11024-1-git-send-email-kirill.shutemov@linux.intel.com>
- <1399552888-11024-3-git-send-email-kirill.shutemov@linux.intel.com>
- <20140508145729.3d82d2c989cfc483c94eb324@linux-foundation.org> <5370E4B4.1060802@oracle.com>
-From: Armin Rigo <arigo@tunes.org>
-Date: Tue, 13 May 2014 09:32:13 +0200
-Message-ID: <CAMSv6X0yg4haVtUifFrdkCCZjJV-TLXJ-KsiCPiBue0Y0qNTcQ@mail.gmail.com>
-Subject: Re: [PATCH 2/2] mm: replace remap_file_pages() syscall with emulation
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Received: from mail-pb0-f47.google.com (mail-pb0-f47.google.com [209.85.160.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 8A5A46B0035
+	for <linux-mm@kvack.org>; Tue, 13 May 2014 04:24:27 -0400 (EDT)
+Received: by mail-pb0-f47.google.com with SMTP id un15so734361pbc.34
+        for <linux-mm@kvack.org>; Tue, 13 May 2014 01:24:27 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id zm10si7599646pbc.189.2014.05.13.01.24.26
+        for <linux-mm@kvack.org>;
+        Tue, 13 May 2014 01:24:26 -0700 (PDT)
+From: Andy Shevchenko <andriy.shevchenko@linux.intel.com>
+Subject: [PATCH] mm: exclude duplicate header
+Date: Tue, 13 May 2014 11:24:22 +0300
+Message-Id: <1399969462-15768-1-git-send-email-andriy.shevchenko@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, peterz@infradead.org, mingo@kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
+Cc: Andy Shevchenko <andriy.shevchenko@linux.intel.com>
 
-Hi Sasha,
+The mmdebug.h is included twice. Let's remove one entry.
+There is no functinal changes.
 
-On 12 May 2014 17:11, Sasha Levin <sasha.levin@oracle.com> wrote:
-> Since we can't find any actual users,
+Signed-off-by: Andy Shevchenko <andriy.shevchenko@linux.intel.com>
+---
+ include/linux/gfp.h | 1 -
+ 1 file changed, 1 deletion(-)
 
-The PyPy project doesn't count as an "actual user"?  It's not just an
-idea in the air.  It's beta code that is already released (and open
-source):
-
-http://morepypy.blogspot.ch/2014/04/stm-results-and-second-call-for.html
-
-The core library is available from there (see the test suite in c7/test/):
-
-https://bitbucket.org/pypy/stmgc
-
-I already reacted to the discussion here by making remap_file_pages()
-optional (#undef USE_REMAP_FILE_PAGES) but didn't measure the
-performance impact of this, if any (I expect it to be reasonable).
-Still, if you're looking for a real piece of code using
-remap_file_pages(), it's one.
-
-
-A bient=C3=B4t,
-
-Armin.
+diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+index d382db7..6a96514 100644
+--- a/include/linux/gfp.h
++++ b/include/linux/gfp.h
+@@ -6,7 +6,6 @@
+ #include <linux/stddef.h>
+ #include <linux/linkage.h>
+ #include <linux/topology.h>
+-#include <linux/mmdebug.h>
+ 
+ struct vm_area_struct;
+ 
+-- 
+2.0.0.rc2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
