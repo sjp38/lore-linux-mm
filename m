@@ -1,127 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vc0-f180.google.com (mail-vc0-f180.google.com [209.85.220.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 971D66B0039
-	for <linux-mm@kvack.org>; Tue, 13 May 2014 02:21:25 -0400 (EDT)
-Received: by mail-vc0-f180.google.com with SMTP id hy4so9366282vcb.11
-        for <linux-mm@kvack.org>; Mon, 12 May 2014 23:21:25 -0700 (PDT)
-Received: from mail-vc0-x231.google.com (mail-vc0-x231.google.com [2607:f8b0:400c:c03::231])
-        by mx.google.com with ESMTPS id sq9si2471594vdc.89.2014.05.12.23.21.24
+Received: from mail-qg0-f41.google.com (mail-qg0-f41.google.com [209.85.192.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 09A9D6B0035
+	for <linux-mm@kvack.org>; Tue, 13 May 2014 03:32:55 -0400 (EDT)
+Received: by mail-qg0-f41.google.com with SMTP id j5so9011407qga.0
+        for <linux-mm@kvack.org>; Tue, 13 May 2014 00:32:54 -0700 (PDT)
+Received: from mail-qc0-x22f.google.com (mail-qc0-x22f.google.com [2607:f8b0:400d:c01::22f])
+        by mx.google.com with ESMTPS id e10si7096700qco.51.2014.05.13.00.32.54
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 12 May 2014 23:21:25 -0700 (PDT)
-Received: by mail-vc0-f177.google.com with SMTP id if17so5628464vcb.22
-        for <linux-mm@kvack.org>; Mon, 12 May 2014 23:21:24 -0700 (PDT)
+        Tue, 13 May 2014 00:32:54 -0700 (PDT)
+Received: by mail-qc0-f175.google.com with SMTP id w7so8981423qcr.6
+        for <linux-mm@kvack.org>; Tue, 13 May 2014 00:32:54 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <CAL_JsqK=BiZx31xUC=_8s7+QeAGjrWePOzeDLEt=YfpdLbS_KA@mail.gmail.com>
-References: <1399861195-21087-1-git-send-email-superlibj8301@gmail.com>
-	<1399861195-21087-2-git-send-email-superlibj8301@gmail.com>
-	<CAL_JsqK=BiZx31xUC=_8s7+QeAGjrWePOzeDLEt=YfpdLbS_KA@mail.gmail.com>
-Date: Tue, 13 May 2014 14:21:24 +0800
-Message-ID: <CAHPCO9G8nqVfBXw3ej_Ot8CUkKgVB5QiZtkd9y+JBOBAaeJ7GQ@mail.gmail.com>
-Subject: Re: [RFC][PATCH 1/2] mm/vmalloc: Add IO mapping space reused interface.
-From: Richard Lee <superlibj8301@gmail.com>
-Content-Type: text/plain; charset=ISO-8859-1
+In-Reply-To: <5370E4B4.1060802@oracle.com>
+References: <1399552888-11024-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1399552888-11024-3-git-send-email-kirill.shutemov@linux.intel.com>
+ <20140508145729.3d82d2c989cfc483c94eb324@linux-foundation.org> <5370E4B4.1060802@oracle.com>
+From: Armin Rigo <arigo@tunes.org>
+Date: Tue, 13 May 2014 09:32:13 +0200
+Message-ID: <CAMSv6X0yg4haVtUifFrdkCCZjJV-TLXJ-KsiCPiBue0Y0qNTcQ@mail.gmail.com>
+Subject: Re: [PATCH 2/2] mm: replace remap_file_pages() syscall with emulation
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rob Herring <robherring2@gmail.com>
-Cc: Russell King - ARM Linux <linux@arm.linux.org.uk>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Richard Lee <superlibj@gmail.com>
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, peterz@infradead.org, mingo@kernel.org
 
-On Tue, May 13, 2014 at 11:13 AM, Rob Herring <robherring2@gmail.com> wrote:
-> On Sun, May 11, 2014 at 9:19 PM, Richard Lee <superlibj8301@gmail.com> wrote:
->> For the IO mapping, for the same physical address space maybe
->> mapped more than one time, for example, in some SoCs:
->> 0x20000000 ~ 0x20001000: are global control IO physical map,
->> and this range space will be used by many drivers.
->
-> What address or who the user is isn't really relevant.
->
->> And then if each driver will do the same ioremap operation, we
->> will waste to much malloc virtual spaces.
->
-> s/malloc/vmalloc/
->
->>
->> This patch add the IO mapping space reusing interface:
->> - find_vm_area_paddr: used to find the exsit vmalloc area using
->
-> s/exsit/exist/
->
+Hi Sasha,
 
-Yes, see the next version.
+On 12 May 2014 17:11, Sasha Levin <sasha.levin@oracle.com> wrote:
+> Since we can't find any actual users,
 
-[...]
->> +{
->> +       struct vmap_area *va;
->> +
->> +       va = find_vmap_area((unsigned long)addr);
->> +       if (!va || !(va->flags & VM_VM_AREA) || !va->vm)
->> +               return 1;
->> +
->> +       if (va->vm->used <= 1)
->> +               return 1;
->> +
->> +       --va->vm->used;
->
-> What lock protects this? You should use atomic ops here.
->
+The PyPy project doesn't count as an "actual user"?  It's not just an
+idea in the air.  It's beta code that is already released (and open
+source):
 
-Yes, it is.
+http://morepypy.blogspot.ch/2014/04/stm-results-and-second-call-for.html
+
+The core library is available from there (see the test suite in c7/test/):
+
+https://bitbucket.org/pypy/stmgc
+
+I already reacted to the discussion here by making remap_file_pages()
+optional (#undef USE_REMAP_FILE_PAGES) but didn't measure the
+performance impact of this, if any (I expect it to be reasonable).
+Still, if you're looking for a real piece of code using
+remap_file_pages(), it's one.
 
 
-[...]
->> +       if (!(flags & VM_IOREMAP))
->> +               return NULL;
->> +
->> +       rcu_read_lock();
->> +       list_for_each_entry_rcu(va, &vmap_area_list, list) {
->> +               phys_addr_t phys_addr;
->> +
->> +               if (!va || !(va->flags & VM_VM_AREA) || !va->vm)
->> +                       continue;
->> +
->> +               phys_addr = va->vm->phys_addr;
->> +
->> +               if (paddr < phys_addr || paddr + size > phys_addr + va->vm->size)
->> +                       continue;
->> +
->> +               *offset = paddr - phys_addr;
->> +
->> +               if (va->vm->flags & VM_IOREMAP && va->vm->size >= size) {
->> +                       va->vm->used++;
->
-> What lock protects this? It looks like you are modifying this with
-> only a rcu reader lock.
+A bient=C3=B4t,
 
-I'll try to use the proper lock ops for this later.
-
-
-
-Thanks very much,
-
-Richard
-
-
->
->> +                       rcu_read_unlock();
->> +                       return va->vm;
->> +               }
->> +       }
->> +       rcu_read_unlock();
->> +
->> +       return NULL;
->> +}
->> +
->>  /**
->>   *     find_vm_area  -  find a continuous kernel virtual area
->>   *     @addr:          base address
->> --
->> 1.8.4
->>
->>
->> _______________________________________________
->> linux-arm-kernel mailing list
->> linux-arm-kernel@lists.infradead.org
->> http://lists.infradead.org/mailman/listinfo/linux-arm-kernel
+Armin.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
