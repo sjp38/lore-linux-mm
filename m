@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-ee0-f45.google.com (mail-ee0-f45.google.com [74.125.83.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E3436B0039
-	for <linux-mm@kvack.org>; Tue, 13 May 2014 05:46:05 -0400 (EDT)
-Received: by mail-ee0-f45.google.com with SMTP id d49so204636eek.18
-        for <linux-mm@kvack.org>; Tue, 13 May 2014 02:46:04 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 70D8F6B003B
+	for <linux-mm@kvack.org>; Tue, 13 May 2014 05:46:06 -0400 (EDT)
+Received: by mail-ee0-f45.google.com with SMTP id d49so204656eek.18
+        for <linux-mm@kvack.org>; Tue, 13 May 2014 02:46:05 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y41si12682744eel.80.2014.05.13.02.46.03
+        by mx.google.com with ESMTPS id s46si12665683eeg.225.2014.05.13.02.46.04
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 13 May 2014 02:46:04 -0700 (PDT)
+        Tue, 13 May 2014 02:46:05 -0700 (PDT)
 From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH 08/19] mm: page_alloc: Take the ALLOC_NO_WATERMARK check out of the fast path
-Date: Tue, 13 May 2014 10:45:39 +0100
-Message-Id: <1399974350-11089-9-git-send-email-mgorman@suse.de>
+Subject: [PATCH 09/19] mm: page_alloc: Use word-based accesses for get/set pageblock bitmaps
+Date: Tue, 13 May 2014 10:45:40 +0100
+Message-Id: <1399974350-11089-10-git-send-email-mgorman@suse.de>
 In-Reply-To: <1399974350-11089-1-git-send-email-mgorman@suse.de>
 References: <1399974350-11089-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
@@ -20,47 +20,189 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@intel.com>, Mel Gorman <mgorman@suse.de>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>
 
-ALLOC_NO_WATERMARK is set in a few cases. Always by kswapd, always for
-__GFP_MEMALLOC, sometimes for swap-over-nfs, tasks etc. Each of these cases
-are relatively rare events but the ALLOC_NO_WATERMARK check is an unlikely
-branch in the fast path.  This patch moves the check out of the fast path
-and after it has been determined that the watermarks have not been met. This
-helps the common fast path at the cost of making the slow path slower and
-hitting kswapd with a performance cost. It's a reasonable tradeoff.
+The test_bit operations in get/set pageblock flags are expensive. This patch
+reads the bitmap on a word basis and use shifts and masks to isolate the bits
+of interest. Similarly masks are used to set a local copy of the bitmap and then
+use cmpxchg to update the bitmap if there have been no other changes made in
+parallel.
+
+In a test running dd onto tmpfs the overhead of the pageblock-related
+functions went from 1.27% in profiles to 0.5%.
 
 Signed-off-by: Mel Gorman <mgorman@suse.de>
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-Reviewed-by: Rik van Riel <riel@redhat.com>
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 ---
- mm/page_alloc.c | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ include/linux/mmzone.h          |  6 ++++-
+ include/linux/pageblock-flags.h | 37 ++++++++++++++++++++++++-----
+ mm/page_alloc.c                 | 52 +++++++++++++++++++++++++----------------
+ 3 files changed, 68 insertions(+), 27 deletions(-)
 
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index fac5509..835aa3d 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -75,9 +75,13 @@ enum {
+ 
+ extern int page_group_by_mobility_disabled;
+ 
++#define NR_MIGRATETYPE_BITS (PB_migrate_end - PB_migrate + 1)
++#define MIGRATETYPE_MASK ((1UL << NR_MIGRATETYPE_BITS) - 1)
++
+ static inline int get_pageblock_migratetype(struct page *page)
+ {
+-	return get_pageblock_flags_group(page, PB_migrate, PB_migrate_end);
++	BUILD_BUG_ON(PB_migrate_end - PB_migrate != 2);
++	return get_pageblock_flags_mask(page, PB_migrate_end, MIGRATETYPE_MASK);
+ }
+ 
+ struct free_area {
+diff --git a/include/linux/pageblock-flags.h b/include/linux/pageblock-flags.h
+index 2ee8cd2..c08730c 100644
+--- a/include/linux/pageblock-flags.h
++++ b/include/linux/pageblock-flags.h
+@@ -30,9 +30,12 @@ enum pageblock_bits {
+ 	PB_migrate,
+ 	PB_migrate_end = PB_migrate + 3 - 1,
+ 			/* 3 bits required for migrate types */
+-#ifdef CONFIG_COMPACTION
+ 	PB_migrate_skip,/* If set the block is skipped by compaction */
+-#endif /* CONFIG_COMPACTION */
++
++	/*
++	 * Assume the bits will always align on a word. If this assumption
++	 * changes then get/set pageblock needs updating.
++	 */
+ 	NR_PAGEBLOCK_BITS
+ };
+ 
+@@ -62,11 +65,33 @@ extern int pageblock_order;
+ /* Forward declaration */
+ struct page;
+ 
++unsigned long get_pageblock_flags_mask(struct page *page,
++				unsigned long end_bitidx,
++				unsigned long mask);
++void set_pageblock_flags_mask(struct page *page,
++				unsigned long flags,
++				unsigned long end_bitidx,
++				unsigned long mask);
++
+ /* Declarations for getting and setting flags. See mm/page_alloc.c */
+-unsigned long get_pageblock_flags_group(struct page *page,
+-					int start_bitidx, int end_bitidx);
+-void set_pageblock_flags_group(struct page *page, unsigned long flags,
+-					int start_bitidx, int end_bitidx);
++static inline unsigned long get_pageblock_flags_group(struct page *page,
++					int start_bitidx, int end_bitidx)
++{
++	unsigned long nr_flag_bits = end_bitidx - start_bitidx + 1;
++	unsigned long mask = (1 << nr_flag_bits) - 1;
++
++	return get_pageblock_flags_mask(page, end_bitidx, mask);
++}
++
++static inline void set_pageblock_flags_group(struct page *page,
++					unsigned long flags,
++					int start_bitidx, int end_bitidx)
++{
++	unsigned long nr_flag_bits = end_bitidx - start_bitidx + 1;
++	unsigned long mask = (1 << nr_flag_bits) - 1;
++
++	set_pageblock_flags_mask(page, flags, end_bitidx, mask);
++}
+ 
+ #ifdef CONFIG_COMPACTION
+ #define get_pageblock_skip(page) \
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 2e576fd..dc123ff 100644
+index dc123ff..b438eb7 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -1944,9 +1944,6 @@ zonelist_scan:
- 			(alloc_flags & ALLOC_CPUSET) &&
- 			!cpuset_zone_allowed_softwall(zone, gfp_mask))
- 				continue;
--		BUILD_BUG_ON(ALLOC_NO_WATERMARKS < NR_WMARK);
--		if (unlikely(alloc_flags & ALLOC_NO_WATERMARKS))
--			goto try_this_zone;
- 		/*
- 		 * Distribute pages in proportion to the individual
- 		 * zone size to ensure fair page aging.  The zone a
-@@ -1993,6 +1990,11 @@ zonelist_scan:
- 				       classzone_idx, alloc_flags)) {
- 			int ret;
+@@ -6032,53 +6032,65 @@ static inline int pfn_to_bitidx(struct zone *zone, unsigned long pfn)
+  * @end_bitidx: The last bit of interest
+  * returns pageblock_bits flags
+  */
+-unsigned long get_pageblock_flags_group(struct page *page,
+-					int start_bitidx, int end_bitidx)
++unsigned long get_pageblock_flags_mask(struct page *page,
++					unsigned long end_bitidx,
++					unsigned long mask)
+ {
+ 	struct zone *zone;
+ 	unsigned long *bitmap;
+-	unsigned long pfn, bitidx;
+-	unsigned long flags = 0;
+-	unsigned long value = 1;
++	unsigned long pfn, bitidx, word_bitidx;
++	unsigned long word;
  
-+			/* Checked here to keep the fast path fast */
-+			BUILD_BUG_ON(ALLOC_NO_WATERMARKS < NR_WMARK);
-+			if (alloc_flags & ALLOC_NO_WATERMARKS)
-+				goto try_this_zone;
+ 	zone = page_zone(page);
+ 	pfn = page_to_pfn(page);
+ 	bitmap = get_pageblock_bitmap(zone, pfn);
+ 	bitidx = pfn_to_bitidx(zone, pfn);
++	word_bitidx = bitidx / BITS_PER_LONG;
++	bitidx &= (BITS_PER_LONG-1);
+ 
+-	for (; start_bitidx <= end_bitidx; start_bitidx++, value <<= 1)
+-		if (test_bit(bitidx + start_bitidx, bitmap))
+-			flags |= value;
+-
+-	return flags;
++	word = bitmap[word_bitidx];
++	bitidx += end_bitidx;
++	return (word >> (BITS_PER_LONG - bitidx - 1)) & mask;
+ }
+ 
+ /**
+- * set_pageblock_flags_group - Set the requested group of flags for a pageblock_nr_pages block of pages
++ * set_pageblock_flags_mask - Set the requested group of flags for a pageblock_nr_pages block of pages
+  * @page: The page within the block of interest
+  * @start_bitidx: The first bit of interest
+  * @end_bitidx: The last bit of interest
+  * @flags: The flags to set
+  */
+-void set_pageblock_flags_group(struct page *page, unsigned long flags,
+-					int start_bitidx, int end_bitidx)
++void set_pageblock_flags_mask(struct page *page, unsigned long flags,
++					unsigned long end_bitidx,
++					unsigned long mask)
+ {
+ 	struct zone *zone;
+ 	unsigned long *bitmap;
+-	unsigned long pfn, bitidx;
+-	unsigned long value = 1;
++	unsigned long pfn, bitidx, word_bitidx;
++	unsigned long old_word, word;
 +
- 			if (IS_ENABLED(CONFIG_NUMA) &&
- 					!did_zlc_setup && nr_online_nodes > 1) {
- 				/*
++	BUILD_BUG_ON(NR_PAGEBLOCK_BITS != 4);
+ 
+ 	zone = page_zone(page);
+ 	pfn = page_to_pfn(page);
+ 	bitmap = get_pageblock_bitmap(zone, pfn);
+ 	bitidx = pfn_to_bitidx(zone, pfn);
++	word_bitidx = bitidx / BITS_PER_LONG;
++	bitidx &= (BITS_PER_LONG-1);
++
+ 	VM_BUG_ON_PAGE(!zone_spans_pfn(zone, pfn), page);
+ 
+-	for (; start_bitidx <= end_bitidx; start_bitidx++, value <<= 1)
+-		if (flags & value)
+-			__set_bit(bitidx + start_bitidx, bitmap);
+-		else
+-			__clear_bit(bitidx + start_bitidx, bitmap);
++	bitidx += end_bitidx;
++	mask <<= (BITS_PER_LONG - bitidx - 1);
++	flags <<= (BITS_PER_LONG - bitidx - 1);
++
++	word = ACCESS_ONCE(bitmap[word_bitidx]);
++	for (;;) {
++		old_word = cmpxchg(&bitmap[word_bitidx], word, (word & ~mask) | flags);
++		if (word == old_word)
++			break;
++		word = old_word;
++	}
+ }
+ 
+ /*
 -- 
 1.8.4.5
 
