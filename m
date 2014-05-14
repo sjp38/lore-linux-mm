@@ -1,143 +1,328 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id B23C06B0036
-	for <linux-mm@kvack.org>; Wed, 14 May 2014 05:21:55 -0400 (EDT)
-Received: by mail-pa0-f49.google.com with SMTP id lj1so1443935pab.22
-        for <linux-mm@kvack.org>; Wed, 14 May 2014 02:21:55 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [143.182.124.21])
-        by mx.google.com with ESMTP id zm3si1334386pac.97.2014.05.14.02.21.54
-        for <linux-mm@kvack.org>;
-        Wed, 14 May 2014 02:21:54 -0700 (PDT)
-Date: Wed, 14 May 2014 17:21:48 +0800
-From: kbuild test robot <fengguang.wu@intel.com>
-Subject: [mmotm:master 409/499]
- drivers/gpu/drm/vmwgfx/vmwgfx_drv.c:319:54: sparse: Using plain integer as
- NULL pointer
-Message-ID: <537335ac.ZObXa1L0TEvThn1M%fengguang.wu@intel.com>
+Received: from mail-ee0-f54.google.com (mail-ee0-f54.google.com [74.125.83.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E0E06B0036
+	for <linux-mm@kvack.org>; Wed, 14 May 2014 05:40:16 -0400 (EDT)
+Received: by mail-ee0-f54.google.com with SMTP id b57so1173457eek.13
+        for <linux-mm@kvack.org>; Wed, 14 May 2014 02:40:15 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id z48si1221972eey.293.2014.05.14.02.40.14
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 14 May 2014 02:40:14 -0700 (PDT)
+Date: Wed, 14 May 2014 11:40:12 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH -mm v2] memcg: cleanup kmem cache creation/destruction
+ functions naming
+Message-ID: <20140514094012.GA15756@dhcp22.suse.cz>
+References: <20140507124533.GF9489@dhcp22.suse.cz>
+ <1399993551-13298-1-git-send-email-vdavydov@parallels.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed;
- boundary="=_537335ac.Yu8HMBp0TAa7O+2HTikrRVRmkUmi6o0rI5A/QAYJ315BSY6M"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1399993551-13298-1-git-send-email-vdavydov@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hans Verkuil <hverkuil@xs4all.nl>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, kbuild-all@01.org
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-This is a multi-part message in MIME format.
+On Tue 13-05-14 19:05:51, Vladimir Davydov wrote:
+> Current names are rather inconsistent. Let's try to improve them.
+> 
+> Brief change log:
+> 
+> ** old name **                          ** new name **
+> 
+> kmem_cache_create_memcg                 memcg_create_kmem_cache
+> memcg_kmem_create_cache                 memcg_regsiter_cache
+> memcg_kmem_destroy_cache                memcg_unregister_cache
+> 
+> kmem_cache_destroy_memcg_children       memcg_cleanup_cache_params
+> mem_cgroup_destroy_all_caches           memcg_unregister_all_caches
+> 
+> create_work                             memcg_register_cache_work
+> memcg_create_cache_work_func            memcg_register_cache_func
+> memcg_create_cache_enqueue              memcg_schedule_register_cache
+> 
+> Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
 
---=_537335ac.Yu8HMBp0TAa7O+2HTikrRVRmkUmi6o0rI5A/QAYJ315BSY6M
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Acked-by: Michal Hocko <mhocko@suse.cz>
+Thanks!
 
-tree:   git://git.cmpxchg.org/linux-mmotm.git master
-head:   1055821ba3c83218cbba4481f8349e3326cdaa32
-commit: 20fbd93e7b438ae1deea44a4ae632edaab7cee0b [409/499] include/asm-generic/ioctl.h: fix _IOC_TYPECHECK sparse error
-reproduce: make C=1 CF=-D__CHECK_ENDIAN__
+> ---
+>  include/linux/memcontrol.h |    2 +-
+>  include/linux/slab.h       |    2 +-
+>  mm/memcontrol.c            |   60 +++++++++++++++++++++-----------------------
+>  mm/slab_common.c           |   12 ++++-----
+>  4 files changed, 36 insertions(+), 40 deletions(-)
+> 
+> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> index aa429de275cc..c3a53cbb88eb 100644
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+> @@ -514,7 +514,7 @@ __memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp);
+>  int __memcg_charge_slab(struct kmem_cache *cachep, gfp_t gfp, int order);
+>  void __memcg_uncharge_slab(struct kmem_cache *cachep, int order);
+>  
+> -int __kmem_cache_destroy_memcg_children(struct kmem_cache *s);
+> +int __memcg_cleanup_cache_params(struct kmem_cache *s);
+>  
+>  /**
+>   * memcg_kmem_newpage_charge: verify if a new kmem allocation is allowed.
+> diff --git a/include/linux/slab.h b/include/linux/slab.h
+> index 86e5b26fbdab..1d9abb7d22a0 100644
+> --- a/include/linux/slab.h
+> +++ b/include/linux/slab.h
+> @@ -116,7 +116,7 @@ struct kmem_cache *kmem_cache_create(const char *, size_t, size_t,
+>  			unsigned long,
+>  			void (*)(void *));
+>  #ifdef CONFIG_MEMCG_KMEM
+> -struct kmem_cache *kmem_cache_create_memcg(struct mem_cgroup *,
+> +struct kmem_cache *memcg_create_kmem_cache(struct mem_cgroup *,
+>  					   struct kmem_cache *,
+>  					   const char *);
+>  #endif
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index f5ea266f4d9a..b12a05049f2a 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -3127,8 +3127,8 @@ void memcg_free_cache_params(struct kmem_cache *s)
+>  	kfree(s->memcg_params);
+>  }
+>  
+> -static void memcg_kmem_create_cache(struct mem_cgroup *memcg,
+> -				    struct kmem_cache *root_cache)
+> +static void memcg_register_cache(struct mem_cgroup *memcg,
+> +				 struct kmem_cache *root_cache)
+>  {
+>  	static char memcg_name_buf[NAME_MAX + 1]; /* protected by
+>  						     memcg_slab_mutex */
+> @@ -3148,7 +3148,7 @@ static void memcg_kmem_create_cache(struct mem_cgroup *memcg,
+>  		return;
+>  
+>  	cgroup_name(memcg->css.cgroup, memcg_name_buf, NAME_MAX + 1);
+> -	cachep = kmem_cache_create_memcg(memcg, root_cache, memcg_name_buf);
+> +	cachep = memcg_create_kmem_cache(memcg, root_cache, memcg_name_buf);
+>  	/*
+>  	 * If we could not create a memcg cache, do not complain, because
+>  	 * that's not critical at all as we can always proceed with the root
+> @@ -3170,7 +3170,7 @@ static void memcg_kmem_create_cache(struct mem_cgroup *memcg,
+>  	root_cache->memcg_params->memcg_caches[id] = cachep;
+>  }
+>  
+> -static void memcg_kmem_destroy_cache(struct kmem_cache *cachep)
+> +static void memcg_unregister_cache(struct kmem_cache *cachep)
+>  {
+>  	struct kmem_cache *root_cache;
+>  	struct mem_cgroup *memcg;
+> @@ -3223,7 +3223,7 @@ static inline void memcg_resume_kmem_account(void)
+>  	current->memcg_kmem_skip_account--;
+>  }
+>  
+> -int __kmem_cache_destroy_memcg_children(struct kmem_cache *s)
+> +int __memcg_cleanup_cache_params(struct kmem_cache *s)
+>  {
+>  	struct kmem_cache *c;
+>  	int i, failed = 0;
+> @@ -3234,7 +3234,7 @@ int __kmem_cache_destroy_memcg_children(struct kmem_cache *s)
+>  		if (!c)
+>  			continue;
+>  
+> -		memcg_kmem_destroy_cache(c);
+> +		memcg_unregister_cache(c);
+>  
+>  		if (cache_from_memcg_idx(s, i))
+>  			failed++;
+> @@ -3243,7 +3243,7 @@ int __kmem_cache_destroy_memcg_children(struct kmem_cache *s)
+>  	return failed;
+>  }
+>  
+> -static void mem_cgroup_destroy_all_caches(struct mem_cgroup *memcg)
+> +static void memcg_unregister_all_caches(struct mem_cgroup *memcg)
+>  {
+>  	struct kmem_cache *cachep;
+>  	struct memcg_cache_params *params, *tmp;
+> @@ -3256,25 +3256,26 @@ static void mem_cgroup_destroy_all_caches(struct mem_cgroup *memcg)
+>  		cachep = memcg_params_to_cache(params);
+>  		kmem_cache_shrink(cachep);
+>  		if (atomic_read(&cachep->memcg_params->nr_pages) == 0)
+> -			memcg_kmem_destroy_cache(cachep);
+> +			memcg_unregister_cache(cachep);
+>  	}
+>  	mutex_unlock(&memcg_slab_mutex);
+>  }
+>  
+> -struct create_work {
+> +struct memcg_register_cache_work {
+>  	struct mem_cgroup *memcg;
+>  	struct kmem_cache *cachep;
+>  	struct work_struct work;
+>  };
+>  
+> -static void memcg_create_cache_work_func(struct work_struct *w)
+> +static void memcg_register_cache_func(struct work_struct *w)
+>  {
+> -	struct create_work *cw = container_of(w, struct create_work, work);
+> +	struct memcg_register_cache_work *cw =
+> +		container_of(w, struct memcg_register_cache_work, work);
+>  	struct mem_cgroup *memcg = cw->memcg;
+>  	struct kmem_cache *cachep = cw->cachep;
+>  
+>  	mutex_lock(&memcg_slab_mutex);
+> -	memcg_kmem_create_cache(memcg, cachep);
+> +	memcg_register_cache(memcg, cachep);
+>  	mutex_unlock(&memcg_slab_mutex);
+>  
+>  	css_put(&memcg->css);
+> @@ -3284,12 +3285,12 @@ static void memcg_create_cache_work_func(struct work_struct *w)
+>  /*
+>   * Enqueue the creation of a per-memcg kmem_cache.
+>   */
+> -static void __memcg_create_cache_enqueue(struct mem_cgroup *memcg,
+> -					 struct kmem_cache *cachep)
+> +static void __memcg_schedule_register_cache(struct mem_cgroup *memcg,
+> +					    struct kmem_cache *cachep)
+>  {
+> -	struct create_work *cw;
+> +	struct memcg_register_cache_work *cw;
+>  
+> -	cw = kmalloc(sizeof(struct create_work), GFP_NOWAIT);
+> +	cw = kmalloc(sizeof(*cw), GFP_NOWAIT);
+>  	if (cw == NULL) {
+>  		css_put(&memcg->css);
+>  		return;
+> @@ -3298,17 +3299,17 @@ static void __memcg_create_cache_enqueue(struct mem_cgroup *memcg,
+>  	cw->memcg = memcg;
+>  	cw->cachep = cachep;
+>  
+> -	INIT_WORK(&cw->work, memcg_create_cache_work_func);
+> +	INIT_WORK(&cw->work, memcg_register_cache_func);
+>  	schedule_work(&cw->work);
+>  }
+>  
+> -static void memcg_create_cache_enqueue(struct mem_cgroup *memcg,
+> -				       struct kmem_cache *cachep)
+> +static void memcg_schedule_register_cache(struct mem_cgroup *memcg,
+> +					  struct kmem_cache *cachep)
+>  {
+>  	/*
+>  	 * We need to stop accounting when we kmalloc, because if the
+>  	 * corresponding kmalloc cache is not yet created, the first allocation
+> -	 * in __memcg_create_cache_enqueue will recurse.
+> +	 * in __memcg_schedule_register_cache will recurse.
+>  	 *
+>  	 * However, it is better to enclose the whole function. Depending on
+>  	 * the debugging options enabled, INIT_WORK(), for instance, can
+> @@ -3317,7 +3318,7 @@ static void memcg_create_cache_enqueue(struct mem_cgroup *memcg,
+>  	 * the safest choice is to do it like this, wrapping the whole function.
+>  	 */
+>  	memcg_stop_kmem_account();
+> -	__memcg_create_cache_enqueue(memcg, cachep);
+> +	__memcg_schedule_register_cache(memcg, cachep);
+>  	memcg_resume_kmem_account();
+>  }
+>  
+> @@ -3388,16 +3389,11 @@ struct kmem_cache *__memcg_kmem_get_cache(struct kmem_cache *cachep,
+>  	 *
+>  	 * However, there are some clashes that can arrive from locking.
+>  	 * For instance, because we acquire the slab_mutex while doing
+> -	 * kmem_cache_dup, this means no further allocation could happen
+> -	 * with the slab_mutex held.
+> -	 *
+> -	 * Also, because cache creation issue get_online_cpus(), this
+> -	 * creates a lock chain: memcg_slab_mutex -> cpu_hotplug_mutex,
+> -	 * that ends up reversed during cpu hotplug. (cpuset allocates
+> -	 * a bunch of GFP_KERNEL memory during cpuup). Due to all that,
+> -	 * better to defer everything.
+> +	 * memcg_create_kmem_cache, this means no further allocation
+> +	 * could happen with the slab_mutex held. So it's better to
+> +	 * defer everything.
+>  	 */
+> -	memcg_create_cache_enqueue(memcg, cachep);
+> +	memcg_schedule_register_cache(memcg, cachep);
+>  	return cachep;
+>  out:
+>  	rcu_read_unlock();
+> @@ -3521,7 +3517,7 @@ void __memcg_kmem_uncharge_pages(struct page *page, int order)
+>  	memcg_uncharge_kmem(memcg, PAGE_SIZE << order);
+>  }
+>  #else
+> -static inline void mem_cgroup_destroy_all_caches(struct mem_cgroup *memcg)
+> +static inline void memcg_unregister_all_caches(struct mem_cgroup *memcg)
+>  {
+>  }
+>  #endif /* CONFIG_MEMCG_KMEM */
+> @@ -6399,7 +6395,7 @@ static void mem_cgroup_css_offline(struct cgroup_subsys_state *css)
+>  	css_for_each_descendant_post(iter, css)
+>  		mem_cgroup_reparent_charges(mem_cgroup_from_css(iter));
+>  
+> -	mem_cgroup_destroy_all_caches(memcg);
+> +	memcg_unregister_all_caches(memcg);
+>  	vmpressure_cleanup(&memcg->vmpressure);
+>  }
+>  
+> diff --git a/mm/slab_common.c b/mm/slab_common.c
+> index 32175617cb75..48fafb61f35e 100644
+> --- a/mm/slab_common.c
+> +++ b/mm/slab_common.c
+> @@ -261,7 +261,7 @@ EXPORT_SYMBOL(kmem_cache_create);
+>  
+>  #ifdef CONFIG_MEMCG_KMEM
+>  /*
+> - * kmem_cache_create_memcg - Create a cache for a memory cgroup.
+> + * memcg_create_kmem_cache - Create a cache for a memory cgroup.
+>   * @memcg: The memory cgroup the new cache is for.
+>   * @root_cache: The parent of the new cache.
+>   * @memcg_name: The name of the memory cgroup (used for naming the new cache).
+> @@ -270,7 +270,7 @@ EXPORT_SYMBOL(kmem_cache_create);
+>   * requests going from @memcg to @root_cache. The new cache inherits properties
+>   * from its parent.
+>   */
+> -struct kmem_cache *kmem_cache_create_memcg(struct mem_cgroup *memcg,
+> +struct kmem_cache *memcg_create_kmem_cache(struct mem_cgroup *memcg,
+>  					   struct kmem_cache *root_cache,
+>  					   const char *memcg_name)
+>  {
+> @@ -305,7 +305,7 @@ out_unlock:
+>  	return s;
+>  }
+>  
+> -static int kmem_cache_destroy_memcg_children(struct kmem_cache *s)
+> +static int memcg_cleanup_cache_params(struct kmem_cache *s)
+>  {
+>  	int rc;
+>  
+> @@ -314,13 +314,13 @@ static int kmem_cache_destroy_memcg_children(struct kmem_cache *s)
+>  		return 0;
+>  
+>  	mutex_unlock(&slab_mutex);
+> -	rc = __kmem_cache_destroy_memcg_children(s);
+> +	rc = __memcg_cleanup_cache_params(s);
+>  	mutex_lock(&slab_mutex);
+>  
+>  	return rc;
+>  }
+>  #else
+> -static int kmem_cache_destroy_memcg_children(struct kmem_cache *s)
+> +static int memcg_cleanup_cache_params(struct kmem_cache *s)
+>  {
+>  	return 0;
+>  }
+> @@ -343,7 +343,7 @@ void kmem_cache_destroy(struct kmem_cache *s)
+>  	if (s->refcount)
+>  		goto out_unlock;
+>  
+> -	if (kmem_cache_destroy_memcg_children(s) != 0)
+> +	if (memcg_cleanup_cache_params(s) != 0)
+>  		goto out_unlock;
+>  
+>  	list_del(&s->list);
+> -- 
+> 1.7.10.4
+> 
 
-
-sparse warnings: (new ones prefixed by >>)
-
->> drivers/gpu/drm/vmwgfx/vmwgfx_drv.c:319:54: sparse: Using plain integer as NULL pointer
---
->> drivers/gpu/drm/drm_ioc32.c:460:17: sparse: cast removes address space of expression
->> drivers/gpu/drm/drm_ioc32.c:460:14: sparse: incorrect type in assignment (different address spaces)
-   drivers/gpu/drm/drm_ioc32.c:460:14:    expected struct drm_buf_desc [noderef] <asn:1>*list
-   drivers/gpu/drm/drm_ioc32.c:460:14:    got struct drm_buf_desc *<noident>
->> drivers/gpu/drm/drm_ioc32.c:521:17: sparse: cast removes address space of expression
->> drivers/gpu/drm/drm_ioc32.c:521:14: sparse: incorrect type in assignment (different address spaces)
-   drivers/gpu/drm/drm_ioc32.c:521:14:    expected struct drm_buf_pub [noderef] <asn:1>*list
-   drivers/gpu/drm/drm_ioc32.c:521:14:    got struct drm_buf_pub *<noident>
->> drivers/gpu/drm/drm_ioc32.c:1019:20: sparse: symbol 'drm_compat_ioctls' was not declared. Should it be static?
---
->> drivers/gpu/drm/drm_drv.c:276:37: sparse: incorrect type in argument 1 (different address spaces)
-   drivers/gpu/drm/drm_drv.c:276:37:    expected char *buf
-   drivers/gpu/drm/drm_drv.c:276:37:    got char [noderef] <asn:1>*name
->> drivers/gpu/drm/drm_drv.c:279:45: sparse: incorrect type in argument 1 (different address spaces)
-   drivers/gpu/drm/drm_drv.c:279:45:    expected char *buf
-   drivers/gpu/drm/drm_drv.c:279:45:    got char [noderef] <asn:1>*date
->> drivers/gpu/drm/drm_drv.c:282:45: sparse: incorrect type in argument 1 (different address spaces)
-   drivers/gpu/drm/drm_drv.c:282:45:    expected char *buf
-   drivers/gpu/drm/drm_drv.c:282:45:    got char [noderef] <asn:1>*desc
->> drivers/gpu/drm/drm_drv.c:251:34: sparse: incorrect type in argument 1 (different address spaces)
-   drivers/gpu/drm/drm_drv.c:251:34:    expected void [noderef] <asn:1>*to
-   drivers/gpu/drm/drm_drv.c:251:34:    got char *buf
-
-Please consider folding the attached diff :-)
-
-vim +319 drivers/gpu/drm/vmwgfx/vmwgfx_drv.c
-
-e2fa3a76 Thomas Hellstrom 2011-10-04  303  
-4b9e45e6 Thomas Hellstrom 2013-10-10  304  	/*
-4b9e45e6 Thomas Hellstrom 2013-10-10  305  	 * Create the bo as pinned, so that a tryreserve will
-4b9e45e6 Thomas Hellstrom 2013-10-10  306  	 * immediately succeed. This is because we're the only
-4b9e45e6 Thomas Hellstrom 2013-10-10  307  	 * user of the bo currently.
-4b9e45e6 Thomas Hellstrom 2013-10-10  308  	 */
-4b9e45e6 Thomas Hellstrom 2013-10-10  309  	ret = ttm_bo_create(&dev_priv->bdev,
-4b9e45e6 Thomas Hellstrom 2013-10-10  310  			    PAGE_SIZE,
-4b9e45e6 Thomas Hellstrom 2013-10-10  311  			    ttm_bo_type_device,
-4b9e45e6 Thomas Hellstrom 2013-10-10  312  			    &vmw_sys_ne_placement,
-4b9e45e6 Thomas Hellstrom 2013-10-10  313  			    0, false, NULL,
-4b9e45e6 Thomas Hellstrom 2013-10-10  314  			    &bo);
-4b9e45e6 Thomas Hellstrom 2013-10-10  315  
-e2fa3a76 Thomas Hellstrom 2011-10-04  316  	if (unlikely(ret != 0))
-4b9e45e6 Thomas Hellstrom 2013-10-10  317  		return ret;
-4b9e45e6 Thomas Hellstrom 2013-10-10  318  
-4b9e45e6 Thomas Hellstrom 2013-10-10 @319  	ret = ttm_bo_reserve(bo, false, true, false, 0);
-4b9e45e6 Thomas Hellstrom 2013-10-10  320  	BUG_ON(ret != 0);
-e2fa3a76 Thomas Hellstrom 2011-10-04  321  
-e2fa3a76 Thomas Hellstrom 2011-10-04  322  	ret = ttm_bo_kmap(bo, 0, 1, &map);
-e2fa3a76 Thomas Hellstrom 2011-10-04  323  	if (likely(ret == 0)) {
-e2fa3a76 Thomas Hellstrom 2011-10-04  324  		result = ttm_kmap_obj_virtual(&map, &dummy);
-e2fa3a76 Thomas Hellstrom 2011-10-04  325  		result->totalSize = sizeof(*result);
-e2fa3a76 Thomas Hellstrom 2011-10-04  326  		result->state = SVGA3D_QUERYSTATE_PENDING;
-e2fa3a76 Thomas Hellstrom 2011-10-04  327  		result->result32 = 0xff;
-
-:::::: The code at line 319 was first introduced by commit
-:::::: 4b9e45e68ff9ccd241fa61f9eff1cbddabc05ea1 drm/vmwgfx: Ditch the vmw_dummy_query_bo_prepare function
-
-:::::: TO: Thomas Hellstrom <thellstrom@vmware.com>
-:::::: CC: Thomas Hellstrom <thellstrom@vmware.com>
-
----
-0-DAY kernel build testing backend              Open Source Technology Center
-http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporation
-
---=_537335ac.Yu8HMBp0TAa7O+2HTikrRVRmkUmi6o0rI5A/QAYJ315BSY6M
-Content-Type: text/x-diff;
- charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Content-Disposition: attachment;
- filename="make-it-static-20fbd93e7b438ae1deea44a4ae632edaab7cee0b.diff"
-
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: [PATCH mmotm] include/asm-generic/ioctl.h: drm_compat_ioctls[] can be static
-TO: Hans Verkuil <hverkuil@xs4all.nl>
-CC: Johannes Weiner <hannes@cmpxchg.org>
-CC: dri-devel@lists.freedesktop.org 
-CC: linux-kernel@vger.kernel.org 
-
-CC: Hans Verkuil <hverkuil@xs4all.nl>
-CC: Johannes Weiner <hannes@cmpxchg.org>
-Signed-off-by: Fengguang Wu <fengguang.wu@intel.com>
----
- drm_ioc32.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/drivers/gpu/drm/drm_ioc32.c b/drivers/gpu/drm/drm_ioc32.c
-index 2f4c4343..aa8bbb4 100644
---- a/drivers/gpu/drm/drm_ioc32.c
-+++ b/drivers/gpu/drm/drm_ioc32.c
-@@ -1016,7 +1016,7 @@ static int compat_drm_wait_vblank(struct file *file, unsigned int cmd,
- 	return 0;
- }
- 
--drm_ioctl_compat_t *drm_compat_ioctls[] = {
-+static drm_ioctl_compat_t *drm_compat_ioctls[] = {
- 	[DRM_IOCTL_NR(DRM_IOCTL_VERSION32)] = compat_drm_version,
- 	[DRM_IOCTL_NR(DRM_IOCTL_GET_UNIQUE32)] = compat_drm_getunique,
- 	[DRM_IOCTL_NR(DRM_IOCTL_GET_MAP32)] = compat_drm_getmap,
-
---=_537335ac.Yu8HMBp0TAa7O+2HTikrRVRmkUmi6o0rI5A/QAYJ315BSY6M--
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
