@@ -1,74 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 637936B0038
-	for <linux-mm@kvack.org>; Wed, 14 May 2014 16:17:32 -0400 (EDT)
-Received: by mail-wi0-f181.google.com with SMTP id n15so3057710wiw.8
-        for <linux-mm@kvack.org>; Wed, 14 May 2014 13:17:31 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id k17si1068231wjr.121.2014.05.14.13.17.30
+Received: from mail-pb0-f50.google.com (mail-pb0-f50.google.com [209.85.160.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 29B626B0038
+	for <linux-mm@kvack.org>; Wed, 14 May 2014 16:23:15 -0400 (EDT)
+Received: by mail-pb0-f50.google.com with SMTP id ma3so61824pbc.23
+        for <linux-mm@kvack.org>; Wed, 14 May 2014 13:23:14 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id nx7si2971460pab.195.2014.05.14.13.23.13
         for <linux-mm@kvack.org>;
-        Wed, 14 May 2014 13:17:31 -0700 (PDT)
-Date: Wed, 14 May 2014 21:29:45 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH 19/19] mm: filemap: Avoid unnecessary barries and
-	waitqueue lookups in unlock_page fastpath
-Message-ID: <20140514192945.GA10830@redhat.com>
-References: <1399974350-11089-1-git-send-email-mgorman@suse.de> <1399974350-11089-20-git-send-email-mgorman@suse.de> <20140513125313.GR23991@suse.de> <20140513141748.GD2485@laptop.programming.kicks-ass.net> <20140514161152.GA2615@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140514161152.GA2615@redhat.com>
+        Wed, 14 May 2014 13:23:14 -0700 (PDT)
+Date: Wed, 14 May 2014 13:23:12 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: mm: NULL ptr deref handling mmaping of special mappings
+Message-Id: <20140514132312.573e5d3cf99276c3f0b82980@linux-foundation.org>
+In-Reply-To: <53739201.6080604@oracle.com>
+References: <53739201.6080604@oracle.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, David Howells <dhowells@redhat.com>
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Dave Jones <davej@redhat.com>, LKML <linux-kernel@vger.kernel.org>
 
-On 05/14, Oleg Nesterov wrote:
->
-> The subsequent discussion was "off-topic", and it seems that the patch
-> itself needs a bit more discussion,
->
-> On 05/13, Peter Zijlstra wrote:
-> >
-> > On Tue, May 13, 2014 at 01:53:13PM +0100, Mel Gorman wrote:
-> > > On Tue, May 13, 2014 at 10:45:50AM +0100, Mel Gorman wrote:
-> > > >  void unlock_page(struct page *page)
-> > > >  {
-> > > > +	wait_queue_head_t *wqh = clear_page_waiters(page);
-> > > > +
-> > > >  	VM_BUG_ON_PAGE(!PageLocked(page), page);
-> > > > +
-> > > > +	/*
-> > > > +	 * No additional barrier needed due to clear_bit_unlock barriering all updates
-> > > > +	 * before waking waiters
-> > > > +	 */
-> > > >  	clear_bit_unlock(PG_locked, &page->flags);
-> > > > -	smp_mb__after_clear_bit();
-> > > > -	wake_up_page(page, PG_locked);
-> > >
-> > > This is wrong.
->
-> Yes,
->
-> > > The smp_mb__after_clear_bit() is still required to ensure
-> > > that the cleared bit is visible before the wakeup on all architectures.
->
-> But note that "the cleared bit is visible before the wakeup" is confusing.
-> I mean, we do not need mb() before __wake_up(). We need it only because
-> __wake_up_bit() checks waitqueue_active().
+On Wed, 14 May 2014 11:55:45 -0400 Sasha Levin <sasha.levin@oracle.com> wrote:
 
-OOPS. Sorry Mel, I wrote this looking at the chunk above.  But when I found
-the whole patch http://marc.info/?l=linux-mm&m=139997442008267 I see that
-it removes waitqueue_active(), so this can be correct. I do not really know,
-so far I can't say I fully understand this PageWaiters() trick.
+> Hi all,
+> 
+> While fuzzing with trinity inside a KVM tools guest running the latest -next
+> kernel I've stumbled on the following spew:
+> 
+> [ 1634.969408] BUG: unable to handle kernel NULL pointer dereference at           (null)
+> [ 1634.970538] IP: special_mapping_fault (mm/mmap.c:2961)
+> [ 1634.971420] PGD 3334fc067 PUD 3334cf067 PMD 0
+> [ 1634.972081] Oops: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
+> [ 1634.972913] Dumping ftrace buffer:
+> [ 1634.975493]    (ftrace buffer empty)
+> [ 1634.977470] Modules linked in:
+> [ 1634.977513] CPU: 6 PID: 29578 Comm: trinity-c269 Not tainted 3.15.0-rc5-next-20140513-sasha-00020-gebce144-dirty #461
+> [ 1634.977513] task: ffff880333158000 ti: ffff88033351e000 task.ti: ffff88033351e000
+> [ 1634.977513] RIP: special_mapping_fault (mm/mmap.c:2961)
 
-Hmm. But at least prepare_to_wait_exclusive() doesn't look right ;)
+Somebody's gone and broken the x86 oops output.  It used to say
+"special_mapping_fault+0x30/0x120" but the offset info has now
+disappeared.  That was useful for guesstimating whereabouts in the
+function it died.
 
-If nothing else, this needs abort_exclusive_wait() if killed. And while
-"exclusive" is probably fine for __lock_page.*(), I am not sure that
-__wait_on_page_locked_*() should be exclusive.
+The line number isn't very useful as it's not possible (or at least,
+not convenient) for others to reliably reproduce your kernel.
 
-Oleg.
+<scrabbles with git for a while>
+
+: static int special_mapping_fault(struct vm_area_struct *vma,
+: 				struct vm_fault *vmf)
+: {
+: 	pgoff_t pgoff;
+: 	struct page **pages;
+: 
+: 	/*
+: 	 * special mappings have no vm_file, and in that case, the mm
+: 	 * uses vm_pgoff internally. So we have to subtract it from here.
+: 	 * We are allowed to do this because we are the mm; do not copy
+: 	 * this code into drivers!
+: 	 */
+: 	pgoff = vmf->pgoff - vma->vm_pgoff;
+: 
+: 	for (pages = vma->vm_private_data; pgoff && *pages; ++pages)
+: 		pgoff--;
+: 
+: 	if (*pages) {
+: 		struct page *page = *pages;
+: 		get_page(page);
+: 		vmf->page = page;
+: 		return 0;
+: 	}
+: 
+: 	return VM_FAULT_SIGBUS;
+: }
+
+OK so it might be the "if (*pages)".  So vma->vm_private_data was NULL
+and pgoff was zero.  As usual, I can't imagine what race would cause
+that :(
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
