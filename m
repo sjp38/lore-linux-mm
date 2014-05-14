@@ -1,119 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f51.google.com (mail-pb0-f51.google.com [209.85.160.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 887346B0036
-	for <linux-mm@kvack.org>; Tue, 13 May 2014 21:11:44 -0400 (EDT)
-Received: by mail-pb0-f51.google.com with SMTP id ma3so965686pbc.10
-        for <linux-mm@kvack.org>; Tue, 13 May 2014 18:11:44 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id iv2si120084pbd.39.2014.05.13.18.11.42
-        for <linux-mm@kvack.org>;
-        Tue, 13 May 2014 18:11:43 -0700 (PDT)
-Date: Wed, 14 May 2014 09:10:21 +0800
-From: kbuild test robot <fengguang.wu@intel.com>
-Subject: [mmotm:master 233/499] include/linux/cpuset.h:21:2: error:
- implicit declaration of function 'static_key_false'
-Message-ID: <5372c27d.kgJgiWwfZgW8gVhE%fengguang.wu@intel.com>
+Received: from mail-ve0-f182.google.com (mail-ve0-f182.google.com [209.85.128.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 6BE1F6B0036
+	for <linux-mm@kvack.org>; Tue, 13 May 2014 22:13:23 -0400 (EDT)
+Received: by mail-ve0-f182.google.com with SMTP id sa20so1543844veb.41
+        for <linux-mm@kvack.org>; Tue, 13 May 2014 19:13:23 -0700 (PDT)
+Received: from mail-vc0-x230.google.com (mail-vc0-x230.google.com [2607:f8b0:400c:c03::230])
+        by mx.google.com with ESMTPS id tv3si69409vdc.18.2014.05.13.19.13.22
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 13 May 2014 19:13:22 -0700 (PDT)
+Received: by mail-vc0-f176.google.com with SMTP id lg15so1601405vcb.35
+        for <linux-mm@kvack.org>; Tue, 13 May 2014 19:13:22 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <5026482.P9PDy29y2Y@wuerfel>
+References: <1399861195-21087-1-git-send-email-superlibj8301@gmail.com>
+	<5146762.jba3IJe7xt@wuerfel>
+	<CAHPCO9FRfR5p1N5v7mUk4hUYdPvqfLN6nW1LcnC83sU86ZFbZA@mail.gmail.com>
+	<5026482.P9PDy29y2Y@wuerfel>
+Date: Wed, 14 May 2014 10:13:22 +0800
+Message-ID: <CAHPCO9GkEHpyr=_nMxKPzPZZ6FaT3-h3n1eZ_-iRbXNiyEea4Q@mail.gmail.com>
+Subject: Re: [RFC][PATCH 2/2] ARM: ioremap: Add IO mapping space reused support.
+From: Richard Lee <superlibj8301@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, kbuild-all@01.org
+To: Arnd Bergmann <arnd@arndb.de>
+Cc: linux-arm-kernel@lists.infradead.org, linux@arm.linux.org.uk, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Richard Lee <superlibj@gmail.com>
 
-tree:   git://git.cmpxchg.org/linux-mmotm.git master
-head:   1055821ba3c83218cbba4481f8349e3326cdaa32
-commit: 444d6ecdef95deb6009e1b8f9eae3ac32ba5ec57 [233/499] mm: page_alloc: use jump labels to avoid checking number_of_cpusets
-config: make ARCH=tile tilegx_defconfig
+On Tue, May 13, 2014 at 4:43 PM, Arnd Bergmann <arnd@arndb.de> wrote:
+> On Tuesday 13 May 2014 09:45:08 Richard Lee wrote:
+>> > On Mon, May 12, 2014 at 3:51 PM, Arnd Bergmann <arnd@arndb.de> wrote:
+>> > On Monday 12 May 2014 10:19:55 Richard Lee wrote:
+>> >> For the IO mapping, for the same physical address space maybe
+>> >> mapped more than one time, for example, in some SoCs:
+>> >> 0x20000000 ~ 0x20001000: are global control IO physical map,
+>> >> and this range space will be used by many drivers.
+>> >> And then if each driver will do the same ioremap operation, we
+>> >> will waste to much malloc virtual spaces.
+>> >>
+>> >> This patch add IO mapping space reused support.
+>> >>
+>> >> Signed-off-by: Richard Lee <superlibj@gmail.com>
+>> >
+>> > What happens if the first driver then unmaps the area?
+>> >
+>>
+>> If the first driver will unmap the area, it shouldn't do any thing
+>> except decreasing the 'used' counter.
+>
+> Ah, for some reason I didn't see your first patch that introduces
+> that counter.
+>
 
-All error/warnings:
+It's "[PATCH 1/2] mm/vmalloc: Add IO mapping space reused".
 
-   In file included from kernel/kthread.c:12:0:
-   include/linux/cpuset.h: In function 'cpusets_enabled':
->> include/linux/cpuset.h:21:2: error: implicit declaration of function 'static_key_false'
-   include/linux/cpuset.h: In function 'nr_cpusets':
->> include/linux/cpuset.h:27:2: error: implicit declaration of function 'static_key_count'
-   include/linux/cpuset.h: In function 'cpuset_inc':
->> include/linux/cpuset.h:32:2: error: implicit declaration of function 'static_key_slow_inc'
-   include/linux/cpuset.h: In function 'cpuset_dec':
->> include/linux/cpuset.h:37:2: error: implicit declaration of function 'static_key_slow_dec'
-   In file included from include/linux/static_key.h:1:0,
-   from include/linux/tracepoint.h:20,
-   from include/trace/events/sched.h:8,
-   from kernel/kthread.c:21:
-   include/linux/jump_label.h: At top level:
->> include/linux/jump_label.h:87:19: error: static declaration of 'static_key_count' follows non-static declaration
-   include/linux/cpuset.h:27:9: note: previous implicit declaration of 'static_key_count' was here
->> include/linux/jump_label.h:152:29: error: conflicting types for 'static_key_false'
-   include/linux/cpuset.h:21:9: note: previous implicit declaration of 'static_key_false' was here
->> include/linux/jump_label.h:166:20: warning: conflicting types for 'static_key_slow_inc' [enabled by default]
->> include/linux/jump_label.h:166:20: error: static declaration of 'static_key_slow_inc' follows non-static declaration
-   include/linux/cpuset.h:32:2: note: previous implicit declaration of 'static_key_slow_inc' was here
->> include/linux/jump_label.h:172:20: warning: conflicting types for 'static_key_slow_dec' [enabled by default]
->> include/linux/jump_label.h:172:20: error: static declaration of 'static_key_slow_dec' follows non-static declaration
-   include/linux/cpuset.h:37:2: note: previous implicit declaration of 'static_key_slow_dec' was here
-   cc1: some warnings being treated as errors
---
-   In file included from kernel/cpuset.c:27:0:
-   include/linux/cpuset.h: In function 'cpusets_enabled':
->> include/linux/cpuset.h:21:2: error: implicit declaration of function 'static_key_false'
-   include/linux/cpuset.h: In function 'nr_cpusets':
->> include/linux/cpuset.h:27:2: error: implicit declaration of function 'static_key_count'
-   include/linux/cpuset.h: In function 'cpuset_inc':
->> include/linux/cpuset.h:32:2: error: implicit declaration of function 'static_key_slow_inc'
-   include/linux/cpuset.h: In function 'cpuset_dec':
->> include/linux/cpuset.h:37:2: error: implicit declaration of function 'static_key_slow_dec'
-   In file included from include/linux/static_key.h:1:0,
-   from include/linux/context_tracking_state.h:5,
-   from include/linux/vtime.h:4,
-   from include/linux/hardirq.h:7,
-   from include/linux/interrupt.h:12,
-   from kernel/cpuset.c:33:
-   include/linux/jump_label.h: At top level:
->> include/linux/jump_label.h:87:19: error: static declaration of 'static_key_count' follows non-static declaration
-   include/linux/cpuset.h:27:9: note: previous implicit declaration of 'static_key_count' was here
->> include/linux/jump_label.h:152:29: error: conflicting types for 'static_key_false'
-   include/linux/cpuset.h:21:9: note: previous implicit declaration of 'static_key_false' was here
->> include/linux/jump_label.h:166:20: warning: conflicting types for 'static_key_slow_inc' [enabled by default]
->> include/linux/jump_label.h:166:20: error: static declaration of 'static_key_slow_inc' follows non-static declaration
-   include/linux/cpuset.h:32:2: note: previous implicit declaration of 'static_key_slow_inc' was here
->> include/linux/jump_label.h:172:20: warning: conflicting types for 'static_key_slow_dec' [enabled by default]
->> include/linux/jump_label.h:172:20: error: static declaration of 'static_key_slow_dec' follows non-static declaration
-   include/linux/cpuset.h:37:2: note: previous implicit declaration of 'static_key_slow_dec' was here
-   cc1: some warnings being treated as errors
+Thanks,
 
-vim +/static_key_false +21 include/linux/cpuset.h
+BRs
+Richard
 
-    15	
-    16	#ifdef CONFIG_CPUSETS
-    17	
-    18	extern struct static_key cpusets_enabled_key;
-    19	static inline bool cpusets_enabled(void)
-    20	{
-  > 21		return static_key_false(&cpusets_enabled_key);
-    22	}
-    23	
-    24	static inline int nr_cpusets(void)
-    25	{
-    26		/* jump label reference count + the top-level cpuset */
-    27		return static_key_count(&cpusets_enabled_key) + 1;
-    28	}
-    29	
-    30	static inline void cpuset_inc(void)
-    31	{
-    32		static_key_slow_inc(&cpusets_enabled_key);
-    33	}
-    34	
-    35	static inline void cpuset_dec(void)
-    36	{
-    37		static_key_slow_dec(&cpusets_enabled_key);
-    38	}
-    39	
-    40	extern int cpuset_init(void);
 
----
-0-DAY kernel build testing backend              Open Source Technology Center
-http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporation
+
+>         Arnd
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
