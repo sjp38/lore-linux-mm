@@ -1,123 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f177.google.com (mail-ig0-f177.google.com [209.85.213.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 18EA36B0038
-	for <linux-mm@kvack.org>; Wed, 14 May 2014 16:41:52 -0400 (EDT)
-Received: by mail-ig0-f177.google.com with SMTP id l13so138648iga.10
-        for <linux-mm@kvack.org>; Wed, 14 May 2014 13:41:51 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id u7si4910752igh.44.2014.05.14.13.41.51
+Received: from mail-ig0-f180.google.com (mail-ig0-f180.google.com [209.85.213.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E2D16B0036
+	for <linux-mm@kvack.org>; Wed, 14 May 2014 16:52:58 -0400 (EDT)
+Received: by mail-ig0-f180.google.com with SMTP id c1so158451igq.1
+        for <linux-mm@kvack.org>; Wed, 14 May 2014 13:52:57 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id za4si2247958icb.103.2014.05.14.13.52.57
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 14 May 2014 13:41:51 -0700 (PDT)
-Message-ID: <5373D509.7090207@oracle.com>
-Date: Wed, 14 May 2014 16:41:45 -0400
+        Wed, 14 May 2014 13:52:57 -0700 (PDT)
+Message-ID: <5373D781.7020109@oracle.com>
+Date: Wed, 14 May 2014 16:52:17 -0400
 From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-Subject: Re: mm: NULL ptr deref handling mmaping of special mappings
-References: <53739201.6080604@oracle.com> <20140514132312.573e5d3cf99276c3f0b82980@linux-foundation.org>
-In-Reply-To: <20140514132312.573e5d3cf99276c3f0b82980@linux-foundation.org>
+Subject: Re: [PATCH 2/2] mm: replace remap_file_pages() syscall with emulation
+References: <1399552888-11024-1-git-send-email-kirill.shutemov@linux.intel.com> <1399552888-11024-3-git-send-email-kirill.shutemov@linux.intel.com> <20140508145729.3d82d2c989cfc483c94eb324@linux-foundation.org> <5370E4B4.1060802@oracle.com> <20140512170514.GA28227@node.dhcp.inet.fi>
+In-Reply-To: <20140512170514.GA28227@node.dhcp.inet.fi>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Dave Jones <davej@redhat.com>, LKML <linux-kernel@vger.kernel.org>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, peterz@infradead.org, mingo@kernel.org
 
-On 05/14/2014 04:23 PM, Andrew Morton wrote:
-> On Wed, 14 May 2014 11:55:45 -0400 Sasha Levin <sasha.levin@oracle.com> wrote:
-> 
->> Hi all,
+On 05/12/2014 01:05 PM, Kirill A. Shutemov wrote:
+> On Mon, May 12, 2014 at 11:11:48AM -0400, Sasha Levin wrote:
+>> On 05/08/2014 05:57 PM, Andrew Morton wrote:
+>>> On Thu,  8 May 2014 15:41:28 +0300 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
+>>>
+>>>>> remap_file_pages(2) was invented to be able efficiently map parts of
+>>>>> huge file into limited 32-bit virtual address space such as in database
+>>>>> workloads.
+>>>>>
+>>>>> Nonlinear mappings are pain to support and it seems there's no
+>>>>> legitimate use-cases nowadays since 64-bit systems are widely available.
+>>>>>
+>>>>> Let's drop it and get rid of all these special-cased code.
+>>>>>
+>>>>> The patch replaces the syscall with emulation which creates new VMA on
+>>>>> each remap_file_pages(), unless they it can be merged with an adjacent
+>>>>> one.
+>>>>>
+>>>>> I didn't find *any* real code that uses remap_file_pages(2) to test
+>>>>> emulation impact on. I've checked Debian code search and source of all
+>>>>> packages in ALT Linux. No real users: libc wrappers, mentions in strace,
+>>>>> gdb, valgrind and this kind of stuff.
+>>>>>
+>>>>> There are few basic tests in LTP for the syscall. They work just fine
+>>>>> with emulation.
+>>>>>
+>>>>> To test performance impact, I've written small test case which
+>>>>> demonstrate pretty much worst case scenario: map 4G shmfs file, write to
+>>>>> begin of every page pgoff of the page, remap pages in reverse order,
+>>>>> read every page.
+>>>>>
+>>>>> The test creates 1 million of VMAs if emulation is in use, so I had to
+>>>>> set vm.max_map_count to 1100000 to avoid -ENOMEM.
+>>>>>
+>>>>> Before:		23.3 ( +-  4.31% ) seconds
+>>>>> After:		43.9 ( +-  0.85% ) seconds
+>>>>> Slowdown:	1.88x
+>>>>>
+>>>>> I believe we can live with that.
+>>>>>
+>>> There's still all the special-case goop around the place to be cleaned
+>>> up - VM_NONLINEAR is a decent search term.  As is "grep nonlinear
+>>> mm/*.c".  And although this cleanup is the main reason for the
+>>> patchset, let's not do it now - we can do all that if/after this patch
+>>> get merged.
+>>>
+>>> I'll queue the patches for some linux-next exposure and shall send
+>>> [1/2] Linuswards for 3.16 if nothing terrible happens.  Once we've
+>>> sorted out the too-many-vmas issue we'll need to work out when to merge
+>>> [2/2].
 >>
->> While fuzzing with trinity inside a KVM tools guest running the latest -next
->> kernel I've stumbled on the following spew:
+>> It seems that since no one is really using it, it's also impossible to
+>> properly test it. I've sent a fix that deals with panics in error paths
+>> that are very easy to trigger, but I'm worried that there are a lot more
+>> of those hiding over there.
+> 
+> Sorry for that.
+> 
+>> Since we can't find any actual users, testing suites are very incomplete
+>> w.r.t this syscall, and the amount of work required to "remove" it is
+>> non-trivial, can we just kill this syscall off?
 >>
->> [ 1634.969408] BUG: unable to handle kernel NULL pointer dereference at           (null)
->> [ 1634.970538] IP: special_mapping_fault (mm/mmap.c:2961)
->> [ 1634.971420] PGD 3334fc067 PUD 3334cf067 PMD 0
->> [ 1634.972081] Oops: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
->> [ 1634.972913] Dumping ftrace buffer:
->> [ 1634.975493]    (ftrace buffer empty)
->> [ 1634.977470] Modules linked in:
->> [ 1634.977513] CPU: 6 PID: 29578 Comm: trinity-c269 Not tainted 3.15.0-rc5-next-20140513-sasha-00020-gebce144-dirty #461
->> [ 1634.977513] task: ffff880333158000 ti: ffff88033351e000 task.ti: ffff88033351e000
->> [ 1634.977513] RIP: special_mapping_fault (mm/mmap.c:2961)
+>> It sounds to me like a better option than to ship a new, buggy and possibly
+>> security dangerous version which we can't even test.
 > 
-> Somebody's gone and broken the x86 oops output.  It used to say
-> "special_mapping_fault+0x30/0x120" but the offset info has now
-> disappeared.  That was useful for guesstimating whereabouts in the
-> function it died.
+> Taking into account your employment, is it possible to check how the RDBMS
+> (old but it still supported 32-bit versions) would react on -ENOSYS here?
 
-I'm the one who "broke" the oops output, but I thought I'm helping people
-read that output instead of making it harder...
+Alrighty, I got an answer:
 
-What happened before is that due to my rather complex .config, the offsets
-didn't make sense to anyone who didn't build the kernel with my .config,
-so I had to repeatedly send it out to folks who attempted to get basic
-things like line numbers.
+1. remap_file_pages() only works when the "VLM" feature of the db is enabled,
+so those databases can work just fine without it, but be limited to 3-4GB of
+memory. This is not needed at all on 64bit machines.
 
-> The line number isn't very useful as it's not possible (or at least,
-> not convenient) for others to reliably reproduce your kernel.
+2. As of OL7 (kernel 3.8), there will not be a 32bit kernel build. I'm still
+waiting for an answer whether there will do a 32bit DB build for a 64bit kernel,
+but that never happened before and seems unlikely.
 
-I don't understand that part. I'm usually stating in the beginning of my
-mails that I run my testing on the latest -next kernel. And indeed if
-you look at today's -next, that line number would point to:
+3. They're basically saying that by the time upstream releases a kernel without
+remap_file_pages() no one will need it here.
 
-        for (pages = vma->vm_private_data; pgoff && *pages; ++pages) <=== HERE
-                pgoff--;
-
-So I'm not sure how replacing the offset with line numbers is making things
-worse? previously offsets were useless for people who tried to debug these
-spews so that's why I switched it to line numbers in the first place.
-
-> <scrabbles with git for a while>
-> 
-> : static int special_mapping_fault(struct vm_area_struct *vma,
-> : 				struct vm_fault *vmf)
-> : {
-> : 	pgoff_t pgoff;
-> : 	struct page **pages;
-> : 
-> : 	/*
-> : 	 * special mappings have no vm_file, and in that case, the mm
-> : 	 * uses vm_pgoff internally. So we have to subtract it from here.
-> : 	 * We are allowed to do this because we are the mm; do not copy
-> : 	 * this code into drivers!
-> : 	 */
-> : 	pgoff = vmf->pgoff - vma->vm_pgoff;
-> : 
-> : 	for (pages = vma->vm_private_data; pgoff && *pages; ++pages)
-> : 		pgoff--;
-> : 
-> : 	if (*pages) {
-> : 		struct page *page = *pages;
-> : 		get_page(page);
-> : 		vmf->page = page;
-> : 		return 0;
-> : 	}
-> : 
-> : 	return VM_FAULT_SIGBUS;
-> : }
-> 
-> OK so it might be the "if (*pages)".  So vma->vm_private_data was NULL
-> and pgoff was zero.  As usual, I can't imagine what race would cause
-> that :(
-
-Yup, it's the *pages part in the 'for' loop above that. I did find the
-following in the vdso code:
-
-        vma = _install_special_mapping(mm,
-                                       addr + image->size,
-                                       image->sym_end_mapping - image->size,
-                                       VM_READ,
-                                       NULL);
-
-Which installs a mapping with a NULL ptr for pages (if I understand that
-correctly), but that code has been there for a while now.
+To sum it up, they're fine with removing remap_file_pages().
 
 
 Thanks,
 Sasha
-been there
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
