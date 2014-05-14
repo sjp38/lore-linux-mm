@@ -1,61 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f176.google.com (mail-ie0-f176.google.com [209.85.223.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E2856B0036
-	for <linux-mm@kvack.org>; Tue, 13 May 2014 23:25:35 -0400 (EDT)
-Received: by mail-ie0-f176.google.com with SMTP id ar20so1270563iec.7
-        for <linux-mm@kvack.org>; Tue, 13 May 2014 20:25:35 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id oy2si303202icc.66.2014.05.13.20.25.33
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id D810F6B0036
+	for <linux-mm@kvack.org>; Tue, 13 May 2014 23:36:18 -0400 (EDT)
+Received: by mail-pa0-f54.google.com with SMTP id bj1so1108271pad.27
+        for <linux-mm@kvack.org>; Tue, 13 May 2014 20:36:18 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id hb8si257142pbc.411.2014.05.13.20.36.17
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 13 May 2014 20:25:33 -0700 (PDT)
-Message-ID: <5372E20A.1020707@oracle.com>
-Date: Tue, 13 May 2014 23:24:58 -0400
+        Tue, 13 May 2014 20:36:17 -0700 (PDT)
 From: Sasha Levin <sasha.levin@oracle.com>
-MIME-Version: 1.0
-Subject: Re: mm: shmem: NULL ptr deref in shmem_fault
-References: <5370DA09.7020801@oracle.com> <20140512141238.3a0673b3f1a2ee5d47498719@linux-foundation.org> <53713A01.3050502@oracle.com> <alpine.LSU.2.11.1405131442260.22181@eggly.anvils>
-In-Reply-To: <alpine.LSU.2.11.1405131442260.22181@eggly.anvils>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Subject: [PATCH] mm: remap_file_pages: grab file ref to prevent race while mmaping
+Date: Tue, 13 May 2014 23:35:42 -0400
+Message-Id: <1400038542-9705-1-git-send-email-sasha.levin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Jones <davej@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Al Viro <viro@zeniv.linux.org.uk>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>
+To: linux-mm@kvack.org
+Cc: kirill.shutemov@linux.intel.com, davej@redhat.com, linux-kernel@vger.kernel.org, viro@zeniv.linux.org.uk, peterz@infradead.org, mingo@kernel.org, Sasha Levin <sasha.levin@oracle.com>
 
-On 05/13/2014 06:20 PM, Hugh Dickins wrote:
-> I haven't delved into the perf_even_mmap d_path (fs/dcache.c:2947) one,
-> but the Sys_mremap one on file->f_op->f_unmapped_area sounds like what
-> we have here: struct file has been freed.
-> 
-> I believe Al is innocent: I point a quivering finger at... Kirill.
-> 
-> Just guessing, but we know how fond trinity is of remap_file_pages(),
-> and comparing old and new emulations shows that interesting
-> 
-> 	struct file *file = get_file(vma->vm_file);
->         addr = mmap_region(...);
-> 	fput(file);
-> 
-> in mm/fremap.c's old emulation, but no get_file() and fput() around 
-> the do_mmap_pgoff() in mm/mmap.c's new emulation.
-> 
-> Before it puts in the new, do_mmap_pgoff() might unmap the last reference
-> to vma->vm_file, so emulation needs to take its own reference.  I'm not
-> sure how that plays out nowadays with Al's deferred fput, but it does
-> look suspicious to me.
+A file reference should be held while a file is mmaped, otherwise it might
+be freed while being used.
 
-I've tested it by reverting the remap_file_pages() patch, and the problem
-seems to have disappeared.
+Suggested-by: Hugh Dickins <hughd@google.com>
+Signed-off-by: Sasha Levin <sasha.levin@oracle.com>
+---
+ mm/mmap.c |    3 +++
+ 1 file changed, 3 insertions(+)
 
-Then, I've added it back again, wrapping the do_mmap_pgoff() call with
-get_file() and fput(), and the problem is still gone.
-
-Seems like that was the issue all along. I'll send a patch...
-
-
-Thanks,
-Sasha
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 2a0e0a8..da3c212 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -2593,6 +2593,7 @@ SYSCALL_DEFINE5(remap_file_pages, unsigned long, start, unsigned long, size,
+ 	struct vm_area_struct *vma;
+ 	unsigned long populate = 0;
+ 	unsigned long ret = -EINVAL;
++	struct file *file;
+ 
+ 	pr_warn_once("%s (%d) uses deprecated remap_file_pages() syscall. "
+ 			"See Documentation/vm/remap_file_pages.txt.\n",
+@@ -2636,8 +2637,10 @@ SYSCALL_DEFINE5(remap_file_pages, unsigned long, start, unsigned long, size,
+ 		munlock_vma_pages_range(vma, start, start + size);
+ 	}
+ 
++	file = get_file(vma->vm_file);
+ 	ret = do_mmap_pgoff(vma->vm_file, start, size,
+ 			prot, flags, pgoff, &populate);
++	fput(file);
+ out:
+ 	up_write(&mm->mmap_sem);
+ 	if (populate)
+-- 
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
