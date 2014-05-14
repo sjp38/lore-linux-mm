@@ -1,47 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f54.google.com (mail-ee0-f54.google.com [74.125.83.54])
-	by kanga.kvack.org (Postfix) with ESMTP id D65096B0036
-	for <linux-mm@kvack.org>; Wed, 14 May 2014 19:15:15 -0400 (EDT)
-Received: by mail-ee0-f54.google.com with SMTP id b57so135410eek.27
-        for <linux-mm@kvack.org>; Wed, 14 May 2014 16:15:15 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
-        by mx.google.com with ESMTPS id i49si2708279eem.132.2014.05.14.16.15.14
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
-        Wed, 14 May 2014 16:15:14 -0700 (PDT)
-Date: Thu, 15 May 2014 01:15:17 +0200 (CEST)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: vmstat: On demand vmstat workers V5
-In-Reply-To: <alpine.DEB.2.10.1405141105370.16512@gentwo.org>
-Message-ID: <alpine.DEB.2.02.1405150111480.6261@ionos.tec.linutronix.de>
-References: <alpine.DEB.2.10.1405121317270.29911@gentwo.org> <alpine.DEB.2.02.1405131651120.6261@ionos.tec.linutronix.de> <alpine.DEB.2.10.1405141105370.16512@gentwo.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id DA9B46B0036
+	for <linux-mm@kvack.org>; Wed, 14 May 2014 19:16:32 -0400 (EDT)
+Received: by mail-pa0-f42.google.com with SMTP id rd3so224984pab.29
+        for <linux-mm@kvack.org>; Wed, 14 May 2014 16:16:32 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id yj9si3353769pac.146.2014.05.14.16.16.31
+        for <linux-mm@kvack.org>;
+        Wed, 14 May 2014 16:16:32 -0700 (PDT)
+Date: Wed, 14 May 2014 16:16:30 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 3.15] x86,vdso: Fix an OOPS accessing the hpet mapping
+ w/o an hpet
+Message-Id: <20140514161630.d604884474d13a4432360b0f@linux-foundation.org>
+In-Reply-To: <e1640272803e7711d9a43d9454dbdae57ba22eed.1400108299.git.luto@amacapital.net>
+References: <e1640272803e7711d9a43d9454dbdae57ba22eed.1400108299.git.luto@amacapital.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Gilad Ben-Yossef <gilad@benyossef.com>, Tejun Heo <tj@kernel.org>, John Stultz <johnstul@us.ibm.com>, Mike Frysinger <vapier@gentoo.org>, Minchan Kim <minchan.kim@gmail.com>, Hakan Akkan <hakanakkan@gmail.com>, Max Krasnyansky <maxk@qualcomm.com>, Frederic Weisbecker <fweisbec@gmail.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hughd@google.com, viresh.kumar@linaro.org, hpa@zytor.com, mingo@kernel.org, peterz@infradead.org
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: x86@kernel.org, Sasha Levin <sasha.levin@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dave Jones <davej@redhat.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, 14 May 2014, Christoph Lameter wrote:
-> - Shepherd thread as a general worker thread. This means
->   that the general mechanism to control worker thread
->   cpu proposed by Frederic Weisbecker is necessary to
->   restrict the shepherd thread to the cpus not used
->   for low latency tasks. Hopefully that is ready to be
->   merged soon. No need anymore to have a specific
->   cpu be the housekeeper cpu.
+On Wed, 14 May 2014 16:01:22 -0700 Andy Lutomirski <luto@amacapital.net> wrote:
 
-Amen to that.
+> The access should fail, but it shouldn't oops.
+> 
+> Signed-off-by: Andy Lutomirski <luto@amacapital.net>
+> ---
+> 
+> The oops can be triggered in qemu using -no-hpet (but not nohpet) by
+> running a 32-bit program and reading a couple of pages before the vdso.
 
-Acked-by me for the general approach.
+This sentence is the best part of the changelog!  People often do this
+- they put all the good stuff after the ^---.  I always move it into
+the changelog.
 
-I don't want to give any unqualified opinion on the mm/vmstat parts of
-this patch.
+So how old is this bug?
 
-Thanks,
+> --- a/arch/x86/vdso/vdso32-setup.c
+> +++ b/arch/x86/vdso/vdso32-setup.c
+> @@ -147,6 +147,8 @@ int __init sysenter_setup(void)
+>  	return 0;
+>  }
+>  
+> +static struct page *no_pages[] = {NULL};
 
-	tglx
+nit: this could be local to arch_setup_additional_pages().
 
+>  /* Setup a VMA at program startup for the vsyscall page */
+>  int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
+>  {
+> @@ -192,7 +194,7 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
+>  			addr -  VDSO_OFFSET(VDSO_PREV_PAGES),
+>  			VDSO_OFFSET(VDSO_PREV_PAGES),
+>  			VM_READ,
+> -			NULL);
+> +			no_pages);
+>  
+>  	if (IS_ERR(vma)) {
+>  		ret = PTR_ERR(vma);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
