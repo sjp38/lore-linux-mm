@@ -1,117 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f48.google.com (mail-ee0-f48.google.com [74.125.83.48])
-	by kanga.kvack.org (Postfix) with ESMTP id C7CF26B0036
-	for <linux-mm@kvack.org>; Wed, 14 May 2014 03:31:39 -0400 (EDT)
-Received: by mail-ee0-f48.google.com with SMTP id e49so1017831eek.35
-        for <linux-mm@kvack.org>; Wed, 14 May 2014 00:31:39 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 45si976596eeq.137.2014.05.14.00.31.37
+Received: from mail-yh0-f54.google.com (mail-yh0-f54.google.com [209.85.213.54])
+	by kanga.kvack.org (Postfix) with ESMTP id E1CDF6B0036
+	for <linux-mm@kvack.org>; Wed, 14 May 2014 04:34:16 -0400 (EDT)
+Received: by mail-yh0-f54.google.com with SMTP id i57so1398236yha.27
+        for <linux-mm@kvack.org>; Wed, 14 May 2014 01:34:16 -0700 (PDT)
+Received: from mail-yk0-f179.google.com (mail-yk0-f179.google.com [209.85.160.179])
+        by mx.google.com with ESMTPS id a63si1250364yhk.189.2014.05.14.01.34.16
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 14 May 2014 00:31:38 -0700 (PDT)
-Date: Wed, 14 May 2014 08:31:33 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 19/19] mm: filemap: Avoid unnecessary barries and
- waitqueue lookups in unlock_page fastpath
-Message-ID: <20140514073133.GY23991@suse.de>
-References: <1399974350-11089-1-git-send-email-mgorman@suse.de>
- <1399974350-11089-20-git-send-email-mgorman@suse.de>
- <20140513165223.GB5226@laptop.programming.kicks-ass.net>
+        Wed, 14 May 2014 01:34:16 -0700 (PDT)
+Received: by mail-yk0-f179.google.com with SMTP id 19so1290689ykq.38
+        for <linux-mm@kvack.org>; Wed, 14 May 2014 01:34:16 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20140513165223.GB5226@laptop.programming.kicks-ass.net>
+In-Reply-To: <53723ACC.7020500@codeaurora.org>
+References: <1399390209-1756-1-git-send-email-steve.capper@linaro.org>
+	<1399390209-1756-5-git-send-email-steve.capper@linaro.org>
+	<53723ACC.7020500@codeaurora.org>
+Date: Wed, 14 May 2014 09:34:16 +0100
+Message-ID: <CAPvkgC1ORGyfKf5AEUfHeHrvZtNt5bWT1B5XvrBFbZmSNtBFWg@mail.gmail.com>
+Subject: Re: [RFC PATCH V5 4/6] arm: mm: Enable RCU fast_gup
+From: Steve Capper <steve.capper@linaro.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>
+To: Christopher Covington <cov@codeaurora.org>
+Cc: "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Catalin Marinas <catalin.marinas@arm.com>, "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Anders Roxell <anders.roxell@linaro.org>, Peter Zijlstra <peterz@infradead.org>, Gary Robertson <gary.robertson@linaro.org>, Will Deacon <will.deacon@arm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, Christoffer Dall <christoffer.dall@linaro.org>
 
-On Tue, May 13, 2014 at 06:52:23PM +0200, Peter Zijlstra wrote:
-> On Tue, May 13, 2014 at 10:45:50AM +0100, Mel Gorman wrote:
-> > diff --git a/mm/filemap.c b/mm/filemap.c
-> > index c60ed0f..d81ed7d 100644
-> > --- a/mm/filemap.c
-> > +++ b/mm/filemap.c
-> > @@ -241,15 +241,15 @@ void delete_from_page_cache(struct page *page)
-> >  }
-> >  EXPORT_SYMBOL(delete_from_page_cache);
-> >  
-> > -static int sleep_on_page(void *word)
-> > +static int sleep_on_page(void)
-> >  {
-> > -	io_schedule();
-> > +	io_schedule_timeout(HZ);
-> >  	return 0;
-> >  }
-> >  
-> > -static int sleep_on_page_killable(void *word)
-> > +static int sleep_on_page_killable(void)
-> >  {
-> > -	sleep_on_page(word);
-> > +	sleep_on_page();
-> >  	return fatal_signal_pending(current) ? -EINTR : 0;
-> >  }
-> >  
-> 
-> I've got a patch from NeilBrown that conflicts with this, shouldn't be
-> hard to resolve though.
-> 
+On 13 May 2014 16:31, Christopher Covington <cov@codeaurora.org> wrote:
+> Hi Steve,
+>
+> On 05/06/2014 11:30 AM, Steve Capper wrote:
+>> Activate the RCU fast_gup for ARM. We also need to force THP splits to
+>> broadcast an IPI s.t. we block in the fast_gup page walker. As THP
+>> splits are comparatively rare, this should not lead to a noticeable
+>> performance degradation.
+>
+>> diff --git a/arch/arm/mm/flush.c b/arch/arm/mm/flush.c
+>> index 3387e60..91a2b59 100644
+>> --- a/arch/arm/mm/flush.c
+>> +++ b/arch/arm/mm/flush.c
+>> @@ -377,3 +377,22 @@ void __flush_anon_page(struct vm_area_struct *vma, struct page *page, unsigned l
+>>        */
+>>       __cpuc_flush_dcache_area(page_address(page), PAGE_SIZE);
+>>  }
+>> +
+>> +#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+>> +#ifdef CONFIG_HAVE_RCU_TABLE_FREE
+>
+> This is trivia, but I for one find the form #if defined(a) && defined(b)
+> easier to read. (Applies to the A64 version as well).
+>
 
-Kick me if there are problems.
+Thank you Christopher, I agree that looks nicer.
 
-> > @@ -680,30 +680,105 @@ static wait_queue_head_t *page_waitqueue(struct page *page)
-> >  	return &zone->wait_table[hash_ptr(page, zone->wait_table_bits)];
-> >  }
-> >  
-> > -static inline void wake_up_page(struct page *page, int bit)
-> > +static inline wait_queue_head_t *clear_page_waiters(struct page *page)
-> >  {
-> > -	__wake_up_bit(page_waitqueue(page), &page->flags, bit);
-> > +	wait_queue_head_t *wqh = NULL;
-> > +
-> > +	if (!PageWaiters(page))
-> > +		return NULL;
-> > +
-> > +	/*
-> > +	 * Prepare to clear PG_waiters if the waitqueue is no longer
-> > +	 * active. Note that there is no guarantee that a page with no
-> > +	 * waiters will get cleared as there may be unrelated pages
-> > +	 * sleeping on the same page wait queue. Accurate detection
-> > +	 * would require a counter. In the event of a collision, the
-> > +	 * waiter bit will dangle and lookups will be required until
-> > +	 * the page is unlocked without collisions. The bit will need to
-> > +	 * be cleared before freeing to avoid triggering debug checks.
-> > +	 *
-> > +	 * Furthermore, this can race with processes about to sleep on
-> > +	 * the same page if it adds itself to the waitqueue just after
-> > +	 * this check. The timeout in sleep_on_page prevents the race
-> > +	 * being a terminal one. In effect, the uncontended and non-race
-> > +	 * cases are faster in exchange for occasional worst case of the
-> > +	 * timeout saving us.
-> > +	 */
-> > +	wqh = page_waitqueue(page);
-> > +	if (!waitqueue_active(wqh))
-> > +		ClearPageWaiters(page);
-> > +
-> > +	return wqh;
-> > +}
-> 
-> This of course is properly disgusting, but my brain isn't working right
-> on 4 hours of sleep, so I'm able to suggest anything else.
-
-It could be "solved" by adding a zone lock or abusing the mapping tree_lock
-to protect the waiters bit but that would put a very expensive operation into
-the unlock page path. Same goes for any sort of sequence counter tricks. The
-waitqueue lock cannot be used in this case because that would necessitate
-looking up page_waitqueue every time which would render the patch useless.
-
-It occurs to me that one option would be to recheck waiters once we're
-added to the waitqueue and if PageWaiters is clear then recheck the bit
-we're waiting on instead of going to sleep.
-
+Cheers,
 -- 
-Mel Gorman
-SUSE Labs
+Steve
+
+> Christopher
+>
+> --
+> Employee of Qualcomm Innovation Center, Inc.
+> Qualcomm Innovation Center, Inc. is a member of Code Aurora Forum,
+> hosted by the Linux Foundation.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
