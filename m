@@ -1,328 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f54.google.com (mail-ee0-f54.google.com [74.125.83.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E0E06B0036
-	for <linux-mm@kvack.org>; Wed, 14 May 2014 05:40:16 -0400 (EDT)
-Received: by mail-ee0-f54.google.com with SMTP id b57so1173457eek.13
-        for <linux-mm@kvack.org>; Wed, 14 May 2014 02:40:15 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z48si1221972eey.293.2014.05.14.02.40.14
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id F3DE86B0036
+	for <linux-mm@kvack.org>; Wed, 14 May 2014 05:44:39 -0400 (EDT)
+Received: by mail-pa0-f50.google.com with SMTP id fb1so1482584pad.9
+        for <linux-mm@kvack.org>; Wed, 14 May 2014 02:44:39 -0700 (PDT)
+Received: from e28smtp05.in.ibm.com (e28smtp05.in.ibm.com. [122.248.162.5])
+        by mx.google.com with ESMTPS id ud10si696337pbc.159.2014.05.14.02.44.37
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 14 May 2014 02:40:14 -0700 (PDT)
-Date: Wed, 14 May 2014 11:40:12 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH -mm v2] memcg: cleanup kmem cache creation/destruction
- functions naming
-Message-ID: <20140514094012.GA15756@dhcp22.suse.cz>
-References: <20140507124533.GF9489@dhcp22.suse.cz>
- <1399993551-13298-1-git-send-email-vdavydov@parallels.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 14 May 2014 02:44:39 -0700 (PDT)
+Received: from /spool/local
+	by e28smtp05.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Wed, 14 May 2014 15:14:36 +0530
+Received: from d28relay01.in.ibm.com (d28relay01.in.ibm.com [9.184.220.58])
+	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 210FE394005E
+	for <linux-mm@kvack.org>; Wed, 14 May 2014 15:14:33 +0530 (IST)
+Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
+	by d28relay01.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s4E9il6i58851530
+	for <linux-mm@kvack.org>; Wed, 14 May 2014 15:14:47 +0530
+Received: from d28av04.in.ibm.com (localhost [127.0.0.1])
+	by d28av04.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s4E9iUMA017916
+	for <linux-mm@kvack.org>; Wed, 14 May 2014 15:14:31 +0530
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [RFC PATCH 0/3] Aggressively allocate the pages on cma reserved memory
+In-Reply-To: <20140513022603.GF23803@js1304-P5Q-DELUXE>
+References: <1399509144-8898-1-git-send-email-iamjoonsoo.kim@lge.com> <536CCC78.6050806@samsung.com> <20140513022603.GF23803@js1304-P5Q-DELUXE>
+Date: Wed, 14 May 2014 15:14:30 +0530
+Message-ID: <8738gcae4h.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1399993551-13298-1-git-send-email-vdavydov@parallels.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Marek Szyprowski <m.szyprowski@samsung.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Heesub Shin <heesub.shin@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kyungmin Park <kyungmin.park@samsung.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, 'Tomasz Stanislawski' <t.stanislaws@samsung.com>
 
-On Tue 13-05-14 19:05:51, Vladimir Davydov wrote:
-> Current names are rather inconsistent. Let's try to improve them.
-> 
-> Brief change log:
-> 
-> ** old name **                          ** new name **
-> 
-> kmem_cache_create_memcg                 memcg_create_kmem_cache
-> memcg_kmem_create_cache                 memcg_regsiter_cache
-> memcg_kmem_destroy_cache                memcg_unregister_cache
-> 
-> kmem_cache_destroy_memcg_children       memcg_cleanup_cache_params
-> mem_cgroup_destroy_all_caches           memcg_unregister_all_caches
-> 
-> create_work                             memcg_register_cache_work
-> memcg_create_cache_work_func            memcg_register_cache_func
-> memcg_create_cache_enqueue              memcg_schedule_register_cache
-> 
-> Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
+Joonsoo Kim <iamjoonsoo.kim@lge.com> writes:
 
-Acked-by: Michal Hocko <mhocko@suse.cz>
-Thanks!
+> On Fri, May 09, 2014 at 02:39:20PM +0200, Marek Szyprowski wrote:
+>> Hello,
+>> 
+>> On 2014-05-08 02:32, Joonsoo Kim wrote:
+>> >This series tries to improve CMA.
+>> >
+>> >CMA is introduced to provide physically contiguous pages at runtime
+>> >without reserving memory area. But, current implementation works like as
+>> >reserving memory approach, because allocation on cma reserved region only
+>> >occurs as fallback of migrate_movable allocation. We can allocate from it
+>> >when there is no movable page. In that situation, kswapd would be invoked
+>> >easily since unmovable and reclaimable allocation consider
+>> >(free pages - free CMA pages) as free memory on the system and free memory
+>> >may be lower than high watermark in that case. If kswapd start to reclaim
+>> >memory, then fallback allocation doesn't occur much.
+>> >
+>> >In my experiment, I found that if system memory has 1024 MB memory and
+>> >has 512 MB reserved memory for CMA, kswapd is mostly invoked around
+>> >the 512MB free memory boundary. And invoked kswapd tries to make free
+>> >memory until (free pages - free CMA pages) is higher than high watermark,
+>> >so free memory on meminfo is moving around 512MB boundary consistently.
+>> >
+>> >To fix this problem, we should allocate the pages on cma reserved memory
+>> >more aggressively and intelligenetly. Patch 2 implements the solution.
+>> >Patch 1 is the simple optimization which remove useless re-trial and patch 3
+>> >is for removing useless alloc flag, so these are not important.
+>> >See patch 2 for more detailed description.
+>> >
+>> >This patchset is based on v3.15-rc4.
+>> 
+>> Thanks for posting those patches. It basically reminds me the
+>> following discussion:
+>> http://thread.gmane.org/gmane.linux.kernel/1391989/focus=1399524
+>> 
+>> Your approach is basically the same. I hope that your patches can be
+>> improved
+>> in such a way that they will be accepted by mm maintainers. I only
+>> wonder if the
+>> third patch is really necessary. Without it kswapd wakeup might be
+>> still avoided
+>> in some cases.
+>
+> Hello,
+>
+> Oh... I didn't know that patch and discussion, because I have no interest
+> on CMA at that time. Your approach looks similar to #1
+> approach of mine and could have same problem of #1 approach which I mentioned
+> in patch 2/3. Please refer that patch description. :)
 
-> ---
->  include/linux/memcontrol.h |    2 +-
->  include/linux/slab.h       |    2 +-
->  mm/memcontrol.c            |   60 +++++++++++++++++++++-----------------------
->  mm/slab_common.c           |   12 ++++-----
->  4 files changed, 36 insertions(+), 40 deletions(-)
-> 
-> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
-> index aa429de275cc..c3a53cbb88eb 100644
-> --- a/include/linux/memcontrol.h
-> +++ b/include/linux/memcontrol.h
-> @@ -514,7 +514,7 @@ __memcg_kmem_get_cache(struct kmem_cache *cachep, gfp_t gfp);
->  int __memcg_charge_slab(struct kmem_cache *cachep, gfp_t gfp, int order);
->  void __memcg_uncharge_slab(struct kmem_cache *cachep, int order);
->  
-> -int __kmem_cache_destroy_memcg_children(struct kmem_cache *s);
-> +int __memcg_cleanup_cache_params(struct kmem_cache *s);
->  
->  /**
->   * memcg_kmem_newpage_charge: verify if a new kmem allocation is allowed.
-> diff --git a/include/linux/slab.h b/include/linux/slab.h
-> index 86e5b26fbdab..1d9abb7d22a0 100644
-> --- a/include/linux/slab.h
-> +++ b/include/linux/slab.h
-> @@ -116,7 +116,7 @@ struct kmem_cache *kmem_cache_create(const char *, size_t, size_t,
->  			unsigned long,
->  			void (*)(void *));
->  #ifdef CONFIG_MEMCG_KMEM
-> -struct kmem_cache *kmem_cache_create_memcg(struct mem_cgroup *,
-> +struct kmem_cache *memcg_create_kmem_cache(struct mem_cgroup *,
->  					   struct kmem_cache *,
->  					   const char *);
->  #endif
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index f5ea266f4d9a..b12a05049f2a 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -3127,8 +3127,8 @@ void memcg_free_cache_params(struct kmem_cache *s)
->  	kfree(s->memcg_params);
->  }
->  
-> -static void memcg_kmem_create_cache(struct mem_cgroup *memcg,
-> -				    struct kmem_cache *root_cache)
-> +static void memcg_register_cache(struct mem_cgroup *memcg,
-> +				 struct kmem_cache *root_cache)
->  {
->  	static char memcg_name_buf[NAME_MAX + 1]; /* protected by
->  						     memcg_slab_mutex */
-> @@ -3148,7 +3148,7 @@ static void memcg_kmem_create_cache(struct mem_cgroup *memcg,
->  		return;
->  
->  	cgroup_name(memcg->css.cgroup, memcg_name_buf, NAME_MAX + 1);
-> -	cachep = kmem_cache_create_memcg(memcg, root_cache, memcg_name_buf);
-> +	cachep = memcg_create_kmem_cache(memcg, root_cache, memcg_name_buf);
->  	/*
->  	 * If we could not create a memcg cache, do not complain, because
->  	 * that's not critical at all as we can always proceed with the root
-> @@ -3170,7 +3170,7 @@ static void memcg_kmem_create_cache(struct mem_cgroup *memcg,
->  	root_cache->memcg_params->memcg_caches[id] = cachep;
->  }
->  
-> -static void memcg_kmem_destroy_cache(struct kmem_cache *cachep)
-> +static void memcg_unregister_cache(struct kmem_cache *cachep)
->  {
->  	struct kmem_cache *root_cache;
->  	struct mem_cgroup *memcg;
-> @@ -3223,7 +3223,7 @@ static inline void memcg_resume_kmem_account(void)
->  	current->memcg_kmem_skip_account--;
->  }
->  
-> -int __kmem_cache_destroy_memcg_children(struct kmem_cache *s)
-> +int __memcg_cleanup_cache_params(struct kmem_cache *s)
->  {
->  	struct kmem_cache *c;
->  	int i, failed = 0;
-> @@ -3234,7 +3234,7 @@ int __kmem_cache_destroy_memcg_children(struct kmem_cache *s)
->  		if (!c)
->  			continue;
->  
-> -		memcg_kmem_destroy_cache(c);
-> +		memcg_unregister_cache(c);
->  
->  		if (cache_from_memcg_idx(s, i))
->  			failed++;
-> @@ -3243,7 +3243,7 @@ int __kmem_cache_destroy_memcg_children(struct kmem_cache *s)
->  	return failed;
->  }
->  
-> -static void mem_cgroup_destroy_all_caches(struct mem_cgroup *memcg)
-> +static void memcg_unregister_all_caches(struct mem_cgroup *memcg)
->  {
->  	struct kmem_cache *cachep;
->  	struct memcg_cache_params *params, *tmp;
-> @@ -3256,25 +3256,26 @@ static void mem_cgroup_destroy_all_caches(struct mem_cgroup *memcg)
->  		cachep = memcg_params_to_cache(params);
->  		kmem_cache_shrink(cachep);
->  		if (atomic_read(&cachep->memcg_params->nr_pages) == 0)
-> -			memcg_kmem_destroy_cache(cachep);
-> +			memcg_unregister_cache(cachep);
->  	}
->  	mutex_unlock(&memcg_slab_mutex);
->  }
->  
-> -struct create_work {
-> +struct memcg_register_cache_work {
->  	struct mem_cgroup *memcg;
->  	struct kmem_cache *cachep;
->  	struct work_struct work;
->  };
->  
-> -static void memcg_create_cache_work_func(struct work_struct *w)
-> +static void memcg_register_cache_func(struct work_struct *w)
->  {
-> -	struct create_work *cw = container_of(w, struct create_work, work);
-> +	struct memcg_register_cache_work *cw =
-> +		container_of(w, struct memcg_register_cache_work, work);
->  	struct mem_cgroup *memcg = cw->memcg;
->  	struct kmem_cache *cachep = cw->cachep;
->  
->  	mutex_lock(&memcg_slab_mutex);
-> -	memcg_kmem_create_cache(memcg, cachep);
-> +	memcg_register_cache(memcg, cachep);
->  	mutex_unlock(&memcg_slab_mutex);
->  
->  	css_put(&memcg->css);
-> @@ -3284,12 +3285,12 @@ static void memcg_create_cache_work_func(struct work_struct *w)
->  /*
->   * Enqueue the creation of a per-memcg kmem_cache.
->   */
-> -static void __memcg_create_cache_enqueue(struct mem_cgroup *memcg,
-> -					 struct kmem_cache *cachep)
-> +static void __memcg_schedule_register_cache(struct mem_cgroup *memcg,
-> +					    struct kmem_cache *cachep)
->  {
-> -	struct create_work *cw;
-> +	struct memcg_register_cache_work *cw;
->  
-> -	cw = kmalloc(sizeof(struct create_work), GFP_NOWAIT);
-> +	cw = kmalloc(sizeof(*cw), GFP_NOWAIT);
->  	if (cw == NULL) {
->  		css_put(&memcg->css);
->  		return;
-> @@ -3298,17 +3299,17 @@ static void __memcg_create_cache_enqueue(struct mem_cgroup *memcg,
->  	cw->memcg = memcg;
->  	cw->cachep = cachep;
->  
-> -	INIT_WORK(&cw->work, memcg_create_cache_work_func);
-> +	INIT_WORK(&cw->work, memcg_register_cache_func);
->  	schedule_work(&cw->work);
->  }
->  
-> -static void memcg_create_cache_enqueue(struct mem_cgroup *memcg,
-> -				       struct kmem_cache *cachep)
-> +static void memcg_schedule_register_cache(struct mem_cgroup *memcg,
-> +					  struct kmem_cache *cachep)
->  {
->  	/*
->  	 * We need to stop accounting when we kmalloc, because if the
->  	 * corresponding kmalloc cache is not yet created, the first allocation
-> -	 * in __memcg_create_cache_enqueue will recurse.
-> +	 * in __memcg_schedule_register_cache will recurse.
->  	 *
->  	 * However, it is better to enclose the whole function. Depending on
->  	 * the debugging options enabled, INIT_WORK(), for instance, can
-> @@ -3317,7 +3318,7 @@ static void memcg_create_cache_enqueue(struct mem_cgroup *memcg,
->  	 * the safest choice is to do it like this, wrapping the whole function.
->  	 */
->  	memcg_stop_kmem_account();
-> -	__memcg_create_cache_enqueue(memcg, cachep);
-> +	__memcg_schedule_register_cache(memcg, cachep);
->  	memcg_resume_kmem_account();
->  }
->  
-> @@ -3388,16 +3389,11 @@ struct kmem_cache *__memcg_kmem_get_cache(struct kmem_cache *cachep,
->  	 *
->  	 * However, there are some clashes that can arrive from locking.
->  	 * For instance, because we acquire the slab_mutex while doing
-> -	 * kmem_cache_dup, this means no further allocation could happen
-> -	 * with the slab_mutex held.
-> -	 *
-> -	 * Also, because cache creation issue get_online_cpus(), this
-> -	 * creates a lock chain: memcg_slab_mutex -> cpu_hotplug_mutex,
-> -	 * that ends up reversed during cpu hotplug. (cpuset allocates
-> -	 * a bunch of GFP_KERNEL memory during cpuup). Due to all that,
-> -	 * better to defer everything.
-> +	 * memcg_create_kmem_cache, this means no further allocation
-> +	 * could happen with the slab_mutex held. So it's better to
-> +	 * defer everything.
->  	 */
-> -	memcg_create_cache_enqueue(memcg, cachep);
-> +	memcg_schedule_register_cache(memcg, cachep);
->  	return cachep;
->  out:
->  	rcu_read_unlock();
-> @@ -3521,7 +3517,7 @@ void __memcg_kmem_uncharge_pages(struct page *page, int order)
->  	memcg_uncharge_kmem(memcg, PAGE_SIZE << order);
->  }
->  #else
-> -static inline void mem_cgroup_destroy_all_caches(struct mem_cgroup *memcg)
-> +static inline void memcg_unregister_all_caches(struct mem_cgroup *memcg)
->  {
->  }
->  #endif /* CONFIG_MEMCG_KMEM */
-> @@ -6399,7 +6395,7 @@ static void mem_cgroup_css_offline(struct cgroup_subsys_state *css)
->  	css_for_each_descendant_post(iter, css)
->  		mem_cgroup_reparent_charges(mem_cgroup_from_css(iter));
->  
-> -	mem_cgroup_destroy_all_caches(memcg);
-> +	memcg_unregister_all_caches(memcg);
->  	vmpressure_cleanup(&memcg->vmpressure);
->  }
->  
-> diff --git a/mm/slab_common.c b/mm/slab_common.c
-> index 32175617cb75..48fafb61f35e 100644
-> --- a/mm/slab_common.c
-> +++ b/mm/slab_common.c
-> @@ -261,7 +261,7 @@ EXPORT_SYMBOL(kmem_cache_create);
->  
->  #ifdef CONFIG_MEMCG_KMEM
->  /*
-> - * kmem_cache_create_memcg - Create a cache for a memory cgroup.
-> + * memcg_create_kmem_cache - Create a cache for a memory cgroup.
->   * @memcg: The memory cgroup the new cache is for.
->   * @root_cache: The parent of the new cache.
->   * @memcg_name: The name of the memory cgroup (used for naming the new cache).
-> @@ -270,7 +270,7 @@ EXPORT_SYMBOL(kmem_cache_create);
->   * requests going from @memcg to @root_cache. The new cache inherits properties
->   * from its parent.
->   */
-> -struct kmem_cache *kmem_cache_create_memcg(struct mem_cgroup *memcg,
-> +struct kmem_cache *memcg_create_kmem_cache(struct mem_cgroup *memcg,
->  					   struct kmem_cache *root_cache,
->  					   const char *memcg_name)
->  {
-> @@ -305,7 +305,7 @@ out_unlock:
->  	return s;
->  }
->  
-> -static int kmem_cache_destroy_memcg_children(struct kmem_cache *s)
-> +static int memcg_cleanup_cache_params(struct kmem_cache *s)
->  {
->  	int rc;
->  
-> @@ -314,13 +314,13 @@ static int kmem_cache_destroy_memcg_children(struct kmem_cache *s)
->  		return 0;
->  
->  	mutex_unlock(&slab_mutex);
-> -	rc = __kmem_cache_destroy_memcg_children(s);
-> +	rc = __memcg_cleanup_cache_params(s);
->  	mutex_lock(&slab_mutex);
->  
->  	return rc;
->  }
->  #else
-> -static int kmem_cache_destroy_memcg_children(struct kmem_cache *s)
-> +static int memcg_cleanup_cache_params(struct kmem_cache *s)
->  {
->  	return 0;
->  }
-> @@ -343,7 +343,7 @@ void kmem_cache_destroy(struct kmem_cache *s)
->  	if (s->refcount)
->  		goto out_unlock;
->  
-> -	if (kmem_cache_destroy_memcg_children(s) != 0)
-> +	if (memcg_cleanup_cache_params(s) != 0)
->  		goto out_unlock;
->  
->  	list_del(&s->list);
-> -- 
-> 1.7.10.4
-> 
+IIUC that patch also interleave right ?
 
--- 
-Michal Hocko
-SUSE Labs
++#ifdef CONFIG_CMA
++	unsigned long nr_free = zone_page_state(zone, NR_FREE_PAGES);
++	unsigned long nr_cma_free = zone_page_state(zone, NR_FREE_CMA_PAGES);
++
++	if (migratetype == MIGRATE_MOVABLE && nr_cma_free &&
++	    nr_free - nr_cma_free < 2 * low_wmark_pages(zone))
++		migratetype = MIGRATE_CMA;
++#endif /* CONFIG_CMA */
+
+That doesn't always prefer CMA region. It would be nice to
+understand why grouping in pageblock_nr_pages is beneficial. Also in
+your patch you decrement nr_try_cma for every 'order' allocation. Why ?
+
++	if (zone->nr_try_cma) {
++		/* Okay. Now, we can try to allocate the page from cma region */
++		zone->nr_try_cma--;
++		page = __rmqueue_smallest(zone, order, MIGRATE_CMA);
++
++		/* CMA pages can vanish through CMA allocation */
++		if (unlikely(!page && order == 0))
++			zone->nr_try_cma = 0;
++
++		return page;
++	}
+
+
+If we fail above MIGRATE_CMA alloc should we return failure ? Why
+not try MOVABLE allocation on failure (ie fallthrough the code path) ?
+
+> And, there is different purpose between this and yours. This patch is
+> intended to better use of CMA pages and so get maximum performance.
+> Just to not trigger oom, it can be possible to put this logic on reclaim path.
+> But that is sub-optimal to get higher performance, because it needs
+> migration in some cases.
+>
+> If second patch works as intended, there are just a few of cma free pages
+> when we are toward on the watermark. So benefit of third patch would
+> be marginal and we can remove ALLOC_CMA.
+>
+> Thanks.
+>
+
+-aneesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
