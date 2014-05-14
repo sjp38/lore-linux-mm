@@ -1,112 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f41.google.com (mail-qg0-f41.google.com [209.85.192.41])
-	by kanga.kvack.org (Postfix) with ESMTP id C86456B0036
-	for <linux-mm@kvack.org>; Wed, 14 May 2014 12:18:03 -0400 (EDT)
-Received: by mail-qg0-f41.google.com with SMTP id j5so3219721qga.28
-        for <linux-mm@kvack.org>; Wed, 14 May 2014 09:18:03 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id g2si1112130qaf.89.2014.05.14.09.18.03
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 May 2014 09:18:03 -0700 (PDT)
-Date: Wed, 14 May 2014 18:17:55 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH 19/19] mm: filemap: Avoid unnecessary barries and
- waitqueue lookups in unlock_page fastpath
-Message-ID: <20140514161755.GQ30445@twins.programming.kicks-ass.net>
-References: <1399974350-11089-1-git-send-email-mgorman@suse.de>
- <1399974350-11089-20-git-send-email-mgorman@suse.de>
- <20140513125313.GR23991@suse.de>
- <20140513141748.GD2485@laptop.programming.kicks-ass.net>
- <20140514161152.GA2615@redhat.com>
-MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="XO56YmfyBH8vAq+5"
-Content-Disposition: inline
-In-Reply-To: <20140514161152.GA2615@redhat.com>
+Received: from mail-qc0-f172.google.com (mail-qc0-f172.google.com [209.85.216.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 36AFF6B0036
+	for <linux-mm@kvack.org>; Wed, 14 May 2014 12:20:55 -0400 (EDT)
+Received: by mail-qc0-f172.google.com with SMTP id l6so3237496qcy.31
+        for <linux-mm@kvack.org>; Wed, 14 May 2014 09:20:55 -0700 (PDT)
+Received: from qmta13.emeryville.ca.mail.comcast.net (qmta13.emeryville.ca.mail.comcast.net. [2001:558:fe2d:44:76:96:27:243])
+        by mx.google.com with ESMTP id e7si1092319qai.203.2014.05.14.09.20.54
+        for <linux-mm@kvack.org>;
+        Wed, 14 May 2014 09:20:54 -0700 (PDT)
+Date: Wed, 14 May 2014 11:20:51 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH RFC 3/3] slub: reparent memcg caches' slabs on memcg
+ offline
+In-Reply-To: <6eafe1e95d9a934228e9af785f5b5de38955aa6a.1399982635.git.vdavydov@parallels.com>
+Message-ID: <alpine.DEB.2.10.1405141119320.16512@gentwo.org>
+References: <cover.1399982635.git.vdavydov@parallels.com> <6eafe1e95d9a934228e9af785f5b5de38955aa6a.1399982635.git.vdavydov@parallels.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, David Howells <dhowells@redhat.com>
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: hannes@cmpxchg.org, mhocko@suse.cz, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
+On Tue, 13 May 2014, Vladimir Davydov wrote:
 
---XO56YmfyBH8vAq+5
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+> Since the "slow" and the "normal" free's can't coexist at the same time,
+> we must assure all conventional free's have finished before switching
+> all further free's to the "slow" mode and starting reparenting. To
+> achieve that, a percpu refcounter is used. It is taken and held during
+> each "normal" free. The refcounter is killed on memcg offline, and the
+> cache's pages migration is initiated from the refcounter's release
+> function. If we fail to take a ref on kfree, it means all "normal"
+> free's have been completed and the cache is being reparented right now,
+> so we should free the object using the "slow" mode.
 
-On Wed, May 14, 2014 at 06:11:52PM +0200, Oleg Nesterov wrote:
-> The subsequent discussion was "off-topic", and it seems that the patch
-> itself needs a bit more discussion,
->=20
-> On 05/13, Peter Zijlstra wrote:
-> >
-> > On Tue, May 13, 2014 at 01:53:13PM +0100, Mel Gorman wrote:
-> > > On Tue, May 13, 2014 at 10:45:50AM +0100, Mel Gorman wrote:
-> > > >  void unlock_page(struct page *page)
-> > > >  {
-> > > > +	wait_queue_head_t *wqh =3D clear_page_waiters(page);
-> > > > +
-> > > >  	VM_BUG_ON_PAGE(!PageLocked(page), page);
-> > > > +
-> > > > +	/*
-> > > > +	 * No additional barrier needed due to clear_bit_unlock barrierin=
-g all updates
-> > > > +	 * before waking waiters
-> > > > +	 */
-> > > >  	clear_bit_unlock(PG_locked, &page->flags);
-> > > > -	smp_mb__after_clear_bit();
-> > > > -	wake_up_page(page, PG_locked);
-> > >
-> > > This is wrong.
->=20
-> Yes,
->=20
-> > > The smp_mb__after_clear_bit() is still required to ensure
-> > > that the cleared bit is visible before the wakeup on all architecture=
-s.
->=20
-> But note that "the cleared bit is visible before the wakeup" is confusing.
-> I mean, we do not need mb() before __wake_up(). We need it only because
-> __wake_up_bit() checks waitqueue_active().
->=20
->=20
-> And at least
->=20
-> 	fs/cachefiles/namei.c:cachefiles_delete_object()
-> 	fs/block_dev.c:blkdev_get()
-> 	kernel/signal.c:task_clear_jobctl_trapping()
-> 	security/keys/gc.c:key_garbage_collector()
->=20
-> look obviously wrong.
->=20
-> I would be happy to send the fix, but do I need to split it per-file?
-> Given that it is trivial, perhaps I can send a single patch?
-
-Since its all the same issue a single patch would be fine I think.
-
---XO56YmfyBH8vAq+5
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.12 (GNU/Linux)
-
-iQIcBAEBAgAGBQJTc5czAAoJEHZH4aRLwOS6ZNwQAIIP5UclJ7JtAJvlgXqPdn3F
-wwpO6YGrqyI/DimRhomNJg6uByMx0LeH+mo7AlkYLhhwm20szkT67aKhjlXmKk04
-SphhBEY9np6rs6fjsX5VwUwQjvui3BOKJsaswwyQ3FiarmSGx8XPIiAZ8hhD+QmF
-hGaO++ObOjTTPJBE8r09e8YGMUY2tNqfov9H/+11XzVuuMLRWn6sSFtNAgD5GGjt
-aeUYTvldd5stk6VVFQYYUg7wyg3P3lYbcy6K9CZ8QdCJvq5FwkKSUboyn04p82rS
-disrgPW+vdA/ROjxWxeDV7SbL9OkvfnLwS2AMy3z0wI9iuengy07l4ybCHSF9uhz
-tZ0MYSbzSBP/eaGiGPFfHTcMKexOdatnTh5Y3lgwY7ZcZYLi7hjaD4cwzDpY7Bk6
-vO1fMxgtYB5wsq9cSaId0zm8JMBCIgdGPacZKxIHBRR1ZXJlkA/76WM2rJxLB0Oh
-3Le9zOr7RexZ120X8MpCrRaWhHKVdEXZZfY+1GoSLThLaEnC7tVo09iii0DrgJ9x
-OD+naESuFYphAIToqtd4nSVrlrFXAGi8WcPvNiqj3iVTITX/KapV+0CvWJLWFErP
-IKFKulnMlj4pSQXY5l3mgoM2bnJ+yAyQPEL553yXKkrAQoWwSDK/zGDleZMiQIv8
-DoH+F+EmTyRPw9R0ZEPs
-=mi+k
------END PGP SIGNATURE-----
-
---XO56YmfyBH8vAq+5--
+Argh adding more code to the free path touching more cachelines in the
+process.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
