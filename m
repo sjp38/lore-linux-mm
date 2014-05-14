@@ -1,85 +1,287 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f50.google.com (mail-pb0-f50.google.com [209.85.160.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 29B626B0038
-	for <linux-mm@kvack.org>; Wed, 14 May 2014 16:23:15 -0400 (EDT)
-Received: by mail-pb0-f50.google.com with SMTP id ma3so61824pbc.23
-        for <linux-mm@kvack.org>; Wed, 14 May 2014 13:23:14 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id nx7si2971460pab.195.2014.05.14.13.23.13
-        for <linux-mm@kvack.org>;
-        Wed, 14 May 2014 13:23:14 -0700 (PDT)
-Date: Wed, 14 May 2014 13:23:12 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: mm: NULL ptr deref handling mmaping of special mappings
-Message-Id: <20140514132312.573e5d3cf99276c3f0b82980@linux-foundation.org>
-In-Reply-To: <53739201.6080604@oracle.com>
-References: <53739201.6080604@oracle.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-ee0-f46.google.com (mail-ee0-f46.google.com [74.125.83.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 4EEAA6B0038
+	for <linux-mm@kvack.org>; Wed, 14 May 2014 16:29:37 -0400 (EDT)
+Received: by mail-ee0-f46.google.com with SMTP id t10so66846eei.19
+        for <linux-mm@kvack.org>; Wed, 14 May 2014 13:29:36 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id r44si2483126eeo.64.2014.05.14.13.29.35
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 14 May 2014 13:29:36 -0700 (PDT)
+Date: Wed, 14 May 2014 21:29:28 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 05/19] mm: page_alloc: Calculate classzone_idx once from
+ the zonelist ref
+Message-ID: <20140514202928.GB23991@suse.de>
+References: <1399974350-11089-1-git-send-email-mgorman@suse.de>
+ <1399974350-11089-6-git-send-email-mgorman@suse.de>
+ <20140513152556.d14e3eaff8949a7010c02686@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20140513152556.d14e3eaff8949a7010c02686@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Dave Jones <davej@redhat.com>, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>
 
-On Wed, 14 May 2014 11:55:45 -0400 Sasha Levin <sasha.levin@oracle.com> wrote:
-
-> Hi all,
+On Tue, May 13, 2014 at 03:25:56PM -0700, Andrew Morton wrote:
+> On Tue, 13 May 2014 10:45:36 +0100 Mel Gorman <mgorman@suse.de> wrote:
 > 
-> While fuzzing with trinity inside a KVM tools guest running the latest -next
-> kernel I've stumbled on the following spew:
+> > There is no need to calculate zone_idx(preferred_zone) multiple times
+> > or use the pgdat to figure it out.
+> > 
 > 
-> [ 1634.969408] BUG: unable to handle kernel NULL pointer dereference at           (null)
-> [ 1634.970538] IP: special_mapping_fault (mm/mmap.c:2961)
-> [ 1634.971420] PGD 3334fc067 PUD 3334cf067 PMD 0
-> [ 1634.972081] Oops: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
-> [ 1634.972913] Dumping ftrace buffer:
-> [ 1634.975493]    (ftrace buffer empty)
-> [ 1634.977470] Modules linked in:
-> [ 1634.977513] CPU: 6 PID: 29578 Comm: trinity-c269 Not tainted 3.15.0-rc5-next-20140513-sasha-00020-gebce144-dirty #461
-> [ 1634.977513] task: ffff880333158000 ti: ffff88033351e000 task.ti: ffff88033351e000
-> [ 1634.977513] RIP: special_mapping_fault (mm/mmap.c:2961)
+> This one falls afoul of pending mm/next changes in non-trivial ways.
 
-Somebody's gone and broken the x86 oops output.  It used to say
-"special_mapping_fault+0x30/0x120" but the offset info has now
-disappeared.  That was useful for guesstimating whereabouts in the
-function it died.
+This should apply on top of what you already have. Thanks.
 
-The line number isn't very useful as it's not possible (or at least,
-not convenient) for others to reliably reproduce your kernel.
+---8<---
+mm: page_alloc: Calculate classzone_idx once from the zonelist ref
 
-<scrabbles with git for a while>
+There is no need to calculate zone_idx(preferred_zone) multiple times
+or use the pgdat to figure it out.
 
-: static int special_mapping_fault(struct vm_area_struct *vma,
-: 				struct vm_fault *vmf)
-: {
-: 	pgoff_t pgoff;
-: 	struct page **pages;
-: 
-: 	/*
-: 	 * special mappings have no vm_file, and in that case, the mm
-: 	 * uses vm_pgoff internally. So we have to subtract it from here.
-: 	 * We are allowed to do this because we are the mm; do not copy
-: 	 * this code into drivers!
-: 	 */
-: 	pgoff = vmf->pgoff - vma->vm_pgoff;
-: 
-: 	for (pages = vma->vm_private_data; pgoff && *pages; ++pages)
-: 		pgoff--;
-: 
-: 	if (*pages) {
-: 		struct page *page = *pages;
-: 		get_page(page);
-: 		vmf->page = page;
-: 		return 0;
-: 	}
-: 
-: 	return VM_FAULT_SIGBUS;
-: }
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+Acked-by: Rik van Riel <riel@redhat.com>
+---
+ mm/page_alloc.c | 60 +++++++++++++++++++++++++++++++++------------------------
+ 1 file changed, 35 insertions(+), 25 deletions(-)
 
-OK so it might be the "if (*pages)".  So vma->vm_private_data was NULL
-and pgoff was zero.  As usual, I can't imagine what race would cause
-that :(
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 7ce44f9..606eecf 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1948,11 +1948,10 @@ static bool zone_allows_reclaim(struct zone *local_zone, struct zone *zone)
+ static struct page *
+ get_page_from_freelist(gfp_t gfp_mask, nodemask_t *nodemask, unsigned int order,
+ 		struct zonelist *zonelist, int high_zoneidx, int alloc_flags,
+-		struct zone *preferred_zone, int migratetype)
++		struct zone *preferred_zone, int classzone_idx, int migratetype)
+ {
+ 	struct zoneref *z;
+ 	struct page *page = NULL;
+-	int classzone_idx;
+ 	struct zone *zone;
+ 	nodemask_t *allowednodes = NULL;/* zonelist_cache approximation */
+ 	int zlc_active = 0;		/* set if using zonelist_cache */
+@@ -1960,7 +1959,6 @@ get_page_from_freelist(gfp_t gfp_mask, nodemask_t *nodemask, unsigned int order,
+ 	bool consider_zone_dirty = (alloc_flags & ALLOC_WMARK_LOW) &&
+ 				(gfp_mask & __GFP_WRITE);
+ 
+-	classzone_idx = zone_idx(preferred_zone);
+ zonelist_scan:
+ 	/*
+ 	 * Scan zonelist, looking for a zone with enough free.
+@@ -2218,7 +2216,7 @@ static inline struct page *
+ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
+ 	struct zonelist *zonelist, enum zone_type high_zoneidx,
+ 	nodemask_t *nodemask, struct zone *preferred_zone,
+-	int migratetype)
++	int classzone_idx, int migratetype)
+ {
+ 	struct page *page;
+ 
+@@ -2236,7 +2234,7 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
+ 	page = get_page_from_freelist(gfp_mask|__GFP_HARDWALL, nodemask,
+ 		order, zonelist, high_zoneidx,
+ 		ALLOC_WMARK_HIGH|ALLOC_CPUSET,
+-		preferred_zone, migratetype);
++		preferred_zone, classzone_idx, migratetype);
+ 	if (page)
+ 		goto out;
+ 
+@@ -2271,7 +2269,7 @@ static struct page *
+ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
+ 	struct zonelist *zonelist, enum zone_type high_zoneidx,
+ 	nodemask_t *nodemask, int alloc_flags, struct zone *preferred_zone,
+-	int migratetype, enum migrate_mode mode,
++	int classzone_idx, int migratetype, enum migrate_mode mode,
+ 	bool *contended_compaction, bool *deferred_compaction,
+ 	unsigned long *did_some_progress)
+ {
+@@ -2299,7 +2297,7 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
+ 		page = get_page_from_freelist(gfp_mask, nodemask,
+ 				order, zonelist, high_zoneidx,
+ 				alloc_flags & ~ALLOC_NO_WATERMARKS,
+-				preferred_zone, migratetype);
++				preferred_zone, classzone_idx, migratetype);
+ 		if (page) {
+ 			preferred_zone->compact_blockskip_flush = false;
+ 			compaction_defer_reset(preferred_zone, order, true);
+@@ -2331,7 +2329,8 @@ static inline struct page *
+ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
+ 	struct zonelist *zonelist, enum zone_type high_zoneidx,
+ 	nodemask_t *nodemask, int alloc_flags, struct zone *preferred_zone,
+-	int migratetype, enum migrate_mode mode, bool *contended_compaction,
++	int classzone_idx, int migratetype,
++	enum migrate_mode mode, bool *contended_compaction,
+ 	bool *deferred_compaction, unsigned long *did_some_progress)
+ {
+ 	return NULL;
+@@ -2387,7 +2386,7 @@ static inline struct page *
+ __alloc_pages_direct_reclaim(gfp_t gfp_mask, unsigned int order,
+ 	struct zonelist *zonelist, enum zone_type high_zoneidx,
+ 	nodemask_t *nodemask, int alloc_flags, struct zone *preferred_zone,
+-	int migratetype, unsigned long *did_some_progress)
++	int classzone_idx, int migratetype, unsigned long *did_some_progress)
+ {
+ 	struct page *page = NULL;
+ 	bool drained = false;
+@@ -2405,7 +2404,8 @@ retry:
+ 	page = get_page_from_freelist(gfp_mask, nodemask, order,
+ 					zonelist, high_zoneidx,
+ 					alloc_flags & ~ALLOC_NO_WATERMARKS,
+-					preferred_zone, migratetype);
++					preferred_zone, classzone_idx,
++					migratetype);
+ 
+ 	/*
+ 	 * If an allocation failed after direct reclaim, it could be because
+@@ -2430,14 +2430,14 @@ static inline struct page *
+ __alloc_pages_high_priority(gfp_t gfp_mask, unsigned int order,
+ 	struct zonelist *zonelist, enum zone_type high_zoneidx,
+ 	nodemask_t *nodemask, struct zone *preferred_zone,
+-	int migratetype)
++	int classzone_idx, int migratetype)
+ {
+ 	struct page *page;
+ 
+ 	do {
+ 		page = get_page_from_freelist(gfp_mask, nodemask, order,
+ 			zonelist, high_zoneidx, ALLOC_NO_WATERMARKS,
+-			preferred_zone, migratetype);
++			preferred_zone, classzone_idx, migratetype);
+ 
+ 		if (!page && gfp_mask & __GFP_NOFAIL)
+ 			wait_iff_congested(preferred_zone, BLK_RW_ASYNC, HZ/50);
+@@ -2538,7 +2538,7 @@ static inline struct page *
+ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 	struct zonelist *zonelist, enum zone_type high_zoneidx,
+ 	nodemask_t *nodemask, struct zone *preferred_zone,
+-	int migratetype)
++	int classzone_idx, int migratetype)
+ {
+ 	const gfp_t wait = gfp_mask & __GFP_WAIT;
+ 	struct page *page = NULL;
+@@ -2587,15 +2587,19 @@ restart:
+ 	 * Find the true preferred zone if the allocation is unconstrained by
+ 	 * cpusets.
+ 	 */
+-	if (!(alloc_flags & ALLOC_CPUSET) && !nodemask)
+-		first_zones_zonelist(zonelist, high_zoneidx, NULL,
+-					&preferred_zone);
++	if (!(alloc_flags & ALLOC_CPUSET) && !nodemask) {
++		struct zoneref *preferred_zoneref;
++		preferred_zoneref = first_zones_zonelist(zonelist, high_zoneidx,
++				nodemask ? : &cpuset_current_mems_allowed,
++				&preferred_zone);
++		classzone_idx = zonelist_zone_idx(preferred_zoneref);
++	}
+ 
+ rebalance:
+ 	/* This is the last chance, in general, before the goto nopage. */
+ 	page = get_page_from_freelist(gfp_mask, nodemask, order, zonelist,
+ 			high_zoneidx, alloc_flags & ~ALLOC_NO_WATERMARKS,
+-			preferred_zone, migratetype);
++			preferred_zone, classzone_idx, migratetype);
+ 	if (page)
+ 		goto got_pg;
+ 
+@@ -2610,7 +2614,7 @@ rebalance:
+ 
+ 		page = __alloc_pages_high_priority(gfp_mask, order,
+ 				zonelist, high_zoneidx, nodemask,
+-				preferred_zone, migratetype);
++				preferred_zone, classzone_idx, migratetype);
+ 		if (page) {
+ 			goto got_pg;
+ 		}
+@@ -2641,7 +2645,8 @@ rebalance:
+ 	 */
+ 	page = __alloc_pages_direct_compact(gfp_mask, order, zonelist,
+ 					high_zoneidx, nodemask, alloc_flags,
+-					preferred_zone, migratetype,
++					preferred_zone,
++					classzone_idx, migratetype,
+ 					migration_mode, &contended_compaction,
+ 					&deferred_compaction,
+ 					&did_some_progress);
+@@ -2671,7 +2676,8 @@ rebalance:
+ 					zonelist, high_zoneidx,
+ 					nodemask,
+ 					alloc_flags, preferred_zone,
+-					migratetype, &did_some_progress);
++					classzone_idx, migratetype,
++					&did_some_progress);
+ 	if (page)
+ 		goto got_pg;
+ 
+@@ -2690,7 +2696,7 @@ rebalance:
+ 			page = __alloc_pages_may_oom(gfp_mask, order,
+ 					zonelist, high_zoneidx,
+ 					nodemask, preferred_zone,
+-					migratetype);
++					classzone_idx, migratetype);
+ 			if (page)
+ 				goto got_pg;
+ 
+@@ -2731,7 +2737,8 @@ rebalance:
+ 		 */
+ 		page = __alloc_pages_direct_compact(gfp_mask, order, zonelist,
+ 					high_zoneidx, nodemask, alloc_flags,
+-					preferred_zone, migratetype,
++					preferred_zone,
++					classzone_idx, migratetype,
+ 					migration_mode, &contended_compaction,
+ 					&deferred_compaction,
+ 					&did_some_progress);
+@@ -2760,10 +2767,12 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+ {
+ 	enum zone_type high_zoneidx = gfp_zone(gfp_mask);
+ 	struct zone *preferred_zone;
++	struct zoneref *preferred_zoneref;
+ 	struct page *page = NULL;
+ 	int migratetype = allocflags_to_migratetype(gfp_mask);
+ 	unsigned int cpuset_mems_cookie;
+ 	int alloc_flags = ALLOC_WMARK_LOW|ALLOC_CPUSET|ALLOC_FAIR;
++	int classzone_idx;
+ 
+ 	gfp_mask &= gfp_allowed_mask;
+ 
+@@ -2786,11 +2795,12 @@ retry_cpuset:
+ 	cpuset_mems_cookie = read_mems_allowed_begin();
+ 
+ 	/* The preferred zone is used for statistics later */
+-	first_zones_zonelist(zonelist, high_zoneidx,
++	preferred_zoneref = first_zones_zonelist(zonelist, high_zoneidx,
+ 				nodemask ? : &cpuset_current_mems_allowed,
+ 				&preferred_zone);
+ 	if (!preferred_zone)
+ 		goto out;
++	classzone_idx = zonelist_zone_idx(preferred_zoneref);
+ 
+ #ifdef CONFIG_CMA
+ 	if (allocflags_to_migratetype(gfp_mask) == MIGRATE_MOVABLE)
+@@ -2800,7 +2810,7 @@ retry:
+ 	/* First allocation attempt */
+ 	page = get_page_from_freelist(gfp_mask|__GFP_HARDWALL, nodemask, order,
+ 			zonelist, high_zoneidx, alloc_flags,
+-			preferred_zone, migratetype);
++			preferred_zone, classzone_idx, migratetype);
+ 	if (unlikely(!page)) {
+ 		/*
+ 		 * The first pass makes sure allocations are spread
+@@ -2826,7 +2836,7 @@ retry:
+ 		gfp_mask = memalloc_noio_flags(gfp_mask);
+ 		page = __alloc_pages_slowpath(gfp_mask, order,
+ 				zonelist, high_zoneidx, nodemask,
+-				preferred_zone, migratetype);
++				preferred_zone, classzone_idx, migratetype);
+ 	}
+ 
+ 	trace_mm_page_alloc(page, order, gfp_mask, migratetype);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
