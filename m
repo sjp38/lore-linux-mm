@@ -1,42 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 4203F6B0038
-	for <linux-mm@kvack.org>; Wed, 14 May 2014 01:21:15 -0400 (EDT)
-Received: by mail-pa0-f51.google.com with SMTP id kq14so1192351pab.24
-        for <linux-mm@kvack.org>; Tue, 13 May 2014 22:21:14 -0700 (PDT)
-Received: from mail-pa0-x22d.google.com (mail-pa0-x22d.google.com [2607:f8b0:400e:c03::22d])
-        by mx.google.com with ESMTPS id er8si771461pad.81.2014.05.13.22.21.14
+Received: from mail-ee0-f48.google.com (mail-ee0-f48.google.com [74.125.83.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 423976B0036
+	for <linux-mm@kvack.org>; Wed, 14 May 2014 02:12:30 -0400 (EDT)
+Received: by mail-ee0-f48.google.com with SMTP id e49so948187eek.7
+        for <linux-mm@kvack.org>; Tue, 13 May 2014 23:12:29 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id z48si827469eey.23.2014.05.13.23.12.28
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 13 May 2014 22:21:14 -0700 (PDT)
-Received: by mail-pa0-f45.google.com with SMTP id ey11so1210380pad.4
-        for <linux-mm@kvack.org>; Tue, 13 May 2014 22:21:14 -0700 (PDT)
-Date: Tue, 13 May 2014 22:19:57 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 2/2] mm/page_alloc: DEBUG_VM checks for free_list placement
- of CMA and RESERVE pages
-In-Reply-To: <5372E766.9040005@oracle.com>
-Message-ID: <alpine.LSU.2.11.1405132216560.4875@eggly.anvils>
-References: <533D8015.1000106@suse.cz> <1396539618-31362-1-git-send-email-vbabka@suse.cz> <1396539618-31362-2-git-send-email-vbabka@suse.cz> <53616F39.2070001@oracle.com> <53638ADA.5040200@suse.cz> <5367A1E5.2020903@oracle.com> <5367B356.1030403@suse.cz>
- <5372E766.9040005@oracle.com>
+        Tue, 13 May 2014 23:12:28 -0700 (PDT)
+Date: Wed, 14 May 2014 07:12:22 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 17/19] fs: buffer: Do not use unnecessary atomic
+ operations when discarding buffers
+Message-ID: <20140514061222.GW23991@suse.de>
+References: <1399974350-11089-1-git-send-email-mgorman@suse.de>
+ <1399974350-11089-18-git-send-email-mgorman@suse.de>
+ <20140513152900.ea0a58cf4a650fb0b4110e3e@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20140513152900.ea0a58cf4a650fb0b4110e3e@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Yong-Taek Lee <ytk.lee@samsung.com>, Minchan Kim <minchan@kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Michal Nazarewicz <mina86@mina86.com>, Dave Jones <davej@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>
 
-On Tue, 13 May 2014, Sasha Levin wrote:
-> On 05/05/2014 11:50 AM, Vlastimil Babka wrote:
-> > So in the end this VM_DEBUG check probably cannot work anymore for MIGRATE_RESERVE, only for CMA. I'm not sure if it's worth keeping it only for CMA, what are the CMA guys' opinions on that?
+On Tue, May 13, 2014 at 03:29:00PM -0700, Andrew Morton wrote:
+> On Tue, 13 May 2014 10:45:48 +0100 Mel Gorman <mgorman@suse.de> wrote:
 > 
-> The way I understood it is that this patch is wrong, but it's still
-> alive in -mm. Should it still be there?
+> > Discarding buffers uses a bunch of atomic operations when discarding buffers
+> > because ...... I can't think of a reason. Use a cmpxchg loop to clear all the
+> > necessary flags. In most (all?) cases this will be a single atomic operations.
+> > 
+> > --- a/fs/buffer.c
+> > +++ b/fs/buffer.c
+> > @@ -1485,14 +1485,18 @@ EXPORT_SYMBOL(set_bh_page);
+> >   */
+> >  static void discard_buffer(struct buffer_head * bh)
+> >  {
+> > +	unsigned long b_state, b_state_old;
+> > +
+> >  	lock_buffer(bh);
+> >  	clear_buffer_dirty(bh);
+> >  	bh->b_bdev = NULL;
+> > -	clear_buffer_mapped(bh);
+> > -	clear_buffer_req(bh);
+> > -	clear_buffer_new(bh);
+> > -	clear_buffer_delay(bh);
+> > -	clear_buffer_unwritten(bh);
+> > +	b_state = bh->b_state;
+> > +	for (;;) {
+> > +		b_state_old = cmpxchg(&bh->b_state, b_state, (b_state & ~BUFFER_FLAGS_DISCARD));
+> > +		if (b_state_old == b_state)
+> > +			break;
+> > +		b_state = b_state_old;
+> > +	}
+> >  	unlock_buffer(bh);
+> >  }
+> >  
+> > --- a/include/linux/buffer_head.h
+> > +++ b/include/linux/buffer_head.h
+> > @@ -77,6 +77,11 @@ struct buffer_head {
+> >  	atomic_t b_count;		/* users using this buffer_head */
+> >  };
+> >  
+> > +/* Bits that are cleared during an invalidate */
+> > +#define BUFFER_FLAGS_DISCARD \
+> > +	(1 << BH_Mapped | 1 << BH_New | 1 << BH_Req | \
+> > +	 1 << BH_Delay | 1 << BH_Unwritten)
+> > +
+> 
+> There isn't much point in having this in the header file is there?
+> 
 
-I agree that it should be dropped.  I did not follow the discussion,
-but mmotm soon gives me BUG at mm/page_alloc.c:1242 under swapping load.
+No, it's not necessary. I was just keeping it with the definition of the
+flags. Your fix on top looks fine.
 
-Hugh
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
