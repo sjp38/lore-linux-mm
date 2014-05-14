@@ -1,141 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 54DC46B0036
-	for <linux-mm@kvack.org>; Wed, 14 May 2014 07:27:59 -0400 (EDT)
-Received: by mail-pa0-f51.google.com with SMTP id kq14so1593268pab.10
-        for <linux-mm@kvack.org>; Wed, 14 May 2014 04:27:59 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id oh10si807258pbb.427.2014.05.14.04.27.58
+Received: from mail-ee0-f49.google.com (mail-ee0-f49.google.com [74.125.83.49])
+	by kanga.kvack.org (Postfix) with ESMTP id E8D6F6B0036
+	for <linux-mm@kvack.org>; Wed, 14 May 2014 10:26:40 -0400 (EDT)
+Received: by mail-ee0-f49.google.com with SMTP id e53so1438165eek.36
+        for <linux-mm@kvack.org>; Wed, 14 May 2014 07:26:40 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id d1si1822452eem.85.2014.05.14.07.26.33
         for <linux-mm@kvack.org>;
-        Wed, 14 May 2014 04:27:58 -0700 (PDT)
-Date: Wed, 14 May 2014 19:26:55 +0800
-From: kbuild test robot <fengguang.wu@intel.com>
-Subject: [mmotm:master 449/499] lib/test_bpf.c:1401:16: sparse: symbol
- 'populate_skb' was not declared. Should it be static?
-Message-ID: <537352ff.YeKAAIraVMbFPDYy%fengguang.wu@intel.com>
+        Wed, 14 May 2014 07:26:34 -0700 (PDT)
+Date: Wed, 14 May 2014 16:25:34 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH 19/19] mm: filemap: Avoid unnecessary barries and
+	waitqueue lookups in unlock_page fastpath
+Message-ID: <20140514142534.GA31018@redhat.com>
+References: <1399974350-11089-1-git-send-email-mgorman@suse.de> <1399974350-11089-20-git-send-email-mgorman@suse.de> <20140513125313.GR23991@suse.de> <20140513141748.GD2485@laptop.programming.kicks-ass.net> <20140513152719.GF18164@linux.vnet.ibm.com> <20140513154435.GG2485@laptop.programming.kicks-ass.net> <20140513161418.GH18164@linux.vnet.ibm.com> <20140513185742.GD12123@redhat.com> <20140513202448.GR18164@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed;
- boundary="=_537352ff.rYB1KClYSjRKOocQghAYusKltAG6k07thMly1/F7QjSNT0eb"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140513202448.GR18164@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, mmotm auto import <mm-commits@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, kbuild-all@01.org
+To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, David Howells <dhowells@redhat.com>
 
-This is a multi-part message in MIME format.
+On 05/13, Paul E. McKenney wrote:
+>
+> On Tue, May 13, 2014 at 08:57:42PM +0200, Oleg Nesterov wrote:
+> > On 05/13, Paul E. McKenney wrote:
+> > >
+> > > On Tue, May 13, 2014 at 05:44:35PM +0200, Peter Zijlstra wrote:
+> > > >
+> > > > Ah, yes, so I'll defer to Oleg and Linus to explain that one. As per the
+> > > > name: smp_mb__before_spinlock() should of course imply a full barrier.
+> > >
+> > > How about if I queue a name change to smp_wmb__before_spinlock()?
+> >
+> > I agree, this is more accurate, simply because it describes what it
+> > actually does.
+> >
+> > But just in case, as for try_to_wake_up() it does not actually need
+> > wmb() between "CONDITION = T" and "task->state = RUNNING". It would
+> > be fine if these 2 STORE's are re-ordered, we can rely on rq->lock.
+> >
+> > What it actually needs is a barrier between "CONDITION = T" and
+> > "task->state & state" check. But since we do not have a store-load
+> > barrier, wmb() was added to ensure that "CONDITION = T" can't leak
+> > into the critical section.
+> >
+> > But it seems that set_tlb_flush_pending() already assumes that it
+> > acts as wmb(), so probably smp_wmb__before_spinlock() is fine.
+>
+> Except that when I go to make the change, I find the following in
+> the documentation:
+>
+>      Memory operations issued before the ACQUIRE may be completed after
+>      the ACQUIRE operation has completed.  An smp_mb__before_spinlock(),
+>      combined with a following ACQUIRE, orders prior loads against
+>      subsequent loads and stores and also orders prior stores against
+>      subsequent stores.  Note that this is weaker than smp_mb()!  The
+>      smp_mb__before_spinlock() primitive is free on many architectures.
+>
+> Which means that either the documentation is wrong or the implementation
+> is.  Yes, smp_wmb() has the semantics called out above on many platforms,
+> but not on Alpha or ARM.
 
---=_537352ff.rYB1KClYSjRKOocQghAYusKltAG6k07thMly1/F7QjSNT0eb
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
-
-tree:   git://git.cmpxchg.org/linux-mmotm.git master
-head:   1055821ba3c83218cbba4481f8349e3326cdaa32
-commit: 802c295a15874b0287efd0bdeb1b3ebbacd4368b [449/499] lib/test_bpf.c: don't use gcc union shortcut
-reproduce: make C=1 CF=-D__CHECK_ENDIAN__
+Well, I think the documentation is wrong in any case. "prior loads
+against subsequent loads" is not true. And it doesn't document that
+the initial goal was "prior stores against the subsequent loads".
+"prior stores against the subsequent stores" is obviously true for
+the default implementation, but this is the "side effect" because
+it uses wmb().
 
 
-sparse warnings: (new ones prefixed by >>)
+The only intent of wmb() added by 04e2f174 "Add memory barrier semantics
+to wake_up() & co" (afaics at least) was: make sure that ttwu() does not
+read p->state before the preceding stores are completed.
 
-   lib/test_bpf.c:87:17: sparse: advancing past deep designator
-   lib/test_bpf.c:99:17: sparse: advancing past deep designator
-   lib/test_bpf.c:114:17: sparse: advancing past deep designator
-   lib/test_bpf.c:132:17: sparse: advancing past deep designator
-   lib/test_bpf.c:148:17: sparse: advancing past deep designator
-   lib/test_bpf.c:159:17: sparse: advancing past deep designator
-   lib/test_bpf.c:169:17: sparse: advancing past deep designator
-   lib/test_bpf.c:182:17: sparse: advancing past deep designator
-   lib/test_bpf.c:196:17: sparse: advancing past deep designator
-   lib/test_bpf.c:209:17: sparse: advancing past deep designator
-   lib/test_bpf.c:223:17: sparse: advancing past deep designator
-   lib/test_bpf.c:244:17: sparse: advancing past deep designator
-   lib/test_bpf.c:255:17: sparse: advancing past deep designator
-   lib/test_bpf.c:266:17: sparse: advancing past deep designator
-   lib/test_bpf.c:277:17: sparse: advancing past deep designator
-   lib/test_bpf.c:296:17: sparse: advancing past deep designator
-   lib/test_bpf.c:307:17: sparse: advancing past deep designator
-   lib/test_bpf.c:321:17: sparse: advancing past deep designator
-   lib/test_bpf.c:335:17: sparse: advancing past deep designator
-   lib/test_bpf.c:346:17: sparse: advancing past deep designator
-   lib/test_bpf.c:361:17: sparse: advancing past deep designator
-   lib/test_bpf.c:375:17: sparse: advancing past deep designator
-   lib/test_bpf.c:409:17: sparse: advancing past deep designator
-   lib/test_bpf.c:428:17: sparse: advancing past deep designator
-   lib/test_bpf.c:449:17: sparse: advancing past deep designator
-   lib/test_bpf.c:471:17: sparse: advancing past deep designator
-   lib/test_bpf.c:484:17: sparse: advancing past deep designator
-   lib/test_bpf.c:497:17: sparse: advancing past deep designator
-   lib/test_bpf.c:516:17: sparse: advancing past deep designator
-   lib/test_bpf.c:548:17: sparse: advancing past deep designator
-   lib/test_bpf.c:580:17: sparse: advancing past deep designator
-   lib/test_bpf.c:638:17: sparse: advancing past deep designator
-   lib/test_bpf.c:657:17: sparse: advancing past deep designator
-   lib/test_bpf.c:673:17: sparse: advancing past deep designator
-   lib/test_bpf.c:689:17: sparse: advancing past deep designator
-   lib/test_bpf.c:706:17: sparse: advancing past deep designator
-   lib/test_bpf.c:723:17: sparse: advancing past deep designator
-   lib/test_bpf.c:885:17: sparse: advancing past deep designator
-   lib/test_bpf.c:1031:17: sparse: advancing past deep designator
-   lib/test_bpf.c:1164:17: sparse: advancing past deep designator
-   lib/test_bpf.c:1230:17: sparse: advancing past deep designator
-   lib/test_bpf.c:1292:17: sparse: advancing past deep designator
-   lib/test_bpf.c:1312:17: sparse: advancing past deep designator
-   lib/test_bpf.c:1329:17: sparse: advancing past deep designator
-   lib/test_bpf.c:1342:17: sparse: advancing past deep designator
-   lib/test_bpf.c:1351:17: sparse: advancing past deep designator
-   lib/test_bpf.c:1361:17: sparse: advancing past deep designator
-   lib/test_bpf.c:1372:17: sparse: advancing past deep designator
-   lib/test_bpf.c:1382:17: sparse: advancing past deep designator
->> lib/test_bpf.c:1401:16: sparse: symbol 'populate_skb' was not declared. Should it be static?
->> lib/test_bpf.c:1481:30: sparse: incorrect type in assignment (different address spaces)
-   lib/test_bpf.c:1481:30:    expected struct sock_filter [noderef] <asn:1>*filter
-   lib/test_bpf.c:1481:30:    got struct sock_filter *<noident>
->> lib/test_bpf.c:1482:45: sparse: incorrect type in argument 1 (different address spaces)
-   lib/test_bpf.c:1482:45:    expected struct sock_filter *[assigned] fp
-   lib/test_bpf.c:1482:45:    got struct sock_filter [noderef] <asn:1>*filter
+e0acd0a68e "sched: fix the theoretical signal_wake_up() vs schedule()
+race" added the new helper for documentation, to explain that the
+default implementation abuses wmb() to achieve the serialization above.
 
-Please consider folding the attached diff :-)
+> So, as you say, set_tlb_flush_pending() only relies on smp_wmb().
 
----
-0-DAY kernel build testing backend              Open Source Technology Center
-http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporation
+The comment says ;) and this means that even if we suddenly have a new
+load_store() barrier (which could work for ttwu/schedule) we can no
+longer change smp_mb__before_spinlock() to use it.
 
---=_537352ff.rYB1KClYSjRKOocQghAYusKltAG6k07thMly1/F7QjSNT0eb
-Content-Type: text/x-diff;
- charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Content-Disposition: attachment;
- filename="make-it-static-802c295a15874b0287efd0bdeb1b3ebbacd4368b.diff"
+> The comment in try_to_wake_up() seems to be assuming a full memory
+> barrier.  The comment in __schedule() also seems to be relying on
+> a full memory barrier (prior write against subsequent read).  Yow!
 
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: [PATCH mmotm] lib/test_bpf.c: populate_skb() can be static
-TO: Andrew Morton <akpm@linux-foundation.org>
-CC: Linux Memory Management List <linux-mm@kvack.org>
-CC: Johannes Weiner <hannes@cmpxchg.org>
-CC: linux-kernel@vger.kernel.org 
+Well yes, but see above. Again, we need load_store() before reading
+p->state, which we do not have. wmb() before spin_lock() can be used
+instead.
 
-CC: Andrew Morton <akpm@linux-foundation.org>
-CC: Linux Memory Management List <linux-mm@kvack.org>
-CC: Johannes Weiner <hannes@cmpxchg.org>
-Signed-off-by: Fengguang Wu <fengguang.wu@intel.com>
----
- test_bpf.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+But, try_to_wake_up() and __schedule() do not need a full barrier in
+a sense that if we are going to wake this task up (or just clear its
+->state), then "CONDITION = T" can be delayed till spin_unlock().
 
-diff --git a/lib/test_bpf.c b/lib/test_bpf.c
-index 0fa58d2..f5a630a 100644
---- a/lib/test_bpf.c
-+++ b/lib/test_bpf.c
-@@ -1398,7 +1398,7 @@ static int get_length(struct sock_filter *fp)
- }
- 
- struct net_device dev;
--struct sk_buff *populate_skb(char *buf, int size)
-+static struct sk_buff *populate_skb(char *buf, int size)
- {
- 	struct sk_buff *skb;
- 
+We do not care if that tasks misses CONDITION in this case, it will
+call schedule() which will take the same lock. But if we are not going
+to wake it up, we need to ensure that the task can't miss CONDITION.
 
---=_537352ff.rYB1KClYSjRKOocQghAYusKltAG6k07thMly1/F7QjSNT0eb--
+IOW, this all is simply about
+
+	CONDITION = T;			current->state = TASK_XXX;
+					mb();
+
+	if (p->state)			if (!CONDITION)
+		wake_it_up();			schedule();
+
+race.
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
