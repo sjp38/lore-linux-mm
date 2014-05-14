@@ -1,63 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F4916B0037
-	for <linux-mm@kvack.org>; Wed, 14 May 2014 19:01:29 -0400 (EDT)
-Received: by mail-pa0-f48.google.com with SMTP id rd3so206790pab.35
-        for <linux-mm@kvack.org>; Wed, 14 May 2014 16:01:28 -0700 (PDT)
-Received: from mail-pb0-f44.google.com (mail-pb0-f44.google.com [209.85.160.44])
-        by mx.google.com with ESMTPS id dg5si1648250pbc.480.2014.05.14.16.01.28
+Received: from mail-ee0-f54.google.com (mail-ee0-f54.google.com [74.125.83.54])
+	by kanga.kvack.org (Postfix) with ESMTP id D65096B0036
+	for <linux-mm@kvack.org>; Wed, 14 May 2014 19:15:15 -0400 (EDT)
+Received: by mail-ee0-f54.google.com with SMTP id b57so135410eek.27
+        for <linux-mm@kvack.org>; Wed, 14 May 2014 16:15:15 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2001:470:1f0b:db:abcd:42:0:1])
+        by mx.google.com with ESMTPS id i49si2708279eem.132.2014.05.14.16.15.14
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 14 May 2014 16:01:28 -0700 (PDT)
-Received: by mail-pb0-f44.google.com with SMTP id rq2so215736pbb.3
-        for <linux-mm@kvack.org>; Wed, 14 May 2014 16:01:28 -0700 (PDT)
-From: Andy Lutomirski <luto@amacapital.net>
-Subject: [PATCH] x86,vdso: Fix an OOPS accessing the hpet mapping w/o an hpet
-Date: Wed, 14 May 2014 16:01:23 -0700
-Message-Id: <c13c62bd41e75eb9f414b541dfd2adada009c7c2.1400107790.git.luto@amacapital.net>
-In-Reply-To: <e1640272803e7711d9a43d9454dbdae57ba22eed.1400108299.git.luto@amacapital.net>
-References: <e1640272803e7711d9a43d9454dbdae57ba22eed.1400108299.git.luto@amacapital.net>
+        (version=TLSv1.2 cipher=RC4-SHA bits=128/128);
+        Wed, 14 May 2014 16:15:14 -0700 (PDT)
+Date: Thu, 15 May 2014 01:15:17 +0200 (CEST)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: vmstat: On demand vmstat workers V5
+In-Reply-To: <alpine.DEB.2.10.1405141105370.16512@gentwo.org>
+Message-ID: <alpine.DEB.2.02.1405150111480.6261@ionos.tec.linutronix.de>
+References: <alpine.DEB.2.10.1405121317270.29911@gentwo.org> <alpine.DEB.2.02.1405131651120.6261@ionos.tec.linutronix.de> <alpine.DEB.2.10.1405141105370.16512@gentwo.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: x86@kernel.org, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dave Jones <davej@redhat.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, Andy Lutomirski <luto@amacapital.net>
+To: Christoph Lameter <cl@linux.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Gilad Ben-Yossef <gilad@benyossef.com>, Tejun Heo <tj@kernel.org>, John Stultz <johnstul@us.ibm.com>, Mike Frysinger <vapier@gentoo.org>, Minchan Kim <minchan.kim@gmail.com>, Hakan Akkan <hakanakkan@gmail.com>, Max Krasnyansky <maxk@qualcomm.com>, Frederic Weisbecker <fweisbec@gmail.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hughd@google.com, viresh.kumar@linaro.org, hpa@zytor.com, mingo@kernel.org, peterz@infradead.org
 
-The access should fail, but it shouldn't oops.
+On Wed, 14 May 2014, Christoph Lameter wrote:
+> - Shepherd thread as a general worker thread. This means
+>   that the general mechanism to control worker thread
+>   cpu proposed by Frederic Weisbecker is necessary to
+>   restrict the shepherd thread to the cpus not used
+>   for low latency tasks. Hopefully that is ready to be
+>   merged soon. No need anymore to have a specific
+>   cpu be the housekeeper cpu.
 
-Reported-by: Sasha Levin <sasha.levin@oracle.com>
-Signed-off-by: Andy Lutomirski <luto@amacapital.net>
----
+Amen to that.
 
-This applies to tip/x86/vdso and should be applied to unbreak Trinity
-on linux-next.
+Acked-by me for the general approach.
 
- arch/x86/vdso/vma.c | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+I don't want to give any unqualified opinion on the mm/vmstat parts of
+this patch.
 
-diff --git a/arch/x86/vdso/vma.c b/arch/x86/vdso/vma.c
-index e915eae..d02131e 100644
---- a/arch/x86/vdso/vma.c
-+++ b/arch/x86/vdso/vma.c
-@@ -84,6 +84,8 @@ static unsigned long vdso_addr(unsigned long start, unsigned len)
- 	return addr;
- }
- 
-+static struct page *no_pages[] = {NULL};
-+
- static int map_vdso(const struct vdso_image *image, bool calculate_addr)
- {
- 	struct mm_struct *mm = current->mm;
-@@ -125,7 +127,7 @@ static int map_vdso(const struct vdso_image *image, bool calculate_addr)
- 				       addr + image->size,
- 				       image->sym_end_mapping - image->size,
- 				       VM_READ,
--				       NULL);
-+				       no_pages);
- 
- 	if (IS_ERR(vma)) {
- 		ret = PTR_ERR(vma);
--- 
-1.9.0
+Thanks,
+
+	tglx
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
