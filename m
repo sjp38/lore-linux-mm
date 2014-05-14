@@ -1,57 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id D810F6B0036
-	for <linux-mm@kvack.org>; Tue, 13 May 2014 23:36:18 -0400 (EDT)
-Received: by mail-pa0-f54.google.com with SMTP id bj1so1108271pad.27
-        for <linux-mm@kvack.org>; Tue, 13 May 2014 20:36:18 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id hb8si257142pbc.411.2014.05.13.20.36.17
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 472B06B0036
+	for <linux-mm@kvack.org>; Tue, 13 May 2014 23:48:12 -0400 (EDT)
+Received: by mail-pa0-f43.google.com with SMTP id hz1so1111258pad.30
+        for <linux-mm@kvack.org>; Tue, 13 May 2014 20:48:11 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id ko6si264996pbc.485.2014.05.13.20.48.11
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 13 May 2014 20:36:17 -0700 (PDT)
+        Tue, 13 May 2014 20:48:11 -0700 (PDT)
+Message-ID: <5372E766.9040005@oracle.com>
+Date: Tue, 13 May 2014 23:47:50 -0400
 From: Sasha Levin <sasha.levin@oracle.com>
-Subject: [PATCH] mm: remap_file_pages: grab file ref to prevent race while mmaping
-Date: Tue, 13 May 2014 23:35:42 -0400
-Message-Id: <1400038542-9705-1-git-send-email-sasha.levin@oracle.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH 2/2] mm/page_alloc: DEBUG_VM checks for free_list placement
+ of CMA and RESERVE pages
+References: <533D8015.1000106@suse.cz> <1396539618-31362-1-git-send-email-vbabka@suse.cz> <1396539618-31362-2-git-send-email-vbabka@suse.cz> <53616F39.2070001@oracle.com> <53638ADA.5040200@suse.cz> <5367A1E5.2020903@oracle.com> <5367B356.1030403@suse.cz>
+In-Reply-To: <5367B356.1030403@suse.cz>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: kirill.shutemov@linux.intel.com, davej@redhat.com, linux-kernel@vger.kernel.org, viro@zeniv.linux.org.uk, peterz@infradead.org, mingo@kernel.org, Sasha Levin <sasha.levin@oracle.com>
+To: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Yong-Taek Lee <ytk.lee@samsung.com>, Minchan Kim <minchan@kernel.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Michal Nazarewicz <mina86@mina86.com>, Dave Jones <davej@redhat.com>
 
-A file reference should be held while a file is mmaped, otherwise it might
-be freed while being used.
+On 05/05/2014 11:50 AM, Vlastimil Babka wrote:
+> So in the end this VM_DEBUG check probably cannot work anymore for MIGRATE_RESERVE, only for CMA. I'm not sure if it's worth keeping it only for CMA, what are the CMA guys' opinions on that?
 
-Suggested-by: Hugh Dickins <hughd@google.com>
-Signed-off-by: Sasha Levin <sasha.levin@oracle.com>
----
- mm/mmap.c |    3 +++
- 1 file changed, 3 insertions(+)
+The way I understood it is that this patch is wrong, but it's still
+alive in -mm. Should it still be there?
 
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 2a0e0a8..da3c212 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -2593,6 +2593,7 @@ SYSCALL_DEFINE5(remap_file_pages, unsigned long, start, unsigned long, size,
- 	struct vm_area_struct *vma;
- 	unsigned long populate = 0;
- 	unsigned long ret = -EINVAL;
-+	struct file *file;
- 
- 	pr_warn_once("%s (%d) uses deprecated remap_file_pages() syscall. "
- 			"See Documentation/vm/remap_file_pages.txt.\n",
-@@ -2636,8 +2637,10 @@ SYSCALL_DEFINE5(remap_file_pages, unsigned long, start, unsigned long, size,
- 		munlock_vma_pages_range(vma, start, start + size);
- 	}
- 
-+	file = get_file(vma->vm_file);
- 	ret = do_mmap_pgoff(vma->vm_file, start, size,
- 			prot, flags, pgoff, &populate);
-+	fput(file);
- out:
- 	up_write(&mm->mmap_sem);
- 	if (populate)
--- 
-1.7.10.4
+
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
