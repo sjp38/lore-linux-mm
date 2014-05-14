@@ -1,69 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f47.google.com (mail-pb0-f47.google.com [209.85.160.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 754766B0036
-	for <linux-mm@kvack.org>; Wed, 14 May 2014 17:40:34 -0400 (EDT)
-Received: by mail-pb0-f47.google.com with SMTP id rp16so136850pbb.6
-        for <linux-mm@kvack.org>; Wed, 14 May 2014 14:40:34 -0700 (PDT)
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E9CA6B0036
+	for <linux-mm@kvack.org>; Wed, 14 May 2014 18:10:40 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id lj1so163050pab.28
+        for <linux-mm@kvack.org>; Wed, 14 May 2014 15:10:39 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id ic8si3158520pad.95.2014.05.14.14.40.33
+        by mx.google.com with ESMTP id bw8si3218507pad.133.2014.05.14.15.10.38
         for <linux-mm@kvack.org>;
-        Wed, 14 May 2014 14:40:33 -0700 (PDT)
-Date: Wed, 14 May 2014 14:40:31 -0700
+        Wed, 14 May 2014 15:10:39 -0700 (PDT)
+Date: Wed, 14 May 2014 15:10:37 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 2/2] mm: replace remap_file_pages() syscall with
- emulation
-Message-Id: <20140514144031.3086562833b35c1842a74b9d@linux-foundation.org>
-In-Reply-To: <20140514211748.GA15970@node.dhcp.inet.fi>
-References: <1399552888-11024-1-git-send-email-kirill.shutemov@linux.intel.com>
-	<1399552888-11024-3-git-send-email-kirill.shutemov@linux.intel.com>
-	<20140508145729.3d82d2c989cfc483c94eb324@linux-foundation.org>
-	<5370E4B4.1060802@oracle.com>
-	<20140512170514.GA28227@node.dhcp.inet.fi>
-	<5373D781.7020109@oracle.com>
-	<20140514211748.GA15970@node.dhcp.inet.fi>
+Subject: Re: [PATCH] mm/memory-failure.c: fix memory leak by race between
+ poison and unpoison
+Message-Id: <20140514151037.37592c3bb31f51fdad8c5a42@linux-foundation.org>
+In-Reply-To: <1400080891-5145-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+References: <1400080891-5145-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, peterz@infradead.org, mingo@kernel.org
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Andi Kleen <andi@firstfloor.org>, Wu Fengguang <fengguang.wu@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, 15 May 2014 00:17:48 +0300 "Kirill A. Shutemov" <kirill@shutemov.name> wrote:
+On Wed, 14 May 2014 11:21:31 -0400 Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
 
-> On Wed, May 14, 2014 at 04:52:17PM -0400, Sasha Levin wrote:
-> > On 05/12/2014 01:05 PM, Kirill A. Shutemov wrote:
-> > > Taking into account your employment, is it possible to check how the RDBMS
-> > > (old but it still supported 32-bit versions) would react on -ENOSYS here?
-> > 
-> > Alrighty, I got an answer:
-> > 
-> > 1. remap_file_pages() only works when the "VLM" feature of the db is enabled,
-> > so those databases can work just fine without it, but be limited to 3-4GB of
-> > memory. This is not needed at all on 64bit machines.
+> When a memory error happens on an in-use page or (free and in-use) hugepage,
+> the victim page is isolated with its refcount set to one. When you try to
+> unpoison it later, unpoison_memory() calls put_page() for it twice in order to
+> bring the page back to free page pool (buddy or free hugepage list.)
+> However, if another memory error occurs on the page which we are unpoisoning,
+> memory_failure() returns without releasing the refcount which was incremented
+> in the same call at first, which results in memory leak and unconsistent
+> num_poisoned_pages statistics. This patch fixes it.
 > 
-> Okay. And it seems user need to enable it manually with option
-> USE_INDIRECT_DATA_BUFFERS=TRUE.
-> 
-> http://docs.oracle.com/cd/B28359_01/server.111/b32009/appi_vlm.htm
-> 
-> > 2. As of OL7 (kernel 3.8), there will not be a 32bit kernel build. I'm still
-> > waiting for an answer whether there will do a 32bit DB build for a 64bit kernel,
-> > but that never happened before and seems unlikely.
-> > 
-> > 3. They're basically saying that by the time upstream releases a kernel without
-> > remap_file_pages() no one will need it here.
-> > 
-> > To sum it up, they're fine with removing remap_file_pages().
-> 
-> Andrew, Linus, what will we do here: live with emulation or just kill the
-> syscall? Or may be kill the syscall after few releases with emulation?
+> ...
+>
+> --- next-20140512.orig/mm/memory-failure.c
+> +++ next-20140512/mm/memory-failure.c
+> @@ -1153,6 +1153,8 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
+>  	 */
+>  	if (!PageHWPoison(p)) {
+>  		printk(KERN_ERR "MCE %#lx: just unpoisoned\n", pfn);
+> +		atomic_long_sub(nr_pages, &num_poisoned_pages);
+> +		put_page(hpage);
+>  		res = 0;
+>  		goto out;
+>  	}
 
-Well we can put the printk in there initially to gather more
-information.
+Looking at the surrounding code...
 
-If it appears necessary then we can include the emulation, but retain
-the "this-is-going-away" printk then remove the emulation later on.
+	/*
+	 * Lock the page and wait for writeback to finish.
+	 * It's very difficult to mess with pages currently under IO
+	 * and in many cases impossible, so we just avoid it here.
+	 */
+	lock_page(hpage);
+
+
+lock_page() doesn't wait for writeback to finish -
+wait_on_page_writeback() does that.  Either the code or the comment
+could do with fixing.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
