@@ -1,66 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ve0-f172.google.com (mail-ve0-f172.google.com [209.85.128.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B18B6B003A
-	for <linux-mm@kvack.org>; Wed, 14 May 2014 17:34:15 -0400 (EDT)
-Received: by mail-ve0-f172.google.com with SMTP id oz11so216385veb.17
-        for <linux-mm@kvack.org>; Wed, 14 May 2014 14:34:15 -0700 (PDT)
-Received: from mail-ve0-f171.google.com (mail-ve0-f171.google.com [209.85.128.171])
-        by mx.google.com with ESMTPS id iq2si540555veb.181.2014.05.14.14.34.14
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 14 May 2014 14:34:14 -0700 (PDT)
-Received: by mail-ve0-f171.google.com with SMTP id oz11so218086veb.16
-        for <linux-mm@kvack.org>; Wed, 14 May 2014 14:34:14 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20140514143124.52c598a2ba8e2539ee76558c@linux-foundation.org>
-References: <53739201.6080604@oracle.com> <20140514132312.573e5d3cf99276c3f0b82980@linux-foundation.org>
- <5373D509.7090207@oracle.com> <20140514140305.7683c1c2f1e4fb0a63085a2a@linux-foundation.org>
- <5373DBE4.6030907@oracle.com> <20140514143124.52c598a2ba8e2539ee76558c@linux-foundation.org>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Wed, 14 May 2014 14:33:54 -0700
-Message-ID: <CALCETrXQOPBOBOgE_snjdmJM7zi34Ei8-MUA-U-YVrwubz4sOQ@mail.gmail.com>
-Subject: Re: mm: NULL ptr deref handling mmaping of special mappings
-Content-Type: text/plain; charset=UTF-8
+Received: from mail-pb0-f47.google.com (mail-pb0-f47.google.com [209.85.160.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 754766B0036
+	for <linux-mm@kvack.org>; Wed, 14 May 2014 17:40:34 -0400 (EDT)
+Received: by mail-pb0-f47.google.com with SMTP id rp16so136850pbb.6
+        for <linux-mm@kvack.org>; Wed, 14 May 2014 14:40:34 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id ic8si3158520pad.95.2014.05.14.14.40.33
+        for <linux-mm@kvack.org>;
+        Wed, 14 May 2014 14:40:33 -0700 (PDT)
+Date: Wed, 14 May 2014 14:40:31 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 2/2] mm: replace remap_file_pages() syscall with
+ emulation
+Message-Id: <20140514144031.3086562833b35c1842a74b9d@linux-foundation.org>
+In-Reply-To: <20140514211748.GA15970@node.dhcp.inet.fi>
+References: <1399552888-11024-1-git-send-email-kirill.shutemov@linux.intel.com>
+	<1399552888-11024-3-git-send-email-kirill.shutemov@linux.intel.com>
+	<20140508145729.3d82d2c989cfc483c94eb324@linux-foundation.org>
+	<5370E4B4.1060802@oracle.com>
+	<20140512170514.GA28227@node.dhcp.inet.fi>
+	<5373D781.7020109@oracle.com>
+	<20140514211748.GA15970@node.dhcp.inet.fi>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Sasha Levin <sasha.levin@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dave Jones <davej@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Pavel Emelyanov <xemul@parallels.com>, Cyrill Gorcunov <gorcunov@openvz.org>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, peterz@infradead.org, mingo@kernel.org
 
-On Wed, May 14, 2014 at 2:31 PM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> On Wed, 14 May 2014 17:11:00 -0400 Sasha Levin <sasha.levin@oracle.com> wrote:
->
->> > In my linux-next all that code got deleted by Andy's "x86, vdso:
->> > Reimplement vdso.so preparation in build-time C" anyway.  What kernel
->> > were you looking at?
->>
->> Deleted? It appears in today's -next. arch/x86/vdso/vma.c:124 .
->>
->> I don't see Andy's patch removing that code either.
->
-> ah, OK, it got moved from arch/x86/vdso/vdso32-setup.c into
-> arch/x86/vdso/vma.c.
->
-> Maybe you managed to take a fault against the symbol area between the
-> _install_special_mapping() and the remap_pfn_range() call, but mmap_sem
-> should prevent that.
->
-> Or the remap_pfn_range() call never happened.  Should map_vdso() be
-> running _install_special_mapping() at all if
-> image->sym_vvar_page==NULL?
+On Thu, 15 May 2014 00:17:48 +0300 "Kirill A. Shutemov" <kirill@shutemov.name> wrote:
 
-I'm confused: are we talking about 3.15-rcsomething or linux-next?
-That code changed.
+> On Wed, May 14, 2014 at 04:52:17PM -0400, Sasha Levin wrote:
+> > On 05/12/2014 01:05 PM, Kirill A. Shutemov wrote:
+> > > Taking into account your employment, is it possible to check how the RDBMS
+> > > (old but it still supported 32-bit versions) would react on -ENOSYS here?
+> > 
+> > Alrighty, I got an answer:
+> > 
+> > 1. remap_file_pages() only works when the "VLM" feature of the db is enabled,
+> > so those databases can work just fine without it, but be limited to 3-4GB of
+> > memory. This is not needed at all on 64bit machines.
+> 
+> Okay. And it seems user need to enable it manually with option
+> USE_INDIRECT_DATA_BUFFERS=TRUE.
+> 
+> http://docs.oracle.com/cd/B28359_01/server.111/b32009/appi_vlm.htm
+> 
+> > 2. As of OL7 (kernel 3.8), there will not be a 32bit kernel build. I'm still
+> > waiting for an answer whether there will do a 32bit DB build for a 64bit kernel,
+> > but that never happened before and seems unlikely.
+> > 
+> > 3. They're basically saying that by the time upstream releases a kernel without
+> > remap_file_pages() no one will need it here.
+> > 
+> > To sum it up, they're fine with removing remap_file_pages().
+> 
+> Andrew, Linus, what will we do here: live with emulation or just kill the
+> syscall? Or may be kill the syscall after few releases with emulation?
 
-Would this all make more sense if there were just a single vma in
-here?  cc: Pavel and Cyrill, who might have to deal with this stuff in
-CRIU
+Well we can put the printk in there initially to gather more
+information.
 
---Andy
-
--- 
-Andy Lutomirski
-AMA Capital Management, LLC
+If it appears necessary then we can include the emulation, but retain
+the "this-is-going-away" printk then remove the emulation later on.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
