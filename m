@@ -1,45 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f42.google.com (mail-ee0-f42.google.com [74.125.83.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A0126B0036
-	for <linux-mm@kvack.org>; Wed, 14 May 2014 02:32:15 -0400 (EDT)
-Received: by mail-ee0-f42.google.com with SMTP id d49so973244eek.1
-        for <linux-mm@kvack.org>; Tue, 13 May 2014 23:32:14 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w2si830241eel.356.2014.05.13.23.32.13
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 4F13C6B0036
+	for <linux-mm@kvack.org>; Wed, 14 May 2014 03:09:34 -0400 (EDT)
+Received: by mail-pa0-f53.google.com with SMTP id kp14so1321647pab.40
+        for <linux-mm@kvack.org>; Wed, 14 May 2014 00:09:34 -0700 (PDT)
+Received: from mail-pb0-x232.google.com (mail-pb0-x232.google.com [2607:f8b0:400e:c01::232])
+        by mx.google.com with ESMTPS id ew3si985106pac.229.2014.05.14.00.09.32
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 13 May 2014 23:32:13 -0700 (PDT)
-Date: Wed, 14 May 2014 07:32:07 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 05/19] mm: page_alloc: Calculate classzone_idx once from
- the zonelist ref
-Message-ID: <20140514063207.GX23991@suse.de>
-References: <1399974350-11089-1-git-send-email-mgorman@suse.de>
- <1399974350-11089-6-git-send-email-mgorman@suse.de>
- <20140513152556.d14e3eaff8949a7010c02686@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20140513152556.d14e3eaff8949a7010c02686@linux-foundation.org>
+        Wed, 14 May 2014 00:09:33 -0700 (PDT)
+Received: by mail-pb0-f50.google.com with SMTP id ma3so1323417pbc.23
+        for <linux-mm@kvack.org>; Wed, 14 May 2014 00:09:32 -0700 (PDT)
+From: Jianyu Zhan <nasa4836@gmail.com>
+Subject: [PATCH] mm, hugetlb: use list_for_each_entry in region_xxx
+Date: Wed, 14 May 2014 15:09:19 +0800
+Message-Id: <1400051359-19942-1-git-send-email-nasa4836@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>
+To: akpm@linux-foundation.org, iamjoonsoo.kim@lge.com, n-horiguchi@ah.jp.nec.com, aneesh.kumar@linux.vnet.ibm.com, mhocko@suse.cz, aarcange@redhat.com, steve.capper@linaro.org, davidlohr@hp.com, kirill.shutemov@linux.intel.com, dave.hansen@linux.intel.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, nasa4836@gmail.com
 
-On Tue, May 13, 2014 at 03:25:56PM -0700, Andrew Morton wrote:
-> On Tue, 13 May 2014 10:45:36 +0100 Mel Gorman <mgorman@suse.de> wrote:
-> 
-> > There is no need to calculate zone_idx(preferred_zone) multiple times
-> > or use the pgdat to figure it out.
-> > 
-> 
-> This one falls afoul of pending mm/next changes in non-trivial ways.
+Commit 7b24d8616be3 ("mm, hugetlb: fix race in region tracking") has
+changed to use a per resv_map spinlock to serialize against any
+concurrent write operations to the resv_map, thus we don't need
+list_for_each_entry_safe to interate over file_region's any more.
+Use list_for_each_entry is enough.
 
-No problem, I can rework this patch on top of mmotm. Thanks.
+Signed-off-by: Jianyu Zhan <nasa4836@gmail.com>
+---
+ mm/hugetlb.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
 
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index c82290b..26b1464 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -156,7 +156,7 @@ struct file_region {
+ static long region_add(struct resv_map *resv, long f, long t)
+ {
+ 	struct list_head *head = &resv->regions;
+-	struct file_region *rg, *nrg, *trg;
++	struct file_region *rg, *nrg;
+ 
+ 	spin_lock(&resv->lock);
+ 	/* Locate the region we are either in or before. */
+@@ -170,7 +170,7 @@ static long region_add(struct resv_map *resv, long f, long t)
+ 
+ 	/* Check for and consume any regions we now overlap with. */
+ 	nrg = rg;
+-	list_for_each_entry_safe(rg, trg, rg->link.prev, link) {
++	list_for_each_entry(rg, rg->link.prev, link) {
+ 		if (&rg->link == head)
+ 			break;
+ 		if (rg->from > t)
+@@ -261,7 +261,7 @@ out_nrg:
+ static long region_truncate(struct resv_map *resv, long end)
+ {
+ 	struct list_head *head = &resv->regions;
+-	struct file_region *rg, *trg;
++	struct file_region *rg;
+ 	long chg = 0;
+ 
+ 	spin_lock(&resv->lock);
+@@ -280,7 +280,7 @@ static long region_truncate(struct resv_map *resv, long end)
+ 	}
+ 
+ 	/* Drop any remaining regions. */
+-	list_for_each_entry_safe(rg, trg, rg->link.prev, link) {
++	list_for_each_entry(rg, rg->link.prev, link) {
+ 		if (&rg->link == head)
+ 			break;
+ 		chg += rg->to - rg->from;
 -- 
-Mel Gorman
-SUSE Labs
+2.0.0-rc3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
