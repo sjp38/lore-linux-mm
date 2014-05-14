@@ -1,126 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f42.google.com (mail-ee0-f42.google.com [74.125.83.42])
-	by kanga.kvack.org (Postfix) with ESMTP id A6D786B0037
-	for <linux-mm@kvack.org>; Wed, 14 May 2014 05:45:53 -0400 (EDT)
-Received: by mail-ee0-f42.google.com with SMTP id d49so1157256eek.15
-        for <linux-mm@kvack.org>; Wed, 14 May 2014 02:45:53 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r44si1234372eeo.274.2014.05.14.02.45.51
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 14 May 2014 02:45:52 -0700 (PDT)
-Date: Wed, 14 May 2014 11:45:50 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH] memcg: deprecate memory.force_empty knob
-Message-ID: <20140514094550.GB15756@dhcp22.suse.cz>
-References: <1399994956-3907-1-git-send-email-mhocko@suse.cz>
- <20140513143953.0b91925ee1e81580a4025a2e@linux-foundation.org>
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 54DC46B0036
+	for <linux-mm@kvack.org>; Wed, 14 May 2014 07:27:59 -0400 (EDT)
+Received: by mail-pa0-f51.google.com with SMTP id kq14so1593268pab.10
+        for <linux-mm@kvack.org>; Wed, 14 May 2014 04:27:59 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id oh10si807258pbb.427.2014.05.14.04.27.58
+        for <linux-mm@kvack.org>;
+        Wed, 14 May 2014 04:27:58 -0700 (PDT)
+Date: Wed, 14 May 2014 19:26:55 +0800
+From: kbuild test robot <fengguang.wu@intel.com>
+Subject: [mmotm:master 449/499] lib/test_bpf.c:1401:16: sparse: symbol
+ 'populate_skb' was not declared. Should it be static?
+Message-ID: <537352ff.YeKAAIraVMbFPDYy%fengguang.wu@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140513143953.0b91925ee1e81580a4025a2e@linux-foundation.org>
+Content-Type: multipart/mixed;
+ boundary="=_537352ff.rYB1KClYSjRKOocQghAYusKltAG6k07thMly1/F7QjSNT0eb"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>, Hugh Dickins <hughd@google.com>, Greg Thelen <gthelen@google.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+Cc: Johannes Weiner <hannes@cmpxchg.org>, mmotm auto import <mm-commits@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, kbuild-all@01.org
 
-On Tue 13-05-14 14:39:53, Andrew Morton wrote:
-> On Tue, 13 May 2014 17:29:16 +0200 Michal Hocko <mhocko@suse.cz> wrote:
-> 
-> > force_empty has been introduced primarily to drop memory before it gets
-> > reparented on the group removal. This alone doesn't sound fully
-> > justified because reparented pages which are not in use can be reclaimed
-> > also later when there is a memory pressure on the parent level.
-> > 
-> > Mark the knob CFTYPE_INSANE which tells the cgroup core that it
-> > shouldn't create the knob with the experimental sane_behavior. Other
-> > users will get informed about the deprecation and asked to tell us more
-> > because I do not expect most users will use sane_behavior cgroups mode
-> > very soon.
-> > Anyway I expect that most users will be simply cgroup remove handlers
-> > which do that since ever without having any good reason for it.
-> > 
-> > If somebody really cares because reparented pages, which would be
-> > dropped otherwise, push out more important ones then we should fix the
-> > reparenting code and put pages to the tail.
-> > 
-> > ...
-> >
-> > --- a/mm/memcontrol.c
-> > +++ b/mm/memcontrol.c
-> > @@ -4793,6 +4793,10 @@ static int mem_cgroup_force_empty_write(struct cgroup_subsys_state *css,
-> >  
-> >  	if (mem_cgroup_is_root(memcg))
-> >  		return -EINVAL;
-> > +	pr_info("%s (%d): memory.force_empty is deprecated and will be removed.",
-> > +			current->comm, task_pid_nr(current));
-> > +	pr_cont(" Let us know if you know if it needed in your usecase at");
-> > +	pr_cont(" linux-mm@kvack.org\n");
-> >  	return mem_cgroup_force_empty(memcg);
-> >  }
-> >  
-> 
-> Do we really want to spam the poor user each and every time they use
-> this?  Using pr_info_once() is kinder and gentler?
+This is a multi-part message in MIME format.
 
-We do not catch all potential callers but it is true that some
-configurations might have thousands of cgroups and the notify_on_release
-handler will spam the log.
+--=_537352ff.rYB1KClYSjRKOocQghAYusKltAG6k07thMly1/F7QjSNT0eb
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 
-> From: Andrew Morton <akpm@linux-foundation.org>
-> Subject: memcg-deprecate-memoryforce_empty-knob-fix
-> 
-> - s/pr_info/pr_info_once/
-> - fix garbled printk text
-> 
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Michal Hocko <mhocko@suse.cz>
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+tree:   git://git.cmpxchg.org/linux-mmotm.git master
+head:   1055821ba3c83218cbba4481f8349e3326cdaa32
+commit: 802c295a15874b0287efd0bdeb1b3ebbacd4368b [449/499] lib/test_bpf.c: don't use gcc union shortcut
+reproduce: make C=1 CF=-D__CHECK_ENDIAN__
 
-Acked-by: Michal Hocko <mhocko@suse.cz>
 
-> ---
-> 
->  Documentation/cgroups/memory.txt |    2 +-
->  mm/memcontrol.c                  |    8 ++++----
->  2 files changed, 5 insertions(+), 5 deletions(-)
-> 
-> diff -puN Documentation/cgroups/memory.txt~memcg-deprecate-memoryforce_empty-knob-fix Documentation/cgroups/memory.txt
-> --- a/Documentation/cgroups/memory.txt~memcg-deprecate-memoryforce_empty-knob-fix
-> +++ a/Documentation/cgroups/memory.txt
-> @@ -482,7 +482,7 @@ About use_hierarchy, see Section 6.
->    memory.kmem.usage_in_bytes == memory.usage_in_bytes.
->  
->    Please note that this knob is considered deprecated and will be removed
-> -  in future.
-> +  in the future.
->  
->    About use_hierarchy, see Section 6.
->  
-> diff -puN mm/memcontrol.c~memcg-deprecate-memoryforce_empty-knob-fix mm/memcontrol.c
-> --- a/mm/memcontrol.c~memcg-deprecate-memoryforce_empty-knob-fix
-> +++ a/mm/memcontrol.c
-> @@ -4799,10 +4799,10 @@ static int mem_cgroup_force_empty_write(
->  
->  	if (mem_cgroup_is_root(memcg))
->  		return -EINVAL;
-> -	pr_info("%s (%d): memory.force_empty is deprecated and will be removed.",
-> -			current->comm, task_pid_nr(current));
-> -	pr_cont(" Let us know if you know if it needed in your usecase at");
-> -	pr_cont(" linux-mm@kvack.org\n");
-> +	pr_info_once("%s (%d): memory.force_empty is deprecated and will be "
-> +		     "removed.  Let us know if it is needed in your usecase at "
-> +		     "linux-mm@kvack.org\n",
-> +		     current->comm, task_pid_nr(current));
->  	return mem_cgroup_force_empty(memcg);
->  }
->  
-> _
-> 
+sparse warnings: (new ones prefixed by >>)
 
--- 
-Michal Hocko
-SUSE Labs
+   lib/test_bpf.c:87:17: sparse: advancing past deep designator
+   lib/test_bpf.c:99:17: sparse: advancing past deep designator
+   lib/test_bpf.c:114:17: sparse: advancing past deep designator
+   lib/test_bpf.c:132:17: sparse: advancing past deep designator
+   lib/test_bpf.c:148:17: sparse: advancing past deep designator
+   lib/test_bpf.c:159:17: sparse: advancing past deep designator
+   lib/test_bpf.c:169:17: sparse: advancing past deep designator
+   lib/test_bpf.c:182:17: sparse: advancing past deep designator
+   lib/test_bpf.c:196:17: sparse: advancing past deep designator
+   lib/test_bpf.c:209:17: sparse: advancing past deep designator
+   lib/test_bpf.c:223:17: sparse: advancing past deep designator
+   lib/test_bpf.c:244:17: sparse: advancing past deep designator
+   lib/test_bpf.c:255:17: sparse: advancing past deep designator
+   lib/test_bpf.c:266:17: sparse: advancing past deep designator
+   lib/test_bpf.c:277:17: sparse: advancing past deep designator
+   lib/test_bpf.c:296:17: sparse: advancing past deep designator
+   lib/test_bpf.c:307:17: sparse: advancing past deep designator
+   lib/test_bpf.c:321:17: sparse: advancing past deep designator
+   lib/test_bpf.c:335:17: sparse: advancing past deep designator
+   lib/test_bpf.c:346:17: sparse: advancing past deep designator
+   lib/test_bpf.c:361:17: sparse: advancing past deep designator
+   lib/test_bpf.c:375:17: sparse: advancing past deep designator
+   lib/test_bpf.c:409:17: sparse: advancing past deep designator
+   lib/test_bpf.c:428:17: sparse: advancing past deep designator
+   lib/test_bpf.c:449:17: sparse: advancing past deep designator
+   lib/test_bpf.c:471:17: sparse: advancing past deep designator
+   lib/test_bpf.c:484:17: sparse: advancing past deep designator
+   lib/test_bpf.c:497:17: sparse: advancing past deep designator
+   lib/test_bpf.c:516:17: sparse: advancing past deep designator
+   lib/test_bpf.c:548:17: sparse: advancing past deep designator
+   lib/test_bpf.c:580:17: sparse: advancing past deep designator
+   lib/test_bpf.c:638:17: sparse: advancing past deep designator
+   lib/test_bpf.c:657:17: sparse: advancing past deep designator
+   lib/test_bpf.c:673:17: sparse: advancing past deep designator
+   lib/test_bpf.c:689:17: sparse: advancing past deep designator
+   lib/test_bpf.c:706:17: sparse: advancing past deep designator
+   lib/test_bpf.c:723:17: sparse: advancing past deep designator
+   lib/test_bpf.c:885:17: sparse: advancing past deep designator
+   lib/test_bpf.c:1031:17: sparse: advancing past deep designator
+   lib/test_bpf.c:1164:17: sparse: advancing past deep designator
+   lib/test_bpf.c:1230:17: sparse: advancing past deep designator
+   lib/test_bpf.c:1292:17: sparse: advancing past deep designator
+   lib/test_bpf.c:1312:17: sparse: advancing past deep designator
+   lib/test_bpf.c:1329:17: sparse: advancing past deep designator
+   lib/test_bpf.c:1342:17: sparse: advancing past deep designator
+   lib/test_bpf.c:1351:17: sparse: advancing past deep designator
+   lib/test_bpf.c:1361:17: sparse: advancing past deep designator
+   lib/test_bpf.c:1372:17: sparse: advancing past deep designator
+   lib/test_bpf.c:1382:17: sparse: advancing past deep designator
+>> lib/test_bpf.c:1401:16: sparse: symbol 'populate_skb' was not declared. Should it be static?
+>> lib/test_bpf.c:1481:30: sparse: incorrect type in assignment (different address spaces)
+   lib/test_bpf.c:1481:30:    expected struct sock_filter [noderef] <asn:1>*filter
+   lib/test_bpf.c:1481:30:    got struct sock_filter *<noident>
+>> lib/test_bpf.c:1482:45: sparse: incorrect type in argument 1 (different address spaces)
+   lib/test_bpf.c:1482:45:    expected struct sock_filter *[assigned] fp
+   lib/test_bpf.c:1482:45:    got struct sock_filter [noderef] <asn:1>*filter
+
+Please consider folding the attached diff :-)
+
+---
+0-DAY kernel build testing backend              Open Source Technology Center
+http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporation
+
+--=_537352ff.rYB1KClYSjRKOocQghAYusKltAG6k07thMly1/F7QjSNT0eb
+Content-Type: text/x-diff;
+ charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Content-Disposition: attachment;
+ filename="make-it-static-802c295a15874b0287efd0bdeb1b3ebbacd4368b.diff"
+
+From: Fengguang Wu <fengguang.wu@intel.com>
+Subject: [PATCH mmotm] lib/test_bpf.c: populate_skb() can be static
+TO: Andrew Morton <akpm@linux-foundation.org>
+CC: Linux Memory Management List <linux-mm@kvack.org>
+CC: Johannes Weiner <hannes@cmpxchg.org>
+CC: linux-kernel@vger.kernel.org 
+
+CC: Andrew Morton <akpm@linux-foundation.org>
+CC: Linux Memory Management List <linux-mm@kvack.org>
+CC: Johannes Weiner <hannes@cmpxchg.org>
+Signed-off-by: Fengguang Wu <fengguang.wu@intel.com>
+---
+ test_bpf.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/lib/test_bpf.c b/lib/test_bpf.c
+index 0fa58d2..f5a630a 100644
+--- a/lib/test_bpf.c
++++ b/lib/test_bpf.c
+@@ -1398,7 +1398,7 @@ static int get_length(struct sock_filter *fp)
+ }
+ 
+ struct net_device dev;
+-struct sk_buff *populate_skb(char *buf, int size)
++static struct sk_buff *populate_skb(char *buf, int size)
+ {
+ 	struct sk_buff *skb;
+ 
+
+--=_537352ff.rYB1KClYSjRKOocQghAYusKltAG6k07thMly1/F7QjSNT0eb--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
