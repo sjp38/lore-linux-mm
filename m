@@ -1,90 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f173.google.com (mail-qc0-f173.google.com [209.85.216.173])
-	by kanga.kvack.org (Postfix) with ESMTP id CC5AE6B0036
-	for <linux-mm@kvack.org>; Wed, 14 May 2014 14:12:21 -0400 (EDT)
-Received: by mail-qc0-f173.google.com with SMTP id i8so3406408qcq.4
-        for <linux-mm@kvack.org>; Wed, 14 May 2014 11:12:21 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id m4si1307096qae.50.2014.05.14.11.12.20
-        for <linux-mm@kvack.org>;
-        Wed, 14 May 2014 11:12:21 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH] mm, hugetlb: use list_for_each_entry in region_xxx
-Date: Wed, 14 May 2014 14:12:08 -0400
-Message-Id: <5373b205.0429e00a.7447.ffffbab9SMTPIN_ADDED_BROKEN@mx.google.com>
-In-Reply-To: <1400051359-19942-1-git-send-email-nasa4836@gmail.com>
-References: <1400051359-19942-1-git-send-email-nasa4836@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Received: from mail-pb0-f48.google.com (mail-pb0-f48.google.com [209.85.160.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 591676B0036
+	for <linux-mm@kvack.org>; Wed, 14 May 2014 16:10:22 -0400 (EDT)
+Received: by mail-pb0-f48.google.com with SMTP id rr13so53570pbb.7
+        for <linux-mm@kvack.org>; Wed, 14 May 2014 13:10:22 -0700 (PDT)
+Received: from mail-pb0-x233.google.com (mail-pb0-x233.google.com [2607:f8b0:400e:c01::233])
+        by mx.google.com with ESMTPS id vv4si1468998pbc.451.2014.05.14.13.10.21
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 14 May 2014 13:10:21 -0700 (PDT)
+Received: by mail-pb0-f51.google.com with SMTP id ma3so53689pbc.10
+        for <linux-mm@kvack.org>; Wed, 14 May 2014 13:10:20 -0700 (PDT)
+Date: Wed, 14 May 2014 13:10:19 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch] mm: fix some indenting in cmpxchg_double_slab()
+In-Reply-To: <20140514161644.GF18082@mwanda>
+Message-ID: <alpine.DEB.2.02.1405141310080.9496@chino.kir.corp.google.com>
+References: <20140514161644.GF18082@mwanda>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: nasa4836@gmail.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Michal Hocko <mhocko@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, steve.capper@linaro.org, davidlohr@hp.com, kirill.shutemov@linux.intel.com, dave.hansen@linux.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dan Carpenter <dan.carpenter@oracle.com>
+Cc: Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>, linux-mm@kvack.org, kernel-janitors@vger.kernel.org
 
-On Wed, May 14, 2014 at 03:09:19PM +0800, Jianyu Zhan wrote:
-> Commit 7b24d8616be3 ("mm, hugetlb: fix race in region tracking") has
-> changed to use a per resv_map spinlock to serialize against any
-> concurrent write operations to the resv_map, thus we don't need
-> list_for_each_entry_safe to interate over file_region's any more.
-> Use list_for_each_entry is enough.
+On Wed, 14 May 2014, Dan Carpenter wrote:
+
+> The return statement goes with the cmpxchg_double() condition so it
+> needs to be indented another tab.
 > 
-> Signed-off-by: Jianyu Zhan <nasa4836@gmail.com>
-> ---
->  mm/hugetlb.c | 8 ++++----
->  1 file changed, 4 insertions(+), 4 deletions(-)
+> Also these days the fashion is to line function parameters up, and it
+> looks nicer that way because then the "freelist_new" is not at the same
+> indent level as the "return 1;".
 > 
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index c82290b..26b1464 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -156,7 +156,7 @@ struct file_region {
->  static long region_add(struct resv_map *resv, long f, long t)
->  {
->  	struct list_head *head = &resv->regions;
-> -	struct file_region *rg, *nrg, *trg;
-> +	struct file_region *rg, *nrg;
->  
->  	spin_lock(&resv->lock);
->  	/* Locate the region we are either in or before. */
-> @@ -170,7 +170,7 @@ static long region_add(struct resv_map *resv, long f, long t)
->  
->  	/* Check for and consume any regions we now overlap with. */
->  	nrg = rg;
-> -	list_for_each_entry_safe(rg, trg, rg->link.prev, link) {
-> +	list_for_each_entry(rg, rg->link.prev, link) {
->  		if (&rg->link == head)
->  			break;
->  		if (rg->from > t)
+> Signed-off-by: Dan Carpenter <dan.carpenter@oracle.com>
 
-We can call list_del(&rg->link) and kfree(rg) in this loop, so we need to get
-the pointer to next entry before running code inside the loop. *_safe variants
-do this job, so changing this is wrong, I think.
-
-> @@ -261,7 +261,7 @@ out_nrg:
->  static long region_truncate(struct resv_map *resv, long end)
->  {
->  	struct list_head *head = &resv->regions;
-> -	struct file_region *rg, *trg;
-> +	struct file_region *rg;
->  	long chg = 0;
->  
->  	spin_lock(&resv->lock);
-> @@ -280,7 +280,7 @@ static long region_truncate(struct resv_map *resv, long end)
->  	}
->  
->  	/* Drop any remaining regions. */
-> -	list_for_each_entry_safe(rg, trg, rg->link.prev, link) {
-> +	list_for_each_entry(rg, rg->link.prev, link) {
->  		if (&rg->link == head)
->  			break;
->  		chg += rg->to - rg->from;
-
-ditto.
-
-Thanks,
-Naoya Horiguchi
+Acked-by: David Rientjes <rientjes@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
