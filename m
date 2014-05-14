@@ -1,392 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f45.google.com (mail-qg0-f45.google.com [209.85.192.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 164896B0036
-	for <linux-mm@kvack.org>; Wed, 14 May 2014 12:07:22 -0400 (EDT)
-Received: by mail-qg0-f45.google.com with SMTP id z60so3130479qgd.4
-        for <linux-mm@kvack.org>; Wed, 14 May 2014 09:07:21 -0700 (PDT)
-Received: from qmta09.emeryville.ca.mail.comcast.net (qmta09.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:96])
-        by mx.google.com with ESMTP id d51si1072538qgf.135.2014.05.14.09.07.21
+Received: from mail-ee0-f44.google.com (mail-ee0-f44.google.com [74.125.83.44])
+	by kanga.kvack.org (Postfix) with ESMTP id A2CD66B0036
+	for <linux-mm@kvack.org>; Wed, 14 May 2014 12:12:52 -0400 (EDT)
+Received: by mail-ee0-f44.google.com with SMTP id c41so1531420eek.17
+        for <linux-mm@kvack.org>; Wed, 14 May 2014 09:12:52 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id x44si2051504eeo.19.2014.05.14.09.12.49
         for <linux-mm@kvack.org>;
-        Wed, 14 May 2014 09:07:21 -0700 (PDT)
-Date: Wed, 14 May 2014 11:07:16 -0500 (CDT)
-From: Christoph Lameter <cl@linux.com>
-Subject: Re: vmstat: On demand vmstat workers V5
-In-Reply-To: <alpine.DEB.2.02.1405131651120.6261@ionos.tec.linutronix.de>
-Message-ID: <alpine.DEB.2.10.1405141105370.16512@gentwo.org>
-References: <alpine.DEB.2.10.1405121317270.29911@gentwo.org> <alpine.DEB.2.02.1405131651120.6261@ionos.tec.linutronix.de>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        Wed, 14 May 2014 09:12:51 -0700 (PDT)
+Date: Wed, 14 May 2014 18:11:52 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [PATCH 19/19] mm: filemap: Avoid unnecessary barries and
+	waitqueue lookups in unlock_page fastpath
+Message-ID: <20140514161152.GA2615@redhat.com>
+References: <1399974350-11089-1-git-send-email-mgorman@suse.de> <1399974350-11089-20-git-send-email-mgorman@suse.de> <20140513125313.GR23991@suse.de> <20140513141748.GD2485@laptop.programming.kicks-ass.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140513141748.GD2485@laptop.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Gilad Ben-Yossef <gilad@benyossef.com>, Tejun Heo <tj@kernel.org>, John Stultz <johnstul@us.ibm.com>, Mike Frysinger <vapier@gentoo.org>, Minchan Kim <minchan.kim@gmail.com>, Hakan Akkan <hakanakkan@gmail.com>, Max Krasnyansky <maxk@qualcomm.com>, Frederic Weisbecker <fweisbec@gmail.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hughd@google.com, viresh.kumar@linaro.org, hpa@zytor.com, mingo@kernel.org, peterz@infradead.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, David Howells <dhowells@redhat.com>
 
-On Tue, 13 May 2014, Thomas Gleixner wrote:
+The subsequent discussion was "off-topic", and it seems that the patch
+itself needs a bit more discussion,
 
-> So as I said before: This wants to be on a dedicated housekeeper
-> workqueue. Where the thread is placed is decided by the core depending
-> on system configuration and state.
+On 05/13, Peter Zijlstra wrote:
+>
+> On Tue, May 13, 2014 at 01:53:13PM +0100, Mel Gorman wrote:
+> > On Tue, May 13, 2014 at 10:45:50AM +0100, Mel Gorman wrote:
+> > >  void unlock_page(struct page *page)
+> > >  {
+> > > +	wait_queue_head_t *wqh = clear_page_waiters(page);
+> > > +
+> > >  	VM_BUG_ON_PAGE(!PageLocked(page), page);
+> > > +
+> > > +	/*
+> > > +	 * No additional barrier needed due to clear_bit_unlock barriering all updates
+> > > +	 * before waking waiters
+> > > +	 */
+> > >  	clear_bit_unlock(PG_locked, &page->flags);
+> > > -	smp_mb__after_clear_bit();
+> > > -	wake_up_page(page, PG_locked);
+> >
+> > This is wrong.
 
-Ok then we can just go with a generic worker thread and use the work on
-restricting general work queue items to specific cpus by Frederic to
-restrict where the work queue can be run.
+Yes,
 
-Then this would be ok I guess?
+> > The smp_mb__after_clear_bit() is still required to ensure
+> > that the cleared bit is visible before the wakeup on all architectures.
 
-Subject: vmstat: On demand vmstat workers V6
-
-
-V5->V6:
-- Shepherd thread as a general worker thread. This means
-  that the general mechanism to control worker thread
-  cpu proposed by Frederic Weisbecker is necessary to
-  restrict the shepherd thread to the cpus not used
-  for low latency tasks. Hopefully that is ready to be
-  merged soon. No need anymore to have a specific
-  cpu be the housekeeper cpu.
-
-V4->V5:
-- Shepherd thread on a specific cpu (HOUSEKEEPING_CPU).
-- Incorporate Andrew's feedback
-- Work out the races.
-- Make visible which CPUs have stat updates switched off
-  in /sys/devices/system/cpu/stat_off
-
-V3->V4:
-- Make the shepherd task not deferrable. It runs on the tick cpu
-  anyways. Deferral could get deltas too far out of sync if
-  vmstat operations are disabled for a certain processor.
-
-V2->V3:
-- Introduce a new tick_get_housekeeping_cpu() function. Not sure
-  if that is exactly what we want but it is a start. Thomas?
-- Migrate the shepherd task if the output of
-  tick_get_housekeeping_cpu() changes.
-- Fixes recommended by Andrew.
-
-V1->V2:
-- Optimize the need_update check by using memchr_inv.
-- Clean up.
-
-vmstat workers are used for folding counter differentials into the
-zone, per node and global counters at certain time intervals.
-They currently run at defined intervals on all processors which will
-cause some holdoff for processors that need minimal intrusion by the
-OS.
-
-The current vmstat_update mechanism depends on a deferrable timer
-firing every other second by default which registers a work queue item
-that runs on the local CPU, with the result that we have 1 interrupt
-and one additional schedulable task on each CPU every 2 seconds
-If a workload indeed causes VM activity or multiple tasks are running
-on a CPU, then there are probably bigger issues to deal with.
-
-However, some workloads dedicate a CPU for a single CPU bound task.
-This is done in high performance computing, in high frequency
-financial applications, in networking (Intel DPDK, EZchip NPS) and with
-the advent of systems with more and more CPUs over time, this may become
-more and more common to do since when one has enough CPUs
-one cares less about efficiently sharing a CPU with other tasks and
-more about efficiently monopolizing a CPU per task.
-
-The difference of having this timer firing and workqueue kernel thread
-scheduled per second can be enormous. An artificial test measuring the
-worst case time to do a simple "i++" in an endless loop on a bare metal
-system and under Linux on an isolated CPU with dynticks and with and
-without this patch, have Linux match the bare metal performance
-(~700 cycles) with this patch and loose by couple of orders of magnitude
-(~200k cycles) without it[*].  The loss occurs for something that just
-calculates statistics. For networking applications, for example, this
-could be the difference between dropping packets or sustaining line rate.
-
-Statistics are important and useful, but it would be great if there
-would be a way to not cause statistics gathering produce a huge
-performance difference. This patche does just that.
-
-This patch creates a vmstat shepherd worker that monitors the
-per cpu differentials on all processors. If there are differentials
-on a processor then a vmstat worker local to the processors
-with the differentials is created. That worker will then start
-folding the diffs in regular intervals. Should the worker
-find that there is no work to be done then it will make the shepherd
-worker monitor the differentials again.
-
-With this patch it is possible then to have periods longer than
-2 seconds without any OS event on a "cpu" (hardware thread).
-
-Reviewed-by: Gilad Ben-Yossef <gilad@benyossef.com>
-Signed-off-by: Christoph Lameter <cl@linux.com>
+But note that "the cleared bit is visible before the wakeup" is confusing.
+I mean, we do not need mb() before __wake_up(). We need it only because
+__wake_up_bit() checks waitqueue_active().
 
 
-Index: linux/mm/vmstat.c
-===================================================================
---- linux.orig/mm/vmstat.c	2014-05-12 12:43:49.373311788 -0500
-+++ linux/mm/vmstat.c	2014-05-14 11:02:58.093511078 -0500
-@@ -7,6 +7,7 @@
-  *  zoned VM statistics
-  *  Copyright (C) 2006 Silicon Graphics, Inc.,
-  *		Christoph Lameter <christoph@lameter.com>
-+ *  Copyright (C) 2008-2014 Christoph Lameter
-  */
- #include <linux/fs.h>
- #include <linux/mm.h>
-@@ -14,6 +15,7 @@
- #include <linux/module.h>
- #include <linux/slab.h>
- #include <linux/cpu.h>
-+#include <linux/cpumask.h>
- #include <linux/vmstat.h>
- #include <linux/sched.h>
- #include <linux/math64.h>
-@@ -417,13 +419,22 @@
- EXPORT_SYMBOL(dec_zone_page_state);
- #endif
+And at least
 
--static inline void fold_diff(int *diff)
-+
-+/*
-+ * Fold a differential into the global counters.
-+ * Returns the number of counters updated.
-+ */
-+static int fold_diff(int *diff)
- {
- 	int i;
-+	int changes = 0;
+	fs/cachefiles/namei.c:cachefiles_delete_object()
+	fs/block_dev.c:blkdev_get()
+	kernel/signal.c:task_clear_jobctl_trapping()
+	security/keys/gc.c:key_garbage_collector()
 
- 	for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++)
--		if (diff[i])
-+		if (diff[i]) {
- 			atomic_long_add(diff[i], &vm_stat[i]);
-+			changes++;
-+	}
-+	return changes;
- }
+look obviously wrong.
 
- /*
-@@ -439,12 +450,15 @@
-  * statistics in the remote zone struct as well as the global cachelines
-  * with the global counters. These could cause remote node cache line
-  * bouncing and will have to be only done when necessary.
-+ *
-+ * The function returns the number of global counters updated.
-  */
--static void refresh_cpu_vm_stats(void)
-+static int refresh_cpu_vm_stats(void)
- {
- 	struct zone *zone;
- 	int i;
- 	int global_diff[NR_VM_ZONE_STAT_ITEMS] = { 0, };
-+	int changes = 0;
+I would be happy to send the fix, but do I need to split it per-file?
+Given that it is trivial, perhaps I can send a single patch?
 
- 	for_each_populated_zone(zone) {
- 		struct per_cpu_pageset __percpu *p = zone->pageset;
-@@ -484,15 +498,17 @@
- 			continue;
- 		}
-
--
- 		if (__this_cpu_dec_return(p->expire))
- 			continue;
-
--		if (__this_cpu_read(p->pcp.count))
-+		if (__this_cpu_read(p->pcp.count)) {
- 			drain_zone_pages(zone, __this_cpu_ptr(&p->pcp));
-+			changes++;
-+		}
- #endif
- 	}
--	fold_diff(global_diff);
-+	changes += fold_diff(global_diff);
-+	return changes;
- }
-
- /*
-@@ -1222,20 +1238,109 @@
- #ifdef CONFIG_SMP
- static DEFINE_PER_CPU(struct delayed_work, vmstat_work);
- int sysctl_stat_interval __read_mostly = HZ;
-+static DECLARE_BITMAP(cpu_stat_off_bits, CONFIG_NR_CPUS) __read_mostly;
-+const struct cpumask *const cpu_stat_off = to_cpumask(cpu_stat_off_bits);
-+EXPORT_SYMBOL(cpu_stat_off);
-+
-+/* We need to write to cpu_stat_off here */
-+#define stat_off to_cpumask(cpu_stat_off_bits)
-
- static void vmstat_update(struct work_struct *w)
- {
--	refresh_cpu_vm_stats();
--	schedule_delayed_work(&__get_cpu_var(vmstat_work),
-+	if (refresh_cpu_vm_stats())
-+		/*
-+		 * Counters were updated so we expect more updates
-+		 * to occur in the future. Keep on running the
-+		 * update worker thread.
-+		 */
-+		schedule_delayed_work(this_cpu_ptr(&vmstat_work),
-+			round_jiffies_relative(sysctl_stat_interval));
-+	else {
-+		/*
-+		 * We did not update any counters so the app may be in
-+		 * a mode where it does not cause counter updates.
-+		 * We may be uselessly running vmstat_update.
-+		 * Defer the checking for differentials to the
-+		 * shepherd thread on a different processor.
-+		 */
-+		int r;
-+		/*
-+		 * Shepherd work thread does not race since it never
-+		 * changes the bit if its zero but the cpu
-+		 * online / off line code may race if
-+		 * worker threads are still allowed during
-+		 * shutdown / startup.
-+		 */
-+		r = cpumask_test_and_set_cpu(smp_processor_id(),
-+			stat_off);
-+		VM_BUG_ON(r);
-+	}
-+}
-+
-+/*
-+ * Check if the diffs for a certain cpu indicate that
-+ * an update is needed.
-+ */
-+static bool need_update(int cpu)
-+{
-+	struct zone *zone;
-+
-+	for_each_populated_zone(zone) {
-+		struct per_cpu_pageset *p = per_cpu_ptr(zone->pageset, cpu);
-+
-+		BUILD_BUG_ON(sizeof(p->vm_stat_diff[0]) != 1);
-+		/*
-+		 * The fast way of checking if there are any vmstat diffs.
-+		 * This works because the diffs are byte sized items.
-+		 */
-+		if (memchr_inv(p->vm_stat_diff, 0, NR_VM_ZONE_STAT_ITEMS))
-+			return true;
-+
-+	}
-+	return false;
-+}
-+
-+
-+/*
-+ * Shepherd worker thread that checks the
-+ * differentials of processors that have their worker
-+ * threads for vm statistics updates disabled because of
-+ * inactivity.
-+ */
-+static void vmstat_shepherd(struct work_struct *w);
-+
-+static DECLARE_DELAYED_WORK(shepherd, vmstat_shepherd);
-+
-+static void vmstat_shepherd(struct work_struct *w)
-+{
-+	int cpu;
-+
-+	/* Check processors whose vmstat worker threads have been disabled */
-+	for_each_cpu(cpu, stat_off)
-+		if (need_update(cpu) &&
-+			cpumask_test_and_clear_cpu(cpu, stat_off))
-+
-+			schedule_delayed_work_on(cpu, &per_cpu(vmstat_work, cpu),
-+				__round_jiffies_relative(sysctl_stat_interval, cpu));
-+
-+
-+	schedule_delayed_work(&shepherd,
- 		round_jiffies_relative(sysctl_stat_interval));
-+
- }
-
--static void start_cpu_timer(int cpu)
-+static void __init start_shepherd_timer(void)
- {
--	struct delayed_work *work = &per_cpu(vmstat_work, cpu);
-+	int cpu;
-+
-+	for_each_possible_cpu(cpu)
-+		INIT_DEFERRABLE_WORK(per_cpu_ptr(&vmstat_work, cpu),
-+			vmstat_update);
-+
-+	cpumask_copy(stat_off, cpu_online_mask);
-
--	INIT_DEFERRABLE_WORK(work, vmstat_update);
--	schedule_delayed_work_on(cpu, work, __round_jiffies_relative(HZ, cpu));
-+	schedule_delayed_work(&shepherd,
-+		round_jiffies_relative(sysctl_stat_interval));
- }
-
- static void vmstat_cpu_dead(int node)
-@@ -1266,17 +1371,17 @@
- 	case CPU_ONLINE:
- 	case CPU_ONLINE_FROZEN:
- 		refresh_zone_stat_thresholds();
--		start_cpu_timer(cpu);
- 		node_set_state(cpu_to_node(cpu), N_CPU);
-+		cpumask_set_cpu(cpu, stat_off);
- 		break;
- 	case CPU_DOWN_PREPARE:
- 	case CPU_DOWN_PREPARE_FROZEN:
--		cancel_delayed_work_sync(&per_cpu(vmstat_work, cpu));
--		per_cpu(vmstat_work, cpu).work.func = NULL;
-+		if (!cpumask_test_and_set_cpu(cpu, stat_off))
-+			cancel_delayed_work_sync(&per_cpu(vmstat_work, cpu));
- 		break;
- 	case CPU_DOWN_FAILED:
- 	case CPU_DOWN_FAILED_FROZEN:
--		start_cpu_timer(cpu);
-+		cpumask_set_cpu(cpu, stat_off);
- 		break;
- 	case CPU_DEAD:
- 	case CPU_DEAD_FROZEN:
-@@ -1296,15 +1401,10 @@
- static int __init setup_vmstat(void)
- {
- #ifdef CONFIG_SMP
--	int cpu;
--
- 	cpu_notifier_register_begin();
- 	__register_cpu_notifier(&vmstat_notifier);
-
--	for_each_online_cpu(cpu) {
--		start_cpu_timer(cpu);
--		node_set_state(cpu_to_node(cpu), N_CPU);
--	}
-+	start_shepherd_timer();
- 	cpu_notifier_register_done();
- #endif
- #ifdef CONFIG_PROC_FS
-Index: linux/drivers/base/cpu.c
-===================================================================
---- linux.orig/drivers/base/cpu.c	2014-05-12 12:43:49.373311788 -0500
-+++ linux/drivers/base/cpu.c	2014-05-12 13:11:07.054562341 -0500
-@@ -222,6 +222,7 @@
- 	_CPU_ATTR(online, &cpu_online_mask),
- 	_CPU_ATTR(possible, &cpu_possible_mask),
- 	_CPU_ATTR(present, &cpu_present_mask),
-+	_CPU_ATTR(stat_off, &cpu_stat_off),
- };
-
- /*
-@@ -378,6 +379,7 @@
- 	&cpu_attrs[0].attr.attr,
- 	&cpu_attrs[1].attr.attr,
- 	&cpu_attrs[2].attr.attr,
-+	&cpu_attrs[3].attr.attr,
- 	&dev_attr_kernel_max.attr,
- 	&dev_attr_offline.attr,
- #ifdef CONFIG_GENERIC_CPU_AUTOPROBE
-Index: linux/include/linux/cpumask.h
-===================================================================
---- linux.orig/include/linux/cpumask.h	2014-05-12 12:43:49.373311788 -0500
-+++ linux/include/linux/cpumask.h	2014-05-12 12:52:12.191784100 -0500
-@@ -80,6 +80,7 @@
- extern const struct cpumask *const cpu_online_mask;
- extern const struct cpumask *const cpu_present_mask;
- extern const struct cpumask *const cpu_active_mask;
-+extern const struct cpumask *const cpu_stat_off;
-
- #if NR_CPUS > 1
- #define num_online_cpus()	cpumask_weight(cpu_online_mask)
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
