@@ -1,67 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ve0-f182.google.com (mail-ve0-f182.google.com [209.85.128.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 6BE1F6B0036
-	for <linux-mm@kvack.org>; Tue, 13 May 2014 22:13:23 -0400 (EDT)
-Received: by mail-ve0-f182.google.com with SMTP id sa20so1543844veb.41
-        for <linux-mm@kvack.org>; Tue, 13 May 2014 19:13:23 -0700 (PDT)
-Received: from mail-vc0-x230.google.com (mail-vc0-x230.google.com [2607:f8b0:400c:c03::230])
-        by mx.google.com with ESMTPS id tv3si69409vdc.18.2014.05.13.19.13.22
+Received: from mail-ie0-f176.google.com (mail-ie0-f176.google.com [209.85.223.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 3E2856B0036
+	for <linux-mm@kvack.org>; Tue, 13 May 2014 23:25:35 -0400 (EDT)
+Received: by mail-ie0-f176.google.com with SMTP id ar20so1270563iec.7
+        for <linux-mm@kvack.org>; Tue, 13 May 2014 20:25:35 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id oy2si303202icc.66.2014.05.13.20.25.33
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 13 May 2014 19:13:22 -0700 (PDT)
-Received: by mail-vc0-f176.google.com with SMTP id lg15so1601405vcb.35
-        for <linux-mm@kvack.org>; Tue, 13 May 2014 19:13:22 -0700 (PDT)
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 13 May 2014 20:25:33 -0700 (PDT)
+Message-ID: <5372E20A.1020707@oracle.com>
+Date: Tue, 13 May 2014 23:24:58 -0400
+From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-In-Reply-To: <5026482.P9PDy29y2Y@wuerfel>
-References: <1399861195-21087-1-git-send-email-superlibj8301@gmail.com>
-	<5146762.jba3IJe7xt@wuerfel>
-	<CAHPCO9FRfR5p1N5v7mUk4hUYdPvqfLN6nW1LcnC83sU86ZFbZA@mail.gmail.com>
-	<5026482.P9PDy29y2Y@wuerfel>
-Date: Wed, 14 May 2014 10:13:22 +0800
-Message-ID: <CAHPCO9GkEHpyr=_nMxKPzPZZ6FaT3-h3n1eZ_-iRbXNiyEea4Q@mail.gmail.com>
-Subject: Re: [RFC][PATCH 2/2] ARM: ioremap: Add IO mapping space reused support.
-From: Richard Lee <superlibj8301@gmail.com>
+Subject: Re: mm: shmem: NULL ptr deref in shmem_fault
+References: <5370DA09.7020801@oracle.com> <20140512141238.3a0673b3f1a2ee5d47498719@linux-foundation.org> <53713A01.3050502@oracle.com> <alpine.LSU.2.11.1405131442260.22181@eggly.anvils>
+In-Reply-To: <alpine.LSU.2.11.1405131442260.22181@eggly.anvils>
 Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Arnd Bergmann <arnd@arndb.de>
-Cc: linux-arm-kernel@lists.infradead.org, linux@arm.linux.org.uk, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Richard Lee <superlibj@gmail.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Jones <davej@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Al Viro <viro@zeniv.linux.org.uk>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>
 
-On Tue, May 13, 2014 at 4:43 PM, Arnd Bergmann <arnd@arndb.de> wrote:
-> On Tuesday 13 May 2014 09:45:08 Richard Lee wrote:
->> > On Mon, May 12, 2014 at 3:51 PM, Arnd Bergmann <arnd@arndb.de> wrote:
->> > On Monday 12 May 2014 10:19:55 Richard Lee wrote:
->> >> For the IO mapping, for the same physical address space maybe
->> >> mapped more than one time, for example, in some SoCs:
->> >> 0x20000000 ~ 0x20001000: are global control IO physical map,
->> >> and this range space will be used by many drivers.
->> >> And then if each driver will do the same ioremap operation, we
->> >> will waste to much malloc virtual spaces.
->> >>
->> >> This patch add IO mapping space reused support.
->> >>
->> >> Signed-off-by: Richard Lee <superlibj@gmail.com>
->> >
->> > What happens if the first driver then unmaps the area?
->> >
->>
->> If the first driver will unmap the area, it shouldn't do any thing
->> except decreasing the 'used' counter.
->
-> Ah, for some reason I didn't see your first patch that introduces
-> that counter.
->
+On 05/13/2014 06:20 PM, Hugh Dickins wrote:
+> I haven't delved into the perf_even_mmap d_path (fs/dcache.c:2947) one,
+> but the Sys_mremap one on file->f_op->f_unmapped_area sounds like what
+> we have here: struct file has been freed.
+> 
+> I believe Al is innocent: I point a quivering finger at... Kirill.
+> 
+> Just guessing, but we know how fond trinity is of remap_file_pages(),
+> and comparing old and new emulations shows that interesting
+> 
+> 	struct file *file = get_file(vma->vm_file);
+>         addr = mmap_region(...);
+> 	fput(file);
+> 
+> in mm/fremap.c's old emulation, but no get_file() and fput() around 
+> the do_mmap_pgoff() in mm/mmap.c's new emulation.
+> 
+> Before it puts in the new, do_mmap_pgoff() might unmap the last reference
+> to vma->vm_file, so emulation needs to take its own reference.  I'm not
+> sure how that plays out nowadays with Al's deferred fput, but it does
+> look suspicious to me.
 
-It's "[PATCH 1/2] mm/vmalloc: Add IO mapping space reused".
+I've tested it by reverting the remap_file_pages() patch, and the problem
+seems to have disappeared.
+
+Then, I've added it back again, wrapping the do_mmap_pgoff() call with
+get_file() and fput(), and the problem is still gone.
+
+Seems like that was the issue all along. I'll send a patch...
+
 
 Thanks,
-
-BRs
-Richard
-
-
-
->         Arnd
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
