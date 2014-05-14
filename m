@@ -1,85 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 28DFC6B0036
-	for <linux-mm@kvack.org>; Wed, 14 May 2014 03:11:15 -0400 (EDT)
-Received: by mail-pa0-f49.google.com with SMTP id lj1so1309142pab.36
-        for <linux-mm@kvack.org>; Wed, 14 May 2014 00:11:14 -0700 (PDT)
-Received: from mail-pb0-x22c.google.com (mail-pb0-x22c.google.com [2607:f8b0:400e:c01::22c])
-        by mx.google.com with ESMTPS id rw8si512705pbc.147.2014.05.14.00.11.14
+Received: from mail-ee0-f48.google.com (mail-ee0-f48.google.com [74.125.83.48])
+	by kanga.kvack.org (Postfix) with ESMTP id C7CF26B0036
+	for <linux-mm@kvack.org>; Wed, 14 May 2014 03:31:39 -0400 (EDT)
+Received: by mail-ee0-f48.google.com with SMTP id e49so1017831eek.35
+        for <linux-mm@kvack.org>; Wed, 14 May 2014 00:31:39 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 45si976596eeq.137.2014.05.14.00.31.37
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 14 May 2014 00:11:14 -0700 (PDT)
-Received: by mail-pb0-f44.google.com with SMTP id rq2so1336480pbb.3
-        for <linux-mm@kvack.org>; Wed, 14 May 2014 00:11:14 -0700 (PDT)
-From: Jianyu Zhan <nasa4836@gmail.com>
-Subject: [PATCH] mm, hugetlb: move the error handle logic out of normal code path
-Date: Wed, 14 May 2014 15:10:59 +0800
-Message-Id: <1400051459-20578-1-git-send-email-nasa4836@gmail.com>
+        Wed, 14 May 2014 00:31:38 -0700 (PDT)
+Date: Wed, 14 May 2014 08:31:33 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH 19/19] mm: filemap: Avoid unnecessary barries and
+ waitqueue lookups in unlock_page fastpath
+Message-ID: <20140514073133.GY23991@suse.de>
+References: <1399974350-11089-1-git-send-email-mgorman@suse.de>
+ <1399974350-11089-20-git-send-email-mgorman@suse.de>
+ <20140513165223.GB5226@laptop.programming.kicks-ass.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20140513165223.GB5226@laptop.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, iamjoonsoo.kim@lge.com, aneesh.kumar@linux.vnet.ibm.com, n-horiguchi@ah.jp.nec.com, mhocko@suse.cz, aarcange@redhat.com, steve.capper@linaro.org, davidlohr@hp.com, kirill.shutemov@linux.intel.com, dave.hansen@linux.intel.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, nasa4836@gmail.com
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>
 
-alloc_huge_page() now mixes normal code path with error handle logic.
-This patches move out the error handle logic, to make normal code
-path more clean and redue code duplicate.
+On Tue, May 13, 2014 at 06:52:23PM +0200, Peter Zijlstra wrote:
+> On Tue, May 13, 2014 at 10:45:50AM +0100, Mel Gorman wrote:
+> > diff --git a/mm/filemap.c b/mm/filemap.c
+> > index c60ed0f..d81ed7d 100644
+> > --- a/mm/filemap.c
+> > +++ b/mm/filemap.c
+> > @@ -241,15 +241,15 @@ void delete_from_page_cache(struct page *page)
+> >  }
+> >  EXPORT_SYMBOL(delete_from_page_cache);
+> >  
+> > -static int sleep_on_page(void *word)
+> > +static int sleep_on_page(void)
+> >  {
+> > -	io_schedule();
+> > +	io_schedule_timeout(HZ);
+> >  	return 0;
+> >  }
+> >  
+> > -static int sleep_on_page_killable(void *word)
+> > +static int sleep_on_page_killable(void)
+> >  {
+> > -	sleep_on_page(word);
+> > +	sleep_on_page();
+> >  	return fatal_signal_pending(current) ? -EINTR : 0;
+> >  }
+> >  
+> 
+> I've got a patch from NeilBrown that conflicts with this, shouldn't be
+> hard to resolve though.
+> 
 
-Signed-off-by: Jianyu Zhan <nasa4836@gmail.com>
----
- mm/hugetlb.c | 26 +++++++++++++-------------
- 1 file changed, 13 insertions(+), 13 deletions(-)
+Kick me if there are problems.
 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 26b1464..e81c69e 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -1246,24 +1246,17 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
- 			return ERR_PTR(-ENOSPC);
- 
- 	ret = hugetlb_cgroup_charge_cgroup(idx, pages_per_huge_page(h), &h_cg);
--	if (ret) {
--		if (chg || avoid_reserve)
--			hugepage_subpool_put_pages(spool, 1);
--		return ERR_PTR(-ENOSPC);
--	}
-+	if (ret)
-+		goto out_subpool_put;
-+
- 	spin_lock(&hugetlb_lock);
- 	page = dequeue_huge_page_vma(h, vma, addr, avoid_reserve, chg);
- 	if (!page) {
- 		spin_unlock(&hugetlb_lock);
- 		page = alloc_buddy_huge_page(h, NUMA_NO_NODE);
--		if (!page) {
--			hugetlb_cgroup_uncharge_cgroup(idx,
--						       pages_per_huge_page(h),
--						       h_cg);
--			if (chg || avoid_reserve)
--				hugepage_subpool_put_pages(spool, 1);
--			return ERR_PTR(-ENOSPC);
--		}
-+		if (!page)
-+			goto out_uncharge_cgroup;
-+
- 		spin_lock(&hugetlb_lock);
- 		list_move(&page->lru, &h->hugepage_activelist);
- 		/* Fall through */
-@@ -1275,6 +1268,13 @@ static struct page *alloc_huge_page(struct vm_area_struct *vma,
- 
- 	vma_commit_reservation(h, vma, addr);
- 	return page;
-+
-+out_uncharge_cgroup:
-+	hugetlb_cgroup_uncharge_cgroup(idx, pages_per_huge_page(h), h_cg);
-+out_subpool_put:
-+	if (chg || avoid_reserve)
-+		hugepage_subpool_put_pages(spool, 1);
-+	return ERR_PTR(-ENOSPC);
- }
- 
- /*
+> > @@ -680,30 +680,105 @@ static wait_queue_head_t *page_waitqueue(struct page *page)
+> >  	return &zone->wait_table[hash_ptr(page, zone->wait_table_bits)];
+> >  }
+> >  
+> > -static inline void wake_up_page(struct page *page, int bit)
+> > +static inline wait_queue_head_t *clear_page_waiters(struct page *page)
+> >  {
+> > -	__wake_up_bit(page_waitqueue(page), &page->flags, bit);
+> > +	wait_queue_head_t *wqh = NULL;
+> > +
+> > +	if (!PageWaiters(page))
+> > +		return NULL;
+> > +
+> > +	/*
+> > +	 * Prepare to clear PG_waiters if the waitqueue is no longer
+> > +	 * active. Note that there is no guarantee that a page with no
+> > +	 * waiters will get cleared as there may be unrelated pages
+> > +	 * sleeping on the same page wait queue. Accurate detection
+> > +	 * would require a counter. In the event of a collision, the
+> > +	 * waiter bit will dangle and lookups will be required until
+> > +	 * the page is unlocked without collisions. The bit will need to
+> > +	 * be cleared before freeing to avoid triggering debug checks.
+> > +	 *
+> > +	 * Furthermore, this can race with processes about to sleep on
+> > +	 * the same page if it adds itself to the waitqueue just after
+> > +	 * this check. The timeout in sleep_on_page prevents the race
+> > +	 * being a terminal one. In effect, the uncontended and non-race
+> > +	 * cases are faster in exchange for occasional worst case of the
+> > +	 * timeout saving us.
+> > +	 */
+> > +	wqh = page_waitqueue(page);
+> > +	if (!waitqueue_active(wqh))
+> > +		ClearPageWaiters(page);
+> > +
+> > +	return wqh;
+> > +}
+> 
+> This of course is properly disgusting, but my brain isn't working right
+> on 4 hours of sleep, so I'm able to suggest anything else.
+
+It could be "solved" by adding a zone lock or abusing the mapping tree_lock
+to protect the waiters bit but that would put a very expensive operation into
+the unlock page path. Same goes for any sort of sequence counter tricks. The
+waitqueue lock cannot be used in this case because that would necessitate
+looking up page_waitqueue every time which would render the patch useless.
+
+It occurs to me that one option would be to recheck waiters once we're
+added to the waitqueue and if PageWaiters is clear then recheck the bit
+we're waiting on instead of going to sleep.
+
 -- 
-2.0.0-rc3
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
