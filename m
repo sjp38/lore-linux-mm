@@ -1,134 +1,173 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 5BE616B0036
-	for <linux-mm@kvack.org>; Wed, 14 May 2014 22:08:43 -0400 (EDT)
-Received: by mail-pa0-f45.google.com with SMTP id ey11so392978pad.18
-        for <linux-mm@kvack.org>; Wed, 14 May 2014 19:08:43 -0700 (PDT)
-Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
-        by mx.google.com with ESMTP id pt4si3698829pac.241.2014.05.14.19.08.41
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A6C06B0036
+	for <linux-mm@kvack.org>; Wed, 14 May 2014 22:19:32 -0400 (EDT)
+Received: by mail-pa0-f49.google.com with SMTP id lj1so398961pab.36
+        for <linux-mm@kvack.org>; Wed, 14 May 2014 19:19:32 -0700 (PDT)
+Received: from lgeamrelo01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
+        by mx.google.com with ESMTP id ym9si3764072pab.72.2014.05.14.19.19.30
         for <linux-mm@kvack.org>;
-        Wed, 14 May 2014 19:08:42 -0700 (PDT)
-Date: Thu, 15 May 2014 11:10:55 +0900
+        Wed, 14 May 2014 19:19:31 -0700 (PDT)
+Date: Thu, 15 May 2014 11:21:39 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [RFC PATCH 0/3] Aggressively allocate the pages on cma reserved
- memory
-Message-ID: <20140515021055.GC10116@js1304-P5Q-DELUXE>
-References: <1399509144-8898-1-git-send-email-iamjoonsoo.kim@lge.com>
- <536CCC78.6050806@samsung.com>
- <20140513022603.GF23803@js1304-P5Q-DELUXE>
- <8738gcae4h.fsf@linux.vnet.ibm.com>
+Subject: Re: [PATCH] mm, compaction: properly signal and act upon lock and
+ need_sched() contention
+Message-ID: <20140515022139.GD10116@js1304-P5Q-DELUXE>
+References: <20140508051747.GA9161@js1304-P5Q-DELUXE>
+ <1399904111-23520-1-git-send-email-vbabka@suse.cz>
+ <20140513004410.GA23803@js1304-P5Q-DELUXE>
+ <5371DDE2.4050506@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <8738gcae4h.fsf@linux.vnet.ibm.com>
+In-Reply-To: <5371DDE2.4050506@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Heesub Shin <heesub.shin@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kyungmin Park <kyungmin.park@samsung.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, 'Tomasz Stanislawski' <t.stanislaws@samsung.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Greg Thelen <gthelen@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>
 
-On Wed, May 14, 2014 at 03:14:30PM +0530, Aneesh Kumar K.V wrote:
-> Joonsoo Kim <iamjoonsoo.kim@lge.com> writes:
-> 
-> > On Fri, May 09, 2014 at 02:39:20PM +0200, Marek Szyprowski wrote:
-> >> Hello,
-> >> 
-> >> On 2014-05-08 02:32, Joonsoo Kim wrote:
-> >> >This series tries to improve CMA.
-> >> >
-> >> >CMA is introduced to provide physically contiguous pages at runtime
-> >> >without reserving memory area. But, current implementation works like as
-> >> >reserving memory approach, because allocation on cma reserved region only
-> >> >occurs as fallback of migrate_movable allocation. We can allocate from it
-> >> >when there is no movable page. In that situation, kswapd would be invoked
-> >> >easily since unmovable and reclaimable allocation consider
-> >> >(free pages - free CMA pages) as free memory on the system and free memory
-> >> >may be lower than high watermark in that case. If kswapd start to reclaim
-> >> >memory, then fallback allocation doesn't occur much.
-> >> >
-> >> >In my experiment, I found that if system memory has 1024 MB memory and
-> >> >has 512 MB reserved memory for CMA, kswapd is mostly invoked around
-> >> >the 512MB free memory boundary. And invoked kswapd tries to make free
-> >> >memory until (free pages - free CMA pages) is higher than high watermark,
-> >> >so free memory on meminfo is moving around 512MB boundary consistently.
-> >> >
-> >> >To fix this problem, we should allocate the pages on cma reserved memory
-> >> >more aggressively and intelligenetly. Patch 2 implements the solution.
-> >> >Patch 1 is the simple optimization which remove useless re-trial and patch 3
-> >> >is for removing useless alloc flag, so these are not important.
-> >> >See patch 2 for more detailed description.
-> >> >
-> >> >This patchset is based on v3.15-rc4.
-> >> 
-> >> Thanks for posting those patches. It basically reminds me the
-> >> following discussion:
-> >> http://thread.gmane.org/gmane.linux.kernel/1391989/focus=1399524
-> >> 
-> >> Your approach is basically the same. I hope that your patches can be
-> >> improved
-> >> in such a way that they will be accepted by mm maintainers. I only
-> >> wonder if the
-> >> third patch is really necessary. Without it kswapd wakeup might be
-> >> still avoided
-> >> in some cases.
+On Tue, May 13, 2014 at 10:54:58AM +0200, Vlastimil Babka wrote:
+> On 05/13/2014 02:44 AM, Joonsoo Kim wrote:
+> >On Mon, May 12, 2014 at 04:15:11PM +0200, Vlastimil Babka wrote:
+> >>Compaction uses compact_checklock_irqsave() function to periodically check for
+> >>lock contention and need_resched() to either abort async compaction, or to
+> >>free the lock, schedule and retake the lock. When aborting, cc->contended is
+> >>set to signal the contended state to the caller. Two problems have been
+> >>identified in this mechanism.
+> >>
+> >>First, compaction also calls directly cond_resched() in both scanners when no
+> >>lock is yet taken. This call either does not abort async compaction, or set
+> >>cc->contended appropriately. This patch introduces a new
+> >>compact_check_resched() function to achieve both.
+> >>
+> >>Second, isolate_freepages() does not check if isolate_freepages_block()
+> >>aborted due to contention, and advances to the next pageblock. This violates
+> >>the principle of aborting on contention, and might result in pageblocks not
+> >>being scanned completely, since the scanning cursor is advanced. This patch
+> >>makes isolate_freepages_block() check the cc->contended flag and abort.
+> >>
+> >>Reported-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> >>Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+> >>Cc: Minchan Kim <minchan@kernel.org>
+> >>Cc: Mel Gorman <mgorman@suse.de>
+> >>Cc: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+> >>Cc: Michal Nazarewicz <mina86@mina86.com>
+> >>Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> >>Cc: Christoph Lameter <cl@linux.com>
+> >>Cc: Rik van Riel <riel@redhat.com>
+> >>---
+> >>  mm/compaction.c | 40 +++++++++++++++++++++++++++++++++-------
+> >>  1 file changed, 33 insertions(+), 7 deletions(-)
+> >>
+> >>diff --git a/mm/compaction.c b/mm/compaction.c
+> >>index 83ca6f9..b34ab7c 100644
+> >>--- a/mm/compaction.c
+> >>+++ b/mm/compaction.c
+> >>@@ -222,6 +222,27 @@ static bool compact_checklock_irqsave(spinlock_t *lock, unsigned long *flags,
+> >>  	return true;
+> >>  }
+> >>
+> >>+/*
+> >>+ * Similar to compact_checklock_irqsave() (see its comment) for places where
+> >>+ * a zone lock is not concerned.
+> >>+ *
+> >>+ * Returns false when compaction should abort.
+> >>+ */
+> >>+static inline bool compact_check_resched(struct compact_control *cc)
+> >>+{
+> >>+	/* async compaction aborts if contended */
+> >>+	if (need_resched()) {
+> >>+		if (cc->mode == MIGRATE_ASYNC) {
+> >>+			cc->contended = true;
+> >>+			return false;
+> >>+		}
+> >>+
+> >>+		cond_resched();
+> >>+	}
+> >>+
+> >>+	return true;
+> >>+}
+> >>+
+> >>  /* Returns true if the page is within a block suitable for migration to */
+> >>  static bool suitable_migration_target(struct page *page)
+> >>  {
+> >>@@ -491,11 +512,8 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
+> >>  			return 0;
+> >>  	}
+> >>
+> >>-	if (cond_resched()) {
+> >>-		/* Async terminates prematurely on need_resched() */
+> >>-		if (cc->mode == MIGRATE_ASYNC)
+> >>-			return 0;
+> >>-	}
+> >>+	if (!compact_check_resched(cc))
+> >>+		return 0;
+> >>
+> >>  	/* Time to isolate some pages for migration */
+> >>  	for (; low_pfn < end_pfn; low_pfn++) {
+> >>@@ -718,9 +736,10 @@ static void isolate_freepages(struct zone *zone,
+> >>  		/*
+> >>  		 * This can iterate a massively long zone without finding any
+> >>  		 * suitable migration targets, so periodically check if we need
+> >>-		 * to schedule.
+> >>+		 * to schedule, or even abort async compaction.
+> >>  		 */
+> >>-		cond_resched();
+> >>+		if (!compact_check_resched(cc))
+> >>+			break;
+> >>
+> >>  		if (!pfn_valid(block_start_pfn))
+> >>  			continue;
+> >>@@ -758,6 +777,13 @@ static void isolate_freepages(struct zone *zone,
+> >>  		 */
+> >>  		if (isolated)
+> >>  			cc->finished_update_free = true;
+> >>+
+> >>+		/*
+> >>+		 * isolate_freepages_block() might have aborted due to async
+> >>+		 * compaction being contended
+> >>+		 */
+> >>+		if (cc->contended)
+> >>+			break;
+> >>  	}
 > >
-> > Hello,
+> >Hello,
 > >
-> > Oh... I didn't know that patch and discussion, because I have no interest
-> > on CMA at that time. Your approach looks similar to #1
-> > approach of mine and could have same problem of #1 approach which I mentioned
-> > in patch 2/3. Please refer that patch description. :)
+> >I think that we can do further.
+> >
+> >The problem is that this cc->contended is checked only in
+> >isolate_migratepages() to break out the compaction. So if there are
+> >free pages we are already taken, compaction wouldn't stopped
+> >immediately and isolate_freepages() could be invoked again on next
+> >compaction_alloc(). If there is no contention at this time, we would try
+> >to get free pages from one pageblock because cc->contended checking is
+> >on bottom of the loop in isolate_migratepages() and will continue to
+> >run compaction. AFAIK, we want to stop the compaction in this case.
+> >
+> >Moreover, if this isolate_freepages() don't stop the compaction,
+> >next isolate_migratepages() will be invoked and it would be stopped
+> >by checking cc->contended after isolating some pages for migration.
+> >This is useless overhead so should be removed.
 > 
-> IIUC that patch also interleave right ?
-> 
-> +#ifdef CONFIG_CMA
-> +	unsigned long nr_free = zone_page_state(zone, NR_FREE_PAGES);
-> +	unsigned long nr_cma_free = zone_page_state(zone, NR_FREE_CMA_PAGES);
-> +
-> +	if (migratetype == MIGRATE_MOVABLE && nr_cma_free &&
-> +	    nr_free - nr_cma_free < 2 * low_wmark_pages(zone))
-> +		migratetype = MIGRATE_CMA;
-> +#endif /* CONFIG_CMA */
+> Good catch again, thanks! So that means checking the flag also in
+> compaction_alloc(). But what to do if we managed isolated something
+> and then found out about being contended? Put all pages back and go
+> home, or try to migrate what we have?
 
-Hello,
-
-This is not interleave in my point of view. This logic will allocate
-free movable pages until hitting 2 * low_wmark, and then allocate free
-cma pages. Interleave that I mean is something like round-robin policy
-with no constraint like above.
-
-> 
-> That doesn't always prefer CMA region. It would be nice to
-> understand why grouping in pageblock_nr_pages is beneficial. Also in
-> your patch you decrement nr_try_cma for every 'order' allocation. Why ?
-
-pageblock_nr_pages is just magic value with no rationale. :)
-But we need grouping, because without it, we can't get physically
-contiguous pages. When we allocate the pages for page cache, readahead
-logic will try to allocate 32 pages. If we don't use grouping, disk
-I/O for these pages can't be handled by one I/O request on some devices.
-I'm not familiar to I/O device, please let me correct.
-
-And, yes, I will consider 'order' allocation when inc/dec nr_try_cma.
+I think that 'try to migrate what we have' is better, because it
+doesn't cause contention on zone lock anymore until freepages are
+exhausted. If there is another contention on other things such as page
+lock, it will skip it, so continuation would not be the problem, I think.
 
 > 
-> +	if (zone->nr_try_cma) {
-> +		/* Okay. Now, we can try to allocate the page from cma region */
-> +		zone->nr_try_cma--;
-> +		page = __rmqueue_smallest(zone, order, MIGRATE_CMA);
-> +
-> +		/* CMA pages can vanish through CMA allocation */
-> +		if (unlikely(!page && order == 0))
-> +			zone->nr_try_cma = 0;
-> +
-> +		return page;
-> +	}
-> 
-> 
-> If we fail above MIGRATE_CMA alloc should we return failure ? Why
-> not try MOVABLE allocation on failure (ie fallthrough the code path) ?
+> I'm becoming worried that all these changes will mean that async
+> compaction will have near zero probability of finishing anything
+> before hitting a contention. And then everything it did until the
+> contention would be a wasted work.
 
-This patch use fallthrough logic. If we fail on __rmqueue_cma(), it will
-go __rmqueue() as usual.
+Yes, but I think considering this logic would not cause the success
+rate to be much lowered than current logic, because, without this change,
+compaction stop after next isolate_migratepages().
 
 Thanks.
 
