@@ -1,56 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ve0-f177.google.com (mail-ve0-f177.google.com [209.85.128.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 612946B0036
-	for <linux-mm@kvack.org>; Thu, 15 May 2014 18:15:56 -0400 (EDT)
-Received: by mail-ve0-f177.google.com with SMTP id db11so2091247veb.8
-        for <linux-mm@kvack.org>; Thu, 15 May 2014 15:15:56 -0700 (PDT)
-Received: from mail-ve0-f172.google.com (mail-ve0-f172.google.com [209.85.128.172])
-        by mx.google.com with ESMTPS id y16si1176257vcl.34.2014.05.15.15.15.52
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 15 May 2014 15:15:55 -0700 (PDT)
-Received: by mail-ve0-f172.google.com with SMTP id oz11so2113823veb.31
-        for <linux-mm@kvack.org>; Thu, 15 May 2014 15:15:52 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20140515215722.GU28328@moon>
-References: <CALCETrXQOPBOBOgE_snjdmJM7zi34Ei8-MUA-U-YVrwubz4sOQ@mail.gmail.com>
- <20140514221140.GF28328@moon> <CALCETrUc2CpTEeo=NjLGxXQWHn-HG3uYUo-L3aOU-yVjVx3PGg@mail.gmail.com>
- <20140515084558.GI28328@moon> <CALCETrWwWXEoNparvhx4yJB8YmiUBZCuR6yQxJOTjYKuA8AdqQ@mail.gmail.com>
- <20140515195320.GR28328@moon> <CALCETrWbf8XYvBh=zdyOBqVqRd7s8SVbbDX=O2X+zAZn83r-bw@mail.gmail.com>
- <20140515201914.GS28328@moon> <20140515213124.GT28328@moon>
- <CALCETrXe80dx+ODPF1o2iUMOEOO_JAdev4f9gOQ4SUj4JQv36Q@mail.gmail.com> <20140515215722.GU28328@moon>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Thu, 15 May 2014 15:15:32 -0700
-Message-ID: <CALCETrUTM7ZJrWvWa4bHi0RSFhzAZu7+z5XHbJuP+==Cd8GRqw@mail.gmail.com>
-Subject: Re: mm: NULL ptr deref handling mmaping of special mappings
-Content-Type: text/plain; charset=UTF-8
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id D96AE6B0036
+	for <linux-mm@kvack.org>; Thu, 15 May 2014 18:36:22 -0400 (EDT)
+Received: by mail-pa0-f45.google.com with SMTP id ey11so1644169pad.32
+        for <linux-mm@kvack.org>; Thu, 15 May 2014 15:36:22 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id tk2si6746316pac.24.2014.05.15.15.36.21
+        for <linux-mm@kvack.org>;
+        Thu, 15 May 2014 15:36:22 -0700 (PDT)
+Date: Thu, 15 May 2014 15:36:20 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm, hugetlb: move the error handle logic out of normal
+ code path
+Message-Id: <20140515153620.344fe054b6b8d054a28fbf82@linux-foundation.org>
+In-Reply-To: <20140515090142.GB3938@dhcp22.suse.cz>
+References: <1400051459-20578-1-git-send-email-nasa4836@gmail.com>
+	<20140515090142.GB3938@dhcp22.suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cyrill Gorcunov <gorcunov@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dave Jones <davej@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Pavel Emelyanov <xemul@parallels.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Jianyu Zhan <nasa4836@gmail.com>, iamjoonsoo.kim@lge.com, aneesh.kumar@linux.vnet.ibm.com, n-horiguchi@ah.jp.nec.com, aarcange@redhat.com, steve.capper@linaro.org, davidlohr@hp.com, kirill.shutemov@linux.intel.com, dave.hansen@linux.intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, May 15, 2014 at 2:57 PM, Cyrill Gorcunov <gorcunov@gmail.com> wrote:
-> On Thu, May 15, 2014 at 02:42:48PM -0700, Andy Lutomirski wrote:
->> >
->> > Looking forward the question appear -- will VDSO_PREV_PAGES and rest of variables
->> > be kind of immutable constants? If yes, we could calculate where the additional
->> > vma lives without requiring any kind of [vdso] mark in proc/pid/maps output.
->>
->> Please don't!
->>
->> These might, in principle, even vary between tasks on the same system.
->>  Certainly the relative positions of the vmas will be different
->> between 3.15 and 3.16, since we need almost my entire cleanup series
->> to reliably put them into their 3.16 location.  And I intend to change
->> the number of pages in 3.16 or 3.17.
->
-> There are other ways how to find where additional pages are laying but it
-> would be great if there a straightforward interface for that (ie some mark
-> in /proc/pid/maps output).
+On Thu, 15 May 2014 11:01:42 +0200 Michal Hocko <mhocko@suse.cz> wrote:
 
-I'll try to write a patch in time for 3.15.
+> On Wed 14-05-14 15:10:59, Jianyu Zhan wrote:
+> > alloc_huge_page() now mixes normal code path with error handle logic.
+> > This patches move out the error handle logic, to make normal code
+> > path more clean and redue code duplicate.
+> 
+> I don't know. Part of the function returns and cleans up on its own and
+> other part relies on clean up labels. This is not so much nicer than the
+> previous state.
 
---Andy
+That's actually a common pattern:
+
+foo()
+{
+	if (check which doesn't change any state)
+		return -Efoo;
+	if (another check which doesn't change any state)
+		return -Ebar;
+
+	do_something_which_changes_state()
+	
+	if (another check)
+		goto undo_that_state_chage;
+	...
+
+undo_that_state_change:
+	...
+}
+
+
+This ties into the main reason why we use all these gotos: to support
+evolution of the code.  With multiple return points we risk later
+adding resource leaks and locking errors.  Plus the code becomes more
+and more duplicative and spaghettified.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
