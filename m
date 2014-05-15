@@ -1,175 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A6C06B0036
-	for <linux-mm@kvack.org>; Wed, 14 May 2014 22:19:32 -0400 (EDT)
-Received: by mail-pa0-f49.google.com with SMTP id lj1so398961pab.36
-        for <linux-mm@kvack.org>; Wed, 14 May 2014 19:19:32 -0700 (PDT)
-Received: from lgeamrelo01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
-        by mx.google.com with ESMTP id ym9si3764072pab.72.2014.05.14.19.19.30
-        for <linux-mm@kvack.org>;
-        Wed, 14 May 2014 19:19:31 -0700 (PDT)
-Date: Thu, 15 May 2014 11:21:39 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH] mm, compaction: properly signal and act upon lock and
- need_sched() contention
-Message-ID: <20140515022139.GD10116@js1304-P5Q-DELUXE>
-References: <20140508051747.GA9161@js1304-P5Q-DELUXE>
- <1399904111-23520-1-git-send-email-vbabka@suse.cz>
- <20140513004410.GA23803@js1304-P5Q-DELUXE>
- <5371DDE2.4050506@suse.cz>
+Received: from mail-lb0-f172.google.com (mail-lb0-f172.google.com [209.85.217.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 83DAB6B0036
+	for <linux-mm@kvack.org>; Wed, 14 May 2014 22:36:24 -0400 (EDT)
+Received: by mail-lb0-f172.google.com with SMTP id l4so298509lbv.17
+        for <linux-mm@kvack.org>; Wed, 14 May 2014 19:36:23 -0700 (PDT)
+Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
+        by mx.google.com with ESMTPS id tj10si1257228lbb.130.2014.05.14.19.36.22
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 14 May 2014 19:36:22 -0700 (PDT)
+Message-ID: <5374281F.6020807@parallels.com>
+Date: Thu, 15 May 2014 06:36:15 +0400
+From: Pavel Emelyanov <xemul@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5371DDE2.4050506@suse.cz>
+Subject: Re: mm: NULL ptr deref handling mmaping of special mappings
+References: <53739201.6080604@oracle.com> <20140514132312.573e5d3cf99276c3f0b82980@linux-foundation.org> <5373D509.7090207@oracle.com> <20140514140305.7683c1c2f1e4fb0a63085a2a@linux-foundation.org> <5373DBE4.6030907@oracle.com> <20140514143124.52c598a2ba8e2539ee76558c@linux-foundation.org> <CALCETrXQOPBOBOgE_snjdmJM7zi34Ei8-MUA-U-YVrwubz4sOQ@mail.gmail.com> <20140514221140.GF28328@moon> <CALCETrUc2CpTEeo=NjLGxXQWHn-HG3uYUo-L3aOU-yVjVx3PGg@mail.gmail.com>
+In-Reply-To: <CALCETrUc2CpTEeo=NjLGxXQWHn-HG3uYUo-L3aOU-yVjVx3PGg@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Greg Thelen <gthelen@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: Cyrill Gorcunov <gorcunov@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dave Jones <davej@redhat.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, May 13, 2014 at 10:54:58AM +0200, Vlastimil Babka wrote:
-> On 05/13/2014 02:44 AM, Joonsoo Kim wrote:
-> >On Mon, May 12, 2014 at 04:15:11PM +0200, Vlastimil Babka wrote:
-> >>Compaction uses compact_checklock_irqsave() function to periodically check for
-> >>lock contention and need_resched() to either abort async compaction, or to
-> >>free the lock, schedule and retake the lock. When aborting, cc->contended is
-> >>set to signal the contended state to the caller. Two problems have been
-> >>identified in this mechanism.
-> >>
-> >>First, compaction also calls directly cond_resched() in both scanners when no
-> >>lock is yet taken. This call either does not abort async compaction, or set
-> >>cc->contended appropriately. This patch introduces a new
-> >>compact_check_resched() function to achieve both.
-> >>
-> >>Second, isolate_freepages() does not check if isolate_freepages_block()
-> >>aborted due to contention, and advances to the next pageblock. This violates
-> >>the principle of aborting on contention, and might result in pageblocks not
-> >>being scanned completely, since the scanning cursor is advanced. This patch
-> >>makes isolate_freepages_block() check the cc->contended flag and abort.
-> >>
-> >>Reported-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> >>Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-> >>Cc: Minchan Kim <minchan@kernel.org>
-> >>Cc: Mel Gorman <mgorman@suse.de>
-> >>Cc: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-> >>Cc: Michal Nazarewicz <mina86@mina86.com>
-> >>Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> >>Cc: Christoph Lameter <cl@linux.com>
-> >>Cc: Rik van Riel <riel@redhat.com>
-> >>---
-> >>  mm/compaction.c | 40 +++++++++++++++++++++++++++++++++-------
-> >>  1 file changed, 33 insertions(+), 7 deletions(-)
-> >>
-> >>diff --git a/mm/compaction.c b/mm/compaction.c
-> >>index 83ca6f9..b34ab7c 100644
-> >>--- a/mm/compaction.c
-> >>+++ b/mm/compaction.c
-> >>@@ -222,6 +222,27 @@ static bool compact_checklock_irqsave(spinlock_t *lock, unsigned long *flags,
-> >>  	return true;
-> >>  }
-> >>
-> >>+/*
-> >>+ * Similar to compact_checklock_irqsave() (see its comment) for places where
-> >>+ * a zone lock is not concerned.
-> >>+ *
-> >>+ * Returns false when compaction should abort.
-> >>+ */
-> >>+static inline bool compact_check_resched(struct compact_control *cc)
-> >>+{
-> >>+	/* async compaction aborts if contended */
-> >>+	if (need_resched()) {
-> >>+		if (cc->mode == MIGRATE_ASYNC) {
-> >>+			cc->contended = true;
-> >>+			return false;
-> >>+		}
-> >>+
-> >>+		cond_resched();
-> >>+	}
-> >>+
-> >>+	return true;
-> >>+}
-> >>+
-> >>  /* Returns true if the page is within a block suitable for migration to */
-> >>  static bool suitable_migration_target(struct page *page)
-> >>  {
-> >>@@ -491,11 +512,8 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
-> >>  			return 0;
-> >>  	}
-> >>
-> >>-	if (cond_resched()) {
-> >>-		/* Async terminates prematurely on need_resched() */
-> >>-		if (cc->mode == MIGRATE_ASYNC)
-> >>-			return 0;
-> >>-	}
-> >>+	if (!compact_check_resched(cc))
-> >>+		return 0;
-> >>
-> >>  	/* Time to isolate some pages for migration */
-> >>  	for (; low_pfn < end_pfn; low_pfn++) {
-> >>@@ -718,9 +736,10 @@ static void isolate_freepages(struct zone *zone,
-> >>  		/*
-> >>  		 * This can iterate a massively long zone without finding any
-> >>  		 * suitable migration targets, so periodically check if we need
-> >>-		 * to schedule.
-> >>+		 * to schedule, or even abort async compaction.
-> >>  		 */
-> >>-		cond_resched();
-> >>+		if (!compact_check_resched(cc))
-> >>+			break;
-> >>
-> >>  		if (!pfn_valid(block_start_pfn))
-> >>  			continue;
-> >>@@ -758,6 +777,13 @@ static void isolate_freepages(struct zone *zone,
-> >>  		 */
-> >>  		if (isolated)
-> >>  			cc->finished_update_free = true;
-> >>+
-> >>+		/*
-> >>+		 * isolate_freepages_block() might have aborted due to async
-> >>+		 * compaction being contended
-> >>+		 */
-> >>+		if (cc->contended)
-> >>+			break;
-> >>  	}
-> >
-> >Hello,
-> >
-> >I think that we can do further.
-> >
-> >The problem is that this cc->contended is checked only in
-> >isolate_migratepages() to break out the compaction. So if there are
-> >free pages we are already taken, compaction wouldn't stopped
-> >immediately and isolate_freepages() could be invoked again on next
-> >compaction_alloc(). If there is no contention at this time, we would try
-> >to get free pages from one pageblock because cc->contended checking is
-> >on bottom of the loop in isolate_migratepages() and will continue to
-> >run compaction. AFAIK, we want to stop the compaction in this case.
-> >
-> >Moreover, if this isolate_freepages() don't stop the compaction,
-> >next isolate_migratepages() will be invoked and it would be stopped
-> >by checking cc->contended after isolating some pages for migration.
-> >This is useless overhead so should be removed.
+On 05/15/2014 02:23 AM, Andy Lutomirski wrote:
+> On Wed, May 14, 2014 at 3:11 PM, Cyrill Gorcunov <gorcunov@gmail.com> wrote:
+>> On Wed, May 14, 2014 at 02:33:54PM -0700, Andy Lutomirski wrote:
+>>> On Wed, May 14, 2014 at 2:31 PM, Andrew Morton
+>>> <akpm@linux-foundation.org> wrote:
+>>>> On Wed, 14 May 2014 17:11:00 -0400 Sasha Levin <sasha.levin@oracle.com> wrote:
+>>>>
+>>>>>> In my linux-next all that code got deleted by Andy's "x86, vdso:
+>>>>>> Reimplement vdso.so preparation in build-time C" anyway.  What kernel
+>>>>>> were you looking at?
+>>>>>
+>>>>> Deleted? It appears in today's -next. arch/x86/vdso/vma.c:124 .
+>>>>>
+>>>>> I don't see Andy's patch removing that code either.
+>>>>
+>>>> ah, OK, it got moved from arch/x86/vdso/vdso32-setup.c into
+>>>> arch/x86/vdso/vma.c.
+>>>>
+>>>> Maybe you managed to take a fault against the symbol area between the
+>>>> _install_special_mapping() and the remap_pfn_range() call, but mmap_sem
+>>>> should prevent that.
+>>>>
+>>>> Or the remap_pfn_range() call never happened.  Should map_vdso() be
+>>>> running _install_special_mapping() at all if
+>>>> image->sym_vvar_page==NULL?
+>>>
+>>> I'm confused: are we talking about 3.15-rcsomething or linux-next?
+>>> That code changed.
+>>>
+>>> Would this all make more sense if there were just a single vma in
+>>> here?  cc: Pavel and Cyrill, who might have to deal with this stuff in
+>>> CRIU
+>>
+>> Well, for criu we've not modified any vdso kernel's code (except
+>> setting VM_SOFTDIRTY for this vdso VMA in _install_special_mapping).
+>> And never experienced problems Sasha points. Looks like indeed in
+>> -next code is pretty different from mainline one. To figure out
+>> why I need to fetch -next branch and get some research. I would
+>> try to do that tomorrow (still hoping someone more experienced
+>> in mm system would beat me on that).
 > 
-> Good catch again, thanks! So that means checking the flag also in
-> compaction_alloc(). But what to do if we managed isolated something
-> and then found out about being contended? Put all pages back and go
-> home, or try to migrate what we have?
-
-I think that 'try to migrate what we have' is better, because it
-doesn't cause contention on zone lock anymore until freepages are
-exhausted. If there is another contention on other things such as page
-lock, it will skip it, so continuation would not be the problem, I think.
-
+> I can summarize:
 > 
-> I'm becoming worried that all these changes will mean that async
-> compaction will have near zero probability of finishing anything
-> before hitting a contention. And then everything it did until the
-> contention would be a wasted work.
+> On 3.14 and before, the vdso is just a bunch of ELF headers and
+> executable data.  When executed by 64-bit binaries, it reads from the
+> fixmap to do its thing.  That is, it reads from kernel addresses that
+> don't have vmas.  When executed by 32-bit binaries, it doesn't read
+> anything, since there was no 32-bit timing code.
+> 
+> On 3.15, the x86_64 vdso is unchanged.  The 32-bit vdso is preceded by
+> a separate vma containing two pages worth of time-varying read-only
+> data.  The vdso reads those pages using PIC references.
+> 
+> On linux-next, all vdsos work the same way.  There are two vmas.  The
+> first vma is executable text, which can be poked at by ptrace, etc
+> normally.  The second vma contains time-varying state, should not
+> allow poking, and is accessed by PIC references.
 
-Yes, but I think considering this logic would not cause the success
-rate to be much lowered than current logic, because, without this change,
-compaction stop after next isolate_migratepages().
+Is this 2nd vma seen in /proc/pid/maps? And if so, is it marked somehow?
 
-Thanks.
+> What does CRIU do to restore the vdso?  Will 3.15 and/or linux-next
+> need to make some concession for CRIU?
+
+We detect the vdso by "[vdso]" mark in proc at dump time and mark it in
+the images. At restore time we check that vdso symbols layout hasn't changed
+and just remap it in proper location.
+
+If this remains the same in -next, then we're fine :)
+
+Thanks,
+Pavel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
