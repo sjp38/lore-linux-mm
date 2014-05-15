@@ -1,46 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f172.google.com (mail-qc0-f172.google.com [209.85.216.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 8BA916B0036
-	for <linux-mm@kvack.org>; Thu, 15 May 2014 07:24:35 -0400 (EDT)
-Received: by mail-qc0-f172.google.com with SMTP id l6so1505557qcy.31
-        for <linux-mm@kvack.org>; Thu, 15 May 2014 04:24:35 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id 33si2378023qgi.174.2014.05.15.04.24.35
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 May 2014 04:24:35 -0700 (PDT)
-Date: Thu, 15 May 2014 04:24:33 -0700
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH] Sync only the requested range in msync
-Message-ID: <20140515112433.GA21206@infradead.org>
-References: <1395961361-21307-1-git-send-email-matthew.r.wilcox@intel.com>
- <20140423141115.GA31375@infradead.org>
- <20140512163948.0b365598e1e4d0b06dea3bc6@linux-foundation.org>
- <x49y4y54xgq.fsf@segfault.boston.devel.redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Received: from mail-ee0-f50.google.com (mail-ee0-f50.google.com [74.125.83.50])
+	by kanga.kvack.org (Postfix) with ESMTP id B02946B0036
+	for <linux-mm@kvack.org>; Thu, 15 May 2014 08:23:46 -0400 (EDT)
+Received: by mail-ee0-f50.google.com with SMTP id e51so598814eek.37
+        for <linux-mm@kvack.org>; Thu, 15 May 2014 05:23:46 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id h6si4058749eew.101.2014.05.15.05.23.44
+        for <linux-mm@kvack.org>;
+        Thu, 15 May 2014 05:23:45 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH] mm/memory-failure.c: fix memory leak by race between poison and unpoison
+Date: Thu, 15 May 2014 08:23:10 -0400
+Message-Id: <5374b1d1.86300f0a.4a16.65ffSMTPIN_ADDED_BROKEN@mx.google.com>
+In-Reply-To: <1400124866.26173.19.camel@cyc>
+References: <1400080891-5145-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1400124866.26173.19.camel@cyc>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 Content-Disposition: inline
-In-Reply-To: <x49y4y54xgq.fsf@segfault.boston.devel.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jeff Moyer <jmoyer@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, willy@linux.intel.com
+To: soldier.cyc81@gmail.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Wu Fengguang <fengguang.wu@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, May 13, 2014 at 09:31:01AM -0400, Jeff Moyer wrote:
-> FWIW, I think we should apply the patch.  Anyone using the API properly
-> will not get the desired result, and it could have a negative impact on
-> performance.  The man page is very explicit on what you should expect,
-> here.  Anyone relying on undocumented behavior gets to keep both pieces
-> when it breaks.  That said, I do understand your viewpoint, Andrew,
-> especially since it's so hard to get people to sync their data at all,
-> much less correctly.
+On Thu, May 15, 2014 at 11:34:26AM +0800, cyc wrote:
+> =E5=9C=A8 2014-05-14=E4=B8=89=E7=9A=84 11:21 -0400=EF=BC=8CNaoya Horigu=
+chi=E5=86=99=E9=81=93=EF=BC=9A
+> > When a memory error happens on an in-use page or (free and in-use) hu=
+gepage,
+> > the victim page is isolated with its refcount set to one. When you tr=
+y to
+> > unpoison it later, unpoison_memory() calls put_page() for it twice in=
+ order to
+> > bring the page back to free page pool (buddy or free hugepage list.)
+> > However, if another memory error occurs on the page which we are unpo=
+isoning,
+> > memory_failure() returns without releasing the refcount which was inc=
+remented
+> > in the same call at first, which results in memory leak and unconsist=
+ent
+> > num_poisoned_pages statistics. This patch fixes it.
+> =
 
-Agreed, we never made filesystems write out all data in the file system
-in fsync either just because ext3 behaved that way.
+> We assume that a new memory error occurs on the hugepage which we are
+> unpoisoning. =
 
-And unlike that case I can't even see a good way to get msync wrong -
-you call it on the mapped region, so expecting it to write out data
-that isn't mapped at all seems rather odd.
+> =
+
+>           A   unpoisoned  B    poisoned    C          =
+
+> hugepage: |---------------+++++++++++++++++|
+> =
+
+> There are two cases, so shown.
+>   1. the victim page belongs to A-B, the memory_failure will be blocked=
+
+> by lock_page() until unlock_page() invoked by unpoison_memory().
+
+No. memory_failure() set PageHWPoison at first before taking page lock.
+This is a design choice based on the idea that we need detect errors ASAP=
+.
+What happens in this race is like below:
+
+    CPU 0 (poison)                 CPU 1 (unpoison)
+                                   lock_page
+    TestSetPageHWPoison
+                                   TestClearPageHWPoison
+    lock_page (wait)
+                                   unlock_page
+    check PageHWPoison
+      printk("just unpoisoned")
+
+>   2. the victim page belongs to B-C, the memory_failure() will return
+> very soon at the beginning of this function.
+
+Right.
+
+Thanks,
+Naoya Horiguchi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
