@@ -1,83 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f50.google.com (mail-ee0-f50.google.com [74.125.83.50])
-	by kanga.kvack.org (Postfix) with ESMTP id B02946B0036
-	for <linux-mm@kvack.org>; Thu, 15 May 2014 08:23:46 -0400 (EDT)
-Received: by mail-ee0-f50.google.com with SMTP id e51so598814eek.37
-        for <linux-mm@kvack.org>; Thu, 15 May 2014 05:23:46 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id h6si4058749eew.101.2014.05.15.05.23.44
+Received: from mail-qg0-f42.google.com (mail-qg0-f42.google.com [209.85.192.42])
+	by kanga.kvack.org (Postfix) with ESMTP id B48636B0036
+	for <linux-mm@kvack.org>; Thu, 15 May 2014 08:49:27 -0400 (EDT)
+Received: by mail-qg0-f42.google.com with SMTP id q107so1641483qgd.1
+        for <linux-mm@kvack.org>; Thu, 15 May 2014 05:49:27 -0700 (PDT)
+Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTP id a4si831972qar.222.2014.05.15.05.49.27
         for <linux-mm@kvack.org>;
-        Thu, 15 May 2014 05:23:45 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH] mm/memory-failure.c: fix memory leak by race between poison and unpoison
-Date: Thu, 15 May 2014 08:23:10 -0400
-Message-Id: <5374b1d1.86300f0a.4a16.65ffSMTPIN_ADDED_BROKEN@mx.google.com>
-In-Reply-To: <1400124866.26173.19.camel@cyc>
-References: <1400080891-5145-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1400124866.26173.19.camel@cyc>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
-Content-Disposition: inline
+        Thu, 15 May 2014 05:49:27 -0700 (PDT)
+Message-ID: <5374B824.2090403@fb.com>
+Date: Thu, 15 May 2014 08:50:44 -0400
+From: Chris Mason <clm@fb.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] Sync only the requested range in msync
+References: <1395961361-21307-1-git-send-email-matthew.r.wilcox@intel.com>	<20140423141115.GA31375@infradead.org>	<20140512163948.0b365598e1e4d0b06dea3bc6@linux-foundation.org> <x49y4y54xgq.fsf@segfault.boston.devel.redhat.com>
+In-Reply-To: <x49y4y54xgq.fsf@segfault.boston.devel.redhat.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: soldier.cyc81@gmail.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Wu Fengguang <fengguang.wu@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Jeff Moyer <jmoyer@redhat.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Hellwig <hch@infradead.org>, Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, willy@linux.intel.com
 
-On Thu, May 15, 2014 at 11:34:26AM +0800, cyc wrote:
-> =E5=9C=A8 2014-05-14=E4=B8=89=E7=9A=84 11:21 -0400=EF=BC=8CNaoya Horigu=
-chi=E5=86=99=E9=81=93=EF=BC=9A
-> > When a memory error happens on an in-use page or (free and in-use) hu=
-gepage,
-> > the victim page is isolated with its refcount set to one. When you tr=
-y to
-> > unpoison it later, unpoison_memory() calls put_page() for it twice in=
- order to
-> > bring the page back to free page pool (buddy or free hugepage list.)
-> > However, if another memory error occurs on the page which we are unpo=
-isoning,
-> > memory_failure() returns without releasing the refcount which was inc=
-remented
-> > in the same call at first, which results in memory leak and unconsist=
-ent
-> > num_poisoned_pages statistics. This patch fixes it.
-> =
+On 05/13/2014 09:31 AM, Jeff Moyer wrote:
+> Andrew Morton <akpm@linux-foundation.org> writes:
+> 
+>> On Wed, 23 Apr 2014 07:11:15 -0700 Christoph Hellwig <hch@infradead.org> wrote:
+>>
+>>> On Thu, Mar 27, 2014 at 07:02:41PM -0400, Matthew Wilcox wrote:
+>>>> [untested.  posted because it keeps coming up at lsfmm/collab]
+>>>>
+>>>> msync() currently syncs more than POSIX requires or BSD or Solaris
+>>>> implement.  It is supposed to be equivalent to fdatasync(), not fsync(),
+>>>> and it is only supposed to sync the portion of the file that overlaps
+>>>> the range passed to msync.
+>>>>
+>>>> If the VMA is non-linear, fall back to syncing the entire file, but we
+>>>> still optimise to only fdatasync() the entire file, not the full fsync().
+>>>>
+>>>> Signed-off-by: Matthew Wilcox <matthew.r.wilcox@intel.com>
+>>>
+>>> Looks good,
+>>>
+>>> Reviewed-by: Christoph Hellwig <hch@lst.de>
+>>
+>> I worry that if there are people who are relying on the current
+>> behaviour (knowingly or not!) then this patch will put their data at
+>> risk and nobody will ever know.  Until that data gets lost, that is.
+>> At some level of cautiousness, this is one of those things we can never
+>> fix.
+>>
+>> I suppose we could add an msync2() syscall with the new behaviour so
+>> people can migrate over.  That would be very cheap to do.
+>>
+>> It's hard to know what's the right thing to do here.
+> 
+> FWIW, I think we should apply the patch.  Anyone using the API properly
+> will not get the desired result, and it could have a negative impact on
+> performance.  The man page is very explicit on what you should expect,
+> here.  Anyone relying on undocumented behavior gets to keep both pieces
+> when it breaks.  That said, I do understand your viewpoint, Andrew,
+> especially since it's so hard to get people to sync their data at all,
+> much less correctly.
+> 
+> Acked-by: Jeff Moyer <jmoyer@redhat.com>
 
-> We assume that a new memory error occurs on the hugepage which we are
-> unpoisoning. =
+Maybe we can talk someone with all of linux in a repository to grep for
+msync calls that even specify a range at all?
 
-> =
+Eric did this for 64 bit inodes a few years ago, and it wouldn't hurt to
+have a little data on how common this is.
 
->           A   unpoisoned  B    poisoned    C          =
+I think for msync the list will be much shorter and easier to audit.
 
-> hugepage: |---------------+++++++++++++++++|
-> =
-
-> There are two cases, so shown.
->   1. the victim page belongs to A-B, the memory_failure will be blocked=
-
-> by lock_page() until unlock_page() invoked by unpoison_memory().
-
-No. memory_failure() set PageHWPoison at first before taking page lock.
-This is a design choice based on the idea that we need detect errors ASAP=
-.
-What happens in this race is like below:
-
-    CPU 0 (poison)                 CPU 1 (unpoison)
-                                   lock_page
-    TestSetPageHWPoison
-                                   TestClearPageHWPoison
-    lock_page (wait)
-                                   unlock_page
-    check PageHWPoison
-      printk("just unpoisoned")
-
->   2. the victim page belongs to B-C, the memory_failure() will return
-> very soon at the beginning of this function.
-
-Right.
-
-Thanks,
-Naoya Horiguchi
+-chris
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
