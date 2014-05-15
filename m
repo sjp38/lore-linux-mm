@@ -1,112 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 52BB86B0036
-	for <linux-mm@kvack.org>; Thu, 15 May 2014 10:14:26 -0400 (EDT)
-Received: by mail-wi0-f173.google.com with SMTP id bs8so9871600wib.12
-        for <linux-mm@kvack.org>; Thu, 15 May 2014 07:14:25 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id es3si2016711wic.55.2014.05.15.07.14.22
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id AA9966B0036
+	for <linux-mm@kvack.org>; Thu, 15 May 2014 10:38:18 -0400 (EDT)
+Received: by mail-pa0-f44.google.com with SMTP id ld10so1157273pab.31
+        for <linux-mm@kvack.org>; Thu, 15 May 2014 07:38:18 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id vv4si2791067pbc.21.2014.05.15.07.38.17
         for <linux-mm@kvack.org>;
-        Thu, 15 May 2014 07:14:24 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH] mm/memory-failure.c: fix memory leak by race between poison and unpoison
-Date: Thu, 15 May 2014 10:13:59 -0400
-Message-Id: <5374cbc0.43b8b40a.4221.331eSMTPIN_ADDED_BROKEN@mx.google.com>
-In-Reply-To: <5374b1d1.86300f0a.4a16.65ffSMTPIN_ADDED_BROKEN@mx.google.com>
-References: <1400080891-5145-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1400124866.26173.19.camel@cyc> <5374b1d1.86300f0a.4a16.65ffSMTPIN_ADDED_BROKEN@mx.google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+        Thu, 15 May 2014 07:38:17 -0700 (PDT)
+Date: Thu, 15 May 2014 07:38:05 -0700
+From: Andi Kleen <ak@linux.intel.com>
+Subject: Re: [PATCH] HWPOISON: avoid repeatedly raising some MCEs for a
+ shared page
+Message-ID: <20140515143805.GB19657@tassilo.jf.intel.com>
+References: <1400152576-32004-1-git-send-email-slaoub@gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <1400152576-32004-1-git-send-email-slaoub@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: soldier.cyc81@gmail.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Wu Fengguang <fengguang.wu@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Chen Yucong <slaoub@gmail.com>
+Cc: fengguang.wu@intel.com, n-horiguchi@ah.jp.nec.com, linux-mm@kvack.org
 
-On Thu, May 15, 2014 at 08:23:10AM -0400, Naoya Horiguchi wrote:
-> On Thu, May 15, 2014 at 11:34:26AM +0800, cyc wrote:
-> > =E5=9C=A8 2014-05-14=E4=B8=89=E7=9A=84 11:21 -0400=EF=BC=8CNaoya Hori=
-guchi=E5=86=99=E9=81=93=EF=BC=9A
-> > > When a memory error happens on an in-use page or (free and in-use) =
-hugepage,
-> > > the victim page is isolated with its refcount set to one. When you =
-try to
-> > > unpoison it later, unpoison_memory() calls put_page() for it twice =
-in order to
-> > > bring the page back to free page pool (buddy or free hugepage list.=
-)
-> > > However, if another memory error occurs on the page which we are un=
-poisoning,
-> > > memory_failure() returns without releasing the refcount which was i=
-ncremented
-> > > in the same call at first, which results in memory leak and unconsi=
-stent
-> > > num_poisoned_pages statistics. This patch fixes it.
-> > =
+On Thu, May 15, 2014 at 07:16:16PM +0800, Chen Yucong wrote:
+> We assume that there have three processes P1, P2, and P3 which share a
+> page frame PF0. PF0 have a multi-bit error that has not yet been detected.
 
-> > We assume that a new memory error occurs on the hugepage which we are=
+How likely is that? Did you see it in some real case?
 
-> > unpoisoning. =
+> As
+> a result, P1/P2 may raise the same MCE again.
 
-> > =
+And how is that a problem?
 
-> >           A   unpoisoned  B    poisoned    C          =
+The memory error handling is always somewhat probabilistic. There are a 
+lot of corner cases that could be be handled, but it would
+be even more complex than it already is, and most of them are unlikely
+to happen. The more complexity the more risk of unintended bugs.
 
-> > hugepage: |---------------+++++++++++++++++|
-> > =
+So the question is always how likely that case is, and is it worth
+handling. It's far better to focus on the common case.
 
-> > There are two cases, so shown.
-> >   1. the victim page belongs to A-B, the memory_failure will be block=
-ed
-> > by lock_page() until unlock_page() invoked by unpoison_memory().
-> =
+Another concern is always how to test this. Usually all explicit paths
+should have test cases in mce-test.
 
-> No. memory_failure() set PageHWPoison at first before taking page lock.=
+But it's not clear to me the additional complexity here is justified.
 
-> This is a design choice based on the idea that we need detect errors AS=
-AP.
-
-I might have not caught you, sorry. With this patch, we can properly canc=
-el
-poisoning operation when it races with unpoisoning, so no effect as you s=
-aid
-for both case.
-
-Thanks,
-Naoya
-
-
-> What happens in this race is like below:
-> =
-
->     CPU 0 (poison)                 CPU 1 (unpoison)
->                                    lock_page
->     TestSetPageHWPoison
->                                    TestClearPageHWPoison
->     lock_page (wait)
->                                    unlock_page
->     check PageHWPoison
->       printk("just unpoisoned")
-> =
-
-> >   2. the victim page belongs to B-C, the memory_failure() will return=
-
-> > very soon at the beginning of this function.
-> =
-
-> Right.
-> =
-
-> Thanks,
-> Naoya Horiguchi
-> =
-
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
-> =
+-andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
