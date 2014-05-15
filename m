@@ -1,78 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f48.google.com (mail-ee0-f48.google.com [74.125.83.48])
-	by kanga.kvack.org (Postfix) with ESMTP id D50C36B0036
-	for <linux-mm@kvack.org>; Thu, 15 May 2014 11:04:21 -0400 (EDT)
-Received: by mail-ee0-f48.google.com with SMTP id e49so753537eek.7
-        for <linux-mm@kvack.org>; Thu, 15 May 2014 08:04:21 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id d1si4372029eem.325.2014.05.15.08.04.19
+Received: from mail-qc0-f180.google.com (mail-qc0-f180.google.com [209.85.216.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 8CB206B0038
+	for <linux-mm@kvack.org>; Thu, 15 May 2014 11:15:14 -0400 (EDT)
+Received: by mail-qc0-f180.google.com with SMTP id i17so2006557qcy.39
+        for <linux-mm@kvack.org>; Thu, 15 May 2014 08:15:14 -0700 (PDT)
+Received: from qmta13.emeryville.ca.mail.comcast.net (qmta13.emeryville.ca.mail.comcast.net. [2001:558:fe2d:44:76:96:27:243])
+        by mx.google.com with ESMTP id d50si2724458qge.34.2014.05.15.08.15.13
         for <linux-mm@kvack.org>;
-        Thu, 15 May 2014 08:04:20 -0700 (PDT)
-Date: Thu, 15 May 2014 17:03:25 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-Subject: Re: [PATCH] mm: filemap: Avoid unnecessary barries and waitqueue
-	lookups in unlock_page fastpath v4
-Message-ID: <20140515150325.GA30668@redhat.com>
-References: <1399974350-11089-1-git-send-email-mgorman@suse.de> <1399974350-11089-20-git-send-email-mgorman@suse.de> <20140513125313.GR23991@suse.de> <20140513141748.GD2485@laptop.programming.kicks-ass.net> <20140514161152.GA2615@redhat.com> <20140514192945.GA10830@redhat.com> <20140515104808.GF23991@suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140515104808.GF23991@suse.de>
+        Thu, 15 May 2014 08:15:14 -0700 (PDT)
+Date: Thu, 15 May 2014 10:15:10 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: [PATCH RFC 1/3] slub: keep full slabs on list for per memcg
+ caches
+In-Reply-To: <20140515063441.GA32113@esperanza>
+Message-ID: <alpine.DEB.2.10.1405151011210.24665@gentwo.org>
+References: <cover.1399982635.git.vdavydov@parallels.com> <bc70b480221f7765926c8b4d63c55fb42e85baaf.1399982635.git.vdavydov@parallels.com> <alpine.DEB.2.10.1405141114040.16512@gentwo.org> <20140515063441.GA32113@esperanza>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, David Howells <dhowells@redhat.com>
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: hannes@cmpxchg.org, mhocko@suse.cz, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 05/15, Mel Gorman wrote:
+On Thu, 15 May 2014, Vladimir Davydov wrote:
+
+> > That will significantly impact the fastpaths for alloc and free.
+> >
+> > Also a pretty significant change the logic of the fastpaths since they
+> > were not designed to handle the full lists. In debug mode all operations
+> > were only performed by the slow paths and only the slow paths so far
+> > supported tracking full slabs.
 >
-> This patch introduces a new page flag for 64-bit capable machines,
-> PG_waiters, to signal there are processes waiting on PG_lock and uses it to
-> avoid memory barriers and waitqueue hash lookup in the unlock_page fastpath.
+> That's the minimal price we have to pay for slab re-parenting, because
+> w/o it we won't be able to look up for all slabs of a particular per
+> memcg cache. The question is, can it be tolerated or I'd better try some
+> other way?
 
-I can't apply this patch, it depends on something else, so I am not sure
-I read it correctly. I'll try to read it later, just one question for now.
+AFACIT these modifications all together will have a significant impact on
+performance.
 
->  void unlock_page(struct page *page)
->  {
-> +	wait_queue_head_t *wqh = clear_page_waiters(page);
-> +
->  	VM_BUG_ON_PAGE(!PageLocked(page), page);
-> -	clear_bit_unlock(PG_locked, &page->flags);
-> +
-> +	/*
-> +	 * clear_bit_unlock is not necessary in this case as there is no
-> +	 * need to strongly order the clearing of PG_waiters and PG_locked.
+You could avoid the refcounting on free relying on the atomic nature of
+cmpxchg operations. If you zap the per cpu slab then the fast path will be
+forced to fall back to the slowpaths where you could do what you need to
+do.
 
-OK,
-
-> +	 * The smp_mb__after_atomic() barrier is still required for RELEASE
-> +	 * semantics as there is no guarantee that a wakeup will take place
-> +	 */
-> +	clear_bit(PG_locked, &page->flags);
->  	smp_mb__after_atomic();
-
-But clear_bit_unlock() provides the release semantics, so why mb__after is
-better?
-
-> -	wake_up_page(page, PG_locked);
-> +
-> +	/*
-> +	 * Wake the queue if waiters were detected. Ordinarily this wakeup
-> +	 * would be unconditional to catch races between the lock bit being
-> +	 * set and a new process joining the queue. However, that would
-> +	 * require the waitqueue to be looked up every time. Instead we
-> +	 * optimse for the uncontended and non-race case and recover using
-> +	 * a timeout in sleep_on_page.
-> +	 */
-> +	if (wqh)
-> +		__wake_up_bit(wqh, &page->flags, PG_locked);
-
-This is what I can't understand. Given that PageWaiters() logic is racy
-anyway (and timeout(HZ) should save us), why do we need to call
-clear_page_waiters() beforehand? Why unlock_page/end_page_writeback can't
-simply call wake_up_page_bit() which checks/clears PG_waiters at the end?
-
-Oleg.
+There is no tracking of full slabs without adding much more logic to the
+fastpath. You could force any operation that affects tne full list into
+the slow path. But that also would have an impact.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
