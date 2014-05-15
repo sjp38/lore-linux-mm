@@ -1,97 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f49.google.com (mail-qg0-f49.google.com [209.85.192.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 201F46B0036
-	for <linux-mm@kvack.org>; Thu, 15 May 2014 09:29:54 -0400 (EDT)
-Received: by mail-qg0-f49.google.com with SMTP id a108so1664455qge.8
-        for <linux-mm@kvack.org>; Thu, 15 May 2014 06:29:53 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id e7si2548347qai.65.2014.05.15.06.29.53
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 15 May 2014 06:29:53 -0700 (PDT)
-Date: Thu, 15 May 2014 15:29:45 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH] mm: filemap: Avoid unnecessary barries and waitqueue
- lookups in unlock_page fastpath v4
-Message-ID: <20140515132945.GM13658@twins.programming.kicks-ass.net>
-References: <1399974350-11089-1-git-send-email-mgorman@suse.de>
- <1399974350-11089-20-git-send-email-mgorman@suse.de>
- <20140513125313.GR23991@suse.de>
- <20140513141748.GD2485@laptop.programming.kicks-ass.net>
- <20140514161152.GA2615@redhat.com>
- <20140514192945.GA10830@redhat.com>
- <20140515104808.GF23991@suse.de>
- <20140515132058.GL30445@twins.programming.kicks-ass.net>
-MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="lYetfuAxy9ic4HK3"
+Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 52BB86B0036
+	for <linux-mm@kvack.org>; Thu, 15 May 2014 10:14:26 -0400 (EDT)
+Received: by mail-wi0-f173.google.com with SMTP id bs8so9871600wib.12
+        for <linux-mm@kvack.org>; Thu, 15 May 2014 07:14:25 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id es3si2016711wic.55.2014.05.15.07.14.22
+        for <linux-mm@kvack.org>;
+        Thu, 15 May 2014 07:14:24 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH] mm/memory-failure.c: fix memory leak by race between poison and unpoison
+Date: Thu, 15 May 2014 10:13:59 -0400
+Message-Id: <5374cbc0.43b8b40a.4221.331eSMTPIN_ADDED_BROKEN@mx.google.com>
+In-Reply-To: <5374b1d1.86300f0a.4a16.65ffSMTPIN_ADDED_BROKEN@mx.google.com>
+References: <1400080891-5145-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1400124866.26173.19.camel@cyc> <5374b1d1.86300f0a.4a16.65ffSMTPIN_ADDED_BROKEN@mx.google.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 Content-Disposition: inline
-In-Reply-To: <20140515132058.GL30445@twins.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, David Howells <dhowells@redhat.com>
+To: soldier.cyc81@gmail.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Wu Fengguang <fengguang.wu@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+
+On Thu, May 15, 2014 at 08:23:10AM -0400, Naoya Horiguchi wrote:
+> On Thu, May 15, 2014 at 11:34:26AM +0800, cyc wrote:
+> > =E5=9C=A8 2014-05-14=E4=B8=89=E7=9A=84 11:21 -0400=EF=BC=8CNaoya Hori=
+guchi=E5=86=99=E9=81=93=EF=BC=9A
+> > > When a memory error happens on an in-use page or (free and in-use) =
+hugepage,
+> > > the victim page is isolated with its refcount set to one. When you =
+try to
+> > > unpoison it later, unpoison_memory() calls put_page() for it twice =
+in order to
+> > > bring the page back to free page pool (buddy or free hugepage list.=
+)
+> > > However, if another memory error occurs on the page which we are un=
+poisoning,
+> > > memory_failure() returns without releasing the refcount which was i=
+ncremented
+> > > in the same call at first, which results in memory leak and unconsi=
+stent
+> > > num_poisoned_pages statistics. This patch fixes it.
+> > =
+
+> > We assume that a new memory error occurs on the hugepage which we are=
+
+> > unpoisoning. =
+
+> > =
+
+> >           A   unpoisoned  B    poisoned    C          =
+
+> > hugepage: |---------------+++++++++++++++++|
+> > =
+
+> > There are two cases, so shown.
+> >   1. the victim page belongs to A-B, the memory_failure will be block=
+ed
+> > by lock_page() until unlock_page() invoked by unpoison_memory().
+> =
+
+> No. memory_failure() set PageHWPoison at first before taking page lock.=
+
+> This is a design choice based on the idea that we need detect errors AS=
+AP.
+
+I might have not caught you, sorry. With this patch, we can properly canc=
+el
+poisoning operation when it races with unpoisoning, so no effect as you s=
+aid
+for both case.
+
+Thanks,
+Naoya
 
 
---lYetfuAxy9ic4HK3
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+> What happens in this race is like below:
+> =
 
-On Thu, May 15, 2014 at 03:20:58PM +0200, Peter Zijlstra wrote:
-> void __unlock_page(struct page *page)
-> {
-> 	struct wait_bit_key key =3D __WAIT_BIT_KEY_INITIALIZER(&page->flags, PG_=
-locked);
-> 	struct wait_queue_head_t *wqh =3D page_waitqueue(page);
-> 	wait_queue_t *curr;
+>     CPU 0 (poison)                 CPU 1 (unpoison)
+>                                    lock_page
+>     TestSetPageHWPoison
+>                                    TestClearPageHWPoison
+>     lock_page (wait)
+>                                    unlock_page
+>     check PageHWPoison
+>       printk("just unpoisoned")
+> =
 
-	if (!PG_waiters && !waitqueue_active(wqh))
-		return;
+> >   2. the victim page belongs to B-C, the memory_failure() will return=
 
-> 	spin_lock_irq(&wqh->lock);
-> 	list_for_each_entry(curr, &wqh->task_list, task_list) {
-> 		unsigned int flags =3D curr->flags;
->=20
-> 		if (curr->func(curr, TASK_NORMAL, 0, &key))
-> 			goto unlock;
-> 	}
-> 	ClearPageWaiters(page);
-> unlock:
-> 	spin_unlock_irq(&wqh->lock);
-> }
->=20
-> Yes, the __unlock_page() will have the unconditional wqh->lock, but it
-> should also call __unlock_page() a lot less, and it doesn't have that
-> horrid timeout.
->=20
-> Now, the above is clearly sub-optimal when !extended_page_flags, but I
-> suppose we could have two versions of __unlock_page() for that.
+> > very soon at the beginning of this function.
+> =
 
-Or I suppose the above would fix it too.
+> Right.
+> =
 
---lYetfuAxy9ic4HK3
-Content-Type: application/pgp-signature
+> Thanks,
+> Naoya Horiguchi
+> =
 
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.12 (GNU/Linux)
-
-iQIcBAEBAgAGBQJTdMFJAAoJEHZH4aRLwOS6ZukP+wVHsi0r2hjIyvHrenQGvz/X
-r5VBqVsF601MvQvr9ZoswfC6y27cfNO59NGsmspwjmbmPXFkSGkZiHl4PI4AwVVY
-8O8y63ZwnKZCIUgWBvYz0/QUpDd8M0QmimMV/TUR0H6b0/qiT1Wx90mQRnzAAmK0
-OBlVyxKRS0Z1ZeCqNcjQvNUEUmw8DPdzIBnkJR+oD2lkXJBcqJNPijwjIK/3F9L4
-6ggs22RhzphV2DQ5fv+g8fFoFWQFHrhOoxL8zqTUhR6u5+J6YfH7YcQIereaSqYV
-yRiU/gpEKsl0KglXxnKTNz+BeXp9W3v69byHzx4D69VwfdcFfLvqTg5Uq3enchOd
-wXetc2i1WQTimd5dTsLTVZ0xgWGJP0ist0C/ZF1nwrmhVLnnHr+5hCpK9sW1PThF
-BPLHMkqideLZnk8IIL6AsLer+YQABWPnFWVkDce5MLkPMqXYAqVVyXJ/1FVU/X0b
-a7LA6QLHSKhfB4rPQG/Cc2gLq2Af9+RWjIIcVj/tncVRjbWfSZ9HxPaHLz2U54ML
-vhwz1iTPJNLtxUn9zXoCOwsIH4I5zLLrb5NxDNpIM1i1+EbqG2aSgO69iqjF5onp
-M9IaizbdpOuGKb82jrXWY+JKMcZ2sgWZ9GdEFuF4CLt6rBdq3wgtYPnO4XD4c209
-z3DBW8+Ivygi4soqDVCm
-=jxIX
------END PGP SIGNATURE-----
-
---lYetfuAxy9ic4HK3--
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
+> =
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
