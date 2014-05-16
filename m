@@ -1,146 +1,194 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f41.google.com (mail-pb0-f41.google.com [209.85.160.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 453E16B003D
-	for <linux-mm@kvack.org>; Fri, 16 May 2014 04:02:39 -0400 (EDT)
-Received: by mail-pb0-f41.google.com with SMTP id uo5so2295328pbc.0
-        for <linux-mm@kvack.org>; Fri, 16 May 2014 01:02:38 -0700 (PDT)
-Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
-        by mx.google.com with ESMTP id st6si8071728pab.46.2014.05.16.01.02.35
-        for <linux-mm@kvack.org>;
-        Fri, 16 May 2014 01:02:38 -0700 (PDT)
-Message-ID: <5375C619.8010501@lge.com>
-Date: Fri, 16 May 2014 17:02:33 +0900
-From: Gioh Kim <gioh.kim@lge.com>
-MIME-Version: 1.0
-Subject: [RFC][PATCH] CMA: drivers/base/Kconfig: restrict CMA size to non-zero
- value
-References: <1399509144-8898-1-git-send-email-iamjoonsoo.kim@lge.com> <1399509144-8898-3-git-send-email-iamjoonsoo.kim@lge.com> <20140513030057.GC32092@bbox> <20140515015301.GA10116@js1304-P5Q-DELUXE>
-In-Reply-To: <20140515015301.GA10116@js1304-P5Q-DELUXE>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Received: from mail-ee0-f50.google.com (mail-ee0-f50.google.com [74.125.83.50])
+	by kanga.kvack.org (Postfix) with ESMTP id A3A2D6B004D
+	for <linux-mm@kvack.org>; Fri, 16 May 2014 05:48:18 -0400 (EDT)
+Received: by mail-ee0-f50.google.com with SMTP id e51so1393524eek.9
+        for <linux-mm@kvack.org>; Fri, 16 May 2014 02:48:17 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 49si6281617een.275.2014.05.16.02.48.16
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 16 May 2014 02:48:16 -0700 (PDT)
+From: Vlastimil Babka <vbabka@suse.cz>
+Subject: [PATCH v2] mm, compaction: properly signal and act upon lock and need_sched() contention
+Date: Fri, 16 May 2014 11:47:53 +0200
+Message-Id: <1400233673-11477-1-git-send-email-vbabka@suse.cz>
+In-Reply-To: <1399904111-23520-1-git-send-email-vbabka@suse.cz>
+References: <1399904111-23520-1-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Laura Abbott <lauraa@codeaurora.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Nazarewicz <mina86@mina86.com>, Heesub Shin <heesub.shin@samsung.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Marek Szyprowski <m.szyprowski@samsung.com>, =?UTF-8?B?7J206rG07Zi4?= <gunho.lee@lge.com>, gurugio@gmail.com
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>
+Cc: Hugh Dickins <hughd@google.com>, Greg Thelen <gthelen@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>
 
-Hi,
+Compaction uses compact_checklock_irqsave() function to periodically check for
+lock contention and need_resched() to either abort async compaction, or to
+free the lock, schedule and retake the lock. When aborting, cc->contended is
+set to signal the contended state to the caller. Two problems have been
+identified in this mechanism.
 
-I've been trying to apply CMA into my platform.
-USB host driver generated kernel panic like below when USB mouse is connected,
-because I turned on CMA and set the CMA_SIZE_MBYTES value into zero by mistake.
+First, compaction also calls directly cond_resched() in both scanners when no
+lock is yet taken. This call either does not abort async compaction, or set
+cc->contended appropriately. This patch introduces a new compact_should_abort()
+function to achieve both. In isolate_freepages(), the check frequency is
+reduced to once by SWAP_CLUSTER_MAX pageblocks to match what the migration
+scanner does in the preliminary page checks. In case a pageblock is found
+suitable for calling isolate_freepages_block(), the checks within there are
+done on higher frequency.
 
-I think the panic is cuased by atomic_pool in arch/arm/mm/dma-mapping.c.
-Zero CMA_SIZE_MBYTES value skips CMA initialization and then atomic_pool is not initialized also
-because __alloc_from_contiguous is failed in atomic_pool_init().
+Second, isolate_freepages() does not check if isolate_freepages_block()
+aborted due to contention, and advances to the next pageblock. This violates
+the principle of aborting on contention, and might result in pageblocks not
+being scanned completely, since the scanning cursor is advanced. This patch
+makes isolate_freepages_block() check the cc->contended flag and abort.
 
-If CMA_SIZE_MBYTES_MAX is allowed to be zero, there should be defense code to check
-CMA is initlaized correctly. And atomic_pool initialization should be done by __alloc_remap_buffer
-instead of __alloc_from_contiguous if __alloc_from_contiguous is failed.
+In case isolate_freepages() has already isolated some pages before aborting
+due to contention, page migration will proceed, which is OK since we do not
+want to waste the work that has been done, and page migration has own checks
+for contention. However, we do not want another isolation attempt by either
+of the scanners, so cc->contended flag check is added also to
+compaction_alloc() and compact_finished() to make sure compaction is aborted
+right after the migration.
 
-IMPO, it is more simple and powerful to restrict CMA_SIZE_MBYTES_MAX configuration to be larger than zero.
-
-
-[    1.474523] ------------[ cut here ]------------
-[    1.479150] WARNING: at arch/arm/mm/dma-mapping.c:496 __dma_alloc.isra.19+0x1b8/0x1e0()
-[    1.487160] coherent pool not initialised!
-[    1.491249] Modules linked in:
-[    1.494317] CPU: 1 PID: 1 Comm: swapper/0 Not tainted 3.10.19+ #55
-[    1.500521] [<80013e20>] (unwind_backtrace+0x0/0xf8) from [<80011c60>] (show_stack+0x10/0x14)
-[    1.509064] [<80011c60>] (show_stack+0x10/0x14) from [<8001eedc>] (warn_slowpath_common+0x4c/0x6c)
-[    1.518038] [<8001eedc>] (warn_slowpath_common+0x4c/0x6c) from [<8001ef90>] (warn_slowpath_fmt+0x30/0x40)
-[    1.527616] [<8001ef90>] (warn_slowpath_fmt+0x30/0x40) from [<80017c28>] (__dma_alloc.isra.19+0x1b8/0x1e0)
-[    1.537282] [<80017c28>] (__dma_alloc.isra.19+0x1b8/0x1e0) from [<80017d7c>] (arm_dma_alloc+0x90/0x98)
-[    1.546608] [<80017d7c>] (arm_dma_alloc+0x90/0x98) from [<8034a860>] (ohci_init+0x1b0/0x278)
-[    1.555062] [<8034a860>] (ohci_init+0x1b0/0x278) from [<80332b0c>] (usb_add_hcd+0x184/0x5b8)
-[    1.563500] [<80332b0c>] (usb_add_hcd+0x184/0x5b8) from [<8034b5e0>] (ohci_platform_probe+0xd0/0x174)
-[    1.572729] [<8034b5e0>] (ohci_platform_probe+0xd0/0x174) from [<802f196c>] (platform_drv_probe+0x14/0x18)
-[    1.582401] [<802f196c>] (platform_drv_probe+0x14/0x18) from [<802f0714>] (driver_probe_device+0x6c/0x1f8)
-[    1.592064] [<802f0714>] (driver_probe_device+0x6c/0x1f8) from [<802f092c>] (__driver_attach+0x8c/0x90)
-[    1.601465] [<802f092c>] (__driver_attach+0x8c/0x90) from [<802eeec8>] (bus_for_each_dev+0x54/0x88)
-[    1.610518] [<802eeec8>] (bus_for_each_dev+0x54/0x88) from [<802efef0>] (bus_add_driver+0xd8/0x230)
-[    1.619572] [<802efef0>] (bus_add_driver+0xd8/0x230) from [<802f0de4>] (driver_register+0x78/0x14c)
-[    1.628632] [<802f0de4>] (driver_register+0x78/0x14c) from [<806ff018>] (ohci_hcd_mod_init+0x34/0x64)
-[    1.637859] [<806ff018>] (ohci_hcd_mod_init+0x34/0x64) from [<8000879c>] (do_one_initcall+0xec/0x14c)
-[    1.647088] [<8000879c>] (do_one_initcall+0xec/0x14c) from [<806dab30>] (kernel_init_freeable+0x150/0x220)
-[    1.656754] [<806dab30>] (kernel_init_freeable+0x150/0x220) from [<80509f54>] (kernel_init+0x8/0xf8)
-[    1.665895] [<80509f54>] (kernel_init+0x8/0xf8) from [<8000e398>] (ret_from_fork+0x14/0x3c)
-[    1.674264] ---[ end trace 6f1857db5ef45cb9 ]---
-[    1.678880] ohci-platform ohci-platform.0: can't setup
-[    1.684027] ohci-platform ohci-platform.0: USB bus 1 deregistered
-[    1.690362] ohci-platform: probe of ohci-platform.0 failed with error -12
-[    1.697188] ohci-platform ohci-platform.1: Generic Platform OHCI Controller
-[    1.704365] ohci-platform ohci-platform.1: new USB bus registered, assigned bus number 1
-[    1.712457] ------------[ cut here ]------------
-[    1.717096] WARNING: at arch/arm/mm/dma-mapping.c:496 __dma_alloc.isra.19+0x1b8/0x1e0()
-[    1.725105] coherent pool not initialised!
-[    1.729194] Modules linked in:
-[    1.732247] CPU: 1 PID: 1 Comm: swapper/0 Tainted: G        W    3.10.19+ #55
-[    1.739404] [<80013e20>] (unwind_backtrace+0x0/0xf8) from [<80011c60>] (show_stack+0x10/0x14)
-[    1.747949] [<80011c60>] (show_stack+0x10/0x14) from [<8001eedc>] (warn_slowpath_common+0x4c/0x6c)
-[    1.756923] [<8001eedc>] (warn_slowpath_common+0x4c/0x6c) from [<8001ef90>] (warn_slowpath_fmt+0x30/0x40)
-[    1.766502] [<8001ef90>] (warn_slowpath_fmt+0x30/0x40) from [<80017c28>] (__dma_alloc.isra.19+0x1b8/0x1e0)
-[    1.776168] [<80017c28>] (__dma_alloc.isra.19+0x1b8/0x1e0) from [<80017d7c>] (arm_dma_alloc+0x90/0x98)
-[    1.785484] [<80017d7c>] (arm_dma_alloc+0x90/0x98) from [<8034a860>] (ohci_init+0x1b0/0x278)
-[    1.793933] [<8034a860>] (ohci_init+0x1b0/0x278) from [<80332b0c>] (usb_add_hcd+0x184/0x5b8)
-[    1.802370] [<80332b0c>] (usb_add_hcd+0x184/0x5b8) from [<8034b5e0>] (ohci_platform_probe+0xd0/0x174)
-[    1.811597] [<8034b5e0>] (ohci_platform_probe+0xd0/0x174) from [<802f196c>] (platform_drv_probe+0x14/0x18)
-[    1.821263] [<802f196c>] (platform_drv_probe+0x14/0x18) from [<802f0714>] (driver_probe_device+0x6c/0x1f8)
-[    1.830926] [<802f0714>] (driver_probe_device+0x6c/0x1f8) from [<802f092c>] (__driver_attach+0x8c/0x90)
-[    1.840326] [<802f092c>] (__driver_attach+0x8c/0x90) from [<802eeec8>] (bus_for_each_dev+0x54/0x88)
-[    1.849379] [<802eeec8>] (bus_for_each_dev+0x54/0x88) from [<802efef0>] (bus_add_driver+0xd8/0x230)
-[    1.858432] [<802efef0>] (bus_add_driver+0xd8/0x230) from [<802f0de4>] (driver_register+0x78/0x14c)
-[    1.867488] [<802f0de4>] (driver_register+0x78/0x14c) from [<806ff018>] (ohci_hcd_mod_init+0x34/0x64)
-[    1.876714] [<806ff018>] (ohci_hcd_mod_init+0x34/0x64) from [<8000879c>] (do_one_initcall+0xec/0x14c)
-[    1.885940] [<8000879c>] (do_one_initcall+0xec/0x14c) from [<806dab30>] (kernel_init_freeable+0x150/0x220)
-[    1.895601] [<806dab30>] (kernel_init_freeable+0x150/0x220) from [<80509f54>] (kernel_init+0x8/0xf8)
-[    1.904741] [<80509f54>] (kernel_init+0x8/0xf8) from [<8000e398>] (ret_from_fork+0x14/0x3c)
-[    1.913085] ---[ end trace 6f1857db5ef45cba ]---
-
-
-I'm adding my patch to restrict CMA_SIZE_MBYTES.
-This patch is based on 3.15.0-rc5
-
--------------------------------- 8< --------------------------------------
- From 9f8e6d3c1f4bdeeeb7af3df7898b773a612c62e8 Mon Sep 17 00:00:00 2001
-From: Gioh Kim <gioh.kim@lge.com>
-Date: Fri, 16 May 2014 16:15:43 +0900
-Subject: [PATCH] drivers/base/Kconfig: restrict CMA size to non-zero value
-
-The size of CMA area must be larger than zero.
-If the size is zero, CMA canno be initialized.
-
-Signed-off-by: Gioh Kim <gioh.kim@lge.c>
+Reported-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Minchan Kim <minchan@kernel.org>
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+Cc: Michal Nazarewicz <mina86@mina86.com>
+Cc: Christoph Lameter <cl@linux.com>
+Cc: Rik van Riel <riel@redhat.com>
 ---
-  drivers/base/Kconfig |    7 ++++++-
-  1 file changed, 6 insertions(+), 1 deletion(-)
+v2: update struct compact_control comment (per Naoya Horiguchi)
+    rename to compact_should_abort() and add comments (per David Rientjes)
+    add cc->contended checks in compaction_alloc() and compact_finished()
+    (per Joonsoo Kim)
+    reduce frequency of checks in isolate_freepages() 
 
-diff --git a/drivers/base/Kconfig b/drivers/base/Kconfig
-index 4b7b452..19b3578 100644
---- a/drivers/base/Kconfig
-+++ b/drivers/base/Kconfig
-@@ -222,13 +222,18 @@ config DMA_CMA
-  if  DMA_CMA
-  comment "Default contiguous memory area size:"
+ mm/compaction.c | 54 ++++++++++++++++++++++++++++++++++++++++++++----------
+ mm/internal.h   |  5 ++++-
+ 2 files changed, 48 insertions(+), 11 deletions(-)
 
-+config CMA_SIZE_MBYTES_MAX
-+       int
-+       default 1024
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 83ca6f9..6fc9f18 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -222,6 +222,30 @@ static bool compact_checklock_irqsave(spinlock_t *lock, unsigned long *flags,
+ 	return true;
+ }
+ 
++/*
++ * Aside from avoiding lock contention, compaction also periodically checks
++ * need_resched() and either schedules in sync compaction, or aborts async
++ * compaction. This is similar to compact_checklock_irqsave() does, but used
++ * where no lock is concerned.
++ *
++ * Returns false when no scheduling was needed, or sync compaction scheduled.
++ * Returns true when async compaction should abort.
++ */
++static inline bool compact_should_abort(struct compact_control *cc)
++{
++	/* async compaction aborts if contended */
++	if (need_resched()) {
++		if (cc->mode == MIGRATE_ASYNC) {
++			cc->contended = true;
++			return false;
++		}
 +
-  config CMA_SIZE_MBYTES
-         int "Size in Mega Bytes"
-         depends on !CMA_SIZE_SEL_PERCENTAGE
-+       range 1 CMA_SIZE_MBYTES_MAX
-         default 16
-         help
-           Defines the size (in MiB) of the default memory area for Contiguous
--         Memory Allocator.
-+         Memory Allocator. This value must be larger than zero.
-
-  config CMA_SIZE_PERCENTAGE
-         int "Percentage of total memory"
---
-1.7.9.5
-
++		cond_resched();
++	}
++
++	return true;
++}
++
+ /* Returns true if the page is within a block suitable for migration to */
+ static bool suitable_migration_target(struct page *page)
+ {
+@@ -491,11 +515,8 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
+ 			return 0;
+ 	}
+ 
+-	if (cond_resched()) {
+-		/* Async terminates prematurely on need_resched() */
+-		if (cc->mode == MIGRATE_ASYNC)
+-			return 0;
+-	}
++	if (compact_should_abort(cc))
++		return 0;
+ 
+ 	/* Time to isolate some pages for migration */
+ 	for (; low_pfn < end_pfn; low_pfn++) {
+@@ -718,9 +739,11 @@ static void isolate_freepages(struct zone *zone,
+ 		/*
+ 		 * This can iterate a massively long zone without finding any
+ 		 * suitable migration targets, so periodically check if we need
+-		 * to schedule.
++		 * to schedule, or even abort async compaction.
+ 		 */
+-		cond_resched();
++		if (!(block_start_pfn % (SWAP_CLUSTER_MAX * pageblock_nr_pages))
++						&& compact_should_abort(cc))
++			break;
+ 
+ 		if (!pfn_valid(block_start_pfn))
+ 			continue;
+@@ -758,6 +781,13 @@ static void isolate_freepages(struct zone *zone,
+ 		 */
+ 		if (isolated)
+ 			cc->finished_update_free = true;
++
++		/*
++		 * isolate_freepages_block() might have aborted due to async
++		 * compaction being contended
++		 */
++		if (cc->contended)
++			break;
+ 	}
+ 
+ 	/* split_free_page does not map the pages */
+@@ -785,9 +815,13 @@ static struct page *compaction_alloc(struct page *migratepage,
+ 	struct compact_control *cc = (struct compact_control *)data;
+ 	struct page *freepage;
+ 
+-	/* Isolate free pages if necessary */
++	/*
++	 * Isolate free pages if necessary, and if we are not aborting due to
++	 * contention.
++	 */
+ 	if (list_empty(&cc->freepages)) {
+-		isolate_freepages(cc->zone, cc);
++		if (!cc->contended)
++			isolate_freepages(cc->zone, cc);
+ 
+ 		if (list_empty(&cc->freepages))
+ 			return NULL;
+@@ -857,7 +891,7 @@ static int compact_finished(struct zone *zone,
+ 	unsigned int order;
+ 	unsigned long watermark;
+ 
+-	if (fatal_signal_pending(current))
++	if (cc->contended || fatal_signal_pending(current))
+ 		return COMPACT_PARTIAL;
+ 
+ 	/* Compaction run completes if the migrate and free scanner meet */
+diff --git a/mm/internal.h b/mm/internal.h
+index a25424a..ad844ab 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -144,7 +144,10 @@ struct compact_control {
+ 	int order;			/* order a direct compactor needs */
+ 	int migratetype;		/* MOVABLE, RECLAIMABLE etc */
+ 	struct zone *zone;
+-	bool contended;			/* True if a lock was contended */
++	bool contended;			/* True if a lock was contended, or
++					 * need_resched() true during async
++					 * compaction
++					 */
+ };
+ 
+ unsigned long
+-- 
+1.8.4.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
