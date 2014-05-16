@@ -1,61 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yk0-f169.google.com (mail-yk0-f169.google.com [209.85.160.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 26C896B0035
-	for <linux-mm@kvack.org>; Fri, 16 May 2014 19:37:49 -0400 (EDT)
-Received: by mail-yk0-f169.google.com with SMTP id 200so2773092ykr.28
-        for <linux-mm@kvack.org>; Fri, 16 May 2014 16:37:48 -0700 (PDT)
-Received: from e39.co.us.ibm.com (e39.co.us.ibm.com. [32.97.110.160])
-        by mx.google.com with ESMTPS id c29si13363915yho.53.2014.05.16.16.37.48
+Received: from mail-yk0-f170.google.com (mail-yk0-f170.google.com [209.85.160.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 57F166B0035
+	for <linux-mm@kvack.org>; Fri, 16 May 2014 19:40:48 -0400 (EDT)
+Received: by mail-yk0-f170.google.com with SMTP id 10so2742228ykt.15
+        for <linux-mm@kvack.org>; Fri, 16 May 2014 16:40:48 -0700 (PDT)
+Received: from e36.co.us.ibm.com (e36.co.us.ibm.com. [32.97.110.154])
+        by mx.google.com with ESMTPS id w49si13327852yhd.198.2014.05.16.16.40.47
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 16 May 2014 16:37:48 -0700 (PDT)
+        Fri, 16 May 2014 16:40:47 -0700 (PDT)
 Received: from /spool/local
-	by e39.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e36.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <nacc@linux.vnet.ibm.com>;
-	Fri, 16 May 2014 17:37:47 -0600
-Received: from b01cxnp22033.gho.pok.ibm.com (b01cxnp22033.gho.pok.ibm.com [9.57.198.23])
-	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id B5E10C90040
-	for <linux-mm@kvack.org>; Fri, 16 May 2014 19:37:38 -0400 (EDT)
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by b01cxnp22033.gho.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s4GNbhmd2818306
-	for <linux-mm@kvack.org>; Fri, 16 May 2014 23:37:43 GMT
-Received: from d01av04.pok.ibm.com (localhost [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s4GNbho8007352
-	for <linux-mm@kvack.org>; Fri, 16 May 2014 19:37:43 -0400
-Date: Fri, 16 May 2014 16:37:35 -0700
+	Fri, 16 May 2014 17:40:46 -0600
+Received: from b03cxnp07028.gho.boulder.ibm.com (b03cxnp07028.gho.boulder.ibm.com [9.17.130.15])
+	by d03dlp03.boulder.ibm.com (Postfix) with ESMTP id 2843519D8039
+	for <linux-mm@kvack.org>; Fri, 16 May 2014 17:40:37 -0600 (MDT)
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by b03cxnp07028.gho.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s4GNdSSM2752944
+	for <linux-mm@kvack.org>; Sat, 17 May 2014 01:39:36 +0200
+Received: from d03av01.boulder.ibm.com (localhost [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s4GNeARs020153
+	for <linux-mm@kvack.org>; Fri, 16 May 2014 17:40:11 -0600
+Date: Fri, 16 May 2014 16:39:45 -0700
 From: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
-Subject: Re: [RFC PATCH 1/3] slub: search partial list on numa_mem_id(),
- instead of numa_node_id()
-Message-ID: <20140516233735.GH8941@linux.vnet.ibm.com>
-References: <20140206020757.GC5433@linux.vnet.ibm.com>
- <1391674026-20092-1-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH] powerpc: numa: enable USE_PERCPU_NUMA_NODE_ID
+Message-ID: <20140516233945.GI8941@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1391674026-20092-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: David Rientjes <rientjes@google.com>, Han Pingtian <hanpt@linux.vnet.ibm.com>, penberg@kernel.org, linux-mm@kvack.org, paulus@samba.org, Anton Blanchard <anton@samba.org>, mpm@selenic.com, Christoph Lameter <cl@linux.com>, linuxppc-dev@lists.ozlabs.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>, Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, David Rientjes <rientjes@google.com>, Anton Blanchard <anton@samba.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, Ben Herrenschmidt <benh@kernel.crashing.org>
 
-On 06.02.2014 [17:07:04 +0900], Joonsoo Kim wrote:
-> Currently, if allocation constraint to node is NUMA_NO_NODE, we search
-> a partial slab on numa_node_id() node. This doesn't work properly on the
-> system having memoryless node, since it can have no memory on that node and
-> there must be no partial slab on that node.
-> 
-> On that node, page allocation always fallback to numa_mem_id() first. So
-> searching a partial slab on numa_node_id() in that case is proper solution
-> for memoryless node case.
-> 
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Based off 3bccd996 for ia64, convert powerpc to use the generic per-CPU
+topology tracking, specifically:
+    
+	initialize per cpu numa_node entry in start_secondary
+    	remove the powerpc cpu_to_node()
+    	define CONFIG_USE_PERCPU_NUMA_NODE_ID if NUMA
+    
+Signed-off-by: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
 
-Acked-by: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
-
-Joonsoo, would you send this one on to Andrew?
-
-Thanks,
-Nish
+diff --git a/arch/powerpc/Kconfig b/arch/powerpc/Kconfig
+index e099899..9125964 100644
+--- a/arch/powerpc/Kconfig
++++ b/arch/powerpc/Kconfig
+@@ -453,6 +453,10 @@ config NODES_SHIFT
+ 	default "4"
+ 	depends on NEED_MULTIPLE_NODES
+ 
++config USE_PERCPU_NUMA_NODE_ID
++	def_bool y
++	depends on NUMA
++
+ config ARCH_SELECT_MEMORY_MODEL
+ 	def_bool y
+ 	depends on PPC64
+diff --git a/arch/powerpc/include/asm/topology.h b/arch/powerpc/include/asm/topology.h
+index c920215..5ecf7ea 100644
+--- a/arch/powerpc/include/asm/topology.h
++++ b/arch/powerpc/include/asm/topology.h
+@@ -20,19 +20,6 @@ struct device_node;
+ 
+ #include <asm/mmzone.h>
+ 
+-static inline int cpu_to_node(int cpu)
+-{
+-	int nid;
+-
+-	nid = numa_cpu_lookup_table[cpu];
+-
+-	/*
+-	 * During early boot, the numa-cpu lookup table might not have been
+-	 * setup for all CPUs yet. In such cases, default to node 0.
+-	 */
+-	return (nid < 0) ? 0 : nid;
+-}
+-
+ #define parent_node(node)	(node)
+ 
+ #define cpumask_of_node(node) ((node) == -1 ?				\
+diff --git a/arch/powerpc/kernel/smp.c b/arch/powerpc/kernel/smp.c
+index e2a4232..b95be24 100644
+--- a/arch/powerpc/kernel/smp.c
++++ b/arch/powerpc/kernel/smp.c
+@@ -750,6 +750,11 @@ void start_secondary(void *unused)
+ 	}
+ 	traverse_core_siblings(cpu, true);
+ 
++	/*
++	 * numa_node_id() works after this.
++	 */
++	set_numa_node(numa_cpu_lookup_table[cpu]);
++
+ 	smp_wmb();
+ 	notify_cpu_starting(cpu);
+ 	set_cpu_online(cpu, true);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
