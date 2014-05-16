@@ -1,194 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f50.google.com (mail-ee0-f50.google.com [74.125.83.50])
-	by kanga.kvack.org (Postfix) with ESMTP id A3A2D6B004D
-	for <linux-mm@kvack.org>; Fri, 16 May 2014 05:48:18 -0400 (EDT)
-Received: by mail-ee0-f50.google.com with SMTP id e51so1393524eek.9
-        for <linux-mm@kvack.org>; Fri, 16 May 2014 02:48:17 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 49si6281617een.275.2014.05.16.02.48.16
+Received: from mail-la0-f47.google.com (mail-la0-f47.google.com [209.85.215.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 730FC6B005C
+	for <linux-mm@kvack.org>; Fri, 16 May 2014 09:06:45 -0400 (EDT)
+Received: by mail-la0-f47.google.com with SMTP id pn19so1934239lab.34
+        for <linux-mm@kvack.org>; Fri, 16 May 2014 06:06:44 -0700 (PDT)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id ub11si5565501lac.125.2014.05.16.06.06.43
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 16 May 2014 02:48:16 -0700 (PDT)
-From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH v2] mm, compaction: properly signal and act upon lock and need_sched() contention
-Date: Fri, 16 May 2014 11:47:53 +0200
-Message-Id: <1400233673-11477-1-git-send-email-vbabka@suse.cz>
-In-Reply-To: <1399904111-23520-1-git-send-email-vbabka@suse.cz>
-References: <1399904111-23520-1-git-send-email-vbabka@suse.cz>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 16 May 2014 06:06:43 -0700 (PDT)
+Date: Fri, 16 May 2014 17:06:30 +0400
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: Re: [PATCH RFC 1/3] slub: keep full slabs on list for per memcg
+ caches
+Message-ID: <20140516130629.GE32113@esperanza>
+References: <cover.1399982635.git.vdavydov@parallels.com>
+ <bc70b480221f7765926c8b4d63c55fb42e85baaf.1399982635.git.vdavydov@parallels.com>
+ <alpine.DEB.2.10.1405141114040.16512@gentwo.org>
+ <20140515063441.GA32113@esperanza>
+ <alpine.DEB.2.10.1405151011210.24665@gentwo.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.10.1405151011210.24665@gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>
-Cc: Hugh Dickins <hughd@google.com>, Greg Thelen <gthelen@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vlastimil Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: hannes@cmpxchg.org, mhocko@suse.cz, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Compaction uses compact_checklock_irqsave() function to periodically check for
-lock contention and need_resched() to either abort async compaction, or to
-free the lock, schedule and retake the lock. When aborting, cc->contended is
-set to signal the contended state to the caller. Two problems have been
-identified in this mechanism.
+On Thu, May 15, 2014 at 10:15:10AM -0500, Christoph Lameter wrote:
+> On Thu, 15 May 2014, Vladimir Davydov wrote:
+> 
+> > > That will significantly impact the fastpaths for alloc and free.
+> > >
+> > > Also a pretty significant change the logic of the fastpaths since they
+> > > were not designed to handle the full lists. In debug mode all operations
+> > > were only performed by the slow paths and only the slow paths so far
+> > > supported tracking full slabs.
+> >
+> > That's the minimal price we have to pay for slab re-parenting, because
+> > w/o it we won't be able to look up for all slabs of a particular per
+> > memcg cache. The question is, can it be tolerated or I'd better try some
+> > other way?
+> 
+> AFACIT these modifications all together will have a significant impact on
+> performance.
+> 
+> You could avoid the refcounting on free relying on the atomic nature of
+> cmpxchg operations. If you zap the per cpu slab then the fast path will be
+> forced to fall back to the slowpaths where you could do what you need to
+> do.
 
-First, compaction also calls directly cond_resched() in both scanners when no
-lock is yet taken. This call either does not abort async compaction, or set
-cc->contended appropriately. This patch introduces a new compact_should_abort()
-function to achieve both. In isolate_freepages(), the check frequency is
-reduced to once by SWAP_CLUSTER_MAX pageblocks to match what the migration
-scanner does in the preliminary page checks. In case a pageblock is found
-suitable for calling isolate_freepages_block(), the checks within there are
-done on higher frequency.
+Hmm, looking at __slab_free once again, I tend to agree that we could
+rely on cmpxchg to do re-parenting: we could freeze all slabs of the
+cache being re-parented forcing every on-going kfree to do only a
+cmpxchg w/o touching any lists and taking any locks, and then unfreeze
+all the frozen slabs to the target cache. No need in the ugly "slow
+mode" I introduced in this patch set would be necessary then.
 
-Second, isolate_freepages() does not check if isolate_freepages_block()
-aborted due to contention, and advances to the next pageblock. This violates
-the principle of aborting on contention, and might result in pageblocks not
-being scanned completely, since the scanning cursor is advanced. This patch
-makes isolate_freepages_block() check the cc->contended flag and abort.
+But w/o ref-counting how can we make sure that all kfrees to the cache
+we are going to re-parent have been completed so that it can be safely
+destroyed? An example:
 
-In case isolate_freepages() has already isolated some pages before aborting
-due to contention, page migration will proceed, which is OK since we do not
-want to waste the work that has been done, and page migration has own checks
-for contention. However, we do not want another isolation attempt by either
-of the scanners, so cc->contended flag check is added also to
-compaction_alloc() and compact_finished() to make sure compaction is aborted
-right after the migration.
+  CPU0:                                 CPU1:
+  -----                                 -----
+  kfree(obj):
+    page = virt_to_head_page(obj)
+    s = page->slab_cache
+    slab_free(s, page, obj):
+      <<< gets preempted here
 
-Reported-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-Cc: Michal Nazarewicz <mina86@mina86.com>
-Cc: Christoph Lameter <cl@linux.com>
-Cc: Rik van Riel <riel@redhat.com>
----
-v2: update struct compact_control comment (per Naoya Horiguchi)
-    rename to compact_should_abort() and add comments (per David Rientjes)
-    add cc->contended checks in compaction_alloc() and compact_finished()
-    (per Joonsoo Kim)
-    reduce frequency of checks in isolate_freepages() 
+                                        reparent_slab_cache:
+                                          for each slab page
+                                            [...]
+                                            page->slab_cache = target_cache;
 
- mm/compaction.c | 54 ++++++++++++++++++++++++++++++++++++++++++++----------
- mm/internal.h   |  5 ++++-
- 2 files changed, 48 insertions(+), 11 deletions(-)
+                                          kmem_cache_destroy(old_cache)
 
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 83ca6f9..6fc9f18 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -222,6 +222,30 @@ static bool compact_checklock_irqsave(spinlock_t *lock, unsigned long *flags,
- 	return true;
- }
- 
-+/*
-+ * Aside from avoiding lock contention, compaction also periodically checks
-+ * need_resched() and either schedules in sync compaction, or aborts async
-+ * compaction. This is similar to compact_checklock_irqsave() does, but used
-+ * where no lock is concerned.
-+ *
-+ * Returns false when no scheduling was needed, or sync compaction scheduled.
-+ * Returns true when async compaction should abort.
-+ */
-+static inline bool compact_should_abort(struct compact_control *cc)
-+{
-+	/* async compaction aborts if contended */
-+	if (need_resched()) {
-+		if (cc->mode == MIGRATE_ASYNC) {
-+			cc->contended = true;
-+			return false;
-+		}
-+
-+		cond_resched();
-+	}
-+
-+	return true;
-+}
-+
- /* Returns true if the page is within a block suitable for migration to */
- static bool suitable_migration_target(struct page *page)
- {
-@@ -491,11 +515,8 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
- 			return 0;
- 	}
- 
--	if (cond_resched()) {
--		/* Async terminates prematurely on need_resched() */
--		if (cc->mode == MIGRATE_ASYNC)
--			return 0;
--	}
-+	if (compact_should_abort(cc))
-+		return 0;
- 
- 	/* Time to isolate some pages for migration */
- 	for (; low_pfn < end_pfn; low_pfn++) {
-@@ -718,9 +739,11 @@ static void isolate_freepages(struct zone *zone,
- 		/*
- 		 * This can iterate a massively long zone without finding any
- 		 * suitable migration targets, so periodically check if we need
--		 * to schedule.
-+		 * to schedule, or even abort async compaction.
- 		 */
--		cond_resched();
-+		if (!(block_start_pfn % (SWAP_CLUSTER_MAX * pageblock_nr_pages))
-+						&& compact_should_abort(cc))
-+			break;
- 
- 		if (!pfn_valid(block_start_pfn))
- 			continue;
-@@ -758,6 +781,13 @@ static void isolate_freepages(struct zone *zone,
- 		 */
- 		if (isolated)
- 			cc->finished_update_free = true;
-+
-+		/*
-+		 * isolate_freepages_block() might have aborted due to async
-+		 * compaction being contended
-+		 */
-+		if (cc->contended)
-+			break;
- 	}
- 
- 	/* split_free_page does not map the pages */
-@@ -785,9 +815,13 @@ static struct page *compaction_alloc(struct page *migratepage,
- 	struct compact_control *cc = (struct compact_control *)data;
- 	struct page *freepage;
- 
--	/* Isolate free pages if necessary */
-+	/*
-+	 * Isolate free pages if necessary, and if we are not aborting due to
-+	 * contention.
-+	 */
- 	if (list_empty(&cc->freepages)) {
--		isolate_freepages(cc->zone, cc);
-+		if (!cc->contended)
-+			isolate_freepages(cc->zone, cc);
- 
- 		if (list_empty(&cc->freepages))
- 			return NULL;
-@@ -857,7 +891,7 @@ static int compact_finished(struct zone *zone,
- 	unsigned int order;
- 	unsigned long watermark;
- 
--	if (fatal_signal_pending(current))
-+	if (cc->contended || fatal_signal_pending(current))
- 		return COMPACT_PARTIAL;
- 
- 	/* Compaction run completes if the migrate and free scanner meet */
-diff --git a/mm/internal.h b/mm/internal.h
-index a25424a..ad844ab 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -144,7 +144,10 @@ struct compact_control {
- 	int order;			/* order a direct compactor needs */
- 	int migratetype;		/* MOVABLE, RECLAIMABLE etc */
- 	struct zone *zone;
--	bool contended;			/* True if a lock was contended */
-+	bool contended;			/* True if a lock was contended, or
-+					 * need_resched() true during async
-+					 * compaction
-+					 */
- };
- 
- unsigned long
--- 
-1.8.4.5
+      <<< continues execution
+      c = s->cpu_slab /* s points to the previous owner cache,
+                         so we use-after-free here */
+
+If kfree were not preemptable, we could make reparent_slab_cache wait
+for all cpus to schedule() before destroying the cache to avoid this,
+but since it is, we need ref-counting...
+
+Thanks.
+
+> There is no tracking of full slabs without adding much more logic to the
+> fastpath. You could force any operation that affects tne full list into
+> the slow path. But that also would have an impact.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
