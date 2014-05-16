@@ -1,96 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f51.google.com (mail-pb0-f51.google.com [209.85.160.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 06AA56B0036
-	for <linux-mm@kvack.org>; Fri, 16 May 2014 13:33:46 -0400 (EDT)
-Received: by mail-pb0-f51.google.com with SMTP id ma3so2857384pbc.24
-        for <linux-mm@kvack.org>; Fri, 16 May 2014 10:33:46 -0700 (PDT)
-Received: from mail-pb0-x232.google.com (mail-pb0-x232.google.com [2607:f8b0:400e:c01::232])
-        by mx.google.com with ESMTPS id po3si316499pbb.3.2014.05.16.10.33.45
+Received: from mail-ig0-f171.google.com (mail-ig0-f171.google.com [209.85.213.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 2F4D26B0036
+	for <linux-mm@kvack.org>; Fri, 16 May 2014 13:45:25 -0400 (EDT)
+Received: by mail-ig0-f171.google.com with SMTP id c1so1079808igq.16
+        for <linux-mm@kvack.org>; Fri, 16 May 2014 10:45:24 -0700 (PDT)
+Received: from mail-ig0-x233.google.com (mail-ig0-x233.google.com [2607:f8b0:4001:c05::233])
+        by mx.google.com with ESMTPS id k17si3318720icg.22.2014.05.16.10.45.24
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 16 May 2014 10:33:45 -0700 (PDT)
-Received: by mail-pb0-f50.google.com with SMTP id ma3so2877229pbc.23
-        for <linux-mm@kvack.org>; Fri, 16 May 2014 10:33:45 -0700 (PDT)
+        Fri, 16 May 2014 10:45:24 -0700 (PDT)
+Received: by mail-ig0-f179.google.com with SMTP id hn18so1104672igb.0
+        for <linux-mm@kvack.org>; Fri, 16 May 2014 10:45:24 -0700 (PDT)
 From: Michal Nazarewicz <mina86@mina86.com>
-Subject: Re: [PATCH v2] mm, compaction: properly signal and act upon lock and need_sched() contention
-In-Reply-To: <1400233673-11477-1-git-send-email-vbabka@suse.cz>
-References: <1399904111-23520-1-git-send-email-vbabka@suse.cz> <1400233673-11477-1-git-send-email-vbabka@suse.cz>
-Date: Fri, 16 May 2014 10:33:35 -0700
-Message-ID: <xa1tsio9fx1s.fsf@mina86.com>
+Subject: Re: [RFC][PATCH] CMA: drivers/base/Kconfig: restrict CMA size to non-zero value
+In-Reply-To: <5375C619.8010501@lge.com>
+References: <1399509144-8898-1-git-send-email-iamjoonsoo.kim@lge.com> <1399509144-8898-3-git-send-email-iamjoonsoo.kim@lge.com> <20140513030057.GC32092@bbox> <20140515015301.GA10116@js1304-P5Q-DELUXE> <5375C619.8010501@lge.com>
+Date: Fri, 16 May 2014 10:45:12 -0700
+Message-ID: <xa1tppjdfwif.fsf@mina86.com>
 MIME-Version: 1.0
 Content-Type: multipart/mixed; boundary="=-=-="
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>
-Cc: Hugh Dickins <hughd@google.com>, Greg Thelen <gthelen@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>
+To: Gioh Kim <gioh.kim@lge.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Laura Abbott <lauraa@codeaurora.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Heesub Shin <heesub.shin@samsung.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Marek Szyprowski <m.szyprowski@samsung.com>, =?utf-8?B?7J206rG07Zi4?= <gunho.lee@lge.com>, gurugio@gmail.com
 
 --=-=-=
 Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: quoted-printable
 
-On Fri, May 16 2014, Vlastimil Babka wrote:
-> Compaction uses compact_checklock_irqsave() function to periodically chec=
-k for
-> lock contention and need_resched() to either abort async compaction, or to
-> free the lock, schedule and retake the lock. When aborting, cc->contended=
- is
-> set to signal the contended state to the caller. Two problems have been
-> identified in this mechanism.
->
-> First, compaction also calls directly cond_resched() in both scanners whe=
-n no
-> lock is yet taken. This call either does not abort async compaction, or s=
-et
-> cc->contended appropriately. This patch introduces a new compact_should_a=
-bort()
-> function to achieve both. In isolate_freepages(), the check frequency is
-> reduced to once by SWAP_CLUSTER_MAX pageblocks to match what the migration
-> scanner does in the preliminary page checks. In case a pageblock is found
-> suitable for calling isolate_freepages_block(), the checks within there a=
-re
-> done on higher frequency.
->
-> Second, isolate_freepages() does not check if isolate_freepages_block()
-> aborted due to contention, and advances to the next pageblock. This viola=
-tes
-> the principle of aborting on contention, and might result in pageblocks n=
-ot
-> being scanned completely, since the scanning cursor is advanced. This pat=
-ch
-> makes isolate_freepages_block() check the cc->contended flag and abort.
->
-> In case isolate_freepages() has already isolated some pages before aborti=
-ng
-> due to contention, page migration will proceed, which is OK since we do n=
-ot
-> want to waste the work that has been done, and page migration has own che=
-cks
-> for contention. However, we do not want another isolation attempt by eith=
-er
-> of the scanners, so cc->contended flag check is added also to
-> compaction_alloc() and compact_finished() to make sure compaction is abor=
-ted
-> right after the migration.
->
-> Reported-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-> Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Cc: Minchan Kim <minchan@kernel.org>
-> Cc: Mel Gorman <mgorman@suse.de>
-> Cc: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-> Cc: Michal Nazarewicz <mina86@mina86.com>
+On Fri, May 16 2014, Gioh Kim wrote:
+> If CMA_SIZE_MBYTES is allowed to be zero, there should be defense code
+> to check CMA is initlaized correctly. And atomic_pool initialization
+> should be done by __alloc_remap_buffer instead of
+> __alloc_from_contiguous if __alloc_from_contiguous is failed.
 
-Acked-by: Michal Nazarewicz <mina86@mina86.com>
+Agreed, and this is the correct fix.
 
-> Cc: Christoph Lameter <cl@linux.com>
-> Cc: Rik van Riel <riel@redhat.com>
-> ---
-> v2: update struct compact_control comment (per Naoya Horiguchi)
->     rename to compact_should_abort() and add comments (per David Rientjes)
->     add cc->contended checks in compaction_alloc() and compact_finished()
->     (per Joonsoo Kim)
->     reduce frequency of checks in isolate_freepages()=20
->
+> IMPO, it is more simple and powerful to restrict CMA_SIZE_MBYTES_MAX
+> configuration to be larger than zero.
+
+No, because it makes it impossible to have CMA disabled by default and
+only enabled if command line argument is given.
+
+Furthermore, your patch does *not* guarantee CMA region to always be
+allocated.  If CMA_SIZE_SEL_PERCENTAGE is selected for instance.  Or if
+user explicitly passes 0 on command line.
+
 --=20
 Best regards,                                         _     _
 .o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
@@ -112,19 +67,19 @@ Content-Type: application/pgp-signature; name="signature.asc"
 -----BEGIN PGP SIGNATURE-----
 Version: GnuPG v1.4.11 (GNU/Linux)
 
-iQIcBAEBAgAGBQJTdkvvAAoJECBgQBJQdR/0o3MP/Rj0r/oRm/6Otfqz2rlcqW2g
-36HpqwRC0R2Mmmk7VN4IofX9GuhDUCjlQYUfKIVIapOhqm+N3buepLv2V6/Zv0KA
-KJllXOp310O2VO9KwtSpOK7K82HLPzGi/QrCRFt1Wc+0C2PJB8cIjn+myDdcCvTl
-eAR6GosGCpla72wLkuwxc6tmbMZ54Bzhrv2mE+hMdSnkmmV/gnSAFNzT1yhfDpJZ
-4/0FZs4KkqHWy9BnpxOWwiAsa3/r4G0KjHGRAdp61iv/wTUeL0QG57v7kWsFBi1b
-YrFstvmO4fXTvoGnCPf2GeWu1Y5qillXMptP3BK7Qjv058NDBeCP6rWUxii9Eu7F
-meYXmet2fmBHcIKmdrZsYQ5dcDulKeAv1ATNvU6rQ6JW4Ov/oigMbylPTNlsZ2Nw
-+vohZqm9sgpa628BwiTX1O3hv/0YG/QxWa36EezFFfIQLo09TwXYreLMy5bggpjX
-AJXW1pxY1RRDA1CRsPTRTmduIikxUYAHhSsCCLPrT2xMPuz9D+5PaCHf80XjuicQ
-JEA88a4BvNy7AMfUfgJriKFGpg+yY3gyGmftZAI5zwlrcwzWcAbkdfyykVJO9DRT
-hQjasihW31OlVofl+QtmjwokcGaJzGc2TfetP7v/XeJQvTcb6/6Qh4oF2ZqoUzVY
-e77JD7YNElAQRi2PFpzN
-=FZ3h
+iQIcBAEBAgAGBQJTdk6oAAoJECBgQBJQdR/0/uAP/iy4hKtOCEcIenjryq8Y8a6e
+A8qqXcLu0Ms9x0Pj6ooWAZiEwgyXMZaTv7ykH3JRGW6JDD4oHLwkCO5ZHXrhT1mf
+pPWIhdVJNJsFL8YBEoIWzRzdMFyXsPhezn79dCR4mX/mIMGiZtKEbNc8uTSNJozS
+yF0ZPGeevPWBgb5bJVh0ijDm26zyXIXk/aRxHCX5C9XgIS7aZhbKMmG2J2X97NU/
+eyuQCPhzzfXKzcDzpZUYm2HhZDaJ/CQKOGQDwTDPVsuktOPeKu5T94+j5cFK9rKW
+NG/uTXDWA2B9DsC/OIcmSf/IFFHojWr2i7zaMPK4kXN6Hd+MAr9WNm+aslo8df+J
+F8Y2y9Gbu2ZQjBbB2R3Ecz4AJUDZgquOwSG54N+6QZuY+aMKoL3sc7kI+q12mZKS
+m2DjnEp6uUPsYo2RUaOotqjHBjiKlfLN6tBpxsP0BFRYyf/KCs7FGG/NS9g5xcU+
+fI0h4AXIiA8g+bP1lmcv7BRFefKRZsQLYRuNoFFvzAqz0wmQ5tHpZylE6sEbpHzm
+d2dDlVizFPF9QEnLLMFGfOYUZrLLan3jmlCy5+dMKxKF2AdOKFYIrpexb5Io+jRp
+kabi/5LDR8ISiULgiQ9NDZyGTCXTmsvkvGQTuYyJhS+bBrQtrlVVL8w5Qx6/WSU1
+l9Se161WbizexGWJds28
+=oIPD
 -----END PGP SIGNATURE-----
 --==-=-=--
 
