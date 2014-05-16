@@ -1,52 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f179.google.com (mail-we0-f179.google.com [74.125.82.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 2593C6B0036
-	for <linux-mm@kvack.org>; Fri, 16 May 2014 15:38:38 -0400 (EDT)
-Received: by mail-we0-f179.google.com with SMTP id q59so3087466wes.10
-        for <linux-mm@kvack.org>; Fri, 16 May 2014 12:38:37 -0700 (PDT)
-Received: from kirsi1.inet.fi (mta-out1.inet.fi. [62.71.2.199])
-        by mx.google.com with ESMTP id f41si2575586eeo.308.2014.05.16.12.38.36
-        for <linux-mm@kvack.org>;
-        Fri, 16 May 2014 12:38:36 -0700 (PDT)
-Date: Fri, 16 May 2014 22:38:00 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH v6] mm: support madvise(MADV_FREE)
-Message-ID: <20140516193800.GA7273@node.dhcp.inet.fi>
-References: <1399857988-2880-1-git-send-email-minchan@kernel.org>
- <20140515154657.GA2720@cmpxchg.org>
- <20140516063427.GC27599@bbox>
+Received: from mail-oa0-f51.google.com (mail-oa0-f51.google.com [209.85.219.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 0D7E06B0036
+	for <linux-mm@kvack.org>; Fri, 16 May 2014 18:00:19 -0400 (EDT)
+Received: by mail-oa0-f51.google.com with SMTP id n16so3672114oag.38
+        for <linux-mm@kvack.org>; Fri, 16 May 2014 15:00:18 -0700 (PDT)
+Received: from mail-ob0-x249.google.com (mail-ob0-x249.google.com [2607:f8b0:4003:c01::249])
+        by mx.google.com with ESMTPS id sc1si3968404oeb.82.2014.05.16.15.00.18
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 16 May 2014 15:00:18 -0700 (PDT)
+Received: by mail-ob0-f201.google.com with SMTP id wn1so654511obc.0
+        for <linux-mm@kvack.org>; Fri, 16 May 2014 15:00:18 -0700 (PDT)
+References: <1399994956-3907-1-git-send-email-mhocko@suse.cz>
+From: Greg Thelen <gthelen@google.com>
+Subject: Re: [PATCH] memcg: deprecate memory.force_empty knob
+In-reply-to: <1399994956-3907-1-git-send-email-mhocko@suse.cz>
+Date: Fri, 16 May 2014 15:00:16 -0700
+Message-ID: <xr9338g9o03z.fsf@gthelen.mtv.corp.google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140516063427.GC27599@bbox>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dave Hansen <dave.hansen@intel.com>, John Stultz <john.stultz@linaro.org>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Jason Evans <je@fb.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>, Hugh Dickins <hughd@google.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On Fri, May 16, 2014 at 03:34:27PM +0900, Minchan Kim wrote:
-> > > +static inline unsigned long lazyfree_pmd_range(struct mmu_gather *tlb,
-> > > +				struct vm_area_struct *vma, pud_t *pud,
-> > > +				unsigned long addr, unsigned long end)
-> > > +{
-> > > +	pmd_t *pmd;
-> > > +	unsigned long next;
-> > > +
-> > > +	pmd = pmd_offset(pud, addr);
-> > > +	do {
-> > > +		next = pmd_addr_end(addr, end);
-> > > +		if (pmd_trans_huge(*pmd))
-> > > +			split_huge_page_pmd(vma, addr, pmd);
-> > 
-> > /* XXX */ as well? :)
-> 
-> You meant huge page unit lazyfree rather than 4K page unit?
-> If so, I will add.
 
-Please, free huge page if range cover it. 
+On Tue, May 13 2014, Michal Hocko <mhocko@suse.cz> wrote:
 
--- 
- Kirill A. Shutemov
+> force_empty has been introduced primarily to drop memory before it gets
+> reparented on the group removal. This alone doesn't sound fully
+> justified because reparented pages which are not in use can be reclaimed
+> also later when there is a memory pressure on the parent level.
+>
+> Mark the knob CFTYPE_INSANE which tells the cgroup core that it
+> shouldn't create the knob with the experimental sane_behavior. Other
+> users will get informed about the deprecation and asked to tell us more
+> because I do not expect most users will use sane_behavior cgroups mode
+> very soon.
+> Anyway I expect that most users will be simply cgroup remove handlers
+> which do that since ever without having any good reason for it.
+>
+> If somebody really cares because reparented pages, which would be
+> dropped otherwise, push out more important ones then we should fix the
+> reparenting code and put pages to the tail.
+
+I should mention a case where I've needed to use memory.force_empty: to
+synchronously flush stats from child to parent.  Without force_empty
+memory.stat is temporarily inconsistent until async css_offline
+reparents charges.  Here is an example on v3.14 showing that
+parent/memory.stat contents are in-flux immediately after rmdir of
+parent/child.
+
+$ cat /test
+#!/bin/bash
+
+# Create parent and child.  Add some non-reclaimable anon rss to child,
+# then move running task to parent.
+mkdir p p/c
+(echo $BASHPID > p/c/cgroup.procs && exec sleep 1d) &
+pid=$!
+sleep 1
+echo $pid > p/cgroup.procs 
+
+grep 'rss ' {p,p/c}/memory.stat
+if [[ $1 == force ]]; then
+  echo 1 > p/c/memory.force_empty
+fi
+rmdir p/c
+
+echo 'For a small time the p/c memory has not been reparented to p.'
+grep 'rss ' {p,p/c}/memory.stat
+
+sleep 1
+echo 'After waiting all memory has been reparented'
+grep 'rss ' {p,p/c}/memory.stat
+
+kill $pid
+rmdir p
+
+
+-- First, demonstrate that just rmdir, without memory.force_empty,
+   temporarily hides reparented child memory stats.
+
+$ /test
+p/memory.stat:rss 0
+p/memory.stat:total_rss 69632
+p/c/memory.stat:rss 69632
+p/c/memory.stat:total_rss 69632
+For a small time the p/c memory has not been reparented to p.
+p/memory.stat:rss 0
+p/memory.stat:total_rss 0
+grep: p/c/memory.stat: No such file or directory
+After waiting all memory has been reparented
+p/memory.stat:rss 69632
+p/memory.stat:total_rss 69632
+grep: p/c/memory.stat: No such file or directory
+/test: Terminated              ( echo $BASHPID > p/c/cgroup.procs && exec sleep 1d )
+
+-- Demonstrate that using memory.force_empty before rmdir, behaves more
+   sensibly.  Stats for reparented child memory are not hidden.
+
+$ /test force
+p/memory.stat:rss 0
+p/memory.stat:total_rss 69632
+p/c/memory.stat:rss 69632
+p/c/memory.stat:total_rss 69632
+For a small time the p/c memory has not been reparented to p.
+p/memory.stat:rss 69632
+p/memory.stat:total_rss 69632
+grep: p/c/memory.stat: No such file or directory
+After waiting all memory has been reparented
+p/memory.stat:rss 69632
+p/memory.stat:total_rss 69632
+grep: p/c/memory.stat: No such file or directory
+/test: Terminated              ( echo $BASHPID > p/c/cgroup.procs && exec sleep 1d )
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
