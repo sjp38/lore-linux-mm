@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f170.google.com (mail-qc0-f170.google.com [209.85.216.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 24CD66B0072
-	for <linux-mm@kvack.org>; Fri, 16 May 2014 11:03:27 -0400 (EDT)
-Received: by mail-qc0-f170.google.com with SMTP id i8so4511681qcq.15
-        for <linux-mm@kvack.org>; Fri, 16 May 2014 08:03:26 -0700 (PDT)
-Received: from qmta13.emeryville.ca.mail.comcast.net (qmta13.emeryville.ca.mail.comcast.net. [2001:558:fe2d:44:76:96:27:243])
-        by mx.google.com with ESMTP id m4si4304888qae.165.2014.05.16.08.03.25
+Received: from mail-qc0-f174.google.com (mail-qc0-f174.google.com [209.85.216.174])
+	by kanga.kvack.org (Postfix) with ESMTP id CCB186B0073
+	for <linux-mm@kvack.org>; Fri, 16 May 2014 11:06:02 -0400 (EDT)
+Received: by mail-qc0-f174.google.com with SMTP id x13so4491504qcv.33
+        for <linux-mm@kvack.org>; Fri, 16 May 2014 08:06:02 -0700 (PDT)
+Received: from qmta08.emeryville.ca.mail.comcast.net (qmta08.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:80])
+        by mx.google.com with ESMTP id h65si4349448qge.25.2014.05.16.08.06.01
         for <linux-mm@kvack.org>;
-        Fri, 16 May 2014 08:03:26 -0700 (PDT)
-Date: Fri, 16 May 2014 10:03:22 -0500 (CDT)
+        Fri, 16 May 2014 08:06:02 -0700 (PDT)
+Date: Fri, 16 May 2014 10:05:59 -0500 (CDT)
 From: Christoph Lameter <cl@linux.com>
-Subject: Re: [PATCH RFC 3/3] slub: reparent memcg caches' slabs on memcg
- offline
-In-Reply-To: <20140516132234.GF32113@esperanza>
-Message-ID: <alpine.DEB.2.10.1405160957100.32249@gentwo.org>
-References: <cover.1399982635.git.vdavydov@parallels.com> <6eafe1e95d9a934228e9af785f5b5de38955aa6a.1399982635.git.vdavydov@parallels.com> <alpine.DEB.2.10.1405141119320.16512@gentwo.org> <20140515071650.GB32113@esperanza> <alpine.DEB.2.10.1405151015330.24665@gentwo.org>
- <20140516132234.GF32113@esperanza>
+Subject: Re: [PATCH RFC 1/3] slub: keep full slabs on list for per memcg
+ caches
+In-Reply-To: <20140516130629.GE32113@esperanza>
+Message-ID: <alpine.DEB.2.10.1405161003250.32249@gentwo.org>
+References: <cover.1399982635.git.vdavydov@parallels.com> <bc70b480221f7765926c8b4d63c55fb42e85baaf.1399982635.git.vdavydov@parallels.com> <alpine.DEB.2.10.1405141114040.16512@gentwo.org> <20140515063441.GA32113@esperanza> <alpine.DEB.2.10.1405151011210.24665@gentwo.org>
+ <20140516130629.GE32113@esperanza>
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
@@ -24,39 +24,16 @@ Cc: hannes@cmpxchg.org, mhocko@suse.cz, akpm@linux-foundation.org, linux-kernel@
 
 On Fri, 16 May 2014, Vladimir Davydov wrote:
 
-> > Do we even know that all objects in that slab belong to a certain cgroup?
-> > AFAICT the fastpath currently do not allow to make that distinction.
->
-> All allocations from a memcg's cache are accounted to the owner memcg,
-> so that all objects on the same slab belong to the same memcg, a pointer
-> to which can be obtained from the page->slab_cache->memcg_params. At
-> least, this is true since commit faebbfe10ec1 ("sl[au]b: charge slabs to
-> kmemcg explicitly").
+> But w/o ref-counting how can we make sure that all kfrees to the cache
+> we are going to re-parent have been completed so that it can be safely
+> destroyed? An example:
 
-I doubt that. The accounting occurs when a new cpu slab page is allocated.
-But the individual allocations in the fastpath are not accounted to a
-specific group. Thus allocation in a slab page can belong to various
-cgroups.
+Keep the old structure around until the counter of slabs (partial, full)
+of that old structure is zero? Move individual slab pages until you reach
+zero.
 
-> > I wish you would find some other way to do this.
->
-> The only practical alternative to re-parenting I see right now is
-> periodic reaping, but Johannes isn't very fond of it, and his opinion is
-> quite justified, because having caches that will never be allocated from
-> hanging around indefinitely, only because they have a couple of active
-> objects to be freed, doesn't look very good.
-
-If all objects in the cache are in use then the slab page needs to hang
-around since the objects presence is required. You may not know exactly
-which cgroups these object belong to. The only thing that you may now (if
-you keep a list of full slabs) is which cgroup was in use then the
-slab page was initially allocated.
-
-Isnt it sufficient to add a counter of full slabs to a cgroup? When you
-allocate a new slab page add to the counter. When an object in a slab page
-is freed and the slab page goes on a partial list decrement the counter.
-
-That way you can avoid tracking full slabs.
+One can lock out frees by setting c->page = NULL, zapping the partial list
+and taking the per node list lock.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
