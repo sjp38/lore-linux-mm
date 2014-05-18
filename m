@@ -1,85 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f177.google.com (mail-lb0-f177.google.com [209.85.217.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A71A6B0036
-	for <linux-mm@kvack.org>; Sat, 17 May 2014 02:15:59 -0400 (EDT)
-Received: by mail-lb0-f177.google.com with SMTP id s7so2570725lbd.36
-        for <linux-mm@kvack.org>; Fri, 16 May 2014 23:15:58 -0700 (PDT)
-Received: from mail-la0-x232.google.com (mail-la0-x232.google.com [2a00:1450:4010:c03::232])
-        by mx.google.com with ESMTPS id mt9si3136436lbc.221.2014.05.16.23.15.57
+Received: from mail-we0-f180.google.com (mail-we0-f180.google.com [74.125.82.180])
+	by kanga.kvack.org (Postfix) with ESMTP id B9E2F6B0036
+	for <linux-mm@kvack.org>; Sun, 18 May 2014 10:58:20 -0400 (EDT)
+Received: by mail-we0-f180.google.com with SMTP id t61so4510652wes.11
+        for <linux-mm@kvack.org>; Sun, 18 May 2014 07:58:20 -0700 (PDT)
+Received: from mail-wg0-x234.google.com (mail-wg0-x234.google.com [2a00:1450:400c:c00::234])
+        by mx.google.com with ESMTPS id j8si6384676wje.75.2014.05.18.07.58.18
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 16 May 2014 23:15:57 -0700 (PDT)
-Received: by mail-la0-f50.google.com with SMTP id b8so2583499lan.23
-        for <linux-mm@kvack.org>; Fri, 16 May 2014 23:15:57 -0700 (PDT)
-Date: Sat, 17 May 2014 10:15:55 +0400
-From: Cyrill Gorcunov <gorcunov@gmail.com>
-Subject: Re: mm: NULL ptr deref handling mmaping of special mappings
-Message-ID: <20140517061555.GX28328@moon>
-References: <20140515084558.GI28328@moon>
- <CALCETrWwWXEoNparvhx4yJB8YmiUBZCuR6yQxJOTjYKuA8AdqQ@mail.gmail.com>
- <20140515195320.GR28328@moon>
- <CALCETrWbf8XYvBh=zdyOBqVqRd7s8SVbbDX=O2X+zAZn83r-bw@mail.gmail.com>
- <20140515201914.GS28328@moon>
- <20140515213124.GT28328@moon>
- <CALCETrXe80dx+ODPF1o2iUMOEOO_JAdev4f9gOQ4SUj4JQv36Q@mail.gmail.com>
- <20140515215722.GU28328@moon>
- <CALCETrUTM7ZJrWvWa4bHi0RSFhzAZu7+z5XHbJuP+==Cd8GRqw@mail.gmail.com>
- <CALCETrU5-4sMyOW7t75PJ4RQ3WdUg=s2xhYG5uEstm_LEOV+mg@mail.gmail.com>
+        Sun, 18 May 2014 07:58:19 -0700 (PDT)
+Received: by mail-wg0-f52.google.com with SMTP id l18so6873629wgh.35
+        for <linux-mm@kvack.org>; Sun, 18 May 2014 07:58:18 -0700 (PDT)
+Message-ID: <5378CA88.3080105@gmail.com>
+Date: Sun, 18 May 2014 17:58:16 +0300
+From: Boaz Harrosh <openosd@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CALCETrU5-4sMyOW7t75PJ4RQ3WdUg=s2xhYG5uEstm_LEOV+mg@mail.gmail.com>
+Subject: Re: [PATCH v7 00/22] Support ext4 on NV-DIMMs
+References: <cover.1395591795.git.matthew.r.wilcox@intel.com>
+In-Reply-To: <cover.1395591795.git.matthew.r.wilcox@intel.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dave Jones <davej@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Pavel Emelyanov <xemul@parallels.com>, "H. Peter Anvin" <hpa@zytor.com>
+To: Matthew Wilcox <matthew.r.wilcox@intel.com>, linux-kernel@vger.kernel.org, Sagi Manole <sagi.manole@gmail.com>
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, willy@linux.intel.com
 
-On Fri, May 16, 2014 at 03:40:48PM -0700, Andy Lutomirski wrote:
-> >>
-> >> There are other ways how to find where additional pages are laying but it
-> >> would be great if there a straightforward interface for that (ie some mark
-> >> in /proc/pid/maps output).
-> >
-> > I'll try to write a patch in time for 3.15.
-> >
+On 03/23/2014 09:08 PM, Matthew Wilcox wrote:
+> One of the primary uses for NV-DIMMs is to expose them as a block device
+> and use a filesystem to store files on the NV-DIMM.  While that works,
+> it currently wastes memory and CPU time buffering the files in the page
+> cache.  We have support in ext2 for bypassing the page cache, but it
+> has some races which are unfixable in the current design.  This series
+> of patches rewrite the underlying support, and add support for direct
+> access to ext4.
 > 
-> My current draft is here:
-> 
-> https://git.kernel.org/cgit/linux/kernel/git/luto/linux.git/log/?h=vdso/cleanups
-> 
-> On 64-bit userspace, it results in:
-> 
-> 7fffa1dfd000-7fffa1dfe000 r-xp 00000000 00:00 0                          [vdso]
-> 7fffa1dfe000-7fffa1e00000 r--p 00000000 00:00 0                          [vvar]
-> ffffffffff600000-ffffffffff601000 r-xp 00000000 00:00 0                  [vsyscall]
-> 
-> On 32-bit userspace, it results in:
-> 
-> f7748000-f7749000 r-xp 00000000 00:00 0                                  [vdso]
-> f7749000-f774b000 r--p 00000000 00:00 0                                  [vvar]
-> ffd94000-ffdb5000 rw-p 00000000 00:00 0                                  [stack]
-> 
-> Is this good for CRIU?  Another approach would be to name both of
-> these things "vdso", since they are sort of both the vdso, but that
-> might be a bit confusing -- [vvar] is not static text the way that
-> [vdso] is.
+> This iteration of the patchset rebases to Linus' 3.14-rc7 (plus Kirill's
+> patches in linux-next http://marc.info/?l=linux-mm&m=139206489208546&w=2)
 
-Yeah, thanks a lot, Andy, this is more than enough.
 
-> If I backport this for 3.15 (which might be nasty -- I would argue
-> that the code change is actually a cleanup, but it's fairly
-> intrusive), then [vvar] will be *before* [vdso], not after it.  I'd be
-> very hesitant to name both of them "[vdso]" in that case, since there
-> is probably code that assumes that the beginning of "[vdso]" is a DSO.
+Hi Matthew
+
+We are experimenting with NV-DIMMs. The experiment will use its own
+FS not based on ext4 at all, more like the infamous PMFS but we want
+to start DAX based and not current XIP based. We want to make sure the proposed
+new API can be utilized stand alone and there are no extX based assumptions.
+(Like the need for direct directory access instead of the ext4
+ copy-from-nvdimm-to-ram directory)
+
+Could you please put these patches on a public tree somewhere, or perhaps some
+later version, that I can pull directly from? this would help alot.
+
+These patches are a bit hard to patch because it is not clear what
+Kirill's patches I need. I tried some linux-next version around 3.14-rc7 that
+also include Kirill's patches but it looks like there was farther work done
+then your base. I was able to produce a tree with V6 of your
+patches but I would hate to do that manual work yet again.
+(Any linux base is fine just that I can pull it)
+Thanks
+
+Also I'm curios. I see you guys where working on PMFS for a while
+fixing and enhancing stuff. Then development stopped and these DAX
+patches started showing. Now, PMFS is based on current XIP (I was able
+to easily port it to 3.14-rc7). Do you guys have an Internal attempt
+to port PMFS to DAX? (We might do it in future just as an exercise
+to get intimate with DAX and to make sure nothing is missing.)
+What are your plans with PMFS is it dead?
+
+Good day
+Boaz
+
+
+
+> and fixes several bugs:
 > 
-> Note that it is *not* safe to blindly read from "[vvar]".  On some
-> configurations you *will* get SIGBUS if you try to read from some of
-> the vvar pages.  (That's what started this whole thread.)  Some pages
-> in "[vvar]" may have strange caching modes, so SIGBUS might not be the
-> only surprising thing about poking at it.
+>  - Initialise cow_page in do_page_mkwrite() (Matthew Wilcox)
+>  - Clear new or unwritten blocks in page fault handler (Matthew Wilcox)
+>  - Only call get_block when necessary (Matthew Wilcox)
+>  - Reword Kconfig options (Matthew Wilcox / Vishal Verma)
+>  - Fix a race between page fault and truncate (Matthew Wilcox)
+>  - Fix a race between fault-for-read and fault-for-write (Matthew Wilcox)
+>  - Zero the correct bytes in dax_new_buf() (Toshi Kani)
+>  - Add DIO_LOCKING to an invocation of dax_do_io in ext4 (Ross Zwisler)
+> 
+> Relative to the last patchset, I folded the 'Add reporting of major faults'
+> patch into the patch that adds the DAX page fault handler.
+> 
+> The v6 patchset had seven additional xfstests failures.  This patchset
+> now passes approximately as many xfstests as ext4 does on a ramdisk.
+> 
 
-Ouch. Thanks for the note, I'll read new code with more attention and
-report the effect it did over criu (prob. on next week).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
