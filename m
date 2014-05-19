@@ -1,48 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f45.google.com (mail-la0-f45.google.com [209.85.215.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 075326B0036
-	for <linux-mm@kvack.org>; Mon, 19 May 2014 04:40:28 -0400 (EDT)
-Received: by mail-la0-f45.google.com with SMTP id gl10so3793155lab.18
-        for <linux-mm@kvack.org>; Mon, 19 May 2014 01:40:27 -0700 (PDT)
-Received: from mail-lb0-x232.google.com (mail-lb0-x232.google.com [2a00:1450:4010:c04::232])
-        by mx.google.com with ESMTPS id tj10si7133178lbb.172.2014.05.19.01.40.26
+Received: from mail-ee0-f49.google.com (mail-ee0-f49.google.com [74.125.83.49])
+	by kanga.kvack.org (Postfix) with ESMTP id BD1BD6B0036
+	for <linux-mm@kvack.org>; Mon, 19 May 2014 04:57:10 -0400 (EDT)
+Received: by mail-ee0-f49.google.com with SMTP id e53so3357929eek.36
+        for <linux-mm@kvack.org>; Mon, 19 May 2014 01:57:10 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id k46si4246531eew.60.2014.05.19.01.57.08
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 19 May 2014 01:40:26 -0700 (PDT)
-Received: by mail-lb0-f178.google.com with SMTP id w7so3715677lbi.23
-        for <linux-mm@kvack.org>; Mon, 19 May 2014 01:40:25 -0700 (PDT)
-Date: Mon, 19 May 2014 12:40:22 +0400
-From: Cyrill Gorcunov <gorcunov@gmail.com>
-Subject: Re: mm: NULL ptr deref handling mmaping of special mappings
-Message-ID: <20140519084022.GC2185@moon>
-References: <5373D509.7090207@oracle.com>
- <20140514140305.7683c1c2f1e4fb0a63085a2a@linux-foundation.org>
- <5373DBE4.6030907@oracle.com>
- <20140514143124.52c598a2ba8e2539ee76558c@linux-foundation.org>
- <CALCETrXQOPBOBOgE_snjdmJM7zi34Ei8-MUA-U-YVrwubz4sOQ@mail.gmail.com>
- <20140514221140.GF28328@moon>
- <CALCETrUc2CpTEeo=NjLGxXQWHn-HG3uYUo-L3aOU-yVjVx3PGg@mail.gmail.com>
- <5374281F.6020807@parallels.com>
- <CALCETrWw7tS2Lpnb1OxgZpBwHvOSbDk2zBVtUTJEp5eooYUyhA@mail.gmail.com>
- <5379C071.4090100@parallels.com>
+        Mon, 19 May 2014 01:57:09 -0700 (PDT)
+Date: Mon, 19 May 2014 09:57:04 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: [PATCH] mm: Avoid unnecessary atomic operations during
+ end_page_writeback
+Message-ID: <20140519085704.GI23991@suse.de>
+References: <1399974350-11089-1-git-send-email-mgorman@suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <5379C071.4090100@parallels.com>
+In-Reply-To: <1399974350-11089-1-git-send-email-mgorman@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Emelyanov <xemul@parallels.com>
-Cc: Andy Lutomirski <luto@amacapital.net>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Jones <davej@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>
 
-On Mon, May 19, 2014 at 12:27:29PM +0400, Pavel Emelyanov wrote:
-> > 
-> > What happens if you try to checkpoint a program that's in the vdso or,
-> > worse, in a signal frame with the vdso on the stack?
-> 
-> Nothing good, unfortunately :( And this is one of the things we're investigating.
-> Cyrill can shed more light on it, as he's the one in charge.
+If a page is marked for immediate reclaim then it is moved to the tail of
+the LRU list. This occurs when the system is under enough memory pressure
+for pages under writeback to reach the end of the LRU but we test for
+this using atomic operations on every writeback. This patch uses an
+optimistic non-atomic test first. It'll miss some pages in rare cases but
+the consequences are not severe enough to warrant such a penalty.
 
-vdso on stack should not be a big deal, because we keep original vdso proxy.
+While the function does not dominate profiles during a simple dd test the
+cost of it is reduced.
+
+73048     0.7428  vmlinux-3.15.0-rc5-mmotm-20140513 end_page_writeback
+23740     0.2409  vmlinux-3.15.0-rc5-lessatomic     end_page_writeback
+
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+---
+ mm/filemap.c | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/mm/filemap.c b/mm/filemap.c
+index bec4b9b..dafb06f 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -753,8 +753,17 @@ EXPORT_SYMBOL(unlock_page);
+  */
+ void end_page_writeback(struct page *page)
+ {
+-	if (TestClearPageReclaim(page))
++	/*
++	 * TestClearPageReclaim could be used here but it is an atomic
++	 * operation and overkill in this particular case. Failing to
++	 * shuffle a page marked for immediate reclaim is too mild to
++	 * justify taking an atomic operation penalty at the end of
++	 * ever page writeback.
++	 */
++	if (PageReclaim(page)) {
++		ClearPageReclaim(page);
+ 		rotate_reclaimable_page(page);
++	}
+ 
+ 	if (!test_clear_page_writeback(page))
+ 		BUG();
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
