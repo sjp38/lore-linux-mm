@@ -1,128 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f47.google.com (mail-la0-f47.google.com [209.85.215.47])
-	by kanga.kvack.org (Postfix) with ESMTP id CCAA36B0039
-	for <linux-mm@kvack.org>; Mon, 19 May 2014 14:27:58 -0400 (EDT)
-Received: by mail-la0-f47.google.com with SMTP id pn19so4354119lab.6
-        for <linux-mm@kvack.org>; Mon, 19 May 2014 11:27:57 -0700 (PDT)
-Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id lk8si14479555lac.99.2014.05.19.11.27.56
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 04E676B0038
+	for <linux-mm@kvack.org>; Mon, 19 May 2014 15:59:33 -0400 (EDT)
+Received: by mail-pa0-f41.google.com with SMTP id lj1so6250102pab.28
+        for <linux-mm@kvack.org>; Mon, 19 May 2014 12:59:33 -0700 (PDT)
+Received: from mail-pa0-x236.google.com (mail-pa0-x236.google.com [2607:f8b0:400e:c03::236])
+        by mx.google.com with ESMTPS id yv2si20936517pac.23.2014.05.19.12.59.31
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 19 May 2014 11:27:56 -0700 (PDT)
-Message-ID: <537A4D27.1050909@parallels.com>
-Date: Mon, 19 May 2014 22:27:51 +0400
-From: Vladimir Davydov <vdavydov@parallels.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 19 May 2014 12:59:31 -0700 (PDT)
+Received: by mail-pa0-f54.google.com with SMTP id bj1so6188997pad.41
+        for <linux-mm@kvack.org>; Mon, 19 May 2014 12:59:31 -0700 (PDT)
+From: Michal Nazarewicz <mina86@mina86.com>
+Subject: Re: [RFC][PATCH] CMA: drivers/base/Kconfig: restrict CMA size to non-zero value
+In-Reply-To: <20140519055527.GA24099@js1304-P5Q-DELUXE>
+References: <1399509144-8898-1-git-send-email-iamjoonsoo.kim@lge.com> <1399509144-8898-3-git-send-email-iamjoonsoo.kim@lge.com> <20140513030057.GC32092@bbox> <20140515015301.GA10116@js1304-P5Q-DELUXE> <5375C619.8010501@lge.com> <xa1tppjdfwif.fsf@mina86.com> <537962A0.4090600@lge.com> <20140519055527.GA24099@js1304-P5Q-DELUXE>
+Date: Mon, 19 May 2014 09:59:22 -1000
+Message-ID: <xa1td2f91qw5.fsf@mina86.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH RFC 3/3] slub: reparent memcg caches' slabs on memcg offline
-References: <cover.1399982635.git.vdavydov@parallels.com> <6eafe1e95d9a934228e9af785f5b5de38955aa6a.1399982635.git.vdavydov@parallels.com> <alpine.DEB.2.10.1405141119320.16512@gentwo.org> <20140515071650.GB32113@esperanza> <alpine.DEB.2.10.1405151015330.24665@gentwo.org> <20140516132234.GF32113@esperanza> <alpine.DEB.2.10.1405160957100.32249@gentwo.org> <20140519152437.GB25889@esperanza> <alpine.DEB.2.10.1405191056580.22956@gentwo.org>
-In-Reply-To: <alpine.DEB.2.10.1405191056580.22956@gentwo.org>
-Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/mixed; boundary="=-=-="
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: hannes@cmpxchg.org, mhocko@suse.cz, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Gioh Kim <gioh.kim@lge.com>
+Cc: Minchan Kim <minchan.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Laura Abbott <lauraa@codeaurora.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Heesub Shin <heesub.shin@samsung.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Marek Szyprowski <m.szyprowski@samsung.com>, =?utf-8?B?7J206rG07Zi4?= <gunho.lee@lge.com>, gurugio@gmail.com
 
-19.05.2014 20:03, Christoph Lameter:
-> On Mon, 19 May 2014, Vladimir Davydov wrote:
+--=-=-=
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+
+On Sun, May 18 2014, Joonsoo Kim wrote:
+> I think that this problem is originated from atomic_pool_init().
+> If configured coherent_pool size is larger than default cma size,
+> it can be failed even if this patch is applied.
 >
->>> I doubt that. The accounting occurs when a new cpu slab page is allocated.
->>> But the individual allocations in the fastpath are not accounted to a
->>> specific group. Thus allocation in a slab page can belong to various
->>> cgroups.
->>
->> On each kmalloc, we pick the cache that belongs to the current memcg,
->> and allocate objects from that cache (see memcg_kmem_get_cache()). And
->> all slab pages allocated for a per memcg cache are accounted to the
->> memcg the cache belongs to (see memcg_charge_slab). So currently, each
->> kmem cache, i.e. each slab of it, can only have objects of one cgroup,
->> namely its owner.
+> How about below patch?
+> It uses fallback allocation if CMA is failed.
+
+Yes, I thought about it, but __dma_alloc uses similar code:
+
+	else if (!IS_ENABLED(CONFIG_DMA_CMA))
+		addr =3D __alloc_remap_buffer(dev, size, gfp, prot, &page, caller);
+	else
+		addr =3D __alloc_from_contiguous(dev, size, prot, &page, caller);
+
+so it probably needs to be changed as well.
+
+> -----------------8<---------------------
+> diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
+> index 6b00be1..2909ab9 100644
+> --- a/arch/arm/mm/dma-mapping.c
+> +++ b/arch/arm/mm/dma-mapping.c
+> @@ -379,7 +379,7 @@ static int __init atomic_pool_init(void)
+>         unsigned long *bitmap;
+>         struct page *page;
+>         struct page **pages;
+> -       void *ptr;
+> +       void *ptr =3D NULL;
+>         int bitmap_size =3D BITS_TO_LONGS(nr_pages) * sizeof(long);
+>=20=20
+>         bitmap =3D kzalloc(bitmap_size, GFP_KERNEL);
+> @@ -393,7 +393,7 @@ static int __init atomic_pool_init(void)
+>         if (IS_ENABLED(CONFIG_DMA_CMA))
+>                 ptr =3D __alloc_from_contiguous(NULL, pool->size, prot, &=
+page,
+>                                               atomic_pool_init);
+> -       else
+> +       if (!ptr)
+>                 ptr =3D __alloc_remap_buffer(NULL, pool->size, gfp, prot,=
+ &page,
+>                                            atomic_pool_init);
+>         if (ptr) {
 >
-> Ok that works for kmalloc. What about dentry/inodes and so on?
 
-The same. Actually, by kmalloc I meant kmem_cache_alloc, or
-slab_alloc_node, to be more exact.
+--=20
+Best regards,                                         _     _
+.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
+..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz   =
+ (o o)
+ooo +--<mpn@google.com>--<xmpp:mina86@jabber.org>--ooO--(_)--Ooo--
 
->> OK, it seems we have no choice but keeping dead caches left after memcg
->> offline until they have active slabs. How can we get rid of them then?
->
-> Then they are moved to a list and therefore you can move them to yours I
-> think.
->
->> Simply counting slabs on cache and destroying cache when the count goes
->> to 0 isn't enough, because slub may keep some free slabs by default (if
->> they are frozen e.g.) Reaping them periodically doesn't look nice.
->
-> But those are only limited to one slab per cpu ( plus eventual cpu partial
-> ones but you can switch that feature off).
+--=-=-=
+Content-Type: multipart/signed; boundary="==-=-=";
+	micalg=pgp-sha1; protocol="application/pgp-signature"
 
-AFAIU slub can keep free slabs in:
+--==-=-=
+Content-Type: text/plain
 
-1) One per cpu slab. This is the easiest thing to handle - we only need
-to shrink the cache, because this slab can only be added on allocation,
-not on free.
 
-2) Per node partial slab lists. Free slabs can be added there on frees,
-but only if min_partial > 0, so setting min_partial = 0 would solve
-that, just as you pointed below.
+--==-=-=
+Content-Type: application/pgp-signature; name="signature.asc"
 
-3) Per cpu partial slabs. We can disable this feature for dead caches by
-adding appropriate check to kmem_cache_has_cpu_partial.
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.11 (GNU/Linux)
 
-So far, everything looks very simple - it seems we don't have to modify
-__slab_free at all if we follow the instruction above.
+iQIcBAEBAgAGBQJTemKaAAoJECBgQBJQdR/0o2UP/2G4b+KPDsHmMb6HsfXWyaPP
+cm0tokTR/UKmMO68Pb6Wgsokt34/aS6KCHrVHqni7lxtuR0Zb28gdQaLcya2Lb0S
+lhlaoEQcElAUfxTVLAUChlb4L6TZcf7dUOPN317rqepvOp7K98FNENqWhyK5hkSC
+5H+SYCB+7rn3+4ApQ/xFL7XCoA7C85qsxnZEa35R/FMVI2zv70xcLIakiV/4XZ3W
+eXBsHEj7X1ZRnIBAARA2VBzMaMMAhAUYzSRwTSP+gBqJ53M4bae7FX7Kml81U4ra
+V3VtWt78hZ+fY3hljuIPFmICV6vRsbv7Opg2TQHbU5ekKf8Mr8Y+D8Xo/U6hugv+
+SjdcC8+Edsa0m4bO6Blhz4GM5eHoX7cOxmyDxIPuGAPRZeiDdmTvduSzfvd6oDZ+
+9QvSLi41co0SdSrOuSpc3gtqmIOkFZ3vhgycmZAXmbdI96rq29VB/deqFGaUorgw
+X24ENPlMxH2Z/84KV3EAQM+pR2MHZIesxB/7hRbaHVRKCD/wZ1MrtCbg4RAPceSA
+1Lyyzsr68yAlcteyA+HxLQAeGh2fwfJ8Bz6iIJR1pBFdeBUj+T6l+cgz8N1YM5HE
+dnijLmb6u70SvMAAvhRd0EITICXTHhb2xlhXfiT+jwJfw6+iiYNK3jTP7HNNA7BW
+UiWN72LDf6SF0tvtqSm/
+=uOv/
+-----END PGP SIGNATURE-----
+--==-=-=--
 
-However, there is one thing regarding preemptable kernels. The problem
-is after forbidding the cache store free slabs in per-cpu/node partial
-lists by setting min_partial=0 and kmem_cache_has_cpu_partial=false
-(i.e. marking the cache as dead), we have to make sure that all frees
-that saw the cache as alive are over, otherwise they can occasionally
-add a free slab to a per-cpu/node partial list *after* the cache was
-marked dead. For instance,
-
-CPU0                            CPU1
-----                            ----
-memcg offline:                  __slab_free:
-                                   // let the slab we're freeing the obj
-                                   // to is full, so we are considering
-                                   // freezing it;
-                                   // since kmem_cache_has_cpu_partial
-                                   // returns true, we'll try to freeze
-                                   // it;
-                                   new.frozen=1
-
-                                   // but before proceeding to cmpxchg
-                                   // we get preempted
-   mark cache s dead:
-     s->min_partial=0
-     make kmem_cache_has_cpu_partial return false
-
-   kmem_cache_shrink(s) // this removes all empty slabs from
-                        // per cpu/node partial lists
-
-                                   // when this thread continues to
-                                   // __slab_free, the cache is dead
-                                   // and no slabs must be added to
-                                   // per-cpu partial list, but the
-                                   // following cmpxchg may succeed
-                                   // in freezing the slab
-                                   cmpxchg_double_slab(s, page,
-                                       prior, counters,
-                                       object, new.counters)
-
-As a result, we'll eventually end up with a free slab on a per-cpu
-partial list, so that the cache refcounter will never drop to zero and
-the cache leaks.
-
-This is very unlikely, but still possible. To avoid that, we should
-assure all __slab_free's like that running on CPU1 are over before
-proceeding to kmem_cache_shrink on memcg offline. Currently, it is
-impossible to achieve that on fully preemptable kernels w/o modifying
-__slab_free, AFAIU. That's what all that trickery in __slab_free about.
-
-Makes sense or am I missing something?
-
-Thanks.
+--=-=-=--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
