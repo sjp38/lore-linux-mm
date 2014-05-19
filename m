@@ -1,153 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A1A56B0036
-	for <linux-mm@kvack.org>; Sun, 18 May 2014 22:08:54 -0400 (EDT)
-Received: by mail-pa0-f47.google.com with SMTP id lf10so5008581pab.6
-        for <linux-mm@kvack.org>; Sun, 18 May 2014 19:08:54 -0700 (PDT)
-Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
-        by mx.google.com with ESMTP id vu2si8709454pbc.106.2014.05.18.19.08.53
+Received: from mail-pb0-f49.google.com (mail-pb0-f49.google.com [209.85.160.49])
+	by kanga.kvack.org (Postfix) with ESMTP id EAD3A6B0036
+	for <linux-mm@kvack.org>; Sun, 18 May 2014 22:10:07 -0400 (EDT)
+Received: by mail-pb0-f49.google.com with SMTP id jt11so5116106pbb.36
+        for <linux-mm@kvack.org>; Sun, 18 May 2014 19:10:07 -0700 (PDT)
+Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
+        by mx.google.com with ESMTP id dh1si8692743pbc.198.2014.05.18.19.10.06
         for <linux-mm@kvack.org>;
-        Sun, 18 May 2014 19:08:54 -0700 (PDT)
-Date: Mon, 19 May 2014 11:11:21 +0900
+        Sun, 18 May 2014 19:10:07 -0700 (PDT)
+Date: Mon, 19 May 2014 11:12:34 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [RFC PATCH 2/3] CMA: aggressively allocate the pages on cma
- reserved memory when not used
-Message-ID: <20140519021121.GA19615@js1304-P5Q-DELUXE>
+Subject: Re: [RFC PATCH 0/3] Aggressively allocate the pages on cma reserved
+ memory
+Message-ID: <20140519021234.GB19615@js1304-P5Q-DELUXE>
 References: <1399509144-8898-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1399509144-8898-3-git-send-email-iamjoonsoo.kim@lge.com>
- <20140513030057.GC32092@bbox>
- <20140515015301.GA10116@js1304-P5Q-DELUXE>
- <20140515024353.GA27599@bbox>
+ <536CCC78.6050806@samsung.com>
+ <20140513022603.GF23803@js1304-P5Q-DELUXE>
+ <8738gcae4h.fsf@linux.vnet.ibm.com>
+ <20140515021055.GC10116@js1304-P5Q-DELUXE>
+ <20140515094718.GE23991@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140515024353.GA27599@bbox>
+In-Reply-To: <20140515094718.GE23991@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Laura Abbott <lauraa@codeaurora.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Nazarewicz <mina86@mina86.com>, Heesub Shin <heesub.shin@samsung.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Marek Szyprowski <m.szyprowski@samsung.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Heesub Shin <heesub.shin@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kyungmin Park <kyungmin.park@samsung.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, 'Tomasz Stanislawski' <t.stanislaws@samsung.com>
 
-On Thu, May 15, 2014 at 11:43:53AM +0900, Minchan Kim wrote:
-> On Thu, May 15, 2014 at 10:53:01AM +0900, Joonsoo Kim wrote:
-> > On Tue, May 13, 2014 at 12:00:57PM +0900, Minchan Kim wrote:
-> > > Hey Joonsoo,
-> > > 
-> > > On Thu, May 08, 2014 at 09:32:23AM +0900, Joonsoo Kim wrote:
-> > > > CMA is introduced to provide physically contiguous pages at runtime.
-> > > > For this purpose, it reserves memory at boot time. Although it reserve
-> > > > memory, this reserved memory can be used for movable memory allocation
-> > > > request. This usecase is beneficial to the system that needs this CMA
-> > > > reserved memory infrequently and it is one of main purpose of
-> > > > introducing CMA.
-> > > > 
-> > > > But, there is a problem in current implementation. The problem is that
-> > > > it works like as just reserved memory approach. The pages on cma reserved
-> > > > memory are hardly used for movable memory allocation. This is caused by
-> > > > combination of allocation and reclaim policy.
-> > > > 
-> > > > The pages on cma reserved memory are allocated if there is no movable
-> > > > memory, that is, as fallback allocation. So the time this fallback
-> > > > allocation is started is under heavy memory pressure. Although it is under
-> > > > memory pressure, movable allocation easily succeed, since there would be
-> > > > many pages on cma reserved memory. But this is not the case for unmovable
-> > > > and reclaimable allocation, because they can't use the pages on cma
-> > > > reserved memory. These allocations regard system's free memory as
-> > > > (free pages - free cma pages) on watermark checking, that is, free
-> > > > unmovable pages + free reclaimable pages + free movable pages. Because
-> > > > we already exhausted movable pages, only free pages we have are unmovable
-> > > > and reclaimable types and this would be really small amount. So watermark
-> > > > checking would be failed. It will wake up kswapd to make enough free
-> > > > memory for unmovable and reclaimable allocation and kswapd will do.
-> > > > So before we fully utilize pages on cma reserved memory, kswapd start to
-> > > > reclaim memory and try to make free memory over the high watermark. This
-> > > > watermark checking by kswapd doesn't take care free cma pages so many
-> > > > movable pages would be reclaimed. After then, we have a lot of movable
-> > > > pages again, so fallback allocation doesn't happen again. To conclude,
-> > > > amount of free memory on meminfo which includes free CMA pages is moving
-> > > > around 512 MB if I reserve 512 MB memory for CMA.
-> > > > 
-> > > > I found this problem on following experiment.
-> > > > 
-> > > > 4 CPUs, 1024 MB, VIRTUAL MACHINE
-> > > > make -j24
-> > > > 
-> > > > CMA reserve:		0 MB		512 MB
-> > > > Elapsed-time:		234.8		361.8
-> > > > Average-MemFree:	283880 KB	530851 KB
-> > > > 
-> > > > To solve this problem, I can think following 2 possible solutions.
-> > > > 1. allocate the pages on cma reserved memory first, and if they are
-> > > >    exhausted, allocate movable pages.
-> > > > 2. interleaved allocation: try to allocate specific amounts of memory
-> > > >    from cma reserved memory and then allocate from free movable memory.
-> > > 
-> > > I love this idea but when I see the code, I don't like that.
-> > > In allocation path, just try to allocate pages by round-robin so it's role
-> > > of allocator. If one of migratetype is full, just pass mission to reclaimer
-> > > with hint(ie, Hey reclaimer, it's non-movable allocation fail
-> > > so there is pointless if you reclaim MIGRATE_CMA pages) so that
-> > > reclaimer can filter it out during page scanning.
-> > > We already have an tool to achieve it(ie, isolate_mode_t).
+On Thu, May 15, 2014 at 10:47:18AM +0100, Mel Gorman wrote:
+> On Thu, May 15, 2014 at 11:10:55AM +0900, Joonsoo Kim wrote:
+> > > That doesn't always prefer CMA region. It would be nice to
+> > > understand why grouping in pageblock_nr_pages is beneficial. Also in
+> > > your patch you decrement nr_try_cma for every 'order' allocation. Why ?
 > > 
-> > Hello,
-> > 
-> > I agree with leaving fast allocation path as simple as possible.
-> > I will remove runtime computation for determining ratio in
-> > __rmqueue_cma() and, instead, will use pre-computed value calculated
-> > on the other path.
+> > pageblock_nr_pages is just magic value with no rationale. :)
 > 
-> Sounds good.
-> 
-> > 
-> > I am not sure that whether your second suggestion(Hey relaimer part)
-> > is good or not. In my quick thought, that could be helpful in the
-> > situation that many free cma pages remained. But, it would be not helpful
-> > when there are neither free movable and cma pages. In generally, most
-> > workloads mainly uses movable pages for page cache or anonymous mapping.
-> > Although reclaim is triggered by non-movable allocation failure, reclaimed
-> > pages are used mostly by movable allocation. We can handle these allocation
-> > request even if we reclaim the pages just in lru order. If we rotate
-> > the lru list for finding movable pages, it could cause more useful
-> > pages to be evicted.
-> > 
-> > This is just my quick thought, so please let me correct if I am wrong.
-> 
-> Why should reclaimer reclaim unnecessary pages?
-> So, your answer is that it would be better because upcoming newly allocated
-> pages would be allocated easily without interrupt. But it could reclaim
-> too much pages until watermark for unmovable allocation is okay.
-> Even, sometime, you might see OOM.
-> 
-> Moreover, how could you handle current trobule?
-> For example, there is atomic allocation and the only thing to save the world
-> is kswapd because it's one of kswapd role but kswapd is spending many time to
-> reclaim CMA pages, which is pointless so the allocation would be easily failed.
+> I'm not following this discussions closely but there is rational to that
+> value -- it's the size of a huge page for that architecture.  At the time
+> the fragmentation avoidance was implemented this was the largest allocation
+> size of interest.
 
 Hello,
 
-I guess that it isn't the problem. In lru, movable pages and cma pages
-would be interleaved. So it doesn't takes too long time to get the
-page for non-movable allocation.
-
-IMHO, in generally, memory shortage is made by movable allocation, so
-to distinguish allocation type and to handle them differently has
-marginal effect.
-
-Anyway, I will think more deeply.
-
-> 
-> > 
-> > > 
-> > > And we couldn't do it in zone_watermark_ok with set/reset ALLOC_CMA?
-> > > If possible, it would be better becauser it's generic function to check
-> > > free pages and cause trigger reclaim/compaction logic.
-> > 
-> > I guess, your *it* means ratio computation. Right?
-> 
-> I meant just get_page_from_freelist like fair zone allocation for consistency
-> but as we discussed offline, i'm not against with you if it's not right place.
-
-Okay :)
+Indeed. There is a such good rationale.
+Really thanks for informing it.
 
 Thanks.
 
