@@ -1,79 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 0297E6B0036
-	for <linux-mm@kvack.org>; Sun, 18 May 2014 21:43:50 -0400 (EDT)
-Received: by mail-pa0-f43.google.com with SMTP id hz1so5040176pad.30
-        for <linux-mm@kvack.org>; Sun, 18 May 2014 18:43:50 -0700 (PDT)
-Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
-        by mx.google.com with ESMTPS id rm10si17482444pab.197.2014.05.18.18.43.49
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 18 May 2014 18:43:50 -0700 (PDT)
-From: Rusty Russell <rusty@rustcorp.com.au>
-Subject: Re: [PATCH V4 0/2] mm: FAULT_AROUND_ORDER patchset performance data for powerpc
-In-Reply-To: <alpine.LSU.2.11.1405151026540.4664@eggly.anvils>
-References: <1399541296-18810-1-git-send-email-maddy@linux.vnet.ibm.com> <537479E7.90806@linux.vnet.ibm.com> <alpine.LSU.2.11.1405151026540.4664@eggly.anvils>
-Date: Mon, 19 May 2014 09:42:46 +0930
-Message-ID: <87wqdik4n5.fsf@rustcorp.com.au>
+Received: from mail-pb0-f50.google.com (mail-pb0-f50.google.com [209.85.160.50])
+	by kanga.kvack.org (Postfix) with ESMTP id E1A526B0036
+	for <linux-mm@kvack.org>; Sun, 18 May 2014 21:47:15 -0400 (EDT)
+Received: by mail-pb0-f50.google.com with SMTP id ma3so5105426pbc.37
+        for <linux-mm@kvack.org>; Sun, 18 May 2014 18:47:15 -0700 (PDT)
+Received: from lgeamrelo02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
+        by mx.google.com with ESMTP id ol8si2347030pbb.307.2014.05.18.18.47.13
+        for <linux-mm@kvack.org>;
+        Sun, 18 May 2014 18:47:15 -0700 (PDT)
+Message-ID: <537962A0.4090600@lge.com>
+Date: Mon, 19 May 2014 10:47:12 +0900
+From: Gioh Kim <gioh.kim@lge.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Subject: Re: [RFC][PATCH] CMA: drivers/base/Kconfig: restrict CMA size to
+ non-zero value
+References: <1399509144-8898-1-git-send-email-iamjoonsoo.kim@lge.com> <1399509144-8898-3-git-send-email-iamjoonsoo.kim@lge.com> <20140513030057.GC32092@bbox> <20140515015301.GA10116@js1304-P5Q-DELUXE> <5375C619.8010501@lge.com> <xa1tppjdfwif.fsf@mina86.com>
+In-Reply-To: <xa1tppjdfwif.fsf@mina86.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>, Madhavan Srinivasan <maddy@linux.vnet.ibm.com>
-Cc: linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, x86@kernel.org, benh@kernel.crashing.org, paulus@samba.org, kirill.shutemov@linux.intel.com, akpm@linux-foundation.org, riel@redhat.com, mgorman@suse.de, ak@linux.intel.com, peterz@infradead.org, mingo@kernel.org, dave.hansen@intel.com
+To: Michal Nazarewicz <mina86@mina86.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Laura Abbott <lauraa@codeaurora.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Heesub Shin <heesub.shin@samsung.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Marek Szyprowski <m.szyprowski@samsung.com>, =?UTF-8?B?7J206rG07Zi4?= <gunho.lee@lge.com>, gurugio@gmail.com
 
-Hugh Dickins <hughd@google.com> writes:
-> On Thu, 15 May 2014, Madhavan Srinivasan wrote:
->> 
->> Hi Ingo,
->> 
->> 	Do you have any comments for the latest version of the patchset. If
->> not, kindly can you pick it up as is.
->> 
->> 
->> With regards
->> Maddy
->> 
->> > Kirill A. Shutemov with 8c6e50b029 commit introduced
->> > vm_ops->map_pages() for mapping easy accessible pages around
->> > fault address in hope to reduce number of minor page faults.
->> > 
->> > This patch creates infrastructure to modify the FAULT_AROUND_ORDER
->> > value using mm/Kconfig. This will enable architecture maintainers
->> > to decide on suitable FAULT_AROUND_ORDER value based on
->> > performance data for that architecture. First patch also defaults
->> > FAULT_AROUND_ORDER Kconfig element to 4. Second patch list
->> > out the performance numbers for powerpc (platform pseries) and
->> > initialize the fault around order variable for pseries platform of
->> > powerpc.
+Thank you for your advice. I didn't notice it.
+
+I'm adding followings according to your advice:
+
+- range restrict for CMA_SIZE_MBYTES and *CMA_SIZE_PERCENTAGE*
+I think this can prevent the wrong kernel option.
+
+- change size_cmdline into default value SZ_16M
+I am not sure this can prevent if cma=0 cmdline option is also with base and limit options.
+
+
+I don't know how to send the second patch.
+Please pardon me that I just copy the patch here.
+
+--------------------------------- 8< -------------------------------------
+ From c283eaac41b044a2abb11cfd32a60fff034633c3 Mon Sep 17 00:00:00 2001
+From: Gioh Kim <gioh.kim@lge.com>
+Date: Fri, 16 May 2014 16:15:43 +0900
+Subject: [PATCH] drivers/base/Kconfig: restrict CMA size to non-zero value
+
+The size of CMA area must be larger than zero.
+If the size is zero, all physically-contiguous allocation
+can be failed.
+
+Signed-off-by: Gioh Kim <gioh.kim@lge.co.kr>
+---
+  drivers/base/Kconfig          |   14 ++++++++++++--
+  drivers/base/dma-contiguous.c |    3 ++-
+  2 files changed, 14 insertions(+), 3 deletions(-)
+
+diff --git a/drivers/base/Kconfig b/drivers/base/Kconfig
+index 4b7b452..a7292ac 100644
+--- a/drivers/base/Kconfig
++++ b/drivers/base/Kconfig
+@@ -222,17 +222,27 @@ config DMA_CMA
+  if  DMA_CMA
+  comment "Default contiguous memory area size:"
+
++config CMA_SIZE_MBYTES_DEFAULT
++       int
++       default 16
++
++config CMA_SIZE_MBYTES_MAX
++       int
++       default 1024
++
+  config CMA_SIZE_MBYTES
+         int "Size in Mega Bytes"
+         depends on !CMA_SIZE_SEL_PERCENTAGE
+-       default 16
++       range 1 CMA_SIZE_MBYTES_MAX
++       default CMA_SIZE_MBYTES_DEFAULT
+         help
+           Defines the size (in MiB) of the default memory area for Contiguous
+-         Memory Allocator.
++         Memory Allocator. This value must be larger than zero.
+
+  config CMA_SIZE_PERCENTAGE
+         int "Percentage of total memory"
+         depends on !CMA_SIZE_SEL_MBYTES
++       range 1 100
+         default 10
+         help
+           Defines the size of the default memory area for Contiguous Memory
+diff --git a/drivers/base/dma-contiguous.c b/drivers/base/dma-contiguous.c
+index b056661..5b70442 100644
+--- a/drivers/base/dma-contiguous.c
++++ b/drivers/base/dma-contiguous.c
+@@ -125,7 +125,8 @@ void __init dma_contiguous_reserve(phys_addr_t limit)
+         pr_debug("%s(limit %08lx)\n", __func__, (unsigned long)limit);
+
+         if (size_cmdline != -1) {
+-               selected_size = size_cmdline;
++               selected_size = ((size_cmdline == 0) ?
++                                CONFIG_CMA_SIZE_MBYTES_DEFAULT : size_cmdline);
+                 selected_base = base_cmdline;
+                 selected_limit = min_not_zero(limit_cmdline, limit);
+                 if (base_cmdline + size_cmdline == limit_cmdline)
+--
+1.7.9.5
+
+
+2014-05-17 i??i ? 2:45, Michal Nazarewicz i?' e,?:
+> On Fri, May 16 2014, Gioh Kim wrote:
+>> If CMA_SIZE_MBYTES is allowed to be zero, there should be defense code
+>> to check CMA is initlaized correctly. And atomic_pool initialization
+>> should be done by __alloc_remap_buffer instead of
+>> __alloc_from_contiguous if __alloc_from_contiguous is failed.
 >
-> Sorry for not commenting earlier - just reminded by this ping to Ingo.
+> Agreed, and this is the correct fix.
 >
-> I didn't study your numbers, but nowhere did I see what PAGE_SIZE you use.
+>> IMPO, it is more simple and powerful to restrict CMA_SIZE_MBYTES_MAX
+>> configuration to be larger than zero.
 >
-> arch/powerpc/Kconfig suggests that Power supports base page size of
-> 4k, 16k, 64k or 256k.
+> No, because it makes it impossible to have CMA disabled by default and
+> only enabled if command line argument is given.
 >
-> I would expect your optimal fault_around_order to depend very much on
-> the base page size.
-
-It was 64k, which is what PPC64 uses on all the major distributions.
-You really only get a choice of 4k and 64k with 64 bit power.
-
-> Perhaps fault_around_size would provide a more useful default?
-
-That seems to fit.  With 4k pages and order 4, you're asking for 64k.
-Maddy's result shows 64k is also reasonable for 64k pages.
-
-Perhaps we try to generalize from two data points (a slight improvement
-over doing it from 1!), eg:
-
-/* 4 seems good for 4k-page x86, 0 seems good for 64k page ppc64, so: */
-unsigned int fault_around_order __read_mostly =
-        (16 - PAGE_SHIFT < 0 ? 0 : 16 - PAGE_SHIFT);
-
-Cheers,
-Rusty.
+> Furthermore, your patch does *not* guarantee CMA region to always be
+> allocated.  If CMA_SIZE_SEL_PERCENTAGE is selected for instance.  Or if
+> user explicitly passes 0 on command line.
+>
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
