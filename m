@@ -1,92 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f43.google.com (mail-ee0-f43.google.com [74.125.83.43])
-	by kanga.kvack.org (Postfix) with ESMTP id E165B6B0036
-	for <linux-mm@kvack.org>; Mon, 19 May 2014 06:15:00 -0400 (EDT)
-Received: by mail-ee0-f43.google.com with SMTP id d17so3397310eek.16
-        for <linux-mm@kvack.org>; Mon, 19 May 2014 03:15:00 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f45si14535929eet.39.2014.05.19.03.14.58
+Received: from mail-ie0-f177.google.com (mail-ie0-f177.google.com [209.85.223.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 900826B0036
+	for <linux-mm@kvack.org>; Mon, 19 May 2014 07:44:26 -0400 (EDT)
+Received: by mail-ie0-f177.google.com with SMTP id y20so2461132ier.36
+        for <linux-mm@kvack.org>; Mon, 19 May 2014 04:44:26 -0700 (PDT)
+Received: from mail-ie0-x235.google.com (mail-ie0-x235.google.com [2607:f8b0:4001:c03::235])
+        by mx.google.com with ESMTPS id eo10si9941870icb.68.2014.05.19.04.44.25
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 19 May 2014 03:14:59 -0700 (PDT)
-Message-ID: <5379D99E.1020302@suse.cz>
-Date: Mon, 19 May 2014 12:14:54 +0200
-From: Vlastimil Babka <vbabka@suse.cz>
+        Mon, 19 May 2014 04:44:25 -0700 (PDT)
+Received: by mail-ie0-f181.google.com with SMTP id rp18so2448080iec.40
+        for <linux-mm@kvack.org>; Mon, 19 May 2014 04:44:25 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 2/2] mm/compaction: avoid rescanning pageblocks in
- isolate_freepages
-References: <alpine.DEB.2.02.1405061922220.18635@chino.kir.corp.google.com> <1399464550-26447-1-git-send-email-vbabka@suse.cz> <1399464550-26447-2-git-send-email-vbabka@suse.cz>
-In-Reply-To: <1399464550-26447-2-git-send-email-vbabka@suse.cz>
+In-Reply-To: <alpine.LSU.2.11.1405141456420.2268@eggly.anvils>
+References: <1397587118-1214-1-git-send-email-dh.herrmann@gmail.com>
+	<alpine.LSU.2.11.1405132118330.4401@eggly.anvils>
+	<537396A2.9090609@cybernetics.com>
+	<alpine.LSU.2.11.1405141456420.2268@eggly.anvils>
+Date: Mon, 19 May 2014 13:44:25 +0200
+Message-ID: <CANq1E4QgSbD9G70H7W4QeXbZ77_Kn1wV7edwzN4k4NjQJS=36A@mail.gmail.com>
+Subject: Re: [PATCH v2 0/3] File Sealing & memfd_create()
+From: David Herrmann <dh.herrmann@gmail.com>
 Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>
-Cc: Hugh Dickins <hughd@google.com>, Greg Thelen <gthelen@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: Tony Battersby <tonyb@cybernetics.com>, Al Viro <viro@zeniv.linux.org.uk>, Jan Kara <jack@suse.cz>, Michael Kerrisk <mtk.manpages@gmail.com>, Ryan Lortie <desrt@desrt.ca>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-kernel <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Greg Kroah-Hartman <greg@kroah.com>, John Stultz <john.stultz@linaro.org>, Kristian Hogsberg <krh@bitplanet.net>, Lennart Poettering <lennart@poettering.net>, Daniel Mack <zonque@gmail.com>, Kay Sievers <kay@vrfy.org>
 
-I wonder why nobody complained about the build warning... sorry.
+Hi
 
-----8<----
-From: Vlastimil Babka <vbabka@suse.cz>
-Date: Mon, 19 May 2014 12:02:38 +0200
-Subject: mm-compaction-avoid-rescanning-pageblocks-in-isolate_freepages-fix
-MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+On Thu, May 15, 2014 at 12:35 AM, Hugh Dickins <hughd@google.com> wrote:
+> The aspect which really worries me is this: the maintenance burden.
+> This approach would add some peculiar new code, introducing a rare
+> special case: which we might get right today, but will very easily
+> forget tomorrow when making some other changes to mm.  If we compile
+> a list of danger areas in mm, this would surely belong on that list.
 
-Fix a (spurious) build warning:
+I tried doing the page-replacement in the last 4 days, but honestly,
+it's far more complex than I thought. So if no-one more experienced
+with mm/ comes up with a simple implementation, I'll have to delay
+this for some more weeks.
 
-mm/compaction.c:860:15: warning: a??next_free_pfna?? may be used uninitialized in this function [-Wmaybe-uninitialized]
+However, I still wonder why we try to fix this as part of this
+patchset. Using FUSE, a DIRECT-IO call can be delayed for an arbitrary
+amount of time. Same is true for network block-devices, NFS, iscsi,
+maybe loop-devices, ... This means, _any_ once mapped page can be
+written to after an arbitrary delay. This can break any feature that
+makes FS objects read-only (remounting read-only, setting S_IMMUTABLE,
+sealing, ..).
 
-Seems like the compiler cannot prove that exiting the for loop without updating
-next_free_pfn there will mean that the check for crossing the scanners will
-trigger. So let's not confuse people who try to see why this warning occurs.
+Shouldn't we try to fix the _cause_ of this?
 
-Instead of initializing next_free_pfn to zero with an explaining comment, just
-drop the damned variable altogether and work with cc->free_pfn directly as
-Nayoa originally suggested.
+Isn't there a simple way to lock/mark/.. affected vmas in
+get_user_pages(_fast)() and release them once done? We could increase
+i_mmap_writable on all affected address_space and decrease it on
+release. This would at least prevent sealing and could be check on
+other operations, too (like setting S_IMMUTABLE).
+This should be as easy as checking page_mapping(page) != NULL and then
+adjusting ->i_mmap_writable in
+get_writable_user_pages/put_writable_user_pages, right?
 
-Suggested-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
----
- mm/compaction.c | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
-
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 8db9820..b0f939b 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -760,7 +760,6 @@ static void isolate_freepages(struct zone *zone,
- 	unsigned long block_start_pfn;	/* start of current pageblock */
- 	unsigned long block_end_pfn;	/* end of current pageblock */
- 	unsigned long low_pfn;	     /* lowest pfn scanner is able to scan */
--	unsigned long next_free_pfn; /* start pfn for scaning at next round */
- 	int nr_freepages = cc->nr_freepages;
- 	struct list_head *freelist = &cc->freepages;
- 
-@@ -822,7 +821,7 @@ static void isolate_freepages(struct zone *zone,
- 			continue;
- 
- 		/* Found a block suitable for isolating free pages from */
--		next_free_pfn = block_start_pfn;
-+		cc->free_pfn = block_start_pfn;
- 		isolated = isolate_freepages_block(cc, block_start_pfn,
- 					block_end_pfn, freelist, false);
- 		nr_freepages += isolated;
-@@ -852,9 +851,8 @@ static void isolate_freepages(struct zone *zone,
- 	 * so that compact_finished() may detect this
- 	 */
- 	if (block_start_pfn < low_pfn)
--		next_free_pfn = cc->migrate_pfn;
-+		cc->free_pfn = cc->migrate_pfn;
- 
--	cc->free_pfn = next_free_pfn;
- 	cc->nr_freepages = nr_freepages;
- }
- 
--- 
-1.8.4.5
-
+Thanks
+David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
