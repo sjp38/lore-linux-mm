@@ -1,86 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f43.google.com (mail-pb0-f43.google.com [209.85.160.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D5256B0036
-	for <linux-mm@kvack.org>; Mon, 19 May 2014 05:14:22 -0400 (EDT)
-Received: by mail-pb0-f43.google.com with SMTP id up15so5620715pbc.2
-        for <linux-mm@kvack.org>; Mon, 19 May 2014 02:14:22 -0700 (PDT)
-Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
-        by mx.google.com with ESMTP id hu10si9268017pbc.358.2014.05.19.02.14.20
-        for <linux-mm@kvack.org>;
-        Mon, 19 May 2014 02:14:21 -0700 (PDT)
-Message-ID: <5379CB66.7090607@lge.com>
-Date: Mon, 19 May 2014 18:14:14 +0900
-From: Gioh Kim <gioh.kim@lge.com>
+Received: from mail-ee0-f43.google.com (mail-ee0-f43.google.com [74.125.83.43])
+	by kanga.kvack.org (Postfix) with ESMTP id E165B6B0036
+	for <linux-mm@kvack.org>; Mon, 19 May 2014 06:15:00 -0400 (EDT)
+Received: by mail-ee0-f43.google.com with SMTP id d17so3397310eek.16
+        for <linux-mm@kvack.org>; Mon, 19 May 2014 03:15:00 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id f45si14535929eet.39.2014.05.19.03.14.58
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 19 May 2014 03:14:59 -0700 (PDT)
+Message-ID: <5379D99E.1020302@suse.cz>
+Date: Mon, 19 May 2014 12:14:54 +0200
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH] CMA: drivers/base/Kconfig: restrict CMA size to
- non-zero value
-References: <1399509144-8898-1-git-send-email-iamjoonsoo.kim@lge.com> <1399509144-8898-3-git-send-email-iamjoonsoo.kim@lge.com> <20140513030057.GC32092@bbox> <20140515015301.GA10116@js1304-P5Q-DELUXE> <5375C619.8010501@lge.com> <xa1tppjdfwif.fsf@mina86.com> <537962A0.4090600@lge.com> <20140519055527.GA24099@js1304-P5Q-DELUXE>
-In-Reply-To: <20140519055527.GA24099@js1304-P5Q-DELUXE>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Subject: Re: [PATCH v2 2/2] mm/compaction: avoid rescanning pageblocks in
+ isolate_freepages
+References: <alpine.DEB.2.02.1405061922220.18635@chino.kir.corp.google.com> <1399464550-26447-1-git-send-email-vbabka@suse.cz> <1399464550-26447-2-git-send-email-vbabka@suse.cz>
+In-Reply-To: <1399464550-26447-2-git-send-email-vbabka@suse.cz>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Laura Abbott <lauraa@codeaurora.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Heesub Shin <heesub.shin@samsung.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Marek Szyprowski <m.szyprowski@samsung.com>, =?UTF-8?B?7J206rG07Zi4?= <gunho.lee@lge.com>, gurugio@gmail.com
+To: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>
+Cc: Hugh Dickins <hughd@google.com>, Greg Thelen <gthelen@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>
 
-In __dma_alloc function, your patch can make __alloc_from_pool work.
-But __alloc_from_contiguous doesn't work.
-Therefore __dma_alloc sometimes works and sometimes not according to the gfp(__GFP_WAIT) flag.
-Do I understand correctly?
+I wonder why nobody complained about the build warning... sorry.
 
-I think __dma_alloc should work consistently.
-Both of __alloc_from_contiguous and __alloc_from_pool should work together,
-or both of them do not work.
+----8<----
+From: Vlastimil Babka <vbabka@suse.cz>
+Date: Mon, 19 May 2014 12:02:38 +0200
+Subject: mm-compaction-avoid-rescanning-pageblocks-in-isolate_freepages-fix
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 
+Fix a (spurious) build warning:
 
-2014-05-19 i??i?? 2:55, Joonsoo Kim i?' e,?:
-> On Mon, May 19, 2014 at 10:47:12AM +0900, Gioh Kim wrote:
->> Thank you for your advice. I didn't notice it.
->>
->> I'm adding followings according to your advice:
->>
->> - range restrict for CMA_SIZE_MBYTES and *CMA_SIZE_PERCENTAGE*
->> I think this can prevent the wrong kernel option.
->>
->> - change size_cmdline into default value SZ_16M
->> I am not sure this can prevent if cma=0 cmdline option is also with base and limit options.
->
-> Hello,
->
-> I think that this problem is originated from atomic_pool_init().
-> If configured coherent_pool size is larger than default cma size,
-> it can be failed even if this patch is applied.
->
-> How about below patch?
-> It uses fallback allocation if CMA is failed.
->
-> Thanks.
->
-> -----------------8<---------------------
-> diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
-> index 6b00be1..2909ab9 100644
-> --- a/arch/arm/mm/dma-mapping.c
-> +++ b/arch/arm/mm/dma-mapping.c
-> @@ -379,7 +379,7 @@ static int __init atomic_pool_init(void)
->          unsigned long *bitmap;
->          struct page *page;
->          struct page **pages;
-> -       void *ptr;
-> +       void *ptr = NULL;
->          int bitmap_size = BITS_TO_LONGS(nr_pages) * sizeof(long);
->
->          bitmap = kzalloc(bitmap_size, GFP_KERNEL);
-> @@ -393,7 +393,7 @@ static int __init atomic_pool_init(void)
->          if (IS_ENABLED(CONFIG_DMA_CMA))
->                  ptr = __alloc_from_contiguous(NULL, pool->size, prot, &page,
->                                                atomic_pool_init);
-> -       else
-> +       if (!ptr)
->                  ptr = __alloc_remap_buffer(NULL, pool->size, gfp, prot, &page,
->                                             atomic_pool_init);
->          if (ptr) {
->
->
+mm/compaction.c:860:15: warning: a??next_free_pfna?? may be used uninitialized in this function [-Wmaybe-uninitialized]
+
+Seems like the compiler cannot prove that exiting the for loop without updating
+next_free_pfn there will mean that the check for crossing the scanners will
+trigger. So let's not confuse people who try to see why this warning occurs.
+
+Instead of initializing next_free_pfn to zero with an explaining comment, just
+drop the damned variable altogether and work with cc->free_pfn directly as
+Nayoa originally suggested.
+
+Suggested-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+---
+ mm/compaction.c | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/mm/compaction.c b/mm/compaction.c
+index 8db9820..b0f939b 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -760,7 +760,6 @@ static void isolate_freepages(struct zone *zone,
+ 	unsigned long block_start_pfn;	/* start of current pageblock */
+ 	unsigned long block_end_pfn;	/* end of current pageblock */
+ 	unsigned long low_pfn;	     /* lowest pfn scanner is able to scan */
+-	unsigned long next_free_pfn; /* start pfn for scaning at next round */
+ 	int nr_freepages = cc->nr_freepages;
+ 	struct list_head *freelist = &cc->freepages;
+ 
+@@ -822,7 +821,7 @@ static void isolate_freepages(struct zone *zone,
+ 			continue;
+ 
+ 		/* Found a block suitable for isolating free pages from */
+-		next_free_pfn = block_start_pfn;
++		cc->free_pfn = block_start_pfn;
+ 		isolated = isolate_freepages_block(cc, block_start_pfn,
+ 					block_end_pfn, freelist, false);
+ 		nr_freepages += isolated;
+@@ -852,9 +851,8 @@ static void isolate_freepages(struct zone *zone,
+ 	 * so that compact_finished() may detect this
+ 	 */
+ 	if (block_start_pfn < low_pfn)
+-		next_free_pfn = cc->migrate_pfn;
++		cc->free_pfn = cc->migrate_pfn;
+ 
+-	cc->free_pfn = next_free_pfn;
+ 	cc->nr_freepages = nr_freepages;
+ }
+ 
+-- 
+1.8.4.5
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
