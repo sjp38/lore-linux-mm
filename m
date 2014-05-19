@@ -1,71 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 141506B0036
-	for <linux-mm@kvack.org>; Sun, 18 May 2014 23:22:00 -0400 (EDT)
-Received: by mail-pa0-f45.google.com with SMTP id ey11so5124553pad.4
-        for <linux-mm@kvack.org>; Sun, 18 May 2014 20:21:59 -0700 (PDT)
-Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
-        by mx.google.com with ESMTP id lp7si17703509pab.189.2014.05.18.20.21.57
-        for <linux-mm@kvack.org>;
-        Sun, 18 May 2014 20:21:58 -0700 (PDT)
-Date: Mon, 19 May 2014 12:24:41 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v6] mm: support madvise(MADV_FREE)
-Message-ID: <20140519032441.GB13248@bbox>
-References: <1399857988-2880-1-git-send-email-minchan@kernel.org>
- <20140515154657.GA2720@cmpxchg.org>
- <20140516063427.GC27599@bbox>
- <20140516193800.GA7273@node.dhcp.inet.fi>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140516193800.GA7273@node.dhcp.inet.fi>
+Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com [209.85.160.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 710F86B0036
+	for <linux-mm@kvack.org>; Mon, 19 May 2014 00:09:20 -0400 (EDT)
+Received: by mail-pb0-f54.google.com with SMTP id jt11so5238918pbb.41
+        for <linux-mm@kvack.org>; Sun, 18 May 2014 21:09:19 -0700 (PDT)
+Received: from mail-pa0-x22d.google.com (mail-pa0-x22d.google.com [2607:f8b0:400e:c03::22d])
+        by mx.google.com with ESMTPS id xg6si17858987pab.9.2014.05.18.21.09.19
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Sun, 18 May 2014 21:09:19 -0700 (PDT)
+Received: by mail-pa0-f45.google.com with SMTP id ey11so5173716pad.4
+        for <linux-mm@kvack.org>; Sun, 18 May 2014 21:09:19 -0700 (PDT)
+From: Jianyu Zhan <nasa4836@gmail.com>
+Subject: [PATCH] mm/vmscan.c: use DIV_ROUND_UP for calculation of zone's balance_gap and correct comments.
+Date: Mon, 19 May 2014 12:08:30 +0800
+Message-Id: <1400472510-24375-1-git-send-email-nasa4836@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Dave Hansen <dave.hansen@intel.com>, John Stultz <john.stultz@linaro.org>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Jason Evans <je@fb.com>
+To: akpm@linux-foundation.org, hannes@cmpxchg.org, shli@kernel.org, minchan@kernel.org, riel@redhat.com, nasa4836@gmail.com, mgorman@suse.de, cmetcalf@tilera.com, aquini@redhat.com, mhocko@suse.cz, vdavydov@parallels.com, glommer@openvz.org, dchinner@redhat.com
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, May 16, 2014 at 10:38:00PM +0300, Kirill A. Shutemov wrote:
-> On Fri, May 16, 2014 at 03:34:27PM +0900, Minchan Kim wrote:
-> > > > +static inline unsigned long lazyfree_pmd_range(struct mmu_gather *tlb,
-> > > > +				struct vm_area_struct *vma, pud_t *pud,
-> > > > +				unsigned long addr, unsigned long end)
-> > > > +{
-> > > > +	pmd_t *pmd;
-> > > > +	unsigned long next;
-> > > > +
-> > > > +	pmd = pmd_offset(pud, addr);
-> > > > +	do {
-> > > > +		next = pmd_addr_end(addr, end);
-> > > > +		if (pmd_trans_huge(*pmd))
-> > > > +			split_huge_page_pmd(vma, addr, pmd);
-> > > 
-> > > /* XXX */ as well? :)
-> > 
-> > You meant huge page unit lazyfree rather than 4K page unit?
-> > If so, I will add.
-> 
-> Please, free huge page if range cover it. 
+Currently, we use (zone->managed_pages + KSWAPD_ZONE_BALANCE_GAP_RATIO-1) /
+KSWAPD_ZONE_BALANCE_GAP_RATIO to avoid a zero gap value. It's better to
+use DIV_ROUND_UP macro for neater code and clear meaning.
 
+Besides, the gap value is calculated against the per-zone "managed pages",
+not "present pages". This patch also corrects the comment and do some
+rephrasing.
 
-Yeb, We could do further patches if current patch's design is done
-from reviewers.
+Signed-off-by: Jianyu Zhan <nasa4836@gmail.com>
+---
+ include/linux/swap.h |  8 ++++----
+ mm/vmscan.c          | 10 ++++------
+ 2 files changed, 8 insertions(+), 10 deletions(-)
 
-Thanks.
-
-> 
-> -- 
->  Kirill A. Shutemov
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index 5a14b92..58e1696 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -166,10 +166,10 @@ enum {
+ #define COMPACT_CLUSTER_MAX SWAP_CLUSTER_MAX
+ 
+ /*
+- * Ratio between the present memory in the zone and the "gap" that
+- * we're allowing kswapd to shrink in addition to the per-zone high
+- * wmark, even for zones that already have the high wmark satisfied,
+- * in order to provide better per-zone lru behavior. We are ok to
++ * Ratio between zone->managed_pages and the "gap" that above the per-zone
++ * "high_wmark". While balancing nodes, We allow kswapd to shrink zones that
++ * do not meet the (high_wmark + gap) watermark, even which already met the
++ * high_wmark, in order to provide better per-zone lru behavior. We are ok to
+  * spend not more than 1% of the memory for this zone balancing "gap".
+  */
+ #define KSWAPD_ZONE_BALANCE_GAP_RATIO 100
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 32c661d..9ef9f6c 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2268,9 +2268,8 @@ static inline bool compaction_ready(struct zone *zone, struct scan_control *sc)
+ 	 * there is a buffer of free pages available to give compaction
+ 	 * a reasonable chance of completing and allocating the page
+ 	 */
+-	balance_gap = min(low_wmark_pages(zone),
+-		(zone->managed_pages + KSWAPD_ZONE_BALANCE_GAP_RATIO-1) /
+-			KSWAPD_ZONE_BALANCE_GAP_RATIO);
++	balance_gap = min(low_wmark_pages(zone), DIV_ROUND_UP(
++			zone->managed_pages, KSWAPD_ZONE_BALANCE_GAP_RATIO));
+ 	watermark = high_wmark_pages(zone) + balance_gap + (2UL << sc->order);
+ 	watermark_ok = zone_watermark_ok_safe(zone, 0, watermark, 0, 0);
+ 
+@@ -2891,9 +2890,8 @@ static bool kswapd_shrink_zone(struct zone *zone,
+ 	 * high wmark plus a "gap" where the gap is either the low
+ 	 * watermark or 1% of the zone, whichever is smaller.
+ 	 */
+-	balance_gap = min(low_wmark_pages(zone),
+-		(zone->managed_pages + KSWAPD_ZONE_BALANCE_GAP_RATIO-1) /
+-		KSWAPD_ZONE_BALANCE_GAP_RATIO);
++	balance_gap = min(low_wmark_pages(zone), DIV_ROUND_UP(
++			zone->managed_pages, KSWAPD_ZONE_BALANCE_GAP_RATIO));
+ 
+ 	/*
+ 	 * If there is no low memory pressure or the zone is balanced then no
 -- 
-Kind regards,
-Minchan Kim
+2.0.0-rc3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
