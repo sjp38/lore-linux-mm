@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 4747D6B0037
-	for <linux-mm@kvack.org>; Mon, 19 May 2014 18:58:43 -0400 (EDT)
-Received: by mail-pa0-f43.google.com with SMTP id hz1so6435716pad.30
-        for <linux-mm@kvack.org>; Mon, 19 May 2014 15:58:42 -0700 (PDT)
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-        by mx.google.com with ESMTPS id gl4si4839583pbb.46.2014.05.19.15.58.42
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id E67286B0039
+	for <linux-mm@kvack.org>; Mon, 19 May 2014 18:58:44 -0400 (EDT)
+Received: by mail-pa0-f52.google.com with SMTP id fa1so6461940pad.11
+        for <linux-mm@kvack.org>; Mon, 19 May 2014 15:58:44 -0700 (PDT)
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+        by mx.google.com with ESMTPS id hi6si21407969pac.69.2014.05.19.15.58.43
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 19 May 2014 15:58:42 -0700 (PDT)
-Received: by mail-pa0-f41.google.com with SMTP id lj1so6406065pab.14
-        for <linux-mm@kvack.org>; Mon, 19 May 2014 15:58:42 -0700 (PDT)
+        Mon, 19 May 2014 15:58:44 -0700 (PDT)
+Received: by mail-pa0-f49.google.com with SMTP id lj1so6400352pab.36
+        for <linux-mm@kvack.org>; Mon, 19 May 2014 15:58:43 -0700 (PDT)
 From: Andy Lutomirski <luto@amacapital.net>
-Subject: [PATCH 1/4] x86,vdso: Fix an OOPS accessing the hpet mapping w/o an hpet
-Date: Mon, 19 May 2014 15:58:31 -0700
-Message-Id: <c8b0a9a0b8d011a8b273cbb2de88d37190ed2751.1400538962.git.luto@amacapital.net>
+Subject: [PATCH 2/4] mm,fs: Add vm_ops->name as an alternative to arch_vma_name
+Date: Mon, 19 May 2014 15:58:32 -0700
+Message-Id: <2eee21791bb36a0a408c5c2bdb382a9e6a41ca4a.1400538962.git.luto@amacapital.net>
 In-Reply-To: <cover.1400538962.git.luto@amacapital.net>
 References: <cover.1400538962.git.luto@amacapital.net>
 In-Reply-To: <cover.1400538962.git.luto@amacapital.net>
@@ -22,54 +22,77 @@ References: <cover.1400538962.git.luto@amacapital.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: x86@kernel.org, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dave Jones <davej@redhat.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, Cyrill Gorcunov <gorcunov@gmail.com>, Pavel Emelyanov <xemul@parallels.com>, "H. Peter Anvin" <hpa@zytor.com>, Andy Lutomirski <luto@amacapital.net>, Stefani Seibold <stefani@seibold.net>
+Cc: LKML <linux-kernel@vger.kernel.org>, Cyrill Gorcunov <gorcunov@gmail.com>, Pavel Emelyanov <xemul@parallels.com>, "H. Peter Anvin" <hpa@zytor.com>, Andy Lutomirski <luto@amacapital.net>
 
-The oops can be triggered in qemu using -no-hpet (but not nohpet) by
-reading a couple of pages past the end of the vdso text.  This
-should send SIGBUS instead of OOPSing.
+arch_vma_name sucks.  It's a silly hack, and it's annoying to
+implement correctly.  In fact, AFAICS, even the straightforward x86
+implementation is incorrect (I suspect that it breaks if the vdso
+mapping is split or gets remapped).
 
-The bug was introduced by:
+This adds a new vm_ops->name operation that can replace it.  The
+followup patches will remove all uses of arch_vma_name on x86,
+fixing a couple of annoyances in the process.
 
-commit 7a59ed415f5b57469e22e41fc4188d5399e0b194
-Author: Stefani Seibold <stefani@seibold.net>
-Date:   Mon Mar 17 23:22:09 2014 +0100
-
-    x86, vdso: Add 32 bit VDSO time support for 32 bit kernel
-
-which is new in 3.15.
-
-This will be fixed separately in 3.15, but that patch will not apply
-to tip/x86/vdso.  This is the equivalent fix for tip/x86/vdso and,
-presumably, 3.16.
-
-Cc: Stefani Seibold <stefani@seibold.net>
-Reported-by: Sasha Levin <sasha.levin@oracle.com>
 Signed-off-by: Andy Lutomirski <luto@amacapital.net>
 ---
- arch/x86/vdso/vma.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
+ fs/binfmt_elf.c    | 8 ++++++++
+ fs/proc/task_mmu.c | 6 ++++++
+ include/linux/mm.h | 6 ++++++
+ 3 files changed, 20 insertions(+)
 
-diff --git a/arch/x86/vdso/vma.c b/arch/x86/vdso/vma.c
-index e915eae..8ad0081 100644
---- a/arch/x86/vdso/vma.c
-+++ b/arch/x86/vdso/vma.c
-@@ -90,6 +90,7 @@ static int map_vdso(const struct vdso_image *image, bool calculate_addr)
- 	struct vm_area_struct *vma;
- 	unsigned long addr;
- 	int ret = 0;
-+	static struct page *no_pages[] = {NULL};
+diff --git a/fs/binfmt_elf.c b/fs/binfmt_elf.c
+index aa3cb62..df9ea41 100644
+--- a/fs/binfmt_elf.c
++++ b/fs/binfmt_elf.c
+@@ -1108,6 +1108,14 @@ static bool always_dump_vma(struct vm_area_struct *vma)
+ 	/* Any vsyscall mappings? */
+ 	if (vma == get_gate_vma(vma->vm_mm))
+ 		return true;
++
++	/*
++	 * Assume that all vmas with a .name op should always be dumped.
++	 * If this changes, a new vm_ops field can easily be added.
++	 */
++	if (vma->vm_ops && vma->vm_ops->name && vma->vm_ops->name(vma))
++		return true;
++
+ 	/*
+ 	 * arch_vma_name() returns non-NULL for special architecture mappings,
+ 	 * such as vDSO sections.
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index 442177b..9b2f5d6 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -300,6 +300,12 @@ show_map_vma(struct seq_file *m, struct vm_area_struct *vma, int is_pid)
+ 		goto done;
+ 	}
  
- 	if (calculate_addr) {
- 		addr = vdso_addr(current->mm->start_stack,
-@@ -125,7 +126,7 @@ static int map_vdso(const struct vdso_image *image, bool calculate_addr)
- 				       addr + image->size,
- 				       image->sym_end_mapping - image->size,
- 				       VM_READ,
--				       NULL);
-+				       no_pages);
- 
- 	if (IS_ERR(vma)) {
- 		ret = PTR_ERR(vma);
++	if (vma->vm_ops && vma->vm_ops->name) {
++		name = vma->vm_ops->name(vma);
++		if (name)
++			goto done;
++	}
++
+ 	name = arch_vma_name(vma);
+ 	if (!name) {
+ 		pid_t tid;
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index bf9811e..63f8d4e 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -239,6 +239,12 @@ struct vm_operations_struct {
+ 	 */
+ 	int (*access)(struct vm_area_struct *vma, unsigned long addr,
+ 		      void *buf, int len, int write);
++
++	/* Called by the /proc/PID/maps code to ask the vma whether it
++	 * has a special name.  Returning non-NULL will also cause this
++	 * vma to be dumped unconditionally. */
++	const char *(*name)(struct vm_area_struct *vma);
++
+ #ifdef CONFIG_NUMA
+ 	/*
+ 	 * set_policy() op must add a reference to any non-NULL @new mempolicy
 -- 
 1.9.0
 
