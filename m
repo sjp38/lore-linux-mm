@@ -1,149 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f45.google.com (mail-qg0-f45.google.com [209.85.192.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 1C2246B0036
-	for <linux-mm@kvack.org>; Mon, 19 May 2014 14:14:55 -0400 (EDT)
-Received: by mail-qg0-f45.google.com with SMTP id z60so9499407qgd.32
-        for <linux-mm@kvack.org>; Mon, 19 May 2014 11:14:54 -0700 (PDT)
-Received: from e9.ny.us.ibm.com (e9.ny.us.ibm.com. [32.97.182.139])
-        by mx.google.com with ESMTPS id e7si9157596qai.19.2014.05.19.11.14.41
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 19 May 2014 11:14:42 -0700 (PDT)
-Received: from /spool/local
-	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <nacc@linux.vnet.ibm.com>;
-	Mon, 19 May 2014 14:14:41 -0400
-Received: from b01cxnp23034.gho.pok.ibm.com (b01cxnp23034.gho.pok.ibm.com [9.57.198.29])
-	by d01dlp02.pok.ibm.com (Postfix) with ESMTP id 985AA6E804A
-	for <linux-mm@kvack.org>; Mon, 19 May 2014 14:14:30 -0400 (EDT)
-Received: from d01av04.pok.ibm.com (d01av04.pok.ibm.com [9.56.224.64])
-	by b01cxnp23034.gho.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s4JIEct856950978
-	for <linux-mm@kvack.org>; Mon, 19 May 2014 18:14:38 GMT
-Received: from d01av04.pok.ibm.com (localhost [127.0.0.1])
-	by d01av04.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s4JIEaDE013927
-	for <linux-mm@kvack.org>; Mon, 19 May 2014 14:14:36 -0400
-Date: Mon, 19 May 2014 11:14:23 -0700
-From: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
-Subject: [RFC PATCH v2 1/2] powerpc: numa: enable USE_PERCPU_NUMA_NODE_ID
-Message-ID: <20140519181423.GL8941@linux.vnet.ibm.com>
-References: <20140516233945.GI8941@linux.vnet.ibm.com>
+Received: from mail-ee0-f50.google.com (mail-ee0-f50.google.com [74.125.83.50])
+	by kanga.kvack.org (Postfix) with ESMTP id C05246B0036
+	for <linux-mm@kvack.org>; Mon, 19 May 2014 14:16:33 -0400 (EDT)
+Received: by mail-ee0-f50.google.com with SMTP id e51so3862046eek.23
+        for <linux-mm@kvack.org>; Mon, 19 May 2014 11:16:33 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id 49si15882903een.35.2014.05.19.11.16.31
+        for <linux-mm@kvack.org>;
+        Mon, 19 May 2014 11:16:32 -0700 (PDT)
+Date: Mon, 19 May 2014 15:16:12 -0300
+From: Rafael Aquini <aquini@redhat.com>
+Subject: Re: [PATCH] mm/vmscan.c: use DIV_ROUND_UP for calculation of zone's
+ balance_gap and correct comments.
+Message-ID: <20140519181611.GB10453@localhost.localdomain>
+References: <1400472510-24375-1-git-send-email-nasa4836@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140516233945.GI8941@linux.vnet.ibm.com>
+In-Reply-To: <1400472510-24375-1-git-send-email-nasa4836@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Lee Schermerhorn <lee.schermerhorn@hp.com>, Christoph Lameter <cl@linux-foundation.org>, Mel Gorman <mel@csn.ul.ie>, David Rientjes <rientjes@google.com>, Anton Blanchard <anton@samba.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, Ben Herrenschmidt <benh@kernel.crashing.org>
+To: Jianyu Zhan <nasa4836@gmail.com>
+Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, shli@kernel.org, minchan@kernel.org, riel@redhat.com, mgorman@suse.de, cmetcalf@tilera.com, mhocko@suse.cz, vdavydov@parallels.com, glommer@openvz.org, dchinner@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hi Andrew,
+On Mon, May 19, 2014 at 12:08:30PM +0800, Jianyu Zhan wrote:
+> Currently, we use (zone->managed_pages + KSWAPD_ZONE_BALANCE_GAP_RATIO-1) /
+> KSWAPD_ZONE_BALANCE_GAP_RATIO to avoid a zero gap value. It's better to
+> use DIV_ROUND_UP macro for neater code and clear meaning.
+> 
+> Besides, the gap value is calculated against the per-zone "managed pages",
+> not "present pages". This patch also corrects the comment and do some
+> rephrasing.
+> 
+> Signed-off-by: Jianyu Zhan <nasa4836@gmail.com>
+> ---
+Acked-by: Rafael Aquini <aquini@redhat.com>
 
-I found one issue with my patch, fixed below...
-
-On 16.05.2014 [16:39:45 -0700], Nishanth Aravamudan wrote:
-> Based off 3bccd996 for ia64, convert powerpc to use the generic per-CPU
-> topology tracking, specifically:
->     
-> 	initialize per cpu numa_node entry in start_secondary
->     	remove the powerpc cpu_to_node()
->     	define CONFIG_USE_PERCPU_NUMA_NODE_ID if NUMA
->     
-> Signed-off-by: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
-
-<snip>
-
-> diff --git a/arch/powerpc/kernel/smp.c b/arch/powerpc/kernel/smp.c
-> index e2a4232..b95be24 100644
-> --- a/arch/powerpc/kernel/smp.c
-> +++ b/arch/powerpc/kernel/smp.c
-> @@ -750,6 +750,11 @@ void start_secondary(void *unused)
->  	}
->  	traverse_core_siblings(cpu, true);
+>  include/linux/swap.h |  8 ++++----
+>  mm/vmscan.c          | 10 ++++------
+>  2 files changed, 8 insertions(+), 10 deletions(-)
+> 
+> diff --git a/include/linux/swap.h b/include/linux/swap.h
+> index 5a14b92..58e1696 100644
+> --- a/include/linux/swap.h
+> +++ b/include/linux/swap.h
+> @@ -166,10 +166,10 @@ enum {
+>  #define COMPACT_CLUSTER_MAX SWAP_CLUSTER_MAX
 >  
-> +	/*
-> +	 * numa_node_id() works after this.
-> +	 */
-> +	set_numa_node(numa_cpu_lookup_table[cpu]);
-> +
-
-Similar change is needed for the boot CPU. Update patch:
-
-
-powerpc: numa: enable USE_PERCPU_NUMA_NODE_ID
-    
-Based off 3bccd996 for ia64, convert powerpc to use the generic per-CPU
-topology tracking, specifically:
-    
-    initialize per cpu numa_node entry in start_secondary
-    remove the powerpc cpu_to_node()
-    define CONFIG_USE_PERCPU_NUMA_NODE_ID if NUMA
-    
-Signed-off-by: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
-
-diff --git a/arch/powerpc/Kconfig b/arch/powerpc/Kconfig
-index e099899..9125964 100644
---- a/arch/powerpc/Kconfig
-+++ b/arch/powerpc/Kconfig
-@@ -453,6 +453,10 @@ config NODES_SHIFT
- 	default "4"
- 	depends on NEED_MULTIPLE_NODES
- 
-+config USE_PERCPU_NUMA_NODE_ID
-+	def_bool y
-+	depends on NUMA
-+
- config ARCH_SELECT_MEMORY_MODEL
- 	def_bool y
- 	depends on PPC64
-diff --git a/arch/powerpc/include/asm/topology.h b/arch/powerpc/include/asm/topology.h
-index c920215..5ecf7ea 100644
---- a/arch/powerpc/include/asm/topology.h
-+++ b/arch/powerpc/include/asm/topology.h
-@@ -20,19 +20,6 @@ struct device_node;
- 
- #include <asm/mmzone.h>
- 
--static inline int cpu_to_node(int cpu)
--{
--	int nid;
--
--	nid = numa_cpu_lookup_table[cpu];
--
--	/*
--	 * During early boot, the numa-cpu lookup table might not have been
--	 * setup for all CPUs yet. In such cases, default to node 0.
--	 */
--	return (nid < 0) ? 0 : nid;
--}
--
- #define parent_node(node)	(node)
- 
- #define cpumask_of_node(node) ((node) == -1 ?				\
-diff --git a/arch/powerpc/kernel/smp.c b/arch/powerpc/kernel/smp.c
-index e2a4232..d7252ad 100644
---- a/arch/powerpc/kernel/smp.c
-+++ b/arch/powerpc/kernel/smp.c
-@@ -390,6 +390,7 @@ void smp_prepare_boot_cpu(void)
- #ifdef CONFIG_PPC64
- 	paca[boot_cpuid].__current = current;
- #endif
-+	set_numa_node(numa_cpu_lookup_table[boot_cpuid]);
- 	current_set[boot_cpuid] = task_thread_info(current);
- }
- 
-@@ -750,6 +751,11 @@ void start_secondary(void *unused)
- 	}
- 	traverse_core_siblings(cpu, true);
- 
-+	/*
-+	 * numa_node_id() works after this.
-+	 */
-+	set_numa_node(numa_cpu_lookup_table[cpu]);
-+
- 	smp_wmb();
- 	notify_cpu_starting(cpu);
- 	set_cpu_online(cpu, true);
-
+>  /*
+> - * Ratio between the present memory in the zone and the "gap" that
+> - * we're allowing kswapd to shrink in addition to the per-zone high
+> - * wmark, even for zones that already have the high wmark satisfied,
+> - * in order to provide better per-zone lru behavior. We are ok to
+> + * Ratio between zone->managed_pages and the "gap" that above the per-zone
+> + * "high_wmark". While balancing nodes, We allow kswapd to shrink zones that
+> + * do not meet the (high_wmark + gap) watermark, even which already met the
+> + * high_wmark, in order to provide better per-zone lru behavior. We are ok to
+>   * spend not more than 1% of the memory for this zone balancing "gap".
+>   */
+>  #define KSWAPD_ZONE_BALANCE_GAP_RATIO 100
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 32c661d..9ef9f6c 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2268,9 +2268,8 @@ static inline bool compaction_ready(struct zone *zone, struct scan_control *sc)
+>  	 * there is a buffer of free pages available to give compaction
+>  	 * a reasonable chance of completing and allocating the page
+>  	 */
+> -	balance_gap = min(low_wmark_pages(zone),
+> -		(zone->managed_pages + KSWAPD_ZONE_BALANCE_GAP_RATIO-1) /
+> -			KSWAPD_ZONE_BALANCE_GAP_RATIO);
+> +	balance_gap = min(low_wmark_pages(zone), DIV_ROUND_UP(
+> +			zone->managed_pages, KSWAPD_ZONE_BALANCE_GAP_RATIO));
+>  	watermark = high_wmark_pages(zone) + balance_gap + (2UL << sc->order);
+>  	watermark_ok = zone_watermark_ok_safe(zone, 0, watermark, 0, 0);
+>  
+> @@ -2891,9 +2890,8 @@ static bool kswapd_shrink_zone(struct zone *zone,
+>  	 * high wmark plus a "gap" where the gap is either the low
+>  	 * watermark or 1% of the zone, whichever is smaller.
+>  	 */
+> -	balance_gap = min(low_wmark_pages(zone),
+> -		(zone->managed_pages + KSWAPD_ZONE_BALANCE_GAP_RATIO-1) /
+> -		KSWAPD_ZONE_BALANCE_GAP_RATIO);
+> +	balance_gap = min(low_wmark_pages(zone), DIV_ROUND_UP(
+> +			zone->managed_pages, KSWAPD_ZONE_BALANCE_GAP_RATIO));
+>  
+>  	/*
+>  	 * If there is no low memory pressure or the zone is balanced then no
+> -- 
+> 2.0.0-rc3
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
