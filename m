@@ -1,79 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 03AE06B0036
-	for <linux-mm@kvack.org>; Mon, 19 May 2014 01:52:59 -0400 (EDT)
-Received: by mail-pa0-f45.google.com with SMTP id ey11so5289740pad.32
-        for <linux-mm@kvack.org>; Sun, 18 May 2014 22:52:59 -0700 (PDT)
-Received: from lgeamrelo02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
-        by mx.google.com with ESMTP id wp2si18116305pab.65.2014.05.18.22.52.57
+Received: from mail-pb0-f48.google.com (mail-pb0-f48.google.com [209.85.160.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 010816B0036
+	for <linux-mm@kvack.org>; Mon, 19 May 2014 03:19:33 -0400 (EDT)
+Received: by mail-pb0-f48.google.com with SMTP id rr13so5483518pbb.35
+        for <linux-mm@kvack.org>; Mon, 19 May 2014 00:19:33 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id fk10si18328248pac.225.2014.05.19.00.19.32
         for <linux-mm@kvack.org>;
-        Sun, 18 May 2014 22:52:59 -0700 (PDT)
-Date: Mon, 19 May 2014 14:55:27 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [RFC][PATCH] CMA: drivers/base/Kconfig: restrict CMA size to
- non-zero value
-Message-ID: <20140519055527.GA24099@js1304-P5Q-DELUXE>
-References: <1399509144-8898-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1399509144-8898-3-git-send-email-iamjoonsoo.kim@lge.com>
- <20140513030057.GC32092@bbox>
- <20140515015301.GA10116@js1304-P5Q-DELUXE>
- <5375C619.8010501@lge.com>
- <xa1tppjdfwif.fsf@mina86.com>
- <537962A0.4090600@lge.com>
+        Mon, 19 May 2014 00:19:32 -0700 (PDT)
+Date: Mon, 19 May 2014 15:18:25 +0800
+From: kbuild test robot <fengguang.wu@intel.com>
+Subject: [mmotm:master 446/499] mm/nommu.c:97:8: warning: (near
+ initialization for 'nommu_region_sem')
+Message-ID: <5379b041.l+0HY3AnwO7I7qpR%fengguang.wu@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <537962A0.4090600@lge.com>
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gioh Kim <gioh.kim@lge.com>
-Cc: Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Laura Abbott <lauraa@codeaurora.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Heesub Shin <heesub.shin@samsung.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Marek Szyprowski <m.szyprowski@samsung.com>, =?utf-8?B?7J206rG07Zi4?= <gunho.lee@lge.com>, gurugio@gmail.com
+To: Davidlohr Bueso <davidlohr@hp.com>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Tim Chen <tim.c.chen@linux.intel.com>, Johannes Weiner <hannes@cmpxchg.org>, kbuild-all@01.org
 
-On Mon, May 19, 2014 at 10:47:12AM +0900, Gioh Kim wrote:
-> Thank you for your advice. I didn't notice it.
-> 
-> I'm adding followings according to your advice:
-> 
-> - range restrict for CMA_SIZE_MBYTES and *CMA_SIZE_PERCENTAGE*
-> I think this can prevent the wrong kernel option.
-> 
-> - change size_cmdline into default value SZ_16M
-> I am not sure this can prevent if cma=0 cmdline option is also with base and limit options.
+tree:   git://git.cmpxchg.org/linux-mmotm.git master
+head:   ff35dad6205c66d96feda494502753e5ed1b10f1
+commit: 67039d034b422b074af336ebf8101346b6b5d441 [446/499] rwsem: Support optimistic spinning
+config: make ARCH=blackfin BF561-EZKIT-SMP_defconfig
 
-Hello,
+All warnings:
 
-I think that this problem is originated from atomic_pool_init().
-If configured coherent_pool size is larger than default cma size,
-it can be failed even if this patch is applied.
+   mm/nommu.c:97:8: warning: excess elements in struct initializer [enabled by default]
+>> mm/nommu.c:97:8: warning: (near initialization for 'nommu_region_sem') [enabled by default]
+   mm/nommu.c:97:8: warning: excess elements in struct initializer [enabled by default]
+>> mm/nommu.c:97:8: warning: (near initialization for 'nommu_region_sem') [enabled by default]
 
-How about below patch?
-It uses fallback allocation if CMA is failed.
+vim +/nommu_region_sem +97 mm/nommu.c
 
-Thanks.
+997071bc K. Y. Srinivasan 2012-11-15   81   * balancing memory across competing virtual machines that are hosted.
+997071bc K. Y. Srinivasan 2012-11-15   82   * Several metrics drive this policy engine including the guest reported
+997071bc K. Y. Srinivasan 2012-11-15   83   * memory commitment.
+997071bc K. Y. Srinivasan 2012-11-15   84   */
+997071bc K. Y. Srinivasan 2012-11-15   85  unsigned long vm_memory_committed(void)
+997071bc K. Y. Srinivasan 2012-11-15   86  {
+997071bc K. Y. Srinivasan 2012-11-15   87  	return percpu_counter_read_positive(&vm_committed_as);
+997071bc K. Y. Srinivasan 2012-11-15   88  }
+997071bc K. Y. Srinivasan 2012-11-15   89  
+997071bc K. Y. Srinivasan 2012-11-15   90  EXPORT_SYMBOL_GPL(vm_memory_committed);
+997071bc K. Y. Srinivasan 2012-11-15   91  
+^1da177e Linus Torvalds   2005-04-16   92  EXPORT_SYMBOL(mem_map);
+^1da177e Linus Torvalds   2005-04-16   93  
+8feae131 David Howells    2009-01-08   94  /* list of mapped, potentially shareable regions */
+8feae131 David Howells    2009-01-08   95  static struct kmem_cache *vm_region_jar;
+8feae131 David Howells    2009-01-08   96  struct rb_root nommu_region_tree = RB_ROOT;
+8feae131 David Howells    2009-01-08  @97  DECLARE_RWSEM(nommu_region_sem);
+^1da177e Linus Torvalds   2005-04-16   98  
+f0f37e2f Alexey Dobriyan  2009-09-27   99  const struct vm_operations_struct generic_file_vm_ops = {
+^1da177e Linus Torvalds   2005-04-16  100  };
+^1da177e Linus Torvalds   2005-04-16  101  
+^1da177e Linus Torvalds   2005-04-16  102  /*
+^1da177e Linus Torvalds   2005-04-16  103   * Return the total memory allocated for this pointer, not
+^1da177e Linus Torvalds   2005-04-16  104   * just what the caller asked for.
+^1da177e Linus Torvalds   2005-04-16  105   *
 
------------------8<---------------------
-diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
-index 6b00be1..2909ab9 100644
---- a/arch/arm/mm/dma-mapping.c
-+++ b/arch/arm/mm/dma-mapping.c
-@@ -379,7 +379,7 @@ static int __init atomic_pool_init(void)
-        unsigned long *bitmap;
-        struct page *page;
-        struct page **pages;
--       void *ptr;
-+       void *ptr = NULL;
-        int bitmap_size = BITS_TO_LONGS(nr_pages) * sizeof(long);
- 
-        bitmap = kzalloc(bitmap_size, GFP_KERNEL);
-@@ -393,7 +393,7 @@ static int __init atomic_pool_init(void)
-        if (IS_ENABLED(CONFIG_DMA_CMA))
-                ptr = __alloc_from_contiguous(NULL, pool->size, prot, &page,
-                                              atomic_pool_init);
--       else
-+       if (!ptr)
-                ptr = __alloc_remap_buffer(NULL, pool->size, gfp, prot, &page,
-                                           atomic_pool_init);
-        if (ptr) {
+:::::: The code at line 97 was first introduced by commit
+:::::: 8feae13110d60cc6287afabc2887366b0eb226c2 NOMMU: Make VMAs per MM as for MMU-mode linux
+
+:::::: TO: David Howells <dhowells@redhat.com>
+:::::: CC: David Howells <dhowells@redhat.com>
+
+---
+0-DAY kernel build testing backend              Open Source Technology Center
+http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
