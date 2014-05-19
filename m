@@ -1,71 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f46.google.com (mail-pb0-f46.google.com [209.85.160.46])
-	by kanga.kvack.org (Postfix) with ESMTP id C2AC26B0037
-	for <linux-mm@kvack.org>; Mon, 19 May 2014 14:16:47 -0400 (EDT)
-Received: by mail-pb0-f46.google.com with SMTP id rq2so6163315pbb.5
-        for <linux-mm@kvack.org>; Mon, 19 May 2014 11:16:47 -0700 (PDT)
-Received: from e23smtp05.au.ibm.com (e23smtp05.au.ibm.com. [202.81.31.147])
-        by mx.google.com with ESMTPS id qe5si10201889pbc.195.2014.05.19.11.16.46
+Received: from mail-qg0-f41.google.com (mail-qg0-f41.google.com [209.85.192.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 80E186B0039
+	for <linux-mm@kvack.org>; Mon, 19 May 2014 14:24:15 -0400 (EDT)
+Received: by mail-qg0-f41.google.com with SMTP id j5so9488147qga.14
+        for <linux-mm@kvack.org>; Mon, 19 May 2014 11:24:15 -0700 (PDT)
+Received: from e9.ny.us.ibm.com (e9.ny.us.ibm.com. [32.97.182.139])
+        by mx.google.com with ESMTPS id w18si9233300qgd.128.2014.05.19.11.24.14
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 19 May 2014 11:16:47 -0700 (PDT)
+        Mon, 19 May 2014 11:24:15 -0700 (PDT)
 Received: from /spool/local
-	by e23smtp05.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Tue, 20 May 2014 04:16:42 +1000
-Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
-	by d23dlp01.au.ibm.com (Postfix) with ESMTP id 0870C2CE8040
-	for <linux-mm@kvack.org>; Tue, 20 May 2014 04:16:37 +1000 (EST)
-Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
-	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s4JIGLkd4653406
-	for <linux-mm@kvack.org>; Tue, 20 May 2014 04:16:21 +1000
-Received: from d23av02.au.ibm.com (localhost [127.0.0.1])
-	by d23av02.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s4JIGaHx021832
-	for <linux-mm@kvack.org>; Tue, 20 May 2014 04:16:36 +1000
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [RFC, PATCH] mm: unified interface to handle page table entries on different levels?
-In-Reply-To: <20140519002543.GA3899@node.dhcp.inet.fi>
-References: <1400286785-26639-1-git-send-email-kirill.shutemov@linux.intel.com> <20140518234559.GG6121@linux.intel.com> <20140519002543.GA3899@node.dhcp.inet.fi>
-Date: Mon, 19 May 2014 23:46:32 +0530
-Message-ID: <87fvk5k51b.fsf@linux.vnet.ibm.com>
+	by e9.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <nacc@linux.vnet.ibm.com>;
+	Mon, 19 May 2014 14:24:14 -0400
+Received: from b01cxnp22033.gho.pok.ibm.com (b01cxnp22033.gho.pok.ibm.com [9.57.198.23])
+	by d01dlp03.pok.ibm.com (Postfix) with ESMTP id 30DFFC90046
+	for <linux-mm@kvack.org>; Mon, 19 May 2014 14:24:07 -0400 (EDT)
+Received: from d01av03.pok.ibm.com (d01av03.pok.ibm.com [9.56.224.217])
+	by b01cxnp22033.gho.pok.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s4JIOCCl6947254
+	for <linux-mm@kvack.org>; Mon, 19 May 2014 18:24:12 GMT
+Received: from d01av03.pok.ibm.com (localhost [127.0.0.1])
+	by d01av03.pok.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s4JIOBnq006641
+	for <linux-mm@kvack.org>; Mon, 19 May 2014 14:24:12 -0400
+Date: Mon, 19 May 2014 11:24:00 -0700
+From: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
+Subject: Re: Node 0 not necessary for powerpc?
+Message-ID: <20140519182400.GM8941@linux.vnet.ibm.com>
+References: <20140311195632.GA946@linux.vnet.ibm.com>
+ <alpine.DEB.2.10.1403120839110.6865@nuc>
+ <20140313164949.GC22247@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140313164949.GC22247@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>, Matthew Wilcox <willy@linux.intel.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, dave@sr71.net, riel@redhat.com, mgorman@suse.de, aarcange@redhat.com
+To: Christoph Lameter <cl@linux.com>
+Cc: linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, anton@samba.org, rientjes@google.com, benh@kernel.crashing.org
 
-"Kirill A. Shutemov" <kirill@shutemov.name> writes:
+On 13.03.2014 [09:49:49 -0700], Nishanth Aravamudan wrote:
+> On 12.03.2014 [08:41:40 -0500], Christoph Lameter wrote:
+> > On Tue, 11 Mar 2014, Nishanth Aravamudan wrote:
+> > > I have a P7 system that has no node0, but a node0 shows up in numactl
+> > > --hardware, which has no cpus and no memory (and no PCI devices):
+> > 
+> > Well as you see from the code there has been so far the assumption that
+> > node 0 has memory. I have never run a machine that has no node 0 memory.
+> 
+> Do you mean beyond the initialization? I didn't see anything obvious so
+> far in the code itself that assumes a given node has memory (in the
+> sense of the nid). What are your thoughts about how best to support
+> this?
 
-> On Sun, May 18, 2014 at 07:45:59PM -0400, Matthew Wilcox wrote:
->> On Sat, May 17, 2014 at 03:33:05AM +0300, Kirill A. Shutemov wrote:
->> > Below is my attempt to play with the problem. I've took one function --
->> > page_referenced_one() -- which looks ugly because of different APIs for
->> > PTE/PMD and convert it to use vpte_t. vpte_t is union for pte_t, pmd_t
->> > and pud_t.
->> > 
->> > Basically, the idea is instead of having different helpers to handle
->> > PTE/PMD/PUD, we have one, which take pair of vpte_t + pglevel.
->> 
->> I can't find my original attempt at this now (I am lost in a maze of
->> twisted git trees, all subtly different), but I called it a vpe (Virtual
->> Page Entry).
->> 
->> Rather than using a pair of vpte_t and pglevel, the vpe_t contained
->> enough information to discern what level it was; that's only two bits
->> and I think all the architectures have enough space to squeeze in two
->> more bits to the PTE (the PMD and PUD obviously have plenty of space).
->
-> I'm not sure if it's possible to find a single free bit on all
-> architectures. Two is near impossible.
+Ah, I found one path that is problematic on powerpc:
 
-On ppc64 we don't have any free bits.
+I'm seeing a panic at boot with this change on an LPAR which actually
+has no Node 0. Here's what I think is happening:
 
->
-> And what about 5-level page tables in future? Will we need 3 bits there?
-> No way.
+start_kernel
+    ...
+    -> setup_per_cpu_areas
+        -> pcpu_embed_first_chunk
+            -> pcpu_fc_alloc
+                -> ___alloc_bootmem_node(NODE_DATA(cpu_to_node(cpu), ...
+    -> smp_prepare_boot_cpu
+        -> set_numa_node(boot_cpuid)
 
--aneesh
+So we panic on the NODE_DATA call. It seems that ia64, at least, uses
+pcpu_alloc_first_chunk rather than embed. x86 has some code to handle
+early calls of cpu_to_node (early_cpu_to_node) and sets the mapping for
+all CPUs in setup_per_cpu_areas().
+
+Thoughts? Does that mean we need something similar to x86 for powerpc?
+
+Thanks,
+Nish
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
