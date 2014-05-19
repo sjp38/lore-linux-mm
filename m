@@ -1,72 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id E14A16B0036
-	for <linux-mm@kvack.org>; Mon, 19 May 2014 18:58:41 -0400 (EDT)
-Received: by mail-pa0-f51.google.com with SMTP id kq14so6445525pab.38
-        for <linux-mm@kvack.org>; Mon, 19 May 2014 15:58:41 -0700 (PDT)
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-        by mx.google.com with ESMTPS id ek4si10564211pbc.511.2014.05.19.15.58.40
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 4747D6B0037
+	for <linux-mm@kvack.org>; Mon, 19 May 2014 18:58:43 -0400 (EDT)
+Received: by mail-pa0-f43.google.com with SMTP id hz1so6435716pad.30
+        for <linux-mm@kvack.org>; Mon, 19 May 2014 15:58:42 -0700 (PDT)
+Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
+        by mx.google.com with ESMTPS id gl4si4839583pbb.46.2014.05.19.15.58.42
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 19 May 2014 15:58:40 -0700 (PDT)
-Received: by mail-pa0-f53.google.com with SMTP id kp14so6414133pab.12
-        for <linux-mm@kvack.org>; Mon, 19 May 2014 15:58:40 -0700 (PDT)
+        Mon, 19 May 2014 15:58:42 -0700 (PDT)
+Received: by mail-pa0-f41.google.com with SMTP id lj1so6406065pab.14
+        for <linux-mm@kvack.org>; Mon, 19 May 2014 15:58:42 -0700 (PDT)
 From: Andy Lutomirski <luto@amacapital.net>
-Subject: [PATCH 0/4] x86,mm: vdso fixes for an OOPS and /proc/PID/maps
-Date: Mon, 19 May 2014 15:58:30 -0700
-Message-Id: <cover.1400538962.git.luto@amacapital.net>
+Subject: [PATCH 1/4] x86,vdso: Fix an OOPS accessing the hpet mapping w/o an hpet
+Date: Mon, 19 May 2014 15:58:31 -0700
+Message-Id: <c8b0a9a0b8d011a8b273cbb2de88d37190ed2751.1400538962.git.luto@amacapital.net>
+In-Reply-To: <cover.1400538962.git.luto@amacapital.net>
+References: <cover.1400538962.git.luto@amacapital.net>
+In-Reply-To: <cover.1400538962.git.luto@amacapital.net>
+References: <cover.1400538962.git.luto@amacapital.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: x86@kernel.org, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dave Jones <davej@redhat.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, Cyrill Gorcunov <gorcunov@gmail.com>, Pavel Emelyanov <xemul@parallels.com>, "H. Peter Anvin" <hpa@zytor.com>, Andy Lutomirski <luto@amacapital.net>
+Cc: LKML <linux-kernel@vger.kernel.org>, Cyrill Gorcunov <gorcunov@gmail.com>, Pavel Emelyanov <xemul@parallels.com>, "H. Peter Anvin" <hpa@zytor.com>, Andy Lutomirski <luto@amacapital.net>, Stefani Seibold <stefani@seibold.net>
 
-[This applies to tip/x86/vdso.  Patch 1/4 is a resend.]
+The oops can be triggered in qemu using -no-hpet (but not nohpet) by
+reading a couple of pages past the end of the vdso text.  This
+should send SIGBUS instead of OOPSing.
 
-This fixes an OOPS on systems without an HPET and incomplete
-information in /proc/PID/maps.
+The bug was introduced by:
 
-The latter is done by adding a new vm_ops callback to replace
-arch_vma_name, which is inflexible and awkward to use correctly.
+commit 7a59ed415f5b57469e22e41fc4188d5399e0b194
+Author: Stefani Seibold <stefani@seibold.net>
+Date:   Mon Mar 17 23:22:09 2014 +0100
 
-With this series applied, calling mremap on the vdso results in
-sensible output in /proc/PID/maps and the vvar area shows up
-correctly.  I don't want to guarantee that mremap on the vdso will
-do anything sensible right now, but that's unchanged from before.
-In fact, I suspect that mremapping the vdso on 32-bit tasks is
-rather broken right now due to sigreturn.
+    x86, vdso: Add 32 bit VDSO time support for 32 bit kernel
 
-In current kernels, mremapping the vdso blows away the name:
-badc0de0000-badc0de2000 r-xp 00000000 00:00 0
+which is new in 3.15.
 
-Now it doesn't:
-badc0de0000-badc0de1000 r-xp 00000000 00:00 0                            [vdso]
+This will be fixed separately in 3.15, but that patch will not apply
+to tip/x86/vdso.  This is the equivalent fix for tip/x86/vdso and,
+presumably, 3.16.
 
-As a followup, it might pay to replace install_special_mapping with
-a new install_vdso_mapping function that hardcodes the "[vdso]"
-name, to separately fix all the other arch_vma_name users (maybe
-just ARM?) and then kill arch_vma_name completely.
+Cc: Stefani Seibold <stefani@seibold.net>
+Reported-by: Sasha Levin <sasha.levin@oracle.com>
+Signed-off-by: Andy Lutomirski <luto@amacapital.net>
+---
+ arch/x86/vdso/vma.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
 
-NB: This touches core mm code.  I'd appreciate some review by the mm
-folks.
-
-Andy Lutomirski (4):
-  x86,vdso: Fix an OOPS accessing the hpet mapping w/o an hpet
-  mm,fs: Add vm_ops->name as an alternative to arch_vma_name
-  x86,mm: Improve _install_special_mapping and fix x86 vdso naming
-  x86,mm: Replace arch_vma_name with vm_ops->name for vsyscalls
-
- arch/x86/include/asm/vdso.h  |  6 ++-
- arch/x86/mm/init_64.c        | 20 +++++-----
- arch/x86/vdso/vdso2c.h       |  5 ++-
- arch/x86/vdso/vdso32-setup.c |  7 ----
- arch/x86/vdso/vma.c          | 26 ++++++++-----
- fs/binfmt_elf.c              |  8 ++++
- fs/proc/task_mmu.c           |  6 +++
- include/linux/mm.h           | 10 ++++-
- include/linux/mm_types.h     |  6 +++
- mm/mmap.c                    | 89 +++++++++++++++++++++++++++++---------------
- 10 files changed, 124 insertions(+), 59 deletions(-)
-
+diff --git a/arch/x86/vdso/vma.c b/arch/x86/vdso/vma.c
+index e915eae..8ad0081 100644
+--- a/arch/x86/vdso/vma.c
++++ b/arch/x86/vdso/vma.c
+@@ -90,6 +90,7 @@ static int map_vdso(const struct vdso_image *image, bool calculate_addr)
+ 	struct vm_area_struct *vma;
+ 	unsigned long addr;
+ 	int ret = 0;
++	static struct page *no_pages[] = {NULL};
+ 
+ 	if (calculate_addr) {
+ 		addr = vdso_addr(current->mm->start_stack,
+@@ -125,7 +126,7 @@ static int map_vdso(const struct vdso_image *image, bool calculate_addr)
+ 				       addr + image->size,
+ 				       image->sym_end_mapping - image->size,
+ 				       VM_READ,
+-				       NULL);
++				       no_pages);
+ 
+ 	if (IS_ERR(vma)) {
+ 		ret = PTR_ERR(vma);
 -- 
 1.9.0
 
