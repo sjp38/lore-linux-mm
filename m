@@ -1,153 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f179.google.com (mail-qc0-f179.google.com [209.85.216.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 048BC6B0035
-	for <linux-mm@kvack.org>; Tue, 20 May 2014 13:59:51 -0400 (EDT)
-Received: by mail-qc0-f179.google.com with SMTP id x3so1335349qcv.24
-        for <linux-mm@kvack.org>; Tue, 20 May 2014 10:59:51 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id lc5si2393161qcb.23.2014.05.20.10.59.50
-        for <linux-mm@kvack.org>;
-        Tue, 20 May 2014 10:59:51 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH 2/2] memory-failure: Don't let collect_procs() skip over processes for MF_ACTION_REQUIRED
-Date: Tue, 20 May 2014 13:59:33 -0400
-Message-Id: <537b9817.05f1e50a.14fb.ffffc342SMTPIN_ADDED_BROKEN@mx.google.com>
-In-Reply-To: <d6101e631fb61e9e097207939a93faa799be9a82.1400607328.git.tony.luck@intel.com>
-References: <cover.1400607328.git.tony.luck@intel.com> <d6101e631fb61e9e097207939a93faa799be9a82.1400607328.git.tony.luck@intel.com>
-Mime-Version: 1.0
+Received: from mail-la0-f41.google.com (mail-la0-f41.google.com [209.85.215.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 0E4D66B0035
+	for <linux-mm@kvack.org>; Tue, 20 May 2014 14:01:07 -0400 (EDT)
+Received: by mail-la0-f41.google.com with SMTP id e16so707719lan.14
+        for <linux-mm@kvack.org>; Tue, 20 May 2014 11:01:06 -0700 (PDT)
+Received: from mail-la0-x233.google.com (mail-la0-x233.google.com [2a00:1450:4010:c03::233])
+        by mx.google.com with ESMTPS id bq4si9759158lbb.85.2014.05.20.11.01.05
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 20 May 2014 11:01:06 -0700 (PDT)
+Received: by mail-la0-f51.google.com with SMTP id gf5so697309lab.38
+        for <linux-mm@kvack.org>; Tue, 20 May 2014 11:01:05 -0700 (PDT)
+Date: Tue, 20 May 2014 22:01:04 +0400
+From: Cyrill Gorcunov <gorcunov@gmail.com>
+Subject: Re: [PATCH 3/4] x86,mm: Improve _install_special_mapping and fix x86
+ vdso naming
+Message-ID: <20140520180104.GL2185@moon>
+References: <cover.1400538962.git.luto@amacapital.net>
+ <276b39b6b645fb11e345457b503f17b83c2c6fd0.1400538962.git.luto@amacapital.net>
+ <20140520172134.GJ2185@moon>
+ <CALCETrWSgjc+iymPrvC9xiz1z4PqQS9e9F5mRLNnuabWTjQGQQ@mail.gmail.com>
+ <20140520174759.GK2185@moon>
+ <CALCETrUARCP0eNj5e3Kh81KDXg5AFLnoNoDHeoZcBXi9z-5F3w@mail.gmail.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
+In-Reply-To: <CALCETrUARCP0eNj5e3Kh81KDXg5AFLnoNoDHeoZcBXi9z-5F3w@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tony Luck <tony.luck@intel.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>, bp@suse.de, gong.chen@linux.jf.intel.com
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: X86 ML <x86@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dave Jones <davej@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Pavel Emelyanov <xemul@parallels.com>, "H. Peter Anvin" <hpa@zytor.com>
 
-On Tue, May 20, 2014 at 09:46:43AM -0700, Tony Luck wrote:
-> When Linux sees an "action optional" machine check (where h/w has
-> reported an error that is not in the current execution path) we
-> generally do not want to signal a process, since most processes
-> do not have a SIGBUS handler - we'd just prematurely terminate the
-> process for a problem that they might never actually see.
+On Tue, May 20, 2014 at 10:52:51AM -0700, Andy Lutomirski wrote:
+> >
+> >   We use not only [vdso] mark to detect vdso area but also page frame
+> > number of the living vdso. If mark is not present in procfs output
+> > we examinate executable areas and check if pfn == vdso_pfn, it's
+> > a slow path because there migh be a bunch of executable areas and
+> > touching every of it is not that fast thing, but we simply have no
+> > choise.
 > 
-> task_early_kill() decides whether to consider a process - and it
-> checks whether this specific process has been marked for early signals
-> with "prctl", or if the system administrator has requested early
-> signals for all processes using /proc/sys/vm/memory_failure_early_kill.
-> 
-> But for MF_ACTION_REQUIRED case we must not defer. The error is in
-> the execution path of the current thread so we must send the SIGBUS
-> immediatley.
-> 
-> Fix by passing a flag argument through collect_procs*() to
-> task_early_kill() so it knows whether we can defer or must
-> take action.
-> 
-> Signed-off-by: Tony Luck <tony.luck@intel.com>
+> This patch should fix this issue, at least.  If there's still a way to
+> get a native vdso that doesn't say "[vdso]", please let me know/
 
-Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Yes, having a native procfs way to detect vdso is much preferred!
 
-Thanks,
-Naoya Horiguchi
+> >   The situation get worse when task was dumped on one kernel and
+> > then restored on another kernel where vdso content is different
+> > from one save in image -- is such case as I mentioned we need
+> > that named vdso proxy which redirect calls to vdso of the system
+> > where task is restoring. And when such "restored" task get checkpointed
+> > second time we don't dump new living vdso but save only old vdso
+> > proxy on disk (detecting it is a different story, in short we
+> > inject a unique mark into elf header).
+> 
+> Yuck.  But I don't know whether the kernel can help much here.
 
-> ---
->  mm/memory-failure.c | 21 ++++++++++++---------
->  1 file changed, 12 insertions(+), 9 deletions(-)
+Some prctl which would tell kernel to put vdso at specifed address.
+We can live without it for now so not a big deal (yet ;)
+
+> >> I suspect that you'll need kernel changes for compat tasks, since I
+> >> think that mremapping the vdso on any reasonably modern hardware in a
+> >> 32-bit task will cause sigreturn to blow up.  This could be fixed by
+> >> making mremap magical, although adding a new prctl or arch_prctl to
+> >> reliably move the vdso might be a better bet.
+> >
+> > Well, as far as I understand compat code uses abs addressing for
+> > vvar data and if vvar data position doesn't change we're safe,
+> > but same time because vvar addresses are not abi I fear one day
+> > we indeed hit the problems and the only solution would be
+> > to use kernel's help. But again, Andy, I didn't think much
+> > about implementing compat mode in criu yet so i might be
+> > missing some details.
 > 
-> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-> index 642c8434b166..f0967f72991c 100644
-> --- a/mm/memory-failure.c
-> +++ b/mm/memory-failure.c
-> @@ -380,10 +380,12 @@ static void kill_procs(struct list_head *to_kill, int forcekill, int trapno,
->  	}
->  }
->  
-> -static int task_early_kill(struct task_struct *tsk)
-> +static int task_early_kill(struct task_struct *tsk, int force_early)
->  {
->  	if (!tsk->mm)
->  		return 0;
-> +	if (force_early)
-> +		return 1;
->  	if (tsk->flags & PF_MCE_PROCESS)
->  		return !!(tsk->flags & PF_MCE_EARLY);
->  	return sysctl_memory_failure_early_kill;
-> @@ -393,7 +395,7 @@ static int task_early_kill(struct task_struct *tsk)
->   * Collect processes when the error hit an anonymous page.
->   */
->  static void collect_procs_anon(struct page *page, struct list_head *to_kill,
-> -			      struct to_kill **tkc)
-> +			      struct to_kill **tkc, int force_early)
->  {
->  	struct vm_area_struct *vma;
->  	struct task_struct *tsk;
-> @@ -409,7 +411,7 @@ static void collect_procs_anon(struct page *page, struct list_head *to_kill,
->  	for_each_process (tsk) {
->  		struct anon_vma_chain *vmac;
->  
-> -		if (!task_early_kill(tsk))
-> +		if (!task_early_kill(tsk, force_early))
->  			continue;
->  		anon_vma_interval_tree_foreach(vmac, &av->rb_root,
->  					       pgoff, pgoff) {
-> @@ -428,7 +430,7 @@ static void collect_procs_anon(struct page *page, struct list_head *to_kill,
->   * Collect processes when the error hit a file mapped page.
->   */
->  static void collect_procs_file(struct page *page, struct list_head *to_kill,
-> -			      struct to_kill **tkc)
-> +			      struct to_kill **tkc, int force_early)
->  {
->  	struct vm_area_struct *vma;
->  	struct task_struct *tsk;
-> @@ -439,7 +441,7 @@ static void collect_procs_file(struct page *page, struct list_head *to_kill,
->  	for_each_process(tsk) {
->  		pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
->  
-> -		if (!task_early_kill(tsk))
-> +		if (!task_early_kill(tsk, force_early))
->  			continue;
->  
->  		vma_interval_tree_foreach(vma, &mapping->i_mmap, pgoff,
-> @@ -465,7 +467,8 @@ static void collect_procs_file(struct page *page, struct list_head *to_kill,
->   * First preallocate one tokill structure outside the spin locks,
->   * so that we can kill at least one process reasonably reliable.
->   */
-> -static void collect_procs(struct page *page, struct list_head *tokill)
-> +static void collect_procs(struct page *page, struct list_head *tokill,
-> +				int force_early)
->  {
->  	struct to_kill *tk;
->  
-> @@ -476,9 +479,9 @@ static void collect_procs(struct page *page, struct list_head *tokill)
->  	if (!tk)
->  		return;
->  	if (PageAnon(page))
-> -		collect_procs_anon(page, tokill, &tk);
-> +		collect_procs_anon(page, tokill, &tk, force_early);
->  	else
-> -		collect_procs_file(page, tokill, &tk);
-> +		collect_procs_file(page, tokill, &tk, force_early);
->  	kfree(tk);
->  }
->  
-> @@ -963,7 +966,7 @@ static int hwpoison_user_mappings(struct page *p, unsigned long pfn,
->  	 * there's nothing that can be done.
->  	 */
->  	if (kill)
-> -		collect_procs(ppage, &tokill);
-> +		collect_procs(ppage, &tokill, flags & MF_ACTION_REQUIRED);
->  
->  	ret = try_to_unmap(ppage, ttu);
->  	if (ret != SWAP_SUCCESS)
-> -- 
-> 1.8.4.1
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+> Prior to 3.15, the compat code didn't have vvar data at all.  In 3.15
+> and up, the vvar data is accessed using PC-relative addressing, even
+> in compat mode (using the usual call; mov trick to read EIP).
+
+i see. I'll ping you for help once I start implementing compat mode ;)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
