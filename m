@@ -1,69 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vc0-f178.google.com (mail-vc0-f178.google.com [209.85.220.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 11EE46B0037
-	for <linux-mm@kvack.org>; Tue, 20 May 2014 13:25:11 -0400 (EDT)
-Received: by mail-vc0-f178.google.com with SMTP id hq16so1017846vcb.23
-        for <linux-mm@kvack.org>; Tue, 20 May 2014 10:25:10 -0700 (PDT)
-Received: from mail-ve0-f174.google.com (mail-ve0-f174.google.com [209.85.128.174])
-        by mx.google.com with ESMTPS id up2si5181065vec.104.2014.05.20.10.25.10
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 20 May 2014 10:25:10 -0700 (PDT)
-Received: by mail-ve0-f174.google.com with SMTP id jw12so1026001veb.33
-        for <linux-mm@kvack.org>; Tue, 20 May 2014 10:25:10 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20140520172134.GJ2185@moon>
-References: <cover.1400538962.git.luto@amacapital.net> <276b39b6b645fb11e345457b503f17b83c2c6fd0.1400538962.git.luto@amacapital.net>
- <20140520172134.GJ2185@moon>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Tue, 20 May 2014 10:24:49 -0700
-Message-ID: <CALCETrWSgjc+iymPrvC9xiz1z4PqQS9e9F5mRLNnuabWTjQGQQ@mail.gmail.com>
-Subject: Re: [PATCH 3/4] x86,mm: Improve _install_special_mapping and fix x86
- vdso naming
-Content-Type: text/plain; charset=UTF-8
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 6DA486B0036
+	for <linux-mm@kvack.org>; Tue, 20 May 2014 13:42:05 -0400 (EDT)
+Received: by mail-pd0-f177.google.com with SMTP id g10so520023pdj.8
+        for <linux-mm@kvack.org>; Tue, 20 May 2014 10:42:05 -0700 (PDT)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTP id by1si2733054pbc.250.2014.05.20.10.42.04
+        for <linux-mm@kvack.org>;
+        Tue, 20 May 2014 10:42:04 -0700 (PDT)
+Message-Id: <eb791998a8ada97b204dddf2719a359149e9ae31.1400607328.git.tony.luck@intel.com>
+In-Reply-To: <cover.1400607328.git.tony.luck@intel.com>
+References: <cover.1400607328.git.tony.luck@intel.com>
+From: Tony Luck <tony.luck@intel.com>
+Date: Tue, 20 May 2014 09:28:00 -0700
+Subject: [PATCH 1/2] memory-failure: Send right signal code to correct thread
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Cyrill Gorcunov <gorcunov@gmail.com>
-Cc: X86 ML <x86@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dave Jones <davej@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Pavel Emelyanov <xemul@parallels.com>, "H. Peter Anvin" <hpa@zytor.com>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Andi Kleen <andi@firstfloor.org>, Borislav Petkov <bp@suse.de>, Chen Gong <gong.chen@linux.jf.intel.com>
 
-On Tue, May 20, 2014 at 10:21 AM, Cyrill Gorcunov <gorcunov@gmail.com> wrote:
-> On Mon, May 19, 2014 at 03:58:33PM -0700, Andy Lutomirski wrote:
->> Using arch_vma_name to give special mappings a name is awkward.  x86
->> currently implements it by comparing the start address of the vma to
->> the expected address of the vdso.  This requires tracking the start
->> address of special mappings and is probably buggy if a special vma
->> is split or moved.
->>
->> Improve _install_special_mapping to just name the vma directly.  Use
->> it to give the x86 vvar area a name, which should make CRIU's life
->> easier.
->>
->> As a side effect, the vvar area will show up in core dumps.  This
->> could be considered weird and is fixable.  Thoughts?
->>
->> Cc: Cyrill Gorcunov <gorcunov@openvz.org>
->> Cc: Pavel Emelyanov <xemul@parallels.com>
->> Signed-off-by: Andy Lutomirski <luto@amacapital.net>
->
-> Hi Andy, thanks a lot for this! I must confess I don't yet know how
-> would we deal with compat tasks but this is 'must have' mark which
-> allow us to detect vvar area!
+When a thread in a multi-threaded application hits a machine
+check because of an uncorrectable error in memory - we want to
+send the SIGBUS with si.si_code = BUS_MCEERR_AR to that thread.
+Currently we fail to do that if the active thread is not the
+primary thread in the process. collect_procs() just finds primary
+threads and this test:
+	if ((flags & MF_ACTION_REQUIRED) && t == current) {
+will see that the thread we found isn't the current thread
+and so send a si.si_code = BUS_MCEERR_AO to the primary
+(and nothing to the active thread at this time).
 
-Out of curiosity, how does CRIU currently handle checkpointing a
-restored task?  In current kernels, the "[vdso]" name in maps goes
-away after mremapping the vdso.
+We can fix this by checking whether "current" shares the same
+mm with the process that collect_procs() said owned the page.
+If so, we send the SIGBUS to current (with code BUS_MCEERR_AR).
 
-I suspect that you'll need kernel changes for compat tasks, since I
-think that mremapping the vdso on any reasonably modern hardware in a
-32-bit task will cause sigreturn to blow up.  This could be fixed by
-making mremap magical, although adding a new prctl or arch_prctl to
-reliably move the vdso might be a better bet.
+Reported-by: Otto Bruggeman <otto.g.bruggeman@intel.com>
+Signed-off-by: Tony Luck <tony.luck@intel.com>
+---
+ mm/memory-failure.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
---Andy
-
+diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+index 35ef28acf137..642c8434b166 100644
+--- a/mm/memory-failure.c
++++ b/mm/memory-failure.c
+@@ -204,9 +204,9 @@ static int kill_proc(struct task_struct *t, unsigned long addr, int trapno,
+ #endif
+ 	si.si_addr_lsb = compound_order(compound_head(page)) + PAGE_SHIFT;
+ 
+-	if ((flags & MF_ACTION_REQUIRED) && t == current) {
++	if ((flags & MF_ACTION_REQUIRED) && t->mm == current->mm) {
+ 		si.si_code = BUS_MCEERR_AR;
+-		ret = force_sig_info(SIGBUS, &si, t);
++		ret = force_sig_info(SIGBUS, &si, current);
+ 	} else {
+ 		/*
+ 		 * Don't use force here, it's convenient if the signal
 -- 
-Andy Lutomirski
-AMA Capital Management, LLC
+1.8.4.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
