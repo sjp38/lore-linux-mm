@@ -1,87 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vc0-f182.google.com (mail-vc0-f182.google.com [209.85.220.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 739126B0036
-	for <linux-mm@kvack.org>; Tue, 20 May 2014 14:39:13 -0400 (EDT)
-Received: by mail-vc0-f182.google.com with SMTP id la4so1137589vcb.41
-        for <linux-mm@kvack.org>; Tue, 20 May 2014 11:39:13 -0700 (PDT)
-Received: from mail-ve0-f177.google.com (mail-ve0-f177.google.com [209.85.128.177])
-        by mx.google.com with ESMTPS id ip6si4344449vec.165.2014.05.20.11.39.12
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 20 May 2014 11:39:12 -0700 (PDT)
-Received: by mail-ve0-f177.google.com with SMTP id db11so1124572veb.8
-        for <linux-mm@kvack.org>; Tue, 20 May 2014 11:39:12 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <537B9EA6.3030103@zytor.com>
-References: <cover.1400538962.git.luto@amacapital.net> <276b39b6b645fb11e345457b503f17b83c2c6fd0.1400538962.git.luto@amacapital.net>
- <20140520172134.GJ2185@moon> <CALCETrWSgjc+iymPrvC9xiz1z4PqQS9e9F5mRLNnuabWTjQGQQ@mail.gmail.com>
- <20140520174759.GK2185@moon> <CALCETrUARCP0eNj5e3Kh81KDXg5AFLnoNoDHeoZcBXi9z-5F3w@mail.gmail.com>
- <20140520180104.GL2185@moon> <537B9C6D.7010705@zytor.com> <CALCETrWmKvox1poGK5fBw2OBip7zMpjb-bpYrzd4EGHPDvZEHg@mail.gmail.com>
- <537B9EA6.3030103@zytor.com>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Tue, 20 May 2014 11:38:52 -0700
-Message-ID: <CALCETrVbdWSxgSjNnmqjtDLYKpiah09VUGA56_abrPwUC6q=mA@mail.gmail.com>
-Subject: Re: [PATCH 3/4] x86,mm: Improve _install_special_mapping and fix x86
- vdso naming
-Content-Type: text/plain; charset=UTF-8
+Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
+	by kanga.kvack.org (Postfix) with ESMTP id A4D886B0035
+	for <linux-mm@kvack.org>; Tue, 20 May 2014 15:34:56 -0400 (EDT)
+Received: by mail-pa0-f53.google.com with SMTP id kp14so608430pab.26
+        for <linux-mm@kvack.org>; Tue, 20 May 2014 12:34:56 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id zv2si2091759pbb.131.2014.05.20.12.34.55
+        for <linux-mm@kvack.org>;
+        Tue, 20 May 2014 12:34:55 -0700 (PDT)
+Date: Tue, 20 May 2014 12:34:53 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: non-atomically mark page accessed during page cache
+ allocation where possible -fix
+Message-Id: <20140520123453.09a76dd0c8fad40082a16289@linux-foundation.org>
+In-Reply-To: <20140520154900.GO23991@suse.de>
+References: <1399974350-11089-1-git-send-email-mgorman@suse.de>
+	<1399974350-11089-19-git-send-email-mgorman@suse.de>
+	<20140520154900.GO23991@suse.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "H. Peter Anvin" <hpa@zytor.com>
-Cc: Cyrill Gorcunov <gorcunov@gmail.com>, X86 ML <x86@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dave Jones <davej@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Pavel Emelyanov <xemul@parallels.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>, Prabhakar Lad <prabhakar.csengg@gmail.com>
 
-On Tue, May 20, 2014 at 11:27 AM, H. Peter Anvin <hpa@zytor.com> wrote:
-> On 05/20/2014 11:24 AM, Andy Lutomirski wrote:
->> On Tue, May 20, 2014 at 11:18 AM, H. Peter Anvin <hpa@zytor.com> wrote:
->>> On 05/20/2014 11:01 AM, Cyrill Gorcunov wrote:
->>>>>
->>>>> This patch should fix this issue, at least.  If there's still a way to
->>>>> get a native vdso that doesn't say "[vdso]", please let me know/
->>>>
->>>> Yes, having a native procfs way to detect vdso is much preferred!
->>>>
->>>
->>> Is there any path by which we can end up with [vdso] without a leading
->>> slash in /proc/self/maps?  Otherwise, why is that not "native"?
->>
->> Dunno.  But before this patch the reverse was possible: we can end up
->> with a vdso that doesn't say [vdso].
->>
+On Tue, 20 May 2014 16:49:00 +0100 Mel Gorman <mgorman@suse.de> wrote:
+
+> Prabhakar Lad reported the following problem
+> 
+>   I see following issue on DA850 evm,
+>   git bisect points me to
+>   commit id: 975c3a671f11279441006a29a19f55ccc15fb320
+>   ( mm: non-atomically mark page accessed during page cache allocation
+>   where possible)
+> 
+>   Unable to handle kernel paging request at virtual address 30e03501
+>   pgd = c68cc000
+>   [30e03501] *pgd=00000000
+>   Internal error: Oops: 1 [#1] PREEMPT ARM
+>   Modules linked in:
+>   CPU: 0 PID: 1015 Comm: network.sh Not tainted 3.15.0-rc5-00323-g975c3a6 #9
+>   task: c70c4e00 ti: c73d0000 task.ti: c73d0000
+>   PC is at init_page_accessed+0xc/0x24
+>   LR is at shmem_write_begin+0x54/0x60
+>   pc : [<c0088aa0>]    lr : [<c00923e8>]    psr: 20000013
+>   sp : c73d1d90  ip : c73d1da0  fp : c73d1d9c
+>   r10: c73d1dec  r9 : 00000000  r8 : 00000000
+>   r7 : c73d1e6c  r6 : c694d7bc  r5 : ffffffe4  r4 : c73d1dec
+>   r3 : c73d0000  r2 : 00000001  r1 : 00000000  r0 : 30e03501
+>   Flags: nzCv  IRQs on  FIQs on  Mode SVC_32  ISA ARM  Segment user
+>   Control: 0005317f  Table: c68cc000  DAC: 00000015
+>   Process network.sh (pid: 1015, stack limit = 0xc73d01c0)
+> 
+> pagep is set but not pointing to anywhere valid as it's an uninitialised
+> stack variable. This patch is a fix to
+> mm-non-atomically-mark-page-accessed-during-page-cache-allocation-where-possible.patch
+> 
+> ...
 >
-> That's a bug, which is being fixed.  We can't go back in time and create
-> new interfaces on old kernels.
->
->>>
->>>>>>   The situation get worse when task was dumped on one kernel and
->>>>>> then restored on another kernel where vdso content is different
->>>>>> from one save in image -- is such case as I mentioned we need
->>>>>> that named vdso proxy which redirect calls to vdso of the system
->>>>>> where task is restoring. And when such "restored" task get checkpointed
->>>>>> second time we don't dump new living vdso but save only old vdso
->>>>>> proxy on disk (detecting it is a different story, in short we
->>>>>> inject a unique mark into elf header).
->>>>>
->>>>> Yuck.  But I don't know whether the kernel can help much here.
->>>>
->>>> Some prctl which would tell kernel to put vdso at specifed address.
->>>> We can live without it for now so not a big deal (yet ;)
->>>
->>> mremap() will do this for you.
->>
->> Except that it's buggy: it doesn't change mm->context.vdso.  For
->> 64-bit tasks, the only consumer outside exec was arch_vma_name, and
->> this patch removes even that.  For 32-bit tasks, though, it's needed
->> for signal delivery.
->>
->
-> Again, a bug, let's fix it rather than saying we need a new interface.
+> --- a/mm/filemap.c
+> +++ b/mm/filemap.c
+> @@ -2459,7 +2459,7 @@ ssize_t generic_perform_write(struct file *file,
+>  		flags |= AOP_FLAG_UNINTERRUPTIBLE;
+>  
+>  	do {
+> -		struct page *page;
+> +		struct page *page = NULL;
+>  		unsigned long offset;	/* Offset into pagecache page */
+>  		unsigned long bytes;	/* Bytes to write to page */
+>  		size_t copied;		/* Bytes copied from user */
 
-What happens if someone remaps just part of the vdso?
+Well not really.  generic_perform_write() only touches *page if
+->write_begin() returned "success", which is reasonable behavior.
 
-Presumably we'd just track the position of the first page of the vdso,
-but this might be hard to implement: I don't think there's any
-callback from the core mm code for ths.
+I'd say you mucked up shmem_write_begin() - it runs
+init_page_accessed() even if shmem_getpage() returned an error.  It
+shouldn't be doing that.
 
---Andy
+This?
+
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: mm/shmem.c: don't run init_page_accessed() against an uninitialised pointer
+
+If shmem_getpage() returned an error then it didn't necessarily initialise
+*pagep.  So shmem_write_begin() shouldn't be playing with *pagep in this
+situation.
+
+Fixes an oops when "mm: non-atomically mark page accessed during page
+cache allocation where possible" (quite reasonably) left *pagep
+uninitialized.
+
+Reported-by: Prabhakar Lad <prabhakar.csengg@gmail.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>
+Cc: Jan Kara <jack@suse.cz>
+Cc: Michal Hocko <mhocko@suse.cz>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Dave Hansen <dave.hansen@intel.com>
+Cc: Mel Gorman <mgorman@suse.de>
+Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+---
+
+ mm/shmem.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff -puN mm/shmem.c~mm-non-atomically-mark-page-accessed-during-page-cache-allocation-where-possiblefix-2 mm/shmem.c
+--- a/mm/shmem.c~mm-non-atomically-mark-page-accessed-during-page-cache-allocation-where-possiblefix-2
++++ a/mm/shmem.c
+@@ -1376,7 +1376,7 @@ shmem_write_begin(struct file *file, str
+ 	struct inode *inode = mapping->host;
+ 	pgoff_t index = pos >> PAGE_CACHE_SHIFT;
+ 	ret = shmem_getpage(inode, index, pagep, SGP_WRITE, NULL);
+-	if (*pagep)
++	if (ret == 0 && *pagep)
+ 		init_page_accessed(*pagep);
+ 	return ret;
+ }
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
