@@ -1,175 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 893D96B0036
-	for <linux-mm@kvack.org>; Tue, 20 May 2014 02:31:11 -0400 (EDT)
-Received: by mail-pd0-f178.google.com with SMTP id v10so18697pde.23
-        for <linux-mm@kvack.org>; Mon, 19 May 2014 23:31:11 -0700 (PDT)
-Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
-        by mx.google.com with ESMTP id iw8si370193pbc.137.2014.05.19.23.31.09
+	by kanga.kvack.org (Postfix) with ESMTP id 3A0A66B0036
+	for <linux-mm@kvack.org>; Tue, 20 May 2014 02:49:51 -0400 (EDT)
+Received: by mail-pd0-f178.google.com with SMTP id v10so35715pde.9
+        for <linux-mm@kvack.org>; Mon, 19 May 2014 23:49:50 -0700 (PDT)
+Received: from lgeamrelo02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
+        by mx.google.com with ESMTP id td3si23238645pab.128.2014.05.19.23.49.49
         for <linux-mm@kvack.org>;
-        Mon, 19 May 2014 23:31:10 -0700 (PDT)
-Date: Tue, 20 May 2014 15:33:42 +0900
+        Mon, 19 May 2014 23:49:50 -0700 (PDT)
+Date: Tue, 20 May 2014 15:52:22 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [RFC PATCH 2/3] CMA: aggressively allocate the pages on cma
- reserved memory when not used
-Message-ID: <20140520063342.GA8315@js1304-P5Q-DELUXE>
-References: <1399509144-8898-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1399509144-8898-3-git-send-email-iamjoonsoo.kim@lge.com>
- <20140513030057.GC32092@bbox>
- <20140515015301.GA10116@js1304-P5Q-DELUXE>
- <20140515024353.GA27599@bbox>
- <20140519021121.GA19615@js1304-P5Q-DELUXE>
- <20140519025305.GA13248@bbox>
- <20140519045001.GA23916@js1304-P5Q-DELUXE>
- <20140519231859.GA21636@bbox>
+Subject: Re: [RFC PATCH] arm: dma-mapping: fallback allocation for cma failure
+Message-ID: <20140520065222.GB8315@js1304-P5Q-DELUXE>
+References: <537AEEDB.2000001@lge.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140519231859.GA21636@bbox>
+In-Reply-To: <537AEEDB.2000001@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Laura Abbott <lauraa@codeaurora.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Michal Nazarewicz <mina86@mina86.com>, Heesub Shin <heesub.shin@samsung.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Marek Szyprowski <m.szyprowski@samsung.com>
+To: Gioh Kim <gioh.kim@lge.com>
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Heesub Shin <heesub.shin@samsung.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, =?utf-8?B?7J206rG07Zi4?= <gunho.lee@lge.com>
 
-On Tue, May 20, 2014 at 08:18:59AM +0900, Minchan Kim wrote:
-> On Mon, May 19, 2014 at 01:50:01PM +0900, Joonsoo Kim wrote:
-> > On Mon, May 19, 2014 at 11:53:05AM +0900, Minchan Kim wrote:
-> > > On Mon, May 19, 2014 at 11:11:21AM +0900, Joonsoo Kim wrote:
-> > > > On Thu, May 15, 2014 at 11:43:53AM +0900, Minchan Kim wrote:
-> > > > > On Thu, May 15, 2014 at 10:53:01AM +0900, Joonsoo Kim wrote:
-> > > > > > On Tue, May 13, 2014 at 12:00:57PM +0900, Minchan Kim wrote:
-> > > > > > > Hey Joonsoo,
-> > > > > > > 
-> > > > > > > On Thu, May 08, 2014 at 09:32:23AM +0900, Joonsoo Kim wrote:
-> > > > > > > > CMA is introduced to provide physically contiguous pages at runtime.
-> > > > > > > > For this purpose, it reserves memory at boot time. Although it reserve
-> > > > > > > > memory, this reserved memory can be used for movable memory allocation
-> > > > > > > > request. This usecase is beneficial to the system that needs this CMA
-> > > > > > > > reserved memory infrequently and it is one of main purpose of
-> > > > > > > > introducing CMA.
-> > > > > > > > 
-> > > > > > > > But, there is a problem in current implementation. The problem is that
-> > > > > > > > it works like as just reserved memory approach. The pages on cma reserved
-> > > > > > > > memory are hardly used for movable memory allocation. This is caused by
-> > > > > > > > combination of allocation and reclaim policy.
-> > > > > > > > 
-> > > > > > > > The pages on cma reserved memory are allocated if there is no movable
-> > > > > > > > memory, that is, as fallback allocation. So the time this fallback
-> > > > > > > > allocation is started is under heavy memory pressure. Although it is under
-> > > > > > > > memory pressure, movable allocation easily succeed, since there would be
-> > > > > > > > many pages on cma reserved memory. But this is not the case for unmovable
-> > > > > > > > and reclaimable allocation, because they can't use the pages on cma
-> > > > > > > > reserved memory. These allocations regard system's free memory as
-> > > > > > > > (free pages - free cma pages) on watermark checking, that is, free
-> > > > > > > > unmovable pages + free reclaimable pages + free movable pages. Because
-> > > > > > > > we already exhausted movable pages, only free pages we have are unmovable
-> > > > > > > > and reclaimable types and this would be really small amount. So watermark
-> > > > > > > > checking would be failed. It will wake up kswapd to make enough free
-> > > > > > > > memory for unmovable and reclaimable allocation and kswapd will do.
-> > > > > > > > So before we fully utilize pages on cma reserved memory, kswapd start to
-> > > > > > > > reclaim memory and try to make free memory over the high watermark. This
-> > > > > > > > watermark checking by kswapd doesn't take care free cma pages so many
-> > > > > > > > movable pages would be reclaimed. After then, we have a lot of movable
-> > > > > > > > pages again, so fallback allocation doesn't happen again. To conclude,
-> > > > > > > > amount of free memory on meminfo which includes free CMA pages is moving
-> > > > > > > > around 512 MB if I reserve 512 MB memory for CMA.
-> > > > > > > > 
-> > > > > > > > I found this problem on following experiment.
-> > > > > > > > 
-> > > > > > > > 4 CPUs, 1024 MB, VIRTUAL MACHINE
-> > > > > > > > make -j24
-> > > > > > > > 
-> > > > > > > > CMA reserve:		0 MB		512 MB
-> > > > > > > > Elapsed-time:		234.8		361.8
-> > > > > > > > Average-MemFree:	283880 KB	530851 KB
-> > > > > > > > 
-> > > > > > > > To solve this problem, I can think following 2 possible solutions.
-> > > > > > > > 1. allocate the pages on cma reserved memory first, and if they are
-> > > > > > > >    exhausted, allocate movable pages.
-> > > > > > > > 2. interleaved allocation: try to allocate specific amounts of memory
-> > > > > > > >    from cma reserved memory and then allocate from free movable memory.
-> > > > > > > 
-> > > > > > > I love this idea but when I see the code, I don't like that.
-> > > > > > > In allocation path, just try to allocate pages by round-robin so it's role
-> > > > > > > of allocator. If one of migratetype is full, just pass mission to reclaimer
-> > > > > > > with hint(ie, Hey reclaimer, it's non-movable allocation fail
-> > > > > > > so there is pointless if you reclaim MIGRATE_CMA pages) so that
-> > > > > > > reclaimer can filter it out during page scanning.
-> > > > > > > We already have an tool to achieve it(ie, isolate_mode_t).
-> > > > > > 
-> > > > > > Hello,
-> > > > > > 
-> > > > > > I agree with leaving fast allocation path as simple as possible.
-> > > > > > I will remove runtime computation for determining ratio in
-> > > > > > __rmqueue_cma() and, instead, will use pre-computed value calculated
-> > > > > > on the other path.
-> > > > > 
-> > > > > Sounds good.
-> > > > > 
-> > > > > > 
-> > > > > > I am not sure that whether your second suggestion(Hey relaimer part)
-> > > > > > is good or not. In my quick thought, that could be helpful in the
-> > > > > > situation that many free cma pages remained. But, it would be not helpful
-> > > > > > when there are neither free movable and cma pages. In generally, most
-> > > > > > workloads mainly uses movable pages for page cache or anonymous mapping.
-> > > > > > Although reclaim is triggered by non-movable allocation failure, reclaimed
-> > > > > > pages are used mostly by movable allocation. We can handle these allocation
-> > > > > > request even if we reclaim the pages just in lru order. If we rotate
-> > > > > > the lru list for finding movable pages, it could cause more useful
-> > > > > > pages to be evicted.
-> > > > > > 
-> > > > > > This is just my quick thought, so please let me correct if I am wrong.
-> > > > > 
-> > > > > Why should reclaimer reclaim unnecessary pages?
-> > > > > So, your answer is that it would be better because upcoming newly allocated
-> > > > > pages would be allocated easily without interrupt. But it could reclaim
-> > > > > too much pages until watermark for unmovable allocation is okay.
-> > > > > Even, sometime, you might see OOM.
-> > > > > 
-> > > > > Moreover, how could you handle current trobule?
-> > > > > For example, there is atomic allocation and the only thing to save the world
-> > > > > is kswapd because it's one of kswapd role but kswapd is spending many time to
-> > > > > reclaim CMA pages, which is pointless so the allocation would be easily failed.
-> > > > 
-> > > > Hello,
-> > > > 
-> > > > I guess that it isn't the problem. In lru, movable pages and cma pages
-> > > > would be interleaved. So it doesn't takes too long time to get the
-> > > > page for non-movable allocation.
-> > > 
-> > > Please, don't assume there are ideal LRU ordering.
-> > > Newly allocated page by fairness allocation is located by head of LRU
-> > > while old pages are approaching the tail so there is huge time gab.
-> > > During the time, old pages could be dropped/promoting so one of side
-> > > could be filled with one type rather than interleaving both types pages
-> > > you expected.
-> > 
-> > I assumed general case, not ideal case.
-> > Your example can be possible, but would be corner case.
+On Tue, May 20, 2014 at 02:57:47PM +0900, Gioh Kim wrote:
 > 
-> I talked with Joonsoo yesterday and should post our conclusion
-> for other reviewers/maintainers.
+> Thanks for your advise, Michal Nazarewicz.
 > 
-> It's not a corner case and it could happen depending on zone and CMA
-> configuration. For example, there is 330M high zone and CMA consumes
-> 300M in the space while normal movable area consumes just 30M.
-> In the case, unmovable allocation could make too many unnecessary
-> reclaiming of the zone so the conclusion we reached is to need target
-> reclaiming(ex, isolate_mode_t).
-> 
-> But not sure it should be part of this patchset because this patchset
-> is surely enhance(ie, before, it was hard to allocate page from CMA area
-> but this patchset makes it works) but this patchset could make mentioned
-> problem as side-effect so I think we could solve the issue(ie, too many
-> reclaiming in unbalanced zone) in another patchset.
-> 
-> Joonsoo, please mention this problem in the description when you respin
-> so other MM guys can notice that and give ideas, which would be helpful
-> a lot.
+> Having discuss with Joonsoo, I'm adding fallback allocation after __alloc_from_contiguous().
+> The fallback allocation works if CMA kernel options is turned on but CMA size is zero.
 
-Okay. Will do :)
+Hello, Gioh.
 
-Thanks.
+I also mentioned the case where devices have their specific cma_area.
+It means that this device needs memory with some contraint.
+Although I'm not familiar with DMA infrastructure, I think that
+we should handle this case.
+
+How about below patch?
+
+------------>8----------------
+diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
+index 6b00be1..4023434 100644
+--- a/arch/arm/mm/dma-mapping.c
++++ b/arch/arm/mm/dma-mapping.c
+@@ -379,7 +379,7 @@ static int __init atomic_pool_init(void)
+ 	unsigned long *bitmap;
+ 	struct page *page;
+ 	struct page **pages;
+-	void *ptr;
++	void *ptr = NULL;
+ 	int bitmap_size = BITS_TO_LONGS(nr_pages) * sizeof(long);
+ 
+ 	bitmap = kzalloc(bitmap_size, GFP_KERNEL);
+@@ -393,7 +393,8 @@ static int __init atomic_pool_init(void)
+ 	if (IS_ENABLED(CONFIG_DMA_CMA))
+ 		ptr = __alloc_from_contiguous(NULL, pool->size, prot, &page,
+ 					      atomic_pool_init);
+-	else
++
++	if (!ptr)
+ 		ptr = __alloc_remap_buffer(NULL, pool->size, gfp, prot, &page,
+ 					   atomic_pool_init);
+ 	if (ptr) {
+@@ -701,10 +702,22 @@ static void *__dma_alloc(struct device *dev, size_t size, dma_addr_t *handle,
+ 		addr = __alloc_simple_buffer(dev, size, gfp, &page);
+ 	else if (!(gfp & __GFP_WAIT))
+ 		addr = __alloc_from_pool(size, &page);
+-	else if (!IS_ENABLED(CONFIG_DMA_CMA))
+-		addr = __alloc_remap_buffer(dev, size, gfp, prot, &page, caller);
+-	else
+-		addr = __alloc_from_contiguous(dev, size, prot, &page, caller);
++	else {
++		if (IS_ENABLED(CONFIG_DMA_CMA)) {
++			addr = __alloc_from_contiguous(dev, size, prot,
++							&page, caller);
++			/*
++			 * Device specific cma_area means that
++			 * this device needs memory with some contraint.
++			 * So, we can't fall through general remap allocation.
++			 */
++			if (!addr && dev && dev->cma_area)
++				return NULL;
++		}
++
++		addr = __alloc_remap_buffer(dev, size, gfp, prot,
++							&page, caller);
++	}
+ 
+ 	if (addr)
+ 		*handle = pfn_to_dma(dev, page_to_pfn(page));
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
