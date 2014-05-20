@@ -1,67 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id A060C6B0036
-	for <linux-mm@kvack.org>; Mon, 19 May 2014 22:26:59 -0400 (EDT)
-Received: by mail-pa0-f50.google.com with SMTP id fb1so6629576pad.9
-        for <linux-mm@kvack.org>; Mon, 19 May 2014 19:26:59 -0700 (PDT)
-Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
-        by mx.google.com with ESMTP id os9si22260119pac.155.2014.05.19.19.26.57
-        for <linux-mm@kvack.org>;
-        Mon, 19 May 2014 19:26:58 -0700 (PDT)
-Message-ID: <537ABD6F.9090608@lge.com>
-Date: Tue, 20 May 2014 11:26:55 +0900
-From: Gioh Kim <gioh.kim@lge.com>
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F11C6B0036
+	for <linux-mm@kvack.org>; Mon, 19 May 2014 22:35:45 -0400 (EDT)
+Received: by mail-pd0-f178.google.com with SMTP id v10so107413pde.9
+        for <linux-mm@kvack.org>; Mon, 19 May 2014 19:35:45 -0700 (PDT)
+Received: from mail-pd0-x230.google.com (mail-pd0-x230.google.com [2607:f8b0:400e:c02::230])
+        by mx.google.com with ESMTPS id in10si22305207pac.127.2014.05.19.19.35.44
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 19 May 2014 19:35:44 -0700 (PDT)
+Received: by mail-pd0-f176.google.com with SMTP id p10so106098pdj.7
+        for <linux-mm@kvack.org>; Mon, 19 May 2014 19:35:44 -0700 (PDT)
+Date: Mon, 19 May 2014 19:34:27 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH V4 0/2] mm: FAULT_AROUND_ORDER patchset performance data
+ for powerpc
+In-Reply-To: <87d2f9jlpd.fsf@rustcorp.com.au>
+Message-ID: <alpine.LSU.2.11.1405191930130.3574@eggly.anvils>
+References: <1399541296-18810-1-git-send-email-maddy@linux.vnet.ibm.com> <537479E7.90806@linux.vnet.ibm.com> <alpine.LSU.2.11.1405151026540.4664@eggly.anvils> <87wqdik4n5.fsf@rustcorp.com.au> <53797511.1050409@linux.vnet.ibm.com> <alpine.LSU.2.11.1405191531150.1317@eggly.anvils>
+ <87d2f9jlpd.fsf@rustcorp.com.au>
 MIME-Version: 1.0
-Subject: Re: [RFC][PATCH] CMA: drivers/base/Kconfig: restrict CMA size to
- non-zero value
-References: <1399509144-8898-1-git-send-email-iamjoonsoo.kim@lge.com> <1399509144-8898-3-git-send-email-iamjoonsoo.kim@lge.com> <20140513030057.GC32092@bbox> <20140515015301.GA10116@js1304-P5Q-DELUXE> <5375C619.8010501@lge.com> <xa1tppjdfwif.fsf@mina86.com> <537962A0.4090600@lge.com> <20140519055527.GA24099@js1304-P5Q-DELUXE> <xa1td2f91qw5.fsf@mina86.com> <537AA6C7.1040506@lge.com> <xa1tzjiddyrr.fsf@mina86.com>
-In-Reply-To: <xa1tzjiddyrr.fsf@mina86.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 8bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Nazarewicz <mina86@mina86.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Minchan Kim <minchan.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Laura Abbott <lauraa@codeaurora.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Heesub Shin <heesub.shin@samsung.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Marek Szyprowski <m.szyprowski@samsung.com>, =?UTF-8?B?7J206rG07Zi4?= <gunho.lee@lge.com>, gurugio@gmail.com
+To: Rusty Russell <rusty@rustcorp.com.au>
+Cc: Madhavan Srinivasan <maddy@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, x86@kernel.org, benh@kernel.crashing.org, paulus@samba.org, akpm@linux-foundation.org, riel@redhat.com, mgorman@suse.de, ak@linux.intel.com, peterz@infradead.org, mingo@kernel.org, dave.hansen@intel.com
 
+On Tue, 20 May 2014, Rusty Russell wrote:
+> Hugh Dickins <hughd@google.com> writes:
+> >> On Monday 19 May 2014 05:42 AM, Rusty Russell wrote:
+> >> > 
+> >> > Perhaps we try to generalize from two data points (a slight improvement
+> >> > over doing it from 1!), eg:
+> >> > 
+> >> > /* 4 seems good for 4k-page x86, 0 seems good for 64k page ppc64, so: */
+> >> > unsigned int fault_around_order __read_mostly =
+> >> >         (16 - PAGE_SHIFT < 0 ? 0 : 16 - PAGE_SHIFT);
+> >
+> > Rusty's bimodal answer doesn't seem the right starting point to me.
+> 
+> ?  It's not bimodal, it's graded.  I think you misread?
 
-2014-05-20 i??i ? 10:28, Michal Nazarewicz i?' e,?:
-> On Mon, May 19 2014, Gioh Kim wrote:
->> If CMA option is not selected, __alloc_from_contiguous would not be
->> called.  We don't need to the fallback allocation.
->>
->> And if CMA option is selected and initialized correctly,
->> the cma allocation can fail in case of no-CMA-memory situation.
->> I thinks in that case we don't need to the fallback allocation also,
->> because it is normal case.
->>
->> Therefore I think the restriction of CMA size option and make CMA work
->> can cover every cases.
->
-> Wait, you just wrote that if CMA is not initialised correctly, it's fine
-> for atomic pool initialisation to fail, but if CMA size is initialised
-> correctly but too small, this is somehow worse situation?  I'm a bit
-> confused to be honest.
+Yikes, worse than misread, more like I was too rude even to read: sorry!
 
-I'm sorry to confuse you.
-Please forgive my poor English.
-My point is atomic_pool should be able to work with/without CMA.
-
-
->
-> IMO, cma=0 command line argument should be supported, as should having
-> the default CMA size zero.  If CMA size is set to zero, kernel should
-> behave as if CMA was not enabled at compile time.
-
-It's also good if atomic_pool can work well with zero CMA size.
-
-I can give up my patch.
-But Joonsoo's patch should be applied.
-
-Joonsoo, can you please send the full patch to maintainers?
-
->
->
->
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
