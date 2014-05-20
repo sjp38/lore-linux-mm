@@ -1,579 +1,329 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f49.google.com (mail-pb0-f49.google.com [209.85.160.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A1476B0036
-	for <linux-mm@kvack.org>; Mon, 19 May 2014 22:17:34 -0400 (EDT)
-Received: by mail-pb0-f49.google.com with SMTP id jt11so6560554pbb.36
-        for <linux-mm@kvack.org>; Mon, 19 May 2014 19:17:33 -0700 (PDT)
-Received: from mail-pa0-x22f.google.com (mail-pa0-x22f.google.com [2607:f8b0:400e:c03::22f])
-        by mx.google.com with ESMTPS id x10si6582004pas.51.2014.05.19.19.17.32
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id BF7196B0036
+	for <linux-mm@kvack.org>; Mon, 19 May 2014 22:21:15 -0400 (EDT)
+Received: by mail-pd0-f179.google.com with SMTP id x10so95838pdj.38
+        for <linux-mm@kvack.org>; Mon, 19 May 2014 19:21:15 -0700 (PDT)
+Received: from mail-pa0-x22b.google.com (mail-pa0-x22b.google.com [2607:f8b0:400e:c03::22b])
+        by mx.google.com with ESMTPS id ym9si22248255pab.72.2014.05.19.19.21.14
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 19 May 2014 19:17:33 -0700 (PDT)
-Received: by mail-pa0-f47.google.com with SMTP id lf10so6548461pab.6
-        for <linux-mm@kvack.org>; Mon, 19 May 2014 19:17:32 -0700 (PDT)
-Date: Mon, 19 May 2014 19:16:15 -0700 (PDT)
+        Mon, 19 May 2014 19:21:14 -0700 (PDT)
+Received: by mail-pa0-f43.google.com with SMTP id hz1so6565662pad.16
+        for <linux-mm@kvack.org>; Mon, 19 May 2014 19:21:14 -0700 (PDT)
+Date: Mon, 19 May 2014 19:20:03 -0700 (PDT)
 From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH v2 1/3] shm: add sealing API
-In-Reply-To: <1397587118-1214-2-git-send-email-dh.herrmann@gmail.com>
-Message-ID: <alpine.LSU.2.11.1405191911050.2970@eggly.anvils>
-References: <1397587118-1214-1-git-send-email-dh.herrmann@gmail.com> <1397587118-1214-2-git-send-email-dh.herrmann@gmail.com>
+Subject: Re: [PATCH v2 2/3] shm: add memfd_create() syscall
+In-Reply-To: <1397587118-1214-3-git-send-email-dh.herrmann@gmail.com>
+Message-ID: <alpine.LSU.2.11.1405191916300.2970@eggly.anvils>
+References: <1397587118-1214-1-git-send-email-dh.herrmann@gmail.com> <1397587118-1214-3-git-send-email-dh.herrmann@gmail.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: David Herrmann <dh.herrmann@gmail.com>
-Cc: Tony Battersby <tonyb@cybernetics.com>, Andy Lutomirski <luto@amacapital.net>, Jan Kara <jack@suse.cz>, Michael Kerrisk <mtk.manpages@gmail.com>, Ryan Lortie <desrt@desrt.ca>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Greg Kroah-Hartman <greg@kroah.com>, john.stultz@linaro.org, Kristian Hogsberg <krh@bitplanet.net>, Lennart Poettering <lennart@poettering.net>, Daniel Mack <zonque@gmail.com>, Kay Sievers <kay@vrfy.org>
+Cc: Tony Battersby <tonyb@cybernetics.com>, Andy Lutomirsky <luto@amacapital.net>, Al Viro <viro@zeniv.linux.org.uk>, Jan Kara <jack@suse.cz>, Michael Kerrisk <mtk.manpages@gmail.com>, Ryan Lortie <desrt@desrt.ca>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Greg Kroah-Hartman <greg@kroah.com>, john.stultz@linaro.org, Kristian Hogsberg <krh@bitplanet.net>, Lennart Poettering <lennart@poettering.net>, Daniel Mack <zonque@gmail.com>, Kay Sievers <kay@vrfy.org>
 
 On Tue, 15 Apr 2014, David Herrmann wrote:
 
-> If two processes share a common memory region, they usually want some
-> guarantees to allow safe access. This often includes:
->   - one side cannot overwrite data while the other reads it
->   - one side cannot shrink the buffer while the other accesses it
->   - one side cannot grow the buffer beyond previously set boundaries
+> memfd_create() is similar to mmap(MAP_ANON), but returns a file-descriptor
+> that you can pass to mmap(). It can support sealing and avoids any
+> connection to user-visible mount-points. Thus, it's not subject to quotas
+> on mounted file-systems, but can be used like malloc()'ed memory, but
+> with a file-descriptor to it.
 > 
-> If there is a trust-relationship between both parties, there is no need
-> for policy enforcement. However, if there's no trust relationship (eg.,
-> for general-purpose IPC) sharing memory-regions is highly fragile and
-> often not possible without local copies. Look at the following two
-> use-cases:
->   1) A graphics client wants to share its rendering-buffer with a
->      graphics-server. The memory-region is allocated by the client for
->      read/write access and a second FD is passed to the server. While
->      scanning out from the memory region, the server has no guarantee that
->      the client doesn't shrink the buffer at any time, requiring rather
->      cumbersome SIGBUS handling.
->   2) A process wants to perform an RPC on another process. To avoid huge
->      bandwidth consumption, zero-copy is preferred. After a message is
->      assembled in-memory and a FD is passed to the remote side, both sides
->      want to be sure that neither modifies this shared copy, anymore. The
->      source may have put sensible data into the message without a separate
->      copy and the target may want to parse the message inline, to avoid a
->      local copy.
-> 
-> While SIGBUS handling, POSIX mandatory locking and MAP_DENYWRITE provide
-> ways to achieve most of this, the first one is unproportionally ugly to
-> use in libraries and the latter two are broken/racy or even disabled due
-> to denial of service attacks.
-> 
-> This patch introduces the concept of SEALING. If you seal a file, a
-> specific set of operations is blocked on that file forever.
-> Unlike locks, seals can only be set, never removed. Hence, once you
-> verified a specific set of seals is set, you're guaranteed that no-one can
-> perform the blocked operations on this file, anymore.
-> 
-> An initial set of SEALS is introduced by this patch:
->   - SHRINK: If SEAL_SHRINK is set, the file in question cannot be reduced
->             in size. This affects ftruncate() and open(O_TRUNC).
->   - GROW: If SEAL_GROW is set, the file in question cannot be increased
->           in size. This affects ftruncate(), fallocate() and write().
->   - WRITE: If SEAL_WRITE is set, no write operations (besides resizing)
->            are possible. This affects fallocate(PUNCH_HOLE), mmap() and
->            write().
->   - SEAL: If SEAL_SEAL is set, no further seals can be added to a file.
->           This basically prevents the F_ADD_SEAL operation on a file and
->           can be set to prevent others from adding further seals that you
->           don't want.
-> 
-> The described use-cases can easily use these seals to provide safe use
-> without any trust-relationship:
->   1) The graphics server can verify that a passed file-descriptor has
->      SEAL_SHRINK set. This allows safe scanout, while the client is
->      allowed to increase buffer size for window-resizing on-the-fly.
->      Concurrent writes are explicitly allowed.
->   2) For general-purpose IPC, both processes can verify that SEAL_SHRINK,
->      SEAL_GROW and SEAL_WRITE are set. This guarantees that neither
->      process can modify the data while the other side parses it.
->      Furthermore, it guarantees that even with writable FDs passed to the
->      peer, it cannot increase the size to hit memory-limits of the source
->      process (in case the file-storage is accounted to the source).
-> 
-> The new API is an extension to fcntl(), adding two new commands:
->   F_GET_SEALS: Return a bitset describing the seals on the file. This
->                can be called on any FD if the underlying file supports
->                sealing.
->   F_ADD_SEALS: Change the seals of a given file. This requires WRITE
->                access to the file and F_SEAL_SEAL may not already be set.
->                Furthermore, the underlying file must support sealing and
->                there may not be any existing shared mapping of that file.
->                Otherwise, EBADF/EPERM is returned.
->                The given seals are _added_ to the existing set of seals
->                on the file. You cannot remove seals again.
-> 
-> The fcntl() handler is currently specific to shmem and disabled on all
-> files. A file needs to explicitly support sealing for this interface to
-> work. A separate syscall is added in a follow-up, which creates files that
-> support sealing. There is no intention to support this on other
-> file-systems. Semantics are unclear for non-volatile files and we lack any
-> use-case right now. Therefore, the implementation is specific to shmem.
+> memfd_create() does not create a front-FD, but instead returns the raw
 
-Yes, I think you've struck the right balance, by making it a general
-fcntl interface, but implementing it only in shmem.
+What is a front-FD?
+
+> shmem file, so calls like ftruncate() can be used. Also calls like fstat()
+> will return proper information and mark the file as regular file. If you
+> want sealing, you can specify MFD_ALLOW_SEALING. Otherwise, sealing is not
+> support (like on all other regular files).
+> 
+> Compared to O_TMPFILE, it does not require a tmpfs mount-point and is not
+> subject to quotas and alike.
+
+You mention quotas a couple of times, and I want to be clear about that.
+
+I think you are mainly thinking of the "df" size limitation which comes
+by default on a tmpfs mount, but can be retuned or removed with the
+size= or nr_block= mount options.  You want memfd_create() to be free
+of that limitation, which indeed it is.
+
+(I'm not proud of the way in which an unlimited tmpfs mount can easily
+be used to OOM the system, killing processes which do little to give
+back the memory needed; but that's how it is, and you're not making
+that worse, just adding a further interface to it.)
+
+And we have never implemented fs/quota/-style quotas on tmpfs,
+so you're certainly free from those.
+
+But a created memfd is still subject to an RLIMIT_FSIZE limit, and
+to a memcg's memory.limit_in_bytes and memory.memsw.limit_in_bytes:
+I expect you don't care about those, that they would be unlimited
+in the cases that you care about.
+
+And a created memfd is still subject to __vm_enough_memory() limiting:
+unlimited when OVERCOMMIT_ALWAYS, a little unpredictable when
+OVERCOMMIT_GUESS, strictly accounted when OVERCOMMIT_NEVER.  I don't
+think we can compromise on OVERCOMMIT_NEVER, but if OVERCOMMIT_GUESS
+gives you a problem, we could probably tweak it for your case.
+More on this below, when considering the size arg to memfd_create().
 
 > 
 > Signed-off-by: David Herrmann <dh.herrmann@gmail.com>
 > ---
->  fs/fcntl.c                 |   5 ++
->  include/linux/shmem_fs.h   |  20 ++++++
->  include/uapi/linux/fcntl.h |  15 +++++
->  mm/shmem.c                 | 162 ++++++++++++++++++++++++++++++++++++++++++++-
->  4 files changed, 199 insertions(+), 3 deletions(-)
+>  arch/x86/syscalls/syscall_32.tbl |  1 +
+>  arch/x86/syscalls/syscall_64.tbl |  1 +
+
+Okay.  No point in cluttering the patchset with other architectures
+until this is closer to merge.  Miklos Szeredi's recent patches
+"add renameat2 syscall" provide a very helpful precedent to follow.
+
+>  include/linux/syscalls.h         |  1 +
+>  include/uapi/linux/memfd.h       | 10 ++++++
+>  kernel/sys_ni.c                  |  1 +
+>  mm/shmem.c                       | 74 ++++++++++++++++++++++++++++++++++++++++
+>  6 files changed, 88 insertions(+)
+>  create mode 100644 include/uapi/linux/memfd.h
 > 
-> diff --git a/fs/fcntl.c b/fs/fcntl.c
-> index 9ead159..1a7a722 100644
-> --- a/fs/fcntl.c
-> +++ b/fs/fcntl.c
-> @@ -21,6 +21,7 @@
->  #include <linux/rcupdate.h>
->  #include <linux/pid_namespace.h>
->  #include <linux/user_namespace.h>
-> +#include <linux/shmem_fs.h>
+> diff --git a/arch/x86/syscalls/syscall_32.tbl b/arch/x86/syscalls/syscall_32.tbl
+> index 96bc506..c943b8a 100644
+> --- a/arch/x86/syscalls/syscall_32.tbl
+> +++ b/arch/x86/syscalls/syscall_32.tbl
+> @@ -359,3 +359,4 @@
+>  350	i386	finit_module		sys_finit_module
+>  351	i386	sched_setattr		sys_sched_setattr
+>  352	i386	sched_getattr		sys_sched_getattr
+> +353	i386	memfd_create		sys_memfd_create
+> diff --git a/arch/x86/syscalls/syscall_64.tbl b/arch/x86/syscalls/syscall_64.tbl
+> index 04376ac..dfcfd6f 100644
+> --- a/arch/x86/syscalls/syscall_64.tbl
+> +++ b/arch/x86/syscalls/syscall_64.tbl
+> @@ -323,6 +323,7 @@
+>  314	common	sched_setattr		sys_sched_setattr
+>  315	common	sched_getattr		sys_sched_getattr
+>  316	common	renameat2		sys_renameat2
+> +317	common	memfd_create		sys_memfd_create
 >  
->  #include <asm/poll.h>
->  #include <asm/siginfo.h>
-> @@ -336,6 +337,10 @@ static long do_fcntl(int fd, unsigned int cmd, unsigned long arg,
->  	case F_GETPIPE_SZ:
->  		err = pipe_fcntl(filp, cmd, arg);
->  		break;
-> +	case F_ADD_SEALS:
-> +	case F_GET_SEALS:
-> +		err = shmem_fcntl(filp, cmd, arg);
+>  #
+>  # x32-specific system call numbers start at 512 to avoid cache impact
+> diff --git a/include/linux/syscalls.h b/include/linux/syscalls.h
+> index a4a0588..133b705 100644
+> --- a/include/linux/syscalls.h
+> +++ b/include/linux/syscalls.h
+> @@ -802,6 +802,7 @@ asmlinkage long sys_timerfd_settime(int ufd, int flags,
+>  asmlinkage long sys_timerfd_gettime(int ufd, struct itimerspec __user *otmr);
+>  asmlinkage long sys_eventfd(unsigned int count);
+>  asmlinkage long sys_eventfd2(unsigned int count, int flags);
+> +asmlinkage long sys_memfd_create(const char *uname_ptr, u64 size, u64 flags);
+>  asmlinkage long sys_fallocate(int fd, int mode, loff_t offset, loff_t len);
+>  asmlinkage long sys_old_readdir(unsigned int, struct old_linux_dirent __user *, unsigned int);
+>  asmlinkage long sys_pselect6(int, fd_set __user *, fd_set __user *,
+> diff --git a/include/uapi/linux/memfd.h b/include/uapi/linux/memfd.h
+> new file mode 100644
+> index 0000000..c4a6db0
+> --- /dev/null
+> +++ b/include/uapi/linux/memfd.h
+> @@ -0,0 +1,10 @@
+> +#ifndef _UAPI_LINUX_MEMFD_H
+> +#define _UAPI_LINUX_MEMFD_H
+> +
+> +#include <linux/types.h>
 
-Okay.  I agree that fcntl() is the best interface to use; and although
-we always feel a bit dirty exporting a function from shmem.c for use
-outside, you are following what's already done with pipe_fcntl(); and
-it seems overkill to add an fcntl method to file_operations without any
-wider usage.
+Why include linux/types.h in this one?
 
-> +		break;
->  	default:
->  		break;
->  	}
-> diff --git a/include/linux/shmem_fs.h b/include/linux/shmem_fs.h
-> index 4d1771c..c043d67 100644
-> --- a/include/linux/shmem_fs.h
-> +++ b/include/linux/shmem_fs.h
-> @@ -1,6 +1,7 @@
->  #ifndef __SHMEM_FS_H
->  #define __SHMEM_FS_H
+> +
+> +/* flags for memfd_create(2) (u64) */
+> +#define MFD_CLOEXEC		0x0001ULL
+> +#define MFD_ALLOW_SEALING	0x0002ULL
+> +
+> +#endif /* _UAPI_LINUX_MEMFD_H */
+> diff --git a/kernel/sys_ni.c b/kernel/sys_ni.c
+> index bc8d1b7..f96c329 100644
+> --- a/kernel/sys_ni.c
+> +++ b/kernel/sys_ni.c
+> @@ -195,6 +195,7 @@ cond_syscall(compat_sys_timerfd_settime);
+>  cond_syscall(compat_sys_timerfd_gettime);
+>  cond_syscall(sys_eventfd);
+>  cond_syscall(sys_eventfd2);
+> +cond_syscall(sys_memfd_create);
 >  
-> +#include <linux/file.h>
->  #include <linux/swap.h>
->  #include <linux/mempolicy.h>
->  #include <linux/pagemap.h>
-> @@ -20,6 +21,7 @@ struct shmem_inode_info {
->  	struct shared_policy	policy;		/* NUMA memory alloc policy */
->  	struct list_head	swaplist;	/* chain of maybes on swap */
->  	struct simple_xattrs	xattrs;		/* list of xattrs */
-> +	u32			seals;		/* shmem seals */
-
-Okay.  I do wonder why you chose "u32" where I would have chosen
-"unsigned int": probably just our different backgrounds - kernel
-internals most often use the basic types, whereas you are thinking
-about explicit interfaces.  Even syscalls tend to have "int" args,
-but perhaps that's just a historic mistake.  I have no good reason
-to disagree with your use of "u32", but draw attention to it in
-case someone else feels more strongly.
-
-Oh, how about you move "seals" up between "lock" and "flags":
-on many configurations, it will then occupy what used to be padding.
-
->  	struct inode		vfs_inode;
->  };
->  
-> @@ -65,4 +67,22 @@ static inline struct page *shmem_read_mapping_page(
->  					mapping_gfp_mask(mapping));
->  }
->  
-> +/* marks inode to support sealing */
-> +#define SHMEM_ALLOW_SEALING (1U << 31)
-
-This feels unnecessary to me: see comment on shmem_add_seals.
-
-> +
-> +#ifdef CONFIG_SHMEM
-
-Should that rather be CONFIG_TMPFS?  I think you have placed
-shmem_fcntl() and its supporting functions in the CONFIG_TMPFS
-part of mm/shmem.c (and CONFIG_TMPFS depends on CONFIG_SHMEM).
-
-It's almost certainly true that "CONFIG_TMPFS" has outlived its v2.4
-usefulness, and serves as more of a confusion than a help nowadays:
-particularly since !CONFIG_SHMEM gives you the ramfs filesystem, but
-CONFIG_SHMEM without CONFIG_TMPFS does not give you a filesystem.
-
-Blame me for leaving CONFIG_TMPFS around; but for now,
-I think it's CONFIG_TMPFS you want there (please check).
-
-> +
-> +extern int shmem_add_seals(struct file *file, u32 seals);
-> +extern int shmem_get_seals(struct file *file);
-> +extern long shmem_fcntl(struct file *file, unsigned int cmd, unsigned long arg);
-> +
-> +#else
-> +
-
-Are you sure you want to generate a link error rather than a runtime
-fallback if there's a driver using shmem_add_seals() or shmem_get_seals()
-in a !CONFIG_SHMEM kernel?  That might be the right decision, but it
-surprises me a little.
-
-> +static inline long shmem_fcntl(struct file *f, unsigned int c, unsigned long a)
-> +{
-> +	return -EINVAL;
-
-Should be -EBADF to match what you get in the CONFIG_SHMEM case.
-
-> +}
-> +
-> +#endif
-> +
->  #endif
-> diff --git a/include/uapi/linux/fcntl.h b/include/uapi/linux/fcntl.h
-> index 074b886..1b9b9f4 100644
-> --- a/include/uapi/linux/fcntl.h
-> +++ b/include/uapi/linux/fcntl.h
-> @@ -28,6 +28,21 @@
->  #define F_GETPIPE_SZ	(F_LINUX_SPECIFIC_BASE + 8)
->  
->  /*
-> + * Set/Get seals
-> + */
-> +#define F_ADD_SEALS	(F_LINUX_SPECIFIC_BASE + 9)
-> +#define F_GET_SEALS	(F_LINUX_SPECIFIC_BASE + 10)
-> +
-> +/*
-> + * Types of seals
-> + */
-> +#define F_SEAL_SEAL	0x0001	/* prevent further seals from being set */
-> +#define F_SEAL_SHRINK	0x0002	/* prevent file from shrinking */
-> +#define F_SEAL_GROW	0x0004	/* prevent file from growing */
-> +#define F_SEAL_WRITE	0x0008	/* prevent writes */
-> +/* (1U << 31) is reserved for internal use */
-
-I question the need to reserve that: see comment on shmem_add_seals.
-
-> +
-> +/*
->   * Types of directory notifications that may be requested.
->   */
->  #define DN_ACCESS	0x00000001	/* File accessed */
+>  /* performance counters: */
+>  cond_syscall(sys_perf_event_open);
 > diff --git a/mm/shmem.c b/mm/shmem.c
-> index 9f70e02..175a5b8 100644
+> index 175a5b8..203cc4e 100644
 > --- a/mm/shmem.c
 > +++ b/mm/shmem.c
-> @@ -66,6 +66,7 @@ static struct vfsmount *shm_mnt;
+> @@ -66,7 +66,9 @@ static struct vfsmount *shm_mnt;
 >  #include <linux/highmem.h>
 >  #include <linux/seq_file.h>
 >  #include <linux/magic.h>
-> +#include <linux/fcntl.h>
+> +#include <linux/syscalls.h>
+>  #include <linux/fcntl.h>
+> +#include <uapi/linux/memfd.h>
 >  
 >  #include <asm/uaccess.h>
 >  #include <asm/pgtable.h>
-> @@ -531,16 +532,23 @@ EXPORT_SYMBOL_GPL(shmem_truncate_range);
->  static int shmem_setattr(struct dentry *dentry, struct iattr *attr)
->  {
->  	struct inode *inode = dentry->d_inode;
-> +	struct shmem_inode_info *info = SHMEM_I(inode);
-> +	loff_t oldsize = inode->i_size;
-> +	loff_t newsize = attr->ia_size;
->  	int error;
->  
->  	error = inode_change_ok(inode, attr);
->  	if (error)
->  		return error;
->  
-> -	if (S_ISREG(inode->i_mode) && (attr->ia_valid & ATTR_SIZE)) {
-> -		loff_t oldsize = inode->i_size;
-> -		loff_t newsize = attr->ia_size;
-> +	/* protected by i_mutex */
-> +	if (attr->ia_valid & ATTR_SIZE) {
-> +		if ((newsize < oldsize && (info->seals & F_SEAL_SHRINK)) ||
-> +		    (newsize > oldsize && (info->seals & F_SEAL_GROW)))
-> +			return -EPERM;
-> +	}
->  
-> +	if (S_ISREG(inode->i_mode) && (attr->ia_valid & ATTR_SIZE)) {
->  		if (newsize != oldsize) {
->  			i_size_write(inode, newsize);
->  			inode->i_ctime = inode->i_mtime = CURRENT_TIME;
-> @@ -1289,6 +1297,13 @@ out_nomem:
->  
->  static int shmem_mmap(struct file *file, struct vm_area_struct *vma)
->  {
-> +	struct inode *inode = file_inode(file);
-> +	struct shmem_inode_info *info = SHMEM_I(inode);
-> +
-> +	/* protected by mmap_sem */
-> +	if ((info->seals & F_SEAL_WRITE) && (vma->vm_flags & VM_SHARED))
-> +		return -EPERM;
-> +
->  	file_accessed(file);
->  	vma->vm_ops = &shmem_vm_ops;
->  	return 0;
-> @@ -1373,7 +1388,15 @@ shmem_write_begin(struct file *file, struct address_space *mapping,
->  			struct page **pagep, void **fsdata)
->  {
->  	struct inode *inode = mapping->host;
-> +	struct shmem_inode_info *info = SHMEM_I(inode);
->  	pgoff_t index = pos >> PAGE_CACHE_SHIFT;
-> +
-> +	/* i_mutex is held by caller */
-> +	if (info->seals & F_SEAL_WRITE)
-> +		return -EPERM;
-> +	if ((info->seals & F_SEAL_GROW) && pos + len > inode->i_size)
-> +		return -EPERM;
-> +
->  	return shmem_getpage(inode, index, pagep, SGP_WRITE, NULL);
+> @@ -2919,6 +2921,78 @@ out4:
+>  	return error;
 >  }
 >  
-> @@ -1719,11 +1742,133 @@ static loff_t shmem_file_llseek(struct file *file, loff_t offset, int whence)
->  	return offset;
->  }
->  
-> +#define F_ALL_SEALS (F_SEAL_SEAL | \
-> +		     F_SEAL_SHRINK | \
-> +		     F_SEAL_GROW | \
-> +		     F_SEAL_WRITE)
+
+Whereas 1/3's sealing stuff was under CONFIG_TMPFS, this is in a
+CONFIG_SHMEM part of mm/shmem.c, built even when !CONFIG_TMPFS: in
+which case you could not write to or truncate the object created,
+just mmap it and access it that way (like SysV SHM).  Not necessarily
+wrong, but it may prevent surprises to put this under CONFIG_TMPFS:
+the user gets an fd, so probably expects filesystem operations to work.
+
+> +#define MFD_NAME_PREFIX "memfd:"
+> +#define MFD_NAME_PREFIX_LEN (sizeof(MFD_NAME_PREFIX) - 1)
+> +#define MFD_NAME_MAX_LEN (NAME_MAX - MFD_NAME_PREFIX_LEN)
 > +
-> +int shmem_add_seals(struct file *file, u32 seals)
-> +{
-> +	struct dentry *dentry = file->f_path.dentry;
-> +	struct inode *inode = dentry->d_inode;
-> +	struct shmem_inode_info *info = SHMEM_I(inode);
-> +	int r;
-
-mm/shmem.c is currently using "int error", "int err", "int ret" or
-"int retval" for this (maybe more!): I'd prefer you not to add "r"
-to the menagerie, "error" or "err" would be good here.
-
+> +#define MFD_ALL_FLAGS (MFD_CLOEXEC | MFD_ALLOW_SEALING)
 > +
-> +	/* SHMEM_ALLOW_SEALING is a private, unused bit */
-> +	BUILD_BUG_ON(F_ALL_SEALS & SHMEM_ALLOW_SEALING);
+> +SYSCALL_DEFINE3(memfd_create,
+> +		const char*, uname,
+> +		u64, size,
+> +		u64, flags)
 
-I see no need for SHMEM_ALLOW_SEALING.
-Now that you have added F_SEAL_SEAL, why don't you just make
-shmem_get_inode() initialize info->seals with F_SEAL_SEAL,
-then clear that in the one place you need to in the next patch?
+If I'd come in earlier, I'd have probably looked for another name
+than memfd_create; but I don't have anything better in mind, and
+you've done a great job of sounding out potential users, so let's
+stick with the name everyone is expecting.
 
-> +
-> +	/*
-> +	 * SEALING
-> +	 * Sealing allows multiple parties to share a shmem-file but restrict
-> +	 * access to a specific subset of file operations. Seals can only be
-> +	 * added, but never removed. This way, mutually untrusted parties can
-> +	 * share common memory regions with a well-defined policy. A malicious
-> +	 * peer can thus never perform unwanted operations on a shared object.
-> +	 *
-> +	 * Seals are only supported on special shmem-files and always affect
-> +	 * the whole underlying inode. Once a seal is set, it may prevent some
-> +	 * kinds of access to the file. Currently, the following seals are
-> +	 * defined:
-> +	 *   SEAL_SEAL: Prevent further seals from being set on this file
-> +	 *   SEAL_SHRINK: Prevent the file from shrinking
-> +	 *   SEAL_GROW: Prevent the file from growing
-> +	 *   SEAL_WRITE: Prevent write access to the file
-> +	 *
-> +	 * As we don't require any trust relationship between two parties, we
-> +	 * must prevent seals from being removed. Therefore, sealing a file
-> +	 * only adds a given set of seals to the file, it never touches
-> +	 * existing seals. Furthermore, the "setting seals"-operation can be
-> +	 * sealed itself, which basically prevents any further seal from being
-> +	 * added.
-> +	 *
-> +	 * Semantics of sealing are only defined on volatile files. Only
-> +	 * anonymous shmem files support sealing. More importantly, seals are
-> +	 * never written to disk. Therefore, there's no plan to support it on
-> +	 * other file types.
-> +	 */
-> +
-> +	if (file->f_op != &shmem_file_operations)
-> +		return -EBADF;
+The uname: it's a funny thing, not belonging in a filesystem tree;
+but you're very sure you want it, and we already make up funny
+names for SysV SHM and /dev/zero objects, so okay.
 
-Okay: that's not what I expect -EBADF to mean, but it does follow
-the precedent set by pipe_fcntl().
+The size: u64 or loff_t or size_t?  But more on size below.
 
-> +	if (!(info->seals & SHMEM_ALLOW_SEALING))
-> +		return -EBADF;
-> +	if (!(file->f_mode & FMODE_WRITE))
-> +		return -EPERM;
-> +	if (seals & ~(u32)F_ALL_SEALS)
-> +		return -EINVAL;
-> +
-> +	/*
-> +	 * - i_mutex prevents racing write/ftruncate/fallocate/..
-> +	 * - mmap_sem prevents racing mmap() calls
-> +	 */
-> +
-> +	mutex_lock(&inode->i_mutex);
-> +	down_read(&current->mm->mmap_sem);
+The flags: u64?  That's a big future you're allowing for!
+open and mmap use ints for their flags, will this really need more?
 
-I don't think that use of current->mm->mmap_sem can be correct:
-it guards against races with other threads of this process, but
-what if another process has this object open and races to mmap it?
+But I don't think I've been present at the birth of a syscall before:
+there are probably several considerations that I'm unaware of, that
+you may have factored in - listen to the experts, not to me.
 
-I imagine you have to use i_mmap_mutex, and plumb an error return
-into __vma_link_file() etc in mm/mmap.c, if the file is found already
-sealed against writing - which may prove irritating, especially with
-knowledge of sealing being private to mm/shmem.c.
-
-But I have not stopped to work it out properly: the answer may depend
-on the answer to the major issue of outstanding async I/O.  As I
-mentioned last week, that's an issue I think we cannot overlook.
-Tony's copy-raised-pagecount-pages suggestion is a good one, but
-not so attractive that I'll give up hope for a better solution.
-
-> +
-> +	/* you cannot seal while shared mappings exist */
-> +	if (file->f_mapping->i_mmap_writable > 0) {
-> +		r = -EPERM;
-> +		goto unlock;
-> +	}
-> +
-> +	if (info->seals & F_SEAL_SEAL) {
-> +		r = -EPERM;
-> +		goto unlock;
-> +	}
-> +
-> +	info->seals |= seals;
-> +	r = 0;
-> +
-> +unlock:
-> +	up_read(&current->mm->mmap_sem);
-> +	mutex_unlock(&inode->i_mutex);
-> +	return r;
-> +}
-> +EXPORT_SYMBOL(shmem_add_seals);
-
-EXPORT_SYMBOL_GPL(shmem_add_seals).
-
-We don't see an example of its use, but I certainly don't want to see
-drivers/gpu changes as part of this patchset, so I think that's okay.
-
-> +
-> +int shmem_get_seals(struct file *file)
 > +{
 > +	struct shmem_inode_info *info;
-> +
-> +	if (file->f_op != &shmem_file_operations)
-> +		return -EBADF;
-> +
-> +	info = SHMEM_I(file_inode(file));
-> +	if (!(info->seals & SHMEM_ALLOW_SEALING))
-> +		return -EBADF;
+> +	struct file *shm;
 
-Hmm, so the F_SEAL_SEAL change I suggest would remove that -EBADF,
-and instead return F_SEAL_SEAL on any shmem object.  I think that's
-fine, but you may see a reason why not?
+"struct file *file" is more usual.
 
+> +	char *name;
+> +	int fd, r;
+
+"int err" or "int error" rather than "int r".
+
+> +	long len;
 > +
-> +	return info->seals & F_ALL_SEALS;
-> +}
-> +EXPORT_SYMBOL(shmem_get_seals);
-
-EXPORT_SYMBOL_GPL(shmem_get_seals).
-
+> +	if (flags & ~(u64)MFD_ALL_FLAGS)
+> +		return -EINVAL;
+> +	if ((u64)(loff_t)size != size || (loff_t)size < 0)
+> +		return -EINVAL;
 > +
-> +long shmem_fcntl(struct file *file, unsigned int cmd, unsigned long arg)
-> +{
-> +	long r;
+> +	/* length includes terminating zero */
+> +	len = strnlen_user(uname, MFD_NAME_MAX_LEN);
+> +	if (len <= 0)
+> +		return -EFAULT;
+> +	else if (len > MFD_NAME_MAX_LEN)
 
-long ret or retval please.
+Please omit the "else ".
 
+And, since strnlen_user() returns length including terminating NUL,
+wouldn't it be more exact to use MFD_NAME_MAX_LEN + 1 in those two
+places above?
+
+> +		return -EINVAL;
 > +
-> +	switch (cmd) {
-> +	case F_ADD_SEALS:
-> +		/* disallow upper 32bit */
-> +		if (arg >> 32)
-> +			return -EINVAL;
+> +	name = kmalloc(len + MFD_NAME_PREFIX_LEN, GFP_KERNEL);
+
+Probably better to say GFP_TEMPORARY than GFP_KERNEL,
+though it doesn't seem to be used very much at all.
+
+> +	if (!name)
+> +		return -ENOMEM;
 > +
-> +		r = shmem_add_seals(file, arg);
-> +		break;
-> +	case F_GET_SEALS:
-> +		r = shmem_get_seals(file);
-> +		break;
-> +	default:
-> +		r = -EINVAL;
-> +		break;
+> +	strcpy(name, MFD_NAME_PREFIX);
+> +	if (copy_from_user(&name[MFD_NAME_PREFIX_LEN], uname, len)) {
+> +		r = -EFAULT;
+> +		goto err_name;
 > +	}
 > +
+> +	/* terminating-zero may have changed after strnlen_user() returned */
+> +	if (name[len + MFD_NAME_PREFIX_LEN - 1]) {
+> +		r = -EFAULT;
+> +		goto err_name;
+> +	}
+> +
+> +	fd = get_unused_fd_flags((flags & MFD_CLOEXEC) ? O_CLOEXEC : 0);
+> +	if (fd < 0) {
+> +		r = fd;
+> +		goto err_name;
+> +	}
+> +
+> +	shm = shmem_file_setup(name, size, 0);
+
+That's an interesting line: I am anxious to know whether you mean to
+pass flags 0 there, or would rather pass VM_NORESERVE.  Passing 0
+makes the object resemble mmap or SysV SHM, in accounting for the
+whole size upfront; passing VM_NORESERVE makes the object resemble
+a tmpfs file, accounted page by page as they are instantiated.
+
+Accounting meaning calls to __vm_enough_memory() in mm/mmap.c:
+whose behaviour is governed by /proc/sys/vm/overcommit_memory
+(and overcommit_kbytes or overcommit_ratio): OVERCOMMIT_ALWAYS
+(no enforcement), OVERCOMMIT_GUESS (default) or OVERCOMMIT_NEVER
+(enforcing strict no-overcommit).
+
+We have a small problem if you really intend flags 0: because then
+that size is preaccounted, yet we also allow these objects to grow
+or be truncated without accounting, and the number (/proc/meminfo's
+Committed_AS) will go wrong.
+
+If you really intend that preaccounting, then we need to add an
+orig_size field to shmem_inode_info, and treat pages below that
+as preaccounted, but pages above it to be accounted one by one.
+If you don't intend preaccounting, then please pass VM_NORESERVE
+to shmem_file_setup().
+
+But this does highlight how the "size" arg to memfd_create() is
+perhaps redundant.  Why give a size there, when size can be changed
+afterwards?  I expect your answer is that many callers want to choose
+the size at the beginning, and would prefer to avoid the extra call.
+I'm not sure if that's a good enough reason for a redundant argument.
+
+> +	if (IS_ERR(shm)) {
+> +		r = PTR_ERR(shm);
+> +		goto err_fd;
+> +	}
+> +	info = SHMEM_I(file_inode(shm));
+> +	shm->f_mode |= FMODE_LSEEK | FMODE_PREAD | FMODE_PWRITE;
+> +	if (flags & MFD_ALLOW_SEALING)
+> +		info->seals |= SHMEM_ALLOW_SEALING;
+
+In comments on 1/3 I suggest removing F_SEAL_SEAL instead here.
+
+> +
+> +	fd_install(fd, shm);
+> +	kfree(name);
+> +	return fd;
+> +
+> +err_fd:
+> +	put_unused_fd(fd);
+> +err_name:
+> +	kfree(name);
 > +	return r;
 > +}
 > +
->  static long shmem_fallocate(struct file *file, int mode, loff_t offset,
->  							 loff_t len)
->  {
->  	struct inode *inode = file_inode(file);
->  	struct shmem_sb_info *sbinfo = SHMEM_SB(inode->i_sb);
-> +	struct shmem_inode_info *info = SHMEM_I(inode);
->  	struct shmem_falloc shmem_falloc;
->  	pgoff_t start, index, end;
->  	int error;
-> @@ -1735,6 +1880,12 @@ static long shmem_fallocate(struct file *file, int mode, loff_t offset,
->  		loff_t unmap_start = round_up(offset, PAGE_SIZE);
->  		loff_t unmap_end = round_down(offset + len, PAGE_SIZE) - 1;
+>  #else /* !CONFIG_SHMEM */
 >  
-> +		/* protected by i_mutex */
-> +		if (info->seals & F_SEAL_WRITE) {
-> +			error = -EPERM;
-> +			goto out;
-> +		}
-> +
->  		if ((u64)unmap_end > (u64)unmap_start)
->  			unmap_mapping_range(mapping, unmap_start,
->  					    1 + unmap_end - unmap_start, 0);
-> @@ -1749,6 +1900,11 @@ static long shmem_fallocate(struct file *file, int mode, loff_t offset,
->  	if (error)
->  		goto out;
->  
-> +	if ((info->seals & F_SEAL_GROW) && offset + len > inode->i_size) {
-
-Okay.  I don't think it needs a comment, but I note in passing that we
-*could* permit a FALLOC_FL_KEEP_SIZE change there, since it will make
-no difference to what data is accessible; but it would also serve no
-useful purpose, so fine to stick with the simpler test you have.
-
-> +		error = -EPERM;
-> +		goto out;
-> +	}
-> +
->  	start = offset >> PAGE_CACHE_SHIFT;
->  	end = (offset + len + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
->  	/* Try to avoid a swapstorm if len is impossible to satisfy */
+>  /*
 > -- 
 > 1.9.2
-
-There is also, or may be, a small issue of sparse (holey) files.
-I do have a question on that in comments on your next patch, and
-the answer here may depend on what you want in memfd_create().
-
-What I'm thinking of here is that once a sparse file is sealed
-against writing, we must be sure not to give an error when reading
-its holes: whereas there are a few unlikely ways in which reading
-the holes of a sparse tmpfs file can give -ENOMEM or -ENOSPC.
-
-Most of the memory allocations here can in fact only fail when the
-allocating process has already been selected for OOM-kill: that is
-not guaranteed forever, but it is how __alloc_pages_slowpath()
-currently behaves on ordinary low-order allocations, and will be
-hard to change if we ever do so.  Though I dislike relying upon
-this, I think we can allow reading holes to fail, if the process
-is going to be forcibly killed before it returns to userspace.
-
-But there might still be an issue with vm_enough_memory(),
-and there might still be an issue with memcg limits.
-
-We do already use the ZERO_PAGE instead of allocating when it's a
-simple read; and on the face of it, we could extend that to mmap
-once the file is sealed.  But I am rather afraid to do so - for
-many years there was an mmap /dev/zero case which did that, but
-it was an easily forgotten case which caught us out at least
-once, so I'm reluctant to reintroduce it now for sealing.
-
-Anyway, I don't expect you to resolve the issue of sealed holes:
-that's very much my territory, to give you support on.
-
-Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
