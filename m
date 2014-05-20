@@ -1,92 +1,150 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f41.google.com (mail-pb0-f41.google.com [209.85.160.41])
-	by kanga.kvack.org (Postfix) with ESMTP id ACF586B0036
-	for <linux-mm@kvack.org>; Mon, 19 May 2014 21:28:37 -0400 (EDT)
-Received: by mail-pb0-f41.google.com with SMTP id uo5so6597665pbc.0
-        for <linux-mm@kvack.org>; Mon, 19 May 2014 18:28:37 -0700 (PDT)
-Received: from mail-pd0-x22e.google.com (mail-pd0-x22e.google.com [2607:f8b0:400e:c02::22e])
-        by mx.google.com with ESMTPS id ny3si9719364pab.230.2014.05.19.18.28.36
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id EA8DB6B0036
+	for <linux-mm@kvack.org>; Mon, 19 May 2014 22:07:06 -0400 (EDT)
+Received: by mail-pd0-f177.google.com with SMTP id g10so85346pdj.22
+        for <linux-mm@kvack.org>; Mon, 19 May 2014 19:07:06 -0700 (PDT)
+Received: from e23smtp08.au.ibm.com (e23smtp08.au.ibm.com. [202.81.31.141])
+        by mx.google.com with ESMTPS id xl4si22183148pab.5.2014.05.19.19.07.05
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 19 May 2014 18:28:36 -0700 (PDT)
-Received: by mail-pd0-f174.google.com with SMTP id r10so56758pdi.5
-        for <linux-mm@kvack.org>; Mon, 19 May 2014 18:28:36 -0700 (PDT)
-From: Michal Nazarewicz <mina86@mina86.com>
-Subject: Re: [RFC][PATCH] CMA: drivers/base/Kconfig: restrict CMA size to non-zero value
-In-Reply-To: <537AA6C7.1040506@lge.com>
-References: <1399509144-8898-1-git-send-email-iamjoonsoo.kim@lge.com> <1399509144-8898-3-git-send-email-iamjoonsoo.kim@lge.com> <20140513030057.GC32092@bbox> <20140515015301.GA10116@js1304-P5Q-DELUXE> <5375C619.8010501@lge.com> <xa1tppjdfwif.fsf@mina86.com> <537962A0.4090600@lge.com> <20140519055527.GA24099@js1304-P5Q-DELUXE> <xa1td2f91qw5.fsf@mina86.com> <537AA6C7.1040506@lge.com>
-Date: Mon, 19 May 2014 15:28:24 -1000
-Message-ID: <xa1tzjiddyrr.fsf@mina86.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 19 May 2014 19:07:05 -0700 (PDT)
+Received: from /spool/local
+	by e23smtp08.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <maddy@linux.vnet.ibm.com>;
+	Tue, 20 May 2014 12:07:00 +1000
+Received: from d23relay03.au.ibm.com (d23relay03.au.ibm.com [9.190.235.21])
+	by d23dlp01.au.ibm.com (Postfix) with ESMTP id CDFA02CE8052
+	for <linux-mm@kvack.org>; Tue, 20 May 2014 12:06:56 +1000 (EST)
+Received: from d23av03.au.ibm.com (d23av03.au.ibm.com [9.190.234.97])
+	by d23relay03.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s4K26fZE000478
+	for <linux-mm@kvack.org>; Tue, 20 May 2014 12:06:41 +1000
+Received: from d23av03.au.ibm.com (localhost [127.0.0.1])
+	by d23av03.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s4K26t4P018775
+	for <linux-mm@kvack.org>; Tue, 20 May 2014 12:06:55 +1000
+Message-ID: <537AB8B2.3040000@linux.vnet.ibm.com>
+Date: Tue, 20 May 2014 07:36:42 +0530
+From: Madhavan Srinivasan <maddy@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="=-=-="
+Subject: Re: [PATCH V4 0/2] mm: FAULT_AROUND_ORDER patchset performance data
+ for powerpc
+References: <1399541296-18810-1-git-send-email-maddy@linux.vnet.ibm.com> <537479E7.90806@linux.vnet.ibm.com> <alpine.LSU.2.11.1405151026540.4664@eggly.anvils> <87wqdik4n5.fsf@rustcorp.com.au> <53797511.1050409@linux.vnet.ibm.com> <alpine.LSU.2.11.1405191531150.1317@eggly.anvils>
+In-Reply-To: <alpine.LSU.2.11.1405191531150.1317@eggly.anvils>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gioh Kim <gioh.kim@lge.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Minchan Kim <minchan.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Laura Abbott <lauraa@codeaurora.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Heesub Shin <heesub.shin@samsung.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Marek Szyprowski <m.szyprowski@samsung.com>, =?utf-8?B?7J206rG07Zi4?= <gunho.lee@lge.com>, gurugio@gmail.com
+To: Hugh Dickins <hughd@google.com>
+Cc: Rusty Russell <rusty@rustcorp.com.au>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, x86@kernel.org, benh@kernel.crashing.org, paulus@samba.org, akpm@linux-foundation.org, riel@redhat.com, mgorman@suse.de, ak@linux.intel.com, peterz@infradead.org, mingo@kernel.org, dave.hansen@intel.com
 
---=-=-=
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+On Tuesday 20 May 2014 04:53 AM, Hugh Dickins wrote:
+> On Mon, 19 May 2014, Madhavan Srinivasan wrote:
+>> On Monday 19 May 2014 05:42 AM, Rusty Russell wrote:
+>>> Hugh Dickins <hughd@google.com> writes:
+>>>> On Thu, 15 May 2014, Madhavan Srinivasan wrote:
+>>>>>
+>>>>> Hi Ingo,
+>>>>>
+>>>>> 	Do you have any comments for the latest version of the patchset. If
+>>>>> not, kindly can you pick it up as is.
+>>>>>
+>>>>>
+>>>>> With regards
+>>>>> Maddy
+>>>>>
+>>>>>> Kirill A. Shutemov with 8c6e50b029 commit introduced
+>>>>>> vm_ops->map_pages() for mapping easy accessible pages around
+>>>>>> fault address in hope to reduce number of minor page faults.
+>>>>>>
+>>>>>> This patch creates infrastructure to modify the FAULT_AROUND_ORDER
+>>>>>> value using mm/Kconfig. This will enable architecture maintainers
+>>>>>> to decide on suitable FAULT_AROUND_ORDER value based on
+>>>>>> performance data for that architecture. First patch also defaults
+>>>>>> FAULT_AROUND_ORDER Kconfig element to 4. Second patch list
+>>>>>> out the performance numbers for powerpc (platform pseries) and
+>>>>>> initialize the fault around order variable for pseries platform of
+>>>>>> powerpc.
+>>>>
+>>>> Sorry for not commenting earlier - just reminded by this ping to Ingo.
+>>>>
+>>>> I didn't study your numbers, but nowhere did I see what PAGE_SIZE you use.
+>>>>
+>>>> arch/powerpc/Kconfig suggests that Power supports base page size of
+>>>> 4k, 16k, 64k or 256k.
+>>>>
+>>>> I would expect your optimal fault_around_order to depend very much on
+>>>> the base page size.
+>>>
+>>> It was 64k, which is what PPC64 uses on all the major distributions.
+>>> You really only get a choice of 4k and 64k with 64 bit power.
+>>>
+>> This is true. PPC64 support multiple pagesize and yes the default page
+>> size of 64k, is taken as base pagesize for the tests.
+>>
+>>>> Perhaps fault_around_size would provide a more useful default?
+>>>
+>>> That seems to fit.  With 4k pages and order 4, you're asking for 64k.
+>>> Maddy's result shows 64k is also reasonable for 64k pages.
+>>>
+>>> Perhaps we try to generalize from two data points (a slight improvement
+>>> over doing it from 1!), eg:
+>>>
+>>> /* 4 seems good for 4k-page x86, 0 seems good for 64k page ppc64, so: */
+>>> unsigned int fault_around_order __read_mostly =
+>>>         (16 - PAGE_SHIFT < 0 ? 0 : 16 - PAGE_SHIFT);
+> 
+> Rusty's bimodal answer doesn't seem the right starting point to me.
+> 
+> Shouldn't FAULT_AROUND_ORDER and fault_around_order be changed to be
+> the order of the fault-around size in bytes, and fault_around_pages()
+> use 1UL << (fault_around_order - PAGE_SHIFT)
+> - when that doesn't wrap, of course!
+> 
+> That would at least have a better chance of being appropriate for
+> architectures with 8k and 16k pages (Itanium springs to mind).
+> 
+> Not necessarily right for them, since each architecture may have
+> different faulting overheads; but a better chance of being right
+> than blindly assuming 4k or 64k pages for everyone.
+> 
+> I'd be glad to see that change go into v3.15: what do you think,
+> Kirill, are we too late to make such a change now?
+> Or do you see some objection to it?
+> 
+>> This may be right. But these are the concerns, will not this make other
+>> arch to pick default without any tuning
+> 
+> Wasn't FAULT_AROUND_ORDER 4 chosen solely on the basis of x86 4k pages?
+> Did other architectures, with other page sizes, back that default?
+> Clearly not powerpc.
 
-On Mon, May 19 2014, Gioh Kim wrote:
-> If CMA option is not selected, __alloc_from_contiguous would not be
-> called.  We don't need to the fallback allocation.
->
-> And if CMA option is selected and initialized correctly,
-> the cma allocation can fail in case of no-CMA-memory situation.
-> I thinks in that case we don't need to the fallback allocation also,
-> because it is normal case.
->
-> Therefore I think the restriction of CMA size option and make CMA work
-> can cover every cases.
+Ok.
 
-Wait, you just wrote that if CMA is not initialised correctly, it's fine
-for atomic pool initialisation to fail, but if CMA size is initialised
-correctly but too small, this is somehow worse situation?  I'm a bit
-confused to be honest.
+> 
+>> and also this will remove the
+>> compile time option to disable the feature?
+> 
+> Compile time option meaning your FAULT_AROUND_ORDER in mm/Kconfig
+> for v3.16?
+> 
+> I'm not sure whether Rusty was arguing against that or not I think
 
-IMO, cma=3D0 command line argument should be supported, as should having
-the default CMA size zero.  If CMA size is set to zero, kernel should
-behave as if CMA was not enabled at compile time.
+> we are all three concerned to have a more sensible default than what's
+> there at present.  I don't feel very strongly about your Kconfig
 
---=20
-Best regards,                                         _     _
-.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
-..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz   =
- (o o)
-ooo +--<mpn@google.com>--<xmpp:mina86@jabber.org>--ooO--(_)--Ooo--
+Added it as one way to reset or disable the default value. But then I
+guess we decided on having FAULT_AROUND_ORDER as a variable which is
+more important than Kconfig option.
 
---=-=-=
-Content-Type: multipart/signed; boundary="==-=-=";
-	micalg=pgp-sha1; protocol="application/pgp-signature"
+> option: I've no objection, if it were to default to byte order 16.
+> 
 
---==-=-=
-Content-Type: text/plain
+Thanks for review
+With regards
+Maddy
 
-
---==-=-=
-Content-Type: application/pgp-signature; name="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.11 (GNU/Linux)
-
-iQIcBAEBAgAGBQJTeq+5AAoJECBgQBJQdR/0Ns4P/2+MSDCVhcRh8a2OpEG35FsZ
-MY48W6w7LnXneI+SS2/Bx3hHbK4PDuF6DViY/thZ0VYEZ3rg0iaD4v8545LRWE5Z
-0GUnjPy9/iPX1jJMnhHJChfYD0D3/l6j+io9TcaBDnsTm+i4zY4Y7R2DyPYZIYDA
-RRp1JxkCdcVJ3zF6EqM/9hWPZbrrB6WYB46Ig9lG3IBGUsVdNR3TmAhdwx49IAp3
-BPWGJIEKji0HHC0mnvgEzf822bwZc2w1DqpzarJhUYEuxvOyqw3E29mCjNwS9ME4
-8aIqWlPka1rqTPylLrspz+P0rFfovag4SHVVLUSqOLvvSgUAqDh/20L9j7+qinmB
-PyhQLlH5s38n7cfVPn/DKSB1u8Stpjgen/aydHqDHIiHg/Ng6h9Eb3IZoNMkMAIA
-jmpAm3zShgkZJNhkCxwHkWn+mUqo3E3o8cmxE6/b2L0VdO06KIzXZ6jsR4Biy/1s
-HI/FocpbzbjHbN+PqpJwgmWOn6ih5+CXPXYaVT20hban5v4jPffor5LbhSStWAeE
-K7lYCtuLr6APwB/8/TOwzoKNdLicynZd2s0xLw407RTBtr/MF6sGH2p2rcRnKctB
-dOsFd7P1jEzPbRM9AtDlNpYBaImiRNNs2nubEEFC+11ciZrs18PEZ7K/ICJQGO/p
-0FSiK86mX2eIZFAgZRj/
-=Th+9
------END PGP SIGNATURE-----
---==-=-=--
-
---=-=-=--
+> Hugh
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
