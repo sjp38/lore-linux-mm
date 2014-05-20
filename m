@@ -1,124 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id A4D886B0035
-	for <linux-mm@kvack.org>; Tue, 20 May 2014 15:34:56 -0400 (EDT)
-Received: by mail-pa0-f53.google.com with SMTP id kp14so608430pab.26
-        for <linux-mm@kvack.org>; Tue, 20 May 2014 12:34:56 -0700 (PDT)
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 992C76B0035
+	for <linux-mm@kvack.org>; Tue, 20 May 2014 15:59:58 -0400 (EDT)
+Received: by mail-pd0-f172.google.com with SMTP id x10so625228pdj.17
+        for <linux-mm@kvack.org>; Tue, 20 May 2014 12:59:58 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id zv2si2091759pbb.131.2014.05.20.12.34.55
+        by mx.google.com with ESMTP id eb4si3182938pbb.113.2014.05.20.12.59.57
         for <linux-mm@kvack.org>;
-        Tue, 20 May 2014 12:34:55 -0700 (PDT)
-Date: Tue, 20 May 2014 12:34:53 -0700
+        Tue, 20 May 2014 12:59:57 -0700 (PDT)
+Date: Tue, 20 May 2014 12:59:56 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: non-atomically mark page accessed during page cache
- allocation where possible -fix
-Message-Id: <20140520123453.09a76dd0c8fad40082a16289@linux-foundation.org>
-In-Reply-To: <20140520154900.GO23991@suse.de>
-References: <1399974350-11089-1-git-send-email-mgorman@suse.de>
-	<1399974350-11089-19-git-send-email-mgorman@suse.de>
-	<20140520154900.GO23991@suse.de>
+Subject: Re: [PATCH V4 0/2] mm: FAULT_AROUND_ORDER patchset performance data
+ for powerpc
+Message-Id: <20140520125956.aa61a3bfd84d4d6190740ce2@linux-foundation.org>
+In-Reply-To: <20140520102738.7F096E009B@blue.fi.intel.com>
+References: <1399541296-18810-1-git-send-email-maddy@linux.vnet.ibm.com>
+	<537479E7.90806@linux.vnet.ibm.com>
+	<alpine.LSU.2.11.1405151026540.4664@eggly.anvils>
+	<87wqdik4n5.fsf@rustcorp.com.au>
+	<53797511.1050409@linux.vnet.ibm.com>
+	<alpine.LSU.2.11.1405191531150.1317@eggly.anvils>
+	<20140519164301.eafd3dd288ccb88361ddcfc7@linux-foundation.org>
+	<20140520004429.E660AE009B@blue.fi.intel.com>
+	<87oaythsvk.fsf@rustcorp.com.au>
+	<20140520102738.7F096E009B@blue.fi.intel.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>, Prabhakar Lad <prabhakar.csengg@gmail.com>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Rusty Russell <rusty@rustcorp.com.au>, Hugh Dickins <hughd@google.com>, Madhavan Srinivasan <maddy@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, x86@kernel.org, benh@kernel.crashing.org, paulus@samba.org, riel@redhat.com, mgorman@suse.de, ak@linux.intel.com, peterz@infradead.org, mingo@kernel.org, dave.hansen@intel.com
 
-On Tue, 20 May 2014 16:49:00 +0100 Mel Gorman <mgorman@suse.de> wrote:
+On Tue, 20 May 2014 13:27:38 +0300 (EEST) "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
 
-> Prabhakar Lad reported the following problem
+> Rusty Russell wrote:
+> > "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> writes:
+> > > Andrew Morton wrote:
+> > >> On Mon, 19 May 2014 16:23:07 -0700 (PDT) Hugh Dickins <hughd@google.com> wrote:
+> > >> 
+> > >> > Shouldn't FAULT_AROUND_ORDER and fault_around_order be changed to be
+> > >> > the order of the fault-around size in bytes, and fault_around_pages()
+> > >> > use 1UL << (fault_around_order - PAGE_SHIFT)
+> > >> 
+> > >> Yes.  And shame on me for missing it (this time!) at review.
+> > >> 
+> > >> There's still time to fix this.  Patches, please.
+> > >
+> > > Here it is. Made at 3.30 AM, build tested only.
+> > 
+> > Prefer on top of Maddy's patch which makes it always a variable, rather
+> > than CONFIG_DEBUG_FS.  It's got enough hair as it is.
 > 
->   I see following issue on DA850 evm,
->   git bisect points me to
->   commit id: 975c3a671f11279441006a29a19f55ccc15fb320
->   ( mm: non-atomically mark page accessed during page cache allocation
->   where possible)
+> Something like this?
+
+This appears to be against mainline, not against Madhavan's patch.  As
+mentioned previously, I'd prefer it that way but confused.
+
+
+> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> Date: Tue, 20 May 2014 13:02:03 +0300
+> Subject: [PATCH] mm: nominate faultaround area in bytes rather then page order
 > 
->   Unable to handle kernel paging request at virtual address 30e03501
->   pgd = c68cc000
->   [30e03501] *pgd=00000000
->   Internal error: Oops: 1 [#1] PREEMPT ARM
->   Modules linked in:
->   CPU: 0 PID: 1015 Comm: network.sh Not tainted 3.15.0-rc5-00323-g975c3a6 #9
->   task: c70c4e00 ti: c73d0000 task.ti: c73d0000
->   PC is at init_page_accessed+0xc/0x24
->   LR is at shmem_write_begin+0x54/0x60
->   pc : [<c0088aa0>]    lr : [<c00923e8>]    psr: 20000013
->   sp : c73d1d90  ip : c73d1da0  fp : c73d1d9c
->   r10: c73d1dec  r9 : 00000000  r8 : 00000000
->   r7 : c73d1e6c  r6 : c694d7bc  r5 : ffffffe4  r4 : c73d1dec
->   r3 : c73d0000  r2 : 00000001  r1 : 00000000  r0 : 30e03501
->   Flags: nzCv  IRQs on  FIQs on  Mode SVC_32  ISA ARM  Segment user
->   Control: 0005317f  Table: c68cc000  DAC: 00000015
->   Process network.sh (pid: 1015, stack limit = 0xc73d01c0)
+> There are evidences that faultaround feature is less relevant on
+> architectures with page size bigger then 4k. Which makes sense since
+> page fault overhead per byte of mapped area should be less there.
 > 
-> pagep is set but not pointing to anywhere valid as it's an uninitialised
-> stack variable. This patch is a fix to
-> mm-non-atomically-mark-page-accessed-during-page-cache-allocation-where-possible.patch
+> Let's rework the feature to specify faultaround area in bytes instead of
+> page order. It's 64 kilobytes for now.
 > 
-> ...
->
-> --- a/mm/filemap.c
-> +++ b/mm/filemap.c
-> @@ -2459,7 +2459,7 @@ ssize_t generic_perform_write(struct file *file,
->  		flags |= AOP_FLAG_UNINTERRUPTIBLE;
+> The patch effectively disables faultaround on architectures with
+> page size >= 64k (like ppc64).
+> 
+> It's possible that some other size of faultaround area is relevant for a
+> platform. We can expose `fault_around_bytes' variable to arch-specific
+> code once such platforms will be found.
+> 
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> ---
+>  mm/memory.c | 62 +++++++++++++++++++++++--------------------------------------
+>  1 file changed, 23 insertions(+), 39 deletions(-)
+> 
+> diff --git a/mm/memory.c b/mm/memory.c
+> index 037b812a9531..252b319e8cdf 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -3402,63 +3402,47 @@ void do_set_pte(struct vm_area_struct *vma, unsigned long address,
+>  	update_mmu_cache(vma, address, pte);
+>  }
 >  
->  	do {
-> -		struct page *page;
-> +		struct page *page = NULL;
->  		unsigned long offset;	/* Offset into pagecache page */
->  		unsigned long bytes;	/* Bytes to write to page */
->  		size_t copied;		/* Bytes copied from user */
+> -#define FAULT_AROUND_ORDER 4
+> +static unsigned long fault_around_bytes = 65536;
+> +
+> +static inline unsigned long fault_around_pages(void)
+> +{
+> +	return rounddown_pow_of_two(fault_around_bytes) / PAGE_SIZE;
+> +}
 
-Well not really.  generic_perform_write() only touches *page if
-->write_begin() returned "success", which is reasonable behavior.
+I think we should round up, not down.  So if the user asks for 1kb,
+they get one page.
 
-I'd say you mucked up shmem_write_begin() - it runs
-init_page_accessed() even if shmem_getpage() returned an error.  It
-shouldn't be doing that.
+So this becomes
 
-This?
+	return PAGE_ALIGN(fault_around_bytes) / PAGE_SIZE;
 
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: mm/shmem.c: don't run init_page_accessed() against an uninitialised pointer
+> +static inline unsigned long fault_around_mask(void)
+> +{
+> +	return ~(rounddown_pow_of_two(fault_around_bytes) - 1) & PAGE_MASK;
+> +}
 
-If shmem_getpage() returned an error then it didn't necessarily initialise
-*pagep.  So shmem_write_begin() shouldn't be playing with *pagep in this
-situation.
+And this has me a bit stumped.  It's not helpful that do_fault_around()
+is undocumented.  Does it fault in N/2 pages ahead and N/2 pages
+behind?  Or does it align the address down to the highest multiple of
+fault_around_bytes?  It appears to be the latter, so the location of
+the faultaround window around the fault address is basically random,
+depending on what address userspace happened to pick.  I don't know why
+we did this :(
 
-Fixes an oops when "mm: non-atomically mark page accessed during page
-cache allocation where possible" (quite reasonably) left *pagep
-uninitialized.
+Or something.  Can we please get some code commentary over
+do_fault_around() describing this design decision and explaining the
+reasoning behind it?
 
-Reported-by: Prabhakar Lad <prabhakar.csengg@gmail.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>
-Cc: Jan Kara <jack@suse.cz>
-Cc: Michal Hocko <mhocko@suse.cz>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Dave Hansen <dave.hansen@intel.com>
-Cc: Mel Gorman <mgorman@suse.de>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
----
 
- mm/shmem.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff -puN mm/shmem.c~mm-non-atomically-mark-page-accessed-during-page-cache-allocation-where-possiblefix-2 mm/shmem.c
---- a/mm/shmem.c~mm-non-atomically-mark-page-accessed-during-page-cache-allocation-where-possiblefix-2
-+++ a/mm/shmem.c
-@@ -1376,7 +1376,7 @@ shmem_write_begin(struct file *file, str
- 	struct inode *inode = mapping->host;
- 	pgoff_t index = pos >> PAGE_CACHE_SHIFT;
- 	ret = shmem_getpage(inode, index, pagep, SGP_WRITE, NULL);
--	if (*pagep)
-+	if (ret == 0 && *pagep)
- 		init_page_accessed(*pagep);
- 	return ret;
- }
-_
+Also, "neast" is not a word.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
