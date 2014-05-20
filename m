@@ -1,79 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f43.google.com (mail-ee0-f43.google.com [74.125.83.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 88ACC6B0036
-	for <linux-mm@kvack.org>; Tue, 20 May 2014 11:49:08 -0400 (EDT)
-Received: by mail-ee0-f43.google.com with SMTP id d17so730009eek.16
-        for <linux-mm@kvack.org>; Tue, 20 May 2014 08:49:07 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s1si3635333eew.138.2014.05.20.08.49.06
+Received: from mail-la0-f41.google.com (mail-la0-f41.google.com [209.85.215.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 19EA16B0036
+	for <linux-mm@kvack.org>; Tue, 20 May 2014 13:21:38 -0400 (EDT)
+Received: by mail-la0-f41.google.com with SMTP id e16so668864lan.14
+        for <linux-mm@kvack.org>; Tue, 20 May 2014 10:21:38 -0700 (PDT)
+Received: from mail-lb0-x235.google.com (mail-lb0-x235.google.com [2a00:1450:4010:c04::235])
+        by mx.google.com with ESMTPS id og9si9703479lbb.87.2014.05.20.10.21.37
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 20 May 2014 08:49:06 -0700 (PDT)
-Date: Tue, 20 May 2014 16:49:00 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH] mm: non-atomically mark page accessed during page cache
- allocation where possible -fix
-Message-ID: <20140520154900.GO23991@suse.de>
-References: <1399974350-11089-1-git-send-email-mgorman@suse.de>
- <1399974350-11089-19-git-send-email-mgorman@suse.de>
+        Tue, 20 May 2014 10:21:37 -0700 (PDT)
+Received: by mail-lb0-f181.google.com with SMTP id q8so650333lbi.40
+        for <linux-mm@kvack.org>; Tue, 20 May 2014 10:21:37 -0700 (PDT)
+Date: Tue, 20 May 2014 21:21:34 +0400
+From: Cyrill Gorcunov <gorcunov@gmail.com>
+Subject: Re: [PATCH 3/4] x86,mm: Improve _install_special_mapping and fix x86
+ vdso naming
+Message-ID: <20140520172134.GJ2185@moon>
+References: <cover.1400538962.git.luto@amacapital.net>
+ <276b39b6b645fb11e345457b503f17b83c2c6fd0.1400538962.git.luto@amacapital.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1399974350-11089-19-git-send-email-mgorman@suse.de>
+In-Reply-To: <276b39b6b645fb11e345457b503f17b83c2c6fd0.1400538962.git.luto@amacapital.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: x86@kernel.org, Andrew Morton <akpm@linux-foundation.org>, Sasha Levin <sasha.levin@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dave Jones <davej@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Pavel Emelyanov <xemul@parallels.com>, "H. Peter Anvin" <hpa@zytor.com>
 
-Prabhakar Lad reported the following problem
+On Mon, May 19, 2014 at 03:58:33PM -0700, Andy Lutomirski wrote:
+> Using arch_vma_name to give special mappings a name is awkward.  x86
+> currently implements it by comparing the start address of the vma to
+> the expected address of the vdso.  This requires tracking the start
+> address of special mappings and is probably buggy if a special vma
+> is split or moved.
+> 
+> Improve _install_special_mapping to just name the vma directly.  Use
+> it to give the x86 vvar area a name, which should make CRIU's life
+> easier.
+> 
+> As a side effect, the vvar area will show up in core dumps.  This
+> could be considered weird and is fixable.  Thoughts?
+> 
+> Cc: Cyrill Gorcunov <gorcunov@openvz.org>
+> Cc: Pavel Emelyanov <xemul@parallels.com>
+> Signed-off-by: Andy Lutomirski <luto@amacapital.net>
 
-  I see following issue on DA850 evm,
-  git bisect points me to
-  commit id: 975c3a671f11279441006a29a19f55ccc15fb320
-  ( mm: non-atomically mark page accessed during page cache allocation
-  where possible)
-
-  Unable to handle kernel paging request at virtual address 30e03501
-  pgd = c68cc000
-  [30e03501] *pgd=00000000
-  Internal error: Oops: 1 [#1] PREEMPT ARM
-  Modules linked in:
-  CPU: 0 PID: 1015 Comm: network.sh Not tainted 3.15.0-rc5-00323-g975c3a6 #9
-  task: c70c4e00 ti: c73d0000 task.ti: c73d0000
-  PC is at init_page_accessed+0xc/0x24
-  LR is at shmem_write_begin+0x54/0x60
-  pc : [<c0088aa0>]    lr : [<c00923e8>]    psr: 20000013
-  sp : c73d1d90  ip : c73d1da0  fp : c73d1d9c
-  r10: c73d1dec  r9 : 00000000  r8 : 00000000
-  r7 : c73d1e6c  r6 : c694d7bc  r5 : ffffffe4  r4 : c73d1dec
-  r3 : c73d0000  r2 : 00000001  r1 : 00000000  r0 : 30e03501
-  Flags: nzCv  IRQs on  FIQs on  Mode SVC_32  ISA ARM  Segment user
-  Control: 0005317f  Table: c68cc000  DAC: 00000015
-  Process network.sh (pid: 1015, stack limit = 0xc73d01c0)
-
-pagep is set but not pointing to anywhere valid as it's an uninitialised
-stack variable. This patch is a fix to
-mm-non-atomically-mark-page-accessed-during-page-cache-allocation-where-possible.patch
-
-Reported-by: Prabhakar Lad <prabhakar.csengg@gmail.com>
-Signed-off-by: Mel Gorman <mgorman@suse.de>
----
- mm/filemap.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 2a7b9d1..0691481 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -2459,7 +2459,7 @@ ssize_t generic_perform_write(struct file *file,
- 		flags |= AOP_FLAG_UNINTERRUPTIBLE;
- 
- 	do {
--		struct page *page;
-+		struct page *page = NULL;
- 		unsigned long offset;	/* Offset into pagecache page */
- 		unsigned long bytes;	/* Bytes to write to page */
- 		size_t copied;		/* Bytes copied from user */
+Hi Andy, thanks a lot for this! I must confess I don't yet know how
+would we deal with compat tasks but this is 'must have' mark which
+allow us to detect vvar area!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
