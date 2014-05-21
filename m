@@ -1,175 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f43.google.com (mail-ee0-f43.google.com [74.125.83.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 784C66B0036
-	for <linux-mm@kvack.org>; Wed, 21 May 2014 10:13:45 -0400 (EDT)
-Received: by mail-ee0-f43.google.com with SMTP id d17so1638275eek.16
-        for <linux-mm@kvack.org>; Wed, 21 May 2014 07:13:44 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 45si9060987eeq.4.2014.05.21.07.13.43
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 21 May 2014 07:13:43 -0700 (PDT)
-Message-ID: <537CB493.9090706@suse.cz>
-Date: Wed, 21 May 2014 16:13:39 +0200
-From: Vlastimil Babka <vbabka@suse.cz>
-MIME-Version: 1.0
-Subject: Re: [PATCH v2] mm, compaction: properly signal and act upon lock
- and need_sched() contention
-References: <1399904111-23520-1-git-send-email-vbabka@suse.cz>	<1400233673-11477-1-git-send-email-vbabka@suse.cz> <20140519163741.55998ce65534ed73d913ee2c@linux-foundation.org>
-In-Reply-To: <20140519163741.55998ce65534ed73d913ee2c@linux-foundation.org>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Received: from mail-qc0-f180.google.com (mail-qc0-f180.google.com [209.85.216.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 0D8236B0036
+	for <linux-mm@kvack.org>; Wed, 21 May 2014 10:16:33 -0400 (EDT)
+Received: by mail-qc0-f180.google.com with SMTP id i17so3276709qcy.39
+        for <linux-mm@kvack.org>; Wed, 21 May 2014 07:16:32 -0700 (PDT)
+Received: from qmta14.emeryville.ca.mail.comcast.net (qmta14.emeryville.ca.mail.comcast.net. [2001:558:fe2d:44:76:96:27:212])
+        by mx.google.com with ESMTP id g62si1397361qgf.39.2014.05.21.07.16.30
+        for <linux-mm@kvack.org>;
+        Wed, 21 May 2014 07:16:30 -0700 (PDT)
+Date: Wed, 21 May 2014 09:16:27 -0500 (CDT)
+From: Christoph Lameter <cl@linux.com>
+Subject: Re: Node 0 not necessary for powerpc?
+In-Reply-To: <20140519182400.GM8941@linux.vnet.ibm.com>
+Message-ID: <alpine.DEB.2.10.1405210915170.7859@gentwo.org>
+References: <20140311195632.GA946@linux.vnet.ibm.com> <alpine.DEB.2.10.1403120839110.6865@nuc> <20140313164949.GC22247@linux.vnet.ibm.com> <20140519182400.GM8941@linux.vnet.ibm.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Greg Thelen <gthelen@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>
+To: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, anton@samba.org, David Rientjes <rientjes@google.com>, benh@kernel.crashing.org, Tejun Heo <htejun@gmail.com>, tony.luck@intel.com
 
-On 05/20/2014 01:37 AM, Andrew Morton wrote:
-> On Fri, 16 May 2014 11:47:53 +0200 Vlastimil Babka <vbabka@suse.cz> wrote:
-> 
->> Compaction uses compact_checklock_irqsave() function to periodically check for
->> lock contention and need_resched() to either abort async compaction, or to
->> free the lock, schedule and retake the lock. When aborting, cc->contended is
->> set to signal the contended state to the caller. Two problems have been
->> identified in this mechanism.
->>
->> First, compaction also calls directly cond_resched() in both scanners when no
->> lock is yet taken. This call either does not abort async compaction, or set
->> cc->contended appropriately. This patch introduces a new compact_should_abort()
->> function to achieve both. In isolate_freepages(), the check frequency is
->> reduced to once by SWAP_CLUSTER_MAX pageblocks to match what the migration
->> scanner does in the preliminary page checks. In case a pageblock is found
->> suitable for calling isolate_freepages_block(), the checks within there are
->> done on higher frequency.
->>
->> Second, isolate_freepages() does not check if isolate_freepages_block()
->> aborted due to contention, and advances to the next pageblock. This violates
->> the principle of aborting on contention, and might result in pageblocks not
->> being scanned completely, since the scanning cursor is advanced. This patch
->> makes isolate_freepages_block() check the cc->contended flag and abort.
->>
->> In case isolate_freepages() has already isolated some pages before aborting
->> due to contention, page migration will proceed, which is OK since we do not
->> want to waste the work that has been done, and page migration has own checks
->> for contention. However, we do not want another isolation attempt by either
->> of the scanners, so cc->contended flag check is added also to
->> compaction_alloc() and compact_finished() to make sure compaction is aborted
->> right after the migration.
-> 
-> What are the runtime effect of this change?
-> 
->> Reported-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> 
-> What did Joonsoo report?  Perhaps this is the same thing..
+On Mon, 19 May 2014, Nishanth Aravamudan wrote:
 
-Updated log message:
+> I'm seeing a panic at boot with this change on an LPAR which actually
+> has no Node 0. Here's what I think is happening:
+>
+> start_kernel
+>     ...
+>     -> setup_per_cpu_areas
+>         -> pcpu_embed_first_chunk
+>             -> pcpu_fc_alloc
+>                 -> ___alloc_bootmem_node(NODE_DATA(cpu_to_node(cpu), ...
+>     -> smp_prepare_boot_cpu
+>         -> set_numa_node(boot_cpuid)
+>
+> So we panic on the NODE_DATA call. It seems that ia64, at least, uses
+> pcpu_alloc_first_chunk rather than embed. x86 has some code to handle
+> early calls of cpu_to_node (early_cpu_to_node) and sets the mapping for
+> all CPUs in setup_per_cpu_areas().
 
-Compaction uses compact_checklock_irqsave() function to periodically check for
-lock contention and need_resched() to either abort async compaction, or to
-free the lock, schedule and retake the lock. When aborting, cc->contended is
-set to signal the contended state to the caller. Two problems have been
-identified in this mechanism.
+Maybe we can switch ia64 too embed? Tejun: Why are there these
+dependencies?
 
-First, compaction also calls directly cond_resched() in both scanners when no
-lock is yet taken. This call either does not abort async compaction, or set
-cc->contended appropriately. This patch introduces a new compact_should_abort()
-function to achieve both. In isolate_freepages(), the check frequency is
-reduced to once by SWAP_CLUSTER_MAX pageblocks to match what the migration
-scanner does in the preliminary page checks. In case a pageblock is found
-suitable for calling isolate_freepages_block(), the checks within there are
-done on higher frequency.
+> Thoughts? Does that mean we need something similar to x86 for powerpc?
 
-Second, isolate_freepages() does not check if isolate_freepages_block()
-aborted due to contention, and advances to the next pageblock. This violates
-the principle of aborting on contention, and might result in pageblocks not
-being scanned completely, since the scanning cursor is advanced. This problem
-has been noticed in the code by Joonsoo Kim when reviewing related patches.
-This patch makes isolate_freepages_block() check the cc->contended flag and
-abort.
-
-In case isolate_freepages() has already isolated some pages before aborting
-due to contention, page migration will proceed, which is OK since we do not
-want to waste the work that has been done, and page migration has own checks
-for contention. However, we do not want another isolation attempt by either
-of the scanners, so cc->contended flag check is added also to
-compaction_alloc() and compact_finished() to make sure compaction is aborted
-right after the migration.
-
-The outcome of the patch should be reduced lock contention by async compaction
-and lower latencies for higher-order allocations where direct compaction is
-involved.
-
->>
->> ...
->>
->> @@ -718,9 +739,11 @@ static void isolate_freepages(struct zone *zone,
->>   		/*
->>   		 * This can iterate a massively long zone without finding any
->>   		 * suitable migration targets, so periodically check if we need
->> -		 * to schedule.
->> +		 * to schedule, or even abort async compaction.
->>   		 */
->> -		cond_resched();
->> +		if (!(block_start_pfn % (SWAP_CLUSTER_MAX * pageblock_nr_pages))
->> +						&& compact_should_abort(cc))
-> 
-> This seems rather gratuitously inefficient and isn't terribly clear.
-> What's wrong with
-> 
-> 	if ((++foo % SWAP_CLUSTER_MAX) == 0 && compact_should_abort(cc))
-
-It's a new variable and it differs from how isolate_migratepages_range() does this.
-But yeah, I might change it later there as well. There it makes even more sense.
-E.g. when skipping whole pageblock there, pfn % SWAP_CLUSTER_MAX will be always zero
-so the periodicity varies.
- 
-> ?
-> 
-> (Assumes that SWAP_CLUSTER_MAX is power-of-2 and that the compiler will
-> use &)
- 
-I hoped that compiler would be smart enough about SWAP_CLUSTER_MAX * pageblock_nr_pages
-as well, as those are constants and also power-of-2. But I didn't check the assembly.
-
------8<-----
-From: Vlastimil Babka <vbabka@suse.cz>
-Date: Wed, 21 May 2014 16:07:21 +0200
-Subject: [PATCH] 
- mm-compaction-properly-signal-and-act-upon-lock-and-need_sched-contention-fix
-
-Use a separate counter variable (not pfn) to trigger abort checks.
-
-Suggested-by: Andrew Morton <akpm@linux-foundation.org>
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
----
- mm/compaction.c | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
-
-diff --git a/mm/compaction.c b/mm/compaction.c
-index bbe6a26..23c7439 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -779,6 +779,7 @@ static void isolate_freepages(struct zone *zone,
- 	unsigned long block_start_pfn;	/* start of current pageblock */
- 	unsigned long block_end_pfn;	/* end of current pageblock */
- 	unsigned long low_pfn;	     /* lowest pfn scanner is able to scan */
-+	unsigned long nr_blocks_scanned = 0; /* for periodical abort checks */
- 	int nr_freepages = cc->nr_freepages;
- 	struct list_head *freelist = &cc->freepages;
- 
-@@ -813,7 +814,7 @@ static void isolate_freepages(struct zone *zone,
- 		 * suitable migration targets, so periodically check if we need
- 		 * to schedule, or even abort async compaction.
- 		 */
--		if (!(block_start_pfn % (SWAP_CLUSTER_MAX * pageblock_nr_pages))
-+		if ((++nr_blocks_scanned % SWAP_CLUSTER_MAX) == 0
- 						&& compact_should_abort(cc))
- 			break;
- 
--- 
-1.8.4.5
-
-
+Tejun is the expert in this area. CCing him.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
