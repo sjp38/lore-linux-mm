@@ -1,92 +1,168 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id CF2B76B0036
-	for <linux-mm@kvack.org>; Wed, 21 May 2014 17:50:03 -0400 (EDT)
-Received: by mail-pd0-f171.google.com with SMTP id y13so1775099pdi.2
-        for <linux-mm@kvack.org>; Wed, 21 May 2014 14:50:03 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id dq2si7895718pbb.118.2014.05.21.14.50.02
+Received: from mail-ee0-f54.google.com (mail-ee0-f54.google.com [74.125.83.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 4EC796B0036
+	for <linux-mm@kvack.org>; Wed, 21 May 2014 18:09:40 -0400 (EDT)
+Received: by mail-ee0-f54.google.com with SMTP id b57so1914848eek.41
+        for <linux-mm@kvack.org>; Wed, 21 May 2014 15:09:39 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id f5si11407625eeg.102.2014.05.21.15.09.37
         for <linux-mm@kvack.org>;
-        Wed, 21 May 2014 14:50:02 -0700 (PDT)
-Date: Wed, 21 May 2014 14:50:00 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: filemap: Avoid unnecessary barries and waitqueue
- lookups in unlock_page fastpath v5
-Message-Id: <20140521145000.f130f8779f7641d0d8afcace@linux-foundation.org>
-In-Reply-To: <20140521213354.GL2485@laptop.programming.kicks-ass.net>
-References: <1399974350-11089-1-git-send-email-mgorman@suse.de>
-	<1399974350-11089-20-git-send-email-mgorman@suse.de>
-	<20140513125313.GR23991@suse.de>
-	<20140513141748.GD2485@laptop.programming.kicks-ass.net>
-	<20140514161152.GA2615@redhat.com>
-	<20140514192945.GA10830@redhat.com>
-	<20140515104808.GF23991@suse.de>
-	<20140515142414.16c47315a03160c58ceb9066@linux-foundation.org>
-	<20140521121501.GT23991@suse.de>
-	<20140521142622.049d0b3af5fc94912d5a1472@linux-foundation.org>
-	<20140521213354.GL2485@laptop.programming.kicks-ass.net>
+        Wed, 21 May 2014 15:09:38 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: ##freemail## Re: [PATCH] tools/vm/page-types.c: page-cache sniffing feature
+Date: Wed, 21 May 2014 18:09:26 -0400
+Message-Id: <537d2422.85670e0a.0c82.ffffeb7eSMTPIN_ADDED_BROKEN@mx.google.com>
+In-Reply-To: <CALYGNiPeZsB0GSgtGOV04iMX8r1DM0anPoiKwFesfE=MBhtS1Q@mail.gmail.com>
+References: <20140226075723.29820.26427.stgit@zurg> <537c0e29.89cbc20a.4dbb.62eeSMTPIN_ADDED_BROKEN@mx.google.com> <CALYGNiPeZsB0GSgtGOV04iMX8r1DM0anPoiKwFesfE=MBhtS1Q@mail.gmail.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Mel Gorman <mgorman@suse.de>, Oleg Nesterov <oleg@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, David Howells <dhowells@redhat.com>
+To: Konstantin Khlebnikov <koct9i@gmail.com>
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Arnaldo Carvalho de Melo <acme@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Borislav Petkov <bp@suse.de>
 
-On Wed, 21 May 2014 23:33:54 +0200 Peter Zijlstra <peterz@infradead.org> wrote:
-
-> On Wed, May 21, 2014 at 02:26:22PM -0700, Andrew Morton wrote:
-> > > +static inline void
-> > > +__prepare_to_wait(wait_queue_head_t *q, wait_queue_t *wait,
-> > > +			struct page *page, int state, bool exclusive)
-> > 
-> > Putting MM stuff into core waitqueue code is rather bad.  I really
-> > don't know how I'm going to explain this to my family.
+On Wed, May 21, 2014 at 09:56:55AM +0400, Konstantin Khlebnikov wrote:
+> On Wed, May 21, 2014 at 6:23 AM, Naoya Horiguchi
+> <n-horiguchi@ah.jp.nec.com> wrote:
+> > Hi Konstantin,
+> >
+> > This patch is already in upstream, but I have another idea of implementing
+> > the similar feature. So let me review this now, and I'll post patches to
+> > complement this patch.
+> >
+> > On Wed, Feb 26, 2014 at 11:57:23AM +0400, Konstantin Khlebnikov wrote:
+> >> After this patch 'page-types' can walk on filesystem mappings and analize
+> >> populated page cache pages mostly without disturbing its state.
+> >>
+> >> It maps chunk of file, marks VMA as MADV_RANDOM to turn off readahead,
+> >> pokes VMA via mincore() to determine cached pages, triggers page-fault
+> >> only for them, and finally gathers information via pagemap/kpageflags.
+> >> Before unmap it marks VMA as MADV_SEQUENTIAL for ignoring reference bits.
+> >
+> > I think that with this patch page-types *does* disturb page cache (not only
+> > of the target file) because it newly populates the pages not faulted in
+> > when page-types starts, which rotates LRU list and adds memory pressure.
+> > To minimize the measurement-disturbance, we need some help in the kernel side.
 > 
-> Right, so we could avoid all that and make the functions in mm/filemap.c
-> rather large and opencode a bunch of wait.c stuff.
+> Yes, it racy and sometimes changes state of page-cache, I know that.
+> Dcache state also under fire.
+> [ Also it sometimes races with truncate and dies after SIGBUS, I
+> already have patch for this ]
+> But, I don't see reason why anyone needs this so badly to require this
+> massive change in the kernel.
+
+I need this feature for kernel testing of memory error handling.
+I like to know page cache tree's status.
+
+> Also I don't quite like interface which you are proposend.
+> I think ioctl would be better, like FIEMAP/BMAP but for pages.
+> Hint: If you're inventing new interface at least make it non-racy and
+> usable for more than one user at once. =)
+
+This is interesting, I'll try to see this approach.
+
+> My code has one huge advantage -- it don't need any changes in the
+> kernel and works for old kernels.
+
+Yes.
+
+> If you're planning to change here something you should at least keep
+> old code for backward compatibility.
+
+page-types.c is a userspace tool, and this options was merged in the
+latest merge window, so not distributed by any distros yet.
+So "keep compatibility" rule is not strictly applied.
+
 > 
+> I've got another Idea. This mught be done in opposite direction: we
+> could add interface which tells mapping and offset for each page.
+> Finding all pages of particular mapping isn't big deal. What do you think?
 
-The world won't end if we do it Mel's way and it's probably the most
-efficient.  But ugh.  This stuff does raise the "it had better be a
-useful patch" bar.
+Interesting but it doesn't access to page cache tree info which I need.
+So ioctl approach sounds better to me.
 
-> Which is pretty much what I initially pseudo proposed.
-
-Alternative solution is not to merge the patch ;)
-
-> > > +		__ClearPageWaiters(page);
-> > 
-> > We're freeing the page - if someone is still waiting on it then we have
-> > a huge bug?  It's the mysterious collision thing again I hope?
+> >
+> >>
+> >> usage: page-types -f <path>
+> >>
+> >> If <path> is directory it will analyse all files in all subdirectories.
+> >
+> > I think -f was reserved for "Walk file address space", so doing file tree
+> > walk looks to me overkill. You can add "directory mode (-d) for this purpose,
+> > although it seems to me that we can/should do this (for example) by combining
+> > with find command. I can show you the example in my patch later.
 > 
-> Yeah, so we only clear that bit when at 'unlock' we find there are no
-> more pending waiters, so if the last unlock still had a waiter, we'll
-> leave the bit set.
+> It walks file address space, what's the problem?
 
-Confused.  If the last unlock had a waiter, that waiter will get woken
-up so there are no waiters any more, so the last unlock clears the flag.
+No problem itself. It's a matter of taste, but I like UNIX philosophy of
+"combining small tools."
+But anyway if you really want, I don't object it.
 
-um, how do we determine that there are no more waiters?  By looking at
-the waitqueue.  But that waitqueue is hashed, so it may contain waiters
-for other pages so we're screwed?  But we could just go and wake up the
-other-page waiters anyway and still clear PG_waiters?
+> Removing recursive walk saves couple lines but either kills
+> constuction of overall statistics our might hit the limit of argv
+> size.
+> 
+> >
+> >> Symlinks are not followed as well as mount points. Hardlinks aren't handled,
+> >> they'll be dumbed as many times as they are found. Recursive walk brings all
+> >> dentries into dcache and populates page cache of block-devices aka 'Buffers'.
+> 
+> I hope you have seen this two paraphes below. That was hint for future
+> hackers =)
+> 
+> >>
+> >> Probably it's worth to add ioctl for dumping file page cache as array of PFNs
+> >> as a replacement for this hackish juggling with mmap/madvise/mincore/pagemap.
+> >>
+> >> Also recursive walk could be replaced with dumping cached inodes via some ioctl
+> >> or debugfs interface followed by openning them via open_by_handle_at, this
+> >> would fix hardlinks handling and unneeded population of dcache and buffers.
+> >> This interface might be used as data source for constructing readahead plans
+> >> and for background optimizations of actively used files.
+> >>
+> >> collateral changes:
+> >> + fix 64-bit LFS: define _FILE_OFFSET_BITS instead of _LARGEFILE64_SOURCE
+> >> + replace lseek + read with single pread
+> >
+> > Good, thanks.
+> >
+> >> + make show_page_range() reusable after flush
+> >>
+> >>
+> >> usage example:
+> >>
+> >> ~/src/linux/tools/vm$ sudo ./page-types -L -f page-types
+> >> foffset       offset  flags
+> >> page-types    Inode: 2229277  Size: 89065 (22 pages)
+> >> Modify: Tue Feb 25 12:00:59 2014 (162 seconds ago)
+> >> Access: Tue Feb 25 12:01:00 2014 (161 seconds ago)
+> >
+> > I don't see why page-types needs to show these information.
+> > We have many other tools to check file info, so this small program should
+> > focus on page related things.
+> 
+> This tools helps to take snapshot of cached data and analyze why they are here.
+> Pages appears in cache when someone reads files and becomes dirty when
+> someone writes to them.
 
-um2, we're using exclusive waitqueues so we can't (or don't) wake all
-waiters, so we're screwed again?
+Originally this tool was introduced to get pages with a given set of
+page flags, which was needed by stress testing for memory error handler.
+That's a reason why it has some weired options -X/-x.
 
-(This process is proving to be a hard way of writing Mel's changelog btw).
+> This all about history and time, so when you inversigate what data is
+> still in cache or
+> still dirty you need to know how long they are here.
+> This isn't precisely right, but reasonable enough and don't need any
+> change in the kernel.
 
-If I'm still on track here, what happens if we switch to wake-all so we
-can avoid the dangling flag?  I doubt if there are many collisions on
-that hash table?
+If you said you want to show access time of *each* page (I know it's
+difficult/impossible,) it would be worth doing here.
+But I don't think file metadata is useless to do in this specific tool.
 
-If there *are* a lot of collisions, I bet it's because a great pile of
-threads are all waiting on the same page.  If they're trying to lock
-that page then wake-all is bad.  But if they're just waiting for IO
-completion (probable) then it's OK.
-
-I'll stop now.
+Thanks,
+Naoya Horiguchi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
