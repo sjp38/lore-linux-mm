@@ -1,227 +1,206 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 75A156B0039
-	for <linux-mm@kvack.org>; Wed, 21 May 2014 03:51:28 -0400 (EDT)
-Received: by mail-pd0-f182.google.com with SMTP id r10so1155921pdi.27
-        for <linux-mm@kvack.org>; Wed, 21 May 2014 00:51:28 -0700 (PDT)
-Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
-        by mx.google.com with ESMTP id gv5si27977851pac.217.2014.05.21.00.51.26
+Received: from mail-pb0-f42.google.com (mail-pb0-f42.google.com [209.85.160.42])
+	by kanga.kvack.org (Postfix) with ESMTP id D90736B0035
+	for <linux-mm@kvack.org>; Wed, 21 May 2014 04:07:03 -0400 (EDT)
+Received: by mail-pb0-f42.google.com with SMTP id md12so1194267pbc.1
+        for <linux-mm@kvack.org>; Wed, 21 May 2014 01:07:03 -0700 (PDT)
+Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
+        by mx.google.com with ESMTP id jz3si5181474pbc.89.2014.05.21.01.07.01
         for <linux-mm@kvack.org>;
-        Wed, 21 May 2014 00:51:27 -0700 (PDT)
-Date: Wed, 21 May 2014 16:51:30 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v2] zram: remove global tb_lock with fine grain lock
-Message-ID: <20140521075130.GB3983@bbox>
-References: <000101cf7013$f646ac30$e2d40490$%yang@samsung.com>
- <20140520151051.72912b8a7ecc5d460c871a58@linux-foundation.org>
+        Wed, 21 May 2014 01:07:03 -0700 (PDT)
+Message-ID: <537C5EA3.20709@lge.com>
+Date: Wed, 21 May 2014 17:06:59 +0900
+From: Gioh Kim <gioh.kim@lge.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140520151051.72912b8a7ecc5d460c871a58@linux-foundation.org>
+Subject: Re: [RFC PATCH] arm: dma-mapping: fallback allocation for cma failure
+References: <537AEEDB.2000001@lge.com> <20140520065222.GB8315@js1304-P5Q-DELUXE> <xa1t1tvo1fas.fsf@mina86.com>
+In-Reply-To: <xa1t1tvo1fas.fsf@mina86.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Weijie Yang <weijie.yang@samsung.com>, 'Nitin Gupta' <ngupta@vflare.org>, 'Sergey Senozhatsky' <sergey.senozhatsky@gmail.com>, 'Bob Liu' <bob.liu@oracle.com>, 'Dan Streetman' <ddstreet@ieee.org>, 'Weijie Yang' <weijie.yang.kh@gmail.com>, 'Heesub Shin' <heesub.shin@samsung.com>, 'Davidlohr Bueso' <davidlohr@hp.com>, 'Joonsoo Kim' <js1304@gmail.com>, 'linux-kernel' <linux-kernel@vger.kernel.org>, 'Linux-MM' <linux-mm@kvack.org>
+To: Michal Nazarewicz <mina86@mina86.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Heesub Shin <heesub.shin@samsung.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, =?UTF-8?B?7J206rG07Zi4?= <gunho.lee@lge.com>, 'Chanho Min' <chanho.min@lge.com>
 
-Hello Andrew,
 
-On Tue, May 20, 2014 at 03:10:51PM -0700, Andrew Morton wrote:
-> On Thu, 15 May 2014 16:00:47 +0800 Weijie Yang <weijie.yang@samsung.com> wrote:
-> 
-> > Currently, we use a rwlock tb_lock to protect concurrent access to
-> > the whole zram meta table. However, according to the actual access model,
-> > there is only a small chance for upper user to access the same table[index],
-> > so the current lock granularity is too big.
-> > 
-> > The idea of optimization is to change the lock granularity from whole
-> > meta table to per table entry (table -> table[index]), so that we can
-> > protect concurrent access to the same table[index], meanwhile allow
-> > the maximum concurrency.
-> > With this in mind, several kinds of locks which could be used as a
-> > per-entry lock were tested and compared:
-> > 
-> > ...
-> >
-> > --- a/drivers/block/zram/zram_drv.c
-> > +++ b/drivers/block/zram/zram_drv.c
-> > @@ -179,23 +179,32 @@ static ssize_t comp_algorithm_store(struct device *dev,
-> >  	return len;
-> >  }
-> >  
-> > -/* flag operations needs meta->tb_lock */
-> > -static int zram_test_flag(struct zram_meta *meta, u32 index,
-> > -			enum zram_pageflags flag)
-> > +static int zram_test_zero(struct zram_meta *meta, u32 index)
-> >  {
-> > -	return meta->table[index].flags & BIT(flag);
-> > +	return meta->table[index].value & BIT(ZRAM_ZERO);
-> >  }
-> >  
-> > -static void zram_set_flag(struct zram_meta *meta, u32 index,
-> > -			enum zram_pageflags flag)
-> > +static void zram_set_zero(struct zram_meta *meta, u32 index)
-> >  {
-> > -	meta->table[index].flags |= BIT(flag);
-> > +	meta->table[index].value |= BIT(ZRAM_ZERO);
-> >  }
-> >  
-> > -static void zram_clear_flag(struct zram_meta *meta, u32 index,
-> > -			enum zram_pageflags flag)
-> > +static void zram_clear_zero(struct zram_meta *meta, u32 index)
-> >  {
-> > -	meta->table[index].flags &= ~BIT(flag);
-> > +	meta->table[index].value &= ~BIT(ZRAM_ZERO);
-> > +}
-> > +
-> > +static int zram_get_obj_size(struct zram_meta *meta, u32 index)
-> > +{
-> > +	return meta->table[index].value & (BIT(ZRAM_FLAG_SHIFT) - 1);
-> > +}
-> > +
-> > +static void zram_set_obj_size(struct zram_meta *meta,
-> > +					u32 index, int size)
-> > +{
-> > +	meta->table[index].value = (unsigned long)size |
-> > +		((meta->table[index].value >> ZRAM_FLAG_SHIFT)
-> > +		<< ZRAM_FLAG_SHIFT );
-> >  }
-> 
-> Let's sort out the types here?  It makes no sense for `size' to be
-> signed.  And I don't think we need *any* 64-bit quantities here
-> (discussed below).
-> 
-> So I think we can make `size' a u32 and remove that typecast.
-> 
-> Also, please use checkpatch ;)
-> 
-> >  static inline int is_partial_io(struct bio_vec *bvec)
-> > @@ -255,7 +264,6 @@ static struct zram_meta *zram_meta_alloc(u64 disksize)
-> >  		goto free_table;
-> >  	}
-> >  
-> > -	rwlock_init(&meta->tb_lock);
-> >  	return meta;
-> >  
-> >  free_table:
-> > @@ -304,19 +312,19 @@ static void handle_zero_page(struct bio_vec *bvec)
-> >  	flush_dcache_page(page);
-> >  }
-> >  
-> > -/* NOTE: caller should hold meta->tb_lock with write-side */
-> 
-> Can we please update this important comment rather than simply deleting
-> it?
-> 
-> >  static void zram_free_page(struct zram *zram, size_t index)
-> >  {
-> >  	struct zram_meta *meta = zram->meta;
-> >  	unsigned long handle = meta->table[index].handle;
-> > +	int size;
-> >  
-> >  	if (unlikely(!handle)) {
-> >  		/*
-> >  		 * No memory is allocated for zero filled pages.
-> >  		 * Simply clear zero page flag.
-> >  		 */
-> > -		if (zram_test_flag(meta, index, ZRAM_ZERO)) {
-> > -			zram_clear_flag(meta, index, ZRAM_ZERO);
-> > +		if (zram_test_zero(meta, index)) {
-> > +			zram_clear_zero(meta, index);
-> >  			atomic64_dec(&zram->stats.zero_pages);
-> >  		}
-> >  		return;
-> >
-> > ...
-> >
-> > @@ -64,9 +76,8 @@ enum zram_pageflags {
-> >  /* Allocated for each disk page */
-> >  struct table {
-> >  	unsigned long handle;
-> > -	u16 size;	/* object size (excluding header) */
-> > -	u8 flags;
-> > -} __aligned(4);
-> > +	unsigned long value;
-> > +};
-> 
-> Does `value' need to be 64 bit on 64-bit machines?  I think u32 will be
-> sufficient?  The struct will still be 16 bytes but if we then play
-> around adding __packed to this structure we should be able to shrink it
-> to 12 bytes, save large amounts of memory?
-> 
-> And does `handle' need to be 64-bit on 64-bit?
+I change the name of patch into "[PATCH] arm: dma-mapping: add checking cma area initialized",
+because I remove fallback allocation and use dev_get_cma_area() to check cma area.
+If no cma area exists it goes to __alloc_remap_buffer().
 
-To me, it's a buggy. We should not have used (unsigned long) as zsmalloc's
-handle from the beginning. Sometime it might be bigger than sizeof(unsigned long)
-because zsmalloc's handle consists of (pfn, obj idx) so pfn itself is already
-unsigned long but more practically, if we consider MAX_PHYSMEM_BITS of arch
-and zsmalloc's min size class we have some room for obj_idx which is offset
-from each pages(I think that's why it isn't a problem for CONFIG_X86_32 PAE)
-but MAX_PHYSMEM_BITS is really arch dependent thing and zsmalloc's class size
-could be changed in future so we can't make sure in (exisiting/upcoming)
-all architecture, (MAX_PHYSMEM_BITS + bit for obj_idx) is less than
-unsigned long. So we should use zs_handle rather than unsigned log and
-zs_handle's size shouldn't expose to user. :(
+I think this is the same with the fallback allocation but a little simple.
 
-So, I'm fine with Weijie's patch other than naming Andrew pointed out.
-I like size_and_flags. :)
+I am sorry but I am not familiar kernel mailing style.
+Do I have to send the new patch in new email? Or is it OK to copy the new patch here?
 
-> 
-> 
-> Problem is, if we make optimisations such as this we will smash head-on
-> into the bit_spin_lock() requirement that it operate on a ulong*. 
-> Which is due to the bitops requiring a ulong*.  How irritating.
-> 
-> 
-> um, something like
-> 
-> union table {		/* Should be called table_entry */
-> 	unsigned long ul;
-> 	struct {
-> 		u32 size_and_flags;
-> 		u32 handle;
-> 	} s;
-> };
-> 
-> That's a 64-bit structure containing 32-bit handle and 8-bit flags and
-> 24-bit size.
-> 
-> I'm tempted to use bitfields here but that could get messy as we handle
-> endianness.
-> 
-> static void zram_table_lock(union table *table)
-> {
-> #ifdef __LITTLE_ENDIAN
-> 	bit_spin_lock(ZRAM_ACCESS, &t->ul);
-> #else
-> #ifdef CONFIG_64BIT
-> 	bit_spin_lock(ZRAM_ACCESS ^ (3 << 3), &t->ul);
-> #else
-> 	bit_spin_lock(ZRAM_ACCESS ^ (7 << 3), &t->ul);
-> #endif
-> #endif
-> }
-> 
-> Or something like that ;)  And I don't know if it's correct to use
-> 32-bit handle on 64-bit.
-> 
-> But you get the idea.  It's worth spending time over this because the
-> space savings will be quite large.
-> 
-> >  struct zram_stats {
-> >  	atomic64_t compr_data_size;	/* compressed size of pages stored */
-> >
-> > ...
-> >
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+------------------------------ 8< -------------------------------------------
+ From e50388f5904105cacea746cd6917c200704f0bf9 Mon Sep 17 00:00:00 2001
+From: Gioh Kim <gioh.kim@lge.com>
+Date: Tue, 20 May 2014 14:16:20 +0900
+Subject: [PATCH] arm: dma-mapping: add checking cma area initialized
 
--- 
-Kind regards,
-Minchan Kim
+If CMA is turned on and CMA size is set to zero, kernel should
+behave as if CMA was not enabled at compile time.
+Every dma allocation should check existence of cma area
+before requesting memory.
+
+Signed-off-by: Gioh Kim <gioh.kim@lge.com>
+Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+---
+  arch/arm/mm/dma-mapping.c |   12 ++++++++----
+  1 file changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
+index 18e98df..61f7b93 100644
+--- a/arch/arm/mm/dma-mapping.c
++++ b/arch/arm/mm/dma-mapping.c
+@@ -379,7 +379,7 @@ static int __init atomic_pool_init(void)
+         unsigned long *bitmap;
+         struct page *page;
+         struct page **pages;
+-       void *ptr;
++       void *ptr = NULL;
+         int bitmap_size = BITS_TO_LONGS(nr_pages) * sizeof(long);
+
+         bitmap = kzalloc(bitmap_size, GFP_KERNEL);
+@@ -390,12 +390,13 @@ static int __init atomic_pool_init(void)
+         if (!pages)
+                 goto no_pages;
+
+-       if (IS_ENABLED(CONFIG_DMA_CMA))
++       if (IS_ENABLED(CONFIG_DMA_CMA) && dma_contiguous_default_area)
+                 ptr = __alloc_from_contiguous(NULL, pool->size, prot, &page,
+                                               atomic_pool_init);
+         else
+                 ptr = __alloc_remap_buffer(NULL, pool->size, gfp, prot, &page,
+                                            atomic_pool_init);
++
+         if (ptr) {
+                 int i;
+
+@@ -669,6 +670,7 @@ static void *__dma_alloc(struct device *dev, size_t size, dma_addr_t *handle,
+         u64 mask = get_coherent_dma_mask(dev);
+         struct page *page = NULL;
+         void *addr;
++       struct cma *cma = dev_get_cma_area(dev);
+
+  #ifdef CONFIG_DMA_API_DEBUG
+         u64 limit = (mask + 1) & ~mask;
+@@ -701,7 +703,7 @@ static void *__dma_alloc(struct device *dev, size_t size, dma_addr_t *handle,
+                 addr = __alloc_simple_buffer(dev, size, gfp, &page);
+         else if (!(gfp & __GFP_WAIT))
+                 addr = __alloc_from_pool(size, &page);
+-       else if (!IS_ENABLED(CONFIG_DMA_CMA))
++       else if (!IS_ENABLED(CONFIG_DMA_CMA) || !cma)
+                 addr = __alloc_remap_buffer(dev, size, gfp, prot, &page, caller);
+         else
+                 addr = __alloc_from_contiguous(dev, size, prot, &page, caller);
+@@ -780,6 +782,7 @@ static void __arm_dma_free(struct device *dev, size_t size, void *cpu_addr,
+                            bool is_coherent)
+  {
+         struct page *page = pfn_to_page(dma_to_pfn(dev, handle));
++       struct cma *cma = dev_get_cma_area(dev);
+
+         if (dma_release_from_coherent(dev, get_order(size), cpu_addr))
+                 return;
+@@ -790,7 +793,7 @@ static void __arm_dma_free(struct device *dev, size_t size, void *cpu_addr,
+                 __dma_free_buffer(page, size);
+         } else if (__free_from_pool(cpu_addr, size)) {
+                 return;
+-       } else if (!IS_ENABLED(CONFIG_DMA_CMA)) {
++       } else if (!IS_ENABLED(CONFIG_DMA_CMA) || !cma) {
+                 __dma_free_remap(cpu_addr, size);
+                 __dma_free_buffer(page, size);
+         } else {
+@@ -798,6 +801,7 @@ static void __arm_dma_free(struct device *dev, size_t size, void *cpu_addr,
+                  * Non-atomic allocations cannot be freed with IRQs disabled
+                  */
+                 WARN_ON(irqs_disabled());
++
+                 __free_from_contiguous(dev, page, cpu_addr, size);
+         }
+  }
+--
+1.7.9.5
+
+
+2014-05-21 i??i ? 3:22, Michal Nazarewicz i?' e,?:
+> On Mon, May 19 2014, Joonsoo Kim wrote:
+>> On Tue, May 20, 2014 at 02:57:47PM +0900, Gioh Kim wrote:
+>>>
+>>> Thanks for your advise, Michal Nazarewicz.
+>>>
+>>> Having discuss with Joonsoo, I'm adding fallback allocation after __alloc_from_contiguous().
+>>> The fallback allocation works if CMA kernel options is turned on but CMA size is zero.
+>>
+>> Hello, Gioh.
+>>
+>> I also mentioned the case where devices have their specific cma_area.
+>> It means that this device needs memory with some contraint.
+>> Although I'm not familiar with DMA infrastructure, I think that
+>> we should handle this case.
+>>
+>> How about below patch?
+>>
+>> ------------>8----------------
+>> diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
+>> index 6b00be1..4023434 100644
+>> --- a/arch/arm/mm/dma-mapping.c
+>> +++ b/arch/arm/mm/dma-mapping.c
+>> @@ -379,7 +379,7 @@ static int __init atomic_pool_init(void)
+>>   	unsigned long *bitmap;
+>>   	struct page *page;
+>>   	struct page **pages;
+>> -	void *ptr;
+>> +	void *ptr = NULL;
+>>   	int bitmap_size = BITS_TO_LONGS(nr_pages) * sizeof(long);
+>>
+>>   	bitmap = kzalloc(bitmap_size, GFP_KERNEL);
+>> @@ -393,7 +393,8 @@ static int __init atomic_pool_init(void)
+>>   	if (IS_ENABLED(CONFIG_DMA_CMA))
+>>   		ptr = __alloc_from_contiguous(NULL, pool->size, prot, &page,
+>>   					      atomic_pool_init);
+>> -	else
+>> +
+>> +	if (!ptr)
+>>   		ptr = __alloc_remap_buffer(NULL, pool->size, gfp, prot, &page,
+>>   					   atomic_pool_init);
+>>   	if (ptr) {
+>> @@ -701,10 +702,22 @@ static void *__dma_alloc(struct device *dev, size_t size, dma_addr_t *handle,
+>>   		addr = __alloc_simple_buffer(dev, size, gfp, &page);
+>>   	else if (!(gfp & __GFP_WAIT))
+>>   		addr = __alloc_from_pool(size, &page);
+>> -	else if (!IS_ENABLED(CONFIG_DMA_CMA))
+>> -		addr = __alloc_remap_buffer(dev, size, gfp, prot, &page, caller);
+>> -	else
+>> -		addr = __alloc_from_contiguous(dev, size, prot, &page, caller);
+>> +	else {
+>> +		if (IS_ENABLED(CONFIG_DMA_CMA)) {
+>> +			addr = __alloc_from_contiguous(dev, size, prot,
+>> +							&page, caller);
+>> +			/*
+>> +			 * Device specific cma_area means that
+>> +			 * this device needs memory with some contraint.
+>> +			 * So, we can't fall through general remap allocation.
+>> +			 */
+>> +			if (!addr && dev && dev->cma_area)
+>> +				return NULL;
+>> +		}
+>> +
+>> +		addr = __alloc_remap_buffer(dev, size, gfp, prot,
+>> +							&page, caller);
+>> +	}
+>
+> __arm_dma_free will have to be changed to handle the fallback as well.
+> But perhaps Marek is right and there should be no fallback for regular
+> allocations?  Than again, non-CMA allocation should be performed at
+> least in the case of cma=0.
+>
+>>
+>>   	if (addr)
+>>   		*handle = pfn_to_dma(dev, page_to_pfn(page));
+>
+>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
