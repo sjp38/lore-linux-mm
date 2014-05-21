@@ -1,161 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f53.google.com (mail-pb0-f53.google.com [209.85.160.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 0675C6B0036
-	for <linux-mm@kvack.org>; Wed, 21 May 2014 16:11:48 -0400 (EDT)
-Received: by mail-pb0-f53.google.com with SMTP id md12so1715235pbc.26
-        for <linux-mm@kvack.org>; Wed, 21 May 2014 13:11:48 -0700 (PDT)
-Received: from mail-pa0-x234.google.com (mail-pa0-x234.google.com [2607:f8b0:400e:c03::234])
-        by mx.google.com with ESMTPS id vj3si7623290pbc.59.2014.05.21.13.11.47
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 21 May 2014 13:11:48 -0700 (PDT)
-Received: by mail-pa0-f52.google.com with SMTP id fa1so1733897pad.11
-        for <linux-mm@kvack.org>; Wed, 21 May 2014 13:11:47 -0700 (PDT)
-From: Michal Nazarewicz <mina86@mina86.com>
-Subject: Re: [RFC PATCH] arm: dma-mapping: fallback allocation for cma failure
-In-Reply-To: <537C5EA3.20709@lge.com>
-References: <537AEEDB.2000001@lge.com> <20140520065222.GB8315@js1304-P5Q-DELUXE> <xa1t1tvo1fas.fsf@mina86.com> <537C5EA3.20709@lge.com>
-Date: Wed, 21 May 2014 10:11:43 -1000
-Message-ID: <xa1td2f699j4.fsf@mina86.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 93A516B0037
+	for <linux-mm@kvack.org>; Wed, 21 May 2014 16:11:59 -0400 (EDT)
+Received: by mail-pa0-f54.google.com with SMTP id bj1so1739087pad.27
+        for <linux-mm@kvack.org>; Wed, 21 May 2014 13:11:59 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id og1si7619284pbc.150.2014.05.21.13.11.58
+        for <linux-mm@kvack.org>;
+        Wed, 21 May 2014 13:11:58 -0700 (PDT)
+Date: Wed, 21 May 2014 13:11:57 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v2] mm, compaction: properly signal and act upon lock
+ and need_sched() contention
+Message-Id: <20140521131157.3a092c5f9d8b6b5d467f8928@linux-foundation.org>
+In-Reply-To: <537CB493.9090706@suse.cz>
+References: <1399904111-23520-1-git-send-email-vbabka@suse.cz>
+	<1400233673-11477-1-git-send-email-vbabka@suse.cz>
+	<20140519163741.55998ce65534ed73d913ee2c@linux-foundation.org>
+	<537CB493.9090706@suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gioh Kim <gioh.kim@lge.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Heesub Shin <heesub.shin@samsung.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, =?utf-8?B?7J206rG07Zi4?= <gunho.lee@lge.com>, 'Chanho Min' <chanho.min@lge.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Greg Thelen <gthelen@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>
 
-On Wed, May 21 2014, Gioh Kim <gioh.kim@lge.com> wrote:
-> Date: Tue, 20 May 2014 14:16:20 +0900
-> Subject: [PATCH] arm: dma-mapping: add checking cma area initialized
->
-> If CMA is turned on and CMA size is set to zero, kernel should
-> behave as if CMA was not enabled at compile time.
-> Every dma allocation should check existence of cma area
-> before requesting memory.
->
-> Signed-off-by: Gioh Kim <gioh.kim@lge.com>
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+On Wed, 21 May 2014 16:13:39 +0200 Vlastimil Babka <vbabka@suse.cz> wrote:
 
-Some minor comments.  Also, I'd love for someone more experienced with
-ARM to take a look at this as well.
+> >>
+> >> ...
+> >>
+> >> @@ -718,9 +739,11 @@ static void isolate_freepages(struct zone *zone,
+> >>   		/*
+> >>   		 * This can iterate a massively long zone without finding any
+> >>   		 * suitable migration targets, so periodically check if we need
+> >> -		 * to schedule.
+> >> +		 * to schedule, or even abort async compaction.
+> >>   		 */
+> >> -		cond_resched();
+> >> +		if (!(block_start_pfn % (SWAP_CLUSTER_MAX * pageblock_nr_pages))
+> >> +						&& compact_should_abort(cc))
+> > 
+> > This seems rather gratuitously inefficient and isn't terribly clear.
+> > What's wrong with
+> > 
+> > 	if ((++foo % SWAP_CLUSTER_MAX) == 0 && compact_should_abort(cc))
+> 
+> It's a new variable and it differs from how isolate_migratepages_range() does this.
+> But yeah, I might change it later there as well. There it makes even more sense.
+> E.g. when skipping whole pageblock there, pfn % SWAP_CLUSTER_MAX will be always zero
+> so the periodicity varies.
+>  
+> > ?
+> > 
+> > (Assumes that SWAP_CLUSTER_MAX is power-of-2 and that the compiler will
+> > use &)
+>  
+> I hoped that compiler would be smart enough about SWAP_CLUSTER_MAX * pageblock_nr_pages
+> as well, as those are constants and also power-of-2. But I didn't check the assembly.
 
-> ---
->   arch/arm/mm/dma-mapping.c |   12 ++++++++----
->   1 file changed, 8 insertions(+), 4 deletions(-)
->
-> diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
-> index 18e98df..61f7b93 100644
-> --- a/arch/arm/mm/dma-mapping.c
-> +++ b/arch/arm/mm/dma-mapping.c
-> @@ -379,7 +379,7 @@ static int __init atomic_pool_init(void)
->          unsigned long *bitmap;
->          struct page *page;
->          struct page **pages;
-> -       void *ptr;
-> +       void *ptr =3D NULL;
+Always check the assembly!  Just a quick `size mm/compaction.o' is
+enough tell if you're on the right track.
 
-This is unnecessary any more.
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -779,6 +779,7 @@ static void isolate_freepages(struct zone *zone,
+>  	unsigned long block_start_pfn;	/* start of current pageblock */
+>  	unsigned long block_end_pfn;	/* end of current pageblock */
+>  	unsigned long low_pfn;	     /* lowest pfn scanner is able to scan */
+> +	unsigned long nr_blocks_scanned = 0; /* for periodical abort checks */
+>  	int nr_freepages = cc->nr_freepages;
+>  	struct list_head *freelist = &cc->freepages;
+>  
+> @@ -813,7 +814,7 @@ static void isolate_freepages(struct zone *zone,
+>  		 * suitable migration targets, so periodically check if we need
+>  		 * to schedule, or even abort async compaction.
+>  		 */
+> -		if (!(block_start_pfn % (SWAP_CLUSTER_MAX * pageblock_nr_pages))
+> +		if ((++nr_blocks_scanned % SWAP_CLUSTER_MAX) == 0
+>  						&& compact_should_abort(cc))
+>  			break;
 
->          int bitmap_size =3D BITS_TO_LONGS(nr_pages) * sizeof(long);
->
->          bitmap =3D kzalloc(bitmap_size, GFP_KERNEL);
-> @@ -390,12 +390,13 @@ static int __init atomic_pool_init(void)
->          if (!pages)
->                  goto no_pages;
->
-> -       if (IS_ENABLED(CONFIG_DMA_CMA))
-> +       if (IS_ENABLED(CONFIG_DMA_CMA) && dma_contiguous_default_area)
+This change actually makes the code worse, and the .o file gets larger.
 
-+	if (dev_get_cma_area(NULL))
-
-dev_get_cma_area returns NULL if !IS_ENABLED(CONFIG_DMA_CMA) so there's
-no need to check it explicitly.  And with NULL argument,
-deg_get_cma_area returns the default area.
-
->                  ptr =3D __alloc_from_contiguous(NULL, pool->size, prot, =
-&page,
->                                                atomic_pool_init);
->          else
->                  ptr =3D __alloc_remap_buffer(NULL, pool->size, gfp, prot=
-, &page,
->                                             atomic_pool_init);
-> +
->          if (ptr) {
->                  int i;
->
-> @@ -669,6 +670,7 @@ static void *__dma_alloc(struct device *dev, size_t s=
-ize, dma_addr_t *handle,
->          u64 mask =3D get_coherent_dma_mask(dev);
->          struct page *page =3D NULL;
->          void *addr;
-> +       struct cma *cma =3D dev_get_cma_area(dev);
->
->   #ifdef CONFIG_DMA_API_DEBUG
->          u64 limit =3D (mask + 1) & ~mask;
-> @@ -701,7 +703,7 @@ static void *__dma_alloc(struct device *dev, size_t s=
-ize, dma_addr_t *handle,
->                  addr =3D __alloc_simple_buffer(dev, size, gfp, &page);
->          else if (!(gfp & __GFP_WAIT))
->                  addr =3D __alloc_from_pool(size, &page);
-> -       else if (!IS_ENABLED(CONFIG_DMA_CMA))
-> +       else if (!IS_ENABLED(CONFIG_DMA_CMA) || !cma)
-
-Like above, just do:
-
-+	else if (!dev_get_cma_area(dev))
-
-This will also allow to drop the =E2=80=9Ccma=E2=80=9D variable above.
-
->                  addr =3D __alloc_remap_buffer(dev, size, gfp, prot, &pag=
-e, caller);
->          else
->                  addr =3D __alloc_from_contiguous(dev, size, prot, &page,=
- caller);
-> @@ -780,6 +782,7 @@ static void __arm_dma_free(struct device *dev, size_t=
- size, void *cpu_addr,
->                             bool is_coherent)
->   {
->          struct page *page =3D pfn_to_page(dma_to_pfn(dev, handle));
-> +       struct cma *cma =3D dev_get_cma_area(dev);
->
->          if (dma_release_from_coherent(dev, get_order(size), cpu_addr))
->                  return;
-> @@ -790,7 +793,7 @@ static void __arm_dma_free(struct device *dev, size_t=
- size, void *cpu_addr,
->                  __dma_free_buffer(page, size);
->          } else if (__free_from_pool(cpu_addr, size)) {
->                  return;
-> -       } else if (!IS_ENABLED(CONFIG_DMA_CMA)) {
-> +       } else if (!IS_ENABLED(CONFIG_DMA_CMA) || !cma) {
-
-Ditto.
-
->                  __dma_free_remap(cpu_addr, size);
->                  __dma_free_buffer(page, size);
->          } else {
-> @@ -798,6 +801,7 @@ static void __arm_dma_free(struct device *dev, size_t=
- size, void *cpu_addr,
->                   * Non-atomic allocations cannot be freed with IRQs disa=
-bled
->                   */
->                  WARN_ON(irqs_disabled());
-> +
-
-Unrelated change.
-
->                  __free_from_contiguous(dev, page, cpu_addr, size);
->          }
->   }
-> --
-> 1.7.9.5
-
---=20
-Best regards,                                         _     _
-.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
-..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz   =
- (o o)
-ooo +--<mpn@google.com>--<xmpp:mina86@jabber.org>--ooO--(_)--Ooo--
+For some stupid reason we went and make pageblock_nr_pages all lower
+case but surprise surprise, it's actually a literal constant.  So the
+compiler does the multiplication at compile time and converts the
+modulus operation into a bitwise AND.  Duh.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
