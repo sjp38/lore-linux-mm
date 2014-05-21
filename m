@@ -1,44 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C8E16B0036
-	for <linux-mm@kvack.org>; Wed, 21 May 2014 15:34:48 -0400 (EDT)
-Received: by mail-pa0-f44.google.com with SMTP id ld10so1695891pab.17
-        for <linux-mm@kvack.org>; Wed, 21 May 2014 12:34:48 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id lp7si30407595pab.189.2014.05.21.12.34.47
-        for <linux-mm@kvack.org>;
-        Wed, 21 May 2014 12:34:48 -0700 (PDT)
-Date: Wed, 21 May 2014 12:34:46 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
+Received: from mail-la0-f45.google.com (mail-la0-f45.google.com [209.85.215.45])
+	by kanga.kvack.org (Postfix) with ESMTP id BF1796B0036
+	for <linux-mm@kvack.org>; Wed, 21 May 2014 15:57:30 -0400 (EDT)
+Received: by mail-la0-f45.google.com with SMTP id gl10so1978079lab.32
+        for <linux-mm@kvack.org>; Wed, 21 May 2014 12:57:29 -0700 (PDT)
+Received: from mail-la0-x236.google.com (mail-la0-x236.google.com [2a00:1450:4010:c03::236])
+        by mx.google.com with ESMTPS id ln10si21401751lac.102.2014.05.21.12.57.28
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 21 May 2014 12:57:29 -0700 (PDT)
+Received: by mail-la0-f54.google.com with SMTP id pv20so1981149lab.13
+        for <linux-mm@kvack.org>; Wed, 21 May 2014 12:57:28 -0700 (PDT)
+Date: Wed, 21 May 2014 23:57:23 +0400
+From: Cyrill Gorcunov <gorcunov@gmail.com>
 Subject: Re: [PATCH] mm: /prom/pid/clear_refs: avoid split_huge_page()
-Message-Id: <20140521123446.ae45fa676cae27fffbd96cfd@linux-foundation.org>
-In-Reply-To: <1400699062-20123-1-git-send-email-kirill.shutemov@linux.intel.com>
+Message-ID: <20140521195723.GD12819@moon>
 References: <1400699062-20123-1-git-send-email-kirill.shutemov@linux.intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+ <20140521123446.ae45fa676cae27fffbd96cfd@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140521123446.ae45fa676cae27fffbd96cfd@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Pavel Emelyanov <xemul@parallels.com>, Cyrill Gorcunov <gorcunov@openvz.org>, Dave Hansen <dave.hansen@intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Pavel Emelyanov <xemul@parallels.com>, Dave Hansen <dave.hansen@intel.com>
 
-On Wed, 21 May 2014 22:04:22 +0300 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
-
-> Currently we split all THP pages on any clear_refs request. It's not
-> necessary. We can handle this on PMD level.
+On Wed, May 21, 2014 at 12:34:46PM -0700, Andrew Morton wrote:
+> On Wed, 21 May 2014 22:04:22 +0300 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
 > 
-> One side effect is that soft dirty will potentially see more dirty
-> memory, since we will mark whole THP page dirty at once.
+> > Currently we split all THP pages on any clear_refs request. It's not
+> > necessary. We can handle this on PMD level.
+> > 
+> > One side effect is that soft dirty will potentially see more dirty
+> > memory, since we will mark whole THP page dirty at once.
+> 
+> This clashes pretty badly with
+> http://ozlabs.org/~akpm/mmots/broken-out/clear_refs-redefine-callback-functions-for-page-table-walker.patch
+> 
+> > Sanity checked with CRIU test suite. More testing is required.
+> 
+> Will you be doing that testing or was this a request for Cyrill & co to
+> help?
 
-This clashes pretty badly with
-http://ozlabs.org/~akpm/mmots/broken-out/clear_refs-redefine-callback-functions-for-page-table-walker.patch
-
-> Sanity checked with CRIU test suite. More testing is required.
-
-Will you be doing that testing or was this a request for Cyrill & co to
-help?
-
-Perhaps this is post-3.15 material.
+We've talking to Kirill how to test is and end up that criu is
+the best candidate (though I think I'll write selftest for
+vanilla too, hopefully tomorrow).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
