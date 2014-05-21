@@ -1,158 +1,184 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 975886B0036
-	for <linux-mm@kvack.org>; Wed, 21 May 2014 09:08:29 -0400 (EDT)
-Received: by mail-wi0-f175.google.com with SMTP id f8so7637698wiw.2
-        for <linux-mm@kvack.org>; Wed, 21 May 2014 06:08:29 -0700 (PDT)
-Received: from casper.infradead.org (casper.infradead.org. [2001:770:15f::2])
-        by mx.google.com with ESMTPS id x3si16145132wja.31.2014.05.21.06.02.28
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 May 2014 06:02:29 -0700 (PDT)
-Date: Wed, 21 May 2014 15:02:23 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH] mm: filemap: Avoid unnecessary barries and waitqueue
- lookups in unlock_page fastpath v5
-Message-ID: <20140521130223.GE2485@laptop.programming.kicks-ass.net>
-References: <1399974350-11089-1-git-send-email-mgorman@suse.de>
- <1399974350-11089-20-git-send-email-mgorman@suse.de>
- <20140513125313.GR23991@suse.de>
- <20140513141748.GD2485@laptop.programming.kicks-ass.net>
- <20140514161152.GA2615@redhat.com>
- <20140514192945.GA10830@redhat.com>
- <20140515104808.GF23991@suse.de>
- <20140515142414.16c47315a03160c58ceb9066@linux-foundation.org>
- <20140521121501.GT23991@suse.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140521121501.GT23991@suse.de>
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 4F4E36B0036
+	for <linux-mm@kvack.org>; Wed, 21 May 2014 09:40:41 -0400 (EDT)
+Received: by mail-pd0-f177.google.com with SMTP id g10so1395779pdj.22
+        for <linux-mm@kvack.org>; Wed, 21 May 2014 06:40:41 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id zv2si5285759pbb.131.2014.05.21.06.40.39
+        for <linux-mm@kvack.org>;
+        Wed, 21 May 2014 06:40:40 -0700 (PDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+In-Reply-To: <20140520125956.aa61a3bfd84d4d6190740ce2@linux-foundation.org>
+References: <1399541296-18810-1-git-send-email-maddy@linux.vnet.ibm.com>
+ <537479E7.90806@linux.vnet.ibm.com>
+ <alpine.LSU.2.11.1405151026540.4664@eggly.anvils>
+ <87wqdik4n5.fsf@rustcorp.com.au>
+ <53797511.1050409@linux.vnet.ibm.com>
+ <alpine.LSU.2.11.1405191531150.1317@eggly.anvils>
+ <20140519164301.eafd3dd288ccb88361ddcfc7@linux-foundation.org>
+ <20140520004429.E660AE009B@blue.fi.intel.com>
+ <87oaythsvk.fsf@rustcorp.com.au>
+ <20140520102738.7F096E009B@blue.fi.intel.com>
+ <20140520125956.aa61a3bfd84d4d6190740ce2@linux-foundation.org>
+Subject: Re: [PATCH V4 0/2] mm: FAULT_AROUND_ORDER patchset performance data
+ for powerpc
+Content-Transfer-Encoding: 7bit
+Message-Id: <20140521134027.263DDE009B@blue.fi.intel.com>
+Date: Wed, 21 May 2014 16:40:27 +0300 (EEST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, David Howells <dhowells@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rusty Russell <rusty@rustcorp.com.au>, Hugh Dickins <hughd@google.com>, Madhavan Srinivasan <maddy@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, x86@kernel.org, benh@kernel.crashing.org, paulus@samba.org, riel@redhat.com, mgorman@suse.de, ak@linux.intel.com, peterz@infradead.org, mingo@kernel.org, dave.hansen@intel.com
 
-On Wed, May 21, 2014 at 01:15:01PM +0100, Mel Gorman wrote:
-> Andrew had suggested dropping v4 of the patch entirely as the numbers were
-> marginal and the complexity was high. However, even on a relatively small
-> machine running simple workloads the overhead of page_waitqueue and wakeup
-> functions is around 5% of system CPU time. That's quite high for basic
-> operations so I felt it was worth another shot. The performance figures
-> are better with this version than they were for v4 and overall the patch
-> should be more comprehensible.
+Andrew Morton wrote:
+> On Tue, 20 May 2014 13:27:38 +0300 (EEST) "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
+> 
+> > Rusty Russell wrote:
+> > > "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> writes:
+> > > > Andrew Morton wrote:
+> > > >> On Mon, 19 May 2014 16:23:07 -0700 (PDT) Hugh Dickins <hughd@google.com> wrote:
+> > > >> 
+> > > >> > Shouldn't FAULT_AROUND_ORDER and fault_around_order be changed to be
+> > > >> > the order of the fault-around size in bytes, and fault_around_pages()
+> > > >> > use 1UL << (fault_around_order - PAGE_SHIFT)
+> > > >> 
+> > > >> Yes.  And shame on me for missing it (this time!) at review.
+> > > >> 
+> > > >> There's still time to fix this.  Patches, please.
+> > > >
+> > > > Here it is. Made at 3.30 AM, build tested only.
+> > > 
+> > > Prefer on top of Maddy's patch which makes it always a variable, rather
+> > > than CONFIG_DEBUG_FS.  It's got enough hair as it is.
+> > 
+> > Something like this?
+> 
+> This appears to be against mainline, not against Madhavan's patch.  As
+> mentioned previously, I'd prefer it that way but confused.
+> 
+> 
+> > From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> > Date: Tue, 20 May 2014 13:02:03 +0300
+> > Subject: [PATCH] mm: nominate faultaround area in bytes rather then page order
+> > 
+> > There are evidences that faultaround feature is less relevant on
+> > architectures with page size bigger then 4k. Which makes sense since
+> > page fault overhead per byte of mapped area should be less there.
+> > 
+> > Let's rework the feature to specify faultaround area in bytes instead of
+> > page order. It's 64 kilobytes for now.
+> > 
+> > The patch effectively disables faultaround on architectures with
+> > page size >= 64k (like ppc64).
+> > 
+> > It's possible that some other size of faultaround area is relevant for a
+> > platform. We can expose `fault_around_bytes' variable to arch-specific
+> > code once such platforms will be found.
+> > 
+> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> > ---
+> >  mm/memory.c | 62 +++++++++++++++++++++++--------------------------------------
+> >  1 file changed, 23 insertions(+), 39 deletions(-)
+> > 
+> > diff --git a/mm/memory.c b/mm/memory.c
+> > index 037b812a9531..252b319e8cdf 100644
+> > --- a/mm/memory.c
+> > +++ b/mm/memory.c
+> > @@ -3402,63 +3402,47 @@ void do_set_pte(struct vm_area_struct *vma, unsigned long address,
+> >  	update_mmu_cache(vma, address, pte);
+> >  }
+> >  
+> > -#define FAULT_AROUND_ORDER 4
+> > +static unsigned long fault_around_bytes = 65536;
+> > +
+> > +static inline unsigned long fault_around_pages(void)
+> > +{
+> > +	return rounddown_pow_of_two(fault_around_bytes) / PAGE_SIZE;
+> > +}
+> 
+> I think we should round up, not down.  So if the user asks for 1kb,
+> they get one page.
+> 
+> So this becomes
+> 
+> 	return PAGE_ALIGN(fault_around_bytes) / PAGE_SIZE;
 
-Simpler patch and better performance, yay!
+See below.
 
-> This patch introduces a new page flag for 64-bit capable machines,
-> PG_waiters, to signal there are processes waiting on PG_lock and uses it to
-> avoid memory barriers and waitqueue hash lookup in the unlock_page fastpath.
+> > +static inline unsigned long fault_around_mask(void)
+> > +{
+> > +	return ~(rounddown_pow_of_two(fault_around_bytes) - 1) & PAGE_MASK;
+> > +}
+> 
+> And this has me a bit stumped.  It's not helpful that do_fault_around()
+> is undocumented.  Does it fault in N/2 pages ahead and N/2 pages
+> behind?  Or does it align the address down to the highest multiple of
+> fault_around_bytes?  It appears to be the latter, so the location of
+> the faultaround window around the fault address is basically random,
+> depending on what address userspace happened to pick.  I don't know why
+> we did this :(
 
-The patch seems to also explicitly use it for PG_writeback, yet no
-mention of that here.
+When we call ->map_pages() we need to make sure that we stay within VMA
+and the page table. We don't want to cross page table boundary, because
+page table is what ptlock covers in split ptlock case.
 
-> diff --git a/kernel/sched/wait.c b/kernel/sched/wait.c
-> index 0ffa20a..f829e73 100644
-> --- a/kernel/sched/wait.c
-> +++ b/kernel/sched/wait.c
-> @@ -167,31 +167,39 @@ EXPORT_SYMBOL_GPL(__wake_up_sync);	/* For internal use only */
->   * stops them from bleeding out - it would still allow subsequent
->   * loads to move into the critical region).
->   */
-> +static inline void
+I've designed the feature with fault area nominated in page order in mind
+and I found it's easier to make sure we don't cross boundaries, if we
+would align virtual address of fault around area to PAGE_SIZE <<
+FAULT_AROUND_ORDER.
 
-Make that __always_inline, that way we're guaranteed to optimize the
-build time constant .page=NULL cases.
+And yes fault address may be anywhere within the area. You can think about
+this as a virtual page with size PAGE_SIZE << FAULT_AROUND_ORDER: no matter
+what is fault address, we handle area naturally aligned to page size which
+fault address belong to.
 
-> +__prepare_to_wait(wait_queue_head_t *q, wait_queue_t *wait,
-> +			struct page *page, int state, bool exclusive)
->  {
->  	unsigned long flags;
->  
-> +	if (page && !PageWaiters(page))
-> +		SetPageWaiters(page);
-> +	if (list_empty(&wait->task_list)) {
-> +		if (exclusive) {
-> +			wait->flags |= WQ_FLAG_EXCLUSIVE;
-> +			__add_wait_queue_tail(q, wait);
-> +		} else {
+I've used rounddown_pow_of_two() in the patch to align to nearest page
+order, not to page size, because that's what current do_fault_around()
+expect to see. And roundup is not an option: nobody expects fault around
+area to be 128k if fault_around_bytes set to 64k + 1 bytes.
 
-I'm fairly sure we've just initialized the wait thing to 0, so clearing
-the bit would be superfluous.
+If you think we need this I can rework do_fault_around() to handle
+non-pow-of-two fault_around_pages(), but I don't think it's good idea to
+do this for v3.15. Anyway, patch I've proposed allows change
+fault_around_bytes only from DEBUG_FS and roundown should be good
+enough there.
 
-> +			wait->flags &= ~WQ_FLAG_EXCLUSIVE;
-> +			__add_wait_queue(q, wait);
-> +		}
-> +	}
->  	set_current_state(state);
->  	spin_unlock_irqrestore(&q->lock, flags);
->  }
-> +
-> +void
-> +prepare_to_wait(wait_queue_head_t *q, wait_queue_t *wait, int state)
-> +{
-> +	return __prepare_to_wait(q, wait, NULL, state, false);
-> +}
->  EXPORT_SYMBOL(prepare_to_wait);
->  
->  void
->  prepare_to_wait_exclusive(wait_queue_head_t *q, wait_queue_t *wait, int state)
->  {
-> +	return __prepare_to_wait(q, wait, NULL, state, true);
->  }
->  EXPORT_SYMBOL(prepare_to_wait_exclusive);
->  
-> @@ -228,7 +236,8 @@ EXPORT_SYMBOL(prepare_to_wait_event);
->   * the wait descriptor from the given waitqueue if still
->   * queued.
->   */
-> +static inline void __finish_wait(wait_queue_head_t *q, wait_queue_t *wait,
-> +			struct page *page)
->  {
+> Or something.  Can we please get some code commentary over
+> do_fault_around() describing this design decision and explaining the
+> reasoning behind it?
 
-Same thing, make that __always_inline.
+I'll do this. But if do_fault_around() rework is needed, I want to do that
+first.
 
->  	unsigned long flags;
->  
-> @@ -249,9 +258,16 @@ void finish_wait(wait_queue_head_t *q, wait_queue_t *wait)
->  	if (!list_empty_careful(&wait->task_list)) {
->  		spin_lock_irqsave(&q->lock, flags);
->  		list_del_init(&wait->task_list);
-> +		if (page && !waitqueue_active(q))
-> +			ClearPageWaiters(page);
->  		spin_unlock_irqrestore(&q->lock, flags);
->  	}
->  }
-> +
-> +void finish_wait(wait_queue_head_t *q, wait_queue_t *wait)
-> +{
-> +	return __finish_wait(q, wait, NULL);
-> +}
->  EXPORT_SYMBOL(finish_wait);
->  
->  /**
+> Also, "neast" is not a word.
 
-> @@ -374,6 +427,19 @@ int __sched out_of_line_wait_on_bit_lock(void *word, int bit,
->  }
->  EXPORT_SYMBOL(out_of_line_wait_on_bit_lock);
->  
-> +void __wake_up_page_bit(wait_queue_head_t *wqh, struct page *page, void *word, int bit)
-> +{
-> +	struct wait_bit_key key = __WAIT_BIT_KEY_INITIALIZER(word, bit);
-> +	unsigned long flags;
-> +
-> +	spin_lock_irqsave(&wqh->lock, flags);
-> +	if (waitqueue_active(wqh))
-> +		__wake_up_common(wqh, TASK_NORMAL, 1, 0, &key);
-> +	else
-> +		ClearPageWaiters(page);
-> +	spin_unlock_irqrestore(&wqh->lock, flags);
-> +}
+:facepalm:
 
-Seeing how word is always going to be &page->flags, might it make sense
-to remove that argument?
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Date: Wed, 21 May 2014 16:36:42 +0300
+Subject: [PATCH] mm: fix typo in comment in do_fault_around()
 
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
+ mm/memory.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-Anyway, looks good in principle. Oleg?
+diff --git a/mm/memory.c b/mm/memory.c
+index 252b319e8cdf..f76663c31da6 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -3460,7 +3460,7 @@ static void do_fault_around(struct vm_area_struct *vma, unsigned long address,
+ 
+ 	/*
+ 	 *  max_pgoff is either end of page table or end of vma
+-	 *  or fault_around_pages() from pgoff, depending what is neast.
++	 *  or fault_around_pages() from pgoff, depending what is nearest.
+ 	 */
+ 	max_pgoff = pgoff - ((start_addr >> PAGE_SHIFT) & (PTRS_PER_PTE - 1)) +
+ 		PTRS_PER_PTE - 1;
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
