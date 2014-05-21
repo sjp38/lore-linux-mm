@@ -1,146 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f47.google.com (mail-wg0-f47.google.com [74.125.82.47])
-	by kanga.kvack.org (Postfix) with ESMTP id CDF876B0035
-	for <linux-mm@kvack.org>; Tue, 20 May 2014 22:23:38 -0400 (EDT)
-Received: by mail-wg0-f47.google.com with SMTP id x12so1359346wgg.30
-        for <linux-mm@kvack.org>; Tue, 20 May 2014 19:23:38 -0700 (PDT)
+Received: from mail-la0-f54.google.com (mail-la0-f54.google.com [209.85.215.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E1076B0035
+	for <linux-mm@kvack.org>; Tue, 20 May 2014 22:27:04 -0400 (EDT)
+Received: by mail-la0-f54.google.com with SMTP id pv20so1058500lab.41
+        for <linux-mm@kvack.org>; Tue, 20 May 2014 19:27:03 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id kq9si14795199wjc.136.2014.05.20.19.23.36
+        by mx.google.com with ESMTP id q3si1938995lbj.35.2014.05.20.19.27.01
         for <linux-mm@kvack.org>;
-        Tue, 20 May 2014 19:23:37 -0700 (PDT)
+        Tue, 20 May 2014 19:27:02 -0700 (PDT)
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH] tools/vm/page-types.c: page-cache sniffing feature
-Date: Tue, 20 May 2014 22:23:24 -0400
-Message-Id: <537c0e29.89cbc20a.4dbb.62eeSMTPIN_ADDED_BROKEN@mx.google.com>
-In-Reply-To: <20140226075723.29820.26427.stgit@zurg>
-References: <20140226075723.29820.26427.stgit@zurg>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Subject: [PATCH 0/4] pagecache scanning with /proc/kpagecache
+Date: Tue, 20 May 2014 22:26:30 -0400
+Message-Id: <1400639194-3743-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <koct9i@gmail.com>
-Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Arnaldo Carvalho de Melo <acme@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Borislav Petkov <bp@suse.de>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, Arnaldo Carvalho de Melo <acme@redhat.com>, Borislav Petkov <bp@alien8.de>
 
-Hi Konstantin,
+This patchset adds a new procfs interface to extrace information about
+pagecache status. In-kernel tool tools/vm/page-types.c has already some
+code for pagecache scanning without kernel's help, but it's not free
+from measurement-disturbance, so here I'm suggesting another approach.
 
-This patch is already in upstream, but I have another idea of implementing
-the similar feature. So let me review this now, and I'll post patches to
-complement this patch.
+Patch 1/4 changes radix tree API to support ranged iteration as a preparation
+for patch 2/4 which adds /proc/kpagecache. Patch 3/4 changes page-types to
+use the interface in file scanning mode. Patch 4/4 is documentation update.
 
-On Wed, Feb 26, 2014 at 11:57:23AM +0400, Konstantin Khlebnikov wrote:
-> After this patch 'page-types' can walk on filesystem mappings and analize
-> populated page cache pages mostly without disturbing its state.
-> 
-> It maps chunk of file, marks VMA as MADV_RANDOM to turn off readahead,
-> pokes VMA via mincore() to determine cached pages, triggers page-fault
-> only for them, and finally gathers information via pagemap/kpageflags.
-> Before unmap it marks VMA as MADV_SEQUENTIAL for ignoring reference bits.
-
-I think that with this patch page-types *does* disturb page cache (not only
-of the target file) because it newly populates the pages not faulted in
-when page-types starts, which rotates LRU list and adds memory pressure.
-To minimize the measurement-disturbance, we need some help in the kernel side.
-
-> 
-> usage: page-types -f <path>
-> 
-> If <path> is directory it will analyse all files in all subdirectories.
-
-I think -f was reserved for "Walk file address space", so doing file tree
-walk looks to me overkill. You can add "directory mode (-d) for this purpose,
-although it seems to me that we can/should do this (for example) by combining
-with find command. I can show you the example in my patch later.
-
-> Symlinks are not followed as well as mount points. Hardlinks aren't handled,
-> they'll be dumbed as many times as they are found. Recursive walk brings all
-> dentries into dcache and populates page cache of block-devices aka 'Buffers'.
-> 
-> Probably it's worth to add ioctl for dumping file page cache as array of PFNs
-> as a replacement for this hackish juggling with mmap/madvise/mincore/pagemap.
-> 
-> Also recursive walk could be replaced with dumping cached inodes via some ioctl
-> or debugfs interface followed by openning them via open_by_handle_at, this
-> would fix hardlinks handling and unneeded population of dcache and buffers.
-> This interface might be used as data source for constructing readahead plans
-> and for background optimizations of actively used files.
-> 
-> collateral changes:
-> + fix 64-bit LFS: define _FILE_OFFSET_BITS instead of _LARGEFILE64_SOURCE
-> + replace lseek + read with single pread
-
-Good, thanks.
-
-> + make show_page_range() reusable after flush
-> 
-> 
-> usage example:
-> 
-> ~/src/linux/tools/vm$ sudo ./page-types -L -f page-types
-> foffset	offset	flags
-> page-types	Inode: 2229277	Size: 89065 (22 pages)
-> Modify: Tue Feb 25 12:00:59 2014 (162 seconds ago)
-> Access: Tue Feb 25 12:01:00 2014 (161 seconds ago)
-
-I don't see why page-types needs to show these information.
-We have many other tools to check file info, so this small program should
-focus on page related things.
+This patchset were previously posted as a part of memory error reporting
+patchset (http://lwn.net/Articles/590690/), so changelogs in individual
+patches are changes from that version.
 
 Thanks,
 Naoya Horiguchi
+---
+Summary:
 
-> 0	3cbf3b	__RU_lA____M________________________
-> 1	38946a	__RU_lA____M________________________
-> 2	1a3cec	__RU_lA____M________________________
-> 3	1a8321	__RU_lA____M________________________
-> 4	3af7cc	__RU_lA____M________________________
-> 5	1ed532	__RU_lA_____________________________
-> 6	2e436a	__RU_lA_____________________________
-> 7	29a35e	___U_lA_____________________________
-> 8	2de86e	___U_lA_____________________________
-> 9	3bdfb4	___U_lA_____________________________
-> 10	3cd8a3	___U_lA_____________________________
-> 11	2afa50	___U_lA_____________________________
-> 12	2534c2	___U_lA_____________________________
-> 13	1b7a40	___U_lA_____________________________
-> 14	17b0be	___U_lA_____________________________
-> 15	392b0c	___U_lA_____________________________
-> 16	3ba46a	__RU_lA_____________________________
-> 17	397dc8	___U_lA_____________________________
-> 18	1f2a36	___U_lA_____________________________
-> 19	21fd30	__RU_lA_____________________________
-> 20	2c35ba	__RU_l______________________________
-> 21	20f181	__RU_l______________________________
-> 
-> 
->              flags	page-count       MB  symbolic-flags			long-symbolic-flags
-> 0x000000000000002c	         2        0  __RU_l______________________________	referenced,uptodate,lru
-> 0x0000000000000068	        11        0  ___U_lA_____________________________	uptodate,lru,active
-> 0x000000000000006c	         4        0  __RU_lA_____________________________	referenced,uptodate,lru,active
-> 0x000000000000086c	         5        0  __RU_lA____M________________________	referenced,uptodate,lru,active,mmap
->              total	        22        0
-> 
-> 
-> 
-> ~/src/linux/tools/vm$ sudo ./page-types -f /
->              flags	page-count       MB  symbolic-flags			long-symbolic-flags
-> 0x0000000000000028	     21761       85  ___U_l______________________________	uptodate,lru
-> 0x000000000000002c	    127279      497  __RU_l______________________________	referenced,uptodate,lru
-> 0x0000000000000068	     74160      289  ___U_lA_____________________________	uptodate,lru,active
-> 0x000000000000006c	     84469      329  __RU_lA_____________________________	referenced,uptodate,lru,active
-> 0x000000000000007c	         1        0  __RUDlA_____________________________	referenced,uptodate,dirty,lru,active
-> 0x0000000000000228	       370        1  ___U_l___I__________________________	uptodate,lru,reclaim
-> 0x0000000000000828	        49        0  ___U_l_____M________________________	uptodate,lru,mmap
-> 0x000000000000082c	       126        0  __RU_l_____M________________________	referenced,uptodate,lru,mmap
-> 0x0000000000000868	       137        0  ___U_lA____M________________________	uptodate,lru,active,mmap
-> 0x000000000000086c	     12890       50  __RU_lA____M________________________	referenced,uptodate,lru,active,mmap
->              total	    321242     1254
-> 
-> Signed-off-by: Konstantin Khlebnikov <koct9i@gmail.com>
-> ---
->  tools/vm/page-types.c |  170 ++++++++++++++++++++++++++++++++++++++++++++-----
->  1 file changed, 152 insertions(+), 18 deletions(-)
+Naoya Horiguchi (4):
+      radix-tree: add end_index to support ranged iteration
+      fs/proc/page.c: introduce /proc/kpagecache interface
+      tools/vm/page-types.c: rework on file cache scanning mode
+      Documentation: update Documentation/vm/pagemap.txt
+
+ Documentation/vm/pagemap.txt  |  29 +++++
+ drivers/gpu/drm/qxl/qxl_ttm.c |   2 +-
+ fs/proc/page.c                | 105 ++++++++++++++++
+ include/linux/fs.h            |   9 +-
+ include/linux/radix-tree.h    |  27 +++--
+ kernel/irq/irqdomain.c        |   2 +-
+ lib/radix-tree.c              |   8 +-
+ mm/filemap.c                  |   8 +-
+ tools/vm/page-types.c         | 276 +++++++++++++++++-------------------------
+ 9 files changed, 284 insertions(+), 182 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
