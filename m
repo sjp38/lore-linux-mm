@@ -1,97 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f176.google.com (mail-we0-f176.google.com [74.125.82.176])
-	by kanga.kvack.org (Postfix) with ESMTP id D4A526B0036
-	for <linux-mm@kvack.org>; Wed, 21 May 2014 12:08:46 -0400 (EDT)
-Received: by mail-we0-f176.google.com with SMTP id q59so2285226wes.35
-        for <linux-mm@kvack.org>; Wed, 21 May 2014 09:08:46 -0700 (PDT)
-Received: from casper.infradead.org (casper.infradead.org. [2001:770:15f::2])
-        by mx.google.com with ESMTPS id hb4si1453680wib.0.2014.05.21.09.08.44
+Received: from mail-qc0-f176.google.com (mail-qc0-f176.google.com [209.85.216.176])
+	by kanga.kvack.org (Postfix) with ESMTP id D9D326B0036
+	for <linux-mm@kvack.org>; Wed, 21 May 2014 14:58:15 -0400 (EDT)
+Received: by mail-qc0-f176.google.com with SMTP id r5so3914265qcx.7
+        for <linux-mm@kvack.org>; Wed, 21 May 2014 11:58:15 -0700 (PDT)
+Received: from mail-qg0-x233.google.com (mail-qg0-x233.google.com [2607:f8b0:400d:c04::233])
+        by mx.google.com with ESMTPS id 69si2531564qgp.59.2014.05.21.11.58.15
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 May 2014 09:08:45 -0700 (PDT)
-Date: Wed, 21 May 2014 18:08:37 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH] mm: filemap: Avoid unnecessary barries and waitqueue
- lookups in unlock_page fastpath v5
-Message-ID: <20140521160837.GH2485@laptop.programming.kicks-ass.net>
-References: <1399974350-11089-20-git-send-email-mgorman@suse.de>
- <20140513125313.GR23991@suse.de>
- <20140513141748.GD2485@laptop.programming.kicks-ass.net>
- <20140514161152.GA2615@redhat.com>
- <20140514192945.GA10830@redhat.com>
- <20140515104808.GF23991@suse.de>
- <20140515142414.16c47315a03160c58ceb9066@linux-foundation.org>
- <20140521121501.GT23991@suse.de>
- <20140521130223.GE2485@laptop.programming.kicks-ass.net>
- <20140521153357.GW23991@suse.de>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 21 May 2014 11:58:15 -0700 (PDT)
+Received: by mail-qg0-f51.google.com with SMTP id q107so3905987qgd.38
+        for <linux-mm@kvack.org>; Wed, 21 May 2014 11:58:15 -0700 (PDT)
+Date: Wed, 21 May 2014 14:58:12 -0400
+From: Tejun Heo <htejun@gmail.com>
+Subject: Re: Node 0 not necessary for powerpc?
+Message-ID: <20140521185812.GA5259@htj.dyndns.org>
+References: <20140311195632.GA946@linux.vnet.ibm.com>
+ <alpine.DEB.2.10.1403120839110.6865@nuc>
+ <20140313164949.GC22247@linux.vnet.ibm.com>
+ <20140519182400.GM8941@linux.vnet.ibm.com>
+ <alpine.DEB.2.10.1405210915170.7859@gentwo.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140521153357.GW23991@suse.de>
+In-Reply-To: <alpine.DEB.2.10.1405210915170.7859@gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, David Howells <dhowells@redhat.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, anton@samba.org, David Rientjes <rientjes@google.com>, benh@kernel.crashing.org, tony.luck@intel.com
 
-On Wed, May 21, 2014 at 04:33:57PM +0100, Mel Gorman wrote:
-> > > +__prepare_to_wait(wait_queue_head_t *q, wait_queue_t *wait,
-> > > +			struct page *page, int state, bool exclusive)
-> > >  {
-> > >  	unsigned long flags;
-> > >  
-> > > +	if (page && !PageWaiters(page))
-> > > +		SetPageWaiters(page);
-> > > +	if (list_empty(&wait->task_list)) {
-> > > +		if (exclusive) {
-> > > +			wait->flags |= WQ_FLAG_EXCLUSIVE;
-> > > +			__add_wait_queue_tail(q, wait);
-> > > +		} else {
-> > 
-> > I'm fairly sure we've just initialized the wait thing to 0, so clearing
-> > the bit would be superfluous.
-> > 
+Hello,
+
+On Wed, May 21, 2014 at 09:16:27AM -0500, Christoph Lameter wrote:
+> On Mon, 19 May 2014, Nishanth Aravamudan wrote:
+> > I'm seeing a panic at boot with this change on an LPAR which actually
+> > has no Node 0. Here's what I think is happening:
+> >
+> > start_kernel
+> >     ...
+> >     -> setup_per_cpu_areas
+> >         -> pcpu_embed_first_chunk
+> >             -> pcpu_fc_alloc
+> >                 -> ___alloc_bootmem_node(NODE_DATA(cpu_to_node(cpu), ...
+> >     -> smp_prepare_boot_cpu
+> >         -> set_numa_node(boot_cpuid)
+> >
+> > So we panic on the NODE_DATA call. It seems that ia64, at least, uses
+> > pcpu_alloc_first_chunk rather than embed. x86 has some code to handle
+> > early calls of cpu_to_node (early_cpu_to_node) and sets the mapping for
+> > all CPUs in setup_per_cpu_areas().
 > 
-> I assume you mean the clearing of WQ_FLAG_EXCLUSIVE. It may or may not be
-> superflous. If it's an on-stack wait_queue_t initialised with DEFINE_WAIT()
-> then it's redundant. If it's a wait_queue_t that is being reused and
-> sometimes used for exclusive waits and other times for non-exclusive
-> waits then it's required. The API allows this to happen so I see no harm
-> is clearing the flag like the old code did. Am I missing your point?
-
-Yeah, I'm not aware of any other users except the on-stack kind, but
-you're right.
-
-Maybe we should stick an object_is_on_stack() test in there to see if
-anything falls out, something for a rainy afternoon perhaps..
-
-> > > +void __wake_up_page_bit(wait_queue_head_t *wqh, struct page *page, void *word, int bit)
-> > > +{
-> > > +	struct wait_bit_key key = __WAIT_BIT_KEY_INITIALIZER(word, bit);
-> > > +	unsigned long flags;
-> > > +
-> > > +	spin_lock_irqsave(&wqh->lock, flags);
-> > > +	if (waitqueue_active(wqh))
-> > > +		__wake_up_common(wqh, TASK_NORMAL, 1, 0, &key);
-> > > +	else
-> > > +		ClearPageWaiters(page);
-> > > +	spin_unlock_irqrestore(&wqh->lock, flags);
-> > > +}
-> > 
-> > Seeing how word is always going to be &page->flags, might it make sense
-> > to remove that argument?
-> > 
+> Maybe we can switch ia64 too embed? Tejun: Why are there these
+> dependencies?
 > 
-> The wait_queue was defined on-stack with DEFINE_WAIT_BIT which uses
-> wake_bit_function() as a wakeup function and that thing consumes both the
-> page->flags and the bit number it's interested in. This is used for both
-> PG_writeback and PG_locked so assumptions cannot really be made about
-> the value.
+> > Thoughts? Does that mean we need something similar to x86 for powerpc?
 
-Well, both PG_flags come from the same &page->flags word, right? But
-yeah, if we ever decide to grow the page frame with another flags word
-we'd be in trouble :-)
+I'm missing context to properly understand what's going on but the
+specific allocator in use shouldn't matter.  e.g. x86 can use both
+embed and page allocators.  If the problem is that the arch is
+accessing percpu memory before percpu allocator is initialized and the
+problem was masked before somehow, the right thing to do would be
+removing those premature percpu accesses.  If early percpu variables
+are really necessary, doing similar early_percpu thing as in x86 would
+be necessary.
 
-In any case I don't feel too strongly about either of these points.
+Thanks.
+
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
