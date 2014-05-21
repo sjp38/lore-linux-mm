@@ -1,130 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f173.google.com (mail-lb0-f173.google.com [209.85.217.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 744246B0035
-	for <linux-mm@kvack.org>; Wed, 21 May 2014 05:38:15 -0400 (EDT)
-Received: by mail-lb0-f173.google.com with SMTP id 10so1373040lbg.32
-        for <linux-mm@kvack.org>; Wed, 21 May 2014 02:38:14 -0700 (PDT)
-Received: from mail-la0-x230.google.com (mail-la0-x230.google.com [2a00:1450:4010:c03::230])
-        by mx.google.com with ESMTPS id ky5si19557100lab.32.2014.05.21.02.38.13
+Received: from mail-ig0-f179.google.com (mail-ig0-f179.google.com [209.85.213.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 46E2C6B0035
+	for <linux-mm@kvack.org>; Wed, 21 May 2014 06:50:20 -0400 (EDT)
+Received: by mail-ig0-f179.google.com with SMTP id hn18so1908907igb.12
+        for <linux-mm@kvack.org>; Wed, 21 May 2014 03:50:20 -0700 (PDT)
+Received: from mail-ie0-x234.google.com (mail-ie0-x234.google.com [2607:f8b0:4001:c03::234])
+        by mx.google.com with ESMTPS id g20si2481311igf.36.2014.05.21.03.50.19
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 21 May 2014 02:38:13 -0700 (PDT)
-Received: by mail-la0-f48.google.com with SMTP id mc6so1348845lab.21
-        for <linux-mm@kvack.org>; Wed, 21 May 2014 02:38:13 -0700 (PDT)
-Subject: [PATCH] tools/vm/page-types.c: catch sigbus if raced with truncate
-From: Konstantin Khlebnikov <koct9i@gmail.com>
-Date: Wed, 21 May 2014 13:38:07 +0400
-Message-ID: <20140521093807.24256.22521.stgit@zurg>
+        Wed, 21 May 2014 03:50:19 -0700 (PDT)
+Received: by mail-ie0-f180.google.com with SMTP id tp5so1758361ieb.39
+        for <linux-mm@kvack.org>; Wed, 21 May 2014 03:50:19 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <1397587118-1214-3-git-send-email-dh.herrmann@gmail.com>
+References: <1397587118-1214-1-git-send-email-dh.herrmann@gmail.com>
+	<1397587118-1214-3-git-send-email-dh.herrmann@gmail.com>
+Date: Wed, 21 May 2014 14:50:19 +0400
+Message-ID: <CALYGNiM5dVhW9rp8Xpbu=DpENobUtRpRNTteJXbg1s99_STNiw@mail.gmail.com>
+Subject: Re: [PATCH v2 2/3] shm: add memfd_create() syscall
+From: Konstantin Khlebnikov <koct9i@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: David Herrmann <dh.herrmann@gmail.com>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Michael Kerrisk <mtk.manpages@gmail.com>, Ryan Lortie <desrt@desrt.ca>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Greg Kroah-Hartman <greg@kroah.com>, John Stultz <john.stultz@linaro.org>, =?UTF-8?Q?Kristian_H=C3=B8gsberg?= <krh@bitplanet.net>, Lennart Poettering <lennart@poettering.net>, Daniel Mack <zonque@gmail.com>, Kay Sievers <kay@vrfy.org>
 
-Recently added page-cache dumping is known to be a little bit racy.
-But after race with truncate it just dies due to unhandled SIGBUS
-when it tries to poke pages beyond the new end of file.
-This patch adds handler for SIGBUS which skips the rest of the file.
+On Tue, Apr 15, 2014 at 10:38 PM, David Herrmann <dh.herrmann@gmail.com> wrote:
+> memfd_create() is similar to mmap(MAP_ANON), but returns a file-descriptor
+> that you can pass to mmap(). It can support sealing and avoids any
+> connection to user-visible mount-points. Thus, it's not subject to quotas
+> on mounted file-systems, but can be used like malloc()'ed memory, but
+> with a file-descriptor to it.
+>
+> memfd_create() does not create a front-FD, but instead returns the raw
+> shmem file, so calls like ftruncate() can be used. Also calls like fstat()
+> will return proper information and mark the file as regular file. If you
+> want sealing, you can specify MFD_ALLOW_SEALING. Otherwise, sealing is not
+> support (like on all other regular files).
+>
+> Compared to O_TMPFILE, it does not require a tmpfs mount-point and is not
+> subject to quotas and alike.
+>
+> Signed-off-by: David Herrmann <dh.herrmann@gmail.com>
+> ---
 
-Signed-off-by: Konstantin Khlebnikov <koct9i@gmail.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
----
- tools/vm/page-types.c |   35 ++++++++++++++++++++++++++++++++---
- 1 file changed, 32 insertions(+), 3 deletions(-)
+<cut>
 
-diff --git a/tools/vm/page-types.c b/tools/vm/page-types.c
-index 05654f5..c4d6d2e 100644
---- a/tools/vm/page-types.c
-+++ b/tools/vm/page-types.c
-@@ -32,6 +32,8 @@
- #include <assert.h>
- #include <ftw.h>
- #include <time.h>
-+#include <setjmp.h>
-+#include <signal.h>
- #include <sys/types.h>
- #include <sys/errno.h>
- #include <sys/fcntl.h>
-@@ -824,21 +826,38 @@ static void show_file(const char *name, const struct stat *st)
- 			atime, now - st->st_atime);
- }
- 
-+static sigjmp_buf sigbus_jmp;
-+
-+static void * volatile sigbus_addr;
-+
-+static void sigbus_handler(int sig, siginfo_t *info, void *ucontex)
-+{
-+	(void)sig;
-+	(void)ucontex;
-+	sigbus_addr = info ? info->si_addr : NULL;
-+	siglongjmp(sigbus_jmp, 1);
-+}
-+
-+static struct sigaction sigbus_action = {
-+	.sa_sigaction = sigbus_handler,
-+	.sa_flags = SA_SIGINFO,
-+};
-+
- static void walk_file(const char *name, const struct stat *st)
- {
- 	uint8_t vec[PAGEMAP_BATCH];
- 	uint64_t buf[PAGEMAP_BATCH], flags;
- 	unsigned long nr_pages, pfn, i;
-+	off_t off, end = st->st_size;
- 	int fd;
--	off_t off;
- 	ssize_t len;
- 	void *ptr;
- 	int first = 1;
- 
- 	fd = checked_open(name, O_RDONLY|O_NOATIME|O_NOFOLLOW);
- 
--	for (off = 0; off < st->st_size; off += len) {
--		nr_pages = (st->st_size - off + page_size - 1) / page_size;
-+	for (off = 0; off < end; off += len) {
-+		nr_pages = (end - off + page_size - 1) / page_size;
- 		if (nr_pages > PAGEMAP_BATCH)
- 			nr_pages = PAGEMAP_BATCH;
- 		len = nr_pages * page_size;
-@@ -855,11 +874,19 @@ static void walk_file(const char *name, const struct stat *st)
- 		if (madvise(ptr, len, MADV_RANDOM))
- 			fatal("madvice failed: %s", name);
- 
-+		if (sigsetjmp(sigbus_jmp, 1)) {
-+			end = off + sigbus_addr ? sigbus_addr - ptr : 0;
-+			fprintf(stderr, "got sigbus at offset %lld: %s\n",
-+					(long long)end, name);
-+			goto got_sigbus;
-+		}
-+
- 		/* populate ptes */
- 		for (i = 0; i < nr_pages ; i++) {
- 			if (vec[i] & 1)
- 				(void)*(volatile int *)(ptr + i * page_size);
- 		}
-+got_sigbus:
- 
- 		/* turn off harvesting reference bits */
- 		if (madvise(ptr, len, MADV_SEQUENTIAL))
-@@ -910,6 +937,7 @@ static void walk_page_cache(void)
- 
- 	kpageflags_fd = checked_open(PROC_KPAGEFLAGS, O_RDONLY);
- 	pagemap_fd = checked_open("/proc/self/pagemap", O_RDONLY);
-+	sigaction(SIGBUS, &sigbus_action, NULL);
- 
- 	if (stat(opt_file, &st))
- 		fatal("stat failed: %s\n", opt_file);
-@@ -925,6 +953,7 @@ static void walk_page_cache(void)
- 
- 	close(kpageflags_fd);
- 	close(pagemap_fd);
-+	signal(SIGBUS, SIG_DFL);
- }
- 
- static void parse_file(const char *name)
+> +++ b/include/linux/syscalls.h
+> @@ -802,6 +802,7 @@ asmlinkage long sys_timerfd_settime(int ufd, int flags,
+>  asmlinkage long sys_timerfd_gettime(int ufd, struct itimerspec __user *otmr);
+>  asmlinkage long sys_eventfd(unsigned int count);
+>  asmlinkage long sys_eventfd2(unsigned int count, int flags);
+> +asmlinkage long sys_memfd_create(const char *uname_ptr, u64 size, u64 flags);
+
+Is it right to use u64 here? I think arguments sould be 'loff_t' and 'int'.
+
+>  asmlinkage long sys_fallocate(int fd, int mode, loff_t offset, loff_t len);
+>  asmlinkage long sys_old_readdir(unsigned int, struct old_linux_dirent __user *, unsigned int);
+>  asmlinkage long sys_pselect6(int, fd_set __user *, fd_set __user *,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
