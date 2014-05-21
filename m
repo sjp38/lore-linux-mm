@@ -1,93 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 93A516B0037
-	for <linux-mm@kvack.org>; Wed, 21 May 2014 16:11:59 -0400 (EDT)
-Received: by mail-pa0-f54.google.com with SMTP id bj1so1739087pad.27
-        for <linux-mm@kvack.org>; Wed, 21 May 2014 13:11:59 -0700 (PDT)
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id E010C6B0036
+	for <linux-mm@kvack.org>; Wed, 21 May 2014 16:34:10 -0400 (EDT)
+Received: by mail-pa0-f46.google.com with SMTP id kq14so1738758pab.19
+        for <linux-mm@kvack.org>; Wed, 21 May 2014 13:34:10 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id og1si7619284pbc.150.2014.05.21.13.11.58
+        by mx.google.com with ESMTP id df3si7685330pbb.203.2014.05.21.13.34.09
         for <linux-mm@kvack.org>;
-        Wed, 21 May 2014 13:11:58 -0700 (PDT)
-Date: Wed, 21 May 2014 13:11:57 -0700
+        Wed, 21 May 2014 13:34:10 -0700 (PDT)
+Date: Wed, 21 May 2014 13:34:08 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2] mm, compaction: properly signal and act upon lock
- and need_sched() contention
-Message-Id: <20140521131157.3a092c5f9d8b6b5d467f8928@linux-foundation.org>
-In-Reply-To: <537CB493.9090706@suse.cz>
-References: <1399904111-23520-1-git-send-email-vbabka@suse.cz>
-	<1400233673-11477-1-git-send-email-vbabka@suse.cz>
-	<20140519163741.55998ce65534ed73d913ee2c@linux-foundation.org>
-	<537CB493.9090706@suse.cz>
+Subject: Re: [PATCH V4 0/2] mm: FAULT_AROUND_ORDER patchset performance data
+ for powerpc
+Message-Id: <20140521133408.4d2f1a551e9652fb0e12265f@linux-foundation.org>
+In-Reply-To: <20140521134027.263DDE009B@blue.fi.intel.com>
+References: <1399541296-18810-1-git-send-email-maddy@linux.vnet.ibm.com>
+	<537479E7.90806@linux.vnet.ibm.com>
+	<alpine.LSU.2.11.1405151026540.4664@eggly.anvils>
+	<87wqdik4n5.fsf@rustcorp.com.au>
+	<53797511.1050409@linux.vnet.ibm.com>
+	<alpine.LSU.2.11.1405191531150.1317@eggly.anvils>
+	<20140519164301.eafd3dd288ccb88361ddcfc7@linux-foundation.org>
+	<20140520004429.E660AE009B@blue.fi.intel.com>
+	<87oaythsvk.fsf@rustcorp.com.au>
+	<20140520102738.7F096E009B@blue.fi.intel.com>
+	<20140520125956.aa61a3bfd84d4d6190740ce2@linux-foundation.org>
+	<20140521134027.263DDE009B@blue.fi.intel.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Greg Thelen <gthelen@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Rusty Russell <rusty@rustcorp.com.au>, Hugh Dickins <hughd@google.com>, Madhavan Srinivasan <maddy@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, x86@kernel.org, benh@kernel.crashing.org, paulus@samba.org, riel@redhat.com, mgorman@suse.de, ak@linux.intel.com, peterz@infradead.org, mingo@kernel.org, dave.hansen@intel.com
 
-On Wed, 21 May 2014 16:13:39 +0200 Vlastimil Babka <vbabka@suse.cz> wrote:
+On Wed, 21 May 2014 16:40:27 +0300 (EEST) "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
 
-> >>
-> >> ...
-> >>
-> >> @@ -718,9 +739,11 @@ static void isolate_freepages(struct zone *zone,
-> >>   		/*
-> >>   		 * This can iterate a massively long zone without finding any
-> >>   		 * suitable migration targets, so periodically check if we need
-> >> -		 * to schedule.
-> >> +		 * to schedule, or even abort async compaction.
-> >>   		 */
-> >> -		cond_resched();
-> >> +		if (!(block_start_pfn % (SWAP_CLUSTER_MAX * pageblock_nr_pages))
-> >> +						&& compact_should_abort(cc))
-> > 
-> > This seems rather gratuitously inefficient and isn't terribly clear.
-> > What's wrong with
-> > 
-> > 	if ((++foo % SWAP_CLUSTER_MAX) == 0 && compact_should_abort(cc))
+> > Or something.  Can we please get some code commentary over
+> > do_fault_around() describing this design decision and explaining the
+> > reasoning behind it?
 > 
-> It's a new variable and it differs from how isolate_migratepages_range() does this.
-> But yeah, I might change it later there as well. There it makes even more sense.
-> E.g. when skipping whole pageblock there, pfn % SWAP_CLUSTER_MAX will be always zero
-> so the periodicity varies.
->  
-> > ?
-> > 
-> > (Assumes that SWAP_CLUSTER_MAX is power-of-2 and that the compiler will
-> > use &)
->  
-> I hoped that compiler would be smart enough about SWAP_CLUSTER_MAX * pageblock_nr_pages
-> as well, as those are constants and also power-of-2. But I didn't check the assembly.
+> I'll do this. But if do_fault_around() rework is needed, I want to do that
+> first.
 
-Always check the assembly!  Just a quick `size mm/compaction.o' is
-enough tell if you're on the right track.
+This sort of thing should be at least partially driven by observation
+and I don't have the data for that.  My seat of the pants feel is that
+after the first fault, accesses at higher addresses are more
+common/probable than accesses at lower addresses.  In which case we
+should see improvements by centering the window at some higher address
+than the fault.  Much instrumentation and downstream analysis is needed
+and the returns will be pretty small!
 
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -779,6 +779,7 @@ static void isolate_freepages(struct zone *zone,
->  	unsigned long block_start_pfn;	/* start of current pageblock */
->  	unsigned long block_end_pfn;	/* end of current pageblock */
->  	unsigned long low_pfn;	     /* lowest pfn scanner is able to scan */
-> +	unsigned long nr_blocks_scanned = 0; /* for periodical abort checks */
->  	int nr_freepages = cc->nr_freepages;
->  	struct list_head *freelist = &cc->freepages;
->  
-> @@ -813,7 +814,7 @@ static void isolate_freepages(struct zone *zone,
->  		 * suitable migration targets, so periodically check if we need
->  		 * to schedule, or even abort async compaction.
->  		 */
-> -		if (!(block_start_pfn % (SWAP_CLUSTER_MAX * pageblock_nr_pages))
-> +		if ((++nr_blocks_scanned % SWAP_CLUSTER_MAX) == 0
->  						&& compact_should_abort(cc))
->  			break;
-
-This change actually makes the code worse, and the .o file gets larger.
-
-For some stupid reason we went and make pageblock_nr_pages all lower
-case but surprise surprise, it's actually a literal constant.  So the
-compiler does the multiplication at compile time and converts the
-modulus operation into a bitwise AND.  Duh.
+But we don't need to do all that right now.  Let's get the current
+implementation wrapped up for 3.15: get the interface finalized (bytes,
+not pages!) and get the current design decisions appropriately
+documented.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
