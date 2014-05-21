@@ -1,63 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
-	by kanga.kvack.org (Postfix) with ESMTP id ADB256B0036
-	for <linux-mm@kvack.org>; Wed, 21 May 2014 18:11:45 -0400 (EDT)
-Received: by mail-pd0-f181.google.com with SMTP id z10so1769667pdj.26
-        for <linux-mm@kvack.org>; Wed, 21 May 2014 15:11:45 -0700 (PDT)
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id B84B96B0036
+	for <linux-mm@kvack.org>; Wed, 21 May 2014 18:42:53 -0400 (EDT)
+Received: by mail-pa0-f48.google.com with SMTP id rd3so1828574pab.21
+        for <linux-mm@kvack.org>; Wed, 21 May 2014 15:42:53 -0700 (PDT)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id pr9si7951161pbc.175.2014.05.21.15.11.44
+        by mx.google.com with ESMTP id ce7si30963647pad.113.2014.05.21.15.42.52
         for <linux-mm@kvack.org>;
-        Wed, 21 May 2014 15:11:44 -0700 (PDT)
-Date: Wed, 21 May 2014 15:11:42 -0700
+        Wed, 21 May 2014 15:42:52 -0700 (PDT)
+Date: Wed, 21 May 2014 15:42:50 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: non-atomically mark page accessed during page cache
- allocation where possible -fix
-Message-Id: <20140521151142.9d084dd64251bce4c44c214d@linux-foundation.org>
-In-Reply-To: <20140521120916.GS23991@suse.de>
-References: <1399974350-11089-1-git-send-email-mgorman@suse.de>
-	<1399974350-11089-19-git-send-email-mgorman@suse.de>
-	<20140520154900.GO23991@suse.de>
-	<20140520123453.09a76dd0c8fad40082a16289@linux-foundation.org>
-	<20140521120916.GS23991@suse.de>
+Subject: Re: [PATCH 0/4] pagecache scanning with /proc/kpagecache
+Message-Id: <20140521154250.95bc3520ad8d192d95efe39b@linux-foundation.org>
+In-Reply-To: <1400639194-3743-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+References: <1400639194-3743-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>, Prabhakar Lad <prabhakar.csengg@gmail.com>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Konstantin Khlebnikov <koct9i@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, Arnaldo Carvalho de Melo <acme@redhat.com>, Borislav Petkov <bp@alien8.de>
 
-On Wed, 21 May 2014 13:09:16 +0100 Mel Gorman <mgorman@suse.de> wrote:
+On Tue, 20 May 2014 22:26:30 -0400 Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
 
-> > From: Andrew Morton <akpm@linux-foundation.org>
-> > Subject: mm/shmem.c: don't run init_page_accessed() against an uninitialised pointer
-> > 
-> > If shmem_getpage() returned an error then it didn't necessarily initialise
-> > *pagep.  So shmem_write_begin() shouldn't be playing with *pagep in this
-> > situation.
-> > 
-> > Fixes an oops when "mm: non-atomically mark page accessed during page
-> > cache allocation where possible" (quite reasonably) left *pagep
-> > uninitialized.
-> > 
-> > Reported-by: Prabhakar Lad <prabhakar.csengg@gmail.com>
-> > Cc: Johannes Weiner <hannes@cmpxchg.org>
-> > Cc: Vlastimil Babka <vbabka@suse.cz>
-> > Cc: Jan Kara <jack@suse.cz>
-> > Cc: Michal Hocko <mhocko@suse.cz>
-> > Cc: Hugh Dickins <hughd@google.com>
-> > Cc: Peter Zijlstra <peterz@infradead.org>
-> > Cc: Dave Hansen <dave.hansen@intel.com>
-> > Cc: Mel Gorman <mgorman@suse.de>
-> > Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-> 
-> Acked-by: Mel Gorman <mgorman@suse.de>
+> This patchset adds a new procfs interface to extrace information about
+> pagecache status. In-kernel tool tools/vm/page-types.c has already some
+> code for pagecache scanning without kernel's help, but it's not free
+> from measurement-disturbance, so here I'm suggesting another approach.
 
-What to do with
-http://ozlabs.org/~akpm/mmots/broken-out/mm-non-atomically-mark-page-accessed-during-page-cache-allocation-where-possible-fix.patch?
+I'm not seeing much explanation of why you think the kernel needs this.
+The overall justification for a change is terribly important so please
+do spend some time on it.
 
-We shouldn't need it any more.  otoh it's pretty harmless.  otooh it
-will hide bugs such as this one.
+As I don't *really* know what the patch is for, I can't comment a lot
+further, but...
+
+
+A much nicer interface would be for us to (finally!) implement
+fincore(), perhaps with an enhanced per-present-page payload which
+presents the info which you need (although we don't actually know what
+that info is!).
+
+This would require open() - it appears to be a requirement that the
+caller not open the file, but no reason was given for this.
+
+Requiring open() would address some of the obvious security concerns,
+but it will still be possible for processes to poke around and get some
+understanding of the behaviour of other processes.  Careful attention
+should be paid to this aspect of any such patchset.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
