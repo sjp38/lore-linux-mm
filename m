@@ -1,113 +1,161 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f53.google.com (mail-qg0-f53.google.com [209.85.192.53])
-	by kanga.kvack.org (Postfix) with ESMTP id CFCC36B0037
-	for <linux-mm@kvack.org>; Wed, 21 May 2014 15:58:02 -0400 (EDT)
-Received: by mail-qg0-f53.google.com with SMTP id f51so4015515qge.12
-        for <linux-mm@kvack.org>; Wed, 21 May 2014 12:58:02 -0700 (PDT)
-Received: from e34.co.us.ibm.com (e34.co.us.ibm.com. [32.97.110.152])
-        by mx.google.com with ESMTPS id q65si2714115qga.96.2014.05.21.12.58.01
+Received: from mail-pb0-f53.google.com (mail-pb0-f53.google.com [209.85.160.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 0675C6B0036
+	for <linux-mm@kvack.org>; Wed, 21 May 2014 16:11:48 -0400 (EDT)
+Received: by mail-pb0-f53.google.com with SMTP id md12so1715235pbc.26
+        for <linux-mm@kvack.org>; Wed, 21 May 2014 13:11:48 -0700 (PDT)
+Received: from mail-pa0-x234.google.com (mail-pa0-x234.google.com [2607:f8b0:400e:c03::234])
+        by mx.google.com with ESMTPS id vj3si7623290pbc.59.2014.05.21.13.11.47
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 21 May 2014 12:58:02 -0700 (PDT)
-Received: from /spool/local
-	by e34.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <nacc@linux.vnet.ibm.com>;
-	Wed, 21 May 2014 13:58:00 -0600
-Received: from b03cxnp08026.gho.boulder.ibm.com (b03cxnp08026.gho.boulder.ibm.com [9.17.130.18])
-	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 9C3221FF003B
-	for <linux-mm@kvack.org>; Wed, 21 May 2014 13:57:58 -0600 (MDT)
-Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
-	by b03cxnp08026.gho.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s4LJv5BM5439888
-	for <linux-mm@kvack.org>; Wed, 21 May 2014 21:57:05 +0200
-Received: from d03av01.boulder.ibm.com (localhost [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s4LJvwRP015699
-	for <linux-mm@kvack.org>; Wed, 21 May 2014 13:57:58 -0600
-Date: Wed, 21 May 2014 12:57:43 -0700
-From: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
-Subject: Re: Node 0 not necessary for powerpc?
-Message-ID: <20140521195743.GA5755@linux.vnet.ibm.com>
-References: <20140311195632.GA946@linux.vnet.ibm.com>
- <alpine.DEB.2.10.1403120839110.6865@nuc>
- <20140313164949.GC22247@linux.vnet.ibm.com>
- <20140519182400.GM8941@linux.vnet.ibm.com>
- <alpine.DEB.2.10.1405210915170.7859@gentwo.org>
- <20140521185812.GA5259@htj.dyndns.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 21 May 2014 13:11:48 -0700 (PDT)
+Received: by mail-pa0-f52.google.com with SMTP id fa1so1733897pad.11
+        for <linux-mm@kvack.org>; Wed, 21 May 2014 13:11:47 -0700 (PDT)
+From: Michal Nazarewicz <mina86@mina86.com>
+Subject: Re: [RFC PATCH] arm: dma-mapping: fallback allocation for cma failure
+In-Reply-To: <537C5EA3.20709@lge.com>
+References: <537AEEDB.2000001@lge.com> <20140520065222.GB8315@js1304-P5Q-DELUXE> <xa1t1tvo1fas.fsf@mina86.com> <537C5EA3.20709@lge.com>
+Date: Wed, 21 May 2014 10:11:43 -1000
+Message-ID: <xa1td2f699j4.fsf@mina86.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140521185812.GA5259@htj.dyndns.org>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <htejun@gmail.com>
-Cc: Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org, anton@samba.org, David Rientjes <rientjes@google.com>, benh@kernel.crashing.org, tony.luck@intel.com
+To: Gioh Kim <gioh.kim@lge.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Heesub Shin <heesub.shin@samsung.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, =?utf-8?B?7J206rG07Zi4?= <gunho.lee@lge.com>, 'Chanho Min' <chanho.min@lge.com>
 
-Hi Tejun,
+On Wed, May 21 2014, Gioh Kim <gioh.kim@lge.com> wrote:
+> Date: Tue, 20 May 2014 14:16:20 +0900
+> Subject: [PATCH] arm: dma-mapping: add checking cma area initialized
+>
+> If CMA is turned on and CMA size is set to zero, kernel should
+> behave as if CMA was not enabled at compile time.
+> Every dma allocation should check existence of cma area
+> before requesting memory.
+>
+> Signed-off-by: Gioh Kim <gioh.kim@lge.com>
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On 21.05.2014 [14:58:12 -0400], Tejun Heo wrote:
-> Hello,
-> 
-> On Wed, May 21, 2014 at 09:16:27AM -0500, Christoph Lameter wrote:
-> > On Mon, 19 May 2014, Nishanth Aravamudan wrote:
-> > > I'm seeing a panic at boot with this change on an LPAR which actually
-> > > has no Node 0. Here's what I think is happening:
-> > >
-> > > start_kernel
-> > >     ...
-> > >     -> setup_per_cpu_areas
-> > >         -> pcpu_embed_first_chunk
-> > >             -> pcpu_fc_alloc
-> > >                 -> ___alloc_bootmem_node(NODE_DATA(cpu_to_node(cpu), ...
-> > >     -> smp_prepare_boot_cpu
-> > >         -> set_numa_node(boot_cpuid)
-> > >
-> > > So we panic on the NODE_DATA call. It seems that ia64, at least, uses
-> > > pcpu_alloc_first_chunk rather than embed. x86 has some code to handle
-> > > early calls of cpu_to_node (early_cpu_to_node) and sets the mapping for
-> > > all CPUs in setup_per_cpu_areas().
-> > 
-> > Maybe we can switch ia64 too embed? Tejun: Why are there these
-> > dependencies?
-> > 
-> > > Thoughts? Does that mean we need something similar to x86 for powerpc?
-> 
-> I'm missing context to properly understand what's going on but the
-> specific allocator in use shouldn't matter.  e.g. x86 can use both
-> embed and page allocators.  If the problem is that the arch is
-> accessing percpu memory before percpu allocator is initialized and the
-> problem was masked before somehow, the right thing to do would be
-> removing those premature percpu accesses.  If early percpu variables
-> are really necessary, doing similar early_percpu thing as in x86 would
-> be necessary.
+Some minor comments.  Also, I'd love for someone more experienced with
+ARM to take a look at this as well.
 
-For context: I was looking at why N_ONLINE was statically setting Node 0
-to be online, whether or not the topology is that way -- I've been
-getting several bugs lately where Node 0 is online, but has no CPUs and
-no memory on it, on powerpc. 
+> ---
+>   arch/arm/mm/dma-mapping.c |   12 ++++++++----
+>   1 file changed, 8 insertions(+), 4 deletions(-)
+>
+> diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
+> index 18e98df..61f7b93 100644
+> --- a/arch/arm/mm/dma-mapping.c
+> +++ b/arch/arm/mm/dma-mapping.c
+> @@ -379,7 +379,7 @@ static int __init atomic_pool_init(void)
+>          unsigned long *bitmap;
+>          struct page *page;
+>          struct page **pages;
+> -       void *ptr;
+> +       void *ptr =3D NULL;
 
-On powerpc, setup_per_cpu_areas calls into ___alloc_bootmem_node using
-NODE_DATA(cpu_to_node(cpu)).
+This is unnecessary any more.
 
-Currently, cpu_to_node() in arch/powerpc/include/asm/topology.h does:
+>          int bitmap_size =3D BITS_TO_LONGS(nr_pages) * sizeof(long);
+>
+>          bitmap =3D kzalloc(bitmap_size, GFP_KERNEL);
+> @@ -390,12 +390,13 @@ static int __init atomic_pool_init(void)
+>          if (!pages)
+>                  goto no_pages;
+>
+> -       if (IS_ENABLED(CONFIG_DMA_CMA))
+> +       if (IS_ENABLED(CONFIG_DMA_CMA) && dma_contiguous_default_area)
 
-        /*
-         * During early boot, the numa-cpu lookup table might not have been
-         * setup for all CPUs yet. In such cases, default to node 0.
-         */
-        return (nid < 0) ? 0 : nid;
++	if (dev_get_cma_area(NULL))
 
-And so early at boot, if node 0 is not present, we end up accessing an
-unitialized NODE_DATA(). So this seems buggy (I'll contact the powerpc
-deveopers separately on that).
+dev_get_cma_area returns NULL if !IS_ENABLED(CONFIG_DMA_CMA) so there's
+no need to check it explicitly.  And with NULL argument,
+deg_get_cma_area returns the default area.
 
-I recently submitted patches to have powerpc turn on
-USE_PERCPU_NUMA_NODEID and HAVE_MEMORYLESS_NODES. But then, cpu_to_node
-will be accessing percpu data in setup_per_cpu_areas, which seems like a
-no-no. And more specifically, since we haven't yet run
-smp_prepare_boot_cpu() at this point, cpu_to_node has not yet been
-initialized to provide a sane value.
+>                  ptr =3D __alloc_from_contiguous(NULL, pool->size, prot, =
+&page,
+>                                                atomic_pool_init);
+>          else
+>                  ptr =3D __alloc_remap_buffer(NULL, pool->size, gfp, prot=
+, &page,
+>                                             atomic_pool_init);
+> +
+>          if (ptr) {
+>                  int i;
+>
+> @@ -669,6 +670,7 @@ static void *__dma_alloc(struct device *dev, size_t s=
+ize, dma_addr_t *handle,
+>          u64 mask =3D get_coherent_dma_mask(dev);
+>          struct page *page =3D NULL;
+>          void *addr;
+> +       struct cma *cma =3D dev_get_cma_area(dev);
+>
+>   #ifdef CONFIG_DMA_API_DEBUG
+>          u64 limit =3D (mask + 1) & ~mask;
+> @@ -701,7 +703,7 @@ static void *__dma_alloc(struct device *dev, size_t s=
+ize, dma_addr_t *handle,
+>                  addr =3D __alloc_simple_buffer(dev, size, gfp, &page);
+>          else if (!(gfp & __GFP_WAIT))
+>                  addr =3D __alloc_from_pool(size, &page);
+> -       else if (!IS_ENABLED(CONFIG_DMA_CMA))
+> +       else if (!IS_ENABLED(CONFIG_DMA_CMA) || !cma)
 
-Thanks,
-Nish
+Like above, just do:
+
++	else if (!dev_get_cma_area(dev))
+
+This will also allow to drop the =E2=80=9Ccma=E2=80=9D variable above.
+
+>                  addr =3D __alloc_remap_buffer(dev, size, gfp, prot, &pag=
+e, caller);
+>          else
+>                  addr =3D __alloc_from_contiguous(dev, size, prot, &page,=
+ caller);
+> @@ -780,6 +782,7 @@ static void __arm_dma_free(struct device *dev, size_t=
+ size, void *cpu_addr,
+>                             bool is_coherent)
+>   {
+>          struct page *page =3D pfn_to_page(dma_to_pfn(dev, handle));
+> +       struct cma *cma =3D dev_get_cma_area(dev);
+>
+>          if (dma_release_from_coherent(dev, get_order(size), cpu_addr))
+>                  return;
+> @@ -790,7 +793,7 @@ static void __arm_dma_free(struct device *dev, size_t=
+ size, void *cpu_addr,
+>                  __dma_free_buffer(page, size);
+>          } else if (__free_from_pool(cpu_addr, size)) {
+>                  return;
+> -       } else if (!IS_ENABLED(CONFIG_DMA_CMA)) {
+> +       } else if (!IS_ENABLED(CONFIG_DMA_CMA) || !cma) {
+
+Ditto.
+
+>                  __dma_free_remap(cpu_addr, size);
+>                  __dma_free_buffer(page, size);
+>          } else {
+> @@ -798,6 +801,7 @@ static void __arm_dma_free(struct device *dev, size_t=
+ size, void *cpu_addr,
+>                   * Non-atomic allocations cannot be freed with IRQs disa=
+bled
+>                   */
+>                  WARN_ON(irqs_disabled());
+> +
+
+Unrelated change.
+
+>                  __free_from_contiguous(dev, page, cpu_addr, size);
+>          }
+>   }
+> --
+> 1.7.9.5
+
+--=20
+Best regards,                                         _     _
+.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
+..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz   =
+ (o o)
+ooo +--<mpn@google.com>--<xmpp:mina86@jabber.org>--ooO--(_)--Ooo--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
