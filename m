@@ -1,117 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 931CA6B0035
-	for <linux-mm@kvack.org>; Tue, 20 May 2014 20:24:53 -0400 (EDT)
-Received: by mail-pd0-f175.google.com with SMTP id z10so804238pdj.6
-        for <linux-mm@kvack.org>; Tue, 20 May 2014 17:24:53 -0700 (PDT)
-Received: from lgeamrelo01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
-        by mx.google.com with ESMTP id yg6si26781948pab.98.2014.05.20.17.24.51
+Received: from mail-wg0-f47.google.com (mail-wg0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id CDF876B0035
+	for <linux-mm@kvack.org>; Tue, 20 May 2014 22:23:38 -0400 (EDT)
+Received: by mail-wg0-f47.google.com with SMTP id x12so1359346wgg.30
+        for <linux-mm@kvack.org>; Tue, 20 May 2014 19:23:38 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id kq9si14795199wjc.136.2014.05.20.19.23.36
         for <linux-mm@kvack.org>;
-        Tue, 20 May 2014 17:24:52 -0700 (PDT)
-Message-ID: <537BF252.6030905@lge.com>
-Date: Wed, 21 May 2014 09:24:50 +0900
-From: Gioh Kim <gioh.kim@lge.com>
-MIME-Version: 1.0
-Subject: Re: [RFC PATCH] arm: dma-mapping: fallback allocation for cma failure
-References: <537AEEDB.2000001@lge.com> <20140520065222.GB8315@js1304-P5Q-DELUXE> <xa1t1tvo1fas.fsf@mina86.com>
-In-Reply-To: <xa1t1tvo1fas.fsf@mina86.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 8bit
+        Tue, 20 May 2014 19:23:37 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH] tools/vm/page-types.c: page-cache sniffing feature
+Date: Tue, 20 May 2014 22:23:24 -0400
+Message-Id: <537c0e29.89cbc20a.4dbb.62eeSMTPIN_ADDED_BROKEN@mx.google.com>
+In-Reply-To: <20140226075723.29820.26427.stgit@zurg>
+References: <20140226075723.29820.26427.stgit@zurg>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Nazarewicz <mina86@mina86.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Heesub Shin <heesub.shin@samsung.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, =?UTF-8?B?7J206rG07Zi4?= <gunho.lee@lge.com>
+To: Konstantin Khlebnikov <koct9i@gmail.com>
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Arnaldo Carvalho de Melo <acme@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Wu Fengguang <fengguang.wu@intel.com>, Borislav Petkov <bp@suse.de>
 
+Hi Konstantin,
 
+This patch is already in upstream, but I have another idea of implementing
+the similar feature. So let me review this now, and I'll post patches to
+complement this patch.
 
-2014-05-21 i??i ? 3:22, Michal Nazarewicz i?' e,?:
-> On Mon, May 19 2014, Joonsoo Kim wrote:
->> On Tue, May 20, 2014 at 02:57:47PM +0900, Gioh Kim wrote:
->>>
->>> Thanks for your advise, Michal Nazarewicz.
->>>
->>> Having discuss with Joonsoo, I'm adding fallback allocation after __alloc_from_contiguous().
->>> The fallback allocation works if CMA kernel options is turned on but CMA size is zero.
->>
->> Hello, Gioh.
->>
->> I also mentioned the case where devices have their specific cma_area.
->> It means that this device needs memory with some contraint.
->> Although I'm not familiar with DMA infrastructure, I think that
->> we should handle this case.
->>
->> How about below patch?
->>
->> ------------>8----------------
->> diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
->> index 6b00be1..4023434 100644
->> --- a/arch/arm/mm/dma-mapping.c
->> +++ b/arch/arm/mm/dma-mapping.c
->> @@ -379,7 +379,7 @@ static int __init atomic_pool_init(void)
->>   	unsigned long *bitmap;
->>   	struct page *page;
->>   	struct page **pages;
->> -	void *ptr;
->> +	void *ptr = NULL;
->>   	int bitmap_size = BITS_TO_LONGS(nr_pages) * sizeof(long);
->>
->>   	bitmap = kzalloc(bitmap_size, GFP_KERNEL);
->> @@ -393,7 +393,8 @@ static int __init atomic_pool_init(void)
->>   	if (IS_ENABLED(CONFIG_DMA_CMA))
->>   		ptr = __alloc_from_contiguous(NULL, pool->size, prot, &page,
->>   					      atomic_pool_init);
->> -	else
->> +
->> +	if (!ptr)
->>   		ptr = __alloc_remap_buffer(NULL, pool->size, gfp, prot, &page,
->>   					   atomic_pool_init);
->>   	if (ptr) {
->> @@ -701,10 +702,22 @@ static void *__dma_alloc(struct device *dev, size_t size, dma_addr_t *handle,
->>   		addr = __alloc_simple_buffer(dev, size, gfp, &page);
->>   	else if (!(gfp & __GFP_WAIT))
->>   		addr = __alloc_from_pool(size, &page);
->> -	else if (!IS_ENABLED(CONFIG_DMA_CMA))
->> -		addr = __alloc_remap_buffer(dev, size, gfp, prot, &page, caller);
->> -	else
->> -		addr = __alloc_from_contiguous(dev, size, prot, &page, caller);
->> +	else {
->> +		if (IS_ENABLED(CONFIG_DMA_CMA)) {
->> +			addr = __alloc_from_contiguous(dev, size, prot,
->> +							&page, caller);
->> +			/*
->> +			 * Device specific cma_area means that
->> +			 * this device needs memory with some contraint.
->> +			 * So, we can't fall through general remap allocation.
->> +			 */
->> +			if (!addr && dev && dev->cma_area)
->> +				return NULL;
->> +		}
->> +
->> +		addr = __alloc_remap_buffer(dev, size, gfp, prot,
->> +							&page, caller);
->> +	}
->
-> __arm_dma_free will have to be changed to handle the fallback as well.
-> But perhaps Marek is right and there should be no fallback for regular
-> allocations?  Than again, non-CMA allocation should be performed at
-> least in the case of cma=0.
+On Wed, Feb 26, 2014 at 11:57:23AM +0400, Konstantin Khlebnikov wrote:
+> After this patch 'page-types' can walk on filesystem mappings and analize
+> populated page cache pages mostly without disturbing its state.
+> 
+> It maps chunk of file, marks VMA as MADV_RANDOM to turn off readahead,
+> pokes VMA via mincore() to determine cached pages, triggers page-fault
+> only for them, and finally gathers information via pagemap/kpageflags.
+> Before unmap it marks VMA as MADV_SEQUENTIAL for ignoring reference bits.
 
+I think that with this patch page-types *does* disturb page cache (not only
+of the target file) because it newly populates the pages not faulted in
+when page-types starts, which rotates LRU list and adds memory pressure.
+To minimize the measurement-disturbance, we need some help in the kernel side.
 
-I think in the cases of cma=0, CONFIG_CMA_SIZE_SEL_MBYTES=0 and CONFIG_CMA_SIZE_SEL_PERCENTAGE=0
-kernel should be act as like CMA is not turned on.
-non-CMA allocation should be performed in the cases.
+> 
+> usage: page-types -f <path>
+> 
+> If <path> is directory it will analyse all files in all subdirectories.
 
+I think -f was reserved for "Walk file address space", so doing file tree
+walk looks to me overkill. You can add "directory mode (-d) for this purpose,
+although it seems to me that we can/should do this (for example) by combining
+with find command. I can show you the example in my patch later.
 
-I will send a patch soon with __arm_dma_free changes.
+> Symlinks are not followed as well as mount points. Hardlinks aren't handled,
+> they'll be dumbed as many times as they are found. Recursive walk brings all
+> dentries into dcache and populates page cache of block-devices aka 'Buffers'.
+> 
+> Probably it's worth to add ioctl for dumping file page cache as array of PFNs
+> as a replacement for this hackish juggling with mmap/madvise/mincore/pagemap.
+> 
+> Also recursive walk could be replaced with dumping cached inodes via some ioctl
+> or debugfs interface followed by openning them via open_by_handle_at, this
+> would fix hardlinks handling and unneeded population of dcache and buffers.
+> This interface might be used as data source for constructing readahead plans
+> and for background optimizations of actively used files.
+> 
+> collateral changes:
+> + fix 64-bit LFS: define _FILE_OFFSET_BITS instead of _LARGEFILE64_SOURCE
+> + replace lseek + read with single pread
 
+Good, thanks.
 
->
->>
->>   	if (addr)
->>   		*handle = pfn_to_dma(dev, page_to_pfn(page));
->
->
->
+> + make show_page_range() reusable after flush
+> 
+> 
+> usage example:
+> 
+> ~/src/linux/tools/vm$ sudo ./page-types -L -f page-types
+> foffset	offset	flags
+> page-types	Inode: 2229277	Size: 89065 (22 pages)
+> Modify: Tue Feb 25 12:00:59 2014 (162 seconds ago)
+> Access: Tue Feb 25 12:01:00 2014 (161 seconds ago)
+
+I don't see why page-types needs to show these information.
+We have many other tools to check file info, so this small program should
+focus on page related things.
+
+Thanks,
+Naoya Horiguchi
+
+> 0	3cbf3b	__RU_lA____M________________________
+> 1	38946a	__RU_lA____M________________________
+> 2	1a3cec	__RU_lA____M________________________
+> 3	1a8321	__RU_lA____M________________________
+> 4	3af7cc	__RU_lA____M________________________
+> 5	1ed532	__RU_lA_____________________________
+> 6	2e436a	__RU_lA_____________________________
+> 7	29a35e	___U_lA_____________________________
+> 8	2de86e	___U_lA_____________________________
+> 9	3bdfb4	___U_lA_____________________________
+> 10	3cd8a3	___U_lA_____________________________
+> 11	2afa50	___U_lA_____________________________
+> 12	2534c2	___U_lA_____________________________
+> 13	1b7a40	___U_lA_____________________________
+> 14	17b0be	___U_lA_____________________________
+> 15	392b0c	___U_lA_____________________________
+> 16	3ba46a	__RU_lA_____________________________
+> 17	397dc8	___U_lA_____________________________
+> 18	1f2a36	___U_lA_____________________________
+> 19	21fd30	__RU_lA_____________________________
+> 20	2c35ba	__RU_l______________________________
+> 21	20f181	__RU_l______________________________
+> 
+> 
+>              flags	page-count       MB  symbolic-flags			long-symbolic-flags
+> 0x000000000000002c	         2        0  __RU_l______________________________	referenced,uptodate,lru
+> 0x0000000000000068	        11        0  ___U_lA_____________________________	uptodate,lru,active
+> 0x000000000000006c	         4        0  __RU_lA_____________________________	referenced,uptodate,lru,active
+> 0x000000000000086c	         5        0  __RU_lA____M________________________	referenced,uptodate,lru,active,mmap
+>              total	        22        0
+> 
+> 
+> 
+> ~/src/linux/tools/vm$ sudo ./page-types -f /
+>              flags	page-count       MB  symbolic-flags			long-symbolic-flags
+> 0x0000000000000028	     21761       85  ___U_l______________________________	uptodate,lru
+> 0x000000000000002c	    127279      497  __RU_l______________________________	referenced,uptodate,lru
+> 0x0000000000000068	     74160      289  ___U_lA_____________________________	uptodate,lru,active
+> 0x000000000000006c	     84469      329  __RU_lA_____________________________	referenced,uptodate,lru,active
+> 0x000000000000007c	         1        0  __RUDlA_____________________________	referenced,uptodate,dirty,lru,active
+> 0x0000000000000228	       370        1  ___U_l___I__________________________	uptodate,lru,reclaim
+> 0x0000000000000828	        49        0  ___U_l_____M________________________	uptodate,lru,mmap
+> 0x000000000000082c	       126        0  __RU_l_____M________________________	referenced,uptodate,lru,mmap
+> 0x0000000000000868	       137        0  ___U_lA____M________________________	uptodate,lru,active,mmap
+> 0x000000000000086c	     12890       50  __RU_lA____M________________________	referenced,uptodate,lru,active,mmap
+>              total	    321242     1254
+> 
+> Signed-off-by: Konstantin Khlebnikov <koct9i@gmail.com>
+> ---
+>  tools/vm/page-types.c |  170 ++++++++++++++++++++++++++++++++++++++++++++-----
+>  1 file changed, 152 insertions(+), 18 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
