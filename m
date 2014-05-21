@@ -1,165 +1,213 @@
-From: Michal Hocko <mhocko@suse.cz>
-Subject: [PATCH] memcg: fix swapcache charge from kernel thread context
-Date: Mon, 19 May 2014 10:27:56 +0200
-Message-ID: <1400488076-3820-1-git-send-email-mhocko@suse.cz>
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Subject: [PATCH] mm/vmscan: Kill shrinker's global semaphore.
+Date: Wed, 21 May 2014 20:57:41 +0900
+Message-ID: <201405212057.FHD48466.VOQLFFtSMFHOJO@I-love.SAKURA.ne.jp>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Return-path: <linux-kernel-owner@vger.kernel.org>
 Sender: linux-kernel-owner@vger.kernel.org
-To: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>
-Cc: KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Hugh Dickins <hughd@google.com>, Branimir Maksimovic <branimir.maksimovic@gmail.com>, Stephan Kulow <coolo@suse.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: akpm@linux-foundation.org, riel@redhat.com, dchinner@redhat.com, kosaki.motohiro@jp.fujitsu.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 List-Id: linux-mm.kvack.org
 
-284f39afeaa4 (mm: memcg: push !mm handling out to page cache charge
-function) explicitly checks for page cache charges without any mm
-context (from kernel thread context[1]).
+I'm trying to identify the cause of stalls with 100% CPU usage when
+a certain type of memory pressure is given. I noticed that some of
+shrinker functions may take unpredictably long duration to complete.
+Since shrinker list is protected by a global semaphore, I came to worry
+that (e.g.) umount operation which involves deactivate_locked_super()
+might become unresponding for very long time. Maybe we want to kill
+global semaphore?
+----------
+>From ba9c6a433377b92ded32217176a77e00c4ca488b Mon Sep 17 00:00:00 2001
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Date: Wed, 21 May 2014 15:05:17 +0900
+Subject: [PATCH] mm/vmscan: Kill shrinker's global semaphore.
 
-This seemed to be the only possible case where memory could be charged
-without mm context so 03583f1a631c (memcg: remove unnecessary !mm check
-from try_get_mem_cgroup_from_mm()) removed the mm check from
-get_mem_cgroup_from_mm. This however caused another NULL ptr dereference
-during early boot when loopback kernel thread splices to tmpfs as reported
-by Stephan Kulow:
+Currently register_shrinker()/unregister_shrinker() calls
+down_write(&shrinker_rwsem) while shrink_slab() calls
+down_read_trylock(&shrinker_rwsem).
 
-BUG: unable to handle kernel NULL pointer dereference at 0000000000000360
-IP: [<ffffffff81196aab>] get_mem_cgroup_from_mm.isra.42+0x2b/0x60
-PGD 5082067 PUD 83c3067 PMD 0
-Oops: 0000 [#1] SMP
-Modules linked in: btrfs dm_multipath dm_mod scsi_dh multipath raid10 raid456 async_raid6_recov async_memcpy async_pq raid6_pq async_xor xor async_tx raid1 raid0 md_mod parport_pc parport nls_utf8 isofs usb_storage iscsi_ibft iscsi_boot_sysfs arc4 ecb fan thermal nfs lockd fscache nls_iso8859_1 nls_cp437 sg st hid_generic usbhid af_packet sunrpc sr_mod cdrom ata_generic uhci_hcd virtio_net virtio_blk ehci_hcd usbcore ata_piix floppy processor button usb_common virtio_pci virtio_ring virtio edd squashfs loop
- ppa]
-CPU: 0 PID: 97 Comm: loop1 Not tainted 3.15.0-rc5-5-default #1
-Hardware name: Bochs Bochs, BIOS Bochs 01/01/2011
-task: ffff880039b7a390 ti: ffff880038efe000 task.ti: ffff880038efe000
-RIP: 0010:[<ffffffff81196aab>]  [<ffffffff81196aab>] get_mem_cgroup_from_mm.isra.42+0x2b/0x60
-RSP: 0018:ffff880038effa40  EFLAGS: 00010246
-RAX: 0000000000000000 RBX: ffffea00001e5140 RCX: 0000000000000020
-RDX: ffff88003c365020 RSI: ffffea00001e5140 RDI: 0000000000000360
-RBP: ffff880038effa78 R08: 0000000000000ab3 R09: ffff880039572248
-R10: 0000000000002ace R11: 0000000000000000 R12: 0000000000000010
-R13: 0000000000000000 R14: ffff880038c72448 R15: 00000000fffffffe
-FS:  00007fb0042ed880(0000) GS:ffff88003c000000(0000) knlGS:0000000000000000
-CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-CR2: 0000000000000360 CR3: 0000000005e2b000 CR4: 00000000000006f0
-Stack:
- ffffffff8119bae0 0000000000000000 0000000000000000 ffffea00001e5140
- 0000000000000001 00000000ffffffef ffffffff8119c04b 0000000000000000
- ffff880038c722f8 0000000000000ab3 ffffffff8115129b 00000000000001d7
-Call Trace:
- [<ffffffff8119bae0>] __mem_cgroup_try_charge_swapin+0x40/0xe0
- [<ffffffff8119c04b>] mem_cgroup_charge_file+0x8b/0xd0
- [<ffffffff8115129b>] shmem_getpage_gfp+0x66b/0x7b0
- [<ffffffff811518cf>] shmem_file_splice_read+0x18f/0x430
- [<ffffffff811ceff2>] splice_direct_to_actor+0xa2/0x1c0
- [<ffffffffa00019ea>] do_lo_receive+0x5a/0x60 [loop]
- [<ffffffffa0002158>] loop_thread+0x298/0x720 [loop]
- [<ffffffff810778d6>] kthread+0xc6/0xe0
- [<ffffffff815c0dbc>] ret_from_fork+0x7c/0xb0
-Code: 66 66 66 66 90 eb 24 66 0f 1f 84 00 00 00 00 00 f6 40 48 01 75 3a 48 8b 50 18 f6 c2 03 75 32 65 ff 02 ba 01 00 00 00 84 d2 75 25 <48> 8b 07 48 85 c0 74 10 48 8b 80 70 08 00 00 48 8b 40 60 48 85
-RIP  [<ffffffff81196aab>] get_mem_cgroup_from_mm.isra.42+0x2b/0x60
- RSP <ffff880038effa40>
-CR2: 0000000000000360
+While it is expected that shrinker functions do not allocate memory,
+there are shrinker functions that allocate memory and/or hold mutex
+which may take unpredictably long duration to complete.
 
-Also Branimir Maksimovic reported the following oops which is tiggered
-for the swapcache charge path from the accounting code for kernel threads:
+Therefore, if one of shrinkers takes too long time (maybe due to a bug),
+other shrinkers cannot be registered or unregistered due to use of
+global semaphore.
 
-[  388.522494] CPU: 1 PID: 160 Comm: kworker/u8:5 Tainted: P           OE 3.15.0-rc5-core2-custom #159
-[  388.522496] Hardware name: System manufacturer System Product Name/MAXIMUSV GENE, BIOS 1903 08/19/2013
-[  388.522498] task: ffff880404e349b0 ti: ffff88040486a000 task.ti: ffff88040486a000
-[  388.522500] RIP: 0010:[<ffffffff81185b0b>] [<ffffffff81185b0b>] get_mem_cgroup_from_mm.isra.42+0x2b/0x60
-[  388.522504] RSP: 0000:ffff88040486bab8  EFLAGS: 00010246
-[  388.522506] RAX: 0000000000000000 RBX: ffffea000a416340 RCX: 0000000000000a40
-[  388.522508] RDX: ffff88041efe8a40 RSI: ffffea000a416340 RDI: 0000000000000340
-[  388.522509] RBP: ffff88040486bab8 R08: 000000000001cb56 R09: 0000000000072d5a
-[  388.522511] R10: 0000000000000000 R11: 0000000000000005 R12: ffff88040486bb00
-[  388.522512] R13: 00000000000000d0 R14: 0000000000000000 R15: ffff8803f3fe82f8
-[  388.522515] FS:  0000000000000000(0000) GS:ffff88041ec80000(0000) knlGS:0000000000000000
-[  388.522517] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-[  388.522518] CR2: 0000000000000340 CR3: 00000003ee44d000 CR4: 00000000001407e0
-[  388.522520] Stack:
-[  388.522521]  ffff88040486baf0 ffffffff8118abf5 ffffffff8112ce1a 0000000000000000
-[  388.522524]  ffffea000a416340 0000000000000003 00000000ffffffef ffff88040486bb18
-[  388.522527]  ffffffff8118b1cc ffff88040486baf8 000000000001cb56 0000000000000000
-[  388.522530] Call Trace:
-[  388.522536]  [<ffffffff8118abf5>] __mem_cgroup_try_charge_swapin+0x45/0xf0
-[  388.522539]  [<ffffffff8112ce1a>] ? __lock_page+0x6a/0x70
-[  388.522543]  [<ffffffff8118b1cc>] mem_cgroup_charge_file+0x9c/0xe0
-[  388.522548]  [<ffffffff8114599c>] shmem_getpage_gfp+0x62c/0x770
-[  388.522552]  [<ffffffff81145b18>] shmem_write_begin+0x38/0x40
-[  388.522555]  [<ffffffff8112d1c5>] generic_perform_write+0xc5/0x1c0
-[  388.522559]  [<ffffffff811ad53a>] ? file_update_time+0x8a/0xd0
-[  388.522563]  [<ffffffff8112f211>] __generic_file_aio_write+0x1d1/0x3f0
-[  388.522567]  [<ffffffff81084fc1>] ? enqueue_entity+0x291/0xb90
-[  388.522570]  [<ffffffff8112f47f>] generic_file_aio_write+0x4f/0xc0
-[  388.522574]  [<ffffffff81192eaa>] do_sync_write+0x5a/0x90
-[  388.522578]  [<ffffffff810c53c1>] do_acct_process+0x4b1/0x550
-[  388.522582]  [<ffffffff810c5acd>] acct_process+0x6d/0xa0
-[  388.522587]  [<ffffffff810667d0>] ? manage_workers.isra.25+0x2a0/0x2a0
-[  388.522590]  [<ffffffff8104d937>] do_exit+0x827/0xa70
-[  388.522594]  [<ffffffff8106699e>] ? worker_thread+0x1ce/0x3a0
-[  388.522597]  [<ffffffff810667d0>] ? manage_workers.isra.25+0x2a0/0x2a0
-[  388.522600]  [<ffffffff8106cad3>] kthread+0xc3/0xf0
-[  388.522604]  [<ffffffff8106ca10>] ? kthread_create_on_node+0x180/0x180
-[  388.522608]  [<ffffffff816bfe6c>] ret_from_fork+0x7c/0xb0
-[  388.522611]  [<ffffffff8106ca10>] ? kthread_create_on_node+0x180/0x180
+This patch replaces global semaphore with per a shrinker refcounter.
 
-This patch fixes the issue by reintroducing mm check into get_mem_cgroup_from_mm.
-We could do the same trick in __mem_cgroup_try_charge_swapin as we do
-for the regular page cache path but it is not worth troubles. The check
-is not that expensive and it is better to have get_mem_cgroup_from_mm
-more robust.
+Before this patch, response time of addition/removal are unpredictable
+when one of shrinkers are in use by shrink_slab(), nearly 0 otherwise.
 
-[1] - http://marc.info/?l=linux-mm&m=139463617808941&w=2
+After this patch, response time of addition is nearly 0. Response time of
+removal remains unpredictable when the shrinker to remove is in use by
+shrink_slab(), nearly RCU grace period otherwise.
 
-Fixes: 03583f1a631c (3.15-rc1)
-Reported-and-tested-by: Stephan Kulow <coolo@suse.com>
-Reported-by: Branimir Maksimovic <branimir.maksimovic@gmail.com>
-Signed-off-by: Michal Hocko <mhocko@suse.cz>
+Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
 ---
- mm/memcontrol.c | 26 +++++++++++++-------------
- 1 file changed, 13 insertions(+), 13 deletions(-)
+ include/linux/shrinker.h |   4 ++
+ mm/vmscan.c              | 100 ++++++++++++++++++++++++++++++++++++-----------
+ 2 files changed, 82 insertions(+), 22 deletions(-)
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 2cb81478d30c..2248a648a127 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1061,9 +1061,17 @@ static struct mem_cgroup *get_mem_cgroup_from_mm(struct mm_struct *mm)
+diff --git a/include/linux/shrinker.h b/include/linux/shrinker.h
+index 68c0970..c16b0aa 100644
+--- a/include/linux/shrinker.h
++++ b/include/linux/shrinker.h
+@@ -59,6 +59,10 @@ struct shrinker {
+ 	struct list_head list;
+ 	/* objs pending delete, per node */
+ 	atomic_long_t *nr_deferred;
++	/* Number of users holding reference to this object. */
++	atomic_t usage;
++	/* Used for GC tracing. */
++	struct list_head gc_list;
+ };
+ #define DEFAULT_SEEKS 2 /* A good number if you don't know better. */
  
- 	rcu_read_lock();
- 	do {
--		memcg = mem_cgroup_from_task(rcu_dereference(mm->owner));
--		if (unlikely(!memcg))
-+		/*
-+		 * Page cache or loopback insertions can happen without an
-+		 * actual mm context, e.g. during disk probing on boot
-+		 */
-+		if (unlikely(!mm))
- 			memcg = root_mem_cgroup;
-+		else {
-+			memcg = mem_cgroup_from_task(rcu_dereference(mm->owner));
-+			if (unlikely(!memcg))
-+				memcg = root_mem_cgroup;
-+		}
- 	} while (!css_tryget(&memcg->css));
- 	rcu_read_unlock();
- 	return memcg;
-@@ -3857,17 +3865,9 @@ int mem_cgroup_charge_file(struct page *page, struct mm_struct *mm,
- 		return 0;
- 	}
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 32c661d..c0db2fc 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -133,7 +133,8 @@ int vm_swappiness = 60;
+ unsigned long vm_total_pages;	/* The total number of pages which the VM controls */
  
--	/*
--	 * Page cache insertions can happen without an actual mm
--	 * context, e.g. during disk probing on boot.
--	 */
--	if (unlikely(!mm))
--		memcg = root_mem_cgroup;
--	else {
--		memcg = mem_cgroup_try_charge_mm(mm, gfp_mask, 1, true);
--		if (!memcg)
--			return -ENOMEM;
--	}
-+	memcg = mem_cgroup_try_charge_mm(mm, gfp_mask, 1, true);
-+	if (!memcg)
-+		return -ENOMEM;
- 	__mem_cgroup_commit_charge(memcg, page, 1, type, false);
+ static LIST_HEAD(shrinker_list);
+-static DECLARE_RWSEM(shrinker_rwsem);
++static LIST_HEAD(shrinker_gc_list);
++static DEFINE_SPINLOCK(shrinker_list_lock);
+ 
+ #ifdef CONFIG_MEMCG
+ static bool global_reclaim(struct scan_control *sc)
+@@ -196,9 +197,17 @@ int register_shrinker(struct shrinker *shrinker)
+ 	if (!shrinker->nr_deferred)
+ 		return -ENOMEM;
+ 
+-	down_write(&shrinker_rwsem);
+-	list_add_tail(&shrinker->list, &shrinker_list);
+-	up_write(&shrinker_rwsem);
++	/*
++	 * Make it possible for list_for_each_entry_rcu(shrinker,
++	 * &shrinker_list, list) in shrink_slab() to find this shrinker.
++	 * We assume that this shrinker is not under unregister_shrinker()
++	 * call.
++	 */
++	atomic_set(&shrinker->usage, 0);
++	spin_lock(&shrinker_list_lock);
++	list_add_tail_rcu(&shrinker->list, &shrinker_list);
++	list_add_tail(&shrinker->gc_list, &shrinker_gc_list);
++	spin_unlock(&shrinker_list_lock);
  	return 0;
  }
+ EXPORT_SYMBOL(register_shrinker);
+@@ -208,9 +217,61 @@ EXPORT_SYMBOL(register_shrinker);
+  */
+ void unregister_shrinker(struct shrinker *shrinker)
+ {
+-	down_write(&shrinker_rwsem);
+-	list_del(&shrinker->list);
+-	up_write(&shrinker_rwsem);
++	struct shrinker *gc;
++	unsigned int i = 0;
++
++	/*
++	 * For explanation, this function refers shrinker objects like
++	 * shrinker[x-2], shrinker[x-1], shrinker[x] and assumes that
++	 *
++	 *   shrinker_list.next      == &shrinker[x-2].list
++	 *   shrinker[x-2].list.prev == &shrinker_list
++	 *   shrinker[x-2].list.next == &shrinker[x].list
++	 *   shrinker[x].list.prev   == &shrinker[x-2].list
++	 *   shrinker[x].list.next   == &shrinker_list
++	 *   shrinker_list.prev      == &shrinker[x].list
++	 *   shrinker[x-1].list.prev == LIST_POISON2
++	 *   shrinker[x-1].list.next == &shrinker[x].list
++	 *
++	 * when this function is called for deleting shrinker[x] after
++	 * this function is called for deleting shrinker[x-1].
++	 *
++	 * First, make it impossible for list_for_each_entry_rcu(shrinker,
++	 * &shrinker_list, list) in shrink_slab() to find shrinker[x]
++	 * after RCU grace period. Note that we need to do
++	 *
++	 *   shrinker[x-1].list.next = shrinker[x].list.next
++	 *
++	 * when we do
++	 *
++	 *   shrinker[x-2].list.next = shrinker[x].list.next
++	 *
++	 * because shrinker[x-1] may be still in use.
++	 */
++	spin_lock(&shrinker_list_lock);
++	list_del_rcu(&shrinker->list);
++	list_for_each_entry(gc, &shrinker_gc_list, list) {
++		if (gc->list.next == &shrinker->list)
++			gc->list.next = shrinker->list.next;
++	}
++	spin_unlock(&shrinker_list_lock);
++	synchronize_rcu();
++	/*
++	 * Wait for readers who acquired a reference to shrinker[x]
++	 * before RCU grace period.
++	 */
++	while (atomic_read(&shrinker->usage)) {
++		msleep(100);
++		if (++i % 600)
++			continue;
++		pr_info("Process %d (%s) blocked at %s for %u seconds\n",
++			task_pid_nr(current), current->comm, __func__,
++			i / 10);
++	}
++	/* Now, nobody is using this shrinker. */
++	spin_lock(&shrinker_list_lock);
++	list_del(&shrinker->gc_list);
++	spin_unlock(&shrinker_list_lock);
+ 	kfree(shrinker->nr_deferred);
+ }
+ EXPORT_SYMBOL(unregister_shrinker);
+@@ -357,23 +418,15 @@ unsigned long shrink_slab(struct shrink_control *shrinkctl,
+ 	if (nr_pages_scanned == 0)
+ 		nr_pages_scanned = SWAP_CLUSTER_MAX;
+ 
+-	if (!down_read_trylock(&shrinker_rwsem)) {
+-		/*
+-		 * If we would return 0, our callers would understand that we
+-		 * have nothing else to shrink and give up trying. By returning
+-		 * 1 we keep it going and assume we'll be able to shrink next
+-		 * time.
+-		 */
+-		freed = 1;
+-		goto out;
+-	}
+-
+-	list_for_each_entry(shrinker, &shrinker_list, list) {
++	rcu_read_lock();
++	list_for_each_entry_rcu(shrinker, &shrinker_list, list) {
++		atomic_inc(&shrinker->usage);
++		rcu_read_unlock();
+ 		if (!(shrinker->flags & SHRINKER_NUMA_AWARE)) {
+ 			shrinkctl->nid = 0;
+ 			freed += shrink_slab_node(shrinkctl, shrinker,
+ 					nr_pages_scanned, lru_pages);
+-			continue;
++			goto next_entry;
+ 		}
+ 
+ 		for_each_node_mask(shrinkctl->nid, shrinkctl->nodes_to_scan) {
+@@ -382,9 +435,12 @@ unsigned long shrink_slab(struct shrink_control *shrinkctl,
+ 						nr_pages_scanned, lru_pages);
+ 
+ 		}
++next_entry:
++		rcu_read_lock();
++		atomic_dec(&shrinker->usage);
+ 	}
+-	up_read(&shrinker_rwsem);
+-out:
++	rcu_read_unlock();
++
+ 	cond_resched();
+ 	return freed;
+ }
 -- 
-2.0.0.rc2
+1.8.3.1
