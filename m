@@ -1,60 +1,185 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f174.google.com (mail-lb0-f174.google.com [209.85.217.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 86CD56B0037
-	for <linux-mm@kvack.org>; Wed, 21 May 2014 11:14:35 -0400 (EDT)
-Received: by mail-lb0-f174.google.com with SMTP id n15so1686069lbi.19
-        for <linux-mm@kvack.org>; Wed, 21 May 2014 08:14:34 -0700 (PDT)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id g5si13027130laa.34.2014.05.21.08.14.33
+Received: from mail-ee0-f49.google.com (mail-ee0-f49.google.com [74.125.83.49])
+	by kanga.kvack.org (Postfix) with ESMTP id D9EEC6B0036
+	for <linux-mm@kvack.org>; Wed, 21 May 2014 11:34:03 -0400 (EDT)
+Received: by mail-ee0-f49.google.com with SMTP id e53so1704064eek.22
+        for <linux-mm@kvack.org>; Wed, 21 May 2014 08:34:03 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id g42si9499529eew.158.2014.05.21.08.34.02
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 May 2014 08:14:33 -0700 (PDT)
-Date: Wed, 21 May 2014 19:14:24 +0400
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: Re: [PATCH RFC 3/3] slub: reparent memcg caches' slabs on memcg
- offline
-Message-ID: <20140521151423.GC23193@esperanza>
-References: <alpine.DEB.2.10.1405141119320.16512@gentwo.org>
- <20140515071650.GB32113@esperanza>
- <alpine.DEB.2.10.1405151015330.24665@gentwo.org>
- <20140516132234.GF32113@esperanza>
- <alpine.DEB.2.10.1405160957100.32249@gentwo.org>
- <20140519152437.GB25889@esperanza>
- <alpine.DEB.2.10.1405191056580.22956@gentwo.org>
- <537A4D27.1050909@parallels.com>
- <20140521135826.GA23193@esperanza>
- <alpine.DEB.2.10.1405210944140.8038@gentwo.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 21 May 2014 08:34:02 -0700 (PDT)
+Date: Wed, 21 May 2014 16:33:57 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH] mm: filemap: Avoid unnecessary barries and waitqueue
+ lookups in unlock_page fastpath v5
+Message-ID: <20140521153357.GW23991@suse.de>
+References: <1399974350-11089-1-git-send-email-mgorman@suse.de>
+ <1399974350-11089-20-git-send-email-mgorman@suse.de>
+ <20140513125313.GR23991@suse.de>
+ <20140513141748.GD2485@laptop.programming.kicks-ass.net>
+ <20140514161152.GA2615@redhat.com>
+ <20140514192945.GA10830@redhat.com>
+ <20140515104808.GF23991@suse.de>
+ <20140515142414.16c47315a03160c58ceb9066@linux-foundation.org>
+ <20140521121501.GT23991@suse.de>
+ <20140521130223.GE2485@laptop.programming.kicks-ass.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1405210944140.8038@gentwo.org>
+In-Reply-To: <20140521130223.GE2485@laptop.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: hannes@cmpxchg.org, mhocko@suse.cz, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, David Howells <dhowells@redhat.com>
 
-On Wed, May 21, 2014 at 09:45:54AM -0500, Christoph Lameter wrote:
-> On Wed, 21 May 2014, Vladimir Davydov wrote:
+On Wed, May 21, 2014 at 03:02:23PM +0200, Peter Zijlstra wrote:
+> On Wed, May 21, 2014 at 01:15:01PM +0100, Mel Gorman wrote:
+> > Andrew had suggested dropping v4 of the patch entirely as the numbers were
+> > marginal and the complexity was high. However, even on a relatively small
+> > machine running simple workloads the overhead of page_waitqueue and wakeup
+> > functions is around 5% of system CPU time. That's quite high for basic
+> > operations so I felt it was worth another shot. The performance figures
+> > are better with this version than they were for v4 and overall the patch
+> > should be more comprehensible.
 > 
-> > Seems I've found a better way to avoid this race, which does not involve
-> > messing up free hot paths. The idea is to explicitly zap each per-cpu
-> > partial list by setting it pointing to an invalid ptr. Since
-> > put_cpu_partial(), which is called from __slab_free(), uses atomic
-> > cmpxchg for adding a new partial slab to a per cpu partial list, it is
-> > enough to add a check if partials are zapped there and bail out if so.
-> >
-> > The patch doing the trick is attached. Could you please take a look at
-> > it once time permit?
+> Simpler patch and better performance, yay!
 > 
-> Well if you set s->cpu_partial = 0 then the slab should not be added to
-> the partial lists. Ok its put on there temporarily but then immediately
-> moved to the node partial list in put_cpu_partial().
+> > This patch introduces a new page flag for 64-bit capable machines,
+> > PG_waiters, to signal there are processes waiting on PG_lock and uses it to
+> > avoid memory barriers and waitqueue hash lookup in the unlock_page fastpath.
+> 
+> The patch seems to also explicitly use it for PG_writeback, yet no
+> mention of that here.
+> 
 
-Don't think so. AFAIU put_cpu_partial() first checks if the per-cpu
-partial list has more than s->cpu_partial objects draining it if so, but
-then it adds the newly frozen slab there anyway.
+I'll add a note.
 
-Thanks.
+> > diff --git a/kernel/sched/wait.c b/kernel/sched/wait.c
+> > index 0ffa20a..f829e73 100644
+> > --- a/kernel/sched/wait.c
+> > +++ b/kernel/sched/wait.c
+> > @@ -167,31 +167,39 @@ EXPORT_SYMBOL_GPL(__wake_up_sync);	/* For internal use only */
+> >   * stops them from bleeding out - it would still allow subsequent
+> >   * loads to move into the critical region).
+> >   */
+> > +static inline void
+> 
+> Make that __always_inline, that way we're guaranteed to optimize the
+> build time constant .page=NULL cases.
+> 
+
+Done.
+
+> > +__prepare_to_wait(wait_queue_head_t *q, wait_queue_t *wait,
+> > +			struct page *page, int state, bool exclusive)
+> >  {
+> >  	unsigned long flags;
+> >  
+> > +	if (page && !PageWaiters(page))
+> > +		SetPageWaiters(page);
+> > +	if (list_empty(&wait->task_list)) {
+> > +		if (exclusive) {
+> > +			wait->flags |= WQ_FLAG_EXCLUSIVE;
+> > +			__add_wait_queue_tail(q, wait);
+> > +		} else {
+> 
+> I'm fairly sure we've just initialized the wait thing to 0, so clearing
+> the bit would be superfluous.
+> 
+
+I assume you mean the clearing of WQ_FLAG_EXCLUSIVE. It may or may not be
+superflous. If it's an on-stack wait_queue_t initialised with DEFINE_WAIT()
+then it's redundant. If it's a wait_queue_t that is being reused and
+sometimes used for exclusive waits and other times for non-exclusive
+waits then it's required. The API allows this to happen so I see no harm
+is clearing the flag like the old code did. Am I missing your point?
+
+> > +			wait->flags &= ~WQ_FLAG_EXCLUSIVE;
+> > +			__add_wait_queue(q, wait);
+> > +		}
+> > +	}
+> >  	set_current_state(state);
+> >  	spin_unlock_irqrestore(&q->lock, flags);
+> >  }
+> > +
+> > +void
+> > +prepare_to_wait(wait_queue_head_t *q, wait_queue_t *wait, int state)
+> > +{
+> > +	return __prepare_to_wait(q, wait, NULL, state, false);
+> > +}
+> >  EXPORT_SYMBOL(prepare_to_wait);
+> >  
+> >  void
+> >  prepare_to_wait_exclusive(wait_queue_head_t *q, wait_queue_t *wait, int state)
+> >  {
+> > +	return __prepare_to_wait(q, wait, NULL, state, true);
+> >  }
+> >  EXPORT_SYMBOL(prepare_to_wait_exclusive);
+> >  
+> > @@ -228,7 +236,8 @@ EXPORT_SYMBOL(prepare_to_wait_event);
+> >   * the wait descriptor from the given waitqueue if still
+> >   * queued.
+> >   */
+> > +static inline void __finish_wait(wait_queue_head_t *q, wait_queue_t *wait,
+> > +			struct page *page)
+> >  {
+> 
+> Same thing, make that __always_inline.
+> 
+
+Done.
+
+> >  	unsigned long flags;
+> >  
+> > @@ -249,9 +258,16 @@ void finish_wait(wait_queue_head_t *q, wait_queue_t *wait)
+> >  	if (!list_empty_careful(&wait->task_list)) {
+> >  		spin_lock_irqsave(&q->lock, flags);
+> >  		list_del_init(&wait->task_list);
+> > +		if (page && !waitqueue_active(q))
+> > +			ClearPageWaiters(page);
+> >  		spin_unlock_irqrestore(&q->lock, flags);
+> >  	}
+> >  }
+> > +
+> > +void finish_wait(wait_queue_head_t *q, wait_queue_t *wait)
+> > +{
+> > +	return __finish_wait(q, wait, NULL);
+> > +}
+> >  EXPORT_SYMBOL(finish_wait);
+> >  
+> >  /**
+> 
+> > @@ -374,6 +427,19 @@ int __sched out_of_line_wait_on_bit_lock(void *word, int bit,
+> >  }
+> >  EXPORT_SYMBOL(out_of_line_wait_on_bit_lock);
+> >  
+> > +void __wake_up_page_bit(wait_queue_head_t *wqh, struct page *page, void *word, int bit)
+> > +{
+> > +	struct wait_bit_key key = __WAIT_BIT_KEY_INITIALIZER(word, bit);
+> > +	unsigned long flags;
+> > +
+> > +	spin_lock_irqsave(&wqh->lock, flags);
+> > +	if (waitqueue_active(wqh))
+> > +		__wake_up_common(wqh, TASK_NORMAL, 1, 0, &key);
+> > +	else
+> > +		ClearPageWaiters(page);
+> > +	spin_unlock_irqrestore(&wqh->lock, flags);
+> > +}
+> 
+> Seeing how word is always going to be &page->flags, might it make sense
+> to remove that argument?
+> 
+
+The wait_queue was defined on-stack with DEFINE_WAIT_BIT which uses
+wake_bit_function() as a wakeup function and that thing consumes both the
+page->flags and the bit number it's interested in. This is used for both
+PG_writeback and PG_locked so assumptions cannot really be made about
+the value.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
