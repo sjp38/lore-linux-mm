@@ -1,21 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f50.google.com (mail-la0-f50.google.com [209.85.215.50])
-	by kanga.kvack.org (Postfix) with ESMTP id C5B2A6B0037
-	for <linux-mm@kvack.org>; Wed, 21 May 2014 11:04:21 -0400 (EDT)
-Received: by mail-la0-f50.google.com with SMTP id b8so1684563lan.9
-        for <linux-mm@kvack.org>; Wed, 21 May 2014 08:04:20 -0700 (PDT)
+Received: from mail-lb0-f174.google.com (mail-lb0-f174.google.com [209.85.217.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 86CD56B0037
+	for <linux-mm@kvack.org>; Wed, 21 May 2014 11:14:35 -0400 (EDT)
+Received: by mail-lb0-f174.google.com with SMTP id n15so1686069lbi.19
+        for <linux-mm@kvack.org>; Wed, 21 May 2014 08:14:34 -0700 (PDT)
 Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id zn10si6973891lbb.51.2014.05.21.08.04.19
+        by mx.google.com with ESMTPS id g5si13027130laa.34.2014.05.21.08.14.33
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 May 2014 08:04:19 -0700 (PDT)
-Date: Wed, 21 May 2014 19:04:10 +0400
+        Wed, 21 May 2014 08:14:33 -0700 (PDT)
+Date: Wed, 21 May 2014 19:14:24 +0400
 From: Vladimir Davydov <vdavydov@parallels.com>
 Subject: Re: [PATCH RFC 3/3] slub: reparent memcg caches' slabs on memcg
  offline
-Message-ID: <20140521150408.GB23193@esperanza>
-References: <6eafe1e95d9a934228e9af785f5b5de38955aa6a.1399982635.git.vdavydov@parallels.com>
- <alpine.DEB.2.10.1405141119320.16512@gentwo.org>
+Message-ID: <20140521151423.GC23193@esperanza>
+References: <alpine.DEB.2.10.1405141119320.16512@gentwo.org>
  <20140515071650.GB32113@esperanza>
  <alpine.DEB.2.10.1405151015330.24665@gentwo.org>
  <20140516132234.GF32113@esperanza>
@@ -23,78 +22,39 @@ References: <6eafe1e95d9a934228e9af785f5b5de38955aa6a.1399982635.git.vdavydov@pa
  <20140519152437.GB25889@esperanza>
  <alpine.DEB.2.10.1405191056580.22956@gentwo.org>
  <537A4D27.1050909@parallels.com>
- <alpine.DEB.2.10.1405210937440.8038@gentwo.org>
+ <20140521135826.GA23193@esperanza>
+ <alpine.DEB.2.10.1405210944140.8038@gentwo.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1405210937440.8038@gentwo.org>
+In-Reply-To: <alpine.DEB.2.10.1405210944140.8038@gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Christoph Lameter <cl@linux.com>
 Cc: hannes@cmpxchg.org, mhocko@suse.cz, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, May 21, 2014 at 09:41:03AM -0500, Christoph Lameter wrote:
-> On Mon, 19 May 2014, Vladimir Davydov wrote:
+On Wed, May 21, 2014 at 09:45:54AM -0500, Christoph Lameter wrote:
+> On Wed, 21 May 2014, Vladimir Davydov wrote:
 > 
-> > 3) Per cpu partial slabs. We can disable this feature for dead caches by
-> > adding appropriate check to kmem_cache_has_cpu_partial.
-> 
-> There is already a s->cpu_partial number in kmem_cache. If that is zero
-> then no partial cpu slabs should be kept.
-> 
-> > So far, everything looks very simple - it seems we don't have to modify
-> > __slab_free at all if we follow the instruction above.
+> > Seems I've found a better way to avoid this race, which does not involve
+> > messing up free hot paths. The idea is to explicitly zap each per-cpu
+> > partial list by setting it pointing to an invalid ptr. Since
+> > put_cpu_partial(), which is called from __slab_free(), uses atomic
+> > cmpxchg for adding a new partial slab to a per cpu partial list, it is
+> > enough to add a check if partials are zapped there and bail out if so.
 > >
-> > However, there is one thing regarding preemptable kernels. The problem
-> > is after forbidding the cache store free slabs in per-cpu/node partial
-> > lists by setting min_partial=0 and kmem_cache_has_cpu_partial=false
-> > (i.e. marking the cache as dead), we have to make sure that all frees
-> > that saw the cache as alive are over, otherwise they can occasionally
-> > add a free slab to a per-cpu/node partial list *after* the cache was
-> > marked dead. For instance,
+> > The patch doing the trick is attached. Could you please take a look at
+> > it once time permit?
 > 
-> Ok then lets switch off preeempt there? Preemption is not supported by
-> most distribution and so will have the least impact.
+> Well if you set s->cpu_partial = 0 then the slab should not be added to
+> the partial lists. Ok its put on there temporarily but then immediately
+> moved to the node partial list in put_cpu_partial().
 
-Do I understand you correctly that the following change looks OK to you?
+Don't think so. AFAIU put_cpu_partial() first checks if the per-cpu
+partial list has more than s->cpu_partial objects draining it if so, but
+then it adds the newly frozen slab there anyway.
 
-diff --git a/mm/slub.c b/mm/slub.c
-index fdf0fe4da9a9..dc3582c2b5bb 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -2676,31 +2676,31 @@ static __always_inline void slab_free(struct kmem_cache *s,
- redo:
- 	/*
- 	 * Determine the currently cpus per cpu slab.
- 	 * The cpu may change afterward. However that does not matter since
- 	 * data is retrieved via this pointer. If we are on the same cpu
- 	 * during the cmpxchg then the free will succedd.
- 	 */
- 	preempt_disable();
- 	c = this_cpu_ptr(s->cpu_slab);
- 
- 	tid = c->tid;
--	preempt_enable();
- 
- 	if (likely(page == c->page)) {
- 		set_freepointer(s, object, c->freelist);
- 
- 		if (unlikely(!this_cpu_cmpxchg_double(
- 				s->cpu_slab->freelist, s->cpu_slab->tid,
- 				c->freelist, tid,
- 				object, next_tid(tid)))) {
- 
- 			note_cmpxchg_failure("slab_free", s, tid);
- 			goto redo;
- 		}
- 		stat(s, FREE_FASTPATH);
- 	} else
- 		__slab_free(s, page, x, addr);
- 
-+	preempt_enable();
- }
- 
- void kmem_cache_free(struct kmem_cache *s, void *x)
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
