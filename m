@@ -1,96 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f173.google.com (mail-we0-f173.google.com [74.125.82.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 553306B0035
-	for <linux-mm@kvack.org>; Wed, 21 May 2014 05:29:46 -0400 (EDT)
-Received: by mail-we0-f173.google.com with SMTP id u57so1784294wes.32
-        for <linux-mm@kvack.org>; Wed, 21 May 2014 02:29:45 -0700 (PDT)
-Received: from casper.infradead.org (casper.infradead.org. [2001:770:15f::2])
-        by mx.google.com with ESMTPS id gr5si15659173wjc.118.2014.05.21.02.29.41
+Received: from mail-lb0-f173.google.com (mail-lb0-f173.google.com [209.85.217.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 744246B0035
+	for <linux-mm@kvack.org>; Wed, 21 May 2014 05:38:15 -0400 (EDT)
+Received: by mail-lb0-f173.google.com with SMTP id 10so1373040lbg.32
+        for <linux-mm@kvack.org>; Wed, 21 May 2014 02:38:14 -0700 (PDT)
+Received: from mail-la0-x230.google.com (mail-la0-x230.google.com [2a00:1450:4010:c03::230])
+        by mx.google.com with ESMTPS id ky5si19557100lab.32.2014.05.21.02.38.13
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 May 2014 02:29:42 -0700 (PDT)
-Date: Wed, 21 May 2014 11:29:32 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH 1/1] ptrace: task_clear_jobctl_trapping()->wake_up_bit()
- needs mb()
-Message-ID: <20140521092932.GH30445@twins.programming.kicks-ass.net>
-References: <1399974350-11089-1-git-send-email-mgorman@suse.de>
- <1399974350-11089-20-git-send-email-mgorman@suse.de>
- <20140513125313.GR23991@suse.de>
- <20140513141748.GD2485@laptop.programming.kicks-ass.net>
- <20140514161152.GA2615@redhat.com>
- <20140514161755.GQ30445@twins.programming.kicks-ass.net>
- <20140516135116.GA19210@redhat.com>
- <20140516135137.GB19210@redhat.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 21 May 2014 02:38:13 -0700 (PDT)
+Received: by mail-la0-f48.google.com with SMTP id mc6so1348845lab.21
+        for <linux-mm@kvack.org>; Wed, 21 May 2014 02:38:13 -0700 (PDT)
+Subject: [PATCH] tools/vm/page-types.c: catch sigbus if raced with truncate
+From: Konstantin Khlebnikov <koct9i@gmail.com>
+Date: Wed, 21 May 2014 13:38:07 +0400
+Message-ID: <20140521093807.24256.22521.stgit@zurg>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="N/xU+6Hp+kBwyaPu"
-Content-Disposition: inline
-In-Reply-To: <20140516135137.GB19210@redhat.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, David Howells <dhowells@redhat.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
+Recently added page-cache dumping is known to be a little bit racy.
+But after race with truncate it just dies due to unhandled SIGBUS
+when it tries to poke pages beyond the new end of file.
+This patch adds handler for SIGBUS which skips the rest of the file.
 
---N/xU+6Hp+kBwyaPu
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+Signed-off-by: Konstantin Khlebnikov <koct9i@gmail.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+---
+ tools/vm/page-types.c |   35 ++++++++++++++++++++++++++++++++---
+ 1 file changed, 32 insertions(+), 3 deletions(-)
 
-On Fri, May 16, 2014 at 03:51:37PM +0200, Oleg Nesterov wrote:
-> __wake_up_bit() checks waitqueue_active() and thus the caller needs
-> mb() as wake_up_bit() documents, fix task_clear_jobctl_trapping().
->=20
-> Signed-off-by: Oleg Nesterov <oleg@redhat.com>
-
-Seeing how you are one of the ptrace maintainers, how do you want this
-routed? Does Andrew pick this up, do I stuff it somewhere?
-
-> ---
->  kernel/signal.c |    1 +
->  1 files changed, 1 insertions(+), 0 deletions(-)
->=20
-> diff --git a/kernel/signal.c b/kernel/signal.c
-> index c2a8542..f4c4119 100644
-> --- a/kernel/signal.c
-> +++ b/kernel/signal.c
-> @@ -277,6 +277,7 @@ void task_clear_jobctl_trapping(struct task_struct *t=
-ask)
->  {
->  	if (unlikely(task->jobctl & JOBCTL_TRAPPING)) {
->  		task->jobctl &=3D ~JOBCTL_TRAPPING;
-> +		smp_mb();	/* advised by wake_up_bit() */
->  		wake_up_bit(&task->jobctl, JOBCTL_TRAPPING_BIT);
->  	}
->  }
-> --=20
-> 1.5.5.1
->=20
->=20
-
---N/xU+6Hp+kBwyaPu
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.12 (GNU/Linux)
-
-iQIcBAEBAgAGBQJTfHH8AAoJEHZH4aRLwOS6b/wQALZkfgxJ4sPJJVf0xH/Kht5b
-DQZDZftR1C4MFxt8oSj86XFTIM4mF8A7iTD3ZJMTteDGnQJD/9yfAZnfwnLJvRff
-yVRX/+MSpkHEzpLyHE1Be/7v9Tllc/Sc23R0jaYefpfDzwe0zwPq6ZrvV0s4BlM9
-B+8k7CrHbZpCSP3B/xj1gJIsW2yS+3/a99fS/1SQcb/FVoFDNFYQJJGf5a30+hKg
-9Vieg4HWLUVb+QOAfPEgkz+NyUgURHcVL6IWVNkOCsvFoHPGgHtom67ZczRFeD/0
-zGrkTLC5bsg7qbIkRfeTP6NfmUkDBaDgnzaomkAkYIXQv/385qNj8vgcpGPQFrds
-COWalwk1lhxGMOFRRIMwoYAYPhtgLhngKUZzPfzuNrLJj8xXDSQtVEKx+FfS3PfG
-6ktwptdLcU1BDodvP4IGV3x1fMhusuRPcpHKyyqWerkufjYervt3iMntwA1UUuDy
-HAw0I2zIRfH1hcXotjcu27OlcqC+PQZ4U2JkVcAp0QIZfhwdnN6mvm8sSbgscFjk
-ZctrPcwW3QNHUEEKm77YxiZang3ZUfQ4n6LTHfIZ975L68zNu5XZEfwy7NNFEzXf
-TH2OA6J5E6a1E5rSWwhCEjeOjYRobl3L4ISIxiNLZXuh+E8j+ku3J/YOX23RdcOe
-IhSKOiKVG4y4pqhccpav
-=A4Gu
------END PGP SIGNATURE-----
-
---N/xU+6Hp+kBwyaPu--
+diff --git a/tools/vm/page-types.c b/tools/vm/page-types.c
+index 05654f5..c4d6d2e 100644
+--- a/tools/vm/page-types.c
++++ b/tools/vm/page-types.c
+@@ -32,6 +32,8 @@
+ #include <assert.h>
+ #include <ftw.h>
+ #include <time.h>
++#include <setjmp.h>
++#include <signal.h>
+ #include <sys/types.h>
+ #include <sys/errno.h>
+ #include <sys/fcntl.h>
+@@ -824,21 +826,38 @@ static void show_file(const char *name, const struct stat *st)
+ 			atime, now - st->st_atime);
+ }
+ 
++static sigjmp_buf sigbus_jmp;
++
++static void * volatile sigbus_addr;
++
++static void sigbus_handler(int sig, siginfo_t *info, void *ucontex)
++{
++	(void)sig;
++	(void)ucontex;
++	sigbus_addr = info ? info->si_addr : NULL;
++	siglongjmp(sigbus_jmp, 1);
++}
++
++static struct sigaction sigbus_action = {
++	.sa_sigaction = sigbus_handler,
++	.sa_flags = SA_SIGINFO,
++};
++
+ static void walk_file(const char *name, const struct stat *st)
+ {
+ 	uint8_t vec[PAGEMAP_BATCH];
+ 	uint64_t buf[PAGEMAP_BATCH], flags;
+ 	unsigned long nr_pages, pfn, i;
++	off_t off, end = st->st_size;
+ 	int fd;
+-	off_t off;
+ 	ssize_t len;
+ 	void *ptr;
+ 	int first = 1;
+ 
+ 	fd = checked_open(name, O_RDONLY|O_NOATIME|O_NOFOLLOW);
+ 
+-	for (off = 0; off < st->st_size; off += len) {
+-		nr_pages = (st->st_size - off + page_size - 1) / page_size;
++	for (off = 0; off < end; off += len) {
++		nr_pages = (end - off + page_size - 1) / page_size;
+ 		if (nr_pages > PAGEMAP_BATCH)
+ 			nr_pages = PAGEMAP_BATCH;
+ 		len = nr_pages * page_size;
+@@ -855,11 +874,19 @@ static void walk_file(const char *name, const struct stat *st)
+ 		if (madvise(ptr, len, MADV_RANDOM))
+ 			fatal("madvice failed: %s", name);
+ 
++		if (sigsetjmp(sigbus_jmp, 1)) {
++			end = off + sigbus_addr ? sigbus_addr - ptr : 0;
++			fprintf(stderr, "got sigbus at offset %lld: %s\n",
++					(long long)end, name);
++			goto got_sigbus;
++		}
++
+ 		/* populate ptes */
+ 		for (i = 0; i < nr_pages ; i++) {
+ 			if (vec[i] & 1)
+ 				(void)*(volatile int *)(ptr + i * page_size);
+ 		}
++got_sigbus:
+ 
+ 		/* turn off harvesting reference bits */
+ 		if (madvise(ptr, len, MADV_SEQUENTIAL))
+@@ -910,6 +937,7 @@ static void walk_page_cache(void)
+ 
+ 	kpageflags_fd = checked_open(PROC_KPAGEFLAGS, O_RDONLY);
+ 	pagemap_fd = checked_open("/proc/self/pagemap", O_RDONLY);
++	sigaction(SIGBUS, &sigbus_action, NULL);
+ 
+ 	if (stat(opt_file, &st))
+ 		fatal("stat failed: %s\n", opt_file);
+@@ -925,6 +953,7 @@ static void walk_page_cache(void)
+ 
+ 	close(kpageflags_fd);
+ 	close(pagemap_fd);
++	signal(SIGBUS, SIG_DFL);
+ }
+ 
+ static void parse_file(const char *name)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
