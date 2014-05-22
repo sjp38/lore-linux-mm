@@ -1,55 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f43.google.com (mail-la0-f43.google.com [209.85.215.43])
-	by kanga.kvack.org (Postfix) with ESMTP id D7CF46B0036
-	for <linux-mm@kvack.org>; Thu, 22 May 2014 04:35:11 -0400 (EDT)
-Received: by mail-la0-f43.google.com with SMTP id mc6so2406929lab.16
-        for <linux-mm@kvack.org>; Thu, 22 May 2014 01:35:10 -0700 (PDT)
-Received: from mail-lb0-x230.google.com (mail-lb0-x230.google.com [2a00:1450:4010:c04::230])
-        by mx.google.com with ESMTPS id jo6si22812386lab.53.2014.05.22.01.35.09
+Received: from mail-ee0-f48.google.com (mail-ee0-f48.google.com [74.125.83.48])
+	by kanga.kvack.org (Postfix) with ESMTP id B53DB6B0036
+	for <linux-mm@kvack.org>; Thu, 22 May 2014 04:43:11 -0400 (EDT)
+Received: by mail-ee0-f48.google.com with SMTP id e49so2308686eek.7
+        for <linux-mm@kvack.org>; Thu, 22 May 2014 01:43:11 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id n7si13860131eem.44.2014.05.22.01.43.09
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 22 May 2014 01:35:10 -0700 (PDT)
-Received: by mail-lb0-f176.google.com with SMTP id p9so2337070lbv.21
-        for <linux-mm@kvack.org>; Thu, 22 May 2014 01:35:09 -0700 (PDT)
-Date: Thu, 22 May 2014 12:35:06 +0400
-From: Cyrill Gorcunov <gorcunov@gmail.com>
-Subject: Re: [PATCH] mm: /prom/pid/clear_refs: avoid split_huge_page()
-Message-ID: <20140522083506.GC8946@moon>
-References: <1400699062-20123-1-git-send-email-kirill.shutemov@linux.intel.com>
- <20140521123446.ae45fa676cae27fffbd96cfd@linux-foundation.org>
- <20140522011110.B0090E009B@blue.fi.intel.com>
- <20140522053247.GA8946@moon>
+        Thu, 22 May 2014 01:43:10 -0700 (PDT)
+Message-ID: <537DB89B.8080301@suse.cz>
+Date: Thu, 22 May 2014 10:43:07 +0200
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140522053247.GA8946@moon>
+Subject: Re: [patch -mm] mm, thp: avoid excessive compaction latency during
+ fault fix
+References: <alpine.DEB.2.02.1404301744110.8415@chino.kir.corp.google.com> <alpine.DEB.2.02.1405011434140.23898@chino.kir.corp.google.com> <alpine.DEB.2.02.1405061920470.18635@chino.kir.corp.google.com> <alpine.DEB.2.02.1405061922010.18635@chino.kir.corp.google.com> <alpine.DEB.2.02.1405072229390.19108@chino.kir.corp.google.com> <5371ED3F.6070505@suse.cz> <alpine.DEB.2.02.1405211945140.13243@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.02.1405211945140.13243@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Pavel Emelyanov <xemul@parallels.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, May 22, 2014 at 09:32:47AM +0400, Cyrill Gorcunov wrote:
-> On Thu, May 22, 2014 at 04:11:10AM +0300, Kirill A. Shutemov wrote:
-> > Andrew Morton wrote:
-> > > On Wed, 21 May 2014 22:04:22 +0300 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
-> > > 
-> > > > Currently we split all THP pages on any clear_refs request. It's not
-> > > > necessary. We can handle this on PMD level.
-> > > > 
-> > > > One side effect is that soft dirty will potentially see more dirty
-> > > > memory, since we will mark whole THP page dirty at once.
-> > > 
-> > > This clashes pretty badly with
-> > > http://ozlabs.org/~akpm/mmots/broken-out/clear_refs-redefine-callback-functions-for-page-table-walker.patch
-> > 
-> > Hm.. For some reason CRIU memory-snapshotting test cases fail on current
-> > linux-next. I didn't debug why. Mainline works. Folks?
-> 
-> Thanks for noticing, Kirill! I don't test linux-test regulary will try and
-> report the results.
+On 05/22/2014 04:49 AM, David Rientjes wrote:
+> On Tue, 13 May 2014, Vlastimil Babka wrote:
+>
+>> I wonder what about a process doing e.g. mmap() with MAP_POPULATE. It seems to
+>> me that it would get only MIGRATE_ASYNC here, right? Since gfp_mask would
+>> include __GFP_NO_KSWAPD and it won't have PF_KTHREAD.
+>> I think that goes against the idea that with MAP_POPULATE you say you are
+>> willing to wait to have everything in place before you actually use the
+>> memory. So I guess you are also willing to wait for hugepages in that
+>> situation?
+>>
+>
+> I don't understand the distinction you're making between MAP_POPULATE and
+> simply a prefault of the anon memory.  What is the difference in semantics
+> between using MAP_POPULATE and touching a byte every page size along the
+> range?  In the latter, you'd be faulting thp with MIGRATE_ASYNC, so I
+> don't understand how MAP_POPULATE is any different or implies any
+> preference for hugepages.
 
-OK, I managed to run criu on linux-next. Due to changes in vdso it no longer
-able to run. I'll handle it in criu and ping you then.
+Hm, OK. It's right we cannot distinguish populating by touching the 
+pages manually. Nevermind then.
+
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
