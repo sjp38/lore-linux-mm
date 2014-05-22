@@ -1,681 +1,691 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f180.google.com (mail-ob0-f180.google.com [209.85.214.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 4CFFF6B0036
-	for <linux-mm@kvack.org>; Wed, 21 May 2014 19:58:53 -0400 (EDT)
-Received: by mail-ob0-f180.google.com with SMTP id va2so3003590obc.39
-        for <linux-mm@kvack.org>; Wed, 21 May 2014 16:58:53 -0700 (PDT)
-Received: from mail-ob0-f201.google.com (mail-ob0-f201.google.com [209.85.214.201])
-        by mx.google.com with ESMTPS id gu3si36850613obc.18.2014.05.21.16.58.52
+Received: from mail-ee0-f47.google.com (mail-ee0-f47.google.com [74.125.83.47])
+	by kanga.kvack.org (Postfix) with ESMTP id C36206B0036
+	for <linux-mm@kvack.org>; Wed, 21 May 2014 20:07:22 -0400 (EDT)
+Received: by mail-ee0-f47.google.com with SMTP id c13so2009218eek.6
+        for <linux-mm@kvack.org>; Wed, 21 May 2014 17:07:22 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id e43si11808290eeh.14.2014.05.21.17.07.20
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 21 May 2014 16:58:52 -0700 (PDT)
-Received: by mail-ob0-f201.google.com with SMTP id wn1so580364obc.0
-        for <linux-mm@kvack.org>; Wed, 21 May 2014 16:58:52 -0700 (PDT)
-Subject: mmotm 2014-05-21-16-57 uploaded
-From: akpm@linux-foundation.org
-Date: Wed, 21 May 2014 16:58:51 -0700
-Message-Id: <20140521235851.5F9F05A4228@corp2gmr1-2.hot.corp.google.com>
+        Wed, 21 May 2014 17:07:21 -0700 (PDT)
+Date: Thu, 22 May 2014 01:07:15 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH] mm: filemap: Avoid unnecessary barries and waitqueue
+ lookups in unlock_page fastpath v5
+Message-ID: <20140522000715.GA23991@suse.de>
+References: <20140513125313.GR23991@suse.de>
+ <20140513141748.GD2485@laptop.programming.kicks-ass.net>
+ <20140514161152.GA2615@redhat.com>
+ <20140514192945.GA10830@redhat.com>
+ <20140515104808.GF23991@suse.de>
+ <20140515142414.16c47315a03160c58ceb9066@linux-foundation.org>
+ <20140521121501.GT23991@suse.de>
+ <20140521142622.049d0b3af5fc94912d5a1472@linux-foundation.org>
+ <20140521213354.GL2485@laptop.programming.kicks-ass.net>
+ <20140521145000.f130f8779f7641d0d8afcace@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20140521145000.f130f8779f7641d0d8afcace@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Peter Zijlstra <peterz@infradead.org>, Oleg Nesterov <oleg@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, David Howells <dhowells@redhat.com>
 
-The mm-of-the-moment snapshot 2014-05-21-16-57 has been uploaded to
+On Wed, May 21, 2014 at 02:50:00PM -0700, Andrew Morton wrote:
+> On Wed, 21 May 2014 23:33:54 +0200 Peter Zijlstra <peterz@infradead.org> wrote:
+> 
+> > On Wed, May 21, 2014 at 02:26:22PM -0700, Andrew Morton wrote:
+> > > > +static inline void
+> > > > +__prepare_to_wait(wait_queue_head_t *q, wait_queue_t *wait,
+> > > > +			struct page *page, int state, bool exclusive)
+> > > 
+> > > Putting MM stuff into core waitqueue code is rather bad.  I really
+> > > don't know how I'm going to explain this to my family.
+> > 
+> > Right, so we could avoid all that and make the functions in mm/filemap.c
+> > rather large and opencode a bunch of wait.c stuff.
+> > 
+> 
+> The world won't end if we do it Mel's way and it's probably the most
+> efficient.  But ugh.  This stuff does raise the "it had better be a
+> useful patch" bar.
+> 
+> > Which is pretty much what I initially pseudo proposed.
+> 
+> Alternative solution is not to merge the patch ;)
+> 
 
-   http://www.ozlabs.org/~akpm/mmotm/
+While true, the overhead of the page_waitqueue lookups and unnecessary
+wakeups sucks even on small machines. Not only does it hit us during simple
+operations like dd to a file but we would hit it during page reclaim as
+well which is trylock_page/unlock_page intensive
 
-mmotm-readme.txt says
+> > > > +		__ClearPageWaiters(page);
+> > > 
+> > > We're freeing the page - if someone is still waiting on it then we have
+> > > a huge bug?  It's the mysterious collision thing again I hope?
+> > 
+> > Yeah, so we only clear that bit when at 'unlock' we find there are no
+> > more pending waiters, so if the last unlock still had a waiter, we'll
+> > leave the bit set.
+> 
+> Confused.  If the last unlock had a waiter, that waiter will get woken
+> up so there are no waiters any more, so the last unlock clears the flag.
+> 
+> um, how do we determine that there are no more waiters?  By looking at
+> the waitqueue.  But that waitqueue is hashed, so it may contain waiters
+> for other pages so we're screwed?  But we could just go and wake up the
+> other-page waiters anyway and still clear PG_waiters?
+> 
+> um2, we're using exclusive waitqueues so we can't (or don't) wake all
+> waiters, so we're screwed again?
+> 
+> (This process is proving to be a hard way of writing Mel's changelog btw).
+> 
+> If I'm still on track here, what happens if we switch to wake-all so we
+> can avoid the dangling flag?  I doubt if there are many collisions on
+> that hash table?
+> 
+> If there *are* a lot of collisions, I bet it's because a great pile of
+> threads are all waiting on the same page.  If they're trying to lock
+> that page then wake-all is bad.  But if they're just waiting for IO
+> completion (probable) then it's OK.
+> 
+> I'll stop now.
 
-README for mm-of-the-moment:
+Rather than putting details in the changelog, here is an updated version
+that hopefully improves the commentary to the point where it's actually
+clear. 
 
-http://www.ozlabs.org/~akpm/mmotm/
+---8<---
+From: Nick Piggin <npiggin@suse.de>
+Subject: [PATCH] mm: filemap: Avoid unnecessary barriers and waitqueue lookups in unlock_page fastpath v6
 
-This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
-more than once a week.
+Changelog since v5
+o __always_inline where appropriate	(peterz)
+o Documentation				(akpm)
 
-You will need quilt to apply these patches to the latest Linus release (3.x
-or 3.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
-http://ozlabs.org/~akpm/mmotm/series
+Changelog since v4
+o Remove dependency on io_schedule_timeout
+o Push waiting logic down into waitqueue
 
-The file broken-out.tar.gz contains two datestamp files: .DATE and
-.DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
-followed by the base kernel version against which this patch series is to
-be applied.
+This patch introduces a new page flag for 64-bit capable machines,
+PG_waiters, to signal there are processes waiting on PG_lock or PG_writeback
+and uses it to avoid memory barriers and waitqueue hash lookup in the
+unlock_page fastpath.
 
-This tree is partially included in linux-next.  To see which patches are
-included in linux-next, consult the `series' file.  Only the patches
-within the #NEXT_PATCHES_START/#NEXT_PATCHES_END markers are included in
-linux-next.
+This adds a few branches to the fast path but avoids bouncing a dirty
+cache line between CPUs. 32-bit machines always take the slow path but the
+primary motivation for this patch is large machines so I do not think that
+is a concern.
 
-A git tree which contains the memory management portion of this tree is
-maintained at git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
-by Michal Hocko.  It contains the patches which are between the
-"#NEXT_PATCHES_START mm" and "#NEXT_PATCHES_END" markers, from the series
-file, http://www.ozlabs.org/~akpm/mmotm/series.
+The test case used to evaulate this is a simple dd of a large file done
+multiple times with the file deleted on each iterations. The size of
+the file is 1/10th physical memory to avoid dirty page balancing. In the
+async case it will be possible that the workload completes without even
+hitting the disk and will have variable results but highlight the impact
+of mark_page_accessed for async IO. The sync results are expected to be
+more stable. The exception is tmpfs where the normal case is for the "IO"
+to not hit the disk.
 
+The test machine was single socket and UMA to avoid any scheduling or
+NUMA artifacts. Throughput and wall times are presented for sync IO, only
+wall times are shown for async as the granularity reported by dd and the
+variability is unsuitable for comparison. As async results were variable
+do to writback timings, I'm only reporting the maximum figures. The sync
+results were stable enough to make the mean and stddev uninteresting.
 
-A full copy of the full kernel tree with the linux-next and mmotm patches
-already applied is available through git within an hour of the mmotm
-release.  Individual mmotm releases are tagged.  The master branch always
-points to the latest release, so it's constantly rebasing.
+The performance results are reported based on a run with no profiling.
+Profile data is based on a separate run with oprofile running. The
+kernels being compared are "accessed-v2" which is the patch series up
+to this patch where as lockpage-v2 includes this patch.
 
-http://git.cmpxchg.org/?p=linux-mmotm.git;a=summary
+async dd
+                                 3.15.0-rc5            3.15.0-rc5
+                                      mmotm           lockpage-v5
+btrfs Max      ddtime      0.5863 (  0.00%)      0.5621 (  4.14%)
+ext3  Max      ddtime      1.4870 (  0.00%)      1.4609 (  1.76%)
+ext4  Max      ddtime      1.0440 (  0.00%)      1.0376 (  0.61%)
+tmpfs Max      ddtime      0.3541 (  0.00%)      0.3486 (  1.54%)
+xfs   Max      ddtime      0.4995 (  0.00%)      0.4834 (  3.21%)
 
-To develop on top of mmotm git:
+A separate run with profiles showed this
 
-  $ git remote add mmotm git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
-  $ git remote update mmotm
-  $ git checkout -b topic mmotm/master
-  <make changes, commit>
-  $ git send-email mmotm/master.. [...]
+     samples percentage
+ext3  225851    2.3180  vmlinux-3.15.0-rc5-mmotm       test_clear_page_writeback
+ext3  106848    1.0966  vmlinux-3.15.0-rc5-mmotm       __wake_up_bit
+ext3   71849    0.7374  vmlinux-3.15.0-rc5-mmotm       page_waitqueue
+ext3   40319    0.4138  vmlinux-3.15.0-rc5-mmotm       unlock_page
+ext3   26243    0.2693  vmlinux-3.15.0-rc5-mmotm       end_page_writeback
+ext3  178777    1.7774  vmlinux-3.15.0-rc5-lockpage-v5 test_clear_page_writeback
+ext3   67702    0.6731  vmlinux-3.15.0-rc5-lockpage-v5 unlock_page
+ext3   22357    0.2223  vmlinux-3.15.0-rc5-lockpage-v5 end_page_writeback
+ext3   11131    0.1107  vmlinux-3.15.0-rc5-lockpage-v5 __wake_up_bit
+ext3    6360    0.0632  vmlinux-3.15.0-rc5-lockpage-v5 __wake_up_page_bit
+ext3    1660    0.0165  vmlinux-3.15.0-rc5-lockpage-v5 page_waitqueue
 
-To rebase a branch with older patches to a new mmotm release:
+The profiles show a clear reduction in waitqueue and wakeup functions. Note
+that end_page_writeback costs the same as the savings there are due
+to reduced calls to __wake_up_bit and page_waitqueue so there is no
+obvious direct savings. The cost of unlock_page is higher as it's checking
+PageWaiters but it is offset by reduced numbers of calls to page_waitqueue
+and _wake_up_bit. There is a similar story told for each of the filesystems.
+Note that for workloads that contend heavily on the page lock that
+unlock_page may increase in cost as it has to clear PG_waiters so while
+the typical case should be much faster, the worst case costs are now higher.
 
-  $ git remote update mmotm
-  $ git rebase --onto mmotm/master <topic base> topic
+This is also reflected in the time taken to mmap a range of pages.
+These are the results for xfs only but the other filesystems tell a
+similar story.
 
+                       3.15.0-rc5            3.15.0-rc5
+                            mmotm           lockpage-v5
+Procs 107M     423.0000 (  0.00%)    409.0000 (  3.31%)
+Procs 214M     847.0000 (  0.00%)    823.0000 (  2.83%)
+Procs 322M    1296.0000 (  0.00%)   1232.0000 (  4.94%)
+Procs 429M    1692.0000 (  0.00%)   1644.0000 (  2.84%)
+Procs 536M    2137.0000 (  0.00%)   2057.0000 (  3.74%)
+Procs 644M    2542.0000 (  0.00%)   2472.0000 (  2.75%)
+Procs 751M    2953.0000 (  0.00%)   2872.0000 (  2.74%)
+Procs 859M    3360.0000 (  0.00%)   3310.0000 (  1.49%)
+Procs 966M    3770.0000 (  0.00%)   3724.0000 (  1.22%)
+Procs 1073M   4220.0000 (  0.00%)   4114.0000 (  2.51%)
+Procs 1181M   4638.0000 (  0.00%)   4546.0000 (  1.98%)
+Procs 1288M   5038.0000 (  0.00%)   4940.0000 (  1.95%)
+Procs 1395M   5481.0000 (  0.00%)   5431.0000 (  0.91%)
+Procs 1503M   5940.0000 (  0.00%)   5832.0000 (  1.82%)
+Procs 1610M   6316.0000 (  0.00%)   6204.0000 (  1.77%)
+Procs 1717M   6749.0000 (  0.00%)   6799.0000 ( -0.74%)
+Procs 1825M   7323.0000 (  0.00%)   7082.0000 (  3.29%)
+Procs 1932M   7694.0000 (  0.00%)   7452.0000 (  3.15%)
+Procs 2040M   8079.0000 (  0.00%)   7927.0000 (  1.88%)
+Procs 2147M   8495.0000 (  0.00%)   8360.0000 (  1.59%)
 
+   samples percentage
+xfs  78334    1.3089  vmlinux-3.15.0-rc5-mmotm          page_waitqueue
+xfs  55910    0.9342  vmlinux-3.15.0-rc5-mmotm          unlock_page
+xfs  45120    0.7539  vmlinux-3.15.0-rc5-mmotm          __wake_up_bit
+xfs  41414    0.6920  vmlinux-3.15.0-rc5-mmotm          test_clear_page_writeback
+xfs   4823    0.0806  vmlinux-3.15.0-rc5-mmotm          end_page_writeback
+xfs 100864    1.7063  vmlinux-3.15.0-rc5-lockpage-v5    unlock_page
+xfs  52547    0.8889  vmlinux-3.15.0-rc5-lockpage-v5    test_clear_page_writeback
+xfs   5031    0.0851  vmlinux-3.15.0-rc5-lockpage-v5    end_page_writeback
+xfs   1938    0.0328  vmlinux-3.15.0-rc5-lockpage-v5    __wake_up_bit
+xfs      9   1.5e-04  vmlinux-3.15.0-rc5-lockpage-v5    __wake_up_page_bit
+xfs      7   1.2e-04  vmlinux-3.15.0-rc5-lockpage-v5    page_waitqueue
 
+[jack@suse.cz: Fix add_page_wait_queue]
+[mhocko@suse.cz: Use sleep_on_page_killable in __wait_on_page_locked_killable]
+[steiner@sgi.com: Do not update struct page unnecessarily]
+Signed-off-by: Nick Piggin <npiggin@suse.de>
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+---
+ include/linux/page-flags.h |  18 ++++++
+ include/linux/wait.h       |   8 +++
+ kernel/sched/wait.c        | 137 ++++++++++++++++++++++++++++++++++-----------
+ mm/filemap.c               |  25 +++++----
+ mm/page_alloc.c            |   1 +
+ mm/swap.c                  |  12 ++++
+ mm/vmscan.c                |   7 +++
+ 7 files changed, 165 insertions(+), 43 deletions(-)
 
-The directory http://www.ozlabs.org/~akpm/mmots/ (mm-of-the-second)
-contains daily snapshots of the -mm tree.  It is updated more frequently
-than mmotm, and is untested.
-
-A git copy of this tree is available at
-
-	http://git.cmpxchg.org/?p=linux-mmots.git;a=summary
-
-and use of this tree is similar to
-http://git.cmpxchg.org/?p=linux-mmotm.git, described above.
-
-
-This mmotm tree contains the following patches against 3.15-rc5:
-(patches marked "*" will be included in linux-next)
-
-  origin.patch
-  arch-alpha-kernel-systblss-remove-debug-check.patch
-  i-need-old-gcc.patch
-  maintainers-akpm-maintenance.patch
-* hwposion-hugetlb-lock_page-unlock_page-does-not-match-for-handling-a-free-hugepage.patch
-* mm-filemapc-avoid-always-dirtying-mapping-flags-on-o_direct.patch
-* mm-madvise-fix-madv_willneed-on-shmem-swapouts.patch
-* memcg-fix-swapcache-charge-from-kernel-thread-context.patch
-* mm-memory-failurec-fix-memory-leak-by-race-between-poison-and-unpoison.patch
-* ocfs2-fix-double-kmem_cache_destroy-in-dlm_init.patch
-* documentation-fix-docbooks=-building.patch
-* maintainers-add-closing-angle-bracket-to-vince-bridgers-email-address.patch
-* tools-vm-page-typesc-catch-sigbus-if-raced-with-truncate.patch
-* x86-require-x86-64-for-automatic-numa-balancing.patch
-* x86-define-_page_numa-by-reusing-software-bits-on-the-pmd-and-pte-levels.patch
-* x86-define-_page_numa-by-reusing-software-bits-on-the-pmd-and-pte-levels-fix-2.patch
-* x86-mm-probe-memory-block-size-for-generic-x86-64bit.patch
-* fs-ceph-replace-pr_warning-by-pr_warn.patch
-* fs-ceph-debugfsc-replace-seq_printf-by-seq_puts.patch
-* fs-cifs-remove-obsolete-__constant.patch
-* fs-jfs-jfs_logmgrc-remove-null-assignment-on-static.patch
-* fs-jfs-superc-remove-0-assignement-to-static-code-clean-up.patch
-* fs-fscache-convert-printk-to-pr_foo.patch
-* fs-fscache-replace-seq_printf-by-seq_puts.patch
-* fanotify-fan_mark_flush-avoid-having-to-provide-a-fake-invalid-fd-and-path.patch
-* fanotify-create-fan_access-event-for-readdir.patch
-* fs-notify-markc-trivial-cleanup.patch
-* fs-notify-fanotify-fanotify_userc-fix-fan_mark_flush-flag-checking.patch
-* fanotify-check-file-flags-passed-in-fanotify_init.patch
-* kernel-posix-timersc-code-clean-up.patch
-* kernel-posix-timersc-code-clean-up-checkpatch-fixes.patch
-* kernel-time-ntpc-convert-simple_strtol-to-kstrtol.patch
-* sched_clock-document-4mhz-vs-1mhz-decision.patch
-* input-route-kbd-leds-through-the-generic-leds-layer.patch
-* input-route-kbd-leds-through-the-generic-leds-layer-fix.patch
-* ntfs-remove-null-value-assignments.patch
-* sh-replace-__get_cpu_var-uses.patch
-* fs-squashfs-squashfsh-replace-pr_warning-by-pr_warn.patch
-* arch-unicore32-mm-ioremapc-convert-printk-warn_on-to-warn1.patch
-* arch-unicore32-mm-ioremapc-convert-printk-warn_on-to-warn1-fix.patch
-* arch-unicore32-mm-ioremapc-return-null-on-invalid-pfn.patch
-* fs-configs-itemc-kernel-doc-fixes-clean-up.patch
-* fs-configfs-convert-printk-to-pr_foo.patch
-* fs-configfs-use-pr_fmt.patch
-* drivers-net-irda-donauboe-convert-to-module_pci_driver.patch
-* ocfs2-remove-null-assignments-on-static.patch
-* fs-ocfs2-superc-use-ocfs2_max_vol_label_len-and-strlcpy.patch
-* ocfs2-remove-some-redundant-casting.patch
-* ocfs2-limit-printk-when-journal-is-aborted.patch
-* ocfs2-limit-printk-when-journal-is-aborted-fix.patch
-* ocfs2-should-add-inode-into-orphan-dir-after-updating-entry-in-ocfs2_rename.patch
-* ocfs2-dlm-fix-possible-convertion-deadlock.patch
-* ocfs2-fix-umount-hang-while-shutting-down-truncate-log.patch
-* deadlock-when-two-nodes-are-converting-same-lock-from-pr-to-ex-and-idletimeout-closes-conn.patch
-* ocfs2-o2net-incorrect-to-terminate-accepting-connections-loop-upon-rejecting-an-invalid-one.patch
-* ocfs2-o2net-incorrect-to-terminate-accepting-connections-loop-upon-rejecting-an-ivalid-one-orabug-17489469.patch
-* ocfs2-fix-a-tiny-race-when-running-dirop_fileop_racer.patch
-* ocfs2-do-not-return-dlm_migrate_response_mastery_ref-to-avoid-endlessloop-during-umount.patch
-* ocfs2-manually-do-the-iput-once-ocfs2_add_entry-failed-in-ocfs2_symlink-and-ocfs2_mknod.patch
-* maintainers-update-ibm-serveraid-raid-info.patch
-* block-restore-proc-partitions-to-not-display-non-partitionable-removable-devices.patch
-* fs-9p-v9fsc-add-__init-to-v9fs_sysfs_init.patch
-* fs-9p-kerneldoc-fixes.patch
-* fs-add-generic-data-flush-to-fsync.patch
-* fs-add-generic-data-flush-to-fsync-fix.patch
-* fs-add-generic-data-flush-to-fsync-fix-fix.patch
-* fs-ext4-fsyncc-generic_file_fsync-call-based-on-barrier-flag.patch
-* mm-slubc-convert-printk-to-pr_foo.patch
-* mm-slubc-convert-vnsprintf-static-to-va_format.patch
-* mm-slab-suppress-out-of-memory-warning-unless-debug-is-enabled.patch
-* mm-slab-suppress-out-of-memory-warning-unless-debug-is-enabled-fix-2.patch
-* mm-slub-fix-alloc_slowpath-stat.patch
-* mm-fix-some-indenting-in-cmpxchg_double_slab.patch
-  mm.patch
-* slb-charge-slabs-to-kmemcg-explicitly.patch
-* mm-get-rid-of-__gfp_kmemcg.patch
-* mm-get-rid-of-__gfp_kmemcg-fix.patch
-* mm-hugetlbfs-fix-rmapping-for-anonymous-hugepages-with-page_pgoff.patch
-* mm-hugetlbfs-fix-rmapping-for-anonymous-hugepages-with-page_pgoff-v2.patch
-* mm-hugetlbfs-fix-rmapping-for-anonymous-hugepages-with-page_pgoff-v3.patch
-* mm-hugetlbfs-fix-rmapping-for-anonymous-hugepages-with-page_pgoff-v3-fix.patch
-* pagewalk-update-page-table-walker-core.patch
-* pagewalk-update-page-table-walker-core-fix-end-address-calculation-in-walk_page_range.patch
-* pagewalk-update-page-table-walker-core-fix-end-address-calculation-in-walk_page_range-fix.patch
-* pagewalk-add-walk_page_vma.patch
-* smaps-redefine-callback-functions-for-page-table-walker.patch
-* clear_refs-redefine-callback-functions-for-page-table-walker.patch
-* pagemap-redefine-callback-functions-for-page-table-walker.patch
-* pagemap-redefine-callback-functions-for-page-table-walker-fix.patch
-* numa_maps-redefine-callback-functions-for-page-table-walker.patch
-* memcg-redefine-callback-functions-for-page-table-walker.patch
-* arch-powerpc-mm-subpage-protc-use-walk_page_vma-instead-of-walk_page_range.patch
-* pagewalk-remove-argument-hmask-from-hugetlb_entry.patch
-* pagewalk-remove-argument-hmask-from-hugetlb_entry-fix.patch
-* pagewalk-remove-argument-hmask-from-hugetlb_entry-fix-fix.patch
-* mempolicy-apply-page-table-walker-on-queue_pages_range.patch
-* mm-add-pte_present-check-on-existing-hugetlb_entry-callbacks.patch
-* mm-pagewalkc-move-pte-null-check.patch
-* mm-softdirty-make-freshly-remapped-file-pages-being-softdirty-unconditionally.patch
-* mm-softdirty-dont-forget-to-save-file-map-softdiry-bit-on-unmap.patch
-* mm-softdirty-clear-vm_softdirty-flag-inside-clear_refs_write-instead-of-clear_soft_dirty.patch
-* mm-introduce-do_shared_fault-and-drop-do_fault-fix-fix.patch
-* mm-compactionc-isolate_freepages_block-small-tuneup.patch
-* fs-mpagec-forgotten-write_sync-in-case-of-data-integrity-write.patch
-* mm-only-force-scan-in-reclaim-when-none-of-the-lrus-are-big-enough.patch
-* mmvmacache-add-debug-data.patch
-* mmvmacache-optimize-overflow-system-wide-flushing.patch
-* x86-make-dma_alloc_coherent-return-zeroed-memory-if-cma-is-enabled.patch
-* x86-make-dma_alloc_coherent-return-zeroed-memory-if-cma-is-enabled-fix.patch
-* x86-enable-dma-cma-with-swiotlb.patch
-* intel-iommu-integrate-dma-cma.patch
-* intel-iommu-integrate-dma-cma-fix.patch
-* memblock-introduce-memblock_alloc_range.patch
-* cma-add-placement-specifier-for-cma=-kernel-parameter.patch
-* arch-x86-kernel-pci-dmac-fix-dma_generic_alloc_coherent-when-config_dma_cma-is-enabled.patch
-* thp-consolidate-assert-checks-in-__split_huge_page.patch
-* mm-huge_memoryc-complete-conversion-to-pr_foo.patch
-* include-linux-mmdebugh-add-vm_warn_on-and-vm_warn_on_once.patch
-* mm-mempool-warn-about-__gfp_zero-usage.patch
-* mm-mempool-warn-about-__gfp_zero-usage-fix.patch
-* mm-memcontrol-remove-hierarchy-restrictions-for-swappiness-and-oom_control.patch
-* mm-memcontrol-remove-hierarchy-restrictions-for-swappiness-and-oom_control-fix.patch
-* mm-pass-vm_bug_on-reason-to-dump_page.patch
-* mm-pass-vm_bug_on-reason-to-dump_page-fix.patch
-* memory-hotplug-update-documentation-to-hide-information-about-sections-and-remove-end_phys_index.patch
-* slab-document-kmalloc_order.patch
-* mm-mmapc-replace-is_err-and-ptr_err-with-ptr_err_or_zero.patch
-* hugetlb-prep_compound_gigantic_page-drop-__init-marker.patch
-* hugetlb-add-hstate_is_gigantic.patch
-* hugetlb-update_and_free_page-dont-clear-pg_reserved-bit.patch
-* hugetlb-move-helpers-up-in-the-file.patch
-* hugetlb-add-support-for-gigantic-page-allocation-at-runtime.patch
-* hugetlb-add-support-for-gigantic-page-allocation-at-runtime-checkpatch-fixes.patch
-* mm-disable-zone_reclaim_mode-by-default.patch
-* mm-page_alloc-do-not-cache-reclaim-distances.patch
-* mm-page_alloc-do-not-cache-reclaim-distances-fix.patch
-* memcg-un-export-__memcg_kmem_get_cache.patch
-* mem-hotplug-implement-get-put_online_mems.patch
-* slab-get_online_mems-for-kmem_cache_createdestroyshrink.patch
-* fs-hugetlbfs-inodec-complete-conversion-to-pr_foo.patch
-* mm-page_alloc-prevent-migrate_reserve-pages-from-being-misplaced.patch
-* mm-compaction-clean-up-unused-code-lines.patch
-* mm-compaction-cleanup-isolate_freepages.patch
-* mm-compaction-cleanup-isolate_freepages-fix.patch
-* mm-compaction-cleanup-isolate_freepages-fix-2.patch
-* mm-compaction-cleanup-isolate_freepages-fix3.patch
-* mm-debug-make-bad_range-output-more-usable-and-readable.patch
-* documentation-memcg-warn-about-incomplete-kmemcg-state.patch
-* m68k-call-find_vma-with-the-mmap_sem-held-in-sys_cacheflush.patch
-* mips-call-find_vma-with-the-mmap_sem-held.patch
-* arc-call-find_vma-with-the-mmap_sem-held.patch
-* arc-call-find_vma-with-the-mmap_sem-held-fix.patch
-* drm-exynos-call-find_vma-with-the-mmap_sem-held.patch
-* mm-swapc-clean-up-lru_cache_add-functions.patch
-* mm-mmap-remove-the-first-mapping-check.patch
-* memcg-kill-config_mm_owner.patch
-* mm-vmscan-do-not-throttle-based-on-pfmemalloc-reserves-if-node-has-no-zone_normal.patch
-* mm-vmscan-do-not-throttle-based-on-pfmemalloc-reserves-if-node-has-no-zone_normal-checkpatch-fixes.patch
-* mm-vmscan-do-not-throttle-based-on-pfmemalloc-reserves-if-node-has-no-zone_normal-fix.patch
-* memcg-do-not-hang-on-oom-when-killed-by-userspace-oom-access-to-memory-reserves.patch
-* memcg-slab-do-not-schedule-cache-destruction-when-last-page-goes-away.patch
-* memcg-slab-merge-memcg_bindrelease_pages-to-memcg_uncharge_slab.patch
-* memcg-slab-simplify-synchronization-scheme.patch
-* mm-numa-add-migrated-transhuge-pages-to-lru-the-same-way-as-base-pages.patch
-* mm-avoid-throttling-reclaim-for-loop-back-nfsd-threads.patch
-* fs-bufferc-remove-block_write_full_page_endio.patch
-* fs-mpagec-factor-clean_buffers-out-of-__mpage_writepage.patch
-* fs-mpagec-factor-page_endio-out-of-mpage_end_io.patch
-* fs-block_devc-add-bdev_read_page-and-bdev_write_page.patch
-* swap-use-bdev_read_page-bdev_write_page.patch
-* swap-use-bdev_read_page-bdev_write_page-fix.patch
-* brd-add-support-for-rw_page.patch
-* brd-return-enospc-rather-than-enomem-on-page-allocation-failure.patch
-* mm-memory_hotplugc-use-pfn_down.patch
-* mm-memblockc-use-pfn_down.patch
-* memcg-mm_update_next_owner-should-skip-kthreads.patch
-* memcg-optimize-the-search-everything-else-loop-in-mm_update_next_owner.patch
-* memcg-kill-start_kernel-mm_init_ownerinit_mm.patch
-* mm-replace-__get_cpu_var-uses-with-this_cpu_ptr.patch
-* mm-constify-nmask-argument-to-mbind.patch
-* mm-constify-nmask-argument-to-set_mempolicy.patch
-* mm-swapc-introduce-put_refcounted_compound_page-helpers-for-spliting-put_compound_page.patch
-* mm-swapc-split-put_compound_page-function.patch
-* mm-introdule-compound_head_by_tail.patch
-* include-linux-bootmemh-cleanup-the-comment-for-bootmem_-flags.patch
-* mm-dmapoolc-remove-redundant-null-check-for-dev-in-dma_pool_create.patch
-* mm-shrinker-trace-points-fix-negatives.patch
-* mm-shrinker-add-nid-to-tracepoint-output.patch
-* mm-memcontrolc-remove-null-assignment-on-static.patch
-* mm-vmallocc-replace-seq_printf-by-seq_puts.patch
-* mm-move-get_user_pages-related-code-to-separate-file.patch
-* mm-extract-in_gate_area-case-from-__get_user_pages.patch
-* mm-cleanup-follow_page_mask.patch
-* mm-extract-code-to-fault-in-a-page-from-__get_user_pages.patch
-* mm-cleanup-__get_user_pages.patch
-* mm-x86-pgtable-drop-unneeded-preprocessor-ifdef.patch
-* mm-x86-pgtable-require-x86_64-for-soft-dirty-tracker.patch
-* mm-x86-pgtable-require-x86_64-for-soft-dirty-tracker-v2.patch
-* mm-rmapc-make-page_referenced_one-and-try_to_unmap_one-static.patch
-* mm-mempolicyc-parameter-doc-uniformization.patch
-* arch-x86-mm-numac-use-for_each_memblock.patch
-* mm-update-comment-for-default_max_map_count.patch
-* mm-update-comment-for-default_max_map_count-fix.patch
-* memcg-fold-mem_cgroup_stolen.patch
-* memcg-fold-mem_cgroup_stolen-fix.patch
-* memcg-correct-comments-for-__mem_cgroup_begin_update_page_stat.patch
-* memcg-get-rid-of-memcg_create_cache_name.patch
-* memcg-memcg_kmem_create_cache-make-memcg_name_buf.patch
-* mm-migration-add-destination-page-freeing-callback.patch
-* mm-compaction-return-failed-migration-target-pages-back-to-freelist.patch
-* mm-compaction-add-per-zone-migration-pfn-cache-for-async-compaction.patch
-* mm-compaction-embed-migration-mode-in-compact_control.patch
-* mm-compaction-embed-migration-mode-in-compact_control-fix.patch
-* mm-thp-avoid-excessive-compaction-latency-during-fault.patch
-* mm-thp-avoid-excessive-compaction-latency-during-fault-fix.patch
-* mm-compaction-terminate-async-compaction-when-rescheduling.patch
-* mm-compaction-do-not-count-migratepages-when-unnecessary.patch
-* mm-compaction-do-not-count-migratepages-when-unnecessary-fix.patch
-* mm-compaction-avoid-rescanning-pageblocks-in-isolate_freepages.patch
-* mm-compaction-avoid-rescanning-pageblocks-in-isolate_freepages-fix.patch
-* mm-add-comment-for-__mod_zone_page_stat.patch
-* mm-add-comment-for-__mod_zone_page_stat-checkpatch-fixes.patch
-* mm-fold-mlocked_vma_newpage-into-its-only-call-site.patch
-* mm-fold-mlocked_vma_newpage-into-its-only-call-site-checkpatch-fixes.patch
-* swap-change-swap_info-singly-linked-list-to-list_head.patch
-* plist-add-helper-functions.patch
-* plist-add-plist_requeue.patch
-* swap-change-swap_list_head-to-plist-add-swap_avail_head.patch
-* cma-increase-cma_alignment-upper-limit-to-12.patch
-* mm-dmapoolc-reuse-devres_release-to-free-resources.patch
-* memcg-cleanup-kmem-cache-creation-destruction-functions-naming.patch
-* slab-delete-cache-from-list-after-__kmem_cache_shutdown-succeeds.patch
-* mm-page_alloc-do-not-update-zlc-unless-the-zlc-is-active.patch
-* mm-page_alloc-do-not-treat-a-zone-that-cannot-be-used-for-dirty-pages-as-full.patch
-* jump_label-expose-the-reference-count.patch
-* mm-page_alloc-use-jump-labels-to-avoid-checking-number_of_cpusets.patch
-* mm-page_alloc-use-jump-labels-to-avoid-checking-number_of_cpusets-fix.patch
-* mm-page_alloc-only-check-the-zone-id-check-if-pages-are-buddies.patch
-* mm-page_alloc-only-check-the-alloc-flags-and-gfp_mask-for-dirty-once.patch
-* mm-page_alloc-take-the-alloc_no_watermark-check-out-of-the-fast-path.patch
-* mm-page_alloc-use-word-based-accesses-for-get-set-pageblock-bitmaps.patch
-* mm-page_alloc-reduce-number-of-times-page_to_pfn-is-called.patch
-* mm-page_alloc-lookup-pageblock-migratetype-with-irqs-enabled-during-free.patch
-* mm-page_alloc-use-unsigned-int-for-order-in-more-places.patch
-* mm-page_alloc-convert-hot-cold-parameter-and-immediate-callers-to-bool.patch
-* mm-shmem-avoid-atomic-operation-during-shmem_getpage_gfp.patch
-* mm-do-not-use-atomic-operations-when-releasing-pages.patch
-* mm-do-not-use-unnecessary-atomic-operations-when-adding-pages-to-the-lru.patch
-* fs-buffer-do-not-use-unnecessary-atomic-operations-when-discarding-buffers.patch
-* fs-buffer-do-not-use-unnecessary-atomic-operations-when-discarding-buffers-fix.patch
-* mm-non-atomically-mark-page-accessed-during-page-cache-allocation-where-possible.patch
-* mm-non-atomically-mark-page-accessed-during-page-cache-allocation-where-possiblefix-2.patch
-* mm-non-atomically-mark-page-accessed-during-page-cache-allocation-where-possible-fix.patch
-* mm-page_alloc-calculate-classzone_idx-once-from-the-zonelist-ref.patch
-* mm-page_alloc-calculate-classzone_idx-once-from-the-zonelist-ref-fix.patch
-* mm-avoid-unnecessary-atomic-operations-during-end_page_writeback.patch
-* mm-memory-failurec-move-comment.patch
-* mm-hugetlb-move-the-error-handle-logic-out-of-normal-code-path.patch
-* mm-exclude-duplicate-header.patch
-* mm-vmscanc-use-div_round_up-for-calculation-of-zones-balance_gap-and-correct-comments.patch
-* fs-hugetlbfs-inodec-add-static-to-hugetlbfs_i_mmap_mutex_key.patch
-* fs-hugetlbfs-inodec-use-static-const-for-dentry_operations.patch
-* fs-hugetlbfs-inodec-remove-null-test-before-kfree.patch
-* mm-compaction-properly-signal-and-act-upon-lock-and-need_sched-contention.patch
-* mm-compaction-properly-signal-and-act-upon-lock-and-need_sched-contention-fix.patch
-* hwpoison-remove-unused-global-variable-in-do_machine_check.patch
-* sync-only-the-requested-range-in-msync.patch
-* mm-fix-typo-in-comment-in-do_fault_around.patch
-* zram-correct-offset-usage-in-zram_bio_discard.patch
-* mm-zbudc-make-size-unsigned-like-unique-callsite.patch
-* zsmalloc-fixup-trivial-zs-size-classes-value-in-comments.patch
-* mm-export-unmap_kernel_range.patch
-* zsmalloc-make-zsmalloc-module-buildable.patch
-* do_shared_fault-check-that-mmap_sem-is-held.patch
-* sys_sgetmask-sys_ssetmask-add-config_sgetmask_syscall.patch
-* fs-efivarfs-superc-use-static-const-for-dentry_operations.patch
-* fs-exportfs-expfsc-kernel-doc-warning-fixes.patch
-* compilerh-avoid-sparse-errors-in-__compiletime_error_fallback.patch
-* kernel-cpuc-convert-printk-to-pr_foo.patch
-* kernel-backtracetestc-replace-no-level-printk-by-pr_info.patch
-* kernel-capabilityc-code-clean-up.patch
-* kernel-exec_domainc-code-clean-up.patch
-* kernel-latencytopc-convert-seq_printf-to-seq_puts.patch
-* kernel-stop_machinec-kernel-doc-warning-fix.patch
-* kernel-tracepointc-kernel-doc-fixes.patch
-* kernel-res_counterc-replace-simple_strtoull-by-kstrtoull.patch
-* kernel-res_counterc-replace-simple_strtoull-by-kstrtoull-fix.patch
-* kernel-rebootc-convert-simple_strtoul-to-kstrtoint.patch
-* kernel-utsname_sysctlc-replace-obsolete-__initcall-by-device_initcall.patch
-* kernel-hung_taskc-convert-simple_strtoul-to-kstrtouint.patch
-* kernel-userc-drop-unused-field-files-from-user_struct.patch
-* drivers-misc-ti-st-st_corec-fix-null-dereference-on-protocol-type-check.patch
-* printk-split-code-for-making-free-space-in-the-log-buffer.patch
-* printk-ignore-too-long-messages.patch
-* printk-split-message-size-computation.patch
-* printk-shrink-too-long-messages.patch
-* printk-return-really-stored-message-length.patch
-* printk-remove-outdated-comment.patch
-* printk-release-lockbuf_lock-before-calling-console_trylock_for_printk.patch
-* printk-release-lockbuf_lock-before-calling-console_trylock_for_printk-fix.patch
-* printk-fix-lockdep-instrumentation-of-console_sem.patch
-* printk-enable-interrupts-before-calling-console_trylock_for_printk.patch
-* printk-remove-separate-printk_sched-buffers-and-use-printk-buf-instead.patch
-* printk-disable-preemption-for-printk_sched.patch
-* printk-rename-printk_sched-to-printk_deferred.patch
-* printk-add-printk_deferred_once.patch
-* timekeeping-use-printk_deferred-when-holding-timekeeping-seqlock.patch
-* documentation-expand-clarify-debug-documentation.patch
-* printk-report-dropping-of-messages-from-logbuf.patch
-* printk-use-symbolic-defines-for-console-loglevels.patch
-* lib-vsprintf-add-%pt-format-specifier.patch
-* drivers-video-backlight-backlightc-remove-backlight-sysfs-uevent.patch
-* lib-stringc-use-the-name-c-string-in-comments.patch
-* lib-xz-add-comments-for-the-intentionally-missing-break-statements.patch
-* lib-plistc-replace-pr_debug-with-printk-in-plist_test.patch
-* lib-xz-enable-all-filters-by-default-in-kconfig.patch
-* lib-libcrc32cc-use-ptr_err_or_zero.patch
-* lib-vsprintfc-fix-comparison-to-bool.patch
-* lib-btreec-fix-leak-of-whole-btree-nodes.patch
-* lib-btreec-fix-leak-of-whole-btree-nodes-fix.patch
-* lib-plistc-make-config_debug_pi_list-selectable.patch
-* lib-radix-treec-kernel-doc-warning-fix.patch
-* lib-crc32c-remove-unnecessary-__constant.patch
-* mm-utilc-add-kstrimdup.patch
-* lib-add-crc64-ecma-module.patch
-* kernel-compatc-use-sizeof-instead-of-sizeof.patch
-* checkpatch-fix-wildcard-dt-compatible-string-checking.patch
-* checkpatch-always-warn-on-missing-blank-line-after-variable-declaration-block.patch
-* checkpatch-improve-missing-blank-line-after-declarations-test.patch
-* checkpatch-make-strict-a-default-for-files-in-drivers-net-and-net.patch
-* checkpatch-warn-on-defines-ending-in-semicolon.patch
-* checkpatch-add-warning-for-kmalloc-kzalloc-with-multiply.patch
-* fs-efs-convert-printk-to-pr_foo.patch
-* fs-efs-add-pr_fmt-use-__func__.patch
-* fs-efs-convert-printkkern_debug-to-pr_debug.patch
-* fs-binfmt_elfc-fix-bool-assignements.patch
-* fs-binfmt_flatc-make-old_reloc-static.patch
-* binfmt_elfc-use-get_random_int-to-fix-entropy-depleting.patch
-* init-mainc-dont-use-pr_debug.patch
-* init-mainc-add-initcall_blacklist-kernel-parameter.patch
-* init-mainc-add-initcall_blacklist-kernel-parameter-fix.patch
-* kthreads-kill-clone_kernel-change-kernel_threadkernel_init-to-avoid-clone_sighand.patch
-* init-mainc-remove-an-ifdef.patch
-* fs-autofs4-dev-ioctlc-add-__init-to-autofs_dev_ioctl_init.patch
-* drivers-rtc-interfacec-fix-infinite-loop-in-initializing-the-alarm.patch
-* drivers-rtc-interfacec-fix-infinite-loop-in-initializing-the-alarm-fix.patch
-* documentation-devicetree-bindings-add-documentation-for-the-apm-x-gene-soc-rtc-dts-binding.patch
-* drivers-rtc-add-apm-x-gene-soc-rtc-driver.patch
-* arm64-add-apm-x-gene-soc-rtc-dts-entry.patch
-* rtc-m41t80-remove-drv_version-macro.patch
-* rtc-m41t80-clean-up-error-paths.patch
-* rtc-m41t80-propagate-error-value-from-smbus-functions.patch
-* rtc-m41t80-add-support-for-microcrystal-rv4162.patch
-* drivers-rtc-rtc-efic-avoid-subtracting-day-twice-when-computing-year-days.patch
-* rtc-rtc-cmos-drivers-char-rtcc-features-for-decstation-support.patch
-* rtc-rtc-cmos-drivers-char-rtcc-features-for-decstation-support-fix.patch
-* dec-switch-decstation-systems-to-rtc-cmos.patch
-* drivers-rtc-rtc-88pm860xc-use-of_get_child_by_name.patch
-* drivers-rtc-rtc-88pm860xc-add-missing-of_node_put.patch
-* drivers-rtc-rtc-da9052c-alarm-causes-interrupt-storm.patch
-* rtc-rtc-ds1742-make-of_device_id-array-const.patch
-* rtc-rtc-hym8563-make-of_device_id-array-const.patch
-* rtc-isl12057-make-of_device_id-array-const.patch
-* rtc-rtc-mv-make-of_device_id-array-const.patch
-* rtc-rtc-palmas-make-of_device_id-array-const.patch
-* drivers-rtc-add-support-for-maxim-dallas-rtc-ds1343-and-ds1344.patch
-* rtc-fix-potential-race-condition-and-remove-build-errors.patch
-* drivers-rtc-rtc-ds1343c-fix-potential-race-condition.patch
-* drivers-rtc-add-support-for-microchip-mcp795.patch
-* rtc-da9063-rtc-driver.patch
-* rtc-da9063-rtc-driver-fix.patch
-* drivers-rtc-rtc-omapc-remove-multiple-device-id-checks.patch
-* drivers-rtc-rtc-omapc-use-bit-macro.patch
-* drivers-rtc-rtc-omapc-add-support-for-enabling-32khz-clock.patch
-* drivers-rtc-rtc-bfinc-do-not-abort-when-requesting-irq-fails.patch
-* rtc-hym8563-add-optional-clock-output-names-property.patch
-* rtc-rtc-at91rm9200-fix-infinite-wait-for-ackupd-irq.patch
-* fs-befs-linuxvfsc-replace-strncpy-by-strlcpy.patch
-* fs-befs-btreec-replace-strncpy-by-strlcpy-coding-style-fixing.patch
-* fs-befs-linuxvfsc-remove-positive-test-on-sector_t.patch
-* fs-befs-kernel-doc-fixes.patch
-* fs-isofs-logging-clean-up.patch
-* fs-coda-replace-printk-by-pr_foo.patch
-* fs-coda-logging-prefix-uniformization.patch
-* fs-coda-use-__func__.patch
-* hfsplus-fixes-worst-case-unicode-to-char-conversion-of-file-names-and-attributes.patch
-* hfsplus-fixes-worst-case-unicode-to-char-conversion-of-file-names-and-attributes-fix.patch
-* hfsplus-correct-usage-of-hfsplus_attr_max_strlen-for-non-english-attributes.patch
-* hfsplus-correct-usage-of-hfsplus_attr_max_strlen-for-non-english-attributes-fix.patch
-* hfsplus-correct-usage-of-hfsplus_attr_max_strlen-for-non-english-attributes-fix-2.patch
-* hfsplus-remove-unused-routine-hfsplus_attr_build_key_uni.patch
-* hfsplus-emit-proper-file-type-from-readdir.patch
-* fs-hfsplus-bnodec-replace-min-casting-by-min_t.patch
-* fs-hfsplus-optionsc-replace-seq_printf-by-seq_puts.patch
-* fs-hfsplus-wrapperc-replace-min-casting-by-min_t.patch
-* hfsplus-fix-unused-node-is-not-erased-error.patch
-* fs-hfsplus-wrapperc-replace-shift-loop-by-ilog2.patch
-* hfsplus-fix-longname-handling.patch
-* fs-ufs-ballocc-remove-err-parameter-in-ufs_add_fragments.patch
-* fs-hpfs-convert-printk-to-pr_foo.patch
-* fs-hpfs-use-pr_fmt-for-logging.patch
-* fs-hpfs-use-__func__-for-logging.patch
-* fs-fat-add-support-for-dos-1x-formatted-volumes.patch
-* fs-fat-cleanup-string-initializations-char-instead-of-char.patch
-* documentation-submittingpatches-describe-the-fixes-tag.patch
-* ptrace-fix-fork-event-messages-across-pid-namespaces.patch
-* ptrace-task_clear_jobctl_trapping-wake_up_bit-needs-mb.patch
-* signals-kill-sigfindinword.patch
-* signals-s-siginitset-sigemptyset-in-do_sigtimedwait.patch
-* signals-kill-rm_from_queue-change-prepare_signal-to-use-for_each_thread.patch
-* signals-rename-rm_from_queue_full-to-flush_sigqueue_mask.patch
-* signals-cleanup-the-usage-of-t-current-in-do_sigaction.patch
-* signals-mv-disallow_signal-from-schedh-exitc-to-signal.patch
-* signals-jffs2-fix-the-wrong-usage-of-disallow_signal.patch
-* signals-kill-the-obsolete-sigdelset-and-recalc_sigpending-in-allow_signal.patch
-* signals-disallow_signal-should-flush-the-potentially-pending-signal.patch
-* signals-introduce-kernel_sigaction.patch
-* signals-change-wait_for_helper-to-use-kernel_sigaction.patch
-* smp-print-more-useful-debug-info-upon-receiving-ipi-on-an-offline-cpu.patch
-* smp-print-more-useful-debug-info-upon-receiving-ipi-on-an-offline-cpu-fix.patch
-* smp-print-more-useful-debug-info-upon-receiving-ipi-on-an-offline-cpu-v5.patch
-* cpu-hotplug-stop-machine-plug-race-window-that-leads-to-ipi-to-offline-cpu.patch
-* cpu-hotplug-stop-machine-plug-race-window-that-leads-to-ipi-to-offline-cpu-v3.patch
-* cpu-hotplug-stop-machine-plug-race-window-that-leads-to-ipi-to-offline-cpu-v5.patch
-* cpu-hotplug-smp-flush-any-pending-ipi-callbacks-before-cpu-offline-v5.patch
-* cpu-hotplug-smp-flush-any-pending-ipi-callbacks-before-cpu-offline-v5-checkpatch-fixes.patch
-* kernel-panicc-add-crash_kexec_post_notifiers-option-for-kdump-after-panic_notifers.patch
-* kernel-kexecc-convert-printk-to-pr_foo.patch
-* kexec-save-pg_head_mask-in-vmcoreinfo.patch
-* idr-fix-overflow-bug-during-maximum-id-calculation-at-maximum-height.patch
-* idr-fix-unexpected-id-removal-when-idr_removeunallocated_id.patch
-* idr-fix-null-pointer-dereference-when-ida_removeunallocated_id.patch
-* idr-fix-idr_replaces-returned-error-code.patch
-* idr-dont-need-to-shink-the-free-list-when-idr_remove.patch
-* idr-reduce-the-unneeded-check-in-free_layer.patch
-* idr-reorder-the-fields.patch
-* rapidio-tsi721-use-pci_enable_msix_exact-instead-of-pci_enable_msix.patch
-* sysctl-clean-up-char-buffer-arguments.patch
-* sysctl-refactor-sysctl-string-writing-logic.patch
-* sysctl-allow-for-strict-write-position-handling.patch
-* sysctl-allow-for-strict-write-position-handling-fix-2.patch
-* sysctl-allow-for-strict-write-position-handling-fix.patch
-* sysctl-allow-for-strict-write-position-handling-fix-3.patch
-* tools-testing-selftests-sysctl-validate-sysctl_writes_strict.patch
-* kernel-user_namespacec-kernel-doc-checkpatch-fixes.patch
-* fix-_ioc_typecheck-sparse-error.patch
-* gcov-add-support-for-gcc-49.patch
-* fs-affs-filec-remove-unnecessary-function-parameters.patch
-* fs-affs-convert-printk-to-pr_foo.patch
-* fs-affs-pr_debug-cleanup.patch
-* kernel-profilec-convert-printk-to-pr_foo.patch
-* kernel-profilec-use-static-const-char-instead-of-static-char.patch
-* fs-pstore-logging-clean-up.patch
-* fs-pstore-logging-clean-up-fix.patch
-* fs-cachefiles-convert-printk-to-pr_foo.patch
-* fs-cachefiles-replace-kerror-by-pr_err.patch
-* fs-devpts-inodec-convert-printk-to-pr_foo.patch
-* fs-devpts-inodec-convert-printk-to-pr_foo-fix.patch
-* initramfs-remove-compression-mode-choice.patch
-* ipc-constify-ipc_ops.patch
-* ipc-kernel-use-linux-headers.patch
-* ipc-kernel-clear-whitespace.patch
-* ipc-shmc-check-for-ulong-overflows-in-shmat.patch
-* ipc-shmc-check-for-overflows-of-shm_tot.patch
-* ipc-shmc-check-for-integer-overflow-during-shmget.patch
-* ipc-shmc-increase-the-defaults-for-shmall-shmmax.patch
-* ipcshm-document-new-limits-in-the-uapi-header.patch
-* ipcshm-document-new-limits-in-the-uapi-header-v2.patch
-* ipcshm-document-new-limits-in-the-uapi-header-v3.patch
-* ipcmsg-use-current-state-helpers.patch
-* ipcmsg-move-some-msgq-ns-code-around.patch
-* ipcmsg-document-volatile-r_msg.patch
-* ipc-semc-bugfix-for-semctlgetzcnt.patch
-* ipc-semc-remove-code-duplication.patch
-* ipc-semc-change-perform_atomic_semop-parameters.patch
-* ipc-semc-store-which-operation-blocks-in-perform_atomic_semop.patch
-* ipc-semc-make-semctlgetncntgetzcnt-standard-compliant.patch
-* lib-scatterlist-make-arch_has_sg_chain-an-actual-kconfig.patch
-* lib-scatterlist-make-arch_has_sg_chain-an-actual-kconfig-fix.patch
-* lib-scatterlist-make-arch_has_sg_chain-an-actual-kconfig-fix-2.patch
-* lib-scatterlist-make-arch_has_sg_chain-an-actual-kconfig-fix-3.patch
-* lib-scatterlist-clean-up-useless-architecture-versions-of-scatterlisth.patch
-* kernel-seccompc-kernel-doc-warning-fix.patch
-  linux-next.patch
-  linux-next-rejects.patch
-  linux-next-git-rejects.patch
-* drivers-gpio-gpio-zevioc-fix-build.patch
-* mm-page_ioc-work-around-gcc-bug.patch
-* lib-test_bpfc-dont-use-gcc-union-shortcut.patch
-* arm-convert-use-of-typedef-ctl_table-to-struct-ctl_table.patch
-* ia64-convert-use-of-typedef-ctl_table-to-struct-ctl_table.patch
-* tile-convert-use-of-typedef-ctl_table-to-struct-ctl_table.patch
-* cdrom-convert-use-of-typedef-ctl_table-to-struct-ctl_table.patch
-* random-convert-use-of-typedef-ctl_table-to-struct-ctl_table.patch
-* parport-convert-use-of-typedef-ctl_table-to-struct-ctl_table.patch
-* scsi-convert-use-of-typedef-ctl_table-to-struct-ctl_table.patch
-* coda-convert-use-of-typedef-ctl_table-to-struct-ctl_table.patch
-* fscache-convert-use-of-typedef-ctl_table-to-struct-ctl_table.patch
-* lockd-convert-use-of-typedef-ctl_table-to-struct-ctl_table.patch
-* nfs-convert-use-of-typedef-ctl_table-to-struct-ctl_table.patch
-* inotify-convert-use-of-typedef-ctl_table-to-struct-ctl_table.patch
-* ntfs-convert-use-of-typedef-ctl_table-to-struct-ctl_table.patch
-* fs-convert-use-of-typedef-ctl_table-to-struct-ctl_table.patch
-* key-convert-use-of-typedef-ctl_table-to-struct-ctl_table.patch
-* ipc-convert-use-of-typedef-ctl_table-to-struct-ctl_table.patch
-* sysctl-convert-use-of-typedef-ctl_table-to-struct-ctl_table.patch
-* mm-convert-use-of-typedef-ctl_table-to-struct-ctl_table.patch
-* mfd-rtc-sec-s5m-rename-sec-symbols-to-s5m.patch
-* rtc-s5m-remove-undocumented-time-init-on-first-boot.patch
-* rtc-s5m-use-shorter-time-of-register-update.patch
-* rtc-s5m-support-different-register-layout.patch
-* rtc-s5m-add-support-for-s2mps14-rtc.patch
-* rtc-s5m-consolidate-two-device-type-switch-statements.patch
-* blackfin-ptrace-call-find_vma-with-the-mmap_sem-held.patch
-* kernel-watchdogc-print-traces-for-all-cpus-on-lockup-detection.patch
-* kernel-watchdogc-print-traces-for-all-cpus-on-lockup-detection-fix.patch
-* kernel-watchdogc-print-traces-for-all-cpus-on-lockup-detection-fix-2.patch
-* kernel-watchdogc-convert-printk-pr_warning-to-pr_foo.patch
-* init-mainc-code-clean-up.patch
-* fs-reiserfs-bitmapc-coding-style-fixes.patch
-* fs-reiserfs-streec-remove-obsolete-__constant.patch
-* rwsem-support-optimistic-spinning.patch
-* rwsem-support-optimistic-spinning-checkpatch-fixes.patch
-* rwsem-support-optimistic-spinning-fix.patch
-* x86vdso-fix-an-oops-accessing-the-hpet-mapping-w-o-an-hpet.patch
-* kernel-kprobesc-convert-printk-to-pr_foo.patch
-* sysrq-rcu-ify-__handle_sysrq.patch
-* sysrqrcu-suppress-rcu-stall-warnings-while-sysrq-runs.patch
-* memcg-mm-introduce-lowlimit-reclaim.patch
-* memcg-mm-introduce-lowlimit-reclaim-fix.patch
-* memcg-allow-setting-low_limit.patch
-* memcg-doc-clarify-global-vs-limit-reclaims.patch
-* memcg-doc-clarify-global-vs-limit-reclaims-fix.patch
-* memcg-document-memorylow_limit_in_bytes.patch
-* vmscan-memcg-check-whether-the-low-limit-should-be-ignored.patch
-* vmscan-memcg-always-use-swappiness-of-the-reclaimed-memcg-swappiness-and-oom_control.patch
-* mm-kmemleakc-use-%u-to-print-checksum.patch
-* mm-introduce-kmemleak_update_trace.patch
-* lib-update-the-kmemleak-stack-trace-for-radix-tree-allocations.patch
-* mm-update-the-kmemleak-stack-trace-for-mempool-allocations.patch
-* mm-call-kmemleak-directly-from-memblock_allocfree.patch
-* mm-memcontrol-clean-up-memcg-zoneinfo-lookup.patch
-* mm-memcontrol-remove-unnecessary-memcg-argument-from-soft-limit-functions.patch
-* mm-mark-remap_file_pages-syscall-as-deprecated.patch
-* mm-mark-remap_file_pages-syscall-as-deprecated-fix.patch
-* mm-replace-remap_file_pages-syscall-with-emulation.patch
-* mm-replace-remap_file_pages-syscall-with-emulation-fix.patch
-* mm-replace-remap_file_pages-syscall-with-emulation-fix-2.patch
-* mm-replace-remap_file_pages-syscall-with-emulation-fix-3.patch
-* memcg-deprecate-memoryforce_empty-knob.patch
-* memcg-deprecate-memoryforce_empty-knob-fix.patch
-* fat-add-i_disksize-to-represent-uninitialized-size-v4.patch
-* fat-add-fat_fallocate-operation-v4.patch
-* fat-zero-out-seek-range-on-_fat_get_block-v4.patch
-* fat-fallback-to-buffered-write-in-case-of-fallocated-region-on-direct-io-v4.patch
-* fat-permit-to-return-phy-block-number-by-fibmap-in-fallocated-region-v4.patch
-* documentation-filesystems-vfattxt-update-the-limitation-for-fat-fallocate-v4.patch
-* nmi-provide-the-option-to-issue-an-nmi-back-trace-to-every-cpu-but-current.patch
-* nmi-provide-the-option-to-issue-an-nmi-back-trace-to-every-cpu-but-current-fix.patch
-* fs-dlm-configc-convert-simple_str-to-kstr.patch
-* fs-dlm-lockspacec-convert-simple_str-to-kstr.patch
-* fs-dlm-debug_fsc-replace-seq_printf-by-seq_puts.patch
-* mm-kmemleak-testc-use-pr_fmt-for-logging.patch
-* bio-modify-__bio_add_page-to-accept-pages-that-dont-start-a-new-segment.patch
-* bio-modify-__bio_add_page-to-accept-pages-that-dont-start-a-new-segment-v3.patch
-* maintainers-add-linux-api-for-review-of-api-abi-changes.patch
-* maintainers-adi-buildroot-devel-is-moderated.patch
-* mm-convert-some-level-less-printks-to-pr_.patch
-* w1-call-put_device-if-device_register-fails.patch
-* ufs-sb-mutex-merge-mutex_destroy.patch
-* mm-add-strictlimit-knob-v2.patch
-  debugging-keep-track-of-page-owners.patch
-  page-owners-correct-page-order-when-to-free-page.patch
-  make-sure-nobodys-leaking-resources.patch
-  journal_add_journal_head-debug.patch
-  journal_add_journal_head-debug-fix.patch
-  releasing-resources-with-children.patch
-  make-frame_pointer-default=y.patch
-  kernel-forkc-export-kernel_thread-to-modules.patch
-  mutex-subsystem-synchro-test-module.patch
-  slab-leaks3-default-y.patch
-  put_bh-debug.patch
-  add-debugging-aid-for-memory-initialisation-problems.patch
-  workaround-for-a-pci-restoring-bug.patch
-  single_open-seq_release-leak-diagnostics.patch
+diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+index 7baf0fe..b697e4f 100644
+--- a/include/linux/page-flags.h
++++ b/include/linux/page-flags.h
+@@ -87,6 +87,7 @@ enum pageflags {
+ 	PG_private_2,		/* If pagecache, has fs aux data */
+ 	PG_writeback,		/* Page is under writeback */
+ #ifdef CONFIG_PAGEFLAGS_EXTENDED
++	PG_waiters,		/* Page has PG_locked waiters. */
+ 	PG_head,		/* A head page */
+ 	PG_tail,		/* A tail page */
+ #else
+@@ -213,6 +214,22 @@ PAGEFLAG(SwapBacked, swapbacked) __CLEARPAGEFLAG(SwapBacked, swapbacked)
+ 
+ __PAGEFLAG(SlobFree, slob_free)
+ 
++#ifdef CONFIG_PAGEFLAGS_EXTENDED
++PAGEFLAG(Waiters, waiters) __CLEARPAGEFLAG(Waiters, waiters)
++	TESTCLEARFLAG(Waiters, waiters)
++#define __PG_WAITERS		(1 << PG_waiters)
++#else
++/* Always fallback to slow path on 32-bit */
++static inline bool PageWaiters(struct page *page)
++{
++	return true;
++}
++static inline void __ClearPageWaiters(struct page *page) {}
++static inline void ClearPageWaiters(struct page *page) {}
++static inline void SetPageWaiters(struct page *page) {}
++#define __PG_WAITERS		0
++#endif /* CONFIG_PAGEFLAGS_EXTENDED */
++
+ /*
+  * Private page markings that may be used by the filesystem that owns the page
+  * for its own purposes.
+@@ -509,6 +526,7 @@ static inline void ClearPageSlabPfmemalloc(struct page *page)
+ 	 1 << PG_writeback | 1 << PG_reserved | \
+ 	 1 << PG_slab	 | 1 << PG_swapcache | 1 << PG_active | \
+ 	 1 << PG_unevictable | __PG_MLOCKED | __PG_HWPOISON | \
++	 __PG_WAITERS | \
+ 	 __PG_COMPOUND_LOCK)
+ 
+ /*
+diff --git a/include/linux/wait.h b/include/linux/wait.h
+index bd68819..9226724 100644
+--- a/include/linux/wait.h
++++ b/include/linux/wait.h
+@@ -141,14 +141,21 @@ __remove_wait_queue(wait_queue_head_t *head, wait_queue_t *old)
+ 	list_del(&old->task_list);
+ }
+ 
++struct page;
++
+ void __wake_up(wait_queue_head_t *q, unsigned int mode, int nr, void *key);
+ void __wake_up_locked_key(wait_queue_head_t *q, unsigned int mode, void *key);
+ void __wake_up_sync_key(wait_queue_head_t *q, unsigned int mode, int nr, void *key);
+ void __wake_up_locked(wait_queue_head_t *q, unsigned int mode, int nr);
+ void __wake_up_sync(wait_queue_head_t *q, unsigned int mode, int nr);
+ void __wake_up_bit(wait_queue_head_t *, void *, int);
++void __wake_up_page_bit(wait_queue_head_t *, struct page *page, void *, int);
+ int __wait_on_bit(wait_queue_head_t *, struct wait_bit_queue *, int (*)(void *), unsigned);
++int __wait_on_page_bit(wait_queue_head_t *, struct wait_bit_queue *,
++				struct page *page, int (*)(void *), unsigned);
+ int __wait_on_bit_lock(wait_queue_head_t *, struct wait_bit_queue *, int (*)(void *), unsigned);
++int __wait_on_page_bit_lock(wait_queue_head_t *, struct wait_bit_queue *,
++				struct page *page, int (*)(void *), unsigned);
+ void wake_up_bit(void *, int);
+ void wake_up_atomic_t(atomic_t *);
+ int out_of_line_wait_on_bit(void *, int, int (*)(void *), unsigned);
+@@ -822,6 +829,7 @@ void prepare_to_wait(wait_queue_head_t *q, wait_queue_t *wait, int state);
+ void prepare_to_wait_exclusive(wait_queue_head_t *q, wait_queue_t *wait, int state);
+ long prepare_to_wait_event(wait_queue_head_t *q, wait_queue_t *wait, int state);
+ void finish_wait(wait_queue_head_t *q, wait_queue_t *wait);
++void finish_wait_page(wait_queue_head_t *q, wait_queue_t *wait, struct page *page);
+ void abort_exclusive_wait(wait_queue_head_t *q, wait_queue_t *wait, unsigned int mode, void *key);
+ int autoremove_wake_function(wait_queue_t *wait, unsigned mode, int sync, void *key);
+ int wake_bit_function(wait_queue_t *wait, unsigned mode, int sync, void *key);
+diff --git a/kernel/sched/wait.c b/kernel/sched/wait.c
+index 0ffa20a..bd0495a92 100644
+--- a/kernel/sched/wait.c
++++ b/kernel/sched/wait.c
+@@ -167,31 +167,47 @@ EXPORT_SYMBOL_GPL(__wake_up_sync);	/* For internal use only */
+  * stops them from bleeding out - it would still allow subsequent
+  * loads to move into the critical region).
+  */
+-void
+-prepare_to_wait(wait_queue_head_t *q, wait_queue_t *wait, int state)
++static __always_inline void
++__prepare_to_wait(wait_queue_head_t *q, wait_queue_t *wait,
++			struct page *page, int state, bool exclusive)
+ {
+ 	unsigned long flags;
+ 
+-	wait->flags &= ~WQ_FLAG_EXCLUSIVE;
+ 	spin_lock_irqsave(&q->lock, flags);
+-	if (list_empty(&wait->task_list))
+-		__add_wait_queue(q, wait);
++
++	/*
++	 * pages are hashed on a waitqueue that is expensive to lookup.
++	 * __wait_on_page_bit and __wait_on_page_bit_lock pass in a page
++	 * to set PG_waiters here. A PageWaiters() can then be used at
++	 * unlock time or when writeback completes to detect if there
++	 * are any potential waiters that justify a lookup.
++	 */
++	if (page && !PageWaiters(page))
++		SetPageWaiters(page);
++	if (list_empty(&wait->task_list)) {
++		if (exclusive) {
++			wait->flags |= WQ_FLAG_EXCLUSIVE;
++			__add_wait_queue_tail(q, wait);
++		} else {
++			wait->flags &= ~WQ_FLAG_EXCLUSIVE;
++			__add_wait_queue(q, wait);
++		}
++	}
+ 	set_current_state(state);
+ 	spin_unlock_irqrestore(&q->lock, flags);
+ }
++
++void
++prepare_to_wait(wait_queue_head_t *q, wait_queue_t *wait, int state)
++{
++	return __prepare_to_wait(q, wait, NULL, state, false);
++}
+ EXPORT_SYMBOL(prepare_to_wait);
+ 
+ void
+ prepare_to_wait_exclusive(wait_queue_head_t *q, wait_queue_t *wait, int state)
+ {
+-	unsigned long flags;
+-
+-	wait->flags |= WQ_FLAG_EXCLUSIVE;
+-	spin_lock_irqsave(&q->lock, flags);
+-	if (list_empty(&wait->task_list))
+-		__add_wait_queue_tail(q, wait);
+-	set_current_state(state);
+-	spin_unlock_irqrestore(&q->lock, flags);
++	return __prepare_to_wait(q, wait, NULL, state, true);
+ }
+ EXPORT_SYMBOL(prepare_to_wait_exclusive);
+ 
+@@ -219,16 +235,8 @@ long prepare_to_wait_event(wait_queue_head_t *q, wait_queue_t *wait, int state)
+ }
+ EXPORT_SYMBOL(prepare_to_wait_event);
+ 
+-/**
+- * finish_wait - clean up after waiting in a queue
+- * @q: waitqueue waited on
+- * @wait: wait descriptor
+- *
+- * Sets current thread back to running state and removes
+- * the wait descriptor from the given waitqueue if still
+- * queued.
+- */
+-void finish_wait(wait_queue_head_t *q, wait_queue_t *wait)
++static __always_inline void __finish_wait(wait_queue_head_t *q,
++			wait_queue_t *wait, struct page *page)
+ {
+ 	unsigned long flags;
+ 
+@@ -249,9 +257,33 @@ void finish_wait(wait_queue_head_t *q, wait_queue_t *wait)
+ 	if (!list_empty_careful(&wait->task_list)) {
+ 		spin_lock_irqsave(&q->lock, flags);
+ 		list_del_init(&wait->task_list);
++
++		/*
++		 * Clear PG_waiters if the waitqueue is no longer active. There
++		 * is no guarantee that a page with no waiters will get cleared
++		 * as there may be unrelated pages hashed to sleep on the same
++		 * queue. Accurate detection would require a counter but
++		 * collisions are expected to be rare.
++		 */
++		if (page && !waitqueue_active(q))
++			ClearPageWaiters(page);
+ 		spin_unlock_irqrestore(&q->lock, flags);
+ 	}
+ }
++
++/**
++ * finish_wait - clean up after waiting in a queue
++ * @q: waitqueue waited on
++ * @wait: wait descriptor
++ *
++ * Sets current thread back to running state and removes
++ * the wait descriptor from the given waitqueue if still
++ * queued.
++ */
++void finish_wait(wait_queue_head_t *q, wait_queue_t *wait)
++{
++	return __finish_wait(q, wait, NULL);
++}
+ EXPORT_SYMBOL(finish_wait);
+ 
+ /**
+@@ -313,24 +345,39 @@ int wake_bit_function(wait_queue_t *wait, unsigned mode, int sync, void *arg)
+ EXPORT_SYMBOL(wake_bit_function);
+ 
+ /*
+- * To allow interruptible waiting and asynchronous (i.e. nonblocking)
+- * waiting, the actions of __wait_on_bit() and __wait_on_bit_lock() are
+- * permitted return codes. Nonzero return codes halt waiting and return.
++ * waits on a bit to be cleared (see wait_on_bit in wait.h for details.
++ * A page is optionally provided when used to wait on the PG_locked or
++ * PG_writeback bit. By setting PG_waiters a lookup of the waitqueue
++ * can be avoided during unlock_page or end_page_writeback.
+  */
+ int __sched
+-__wait_on_bit(wait_queue_head_t *wq, struct wait_bit_queue *q,
++__wait_on_page_bit(wait_queue_head_t *wq, struct wait_bit_queue *q,
++			struct page *page,
+ 			int (*action)(void *), unsigned mode)
+ {
+ 	int ret = 0;
+ 
+ 	do {
+-		prepare_to_wait(wq, &q->wait, mode);
++		__prepare_to_wait(wq, &q->wait, page, mode, false);
+ 		if (test_bit(q->key.bit_nr, q->key.flags))
+ 			ret = (*action)(q->key.flags);
+ 	} while (test_bit(q->key.bit_nr, q->key.flags) && !ret);
+-	finish_wait(wq, &q->wait);
++	__finish_wait(wq, &q->wait, page);
+ 	return ret;
+ }
++
++/*
++ * To allow interruptible waiting and asynchronous (i.e. nonblocking)
++ * waiting, the actions of __wait_on_bit() and __wait_on_bit_lock() are
++ * permitted return codes. Nonzero return codes halt waiting and return.
++ */
++int __sched
++__wait_on_bit(wait_queue_head_t *wq, struct wait_bit_queue *q,
++			int (*action)(void *), unsigned mode)
++{
++	return __wait_on_page_bit(wq, q, NULL, action, mode);
++}
++
+ EXPORT_SYMBOL(__wait_on_bit);
+ 
+ int __sched out_of_line_wait_on_bit(void *word, int bit,
+@@ -344,13 +391,14 @@ int __sched out_of_line_wait_on_bit(void *word, int bit,
+ EXPORT_SYMBOL(out_of_line_wait_on_bit);
+ 
+ int __sched
+-__wait_on_bit_lock(wait_queue_head_t *wq, struct wait_bit_queue *q,
++__wait_on_page_bit_lock(wait_queue_head_t *wq, struct wait_bit_queue *q,
++			struct page *page,
+ 			int (*action)(void *), unsigned mode)
+ {
+ 	do {
+ 		int ret;
+ 
+-		prepare_to_wait_exclusive(wq, &q->wait, mode);
++		__prepare_to_wait(wq, &q->wait, page, mode, true);
+ 		if (!test_bit(q->key.bit_nr, q->key.flags))
+ 			continue;
+ 		ret = action(q->key.flags);
+@@ -359,9 +407,16 @@ __wait_on_bit_lock(wait_queue_head_t *wq, struct wait_bit_queue *q,
+ 		abort_exclusive_wait(wq, &q->wait, mode, &q->key);
+ 		return ret;
+ 	} while (test_and_set_bit(q->key.bit_nr, q->key.flags));
+-	finish_wait(wq, &q->wait);
++	__finish_wait(wq, &q->wait, page);
+ 	return 0;
+ }
++
++int __sched
++__wait_on_bit_lock(wait_queue_head_t *wq, struct wait_bit_queue *q,
++			int (*action)(void *), unsigned mode)
++{
++	return __wait_on_page_bit_lock(wq, q, NULL, action, mode);
++}
+ EXPORT_SYMBOL(__wait_on_bit_lock);
+ 
+ int __sched out_of_line_wait_on_bit_lock(void *word, int bit,
+@@ -374,6 +429,24 @@ int __sched out_of_line_wait_on_bit_lock(void *word, int bit,
+ }
+ EXPORT_SYMBOL(out_of_line_wait_on_bit_lock);
+ 
++void __wake_up_page_bit(wait_queue_head_t *wqh, struct page *page, void *word, int bit)
++{
++	struct wait_bit_key key = __WAIT_BIT_KEY_INITIALIZER(word, bit);
++	unsigned long flags;
++
++	/*
++	 * Unlike __wake_up_bit it is necessary to check waitqueue_active to be
++	 * checked under the wqh->lock to avoid races with parallel additions
++	 * to the waitqueue. Otherwise races could result in lost wakeups
++	 */
++	spin_lock_irqsave(&wqh->lock, flags);
++	if (waitqueue_active(wqh))
++		__wake_up_common(wqh, TASK_NORMAL, 1, 0, &key);
++	else
++		ClearPageWaiters(page);
++	spin_unlock_irqrestore(&wqh->lock, flags);
++}
++
+ void __wake_up_bit(wait_queue_head_t *wq, void *word, int bit)
+ {
+ 	struct wait_bit_key key = __WAIT_BIT_KEY_INITIALIZER(word, bit);
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 263cffe..07633a4 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -682,9 +682,9 @@ static wait_queue_head_t *page_waitqueue(struct page *page)
+ 	return &zone->wait_table[hash_ptr(page, zone->wait_table_bits)];
+ }
+ 
+-static inline void wake_up_page(struct page *page, int bit)
++static inline void wake_up_page(struct page *page, int bit_nr)
+ {
+-	__wake_up_bit(page_waitqueue(page), &page->flags, bit);
++	__wake_up_page_bit(page_waitqueue(page), page, &page->flags, bit_nr);
+ }
+ 
+ void wait_on_page_bit(struct page *page, int bit_nr)
+@@ -692,8 +692,8 @@ void wait_on_page_bit(struct page *page, int bit_nr)
+ 	DEFINE_WAIT_BIT(wait, &page->flags, bit_nr);
+ 
+ 	if (test_bit(bit_nr, &page->flags))
+-		__wait_on_bit(page_waitqueue(page), &wait, sleep_on_page,
+-							TASK_UNINTERRUPTIBLE);
++		__wait_on_page_bit(page_waitqueue(page), &wait, page,
++					sleep_on_page, TASK_UNINTERRUPTIBLE);
+ }
+ EXPORT_SYMBOL(wait_on_page_bit);
+ 
+@@ -704,7 +704,7 @@ int wait_on_page_bit_killable(struct page *page, int bit_nr)
+ 	if (!test_bit(bit_nr, &page->flags))
+ 		return 0;
+ 
+-	return __wait_on_bit(page_waitqueue(page), &wait,
++	return __wait_on_page_bit(page_waitqueue(page), &wait, page,
+ 			     sleep_on_page_killable, TASK_KILLABLE);
+ }
+ 
+@@ -743,7 +743,8 @@ void unlock_page(struct page *page)
+ 	VM_BUG_ON_PAGE(!PageLocked(page), page);
+ 	clear_bit_unlock(PG_locked, &page->flags);
+ 	smp_mb__after_atomic();
+-	wake_up_page(page, PG_locked);
++	if (unlikely(PageWaiters(page)))
++		wake_up_page(page, PG_locked);
+ }
+ EXPORT_SYMBOL(unlock_page);
+ 
+@@ -769,7 +770,8 @@ void end_page_writeback(struct page *page)
+ 		BUG();
+ 
+ 	smp_mb__after_atomic();
+-	wake_up_page(page, PG_writeback);
++	if (unlikely(PageWaiters(page)))
++		wake_up_page(page, PG_writeback);
+ }
+ EXPORT_SYMBOL(end_page_writeback);
+ 
+@@ -806,8 +808,8 @@ void __lock_page(struct page *page)
+ {
+ 	DEFINE_WAIT_BIT(wait, &page->flags, PG_locked);
+ 
+-	__wait_on_bit_lock(page_waitqueue(page), &wait, sleep_on_page,
+-							TASK_UNINTERRUPTIBLE);
++	__wait_on_page_bit_lock(page_waitqueue(page), &wait, page,
++					sleep_on_page, TASK_UNINTERRUPTIBLE);
+ }
+ EXPORT_SYMBOL(__lock_page);
+ 
+@@ -815,9 +817,10 @@ int __lock_page_killable(struct page *page)
+ {
+ 	DEFINE_WAIT_BIT(wait, &page->flags, PG_locked);
+ 
+-	return __wait_on_bit_lock(page_waitqueue(page), &wait,
+-					sleep_on_page_killable, TASK_KILLABLE);
++	return __wait_on_page_bit_lock(page_waitqueue(page), &wait, page,
++					sleep_on_page, TASK_KILLABLE);
+ }
++
+ EXPORT_SYMBOL_GPL(__lock_page_killable);
+ 
+ int __lock_page_or_retry(struct page *page, struct mm_struct *mm,
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index cd1f005..ebb947d 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -6603,6 +6603,7 @@ static const struct trace_print_flags pageflag_names[] = {
+ 	{1UL << PG_private_2,		"private_2"	},
+ 	{1UL << PG_writeback,		"writeback"	},
+ #ifdef CONFIG_PAGEFLAGS_EXTENDED
++	{1UL << PG_waiters,		"waiters"	},
+ 	{1UL << PG_head,		"head"		},
+ 	{1UL << PG_tail,		"tail"		},
+ #else
+diff --git a/mm/swap.c b/mm/swap.c
+index 9e8e347..1581dbf 100644
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -67,6 +67,10 @@ static void __page_cache_release(struct page *page)
+ static void __put_single_page(struct page *page)
+ {
+ 	__page_cache_release(page);
++
++	/* See release_pages on why this clear may be necessary */
++	__ClearPageWaiters(page);
++
+ 	free_hot_cold_page(page, false);
+ }
+ 
+@@ -916,6 +920,14 @@ void release_pages(struct page **pages, int nr, bool cold)
+ 		/* Clear Active bit in case of parallel mark_page_accessed */
+ 		__ClearPageActive(page);
+ 
++		/*
++		 * pages are hashed on a waitqueue so there may be collisions.
++		 * When waiters are woken the waitqueue is checked but
++		 * unrelated pages on the queue can leave the bit set. Clear
++		 * it here if that happens.
++		 */
++		__ClearPageWaiters(page);
++
+ 		list_add(&page->lru, &pages_to_free);
+ 	}
+ 	if (zone)
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 7f85041..d7a4969 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1096,6 +1096,9 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ 		 * waiting on the page lock, because there are no references.
+ 		 */
+ 		__clear_page_locked(page);
++
++		/* See release_pages on why this clear may be necessary */
++		__ClearPageWaiters(page);
+ free_it:
+ 		nr_reclaimed++;
+ 
+@@ -1427,6 +1430,8 @@ putback_inactive_pages(struct lruvec *lruvec, struct list_head *page_list)
+ 		if (put_page_testzero(page)) {
+ 			__ClearPageLRU(page);
+ 			__ClearPageActive(page);
++			/* See release_pages on why this clear may be necessary */
++			__ClearPageWaiters(page);
+ 			del_page_from_lru_list(page, lruvec, lru);
+ 
+ 			if (unlikely(PageCompound(page))) {
+@@ -1650,6 +1655,8 @@ static void move_active_pages_to_lru(struct lruvec *lruvec,
+ 		if (put_page_testzero(page)) {
+ 			__ClearPageLRU(page);
+ 			__ClearPageActive(page);
++			/* See release_pages on why this clear may be necessary */
++			__ClearPageWaiters(page);
+ 			del_page_from_lru_list(page, lruvec, lru);
+ 
+ 			if (unlikely(PageCompound(page))) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
