@@ -1,56 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f44.google.com (mail-ee0-f44.google.com [74.125.83.44])
-	by kanga.kvack.org (Postfix) with ESMTP id B96E06B0036
-	for <linux-mm@kvack.org>; Thu, 22 May 2014 17:03:07 -0400 (EDT)
-Received: by mail-ee0-f44.google.com with SMTP id c41so3016075eek.31
-        for <linux-mm@kvack.org>; Thu, 22 May 2014 14:03:07 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id x49si2719140eef.23.2014.05.22.14.03.04
-        for <linux-mm@kvack.org>;
-        Thu, 22 May 2014 14:03:05 -0700 (PDT)
-Message-ID: <537e6609.c9630e0a.682e.ffffc1bcSMTPIN_ADDED_BROKEN@mx.google.com>
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH 0/4] pagecache scanning with /proc/kpagecache
-Date: Thu, 22 May 2014 17:02:39 -0400
-In-Reply-To: <537e385d.8764b40a.0a1f.ffffabccSMTPIN_ADDED_BROKEN@mx.google.com>
-References: <1400639194-3743-1-git-send-email-n-horiguchi@ah.jp.nec.com> <20140521154250.95bc3520ad8d192d95efe39b@linux-foundation.org> <537d5ee4.4914e00a.5672.ffff85d5SMTPIN_ADDED_BROKEN@mx.google.com> <20140521193336.5df90456.akpm@linux-foundation.org> <CALYGNiMeDtiaA6gfbEYcXbwkuFvTRCLC9KmMOPtopAgGg5b6AA@mail.gmail.com> <20140522103632.GA23680@node.dhcp.inet.fi> <537e385d.8764b40a.0a1f.ffffabccSMTPIN_ADDED_BROKEN@mx.google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
-Content-Disposition: inline
+Received: from mail-qg0-f52.google.com (mail-qg0-f52.google.com [209.85.192.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 22A7C6B0036
+	for <linux-mm@kvack.org>; Thu, 22 May 2014 19:49:01 -0400 (EDT)
+Received: by mail-qg0-f52.google.com with SMTP id a108so7034760qge.11
+        for <linux-mm@kvack.org>; Thu, 22 May 2014 16:49:00 -0700 (PDT)
+Received: from mail-qc0-f172.google.com (mail-qc0-f172.google.com [209.85.216.172])
+        by mx.google.com with ESMTPS id z4si1654583qar.97.2014.05.22.16.49.00
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 22 May 2014 16:49:00 -0700 (PDT)
+Received: by mail-qc0-f172.google.com with SMTP id l6so6857784qcy.17
+        for <linux-mm@kvack.org>; Thu, 22 May 2014 16:49:00 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <1400233673-11477-1-git-send-email-vbabka@suse.cz>
+References: <1399904111-23520-1-git-send-email-vbabka@suse.cz>
+	<1400233673-11477-1-git-send-email-vbabka@suse.cz>
+Date: Thu, 22 May 2014 16:49:00 -0700
+Message-ID: <CAGa+x87-NRyK6kUiXNL_bRNEGm+DR6M3HPSLYEoq4t6Nrtnd_g@mail.gmail.com>
+Subject: Re: [PATCH v2] mm, compaction: properly signal and act upon lock and
+ need_sched() contention
+From: Kevin Hilman <khilman@linaro.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kirill@shutemov.name
-Cc: Konstantin Khlebnikov <koct9i@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Wu Fengguang <fengguang.wu@intel.com>, Arnaldo Carvalho de Melo <acme@redhat.com>, Borislav Petkov <bp@alien8.de>, gorcunov@openvz.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Greg Thelen <gthelen@google.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Olof Johansson <olof@lixom.net>, Stephen Warren <swarren@wwwdotorg.org>
 
-On Thu, May 22, 2014 at 01:47:48PM -0400, Naoya Horiguchi wrote:
-...
-> > BTW, does everybody happy with mincore() interface? We report 1 there=
- if
-> > pte is present, but it doesn't really say much about the page for cas=
-es
-> > like zero page...
-> =
+On Fri, May 16, 2014 at 2:47 AM, Vlastimil Babka <vbabka@suse.cz> wrote:
+> Compaction uses compact_checklock_irqsave() function to periodically check for
+> lock contention and need_resched() to either abort async compaction, or to
+> free the lock, schedule and retake the lock. When aborting, cc->contended is
+> set to signal the contended state to the caller. Two problems have been
+> identified in this mechanism.
 
-> According to manpage of mincore(2), =
+This patch (or later version) has hit next-20140522 (in the form
+commit 645ceea9331bfd851bc21eea456dda27862a10f4) and according to my
+bisect, appears to be the culprit of several boot failures on ARM
+platforms.
 
->   mincore()  returns a vector that indicates whether pages of the calli=
-ng process's vir=E2=80=90
->   tual memory are resident in core (RAM), and so will not  cause  a  di=
-sk  access  (page
->   fault) if referenced.  ...
-> =
+Unfortunately, there isn't much useful in the logs of the boot
+failures/hangs since they mostly silently hang.  However, on one
+platform (Marvell Armada 370 Mirabox), it reports a failure to
+allocate memory, and the RCU stall detection kicks in:
 
-> so we can assume that the callers want to predict whether they will hav=
-e
-> page faults. But it depends on whether the access is read or write.
-> So I think current mincore() is not enough to do this prediction precis=
-ely
-> for privately shared pages (including zero page and ksm page).
-> Maybe we need a new syscall to solving this problem.
+[    1.298234] xhci_hcd 0000:02:00.0: xHCI Host Controller
+[    1.303485] xhci_hcd 0000:02:00.0: new USB bus registered, assigned
+bus number 1
+[    1.310966] xhci_hcd 0000:02:00.0: Couldn't initialize memory
+[   22.245395] INFO: rcu_sched detected stalls on CPUs/tasks: {}
+(detected by 0, t=2102 jiffies, g=-282, c=-283, q=16)
+[   22.255886] INFO: Stall ended before state dump start
+[   48.095396] NMI watchdog: BUG: soft lockup - CPU#0 stuck for 22s!
+[swapper/0:1]
 
-Sorry, this is not correct, we can use upper bits of each vector to
-show protection info of page table entry.
+Reverting this commit makes them all happy again.
+
+Kevin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
