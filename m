@@ -1,21 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f53.google.com (mail-qg0-f53.google.com [209.85.192.53])
-	by kanga.kvack.org (Postfix) with ESMTP id C49D46B0036
-	for <linux-mm@kvack.org>; Thu, 22 May 2014 02:45:40 -0400 (EDT)
-Received: by mail-qg0-f53.google.com with SMTP id f51so4892532qge.12
-        for <linux-mm@kvack.org>; Wed, 21 May 2014 23:45:40 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id k10si4197763qaj.33.2014.05.21.23.45.40
+Received: from mail-we0-f176.google.com (mail-we0-f176.google.com [74.125.82.176])
+	by kanga.kvack.org (Postfix) with ESMTP id DFA7C6B0036
+	for <linux-mm@kvack.org>; Thu, 22 May 2014 03:20:14 -0400 (EDT)
+Received: by mail-we0-f176.google.com with SMTP id q59so2961874wes.21
+        for <linux-mm@kvack.org>; Thu, 22 May 2014 00:20:14 -0700 (PDT)
+Received: from casper.infradead.org (casper.infradead.org. [2001:770:15f::2])
+        by mx.google.com with ESMTPS id fc6si3102126wib.73.2014.05.22.00.20.09
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 21 May 2014 23:45:40 -0700 (PDT)
-Date: Thu, 22 May 2014 08:45:29 +0200
+        Thu, 22 May 2014 00:20:09 -0700 (PDT)
+Date: Thu, 22 May 2014 09:20:01 +0200
 From: Peter Zijlstra <peterz@infradead.org>
 Subject: Re: [PATCH] mm: filemap: Avoid unnecessary barries and waitqueue
  lookups in unlock_page fastpath v5
-Message-ID: <20140522064529.GI30445@twins.programming.kicks-ass.net>
-References: <20140513125313.GR23991@suse.de>
- <20140513141748.GD2485@laptop.programming.kicks-ass.net>
+Message-ID: <20140522072001.GP30445@twins.programming.kicks-ass.net>
+References: <20140513141748.GD2485@laptop.programming.kicks-ass.net>
  <20140514161152.GA2615@redhat.com>
  <20140514192945.GA10830@redhat.com>
  <20140515104808.GF23991@suse.de>
@@ -24,94 +23,89 @@ References: <20140513125313.GR23991@suse.de>
  <20140521142622.049d0b3af5fc94912d5a1472@linux-foundation.org>
  <20140521213354.GL2485@laptop.programming.kicks-ass.net>
  <20140521145000.f130f8779f7641d0d8afcace@linux-foundation.org>
+ <20140522000715.GA23991@suse.de>
 MIME-Version: 1.0
 Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="JA8sJ/HI0simWIGD"
+	protocol="application/pgp-signature"; boundary="Gi2vSq8QtPYbuTNa"
 Content-Disposition: inline
-In-Reply-To: <20140521145000.f130f8779f7641d0d8afcace@linux-foundation.org>
+In-Reply-To: <20140522000715.GA23991@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, Oleg Nesterov <oleg@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, David Howells <dhowells@redhat.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, David Howells <dhowells@redhat.com>
 
 
---JA8sJ/HI0simWIGD
+--Gi2vSq8QtPYbuTNa
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
 
-On Wed, May 21, 2014 at 02:50:00PM -0700, Andrew Morton wrote:
-> On Wed, 21 May 2014 23:33:54 +0200 Peter Zijlstra <peterz@infradead.org> =
-wrote:
+On Thu, May 22, 2014 at 01:07:15AM +0100, Mel Gorman wrote:
 
-> Alternative solution is not to merge the patch ;)
-
-There is always that.. :-)
-
-> > Yeah, so we only clear that bit when at 'unlock' we find there are no
-> > more pending waiters, so if the last unlock still had a waiter, we'll
-> > leave the bit set.
->=20
-> Confused.  If the last unlock had a waiter, that waiter will get woken
-> up so there are no waiters any more, so the last unlock clears the flag.
->=20
-> um, how do we determine that there are no more waiters?  By looking at
-> the waitqueue.  But that waitqueue is hashed, so it may contain waiters
-> for other pages so we're screwed?  But we could just go and wake up the
-> other-page waiters anyway and still clear PG_waiters?
->=20
-> um2, we're using exclusive waitqueues so we can't (or don't) wake all
-> waiters, so we're screwed again?
-
-Ah, so leave it set. Then when we do an uncontended wakeup, that is a
-wakeup where there are _no_ waiters left, we'll iterate the entire
-hashed queue, looking for a matching page.
-
-We'll find none, and only then clear the bit.
+> +PAGEFLAG(Waiters, waiters) __CLEARPAGEFLAG(Waiters, waiters)
+> +	TESTCLEARFLAG(Waiters, waiters)
+> +#define __PG_WAITERS		(1 << PG_waiters)
+> +#else
+> +/* Always fallback to slow path on 32-bit */
+> +static inline bool PageWaiters(struct page *page)
+> +{
+> +	return true;
+> +}
+> +static inline void __ClearPageWaiters(struct page *page) {}
+> +static inline void ClearPageWaiters(struct page *page) {}
+> +static inline void SetPageWaiters(struct page *page) {}
+> +#define __PG_WAITERS		0
 
 
-> (This process is proving to be a hard way of writing Mel's changelog btw).
+> +void __wake_up_page_bit(wait_queue_head_t *wqh, struct page *page, void *word, int bit)
+> +{
+> +	struct wait_bit_key key = __WAIT_BIT_KEY_INITIALIZER(word, bit);
+> +	unsigned long flags;
+> +
+> +	/*
+> +	 * Unlike __wake_up_bit it is necessary to check waitqueue_active to be
+> +	 * checked under the wqh->lock to avoid races with parallel additions
+> +	 * to the waitqueue. Otherwise races could result in lost wakeups
+> +	 */
 
-Agreed :/
+Well, you could do something like:
 
-> If I'm still on track here, what happens if we switch to wake-all so we
-> can avoid the dangling flag?  I doubt if there are many collisions on
-> that hash table?
+	if (!__PG_WAITERS && !waitqueue_active(wqh))
+		return;
 
-Wake-all will be ugly and loose a herd of waiters, all racing to
-acquire, all but one of whoem will loose the race. It also looses the
-fairness, its currently a FIFO queue. Wake-all will allow starvation.
+Which at least for 32bit restores some of the performance loss of this
+patch (did you have 32bit numbers in that massive changelog?, I totally
+tl;dr it).
 
-> If there *are* a lot of collisions, I bet it's because a great pile of
-> threads are all waiting on the same page.  If they're trying to lock
-> that page then wake-all is bad.  But if they're just waiting for IO
-> completion (probable) then it's OK.
+> +	spin_lock_irqsave(&wqh->lock, flags);
+> +	if (waitqueue_active(wqh))
+> +		__wake_up_common(wqh, TASK_NORMAL, 1, 0, &key);
+> +	else
+> +		ClearPageWaiters(page);
+> +	spin_unlock_irqrestore(&wqh->lock, flags);
+> +}
 
-Yeah, I'm not entirely sure on the rationale for adding PG_waiters to
-writeback completion, and yes PG_writeback is a wake-all.
-
---JA8sJ/HI0simWIGD
+--Gi2vSq8QtPYbuTNa
 Content-Type: application/pgp-signature
 
 -----BEGIN PGP SIGNATURE-----
 Version: GnuPG v1.4.12 (GNU/Linux)
 
-iQIcBAEBAgAGBQJTfZ0EAAoJEHZH4aRLwOS6LGwP+wQjxlILW154B/dq1w01YDxy
-5u9xbrY/+yo5xNTfJJNMD89kschbq/p+bf40Cb0HBG7lgn5gf5Lqxo4Af2oygZNB
-YZncMP7t/L3r22eYnvveQ9omatlNXMUIy+yR84VJmH5b0Z7m+FM7OskI39/tcNde
-Db8Yx7ytdAYtki6wQvSqxIp3ldxVfeNaWBFmR/NR+UYCOL8rf+scwO+l2pMmq0gJ
-OY87kkzKQuBW8yga6sMdIjhmaz/muNjwxhAxf9OUOgJoA2vG/GHCxW3psj+9nDwC
-xlK0uMy7WXOZb9YJRY6iIz4FPcwGv1IB5bnR9VZIa4+hYvoxrijY5LOyudloJU8x
-sZRxOCU6GsJWp4+l4KPJOGW7q1V1b87E5ywZIJakHZfh1NQEx/CmHV9hy2zUcICO
-OCvnszUUsNGWWQ69n0rw7qsHiXQVzka2paZqYDjCoMFXOUbiggHDsC9hySrG6IFW
-gI9T9b3XWFj5DoaqdKlfuz72wwOZBuSDzgKXmzIjEwofElH4Uz7mDkOpqJpg8dii
-oF7Y+c5n1Jqvpt3BRNldSgI8dDeTlSihKQe3C6bXApyYKI4jETewa6qIRCBZyQtl
-ThDF6QPT3S/3zGWUh2+Z2iUqzOku5dAeY/Nx/zePeyouTDjO9E1MieSKVri4AKhB
-PIdvMpoT4cdgg22ErxpS
-=jeio
+iQIcBAEBAgAGBQJTfaUhAAoJEHZH4aRLwOS6+pUP/RIBpDxISiW0cjgaSqTKzi6B
+CXgpKBFSLjmaR/Q0/aAWu9TZ05uvbVTR4z0UeevPKEIrngipussAwEr1PzeaE5LI
+HGtCwZ3K8nlo5HH0LEFv7uTqgNZil/FaJWXvFqr1niRxE7DY95KYN+paAlbPEMPG
+FE0JlwuWh0oDyxH06u5CD/3BzZl3atecaRERxhYXmhi1Trk4Tw8YxUDTqcuFZwtW
+4gZ7WnEKIxhs/tsJ6Ki1GeWZeRbXNbMzuclZUP+9otH14S3/bZTklfU6jcImTQmL
+TGLVOms0YW4I0a59iMoYlejdPsha0BoNcDyaV1AeHzmmAjbRYbvu6iSI9vREiJKq
+e+Z1ATagg41+KM67nGjs2yE+2CC4vnckHtsHVudBhplTx7L8DtOdK/lb86/Peeci
+97Vns4MTtP09YWYkioCDEsn5fA6outwERPUnwOVPukcIQxnNcrSc3lBp4Is+N1I5
+ZilBIQ5v3fEPNfU5YG4MFo6UZsatCBq6LI4feDI8whAF3TdPo2Ae+sMyH4lSOdBT
+roBdCqWXWqcIik+V0JXOv2R9ONTEYbu89AX2utGWc9kFog0UgcXnwPKjyPnX0JqG
+8yIjHQrAP9JQP6QNfd3E6Z9w6T2Klo7qt4QwoexGJbmuHEQksOgtIGbAxLvqvq/9
+/UeLqRC7IQvmVd6SdkFM
+=TNvM
 -----END PGP SIGNATURE-----
 
---JA8sJ/HI0simWIGD--
+--Gi2vSq8QtPYbuTNa--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
