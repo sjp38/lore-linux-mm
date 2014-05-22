@@ -1,628 +1,702 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f53.google.com (mail-ee0-f53.google.com [74.125.83.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 525786B0036
-	for <linux-mm@kvack.org>; Thu, 22 May 2014 06:40:58 -0400 (EDT)
-Received: by mail-ee0-f53.google.com with SMTP id c13so2502403eek.12
-        for <linux-mm@kvack.org>; Thu, 22 May 2014 03:40:57 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f42si14493684eem.125.2014.05.22.03.40.56
+Received: from mail-we0-f179.google.com (mail-we0-f179.google.com [74.125.82.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 0EA3E6B0036
+	for <linux-mm@kvack.org>; Thu, 22 May 2014 06:50:08 -0400 (EDT)
+Received: by mail-we0-f179.google.com with SMTP id q59so3202819wes.38
+        for <linux-mm@kvack.org>; Thu, 22 May 2014 03:50:08 -0700 (PDT)
+Received: from mail-wi0-x22d.google.com (mail-wi0-x22d.google.com [2a00:1450:400c:c05::22d])
+        by mx.google.com with ESMTPS id pd8si18725218wjb.56.2014.05.22.03.50.07
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 22 May 2014 03:40:56 -0700 (PDT)
-Date: Thu, 22 May 2014 11:40:51 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: [PATCH] mm: filemap: Avoid unnecessary barriers and waitqueue
- lookups in unlock_page fastpath v7
-Message-ID: <20140522104051.GE23991@suse.de>
-References: <20140514161152.GA2615@redhat.com>
- <20140514192945.GA10830@redhat.com>
- <20140515104808.GF23991@suse.de>
- <20140515142414.16c47315a03160c58ceb9066@linux-foundation.org>
- <20140521121501.GT23991@suse.de>
- <20140521142622.049d0b3af5fc94912d5a1472@linux-foundation.org>
- <20140521213354.GL2485@laptop.programming.kicks-ass.net>
- <20140521145000.f130f8779f7641d0d8afcace@linux-foundation.org>
- <20140522000715.GA23991@suse.de>
- <20140522072001.GP30445@twins.programming.kicks-ass.net>
+        Thu, 22 May 2014 03:50:07 -0700 (PDT)
+Received: by mail-wi0-f173.google.com with SMTP id bs8so9033865wib.0
+        for <linux-mm@kvack.org>; Thu, 22 May 2014 03:50:07 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20140522072001.GP30445@twins.programming.kicks-ass.net>
+In-Reply-To: <1400469419-5456-1-git-send-email-minchan@kernel.org>
+References: <1400469419-5456-1-git-send-email-minchan@kernel.org>
+From: Michael Kerrisk <mtk.manpages@gmail.com>
+Date: Thu, 22 May 2014 12:49:47 +0200
+Message-ID: <CAHO5Pa2o8XAabF31s1LdPMwMziLYxn6__wBo5bk5Q6zwLm-WyA@mail.gmail.com>
+Subject: Re: [PATCH v7] mm: support madvise(MADV_FREE)
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Peter Zijlstra <peterz@infradead.org>, Oleg Nesterov <oleg@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, David Howells <dhowells@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Dave Hansen <dave.hansen@intel.com>, John Stultz <john.stultz@linaro.org>, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Rik van Riel <riel@redhat.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Jason Evans <je@fb.com>, Linux API <linux-api@vger.kernel.org>
 
-Changelog since v6
-o Optimisation when PG_waiters is not available	(peterz)
-o Documentation
+Hi Minchan,
 
-Changelog since v5
-o __always_inline where appropriate		(peterz)
-o Documentation					(akpm)
+On Mon, May 19, 2014 at 5:16 AM, Minchan Kim <minchan@kernel.org> wrote:
+> Linux doesn't have an ability to free pages lazy while other OS
+> already have been supported that named by madvise(MADV_FREE).
 
-Changelog since v4
-o Remove dependency on io_schedule_timeout
-o Push waiting logic down into waitqueue
+Since this patch changes the ABI, could you please CC future
+iterations to linux-api@vger.kernel.org as per
+Documentation/SubmitChecklist.
 
-From: Nick Piggin <npiggin@suse.de>
+Thanks,
 
-This patch introduces a new page flag for 64-bit capable machines,
-PG_waiters, to signal there are *potentially* processes waiting on
-PG_lock or PG_writeback.  If there are no possible waiters then we avoid
-barriers, a waitqueue hash lookup and a failed wake_up in the unlock_page
-and end_page_writeback paths. There is no guarantee that waiters exist if
-PG_waiters is set as multiple pages can hash to the same waitqueue and we
-cannot accurately detect if a waking process is the last waiter without
-a reference count. When this happens, the bit is left set and a future
-unlock or writeback completion will lookup the waitqueue and clear the
-bit when there are no collisions. This adds a few branches to the fast
-path but avoids bouncing a dirty cache line between CPUs. 32-bit machines
-always take the slow path but the primary motivation for this patch is
-large machines so I do not think that is a concern.
+Michael
 
-The test case used to evaluate this is a simple dd of a large file done
-multiple times with the file deleted on each iterations. The size of the
-file is 1/10th physical memory to avoid dirty page balancing. After each
-dd there is a sync so the reported times do not vary much. By measuring
-the time it takes to do async the impact of page_waitqueue overhead for
-async IO is highlighted.
 
-The test machine was single socket and UMA to avoid any scheduling or
-NUMA artifacts. The performance results are reported based on a run with
-no profiling.  Profile data is based on a separate run with oprofile running.
+> The gain is clear that kernel can discard freed pages rather than
+> swapping out or OOM if memory pressure happens.
+>
+> Without memory pressure, freed pages would be reused by userspace
+> without another additional overhead(ex, page fault + allocation
+> + zeroing).
+>
+> How to work is following as.
+>
+> When madvise syscall is called, VM clears dirty bit of ptes of
+> the range. If memory pressure happens, VM checks dirty bit of
+> page table and if it found still "clean", it means it's a
+> "lazyfree pages" so VM could discard the page instead of swapping out.
+> Once there was store operation for the page before VM peek a page
+> to reclaim, dirty bit is set so VM can swap out the page instead of
+> discarding.
+>
+> Firstly, heavy users would be general allocators(ex, jemalloc,
+> tcmalloc and hope glibc supports it) and jemalloc/tcmalloc already
+> have supported the feature for other OS(ex, FreeBSD)
+> barrios@blaptop:~/benchmark/ebizzy$ lscpu
+> Architecture:          x86_64
+> CPU op-mode(s):        32-bit, 64-bit
+> Byte Order:            Little Endian
+> CPU(s):                4
+> On-line CPU(s) list:   0-3
+> Thread(s) per core:    2
+> Core(s) per socket:    2
+> Socket(s):             1
+> NUMA node(s):          1
+> Vendor ID:             GenuineIntel
+> CPU family:            6
+> Model:                 42
+> Stepping:              7
+> CPU MHz:               2801.000
+> BogoMIPS:              5581.64
+> Virtualization:        VT-x
+> L1d cache:             32K
+> L1i cache:             32K
+> L2 cache:              256K
+> L3 cache:              4096K
+> NUMA node0 CPU(s):     0-3
+>
+> ebizzy benchmark(./ebizzy -S 10 -n 512)
+>
+>  vanilla-jemalloc               MADV_free-jemalloc
+>
+> 1 thread
+> records:  10              records:  10
+> avg:      7682.10         avg:      15306.10
+> std:      62.35(0.81%)    std:      347.99(2.27%)
+> max:      7770.00         max:      15622.00
+> min:      7598.00         min:      14772.00
+>
+> 2 thread
+> records:  10              records:  10
+> avg:      12747.50        avg:      24171.00
+> std:      792.06(6.21%)   std:      895.18(3.70%)
+> max:      13337.00        max:      26023.00
+> min:      10535.00        min:      23152.00
+>
+> 4 thread
+> records:  10              records:  10
+> avg:      16474.60        avg:      33717.90
+> std:      1496.45(9.08%)  std:      2008.97(5.96%)
+> max:      17877.00        max:      35958.00
+> min:      12224.00        min:      29565.00
+>
+> 8 thread
+> records:  10              records:  10
+> avg:      16778.50        avg:      33308.10
+> std:      825.53(4.92%)   std:      1668.30(5.01%)
+> max:      17543.00        max:      36010.00
+> min:      14576.00        min:      29577.00
+>
+> 16 thread
+> records:  10              records:  10
+> avg:      20614.40        avg:      35516.30
+> std:      602.95(2.92%)   std:      1283.65(3.61%)
+> max:      21753.00        max:      37178.00
+> min:      19605.00        min:      33217.00
+>
+> 32 thread
+> records:  10              records:  10
+> avg:      22771.70        avg:      36018.50
+> std:      598.94(2.63%)   std:      1046.76(2.91%)
+> max:      24035.00        max:      37266.00
+> min:      22108.00        min:      34149.00
+>
+> In summary, MADV_FREE is about 2 time faster than MADV_DONTNEED.
+>
+> * From v6
+>  * Remove page from swapcache in syscal time
+>  * Move utility functions from memory.c to madvise.c - Johannes
+>  * Rename untilify functtions - Johannes
+>  * Remove unnecessary checks from vmscan.c - Johannes
+>  * Rebased-on v3.15-rc5-mmotm-2014-05-16-16-56
+>  * Drop Reviewe-by because there was some changes since then.
+>
+> * From v5
+>  * Fix PPC problem which don't flush TLB - Rik
+>  * Remove unnecessary lazyfree_range stub function - Rik
+>  * Rebased on v3.15-rc5
+>
+> * From v4
+>  * Add Reviewed-by: Zhang Yanfei
+>  * Rebase on v3.15-rc1-mmotm-2014-04-15-16-14
+>
+> * From v3
+>  * Add "how to work part" in description - Zhang
+>  * Add page_discardable utility function - Zhang
+>  * Clean up
+>
+> * From v2
+>  * Remove forceful dirty marking of swap-readed page - Johannes
+>  * Remove deactivation logic of lazyfreed page
+>  * Rebased on 3.14
+>  * Remove RFC tag
+>
+> * From v1
+>  * Use custom page table walker for madvise_free - Johannes
+>  * Remove PG_lazypage flag - Johannes
+>  * Do madvise_dontneed instead of madvise_freein swapless system
+>
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: Jason Evans <je@fb.com>
+> Cc: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
+> ---
+>  include/linux/rmap.h                   |   8 +-
+>  include/linux/vm_event_item.h          |   1 +
+>  include/uapi/asm-generic/mman-common.h |   1 +
+>  mm/madvise.c                           | 174 +++++++++++++++++++++++++++++++++
+>  mm/rmap.c                              |  34 ++++++-
+>  mm/vmscan.c                            |  37 +++++--
+>  mm/vmstat.c                            |   1 +
+>  7 files changed, 245 insertions(+), 11 deletions(-)
+>
+> diff --git a/include/linux/rmap.h b/include/linux/rmap.h
+> index 9be55c7617da..1fb2beb351f8 100644
+> --- a/include/linux/rmap.h
+> +++ b/include/linux/rmap.h
+> @@ -182,7 +182,8 @@ static inline void page_dup_rmap(struct page *page)
+>   * Called from mm/vmscan.c to handle paging out
+>   */
+>  int page_referenced(struct page *, int is_locked,
+> -                       struct mem_cgroup *memcg, unsigned long *vm_flags);
+> +                       struct mem_cgroup *memcg, unsigned long *vm_flags,
+> +                       int *is_dirty);
+>
+>  #define TTU_ACTION(x) ((x) & TTU_ACTION_MASK)
+>
+> @@ -261,9 +262,12 @@ int rmap_walk(struct page *page, struct rmap_walk_control *rwc);
+>
+>  static inline int page_referenced(struct page *page, int is_locked,
+>                                   struct mem_cgroup *memcg,
+> -                                 unsigned long *vm_flags)
+> +                                 unsigned long *vm_flags,
+> +                                 int *is_pte_dirty)
+>  {
+>         *vm_flags = 0;
+> +       if (is_pte_dirty)
+> +               *is_pte_dirty = 0;
+>         return 0;
+>  }
+>
+> diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
+> index ced92345c963..e2d3fb1e9814 100644
+> --- a/include/linux/vm_event_item.h
+> +++ b/include/linux/vm_event_item.h
+> @@ -25,6 +25,7 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
+>                 FOR_ALL_ZONES(PGALLOC),
+>                 PGFREE, PGACTIVATE, PGDEACTIVATE,
+>                 PGFAULT, PGMAJFAULT,
+> +               PGLAZYFREED,
+>                 FOR_ALL_ZONES(PGREFILL),
+>                 FOR_ALL_ZONES(PGSTEAL_KSWAPD),
+>                 FOR_ALL_ZONES(PGSTEAL_DIRECT),
+> diff --git a/include/uapi/asm-generic/mman-common.h b/include/uapi/asm-generic/mman-common.h
+> index ddc3b36f1046..7a94102b7a02 100644
+> --- a/include/uapi/asm-generic/mman-common.h
+> +++ b/include/uapi/asm-generic/mman-common.h
+> @@ -34,6 +34,7 @@
+>  #define MADV_SEQUENTIAL        2               /* expect sequential page references */
+>  #define MADV_WILLNEED  3               /* will need these pages */
+>  #define MADV_DONTNEED  4               /* don't need these pages */
+> +#define MADV_FREE      5               /* free pages only if memory pressure */
+>
+>  /* common parameters: try to keep these consistent across architectures */
+>  #define MADV_REMOVE    9               /* remove these pages & resources */
+> diff --git a/mm/madvise.c b/mm/madvise.c
+> index a402f8fdc68e..3085441c484c 100644
+> --- a/mm/madvise.c
+> +++ b/mm/madvise.c
+> @@ -19,6 +19,9 @@
+>  #include <linux/blkdev.h>
+>  #include <linux/swap.h>
+>  #include <linux/swapops.h>
+> +#include <linux/mmu_notifier.h>
+> +
+> +#include <asm/tlb.h>
+>
+>  /*
+>   * Any behaviour which results in changes to the vma->vm_flags needs to
+> @@ -31,6 +34,7 @@ static int madvise_need_mmap_write(int behavior)
+>         case MADV_REMOVE:
+>         case MADV_WILLNEED:
+>         case MADV_DONTNEED:
+> +       case MADV_FREE:
+>                 return 0;
+>         default:
+>                 /* be safe, default to 1. list exceptions explicitly */
+> @@ -251,6 +255,168 @@ static long madvise_willneed(struct vm_area_struct *vma,
+>         return 0;
+>  }
+>
+> +static unsigned long madvise_free_pte_range(struct mmu_gather *tlb,
+> +                               struct vm_area_struct *vma, pmd_t *pmd,
+> +                               unsigned long addr, unsigned long end)
+> +{
+> +       struct mm_struct *mm = tlb->mm;
+> +       spinlock_t *ptl;
+> +       pte_t *start_pte;
+> +       pte_t *pte;
+> +       struct page *page;
+> +
+> +       start_pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
+> +       pte = start_pte;
+> +       arch_enter_lazy_mmu_mode();
+> +       do {
+> +               pte_t ptent = *pte;
+> +
+> +               if (pte_none(ptent))
+> +                       continue;
+> +
+> +               if (!pte_present(ptent))
+> +                       continue;
+> +
+> +               page = vm_normal_page(vma, addr, ptent);
+> +               if (page && PageSwapCache(page)) {
+> +                       if (trylock_page(page)) {
+> +                               if (try_to_free_swap(page))
+> +                                       ClearPageDirty(page);
+> +                               unlock_page(page);
+> +                       } else
+> +                               continue;
+> +               }
+> +
+> +               /*
+> +                * Some of architecture(ex, PPC) don't update TLB
+> +                * with set_pte_at and tlb_remove_tlb_entry so for
+> +                * the portability, remap the pte with old|clean
+> +                * after pte clearing.
+> +                */
+> +               ptent = ptep_get_and_clear_full(mm, addr, pte,
+> +                                               tlb->fullmm);
+> +               ptent = pte_mkold(ptent);
+> +               ptent = pte_mkclean(ptent);
+> +               set_pte_at(mm, addr, pte, ptent);
+> +               tlb_remove_tlb_entry(tlb, pte, addr);
+> +       } while (pte++, addr += PAGE_SIZE, addr != end);
+> +       arch_leave_lazy_mmu_mode();
+> +       pte_unmap_unlock(start_pte, ptl);
+> +
+> +       return addr;
+> +}
+> +
+> +static inline unsigned long madvise_free_pmd_range(struct mmu_gather *tlb,
+> +                               struct vm_area_struct *vma, pud_t *pud,
+> +                               unsigned long addr, unsigned long end)
+> +{
+> +       pmd_t *pmd;
+> +       unsigned long next;
+> +
+> +       pmd = pmd_offset(pud, addr);
+> +       do {
+> +               /*
+> +                * XXX: We can optimize with supporting Hugepage free
+> +                * if the range covers.
+> +                */
+> +               next = pmd_addr_end(addr, end);
+> +               if (pmd_trans_huge(*pmd))
+> +                       split_huge_page_pmd(vma, addr, pmd);
+> +               /*
+> +                * Here there can be other concurrent MADV_DONTNEED or
+> +                * trans huge page faults running, and if the pmd is
+> +                * none or trans huge it can change under us. This is
+> +                * because MADV_LAZYFREE holds the mmap_sem in read
+> +                * mode.
+> +                */
+> +               if (pmd_none_or_trans_huge_or_clear_bad(pmd))
+> +                       goto next;
+> +               next = madvise_free_pte_range(tlb, vma, pmd, addr, next);
+> +next:
+> +               cond_resched();
+> +       } while (pmd++, addr = next, addr != end);
+> +
+> +       return addr;
+> +}
+> +
+> +static inline unsigned long madvise_free_pud_range(struct mmu_gather *tlb,
+> +                               struct vm_area_struct *vma, pgd_t *pgd,
+> +                               unsigned long addr, unsigned long end)
+> +{
+> +       pud_t *pud;
+> +       unsigned long next;
+> +
+> +       pud = pud_offset(pgd, addr);
+> +       do {
+> +               next = pud_addr_end(addr, end);
+> +               if (pud_none_or_clear_bad(pud))
+> +                       continue;
+> +               next = madvise_free_pmd_range(tlb, vma, pud, addr, next);
+> +       } while (pud++, addr = next, addr != end);
+> +
+> +       return addr;
+> +}
+> +
+> +static void madvise_free_page_range(struct mmu_gather *tlb,
+> +                            struct vm_area_struct *vma,
+> +                            unsigned long addr, unsigned long end)
+> +{
+> +       pgd_t *pgd;
+> +       unsigned long next;
+> +
+> +       BUG_ON(addr >= end);
+> +       tlb_start_vma(tlb, vma);
+> +       pgd = pgd_offset(vma->vm_mm, addr);
+> +       do {
+> +               next = pgd_addr_end(addr, end);
+> +               if (pgd_none_or_clear_bad(pgd))
+> +                       continue;
+> +               next = madvise_free_pud_range(tlb, vma, pgd, addr, next);
+> +       } while (pgd++, addr = next, addr != end);
+> +       tlb_end_vma(tlb, vma);
+> +}
+> +
+> +static int madvise_free_single_vma(struct vm_area_struct *vma,
+> +                       unsigned long start_addr, unsigned long end_addr)
+> +{
+> +       unsigned long start, end;
+> +       struct mm_struct *mm = vma->vm_mm;
+> +       struct mmu_gather tlb;
+> +
+> +       if (vma->vm_flags & (VM_LOCKED|VM_HUGETLB|VM_PFNMAP))
+> +               return -EINVAL;
+> +
+> +       /* MADV_FREE works for only anon vma at the moment */
+> +       if (vma->vm_file)
+> +               return -EINVAL;
+> +
+> +       start = max(vma->vm_start, start_addr);
+> +       if (start >= vma->vm_end)
+> +               return -EINVAL;
+> +       end = min(vma->vm_end, end_addr);
+> +       if (end <= vma->vm_start)
+> +               return -EINVAL;
+> +
+> +       lru_add_drain();
+> +       tlb_gather_mmu(&tlb, mm, start, end);
+> +       update_hiwater_rss(mm);
+> +
+> +       mmu_notifier_invalidate_range_start(mm, start, end);
+> +       madvise_free_page_range(&tlb, vma, start, end);
+> +       mmu_notifier_invalidate_range_end(mm, start, end);
+> +       tlb_finish_mmu(&tlb, start, end);
+> +
+> +       return 0;
+> +}
+> +
+> +static long madvise_free(struct vm_area_struct *vma,
+> +                            struct vm_area_struct **prev,
+> +                            unsigned long start, unsigned long end)
+> +{
+> +       *prev = vma;
+> +       return madvise_free_single_vma(vma, start, end);
+> +}
+> +
+>  /*
+>   * Application no longer needs these pages.  If the pages are dirty,
+>   * it's OK to just throw them away.  The app will be more careful about
+> @@ -384,6 +550,13 @@ madvise_vma(struct vm_area_struct *vma, struct vm_area_struct **prev,
+>                 return madvise_remove(vma, prev, start, end);
+>         case MADV_WILLNEED:
+>                 return madvise_willneed(vma, prev, start, end);
+> +       case MADV_FREE:
+> +               /*
+> +                * XXX: In this implementation, MADV_FREE works like
+> +                * MADV_DONTNEED on swapless system or full swap.
+> +                */
+> +               if (get_nr_swap_pages() > 0)
+> +                       return madvise_free(vma, prev, start, end);
+>         case MADV_DONTNEED:
+>                 return madvise_dontneed(vma, prev, start, end);
+>         default:
+> @@ -403,6 +576,7 @@ madvise_behavior_valid(int behavior)
+>         case MADV_REMOVE:
+>         case MADV_WILLNEED:
+>         case MADV_DONTNEED:
+> +       case MADV_FREE:
+>  #ifdef CONFIG_KSM
+>         case MADV_MERGEABLE:
+>         case MADV_UNMERGEABLE:
+> diff --git a/mm/rmap.c b/mm/rmap.c
+> index 3333baab6ece..6f69055311da 100644
+> --- a/mm/rmap.c
+> +++ b/mm/rmap.c
+> @@ -657,6 +657,7 @@ int page_mapped_in_vma(struct page *page, struct vm_area_struct *vma)
+>  }
+>
+>  struct page_referenced_arg {
+> +       int dirtied;
+>         int mapcount;
+>         int referenced;
+>         unsigned long vm_flags;
+> @@ -671,6 +672,7 @@ static int page_referenced_one(struct page *page, struct vm_area_struct *vma,
+>         struct mm_struct *mm = vma->vm_mm;
+>         spinlock_t *ptl;
+>         int referenced = 0;
+> +       int dirty = 0;
+>         struct page_referenced_arg *pra = arg;
+>
+>         if (unlikely(PageTransHuge(page))) {
+> @@ -723,6 +725,10 @@ static int page_referenced_one(struct page *page, struct vm_area_struct *vma,
+>                         if (likely(!(vma->vm_flags & VM_SEQ_READ)))
+>                                 referenced++;
+>                 }
+> +
+> +               if (pte_dirty(*pte))
+> +                       dirty++;
+> +
+>                 pte_unmap_unlock(pte, ptl);
+>         }
+>
+> @@ -731,6 +737,9 @@ static int page_referenced_one(struct page *page, struct vm_area_struct *vma,
+>                 pra->vm_flags |= vma->vm_flags;
+>         }
+>
+> +       if (dirty)
+> +               pra->dirtied++;
+> +
+>         pra->mapcount--;
+>         if (!pra->mapcount)
+>                 return SWAP_SUCCESS; /* To break the loop */
+> @@ -755,6 +764,7 @@ static bool invalid_page_referenced_vma(struct vm_area_struct *vma, void *arg)
+>   * @is_locked: caller holds lock on the page
+>   * @memcg: target memory cgroup
+>   * @vm_flags: collect encountered vma->vm_flags who actually referenced the page
+> + * @is_pte_dirty: ptes which have marked dirty bit - used for lazyfree page
+>   *
+>   * Quick test_and_clear_referenced for all mappings to a page,
+>   * returns the number of ptes which referenced the page.
+> @@ -762,7 +772,8 @@ static bool invalid_page_referenced_vma(struct vm_area_struct *vma, void *arg)
+>  int page_referenced(struct page *page,
+>                     int is_locked,
+>                     struct mem_cgroup *memcg,
+> -                   unsigned long *vm_flags)
+> +                   unsigned long *vm_flags,
+> +                   int *is_pte_dirty)
+>  {
+>         int ret;
+>         int we_locked = 0;
+> @@ -777,6 +788,9 @@ int page_referenced(struct page *page,
+>         };
+>
+>         *vm_flags = 0;
+> +       if (is_pte_dirty)
+> +               *is_pte_dirty = 0;
+> +
+>         if (!page_mapped(page))
+>                 return 0;
+>
+> @@ -804,6 +818,9 @@ int page_referenced(struct page *page,
+>         if (we_locked)
+>                 unlock_page(page);
+>
+> +       if (is_pte_dirty)
+> +               *is_pte_dirty = pra.dirtied;
+> +
+>         return pra.referenced;
+>  }
+>
+> @@ -1142,6 +1159,7 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+>         spinlock_t *ptl;
+>         int ret = SWAP_AGAIN;
+>         enum ttu_flags flags = (enum ttu_flags)arg;
+> +       int dirty = 0;
+>
+>         pte = page_check_address(page, mm, address, &ptl, 0);
+>         if (!pte)
+> @@ -1171,7 +1189,8 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+>         pteval = ptep_clear_flush(vma, address, pte);
+>
+>         /* Move the dirty bit to the physical page now the pte is gone. */
+> -       if (pte_dirty(pteval))
+> +       dirty = pte_dirty(pteval);
+> +       if (dirty)
+>                 set_page_dirty(page);
+>
+>         /* Update high watermark before we lower rss */
+> @@ -1218,6 +1237,16 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+>                         }
+>                         dec_mm_counter(mm, MM_ANONPAGES);
+>                         inc_mm_counter(mm, MM_SWAPENTS);
+> +               } else if (TTU_ACTION(flags) == TTU_UNMAP) {
+> +                       if (dirty || PageDirty(page)) {
+> +                               set_pte_at(mm, address, pte, pteval);
+> +                               ret = SWAP_FAIL;
+> +                               goto out_unmap;
+> +                       } else {
+> +                               /* It's a freeable page by madvise_free */
+> +                               dec_mm_counter(mm, MM_ANONPAGES);
+> +                               goto discard;
+> +                       }
+>                 } else if (IS_ENABLED(CONFIG_MIGRATION)) {
+>                         /*
+>                          * Store the pfn of the page in a special migration
+> @@ -1241,6 +1270,7 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+>         } else
+>                 dec_mm_counter(mm, MM_FILEPAGES);
+>
+> +discard:
+>         page_remove_rmap(page);
+>         page_cache_release(page);
+>
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 7f8504198d41..db6eda9163d0 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -707,13 +707,17 @@ enum page_references {
+>  };
+>
+>  static enum page_references page_check_references(struct page *page,
+> -                                                 struct scan_control *sc)
+> +                                                 struct scan_control *sc,
+> +                                                 bool *freeable)
+>  {
+>         int referenced_ptes, referenced_page;
+>         unsigned long vm_flags;
+> +       int pte_dirty;
+> +
+> +       VM_BUG_ON_PAGE(!PageLocked(page), page);
+>
+>         referenced_ptes = page_referenced(page, 1, sc->target_mem_cgroup,
+> -                                         &vm_flags);
+> +                                         &vm_flags, &pte_dirty);
+>         referenced_page = TestClearPageReferenced(page);
+>
+>         /*
+> @@ -754,6 +758,10 @@ static enum page_references page_check_references(struct page *page,
+>                 return PAGEREF_KEEP;
+>         }
+>
+> +       if (PageAnon(page) && !pte_dirty && !PageSwapCache(page) &&
+> +                       !PageDirty(page))
+> +               *freeable = true;
+> +
+>         /* Reclaim if clean, defer dirty pages to writeback */
+>         if (referenced_page && !PageSwapBacked(page))
+>                 return PAGEREF_RECLAIM_CLEAN;
+> @@ -823,6 +831,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+>                 int may_enter_fs;
+>                 enum page_references references = PAGEREF_RECLAIM_CLEAN;
+>                 bool dirty, writeback;
+> +               bool freeable = false;
+>
+>                 cond_resched();
+>
+> @@ -945,7 +954,8 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+>                 }
+>
+>                 if (!force_reclaim)
+> -                       references = page_check_references(page, sc);
+> +                       references = page_check_references(page, sc,
+> +                                                       &freeable);
+>
+>                 switch (references) {
+>                 case PAGEREF_ACTIVATE:
+> @@ -961,7 +971,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+>                  * Anonymous process memory has backing store?
+>                  * Try to allocate it some swap space here.
+>                  */
+> -               if (PageAnon(page) && !PageSwapCache(page)) {
+> +               if (PageAnon(page) && !PageSwapCache(page) && !freeable) {
+>                         if (!(sc->gfp_mask & __GFP_IO))
+>                                 goto keep_locked;
+>                         if (!add_to_swap(page, page_list))
+> @@ -976,7 +986,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+>                  * The page is mapped into the page tables of one or more
+>                  * processes. Try to unmap it here.
+>                  */
+> -               if (page_mapped(page) && mapping) {
+> +               if (page_mapped(page) && (mapping || freeable)) {
+>                         switch (try_to_unmap(page, ttu_flags)) {
+>                         case SWAP_FAIL:
+>                                 goto activate_locked;
+> @@ -985,7 +995,20 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+>                         case SWAP_MLOCK:
+>                                 goto cull_mlocked;
+>                         case SWAP_SUCCESS:
+> -                               ; /* try to free the page below */
+> +                               /* try to free the page below */
+> +                               if (!freeable)
+> +                                       break;
+> +                               /*
+> +                                * Freeable anon page doesn't have mapping
+> +                                * due to skipping of swapcache so we free
+> +                                * page in here rather than __remove_mapping.
+> +                                */
+> +                               VM_BUG_ON_PAGE(PageSwapCache(page), page);
+> +                               if (!page_freeze_refs(page, 1))
+> +                                       goto keep_locked;
+> +                               __clear_page_locked(page);
+> +                               count_vm_event(PGLAZYFREED);
+> +                               goto free_it;
+>                         }
+>                 }
+>
+> @@ -1723,7 +1746,7 @@ static void shrink_active_list(unsigned long nr_to_scan,
+>                 }
+>
+>                 if (page_referenced(page, 0, sc->target_mem_cgroup,
+> -                                   &vm_flags)) {
+> +                                   &vm_flags, NULL)) {
+>                         nr_rotated += hpage_nr_pages(page);
+>                         /*
+>                          * Identify referenced, file-backed active pages and
+> diff --git a/mm/vmstat.c b/mm/vmstat.c
+> index eef6321c8470..da18337c6c66 100644
+> --- a/mm/vmstat.c
+> +++ b/mm/vmstat.c
+> @@ -794,6 +794,7 @@ const char * const vmstat_text[] = {
+>
+>         "pgfault",
+>         "pgmajfault",
+> +       "pglazyfreed",
+>
+>         TEXTS_FOR_ZONES("pgrefill")
+>         TEXTS_FOR_ZONES("pgsteal_kswapd")
+> --
+> 1.9.2
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-async dd
-                                 3.15.0-rc5            3.15.0-rc5
-                                      mmotm           lockpage
-btrfs Max      ddtime      0.5863 (  0.00%)      0.5621 (  4.14%)
-ext3  Max      ddtime      1.4870 (  0.00%)      1.4609 (  1.76%)
-ext4  Max      ddtime      1.0440 (  0.00%)      1.0376 (  0.61%)
-tmpfs Max      ddtime      0.3541 (  0.00%)      0.3486 (  1.54%)
-xfs   Max      ddtime      0.4995 (  0.00%)      0.4834 (  3.21%)
 
-A separate run with profiles showed this
 
-     samples percentage
-ext3  225851    2.3180  vmlinux-3.15.0-rc5-mmotm       test_clear_page_writeback
-ext3  106848    1.0966  vmlinux-3.15.0-rc5-mmotm       __wake_up_bit
-ext3   71849    0.7374  vmlinux-3.15.0-rc5-mmotm       page_waitqueue
-ext3   40319    0.4138  vmlinux-3.15.0-rc5-mmotm       unlock_page
-ext3   26243    0.2693  vmlinux-3.15.0-rc5-mmotm       end_page_writeback
-ext3  178777    1.7774  vmlinux-3.15.0-rc5-lockpage test_clear_page_writeback
-ext3   67702    0.6731  vmlinux-3.15.0-rc5-lockpage unlock_page
-ext3   22357    0.2223  vmlinux-3.15.0-rc5-lockpage end_page_writeback
-ext3   11131    0.1107  vmlinux-3.15.0-rc5-lockpage __wake_up_bit
-ext3    6360    0.0632  vmlinux-3.15.0-rc5-lockpage __wake_up_page_bit
-ext3    1660    0.0165  vmlinux-3.15.0-rc5-lockpage page_waitqueue
-
-The profiles show a clear reduction in waitqueue and wakeup functions. Note
-that end_page_writeback costs the same as the savings there are due
-to reduced calls to __wake_up_bit and page_waitqueue so there is no
-obvious direct savings. The cost of unlock_page is higher as it's checking
-PageWaiters but it is offset by reduced numbers of calls to page_waitqueue
-and _wake_up_bit. There is a similar story told for each of the filesystems.
-Note that for workloads that contend heavily on the page lock that
-unlock_page may increase in cost as it has to clear PG_waiters so while
-the typical case should be much faster, the worst case costs are now higher.
-
-This is also reflected in the time taken to mmap a range of pages.
-These are the results for xfs only but the other filesystems tell a
-similar story.
-
-                       3.15.0-rc5            3.15.0-rc5
-                            mmotm           lockpage
-Procs 107M     423.0000 (  0.00%)    409.0000 (  3.31%)
-Procs 214M     847.0000 (  0.00%)    823.0000 (  2.83%)
-Procs 322M    1296.0000 (  0.00%)   1232.0000 (  4.94%)
-Procs 429M    1692.0000 (  0.00%)   1644.0000 (  2.84%)
-Procs 536M    2137.0000 (  0.00%)   2057.0000 (  3.74%)
-Procs 644M    2542.0000 (  0.00%)   2472.0000 (  2.75%)
-Procs 751M    2953.0000 (  0.00%)   2872.0000 (  2.74%)
-Procs 859M    3360.0000 (  0.00%)   3310.0000 (  1.49%)
-Procs 966M    3770.0000 (  0.00%)   3724.0000 (  1.22%)
-Procs 1073M   4220.0000 (  0.00%)   4114.0000 (  2.51%)
-Procs 1181M   4638.0000 (  0.00%)   4546.0000 (  1.98%)
-Procs 1288M   5038.0000 (  0.00%)   4940.0000 (  1.95%)
-Procs 1395M   5481.0000 (  0.00%)   5431.0000 (  0.91%)
-Procs 1503M   5940.0000 (  0.00%)   5832.0000 (  1.82%)
-Procs 1610M   6316.0000 (  0.00%)   6204.0000 (  1.77%)
-Procs 1717M   6749.0000 (  0.00%)   6799.0000 ( -0.74%)
-Procs 1825M   7323.0000 (  0.00%)   7082.0000 (  3.29%)
-Procs 1932M   7694.0000 (  0.00%)   7452.0000 (  3.15%)
-Procs 2040M   8079.0000 (  0.00%)   7927.0000 (  1.88%)
-Procs 2147M   8495.0000 (  0.00%)   8360.0000 (  1.59%)
-
-   samples percentage
-xfs  78334    1.3089  vmlinux-3.15.0-rc5-mmotm          page_waitqueue
-xfs  55910    0.9342  vmlinux-3.15.0-rc5-mmotm          unlock_page
-xfs  45120    0.7539  vmlinux-3.15.0-rc5-mmotm          __wake_up_bit
-xfs  41414    0.6920  vmlinux-3.15.0-rc5-mmotm          test_clear_page_writeback
-xfs   4823    0.0806  vmlinux-3.15.0-rc5-mmotm          end_page_writeback
-xfs 100864    1.7063  vmlinux-3.15.0-rc5-lockpage    unlock_page
-xfs  52547    0.8889  vmlinux-3.15.0-rc5-lockpage    test_clear_page_writeback
-xfs   5031    0.0851  vmlinux-3.15.0-rc5-lockpage    end_page_writeback
-xfs   1938    0.0328  vmlinux-3.15.0-rc5-lockpage    __wake_up_bit
-xfs      9   1.5e-04  vmlinux-3.15.0-rc5-lockpage    __wake_up_page_bit
-xfs      7   1.2e-04  vmlinux-3.15.0-rc5-lockpage    page_waitqueue
-
-[jack@suse.cz: Fix add_page_wait_queue]
-[mhocko@suse.cz: Use sleep_on_page_killable in __wait_on_page_locked_killable]
-[steiner@sgi.com: Do not update struct page unnecessarily]
-Signed-off-by: Mel Gorman <mgorman@suse.de>
----
- include/linux/page-flags.h |  18 ++++++
- include/linux/wait.h       |   8 +++
- kernel/sched/wait.c        | 145 +++++++++++++++++++++++++++++++++++----------
- mm/filemap.c               |  25 ++++----
- mm/page_alloc.c            |   1 +
- mm/swap.c                  |  12 ++++
- mm/vmscan.c                |   7 +++
- 7 files changed, 173 insertions(+), 43 deletions(-)
-
-diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-index 7baf0fe..b697e4f 100644
---- a/include/linux/page-flags.h
-+++ b/include/linux/page-flags.h
-@@ -87,6 +87,7 @@ enum pageflags {
- 	PG_private_2,		/* If pagecache, has fs aux data */
- 	PG_writeback,		/* Page is under writeback */
- #ifdef CONFIG_PAGEFLAGS_EXTENDED
-+	PG_waiters,		/* Page has PG_locked waiters. */
- 	PG_head,		/* A head page */
- 	PG_tail,		/* A tail page */
- #else
-@@ -213,6 +214,22 @@ PAGEFLAG(SwapBacked, swapbacked) __CLEARPAGEFLAG(SwapBacked, swapbacked)
- 
- __PAGEFLAG(SlobFree, slob_free)
- 
-+#ifdef CONFIG_PAGEFLAGS_EXTENDED
-+PAGEFLAG(Waiters, waiters) __CLEARPAGEFLAG(Waiters, waiters)
-+	TESTCLEARFLAG(Waiters, waiters)
-+#define __PG_WAITERS		(1 << PG_waiters)
-+#else
-+/* Always fallback to slow path on 32-bit */
-+static inline bool PageWaiters(struct page *page)
-+{
-+	return true;
-+}
-+static inline void __ClearPageWaiters(struct page *page) {}
-+static inline void ClearPageWaiters(struct page *page) {}
-+static inline void SetPageWaiters(struct page *page) {}
-+#define __PG_WAITERS		0
-+#endif /* CONFIG_PAGEFLAGS_EXTENDED */
-+
- /*
-  * Private page markings that may be used by the filesystem that owns the page
-  * for its own purposes.
-@@ -509,6 +526,7 @@ static inline void ClearPageSlabPfmemalloc(struct page *page)
- 	 1 << PG_writeback | 1 << PG_reserved | \
- 	 1 << PG_slab	 | 1 << PG_swapcache | 1 << PG_active | \
- 	 1 << PG_unevictable | __PG_MLOCKED | __PG_HWPOISON | \
-+	 __PG_WAITERS | \
- 	 __PG_COMPOUND_LOCK)
- 
- /*
-diff --git a/include/linux/wait.h b/include/linux/wait.h
-index bd68819..9226724 100644
---- a/include/linux/wait.h
-+++ b/include/linux/wait.h
-@@ -141,14 +141,21 @@ __remove_wait_queue(wait_queue_head_t *head, wait_queue_t *old)
- 	list_del(&old->task_list);
- }
- 
-+struct page;
-+
- void __wake_up(wait_queue_head_t *q, unsigned int mode, int nr, void *key);
- void __wake_up_locked_key(wait_queue_head_t *q, unsigned int mode, void *key);
- void __wake_up_sync_key(wait_queue_head_t *q, unsigned int mode, int nr, void *key);
- void __wake_up_locked(wait_queue_head_t *q, unsigned int mode, int nr);
- void __wake_up_sync(wait_queue_head_t *q, unsigned int mode, int nr);
- void __wake_up_bit(wait_queue_head_t *, void *, int);
-+void __wake_up_page_bit(wait_queue_head_t *, struct page *page, void *, int);
- int __wait_on_bit(wait_queue_head_t *, struct wait_bit_queue *, int (*)(void *), unsigned);
-+int __wait_on_page_bit(wait_queue_head_t *, struct wait_bit_queue *,
-+				struct page *page, int (*)(void *), unsigned);
- int __wait_on_bit_lock(wait_queue_head_t *, struct wait_bit_queue *, int (*)(void *), unsigned);
-+int __wait_on_page_bit_lock(wait_queue_head_t *, struct wait_bit_queue *,
-+				struct page *page, int (*)(void *), unsigned);
- void wake_up_bit(void *, int);
- void wake_up_atomic_t(atomic_t *);
- int out_of_line_wait_on_bit(void *, int, int (*)(void *), unsigned);
-@@ -822,6 +829,7 @@ void prepare_to_wait(wait_queue_head_t *q, wait_queue_t *wait, int state);
- void prepare_to_wait_exclusive(wait_queue_head_t *q, wait_queue_t *wait, int state);
- long prepare_to_wait_event(wait_queue_head_t *q, wait_queue_t *wait, int state);
- void finish_wait(wait_queue_head_t *q, wait_queue_t *wait);
-+void finish_wait_page(wait_queue_head_t *q, wait_queue_t *wait, struct page *page);
- void abort_exclusive_wait(wait_queue_head_t *q, wait_queue_t *wait, unsigned int mode, void *key);
- int autoremove_wake_function(wait_queue_t *wait, unsigned mode, int sync, void *key);
- int wake_bit_function(wait_queue_t *wait, unsigned mode, int sync, void *key);
-diff --git a/kernel/sched/wait.c b/kernel/sched/wait.c
-index 0ffa20a..73cb8c6 100644
---- a/kernel/sched/wait.c
-+++ b/kernel/sched/wait.c
-@@ -167,31 +167,47 @@ EXPORT_SYMBOL_GPL(__wake_up_sync);	/* For internal use only */
-  * stops them from bleeding out - it would still allow subsequent
-  * loads to move into the critical region).
-  */
--void
--prepare_to_wait(wait_queue_head_t *q, wait_queue_t *wait, int state)
-+static __always_inline void
-+__prepare_to_wait(wait_queue_head_t *q, wait_queue_t *wait,
-+			struct page *page, int state, bool exclusive)
- {
- 	unsigned long flags;
- 
--	wait->flags &= ~WQ_FLAG_EXCLUSIVE;
- 	spin_lock_irqsave(&q->lock, flags);
--	if (list_empty(&wait->task_list))
--		__add_wait_queue(q, wait);
-+
-+	/*
-+	 * pages are hashed on a waitqueue that is expensive to lookup.
-+	 * __wait_on_page_bit and __wait_on_page_bit_lock pass in a page
-+	 * to set PG_waiters here. A PageWaiters() can then be used at
-+	 * unlock time or when writeback completes to detect if there
-+	 * are any potential waiters that justify a lookup.
-+	 */
-+	if (page && !PageWaiters(page))
-+		SetPageWaiters(page);
-+	if (list_empty(&wait->task_list)) {
-+		if (exclusive) {
-+			wait->flags |= WQ_FLAG_EXCLUSIVE;
-+			__add_wait_queue_tail(q, wait);
-+		} else {
-+			wait->flags &= ~WQ_FLAG_EXCLUSIVE;
-+			__add_wait_queue(q, wait);
-+		}
-+	}
- 	set_current_state(state);
- 	spin_unlock_irqrestore(&q->lock, flags);
- }
-+
-+void
-+prepare_to_wait(wait_queue_head_t *q, wait_queue_t *wait, int state)
-+{
-+	return __prepare_to_wait(q, wait, NULL, state, false);
-+}
- EXPORT_SYMBOL(prepare_to_wait);
- 
- void
- prepare_to_wait_exclusive(wait_queue_head_t *q, wait_queue_t *wait, int state)
- {
--	unsigned long flags;
--
--	wait->flags |= WQ_FLAG_EXCLUSIVE;
--	spin_lock_irqsave(&q->lock, flags);
--	if (list_empty(&wait->task_list))
--		__add_wait_queue_tail(q, wait);
--	set_current_state(state);
--	spin_unlock_irqrestore(&q->lock, flags);
-+	return __prepare_to_wait(q, wait, NULL, state, true);
- }
- EXPORT_SYMBOL(prepare_to_wait_exclusive);
- 
-@@ -219,16 +235,8 @@ long prepare_to_wait_event(wait_queue_head_t *q, wait_queue_t *wait, int state)
- }
- EXPORT_SYMBOL(prepare_to_wait_event);
- 
--/**
-- * finish_wait - clean up after waiting in a queue
-- * @q: waitqueue waited on
-- * @wait: wait descriptor
-- *
-- * Sets current thread back to running state and removes
-- * the wait descriptor from the given waitqueue if still
-- * queued.
-- */
--void finish_wait(wait_queue_head_t *q, wait_queue_t *wait)
-+static __always_inline void __finish_wait(wait_queue_head_t *q,
-+			wait_queue_t *wait, struct page *page)
- {
- 	unsigned long flags;
- 
-@@ -249,9 +257,33 @@ void finish_wait(wait_queue_head_t *q, wait_queue_t *wait)
- 	if (!list_empty_careful(&wait->task_list)) {
- 		spin_lock_irqsave(&q->lock, flags);
- 		list_del_init(&wait->task_list);
-+
-+		/*
-+		 * Clear PG_waiters if the waitqueue is no longer active. There
-+		 * is no guarantee that a page with no waiters will get cleared
-+		 * as there may be unrelated pages hashed to sleep on the same
-+		 * queue. Accurate detection would require a counter but
-+		 * collisions are expected to be rare.
-+		 */
-+		if (page && !waitqueue_active(q))
-+			ClearPageWaiters(page);
- 		spin_unlock_irqrestore(&q->lock, flags);
- 	}
- }
-+
-+/**
-+ * finish_wait - clean up after waiting in a queue
-+ * @q: waitqueue waited on
-+ * @wait: wait descriptor
-+ *
-+ * Sets current thread back to running state and removes
-+ * the wait descriptor from the given waitqueue if still
-+ * queued.
-+ */
-+void finish_wait(wait_queue_head_t *q, wait_queue_t *wait)
-+{
-+	return __finish_wait(q, wait, NULL);
-+}
- EXPORT_SYMBOL(finish_wait);
- 
- /**
-@@ -313,24 +345,39 @@ int wake_bit_function(wait_queue_t *wait, unsigned mode, int sync, void *arg)
- EXPORT_SYMBOL(wake_bit_function);
- 
- /*
-- * To allow interruptible waiting and asynchronous (i.e. nonblocking)
-- * waiting, the actions of __wait_on_bit() and __wait_on_bit_lock() are
-- * permitted return codes. Nonzero return codes halt waiting and return.
-+ * waits on a bit to be cleared (see wait_on_bit in wait.h for details.
-+ * A page is optionally provided when used to wait on the PG_locked or
-+ * PG_writeback bit. By setting PG_waiters a lookup of the waitqueue
-+ * can be avoided during unlock_page or end_page_writeback.
-  */
- int __sched
--__wait_on_bit(wait_queue_head_t *wq, struct wait_bit_queue *q,
-+__wait_on_page_bit(wait_queue_head_t *wq, struct wait_bit_queue *q,
-+			struct page *page,
- 			int (*action)(void *), unsigned mode)
- {
- 	int ret = 0;
- 
- 	do {
--		prepare_to_wait(wq, &q->wait, mode);
-+		__prepare_to_wait(wq, &q->wait, page, mode, false);
- 		if (test_bit(q->key.bit_nr, q->key.flags))
- 			ret = (*action)(q->key.flags);
- 	} while (test_bit(q->key.bit_nr, q->key.flags) && !ret);
--	finish_wait(wq, &q->wait);
-+	__finish_wait(wq, &q->wait, page);
- 	return ret;
- }
-+
-+/*
-+ * To allow interruptible waiting and asynchronous (i.e. nonblocking)
-+ * waiting, the actions of __wait_on_bit() and __wait_on_bit_lock() are
-+ * permitted return codes. Nonzero return codes halt waiting and return.
-+ */
-+int __sched
-+__wait_on_bit(wait_queue_head_t *wq, struct wait_bit_queue *q,
-+			int (*action)(void *), unsigned mode)
-+{
-+	return __wait_on_page_bit(wq, q, NULL, action, mode);
-+}
-+
- EXPORT_SYMBOL(__wait_on_bit);
- 
- int __sched out_of_line_wait_on_bit(void *word, int bit,
-@@ -344,13 +391,14 @@ int __sched out_of_line_wait_on_bit(void *word, int bit,
- EXPORT_SYMBOL(out_of_line_wait_on_bit);
- 
- int __sched
--__wait_on_bit_lock(wait_queue_head_t *wq, struct wait_bit_queue *q,
-+__wait_on_page_bit_lock(wait_queue_head_t *wq, struct wait_bit_queue *q,
-+			struct page *page,
- 			int (*action)(void *), unsigned mode)
- {
- 	do {
- 		int ret;
- 
--		prepare_to_wait_exclusive(wq, &q->wait, mode);
-+		__prepare_to_wait(wq, &q->wait, page, mode, true);
- 		if (!test_bit(q->key.bit_nr, q->key.flags))
- 			continue;
- 		ret = action(q->key.flags);
-@@ -359,9 +407,16 @@ __wait_on_bit_lock(wait_queue_head_t *wq, struct wait_bit_queue *q,
- 		abort_exclusive_wait(wq, &q->wait, mode, &q->key);
- 		return ret;
- 	} while (test_and_set_bit(q->key.bit_nr, q->key.flags));
--	finish_wait(wq, &q->wait);
-+	__finish_wait(wq, &q->wait, page);
- 	return 0;
- }
-+
-+int __sched
-+__wait_on_bit_lock(wait_queue_head_t *wq, struct wait_bit_queue *q,
-+			int (*action)(void *), unsigned mode)
-+{
-+	return __wait_on_page_bit_lock(wq, q, NULL, action, mode);
-+}
- EXPORT_SYMBOL(__wait_on_bit_lock);
- 
- int __sched out_of_line_wait_on_bit_lock(void *word, int bit,
-@@ -380,6 +435,32 @@ void __wake_up_bit(wait_queue_head_t *wq, void *word, int bit)
- 	if (waitqueue_active(wq))
- 		__wake_up(wq, TASK_NORMAL, 1, &key);
- }
-+
-+void __wake_up_page_bit(wait_queue_head_t *wqh, struct page *page, void *word, int bit)
-+{
-+	struct wait_bit_key key = __WAIT_BIT_KEY_INITIALIZER(word, bit);
-+	unsigned long flags;
-+
-+	/* If there is no PG_waiters bit, always take the slow path */
-+	if (!__PG_WAITERS && waitqueue_active(wq)) {
-+		__wake_up(wq, TASK_NORMAL, 1, &key);
-+		return;
-+	}
-+
-+	/*
-+	 * Unlike __wake_up_bit it is necessary to check waitqueue_active to be
-+	 * checked under the wqh->lock to avoid races with parallel additions
-+	 * to the waitqueue. Otherwise races could result in lost wakeups
-+	 */
-+	spin_lock_irqsave(&wqh->lock, flags);
-+	if (waitqueue_active(wqh))
-+		__wake_up_common(wqh, TASK_NORMAL, 1, 0, &key);
-+	else
-+		ClearPageWaiters(page);
-+	spin_unlock_irqrestore(&wqh->lock, flags);
-+}
-+
-+
- EXPORT_SYMBOL(__wake_up_bit);
- 
- /**
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 263cffe..07633a4 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -682,9 +682,9 @@ static wait_queue_head_t *page_waitqueue(struct page *page)
- 	return &zone->wait_table[hash_ptr(page, zone->wait_table_bits)];
- }
- 
--static inline void wake_up_page(struct page *page, int bit)
-+static inline void wake_up_page(struct page *page, int bit_nr)
- {
--	__wake_up_bit(page_waitqueue(page), &page->flags, bit);
-+	__wake_up_page_bit(page_waitqueue(page), page, &page->flags, bit_nr);
- }
- 
- void wait_on_page_bit(struct page *page, int bit_nr)
-@@ -692,8 +692,8 @@ void wait_on_page_bit(struct page *page, int bit_nr)
- 	DEFINE_WAIT_BIT(wait, &page->flags, bit_nr);
- 
- 	if (test_bit(bit_nr, &page->flags))
--		__wait_on_bit(page_waitqueue(page), &wait, sleep_on_page,
--							TASK_UNINTERRUPTIBLE);
-+		__wait_on_page_bit(page_waitqueue(page), &wait, page,
-+					sleep_on_page, TASK_UNINTERRUPTIBLE);
- }
- EXPORT_SYMBOL(wait_on_page_bit);
- 
-@@ -704,7 +704,7 @@ int wait_on_page_bit_killable(struct page *page, int bit_nr)
- 	if (!test_bit(bit_nr, &page->flags))
- 		return 0;
- 
--	return __wait_on_bit(page_waitqueue(page), &wait,
-+	return __wait_on_page_bit(page_waitqueue(page), &wait, page,
- 			     sleep_on_page_killable, TASK_KILLABLE);
- }
- 
-@@ -743,7 +743,8 @@ void unlock_page(struct page *page)
- 	VM_BUG_ON_PAGE(!PageLocked(page), page);
- 	clear_bit_unlock(PG_locked, &page->flags);
- 	smp_mb__after_atomic();
--	wake_up_page(page, PG_locked);
-+	if (unlikely(PageWaiters(page)))
-+		wake_up_page(page, PG_locked);
- }
- EXPORT_SYMBOL(unlock_page);
- 
-@@ -769,7 +770,8 @@ void end_page_writeback(struct page *page)
- 		BUG();
- 
- 	smp_mb__after_atomic();
--	wake_up_page(page, PG_writeback);
-+	if (unlikely(PageWaiters(page)))
-+		wake_up_page(page, PG_writeback);
- }
- EXPORT_SYMBOL(end_page_writeback);
- 
-@@ -806,8 +808,8 @@ void __lock_page(struct page *page)
- {
- 	DEFINE_WAIT_BIT(wait, &page->flags, PG_locked);
- 
--	__wait_on_bit_lock(page_waitqueue(page), &wait, sleep_on_page,
--							TASK_UNINTERRUPTIBLE);
-+	__wait_on_page_bit_lock(page_waitqueue(page), &wait, page,
-+					sleep_on_page, TASK_UNINTERRUPTIBLE);
- }
- EXPORT_SYMBOL(__lock_page);
- 
-@@ -815,9 +817,10 @@ int __lock_page_killable(struct page *page)
- {
- 	DEFINE_WAIT_BIT(wait, &page->flags, PG_locked);
- 
--	return __wait_on_bit_lock(page_waitqueue(page), &wait,
--					sleep_on_page_killable, TASK_KILLABLE);
-+	return __wait_on_page_bit_lock(page_waitqueue(page), &wait, page,
-+					sleep_on_page, TASK_KILLABLE);
- }
-+
- EXPORT_SYMBOL_GPL(__lock_page_killable);
- 
- int __lock_page_or_retry(struct page *page, struct mm_struct *mm,
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index cd1f005..ebb947d 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -6603,6 +6603,7 @@ static const struct trace_print_flags pageflag_names[] = {
- 	{1UL << PG_private_2,		"private_2"	},
- 	{1UL << PG_writeback,		"writeback"	},
- #ifdef CONFIG_PAGEFLAGS_EXTENDED
-+	{1UL << PG_waiters,		"waiters"	},
- 	{1UL << PG_head,		"head"		},
- 	{1UL << PG_tail,		"tail"		},
- #else
-diff --git a/mm/swap.c b/mm/swap.c
-index 9e8e347..1581dbf 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -67,6 +67,10 @@ static void __page_cache_release(struct page *page)
- static void __put_single_page(struct page *page)
- {
- 	__page_cache_release(page);
-+
-+	/* See release_pages on why this clear may be necessary */
-+	__ClearPageWaiters(page);
-+
- 	free_hot_cold_page(page, false);
- }
- 
-@@ -916,6 +920,14 @@ void release_pages(struct page **pages, int nr, bool cold)
- 		/* Clear Active bit in case of parallel mark_page_accessed */
- 		__ClearPageActive(page);
- 
-+		/*
-+		 * pages are hashed on a waitqueue so there may be collisions.
-+		 * When waiters are woken the waitqueue is checked but
-+		 * unrelated pages on the queue can leave the bit set. Clear
-+		 * it here if that happens.
-+		 */
-+		__ClearPageWaiters(page);
-+
- 		list_add(&page->lru, &pages_to_free);
- 	}
- 	if (zone)
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 7f85041..d7a4969 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -1096,6 +1096,9 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 		 * waiting on the page lock, because there are no references.
- 		 */
- 		__clear_page_locked(page);
-+
-+		/* See release_pages on why this clear may be necessary */
-+		__ClearPageWaiters(page);
- free_it:
- 		nr_reclaimed++;
- 
-@@ -1427,6 +1430,8 @@ putback_inactive_pages(struct lruvec *lruvec, struct list_head *page_list)
- 		if (put_page_testzero(page)) {
- 			__ClearPageLRU(page);
- 			__ClearPageActive(page);
-+			/* See release_pages on why this clear may be necessary */
-+			__ClearPageWaiters(page);
- 			del_page_from_lru_list(page, lruvec, lru);
- 
- 			if (unlikely(PageCompound(page))) {
-@@ -1650,6 +1655,8 @@ static void move_active_pages_to_lru(struct lruvec *lruvec,
- 		if (put_page_testzero(page)) {
- 			__ClearPageLRU(page);
- 			__ClearPageActive(page);
-+			/* See release_pages on why this clear may be necessary */
-+			__ClearPageWaiters(page);
- 			del_page_from_lru_list(page, lruvec, lru);
- 
- 			if (unlikely(PageCompound(page))) {
+-- 
+Michael Kerrisk Linux man-pages maintainer;
+http://www.kernel.org/doc/man-pages/
+Author of "The Linux Programming Interface", http://blog.man7.org/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
