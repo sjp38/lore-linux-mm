@@ -1,59 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f46.google.com (mail-ee0-f46.google.com [74.125.83.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 7484C6B0036
-	for <linux-mm@kvack.org>; Thu, 22 May 2014 12:30:58 -0400 (EDT)
-Received: by mail-ee0-f46.google.com with SMTP id t10so2850065eei.19
-        for <linux-mm@kvack.org>; Thu, 22 May 2014 09:30:57 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f1si1545680eep.25.2014.05.22.09.30.56
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 22 May 2014 09:30:57 -0700 (PDT)
-Date: Thu, 22 May 2014 17:30:51 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH 0/3] Shrinkers and proportional reclaim
-Message-ID: <20140522163051.GJ23991@suse.de>
-References: <1400749779-24879-1-git-send-email-mgorman@suse.de>
- <20140522161416.GD25013@yliu-dev.sh.intel.com>
+Received: from mail-qc0-f172.google.com (mail-qc0-f172.google.com [209.85.216.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 785796B0036
+	for <linux-mm@kvack.org>; Thu, 22 May 2014 12:45:57 -0400 (EDT)
+Received: by mail-qc0-f172.google.com with SMTP id l6so6244395qcy.31
+        for <linux-mm@kvack.org>; Thu, 22 May 2014 09:45:57 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id j7si490199qai.23.2014.05.22.09.45.56
+        for <linux-mm@kvack.org>;
+        Thu, 22 May 2014 09:45:56 -0700 (PDT)
+Message-ID: <537E1EE6.8080102@redhat.com>
+Date: Thu, 22 May 2014 11:59:34 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20140522161416.GD25013@yliu-dev.sh.intel.com>
+Subject: Re: [PATCH 2/3] fs/superblock: Avoid locking counting inodes and
+ dentries before reclaiming them
+References: <1400749779-24879-1-git-send-email-mgorman@suse.de> <1400749779-24879-3-git-send-email-mgorman@suse.de>
+In-Reply-To: <1400749779-24879-3-git-send-email-mgorman@suse.de>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yuanhan Liu <yuanhan.liu@linux.intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Tim Chen <tim.c.chen@linux.intel.com>, Dave Chinner <david@fromorbit.com>, Bob Liu <bob.liu@oracle.com>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>
+To: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Tim Chen <tim.c.chen@linux.intel.com>, Dave Chinner <david@fromorbit.com>, Yuanhan Liu <yuanhan.liu@linux.intel.com>, Bob Liu <bob.liu@oracle.com>, Jan Kara <jack@suse.cz>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>
 
-On Fri, May 23, 2014 at 12:14:16AM +0800, Yuanhan Liu wrote:
-> On Thu, May 22, 2014 at 10:09:36AM +0100, Mel Gorman wrote:
-> > This series is aimed at regressions noticed during reclaim activity. The
-> > first two patches are shrinker patches that were posted ages ago but never
-> > merged for reasons that are unclear to me. I'm posting them again to see if
-> > there was a reason they were dropped or if they just got lost. Dave?  Time?
-> > The last patch adjusts proportional reclaim. Yuanhan Liu, can you retest
-> > the vm scalability test cases on a larger machine? Hugh, does this work
-> > for you on the memcg test cases?
+On 05/22/2014 05:09 AM, Mel Gorman wrote:
+> From: Tim Chen <tim.c.chen@linux.intel.com>
 > 
-> Sure, and here is the result. I applied these 3 patches on v3.15-rc6,
-> and head commit is 60c10afd. e82e0561 is the old commit that introduced
-> the regression.  The testserver has 512G memory and 120 CPU.
-> 
-> It's a simple result; if you need more data, I can gather them and send
-> it to you tomorrow:
-> 
-> e82e0561        v3.15-rc6       60c10afd
-> ----------------------------------------
-> 18560785        12232122        38868453
->                 -34%            +109
-> 
-> As you can see, the performance is back, and it is way much better ;)
-> 
+> We remove the call to grab_super_passive in call to super_cache_count.
+> This becomes a scalability bottleneck as multiple threads are trying to do
+> memory reclamation, e.g. when we are doing large amount of file read and
+> page cache is under pressure.  The cached objects quickly got reclaimed
+> down to 0 and we are aborting the cache_scan() reclaim.  But counting
+> creates a log jam acquiring the sb_lock.
 
-Thanks a lot for that and the quick response. It is much appreciated.
+> Signed-off-by: Tim Chen <tim.c.chen@linux.intel.com>
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
+
+Acked-by: Rik van Riel <riel@redhat.com>
+
 
 -- 
-Mel Gorman
-SUSE Labs
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
