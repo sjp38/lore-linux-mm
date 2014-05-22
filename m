@@ -1,135 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
-	by kanga.kvack.org (Postfix) with ESMTP id EFFA06B0036
-	for <linux-mm@kvack.org>; Thu, 22 May 2014 01:36:10 -0400 (EDT)
-Received: by mail-wi0-f179.google.com with SMTP id bs8so3752703wib.0
-        for <linux-mm@kvack.org>; Wed, 21 May 2014 22:36:10 -0700 (PDT)
-Received: from mail-wi0-x232.google.com (mail-wi0-x232.google.com [2a00:1450:400c:c05::232])
-        by mx.google.com with ESMTPS id ia3si18109993wjb.95.2014.05.21.22.36.09
+Received: from mail-pb0-f42.google.com (mail-pb0-f42.google.com [209.85.160.42])
+	by kanga.kvack.org (Postfix) with ESMTP id D4D676B0036
+	for <linux-mm@kvack.org>; Thu, 22 May 2014 02:17:29 -0400 (EDT)
+Received: by mail-pb0-f42.google.com with SMTP id md12so2207425pbc.1
+        for <linux-mm@kvack.org>; Wed, 21 May 2014 23:17:29 -0700 (PDT)
+Received: from mailout2.w1.samsung.com (mailout2.w1.samsung.com. [210.118.77.12])
+        by mx.google.com with ESMTPS id qf10si9185530pbb.86.2014.05.21.23.17.28
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 21 May 2014 22:36:09 -0700 (PDT)
-Received: by mail-wi0-f178.google.com with SMTP id cc10so3733246wib.11
-        for <linux-mm@kvack.org>; Wed, 21 May 2014 22:36:09 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20140520123453.09a76dd0c8fad40082a16289@linux-foundation.org>
-References: <1399974350-11089-1-git-send-email-mgorman@suse.de>
- <1399974350-11089-19-git-send-email-mgorman@suse.de> <20140520154900.GO23991@suse.de>
- <20140520123453.09a76dd0c8fad40082a16289@linux-foundation.org>
-From: Prabhakar Lad <prabhakar.csengg@gmail.com>
-Date: Thu, 22 May 2014 11:05:39 +0530
-Message-ID: <CA+V-a8vF0XkxkxKyO=NAvjd6J678rtqrZfwj9F7vppAzDGvTtQ@mail.gmail.com>
-Subject: Re: [PATCH] mm: non-atomically mark page accessed during page cache
- allocation where possible -fix
-Content-Type: text/plain; charset=UTF-8
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Wed, 21 May 2014 23:17:29 -0700 (PDT)
+Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
+ by mailout2.w1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0N5Y005WEPGLPZ70@mailout2.w1.samsung.com> for
+ linux-mm@kvack.org; Thu, 22 May 2014 07:17:09 +0100 (BST)
+Message-id: <537D9671.6030505@samsung.com>
+Date: Thu, 22 May 2014 08:17:21 +0200
+From: Marek Szyprowski <m.szyprowski@samsung.com>
+MIME-version: 1.0
+Subject: Re: [PATCH] arm: dma-mapping: add checking cma area initialized
+References: <1400733503-1302-1-git-send-email-gioh.kim@lge.com>
+In-reply-to: <1400733503-1302-1-git-send-email-gioh.kim@lge.com>
+Content-type: text/plain; charset=UTF-8; format=flowed
+Content-transfer-encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>
+To: Gioh Kim <gioh.kim@lge.com>, mina86@mina86.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, heesub.shin@samsung.com, mgorman@suse.de, hannes@cmpxchg.org
+Cc: gunho.lee@lge.com, chanho.min@lge.com, gurugio@gmail.com, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Wed, May 21, 2014 at 1:04 AM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> On Tue, 20 May 2014 16:49:00 +0100 Mel Gorman <mgorman@suse.de> wrote:
+Hello,
+
+On 2014-05-22 06:38, Gioh Kim wrote:
+> If CMA is turned on and CMA size is set to zero, kernel should
+> behave as if CMA was not enabled at compile time.
+> Every dma allocation should check existence of cma area
+> before requesting memory.
 >
->> Prabhakar Lad reported the following problem
->>
->>   I see following issue on DA850 evm,
->>   git bisect points me to
->>   commit id: 975c3a671f11279441006a29a19f55ccc15fb320
->>   ( mm: non-atomically mark page accessed during page cache allocation
->>   where possible)
->>
->>   Unable to handle kernel paging request at virtual address 30e03501
->>   pgd = c68cc000
->>   [30e03501] *pgd=00000000
->>   Internal error: Oops: 1 [#1] PREEMPT ARM
->>   Modules linked in:
->>   CPU: 0 PID: 1015 Comm: network.sh Not tainted 3.15.0-rc5-00323-g975c3a6 #9
->>   task: c70c4e00 ti: c73d0000 task.ti: c73d0000
->>   PC is at init_page_accessed+0xc/0x24
->>   LR is at shmem_write_begin+0x54/0x60
->>   pc : [<c0088aa0>]    lr : [<c00923e8>]    psr: 20000013
->>   sp : c73d1d90  ip : c73d1da0  fp : c73d1d9c
->>   r10: c73d1dec  r9 : 00000000  r8 : 00000000
->>   r7 : c73d1e6c  r6 : c694d7bc  r5 : ffffffe4  r4 : c73d1dec
->>   r3 : c73d0000  r2 : 00000001  r1 : 00000000  r0 : 30e03501
->>   Flags: nzCv  IRQs on  FIQs on  Mode SVC_32  ISA ARM  Segment user
->>   Control: 0005317f  Table: c68cc000  DAC: 00000015
->>   Process network.sh (pid: 1015, stack limit = 0xc73d01c0)
->>
->> pagep is set but not pointing to anywhere valid as it's an uninitialised
->> stack variable. This patch is a fix to
->> mm-non-atomically-mark-page-accessed-during-page-cache-allocation-where-possible.patch
->>
->> ...
->>
->> --- a/mm/filemap.c
->> +++ b/mm/filemap.c
->> @@ -2459,7 +2459,7 @@ ssize_t generic_perform_write(struct file *file,
->>               flags |= AOP_FLAG_UNINTERRUPTIBLE;
->>
->>       do {
->> -             struct page *page;
->> +             struct page *page = NULL;
->>               unsigned long offset;   /* Offset into pagecache page */
->>               unsigned long bytes;    /* Bytes to write to page */
->>               size_t copied;          /* Bytes copied from user */
->
-> Well not really.  generic_perform_write() only touches *page if
-> ->write_begin() returned "success", which is reasonable behavior.
->
-> I'd say you mucked up shmem_write_begin() - it runs
-> init_page_accessed() even if shmem_getpage() returned an error.  It
-> shouldn't be doing that.
->
-> This?
->
-> From: Andrew Morton <akpm@linux-foundation.org>
-> Subject: mm/shmem.c: don't run init_page_accessed() against an uninitialised pointer
->
-> If shmem_getpage() returned an error then it didn't necessarily initialise
-> *pagep.  So shmem_write_begin() shouldn't be playing with *pagep in this
-> situation.
->
-> Fixes an oops when "mm: non-atomically mark page accessed during page
-> cache allocation where possible" (quite reasonably) left *pagep
-> uninitialized.
->
-> Reported-by: Prabhakar Lad <prabhakar.csengg@gmail.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Vlastimil Babka <vbabka@suse.cz>
-> Cc: Jan Kara <jack@suse.cz>
-> Cc: Michal Hocko <mhocko@suse.cz>
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: Peter Zijlstra <peterz@infradead.org>
-> Cc: Dave Hansen <dave.hansen@intel.com>
-> Cc: Mel Gorman <mgorman@suse.de>
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> Signed-off-by: Gioh Kim <gioh.kim@lge.com>
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> Acked-by: Michal Nazarewicz <mina86@mina86.com>
+
+Thanks for this patch! The initial version was really ugly, but
+this one really does what should be there from the begging.
+
+I've applied this patch with redundant empty line add removed.
+
 > ---
+>   arch/arm/mm/dma-mapping.c |    7 ++++---
+>   1 file changed, 4 insertions(+), 3 deletions(-)
 >
->  mm/shmem.c |    2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
->
-> diff -puN mm/shmem.c~mm-non-atomically-mark-page-accessed-during-page-cache-allocation-where-possiblefix-2 mm/shmem.c
-> --- a/mm/shmem.c~mm-non-atomically-mark-page-accessed-during-page-cache-allocation-where-possiblefix-2
-> +++ a/mm/shmem.c
-> @@ -1376,7 +1376,7 @@ shmem_write_begin(struct file *file, str
->         struct inode *inode = mapping->host;
->         pgoff_t index = pos >> PAGE_CACHE_SHIFT;
->         ret = shmem_getpage(inode, index, pagep, SGP_WRITE, NULL);
-> -       if (*pagep)
-> +       if (ret == 0 && *pagep)
->                 init_page_accessed(*pagep);
->         return ret;
->  }
+> diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
+> index 18e98df..9173a13 100644
+> --- a/arch/arm/mm/dma-mapping.c
+> +++ b/arch/arm/mm/dma-mapping.c
+> @@ -390,12 +390,13 @@ static int __init atomic_pool_init(void)
+>   	if (!pages)
+>   		goto no_pages;
+>   
+> -	if (IS_ENABLED(CONFIG_DMA_CMA))
+> +	if (dev_get_cma_area(NULL))
+>   		ptr = __alloc_from_contiguous(NULL, pool->size, prot, &page,
+>   					      atomic_pool_init);
+>   	else
+>   		ptr = __alloc_remap_buffer(NULL, pool->size, gfp, prot, &page,
+>   					   atomic_pool_init);
+> +
+>   	if (ptr) {
+>   		int i;
+>   
+> @@ -701,7 +702,7 @@ static void *__dma_alloc(struct device *dev, size_t size, dma_addr_t *handle,
+>   		addr = __alloc_simple_buffer(dev, size, gfp, &page);
+>   	else if (!(gfp & __GFP_WAIT))
+>   		addr = __alloc_from_pool(size, &page);
+> -	else if (!IS_ENABLED(CONFIG_DMA_CMA))
+> +	else if (!dev_get_cma_area(dev))
+>   		addr = __alloc_remap_buffer(dev, size, gfp, prot, &page, caller);
+>   	else
+>   		addr = __alloc_from_contiguous(dev, size, prot, &page, caller);
+> @@ -790,7 +791,7 @@ static void __arm_dma_free(struct device *dev, size_t size, void *cpu_addr,
+>   		__dma_free_buffer(page, size);
+>   	} else if (__free_from_pool(cpu_addr, size)) {
+>   		return;
+> -	} else if (!IS_ENABLED(CONFIG_DMA_CMA)) {
+> +	} else if (!dev_get_cma_area(dev)) {
+>   		__dma_free_remap(cpu_addr, size);
+>   		__dma_free_buffer(page, size);
+>   	} else {
 
-Reported-and-Tested-by: Lad, Prabhakar <prabhakar.csengg@gmail.com>
-
-Regards,
---Prabhakar Lad
-
-> _
->
+Best regards
+-- 
+Marek Szyprowski, PhD
+Samsung R&D Institute Poland
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
