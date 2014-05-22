@@ -1,99 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f46.google.com (mail-qg0-f46.google.com [209.85.192.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 699A36B0038
-	for <linux-mm@kvack.org>; Thu, 22 May 2014 11:05:01 -0400 (EDT)
-Received: by mail-qg0-f46.google.com with SMTP id q108so5664561qgd.19
-        for <linux-mm@kvack.org>; Thu, 22 May 2014 08:05:01 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id c13si51847qaw.132.2014.05.22.08.05.00
+Received: from mail-ee0-f54.google.com (mail-ee0-f54.google.com [74.125.83.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 3144C6B0038
+	for <linux-mm@kvack.org>; Thu, 22 May 2014 11:08:12 -0400 (EDT)
+Received: by mail-ee0-f54.google.com with SMTP id b57so2752827eek.13
+        for <linux-mm@kvack.org>; Thu, 22 May 2014 08:08:11 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id l9si706172eeo.12.2014.05.22.08.08.10
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 22 May 2014 08:05:00 -0700 (PDT)
-Date: Thu, 22 May 2014 17:04:51 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH] mm: filemap: Avoid unnecessary barriers and waitqueue
- lookups in unlock_page fastpath v7
-Message-ID: <20140522150451.GX30445@twins.programming.kicks-ass.net>
-References: <20140515142414.16c47315a03160c58ceb9066@linux-foundation.org>
- <20140521121501.GT23991@suse.de>
- <20140521142622.049d0b3af5fc94912d5a1472@linux-foundation.org>
- <20140521213354.GL2485@laptop.programming.kicks-ass.net>
- <20140521145000.f130f8779f7641d0d8afcace@linux-foundation.org>
- <20140522000715.GA23991@suse.de>
- <20140522072001.GP30445@twins.programming.kicks-ass.net>
- <20140522104051.GE23991@suse.de>
- <20140522105638.GT30445@twins.programming.kicks-ass.net>
- <20140522144045.GH23991@suse.de>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 22 May 2014 08:08:10 -0700 (PDT)
+Message-ID: <537E12D9.6090709@suse.cz>
+Date: Thu, 22 May 2014 17:08:09 +0200
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="xFx/BiQzdL2KVl5R"
-Content-Disposition: inline
-In-Reply-To: <20140522144045.GH23991@suse.de>
+Subject: Re: 3.15.0-rc6: VM_BUG_ON_PAGE(PageTail(page), page)
+References: <20140522135828.GA24879@redhat.com>
+In-Reply-To: <20140522135828.GA24879@redhat.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, David Howells <dhowells@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>
+To: Dave Jones <davej@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>
 
+On 05/22/2014 03:58 PM, Dave Jones wrote:
+> Not sure if Sasha has already reported this on -next (It's getting hard
+> to keep track of all the VM bugs he's been finding), but I hit this overnight
+> on .15-rc6.  First time I've seen this one.
+>
+>
+> page:ffffea0004599800 count:0 mapcount:0 mapping:          (null) index:0x2
+> page flags: 0x20000000008000(tail)
+> ------------[ cut here ]------------
+> kernel BUG at include/linux/page-flags.h:415!
+> invalid opcode: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
+> CPU: 1 PID: 6858 Comm: trinity-c42 Not tainted 3.15.0-rc6+ #216
+> task: ffff88012d18e900 ti: ffff88009e87a000 task.ti: ffff88009e87a000
+> RIP: 0010:[<ffffffffbb718d98>]  [<ffffffffbb718d98>] PageTransHuge.part.23+0xb/0xd
+> RSP: 0000:ffff88009e87b940  EFLAGS: 00010246
+> RAX: 0000000000000001 RBX: 0000000000116660 RCX: 0000000000000006
+> RDX: 0000000000000000 RSI: ffffffffbb0c00f8 RDI: ffffffffbb0bfed2
+> RBP: ffff88009e87b940 R08: ffffffffbc01203c R09: 00000000000003da
+> R10: 00000000000003d9 R11: 0000000000000003 R12: 0000000000000001
+> R13: 0000000000116800 R14: ffff88024d64ce00 R15: ffffea0004599800
+> FS:  00007f4fd192e740(0000) GS:ffff88024d040000(0000) knlGS:0000000000000000
+> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> CR2: 0000000004c00000 CR3: 00000000a19ce000 CR4: 00000000001407e0
+> DR0: 00000000024f4000 DR1: 0000000001d43000 DR2: 0000000000000000
+> DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000600
+> Stack:
+>   ffff88009e87b9e8 ffffffffbb1728a3 ffff88009e87b9e8 ffff88009e87baa8
+>   ffff88012d18e900 ffff88009e87ba60 0000000000000000 0000000400000016
+>   0000000000000000 ffff88009e87bfd8 00000000000008b3 ffff88009e87ba50
+> Call Trace:
+>   [<ffffffffbb1728a3>] isolate_migratepages_range+0x7a3/0x870
+>   [<ffffffffbb172d90>] compact_zone+0x370/0x560
+>   [<ffffffffbb173022>] compact_zone_order+0xa2/0x110
+>   [<ffffffffbb1733f1>] try_to_compact_pages+0x101/0x130
+>   [<ffffffffbb71861b>] __alloc_pages_direct_compact+0xac/0x1d0
+>   [<ffffffffbb15760b>] __alloc_pages_nodemask+0x6ab/0xaf0
+>   [<ffffffffbb19c9ea>] alloc_pages_vma+0x9a/0x160
+>   [<ffffffffbb1aef0d>] do_huge_pmd_anonymous_page+0xfd/0x3c0
+>   [<ffffffffbb0a19cd>] ? get_parent_ip+0xd/0x50
+>   [<ffffffffbb17ac18>] handle_mm_fault+0x158/0xcb0
+>   [<ffffffffbb72594d>] ? retint_restore_args+0xe/0xe
+>   [<ffffffffbb728bb6>] __do_page_fault+0x1a6/0x620
+>   [<ffffffffbb11011e>] ? __acct_update_integrals+0x8e/0x120
+>   [<ffffffffbb0a19cd>] ? get_parent_ip+0xd/0x50
+>   [<ffffffffbb72949b>] ? preempt_count_sub+0x6b/0xf0
+>   [<ffffffffbb72904e>] do_page_fault+0x1e/0x70
+> Code: 75 1d 55 be 6c 00 00 00 48 c7 c7 8a 2f a2 bb 48 89 e5 e8 6c 49 95 ff 5d c6 05 74 16 65 00 01 c3 55 31 f6 48 89 e5 e8 28 bd a3 ff <0f> 0b 0f 1f 44 00 00 55 48 89 e5 41 57 45 31 ff 41 56 49 89 fe
+> RIP  [<ffffffffbb718d98>]
+>
+> That BUG is..
+>
+> 413 static inline int PageTransHuge(struct page *page)
+> 414 {
+> 415         VM_BUG_ON_PAGE(PageTail(page), page);
+> 416         return PageHead(page);
+> 417 }
 
---xFx/BiQzdL2KVl5R
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+Any idea which of the two PageTransHuge() calls in 
+isolate_migratepages_range() that is? Offset far in the function suggest 
+it's where the lru lock is already held, but I'm not sure as decodecode 
+of your dump and objdump of my own compile look widely different.
 
-On Thu, May 22, 2014 at 03:40:45PM +0100, Mel Gorman wrote:
+If it's indeed the later PageTransHuge() call, it means that somebody 
+else has cleared PageLRU and set PageTail (I don't think a page could 
+have both at once) between the checks for PageLRU() and PageTransHuge() 
+in isolate_migratepages_range(), while the latter was holding lru_lock. 
+That's quite weird...
 
-> > +static bool __wake_up_common(wait_queue_head_t *q, unsigned int mode,
-> >  			int nr_exclusive, int wake_flags, void *key)
-> >  {
-> >  	wait_queue_t *curr, *next;
-> > +	bool woke =3D false;
-> > =20
-> >  	list_for_each_entry_safe(curr, next, &q->task_list, task_list) {
-> >  		unsigned flags =3D curr->flags;
-> > =20
-> > +		if (curr->func(curr, mode, wake_flags, key)) {
-> > +			woke =3D true;
-> > +			if ((flags & WQ_FLAG_EXCLUSIVE) && !--nr_exclusive)
-> > +				break;
-> > +		}
-> >  	}
-> > +
-> > +	return woke;
->=20
-> Ok, thinking about this more I'm less sure.
->=20
-> There are cases where the curr->func returns false even though there is a
-> task that needs to run -- task was already running or preparing to run. We
-> potentially end up clearing PG_waiters while there are still tasks on the
-> waitqueue. As __finish_wait checks if the waitqueue is empty and the last
-> waiter clears the bit I think there is nothing to gain by trying to do the
-> same job in __wake_up_page_bit.
+Vlastimil
 
-Hmm, I think you're right, we need the test result from
-wake_bit_function(), unpolluted by the ttwu return value.
-
---xFx/BiQzdL2KVl5R
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.12 (GNU/Linux)
-
-iQIcBAEBAgAGBQJTfhITAAoJEHZH4aRLwOS6QPwP/ianyeg1Og22VWtGmB2JDMj+
-vwmHYM3laSDcijQJKgJkC1/l1maYSgzVy8RIZbT2I1rf3x+OVFp2Fp2sZQCFpmqN
-qiDKCoWFbCuuU+Vh1tJ2SBqRwoLyLWFqj19s8E5FiJQsjeq73mlZrAAyVahRXcFJ
-IqQLYbEdzumnw2097epuKlXHo8L7CD6k+Wzi/e7+7hh0LaE6BZbSmOchlwVYxuvU
-xZYroF0tiCtgFATF3PNq/aQGkLgwgArnwmki6mqhL3dParUSqHNaLlMgWPetV4/7
-HOiW9hB/puSDc9IXdyp69Auc94d8okxq9/EsIBKTiccli+8Vv47QPM22VM1IK4eo
-0e4pDiYlIbWtyquWeAcwVd17ECDV1wWWU1i0F3ca0RZiVrXBjMeyit0fsjr/wR12
-hMhsU78RnPS733+keqam/BEDOQqLEsVvxZqzNnnmcj9+kUrTh0wfyRmnpmqldphJ
-G2d352v5BegpcLI/QEX9c0S5RcvJ5P9bFEKm2Vk2Gnf39pnR2JorMUrihe5HVhDQ
-J9oH9HdREgFzaaOLIWbbkhs9bAFx0lk+A+F7ZBgQyhE5OOvMlU21KFuX6v6MR9ut
-hvdUM3rvUVUpNwGoDbDJ63bSbRlqYYhicJuDFxnzMxVe5wovtC/LTyv5+OMI2Iyz
-oa4gkpM6QX2ViZ0h8D9k
-=WQp5
------END PGP SIGNATURE-----
-
---xFx/BiQzdL2KVl5R--
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
