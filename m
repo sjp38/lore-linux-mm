@@ -1,60 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
-	by kanga.kvack.org (Postfix) with ESMTP id D55446B0036
-	for <linux-mm@kvack.org>; Thu, 22 May 2014 11:41:12 -0400 (EDT)
-Received: by mail-wi0-f176.google.com with SMTP id n15so9470735wiw.3
-        for <linux-mm@kvack.org>; Thu, 22 May 2014 08:41:12 -0700 (PDT)
+Received: from mail-qg0-f43.google.com (mail-qg0-f43.google.com [209.85.192.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 8486A6B0036
+	for <linux-mm@kvack.org>; Thu, 22 May 2014 12:00:46 -0400 (EDT)
+Received: by mail-qg0-f43.google.com with SMTP id 63so5998929qgz.16
+        for <linux-mm@kvack.org>; Thu, 22 May 2014 09:00:46 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id vo4si164407wjc.40.2014.05.22.08.41.10
+        by mx.google.com with ESMTP id o9si273591qac.99.2014.05.22.09.00.45
         for <linux-mm@kvack.org>;
-        Thu, 22 May 2014 08:41:11 -0700 (PDT)
-Date: Thu, 22 May 2014 11:41:00 -0400
-From: Dave Jones <davej@redhat.com>
-Subject: Re: 3.15.0-rc6: VM_BUG_ON_PAGE(PageTail(page), page)
-Message-ID: <20140522154100.GA30273@redhat.com>
-References: <20140522135828.GA24879@redhat.com>
- <537E12D9.6090709@suse.cz>
+        Thu, 22 May 2014 09:00:45 -0700 (PDT)
+Message-ID: <537E1D4E.4040407@redhat.com>
+Date: Thu, 22 May 2014 11:52:46 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <537E12D9.6090709@suse.cz>
+Subject: Re: [PATCH 1/3] fs/superblock: Unregister sb shrinker before ->kill_sb()
+References: <1400749779-24879-1-git-send-email-mgorman@suse.de> <1400749779-24879-2-git-send-email-mgorman@suse.de>
+In-Reply-To: <1400749779-24879-2-git-send-email-mgorman@suse.de>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>
+To: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Tim Chen <tim.c.chen@linux.intel.com>, Dave Chinner <david@fromorbit.com>, Yuanhan Liu <yuanhan.liu@linux.intel.com>, Bob Liu <bob.liu@oracle.com>, Jan Kara <jack@suse.cz>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>
 
-On Thu, May 22, 2014 at 05:08:09PM +0200, Vlastimil Babka wrote:
- 
- > > RIP: 0010:[<ffffffffbb718d98>]  [<ffffffffbb718d98>] PageTransHuge.part.23+0xb/0xd
- > > Call Trace:
- > >   [<ffffffffbb1728a3>] isolate_migratepages_range+0x7a3/0x870
- > >   [<ffffffffbb172d90>] compact_zone+0x370/0x560
- > >   [<ffffffffbb173022>] compact_zone_order+0xa2/0x110
- > >   [<ffffffffbb1733f1>] try_to_compact_pages+0x101/0x130
- > > ...
- > > Code: 75 1d 55 be 6c 00 00 00 48 c7 c7 8a 2f a2 bb 48 89 e5 e8 6c 49 95 ff 5d c6 05 74 16 65 00 01 c3 55 31 f6 48 89 e5 e8 28 bd a3 ff <0f> 0b 0f 1f 44 00 00 55 48 89 e5 41 57 45 31 ff 41 56 49 89 fe
- > > RIP  [<ffffffffbb718d98>]
- > >
- > > That BUG is..
- > >
- > > 413 static inline int PageTransHuge(struct page *page)
- > > 414 {
- > > 415         VM_BUG_ON_PAGE(PageTail(page), page);
- > > 416         return PageHead(page);
- > > 417 }
- > 
- > Any idea which of the two PageTransHuge() calls in 
- > isolate_migratepages_range() that is? Offset far in the function suggest 
- > it's where the lru lock is already held, but I'm not sure as decodecode 
- > of your dump and objdump of my own compile look widely different.
+On 05/22/2014 05:09 AM, Mel Gorman wrote:
+> From: Dave Chinner <david@fromorbit.com>
+> 
+> We will like to unregister the sb shrinker before ->kill_sb().
+> This will allow cached objects to be counted without call to
+> grab_super_passive() to update ref count on sb. We want
+> to avoid locking during memory reclamation especially when
+> we are skipping the memory reclaim when we are out of
+> cached objects.
 
-Yeah, the only thing the code: matches is the BUG() which is in another section.
-(see end of file at http://paste.fedoraproject.org/104155/40077293/raw/)
+> Signed-off-by: Tim Chen <tim.c.chen@linux.intel.com>
+> Signed-off-by: Mel Gorman <mgorman@suse.de>
 
-Maybe you can make more sense of that disassembly than I can..
+Acked-by: Rik van Riel <riel@redhat.com>
 
-	Dave
-
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
