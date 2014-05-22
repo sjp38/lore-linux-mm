@@ -1,63 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f45.google.com (mail-pb0-f45.google.com [209.85.160.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 131316B0036
-	for <linux-mm@kvack.org>; Wed, 21 May 2014 22:34:15 -0400 (EDT)
-Received: by mail-pb0-f45.google.com with SMTP id um1so2007287pbc.18
-        for <linux-mm@kvack.org>; Wed, 21 May 2014 19:34:14 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id qf10si8602207pbb.86.2014.05.21.19.34.13
-        for <linux-mm@kvack.org>;
-        Wed, 21 May 2014 19:34:14 -0700 (PDT)
-Date: Wed, 21 May 2014 19:33:36 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 0/4] pagecache scanning with /proc/kpagecache
-Message-Id: <20140521193336.5df90456.akpm@linux-foundation.org>
-In-Reply-To: <537d5ee4.4914e00a.5672.ffff85d5SMTPIN_ADDED_BROKEN@mx.google.com>
-References: <1400639194-3743-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-	<20140521154250.95bc3520ad8d192d95efe39b@linux-foundation.org>
-	<537d5ee4.4914e00a.5672.ffff85d5SMTPIN_ADDED_BROKEN@mx.google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-pb0-f48.google.com (mail-pb0-f48.google.com [209.85.160.48])
+	by kanga.kvack.org (Postfix) with ESMTP id C695B6B0036
+	for <linux-mm@kvack.org>; Wed, 21 May 2014 22:49:13 -0400 (EDT)
+Received: by mail-pb0-f48.google.com with SMTP id rr13so2021527pbb.35
+        for <linux-mm@kvack.org>; Wed, 21 May 2014 19:49:13 -0700 (PDT)
+Received: from mail-pd0-x229.google.com (mail-pd0-x229.google.com [2607:f8b0:400e:c02::229])
+        by mx.google.com with ESMTPS id qu8si8644356pbb.27.2014.05.21.19.49.12
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 21 May 2014 19:49:13 -0700 (PDT)
+Received: by mail-pd0-f169.google.com with SMTP id w10so1976117pde.14
+        for <linux-mm@kvack.org>; Wed, 21 May 2014 19:49:12 -0700 (PDT)
+Date: Wed, 21 May 2014 19:49:11 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch -mm] mm, thp: avoid excessive compaction latency during
+ fault fix
+In-Reply-To: <5371ED3F.6070505@suse.cz>
+Message-ID: <alpine.DEB.2.02.1405211945140.13243@chino.kir.corp.google.com>
+References: <alpine.DEB.2.02.1404301744110.8415@chino.kir.corp.google.com> <alpine.DEB.2.02.1405011434140.23898@chino.kir.corp.google.com> <alpine.DEB.2.02.1405061920470.18635@chino.kir.corp.google.com> <alpine.DEB.2.02.1405061922010.18635@chino.kir.corp.google.com>
+ <alpine.DEB.2.02.1405072229390.19108@chino.kir.corp.google.com> <5371ED3F.6070505@suse.cz>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Konstantin Khlebnikov <koct9i@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, Arnaldo Carvalho de Melo <acme@redhat.com>, Borislav Petkov <bp@alien8.de>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, 21 May 2014 22:19:55 -0400 Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
+On Tue, 13 May 2014, Vlastimil Babka wrote:
 
-> > A much nicer interface would be for us to (finally!) implement
-> > fincore(), perhaps with an enhanced per-present-page payload which
-> > presents the info which you need (although we don't actually know what
-> > that info is!).
+> I wonder what about a process doing e.g. mmap() with MAP_POPULATE. It seems to
+> me that it would get only MIGRATE_ASYNC here, right? Since gfp_mask would
+> include __GFP_NO_KSWAPD and it won't have PF_KTHREAD.
+> I think that goes against the idea that with MAP_POPULATE you say you are
+> willing to wait to have everything in place before you actually use the
+> memory. So I guess you are also willing to wait for hugepages in that
+> situation?
 > 
-> page/pfn of each page slot and its page cache tag as shown in patch 4/4.
-> 
-> > This would require open() - it appears to be a requirement that the
-> > caller not open the file, but no reason was given for this.
-> > 
-> > Requiring open() would address some of the obvious security concerns,
-> > but it will still be possible for processes to poke around and get some
-> > understanding of the behaviour of other processes.  Careful attention
-> > should be paid to this aspect of any such patchset.
-> 
-> Sorry if I missed your point, but this interface defines fixed mapping
-> between file position in /proc/kpagecache and in-file page offset of
-> the target file. So we do not need to use seq_file mechanism, that's
-> why open() is not defined and default one is used.
-> The same thing is true for /proc/{kpagecount,kpageflags}, from which
-> I copied/pasted some basic code.
 
-I think you did miss my point ;) Please do a web search for fincore -
-it's a syscall similar to mincore(), only it queries pagecache:
-fincore(int fd, loff_t offset, ...).  In its simplest form it queries
-just for present/absent, but we could increase the query payload to
-incorporate additional per-page info.
-
-It would take a lot of thought and discussion to nail down the
-fincore() interface (we've already tried a couple of times).  But
-unfortunately, fincore() is probably going to be implemented one day
-and it will (or at least could) make /proc/kpagecache obsolete.
+I don't understand the distinction you're making between MAP_POPULATE and 
+simply a prefault of the anon memory.  What is the difference in semantics 
+between using MAP_POPULATE and touching a byte every page size along the 
+range?  In the latter, you'd be faulting thp with MIGRATE_ASYNC, so I 
+don't understand how MAP_POPULATE is any different or implies any 
+preference for hugepages.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
