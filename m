@@ -1,85 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f53.google.com (mail-ee0-f53.google.com [74.125.83.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 2BA626B0036
-	for <linux-mm@kvack.org>; Thu, 22 May 2014 15:53:21 -0400 (EDT)
-Received: by mail-ee0-f53.google.com with SMTP id c13so3018044eek.12
-        for <linux-mm@kvack.org>; Thu, 22 May 2014 12:53:20 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w47si2403468eep.66.2014.05.22.12.53.19
+Received: from mail-pb0-f53.google.com (mail-pb0-f53.google.com [209.85.160.53])
+	by kanga.kvack.org (Postfix) with ESMTP id E27F36B0036
+	for <linux-mm@kvack.org>; Thu, 22 May 2014 16:49:22 -0400 (EDT)
+Received: by mail-pb0-f53.google.com with SMTP id md12so3022565pbc.40
+        for <linux-mm@kvack.org>; Thu, 22 May 2014 13:49:22 -0700 (PDT)
+Received: from e23smtp08.au.ibm.com (e23smtp08.au.ibm.com. [202.81.31.141])
+        by mx.google.com with ESMTPS id il2si1084768pbc.87.2014.05.22.13.49.20
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 22 May 2014 12:53:19 -0700 (PDT)
-Date: Thu, 22 May 2014 20:53:13 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] mm: filemap: Avoid unnecessary barries and waitqueue
- lookups in unlock_page fastpath v5
-Message-ID: <20140522195313.GN23991@suse.de>
-References: <20140514192945.GA10830@redhat.com>
- <20140515104808.GF23991@suse.de>
- <20140515142414.16c47315a03160c58ceb9066@linux-foundation.org>
- <20140521121501.GT23991@suse.de>
- <20140521142622.049d0b3af5fc94912d5a1472@linux-foundation.org>
- <20140521213354.GL2485@laptop.programming.kicks-ass.net>
- <20140521145000.f130f8779f7641d0d8afcace@linux-foundation.org>
- <20140522064529.GI30445@twins.programming.kicks-ass.net>
- <20140522084643.GD23991@suse.de>
- <20140522104722.f76b5b8dc0ec28510687be2e@linux-foundation.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 22 May 2014 13:49:21 -0700 (PDT)
+Received: from /spool/local
+	by e23smtp08.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <srivatsa.bhat@linux.vnet.ibm.com>;
+	Fri, 23 May 2014 06:49:18 +1000
+Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
+	by d23dlp02.au.ibm.com (Postfix) with ESMTP id 8B2D22BB0052
+	for <linux-mm@kvack.org>; Fri, 23 May 2014 06:49:14 +1000 (EST)
+Received: from d23av02.au.ibm.com (d23av02.au.ibm.com [9.190.235.138])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s4MKRjAx59179234
+	for <linux-mm@kvack.org>; Fri, 23 May 2014 06:27:46 +1000
+Received: from d23av02.au.ibm.com (localhost [127.0.0.1])
+	by d23av02.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s4MKnDf3015942
+	for <linux-mm@kvack.org>; Fri, 23 May 2014 06:49:13 +1000
+Message-ID: <537E6285.3050000@linux.vnet.ibm.com>
+Date: Fri, 23 May 2014 02:18:05 +0530
+From: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20140522104722.f76b5b8dc0ec28510687be2e@linux-foundation.org>
+Subject: Re: NUMA topology question wrt. d4edc5b6
+References: <20140521200451.GB5755@linux.vnet.ibm.com>
+In-Reply-To: <20140521200451.GB5755@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Peter Zijlstra <peterz@infradead.org>, Oleg Nesterov <oleg@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, David Howells <dhowells@redhat.com>
+To: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
+Cc: benh@kernel.crashing.org, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, nfont@linux.vnet.ibm.com, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Anton Blanchard <anton@samba.org>, Dave Hansen <dave@sr71.net>, "linuxppc-dev@lists.ozlabs.org list" <linuxppc-dev@lists.ozlabs.org>, Linux MM <linux-mm@kvack.org>
 
-On Thu, May 22, 2014 at 10:47:22AM -0700, Andrew Morton wrote:
-> On Thu, 22 May 2014 09:46:43 +0100 Mel Gorman <mgorman@suse.de> wrote:
+
+[ Adding a few more CC's ]
+
+On 05/22/2014 01:34 AM, Nishanth Aravamudan wrote:
+> Hi Srivatsa,
 > 
-> > > > If I'm still on track here, what happens if we switch to wake-all so we
-> > > > can avoid the dangling flag?  I doubt if there are many collisions on
-> > > > that hash table?
-> > > 
-> > > Wake-all will be ugly and loose a herd of waiters, all racing to
-> > > acquire, all but one of whoem will loose the race. It also looses the
-> > > fairness, its currently a FIFO queue. Wake-all will allow starvation.
-> > > 
-> > 
-> > And the cost of the thundering herd of waiters may offset any benefit of
-> > reducing the number of calls to page_waitqueue and waker functions.
+> After d4edc5b6 ("powerpc: Fix the setup of CPU-to-Node mappings during
+> CPU online"), cpu_to_node() looks like:
 > 
-> Well, none of this has been demonstrated.
+> static inline int cpu_to_node(int cpu)
+> {
+>         int nid;
 > 
-
-True, but it's also the type of thing that would deserve a patch of its
-own with some separation in case bisection fingerpoints to a patch that
-is doing too much on its own.
-
-> As I speculated earlier, hash chain collisions will probably be rare,
-
-They are meant to be (well, they're documented to be). It's the primary
-reason why I'm not concerned about "dangling waiters" being that common
-a case.
-
-> except for the case where a bunch of processes are waiting on the same
-> page.  And in this case, perhaps wake-all is the desired behavior.
+>         nid = numa_cpu_lookup_table[cpu];
 > 
-> Take a look at do_read_cache_page().  It does lock_page(), but it
-> doesn't actually *need* to.  It checks ->mapping and PG_uptodate and
-> then...  unlocks the page!  We could have used wait_on_page_locked()
-> there and permitted concurrent threads to run concurrently.
+>         /*
+>          * During early boot, the numa-cpu lookup table might not have been
+>          * setup for all CPUs yet. In such cases, default to node 0.
+>          */
+>         return (nid < 0) ? 0 : nid;
+> }
+> 
+> However, I'm curious if this is correct in all cases. I have seen
+> several LPARs that do not have any CPUs on node 0. In fact, because node
+> 0 is statically set online in the initialization of the N_ONLINE
+> nodemask, 0 is always present to Linux, whether it is present on the
+> system. I'm not sure what the best thing to do here is, but I'm curious
+> if you have any ideas? I would like to remove the static initialization
+> of node 0, as it's confusing to users to see an empty node (particularly
+> when it's completely separate in the numbering from other nodes), but
+> we trip a panic (refer to:
+> http://www.spinics.net/lists/linux-mm/msg73321.html).
 > 
 
-It does that later when it calls wait_on_page_read but the flow is weird. It
-looks like the first lock_page was to serialise against any IO and double
-check it was not racing against a parallel reclaim although the elevated
-reference count should have prevented that. Historical artifact maybe?
-It looks like there could be some improvement there but also would deserve
-a patch on its own.
+Ah, I see. I didn't have any particular reason to default it to zero.
+I just did that because the existing code before this patch did the same
+thing. (numa_cpu_lookup_table[] is a global array, so it will be initialized
+with zeros. So if we access it before populating it via numa_setup_cpu(),
+it would return 0. So I retained that behaviour with the above conditional).
 
--- 
-Mel Gorman
-SUSE Labs
+Will something like the below [totally untested] patch solve the boot-panic?
+I understand that as of today first_online_node will still pick 0 since
+N_ONLINE is initialized statically, but with your proposed change to that
+init code, I guess the following patch should avoid the boot panic.
+
+[ But note that first_online_node is hard-coded to 0, if MAX_NUMNODES is = 1.
+So we'll have to fix that if powerpc can have a single node system whose node
+is numbered something other than 0. Can that happen as well? ]
+
+
+And regarding your question about what is the best way to fix this whole Linux
+MM's assumption about node0, I'm not really sure.. since I am not really aware
+of the extent to which the MM subsystem is intertwined with this assumption
+and what it would take to cure that :-(
+
+Regards,
+Srivatsa S. Bhat
+
+
+diff --git a/arch/powerpc/include/asm/topology.h b/arch/powerpc/include/asm/topology.h
+index c920215..58e6469 100644
+--- a/arch/powerpc/include/asm/topology.h
++++ b/arch/powerpc/include/asm/topology.h
+@@ -18,6 +18,7 @@ struct device_node;
+  */
+ #define RECLAIM_DISTANCE 10
+ 
++#include <linux/nodemask.h>
+ #include <asm/mmzone.h>
+ 
+ static inline int cpu_to_node(int cpu)
+@@ -30,7 +31,7 @@ static inline int cpu_to_node(int cpu)
+ 	 * During early boot, the numa-cpu lookup table might not have been
+ 	 * setup for all CPUs yet. In such cases, default to node 0.
+ 	 */
+-	return (nid < 0) ? 0 : nid;
++	return (nid < 0) ? first_online_node : nid;
+ }
+ 
+ #define parent_node(node)	(node)
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
