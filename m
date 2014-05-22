@@ -1,129 +1,238 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f49.google.com (mail-ee0-f49.google.com [74.125.83.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 012B86B0036
-	for <linux-mm@kvack.org>; Thu, 22 May 2014 04:46:49 -0400 (EDT)
-Received: by mail-ee0-f49.google.com with SMTP id e53so2325329eek.22
-        for <linux-mm@kvack.org>; Thu, 22 May 2014 01:46:49 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e49si13879677eep.39.2014.05.22.01.46.47
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 74B146B0036
+	for <linux-mm@kvack.org>; Thu, 22 May 2014 04:55:23 -0400 (EDT)
+Received: by mail-pa0-f49.google.com with SMTP id lj1so2289661pab.22
+        for <linux-mm@kvack.org>; Thu, 22 May 2014 01:55:23 -0700 (PDT)
+Received: from mail-pd0-x22c.google.com (mail-pd0-x22c.google.com [2607:f8b0:400e:c02::22c])
+        by mx.google.com with ESMTPS id zz3si32662269pac.115.2014.05.22.01.55.22
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 22 May 2014 01:46:48 -0700 (PDT)
-Date: Thu, 22 May 2014 09:46:43 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] mm: filemap: Avoid unnecessary barries and waitqueue
- lookups in unlock_page fastpath v5
-Message-ID: <20140522084643.GD23991@suse.de>
-References: <20140513141748.GD2485@laptop.programming.kicks-ass.net>
- <20140514161152.GA2615@redhat.com>
- <20140514192945.GA10830@redhat.com>
- <20140515104808.GF23991@suse.de>
- <20140515142414.16c47315a03160c58ceb9066@linux-foundation.org>
- <20140521121501.GT23991@suse.de>
- <20140521142622.049d0b3af5fc94912d5a1472@linux-foundation.org>
- <20140521213354.GL2485@laptop.programming.kicks-ass.net>
- <20140521145000.f130f8779f7641d0d8afcace@linux-foundation.org>
- <20140522064529.GI30445@twins.programming.kicks-ass.net>
+        Thu, 22 May 2014 01:55:22 -0700 (PDT)
+Received: by mail-pd0-f172.google.com with SMTP id x10so2283873pdj.3
+        for <linux-mm@kvack.org>; Thu, 22 May 2014 01:55:22 -0700 (PDT)
+Date: Thu, 22 May 2014 01:55:11 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: compaction is still too expensive for thp
+In-Reply-To: <537DB0E5.40602@suse.cz>
+Message-ID: <alpine.DEB.2.02.1405220127320.13630@chino.kir.corp.google.com>
+References: <1399904111-23520-1-git-send-email-vbabka@suse.cz> <1400233673-11477-1-git-send-email-vbabka@suse.cz> <alpine.DEB.2.02.1405211954410.13243@chino.kir.corp.google.com> <537DB0E5.40602@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20140522064529.GI30445@twins.programming.kicks-ass.net>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>, Paul McKenney <paulmck@linux.vnet.ibm.com>, Linus Torvalds <torvalds@linux-foundation.org>, David Howells <dhowells@redhat.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Hugh Dickins <hughd@google.com>, Greg Thelen <gthelen@google.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>
 
-On Thu, May 22, 2014 at 08:45:29AM +0200, Peter Zijlstra wrote:
-> On Wed, May 21, 2014 at 02:50:00PM -0700, Andrew Morton wrote:
-> > On Wed, 21 May 2014 23:33:54 +0200 Peter Zijlstra <peterz@infradead.org> wrote:
-> 
-> > Alternative solution is not to merge the patch ;)
-> 
-> There is always that.. :-)
-> 
-> > > Yeah, so we only clear that bit when at 'unlock' we find there are no
-> > > more pending waiters, so if the last unlock still had a waiter, we'll
-> > > leave the bit set.
+On Thu, 22 May 2014, Vlastimil Babka wrote:
+
+> > With -mm, it turns out that while egregious thp fault latencies were
+> > reduced, faulting 64MB of memory backed by thp on a fragmented 128GB
+> > machine can result in latencies of 1-3s for the entire 64MB.  Collecting
+> > compaction stats from older kernels that give more insight into
+> > regressions, one such incident is as follows.
 > > 
-> > Confused.  If the last unlock had a waiter, that waiter will get woken
-> > up so there are no waiters any more, so the last unlock clears the flag.
+> > Baseline:
+> > compact_blocks_moved 8181986
+> > compact_pages_moved 6549560
+> > compact_pagemigrate_failed 1612070
+> > compact_stall 101959
+> > compact_fail 100895
+> > compact_success 1064
 > > 
-> > um, how do we determine that there are no more waiters?  By looking at
-> > the waitqueue.  But that waitqueue is hashed, so it may contain waiters
-> > for other pages so we're screwed?  But we could just go and wake up the
-> > other-page waiters anyway and still clear PG_waiters?
+> > 5s later:
+> > compact_blocks_moved 8182447
+> > compact_pages_moved 6550286
+> > compact_pagemigrate_failed 1612092
+> > compact_stall 102023
+> > compact_fail 100959
+> > compact_success 1064
 > > 
-> > um2, we're using exclusive waitqueues so we can't (or don't) wake all
-> > waiters, so we're screwed again?
+> > This represents faulting two 64MB ranges of anonymous memory.  As you can
+> > see, it results in falling back to 4KB pages because all 64 faults of
+> > hugepages ends up triggering compaction and failing to allocate.  Over the
+> > 64 async compactions, we scan on average 7.2 pageblocks per call,
+> > successfully migrate 11.3 pages per call, and fail migrating 0.34 pages
+> > per call.
+> > 
+> > If each async compaction scans 7.2 pageblocks per call, it would have to
+> > be called 9103 times to scan all memory on this 128GB machine.  We're
+> > simply not scanning enough memory as a result of ISOLATE_ABORT due to
+> > need_resched().
 > 
-> Ah, so leave it set. Then when we do an uncontended wakeup, that is a
-> wakeup where there are _no_ waiters left, we'll iterate the entire
-> hashed queue, looking for a matching page.
-> 
-> We'll find none, and only then clear the bit.
-> 
-
-Yes, sorry that was not clear.
-
-> 
-> > (This process is proving to be a hard way of writing Mel's changelog btw).
-> 
-> Agreed :/
-> 
-
-I've lost sight of what is obvious and what is not. The introduction
-now reads
-
-	This patch introduces a new page flag for 64-bit capable machines,
-	PG_waiters, to signal there are *potentially* processes waiting on
-	PG_lock or PG_writeback.  If there are no possible waiters then we
-	avoid barriers, a waitqueue hash lookup and a failed wake_up in the
-	unlock_page and end_page_writeback paths. There is no guarantee
-	that waiters exist if PG_waiters is set as multiple pages can
-	hash to the same waitqueue and we cannot accurately detect if a
-	waking process is the last waiter without a reference count. When
-	this happens, the bit is left set and the next unlock or writeback
-	completion will lookup the waitqueue and clear the bit when there
-	are no collisions. This adds a few branches to the fast path but
-	avoids bouncing a dirty cache line between CPUs. 32-bit machines
-	always take the slow path but the primary motivation for this
-	patch is large machines so I do not think that is a concern.
-
-> > If I'm still on track here, what happens if we switch to wake-all so we
-> > can avoid the dangling flag?  I doubt if there are many collisions on
-> > that hash table?
-> 
-> Wake-all will be ugly and loose a herd of waiters, all racing to
-> acquire, all but one of whoem will loose the race. It also looses the
-> fairness, its currently a FIFO queue. Wake-all will allow starvation.
+> Well, the two objectives of not being expensive and at the same time scanning
+> "enough memory" (which is hard to define as well) are clearly quite opposite
+> :/
 > 
 
-And the cost of the thundering herd of waiters may offset any benefit of
-reducing the number of calls to page_waitqueue and waker functions.
+Agreed.
 
-> > If there *are* a lot of collisions, I bet it's because a great pile of
-> > threads are all waiting on the same page.  If they're trying to lock
-> > that page then wake-all is bad.  But if they're just waiting for IO
-> > completion (probable) then it's OK.
+> > So the net result is that -mm is much better than Linus's tree, where such
+> > faulting of 64MB ranges could stall 8-9s, but we're still very expensive.
 > 
-> Yeah, I'm not entirely sure on the rationale for adding PG_waiters to
-> writeback completion, and yes PG_writeback is a wake-all.
+> So I guess the difference here is mainly thanks to not doing sync compaction?
 
-tmpfs was the most obvious one. We were doing a useless lookup almost
-every time writeback completed for async streaming writers. I suspected
-it would also apply to normal filesystems if backed by fast storage.
+Not doing sync compaction for thp and caching the migration pfn for async 
+so that it doesn't iterate over a ton of memory that may not be eligible 
+for async compaction every time it is called.  But when we avoid sync 
+compaction, we also lose deferred compaction.
 
-There is not much to gain by continuing to use __wake_up_bit in the
-writeback pathso when PG_waiters is available. Only the first waiters
-incurs the SetPageWaiters penalty. In the uncontended case, neither
-take locks (one approach checks waitqueue_active outside the lock, the
-other checks PageWaiters). Both approaches end up taking q->lock either
-in __wake_up_bit->__wake_up or __wake_up_page_bit but in some cases
-__wake_up_page_bit.
+> So if I understand correctly, your intention is to scan more in a single scan,
 
--- 
-Mel Gorman
-SUSE Labs
+More will be scanned instead of ~7 pageblocks for every call to async 
+compaction with the data that I presented but also reduce how expensive 
+every pageblock scan is by avoiding needlessly migrating memory (and 
+dealing with rmap locks) when it will not result in 2MB of contiguous 
+memory for thp faults.
+
+> but balance the increased latencies by introducing deferring for async
+> compaction.
+> 
+> Offhand I can think of two issues with that.
+> 
+> 1) the result will be that often the latency will be low thanks to defer, but
+> then there will be a huge (?) spike by scanning whole 1GB (as you suggest
+> further in the mail) at once. I think that's similar to what you had now with
+> the sync compaction?
+> 
+
+Not at all, with MIGRATE_SYNC_LIGHT before there is no termination other 
+than an entire scan of memory so we were potentially scanning 128GB and 
+failing if thp cannot be allocated.
+
+If we are to avoid migrating memory needlessly that will not result in 
+cc->order memory being allocated, then the cost should be relatively 
+constant for a span of memory.  My 32GB system can iterate all memory with 
+MIGRATE_ASYNC and no need_resched() aborts in ~530ms.
+
+> 2) 1GB could have a good chance of being successful (?) so there would be no
+> defer anyway.
+> 
+
+If we terminate early because order-9 is allocatable or we end up scanning 
+the entire 1GB and the hugepage is allocated, then we have prevented 511 
+other pagefaults in my testcase where faulting 64MB of memory with thp 
+enabled can currently take 1-3s on a 128GB machine with fragmentation.  I 
+think the deferral is unnecessary in such a case.
+
+Are you suggesting we should try without the deferral first?
+
+> > I have a few improvements in mind, but thought it would be better to
+> > get feedback on it first because it's a substantial rewrite of the
+> > pageblock migration:
+> > 
+> >   - For all async compaction, avoid migrating memory unless enough
+> >     contiguous memory is migrated to allow a cc->order allocation.
+> 
+> Yes I suggested something like this earlier. Also in the scanner, skip to the
+> next cc->order aligned block as soon as any page fails the isolation and is
+> not PageBuddy.
+
+Agreed.
+
+> I would just dinstinguish kswapd and direct compaction, not "all async
+> compaction". Or maybe kswapd could be switched to sync compaction.
+> 
+
+To generalize this, I'm thinking that it is pointless for async compaction 
+to migrate memory in a contiguous span if it will not cause a cc->order 
+page allocation to succeed.
+
+> >     This
+> >     would remove the COMPACT_CLUSTER_MAX restriction on pageblock
+> >     compaction
+> 
+> Yes.
+> 
+> >     and keep pages on the cc->migratepages list between
+> >     calls to isolate_migratepages_range().
+> 
+> This might not be needed. It's called within a single pageblock (except maybe
+> CMA but that's quite a different thing) and I think we can ignore order >
+> pageblock_nr_order here.
+> 
+
+Ok, I guess pageblocks within a zone are always pageblock_order aligned 
+for all platforms so if we encounter any non-migratable (or PageBuddy) 
+memory in a block where pageblock_order == HPAGE_PMD_NR, then we can abort 
+that block immediately for thp faults.
+
+> >     When an unmigratable page is encountered or memory hole is found,
+> >     put all pages on cc->migratepages back on the lru lists unless
+> >     cc->nr_migratepages >= (1 << cc->order).  Otherwise, migrate when
+> >     enough contiguous memory has been isolated.
+> > 
+> >   - Remove the need_resched() checks entirely from compaction and
+> >     consider only doing a set amount of scanning for each call, such
+> >     as 1GB per call.
+> > 
+> >     If there is contention on zone->lru_lock, then we can still abort
+> >     to avoid excessive stalls, but need_resched() is a poor heuristic
+> >     to determine when async compaction is taking too long.
+> 
+> I tend to agree. I've also realized that because need_resched() leads to
+> cc->contended = true, direct reclaim and second compaction that would normally
+> follow (used to be sync, now only in hugepaged) is skipped. need_resched()
+> seems to be indeed unsuitable for this.
+> 
+
+It's hard to replace with an alternative, though, to determine when enough 
+is enough :)  1GB might be a sane starting point, though, and then try 
+reclaim and avoid the second call to async compaction on failure.  I'm not 
+sure if the deferral would be needed in this case or not.
+
+> >     The expense of calling async compaction if this is done is easily
+> >     quantified since we're not migrating any memory unless it is
+> >     sufficient for the page allocation: it would simply be the iteration
+> >     over 1GB of memory and avoiding contention on zone->lru_lock.
+> > 
+> > We may also need to consider deferring async compaction for subsequent
+> > faults in the near future even though scanning the previous 1GB does not
+> > decrease or have any impact whatsoever in the success of defragmenting the
+> > next 1GB.
+> > 
+> > Any other suggestions that may be helpful?
+> 
+> I suggested already the idea of turning the deferred compaction into a
+> live-tuned amount of how much to scan, instead of doing a whole zone (before)
+> or an arbitrary amount like 1GB, with the hope of reducing the latency spikes.
+> But I realize this would be tricky.
+> 
+
+By live-tuned, do you mean something that is tuned by the kernel over time 
+depending on how successful compaction is or do you mean something that 
+the user would alter?  If we are to go this route, I agree that we can 
+allow the user to tune the 1GB.
+
+> Even less concrete, it might be worth revisiting the rules we use for deciding
+> if compaction is worth trying, and the decisions if to continue or we believe
+> the allocation will succeed.
+
+Ah, tuning compaction_suitable() might be another opportunity.  I'm 
+wondering if we should be considering thp specially here since it's in the 
+fault path.
+
+> It relies heavily on watermark checks that also
+> consider the order, and I found it somewhat fragile. For example, in the alloc
+> slowpath -> direct compaction path, a check in compaction concludes that
+> allocation should succeed and finishes the compaction, and few moments later
+> the same check in the allocation will conclude that everything is fine up to
+> order 8, but there probably isn't a page of order 9. In between, the
+> nr_free_pages has *increased*. I suspect it's because the watermark checking
+> is racy and the counters drift, but I'm not sure yet.
+
+The watermark checks both in compaction_suitable() and and 
+compact_finished() are indeed racy with respect to the actual page 
+allocation.
+
+> However, this particular problem should be gone when I finish my series that
+> would capture the page that compaction has just freed. But still, the
+> decisions regarding compaction could be suboptimal.
+> 
+
+This should also avoid the race between COMPACT_PARTIAL, returning to the 
+page allocator, and finding that the high-order memory you thought was now 
+available has been allocated by someone else.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
