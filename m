@@ -1,168 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 45E476B0036
-	for <linux-mm@kvack.org>; Wed, 21 May 2014 21:11:41 -0400 (EDT)
-Received: by mail-pa0-f43.google.com with SMTP id hz1so1931119pad.2
-        for <linux-mm@kvack.org>; Wed, 21 May 2014 18:11:40 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id pr9si8390441pbc.175.2014.05.21.18.11.39
+Received: from mail-ee0-f53.google.com (mail-ee0-f53.google.com [74.125.83.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 687CE6B0036
+	for <linux-mm@kvack.org>; Wed, 21 May 2014 22:20:24 -0400 (EDT)
+Received: by mail-ee0-f53.google.com with SMTP id c13so2065763eek.40
+        for <linux-mm@kvack.org>; Wed, 21 May 2014 19:20:23 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id i9si4546358eex.32.2014.05.21.19.20.21
         for <linux-mm@kvack.org>;
-        Wed, 21 May 2014 18:11:40 -0700 (PDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-In-Reply-To: <20140521123446.ae45fa676cae27fffbd96cfd@linux-foundation.org>
-References: <1400699062-20123-1-git-send-email-kirill.shutemov@linux.intel.com>
- <20140521123446.ae45fa676cae27fffbd96cfd@linux-foundation.org>
-Subject: Re: [PATCH] mm: /prom/pid/clear_refs: avoid split_huge_page()
+        Wed, 21 May 2014 19:20:22 -0700 (PDT)
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH 0/4] pagecache scanning with /proc/kpagecache
+Date: Wed, 21 May 2014 22:19:55 -0400
+Message-Id: <537d5ee6.893d0f0a.1334.1ee2SMTPIN_ADDED_BROKEN@mx.google.com>
+In-Reply-To: <20140521154250.95bc3520ad8d192d95efe39b@linux-foundation.org>
+References: <1400639194-3743-1-git-send-email-n-horiguchi@ah.jp.nec.com> <20140521154250.95bc3520ad8d192d95efe39b@linux-foundation.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
-Message-Id: <20140522011110.B0090E009B@blue.fi.intel.com>
-Date: Thu, 22 May 2014 04:11:10 +0300 (EEST)
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Pavel Emelyanov <xemul@parallels.com>, Cyrill Gorcunov <gorcunov@openvz.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Konstantin Khlebnikov <koct9i@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, Arnaldo Carvalho de Melo <acme@redhat.com>, Borislav Petkov <bp@alien8.de>
 
-Andrew Morton wrote:
-> On Wed, 21 May 2014 22:04:22 +0300 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
+On Wed, May 21, 2014 at 03:42:50PM -0700, Andrew Morton wrote:
+> On Tue, 20 May 2014 22:26:30 -0400 Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
 > 
-> > Currently we split all THP pages on any clear_refs request. It's not
-> > necessary. We can handle this on PMD level.
-> > 
-> > One side effect is that soft dirty will potentially see more dirty
-> > memory, since we will mark whole THP page dirty at once.
+> > This patchset adds a new procfs interface to extrace information about
+> > pagecache status. In-kernel tool tools/vm/page-types.c has already some
+> > code for pagecache scanning without kernel's help, but it's not free
+> > from measurement-disturbance, so here I'm suggesting another approach.
 > 
-> This clashes pretty badly with
-> http://ozlabs.org/~akpm/mmots/broken-out/clear_refs-redefine-callback-functions-for-page-table-walker.patch
+> I'm not seeing much explanation of why you think the kernel needs this.
+> The overall justification for a change is terribly important so please
+> do spend some time on it.
 
-Hm.. For some reason CRIU memory-snapshotting test cases fail on current
-linux-next. I didn't debug why. Mainline works. Folks?
+OK. Now I'm developing a patchset which improves memory error (and IO error
+in next version) reporting on dirty pagecache (to avoid bad-data consumption.)
+The essense of this patchset is that we remember error information on page
+cache tree and users need to know which page cache is affected by error.
+This is the reason why I need this feature.
+# I separate this part from memory error reporting patchset and posted at
+# first because I noticed Konstantin's patch just a few days ago and I found
+# the person who has the same interest of mine :)
 
-Below is patch which applies on linux-next, but I wasn't able to test it.
+I understand adding procfs interface itself needs much care, so I don't
+persist in this specific interface if there're better options. Now I'm
+reserching other options Konstantin suggesting.
 
-> > Sanity checked with CRIU test suite. More testing is required.
+> As I don't *really* know what the patch is for, I can't comment a lot
+> further, but...
 > 
-> Will you be doing that testing or was this a request for Cyrill & co to
-> help?
+> 
+> A much nicer interface would be for us to (finally!) implement
+> fincore(), perhaps with an enhanced per-present-page payload which
+> presents the info which you need (although we don't actually know what
+> that info is!).
 
-Cyrill, Pavel, could you take care of this?
+page/pfn of each page slot and its page cache tag as shown in patch 4/4.
 
-> Perhaps this is post-3.15 material.
+> This would require open() - it appears to be a requirement that the
+> caller not open the file, but no reason was given for this.
+> 
+> Requiring open() would address some of the obvious security concerns,
+> but it will still be possible for processes to poke around and get some
+> understanding of the behaviour of other processes.  Careful attention
+> should be paid to this aspect of any such patchset.
 
-Sure.
+Sorry if I missed your point, but this interface defines fixed mapping
+between file position in /proc/kpagecache and in-file page offset of
+the target file. So we do not need to use seq_file mechanism, that's
+why open() is not defined and default one is used.
+The same thing is true for /proc/{kpagecount,kpageflags}, from which
+I copied/pasted some basic code.
 
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Date: Thu, 22 May 2014 03:44:38 +0300
-Subject: [PATCH] mm: /prom/pid/clear_refs: avoid split_huge_page()
-
-Currently pagewalker splits all THP pages on any clear_refs request.
-It's not necessary. We can handle this on PMD level.
-
-One side effect is that soft dirty will potentially see more dirty
-memory, since we will mark whole THP page dirty at once.
-
-Sanity checked with CRIU test suite. More testing is required.
-
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
----
- fs/proc/task_mmu.c | 58 ++++++++++++++++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 56 insertions(+), 2 deletions(-)
-
-diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
-index fa6d6a4e85b3..0cc47a44d016 100644
---- a/fs/proc/task_mmu.c
-+++ b/fs/proc/task_mmu.c
-@@ -702,10 +702,10 @@ struct clear_refs_private {
- 	enum clear_refs_types type;
- };
- 
-+#ifdef CONFIG_MEM_SOFT_DIRTY
- static inline void clear_soft_dirty(struct vm_area_struct *vma,
- 		unsigned long addr, pte_t *pte)
- {
--#ifdef CONFIG_MEM_SOFT_DIRTY
- 	/*
- 	 * The soft-dirty tracker uses #PF-s to catch writes
- 	 * to pages, so write-protect the pte as well. See the
-@@ -724,9 +724,35 @@ static inline void clear_soft_dirty(struct vm_area_struct *vma,
- 	}
- 
- 	set_pte_at(vma->vm_mm, addr, pte, ptent);
--#endif
- }
- 
-+static inline void clear_soft_dirty_pmd(struct vm_area_struct *vma,
-+		unsigned long addr, pmd_t *pmdp)
-+{
-+	pmd_t pmd = *pmdp;
-+
-+	pmd = pmd_wrprotect(pmd);
-+	pmd = pmd_clear_flags(pmd, _PAGE_SOFT_DIRTY);
-+
-+	if (vma->vm_flags & VM_SOFTDIRTY)
-+		vma->vm_flags &= ~VM_SOFTDIRTY;
-+
-+	set_pmd_at(vma->vm_mm, addr, pmdp, pmd);
-+}
-+
-+#else
-+
-+static inline void clear_soft_dirty(struct vm_area_struct *vma,
-+		unsigned long addr, pte_t *pte)
-+{
-+}
-+
-+static inline void clear_soft_dirty_pmd(struct vm_area_struct *vma,
-+		unsigned long addr, pmd_t *pmdp)
-+{
-+}
-+#endif
-+
- static int clear_refs_pte(pte_t *pte, unsigned long addr,
- 				unsigned long end, struct mm_walk *walk)
- {
-@@ -749,6 +775,33 @@ static int clear_refs_pte(pte_t *pte, unsigned long addr,
- 	return 0;
- }
- 
-+static int clear_refs_pmd(pmd_t *pmd, unsigned long addr,
-+				unsigned long end, struct mm_walk *walk)
-+{
-+	struct clear_refs_private *cp = walk->private;
-+	struct vm_area_struct *vma = walk->vma;
-+	struct page *page;
-+	spinlock_t *ptl;
-+
-+	if (pmd_trans_huge_lock(pmd, vma, &ptl) != 1)
-+		return 0;
-+	if (cp->type == CLEAR_REFS_SOFT_DIRTY) {
-+		clear_soft_dirty_pmd(vma, addr, pmd);
-+		goto out;
-+	}
-+
-+	page = pmd_page(*pmd);
-+
-+	/* Clear accessed and referenced bits. */
-+	pmdp_test_and_clear_young(vma, addr, pmd);
-+	ClearPageReferenced(page);
-+out:
-+	spin_unlock(ptl);
-+	/* handled as pmd, no need to call clear_refs_pte() */
-+	walk->skip = 1;
-+	return 0;
-+}
-+
- static int clear_refs_test_walk(unsigned long start, unsigned long end,
- 				struct mm_walk *walk)
- {
-@@ -812,6 +865,7 @@ static ssize_t clear_refs_write(struct file *file, const char __user *buf,
- 		};
- 		struct mm_walk clear_refs_walk = {
- 			.pte_entry = clear_refs_pte,
-+			.pmd_entry = clear_refs_pmd,
- 			.test_walk = clear_refs_test_walk,
- 			.mm = mm,
- 			.private = &cp,
--- 
- Kirill A. Shutemov
+Thanks,
+Naoya
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
