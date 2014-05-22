@@ -1,209 +1,168 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 7BC086B0036
-	for <linux-mm@kvack.org>; Wed, 21 May 2014 21:02:56 -0400 (EDT)
-Received: by mail-pa0-f45.google.com with SMTP id ey11so1924916pad.18
-        for <linux-mm@kvack.org>; Wed, 21 May 2014 18:02:55 -0700 (PDT)
-Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
-        by mx.google.com with ESMTP id ah3si31327124pad.52.2014.05.21.18.02.54
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 45E476B0036
+	for <linux-mm@kvack.org>; Wed, 21 May 2014 21:11:41 -0400 (EDT)
+Received: by mail-pa0-f43.google.com with SMTP id hz1so1931119pad.2
+        for <linux-mm@kvack.org>; Wed, 21 May 2014 18:11:40 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTP id pr9si8390441pbc.175.2014.05.21.18.11.39
         for <linux-mm@kvack.org>;
-        Wed, 21 May 2014 18:02:55 -0700 (PDT)
-Message-ID: <537D4CBB.80305@lge.com>
-Date: Thu, 22 May 2014 10:02:51 +0900
-From: Gioh Kim <gioh.kim@lge.com>
-MIME-Version: 1.0
-Subject: Re: [RFC PATCH] arm: dma-mapping: fallback allocation for cma failure
-References: <537AEEDB.2000001@lge.com> <20140520065222.GB8315@js1304-P5Q-DELUXE> <xa1t1tvo1fas.fsf@mina86.com> <537C5EA3.20709@lge.com> <xa1td2f699j4.fsf@mina86.com>
-In-Reply-To: <xa1td2f699j4.fsf@mina86.com>
-Content-Type: text/plain; charset=UTF-8; format=flowed
-Content-Transfer-Encoding: 8bit
+        Wed, 21 May 2014 18:11:40 -0700 (PDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+In-Reply-To: <20140521123446.ae45fa676cae27fffbd96cfd@linux-foundation.org>
+References: <1400699062-20123-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <20140521123446.ae45fa676cae27fffbd96cfd@linux-foundation.org>
+Subject: Re: [PATCH] mm: /prom/pid/clear_refs: avoid split_huge_page()
+Content-Transfer-Encoding: 7bit
+Message-Id: <20140522011110.B0090E009B@blue.fi.intel.com>
+Date: Thu, 22 May 2014 04:11:10 +0300 (EEST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Nazarewicz <mina86@mina86.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Marek Szyprowski <m.szyprowski@samsung.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Heesub Shin <heesub.shin@samsung.com>, Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>, =?UTF-8?B?7J206rG07Zi4?= <gunho.lee@lge.com>, 'Chanho Min' <chanho.min@lge.com>
+To: Andrew Morton <akpm@linux-foundation.org>, Pavel Emelyanov <xemul@parallels.com>, Cyrill Gorcunov <gorcunov@openvz.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-I appreciate your comments.
-The previous patch was ugly. But now it's beautiful! Just 3 lines!
+Andrew Morton wrote:
+> On Wed, 21 May 2014 22:04:22 +0300 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
+> 
+> > Currently we split all THP pages on any clear_refs request. It's not
+> > necessary. We can handle this on PMD level.
+> > 
+> > One side effect is that soft dirty will potentially see more dirty
+> > memory, since we will mark whole THP page dirty at once.
+> 
+> This clashes pretty badly with
+> http://ozlabs.org/~akpm/mmots/broken-out/clear_refs-redefine-callback-functions-for-page-table-walker.patch
 
-I'm not familiar with kernel patch process.
-Can I have your name at Signed-off-by: line?
-What tag do I have to write your name in?
+Hm.. For some reason CRIU memory-snapshotting test cases fail on current
+linux-next. I didn't debug why. Mainline works. Folks?
 
+Below is patch which applies on linux-next, but I wasn't able to test it.
 
---------------------------------- 8< ----------------------------------------------
- From 135c986cfaa5a7291519308b3d47e58bf9f5af25 Mon Sep 17 00:00:00 2001
-From: Gioh Kim <gioh.kim@lge.com>
-Date: Tue, 20 May 2014 14:16:20 +0900
-Subject: [PATCH] arm: dma-mapping: add checking cma area initialized
+> > Sanity checked with CRIU test suite. More testing is required.
+> 
+> Will you be doing that testing or was this a request for Cyrill & co to
+> help?
 
-If CMA is turned on and CMA size is set to zero, kernel should
-behave as if CMA was not enabled at compile time.
-Every dma allocation should check existence of cma area
-before requesting memory.
+Cyrill, Pavel, could you take care of this?
 
-Signed-off-by: Gioh Kim <gioh.kim@lge.com>
-Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> Perhaps this is post-3.15 material.
+
+Sure.
+
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Date: Thu, 22 May 2014 03:44:38 +0300
+Subject: [PATCH] mm: /prom/pid/clear_refs: avoid split_huge_page()
+
+Currently pagewalker splits all THP pages on any clear_refs request.
+It's not necessary. We can handle this on PMD level.
+
+One side effect is that soft dirty will potentially see more dirty
+memory, since we will mark whole THP page dirty at once.
+
+Sanity checked with CRIU test suite. More testing is required.
+
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
-  arch/arm/mm/dma-mapping.c |    7 ++++---
-  1 file changed, 4 insertions(+), 3 deletions(-)
+ fs/proc/task_mmu.c | 58 ++++++++++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 56 insertions(+), 2 deletions(-)
 
-diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
-index 18e98df..9173a13 100644
---- a/arch/arm/mm/dma-mapping.c
-+++ b/arch/arm/mm/dma-mapping.c
-@@ -390,12 +390,13 @@ static int __init atomic_pool_init(void)
-         if (!pages)
-                 goto no_pages;
-
--       if (IS_ENABLED(CONFIG_DMA_CMA))
-+       if (dev_get_cma_area(NULL))
-                 ptr = __alloc_from_contiguous(NULL, pool->size, prot, &page,
-                                               atomic_pool_init);
-         else
-                 ptr = __alloc_remap_buffer(NULL, pool->size, gfp, prot, &page,
-                                            atomic_pool_init);
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index fa6d6a4e85b3..0cc47a44d016 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -702,10 +702,10 @@ struct clear_refs_private {
+ 	enum clear_refs_types type;
+ };
+ 
++#ifdef CONFIG_MEM_SOFT_DIRTY
+ static inline void clear_soft_dirty(struct vm_area_struct *vma,
+ 		unsigned long addr, pte_t *pte)
+ {
+-#ifdef CONFIG_MEM_SOFT_DIRTY
+ 	/*
+ 	 * The soft-dirty tracker uses #PF-s to catch writes
+ 	 * to pages, so write-protect the pte as well. See the
+@@ -724,9 +724,35 @@ static inline void clear_soft_dirty(struct vm_area_struct *vma,
+ 	}
+ 
+ 	set_pte_at(vma->vm_mm, addr, pte, ptent);
+-#endif
+ }
+ 
++static inline void clear_soft_dirty_pmd(struct vm_area_struct *vma,
++		unsigned long addr, pmd_t *pmdp)
++{
++	pmd_t pmd = *pmdp;
 +
-         if (ptr) {
-                 int i;
-
-@@ -701,7 +702,7 @@ static void *__dma_alloc(struct device *dev, size_t size, dma_addr_t *handle,
-                 addr = __alloc_simple_buffer(dev, size, gfp, &page);
-         else if (!(gfp & __GFP_WAIT))
-                 addr = __alloc_from_pool(size, &page);
--       else if (!IS_ENABLED(CONFIG_DMA_CMA))
-+       else if (!dev_get_cma_area(dev))
-                 addr = __alloc_remap_buffer(dev, size, gfp, prot, &page, caller);
-         else
-                 addr = __alloc_from_contiguous(dev, size, prot, &page, caller);
-@@ -790,7 +791,7 @@ static void __arm_dma_free(struct device *dev, size_t size, void *cpu_addr,
-                 __dma_free_buffer(page, size);
-         } else if (__free_from_pool(cpu_addr, size)) {
-                 return;
--       } else if (!IS_ENABLED(CONFIG_DMA_CMA)) {
-+       } else if (!dev_get_cma_area(dev)) {
-                 __dma_free_remap(cpu_addr, size);
-                 __dma_free_buffer(page, size);
-         } else {
---
-1.7.9.5
-
-
-2014-05-22 i??i ? 5:11, Michal Nazarewicz i?' e,?:
-> On Wed, May 21 2014, Gioh Kim <gioh.kim@lge.com> wrote:
->> Date: Tue, 20 May 2014 14:16:20 +0900
->> Subject: [PATCH] arm: dma-mapping: add checking cma area initialized
->>
->> If CMA is turned on and CMA size is set to zero, kernel should
->> behave as if CMA was not enabled at compile time.
->> Every dma allocation should check existence of cma area
->> before requesting memory.
->>
->> Signed-off-by: Gioh Kim <gioh.kim@lge.com>
->> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
->
-> Some minor comments.  Also, I'd love for someone more experienced with
-> ARM to take a look at this as well.
->
->> ---
->>    arch/arm/mm/dma-mapping.c |   12 ++++++++----
->>    1 file changed, 8 insertions(+), 4 deletions(-)
->>
->> diff --git a/arch/arm/mm/dma-mapping.c b/arch/arm/mm/dma-mapping.c
->> index 18e98df..61f7b93 100644
->> --- a/arch/arm/mm/dma-mapping.c
->> +++ b/arch/arm/mm/dma-mapping.c
->> @@ -379,7 +379,7 @@ static int __init atomic_pool_init(void)
->>           unsigned long *bitmap;
->>           struct page *page;
->>           struct page **pages;
->> -       void *ptr;
->> +       void *ptr = NULL;
->
-> This is unnecessary any more.
->
->>           int bitmap_size = BITS_TO_LONGS(nr_pages) * sizeof(long);
->>
->>           bitmap = kzalloc(bitmap_size, GFP_KERNEL);
->> @@ -390,12 +390,13 @@ static int __init atomic_pool_init(void)
->>           if (!pages)
->>                   goto no_pages;
->>
->> -       if (IS_ENABLED(CONFIG_DMA_CMA))
->> +       if (IS_ENABLED(CONFIG_DMA_CMA) && dma_contiguous_default_area)
->
-> +	if (dev_get_cma_area(NULL))
->
-> dev_get_cma_area returns NULL if !IS_ENABLED(CONFIG_DMA_CMA) so there's
-> no need to check it explicitly.  And with NULL argument,
-> deg_get_cma_area returns the default area.
->
->>                   ptr = __alloc_from_contiguous(NULL, pool->size, prot, &page,
->>                                                 atomic_pool_init);
->>           else
->>                   ptr = __alloc_remap_buffer(NULL, pool->size, gfp, prot, &page,
->>                                              atomic_pool_init);
->> +
->>           if (ptr) {
->>                   int i;
->>
->> @@ -669,6 +670,7 @@ static void *__dma_alloc(struct device *dev, size_t size, dma_addr_t *handle,
->>           u64 mask = get_coherent_dma_mask(dev);
->>           struct page *page = NULL;
->>           void *addr;
->> +       struct cma *cma = dev_get_cma_area(dev);
->>
->>    #ifdef CONFIG_DMA_API_DEBUG
->>           u64 limit = (mask + 1) & ~mask;
->> @@ -701,7 +703,7 @@ static void *__dma_alloc(struct device *dev, size_t size, dma_addr_t *handle,
->>                   addr = __alloc_simple_buffer(dev, size, gfp, &page);
->>           else if (!(gfp & __GFP_WAIT))
->>                   addr = __alloc_from_pool(size, &page);
->> -       else if (!IS_ENABLED(CONFIG_DMA_CMA))
->> +       else if (!IS_ENABLED(CONFIG_DMA_CMA) || !cma)
->
-> Like above, just do:
->
-> +	else if (!dev_get_cma_area(dev))
->
-> This will also allow to drop the a??cmaa?? variable above.
->
->>                   addr = __alloc_remap_buffer(dev, size, gfp, prot, &page, caller);
->>           else
->>                   addr = __alloc_from_contiguous(dev, size, prot, &page, caller);
->> @@ -780,6 +782,7 @@ static void __arm_dma_free(struct device *dev, size_t size, void *cpu_addr,
->>                              bool is_coherent)
->>    {
->>           struct page *page = pfn_to_page(dma_to_pfn(dev, handle));
->> +       struct cma *cma = dev_get_cma_area(dev);
->>
->>           if (dma_release_from_coherent(dev, get_order(size), cpu_addr))
->>                   return;
->> @@ -790,7 +793,7 @@ static void __arm_dma_free(struct device *dev, size_t size, void *cpu_addr,
->>                   __dma_free_buffer(page, size);
->>           } else if (__free_from_pool(cpu_addr, size)) {
->>                   return;
->> -       } else if (!IS_ENABLED(CONFIG_DMA_CMA)) {
->> +       } else if (!IS_ENABLED(CONFIG_DMA_CMA) || !cma) {
->
-> Ditto.
->
->>                   __dma_free_remap(cpu_addr, size);
->>                   __dma_free_buffer(page, size);
->>           } else {
->> @@ -798,6 +801,7 @@ static void __arm_dma_free(struct device *dev, size_t size, void *cpu_addr,
->>                    * Non-atomic allocations cannot be freed with IRQs disabled
->>                    */
->>                   WARN_ON(irqs_disabled());
->> +
->
-> Unrelated change.
->
->>                   __free_from_contiguous(dev, page, cpu_addr, size);
->>           }
->>    }
->> --
->> 1.7.9.5
->
++	pmd = pmd_wrprotect(pmd);
++	pmd = pmd_clear_flags(pmd, _PAGE_SOFT_DIRTY);
++
++	if (vma->vm_flags & VM_SOFTDIRTY)
++		vma->vm_flags &= ~VM_SOFTDIRTY;
++
++	set_pmd_at(vma->vm_mm, addr, pmdp, pmd);
++}
++
++#else
++
++static inline void clear_soft_dirty(struct vm_area_struct *vma,
++		unsigned long addr, pte_t *pte)
++{
++}
++
++static inline void clear_soft_dirty_pmd(struct vm_area_struct *vma,
++		unsigned long addr, pmd_t *pmdp)
++{
++}
++#endif
++
+ static int clear_refs_pte(pte_t *pte, unsigned long addr,
+ 				unsigned long end, struct mm_walk *walk)
+ {
+@@ -749,6 +775,33 @@ static int clear_refs_pte(pte_t *pte, unsigned long addr,
+ 	return 0;
+ }
+ 
++static int clear_refs_pmd(pmd_t *pmd, unsigned long addr,
++				unsigned long end, struct mm_walk *walk)
++{
++	struct clear_refs_private *cp = walk->private;
++	struct vm_area_struct *vma = walk->vma;
++	struct page *page;
++	spinlock_t *ptl;
++
++	if (pmd_trans_huge_lock(pmd, vma, &ptl) != 1)
++		return 0;
++	if (cp->type == CLEAR_REFS_SOFT_DIRTY) {
++		clear_soft_dirty_pmd(vma, addr, pmd);
++		goto out;
++	}
++
++	page = pmd_page(*pmd);
++
++	/* Clear accessed and referenced bits. */
++	pmdp_test_and_clear_young(vma, addr, pmd);
++	ClearPageReferenced(page);
++out:
++	spin_unlock(ptl);
++	/* handled as pmd, no need to call clear_refs_pte() */
++	walk->skip = 1;
++	return 0;
++}
++
+ static int clear_refs_test_walk(unsigned long start, unsigned long end,
+ 				struct mm_walk *walk)
+ {
+@@ -812,6 +865,7 @@ static ssize_t clear_refs_write(struct file *file, const char __user *buf,
+ 		};
+ 		struct mm_walk clear_refs_walk = {
+ 			.pte_entry = clear_refs_pte,
++			.pmd_entry = clear_refs_pmd,
+ 			.test_walk = clear_refs_test_walk,
+ 			.mm = mm,
+ 			.private = &cp,
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
