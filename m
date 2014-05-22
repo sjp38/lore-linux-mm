@@ -1,91 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f54.google.com (mail-ee0-f54.google.com [74.125.83.54])
-	by kanga.kvack.org (Postfix) with ESMTP id E41116B0036
-	for <linux-mm@kvack.org>; Thu, 22 May 2014 05:24:27 -0400 (EDT)
-Received: by mail-ee0-f54.google.com with SMTP id b57so2448533eek.27
-        for <linux-mm@kvack.org>; Thu, 22 May 2014 02:24:27 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w45si14085213eex.140.2014.05.22.02.24.26
+Received: from mail-ig0-f177.google.com (mail-ig0-f177.google.com [209.85.213.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 4327E6B0036
+	for <linux-mm@kvack.org>; Thu, 22 May 2014 05:50:23 -0400 (EDT)
+Received: by mail-ig0-f177.google.com with SMTP id l13so3285205iga.4
+        for <linux-mm@kvack.org>; Thu, 22 May 2014 02:50:23 -0700 (PDT)
+Received: from mail-ig0-x231.google.com (mail-ig0-x231.google.com [2607:f8b0:4001:c05::231])
+        by mx.google.com with ESMTPS id fd15si21149817icb.34.2014.05.22.02.50.22
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 22 May 2014 02:24:26 -0700 (PDT)
-Message-ID: <537DC247.5020801@suse.cz>
-Date: Thu, 22 May 2014 11:24:23 +0200
-From: Vlastimil Babka <vbabka@suse.cz>
+        Thu, 22 May 2014 02:50:22 -0700 (PDT)
+Received: by mail-ig0-f177.google.com with SMTP id l13so3285203iga.4
+        for <linux-mm@kvack.org>; Thu, 22 May 2014 02:50:22 -0700 (PDT)
 MIME-Version: 1.0
-Subject: Re: [PATCH 09/19] mm: page_alloc: Use word-based accesses for get/set
- pageblock bitmaps
-References: <1399974350-11089-1-git-send-email-mgorman@suse.de> <1399974350-11089-10-git-send-email-mgorman@suse.de>
-In-Reply-To: <1399974350-11089-10-git-send-email-mgorman@suse.de>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20140521193336.5df90456.akpm@linux-foundation.org>
+References: <1400639194-3743-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+	<20140521154250.95bc3520ad8d192d95efe39b@linux-foundation.org>
+	<537d5ee4.4914e00a.5672.ffff85d5SMTPIN_ADDED_BROKEN@mx.google.com>
+	<20140521193336.5df90456.akpm@linux-foundation.org>
+Date: Thu, 22 May 2014 13:50:22 +0400
+Message-ID: <CALYGNiMeDtiaA6gfbEYcXbwkuFvTRCLC9KmMOPtopAgGg5b6AA@mail.gmail.com>
+Subject: Re: [PATCH 0/4] pagecache scanning with /proc/kpagecache
+From: Konstantin Khlebnikov <koct9i@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@intel.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Wu Fengguang <fengguang.wu@intel.com>, Arnaldo Carvalho de Melo <acme@redhat.com>, Borislav Petkov <bp@alien8.de>, Cyrill Gorcunov <gorcunov@openvz.org>
 
-On 05/13/2014 11:45 AM, Mel Gorman wrote:
-> The test_bit operations in get/set pageblock flags are expensive. This patch
-> reads the bitmap on a word basis and use shifts and masks to isolate the bits
-> of interest. Similarly masks are used to set a local copy of the bitmap and then
-> use cmpxchg to update the bitmap if there have been no other changes made in
-> parallel.
-> 
-> In a test running dd onto tmpfs the overhead of the pageblock-related
-> functions went from 1.27% in profiles to 0.5%.
-> 
-> Signed-off-by: Mel Gorman <mgorman@suse.de>
-> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+On Thu, May 22, 2014 at 6:33 AM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
+> On Wed, 21 May 2014 22:19:55 -0400 Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
+>
+>> > A much nicer interface would be for us to (finally!) implement
+>> > fincore(), perhaps with an enhanced per-present-page payload which
+>> > presents the info which you need (although we don't actually know what
+>> > that info is!).
+>>
+>> page/pfn of each page slot and its page cache tag as shown in patch 4/4.
+>>
+>> > This would require open() - it appears to be a requirement that the
+>> > caller not open the file, but no reason was given for this.
+>> >
+>> > Requiring open() would address some of the obvious security concerns,
+>> > but it will still be possible for processes to poke around and get some
+>> > understanding of the behaviour of other processes.  Careful attention
+>> > should be paid to this aspect of any such patchset.
+>>
+>> Sorry if I missed your point, but this interface defines fixed mapping
+>> between file position in /proc/kpagecache and in-file page offset of
+>> the target file. So we do not need to use seq_file mechanism, that's
+>> why open() is not defined and default one is used.
+>> The same thing is true for /proc/{kpagecount,kpageflags}, from which
+>> I copied/pasted some basic code.
+>
+> I think you did miss my point ;) Please do a web search for fincore -
+> it's a syscall similar to mincore(), only it queries pagecache:
+> fincore(int fd, loff_t offset, ...).  In its simplest form it queries
+> just for present/absent, but we could increase the query payload to
+> incorporate additional per-page info.
+>
+> It would take a lot of thought and discussion to nail down the
+> fincore() interface (we've already tried a couple of times).  But
+> unfortunately, fincore() is probably going to be implemented one day
+> and it will (or at least could) make /proc/kpagecache obsolete.
+>
 
-Hi, I've tested if this closes the race I've been previously trying to fix
-with the series in http://marc.info/?l=linux-mm&m=139359694028925&w=2
-And indeed with this patch I wasn't able to reproduce it in my stress test
-(which adds lots of memory isolation calls) anymore. So thanks to Mel I can
-dump my series in the trashcan :P
+It seems fincore() also might obsolete /proc/kpageflags and /proc/pid/pagemap.
+because it might be implemented for /dev/mem and /proc/pid/mem as well
+as for normal files.
 
-Therefore I believe something like below should be added to the changelog,
-and put to stable as well.
+Something like this:
+int fincore(int fd, u64 *kpf, u64 *pfn, size_t length, off_t offset)
 
-Thanks,
-Vlastimil
+It reports PFN and page-flags in KPF_* notation. PFN array is optional.
+KFP_NOPAGE reports hole, otherwise this is present page, but probably
+not-uptodate.
+KFP_SOFTDIRTY already here.
 
------8<-----
-In addition to the performance benefits, this patch closes races that are
-possible between:
 
-a) get_ and set_pageblock_migratetype(), where get_pageblock_migratetype()
-   reads part of the bits before and other part of the bits after
-   set_pageblock_migratetype() has updated them.
-
-b) set_pageblock_migratetype() and set_pageblock_skip(), where the non-atomic
-   read-modify-update set bit operation in set_pageblock_skip() will cause
-   lost updates to some bits changed in the set_pageblock_migratetype().
-
-Joonsoo Kim first reported the case a) via code inspection. Vlastimil Babka's
-testing with a debug patch showed that either a) or b) occurs roughly once per
-mmtests' stress-highalloc benchmark (although not necessarily in the same
-pageblock). Furthermore during development of unrelated compaction patches,
-it was observed that frequent calls to {start,undo}_isolate_page_range() the
-race occurs several thousands of times and has resulted in NULL pointer
-dereferences in move_freepages() and free_one_page() in places where
-free_list[migratetype] is manipulated by e.g. list_move(). Further debugging
-confirmed that migratetype had invalid value of 6, causing out of bounds access
-to the free_list array. 
-
-That confirmed that the race exist, although it may be extremely rare, and
-currently only fatal where page isolation is performed due to memory hot remove.
-Races on pageblocks being updated by set_pageblock_migratetype(), where both
-old and new migratetype are lower MIGRATE_RESERVE, currently cannot result in an
-invalid value being observed, although theoretically they may still lead to
-unexpected creation or destruction of MIGRATE_RESERVE pageblocks. Furthermore,
-things could get suddenly worse when memory isolation is used more, or when new
-migratetypes are added.
-
-After this patch, the race has no longer been observed in testing.
-
-Reported-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Reported-and-tested-by: Vlastimil Babka <vbabka@suse.cz>
-Cc: <stable@vger.kernel.org>
+Also we need new flag KFP_SWAPENTRY for vm/shmem to report swap-entry
+instead of pfn.
+Probably this is redundant, we cannot report pfn and swap-entry
+togerher if page present and in swap-cache.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
