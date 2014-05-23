@@ -1,38 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 02E916B0037
-	for <linux-mm@kvack.org>; Fri, 23 May 2014 14:37:05 -0400 (EDT)
-Received: by mail-wi0-f171.google.com with SMTP id cc10so1275960wib.16
-        for <linux-mm@kvack.org>; Fri, 23 May 2014 11:37:05 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id bd1si3354761wjc.5.2014.05.23.11.37.03
+Received: from mail-pb0-f50.google.com (mail-pb0-f50.google.com [209.85.160.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 740176B0036
+	for <linux-mm@kvack.org>; Fri, 23 May 2014 14:53:35 -0400 (EDT)
+Received: by mail-pb0-f50.google.com with SMTP id ma3so4542620pbc.37
+        for <linux-mm@kvack.org>; Fri, 23 May 2014 11:53:35 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id un1si5188167pac.13.2014.05.23.11.53.34
         for <linux-mm@kvack.org>;
-        Fri, 23 May 2014 11:37:04 -0700 (PDT)
-Message-ID: <537F9534.7020603@redhat.com>
-Date: Fri, 23 May 2014 14:36:36 -0400
-From: Rik van Riel <riel@redhat.com>
+        Fri, 23 May 2014 11:53:34 -0700 (PDT)
+Date: Sat, 24 May 2014 03:47:23 +0900
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: Re: [PATCH] staging: ion: WARN when the handle kmap_cnt is going to
+ wrap around
+Message-ID: <20140523184723.GA5355@kroah.com>
+References: <1400806281-32716-1-git-send-email-mitchelh@codeaurora.org>
+ <CAMbhsRQpR-Q=kgr92ezauBj200_2cfnsXHkk+3oPD51ZKD=4RQ@mail.gmail.com>
+ <vnkw61kws5rg.fsf@mitchelh-linux.qualcomm.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 5/5] mm: rename leftover i_mmap_mutex
-References: <1400816006-3083-1-git-send-email-davidlohr@hp.com> <1400816006-3083-6-git-send-email-davidlohr@hp.com>
-In-Reply-To: <1400816006-3083-6-git-send-email-davidlohr@hp.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <vnkw61kws5rg.fsf@mitchelh-linux.qualcomm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Davidlohr Bueso <davidlohr@hp.com>, akpm@linux-foundation.org
-Cc: mingo@kernel.org, peterz@infradead.org, mgorman@suse.de, aswin@hp.com, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Mitchel Humpherys <mitchelh@codeaurora.org>
+Cc: Colin Cross <ccross@android.com>, devel@driverdev.osuosl.org, Linux-MM <linux-mm@kvack.org>, John Stultz <john.stultz@linaro.org>, Android Kernel Team <kernel-team@android.com>, lkml <linux-kernel@vger.kernel.org>
 
-On 05/22/2014 11:33 PM, Davidlohr Bueso wrote:
-> Update the lock to i_mmap_rwsem throughout the kernel.
-> All changes are in comments and documentation.
-> 
-> Signed-off-by: Davidlohr Bueso <davidlohr@hp.com>
+On Fri, May 23, 2014 at 11:34:59AM -0700, Mitchel Humpherys wrote:
+> ++greg-kh and devel@driverdev.osuosl.org
+> (my bad for missing you the first time around)
 
-Acked-by: Rik van Riel <riel@redhat.com>
+What can I do with this?  Please send patches to me in a format that I
+can actually apply them in...
 
+thanks,
 
--- 
-All rights reversed
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
