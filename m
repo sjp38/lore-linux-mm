@@ -1,51 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f44.google.com (mail-wg0-f44.google.com [74.125.82.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 225676B0037
-	for <linux-mm@kvack.org>; Thu, 22 May 2014 22:48:31 -0400 (EDT)
-Received: by mail-wg0-f44.google.com with SMTP id a1so4136955wgh.15
-        for <linux-mm@kvack.org>; Thu, 22 May 2014 19:48:30 -0700 (PDT)
-Received: from mail-we0-f170.google.com (mail-we0-f170.google.com [74.125.82.170])
-        by mx.google.com with ESMTPS id ay5si1315847wjb.4.2014.05.22.19.48.29
+Received: from mail-oa0-f41.google.com (mail-oa0-f41.google.com [209.85.219.41])
+	by kanga.kvack.org (Postfix) with ESMTP id D9EB16B0038
+	for <linux-mm@kvack.org>; Thu, 22 May 2014 23:33:37 -0400 (EDT)
+Received: by mail-oa0-f41.google.com with SMTP id m1so5056912oag.28
+        for <linux-mm@kvack.org>; Thu, 22 May 2014 20:33:37 -0700 (PDT)
+Received: from g4t3425.houston.hp.com (g4t3425.houston.hp.com. [15.201.208.53])
+        by mx.google.com with ESMTPS id tp9si2208294obb.27.2014.05.22.20.33.37
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 22 May 2014 19:48:29 -0700 (PDT)
-Received: by mail-we0-f170.google.com with SMTP id u57so4366294wes.15
-        for <linux-mm@kvack.org>; Thu, 22 May 2014 19:48:29 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <CAGa+x87-NRyK6kUiXNL_bRNEGm+DR6M3HPSLYEoq4t6Nrtnd_g@mail.gmail.com>
-References: <1399904111-23520-1-git-send-email-vbabka@suse.cz>
-	<1400233673-11477-1-git-send-email-vbabka@suse.cz>
-	<CAGa+x87-NRyK6kUiXNL_bRNEGm+DR6M3HPSLYEoq4t6Nrtnd_g@mail.gmail.com>
-Date: Fri, 23 May 2014 10:48:29 +0800
-Message-ID: <CAAQ0ZWQDVxAzZVm86ATXd1JGUVoLXj_Y5Ske7htxH_6a4GPKRg@mail.gmail.com>
-Subject: Re: [PATCH v2] mm, compaction: properly signal and act upon lock and
- need_sched() contention
-From: Shawn Guo <shawn.guo@linaro.org>
-Content-Type: text/plain; charset=UTF-8
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 22 May 2014 20:33:37 -0700 (PDT)
+From: Davidlohr Bueso <davidlohr@hp.com>
+Subject: [PATCH 0/5] mm: i_mmap_mutex to rwsem
+Date: Thu, 22 May 2014 20:33:21 -0700
+Message-Id: <1400816006-3083-1-git-send-email-davidlohr@hp.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kevin Hilman <khilman@linaro.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Greg Thelen <gthelen@google.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Olof Johansson <olof@lixom.net>, Stephen Warren <swarren@wwwdotorg.org>, linux-arm-kernel <linux-arm-kernel@lists.infradead.org>
+To: akpm@linux-foundation.org
+Cc: mingo@kernel.org, peterz@infradead.org, riel@redhat.com, mgorman@suse.de, davidlohr@hp.com, aswin@hp.com, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On 23 May 2014 07:49, Kevin Hilman <khilman@linaro.org> wrote:
-> On Fri, May 16, 2014 at 2:47 AM, Vlastimil Babka <vbabka@suse.cz> wrote:
->> Compaction uses compact_checklock_irqsave() function to periodically check for
->> lock contention and need_resched() to either abort async compaction, or to
->> free the lock, schedule and retake the lock. When aborting, cc->contended is
->> set to signal the contended state to the caller. Two problems have been
->> identified in this mechanism.
->
-> This patch (or later version) has hit next-20140522 (in the form
-> commit 645ceea9331bfd851bc21eea456dda27862a10f4) and according to my
-> bisect, appears to be the culprit of several boot failures on ARM
-> platforms.
+This patchset extends the work started by Ingo Molnar in late 2012,
+optimizing the anon-vma mutex lock, converting it from a exclusive mutex
+to a rwsem, and sharing the lock for read-only paths when walking the
+the vma-interval tree. More specifically commits 5a505085 and 4fc3f1d6.
 
-On i.MX6 where CMA is enabled, the commit causes the drivers calling
-dma_alloc_coherent() fail to probe.  Tracing it a little bit, it seems
-dma_alloc_from_contiguous() always return page as NULL after this
-commit.
+The i_mmap_mutex has similar responsibilities with the anon-vma, protecting
+file backed pages. Therefore we can use similar locking techniques: covert
+the mutex to a rwsem and share the lock when possible.
 
-Shawn
+With the new optimistic spinning property we have in rwsems, we no longer
+take a hit in performance when using this lock, and we can therefore
+safely do the conversion. Tests show no throughput regressions in aim7 or
+pgbench runs, and we can see gains from sharing the lock, in disk workloads
+~+15% for over 1000 users on a 8-socket Westmere system.
+
+This patchset applies on linux-next-20140522.
+
+Thanks!
+
+Davidlohr Bueso (5):
+  mm,fs: introduce helpers around i_mmap_mutex
+  mm: use new helper functions around the i_mmap_mutex
+  mm: convert i_mmap_mutex to rwsem
+  mm/rmap: share the i_mmap_rwsem
+  mm: rename leftover i_mmap_mutex
+
+ fs/hugetlbfs/inode.c         | 14 +++++++-------
+ fs/inode.c                   |  2 +-
+ include/linux/fs.h           | 23 ++++++++++++++++++++++-
+ include/linux/mmu_notifier.h |  2 +-
+ kernel/events/uprobes.c      |  6 +++---
+ kernel/fork.c                |  4 ++--
+ mm/filemap.c                 | 10 +++++-----
+ mm/filemap_xip.c             |  4 ++--
+ mm/hugetlb.c                 | 22 +++++++++++-----------
+ mm/memory-failure.c          |  4 ++--
+ mm/memory.c                  |  8 ++++----
+ mm/mmap.c                    | 22 +++++++++++-----------
+ mm/mremap.c                  |  6 +++---
+ mm/nommu.c                   | 14 +++++++-------
+ mm/rmap.c                    | 10 +++++-----
+ 15 files changed, 86 insertions(+), 65 deletions(-)
+
+-- 
+1.8.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
