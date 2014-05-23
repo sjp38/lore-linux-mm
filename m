@@ -1,55 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f178.google.com (mail-ig0-f178.google.com [209.85.213.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 136FA6B0035
-	for <linux-mm@kvack.org>; Fri, 23 May 2014 17:49:29 -0400 (EDT)
-Received: by mail-ig0-f178.google.com with SMTP id hl10so1240080igb.5
-        for <linux-mm@kvack.org>; Fri, 23 May 2014 14:49:28 -0700 (PDT)
-Received: from mail-ig0-x235.google.com (mail-ig0-x235.google.com [2607:f8b0:4001:c05::235])
-        by mx.google.com with ESMTPS id gh14si7742621icb.1.2014.05.23.14.49.28
+Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
+	by kanga.kvack.org (Postfix) with ESMTP id C19BD6B0037
+	for <linux-mm@kvack.org>; Fri, 23 May 2014 17:55:59 -0400 (EDT)
+Received: by mail-wi0-f169.google.com with SMTP id hi2so1692617wib.4
+        for <linux-mm@kvack.org>; Fri, 23 May 2014 14:55:59 -0700 (PDT)
+Received: from one.firstfloor.org (one.firstfloor.org. [193.170.194.197])
+        by mx.google.com with ESMTPS id ht3si3874073wjb.144.2014.05.23.14.55.58
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 23 May 2014 14:49:28 -0700 (PDT)
-Received: by mail-ig0-f181.google.com with SMTP id h3so1240552igd.8
-        for <linux-mm@kvack.org>; Fri, 23 May 2014 14:49:28 -0700 (PDT)
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 23 May 2014 14:55:58 -0700 (PDT)
+Date: Fri, 23 May 2014 23:55:57 +0200
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [PATCH] Pass on hwpoison maintainership to Naoya Noriguchi
+Message-ID: <20140523215557.GS1873@two.firstfloor.org>
+References: <1400879739-12614-1-git-send-email-andi@firstfloor.org>
+ <1400881526-jqo101r5@n-horiguchi@ah.jp.nec.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.02.1405231353080.13205@chino.kir.corp.google.com>
-References: <1400847135-22291-1-git-send-email-dh.herrmann@gmail.com>
-	<alpine.DEB.2.02.1405231353080.13205@chino.kir.corp.google.com>
-Date: Fri, 23 May 2014 23:49:28 +0200
-Message-ID: <CANq1E4SfL=c_ZgGwRkQWoEHEWF4q8-DVB+RsQfo6CqGQc9MoZA@mail.gmail.com>
-Subject: Re: [PATCH] mm/madvise: fix WILLNEED on SHM/ANON to actually do something
-From: David Herrmann <dh.herrmann@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1400881526-jqo101r5@n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: linux-kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Vladimir Cernov <gg.kaspersky@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, linux-mm <linux-mm@kvack.org>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Andi Kleen <andi@firstfloor.org>, torvalds@linux-foundation.org, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, ak@linux.intel.com
 
-Hi
+On Fri, May 23, 2014 at 05:45:30PM -0400, Naoya Horiguchi wrote:
+> On Fri, May 23, 2014 at 02:15:39PM -0700, Andi Kleen wrote:
+> > From: Andi Kleen <ak@linux.intel.com>
+> > 
+> > Noriguchi-san has done most of the work on hwpoison in the last years
+> > and he also does most of the reviewing. So I'm passing on the hwpoison
+> > maintainership to him.
+> 
+> Thank you, I'll do my best.
+> 
+> # Could please do s/Noriguchi/Horiguchi/g :)
+> # It will make someone's grep fail in the future.
 
-On Fri, May 23, 2014 at 10:55 PM, David Rientjes <rientjes@google.com> wrote:
-> On Fri, 23 May 2014, David Herrmann wrote:
->
->> diff --git a/mm/madvise.c b/mm/madvise.c
->> index 539eeb9..a402f8f 100644
->> --- a/mm/madvise.c
->> +++ b/mm/madvise.c
->> @@ -195,7 +195,7 @@ static void force_shm_swapin_readahead(struct vm_area_struct *vma,
->>       for (; start < end; start += PAGE_SIZE) {
->>               index = ((start - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
->>
->> -             page = find_get_page(mapping, index);
->> +             page = find_get_entry(mapping, index);
->>               if (!radix_tree_exceptional_entry(page)) {
->>                       if (page)
->>                               page_cache_release(page);
->
-> This is already in -mm from Johannes, see
-> http://marc.info/?l=linux-kernel&m=139998616712729.  Check out
-> http://www.ozlabs.org/~akpm/mmotm/ for this kernel.
+Sorry about that.
 
-Didn't check -mm, sorry. Thanks for the links!
-David
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
