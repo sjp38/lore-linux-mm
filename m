@@ -1,92 +1,376 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vc0-f176.google.com (mail-vc0-f176.google.com [209.85.220.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 2BA286B0036
-	for <linux-mm@kvack.org>; Fri, 23 May 2014 12:48:43 -0400 (EDT)
-Received: by mail-vc0-f176.google.com with SMTP id id10so3138647vcb.7
-        for <linux-mm@kvack.org>; Fri, 23 May 2014 09:48:42 -0700 (PDT)
-Received: from mail-ve0-x22e.google.com (mail-ve0-x22e.google.com [2607:f8b0:400c:c01::22e])
-        by mx.google.com with ESMTPS id 6si1975810vdo.17.2014.05.23.09.48.42
+Received: from mail-ie0-f173.google.com (mail-ie0-f173.google.com [209.85.223.173])
+	by kanga.kvack.org (Postfix) with ESMTP id EBD5D6B0036
+	for <linux-mm@kvack.org>; Fri, 23 May 2014 12:57:23 -0400 (EDT)
+Received: by mail-ie0-f173.google.com with SMTP id lx4so5295677iec.4
+        for <linux-mm@kvack.org>; Fri, 23 May 2014 09:57:23 -0700 (PDT)
+Received: from mail-ig0-x22a.google.com (mail-ig0-x22a.google.com [2607:f8b0:4001:c05::22a])
+        by mx.google.com with ESMTPS id p6si6377315icc.100.2014.05.23.09.57.23
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 23 May 2014 09:48:42 -0700 (PDT)
-Received: by mail-ve0-f174.google.com with SMTP id jw12so6627648veb.33
-        for <linux-mm@kvack.org>; Fri, 23 May 2014 09:48:42 -0700 (PDT)
+        Fri, 23 May 2014 09:57:23 -0700 (PDT)
+Received: by mail-ig0-f170.google.com with SMTP id uy17so1125476igb.5
+        for <linux-mm@kvack.org>; Fri, 23 May 2014 09:57:23 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20140523033438.GC16945@gchen.bj.intel.com>
-References: <cover.1400607328.git.tony.luck@intel.com>
-	<eb791998a8ada97b204dddf2719a359149e9ae31.1400607328.git.tony.luck@intel.com>
-	<20140523033438.GC16945@gchen.bj.intel.com>
-Date: Fri, 23 May 2014 09:48:42 -0700
-Message-ID: <CA+8MBb+Una+Z5Q-Pn0OoMYaaSx9sPJ3fdriMRMgN=CE1Jdp7Cg@mail.gmail.com>
-Subject: Re: [PATCH 1/2] memory-failure: Send right signal code to correct thread
-From: Tony Luck <tony.luck@gmail.com>
+In-Reply-To: <alpine.LSU.2.11.1405191916300.2970@eggly.anvils>
+References: <1397587118-1214-1-git-send-email-dh.herrmann@gmail.com>
+	<1397587118-1214-3-git-send-email-dh.herrmann@gmail.com>
+	<alpine.LSU.2.11.1405191916300.2970@eggly.anvils>
+Date: Fri, 23 May 2014 18:57:22 +0200
+Message-ID: <CANq1E4TORuZU7frtR167P-GNPzEuvbjXXEfi9KdvTwGojqGruA@mail.gmail.com>
+Subject: Re: [PATCH v2 2/3] shm: add memfd_create() syscall
+From: David Herrmann <dh.herrmann@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tony Luck <tony.luck@intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Borislav Petkov <bp@suse.de>, Chen Gong <gong.chen@linux.jf.intel.com>, iskra@mcs.anl.gov
+To: Hugh Dickins <hughd@google.com>
+Cc: Tony Battersby <tonyb@cybernetics.com>, Andy Lutomirsky <luto@amacapital.net>, Al Viro <viro@zeniv.linux.org.uk>, Jan Kara <jack@suse.cz>, Michael Kerrisk <mtk.manpages@gmail.com>, Ryan Lortie <desrt@desrt.ca>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-kernel <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Greg Kroah-Hartman <greg@kroah.com>, John Stultz <john.stultz@linaro.org>, Kristian Hogsberg <krh@bitplanet.net>, Lennart Poettering <lennart@poettering.net>, Daniel Mack <zonque@gmail.com>, Kay Sievers <kay@vrfy.org>
 
-Added Kamil (hope I got the right one - the spinics.net archive obfuscates
-the e-mail addresses).
+Hi
 
->> -     if ((flags & MF_ACTION_REQUIRED) && t == current) {
->> +     if ((flags & MF_ACTION_REQUIRED) && t->mm == current->mm) {
->>               si.si_code = BUS_MCEERR_AR;
->> -             ret = force_sig_info(SIGBUS, &si, t);
->> +             ret = force_sig_info(SIGBUS, &si, current);
->>       } else {
->>               /*
->>                * Don't use force here, it's convenient if the signal
->> --
->> 1.8.4.1
-> Very interesting. I remembered there was a thread about AO error. Here is
-> the link: http://www.spinics.net/lists/linux-mm/msg66653.html.
-> According to this link, I have two concerns:
+On Tue, May 20, 2014 at 4:20 AM, Hugh Dickins <hughd@google.com> wrote:
+> On Tue, 15 Apr 2014, David Herrmann wrote:
 >
-> 1) how to handle the similar scenario like it in this link. I mean once
-> the main thread doesn't handle AR error but a thread does this, if SIGBUS
-> can't be handled at once.
-> 2) why that patch isn't merged. From that thread, Naoya should mean
-> "acknowledge" :-).
+>> memfd_create() is similar to mmap(MAP_ANON), but returns a file-descriptor
+>> that you can pass to mmap(). It can support sealing and avoids any
+>> connection to user-visible mount-points. Thus, it's not subject to quotas
+>> on mounted file-systems, but can be used like malloc()'ed memory, but
+>> with a file-descriptor to it.
+>>
+>> memfd_create() does not create a front-FD, but instead returns the raw
+>
+> What is a front-FD?
 
-That's an interesting thread ... and looks like it helps out in a case
-where there are only AO signals.
+With 'front-FD' I refer to things like dma-buf: They allocate a
+file-descriptor which is just a wrapper around a kernel-internal FD.
+For instance, DRM-gem buffers exported as dma-buf. fops on the dma-buf
+are forwarded to the shmem-fd of the given gem-object, but any access
+to the inode of the dma-buf fd is a no-op as the dma-buf fd uses
+anon-inode, not the shmem-inode.
 
-But the "AR" case complicates things. Kamil points out at the start
-of the thread:
-> Also, do I understand it correctly that "action required" faults *must* be
-> handled by the thread that triggered the error?  I guess it makes sense for
-> it to be that way, even if it circumvents the "dedicated handling thread"
-> idea...
-this is absolutely true ... in the BUS_MCEERR_AR case the current
-thread is executing an instruction that is attempting to consume poison
-data ... and we cannot let that instruction retire, so we have to signal that
-thread - if it can fix the problem by mapping a new page to the location
-that was lost, and refilling it with the right data - the handler can return
-to resume - otherwise it can longjmp() somewhere or exit.
+A previous revision of memfd used something like that, but that was
+inherently racy.
 
-This means that the idea of having a multi-threaded application where
-just one thread has a SIGBUS handler and we gently steer the
-BUS_MCEERR_AO signals to that thread to be handled is flawed.
-Every thread needs to have a SIGBUS handler - so that we can handle
-the "AR" case. [Digression: what does happen to a process with a thread
-with no SIGBUS handler if we in fact send it a SIGBUS? Does just that
-thread die (default action for SIGBUS)? Or does the whole process get
-killed?  If just one thread is terminated ... then perhaps someone could
-write a recovery aware application that worked like this - though it sounds
-like that would be working blindfold with one hand tied behind your back.
-How would the remaining threads know why their buddy just died? The
-siginfo_t describing the problem isn't available]
+>> shmem file, so calls like ftruncate() can be used. Also calls like fstat()
+>> will return proper information and mark the file as regular file. If you
+>> want sealing, you can specify MFD_ALLOW_SEALING. Otherwise, sealing is not
+>> support (like on all other regular files).
+>>
+>> Compared to O_TMPFILE, it does not require a tmpfs mount-point and is not
+>> subject to quotas and alike.
+>
+> You mention quotas a couple of times, and I want to be clear about that.
+>
+> I think you are mainly thinking of the "df" size limitation which comes
+> by default on a tmpfs mount, but can be retuned or removed with the
+> size= or nr_block= mount options.  You want memfd_create() to be free
+> of that limitation, which indeed it is.
+>
+> (I'm not proud of the way in which an unlimited tmpfs mount can easily
+> be used to OOM the system, killing processes which do little to give
+> back the memory needed; but that's how it is, and you're not making
+> that worse, just adding a further interface to it.)
+>
+> And we have never implemented fs/quota/-style quotas on tmpfs,
+> so you're certainly free from those.
+>
+> But a created memfd is still subject to an RLIMIT_FSIZE limit, and
+> to a memcg's memory.limit_in_bytes and memory.memsw.limit_in_bytes:
+> I expect you don't care about those, that they would be unlimited
+> in the cases that you care about.
+>
+> And a created memfd is still subject to __vm_enough_memory() limiting:
+> unlimited when OVERCOMMIT_ALWAYS, a little unpredictable when
+> OVERCOMMIT_GUESS, strictly accounted when OVERCOMMIT_NEVER.  I don't
+> think we can compromise on OVERCOMMIT_NEVER, but if OVERCOMMIT_GUESS
+> gives you a problem, we could probably tweak it for your case.
+> More on this below, when considering the size arg to memfd_create().
 
-If we want steerable AO signals to a dedicated thread - we'd have to
-use different signals for AO & AR. So every thread can have an AR
-handler, but just one have the AO handler.  Or something more exotic
-with prctl to designate the preferred target for AO signals?
+Yes, memfd_create() is supposed to be the same as mmap(MAP_ANON) and
+I'm aware of the limits you describe (at least some of them..). But
+thanks a lot for listing them, I will try to document them in my
+man-pages.
 
-Or just live with the fact that every thread needs a handler for AR ...
-and have the application internally pass AO activity from the
-thread that originally got the SIGBUS to some worker thread.
+>>
+>> Signed-off-by: David Herrmann <dh.herrmann@gmail.com>
+>> ---
+>>  arch/x86/syscalls/syscall_32.tbl |  1 +
+>>  arch/x86/syscalls/syscall_64.tbl |  1 +
+>
+> Okay.  No point in cluttering the patchset with other architectures
+> until this is closer to merge.  Miklos Szeredi's recent patches
+> "add renameat2 syscall" provide a very helpful precedent to follow.
 
--Tony
+Thanks for the hint to renameat2. I will include other architectures
+as a follow-up once we agreed on the implementation.
+
+>>  include/linux/syscalls.h         |  1 +
+>>  include/uapi/linux/memfd.h       | 10 ++++++
+>>  kernel/sys_ni.c                  |  1 +
+>>  mm/shmem.c                       | 74 ++++++++++++++++++++++++++++++++++++++++
+>>  6 files changed, 88 insertions(+)
+>>  create mode 100644 include/uapi/linux/memfd.h
+>>
+>> diff --git a/arch/x86/syscalls/syscall_32.tbl b/arch/x86/syscalls/syscall_32.tbl
+>> index 96bc506..c943b8a 100644
+>> --- a/arch/x86/syscalls/syscall_32.tbl
+>> +++ b/arch/x86/syscalls/syscall_32.tbl
+>> @@ -359,3 +359,4 @@
+>>  350  i386    finit_module            sys_finit_module
+>>  351  i386    sched_setattr           sys_sched_setattr
+>>  352  i386    sched_getattr           sys_sched_getattr
+>> +353  i386    memfd_create            sys_memfd_create
+>> diff --git a/arch/x86/syscalls/syscall_64.tbl b/arch/x86/syscalls/syscall_64.tbl
+>> index 04376ac..dfcfd6f 100644
+>> --- a/arch/x86/syscalls/syscall_64.tbl
+>> +++ b/arch/x86/syscalls/syscall_64.tbl
+>> @@ -323,6 +323,7 @@
+>>  314  common  sched_setattr           sys_sched_setattr
+>>  315  common  sched_getattr           sys_sched_getattr
+>>  316  common  renameat2               sys_renameat2
+>> +317  common  memfd_create            sys_memfd_create
+>>
+>>  #
+>>  # x32-specific system call numbers start at 512 to avoid cache impact
+>> diff --git a/include/linux/syscalls.h b/include/linux/syscalls.h
+>> index a4a0588..133b705 100644
+>> --- a/include/linux/syscalls.h
+>> +++ b/include/linux/syscalls.h
+>> @@ -802,6 +802,7 @@ asmlinkage long sys_timerfd_settime(int ufd, int flags,
+>>  asmlinkage long sys_timerfd_gettime(int ufd, struct itimerspec __user *otmr);
+>>  asmlinkage long sys_eventfd(unsigned int count);
+>>  asmlinkage long sys_eventfd2(unsigned int count, int flags);
+>> +asmlinkage long sys_memfd_create(const char *uname_ptr, u64 size, u64 flags);
+>>  asmlinkage long sys_fallocate(int fd, int mode, loff_t offset, loff_t len);
+>>  asmlinkage long sys_old_readdir(unsigned int, struct old_linux_dirent __user *, unsigned int);
+>>  asmlinkage long sys_pselect6(int, fd_set __user *, fd_set __user *,
+>> diff --git a/include/uapi/linux/memfd.h b/include/uapi/linux/memfd.h
+>> new file mode 100644
+>> index 0000000..c4a6db0
+>> --- /dev/null
+>> +++ b/include/uapi/linux/memfd.h
+>> @@ -0,0 +1,10 @@
+>> +#ifndef _UAPI_LINUX_MEMFD_H
+>> +#define _UAPI_LINUX_MEMFD_H
+>> +
+>> +#include <linux/types.h>
+>
+> Why include linux/types.h in this one?
+>
+>> +
+>> +/* flags for memfd_create(2) (u64) */
+>> +#define MFD_CLOEXEC          0x0001ULL
+>> +#define MFD_ALLOW_SEALING    0x0002ULL
+>> +
+>> +#endif /* _UAPI_LINUX_MEMFD_H */
+>> diff --git a/kernel/sys_ni.c b/kernel/sys_ni.c
+>> index bc8d1b7..f96c329 100644
+>> --- a/kernel/sys_ni.c
+>> +++ b/kernel/sys_ni.c
+>> @@ -195,6 +195,7 @@ cond_syscall(compat_sys_timerfd_settime);
+>>  cond_syscall(compat_sys_timerfd_gettime);
+>>  cond_syscall(sys_eventfd);
+>>  cond_syscall(sys_eventfd2);
+>> +cond_syscall(sys_memfd_create);
+>>
+>>  /* performance counters: */
+>>  cond_syscall(sys_perf_event_open);
+>> diff --git a/mm/shmem.c b/mm/shmem.c
+>> index 175a5b8..203cc4e 100644
+>> --- a/mm/shmem.c
+>> +++ b/mm/shmem.c
+>> @@ -66,7 +66,9 @@ static struct vfsmount *shm_mnt;
+>>  #include <linux/highmem.h>
+>>  #include <linux/seq_file.h>
+>>  #include <linux/magic.h>
+>> +#include <linux/syscalls.h>
+>>  #include <linux/fcntl.h>
+>> +#include <uapi/linux/memfd.h>
+>>
+>>  #include <asm/uaccess.h>
+>>  #include <asm/pgtable.h>
+>> @@ -2919,6 +2921,78 @@ out4:
+>>       return error;
+>>  }
+>>
+>
+> Whereas 1/3's sealing stuff was under CONFIG_TMPFS, this is in a
+> CONFIG_SHMEM part of mm/shmem.c, built even when !CONFIG_TMPFS: in
+> which case you could not write to or truncate the object created,
+> just mmap it and access it that way (like SysV SHM).  Not necessarily
+> wrong, but it may prevent surprises to put this under CONFIG_TMPFS:
+> the user gets an fd, so probably expects filesystem operations to work.
+>
+>> +#define MFD_NAME_PREFIX "memfd:"
+>> +#define MFD_NAME_PREFIX_LEN (sizeof(MFD_NAME_PREFIX) - 1)
+>> +#define MFD_NAME_MAX_LEN (NAME_MAX - MFD_NAME_PREFIX_LEN)
+>> +
+>> +#define MFD_ALL_FLAGS (MFD_CLOEXEC | MFD_ALLOW_SEALING)
+>> +
+>> +SYSCALL_DEFINE3(memfd_create,
+>> +             const char*, uname,
+>> +             u64, size,
+>> +             u64, flags)
+>
+> If I'd come in earlier, I'd have probably looked for another name
+> than memfd_create; but I don't have anything better in mind, and
+> you've done a great job of sounding out potential users, so let's
+> stick with the name everyone is expecting.
+>
+> The uname: it's a funny thing, not belonging in a filesystem tree;
+> but you're very sure you want it, and we already make up funny
+> names for SysV SHM and /dev/zero objects, so okay.
+>
+> The size: u64 or loff_t or size_t?  But more on size below.
+>
+> The flags: u64?  That's a big future you're allowing for!
+> open and mmap use ints for their flags, will this really need more?
+>
+> But I don't think I've been present at the birth of a syscall before:
+> there are probably several considerations that I'm unaware of, that
+> you may have factored in - listen to the experts, not to me.
+>
+>> +{
+>> +     struct shmem_inode_info *info;
+>> +     struct file *shm;
+>
+> "struct file *file" is more usual.
+>
+>> +     char *name;
+>> +     int fd, r;
+>
+> "int err" or "int error" rather than "int r".
+>
+>> +     long len;
+>> +
+>> +     if (flags & ~(u64)MFD_ALL_FLAGS)
+>> +             return -EINVAL;
+>> +     if ((u64)(loff_t)size != size || (loff_t)size < 0)
+>> +             return -EINVAL;
+>> +
+>> +     /* length includes terminating zero */
+>> +     len = strnlen_user(uname, MFD_NAME_MAX_LEN);
+>> +     if (len <= 0)
+>> +             return -EFAULT;
+>> +     else if (len > MFD_NAME_MAX_LEN)
+>
+> Please omit the "else ".
+>
+> And, since strnlen_user() returns length including terminating NUL,
+> wouldn't it be more exact to use MFD_NAME_MAX_LEN + 1 in those two
+> places above?
+>
+>> +             return -EINVAL;
+>> +
+>> +     name = kmalloc(len + MFD_NAME_PREFIX_LEN, GFP_KERNEL);
+>
+> Probably better to say GFP_TEMPORARY than GFP_KERNEL,
+> though it doesn't seem to be used very much at all.
+>
+>> +     if (!name)
+>> +             return -ENOMEM;
+>> +
+>> +     strcpy(name, MFD_NAME_PREFIX);
+>> +     if (copy_from_user(&name[MFD_NAME_PREFIX_LEN], uname, len)) {
+>> +             r = -EFAULT;
+>> +             goto err_name;
+>> +     }
+>> +
+>> +     /* terminating-zero may have changed after strnlen_user() returned */
+>> +     if (name[len + MFD_NAME_PREFIX_LEN - 1]) {
+>> +             r = -EFAULT;
+>> +             goto err_name;
+>> +     }
+>> +
+>> +     fd = get_unused_fd_flags((flags & MFD_CLOEXEC) ? O_CLOEXEC : 0);
+>> +     if (fd < 0) {
+>> +             r = fd;
+>> +             goto err_name;
+>> +     }
+>> +
+>> +     shm = shmem_file_setup(name, size, 0);
+>
+> That's an interesting line: I am anxious to know whether you mean to
+> pass flags 0 there, or would rather pass VM_NORESERVE.  Passing 0
+> makes the object resemble mmap or SysV SHM, in accounting for the
+> whole size upfront; passing VM_NORESERVE makes the object resemble
+> a tmpfs file, accounted page by page as they are instantiated.
+
+I definitely meant to use VM_NORESERVE. Thanks for pointing that out.
+
+> Accounting meaning calls to __vm_enough_memory() in mm/mmap.c:
+> whose behaviour is governed by /proc/sys/vm/overcommit_memory
+> (and overcommit_kbytes or overcommit_ratio): OVERCOMMIT_ALWAYS
+> (no enforcement), OVERCOMMIT_GUESS (default) or OVERCOMMIT_NEVER
+> (enforcing strict no-overcommit).
+>
+> We have a small problem if you really intend flags 0: because then
+> that size is preaccounted, yet we also allow these objects to grow
+> or be truncated without accounting, and the number (/proc/meminfo's
+> Committed_AS) will go wrong.
+>
+> If you really intend that preaccounting, then we need to add an
+> orig_size field to shmem_inode_info, and treat pages below that
+> as preaccounted, but pages above it to be accounted one by one.
+> If you don't intend preaccounting, then please pass VM_NORESERVE
+> to shmem_file_setup().
+>
+> But this does highlight how the "size" arg to memfd_create() is
+> perhaps redundant.  Why give a size there, when size can be changed
+> afterwards?  I expect your answer is that many callers want to choose
+> the size at the beginning, and would prefer to avoid the extra call.
+> I'm not sure if that's a good enough reason for a redundant argument.
+
+At one point in time we might be required to support atomic-sealing.
+So a memfd_create() call takes the initial seals as upper 32bits in
+"flags" and sets them before returning the object. If these seals
+contain SEAL_GROW/SHRINK, we must pass the size during setup (think
+CLOEXEC with fork()).
+
+Note that we spent a lot of time discussing whether such
+atomic-sealing is necessary and no-one came up with a real race so
+far. Therefore, I didn't include that. But especially if we add new
+seals (like SHMEM_SEAL_OPEN, which I still think is not needed and
+just hides real problems), we might at one point be required to
+support that. That's also the reason why "flags" is 64bits.
+
+One might argue that we can just add memfd_create2() once that
+happens, but I didn't see any harm in including "size" and making them
+64bit.
+
+I've fixed all your other concerns.
+
+Thanks
+David
+
+>> +     if (IS_ERR(shm)) {
+>> +             r = PTR_ERR(shm);
+>> +             goto err_fd;
+>> +     }
+>> +     info = SHMEM_I(file_inode(shm));
+>> +     shm->f_mode |= FMODE_LSEEK | FMODE_PREAD | FMODE_PWRITE;
+>> +     if (flags & MFD_ALLOW_SEALING)
+>> +             info->seals |= SHMEM_ALLOW_SEALING;
+>
+> In comments on 1/3 I suggest removing F_SEAL_SEAL instead here.
+>
+>> +
+>> +     fd_install(fd, shm);
+>> +     kfree(name);
+>> +     return fd;
+>> +
+>> +err_fd:
+>> +     put_unused_fd(fd);
+>> +err_name:
+>> +     kfree(name);
+>> +     return r;
+>> +}
+>> +
+>>  #else /* !CONFIG_SHMEM */
+>>
+>>  /*
+>> --
+>> 1.9.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
