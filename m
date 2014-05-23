@@ -1,92 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ee0-f47.google.com (mail-ee0-f47.google.com [74.125.83.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 5FCE26B0036
-	for <linux-mm@kvack.org>; Fri, 23 May 2014 04:35:02 -0400 (EDT)
-Received: by mail-ee0-f47.google.com with SMTP id c13so3372496eek.20
-        for <linux-mm@kvack.org>; Fri, 23 May 2014 01:35:01 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m1si5112128eeh.71.2014.05.23.01.35.00
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 23 May 2014 01:35:00 -0700 (PDT)
-Message-ID: <537F082F.50501@suse.cz>
-Date: Fri, 23 May 2014 10:34:55 +0200
-From: Vlastimil Babka <vbabka@suse.cz>
+Received: from mail-ee0-f48.google.com (mail-ee0-f48.google.com [74.125.83.48])
+	by kanga.kvack.org (Postfix) with ESMTP id C95A46B0036
+	for <linux-mm@kvack.org>; Fri, 23 May 2014 05:16:35 -0400 (EDT)
+Received: by mail-ee0-f48.google.com with SMTP id e49so3417220eek.21
+        for <linux-mm@kvack.org>; Fri, 23 May 2014 02:16:35 -0700 (PDT)
+Received: from jenni1.inet.fi (mta-out1.inet.fi. [62.71.2.199])
+        by mx.google.com with ESMTP id r10si5327022eev.73.2014.05.23.02.16.33
+        for <linux-mm@kvack.org>;
+        Fri, 23 May 2014 02:16:34 -0700 (PDT)
+Date: Fri, 23 May 2014 12:16:31 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: 3.15.0-rc6: VM_BUG_ON_PAGE(PageTail(page), page)
+Message-ID: <20140523091631.GA4400@node.dhcp.inet.fi>
+References: <20140522135828.GA24879@redhat.com>
+ <537ECCDB.8080009@oracle.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2] mm, compaction: properly signal and act upon lock
- and need_sched() contention
-References: <1399904111-23520-1-git-send-email-vbabka@suse.cz>	<1400233673-11477-1-git-send-email-vbabka@suse.cz>	<CAGa+x87-NRyK6kUiXNL_bRNEGm+DR6M3HPSLYEoq4t6Nrtnd_g@mail.gmail.com> <CAAQ0ZWQDVxAzZVm86ATXd1JGUVoLXj_Y5Ske7htxH_6a4GPKRg@mail.gmail.com>
-In-Reply-To: <CAAQ0ZWQDVxAzZVm86ATXd1JGUVoLXj_Y5Ske7htxH_6a4GPKRg@mail.gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <537ECCDB.8080009@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shawn Guo <shawn.guo@linaro.org>, Kevin Hilman <khilman@linaro.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Greg Thelen <gthelen@google.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Olof Johansson <olof@lixom.net>, Stephen Warren <swarren@wwwdotorg.org>, linux-arm-kernel <linux-arm-kernel@lists.infradead.org>
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: Dave Jones <davej@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>
 
-On 05/23/2014 04:48 AM, Shawn Guo wrote:
-> On 23 May 2014 07:49, Kevin Hilman <khilman@linaro.org> wrote:
->> On Fri, May 16, 2014 at 2:47 AM, Vlastimil Babka <vbabka@suse.cz> wrote:
->>> Compaction uses compact_checklock_irqsave() function to periodically check for
->>> lock contention and need_resched() to either abort async compaction, or to
->>> free the lock, schedule and retake the lock. When aborting, cc->contended is
->>> set to signal the contended state to the caller. Two problems have been
->>> identified in this mechanism.
->>
->> This patch (or later version) has hit next-20140522 (in the form
->> commit 645ceea9331bfd851bc21eea456dda27862a10f4) and according to my
->> bisect, appears to be the culprit of several boot failures on ARM
->> platforms.
+On Fri, May 23, 2014 at 12:21:47AM -0400, Sasha Levin wrote:
+> On 05/22/2014 09:58 AM, Dave Jones wrote:
+> > Not sure if Sasha has already reported this on -next (It's getting hard
+> > to keep track of all the VM bugs he's been finding), but I hit this overnight
+> > on .15-rc6.  First time I've seen this one.
 > 
-> On i.MX6 where CMA is enabled, the commit causes the drivers calling
-> dma_alloc_coherent() fail to probe.  Tracing it a little bit, it seems
-> dma_alloc_from_contiguous() always return page as NULL after this
-> commit.
-> 
-> Shawn
-> 
+> Unfortunately I had to disable transhuge/hugetlb in my testing .config since
+> the open issues in -next get hit pretty often, and were unfixed for a while
+> now.
 
-Really sorry, guys :/
+What THP-related is not fixed by now? collapse hung? what else?
 
------8<-----
-From: Vlastimil Babka <vbabka@suse.cz>
-Date: Fri, 23 May 2014 10:18:56 +0200
-Subject: mm-compaction-properly-signal-and-act-upon-lock-and-need_sched-contention-fix2
-
-Step 1: Change function name and comment between v1 and v2 so that the return
-        value signals the opposite thing.
-Step 2: Change the call sites to reflect the opposite return value.
-Step 3: ???
-Step 4: Make a complete fool of yourself.
-
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
----
- mm/compaction.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
-
-diff --git a/mm/compaction.c b/mm/compaction.c
-index a525cd4..5175019 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -237,13 +237,13 @@ static inline bool compact_should_abort(struct compact_control *cc)
- 	if (need_resched()) {
- 		if (cc->mode == MIGRATE_ASYNC) {
- 			cc->contended = true;
--			return false;
-+			return true;
- 		}
- 
- 		cond_resched();
- 	}
- 
--	return true;
-+	return false;
- }
- 
- /* Returns true if the page is within a block suitable for migration to */
 -- 
-1.8.4.5
-
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
