@@ -1,124 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f48.google.com (mail-pb0-f48.google.com [209.85.160.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C0BA6B0037
-	for <linux-mm@kvack.org>; Fri, 23 May 2014 08:29:02 -0400 (EDT)
-Received: by mail-pb0-f48.google.com with SMTP id rr13so4092744pbb.21
-        for <linux-mm@kvack.org>; Fri, 23 May 2014 05:29:01 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTP id fd3si3617574pbb.179.2014.05.23.05.29.01
-        for <linux-mm@kvack.org>;
-        Fri, 23 May 2014 05:29:01 -0700 (PDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-In-Reply-To: <20140521133408.4d2f1a551e9652fb0e12265f@linux-foundation.org>
-References: <1399541296-18810-1-git-send-email-maddy@linux.vnet.ibm.com>
- <537479E7.90806@linux.vnet.ibm.com>
- <alpine.LSU.2.11.1405151026540.4664@eggly.anvils>
- <87wqdik4n5.fsf@rustcorp.com.au>
- <53797511.1050409@linux.vnet.ibm.com>
- <alpine.LSU.2.11.1405191531150.1317@eggly.anvils>
- <20140519164301.eafd3dd288ccb88361ddcfc7@linux-foundation.org>
- <20140520004429.E660AE009B@blue.fi.intel.com>
- <87oaythsvk.fsf@rustcorp.com.au>
- <20140520102738.7F096E009B@blue.fi.intel.com>
- <20140520125956.aa61a3bfd84d4d6190740ce2@linux-foundation.org>
- <20140521134027.263DDE009B@blue.fi.intel.com>
- <20140521133408.4d2f1a551e9652fb0e12265f@linux-foundation.org>
-Subject: Re: [PATCH V4 0/2] mm: FAULT_AROUND_ORDER patchset performance data
- for powerpc
-Content-Transfer-Encoding: 7bit
-Message-Id: <20140523122854.BDB36E009B@blue.fi.intel.com>
-Date: Fri, 23 May 2014 15:28:54 +0300 (EEST)
+Received: from mail-ee0-f42.google.com (mail-ee0-f42.google.com [74.125.83.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 946466B0036
+	for <linux-mm@kvack.org>; Fri, 23 May 2014 09:20:47 -0400 (EDT)
+Received: by mail-ee0-f42.google.com with SMTP id d49so3590360eek.15
+        for <linux-mm@kvack.org>; Fri, 23 May 2014 06:20:46 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id z47si6750760eel.67.2014.05.23.06.20.45
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 23 May 2014 06:20:45 -0700 (PDT)
+Date: Fri, 23 May 2014 15:20:43 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch 6/9] mm: memcontrol: remove ordering between
+ pc->mem_cgroup and PageCgroupUsed
+Message-ID: <20140523132043.GB22135@dhcp22.suse.cz>
+References: <1398889543-23671-1-git-send-email-hannes@cmpxchg.org>
+ <1398889543-23671-7-git-send-email-hannes@cmpxchg.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1398889543-23671-7-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rusty Russell <rusty@rustcorp.com.au>, Hugh Dickins <hughd@google.com>, Madhavan Srinivasan <maddy@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, x86@kernel.org, benh@kernel.crashing.org, paulus@samba.org, riel@redhat.com, mgorman@suse.de, ak@linux.intel.com, peterz@infradead.org, mingo@kernel.org, dave.hansen@intel.com
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-Andrew Morton wrote:
-> On Wed, 21 May 2014 16:40:27 +0300 (EEST) "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
+On Wed 30-04-14 16:25:40, Johannes Weiner wrote:
+> There is a write barrier between setting pc->mem_cgroup and
+> PageCgroupUsed, which was added to allow LRU operations to lookup the
+> memcg LRU list of a page without acquiring the page_cgroup lock.  But
+> ever since 38c5d72f3ebe ("memcg: simplify LRU handling by new rule"),
+> pages are ensured to be off-LRU while charging, so nobody else is
+> changing LRU state while pc->mem_cgroup is being written.
+
+This is quite confusing. Why do we have the lrucare path then?
+The code is quite tricky so this deserves a more detailed explanation
+IMO.
+
+There are only 3 paths which check both the flag and mem_cgroup (
+without page_cgroup_lock) get_mctgt_type* and mem_cgroup_page_lruvec AFAICS.
+None of them have rmb so there was no guarantee about ordering anyway.
+
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+
+Anyway, the change is welcome
+Acked-by: Michal Hocko <mhocko@suse.cz>
+
+> ---
+>  mm/memcontrol.c | 9 ---------
+>  1 file changed, 9 deletions(-)
 > 
-> > > Or something.  Can we please get some code commentary over
-> > > do_fault_around() describing this design decision and explaining the
-> > > reasoning behind it?
-> > 
-> > I'll do this. But if do_fault_around() rework is needed, I want to do that
-> > first.
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 34407d99262a..c528ae9ac230 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -2823,14 +2823,6 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *memcg,
+>  	}
+>  
+>  	pc->mem_cgroup = memcg;
+> -	/*
+> -	 * We access a page_cgroup asynchronously without lock_page_cgroup().
+> -	 * Especially when a page_cgroup is taken from a page, pc->mem_cgroup
+> -	 * is accessed after testing USED bit. To make pc->mem_cgroup visible
+> -	 * before USED bit, we need memory barrier here.
+> -	 * See mem_cgroup_add_lru_list(), etc.
+> -	 */
+> -	smp_wmb();
+>  	SetPageCgroupUsed(pc);
+>  
+>  	if (lrucare) {
+> @@ -3609,7 +3601,6 @@ void mem_cgroup_split_huge_fixup(struct page *head)
+>  	for (i = 1; i < HPAGE_PMD_NR; i++) {
+>  		pc = head_pc + i;
+>  		pc->mem_cgroup = memcg;
+> -		smp_wmb();/* see __commit_charge() */
+>  		pc->flags = head_pc->flags & ~PCGF_NOCOPY_AT_SPLIT;
+>  	}
+>  	__this_cpu_sub(memcg->stat->count[MEM_CGROUP_STAT_RSS_HUGE],
+> -- 
+> 1.9.2
 > 
-> This sort of thing should be at least partially driven by observation
-> and I don't have the data for that.  My seat of the pants feel is that
-> after the first fault, accesses at higher addresses are more
-> common/probable than accesses at lower addresses.
 
-It's probably true for data, but the feature is mostly targeted to code pages
-and situation is not that obvious to me with all jumps.
-
-> But we don't need to do all that right now.  Let's get the current
-> implementation wrapped up for 3.15: get the interface finalized (bytes,
-> not pages!)
-
-The patch above by thread is okay for that, right?
-
-> and get the current design decisions appropriately documented.
-
-Here it is. Based on patch to convert order->bytes.
-
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Date: Fri, 23 May 2014 15:16:47 +0300
-Subject: [PATCH] mm: document do_fault_around() feature
-
-Some clarification on how faultaround works.
-
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
----
- mm/memory.c | 27 +++++++++++++++++++++++++++
- 1 file changed, 27 insertions(+)
-
-diff --git a/mm/memory.c b/mm/memory.c
-index 252b319e8cdf..8d723b8d3c86 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -3404,6 +3404,10 @@ void do_set_pte(struct vm_area_struct *vma, unsigned long address,
- 
- static unsigned long fault_around_bytes = 65536;
- 
-+/*
-+ * fault_around_pages() and fault_around_mask() round down fault_around_bytes
-+ * to nearest page order. It's what do_fault_around() expects to see.
-+ */
- static inline unsigned long fault_around_pages(void)
- {
- 	return rounddown_pow_of_two(fault_around_bytes) / PAGE_SIZE;
-@@ -3445,6 +3449,29 @@ static int __init fault_around_debugfs(void)
- late_initcall(fault_around_debugfs);
- #endif
- 
-+/*
-+ * do_fault_around() tries to map few pages around the fault address. The hope
-+ * is that the pages will be needed soon and this would lower the number of
-+ * faults to handle.
-+ *
-+ * It uses vm_ops->map_pages() to map the pages, which skips the page if it's
-+ * not ready to be mapped: not up-to-date, locked, etc.
-+ *
-+ * This function is called with the page table lock taken. In the split ptlock
-+ * case the page table lock only protects only those entries which belong to
-+ * page table corresponding to the fault address.
-+ *
-+ * This function don't cross the VMA boundaries in order to call map_pages()
-+ * only once.
-+ *
-+ * fault_around_pages() defines how many pages we'll try to map.
-+ * do_fault_around() expects it to be power of two and less or equal to
-+ * PTRS_PER_PTE.
-+ *
-+ * The virtual address of the area that we map is naturally aligned to the
-+ * fault_around_pages() (and therefore to page order). This way it's easier to
-+ * guarantee that we don't cross the page table boundaries.
-+ */
- static void do_fault_around(struct vm_area_struct *vma, unsigned long address,
- 		pte_t *pte, pgoff_t pgoff, unsigned int flags)
- {
 -- 
- Kirill A. Shutemov
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
