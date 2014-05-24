@@ -1,108 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f47.google.com (mail-pb0-f47.google.com [209.85.160.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 4A9696B0037
-	for <linux-mm@kvack.org>; Fri, 23 May 2014 20:38:19 -0400 (EDT)
-Received: by mail-pb0-f47.google.com with SMTP id rp16so4860952pbb.34
-        for <linux-mm@kvack.org>; Fri, 23 May 2014 17:38:18 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id vq10si6048338pab.121.2014.05.23.17.38.17
+Received: from mail-pb0-f52.google.com (mail-pb0-f52.google.com [209.85.160.52])
+	by kanga.kvack.org (Postfix) with ESMTP id CA53A6B0035
+	for <linux-mm@kvack.org>; Fri, 23 May 2014 20:58:00 -0400 (EDT)
+Received: by mail-pb0-f52.google.com with SMTP id rr13so4900144pbb.11
+        for <linux-mm@kvack.org>; Fri, 23 May 2014 17:58:00 -0700 (PDT)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.11.231])
+        by mx.google.com with ESMTPS id zv2si5984775pbb.131.2014.05.23.17.57.59
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 23 May 2014 17:38:18 -0700 (PDT)
-Message-ID: <537FE9F3.40508@oracle.com>
-Date: Fri, 23 May 2014 20:38:11 -0400
-From: Sasha Levin <sasha.levin@oracle.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 23 May 2014 17:57:59 -0700 (PDT)
+Message-ID: <537FEE96.8000704@codeaurora.org>
+Date: Fri, 23 May 2014 17:57:58 -0700
+From: Laura Abbott <lauraa@codeaurora.org>
 MIME-Version: 1.0
-Subject: Re: mm: NULL ptr deref in remove_migration_pte
-References: <534E9ACA.2090008@oracle.com> <5367B365.1070709@oracle.com>
-In-Reply-To: <5367B365.1070709@oracle.com>
+Subject: Re: [RFC PATCH 2/3] CMA: aggressively allocate the pages on cma reserved
+ memory when not used
+References: <1399509144-8898-1-git-send-email-iamjoonsoo.kim@lge.com> <1399509144-8898-3-git-send-email-iamjoonsoo.kim@lge.com> <5370FF1D.10707@codeaurora.org>
+In-Reply-To: <5370FF1D.10707@codeaurora.org>
 Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: Hugh Dickins <hughd@google.com>, Christoph Lameter <cl@gentwo.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Dave Jones <davej@redhat.com>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Heesub Shin <heesub.shin@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, lmark@codeaurora.org
 
-Ping?
-
-On 05/05/2014 11:51 AM, Sasha Levin wrote:
-> Did anyone have a chance to look at it? I still see it in -next.
+On 5/12/2014 10:04 AM, Laura Abbott wrote:
 > 
+> I'm going to see about running this through tests internally for comparison.
+> Hopefully I'll get useful results in a day or so.
 > 
 > Thanks,
-> Sasha
+> Laura
 > 
-> On 04/16/2014 10:59 AM, Sasha Levin wrote:
->> Hi all,
->>
->> While fuzzing with trinity inside a KVM tools guest running latest -next
->> kernel I've stumbled on the following:
->>
->> [ 2552.313602] BUG: unable to handle kernel NULL pointer dereference at 0000000000000018
->> [ 2552.315878] IP: __lock_acquire (kernel/locking/lockdep.c:3070 (discriminator 1))
->> [ 2552.315878] PGD 465836067 PUD 465837067 PMD 0
->> [ 2552.315878] Oops: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
->> [ 2552.315878] Dumping ftrace buffer:
->> [ 2552.315878]    (ftrace buffer empty)
->> [ 2552.315878] Modules linked in:
->> [ 2552.315878] CPU: 6 PID: 16173 Comm: trinity-c364 Tainted: G        W     3.15.0-rc1-next-20140415-sasha-00020-gaa90d09 #398
->> [ 2552.315878] task: ffff88046548b000 ti: ffff88044e532000 task.ti: ffff88044e532000
->> [ 2552.320286] RIP: __lock_acquire (kernel/locking/lockdep.c:3070 (discriminator 1))
->> [ 2552.320286] RSP: 0018:ffff88044e5339c8  EFLAGS: 00010002
->> [ 2552.320286] RAX: 0000000000000082 RBX: ffff88046548b000 RCX: 0000000000000000
->> [ 2552.320286] RDX: 0000000000000000 RSI: 0000000000000000 RDI: 0000000000000018
->> [ 2552.320286] RBP: ffff88044e533ab8 R08: 0000000000000001 R09: 0000000000000000
->> [ 2552.320286] R10: ffff88046548b000 R11: 0000000000000001 R12: 0000000000000000
->> [ 2552.320286] R13: 0000000000000018 R14: 0000000000000000 R15: 0000000000000000
->> [ 2552.320286] FS:  00007fd286a9a700(0000) GS:ffff88018b000000(0000) knlGS:0000000000000000
->> [ 2552.320286] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
->> [ 2552.320286] CR2: 0000000000000018 CR3: 0000000442c17000 CR4: 00000000000006a0
->> [ 2552.320286] DR0: 0000000000695000 DR1: 0000000000000000 DR2: 0000000000000000
->> [ 2552.320286] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000600
->> [ 2552.320286] Stack:
->> [ 2552.320286]  ffff88044e5339e8 ffffffff9f56e761 0000000000000000 ffff880315c13000
->> [ 2552.320286]  ffff88044e533a38 ffffffff9c193f0d ffffffff9c193e34 ffff8804654e8000
->> [ 2552.320286]  ffff8804654e8000 0000000000000001 ffff88046548b000 0000000000000007
->> [ 2552.320286] Call Trace:
->> [ 2552.320286] ? _raw_spin_unlock_irq (arch/x86/include/asm/preempt.h:98 include/linux/spinlock_api_smp.h:169 kernel/locking/spinlock.c:199)
->> [ 2552.320286] ? finish_task_switch (include/linux/tick.h:206 kernel/sched/core.c:2163)
->> [ 2552.320286] ? finish_task_switch (arch/x86/include/asm/current.h:14 kernel/sched/sched.h:993 kernel/sched/core.c:2145)
->> [ 2552.320286] ? retint_restore_args (arch/x86/kernel/entry_64.S:1040)
->> [ 2552.320286] ? __this_cpu_preempt_check (lib/smp_processor_id.c:63)
->> [ 2552.320286] ? trace_hardirqs_on_caller (kernel/locking/lockdep.c:2557 kernel/locking/lockdep.c:2599)
->> [ 2552.320286] lock_acquire (arch/x86/include/asm/current.h:14 kernel/locking/lockdep.c:3602)
->> [ 2552.320286] ? remove_migration_pte (mm/migrate.c:137)
->> [ 2552.320286] ? retint_restore_args (arch/x86/kernel/entry_64.S:1040)
->> [ 2552.320286] _raw_spin_lock (include/linux/spinlock_api_smp.h:143 kernel/locking/spinlock.c:151)
->> [ 2552.320286] ? remove_migration_pte (mm/migrate.c:137)
->> [ 2552.320286] remove_migration_pte (mm/migrate.c:137)
->> [ 2552.320286] rmap_walk (mm/rmap.c:1628 mm/rmap.c:1699)
->> [ 2552.320286] remove_migration_ptes (mm/migrate.c:224)
->> [ 2552.320286] ? new_page_node (mm/migrate.c:107)
->> [ 2552.320286] ? remove_migration_pte (mm/migrate.c:195)
->> [ 2552.320286] migrate_pages (mm/migrate.c:922 mm/migrate.c:960 mm/migrate.c:1126)
->> [ 2552.320286] ? perf_trace_mm_numa_migrate_ratelimit (mm/migrate.c:1574)
->> [ 2552.320286] migrate_misplaced_page (mm/migrate.c:1733)
->> [ 2552.320286] __handle_mm_fault (mm/memory.c:3762 mm/memory.c:3812 mm/memory.c:3925)
->> [ 2552.320286] ? __const_udelay (arch/x86/lib/delay.c:126)
->> [ 2552.320286] ? __rcu_read_unlock (kernel/rcu/update.c:97)
->> [ 2552.320286] handle_mm_fault (mm/memory.c:3948)
->> [ 2552.320286] __get_user_pages (mm/memory.c:1851)
->> [ 2552.320286] ? preempt_count_sub (kernel/sched/core.c:2527)
->> [ 2552.320286] __mlock_vma_pages_range (mm/mlock.c:255)
->> [ 2552.320286] __mm_populate (mm/mlock.c:711)
->> [ 2552.320286] SyS_mlockall (include/linux/mm.h:1799 mm/mlock.c:817 mm/mlock.c:791)
->> [ 2552.320286] tracesys (arch/x86/kernel/entry_64.S:749)
->> [ 2552.320286] Code: 85 2d 1e 00 00 48 c7 c1 d7 68 6c a0 48 c7 c2 47 11 6c a0 31 c0 be fa 0b 00 00 48 c7 c7 91 68 6c a0 e8 1c 6d f9 ff e9 07 1e 00 00 <49> 81 7d 00 80 31 76 a2 b8 00 00 00 00 44 0f 44 c0 eb 07 0f 1f
->> [ 2552.320286] RIP __lock_acquire (kernel/locking/lockdep.c:3070 (discriminator 1))
->> [ 2552.320286]  RSP <ffff88044e5339c8>
->> [ 2552.320286] CR2: 0000000000000018
->>
->>
->> Thanks,
->> Sasha
->>
-> 
+
+We ran some tests internally and found that for our purposes these patches made
+the benchmarks worse vs. the existing implementation of using CMA first for some
+pages. These are mostly androidisms but androidisms that we care about for
+having a device be useful.
+
+The foreground memory headroom on the device was on average about 40 MB smaller
+ when using these patches vs our existing implementation of something like
+solution #1. By foreground memory headroom we simply mean the amount of memory
+that the foreground application can allocate before it is killed by the Android
+ Low Memory killer.
+
+We also found that when running a sequence of app launches these patches had
+more high priority app kills by the LMK and more alloc stalls. The test did a
+total of 500 hundred app launches (using 9 separate applications) The CMA
+memory in our system is rarely used by its client and is therefore available
+to the system most of the time.
+
+Test device
+- 4 CPUs
+- Android 4.4.2
+- 512MB of RAM
+- 68 MB of CMA
+
+
+Results:
+
+Existing solution:
+Foreground headroom: 200MB
+Number of higher priority LMK kills (oom_score_adj < 529): 332
+Number of alloc stalls: 607
+
+
+Test patches:
+Foreground headroom: 160MB
+Number of higher priority LMK kills (oom_score_adj < 529):
+459 Number of alloc stalls: 29538
+
+We believe that the issues seen with these patches are the result of the LMK
+being more aggressive. The LMK will be more aggressive because it will ignore
+free CMA pages for unmovable allocations, and since most calls to the LMK are
+made by kswapd (which uses GFP_KERNEL) the LMK will mostly ignore free CMA
+pages. Because the LMK thresholds are higher than the zone watermarks, there
+will often be a lot of free CMA pages in the system when the LMK is called,
+which the LMK will usually ignore.
+
+Thanks,
+Laura
+
+-- 
+Qualcomm Innovation Center, Inc. is a member of Code Aurora Forum,
+hosted by The Linux Foundation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
