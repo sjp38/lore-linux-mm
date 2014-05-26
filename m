@@ -1,66 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f176.google.com (mail-ig0-f176.google.com [209.85.213.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 7FF736B0036
-	for <linux-mm@kvack.org>; Mon, 26 May 2014 16:19:17 -0400 (EDT)
-Received: by mail-ig0-f176.google.com with SMTP id hl10so320857igb.3
-        for <linux-mm@kvack.org>; Mon, 26 May 2014 13:19:17 -0700 (PDT)
-Received: from mail-ig0-x233.google.com (mail-ig0-x233.google.com [2607:f8b0:4001:c05::233])
-        by mx.google.com with ESMTPS id s1si1812655ign.15.2014.05.26.13.19.16
+Received: from mail-pb0-f42.google.com (mail-pb0-f42.google.com [209.85.160.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C61C6B0036
+	for <linux-mm@kvack.org>; Mon, 26 May 2014 16:26:19 -0400 (EDT)
+Received: by mail-pb0-f42.google.com with SMTP id md12so8117586pbc.15
+        for <linux-mm@kvack.org>; Mon, 26 May 2014 13:26:19 -0700 (PDT)
+Received: from mail-pa0-x229.google.com (mail-pa0-x229.google.com [2607:f8b0:400e:c03::229])
+        by mx.google.com with ESMTPS id gh1si16145235pac.147.2014.05.26.13.26.18
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 26 May 2014 13:19:17 -0700 (PDT)
-Received: by mail-ig0-f179.google.com with SMTP id hn18so329903igb.0
-        for <linux-mm@kvack.org>; Mon, 26 May 2014 13:19:16 -0700 (PDT)
+        Mon, 26 May 2014 13:26:18 -0700 (PDT)
+Received: by mail-pa0-f41.google.com with SMTP id lj1so7987146pab.14
+        for <linux-mm@kvack.org>; Mon, 26 May 2014 13:26:18 -0700 (PDT)
+Date: Mon, 26 May 2014 13:25:02 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH] mm/process_vm_access: move into ipc/
+In-Reply-To: <CALYGNiNE2cdPaxw3f2y0-g2aRZZD1HbrBHpu-zf9Pdjb69kh3w@mail.gmail.com>
+Message-ID: <alpine.LSU.2.11.1405261314510.3748@eggly.anvils>
+References: <20140524135925.32597.45754.stgit@zurg> <alpine.LSU.2.11.1405261210140.3411@eggly.anvils> <CALYGNiNE2cdPaxw3f2y0-g2aRZZD1HbrBHpu-zf9Pdjb69kh3w@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20140526145605.016140154@infradead.org>
-References: <20140526145605.016140154@infradead.org>
-Date: Tue, 27 May 2014 00:19:16 +0400
-Message-ID: <CALYGNiMG1NVBUS4TJrYJMr92yWGZHSdGUdCGtBJDHoUMMhE+Wg@mail.gmail.com>
-Subject: Re: [RFC][PATCH 0/5] VM_PINNED
-From: Konstantin Khlebnikov <koct9i@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux.com>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Roland Dreier <roland@kernel.org>, Sean Hefty <sean.hefty@intel.com>, Hal Rosenstock <hal.rosenstock@gmail.com>, Mike Marciniszyn <infinipath@intel.com>
+To: Konstantin Khlebnikov <koct9i@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Al Viro <viro@zeniv.linux.org.uk>
 
-On Mon, May 26, 2014 at 6:56 PM, Peter Zijlstra <peterz@infradead.org> wrote:
-> Hi all,
->
-> I mentioned at LSF/MM that I wanted to revive this, and at the time there were
-> no disagreements.
->
-> I finally got around to refreshing the patch(es) so here goes.
->
-> These patches introduce VM_PINNED infrastructure, vma tracking of persistent
-> 'pinned' page ranges. Pinned is anything that has a fixed phys address (as
-> required for say IO DMA engines) and thus cannot use the weaker VM_LOCKED. One
-> popular way to pin pages is through get_user_pages() but that not nessecarily
-> the only way.
+On Mon, 26 May 2014, Konstantin Khlebnikov wrote:
+> On Mon, May 26, 2014 at 11:16 PM, Hugh Dickins <hughd@google.com> wrote:
+> > On Sat, 24 May 2014, Konstantin Khlebnikov wrote:
+> >
+> >> "CROSS_MEMORY_ATTACH" and mm/process_vm_access.c seems misnamed and misplaced.
+> >> Actually it's a kind of IPC and it has no more relation to MM than sys_read().
+> >> This patch moves code into ipc/ and config option into init/Kconfig.
+> >>
+> >> Signed-off-by: Konstantin Khlebnikov <koct9i@gmail.com>
+> >
+> > I disagree, and SysV's ipc/ isn't where I would expect to find it.
+> > How about we just leave it where it is in mm?
+> 
+> Ok, how about moving only config option? It adds couple syscalls and
+> nothing more.
+> I don't think it should be in "Processor type and features".
+> All other options related to non-standard syscalls are in "General
+> setup' init/Kconfig.
 
-Lol, this looks like resurrection of VM_RESERVED which I've removed
-not so long time ago.
+That sounds reasonable to me.  I see you also snuck in a change
+to the prompt string: which indeed seems an improvement, but you
+ought to mention it in the comment, rather than hiding it in the move.
 
-Maybe single-bit state isn't flexible enought?
-This supposed to supports pinning only by one user and only in its own mm?
+(I sometimes wonder if its help text ought to say "This CMA has
+absolutely nothing to do with the Contiguous Memory Allocator";
+but adding that might increase the confusion rather than reduce it,)
 
-This might be done as extension of existing memory-policy engine.
-It allows to keep vm_area_struct slim in normal cases and change
-behaviour when needed.
-memory-policy might hold reference-counter of "pinners", track
-ownership and so on.
+Hugh
 
->
-> Roland, as said, I need some IB assistance, see patches 4 and 5, where I got
-> lost in the qib and ipath code.
->
-> Patches 1-3 compile tested.
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
+> >> diff --git a/init/Kconfig b/init/Kconfig
+> >> index 9d3585b..d6ddb7a 100644
+> >> --- a/init/Kconfig
+> >> +++ b/init/Kconfig
+> >> @@ -261,6 +261,16 @@ config POSIX_MQUEUE_SYSCTL
+> >>       depends on SYSCTL
+> >>       default y
+> >>
+> >> +config CROSS_MEMORY_ATTACH
+> >> +     bool "Enable process_vm_readv/writev syscalls"
+> >> +     depends on MMU
+> >> +     default y
+> >> +     help
+> >> +       Enabling this option adds the system calls process_vm_readv and
+> >> +       process_vm_writev which allow a process with the correct privileges
+> >> +       to directly read from or write to to another process's address space.
+> >> +       See the man page for more details.
+> >> +
+> >> diff --git a/mm/Kconfig b/mm/Kconfig
+> >> index 1b5a95f..2ec35d7 100644
+> >> --- a/mm/Kconfig
+> >> +++ b/mm/Kconfig
+> >> @@ -430,16 +430,6 @@ choice
+> >>         benefit.
+> >>  endchoice
+> >>
+> >> -config CROSS_MEMORY_ATTACH
+> >> -     bool "Cross Memory Support"
+> >> -     depends on MMU
+> >> -     default y
+> >> -     help
+> >> -       Enabling this option adds the system calls process_vm_readv and
+> >> -       process_vm_writev which allow a process with the correct privileges
+> >> -       to directly read from or write to to another process's address space.
+> >> -       See the man page for more details.
+> >> -
+> >>  #
+> >>  # UP and nommu archs use km based percpu allocator
+> >>  #
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
