@@ -1,106 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f170.google.com (mail-ig0-f170.google.com [209.85.213.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A2596B0035
-	for <linux-mm@kvack.org>; Mon, 26 May 2014 07:44:14 -0400 (EDT)
-Received: by mail-ig0-f170.google.com with SMTP id uy17so3146451igb.5
-        for <linux-mm@kvack.org>; Mon, 26 May 2014 04:44:14 -0700 (PDT)
-Received: from mail-ie0-x22d.google.com (mail-ie0-x22d.google.com [2607:f8b0:4001:c03::22d])
-        by mx.google.com with ESMTPS id n5si19942573icc.105.2014.05.26.04.44.13
+Received: from mail-qg0-f54.google.com (mail-qg0-f54.google.com [209.85.192.54])
+	by kanga.kvack.org (Postfix) with ESMTP id F16406B0036
+	for <linux-mm@kvack.org>; Mon, 26 May 2014 11:29:50 -0400 (EDT)
+Received: by mail-qg0-f54.google.com with SMTP id q108so12219927qgd.27
+        for <linux-mm@kvack.org>; Mon, 26 May 2014 08:29:50 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
+        by mx.google.com with ESMTPS id b4si13881469qat.93.2014.05.26.08.29.50
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 26 May 2014 04:44:13 -0700 (PDT)
-Received: by mail-ie0-f173.google.com with SMTP id lx4so7582335iec.32
-        for <linux-mm@kvack.org>; Mon, 26 May 2014 04:44:13 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <alpine.LSU.2.11.1405191403280.969@eggly.anvils>
-References: <1397587118-1214-1-git-send-email-dh.herrmann@gmail.com>
-	<alpine.LSU.2.11.1405132118330.4401@eggly.anvils>
-	<537396A2.9090609@cybernetics.com>
-	<alpine.LSU.2.11.1405141456420.2268@eggly.anvils>
-	<CANq1E4QgSbD9G70H7W4QeXbZ77_Kn1wV7edwzN4k4NjQJS=36A@mail.gmail.com>
-	<20140519160942.GD3427@quack.suse.cz>
-	<alpine.LSU.2.11.1405191403280.969@eggly.anvils>
-Date: Mon, 26 May 2014 13:44:13 +0200
-Message-ID: <CANq1E4TDDzG+HtBz261_nid3kVRG_jwcWHizzkdZCZZE3BaLgQ@mail.gmail.com>
-Subject: Re: [PATCH v2 0/3] File Sealing & memfd_create()
-From: David Herrmann <dh.herrmann@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 26 May 2014 08:29:50 -0700 (PDT)
+Message-Id: <20140526152107.905524235@infradead.org>
+Date: Mon, 26 May 2014 16:56:07 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: [RFC][PATCH 2/5] mm,perf: Make use of VM_PINNED
+References: <20140526145605.016140154@infradead.org>
+Content-Disposition: inline; filename=peterz-mm-pinned-2.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Jan Kara <jack@suse.cz>, Tony Battersby <tonyb@cybernetics.com>, Al Viro <viro@zeniv.linux.org.uk>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-kernel <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, John Stultz <john.stultz@linaro.org>, Christoph Lameter <clameter@sgi.com>, Mel Gorman <mgorman@suse.de>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Roland Dreier <roland@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <peterz@infradead.org>, Sean Hefty <sean.hefty@intel.com>, Hal Rosenstock <hal.rosenstock@gmail.com>, Mike Marciniszyn <infinipath@intel.com>
 
-Hi
+Change the perf RLIMIT_MEMLOCK accounting to use VM_PINNED. Because
+the way VM_PINNED works (it hard assumes the entire vma length is
+accounted) we have to slightly change semantics.
 
-(CC migrate.c committers)
+We used to only add to the RLIMIT_MEMLOCK accounting once we were over
+the per-user limit, now we'll directly account to both.
 
-On Tue, May 20, 2014 at 12:11 AM, Hugh Dickins <hughd@google.com> wrote:
-> On Mon, 19 May 2014, Jan Kara wrote:
->> On Mon 19-05-14 13:44:25, David Herrmann wrote:
->> > On Thu, May 15, 2014 at 12:35 AM, Hugh Dickins <hughd@google.com> wrote:
->> > > The aspect which really worries me is this: the maintenance burden.
->> > > This approach would add some peculiar new code, introducing a rare
->> > > special case: which we might get right today, but will very easily
->> > > forget tomorrow when making some other changes to mm.  If we compile
->> > > a list of danger areas in mm, this would surely belong on that list.
->> >
->> > I tried doing the page-replacement in the last 4 days, but honestly,
->> > it's far more complex than I thought. So if no-one more experienced
->
-> To be honest, I'm quite glad to hear that: it is still a solution worth
-> considering, but I'd rather continue the search for a better solution.
+XXX: anon_inode_inode->i_mapping doesn't have AS_UNEVICTABLE set,
+should it?
 
-What if we set VM_IO for memory-mappings if a file supports sealing?
-That might be a hack and quite restrictive, but we could also add a
-VM_DONTPIN flag that just prevents any page-pinning like GUP (which is
-also a side-effect of VM_IO). This is basically what we do to protect
-PCI BARs from that race during hotplug (well, VM_PFNMAP ist what
-protects those, but the code is the same). If we mention in the
-man-page that memfd-objects don't support direct-IO, we'd be fine, I
-think. Not sure if that hack is better than the page-replacement,
-though. It'd be definitely much simpler.
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: Roland Dreier <roland@kernel.org>
+Cc: Christoph Lameter <cl@linux.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Signed-off-by: Peter Zijlstra <peterz@infradead.org>
+---
+ kernel/events/core.c |   36 ++++++++++++++++--------------------
+ 1 file changed, 16 insertions(+), 20 deletions(-)
 
-Regarding page-replacement, I tried using migrate_page(), however,
-this obviously fails in page_freeze_refs() due to the elevated
-ref-count and we cannot account for those, as they might vanish
-asynchronously. Now I wonder whether we could just add a new mode
-MIGRATE_PHASE_OUT that avoids freezing the page and forces the copy.
-Existing refs would still operate on the old page, but any new access
-gets the new page. This way, we could collect pages with elevated
-ref-counts in shmem similar to do_move_page_to_node_array() and then
-call migrate_pages(). Now migrate_pages() takes good care to prevent
-any new refs during migration. try_to_unmap(TTU_MIGRATION) marks PTEs
-as 'in-migration', so accesses are delayed. Page-faults wait on the
-page-lock and retry due to mapping==NULL. lru is disabled beforehand.
-Therefore, there cannot be any racing page-lookups as they all stall
-on the migration. Moreover, page_freeze_refs() fails only if the page
-is pinned by independent users (usually some form of I/O).
-Question is what those additional ref-counts might be. Given that
-shmem 'owns' its pages, none of these external references should pass
-those refs around. All they use it for is I/O. Therefore, we shouldn't
-even need an additional try_to_unmap() _after_ MIGRATE_PHASE_OUT as we
-expect those external refs to never pass page-refs around. If that's a
-valid assumption (and I haven't found any offenders so far), we should
-be good with migrate_pages(MIGRATE_PHASE_OUT) as I described.
+--- a/kernel/events/core.c
++++ b/kernel/events/core.c
+@@ -4059,13 +4059,12 @@ static const struct vm_operations_struct
+ static int perf_mmap(struct file *file, struct vm_area_struct *vma)
+ {
+ 	struct perf_event *event = file->private_data;
++	unsigned long locked, lock_limit, lock_extra;
+ 	unsigned long user_locked, user_lock_limit;
+ 	struct user_struct *user = current_user();
+-	unsigned long locked, lock_limit;
+-	struct ring_buffer *rb;
+ 	unsigned long vma_size;
+ 	unsigned long nr_pages;
+-	long user_extra, extra;
++	struct ring_buffer *rb;
+ 	int ret = 0, flags = 0;
+ 
+ 	/*
+@@ -4117,26 +4116,22 @@ static int perf_mmap(struct file *file,
+ 		goto unlock;
+ 	}
+ 
+-	user_extra = nr_pages + 1;
+-	user_lock_limit = sysctl_perf_event_mlock >> (PAGE_SHIFT - 10);
++	lock_extra = nr_pages + 1;
+ 
+ 	/*
+ 	 * Increase the limit linearly with more CPUs:
+ 	 */
++	user_lock_limit = sysctl_perf_event_mlock >> (PAGE_SHIFT - 10);
+ 	user_lock_limit *= num_online_cpus();
+ 
+-	user_locked = atomic_long_read(&user->locked_vm) + user_extra;
+-
+-	extra = 0;
+-	if (user_locked > user_lock_limit)
+-		extra = user_locked - user_lock_limit;
++	user_locked = atomic_long_read(&user->locked_vm) + lock_extra;
+ 
+ 	lock_limit = rlimit(RLIMIT_MEMLOCK);
+ 	lock_limit >>= PAGE_SHIFT;
+-	locked = vma->vm_mm->pinned_vm + extra;
++	locked = mm_locked_pages(vma->vm_mm) + lock_extra;
+ 
+-	if ((locked > lock_limit) && perf_paranoid_tracepoint_raw() &&
+-		!capable(CAP_IPC_LOCK)) {
++	if ((user_locked > user_lock_limit && locked > lock_limit) &&
++	    perf_paranoid_tracepoint_raw() && !capable(CAP_IPC_LOCK)) {
+ 		ret = -EPERM;
+ 		goto unlock;
+ 	}
+@@ -4146,7 +4141,7 @@ static int perf_mmap(struct file *file,
+ 	if (vma->vm_flags & VM_WRITE)
+ 		flags |= RING_BUFFER_WRITABLE;
+ 
+-	rb = rb_alloc(nr_pages, 
++	rb = rb_alloc(nr_pages,
+ 		event->attr.watermark ? event->attr.wakeup_watermark : 0,
+ 		event->cpu, flags);
+ 
+@@ -4156,11 +4151,9 @@ static int perf_mmap(struct file *file,
+ 	}
+ 
+ 	atomic_set(&rb->mmap_count, 1);
+-	rb->mmap_locked = extra;
+ 	rb->mmap_user = get_current_user();
+ 
+-	atomic_long_add(user_extra, &user->locked_vm);
+-	vma->vm_mm->pinned_vm += extra;
++	atomic_long_add(lock_extra, &user->locked_vm);
+ 
+ 	ring_buffer_attach(event, rb);
+ 
+@@ -4173,10 +4166,13 @@ static int perf_mmap(struct file *file,
+ 	mutex_unlock(&event->mmap_mutex);
+ 
+ 	/*
+-	 * Since pinned accounting is per vm we cannot allow fork() to copy our
+-	 * vma.
++	 * VM_PINNED - this memory is pinned as we need to write to it from
++	 *             pretty much any context and cannot page.
++	 * VM_DONTCOPY - don't share over fork()
++	 * VM_DONTEXPAND - its not stack
++	 * VM_DONTDUMP - ...
+ 	 */
+-	vma->vm_flags |= VM_DONTCOPY | VM_DONTEXPAND | VM_DONTDUMP;
++	vma->vm_flags |= VM_PINNED | VM_DONTCOPY | VM_DONTEXPAND | VM_DONTDUMP;
+ 	vma->vm_ops = &perf_mmap_vmops;
+ 
+ 	return ret;
 
-Comments?
-
-While skimming over migrate.c I noticed two odd behaviors:
-1) migration_entry_wait() is used to wait on a migration to finish,
-before accessing PTE entries. However, we call get_page() there, which
-increases the ref-count of the old page and causes page_freeze_refs()
-to fail. There's no way we can know how many tasks wait on a migration
-entry when calling page_freeze_refs(). I have no idea how that's
-supposed to work? Why don't we store the new page in the migration-swp
-entry so any lookups stall on the new page? We don't care for
-ref-counts on that page and if the migration fails, new->mapping is
-set to NULL and any lookup is retried. remove_migration_pte() can
-restore the old page correctly.
-2) remove_migration_pte() calls get_page(new) before writing the PTE.
-But who releases the ref of the old page?
-
-Thanks
-David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
