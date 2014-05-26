@@ -1,115 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 44D766B0036
-	for <linux-mm@kvack.org>; Mon, 26 May 2014 16:06:36 -0400 (EDT)
-Received: by mail-pa0-f47.google.com with SMTP id lf10so8007503pab.20
-        for <linux-mm@kvack.org>; Mon, 26 May 2014 13:06:35 -0700 (PDT)
-Received: from mail-pb0-x234.google.com (mail-pb0-x234.google.com [2607:f8b0:400e:c01::234])
-        by mx.google.com with ESMTPS id xr5si15870587pbc.47.2014.05.26.13.06.35
+Received: from mail-ig0-f176.google.com (mail-ig0-f176.google.com [209.85.213.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 7FF736B0036
+	for <linux-mm@kvack.org>; Mon, 26 May 2014 16:19:17 -0400 (EDT)
+Received: by mail-ig0-f176.google.com with SMTP id hl10so320857igb.3
+        for <linux-mm@kvack.org>; Mon, 26 May 2014 13:19:17 -0700 (PDT)
+Received: from mail-ig0-x233.google.com (mail-ig0-x233.google.com [2607:f8b0:4001:c05::233])
+        by mx.google.com with ESMTPS id s1si1812655ign.15.2014.05.26.13.19.16
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 26 May 2014 13:06:35 -0700 (PDT)
-Received: by mail-pb0-f52.google.com with SMTP id rr13so8109147pbb.39
-        for <linux-mm@kvack.org>; Mon, 26 May 2014 13:06:35 -0700 (PDT)
-Date: Mon, 26 May 2014 13:05:18 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: mm: NULL ptr deref in remove_migration_pte
-In-Reply-To: <537FE9F3.40508@oracle.com>
-Message-ID: <alpine.LSU.2.11.1405261255530.3649@eggly.anvils>
-References: <534E9ACA.2090008@oracle.com> <5367B365.1070709@oracle.com> <537FE9F3.40508@oracle.com>
+        Mon, 26 May 2014 13:19:17 -0700 (PDT)
+Received: by mail-ig0-f179.google.com with SMTP id hn18so329903igb.0
+        for <linux-mm@kvack.org>; Mon, 26 May 2014 13:19:16 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20140526145605.016140154@infradead.org>
+References: <20140526145605.016140154@infradead.org>
+Date: Tue, 27 May 2014 00:19:16 +0400
+Message-ID: <CALYGNiMG1NVBUS4TJrYJMr92yWGZHSdGUdCGtBJDHoUMMhE+Wg@mail.gmail.com>
+Subject: Re: [RFC][PATCH 0/5] VM_PINNED
+From: Konstantin Khlebnikov <koct9i@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Christoph Lameter <cl@gentwo.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Dave Jones <davej@redhat.com>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux.com>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Roland Dreier <roland@kernel.org>, Sean Hefty <sean.hefty@intel.com>, Hal Rosenstock <hal.rosenstock@gmail.com>, Mike Marciniszyn <infinipath@intel.com>
 
-On Fri, 23 May 2014, Sasha Levin wrote:
+On Mon, May 26, 2014 at 6:56 PM, Peter Zijlstra <peterz@infradead.org> wrote:
+> Hi all,
+>
+> I mentioned at LSF/MM that I wanted to revive this, and at the time there were
+> no disagreements.
+>
+> I finally got around to refreshing the patch(es) so here goes.
+>
+> These patches introduce VM_PINNED infrastructure, vma tracking of persistent
+> 'pinned' page ranges. Pinned is anything that has a fixed phys address (as
+> required for say IO DMA engines) and thus cannot use the weaker VM_LOCKED. One
+> popular way to pin pages is through get_user_pages() but that not nessecarily
+> the only way.
 
-> Ping?
-> 
-> On 05/05/2014 11:51 AM, Sasha Levin wrote:
-> > Did anyone have a chance to look at it? I still see it in -next.
-> > 
-> > 
-> > Thanks,
-> > Sasha
-> > 
-> > On 04/16/2014 10:59 AM, Sasha Levin wrote:
-> >> Hi all,
-> >>
-> >> While fuzzing with trinity inside a KVM tools guest running latest -next
-> >> kernel I've stumbled on the following:
-> >>
-> >> [ 2552.313602] BUG: unable to handle kernel NULL pointer dereference at 0000000000000018
-> >> [ 2552.315878] IP: __lock_acquire (kernel/locking/lockdep.c:3070 (discriminator 1))
-> >> [ 2552.315878] PGD 465836067 PUD 465837067 PMD 0
-> >> [ 2552.315878] Oops: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
-> >> [ 2552.315878] Dumping ftrace buffer:
-> >> [ 2552.315878]    (ftrace buffer empty)
-> >> [ 2552.315878] Modules linked in:
-> >> [ 2552.315878] CPU: 6 PID: 16173 Comm: trinity-c364 Tainted: G        W     3.15.0-rc1-next-20140415-sasha-00020-gaa90d09 #398
-> >> [ 2552.315878] task: ffff88046548b000 ti: ffff88044e532000 task.ti: ffff88044e532000
-> >> [ 2552.320286] RIP: __lock_acquire (kernel/locking/lockdep.c:3070 (discriminator 1))
-> >> [ 2552.320286] RSP: 0018:ffff88044e5339c8  EFLAGS: 00010002
-> >> [ 2552.320286] RAX: 0000000000000082 RBX: ffff88046548b000 RCX: 0000000000000000
-> >> [ 2552.320286] RDX: 0000000000000000 RSI: 0000000000000000 RDI: 0000000000000018
-> >> [ 2552.320286] RBP: ffff88044e533ab8 R08: 0000000000000001 R09: 0000000000000000
-> >> [ 2552.320286] R10: ffff88046548b000 R11: 0000000000000001 R12: 0000000000000000
-> >> [ 2552.320286] R13: 0000000000000018 R14: 0000000000000000 R15: 0000000000000000
-> >> [ 2552.320286] FS:  00007fd286a9a700(0000) GS:ffff88018b000000(0000) knlGS:0000000000000000
-> >> [ 2552.320286] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-> >> [ 2552.320286] CR2: 0000000000000018 CR3: 0000000442c17000 CR4: 00000000000006a0
-> >> [ 2552.320286] DR0: 0000000000695000 DR1: 0000000000000000 DR2: 0000000000000000
-> >> [ 2552.320286] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000600
-> >> [ 2552.320286] Stack:
-> >> [ 2552.320286]  ffff88044e5339e8 ffffffff9f56e761 0000000000000000 ffff880315c13000
-> >> [ 2552.320286]  ffff88044e533a38 ffffffff9c193f0d ffffffff9c193e34 ffff8804654e8000
-> >> [ 2552.320286]  ffff8804654e8000 0000000000000001 ffff88046548b000 0000000000000007
-> >> [ 2552.320286] Call Trace:
-> >> [ 2552.320286] ? _raw_spin_unlock_irq (arch/x86/include/asm/preempt.h:98 include/linux/spinlock_api_smp.h:169 kernel/locking/spinlock.c:199)
-> >> [ 2552.320286] ? finish_task_switch (include/linux/tick.h:206 kernel/sched/core.c:2163)
-> >> [ 2552.320286] ? finish_task_switch (arch/x86/include/asm/current.h:14 kernel/sched/sched.h:993 kernel/sched/core.c:2145)
-> >> [ 2552.320286] ? retint_restore_args (arch/x86/kernel/entry_64.S:1040)
-> >> [ 2552.320286] ? __this_cpu_preempt_check (lib/smp_processor_id.c:63)
-> >> [ 2552.320286] ? trace_hardirqs_on_caller (kernel/locking/lockdep.c:2557 kernel/locking/lockdep.c:2599)
-> >> [ 2552.320286] lock_acquire (arch/x86/include/asm/current.h:14 kernel/locking/lockdep.c:3602)
-> >> [ 2552.320286] ? remove_migration_pte (mm/migrate.c:137)
-> >> [ 2552.320286] ? retint_restore_args (arch/x86/kernel/entry_64.S:1040)
-> >> [ 2552.320286] _raw_spin_lock (include/linux/spinlock_api_smp.h:143 kernel/locking/spinlock.c:151)
-> >> [ 2552.320286] ? remove_migration_pte (mm/migrate.c:137)
-> >> [ 2552.320286] remove_migration_pte (mm/migrate.c:137)
-> >> [ 2552.320286] rmap_walk (mm/rmap.c:1628 mm/rmap.c:1699)
-> >> [ 2552.320286] remove_migration_ptes (mm/migrate.c:224)
-> >> [ 2552.320286] ? new_page_node (mm/migrate.c:107)
-> >> [ 2552.320286] ? remove_migration_pte (mm/migrate.c:195)
-> >> [ 2552.320286] migrate_pages (mm/migrate.c:922 mm/migrate.c:960 mm/migrate.c:1126)
-> >> [ 2552.320286] ? perf_trace_mm_numa_migrate_ratelimit (mm/migrate.c:1574)
-> >> [ 2552.320286] migrate_misplaced_page (mm/migrate.c:1733)
-> >> [ 2552.320286] __handle_mm_fault (mm/memory.c:3762 mm/memory.c:3812 mm/memory.c:3925)
-> >> [ 2552.320286] ? __const_udelay (arch/x86/lib/delay.c:126)
-> >> [ 2552.320286] ? __rcu_read_unlock (kernel/rcu/update.c:97)
-> >> [ 2552.320286] handle_mm_fault (mm/memory.c:3948)
-> >> [ 2552.320286] __get_user_pages (mm/memory.c:1851)
-> >> [ 2552.320286] ? preempt_count_sub (kernel/sched/core.c:2527)
-> >> [ 2552.320286] __mlock_vma_pages_range (mm/mlock.c:255)
-> >> [ 2552.320286] __mm_populate (mm/mlock.c:711)
-> >> [ 2552.320286] SyS_mlockall (include/linux/mm.h:1799 mm/mlock.c:817 mm/mlock.c:791)
-> >> [ 2552.320286] tracesys (arch/x86/kernel/entry_64.S:749)
-> >> [ 2552.320286] Code: 85 2d 1e 00 00 48 c7 c1 d7 68 6c a0 48 c7 c2 47 11 6c a0 31 c0 be fa 0b 00 00 48 c7 c7 91 68 6c a0 e8 1c 6d f9 ff e9 07 1e 00 00 <49> 81 7d 00 80 31 76 a2 b8 00 00 00 00 44 0f 44 c0 eb 07 0f 1f
-> >> [ 2552.320286] RIP __lock_acquire (kernel/locking/lockdep.c:3070 (discriminator 1))
-> >> [ 2552.320286]  RSP <ffff88044e5339c8>
-> >> [ 2552.320286] CR2: 0000000000000018
+Lol, this looks like resurrection of VM_RESERVED which I've removed
+not so long time ago.
 
-Sasha, please clarify your Ping: I've seen you say in other mail
-"I had to disable transhuge/hugetlb in my testing .config".
+Maybe single-bit state isn't flexible enought?
+This supposed to supports pinning only by one user and only in its own mm?
 
-Do you see this remove_migration_pte oops even with THP disabled?
+This might be done as extension of existing memory-policy engine.
+It allows to keep vm_area_struct slim in normal cases and change
+behaviour when needed.
+memory-policy might hold reference-counter of "pinners", track
+ownership and so on.
 
-Do you see the filemap.c:202 BUG_ON(page_mapped(page))
-even with THP disabled?
-
-Hugh
+>
+> Roland, as said, I need some IB assistance, see patches 4 and 5, where I got
+> lost in the qib and ipath code.
+>
+> Patches 1-3 compile tested.
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
