@@ -1,115 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B1A16B0035
-	for <linux-mm@kvack.org>; Sun, 25 May 2014 22:41:26 -0400 (EDT)
-Received: by mail-pa0-f54.google.com with SMTP id bj1so6894146pad.13
-        for <linux-mm@kvack.org>; Sun, 25 May 2014 19:41:26 -0700 (PDT)
-Received: from lgeamrelo02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
-        by mx.google.com with ESMTP id dx7si11185299pab.190.2014.05.25.19.41.23
-        for <linux-mm@kvack.org>;
-        Sun, 25 May 2014 19:41:25 -0700 (PDT)
-Date: Mon, 26 May 2014 11:44:17 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [RFC PATCH 2/3] CMA: aggressively allocate the pages on cma
- reserved memory when not used
-Message-ID: <20140526024417.GA26935@js1304-P5Q-DELUXE>
-References: <1399509144-8898-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1399509144-8898-3-git-send-email-iamjoonsoo.kim@lge.com>
- <5370FF1D.10707@codeaurora.org>
- <537FEE96.8000704@codeaurora.org>
+Received: from mail-we0-f170.google.com (mail-we0-f170.google.com [74.125.82.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 3112A6B0035
+	for <linux-mm@kvack.org>; Mon, 26 May 2014 03:09:37 -0400 (EDT)
+Received: by mail-we0-f170.google.com with SMTP id u57so7701769wes.29
+        for <linux-mm@kvack.org>; Mon, 26 May 2014 00:09:36 -0700 (PDT)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [119.145.14.64])
+        by mx.google.com with ESMTPS id c4si15060767wiw.2.2014.05.26.00.09.31
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 26 May 2014 00:09:35 -0700 (PDT)
+Message-ID: <5382E895.1010802@huawei.com>
+Date: Mon, 26 May 2014 15:09:09 +0800
+From: Zhang Zhen <zhenzhang.zhang@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <537FEE96.8000704@codeaurora.org>
+Subject: [PATCH] mm/page_alloc: cleanup add_active_range() related comments
+References: <1401087978-17505-1-git-send-email-zhenzhang.zhang@huawei.com>
+In-Reply-To: <1401087978-17505-1-git-send-email-zhenzhang.zhang@huawei.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <lauraa@codeaurora.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Heesub Shin <heesub.shin@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, lmark@codeaurora.org
+To: akpm@linux-foundation.org, Tejun Heo <tj@kernel.org>
+Cc: linux-mm@kvack.org
 
-On Fri, May 23, 2014 at 05:57:58PM -0700, Laura Abbott wrote:
-> On 5/12/2014 10:04 AM, Laura Abbott wrote:
-> > 
-> > I'm going to see about running this through tests internally for comparison.
-> > Hopefully I'll get useful results in a day or so.
-> > 
-> > Thanks,
-> > Laura
-> > 
-> 
-> We ran some tests internally and found that for our purposes these patches made
-> the benchmarks worse vs. the existing implementation of using CMA first for some
-> pages. These are mostly androidisms but androidisms that we care about for
-> having a device be useful.
-> 
-> The foreground memory headroom on the device was on average about 40 MB smaller
->  when using these patches vs our existing implementation of something like
-> solution #1. By foreground memory headroom we simply mean the amount of memory
-> that the foreground application can allocate before it is killed by the Android
->  Low Memory killer.
-> 
-> We also found that when running a sequence of app launches these patches had
-> more high priority app kills by the LMK and more alloc stalls. The test did a
-> total of 500 hundred app launches (using 9 separate applications) The CMA
-> memory in our system is rarely used by its client and is therefore available
-> to the system most of the time.
-> 
-> Test device
-> - 4 CPUs
-> - Android 4.4.2
-> - 512MB of RAM
-> - 68 MB of CMA
-> 
-> 
-> Results:
-> 
-> Existing solution:
-> Foreground headroom: 200MB
-> Number of higher priority LMK kills (oom_score_adj < 529): 332
-> Number of alloc stalls: 607
-> 
-> 
-> Test patches:
-> Foreground headroom: 160MB
-> Number of higher priority LMK kills (oom_score_adj < 529):
-> 459 Number of alloc stalls: 29538
-> 
-> We believe that the issues seen with these patches are the result of the LMK
-> being more aggressive. The LMK will be more aggressive because it will ignore
-> free CMA pages for unmovable allocations, and since most calls to the LMK are
-> made by kswapd (which uses GFP_KERNEL) the LMK will mostly ignore free CMA
-> pages. Because the LMK thresholds are higher than the zone watermarks, there
-> will often be a lot of free CMA pages in the system when the LMK is called,
-> which the LMK will usually ignore.
+add_active_range() has been repalced by memblock_set_node().
+Clean up the comments to comply with that change.
 
-Hello,
+Signed-off-by: Zhang Zhen <zhenzhang.zhang@huawei.com>
+---
+ mm/page_alloc.c | 21 ++++++++-------------
+ 1 file changed, 8 insertions(+), 13 deletions(-)
 
-Really thanks for testing!!!
-If possible, please let me know nr_free_cma of these patches/your in-house
-implementation before testing.
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 5dba293..a049e38 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -4349,9 +4349,6 @@ int __meminit init_currently_empty_zone(struct zone *zone,
+ #ifndef CONFIG_HAVE_ARCH_EARLY_PFN_TO_NID
+ /*
+  * Required by SPARSEMEM. Given a PFN, return what node the PFN is on.
+- * Architectures may implement their own version but if add_active_range()
+- * was used and there are no special requirements, this is a convenient
+- * alternative
+  */
+ int __meminit __early_pfn_to_nid(unsigned long pfn)
+ {
+@@ -4406,10 +4403,9 @@ bool __meminit early_pfn_in_nid(unsigned long pfn, int node)
+  * @nid: The node to free memory on. If MAX_NUMNODES, all nodes are freed.
+  * @max_low_pfn: The highest PFN that will be passed to memblock_free_early_nid
+  *
+- * If an architecture guarantees that all ranges registered with
+- * add_active_ranges() contain no holes and may be freed, this
+- * this function may be used instead of calling memblock_free_early_nid()
+- * manually.
++ * If an architecture guarantees that all ranges registered contain no holes
++ * and may be freed, this this function may be used instead of calling
++ * memblock_free_early_nid() manually.
+  */
+ void __init free_bootmem_with_active_regions(int nid, unsigned long max_low_pfn)
+ {
+@@ -4431,9 +4427,8 @@ void __init free_bootmem_with_active_regions(int nid, unsigned long max_low_pfn)
+  * sparse_memory_present_with_active_regions - Call memory_present for each active range
+  * @nid: The node to call memory_present for. If MAX_NUMNODES, all nodes will be used.
+  *
+- * If an architecture guarantees that all ranges registered with
+- * add_active_ranges() contain no holes and may be freed, this
+- * function may be used instead of calling memory_present() manually.
++ * If an architecture guarantees that all ranges registered contain no holes and may
++ * be freed, this function may be used instead of calling memory_present() manually.
+  */
+ void __init sparse_memory_present_with_active_regions(int nid)
+ {
+@@ -4451,7 +4446,7 @@ void __init sparse_memory_present_with_active_regions(int nid)
+  * @end_pfn: Passed by reference. On return, it will have the node end_pfn.
+  *
+  * It returns the start and end page frame of a node based on information
+- * provided by an arch calling add_active_range(). If called for a node
++ * provided by memblock_set_node(). If called for a node
+  * with no available memory, a warning is printed and the start and end
+  * PFNs will be 0.
+  */
+@@ -5030,7 +5025,7 @@ static unsigned long __init find_min_pfn_for_node(int nid)
+  * find_min_pfn_with_active_regions - Find the minimum PFN registered
+  *
+  * It returns the minimum PFN based on information provided via
+- * add_active_range().
++ * memblock_set_node().
+  */
+ unsigned long __init find_min_pfn_with_active_regions(void)
+ {
+@@ -5251,7 +5246,7 @@ static void check_for_memory(pg_data_t *pgdat, int nid)
+  * @max_zone_pfn: an array of max PFNs for each zone
+  *
+  * This will call free_area_init_node() for each active node in the system.
+- * Using the page ranges provided by add_active_range(), the size of each
++ * Using the page ranges provided by memblock_set_node(), the size of each
+  * zone in each node and their holes is calculated. If the maximum PFN
+  * between two adjacent zones match, it is assumed that the zone is empty.
+  * For example, if arch_max_dma_pfn == arch_max_dma32_pfn, it is assumed
+-- 
+1.8.1.2
 
-I can guess following scenario about your test.
 
-On boot-up, CMA memory are mostly used by native processes, because
-your implementation use CMA first for some pages. kswapd
-is woken up late since non-CMA free memory is larger than my
-implementation. And, on reclaiming, the LMK reclaiming memory by
-killing app process would reclaim movable memory with high probability
-since cma memory are mostly used by native processes and app processes
-have just movable memory.
+.
 
-This is just my guess. But, if it is true, this is not fair test for
-this patchset. If possible, could you make nr_free_cma same on both
-implementation before testing?
 
-Moreover, in mainline implementation, the LMK doesn't consider if memory
-type is CMA or not. Maybe your overall system would be highly optimized
-for your implementation, so I'm not sure if your testing is
-appropriate or not for this patchset.
 
-Anyway, I would like to optimize this for android. :)
-Please let me know more about your system.
-
-Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
