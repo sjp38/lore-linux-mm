@@ -1,74 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f176.google.com (mail-ie0-f176.google.com [209.85.223.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 6CD546B0069
-	for <linux-mm@kvack.org>; Tue, 27 May 2014 07:11:37 -0400 (EDT)
-Received: by mail-ie0-f176.google.com with SMTP id rl12so8663560iec.35
-        for <linux-mm@kvack.org>; Tue, 27 May 2014 04:11:37 -0700 (PDT)
-Received: from mail-ie0-x231.google.com (mail-ie0-x231.google.com [2607:f8b0:4001:c03::231])
-        by mx.google.com with ESMTPS id mi3si4824785igb.3.2014.05.27.04.11.36
+Received: from mail-ie0-f170.google.com (mail-ie0-f170.google.com [209.85.223.170])
+	by kanga.kvack.org (Postfix) with ESMTP id DE5856B0070
+	for <linux-mm@kvack.org>; Tue, 27 May 2014 07:31:03 -0400 (EDT)
+Received: by mail-ie0-f170.google.com with SMTP id at1so8720064iec.29
+        for <linux-mm@kvack.org>; Tue, 27 May 2014 04:31:03 -0700 (PDT)
+Received: from mail-ie0-x234.google.com (mail-ie0-x234.google.com [2607:f8b0:4001:c03::234])
+        by mx.google.com with ESMTPS id z2si4879296igl.49.2014.05.27.04.31.03
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 27 May 2014 04:11:36 -0700 (PDT)
-Received: by mail-ie0-f177.google.com with SMTP id y20so8251561ier.8
-        for <linux-mm@kvack.org>; Tue, 27 May 2014 04:11:36 -0700 (PDT)
+        Tue, 27 May 2014 04:31:03 -0700 (PDT)
+Received: by mail-ie0-f180.google.com with SMTP id tp5so8363511ieb.25
+        for <linux-mm@kvack.org>; Tue, 27 May 2014 04:31:03 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20140527105438.GW13658@twins.programming.kicks-ass.net>
-References: <20140526145605.016140154@infradead.org>
-	<CALYGNiMG1NVBUS4TJrYJMr92yWGZHSdGUdCGtBJDHoUMMhE+Wg@mail.gmail.com>
-	<20140526203232.GC5444@laptop.programming.kicks-ass.net>
-	<CALYGNiO8FNKjtETQMRSqgiArjfQ9nRAALUg9GGdNYbpKru=Sjw@mail.gmail.com>
-	<20140527102909.GO30445@twins.programming.kicks-ass.net>
-	<20140527105438.GW13658@twins.programming.kicks-ass.net>
-Date: Tue, 27 May 2014 15:11:36 +0400
-Message-ID: <CALYGNiNCp5ShyKLAQi_cht_-sPt79Zxzj=Q=VSzqCvdnsCE5ag@mail.gmail.com>
-Subject: Re: [RFC][PATCH 0/5] VM_PINNED
+In-Reply-To: <20140527103130.3A04BE009B@blue.fi.intel.com>
+References: <1401166595-4792-1-git-send-email-vinayakm.list@gmail.com>
+	<20140527103130.3A04BE009B@blue.fi.intel.com>
+Date: Tue, 27 May 2014 15:31:02 +0400
+Message-ID: <CALYGNiPTay15iACtwgRgG68cbb6a8gfh5cR0xfWDLSRESo3mLg@mail.gmail.com>
+Subject: Re: [PATCH] mm: fix zero page check in vm_normal_page
 From: Konstantin Khlebnikov <koct9i@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux.com>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Roland Dreier <roland@kernel.org>, Sean Hefty <sean.hefty@intel.com>, Hal Rosenstock <hal.rosenstock@gmail.com>, Mike Marciniszyn <infinipath@intel.com>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Vinayak Menon <vinayakm.list@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Tue, May 27, 2014 at 2:54 PM, Peter Zijlstra <peterz@infradead.org> wrote:
-> On Tue, May 27, 2014 at 12:29:09PM +0200, Peter Zijlstra wrote:
->> On Tue, May 27, 2014 at 12:49:08AM +0400, Konstantin Khlebnikov wrote:
->> > Another suggestion. VM_RESERVED is stronger than VM_LOCKED and extends
->> > its functionality.
->> > Maybe it's easier to add VM_DONTMIGRATE and use it together with VM_LOCKED.
->> > This will make accounting easier. No?
+On Tue, May 27, 2014 at 2:31 PM, Kirill A. Shutemov
+<kirill.shutemov@linux.intel.com> wrote:
+> Vinayak Menon wrote:
+>> An issue was observed when a userspace task exits.
+>> The page which hits error here is the zero page.
+>> In zap_pte_range, vm_normal_page gets called, and it
+>> returns a page address and not NULL, even though the
+>> pte corresponds to zero pfn. In this case,
+>> HAVE_PTE_SPECIAL is not set, and VM_MIXEDMAP is set
+>> in vm_flags. In the case of VM_MIXEDMAP , only pfn_valid
+>> is checked, and not is_zero_pfn. This results in
+>> zero page being returned instead of NULL.
 >>
->> I prefer the PINNED name because the not being able to migrate is only
->> one of the desired effects of it, not the primary effect. We're really
->> looking to keep physical pages in place and preserve mappings.
+>> BUG: Bad page map in process mediaserver  pte:9dff379f pmd:9bfbd831
+>> page:c0ed8e60 count:1 mapcount:-1 mapping:  (null) index:0x0
+>> page flags: 0x404(referenced|reserved)
+>> addr:40c3f000 vm_flags:10220051 anon_vma:  (null) mapping:d9fe0764 index:fd
+>> vma->vm_ops->fault:   (null)
+>> vma->vm_file->f_op->mmap: binder_mmap+0x0/0x274
+>
+> How do we get zero_pfn there. We shouldn't use zero page for file mappings.
+> binder does some tricks?
 
-Ah, I just mixed it up.
+Its vm_ops doesn't provide ->fault method at all.
+Seems like all ptes must be populated at the mmap time.
+For some reason read page fault had happened and handle_pte_fault()
+handled it in do_anonymous_page() which maps zero_page.
 
+>
+>> CPU: 0 PID: 1463 Comm: mediaserver Tainted: G        W    3.10.17+ #1
+>> [<c001549c>] (unwind_backtrace+0x0/0x11c) from [<c001200c>] (show_stack+0x10/0x14)
+>> [<c001200c>] (show_stack+0x10/0x14) from [<c0103d78>] (print_bad_pte+0x158/0x190)
+>> [<c0103d78>] (print_bad_pte+0x158/0x190) from [<c01055f0>] (unmap_single_vma+0x2e4/0x598)
+>> [<c01055f0>] (unmap_single_vma+0x2e4/0x598) from [<c010618c>] (unmap_vmas+0x34/0x50)
+>> [<c010618c>] (unmap_vmas+0x34/0x50) from [<c010a9e4>] (exit_mmap+0xc8/0x1e8)
+>> [<c010a9e4>] (exit_mmap+0xc8/0x1e8) from [<c00520f0>] (mmput+0x54/0xd0)
+>> [<c00520f0>] (mmput+0x54/0xd0) from [<c005972c>] (do_exit+0x360/0x990)
+>> [<c005972c>] (do_exit+0x360/0x990) from [<c0059ef0>] (do_group_exit+0x84/0xc0)
+>> [<c0059ef0>] (do_group_exit+0x84/0xc0) from [<c0066de0>] (get_signal_to_deliver+0x4d4/0x548)
+>> [<c0066de0>] (get_signal_to_deliver+0x4d4/0x548) from [<c0011500>] (do_signal+0xa8/0x3b8)
 >>
->> The -rt people for example really want to avoid faults (even minor
->> faults), and DONTMIGRATE would still allow unmapping.
+>> Signed-off-by: Vinayak Menon <vinayakm.list@gmail.com>
+>> ---
+>>  mm/memory.c |    2 ++
+>>  1 files changed, 2 insertions(+), 0 deletions(-)
 >>
->> Maybe always setting VM_PINNED and VM_LOCKED together is easier, I
->> hadn't considered that. The first thing that came to mind is that that
->> might make the fork() semantics difficult, but maybe it works out.
+>> diff --git a/mm/memory.c b/mm/memory.c
+>> index 037b812..c9a5027 100644
+>> --- a/mm/memory.c
+>> +++ b/mm/memory.c
+>> @@ -771,6 +771,8 @@ struct page *vm_normal_page(struct vm_area_struct *vma, unsigned long addr,
+>>               if (vma->vm_flags & VM_MIXEDMAP) {
+>>                       if (!pfn_valid(pfn))
+>>                               return NULL;
+>> +                     if (is_zero_pfn(pfn))
+>> +                             return NULL;
+>>                       goto out;
+>>               } else {
+>>                       unsigned long off;
+>> --
+>> 1.7.6
 >>
->> And while we're on the subject, my patch preserves PINNED over fork()
->> but maybe we don't actually need that either.
 >
-> So pinned_vm is userspace exposed, which means we have to maintain the
-> individual counts, and doing the fully orthogonal accounting is 'easier'
-> than trying to get the boundary cases right.
+> --
+>  Kirill A. Shutemov
 >
-> That is, if we have a program that does mlockall() and then does the IB
-> ioctl() to 'pin' a region, we'd have to make mm_mpin() do munlock()
-> after it splits the vma, and then do the pinned accounting.
->
-> Also, we'll have lost the LOCKED state and unless MCL_FUTURE was used,
-> we don't know what to restore the vma to on mm_munpin().
->
-> So while the accounting looks tricky, it has simpler semantics.
-
-What if VM_PINNED will require VM_LOCKED?
-I.e. user must mlock it before pining and cannot munlock vma while it's pinned.
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
