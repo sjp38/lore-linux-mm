@@ -1,126 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f41.google.com (mail-pb0-f41.google.com [209.85.160.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 866E76B003B
-	for <linux-mm@kvack.org>; Tue, 27 May 2014 06:22:07 -0400 (EDT)
-Received: by mail-pb0-f41.google.com with SMTP id uo5so9100371pbc.28
-        for <linux-mm@kvack.org>; Tue, 27 May 2014 03:22:07 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id ah3si18393676pad.52.2014.05.27.03.22.06
-        for <linux-mm@kvack.org>;
-        Tue, 27 May 2014 03:22:06 -0700 (PDT)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-In-Reply-To: <53842FB1.7090909@linux.vnet.ibm.com>
-References: <1399541296-18810-1-git-send-email-maddy@linux.vnet.ibm.com>
- <537479E7.90806@linux.vnet.ibm.com>
- <alpine.LSU.2.11.1405151026540.4664@eggly.anvils>
- <87wqdik4n5.fsf@rustcorp.com.au>
- <53797511.1050409@linux.vnet.ibm.com>
- <alpine.LSU.2.11.1405191531150.1317@eggly.anvils>
- <20140519164301.eafd3dd288ccb88361ddcfc7@linux-foundation.org>
- <20140520004429.E660AE009B@blue.fi.intel.com>
- <87oaythsvk.fsf@rustcorp.com.au>
- <20140520102738.7F096E009B@blue.fi.intel.com>
- <53842FB1.7090909@linux.vnet.ibm.com>
-Subject: Re: [PATCH V4 0/2] mm: FAULT_AROUND_ORDER patchset performance data
- for powerpc
-Content-Transfer-Encoding: 7bit
-Message-Id: <20140527102200.012BBE009B@blue.fi.intel.com>
-Date: Tue, 27 May 2014 13:21:59 +0300 (EEST)
+Received: from mail-qg0-f50.google.com (mail-qg0-f50.google.com [209.85.192.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F2316B0044
+	for <linux-mm@kvack.org>; Tue, 27 May 2014 06:29:18 -0400 (EDT)
+Received: by mail-qg0-f50.google.com with SMTP id z60so13326658qgd.23
+        for <linux-mm@kvack.org>; Tue, 27 May 2014 03:29:18 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
+        by mx.google.com with ESMTPS id i6si16771261qan.36.2014.05.27.03.29.17
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 27 May 2014 03:29:18 -0700 (PDT)
+Date: Tue, 27 May 2014 12:29:09 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [RFC][PATCH 0/5] VM_PINNED
+Message-ID: <20140527102909.GO30445@twins.programming.kicks-ass.net>
+References: <20140526145605.016140154@infradead.org>
+ <CALYGNiMG1NVBUS4TJrYJMr92yWGZHSdGUdCGtBJDHoUMMhE+Wg@mail.gmail.com>
+ <20140526203232.GC5444@laptop.programming.kicks-ass.net>
+ <CALYGNiO8FNKjtETQMRSqgiArjfQ9nRAALUg9GGdNYbpKru=Sjw@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="826Xtdr1Gsw3jzUq"
+Content-Disposition: inline
+In-Reply-To: <CALYGNiO8FNKjtETQMRSqgiArjfQ9nRAALUg9GGdNYbpKru=Sjw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Madhavan Srinivasan <maddy@linux.vnet.ibm.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Rusty Russell <rusty@rustcorp.com.au>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, linux-kernel@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, linux-arch@vger.kernel.org, x86@kernel.org, benh@kernel.crashing.org, paulus@samba.org, riel@redhat.com, mgorman@suse.de, ak@linux.intel.com, peterz@infradead.org, mingo@kernel.org, dave.hansen@intel.com
+To: Konstantin Khlebnikov <koct9i@gmail.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux.com>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Roland Dreier <roland@kernel.org>, Sean Hefty <sean.hefty@intel.com>, Hal Rosenstock <hal.rosenstock@gmail.com>, Mike Marciniszyn <infinipath@intel.com>
 
-Madhavan Srinivasan wrote:
-> On Tuesday 20 May 2014 03:57 PM, Kirill A. Shutemov wrote:
-> > Rusty Russell wrote:
-> >> "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> writes:
-> >>> Andrew Morton wrote:
-> >>>> On Mon, 19 May 2014 16:23:07 -0700 (PDT) Hugh Dickins <hughd@google.com> wrote:
-> >>>>
-> >>>>> Shouldn't FAULT_AROUND_ORDER and fault_around_order be changed to be
-> >>>>> the order of the fault-around size in bytes, and fault_around_pages()
-> >>>>> use 1UL << (fault_around_order - PAGE_SHIFT)
-> >>>>
-> >>>> Yes.  And shame on me for missing it (this time!) at review.
-> >>>>
-> >>>> There's still time to fix this.  Patches, please.
-> >>>
-> >>> Here it is. Made at 3.30 AM, build tested only.
-> >>
-> >> Prefer on top of Maddy's patch which makes it always a variable, rather
-> >> than CONFIG_DEBUG_FS.  It's got enough hair as it is.
-> > 
-> > Something like this?
-> > 
-> > From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> > Date: Tue, 20 May 2014 13:02:03 +0300
-> > Subject: [PATCH] mm: nominate faultaround area in bytes rather then page order
-> > 
-> > There are evidences that faultaround feature is less relevant on
-> > architectures with page size bigger then 4k. Which makes sense since
-> > page fault overhead per byte of mapped area should be less there.
-> > 
-> > Let's rework the feature to specify faultaround area in bytes instead of
-> > page order. It's 64 kilobytes for now.
-> > 
-> > The patch effectively disables faultaround on architectures with
-> > page size >= 64k (like ppc64).
-> > 
-> > It's possible that some other size of faultaround area is relevant for a
-> > platform. We can expose `fault_around_bytes' variable to arch-specific
-> > code once such platforms will be found.
-> > 
-> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> > ---
-> >  mm/memory.c | 62 +++++++++++++++++++++++--------------------------------------
-> >  1 file changed, 23 insertions(+), 39 deletions(-)
-> > 
-> > diff --git a/mm/memory.c b/mm/memory.c
-> > index 037b812a9531..252b319e8cdf 100644
-> > --- a/mm/memory.c
-> > +++ b/mm/memory.c
-> > @@ -3402,63 +3402,47 @@ void do_set_pte(struct vm_area_struct *vma, unsigned long address,
-> >  	update_mmu_cache(vma, address, pte);
-> >  }
-> > 
-> > -#define FAULT_AROUND_ORDER 4
-> > +static unsigned long fault_around_bytes = 65536;
-> > +
-> > +static inline unsigned long fault_around_pages(void)
-> > +{
-> > +	return rounddown_pow_of_two(fault_around_bytes) / PAGE_SIZE;
-> > +}
-> > +
-> > +static inline unsigned long fault_around_mask(void)
-> > +{
-> > +	return ~(rounddown_pow_of_two(fault_around_bytes) - 1) & PAGE_MASK;
-> > +}
-> > 
-> > -#ifdef CONFIG_DEBUG_FS
-> > -static unsigned int fault_around_order = FAULT_AROUND_ORDER;
-> > 
-> > -static int fault_around_order_get(void *data, u64 *val)
-> > +#ifdef CONFIG_DEBUG_FS
-> > +static int fault_around_bytes_get(void *data, u64 *val)
-> >  {
-> > -	*val = fault_around_order;
-> > +	*val = fault_around_bytes;
-> >  	return 0;
-> >  }
-> > 
-> > -static int fault_around_order_set(void *data, u64 val)
-> > +static int fault_around_bytes_set(void *data, u64 val)
-> >  {
-> 
-> Kindly ignore the question if not relevant. Even though we need root
-> access to alter the value, will we be fine with
-> negative value?.
 
-val is u64. or I miss something?
+--826Xtdr1Gsw3jzUq
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
--- 
- Kirill A. Shutemov
+On Tue, May 27, 2014 at 12:49:08AM +0400, Konstantin Khlebnikov wrote:
+> On Tue, May 27, 2014 at 12:32 AM, Peter Zijlstra <peterz@infradead.org> w=
+rote:
+> > Pretty much, that's adequate for all users I'm aware of and mirrors the
+> > mlock semantics.
+>=20
+> Ok, fine. Because get_user_pages is used sometimes for pinning pages
+> from different mm.
+
+Yeah, but that's fairly uncommon, and not something we do for very long
+times afaik.
+
+In fact I could only find:
+
+  drivers/iommu/amd_iommu_v2.c
+
+  fs/exec.c -- temporary use
+  kernel/events/uprobes.c -- temporary use
+  mm/ksm.c -- temporary use
+  mm/process_vm_access.c -- temporary use
+
+With exception of the iommu one (it wasn't immediately obvious and I
+didn't want to stare at the iommu muck too long), they're all temporary,
+we drop the page almost immediately again after doing some short work.
+
+The things I care about for VM_PINNED are long term pins, like the IB
+stuff, which sets up its RDMA buffers at the start of a program and
+basically leaves them in place for the entire duration of said program.
+
+Such pins will disrupt CMA, compaction and pretty much anything that
+relies on the page blocks stuff.
+
+> Another suggestion. VM_RESERVED is stronger than VM_LOCKED and extends
+> its functionality.
+> Maybe it's easier to add VM_DONTMIGRATE and use it together with VM_LOCKE=
+D.
+> This will make accounting easier. No?
+
+I prefer the PINNED name because the not being able to migrate is only
+one of the desired effects of it, not the primary effect. We're really
+looking to keep physical pages in place and preserve mappings.
+
+The -rt people for example really want to avoid faults (even minor
+faults), and DONTMIGRATE would still allow unmapping.
+
+Maybe always setting VM_PINNED and VM_LOCKED together is easier, I
+hadn't considered that. The first thing that came to mind is that that
+might make the fork() semantics difficult, but maybe it works out.
+
+And while we're on the subject, my patch preserves PINNED over fork()
+but maybe we don't actually need that either.
+
+--826Xtdr1Gsw3jzUq
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.12 (GNU/Linux)
+
+iQIcBAEBAgAGBQJThGj1AAoJEHZH4aRLwOS6qeYQAJ3hOt1U/4mdeHHc5s7OO1ZD
+8oKxe2N4xrTIXOvgaNh92BuOHmvMiyubfFazcodMKmK3k/VCBL2LIHrmc5i51qv2
+YOFac2y9gxLWepuirYReOv+WDqQ0cfbgY0kCyu716nCzSf2FjrQpiU/yOY6but+2
+hqnVIvQzWivqZQ+nGT9mcspRRI0vLzM3vdfpLVbJiG7QwfBMK6br2ZLTEhcuYrS5
+Np02JoOuLqyQHWIDXcXRqVjTsgSXufKg4LNqgc5jSURml7QBY+Ny8FxSovk7pCrL
+ofS99l35nj2RYOLCfWn6hrmQDcuosOlG0bYGcWACSNcPULwYHuorUUOYSHXwAWm1
+fwdxX2i1ekq9jiyHFamHsBidpjKLXcPd1RYOx+lF0XhAdrnY6/2n4TTZW5ckbON2
+8QUQ9ISXc6bNMJBPC296wyF5tc16R+hnQBzdTUNVhsVgcBuiS3Z8XbXtym2cVto0
+LDBVXqj15b2Gy0o9fFRWeXdRM5/vM4LclNimL0iVOahc3Q2Dqw7hDAboJAA7cYDY
+ljSQ6zRiS6uAN4GdWozhpUIHE+6HcUsjR7WJlDCltlSOirMkFC1T12TspLQ0HnfS
+x9ypJk0DUdxtrBtBvGyBgGsji1frOsYJqrPl4A9VFIKs+fPQHjPJBz2v0juiiuQG
+Px3YPxUAad2jTRA3Ht4N
+=GnLf
+-----END PGP SIGNATURE-----
+
+--826Xtdr1Gsw3jzUq--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
