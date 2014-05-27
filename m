@@ -1,112 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f50.google.com (mail-qg0-f50.google.com [209.85.192.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F2316B0044
-	for <linux-mm@kvack.org>; Tue, 27 May 2014 06:29:18 -0400 (EDT)
-Received: by mail-qg0-f50.google.com with SMTP id z60so13326658qgd.23
-        for <linux-mm@kvack.org>; Tue, 27 May 2014 03:29:18 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id i6si16771261qan.36.2014.05.27.03.29.17
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 27 May 2014 03:29:18 -0700 (PDT)
-Date: Tue, 27 May 2014 12:29:09 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [RFC][PATCH 0/5] VM_PINNED
-Message-ID: <20140527102909.GO30445@twins.programming.kicks-ass.net>
-References: <20140526145605.016140154@infradead.org>
- <CALYGNiMG1NVBUS4TJrYJMr92yWGZHSdGUdCGtBJDHoUMMhE+Wg@mail.gmail.com>
- <20140526203232.GC5444@laptop.programming.kicks-ass.net>
- <CALYGNiO8FNKjtETQMRSqgiArjfQ9nRAALUg9GGdNYbpKru=Sjw@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="826Xtdr1Gsw3jzUq"
-Content-Disposition: inline
-In-Reply-To: <CALYGNiO8FNKjtETQMRSqgiArjfQ9nRAALUg9GGdNYbpKru=Sjw@mail.gmail.com>
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id E22BD6B0055
+	for <linux-mm@kvack.org>; Tue, 27 May 2014 06:31:36 -0400 (EDT)
+Received: by mail-pa0-f51.google.com with SMTP id kq14so8958837pab.38
+        for <linux-mm@kvack.org>; Tue, 27 May 2014 03:31:36 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [143.182.124.21])
+        by mx.google.com with ESMTP id xm4si18137658pbc.45.2014.05.27.03.31.35
+        for <linux-mm@kvack.org>;
+        Tue, 27 May 2014 03:31:35 -0700 (PDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+In-Reply-To: <1401166595-4792-1-git-send-email-vinayakm.list@gmail.com>
+References: <1401166595-4792-1-git-send-email-vinayakm.list@gmail.com>
+Subject: RE: [PATCH] mm: fix zero page check in vm_normal_page
+Content-Transfer-Encoding: 7bit
+Message-Id: <20140527103130.3A04BE009B@blue.fi.intel.com>
+Date: Tue, 27 May 2014 13:31:30 +0300 (EEST)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <koct9i@gmail.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux.com>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Roland Dreier <roland@kernel.org>, Sean Hefty <sean.hefty@intel.com>, Hal Rosenstock <hal.rosenstock@gmail.com>, Mike Marciniszyn <infinipath@intel.com>
+To: Vinayak Menon <vinayakm.list@gmail.com>
+Cc: linux-mm@kvack.org, hannes@cmpxchg.org, mgorman@suse.de, riel@redhat.com, mingo@kernel.org, peterz@infradead.org, kirill.shutemov@linux.intel.com, akpm@linux-foundation.org
 
+Vinayak Menon wrote:
+> An issue was observed when a userspace task exits.
+> The page which hits error here is the zero page.
+> In zap_pte_range, vm_normal_page gets called, and it
+> returns a page address and not NULL, even though the
+> pte corresponds to zero pfn. In this case,
+> HAVE_PTE_SPECIAL is not set, and VM_MIXEDMAP is set
+> in vm_flags. In the case of VM_MIXEDMAP , only pfn_valid
+> is checked, and not is_zero_pfn. This results in
+> zero page being returned instead of NULL.
+> 
+> BUG: Bad page map in process mediaserver  pte:9dff379f pmd:9bfbd831
+> page:c0ed8e60 count:1 mapcount:-1 mapping:  (null) index:0x0
+> page flags: 0x404(referenced|reserved)
+> addr:40c3f000 vm_flags:10220051 anon_vma:  (null) mapping:d9fe0764 index:fd
+> vma->vm_ops->fault:   (null)
+> vma->vm_file->f_op->mmap: binder_mmap+0x0/0x274
 
---826Xtdr1Gsw3jzUq
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+How do we get zero_pfn there. We shouldn't use zero page for file mappings.
+binder does some tricks?
 
-On Tue, May 27, 2014 at 12:49:08AM +0400, Konstantin Khlebnikov wrote:
-> On Tue, May 27, 2014 at 12:32 AM, Peter Zijlstra <peterz@infradead.org> w=
-rote:
-> > Pretty much, that's adequate for all users I'm aware of and mirrors the
-> > mlock semantics.
->=20
-> Ok, fine. Because get_user_pages is used sometimes for pinning pages
-> from different mm.
+> CPU: 0 PID: 1463 Comm: mediaserver Tainted: G        W    3.10.17+ #1
+> [<c001549c>] (unwind_backtrace+0x0/0x11c) from [<c001200c>] (show_stack+0x10/0x14)
+> [<c001200c>] (show_stack+0x10/0x14) from [<c0103d78>] (print_bad_pte+0x158/0x190)
+> [<c0103d78>] (print_bad_pte+0x158/0x190) from [<c01055f0>] (unmap_single_vma+0x2e4/0x598)
+> [<c01055f0>] (unmap_single_vma+0x2e4/0x598) from [<c010618c>] (unmap_vmas+0x34/0x50)
+> [<c010618c>] (unmap_vmas+0x34/0x50) from [<c010a9e4>] (exit_mmap+0xc8/0x1e8)
+> [<c010a9e4>] (exit_mmap+0xc8/0x1e8) from [<c00520f0>] (mmput+0x54/0xd0)
+> [<c00520f0>] (mmput+0x54/0xd0) from [<c005972c>] (do_exit+0x360/0x990)
+> [<c005972c>] (do_exit+0x360/0x990) from [<c0059ef0>] (do_group_exit+0x84/0xc0)
+> [<c0059ef0>] (do_group_exit+0x84/0xc0) from [<c0066de0>] (get_signal_to_deliver+0x4d4/0x548)
+> [<c0066de0>] (get_signal_to_deliver+0x4d4/0x548) from [<c0011500>] (do_signal+0xa8/0x3b8)
+> 
+> Signed-off-by: Vinayak Menon <vinayakm.list@gmail.com>
+> ---
+>  mm/memory.c |    2 ++
+>  1 files changed, 2 insertions(+), 0 deletions(-)
+> 
+> diff --git a/mm/memory.c b/mm/memory.c
+> index 037b812..c9a5027 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -771,6 +771,8 @@ struct page *vm_normal_page(struct vm_area_struct *vma, unsigned long addr,
+>  		if (vma->vm_flags & VM_MIXEDMAP) {
+>  			if (!pfn_valid(pfn))
+>  				return NULL;
+> +			if (is_zero_pfn(pfn))
+> +				return NULL;
+>  			goto out;
+>  		} else {
+>  			unsigned long off;
+> -- 
+> 1.7.6
+> 
 
-Yeah, but that's fairly uncommon, and not something we do for very long
-times afaik.
-
-In fact I could only find:
-
-  drivers/iommu/amd_iommu_v2.c
-
-  fs/exec.c -- temporary use
-  kernel/events/uprobes.c -- temporary use
-  mm/ksm.c -- temporary use
-  mm/process_vm_access.c -- temporary use
-
-With exception of the iommu one (it wasn't immediately obvious and I
-didn't want to stare at the iommu muck too long), they're all temporary,
-we drop the page almost immediately again after doing some short work.
-
-The things I care about for VM_PINNED are long term pins, like the IB
-stuff, which sets up its RDMA buffers at the start of a program and
-basically leaves them in place for the entire duration of said program.
-
-Such pins will disrupt CMA, compaction and pretty much anything that
-relies on the page blocks stuff.
-
-> Another suggestion. VM_RESERVED is stronger than VM_LOCKED and extends
-> its functionality.
-> Maybe it's easier to add VM_DONTMIGRATE and use it together with VM_LOCKE=
-D.
-> This will make accounting easier. No?
-
-I prefer the PINNED name because the not being able to migrate is only
-one of the desired effects of it, not the primary effect. We're really
-looking to keep physical pages in place and preserve mappings.
-
-The -rt people for example really want to avoid faults (even minor
-faults), and DONTMIGRATE would still allow unmapping.
-
-Maybe always setting VM_PINNED and VM_LOCKED together is easier, I
-hadn't considered that. The first thing that came to mind is that that
-might make the fork() semantics difficult, but maybe it works out.
-
-And while we're on the subject, my patch preserves PINNED over fork()
-but maybe we don't actually need that either.
-
---826Xtdr1Gsw3jzUq
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.12 (GNU/Linux)
-
-iQIcBAEBAgAGBQJThGj1AAoJEHZH4aRLwOS6qeYQAJ3hOt1U/4mdeHHc5s7OO1ZD
-8oKxe2N4xrTIXOvgaNh92BuOHmvMiyubfFazcodMKmK3k/VCBL2LIHrmc5i51qv2
-YOFac2y9gxLWepuirYReOv+WDqQ0cfbgY0kCyu716nCzSf2FjrQpiU/yOY6but+2
-hqnVIvQzWivqZQ+nGT9mcspRRI0vLzM3vdfpLVbJiG7QwfBMK6br2ZLTEhcuYrS5
-Np02JoOuLqyQHWIDXcXRqVjTsgSXufKg4LNqgc5jSURml7QBY+Ny8FxSovk7pCrL
-ofS99l35nj2RYOLCfWn6hrmQDcuosOlG0bYGcWACSNcPULwYHuorUUOYSHXwAWm1
-fwdxX2i1ekq9jiyHFamHsBidpjKLXcPd1RYOx+lF0XhAdrnY6/2n4TTZW5ckbON2
-8QUQ9ISXc6bNMJBPC296wyF5tc16R+hnQBzdTUNVhsVgcBuiS3Z8XbXtym2cVto0
-LDBVXqj15b2Gy0o9fFRWeXdRM5/vM4LclNimL0iVOahc3Q2Dqw7hDAboJAA7cYDY
-ljSQ6zRiS6uAN4GdWozhpUIHE+6HcUsjR7WJlDCltlSOirMkFC1T12TspLQ0HnfS
-x9ypJk0DUdxtrBtBvGyBgGsji1frOsYJqrPl4A9VFIKs+fPQHjPJBz2v0juiiuQG
-Px3YPxUAad2jTRA3Ht4N
-=GnLf
------END PGP SIGNATURE-----
-
---826Xtdr1Gsw3jzUq--
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
