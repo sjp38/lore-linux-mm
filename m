@@ -1,83 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f42.google.com (mail-la0-f42.google.com [209.85.215.42])
-	by kanga.kvack.org (Postfix) with ESMTP id B97356B0096
-	for <linux-mm@kvack.org>; Tue, 27 May 2014 10:13:22 -0400 (EDT)
-Received: by mail-la0-f42.google.com with SMTP id el20so6575254lab.15
-        for <linux-mm@kvack.org>; Tue, 27 May 2014 07:13:22 -0700 (PDT)
-Received: from mail-la0-x22e.google.com (mail-la0-x22e.google.com [2a00:1450:4010:c03::22e])
-        by mx.google.com with ESMTPS id s2si16689939laj.14.2014.05.27.07.13.20
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 27 May 2014 07:13:21 -0700 (PDT)
-Received: by mail-la0-f46.google.com with SMTP id ec20so4965981lab.19
-        for <linux-mm@kvack.org>; Tue, 27 May 2014 07:13:20 -0700 (PDT)
-Subject: [PATCH] mm/process_vm_access: move config option into init/Kconfig
-From: Konstantin Khlebnikov <koct9i@gmail.com>
-Date: Tue, 27 May 2014 18:13:13 +0400
-Message-ID: <20140527141313.23853.29306.stgit@zurg>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Received: from mail-qg0-f44.google.com (mail-qg0-f44.google.com [209.85.192.44])
+	by kanga.kvack.org (Postfix) with ESMTP id B9BFA6B0098
+	for <linux-mm@kvack.org>; Tue, 27 May 2014 10:21:39 -0400 (EDT)
+Received: by mail-qg0-f44.google.com with SMTP id i50so13791804qgf.17
+        for <linux-mm@kvack.org>; Tue, 27 May 2014 07:21:39 -0700 (PDT)
+Received: from qmta03.emeryville.ca.mail.comcast.net (qmta03.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:32])
+        by mx.google.com with ESMTP id q16si17491229qay.123.2014.05.27.07.21.38
+        for <linux-mm@kvack.org>;
+        Tue, 27 May 2014 07:21:39 -0700 (PDT)
+Date: Tue, 27 May 2014 09:21:32 -0500 (CDT)
+From: Christoph Lameter <cl@gentwo.org>
+Subject: Re: [PATCH] page_alloc: skip cpuset enforcement for lower zone
+ allocations
+In-Reply-To: <20140523193706.GA22854@amt.cnet>
+Message-ID: <alpine.DEB.2.10.1405270917510.13999@gentwo.org>
+References: <20140523193706.GA22854@amt.cnet>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
-Cc: Davidlohr Bueso <davidlohr@hp.com>, Hugh Dickins <hughd@google.com>, Al Viro <viro@zeniv.linux.org.uk>
+To: Marcelo Tosatti <mtosatti@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Lai Jiangshan <laijs@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
 
-CONFIG_CROSS_MEMORY_ATTACH adds couple syscalls: process_vm_readv and
-process_vm_writev, it's a kind of IPC for copying data between processes.
-Currently this option is placed inside "Processor type and features".
+On Fri, 23 May 2014, Marcelo Tosatti wrote:
 
-This patch moves it into "General setup" (where all other arch-independed
-syscalls and ipc features are placed) and changes prompt string to less cryptic.
+> Zone specific allocations, such as GFP_DMA32, should not be restricted
+> to cpusets allowed node list: the zones which such allocations demand
+> might be contained in particular nodes outside the cpuset node list.
+>
+> The alternative would be to not perform such allocations from
+> applications which are cpuset restricted, which is unrealistic.
+>
+> Fixes KVM's alloc_page(gfp_mask=GFP_DMA32) with cpuset as explained.
 
-Signed-off-by: Konstantin Khlebnikov <koct9i@gmail.com>
----
- init/Kconfig |   10 ++++++++++
- mm/Kconfig   |   10 ----------
- 2 files changed, 10 insertions(+), 10 deletions(-)
+Memory policies are only applied to a specific zone so this is not
+unprecedented. However, if a user wants to limit allocation to a specific
+node and there is no DMA memory there then may be that is a operator
+error? After all the application will be using memory from a node that the
+operator explicitly wanted not to be used.
 
-diff --git a/init/Kconfig b/init/Kconfig
-index 9d3585b..d6ddb7a 100644
---- a/init/Kconfig
-+++ b/init/Kconfig
-@@ -261,6 +261,16 @@ config POSIX_MQUEUE_SYSCTL
- 	depends on SYSCTL
- 	default y
- 
-+config CROSS_MEMORY_ATTACH
-+	bool "Enable process_vm_readv/writev syscalls"
-+	depends on MMU
-+	default y
-+	help
-+	  Enabling this option adds the system calls process_vm_readv and
-+	  process_vm_writev which allow a process with the correct privileges
-+	  to directly read from or write to to another process's address space.
-+	  See the man page for more details.
-+
- config FHANDLE
- 	bool "open by fhandle syscalls"
- 	select EXPORTFS
-diff --git a/mm/Kconfig b/mm/Kconfig
-index 1b5a95f..2ec35d7 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -430,16 +430,6 @@ choice
- 	  benefit.
- endchoice
- 
--config CROSS_MEMORY_ATTACH
--	bool "Cross Memory Support"
--	depends on MMU
--	default y
--	help
--	  Enabling this option adds the system calls process_vm_readv and
--	  process_vm_writev which allow a process with the correct privileges
--	  to directly read from or write to to another process's address space.
--	  See the man page for more details.
--
- #
- # UP and nommu archs use km based percpu allocator
- #
+There is also the hardwall flag. I think its ok to allocate outside of the
+cpuset if that flag is not set. However, if it is set then any attempt to
+alloc outside of the cpuset should fail.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
