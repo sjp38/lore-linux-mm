@@ -1,85 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 6CB1E6B0036
-	for <linux-mm@kvack.org>; Mon, 26 May 2014 22:38:08 -0400 (EDT)
-Received: by mail-pa0-f43.google.com with SMTP id hz1so8334532pad.2
-        for <linux-mm@kvack.org>; Mon, 26 May 2014 19:38:08 -0700 (PDT)
-Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [2001:44b8:8060:ff02:300:1:2:7])
-        by mx.google.com with ESMTP id ot9si17034945pac.53.2014.05.26.19.38.06
-        for <linux-mm@kvack.org>;
-        Mon, 26 May 2014 19:38:07 -0700 (PDT)
-Date: Tue, 27 May 2014 12:37:51 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 0/3] Shrinkers and proportional reclaim
-Message-ID: <20140527023751.GB8554@dastard>
-References: <1400749779-24879-1-git-send-email-mgorman@suse.de>
- <alpine.LSU.2.11.1405261441320.7154@eggly.anvils>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1405261441320.7154@eggly.anvils>
+Received: from mail-pb0-f49.google.com (mail-pb0-f49.google.com [209.85.160.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 1FD6F6B0036
+	for <linux-mm@kvack.org>; Tue, 27 May 2014 00:57:17 -0400 (EDT)
+Received: by mail-pb0-f49.google.com with SMTP id jt11so8582819pbb.22
+        for <linux-mm@kvack.org>; Mon, 26 May 2014 21:57:16 -0700 (PDT)
+Received: from mail-pb0-x22a.google.com (mail-pb0-x22a.google.com [2607:f8b0:400e:c01::22a])
+        by mx.google.com with ESMTPS id qf10si17072092pbb.86.2014.05.26.21.57.15
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 26 May 2014 21:57:16 -0700 (PDT)
+Received: by mail-pb0-f42.google.com with SMTP id md12so8697196pbc.1
+        for <linux-mm@kvack.org>; Mon, 26 May 2014 21:57:15 -0700 (PDT)
+From: Vinayak Menon <vinayakm.list@gmail.com>
+Subject: [PATCH] mm: fix zero page check in vm_normal_page
+Date: Tue, 27 May 2014 10:26:35 +0530
+Message-Id: <1401166595-4792-1-git-send-email-vinayakm.list@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Tim Chen <tim.c.chen@linux.intel.com>, Yuanhan Liu <yuanhan.liu@linux.intel.com>, Bob Liu <bob.liu@oracle.com>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>
+To: linux-mm@kvack.org
+Cc: hannes@cmpxchg.org, mgorman@suse.de, riel@redhat.com, mingo@kernel.org, peterz@infradead.org, kirill.shutemov@linux.intel.com, akpm@linux-foundation.org, Vinayak Menon <vinayakm.list@gmail.com>
 
-On Mon, May 26, 2014 at 02:44:29PM -0700, Hugh Dickins wrote:
-> On Thu, 22 May 2014, Mel Gorman wrote:
-> 
-> > This series is aimed at regressions noticed during reclaim activity. The
-> > first two patches are shrinker patches that were posted ages ago but never
-> > merged for reasons that are unclear to me. I'm posting them again to see if
-> > there was a reason they were dropped or if they just got lost. Dave?  Time?
-> > The last patch adjusts proportional reclaim. Yuanhan Liu, can you retest
-> > the vm scalability test cases on a larger machine? Hugh, does this work
-> > for you on the memcg test cases?
-> 
-> Yes it does, thank you.
-> 
-> Though the situation is muddy, since on our current internal tree, I'm
-> surprised to find that the memcg test case no longer fails reliably
-> without our workaround and without your fix.
-> 
-> "Something must have changed"; but it would take a long time to work
-> out what.  If I travel back in time with git, to where we first applied
-> the "vindictive" patch, then yes that test case convincingly fails
-> without either (my or your) patch, and passes with either patch.
-> 
-> And you have something that satisfies Yuanhan too, that's great.
-> 
-> I'm also pleased to see Dave and Tim reduce the contention in
-> grab_super_passive(): that's a familiar symbol from livelock dumps.
-> 
-> You might want to add this little 4/3, that we've had in for a
-> while; but with grab_super_passive() out of super_cache_count(),
-> it will have much less importance.
-> 
-> 
-> [PATCH 4/3] fs/superblock: Avoid counting without __GFP_FS
-> 
-> Don't waste time counting objects in super_cache_count() if no __GFP_FS:
-> super_cache_scan() would only back out with SHRINK_STOP in that case.
-> 
-> Signed-off-by: Hugh Dickins <hughd@google.com>
+An issue was observed when a userspace task exits.
+The page which hits error here is the zero page.
+In zap_pte_range, vm_normal_page gets called, and it
+returns a page address and not NULL, even though the
+pte corresponds to zero pfn. In this case,
+HAVE_PTE_SPECIAL is not set, and VM_MIXEDMAP is set
+in vm_flags. In the case of VM_MIXEDMAP , only pfn_valid
+is checked, and not is_zero_pfn. This results in
+zero page being returned instead of NULL.
 
-While you might think that's a good thing, it's not.  The act of
-shrinking is kept separate from the accounting of how much shrinking
-needs to take place.  The amount of work the shrinker can't do due
-to the reclaim context is deferred until the shrinker is called in a
-context where it can do work (eg. kswapd)
+BUG: Bad page map in process mediaserver  pte:9dff379f pmd:9bfbd831
+page:c0ed8e60 count:1 mapcount:-1 mapping:  (null) index:0x0
+page flags: 0x404(referenced|reserved)
+addr:40c3f000 vm_flags:10220051 anon_vma:  (null) mapping:d9fe0764 index:fd
+vma->vm_ops->fault:   (null)
+vma->vm_file->f_op->mmap: binder_mmap+0x0/0x274
+CPU: 0 PID: 1463 Comm: mediaserver Tainted: G        W    3.10.17+ #1
+[<c001549c>] (unwind_backtrace+0x0/0x11c) from [<c001200c>] (show_stack+0x10/0x14)
+[<c001200c>] (show_stack+0x10/0x14) from [<c0103d78>] (print_bad_pte+0x158/0x190)
+[<c0103d78>] (print_bad_pte+0x158/0x190) from [<c01055f0>] (unmap_single_vma+0x2e4/0x598)
+[<c01055f0>] (unmap_single_vma+0x2e4/0x598) from [<c010618c>] (unmap_vmas+0x34/0x50)
+[<c010618c>] (unmap_vmas+0x34/0x50) from [<c010a9e4>] (exit_mmap+0xc8/0x1e8)
+[<c010a9e4>] (exit_mmap+0xc8/0x1e8) from [<c00520f0>] (mmput+0x54/0xd0)
+[<c00520f0>] (mmput+0x54/0xd0) from [<c005972c>] (do_exit+0x360/0x990)
+[<c005972c>] (do_exit+0x360/0x990) from [<c0059ef0>] (do_group_exit+0x84/0xc0)
+[<c0059ef0>] (do_group_exit+0x84/0xc0) from [<c0066de0>] (get_signal_to_deliver+0x4d4/0x548)
+[<c0066de0>] (get_signal_to_deliver+0x4d4/0x548) from [<c0011500>] (do_signal+0xa8/0x3b8)
 
-Hence not accounting for work that can't be done immediately will
-adversely impact the balance of the system under memory intensive
-filesystem workloads. In these worklaods, almost all allocations are
-done in the GFP_NOFS or GFP_NOIO contexts so not deferring the work
-will will effectively stop superblock cache reclaim entirely....
+Signed-off-by: Vinayak Menon <vinayakm.list@gmail.com>
+---
+ mm/memory.c |    2 ++
+ 1 files changed, 2 insertions(+), 0 deletions(-)
 
-Cheers,
-
-Dave.
+diff --git a/mm/memory.c b/mm/memory.c
+index 037b812..c9a5027 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -771,6 +771,8 @@ struct page *vm_normal_page(struct vm_area_struct *vma, unsigned long addr,
+ 		if (vma->vm_flags & VM_MIXEDMAP) {
+ 			if (!pfn_valid(pfn))
+ 				return NULL;
++			if (is_zero_pfn(pfn))
++				return NULL;
+ 			goto out;
+ 		} else {
+ 			unsigned long off;
 -- 
-Dave Chinner
-david@fromorbit.com
+1.7.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
