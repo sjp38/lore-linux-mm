@@ -1,33 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ve0-f182.google.com (mail-ve0-f182.google.com [209.85.128.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 864226B0036
-	for <linux-mm@kvack.org>; Tue, 27 May 2014 16:07:50 -0400 (EDT)
-Received: by mail-ve0-f182.google.com with SMTP id sa20so11558292veb.27
-        for <linux-mm@kvack.org>; Tue, 27 May 2014 13:07:50 -0700 (PDT)
-Received: from qmta10.emeryville.ca.mail.comcast.net (qmta10.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:17])
-        by mx.google.com with ESMTP id cb8si8911413vcb.36.2014.05.27.13.07.49
-        for <linux-mm@kvack.org>;
-        Tue, 27 May 2014 13:07:49 -0700 (PDT)
-Date: Tue, 27 May 2014 15:07:45 -0500 (CDT)
-From: Christoph Lameter <cl@gentwo.org>
-Subject: Re: vmstat: On demand vmstat workers V5
-In-Reply-To: <alpine.DEB.2.02.1405150111480.6261@ionos.tec.linutronix.de>
-Message-ID: <alpine.DEB.2.10.1405271507090.15990@gentwo.org>
-References: <alpine.DEB.2.10.1405121317270.29911@gentwo.org> <alpine.DEB.2.02.1405131651120.6261@ionos.tec.linutronix.de> <alpine.DEB.2.10.1405141105370.16512@gentwo.org> <alpine.DEB.2.02.1405150111480.6261@ionos.tec.linutronix.de>
+Received: from mail-pb0-f46.google.com (mail-pb0-f46.google.com [209.85.160.46])
+	by kanga.kvack.org (Postfix) with ESMTP id D40606B0036
+	for <linux-mm@kvack.org>; Tue, 27 May 2014 17:19:18 -0400 (EDT)
+Received: by mail-pb0-f46.google.com with SMTP id rq2so9855632pbb.5
+        for <linux-mm@kvack.org>; Tue, 27 May 2014 14:19:18 -0700 (PDT)
+Received: from mail-pb0-x22b.google.com (mail-pb0-x22b.google.com [2607:f8b0:400e:c01::22b])
+        by mx.google.com with ESMTPS id tz6si20404739pbc.165.2014.05.27.14.19.17
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 27 May 2014 14:19:18 -0700 (PDT)
+Received: by mail-pb0-f43.google.com with SMTP id up15so9953777pbc.30
+        for <linux-mm@kvack.org>; Tue, 27 May 2014 14:19:17 -0700 (PDT)
+Date: Tue, 27 May 2014 14:17:59 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH 0/3] Shrinkers and proportional reclaim
+In-Reply-To: <20140527023751.GB8554@dastard>
+Message-ID: <alpine.LSU.2.11.1405271406520.4317@eggly.anvils>
+References: <1400749779-24879-1-git-send-email-mgorman@suse.de> <alpine.LSU.2.11.1405261441320.7154@eggly.anvils> <20140527023751.GB8554@dastard>
+MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Gilad Ben-Yossef <gilad@benyossef.com>, Tejun Heo <tj@kernel.org>, John Stultz <johnstul@us.ibm.com>, Mike Frysinger <vapier@gentoo.org>, Minchan Kim <minchan.kim@gmail.com>, Hakan Akkan <hakanakkan@gmail.com>, Max Krasnyansky <maxk@qualcomm.com>, Frederic Weisbecker <fweisbec@gmail.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hughd@google.com, viresh.kumar@linaro.org, hpa@zytor.com, mingo@kernel.org, peterz@infradead.org
+To: Dave Chinner <david@fromorbit.com>
+Cc: Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Tim Chen <tim.c.chen@linux.intel.com>, Yuanhan Liu <yuanhan.liu@linux.intel.com>, Bob Liu <bob.liu@oracle.com>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>
 
-On Thu, 15 May 2014, Thomas Gleixner wrote:
+On Tue, 27 May 2014, Dave Chinner wrote:
+> On Mon, May 26, 2014 at 02:44:29PM -0700, Hugh Dickins wrote:
+> > 
+> > [PATCH 4/3] fs/superblock: Avoid counting without __GFP_FS
+> > 
+> > Don't waste time counting objects in super_cache_count() if no __GFP_FS:
+> > super_cache_scan() would only back out with SHRINK_STOP in that case.
+> > 
+> > Signed-off-by: Hugh Dickins <hughd@google.com>
+> 
+> While you might think that's a good thing, it's not.  The act of
+> shrinking is kept separate from the accounting of how much shrinking
+> needs to take place.  The amount of work the shrinker can't do due
+> to the reclaim context is deferred until the shrinker is called in a
+> context where it can do work (eg. kswapd)
+> 
+> Hence not accounting for work that can't be done immediately will
+> adversely impact the balance of the system under memory intensive
+> filesystem workloads. In these worklaods, almost all allocations are
+> done in the GFP_NOFS or GFP_NOIO contexts so not deferring the work
+> will will effectively stop superblock cache reclaim entirely....
 
-> Acked-by me for the general approach.
->
-> I don't want to give any unqualified opinion on the mm/vmstat parts of
-> this patch.
+Thanks for filling me in on that.  At first I misunderstood you,
+and went off looking in the wrong direction.  Now I see what you're
+referring to: the quantity that shrink_slab_node() accumulates in
+and withdraws from shrinker->nr_deferred[nid].
 
-Thanks. Any other comments? Could we get this into -next?
+Right: forget my super_cache_count() __GFP_FS patch!
+
+Hugh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
