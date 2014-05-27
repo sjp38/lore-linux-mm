@@ -1,83 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f176.google.com (mail-ie0-f176.google.com [209.85.223.176])
-	by kanga.kvack.org (Postfix) with ESMTP id D1BEB6B0082
-	for <linux-mm@kvack.org>; Tue, 27 May 2014 08:37:24 -0400 (EDT)
-Received: by mail-ie0-f176.google.com with SMTP id rl12so8674654iec.21
-        for <linux-mm@kvack.org>; Tue, 27 May 2014 05:37:24 -0700 (PDT)
-Received: from mail-ie0-x22b.google.com (mail-ie0-x22b.google.com [2607:f8b0:4001:c03::22b])
-        by mx.google.com with ESMTPS id ae10si25805631icc.98.2014.05.27.05.37.24
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 78FC36B0087
+	for <linux-mm@kvack.org>; Tue, 27 May 2014 09:05:28 -0400 (EDT)
+Received: by mail-wi0-f171.google.com with SMTP id cc10so1677653wib.4
+        for <linux-mm@kvack.org>; Tue, 27 May 2014 06:05:27 -0700 (PDT)
+Received: from casper.infradead.org (casper.infradead.org. [2001:770:15f::2])
+        by mx.google.com with ESMTPS id c17si6281452wiv.21.2014.05.27.06.05.22
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 27 May 2014 05:37:24 -0700 (PDT)
-Received: by mail-ie0-f171.google.com with SMTP id to1so8737658ieb.16
-        for <linux-mm@kvack.org>; Tue, 27 May 2014 05:37:24 -0700 (PDT)
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 27 May 2014 06:05:22 -0700 (PDT)
+Date: Tue, 27 May 2014 15:05:09 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [RFC][PATCH 0/5] VM_PINNED
+Message-ID: <20140527130509.GD5444@laptop.programming.kicks-ass.net>
+References: <20140526145605.016140154@infradead.org>
+ <CALYGNiMG1NVBUS4TJrYJMr92yWGZHSdGUdCGtBJDHoUMMhE+Wg@mail.gmail.com>
+ <20140526203232.GC5444@laptop.programming.kicks-ass.net>
+ <CALYGNiO8FNKjtETQMRSqgiArjfQ9nRAALUg9GGdNYbpKru=Sjw@mail.gmail.com>
+ <20140527102909.GO30445@twins.programming.kicks-ass.net>
+ <20140527105438.GW13658@twins.programming.kicks-ass.net>
+ <CALYGNiNCp5ShyKLAQi_cht_-sPt79Zxzj=Q=VSzqCvdnsCE5ag@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <CAOaiJ-m8LjrnV868b7Z7-DDkGcubwQzCFOBYNDY7r=v5GuWkbw@mail.gmail.com>
-References: <1401166595-4792-1-git-send-email-vinayakm.list@gmail.com>
-	<20140527103130.3A04BE009B@blue.fi.intel.com>
-	<CALYGNiPTay15iACtwgRgG68cbb6a8gfh5cR0xfWDLSRESo3mLg@mail.gmail.com>
-	<CAOaiJ-kCfC0=gxS_3Eu8qEvvZOpK+WH0M8-2a3XOLAepW9s42g@mail.gmail.com>
-	<CALYGNiMv+eoPDub0=0T82-U7bdrH3MxoFJZ+Q1zfhLKeZecg1w@mail.gmail.com>
-	<CAOaiJ-m8LjrnV868b7Z7-DDkGcubwQzCFOBYNDY7r=v5GuWkbw@mail.gmail.com>
-Date: Tue, 27 May 2014 16:37:24 +0400
-Message-ID: <CALYGNiMnUCWtZSPxjOSn-4h2rgya4e+TJFcUMAcMWT+dy8dt9w@mail.gmail.com>
-Subject: Re: [PATCH] mm: fix zero page check in vm_normal_page
-From: Konstantin Khlebnikov <koct9i@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <CALYGNiNCp5ShyKLAQi_cht_-sPt79Zxzj=Q=VSzqCvdnsCE5ag@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: vinayak menon <vinayakm.list@gmail.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Konstantin Khlebnikov <koct9i@gmail.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Christoph Lameter <cl@linux.com>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Roland Dreier <roland@kernel.org>, Sean Hefty <sean.hefty@intel.com>, Hal Rosenstock <hal.rosenstock@gmail.com>, Mike Marciniszyn <infinipath@intel.com>
 
-On Tue, May 27, 2014 at 4:10 PM, vinayak menon <vinayakm.list@gmail.com> wrote:
-> On Tue, May 27, 2014 at 5:18 PM, Konstantin Khlebnikov <koct9i@gmail.com> wrote:
->> On Tue, May 27, 2014 at 3:43 PM, vinayak menon <vinayakm.list@gmail.com> wrote:
->>> On Tue, May 27, 2014 at 5:01 PM, Konstantin Khlebnikov <koct9i@gmail.com> wrote:
->>>> On Tue, May 27, 2014 at 2:31 PM, Kirill A. Shutemov
->>>> <kirill.shutemov@linux.intel.com> wrote:
->>>>> Vinayak Menon wrote:
->>>>>> An issue was observed when a userspace task exits.
->>>>>> The page which hits error here is the zero page.
->>>>>> In zap_pte_range, vm_normal_page gets called, and it
->>>>>> returns a page address and not NULL, even though the
->>>>>> pte corresponds to zero pfn. In this case,
->>>>>> HAVE_PTE_SPECIAL is not set, and VM_MIXEDMAP is set
->>>>>> in vm_flags. In the case of VM_MIXEDMAP , only pfn_valid
->>>>>> is checked, and not is_zero_pfn. This results in
->>>>>> zero page being returned instead of NULL.
->>>>>>
->>>>>> BUG: Bad page map in process mediaserver  pte:9dff379f pmd:9bfbd831
->>>>>> page:c0ed8e60 count:1 mapcount:-1 mapping:  (null) index:0x0
->>>>>> page flags: 0x404(referenced|reserved)
->>>>>> addr:40c3f000 vm_flags:10220051 anon_vma:  (null) mapping:d9fe0764 index:fd
->>>>>> vma->vm_ops->fault:   (null)
->>>>>> vma->vm_file->f_op->mmap: binder_mmap+0x0/0x274
->>>>>
->>>>> How do we get zero_pfn there. We shouldn't use zero page for file mappings.
->>>>> binder does some tricks?
->>>>
->>>> Its vm_ops doesn't provide ->fault method at all.
->>>> Seems like all ptes must be populated at the mmap time.
->>>> For some reason read page fault had happened and handle_pte_fault()
->>>> handled it in do_anonymous_page() which maps zero_page.
->>>>
->>> When the task crashed, it was ptraced by debuggered and the areas were
->>> dumped. And this resulted in the read page fault.
->>
->> Anyway, this bug in the binder. It must either populate all PTEs in ->mmap()
->> or provide ->fault() method. Falling into do_anonymous_page() isn't funny.
->
-> Ok. But in vm_normal_page shouldn't we check for zero_pfn in the case
-> of VM_MIXEDMAP ?
+On Tue, May 27, 2014 at 03:11:36PM +0400, Konstantin Khlebnikov wrote:
+> On Tue, May 27, 2014 at 2:54 PM, Peter Zijlstra <peterz@infradead.org> wr=
+ote:
+> > On Tue, May 27, 2014 at 12:29:09PM +0200, Peter Zijlstra wrote:
+> >> On Tue, May 27, 2014 at 12:49:08AM +0400, Konstantin Khlebnikov wrote:
+> >> > Another suggestion. VM_RESERVED is stronger than VM_LOCKED and exten=
+ds
+> >> > its functionality.
+> >> > Maybe it's easier to add VM_DONTMIGRATE and use it together with VM_=
+LOCKED.
+> >> > This will make accounting easier. No?
+> >>
+> >> I prefer the PINNED name because the not being able to migrate is only
+> >> one of the desired effects of it, not the primary effect. We're really
+> >> looking to keep physical pages in place and preserve mappings.
+>=20
+> Ah, I just mixed it up.
+>=20
+> >>
+> >> The -rt people for example really want to avoid faults (even minor
+> >> faults), and DONTMIGRATE would still allow unmapping.
+> >>
+> >> Maybe always setting VM_PINNED and VM_LOCKED together is easier, I
+> >> hadn't considered that. The first thing that came to mind is that that
+> >> might make the fork() semantics difficult, but maybe it works out.
+> >>
+> >> And while we're on the subject, my patch preserves PINNED over fork()
+> >> but maybe we don't actually need that either.
+> >
+> > So pinned_vm is userspace exposed, which means we have to maintain the
+> > individual counts, and doing the fully orthogonal accounting is 'easier'
+> > than trying to get the boundary cases right.
+> >
+> > That is, if we have a program that does mlockall() and then does the IB
+> > ioctl() to 'pin' a region, we'd have to make mm_mpin() do munlock()
+> > after it splits the vma, and then do the pinned accounting.
+> >
+> > Also, we'll have lost the LOCKED state and unless MCL_FUTURE was used,
+> > we don't know what to restore the vma to on mm_munpin().
+> >
+> > So while the accounting looks tricky, it has simpler semantics.
+>=20
+> What if VM_PINNED will require VM_LOCKED?
+> I.e. user must mlock it before pining and cannot munlock vma while it's p=
+inned.
 
-I don't think so. VM_MIXEDMAP shouldn't have zero_pfn.
-It isn't expected to be here, for example in your case next fault for
-write will remap
-that zero page for write becaue do_wp_page() doesn't expect to see it here.
+So I don't like restrictions like that if its at all possible to avoid
+-- and in this case, I already wrote the code and its not _that_
+complicated.
 
-In case of HAVE_PTE_SPECIAL it's checked because zero_page _also_
-installed as special pte and
-this must be the only one possible special-pte in non-mixedmap/pfnmap vmas.
+But also; that would mean that we'd either have to make mm_mpin() do the
+mlock unconditionally (which rather defeats the purpose) or break
+userspace assumptions. I'm fairly sure the IB ioctl() don't require the
+memory to be mlocked.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
