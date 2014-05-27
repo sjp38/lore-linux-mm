@@ -1,92 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 743EE6B0037
-	for <linux-mm@kvack.org>; Tue, 27 May 2014 19:07:28 -0400 (EDT)
-Received: by mail-pa0-f46.google.com with SMTP id kq14so9853744pab.5
-        for <linux-mm@kvack.org>; Tue, 27 May 2014 16:07:28 -0700 (PDT)
-Received: from mail-pb0-x22f.google.com (mail-pb0-x22f.google.com [2607:f8b0:400e:c01::22f])
-        by mx.google.com with ESMTPS id ty7si21103470pab.10.2014.05.27.16.07.27
+Received: from mail-pa0-f43.google.com (mail-pa0-f43.google.com [209.85.220.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 344516B0036
+	for <linux-mm@kvack.org>; Tue, 27 May 2014 19:20:30 -0400 (EDT)
+Received: by mail-pa0-f43.google.com with SMTP id hz1so9961778pad.30
+        for <linux-mm@kvack.org>; Tue, 27 May 2014 16:20:29 -0700 (PDT)
+Received: from mail-pa0-x233.google.com (mail-pa0-x233.google.com [2607:f8b0:400e:c03::233])
+        by mx.google.com with ESMTPS id ic8si21109845pad.95.2014.05.27.16.20.29
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 27 May 2014 16:07:27 -0700 (PDT)
-Received: by mail-pb0-f47.google.com with SMTP id rp16so9987969pbb.6
-        for <linux-mm@kvack.org>; Tue, 27 May 2014 16:07:27 -0700 (PDT)
-Date: Tue, 27 May 2014 16:05:36 -0700 (PDT)
+        Tue, 27 May 2014 16:20:29 -0700 (PDT)
+Received: by mail-pa0-f51.google.com with SMTP id kq14so10012662pab.10
+        for <linux-mm@kvack.org>; Tue, 27 May 2014 16:20:29 -0700 (PDT)
+Date: Tue, 27 May 2014 16:19:12 -0700 (PDT)
 From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH mmotm/next]
- memcg-mm-introduce-lowlimit-reclaim-fix2.patch
-In-Reply-To: <20140527150100.70f6c7cf93d27d58c8f5eb48@linux-foundation.org>
-Message-ID: <alpine.LSU.2.11.1405271534150.4770@eggly.anvils>
-References: <alpine.LSU.2.11.1405271432400.4485@eggly.anvils> <20140527150100.70f6c7cf93d27d58c8f5eb48@linux-foundation.org>
+Subject: Re: [PATCH 0/3] Shrinkers and proportional reclaim
+In-Reply-To: <CALYGNiPZXnTG+vxg5tr+jnaDSvHRArJq=fmQ4bPD-m-iJU9jqA@mail.gmail.com>
+Message-ID: <alpine.LSU.2.11.1405271618360.5019@eggly.anvils>
+References: <1400749779-24879-1-git-send-email-mgorman@suse.de> <alpine.LSU.2.11.1405261441320.7154@eggly.anvils> <20140527023751.GB8554@dastard> <alpine.LSU.2.11.1405271406520.4317@eggly.anvils>
+ <CALYGNiPZXnTG+vxg5tr+jnaDSvHRArJq=fmQ4bPD-m-iJU9jqA@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Konstantin Khlebnikov <koct9i@gmail.com>
+Cc: Dave Chinner <david@fromorbit.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Tim Chen <tim.c.chen@linux.intel.com>, Yuanhan Liu <yuanhan.liu@linux.intel.com>, Bob Liu <bob.liu@oracle.com>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>
 
-On Tue, 27 May 2014, Andrew Morton wrote:
-> On Tue, 27 May 2014 14:36:04 -0700 (PDT) Hugh Dickins <hughd@google.com> wrote:
-> 
-> > mem_cgroup_within_guarantee() oopses in _raw_spin_lock_irqsave() when
-> > booted with cgroup_disable=memory.  Fix that in the obvious inelegant
-> > way for now - though I hope we are moving towards a world in which
-> > almost all of the mem_cgroup_disabled() tests will vanish, with a
-> > root_mem_cgroup which can handle the basics even when disabled.
-> > 
-> > I bet there's a neater way of doing this, rearranging the loop (and we
-> > shall want to avoid spinlocking on root_mem_cgroup when we reach that
-> > new world), but that's the kind of thing I'd get wrong in a hurry!
-> > 
-> > ...
+On Wed, 28 May 2014, Konstantin Khlebnikov wrote:
+> On Wed, May 28, 2014 at 1:17 AM, Hugh Dickins <hughd@google.com> wrote:
+> > On Tue, 27 May 2014, Dave Chinner wrote:
+> >> On Mon, May 26, 2014 at 02:44:29PM -0700, Hugh Dickins wrote:
+> >> >
+> >> > [PATCH 4/3] fs/superblock: Avoid counting without __GFP_FS
+> >> >
+> >> > Don't waste time counting objects in super_cache_count() if no __GFP_FS:
+> >> > super_cache_scan() would only back out with SHRINK_STOP in that case.
+> >> >
+> >> > Signed-off-by: Hugh Dickins <hughd@google.com>
+> >>
+> >> While you might think that's a good thing, it's not.  The act of
+> >> shrinking is kept separate from the accounting of how much shrinking
+> >> needs to take place.  The amount of work the shrinker can't do due
+> >> to the reclaim context is deferred until the shrinker is called in a
+> >> context where it can do work (eg. kswapd)
+> >>
+> >> Hence not accounting for work that can't be done immediately will
+> >> adversely impact the balance of the system under memory intensive
+> >> filesystem workloads. In these worklaods, almost all allocations are
+> >> done in the GFP_NOFS or GFP_NOIO contexts so not deferring the work
+> >> will will effectively stop superblock cache reclaim entirely....
 > >
-> > @@ -2793,6 +2793,9 @@ static struct mem_cgroup *mem_cgroup_loo
-> >  bool mem_cgroup_within_guarantee(struct mem_cgroup *memcg,
-> >  		struct mem_cgroup *root)
-> >  {
-> > +	if (mem_cgroup_disabled())
-> > +		return false;
-> > +
-> >  	do {
-> >  		if (!res_counter_low_limit_excess(&memcg->res))
-> >  			return true;
+> > Thanks for filling me in on that.  At first I misunderstood you,
+> > and went off looking in the wrong direction.  Now I see what you're
+> > referring to: the quantity that shrink_slab_node() accumulates in
+> > and withdraws from shrinker->nr_deferred[nid].
 > 
-> This seems to be an awfully late and deep place at which to be noticing
-> mem_cgroup_disabled().  Should mem_cgroup_within_guarantee() even be called
-> in this state?
+> Maybe shrinker could accumulate fraction nr_pages_scanned / lru_pages
+> instead of exact amount of required work? Count of shrinkable objects
+> might be calculated later, when shrinker is called from a suitable context
+> and can actualy do something.
 
-I think it's a natural consequence of our preferring to use a single
-path for memcg and non-memcg, outside of memcontrol.c itself.  So in
-vmscan.c there are loops iterating through a subtree of memcgs, which
-in the non-memcg case can only ever encounter root_mem_cgroup (or NULL).
-
-In doing so, it's not surprising that __shrink_zone() should want to
-check mem_cgroup_within_guarantee().  Now, __shrink_zone() does have an
-honor_memcg_guarantee arg passed in, and I did consider initializing
-that according to !mem_cgroup_disabled(): which would be not so late
-and not so deep.  But then noticed mem_cgroup_all_within_guarantee(),
-which is called without condition on honor_guarantee, so backed away:
-we could very easily change that, I suppose, but...
-
-I'm sure there is a better way of dealing with this than sprinkling
-mem_cgroup_disabled() tests all over, and IIUC Hannes is moving us
-towards that by making root_mem_cgroup more of a first-class citizen
-(following on from earlier per-cpu-ification of memcg's most expensive
-fields).
-
-My attitude is that for now we just chuck in a !mem_cgroup_disabled()
-wherever it stops a crash, as before; but in future aim to give the
-cgroup_disabled=memory root_mem_cgroup all it needs to handle this
-seamlessly.  Ideally just a !mem_cgroup_disabled() test at the point
-of memcg creation, and everything else fall out naturally (but maybe
-some more lookup_page_cgroup() NULL tests).  In practice we may identify
-other places, where it's useful to add a special test to avoid expense;
-though usually that would be expense worth avoiding at the root, even
-when !mem_cgroup_disabled().
-
-And probably a static dummy root_mem_cgroup even when !CONFIG_MEMCG.
-
-(Not that I'm expecting to do any of this work myself!)
+Good idea, probably a worthwhile optimization to think through further.
+(Though experience says that Dave will explain how that can never work.)
 
 Hugh
 
