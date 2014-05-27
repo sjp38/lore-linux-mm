@@ -1,46 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f44.google.com (mail-qg0-f44.google.com [209.85.192.44])
-	by kanga.kvack.org (Postfix) with ESMTP id B9BFA6B0098
-	for <linux-mm@kvack.org>; Tue, 27 May 2014 10:21:39 -0400 (EDT)
-Received: by mail-qg0-f44.google.com with SMTP id i50so13791804qgf.17
-        for <linux-mm@kvack.org>; Tue, 27 May 2014 07:21:39 -0700 (PDT)
-Received: from qmta03.emeryville.ca.mail.comcast.net (qmta03.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:32])
-        by mx.google.com with ESMTP id q16si17491229qay.123.2014.05.27.07.21.38
+Received: from mail-qc0-f170.google.com (mail-qc0-f170.google.com [209.85.216.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 964796B009B
+	for <linux-mm@kvack.org>; Tue, 27 May 2014 10:34:44 -0400 (EDT)
+Received: by mail-qc0-f170.google.com with SMTP id i8so14211779qcq.15
+        for <linux-mm@kvack.org>; Tue, 27 May 2014 07:34:44 -0700 (PDT)
+Received: from qmta15.emeryville.ca.mail.comcast.net (qmta15.emeryville.ca.mail.comcast.net. [2001:558:fe2d:44:76:96:27:228])
+        by mx.google.com with ESMTP id w75si17163598qge.77.2014.05.27.07.34.43
         for <linux-mm@kvack.org>;
-        Tue, 27 May 2014 07:21:39 -0700 (PDT)
-Date: Tue, 27 May 2014 09:21:32 -0500 (CDT)
+        Tue, 27 May 2014 07:34:44 -0700 (PDT)
+Date: Tue, 27 May 2014 09:34:22 -0500 (CDT)
 From: Christoph Lameter <cl@gentwo.org>
-Subject: Re: [PATCH] page_alloc: skip cpuset enforcement for lower zone
- allocations
-In-Reply-To: <20140523193706.GA22854@amt.cnet>
-Message-ID: <alpine.DEB.2.10.1405270917510.13999@gentwo.org>
-References: <20140523193706.GA22854@amt.cnet>
+Subject: Re: [RFC][PATCH 0/5] VM_PINNED
+In-Reply-To: <20140527102909.GO30445@twins.programming.kicks-ass.net>
+Message-ID: <alpine.DEB.2.10.1405270929550.13999@gentwo.org>
+References: <20140526145605.016140154@infradead.org> <CALYGNiMG1NVBUS4TJrYJMr92yWGZHSdGUdCGtBJDHoUMMhE+Wg@mail.gmail.com> <20140526203232.GC5444@laptop.programming.kicks-ass.net> <CALYGNiO8FNKjtETQMRSqgiArjfQ9nRAALUg9GGdNYbpKru=Sjw@mail.gmail.com>
+ <20140527102909.GO30445@twins.programming.kicks-ass.net>
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marcelo Tosatti <mtosatti@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Lai Jiangshan <laijs@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Konstantin Khlebnikov <koct9i@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Roland Dreier <roland@kernel.org>, Sean Hefty <sean.hefty@intel.com>, Hal Rosenstock <hal.rosenstock@gmail.com>, Mike Marciniszyn <infinipath@intel.com>
 
-On Fri, 23 May 2014, Marcelo Tosatti wrote:
+On Tue, 27 May 2014, Peter Zijlstra wrote:
 
-> Zone specific allocations, such as GFP_DMA32, should not be restricted
-> to cpusets allowed node list: the zones which such allocations demand
-> might be contained in particular nodes outside the cpuset node list.
->
-> The alternative would be to not perform such allocations from
-> applications which are cpuset restricted, which is unrealistic.
->
-> Fixes KVM's alloc_page(gfp_mask=GFP_DMA32) with cpuset as explained.
+> The things I care about for VM_PINNED are long term pins, like the IB
+> stuff, which sets up its RDMA buffers at the start of a program and
+> basically leaves them in place for the entire duration of said program.
 
-Memory policies are only applied to a specific zone so this is not
-unprecedented. However, if a user wants to limit allocation to a specific
-node and there is no DMA memory there then may be that is a operator
-error? After all the application will be using memory from a node that the
-operator explicitly wanted not to be used.
+Ok that also means the pages are not to be allocated from ZONE_MOVABLE?
 
-There is also the hardwall flag. I think its ok to allocate outside of the
-cpuset if that flag is not set. However, if it is set then any attempt to
-alloc outside of the cpuset should fail.
+I expected the use of a page flag. With a vma flag we may have a situation
+that mapping a page into a vma changes it to pinned and terminating a
+process may unpin a page. That means the zone that the page should be
+allocated from changes.
+
+Pinned pages in ZONE_MOVABLE are not a good idea. But since "kernelcore"
+is rarely used maybe that is not an issue?
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
