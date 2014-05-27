@@ -1,52 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f171.google.com (mail-ob0-f171.google.com [209.85.214.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 758986B0036
-	for <linux-mm@kvack.org>; Tue, 27 May 2014 18:48:14 -0400 (EDT)
-Received: by mail-ob0-f171.google.com with SMTP id wn1so10031395obc.2
-        for <linux-mm@kvack.org>; Tue, 27 May 2014 15:48:14 -0700 (PDT)
-Received: from mail-oa0-x236.google.com (mail-oa0-x236.google.com [2607:f8b0:4003:c02::236])
-        by mx.google.com with ESMTPS id q2si27561259obi.5.2014.05.27.15.48.13
+Received: from mail-vc0-f170.google.com (mail-vc0-f170.google.com [209.85.220.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 1759F6B0037
+	for <linux-mm@kvack.org>; Tue, 27 May 2014 18:53:56 -0400 (EDT)
+Received: by mail-vc0-f170.google.com with SMTP id lf12so11507461vcb.29
+        for <linux-mm@kvack.org>; Tue, 27 May 2014 15:53:55 -0700 (PDT)
+Received: from mail-vc0-x233.google.com (mail-vc0-x233.google.com [2607:f8b0:400c:c03::233])
+        by mx.google.com with ESMTPS id wn1si9220365vdc.45.2014.05.27.15.53.55
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 27 May 2014 15:48:13 -0700 (PDT)
-Received: by mail-oa0-f54.google.com with SMTP id j17so10458938oag.27
-        for <linux-mm@kvack.org>; Tue, 27 May 2014 15:48:13 -0700 (PDT)
-Date: Tue, 27 May 2014 17:48:09 -0500
-From: Seth Jennings <sjennings@variantweb.net>
-Subject: Re: [PATCHv3 3/6] mm/zpool: implement common zpool api to
- zbud/zsmalloc
-Message-ID: <20140527224809.GD25781@cerebellum.variantweb.net>
-References: <1399499496-3216-1-git-send-email-ddstreet@ieee.org>
- <1400958369-3588-1-git-send-email-ddstreet@ieee.org>
- <1400958369-3588-4-git-send-email-ddstreet@ieee.org>
- <20140527220639.GA25781@cerebellum.variantweb.net>
+        Tue, 27 May 2014 15:53:55 -0700 (PDT)
+Received: by mail-vc0-f179.google.com with SMTP id im17so11547743vcb.10
+        for <linux-mm@kvack.org>; Tue, 27 May 2014 15:53:55 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140527220639.GA25781@cerebellum.variantweb.net>
+In-Reply-To: <5384d07e.4504e00a.2680.ffff8c31SMTPIN_ADDED_BROKEN@mx.google.com>
+References: <cover.1400607328.git.tony.luck@intel.com>
+	<eb791998a8ada97b204dddf2719a359149e9ae31.1400607328.git.tony.luck@intel.com>
+	<20140523033438.GC16945@gchen.bj.intel.com>
+	<CA+8MBb+Una+Z5Q-Pn0OoMYaaSx9sPJ3fdriMRMgN=CE1Jdp7Cg@mail.gmail.com>
+	<20140527161613.GC4108@mcs.anl.gov>
+	<5384d07e.4504e00a.2680.ffff8c31SMTPIN_ADDED_BROKEN@mx.google.com>
+Date: Tue, 27 May 2014 15:53:55 -0700
+Message-ID: <CA+8MBbKuBo4c2v-Y0TOk-LUJuyJsGG=twqQyAPG5WOa8Aj4GyA@mail.gmail.com>
+Subject: Re: [PATCH 1/2] memory-failure: Send right signal code to correct thread
+From: Tony Luck <tony.luck@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Streetman <ddstreet@ieee.org>
-Cc: Minchan Kim <minchan@kernel.org>, Weijie Yang <weijie.yang@samsung.com>, Nitin Gupta <ngupta@vflare.org>, Andrew Morton <akpm@linux-foundation.org>, Bob Liu <bob.liu@oracle.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Kamil Iskra <iskra@mcs.anl.gov>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Borislav Petkov <bp@suse.de>, Chen Gong <gong.chen@linux.jf.intel.com>
 
-On Tue, May 27, 2014 at 05:06:39PM -0500, Seth Jennings wrote:
-> On Sat, May 24, 2014 at 03:06:06PM -0400, Dan Streetman wrote:
-<snip>
-> > +
-> > +int zpool_evict(void *pool, unsigned long handle)
-> > +{
-> > +	struct zpool *zpool;
-> > +
-> > +	spin_lock(&pools_lock);
-> > +	list_for_each_entry(zpool, &pools_head, list) {
-> 
-> You can do a container_of() here:
-> 
-> zpool = container_of(pool, struct zpool, pool);
+>  - make sure that every thread in a recovery aware application should have
+>    a SIGBUS handler, inside which
+>    * code for SIGBUS(BUS_MCEERR_AR) is enabled for every thread
+>    * code for SIGBUS(BUS_MCEERR_AO) is enabled only for a dedicated thread
 
-If you do this, all of the pools_head/pools_lock is unneeded as well.
+But how does the kernel know which is the special thread that
+should see the "AO" signal?  Broadcasting the signal to all
+threads seems to be just as likely to cause problems to
+an application as the h/w broadcasting MCE to all processors.
 
-Seth
+-Tony
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
