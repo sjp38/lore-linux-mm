@@ -1,101 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oa0-f50.google.com (mail-oa0-f50.google.com [209.85.219.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 2EB216B0037
-	for <linux-mm@kvack.org>; Wed, 28 May 2014 12:17:15 -0400 (EDT)
-Received: by mail-oa0-f50.google.com with SMTP id i7so11382105oag.23
-        for <linux-mm@kvack.org>; Wed, 28 May 2014 09:17:15 -0700 (PDT)
-Received: from mail-oa0-x249.google.com (mail-oa0-x249.google.com [2607:f8b0:4003:c02::249])
-        by mx.google.com with ESMTPS id ou4si32204633oeb.14.2014.05.28.09.17.14
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 28 May 2014 09:17:14 -0700 (PDT)
-Received: by mail-oa0-f73.google.com with SMTP id g18so121188oah.0
-        for <linux-mm@kvack.org>; Wed, 28 May 2014 09:17:14 -0700 (PDT)
-References: <1398688005-26207-1-git-send-email-mhocko@suse.cz> <20140528121023.GA10735@dhcp22.suse.cz> <20140528134905.GF2878@cmpxchg.org> <20140528142144.GL9895@dhcp22.suse.cz> <20140528152854.GG2878@cmpxchg.org>
-From: Greg Thelen <gthelen@google.com>
-Subject: Re: [PATCH v2 0/4] memcg: Low-limit reclaim
-In-reply-to: <20140528152854.GG2878@cmpxchg.org>
-Date: Wed, 28 May 2014 09:17:13 -0700
-Message-ID: <xr93ioopyj1y.fsf@gthelen.mtv.corp.google.com>
+Received: from mail-ve0-f171.google.com (mail-ve0-f171.google.com [209.85.128.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 76C6D6B0037
+	for <linux-mm@kvack.org>; Wed, 28 May 2014 12:18:34 -0400 (EDT)
+Received: by mail-ve0-f171.google.com with SMTP id oz11so12738114veb.16
+        for <linux-mm@kvack.org>; Wed, 28 May 2014 09:18:34 -0700 (PDT)
+Received: from cdptpa-oedge-vip.email.rr.com (cdptpa-outbound-snat.email.rr.com. [107.14.166.227])
+        by mx.google.com with ESMTP id ph7si11001768veb.6.2014.05.28.09.18.33
+        for <linux-mm@kvack.org>;
+        Wed, 28 May 2014 09:18:33 -0700 (PDT)
+Date: Wed, 28 May 2014 12:18:32 -0400
+From: Steven Rostedt <rostedt@goodmis.org>
+Subject: Re: [PATCH 1/2] ftrace: print stack usage right before Oops
+Message-ID: <20140528121832.747aaf75@gandalf.local.home>
+In-Reply-To: <1401260039-18189-1-git-send-email-minchan@kernel.org>
+References: <1401260039-18189-1-git-send-email-minchan@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Michel Lespinasse <walken@google.com>, Tejun Heo <tj@kernel.org>, Hugh Dickins <hughd@google.com>, Roman Gushchin <klamm@yandex-team.ru>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, rusty@rustcorp.com.au, mst@redhat.com, Dave Hansen <dave.hansen@intel.com>
+
+On Wed, 28 May 2014 15:53:58 +0900
+Minchan Kim <minchan@kernel.org> wrote:
+
+> While I played with my own feature(ex, something on the way to reclaim),
+> kernel went to oops easily. I guessed reason would be stack overflow
+> and wanted to prove it.
+> 
+> I found stack tracer which would be very useful for me but kernel went
+> oops before my user program gather the information via
+> "watch cat /sys/kernel/debug/tracing/stack_trace" so I couldn't get an
+> stack usage of each functions.
+> 
+> What I want was that emit the kernel stack usage when kernel goes oops.
+> 
+> This patch records callstack of max stack usage into ftrace buffer
+> right before Oops and print that information with ftrace_dump_on_oops.
+> At last, I can find a culprit. :)
+> 
+
+This is not dependent on patch 2/2, nor is 2/2 dependent on this patch,
+I'll review this as if 2/2 does not exist.
 
 
-On Wed, May 28 2014, Johannes Weiner <hannes@cmpxchg.org> wrote:
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
+> ---
+>  kernel/trace/trace_stack.c | 32 ++++++++++++++++++++++++++++++--
+>  1 file changed, 30 insertions(+), 2 deletions(-)
+> 
+> diff --git a/kernel/trace/trace_stack.c b/kernel/trace/trace_stack.c
+> index 5aa9a5b9b6e2..5eb88e60bc5e 100644
+> --- a/kernel/trace/trace_stack.c
+> +++ b/kernel/trace/trace_stack.c
+> @@ -51,6 +51,30 @@ static DEFINE_MUTEX(stack_sysctl_mutex);
+>  int stack_tracer_enabled;
+>  static int last_stack_tracer_enabled;
+>  
+> +static inline void print_max_stack(void)
+> +{
+> +	long i;
+> +	int size;
+> +
+> +	trace_printk("        Depth    Size   Location"
+> +			   "    (%d entries)\n"
 
-> On Wed, May 28, 2014 at 04:21:44PM +0200, Michal Hocko wrote:
->> On Wed 28-05-14 09:49:05, Johannes Weiner wrote:
->> > On Wed, May 28, 2014 at 02:10:23PM +0200, Michal Hocko wrote:
->> > > Hi Andrew, Johannes,
->> > > 
->> > > On Mon 28-04-14 14:26:41, Michal Hocko wrote:
->> > > > This patchset introduces such low limit that is functionally similar
->> > > > to a minimum guarantee. Memcgs which are under their lowlimit are not
->> > > > considered eligible for the reclaim (both global and hardlimit) unless
->> > > > all groups under the reclaimed hierarchy are below the low limit when
->> > > > all of them are considered eligible.
->> > > > 
->> > > > The previous version of the patchset posted as a RFC
->> > > > (http://marc.info/?l=linux-mm&m=138677140628677&w=2) suggested a
->> > > > hard guarantee without any fallback. More discussions led me to
->> > > > reconsidering the default behavior and come up a more relaxed one. The
->> > > > hard requirement can be added later based on a use case which really
->> > > > requires. It would be controlled by memory.reclaim_flags knob which
->> > > > would specify whether to OOM or fallback (default) when all groups are
->> > > > bellow low limit.
->> > > 
->> > > It seems that we are not in a full agreement about the default behavior
->> > > yet. Johannes seems to be more for hard guarantee while I would like to
->> > > see the weaker approach first and move to the stronger model later.
->> > > Johannes, is this absolutely no-go for you? Do you think it is seriously
->> > > handicapping the semantic of the new knob?
->> > 
->> > Well we certainly can't start OOMing where we previously didn't,
->> > that's called a regression and automatically limits our options.
->> > 
->> > Any unexpected OOMs will be much more acceptable from a new feature
->> > than from configuration that previously "worked" and then stopped.
->> 
->> Yes and we are not talking about regressions, are we?
->> 
->> > > My main motivation for the weaker model is that it is hard to see all
->> > > the corner case right now and once we hit them I would like to see a
->> > > graceful fallback rather than fatal action like OOM killer. Besides that
->> > > the usaceses I am mostly interested in are OK with fallback when the
->> > > alternative would be OOM killer. I also feel that introducing a knob
->> > > with a weaker semantic which can be made stronger later is a sensible
->> > > way to go.
->> > 
->> > We can't make it stronger, but we can make it weaker. 
->> 
->> Why cannot we make it stronger by a knob/configuration option?
->
-> Why can't we make it weaker by a knob?  Why should we design the
-> default for unforeseeable cornercases rather than make the default
-> make sense for existing cases and give cornercases a fallback once
-> they show up?
+Please do not break strings just to satisfy that silly 80 character
+limit. Even Linus Torvalds said that's pretty stupid.
 
-My 2c...  The following works for my use cases:
-1) introduce memory.low_limit_in_bytes (default=0 thus no default change
-   from older kernels)
-2) interested users will set low_limit_in_bytes to non-zero value.
-   Memory protected by low limit should be as migratable/reclaimable as
-   mlock memory.  If a zone full of mlock memory causes oom kills, then
-   so should the low limit.
+Also, do not use trace_printk(). It is not made to be included in a
+production kernel. It reserves special buffers to make it as fast as
+possible, and those buffers should not be created in production
+systems. In fact, I will probably add for 3.16 a big warning message
+when trace_printk() is used.
 
-If we find corner cases where low_limit_in_bytes is too strict, then we
-could discuss a new knob to relax it.  But I think we should start with
-a strict low-limit.  If the oom killer gets tied in knots due to low
-limit, then I'd like to explore fixing the oom killer before relaxing
-low limit.
+Since this is a bug, why not just use printk() instead?
 
-Disclaimer: new use cases will certainly appear with various
-requirements.  But an oom-killing low_limit_in_bytes seems like a
-generic opt-in feature, so I think it's worthwhile.
+BTW, wouldn't this this function crash as well if the stack is already
+bad?
+
+-- Steve
+
+> +			   "        -----    ----   --------\n",
+> +			   max_stack_trace.nr_entries - 1);
+> +
+> +	for (i = 0; i < max_stack_trace.nr_entries; i++) {
+> +		if (stack_dump_trace[i] == ULONG_MAX)
+> +			break;
+> +		if (i+1 == max_stack_trace.nr_entries ||
+> +				stack_dump_trace[i+1] == ULONG_MAX)
+> +			size = stack_dump_index[i];
+> +		else
+> +			size = stack_dump_index[i] - stack_dump_index[i+1];
+> +
+> +		trace_printk("%3ld) %8d   %5d   %pS\n", i, stack_dump_index[i],
+> +				size, (void *)stack_dump_trace[i]);
+> +	}
+> +}
+> +
+>  static inline void
+>  check_stack(unsigned long ip, unsigned long *stack)
+>  {
+> @@ -149,8 +173,12 @@ check_stack(unsigned long ip, unsigned long *stack)
+>  			i++;
+>  	}
+>  
+> -	BUG_ON(current != &init_task &&
+> -		*(end_of_stack(current)) != STACK_END_MAGIC);
+> +	if ((current != &init_task &&
+> +		*(end_of_stack(current)) != STACK_END_MAGIC)) {
+> +		print_max_stack();
+> +		BUG();
+> +	}
+> +
+>   out:
+>  	arch_spin_unlock(&max_stack_lock);
+>  	local_irq_restore(flags);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
