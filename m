@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f42.google.com (mail-pb0-f42.google.com [209.85.160.42])
-	by kanga.kvack.org (Postfix) with ESMTP id DC1F16B0036
-	for <linux-mm@kvack.org>; Wed, 28 May 2014 04:37:51 -0400 (EDT)
-Received: by mail-pb0-f42.google.com with SMTP id md12so10796643pbc.15
-        for <linux-mm@kvack.org>; Wed, 28 May 2014 01:37:51 -0700 (PDT)
-Received: from ipmail05.adl6.internode.on.net (ipmail05.adl6.internode.on.net. [2001:44b8:8060:ff02:300:1:6:5])
-        by mx.google.com with ESMTP id yk1si20612292pbc.41.2014.05.28.01.37.49
+Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
+	by kanga.kvack.org (Postfix) with ESMTP id AFA116B0036
+	for <linux-mm@kvack.org>; Wed, 28 May 2014 05:05:41 -0400 (EDT)
+Received: by mail-wi0-f179.google.com with SMTP id bs8so3321417wib.0
+        for <linux-mm@kvack.org>; Wed, 28 May 2014 02:05:41 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id w13si12172764wiv.49.2014.05.28.02.05.39
         for <linux-mm@kvack.org>;
-        Wed, 28 May 2014 01:37:50 -0700 (PDT)
-Date: Wed, 28 May 2014 18:37:38 +1000
-From: Dave Chinner <david@fromorbit.com>
+        Wed, 28 May 2014 02:05:40 -0700 (PDT)
+Date: Wed, 28 May 2014 12:04:09 +0300
+From: "Michael S. Tsirkin" <mst@redhat.com>
 Subject: Re: [RFC 2/2] x86_64: expand kernel stack to 16K
-Message-ID: <20140528083738.GL8554@dastard>
+Message-ID: <20140528090409.GA16795@redhat.com>
 References: <1401260039-18189-1-git-send-email-minchan@kernel.org>
  <1401260039-18189-2-git-send-email-minchan@kernel.org>
 MIME-Version: 1.0
@@ -21,9 +21,7 @@ In-Reply-To: <1401260039-18189-2-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Minchan Kim <minchan@kernel.org>
-Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, rusty@rustcorp.com.au, mst@redhat.com, Dave Hansen <dave.hansen@intel.com>, Steven Rostedt <rostedt@goodmis.org>, xfs@oss.sgi.com
-
-[ cc XFS list ]
+Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, rusty@rustcorp.com.au, Dave Hansen <dave.hansen@intel.com>, Steven Rostedt <rostedt@goodmis.org>
 
 On Wed, May 28, 2014 at 03:53:59PM +0900, Minchan Kim wrote:
 > While I play inhouse patches with much memory pressure on qemu-kvm,
@@ -35,7 +33,7 @@ On Wed, May 28, 2014 at 03:53:59PM +0900, Minchan Kim wrote:
 > I tried to diet stack size of some functions related with alloc/reclaim
 > so did a hundred of byte but overflow was't disappeard so that I encounter
 > overflow by another deeper callstack on reclaim/allocator path.
->
+> 
 > Of course, we might sweep every sites we have found for reducing
 > stack usage but I'm not sure how long it saves the world(surely,
 > lots of developer start to add nice features which will use stack
@@ -44,19 +42,19 @@ On Wed, May 28, 2014 at 03:53:59PM +0900, Minchan Kim wrote:
 > meanwhile, stack usage on 64bit machine was doubled compared to 32bit
 > while it have sticked to 8K. Hmm, it's not a fair to me and arm64
 > already expaned to 16K. )
->
+> 
 > So, my stupid idea is just let's expand stack size and keep an eye
 > toward stack consumption on each kernel functions via stacktrace of ftrace.
 > For example, we can have a bar like that each funcion shouldn't exceed 200K
 > and emit the warning when some function consumes more in runtime.
 > Of course, it could make false positive but at least, it could make a
 > chance to think over it.
->
+> 
 > I guess this topic was discussed several time so there might be
 > strong reason not to increase kernel stack size on x86_64, for me not
 > knowing so Ccing x86_64 maintainers, other MM guys and virtio
 > maintainers.
->
+> 
 > [ 1065.604404] kworker/-5766    0d..2 1071625990us : stack_trace_call:         Depth    Size   Location    (51 entries)
 > [ 1065.604404]         -----    ----   --------
 > [ 1065.604404] kworker/-5766    0d..2 1071625991us : stack_trace_call:   0)     7696      16   lookup_address+0x28/0x30
@@ -73,6 +71,48 @@ On Wed, May 28, 2014 at 03:53:59PM +0900, Minchan Kim wrote:
 > [ 1065.604404] kworker/-5766    0d..2 1071625993us : stack_trace_call:  11)     6000     144   virtqueue_add_sgs+0x2e2/0x320
 > [ 1065.604404] kworker/-5766    0d..2 1071625993us : stack_trace_call:  12)     5856     288   __virtblk_add_req+0xda/0x1b0
 > [ 1065.604404] kworker/-5766    0d..2 1071625993us : stack_trace_call:  13)     5568      96   virtio_queue_rq+0xd3/0x1d0
+
+virtio stack usage seems very high.
+Here is virtio_ring.su generated using -fstack-usage flag for gcc 4.8.2.
+
+virtio_ring.c:107:35:sg_next_arr        16      static
+
+
+<--- this is a surprise, I really expected it to be inlined
+     same for sg_next_chained.
+<--- Rusty: should we force compiler to inline it?
+
+
+virtio_ring.c:584:6:virtqueue_disable_cb        16      static
+virtio_ring.c:604:10:virtqueue_enable_cb_prepare        16      static
+virtio_ring.c:632:6:virtqueue_poll      16      static
+virtio_ring.c:652:6:virtqueue_enable_cb 16      static
+virtio_ring.c:845:14:virtqueue_get_vring_size   16      static
+virtio_ring.c:854:6:virtqueue_is_broken 16      static
+virtio_ring.c:101:35:sg_next_chained    16      static
+virtio_ring.c:436:6:virtqueue_notify    24      static
+virtio_ring.c:672:6:virtqueue_enable_cb_delayed 16      static
+virtio_ring.c:820:6:vring_transport_features    16      static
+virtio_ring.c:472:13:detach_buf 40      static
+virtio_ring.c:518:7:virtqueue_get_buf   32      static
+virtio_ring.c:812:6:vring_del_virtqueue 16      static
+virtio_ring.c:394:6:virtqueue_kick_prepare      16      static
+virtio_ring.c:464:6:virtqueue_kick      32      static
+virtio_ring.c:186:19:4  16      static
+virtio_ring.c:733:13:vring_interrupt    24      static
+virtio_ring.c:707:7:virtqueue_detach_unused_buf 32      static
+virtio_config.h:84:20:7 16      static
+virtio_ring.c:753:19:vring_new_virtqueue        80      static  
+virtio_ring.c:374:5:virtqueue_add_inbuf 56      static
+virtio_ring.c:352:5:virtqueue_add_outbuf        56      static
+virtio_ring.c:314:5:virtqueue_add_sgs   112     static  
+
+
+as you see, vring_add_indirect was inlined within virtqueue_add_sgs by my gcc.
+Taken together, they add up to only 112 bytes: not 1/2K as they do for you.
+Which compiler version and flags did you use?
+
+
 > [ 1065.604404] kworker/-5766    0d..2 1071625994us : stack_trace_call:  14)     5472     128   __blk_mq_run_hw_queue+0x1ef/0x440
 > [ 1065.604404] kworker/-5766    0d..2 1071625994us : stack_trace_call:  15)     5344      16   blk_mq_run_hw_queue+0x35/0x40
 > [ 1065.604404] kworker/-5766    0d..2 1071625994us : stack_trace_call:  16)     5328      96   blk_mq_insert_requests+0xdb/0x160
@@ -110,7 +150,7 @@ On Wed, May 28, 2014 at 03:53:59PM +0900, Minchan Kim wrote:
 > [ 1065.604404] kworker/-5766    0d..2 1071626000us : stack_trace_call:  48)      528     112   worker_thread+0x116/0x370
 > [ 1065.604404] kworker/-5766    0d..2 1071626001us : stack_trace_call:  49)      416     240   kthread+0xf3/0x110
 > [ 1065.604404] kworker/-5766    0d..2 1071626001us : stack_trace_call:  50)      176     176   ret_from_fork+0x7c/0xb0
->
+> 
 > Signed-off-by: Minchan Kim <minchan@kernel.org>
 > ---
 >  arch/x86/include/asm/page_64_types.h | 2 +-
@@ -128,10 +168,9 @@ On Wed, May 28, 2014 at 03:53:59PM +0900, Minchan Kim wrote:
 > +#define THREAD_SIZE_ORDER	2
 >  #define THREAD_SIZE  (PAGE_SIZE << THREAD_SIZE_ORDER)
 >  #define CURRENT_MASK (~(THREAD_SIZE - 1))
-
--- 
-Dave Chinner
-david@fromorbit.com
+>  
+> -- 
+> 1.9.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
