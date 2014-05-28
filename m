@@ -1,102 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oa0-f53.google.com (mail-oa0-f53.google.com [209.85.219.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 075106B0036
-	for <linux-mm@kvack.org>; Wed, 28 May 2014 03:04:19 -0400 (EDT)
-Received: by mail-oa0-f53.google.com with SMTP id m1so10783214oag.40
-        for <linux-mm@kvack.org>; Wed, 28 May 2014 00:04:19 -0700 (PDT)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id q11si29066346oey.29.2014.05.28.00.04.16
+Received: from mail-wg0-f50.google.com (mail-wg0-f50.google.com [74.125.82.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A34B6B0036
+	for <linux-mm@kvack.org>; Wed, 28 May 2014 03:44:13 -0400 (EDT)
+Received: by mail-wg0-f50.google.com with SMTP id x12so10925506wgg.9
+        for <linux-mm@kvack.org>; Wed, 28 May 2014 00:44:12 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id g10si11783333wie.11.2014.05.28.00.44.11
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 28 May 2014 00:04:19 -0700 (PDT)
-Message-ID: <53858A06.8080507@huawei.com>
-Date: Wed, 28 May 2014 15:02:30 +0800
-From: Li Zefan <lizefan@huawei.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 28 May 2014 00:44:11 -0700 (PDT)
+Date: Wed, 28 May 2014 09:44:09 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH mmotm/next] memcg-mm-introduce-lowlimit-reclaim-fix2.patch
+Message-ID: <20140528074409.GA9895@dhcp22.suse.cz>
+References: <alpine.LSU.2.11.1405271432400.4485@eggly.anvils>
 MIME-Version: 1.0
-Subject: Re: [PATCH] page_alloc: skip cpuset enforcement for lower zone allocations
- (v2)
-References: <20140523193706.GA22854@amt.cnet> <20140526185344.GA19976@amt.cnet>
-In-Reply-To: <20140526185344.GA19976@amt.cnet>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.11.1405271432400.4485@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marcelo Tosatti <mtosatti@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Lai Jiangshan <laijs@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Hugh Dickins <hughd@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 2014/5/27 2:53, Marcelo Tosatti wrote:
+On Tue 27-05-14 14:36:04, Hugh Dickins wrote:
+> mem_cgroup_within_guarantee() oopses in _raw_spin_lock_irqsave() when
+> booted with cgroup_disable=memory.  Fix that in the obvious inelegant
+> way for now - though I hope we are moving towards a world in which
+> almost all of the mem_cgroup_disabled() tests will vanish, with a
+> root_mem_cgroup which can handle the basics even when disabled.
 > 
-> Zone specific allocations, such as GFP_DMA32, should not be restricted
-> to cpusets allowed node list: the zones which such allocations demand
-> might be contained in particular nodes outside the cpuset node list.
+> I bet there's a neater way of doing this, rearranging the loop (and we
+> shall want to avoid spinlocking on root_mem_cgroup when we reach that
+> new world), but that's the kind of thing I'd get wrong in a hurry!
 > 
-> The alternative would be to not perform such allocations from
-> applications which are cpuset restricted, which is unrealistic.
-> 
-> Fixes KVM's alloc_page(gfp_mask=GFP_DMA32) with cpuset as explained.
-> 
+> Signed-off-by: Hugh Dickins <hughd@google.com>
 
-Could you add the use case that you described in a previous email to
-the changelog?
+Acked-by: Michal Hocko <mhocko@suse.cz>
 
-> Signed-off-by: Marcelo Tosatti <mtosatti@redhat.com>
+Thanks!
+
+> ---
 > 
-> v2: fix slowpath as well (David Rientjes)
+>  mm/memcontrol.c |    3 +++
+>  1 file changed, 3 insertions(+)
 > 
-> diff --git a/kernel/cpuset.c b/kernel/cpuset.c
-> index 3d54c41..b70a336 100644
-> --- a/kernel/cpuset.c
-> +++ b/kernel/cpuset.c
-> @@ -2392,6 +2392,10 @@ int __cpuset_node_allowed_softwall(int node, gfp_t gfp_mask)
->  
-
-Add a comment accordingly?
-
-	 *      in_interrupt - any node ok (current task context irrelevant)
-	 *      GFP_ATOMIC   - any node ok
-	 *      TIF_MEMDIE   - any node ok
-	 *      GFP_KERNEL   - any node in enclosing hardwalled cpuset ok
-	 *      GFP_USER     - only nodes in current tasks mems allowed ok.
-
->  	if (in_interrupt() || (gfp_mask & __GFP_THISNODE))
->  		return 1;
-> +#ifdef CONFIG_NUMA
-> +	if (gfp_zone(gfp_mask) < policy_zone)
-> +		return 1;
-> +#endif
->  	might_sleep_if(!(gfp_mask & __GFP_HARDWALL));
->  	if (node_isset(node, current->mems_allowed))
->  		return 1;
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 5dba293..dfea3dc 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -2698,6 +2698,7 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
->  	unsigned int cpuset_mems_cookie;
->  	int alloc_flags = ALLOC_WMARK_LOW|ALLOC_CPUSET|ALLOC_FAIR;
->  	struct mem_cgroup *memcg = NULL;
-> +	nodemask_t *cpuset_mems_allowed = &cpuset_current_mems_allowed;
->  
->  	gfp_mask &= gfp_allowed_mask;
->  
-> @@ -2726,9 +2727,14 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
->  retry_cpuset:
->  	cpuset_mems_cookie = read_mems_allowed_begin();
->  
-> +#ifdef CONFIG_NUMA
-> +	if (gfp_zone(gfp_mask) < policy_zone)
-> +		cpuset_mems_allowed = NULL;
-> +#endif
+> --- mmotm/mm/memcontrol.c	2014-05-21 18:12:18.072022438 -0700
+> +++ linux/mm/memcontrol.c	2014-05-21 19:34:30.608546905 -0700
+> @@ -2793,6 +2793,9 @@ static struct mem_cgroup *mem_cgroup_loo
+>  bool mem_cgroup_within_guarantee(struct mem_cgroup *memcg,
+>  		struct mem_cgroup *root)
+>  {
+> +	if (mem_cgroup_disabled())
+> +		return false;
 > +
->  	/* The preferred zone is used for statistics later */
->  	first_zones_zonelist(zonelist, high_zoneidx,
-> -				nodemask ? : &cpuset_current_mems_allowed,
-> +				nodemask ? : cpuset_mems_allowed,
->  				&preferred_zone);
->  	if (!preferred_zone)
->  		goto out;
-> .
-> 
+>  	do {
+>  		if (!res_counter_low_limit_excess(&memcg->res))
+>  			return true;
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
