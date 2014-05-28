@@ -1,248 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f43.google.com (mail-pb0-f43.google.com [209.85.160.43])
-	by kanga.kvack.org (Postfix) with ESMTP id D79F46B0035
-	for <linux-mm@kvack.org>; Wed, 28 May 2014 17:55:34 -0400 (EDT)
-Received: by mail-pb0-f43.google.com with SMTP id up15so11902765pbc.30
-        for <linux-mm@kvack.org>; Wed, 28 May 2014 14:55:34 -0700 (PDT)
-Received: from ipmail05.adl6.internode.on.net (ipmail05.adl6.internode.on.net. [2001:44b8:8060:ff02:300:1:6:5])
-        by mx.google.com with ESMTP id xg6si25727819pab.9.2014.05.28.14.55.32
-        for <linux-mm@kvack.org>;
-        Wed, 28 May 2014 14:55:33 -0700 (PDT)
-Date: Thu, 29 May 2014 07:55:18 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [RFC 2/2] x86_64: expand kernel stack to 16K
-Message-ID: <20140528215518.GM8554@dastard>
-References: <1401260039-18189-1-git-send-email-minchan@kernel.org>
- <1401260039-18189-2-git-send-email-minchan@kernel.org>
- <20140528083738.GL8554@dastard>
- <20140528091345.GD6677@dastard>
- <20140528160658.GH2878@cmpxchg.org>
+Received: from mail-ve0-f171.google.com (mail-ve0-f171.google.com [209.85.128.171])
+	by kanga.kvack.org (Postfix) with ESMTP id D5FE76B0035
+	for <linux-mm@kvack.org>; Wed, 28 May 2014 18:00:12 -0400 (EDT)
+Received: by mail-ve0-f171.google.com with SMTP id oz11so13247320veb.16
+        for <linux-mm@kvack.org>; Wed, 28 May 2014 15:00:12 -0700 (PDT)
+Received: from mail-vc0-x233.google.com (mail-vc0-x233.google.com [2607:f8b0:400c:c03::233])
+        by mx.google.com with ESMTPS id j10si11791276vdf.97.2014.05.28.15.00.12
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 28 May 2014 15:00:12 -0700 (PDT)
+Received: by mail-vc0-f179.google.com with SMTP id im17so13120827vcb.38
+        for <linux-mm@kvack.org>; Wed, 28 May 2014 15:00:12 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140528160658.GH2878@cmpxchg.org>
+In-Reply-To: <53862f6c.91148c0a.5fb0.2d0cSMTPIN_ADDED_BROKEN@mx.google.com>
+References: <cover.1400607328.git.tony.luck@intel.com>
+	<eb791998a8ada97b204dddf2719a359149e9ae31.1400607328.git.tony.luck@intel.com>
+	<20140523033438.GC16945@gchen.bj.intel.com>
+	<CA+8MBb+Una+Z5Q-Pn0OoMYaaSx9sPJ3fdriMRMgN=CE1Jdp7Cg@mail.gmail.com>
+	<20140527161613.GC4108@mcs.anl.gov>
+	<5384d07e.4504e00a.2680.ffff8c31SMTPIN_ADDED_BROKEN@mx.google.com>
+	<CA+8MBbKuBo4c2v-Y0TOk-LUJuyJsGG=twqQyAPG5WOa8Aj4GyA@mail.gmail.com>
+	<53852abb.867ce00a.3cef.3c7eSMTPIN_ADDED_BROKEN@mx.google.com>
+	<FDBACF11-D9F6-4DE5-A0D4-800903A243B7@gmail.com>
+	<53862f6c.91148c0a.5fb0.2d0cSMTPIN_ADDED_BROKEN@mx.google.com>
+Date: Wed, 28 May 2014 15:00:11 -0700
+Message-ID: <CA+8MBbKdKy+sbov-f+1xNnj=syEM5FWR1BV85AgRJ9S+qPbWEg@mail.gmail.com>
+Subject: Re: [PATCH] mm/memory-failure.c: support dedicated thread to handle
+ SIGBUS(BUS_MCEERR_AO) thread
+From: Tony Luck <tony.luck@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Minchan Kim <minchan@kernel.org>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Hugh Dickins <hughd@google.com>, rusty@rustcorp.com.au, mst@redhat.com, Dave Hansen <dave.hansen@intel.com>, Steven Rostedt <rostedt@goodmis.org>, xfs@oss.sgi.com
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Kamil Iskra <iskra@mcs.anl.gov>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Borislav Petkov <bp@suse.de>, Chen Gong <gong.chen@linux.jf.intel.com>
 
-On Wed, May 28, 2014 at 12:06:58PM -0400, Johannes Weiner wrote:
-> On Wed, May 28, 2014 at 07:13:45PM +1000, Dave Chinner wrote:
-> > On Wed, May 28, 2014 at 06:37:38PM +1000, Dave Chinner wrote:
-> > > [ cc XFS list ]
-> > 
-> > [and now there is a complete copy on the XFs list, I'll add my 2c]
-> > 
-> > > On Wed, May 28, 2014 at 03:53:59PM +0900, Minchan Kim wrote:
-> > > > While I play inhouse patches with much memory pressure on qemu-kvm,
-> > > > 3.14 kernel was randomly crashed. The reason was kernel stack overflow.
-> > > > 
-> > > > When I investigated the problem, the callstack was a little bit deeper
-> > > > by involve with reclaim functions but not direct reclaim path.
-> > > > 
-> > > > I tried to diet stack size of some functions related with alloc/reclaim
-> > > > so did a hundred of byte but overflow was't disappeard so that I encounter
-> > > > overflow by another deeper callstack on reclaim/allocator path.
-> > 
-> > That's a no win situation. The stack overruns through ->writepage
-> > we've been seeing with XFS over the past *4 years* are much larger
-> > than a few bytes. The worst case stack usage on a virtio block
-> > device was about 10.5KB of stack usage.
-> > 
-> > And, like this one, it came from the flusher thread as well. The
-> > difference was that the allocation that triggered the reclaim path
-> > you've reported occurred when 5k of the stack had already been
-> > used...
-> > 
-> > > > Of course, we might sweep every sites we have found for reducing
-> > > > stack usage but I'm not sure how long it saves the world(surely,
-> > > > lots of developer start to add nice features which will use stack
-> > > > agains) and if we consider another more complex feature in I/O layer
-> > > > and/or reclaim path, it might be better to increase stack size(
-> > > > meanwhile, stack usage on 64bit machine was doubled compared to 32bit
-> > > > while it have sticked to 8K. Hmm, it's not a fair to me and arm64
-> > > > already expaned to 16K. )
-> > 
-> > Yup, that's all been pointed out previously. 8k stacks were never
-> > large enough to fit the linux IO architecture on x86-64, but nobody
-> > outside filesystem and IO developers has been willing to accept that
-> > argument as valid, despite regular stack overruns and filesystem
-> > having to add workaround after workaround to prevent stack overruns.
-> > 
-> > That's why stuff like this appears in various filesystem's
-> > ->writepage:
-> > 
-> >         /*
-> >          * Refuse to write the page out if we are called from reclaim context.
-> >          *
-> >          * This avoids stack overflows when called from deeply used stacks in
-> >          * random callers for direct reclaim or memcg reclaim.  We explicitly
-> >          * allow reclaim from kswapd as the stack usage there is relatively low.
-> >          *
-> >          * This should never happen except in the case of a VM regression so
-> >          * warn about it.
-> >          */
-> >         if (WARN_ON_ONCE((current->flags & (PF_MEMALLOC|PF_KSWAPD)) ==
-> >                         PF_MEMALLOC))
-> >                 goto redirty;
-> > 
-> > That still doesn't guarantee us enough stack space to do writeback,
-> > though, because memory allocation can occur when reading in metadata
-> > needed to do delayed allocation, and so we could trigger GFP_NOFS
-> > memory allocation from the flusher thread with 4-5k of stack already
-> > consumed, so that would still overrun teh stack.
-> > 
-> > So, a couple of years ago we started defering half the writeback
-> > stack usage to a worker thread (commit c999a22 "xfs: introduce an
-> > allocation workqueue"), under the assumption that the worst stack
-> > usage when we call memory allocation is around 3-3.5k of stack used.
-> > We thought that would be safe, but the stack trace you've posted
-> > shows that alloc_page(GFP_NOFS) can consume upwards of 5k of stack,
-> > which means we're still screwed despite all the workarounds we have
-> > in place.
-> 
-> The allocation and reclaim stack itself is only 2k per the stacktrace
-> below.  What got us in this particular case is that we engaged a
-> complicated block layer setup from within the allocation context in
-> order to swap out a page.
+On Wed, May 28, 2014 at 11:47 AM, Naoya Horiguchi
+<n-horiguchi@ah.jp.nec.com> wrote:
+> Could you take a look?
 
-The report does not have a complicated block layer setup - it's just
-a swap device on a virtio device. There's no MD, no raid, no complex
-transport and protocol layer, etc. It's about as simple as it gets.
+It looks good - and should be a workable API for
+application writers to use.
 
-> In the past we disabled filesystem ->writepage from within the
-> allocation context and deferred it to kswapd for stack reasons (see
-> the WARN_ON_ONCE and the comment in your above quote), but I think we
-> have to go further and do the same for even swap_writepage():
+> @@ -84,6 +84,11 @@ PR_MCE_KILL
+>                 PR_MCE_KILL_EARLY: Early kill
+>                 PR_MCE_KILL_LATE:  Late kill
+>                 PR_MCE_KILL_DEFAULT: Use system global default
+> +       Note that if you want to have a dedicated thread which handles
+> +       the SIGBUS(BUS_MCEERR_AO) on behalf of the process, you should
+> +       call prctl() on the thread. Otherwise, the SIGBUS is sent to
+> +       the main thread.
 
-I don't think that solves the problem. I've seen plenty of near
-stack overflows that were caused by >3k of stack being used because
-of memory allocation/reclaim overhead and then scheduling.
-usage and another 1k of stack scheduling waiting.
+Perhaps be more explicit here that the user should call
+prctl(PR_MCE_KILL_EARLY) on the designated thread
+to get this behavior?  The user could also mark more than
+one thread in this way - in which case the kernel will pick
+the first one it sees (is that oldest, or newest?) that is marked.
+Not sure if this would ever be useful unless you want to pass
+responsibility around in an application that is dynamically
+creating and removing threads.
 
-If we have a subsystem that can put >3k on the stack at arbitrary
-locations, then we really only have <5k of stack available for
-callers. And when the generic code typically consumes 1-2k of stack
-before we get to filesystem specific methods, we only have 3-4k of
-stack left for the worst case storage path stack usage. With the
-block layer and driver layers requiring 2.5-3k because they can do
-memory allocation and schedule, that leaves very little for the
-layers in the middle, which is arguably the most algorithmically
-complex layer of the storage stack.....
+> +               if (t->flags & PF_MCE_PROCESS && t->flags & PF_MCE_EARLY)
 
-> > > > I guess this topic was discussed several time so there might be
-> > > > strong reason not to increase kernel stack size on x86_64, for me not
-> > > > knowing so Ccing x86_64 maintainers, other MM guys and virtio
-> > > > maintainers.
-> > > >
-> > > >          Depth    Size   Location    (51 entries)
-> > > > 
-> > > >    0)     7696      16   lookup_address+0x28/0x30
-> > > >    1)     7680      16   _lookup_address_cpa.isra.3+0x3b/0x40
-> > > >    2)     7664      24   __change_page_attr_set_clr+0xe0/0xb50
-> > > >    3)     7640     392   kernel_map_pages+0x6c/0x120
-> > > >    4)     7248     256   get_page_from_freelist+0x489/0x920
-> > > >    5)     6992     352   __alloc_pages_nodemask+0x5e1/0xb20
-> > > >    6)     6640       8   alloc_pages_current+0x10f/0x1f0
-> > > >    7)     6632     168   new_slab+0x2c5/0x370
-> > > >    8)     6464       8   __slab_alloc+0x3a9/0x501
-> > > >    9)     6456      80   __kmalloc+0x1cb/0x200
-> > > >   10)     6376     376   vring_add_indirect+0x36/0x200
-> > > >   11)     6000     144   virtqueue_add_sgs+0x2e2/0x320
-> > > >   12)     5856     288   __virtblk_add_req+0xda/0x1b0
-> > > >   13)     5568      96   virtio_queue_rq+0xd3/0x1d0
-> > > >   14)     5472     128   __blk_mq_run_hw_queue+0x1ef/0x440
-> > > >   15)     5344      16   blk_mq_run_hw_queue+0x35/0x40
-> > > >   16)     5328      96   blk_mq_insert_requests+0xdb/0x160
-> > > >   17)     5232     112   blk_mq_flush_plug_list+0x12b/0x140
-> > > >   18)     5120     112   blk_flush_plug_list+0xc7/0x220
-> > > >   19)     5008      64   io_schedule_timeout+0x88/0x100
-> > > >   20)     4944     128   mempool_alloc+0x145/0x170
-> > > >   21)     4816      96   bio_alloc_bioset+0x10b/0x1d0
-> > > >   22)     4720      48   get_swap_bio+0x30/0x90
-> > > >   23)     4672     160   __swap_writepage+0x150/0x230
-> > > >   24)     4512      32   swap_writepage+0x42/0x90
-> 
-> Without swap IO from the allocation context, the stack would have
-> ended here, which would have been easily survivable.  And left the
-> writeout work to kswapd, which has a much shallower stack than this:
+This is correct - but made me twitch to add extra brackets:
 
-Sure, but this is just playing whack-a-stack. We can keep slapping
-band-aids and restrictions on code and make the code more complex,
-constrainted, convouted and slower, or we can just increase the
-stack size....
+                  if ((t->flags & PF_MCE_PROCESS) && (t->flags & PF_MCE_EARLY))
 
-> > > >   25)     4480     320   shrink_page_list+0x676/0xa80
-> > > >   26)     4160     208   shrink_inactive_list+0x262/0x4e0
-> > > >   27)     3952     304   shrink_lruvec+0x3e1/0x6a0
-> > > >   28)     3648      80   shrink_zone+0x3f/0x110
-> > > >   29)     3568     128   do_try_to_free_pages+0x156/0x4c0
-> > > >   30)     3440     208   try_to_free_pages+0xf7/0x1e0
-> > > >   31)     3232     352   __alloc_pages_nodemask+0x783/0xb20
-> > > >   32)     2880       8   alloc_pages_current+0x10f/0x1f0
-> > > >   33)     2872     200   __page_cache_alloc+0x13f/0x160
-> > > >   34)     2672      80   find_or_create_page+0x4c/0xb0
-> > > >   35)     2592      80   ext4_mb_load_buddy+0x1e9/0x370
-> > > >   36)     2512     176   ext4_mb_regular_allocator+0x1b7/0x460
-> > > >   37)     2336     128   ext4_mb_new_blocks+0x458/0x5f0
-> > > >   38)     2208     256   ext4_ext_map_blocks+0x70b/0x1010
-> > > >   39)     1952     160   ext4_map_blocks+0x325/0x530
-> > > >   40)     1792     384   ext4_writepages+0x6d1/0xce0
-> > > >   41)     1408      16   do_writepages+0x23/0x40
-> > > >   42)     1392      96   __writeback_single_inode+0x45/0x2e0
-> > > >   43)     1296     176   writeback_sb_inodes+0x2ad/0x500
-> > > >   44)     1120      80   __writeback_inodes_wb+0x9e/0xd0
-> > > >   45)     1040     160   wb_writeback+0x29b/0x350
-> > > >   46)      880     208   bdi_writeback_workfn+0x11c/0x480
-> > > >   47)      672     144   process_one_work+0x1d2/0x570
-> > > >   48)      528     112   worker_thread+0x116/0x370
-> > > >   49)      416     240   kthread+0xf3/0x110
-> > > >   50)      176     176   ret_from_fork+0x7c/0xb0
-> > 
-> > Impressive: 3 nested allocations - GFP_NOFS, GFP_NOIO and then
-> > GFP_ATOMIC before the stack goes boom. XFS usually only needs 2...
-> 
-> Do they also usually involve swap_writepage()?
+or
+                  if ((t->flags & (PF_MCE_PROCESS|PF_MCE_EARLY)) ==
+PF_MCE_PROCESS|PF_MCE_EARLY)
 
-No.  Have a look at this recent thread when Dave Jones reported
-trinity was busting the stack.
+[oops, no ... that's too long and no clearer]
 
-http://oss.sgi.com/archives/xfs/2014-02/msg00325.html
-
-What happens when a shrinker issues IO:
-
-http://oss.sgi.com/archives/xfs/2014-02/msg00361.html
-
-Yes, there was an XFS problem in there that was fixed (by moving
-work to a workqueue!) but the point is that swap is not the only
-path through memory allocation that can consume huge amounts of
-stack. That above trace also points out a path through the scheduler
-of close to 1k of stack usage. That gets worse -
-wait_for_completion() typically requires 1.5k of stack....
-
-Contributing is the new blk-mq layer, which from the above stack
-trace still hasn't been fixed:
-
-http://oss.sgi.com/archives/xfs/2014-02/msg00355.html
-
-and a lot of the stack usage is because of saved registers on each
-function call:
-
-http://oss.sgi.com/archives/xfs/2014-02/msg00470.html
-
-And here's a good set of examples of the amount of stack certain
-functions can require:
-
-http://oss.sgi.com/archives/xfs/2014-02/msg00365.html
-
-Am I the only person who sees a widespread problem here?
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+-Tony
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
