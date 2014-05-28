@@ -1,64 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C1096B0037
-	for <linux-mm@kvack.org>; Wed, 28 May 2014 03:44:38 -0400 (EDT)
-Received: by mail-wi0-f172.google.com with SMTP id hi2so3179546wib.5
-        for <linux-mm@kvack.org>; Wed, 28 May 2014 00:44:38 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j8si30121522wje.75.2014.05.28.00.44.36
+Received: from mail-lb0-f175.google.com (mail-lb0-f175.google.com [209.85.217.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 552B76B0037
+	for <linux-mm@kvack.org>; Wed, 28 May 2014 04:00:06 -0400 (EDT)
+Received: by mail-lb0-f175.google.com with SMTP id l4so5614342lbv.34
+        for <linux-mm@kvack.org>; Wed, 28 May 2014 01:00:05 -0700 (PDT)
+Received: from mail-la0-x229.google.com (mail-la0-x229.google.com [2a00:1450:4010:c03::229])
+        by mx.google.com with ESMTPS id ky6si39432146lbc.10.2014.05.28.01.00.04
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 28 May 2014 00:44:37 -0700 (PDT)
-Date: Wed, 28 May 2014 09:44:36 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH mmotm/next]
- vmscan-memcg-always-use-swappiness-of-the-reclaimed-memcg-swappiness-and-o
- om-control-fix.patch
-Message-ID: <20140528074436.GB9895@dhcp22.suse.cz>
-References: <alpine.LSU.2.11.1405271432400.4485@eggly.anvils>
- <alpine.LSU.2.11.1405271436200.4485@eggly.anvils>
+        Wed, 28 May 2014 01:00:04 -0700 (PDT)
+Received: by mail-la0-f41.google.com with SMTP id e16so7198792lan.0
+        for <linux-mm@kvack.org>; Wed, 28 May 2014 01:00:03 -0700 (PDT)
+Subject: [PATCH] mm: dont call mmu_notifier_invalidate_page during munlock
+From: Konstantin Khlebnikov <koct9i@gmail.com>
+Date: Wed, 28 May 2014 11:59:55 +0400
+Message-ID: <20140528075955.20300.22758.stgit@zurg>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1405271436200.4485@eggly.anvils>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org
 
-On Tue 27-05-14 14:38:40, Hugh Dickins wrote:
-> mem_cgroup_swappiness() oopses immediately when
-> booted with cgroup_disable=memory.  Fix that in the obvious inelegant
-> way for now - though I hope we are moving towards a world in which
-> almost all of the mem_cgroup_disabled() tests will vanish, with a
-> root_mem_cgroup which can handle the basics even when disabled.
-> 
-> Signed-off-by: Hugh Dickins <hughd@google.com>
+try_to_munlock() searches other mlocked vmas, it never unmaps pages.
+There is no reason for invalidation because ptes are left unchanged.
 
-Acked-by: Michal Hocko <mhocko@suse.cz>
+Signed-off-by: Konstantin Khlebnikov <koct9i@gmail.com>
+---
+ mm/rmap.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-Thanks!
-
-> ---
-> 
->  mm/memcontrol.c |    2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> --- mmotm/mm/memcontrol.c	2014-05-21 18:12:18.072022438 -0700
-> +++ linux/mm/memcontrol.c	2014-05-21 19:34:30.608546905 -0700
-> @@ -1531,7 +1531,7 @@ static unsigned long mem_cgroup_margin(s
->  int mem_cgroup_swappiness(struct mem_cgroup *memcg)
->  {
->  	/* root ? */
-> -	if (!memcg->css.parent)
-> +	if (mem_cgroup_disabled() || !memcg->css.parent)
->  		return vm_swappiness;
->  
->  	return memcg->swappiness;
-
--- 
-Michal Hocko
-SUSE Labs
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 9c3e773..75d9d5c 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -1225,7 +1225,7 @@ int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
+ 
+ out_unmap:
+ 	pte_unmap_unlock(pte, ptl);
+-	if (ret != SWAP_FAIL)
++	if (ret != SWAP_FAIL && TTU_ACTION(flags) != TTU_MUNLOCK)
+ 		mmu_notifier_invalidate_page(mm, address);
+ out:
+ 	return ret;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
