@@ -1,106 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f52.google.com (mail-qg0-f52.google.com [209.85.192.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 4A7F46B0036
-	for <linux-mm@kvack.org>; Wed, 28 May 2014 02:14:50 -0400 (EDT)
-Received: by mail-qg0-f52.google.com with SMTP id a108so16672221qge.11
-        for <linux-mm@kvack.org>; Tue, 27 May 2014 23:14:50 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
-        by mx.google.com with ESMTPS id t6si20742561qag.120.2014.05.27.23.14.49
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 27 May 2014 23:14:49 -0700 (PDT)
-Date: Wed, 28 May 2014 08:14:39 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [RFC][PATCH 0/5] VM_PINNED
-Message-ID: <20140528061439.GI11096@twins.programming.kicks-ass.net>
-References: <20140527102909.GO30445@twins.programming.kicks-ass.net>
- <alpine.DEB.2.10.1405270929550.13999@gentwo.org>
- <20140527144655.GC19143@laptop.programming.kicks-ass.net>
- <alpine.DEB.2.10.1405271011100.14466@gentwo.org>
- <20140527153143.GD19143@laptop.programming.kicks-ass.net>
- <alpine.DEB.2.10.1405271128530.14883@gentwo.org>
- <20140527164341.GD11074@laptop.programming.kicks-ass.net>
- <alpine.DEB.2.10.1405271152400.14883@gentwo.org>
- <20140527172930.GE11074@laptop.programming.kicks-ass.net>
- <alpine.DEB.2.10.1405271454370.15990@gentwo.org>
-MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="rwwPlZPbpBX9O0Yk"
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1405271454370.15990@gentwo.org>
+Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B5B76B0036
+	for <linux-mm@kvack.org>; Wed, 28 May 2014 02:53:34 -0400 (EDT)
+Received: by mail-pa0-f49.google.com with SMTP id kp14so640057pab.8
+        for <linux-mm@kvack.org>; Tue, 27 May 2014 23:53:34 -0700 (PDT)
+Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
+        by mx.google.com with ESMTP id rm10si22287829pab.197.2014.05.27.23.53.32
+        for <linux-mm@kvack.org>;
+        Tue, 27 May 2014 23:53:33 -0700 (PDT)
+From: Minchan Kim <minchan@kernel.org>
+Subject: [RFC 2/2] x86_64: expand kernel stack to 16K
+Date: Wed, 28 May 2014 15:53:59 +0900
+Message-Id: <1401260039-18189-2-git-send-email-minchan@kernel.org>
+In-Reply-To: <1401260039-18189-1-git-send-email-minchan@kernel.org>
+References: <1401260039-18189-1-git-send-email-minchan@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@gentwo.org>
-Cc: Konstantin Khlebnikov <koct9i@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Roland Dreier <roland@kernel.org>, Sean Hefty <sean.hefty@intel.com>, Hal Rosenstock <hal.rosenstock@gmail.com>, Mike Marciniszyn <infinipath@intel.com>
+To: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, rusty@rustcorp.com.au, mst@redhat.com, Dave Hansen <dave.hansen@intel.com>, Steven Rostedt <rostedt@goodmis.org>, Minchan Kim <minchan@kernel.org>
 
+While I play inhouse patches with much memory pressure on qemu-kvm,
+3.14 kernel was randomly crashed. The reason was kernel stack overflow.
 
---rwwPlZPbpBX9O0Yk
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+When I investigated the problem, the callstack was a little bit deeper
+by involve with reclaim functions but not direct reclaim path.
 
-On Tue, May 27, 2014 at 03:00:15PM -0500, Christoph Lameter wrote:
-> On Tue, 27 May 2014, Peter Zijlstra wrote:
->=20
-> > > What do you mean by shared pages that are not shmem pages? AnonPages =
-that
-> > > are referenced from multiple processes?
-> >
-> > Regular files.. they get allocated through __page_cache_alloc(). AFAIK
-> > there is nothing stopping people from pinning file pages for RDMA or
-> > other purposes. Unusual maybe, but certainly not impossible, and
-> > therefore we must be able to handle it.
->=20
-> Typically structures for RDMA are allocated on the heap.
+I tried to diet stack size of some functions related with alloc/reclaim
+so did a hundred of byte but overflow was't disappeard so that I encounter
+overflow by another deeper callstack on reclaim/allocator path.
 
-Sure, typically. But that's not enough.
+Of course, we might sweep every sites we have found for reducing
+stack usage but I'm not sure how long it saves the world(surely,
+lots of developer start to add nice features which will use stack
+agains) and if we consider another more complex feature in I/O layer
+and/or reclaim path, it might be better to increase stack size(
+meanwhile, stack usage on 64bit machine was doubled compared to 32bit
+while it have sticked to 8K. Hmm, it's not a fair to me and arm64
+already expaned to 16K. )
 
-> The main use case is pinnning the executable pages in the page cache?
+So, my stupid idea is just let's expand stack size and keep an eye
+toward stack consumption on each kernel functions via stacktrace of ftrace.
+For example, we can have a bar like that each funcion shouldn't exceed 200K
+and emit the warning when some function consumes more in runtime.
+Of course, it could make false positive but at least, it could make a
+chance to think over it.
 
-No.. although that's one of the things the -rt people are interested in.
+I guess this topic was discussed several time so there might be
+strong reason not to increase kernel stack size on x86_64, for me not
+knowing so Ccing x86_64 maintainers, other MM guys and virtio
+maintainers.
 
-> > > Migration is expensive and the memory registration overhead already
-> > > causes lots of complaints.
-> >
-> > Sure, but first to the simple thing, then if its a problem do something
-> > else.
->=20
-> I thought the main issue here were the pinning of IB/RDMA buffers.
+[ 1065.604404] kworker/-5766    0d..2 1071625990us : stack_trace_call:         Depth    Size   Location    (51 entries)
+[ 1065.604404]         -----    ----   --------
+[ 1065.604404] kworker/-5766    0d..2 1071625991us : stack_trace_call:   0)     7696      16   lookup_address+0x28/0x30
+[ 1065.604404] kworker/-5766    0d..2 1071625991us : stack_trace_call:   1)     7680      16   _lookup_address_cpa.isra.3+0x3b/0x40
+[ 1065.604404] kworker/-5766    0d..2 1071625991us : stack_trace_call:   2)     7664      24   __change_page_attr_set_clr+0xe0/0xb50
+[ 1065.604404] kworker/-5766    0d..2 1071625991us : stack_trace_call:   3)     7640     392   kernel_map_pages+0x6c/0x120
+[ 1065.604404] kworker/-5766    0d..2 1071625992us : stack_trace_call:   4)     7248     256   get_page_from_freelist+0x489/0x920
+[ 1065.604404] kworker/-5766    0d..2 1071625992us : stack_trace_call:   5)     6992     352   __alloc_pages_nodemask+0x5e1/0xb20
+[ 1065.604404] kworker/-5766    0d..2 1071625992us : stack_trace_call:   6)     6640       8   alloc_pages_current+0x10f/0x1f0
+[ 1065.604404] kworker/-5766    0d..2 1071625992us : stack_trace_call:   7)     6632     168   new_slab+0x2c5/0x370
+[ 1065.604404] kworker/-5766    0d..2 1071625992us : stack_trace_call:   8)     6464       8   __slab_alloc+0x3a9/0x501
+[ 1065.604404] kworker/-5766    0d..2 1071625993us : stack_trace_call:   9)     6456      80   __kmalloc+0x1cb/0x200
+[ 1065.604404] kworker/-5766    0d..2 1071625993us : stack_trace_call:  10)     6376     376   vring_add_indirect+0x36/0x200
+[ 1065.604404] kworker/-5766    0d..2 1071625993us : stack_trace_call:  11)     6000     144   virtqueue_add_sgs+0x2e2/0x320
+[ 1065.604404] kworker/-5766    0d..2 1071625993us : stack_trace_call:  12)     5856     288   __virtblk_add_req+0xda/0x1b0
+[ 1065.604404] kworker/-5766    0d..2 1071625993us : stack_trace_call:  13)     5568      96   virtio_queue_rq+0xd3/0x1d0
+[ 1065.604404] kworker/-5766    0d..2 1071625994us : stack_trace_call:  14)     5472     128   __blk_mq_run_hw_queue+0x1ef/0x440
+[ 1065.604404] kworker/-5766    0d..2 1071625994us : stack_trace_call:  15)     5344      16   blk_mq_run_hw_queue+0x35/0x40
+[ 1065.604404] kworker/-5766    0d..2 1071625994us : stack_trace_call:  16)     5328      96   blk_mq_insert_requests+0xdb/0x160
+[ 1065.604404] kworker/-5766    0d..2 1071625994us : stack_trace_call:  17)     5232     112   blk_mq_flush_plug_list+0x12b/0x140
+[ 1065.604404] kworker/-5766    0d..2 1071625994us : stack_trace_call:  18)     5120     112   blk_flush_plug_list+0xc7/0x220
+[ 1065.604404] kworker/-5766    0d..2 1071625995us : stack_trace_call:  19)     5008      64   io_schedule_timeout+0x88/0x100
+[ 1065.604404] kworker/-5766    0d..2 1071625995us : stack_trace_call:  20)     4944     128   mempool_alloc+0x145/0x170
+[ 1065.604404] kworker/-5766    0d..2 1071625995us : stack_trace_call:  21)     4816      96   bio_alloc_bioset+0x10b/0x1d0
+[ 1065.604404] kworker/-5766    0d..2 1071625995us : stack_trace_call:  22)     4720      48   get_swap_bio+0x30/0x90
+[ 1065.604404] kworker/-5766    0d..2 1071625995us : stack_trace_call:  23)     4672     160   __swap_writepage+0x150/0x230
+[ 1065.604404] kworker/-5766    0d..2 1071625996us : stack_trace_call:  24)     4512      32   swap_writepage+0x42/0x90
+[ 1065.604404] kworker/-5766    0d..2 1071625996us : stack_trace_call:  25)     4480     320   shrink_page_list+0x676/0xa80
+[ 1065.604404] kworker/-5766    0d..2 1071625996us : stack_trace_call:  26)     4160     208   shrink_inactive_list+0x262/0x4e0
+[ 1065.604404] kworker/-5766    0d..2 1071625996us : stack_trace_call:  27)     3952     304   shrink_lruvec+0x3e1/0x6a0
+[ 1065.604404] kworker/-5766    0d..2 1071625996us : stack_trace_call:  28)     3648      80   shrink_zone+0x3f/0x110
+[ 1065.604404] kworker/-5766    0d..2 1071625997us : stack_trace_call:  29)     3568     128   do_try_to_free_pages+0x156/0x4c0
+[ 1065.604404] kworker/-5766    0d..2 1071625997us : stack_trace_call:  30)     3440     208   try_to_free_pages+0xf7/0x1e0
+[ 1065.604404] kworker/-5766    0d..2 1071625997us : stack_trace_call:  31)     3232     352   __alloc_pages_nodemask+0x783/0xb20
+[ 1065.604404] kworker/-5766    0d..2 1071625997us : stack_trace_call:  32)     2880       8   alloc_pages_current+0x10f/0x1f0
+[ 1065.604404] kworker/-5766    0d..2 1071625997us : stack_trace_call:  33)     2872     200   __page_cache_alloc+0x13f/0x160
+[ 1065.604404] kworker/-5766    0d..2 1071625998us : stack_trace_call:  34)     2672      80   find_or_create_page+0x4c/0xb0
+[ 1065.604404] kworker/-5766    0d..2 1071625998us : stack_trace_call:  35)     2592      80   ext4_mb_load_buddy+0x1e9/0x370
+[ 1065.604404] kworker/-5766    0d..2 1071625998us : stack_trace_call:  36)     2512     176   ext4_mb_regular_allocator+0x1b7/0x460
+[ 1065.604404] kworker/-5766    0d..2 1071625998us : stack_trace_call:  37)     2336     128   ext4_mb_new_blocks+0x458/0x5f0
+[ 1065.604404] kworker/-5766    0d..2 1071625998us : stack_trace_call:  38)     2208     256   ext4_ext_map_blocks+0x70b/0x1010
+[ 1065.604404] kworker/-5766    0d..2 1071625999us : stack_trace_call:  39)     1952     160   ext4_map_blocks+0x325/0x530
+[ 1065.604404] kworker/-5766    0d..2 1071625999us : stack_trace_call:  40)     1792     384   ext4_writepages+0x6d1/0xce0
+[ 1065.604404] kworker/-5766    0d..2 1071625999us : stack_trace_call:  41)     1408      16   do_writepages+0x23/0x40
+[ 1065.604404] kworker/-5766    0d..2 1071625999us : stack_trace_call:  42)     1392      96   __writeback_single_inode+0x45/0x2e0
+[ 1065.604404] kworker/-5766    0d..2 1071625999us : stack_trace_call:  43)     1296     176   writeback_sb_inodes+0x2ad/0x500
+[ 1065.604404] kworker/-5766    0d..2 1071626000us : stack_trace_call:  44)     1120      80   __writeback_inodes_wb+0x9e/0xd0
+[ 1065.604404] kworker/-5766    0d..2 1071626000us : stack_trace_call:  45)     1040     160   wb_writeback+0x29b/0x350
+[ 1065.604404] kworker/-5766    0d..2 1071626000us : stack_trace_call:  46)      880     208   bdi_writeback_workfn+0x11c/0x480
+[ 1065.604404] kworker/-5766    0d..2 1071626000us : stack_trace_call:  47)      672     144   process_one_work+0x1d2/0x570
+[ 1065.604404] kworker/-5766    0d..2 1071626000us : stack_trace_call:  48)      528     112   worker_thread+0x116/0x370
+[ 1065.604404] kworker/-5766    0d..2 1071626001us : stack_trace_call:  49)      416     240   kthread+0xf3/0x110
+[ 1065.604404] kworker/-5766    0d..2 1071626001us : stack_trace_call:  50)      176     176   ret_from_fork+0x7c/0xb0
 
-It is,.. but you have to deal with the generic case before you go off
-doing specific things.
+Signed-off-by: Minchan Kim <minchan@kernel.org>
+---
+ arch/x86/include/asm/page_64_types.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-You're approaching the problem from the wrong way; first make it such
-that everything works, only then, optimize some specific case, if and
-when it becomes important.
-
-Don't start by only looking at the one specific case you're interested
-in and forget about everything else.
-
-
-
---rwwPlZPbpBX9O0Yk
-Content-Type: application/pgp-signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1.4.12 (GNU/Linux)
-
-iQIcBAEBAgAGBQJThX7JAAoJEHZH4aRLwOS6tRkQAINtgJGCOtIztBNH+RRHXwCG
-UZg0rfSYPK5QMpzJ31+Yemlgr1B2+VIu8tHNb5uM0u0qTinNuOdIYqygSoc7WbRl
-7F3adXn96uWg75gsE7iZqMbXnKpiQdnFDnY5laPOpwsgyKLyhJqrDR3zDhnPLQYm
-gmSrLI1c+RK+2EvQDd0q5Zo8LsyJASIHwQD1zwtcZq3slcVVPw/ACHdik+6xf9b1
-X6DRCIPO5HZALRQrkz0b1I1MBlxVR0uW7YC30UkEHuNecQNcRAhXDN3Q9b75cU87
-zBKEx+et/EhKatiAOQ933qkfsXniYCErParBieUraRJ6+vAQ/oBbjXopkRWUW6ll
-gwLKTba4N+xIpb/y1zys09d2skNOoQIcZ5PIndRrm3m0qW4kPKuc32Lzkck5I44+
-Lz9jCqQlPaFqAaL6+1+NxxYI+ENiE3QjjdUh4bkGpUzMaLjZUdOlc8DnYppz3FOW
-Aw6S5PUuYVPYrII0jKDT/q2h/N+vlkQOAYSdaScy1at4kUpMEQyyDlgrvmdN4X1s
-UsuFwrAVaToP1PqsQ6zE2RgDyFC4lqwwJagRoMzlCEhc0x/ZitfY5xbT9zjTKUW9
-LPp4bGSoADpPp+kaohtgyQ/sJ+HDuWLMzBGKJX4UPMPfMECiFa7r8iTbWpA6FGuz
-Y2iEJ6RABKEh8fkjD3Xm
-=n8kK
------END PGP SIGNATURE-----
-
---rwwPlZPbpBX9O0Yk--
+diff --git a/arch/x86/include/asm/page_64_types.h b/arch/x86/include/asm/page_64_types.h
+index 8de6d9cf3b95..678205195ae1 100644
+--- a/arch/x86/include/asm/page_64_types.h
++++ b/arch/x86/include/asm/page_64_types.h
+@@ -1,7 +1,7 @@
+ #ifndef _ASM_X86_PAGE_64_DEFS_H
+ #define _ASM_X86_PAGE_64_DEFS_H
+ 
+-#define THREAD_SIZE_ORDER	1
++#define THREAD_SIZE_ORDER	2
+ #define THREAD_SIZE  (PAGE_SIZE << THREAD_SIZE_ORDER)
+ #define CURRENT_MASK (~(THREAD_SIZE - 1))
+ 
+-- 
+1.9.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
