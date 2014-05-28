@@ -1,125 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ve0-f171.google.com (mail-ve0-f171.google.com [209.85.128.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 76C6D6B0037
-	for <linux-mm@kvack.org>; Wed, 28 May 2014 12:18:34 -0400 (EDT)
-Received: by mail-ve0-f171.google.com with SMTP id oz11so12738114veb.16
-        for <linux-mm@kvack.org>; Wed, 28 May 2014 09:18:34 -0700 (PDT)
-Received: from cdptpa-oedge-vip.email.rr.com (cdptpa-outbound-snat.email.rr.com. [107.14.166.227])
-        by mx.google.com with ESMTP id ph7si11001768veb.6.2014.05.28.09.18.33
+Received: from mail-vc0-f180.google.com (mail-vc0-f180.google.com [209.85.220.180])
+	by kanga.kvack.org (Postfix) with ESMTP id AE28E6B0037
+	for <linux-mm@kvack.org>; Wed, 28 May 2014 12:19:55 -0400 (EDT)
+Received: by mail-vc0-f180.google.com with SMTP id hy4so12390583vcb.25
+        for <linux-mm@kvack.org>; Wed, 28 May 2014 09:19:55 -0700 (PDT)
+Received: from qmta02.emeryville.ca.mail.comcast.net (qmta02.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:24])
+        by mx.google.com with ESMTP id aq3si10898958vdc.7.2014.05.28.09.19.54
         for <linux-mm@kvack.org>;
-        Wed, 28 May 2014 09:18:33 -0700 (PDT)
-Date: Wed, 28 May 2014 12:18:32 -0400
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [PATCH 1/2] ftrace: print stack usage right before Oops
-Message-ID: <20140528121832.747aaf75@gandalf.local.home>
-In-Reply-To: <1401260039-18189-1-git-send-email-minchan@kernel.org>
-References: <1401260039-18189-1-git-send-email-minchan@kernel.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Wed, 28 May 2014 09:19:54 -0700 (PDT)
+Date: Wed, 28 May 2014 11:19:49 -0500 (CDT)
+From: Christoph Lameter <cl@gentwo.org>
+Subject: Re: vmstat: On demand vmstat workers V5
+In-Reply-To: <20140528152107.GB6507@localhost.localdomain>
+Message-ID: <alpine.DEB.2.10.1405281110210.22514@gentwo.org>
+References: <alpine.DEB.2.10.1405121317270.29911@gentwo.org> <20140528152107.GB6507@localhost.localdomain>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, rusty@rustcorp.com.au, mst@redhat.com, Dave Hansen <dave.hansen@intel.com>
+To: Frederic Weisbecker <fweisbec@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Gilad Ben-Yossef <gilad@benyossef.com>, Thomas Gleixner <tglx@linutronix.de>, Tejun Heo <tj@kernel.org>, John Stultz <johnstul@us.ibm.com>, Mike Frysinger <vapier@gentoo.org>, Minchan Kim <minchan.kim@gmail.com>, Hakan Akkan <hakanakkan@gmail.com>, Max Krasnyansky <maxk@qualcomm.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hughd@google.com, viresh.kumar@linaro.org, hpa@zytor.com, mingo@kernel.org, peterz@infradead.org
 
-On Wed, 28 May 2014 15:53:58 +0900
-Minchan Kim <minchan@kernel.org> wrote:
+On Wed, 28 May 2014, Frederic Weisbecker wrote:
 
-> While I played with my own feature(ex, something on the way to reclaim),
-> kernel went to oops easily. I guessed reason would be stack overflow
-> and wanted to prove it.
-> 
-> I found stack tracer which would be very useful for me but kernel went
-> oops before my user program gather the information via
-> "watch cat /sys/kernel/debug/tracing/stack_trace" so I couldn't get an
-> stack usage of each functions.
-> 
-> What I want was that emit the kernel stack usage when kernel goes oops.
-> 
-> This patch records callstack of max stack usage into ftrace buffer
-> right before Oops and print that information with ftrace_dump_on_oops.
-> At last, I can find a culprit. :)
-> 
+> On Mon, May 12, 2014 at 01:18:10PM -0500, Christoph Lameter wrote:
+> >  #ifdef CONFIG_SMP
+> >  static DEFINE_PER_CPU(struct delayed_work, vmstat_work);
+> >  int sysctl_stat_interval __read_mostly = HZ;
+> > +static DECLARE_BITMAP(cpu_stat_off_bits, CONFIG_NR_CPUS) __read_mostly;
+> > +const struct cpumask *const cpu_stat_off = to_cpumask(cpu_stat_off_bits);
+> > +EXPORT_SYMBOL(cpu_stat_off);
+>
+> Is there no way to make it a cpumask_var_t, and allocate it from
+> start_shepherd_timer()?
+>
+> This should really take less space overall.
 
-This is not dependent on patch 2/2, nor is 2/2 dependent on this patch,
-I'll review this as if 2/2 does not exist.
+This was taken from the way things work with the other cpumasks in
+linux/kernel/cpu.c. Its compatible with the way done there and allows
+also the write protection of the cpumask outside of vmstat.c
+
+> > +	schedule_delayed_work(this_cpu_ptr(&vmstat_work),
+> > +		__round_jiffies_relative(sysctl_stat_interval,
+> > +		HOUSEKEEPING_CPU));
+>
+> Maybe you can just make the shepherd work unbound and let bind it from userspace
+> once we have the workqueue user affinity patchset in.
+
+Yes that is what V5 should have done. Looks like the final version was not
+posted. Sigh. The correct patch follows this message and it no longer uses
+HOUSEKEEPING_CPU.
 
 
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
-> ---
->  kernel/trace/trace_stack.c | 32 ++++++++++++++++++++++++++++++--
->  1 file changed, 30 insertions(+), 2 deletions(-)
-> 
-> diff --git a/kernel/trace/trace_stack.c b/kernel/trace/trace_stack.c
-> index 5aa9a5b9b6e2..5eb88e60bc5e 100644
-> --- a/kernel/trace/trace_stack.c
-> +++ b/kernel/trace/trace_stack.c
-> @@ -51,6 +51,30 @@ static DEFINE_MUTEX(stack_sysctl_mutex);
->  int stack_tracer_enabled;
->  static int last_stack_tracer_enabled;
->  
-> +static inline void print_max_stack(void)
-> +{
-> +	long i;
-> +	int size;
-> +
-> +	trace_printk("        Depth    Size   Location"
-> +			   "    (%d entries)\n"
+> OTOH, it means you need to have a vmstat_update work on the housekeeping CPU as well.
 
-Please do not break strings just to satisfy that silly 80 character
-limit. Even Linus Torvalds said that's pretty stupid.
-
-Also, do not use trace_printk(). It is not made to be included in a
-production kernel. It reserves special buffers to make it as fast as
-possible, and those buffers should not be created in production
-systems. In fact, I will probably add for 3.16 a big warning message
-when trace_printk() is used.
-
-Since this is a bug, why not just use printk() instead?
-
-BTW, wouldn't this this function crash as well if the stack is already
-bad?
-
--- Steve
-
-> +			   "        -----    ----   --------\n",
-> +			   max_stack_trace.nr_entries - 1);
-> +
-> +	for (i = 0; i < max_stack_trace.nr_entries; i++) {
-> +		if (stack_dump_trace[i] == ULONG_MAX)
-> +			break;
-> +		if (i+1 == max_stack_trace.nr_entries ||
-> +				stack_dump_trace[i+1] == ULONG_MAX)
-> +			size = stack_dump_index[i];
-> +		else
-> +			size = stack_dump_index[i] - stack_dump_index[i+1];
-> +
-> +		trace_printk("%3ld) %8d   %5d   %pS\n", i, stack_dump_index[i],
-> +				size, (void *)stack_dump_trace[i]);
-> +	}
-> +}
-> +
->  static inline void
->  check_stack(unsigned long ip, unsigned long *stack)
->  {
-> @@ -149,8 +173,12 @@ check_stack(unsigned long ip, unsigned long *stack)
->  			i++;
->  	}
->  
-> -	BUG_ON(current != &init_task &&
-> -		*(end_of_stack(current)) != STACK_END_MAGIC);
-> +	if ((current != &init_task &&
-> +		*(end_of_stack(current)) != STACK_END_MAGIC)) {
-> +		print_max_stack();
-> +		BUG();
-> +	}
-> +
->   out:
->  	arch_spin_unlock(&max_stack_lock);
->  	local_irq_restore(flags);
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Well the vnstat_udpate may not be needed on the processor where the
+shepherd runs so it may save something.
