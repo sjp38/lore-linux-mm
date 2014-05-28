@@ -1,202 +1,339 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vc0-f171.google.com (mail-vc0-f171.google.com [209.85.220.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 452DC6B0035
-	for <linux-mm@kvack.org>; Wed, 28 May 2014 14:48:14 -0400 (EDT)
-Received: by mail-vc0-f171.google.com with SMTP id lc6so12935317vcb.30
-        for <linux-mm@kvack.org>; Wed, 28 May 2014 11:48:13 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id t13si11383405vek.64.2014.05.28.11.48.12
-        for <linux-mm@kvack.org>;
-        Wed, 28 May 2014 11:48:13 -0700 (PDT)
-Message-ID: <53862f6d.0d283a0a.4682.fffffb19SMTPIN_ADDED_BROKEN@mx.google.com>
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH] mm/memory-failure.c: support dedicated thread to handle SIGBUS(BUS_MCEERR_AO) thread
-Date: Wed, 28 May 2014 14:47:49 -0400
-In-Reply-To: <FDBACF11-D9F6-4DE5-A0D4-800903A243B7@gmail.com>
-References: <cover.1400607328.git.tony.luck@intel.com> <eb791998a8ada97b204dddf2719a359149e9ae31.1400607328.git.tony.luck@intel.com> <20140523033438.GC16945@gchen.bj.intel.com> <CA+8MBb+Una+Z5Q-Pn0OoMYaaSx9sPJ3fdriMRMgN=CE1Jdp7Cg@mail.gmail.com> <20140527161613.GC4108@mcs.anl.gov> <5384d07e.4504e00a.2680.ffff8c31SMTPIN_ADDED_BROKEN@mx.google.com> <CA+8MBbKuBo4c2v-Y0TOk-LUJuyJsGG=twqQyAPG5WOa8Aj4GyA@mail.gmail.com> <53852abb.867ce00a.3cef.3c7eSMTPIN_ADDED_BROKEN@mx.google.com> <FDBACF11-D9F6-4DE5-A0D4-800903A243B7@gmail.com>
-Mime-Version: 1.0
+Received: from mail-yk0-f174.google.com (mail-yk0-f174.google.com [209.85.160.174])
+	by kanga.kvack.org (Postfix) with ESMTP id C7E4E6B0038
+	for <linux-mm@kvack.org>; Wed, 28 May 2014 14:54:59 -0400 (EDT)
+Received: by mail-yk0-f174.google.com with SMTP id 9so8709816ykp.19
+        for <linux-mm@kvack.org>; Wed, 28 May 2014 11:54:59 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id d59si33163920yhj.35.2014.05.28.11.54.58
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 28 May 2014 11:54:59 -0700 (PDT)
+Date: Wed, 28 May 2014 14:54:45 -0400
+From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Subject: Re: [PATCH] gpu/drm/ttm: Use mutex_lock_killable() for shrinker
+ functions.
+Message-ID: <20140528185445.GA23122@phenom.dumpdata.com>
+References: <201405192339.JIJ04144.FHQFVFOtOSLJOM@I-love.SAKURA.ne.jp>
+ <alpine.DEB.2.00.1405200140010.20503@skynet.skynet.ie>
+ <201405210030.HBD65663.FFLVHOFMSJOtOQ@I-love.SAKURA.ne.jp>
+ <201405242322.AID86423.HOMLQJOtFFVOSF@I-love.SAKURA.ne.jp>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
+In-Reply-To: <201405242322.AID86423.HOMLQJOtFFVOSF@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: tony.luck@gmail.com
-Cc: iskra@mcs.anl.gov, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>, Borislav Petkov <bp@suse.de>, gong.chen@linux.jf.intel.com
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: dchinner@redhat.com, airlied@linux.ie, glommer@openvz.org, mgorman@suse.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org
 
-On Tue, May 27, 2014 at 10:09:54PM -0700, Tony Luck wrote:
-> I'm exploring options to see what writers of threaded applications might want/need. I'm very doubtful that they would really want "broadcast to all threads". What if there are hundreds or thousands of threads? We send the signals from the context of the thread that hit the error. But that might take a while. Meanwhile any of those threads that were already scheduled on other CPUs are back running again. So there are big races even if we broadcast.
+On Sat, May 24, 2014 at 11:22:09PM +0900, Tetsuo Handa wrote:
+> Hello.
+> 
+> I tried to test whether it is OK (from point of view of reentrant) to use
+> mutex_lock() or mutex_lock_killable() inside shrinker functions when shrinker
+> functions do memory allocation, for drivers/gpu/drm/ttm/ttm_page_alloc_dma.c is
+> doing memory allocation with mutex lock held inside ttm_dma_pool_shrink_scan().
+> 
+> If I compile a test module shown below which mimics extreme case of what
+> ttm_dma_pool_shrink_scan() will do
 
-I see, so this approach is not good. I studied another approach and found
-that we have PF_MCE_EARLY flags on each thread, so we can implement
-a dedicated thread by setting the flag on that thread. IOW, current code
-assumes that PF_MCE_EARLY is always set on the main thread (otherwise ignored),
-so we can change this behavior.
+And ttm_pool_shrink_scan.
 
-The following patch makes kernel aware of PF_MCE_EARLY flag on threads.
-Could you take a look?
+> 
+> ---------- test.c start ----------
+> #include <linux/module.h>
+> #include <linux/sched.h>
+> #include <linux/slab.h>
+> #include <linux/mm.h>
+> 
+> static DEFINE_MUTEX(lock);
+> 
+> static unsigned long shrink_test_count(struct shrinker *shrinker, struct shrink_control *sc)
+> {
+>         if (mutex_lock_killable(&lock)) {
+>                 printk(KERN_WARNING "Process %u (%s) gave up waiting for mutex"
+>                        "\n", current->pid, current->comm);
+>                 return 0;
+>         }
+>         mutex_unlock(&lock);
+>         return 1;
+> }
+> 
+> static unsigned long shrink_test_scan(struct shrinker *shrinker, struct shrink_control *sc)
+> {
+>         LIST_HEAD(list);
+>         int i = 0;
+>         if (mutex_lock_killable(&lock)) {
+>                 printk(KERN_WARNING "Process %u (%s) gave up waiting for mutex"
+>                        "\n", current->pid, current->comm);
+>                 return 0;
+>         }
+>         while (1) {
+>                 struct list_head *l = kmalloc(PAGE_SIZE, sc->gfp_mask);
+>                 if (!l)
+>                         break;
+>                 list_add_tail(l, &list);
+>                 i++;
+>         }
+>         printk(KERN_WARNING "Process %u (%s) allocated %u pages\n",
+>                current->pid, current->comm, i);
+>         while (i--) {
+>                 struct list_head *l = list.next;
+>                 list_del(l);
+>                 kfree(l);
+>         }
+>         mutex_unlock(&lock);
+>         return 1;
+> }
+> 
+> static struct shrinker recursive_shrinker = {
+>         .count_objects = shrink_test_count,
+>         .scan_objects = shrink_test_scan,
+>         .seeks = DEFAULT_SEEKS,
+> };
+> 
+> static int __init recursive_shrinker_init(void)
+> {
+>         register_shrinker(&recursive_shrinker);
+>         return 0;
+> }
+> 
+> static void recursive_shrinker_exit(void)
+> {
+>         unregister_shrinker(&recursive_shrinker);
+> }
+> 
+> module_init(recursive_shrinker_init);
+> module_exit(recursive_shrinker_exit);
+> MODULE_LICENSE("GPL");
+> ---------- test.c end ----------
+> 
+> and load the test module and do
+> 
+>   # echo 3 > /proc/sys/vm/drop_caches
+> 
+> the system stalls with 0% CPU usage because of mutex deadlock
+> (with prior lockdep warning).
+> 
+> Is this because wrong gfp flags are passed to kmalloc() ? Is this because
+> the test module's shrinker functions return wrong values? Is this because
+> doing memory allocation with mutex held inside shrinker functions is
+> forbidden? Can anybody tell me what is wrong with my test module?
 
-Thanks,
-Naoya Horiguchi
----
-Date: Wed, 28 May 2014 03:38:33 -0400
-Subject: [PATCH] mm/memory-failure.c: support dedicated thread to handle
- SIGBUS(BUS_MCEERR_AO)
+What is the sc->gfp_flags? What if you use GFP_ATOMIC?
 
-Currently memory error handler handles action optional errors in the deferred
-manner by default. And if a recovery aware application wants to handle it
-immediately, it can do it by setting PF_MCE_EARLY flag. However, such signal
-can be sent only to the main thread, so it's problematic if the application
-wants to have a dedicated thread to handler such signals.
+In regards to the lockdep warning below it looks like
+> 
+> Regards.
+> 
+> [   48.077353] 
+> [   48.077999] =================================
+> [   48.080023] [ INFO: inconsistent lock state ]
+> [   48.080023] 3.15.0-rc6-00190-g1ee1cea #203 Tainted: G           OE
+> [   48.080023] ---------------------------------
+> [   48.080023] inconsistent {RECLAIM_FS-ON-W} -> {IN-RECLAIM_FS-W} usage.
+> [   48.086745] kswapd0/784 [HC0[0]:SC0[0]:HE1:SE1] takes:
+> [   48.086745]  (lock#2){+.+.?.}, at: [<e0861022>] shrink_test_count+0x12/0x60 [test]
+> [   48.086745] {RECLAIM_FS-ON-W} state was registered at:
 
-So this patch adds dedicated thread support to memory error handler. We have
-PF_MCE_EARLY flags for each thread separately, so with this patch AO signal
-is sent to the thread with PF_MCE_EARLY flag set, not the main thread. If
-you want to implement a dedicated thread, you call prctl() to set PF_MCE_EARLY
-on the thread.
 
-Memory error handler collects processes to be killed, so this patch lets it
-check PF_MCE_EARLY flag on each thread in the collecting routines.
+You have the scenario you described below, that is:
 
-No behavioral change for all non-early kill cases.
+shrink_test_scan	
+	mutex_lock_killable()
+		-> kmalloc
+			-> shrink_test_count
+				mutex_lock_killable()
 
-Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
----
- Documentation/vm/hwpoison.txt |  5 ++++
- mm/memory-failure.c           | 68 ++++++++++++++++++++++++++++++-------------
- 2 files changed, 53 insertions(+), 20 deletions(-)
+And 'mutex_lock_killable' is the same (in at least this context)
+the same as 'mutex_lock'. In other words, your second 'mutex_lock'
+is going to spin - which is a deadlock.
 
-diff --git a/Documentation/vm/hwpoison.txt b/Documentation/vm/hwpoison.txt
-index 550068466605..1906fd3bea0e 100644
---- a/Documentation/vm/hwpoison.txt
-+++ b/Documentation/vm/hwpoison.txt
-@@ -84,6 +84,11 @@ PR_MCE_KILL
- 		PR_MCE_KILL_EARLY: Early kill
- 		PR_MCE_KILL_LATE:  Late kill
- 		PR_MCE_KILL_DEFAULT: Use system global default
-+	Note that if you want to have a dedicated thread which handles
-+	the SIGBUS(BUS_MCEERR_AO) on behalf of the process, you should
-+	call prctl() on the thread. Otherwise, the SIGBUS is sent to
-+	the main thread.
-+
- PR_MCE_KILL_GET
- 	return current mode
- 
-diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-index a18007ada3cb..3bd0428b2534 100644
---- a/mm/memory-failure.c
-+++ b/mm/memory-failure.c
-@@ -294,6 +294,46 @@ struct to_kill {
-  */
- 
- /*
-+ * Find a dedicated thread which is supposed to handle SIGBUS(BUS_MCEERR_AO)
-+ * on behalf of the thread group. Return task_struct of the (first found)
-+ * dedicated thread if found, and return NULL otherwise.
-+ */
-+static struct task_struct *find_early_kill_thread(struct task_struct *tsk)
-+{
-+	struct task_struct *t;
-+	rcu_read_lock();
-+	for_each_thread(tsk, t)
-+		if (t->flags & PF_MCE_PROCESS && t->flags & PF_MCE_EARLY)
-+			goto found;
-+	t = NULL;
-+found:
-+	rcu_read_unlock();
-+	return t;
-+}
-+
-+/*
-+ * Determine whether a given process is "early kill" process which expects
-+ * to be signaled when some page under the process is hwpoisoned.
-+ * Return task_struct of the dedicated thread (main thread unless explicitly
-+ * specified) if the process is "early kill," and otherwise returns NULL.
-+ */
-+static struct task_struct *task_early_kill(struct task_struct *tsk,
-+					   int force_early)
-+{
-+	struct task_struct *t;
-+	if (!tsk->mm)
-+		return NULL;
-+	if (force_early)
-+		return tsk;
-+	t = find_early_kill_thread(tsk);
-+	if (t)
-+		return t;
-+	if (sysctl_memory_failure_early_kill)
-+		return tsk;
-+	return NULL;
-+}
-+
-+/*
-  * Schedule a process for later kill.
-  * Uses GFP_ATOMIC allocations to avoid potential recursions in the VM.
-  * TBD would GFP_NOIO be enough?
-@@ -380,17 +420,6 @@ static void kill_procs(struct list_head *to_kill, int forcekill, int trapno,
- 	}
- }
- 
--static int task_early_kill(struct task_struct *tsk, int force_early)
--{
--	if (!tsk->mm)
--		return 0;
--	if (force_early)
--		return 1;
--	if (tsk->flags & PF_MCE_PROCESS)
--		return !!(tsk->flags & PF_MCE_EARLY);
--	return sysctl_memory_failure_early_kill;
--}
--
- /*
-  * Collect processes when the error hit an anonymous page.
-  */
-@@ -410,16 +439,16 @@ static void collect_procs_anon(struct page *page, struct list_head *to_kill,
- 	read_lock(&tasklist_lock);
- 	for_each_process (tsk) {
- 		struct anon_vma_chain *vmac;
--
--		if (!task_early_kill(tsk, force_early))
-+		struct task_struct *t = task_early_kill(tsk, force_early);
-+		if (!t)
- 			continue;
- 		anon_vma_interval_tree_foreach(vmac, &av->rb_root,
- 					       pgoff, pgoff) {
- 			vma = vmac->vma;
- 			if (!page_mapped_in_vma(page, vma))
- 				continue;
--			if (vma->vm_mm == tsk->mm)
--				add_to_kill(tsk, page, vma, to_kill, tkc);
-+			if (vma->vm_mm == t->mm)
-+				add_to_kill(t, page, vma, to_kill, tkc);
- 		}
- 	}
- 	read_unlock(&tasklist_lock);
-@@ -440,10 +469,9 @@ static void collect_procs_file(struct page *page, struct list_head *to_kill,
- 	read_lock(&tasklist_lock);
- 	for_each_process(tsk) {
- 		pgoff_t pgoff = page_pgoff(page);
--
--		if (!task_early_kill(tsk, force_early))
-+		struct task_struct *t = task_early_kill(tsk, force_early);
-+		if (!t)
- 			continue;
--
- 		vma_interval_tree_foreach(vma, &mapping->i_mmap, pgoff,
- 				      pgoff) {
- 			/*
-@@ -453,8 +481,8 @@ static void collect_procs_file(struct page *page, struct list_head *to_kill,
- 			 * Assume applications who requested early kill want
- 			 * to be informed of all such data corruptions.
- 			 */
--			if (vma->vm_mm == tsk->mm)
--				add_to_kill(tsk, page, vma, to_kill, tkc);
-+			if (vma->vm_mm == t->mm)
-+				add_to_kill(t, page, vma, to_kill, tkc);
- 		}
- 	}
- 	read_unlock(&tasklist_lock);
--- 
-1.9.3
+Perhaps a way of not getting in this scenario is:
+
+ 1). Try to take the mutex (ie, one that won't spin if it can't
+     get it).
+
+ 2). Use the GFP_ATOMIC in the shrinker so that we never
+     end up calling ourselves in case of memory pressure
+
+?
+
+> [   48.086745]   [<c1089c18>] mark_held_locks+0x68/0x90
+> [   48.086745]   [<c1089cda>] lockdep_trace_alloc+0x9a/0xe0
+> [   48.086745]   [<c110b7f3>] kmem_cache_alloc+0x23/0x170
+> [   48.086745]   [<e08610aa>] shrink_test_scan+0x3a/0xf90 [test]
+> [   48.086745]   [<c10e59be>] shrink_slab_node+0x13e/0x1d0
+> [   48.086745]   [<c10e6911>] shrink_slab+0x61/0xe0
+> [   48.086745]   [<c115f849>] drop_caches_sysctl_handler+0x69/0xf0
+> [   48.086745]   [<c117275a>] proc_sys_call_handler+0x6a/0xa0
+> [   48.086745]   [<c11727aa>] proc_sys_write+0x1a/0x20
+> [   48.086745]   [<c1110ac0>] vfs_write+0xa0/0x190
+> [   48.086745]   [<c1110ca6>] SyS_write+0x56/0xc0
+> [   48.086745]   [<c15201d6>] syscall_call+0x7/0xb
+> [   48.086745] irq event stamp: 39
+> [   48.086745] hardirqs last  enabled at (39): [<c10f3480>] count_shadow_nodes+0x20/0x40
+> [   48.086745] hardirqs last disabled at (38): [<c10f346c>] count_shadow_nodes+0xc/0x40
+> [   48.086745] softirqs last  enabled at (0): [<c1040627>] copy_process+0x2e7/0x1400
+> [   48.086745] softirqs last disabled at (0): [<  (null)>]   (null)
+> [   48.086745] 
+> [   48.086745] other info that might help us debug this:
+> [   48.086745]  Possible unsafe locking scenario:
+> [   48.086745] 
+> [   48.086745]        CPU0
+> [   48.086745]        ----
+> [   48.086745]   lock(lock#2);
+> [   48.086745]   <Interrupt>
+> [   48.086745]     lock(lock#2);
+> [   48.086745] 
+> [   48.086745]  *** DEADLOCK ***
+> [   48.086745] 
+> [   48.086745] 1 lock held by kswapd0/784:
+> [   48.086745]  #0:  (shrinker_rwsem){++++.+}, at: [<c10e68da>] shrink_slab+0x2a/0xe0
+> [   48.086745] 
+> [   48.086745] stack backtrace:
+> [   48.086745] CPU: 1 PID: 784 Comm: kswapd0 Tainted: G           OE 3.15.0-rc6-00190-g1ee1cea #203
+> [   48.086745] Hardware name: VMware, Inc. VMware Virtual Platform/440BX Desktop Reference Platform, BIOS 6.00 08/15/2008
+> [   48.086745]  c1ab9c20 dd187c94 c151a48f dd184250 dd187cd0 c1088f33 c165aa02 c165ac9d
+> [   48.086745]  00000310 00000000 00000000 00000000 00000000 00000001 00000001 c165ac9d
+> [   48.086745]  dd1847dc 0000000a 00000008 dd187cfc c1089ae1 00000008 000001b8 31a0987d
+> [   48.086745] Call Trace:
+> [   48.086745]  [<c151a48f>] dump_stack+0x48/0x61
+> [   48.086745]  [<c1088f33>] print_usage_bug+0x1f3/0x250
+> [   48.086745]  [<c1089ae1>] mark_lock+0x331/0x400
+> [   48.086745]  [<c1088f90>] ? print_usage_bug+0x250/0x250
+> [   48.086745]  [<c108a583>] __lock_acquire+0x283/0x1640
+> [   48.086745]  [<c108b9bb>] lock_acquire+0x7b/0xa0
+> [   48.086745]  [<e0861022>] ? shrink_test_count+0x12/0x60 [test]
+> [   48.086745]  [<c151c544>] mutex_lock_killable_nested+0x64/0x3e0
+> [   48.086745]  [<e0861022>] ? shrink_test_count+0x12/0x60 [test]
+> [   48.086745]  [<e0861022>] ? shrink_test_count+0x12/0x60 [test]
+> [   48.086745]  [<c11119f1>] ? put_super+0x21/0x30
+> [   48.086745]  [<e0861022>] shrink_test_count+0x12/0x60 [test]
+> [   48.086745]  [<c10e58ae>] shrink_slab_node+0x2e/0x1d0
+> [   48.086745]  [<c10e68da>] ? shrink_slab+0x2a/0xe0
+> [   48.086745]  [<c10e6911>] shrink_slab+0x61/0xe0
+> [   48.086745]  [<c10e8416>] kswapd+0x5f6/0x8e0
+> [   48.086745]  [<c1062e0f>] kthread+0xaf/0xd0
+> [   48.086745]  [<c10e7e20>] ? try_to_free_pages+0x540/0x540
+> [   48.086745]  [<c108a08b>] ? trace_hardirqs_on+0xb/0x10
+> [   48.086745]  [<c1525d41>] ret_from_kernel_thread+0x21/0x30
+> [   48.086745]  [<c1062d60>] ? __init_kthread_worker+0x60/0x60
+> 
+> [   77.958388] SysRq : Show State
+> [   77.959377]   task                PC stack   pid father
+> [   77.960803] bash            D dfa6ae80  5068     1      0 0x00000000
+> [   77.962348]  ded35c30 00000046 dfa6ae90 dfa6ae80 322a9328 00000000 00000000 0000000b
+> [   77.962348]  ded32010 c191c8c0 ded34008 32319d5a 0000000b c191c8c0 32319d5a 0000000b
+> [   77.962348]  ded32010 00000001 ded35c04 3230ea9d 0000000b e0863060 ded325c4 ded32010
+> [   77.962348] Call Trace:
+> [   77.962348]  [<c1073ab7>] ? local_clock+0x17/0x30
+> [   77.962348]  [<c151b41e>] schedule+0x1e/0x60
+> [   77.962348]  [<c151b6df>] schedule_preempt_disabled+0xf/0x20
+> [   77.962348]  [<c151c63f>] mutex_lock_killable_nested+0x15f/0x3e0
+> [   77.962348]  [<e0861022>] ? shrink_test_count+0x12/0x60 [test]
+> [   77.962348]  [<e0861022>] ? shrink_test_count+0x12/0x60 [test]
+> [   77.962348]  [<e0861022>] shrink_test_count+0x12/0x60 [test]
+> [   77.962348]  [<c10e58ae>] shrink_slab_node+0x2e/0x1d0
+> [   77.962348]  [<c10e68da>] ? shrink_slab+0x2a/0xe0
+> [   77.962348]  [<c10e6911>] shrink_slab+0x61/0xe0
+> [   77.962348]  [<c10e7b48>] try_to_free_pages+0x268/0x540
+> [   77.962348]  [<c10df529>] __alloc_pages_nodemask+0x3e9/0x720
+> [   77.962348]  [<c110bcbd>] cache_alloc_refill+0x37d/0x720
+> [   77.962348]  [<e08610aa>] ? shrink_test_scan+0x3a/0xf90 [test]
+> [   77.962348]  [<c110b902>] kmem_cache_alloc+0x132/0x170
+> [   77.962348]  [<e08610aa>] ? shrink_test_scan+0x3a/0xf90 [test]
+> [   77.962348]  [<e08610aa>] shrink_test_scan+0x3a/0xf90 [test]
+> [   77.962348]  [<c151c4d8>] ? mutex_unlock+0x8/0x10
+> [   77.962348]  [<c10e59be>] shrink_slab_node+0x13e/0x1d0
+> [   77.962348]  [<c10e68da>] ? shrink_slab+0x2a/0xe0
+> [   77.962348]  [<c10e6911>] shrink_slab+0x61/0xe0
+> [   77.962348]  [<c115f849>] drop_caches_sysctl_handler+0x69/0xf0
+> [   77.962348]  [<c151fe6d>] ? _raw_spin_unlock+0x1d/0x30
+> [   77.962348]  [<c117275a>] proc_sys_call_handler+0x6a/0xa0
+> [   77.962348]  [<c11727aa>] proc_sys_write+0x1a/0x20
+> [   77.962348]  [<c1110ac0>] vfs_write+0xa0/0x190
+> [   77.962348]  [<c1172790>] ? proc_sys_call_handler+0xa0/0xa0
+> [   77.962348]  [<c112d0fd>] ? __fdget+0xd/0x10
+> [   77.962348]  [<c1110ca6>] SyS_write+0x56/0xc0
+> [   77.962348]  [<c15201d6>] syscall_call+0x7/0xb
+> 
+> [   77.962348] kswapd0         D 00000246  6200   784      2 0x00000000
+> [   77.962348]  dd187d9c 00000046 c109d091 00000246 00000086 00000000 00000246 dd184250
+> [   77.962348]  dd184250 c191c8c0 dd186008 318e2084 0000000b c191c8c0 37e97ef1 0000000b
+> [   77.962348]  dd184250 dd184250 dd187d70 c10880aa dd187dac 00000000 0000007b ffffffff
+> [   77.962348] Call Trace:
+> [   77.962348]  [<c109d091>] ? rcu_irq_exit+0x71/0xc0
+> [   77.962348]  [<c10880aa>] ? print_lock_contention_bug+0x1a/0xf0
+> [   77.962348]  [<c151b41e>] schedule+0x1e/0x60
+> [   77.962348]  [<c151b6df>] schedule_preempt_disabled+0xf/0x20
+> [   77.962348]  [<c151c63f>] mutex_lock_killable_nested+0x15f/0x3e0
+> [   77.962348]  [<e0861022>] ? shrink_test_count+0x12/0x60 [test]
+> [   77.962348]  [<e0861022>] ? shrink_test_count+0x12/0x60 [test]
+> [   77.962348]  [<e0861022>] shrink_test_count+0x12/0x60 [test]
+> [   77.962348]  [<c10e58ae>] shrink_slab_node+0x2e/0x1d0
+> [   77.962348]  [<c10e68da>] ? shrink_slab+0x2a/0xe0
+> [   77.962348]  [<c10e6911>] shrink_slab+0x61/0xe0
+> [   77.962348]  [<c10e8416>] kswapd+0x5f6/0x8e0
+> [   77.962348]  [<c1062e0f>] kthread+0xaf/0xd0
+> [   77.962348]  [<c10e7e20>] ? try_to_free_pages+0x540/0x540
+> [   77.962348]  [<c108a08b>] ? trace_hardirqs_on+0xb/0x10
+> [   77.962348]  [<c1525d41>] ret_from_kernel_thread+0x21/0x30
+> [   77.962348]  [<c1062d60>] ? __init_kthread_worker+0x60/0x60
+> 
+> Tetsuo Handa wrote:
+> > Tetsuo Handa wrote:
+> > > From e314a1a1583e585d062dfc30c8aad8bf5380510b Mon Sep 17 00:00:00 2001
+> > > From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> > > Date: Mon, 19 May 2014 18:43:21 +0900
+> > > Subject: [PATCH] gpu/drm/ttm: Use mutex_lock_killable() for shrinker functions.
+> > > 
+> > > I can observe that RHEL7 environment stalls with 100% CPU usage when a
+> > > certain type of memory pressure is given. While the shrinker functions
+> > > are called by shrink_slab() before the OOM killer is triggered, the stall
+> > > lasts for many minutes.
+> > > 
+> > > I added debug printk() and observed that many threads are blocked for more
+> > > than 10 seconds at ttm_dma_pool_shrink_count()/ttm_dma_pool_shrink_scan()
+> > > functions. Since the kswapd can call these functions later, the current
+> > > thread can return from these functions as soon as chosen by the OOM killer.
+> > > 
+> > > This patch changes "mutex_lock();" to "if (mutex_lock_killable()) return ...;"
+> > > so that any threads can promptly give up. (By the way, as far as I tested,
+> > > changing to "if (!mutex_trylock()) return ...;" likely shortens the duration
+> > > of stall. Maybe we don't need to wait for mutex if someone is already calling
+> > > these functions.)
+> > > 
+> > 
+> > While discussing about XFS problem, I got a question. Is it OK (from point
+> > of view of reentrant) to use mutex_lock() or mutex_lock_killable() inside
+> > shrinker's entry point functions? Can senario shown below possible?
+> > 
+> > (1) kswapd is doing memory reclaim which does not need to hold mutex.
+> > 
+> > (2) Someone in GFP_KERNEL context (not kswapd) calls
+> >     ttm_dma_pool_shrink_count() and then calls ttm_dma_pool_shrink_scan()
+> >     from direct reclaim path.
+> > 
+> > (3) Inside ttm_dma_pool_shrink_scan(), GFP_KERNEL allocation is issued
+> >     while mutex is held by the someone.
+> > 
+> > (4) GFP_KERNEL allocation cannot be completed immediately due to memory
+> >     pressure.
+> > 
+> > (5) kswapd calls ttm_dma_pool_shrink_count() which need to hold mutex.
+> > 
+> > (6) Inside ttm_dma_pool_shrink_count(), kswapd is blocked waiting for
+> >     mutex held by the someone, and the someone is waiting for GFP_KERNEL
+> >     allocation to complete, but GFP_KERNEL allocation cannot be completed
+> >     until mutex held by the someone is released?
+
+Ewww. Perhaps if we used GFP_ATOMIC for the array allocation we do in
+ttm_dma_page_pool_free and ttm_page_pool_free?
+
+That would avoid the 4) problem.
+> > 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
