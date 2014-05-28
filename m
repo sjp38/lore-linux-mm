@@ -1,129 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C4E76B0036
-	for <linux-mm@kvack.org>; Tue, 27 May 2014 20:40:51 -0400 (EDT)
-Received: by mail-wi0-f178.google.com with SMTP id cc10so2734874wib.11
-        for <linux-mm@kvack.org>; Tue, 27 May 2014 17:40:51 -0700 (PDT)
-Received: from mail-we0-x233.google.com (mail-we0-x233.google.com [2a00:1450:400c:c03::233])
-        by mx.google.com with ESMTPS id un7si28308235wjc.134.2014.05.27.17.40.49
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 27 May 2014 17:40:50 -0700 (PDT)
-Received: by mail-we0-f179.google.com with SMTP id q59so10188244wes.24
-        for <linux-mm@kvack.org>; Tue, 27 May 2014 17:40:49 -0700 (PDT)
+Received: from mail-pb0-f52.google.com (mail-pb0-f52.google.com [209.85.160.52])
+	by kanga.kvack.org (Postfix) with ESMTP id EB1376B0036
+	for <linux-mm@kvack.org>; Tue, 27 May 2014 21:37:58 -0400 (EDT)
+Received: by mail-pb0-f52.google.com with SMTP id rr13so10199159pbb.25
+        for <linux-mm@kvack.org>; Tue, 27 May 2014 18:37:58 -0700 (PDT)
+Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [2001:44b8:8060:ff02:300:1:2:6])
+        by mx.google.com with ESMTP id py12si12799548pab.17.2014.05.27.18.37.56
+        for <linux-mm@kvack.org>;
+        Tue, 27 May 2014 18:37:57 -0700 (PDT)
+Date: Wed, 28 May 2014 11:37:04 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 0/3] Shrinkers and proportional reclaim
+Message-ID: <20140528013704.GI8554@dastard>
+References: <1400749779-24879-1-git-send-email-mgorman@suse.de>
+ <alpine.LSU.2.11.1405261441320.7154@eggly.anvils>
+ <20140527023751.GB8554@dastard>
+ <alpine.LSU.2.11.1405271406520.4317@eggly.anvils>
+ <CALYGNiPZXnTG+vxg5tr+jnaDSvHRArJq=fmQ4bPD-m-iJU9jqA@mail.gmail.com>
+ <alpine.LSU.2.11.1405271618360.5019@eggly.anvils>
 MIME-Version: 1.0
-In-Reply-To: <20140527224002.GB25781@cerebellum.variantweb.net>
-References: <1399499496-3216-1-git-send-email-ddstreet@ieee.org>
- <1400958369-3588-1-git-send-email-ddstreet@ieee.org> <1400958369-3588-7-git-send-email-ddstreet@ieee.org>
- <20140527224002.GB25781@cerebellum.variantweb.net>
-From: Dan Streetman <ddstreet@ieee.org>
-Date: Tue, 27 May 2014 20:40:29 -0400
-Message-ID: <CALZtONDhkoxXa2o1eDN_7siJ53MEPhNwp5RLg8SOH4pph+t2Og@mail.gmail.com>
-Subject: Re: [PATCH 6/6] mm/zpool: prevent zbud/zsmalloc from unloading when used
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.11.1405271618360.5019@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Jennings <sjennings@variantweb.net>
-Cc: Minchan Kim <minchan@kernel.org>, Weijie Yang <weijie.yang@samsung.com>, Nitin Gupta <ngupta@vflare.org>, Andrew Morton <akpm@linux-foundation.org>, Bob Liu <bob.liu@oracle.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Hugh Dickins <hughd@google.com>
+Cc: Konstantin Khlebnikov <koct9i@gmail.com>, Mel Gorman <mgorman@suse.de>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Tim Chen <tim.c.chen@linux.intel.com>, Yuanhan Liu <yuanhan.liu@linux.intel.com>, Bob Liu <bob.liu@oracle.com>, Jan Kara <jack@suse.cz>, Rik van Riel <riel@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>
 
-On Tue, May 27, 2014 at 6:40 PM, Seth Jennings <sjennings@variantweb.net> wrote:
-> On Sat, May 24, 2014 at 03:06:09PM -0400, Dan Streetman wrote:
->> Add try_module_get() to pool creation functions for zbud and zsmalloc,
->> and module_put() to pool destruction functions, since they now can be
->> modules used via zpool.  Without usage counting, they could be unloaded
->> while pool(s) were active, resulting in an oops.
->
-> I like the idea here, but what about doing this in the zpool layer? For
-> me, it is kinda weird for a module to be taking a ref on itself.  Maybe
-> this is excepted practice.  Is there precedent for this?
+On Tue, May 27, 2014 at 04:19:12PM -0700, Hugh Dickins wrote:
+> On Wed, 28 May 2014, Konstantin Khlebnikov wrote:
+> > On Wed, May 28, 2014 at 1:17 AM, Hugh Dickins <hughd@google.com> wrote:
+> > > On Tue, 27 May 2014, Dave Chinner wrote:
+> > >> On Mon, May 26, 2014 at 02:44:29PM -0700, Hugh Dickins wrote:
+> > >> >
+> > >> > [PATCH 4/3] fs/superblock: Avoid counting without __GFP_FS
+> > >> >
+> > >> > Don't waste time counting objects in super_cache_count() if no __GFP_FS:
+> > >> > super_cache_scan() would only back out with SHRINK_STOP in that case.
+> > >> >
+> > >> > Signed-off-by: Hugh Dickins <hughd@google.com>
+> > >>
+> > >> While you might think that's a good thing, it's not.  The act of
+> > >> shrinking is kept separate from the accounting of how much shrinking
+> > >> needs to take place.  The amount of work the shrinker can't do due
+> > >> to the reclaim context is deferred until the shrinker is called in a
+> > >> context where it can do work (eg. kswapd)
+> > >>
+> > >> Hence not accounting for work that can't be done immediately will
+> > >> adversely impact the balance of the system under memory intensive
+> > >> filesystem workloads. In these worklaods, almost all allocations are
+> > >> done in the GFP_NOFS or GFP_NOIO contexts so not deferring the work
+> > >> will will effectively stop superblock cache reclaim entirely....
+> > >
+> > > Thanks for filling me in on that.  At first I misunderstood you,
+> > > and went off looking in the wrong direction.  Now I see what you're
+> > > referring to: the quantity that shrink_slab_node() accumulates in
+> > > and withdraws from shrinker->nr_deferred[nid].
+> > 
+> > Maybe shrinker could accumulate fraction nr_pages_scanned / lru_pages
+> > instead of exact amount of required work? Count of shrinkable objects
+> > might be calculated later, when shrinker is called from a suitable context
+> > and can actualy do something.
+> 
+> Good idea, probably a worthwhile optimization to think through further.
+> (Though experience says that Dave will explain how that can never work.)
 
-It's done in some places already:
-git grep try_module_get\(THIS_MODULE | wc -l
-83
+Heh. :)
 
-but it definitely could be done in zpool, and since other users of
-zbud/zsmalloc would be calling directly to their functions, instead of
-indirectly by driver registration, I believe the module dependency
-there would prevent zbud/zsmalloc unloading while a using module was
-still loaded (if I understand module usage counting correctly).
+Two things, neither are show-stoppers but would need to be handled
+in some way.
 
->
-> What about having the zbud/zsmalloc drivers pass their module pointers
-> to zpool_register_driver() as an additional field in struct zpool_driver
-> and have zpool take the reference?  Since zpool is the one in trouble if
-> the driver is unloaded.
+First: it would remove a lot of the policy flexibility from the
+shrinker implementations that we currently have. i.e. the "work to
+do" policy is current set by the shrinker, not by the shrinker
+infrastructure. The shrinker infrastructure only determines whether
+it can be done immediately of whether it shoul dbe deferred....
 
-Yep this seems to be the other common way of doing it, with a ->owner
-field in the registered struct.  Either way is fine with me, and zpool
-definitely is the one in trouble if its driver is unloaded.  I'll
-update for v4 of this patch set.
+e.g. there are shrinkers that don't do work unless they are
+over certain thresholds. For these shrinkers, they need to have the
+work calculated by the callout as they may decide nothing
+can/should/needs to be done, and that decision may have nothing to
+do with the current reclaim context. You can't really do this
+without a callout to determine the cache size.
 
->
-> Seth
->
->>
->> Signed-off-by: Dan Streetman <ddstreet@ieee.org>
->> Cc: Seth Jennings <sjennings@variantweb.net>
->> Cc: Minchan Kim <minchan@kernel.org>
->> Cc: Nitin Gupta <ngupta@vflare.org>
->> Cc: Weijie Yang <weijie.yang@samsung.com>
->> ---
->>
->> New for this patch set.
->>
->>  mm/zbud.c     | 5 +++++
->>  mm/zsmalloc.c | 5 +++++
->>  2 files changed, 10 insertions(+)
->>
->> diff --git a/mm/zbud.c b/mm/zbud.c
->> index 8a72cb1..2b3689c 100644
->> --- a/mm/zbud.c
->> +++ b/mm/zbud.c
->> @@ -282,6 +282,10 @@ struct zbud_pool *zbud_create_pool(gfp_t gfp, struct zbud_ops *ops)
->>       pool = kmalloc(sizeof(struct zbud_pool), GFP_KERNEL);
->>       if (!pool)
->>               return NULL;
->> +     if (!try_module_get(THIS_MODULE)) {
->> +             kfree(pool);
->> +             return NULL;
->> +     }
->>       spin_lock_init(&pool->lock);
->>       for_each_unbuddied_list(i, 0)
->>               INIT_LIST_HEAD(&pool->unbuddied[i]);
->> @@ -302,6 +306,7 @@ struct zbud_pool *zbud_create_pool(gfp_t gfp, struct zbud_ops *ops)
->>  void zbud_destroy_pool(struct zbud_pool *pool)
->>  {
->>       kfree(pool);
->> +     module_put(THIS_MODULE);
->>  }
->>
->>  /**
->> diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
->> index 07c3130..2cc2647 100644
->> --- a/mm/zsmalloc.c
->> +++ b/mm/zsmalloc.c
->> @@ -946,6 +946,10 @@ struct zs_pool *zs_create_pool(gfp_t flags)
->>       pool = kzalloc(ovhd_size, GFP_KERNEL);
->>       if (!pool)
->>               return NULL;
->> +     if (!try_module_get(THIS_MODULE)) {
->> +             kfree(pool);
->> +             return NULL;
->> +     }
->>
->>       for (i = 0; i < ZS_SIZE_CLASSES; i++) {
->>               int size;
->> @@ -985,6 +989,7 @@ void zs_destroy_pool(struct zs_pool *pool)
->>               }
->>       }
->>       kfree(pool);
->> +     module_put(THIS_MODULE);
->>  }
->>  EXPORT_SYMBOL_GPL(zs_destroy_pool);
->>
->> --
->> 1.8.3.1
->>
+The other thing I see is that deferring the ratio of work rather
+than the actual work is that it doesn't take into account the fact
+that the cache sizes might be changing in a different way to memory
+pressure. i.e. a sudden increase in cache size just before deferred
+reclaim occurred would cause much more reclaim than the current
+code, even though the cache wasn't contributing to the original
+deferred memory pressure.
+
+This will lead to bursty/peaky reclaim behaviour because we then
+can't distinguish an large instantenous change in memory pressure
+from "wind up" caused by lots of small increments of deferred work.
+We specifically damp the second case:
+
+        /*
+         * We need to avoid excessive windup on filesystem shrinkers
+         * due to large numbers of GFP_NOFS allocations causing the
+         * shrinkers to return -1 all the time. This results in a large
+         * nr being built up so when a shrink that can do some work
+         * comes along it empties the entire cache due to nr >>>
+         * freeable. This is bad for sustaining a working set in
+         * memory.
+         *
+         * Hence only allow the shrinker to scan the entire cache when
+         * a large delta change is calculated directly.
+         */
+
+Hence we'd need a different mechanism to prevent such defered work
+wind up from occurring. We can probably do better than the current
+SWAG if we design a new algorithm that has this damping built in.
+The current algorithm is all based around the "seek penalty"
+reinstantiating a reclaimed object has, and that simply does not
+match for many shrinker users now as they aren't spinning disk
+based. Hence I think we really need to look at improving the entire
+shrinker "work" algorithm rather than just tinkering around the
+edges...
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
