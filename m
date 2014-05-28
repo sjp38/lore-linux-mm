@@ -1,81 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B6AA6B0036
-	for <linux-mm@kvack.org>; Wed, 28 May 2014 01:09:58 -0400 (EDT)
-Received: by mail-pa0-f42.google.com with SMTP id rd3so10457171pab.1
-        for <linux-mm@kvack.org>; Tue, 27 May 2014 22:09:58 -0700 (PDT)
-Received: from mail-pb0-x234.google.com (mail-pb0-x234.google.com [2607:f8b0:400e:c01::234])
-        by mx.google.com with ESMTPS id pi4si21646538pbc.156.2014.05.27.22.09.57
+Received: from mail-qg0-f52.google.com (mail-qg0-f52.google.com [209.85.192.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A7F46B0036
+	for <linux-mm@kvack.org>; Wed, 28 May 2014 02:14:50 -0400 (EDT)
+Received: by mail-qg0-f52.google.com with SMTP id a108so16672221qge.11
+        for <linux-mm@kvack.org>; Tue, 27 May 2014 23:14:50 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2001:1868:205::9])
+        by mx.google.com with ESMTPS id t6si20742561qag.120.2014.05.27.23.14.49
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 27 May 2014 22:09:57 -0700 (PDT)
-Received: by mail-pb0-f52.google.com with SMTP id rr13so10524518pbb.39
-        for <linux-mm@kvack.org>; Tue, 27 May 2014 22:09:57 -0700 (PDT)
-References: <cover.1400607328.git.tony.luck@intel.com> <eb791998a8ada97b204dddf2719a359149e9ae31.1400607328.git.tony.luck@intel.com> <20140523033438.GC16945@gchen.bj.intel.com> <CA+8MBb+Una+Z5Q-Pn0OoMYaaSx9sPJ3fdriMRMgN=CE1Jdp7Cg@mail.gmail.com> <20140527161613.GC4108@mcs.anl.gov> <5384d07e.4504e00a.2680.ffff8c31SMTPIN_ADDED_BROKEN@mx.google.com> <CA+8MBbKuBo4c2v-Y0TOk-LUJuyJsGG=twqQyAPG5WOa8Aj4GyA@mail.gmail.com> <53852abb.867ce00a.3cef.3c7eSMTPIN_ADDED_BROKEN@mx.google.com>
-Mime-Version: 1.0 (1.0)
-In-Reply-To: <53852abb.867ce00a.3cef.3c7eSMTPIN_ADDED_BROKEN@mx.google.com>
-Content-Type: text/plain;
-	charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <FDBACF11-D9F6-4DE5-A0D4-800903A243B7@gmail.com>
-From: Tony Luck <tony.luck@gmail.com>
-Subject: Re: [PATCH 1/2] memory-failure: Send right signal code to correct thread
-Date: Tue, 27 May 2014 22:09:54 -0700
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 27 May 2014 23:14:49 -0700 (PDT)
+Date: Wed, 28 May 2014 08:14:39 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [RFC][PATCH 0/5] VM_PINNED
+Message-ID: <20140528061439.GI11096@twins.programming.kicks-ass.net>
+References: <20140527102909.GO30445@twins.programming.kicks-ass.net>
+ <alpine.DEB.2.10.1405270929550.13999@gentwo.org>
+ <20140527144655.GC19143@laptop.programming.kicks-ass.net>
+ <alpine.DEB.2.10.1405271011100.14466@gentwo.org>
+ <20140527153143.GD19143@laptop.programming.kicks-ass.net>
+ <alpine.DEB.2.10.1405271128530.14883@gentwo.org>
+ <20140527164341.GD11074@laptop.programming.kicks-ass.net>
+ <alpine.DEB.2.10.1405271152400.14883@gentwo.org>
+ <20140527172930.GE11074@laptop.programming.kicks-ass.net>
+ <alpine.DEB.2.10.1405271454370.15990@gentwo.org>
+MIME-Version: 1.0
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="rwwPlZPbpBX9O0Yk"
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.10.1405271454370.15990@gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: "iskra@mcs.anl.gov" <iskra@mcs.anl.gov>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Borislav Petkov <bp@suse.de>, "gong.chen@linux.jf.intel.com" <gong.chen@linux.jf.intel.com>
+To: Christoph Lameter <cl@gentwo.org>
+Cc: Konstantin Khlebnikov <koct9i@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Roland Dreier <roland@kernel.org>, Sean Hefty <sean.hefty@intel.com>, Hal Rosenstock <hal.rosenstock@gmail.com>, Mike Marciniszyn <infinipath@intel.com>
 
-I'm exploring options to see what writers of threaded applications might wan=
-t/need. I'm very doubtful that they would really want "broadcast to all thre=
-ads". What if there are hundreds or thousands of threads? We send the signal=
-s from the context of the thread that hit the error. But that might take a w=
-hile. Meanwhile any of those threads that were already scheduled on other CP=
-Us are back running again. So there are big races even if we broadcast.
 
-Sent from my iPhone
+--rwwPlZPbpBX9O0Yk
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-> On May 27, 2014, at 17:15, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wro=
-te:
+On Tue, May 27, 2014 at 03:00:15PM -0500, Christoph Lameter wrote:
+> On Tue, 27 May 2014, Peter Zijlstra wrote:
 >=20
-> On Tue, May 27, 2014 at 03:53:55PM -0700, Tony Luck wrote:
->>> - make sure that every thread in a recovery aware application should hav=
-e
->>>   a SIGBUS handler, inside which
->>>   * code for SIGBUS(BUS_MCEERR_AR) is enabled for every thread
->>>   * code for SIGBUS(BUS_MCEERR_AO) is enabled only for a dedicated threa=
-d
->>=20
->> But how does the kernel know which is the special thread that
->> should see the "AO" signal?  Broadcasting the signal to all
->> threads seems to be just as likely to cause problems to
->> an application as the h/w broadcasting MCE to all processors.
+> > > What do you mean by shared pages that are not shmem pages? AnonPages =
+that
+> > > are referenced from multiple processes?
+> >
+> > Regular files.. they get allocated through __page_cache_alloc(). AFAIK
+> > there is nothing stopping people from pinning file pages for RDMA or
+> > other purposes. Unusual maybe, but certainly not impossible, and
+> > therefore we must be able to handle it.
 >=20
-> I thought that kernel doesn't have to know about which thread is the
-> special one if the AO signal is broadcasted to all threads, because
-> in such case the special thread always gets the AO signal.
->=20
-> The reported problem happens only the application sets PF_MCE_EARLY flag,
-> and such application is surely recovery aware, so we can assume that the
-> coders must implement SIGBUS handler for all threads. Then all other threa=
-ds
-> but the special one can intentionally ignore AO signal. This is to avoid t=
-he
-> default behavior for SIGBUS ("kill all threads" as Kamil said in the previ=
-ous
-> email.)
->=20
-> And I hope that downside of signal broadcasting is smaller than MCE
-> broadcasting because the range of broadcasting is limited to a process gro=
-up,
-> not to the whole system.
->=20
-> # I don't intend to rule out other possibilities like adding another prctl=
+> Typically structures for RDMA are allocated on the heap.
 
-> # flag, so if you have a patch, that's would be great.
+Sure, typically. But that's not enough.
+
+> The main use case is pinnning the executable pages in the page cache?
+
+No.. although that's one of the things the -rt people are interested in.
+
+> > > Migration is expensive and the memory registration overhead already
+> > > causes lots of complaints.
+> >
+> > Sure, but first to the simple thing, then if its a problem do something
+> > else.
 >=20
-> Thanks,
-> Naoya Horiguchi
+> I thought the main issue here were the pinning of IB/RDMA buffers.
+
+It is,.. but you have to deal with the generic case before you go off
+doing specific things.
+
+You're approaching the problem from the wrong way; first make it such
+that everything works, only then, optimize some specific case, if and
+when it becomes important.
+
+Don't start by only looking at the one specific case you're interested
+in and forget about everything else.
+
+
+
+--rwwPlZPbpBX9O0Yk
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1.4.12 (GNU/Linux)
+
+iQIcBAEBAgAGBQJThX7JAAoJEHZH4aRLwOS6tRkQAINtgJGCOtIztBNH+RRHXwCG
+UZg0rfSYPK5QMpzJ31+Yemlgr1B2+VIu8tHNb5uM0u0qTinNuOdIYqygSoc7WbRl
+7F3adXn96uWg75gsE7iZqMbXnKpiQdnFDnY5laPOpwsgyKLyhJqrDR3zDhnPLQYm
+gmSrLI1c+RK+2EvQDd0q5Zo8LsyJASIHwQD1zwtcZq3slcVVPw/ACHdik+6xf9b1
+X6DRCIPO5HZALRQrkz0b1I1MBlxVR0uW7YC30UkEHuNecQNcRAhXDN3Q9b75cU87
+zBKEx+et/EhKatiAOQ933qkfsXniYCErParBieUraRJ6+vAQ/oBbjXopkRWUW6ll
+gwLKTba4N+xIpb/y1zys09d2skNOoQIcZ5PIndRrm3m0qW4kPKuc32Lzkck5I44+
+Lz9jCqQlPaFqAaL6+1+NxxYI+ENiE3QjjdUh4bkGpUzMaLjZUdOlc8DnYppz3FOW
+Aw6S5PUuYVPYrII0jKDT/q2h/N+vlkQOAYSdaScy1at4kUpMEQyyDlgrvmdN4X1s
+UsuFwrAVaToP1PqsQ6zE2RgDyFC4lqwwJagRoMzlCEhc0x/ZitfY5xbT9zjTKUW9
+LPp4bGSoADpPp+kaohtgyQ/sJ+HDuWLMzBGKJX4UPMPfMECiFa7r8iTbWpA6FGuz
+Y2iEJ6RABKEh8fkjD3Xm
+=n8kK
+-----END PGP SIGNATURE-----
+
+--rwwPlZPbpBX9O0Yk--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
