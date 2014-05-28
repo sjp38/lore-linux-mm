@@ -1,75 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B7D06B0035
-	for <linux-mm@kvack.org>; Wed, 28 May 2014 18:31:47 -0400 (EDT)
-Received: by mail-pa0-f41.google.com with SMTP id kx10so1904415pab.0
-        for <linux-mm@kvack.org>; Wed, 28 May 2014 15:31:47 -0700 (PDT)
-Received: from ipmail05.adl6.internode.on.net (ipmail05.adl6.internode.on.net. [2001:44b8:8060:ff02:300:1:6:5])
-        by mx.google.com with ESMTP id bm3si4338075pbc.86.2014.05.28.15.31.46
-        for <linux-mm@kvack.org>;
-        Wed, 28 May 2014 15:31:46 -0700 (PDT)
-Date: Thu, 29 May 2014 08:31:42 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [RFC 2/2] x86_64: expand kernel stack to 16K
-Message-ID: <20140528223142.GO8554@dastard>
-References: <1401260039-18189-1-git-send-email-minchan@kernel.org>
- <1401260039-18189-2-git-send-email-minchan@kernel.org>
- <CA+55aFxXdc22dirnE49UbQP_2s2vLQpjQFL+NptuyK7Xry6c=g@mail.gmail.com>
+Received: from mail-vc0-f172.google.com (mail-vc0-f172.google.com [209.85.220.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 75B086B0037
+	for <linux-mm@kvack.org>; Wed, 28 May 2014 18:41:12 -0400 (EDT)
+Received: by mail-vc0-f172.google.com with SMTP id ik5so9888102vcb.3
+        for <linux-mm@kvack.org>; Wed, 28 May 2014 15:41:12 -0700 (PDT)
+Received: from mail-vc0-x236.google.com (mail-vc0-x236.google.com [2607:f8b0:400c:c03::236])
+        by mx.google.com with ESMTPS id lx4si11910895veb.29.2014.05.28.15.41.11
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 28 May 2014 15:41:11 -0700 (PDT)
+Received: by mail-vc0-f182.google.com with SMTP id id10so1119759vcb.27
+        for <linux-mm@kvack.org>; Wed, 28 May 2014 15:41:11 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CA+55aFxXdc22dirnE49UbQP_2s2vLQpjQFL+NptuyK7Xry6c=g@mail.gmail.com>
+In-Reply-To: <20140528223142.GO8554@dastard>
+References: <1401260039-18189-1-git-send-email-minchan@kernel.org>
+	<1401260039-18189-2-git-send-email-minchan@kernel.org>
+	<CA+55aFxXdc22dirnE49UbQP_2s2vLQpjQFL+NptuyK7Xry6c=g@mail.gmail.com>
+	<20140528223142.GO8554@dastard>
+Date: Wed, 28 May 2014 15:41:11 -0700
+Message-ID: <CA+55aFyRk6_v6COPGVvu6hvt=i2A8-dPcs1X3Ydn1g24AxbPkg@mail.gmail.com>
+Subject: Re: [RFC 2/2] x86_64: expand kernel stack to 16K
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
+To: Dave Chinner <david@fromorbit.com>
 Cc: Minchan Kim <minchan@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Rusty Russell <rusty@rustcorp.com.au>, "Michael S. Tsirkin" <mst@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Steven Rostedt <rostedt@goodmis.org>
 
-On Wed, May 28, 2014 at 09:09:23AM -0700, Linus Torvalds wrote:
-> On Tue, May 27, 2014 at 11:53 PM, Minchan Kim <minchan@kernel.org> wrote:
-> >
-> > So, my stupid idea is just let's expand stack size and keep an eye
-> > toward stack consumption on each kernel functions via stacktrace of ftrace.
-.....
-> But what *does* stand out (once again) is that we probably shouldn't
-> do swap-out in direct reclaim. This came up the last time we had stack
-> issues (XFS) too. I really do suspect that direct reclaim should only
-> do the kind of reclaim that does not need any IO at all.
-> 
-> I think we _do_ generally avoid IO in direct reclaim, but swap is
-> special. And not for a good reason, afaik. DaveC, remind me, I think
-> you said something about the swap case the last time this came up..
+On Wed, May 28, 2014 at 3:31 PM, Dave Chinner <david@fromorbit.com> wrote:
+>
+> Indeed, the call chain reported here is not caused by swap issuing
+> IO.
 
-Right, we do generally avoid IO through filesystems via direct
-reclaim because delayed allocation requires significant amounts
-of additional memory, stack space and IO.
+Well, that's one way of reading that callchain.
 
-However, swap doesn't have that overhead - it's just the IO stack
-that it drives through submit_bio(), and the worst case I'd seen
-through that path was much less than other reclaim stack path usage.
-I haven't seen swap in any of the stack overflows from production
-machines, and I only rarely see it in worst case stack usage
-profiles on my test machines.
+I think it's the *wrong* way of reading it, though. Almost dishonestly
+so. Because very clearly, the swapout _is_ what causes the unplugging
+of the IO queue, and does so because it is allocating the BIO for its
+own IO. The fact that that then fails (because of other IO's in
+flight), and causes *other* IO to be flushed, doesn't really change
+anything fundamental. It's still very much swap that causes that
+"let's start IO".
 
-Indeed, the call chain reported here is not caused by swap issuing
-IO.  We scheduled in the swap code (throttling waiting for
-congestion, I think) with a plugged block device (from the ext4
-writeback layer) with pending bios queued on it and the scheduler
-has triggered a flush of the device.  submit_bio in the swap path
-has much less stack usage than io_schedule() because it doesn't have
-any of the scheduler or plug list flushing overhead in the stack.
+IOW, swap-out directly caused that extra 3kB of stack use in what was
+a deep call chain (due to memory allocation). I really don't
+understand why you are arguing anything else on a pure technicality.
 
-So, realistically, the swap path is not worst case stack usage here
-and disabling it won't prevent this stack overflow from happening.
-Direct reclaim will simply throttle elsewhere and that will still
-cause the plug to be flushed, the IO to be issued and the stack to
-overflow.
+I thought you had some other argument for why swap was different, and
+against removing that "page_is_file_cache()" special case in
+shrink_page_list().
 
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+                         Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
