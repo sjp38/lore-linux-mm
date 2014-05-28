@@ -1,239 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 677F36B0035
-	for <linux-mm@kvack.org>; Wed, 28 May 2014 10:24:20 -0400 (EDT)
-Received: by mail-wi0-f170.google.com with SMTP id bs8so3479506wib.1
-        for <linux-mm@kvack.org>; Wed, 28 May 2014 07:24:18 -0700 (PDT)
-Received: from mail.zytor.com (terminus.zytor.com. [2001:1868:205::10])
-        by mx.google.com with ESMTPS id h8si12034158wjy.132.2014.05.28.07.24.16
+Received: from mail-lb0-f174.google.com (mail-lb0-f174.google.com [209.85.217.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 665F26B0035
+	for <linux-mm@kvack.org>; Wed, 28 May 2014 11:21:16 -0400 (EDT)
+Received: by mail-lb0-f174.google.com with SMTP id n15so5891525lbi.5
+        for <linux-mm@kvack.org>; Wed, 28 May 2014 08:21:15 -0700 (PDT)
+Received: from mail-wi0-x232.google.com (mail-wi0-x232.google.com [2a00:1450:400c:c05::232])
+        by mx.google.com with ESMTPS id gg4si32789606wjd.15.2014.05.28.08.21.14
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 28 May 2014 07:24:17 -0700 (PDT)
-In-Reply-To: <20140528101401.43853563@gandalf.local.home>
-References: <1401260039-18189-1-git-send-email-minchan@kernel.org> <1401260039-18189-2-git-send-email-minchan@kernel.org> <20140528101401.43853563@gandalf.local.home>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 28 May 2014 08:21:14 -0700 (PDT)
+Received: by mail-wi0-f178.google.com with SMTP id cc10so3945884wib.11
+        for <linux-mm@kvack.org>; Wed, 28 May 2014 08:21:14 -0700 (PDT)
+Date: Wed, 28 May 2014 17:21:09 +0200
+From: Frederic Weisbecker <fweisbec@gmail.com>
+Subject: Re: vmstat: On demand vmstat workers V5
+Message-ID: <20140528152107.GB6507@localhost.localdomain>
+References: <alpine.DEB.2.10.1405121317270.29911@gentwo.org>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-Content-Type: text/plain;
- charset=UTF-8
-Subject: Re: [RFC 2/2] x86_64: expand kernel stack to 16K
-From: "H. Peter Anvin" <hpa@zytor.com>
-Date: Wed, 28 May 2014 07:23:23 -0700
-Message-ID: <f00f9b56-704d-4d03-ad0e-ec3ba2d122fd@email.android.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.10.1405121317270.29911@gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Rostedt <rostedt@goodmis.org>, Minchan Kim <minchan@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, rusty@rustcorp.com.au, mst@redhat.com, Dave Hansen <dave.hansen@intel.com>
+To: Christoph Lameter <cl@linux.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Gilad Ben-Yossef <gilad@benyossef.com>, Thomas Gleixner <tglx@linutronix.de>, Tejun Heo <tj@kernel.org>, John Stultz <johnstul@us.ibm.com>, Mike Frysinger <vapier@gentoo.org>, Minchan Kim <minchan.kim@gmail.com>, Hakan Akkan <hakanakkan@gmail.com>, Max Krasnyansky <maxk@qualcomm.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hughd@google.com, viresh.kumar@linaro.org, hpa@zytor.com, mingo@kernel.org, peterz@infradead.org
 
-We tried for 4K on x86-64, too, for b quite a while as I recall.  The kernel stack is a one of the main costs for a thread.  I would like to decouple struct thread_info from the kernel stack (PJ Waskewicz was working on that before he left Intel) but that doesn't buy us all that much.
+On Mon, May 12, 2014 at 01:18:10PM -0500, Christoph Lameter wrote:
+>  #ifdef CONFIG_SMP
+>  static DEFINE_PER_CPU(struct delayed_work, vmstat_work);
+>  int sysctl_stat_interval __read_mostly = HZ;
+> +static DECLARE_BITMAP(cpu_stat_off_bits, CONFIG_NR_CPUS) __read_mostly;
+> +const struct cpumask *const cpu_stat_off = to_cpumask(cpu_stat_off_bits);
+> +EXPORT_SYMBOL(cpu_stat_off);
 
-8K additional per thread is a huge hit.  XFS has indeed always been a canary, or troublespot, I suspect because it originally came from another kernel where this was not an optimization target.
+Is there no way to make it a cpumask_var_t, and allocate it from
+start_shepherd_timer()?
 
+This should really take less space overall.
 
+> +
+> +/* We need to write to cpu_stat_off here */
+> +#define stat_off to_cpumask(cpu_stat_off_bits)
+> 
+>  static void vmstat_update(struct work_struct *w)
+>  {
+> +	if (refresh_cpu_vm_stats())
+> +		/*
+> +		 * Counters were updated so we expect more updates
+> +		 * to occur in the future. Keep on running the
+> +		 * update worker thread.
+> +		 */
+> +		schedule_delayed_work(this_cpu_ptr(&vmstat_work),
+> +			round_jiffies_relative(sysctl_stat_interval));
+> +	else {
+> +		/*
+> +		 * We did not update any counters so the app may be in
+> +		 * a mode where it does not cause counter updates.
+> +		 * We may be uselessly running vmstat_update.
+> +		 * Defer the checking for differentials to the
+> +		 * shepherd thread on a different processor.
+> +		 */
+> +		int r;
+> +		/*
+> +		 * Housekeeping cpu does not race since it never
+> +		 * changes the bit if its zero
+> +		 */
+> +		r = cpumask_test_and_set_cpu(smp_processor_id(),
+> +			stat_off);
+> +		VM_BUG_ON(r);
+> +	}
+> +}
+> +
+> +/*
+> + * Check if the diffs for a certain cpu indicate that
+> + * an update is needed.
+> + */
+> +static bool need_update(int cpu)
+> +{
+> +	struct zone *zone;
+> +
+> +	for_each_populated_zone(zone) {
+> +		struct per_cpu_pageset *p = per_cpu_ptr(zone->pageset, cpu);
+> +
+> +		BUILD_BUG_ON(sizeof(p->vm_stat_diff[0]) != 1);
+> +		/*
+> +		 * The fast way of checking if there are any vmstat diffs.
+> +		 * This works because the diffs are byte sized items.
+> +		 */
+> +		if (memchr_inv(p->vm_stat_diff, 0, NR_VM_ZONE_STAT_ITEMS))
+> +			return true;
+> +
+> +	}
+> +	return false;
+> +}
+> +
+> +
+> +/*
+> + * Shepherd worker thread that updates the statistics for the
+> + * processor the shepherd worker is running on and checks the
+> + * differentials of other processors that have their worker
+> + * threads for vm statistics updates disabled because of
+> + * inactivity.
+> + */
+> +static void vmstat_shepherd(struct work_struct *w)
+> +{
+> +	int cpu;
+> +
+>  	refresh_cpu_vm_stats();
+> -	schedule_delayed_work(&__get_cpu_var(vmstat_work),
+> -		round_jiffies_relative(sysctl_stat_interval));
+> +
+> +	/* Check processors whose vmstat worker threads have been disabled */
+> +	for_each_cpu(cpu, stat_off)
+> +		if (need_update(cpu) &&
+> +			cpumask_test_and_clear_cpu(cpu, stat_off)) {
+> +
+> +			struct delayed_work *work = &per_cpu(vmstat_work, cpu);
+> +
+> +			INIT_DEFERRABLE_WORK(work, vmstat_update);
+> +			schedule_delayed_work_on(cpu, work,
+> +				__round_jiffies_relative(sysctl_stat_interval,
+> +				cpu));
+> +		}
+> +
+> +	schedule_delayed_work(this_cpu_ptr(&vmstat_work),
+> +		__round_jiffies_relative(sysctl_stat_interval,
+> +		HOUSEKEEPING_CPU));
 
-On May 28, 2014 7:14:01 AM PDT, Steven Rostedt <rostedt@goodmis.org> wrote:
->
->This looks like something that Linus should be involved in too. He's
->been critical in the past about stack usage.
->
->On Wed, 28 May 2014 15:53:59 +0900
->Minchan Kim <minchan@kernel.org> wrote:
->
->> While I play inhouse patches with much memory pressure on qemu-kvm,
->> 3.14 kernel was randomly crashed. The reason was kernel stack
->overflow.
->> 
->> When I investigated the problem, the callstack was a little bit
->deeper
->> by involve with reclaim functions but not direct reclaim path.
->> 
->> I tried to diet stack size of some functions related with
->alloc/reclaim
->> so did a hundred of byte but overflow was't disappeard so that I
->encounter
->> overflow by another deeper callstack on reclaim/allocator path.
->> 
->> Of course, we might sweep every sites we have found for reducing
->> stack usage but I'm not sure how long it saves the world(surely,
->> lots of developer start to add nice features which will use stack
->> agains) and if we consider another more complex feature in I/O layer
->> and/or reclaim path, it might be better to increase stack size(
->> meanwhile, stack usage on 64bit machine was doubled compared to 32bit
->> while it have sticked to 8K. Hmm, it's not a fair to me and arm64
->> already expaned to 16K. )
->> 
->> So, my stupid idea is just let's expand stack size and keep an eye
->> toward stack consumption on each kernel functions via stacktrace of
->ftrace.
->> For example, we can have a bar like that each funcion shouldn't
->exceed 200K
->> and emit the warning when some function consumes more in runtime.
->> Of course, it could make false positive but at least, it could make a
->> chance to think over it.
->> 
->> I guess this topic was discussed several time so there might be
->> strong reason not to increase kernel stack size on x86_64, for me not
->> knowing so Ccing x86_64 maintainers, other MM guys and virtio
->> maintainers.
->
->I agree with Boris that if this goes in, it should be a config option.
->Or perhaps selected by those file systems that need it. I hate to have
->16K stacks on a box that doesn't have that much memory, but also just
->uses ext2.
->
->-- Steve
->
->> 
->> [ 1065.604404] kworker/-5766    0d..2 1071625990us :
->stack_trace_call:         Depth    Size   Location    (51 entries)
->> [ 1065.604404]         -----    ----   --------
->> [ 1065.604404] kworker/-5766    0d..2 1071625991us :
->stack_trace_call:   0)     7696      16   lookup_address+0x28/0x30
->> [ 1065.604404] kworker/-5766    0d..2 1071625991us :
->stack_trace_call:   1)     7680      16  
->_lookup_address_cpa.isra.3+0x3b/0x40
->> [ 1065.604404] kworker/-5766    0d..2 1071625991us :
->stack_trace_call:   2)     7664      24  
->__change_page_attr_set_clr+0xe0/0xb50
->> [ 1065.604404] kworker/-5766    0d..2 1071625991us :
->stack_trace_call:   3)     7640     392   kernel_map_pages+0x6c/0x120
->> [ 1065.604404] kworker/-5766    0d..2 1071625992us :
->stack_trace_call:   4)     7248     256  
->get_page_from_freelist+0x489/0x920
->> [ 1065.604404] kworker/-5766    0d..2 1071625992us :
->stack_trace_call:   5)     6992     352  
->__alloc_pages_nodemask+0x5e1/0xb20
->> [ 1065.604404] kworker/-5766    0d..2 1071625992us :
->stack_trace_call:   6)     6640       8  
->alloc_pages_current+0x10f/0x1f0
->> [ 1065.604404] kworker/-5766    0d..2 1071625992us :
->stack_trace_call:   7)     6632     168   new_slab+0x2c5/0x370
->> [ 1065.604404] kworker/-5766    0d..2 1071625992us :
->stack_trace_call:   8)     6464       8   __slab_alloc+0x3a9/0x501
->> [ 1065.604404] kworker/-5766    0d..2 1071625993us :
->stack_trace_call:   9)     6456      80   __kmalloc+0x1cb/0x200
->> [ 1065.604404] kworker/-5766    0d..2 1071625993us :
->stack_trace_call:  10)     6376     376   vring_add_indirect+0x36/0x200
->> [ 1065.604404] kworker/-5766    0d..2 1071625993us :
->stack_trace_call:  11)     6000     144   virtqueue_add_sgs+0x2e2/0x320
->> [ 1065.604404] kworker/-5766    0d..2 1071625993us :
->stack_trace_call:  12)     5856     288   __virtblk_add_req+0xda/0x1b0
->> [ 1065.604404] kworker/-5766    0d..2 1071625993us :
->stack_trace_call:  13)     5568      96   virtio_queue_rq+0xd3/0x1d0
->> [ 1065.604404] kworker/-5766    0d..2 1071625994us :
->stack_trace_call:  14)     5472     128  
->__blk_mq_run_hw_queue+0x1ef/0x440
->> [ 1065.604404] kworker/-5766    0d..2 1071625994us :
->stack_trace_call:  15)     5344      16   blk_mq_run_hw_queue+0x35/0x40
->> [ 1065.604404] kworker/-5766    0d..2 1071625994us :
->stack_trace_call:  16)     5328      96  
->blk_mq_insert_requests+0xdb/0x160
->> [ 1065.604404] kworker/-5766    0d..2 1071625994us :
->stack_trace_call:  17)     5232     112  
->blk_mq_flush_plug_list+0x12b/0x140
->> [ 1065.604404] kworker/-5766    0d..2 1071625994us :
->stack_trace_call:  18)     5120     112  
->blk_flush_plug_list+0xc7/0x220
->> [ 1065.604404] kworker/-5766    0d..2 1071625995us :
->stack_trace_call:  19)     5008      64  
->io_schedule_timeout+0x88/0x100
->> [ 1065.604404] kworker/-5766    0d..2 1071625995us :
->stack_trace_call:  20)     4944     128   mempool_alloc+0x145/0x170
->> [ 1065.604404] kworker/-5766    0d..2 1071625995us :
->stack_trace_call:  21)     4816      96   bio_alloc_bioset+0x10b/0x1d0
->> [ 1065.604404] kworker/-5766    0d..2 1071625995us :
->stack_trace_call:  22)     4720      48   get_swap_bio+0x30/0x90
->> [ 1065.604404] kworker/-5766    0d..2 1071625995us :
->stack_trace_call:  23)     4672     160   __swap_writepage+0x150/0x230
->> [ 1065.604404] kworker/-5766    0d..2 1071625996us :
->stack_trace_call:  24)     4512      32   swap_writepage+0x42/0x90
->> [ 1065.604404] kworker/-5766    0d..2 1071625996us :
->stack_trace_call:  25)     4480     320   shrink_page_list+0x676/0xa80
->> [ 1065.604404] kworker/-5766    0d..2 1071625996us :
->stack_trace_call:  26)     4160     208  
->shrink_inactive_list+0x262/0x4e0
->> [ 1065.604404] kworker/-5766    0d..2 1071625996us :
->stack_trace_call:  27)     3952     304   shrink_lruvec+0x3e1/0x6a0
->> [ 1065.604404] kworker/-5766    0d..2 1071625996us :
->stack_trace_call:  28)     3648      80   shrink_zone+0x3f/0x110
->> [ 1065.604404] kworker/-5766    0d..2 1071625997us :
->stack_trace_call:  29)     3568     128  
->do_try_to_free_pages+0x156/0x4c0
->> [ 1065.604404] kworker/-5766    0d..2 1071625997us :
->stack_trace_call:  30)     3440     208   try_to_free_pages+0xf7/0x1e0
->> [ 1065.604404] kworker/-5766    0d..2 1071625997us :
->stack_trace_call:  31)     3232     352  
->__alloc_pages_nodemask+0x783/0xb20
->> [ 1065.604404] kworker/-5766    0d..2 1071625997us :
->stack_trace_call:  32)     2880       8  
->alloc_pages_current+0x10f/0x1f0
->> [ 1065.604404] kworker/-5766    0d..2 1071625997us :
->stack_trace_call:  33)     2872     200  
->__page_cache_alloc+0x13f/0x160
->> [ 1065.604404] kworker/-5766    0d..2 1071625998us :
->stack_trace_call:  34)     2672      80   find_or_create_page+0x4c/0xb0
->> [ 1065.604404] kworker/-5766    0d..2 1071625998us :
->stack_trace_call:  35)     2592      80  
->ext4_mb_load_buddy+0x1e9/0x370
->> [ 1065.604404] kworker/-5766    0d..2 1071625998us :
->stack_trace_call:  36)     2512     176  
->ext4_mb_regular_allocator+0x1b7/0x460
->> [ 1065.604404] kworker/-5766    0d..2 1071625998us :
->stack_trace_call:  37)     2336     128  
->ext4_mb_new_blocks+0x458/0x5f0
->> [ 1065.604404] kworker/-5766    0d..2 1071625998us :
->stack_trace_call:  38)     2208     256  
->ext4_ext_map_blocks+0x70b/0x1010
->> [ 1065.604404] kworker/-5766    0d..2 1071625999us :
->stack_trace_call:  39)     1952     160   ext4_map_blocks+0x325/0x530
->> [ 1065.604404] kworker/-5766    0d..2 1071625999us :
->stack_trace_call:  40)     1792     384   ext4_writepages+0x6d1/0xce0
->> [ 1065.604404] kworker/-5766    0d..2 1071625999us :
->stack_trace_call:  41)     1408      16   do_writepages+0x23/0x40
->> [ 1065.604404] kworker/-5766    0d..2 1071625999us :
->stack_trace_call:  42)     1392      96  
->__writeback_single_inode+0x45/0x2e0
->> [ 1065.604404] kworker/-5766    0d..2 1071625999us :
->stack_trace_call:  43)     1296     176  
->writeback_sb_inodes+0x2ad/0x500
->> [ 1065.604404] kworker/-5766    0d..2 1071626000us :
->stack_trace_call:  44)     1120      80  
->__writeback_inodes_wb+0x9e/0xd0
->> [ 1065.604404] kworker/-5766    0d..2 1071626000us :
->stack_trace_call:  45)     1040     160   wb_writeback+0x29b/0x350
->> [ 1065.604404] kworker/-5766    0d..2 1071626000us :
->stack_trace_call:  46)      880     208  
->bdi_writeback_workfn+0x11c/0x480
->> [ 1065.604404] kworker/-5766    0d..2 1071626000us :
->stack_trace_call:  47)      672     144   process_one_work+0x1d2/0x570
->> [ 1065.604404] kworker/-5766    0d..2 1071626000us :
->stack_trace_call:  48)      528     112   worker_thread+0x116/0x370
->> [ 1065.604404] kworker/-5766    0d..2 1071626001us :
->stack_trace_call:  49)      416     240   kthread+0xf3/0x110
->> [ 1065.604404] kworker/-5766    0d..2 1071626001us :
->stack_trace_call:  50)      176     176   ret_from_fork+0x7c/0xb0
->> 
->> Signed-off-by: Minchan Kim <minchan@kernel.org>
->> ---
->>  arch/x86/include/asm/page_64_types.h | 2 +-
->>  1 file changed, 1 insertion(+), 1 deletion(-)
->> 
->> diff --git a/arch/x86/include/asm/page_64_types.h
->b/arch/x86/include/asm/page_64_types.h
->> index 8de6d9cf3b95..678205195ae1 100644
->> --- a/arch/x86/include/asm/page_64_types.h
->> +++ b/arch/x86/include/asm/page_64_types.h
->> @@ -1,7 +1,7 @@
->>  #ifndef _ASM_X86_PAGE_64_DEFS_H
->>  #define _ASM_X86_PAGE_64_DEFS_H
->>  
->> -#define THREAD_SIZE_ORDER	1
->> +#define THREAD_SIZE_ORDER	2
->>  #define THREAD_SIZE  (PAGE_SIZE << THREAD_SIZE_ORDER)
->>  #define CURRENT_MASK (~(THREAD_SIZE - 1))
->>  
+Maybe you can just make the shepherd work unbound and let bind it from userspace
+once we have the workqueue user affinity patchset in.
 
--- 
-Sent from my mobile phone.  Please pardon brevity and lack of formatting.
+OTOH, it means you need to have a vmstat_update work on the housekeeping CPU as well.
+But that's perhaps what you want since the vmstat_shepherd feature is probably not
+something you want to enable without full dynticks CPU around. It probably add quite
+some overhead on normal workloads to do a system wide scan.
+
+But having two works scheduled for the whole is perhaps some overhead as well.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
