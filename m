@@ -1,56 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vc0-f172.google.com (mail-vc0-f172.google.com [209.85.220.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 75B086B0037
-	for <linux-mm@kvack.org>; Wed, 28 May 2014 18:41:12 -0400 (EDT)
-Received: by mail-vc0-f172.google.com with SMTP id ik5so9888102vcb.3
-        for <linux-mm@kvack.org>; Wed, 28 May 2014 15:41:12 -0700 (PDT)
-Received: from mail-vc0-x236.google.com (mail-vc0-x236.google.com [2607:f8b0:400c:c03::236])
-        by mx.google.com with ESMTPS id lx4si11910895veb.29.2014.05.28.15.41.11
+Received: from mail-we0-f177.google.com (mail-we0-f177.google.com [74.125.82.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 38B956B0037
+	for <linux-mm@kvack.org>; Wed, 28 May 2014 18:44:57 -0400 (EDT)
+Received: by mail-we0-f177.google.com with SMTP id x48so12095811wes.36
+        for <linux-mm@kvack.org>; Wed, 28 May 2014 15:44:56 -0700 (PDT)
+Received: from mail.zytor.com (terminus.zytor.com. [2001:1868:205::10])
+        by mx.google.com with ESMTPS id e17si16903570wiw.8.2014.05.28.15.44.54
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 28 May 2014 15:41:11 -0700 (PDT)
-Received: by mail-vc0-f182.google.com with SMTP id id10so1119759vcb.27
-        for <linux-mm@kvack.org>; Wed, 28 May 2014 15:41:11 -0700 (PDT)
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 28 May 2014 15:44:55 -0700 (PDT)
+Message-ID: <5386664A.5060304@zytor.com>
+Date: Wed, 28 May 2014 15:42:18 -0700
+From: "H. Peter Anvin" <hpa@zytor.com>
 MIME-Version: 1.0
-In-Reply-To: <20140528223142.GO8554@dastard>
-References: <1401260039-18189-1-git-send-email-minchan@kernel.org>
-	<1401260039-18189-2-git-send-email-minchan@kernel.org>
-	<CA+55aFxXdc22dirnE49UbQP_2s2vLQpjQFL+NptuyK7Xry6c=g@mail.gmail.com>
-	<20140528223142.GO8554@dastard>
-Date: Wed, 28 May 2014 15:41:11 -0700
-Message-ID: <CA+55aFyRk6_v6COPGVvu6hvt=i2A8-dPcs1X3Ydn1g24AxbPkg@mail.gmail.com>
 Subject: Re: [RFC 2/2] x86_64: expand kernel stack to 16K
-From: Linus Torvalds <torvalds@linux-foundation.org>
+References: <1401260039-18189-1-git-send-email-minchan@kernel.org> <1401260039-18189-2-git-send-email-minchan@kernel.org> <20140528101401.43853563@gandalf.local.home> <f00f9b56-704d-4d03-ad0e-ec3ba2d122fd@email.android.com> <20140528221118.GN8554@dastard>
+In-Reply-To: <20140528221118.GN8554@dastard>
 Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Dave Chinner <david@fromorbit.com>
-Cc: Minchan Kim <minchan@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Rusty Russell <rusty@rustcorp.com.au>, "Michael S. Tsirkin" <mst@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Steven Rostedt <rostedt@goodmis.org>
+Cc: Steven Rostedt <rostedt@goodmis.org>, Minchan Kim <minchan@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, rusty@rustcorp.com.au, mst@redhat.com, Dave Hansen <dave.hansen@intel.com>
 
-On Wed, May 28, 2014 at 3:31 PM, Dave Chinner <david@fromorbit.com> wrote:
->
-> Indeed, the call chain reported here is not caused by swap issuing
-> IO.
+On 05/28/2014 03:11 PM, Dave Chinner wrote:
+> On Wed, May 28, 2014 at 07:23:23AM -0700, H. Peter Anvin wrote:
+>> We tried for 4K on x86-64, too, for b quite a while as I recall.
+>> The kernel stack is a one of the main costs for a thread.  I would
+>> like to decouple struct thread_info from the kernel stack (PJ
+>> Waskewicz was working on that before he left Intel) but that
+>> doesn't buy us all that much.
+>>
+>> 8K additional per thread is a huge hit.  XFS has indeed always
+>> been a canary, or troublespot, I suspect because it originally
+>> came from another kernel where this was not an optimization
+>> target.
+> 
+> <sigh>
+> 
+> Always blame XFS for stack usage problems.
+> 
+> Even when the reported problem is from IO to an ext4 filesystem.
+> 
 
-Well, that's one way of reading that callchain.
+You were the one calling it a canary.
 
-I think it's the *wrong* way of reading it, though. Almost dishonestly
-so. Because very clearly, the swapout _is_ what causes the unplugging
-of the IO queue, and does so because it is allocating the BIO for its
-own IO. The fact that that then fails (because of other IO's in
-flight), and causes *other* IO to be flushed, doesn't really change
-anything fundamental. It's still very much swap that causes that
-"let's start IO".
+	-hpa
 
-IOW, swap-out directly caused that extra 3kB of stack use in what was
-a deep call chain (due to memory allocation). I really don't
-understand why you are arguing anything else on a pure technicality.
-
-I thought you had some other argument for why swap was different, and
-against removing that "page_is_file_cache()" special case in
-shrink_page_list().
-
-                         Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
