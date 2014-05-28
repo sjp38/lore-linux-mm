@@ -1,141 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f174.google.com (mail-lb0-f174.google.com [209.85.217.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 665F26B0035
-	for <linux-mm@kvack.org>; Wed, 28 May 2014 11:21:16 -0400 (EDT)
-Received: by mail-lb0-f174.google.com with SMTP id n15so5891525lbi.5
-        for <linux-mm@kvack.org>; Wed, 28 May 2014 08:21:15 -0700 (PDT)
-Received: from mail-wi0-x232.google.com (mail-wi0-x232.google.com [2a00:1450:400c:c05::232])
-        by mx.google.com with ESMTPS id gg4si32789606wjd.15.2014.05.28.08.21.14
+Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id A12EA6B0035
+	for <linux-mm@kvack.org>; Wed, 28 May 2014 11:29:52 -0400 (EDT)
+Received: by mail-wg0-f49.google.com with SMTP id m15so11487436wgh.32
+        for <linux-mm@kvack.org>; Wed, 28 May 2014 08:29:51 -0700 (PDT)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id bb5si32836570wjb.32.2014.05.28.08.29.27
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 28 May 2014 08:21:14 -0700 (PDT)
-Received: by mail-wi0-f178.google.com with SMTP id cc10so3945884wib.11
-        for <linux-mm@kvack.org>; Wed, 28 May 2014 08:21:14 -0700 (PDT)
-Date: Wed, 28 May 2014 17:21:09 +0200
-From: Frederic Weisbecker <fweisbec@gmail.com>
-Subject: Re: vmstat: On demand vmstat workers V5
-Message-ID: <20140528152107.GB6507@localhost.localdomain>
-References: <alpine.DEB.2.10.1405121317270.29911@gentwo.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 28 May 2014 08:29:28 -0700 (PDT)
+Date: Wed, 28 May 2014 11:28:54 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH v2 0/4] memcg: Low-limit reclaim
+Message-ID: <20140528152854.GG2878@cmpxchg.org>
+References: <1398688005-26207-1-git-send-email-mhocko@suse.cz>
+ <20140528121023.GA10735@dhcp22.suse.cz>
+ <20140528134905.GF2878@cmpxchg.org>
+ <20140528142144.GL9895@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1405121317270.29911@gentwo.org>
+In-Reply-To: <20140528142144.GL9895@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Gilad Ben-Yossef <gilad@benyossef.com>, Thomas Gleixner <tglx@linutronix.de>, Tejun Heo <tj@kernel.org>, John Stultz <johnstul@us.ibm.com>, Mike Frysinger <vapier@gentoo.org>, Minchan Kim <minchan.kim@gmail.com>, Hakan Akkan <hakanakkan@gmail.com>, Max Krasnyansky <maxk@qualcomm.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hughd@google.com, viresh.kumar@linaro.org, hpa@zytor.com, mingo@kernel.org, peterz@infradead.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, Tejun Heo <tj@kernel.org>, Hugh Dickins <hughd@google.com>, Roman Gushchin <klamm@yandex-team.ru>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>
 
-On Mon, May 12, 2014 at 01:18:10PM -0500, Christoph Lameter wrote:
->  #ifdef CONFIG_SMP
->  static DEFINE_PER_CPU(struct delayed_work, vmstat_work);
->  int sysctl_stat_interval __read_mostly = HZ;
-> +static DECLARE_BITMAP(cpu_stat_off_bits, CONFIG_NR_CPUS) __read_mostly;
-> +const struct cpumask *const cpu_stat_off = to_cpumask(cpu_stat_off_bits);
-> +EXPORT_SYMBOL(cpu_stat_off);
-
-Is there no way to make it a cpumask_var_t, and allocate it from
-start_shepherd_timer()?
-
-This should really take less space overall.
-
-> +
-> +/* We need to write to cpu_stat_off here */
-> +#define stat_off to_cpumask(cpu_stat_off_bits)
+On Wed, May 28, 2014 at 04:21:44PM +0200, Michal Hocko wrote:
+> On Wed 28-05-14 09:49:05, Johannes Weiner wrote:
+> > On Wed, May 28, 2014 at 02:10:23PM +0200, Michal Hocko wrote:
+> > > Hi Andrew, Johannes,
+> > > 
+> > > On Mon 28-04-14 14:26:41, Michal Hocko wrote:
+> > > > This patchset introduces such low limit that is functionally similar
+> > > > to a minimum guarantee. Memcgs which are under their lowlimit are not
+> > > > considered eligible for the reclaim (both global and hardlimit) unless
+> > > > all groups under the reclaimed hierarchy are below the low limit when
+> > > > all of them are considered eligible.
+> > > > 
+> > > > The previous version of the patchset posted as a RFC
+> > > > (http://marc.info/?l=linux-mm&m=138677140628677&w=2) suggested a
+> > > > hard guarantee without any fallback. More discussions led me to
+> > > > reconsidering the default behavior and come up a more relaxed one. The
+> > > > hard requirement can be added later based on a use case which really
+> > > > requires. It would be controlled by memory.reclaim_flags knob which
+> > > > would specify whether to OOM or fallback (default) when all groups are
+> > > > bellow low limit.
+> > > 
+> > > It seems that we are not in a full agreement about the default behavior
+> > > yet. Johannes seems to be more for hard guarantee while I would like to
+> > > see the weaker approach first and move to the stronger model later.
+> > > Johannes, is this absolutely no-go for you? Do you think it is seriously
+> > > handicapping the semantic of the new knob?
+> > 
+> > Well we certainly can't start OOMing where we previously didn't,
+> > that's called a regression and automatically limits our options.
+> > 
+> > Any unexpected OOMs will be much more acceptable from a new feature
+> > than from configuration that previously "worked" and then stopped.
 > 
->  static void vmstat_update(struct work_struct *w)
->  {
-> +	if (refresh_cpu_vm_stats())
-> +		/*
-> +		 * Counters were updated so we expect more updates
-> +		 * to occur in the future. Keep on running the
-> +		 * update worker thread.
-> +		 */
-> +		schedule_delayed_work(this_cpu_ptr(&vmstat_work),
-> +			round_jiffies_relative(sysctl_stat_interval));
-> +	else {
-> +		/*
-> +		 * We did not update any counters so the app may be in
-> +		 * a mode where it does not cause counter updates.
-> +		 * We may be uselessly running vmstat_update.
-> +		 * Defer the checking for differentials to the
-> +		 * shepherd thread on a different processor.
-> +		 */
-> +		int r;
-> +		/*
-> +		 * Housekeeping cpu does not race since it never
-> +		 * changes the bit if its zero
-> +		 */
-> +		r = cpumask_test_and_set_cpu(smp_processor_id(),
-> +			stat_off);
-> +		VM_BUG_ON(r);
-> +	}
-> +}
-> +
-> +/*
-> + * Check if the diffs for a certain cpu indicate that
-> + * an update is needed.
-> + */
-> +static bool need_update(int cpu)
-> +{
-> +	struct zone *zone;
-> +
-> +	for_each_populated_zone(zone) {
-> +		struct per_cpu_pageset *p = per_cpu_ptr(zone->pageset, cpu);
-> +
-> +		BUILD_BUG_ON(sizeof(p->vm_stat_diff[0]) != 1);
-> +		/*
-> +		 * The fast way of checking if there are any vmstat diffs.
-> +		 * This works because the diffs are byte sized items.
-> +		 */
-> +		if (memchr_inv(p->vm_stat_diff, 0, NR_VM_ZONE_STAT_ITEMS))
-> +			return true;
-> +
-> +	}
-> +	return false;
-> +}
-> +
-> +
-> +/*
-> + * Shepherd worker thread that updates the statistics for the
-> + * processor the shepherd worker is running on and checks the
-> + * differentials of other processors that have their worker
-> + * threads for vm statistics updates disabled because of
-> + * inactivity.
-> + */
-> +static void vmstat_shepherd(struct work_struct *w)
-> +{
-> +	int cpu;
-> +
->  	refresh_cpu_vm_stats();
-> -	schedule_delayed_work(&__get_cpu_var(vmstat_work),
-> -		round_jiffies_relative(sysctl_stat_interval));
-> +
-> +	/* Check processors whose vmstat worker threads have been disabled */
-> +	for_each_cpu(cpu, stat_off)
-> +		if (need_update(cpu) &&
-> +			cpumask_test_and_clear_cpu(cpu, stat_off)) {
-> +
-> +			struct delayed_work *work = &per_cpu(vmstat_work, cpu);
-> +
-> +			INIT_DEFERRABLE_WORK(work, vmstat_update);
-> +			schedule_delayed_work_on(cpu, work,
-> +				__round_jiffies_relative(sysctl_stat_interval,
-> +				cpu));
-> +		}
-> +
-> +	schedule_delayed_work(this_cpu_ptr(&vmstat_work),
-> +		__round_jiffies_relative(sysctl_stat_interval,
-> +		HOUSEKEEPING_CPU));
+> Yes and we are not talking about regressions, are we?
+> 
+> > > My main motivation for the weaker model is that it is hard to see all
+> > > the corner case right now and once we hit them I would like to see a
+> > > graceful fallback rather than fatal action like OOM killer. Besides that
+> > > the usaceses I am mostly interested in are OK with fallback when the
+> > > alternative would be OOM killer. I also feel that introducing a knob
+> > > with a weaker semantic which can be made stronger later is a sensible
+> > > way to go.
+> > 
+> > We can't make it stronger, but we can make it weaker. 
+> 
+> Why cannot we make it stronger by a knob/configuration option?
 
-Maybe you can just make the shepherd work unbound and let bind it from userspace
-once we have the workqueue user affinity patchset in.
+Why can't we make it weaker by a knob?  Why should we design the
+default for unforeseeable cornercases rather than make the default
+make sense for existing cases and give cornercases a fallback once
+they show up?
 
-OTOH, it means you need to have a vmstat_update work on the housekeeping CPU as well.
-But that's perhaps what you want since the vmstat_shepherd feature is probably not
-something you want to enable without full dynticks CPU around. It probably add quite
-some overhead on normal workloads to do a system wide scan.
+> > Stronger is the simpler definition, it's simpler code,
+> 
+> The code is not really that much simpler. The one you have posted will
+> not work I am afraid. I haven't tested it yet but I remember I had to do
+> some tweaks to the reclaim path to not end up in an endless loop in the
+> direct reclaim (http://marc.info/?l=linux-mm&m=138677140828678&w=2 and
+> http://marc.info/?l=linux-mm&m=138677141328682&w=2).
 
-But having two works scheduled for the whole is perhaps some overhead as well.
+That's just a result of do_try_to_free_pages being stupid and using
+its own zonelist loop to check reclaimability by duplicating all the
+checks instead of properly using returned state of shrink_zones().
+Something that would be worth fixing regardless of memcg guarantees.
+
+Or maybe we could add the guaranteed lru pages to sc->nr_scanned.
+
+> > your usecases are fine with it,
+> 
+> my usecases do not overcommit low_limit on the available memory, so far
+> so good, but once we hit a corner cases when limits are set properly but
+> we end up not being able to reclaim anybody in a zone then OOM sounds
+> too brutal.
+
+What cornercases?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
