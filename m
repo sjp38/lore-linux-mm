@@ -1,88 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-yk0-f174.google.com (mail-yk0-f174.google.com [209.85.160.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 570726B0035
-	for <linux-mm@kvack.org>; Wed, 28 May 2014 16:32:47 -0400 (EDT)
-Received: by mail-yk0-f174.google.com with SMTP id 9so8804129ykp.5
-        for <linux-mm@kvack.org>; Wed, 28 May 2014 13:32:47 -0700 (PDT)
-Received: from e37.co.us.ibm.com (e37.co.us.ibm.com. [32.97.110.158])
-        by mx.google.com with ESMTPS id m5si33648429yha.135.2014.05.28.13.32.46
+	by kanga.kvack.org (Postfix) with ESMTP id C8E196B0035
+	for <linux-mm@kvack.org>; Wed, 28 May 2014 16:37:18 -0400 (EDT)
+Received: by mail-yk0-f174.google.com with SMTP id 9so8809536ykp.5
+        for <linux-mm@kvack.org>; Wed, 28 May 2014 13:37:18 -0700 (PDT)
+Received: from e34.co.us.ibm.com (e34.co.us.ibm.com. [32.97.110.152])
+        by mx.google.com with ESMTPS id x21si33776757yhj.14.2014.05.28.13.37.17
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 28 May 2014 13:32:46 -0700 (PDT)
+        Wed, 28 May 2014 13:37:18 -0700 (PDT)
 Received: from /spool/local
-	by e37.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <nfont@linux.vnet.ibm.com>;
-	Wed, 28 May 2014 14:32:45 -0600
-Received: from b03cxnp07029.gho.boulder.ibm.com (b03cxnp07029.gho.boulder.ibm.com [9.17.130.16])
-	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id 717B23E4003B
-	for <linux-mm@kvack.org>; Wed, 28 May 2014 14:32:43 -0600 (MDT)
-Received: from d03av01.boulder.ibm.com (d03av01.ahe.boulder.ibm.com [9.17.195.167])
-	by b03cxnp07029.gho.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s4SITNtg10748274
-	for <linux-mm@kvack.org>; Wed, 28 May 2014 20:29:23 +0200
-Received: from d03av01.boulder.ibm.com (localhost [127.0.0.1])
-	by d03av01.boulder.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s4SKWgMR003635
-	for <linux-mm@kvack.org>; Wed, 28 May 2014 14:32:43 -0600
-Message-ID: <538647E9.9020408@linux.vnet.ibm.com>
-Date: Wed, 28 May 2014 15:32:41 -0500
-From: Nathan Fontenot <nfont@linux.vnet.ibm.com>
+	by e34.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <nacc@linux.vnet.ibm.com>;
+	Wed, 28 May 2014 14:37:17 -0600
+Received: from b03cxnp07028.gho.boulder.ibm.com (b03cxnp07028.gho.boulder.ibm.com [9.17.130.15])
+	by d03dlp02.boulder.ibm.com (Postfix) with ESMTP id CA0063E40047
+	for <linux-mm@kvack.org>; Wed, 28 May 2014 14:37:15 -0600 (MDT)
+Received: from d03av02.boulder.ibm.com (d03av02.boulder.ibm.com [9.17.195.168])
+	by b03cxnp07028.gho.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s4SKa3q88323566
+	for <linux-mm@kvack.org>; Wed, 28 May 2014 22:36:04 +0200
+Received: from d03av02.boulder.ibm.com (localhost [127.0.0.1])
+	by d03av02.boulder.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s4SKbFSx017587
+	for <linux-mm@kvack.org>; Wed, 28 May 2014 14:37:15 -0600
+Date: Wed, 28 May 2014 13:37:11 -0700
+From: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
+Subject: Re: NUMA topology question wrt. d4edc5b6
+Message-ID: <20140528203711.GB11652@linux.vnet.ibm.com>
+References: <20140521200451.GB5755@linux.vnet.ibm.com>
+ <537E6285.3050000@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Subject: Re: memory hot-add: the kernel can notify udev daemon before creating
- the sys file state?
-References: <CAJm7N84L7fVJ5x_zPbcYhWm1KMtz3dGA=G9EW=XwBbSKMwxPnw@mail.gmail.com> <CAJm7N87bRrP6cFhQaEp9kj2rNJhAKvLAFioh5VBx2jjDGn1DWw@mail.gmail.com> <CAJm7N85kM7h_=ovhxutbh_rR1tukDSKcfjFA4zPWKuVtqUH0eg@mail.gmail.com>
-In-Reply-To: <CAJm7N85kM7h_=ovhxutbh_rR1tukDSKcfjFA4zPWKuVtqUH0eg@mail.gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <537E6285.3050000@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: DX Cui <rijcos@gmail.com>, linux-mm@kvack.org
-Cc: Matt Tolentino <matthew.e.tolentino@intel.com>, Dave Hansen <haveblue@us.ibm.com>, Andrew Morton <akpm@osdl.org>, Linus Torvalds <torvalds@osdl.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+To: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>
+Cc: benh@kernel.crashing.org, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, nfont@linux.vnet.ibm.com, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Anton Blanchard <anton@samba.org>, Dave Hansen <dave@sr71.net>, "linuxppc-dev@lists.ozlabs.org list" <linuxppc-dev@lists.ozlabs.org>, Linux MM <linux-mm@kvack.org>
 
-On 05/25/2014 10:41 AM, DX Cui wrote:
-> On Fri, May 23, 2014 at 8:27 PM, DX Cui <rijcos@gmail.com> wrote:
->> Hi all,
->> I think I found out the root cause: when memory hotplug was introduced in 2005:
->> https://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/commit/?id=3947be1969a9ce455ec30f60ef51efb10e4323d1
->> there was a race condition in:
->>
->> + static int add_memory_block(unsigned long node_id, struct
->> mem_section *section,
->> + unsigned long state, int phys_device)
->> +{
->> ...
->> + ret = register_memory(mem, section, NULL);
->> + if (!ret)
->> +        ret = mem_create_simple_file(mem, phys_index);
->> + if (!ret)
->> +        ret = mem_create_simple_file(mem, state);
->>
->> Here, first, add_memory_block() invokes register_memory() ->
->> sysdev_register() -> sysdev_add()->
->> kobject_uevent(&sysdev->kobj, KOBJ_ADD) to notify udev daemon, then
->> invokes mem_create_simple_file(). If the current execution is preempted
->> between the 2 steps, the issue I reported in the previous mail can happen.
->>
->> Luckily a commit in 2013 has fixed this issue undesignedly:
->> https://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/commit/?id=96b2c0fc8e74a615888e2bedfe55b439aa4695e1
->>
->> It looks the new "register_memory() --> ... -> device_add()" path has the
->> correct order for sysfs creation and notification udev.
->>
-
-Correct. that patch does fix this issue, though that was not the primary reason
-for doing the patch. Always nice when a patch has unintended positive side affects.
- 
->> It would be great if you can confirm my analysis. :-)
+On 23.05.2014 [02:18:05 +0530], Srivatsa S. Bhat wrote:
 > 
-> Any comments?
-> I think we need to backport the patch
-> 96b2c0fc8e74a615888e2bedfe55b439aa4695e1 to <=3.9 stable kernels.
+> [ Adding a few more CC's ]
 > 
+> On 05/22/2014 01:34 AM, Nishanth Aravamudan wrote:
+> > Hi Srivatsa,
+> > 
+> > After d4edc5b6 ("powerpc: Fix the setup of CPU-to-Node mappings during
+> > CPU online"), cpu_to_node() looks like:
+> > 
+> > static inline int cpu_to_node(int cpu)
+> > {
+> >         int nid;
+> > 
+> >         nid = numa_cpu_lookup_table[cpu];
+> > 
+> >         /*
+> >          * During early boot, the numa-cpu lookup table might not have been
+> >          * setup for all CPUs yet. In such cases, default to node 0.
+> >          */
+> >         return (nid < 0) ? 0 : nid;
+> > }
+> > 
+> > However, I'm curious if this is correct in all cases. I have seen
+> > several LPARs that do not have any CPUs on node 0. In fact, because node
+> > 0 is statically set online in the initialization of the N_ONLINE
+> > nodemask, 0 is always present to Linux, whether it is present on the
+> > system. I'm not sure what the best thing to do here is, but I'm curious
+> > if you have any ideas? I would like to remove the static initialization
+> > of node 0, as it's confusing to users to see an empty node (particularly
+> > when it's completely separate in the numbering from other nodes), but
+> > we trip a panic (refer to:
+> > http://www.spinics.net/lists/linux-mm/msg73321.html).
+> > 
+> 
+> Ah, I see. I didn't have any particular reason to default it to zero.
+> I just did that because the existing code before this patch did the same
+> thing. (numa_cpu_lookup_table[] is a global array, so it will be initialized
+> with zeros. So if we access it before populating it via numa_setup_cpu(),
+> it would return 0. So I retained that behaviour with the above conditional).
 
-Although I have seen any issues because of this issue I agree that the fix
-should be backported. Best to get rid of a known race condition before it
-jumps up and bites us.
+Ok, that seems reasonable to me (keeping the behavior the same as it was
+before).
 
--Nathan
+> Will something like the below [totally untested] patch solve the boot-panic?
+> I understand that as of today first_online_node will still pick 0 since
+> N_ONLINE is initialized statically, but with your proposed change to that
+> init code, I guess the following patch should avoid the boot panic.
+> 
+> [ But note that first_online_node is hard-coded to 0, if MAX_NUMNODES is = 1.
+> So we'll have to fix that if powerpc can have a single node system whose node
+> is numbered something other than 0. Can that happen as well? ]
+
+I think all single-node systems are only Node 0, but I'm not 100% on
+that.
+
+> And regarding your question about what is the best way to fix this
+> whole Linux MM's assumption about node0, I'm not really sure.. since I
+> am not really aware of the extent to which the MM subsystem is
+> intertwined with this assumption and what it would take to cure that
+> :-(
+
+Well, at this point, it might be fine to just leave it alone, as it
+seems to be more trouble than it's worth -- and really the only
+confusion is on those LPARs where there really isn't a Node 0. I'll take
+another look later this week.
+
+Thanks,
+Nish
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
