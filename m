@@ -1,35 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 882F36B0035
-	for <linux-mm@kvack.org>; Thu, 29 May 2014 18:40:36 -0400 (EDT)
-Received: by mail-pa0-f41.google.com with SMTP id kx10so970490pab.14
-        for <linux-mm@kvack.org>; Thu, 29 May 2014 15:40:36 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id mn6si2829603pbc.17.2014.05.29.15.40.35
-        for <linux-mm@kvack.org>;
-        Thu, 29 May 2014 15:40:35 -0700 (PDT)
-Date: Thu, 29 May 2014 15:40:33 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
+Received: from mail-ig0-f169.google.com (mail-ig0-f169.google.com [209.85.213.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 320AE6B0035
+	for <linux-mm@kvack.org>; Thu, 29 May 2014 19:01:59 -0400 (EDT)
+Received: by mail-ig0-f169.google.com with SMTP id hl10so178334igb.0
+        for <linux-mm@kvack.org>; Thu, 29 May 2014 16:01:59 -0700 (PDT)
+Received: from mail-ig0-x232.google.com (mail-ig0-x232.google.com [2607:f8b0:4001:c05::232])
+        by mx.google.com with ESMTPS id k16si4586549icc.52.2014.05.29.16.01.58
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 29 May 2014 16:01:58 -0700 (PDT)
+Received: by mail-ig0-f178.google.com with SMTP id hl10so134649igb.17
+        for <linux-mm@kvack.org>; Thu, 29 May 2014 16:01:58 -0700 (PDT)
+Date: Thu, 29 May 2014 16:01:55 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
 Subject: Re: [PATCH] page_alloc: skip cpuset enforcement for lower zone
  allocations (v4)
-Message-Id: <20140529154033.f8d159b909794d71e2754489@linux-foundation.org>
 In-Reply-To: <20140529184303.GA20571@amt.cnet>
-References: <20140523193706.GA22854@amt.cnet>
-	<20140526185344.GA19976@amt.cnet>
-	<53858A06.8080507@huawei.com>
-	<20140528224324.GA1132@amt.cnet>
-	<20140529184303.GA20571@amt.cnet>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Message-ID: <alpine.DEB.2.02.1405291555120.9336@chino.kir.corp.google.com>
+References: <20140523193706.GA22854@amt.cnet> <20140526185344.GA19976@amt.cnet> <53858A06.8080507@huawei.com> <20140528224324.GA1132@amt.cnet> <20140529184303.GA20571@amt.cnet>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Marcelo Tosatti <mtosatti@redhat.com>
-Cc: Li Zefan <lizefan@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Lai Jiangshan <laijs@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>
+Cc: Li Zefan <lizefan@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Lai Jiangshan <laijs@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Thu, 29 May 2014 15:43:03 -0300 Marcelo Tosatti <mtosatti@redhat.com> wrote:
+On Thu, 29 May 2014, Marcelo Tosatti wrote:
 
-> 
 > Zone specific allocations, such as GFP_DMA32, should not be restricted
 > to cpusets allowed node list: the zones which such allocations demand
 > might be contained in particular nodes outside the cpuset node list.
@@ -40,8 +37,20 @@ On Thu, 29 May 2014 15:43:03 -0300 Marcelo Tosatti <mtosatti@redhat.com> wrote:
 > - user wants to limit allocations of application to nodeX, and nodeX has
 > no memory < 4GB.
 > 
+> Signed-off-by: Marcelo Tosatti <mtosatti@redhat.com>
+> 
+> diff --git a/kernel/cpuset.c b/kernel/cpuset.c
+> index 3d54c41..3bbc23f 100644
 > --- a/kernel/cpuset.c
 > +++ b/kernel/cpuset.c
+> @@ -2374,6 +2374,7 @@ static struct cpuset *nearest_hardwall_ancestor(struct cpuset *cs)
+>   * variable 'wait' is not set, and the bit ALLOC_CPUSET is not set
+>   * in alloc_flags.  That logic and the checks below have the combined
+>   * affect that:
+> + *	gfp_zone(mask) < policy_zone - any node ok
+>   *	in_interrupt - any node ok (current task context irrelevant)
+>   *	GFP_ATOMIC   - any node ok
+>   *	TIF_MEMDIE   - any node ok
 > @@ -2392,6 +2393,10 @@ int __cpuset_node_allowed_softwall(int node, gfp_t gfp_mask)
 >  
 >  	if (in_interrupt() || (gfp_mask & __GFP_THISNODE))
@@ -50,63 +59,51 @@ On Thu, 29 May 2014 15:43:03 -0300 Marcelo Tosatti <mtosatti@redhat.com> wrote:
 > +	if (gfp_zone(gfp_mask) < policy_zone)
 > +		return 1;
 > +#endif
+>  	might_sleep_if(!(gfp_mask & __GFP_HARDWALL));
+>  	if (node_isset(node, current->mems_allowed))
+>  		return 1;
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 5dba293..a0ce1ba 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -2726,6 +2726,11 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+>  retry_cpuset:
+>  	cpuset_mems_cookie = read_mems_allowed_begin();
+>  
+> +#ifdef CONFIG_NUMA
+> +	if (gfp_zone(gfp_mask) < policy_zone)
+> +		nodemask = &node_states[N_ONLINE];
+> +#endif
+> +
+>  	/* The preferred zone is used for statistics later */
+>  	first_zones_zonelist(zonelist, high_zoneidx,
+>  				nodemask ? : &cpuset_current_mems_allowed,
 
-It's not very obvious why this code is doing what it does, so I'm
-thinking a comment is needed.  And that changelog text looks good, so
+There are still three issues with this, two of which are only minor and 
+one that needs more thought:
 
---- a/kernel/cpuset.c~page_alloc-skip-cpuset-enforcement-for-lower-zone-allocations-v4-fix
-+++ a/kernel/cpuset.c
-@@ -2388,6 +2388,11 @@ int __cpuset_node_allowed_softwall(int n
- 	if (in_interrupt() || (gfp_mask & __GFP_THISNODE))
- 		return 1;
- #ifdef CONFIG_NUMA
-+	/*
-+	 * Zone specific allocations such as GFP_DMA32 should not be restricted
-+	 * to cpusets allowed node list: the zones which such allocations
-+	 * demand be contained in particular nodes outside the cpuset node list
-+	 */
- 	if (gfp_zone(gfp_mask) < policy_zone)
- 		return 1;
- #endif
---- a/mm/page_alloc.c~page_alloc-skip-cpuset-enforcement-for-lower-zone-allocations-v4-fix
-+++ a/mm/page_alloc.c
-@@ -2742,6 +2742,11 @@ retry_cpuset:
- 	cpuset_mems_cookie = read_mems_allowed_begin();
- 
- #ifdef CONFIG_NUMA
-+	/*
-+	 * Zone specific allocations such as GFP_DMA32 should not be restricted
-+	 * to cpusets allowed node list: the zones which such allocations
-+	 * demand be contained in particular nodes outside the cpuset node list
-+	 */
- 	if (gfp_zone(gfp_mask) < policy_zone)
- 		nodemask = &node_states[N_ONLINE];
- #endif
+ (1) this doesn't affect only cpusets which the changelog indicates, it 
+     also bypasses mempolicies for GFP_DMA and GFP_DMA32 allocations since
+     the nodemask != NULL in the page allocator when there is an effective
+     mempolicy.  That may be precisely what you're trying to do (do the
+     same for mempolicies as you're doing for cpusets), but the comment 
+     now in the code specifically refers to cpusets.  Can you make a case
+     for the mempolicies exception as well?  Otherwise, we'll need to do
 
+	if (!nodemask && gfp_zone(gfp_mask) < policy_zone)
+		nodemask = &node_states[N_ONLINE];
 
+And the two minors:
 
-However perhaps it would be nicer to do
+ (2) this should be &node_states[N_MEMORY], not &node_states[N_ONLINE] 
+     since memoryless nodes should not be included.  Note that
+     guarantee_online_mems() looks at N_MEMORY and
+     cpuset_current_mems_allowed is defined for N_MEMORY without
+     cpusets.
 
-
-
-#ifdef CONFIG_NUMA
-/*
- * Zone specific allocations such as GFP_DMA32 should not be restricted to
- * cpusets allowed node list: the zones which such allocations demand be
- * contained in particular nodes outside the cpuset node list
- */
-static inline bool i_cant_think_of_a_name(gfp_t mask)
-{
-	return gfp_zone(gfp_mask) < policy_zone;
-}
-#else
-static inline bool i_cant_think_of_a_name(gfp_t mask)
-{
-	return false;
-}
-#endif
-
-This encapsulates it all in a single place and zaps those ifdefs?
+ (3) it's unnecessary for this to be after the "retry_cpuset" label and
+     check the gfp mask again if we need to relook at the allowed cpuset
+     mask.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
