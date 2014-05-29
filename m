@@ -1,238 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f173.google.com (mail-wi0-f173.google.com [209.85.212.173])
-	by kanga.kvack.org (Postfix) with ESMTP id D28066B0039
-	for <linux-mm@kvack.org>; Thu, 29 May 2014 12:16:28 -0400 (EDT)
-Received: by mail-wi0-f173.google.com with SMTP id bs8so5860371wib.6
-        for <linux-mm@kvack.org>; Thu, 29 May 2014 09:16:26 -0700 (PDT)
+Received: from mail-we0-f179.google.com (mail-we0-f179.google.com [74.125.82.179])
+	by kanga.kvack.org (Postfix) with ESMTP id AD1066B003A
+	for <linux-mm@kvack.org>; Thu, 29 May 2014 12:16:32 -0400 (EDT)
+Received: by mail-we0-f179.google.com with SMTP id q59so679907wes.10
+        for <linux-mm@kvack.org>; Thu, 29 May 2014 09:16:32 -0700 (PDT)
 Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id bh4si3039733wib.39.2014.05.29.09.16.24
+        by mx.google.com with ESMTPS id i2si2263383wje.106.2014.05.29.09.16.23
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 29 May 2014 09:16:25 -0700 (PDT)
+        Thu, 29 May 2014 09:16:24 -0700 (PDT)
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 01/10] mm: memcontrol: fold mem_cgroup_do_charge()
-Date: Thu, 29 May 2014 12:15:53 -0400
-Message-Id: <1401380162-24121-2-git-send-email-hannes@cmpxchg.org>
-In-Reply-To: <1401380162-24121-1-git-send-email-hannes@cmpxchg.org>
-References: <1401380162-24121-1-git-send-email-hannes@cmpxchg.org>
+Subject: [patch 0/9] mm: memcontrol: naturalize charge lifetime v2
+Date: Thu, 29 May 2014 12:15:52 -0400
+Message-Id: <1401380162-24121-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>, Vladimir Davydov <vdavydov@parallels.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-This function was split out because mem_cgroup_try_charge() got too
-big.  But having essentially one sequence of operations arbitrarily
-split in half is not good for reworking the code.  Fold it back in.
+Hi,
 
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
----
- mm/memcontrol.c | 166 ++++++++++++++++++++++----------------------------------
- 1 file changed, 64 insertions(+), 102 deletions(-)
+this is version 2 of the memcg charge naturalization series.  Changes
+since v1 include:
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 4df733e13727..c3c10ab98355 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -2552,80 +2552,6 @@ static int memcg_cpu_hotplug_callback(struct notifier_block *nb,
- 	return NOTIFY_OK;
- }
- 
--
--/* See mem_cgroup_try_charge() for details */
--enum {
--	CHARGE_OK,		/* success */
--	CHARGE_RETRY,		/* need to retry but retry is not bad */
--	CHARGE_NOMEM,		/* we can't do more. return -ENOMEM */
--	CHARGE_WOULDBLOCK,	/* GFP_WAIT wasn't set and no enough res. */
--};
--
--static int mem_cgroup_do_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
--				unsigned int nr_pages, unsigned int min_pages,
--				bool invoke_oom)
--{
--	unsigned long csize = nr_pages * PAGE_SIZE;
--	struct mem_cgroup *mem_over_limit;
--	struct res_counter *fail_res;
--	unsigned long flags = 0;
--	int ret;
--
--	ret = res_counter_charge(&memcg->res, csize, &fail_res);
--
--	if (likely(!ret)) {
--		if (!do_swap_account)
--			return CHARGE_OK;
--		ret = res_counter_charge(&memcg->memsw, csize, &fail_res);
--		if (likely(!ret))
--			return CHARGE_OK;
--
--		res_counter_uncharge(&memcg->res, csize);
--		mem_over_limit = mem_cgroup_from_res_counter(fail_res, memsw);
--		flags |= MEM_CGROUP_RECLAIM_NOSWAP;
--	} else
--		mem_over_limit = mem_cgroup_from_res_counter(fail_res, res);
--	/*
--	 * Never reclaim on behalf of optional batching, retry with a
--	 * single page instead.
--	 */
--	if (nr_pages > min_pages)
--		return CHARGE_RETRY;
--
--	if (!(gfp_mask & __GFP_WAIT))
--		return CHARGE_WOULDBLOCK;
--
--	if (gfp_mask & __GFP_NORETRY)
--		return CHARGE_NOMEM;
--
--	ret = mem_cgroup_reclaim(mem_over_limit, gfp_mask, flags);
--	if (mem_cgroup_margin(mem_over_limit) >= nr_pages)
--		return CHARGE_RETRY;
--	/*
--	 * Even though the limit is exceeded at this point, reclaim
--	 * may have been able to free some pages.  Retry the charge
--	 * before killing the task.
--	 *
--	 * Only for regular pages, though: huge pages are rather
--	 * unlikely to succeed so close to the limit, and we fall back
--	 * to regular pages anyway in case of failure.
--	 */
--	if (nr_pages <= (1 << PAGE_ALLOC_COSTLY_ORDER) && ret)
--		return CHARGE_RETRY;
--
--	/*
--	 * At task move, charge accounts can be doubly counted. So, it's
--	 * better to wait until the end of task_move if something is going on.
--	 */
--	if (mem_cgroup_wait_acct_move(mem_over_limit))
--		return CHARGE_RETRY;
--
--	if (invoke_oom)
--		mem_cgroup_oom(mem_over_limit, gfp_mask, get_order(csize));
--
--	return CHARGE_NOMEM;
--}
--
- /**
-  * mem_cgroup_try_charge - try charging a memcg
-  * @memcg: memcg to charge
-@@ -2642,7 +2568,11 @@ static int mem_cgroup_try_charge(struct mem_cgroup *memcg,
- {
- 	unsigned int batch = max(CHARGE_BATCH, nr_pages);
- 	int nr_oom_retries = MEM_CGROUP_RECLAIM_RETRIES;
--	int ret;
-+	struct mem_cgroup *mem_over_limit;
-+	struct res_counter *fail_res;
-+	unsigned long nr_reclaimed;
-+	unsigned long flags = 0;
-+	unsigned long long size;
- 
- 	if (mem_cgroup_is_root(memcg))
- 		goto done;
-@@ -2662,44 +2592,76 @@ static int mem_cgroup_try_charge(struct mem_cgroup *memcg,
- 
- 	if (gfp_mask & __GFP_NOFAIL)
- 		oom = false;
--again:
-+retry:
- 	if (consume_stock(memcg, nr_pages))
- 		goto done;
- 
--	do {
--		bool invoke_oom = oom && !nr_oom_retries;
-+	size = batch * PAGE_SIZE;
-+	if (!res_counter_charge(&memcg->res, size, &fail_res)) {
-+		if (!do_swap_account)
-+			goto done_restock;
-+		if (!res_counter_charge(&memcg->memsw, size, &fail_res))
-+			goto done_restock;
-+		res_counter_uncharge(&memcg->res, size);
-+		mem_over_limit = mem_cgroup_from_res_counter(fail_res, memsw);
-+		flags |= MEM_CGROUP_RECLAIM_NOSWAP;
-+	} else
-+		mem_over_limit = mem_cgroup_from_res_counter(fail_res, res);
- 
--		/* If killed, bypass charge */
--		if (fatal_signal_pending(current))
--			goto bypass;
-+	if (batch > nr_pages) {
-+		batch = nr_pages;
-+		goto retry;
-+	}
- 
--		ret = mem_cgroup_do_charge(memcg, gfp_mask, batch,
--					   nr_pages, invoke_oom);
--		switch (ret) {
--		case CHARGE_OK:
--			break;
--		case CHARGE_RETRY: /* not in OOM situation but retry */
--			batch = nr_pages;
--			goto again;
--		case CHARGE_WOULDBLOCK: /* !__GFP_WAIT */
--			goto nomem;
--		case CHARGE_NOMEM: /* OOM routine works */
--			if (!oom || invoke_oom)
--				goto nomem;
--			nr_oom_retries--;
--			break;
--		}
--	} while (ret != CHARGE_OK);
-+	if (!(gfp_mask & __GFP_WAIT))
-+		goto nomem;
- 
--	if (batch > nr_pages)
--		refill_stock(memcg, batch - nr_pages);
--done:
--	return 0;
-+	if (gfp_mask & __GFP_NORETRY)
-+		goto nomem;
-+
-+	nr_reclaimed = mem_cgroup_reclaim(mem_over_limit, gfp_mask, flags);
-+
-+	if (mem_cgroup_margin(mem_over_limit) >= batch)
-+		goto retry;
-+	/*
-+	 * Even though the limit is exceeded at this point, reclaim
-+	 * may have been able to free some pages.  Retry the charge
-+	 * before killing the task.
-+	 *
-+	 * Only for regular pages, though: huge pages are rather
-+	 * unlikely to succeed so close to the limit, and we fall back
-+	 * to regular pages anyway in case of failure.
-+	 */
-+	if (nr_reclaimed && batch <= (1 << PAGE_ALLOC_COSTLY_ORDER))
-+		goto retry;
-+	/*
-+	 * At task move, charge accounts can be doubly counted. So, it's
-+	 * better to wait until the end of task_move if something is going on.
-+	 */
-+	if (mem_cgroup_wait_acct_move(mem_over_limit))
-+		goto retry;
-+
-+	if (fatal_signal_pending(current))
-+		goto bypass;
-+
-+	if (!oom)
-+		goto nomem;
-+
-+	if (nr_oom_retries--)
-+		goto retry;
-+
-+	mem_cgroup_oom(mem_over_limit, gfp_mask, get_order(batch));
- nomem:
- 	if (!(gfp_mask & __GFP_NOFAIL))
- 		return -ENOMEM;
- bypass:
- 	return -EINTR;
-+
-+done_restock:
-+	if (batch > nr_pages)
-+		refill_stock(memcg, batch - nr_pages);
-+done:
-+	return 0;
- }
- 
- /**
--- 
-1.9.3
+o document mem_cgroup_account_move() exclusion
+o catch uncharged swapin readahead pages in mem_cgroup_swapout()
+o fix DEBUG_VM build after last-minute identifier rename
+o drop duplicate lru_cache_add_active_or_unevictable() in THP migration
+o make __GFP_NORETRY try reclaim at least once
+o improve precharge failure path documentation (Michal)
+o improve changelog on page_cgroup write ordering removal (Michal)
+o document why kmem's page_cgroup writing is safe (Michal)
+o clarify justification of the charge API rewrite (Michal)
+o avoid mixing code move with logical changes (Michal)
+o consolidate uncharge batching sections (Kame)
+o rebase to latest mmots and add acks
+
+These patches rework memcg charge lifetime to integrate more naturally
+with the lifetime of user pages.  This drastically simplifies the code
+and reduces charging and uncharging overhead.  The most expensive part
+of charging and uncharging is the page_cgroup bit spinlock, which is
+removed entirely after this series.
+
+Here are the top-10 profile entries of a stress test that reads a 128G
+sparse file on a freshly booted box, without even a dedicated cgroup
+(i.e. executing in the root memcg).  Before:
+
+    15.36%              cat  [kernel.kallsyms]   [k] copy_user_generic_string                  
+    13.31%              cat  [kernel.kallsyms]   [k] memset                                    
+    11.48%              cat  [kernel.kallsyms]   [k] do_mpage_readpage                         
+     4.23%              cat  [kernel.kallsyms]   [k] get_page_from_freelist                    
+     2.38%              cat  [kernel.kallsyms]   [k] put_page                                  
+     2.32%              cat  [kernel.kallsyms]   [k] __mem_cgroup_commit_charge                
+     2.18%          kswapd0  [kernel.kallsyms]   [k] __mem_cgroup_uncharge_common              
+     1.92%          kswapd0  [kernel.kallsyms]   [k] shrink_page_list                          
+     1.86%              cat  [kernel.kallsyms]   [k] __radix_tree_lookup                       
+     1.62%              cat  [kernel.kallsyms]   [k] __pagevec_lru_add_fn                      
+
+After:
+
+    15.67%           cat  [kernel.kallsyms]   [k] copy_user_generic_string                  
+    13.48%           cat  [kernel.kallsyms]   [k] memset                                    
+    11.42%           cat  [kernel.kallsyms]   [k] do_mpage_readpage                         
+     3.98%           cat  [kernel.kallsyms]   [k] get_page_from_freelist                    
+     2.46%           cat  [kernel.kallsyms]   [k] put_page                                  
+     2.13%       kswapd0  [kernel.kallsyms]   [k] shrink_page_list                          
+     1.88%           cat  [kernel.kallsyms]   [k] __radix_tree_lookup                       
+     1.67%           cat  [kernel.kallsyms]   [k] __pagevec_lru_add_fn                      
+     1.39%       kswapd0  [kernel.kallsyms]   [k] free_pcppages_bulk                        
+     1.30%           cat  [kernel.kallsyms]   [k] kfree                                     
+
+As you can see, the memcg footprint has shrunk quite a bit.
+
+The code has survived prolonged stress testing, including a swapping
+workload being moved continuously between memcgs.
+
+   text    data     bss     dec     hex filename
+  38606   10084     400   49090    bfc2 mm/memcontrol.o.old
+  35903   10084     400   46387    b533 mm/memcontrol.o.new
+
+ Documentation/cgroups/memcg_test.txt |  160 +---
+ include/linux/memcontrol.h           |   94 +--
+ include/linux/page_cgroup.h          |   43 +-
+ include/linux/swap.h                 |   15 +-
+ kernel/events/uprobes.c              |    1 +
+ mm/filemap.c                         |   13 +-
+ mm/huge_memory.c                     |   55 +-
+ mm/memcontrol.c                      | 1425 ++++++++++++----------------------
+ mm/memory.c                          |   43 +-
+ mm/migrate.c                         |   44 +-
+ mm/rmap.c                            |   20 -
+ mm/shmem.c                           |   32 +-
+ mm/swap.c                            |   40 +
+ mm/swap_state.c                      |    8 +-
+ mm/swapfile.c                        |   21 +-
+ mm/truncate.c                        |    9 -
+ mm/vmscan.c                          |   12 +-
+ mm/zswap.c                           |    2 +-
+ 18 files changed, 716 insertions(+), 1321 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
