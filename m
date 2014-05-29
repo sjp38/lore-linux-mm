@@ -1,96 +1,142 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f47.google.com (mail-pb0-f47.google.com [209.85.160.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D1296B0038
-	for <linux-mm@kvack.org>; Wed, 28 May 2014 23:52:02 -0400 (EDT)
-Received: by mail-pb0-f47.google.com with SMTP id rp16so12215835pbb.6
-        for <linux-mm@kvack.org>; Wed, 28 May 2014 20:52:02 -0700 (PDT)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id yr5si26547102pab.84.2014.05.28.20.22.43
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 28 May 2014 20:22:46 -0700 (PDT)
-Message-ID: <5386A799.7040403@huawei.com>
-Date: Thu, 29 May 2014 11:20:57 +0800
-From: Jianguo Wu <wujianguo@huawei.com>
+Received: from mail-pb0-f53.google.com (mail-pb0-f53.google.com [209.85.160.53])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B08D6B0038
+	for <linux-mm@kvack.org>; Thu, 29 May 2014 00:11:22 -0400 (EDT)
+Received: by mail-pb0-f53.google.com with SMTP id md12so12202747pbc.26
+        for <linux-mm@kvack.org>; Wed, 28 May 2014 21:11:22 -0700 (PDT)
+Received: from lgeamrelo02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
+        by mx.google.com with ESMTP id hr5si26674391pad.89.2014.05.28.21.11.19
+        for <linux-mm@kvack.org>;
+        Wed, 28 May 2014 21:11:21 -0700 (PDT)
+Date: Thu, 29 May 2014 13:11:51 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [RFC 2/2] x86_64: expand kernel stack to 16K
+Message-ID: <20140529041151.GE10092@bbox>
+References: <1401260039-18189-1-git-send-email-minchan@kernel.org>
+ <1401260039-18189-2-git-send-email-minchan@kernel.org>
+ <20140528090409.GA16795@redhat.com>
+ <20140529010940.GA10092@bbox>
+ <20140528224448.1c1b1999@gandalf.local.home>
 MIME-Version: 1.0
-Subject: Re: [PATCH v3] ARM: mm: support big-endian page tables
-References: <534F9F79.9050503@huawei.com> <87ob00wau2.fsf@approximate.cambridge.arm.com> <20140423132033.GE5649@arm.com> <53587C48.8080103@huawei.com>
-In-Reply-To: <53587C48.8080103@huawei.com>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140528224448.1c1b1999@gandalf.local.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "linux@arm.linux.org.uk" <linux@arm.linux.org.uk>
-Cc: Will Deacon <will.deacon@arm.com>, Wang Nan <wangnan0@huawei.com>, Marc
- Zyngier <marc.zyngier@arm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Li Zefan <lizefan@huawei.com>, Catalin Marinas <Catalin.Marinas@arm.com>, Ben Dooks <ben.dooks@codethink.co.uk>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, qiuxishi <qiuxishi@huawei.com>
+To: Steven Rostedt <rostedt@goodmis.org>
+Cc: "Michael S. Tsirkin" <mst@redhat.com>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, rusty@rustcorp.com.au, Dave Hansen <dave.hansen@intel.com>
 
-Hi Russell,
-Could you please merge this to mainline? Thanks!
+On Wed, May 28, 2014 at 10:44:48PM -0400, Steven Rostedt wrote:
+> On Thu, 29 May 2014 10:09:40 +0900
+> Minchan Kim <minchan@kernel.org> wrote:
+> 
+> > stacktrace reported that vring_add_indirect used 376byte and objdump says
+> > 
+> > ffffffff8141dc60 <vring_add_indirect>:
+> > ffffffff8141dc60:       55                      push   %rbp
+> > ffffffff8141dc61:       48 89 e5                mov    %rsp,%rbp
+> > ffffffff8141dc64:       41 57                   push   %r15
+> > ffffffff8141dc66:       41 56                   push   %r14
+> > ffffffff8141dc68:       41 55                   push   %r13
+> > ffffffff8141dc6a:       49 89 fd                mov    %rdi,%r13
+> > ffffffff8141dc6d:       89 cf                   mov    %ecx,%edi
+> > ffffffff8141dc6f:       48 c1 e7 04             shl    $0x4,%rdi
+> > ffffffff8141dc73:       41 54                   push   %r12
+> > ffffffff8141dc75:       49 89 d4                mov    %rdx,%r12
+> > ffffffff8141dc78:       53                      push   %rbx
+> > ffffffff8141dc79:       48 89 f3                mov    %rsi,%rbx
+> > ffffffff8141dc7c:       48 83 ec 28             sub    $0x28,%rsp
+> > ffffffff8141dc80:       8b 75 20                mov    0x20(%rbp),%esi
+> > ffffffff8141dc83:       89 4d bc                mov    %ecx,-0x44(%rbp)
+> > ffffffff8141dc86:       44 89 45 cc             mov    %r8d,-0x34(%rbp)
+> > ffffffff8141dc8a:       44 89 4d c8             mov    %r9d,-0x38(%rbp)
+> > ffffffff8141dc8e:       83 e6 dd                and    $0xffffffdd,%esi
+> > ffffffff8141dc91:       e8 7a d1 d7 ff          callq  ffffffff8119ae10 <__kmalloc>
+> > ffffffff8141dc96:       48 85 c0                test   %rax,%rax
+> > 
+> > So, it's *strange*.
+> > 
+> > I will add .config and .o.
+> > Maybe someone might find what happens.
+> > 
+> 
+> This is really bothering me. I'm trying to figure it out. We have from
+> the stack trace:
+> 
+> [ 1065.604404] kworker/-5766    0d..2 1071625993us : stack_trace_call:   9)     6456      80   __kmalloc+0x1cb/0x200
+> [ 1065.604404] kworker/-5766    0d..2 1071625993us : stack_trace_call:  10)     6376     376   vring_add_indirect+0x36/0x200
+> [ 1065.604404] kworker/-5766    0d..2 1071625993us : stack_trace_call:  11)     6000     144   virtqueue_add_sgs+0x2e2/0x320
+> 
+> The way the stack tracer works, is that when it detects a new max stack
+> it calls save_stack_trace() to get the complete call chain from the
+> stack. This should be rather accurate as it seems that your kernel was
+> compiled with frame pointers (confirmed by the objdump as well as the
+> config file). It then uses that stack trace that it got to examine the
+> stack to find the locations of the saved return addresses and records
+> them in an array (in your case, an array of 50 entries).
+> 
+> From your .o file:
+> 
+> vring_add_indirect + 0x36: (0x370 + 0x36 = 0x3a6)
+> 
+> 0000000000000370 <vring_add_indirect>:
+> 
+>  39e:   83 e6 dd                and    $0xffffffdd,%esi
+>  3a1:   e8 00 00 00 00          callq  3a6 <vring_add_indirect+0x36>
+>                         3a2: R_X86_64_PC32      __kmalloc-0x4
+>  3a6:   48 85 c0                test   %rax,%rax
+> 
+> Definitely the return address to the call to __kmalloc. Then to
+> determine the size of the stack frame, it is subtracted from the next
+> one down. In this case, the location of virtqueue_add_sgs+0x2e2.
+> 
+> virtqueue_add_sgs + 0x2e2: (0x880 + 0x2e2 = 0xb62)
+> 
+> 0000000000000880 <virtqueue_add_sgs>:
+> 
+> b4f:   89 4c 24 08             mov    %ecx,0x8(%rsp)
+>  b53:   48 c7 c2 00 00 00 00    mov    $0x0,%rdx
+>                         b56: R_X86_64_32S       .text+0x570
+>  b5a:   44 89 d1                mov    %r10d,%ecx
+>  b5d:   e8 0e f8 ff ff          callq  370 <vring_add_indirect>
+>  b62:   85 c0                   test   %eax,%eax
+> 
+> 
+> Which is the return address of where vring_add_indirect was called.
+> 
+> The return address back to virtqueue_add_sgs was found at 6000 bytes of
+> the stack. The return address back to vring_add_indirect was found at
+> 6376 bytes from the top of the stack.
+> 
+> My question is, why were they so far apart? I see 6 words pushed
+> (8bytes each, for a total of 48 bytes), and a subtraction of the stack
+> pointer of 0x28 (40 bytes) giving us a total of 88 bytes. Plus we need
+> to add the push of the return address itself which would just give us
+> 96 bytes for the stack frame. What is making this show 376 bytes??
 
-Jianguo Wu.
+That's what I want to know. :(
 
-On 2014/4/24 10:51, Jianguo Wu wrote:
+> 
+> Looking more into this, I'm not sure I trust the top numbers anymore.
+> kmalloc reports a stack frame of 80, and I'm coming up with 104
+> (perhaps even 112). And slab_alloc only has 8. Something's messed up there.
 
-> On 2014/4/23 21:20, Will Deacon wrote:
+Yes, Looks weired but some of upper functions in callstack match well so might
+think only top functions of callstack was corrupted.
+But in case of alloc_pages_current(8 byte), it looks weired too but it reports
+same value 8 bytes in uppder and bottom of callstack. :(
 > 
->> Hi Jianguo,
->>
->> On Thu, Apr 17, 2014 at 10:43:01AM +0100, Marc Zyngier wrote:
->>> On Thu, Apr 17 2014 at 10:31:37 am BST, Jianguo Wu <wujianguo@huawei.com> wrote:
->>>> When enable LPAE and big-endian in a hisilicon board, while specify
->>>> mem=384M mem=512M@7680M, will get bad page state:
->>>>
->>>> Freeing unused kernel memory: 180K (c0466000 - c0493000)
->>>> BUG: Bad page state in process init  pfn:fa442
->>>> page:c7749840 count:0 mapcount:-1 mapping:  (null) index:0x0
->>>> page flags: 0x40000400(reserved)
->>>> Modules linked in:
->>>> CPU: 0 PID: 1 Comm: init Not tainted 3.10.27+ #66
->>>> [<c000f5f0>] (unwind_backtrace+0x0/0x11c) from [<c000cbc4>] (show_stack+0x10/0x14)
->>>> [<c000cbc4>] (show_stack+0x10/0x14) from [<c009e448>] (bad_page+0xd4/0x104)
->>>> [<c009e448>] (bad_page+0xd4/0x104) from [<c009e520>] (free_pages_prepare+0xa8/0x14c)
->>>> [<c009e520>] (free_pages_prepare+0xa8/0x14c) from [<c009f8ec>] (free_hot_cold_page+0x18/0xf0)
->>>> [<c009f8ec>] (free_hot_cold_page+0x18/0xf0) from [<c00b5444>] (handle_pte_fault+0xcf4/0xdc8)
->>>> [<c00b5444>] (handle_pte_fault+0xcf4/0xdc8) from [<c00b6458>] (handle_mm_fault+0xf4/0x120)
->>>> [<c00b6458>] (handle_mm_fault+0xf4/0x120) from [<c0013754>] (do_page_fault+0xfc/0x354)
->>>> [<c0013754>] (do_page_fault+0xfc/0x354) from [<c0008400>] (do_DataAbort+0x2c/0x90)
->>>> [<c0008400>] (do_DataAbort+0x2c/0x90) from [<c0008fb4>] (__dabt_usr+0x34/0x40)
->>
->>
->> [...]
->>
->> Please can you put this into Russell's patch system? You can also add my
->> ack:
->>
->>   Acked-by: Will Deacon <will.deacon@arm.com>
->>
->> You should also CC stable <stable@vger.kernel.org> in the commit log.
->>
+> -- Steve
 > 
-> Hi Will,
-> I have submit to http://www.arm.linux.org.uk/developer/patches/viewpatch.php?id=8037/1.
-> 
-> Thanks,
-> Jianguo Wu.
-> 
->> Cheers,
->>
->> Will
->>
->> .
->>
-> 
-> 
-> 
-> 
-> _______________________________________________
-> linux-arm-kernel mailing list
-> linux-arm-kernel@lists.infradead.org
-> http://lists.infradead.org/mailman/listinfo/linux-arm-kernel
-> 
-> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
