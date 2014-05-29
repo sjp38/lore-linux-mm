@@ -1,82 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id D230A6B0035
-	for <linux-mm@kvack.org>; Thu, 29 May 2014 17:04:45 -0400 (EDT)
-Received: by mail-pd0-f170.google.com with SMTP id g10so157522pdj.29
-        for <linux-mm@kvack.org>; Thu, 29 May 2014 14:04:45 -0700 (PDT)
-Received: from mail-pa0-x22f.google.com (mail-pa0-x22f.google.com [2607:f8b0:400e:c03::22f])
-        by mx.google.com with ESMTPS id px17si2525998pab.171.2014.05.29.14.04.44
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A0BD6B0035
+	for <linux-mm@kvack.org>; Thu, 29 May 2014 17:23:11 -0400 (EDT)
+Received: by mail-pa0-f46.google.com with SMTP id kq14so911355pab.33
+        for <linux-mm@kvack.org>; Thu, 29 May 2014 14:23:10 -0700 (PDT)
+Received: from mail-pa0-x235.google.com (mail-pa0-x235.google.com [2607:f8b0:400e:c03::235])
+        by mx.google.com with ESMTPS id ot7si2550811pbc.164.2014.05.29.14.23.10
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 29 May 2014 14:04:44 -0700 (PDT)
-Received: by mail-pa0-f47.google.com with SMTP id ld10so897177pab.20
-        for <linux-mm@kvack.org>; Thu, 29 May 2014 14:04:44 -0700 (PDT)
-Date: Thu, 29 May 2014 14:03:33 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: BUG at mm/memory.c:1489!
-In-Reply-To: <1401353983.4930.15.camel@concordia>
-Message-ID: <alpine.LSU.2.11.1405291350260.10186@eggly.anvils>
-References: <1401265922.3355.4.camel@concordia> <alpine.LSU.2.11.1405281712310.7156@eggly.anvils> <1401353983.4930.15.camel@concordia>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        Thu, 29 May 2014 14:23:10 -0700 (PDT)
+Received: by mail-pa0-f53.google.com with SMTP id kp14so913350pab.12
+        for <linux-mm@kvack.org>; Thu, 29 May 2014 14:23:10 -0700 (PDT)
+Message-ID: <1401398588.3645.60.camel@edumazet-glaptop2.roam.corp.google.com>
+Subject: Re: [PATCH] vmalloc: use rcu list iterator to reduce vmap_area_lock
+ contention
+From: Eric Dumazet <eric.dumazet@gmail.com>
+Date: Thu, 29 May 2014 14:23:08 -0700
+In-Reply-To: <20140529130544.56213f048f331723329ff828@linux-foundation.org>
+References: <1401344554-3596-1-git-send-email-iamjoonsoo.kim@lge.com>
+	 <20140529130544.56213f048f331723329ff828@linux-foundation.org>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michael Ellerman <mpe@ellerman.id.au>
-Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, trinity@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Zhang Yanfei <zhangyanfei.yes@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Richard Yao <ryao@gentoo.org>
 
-On Thu, 29 May 2014, Michael Ellerman wrote:
+On Thu, 2014-05-29 at 13:05 -0700, Andrew Morton wrote:
+> On Thu, 29 May 2014 15:22:34 +0900 Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
 > 
-> Unfortunately I don't know our mm/hugetlb code well enough to give you a good
-> answer. Ben had a quick look at our follow_huge_addr() and thought it looked
-> "fishy". He suggested something like what we do in gup_pte_range() with
-> page_cache_get_speculative() might be in order.
-
-Fishy indeed, ancient code that was only ever intended for stats-like
-usage, not designed for actually getting a hold on the page.  But I
-don't think there's a big problem to getting the locking right: just
-hope it doesn't require a different strategy on each architecture -
-often an irritation with hugetlb.  Naoya-san will sort it out in
-due course (not 3.15) I expect, but will probably need testing help.
-
+> > Richard Yao reported a month ago that his system have a trouble
+> > with vmap_area_lock contention during performance analysis
+> > by /proc/meminfo. Andrew asked why his analysis checks /proc/meminfo
+> > stressfully, but he didn't answer it.
+> > 
+> > https://lkml.org/lkml/2014/4/10/416
+> > 
+> > Although I'm not sure that this is right usage or not, there is a solution
+> > reducing vmap_area_lock contention with no side-effect. That is just
+> > to use rcu list iterator in get_vmalloc_info(). This function only needs
+> > values on vmap_area structure, so we don't need to grab a spinlock.
 > 
-> Applying your patch and running trinity pretty immediately results in the
-> following, which looks related (sys_move_pages() again) ?
-> 
-> Unable to handle kernel paging request for data at address 0xf2000f80000000
-> Faulting instruction address: 0xc0000000001e29bc
-> cpu 0x1b: Vector: 300 (Data Access) at [c0000003c70f76f0]
->     pc: c0000000001e29bc: .remove_migration_pte+0x9c/0x320
->     lr: c0000000001e29b8: .remove_migration_pte+0x98/0x320
->     sp: c0000003c70f7970
->    msr: 8000000000009032
->    dar: f2000f80000000
->  dsisr: 40000000
->   current = 0xc0000003f9045800
->   paca    = 0xc000000001dc6c00   softe: 0        irq_happened: 0x01
->     pid   = 3585, comm = trinity-c27
-> enter ? for help
-> [c0000003c70f7a20] c0000000001bce88 .rmap_walk+0x328/0x470
-> [c0000003c70f7ae0] c0000000001e2904 .remove_migration_ptes+0x44/0x60
-> [c0000003c70f7b80] c0000000001e4ce8 .migrate_pages+0x6d8/0xa00
-> [c0000003c70f7cc0] c0000000001e55ec .SyS_move_pages+0x5dc/0x7d0
-> [c0000003c70f7e30] c00000000000a1d8 syscall_exit+0x0/0x98
-> --- Exception: c01 (System Call) at 00003fff7b2b30a8
-> SP (3fffe09728a0) is in userspace
-> 1b:mon> 
-> 
-> I've hit it twice in two runs:
-> 
-> If I tell trinity to skip sys_move_pages() it runs for hours.
+> The mixture of rcu protection and spinlock protection for
+> vmap_area_list is pretty confusing.  Are you able to describe the
+> overall design here?  When and why do we use one versus the other?
 
-That's sad.  Sorry for wasting your time with my patch, thank you
-for trying it.  What you see might be a consequence of the locking
-deficiency I mentioned, given trinity's deviousness; though if it's
-being clever like that, I would expect it to have already found the
-equivalent issue on x86-64.  So probably not, probably another issue.
+The spinlock protects writers.
 
-As I've said elsewhere, I think we need to go with disablement for now.
+rcu can be used in this function because all RCU protocol is already
+respected by writers, since Nick Piggin commit db64fe02258f1507e13fe5
+("mm: rewrite vmap layer") back in linux-2.6.28
 
-Hugh
+Specifically :
+   insertions use list_add_rcu(), 
+   deletions use list_del_rcu() and kfree_rcu().
+
+Note the rb tree is not used from rcu reader (it would not be safe),
+only the vmap_area_list has full RCU protection.
+
+Note that __purge_vmap_area_lazy() already uses this rcu protection.
+
+        rcu_read_lock();
+        list_for_each_entry_rcu(va, &vmap_area_list, list) {
+                if (va->flags & VM_LAZY_FREE) {
+                        if (va->va_start < *start)
+                                *start = va->va_start;
+                        if (va->va_end > *end)
+                                *end = va->va_end;
+                        nr += (va->va_end - va->va_start) >> PAGE_SHIFT;
+                        list_add_tail(&va->purge_list, &valist);
+                        va->flags |= VM_LAZY_FREEING;
+                        va->flags &= ~VM_LAZY_FREE;
+                }
+        }
+        rcu_read_unlock();
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
