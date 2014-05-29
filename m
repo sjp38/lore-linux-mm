@@ -1,112 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f51.google.com (mail-qg0-f51.google.com [209.85.192.51])
-	by kanga.kvack.org (Postfix) with ESMTP id B04276B0039
-	for <linux-mm@kvack.org>; Thu, 29 May 2014 12:40:24 -0400 (EDT)
-Received: by mail-qg0-f51.google.com with SMTP id q107so1774557qgd.10
-        for <linux-mm@kvack.org>; Thu, 29 May 2014 09:40:24 -0700 (PDT)
-Received: from e39.co.us.ibm.com (e39.co.us.ibm.com. [32.97.110.160])
-        by mx.google.com with ESMTPS id e67si2391341yhm.158.2014.05.29.09.40.23
+Received: from mail-vc0-f181.google.com (mail-vc0-f181.google.com [209.85.220.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 678366B0035
+	for <linux-mm@kvack.org>; Thu, 29 May 2014 13:03:19 -0400 (EDT)
+Received: by mail-vc0-f181.google.com with SMTP id hy4so706428vcb.26
+        for <linux-mm@kvack.org>; Thu, 29 May 2014 10:03:18 -0700 (PDT)
+Received: from mail-ve0-x233.google.com (mail-ve0-x233.google.com [2607:f8b0:400c:c01::233])
+        by mx.google.com with ESMTPS id e4si953591vci.96.2014.05.29.10.03.17
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 29 May 2014 09:40:24 -0700 (PDT)
-Received: from /spool/local
-	by e39.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Thu, 29 May 2014 10:40:23 -0600
-Received: from b03cxnp08027.gho.boulder.ibm.com (b03cxnp08027.gho.boulder.ibm.com [9.17.130.19])
-	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 22B00C40002
-	for <linux-mm@kvack.org>; Thu, 29 May 2014 10:40:20 -0600 (MDT)
-Received: from d03av06.boulder.ibm.com (d03av06.boulder.ibm.com [9.17.195.245])
-	by b03cxnp08027.gho.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s4TGdOoF5046564
-	for <linux-mm@kvack.org>; Thu, 29 May 2014 18:39:24 +0200
-Received: from d03av06.boulder.ibm.com (loopback [127.0.0.1])
-	by d03av06.boulder.ibm.com (8.14.4/8.13.1/NCO v10.0 AVout) with ESMTP id s4TGiH9o016865
-	for <linux-mm@kvack.org>; Thu, 29 May 2014 10:44:18 -0600
-Date: Thu, 29 May 2014 09:40:18 -0700
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: vmstat: On demand vmstat workers V5
-Message-ID: <20140529164018.GM22231@linux.vnet.ibm.com>
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <alpine.DEB.2.10.1405121317270.29911@gentwo.org>
- <20140528152107.GB6507@localhost.localdomain>
- <alpine.DEB.2.10.1405281110210.22514@gentwo.org>
- <20140529003609.GG6507@localhost.localdomain>
- <alpine.DEB.2.10.1405290902180.11514@gentwo.org>
- <20140529142602.GA20258@localhost.localdomain>
- <alpine.DEB.2.10.1405291121400.12545@gentwo.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 29 May 2014 10:03:17 -0700 (PDT)
+Received: by mail-ve0-f179.google.com with SMTP id oy12so716541veb.24
+        for <linux-mm@kvack.org>; Thu, 29 May 2014 10:03:17 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1405291121400.12545@gentwo.org>
+In-Reply-To: <5386915f.4772e50a.0657.ffffcda4SMTPIN_ADDED_BROKEN@mx.google.com>
+References: <eb791998a8ada97b204dddf2719a359149e9ae31.1400607328.git.tony.luck@intel.com>
+	<20140523033438.GC16945@gchen.bj.intel.com>
+	<CA+8MBb+Una+Z5Q-Pn0OoMYaaSx9sPJ3fdriMRMgN=CE1Jdp7Cg@mail.gmail.com>
+	<20140527161613.GC4108@mcs.anl.gov>
+	<5384d07e.4504e00a.2680.ffff8c31SMTPIN_ADDED_BROKEN@mx.google.com>
+	<CA+8MBbKuBo4c2v-Y0TOk-LUJuyJsGG=twqQyAPG5WOa8Aj4GyA@mail.gmail.com>
+	<53852abb.867ce00a.3cef.3c7eSMTPIN_ADDED_BROKEN@mx.google.com>
+	<FDBACF11-D9F6-4DE5-A0D4-800903A243B7@gmail.com>
+	<53862f6c.91148c0a.5fb0.2d0cSMTPIN_ADDED_BROKEN@mx.google.com>
+	<CA+8MBbKdKy+sbov-f+1xNnj=syEM5FWR1BV85AgRJ9S+qPbWEg@mail.gmail.com>
+	<5386915f.4772e50a.0657.ffffcda4SMTPIN_ADDED_BROKEN@mx.google.com>
+Date: Thu, 29 May 2014 10:03:17 -0700
+Message-ID: <CA+8MBbLxvZWVuUsNdPG-CTEtrAZzxrPGVFp0u74iMgYaxzwf0Q@mail.gmail.com>
+Subject: Re: [PATCH] mm/memory-failure.c: support dedicated thread to handle
+ SIGBUS(BUS_MCEERR_AO) thread
+From: Tony Luck <tony.luck@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@gentwo.org>
-Cc: Frederic Weisbecker <fweisbec@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Gilad Ben-Yossef <gilad@benyossef.com>, Thomas Gleixner <tglx@linutronix.de>, Tejun Heo <tj@kernel.org>, John Stultz <johnstul@us.ibm.com>, Mike Frysinger <vapier@gentoo.org>, Minchan Kim <minchan.kim@gmail.com>, Hakan Akkan <hakanakkan@gmail.com>, Max Krasnyansky <maxk@qualcomm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hughd@google.com, viresh.kumar@linaro.org, hpa@zytor.com, mingo@kernel.org, peterz@infradead.org
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Kamil Iskra <iskra@mcs.anl.gov>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andi Kleen <andi@firstfloor.org>, Borislav Petkov <bp@suse.de>, Chen Gong <gong.chen@linux.jf.intel.com>
 
-On Thu, May 29, 2014 at 11:24:15AM -0500, Christoph Lameter wrote:
-> On Thu, 29 May 2014, Frederic Weisbecker wrote:
-> 
-> > > Well yes and I am tying directly into that scheme there in cpu.c to
-> > > display the active vmstat threads in sysfs. so its the same.
-> >
-> > I don't think so. Or is there something in vmstat that cpumask_var_t
-> > definition depends upon?
-> 
-> This patch definitely ties the vmstat cpumask into the scheme in cpu.c
-> 
-> > > I would like to have some way to display the activities on cpus in /sysfs
-> > > like I have done here with the active vmstat workers.
-> > >
-> > > What I think we need is display cpumasks for
-> > >
-> > > 1. Cpus where the tick is currently off
-> > > 2. Cpus that have dynticks enabled.
-> > > 3. Cpus that are idle
-> >
-> > You should find all that in /proc/timer_list
-> 
-> True. I could actually drop the vmstat cpumask support.
-> 
-> > Now for CPUs that have full dynticks enabled, we probably need something
-> > in sysfs. We could dump the nohz cpumask somewhere. For now you can only grep
-> > the dmesg
-> 
-> There is a nohz mode in /proc/timer_list right?
-> 
-> > > 4. Cpus that are used for RCU.
-> >
-> > So, you mean those that aren't in extended grace period (between rcu_user_enter()/exit
-> > or rcu_idle_enter/exit)?
-> 
-> No I mean cpus that have their RCU processing directed to another
-> processor.
+> OK, I'll take this.
 
-Ah, that is easier!
+If you didn't already apply it, then add a "Reviewed-by: Tony Luck
+<tony.luck@intel,com>"
 
-In kernel/rcu/tree_plugin.c under #ifdef CONFIG_RCU_NOCB_CPU:
+I see that this patch is on top of my earlier ones (includes the
+"force_early" argument).
+That means you have both of those queued too?
 
-cpumask_var_t get_rcu_nocb_mask(void)
-{
-	return rcu_nocb_mask;
-}
+Thanks
 
-
-In include/linux/rcupdate.h:
-
-#if defined(CONFIG_TINY_RCU) || !defined(CONFIG_RCU_NOCB_CPU)
-static inline cpumask_var_t get_rcu_nocb_mask(void)
-{
-	return NULL;
-}
-#else
-cpumask_var_t get_rcu_nocb_mask(void);
-#endif
-
-
-Then display the mask however you prefer.  Modifying the mask is a very
-bad idea, and will void your warranty, etc., etc.
-
-							Thanx, Paul
+-Tony
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
