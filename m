@@ -1,82 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id DA3796B0035
-	for <linux-mm@kvack.org>; Thu, 29 May 2014 09:17:26 -0400 (EDT)
-Received: by mail-pa0-f41.google.com with SMTP id kx10so364620pab.0
-        for <linux-mm@kvack.org>; Thu, 29 May 2014 06:17:26 -0700 (PDT)
-Received: from smtp.gentoo.org (woodpecker.gentoo.org. [2001:470:ea4a:1:214:c2ff:fe64:b2d3])
-        by mx.google.com with ESMTPS id ys3si968352pab.26.2014.05.29.06.17.25
+Received: from mail-la0-f54.google.com (mail-la0-f54.google.com [209.85.215.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 84B856B0038
+	for <linux-mm@kvack.org>; Thu, 29 May 2014 09:24:46 -0400 (EDT)
+Received: by mail-la0-f54.google.com with SMTP id pv20so189777lab.13
+        for <linux-mm@kvack.org>; Thu, 29 May 2014 06:24:45 -0700 (PDT)
+Received: from lxorguk.ukuu.org.uk (lxorguk.ukuu.org.uk. [81.2.110.251])
+        by mx.google.com with ESMTPS id q6si1005261lag.91.2014.05.29.06.24.43
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 29 May 2014 06:17:25 -0700 (PDT)
-References: <1401344554-3596-1-git-send-email-iamjoonsoo.kim@lge.com>
-Mime-Version: 1.0 (1.0)
-In-Reply-To: <1401344554-3596-1-git-send-email-iamjoonsoo.kim@lge.com>
-Content-Type: text/plain;
-	charset=us-ascii
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <7534A26C-36BC-455C-94DE-CA1234CE1803@gentoo.org>
-From: Richard Yao <ryao@gentoo.org>
-Subject: Re: [PATCH] vmalloc: use rcu list iterator to reduce vmap_area_lock contention
-Date: Thu, 29 May 2014 09:17:22 -0400
+        Thu, 29 May 2014 06:24:44 -0700 (PDT)
+Date: Thu, 29 May 2014 14:23:21 +0100
+From: One Thousand Gnomes <gnomes@lxorguk.ukuu.org.uk>
+Subject: Re: [RFC 2/2] x86_64: expand kernel stack to 16K
+Message-ID: <20140529142321.6ac951d3@alan.etchedpixels.co.uk>
+In-Reply-To: <20140528092717.GA17220@pd.tnic>
+References: <1401260039-18189-1-git-send-email-minchan@kernel.org>
+	<1401260039-18189-2-git-send-email-minchan@kernel.org>
+	<20140528092717.GA17220@pd.tnic>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Zhang Yanfei <zhangyanfei.yes@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Andi Kleen <andi@firstfloor.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Borislav Petkov <bp@alien8.de>
+Cc: Minchan Kim <minchan@kernel.org>, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, rusty@rustcorp.com.au, mst@redhat.com, Dave Hansen <dave.hansen@intel.com>, Steven Rostedt <rostedt@goodmis.org>
 
-I do not have a way of tracing it. I meant to reply when I did, but that has=
- not changed. That being said, I like this patch.
+> Hmm, stupid question: what happens when 16K is not enough too, do we
+> increase again? When do we stop increasing? 1M, 2M... ?
 
-On May 29, 2014, at 2:22 AM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+It's not a stupid question, it's IMHO the most important question
 
-> Richard Yao reported a month ago that his system have a trouble
-> with vmap_area_lock contention during performance analysis
-> by /proc/meminfo. Andrew asked why his analysis checks /proc/meminfo
-> stressfully, but he didn't answer it.
->=20
-> https://lkml.org/lkml/2014/4/10/416
->=20
-> Although I'm not sure that this is right usage or not, there is a solution=
+> Sounds like we want to make it a config option with a couple of sizes
+> for everyone to be happy. :-)
 
-> reducing vmap_area_lock contention with no side-effect. That is just
-> to use rcu list iterator in get_vmalloc_info(). This function only needs
-> values on vmap_area structure, so we don't need to grab a spinlock.
->=20
-> Reported-by: Richard Yao <ryao@gentoo.org>
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
->=20
-> diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-> index f64632b..fdbb116 100644
-> --- a/mm/vmalloc.c
-> +++ b/mm/vmalloc.c
-> @@ -2690,14 +2690,14 @@ void get_vmalloc_info(struct vmalloc_info *vmi)
->=20
->    prev_end =3D VMALLOC_START;
->=20
-> -    spin_lock(&vmap_area_lock);
-> +    rcu_read_lock();
->=20
->    if (list_empty(&vmap_area_list)) {
->        vmi->largest_chunk =3D VMALLOC_TOTAL;
->        goto out;
->    }
->=20
-> -    list_for_each_entry(va, &vmap_area_list, list) {
-> +    list_for_each_entry_rcu(va, &vmap_area_list, list) {
->        unsigned long addr =3D va->va_start;
->=20
->        /*
-> @@ -2724,7 +2724,7 @@ void get_vmalloc_info(struct vmalloc_info *vmi)
->        vmi->largest_chunk =3D VMALLOC_END - prev_end;
->=20
-> out:
-> -    spin_unlock(&vmap_area_lock);
-> +    rcu_read_unlock();
-> }
-> #endif
->=20
-> --=20
-> 1.7.9.5
->=20
+At the moment it goes bang if you freakily get three layers of recursion
+through allocations. But show me the proof we can't already hit four, or
+five, or six  ....
+
+We don't *need* to allocate tons of stack memory to each task just because
+we might recursively allocate. We don't solve the problem by doing so
+either. We at best fudge over it.
+
+Why is *any* recursive memory allocation not ending up waiting for other
+kernel worker threads to free up memory (beyond it being rather hard to
+go and retrofit) ?
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
