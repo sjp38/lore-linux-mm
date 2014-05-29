@@ -1,230 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 148446B005A
-	for <linux-mm@kvack.org>; Thu, 29 May 2014 03:28:46 -0400 (EDT)
-Received: by mail-pa0-f45.google.com with SMTP id ey11so12382496pad.18
-        for <linux-mm@kvack.org>; Thu, 29 May 2014 00:28:45 -0700 (PDT)
-Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
-        by mx.google.com with ESMTPS id ay4si26787910pbc.122.2014.05.29.00.28.44
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 29 May 2014 00:28:45 -0700 (PDT)
-From: Rusty Russell <rusty@rustcorp.com.au>
-Subject: [PATCH 4/4] virtio_ring: unify direct/indirect code paths.
-Date: Thu, 29 May 2014 16:56:45 +0930
-Message-Id: <1401348405-18614-5-git-send-email-rusty@rustcorp.com.au>
-In-Reply-To: <1401348405-18614-1-git-send-email-rusty@rustcorp.com.au>
+Received: from mail-pb0-f45.google.com (mail-pb0-f45.google.com [209.85.160.45])
+	by kanga.kvack.org (Postfix) with ESMTP id E36D76B003D
+	for <linux-mm@kvack.org>; Thu, 29 May 2014 03:40:47 -0400 (EDT)
+Received: by mail-pb0-f45.google.com with SMTP id um1so12586602pbc.32
+        for <linux-mm@kvack.org>; Thu, 29 May 2014 00:40:47 -0700 (PDT)
+Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
+        by mx.google.com with ESMTP id eq15si27226839pac.222.2014.05.29.00.40.46
+        for <linux-mm@kvack.org>;
+        Thu, 29 May 2014 00:40:47 -0700 (PDT)
+Date: Thu, 29 May 2014 16:41:17 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: virtio ring cleanups, which save stack on older gcc
+Message-ID: <20140529074117.GI10092@bbox>
 References: <87oayh6s3s.fsf@rustcorp.com.au>
  <1401348405-18614-1-git-send-email-rusty@rustcorp.com.au>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1401348405-18614-1-git-send-email-rusty@rustcorp.com.au>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Jens Axboe <axboe@kernel.dk>, Minchan Kim <minchan@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, "Michael S. Tsirkin" <mst@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Steven Rostedt <rostedt@goodmis.org>
-Cc: Rusty Russell <rusty@rustcorp.com.au>
+To: Rusty Russell <rusty@rustcorp.com.au>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Jens Axboe <axboe@kernel.dk>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, "Michael S. Tsirkin" <mst@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Steven Rostedt <rostedt@goodmis.org>
 
-virtqueue_add() populates the virtqueue descriptor table from the sgs
-given.  If it uses an indirect descriptor table, then it puts a single
-descriptor in the descriptor table pointing to the kmalloc'ed indirect
-table where the sg is populated.
+Hello Rusty,
 
-Previously vring_add_indirect() did the allocation and the simple
-linear layout.  We replace that with alloc_indirect() which allocates
-the indirect table then chains it like the normal descriptor table so
-we can reuse the core logic.
+On Thu, May 29, 2014 at 04:56:41PM +0930, Rusty Russell wrote:
+> They don't make much difference: the easier fix is use gcc 4.8
+> which drops stack required across virtio block's virtio_queue_rq
+> down to that kmalloc in virtio_ring from 528 to 392 bytes.
+> 
+> Still, these (*lightly tested*) patches reduce to 432 bytes,
+> even for gcc 4.6.4.  Posted here FYI.
 
-Before:
-	gcc 4.8.2: virtio_blk: stack used = 392
-	gcc 4.6.4: virtio_blk: stack used = 480
+I am testing with below which was hack for Dave's idea so don't have
+a machine to test your patches until tomorrow.
+So, I will queue your patches into testing machine tomorrow morning.
 
-After:
-	gcc 4.8.2: virtio_blk: stack used = 408
-	gcc 4.6.4: virtio_blk: stack used = 432
+Thanks!
 
-Signed-off-by: Rusty Russell <rusty@rustcorp.com.au>
----
- drivers/virtio/virtio_ring.c | 120 ++++++++++++++++---------------------------
- 1 file changed, 45 insertions(+), 75 deletions(-)
-
-diff --git a/drivers/virtio/virtio_ring.c b/drivers/virtio/virtio_ring.c
-index 5d29cd85d6cf..3adf5978b92b 100644
---- a/drivers/virtio/virtio_ring.c
-+++ b/drivers/virtio/virtio_ring.c
-@@ -107,18 +107,10 @@ struct vring_virtqueue
- 
- #define to_vvq(_vq) container_of(_vq, struct vring_virtqueue, vq)
- 
--/* Set up an indirect table of descriptors and add it to the queue. */
--static inline int vring_add_indirect(struct vring_virtqueue *vq,
--				     struct scatterlist *sgs[],
--				     unsigned int total_sg,
--				     unsigned int out_sgs,
--				     unsigned int in_sgs,
--				     gfp_t gfp)
-+static struct vring_desc *alloc_indirect(unsigned int total_sg, gfp_t gfp)
+diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+index f5c6635b806c..95f169e85dbe 100644
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -4241,10 +4241,13 @@ EXPORT_SYMBOL_GPL(yield_to);
+ void __sched io_schedule(void)
  {
--	struct vring_desc *desc;
--	unsigned head;
--	struct scatterlist *sg;
--	int i, n;
-+ 	struct vring_desc *desc;
-+	unsigned int i;
+ 	struct rq *rq = raw_rq();
++	struct blk_plug *plug = current->plug;
  
- 	/*
- 	 * We require lowmem mappings for the descriptors because
-@@ -130,51 +122,13 @@ static inline int vring_add_indirect(struct vring_virtqueue *vq,
- 	if (record_stack == current)
- 		__asm__ __volatile__("movq %%rsp,%0" : "=g" (stack_top));
- 
--	desc = kmalloc(total_sg * sizeof(struct vring_desc), gfp);
--	if (!desc)
--		return -ENOMEM;
--
--	/* Transfer entries from the sg lists into the indirect page */
--	i = 0;
--	for (n = 0; n < out_sgs; n++) {
--		for (sg = sgs[n]; sg; sg = sg_next(sg)) {
--			desc[i].flags = VRING_DESC_F_NEXT;
--			desc[i].addr = sg_phys(sg);
--			desc[i].len = sg->length;
--			desc[i].next = i+1;
--			i++;
--		}
--	}
--	for (; n < (out_sgs + in_sgs); n++) {
--		for (sg = sgs[n]; sg; sg = sg_next(sg)) {
--			desc[i].flags = VRING_DESC_F_NEXT|VRING_DESC_F_WRITE;
--			desc[i].addr = sg_phys(sg);
--			desc[i].len = sg->length;
--			desc[i].next = i+1;
--			i++;
--		}
--	}
--	BUG_ON(i != total_sg);
--
--	/* Last one doesn't continue. */
--	desc[i-1].flags &= ~VRING_DESC_F_NEXT;
--	desc[i-1].next = 0;
--
--	/* We're about to use a buffer */
--	vq->vq.num_free--;
--
--	/* Use a single buffer which doesn't continue */
--	head = vq->free_head;
--	vq->vring.desc[head].flags = VRING_DESC_F_INDIRECT;
--	vq->vring.desc[head].addr = virt_to_phys(desc);
--	/* kmemleak gives a false positive, as it's hidden by virt_to_phys */
--	kmemleak_ignore(desc);
--	vq->vring.desc[head].len = i * sizeof(struct vring_desc);
--
--	/* Update free pointer */
--	vq->free_head = vq->vring.desc[head].next;
-+ 	desc = kmalloc(total_sg * sizeof(struct vring_desc), gfp);
-+ 	if (!desc)
-+		return NULL;
- 
--	return head;
-+	for (i = 0; i < total_sg; i++)
-+		desc[i].next = i+1;
-+	return desc;
- }
- 
- static inline int virtqueue_add(struct virtqueue *_vq,
-@@ -187,6 +141,7 @@ static inline int virtqueue_add(struct virtqueue *_vq,
- {
- 	struct vring_virtqueue *vq = to_vvq(_vq);
- 	struct scatterlist *sg;
-+	struct vring_desc *desc = NULL;
- 	unsigned int i, n, avail, uninitialized_var(prev);
- 	int head;
- 
-@@ -212,18 +167,32 @@ static inline int virtqueue_add(struct virtqueue *_vq,
- 	}
- #endif
- 
-+	BUG_ON(total_sg > vq->vring.num);
-+	BUG_ON(total_sg == 0);
+ 	delayacct_blkio_start();
+ 	atomic_inc(&rq->nr_iowait);
+-	blk_flush_plug(current);
++	if (plug)
++		blk_flush_plug_list(plug, true);
 +
-+	head = vq->free_head;
-+
- 	/* If the host supports indirect descriptor tables, and we have multiple
- 	 * buffers, then go indirect. FIXME: tune this threshold */
--	if (vq->indirect && total_sg > 1 && vq->vq.num_free) {
--		head = vring_add_indirect(vq, sgs, total_sg, 
--					  out_sgs, in_sgs, gfp);
--		if (likely(head >= 0))
--			goto add_head;
-+	if (vq->indirect && total_sg > 1 && vq->vq.num_free)
-+		desc = alloc_indirect(total_sg, gfp);
-+
-+	if (desc) {
-+		/* Use a single buffer which doesn't continue */
-+		vq->vring.desc[head].flags = VRING_DESC_F_INDIRECT;
-+		vq->vring.desc[head].addr = virt_to_phys(desc);
-+		/* avoid kmemleak false positive (tis hidden by virt_to_phys) */
-+		kmemleak_ignore(desc);
-+		vq->vring.desc[head].len = total_sg * sizeof(struct vring_desc);
-+
-+		/* Set up rest to use this indirect table. */
-+		i = 0;
-+		total_sg = 1;
-+	} else {
-+		desc = vq->vring.desc;
-+		i = head;
- 	}
- 
--	BUG_ON(total_sg > vq->vring.num);
--	BUG_ON(total_sg == 0);
--
- 	if (vq->vq.num_free < total_sg) {
- 		pr_debug("Can't add buf len %i - avail = %i\n",
- 			 total_sg, vq->vq.num_free);
-@@ -239,32 +208,33 @@ static inline int virtqueue_add(struct virtqueue *_vq,
- 	/* We're about to use some buffers from the free list. */
- 	vq->vq.num_free -= total_sg;
- 
--	head = i = vq->free_head;
- 	for (n = 0; n < out_sgs; n++) {
- 		for (sg = sgs[n]; sg; sg = sg_next(sg)) {
--			vq->vring.desc[i].flags = VRING_DESC_F_NEXT;
--			vq->vring.desc[i].addr = sg_phys(sg);
--			vq->vring.desc[i].len = sg->length;
-+			desc[i].flags = VRING_DESC_F_NEXT;
-+			desc[i].addr = sg_phys(sg);
-+			desc[i].len = sg->length;
- 			prev = i;
--			i = vq->vring.desc[i].next;
-+			i = desc[i].next;
- 		}
- 	}
- 	for (; n < (out_sgs + in_sgs); n++) {
- 		for (sg = sgs[n]; sg; sg = sg_next(sg)) {
--			vq->vring.desc[i].flags = VRING_DESC_F_NEXT|VRING_DESC_F_WRITE;
--			vq->vring.desc[i].addr = sg_phys(sg);
--			vq->vring.desc[i].len = sg->length;
-+			desc[i].flags = VRING_DESC_F_NEXT|VRING_DESC_F_WRITE;
-+			desc[i].addr = sg_phys(sg);
-+			desc[i].len = sg->length;
- 			prev = i;
--			i = vq->vring.desc[i].next;
-+			i = desc[i].next;
- 		}
- 	}
- 	/* Last one doesn't continue. */
--	vq->vring.desc[prev].flags &= ~VRING_DESC_F_NEXT;
-+	desc[prev].flags &= ~VRING_DESC_F_NEXT;
- 
- 	/* Update free pointer */
--	vq->free_head = i;
-+	if (desc == vq->vring.desc)
-+		vq->free_head = i;
-+	else
-+		vq->free_head = vq->vring.desc[head].next;
- 
--add_head:
- 	/* Set token. */
- 	vq->data[head] = data;
- 
+ 	current->in_iowait = 1;
+ 	schedule();
+ 	current->in_iowait = 0;
+
+> 
+> Cheers,
+> Rusty.
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
 -- 
-1.9.1
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
