@@ -1,150 +1,240 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f49.google.com (mail-pa0-f49.google.com [209.85.220.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F0266B0055
-	for <linux-mm@kvack.org>; Thu, 29 May 2014 04:59:48 -0400 (EDT)
-Received: by mail-pa0-f49.google.com with SMTP id kp14so44718pab.22
-        for <linux-mm@kvack.org>; Thu, 29 May 2014 01:59:47 -0700 (PDT)
-Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
-        by mx.google.com with ESMTPS id iw9si33803pac.85.2014.05.29.01.59.45
+Received: from mail-wi0-f174.google.com (mail-wi0-f174.google.com [209.85.212.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 631DC6B0055
+	for <linux-mm@kvack.org>; Thu, 29 May 2014 05:04:43 -0400 (EDT)
+Received: by mail-wi0-f174.google.com with SMTP id r20so5145341wiv.13
+        for <linux-mm@kvack.org>; Thu, 29 May 2014 02:04:42 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id cy7si19409534wib.81.2014.05.29.02.04.40
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 29 May 2014 01:59:46 -0700 (PDT)
-Message-ID: <1401353983.4930.15.camel@concordia>
-Subject: Re: BUG at mm/memory.c:1489!
-From: Michael Ellerman <mpe@ellerman.id.au>
-Date: Thu, 29 May 2014 18:59:43 +1000
-In-Reply-To: <alpine.LSU.2.11.1405281712310.7156@eggly.anvils>
-References: <1401265922.3355.4.camel@concordia>
-	 <alpine.LSU.2.11.1405281712310.7156@eggly.anvils>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 29 May 2014 02:04:40 -0700 (PDT)
+Date: Thu, 29 May 2014 10:04:32 +0100
+From: Mel Gorman <mgorman@suse.de>
+Subject: [PATCH] mm: page_alloc: Reset fair zone allocation policy only when
+ batch counts are expired
+Message-ID: <20140529090432.GY23991@suse.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, trinity@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>
 
-On Wed, 2014-05-28 at 17:33 -0700, Hugh Dickins wrote:
-> On Wed, 28 May 2014, Michael Ellerman wrote:
-> > Linux Blade312-5 3.15.0-rc7 #306 SMP Wed May 28 17:51:18 EST 2014 ppc64
-> > 
-> > [watchdog] 27853 iterations. [F:22642 S:5174 HI:1276]
-> > ------------[ cut here ]------------
-> > kernel BUG at /home/michael/mmk-build/flow/mm/memory.c:1489!
-> > cpu 0xc: Vector: 700 (Program Check) at [c000000384eaf960]
-> >     pc: c0000000001ad6f0: .follow_page_mask+0x90/0x650
-> >     lr: c0000000001ad6d8: .follow_page_mask+0x78/0x650
-> >     sp: c000000384eafbe0
-> >    msr: 8000000000029032
-> >   current = 0xc0000003c27e1bc0
-> >   paca    = 0xc000000001dc3000   softe: 0        irq_happened: 0x01
-> >     pid   = 20800, comm = trinity-c12
-> > kernel BUG at /home/michael/mmk-build/flow/mm/memory.c:1489!
-> > enter ? for help
-> > [c000000384eafcc0] c0000000001e5514 .SyS_move_pages+0x524/0x7d0
-> > [c000000384eafe30] c00000000000a1d8 syscall_exit+0x0/0x98
-> > --- Exception: c01 (System Call) at 00003fff795f30a8
-> > SP (3ffff958f290) is in userspace
-> > 
-> > I've left it in the debugger, can dig into it a bit more tomorrow
-> > if anyone has any clues.
-> 
-> Thanks for leaving it overnight, but this one is quite obvious,
-> so go ahead and reboot whenever suits you.
-> 
-> Trinity didn't even need to do anything bizarre to get this: that
-> ordinary path simply didn't get tried on powerpc or ia64 before.
-> 
-> Here's a patch which should fix it for you, but I believe leaves
-> a race in common with other architectures.  I must turn away to
-> other things, and hope Naoya-san can fix up the locking separately
-> (or point out why it's already safe).
-> 
-> [PATCH] mm: fix move_pages follow_page huge_addr BUG
-> 
-> v3.12's e632a938d914 ("mm: migrate: add hugepage migration code to
-> move_pages()") is okay on most arches, but on follow_huge_addr-style
-> arches ia64 and powerpc, it hits my old BUG_ON(flags & FOLL_GET)
-> from v2.6.15 deceb6cd17e6 ("mm: follow_page with inner ptlock").
-> 
-> The point of the BUG_ON was that nothing needed FOLL_GET there at
-> the time, and it was not clear that we have sufficient locking to
-> use get_page() safely here on the outside - maybe the page found has
-> already been freed and even reused when follow_huge_addr() returns.
-> 
-> I suspect that e632a938d914's use of get_page() after return from
-> follow_huge_pmd() has the same problem: what prevents a racing
-> instance of move_pages() from already migrating away and freeing
-> that page by then?  A reference to the page should be taken while
-> holding suitable lock (huge_pte_lockptr?), to serialize against
-> concurrent migration.
-> 
-> But I'm not prepared to rework the hugetlb locking here myself;
-> so for now just supply a patch to copy e632a938d914's get_page()
-> after follow_huge_pmd() to after follow_huge_addr(): removing
-> the BUG_ON(flags & FOLL_GET), but probably leaving a race.
+The fair zone allocation policy round-robins allocations between zones on
+a node to avoid age inversion problems during reclaim using a counter to
+manage the round-robin. If the first allocation fails, the batch counts get
+reset and the allocation is attempted again before going into the slow path.
+There are at least two problems with this
 
-Thanks for the detailed explanation Hugh.
+1. If the eligible zones are below the low watermark we reset the counts
+   even though the batches might be fine.
+2. We potentially do batch resets even when the right choice is to fallback
+   to other nodes.
 
-Unfortunately I don't know our mm/hugetlb code well enough to give you a good
-answer. Ben had a quick look at our follow_huge_addr() and thought it looked
-"fishy". He suggested something like what we do in gup_pte_range() with
-page_cache_get_speculative() might be in order.
+When resetting batch counts, it was expected that the count would be <=
+0 but the bizarre side-effect is that we are resetting counters that were
+initially postive so (high - low - batch) potentially sets a high positive
+batch count to close to 0. This leads to a premature reset in the near
+future, more overhead and more ... screwing around.
 
-Applying your patch and running trinity pretty immediately results in the
-following, which looks related (sys_move_pages() again) ?
+The user-visible effect depends on zone sizes and a host of other effects
+the obvious one is that single-node machines with multiple zones will see
+degraded performance for streaming readers at least. The effect is also
+visible on NUMA machines but it may be harder to identify in the midst of
+other noise.
 
-Unable to handle kernel paging request for data at address 0xf2000f80000000
-Faulting instruction address: 0xc0000000001e29bc
-cpu 0x1b: Vector: 300 (Data Access) at [c0000003c70f76f0]
-    pc: c0000000001e29bc: .remove_migration_pte+0x9c/0x320
-    lr: c0000000001e29b8: .remove_migration_pte+0x98/0x320
-    sp: c0000003c70f7970
-   msr: 8000000000009032
-   dar: f2000f80000000
- dsisr: 40000000
-  current = 0xc0000003f9045800
-  paca    = 0xc000000001dc6c00   softe: 0        irq_happened: 0x01
-    pid   = 3585, comm = trinity-c27
-enter ? for help
-[c0000003c70f7a20] c0000000001bce88 .rmap_walk+0x328/0x470
-[c0000003c70f7ae0] c0000000001e2904 .remove_migration_ptes+0x44/0x60
-[c0000003c70f7b80] c0000000001e4ce8 .migrate_pages+0x6d8/0xa00
-[c0000003c70f7cc0] c0000000001e55ec .SyS_move_pages+0x5dc/0x7d0
-[c0000003c70f7e30] c00000000000a1d8 syscall_exit+0x0/0x98
---- Exception: c01 (System Call) at 00003fff7b2b30a8
-SP (3fffe09728a0) is in userspace
-1b:mon> 
+Comparison is tiobench with data size 2*RAM on ext3 on a small single-node
+machine and on an ext3 filesystem. Baseline kernel is mmotm with the
+shrinker and proportional reclaim patches on top.
 
-I've hit it twice in two runs:
+                                      3.15.0-rc5            3.15.0-rc5
+                                  mmotm-20140528         fairzone-v1r1
+Mean   SeqRead-MB/sec-1         120.95 (  0.00%)      133.59 ( 10.45%)
+Mean   SeqRead-MB/sec-2         100.81 (  0.00%)      113.61 ( 12.70%)
+Mean   SeqRead-MB/sec-4          93.75 (  0.00%)      104.75 ( 11.74%)
+Mean   SeqRead-MB/sec-8          85.35 (  0.00%)       91.21 (  6.86%)
+Mean   SeqRead-MB/sec-16         68.91 (  0.00%)       74.77 (  8.49%)
+Mean   RandRead-MB/sec-1          1.08 (  0.00%)        1.07 ( -0.93%)
+Mean   RandRead-MB/sec-2          1.28 (  0.00%)        1.25 ( -2.34%)
+Mean   RandRead-MB/sec-4          1.54 (  0.00%)        1.51 ( -1.73%)
+Mean   RandRead-MB/sec-8          1.67 (  0.00%)        1.70 (  2.20%)
+Mean   RandRead-MB/sec-16         1.74 (  0.00%)        1.73 ( -0.19%)
+Mean   SeqWrite-MB/sec-1        113.73 (  0.00%)      113.88 (  0.13%)
+Mean   SeqWrite-MB/sec-2        103.76 (  0.00%)      104.13 (  0.36%)
+Mean   SeqWrite-MB/sec-4         98.45 (  0.00%)       98.44 ( -0.01%)
+Mean   SeqWrite-MB/sec-8         93.11 (  0.00%)       92.79 ( -0.34%)
+Mean   SeqWrite-MB/sec-16        87.64 (  0.00%)       87.85 (  0.24%)
+Mean   RandWrite-MB/sec-1         1.38 (  0.00%)        1.36 ( -1.21%)
+Mean   RandWrite-MB/sec-2         1.35 (  0.00%)        1.35 (  0.25%)
+Mean   RandWrite-MB/sec-4         1.33 (  0.00%)        1.35 (  1.00%)
+Mean   RandWrite-MB/sec-8         1.31 (  0.00%)        1.29 ( -1.53%)
+Mean   RandWrite-MB/sec-16        1.27 (  0.00%)        1.28 (  0.79%)
 
-Unable to handle kernel paging request for data at address 0xf2400f00000000
-Faulting instruction address: 0xc0000000001e2a3c
-cpu 0xd: Vector: 300 (Data Access) at [c00000038a4bf6f0]
-    pc: c0000000001e2a3c: .remove_migration_pte+0x9c/0x320
-    lr: c0000000001e2a38: .remove_migration_pte+0x98/0x320
-    sp: c00000038a4bf970
-   msr: 8000000000009032
-   dar: f2400f00000000
- dsisr: 40000000
-  current = 0xc0000003acd9e680
-  paca    = 0xc000000001dc3400   softe: 0        irq_happened: 0x01
-    pid   = 13334, comm = trinity-c13
-enter ? for help
-[c00000038a4bfa20] c0000000001bcf08 .rmap_walk+0x328/0x470
-[c00000038a4bfae0] c0000000001e2984 .remove_migration_ptes+0x44/0x60
-[c00000038a4bfb80] c0000000001e4d68 .migrate_pages+0x6d8/0xa00
-[c00000038a4bfcc0] c0000000001e566c .SyS_move_pages+0x5dc/0x7d0
-[c00000038a4bfe30] c00000000000a1d8 syscall_exit+0x0/0x98
---- Exception: c01 (System Call) at 00003fff79df30a8
-SP (3fffda95d500) is in userspace
-d:mon> 
+Streaming readers see a huge boost. Random random readers, sequential
+writers and random writers are all in the noise.
 
+Signed-off-by: Mel Gorman <mgorman@suse.de>
+---
+ mm/page_alloc.c | 89 +++++++++++++++++++++++++++++++++++++++++++++++------------------------------------------
+ 1 file changed, 47 insertions(+), 42 deletions(-)
 
-If I tell trinity to skip sys_move_pages() it runs for hours.
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 2c7d394..70d4264 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1919,6 +1919,28 @@ static bool zone_allows_reclaim(struct zone *local_zone, struct zone *zone)
+ 
+ #endif	/* CONFIG_NUMA */
+ 
++static void reset_alloc_batches(struct zonelist *zonelist,
++				enum zone_type high_zoneidx,
++				struct zone *preferred_zone)
++{
++	struct zoneref *z;
++	struct zone *zone;
++
++	for_each_zone_zonelist(zone, z, zonelist, high_zoneidx) {
++		/*
++		 * Only reset the batches of zones that were actually
++		 * considered in the fairness pass, we don't want to
++		 * trash fairness information for zones that are not
++		 * actually part of this zonelist's round-robin cycle.
++		 */
++		if (!zone_local(preferred_zone, zone))
++			continue;
++		mod_zone_page_state(zone, NR_ALLOC_BATCH,
++			high_wmark_pages(zone) - low_wmark_pages(zone) -
++			atomic_long_read(&zone->vm_stat[NR_ALLOC_BATCH]));
++	}
++}
++
+ /*
+  * get_page_from_freelist goes through the zonelist trying to allocate
+  * a page.
+@@ -1936,6 +1958,7 @@ get_page_from_freelist(gfp_t gfp_mask, nodemask_t *nodemask, unsigned int order,
+ 	int did_zlc_setup = 0;		/* just call zlc_setup() one time */
+ 	bool consider_zone_dirty = (alloc_flags & ALLOC_WMARK_LOW) &&
+ 				(gfp_mask & __GFP_WRITE);
++	bool batch_depleted = (alloc_flags & ALLOC_FAIR);
+ 
+ zonelist_scan:
+ 	/*
+@@ -1960,11 +1982,13 @@ zonelist_scan:
+ 		 * time the page has in memory before being reclaimed.
+ 		 */
+ 		if (alloc_flags & ALLOC_FAIR) {
+-			if (!zone_local(preferred_zone, zone))
+-				continue;
+ 			if (zone_page_state(zone, NR_ALLOC_BATCH) <= 0)
+ 				continue;
++			batch_depleted = false;
++			if (!zone_local(preferred_zone, zone))
++				continue;
+ 		}
++
+ 		/*
+ 		 * When allocating a page cache page for writing, we
+ 		 * want to get it from a zone that is within its dirty
+@@ -2075,7 +2099,7 @@ this_zone_full:
+ 		goto zonelist_scan;
+ 	}
+ 
+-	if (page)
++	if (page) {
+ 		/*
+ 		 * page->pfmemalloc is set when ALLOC_NO_WATERMARKS was
+ 		 * necessary to allocate the page. The expectation is
+@@ -2084,6 +2108,25 @@ this_zone_full:
+ 		 * for !PFMEMALLOC purposes.
+ 		 */
+ 		page->pfmemalloc = !!(alloc_flags & ALLOC_NO_WATERMARKS);
++	} else {
++		/*
++		 * The first pass makes sure allocations are spread
++		 * fairly within the local node.  However, the local
++		 * node might have free pages left after the fairness
++		 * batches are exhausted, and remote zones haven't
++		 * even been considered yet.  Try once more without
++		 * fairness, and include remote zones now, before
++		 * entering the slowpath and waking kswapd: prefer
++		 * spilling to a remote zone over swapping locally.
++		 */
++		if ((alloc_flags & ALLOC_FAIR)) {
++			if (batch_depleted)
++				reset_alloc_batches(zonelist, high_zoneidx,
++					    preferred_zone);
++			alloc_flags &= ~ALLOC_FAIR;
++			goto zonelist_scan;
++		}
++	}
+ 
+ 	return page;
+ }
+@@ -2424,28 +2467,6 @@ __alloc_pages_high_priority(gfp_t gfp_mask, unsigned int order,
+ 	return page;
+ }
+ 
+-static void reset_alloc_batches(struct zonelist *zonelist,
+-				enum zone_type high_zoneidx,
+-				struct zone *preferred_zone)
+-{
+-	struct zoneref *z;
+-	struct zone *zone;
+-
+-	for_each_zone_zonelist(zone, z, zonelist, high_zoneidx) {
+-		/*
+-		 * Only reset the batches of zones that were actually
+-		 * considered in the fairness pass, we don't want to
+-		 * trash fairness information for zones that are not
+-		 * actually part of this zonelist's round-robin cycle.
+-		 */
+-		if (!zone_local(preferred_zone, zone))
+-			continue;
+-		mod_zone_page_state(zone, NR_ALLOC_BATCH,
+-			high_wmark_pages(zone) - low_wmark_pages(zone) -
+-			atomic_long_read(&zone->vm_stat[NR_ALLOC_BATCH]));
+-	}
+-}
+-
+ static void wake_all_kswapds(unsigned int order,
+ 			     struct zonelist *zonelist,
+ 			     enum zone_type high_zoneidx,
+@@ -2783,29 +2804,12 @@ retry_cpuset:
+ 	if (allocflags_to_migratetype(gfp_mask) == MIGRATE_MOVABLE)
+ 		alloc_flags |= ALLOC_CMA;
+ #endif
+-retry:
+ 	/* First allocation attempt */
+ 	page = get_page_from_freelist(gfp_mask|__GFP_HARDWALL, nodemask, order,
+ 			zonelist, high_zoneidx, alloc_flags,
+ 			preferred_zone, classzone_idx, migratetype);
+ 	if (unlikely(!page)) {
+ 		/*
+-		 * The first pass makes sure allocations are spread
+-		 * fairly within the local node.  However, the local
+-		 * node might have free pages left after the fairness
+-		 * batches are exhausted, and remote zones haven't
+-		 * even been considered yet.  Try once more without
+-		 * fairness, and include remote zones now, before
+-		 * entering the slowpath and waking kswapd: prefer
+-		 * spilling to a remote zone over swapping locally.
+-		 */
+-		if (alloc_flags & ALLOC_FAIR) {
+-			reset_alloc_batches(zonelist, high_zoneidx,
+-					    preferred_zone);
+-			alloc_flags &= ~ALLOC_FAIR;
+-			goto retry;
+-		}
+-		/*
+ 		 * Runtime PM, block IO and its error handling path
+ 		 * can deadlock because I/O on the device might not
+ 		 * complete.
 
-cheers
-
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
