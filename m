@@ -1,227 +1,422 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f43.google.com (mail-wg0-f43.google.com [74.125.82.43])
-	by kanga.kvack.org (Postfix) with ESMTP id 4B1F06B0035
-	for <linux-mm@kvack.org>; Thu, 29 May 2014 13:16:17 -0400 (EDT)
-Received: by mail-wg0-f43.google.com with SMTP id l18so726882wgh.26
-        for <linux-mm@kvack.org>; Thu, 29 May 2014 10:16:16 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id dc5si3328807wib.85.2014.05.29.10.16.13
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 29 May 2014 10:16:14 -0700 (PDT)
-Date: Thu, 29 May 2014 18:16:08 +0100
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] mm: page_alloc: Reset fair zone allocation policy only
- when batch counts are expired
-Message-ID: <20140529171608.GB23991@suse.de>
-References: <20140529090432.GY23991@suse.de>
- <20140529143832.GJ2878@cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 5209C6B0035
+	for <linux-mm@kvack.org>; Thu, 29 May 2014 14:35:01 -0400 (EDT)
+Received: by mail-wi0-f175.google.com with SMTP id f8so6077258wiw.14
+        for <linux-mm@kvack.org>; Thu, 29 May 2014 11:34:58 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id n3si3028794wjx.102.2014.05.29.11.34.56
+        for <linux-mm@kvack.org>;
+        Thu, 29 May 2014 11:34:57 -0700 (PDT)
+Message-ID: <53877dd1.0350c20a.2dde.ffff99d7SMTPIN_ADDED_BROKEN@mx.google.com>
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH] hugetlb: restrict hugepage_migration_support() to x86_64 (Re: BUG at mm/memory.c:1489!)
+Date: Thu, 29 May 2014 14:34:35 -0400
+In-Reply-To: <1401353983.4930.15.camel@concordia>
+References: <1401265922.3355.4.camel@concordia> <alpine.LSU.2.11.1405281712310.7156@eggly.anvils> <1401353983.4930.15.camel@concordia>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
-In-Reply-To: <20140529143832.GJ2878@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>
+To: mpe@ellerman.id.au
+Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, benh@kernel.crashing.org, Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, trinity@vger.kernel.org
 
-On Thu, May 29, 2014 at 10:38:32AM -0400, Johannes Weiner wrote:
-> Hi Mel!
-> 
-> On Thu, May 29, 2014 at 10:04:32AM +0100, Mel Gorman wrote:
-> > The fair zone allocation policy round-robins allocations between zones on
-> > a node to avoid age inversion problems during reclaim using a counter to
-> > manage the round-robin. If the first allocation fails, the batch counts get
-> > reset and the allocation is attempted again before going into the slow path.
-> > There are at least two problems with this
-> > 
-> > 1. If the eligible zones are below the low watermark we reset the counts
-> >    even though the batches might be fine.
-> 
-> The idea behind setting the batches to high-low was that they should
-> be roughly exhausted by the time the low watermark is hit.  And that
-> misconception must be the crux of this patch, because if they *were*
-> to exhaust together this patch wouldn't make a difference.
-> 
-> But once they diverge, we reset the batches prematurely, which means
-> not everybody is getting their fair share, and that reverts us back to
-> an imbalance in zone utilization.
-> 
-> So I think the changelog should include why this assumption was wrong.
-> 
+On Thu, May 29, 2014 at 06:59:43PM +1000, Michael Ellerman wrote:
+> On Wed, 2014-05-28 at 17:33 -0700, Hugh Dickins wrote:
+> > On Wed, 28 May 2014, Michael Ellerman wrote:
+> > > Linux Blade312-5 3.15.0-rc7 #306 SMP Wed May 28 17:51:18 EST 2014 ppc64
+> > >
+> > > [watchdog] 27853 iterations. [F:22642 S:5174 HI:1276]
+> > > ------------[ cut here ]------------
+> > > kernel BUG at /home/michael/mmk-build/flow/mm/memory.c:1489!
+> > > cpu 0xc: Vector: 700 (Program Check) at [c000000384eaf960]
+> > >     pc: c0000000001ad6f0: .follow_page_mask+0x90/0x650
+> > >     lr: c0000000001ad6d8: .follow_page_mask+0x78/0x650
+> > >     sp: c000000384eafbe0
+> > >    msr: 8000000000029032
+> > >   current = 0xc0000003c27e1bc0
+> > >   paca    = 0xc000000001dc3000   softe: 0        irq_happened: 0x01
+> > >     pid   = 20800, comm = trinity-c12
+> > > kernel BUG at /home/michael/mmk-build/flow/mm/memory.c:1489!
+> > > enter ? for help
+> > > [c000000384eafcc0] c0000000001e5514 .SyS_move_pages+0x524/0x7d0
+> > > [c000000384eafe30] c00000000000a1d8 syscall_exit+0x0/0x98
+> > > --- Exception: c01 (System Call) at 00003fff795f30a8
+> > > SP (3ffff958f290) is in userspace
+> > >
+> > > I've left it in the debugger, can dig into it a bit more tomorrow
+> > > if anyone has any clues.
+> >
+> > Thanks for leaving it overnight, but this one is quite obvious,
+> > so go ahead and reboot whenever suits you.
+> >
+> > Trinity didn't even need to do anything bizarre to get this: that
+> > ordinary path simply didn't get tried on powerpc or ia64 before.
+> >
+> > Here's a patch which should fix it for you, but I believe leaves
+> > a race in common with other architectures.  I must turn away to
+> > other things, and hope Naoya-san can fix up the locking separately
+> > (or point out why it's already safe).
+> >
+> > [PATCH] mm: fix move_pages follow_page huge_addr BUG
+> >
+> > v3.12's e632a938d914 ("mm: migrate: add hugepage migration code to
+> > move_pages()") is okay on most arches, but on follow_huge_addr-style
+> > arches ia64 and powerpc, it hits my old BUG_ON(flags & FOLL_GET)
+> > from v2.6.15 deceb6cd17e6 ("mm: follow_page with inner ptlock").
+> >
+> > The point of the BUG_ON was that nothing needed FOLL_GET there at
+> > the time, and it was not clear that we have sufficient locking to
+> > use get_page() safely here on the outside - maybe the page found has
+> > already been freed and even reused when follow_huge_addr() returns.
+> >
+> > I suspect that e632a938d914's use of get_page() after return from
+> > follow_huge_pmd() has the same problem: what prevents a racing
+> > instance of move_pages() from already migrating away and freeing
+> > that page by then?  A reference to the page should be taken while
+> > holding suitable lock (huge_pte_lockptr?), to serialize against
+> > concurrent migration.
+> >
+> > But I'm not prepared to rework the hugetlb locking here myself;
+> > so for now just supply a patch to copy e632a938d914's get_page()
+> > after follow_huge_pmd() to after follow_huge_addr(): removing
+> > the BUG_ON(flags & FOLL_GET), but probably leaving a race.
+>
+> Thanks for the detailed explanation Hugh.
+>
+> Unfortunately I don't know our mm/hugetlb code well enough to give you a good
+> answer. Ben had a quick look at our follow_huge_addr() and thought it looked
+> "fishy". He suggested something like what we do in gup_pte_range() with
+> page_cache_get_speculative() might be in order.
+>
+> Applying your patch and running trinity pretty immediately results in the
+> following, which looks related (sys_move_pages() again) ?
+>
+> Unable to handle kernel paging request for data at address 0xf2000f80000000
+> Faulting instruction address: 0xc0000000001e29bc
+> cpu 0x1b: Vector: 300 (Data Access) at [c0000003c70f76f0]
+>     pc: c0000000001e29bc: .remove_migration_pte+0x9c/0x320
+>     lr: c0000000001e29b8: .remove_migration_pte+0x98/0x320
+>     sp: c0000003c70f7970
+>    msr: 8000000000009032
+>    dar: f2000f80000000
+>  dsisr: 40000000
+>   current = 0xc0000003f9045800
+>   paca    = 0xc000000001dc6c00   softe: 0        irq_happened: 0x01
+>     pid   = 3585, comm = trinity-c27
+> enter ? for help
+> [c0000003c70f7a20] c0000000001bce88 .rmap_walk+0x328/0x470
+> [c0000003c70f7ae0] c0000000001e2904 .remove_migration_ptes+0x44/0x60
+> [c0000003c70f7b80] c0000000001e4ce8 .migrate_pages+0x6d8/0xa00
+> [c0000003c70f7cc0] c0000000001e55ec .SyS_move_pages+0x5dc/0x7d0
+> [c0000003c70f7e30] c00000000000a1d8 syscall_exit+0x0/0x98
+> --- Exception: c01 (System Call) at 00003fff7b2b30a8
+> SP (3fffe09728a0) is in userspace
+> 1b:mon>
 
-They won't exhaust together when there are multiple allocation requests
-simply on the basis that there is no lock there and there is per-cpu
-accounting drift for vmstats. You'd at least expect them to drift by the
-per-cpu update threshold.
+Sorry for inconvenience on your testing.
 
-> > 2. We potentially do batch resets even when the right choice is to fallback
-> >    to other nodes.
-> 
-> We only fall back to other nodes when the fairness cycle is over and
-> all local zones have been considered fair and square.  Why *not* reset
-> the batches and start a new fairness cycle at this point?  Remember
-> that remote nodes are not - can not - be part of the fairness cycle.
-> 
-> So I think this one is a red herring.
-> 
+Hugepage migration is enabled for archs which have pmd-level hugepage
+(including ppc64,) but not tested except for x86_64.
+hugepage_migration_support() controls this so the following patch should
+help you avoid the problem, I believe.
+Could you try to test with it?
 
-Ok. There have been a lot of red herrings chasing down this one
-unfortunately as it was not possible to bisect and there were a lot of
-candidates :/
+Thanks,
+Naoya Horiguchi
+---
+Date: Thu, 29 May 2014 12:51:37 -0400
+Subject: [PATCH] hugetlb: restrict hugepage_migration_support() to x86_64
 
-> > When resetting batch counts, it was expected that the count would be <=
-> > 0 but the bizarre side-effect is that we are resetting counters that were
-> > initially postive so (high - low - batch) potentially sets a high positive
-> > batch count to close to 0. This leads to a premature reset in the near
-> > future, more overhead and more ... screwing around.
-> 
-> We're just adding the missing delta between the "should" and "is"
-> value to the existing batch, so a high batch value means small delta,
-> and we *add* a value close to 0, we don't *set* the batch close to 0.
-> 
-> I think this one is a red herring as well.
-> 
+Curretly hugepage migration is available for all archs which support pmd-level
+hugepage, but testing is done only for x86_64 and there're bugs for other archs.
+So to avoid breaking such archs, this patch limits the availability strictly to
+x86_64 until developers of other archs get interested in enabling this feature.
 
-There are still boundary issues that results in screwing around and
-maybe I should have focused on this one instead. The situation I had in
-mind started out as follows
+Reported-by: Michael Ellerman <mpe@ellerman.id.au>
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: stable@vger.kernel.org # 3.12+
+---
+ arch/arm/mm/hugetlbpage.c     |  5 -----
+ arch/arm64/mm/hugetlbpage.c   |  5 -----
+ arch/ia64/mm/hugetlbpage.c    |  5 -----
+ arch/metag/mm/hugetlbpage.c   |  5 -----
+ arch/mips/mm/hugetlbpage.c    |  5 -----
+ arch/powerpc/mm/hugetlbpage.c | 10 ----------
+ arch/s390/mm/hugetlbpage.c    |  5 -----
+ arch/sh/mm/hugetlbpage.c      |  5 -----
+ arch/sparc/mm/hugetlbpage.c   |  5 -----
+ arch/tile/mm/hugetlbpage.c    |  5 -----
+ arch/x86/Kconfig              |  4 ++++
+ arch/x86/mm/hugetlbpage.c     | 10 ----------
+ include/linux/hugetlb.h       | 10 ++++++----
+ mm/Kconfig                    |  3 +++
+ 14 files changed, 13 insertions(+), 69 deletions(-)
 
-high zone alloc batch	1000	low watermark not ok
-low zone alloc batch	   0	low watermark     ok
-
-during the fairness cycle, no action can take place. The higher zone is not
-allowed to allcoate at below the low watermark and must always enter the
-slow path. The lower zone also temporarily cannot be used. At this point, a
-reset takes place and the system continues until the low watermark is reached
-
-high zone alloc batch	1000	low watermark not ok
-low zone allooc batch	 100	low watermark not ok
-
-During this window, every ALLOC_FAIR is going to fail to due watermarks but
-still do another zone batch reset and recycle every time before falling
-into the slow path.  It ends up being more zonelist traversals which is
-why I moved the reset check inside get_page_from_freelist to detect the
-difference between ALLOC_FAIL failures and watermarks failures.
-
-The differences in timing when watermarks are hit may also account for
-some of the drift for when the alloc batches get depleted.
-
-> > The user-visible effect depends on zone sizes and a host of other effects
-> > the obvious one is that single-node machines with multiple zones will see
-> > degraded performance for streaming readers at least. The effect is also
-> > visible on NUMA machines but it may be harder to identify in the midst of
-> > other noise.
-> > 
-> > Comparison is tiobench with data size 2*RAM on ext3 on a small single-node
-> > machine and on an ext3 filesystem. Baseline kernel is mmotm with the
-> > shrinker and proportional reclaim patches on top.
-> > 
-> >                                       3.15.0-rc5            3.15.0-rc5
-> >                                   mmotm-20140528         fairzone-v1r1
-> > Mean   SeqRead-MB/sec-1         120.95 (  0.00%)      133.59 ( 10.45%)
-> > Mean   SeqRead-MB/sec-2         100.81 (  0.00%)      113.61 ( 12.70%)
-> > Mean   SeqRead-MB/sec-4          93.75 (  0.00%)      104.75 ( 11.74%)
-> > Mean   SeqRead-MB/sec-8          85.35 (  0.00%)       91.21 (  6.86%)
-> > Mean   SeqRead-MB/sec-16         68.91 (  0.00%)       74.77 (  8.49%)
-> > Mean   RandRead-MB/sec-1          1.08 (  0.00%)        1.07 ( -0.93%)
-> > Mean   RandRead-MB/sec-2          1.28 (  0.00%)        1.25 ( -2.34%)
-> > Mean   RandRead-MB/sec-4          1.54 (  0.00%)        1.51 ( -1.73%)
-> > Mean   RandRead-MB/sec-8          1.67 (  0.00%)        1.70 (  2.20%)
-> > Mean   RandRead-MB/sec-16         1.74 (  0.00%)        1.73 ( -0.19%)
-> > Mean   SeqWrite-MB/sec-1        113.73 (  0.00%)      113.88 (  0.13%)
-> > Mean   SeqWrite-MB/sec-2        103.76 (  0.00%)      104.13 (  0.36%)
-> > Mean   SeqWrite-MB/sec-4         98.45 (  0.00%)       98.44 ( -0.01%)
-> > Mean   SeqWrite-MB/sec-8         93.11 (  0.00%)       92.79 ( -0.34%)
-> > Mean   SeqWrite-MB/sec-16        87.64 (  0.00%)       87.85 (  0.24%)
-> > Mean   RandWrite-MB/sec-1         1.38 (  0.00%)        1.36 ( -1.21%)
-> > Mean   RandWrite-MB/sec-2         1.35 (  0.00%)        1.35 (  0.25%)
-> > Mean   RandWrite-MB/sec-4         1.33 (  0.00%)        1.35 (  1.00%)
-> > Mean   RandWrite-MB/sec-8         1.31 (  0.00%)        1.29 ( -1.53%)
-> > Mean   RandWrite-MB/sec-16        1.27 (  0.00%)        1.28 (  0.79%)
-> > 
-> > Streaming readers see a huge boost. Random random readers, sequential
-> > writers and random writers are all in the noise.
-> 
-> Impressive, but I would really like to understand what's going on
-> there.
-> 
-> Did you record the per-zone allocation numbers by any chance as well,
-> so we can see the difference in zone utilization?
-
-No, I didn't record per-zone usage because at the time when the low
-watermarks are being hit, it would have been less useful anyway.
-
-> > Signed-off-by: Mel Gorman <mgorman@suse.de>
-> > ---
-> >  mm/page_alloc.c | 89 +++++++++++++++++++++++++++++++++++++++++++++++------------------------------------------
-> >  1 file changed, 47 insertions(+), 42 deletions(-)
-> > 
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > index 2c7d394..70d4264 100644
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -1919,6 +1919,28 @@ static bool zone_allows_reclaim(struct zone *local_zone, struct zone *zone)
-> >  
-> >  #endif	/* CONFIG_NUMA */
-> >  
-> > +static void reset_alloc_batches(struct zonelist *zonelist,
-> > +				enum zone_type high_zoneidx,
-> > +				struct zone *preferred_zone)
-> > +{
-> > +	struct zoneref *z;
-> > +	struct zone *zone;
-> > +
-> > +	for_each_zone_zonelist(zone, z, zonelist, high_zoneidx) {
-> > +		/*
-> > +		 * Only reset the batches of zones that were actually
-> > +		 * considered in the fairness pass, we don't want to
-> > +		 * trash fairness information for zones that are not
-> > +		 * actually part of this zonelist's round-robin cycle.
-> > +		 */
-> > +		if (!zone_local(preferred_zone, zone))
-> > +			continue;
-> > +		mod_zone_page_state(zone, NR_ALLOC_BATCH,
-> > +			high_wmark_pages(zone) - low_wmark_pages(zone) -
-> > +			atomic_long_read(&zone->vm_stat[NR_ALLOC_BATCH]));
-> > +	}
-> > +}
-> > +
-> >  /*
-> >   * get_page_from_freelist goes through the zonelist trying to allocate
-> >   * a page.
-> > @@ -1936,6 +1958,7 @@ get_page_from_freelist(gfp_t gfp_mask, nodemask_t *nodemask, unsigned int order,
-> >  	int did_zlc_setup = 0;		/* just call zlc_setup() one time */
-> >  	bool consider_zone_dirty = (alloc_flags & ALLOC_WMARK_LOW) &&
-> >  				(gfp_mask & __GFP_WRITE);
-> > +	bool batch_depleted = (alloc_flags & ALLOC_FAIR);
-> >  
-> >  zonelist_scan:
-> >  	/*
-> > @@ -1960,11 +1982,13 @@ zonelist_scan:
-> >  		 * time the page has in memory before being reclaimed.
-> >  		 */
-> >  		if (alloc_flags & ALLOC_FAIR) {
-> > -			if (!zone_local(preferred_zone, zone))
-> > -				continue;
-> >  			if (zone_page_state(zone, NR_ALLOC_BATCH) <= 0)
-> >  				continue;
-> > +			batch_depleted = false;
-> > +			if (!zone_local(preferred_zone, zone))
-> > +				continue;
-> 
-> This only resets the local batches once the first non-local zone's
-> batch is exhausted as well.  Which means that once we start spilling,
-> the fairness pass will never consider local zones again until the
-> first spill-over target is exhausted too. 
-
-Yes, you're right. The intent was that the reset would only task place
-after all local zones had used their allocation batch but it got mucked
-up along the way.
-
+diff --git a/arch/arm/mm/hugetlbpage.c b/arch/arm/mm/hugetlbpage.c
+index 54ee6163c181..66781bf34077 100644
+--- a/arch/arm/mm/hugetlbpage.c
++++ b/arch/arm/mm/hugetlbpage.c
+@@ -56,8 +56,3 @@ int pmd_huge(pmd_t pmd)
+ {
+ 	return pmd_val(pmd) && !(pmd_val(pmd) & PMD_TABLE_BIT);
+ }
+-
+-int pmd_huge_support(void)
+-{
+-	return 1;
+-}
+diff --git a/arch/arm64/mm/hugetlbpage.c b/arch/arm64/mm/hugetlbpage.c
+index 5e9aec358306..2fc8258bab2d 100644
+--- a/arch/arm64/mm/hugetlbpage.c
++++ b/arch/arm64/mm/hugetlbpage.c
+@@ -54,11 +54,6 @@ int pud_huge(pud_t pud)
+ 	return !(pud_val(pud) & PUD_TABLE_BIT);
+ }
+ 
+-int pmd_huge_support(void)
+-{
+-	return 1;
+-}
+-
+ static __init int setup_hugepagesz(char *opt)
+ {
+ 	unsigned long ps = memparse(opt, &opt);
+diff --git a/arch/ia64/mm/hugetlbpage.c b/arch/ia64/mm/hugetlbpage.c
+index 68232db98baa..76069c18ee42 100644
+--- a/arch/ia64/mm/hugetlbpage.c
++++ b/arch/ia64/mm/hugetlbpage.c
+@@ -114,11 +114,6 @@ int pud_huge(pud_t pud)
+ 	return 0;
+ }
+ 
+-int pmd_huge_support(void)
+-{
+-	return 0;
+-}
+-
+ struct page *
+ follow_huge_pmd(struct mm_struct *mm, unsigned long address, pmd_t *pmd, int write)
+ {
+diff --git a/arch/metag/mm/hugetlbpage.c b/arch/metag/mm/hugetlbpage.c
+index 042431509b56..3c52fa6d0f8e 100644
+--- a/arch/metag/mm/hugetlbpage.c
++++ b/arch/metag/mm/hugetlbpage.c
+@@ -110,11 +110,6 @@ int pud_huge(pud_t pud)
+ 	return 0;
+ }
+ 
+-int pmd_huge_support(void)
+-{
+-	return 1;
+-}
+-
+ struct page *follow_huge_pmd(struct mm_struct *mm, unsigned long address,
+ 			     pmd_t *pmd, int write)
+ {
+diff --git a/arch/mips/mm/hugetlbpage.c b/arch/mips/mm/hugetlbpage.c
+index 77e0ae036e7c..4ec8ee10d371 100644
+--- a/arch/mips/mm/hugetlbpage.c
++++ b/arch/mips/mm/hugetlbpage.c
+@@ -84,11 +84,6 @@ int pud_huge(pud_t pud)
+ 	return (pud_val(pud) & _PAGE_HUGE) != 0;
+ }
+ 
+-int pmd_huge_support(void)
+-{
+-	return 1;
+-}
+-
+ struct page *
+ follow_huge_pmd(struct mm_struct *mm, unsigned long address,
+ 		pmd_t *pmd, int write)
+diff --git a/arch/powerpc/mm/hugetlbpage.c b/arch/powerpc/mm/hugetlbpage.c
+index eb923654ba80..7e70ae968e5f 100644
+--- a/arch/powerpc/mm/hugetlbpage.c
++++ b/arch/powerpc/mm/hugetlbpage.c
+@@ -86,11 +86,6 @@ int pgd_huge(pgd_t pgd)
+ 	 */
+ 	return ((pgd_val(pgd) & 0x3) != 0x0);
+ }
+-
+-int pmd_huge_support(void)
+-{
+-	return 1;
+-}
+ #else
+ int pmd_huge(pmd_t pmd)
+ {
+@@ -106,11 +101,6 @@ int pgd_huge(pgd_t pgd)
+ {
+ 	return 0;
+ }
+-
+-int pmd_huge_support(void)
+-{
+-	return 0;
+-}
+ #endif
+ 
+ pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
+diff --git a/arch/s390/mm/hugetlbpage.c b/arch/s390/mm/hugetlbpage.c
+index 0727a55d87d9..0ff66a7e29bb 100644
+--- a/arch/s390/mm/hugetlbpage.c
++++ b/arch/s390/mm/hugetlbpage.c
+@@ -220,11 +220,6 @@ int pud_huge(pud_t pud)
+ 	return 0;
+ }
+ 
+-int pmd_huge_support(void)
+-{
+-	return 1;
+-}
+-
+ struct page *follow_huge_pmd(struct mm_struct *mm, unsigned long address,
+ 			     pmd_t *pmdp, int write)
+ {
+diff --git a/arch/sh/mm/hugetlbpage.c b/arch/sh/mm/hugetlbpage.c
+index 0d676a41081e..d7762349ea48 100644
+--- a/arch/sh/mm/hugetlbpage.c
++++ b/arch/sh/mm/hugetlbpage.c
+@@ -83,11 +83,6 @@ int pud_huge(pud_t pud)
+ 	return 0;
+ }
+ 
+-int pmd_huge_support(void)
+-{
+-	return 0;
+-}
+-
+ struct page *follow_huge_pmd(struct mm_struct *mm, unsigned long address,
+ 			     pmd_t *pmd, int write)
+ {
+diff --git a/arch/sparc/mm/hugetlbpage.c b/arch/sparc/mm/hugetlbpage.c
+index 9bd9ce80bf77..d329537739c6 100644
+--- a/arch/sparc/mm/hugetlbpage.c
++++ b/arch/sparc/mm/hugetlbpage.c
+@@ -231,11 +231,6 @@ int pud_huge(pud_t pud)
+ 	return 0;
+ }
+ 
+-int pmd_huge_support(void)
+-{
+-	return 0;
+-}
+-
+ struct page *follow_huge_pmd(struct mm_struct *mm, unsigned long address,
+ 			     pmd_t *pmd, int write)
+ {
+diff --git a/arch/tile/mm/hugetlbpage.c b/arch/tile/mm/hugetlbpage.c
+index 0cb3bbaa580c..e514899e1100 100644
+--- a/arch/tile/mm/hugetlbpage.c
++++ b/arch/tile/mm/hugetlbpage.c
+@@ -166,11 +166,6 @@ int pud_huge(pud_t pud)
+ 	return !!(pud_val(pud) & _PAGE_HUGE_PAGE);
+ }
+ 
+-int pmd_huge_support(void)
+-{
+-	return 1;
+-}
+-
+ struct page *follow_huge_pmd(struct mm_struct *mm, unsigned long address,
+ 			     pmd_t *pmd, int write)
+ {
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index 25d2c6f7325e..0cf6a7d0a93e 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -1871,6 +1871,10 @@ config ARCH_ENABLE_SPLIT_PMD_PTLOCK
+ 	def_bool y
+ 	depends on X86_64 || X86_PAE
+ 
++config ARCH_ENABLE_HUGEPAGE_MIGRATION
++	def_bool y
++	depends on X86_64 || MIGRATION
++
+ menu "Power management and ACPI options"
+ 
+ config ARCH_HIBERNATION_HEADER
+diff --git a/arch/x86/mm/hugetlbpage.c b/arch/x86/mm/hugetlbpage.c
+index 8c9f647ff9e1..8b977ebf9388 100644
+--- a/arch/x86/mm/hugetlbpage.c
++++ b/arch/x86/mm/hugetlbpage.c
+@@ -58,11 +58,6 @@ follow_huge_pmd(struct mm_struct *mm, unsigned long address,
+ {
+ 	return NULL;
+ }
+-
+-int pmd_huge_support(void)
+-{
+-	return 0;
+-}
+ #else
+ 
+ struct page *
+@@ -80,11 +75,6 @@ int pud_huge(pud_t pud)
+ {
+ 	return !!(pud_val(pud) & _PAGE_PSE);
+ }
+-
+-int pmd_huge_support(void)
+-{
+-	return 1;
+-}
+ #endif
+ 
+ #ifdef CONFIG_HUGETLB_PAGE
+diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+index 63214868c5b2..61c2e349af64 100644
+--- a/include/linux/hugetlb.h
++++ b/include/linux/hugetlb.h
+@@ -385,15 +385,18 @@ static inline pgoff_t basepage_index(struct page *page)
+ 
+ extern void dissolve_free_huge_pages(unsigned long start_pfn,
+ 				     unsigned long end_pfn);
+-int pmd_huge_support(void);
+ /*
+- * Currently hugepage migration is enabled only for pmd-based hugepage.
++ * Currently hugepage migration is enabled only for x86_64.
+  * This function will be updated when hugepage migration is more widely
+  * supported.
+  */
+ static inline int hugepage_migration_support(struct hstate *h)
+ {
+-	return pmd_huge_support() && (huge_page_shift(h) == PMD_SHIFT);
++#ifdef CONFIG_ARCH_ENABLE_HUGEPAGE_MIGRATION
++	return huge_page_shift(h) == PMD_SHIFT;
++#else
++	return 0;
++#endif
+ }
+ 
+ static inline spinlock_t *huge_pte_lockptr(struct hstate *h,
+@@ -443,7 +446,6 @@ static inline pgoff_t basepage_index(struct page *page)
+ 	return page->index;
+ }
+ #define dissolve_free_huge_pages(s, e)	do {} while (0)
+-#define pmd_huge_support()	0
+ #define hugepage_migration_support(h)	0
+ 
+ static inline spinlock_t *huge_pte_lockptr(struct hstate *h,
+diff --git a/mm/Kconfig b/mm/Kconfig
+index ebe5880c29d6..1e22701c972b 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -264,6 +264,9 @@ config MIGRATION
+ 	  pages as migration can relocate pages to satisfy a huge page
+ 	  allocation instead of reclaiming.
+ 
++config ARCH_ENABLE_HUGEPAGE_MIGRATION
++	boolean
++
+ config PHYS_ADDR_T_64BIT
+ 	def_bool 64BIT || ARCH_PHYS_ADDR_T_64BIT
+ 
 -- 
-Mel Gorman
-SUSE Labs
+1.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
