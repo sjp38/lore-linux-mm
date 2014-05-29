@@ -1,46 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vc0-f169.google.com (mail-vc0-f169.google.com [209.85.220.169])
-	by kanga.kvack.org (Postfix) with ESMTP id B46626B0038
-	for <linux-mm@kvack.org>; Thu, 29 May 2014 11:39:12 -0400 (EDT)
-Received: by mail-vc0-f169.google.com with SMTP id ij19so594184vcb.0
-        for <linux-mm@kvack.org>; Thu, 29 May 2014 08:39:12 -0700 (PDT)
-Received: from mail-vc0-x235.google.com (mail-vc0-x235.google.com [2607:f8b0:400c:c03::235])
-        by mx.google.com with ESMTPS id pq7si752337vec.83.2014.05.29.08.39.12
+Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
+	by kanga.kvack.org (Postfix) with ESMTP id C957E6B0035
+	for <linux-mm@kvack.org>; Thu, 29 May 2014 12:16:24 -0400 (EDT)
+Received: by mail-wi0-f169.google.com with SMTP id hi2so5380813wib.2
+        for <linux-mm@kvack.org>; Thu, 29 May 2014 09:16:24 -0700 (PDT)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id f2si2287448wjx.79.2014.05.29.09.16.22
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 29 May 2014 08:39:12 -0700 (PDT)
-Received: by mail-vc0-f181.google.com with SMTP id hy4so571274vcb.40
-        for <linux-mm@kvack.org>; Thu, 29 May 2014 08:39:12 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <1401348405-18614-2-git-send-email-rusty@rustcorp.com.au>
-References: <87oayh6s3s.fsf@rustcorp.com.au>
-	<1401348405-18614-1-git-send-email-rusty@rustcorp.com.au>
-	<1401348405-18614-2-git-send-email-rusty@rustcorp.com.au>
-Date: Thu, 29 May 2014 08:39:11 -0700
-Message-ID: <CA+55aFzybuwti5z=uGXxibLqyDwQpPE88bN4cL5YQwpfb7aMbw@mail.gmail.com>
-Subject: Re: [PATCH 1/4] Hack: measure stack taken by vring from virtio_blk
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 29 May 2014 09:16:23 -0700 (PDT)
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: [patch 02/10] mm: memcontrol: rearrange charging fast path
+Date: Thu, 29 May 2014 12:15:54 -0400
+Message-Id: <1401380162-24121-3-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <1401380162-24121-1-git-send-email-hannes@cmpxchg.org>
+References: <1401380162-24121-1-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rusty Russell <rusty@rustcorp.com.au>
-Cc: Dave Chinner <david@fromorbit.com>, Jens Axboe <axboe@kernel.dk>, Minchan Kim <minchan@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, "Michael S. Tsirkin" <mst@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Steven Rostedt <rostedt@goodmis.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>, Vladimir Davydov <vdavydov@parallels.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, May 29, 2014 at 12:26 AM, Rusty Russell <rusty@rustcorp.com.au> wrote:
-> Results (x86-64, Minchan's .config):
->
-> gcc 4.8.2: virtio_blk: stack used = 392
-> gcc 4.6.4: virtio_blk: stack used = 528
+The charging path currently starts out with OOM condition checks when
+OOM is the rarest possible case.
 
-I wonder if that's just random luck (although 35% more stack use seems
-to be bigger than "random" - that's quite a big difference), or
-whether the gcc guys are aware of having fixed some major stack spill
-issue.
+Rearrange this code to run OOM/task dying checks only after trying the
+percpu charge and the res_counter charge and bail out before entering
+reclaim.  Attempting a charge does not hurt an (oom-)killed task as
+much as every charge attempt having to check OOM conditions.  Also,
+only check __GFP_NOFAIL when the charge would actually fail.
 
-But yeah, Minchan uses gcc 4.6.3 according to one of his emails, so
-_part_ of his stack smashing is probably due to compiler version.
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+---
+ mm/memcontrol.c | 33 +++++++++++++++++----------------
+ 1 file changed, 17 insertions(+), 16 deletions(-)
 
-                  Linus
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index c3c10ab98355..46b3e37542ad 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2576,22 +2576,6 @@ static int mem_cgroup_try_charge(struct mem_cgroup *memcg,
+ 
+ 	if (mem_cgroup_is_root(memcg))
+ 		goto done;
+-	/*
+-	 * Unlike in global OOM situations, memcg is not in a physical
+-	 * memory shortage.  Allow dying and OOM-killed tasks to
+-	 * bypass the last charges so that they can exit quickly and
+-	 * free their memory.
+-	 */
+-	if (unlikely(test_thread_flag(TIF_MEMDIE) ||
+-		     fatal_signal_pending(current) ||
+-		     current->flags & PF_EXITING))
+-		goto bypass;
+-
+-	if (unlikely(task_in_memcg_oom(current)))
+-		goto nomem;
+-
+-	if (gfp_mask & __GFP_NOFAIL)
+-		oom = false;
+ retry:
+ 	if (consume_stock(memcg, nr_pages))
+ 		goto done;
+@@ -2613,6 +2597,20 @@ retry:
+ 		goto retry;
+ 	}
+ 
++	/*
++	 * Unlike in global OOM situations, memcg is not in a physical
++	 * memory shortage.  Allow dying and OOM-killed tasks to
++	 * bypass the last charges so that they can exit quickly and
++	 * free their memory.
++	 */
++	if (unlikely(test_thread_flag(TIF_MEMDIE) ||
++		     fatal_signal_pending(current) ||
++		     current->flags & PF_EXITING))
++		goto bypass;
++
++	if (unlikely(task_in_memcg_oom(current)))
++		goto nomem;
++
+ 	if (!(gfp_mask & __GFP_WAIT))
+ 		goto nomem;
+ 
+@@ -2641,6 +2639,9 @@ retry:
+ 	if (mem_cgroup_wait_acct_move(mem_over_limit))
+ 		goto retry;
+ 
++	if (gfp_mask & __GFP_NOFAIL)
++		goto bypass;
++
+ 	if (fatal_signal_pending(current))
+ 		goto bypass;
+ 
+-- 
+1.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
