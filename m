@@ -1,47 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ve0-f182.google.com (mail-ve0-f182.google.com [209.85.128.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 3DBF86B0035
-	for <linux-mm@kvack.org>; Thu, 29 May 2014 14:38:21 -0400 (EDT)
-Received: by mail-ve0-f182.google.com with SMTP id sa20so896887veb.27
-        for <linux-mm@kvack.org>; Thu, 29 May 2014 11:38:20 -0700 (PDT)
+Received: from mail-la0-f50.google.com (mail-la0-f50.google.com [209.85.215.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 1CC696B0035
+	for <linux-mm@kvack.org>; Thu, 29 May 2014 14:52:10 -0400 (EDT)
+Received: by mail-la0-f50.google.com with SMTP id b8so430684lan.9
+        for <linux-mm@kvack.org>; Thu, 29 May 2014 11:52:10 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id a11si1218781vcf.3.2014.05.29.11.38.20
+        by mx.google.com with ESMTP id lc9si4583385lbc.22.2014.05.29.11.52.07
         for <linux-mm@kvack.org>;
-        Thu, 29 May 2014 11:38:20 -0700 (PDT)
-Message-ID: <53877e9c.8b2cdc0a.1604.ffffea43SMTPIN_ADDED_BROKEN@mx.google.com>
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH] mm/memory-failure.c: support dedicated thread to handle SIGBUS(BUS_MCEERR_AO) thread
-Date: Thu, 29 May 2014 14:38:00 -0400
-In-Reply-To: <CA+8MBbLxvZWVuUsNdPG-CTEtrAZzxrPGVFp0u74iMgYaxzwf0Q@mail.gmail.com>
-References: <CA+8MBb+Una+Z5Q-Pn0OoMYaaSx9sPJ3fdriMRMgN=CE1Jdp7Cg@mail.gmail.com> <20140527161613.GC4108@mcs.anl.gov> <5384d07e.4504e00a.2680.ffff8c31SMTPIN_ADDED_BROKEN@mx.google.com> <CA+8MBbKuBo4c2v-Y0TOk-LUJuyJsGG=twqQyAPG5WOa8Aj4GyA@mail.gmail.com> <53852abb.867ce00a.3cef.3c7eSMTPIN_ADDED_BROKEN@mx.google.com> <FDBACF11-D9F6-4DE5-A0D4-800903A243B7@gmail.com> <53862f6c.91148c0a.5fb0.2d0cSMTPIN_ADDED_BROKEN@mx.google.com> <CA+8MBbKdKy+sbov-f+1xNnj=syEM5FWR1BV85AgRJ9S+qPbWEg@mail.gmail.com> <5386915f.4772e50a.0657.ffffcda4SMTPIN_ADDED_BROKEN@mx.google.com> <CA+8MBbLxvZWVuUsNdPG-CTEtrAZzxrPGVFp0u74iMgYaxzwf0Q@mail.gmail.com>
-Mime-Version: 1.0
+        Thu, 29 May 2014 11:52:08 -0700 (PDT)
+Date: Thu, 29 May 2014 15:43:03 -0300
+From: Marcelo Tosatti <mtosatti@redhat.com>
+Subject: [PATCH] page_alloc: skip cpuset enforcement for lower zone
+ allocations (v4)
+Message-ID: <20140529184303.GA20571@amt.cnet>
+References: <20140523193706.GA22854@amt.cnet>
+ <20140526185344.GA19976@amt.cnet>
+ <53858A06.8080507@huawei.com>
+ <20140528224324.GA1132@amt.cnet>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
+In-Reply-To: <20140528224324.GA1132@amt.cnet>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: tony.luck@gmail.com
-Cc: iskra@mcs.anl.gov, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>, Borislav Petkov <bp@suse.de>, gong.chen@linux.jf.intel.com
+To: Li Zefan <lizefan@huawei.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Lai Jiangshan <laijs@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Thu, May 29, 2014 at 10:03:17AM -0700, Tony Luck wrote:
-> > OK, I'll take this.
-> 
-> If you didn't already apply it, then add a "Reviewed-by: Tony Luck
-> <tony.luck@intel,com>"
 
-Thank you.
+Zone specific allocations, such as GFP_DMA32, should not be restricted
+to cpusets allowed node list: the zones which such allocations demand
+might be contained in particular nodes outside the cpuset node list.
 
-> I see that this patch is on top of my earlier ones (includes the
-> "force_early" argument).
+Necessary for the following usecase:
+- driver which requires zone specific memory (such as KVM, which
+requires root pagetable at paddr < 4GB).
+- user wants to limit allocations of application to nodeX, and nodeX has
+no memory < 4GB.
 
-Right.
+Signed-off-by: Marcelo Tosatti <mtosatti@redhat.com>
 
-> That means you have both of those queued too?
-
-Yes, so I'll publish my tree and ask Andrew to pull it later.
-
-Thanks,
-Naoya Horiguchi
+diff --git a/kernel/cpuset.c b/kernel/cpuset.c
+index 3d54c41..3bbc23f 100644
+--- a/kernel/cpuset.c
++++ b/kernel/cpuset.c
+@@ -2374,6 +2374,7 @@ static struct cpuset *nearest_hardwall_ancestor(struct cpuset *cs)
+  * variable 'wait' is not set, and the bit ALLOC_CPUSET is not set
+  * in alloc_flags.  That logic and the checks below have the combined
+  * affect that:
++ *	gfp_zone(mask) < policy_zone - any node ok
+  *	in_interrupt - any node ok (current task context irrelevant)
+  *	GFP_ATOMIC   - any node ok
+  *	TIF_MEMDIE   - any node ok
+@@ -2392,6 +2393,10 @@ int __cpuset_node_allowed_softwall(int node, gfp_t gfp_mask)
+ 
+ 	if (in_interrupt() || (gfp_mask & __GFP_THISNODE))
+ 		return 1;
++#ifdef CONFIG_NUMA
++	if (gfp_zone(gfp_mask) < policy_zone)
++		return 1;
++#endif
+ 	might_sleep_if(!(gfp_mask & __GFP_HARDWALL));
+ 	if (node_isset(node, current->mems_allowed))
+ 		return 1;
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 5dba293..a0ce1ba 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2726,6 +2726,11 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+ retry_cpuset:
+ 	cpuset_mems_cookie = read_mems_allowed_begin();
+ 
++#ifdef CONFIG_NUMA
++	if (gfp_zone(gfp_mask) < policy_zone)
++		nodemask = &node_states[N_ONLINE];
++#endif
++
+ 	/* The preferred zone is used for statistics later */
+ 	first_zones_zonelist(zonelist, high_zoneidx,
+ 				nodemask ? : &cpuset_current_mems_allowed,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
