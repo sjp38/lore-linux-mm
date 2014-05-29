@@ -1,64 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f171.google.com (mail-we0-f171.google.com [74.125.82.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 176746B0035
-	for <linux-mm@kvack.org>; Thu, 29 May 2014 07:07:02 -0400 (EDT)
-Received: by mail-we0-f171.google.com with SMTP id w62so208762wes.30
-        for <linux-mm@kvack.org>; Thu, 29 May 2014 04:07:02 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id q3si20094842wic.7.2014.05.29.04.06.28
-        for <linux-mm@kvack.org>;
-        Thu, 29 May 2014 04:06:29 -0700 (PDT)
-Date: Thu, 29 May 2014 13:07:23 +0300
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCH 2/4] virtio_net: pass well-formed sg to
- virtqueue_add_inbuf()
-Message-ID: <20140529100723.GA30210@redhat.com>
-References: <87oayh6s3s.fsf@rustcorp.com.au>
- <1401348405-18614-1-git-send-email-rusty@rustcorp.com.au>
- <1401348405-18614-3-git-send-email-rusty@rustcorp.com.au>
+Received: from mail-pb0-f43.google.com (mail-pb0-f43.google.com [209.85.160.43])
+	by kanga.kvack.org (Postfix) with ESMTP id D4C2B6B0035
+	for <linux-mm@kvack.org>; Thu, 29 May 2014 07:09:10 -0400 (EDT)
+Received: by mail-pb0-f43.google.com with SMTP id up15so204704pbc.2
+        for <linux-mm@kvack.org>; Thu, 29 May 2014 04:09:10 -0700 (PDT)
+Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
+        by mx.google.com with ESMTPS id g7si431787pat.225.2014.05.29.04.09.09
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 29 May 2014 04:09:09 -0700 (PDT)
+From: Rusty Russell <rusty@rustcorp.com.au>
+Subject: Re: virtio ring cleanups, which save stack on older gcc
+In-Reply-To: <20140529074117.GI10092@bbox>
+References: <87oayh6s3s.fsf@rustcorp.com.au> <1401348405-18614-1-git-send-email-rusty@rustcorp.com.au> <20140529074117.GI10092@bbox>
+Date: Thu, 29 May 2014 20:38:33 +0930
+Message-ID: <87fvjs7sge.fsf@rustcorp.com.au>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1401348405-18614-3-git-send-email-rusty@rustcorp.com.au>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rusty Russell <rusty@rustcorp.com.au>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Jens Axboe <axboe@kernel.dk>, Minchan Kim <minchan@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Steven Rostedt <rostedt@goodmis.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Jens Axboe <axboe@kernel.dk>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, "Michael S. Tsirkin" <mst@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Steven Rostedt <rostedt@goodmis.org>
 
-On Thu, May 29, 2014 at 04:56:43PM +0930, Rusty Russell wrote:
-> This is the only place which doesn't hand virtqueue_add_inbuf or
-> virtqueue_add_outbuf a well-formed, well-terminated sg.  Fix it,
-> so we can make virtio_add_* simpler.
-> 
-> Signed-off-by: Rusty Russell <rusty@rustcorp.com.au>
-> ---
->  drivers/net/virtio_net.c | 2 ++
->  1 file changed, 2 insertions(+)
-> 
-> diff --git a/drivers/net/virtio_net.c b/drivers/net/virtio_net.c
-> index 8a852b5f215f..63299b04cdf2 100644
-> --- a/drivers/net/virtio_net.c
-> +++ b/drivers/net/virtio_net.c
-> @@ -590,6 +590,8 @@ static int add_recvbuf_big(struct receive_queue *rq, gfp_t gfp)
->  	offset = sizeof(struct padded_vnet_hdr);
->  	sg_set_buf(&rq->sg[1], p + offset, PAGE_SIZE - offset);
->  
-> +	sg_mark_end(&rq->sg[MAX_SKB_FRAGS + 2 - 1]);
-> +
->  	/* chain first in list head */
->  	first->private = (unsigned long)list;
->  	err = virtqueue_add_inbuf(rq->vq, rq->sg, MAX_SKB_FRAGS + 2,
+Minchan Kim <minchan@kernel.org> writes:
+> Hello Rusty,
+>
+> On Thu, May 29, 2014 at 04:56:41PM +0930, Rusty Russell wrote:
+>> They don't make much difference: the easier fix is use gcc 4.8
+>> which drops stack required across virtio block's virtio_queue_rq
+>> down to that kmalloc in virtio_ring from 528 to 392 bytes.
+>> 
+>> Still, these (*lightly tested*) patches reduce to 432 bytes,
+>> even for gcc 4.6.4.  Posted here FYI.
+>
+> I am testing with below which was hack for Dave's idea so don't have
+> a machine to test your patches until tomorrow.
+> So, I will queue your patches into testing machine tomorrow morning.
 
-Not that performance of add_recvbuf_big actually mattered anymore, but
-in fact this can be done in virtnet_probe if we like.
+More interesting would be updating your compiler to 4.8, I think.
+Saving <100 bytes on virtio is not going to save you, right?
 
-
-Anyway
-
-Acked-by: Michael S. Tsirkin <mst@redhat.com>
-
-> -- 
-> 1.9.1
+Cheers,
+Rusty.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
