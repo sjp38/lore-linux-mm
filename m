@@ -1,79 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f53.google.com (mail-pb0-f53.google.com [209.85.160.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D0656B0039
-	for <linux-mm@kvack.org>; Thu, 29 May 2014 05:06:26 -0400 (EDT)
-Received: by mail-pb0-f53.google.com with SMTP id md12so53387pbc.26
-        for <linux-mm@kvack.org>; Thu, 29 May 2014 02:06:25 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id tu2si23075pbc.173.2014.05.29.02.06.24
+Received: from mail-pa0-f48.google.com (mail-pa0-f48.google.com [209.85.220.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 468C16B0035
+	for <linux-mm@kvack.org>; Thu, 29 May 2014 06:39:29 -0400 (EDT)
+Received: by mail-pa0-f48.google.com with SMTP id rd3so167418pab.7
+        for <linux-mm@kvack.org>; Thu, 29 May 2014 03:39:28 -0700 (PDT)
+Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [2001:44b8:8060:ff02:300:1:6:6])
+        by mx.google.com with ESMTP id fu6si377930pac.106.2014.05.29.03.39.27
         for <linux-mm@kvack.org>;
-        Thu, 29 May 2014 02:06:25 -0700 (PDT)
-Date: Thu, 29 May 2014 02:04:43 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: dont call mmu_notifier_invalidate_page during
- munlock
-Message-Id: <20140529020443.974b0d1b.akpm@linux-foundation.org>
-In-Reply-To: <CALYGNiN4v4b_AJW10wVyy1XnapzwLk8Pod89sb3E-b3c81SoVw@mail.gmail.com>
-References: <20140528075955.20300.22758.stgit@zurg>
-	<20140528160948.489fde6e0285885d13f7c656@linux-foundation.org>
-	<CALYGNiN4v4b_AJW10wVyy1XnapzwLk8Pod89sb3E-b3c81SoVw@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Thu, 29 May 2014 03:39:28 -0700 (PDT)
+Date: Thu, 29 May 2014 20:39:05 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: virtio ring cleanups, which save stack on older gcc
+Message-ID: <20140529103905.GQ8554@dastard>
+References: <87oayh6s3s.fsf@rustcorp.com.au>
+ <1401348405-18614-1-git-send-email-rusty@rustcorp.com.au>
+ <20140529074117.GI10092@bbox>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140529074117.GI10092@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Konstantin Khlebnikov <koct9i@gmail.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Rusty Russell <rusty@rustcorp.com.au>, Linus Torvalds <torvalds@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, "Michael S. Tsirkin" <mst@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Steven Rostedt <rostedt@goodmis.org>
 
-On Thu, 29 May 2014 11:19:27 +0400 Konstantin Khlebnikov <koct9i@gmail.com> wrote:
-
-> On Thu, May 29, 2014 at 3:09 AM, Andrew Morton
-> <akpm@linux-foundation.org> wrote:
-> > On Wed, 28 May 2014 11:59:55 +0400 Konstantin Khlebnikov <koct9i@gmail.com> wrote:
-> >
-> >> try_to_munlock() searches other mlocked vmas, it never unmaps pages.
-> >> There is no reason for invalidation because ptes are left unchanged.
-> >>
-> >> ...
-> >>
-> >> --- a/mm/rmap.c
-> >> +++ b/mm/rmap.c
-> >> @@ -1225,7 +1225,7 @@ int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
-> >>
-> >>  out_unmap:
-> >>       pte_unmap_unlock(pte, ptl);
-> >> -     if (ret != SWAP_FAIL)
-> >> +     if (ret != SWAP_FAIL && TTU_ACTION(flags) != TTU_MUNLOCK)
-> >>               mmu_notifier_invalidate_page(mm, address);
-> >>  out:
-> >>       return ret;
-> >
-> > The patch itself looks reasonable but there is no such thing as
-> > try_to_munlock().  I rewrote the changelog thusly:
+On Thu, May 29, 2014 at 04:41:17PM +0900, Minchan Kim wrote:
+> Hello Rusty,
 > 
-> Wait, what? I do have function with this name in my sources. It calls rmap_walk
-> with callback try_to_unmap_one and action TTU_MUNLOCK. This is the place
-> where TTU_MUNLOCK is used, I've mentioned it as entry point of this logic.
-
-Ah OK, I obviously misgrepped.
-
-> >
-> > : In its munmap mode, try_to_unmap_one() searches other mlocked vmas, it
-> > : never unmaps pages.  There is no reason for invalidation because ptes are
-> > : left unchanged.
-> >
-> > Also, the name try_to_unmap_one() is now pretty inaccurate/incomplete.
-> > Perhaps if someone is feeling enthusiastic they might think up a better
-> > name for the various try_to_unmap functions and see if we can
-> > appropriately document try_to_unmap_one().
+> On Thu, May 29, 2014 at 04:56:41PM +0930, Rusty Russell wrote:
+> > They don't make much difference: the easier fix is use gcc 4.8
+> > which drops stack required across virtio block's virtio_queue_rq
+> > down to that kmalloc in virtio_ring from 528 to 392 bytes.
+> > 
+> > Still, these (*lightly tested*) patches reduce to 432 bytes,
+> > even for gcc 4.6.4.  Posted here FYI.
 > 
-> I thought about moving mlock part out of try_to_unmap_one() into
-> separate function,
-> but normal unmap needs this part too...
+> I am testing with below which was hack for Dave's idea so don't have
+> a machine to test your patches until tomorrow.
+> So, I will queue your patches into testing machine tomorrow morning.
+> 
+> Thanks!
+> 
+> diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+> index f5c6635b806c..95f169e85dbe 100644
+> --- a/kernel/sched/core.c
+> +++ b/kernel/sched/core.c
+> @@ -4241,10 +4241,13 @@ EXPORT_SYMBOL_GPL(yield_to);
+>  void __sched io_schedule(void)
+>  {
+>  	struct rq *rq = raw_rq();
+> +	struct blk_plug *plug = current->plug;
+>  
+>  	delayacct_blkio_start();
+>  	atomic_inc(&rq->nr_iowait);
+> -	blk_flush_plug(current);
+> +	if (plug)
+> +		blk_flush_plug_list(plug, true);
+> +
 
-try_to_unmap_one() does appear to have enough in common with the
-munlock operation to justify using common code.  But doing so makes the
-name wrong.
+Could simply be
+
+-	blk_flush_plug(current);
++	blk_schedule_flush_plug(current);
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
