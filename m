@@ -1,55 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A1F26B0035
-	for <linux-mm@kvack.org>; Thu, 29 May 2014 02:45:06 -0400 (EDT)
-Received: by mail-pa0-f47.google.com with SMTP id ld10so459124pab.6
-        for <linux-mm@kvack.org>; Wed, 28 May 2014 23:45:06 -0700 (PDT)
-Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
-        by mx.google.com with ESMTP id ld16si27061310pab.173.2014.05.28.23.45.04
-        for <linux-mm@kvack.org>;
-        Wed, 28 May 2014 23:45:05 -0700 (PDT)
-Date: Thu, 29 May 2014 15:48:10 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH] CMA: use MIGRATE_SYNC in alloc_contig_range()
-Message-ID: <20140529064810.GA7044@js1304-P5Q-DELUXE>
-References: <1401344750-3684-1-git-send-email-iamjoonsoo.kim@lge.com>
- <20140529063505.GH10092@bbox>
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id B63A26B0035
+	for <linux-mm@kvack.org>; Thu, 29 May 2014 03:18:57 -0400 (EDT)
+Received: by mail-pa0-f50.google.com with SMTP id fb1so12383713pad.37
+        for <linux-mm@kvack.org>; Thu, 29 May 2014 00:18:57 -0700 (PDT)
+Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
+        by mx.google.com with ESMTPS id fu6si27206739pac.106.2014.05.29.00.18.56
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 29 May 2014 00:18:56 -0700 (PDT)
+From: Rusty Russell <rusty@rustcorp.com.au>
+Subject: Re: [RFC 2/2] x86_64: expand kernel stack to 16K
+In-Reply-To: <CA+55aFzdq2V-Q3WUV7hQJG8jBSAvBqdYLVTNtbD4ObVZ5yDRmw@mail.gmail.com>
+References: <1401260039-18189-1-git-send-email-minchan@kernel.org> <1401260039-18189-2-git-send-email-minchan@kernel.org> <CA+55aFxXdc22dirnE49UbQP_2s2vLQpjQFL+NptuyK7Xry6c=g@mail.gmail.com> <20140528223142.GO8554@dastard> <CA+55aFyRk6_v6COPGVvu6hvt=i2A8-dPcs1X3Ydn1g24AxbPkg@mail.gmail.com> <20140529013007.GF6677@dastard> <CA+55aFzdq2V-Q3WUV7hQJG8jBSAvBqdYLVTNtbD4ObVZ5yDRmw@mail.gmail.com>
+Date: Thu, 29 May 2014 15:31:27 +0930
+Message-ID: <87oayh6s3s.fsf@rustcorp.com.au>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140529063505.GH10092@bbox>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+To: Linus Torvalds <torvalds@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Jens Axboe <axboe@kernel.dk>
+Cc: Minchan Kim <minchan@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, "Michael S. Tsirkin" <mst@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Steven Rostedt <rostedt@goodmis.org>
 
-On Thu, May 29, 2014 at 03:35:05PM +0900, Minchan Kim wrote:
-> On Thu, May 29, 2014 at 03:25:50PM +0900, Joonsoo Kim wrote:
-> > Before commit 'mm, compaction: embed migration mode in compact_control'
-> > from David is merged, alloc_contig_range() used sync migration,
-> > instead of sync_light migration. This doesn't break anything currently
-> > because page isolation doesn't have any difference with sync and
-> > sync_light, but it could in the future, so change back as it was.
-> > 
-> > And pass cc->mode to migrate_pages(), instead of passing MIGRATE_SYNC
-> > to migrate_pages().
-> > 
-> > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> Acked-by: Minchan Kim <minchan@kernel.org>
+Linus Torvalds <torvalds@linux-foundation.org> writes:
+> Well, we've definitely have had some issues with deeper callchains
+> with md, but I suspect virtio might be worse, and the new blk-mq code
+> is lilkely worse in this respect too.
 
-Thanks.
+I looked at this; I've now got a couple of virtio core cleanups, and
+I'm testing with Minchan's config and gcc versions now.
 
-> 
-> Hello Joonsoo,
-> 
-> Please Ccing me if you send patch related to CMA mm part.
-> I have reviewed/fixed mm part of CMA for a long time so worth to Cced
-> although I always don't have a time to look at it. :)
+MST reported that gcc 4.8 is a better than 4.6, but I'll test that too.
 
-Okay! This is just small fix going back orignal, so I didn't cc many people
-related to CMA mm part. Anyway, I'm sorry.
-
-Thanks.
+Cheers,
+Rusty.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
