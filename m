@@ -1,47 +1,234 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 36E006B0035
-	for <linux-mm@kvack.org>; Thu, 29 May 2014 07:09:11 -0400 (EDT)
-Received: by mail-pa0-f45.google.com with SMTP id ey11so202219pad.4
-        for <linux-mm@kvack.org>; Thu, 29 May 2014 04:09:10 -0700 (PDT)
-Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
-        by mx.google.com with ESMTPS id bz3si457461pbd.157.2014.05.29.04.09.09
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 29 May 2014 04:09:09 -0700 (PDT)
-From: Rusty Russell <rusty@rustcorp.com.au>
-Subject: Re: [PATCH 4/4] virtio_ring: unify direct/indirect code paths.
-In-Reply-To: <20140529075256.GZ30445@twins.programming.kicks-ass.net>
-References: <87oayh6s3s.fsf@rustcorp.com.au> <1401348405-18614-1-git-send-email-rusty@rustcorp.com.au> <1401348405-18614-5-git-send-email-rusty@rustcorp.com.au> <20140529075256.GZ30445@twins.programming.kicks-ass.net>
-Date: Thu, 29 May 2014 20:35:58 +0930
-Message-ID: <87iooo7skp.fsf@rustcorp.com.au>
+Received: from mail-wg0-f41.google.com (mail-wg0-f41.google.com [74.125.82.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 1ED286B0035
+	for <linux-mm@kvack.org>; Thu, 29 May 2014 07:18:53 -0400 (EDT)
+Received: by mail-wg0-f41.google.com with SMTP id z12so219689wgg.0
+        for <linux-mm@kvack.org>; Thu, 29 May 2014 04:18:52 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id ww2si792328wjc.29.2014.05.29.04.18.40
+        for <linux-mm@kvack.org>;
+        Thu, 29 May 2014 04:18:41 -0700 (PDT)
+Date: Thu, 29 May 2014 14:18:42 +0300
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [PATCH 3/4] virtio_ring: assume sgs are always well-formed.
+Message-ID: <20140529111842.GC30210@redhat.com>
+References: <87oayh6s3s.fsf@rustcorp.com.au>
+ <1401348405-18614-1-git-send-email-rusty@rustcorp.com.au>
+ <1401348405-18614-4-git-send-email-rusty@rustcorp.com.au>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1401348405-18614-4-git-send-email-rusty@rustcorp.com.au>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Jens Axboe <axboe@kernel.dk>, Minchan Kim <minchan@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, "Michael S. Tsirkin" <mst@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Steven Rostedt <rostedt@goodmis.org>
+To: Rusty Russell <rusty@rustcorp.com.au>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Jens Axboe <axboe@kernel.dk>, Minchan Kim <minchan@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Steven Rostedt <rostedt@goodmis.org>
 
-Peter Zijlstra <peterz@infradead.org> writes:
-> On Thu, May 29, 2014 at 04:56:45PM +0930, Rusty Russell wrote:
->> Before:
->> 	gcc 4.8.2: virtio_blk: stack used = 392
->> 	gcc 4.6.4: virtio_blk: stack used = 480
->> 
->> After:
->> 	gcc 4.8.2: virtio_blk: stack used = 408
->> 	gcc 4.6.4: virtio_blk: stack used = 432
->
-> Is it worth it to make the good compiler worse? People are going to use
-> the newer GCC more as time goes on anyhow.
+On Thu, May 29, 2014 at 04:56:44PM +0930, Rusty Russell wrote:
+> We used to have several callers which just used arrays.  They're
+> gone, so we can use sg_next() everywhere, simplifying the code.
+> 
+> Before:
+> 	gcc 4.8.2: virtio_blk: stack used = 392
+> 	gcc 4.6.4: virtio_blk: stack used = 528
+> 
+> After:
+> 	gcc 4.8.2: virtio_blk: stack used = 392
+> 	gcc 4.6.4: virtio_blk: stack used = 480
+> 
+> Signed-off-by: Rusty Russell <rusty@rustcorp.com.au>
 
-No, but it's only 16 bytes of stack loss for a simplicity win:
 
- virtio_ring.c |  120 +++++++++++++++++++++-------------------------------------
- 1 file changed, 45 insertions(+), 75 deletions(-)
+Nice cleanup.
 
-Cheers,
-Rusty.
+Acked-by: Michael S. Tsirkin <mst@redhat.com>
+
+
+> ---
+>  drivers/virtio/virtio_ring.c | 68 +++++++++++++-------------------------------
+>  1 file changed, 19 insertions(+), 49 deletions(-)
+> 
+> diff --git a/drivers/virtio/virtio_ring.c b/drivers/virtio/virtio_ring.c
+> index f6ad99ffdc40..5d29cd85d6cf 100644
+> --- a/drivers/virtio/virtio_ring.c
+> +++ b/drivers/virtio/virtio_ring.c
+> @@ -107,28 +107,10 @@ struct vring_virtqueue
+>  
+>  #define to_vvq(_vq) container_of(_vq, struct vring_virtqueue, vq)
+>  
+> -static inline struct scatterlist *sg_next_chained(struct scatterlist *sg,
+> -						  unsigned int *count)
+> -{
+> -	return sg_next(sg);
+> -}
+> -
+> -static inline struct scatterlist *sg_next_arr(struct scatterlist *sg,
+> -					      unsigned int *count)
+> -{
+> -	if (--(*count) == 0)
+> -		return NULL;
+> -	return sg + 1;
+> -}
+> -
+>  /* Set up an indirect table of descriptors and add it to the queue. */
+>  static inline int vring_add_indirect(struct vring_virtqueue *vq,
+>  				     struct scatterlist *sgs[],
+> -				     struct scatterlist *(*next)
+> -				       (struct scatterlist *, unsigned int *),
+>  				     unsigned int total_sg,
+> -				     unsigned int total_out,
+> -				     unsigned int total_in,
+>  				     unsigned int out_sgs,
+>  				     unsigned int in_sgs,
+>  				     gfp_t gfp)
+> @@ -155,7 +137,7 @@ static inline int vring_add_indirect(struct vring_virtqueue *vq,
+>  	/* Transfer entries from the sg lists into the indirect page */
+>  	i = 0;
+>  	for (n = 0; n < out_sgs; n++) {
+> -		for (sg = sgs[n]; sg; sg = next(sg, &total_out)) {
+> +		for (sg = sgs[n]; sg; sg = sg_next(sg)) {
+>  			desc[i].flags = VRING_DESC_F_NEXT;
+>  			desc[i].addr = sg_phys(sg);
+>  			desc[i].len = sg->length;
+> @@ -164,7 +146,7 @@ static inline int vring_add_indirect(struct vring_virtqueue *vq,
+>  		}
+>  	}
+>  	for (; n < (out_sgs + in_sgs); n++) {
+> -		for (sg = sgs[n]; sg; sg = next(sg, &total_in)) {
+> +		for (sg = sgs[n]; sg; sg = sg_next(sg)) {
+>  			desc[i].flags = VRING_DESC_F_NEXT|VRING_DESC_F_WRITE;
+>  			desc[i].addr = sg_phys(sg);
+>  			desc[i].len = sg->length;
+> @@ -197,10 +179,7 @@ static inline int vring_add_indirect(struct vring_virtqueue *vq,
+>  
+>  static inline int virtqueue_add(struct virtqueue *_vq,
+>  				struct scatterlist *sgs[],
+> -				struct scatterlist *(*next)
+> -				  (struct scatterlist *, unsigned int *),
+> -				unsigned int total_out,
+> -				unsigned int total_in,
+> +				unsigned int total_sg,
+>  				unsigned int out_sgs,
+>  				unsigned int in_sgs,
+>  				void *data,
+> @@ -208,7 +187,7 @@ static inline int virtqueue_add(struct virtqueue *_vq,
+>  {
+>  	struct vring_virtqueue *vq = to_vvq(_vq);
+>  	struct scatterlist *sg;
+> -	unsigned int i, n, avail, uninitialized_var(prev), total_sg;
+> +	unsigned int i, n, avail, uninitialized_var(prev);
+>  	int head;
+>  
+>  	START_USE(vq);
+> @@ -233,13 +212,10 @@ static inline int virtqueue_add(struct virtqueue *_vq,
+>  	}
+>  #endif
+>  
+> -	total_sg = total_in + total_out;
+> -
+>  	/* If the host supports indirect descriptor tables, and we have multiple
+>  	 * buffers, then go indirect. FIXME: tune this threshold */
+>  	if (vq->indirect && total_sg > 1 && vq->vq.num_free) {
+> -		head = vring_add_indirect(vq, sgs, next, total_sg, total_out,
+> -					  total_in,
+> +		head = vring_add_indirect(vq, sgs, total_sg, 
+>  					  out_sgs, in_sgs, gfp);
+>  		if (likely(head >= 0))
+>  			goto add_head;
+> @@ -265,7 +241,7 @@ static inline int virtqueue_add(struct virtqueue *_vq,
+>  
+>  	head = i = vq->free_head;
+>  	for (n = 0; n < out_sgs; n++) {
+> -		for (sg = sgs[n]; sg; sg = next(sg, &total_out)) {
+> +		for (sg = sgs[n]; sg; sg = sg_next(sg)) {
+>  			vq->vring.desc[i].flags = VRING_DESC_F_NEXT;
+>  			vq->vring.desc[i].addr = sg_phys(sg);
+>  			vq->vring.desc[i].len = sg->length;
+> @@ -274,7 +250,7 @@ static inline int virtqueue_add(struct virtqueue *_vq,
+>  		}
+>  	}
+>  	for (; n < (out_sgs + in_sgs); n++) {
+> -		for (sg = sgs[n]; sg; sg = next(sg, &total_in)) {
+> +		for (sg = sgs[n]; sg; sg = sg_next(sg)) {
+>  			vq->vring.desc[i].flags = VRING_DESC_F_NEXT|VRING_DESC_F_WRITE;
+>  			vq->vring.desc[i].addr = sg_phys(sg);
+>  			vq->vring.desc[i].len = sg->length;
+> @@ -335,29 +311,23 @@ int virtqueue_add_sgs(struct virtqueue *_vq,
+>  		      void *data,
+>  		      gfp_t gfp)
+>  {
+> -	unsigned int i, total_out, total_in;
+> +	unsigned int i, total_sg = 0;
+>  
+>  	/* Count them first. */
+> -	for (i = total_out = total_in = 0; i < out_sgs; i++) {
+> -		struct scatterlist *sg;
+> -		for (sg = sgs[i]; sg; sg = sg_next(sg))
+> -			total_out++;
+> -	}
+> -	for (; i < out_sgs + in_sgs; i++) {
+> +	for (i = 0; i < out_sgs + in_sgs; i++) {
+>  		struct scatterlist *sg;
+>  		for (sg = sgs[i]; sg; sg = sg_next(sg))
+> -			total_in++;
+> +			total_sg++;
+>  	}
+> -	return virtqueue_add(_vq, sgs, sg_next_chained,
+> -			     total_out, total_in, out_sgs, in_sgs, data, gfp);
+> +	return virtqueue_add(_vq, sgs, total_sg, out_sgs, in_sgs, data, gfp);
+>  }
+>  EXPORT_SYMBOL_GPL(virtqueue_add_sgs);
+>  
+>  /**
+>   * virtqueue_add_outbuf - expose output buffers to other end
+>   * @vq: the struct virtqueue we're talking about.
+> - * @sgs: array of scatterlists (need not be terminated!)
+> - * @num: the number of scatterlists readable by other side
+> + * @sg: scatterlist (must be well-formed and terminated!)
+> + * @num: the number of entries in @sg readable by other side
+>   * @data: the token identifying the buffer.
+>   * @gfp: how to do memory allocations (if necessary).
+>   *
+> @@ -367,19 +337,19 @@ EXPORT_SYMBOL_GPL(virtqueue_add_sgs);
+>   * Returns zero or a negative error (ie. ENOSPC, ENOMEM, EIO).
+>   */
+>  int virtqueue_add_outbuf(struct virtqueue *vq,
+> -			 struct scatterlist sg[], unsigned int num,
+> +			 struct scatterlist *sg, unsigned int num,
+>  			 void *data,
+>  			 gfp_t gfp)
+>  {
+> -	return virtqueue_add(vq, &sg, sg_next_arr, num, 0, 1, 0, data, gfp);
+> +	return virtqueue_add(vq, &sg, num, 1, 0, data, gfp);
+>  }
+>  EXPORT_SYMBOL_GPL(virtqueue_add_outbuf);
+>  
+>  /**
+>   * virtqueue_add_inbuf - expose input buffers to other end
+>   * @vq: the struct virtqueue we're talking about.
+> - * @sgs: array of scatterlists (need not be terminated!)
+> - * @num: the number of scatterlists writable by other side
+> + * @sg: scatterlist (must be well-formed and terminated!)
+> + * @num: the number of entries in @sg writable by other side
+>   * @data: the token identifying the buffer.
+>   * @gfp: how to do memory allocations (if necessary).
+>   *
+> @@ -389,11 +359,11 @@ EXPORT_SYMBOL_GPL(virtqueue_add_outbuf);
+>   * Returns zero or a negative error (ie. ENOSPC, ENOMEM, EIO).
+>   */
+>  int virtqueue_add_inbuf(struct virtqueue *vq,
+> -			struct scatterlist sg[], unsigned int num,
+> +			struct scatterlist *sg, unsigned int num,
+>  			void *data,
+>  			gfp_t gfp)
+>  {
+> -	return virtqueue_add(vq, &sg, sg_next_arr, 0, num, 0, 1, data, gfp);
+> +	return virtqueue_add(vq, &sg, num, 0, 1, data, gfp);
+>  }
+>  EXPORT_SYMBOL_GPL(virtqueue_add_inbuf);
+>  
+> -- 
+> 1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
