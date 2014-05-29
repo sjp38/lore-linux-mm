@@ -1,145 +1,219 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f179.google.com (mail-we0-f179.google.com [74.125.82.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B4306B0035
-	for <linux-mm@kvack.org>; Thu, 29 May 2014 00:53:04 -0400 (EDT)
-Received: by mail-we0-f179.google.com with SMTP id q59so12047718wes.24
-        for <linux-mm@kvack.org>; Wed, 28 May 2014 21:53:03 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id lb4si36709073wjb.84.2014.05.28.21.53.01
+Received: from mail-pb0-f51.google.com (mail-pb0-f51.google.com [209.85.160.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 61A936B0035
+	for <linux-mm@kvack.org>; Thu, 29 May 2014 01:10:12 -0400 (EDT)
+Received: by mail-pb0-f51.google.com with SMTP id ma3so12492235pbc.10
+        for <linux-mm@kvack.org>; Wed, 28 May 2014 22:10:12 -0700 (PDT)
+Received: from lgeamrelo01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
+        by mx.google.com with ESMTP id oq10si26852193pac.48.2014.05.28.22.10.10
         for <linux-mm@kvack.org>;
-        Wed, 28 May 2014 21:53:02 -0700 (PDT)
-Message-ID: <5386bd2e.6478c20a.5839.5e40SMTPIN_ADDED_BROKEN@mx.google.com>
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: BUG at mm/memory.c:1489!
-Date: Thu, 29 May 2014 00:52:35 -0400
-In-Reply-To: <alpine.LSU.2.11.1405281712310.7156@eggly.anvils>
-References: <1401265922.3355.4.camel@concordia> <alpine.LSU.2.11.1405281712310.7156@eggly.anvils>
-Mime-Version: 1.0
+        Wed, 28 May 2014 22:10:11 -0700 (PDT)
+Date: Thu, 29 May 2014 14:10:42 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [RFC 2/2] x86_64: expand kernel stack to 16K
+Message-ID: <20140529051042.GF10092@bbox>
+References: <1401260039-18189-1-git-send-email-minchan@kernel.org>
+ <1401260039-18189-2-git-send-email-minchan@kernel.org>
+ <CA+55aFxXdc22dirnE49UbQP_2s2vLQpjQFL+NptuyK7Xry6c=g@mail.gmail.com>
+ <20140529034625.GB10092@bbox>
+ <CA+55aFyoT1xuM-HsZ4GKt=FfDYs76oD7U-RBkZn-2PErj6ZZVw@mail.gmail.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
+In-Reply-To: <CA+55aFyoT1xuM-HsZ4GKt=FfDYs76oD7U-RBkZn-2PErj6ZZVw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: mpe@ellerman.id.au, Andrew Morton <akpm@linux-foundation.org>, benh@kernel.crashing.org, Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, trinity@vger.kernel.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Rusty Russell <rusty@rustcorp.com.au>, "Michael S. Tsirkin" <mst@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Steven Rostedt <rostedt@goodmis.org>
 
-Hi Hugh,
+On Wed, May 28, 2014 at 09:13:15PM -0700, Linus Torvalds wrote:
+> On Wed, May 28, 2014 at 8:46 PM, Minchan Kim <minchan@kernel.org> wrote:
+> >
+> > Yes. For example, with mark __alloc_pages_slowpath noinline_for_stack,
+> > we can reduce 176byte.
+> 
+> Well, but it will then call that __alloc_pages_slowpath() function,
+> which has a 176-byte stack frame.. Plus the call frame.
+> 
+> Now, that only triggers for when the initial "__GFP_HARDWALL" case
+> fails, but that's exactly what happens when we do need to do direct
+> reclaim.
+> 
+> That said, I *have* seen cases where the gcc spill code got really
+> confused, and simplifying the function (by not inlining excessively)
+> actually causes a truly smaller stack overall, despite the actual call
+> frames etc.  But I think the gcc people fixed the kinds of things that
+> caused *that* kind of stack slot explosion.
+> 
+> And avoiding inlining can end up resulting in less stack, if the
+> really deep parts don't happen to go through that function that got
+> inlined (ie any call chain that wouldn't have gone through that
+> "slowpath" function at all).
+> 
+> But in this case, __alloc_pages_slowpath() is where we end up doing
+> the actual direct reclaim anyway, so just uninlining doesn't actually
+> help. Although it would probably make the asm code more readable ;)
 
-On Wed, May 28, 2014 at 05:33:11PM -0700, Hugh Dickins wrote:
-> On Wed, 28 May 2014, Michael Ellerman wrote:
-> > Hey folks,
-> > 
-> > Anyone seen this before? Trinity hit it just now:
-> > 
-> > Linux Blade312-5 3.15.0-rc7 #306 SMP Wed May 28 17:51:18 EST 2014 ppc64
-> > 
-> > [watchdog] 27853 iterations. [F:22642 S:5174 HI:1276]
-> > ------------[ cut here ]------------
-> > kernel BUG at /home/michael/mmk-build/flow/mm/memory.c:1489!
-> > cpu 0xc: Vector: 700 (Program Check) at [c000000384eaf960]
-> >     pc: c0000000001ad6f0: .follow_page_mask+0x90/0x650
-> >     lr: c0000000001ad6d8: .follow_page_mask+0x78/0x650
-> >     sp: c000000384eafbe0
-> >    msr: 8000000000029032
-> >   current = 0xc0000003c27e1bc0
-> >   paca    = 0xc000000001dc3000   softe: 0        irq_happened: 0x01
-> >     pid   = 20800, comm = trinity-c12
-> > kernel BUG at /home/michael/mmk-build/flow/mm/memory.c:1489!
-> > enter ? for help
-> > [c000000384eafcc0] c0000000001e5514 .SyS_move_pages+0x524/0x7d0
-> > [c000000384eafe30] c00000000000a1d8 syscall_exit+0x0/0x98
-> > --- Exception: c01 (System Call) at 00003fff795f30a8
-> > SP (3ffff958f290) is in userspace
-> > 
-> > I've left it in the debugger, can dig into it a bit more tomorrow
-> > if anyone has any clues.
-> 
-> Thanks for leaving it overnight, but this one is quite obvious,
-> so go ahead and reboot whenever suits you.
-> 
-> Trinity didn't even need to do anything bizarre to get this: that
-> ordinary path simply didn't get tried on powerpc or ia64 before.
-> 
-> Here's a patch which should fix it for you, but I believe leaves
-> a race in common with other architectures.  I must turn away to
-> other things, and hope Naoya-san can fix up the locking separately
-> (or point out why it's already safe).
-> 
-> [PATCH] mm: fix move_pages follow_page huge_addr BUG
-> 
-> v3.12's e632a938d914 ("mm: migrate: add hugepage migration code to
-> move_pages()") is okay on most arches, but on follow_huge_addr-style
-> arches ia64 and powerpc, it hits my old BUG_ON(flags & FOLL_GET)
-> from v2.6.15 deceb6cd17e6 ("mm: follow_page with inner ptlock").
-> 
-> The point of the BUG_ON was that nothing needed FOLL_GET there at
-> the time, and it was not clear that we have sufficient locking to
-> use get_page() safely here on the outside - maybe the page found has
-> already been freed and even reused when follow_huge_addr() returns.
-> 
-> I suspect that e632a938d914's use of get_page() after return from
-> follow_huge_pmd() has the same problem: what prevents a racing
-> instance of move_pages() from already migrating away and freeing
-> that page by then?  A reference to the page should be taken while
-> holding suitable lock (huge_pte_lockptr?), to serialize against
-> concurrent migration.
+Indeed. :(
 
-Right, we need take huge_pte_lockptr() here, I think.
+Actually I found there are other places to opitmize out.
+For example, we can unline try_preserve_large_page for __change_page_attr_set_clr.
+Although I'm not familiar with that part, I guess large page would be rare
+so we could save 112-byte.
+    
+    before:
+    
+    ffffffff81042330 <__change_page_attr_set_clr>:
+    ffffffff81042330:	e8 4b da 6a 00       	callq  ffffffff816efd80 <__entry_text_start>
+    ffffffff81042335:	55                   	push   %rbp
+    ffffffff81042336:	48 89 e5             	mov    %rsp,%rbp
+    ffffffff81042339:	41 57                	push   %r15
+    ffffffff8104233b:	41 56                	push   %r14
+    ffffffff8104233d:	41 55                	push   %r13
+    ffffffff8104233f:	41 54                	push   %r12
+    ffffffff81042341:	49 89 fc             	mov    %rdi,%r12
+    ffffffff81042344:	53                   	push   %rbx
+    ffffffff81042345:	48 81 ec f8 00 00 00 	sub    $0xf8,%rsp
+    ffffffff8104234c:	8b 47 20             	mov    0x20(%rdi),%eax
+    ffffffff8104234f:	89 b5 50 ff ff ff    	mov    %esi,-0xb0(%rbp)
+    ffffffff81042355:	85 c0                	test   %eax,%eax
+    ffffffff81042357:	89 85 5c ff ff ff    	mov    %eax,-0xa4(%rbp)
+    ffffffff8104235d:	0f 84 8c 06 00 00    	je     ffffffff810429ef <__change_page_attr_set_clr+0x6bf>
+    
+    after:
+    
+    ffffffff81042740 <__change_page_attr_set_clr>:
+    ffffffff81042740:	e8 bb d5 6a 00       	callq  ffffffff816efd00 <__entry_text_start>
+    ffffffff81042745:	55                   	push   %rbp
+    ffffffff81042746:	48 89 e5             	mov    %rsp,%rbp
+    ffffffff81042749:	41 57                	push   %r15
+    ffffffff8104274b:	41 56                	push   %r14
+    ffffffff8104274d:	41 55                	push   %r13
+    ffffffff8104274f:	49 89 fd             	mov    %rdi,%r13
+    ffffffff81042752:	41 54                	push   %r12
+    ffffffff81042754:	53                   	push   %rbx
+    ffffffff81042755:	48 81 ec 88 00 00 00 	sub    $0x88,%rsp
+    ffffffff8104275c:	8b 47 20             	mov    0x20(%rdi),%eax
+    ffffffff8104275f:	89 b5 70 ff ff ff    	mov    %esi,-0x90(%rbp)
+    ffffffff81042765:	85 c0                	test   %eax,%eax
+    ffffffff81042767:	89 85 74 ff ff ff    	mov    %eax,-0x8c(%rbp)
+    ffffffff8104276d:	0f 84 cb 02 00 00    	je     ffffffff81042a3e <__change_page_attr_set_clr+0x2fe>
+    
 
-> But I'm not prepared to rework the hugetlb locking here myself;
-> so for now just supply a patch to copy e632a938d914's get_page()
-> after follow_huge_pmd() to after follow_huge_addr(): removing
-> the BUG_ON(flags & FOLL_GET), but probably leaving a race.
+And below patch saves 96-byte from shrink_lruvec.
 
-This bug was introduced by me, so I'll fix this.
-Thank you for reporting.
+That would be not all and I am not saying optimization of every functions of VM
+is way to go but just want to notice we have rooms to optimize it out.
+I will wait more discussions and happy to test it(I can reproduce it in 1~2 hour
+if I have a luck)
 
-> Fixes: e632a938d914 ("mm: migrate: add hugepage migration code to move_pages()")
-> Reported-by: Michael Ellerman <mpe@ellerman.id.au>
-> Signed-off-by: Hugh Dickins <hughd@google.com>
-> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Cc: stable@vger.kernel.org # 3.12+
+Thanks!
+    
+    ffffffff8115b560 <shrink_lruvec>:
+    ffffffff8115b560:	e8 db 46 59 00       	callq  ffffffff816efc40 <__entry_text_start>
+    ffffffff8115b565:	55                   	push   %rbp
+    ffffffff8115b566:	65 48 8b 04 25 40 ba 	mov    %gs:0xba40,%rax
+    ffffffff8115b56d:	00 00
+    ffffffff8115b56f:	48 89 e5             	mov    %rsp,%rbp
+    ffffffff8115b572:	41 57                	push   %r15
+    ffffffff8115b574:	41 56                	push   %r14
+    ffffffff8115b576:	45 31 f6             	xor    %r14d,%r14d
+    ffffffff8115b579:	41 55                	push   %r13
+    ffffffff8115b57b:	49 89 fd             	mov    %rdi,%r13
+    ffffffff8115b57e:	41 54                	push   %r12
+    ffffffff8115b580:	49 89 f4             	mov    %rsi,%r12
+    ffffffff8115b583:	49 83 c4 34          	add    $0x34,%r12
+    ffffffff8115b587:	53                   	push   %rbx
+    ffffffff8115b588:	48 8d 9f c8 fa ff ff 	lea    -0x538(%rdi),%rbx
+    ffffffff8115b58f:	48 81 ec f8 00 00 00 	sub    $0xf8,%rsp
+    ffffffff8115b596:	f6 40 16 04          	testb  $0x4,0x16(%rax)
+    
+    after
+    
+    ffffffff8115b870 <shrink_lruvec>:
+    ffffffff8115b870:	e8 8b 43 59 00       	callq  ffffffff816efc00 <__entry_text_start>
+    ffffffff8115b875:	55                   	push   %rbp
+    ffffffff8115b876:	48 8d 56 34          	lea    0x34(%rsi),%rdx
+    ffffffff8115b87a:	48 89 e5             	mov    %rsp,%rbp
+    ffffffff8115b87d:	41 57                	push   %r15
+    ffffffff8115b87f:	41 bf 20 00 00 00    	mov    $0x20,%r15d
+    ffffffff8115b885:	48 8d 4d 90          	lea    -0x70(%rbp),%rcx
+    ffffffff8115b889:	41 56                	push   %r14
+    ffffffff8115b88b:	49 89 f6             	mov    %rsi,%r14
+    ffffffff8115b88e:	48 8d 76 2c          	lea    0x2c(%rsi),%rsi
+    ffffffff8115b892:	41 55                	push   %r13
+    ffffffff8115b894:	49 89 fd             	mov    %rdi,%r13
+    ffffffff8115b897:	41 54                	push   %r12
+    ffffffff8115b899:	45 31 e4             	xor    %r12d,%r12d
+    ffffffff8115b89c:	53                   	push   %rbx
+    ffffffff8115b89d:	48 81 ec 98 00 00 00 	sub    $0x98,%rsp
+    ffffffff8115b8a4:	e8 47 df ff ff       	callq  ffffffff811597f0 <get_scan_count.isra.60>
+    ffffffff8115b8a9:	48 8b 45 90          	mov    -0x70(%rbp),%rax
 
-This patch looks good to me.
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 9b61b9bf81ac..574f9ce838b3 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -165,12 +165,14 @@ enum lru_list {
+ 	LRU_INACTIVE_FILE = LRU_BASE + LRU_FILE,
+ 	LRU_ACTIVE_FILE = LRU_BASE + LRU_FILE + LRU_ACTIVE,
+ 	LRU_UNEVICTABLE,
++	NR_EVICTABLE_LRU_LISTS = LRU_UNEVICTABLE,
+ 	NR_LRU_LISTS
+ };
+ 
+ #define for_each_lru(lru) for (lru = 0; lru < NR_LRU_LISTS; lru++)
+ 
+-#define for_each_evictable_lru(lru) for (lru = 0; lru <= LRU_ACTIVE_FILE; lru++)
++#define for_each_evictable_lru(lru) for (lru = 0; \
++			lru < NR_EVICTABLE_LRU_LISTS; lru++)
+ 
+ static inline int is_file_lru(enum lru_list lru)
+ {
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 65cb7758dd09..bb330d1b76ae 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1839,8 +1839,8 @@ enum scan_balance {
+  * nr[0] = anon inactive pages to scan; nr[1] = anon active pages to scan
+  * nr[2] = file inactive pages to scan; nr[3] = file active pages to scan
+  */
+-static void get_scan_count(struct lruvec *lruvec, struct scan_control *sc,
+-			   unsigned long *nr)
++static noinline_for_stack void get_scan_count(struct lruvec *lruvec,
++			struct scan_control *sc, unsigned long *nr)
+ {
+ 	struct zone_reclaim_stat *reclaim_stat = &lruvec->reclaim_stat;
+ 	u64 fraction[2];
+@@ -2012,12 +2012,11 @@ out:
+  */
+ static void shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
+ {
+-	unsigned long nr[NR_LRU_LISTS];
+-	unsigned long targets[NR_LRU_LISTS];
++	unsigned long nr[NR_EVICTABLE_LRU_LISTS];
++	unsigned long targets[NR_EVICTABLE_LRU_LISTS];
+ 	unsigned long nr_to_scan;
+ 	enum lru_list lru;
+ 	unsigned long nr_reclaimed = 0;
+-	unsigned long nr_to_reclaim = sc->nr_to_reclaim;
+ 	struct blk_plug plug;
+ 	bool scan_adjusted = false;
+ 
+@@ -2042,7 +2041,7 @@ static void shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
+ 			}
+ 		}
+ 
+-		if (nr_reclaimed < nr_to_reclaim || scan_adjusted)
++		if (nr_reclaimed < sc->nr_to_reclaim || scan_adjusted)
+ 			continue;
+ 
+ 		/*
 
-Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-> ---
-> Whether this is a patch that should go in without fixing the locking,
-> I don't know.  An unlikely race is better than a triggerable BUG?
-> Or perhaps I'm just wrong about there being any such race.
-> 
->  mm/memory.c |   12 +++++++++++-
->  1 file changed, 11 insertions(+), 1 deletion(-)
-> 
-> --- 3.15-rc7/mm/memory.c	2014-04-27 23:55:53.608801152 -0700
-> +++ linux/mm/memory.c	2014-05-28 13:05:48.340124615 -0700
-> @@ -1486,7 +1486,17 @@ struct page *follow_page_mask(struct vm_
->  
->  	page = follow_huge_addr(mm, address, flags & FOLL_WRITE);
->  	if (!IS_ERR(page)) {
-> -		BUG_ON(flags & FOLL_GET);
-> +		if (page && (flags & FOLL_GET)) {
-> +			/*
-> +			 * Refcount on tail pages are not well-defined and
-> +			 * shouldn't be taken. The caller should handle a NULL
-> +			 * return when trying to follow tail pages.
-> +			 */
-> +			if (PageHead(page))
-> +				get_page(page);
-> +			else
-> +				page = NULL;
-> +		}
->  		goto out;
->  	}
->  
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
