@@ -1,68 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vc0-f180.google.com (mail-vc0-f180.google.com [209.85.220.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 916F06B0035
-	for <linux-mm@kvack.org>; Thu, 29 May 2014 11:24:50 -0400 (EDT)
-Received: by mail-vc0-f180.google.com with SMTP id hy4so557403vcb.39
-        for <linux-mm@kvack.org>; Thu, 29 May 2014 08:24:50 -0700 (PDT)
-Received: from mail-ve0-x233.google.com (mail-ve0-x233.google.com [2607:f8b0:400c:c01::233])
-        by mx.google.com with ESMTPS id v15si735606vei.0.2014.05.29.08.24.49
+Received: from mail-vc0-f169.google.com (mail-vc0-f169.google.com [209.85.220.169])
+	by kanga.kvack.org (Postfix) with ESMTP id B46626B0038
+	for <linux-mm@kvack.org>; Thu, 29 May 2014 11:39:12 -0400 (EDT)
+Received: by mail-vc0-f169.google.com with SMTP id ij19so594184vcb.0
+        for <linux-mm@kvack.org>; Thu, 29 May 2014 08:39:12 -0700 (PDT)
+Received: from mail-vc0-x235.google.com (mail-vc0-x235.google.com [2607:f8b0:400c:c03::235])
+        by mx.google.com with ESMTPS id pq7si752337vec.83.2014.05.29.08.39.12
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 29 May 2014 08:24:50 -0700 (PDT)
-Received: by mail-ve0-f179.google.com with SMTP id oy12so554529veb.24
-        for <linux-mm@kvack.org>; Thu, 29 May 2014 08:24:49 -0700 (PDT)
+        Thu, 29 May 2014 08:39:12 -0700 (PDT)
+Received: by mail-vc0-f181.google.com with SMTP id hy4so571274vcb.40
+        for <linux-mm@kvack.org>; Thu, 29 May 2014 08:39:12 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20140529072633.GH6677@dastard>
-References: <1401260039-18189-1-git-send-email-minchan@kernel.org>
-	<1401260039-18189-2-git-send-email-minchan@kernel.org>
-	<CA+55aFxXdc22dirnE49UbQP_2s2vLQpjQFL+NptuyK7Xry6c=g@mail.gmail.com>
-	<20140528223142.GO8554@dastard>
-	<CA+55aFyRk6_v6COPGVvu6hvt=i2A8-dPcs1X3Ydn1g24AxbPkg@mail.gmail.com>
-	<20140529013007.GF6677@dastard>
-	<CA+55aFzdq2V-Q3WUV7hQJG8jBSAvBqdYLVTNtbD4ObVZ5yDRmw@mail.gmail.com>
-	<20140529072633.GH6677@dastard>
-Date: Thu, 29 May 2014 08:24:49 -0700
-Message-ID: <CA+55aFx+j4104ZFmA-YnDtyfmV4FuejwmGnD5shfY0WX4fN+Kg@mail.gmail.com>
-Subject: Re: [RFC 2/2] x86_64: expand kernel stack to 16K
+In-Reply-To: <1401348405-18614-2-git-send-email-rusty@rustcorp.com.au>
+References: <87oayh6s3s.fsf@rustcorp.com.au>
+	<1401348405-18614-1-git-send-email-rusty@rustcorp.com.au>
+	<1401348405-18614-2-git-send-email-rusty@rustcorp.com.au>
+Date: Thu, 29 May 2014 08:39:11 -0700
+Message-ID: <CA+55aFzybuwti5z=uGXxibLqyDwQpPE88bN4cL5YQwpfb7aMbw@mail.gmail.com>
+Subject: Re: [PATCH 1/4] Hack: measure stack taken by vring from virtio_blk
 From: Linus Torvalds <torvalds@linux-foundation.org>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Jens Axboe <axboe@kernel.dk>, Minchan Kim <minchan@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Rusty Russell <rusty@rustcorp.com.au>, "Michael S. Tsirkin" <mst@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Steven Rostedt <rostedt@goodmis.org>
+To: Rusty Russell <rusty@rustcorp.com.au>
+Cc: Dave Chinner <david@fromorbit.com>, Jens Axboe <axboe@kernel.dk>, Minchan Kim <minchan@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, "Michael S. Tsirkin" <mst@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Steven Rostedt <rostedt@goodmis.org>
 
-On Thu, May 29, 2014 at 12:26 AM, Dave Chinner <david@fromorbit.com> wrote:
+On Thu, May 29, 2014 at 12:26 AM, Rusty Russell <rusty@rustcorp.com.au> wrote:
+> Results (x86-64, Minchan's .config):
 >
-> What concerns me about both __alloc_pages_nodemask() and
-> kernel_map_pages is that when I look at the code I see functions
-> that have no obvious stack usage problem. However, the compiler is
-> producing functions with huge stack footprints and it's not at all
-> obvious when I read the code. So in this case I'm more concerned
-> that we have a major disconnect between the source code structure
-> and the code that the compiler produces...
+> gcc 4.8.2: virtio_blk: stack used = 392
+> gcc 4.6.4: virtio_blk: stack used = 528
 
-I agree. In fact, this is the main reason that Minchan's call trace
-and this thread has actually convinced me that yes, we really do need
-to make x86-64 have a 16kB stack (well, 16kB allocation - there's
-still the thread info etc too).
+I wonder if that's just random luck (although 35% more stack use seems
+to be bigger than "random" - that's quite a big difference), or
+whether the gcc guys are aware of having fixed some major stack spill
+issue.
 
-Usually when we see the stack-smashing traces, they are because
-somebody did something stupid. In this case, there are certainly
-stupid details, and things I think we should fix, but there is *not*
-the usual red flag of "Christ, somebody did something _really_ wrong".
+But yeah, Minchan uses gcc 4.6.3 according to one of his emails, so
+_part_ of his stack smashing is probably due to compiler version.
 
-So I'm not in fact arguing against Minchan's patch of upping
-THREAD_SIZE_ORDER to 2 on x86-64, but at the same time stack size does
-remain one of my "we really need to be careful" issues, so while I am
-basically planning on applying that patch, I _also_ want to make sure
-that we fix the problems we do see and not just paper them over.
-
-The 8kB stack has been somewhat restrictive and painful for a while,
-and I'm ok with admitting that it is just getting _too_ damn painful,
-but I don't want to just give up entirely when we have a known deep
-stack case.
-
-                      Linus
+                  Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
