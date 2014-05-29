@@ -1,57 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 0304C6B004D
-	for <linux-mm@kvack.org>; Thu, 29 May 2014 12:17:08 -0400 (EDT)
-Received: by mail-wi0-f176.google.com with SMTP id n15so5977196wiw.3
-        for <linux-mm@kvack.org>; Thu, 29 May 2014 09:17:08 -0700 (PDT)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id i1si3037580wie.45.2014.05.29.09.16.52
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 29 May 2014 09:16:52 -0700 (PDT)
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: [patch 04/10] mm: memcontrol: reclaim at least once for __GFP_NORETRY
-Date: Thu, 29 May 2014 12:15:56 -0400
-Message-Id: <1401380162-24121-5-git-send-email-hannes@cmpxchg.org>
-In-Reply-To: <1401380162-24121-1-git-send-email-hannes@cmpxchg.org>
-References: <1401380162-24121-1-git-send-email-hannes@cmpxchg.org>
+Received: from mail-vc0-f170.google.com (mail-vc0-f170.google.com [209.85.220.170])
+	by kanga.kvack.org (Postfix) with ESMTP id C9E5A6B0039
+	for <linux-mm@kvack.org>; Thu, 29 May 2014 12:24:20 -0400 (EDT)
+Received: by mail-vc0-f170.google.com with SMTP id la4so662308vcb.1
+        for <linux-mm@kvack.org>; Thu, 29 May 2014 09:24:20 -0700 (PDT)
+Received: from qmta04.emeryville.ca.mail.comcast.net (qmta04.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:40])
+        by mx.google.com with ESMTP id s14si861368vem.73.2014.05.29.09.24.19
+        for <linux-mm@kvack.org>;
+        Thu, 29 May 2014 09:24:20 -0700 (PDT)
+Date: Thu, 29 May 2014 11:24:15 -0500 (CDT)
+From: Christoph Lameter <cl@gentwo.org>
+Subject: Re: vmstat: On demand vmstat workers V5
+In-Reply-To: <20140529142602.GA20258@localhost.localdomain>
+Message-ID: <alpine.DEB.2.10.1405291121400.12545@gentwo.org>
+References: <alpine.DEB.2.10.1405121317270.29911@gentwo.org> <20140528152107.GB6507@localhost.localdomain> <alpine.DEB.2.10.1405281110210.22514@gentwo.org> <20140529003609.GG6507@localhost.localdomain> <alpine.DEB.2.10.1405290902180.11514@gentwo.org>
+ <20140529142602.GA20258@localhost.localdomain>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>, Vladimir Davydov <vdavydov@parallels.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Frederic Weisbecker <fweisbec@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Gilad Ben-Yossef <gilad@benyossef.com>, Thomas Gleixner <tglx@linutronix.de>, Tejun Heo <tj@kernel.org>, John Stultz <johnstul@us.ibm.com>, Mike Frysinger <vapier@gentoo.org>, Minchan Kim <minchan.kim@gmail.com>, Hakan Akkan <hakanakkan@gmail.com>, Max Krasnyansky <maxk@qualcomm.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hughd@google.com, viresh.kumar@linaro.org, hpa@zytor.com, mingo@kernel.org, peterz@infradead.org
 
-Currently, __GFP_NORETRY tries charging once and gives up before even
-trying to reclaim.  Bring the behavior on par with the page allocator
-and reclaim at least once before giving up.
+On Thu, 29 May 2014, Frederic Weisbecker wrote:
 
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
----
- mm/memcontrol.c | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+> > Well yes and I am tying directly into that scheme there in cpu.c to
+> > display the active vmstat threads in sysfs. so its the same.
+>
+> I don't think so. Or is there something in vmstat that cpumask_var_t
+> definition depends upon?
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index e8d5075c081f..8957d6c945b8 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -2614,13 +2614,13 @@ retry:
- 	if (!(gfp_mask & __GFP_WAIT))
- 		goto nomem;
- 
--	if (gfp_mask & __GFP_NORETRY)
--		goto nomem;
--
- 	nr_reclaimed = mem_cgroup_reclaim(mem_over_limit, gfp_mask, flags);
- 
- 	if (mem_cgroup_margin(mem_over_limit) >= batch)
- 		goto retry;
-+
-+	if (gfp_mask & __GFP_NORETRY)
-+		goto nomem;
- 	/*
- 	 * Even though the limit is exceeded at this point, reclaim
- 	 * may have been able to free some pages.  Retry the charge
--- 
-1.9.3
+This patch definitely ties the vmstat cpumask into the scheme in cpu.c
+
+> > I would like to have some way to display the activities on cpus in /sysfs
+> > like I have done here with the active vmstat workers.
+> >
+> > What I think we need is display cpumasks for
+> >
+> > 1. Cpus where the tick is currently off
+> > 2. Cpus that have dynticks enabled.
+> > 3. Cpus that are idle
+>
+> You should find all that in /proc/timer_list
+
+True. I could actually drop the vmstat cpumask support.
+
+> Now for CPUs that have full dynticks enabled, we probably need something
+> in sysfs. We could dump the nohz cpumask somewhere. For now you can only grep
+> the dmesg
+
+There is a nohz mode in /proc/timer_list right?
+
+> > 4. Cpus that are used for RCU.
+>
+> So, you mean those that aren't in extended grace period (between rcu_user_enter()/exit
+> or rcu_idle_enter/exit)?
+
+No I mean cpus that have their RCU processing directed to another
+processor.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
