@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f49.google.com (mail-pb0-f49.google.com [209.85.160.49])
-	by kanga.kvack.org (Postfix) with ESMTP id CA37C6B003D
-	for <linux-mm@kvack.org>; Thu, 29 May 2014 03:28:45 -0400 (EDT)
-Received: by mail-pb0-f49.google.com with SMTP id jt11so12415253pbb.8
+Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 148446B005A
+	for <linux-mm@kvack.org>; Thu, 29 May 2014 03:28:46 -0400 (EDT)
+Received: by mail-pa0-f45.google.com with SMTP id ey11so12382496pad.18
         for <linux-mm@kvack.org>; Thu, 29 May 2014 00:28:45 -0700 (PDT)
-Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
-        by mx.google.com with ESMTPS id tf8si10454044pbc.25.2014.05.29.00.28.44
+Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
+        by mx.google.com with ESMTPS id ay4si26787910pbc.122.2014.05.29.00.28.44
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 29 May 2014 00:28:44 -0700 (PDT)
+        Thu, 29 May 2014 00:28:45 -0700 (PDT)
 From: Rusty Russell <rusty@rustcorp.com.au>
-Subject: [PATCH 3/4] virtio_ring: assume sgs are always well-formed.
-Date: Thu, 29 May 2014 16:56:44 +0930
-Message-Id: <1401348405-18614-4-git-send-email-rusty@rustcorp.com.au>
+Subject: [PATCH 4/4] virtio_ring: unify direct/indirect code paths.
+Date: Thu, 29 May 2014 16:56:45 +0930
+Message-Id: <1401348405-18614-5-git-send-email-rusty@rustcorp.com.au>
 In-Reply-To: <1401348405-18614-1-git-send-email-rusty@rustcorp.com.au>
 References: <87oayh6s3s.fsf@rustcorp.com.au>
  <1401348405-18614-1-git-send-email-rusty@rustcorp.com.au>
@@ -21,200 +21,207 @@ List-ID: <linux-mm.kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Jens Axboe <axboe@kernel.dk>, Minchan Kim <minchan@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, "Michael S. Tsirkin" <mst@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Steven Rostedt <rostedt@goodmis.org>
 Cc: Rusty Russell <rusty@rustcorp.com.au>
 
-We used to have several callers which just used arrays.  They're
-gone, so we can use sg_next() everywhere, simplifying the code.
+virtqueue_add() populates the virtqueue descriptor table from the sgs
+given.  If it uses an indirect descriptor table, then it puts a single
+descriptor in the descriptor table pointing to the kmalloc'ed indirect
+table where the sg is populated.
+
+Previously vring_add_indirect() did the allocation and the simple
+linear layout.  We replace that with alloc_indirect() which allocates
+the indirect table then chains it like the normal descriptor table so
+we can reuse the core logic.
 
 Before:
 	gcc 4.8.2: virtio_blk: stack used = 392
-	gcc 4.6.4: virtio_blk: stack used = 528
+	gcc 4.6.4: virtio_blk: stack used = 480
 
 After:
-	gcc 4.8.2: virtio_blk: stack used = 392
-	gcc 4.6.4: virtio_blk: stack used = 480
+	gcc 4.8.2: virtio_blk: stack used = 408
+	gcc 4.6.4: virtio_blk: stack used = 432
 
 Signed-off-by: Rusty Russell <rusty@rustcorp.com.au>
 ---
- drivers/virtio/virtio_ring.c | 68 +++++++++++++-------------------------------
- 1 file changed, 19 insertions(+), 49 deletions(-)
+ drivers/virtio/virtio_ring.c | 120 ++++++++++++++++---------------------------
+ 1 file changed, 45 insertions(+), 75 deletions(-)
 
 diff --git a/drivers/virtio/virtio_ring.c b/drivers/virtio/virtio_ring.c
-index f6ad99ffdc40..5d29cd85d6cf 100644
+index 5d29cd85d6cf..3adf5978b92b 100644
 --- a/drivers/virtio/virtio_ring.c
 +++ b/drivers/virtio/virtio_ring.c
-@@ -107,28 +107,10 @@ struct vring_virtqueue
+@@ -107,18 +107,10 @@ struct vring_virtqueue
  
  #define to_vvq(_vq) container_of(_vq, struct vring_virtqueue, vq)
  
--static inline struct scatterlist *sg_next_chained(struct scatterlist *sg,
--						  unsigned int *count)
--{
--	return sg_next(sg);
--}
+-/* Set up an indirect table of descriptors and add it to the queue. */
+-static inline int vring_add_indirect(struct vring_virtqueue *vq,
+-				     struct scatterlist *sgs[],
+-				     unsigned int total_sg,
+-				     unsigned int out_sgs,
+-				     unsigned int in_sgs,
+-				     gfp_t gfp)
++static struct vring_desc *alloc_indirect(unsigned int total_sg, gfp_t gfp)
+ {
+-	struct vring_desc *desc;
+-	unsigned head;
+-	struct scatterlist *sg;
+-	int i, n;
++ 	struct vring_desc *desc;
++	unsigned int i;
+ 
+ 	/*
+ 	 * We require lowmem mappings for the descriptors because
+@@ -130,51 +122,13 @@ static inline int vring_add_indirect(struct vring_virtqueue *vq,
+ 	if (record_stack == current)
+ 		__asm__ __volatile__("movq %%rsp,%0" : "=g" (stack_top));
+ 
+-	desc = kmalloc(total_sg * sizeof(struct vring_desc), gfp);
+-	if (!desc)
+-		return -ENOMEM;
 -
--static inline struct scatterlist *sg_next_arr(struct scatterlist *sg,
--					      unsigned int *count)
--{
--	if (--(*count) == 0)
--		return NULL;
--	return sg + 1;
--}
+-	/* Transfer entries from the sg lists into the indirect page */
+-	i = 0;
+-	for (n = 0; n < out_sgs; n++) {
+-		for (sg = sgs[n]; sg; sg = sg_next(sg)) {
+-			desc[i].flags = VRING_DESC_F_NEXT;
+-			desc[i].addr = sg_phys(sg);
+-			desc[i].len = sg->length;
+-			desc[i].next = i+1;
+-			i++;
+-		}
+-	}
+-	for (; n < (out_sgs + in_sgs); n++) {
+-		for (sg = sgs[n]; sg; sg = sg_next(sg)) {
+-			desc[i].flags = VRING_DESC_F_NEXT|VRING_DESC_F_WRITE;
+-			desc[i].addr = sg_phys(sg);
+-			desc[i].len = sg->length;
+-			desc[i].next = i+1;
+-			i++;
+-		}
+-	}
+-	BUG_ON(i != total_sg);
 -
- /* Set up an indirect table of descriptors and add it to the queue. */
- static inline int vring_add_indirect(struct vring_virtqueue *vq,
- 				     struct scatterlist *sgs[],
--				     struct scatterlist *(*next)
--				       (struct scatterlist *, unsigned int *),
- 				     unsigned int total_sg,
--				     unsigned int total_out,
--				     unsigned int total_in,
- 				     unsigned int out_sgs,
- 				     unsigned int in_sgs,
- 				     gfp_t gfp)
-@@ -155,7 +137,7 @@ static inline int vring_add_indirect(struct vring_virtqueue *vq,
- 	/* Transfer entries from the sg lists into the indirect page */
- 	i = 0;
- 	for (n = 0; n < out_sgs; n++) {
--		for (sg = sgs[n]; sg; sg = next(sg, &total_out)) {
-+		for (sg = sgs[n]; sg; sg = sg_next(sg)) {
- 			desc[i].flags = VRING_DESC_F_NEXT;
- 			desc[i].addr = sg_phys(sg);
- 			desc[i].len = sg->length;
-@@ -164,7 +146,7 @@ static inline int vring_add_indirect(struct vring_virtqueue *vq,
- 		}
- 	}
- 	for (; n < (out_sgs + in_sgs); n++) {
--		for (sg = sgs[n]; sg; sg = next(sg, &total_in)) {
-+		for (sg = sgs[n]; sg; sg = sg_next(sg)) {
- 			desc[i].flags = VRING_DESC_F_NEXT|VRING_DESC_F_WRITE;
- 			desc[i].addr = sg_phys(sg);
- 			desc[i].len = sg->length;
-@@ -197,10 +179,7 @@ static inline int vring_add_indirect(struct vring_virtqueue *vq,
+-	/* Last one doesn't continue. */
+-	desc[i-1].flags &= ~VRING_DESC_F_NEXT;
+-	desc[i-1].next = 0;
+-
+-	/* We're about to use a buffer */
+-	vq->vq.num_free--;
+-
+-	/* Use a single buffer which doesn't continue */
+-	head = vq->free_head;
+-	vq->vring.desc[head].flags = VRING_DESC_F_INDIRECT;
+-	vq->vring.desc[head].addr = virt_to_phys(desc);
+-	/* kmemleak gives a false positive, as it's hidden by virt_to_phys */
+-	kmemleak_ignore(desc);
+-	vq->vring.desc[head].len = i * sizeof(struct vring_desc);
+-
+-	/* Update free pointer */
+-	vq->free_head = vq->vring.desc[head].next;
++ 	desc = kmalloc(total_sg * sizeof(struct vring_desc), gfp);
++ 	if (!desc)
++		return NULL;
+ 
+-	return head;
++	for (i = 0; i < total_sg; i++)
++		desc[i].next = i+1;
++	return desc;
+ }
  
  static inline int virtqueue_add(struct virtqueue *_vq,
- 				struct scatterlist *sgs[],
--				struct scatterlist *(*next)
--				  (struct scatterlist *, unsigned int *),
--				unsigned int total_out,
--				unsigned int total_in,
-+				unsigned int total_sg,
- 				unsigned int out_sgs,
- 				unsigned int in_sgs,
- 				void *data,
-@@ -208,7 +187,7 @@ static inline int virtqueue_add(struct virtqueue *_vq,
+@@ -187,6 +141,7 @@ static inline int virtqueue_add(struct virtqueue *_vq,
  {
  	struct vring_virtqueue *vq = to_vvq(_vq);
  	struct scatterlist *sg;
--	unsigned int i, n, avail, uninitialized_var(prev), total_sg;
-+	unsigned int i, n, avail, uninitialized_var(prev);
++	struct vring_desc *desc = NULL;
+ 	unsigned int i, n, avail, uninitialized_var(prev);
  	int head;
  
- 	START_USE(vq);
-@@ -233,13 +212,10 @@ static inline int virtqueue_add(struct virtqueue *_vq,
+@@ -212,18 +167,32 @@ static inline int virtqueue_add(struct virtqueue *_vq,
  	}
  #endif
  
--	total_sg = total_in + total_out;
--
++	BUG_ON(total_sg > vq->vring.num);
++	BUG_ON(total_sg == 0);
++
++	head = vq->free_head;
++
  	/* If the host supports indirect descriptor tables, and we have multiple
  	 * buffers, then go indirect. FIXME: tune this threshold */
- 	if (vq->indirect && total_sg > 1 && vq->vq.num_free) {
--		head = vring_add_indirect(vq, sgs, next, total_sg, total_out,
--					  total_in,
-+		head = vring_add_indirect(vq, sgs, total_sg, 
- 					  out_sgs, in_sgs, gfp);
- 		if (likely(head >= 0))
- 			goto add_head;
-@@ -265,7 +241,7 @@ static inline int virtqueue_add(struct virtqueue *_vq,
+-	if (vq->indirect && total_sg > 1 && vq->vq.num_free) {
+-		head = vring_add_indirect(vq, sgs, total_sg, 
+-					  out_sgs, in_sgs, gfp);
+-		if (likely(head >= 0))
+-			goto add_head;
++	if (vq->indirect && total_sg > 1 && vq->vq.num_free)
++		desc = alloc_indirect(total_sg, gfp);
++
++	if (desc) {
++		/* Use a single buffer which doesn't continue */
++		vq->vring.desc[head].flags = VRING_DESC_F_INDIRECT;
++		vq->vring.desc[head].addr = virt_to_phys(desc);
++		/* avoid kmemleak false positive (tis hidden by virt_to_phys) */
++		kmemleak_ignore(desc);
++		vq->vring.desc[head].len = total_sg * sizeof(struct vring_desc);
++
++		/* Set up rest to use this indirect table. */
++		i = 0;
++		total_sg = 1;
++	} else {
++		desc = vq->vring.desc;
++		i = head;
+ 	}
  
- 	head = i = vq->free_head;
+-	BUG_ON(total_sg > vq->vring.num);
+-	BUG_ON(total_sg == 0);
+-
+ 	if (vq->vq.num_free < total_sg) {
+ 		pr_debug("Can't add buf len %i - avail = %i\n",
+ 			 total_sg, vq->vq.num_free);
+@@ -239,32 +208,33 @@ static inline int virtqueue_add(struct virtqueue *_vq,
+ 	/* We're about to use some buffers from the free list. */
+ 	vq->vq.num_free -= total_sg;
+ 
+-	head = i = vq->free_head;
  	for (n = 0; n < out_sgs; n++) {
--		for (sg = sgs[n]; sg; sg = next(sg, &total_out)) {
-+		for (sg = sgs[n]; sg; sg = sg_next(sg)) {
- 			vq->vring.desc[i].flags = VRING_DESC_F_NEXT;
- 			vq->vring.desc[i].addr = sg_phys(sg);
- 			vq->vring.desc[i].len = sg->length;
-@@ -274,7 +250,7 @@ static inline int virtqueue_add(struct virtqueue *_vq,
+ 		for (sg = sgs[n]; sg; sg = sg_next(sg)) {
+-			vq->vring.desc[i].flags = VRING_DESC_F_NEXT;
+-			vq->vring.desc[i].addr = sg_phys(sg);
+-			vq->vring.desc[i].len = sg->length;
++			desc[i].flags = VRING_DESC_F_NEXT;
++			desc[i].addr = sg_phys(sg);
++			desc[i].len = sg->length;
+ 			prev = i;
+-			i = vq->vring.desc[i].next;
++			i = desc[i].next;
  		}
  	}
  	for (; n < (out_sgs + in_sgs); n++) {
--		for (sg = sgs[n]; sg; sg = next(sg, &total_in)) {
-+		for (sg = sgs[n]; sg; sg = sg_next(sg)) {
- 			vq->vring.desc[i].flags = VRING_DESC_F_NEXT|VRING_DESC_F_WRITE;
- 			vq->vring.desc[i].addr = sg_phys(sg);
- 			vq->vring.desc[i].len = sg->length;
-@@ -335,29 +311,23 @@ int virtqueue_add_sgs(struct virtqueue *_vq,
- 		      void *data,
- 		      gfp_t gfp)
- {
--	unsigned int i, total_out, total_in;
-+	unsigned int i, total_sg = 0;
- 
- 	/* Count them first. */
--	for (i = total_out = total_in = 0; i < out_sgs; i++) {
--		struct scatterlist *sg;
--		for (sg = sgs[i]; sg; sg = sg_next(sg))
--			total_out++;
--	}
--	for (; i < out_sgs + in_sgs; i++) {
-+	for (i = 0; i < out_sgs + in_sgs; i++) {
- 		struct scatterlist *sg;
- 		for (sg = sgs[i]; sg; sg = sg_next(sg))
--			total_in++;
-+			total_sg++;
+ 		for (sg = sgs[n]; sg; sg = sg_next(sg)) {
+-			vq->vring.desc[i].flags = VRING_DESC_F_NEXT|VRING_DESC_F_WRITE;
+-			vq->vring.desc[i].addr = sg_phys(sg);
+-			vq->vring.desc[i].len = sg->length;
++			desc[i].flags = VRING_DESC_F_NEXT|VRING_DESC_F_WRITE;
++			desc[i].addr = sg_phys(sg);
++			desc[i].len = sg->length;
+ 			prev = i;
+-			i = vq->vring.desc[i].next;
++			i = desc[i].next;
+ 		}
  	}
--	return virtqueue_add(_vq, sgs, sg_next_chained,
--			     total_out, total_in, out_sgs, in_sgs, data, gfp);
-+	return virtqueue_add(_vq, sgs, total_sg, out_sgs, in_sgs, data, gfp);
- }
- EXPORT_SYMBOL_GPL(virtqueue_add_sgs);
+ 	/* Last one doesn't continue. */
+-	vq->vring.desc[prev].flags &= ~VRING_DESC_F_NEXT;
++	desc[prev].flags &= ~VRING_DESC_F_NEXT;
  
- /**
-  * virtqueue_add_outbuf - expose output buffers to other end
-  * @vq: the struct virtqueue we're talking about.
-- * @sgs: array of scatterlists (need not be terminated!)
-- * @num: the number of scatterlists readable by other side
-+ * @sg: scatterlist (must be well-formed and terminated!)
-+ * @num: the number of entries in @sg readable by other side
-  * @data: the token identifying the buffer.
-  * @gfp: how to do memory allocations (if necessary).
-  *
-@@ -367,19 +337,19 @@ EXPORT_SYMBOL_GPL(virtqueue_add_sgs);
-  * Returns zero or a negative error (ie. ENOSPC, ENOMEM, EIO).
-  */
- int virtqueue_add_outbuf(struct virtqueue *vq,
--			 struct scatterlist sg[], unsigned int num,
-+			 struct scatterlist *sg, unsigned int num,
- 			 void *data,
- 			 gfp_t gfp)
- {
--	return virtqueue_add(vq, &sg, sg_next_arr, num, 0, 1, 0, data, gfp);
-+	return virtqueue_add(vq, &sg, num, 1, 0, data, gfp);
- }
- EXPORT_SYMBOL_GPL(virtqueue_add_outbuf);
+ 	/* Update free pointer */
+-	vq->free_head = i;
++	if (desc == vq->vring.desc)
++		vq->free_head = i;
++	else
++		vq->free_head = vq->vring.desc[head].next;
  
- /**
-  * virtqueue_add_inbuf - expose input buffers to other end
-  * @vq: the struct virtqueue we're talking about.
-- * @sgs: array of scatterlists (need not be terminated!)
-- * @num: the number of scatterlists writable by other side
-+ * @sg: scatterlist (must be well-formed and terminated!)
-+ * @num: the number of entries in @sg writable by other side
-  * @data: the token identifying the buffer.
-  * @gfp: how to do memory allocations (if necessary).
-  *
-@@ -389,11 +359,11 @@ EXPORT_SYMBOL_GPL(virtqueue_add_outbuf);
-  * Returns zero or a negative error (ie. ENOSPC, ENOMEM, EIO).
-  */
- int virtqueue_add_inbuf(struct virtqueue *vq,
--			struct scatterlist sg[], unsigned int num,
-+			struct scatterlist *sg, unsigned int num,
- 			void *data,
- 			gfp_t gfp)
- {
--	return virtqueue_add(vq, &sg, sg_next_arr, 0, num, 0, 1, data, gfp);
-+	return virtqueue_add(vq, &sg, num, 0, 1, data, gfp);
- }
- EXPORT_SYMBOL_GPL(virtqueue_add_inbuf);
+-add_head:
+ 	/* Set token. */
+ 	vq->data[head] = data;
  
 -- 
 1.9.1
