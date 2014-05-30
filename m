@@ -1,99 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id EB3A16B0035
-	for <linux-mm@kvack.org>; Fri, 30 May 2014 08:03:15 -0400 (EDT)
-Received: by mail-pa0-f52.google.com with SMTP id bj1so1321623pad.39
-        for <linux-mm@kvack.org>; Fri, 30 May 2014 05:03:15 -0700 (PDT)
-Received: from mail-pb0-x234.google.com (mail-pb0-x234.google.com [2607:f8b0:400e:c01::234])
-        by mx.google.com with ESMTPS id wp2si5326918pab.65.2014.05.30.05.03.14
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 30 May 2014 05:03:15 -0700 (PDT)
-Received: by mail-pb0-f52.google.com with SMTP id rr13so1667471pbb.11
-        for <linux-mm@kvack.org>; Fri, 30 May 2014 05:03:14 -0700 (PDT)
-Date: Fri, 30 May 2014 05:02:03 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 2/2] hugetlb: rename hugepage_migration_support() to
- ..._supported()
-In-Reply-To: <1401423232-25198-2-git-send-email-n-horiguchi@ah.jp.nec.com>
-Message-ID: <alpine.LSU.2.11.1405300500540.1037@eggly.anvils>
-References: <1401423232-25198-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1401423232-25198-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+Received: from mail-lb0-f180.google.com (mail-lb0-f180.google.com [209.85.217.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 60FB66B0035
+	for <linux-mm@kvack.org>; Fri, 30 May 2014 09:13:18 -0400 (EDT)
+Received: by mail-lb0-f180.google.com with SMTP id p9so974704lbv.25
+        for <linux-mm@kvack.org>; Fri, 30 May 2014 06:13:17 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id d5si10783215lbr.46.2014.05.30.06.13.14
+        for <linux-mm@kvack.org>;
+        Fri, 30 May 2014 06:13:15 -0700 (PDT)
+Date: Fri, 30 May 2014 10:12:43 -0300
+From: Marcelo Tosatti <mtosatti@redhat.com>
+Subject: Re: [PATCH] page_alloc: skip cpuset enforcement for lower zone
+ allocations (v5)
+Message-ID: <20140530131243.GA30110@amt.cnet>
+References: <20140523193706.GA22854@amt.cnet>
+ <20140526185344.GA19976@amt.cnet>
+ <53858A06.8080507@huawei.com>
+ <20140528224324.GA1132@amt.cnet>
+ <20140529184303.GA20571@amt.cnet>
+ <alpine.DEB.2.02.1405291555120.9336@chino.kir.corp.google.com>
+ <20140529232819.GA29803@amt.cnet>
+ <alpine.DEB.2.02.1405291638300.9336@chino.kir.corp.google.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.02.1405291638300.9336@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Michael Ellerman <mpe@ellerman.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Tony Luck <tony.luck@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, trinity@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: Li Zefan <lizefan@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Lai Jiangshan <laijs@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>
 
-On Fri, 30 May 2014, Naoya Horiguchi wrote:
-
-> We already have a function named hugepage_supported(), and the similar
-
-hugepages_supported()
-
-> name hugepage_migration_support() is a bit unconfortable, so let's rename
-> it hugepage_migration_supported().
+On Thu, May 29, 2014 at 04:54:00PM -0700, David Rientjes wrote:
+> On Thu, 29 May 2014, Marcelo Tosatti wrote:
 > 
-> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-
-Acked-by: Hugh Dickins <hughd@google.com>
-
-> ---
->  include/linux/hugetlb.h | 4 ++--
->  mm/hugetlb.c            | 2 +-
->  mm/migrate.c            | 2 +-
->  3 files changed, 4 insertions(+), 4 deletions(-)
+> > diff --git a/kernel/cpuset.c b/kernel/cpuset.c
+> > index 3d54c41..3bbc23f 100644
+> > --- a/kernel/cpuset.c
+> > +++ b/kernel/cpuset.c
+> > @@ -2374,6 +2374,7 @@ static struct cpuset *nearest_hardwall_ancestor(struct cpuset *cs)
+> >   * variable 'wait' is not set, and the bit ALLOC_CPUSET is not set
+> >   * in alloc_flags.  That logic and the checks below have the combined
+> >   * affect that:
+> > + *	gfp_zone(mask) < policy_zone - any node ok
+> >   *	in_interrupt - any node ok (current task context irrelevant)
+> >   *	GFP_ATOMIC   - any node ok
+> >   *	TIF_MEMDIE   - any node ok
+> > @@ -2392,6 +2393,10 @@ int __cpuset_node_allowed_softwall(int node, gfp_t gfp_mask)
+> >  
+> >  	if (in_interrupt() || (gfp_mask & __GFP_THISNODE))
+> >  		return 1;
+> > +#ifdef CONFIG_NUMA
+> > +	if (gfp_zone(gfp_mask) < policy_zone)
+> > +		return 1;
+> > +#endif
+> >  	might_sleep_if(!(gfp_mask & __GFP_HARDWALL));
+> >  	if (node_isset(node, current->mems_allowed))
+> >  		return 1;
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > index 5dba293..0fd6923 100644
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -2723,6 +2723,11 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+> >  	if (!memcg_kmem_newpage_charge(gfp_mask, &memcg, order))
+> >  		return NULL;
+> >  
+> > +#ifdef CONFIG_NUMA
+> > +	if (!nodemask && gfp_zone(gfp_mask) < policy_zone)
+> > +		nodemask = &node_states[N_MEMORY];
+> > +#endif
+> > +
+> >  retry_cpuset:
+> >  	cpuset_mems_cookie = read_mems_allowed_begin();
+> >  
 > 
-> diff --git v3.15-rc5.orig/include/linux/hugetlb.h v3.15-rc5/include/linux/hugetlb.h
-> index c9de64cf288d..9d35e514312b 100644
-> --- v3.15-rc5.orig/include/linux/hugetlb.h
-> +++ v3.15-rc5/include/linux/hugetlb.h
-> @@ -385,7 +385,7 @@ static inline pgoff_t basepage_index(struct page *page)
->  
->  extern void dissolve_free_huge_pages(unsigned long start_pfn,
->  				     unsigned long end_pfn);
-> -static inline int hugepage_migration_support(struct hstate *h)
-> +static inline int hugepage_migration_supported(struct hstate *h)
->  {
->  #ifdef CONFIG_ARCH_ENABLE_HUGEPAGE_MIGRATION
->  	return huge_page_shift(h) == PMD_SHIFT;
-> @@ -441,7 +441,7 @@ static inline pgoff_t basepage_index(struct page *page)
->  	return page->index;
->  }
->  #define dissolve_free_huge_pages(s, e)	do {} while (0)
-> -#define hugepage_migration_support(h)	0
-> +#define hugepage_migration_supported(h)	0
->  
->  static inline spinlock_t *huge_pte_lockptr(struct hstate *h,
->  					   struct mm_struct *mm, pte_t *pte)
-> diff --git v3.15-rc5.orig/mm/hugetlb.c v3.15-rc5/mm/hugetlb.c
-> index ea42b584661a..83d936d12c1d 100644
-> --- v3.15-rc5.orig/mm/hugetlb.c
-> +++ v3.15-rc5/mm/hugetlb.c
-> @@ -545,7 +545,7 @@ static struct page *dequeue_huge_page_node(struct hstate *h, int nid)
->  /* Movability of hugepages depends on migration support. */
->  static inline gfp_t htlb_alloc_mask(struct hstate *h)
->  {
-> -	if (hugepages_treat_as_movable || hugepage_migration_support(h))
-> +	if (hugepages_treat_as_movable || hugepage_migration_supported(h))
->  		return GFP_HIGHUSER_MOVABLE;
->  	else
->  		return GFP_HIGHUSER;
-> diff --git v3.15-rc5.orig/mm/migrate.c v3.15-rc5/mm/migrate.c
-> index bed48809e5d0..15b589ae6aaf 100644
-> --- v3.15-rc5.orig/mm/migrate.c
-> +++ v3.15-rc5/mm/migrate.c
-> @@ -1031,7 +1031,7 @@ static int unmap_and_move_huge_page(new_page_t get_new_page,
->  	 * tables or check whether the hugepage is pmd-based or not before
->  	 * kicking migration.
->  	 */
-> -	if (!hugepage_migration_support(page_hstate(hpage))) {
-> +	if (!hugepage_migration_supported(page_hstate(hpage))) {
->  		putback_active_hugepage(hpage);
->  		return -ENOSYS;
->  	}
-> -- 
-> 1.9.3
+> When I said that my point about mempolicies needs more thought, I wasn't 
+> expecting that there would be no discussion -- at least _something_ that 
+> would say why we don't care about the mempolicy case.
+
+We care about the mempolicy case, and that is taken care of by
+apply_policy_zone.
+
+Or does that code fail to handle a particular case ?
+
+> The motivation here is identical for both cpusets and mempolicies.  What 
+> is the significant difference between attaching a process to a cpuset 
+> without access to lowmem and a process doing set_mempolicy(MPOL_BIND) 
+> without access to lowmem?  Is it because the process should know what it's 
+> doing if it asks for a mempolicy that doesn't include lowmem?  If so, is 
+> the cpusets case different because the cpuset attacher isn't held to the 
+> same standard?
+> 
+> I'd argue that an application may never know if it needs to allocate 
+> GFP_DMA32 or not since its a property of the hardware that its running on 
+> and my driver may need to access lowmem while yours may not.  I may even 
+> configure CONFIG_ZONE_DMA=n and CONFIG_ZONE_DMA32=n because I know the 
+> _hardware_ requirements of my platforms.
+> 
+> If there is no difference, then why are we allowing the exception for 
+> cpusets and not mempolicies?
+> 
+> I really think you want to allow both cpusets and mempolicies.  I'd like 
+> to hear Christoph's thoughts on it as well, though.
+> 
+> Furthermore, I don't know why you're opposed to the comments that Andrew 
+> added here.  In the first version of this patch, I suggested a comment and 
+> you referred to a kernel/cpuset.c comment.  Nowhere in the above change to 
+> the page allocator would make anyone think of cpusets or what it is trying 
+> to do.  Please comment the code accordingly so your intention is 
+> understood for everybody else who happens upon your code.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
