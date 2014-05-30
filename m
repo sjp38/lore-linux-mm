@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vc0-f176.google.com (mail-vc0-f176.google.com [209.85.220.176])
-	by kanga.kvack.org (Postfix) with ESMTP id B2D656B0039
-	for <linux-mm@kvack.org>; Fri, 30 May 2014 09:52:46 -0400 (EDT)
-Received: by mail-vc0-f176.google.com with SMTP id la4so2076003vcb.7
-        for <linux-mm@kvack.org>; Fri, 30 May 2014 06:52:46 -0700 (PDT)
+Received: from mail-ve0-f171.google.com (mail-ve0-f171.google.com [209.85.128.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 720216B0037
+	for <linux-mm@kvack.org>; Fri, 30 May 2014 10:00:15 -0400 (EDT)
+Received: by mail-ve0-f171.google.com with SMTP id oz11so2151533veb.2
+        for <linux-mm@kvack.org>; Fri, 30 May 2014 07:00:15 -0700 (PDT)
 Received: from qmta11.emeryville.ca.mail.comcast.net (qmta11.emeryville.ca.mail.comcast.net. [2001:558:fe2d:44:76:96:27:211])
-        by mx.google.com with ESMTP id z1si3018831vet.30.2014.05.30.06.52.45
+        by mx.google.com with ESMTP id to8si3104636vdb.2.2014.05.30.07.00.14
         for <linux-mm@kvack.org>;
-        Fri, 30 May 2014 06:52:46 -0700 (PDT)
-Date: Fri, 30 May 2014 08:52:42 -0500 (CDT)
+        Fri, 30 May 2014 07:00:14 -0700 (PDT)
+Date: Fri, 30 May 2014 09:00:11 -0500 (CDT)
 From: Christoph Lameter <cl@gentwo.org>
 Subject: Re: [PATCH] vmstat: on demand updates from differentials V7
-In-Reply-To: <20140530000610.GB25555@localhost.localdomain>
-Message-ID: <alpine.DEB.2.10.1405300851490.8240@gentwo.org>
-References: <alpine.DEB.2.10.1405291453260.2899@gentwo.org> <20140530000610.GB25555@localhost.localdomain>
+In-Reply-To: <20140529235530.GA25555@localhost.localdomain>
+Message-ID: <alpine.DEB.2.10.1405300859290.8240@gentwo.org>
+References: <alpine.DEB.2.10.1405291453260.2899@gentwo.org> <20140529235530.GA25555@localhost.localdomain>
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
@@ -22,14 +22,48 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, Gilad Ben-Yossef <gilad@benyossef
 
 On Fri, 30 May 2014, Frederic Weisbecker wrote:
 
+> On Thu, May 29, 2014 at 02:56:15PM -0500, Christoph Lameter wrote:
+> > -static void start_cpu_timer(int cpu)
+> > +static void __init start_shepherd_timer(void)
+> >  {
+> > -	struct delayed_work *work = &per_cpu(vmstat_work, cpu);
+> > +	int cpu;
+> > +
+> > +	for_each_possible_cpu(cpu)
+> > +		INIT_DEFERRABLE_WORK(per_cpu_ptr(&vmstat_work, cpu),
+> > +			vmstat_update);
+> > +
 > > +	cpu_stat_off = kmalloc(cpumask_size(), GFP_KERNEL);
-> > +	cpumask_copy(cpu_stat_off, cpu_online_mask);
 >
-> Actually looks like you can as well remove that cpumask and use
-> cpu_online_mask directly.
+> Now you're open coding alloc_cpumask_var() ?
 
-That would mean I would offline cpus that do not need the
-vmstat worker?
+Subject: on demand vmstat: Do not open code alloc_cpumask_var
+
+Signed-off-by: Christoph Lameter <cl@linux.com>
+
+Index: linux/mm/vmstat.c
+===================================================================
+--- linux.orig/mm/vmstat.c	2014-05-29 14:43:26.439163942 -0500
++++ linux/mm/vmstat.c	2014-05-30 08:58:42.909697898 -0500
+@@ -1238,7 +1238,7 @@
+ #ifdef CONFIG_SMP
+ static DEFINE_PER_CPU(struct delayed_work, vmstat_work);
+ int sysctl_stat_interval __read_mostly = HZ;
+-struct cpumask *cpu_stat_off;
++cpumask_var_t cpu_stat_off;
+
+ static void vmstat_update(struct work_struct *w)
+ {
+@@ -1332,7 +1332,8 @@
+ 		INIT_DEFERRABLE_WORK(per_cpu_ptr(&vmstat_work, cpu),
+ 			vmstat_update);
+
+-	cpu_stat_off = kmalloc(cpumask_size(), GFP_KERNEL);
++	if (!alloc_cpumask_var(&cpu_stat_off, GFP_KERNEL))
++		BUG();
+ 	cpumask_copy(cpu_stat_off, cpu_online_mask);
+
+ 	schedule_delayed_work(&shepherd,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
