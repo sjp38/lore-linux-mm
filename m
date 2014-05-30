@@ -1,55 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f182.google.com (mail-ob0-f182.google.com [209.85.214.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 601496B0037
-	for <linux-mm@kvack.org>; Thu, 29 May 2014 22:57:09 -0400 (EDT)
-Received: by mail-ob0-f182.google.com with SMTP id wn1so1223440obc.41
-        for <linux-mm@kvack.org>; Thu, 29 May 2014 19:57:09 -0700 (PDT)
-Received: from mail-oa0-x244.google.com (mail-oa0-x244.google.com [2607:f8b0:4003:c02::244])
-        by mx.google.com with ESMTPS id j1si4834513oev.102.2014.05.29.19.57.08
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 29 May 2014 19:57:08 -0700 (PDT)
-Received: by mail-oa0-f68.google.com with SMTP id i7so323752oag.11
-        for <linux-mm@kvack.org>; Thu, 29 May 2014 19:57:08 -0700 (PDT)
-MIME-Version: 1.0
-Date: Fri, 30 May 2014 10:57:08 +0800
-Message-ID: <CAGO-9moQrepikUk198XjgiE=hC2W6u_Wsup8yK=ooBfPNg1PfQ@mail.gmail.com>
-Subject: Ask for help on the memory allocation for process shared mutex
- (resend with plain text)
-From: yang ben <benyangfsl@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Received: from mail-qg0-f50.google.com (mail-qg0-f50.google.com [209.85.192.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D41A6B0035
+	for <linux-mm@kvack.org>; Thu, 29 May 2014 23:05:06 -0400 (EDT)
+Received: by mail-qg0-f50.google.com with SMTP id z60so3737211qgd.9
+        for <linux-mm@kvack.org>; Thu, 29 May 2014 20:05:05 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id x9si3522343qcs.20.2014.05.29.20.05.05
+        for <linux-mm@kvack.org>;
+        Thu, 29 May 2014 20:05:05 -0700 (PDT)
+Message-ID: <5387f561.8983e50a.1ead.ffff85b1SMTPIN_ADDED_BROKEN@mx.google.com>
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH] hugetlb: restrict hugepage_migration_support() to x86_64 (Re: BUG at mm/memory.c:1489!)
+Date: Thu, 29 May 2014 23:04:50 -0400
+In-Reply-To: <1401413716.29324.2.camel@concordia>
+References: <1401265922.3355.4.camel@concordia> <alpine.LSU.2.11.1405281712310.7156@eggly.anvils> <1401353983.4930.15.camel@concordia> <1401388474-mqnis5cp@n-horiguchi@ah.jp.nec.com> <1401413716.29324.2.camel@concordia>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: mpe@ellerman.id.au
+Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, benh@kernel.crashing.org, Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, trinity@vger.kernel.org
 
-Dear experts,
+On Fri, May 30, 2014 at 11:35:16AM +1000, Michael Ellerman wrote:
+> On Thu, 2014-05-29 at 14:34 -0400, Naoya Horiguchi wrote:
+> > On Thu, May 29, 2014 at 06:59:43PM +1000, Michael Ellerman wrote:
+> > > Applying your patch and running trinity pretty immediately results in the
+> > > following, which looks related (sys_move_pages() again) ?
+> > >
+> > > Unable to handle kernel paging request for data at address 0xf2000f80000000
+> > > Faulting instruction address: 0xc0000000001e29bc
+> > > cpu 0x1b: Vector: 300 (Data Access) at [c0000003c70f76f0]
+> > >     pc: c0000000001e29bc: .remove_migration_pte+0x9c/0x320
+> > >     lr: c0000000001e29b8: .remove_migration_pte+0x98/0x320
+> > >     sp: c0000003c70f7970
+> > >    msr: 8000000000009032
+> > >    dar: f2000f80000000
+> > >  dsisr: 40000000
+> > >   current = 0xc0000003f9045800
+> > >   paca    = 0xc000000001dc6c00   softe: 0        irq_happened: 0x01
+> > >     pid   = 3585, comm = trinity-c27
+> > > enter ? for help
+> > > [c0000003c70f7a20] c0000000001bce88 .rmap_walk+0x328/0x470
+> > > [c0000003c70f7ae0] c0000000001e2904 .remove_migration_ptes+0x44/0x60
+> > > [c0000003c70f7b80] c0000000001e4ce8 .migrate_pages+0x6d8/0xa00
+> > > [c0000003c70f7cc0] c0000000001e55ec .SyS_move_pages+0x5dc/0x7d0
+> > > [c0000003c70f7e30] c00000000000a1d8 syscall_exit+0x0/0x98
+> > > --- Exception: c01 (System Call) at 00003fff7b2b30a8
+> > > SP (3fffe09728a0) is in userspace
+> > > 1b:mon>
+> >
+> > Sorry for inconvenience on your testing.
+>  
+> That's fine, it's good to find bugs :)
+> 
+> > Hugepage migration is enabled for archs which have pmd-level hugepage
+> > (including ppc64,) but not tested except for x86_64.
+> > hugepage_migration_support() controls this so the following patch should
+> > help you avoid the problem, I believe.
+> > Could you try to test with it?
+> 
+> Sure. So this patch, in addition to Hugh's patch to remove the BUG_ON(), does
+> avoid the crash above (remove_migration_pte()).
+> 
+> I dropped Hugh's patch, as he has decided he doesn't like it, and added the
+> following hunk instead:
+> 
+> diff --git a/include/linux/mempolicy.h b/include/linux/mempolicy.h
+> index 3c1b968..f230a97 100644
+> --- a/include/linux/mempolicy.h
+> +++ b/include/linux/mempolicy.h
+> @@ -175,6 +175,12 @@ static inline int vma_migratable(struct vm_area_struct *vma)
+>  {
+>         if (vma->vm_flags & (VM_IO | VM_PFNMAP))
+>                 return 0;
+> +
+> +#ifndef CONFIG_ARCH_ENABLE_HUGEPAGE_MIGRATION
+> +       if (vma->vm_flags & VM_HUGETLB)
+> +               return 0;
+> +#endif
+> +
+>         /*
+>          * Migration allocates pages in the highest zone. If we cannot
+>          * do so then migration (at least from node to node) is not
+> 
+> 
+> Which seems to be what Hugh was referring to in his mail - correct me if I'm
+> wrong Hugh.
+> 
+> With your patch and the above hunk I can run trinity happily for a while,
+> whereas without it crashes almost immediately.
 
-I came across a memory/mutex issue. Would you kindly shed some light on it?
+Great.
 
-I use pthread_mutex_xxx API to protect processes in user space. Since
-it should be process shared, I allocated a shared memory to store
-pthread_mutex_t structure.
+> So with the above hunk you can add my tested-by.
 
-The shared memory is allocated using vmalloc_user() and mapped using
-remap_vmalloc_range() in driver. However, get_futex_key() will always
-return -EFAULT, because page_head->mapping==0.
+OK, thank you for your help.
 
-futex.c (Linux-3.10.31)
-         if (!page_head->mapping) {
-                 int shmem_swizzled = PageSwapCache(page_head);
-                 unlock_page(page_head);
-                 put_page(page_head);
-                 if (shmem_swizzled)
-                         goto again;
-                 return -EFAULT;
-         }
+I'll post the revised patch later.
 
-Is there special requirement on the memory to store mutex? What's the
-correct way to allocate such memory in driver?
-Thanks in advance!
-
-Regards,
-Ben
+Thanks,
+Naoya Horiguchi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
