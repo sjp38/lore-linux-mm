@@ -1,428 +1,380 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 4147B6B0037
-	for <linux-mm@kvack.org>; Fri, 30 May 2014 03:53:41 -0400 (EDT)
-Received: by mail-pa0-f51.google.com with SMTP id kq14so1442187pab.10
-        for <linux-mm@kvack.org>; Fri, 30 May 2014 00:53:40 -0700 (PDT)
-Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
-        by mx.google.com with ESMTP id oh6si4375617pbb.12.2014.05.30.00.53.38
-        for <linux-mm@kvack.org>;
-        Fri, 30 May 2014 00:53:40 -0700 (PDT)
-Message-ID: <53883902.8020701@lge.com>
-Date: Fri, 30 May 2014 16:53:38 +0900
-From: Gioh Kim <gioh.kim@lge.com>
-MIME-Version: 1.0
-Subject: Re: [PATCH v2 2/3] CMA: aggressively allocate the pages on cma reserved
- memory when not used
-References: <1401260672-28339-1-git-send-email-iamjoonsoo.kim@lge.com> <1401260672-28339-3-git-send-email-iamjoonsoo.kim@lge.com>
-In-Reply-To: <1401260672-28339-3-git-send-email-iamjoonsoo.kim@lge.com>
-Content-Type: text/plain; charset=EUC-KR
-Content-Transfer-Encoding: 8bit
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E7286B0039
+	for <linux-mm@kvack.org>; Fri, 30 May 2014 04:36:27 -0400 (EDT)
+Received: by mail-pa0-f54.google.com with SMTP id lf10so1230511pab.41
+        for <linux-mm@kvack.org>; Fri, 30 May 2014 01:36:27 -0700 (PDT)
+Received: from mailout4.samsung.com (mailout4.samsung.com. [203.254.224.34])
+        by mx.google.com with ESMTPS id nv7si4507765pbb.56.2014.05.30.01.36.25
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Fri, 30 May 2014 01:36:26 -0700 (PDT)
+Received: from epcpsbgm1.samsung.com (epcpsbgm1 [203.254.230.26])
+ by mailout4.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0N6D00GP4P8NP5A0@mailout4.samsung.com> for
+ linux-mm@kvack.org; Fri, 30 May 2014 17:36:24 +0900 (KST)
+From: Weijie Yang <weijie.yang@samsung.com>
+Subject: [PATCH v3] zram: remove global tb_lock with fine grain lock
+Date: Fri, 30 May 2014 16:34:44 +0800
+Message-id: <000001cf7be2$385f9fd0$a91edf70$%yang@samsung.com>
+MIME-version: 1.0
+Content-type: text/plain; charset=utf-8
+Content-transfer-encoding: 7bit
+Content-language: zh-cn
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Heesub Shin <heesub.shin@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: 'Minchan Kim' <minchan@kernel.org>
+Cc: 'Andrew Morton' <akpm@linux-foundation.org>, 'Nitin Gupta' <ngupta@vflare.org>, 'Sergey Senozhatsky' <sergey.senozhatsky@gmail.com>, 'Bob Liu' <bob.liu@oracle.com>, 'Dan Streetman' <ddstreet@ieee.org>, 'Weijie Yang' <weijie.yang.kh@gmail.com>, 'Heesub Shin' <heesub.shin@samsung.com>, 'Davidlohr Bueso' <davidlohr@hp.com>, 'Joonsoo Kim' <js1304@gmail.com>, 'linux-kernel' <linux-kernel@vger.kernel.org>, 'Linux-MM' <linux-mm@kvack.org>
 
-Joonsoo,
+Currently, we use a rwlock tb_lock to protect concurrent access to
+the whole zram meta table. However, according to the actual access model,
+there is only a small chance for upper user to access the same table[index],
+so the current lock granularity is too big.
 
-I'm attaching a patch for combination of __rmqueue and __rmqueue_cma.
-I didn't test fully but my board is turned on and working well if no frequent memory allocations.
+The idea of optimization is to change the lock granularity from whole
+meta table to per table entry (table -> table[index]), so that we can
+protect concurrent access to the same table[index], meanwhile allow
+the maximum concurrency.
+With this in mind, several kinds of locks which could be used as a
+per-entry lock were tested and compared:
 
-I'm sorry to send not-tested code.
-I just want to report this during your working hour ;-)
+Test environment:
+x86-64 Intel Core2 Q8400, system memory 4GB, Ubuntu 12.04,
+kernel v3.15.0-rc3 as base, zram with 4 max_comp_streams LZO.
 
-I'm testing this this evening and reporting next week.
-Have a nice weekend!
+iozone test:
+iozone -t 4 -R -r 16K -s 200M -I +Z
+(1GB zram with ext4 filesystem, take the average of 10 tests, KB/s)
 
--------------------------------------- 8< -----------------------------------------
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 7f97767..9ced736 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -964,7 +964,7 @@ static int fallbacks[MIGRATE_TYPES][4] = {
-        [MIGRATE_RECLAIMABLE] = { MIGRATE_UNMOVABLE,   MIGRATE_MOVABLE,     MIGRATE_R
- #ifdef CONFIG_CMA
-        [MIGRATE_MOVABLE]     = { MIGRATE_CMA,         MIGRATE_RECLAIMABLE, MIGRATE_U
--       [MIGRATE_CMA]         = { MIGRATE_RESERVE }, /* Never used */
-+       [MIGRATE_CMA]         = { MIGRATE_MOVABLE,     MIGRATE_RECLAIMABLE, MIGRATE_U
- #else
-        [MIGRATE_MOVABLE]     = { MIGRATE_RECLAIMABLE, MIGRATE_UNMOVABLE,   MIGRATE_R
- #endif
-@@ -1170,9 +1170,22 @@ static struct page *__rmqueue(struct zone *zone, unsigned int
-                                                int migratetype)
+      Test       base      CAS    spinlock    rwlock   bit_spinlock
+-------------------------------------------------------------------
+ Initial write  1381094   1425435   1422860   1423075   1421521
+       Rewrite  1529479   1641199   1668762   1672855   1654910
+          Read  8468009  11324979  11305569  11117273  10997202
+       Re-read  8467476  11260914  11248059  11145336  10906486
+  Reverse Read  6821393   8106334   8282174   8279195   8109186
+   Stride read  7191093   8994306   9153982   8961224   9004434
+   Random read  7156353   8957932   9167098   8980465   8940476
+Mixed workload  4172747   5680814   5927825   5489578   5972253
+  Random write  1483044   1605588   1594329   1600453   1596010
+        Pwrite  1276644   1303108   1311612   1314228   1300960
+         Pread  4324337   4632869   4618386   4457870   4500166
+
+To enhance the possibility of access the same table[index] concurrently,
+set zram a small disksize(10MB) and let threads run with large loop count.
+
+fio test:
+fio --bs=32k --randrepeat=1 --randseed=100 --refill_buffers
+--scramble_buffers=1 --direct=1 --loops=3000 --numjobs=4
+--filename=/dev/zram0 --name=seq-write --rw=write --stonewall
+--name=seq-read --rw=read --stonewall --name=seq-readwrite
+--rw=rw --stonewall --name=rand-readwrite --rw=randrw --stonewall
+(10MB zram raw block device, take the average of 10 tests, KB/s)
+
+    Test     base     CAS    spinlock    rwlock  bit_spinlock
+-------------------------------------------------------------
+seq-write   933789   999357   1003298    995961   1001958
+ seq-read  5634130  6577930   6380861   6243912   6230006
+   seq-rw  1405687  1638117   1640256   1633903   1634459
+  rand-rw  1386119  1614664   1617211   1609267   1612471
+
+All the optimization methods show a higher performance than the base,
+however, it is hard to say which method is the most appropriate.
+
+On the other hand, zram is mostly used on small embedded system, so we
+don't want to increase any memory footprint.
+
+This patch pick the bit_spinlock method, pack object size and page_flag
+into an unsigned long table.value, so as to not increase any memory
+overhead on both 32-bit and 64-bit system.
+
+On the third hand, even though different kinds of locks have different
+performances, we can ignore this difference, because:
+if zram is used as zram swapfile, the swap subsystem can prevent concurrent
+access to the same swapslot;
+if zram is used as zram-blk for set up filesystem on it, the upper filesystem
+and the page cache also prevent concurrent access of the same block mostly.
+So we can ignore the different performances among locks.
+
+Changes since v1: https://lkml.org/lkml/2014/5/5/1
+  - replace CAS method with bit_spinlock method
+  - rename zram_test_flag() to zram_test_zero()
+  - add some comments
+
+Changes since v2: https://lkml.org/lkml/2014/5/15/113
+  - change size type from int to size_t in zram_set_obj_size()
+  - refactor zram_set_obj_size() to make it readable
+  - add comments
+
+Signed-off-by: Weijie Yang <weijie.yang@samsung.com>
+---
+ drivers/block/zram/zram_drv.c |   89 ++++++++++++++++++++++++-----------------
+ drivers/block/zram/zram_drv.h |   22 +++++++---
+ 2 files changed, 68 insertions(+), 43 deletions(-)
+
+diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
+index 9849b52..166e882 100644
+--- a/drivers/block/zram/zram_drv.c
++++ b/drivers/block/zram/zram_drv.c
+@@ -179,23 +179,32 @@ static ssize_t comp_algorithm_store(struct device *dev,
+ 	return len;
+ }
+ 
+-/* flag operations needs meta->tb_lock */
+-static int zram_test_flag(struct zram_meta *meta, u32 index,
+-			enum zram_pageflags flag)
++static int zram_test_zero(struct zram_meta *meta, u32 index)
  {
-        struct page *page;
-+       long free, free_cma, free_wmark;
+-	return meta->table[index].flags & BIT(flag);
++	return meta->table[index].value & BIT(ZRAM_ZERO);
+ }
+ 
+-static void zram_set_flag(struct zram_meta *meta, u32 index,
+-			enum zram_pageflags flag)
++static void zram_set_zero(struct zram_meta *meta, u32 index)
+ {
+-	meta->table[index].flags |= BIT(flag);
++	meta->table[index].value |= BIT(ZRAM_ZERO);
+ }
+ 
+-static void zram_clear_flag(struct zram_meta *meta, u32 index,
+-			enum zram_pageflags flag)
++static void zram_clear_zero(struct zram_meta *meta, u32 index)
+ {
+-	meta->table[index].flags &= ~BIT(flag);
++	meta->table[index].value &= ~BIT(ZRAM_ZERO);
++}
++
++static size_t zram_get_obj_size(struct zram_meta *meta, u32 index)
++{
++	return meta->table[index].value & (BIT(ZRAM_FLAG_SHIFT) - 1);
++}
++
++static void zram_set_obj_size(struct zram_meta *meta,
++					u32 index, size_t size)
++{
++	unsigned long flags = meta->table[index].value >> ZRAM_FLAG_SHIFT;
++
++	meta->table[index].value = (flags << ZRAM_FLAG_SHIFT) | size;
+ }
+ 
+ static inline int is_partial_io(struct bio_vec *bvec)
+@@ -255,7 +264,6 @@ static struct zram_meta *zram_meta_alloc(u64 disksize)
+ 		goto free_table;
+ 	}
+ 
+-	rwlock_init(&meta->tb_lock);
+ 	return meta;
+ 
+ free_table:
+@@ -304,19 +312,24 @@ static void handle_zero_page(struct bio_vec *bvec)
+ 	flush_dcache_page(page);
+ }
+ 
+-/* NOTE: caller should hold meta->tb_lock with write-side */
++/*
++ * To protect concurrent access to the same index entry,
++ * caller should hold this table index entry's bit_spinlock to
++ * indicate this index entry is accessing.
++ */
+ static void zram_free_page(struct zram *zram, size_t index)
+ {
+ 	struct zram_meta *meta = zram->meta;
+ 	unsigned long handle = meta->table[index].handle;
++	size_t size;
+ 
+ 	if (unlikely(!handle)) {
+ 		/*
+ 		 * No memory is allocated for zero filled pages.
+ 		 * Simply clear zero page flag.
+ 		 */
+-		if (zram_test_flag(meta, index, ZRAM_ZERO)) {
+-			zram_clear_flag(meta, index, ZRAM_ZERO);
++		if (zram_test_zero(meta, index)) {
++			zram_clear_zero(meta, index);
+ 			atomic64_dec(&zram->stats.zero_pages);
+ 		}
+ 		return;
+@@ -324,27 +337,28 @@ static void zram_free_page(struct zram *zram, size_t index)
+ 
+ 	zs_free(meta->mem_pool, handle);
+ 
+-	atomic64_sub(meta->table[index].size, &zram->stats.compr_data_size);
++	size = zram_get_obj_size(meta, index);
++	atomic64_sub(size, &zram->stats.compr_data_size);
+ 	atomic64_dec(&zram->stats.pages_stored);
+ 
+ 	meta->table[index].handle = 0;
+-	meta->table[index].size = 0;
++	zram_set_obj_size(meta, index, 0);
+ }
+ 
+ static int zram_decompress_page(struct zram *zram, char *mem, u32 index)
+ {
+-	int ret = 0;
+ 	unsigned char *cmem;
+ 	struct zram_meta *meta = zram->meta;
+ 	unsigned long handle;
+-	u16 size;
++	size_t size;
++	int ret = 0;
+ 
+-	read_lock(&meta->tb_lock);
++	bit_spin_lock(ZRAM_ACCESS, &meta->table[index].value);
+ 	handle = meta->table[index].handle;
+-	size = meta->table[index].size;
++	size = zram_get_obj_size(meta, index);
+ 
+-	if (!handle || zram_test_flag(meta, index, ZRAM_ZERO)) {
+-		read_unlock(&meta->tb_lock);
++	if (!handle || zram_test_zero(meta, index)) {
++		bit_spin_unlock(ZRAM_ACCESS, &meta->table[index].value);
+ 		clear_page(mem);
+ 		return 0;
+ 	}
+@@ -355,7 +369,7 @@ static int zram_decompress_page(struct zram *zram, char *mem, u32 index)
+ 	else
+ 		ret = zcomp_decompress(zram->comp, cmem, size, mem);
+ 	zs_unmap_object(meta->mem_pool, handle);
+-	read_unlock(&meta->tb_lock);
++	bit_spin_unlock(ZRAM_ACCESS, &meta->table[index].value);
+ 
+ 	/* Should NEVER happen. Return bio error if it does. */
+ 	if (unlikely(ret)) {
+@@ -376,14 +390,14 @@ static int zram_bvec_read(struct zram *zram, struct bio_vec *bvec,
+ 	struct zram_meta *meta = zram->meta;
+ 	page = bvec->bv_page;
+ 
+-	read_lock(&meta->tb_lock);
++	bit_spin_lock(ZRAM_ACCESS, &meta->table[index].value);
+ 	if (unlikely(!meta->table[index].handle) ||
+-			zram_test_flag(meta, index, ZRAM_ZERO)) {
+-		read_unlock(&meta->tb_lock);
++			zram_test_zero(meta, index)) {
++		bit_spin_unlock(ZRAM_ACCESS, &meta->table[index].value);
+ 		handle_zero_page(bvec);
+ 		return 0;
+ 	}
+-	read_unlock(&meta->tb_lock);
++	bit_spin_unlock(ZRAM_ACCESS, &meta->table[index].value);
+ 
+ 	if (is_partial_io(bvec))
+ 		/* Use  a temporary buffer to decompress the page */
+@@ -461,10 +475,10 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
+ 	if (page_zero_filled(uncmem)) {
+ 		kunmap_atomic(user_mem);
+ 		/* Free memory associated with this sector now. */
+-		write_lock(&zram->meta->tb_lock);
++		bit_spin_lock(ZRAM_ACCESS, &meta->table[index].value);
+ 		zram_free_page(zram, index);
+-		zram_set_flag(meta, index, ZRAM_ZERO);
+-		write_unlock(&zram->meta->tb_lock);
++		zram_set_zero(meta, index);
++		bit_spin_unlock(ZRAM_ACCESS, &meta->table[index].value);
+ 
+ 		atomic64_inc(&zram->stats.zero_pages);
+ 		ret = 0;
+@@ -514,12 +528,12 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
+ 	 * Free memory associated with this sector
+ 	 * before overwriting unused sectors.
+ 	 */
+-	write_lock(&zram->meta->tb_lock);
++	bit_spin_lock(ZRAM_ACCESS, &meta->table[index].value);
+ 	zram_free_page(zram, index);
+ 
+ 	meta->table[index].handle = handle;
+-	meta->table[index].size = clen;
+-	write_unlock(&zram->meta->tb_lock);
++	zram_set_obj_size(meta, index, clen);
++	bit_spin_unlock(ZRAM_ACCESS, &meta->table[index].value);
+ 
+ 	/* Update stats */
+ 	atomic64_add(clen, &zram->stats.compr_data_size);
+@@ -560,6 +574,7 @@ static void zram_bio_discard(struct zram *zram, u32 index,
+ 			     int offset, struct bio *bio)
+ {
+ 	size_t n = bio->bi_iter.bi_size;
++	struct zram_meta *meta = zram->meta;
+ 
+ 	/*
+ 	 * zram manages data in physical block size units. Because logical block
+@@ -584,9 +599,9 @@ static void zram_bio_discard(struct zram *zram, u32 index,
+ 		 * Discard request can be large so the lock hold times could be
+ 		 * lengthy.  So take the lock once per page.
+ 		 */
+-		write_lock(&zram->meta->tb_lock);
++		bit_spin_lock(ZRAM_ACCESS, &meta->table[index].value);
+ 		zram_free_page(zram, index);
+-		write_unlock(&zram->meta->tb_lock);
++		bit_spin_unlock(ZRAM_ACCESS, &meta->table[index].value);
+ 		index++;
+ 		n -= PAGE_SIZE;
+ 	}
+@@ -804,9 +819,9 @@ static void zram_slot_free_notify(struct block_device *bdev,
+ 	zram = bdev->bd_disk->private_data;
+ 	meta = zram->meta;
+ 
+-	write_lock(&meta->tb_lock);
++	bit_spin_lock(ZRAM_ACCESS, &meta->table[index].value);
+ 	zram_free_page(zram, index);
+-	write_unlock(&meta->tb_lock);
++	bit_spin_unlock(ZRAM_ACCESS, &meta->table[index].value);
+ 	atomic64_inc(&zram->stats.notify_free);
+ }
+ 
+diff --git a/drivers/block/zram/zram_drv.h b/drivers/block/zram/zram_drv.h
+index 7f21c14..71bc4ad 100644
+--- a/drivers/block/zram/zram_drv.h
++++ b/drivers/block/zram/zram_drv.h
+@@ -51,10 +51,22 @@ static const size_t max_zpage_size = PAGE_SIZE / 4 * 3;
+ #define ZRAM_SECTOR_PER_LOGICAL_BLOCK	\
+ 	(1 << (ZRAM_LOGICAL_BLOCK_SHIFT - SECTOR_SHIFT))
+ 
+-/* Flags for zram pages (table[page_no].flags) */
++/*
++ * The lower ZRAM_FLAG_SHIFT bits of table.value is for
++ * object size (excluding header), the higher bits is for
++ * zram_pageflags. By this means, it won't increase any
++ * memory overhead on both 32-bit and 64-bit system.
++ * zram is mostly used on small embedded system, so we
++ * don't want to increase memory footprint. That is why
++ * we pack size and flag into table.value.
++ */
++#define ZRAM_FLAG_SHIFT 24
++
++/* Flags for zram pages (table[page_no].value) */
+ enum zram_pageflags {
+ 	/* Page consists entirely of zeros */
+-	ZRAM_ZERO,
++	ZRAM_ZERO = ZRAM_FLAG_SHIFT + 1,
++	ZRAM_ACCESS,  /* page in now accessed */
+ 
+ 	__NR_ZRAM_PAGEFLAGS,
+ };
+@@ -64,9 +76,8 @@ enum zram_pageflags {
+ /* Allocated for each disk page */
+ struct table {
+ 	unsigned long handle;
+-	u16 size;	/* object size (excluding header) */
+-	u8 flags;
+-} __aligned(4);
++	unsigned long value;
++};
+ 
+ struct zram_stats {
+ 	atomic64_t compr_data_size;	/* compressed size of pages stored */
+@@ -81,7 +92,6 @@ struct zram_stats {
+ };
+ 
+ struct zram_meta {
+-	rwlock_t tb_lock;	/* protect table */
+ 	struct table *table;
+ 	struct zs_pool *mem_pool;
+ };
+-- 
+1.7.10.4
 
- retry_reserve:
--       page = __rmqueue_smallest(zone, order, migratetype);
-+       if (IS_ENABLED(CONFIG_CMA) && migratetype == MIGRATE_MOVABLE) {
-+               if (zone->nr_try_movable) {
-+                       zone->nr_try_movable -= 1 << order;
-+               } else if (zone->nr_try_cma) {
-+                       zone->nr_try_cma -= 1 << order;
-+                       migratetype = MIGRATE_CMA;
-+               } else {
-+                       zone->nr_try_movable = zone->max_try_movable;
-+                       zone->nr_try_movable -= 1 << order;
-+                       zone->nr_try_cma = zone->max_try_cma;
-+               }
-+       }
-+       page = __rmqueue_smallest(zone, order, migratetype);
-
-        if (unlikely(!page) && migratetype != MIGRATE_RESERVE) {
-                page = __rmqueue_fallback(zone, order, migratetype);
-
-
-2014-05-28 ?AEA 4:04, Joonsoo Kim  3/4 ' +-U:
-> CMA is introduced to provide physically contiguous pages at runtime.
-> For this purpose, it reserves memory at boot time. Although it reserve
-> memory, this reserved memory can be used for movable memory allocation
-> request. This usecase is beneficial to the system that needs this CMA
-> reserved memory infrequently and it is one of main purpose of
-> introducing CMA.
-> 
-> But, there is a problem in current implementation. The problem is that
-> it works like as just reserved memory approach. The pages on cma reserved
-> memory are hardly used for movable memory allocation. This is caused by
-> combination of allocation and reclaim policy.
-> 
-> The pages on cma reserved memory are allocated if there is no movable
-> memory, that is, as fallback allocation. So the time this fallback
-> allocation is started is under heavy memory pressure. Although it is under
-> memory pressure, movable allocation easily succeed, since there would be
-> many pages on cma reserved memory. But this is not the case for unmovable
-> and reclaimable allocation, because they can't use the pages on cma
-> reserved memory. These allocations regard system's free memory as
-> (free pages - free cma pages) on watermark checking, that is, free
-> unmovable pages + free reclaimable pages + free movable pages. Because
-> we already exhausted movable pages, only free pages we have are unmovable
-> and reclaimable types and this would be really small amount. So watermark
-> checking would be failed. It will wake up kswapd to make enough free
-> memory for unmovable and reclaimable allocation and kswapd will do.
-> So before we fully utilize pages on cma reserved memory, kswapd start to
-> reclaim memory and try to make free memory over the high watermark. This
-> watermark checking by kswapd doesn't take care free cma pages so many
-> movable pages would be reclaimed. After then, we have a lot of movable
-> pages again, so fallback allocation doesn't happen again. To conclude,
-> amount of free memory on meminfo which includes free CMA pages is moving
-> around 512 MB if I reserve 512 MB memory for CMA.
-> 
-> I found this problem on following experiment.
-> 
-> 4 CPUs, 1024 MB, VIRTUAL MACHINE
-> make -j16
-> 
-> CMA reserve:            0 MB            512 MB
-> Elapsed-time:           225.2           472.5
-> Average-MemFree:        322490 KB       630839 KB
-> 
-> To solve this problem, I can think following 2 possible solutions.
-> 1. allocate the pages on cma reserved memory first, and if they are
->     exhausted, allocate movable pages.
-> 2. interleaved allocation: try to allocate specific amounts of memory
->     from cma reserved memory and then allocate from free movable memory.
-> 
-> I tested #1 approach and found the problem. Although free memory on
-> meminfo can move around low watermark, there is large fluctuation on free
-> memory, because too many pages are reclaimed when kswapd is invoked.
-> Reason for this behaviour is that successive allocated CMA pages are
-> on the LRU list in that order and kswapd reclaim them in same order.
-> These memory doesn't help watermark checking from kwapd, so too many
-> pages are reclaimed, I guess.
-> 
-> So, I implement #2 approach.
-> One thing I should note is that we should not change allocation target
-> (movable list or cma) on each allocation attempt, since this prevent
-> allocated pages to be in physically succession, so some I/O devices can
-> be hurt their performance. To solve this, I keep allocation target
-> in at least pageblock_nr_pages attempts and make this number reflect
-> ratio, free pages without free cma pages to free cma pages. With this
-> approach, system works very smoothly and fully utilize the pages on
-> cma reserved memory.
-> 
-> Following is the experimental result of this patch.
-> 
-> 4 CPUs, 1024 MB, VIRTUAL MACHINE
-> make -j16
-> 
-> <Before>
-> CMA reserve:            0 MB            512 MB
-> Elapsed-time:           225.2           472.5
-> Average-MemFree:        322490 KB       630839 KB
-> nr_free_cma:            0               131068
-> pswpin:                 0               261666
-> pswpout:                75              1241363
-> 
-> <After>
-> CMA reserve:            0 MB            512 MB
-> Elapsed-time:           222.7           224
-> Average-MemFree:        325595 KB       393033 KB
-> nr_free_cma:            0               61001
-> pswpin:                 0               6
-> pswpout:                44              502
-> 
-> There is no difference if we don't have cma reserved memory (0 MB case).
-> But, with cma reserved memory (512 MB case), we fully utilize these
-> reserved memory through this patch and the system behaves like as
-> it doesn't reserve any memory.
-> 
-> With this patch, we aggressively allocate the pages on cma reserved memory
-> so latency of CMA can arise. Below is the experimental result about
-> latency.
-> 
-> 4 CPUs, 1024 MB, VIRTUAL MACHINE
-> CMA reserve: 512 MB
-> Backgound Workload: make -jN
-> Real Workload: 8 MB CMA allocation/free 20 times with 5 sec interval
-> 
-> N:                    1        4       8        16
-> Elapsed-time(Before): 4309.75  9511.09 12276.1  77103.5
-> Elapsed-time(After):  5391.69 16114.1  19380.3  34879.2
-> 
-> So generally we can see latency increase. Ratio of this increase
-> is rather big - up to 70%. But, under the heavy workload, it shows
-> latency decrease - up to 55%. This may be worst-case scenario, but
-> reducing it would be important for some system, so, I can say that
-> this patch have advantages and disadvantages in terms of latency.
-> 
-> Although I think that this patch is right direction for CMA, there is
-> side-effect in following case. If there is small memory zone and CMA
-> occupys most of them, LRU for this zone would have many CMA pages. When
-> reclaim is started, these CMA pages would be reclaimed, but not counted
-> for watermark checking, so too many CMA pages could be reclaimed
-> unnecessarily. Until now, this can't happen because free CMA pages aren't
-> used easily. But, with this patch, free CMA pages are used easily so
-> this problem can be possible. I will handle it on another patchset
-> after some investigating.
-> 
-> v2: In fastpath, just replenish counters. Calculation is done whenver
->      cma area is varied
-> 
-> Acked-by: Michal Nazarewicz <mina86@mina86.com>
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> 
-> diff --git a/arch/powerpc/kvm/book3s_hv_cma.c b/arch/powerpc/kvm/book3s_hv_cma.c
-> index d9d3d85..84a7582 100644
-> --- a/arch/powerpc/kvm/book3s_hv_cma.c
-> +++ b/arch/powerpc/kvm/book3s_hv_cma.c
-> @@ -132,6 +132,8 @@ struct page *kvm_alloc_cma(unsigned long nr_pages, unsigned long align_pages)
->   		if (ret == 0) {
->   			bitmap_set(cma->bitmap, pageno, nr_chunk);
->   			page = pfn_to_page(pfn);
-> +			adjust_managed_cma_page_count(page_zone(page),
-> +								nr_pages);
->   			memset(pfn_to_kaddr(pfn), 0, nr_pages << PAGE_SHIFT);
->   			break;
->   		} else if (ret != -EBUSY) {
-> @@ -180,6 +182,7 @@ bool kvm_release_cma(struct page *pages, unsigned long nr_pages)
->   		     (pfn - cma->base_pfn) >> (KVM_CMA_CHUNK_ORDER - PAGE_SHIFT),
->   		     nr_chunk);
->   	free_contig_range(pfn, nr_pages);
-> +	adjust_managed_cma_page_count(page_zone(pages), nr_pages);
->   	mutex_unlock(&kvm_cma_mutex);
->   
->   	return true;
-> @@ -210,6 +213,8 @@ static int __init kvm_cma_activate_area(unsigned long base_pfn,
->   		}
->   		init_cma_reserved_pageblock(pfn_to_page(base_pfn));
->   	} while (--i);
-> +	adjust_managed_cma_page_count(zone, count);
-> +
->   	return 0;
->   }
->   
-> diff --git a/drivers/base/dma-contiguous.c b/drivers/base/dma-contiguous.c
-> index 165c2c2..c578d5a 100644
-> --- a/drivers/base/dma-contiguous.c
-> +++ b/drivers/base/dma-contiguous.c
-> @@ -160,6 +160,7 @@ static int __init cma_activate_area(struct cma *cma)
->   		}
->   		init_cma_reserved_pageblock(pfn_to_page(base_pfn));
->   	} while (--i);
-> +	adjust_managed_cma_page_count(zone, cma->count);
->   
->   	return 0;
->   }
-> @@ -307,6 +308,7 @@ struct page *dma_alloc_from_contiguous(struct device *dev, int count,
->   		if (ret == 0) {
->   			bitmap_set(cma->bitmap, pageno, count);
->   			page = pfn_to_page(pfn);
-> +			adjust_managed_cma_page_count(page_zone(page), count);
->   			break;
->   		} else if (ret != -EBUSY) {
->   			break;
-> @@ -353,6 +355,7 @@ bool dma_release_from_contiguous(struct device *dev, struct page *pages,
->   	mutex_lock(&cma_mutex);
->   	bitmap_clear(cma->bitmap, pfn - cma->base_pfn, count);
->   	free_contig_range(pfn, count);
-> +	adjust_managed_cma_page_count(page_zone(pages), count);
->   	mutex_unlock(&cma_mutex);
->   
->   	return true;
-> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
-> index 39b81dc..51cffc1 100644
-> --- a/include/linux/gfp.h
-> +++ b/include/linux/gfp.h
-> @@ -415,6 +415,7 @@ extern int alloc_contig_range(unsigned long start, unsigned long end,
->   extern void free_contig_range(unsigned long pfn, unsigned nr_pages);
->   
->   /* CMA stuff */
-> +extern void adjust_managed_cma_page_count(struct zone *zone, long count);
->   extern void init_cma_reserved_pageblock(struct page *page);
->   
->   #endif
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> index fac5509..f52cb96 100644
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -389,6 +389,20 @@ struct zone {
->   	int			compact_order_failed;
->   #endif
->   
-> +#ifdef CONFIG_CMA
-> +	unsigned long managed_cma_pages;
-> +	/*
-> +	 * Number of allocation attempt on each movable/cma type
-> +	 * without switching type. max_try(movable/cma) maintain
-> +	 * predefined calculated counter and replenish nr_try_(movable/cma)
-> +	 * with each of them whenever both of them are 0.
-> +	 */
-> +	int nr_try_movable;
-> +	int nr_try_cma;
-> +	int max_try_movable;
-> +	int max_try_cma;
-> +#endif
-> +
->   	ZONE_PADDING(_pad1_)
->   
->   	/* Fields commonly accessed by the page reclaim scanner */
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 674ade7..ca678b6 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -788,6 +788,56 @@ void __init __free_pages_bootmem(struct page *page, unsigned int order)
->   }
->   
->   #ifdef CONFIG_CMA
-> +void adjust_managed_cma_page_count(struct zone *zone, long count)
-> +{
-> +	unsigned long flags;
-> +	long total, cma, movable;
-> +
-> +	spin_lock_irqsave(&zone->lock, flags);
-> +	zone->managed_cma_pages += count;
-> +
-> +	total = zone->managed_pages;
-> +	cma = zone->managed_cma_pages;
-> +	movable = total - cma - high_wmark_pages(zone);
-> +
-> +	/* No cma pages, so do only movable allocation */
-> +	if (cma <= 0) {
-> +		zone->max_try_movable = pageblock_nr_pages;
-> +		zone->max_try_cma = 0;
-> +		goto out;
-> +	}
-> +
-> +	/*
-> +	 * We want to consume cma pages with well balanced ratio so that
-> +	 * we have consumed enough cma pages before the reclaim. For this
-> +	 * purpose, we can use the ratio, movable : cma. And we doesn't
-> +	 * want to switch too frequently, because it prevent allocated pages
-> +	 * from beging successive and it is bad for some sorts of devices.
-> +	 * I choose pageblock_nr_pages for the minimum amount of successive
-> +	 * allocation because it is the size of a huge page and fragmentation
-> +	 * avoidance is implemented based on this size.
-> +	 *
-> +	 * To meet above criteria, I derive following equation.
-> +	 *
-> +	 * if (movable > cma) then; movable : cma = X : pageblock_nr_pages
-> +	 * else (movable <= cma) then; movable : cma = pageblock_nr_pages : X
-> +	 */
-> +	if (movable > cma) {
-> +		zone->max_try_movable =
-> +			(movable * pageblock_nr_pages) / cma;
-> +		zone->max_try_cma = pageblock_nr_pages;
-> +	} else {
-> +		zone->max_try_movable = pageblock_nr_pages;
-> +		zone->max_try_cma = cma * pageblock_nr_pages / movable;
-> +	}
-> +
-> +out:
-> +	zone->nr_try_movable = zone->max_try_movable;
-> +	zone->nr_try_cma = zone->max_try_cma;
-> +
-> +	spin_unlock_irqrestore(&zone->lock, flags);
-> +}
-> +
->   /* Free whole pageblock and set its migration type to MIGRATE_CMA. */
->   void __init init_cma_reserved_pageblock(struct page *page)
->   {
-> @@ -1136,6 +1186,36 @@ __rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
->   	return NULL;
->   }
->   
-> +#ifdef CONFIG_CMA
-> +static struct page *__rmqueue_cma(struct zone *zone, unsigned int order)
-> +{
-> +	struct page *page;
-> +
-> +	if (zone->nr_try_movable > 0)
-> +		goto alloc_movable;
-> +
-> +	if (zone->nr_try_cma > 0) {
-> +		/* Okay. Now, we can try to allocate the page from cma region */
-> +		zone->nr_try_cma -= 1 << order;
-> +		page = __rmqueue_smallest(zone, order, MIGRATE_CMA);
-> +
-> +		/* CMA pages can vanish through CMA allocation */
-> +		if (unlikely(!page && order == 0))
-> +			zone->nr_try_cma = 0;
-> +
-> +		return page;
-> +	}
-> +
-> +	/* Reset counter */
-> +	zone->nr_try_movable = zone->max_try_movable;
-> +	zone->nr_try_cma = zone->max_try_cma;
-> +
-> +alloc_movable:
-> +	zone->nr_try_movable -= 1 << order;
-> +	return NULL;
-> +}
-> +#endif
-> +
->   /*
->    * Do the hard work of removing an element from the buddy allocator.
->    * Call me with the zone->lock already held.
-> @@ -1143,10 +1223,15 @@ __rmqueue_fallback(struct zone *zone, int order, int start_migratetype)
->   static struct page *__rmqueue(struct zone *zone, unsigned int order,
->   						int migratetype)
->   {
-> -	struct page *page;
-> +	struct page *page = NULL;
-> +
-> +	if (IS_ENABLED(CONFIG_CMA) &&
-> +		migratetype == MIGRATE_MOVABLE && zone->managed_cma_pages)
-> +		page = __rmqueue_cma(zone, order);
->   
->   retry_reserve:
-> -	page = __rmqueue_smallest(zone, order, migratetype);
-> +	if (!page)
-> +		page = __rmqueue_smallest(zone, order, migratetype);
->   
->   	if (unlikely(!page) && migratetype != MIGRATE_RESERVE) {
->   		page = __rmqueue_fallback(zone, order, migratetype);
-> @@ -4849,6 +4934,8 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat,
->   		zone_seqlock_init(zone);
->   		zone->zone_pgdat = pgdat;
->   		zone_pcp_init(zone);
-> +		if (IS_ENABLED(CONFIG_CMA))
-> +			zone->managed_cma_pages = 0;
->   
->   		/* For bootup, initialized properly in watermark setup */
->   		mod_zone_page_state(zone, NR_ALLOC_BATCH, zone->managed_pages);
-> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
