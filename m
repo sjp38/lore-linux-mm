@@ -1,69 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vc0-f171.google.com (mail-vc0-f171.google.com [209.85.220.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F6AE6B003A
-	for <linux-mm@kvack.org>; Fri, 30 May 2014 00:37:04 -0400 (EDT)
-Received: by mail-vc0-f171.google.com with SMTP id lc6so1495999vcb.30
-        for <linux-mm@kvack.org>; Thu, 29 May 2014 21:37:03 -0700 (PDT)
-Received: from mail-vc0-x22d.google.com (mail-vc0-x22d.google.com [2607:f8b0:400c:c03::22d])
-        by mx.google.com with ESMTPS id t10si2243639ven.41.2014.05.29.21.37.03
+Received: from mail-pb0-f49.google.com (mail-pb0-f49.google.com [209.85.160.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 0AEEF6B0035
+	for <linux-mm@kvack.org>; Fri, 30 May 2014 02:02:47 -0400 (EDT)
+Received: by mail-pb0-f49.google.com with SMTP id jt11so1348674pbb.36
+        for <linux-mm@kvack.org>; Thu, 29 May 2014 23:02:47 -0700 (PDT)
+Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
+        by mx.google.com with ESMTPS id iy1si3968486pbb.115.2014.05.29.23.02.46
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 29 May 2014 21:37:03 -0700 (PDT)
-Received: by mail-vc0-f173.google.com with SMTP id il7so1486081vcb.4
-        for <linux-mm@kvack.org>; Thu, 29 May 2014 21:37:03 -0700 (PDT)
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 29 May 2014 23:02:46 -0700 (PDT)
+From: Rusty Russell <rusty@rustcorp.com.au>
+Subject: Re: [PATCH 4/4] virtio_ring: unify direct/indirect code paths.
+In-Reply-To: <20140529112905.GD30210@redhat.com>
+References: <87oayh6s3s.fsf@rustcorp.com.au> <1401348405-18614-1-git-send-email-rusty@rustcorp.com.au> <1401348405-18614-5-git-send-email-rusty@rustcorp.com.au> <20140529112905.GD30210@redhat.com>
+Date: Fri, 30 May 2014 12:07:44 +0930
+Message-ID: <87d2ew6lfr.fsf@rustcorp.com.au>
 MIME-Version: 1.0
-In-Reply-To: <20140530021247.GR10092@bbox>
-References: <1401260039-18189-1-git-send-email-minchan@kernel.org>
-	<1401260039-18189-2-git-send-email-minchan@kernel.org>
-	<CA+55aFxXdc22dirnE49UbQP_2s2vLQpjQFL+NptuyK7Xry6c=g@mail.gmail.com>
-	<20140528223142.GO8554@dastard>
-	<CA+55aFyRk6_v6COPGVvu6hvt=i2A8-dPcs1X3Ydn1g24AxbPkg@mail.gmail.com>
-	<20140529013007.GF6677@dastard>
-	<20140529015830.GG6677@dastard>
-	<20140529233638.GJ10092@bbox>
-	<20140530001558.GB14410@dastard>
-	<20140530021247.GR10092@bbox>
-Date: Thu, 29 May 2014 21:37:02 -0700
-Message-ID: <CA+55aFzzHS9YSzZpxMoF1vwoBh+NxLE26Tr2OC38=PsB8Mjwig@mail.gmail.com>
-Subject: Re: [RFC 2/2] x86_64: expand kernel stack to 16K
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Dave Chinner <david@fromorbit.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Rusty Russell <rusty@rustcorp.com.au>, "Michael S. Tsirkin" <mst@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Steven Rostedt <rostedt@goodmis.org>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Jens Axboe <axboe@kernel.dk>, Minchan Kim <minchan@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Dave Hansen <dave.hansen@intel.com>, Steven Rostedt <rostedt@goodmis.org>
 
-On Thu, May 29, 2014 at 7:12 PM, Minchan Kim <minchan@kernel.org> wrote:
+"Michael S. Tsirkin" <mst@redhat.com> writes:
+> On Thu, May 29, 2014 at 04:56:45PM +0930, Rusty Russell wrote:
+>> virtqueue_add() populates the virtqueue descriptor table from the sgs
+>> given.  If it uses an indirect descriptor table, then it puts a single
+>> descriptor in the descriptor table pointing to the kmalloc'ed indirect
+>> table where the sg is populated.
+>> +	for (i = 0; i < total_sg; i++)
+>> +		desc[i].next = i+1;
+>> +	return desc;
 >
-> Interim report,
+> Hmm we are doing an extra walk over descriptors here.
+> This might hurt performance esp for big descriptors.
+
+Yes, this needs to be benchmarked; since it's cache hot my gut feel is
+that it's a NOOP, but on modern machines my gut feel is always wrong.
+
+>> +	if (vq->indirect && total_sg > 1 && vq->vq.num_free)
+>> +		desc = alloc_indirect(total_sg, gfp);
 >
-> And result is as follows, It reduce about 800-byte compared to
-> my first report but still stack usage seems to be high.
-> Really needs diet of VM functions.
+> else desc = NULL will be a bit clearer won't it?
 
-Yes. And in this case uninlining things might actually help, because
-the it's not actually performing reclaim in the second case, so
-inlining the reclaim code into that huge __alloc_pages_nodemask()
-function means that it has the stack frame for all those cases even if
-they don't actually get used.
+Agreed.
 
-That said, the way those functions are set up (with lots of arguments
-passed from one to the other), not inlining will cause huge costs too
-for the argument setup.
+>>  	/* Update free pointer */
+>> -	vq->free_head = i;
+>> +	if (desc == vq->vring.desc)
+>> +		vq->free_head = i;
+>> +	else
+>> +		vq->free_head = vq->vring.desc[head].next;
+>
+> This one is slightly ugly isn't it?
 
-It really might be very good to create a "struct alloc_info" that
-contains those shared arguments, and just pass a (const) pointer to
-that around. Gcc would likely tend to be *much* better at generating
-code for that, because it avoids a tons of temporaries being created
-by function calls. Even when it's inlined, the argument itself ends up
-being a new temporary internally, and I suspect one reason gcc
-(especially your 4.6.3 version, apparently) generates those big spill
-frames is because there's tons of these duplicate temporaries that
-apparently don't get merged properly.
+Yes, but it avoided another variable, and I was originally aiming
+at stack conservation.  Turns out adding 'bool indirect' adds 32 bytes
+more stack for gcc 4.6.4 :(
 
-Ugh. I think I'll try looking at that tomorrow.
+virtio_ring: minor neating
 
-                Linus
+Before:
+	gcc 4.8.2: virtio_blk: stack used = 408
+	gcc 4.6.4: virtio_blk: stack used = 432
+
+After:
+	gcc 4.8.2: virtio_blk: stack used = 408
+	gcc 4.6.4: virtio_blk: stack used = 464
+
+Signed-off-by: Rusty Russell <rusty@rustcorp.com.au>
+
+diff --git a/drivers/virtio/virtio_ring.c b/drivers/virtio/virtio_ring.c
+index 3adf5978b92b..7a7849bc26af 100644
+--- a/drivers/virtio/virtio_ring.c
++++ b/drivers/virtio/virtio_ring.c
+@@ -141,9 +141,10 @@ static inline int virtqueue_add(struct virtqueue *_vq,
+ {
+ 	struct vring_virtqueue *vq = to_vvq(_vq);
+ 	struct scatterlist *sg;
+-	struct vring_desc *desc = NULL;
++	struct vring_desc *desc;
+ 	unsigned int i, n, avail, uninitialized_var(prev);
+ 	int head;
++	bool indirect;
+ 
+ 	START_USE(vq);
+ 
+@@ -176,21 +177,25 @@ static inline int virtqueue_add(struct virtqueue *_vq,
+ 	 * buffers, then go indirect. FIXME: tune this threshold */
+ 	if (vq->indirect && total_sg > 1 && vq->vq.num_free)
+ 		desc = alloc_indirect(total_sg, gfp);
++	else
++		desc = NULL;
+ 
+ 	if (desc) {
+ 		/* Use a single buffer which doesn't continue */
+ 		vq->vring.desc[head].flags = VRING_DESC_F_INDIRECT;
+ 		vq->vring.desc[head].addr = virt_to_phys(desc);
+-		/* avoid kmemleak false positive (tis hidden by virt_to_phys) */
++		/* avoid kmemleak false positive (hidden by virt_to_phys) */
+ 		kmemleak_ignore(desc);
+ 		vq->vring.desc[head].len = total_sg * sizeof(struct vring_desc);
+ 
+ 		/* Set up rest to use this indirect table. */
+ 		i = 0;
+ 		total_sg = 1;
++		indirect = true;
+ 	} else {
+ 		desc = vq->vring.desc;
+ 		i = head;
++		indirect = false;
+ 	}
+ 
+ 	if (vq->vq.num_free < total_sg) {
+@@ -230,10 +235,10 @@ static inline int virtqueue_add(struct virtqueue *_vq,
+ 	desc[prev].flags &= ~VRING_DESC_F_NEXT;
+ 
+ 	/* Update free pointer */
+-	if (desc == vq->vring.desc)
+-		vq->free_head = i;
+-	else
++	if (indirect)
+ 		vq->free_head = vq->vring.desc[head].next;
++	else
++		vq->free_head = i;
+ 
+ 	/* Set token. */
+ 	vq->data[head] = data;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
