@@ -1,176 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f181.google.com (mail-we0-f181.google.com [74.125.82.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D3C06B0037
-	for <linux-mm@kvack.org>; Fri, 30 May 2014 02:52:00 -0400 (EDT)
-Received: by mail-we0-f181.google.com with SMTP id w61so1529836wes.12
-        for <linux-mm@kvack.org>; Thu, 29 May 2014 23:52:00 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id y16si6307910wju.93.2014.05.29.23.51.59
-        for <linux-mm@kvack.org>;
-        Thu, 29 May 2014 23:52:00 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH 3/3] mm/memory-failure.c: support dedicated thread to handle SIGBUS(BUS_MCEERR_AO)
-Date: Fri, 30 May 2014 02:51:10 -0400
-Message-Id: <1401432670-24664-4-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1401432670-24664-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-References: <53877e9c.8b2cdc0a.1604.ffffea43SMTPIN_ADDED_BROKEN@mx.google.com>
- <1401432670-24664-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id E300E6B0035
+	for <linux-mm@kvack.org>; Fri, 30 May 2014 03:00:46 -0400 (EDT)
+Received: by mail-pa0-f50.google.com with SMTP id fb1so1386096pad.23
+        for <linux-mm@kvack.org>; Fri, 30 May 2014 00:00:46 -0700 (PDT)
+Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
+        by mx.google.com with ESMTPS id xm4si4182261pbc.45.2014.05.30.00.00.45
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 30 May 2014 00:00:45 -0700 (PDT)
+From: Rusty Russell <rusty@rustcorp.com.au>
+Subject: Re: virtio ring cleanups, which save stack on older gcc
+In-Reply-To: <20140529234522.GL10092@bbox>
+References: <87oayh6s3s.fsf@rustcorp.com.au> <1401348405-18614-1-git-send-email-rusty@rustcorp.com.au> <20140529074117.GI10092@bbox> <87fvjs7sge.fsf@rustcorp.com.au> <20140529234522.GL10092@bbox>
+Date: Fri, 30 May 2014 16:26:47 +0930
+Message-ID: <871tvb7o0g.fsf@rustcorp.com.au>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Tony Luck <tony.luck@intel.com>, Andi Kleen <andi@firstfloor.org>, Kamil Iskra <iskra@mcs.anl.gov>, Borislav Petkov <bp@suse.de>, Chen Gong <gong.chen@linux.jf.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Dave Chinner <david@fromorbit.com>, Jens Axboe <axboe@kernel.dk>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, "Michael S. Tsirkin" <mst@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Steven Rostedt <rostedt@goodmis.org>
 
-Currently memory error handler handles action optional errors in the deferred
-manner by default. And if a recovery aware application wants to handle it
-immediately, it can do it by setting PF_MCE_EARLY flag. However, such signal
-can be sent only to the main thread, so it's problematic if the application
-wants to have a dedicated thread to handler such signals.
+Minchan Kim <minchan@kernel.org> writes:
+> On Thu, May 29, 2014 at 08:38:33PM +0930, Rusty Russell wrote:
+>> Minchan Kim <minchan@kernel.org> writes:
+>> > Hello Rusty,
+>> >
+>> > On Thu, May 29, 2014 at 04:56:41PM +0930, Rusty Russell wrote:
+>> >> They don't make much difference: the easier fix is use gcc 4.8
+>> >> which drops stack required across virtio block's virtio_queue_rq
+>> >> down to that kmalloc in virtio_ring from 528 to 392 bytes.
+>> >> 
+>> >> Still, these (*lightly tested*) patches reduce to 432 bytes,
+>> >> even for gcc 4.6.4.  Posted here FYI.
+>> >
+>> > I am testing with below which was hack for Dave's idea so don't have
+>> > a machine to test your patches until tomorrow.
+>> > So, I will queue your patches into testing machine tomorrow morning.
+>> 
+>> More interesting would be updating your compiler to 4.8, I think.
+>> Saving <100 bytes on virtio is not going to save you, right?
+>
+> But in my report, virtio_ring consumes more than yours.
 
-So this patch adds dedicated thread support to memory error handler. We have
-PF_MCE_EARLY flags for each thread separately, so with this patch AO signal
-is sent to the thread with PF_MCE_EARLY flag set, not the main thread. If
-you want to implement a dedicated thread, you call prctl() to set PF_MCE_EARLY
-on the thread.
+Yeah, weird.  I wonder if it's because I'm measuring before the call to
+kmalloc; gcc probably spills extra crap on the stack before that.
 
-Memory error handler collects processes to be killed, so this patch lets it
-check PF_MCE_EARLY flag on each thread in the collecting routines.
+You got 904 bytes:
 
-No behavioral change for all non-early kill cases.
+5928     376   vring_add_indirect+0x36/0x200
+[  111.404781]    <...>-15987   5d..2 111689538us : stack_trace_call:   9)    
+5552     144   virtqueue_add_sgs+0x2e2/0x320
+[  111.404781]    <...>-15987   5d..2 111689538us : stack_trace_call:  10)    
+5408     288   __virtblk_add_req+0xda/0x1b0
+[  111.404781]    <...>-15987   5d..2 111689538us : stack_trace_call:  11)    
+5120      96   virtio_queue_rq+0xd3/0x1d0
 
-ChangeLog:
-- document more specifically
-- add parenthesis in find_early_kill_thread()
-- move position of find_early_kill_thread() and task_early_kill()
+When I move my "stack_top" save code into __kmalloc, with gcc 4.6 and your
+.config I get:
 
-Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Reviewed-by: Tony Luck <tony.luck@intel.com>
-Cc: Kamil Iskra <iskra@mcs.anl.gov>
-Cc: Andi Kleen <andi@firstfloor.org>
-Cc: Borislav Petkov <bp@suse.de>
-Cc: Chen Gong <gong.chen@linux.jf.intel.com>
----
- Documentation/vm/hwpoison.txt |  5 ++++
- mm/memory-failure.c           | 58 ++++++++++++++++++++++++++++++++-----------
- 2 files changed, 48 insertions(+), 15 deletions(-)
+[    2.506869] virtio_blk: stack used = 640
 
-diff --git mmotm-2014-05-21-16-57.orig/Documentation/vm/hwpoison.txt mmotm-2014-05-21-16-57/Documentation/vm/hwpoison.txt
-index 550068466605..6ae89a9edf2a 100644
---- mmotm-2014-05-21-16-57.orig/Documentation/vm/hwpoison.txt
-+++ mmotm-2014-05-21-16-57/Documentation/vm/hwpoison.txt
-@@ -84,6 +84,11 @@ PR_MCE_KILL
- 		PR_MCE_KILL_EARLY: Early kill
- 		PR_MCE_KILL_LATE:  Late kill
- 		PR_MCE_KILL_DEFAULT: Use system global default
-+	Note that if you want to have a dedicated thread which handles
-+	the SIGBUS(BUS_MCEERR_AO) on behalf of the process, you should
-+	call prctl(PR_MCE_KILL_EARLY) on the designated thread. Otherwise,
-+	the SIGBUS is sent to the main thread.
-+
- PR_MCE_KILL_GET
- 	return current mode
- 
-diff --git mmotm-2014-05-21-16-57.orig/mm/memory-failure.c mmotm-2014-05-21-16-57/mm/memory-failure.c
-index fbcdb1d54c55..9751e19ab13b 100644
---- mmotm-2014-05-21-16-57.orig/mm/memory-failure.c
-+++ mmotm-2014-05-21-16-57/mm/memory-failure.c
-@@ -380,15 +380,44 @@ static void kill_procs(struct list_head *to_kill, int forcekill, int trapno,
- 	}
+So I don't know quite what's going on :(
+
+Cheers,
+Rusty.
+
+diff --git a/drivers/block/virtio_blk.c b/drivers/block/virtio_blk.c
+index cb9b1f8326c3..894e290b4bd2 100644
+--- a/drivers/block/virtio_blk.c
++++ b/drivers/block/virtio_blk.c
+@@ -151,15 +151,19 @@ static void virtblk_done(struct virtqueue *vq)
+ 	spin_unlock_irqrestore(&vblk->vq_lock, flags);
  }
  
--static int task_early_kill(struct task_struct *tsk, int force_early)
-+/*
-+ * Find a dedicated thread which is supposed to handle SIGBUS(BUS_MCEERR_AO)
-+ * on behalf of the thread group. Return task_struct of the (first found)
-+ * dedicated thread if found, and return NULL otherwise.
-+ */
-+static struct task_struct *find_early_kill_thread(struct task_struct *tsk)
-+{
-+	struct task_struct *t;
-+	rcu_read_lock();
-+	for_each_thread(tsk, t)
-+		if ((t->flags & PF_MCE_PROCESS) && (t->flags & PF_MCE_EARLY))
-+			goto found;
-+	t = NULL;
-+found:
-+	rcu_read_unlock();
-+	return t;
-+}
++extern struct task_struct *record_stack;
++extern unsigned long stack_top;
 +
-+/*
-+ * Determine whether a given process is "early kill" process which expects
-+ * to be signaled when some page under the process is hwpoisoned.
-+ * Return task_struct of the dedicated thread (main thread unless explicitly
-+ * specified) if the process is "early kill," and otherwise returns NULL.
-+ */
-+static struct task_struct *task_early_kill(struct task_struct *tsk,
-+					   int force_early)
+ static int virtio_queue_rq(struct blk_mq_hw_ctx *hctx, struct request *req)
  {
-+	struct task_struct *t;
- 	if (!tsk->mm)
--		return 0;
-+		return NULL;
- 	if (force_early)
--		return 1;
--	if (tsk->flags & PF_MCE_PROCESS)
--		return !!(tsk->flags & PF_MCE_EARLY);
--	return sysctl_memory_failure_early_kill;
-+		return tsk;
-+	t = find_early_kill_thread(tsk);
-+	if (t)
-+		return t;
-+	if (sysctl_memory_failure_early_kill)
-+		return tsk;
-+	return NULL;
- }
+ 	struct virtio_blk *vblk = hctx->queue->queuedata;
+ 	struct virtblk_req *vbr = req->special;
+ 	unsigned long flags;
+ 	unsigned int num;
++	unsigned long stack_bottom;
+ 	const bool last = (req->cmd_flags & REQ_END) != 0;
+ 	int err;
+-
++	
+ 	BUG_ON(req->nr_phys_segments + 2 > vblk->sg_elems);
  
- /*
-@@ -410,16 +439,16 @@ static void collect_procs_anon(struct page *page, struct list_head *to_kill,
- 	read_lock(&tasklist_lock);
- 	for_each_process (tsk) {
- 		struct anon_vma_chain *vmac;
--
--		if (!task_early_kill(tsk, force_early))
-+		struct task_struct *t = task_early_kill(tsk, force_early);
-+		if (!t)
- 			continue;
- 		anon_vma_interval_tree_foreach(vmac, &av->rb_root,
- 					       pgoff, pgoff) {
- 			vma = vmac->vma;
- 			if (!page_mapped_in_vma(page, vma))
- 				continue;
--			if (vma->vm_mm == tsk->mm)
--				add_to_kill(tsk, page, vma, to_kill, tkc);
-+			if (vma->vm_mm == t->mm)
-+				add_to_kill(t, page, vma, to_kill, tkc);
- 		}
+ 	vbr->req = req;
+@@ -199,7 +203,12 @@ static int virtio_queue_rq(struct blk_mq_hw_ctx *hctx, struct request *req)
  	}
- 	read_unlock(&tasklist_lock);
-@@ -440,10 +469,9 @@ static void collect_procs_file(struct page *page, struct list_head *to_kill,
- 	read_lock(&tasklist_lock);
- 	for_each_process(tsk) {
- 		pgoff_t pgoff = page_pgoff(page);
--
--		if (!task_early_kill(tsk, force_early))
-+		struct task_struct *t = task_early_kill(tsk, force_early);
-+		if (!t)
- 			continue;
--
- 		vma_interval_tree_foreach(vma, &mapping->i_mmap, pgoff,
- 				      pgoff) {
- 			/*
-@@ -453,8 +481,8 @@ static void collect_procs_file(struct page *page, struct list_head *to_kill,
- 			 * Assume applications who requested early kill want
- 			 * to be informed of all such data corruptions.
- 			 */
--			if (vma->vm_mm == tsk->mm)
--				add_to_kill(tsk, page, vma, to_kill, tkc);
-+			if (vma->vm_mm == t->mm)
-+				add_to_kill(t, page, vma, to_kill, tkc);
- 		}
- 	}
- 	read_unlock(&tasklist_lock);
--- 
-1.9.3
+ 
+ 	spin_lock_irqsave(&vblk->vq_lock, flags);
++	record_stack = current;
++	__asm__ __volatile__("movq %%rsp,%0" : "=g" (stack_bottom));
+ 	err = __virtblk_add_req(vblk->vq, vbr, vbr->sg, num);
++	record_stack = NULL;
++
++	printk("virtio_blk: stack used = %lu\n", stack_bottom - stack_top);
+ 	if (err) {
+ 		virtqueue_kick(vblk->vq);
+ 		blk_mq_stop_hw_queue(hctx);
+diff --git a/mm/slub.c b/mm/slub.c
+index 2b1ce697fc4b..0f9a1a6b381e 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -3278,11 +3278,22 @@ static int __init setup_slub_nomerge(char *str)
+ 
+ __setup("slub_nomerge", setup_slub_nomerge);
+ 
++extern struct task_struct *record_stack;
++struct task_struct *record_stack;
++EXPORT_SYMBOL(record_stack);
++
++extern unsigned long stack_top;
++unsigned long stack_top;
++EXPORT_SYMBOL(stack_top);
++
+ void *__kmalloc(size_t size, gfp_t flags)
+ {
+ 	struct kmem_cache *s;
+ 	void *ret;
+ 
++	if (record_stack == current)
++		__asm__ __volatile__("movq %%rsp,%0" : "=g" (stack_top));
++
+ 	if (unlikely(size > KMALLOC_MAX_CACHE_SIZE))
+ 		return kmalloc_large(size, flags);
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
