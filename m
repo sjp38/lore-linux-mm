@@ -1,68 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oa0-f49.google.com (mail-oa0-f49.google.com [209.85.219.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 2CF6D6B0035
-	for <linux-mm@kvack.org>; Fri, 30 May 2014 12:59:09 -0400 (EDT)
-Received: by mail-oa0-f49.google.com with SMTP id eb12so2115343oac.36
-        for <linux-mm@kvack.org>; Fri, 30 May 2014 09:59:08 -0700 (PDT)
-Received: from avon.wwwdotorg.org (avon.wwwdotorg.org. [70.85.31.133])
-        by mx.google.com with ESMTPS id zc3si8981749obb.26.2014.05.30.09.59.08
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 30 May 2014 09:59:08 -0700 (PDT)
-Message-ID: <5388B8D7.1020907@wwwdotorg.org>
-Date: Fri, 30 May 2014 10:59:03 -0600
-From: Stephen Warren <swarren@wwwdotorg.org>
+Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
+	by kanga.kvack.org (Postfix) with ESMTP id D52256B0035
+	for <linux-mm@kvack.org>; Fri, 30 May 2014 13:26:17 -0400 (EDT)
+Received: by mail-pa0-f44.google.com with SMTP id lj1so1926940pab.17
+        for <linux-mm@kvack.org>; Fri, 30 May 2014 10:26:17 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id gu3si6336956pbb.232.2014.05.30.10.26.14
+        for <linux-mm@kvack.org>;
+        Fri, 30 May 2014 10:26:17 -0700 (PDT)
+Message-ID: <5388BEDF.3000202@intel.com>
+Date: Fri, 30 May 2014 10:24:47 -0700
+From: Dave Hansen <dave.hansen@intel.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2] mm, compaction: properly signal and act upon lock
- and need_sched() contention
-References: <1399904111-23520-1-git-send-email-vbabka@suse.cz>	<1400233673-11477-1-git-send-email-vbabka@suse.cz>	<CAGa+x87-NRyK6kUiXNL_bRNEGm+DR6M3HPSLYEoq4t6Nrtnd_g@mail.gmail.com> <CAAQ0ZWQDVxAzZVm86ATXd1JGUVoLXj_Y5Ske7htxH_6a4GPKRg@mail.gmail.com> <537F082F.50501@suse.cz>
-In-Reply-To: <537F082F.50501@suse.cz>
+Subject: Re: [RFC 2/2] x86_64: expand kernel stack to 16K
+References: <20140528223142.GO8554@dastard>	<CA+55aFyRk6_v6COPGVvu6hvt=i2A8-dPcs1X3Ydn1g24AxbPkg@mail.gmail.com>	<20140529013007.GF6677@dastard>	<CA+55aFzdq2V-Q3WUV7hQJG8jBSAvBqdYLVTNtbD4ObVZ5yDRmw@mail.gmail.com>	<20140529072633.GH6677@dastard>	<CA+55aFx+j4104ZFmA-YnDtyfmV4FuejwmGnD5shfY0WX4fN+Kg@mail.gmail.com>	<20140529235308.GA14410@dastard>	<20140530000649.GA3477@redhat.com>	<20140530002113.GC14410@dastard>	<20140530003219.GN10092@bbox>	<20140530013414.GF14410@dastard>	<5388A2D9.3080708@zytor.com>	<CA+55aFycqAw2AqQGv8aTPs_RxyKZqMdoyeSxWRSDk2N-PiBZeg@mail.gmail.com>	<5388A935.9050506@zytor.com> <CA+55aFwHS2xErW6TgBHGR9JP0QZW9W7GSLec5WzbV+GGYFUu6A@mail.gmail.com>
+In-Reply-To: <CA+55aFwHS2xErW6TgBHGR9JP0QZW9W7GSLec5WzbV+GGYFUu6A@mail.gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, Shawn Guo <shawn.guo@linaro.org>, Kevin Hilman <khilman@linaro.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Hugh Dickins <hughd@google.com>, Greg Thelen <gthelen@google.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>, Olof Johansson <olof@lixom.net>, linux-arm-kernel <linux-arm-kernel@lists.infradead.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>, "H. Peter Anvin" <hpa@zytor.com>
+Cc: Dave Chinner <david@fromorbit.com>, Minchan Kim <minchan@kernel.org>, Dave Jones <davej@redhat.com>, Jens Axboe <axboe@kernel.dk>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Rusty Russell <rusty@rustcorp.com.au>, "Michael S. Tsirkin" <mst@redhat.com>, Steven Rostedt <rostedt@goodmis.org>, PJ Waskiewicz <pjwaskiewicz@gmail.com>
 
-On 05/23/2014 02:34 AM, Vlastimil Babka wrote:
-> On 05/23/2014 04:48 AM, Shawn Guo wrote:
->> On 23 May 2014 07:49, Kevin Hilman <khilman@linaro.org> wrote:
->>> On Fri, May 16, 2014 at 2:47 AM, Vlastimil Babka <vbabka@suse.cz> wrote:
->>>> Compaction uses compact_checklock_irqsave() function to periodically check for
->>>> lock contention and need_resched() to either abort async compaction, or to
->>>> free the lock, schedule and retake the lock. When aborting, cc->contended is
->>>> set to signal the contended state to the caller. Two problems have been
->>>> identified in this mechanism.
->>>
->>> This patch (or later version) has hit next-20140522 (in the form
->>> commit 645ceea9331bfd851bc21eea456dda27862a10f4) and according to my
->>> bisect, appears to be the culprit of several boot failures on ARM
->>> platforms.
+On 05/30/2014 09:06 AM, Linus Torvalds wrote:
+> On Fri, May 30, 2014 at 8:52 AM, H. Peter Anvin <hpa@zytor.com> wrote:
+>>> That said, it's still likely a non-production option due to the page
+>>> table games we'd have to play at fork/clone time.
 >>
->> On i.MX6 where CMA is enabled, the commit causes the drivers calling
->> dma_alloc_coherent() fail to probe.  Tracing it a little bit, it seems
->> dma_alloc_from_contiguous() always return page as NULL after this
->> commit.
->>
->> Shawn
->>
+>> Still, seems much more tractable.
 > 
-> Really sorry, guys :/
-> 
-> -----8<-----
-> From: Vlastimil Babka <vbabka@suse.cz>
-> Date: Fri, 23 May 2014 10:18:56 +0200
-> Subject: mm-compaction-properly-signal-and-act-upon-lock-and-need_sched-contention-fix2
-> 
-> Step 1: Change function name and comment between v1 and v2 so that the return
->         value signals the opposite thing.
-> Step 2: Change the call sites to reflect the opposite return value.
-> Step 3: ???
-> Step 4: Make a complete fool of yourself.
+> We might be able to make it more attractive by having a small
+> front-end cache of the 16kB allocations with the second page unmapped.
+> That would at least capture the common "lots of short-lived processes"
+> case without having to do kernel page table work.
 
-Tested-by: Stephen Warren <swarren@nvidia.com>
+If we want to use 4k mappings, we'd need to move the stack over to using
+vmalloc() (or at least be out of the linear mapping) to avoid breaking
+up the linear map's page tables too much.  Doing that, we'd actually not
+_have_ to worry about fragmentation, and we could actually utilize the
+per-cpu-pageset code since we'd could be back to using order-0 pages.
+So it's at least not all a loss.  Although, I do remember playing with
+4k stacks back in the 32-bit days and not getting much of a win with it.
 
-This fix doesn't seem to be in linux-next yet:-(
+We'd definitely that cache, if for no other reason than the vmalloc/vmap
+code as-is isn't super-scalable.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
