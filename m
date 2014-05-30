@@ -1,69 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ve0-f171.google.com (mail-ve0-f171.google.com [209.85.128.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 720216B0037
-	for <linux-mm@kvack.org>; Fri, 30 May 2014 10:00:15 -0400 (EDT)
-Received: by mail-ve0-f171.google.com with SMTP id oz11so2151533veb.2
-        for <linux-mm@kvack.org>; Fri, 30 May 2014 07:00:15 -0700 (PDT)
-Received: from qmta11.emeryville.ca.mail.comcast.net (qmta11.emeryville.ca.mail.comcast.net. [2001:558:fe2d:44:76:96:27:211])
-        by mx.google.com with ESMTP id to8si3104636vdb.2.2014.05.30.07.00.14
-        for <linux-mm@kvack.org>;
-        Fri, 30 May 2014 07:00:14 -0700 (PDT)
-Date: Fri, 30 May 2014 09:00:11 -0500 (CDT)
-From: Christoph Lameter <cl@gentwo.org>
-Subject: Re: [PATCH] vmstat: on demand updates from differentials V7
-In-Reply-To: <20140529235530.GA25555@localhost.localdomain>
-Message-ID: <alpine.DEB.2.10.1405300859290.8240@gentwo.org>
-References: <alpine.DEB.2.10.1405291453260.2899@gentwo.org> <20140529235530.GA25555@localhost.localdomain>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-vc0-f171.google.com (mail-vc0-f171.google.com [209.85.220.171])
+	by kanga.kvack.org (Postfix) with ESMTP id DC7956B0035
+	for <linux-mm@kvack.org>; Fri, 30 May 2014 10:23:19 -0400 (EDT)
+Received: by mail-vc0-f171.google.com with SMTP id lc6so2155920vcb.30
+        for <linux-mm@kvack.org>; Fri, 30 May 2014 07:23:19 -0700 (PDT)
+Received: from mail-vc0-x22a.google.com (mail-vc0-x22a.google.com [2607:f8b0:400c:c03::22a])
+        by mx.google.com with ESMTPS id zw17si3164716veb.78.2014.05.30.07.23.19
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 30 May 2014 07:23:19 -0700 (PDT)
+Received: by mail-vc0-f170.google.com with SMTP id la4so2149107vcb.15
+        for <linux-mm@kvack.org>; Fri, 30 May 2014 07:23:19 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <53883902.8020701@lge.com>
+References: <1401260672-28339-1-git-send-email-iamjoonsoo.kim@lge.com>
+	<1401260672-28339-3-git-send-email-iamjoonsoo.kim@lge.com>
+	<53883902.8020701@lge.com>
+Date: Fri, 30 May 2014 23:23:18 +0900
+Message-ID: <CAAmzW4Nyic0VC9W16ZbjsZtNGGBet4HBDomQfMi-OvMGMKv9iw@mail.gmail.com>
+Subject: Re: [PATCH v2 2/3] CMA: aggressively allocate the pages on cma
+ reserved memory when not used
+From: Joonsoo Kim <js1304@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Frederic Weisbecker <fweisbec@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Gilad Ben-Yossef <gilad@benyossef.com>, Thomas Gleixner <tglx@linutronix.de>, Tejun Heo <tj@kernel.org>, John Stultz <johnstul@us.ibm.com>, Hakan Akkan <hakanakkan@gmail.com>, Max Krasnyansky <maxk@qualcomm.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hughd@google.com, viresh.kumar@linaro.org, hpa@zytor.com, mingo@kernel.org, peterz@infradead.org, Mike Frysinger <vapier@gentoo.org>, Minchan Kim <minchan.kim@gmail.com>
+To: Gioh Kim <gioh.kim@lge.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Heesub Shin <heesub.shin@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, 30 May 2014, Frederic Weisbecker wrote:
-
-> On Thu, May 29, 2014 at 02:56:15PM -0500, Christoph Lameter wrote:
-> > -static void start_cpu_timer(int cpu)
-> > +static void __init start_shepherd_timer(void)
-> >  {
-> > -	struct delayed_work *work = &per_cpu(vmstat_work, cpu);
-> > +	int cpu;
-> > +
-> > +	for_each_possible_cpu(cpu)
-> > +		INIT_DEFERRABLE_WORK(per_cpu_ptr(&vmstat_work, cpu),
-> > +			vmstat_update);
-> > +
-> > +	cpu_stat_off = kmalloc(cpumask_size(), GFP_KERNEL);
+2014-05-30 16:53 GMT+09:00 Gioh Kim <gioh.kim@lge.com>:
+> Joonsoo,
 >
-> Now you're open coding alloc_cpumask_var() ?
+> I'm attaching a patch for combination of __rmqueue and __rmqueue_cma.
+> I didn't test fully but my board is turned on and working well if no frequent memory allocations.
+>
+> I'm sorry to send not-tested code.
+> I just want to report this during your working hour ;-)
+>
+> I'm testing this this evening and reporting next week.
+> Have a nice weekend!
 
-Subject: on demand vmstat: Do not open code alloc_cpumask_var
+Thanks Gioh. :)
 
-Signed-off-by: Christoph Lameter <cl@linux.com>
+> -------------------------------------- 8< -----------------------------------------
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 7f97767..9ced736 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -964,7 +964,7 @@ static int fallbacks[MIGRATE_TYPES][4] = {
+>         [MIGRATE_RECLAIMABLE] = { MIGRATE_UNMOVABLE,   MIGRATE_MOVABLE,     MIGRATE_R
+>  #ifdef CONFIG_CMA
+>         [MIGRATE_MOVABLE]     = { MIGRATE_CMA,         MIGRATE_RECLAIMABLE, MIGRATE_U
+> -       [MIGRATE_CMA]         = { MIGRATE_RESERVE }, /* Never used */
+> +       [MIGRATE_CMA]         = { MIGRATE_MOVABLE,     MIGRATE_RECLAIMABLE, MIGRATE_U
 
-Index: linux/mm/vmstat.c
-===================================================================
---- linux.orig/mm/vmstat.c	2014-05-29 14:43:26.439163942 -0500
-+++ linux/mm/vmstat.c	2014-05-30 08:58:42.909697898 -0500
-@@ -1238,7 +1238,7 @@
- #ifdef CONFIG_SMP
- static DEFINE_PER_CPU(struct delayed_work, vmstat_work);
- int sysctl_stat_interval __read_mostly = HZ;
--struct cpumask *cpu_stat_off;
-+cpumask_var_t cpu_stat_off;
+I don't want to use __rmqueue_fallback() for CMA.
+__rmqueue_fallback() takes big order page rather than small order page
+in order to steal large amount of pages and continue to use them in
+next allocation attempts.
+We can use CMA pages on limited cases, so stealing some pages from
+other migrate type
+to CMA type isn't good idea to me.
 
- static void vmstat_update(struct work_struct *w)
- {
-@@ -1332,7 +1332,8 @@
- 		INIT_DEFERRABLE_WORK(per_cpu_ptr(&vmstat_work, cpu),
- 			vmstat_update);
-
--	cpu_stat_off = kmalloc(cpumask_size(), GFP_KERNEL);
-+	if (!alloc_cpumask_var(&cpu_stat_off, GFP_KERNEL))
-+		BUG();
- 	cpumask_copy(cpu_stat_off, cpu_online_mask);
-
- 	schedule_delayed_work(&shepherd,
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
