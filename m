@@ -1,72 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f47.google.com (mail-qg0-f47.google.com [209.85.192.47])
-	by kanga.kvack.org (Postfix) with ESMTP id B9D5A6B0035
-	for <linux-mm@kvack.org>; Fri, 30 May 2014 15:52:10 -0400 (EDT)
-Received: by mail-qg0-f47.google.com with SMTP id j107so6655841qga.6
-        for <linux-mm@kvack.org>; Fri, 30 May 2014 12:52:10 -0700 (PDT)
-Received: from mailrelay.anl.gov (mailrelay.anl.gov. [130.202.101.22])
-        by mx.google.com with ESMTPS id l9si29816qck.29.2014.05.30.12.52.09
+Received: from mail-wg0-f42.google.com (mail-wg0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id EB59D6B0035
+	for <linux-mm@kvack.org>; Fri, 30 May 2014 17:18:37 -0400 (EDT)
+Received: by mail-wg0-f42.google.com with SMTP id y10so2531470wgg.1
+        for <linux-mm@kvack.org>; Fri, 30 May 2014 14:18:37 -0700 (PDT)
+Received: from one.firstfloor.org (one.firstfloor.org. [193.170.194.197])
+        by mx.google.com with ESMTPS id f4si7379169wiy.19.2014.05.30.14.18.34
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 30 May 2014 12:52:09 -0700 (PDT)
-Received: from mailgateway.anl.gov (mailgateway.anl.gov [130.202.101.28])
-	(using TLSv1 with cipher RC4-SHA (128/128 bits))
-	(No client certificate requested)
-	by mailrelay.anl.gov (Postfix) with ESMTP id 0602F7CC28A
-	for <linux-mm@kvack.org>; Fri, 30 May 2014 14:52:08 -0500 (CDT)
-Date: Fri, 30 May 2014 14:52:08 -0500
-From: Kamil Iskra <iskra@mcs.anl.gov>
-Subject: Re: [PATCH] mm/memory-failure.c: support dedicated thread to handle
- SIGBUS(BUS_MCEERR_AO) thread
-Message-ID: <20140530195208.GB4067@mcs.anl.gov>
-References: <20140523033438.GC16945@gchen.bj.intel.com>
- <CA+8MBb+Una+Z5Q-Pn0OoMYaaSx9sPJ3fdriMRMgN=CE1Jdp7Cg@mail.gmail.com>
- <20140527161613.GC4108@mcs.anl.gov>
- <5384d07e.4504e00a.2680.ffff8c31SMTPIN_ADDED_BROKEN@mx.google.com>
- <CA+8MBbKuBo4c2v-Y0TOk-LUJuyJsGG=twqQyAPG5WOa8Aj4GyA@mail.gmail.com>
- <53852abb.867ce00a.3cef.3c7eSMTPIN_ADDED_BROKEN@mx.google.com>
- <FDBACF11-D9F6-4DE5-A0D4-800903A243B7@gmail.com>
- <53862f6c.91148c0a.5fb0.2d0cSMTPIN_ADDED_BROKEN@mx.google.com>
- <CA+8MBbKdKy+sbov-f+1xNnj=syEM5FWR1BV85AgRJ9S+qPbWEg@mail.gmail.com>
- <1401327939-cvm7qh0m@n-horiguchi@ah.jp.nec.com>
+        Fri, 30 May 2014 14:18:34 -0700 (PDT)
+Date: Fri, 30 May 2014 23:18:31 +0200
+From: Andi Kleen <andi@firstfloor.org>
+Subject: Re: [PATCH] page_alloc: skip cpuset enforcement for lower zone
+ allocations (v5)
+Message-ID: <20140530211831.GN25366@two.firstfloor.org>
+References: <20140523193706.GA22854@amt.cnet>
+ <20140526185344.GA19976@amt.cnet>
+ <53858A06.8080507@huawei.com>
+ <20140528224324.GA1132@amt.cnet>
+ <20140529184303.GA20571@amt.cnet>
+ <alpine.DEB.2.02.1405291555120.9336@chino.kir.corp.google.com>
+ <20140529232819.GA29803@amt.cnet>
+ <alpine.DEB.2.02.1405291638300.9336@chino.kir.corp.google.com>
+ <alpine.DEB.2.10.1405300849190.8240@gentwo.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1401327939-cvm7qh0m@n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <alpine.DEB.2.10.1405300849190.8240@gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: tony.luck@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>, Borislav Petkov <bp@suse.de>, gong.chen@linux.jf.intel.com
+To: Christoph Lameter <cl@gentwo.org>
+Cc: David Rientjes <rientjes@google.com>, Marcelo Tosatti <mtosatti@redhat.com>, Li Zefan <lizefan@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Lai Jiangshan <laijs@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>
 
-On Wed, May 28, 2014 at 21:45:41 -0400, Naoya Horiguchi wrote:
-
-> >  The user could also mark more than
-> > one thread in this way - in which case the kernel will pick
-> > the first one it sees (is that oldest, or newest?) that is marked.
-> > Not sure if this would ever be useful unless you want to pass
-> > responsibility around in an application that is dynamically
-> > creating and removing threads.
+On Fri, May 30, 2014 at 08:50:56AM -0500, Christoph Lameter wrote:
+> On Thu, 29 May 2014, David Rientjes wrote:
 > 
-> I'm not sure which is better to send signal to first-found marked thread
-> or to all marked threads. If we have a good reason to do the latter,
-> I'm ok about it. Any idea?
+> > When I said that my point about mempolicies needs more thought, I wasn't
+> > expecting that there would be no discussion -- at least _something_ that
+> > would say why we don't care about the mempolicy case.
+> 
+> Lets get Andi involved here too.
 
-Well, it would be more flexible if the signal were sent to all marked
-threads, but I don't know if that constitutes a good enough reason to add
-the extra complexity involved.  Sometimes better is the enemy of good, and
-in this case the patch you proposed should be good enough for any practical
-case I can think of.
+I'm not fully sure about the use case for this. On the NUMA systems
+I'm aware of usually only node 0 has <4GB, so mem policy
+is pointless.
 
-Naoya, Tony, thank you for taking the leadership on this issue and seeing
-it through, and for the courtesy of keeping me in the loop!
+But anyways it seems ok to me to ignore mempolicies. Mempolicies
+are primarily for user space, which doesn't use GFP_DMA32.
 
-Kamil
-
--- 
-Kamil Iskra, PhD
-Argonne National Laboratory, Mathematics and Computer Science Division
-9700 South Cass Avenue, Building 240, Argonne, IL 60439, USA
-phone: +1-630-252-7197  fax: +1-630-252-5986
+-ANdi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
