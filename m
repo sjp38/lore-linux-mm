@@ -1,86 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vc0-f169.google.com (mail-vc0-f169.google.com [209.85.220.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 1BCDD6B0039
-	for <linux-mm@kvack.org>; Fri, 30 May 2014 14:28:12 -0400 (EDT)
-Received: by mail-vc0-f169.google.com with SMTP id ij19so2546378vcb.14
-        for <linux-mm@kvack.org>; Fri, 30 May 2014 11:28:11 -0700 (PDT)
-Received: from qmta11.emeryville.ca.mail.comcast.net (qmta11.emeryville.ca.mail.comcast.net. [2001:558:fe2d:44:76:96:27:211])
-        by mx.google.com with ESMTP id cj7si3736634vdb.40.2014.05.30.11.28.11
-        for <linux-mm@kvack.org>;
-        Fri, 30 May 2014 11:28:11 -0700 (PDT)
-Message-Id: <20140530182801.678250467@linux.com>
-Date: Fri, 30 May 2014 13:27:57 -0500
-From: Christoph Lameter <cl@linux.com>
-Subject: [PATCH 4/4] slab: Use for_each_kmem_cache_node function
-References: <20140530182753.191965442@linux.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Disposition: inline; filename=common_slab_foreach
+Received: from mail-qg0-f47.google.com (mail-qg0-f47.google.com [209.85.192.47])
+	by kanga.kvack.org (Postfix) with ESMTP id B9D5A6B0035
+	for <linux-mm@kvack.org>; Fri, 30 May 2014 15:52:10 -0400 (EDT)
+Received: by mail-qg0-f47.google.com with SMTP id j107so6655841qga.6
+        for <linux-mm@kvack.org>; Fri, 30 May 2014 12:52:10 -0700 (PDT)
+Received: from mailrelay.anl.gov (mailrelay.anl.gov. [130.202.101.22])
+        by mx.google.com with ESMTPS id l9si29816qck.29.2014.05.30.12.52.09
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 30 May 2014 12:52:09 -0700 (PDT)
+Received: from mailgateway.anl.gov (mailgateway.anl.gov [130.202.101.28])
+	(using TLSv1 with cipher RC4-SHA (128/128 bits))
+	(No client certificate requested)
+	by mailrelay.anl.gov (Postfix) with ESMTP id 0602F7CC28A
+	for <linux-mm@kvack.org>; Fri, 30 May 2014 14:52:08 -0500 (CDT)
+Date: Fri, 30 May 2014 14:52:08 -0500
+From: Kamil Iskra <iskra@mcs.anl.gov>
+Subject: Re: [PATCH] mm/memory-failure.c: support dedicated thread to handle
+ SIGBUS(BUS_MCEERR_AO) thread
+Message-ID: <20140530195208.GB4067@mcs.anl.gov>
+References: <20140523033438.GC16945@gchen.bj.intel.com>
+ <CA+8MBb+Una+Z5Q-Pn0OoMYaaSx9sPJ3fdriMRMgN=CE1Jdp7Cg@mail.gmail.com>
+ <20140527161613.GC4108@mcs.anl.gov>
+ <5384d07e.4504e00a.2680.ffff8c31SMTPIN_ADDED_BROKEN@mx.google.com>
+ <CA+8MBbKuBo4c2v-Y0TOk-LUJuyJsGG=twqQyAPG5WOa8Aj4GyA@mail.gmail.com>
+ <53852abb.867ce00a.3cef.3c7eSMTPIN_ADDED_BROKEN@mx.google.com>
+ <FDBACF11-D9F6-4DE5-A0D4-800903A243B7@gmail.com>
+ <53862f6c.91148c0a.5fb0.2d0cSMTPIN_ADDED_BROKEN@mx.google.com>
+ <CA+8MBbKdKy+sbov-f+1xNnj=syEM5FWR1BV85AgRJ9S+qPbWEg@mail.gmail.com>
+ <1401327939-cvm7qh0m@n-horiguchi@ah.jp.nec.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <1401327939-cvm7qh0m@n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pekka Enberg <penberg@kernel.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: tony.luck@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andi Kleen <andi@firstfloor.org>, Borislav Petkov <bp@suse.de>, gong.chen@linux.jf.intel.com
 
-Reduce code somewhat by the use of kmem_cache_node.
+On Wed, May 28, 2014 at 21:45:41 -0400, Naoya Horiguchi wrote:
 
-Signed-off-by: Christoph Lameter <cl@linux.com>
+> >  The user could also mark more than
+> > one thread in this way - in which case the kernel will pick
+> > the first one it sees (is that oldest, or newest?) that is marked.
+> > Not sure if this would ever be useful unless you want to pass
+> > responsibility around in an application that is dynamically
+> > creating and removing threads.
+> 
+> I'm not sure which is better to send signal to first-found marked thread
+> or to all marked threads. If we have a good reason to do the latter,
+> I'm ok about it. Any idea?
 
-Index: linux/mm/slab.c
-===================================================================
---- linux.orig/mm/slab.c	2014-05-30 13:08:32.986856450 -0500
-+++ linux/mm/slab.c	2014-05-30 13:08:32.986856450 -0500
-@@ -2415,17 +2415,12 @@ static void drain_cpu_caches(struct kmem
- 
- 	on_each_cpu(do_drain, cachep, 1);
- 	check_irq_on();
--	for_each_online_node(node) {
--		n = get_node(cachep, node);
--		if (n && n->alien)
-+	for_each_kmem_cache_node(cachep, node, n)
-+		if (n->alien)
- 			drain_alien_cache(cachep, n->alien);
--	}
- 
--	for_each_online_node(node) {
--		n = get_node(cachep, node);
--		if (n)
--			drain_array(cachep, n, n->shared, 1, node);
--	}
-+	for_each_kmem_cache_node(cachep, node, n)
-+		drain_array(cachep, n, n->shared, 1, node);
- }
- 
- /*
-@@ -2478,11 +2473,7 @@ static int __cache_shrink(struct kmem_ca
- 	drain_cpu_caches(cachep);
- 
- 	check_irq_on();
--	for_each_online_node(i) {
--		n = get_node(cachep, i);
--		if (!n)
--			continue;
--
-+	for_each_kmem_cache_node(cachep, i, n) {
- 		drain_freelist(cachep, n, slabs_tofree(cachep, n));
- 
- 		ret += !list_empty(&n->slabs_full) ||
-@@ -2525,13 +2516,10 @@ int __kmem_cache_shutdown(struct kmem_ca
- 	    kfree(cachep->array[i]);
- 
- 	/* NUMA: free the node structures */
--	for_each_online_node(i) {
--		n = get_node(cachep, i);
--		if (n) {
--			kfree(n->shared);
--			free_alien_cache(n->alien);
--			kfree(n);
--		}
-+	for_each_kmem_cache_node(cachep, i, n) {
-+		kfree(n->shared);
-+		free_alien_cache(n->alien);
-+		kfree(n);
- 	}
- 	return 0;
- }
+Well, it would be more flexible if the signal were sent to all marked
+threads, but I don't know if that constitutes a good enough reason to add
+the extra complexity involved.  Sometimes better is the enemy of good, and
+in this case the patch you proposed should be good enough for any practical
+case I can think of.
+
+Naoya, Tony, thank you for taking the leadership on this issue and seeing
+it through, and for the courtesy of keeping me in the loop!
+
+Kamil
+
+-- 
+Kamil Iskra, PhD
+Argonne National Laboratory, Mathematics and Computer Science Division
+9700 South Cass Avenue, Building 240, Argonne, IL 60439, USA
+phone: +1-630-252-7197  fax: +1-630-252-5986
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
