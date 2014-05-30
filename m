@@ -1,75 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id B3FA76B0039
-	for <linux-mm@kvack.org>; Thu, 29 May 2014 21:34:26 -0400 (EDT)
-Received: by mail-pd0-f175.google.com with SMTP id z10so366088pdj.6
-        for <linux-mm@kvack.org>; Thu, 29 May 2014 18:34:26 -0700 (PDT)
-Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [2001:44b8:8060:ff02:300:1:6:6])
-        by mx.google.com with ESMTP id dw6si689524pab.182.2014.05.29.18.34.24
-        for <linux-mm@kvack.org>;
-        Thu, 29 May 2014 18:34:25 -0700 (PDT)
-Date: Fri, 30 May 2014 11:34:14 +1000
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [RFC 2/2] x86_64: expand kernel stack to 16K
-Message-ID: <20140530013414.GF14410@dastard>
-References: <20140528223142.GO8554@dastard>
- <CA+55aFyRk6_v6COPGVvu6hvt=i2A8-dPcs1X3Ydn1g24AxbPkg@mail.gmail.com>
- <20140529013007.GF6677@dastard>
- <CA+55aFzdq2V-Q3WUV7hQJG8jBSAvBqdYLVTNtbD4ObVZ5yDRmw@mail.gmail.com>
- <20140529072633.GH6677@dastard>
- <CA+55aFx+j4104ZFmA-YnDtyfmV4FuejwmGnD5shfY0WX4fN+Kg@mail.gmail.com>
- <20140529235308.GA14410@dastard>
- <20140530000649.GA3477@redhat.com>
- <20140530002113.GC14410@dastard>
- <20140530003219.GN10092@bbox>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140530003219.GN10092@bbox>
+Received: from mail-pb0-f49.google.com (mail-pb0-f49.google.com [209.85.160.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 7309C6B0039
+	for <linux-mm@kvack.org>; Thu, 29 May 2014 21:35:21 -0400 (EDT)
+Received: by mail-pb0-f49.google.com with SMTP id jt11so1128436pbb.22
+        for <linux-mm@kvack.org>; Thu, 29 May 2014 18:35:21 -0700 (PDT)
+Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
+        by mx.google.com with ESMTPS id oq10si3313601pac.48.2014.05.29.18.35.19
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 29 May 2014 18:35:19 -0700 (PDT)
+Message-ID: <1401413716.29324.2.camel@concordia>
+Subject: Re: [PATCH] hugetlb: restrict hugepage_migration_support() to
+ x86_64 (Re: BUG at mm/memory.c:1489!)
+From: Michael Ellerman <mpe@ellerman.id.au>
+Date: Fri, 30 May 2014 11:35:16 +1000
+In-Reply-To: <1401388474-mqnis5cp@n-horiguchi@ah.jp.nec.com>
+References: <1401265922.3355.4.camel@concordia>
+	 <alpine.LSU.2.11.1405281712310.7156@eggly.anvils>
+	 <1401353983.4930.15.camel@concordia>
+	 <1401388474-mqnis5cp@n-horiguchi@ah.jp.nec.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Dave Jones <davej@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Jens Axboe <axboe@kernel.dk>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Rusty Russell <rusty@rustcorp.com.au>, "Michael S. Tsirkin" <mst@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Steven Rostedt <rostedt@goodmis.org>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, benh@kernel.crashing.org, Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, trinity@vger.kernel.org
 
-On Fri, May 30, 2014 at 09:32:19AM +0900, Minchan Kim wrote:
-> On Fri, May 30, 2014 at 10:21:13AM +1000, Dave Chinner wrote:
-> > On Thu, May 29, 2014 at 08:06:49PM -0400, Dave Jones wrote:
-> > > On Fri, May 30, 2014 at 09:53:08AM +1000, Dave Chinner wrote:
-> > > 
-> > >  > That sounds like a plan. Perhaps it would be useful to add a
-> > >  > WARN_ON_ONCE(stack_usage > 8k) (or some other arbitrary depth beyond
-> > >  > 8k) so that we get some indication that we're hitting a deep stack
-> > >  > but the system otherwise keeps functioning. That gives us some
-> > >  > motivation to keep stack usage down but isn't a fatal problem like
-> > >  > it is now....
-> > > 
-> > > We have check_stack_usage() and DEBUG_STACK_USAGE for this.
-> > > Though it needs some tweaking if we move to 16K
-> > 
-> > Right, but it doesn't throw loud warnings when a specific threshold
-> > is reached - it just issues a quiet message when a process exits
-> > telling you what the maximum was without giving us a stack to chew
-> > on....
-> 
-> But we could enhance the inform so notice the risk to the user.
-> as follow
-> 
-> ...
-> "kworker/u24:1 (94) used greatest stack depth: 8K bytes left, it means
-> there is some horrible stack hogger in your kernel. Please report it
-> the LKML and enable stacktrace to investigate who is culprit"
+On Thu, 2014-05-29 at 14:34 -0400, Naoya Horiguchi wrote:
+> On Thu, May 29, 2014 at 06:59:43PM +1000, Michael Ellerman wrote:
+> > Applying your patch and running trinity pretty immediately results in the
+> > following, which looks related (sys_move_pages() again) ?
+> >
+> > Unable to handle kernel paging request for data at address 0xf2000f80000000
+> > Faulting instruction address: 0xc0000000001e29bc
+> > cpu 0x1b: Vector: 300 (Data Access) at [c0000003c70f76f0]
+> >     pc: c0000000001e29bc: .remove_migration_pte+0x9c/0x320
+> >     lr: c0000000001e29b8: .remove_migration_pte+0x98/0x320
+> >     sp: c0000003c70f7970
+> >    msr: 8000000000009032
+> >    dar: f2000f80000000
+> >  dsisr: 40000000
+> >   current = 0xc0000003f9045800
+> >   paca    = 0xc000000001dc6c00   softe: 0        irq_happened: 0x01
+> >     pid   = 3585, comm = trinity-c27
+> > enter ? for help
+> > [c0000003c70f7a20] c0000000001bce88 .rmap_walk+0x328/0x470
+> > [c0000003c70f7ae0] c0000000001e2904 .remove_migration_ptes+0x44/0x60
+> > [c0000003c70f7b80] c0000000001e4ce8 .migrate_pages+0x6d8/0xa00
+> > [c0000003c70f7cc0] c0000000001e55ec .SyS_move_pages+0x5dc/0x7d0
+> > [c0000003c70f7e30] c00000000000a1d8 syscall_exit+0x0/0x98
+> > --- Exception: c01 (System Call) at 00003fff7b2b30a8
+> > SP (3fffe09728a0) is in userspace
+> > 1b:mon>
+>
+> Sorry for inconvenience on your testing.
+ 
+That's fine, it's good to find bugs :)
 
-That, however, presumes that a user can reproduce the problem on
-demand. Experience tells me that this is the exception rather than
-the norm for production systems, and so capturing the stack in real
-time is IMO the only useful thing we could add...
+> Hugepage migration is enabled for archs which have pmd-level hugepage
+> (including ppc64,) but not tested except for x86_64.
+> hugepage_migration_support() controls this so the following patch should
+> help you avoid the problem, I believe.
+> Could you try to test with it?
 
-Cheers,
+Sure. So this patch, in addition to Hugh's patch to remove the BUG_ON(), does
+avoid the crash above (remove_migration_pte()).
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+I dropped Hugh's patch, as he has decided he doesn't like it, and added the
+following hunk instead:
+
+diff --git a/include/linux/mempolicy.h b/include/linux/mempolicy.h
+index 3c1b968..f230a97 100644
+--- a/include/linux/mempolicy.h
++++ b/include/linux/mempolicy.h
+@@ -175,6 +175,12 @@ static inline int vma_migratable(struct vm_area_struct *vma)
+ {
+        if (vma->vm_flags & (VM_IO | VM_PFNMAP))
+                return 0;
++
++#ifndef CONFIG_ARCH_ENABLE_HUGEPAGE_MIGRATION
++       if (vma->vm_flags & VM_HUGETLB)
++               return 0;
++#endif
++
+        /*
+         * Migration allocates pages in the highest zone. If we cannot
+         * do so then migration (at least from node to node) is not
+
+
+Which seems to be what Hugh was referring to in his mail - correct me if I'm
+wrong Hugh.
+
+With your patch and the above hunk I can run trinity happily for a while,
+whereas without it crashes almost immediately.
+
+So with the above hunk you can add my tested-by.
+
+cheers
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
