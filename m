@@ -1,98 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f182.google.com (mail-lb0-f182.google.com [209.85.217.182])
-	by kanga.kvack.org (Postfix) with ESMTP id BE2EF6B0055
-	for <linux-mm@kvack.org>; Fri, 30 May 2014 09:51:21 -0400 (EDT)
-Received: by mail-lb0-f182.google.com with SMTP id z11so1042271lbi.13
-        for <linux-mm@kvack.org>; Fri, 30 May 2014 06:51:20 -0700 (PDT)
-Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id p17si5578438laa.66.2014.05.30.06.51.17
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 30 May 2014 06:51:17 -0700 (PDT)
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH -mm 3/8] memcg: mark caches that belong to offline memcgs as dead
-Date: Fri, 30 May 2014 17:51:06 +0400
-Message-ID: <2cb0d48c06a57586606deec0e368b4a3ecbc0b91.1401457502.git.vdavydov@parallels.com>
-In-Reply-To: <cover.1401457502.git.vdavydov@parallels.com>
-References: <cover.1401457502.git.vdavydov@parallels.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+Received: from mail-vc0-f176.google.com (mail-vc0-f176.google.com [209.85.220.176])
+	by kanga.kvack.org (Postfix) with ESMTP id B2D656B0039
+	for <linux-mm@kvack.org>; Fri, 30 May 2014 09:52:46 -0400 (EDT)
+Received: by mail-vc0-f176.google.com with SMTP id la4so2076003vcb.7
+        for <linux-mm@kvack.org>; Fri, 30 May 2014 06:52:46 -0700 (PDT)
+Received: from qmta11.emeryville.ca.mail.comcast.net (qmta11.emeryville.ca.mail.comcast.net. [2001:558:fe2d:44:76:96:27:211])
+        by mx.google.com with ESMTP id z1si3018831vet.30.2014.05.30.06.52.45
+        for <linux-mm@kvack.org>;
+        Fri, 30 May 2014 06:52:46 -0700 (PDT)
+Date: Fri, 30 May 2014 08:52:42 -0500 (CDT)
+From: Christoph Lameter <cl@gentwo.org>
+Subject: Re: [PATCH] vmstat: on demand updates from differentials V7
+In-Reply-To: <20140530000610.GB25555@localhost.localdomain>
+Message-ID: <alpine.DEB.2.10.1405300851490.8240@gentwo.org>
+References: <alpine.DEB.2.10.1405291453260.2899@gentwo.org> <20140530000610.GB25555@localhost.localdomain>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: cl@linux.com, hannes@cmpxchg.org, mhocko@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Frederic Weisbecker <fweisbec@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Gilad Ben-Yossef <gilad@benyossef.com>, Thomas Gleixner <tglx@linutronix.de>, Tejun Heo <tj@kernel.org>, John Stultz <johnstul@us.ibm.com>, Hakan Akkan <hakanakkan@gmail.com>, Max Krasnyansky <maxk@qualcomm.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hughd@google.com, viresh.kumar@linaro.org, hpa@zytor.com, mingo@kernel.org, peterz@infradead.org, Mike Frysinger <vapier@gentoo.org>, Minchan Kim <minchan.kim@gmail.com>
 
-This will be used by the next patches.
+On Fri, 30 May 2014, Frederic Weisbecker wrote:
 
-Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
----
- include/linux/slab.h |    2 ++
- mm/memcontrol.c      |    1 +
- mm/slab.h            |   10 ++++++++++
- 3 files changed, 13 insertions(+)
+> > +	cpu_stat_off = kmalloc(cpumask_size(), GFP_KERNEL);
+> > +	cpumask_copy(cpu_stat_off, cpu_online_mask);
+>
+> Actually looks like you can as well remove that cpumask and use
+> cpu_online_mask directly.
 
-diff --git a/include/linux/slab.h b/include/linux/slab.h
-index d9716fdc8211..d99d5212b815 100644
---- a/include/linux/slab.h
-+++ b/include/linux/slab.h
-@@ -527,6 +527,7 @@ static __always_inline void *kmalloc_node(size_t size, gfp_t flags, int node)
-  * @list: list_head for the list of all caches in this memcg
-  * @root_cache: pointer to the global, root cache, this cache was derived from
-  * @refcnt: reference counter
-+ * @dead: set to true when owner memcg is turned offline
-  * @unregister_work: worker to destroy the cache
-  */
- struct memcg_cache_params {
-@@ -541,6 +542,7 @@ struct memcg_cache_params {
- 			struct list_head list;
- 			struct kmem_cache *root_cache;
- 			atomic_long_t refcnt;
-+			bool dead;
- 			struct work_struct unregister_work;
- 		};
- 	};
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 886b5b414958..ed42fd1105a5 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -3294,6 +3294,7 @@ static void memcg_unregister_all_caches(struct mem_cgroup *memcg)
- 	mutex_lock(&memcg_slab_mutex);
- 	list_for_each_entry_safe(params, tmp, &memcg->memcg_slab_caches, list) {
- 		cachep = memcg_params_to_cache(params);
-+		cachep->memcg_params->dead = true;
- 		kmem_cache_shrink(cachep);
- 		if (atomic_long_dec_and_test(&cachep->memcg_params->refcnt))
- 			memcg_unregister_cache(cachep);
-diff --git a/mm/slab.h b/mm/slab.h
-index 961a3fb1f5a2..9515cc520bf8 100644
---- a/mm/slab.h
-+++ b/mm/slab.h
-@@ -121,6 +121,11 @@ static inline bool is_root_cache(struct kmem_cache *s)
- 	return !s->memcg_params || s->memcg_params->is_root_cache;
- }
- 
-+static inline bool memcg_cache_dead(struct kmem_cache *s)
-+{
-+	return !is_root_cache(s) && s->memcg_params->dead;
-+}
-+
- static inline bool slab_equal_or_root(struct kmem_cache *s,
- 					struct kmem_cache *p)
- {
-@@ -203,6 +208,11 @@ static inline bool is_root_cache(struct kmem_cache *s)
- 	return true;
- }
- 
-+static inline bool memcg_cache_dead(struct kmem_cache *s)
-+{
-+	return false;
-+}
-+
- static inline bool slab_equal_or_root(struct kmem_cache *s,
- 				      struct kmem_cache *p)
- {
--- 
-1.7.10.4
+That would mean I would offline cpus that do not need the
+vmstat worker?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
