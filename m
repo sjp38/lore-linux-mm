@@ -1,54 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f42.google.com (mail-wg0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id EB59D6B0035
-	for <linux-mm@kvack.org>; Fri, 30 May 2014 17:18:37 -0400 (EDT)
-Received: by mail-wg0-f42.google.com with SMTP id y10so2531470wgg.1
-        for <linux-mm@kvack.org>; Fri, 30 May 2014 14:18:37 -0700 (PDT)
-Received: from one.firstfloor.org (one.firstfloor.org. [193.170.194.197])
-        by mx.google.com with ESMTPS id f4si7379169wiy.19.2014.05.30.14.18.34
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 30 May 2014 14:18:34 -0700 (PDT)
-Date: Fri, 30 May 2014 23:18:31 +0200
+Received: from mail-pb0-f45.google.com (mail-pb0-f45.google.com [209.85.160.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 7F96C6B0035
+	for <linux-mm@kvack.org>; Fri, 30 May 2014 17:23:09 -0400 (EDT)
+Received: by mail-pb0-f45.google.com with SMTP id um1so2140576pbc.4
+        for <linux-mm@kvack.org>; Fri, 30 May 2014 14:23:09 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id cx2si7141812pbc.138.2014.05.30.14.23.08
+        for <linux-mm@kvack.org>;
+        Fri, 30 May 2014 14:23:08 -0700 (PDT)
 From: Andi Kleen <andi@firstfloor.org>
-Subject: Re: [PATCH] page_alloc: skip cpuset enforcement for lower zone
- allocations (v5)
-Message-ID: <20140530211831.GN25366@two.firstfloor.org>
-References: <20140523193706.GA22854@amt.cnet>
- <20140526185344.GA19976@amt.cnet>
- <53858A06.8080507@huawei.com>
- <20140528224324.GA1132@amt.cnet>
- <20140529184303.GA20571@amt.cnet>
- <alpine.DEB.2.02.1405291555120.9336@chino.kir.corp.google.com>
- <20140529232819.GA29803@amt.cnet>
- <alpine.DEB.2.02.1405291638300.9336@chino.kir.corp.google.com>
- <alpine.DEB.2.10.1405300849190.8240@gentwo.org>
+Subject: Re: [RFC 2/2] x86_64: expand kernel stack to 16K
+References: <1401260039-18189-1-git-send-email-minchan@kernel.org>
+	<1401260039-18189-2-git-send-email-minchan@kernel.org>
+	<CA+55aFxXdc22dirnE49UbQP_2s2vLQpjQFL+NptuyK7Xry6c=g@mail.gmail.com>
+Date: Fri, 30 May 2014 14:23:04 -0700
+In-Reply-To: <CA+55aFxXdc22dirnE49UbQP_2s2vLQpjQFL+NptuyK7Xry6c=g@mail.gmail.com>
+	(Linus Torvalds's message of "Wed, 28 May 2014 09:09:23 -0700")
+Message-ID: <8738frt0zr.fsf@tassilo.jf.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1405300849190.8240@gentwo.org>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@gentwo.org>
-Cc: David Rientjes <rientjes@google.com>, Marcelo Tosatti <mtosatti@redhat.com>, Li Zefan <lizefan@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Lai Jiangshan <laijs@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Minchan Kim <minchan@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Rusty Russell <rusty@rustcorp.com.au>, "Michael S. Tsirkin" <mst@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Steven Rostedt <rostedt@goodmis.org>
 
-On Fri, May 30, 2014 at 08:50:56AM -0500, Christoph Lameter wrote:
-> On Thu, 29 May 2014, David Rientjes wrote:
-> 
-> > When I said that my point about mempolicies needs more thought, I wasn't
-> > expecting that there would be no discussion -- at least _something_ that
-> > would say why we don't care about the mempolicy case.
-> 
-> Lets get Andi involved here too.
+Linus Torvalds <torvalds@linux-foundation.org> writes:
 
-I'm not fully sure about the use case for this. On the NUMA systems
-I'm aware of usually only node 0 has <4GB, so mem policy
-is pointless.
+> From a quick glance at the frame usage, some of it seems to be gcc
+> being rather bad at stack allocation, but lots of it is just nasty
+> spilling around the disgusting call-sites with tons or arguments. A
+> _lot_ of the stack slots are marked as "%sfp" (which is gcc'ese for
+> "spill frame pointer", afaik).
 
-But anyways it seems ok to me to ignore mempolicies. Mempolicies
-are primarily for user space, which doesn't use GFP_DMA32.
+> Avoiding some inlining, and using a single flag value rather than the
+> collection of "bool"s would probably help. But nothing really
+> trivially obvious stands out.
 
--ANdi
+One thing that may be worth playing around with gcc's
+--param large-stack-frame and --param large-stack-frame-growth
+
+This tells the inliner when to stop inlining when too much
+stack would be used.
+
+We use conserve stack I believe. So perhaps smaller values than 100
+and 400 would make sense to try.
+
+       -fconserve-stack
+           Attempt to minimize stack usage.  The compiler attempts to
+           use less stack space, even if that makes the program slower.
+           This option
+           implies setting the large-stack-frame parameter to 100 and
+           the large-stack-frame-growth parameter to 400.
+
+
+-Andi
+
+-- 
+ak@linux.intel.com -- Speaking for myself only
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
