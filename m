@@ -1,338 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 48EEE6B0035
-	for <linux-mm@kvack.org>; Fri, 30 May 2014 00:14:22 -0400 (EDT)
-Received: by mail-wg0-f45.google.com with SMTP id m15so1328619wgh.4
-        for <linux-mm@kvack.org>; Thu, 29 May 2014 21:14:21 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id kp8si5656813wjb.72.2014.05.29.21.14.20
-        for <linux-mm@kvack.org>;
-        Thu, 29 May 2014 21:14:20 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH 1/2] hugetlb: restrict hugepage_migration_support() to x86_64
-Date: Fri, 30 May 2014 00:13:51 -0400
-Message-Id: <1401423232-25198-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <5387f561.8983e50a.1ead.ffff85b1SMTPIN_ADDED_BROKEN@mx.google.com>
+Received: from mail-vc0-f171.google.com (mail-vc0-f171.google.com [209.85.220.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F6AE6B003A
+	for <linux-mm@kvack.org>; Fri, 30 May 2014 00:37:04 -0400 (EDT)
+Received: by mail-vc0-f171.google.com with SMTP id lc6so1495999vcb.30
+        for <linux-mm@kvack.org>; Thu, 29 May 2014 21:37:03 -0700 (PDT)
+Received: from mail-vc0-x22d.google.com (mail-vc0-x22d.google.com [2607:f8b0:400c:c03::22d])
+        by mx.google.com with ESMTPS id t10si2243639ven.41.2014.05.29.21.37.03
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 29 May 2014 21:37:03 -0700 (PDT)
+Received: by mail-vc0-f173.google.com with SMTP id il7so1486081vcb.4
+        for <linux-mm@kvack.org>; Thu, 29 May 2014 21:37:03 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <20140530021247.GR10092@bbox>
+References: <1401260039-18189-1-git-send-email-minchan@kernel.org>
+	<1401260039-18189-2-git-send-email-minchan@kernel.org>
+	<CA+55aFxXdc22dirnE49UbQP_2s2vLQpjQFL+NptuyK7Xry6c=g@mail.gmail.com>
+	<20140528223142.GO8554@dastard>
+	<CA+55aFyRk6_v6COPGVvu6hvt=i2A8-dPcs1X3Ydn1g24AxbPkg@mail.gmail.com>
+	<20140529013007.GF6677@dastard>
+	<20140529015830.GG6677@dastard>
+	<20140529233638.GJ10092@bbox>
+	<20140530001558.GB14410@dastard>
+	<20140530021247.GR10092@bbox>
+Date: Thu, 29 May 2014 21:37:02 -0700
+Message-ID: <CA+55aFzzHS9YSzZpxMoF1vwoBh+NxLE26Tr2OC38=PsB8Mjwig@mail.gmail.com>
+Subject: Re: [RFC 2/2] x86_64: expand kernel stack to 16K
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Hugh Dickins <hughd@google.com>, Michael Ellerman <mpe@ellerman.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Tony Luck <tony.luck@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, trinity@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Dave Chinner <david@fromorbit.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Rusty Russell <rusty@rustcorp.com.au>, "Michael S. Tsirkin" <mst@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Steven Rostedt <rostedt@goodmis.org>
 
-Curretly hugepage migration is available for all archs which support pmd-level
-hugepage, but testing is done only for x86_64 and there're bugs for other archs.
-So to avoid breaking such archs, this patch limits the availability strictly to
-x86_64 until developers of other archs get interested in enabling this feature.
+On Thu, May 29, 2014 at 7:12 PM, Minchan Kim <minchan@kernel.org> wrote:
+>
+> Interim report,
+>
+> And result is as follows, It reduce about 800-byte compared to
+> my first report but still stack usage seems to be high.
+> Really needs diet of VM functions.
 
-Simply disabling hugepage migration on non-x86_64 archs is not enough to fix
-the reported problem where sys_move_pages() hits the BUG_ON() in
-follow_page(FOLL_GET), so let's fix this by checking if hugepage migration is
-supported in vma_migratable().
+Yes. And in this case uninlining things might actually help, because
+the it's not actually performing reclaim in the second case, so
+inlining the reclaim code into that huge __alloc_pages_nodemask()
+function means that it has the stack frame for all those cases even if
+they don't actually get used.
 
-ChangeLog:
-- add VM_HUGETLB check in vma_migratable()
-- fix dependency in config ARCH_ENABLE_HUGEPAGE_MIGRATION
-- remove comment on hugepage_migration_support()
+That said, the way those functions are set up (with lots of arguments
+passed from one to the other), not inlining will cause huge costs too
+for the argument setup.
 
-Reported-by: Michael Ellerman <mpe@ellerman.id.au>
-Tested-by: Michael Ellerman <mpe@ellerman.id.au>
-Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: stable@vger.kernel.org # 3.12+
----
- arch/arm/mm/hugetlbpage.c     |  5 -----
- arch/arm64/mm/hugetlbpage.c   |  5 -----
- arch/ia64/mm/hugetlbpage.c    |  5 -----
- arch/metag/mm/hugetlbpage.c   |  5 -----
- arch/mips/mm/hugetlbpage.c    |  5 -----
- arch/powerpc/mm/hugetlbpage.c | 10 ----------
- arch/s390/mm/hugetlbpage.c    |  5 -----
- arch/sh/mm/hugetlbpage.c      |  5 -----
- arch/sparc/mm/hugetlbpage.c   |  5 -----
- arch/tile/mm/hugetlbpage.c    |  5 -----
- arch/x86/Kconfig              |  4 ++++
- arch/x86/mm/hugetlbpage.c     | 10 ----------
- include/linux/hugetlb.h       | 13 +++++--------
- include/linux/mempolicy.h     |  6 ++++++
- mm/Kconfig                    |  3 +++
- 15 files changed, 18 insertions(+), 73 deletions(-)
+It really might be very good to create a "struct alloc_info" that
+contains those shared arguments, and just pass a (const) pointer to
+that around. Gcc would likely tend to be *much* better at generating
+code for that, because it avoids a tons of temporaries being created
+by function calls. Even when it's inlined, the argument itself ends up
+being a new temporary internally, and I suspect one reason gcc
+(especially your 4.6.3 version, apparently) generates those big spill
+frames is because there's tons of these duplicate temporaries that
+apparently don't get merged properly.
 
-diff --git v3.15-rc5.orig/arch/arm/mm/hugetlbpage.c v3.15-rc5/arch/arm/mm/hugetlbpage.c
-index 54ee6163c181..66781bf34077 100644
---- v3.15-rc5.orig/arch/arm/mm/hugetlbpage.c
-+++ v3.15-rc5/arch/arm/mm/hugetlbpage.c
-@@ -56,8 +56,3 @@ int pmd_huge(pmd_t pmd)
- {
- 	return pmd_val(pmd) && !(pmd_val(pmd) & PMD_TABLE_BIT);
- }
--
--int pmd_huge_support(void)
--{
--	return 1;
--}
-diff --git v3.15-rc5.orig/arch/arm64/mm/hugetlbpage.c v3.15-rc5/arch/arm64/mm/hugetlbpage.c
-index 5e9aec358306..2fc8258bab2d 100644
---- v3.15-rc5.orig/arch/arm64/mm/hugetlbpage.c
-+++ v3.15-rc5/arch/arm64/mm/hugetlbpage.c
-@@ -54,11 +54,6 @@ int pud_huge(pud_t pud)
- 	return !(pud_val(pud) & PUD_TABLE_BIT);
- }
- 
--int pmd_huge_support(void)
--{
--	return 1;
--}
--
- static __init int setup_hugepagesz(char *opt)
- {
- 	unsigned long ps = memparse(opt, &opt);
-diff --git v3.15-rc5.orig/arch/ia64/mm/hugetlbpage.c v3.15-rc5/arch/ia64/mm/hugetlbpage.c
-index 68232db98baa..76069c18ee42 100644
---- v3.15-rc5.orig/arch/ia64/mm/hugetlbpage.c
-+++ v3.15-rc5/arch/ia64/mm/hugetlbpage.c
-@@ -114,11 +114,6 @@ int pud_huge(pud_t pud)
- 	return 0;
- }
- 
--int pmd_huge_support(void)
--{
--	return 0;
--}
--
- struct page *
- follow_huge_pmd(struct mm_struct *mm, unsigned long address, pmd_t *pmd, int write)
- {
-diff --git v3.15-rc5.orig/arch/metag/mm/hugetlbpage.c v3.15-rc5/arch/metag/mm/hugetlbpage.c
-index 042431509b56..3c52fa6d0f8e 100644
---- v3.15-rc5.orig/arch/metag/mm/hugetlbpage.c
-+++ v3.15-rc5/arch/metag/mm/hugetlbpage.c
-@@ -110,11 +110,6 @@ int pud_huge(pud_t pud)
- 	return 0;
- }
- 
--int pmd_huge_support(void)
--{
--	return 1;
--}
--
- struct page *follow_huge_pmd(struct mm_struct *mm, unsigned long address,
- 			     pmd_t *pmd, int write)
- {
-diff --git v3.15-rc5.orig/arch/mips/mm/hugetlbpage.c v3.15-rc5/arch/mips/mm/hugetlbpage.c
-index 77e0ae036e7c..4ec8ee10d371 100644
---- v3.15-rc5.orig/arch/mips/mm/hugetlbpage.c
-+++ v3.15-rc5/arch/mips/mm/hugetlbpage.c
-@@ -84,11 +84,6 @@ int pud_huge(pud_t pud)
- 	return (pud_val(pud) & _PAGE_HUGE) != 0;
- }
- 
--int pmd_huge_support(void)
--{
--	return 1;
--}
--
- struct page *
- follow_huge_pmd(struct mm_struct *mm, unsigned long address,
- 		pmd_t *pmd, int write)
-diff --git v3.15-rc5.orig/arch/powerpc/mm/hugetlbpage.c v3.15-rc5/arch/powerpc/mm/hugetlbpage.c
-index eb923654ba80..7e70ae968e5f 100644
---- v3.15-rc5.orig/arch/powerpc/mm/hugetlbpage.c
-+++ v3.15-rc5/arch/powerpc/mm/hugetlbpage.c
-@@ -86,11 +86,6 @@ int pgd_huge(pgd_t pgd)
- 	 */
- 	return ((pgd_val(pgd) & 0x3) != 0x0);
- }
--
--int pmd_huge_support(void)
--{
--	return 1;
--}
- #else
- int pmd_huge(pmd_t pmd)
- {
-@@ -106,11 +101,6 @@ int pgd_huge(pgd_t pgd)
- {
- 	return 0;
- }
--
--int pmd_huge_support(void)
--{
--	return 0;
--}
- #endif
- 
- pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
-diff --git v3.15-rc5.orig/arch/s390/mm/hugetlbpage.c v3.15-rc5/arch/s390/mm/hugetlbpage.c
-index 0727a55d87d9..0ff66a7e29bb 100644
---- v3.15-rc5.orig/arch/s390/mm/hugetlbpage.c
-+++ v3.15-rc5/arch/s390/mm/hugetlbpage.c
-@@ -220,11 +220,6 @@ int pud_huge(pud_t pud)
- 	return 0;
- }
- 
--int pmd_huge_support(void)
--{
--	return 1;
--}
--
- struct page *follow_huge_pmd(struct mm_struct *mm, unsigned long address,
- 			     pmd_t *pmdp, int write)
- {
-diff --git v3.15-rc5.orig/arch/sh/mm/hugetlbpage.c v3.15-rc5/arch/sh/mm/hugetlbpage.c
-index 0d676a41081e..d7762349ea48 100644
---- v3.15-rc5.orig/arch/sh/mm/hugetlbpage.c
-+++ v3.15-rc5/arch/sh/mm/hugetlbpage.c
-@@ -83,11 +83,6 @@ int pud_huge(pud_t pud)
- 	return 0;
- }
- 
--int pmd_huge_support(void)
--{
--	return 0;
--}
--
- struct page *follow_huge_pmd(struct mm_struct *mm, unsigned long address,
- 			     pmd_t *pmd, int write)
- {
-diff --git v3.15-rc5.orig/arch/sparc/mm/hugetlbpage.c v3.15-rc5/arch/sparc/mm/hugetlbpage.c
-index 9bd9ce80bf77..d329537739c6 100644
---- v3.15-rc5.orig/arch/sparc/mm/hugetlbpage.c
-+++ v3.15-rc5/arch/sparc/mm/hugetlbpage.c
-@@ -231,11 +231,6 @@ int pud_huge(pud_t pud)
- 	return 0;
- }
- 
--int pmd_huge_support(void)
--{
--	return 0;
--}
--
- struct page *follow_huge_pmd(struct mm_struct *mm, unsigned long address,
- 			     pmd_t *pmd, int write)
- {
-diff --git v3.15-rc5.orig/arch/tile/mm/hugetlbpage.c v3.15-rc5/arch/tile/mm/hugetlbpage.c
-index 0cb3bbaa580c..e514899e1100 100644
---- v3.15-rc5.orig/arch/tile/mm/hugetlbpage.c
-+++ v3.15-rc5/arch/tile/mm/hugetlbpage.c
-@@ -166,11 +166,6 @@ int pud_huge(pud_t pud)
- 	return !!(pud_val(pud) & _PAGE_HUGE_PAGE);
- }
- 
--int pmd_huge_support(void)
--{
--	return 1;
--}
--
- struct page *follow_huge_pmd(struct mm_struct *mm, unsigned long address,
- 			     pmd_t *pmd, int write)
- {
-diff --git v3.15-rc5.orig/arch/x86/Kconfig v3.15-rc5/arch/x86/Kconfig
-index 25d2c6f7325e..6b8b429c832f 100644
---- v3.15-rc5.orig/arch/x86/Kconfig
-+++ v3.15-rc5/arch/x86/Kconfig
-@@ -1871,6 +1871,10 @@ config ARCH_ENABLE_SPLIT_PMD_PTLOCK
- 	def_bool y
- 	depends on X86_64 || X86_PAE
- 
-+config ARCH_ENABLE_HUGEPAGE_MIGRATION
-+	def_bool y
-+	depends on X86_64 && HUGETLB_PAGE && MIGRATION
-+
- menu "Power management and ACPI options"
- 
- config ARCH_HIBERNATION_HEADER
-diff --git v3.15-rc5.orig/arch/x86/mm/hugetlbpage.c v3.15-rc5/arch/x86/mm/hugetlbpage.c
-index 8c9f647ff9e1..8b977ebf9388 100644
---- v3.15-rc5.orig/arch/x86/mm/hugetlbpage.c
-+++ v3.15-rc5/arch/x86/mm/hugetlbpage.c
-@@ -58,11 +58,6 @@ follow_huge_pmd(struct mm_struct *mm, unsigned long address,
- {
- 	return NULL;
- }
--
--int pmd_huge_support(void)
--{
--	return 0;
--}
- #else
- 
- struct page *
-@@ -80,11 +75,6 @@ int pud_huge(pud_t pud)
- {
- 	return !!(pud_val(pud) & _PAGE_PSE);
- }
--
--int pmd_huge_support(void)
--{
--	return 1;
--}
- #endif
- 
- #ifdef CONFIG_HUGETLB_PAGE
-diff --git v3.15-rc5.orig/include/linux/hugetlb.h v3.15-rc5/include/linux/hugetlb.h
-index 63214868c5b2..c9de64cf288d 100644
---- v3.15-rc5.orig/include/linux/hugetlb.h
-+++ v3.15-rc5/include/linux/hugetlb.h
-@@ -385,15 +385,13 @@ static inline pgoff_t basepage_index(struct page *page)
- 
- extern void dissolve_free_huge_pages(unsigned long start_pfn,
- 				     unsigned long end_pfn);
--int pmd_huge_support(void);
--/*
-- * Currently hugepage migration is enabled only for pmd-based hugepage.
-- * This function will be updated when hugepage migration is more widely
-- * supported.
-- */
- static inline int hugepage_migration_support(struct hstate *h)
- {
--	return pmd_huge_support() && (huge_page_shift(h) == PMD_SHIFT);
-+#ifdef CONFIG_ARCH_ENABLE_HUGEPAGE_MIGRATION
-+	return huge_page_shift(h) == PMD_SHIFT;
-+#else
-+	return 0;
-+#endif
- }
- 
- static inline spinlock_t *huge_pte_lockptr(struct hstate *h,
-@@ -443,7 +441,6 @@ static inline pgoff_t basepage_index(struct page *page)
- 	return page->index;
- }
- #define dissolve_free_huge_pages(s, e)	do {} while (0)
--#define pmd_huge_support()	0
- #define hugepage_migration_support(h)	0
- 
- static inline spinlock_t *huge_pte_lockptr(struct hstate *h,
-diff --git v3.15-rc5.orig/include/linux/mempolicy.h v3.15-rc5/include/linux/mempolicy.h
-index 3c1b968da0ca..f230a978e6ba 100644
---- v3.15-rc5.orig/include/linux/mempolicy.h
-+++ v3.15-rc5/include/linux/mempolicy.h
-@@ -175,6 +175,12 @@ static inline int vma_migratable(struct vm_area_struct *vma)
- {
- 	if (vma->vm_flags & (VM_IO | VM_PFNMAP))
- 		return 0;
-+
-+#ifndef CONFIG_ARCH_ENABLE_HUGEPAGE_MIGRATION
-+	if (vma->vm_flags & VM_HUGETLB)
-+		return 0;
-+#endif
-+
- 	/*
- 	 * Migration allocates pages in the highest zone. If we cannot
- 	 * do so then migration (at least from node to node) is not
-diff --git v3.15-rc5.orig/mm/Kconfig v3.15-rc5/mm/Kconfig
-index ebe5880c29d6..1e22701c972b 100644
---- v3.15-rc5.orig/mm/Kconfig
-+++ v3.15-rc5/mm/Kconfig
-@@ -264,6 +264,9 @@ config MIGRATION
- 	  pages as migration can relocate pages to satisfy a huge page
- 	  allocation instead of reclaiming.
- 
-+config ARCH_ENABLE_HUGEPAGE_MIGRATION
-+	boolean
-+
- config PHYS_ADDR_T_64BIT
- 	def_bool 64BIT || ARCH_PHYS_ADDR_T_64BIT
- 
--- 
-1.9.3
+Ugh. I think I'll try looking at that tomorrow.
+
+                Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
