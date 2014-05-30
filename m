@@ -1,66 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ve0-f177.google.com (mail-ve0-f177.google.com [209.85.128.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B42E6B0037
-	for <linux-mm@kvack.org>; Fri, 30 May 2014 14:28:06 -0400 (EDT)
-Received: by mail-ve0-f177.google.com with SMTP id db11so2547274veb.22
-        for <linux-mm@kvack.org>; Fri, 30 May 2014 11:28:06 -0700 (PDT)
-Received: from qmta10.emeryville.ca.mail.comcast.net (qmta10.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:17])
-        by mx.google.com with ESMTP id fa1si3742187vcb.39.2014.05.30.11.28.05
+Received: from mail-ve0-f182.google.com (mail-ve0-f182.google.com [209.85.128.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 4232D6B0038
+	for <linux-mm@kvack.org>; Fri, 30 May 2014 14:28:08 -0400 (EDT)
+Received: by mail-ve0-f182.google.com with SMTP id sa20so2630217veb.27
+        for <linux-mm@kvack.org>; Fri, 30 May 2014 11:28:08 -0700 (PDT)
+Received: from qmta02.emeryville.ca.mail.comcast.net (qmta02.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:24])
+        by mx.google.com with ESMTP id na9si3755940vcb.64.2014.05.30.11.28.07
         for <linux-mm@kvack.org>;
-        Fri, 30 May 2014 11:28:06 -0700 (PDT)
-Message-Id: <20140530182801.319225508@linux.com>
-Date: Fri, 30 May 2014 13:27:54 -0500
+        Fri, 30 May 2014 11:28:07 -0700 (PDT)
+Message-Id: <20140530182801.436674724@linux.com>
+Date: Fri, 30 May 2014 13:27:55 -0500
 From: Christoph Lameter <cl@linux.com>
-Subject: [PATCH 1/4] slab common: Add functions for kmem_cache_node access
+Subject: [PATCH 2/4] slub: Use new node functions
 References: <20140530182753.191965442@linux.com>
 Content-Type: text/plain; charset=UTF-8
-Content-Disposition: inline; filename=common_node_functions
+Content-Disposition: inline; filename=common_slub_node
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Pekka Enberg <penberg@kernel.org>
 Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>
 
-These functions allow to eliminate repeatedly used code in both
-SLAB and SLUB and also allow for the insertion of debugging code
-that may be needed in the development process.
+Make use of the new node functions in mm/slab.h
 
 Signed-off-by: Christoph Lameter <cl@linux.com>
 
-Index: linux/mm/slab.h
-===================================================================
---- linux.orig/mm/slab.h	2014-05-30 13:12:01.444370238 -0500
-+++ linux/mm/slab.h	2014-05-30 13:12:01.444370238 -0500
-@@ -288,5 +288,14 @@ struct kmem_cache_node {
- 
- };
- 
-+static inline struct kmem_cache_node *get_node(struct kmem_cache *s, int node)
-+{
-+	return s->node[node];
-+}
-+
-+#define for_each_kmem_cache_node(s, node, n) \
-+	for (node = 0; n = get_node(s, node), node < nr_node_ids; node++) \
-+		 if (n)
-+
- void *slab_next(struct seq_file *m, void *p, loff_t *pos);
- void slab_stop(struct seq_file *m, void *p);
 Index: linux/mm/slub.c
 ===================================================================
---- linux.orig/mm/slub.c	2014-05-30 13:10:55.000000000 -0500
-+++ linux/mm/slub.c	2014-05-30 13:12:12.628022255 -0500
-@@ -233,11 +233,6 @@ static inline void stat(const struct kme
-  * 			Core slab cache functions
-  *******************************************************************/
+--- linux.orig/mm/slub.c	2014-05-30 13:15:30.541864121 -0500
++++ linux/mm/slub.c	2014-05-30 13:15:30.541864121 -0500
+@@ -2148,6 +2148,7 @@ static noinline void
+ slab_out_of_memory(struct kmem_cache *s, gfp_t gfpflags, int nid)
+ {
+ 	int node;
++	struct kmem_cache_node *n;
  
--static inline struct kmem_cache_node *get_node(struct kmem_cache *s, int node)
--{
--	return s->node[node];
--}
+ 	printk(KERN_WARNING
+ 		"SLUB: Unable to allocate memory on node %d (gfp=0x%x)\n",
+@@ -2160,15 +2161,11 @@ slab_out_of_memory(struct kmem_cache *s,
+ 		printk(KERN_WARNING "  %s debugging increased min order, use "
+ 		       "slub_debug=O to disable.\n", s->name);
+ 
+-	for_each_online_node(node) {
+-		struct kmem_cache_node *n = get_node(s, node);
++	for_each_kmem_cache_node(s, node, n) {
+ 		unsigned long nr_slabs;
+ 		unsigned long nr_objs;
+ 		unsigned long nr_free;
+ 
+-		if (!n)
+-			continue;
 -
- /* Verify that a pointer has an address that is valid within a slab page */
- static inline int check_valid_pointer(struct kmem_cache *s,
- 				struct page *page, const void *object)
+ 		nr_free  = count_partial(n, count_free);
+ 		nr_slabs = node_nr_slabs(n);
+ 		nr_objs  = node_nr_objs(n);
+@@ -4376,16 +4373,12 @@ static ssize_t show_slab_objects(struct
+ static int any_slab_objects(struct kmem_cache *s)
+ {
+ 	int node;
++	struct kmem_cache_node *n;
+ 
+-	for_each_online_node(node) {
+-		struct kmem_cache_node *n = get_node(s, node);
+-
+-		if (!n)
+-			continue;
+-
++	for_each_kmem_cache_node(s, node, n)
+ 		if (atomic_long_read(&n->total_objects))
+ 			return 1;
+-	}
++
+ 	return 0;
+ }
+ #endif
+@@ -5340,12 +5333,9 @@ void get_slabinfo(struct kmem_cache *s,
+ 	unsigned long nr_objs = 0;
+ 	unsigned long nr_free = 0;
+ 	int node;
++	struct kmem_cache_node *n;
+ 
+-	for_each_online_node(node) {
+-		struct kmem_cache_node *n = get_node(s, node);
+-
+-		if (!n)
+-			continue;
++	for_each_kmem_cache_node(s, node, n) {
+ 
+ 		nr_slabs += node_nr_slabs(n);
+ 		nr_objs += node_nr_objs(n);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
