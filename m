@@ -1,113 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f180.google.com (mail-lb0-f180.google.com [209.85.217.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 60FB66B0035
-	for <linux-mm@kvack.org>; Fri, 30 May 2014 09:13:18 -0400 (EDT)
-Received: by mail-lb0-f180.google.com with SMTP id p9so974704lbv.25
-        for <linux-mm@kvack.org>; Fri, 30 May 2014 06:13:17 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id d5si10783215lbr.46.2014.05.30.06.13.14
+Received: from mail-vc0-f181.google.com (mail-vc0-f181.google.com [209.85.220.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 8DFB56B0035
+	for <linux-mm@kvack.org>; Fri, 30 May 2014 09:48:45 -0400 (EDT)
+Received: by mail-vc0-f181.google.com with SMTP id hq11so108919vcb.40
+        for <linux-mm@kvack.org>; Fri, 30 May 2014 06:48:45 -0700 (PDT)
+Received: from qmta14.emeryville.ca.mail.comcast.net (qmta14.emeryville.ca.mail.comcast.net. [2001:558:fe2d:44:76:96:27:212])
+        by mx.google.com with ESMTP id t3si2937435vcx.5.2014.05.30.06.48.44
         for <linux-mm@kvack.org>;
-        Fri, 30 May 2014 06:13:15 -0700 (PDT)
-Date: Fri, 30 May 2014 10:12:43 -0300
-From: Marcelo Tosatti <mtosatti@redhat.com>
+        Fri, 30 May 2014 06:48:44 -0700 (PDT)
+Date: Fri, 30 May 2014 08:48:41 -0500 (CDT)
+From: Christoph Lameter <cl@gentwo.org>
 Subject: Re: [PATCH] page_alloc: skip cpuset enforcement for lower zone
- allocations (v5)
-Message-ID: <20140530131243.GA30110@amt.cnet>
-References: <20140523193706.GA22854@amt.cnet>
- <20140526185344.GA19976@amt.cnet>
- <53858A06.8080507@huawei.com>
- <20140528224324.GA1132@amt.cnet>
- <20140529184303.GA20571@amt.cnet>
- <alpine.DEB.2.02.1405291555120.9336@chino.kir.corp.google.com>
- <20140529232819.GA29803@amt.cnet>
- <alpine.DEB.2.02.1405291638300.9336@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.02.1405291638300.9336@chino.kir.corp.google.com>
+ allocations (v4)
+In-Reply-To: <20140529161253.73ff978f723972f503123fe8@linux-foundation.org>
+Message-ID: <alpine.DEB.2.10.1405300841390.8240@gentwo.org>
+References: <20140523193706.GA22854@amt.cnet> <20140526185344.GA19976@amt.cnet> <53858A06.8080507@huawei.com> <20140528224324.GA1132@amt.cnet> <20140529184303.GA20571@amt.cnet> <alpine.DEB.2.02.1405291555120.9336@chino.kir.corp.google.com>
+ <20140529161253.73ff978f723972f503123fe8@linux-foundation.org>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Li Zefan <lizefan@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Lai Jiangshan <laijs@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: David Rientjes <rientjes@google.com>, Marcelo Tosatti <mtosatti@redhat.com>, Li Zefan <lizefan@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Lai Jiangshan <laijs@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Andi Kleen <andi@firstfloor.org>
 
-On Thu, May 29, 2014 at 04:54:00PM -0700, David Rientjes wrote:
-> On Thu, 29 May 2014, Marcelo Tosatti wrote:
-> 
-> > diff --git a/kernel/cpuset.c b/kernel/cpuset.c
-> > index 3d54c41..3bbc23f 100644
-> > --- a/kernel/cpuset.c
-> > +++ b/kernel/cpuset.c
-> > @@ -2374,6 +2374,7 @@ static struct cpuset *nearest_hardwall_ancestor(struct cpuset *cs)
-> >   * variable 'wait' is not set, and the bit ALLOC_CPUSET is not set
-> >   * in alloc_flags.  That logic and the checks below have the combined
-> >   * affect that:
-> > + *	gfp_zone(mask) < policy_zone - any node ok
-> >   *	in_interrupt - any node ok (current task context irrelevant)
-> >   *	GFP_ATOMIC   - any node ok
-> >   *	TIF_MEMDIE   - any node ok
-> > @@ -2392,6 +2393,10 @@ int __cpuset_node_allowed_softwall(int node, gfp_t gfp_mask)
-> >  
-> >  	if (in_interrupt() || (gfp_mask & __GFP_THISNODE))
-> >  		return 1;
-> > +#ifdef CONFIG_NUMA
-> > +	if (gfp_zone(gfp_mask) < policy_zone)
-> > +		return 1;
-> > +#endif
-> >  	might_sleep_if(!(gfp_mask & __GFP_HARDWALL));
-> >  	if (node_isset(node, current->mems_allowed))
-> >  		return 1;
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > index 5dba293..0fd6923 100644
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -2723,6 +2723,11 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
-> >  	if (!memcg_kmem_newpage_charge(gfp_mask, &memcg, order))
-> >  		return NULL;
-> >  
-> > +#ifdef CONFIG_NUMA
-> > +	if (!nodemask && gfp_zone(gfp_mask) < policy_zone)
-> > +		nodemask = &node_states[N_MEMORY];
-> > +#endif
-> > +
-> >  retry_cpuset:
-> >  	cpuset_mems_cookie = read_mems_allowed_begin();
-> >  
-> 
-> When I said that my point about mempolicies needs more thought, I wasn't 
-> expecting that there would be no discussion -- at least _something_ that 
-> would say why we don't care about the mempolicy case.
+On Thu, 29 May 2014, Andrew Morton wrote:
 
-We care about the mempolicy case, and that is taken care of by
-apply_policy_zone.
+> >
+> > 	if (!nodemask && gfp_zone(gfp_mask) < policy_zone)
+> > 		nodemask = &node_states[N_ONLINE];
+>
+> OK, thanks, I made the patch go away for now.
+>
 
-Or does that code fail to handle a particular case ?
+And another issue is that the policy_zone may be highmem on 32 bit
+platforms which will result in ZONE_NORMAL to be exempted.
 
-> The motivation here is identical for both cpusets and mempolicies.  What 
-> is the significant difference between attaching a process to a cpuset 
-> without access to lowmem and a process doing set_mempolicy(MPOL_BIND) 
-> without access to lowmem?  Is it because the process should know what it's 
-> doing if it asks for a mempolicy that doesn't include lowmem?  If so, is 
-> the cpusets case different because the cpuset attacher isn't held to the 
-> same standard?
-> 
-> I'd argue that an application may never know if it needs to allocate 
-> GFP_DMA32 or not since its a property of the hardware that its running on 
-> and my driver may need to access lowmem while yours may not.  I may even 
-> configure CONFIG_ZONE_DMA=n and CONFIG_ZONE_DMA32=n because I know the 
-> _hardware_ requirements of my platforms.
-> 
-> If there is no difference, then why are we allowing the exception for 
-> cpusets and not mempolicies?
-> 
-> I really think you want to allow both cpusets and mempolicies.  I'd like 
-> to hear Christoph's thoughts on it as well, though.
-> 
-> Furthermore, I don't know why you're opposed to the comments that Andrew 
-> added here.  In the first version of this patch, I suggested a comment and 
-> you referred to a kernel/cpuset.c comment.  Nowhere in the above change to 
-> the page allocator would make anyone think of cpusets or what it is trying 
-> to do.  Please comment the code accordingly so your intention is 
-> understood for everybody else who happens upon your code.
+policy zone can actually even be ZONE_DMA for some platforms. The
+check would not be useful at all on those.
+
+Ignoring the containing cpuset only makes sense for GFP_DMA32 on
+64 bit platforms and for GFP_DMA on platforms where there is an actual
+difference in the address spaces supported by GFP_DMA (such as x86).
+
+Generally I think this is only useful for platforms that attempt to
+support legacy devices only able to DMA to a portion of the memory address
+space and that at the same time support NUMA for large address spaces.
+This is a contradiction on the one hand this is a high end system and on
+the other hand it attempts to support crippled DMA devices?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
