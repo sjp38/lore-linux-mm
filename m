@@ -1,107 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f50.google.com (mail-qg0-f50.google.com [209.85.192.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D41A6B0035
-	for <linux-mm@kvack.org>; Thu, 29 May 2014 23:05:06 -0400 (EDT)
-Received: by mail-qg0-f50.google.com with SMTP id z60so3737211qgd.9
-        for <linux-mm@kvack.org>; Thu, 29 May 2014 20:05:05 -0700 (PDT)
+Received: from mail-qg0-f48.google.com (mail-qg0-f48.google.com [209.85.192.48])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C39A6B0035
+	for <linux-mm@kvack.org>; Fri, 30 May 2014 00:14:20 -0400 (EDT)
+Received: by mail-qg0-f48.google.com with SMTP id i50so3787162qgf.21
+        for <linux-mm@kvack.org>; Thu, 29 May 2014 21:14:20 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id x9si3522343qcs.20.2014.05.29.20.05.05
+        by mx.google.com with ESMTP id i10si3719246qgd.66.2014.05.29.21.14.19
         for <linux-mm@kvack.org>;
-        Thu, 29 May 2014 20:05:05 -0700 (PDT)
-Message-ID: <5387f561.8983e50a.1ead.ffff85b1SMTPIN_ADDED_BROKEN@mx.google.com>
+        Thu, 29 May 2014 21:14:20 -0700 (PDT)
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH] hugetlb: restrict hugepage_migration_support() to x86_64 (Re: BUG at mm/memory.c:1489!)
-Date: Thu, 29 May 2014 23:04:50 -0400
-In-Reply-To: <1401413716.29324.2.camel@concordia>
-References: <1401265922.3355.4.camel@concordia> <alpine.LSU.2.11.1405281712310.7156@eggly.anvils> <1401353983.4930.15.camel@concordia> <1401388474-mqnis5cp@n-horiguchi@ah.jp.nec.com> <1401413716.29324.2.camel@concordia>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+Subject: [PATCH 2/2] hugetlb: rename hugepage_migration_support() to ..._supported()
+Date: Fri, 30 May 2014 00:13:52 -0400
+Message-Id: <1401423232-25198-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1401423232-25198-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+References: <1401423232-25198-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <5387f561.8983e50a.1ead.ffff85b1SMTPIN_ADDED_BROKEN@mx.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mpe@ellerman.id.au
-Cc: Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, benh@kernel.crashing.org, Tony Luck <tony.luck@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, trinity@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Hugh Dickins <hughd@google.com>, Michael Ellerman <mpe@ellerman.id.au>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Tony Luck <tony.luck@intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, trinity@vger.kernel.org
 
-On Fri, May 30, 2014 at 11:35:16AM +1000, Michael Ellerman wrote:
-> On Thu, 2014-05-29 at 14:34 -0400, Naoya Horiguchi wrote:
-> > On Thu, May 29, 2014 at 06:59:43PM +1000, Michael Ellerman wrote:
-> > > Applying your patch and running trinity pretty immediately results in the
-> > > following, which looks related (sys_move_pages() again) ?
-> > >
-> > > Unable to handle kernel paging request for data at address 0xf2000f80000000
-> > > Faulting instruction address: 0xc0000000001e29bc
-> > > cpu 0x1b: Vector: 300 (Data Access) at [c0000003c70f76f0]
-> > >     pc: c0000000001e29bc: .remove_migration_pte+0x9c/0x320
-> > >     lr: c0000000001e29b8: .remove_migration_pte+0x98/0x320
-> > >     sp: c0000003c70f7970
-> > >    msr: 8000000000009032
-> > >    dar: f2000f80000000
-> > >  dsisr: 40000000
-> > >   current = 0xc0000003f9045800
-> > >   paca    = 0xc000000001dc6c00   softe: 0        irq_happened: 0x01
-> > >     pid   = 3585, comm = trinity-c27
-> > > enter ? for help
-> > > [c0000003c70f7a20] c0000000001bce88 .rmap_walk+0x328/0x470
-> > > [c0000003c70f7ae0] c0000000001e2904 .remove_migration_ptes+0x44/0x60
-> > > [c0000003c70f7b80] c0000000001e4ce8 .migrate_pages+0x6d8/0xa00
-> > > [c0000003c70f7cc0] c0000000001e55ec .SyS_move_pages+0x5dc/0x7d0
-> > > [c0000003c70f7e30] c00000000000a1d8 syscall_exit+0x0/0x98
-> > > --- Exception: c01 (System Call) at 00003fff7b2b30a8
-> > > SP (3fffe09728a0) is in userspace
-> > > 1b:mon>
-> >
-> > Sorry for inconvenience on your testing.
->  
-> That's fine, it's good to find bugs :)
-> 
-> > Hugepage migration is enabled for archs which have pmd-level hugepage
-> > (including ppc64,) but not tested except for x86_64.
-> > hugepage_migration_support() controls this so the following patch should
-> > help you avoid the problem, I believe.
-> > Could you try to test with it?
-> 
-> Sure. So this patch, in addition to Hugh's patch to remove the BUG_ON(), does
-> avoid the crash above (remove_migration_pte()).
-> 
-> I dropped Hugh's patch, as he has decided he doesn't like it, and added the
-> following hunk instead:
-> 
-> diff --git a/include/linux/mempolicy.h b/include/linux/mempolicy.h
-> index 3c1b968..f230a97 100644
-> --- a/include/linux/mempolicy.h
-> +++ b/include/linux/mempolicy.h
-> @@ -175,6 +175,12 @@ static inline int vma_migratable(struct vm_area_struct *vma)
->  {
->         if (vma->vm_flags & (VM_IO | VM_PFNMAP))
->                 return 0;
-> +
-> +#ifndef CONFIG_ARCH_ENABLE_HUGEPAGE_MIGRATION
-> +       if (vma->vm_flags & VM_HUGETLB)
-> +               return 0;
-> +#endif
-> +
->         /*
->          * Migration allocates pages in the highest zone. If we cannot
->          * do so then migration (at least from node to node) is not
-> 
-> 
-> Which seems to be what Hugh was referring to in his mail - correct me if I'm
-> wrong Hugh.
-> 
-> With your patch and the above hunk I can run trinity happily for a while,
-> whereas without it crashes almost immediately.
+We already have a function named hugepage_supported(), and the similar
+name hugepage_migration_support() is a bit unconfortable, so let's rename
+it hugepage_migration_supported().
 
-Great.
+Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+---
+ include/linux/hugetlb.h | 4 ++--
+ mm/hugetlb.c            | 2 +-
+ mm/migrate.c            | 2 +-
+ 3 files changed, 4 insertions(+), 4 deletions(-)
 
-> So with the above hunk you can add my tested-by.
-
-OK, thank you for your help.
-
-I'll post the revised patch later.
-
-Thanks,
-Naoya Horiguchi
+diff --git v3.15-rc5.orig/include/linux/hugetlb.h v3.15-rc5/include/linux/hugetlb.h
+index c9de64cf288d..9d35e514312b 100644
+--- v3.15-rc5.orig/include/linux/hugetlb.h
++++ v3.15-rc5/include/linux/hugetlb.h
+@@ -385,7 +385,7 @@ static inline pgoff_t basepage_index(struct page *page)
+ 
+ extern void dissolve_free_huge_pages(unsigned long start_pfn,
+ 				     unsigned long end_pfn);
+-static inline int hugepage_migration_support(struct hstate *h)
++static inline int hugepage_migration_supported(struct hstate *h)
+ {
+ #ifdef CONFIG_ARCH_ENABLE_HUGEPAGE_MIGRATION
+ 	return huge_page_shift(h) == PMD_SHIFT;
+@@ -441,7 +441,7 @@ static inline pgoff_t basepage_index(struct page *page)
+ 	return page->index;
+ }
+ #define dissolve_free_huge_pages(s, e)	do {} while (0)
+-#define hugepage_migration_support(h)	0
++#define hugepage_migration_supported(h)	0
+ 
+ static inline spinlock_t *huge_pte_lockptr(struct hstate *h,
+ 					   struct mm_struct *mm, pte_t *pte)
+diff --git v3.15-rc5.orig/mm/hugetlb.c v3.15-rc5/mm/hugetlb.c
+index ea42b584661a..83d936d12c1d 100644
+--- v3.15-rc5.orig/mm/hugetlb.c
++++ v3.15-rc5/mm/hugetlb.c
+@@ -545,7 +545,7 @@ static struct page *dequeue_huge_page_node(struct hstate *h, int nid)
+ /* Movability of hugepages depends on migration support. */
+ static inline gfp_t htlb_alloc_mask(struct hstate *h)
+ {
+-	if (hugepages_treat_as_movable || hugepage_migration_support(h))
++	if (hugepages_treat_as_movable || hugepage_migration_supported(h))
+ 		return GFP_HIGHUSER_MOVABLE;
+ 	else
+ 		return GFP_HIGHUSER;
+diff --git v3.15-rc5.orig/mm/migrate.c v3.15-rc5/mm/migrate.c
+index bed48809e5d0..15b589ae6aaf 100644
+--- v3.15-rc5.orig/mm/migrate.c
++++ v3.15-rc5/mm/migrate.c
+@@ -1031,7 +1031,7 @@ static int unmap_and_move_huge_page(new_page_t get_new_page,
+ 	 * tables or check whether the hugepage is pmd-based or not before
+ 	 * kicking migration.
+ 	 */
+-	if (!hugepage_migration_support(page_hstate(hpage))) {
++	if (!hugepage_migration_supported(page_hstate(hpage))) {
+ 		putback_active_hugepage(hpage);
+ 		return -ENOSYS;
+ 	}
+-- 
+1.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
