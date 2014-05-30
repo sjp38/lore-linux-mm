@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f46.google.com (mail-la0-f46.google.com [209.85.215.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 6BBB16B0037
-	for <linux-mm@kvack.org>; Fri, 30 May 2014 09:51:18 -0400 (EDT)
-Received: by mail-la0-f46.google.com with SMTP id ec20so1047990lab.33
-        for <linux-mm@kvack.org>; Fri, 30 May 2014 06:51:17 -0700 (PDT)
+Received: from mail-la0-f41.google.com (mail-la0-f41.google.com [209.85.215.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 37F0D6B0037
+	for <linux-mm@kvack.org>; Fri, 30 May 2014 09:51:19 -0400 (EDT)
+Received: by mail-la0-f41.google.com with SMTP id e16so1045653lan.0
+        for <linux-mm@kvack.org>; Fri, 30 May 2014 06:51:18 -0700 (PDT)
 Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id nv6si11116835lbb.29.2014.05.30.06.51.16
+        by mx.google.com with ESMTPS id wy8si11126462lbb.21.2014.05.30.06.51.16
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Fri, 30 May 2014 06:51:16 -0700 (PDT)
 From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH -mm 8/8] slab: reap dead memcg caches aggressively
-Date: Fri, 30 May 2014 17:51:11 +0400
-Message-ID: <23a736c90a81e13a2252d35d9fc3dc04a9ed7d7c.1401457502.git.vdavydov@parallels.com>
+Subject: [PATCH -mm 5/8] slab: remove kmem_cache_shrink retval
+Date: Fri, 30 May 2014 17:51:08 +0400
+Message-ID: <d2bbd28ae0f0c1807f9fe72d0443eccb739b8aa6.1401457502.git.vdavydov@parallels.com>
 In-Reply-To: <cover.1401457502.git.vdavydov@parallels.com>
 References: <cover.1401457502.git.vdavydov@parallels.com>
 MIME-Version: 1.0
@@ -22,75 +22,140 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
 Cc: cl@linux.com, hannes@cmpxchg.org, mhocko@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-There is no use in keeping free objects/slabs on dead memcg caches,
-because they will never be allocated. So let's make cache_reap() shrink
-as many free objects from such caches as possible.
-
-Note the difference between SLAB and SLUB handling of dead memcg caches.
-For SLUB, dead cache destruction is scheduled as soon as the last object
-is freed, because dead caches do not cache free objects. For SLAB, dead
-caches can keep some free objects on per cpu arrays, so that an empty
-dead cache will be hanging around until cache_reap() drains it.
-
-We don't disable free objects caching for SLAB, because it would force
-kfree to always take a spin lock, which would degrade performance
-significantly.
-
-Since cache_reap() drains all caches once ~4 secs on each CPU, empty
-dead caches will die quickly.
+First, nobody uses it. Second, it differs across the implementations:
+for SLUB it always returns 0, for SLAB it returns 0 if the cache appears
+to be empty. So let's get rid of it.
 
 Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
 ---
- mm/slab.c |   17 ++++++++++++-----
- 1 file changed, 12 insertions(+), 5 deletions(-)
+ include/linux/slab.h |    2 +-
+ mm/slab.c            |   11 ++++++++---
+ mm/slab.h            |    2 +-
+ mm/slab_common.c     |    8 ++------
+ mm/slob.c            |    3 +--
+ mm/slub.c            |    3 +--
+ 6 files changed, 14 insertions(+), 15 deletions(-)
 
+diff --git a/include/linux/slab.h b/include/linux/slab.h
+index d99d5212b815..d88ae36e2a15 100644
+--- a/include/linux/slab.h
++++ b/include/linux/slab.h
+@@ -121,7 +121,7 @@ struct kmem_cache *memcg_create_kmem_cache(struct mem_cgroup *,
+ 					   const char *);
+ #endif
+ void kmem_cache_destroy(struct kmem_cache *);
+-int kmem_cache_shrink(struct kmem_cache *);
++void kmem_cache_shrink(struct kmem_cache *);
+ void kmem_cache_free(struct kmem_cache *, void *);
+ 
+ /*
 diff --git a/mm/slab.c b/mm/slab.c
-index cecc01bba389..d81e46316c99 100644
+index 9ca3b87edabc..cecc01bba389 100644
 --- a/mm/slab.c
 +++ b/mm/slab.c
-@@ -3985,6 +3985,11 @@ static void cache_reap(struct work_struct *w)
- 		goto out;
+@@ -2478,7 +2478,7 @@ out:
+ 	return nr_freed;
+ }
  
- 	list_for_each_entry(searchp, &slab_caches, list) {
-+		int force = 0;
+-int __kmem_cache_shrink(struct kmem_cache *cachep)
++static int __cache_shrink(struct kmem_cache *cachep)
+ {
+ 	int ret = 0, i = 0;
+ 	struct kmem_cache_node *n;
+@@ -2499,12 +2499,17 @@ int __kmem_cache_shrink(struct kmem_cache *cachep)
+ 	return (ret ? 1 : 0);
+ }
+ 
++void __kmem_cache_shrink(struct kmem_cache *cachep)
++{
++	__cache_shrink(cachep);
++}
 +
-+		if (memcg_cache_dead(searchp))
-+			force = 1;
-+
- 		check_irq_on();
+ int __kmem_cache_shutdown(struct kmem_cache *cachep)
+ {
+-	int i;
++	int i, rc;
+ 	struct kmem_cache_node *n;
+-	int rc = __kmem_cache_shrink(cachep);
  
- 		/*
-@@ -3996,7 +4001,7 @@ static void cache_reap(struct work_struct *w)
++	rc = __cache_shrink(cachep);
+ 	if (rc)
+ 		return rc;
  
- 		reap_alien(searchp, n);
+diff --git a/mm/slab.h b/mm/slab.h
+index 9515cc520bf8..c03d707033b7 100644
+--- a/mm/slab.h
++++ b/mm/slab.h
+@@ -91,7 +91,7 @@ __kmem_cache_alias(const char *name, size_t size, size_t align,
+ #define CACHE_CREATE_MASK (SLAB_CORE_FLAGS | SLAB_DEBUG_FLAGS | SLAB_CACHE_FLAGS)
  
--		drain_array(searchp, n, cpu_cache_get(searchp), 0, node);
-+		drain_array(searchp, n, cpu_cache_get(searchp), force, node);
+ int __kmem_cache_shutdown(struct kmem_cache *);
+-int __kmem_cache_shrink(struct kmem_cache *);
++void __kmem_cache_shrink(struct kmem_cache *);
+ void slab_kmem_cache_release(struct kmem_cache *);
  
- 		/*
- 		 * These are racy checks but it does not matter
-@@ -4007,15 +4012,17 @@ static void cache_reap(struct work_struct *w)
+ struct seq_file;
+diff --git a/mm/slab_common.c b/mm/slab_common.c
+index 735e01a0db6f..015fa1d854a9 100644
+--- a/mm/slab_common.c
++++ b/mm/slab_common.c
+@@ -380,18 +380,14 @@ EXPORT_SYMBOL(kmem_cache_destroy);
+  * @cachep: The cache to shrink.
+  *
+  * Releases as many slabs as possible for a cache.
+- * To help debugging, a zero exit status indicates all slabs were released.
+  */
+-int kmem_cache_shrink(struct kmem_cache *cachep)
++void kmem_cache_shrink(struct kmem_cache *cachep)
+ {
+-	int ret;
+-
+ 	get_online_cpus();
+ 	get_online_mems();
+-	ret = __kmem_cache_shrink(cachep);
++	__kmem_cache_shrink(cachep);
+ 	put_online_mems();
+ 	put_online_cpus();
+-	return ret;
+ }
+ EXPORT_SYMBOL(kmem_cache_shrink);
  
- 		n->next_reap = jiffies + REAPTIMEOUT_NODE;
+diff --git a/mm/slob.c b/mm/slob.c
+index 21980e0f39a8..bb6471f26640 100644
+--- a/mm/slob.c
++++ b/mm/slob.c
+@@ -620,9 +620,8 @@ int __kmem_cache_shutdown(struct kmem_cache *c)
+ 	return 0;
+ }
  
--		drain_array(searchp, n, n->shared, 0, node);
-+		drain_array(searchp, n, n->shared, force, node);
+-int __kmem_cache_shrink(struct kmem_cache *d)
++void __kmem_cache_shrink(struct kmem_cache *d)
+ {
+-	return 0;
+ }
  
- 		if (n->free_touched)
- 			n->free_touched = 0;
- 		else {
--			int freed;
-+			int freed, tofree;
-+
-+			tofree = force ? slabs_tofree(searchp, n) :
-+				DIV_ROUND_UP(n->free_limit, 5 * searchp->num);
+ struct kmem_cache kmem_cache_boot = {
+diff --git a/mm/slub.c b/mm/slub.c
+index d9976ea93710..2fc84853bffb 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -3396,7 +3396,7 @@ EXPORT_SYMBOL(kfree);
+  * being allocated from last increasing the chance that the last objects
+  * are freed in them.
+  */
+-int __kmem_cache_shrink(struct kmem_cache *s)
++void __kmem_cache_shrink(struct kmem_cache *s)
+ {
+ 	int node;
+ 	int i;
+@@ -3457,7 +3457,6 @@ int __kmem_cache_shrink(struct kmem_cache *s)
+ 	}
  
--			freed = drain_freelist(searchp, n, (n->free_limit +
--				5 * searchp->num - 1) / (5 * searchp->num));
-+			freed = drain_freelist(searchp, n, tofree);
- 			STATS_ADD_REAPED(searchp, freed);
- 		}
- next:
+ 	kfree(slabs_by_inuse);
+-	return 0;
+ }
+ 
+ static int slab_mem_going_offline_callback(void *arg)
 -- 
 1.7.10.4
 
