@@ -1,59 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vc0-f170.google.com (mail-vc0-f170.google.com [209.85.220.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 99B236B0037
-	for <linux-mm@kvack.org>; Fri, 30 May 2014 09:50:59 -0400 (EDT)
-Received: by mail-vc0-f170.google.com with SMTP id la4so2113553vcb.29
-        for <linux-mm@kvack.org>; Fri, 30 May 2014 06:50:59 -0700 (PDT)
-Received: from qmta07.emeryville.ca.mail.comcast.net (qmta07.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:64])
-        by mx.google.com with ESMTP id uk3si3044544vec.102.2014.05.30.06.50.58
-        for <linux-mm@kvack.org>;
-        Fri, 30 May 2014 06:50:59 -0700 (PDT)
-Date: Fri, 30 May 2014 08:50:56 -0500 (CDT)
-From: Christoph Lameter <cl@gentwo.org>
-Subject: Re: [PATCH] page_alloc: skip cpuset enforcement for lower zone
- allocations (v5)
-In-Reply-To: <alpine.DEB.2.02.1405291638300.9336@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.10.1405300849190.8240@gentwo.org>
-References: <20140523193706.GA22854@amt.cnet> <20140526185344.GA19976@amt.cnet> <53858A06.8080507@huawei.com> <20140528224324.GA1132@amt.cnet> <20140529184303.GA20571@amt.cnet> <alpine.DEB.2.02.1405291555120.9336@chino.kir.corp.google.com>
- <20140529232819.GA29803@amt.cnet> <alpine.DEB.2.02.1405291638300.9336@chino.kir.corp.google.com>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-la0-f46.google.com (mail-la0-f46.google.com [209.85.215.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 6BBB16B0037
+	for <linux-mm@kvack.org>; Fri, 30 May 2014 09:51:18 -0400 (EDT)
+Received: by mail-la0-f46.google.com with SMTP id ec20so1047990lab.33
+        for <linux-mm@kvack.org>; Fri, 30 May 2014 06:51:17 -0700 (PDT)
+Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
+        by mx.google.com with ESMTPS id nv6si11116835lbb.29.2014.05.30.06.51.16
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 30 May 2014 06:51:16 -0700 (PDT)
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: [PATCH -mm 8/8] slab: reap dead memcg caches aggressively
+Date: Fri, 30 May 2014 17:51:11 +0400
+Message-ID: <23a736c90a81e13a2252d35d9fc3dc04a9ed7d7c.1401457502.git.vdavydov@parallels.com>
+In-Reply-To: <cover.1401457502.git.vdavydov@parallels.com>
+References: <cover.1401457502.git.vdavydov@parallels.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Marcelo Tosatti <mtosatti@redhat.com>, Li Zefan <lizefan@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Lai Jiangshan <laijs@cn.fujitsu.com>, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>
+To: akpm@linux-foundation.org
+Cc: cl@linux.com, hannes@cmpxchg.org, mhocko@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, 29 May 2014, David Rientjes wrote:
+There is no use in keeping free objects/slabs on dead memcg caches,
+because they will never be allocated. So let's make cache_reap() shrink
+as many free objects from such caches as possible.
 
-> When I said that my point about mempolicies needs more thought, I wasn't
-> expecting that there would be no discussion -- at least _something_ that
-> would say why we don't care about the mempolicy case.
+Note the difference between SLAB and SLUB handling of dead memcg caches.
+For SLUB, dead cache destruction is scheduled as soon as the last object
+is freed, because dead caches do not cache free objects. For SLAB, dead
+caches can keep some free objects on per cpu arrays, so that an empty
+dead cache will be hanging around until cache_reap() drains it.
 
-Lets get Andi involved here too.
+We don't disable free objects caching for SLAB, because it would force
+kfree to always take a spin lock, which would degrade performance
+significantly.
 
-> The motivation here is identical for both cpusets and mempolicies.  What
-> is the significant difference between attaching a process to a cpuset
-> without access to lowmem and a process doing set_mempolicy(MPOL_BIND)
-> without access to lowmem?  Is it because the process should know what it's
-> doing if it asks for a mempolicy that doesn't include lowmem?  If so, is
-> the cpusets case different because the cpuset attacher isn't held to the
-> same standard?
->
-> I'd argue that an application may never know if it needs to allocate
-> GFP_DMA32 or not since its a property of the hardware that its running on
-> and my driver may need to access lowmem while yours may not.  I may even
-> configure CONFIG_ZONE_DMA=n and CONFIG_ZONE_DMA32=n because I know the
-> _hardware_ requirements of my platforms.
+Since cache_reap() drains all caches once ~4 secs on each CPU, empty
+dead caches will die quickly.
 
-Right. This is a hardware issue and the hardware is pretty messed up. And
-now one wants to use NUMA features?
+Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
+---
+ mm/slab.c |   17 ++++++++++++-----
+ 1 file changed, 12 insertions(+), 5 deletions(-)
 
-> If there is no difference, then why are we allowing the exception for
-> cpusets and not mempolicies?
->
-> I really think you want to allow both cpusets and mempolicies.  I'd like
-> to hear Christoph's thoughts on it as well, though.
-
-I said something elsewhere in the thread.
+diff --git a/mm/slab.c b/mm/slab.c
+index cecc01bba389..d81e46316c99 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -3985,6 +3985,11 @@ static void cache_reap(struct work_struct *w)
+ 		goto out;
+ 
+ 	list_for_each_entry(searchp, &slab_caches, list) {
++		int force = 0;
++
++		if (memcg_cache_dead(searchp))
++			force = 1;
++
+ 		check_irq_on();
+ 
+ 		/*
+@@ -3996,7 +4001,7 @@ static void cache_reap(struct work_struct *w)
+ 
+ 		reap_alien(searchp, n);
+ 
+-		drain_array(searchp, n, cpu_cache_get(searchp), 0, node);
++		drain_array(searchp, n, cpu_cache_get(searchp), force, node);
+ 
+ 		/*
+ 		 * These are racy checks but it does not matter
+@@ -4007,15 +4012,17 @@ static void cache_reap(struct work_struct *w)
+ 
+ 		n->next_reap = jiffies + REAPTIMEOUT_NODE;
+ 
+-		drain_array(searchp, n, n->shared, 0, node);
++		drain_array(searchp, n, n->shared, force, node);
+ 
+ 		if (n->free_touched)
+ 			n->free_touched = 0;
+ 		else {
+-			int freed;
++			int freed, tofree;
++
++			tofree = force ? slabs_tofree(searchp, n) :
++				DIV_ROUND_UP(n->free_limit, 5 * searchp->num);
+ 
+-			freed = drain_freelist(searchp, n, (n->free_limit +
+-				5 * searchp->num - 1) / (5 * searchp->num));
++			freed = drain_freelist(searchp, n, tofree);
+ 			STATS_ADD_REAPED(searchp, freed);
+ 		}
+ next:
+-- 
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
