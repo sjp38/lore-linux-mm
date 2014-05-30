@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f41.google.com (mail-la0-f41.google.com [209.85.215.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 37F0D6B0037
+Received: from mail-la0-f47.google.com (mail-la0-f47.google.com [209.85.215.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B1F16B003B
 	for <linux-mm@kvack.org>; Fri, 30 May 2014 09:51:19 -0400 (EDT)
-Received: by mail-la0-f41.google.com with SMTP id e16so1045653lan.0
+Received: by mail-la0-f47.google.com with SMTP id pn19so1035542lab.34
         for <linux-mm@kvack.org>; Fri, 30 May 2014 06:51:18 -0700 (PDT)
 Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id wy8si11126462lbb.21.2014.05.30.06.51.16
+        by mx.google.com with ESMTPS id l4si5606192laf.21.2014.05.30.06.51.16
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 30 May 2014 06:51:16 -0700 (PDT)
+        Fri, 30 May 2014 06:51:17 -0700 (PDT)
 From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH -mm 5/8] slab: remove kmem_cache_shrink retval
-Date: Fri, 30 May 2014 17:51:08 +0400
-Message-ID: <d2bbd28ae0f0c1807f9fe72d0443eccb739b8aa6.1401457502.git.vdavydov@parallels.com>
+Subject: [PATCH -mm 4/8] slub: never fail kmem_cache_shrink
+Date: Fri, 30 May 2014 17:51:07 +0400
+Message-ID: <ac8907cace921c3209aa821649349106f4f70b34.1401457502.git.vdavydov@parallels.com>
 In-Reply-To: <cover.1401457502.git.vdavydov@parallels.com>
 References: <cover.1401457502.git.vdavydov@parallels.com>
 MIME-Version: 1.0
@@ -22,140 +22,106 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
 Cc: cl@linux.com, hannes@cmpxchg.org, mhocko@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-First, nobody uses it. Second, it differs across the implementations:
-for SLUB it always returns 0, for SLAB it returns 0 if the cache appears
-to be empty. So let's get rid of it.
+SLUB's kmem_cache_shrink not only removes empty slabs from the cache,
+but also sorts slabs by the number of objects in-use to cope with
+fragmentation. To achieve that, it tries to allocate a temporary array.
+If it fails, it will abort the whole procedure.
+
+This is unacceptable for kmemcg, where we want to be sure that all empty
+slabs are removed from the cache on memcg offline, so let's just skip
+the de-fragmentation step if the allocation fails, but still get rid of
+empty slabs.
 
 Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
 ---
- include/linux/slab.h |    2 +-
- mm/slab.c            |   11 ++++++++---
- mm/slab.h            |    2 +-
- mm/slab_common.c     |    8 ++------
- mm/slob.c            |    3 +--
- mm/slub.c            |    3 +--
- 6 files changed, 14 insertions(+), 15 deletions(-)
+ mm/slub.c |   39 +++++++++++++++++++++------------------
+ 1 file changed, 21 insertions(+), 18 deletions(-)
 
-diff --git a/include/linux/slab.h b/include/linux/slab.h
-index d99d5212b815..d88ae36e2a15 100644
---- a/include/linux/slab.h
-+++ b/include/linux/slab.h
-@@ -121,7 +121,7 @@ struct kmem_cache *memcg_create_kmem_cache(struct mem_cgroup *,
- 					   const char *);
- #endif
- void kmem_cache_destroy(struct kmem_cache *);
--int kmem_cache_shrink(struct kmem_cache *);
-+void kmem_cache_shrink(struct kmem_cache *);
- void kmem_cache_free(struct kmem_cache *, void *);
- 
- /*
-diff --git a/mm/slab.c b/mm/slab.c
-index 9ca3b87edabc..cecc01bba389 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -2478,7 +2478,7 @@ out:
- 	return nr_freed;
- }
- 
--int __kmem_cache_shrink(struct kmem_cache *cachep)
-+static int __cache_shrink(struct kmem_cache *cachep)
- {
- 	int ret = 0, i = 0;
- 	struct kmem_cache_node *n;
-@@ -2499,12 +2499,17 @@ int __kmem_cache_shrink(struct kmem_cache *cachep)
- 	return (ret ? 1 : 0);
- }
- 
-+void __kmem_cache_shrink(struct kmem_cache *cachep)
-+{
-+	__cache_shrink(cachep);
-+}
-+
- int __kmem_cache_shutdown(struct kmem_cache *cachep)
- {
--	int i;
-+	int i, rc;
- 	struct kmem_cache_node *n;
--	int rc = __kmem_cache_shrink(cachep);
- 
-+	rc = __cache_shrink(cachep);
- 	if (rc)
- 		return rc;
- 
-diff --git a/mm/slab.h b/mm/slab.h
-index 9515cc520bf8..c03d707033b7 100644
---- a/mm/slab.h
-+++ b/mm/slab.h
-@@ -91,7 +91,7 @@ __kmem_cache_alias(const char *name, size_t size, size_t align,
- #define CACHE_CREATE_MASK (SLAB_CORE_FLAGS | SLAB_DEBUG_FLAGS | SLAB_CACHE_FLAGS)
- 
- int __kmem_cache_shutdown(struct kmem_cache *);
--int __kmem_cache_shrink(struct kmem_cache *);
-+void __kmem_cache_shrink(struct kmem_cache *);
- void slab_kmem_cache_release(struct kmem_cache *);
- 
- struct seq_file;
-diff --git a/mm/slab_common.c b/mm/slab_common.c
-index 735e01a0db6f..015fa1d854a9 100644
---- a/mm/slab_common.c
-+++ b/mm/slab_common.c
-@@ -380,18 +380,14 @@ EXPORT_SYMBOL(kmem_cache_destroy);
-  * @cachep: The cache to shrink.
-  *
-  * Releases as many slabs as possible for a cache.
-- * To help debugging, a zero exit status indicates all slabs were released.
-  */
--int kmem_cache_shrink(struct kmem_cache *cachep)
-+void kmem_cache_shrink(struct kmem_cache *cachep)
- {
--	int ret;
--
- 	get_online_cpus();
- 	get_online_mems();
--	ret = __kmem_cache_shrink(cachep);
-+	__kmem_cache_shrink(cachep);
- 	put_online_mems();
- 	put_online_cpus();
--	return ret;
- }
- EXPORT_SYMBOL(kmem_cache_shrink);
- 
-diff --git a/mm/slob.c b/mm/slob.c
-index 21980e0f39a8..bb6471f26640 100644
---- a/mm/slob.c
-+++ b/mm/slob.c
-@@ -620,9 +620,8 @@ int __kmem_cache_shutdown(struct kmem_cache *c)
- 	return 0;
- }
- 
--int __kmem_cache_shrink(struct kmem_cache *d)
-+void __kmem_cache_shrink(struct kmem_cache *d)
- {
--	return 0;
- }
- 
- struct kmem_cache kmem_cache_boot = {
 diff --git a/mm/slub.c b/mm/slub.c
-index d9976ea93710..2fc84853bffb 100644
+index d96faa2464c3..d9976ea93710 100644
 --- a/mm/slub.c
 +++ b/mm/slub.c
-@@ -3396,7 +3396,7 @@ EXPORT_SYMBOL(kfree);
-  * being allocated from last increasing the chance that the last objects
-  * are freed in them.
-  */
--int __kmem_cache_shrink(struct kmem_cache *s)
-+void __kmem_cache_shrink(struct kmem_cache *s)
- {
- 	int node;
- 	int i;
-@@ -3457,7 +3457,6 @@ int __kmem_cache_shrink(struct kmem_cache *s)
+@@ -3404,12 +3404,16 @@ int __kmem_cache_shrink(struct kmem_cache *s)
+ 	struct page *page;
+ 	struct page *t;
+ 	int objects = oo_objects(s->max);
+-	struct list_head *slabs_by_inuse =
+-		kmalloc(sizeof(struct list_head) * objects, GFP_KERNEL);
++	LIST_HEAD(empty_slabs);
++	struct list_head *slabs_by_inuse;
+ 	unsigned long flags;
+ 
+-	if (!slabs_by_inuse)
+-		return -ENOMEM;
++	slabs_by_inuse = kcalloc(objects - 1, sizeof(struct list_head),
++				 GFP_KERNEL);
++	if (slabs_by_inuse) {
++		for (i = 0; i < objects - 1; i++)
++			INIT_LIST_HEAD(slabs_by_inuse + i);
++	}
+ 
+ 	flush_all(s);
+ 	for_each_node_state(node, N_NORMAL_MEMORY) {
+@@ -3418,9 +3422,6 @@ int __kmem_cache_shrink(struct kmem_cache *s)
+ 		if (!n->nr_partial)
+ 			continue;
+ 
+-		for (i = 0; i < objects; i++)
+-			INIT_LIST_HEAD(slabs_by_inuse + i);
+-
+ 		spin_lock_irqsave(&n->list_lock, flags);
+ 
+ 		/*
+@@ -3430,22 +3431,28 @@ int __kmem_cache_shrink(struct kmem_cache *s)
+ 		 * list_lock. page->inuse here is the upper limit.
+ 		 */
+ 		list_for_each_entry_safe(page, t, &n->partial, lru) {
+-			list_move(&page->lru, slabs_by_inuse + page->inuse);
+-			if (!page->inuse)
++			if (!page->inuse) {
++				list_move(&page->lru, &empty_slabs);
+ 				n->nr_partial--;
++			} else if (slabs_by_inuse)
++				list_move(&page->lru,
++					  slabs_by_inuse + page->inuse - 1);
+ 		}
+ 
+ 		/*
+ 		 * Rebuild the partial list with the slabs filled up most
+ 		 * first and the least used slabs at the end.
+ 		 */
+-		for (i = objects - 1; i > 0; i--)
+-			list_splice(slabs_by_inuse + i, n->partial.prev);
++		if (slabs_by_inuse) {
++			for (i = objects - 2; i >= 0; i--)
++				list_splice_tail_init(slabs_by_inuse + i,
++						      &n->partial);
++		}
+ 
+ 		spin_unlock_irqrestore(&n->list_lock, flags);
+ 
+ 		/* Release empty slabs */
+-		list_for_each_entry_safe(page, t, slabs_by_inuse, lru)
++		list_for_each_entry_safe(page, t, &empty_slabs, lru)
+ 			discard_slab(s, page);
  	}
  
- 	kfree(slabs_by_inuse);
--	return 0;
+@@ -4780,13 +4787,9 @@ static ssize_t shrink_show(struct kmem_cache *s, char *buf)
+ static ssize_t shrink_store(struct kmem_cache *s,
+ 			const char *buf, size_t length)
+ {
+-	if (buf[0] == '1') {
+-		int rc = kmem_cache_shrink(s);
+-
+-		if (rc)
+-			return rc;
+-	} else
++	if (buf[0] != '1')
+ 		return -EINVAL;
++	kmem_cache_shrink(s);
+ 	return length;
  }
- 
- static int slab_mem_going_offline_callback(void *arg)
+ SLAB_ATTR(shrink);
 -- 
 1.7.10.4
 
