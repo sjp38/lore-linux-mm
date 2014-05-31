@@ -1,95 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f49.google.com (mail-la0-f49.google.com [209.85.215.49])
-	by kanga.kvack.org (Postfix) with ESMTP id B22EC6B0035
-	for <linux-mm@kvack.org>; Sat, 31 May 2014 06:18:38 -0400 (EDT)
-Received: by mail-la0-f49.google.com with SMTP id pv20so1534815lab.22
-        for <linux-mm@kvack.org>; Sat, 31 May 2014 03:18:37 -0700 (PDT)
+Received: from mail-lb0-f174.google.com (mail-lb0-f174.google.com [209.85.217.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 632D56B0035
+	for <linux-mm@kvack.org>; Sat, 31 May 2014 06:27:53 -0400 (EDT)
+Received: by mail-lb0-f174.google.com with SMTP id n15so1550661lbi.19
+        for <linux-mm@kvack.org>; Sat, 31 May 2014 03:27:52 -0700 (PDT)
 Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id sj6si9009512lac.80.2014.05.31.03.18.35
+        by mx.google.com with ESMTPS id v5si9083164lal.5.2014.05.31.03.27.50
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 31 May 2014 03:18:36 -0700 (PDT)
-Date: Sat, 31 May 2014 14:18:21 +0400
+        Sat, 31 May 2014 03:27:51 -0700 (PDT)
+Date: Sat, 31 May 2014 14:27:42 +0400
 From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: Re: [PATCH -mm 4/8] slub: never fail kmem_cache_shrink
-Message-ID: <20140531101819.GA25076@esperanza>
+Subject: Re: [PATCH -mm 5/8] slab: remove kmem_cache_shrink retval
+Message-ID: <20140531102740.GB25076@esperanza>
 References: <cover.1401457502.git.vdavydov@parallels.com>
- <ac8907cace921c3209aa821649349106f4f70b34.1401457502.git.vdavydov@parallels.com>
- <alpine.DEB.2.10.1405300937560.11943@gentwo.org>
+ <d2bbd28ae0f0c1807f9fe72d0443eccb739b8aa6.1401457502.git.vdavydov@parallels.com>
+ <alpine.DEB.2.10.1405300947170.11943@gentwo.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1405300937560.11943@gentwo.org>
+In-Reply-To: <alpine.DEB.2.10.1405300947170.11943@gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Christoph Lameter <cl@gentwo.org>
 Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, mhocko@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, May 30, 2014 at 09:46:33AM -0500, Christoph Lameter wrote:
+On Fri, May 30, 2014 at 09:49:55AM -0500, Christoph Lameter wrote:
 > On Fri, 30 May 2014, Vladimir Davydov wrote:
 > 
-> > SLUB's kmem_cache_shrink not only removes empty slabs from the cache,
-> > but also sorts slabs by the number of objects in-use to cope with
-> > fragmentation. To achieve that, it tries to allocate a temporary array.
-> > If it fails, it will abort the whole procedure.
+> > First, nobody uses it. Second, it differs across the implementations:
+> > for SLUB it always returns 0, for SLAB it returns 0 if the cache appears
+> > to be empty. So let's get rid of it.
 > 
-> If we cannot allocate a kernel structure that is mostly less than a page
-> size then we have much more important things to worry about.
+> Well slub returns an error code if it fails
 
-That's all fair, but that doesn't explain why we should fail shrinking
-unused slabs if we just couldn't do some unnecessary optimization? IMO,
-that's a behavior one wouldn't expect.
+... to sort slabs by the nubmer of objects in use, which is not even
+implied by the function declaration. Why can *shrinking*, which is what
+kmem_cache_shrink must do at first place, ever fail?
 
-> > This is unacceptable for kmemcg, where we want to be sure that all empty
-> > slabs are removed from the cache on memcg offline, so let's just skip
-> > the de-fragmentation step if the allocation fails, but still get rid of
-> > empty slabs.
-> 
-> Lets just try the shrink and log the fact that it failed? Try again later?
+> I am all in favor of making it consistent. The indication in SLAB that
+> the slab is empty may be useful. May return error code or the number
+> of slab pages in use?
 
-... which means more async workers, more complication to kmemcg code :-(
+We can, but why if nobody is going to use it?
 
-Sorry, but I just don't get why we can't make kmem_cache_shrink never
-fail? Is failing de-fragmentation, which is even not implied by the
-function declaration, so critical that should be noted? If so, we can
-return an error while still shrinking empty slabs...
+> Some of the code that is shared by the allocators here could be moved into
+> mm/slab_common.c. Put kmem_cache_shrink there and then have
+> __kmem_cache_shrink to the allocator specific things?
 
-If you just don't like the code after the patch, here is another, less
-intrusive version doing practically the same. Would it be better?
+Already did in scope of mm-commit 4fabfe86c4a5 ("slab: get_online_mems
+for kmem_cache_{create,destroy,shrink}") :-)
 
-diff --git a/mm/slub.c b/mm/slub.c
-index d96faa2464c3..e45af8c4fb7c 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -3404,12 +3404,15 @@ int __kmem_cache_shrink(struct kmem_cache *s)
- 	struct page *page;
- 	struct page *t;
- 	int objects = oo_objects(s->max);
-+	struct list_head empty_slabs;
- 	struct list_head *slabs_by_inuse =
- 		kmalloc(sizeof(struct list_head) * objects, GFP_KERNEL);
- 	unsigned long flags;
- 
--	if (!slabs_by_inuse)
--		return -ENOMEM;
-+	if (!slabs_by_inuse) {
-+		slabs_by_inuse = &empty_slabs;
-+		objects = 1;
-+	}
- 
- 	flush_all(s);
- 	for_each_node_state(node, N_NORMAL_MEMORY) {
-@@ -3430,7 +3433,9 @@ int __kmem_cache_shrink(struct kmem_cache *s)
- 		 * list_lock. page->inuse here is the upper limit.
- 		 */
- 		list_for_each_entry_safe(page, t, &n->partial, lru) {
--			list_move(&page->lru, slabs_by_inuse + page->inuse);
-+			if (page->inuse < objects)
-+				list_move(&page->lru,
-+					  slabs_by_inuse + page->inuse);
- 			if (!page->inuse)
- 				n->nr_partial--;
- 		}
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
