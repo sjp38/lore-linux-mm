@@ -1,58 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vc0-f178.google.com (mail-vc0-f178.google.com [209.85.220.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 5599B6B0035
-	for <linux-mm@kvack.org>; Fri, 30 May 2014 21:45:28 -0400 (EDT)
-Received: by mail-vc0-f178.google.com with SMTP id ij19so2967591vcb.37
-        for <linux-mm@kvack.org>; Fri, 30 May 2014 18:45:28 -0700 (PDT)
-Received: from mail-ve0-x22e.google.com (mail-ve0-x22e.google.com [2607:f8b0:400c:c01::22e])
-        by mx.google.com with ESMTPS id jv10si4522404veb.79.2014.05.30.18.45.27
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 33D716B0035
+	for <linux-mm@kvack.org>; Fri, 30 May 2014 22:06:58 -0400 (EDT)
+Received: by mail-pd0-f179.google.com with SMTP id fp1so1534225pdb.10
+        for <linux-mm@kvack.org>; Fri, 30 May 2014 19:06:57 -0700 (PDT)
+Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
+        by mx.google.com with ESMTPS id zf6si7912759pab.226.2014.05.30.19.06.56
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 30 May 2014 18:45:27 -0700 (PDT)
-Received: by mail-ve0-f174.google.com with SMTP id jw12so3026549veb.33
-        for <linux-mm@kvack.org>; Fri, 30 May 2014 18:45:27 -0700 (PDT)
+        Fri, 30 May 2014 19:06:56 -0700 (PDT)
+Received: by mail-pd0-f177.google.com with SMTP id g10so1528928pdj.36
+        for <linux-mm@kvack.org>; Fri, 30 May 2014 19:06:56 -0700 (PDT)
+Message-ID: <5389393D.2030305@kernel.dk>
+Date: Fri, 30 May 2014 20:06:53 -0600
+From: Jens Axboe <axboe@kernel.dk>
 MIME-Version: 1.0
-In-Reply-To: <CA+55aFzzHS9YSzZpxMoF1vwoBh+NxLE26Tr2OC38=PsB8Mjwig@mail.gmail.com>
-References: <1401260039-18189-1-git-send-email-minchan@kernel.org>
-	<1401260039-18189-2-git-send-email-minchan@kernel.org>
-	<CA+55aFxXdc22dirnE49UbQP_2s2vLQpjQFL+NptuyK7Xry6c=g@mail.gmail.com>
-	<20140528223142.GO8554@dastard>
-	<CA+55aFyRk6_v6COPGVvu6hvt=i2A8-dPcs1X3Ydn1g24AxbPkg@mail.gmail.com>
-	<20140529013007.GF6677@dastard>
-	<20140529015830.GG6677@dastard>
-	<20140529233638.GJ10092@bbox>
-	<20140530001558.GB14410@dastard>
-	<20140530021247.GR10092@bbox>
-	<CA+55aFzzHS9YSzZpxMoF1vwoBh+NxLE26Tr2OC38=PsB8Mjwig@mail.gmail.com>
-Date: Fri, 30 May 2014 18:45:27 -0700
-Message-ID: <CA+55aFxqJXZfGaspc0bNPQa_7x5kmGuHrQG8dRzta4YpLYqiBQ@mail.gmail.com>
 Subject: Re: [RFC 2/2] x86_64: expand kernel stack to 16K
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8
+References: <1401260039-18189-1-git-send-email-minchan@kernel.org>	<1401260039-18189-2-git-send-email-minchan@kernel.org>	<CA+55aFxXdc22dirnE49UbQP_2s2vLQpjQFL+NptuyK7Xry6c=g@mail.gmail.com>	<20140528223142.GO8554@dastard>	<CA+55aFyRk6_v6COPGVvu6hvt=i2A8-dPcs1X3Ydn1g24AxbPkg@mail.gmail.com>	<20140529013007.GF6677@dastard> <CA+55aFzdq2V-Q3WUV7hQJG8jBSAvBqdYLVTNtbD4ObVZ5yDRmw@mail.gmail.com>
+In-Reply-To: <CA+55aFzdq2V-Q3WUV7hQJG8jBSAvBqdYLVTNtbD4ObVZ5yDRmw@mail.gmail.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Dave Chinner <david@fromorbit.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Rusty Russell <rusty@rustcorp.com.au>, "Michael S. Tsirkin" <mst@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Steven Rostedt <rostedt@goodmis.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>, Dave Chinner <david@fromorbit.com>
+Cc: Minchan Kim <minchan@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Rusty Russell <rusty@rustcorp.com.au>, "Michael S. Tsirkin" <mst@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Steven Rostedt <rostedt@goodmis.org>
 
-On Thu, May 29, 2014 at 9:37 PM, Linus Torvalds
-<torvalds@linux-foundation.org> wrote:
+On 2014-05-28 20:42, Linus Torvalds wrote:
+>> Regardless of whether it is swap or something external queues the
+>> bio on the plug, perhaps we should look at why it's done inline
+>> rather than by kblockd, where it was moved because it was blowing
+>> the stack from schedule():
 >
-> It really might be very good to create a "struct alloc_info" that
-> contains those shared arguments, and just pass a (const) pointer to
-> that around. [ .. ]
+> So it sounds like we need to do this for io_schedule() too.
 >
-> Ugh. I think I'll try looking at that tomorrow.
+> In fact, we've generally found it to be a mistake every time we
+> "automatically" unblock some IO queue. And I'm not saying that because
+> of stack space, but because we've _often_ had the situation that eager
+> unblocking results in IO that could have been done as bigger requests.
 
-I did look at it, but the thing is horrible. I started on this
-something like ten times, and always ended up running away screaming.
-Some things are truly fixed (notably "order"), but most things end up
-changing subtly halfway through the callchain.
+We definitely need to auto-unplug on the schedule path, otherwise we run 
+into all sorts of trouble. But making it async off the IO schedule path 
+is fine. By definition, it's not latency sensitive if we are hitting 
+unplug on schedule. I'm pretty sure it was run inline on CPU concerns 
+here, as running inline is certainly cheaper than punting to kblockd.
 
-I might look at it some more later, but people may have noticed that I
-decided to just apply Minchan's original patch in the meantime. I'll
-make an rc8 this weekend..
+> Looking at that callchain, I have to say that ext4 doesn't look
+> horrible compared to the whole block layer and virtio.. Yes,
+> "ext4_writepages()" is using almost 400 bytes of stack, and most of
+> that seems to be due to:
+>
+>          struct mpage_da_data mpd;
+>          struct blk_plug plug;
 
-        Linus
+Plus blk_plug is pretty tiny as it is. I queued up a patch to kill the 
+magic part of it, since that's never caught any bugs. Only saves 8 
+bytes, but may as well take that. Especially if we end up with nested plugs.
+
+> Well, we've definitely have had some issues with deeper callchains
+> with md, but I suspect virtio might be worse, and the new blk-mq code
+> is lilkely worse in this respect too.
+
+I don't think blk-mq is worse than the older stack, in fact it should be 
+better. The call chains are shorter, and a lot less cruft on the stack. 
+Historically the stack issues have been nested devices, however. And for 
+sync IO, we do run it inline, so if the driver chews up a lot of stack, 
+well...
+
+Looks like I'm late here and the decision has been made to go 16K 
+stacks, which I think is a good one. We've been living on the edge (and 
+sometimes over) for heavy dm/md setups for a while, and have been 
+patching around that fact in the IO stack for years.
+
+
+-- 
+Jens Axboe
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
