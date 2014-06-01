@@ -1,55 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f180.google.com (mail-ie0-f180.google.com [209.85.223.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 32A516B0031
-	for <linux-mm@kvack.org>; Sun,  1 Jun 2014 10:08:58 -0400 (EDT)
-Received: by mail-ie0-f180.google.com with SMTP id tp5so3511508ieb.11
-        for <linux-mm@kvack.org>; Sun, 01 Jun 2014 07:08:57 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id ip7si16033472igb.37.2014.06.01.07.08.57
+Received: from mail-wg0-f50.google.com (mail-wg0-f50.google.com [74.125.82.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 53A8A6B0031
+	for <linux-mm@kvack.org>; Sun,  1 Jun 2014 15:32:43 -0400 (EDT)
+Received: by mail-wg0-f50.google.com with SMTP id x12so4141687wgg.21
+        for <linux-mm@kvack.org>; Sun, 01 Jun 2014 12:32:42 -0700 (PDT)
+Received: from casper.infradead.org (casper.infradead.org. [2001:770:15f::2])
+        by mx.google.com with ESMTPS id yx7si21910741wjc.120.2014.06.01.12.32.41
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sun, 01 Jun 2014 07:08:57 -0700 (PDT)
-Message-ID: <538B33D5.8070002@oracle.com>
-Date: Sun, 01 Jun 2014 10:08:21 -0400
-From: Sasha Levin <sasha.levin@oracle.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 01 Jun 2014 12:32:41 -0700 (PDT)
+Date: Sun, 1 Jun 2014 21:32:40 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: sleeping function warning from __put_anon_vma
+Message-ID: <20140601193240.GF16155@laptop.programming.kicks-ass.net>
+References: <20140530000944.GA29942@redhat.com>
+ <alpine.LSU.2.11.1405311321340.10272@eggly.anvils>
 MIME-Version: 1.0
-Subject: Re: mm,console: circular dependency between console_sem and zone
- lock
-References: <536AE5DC.6070307@oracle.com> <20140512162811.GD3685@quack.suse.cz>
-In-Reply-To: <20140512162811.GD3685@quack.suse.cz>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.11.1405311321340.10272@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Dave Jones <davej@redhat.com>, Steven Rostedt <rostedt@goodmis.org>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>
+To: Hugh Dickins <hughd@google.com>
+Cc: Dave Jones <davej@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 05/12/2014 12:28 PM, Jan Kara wrote:
-> On Wed 07-05-14 22:03:08, Sasha Levin wrote:
->> > Hi all,
->> > 
->> > While fuzzing with trinity inside a KVM tools guest running the latest -next
->> > kernel I've stumbled on the following spew:
->   Thanks for report. So the problem seems to be maginally valid but I'm not
-> 100% sure whom to blame :). So printk() code calls up() which calls
-> try_to_wake_up() under console_sem.lock spinlock. That function can take
-> rq->lock which is all expected.
+On Sat, May 31, 2014 at 01:33:13PM -0700, Hugh Dickins wrote:
+> [PATCH] mm: fix sleeping function warning from __put_anon_vma
 > 
-> The next part of the chain is that during CPU initialization we call
-> __sched_fork() with rq->lock which calls into hrtimer_init() which can
-> allocate memory which creates a dependency rq->lock => zone.lock.rlock.
+> Trinity reports BUG:
+> sleeping function called from invalid context at kernel/locking/rwsem.c:47
+> in_atomic(): 0, irqs_disabled(): 0, pid: 5787, name: trinity-c27
+> __might_sleep < down_write < __put_anon_vma < page_get_anon_vma <
+> migrate_pages < compact_zone < compact_zone_order < try_to_compact_pages ..
 > 
-> And memory management code calls printk() which zone.lock.rlock held which
-> closes the loop. Now I suspect the second link in the chain can happen only
-> while CPU is booting and might even happen only if some debug options are
-> enabled. But I don't really know scheduler code well enough. Steven?
+> Right, since conversion to mutex then rwsem, we should not put_anon_vma()
+> from inside an rcu_read_lock()ed section: fix the two places that did so.
+> 
+> Fixes: 88c22088bf23 ("mm: optimize page_lock_anon_vma() fast-path")
+> Reported-by: Dave Jones <davej@redhat.com>
+> Signed-off-by: Hugh Dickins <hughd@google.com>
+> Needs-Ack-from: Peter Zijlstra <peterz@infradead.org>
+> ---
+> 
+>  mm/rmap.c |    8 ++++++--
+>  1 file changed, 6 insertions(+), 2 deletions(-)
+> 
+> --- 3.15-rc7/mm/rmap.c	2014-04-13 17:24:36.680507189 -0700
+> +++ linux/mm/rmap.c	2014-05-31 12:02:08.496088637 -0700
+> @@ -426,12 +426,14 @@ struct anon_vma *page_get_anon_vma(struc
+>  	 * above cannot corrupt).
+>  	 */
+>  	if (!page_mapped(page)) {
+> +		rcu_read_unlock();
+>  		put_anon_vma(anon_vma);
+>  		anon_vma = NULL;
+> +		goto outer;
+>  	}
+>  out:
+>  	rcu_read_unlock();
+> -
+> +outer:
+>  	return anon_vma;
+>  }
 
-I've cc'ed Peter and Ingo who may be able to answer that, as it still happens
-on -next.
+I think we can do that without the goto if we write something like:
 
+	if (!page_mapped(page)) {
+		rcu_read_unlock();
+		put_anon_vma(anon_vma);
+		return NULL;
+	}
 
-Thanks,
-Sasha
+> @@ -477,9 +479,10 @@ struct anon_vma *page_lock_anon_vma_read
+>  	}
+>  
+>  	if (!page_mapped(page)) {
+> +		rcu_read_unlock();
+>  		put_anon_vma(anon_vma);
+>  		anon_vma = NULL;
+> -		goto out;
+> +		goto outer;
+>  	}
+>  
+>  	/* we pinned the anon_vma, its safe to sleep */
+> @@ -501,6 +504,7 @@ struct anon_vma *page_lock_anon_vma_read
+>  
+>  out:
+>  	rcu_read_unlock();
+> +outer:
+>  	return anon_vma;
+>  }
+
+Same here too, I suppose.
+
+Interesting that we never managed to hit this one; it might also make
+sense to put a might_sleep() in anon_vma_free().
+
+Other than that, I don't see anything really odd, then again, its sunday
+evening and my thinking cap isn't exactly on proper.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
