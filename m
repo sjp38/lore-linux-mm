@@ -1,277 +1,187 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
-	by kanga.kvack.org (Postfix) with ESMTP id CDA5B6B0031
-	for <linux-mm@kvack.org>; Mon,  2 Jun 2014 10:46:32 -0400 (EDT)
-Received: by mail-wi0-f178.google.com with SMTP id cc10so4724227wib.5
-        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 07:46:30 -0700 (PDT)
-Received: from mail.emea.novell.com (mail.emea.novell.com. [130.57.118.101])
-        by mx.google.com with ESMTPS id au6si25800755wjc.98.2014.06.02.07.46.21
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 02 Jun 2014 07:46:21 -0700 (PDT)
-Message-Id: <538CAA520200007800016E87@mail.emea.novell.com>
-Date: Mon, 02 Jun 2014 15:46:10 +0100
-From: "Jan Beulich" <JBeulich@suse.com>
-Subject: [PATCH] improve __GFP_COLD/__GFP_ZERO interaction
+Received: from mail-we0-f181.google.com (mail-we0-f181.google.com [74.125.82.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 7B9DA6B0031
+	for <linux-mm@kvack.org>; Mon,  2 Jun 2014 10:53:10 -0400 (EDT)
+Received: by mail-we0-f181.google.com with SMTP id w61so5181500wes.26
+        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 07:53:10 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id dl7si5050401wjb.39.2014.06.02.07.53.07
+        for <linux-mm@kvack.org>;
+        Mon, 02 Jun 2014 07:53:09 -0700 (PDT)
+Message-ID: <538c8fd5.a75fc20a.0720.ffffcdcbSMTPIN_ADDED_BROKEN@mx.google.com>
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH 2/3] mm: introduce fincore()
+Date: Mon,  2 Jun 2014 10:52:35 -0400
+In-Reply-To: <20140602122322.GB8691@node.dhcp.inet.fi>
+References: <20140521193336.5df90456.akpm@linux-foundation.org> <1401686699-9723-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1401686699-9723-3-git-send-email-n-horiguchi@ah.jp.nec.com> <20140602122322.GB8691@node.dhcp.inet.fi>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: David Vrabel <david.vrabel@citrix.com>, mingo@elte.hu, tglx@linutronix.de, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, hpa@zytor.com
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, Arnaldo Carvalho de Melo <acme@redhat.com>, Borislav Petkov <bp@alien8.de>, Johannes Weiner <hannes@cmpxchg.org>, Rusty Russell <rusty@rustcorp.com.au>, David Miller <davem@davemloft.net>, Andres Freund <andres@2ndquadrant.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-For cold page allocations using the normal clear_highpage() mechanism
-may be inefficient on certain architectures, namely due to needlessly
-replacing a good part of the data cache contents. Introduce an arch-
-overridable clear_cold_highpage() (using streaming non-temporal stores
-on x86, where an override gets implemented right away) to make use of
-in this specific case.
+On Mon, Jun 02, 2014 at 03:23:22PM +0300, Kirill A. Shutemov wrote:
+> On Mon, Jun 02, 2014 at 01:24:58AM -0400, Naoya Horiguchi wrote:
+> > This patch provides a new system call fincore(2), which provides mincore()-
+> > like information, i.e. page residency of a given file. But unlike mincore(),
+> > fincore() can have a mode flag and it enables us to extract more detailed
+> > information about page cache like pfn and page flag. This kind of information
+> > is very helpful for example when applications want to know the file cache
+> > status to control IO on their own way.
+> > 
+> > Detail about the data format being passed to userspace are explained in
+> > inline comment, but generally in long entry format, we can choose which
+> > information is extraced flexibly, so you don't have to waste memory by
+> > extracting unnecessary information. And with FINCORE_SKIP_HOLE flag,
+> > we can skip hole pages (not on memory,) which makes us avoid a flood of
+> > meaningless zero entries when calling on extremely large (but only few
+> > pages of it are loaded on memory) file.
+> > 
+> > Basic testset is added in a next patch on tools/testing/selftests/fincore/.
+> > 
+> > [1] http://thread.gmane.org/gmane.linux.kernel/1439212/focus=1441919
+> > 
+> > Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> 
+> ...
+> 
+> > diff --git v3.15-rc7.orig/mm/fincore.c v3.15-rc7/mm/fincore.c
+> > new file mode 100644
+> > index 000000000000..3fc3ef465471
+> > --- /dev/null
+> > +++ v3.15-rc7/mm/fincore.c
+> > @@ -0,0 +1,362 @@
+> > +/*
+> > + * fincore(2) system call
+> > + *
+> > + * Copyright (C) 2014 NEC Corporation, Naoya Horiguchi
+> > + */
+> > +
+> > +#include <linux/syscalls.h>
+> > +#include <linux/pagemap.h>
+> > +#include <linux/file.h>
+> > +#include <linux/fs.h>
+> > +#include <linux/mm.h>
+> > +#include <linux/slab.h>
+> > +#include <linux/hugetlb.h>
+> > +
+> > +/*
+> > + * You can control how the buffer in userspace is filled with this mode
+> > + * parameters:
+> > + *
+> > + * - FINCORE_BMAP:
+> > + *     The page status is returned in a vector of bytes.
+> > + *     The least significant bit of each byte is 1 if the referenced page
+> > + *     is in memory, otherwise it is zero.
+> 
+> I'm okay with bytemap. Just wounder why not bitmap?
 
-Leverage the impovement in the Xen balloon driver, eliminating the
-explicit scrub_page() function.
+I think that we should return the exactly same information as that of mincore()
+for this specific mode, so if someone extend mincore() to start using upper bits,
+this interface should do it too, so 8-bit looks better to me.
 
-Signed-off-by: Jan Beulich <jbeulich@suse.com>
-Cc: H. Peter Anvin <hpa@zytor.com>
-Cc: Ingo Molnar <mingo@elte.hu>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Cc: David Vrabel <david.vrabel@citrix.com>
-Cc: Boris Ostrovsky <boris.ostrovsky@oracle.com>
----
- arch/x86/include/asm/page_types.h |    3 ++
- arch/x86/lib/Makefile             |    4 +--
- arch/x86/lib/clear_page_32.S      |   42 +++++++++++++++++++++++++++++++++=
-+++++
- arch/x86/lib/clear_page_64.S      |   28 ++++++++++++++++++++++++-
- drivers/xen/balloon.c             |   14 ++++++------
- include/linux/highmem.h           |   13 +++++++++++
- mm/page_alloc.c                   |    8 +++++--
- 7 files changed, 100 insertions(+), 12 deletions(-)
+> > + *
+> > + * - FINCORE_PFN:
+> > + *     stores pfn, using 8 bytes.
+> > + *
+> > + * - FINCORE_PAGEFLAGS:
+> > + *     stores page flags, using 8 bytes. See definition of KPF_* for details.
+> > + *
+> > + * - FINCORE_PAGECACHE_TAGS:
+> > + *     stores pagecache tags, using 8 bytes. See definition of PAGECACHE_TAG_*
+> > + *     for details.
+> 
+> Is it safe to expose this info to unprivilaged process (consider all three
+> flags above)?
 
---- 3.15-rc8/arch/x86/include/asm/page_types.h
-+++ 3.15-rc8-clear-cold-highpage/arch/x86/include/asm/page_types.h
-@@ -46,6 +46,9 @@
-=20
- #ifndef __ASSEMBLY__
-=20
-+void clear_cold_page(void *);
-+#define clear_cold_page clear_cold_page
-+
- extern int devmem_is_allowed(unsigned long pagenr);
-=20
- extern unsigned long max_low_pfn_mapped;
---- 3.15-rc8/arch/x86/lib/Makefile
-+++ 3.15-rc8-clear-cold-highpage/arch/x86/lib/Makefile
-@@ -19,7 +19,7 @@ obj-$(CONFIG_SMP) +=3D msr-smp.o cache-smp
- lib-y :=3D delay.o misc.o
- lib-y +=3D thunk_$(BITS).o
- lib-y +=3D usercopy_$(BITS).o usercopy.o getuser.o putuser.o
--lib-y +=3D memcpy_$(BITS).o
-+lib-y +=3D memcpy_$(BITS).o clear_page_$(BITS).o
- lib-$(CONFIG_SMP) +=3D rwlock.o
- lib-$(CONFIG_RWSEM_XCHGADD_ALGORITHM) +=3D rwsem.o
- lib-$(CONFIG_INSTRUCTION_DECODER) +=3D insn.o inat.o
-@@ -39,7 +39,7 @@ endif
- else
-         obj-y +=3D iomap_copy_64.o
-         lib-y +=3D csum-partial_64.o csum-copy_64.o csum-wrappers_64.o
--        lib-y +=3D thunk_64.o clear_page_64.o copy_page_64.o
-+        lib-y +=3D thunk_64.o copy_page_64.o
-         lib-y +=3D memmove_64.o memset_64.o
-         lib-y +=3D copy_user_64.o copy_user_nocache_64.o
- 	lib-y +=3D cmpxchg16b_emu.o
---- /home/jbeulich/tmp/linux-3.15-rc8/arch/x86/lib/clear_page_32.S	=
-1970-01-01 01:00:00.000000000 +0100
-+++ 3.15-rc8-clear-cold-highpage/arch/x86/lib/clear_page_32.S
-@@ -0,0 +1,42 @@
-+#include <linux/linkage.h>
-+#include <asm/alternative-asm.h>
-+#include <asm/cpufeature.h>
-+#include <asm/dwarf2.h>
-+#include <asm/page_types.h>
-+
-+ENTRY(clear_cold_page)
-+	CFI_STARTPROC
-+	xorl	%edx,%edx
-+#ifdef CONFIG_X86_USE_3DNOW
-+	jmp	mmx_clear_page
-+#else
-+	movl	$PAGE_SIZE,%ecx
-+	jmp	memset
-+#endif
-+	.p2align 4
-+.Lcold_loop:
-+	decl	%ecx
-+#define PUT(x) movntil %edx,x*4(%eax)
-+	movntil %edx,(%eax)
-+	PUT(1)
-+	PUT(2)
-+	PUT(3)
-+	PUT(4)
-+	PUT(5)
-+	PUT(6)
-+	PUT(7)
-+	leal	8*4(%eax),%eax
-+	jnz	.Lcold_loop
-+	sfence
-+	ret
-+	CFI_ENDPROC
-+ENDPROC(clear_cold_page)
-+
-+	.section .altinstr_replacement,"ax"
-+1:	movl	$PAGE_SIZE/(8*4),%ecx
-+2:
-+	.previous
-+	.section .altinstructions,"a"
-+	altinstruction_entry clear_cold_page, 1b, X86_FEATURE_XMM2, \
-+			     .Lcold_loop-clear_cold_page, 2b-1b
-+	.previous
---- 3.15-rc8/arch/x86/lib/clear_page_64.S
-+++ 3.15-rc8-clear-cold-highpage/arch/x86/lib/clear_page_64.S
-@@ -1,6 +1,7 @@
- #include <linux/linkage.h>
- #include <asm/dwarf2.h>
- #include <asm/alternative-asm.h>
-+#include <asm/page_types.h>
-=20
- /*
-  * Zero a page. =09
-@@ -27,7 +28,7 @@ ENDPROC(clear_page_c_e)
- ENTRY(clear_page)
- 	CFI_STARTPROC
- 	xorl   %eax,%eax
--	movl   $4096/64,%ecx
-+	movl   $PAGE_SIZE/64,%ecx
- 	.p2align 4
- .Lloop:
- 	decl	%ecx
-@@ -40,6 +41,7 @@ ENTRY(clear_page)
- 	PUT(5)
- 	PUT(6)
- 	PUT(7)
-+#undef PUT
- 	leaq	64(%rdi),%rdi
- 	jnz	.Lloop
- 	nop
-@@ -48,6 +50,30 @@ ENTRY(clear_page)
- .Lclear_page_end:
- ENDPROC(clear_page)
-=20
-+ENTRY(clear_cold_page)
-+	CFI_STARTPROC
-+	xorl   %eax,%eax
-+	movl   $PAGE_SIZE/(8*8),%ecx
-+	.p2align 4
-+.Lcold_loop:
-+	decl	%ecx
-+#define PUT(x) movntiq %rax,x*8(%rdi)
-+	movntiq %rax,(%rdi)
-+	PUT(1)
-+	PUT(2)
-+	PUT(3)
-+	PUT(4)
-+	PUT(5)
-+	PUT(6)
-+	PUT(7)
-+#undef PUT
-+	leaq	8*8(%rdi),%rdi
-+	jnz	.Lcold_loop
-+	sfence
-+	ret
-+	CFI_ENDPROC
-+ENDPROC(clear_cold_page)
-+
- 	/*
- 	 * Some CPUs support enhanced REP MOVSB/STOSB instructions.
- 	 * It is recommended to use this when possible.
---- 3.15-rc8/drivers/xen/balloon.c
-+++ 3.15-rc8-clear-cold-highpage/drivers/xen/balloon.c
-@@ -107,12 +107,11 @@ static DECLARE_DELAYED_WORK(balloon_work
- #define GFP_BALLOON \
- 	(GFP_HIGHUSER | __GFP_NOWARN | __GFP_NORETRY | __GFP_NOMEMALLOC)
-=20
--static void scrub_page(struct page *page)
--{
- #ifdef CONFIG_XEN_SCRUB_PAGES
--	clear_highpage(page);
-+#define __GFP_SCRUB __GFP_ZERO
-+#else
-+#define __GFP_SCRUB 0
- #endif
--}
-=20
- /* balloon_append: add the given page to the balloon. */
- static void __balloon_append(struct page *page)
-@@ -360,7 +359,9 @@ static enum bp_state increase_reservatio
- #endif
-=20
- 		/* Relinquish the page back to the allocator. */
--		__free_reserved_page(page);
-+		ClearPageReserved(page);
-+		init_page_count(page);
-+		free_hot_cold_page(page, 1);
- 	}
-=20
- 	balloon_stats.current_pages +=3D rc;
-@@ -392,6 +393,7 @@ static enum bp_state decrease_reservatio
- 	if (nr_pages > ARRAY_SIZE(frame_list))
- 		nr_pages =3D ARRAY_SIZE(frame_list);
-=20
-+	gfp |=3D __GFP_NOTRACK | __GFP_COLD | __GFP_SCRUB;
- 	for (i =3D 0; i < nr_pages; i++) {
- 		page =3D alloc_page(gfp);
- 		if (page =3D=3D NULL) {
-@@ -399,8 +401,6 @@ static enum bp_state decrease_reservatio
- 			state =3D BP_EAGAIN;
- 			break;
- 		}
--		scrub_page(page);
--
- 		frame_list[i] =3D page_to_pfn(page);
- 	}
-=20
---- 3.15-rc8/include/linux/highmem.h
-+++ 3.15-rc8-clear-cold-highpage/include/linux/highmem.h
-@@ -189,6 +189,19 @@ static inline void clear_highpage(struct
- 	kunmap_atomic(kaddr);
- }
-=20
-+#ifndef __HAVE_ARCH_CLEAR_COLD_HIGHPAGE
-+#ifdef clear_cold_page
-+static inline void clear_cold_highpage(struct page *page)
-+{
-+	void *kaddr =3D kmap_atomic(page);
-+	clear_cold_page(kaddr);
-+	kunmap_atomic(kaddr);
-+}
-+#else
-+#define clear_cold_highpage clear_highpage
-+#endif
-+#endif
-+
- static inline void zero_user_segments(struct page *page,
- 	unsigned start1, unsigned end1,
- 	unsigned start2, unsigned end2)
---- 3.15-rc8/mm/page_alloc.c
-+++ 3.15-rc8-clear-cold-highpage/mm/page_alloc.c
-@@ -417,8 +417,12 @@ static inline void prep_zero_page(struct
- 	 * and __GFP_HIGHMEM from hard or soft interrupt context.
- 	 */
- 	VM_BUG_ON((gfp_flags & __GFP_HIGHMEM) && in_interrupt());
--	for (i =3D 0; i < (1 << order); i++)
--		clear_highpage(page + i);
-+	for (i =3D 0; i < (1 << order); i++) {
-+		if (unlikely(gfp_flags & __GFP_COLD))
-+			clear_cold_highpage(page + i);
-+		else
-+			clear_highpage(page + i);
-+	}
- }
-=20
- #ifdef CONFIG_DEBUG_PAGEALLOC
+Sorry to talk about an unmerged feature, but this mode is necessary with
+PAGECACHE_TAG_ERROR which I'm suggesting in memory/IO error handling patches.
+The purpose of it is to show which address of the file is affected by
+memory/IO error without touching the page. This operation is supposed to
+be called by unprivileged processes. So I'd like to make it open for them.
 
+> > + * - FINCORE_SKIP_HOLE: if this flag is set, fincore() doesn't store any
+> > + *     information about hole. Instead each records per page has the entry
+> > + *     of page offset (using 8 bytes.) This mode is useful if we handle
+> > + *     large file and only few pages are on memory for the file.
+> 
+> Hm.. It's probably overkill, but instead of filling userspace buffer we
+> could return file descriptor and define lseek(SEEK_HOLE). Just thinking.
+
+I'm not sure but it's interesting. If you come up with the whole idea in
+this direction, please let me know.
+
+> > + *
+> > + * FINCORE_BMAP shouldn't be used combined with any other flags, and returnd
+> > + * data in this mode is like this:
+> > + *
+> > + *   page offset  0   1   2   3   4
+> > + *              +---+---+---+---+---+
+> > + *              | 1 | 0 | 0 | 1 | 1 | ...
+> > + *              +---+---+---+---+---+
+> > + *               <->
+> > + *              1 byte
+> > + *
+> > + * For FINCORE_PFN, page data is formatted like this:
+> > + *
+> > + *   page offset    0       1       2       3       4
+> > + *              +-------+-------+-------+-------+-------+
+> > + *              |  pfn  |  pfn  |  pfn  |  pfn  |  pfn  | ...
+> > + *              +-------+-------+-------+-------+-------+
+> > + *               <----->
+> > + *               8 byte
+> > + *
+> > + * We can use multiple flags among FINCORE_(PFN|PAGEFLAGS|PAGECACHE_TAGS).
+> > + * For example, when the mode is FINCORE_PFN|FINCORE_PAGEFLAGS, the per-page
+> > + * information is stored like this:
+> > + *
+> > + *    page offset 0    page offset 1   page offset 2
+> > + *   +-------+-------+-------+-------+-------+-------+
+> > + *   |  pfn  | flags |  pfn  | flags |  pfn  | flags | ...
+> > + *   +-------+-------+-------+-------+-------+-------+
+> > + *    <-------------> <-------------> <------------->
+> > + *       16 bytes        16 bytes        16 bytes
+> > + *
+> > + * When FINCORE_SKIP_HOLE is set, we ignore holes and add page offset entry
+> > + * (8 bytes) instead. For example, the data format of mode
+> > + * FINCORE_PFN|FINCORE_SKIP_HOLE is like follows:
+> > + *
+> > + *   +-------+-------+-------+-------+-------+-------+
+> > + *   | pgoff |  pfn  | pgoff |  pfn  | pgoff |  pfn  | ...
+> > + *   +-------+-------+-------+-------+-------+-------+
+> > + *    <-------------> <-------------> <------------->
+> > + *       16 bytes        16 bytes        16 bytes
+> > + */
+> > +#define FINCORE_BMAP		0x01	/* bytemap mode */
+> > +#define FINCORE_PFN		0x02
+> > +#define FINCORE_PAGE_FLAGS	0x04
+> > +#define FINCORE_PAGECACHE_TAGS	0x08
+> > +#define FINCORE_SKIP_HOLE	0x10
+> 
+> FINCORE_SKIP_HOLE is greater then FINCORE_PFN but pgoff precedes pfn in
+> records. It's confusing. We need clear definition of record format.
+> 
+> What about rename FINCORE_SKIP_HOLE -> FINCORE_PGOFF, move it before
+> FINCORE_PFN. So FINCORE_PGOFF is less than FINCORE_PFN, which is less than
+> FINCORE_PAGE_FLAGS, which is less than FINCORE_PAGECACHE_TAGS. It matches
+> order in records:
+> 
+> FINCORE_PGOFF|FINCORE_PFN|FINCORE_PAGEFLAGS|FINCORE_PAGECACHE_TAGS
+> 
+>  +-------+-------+-------+-------+-------+-------+-------+-------+
+>  | pgoff |  pfn  | flags |  tags | pgoff |  pfn  | flags |  tags | ...
+>  +-------+-------+-------+-------+-------+-------+-------+-------+
+>   <-----------------------------> <------------------------------>
+>              32 bytes                        32 bytes
+
+Great, that's correct.
+I'll do this.
+
+Thanks,
+Naoya Horiguchi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
