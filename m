@@ -1,70 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f42.google.com (mail-pb0-f42.google.com [209.85.160.42])
-	by kanga.kvack.org (Postfix) with ESMTP id E60AD6B0031
-	for <linux-mm@kvack.org>; Mon,  2 Jun 2014 07:55:50 -0400 (EDT)
-Received: by mail-pb0-f42.google.com with SMTP id md12so4165101pbc.1
-        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 04:55:50 -0700 (PDT)
-Received: from mail-pb0-x22c.google.com (mail-pb0-x22c.google.com [2607:f8b0:400e:c01::22c])
-        by mx.google.com with ESMTPS id gg2si15402177pbb.253.2014.06.02.04.55.49
+Received: from mail-la0-f53.google.com (mail-la0-f53.google.com [209.85.215.53])
+	by kanga.kvack.org (Postfix) with ESMTP id A77286B0031
+	for <linux-mm@kvack.org>; Mon,  2 Jun 2014 08:10:50 -0400 (EDT)
+Received: by mail-la0-f53.google.com with SMTP id ty20so2476321lab.26
+        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 05:10:49 -0700 (PDT)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id d4si15986036laa.81.2014.06.02.05.10.48
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 02 Jun 2014 04:55:49 -0700 (PDT)
-Received: by mail-pb0-f44.google.com with SMTP id rq2so4134882pbb.31
-        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 04:55:49 -0700 (PDT)
-From: Chen Yucong <slaoub@gmail.com>
-Subject: [PATCH] swap: Delete  the "last_in_cluster < scan_base" loop in the body of scan_swap_map()
-Date: Mon,  2 Jun 2014 19:54:13 +0800
-Message-Id: <1401710053-8460-1-git-send-email-slaoub@gmail.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 02 Jun 2014 05:10:48 -0700 (PDT)
+Date: Mon, 2 Jun 2014 16:10:36 +0400
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: Re: [PATCH -mm 8/8] slab: reap dead memcg caches aggressively
+Message-ID: <20140602121034.GB1039@esperanza>
+References: <cover.1401457502.git.vdavydov@parallels.com>
+ <23a736c90a81e13a2252d35d9fc3dc04a9ed7d7c.1401457502.git.vdavydov@parallels.com>
+ <20140602044154.GB17964@js1304-P5Q-DELUXE>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20140602044154.GB17964@js1304-P5Q-DELUXE>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: shli@kernel.org
-Cc: hughd@google.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Chen Yucong <slaoub@gmail.com>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: akpm@linux-foundation.org, cl@linux.com, hannes@cmpxchg.org, mhocko@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
->From commit ebc2a1a69111, we can find that all SWP_SOLIDSTATE "seek is cheap"(SSD case) 
-has already gone to si->cluster_info scan_swap_map_try_ssd_cluster() route. So that the
-"last_in_cluster < scan_base" loop in the body of scan_swap_map() has already become a 
-dead code snippet, and it should have been deleted.
+On Mon, Jun 02, 2014 at 01:41:55PM +0900, Joonsoo Kim wrote:
+> According to my code reading, slabs_to_free() doesn't return number of
+> free slabs. This bug is introduced by 0fa8103b. I think that it is
+> better to fix it before applyting this patch. Otherwise, use n->free_objects
+> instead of slabs_tofree() to achieve your purpose correctly.
 
-This patch is to delete the redundant loop as Hugh and Shaohua suggested.
+Hmm, I don't think slab_tofree() computes the number of free slabs
+wrong. If we have N free objects, there may be
+DIV_ROUND_UP(N,objs_per_slab) empty slabs at max, and that's exactly
+what slab_tofree() does, no?
 
-Signed-off-by: Chen Yucong <slaoub@gmail.com>
----
- mm/swapfile.c |   20 --------------------
- 1 file changed, 20 deletions(-)
-
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index beeeef8..1b44bd9 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -549,26 +549,6 @@ static unsigned long scan_swap_map(struct swap_info_struct *si,
- 			}
- 		}
- 
--		offset = si->lowest_bit;
--		last_in_cluster = offset + SWAPFILE_CLUSTER - 1;
--
--		/* Locate the first empty (unaligned) cluster */
--		for (; last_in_cluster < scan_base; offset++) {
--			if (si->swap_map[offset])
--				last_in_cluster = offset + SWAPFILE_CLUSTER;
--			else if (offset == last_in_cluster) {
--				spin_lock(&si->lock);
--				offset -= SWAPFILE_CLUSTER - 1;
--				si->cluster_next = offset;
--				si->cluster_nr = SWAPFILE_CLUSTER - 1;
--				goto checks;
--			}
--			if (unlikely(--latency_ration < 0)) {
--				cond_resched();
--				latency_ration = LATENCY_LIMIT;
--			}
--		}
--
- 		offset = scan_base;
- 		spin_lock(&si->lock);
- 		si->cluster_nr = SWAPFILE_CLUSTER - 1;
--- 
-1.7.10.4
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
