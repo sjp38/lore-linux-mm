@@ -1,105 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f181.google.com (mail-we0-f181.google.com [74.125.82.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 9DB966B0031
-	for <linux-mm@kvack.org>; Mon,  2 Jun 2014 04:52:33 -0400 (EDT)
-Received: by mail-we0-f181.google.com with SMTP id w61so4734492wes.40
-        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 01:52:32 -0700 (PDT)
-Received: from metis.ext.pengutronix.de (metis.ext.pengutronix.de. [2001:6f8:1178:4:290:27ff:fe1d:cc33])
-        by mx.google.com with ESMTPS id da1si20254794wib.71.2014.06.02.01.52.31
+Received: from mail-wg0-f52.google.com (mail-wg0-f52.google.com [74.125.82.52])
+	by kanga.kvack.org (Postfix) with ESMTP id C79716B0031
+	for <linux-mm@kvack.org>; Mon,  2 Jun 2014 05:14:32 -0400 (EDT)
+Received: by mail-wg0-f52.google.com with SMTP id l18so4721107wgh.11
+        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 02:14:32 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id w3si20358012wia.46.2014.06.02.02.14.31
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 02 Jun 2014 01:52:32 -0700 (PDT)
-Date: Mon, 2 Jun 2014 10:51:50 +0200
-From: Uwe =?iso-8859-1?Q?Kleine-K=F6nig?= <u.kleine-koenig@pengutronix.de>
-Subject: Re: TASK_SIZE for !MMU
-Message-ID: <20140602085150.GA31147@pengutronix.de>
-References: <20140429100028.GH28564@pengutronix.de>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 02 Jun 2014 02:14:31 -0700 (PDT)
+Date: Mon, 2 Jun 2014 11:14:27 +0200
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH v2 0/3] File Sealing & memfd_create()
+Message-ID: <20140602091427.GD3224@quack.suse.cz>
+References: <1397587118-1214-1-git-send-email-dh.herrmann@gmail.com>
+ <alpine.LSU.2.11.1405132118330.4401@eggly.anvils>
+ <537396A2.9090609@cybernetics.com>
+ <alpine.LSU.2.11.1405141456420.2268@eggly.anvils>
+ <CANq1E4QgSbD9G70H7W4QeXbZ77_Kn1wV7edwzN4k4NjQJS=36A@mail.gmail.com>
+ <20140602044259.GV10092@bbox>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20140429100028.GH28564@pengutronix.de>
+In-Reply-To: <20140602044259.GV10092@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rabin Vincent <rabin@rab.in>, Will Deacon <will.deacon@arm.com>, linux-arm-kernel@lists.infradead.org
-Cc: David Howells <dhowells@redhat.com>, uclinux-dist-devel@blackfin.uclinux.org, linux-m68k@lists.linux-m68k.org, linux-c6x-dev@linux-c6x.org, linux-m32r@ml.linux-m32r.org, microblaze-uclinux@itee.uq.edu.au, linux-xtensa@linux-xtensa.org, kernel@pengutronix.de, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: David Herrmann <dh.herrmann@gmail.com>, Hugh Dickins <hughd@google.com>, Tony Battersby <tonyb@cybernetics.com>, Al Viro <viro@zeniv.linux.org.uk>, Jan Kara <jack@suse.cz>, Michael Kerrisk <mtk.manpages@gmail.com>, Ryan Lortie <desrt@desrt.ca>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-kernel <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Greg Kroah-Hartman <greg@kroah.com>, John Stultz <john.stultz@linaro.org>, Kristian Hogsberg <krh@bitplanet.net>, Lennart Poettering <lennart@poettering.net>, Daniel Mack <zonque@gmail.com>, Kay Sievers <kay@vrfy.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>
 
-Hello
-
-[expand Cc: a bit]
-
-On Tue, Apr 29, 2014 at 12:00:28PM +0200, Uwe Kleine-Konig wrote:
-> I grepped through the kernel (v3.15-rc1) for usages of TASK_SIZE to
-> check if/how it is used on !MMU ARM machines. Most open questions also
-> affect the other !MMU platforms, so I put the blackfin, c6x, frv and
-> m32r, m68k, microblaze and xtensa lists on Cc:. (Did I miss a platform
-> that cares for !MMU ?)
+On Mon 02-06-14 13:42:59, Minchan Kim wrote:
+> Hello,
 > 
-> Most occurences are fine, see the list at the end of this mail. However
-> some are not or are unclear to me. Here is the complete list[1] apart from
-> the definition of TASK_SIZE for !MMU in arch/arm/include/asm/memory.h:
+> On Mon, May 19, 2014 at 01:44:25PM +0200, David Herrmann wrote:
+> > Hi
+> > 
+> > On Thu, May 15, 2014 at 12:35 AM, Hugh Dickins <hughd@google.com> wrote:
+> > > The aspect which really worries me is this: the maintenance burden.
+> > > This approach would add some peculiar new code, introducing a rare
+> > > special case: which we might get right today, but will very easily
+> > > forget tomorrow when making some other changes to mm.  If we compile
+> > > a list of danger areas in mm, this would surely belong on that list.
+> > 
+> > I tried doing the page-replacement in the last 4 days, but honestly,
+> > it's far more complex than I thought. So if no-one more experienced
+> > with mm/ comes up with a simple implementation, I'll have to delay
+> > this for some more weeks.
+> > 
+> > However, I still wonder why we try to fix this as part of this
+> > patchset. Using FUSE, a DIRECT-IO call can be delayed for an arbitrary
+> > amount of time. Same is true for network block-devices, NFS, iscsi,
+> > maybe loop-devices, ... This means, _any_ once mapped page can be
+> > written to after an arbitrary delay. This can break any feature that
+> > makes FS objects read-only (remounting read-only, setting S_IMMUTABLE,
+> > sealing, ..).
+> > 
+> > Shouldn't we try to fix the _cause_ of this?
 > 
->  - Probably this should be explict s/TASK_SIZE/CONFIG_DRAM_SIZE/. This
->    is generic code however while CONFIG_DRAM_SIZE is ARM only.
->         mm/nommu.c:     if (!rlen || rlen > TASK_SIZE)
-> 
->  - The issue the patch by Rabin is addressing (Subject: [PATCH] ARM: fix
->    string functions on !MMU), alternatively make TASK_SIZE ~0UL.
->         arch/arm/include/asm/uaccess.h:#define user_addr_max() \
->         arch/arm/include/asm/uaccess.h: (segment_eq(get_fs(), USER_DS) ? TASK_SIZE : ~0UL)
-[reference: http://www.spinics.net/lists/arm-kernel/msg324112.html ]
+> I didn't follow this patchset and couldn't find what's your most cocern
+> but at a first glance, it seems you have troubled with pinned page.
+> If so, it's really big problem for CMA and I think peterz's approach(ie,
+> mm_mpin) is really make sense to me.
+  Well, his concern are pinned pages (and also pages used for direct IO and
+similar) but not because they are pinned but because they can be modified
+while someone holds reference to them. So I'm not sure Peter's patches will
+help here.
  
->  - probably bearable if broken:
->         drivers/misc/lkdtm.c:           if (user_addr >= TASK_SIZE) {
->         lib/test_user_copy.c:   user_addr = vm_mmap(...)
->         lib/test_user_copy.c:   if (user_addr >= (unsigned long)(TASK_SIZE)) {
->         lib/test_user_copy.c:           pr_warn("Failed to allocate user memory\n");
->         lib/test_user_copy.c:           return -ENOMEM;
-> 
->  - unclear to me:
->         fs/exec.c:      current->mm->task_size = TASK_SIZE;
->    - depends on PERF_EVENTS
->         kernel/events/core.c:   if (!addr || addr >= TASK_SIZE)
->         kernel/events/core.c:   return TASK_SIZE - addr;
->         kernel/events/uprobes.c:                area->vaddr = get_unmapped_area(NULL, TASK_SIZE - PAGE_SIZE,
->    - depends on (PERF_EVENTS && (CPU_V6 || CPU_V6K || CPU_V7)):
->         arch/arm/kernel/hw_breakpoint.c:        return (va >= TASK_SIZE) && ((va + len - 1) >= TASK_SIZE);
->    - seems to cope with big TASK_SIZE
->         fs/namespace.c:        size = TASK_SIZE - (unsigned long)data;
->         fs/namespace.c:        if (size > PAGE_SIZE)
->         fs/namespace.c:                size = PAGE_SIZE;
->    - depends on PLAT_S5P || ARCH_EXYNOS, this looks wrong
->         drivers/media/platform/s5p-mfc/s5p_mfc_common.h:#define DST_QUEUE_OFF_BASE      (TASK_SIZE / 2)
->    - used for prctl(PR_SET_MM, ...)
->         kernel/sys.c:   if (addr >= TASK_SIZE || addr < mmap_min_addr)
-> 
-> Any help to judge if these are OK is appreciated (even from Will :-)
-> 
-> I think it would be OK to define TASK_SIZE to 0xffffffff for !MMU.
-> blackfin, frv and m68k also do this. c6x does define it to 0xFFFFF000 to
-> leave space for error codes.
-> 
-> Thoughts?
-The problem is that current linus/master (and also next) doesn't boot on
-my ARM-nommu machine because the user string functions (strnlen_user,
-strncpy_from_user et al.) refuse to work on strings above TASK_SIZE
-which in my case also includes the XIP kernel image.
+> https://lkml.org/lkml/2014/5/26/340
 
-Maybe someone of the mm people can bring light into the unclear points
-above and the question what TASK_SIZE is supposed to be on no-MMU
-machines?
-
-Best regards
-Uwe
-
-> [1] complete as in "skip everything below arch/ but arch/arm" :-)
-> 
-[removed the list, if you're interested, it's available at
-http://mid.gmane.org/20140429100028.GH28564@pengutronix.de]
-
+								Honza
 -- 
-Pengutronix e.K.                           | Uwe Kleine-Konig            |
-Industrial Linux Solutions                 | http://www.pengutronix.de/  |
+Jan Kara <jack@suse.cz>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
