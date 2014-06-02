@@ -1,135 +1,196 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f173.google.com (mail-pd0-f173.google.com [209.85.192.173])
-	by kanga.kvack.org (Postfix) with ESMTP id B6FE86B0031
-	for <linux-mm@kvack.org>; Mon,  2 Jun 2014 06:32:13 -0400 (EDT)
-Received: by mail-pd0-f173.google.com with SMTP id v10so3274644pde.4
-        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 03:32:13 -0700 (PDT)
-Received: from mail-pd0-x22f.google.com (mail-pd0-x22f.google.com [2607:f8b0:400e:c02::22f])
-        by mx.google.com with ESMTPS id ay4si15234461pbc.122.2014.06.02.03.32.12
+Received: from mail-pb0-f43.google.com (mail-pb0-f43.google.com [209.85.160.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 1EE3A6B0031
+	for <linux-mm@kvack.org>; Mon,  2 Jun 2014 06:47:56 -0400 (EDT)
+Received: by mail-pb0-f43.google.com with SMTP id up15so4091202pbc.16
+        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 03:47:55 -0700 (PDT)
+Received: from mailout2.samsung.com (mailout2.samsung.com. [203.254.224.25])
+        by mx.google.com with ESMTPS id sx5si15519363pab.126.2014.06.02.03.47.54
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 02 Jun 2014 03:32:12 -0700 (PDT)
-Received: by mail-pd0-f175.google.com with SMTP id z10so3266920pdj.6
-        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 03:32:12 -0700 (PDT)
-Date: Mon, 2 Jun 2014 03:30:28 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH v2 1/3] shm: add sealing API
-In-Reply-To: <CANq1E4TBDdj9dGB9fP6KhN5Q1NXbehbSQ0SV+3Qvnn7f8+_=Cw@mail.gmail.com>
-Message-ID: <alpine.LSU.2.11.1406020235400.1259@eggly.anvils>
-References: <1397587118-1214-1-git-send-email-dh.herrmann@gmail.com> <1397587118-1214-2-git-send-email-dh.herrmann@gmail.com> <alpine.LSU.2.11.1405191911050.2970@eggly.anvils> <CANq1E4TBDdj9dGB9fP6KhN5Q1NXbehbSQ0SV+3Qvnn7f8+_=Cw@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Mon, 02 Jun 2014 03:47:55 -0700 (PDT)
+Received: from epcpsbgm2.samsung.com (epcpsbgm2 [203.254.230.27])
+ by mailout2.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0N6J008OWFBO2A30@mailout2.samsung.com> for
+ linux-mm@kvack.org; Mon, 02 Jun 2014 19:47:48 +0900 (KST)
+From: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+Subject: Re: [PATCH v2 3/3] CMA: always treat free cma pages as non-free on
+ watermark checking
+Date: Mon, 02 Jun 2014 12:47:24 +0200
+Message-id: <4424609.WQEPaWUrpH@amdc1032>
+In-reply-to: 
+ <CALk7dXo6M1op0q2xiEW=9dEwOm1pK8C+gSTadJiAL071xJycCQ@mail.gmail.com>
+References: <1401260672-28339-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <CAAmzW4OKO0005+-MuTrENHnMZKkJjk9aOx2vBDNoXN8==TWTew@mail.gmail.com>
+ <CALk7dXo6M1op0q2xiEW=9dEwOm1pK8C+gSTadJiAL071xJycCQ@mail.gmail.com>
+MIME-version: 1.0
+Content-transfer-encoding: 7Bit
+Content-type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Herrmann <dh.herrmann@gmail.com>
-Cc: Hugh Dickins <hughd@google.com>, Tony Battersby <tonyb@cybernetics.com>, Andy Lutomirski <luto@amacapital.net>, Jan Kara <jack@suse.cz>, Michael Kerrisk <mtk.manpages@gmail.com>, Ryan Lortie <desrt@desrt.ca>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-kernel <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Greg Kroah-Hartman <greg@kroah.com>, John Stultz <john.stultz@linaro.org>, Kristian Hogsberg <krh@bitplanet.net>, Lennart Poettering <lennart@poettering.net>, Daniel Mack <zonque@gmail.com>, Kay Sievers <kay@vrfy.org>
+To: Ritesh Harjani <ritesh.list@gmail.com>
+Cc: Joonsoo Kim <js1304@gmail.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Heesub Shin <heesub.shin@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Nagachandra P <nagachandra@gmail.com>, Vinayak Menon <menon.vinayak@gmail.com>, Ritesh Harjani <ritesh.harjani@gmail.com>, t.stanislaws@samsung.com
 
-On Fri, 23 May 2014, David Herrmann wrote:
+
+Hi,
+
+On Monday, June 02, 2014 09:37:49 AM Ritesh Harjani wrote:
+> Hi Joonsoo,
 > 
-> i_mmap_mutex is the only per-object lock that is taken in the mmap()
-> path and all vma_link() users can easily be changed to deal with
-> errors. So I think it should be easy to make __vma_link_file() fail if
-> no writable mappings are allowed. Testing for shmem-seals seems odd
-> here, indeed. We could instead make i_mmap_writable work like
-> i_writecount. If it's negative, no new writable mappings are allowed.
-> shmem_set_seals() could then decrement it to <0 and __vma_link_file()
-> just tests whether it's negative. Comments?
-
-i_mmap_mutex is certainly the right lock, and I'm happy with making
-i_mmap_writable use the negative like i_writecount if that helps.
-
-But I have to confess that I'm annoyingly stalled on this.  The part
-I do not like (although I suggested it) is giving an error return to
-__vma_link_file() and hence to vma_link().
-
-Because successful return from file->f_op->mmap() is supposed to be
-mmap's point of no return, and if we allow vma_link() to fail, then the
-file->f_op->mmap() ought to be undone in a way never needed before.
-
-Now, you know and I know that the vma_link() can only fail on sealed
-shmem objects, and shmem_mmap() doesn't do anything that we need to
-recover from (I don't think we need worry too much about the atime
-update in file_accessed()).  But error from vma_link() does set a
-trap (or a puzzle) for the unwary, and I'd prefer to avoid it.
-We can comment it, but it still feels dirty.
-
-I'm inclined to say that your shmem_mmap() (which already checks
-sealed against shared) ought to manage i_mmap_writable itself (under
-i_mmap_mutex); but then we need a funny little VM_flag for shmem_mmap()
-to tell __vma_link_file() that i_mmap_writable++ has already been done;
-or else some dance of ->opens and ->closes to keep its accounting right.
-
-As I say, I am annoyingly stalled on this: so I'd better just let you
-get on with it, and see how I feel about whatever you come up with.
-
-> >
-> > There is also, or may be, a small issue of sparse (holey) files.
-> > I do have a question on that in comments on your next patch, and
-> > the answer here may depend on what you want in memfd_create().
-> >
-> > What I'm thinking of here is that once a sparse file is sealed
-> > against writing, we must be sure not to give an error when reading
-> > its holes: whereas there are a few unlikely ways in which reading
-> > the holes of a sparse tmpfs file can give -ENOMEM or -ENOSPC.
-> >
-> > Most of the memory allocations here can in fact only fail when the
-> > allocating process has already been selected for OOM-kill: that is
-> > not guaranteed forever, but it is how __alloc_pages_slowpath()
-> > currently behaves on ordinary low-order allocations, and will be
-> > hard to change if we ever do so.  Though I dislike relying upon
-> > this, I think we can allow reading holes to fail, if the process
-> > is going to be forcibly killed before it returns to userspace.
-> >
-> > But there might still be an issue with vm_enough_memory(),
-> > and there might still be an issue with memcg limits.
-> >
-> > We do already use the ZERO_PAGE instead of allocating when it's a
-> > simple read; and on the face of it, we could extend that to mmap
-> > once the file is sealed.  But I am rather afraid to do so - for
-> > many years there was an mmap /dev/zero case which did that, but
-> > it was an easily forgotten case which caught us out at least
-> > once, so I'm reluctant to reintroduce it now for sealing.
-> >
-> > Anyway, I don't expect you to resolve the issue of sealed holes:
-> > that's very much my territory, to give you support on.
+> CC'ing the developer of the patch (Tomasz Stanislawski)
 > 
-> Why not require users to use mlock() if they want to protect
-> themselves against OOM situations? At least the man-page says that
-> mlock() guarantess that all pages in the specified range are loaded. I
-> didn't verify whether that includes holes, though. And if
-> RLIMIT_MEMLOCK is too small, users ought to access the object in
-> smaller chunks.
-
-Fair enough.
-mlock() does instantiate the holes, in shmem's case at least.
-mlock() is an mm operation, whereas in general we have a file here,
-which is not necessariy mmap'ed.  It's a pity to ask the user to
-mmap+mlock to achieve that effect; but okay, that does the job.
-
-> And it's not specific to sparse files. Any other page may be swapped
-> out and the swap-in can fail due to ENOMEM (page-table allocations,
-> tree-inserts, and so on). But you definitely know better what to do
-> here, so suggestions welcome.
-
-You're right that OOM can hit you, even when just swapping in a page
-that was properly instantiated before.  But those pages are better
-accounted than holes: I still feel that the holes could be seen as
-a sealed bomb, which explodes into OOM when read by the caller.
-
 > 
-> Anyway, sealing is not meant to protect against OOM situations. I
-> mean, any mapping is subject to OOM, so processes that care should
-> have a suitable infrastructure via SIGBUS or mlock() for all mappings,
-> including sealed files. Furthermore, write-sealing is meant to prevent
-> targeted attacks that modify data while it is being parsed. We
-> properly protect users against that. OOM is an orthogonal issue, imho.
+> On Fri, May 30, 2014 at 8:16 PM, Joonsoo Kim <js1304@gmail.com> wrote:
+> > 2014-05-30 19:40 GMT+09:00 Ritesh Harjani <ritesh.list@gmail.com>:
+> >> Hi Joonsoo,
+> >>
+> >> I think you will be loosing the benefit of below patch with your changes.
+> >> I am no expert here so please bear with me. I tried explaining in the
+> >> inline comments, let me know if I am wrong.
+> >>
+> >> commit 026b08147923142e925a7d0aaa39038055ae0156
+> >> Author: Tomasz Stanislawski <t.stanislaws@samsung.com>
+> >> Date:   Wed Jun 12 14:05:02 2013 -0700
+> >
+> > Hello, Ritesh.
+> >
+> > Thanks for notifying that.
+> >
+> >>
+> >> On Wed, May 28, 2014 at 12:34 PM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+> >>> commit d95ea5d1('cma: fix watermark checking') introduces ALLOC_CMA flag
 
-But I'm happy to hear that OOM doesn't trouble you, that you see it
-as orthogonal.  Sealing does prompt me again to look into reworking
-the issue of sparse files (never well handled in shmem), but from
-what you say that's not urgent - a relief to both of us, thank you.
+It is a bit of shame that the author of commit d95ea5d1 (happens to be me :)
+was not on cc:.
 
-Hugh
+> >>> for alloc flag and treats free cma pages as free pages if this flag is
+> >>> passed to watermark checking. Intention of that patch is that movable page
+> >>> allocation can be be handled from cma reserved region without starting
+> >>> kswapd. Now, previous patch changes the behaviour of allocator that
+> >>> movable allocation uses the page on cma reserved region aggressively,
+> >>> so this watermark hack isn't needed anymore. Therefore remove it.
+> >>>
+> >>> Acked-by: Michal Nazarewicz <mina86@mina86.com>
+> >>> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> >>>
+> >>> diff --git a/mm/compaction.c b/mm/compaction.c
+> >>> index 627dc2e..36e2fcd 100644
+> >>> --- a/mm/compaction.c
+> >>> +++ b/mm/compaction.c
+> >>> @@ -1117,10 +1117,6 @@ unsigned long try_to_compact_pages(struct zonelist *zonelist,
+> >>>
+> >>>         count_compact_event(COMPACTSTALL);
+> >>>
+> >>> -#ifdef CONFIG_CMA
+> >>> -       if (allocflags_to_migratetype(gfp_mask) == MIGRATE_MOVABLE)
+> >>> -               alloc_flags |= ALLOC_CMA;
+> >>> -#endif
+> >>>         /* Compact each zone in the list */
+> >>>         for_each_zone_zonelist_nodemask(zone, z, zonelist, high_zoneidx,
+> >>>                                                                 nodemask) {
+> >>> diff --git a/mm/internal.h b/mm/internal.h
+> >>> index 07b6736..a121762 100644
+> >>> --- a/mm/internal.h
+> >>> +++ b/mm/internal.h
+> >>> @@ -384,7 +384,6 @@ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
+> >>>  #define ALLOC_HARDER           0x10 /* try to alloc harder */
+> >>>  #define ALLOC_HIGH             0x20 /* __GFP_HIGH set */
+> >>>  #define ALLOC_CPUSET           0x40 /* check for correct cpuset */
+> >>> -#define ALLOC_CMA              0x80 /* allow allocations from CMA areas */
+> >>> -#define ALLOC_FAIR             0x100 /* fair zone allocation */
+> >>> +#define ALLOC_FAIR             0x80 /* fair zone allocation */
+> >>>
+> >>>  #endif /* __MM_INTERNAL_H */
+> >>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> >>> index ca678b6..83a8021 100644
+> >>> --- a/mm/page_alloc.c
+> >>> +++ b/mm/page_alloc.c
+> >>> @@ -1764,20 +1764,22 @@ static bool __zone_watermark_ok(struct zone *z, int order, unsigned long mark,
+> >>>         long min = mark;
+> >>>         long lowmem_reserve = z->lowmem_reserve[classzone_idx];
+> >>>         int o;
+> >>> -       long free_cma = 0;
+> >>>
+> >>>         free_pages -= (1 << order) - 1;
+> >>>         if (alloc_flags & ALLOC_HIGH)
+> >>>                 min -= min / 2;
+> >>>         if (alloc_flags & ALLOC_HARDER)
+> >>>                 min -= min / 4;
+> >>> -#ifdef CONFIG_CMA
+> >>> -       /* If allocation can't use CMA areas don't use free CMA pages */
+> >>> -       if (!(alloc_flags & ALLOC_CMA))
+> >>> -               free_cma = zone_page_state(z, NR_FREE_CMA_PAGES);
+> >>> -#endif
+> >>> +       /*
+> >>> +        * We don't want to regard the pages on CMA region as free
+> >>> +        * on watermark checking, since they cannot be used for
+> >>> +        * unmovable/reclaimable allocation and they can suddenly
+> >>> +        * vanish through CMA allocation
+> >>> +        */
+> >>> +       if (IS_ENABLED(CONFIG_CMA) && z->managed_cma_pages)
+> >>> +               free_pages -= zone_page_state(z, NR_FREE_CMA_PAGES);
+> >>
+> >> make this free_cma instead of free_pages.
+> >>
+> >>>
+> >>> -       if (free_pages - free_cma <= min + lowmem_reserve)
+> >>> +       if (free_pages <= min + lowmem_reserve)
+> >> free_pages - free_cma <= min + lowmem_reserve
+> >>
+> >> Because in for loop you subtract nr_free which includes the CMA pages.
+> >> So if you have subtracted NR_FREE_CMA_PAGES
+> >> from free_pages above then you will be subtracting cma pages again in
+> >> nr_free (below in for loop).
+> >
+> > Yes, I understand the problem you mentioned.
+> >
+> > I think that this is complicated issue.
+> >
+> > Comit '026b081' you mentioned makes watermark_ok() loose for high order
+> > allocation compared to kernel that CMA isn't enabled, since free_pages includes
+> > free_cma pages and most of high order allocation except THP would be
+> > non-movable allocation. This non-movable allocation can't use cma pages,
+> > so we shouldn't include free_cma pages.
+> >
+> > If most of free cma pages are 0 order, that commit works correctly. We subtract
+> > nr of free cma pages at the first loop, so there is no problem. But,
+> > if the system
+> > have some free high-order cma pages, watermark checking allow high-order
+> > allocation more easily.
+> > 
+> > I think that loosing the watermark check is right solution so will takes your
+> > comment on v2. But I want to know other developer's opinion.
+> 
+> Thanks for giving this a thought for your v2 patch.
+> 
+> 
+> > If needed, I can implement to track free_area[o].nr_cma_free and use it for
+> > precise freepage calculation in watermark check.
+> >
+> I guess implementing nr_cma_free would be the correct solution.
+> Because currently for other than 0 order allocation
+> we still consider high order free_cma pages as free pages in the for
+> loop which from the code looks incorrect.
+> 
+> This can lead to situation when we have more high order free CMA pages
+> but very less unmovable pages, but zone_watermark returns
+> ok for unmovable page, thus leading to allocation failure every time
+> instead of recovering from this situation.
+> 
+> But its better if experts comment on this.
+
+I think that implementing free_area[].nr_cma_free is a correct long-term
+solution and it should be done before the current patch gets applied.
+
+[ Tomasz is on holiday currently but he should be back tomorrow so he can
+  also take a look at the issue. ]
+
+Best regards,
+--
+Bartlomiej Zolnierkiewicz
+Samsung R&D Institute Poland
+Samsung Electronics
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
