@@ -1,70 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id B56DF6B009A
-	for <linux-mm@kvack.org>; Mon,  2 Jun 2014 19:27:47 -0400 (EDT)
-Received: by mail-pd0-f172.google.com with SMTP id fp1so3926148pdb.3
-        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 16:27:47 -0700 (PDT)
-Received: from mail-pb0-x235.google.com (mail-pb0-x235.google.com [2607:f8b0:400e:c01::235])
-        by mx.google.com with ESMTPS id mn6si17653901pbc.17.2014.06.02.16.27.46
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 02 Jun 2014 16:27:46 -0700 (PDT)
-Received: by mail-pb0-f53.google.com with SMTP id md12so4665819pbc.26
-        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 16:27:46 -0700 (PDT)
-Date: Mon, 2 Jun 2014 16:26:13 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH] swap: Delete  the "last_in_cluster < scan_base" loop in
- the body of scan_swap_map()
-In-Reply-To: <1401710053-8460-1-git-send-email-slaoub@gmail.com>
-Message-ID: <alpine.LSU.2.11.1406021603330.2584@eggly.anvils>
-References: <1401710053-8460-1-git-send-email-slaoub@gmail.com>
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 63CE36B009C
+	for <linux-mm@kvack.org>; Mon,  2 Jun 2014 19:38:26 -0400 (EDT)
+Received: by mail-pa0-f52.google.com with SMTP id bj1so4402767pad.39
+        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 16:38:26 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id fd3si17607600pbb.179.2014.06.02.16.38.25
+        for <linux-mm@kvack.org>;
+        Mon, 02 Jun 2014 16:38:25 -0700 (PDT)
+From: "Luck, Tony" <tony.luck@intel.com>
+Subject: RE: [PATCH 0/3] HWPOISON: improve memory error handling for
+ multithread process
+Date: Mon, 2 Jun 2014 23:37:58 +0000
+Message-ID: <3908561D78D1C84285E8C5FCA982C28F328268B7@ORSMSX114.amr.corp.intel.com>
+References: <53877e9c.8b2cdc0a.1604.ffffea43SMTPIN_ADDED_BROKEN@mx.google.com>
+	<1401432670-24664-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+	<3908561D78D1C84285E8C5FCA982C28F32823225@ORSMSX114.amr.corp.intel.com>
+	<5388cd0e.463edd0a.755d.6f61SMTPIN_ADDED_BROKEN@mx.google.com>
+ <20140602154302.595a54190afdffd4b50f22c2@linux-foundation.org>
+In-Reply-To: <20140602154302.595a54190afdffd4b50f22c2@linux-foundation.org>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chen Yucong <slaoub@gmail.com>
-Cc: shli@kernel.org, hughd@google.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Andi Kleen <andi@firstfloor.org>, Kamil Iskra <iskra@mcs.anl.gov>, Borislav Petkov <bp@suse.de>, Chen Gong <gong.chen@linux.jf.intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Mon, 2 Jun 2014, Chen Yucong wrote:
+> I'm not sure that "[PATCH 3/3] mm/memory-failure.c: support dedicated
+> thread to handle SIGBUS(BUS_MCEERR_AO)" is a -stable thing?  That's a
+> feature addition more than a bugfix?
 
-> From commit ebc2a1a69111, we can find that all SWP_SOLIDSTATE "seek is cheap"(SSD case) 
-> has already gone to si->cluster_info scan_swap_map_try_ssd_cluster() route. So that the
-> "last_in_cluster < scan_base" loop in the body of scan_swap_map() has already become a 
-> dead code snippet, and it should have been deleted.
-> 
-> This patch is to delete the redundant loop as Hugh and Shaohua suggested.
-> 
-> Signed-off-by: Chen Yucong <slaoub@gmail.com>
+No - the old behavior was crazy - someone with a multithreaded process migh=
+t
+well expect that if they call prctl(PF_MCE_EARLY) in just one thread, then =
+that
+thread would see the SIGBUS  with si_code =3D BUS_MCEERR_A0 - even if that
+thread wasn't the main thread for the process.
 
-That is very nice, thank you.
+Perhaps the description for the commit should better reflect that?
 
-Acked-by: Hugh Dickins <hughd@google.com>
+-Tony
 
-But it does beg for just a little more: perhaps Andrew can kindly fold in:
----
 
- mm/swapfile.c |    9 +++------
- 1 file changed, 3 insertions(+), 6 deletions(-)
-
---- chen/mm/swapfile.c	2014-06-02 15:55:44.812368186 -0700
-+++ hugh/mm/swapfile.c	2014-06-02 16:15:20.344396124 -0700
-@@ -505,13 +505,10 @@ static unsigned long scan_swap_map(struc
- 		/*
- 		 * If seek is expensive, start searching for new cluster from
- 		 * start of partition, to minimize the span of allocated swap.
--		 * But if seek is cheap, search from our current position, so
--		 * that swap is allocated from all over the partition: if the
--		 * Flash Translation Layer only remaps within limited zones,
--		 * we don't want to wear out the first zone too quickly.
-+		 * If seek is cheap, that is the SWP_SOLIDSTATE si->cluster_info
-+		 * case, just handled by scan_swap_map_try_ssd_cluster() above.
- 		 */
--		if (!(si->flags & SWP_SOLIDSTATE))
--			scan_base = offset = si->lowest_bit;
-+		scan_base = offset = si->lowest_bit;
- 		last_in_cluster = offset + SWAPFILE_CLUSTER - 1;
- 
- 		/* Locate the first empty (unaligned) cluster */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
