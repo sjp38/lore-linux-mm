@@ -1,49 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f46.google.com (mail-wg0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id BEC826B0031
-	for <linux-mm@kvack.org>; Mon,  2 Jun 2014 12:23:17 -0400 (EDT)
-Received: by mail-wg0-f46.google.com with SMTP id n12so5308040wgh.17
-        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 09:23:16 -0700 (PDT)
+Received: from mail-la0-f50.google.com (mail-la0-f50.google.com [209.85.215.50])
+	by kanga.kvack.org (Postfix) with ESMTP id F29756B0031
+	for <linux-mm@kvack.org>; Mon,  2 Jun 2014 12:38:04 -0400 (EDT)
+Received: by mail-la0-f50.google.com with SMTP id b8so2672109lan.23
+        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 09:38:04 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id ys3si26417120wjc.16.2014.06.02.09.23.09
+        by mx.google.com with ESMTP id cn1si22569217wib.60.2014.06.02.09.38.02
         for <linux-mm@kvack.org>;
-        Mon, 02 Jun 2014 09:23:10 -0700 (PDT)
-Message-ID: <538ca4ee.43f9c20a.7b91.2020SMTPIN_ADDED_BROKEN@mx.google.com>
+        Mon, 02 Jun 2014 09:38:03 -0700 (PDT)
+Message-ID: <538ca86b.a15cb40a.56e9.78fcSMTPIN_ADDED_BROKEN@mx.google.com>
+Date: Mon, 02 Jun 2014 12:37:32 -0400
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH 2/3] mm: introduce fincore()
-Date: Mon,  2 Jun 2014 12:22:34 -0400
-In-Reply-To: <538CA239.3060506@intel.com>
-References: <20140521193336.5df90456.akpm@linux-foundation.org> <1401686699-9723-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1401686699-9723-3-git-send-email-n-horiguchi@ah.jp.nec.com> <538CA239.3060506@intel.com>
+In-Reply-To: <538CA269.6010300@intel.com>
+References: <20140521193336.5df90456.akpm@linux-foundation.org>
+ <1401686699-9723-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <1401686699-9723-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+ <538CA269.6010300@intel.com>
+Subject: Re: [PATCH 1/3] replace PAGECACHE_TAG_* definition with enumeration
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain;
+ charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, Arnaldo Carvalho de Melo <acme@redhat.com>, Borislav Petkov <bp@alien8.de>, "Kirill A. Shutemov" <kirill@shutemov.name>, Johannes Weiner <hannes@cmpxchg.org>, Rusty Russell <rusty@rustcorp.com.au>, David Miller <davem@davemloft.net>, Andres Freund <andres@2ndquadrant.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: dave.hansen@intel.com
+Cc: akpm@linux-foundation.org, koct9i@gmail.com, fengguang.wu@intel.com, acme@redhat.com, bp@alien8.de, kirill@shutemov.name, hannes@cmpxchg.org, rusty@rustcorp.com.au, davem@davemloft.net, andres@2ndquadrant.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hello Dave,
-
-On Mon, Jun 02, 2014 at 09:11:37AM -0700, Dave Hansen wrote:
+On Mon, Jun 02, 2014 at 09:12:25AM -0700, Dave Hansen wrote:
 > On 06/01/2014 10:24 PM, Naoya Horiguchi wrote:
-> > Detail about the data format being passed to userspace are explained in
-> > inline comment, but generally in long entry format, we can choose which
-> > information is extraced flexibly, so you don't have to waste memory by
-> > extracting unnecessary information. And with FINCORE_SKIP_HOLE flag,
-> > we can skip hole pages (not on memory,) which makes us avoid a flood of
-> > meaningless zero entries when calling on extremely large (but only few
-> > pages of it are loaded on memory) file.
+> > -#define PAGECACHE_TAG_DIRTY	0
+> > -#define PAGECACHE_TAG_WRITEBACK	1
+> > -#define PAGECACHE_TAG_TOWRITE	2
+> > +enum {
+> > +	PAGECACHE_TAG_DIRTY,
+> > +	PAGECACHE_TAG_WRITEBACK,
+> > +	PAGECACHE_TAG_TOWRITE,
+> > +	__NR_PAGECACHE_TAGS,
+> > +};
 > 
-> Something similar could be useful for hugetlbfs too.  For a 1GB page,
-> it's pretty silly to do 2^18 entries which essentially repeat the same
-> data in an interface like this.
+> Doesn't this end up exposing kernel-internal values out to a userspace
+> interface?  Wouldn't that lock these values in to the ABI?
 
-Good point.
-For hugetlbfs file, we link a hugepage to pagecache at the index of
-"hugepage" offset, so the second 1GB page in a hugetlbfs file are
-linked to index 1, not 2^18. Current version of fincore() already
-handle hugepage properly, so meaningless data copy doesn't happen.
+Yes, that would. I hope these PAGECACHE_TAG_* stuff is very basic
+things and will never change drastically in the future (only added),
+so it's unlikely to bother people about ABI breakage things.
 
 Thanks,
 Naoya Horiguchi
