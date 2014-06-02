@@ -1,65 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f42.google.com (mail-pb0-f42.google.com [209.85.160.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 115B66B0031
-	for <linux-mm@kvack.org>; Mon,  2 Jun 2014 17:17:01 -0400 (EDT)
-Received: by mail-pb0-f42.google.com with SMTP id md12so4646207pbc.29
-        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 14:17:00 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id ql2si17223821pbb.240.2014.06.02.14.16.59
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id C94E96B0031
+	for <linux-mm@kvack.org>; Mon,  2 Jun 2014 17:36:48 -0400 (EDT)
+Received: by mail-pa0-f46.google.com with SMTP id hz1so2322241pad.5
+        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 14:36:48 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [143.182.124.21])
+        by mx.google.com with ESMTP id bm3si17550010pad.232.2014.06.02.14.36.47
         for <linux-mm@kvack.org>;
-        Mon, 02 Jun 2014 14:16:59 -0700 (PDT)
-Date: Mon, 2 Jun 2014 14:16:57 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/3] replace PAGECACHE_TAG_* definition with enumeration
-Message-Id: <20140602141657.68f831156b45251b0684b441@linux-foundation.org>
-In-Reply-To: <538CA269.6010300@intel.com>
-References: <20140521193336.5df90456.akpm@linux-foundation.org>
-	<1401686699-9723-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-	<1401686699-9723-2-git-send-email-n-horiguchi@ah.jp.nec.com>
-	<538CA269.6010300@intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Mon, 02 Jun 2014 14:36:47 -0700 (PDT)
+Subject: [PATCH 01/10] mm: pagewalk: consolidate vma->vm_start checks
+From: Dave Hansen <dave@sr71.net>
+Date: Mon, 02 Jun 2014 14:36:45 -0700
+References: <20140602213644.925A26D0@viggo.jf.intel.com>
+In-Reply-To: <20140602213644.925A26D0@viggo.jf.intel.com>
+Message-Id: <20140602213645.290B349F@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, Arnaldo Carvalho de Melo <acme@redhat.com>, Borislav Petkov <bp@alien8.de>, "Kirill A. Shutemov" <kirill@shutemov.name>, Johannes Weiner <hannes@cmpxchg.org>, Rusty Russell <rusty@rustcorp.com.au>, David Miller <davem@davemloft.net>, Andres Freund <andres@2ndquadrant.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, kirill.shutemov@linux.intel.com, Dave Hansen <dave@sr71.net>
 
-On Mon, 02 Jun 2014 09:12:25 -0700 Dave Hansen <dave.hansen@intel.com> wrote:
 
-> On 06/01/2014 10:24 PM, Naoya Horiguchi wrote:
-> > -#define PAGECACHE_TAG_DIRTY	0
-> > -#define PAGECACHE_TAG_WRITEBACK	1
-> > -#define PAGECACHE_TAG_TOWRITE	2
-> > +enum {
-> > +	PAGECACHE_TAG_DIRTY,
-> > +	PAGECACHE_TAG_WRITEBACK,
-> > +	PAGECACHE_TAG_TOWRITE,
-> > +	__NR_PAGECACHE_TAGS,
-> > +};
-> 
-> Doesn't this end up exposing kernel-internal values out to a userspace
-> interface?  Wouldn't that lock these values in to the ABI?
+From: Dave Hansen <dave.hansen@linux.intel.com>
 
-Yes, we should be careful here.  We should not do anything which
-constrains future kernel code or which causes any form of
-compatibility/migration issues.
+We check vma->vm_start against the address being walked twice.
+Consolidate the locations down to a single one.
 
-I wonder if we can do something smart with the interface.  For example
-when userspace calls sys_fincore() it must explicitly ask for
-PAGECACHE_TAG_DIRTY and if some future kernel doesn't implement
-PAGECACHE_TAG_DIRTY, it can return -EINVAL.
+Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+---
 
-Or maybe it can succeed, but tells userspace "you didn't get
-PAGECACHE_TAG_DIRTY".
+ b/mm/pagewalk.c |    8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)
 
-<thinking out loud>
-
-So userspace sends a mask of bits which select what fields it wants. 
-The kernel returns a mask of bits which tell userspace what it actually
-received.
-
-Or something like that - you get the idea ;)
+diff -puN mm/pagewalk.c~pagewalk-always-skip-hugetlbfs-except-when-explicitly-handled mm/pagewalk.c
+--- a/mm/pagewalk.c~pagewalk-always-skip-hugetlbfs-except-when-explicitly-handled	2014-06-02 14:20:18.938791410 -0700
++++ b/mm/pagewalk.c	2014-06-02 14:20:18.941791545 -0700
+@@ -192,13 +192,12 @@ int walk_page_range(unsigned long addr,
+ 		 * - VM_PFNMAP vma's
+ 		 */
+ 		vma = find_vma(walk->mm, addr);
+-		if (vma) {
++		if (vma && (vma->vm_start <= addr)) {
+ 			/*
+ 			 * There are no page structures backing a VM_PFNMAP
+ 			 * range, so do not allow split_huge_page_pmd().
+ 			 */
+-			if ((vma->vm_start <= addr) &&
+-			    (vma->vm_flags & VM_PFNMAP)) {
++			if (vma->vm_flags & VM_PFNMAP) {
+ 				next = vma->vm_end;
+ 				pgd = pgd_offset(walk->mm, next);
+ 				continue;
+@@ -209,8 +208,7 @@ int walk_page_range(unsigned long addr,
+ 			 * architecture and we can't handled it in the same
+ 			 * manner as non-huge pages.
+ 			 */
+-			if (walk->hugetlb_entry && (vma->vm_start <= addr) &&
+-			    is_vm_hugetlb_page(vma)) {
++			if (walk->hugetlb_entry && is_vm_hugetlb_page(vma)) {
+ 				if (vma->vm_end < next)
+ 					next = vma->vm_end;
+ 				/*
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
