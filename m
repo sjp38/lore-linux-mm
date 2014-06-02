@@ -1,47 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f178.google.com (mail-ig0-f178.google.com [209.85.213.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 5CADD6B0036
-	for <linux-mm@kvack.org>; Mon,  2 Jun 2014 16:09:12 -0400 (EDT)
-Received: by mail-ig0-f178.google.com with SMTP id hl10so3889388igb.5
-        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 13:09:12 -0700 (PDT)
-Received: from mail-ig0-x235.google.com (mail-ig0-x235.google.com [2607:f8b0:4001:c05::235])
-        by mx.google.com with ESMTPS id dq1si27145889icb.23.2014.06.02.13.09.11
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id B27F26B0031
+	for <linux-mm@kvack.org>; Mon,  2 Jun 2014 16:31:09 -0400 (EDT)
+Received: by mail-pd0-f175.google.com with SMTP id z10so3782726pdj.34
+        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 13:31:09 -0700 (PDT)
+Received: from g2t2352.austin.hp.com (g2t2352.austin.hp.com. [15.217.128.51])
+        by mx.google.com with ESMTPS id qd5si17099702pbb.211.2014.06.02.13.31.08
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 02 Jun 2014 13:09:11 -0700 (PDT)
-Received: by mail-ig0-f181.google.com with SMTP id h3so3884418igd.14
-        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 13:09:11 -0700 (PDT)
-Date: Mon, 2 Jun 2014 13:09:08 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH -mm] mm, compaction: properly signal and act upon lock
- and need_sched() contention - fix
-In-Reply-To: <538C8B45.6070803@suse.cz>
-Message-ID: <alpine.DEB.2.02.1406021308510.13589@chino.kir.corp.google.com>
-References: <1399904111-23520-1-git-send-email-vbabka@suse.cz> <1400233673-11477-1-git-send-email-vbabka@suse.cz> <CAGa+x87-NRyK6kUiXNL_bRNEGm+DR6M3HPSLYEoq4t6Nrtnd_g@mail.gmail.com> <CAAQ0ZWQDVxAzZVm86ATXd1JGUVoLXj_Y5Ske7htxH_6a4GPKRg@mail.gmail.com>
- <537F082F.50501@suse.cz> <CAOMZO5BKaicq7NkoJO4vU5W3hiDike6kSdH+2eD=h0B5BsDjTg@mail.gmail.com> <538C8B45.6070803@suse.cz>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 02 Jun 2014 13:31:08 -0700 (PDT)
+Message-ID: <1401741061.5185.9.camel@buesod1.americas.hpqcorp.net>
+Subject: Re: [PATCH 0/5] mm: i_mmap_mutex to rwsem
+From: Davidlohr Bueso <davidlohr@hp.com>
+Date: Mon, 02 Jun 2014 13:31:01 -0700
+In-Reply-To: <20140602130832.9328cfef977b7ed837d59321@linux-foundation.org>
+References: <1400816006-3083-1-git-send-email-davidlohr@hp.com>
+	 <1401416415.2618.14.camel@buesod1.americas.hpqcorp.net>
+	 <20140602130832.9328cfef977b7ed837d59321@linux-foundation.org>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Fabio Estevam <festevam@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Shawn Guo <shawn.guo@linaro.org>, Kevin Hilman <khilman@linaro.org>, Rik van Riel <riel@redhat.com>, Stephen Warren <swarren@wwwdotorg.org>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Hugh Dickins <hughd@google.com>, LKML <linux-kernel@vger.kernel.org>, Michal Nazarewicz <mina86@mina86.com>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, Olof Johansson <olof@lixom.net>, Greg Thelen <gthelen@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Christoph Lameter <cl@linux.com>, linux-arm-kernel <linux-arm-kernel@lists.infradead.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: mingo@kernel.org, peterz@infradead.org, riel@redhat.com, mgorman@suse.de, aswin@hp.com, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Mon, 2 Jun 2014, Vlastimil Babka wrote:
-
-> compact_should_abort() returns true instead of false and vice versa
-> due to changes between v1 and v2 of the patch. This makes both async
-> and sync compaction abort with high probability, and has been reported
-> to cause e.g. soft lockups on some ARM boards, or drivers calling
-> dma_alloc_coherent() fail to probe with CMA enabled on different boards.
+On Mon, 2014-06-02 at 13:08 -0700, Andrew Morton wrote:
+> On Thu, 29 May 2014 19:20:15 -0700 Davidlohr Bueso <davidlohr@hp.com> wrote:
 > 
-> This patch fixes the return value to match comments and callers expecations.
+> > On Thu, 2014-05-22 at 20:33 -0700, Davidlohr Bueso wrote:
+> > > This patchset extends the work started by Ingo Molnar in late 2012,
+> > > optimizing the anon-vma mutex lock, converting it from a exclusive mutex
+> > > to a rwsem, and sharing the lock for read-only paths when walking the
+> > > the vma-interval tree. More specifically commits 5a505085 and 4fc3f1d6.
+> > > 
+> > > The i_mmap_mutex has similar responsibilities with the anon-vma, protecting
+> > > file backed pages. Therefore we can use similar locking techniques: covert
+> > > the mutex to a rwsem and share the lock when possible.
+> > > 
+> > > With the new optimistic spinning property we have in rwsems, we no longer
+> > > take a hit in performance when using this lock, and we can therefore
+> > > safely do the conversion. Tests show no throughput regressions in aim7 or
+> > > pgbench runs, and we can see gains from sharing the lock, in disk workloads
+> > > ~+15% for over 1000 users on a 8-socket Westmere system.
+> > > 
+> > > This patchset applies on linux-next-20140522.
+> >
+> > ping? Andrew any chance of getting this in -next?
 > 
-> Reported-and-tested-by: Kevin Hilman <khilman@linaro.org>
-> Reported-and-tested-by: Shawn Guo <shawn.guo@linaro.org>
-> Tested-by: Stephen Warren <swarren@nvidia.com>
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+> (top-posting repaired)
+> 
+> It was a bit late for 3.16 back on May 26, when you said "I will dig
+> deeper (probably for 3.17 now)".  So, please take another look at the
+> patch factoring and let's get this underway for -rc1.
 
-Acked-by: David Rientjes <rientjes@google.com>
+Ok, so I meant that I'd dig deeper for the additional sharing
+opportunities (which I've found a few as Hugh correctly suggested). So
+those eventual patches could come later. 
+
+But I see no reason for *this* patchset to be delayed, as even if it
+gets to be 3.17 material, I'd still very much want to have the same
+patch factoring I have now. I think its the correct way to handle lock
+transitioning for both correctness and bisectability.
+
+Thanks,
+Davidlohr
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
