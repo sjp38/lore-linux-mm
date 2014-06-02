@@ -1,77 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 034C46B0031
-	for <linux-mm@kvack.org>; Mon,  2 Jun 2014 03:13:28 -0400 (EDT)
-Received: by mail-pa0-f53.google.com with SMTP id lj1so2849739pab.40
-        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 00:13:28 -0700 (PDT)
-Received: from lgeamrelo01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
-        by mx.google.com with ESMTP id mr8si14735649pbb.181.2014.06.02.00.13.26
-        for <linux-mm@kvack.org>;
-        Mon, 02 Jun 2014 00:13:28 -0700 (PDT)
-Message-ID: <538C240F.60501@lge.com>
-Date: Mon, 02 Jun 2014 16:13:19 +0900
-From: Gioh Kim <gioh.kim@lge.com>
+Received: from mail-we0-f181.google.com (mail-we0-f181.google.com [74.125.82.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 9DB966B0031
+	for <linux-mm@kvack.org>; Mon,  2 Jun 2014 04:52:33 -0400 (EDT)
+Received: by mail-we0-f181.google.com with SMTP id w61so4734492wes.40
+        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 01:52:32 -0700 (PDT)
+Received: from metis.ext.pengutronix.de (metis.ext.pengutronix.de. [2001:6f8:1178:4:290:27ff:fe1d:cc33])
+        by mx.google.com with ESMTPS id da1si20254794wib.71.2014.06.02.01.52.31
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 02 Jun 2014 01:52:32 -0700 (PDT)
+Date: Mon, 2 Jun 2014 10:51:50 +0200
+From: Uwe =?iso-8859-1?Q?Kleine-K=F6nig?= <u.kleine-koenig@pengutronix.de>
+Subject: Re: TASK_SIZE for !MMU
+Message-ID: <20140602085150.GA31147@pengutronix.de>
+References: <20140429100028.GH28564@pengutronix.de>
 MIME-Version: 1.0
-Subject: Re: [PATCH v2 2/3] CMA: aggressively allocate the pages on cma reserved
- memory when not used
-References: <1401260672-28339-1-git-send-email-iamjoonsoo.kim@lge.com> <1401260672-28339-3-git-send-email-iamjoonsoo.kim@lge.com> <53883902.8020701@lge.com> <CAAmzW4Nyic0VC9W16ZbjsZtNGGBet4HBDomQfMi-OvMGMKv9iw@mail.gmail.com> <538C1196.9000608@lge.com> <20140602062344.GB7713@js1304-P5Q-DELUXE>
-In-Reply-To: <20140602062344.GB7713@js1304-P5Q-DELUXE>
-Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
+In-Reply-To: <20140429100028.GH28564@pengutronix.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Heesub Shin <heesub.shin@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, =?UTF-8?B?7J206rG07Zi4?= <gunho.lee@lge.com>
+To: Rabin Vincent <rabin@rab.in>, Will Deacon <will.deacon@arm.com>, linux-arm-kernel@lists.infradead.org
+Cc: David Howells <dhowells@redhat.com>, uclinux-dist-devel@blackfin.uclinux.org, linux-m68k@lists.linux-m68k.org, linux-c6x-dev@linux-c6x.org, linux-m32r@ml.linux-m32r.org, microblaze-uclinux@itee.uq.edu.au, linux-xtensa@linux-xtensa.org, kernel@pengutronix.de, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-I'm not sure what I'm doing wrong.
-These are my code.
+Hello
 
-  770 #ifdef CONFIG_CMA
-  771 void adjust_managed_cma_page_count(struct zone *zone, long count)
-  772 {
-  773         unsigned long flags;
-  774         long total, cma, movable;
-  775
-  776         spin_lock_irqsave(&zone->lock, flags);
-  777
-  778         zone->managed_cma_pages += count;
-  779
-  780         total = zone->managed_pages;
-  781         cma = zone->managed_cma_pages;
-  782         movable = total - cma - high_wmark_pages(zone);
-  783
-  784         printk("count=%ld total=%ld cma=%ld movable=%ld\n",
-  785                count, total, cma, movable);
-  786
+[expand Cc: a bit]
 
+On Tue, Apr 29, 2014 at 12:00:28PM +0200, Uwe Kleine-Konig wrote:
+> I grepped through the kernel (v3.15-rc1) for usages of TASK_SIZE to
+> check if/how it is used on !MMU ARM machines. Most open questions also
+> affect the other !MMU platforms, so I put the blackfin, c6x, frv and
+> m32r, m68k, microblaze and xtensa lists on Cc:. (Did I miss a platform
+> that cares for !MMU ?)
+> 
+> Most occurences are fine, see the list at the end of this mail. However
+> some are not or are unclear to me. Here is the complete list[1] apart from
+> the definition of TASK_SIZE for !MMU in arch/arm/include/asm/memory.h:
+> 
+>  - Probably this should be explict s/TASK_SIZE/CONFIG_DRAM_SIZE/. This
+>    is generic code however while CONFIG_DRAM_SIZE is ARM only.
+>         mm/nommu.c:     if (!rlen || rlen > TASK_SIZE)
+> 
+>  - The issue the patch by Rabin is addressing (Subject: [PATCH] ARM: fix
+>    string functions on !MMU), alternatively make TASK_SIZE ~0UL.
+>         arch/arm/include/asm/uaccess.h:#define user_addr_max() \
+>         arch/arm/include/asm/uaccess.h: (segment_eq(get_fs(), USER_DS) ? TASK_SIZE : ~0UL)
+[reference: http://www.spinics.net/lists/arm-kernel/msg324112.html ]
+ 
+>  - probably bearable if broken:
+>         drivers/misc/lkdtm.c:           if (user_addr >= TASK_SIZE) {
+>         lib/test_user_copy.c:   user_addr = vm_mmap(...)
+>         lib/test_user_copy.c:   if (user_addr >= (unsigned long)(TASK_SIZE)) {
+>         lib/test_user_copy.c:           pr_warn("Failed to allocate user memory\n");
+>         lib/test_user_copy.c:           return -ENOMEM;
+> 
+>  - unclear to me:
+>         fs/exec.c:      current->mm->task_size = TASK_SIZE;
+>    - depends on PERF_EVENTS
+>         kernel/events/core.c:   if (!addr || addr >= TASK_SIZE)
+>         kernel/events/core.c:   return TASK_SIZE - addr;
+>         kernel/events/uprobes.c:                area->vaddr = get_unmapped_area(NULL, TASK_SIZE - PAGE_SIZE,
+>    - depends on (PERF_EVENTS && (CPU_V6 || CPU_V6K || CPU_V7)):
+>         arch/arm/kernel/hw_breakpoint.c:        return (va >= TASK_SIZE) && ((va + len - 1) >= TASK_SIZE);
+>    - seems to cope with big TASK_SIZE
+>         fs/namespace.c:        size = TASK_SIZE - (unsigned long)data;
+>         fs/namespace.c:        if (size > PAGE_SIZE)
+>         fs/namespace.c:                size = PAGE_SIZE;
+>    - depends on PLAT_S5P || ARCH_EXYNOS, this looks wrong
+>         drivers/media/platform/s5p-mfc/s5p_mfc_common.h:#define DST_QUEUE_OFF_BASE      (TASK_SIZE / 2)
+>    - used for prctl(PR_SET_MM, ...)
+>         kernel/sys.c:   if (addr >= TASK_SIZE || addr < mmap_min_addr)
+> 
+> Any help to judge if these are OK is appreciated (even from Will :-)
+> 
+> I think it would be OK to define TASK_SIZE to 0xffffffff for !MMU.
+> blackfin, frv and m68k also do this. c6x does define it to 0xFFFFF000 to
+> leave space for error codes.
+> 
+> Thoughts?
+The problem is that current linus/master (and also next) doesn't boot on
+my ARM-nommu machine because the user string functions (strnlen_user,
+strncpy_from_user et al.) refuse to work on strings above TASK_SIZE
+which in my case also includes the XIP kernel image.
 
-2014-06-02 i??i?? 3:23, Joonsoo Kim i?' e,?:
-> On Mon, Jun 02, 2014 at 02:54:30PM +0900, Gioh Kim wrote:
->> I found 2 problems at my platform.
->>
->> 1st is occured when I set CMA size 528MB and total memory is 960MB.
->> I print some values in adjust_managed_cma_page_count(),
->> the total value becomes 105439 and cma value 131072.
->> Finally movable value becomes negative value.
->>
->> The total value 105439 means 411MB.
->> Is the zone->managed_pages value pages amount except the CMA?
->> I think zone->managed_pages value is including CMA size but it's value is strange.
->
-> Hmm...
-> zone->managed_pages includes nr of CMA pages.
-> Is there any mistake about your printk?
->
->>
->> 2nd is a kernel panic at __netdev_alloc_skb().
->> I'm not sure it is caused by the CMA.
->> I'm checking it again and going to send you another report with detail call-stacks.
->
-> Okay.
->
-> Thanks.
->
->
+Maybe someone of the mm people can bring light into the unclear points
+above and the question what TASK_SIZE is supposed to be on no-MMU
+machines?
+
+Best regards
+Uwe
+
+> [1] complete as in "skip everything below arch/ but arch/arm" :-)
+> 
+[removed the list, if you're interested, it's available at
+http://mid.gmane.org/20140429100028.GH28564@pengutronix.de]
+
+-- 
+Pengutronix e.K.                           | Uwe Kleine-Konig            |
+Industrial Linux Solutions                 | http://www.pengutronix.de/  |
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
