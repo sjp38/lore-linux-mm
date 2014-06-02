@@ -1,43 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f182.google.com (mail-lb0-f182.google.com [209.85.217.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D12D6B0031
-	for <linux-mm@kvack.org>; Mon,  2 Jun 2014 10:22:26 -0400 (EDT)
-Received: by mail-lb0-f182.google.com with SMTP id z11so2536437lbi.41
-        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 07:22:26 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id b2si21829909wik.18.2014.06.02.07.22.24
-        for <linux-mm@kvack.org>;
-        Mon, 02 Jun 2014 07:22:25 -0700 (PDT)
-Message-ID: <538c88a1.e225b40a.612b.ffff9109SMTPIN_ADDED_BROKEN@mx.google.com>
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH 2/3] mm: introduce fincore()
-Date: Mon,  2 Jun 2014 10:21:30 -0400
-In-Reply-To: <CAHO5Pa3iQXRZPXG89OyRCmD6jPKp0M8TCfJind6XD0wbyoguxg@mail.gmail.com>
-References: <20140521193336.5df90456.akpm@linux-foundation.org> <1401686699-9723-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1401686699-9723-3-git-send-email-n-horiguchi@ah.jp.nec.com> <CAHO5Pa3iQXRZPXG89OyRCmD6jPKp0M8TCfJind6XD0wbyoguxg@mail.gmail.com>
-Mime-Version: 1.0
+Received: from mail-la0-f50.google.com (mail-la0-f50.google.com [209.85.215.50])
+	by kanga.kvack.org (Postfix) with ESMTP id A1F506B0031
+	for <linux-mm@kvack.org>; Mon,  2 Jun 2014 10:29:58 -0400 (EDT)
+Received: by mail-la0-f50.google.com with SMTP id b8so2634331lan.9
+        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 07:29:57 -0700 (PDT)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id ub4si25745371wjc.56.2014.06.02.07.29.56
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 02 Jun 2014 07:29:57 -0700 (PDT)
+Date: Mon, 2 Jun 2014 10:29:00 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] mm/page-writeback.c: remove outdated comment
+Message-ID: <20140602142900.GN2878@cmpxchg.org>
+References: <1401702440-1884-1-git-send-email-nasa4836@gmail.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
+In-Reply-To: <1401702440-1884-1-git-send-email-nasa4836@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michael Kerrisk <mtk.manpages@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, Arnaldo Carvalho de Melo <acme@redhat.com>, Borislav Petkov <bp@alien8.de>, "Kirill A. Shutemov" <kirill@shutemov.name>, Johannes Weiner <hannes@cmpxchg.org>, Rusty Russell <rusty@rustcorp.com.au>, David Miller <davem@davemloft.net>, Andres Freund <andres@2ndquadrant.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Christoph Hellwig <hch@infradead.org>, linux-api@vger.kernel.org
+To: Jianyu Zhan <nasa4836@gmail.com>
+Cc: akpm@linux-foundation.org, mhocko@suse.cz, riel@redhat.com, kosaki.motohiro@jp.fujitsu.com, cldu@marvell.com, handai.szj@taobao.com, paul.gortmaker@windriver.com, mpatlasov@parallels.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Jun 02, 2014 at 09:06:34AM +0200, Michael Kerrisk wrote:
-> Hello Naoya,
+On Mon, Jun 02, 2014 at 05:47:20PM +0800, Jianyu Zhan wrote:
+> There is an orphaned prehistoric comment , which used to be against
+> get_dirty_limits(), the dawn of global_dirtyable_memory().
 > 
-> As Christoph noted, it would be best to provide some good user
-> documentation for this proposed system call, to aid design review.
+> Back then, the implementation of get_dirty_limits() is complicated and
+> full of magic numbers, so this comment is necessary. But we now
+> use the clear and neat global_dirtyable_memory(), which renders this
+> comment ambiguous and useless. Remove it.
 > 
-> Also, as per Documentation/SubmitChecklist, patches that change the
-> kernel-userspace API/ABI should CC
-> linux-api@vger.kernel.org (see
-> https://www.kernel.org/doc/man-pages/linux-api-ml.html).
+> Signed-off-by: Jianyu Zhan <nasa4836@gmail.com>
 
-OK, I didn't check it, so will do hereafter.
-Thank you!
-
-Naoya Horiguchi
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
