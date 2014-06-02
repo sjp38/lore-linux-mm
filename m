@@ -1,87 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 442A66B0031
-	for <linux-mm@kvack.org>; Mon,  2 Jun 2014 07:00:17 -0400 (EDT)
-Received: by mail-pa0-f44.google.com with SMTP id lj1so4081447pab.17
-        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 04:00:16 -0700 (PDT)
-Received: from mail-pd0-x231.google.com (mail-pd0-x231.google.com [2607:f8b0:400e:c02::231])
-        by mx.google.com with ESMTPS id cx2si15295004pbc.138.2014.06.02.04.00.15
+Received: from mail-la0-f52.google.com (mail-la0-f52.google.com [209.85.215.52])
+	by kanga.kvack.org (Postfix) with ESMTP id E8D966B0031
+	for <linux-mm@kvack.org>; Mon,  2 Jun 2014 07:48:02 -0400 (EDT)
+Received: by mail-la0-f52.google.com with SMTP id s18so521520lam.11
+        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 04:48:01 -0700 (PDT)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id m3si31619191lba.41.2014.06.02.04.48.00
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 02 Jun 2014 04:00:16 -0700 (PDT)
-Received: by mail-pd0-f177.google.com with SMTP id g10so3294076pdj.22
-        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 04:00:15 -0700 (PDT)
-Date: Mon, 2 Jun 2014 03:59:01 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH v2 2/3] shm: add memfd_create() syscall
-In-Reply-To: <CANq1E4TORuZU7frtR167P-GNPzEuvbjXXEfi9KdvTwGojqGruA@mail.gmail.com>
-Message-ID: <alpine.LSU.2.11.1406020331100.1259@eggly.anvils>
-References: <1397587118-1214-1-git-send-email-dh.herrmann@gmail.com> <1397587118-1214-3-git-send-email-dh.herrmann@gmail.com> <alpine.LSU.2.11.1405191916300.2970@eggly.anvils> <CANq1E4TORuZU7frtR167P-GNPzEuvbjXXEfi9KdvTwGojqGruA@mail.gmail.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 02 Jun 2014 04:48:01 -0700 (PDT)
+Date: Mon, 2 Jun 2014 15:47:46 +0400
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: Re: [PATCH -mm 7/8] slub: make dead caches discard free slabs
+ immediately
+Message-ID: <20140602114741.GA1039@esperanza>
+References: <cover.1401457502.git.vdavydov@parallels.com>
+ <5d2fbc894a2c62597e7196bb1ebb8357b15529ab.1401457502.git.vdavydov@parallels.com>
+ <alpine.DEB.2.10.1405300955120.11943@gentwo.org>
+ <20140531110456.GC25076@esperanza>
+ <20140602042435.GA17964@js1304-P5Q-DELUXE>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20140602042435.GA17964@js1304-P5Q-DELUXE>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Herrmann <dh.herrmann@gmail.com>
-Cc: Hugh Dickins <hughd@google.com>, Tony Battersby <tonyb@cybernetics.com>, Andy Lutomirsky <luto@amacapital.net>, Al Viro <viro@zeniv.linux.org.uk>, Jan Kara <jack@suse.cz>, Michael Kerrisk <mtk.manpages@gmail.com>, Ryan Lortie <desrt@desrt.ca>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-kernel <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Greg Kroah-Hartman <greg@kroah.com>, John Stultz <john.stultz@linaro.org>, Kristian Hogsberg <krh@bitplanet.net>, Lennart Poettering <lennart@poettering.net>, Daniel Mack <zonque@gmail.com>, Kay Sievers <kay@vrfy.org>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Christoph Lameter <cl@gentwo.org>, akpm@linux-foundation.org, hannes@cmpxchg.org, mhocko@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, 23 May 2014, David Herrmann wrote:
-> On Tue, May 20, 2014 at 4:20 AM, Hugh Dickins <hughd@google.com> wrote:
-> >
-> > What is a front-FD?
-> 
-> With 'front-FD' I refer to things like dma-buf: They allocate a
-> file-descriptor which is just a wrapper around a kernel-internal FD.
-> For instance, DRM-gem buffers exported as dma-buf. fops on the dma-buf
-> are forwarded to the shmem-fd of the given gem-object, but any access
-> to the inode of the dma-buf fd is a no-op as the dma-buf fd uses
-> anon-inode, not the shmem-inode.
-> 
-> A previous revision of memfd used something like that, but that was
-> inherently racy.
+Hi Joonsoo,
 
-Thanks for explaining: then I guess you can leave "front-FD" out of the
-description next time around, in case there are others like me who are
-more mystified than enlightened by it.
+On Mon, Jun 02, 2014 at 01:24:36PM +0900, Joonsoo Kim wrote:
+> On Sat, May 31, 2014 at 03:04:58PM +0400, Vladimir Davydov wrote:
+> > On Fri, May 30, 2014 at 09:57:10AM -0500, Christoph Lameter wrote:
+> > > On Fri, 30 May 2014, Vladimir Davydov wrote:
+> > > 
+> > > > (3) is a bit more difficult, because slabs are added to per-cpu partial
+> > > > lists lock-less. Fortunately, we only have to handle the __slab_free
+> > > > case, because, as there shouldn't be any allocation requests dispatched
+> > > > to a dead memcg cache, get_partial_node() should never be called. In
+> > > > __slab_free we use cmpxchg to modify kmem_cache_cpu->partial (see
+> > > > put_cpu_partial) so that setting ->partial to a special value, which
+> > > > will make put_cpu_partial bail out, will do the trick.
+[...]
+> I think that we can do (3) easily.
+> If we check memcg_cache_dead() in the end of put_cpu_partial() rather
+> than in the begin of put_cpu_partial(), we can avoid the race you 
+> mentioned. If someone do put_cpu_partial() before dead flag is set,
+> it can be zapped by who set dead flag. And if someone do
+> put_cpu_partial() after dead flag is set, it can be zapped by who
+> do put_cpu_partial().
 
-> > But this does highlight how the "size" arg to memfd_create() is
-> > perhaps redundant.  Why give a size there, when size can be changed
-> > afterwards?  I expect your answer is that many callers want to choose
-> > the size at the beginning, and would prefer to avoid the extra call.
-> > I'm not sure if that's a good enough reason for a redundant argument.
-> 
-> At one point in time we might be required to support atomic-sealing.
-> So a memfd_create() call takes the initial seals as upper 32bits in
-> "flags" and sets them before returning the object. If these seals
-> contain SEAL_GROW/SHRINK, we must pass the size during setup (think
-> CLOEXEC with fork()).
+After put_cpu_partial() adds a frozen slab to a per cpu partial list,
+the slab becomes visible to other threads, which means it can be
+unfrozen and freed. The latter can trigger cache destruction. Hence we
+shouldn't touch the cache, in particular call memcg_cache_dead() on it,
+after calling put_cpu_partial(), otherwise we can get use-after-free.
 
-That does sound like over-design to me.  You stop short of passing
-in an optional buffer of the data it's to contain, good.
+However, what you propose makes sense if we disable irqs before adding a
+slab to a partial list and enable them only after checking if the cache
+is dead and unfreezing all partials if so, i.e.
 
-I think it would be a clearer interface without the size, but really
-that's an issue for the linux-api people you'll be Cc'ing next time.
+diff --git a/mm/slub.c b/mm/slub.c
+index d96faa2464c3..14b9e9a8677c 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -2030,8 +2030,15 @@ static void put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
+ 	struct page *oldpage;
+ 	int pages;
+ 	int pobjects;
++	unsigned long flags;
++	int irq_saved = 0;
+ 
+ 	do {
++		if (irq_saved) {
++			local_irq_restore(flags);
++			irq_saved = 0;
++		}
++
+ 		pages = 0;
+ 		pobjects = 0;
+ 		oldpage = this_cpu_read(s->cpu_slab->partial);
+@@ -2062,8 +2069,16 @@ static void put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
+ 		page->pobjects = pobjects;
+ 		page->next = oldpage;
+ 
++		local_irq_save(flags);
++		irq_saved = 1;
++
+ 	} while (this_cpu_cmpxchg(s->cpu_slab->partial, oldpage, page)
+ 								!= oldpage);
++
++	if (memcg_cache_dead(s))
++		unfreeze_partials(s, this_cpu_ptr(s->cpu_slab));
++
++	local_irq_restore(flags);
+ #endif
+ }
+ 
 
-You say "think CLOEXEC with fork()": you have thought about this, I
-have not, please spell out for me what the atomic size guards against.
-Do you want an fd that's not shared across fork?
+That would be safe against possible cache destruction, because to remove
+a slab from a per cpu partial list we have to run on the cpu it was
+frozen on. Disabling irqs makes it impossible.
 
-> 
-> Note that we spent a lot of time discussing whether such
-> atomic-sealing is necessary and no-one came up with a real race so
-> far. Therefore, I didn't include that. But especially if we add new
-> seals (like SHMEM_SEAL_OPEN, which I still think is not needed and
-> just hides real problems), we might at one point be required to
-> support that. That's also the reason why "flags" is 64bits.
-> 
-> One might argue that we can just add memfd_create2() once that
-> happens, but I didn't see any harm in including "size" and making them
-> 64bit.
+Christoph,
 
-I've not noticed another system call with 64-bit flags, it does seem
-over the top to me: the familiar ones all use int.  But again,
-a matter for linux-api not for me.
+Does it look better to you? BTW, why can't we *always* disable irqs for
+the whole put_cpu_partial()? That way handling dead caches there would
+be trivial, and we wouldn't have to use this_cpu_cmpxchg().
 
-Hugh
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
