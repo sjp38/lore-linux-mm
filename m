@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id C46296B0038
-	for <linux-mm@kvack.org>; Mon,  2 Jun 2014 17:36:52 -0400 (EDT)
-Received: by mail-pa0-f50.google.com with SMTP id kq14so1585858pab.23
-        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 14:36:52 -0700 (PDT)
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id EC7336B003B
+	for <linux-mm@kvack.org>; Mon,  2 Jun 2014 17:36:53 -0400 (EDT)
+Received: by mail-pd0-f182.google.com with SMTP id r10so3852062pdi.27
+        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 14:36:53 -0700 (PDT)
 Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id ub1si3789334pac.41.2014.06.02.14.36.51
+        by mx.google.com with ESMTP id ub1si3789334pac.41.2014.06.02.14.36.52
         for <linux-mm@kvack.org>;
-        Mon, 02 Jun 2014 14:36:52 -0700 (PDT)
-Subject: [PATCH 05/10] mm: mincore: clean up hugetlbfs handling (part 1)
+        Mon, 02 Jun 2014 14:36:53 -0700 (PDT)
+Subject: [PATCH 06/10] mm: mincore: clean up hugetlbfs handler (part 2)
 From: Dave Hansen <dave@sr71.net>
-Date: Mon, 02 Jun 2014 14:36:51 -0700
+Date: Mon, 02 Jun 2014 14:36:52 -0700
 References: <20140602213644.925A26D0@viggo.jf.intel.com>
 In-Reply-To: <20140602213644.925A26D0@viggo.jf.intel.com>
-Message-Id: <20140602213651.1D4268DB@viggo.jf.intel.com>
+Message-Id: <20140602213652.ABA2E299@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
@@ -22,80 +22,63 @@ Cc: linux-mm@kvack.org, kirill.shutemov@linux.intel.com, Dave Hansen <dave@sr71.
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-The page walker functions are only called _via_ the page
-walker.  I don't see this changing any time soon.  The
-page walker only calls walk->hugetlb_entry() under an
-#ifdef CONFIG_HUGETLB_PAGE.
+The walk_page_range() code calls in to the ->hugetlbfs_entry
+handler once for each huge page table entry.  This means that
+addr and end are always within the same huge page.  (Well, end is
+not technically _within_ it, because it is exclusive.)
 
-With this in place, I think putting BUG()s in the
-->hugetlb_entry handlers is a bit like wearing a belt and
-suspenders.
+The outer while() loop in mincore_hugetlb_page_range() appears to
+be designed to work if we crossed a huge page boundary to a new
+huge pte and 'present' changed.  However, that is impossible for
+two reasons:
 
-This axes the BUG() from the mincore ->hugetlb_entry along
-with the #ifdef.  The compiler is more than smart enough
-to do the right thing when it sees:
+	1. The above-mentioned walk_page_range() restriction
+	2. We never move ptep
 
-	if (1)
-		return;
-	// unreachable
-
-The only downside here is that we now need some header stubs
-for huge_pte_none() / huge_pte_get().
+So the outer while() along with the check for crossing the end of
+the huge page boundary (which is impossible) make no sense.  Once
+we peel it off, it's clear that we can just make the 'return' in
+to the loop condition.
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 ---
 
- b/include/linux/hugetlb.h |   10 ++++++++++
- b/mm/mincore.c            |    9 +++++----
- 2 files changed, 15 insertions(+), 4 deletions(-)
+ b/mm/mincore.c |   18 ++++++------------
+ 1 file changed, 6 insertions(+), 12 deletions(-)
 
-diff -puN include/linux/hugetlb.h~cleanup-hugetlbfs-mincore-1 include/linux/hugetlb.h
---- a/include/linux/hugetlb.h~cleanup-hugetlbfs-mincore-1	2014-06-02 14:20:20.144845525 -0700
-+++ b/include/linux/hugetlb.h	2014-06-02 14:20:20.149845750 -0700
-@@ -458,6 +458,16 @@ static inline spinlock_t *huge_pte_lockp
- {
- 	return &mm->page_table_lock;
- }
-+static inline int huge_pte_none(pte_t pte)
-+{
-+	WARN_ONCE(1, "%s() called when hugetlbfs disabled", __func__);
-+	return 1;
-+}
-+static inline pte_t huge_ptep_get(pte_t *pte)
-+{
-+	WARN_ONCE(1, "%s() called when hugetlbfs disabled", __func__);
-+	return __pte(0);
-+}
- #endif	/* CONFIG_HUGETLB_PAGE */
- 
- static inline spinlock_t *huge_pte_lock(struct hstate *h,
-diff -puN mm/mincore.c~cleanup-hugetlbfs-mincore-1 mm/mincore.c
---- a/mm/mincore.c~cleanup-hugetlbfs-mincore-1	2014-06-02 14:20:20.146845615 -0700
-+++ b/mm/mincore.c	2014-06-02 14:20:20.149845750 -0700
-@@ -23,8 +23,12 @@ static int mincore_hugetlb_page_range(pt
- 					unsigned long addr, unsigned long end,
+diff -puN mm/mincore.c~cleanup-hugetlbfs-mincore-2 mm/mincore.c
+--- a/mm/mincore.c~cleanup-hugetlbfs-mincore-2	2014-06-02 14:20:20.426858178 -0700
++++ b/mm/mincore.c	2014-06-02 14:20:20.430858359 -0700
+@@ -24,23 +24,17 @@ static int mincore_hugetlb_page_range(pt
  					struct mm_walk *walk)
  {
--#ifdef CONFIG_HUGETLB_PAGE
  	unsigned char *vec = walk->private;
-+
-+	/* This is as good as an explicit ifdef */
-+	if (!is_vm_hugetlb_page(walk->vma))
-+		return 0;
-+
- 	while (1) {
- 		int present = !huge_pte_none(huge_ptep_get(ptep));
- 		while (1) {
-@@ -38,9 +42,6 @@ static int mincore_hugetlb_page_range(pt
- 				break;
- 		}
++	int present;
+ 
+ 	/* This is as good as an explicit ifdef */
+ 	if (!is_vm_hugetlb_page(walk->vma))
+ 		return 0;
+ 
+-	while (1) {
+-		int present = !huge_pte_none(huge_ptep_get(ptep));
+-		while (1) {
+-			*vec = present;
+-			vec++;
+-			addr += PAGE_SIZE;
+-			if (addr == end)
+-				return 0;
+-			/* check hugepage border */
+-			if (!(addr & hmask))
+-				break;
+-		}
++	present = !huge_pte_none(huge_ptep_get(ptep));
++	while (addr < end) {
++		*vec = present;
++		vec++;
++		addr += PAGE_SIZE;
  	}
--#else
--	BUG();
--#endif
  	return 0;
  }
- 
 _
 
 --
