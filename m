@@ -1,78 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f176.google.com (mail-ie0-f176.google.com [209.85.223.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 379716B0098
-	for <linux-mm@kvack.org>; Mon,  2 Jun 2014 19:13:55 -0400 (EDT)
-Received: by mail-ie0-f176.google.com with SMTP id rl12so5005712iec.7
-        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 16:13:55 -0700 (PDT)
-Received: from mail-ie0-x22c.google.com (mail-ie0-x22c.google.com [2607:f8b0:4001:c03::22c])
-        by mx.google.com with ESMTPS id l9si23789047igv.4.2014.06.02.16.13.54
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id B56DF6B009A
+	for <linux-mm@kvack.org>; Mon,  2 Jun 2014 19:27:47 -0400 (EDT)
+Received: by mail-pd0-f172.google.com with SMTP id fp1so3926148pdb.3
+        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 16:27:47 -0700 (PDT)
+Received: from mail-pb0-x235.google.com (mail-pb0-x235.google.com [2607:f8b0:400e:c01::235])
+        by mx.google.com with ESMTPS id mn6si17653901pbc.17.2014.06.02.16.27.46
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 02 Jun 2014 16:13:54 -0700 (PDT)
-Received: by mail-ie0-f172.google.com with SMTP id tp5so5213682ieb.3
-        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 16:13:54 -0700 (PDT)
-Date: Mon, 2 Jun 2014 16:13:52 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch] mm, memcg: periodically schedule when emptying page list
-Message-ID: <alpine.DEB.2.02.1406021612550.6487@chino.kir.corp.google.com>
+        Mon, 02 Jun 2014 16:27:46 -0700 (PDT)
+Received: by mail-pb0-f53.google.com with SMTP id md12so4665819pbc.26
+        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 16:27:46 -0700 (PDT)
+Date: Mon, 2 Jun 2014 16:26:13 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH] swap: Delete  the "last_in_cluster < scan_base" loop in
+ the body of scan_swap_map()
+In-Reply-To: <1401710053-8460-1-git-send-email-slaoub@gmail.com>
+Message-ID: <alpine.LSU.2.11.1406021603330.2584@eggly.anvils>
+References: <1401710053-8460-1-git-send-email-slaoub@gmail.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
+To: Chen Yucong <slaoub@gmail.com>
+Cc: shli@kernel.org, hughd@google.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-mem_cgroup_force_empty_list() can iterate a large number of pages on an lru and 
-mem_cgroup_move_parent() doesn't return an errno unless certain criteria, none 
-of which indicate that the iteration may be taking too long, is met.
+On Mon, 2 Jun 2014, Chen Yucong wrote:
 
-We have encountered the following stack trace many times indicating
-"need_resched set for > 51000020 ns (51 ticks) without schedule", for example:
+> From commit ebc2a1a69111, we can find that all SWP_SOLIDSTATE "seek is cheap"(SSD case) 
+> has already gone to si->cluster_info scan_swap_map_try_ssd_cluster() route. So that the
+> "last_in_cluster < scan_base" loop in the body of scan_swap_map() has already become a 
+> dead code snippet, and it should have been deleted.
+> 
+> This patch is to delete the redundant loop as Hugh and Shaohua suggested.
+> 
+> Signed-off-by: Chen Yucong <slaoub@gmail.com>
 
-	scheduler_tick()
-	<timer irq>
-	mem_cgroup_move_account+0x4d/0x1d5
-	mem_cgroup_move_parent+0x8d/0x109
-	mem_cgroup_reparent_charges+0x149/0x2ba
-	mem_cgroup_css_offline+0xeb/0x11b
-	cgroup_offline_fn+0x68/0x16b
-	process_one_work+0x129/0x350
+That is very nice, thank you.
 
-If this iteration is taking too long, indicated by need_resched(), then 
-periodically schedule and continue from where we last left off.
+Acked-by: Hugh Dickins <hughd@google.com>
 
-Signed-off-by: David Rientjes <rientjes@google.com>
+But it does beg for just a little more: perhaps Andrew can kindly fold in:
 ---
- mm/memcontrol.c | 10 ++++++++--
- 1 file changed, 8 insertions(+), 2 deletions(-)
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -4764,6 +4764,7 @@ static void mem_cgroup_force_empty_list(struct mem_cgroup *memcg,
- 	do {
- 		struct page_cgroup *pc;
- 		struct page *page;
-+		int ret;
+ mm/swapfile.c |    9 +++------
+ 1 file changed, 3 insertions(+), 6 deletions(-)
+
+--- chen/mm/swapfile.c	2014-06-02 15:55:44.812368186 -0700
++++ hugh/mm/swapfile.c	2014-06-02 16:15:20.344396124 -0700
+@@ -505,13 +505,10 @@ static unsigned long scan_swap_map(struc
+ 		/*
+ 		 * If seek is expensive, start searching for new cluster from
+ 		 * start of partition, to minimize the span of allocated swap.
+-		 * But if seek is cheap, search from our current position, so
+-		 * that swap is allocated from all over the partition: if the
+-		 * Flash Translation Layer only remaps within limited zones,
+-		 * we don't want to wear out the first zone too quickly.
++		 * If seek is cheap, that is the SWP_SOLIDSTATE si->cluster_info
++		 * case, just handled by scan_swap_map_try_ssd_cluster() above.
+ 		 */
+-		if (!(si->flags & SWP_SOLIDSTATE))
+-			scan_base = offset = si->lowest_bit;
++		scan_base = offset = si->lowest_bit;
+ 		last_in_cluster = offset + SWAPFILE_CLUSTER - 1;
  
- 		spin_lock_irqsave(&zone->lru_lock, flags);
- 		if (list_empty(list)) {
-@@ -4781,8 +4782,13 @@ static void mem_cgroup_force_empty_list(struct mem_cgroup *memcg,
- 
- 		pc = lookup_page_cgroup(page);
- 
--		if (mem_cgroup_move_parent(page, pc, memcg)) {
--			/* found lock contention or "pc" is obsolete. */
-+		ret = mem_cgroup_move_parent(page, pc, memcg);
-+		if (ret || need_resched()) {
-+			/*
-+			 * Couldn't grab the page reference, isolate the page,
-+			 * there was a pc mismatch, or we simply need to
-+			 * schedule because this is taking too long.
-+			 */
- 			busy = page;
- 			cond_resched();
- 		} else
+ 		/* Locate the first empty (unaligned) cluster */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
