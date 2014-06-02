@@ -1,61 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 60EA96B0092
-	for <linux-mm@kvack.org>; Mon,  2 Jun 2014 18:44:34 -0400 (EDT)
-Received: by mail-pd0-f172.google.com with SMTP id fp1so3866949pdb.17
-        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 15:44:34 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id cv17si17833150pac.7.2014.06.02.15.44.33
+Received: from mail-pb0-f43.google.com (mail-pb0-f43.google.com [209.85.160.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 534C46B0095
+	for <linux-mm@kvack.org>; Mon,  2 Jun 2014 18:59:20 -0400 (EDT)
+Received: by mail-pb0-f43.google.com with SMTP id up15so4705188pbc.30
+        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 15:59:20 -0700 (PDT)
+Received: from ipmail05.adl6.internode.on.net (ipmail05.adl6.internode.on.net. [2001:44b8:8060:ff02:300:1:6:5])
+        by mx.google.com with ESMTP id zz3si17823242pac.115.2014.06.02.15.59.18
         for <linux-mm@kvack.org>;
-        Mon, 02 Jun 2014 15:44:33 -0700 (PDT)
-Date: Mon, 2 Jun 2014 15:44:31 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 1/3] memory-failure: Send right signal code to correct
- thread
-Message-Id: <20140602154431.2d77c066546354b9bd81e60b@linux-foundation.org>
-In-Reply-To: <1401432670-24664-2-git-send-email-n-horiguchi@ah.jp.nec.com>
-References: <53877e9c.8b2cdc0a.1604.ffffea43SMTPIN_ADDED_BROKEN@mx.google.com>
-	<1401432670-24664-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-	<1401432670-24664-2-git-send-email-n-horiguchi@ah.jp.nec.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Mon, 02 Jun 2014 15:59:19 -0700 (PDT)
+Date: Tue, 3 Jun 2014 08:59:11 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [RFC 2/2] x86_64: expand kernel stack to 16K
+Message-ID: <20140602225911.GU14410@dastard>
+References: <1401260039-18189-1-git-send-email-minchan@kernel.org>
+ <1401260039-18189-2-git-send-email-minchan@kernel.org>
+ <CA+55aFxXdc22dirnE49UbQP_2s2vLQpjQFL+NptuyK7Xry6c=g@mail.gmail.com>
+ <20140528223142.GO8554@dastard>
+ <CA+55aFyRk6_v6COPGVvu6hvt=i2A8-dPcs1X3Ydn1g24AxbPkg@mail.gmail.com>
+ <20140529013007.GF6677@dastard>
+ <CA+55aFzdq2V-Q3WUV7hQJG8jBSAvBqdYLVTNtbD4ObVZ5yDRmw@mail.gmail.com>
+ <5389393D.2030305@kernel.dk>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5389393D.2030305@kernel.dk>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Tony Luck <tony.luck@intel.com>, Andi Kleen <andi@firstfloor.org>, Kamil Iskra <iskra@mcs.anl.gov>, Borislav Petkov <bp@suse.de>, Chen Gong <gong.chen@linux.jf.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Jens Axboe <axboe@kernel.dk>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Rusty Russell <rusty@rustcorp.com.au>, "Michael S. Tsirkin" <mst@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Steven Rostedt <rostedt@goodmis.org>
 
-On Fri, 30 May 2014 02:51:08 -0400 Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
-
-> From: Tony Luck <tony.luck@intel.com>
+On Fri, May 30, 2014 at 08:06:53PM -0600, Jens Axboe wrote:
+> On 2014-05-28 20:42, Linus Torvalds wrote:
+> >Well, we've definitely have had some issues with deeper callchains
+> >with md, but I suspect virtio might be worse, and the new blk-mq code
+> >is lilkely worse in this respect too.
 > 
-> When a thread in a multi-threaded application hits a machine
-> check because of an uncorrectable error in memory - we want to
-> send the SIGBUS with si.si_code = BUS_MCEERR_AR to that thread.
-> Currently we fail to do that if the active thread is not the
-> primary thread in the process. collect_procs() just finds primary
-> threads and this test:
-> 	if ((flags & MF_ACTION_REQUIRED) && t == current) {
-> will see that the thread we found isn't the current thread
-> and so send a si.si_code = BUS_MCEERR_AO to the primary
-> (and nothing to the active thread at this time).
-> 
-> We can fix this by checking whether "current" shares the same
-> mm with the process that collect_procs() said owned the page.
-> If so, we send the SIGBUS to current (with code BUS_MCEERR_AR).
-> 
-> Reported-by: Otto Bruggeman <otto.g.bruggeman@intel.com>
-> Signed-off-by: Tony Luck <tony.luck@intel.com>
-> Cc: Andi Kleen <andi@firstfloor.org>
-> Cc: Borislav Petkov <bp@suse.de>
-> Cc: Chen Gong <gong.chen@linux.jf.intel.com>
-> Acked-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> I don't think blk-mq is worse than the older stack, in fact it
+> should be better. The call chains are shorter, and a lot less cruft
+> on the stack. Historically the stack issues have been nested
+> devices, however. And for sync IO, we do run it inline, so if the
+> driver chews up a lot of stack, well...
 
-You were on the patch delivery path, so it should have included your
-signed-off-by.  Documentation/SubmittingPatches section 12 has the
-details.
+Hi Jens - as we found out with the mm code, there's a significant
+disconnect between what the code looks like (i.e. it may use very
+little stack directly) and what the compiler is generating.
 
-I have made that change to my copies of patches 1 and 2.
+Before blk-mq:
+
+  9)     3952     112   scsi_request_fn+0x4b/0x490
+ 10)     3840      32   __blk_run_queue+0x37/0x50
+ 11)     3808      64   queue_unplugged+0x39/0xb0
+ 12)     3744     112   blk_flush_plug_list+0x20b/0x240
+
+Now with blk-mq:
+
+  3)     4672      96   virtio_queue_rq+0xd2/0x1e0
+  4)     4576     128   __blk_mq_run_hw_queue+0x1f0/0x3e0
+  5)     4448      16   blk_mq_run_hw_queue+0x35/0x40
+  6)     4432      80   blk_mq_insert_requests+0xc7/0x130
+  7)     4352      96   blk_mq_flush_plug_list+0x129/0x140
+  8)     4256     112   blk_flush_plug_list+0xe7/0x230
+
+So previously flushing a plug used rough 200 bytes of stack.  With
+blk-mq, it's over 400 bytes. IOWs, blk-mq has more than doubled the
+block layer stack usage...
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
