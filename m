@@ -1,429 +1,180 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f44.google.com (mail-pa0-f44.google.com [209.85.220.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 8375E6B0031
-	for <linux-mm@kvack.org>; Sun,  1 Jun 2014 20:42:57 -0400 (EDT)
-Received: by mail-pa0-f44.google.com with SMTP id lj1so3617122pab.31
-        for <linux-mm@kvack.org>; Sun, 01 Jun 2014 17:42:57 -0700 (PDT)
-Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
-        by mx.google.com with ESMTP id xm4si13998589pbc.45.2014.06.01.17.42.53
-        for <linux-mm@kvack.org>;
-        Sun, 01 Jun 2014 17:42:56 -0700 (PDT)
-Date: Mon, 2 Jun 2014 09:43:38 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v3] zram: remove global tb_lock with fine grain lock
-Message-ID: <20140602004338.GA26372@bbox>
-References: <000001cf7be2$385f9fd0$a91edf70$%yang@samsung.com>
+Received: from mail-oa0-f46.google.com (mail-oa0-f46.google.com [209.85.219.46])
+	by kanga.kvack.org (Postfix) with ESMTP id B1B606B0031
+	for <linux-mm@kvack.org>; Mon,  2 Jun 2014 00:07:50 -0400 (EDT)
+Received: by mail-oa0-f46.google.com with SMTP id g18so4085644oah.19
+        for <linux-mm@kvack.org>; Sun, 01 Jun 2014 21:07:50 -0700 (PDT)
+Received: from mail-ob0-x230.google.com (mail-ob0-x230.google.com [2607:f8b0:4003:c01::230])
+        by mx.google.com with ESMTPS id eo9si20848662oeb.90.2014.06.01.21.07.49
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Sun, 01 Jun 2014 21:07:50 -0700 (PDT)
+Received: by mail-ob0-f176.google.com with SMTP id wo20so4000269obc.21
+        for <linux-mm@kvack.org>; Sun, 01 Jun 2014 21:07:49 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <000001cf7be2$385f9fd0$a91edf70$%yang@samsung.com>
+In-Reply-To: <CAAmzW4OKO0005+-MuTrENHnMZKkJjk9aOx2vBDNoXN8==TWTew@mail.gmail.com>
+References: <1401260672-28339-1-git-send-email-iamjoonsoo.kim@lge.com>
+	<1401260672-28339-4-git-send-email-iamjoonsoo.kim@lge.com>
+	<CALk7dXr4c53boGMaM160ssoomToZvq8q5pUKkTxLtTVVpXGc1A@mail.gmail.com>
+	<CAAmzW4OKO0005+-MuTrENHnMZKkJjk9aOx2vBDNoXN8==TWTew@mail.gmail.com>
+Date: Mon, 2 Jun 2014 09:37:49 +0530
+Message-ID: <CALk7dXo6M1op0q2xiEW=9dEwOm1pK8C+gSTadJiAL071xJycCQ@mail.gmail.com>
+Subject: Re: [PATCH v2 3/3] CMA: always treat free cma pages as non-free on
+ watermark checking
+From: Ritesh Harjani <ritesh.list@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Weijie Yang <weijie.yang@samsung.com>
-Cc: 'Andrew Morton' <akpm@linux-foundation.org>, 'Nitin Gupta' <ngupta@vflare.org>, 'Sergey Senozhatsky' <sergey.senozhatsky@gmail.com>, 'Bob Liu' <bob.liu@oracle.com>, 'Dan Streetman' <ddstreet@ieee.org>, 'Weijie Yang' <weijie.yang.kh@gmail.com>, 'Heesub Shin' <heesub.shin@samsung.com>, 'Davidlohr Bueso' <davidlohr@hp.com>, 'Joonsoo Kim' <js1304@gmail.com>, 'linux-kernel' <linux-kernel@vger.kernel.org>, 'Linux-MM' <linux-mm@kvack.org>
+To: Joonsoo Kim <js1304@gmail.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Heesub Shin <heesub.shin@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Nagachandra P <nagachandra@gmail.com>, Vinayak Menon <menon.vinayak@gmail.com>, Ritesh Harjani <ritesh.harjani@gmail.com>, t.stanislaws@samsung.com
 
-Hello Weijie,
+Hi Joonsoo,
 
-Thanks for resending.
-Below are mostly nitpicks.
-
-On Fri, May 30, 2014 at 04:34:44PM +0800, Weijie Yang wrote:
-> Currently, we use a rwlock tb_lock to protect concurrent access to
-> the whole zram meta table. However, according to the actual access model,
-> there is only a small chance for upper user to access the same table[index],
-> so the current lock granularity is too big.
-> 
-> The idea of optimization is to change the lock granularity from whole
-> meta table to per table entry (table -> table[index]), so that we can
-> protect concurrent access to the same table[index], meanwhile allow
-> the maximum concurrency.
-> With this in mind, several kinds of locks which could be used as a
-> per-entry lock were tested and compared:
-> 
-> Test environment:
-> x86-64 Intel Core2 Q8400, system memory 4GB, Ubuntu 12.04,
-> kernel v3.15.0-rc3 as base, zram with 4 max_comp_streams LZO.
-> 
-> iozone test:
-> iozone -t 4 -R -r 16K -s 200M -I +Z
-> (1GB zram with ext4 filesystem, take the average of 10 tests, KB/s)
-> 
->       Test       base      CAS    spinlock    rwlock   bit_spinlock
-> -------------------------------------------------------------------
->  Initial write  1381094   1425435   1422860   1423075   1421521
->        Rewrite  1529479   1641199   1668762   1672855   1654910
->           Read  8468009  11324979  11305569  11117273  10997202
->        Re-read  8467476  11260914  11248059  11145336  10906486
->   Reverse Read  6821393   8106334   8282174   8279195   8109186
->    Stride read  7191093   8994306   9153982   8961224   9004434
->    Random read  7156353   8957932   9167098   8980465   8940476
-> Mixed workload  4172747   5680814   5927825   5489578   5972253
->   Random write  1483044   1605588   1594329   1600453   1596010
->         Pwrite  1276644   1303108   1311612   1314228   1300960
->          Pread  4324337   4632869   4618386   4457870   4500166
-> 
-> To enhance the possibility of access the same table[index] concurrently,
-> set zram a small disksize(10MB) and let threads run with large loop count.
-> 
-> fio test:
-> fio --bs=32k --randrepeat=1 --randseed=100 --refill_buffers
-> --scramble_buffers=1 --direct=1 --loops=3000 --numjobs=4
-> --filename=/dev/zram0 --name=seq-write --rw=write --stonewall
-> --name=seq-read --rw=read --stonewall --name=seq-readwrite
-> --rw=rw --stonewall --name=rand-readwrite --rw=randrw --stonewall
-> (10MB zram raw block device, take the average of 10 tests, KB/s)
-> 
->     Test     base     CAS    spinlock    rwlock  bit_spinlock
-> -------------------------------------------------------------
-> seq-write   933789   999357   1003298    995961   1001958
->  seq-read  5634130  6577930   6380861   6243912   6230006
->    seq-rw  1405687  1638117   1640256   1633903   1634459
->   rand-rw  1386119  1614664   1617211   1609267   1612471
-> 
-> All the optimization methods show a higher performance than the base,
-> however, it is hard to say which method is the most appropriate.
-> 
-> On the other hand, zram is mostly used on small embedded system, so we
-> don't want to increase any memory footprint.
-> 
-> This patch pick the bit_spinlock method, pack object size and page_flag
-> into an unsigned long table.value, so as to not increase any memory
-> overhead on both 32-bit and 64-bit system.
-> 
-> On the third hand, even though different kinds of locks have different
-> performances, we can ignore this difference, because:
-> if zram is used as zram swapfile, the swap subsystem can prevent concurrent
-> access to the same swapslot;
-> if zram is used as zram-blk for set up filesystem on it, the upper filesystem
-> and the page cache also prevent concurrent access of the same block mostly.
-> So we can ignore the different performances among locks.
-
-Nice description. :)
-
-> 
-> Changes since v1: https://lkml.org/lkml/2014/5/5/1
->   - replace CAS method with bit_spinlock method
->   - rename zram_test_flag() to zram_test_zero()
->   - add some comments
-> 
-> Changes since v2: https://lkml.org/lkml/2014/5/15/113
->   - change size type from int to size_t in zram_set_obj_size()
->   - refactor zram_set_obj_size() to make it readable
->   - add comments
-> 
-> Signed-off-by: Weijie Yang <weijie.yang@samsung.com>
-> ---
->  drivers/block/zram/zram_drv.c |   89 ++++++++++++++++++++++++-----------------
->  drivers/block/zram/zram_drv.h |   22 +++++++---
->  2 files changed, 68 insertions(+), 43 deletions(-)
-> 
-> diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
-> index 9849b52..166e882 100644
-> --- a/drivers/block/zram/zram_drv.c
-> +++ b/drivers/block/zram/zram_drv.c
-> @@ -179,23 +179,32 @@ static ssize_t comp_algorithm_store(struct device *dev,
->  	return len;
->  }
->  
-> -/* flag operations needs meta->tb_lock */
-> -static int zram_test_flag(struct zram_meta *meta, u32 index,
-> -			enum zram_pageflags flag)
-> +static int zram_test_zero(struct zram_meta *meta, u32 index)
-
-Why do you want to create specific function for zero?
-It would be one of usecase for various potential flags.
-Do you want to create new functions whenever we define new flag?
-Or something do you have a mind?
+CC'ing the developer of the patch (Tomasz Stanislawski)
 
 
->  {
-> -	return meta->table[index].flags & BIT(flag);
-> +	return meta->table[index].value & BIT(ZRAM_ZERO);
->  }
->  
-> -static void zram_set_flag(struct zram_meta *meta, u32 index,
-> -			enum zram_pageflags flag)
-> +static void zram_set_zero(struct zram_meta *meta, u32 index)
->  {
-> -	meta->table[index].flags |= BIT(flag);
-> +	meta->table[index].value |= BIT(ZRAM_ZERO);
->  }
->  
-> -static void zram_clear_flag(struct zram_meta *meta, u32 index,
-> -			enum zram_pageflags flag)
-> +static void zram_clear_zero(struct zram_meta *meta, u32 index)
->  {
-> -	meta->table[index].flags &= ~BIT(flag);
-> +	meta->table[index].value &= ~BIT(ZRAM_ZERO);
-> +}
-> +
-> +static size_t zram_get_obj_size(struct zram_meta *meta, u32 index)
-> +{
-> +	return meta->table[index].value & (BIT(ZRAM_FLAG_SHIFT) - 1);
-> +}
-> +
-> +static void zram_set_obj_size(struct zram_meta *meta,
-> +					u32 index, size_t size)
-> +{
-> +	unsigned long flags = meta->table[index].value >> ZRAM_FLAG_SHIFT;
-> +
-> +	meta->table[index].value = (flags << ZRAM_FLAG_SHIFT) | size;
->  }
->  
->  static inline int is_partial_io(struct bio_vec *bvec)
-> @@ -255,7 +264,6 @@ static struct zram_meta *zram_meta_alloc(u64 disksize)
->  		goto free_table;
->  	}
->  
-> -	rwlock_init(&meta->tb_lock);
->  	return meta;
->  
->  free_table:
-> @@ -304,19 +312,24 @@ static void handle_zero_page(struct bio_vec *bvec)
->  	flush_dcache_page(page);
->  }
->  
-> -/* NOTE: caller should hold meta->tb_lock with write-side */
-> +/*
-> + * To protect concurrent access to the same index entry,
-> + * caller should hold this table index entry's bit_spinlock to
-> + * indicate this index entry is accessing.
-> + */
->  static void zram_free_page(struct zram *zram, size_t index)
->  {
->  	struct zram_meta *meta = zram->meta;
->  	unsigned long handle = meta->table[index].handle;
-> +	size_t size;
->  
->  	if (unlikely(!handle)) {
->  		/*
->  		 * No memory is allocated for zero filled pages.
->  		 * Simply clear zero page flag.
->  		 */
-> -		if (zram_test_flag(meta, index, ZRAM_ZERO)) {
-> -			zram_clear_flag(meta, index, ZRAM_ZERO);
-> +		if (zram_test_zero(meta, index)) {
-> +			zram_clear_zero(meta, index);
->  			atomic64_dec(&zram->stats.zero_pages);
->  		}
->  		return;
-> @@ -324,27 +337,28 @@ static void zram_free_page(struct zram *zram, size_t index)
->  
->  	zs_free(meta->mem_pool, handle);
->  
-> -	atomic64_sub(meta->table[index].size, &zram->stats.compr_data_size);
-> +	size = zram_get_obj_size(meta, index);
-> +	atomic64_sub(size, &zram->stats.compr_data_size);
->  	atomic64_dec(&zram->stats.pages_stored);
->  
->  	meta->table[index].handle = 0;
-> -	meta->table[index].size = 0;
-> +	zram_set_obj_size(meta, index, 0);
->  }
->  
->  static int zram_decompress_page(struct zram *zram, char *mem, u32 index)
->  {
-> -	int ret = 0;
+On Fri, May 30, 2014 at 8:16 PM, Joonsoo Kim <js1304@gmail.com> wrote:
+> 2014-05-30 19:40 GMT+09:00 Ritesh Harjani <ritesh.list@gmail.com>:
+>> Hi Joonsoo,
+>>
+>> I think you will be loosing the benefit of below patch with your changes.
+>> I am no expert here so please bear with me. I tried explaining in the
+>> inline comments, let me know if I am wrong.
+>>
+>> commit 026b08147923142e925a7d0aaa39038055ae0156
+>> Author: Tomasz Stanislawski <t.stanislaws@samsung.com>
+>> Date:   Wed Jun 12 14:05:02 2013 -0700
+>
+> Hello, Ritesh.
+>
+> Thanks for notifying that.
+>
+>>
+>> On Wed, May 28, 2014 at 12:34 PM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+>>> commit d95ea5d1('cma: fix watermark checking') introduces ALLOC_CMA flag
+>>> for alloc flag and treats free cma pages as free pages if this flag is
+>>> passed to watermark checking. Intention of that patch is that movable page
+>>> allocation can be be handled from cma reserved region without starting
+>>> kswapd. Now, previous patch changes the behaviour of allocator that
+>>> movable allocation uses the page on cma reserved region aggressively,
+>>> so this watermark hack isn't needed anymore. Therefore remove it.
+>>>
+>>> Acked-by: Michal Nazarewicz <mina86@mina86.com>
+>>> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+>>>
+>>> diff --git a/mm/compaction.c b/mm/compaction.c
+>>> index 627dc2e..36e2fcd 100644
+>>> --- a/mm/compaction.c
+>>> +++ b/mm/compaction.c
+>>> @@ -1117,10 +1117,6 @@ unsigned long try_to_compact_pages(struct zonelist *zonelist,
+>>>
+>>>         count_compact_event(COMPACTSTALL);
+>>>
+>>> -#ifdef CONFIG_CMA
+>>> -       if (allocflags_to_migratetype(gfp_mask) == MIGRATE_MOVABLE)
+>>> -               alloc_flags |= ALLOC_CMA;
+>>> -#endif
+>>>         /* Compact each zone in the list */
+>>>         for_each_zone_zonelist_nodemask(zone, z, zonelist, high_zoneidx,
+>>>                                                                 nodemask) {
+>>> diff --git a/mm/internal.h b/mm/internal.h
+>>> index 07b6736..a121762 100644
+>>> --- a/mm/internal.h
+>>> +++ b/mm/internal.h
+>>> @@ -384,7 +384,6 @@ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
+>>>  #define ALLOC_HARDER           0x10 /* try to alloc harder */
+>>>  #define ALLOC_HIGH             0x20 /* __GFP_HIGH set */
+>>>  #define ALLOC_CPUSET           0x40 /* check for correct cpuset */
+>>> -#define ALLOC_CMA              0x80 /* allow allocations from CMA areas */
+>>> -#define ALLOC_FAIR             0x100 /* fair zone allocation */
+>>> +#define ALLOC_FAIR             0x80 /* fair zone allocation */
+>>>
+>>>  #endif /* __MM_INTERNAL_H */
+>>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>>> index ca678b6..83a8021 100644
+>>> --- a/mm/page_alloc.c
+>>> +++ b/mm/page_alloc.c
+>>> @@ -1764,20 +1764,22 @@ static bool __zone_watermark_ok(struct zone *z, int order, unsigned long mark,
+>>>         long min = mark;
+>>>         long lowmem_reserve = z->lowmem_reserve[classzone_idx];
+>>>         int o;
+>>> -       long free_cma = 0;
+>>>
+>>>         free_pages -= (1 << order) - 1;
+>>>         if (alloc_flags & ALLOC_HIGH)
+>>>                 min -= min / 2;
+>>>         if (alloc_flags & ALLOC_HARDER)
+>>>                 min -= min / 4;
+>>> -#ifdef CONFIG_CMA
+>>> -       /* If allocation can't use CMA areas don't use free CMA pages */
+>>> -       if (!(alloc_flags & ALLOC_CMA))
+>>> -               free_cma = zone_page_state(z, NR_FREE_CMA_PAGES);
+>>> -#endif
+>>> +       /*
+>>> +        * We don't want to regard the pages on CMA region as free
+>>> +        * on watermark checking, since they cannot be used for
+>>> +        * unmovable/reclaimable allocation and they can suddenly
+>>> +        * vanish through CMA allocation
+>>> +        */
+>>> +       if (IS_ENABLED(CONFIG_CMA) && z->managed_cma_pages)
+>>> +               free_pages -= zone_page_state(z, NR_FREE_CMA_PAGES);
+>>
+>> make this free_cma instead of free_pages.
+>>
+>>>
+>>> -       if (free_pages - free_cma <= min + lowmem_reserve)
+>>> +       if (free_pages <= min + lowmem_reserve)
+>> free_pages - free_cma <= min + lowmem_reserve
+>>
+>> Because in for loop you subtract nr_free which includes the CMA pages.
+>> So if you have subtracted NR_FREE_CMA_PAGES
+>> from free_pages above then you will be subtracting cma pages again in
+>> nr_free (below in for loop).
+>
+> Yes, I understand the problem you mentioned.
+>
+> I think that this is complicated issue.
+>
+> Comit '026b081' you mentioned makes watermark_ok() loose for high order
+> allocation compared to kernel that CMA isn't enabled, since free_pages includes
+> free_cma pages and most of high order allocation except THP would be
+> non-movable allocation. This non-movable allocation can't use cma pages,
+> so we shouldn't include free_cma pages.
+>
+> If most of free cma pages are 0 order, that commit works correctly. We subtract
+> nr of free cma pages at the first loop, so there is no problem. But,
+> if the system
+> have some free high-order cma pages, watermark checking allow high-order
+> allocation more easily.
+>
+> I think that loosing the watermark check is right solution so will takes your
+> comment on v2. But I want to know other developer's opinion.
 
-Unnecessary change.
-
->  	unsigned char *cmem;
->  	struct zram_meta *meta = zram->meta;
->  	unsigned long handle;
-> -	u16 size;
-
-I'm not sure it's good idea to use size_t instead of u16 because we apparently
-have a limitation to express range of size due to packing it into unsigned long
-so u16 is more clear to show the limiation and someone might find a problem
-more easily in future if we break something subtle.
-
-> +	size_t size;
-> +	int ret = 0;
->  
-> -	read_lock(&meta->tb_lock);
-> +	bit_spin_lock(ZRAM_ACCESS, &meta->table[index].value);
->  	handle = meta->table[index].handle;
-> -	size = meta->table[index].size;
-> +	size = zram_get_obj_size(meta, index);
->  
-> -	if (!handle || zram_test_flag(meta, index, ZRAM_ZERO)) {
-> -		read_unlock(&meta->tb_lock);
-> +	if (!handle || zram_test_zero(meta, index)) {
-> +		bit_spin_unlock(ZRAM_ACCESS, &meta->table[index].value);
->  		clear_page(mem);
->  		return 0;
->  	}
-> @@ -355,7 +369,7 @@ static int zram_decompress_page(struct zram *zram, char *mem, u32 index)
->  	else
->  		ret = zcomp_decompress(zram->comp, cmem, size, mem);
->  	zs_unmap_object(meta->mem_pool, handle);
-> -	read_unlock(&meta->tb_lock);
-> +	bit_spin_unlock(ZRAM_ACCESS, &meta->table[index].value);
->  
->  	/* Should NEVER happen. Return bio error if it does. */
->  	if (unlikely(ret)) {
-> @@ -376,14 +390,14 @@ static int zram_bvec_read(struct zram *zram, struct bio_vec *bvec,
->  	struct zram_meta *meta = zram->meta;
->  	page = bvec->bv_page;
->  
-> -	read_lock(&meta->tb_lock);
-> +	bit_spin_lock(ZRAM_ACCESS, &meta->table[index].value);
->  	if (unlikely(!meta->table[index].handle) ||
-> -			zram_test_flag(meta, index, ZRAM_ZERO)) {
-> -		read_unlock(&meta->tb_lock);
-> +			zram_test_zero(meta, index)) {
-> +		bit_spin_unlock(ZRAM_ACCESS, &meta->table[index].value);
->  		handle_zero_page(bvec);
->  		return 0;
->  	}
-> -	read_unlock(&meta->tb_lock);
-> +	bit_spin_unlock(ZRAM_ACCESS, &meta->table[index].value);
->  
->  	if (is_partial_io(bvec))
->  		/* Use  a temporary buffer to decompress the page */
-> @@ -461,10 +475,10 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
->  	if (page_zero_filled(uncmem)) {
->  		kunmap_atomic(user_mem);
->  		/* Free memory associated with this sector now. */
-> -		write_lock(&zram->meta->tb_lock);
-> +		bit_spin_lock(ZRAM_ACCESS, &meta->table[index].value);
->  		zram_free_page(zram, index);
-> -		zram_set_flag(meta, index, ZRAM_ZERO);
-> -		write_unlock(&zram->meta->tb_lock);
-> +		zram_set_zero(meta, index);
-> +		bit_spin_unlock(ZRAM_ACCESS, &meta->table[index].value);
->  
->  		atomic64_inc(&zram->stats.zero_pages);
->  		ret = 0;
-> @@ -514,12 +528,12 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
->  	 * Free memory associated with this sector
->  	 * before overwriting unused sectors.
->  	 */
-> -	write_lock(&zram->meta->tb_lock);
-> +	bit_spin_lock(ZRAM_ACCESS, &meta->table[index].value);
->  	zram_free_page(zram, index);
->  
->  	meta->table[index].handle = handle;
-> -	meta->table[index].size = clen;
-> -	write_unlock(&zram->meta->tb_lock);
-> +	zram_set_obj_size(meta, index, clen);
-> +	bit_spin_unlock(ZRAM_ACCESS, &meta->table[index].value);
->  
->  	/* Update stats */
->  	atomic64_add(clen, &zram->stats.compr_data_size);
-> @@ -560,6 +574,7 @@ static void zram_bio_discard(struct zram *zram, u32 index,
->  			     int offset, struct bio *bio)
->  {
->  	size_t n = bio->bi_iter.bi_size;
-> +	struct zram_meta *meta = zram->meta;
->  
->  	/*
->  	 * zram manages data in physical block size units. Because logical block
-> @@ -584,9 +599,9 @@ static void zram_bio_discard(struct zram *zram, u32 index,
->  		 * Discard request can be large so the lock hold times could be
->  		 * lengthy.  So take the lock once per page.
->  		 */
-> -		write_lock(&zram->meta->tb_lock);
-> +		bit_spin_lock(ZRAM_ACCESS, &meta->table[index].value);
->  		zram_free_page(zram, index);
-> -		write_unlock(&zram->meta->tb_lock);
-> +		bit_spin_unlock(ZRAM_ACCESS, &meta->table[index].value);
->  		index++;
->  		n -= PAGE_SIZE;
->  	}
-> @@ -804,9 +819,9 @@ static void zram_slot_free_notify(struct block_device *bdev,
->  	zram = bdev->bd_disk->private_data;
->  	meta = zram->meta;
->  
-> -	write_lock(&meta->tb_lock);
-> +	bit_spin_lock(ZRAM_ACCESS, &meta->table[index].value);
->  	zram_free_page(zram, index);
-> -	write_unlock(&meta->tb_lock);
-> +	bit_spin_unlock(ZRAM_ACCESS, &meta->table[index].value);
->  	atomic64_inc(&zram->stats.notify_free);
->  }
->  
-> diff --git a/drivers/block/zram/zram_drv.h b/drivers/block/zram/zram_drv.h
-> index 7f21c14..71bc4ad 100644
-> --- a/drivers/block/zram/zram_drv.h
-> +++ b/drivers/block/zram/zram_drv.h
-> @@ -51,10 +51,22 @@ static const size_t max_zpage_size = PAGE_SIZE / 4 * 3;
->  #define ZRAM_SECTOR_PER_LOGICAL_BLOCK	\
->  	(1 << (ZRAM_LOGICAL_BLOCK_SHIFT - SECTOR_SHIFT))
->  
-> -/* Flags for zram pages (table[page_no].flags) */
-> +/*
-> + * The lower ZRAM_FLAG_SHIFT bits of table.value is for
-> + * object size (excluding header), the higher bits is for
-> + * zram_pageflags. By this means, it won't increase any
-> + * memory overhead on both 32-bit and 64-bit system.
-
-Comment on "By this means, ~ 64 bit system" is unncessary because
-someone read this line but don't know history couldn't understand
-what's the old structure.
+Thanks for giving this a thought for your v2 patch.
 
 
-> + * zram is mostly used on small embedded system, so we
-> + * don't want to increase memory footprint. That is why
-> + * we pack size and flag into table.value.
-> + */
+> If needed, I can implement to track free_area[o].nr_cma_free and use it for
+> precise freepage calculation in watermark check.
 
-IMHO, it would be more clear but not sure if native speakers look at. ;-)
+I guess implementing nr_cma_free would be the correct solution.
+Because currently for other than 0 order allocation
+we still consider high order free_cma pages as free pages in the for
+loop which from the code looks incorrect.
 
-* zram is mainly used for memory efficiency so we want to keep memory
-* footprint small so we can squeeze size and flags into a field.
-* The lower ZRAM_FLAG_SHIFT bits is for object size (excluding header),
-* the higher bits is for zram_pageflags.
+This can lead to situation when we have more high order free CMA pages
+but very less unmovable pages, but zone_watermark returns
+ok for unmovable page, thus leading to allocation failure every time
+instead of recovering from this situation.
+
+But its better if experts comment on this.
 
 
-> +#define ZRAM_FLAG_SHIFT 24
+>
+> Thanks.
 
-Why is it 24? We have used for 16-bit for size.
-Do you think it's too small for size?
 
-> +
-> +/* Flags for zram pages (table[page_no].value) */
->  enum zram_pageflags {
->  	/* Page consists entirely of zeros */
-> -	ZRAM_ZERO,
-> +	ZRAM_ZERO = ZRAM_FLAG_SHIFT + 1,
-> +	ZRAM_ACCESS,  /* page in now accessed */
->  
->  	__NR_ZRAM_PAGEFLAGS,
->  };
-> @@ -64,9 +76,8 @@ enum zram_pageflags {
->  /* Allocated for each disk page */
->  struct table {
->  	unsigned long handle;
-> -	u16 size;	/* object size (excluding header) */
-> -	u8 flags;
-> -} __aligned(4);
-> +	unsigned long value;
-> +};
->  
->  struct zram_stats {
->  	atomic64_t compr_data_size;	/* compressed size of pages stored */
-> @@ -81,7 +92,6 @@ struct zram_stats {
->  };
->  
->  struct zram_meta {
-> -	rwlock_t tb_lock;	/* protect table */
->  	struct table *table;
->  	struct zs_pool *mem_pool;
->  };
-> -- 
-> 1.7.10.4
-> 
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
-Kind regards,
-Minchan Kim
+Thanks
+Ritesh
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
