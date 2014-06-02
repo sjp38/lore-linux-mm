@@ -1,176 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f175.google.com (mail-we0-f175.google.com [74.125.82.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 9521B6B0031
-	for <linux-mm@kvack.org>; Mon,  2 Jun 2014 08:23:58 -0400 (EDT)
-Received: by mail-we0-f175.google.com with SMTP id p10so5088953wes.34
-        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 05:23:58 -0700 (PDT)
-Received: from jenni2.inet.fi (mta-out1.inet.fi. [62.71.2.198])
-        by mx.google.com with ESMTP id eu11si24994503wjc.119.2014.06.02.05.23.56
-        for <linux-mm@kvack.org>;
-        Mon, 02 Jun 2014 05:23:57 -0700 (PDT)
-Date: Mon, 2 Jun 2014 15:23:22 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 2/3] mm: introduce fincore()
-Message-ID: <20140602122322.GB8691@node.dhcp.inet.fi>
-References: <20140521193336.5df90456.akpm@linux-foundation.org>
- <1401686699-9723-1-git-send-email-n-horiguchi@ah.jp.nec.com>
- <1401686699-9723-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+Received: from mail-vc0-f179.google.com (mail-vc0-f179.google.com [209.85.220.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D09D6B0037
+	for <linux-mm@kvack.org>; Mon,  2 Jun 2014 09:35:16 -0400 (EDT)
+Received: by mail-vc0-f179.google.com with SMTP id ij19so618580vcb.38
+        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 06:35:16 -0700 (PDT)
+Received: from mail-ve0-x22f.google.com (mail-ve0-x22f.google.com [2607:f8b0:400c:c01::22f])
+        by mx.google.com with ESMTPS id bo9si7861272vcb.86.2014.06.02.06.35.15
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 02 Jun 2014 06:35:15 -0700 (PDT)
+Received: by mail-ve0-f175.google.com with SMTP id jw12so5179684veb.34
+        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 06:35:15 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1401686699-9723-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <537F082F.50501@suse.cz>
+References: <1399904111-23520-1-git-send-email-vbabka@suse.cz>
+	<1400233673-11477-1-git-send-email-vbabka@suse.cz>
+	<CAGa+x87-NRyK6kUiXNL_bRNEGm+DR6M3HPSLYEoq4t6Nrtnd_g@mail.gmail.com>
+	<CAAQ0ZWQDVxAzZVm86ATXd1JGUVoLXj_Y5Ske7htxH_6a4GPKRg@mail.gmail.com>
+	<537F082F.50501@suse.cz>
+Date: Mon, 2 Jun 2014 10:35:15 -0300
+Message-ID: <CAOMZO5BKaicq7NkoJO4vU5W3hiDike6kSdH+2eD=h0B5BsDjTg@mail.gmail.com>
+Subject: Re: [PATCH v2] mm, compaction: properly signal and act upon lock and
+ need_sched() contention
+From: Fabio Estevam <festevam@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, Arnaldo Carvalho de Melo <acme@redhat.com>, Borislav Petkov <bp@alien8.de>, Johannes Weiner <hannes@cmpxchg.org>, Rusty Russell <rusty@rustcorp.com.au>, David Miller <davem@davemloft.net>, Andres Freund <andres@2ndquadrant.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Shawn Guo <shawn.guo@linaro.org>, Kevin Hilman <khilman@linaro.org>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Stephen Warren <swarren@wwwdotorg.org>, Minchan Kim <minchan@kernel.org>, Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>, Hugh Dickins <hughd@google.com>, LKML <linux-kernel@vger.kernel.org>, Michal Nazarewicz <mina86@mina86.com>, linux-mm@kvack.org, Mel Gorman <mgorman@suse.de>, David Rientjes <rientjes@google.com>, Olof Johansson <olof@lixom.net>, Greg Thelen <gthelen@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Christoph Lameter <cl@linux.com>, linux-arm-kernel <linux-arm-kernel@lists.infradead.org>
 
-On Mon, Jun 02, 2014 at 01:24:58AM -0400, Naoya Horiguchi wrote:
-> This patch provides a new system call fincore(2), which provides mincore()-
-> like information, i.e. page residency of a given file. But unlike mincore(),
-> fincore() can have a mode flag and it enables us to extract more detailed
-> information about page cache like pfn and page flag. This kind of information
-> is very helpful for example when applications want to know the file cache
-> status to control IO on their own way.
-> 
-> Detail about the data format being passed to userspace are explained in
-> inline comment, but generally in long entry format, we can choose which
-> information is extraced flexibly, so you don't have to waste memory by
-> extracting unnecessary information. And with FINCORE_SKIP_HOLE flag,
-> we can skip hole pages (not on memory,) which makes us avoid a flood of
-> meaningless zero entries when calling on extremely large (but only few
-> pages of it are loaded on memory) file.
-> 
-> Basic testset is added in a next patch on tools/testing/selftests/fincore/.
-> 
-> [1] http://thread.gmane.org/gmane.linux.kernel/1439212/focus=1441919
-> 
-> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Vlastimil,
 
-...
+On Fri, May 23, 2014 at 5:34 AM, Vlastimil Babka <vbabka@suse.cz> wrote:
 
-> diff --git v3.15-rc7.orig/mm/fincore.c v3.15-rc7/mm/fincore.c
-> new file mode 100644
-> index 000000000000..3fc3ef465471
-> --- /dev/null
-> +++ v3.15-rc7/mm/fincore.c
-> @@ -0,0 +1,362 @@
-> +/*
-> + * fincore(2) system call
-> + *
-> + * Copyright (C) 2014 NEC Corporation, Naoya Horiguchi
-> + */
-> +
-> +#include <linux/syscalls.h>
-> +#include <linux/pagemap.h>
-> +#include <linux/file.h>
-> +#include <linux/fs.h>
-> +#include <linux/mm.h>
-> +#include <linux/slab.h>
-> +#include <linux/hugetlb.h>
-> +
-> +/*
-> + * You can control how the buffer in userspace is filled with this mode
-> + * parameters:
-> + *
-> + * - FINCORE_BMAP:
-> + *     The page status is returned in a vector of bytes.
-> + *     The least significant bit of each byte is 1 if the referenced page
-> + *     is in memory, otherwise it is zero.
+> Really sorry, guys :/
+>
+> -----8<-----
+> From: Vlastimil Babka <vbabka@suse.cz>
+> Date: Fri, 23 May 2014 10:18:56 +0200
+> Subject: mm-compaction-properly-signal-and-act-upon-lock-and-need_sched-contention-fix2
+>
+> Step 1: Change function name and comment between v1 and v2 so that the return
+>         value signals the opposite thing.
+> Step 2: Change the call sites to reflect the opposite return value.
+> Step 3: ???
+> Step 4: Make a complete fool of yourself.
+>
+> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+> ---
+>  mm/compaction.c | 4 ++--
+>  1 file changed, 2 insertions(+), 2 deletions(-)
+>
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index a525cd4..5175019 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -237,13 +237,13 @@ static inline bool compact_should_abort(struct compact_control *cc)
+>         if (need_resched()) {
+>                 if (cc->mode == MIGRATE_ASYNC) {
+>                         cc->contended = true;
+> -                       return false;
+> +                       return true;
+>                 }
+>
+>                 cond_resched();
+>         }
+>
+> -       return true;
+> +       return false;
+>  }
 
-I'm okay with bytemap. Just wounder why not bitmap?
+This patch is still not in linux-next.
 
-> + *
-> + * - FINCORE_PFN:
-> + *     stores pfn, using 8 bytes.
-> + *
-> + * - FINCORE_PAGEFLAGS:
-> + *     stores page flags, using 8 bytes. See definition of KPF_* for details.
-> + *
-> + * - FINCORE_PAGECACHE_TAGS:
-> + *     stores pagecache tags, using 8 bytes. See definition of PAGECACHE_TAG_*
-> + *     for details.
-
-Is it safe to expose this info to unprivilaged process (consider all three
-flags above)?
-
-> + * - FINCORE_SKIP_HOLE: if this flag is set, fincore() doesn't store any
-> + *     information about hole. Instead each records per page has the entry
-> + *     of page offset (using 8 bytes.) This mode is useful if we handle
-> + *     large file and only few pages are on memory for the file.
-
-Hm.. It's probably overkill, but instead of filling userspace buffer we
-could return file descriptor and define lseek(SEEK_HOLE). Just thinking.
-
-> + *
-> + * FINCORE_BMAP shouldn't be used combined with any other flags, and returnd
-> + * data in this mode is like this:
-> + *
-> + *   page offset  0   1   2   3   4
-> + *              +---+---+---+---+---+
-> + *              | 1 | 0 | 0 | 1 | 1 | ...
-> + *              +---+---+---+---+---+
-> + *               <->
-> + *              1 byte
-> + *
-> + * For FINCORE_PFN, page data is formatted like this:
-> + *
-> + *   page offset    0       1       2       3       4
-> + *              +-------+-------+-------+-------+-------+
-> + *              |  pfn  |  pfn  |  pfn  |  pfn  |  pfn  | ...
-> + *              +-------+-------+-------+-------+-------+
-> + *               <----->
-> + *               8 byte
-> + *
-> + * We can use multiple flags among FINCORE_(PFN|PAGEFLAGS|PAGECACHE_TAGS).
-> + * For example, when the mode is FINCORE_PFN|FINCORE_PAGEFLAGS, the per-page
-> + * information is stored like this:
-> + *
-> + *    page offset 0    page offset 1   page offset 2
-> + *   +-------+-------+-------+-------+-------+-------+
-> + *   |  pfn  | flags |  pfn  | flags |  pfn  | flags | ...
-> + *   +-------+-------+-------+-------+-------+-------+
-> + *    <-------------> <-------------> <------------->
-> + *       16 bytes        16 bytes        16 bytes
-> + *
-> + * When FINCORE_SKIP_HOLE is set, we ignore holes and add page offset entry
-> + * (8 bytes) instead. For example, the data format of mode
-> + * FINCORE_PFN|FINCORE_SKIP_HOLE is like follows:
-> + *
-> + *   +-------+-------+-------+-------+-------+-------+
-> + *   | pgoff |  pfn  | pgoff |  pfn  | pgoff |  pfn  | ...
-> + *   +-------+-------+-------+-------+-------+-------+
-> + *    <-------------> <-------------> <------------->
-> + *       16 bytes        16 bytes        16 bytes
-> + */
-> +#define FINCORE_BMAP		0x01	/* bytemap mode */
-> +#define FINCORE_PFN		0x02
-> +#define FINCORE_PAGE_FLAGS	0x04
-> +#define FINCORE_PAGECACHE_TAGS	0x08
-> +#define FINCORE_SKIP_HOLE	0x10
-
-FINCORE_SKIP_HOLE is greater then FINCORE_PFN but pgoff precedes pfn in
-records. It's confusing. We need clear definition of record format.
-
-What about rename FINCORE_SKIP_HOLE -> FINCORE_PGOFF, move it before
-FINCORE_PFN. So FINCORE_PGOFF is less than FINCORE_PFN, which is less than
-FINCORE_PAGE_FLAGS, which is less than FINCORE_PAGECACHE_TAGS. It matches
-order in records:
-
-FINCORE_PGOFF|FINCORE_PFN|FINCORE_PAGEFLAGS|FINCORE_PAGECACHE_TAGS
-
- +-------+-------+-------+-------+-------+-------+-------+-------+
- | pgoff |  pfn  | flags |  tags | pgoff |  pfn  | flags |  tags | ...
- +-------+-------+-------+-------+-------+-------+-------+-------+
-  <-----------------------------> <------------------------------>
-             32 bytes                        32 bytes
-
-> +
-> +#define FINCORE_MODE_MASK	0x1f
-> +#define FINCORE_LONGENTRY_MASK	(FINCORE_PFN | FINCORE_PAGE_FLAGS | \
-> +				 FINCORE_PAGECACHE_TAGS | FINCORE_SKIP_HOLE)
-> +
--- 
- Kirill A. Shutemov
+Could you please submit it formally?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
