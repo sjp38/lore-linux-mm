@@ -1,196 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ve0-f169.google.com (mail-ve0-f169.google.com [209.85.128.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D44F6B0031
-	for <linux-mm@kvack.org>; Mon,  2 Jun 2014 10:05:14 -0400 (EDT)
-Received: by mail-ve0-f169.google.com with SMTP id jx11so5311706veb.0
-        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 07:05:14 -0700 (PDT)
-Received: from mail-vc0-x236.google.com (mail-vc0-x236.google.com [2607:f8b0:400c:c03::236])
-        by mx.google.com with ESMTPS id t15si7913180vew.65.2014.06.02.07.05.13
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 02 Jun 2014 07:05:13 -0700 (PDT)
-Received: by mail-vc0-f182.google.com with SMTP id id10so5150250vcb.13
-        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 07:05:13 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <4424609.WQEPaWUrpH@amdc1032>
-References: <1401260672-28339-1-git-send-email-iamjoonsoo.kim@lge.com>
-	<CAAmzW4OKO0005+-MuTrENHnMZKkJjk9aOx2vBDNoXN8==TWTew@mail.gmail.com>
-	<CALk7dXo6M1op0q2xiEW=9dEwOm1pK8C+gSTadJiAL071xJycCQ@mail.gmail.com>
-	<4424609.WQEPaWUrpH@amdc1032>
-Date: Mon, 2 Jun 2014 23:05:13 +0900
-Message-ID: <CAAmzW4P1g2ZsPBjdqPOgsNLkzD5z16i5MjjHJcKc=U7eW9pMvw@mail.gmail.com>
-Subject: Re: [PATCH v2 3/3] CMA: always treat free cma pages as non-free on
- watermark checking
-From: Joonsoo Kim <js1304@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Received: from mail-la0-f47.google.com (mail-la0-f47.google.com [209.85.215.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 494DD6B0031
+	for <linux-mm@kvack.org>; Mon,  2 Jun 2014 10:20:31 -0400 (EDT)
+Received: by mail-la0-f47.google.com with SMTP id pn19so2629864lab.34
+        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 07:20:30 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id et8si21772830wib.78.2014.06.02.07.20.24
+        for <linux-mm@kvack.org>;
+        Mon, 02 Jun 2014 07:20:25 -0700 (PDT)
+Message-ID: <538c8829.e863b40a.0787.ffff96f4SMTPIN_ADDED_BROKEN@mx.google.com>
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH 2/3] mm: introduce fincore()
+Date: Mon,  2 Jun 2014 10:19:17 -0400
+In-Reply-To: <20140602064226.GA31675@infradead.org>
+References: <20140521193336.5df90456.akpm@linux-foundation.org> <1401686699-9723-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1401686699-9723-3-git-send-email-n-horiguchi@ah.jp.nec.com> <20140602064226.GA31675@infradead.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
-Cc: Ritesh Harjani <ritesh.list@gmail.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Heesub Shin <heesub.shin@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Nagachandra P <nagachandra@gmail.com>, Vinayak Menon <menon.vinayak@gmail.com>, Ritesh Harjani <ritesh.harjani@gmail.com>, t.stanislaws@samsung.com
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, Arnaldo Carvalho de Melo <acme@redhat.com>, Borislav Petkov <bp@alien8.de>, "Kirill A. Shutemov" <kirill@shutemov.name>, Johannes Weiner <hannes@cmpxchg.org>, Rusty Russell <rusty@rustcorp.com.au>, David Miller <davem@davemloft.net>, Andres Freund <andres@2ndquadrant.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-man@vger.kernel.org
 
-2014-06-02 19:47 GMT+09:00 Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>:
->
-> Hi,
->
-> On Monday, June 02, 2014 09:37:49 AM Ritesh Harjani wrote:
->> Hi Joonsoo,
->>
->> CC'ing the developer of the patch (Tomasz Stanislawski)
->>
->>
->> On Fri, May 30, 2014 at 8:16 PM, Joonsoo Kim <js1304@gmail.com> wrote:
->> > 2014-05-30 19:40 GMT+09:00 Ritesh Harjani <ritesh.list@gmail.com>:
->> >> Hi Joonsoo,
->> >>
->> >> I think you will be loosing the benefit of below patch with your changes.
->> >> I am no expert here so please bear with me. I tried explaining in the
->> >> inline comments, let me know if I am wrong.
->> >>
->> >> commit 026b08147923142e925a7d0aaa39038055ae0156
->> >> Author: Tomasz Stanislawski <t.stanislaws@samsung.com>
->> >> Date:   Wed Jun 12 14:05:02 2013 -0700
->> >
->> > Hello, Ritesh.
->> >
->> > Thanks for notifying that.
->> >
->> >>
->> >> On Wed, May 28, 2014 at 12:34 PM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
->> >>> commit d95ea5d1('cma: fix watermark checking') introduces ALLOC_CMA flag
->
-> It is a bit of shame that the author of commit d95ea5d1 (happens to be me :)
-> was not on cc:.
+On Sun, Jun 01, 2014 at 11:42:26PM -0700, Christoph Hellwig wrote:
+> Please also provide a man page for the system call.
 
-Sorry about that.
-I will add you on cc in next spin. :)
+Yes, I'll do it.
 
->> >>> for alloc flag and treats free cma pages as free pages if this flag is
->> >>> passed to watermark checking. Intention of that patch is that movable page
->> >>> allocation can be be handled from cma reserved region without starting
->> >>> kswapd. Now, previous patch changes the behaviour of allocator that
->> >>> movable allocation uses the page on cma reserved region aggressively,
->> >>> so this watermark hack isn't needed anymore. Therefore remove it.
->> >>>
->> >>> Acked-by: Michal Nazarewicz <mina86@mina86.com>
->> >>> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
->> >>>
->> >>> diff --git a/mm/compaction.c b/mm/compaction.c
->> >>> index 627dc2e..36e2fcd 100644
->> >>> --- a/mm/compaction.c
->> >>> +++ b/mm/compaction.c
->> >>> @@ -1117,10 +1117,6 @@ unsigned long try_to_compact_pages(struct zonelist *zonelist,
->> >>>
->> >>>         count_compact_event(COMPACTSTALL);
->> >>>
->> >>> -#ifdef CONFIG_CMA
->> >>> -       if (allocflags_to_migratetype(gfp_mask) == MIGRATE_MOVABLE)
->> >>> -               alloc_flags |= ALLOC_CMA;
->> >>> -#endif
->> >>>         /* Compact each zone in the list */
->> >>>         for_each_zone_zonelist_nodemask(zone, z, zonelist, high_zoneidx,
->> >>>                                                                 nodemask) {
->> >>> diff --git a/mm/internal.h b/mm/internal.h
->> >>> index 07b6736..a121762 100644
->> >>> --- a/mm/internal.h
->> >>> +++ b/mm/internal.h
->> >>> @@ -384,7 +384,6 @@ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
->> >>>  #define ALLOC_HARDER           0x10 /* try to alloc harder */
->> >>>  #define ALLOC_HIGH             0x20 /* __GFP_HIGH set */
->> >>>  #define ALLOC_CPUSET           0x40 /* check for correct cpuset */
->> >>> -#define ALLOC_CMA              0x80 /* allow allocations from CMA areas */
->> >>> -#define ALLOC_FAIR             0x100 /* fair zone allocation */
->> >>> +#define ALLOC_FAIR             0x80 /* fair zone allocation */
->> >>>
->> >>>  #endif /* __MM_INTERNAL_H */
->> >>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
->> >>> index ca678b6..83a8021 100644
->> >>> --- a/mm/page_alloc.c
->> >>> +++ b/mm/page_alloc.c
->> >>> @@ -1764,20 +1764,22 @@ static bool __zone_watermark_ok(struct zone *z, int order, unsigned long mark,
->> >>>         long min = mark;
->> >>>         long lowmem_reserve = z->lowmem_reserve[classzone_idx];
->> >>>         int o;
->> >>> -       long free_cma = 0;
->> >>>
->> >>>         free_pages -= (1 << order) - 1;
->> >>>         if (alloc_flags & ALLOC_HIGH)
->> >>>                 min -= min / 2;
->> >>>         if (alloc_flags & ALLOC_HARDER)
->> >>>                 min -= min / 4;
->> >>> -#ifdef CONFIG_CMA
->> >>> -       /* If allocation can't use CMA areas don't use free CMA pages */
->> >>> -       if (!(alloc_flags & ALLOC_CMA))
->> >>> -               free_cma = zone_page_state(z, NR_FREE_CMA_PAGES);
->> >>> -#endif
->> >>> +       /*
->> >>> +        * We don't want to regard the pages on CMA region as free
->> >>> +        * on watermark checking, since they cannot be used for
->> >>> +        * unmovable/reclaimable allocation and they can suddenly
->> >>> +        * vanish through CMA allocation
->> >>> +        */
->> >>> +       if (IS_ENABLED(CONFIG_CMA) && z->managed_cma_pages)
->> >>> +               free_pages -= zone_page_state(z, NR_FREE_CMA_PAGES);
->> >>
->> >> make this free_cma instead of free_pages.
->> >>
->> >>>
->> >>> -       if (free_pages - free_cma <= min + lowmem_reserve)
->> >>> +       if (free_pages <= min + lowmem_reserve)
->> >> free_pages - free_cma <= min + lowmem_reserve
->> >>
->> >> Because in for loop you subtract nr_free which includes the CMA pages.
->> >> So if you have subtracted NR_FREE_CMA_PAGES
->> >> from free_pages above then you will be subtracting cma pages again in
->> >> nr_free (below in for loop).
->> >
->> > Yes, I understand the problem you mentioned.
->> >
->> > I think that this is complicated issue.
->> >
->> > Comit '026b081' you mentioned makes watermark_ok() loose for high order
->> > allocation compared to kernel that CMA isn't enabled, since free_pages includes
->> > free_cma pages and most of high order allocation except THP would be
->> > non-movable allocation. This non-movable allocation can't use cma pages,
->> > so we shouldn't include free_cma pages.
->> >
->> > If most of free cma pages are 0 order, that commit works correctly. We subtract
->> > nr of free cma pages at the first loop, so there is no problem. But,
->> > if the system
->> > have some free high-order cma pages, watermark checking allow high-order
->> > allocation more easily.
->> >
->> > I think that loosing the watermark check is right solution so will takes your
->> > comment on v2. But I want to know other developer's opinion.
->>
->> Thanks for giving this a thought for your v2 patch.
->>
->>
->> > If needed, I can implement to track free_area[o].nr_cma_free and use it for
->> > precise freepage calculation in watermark check.
->> >
->> I guess implementing nr_cma_free would be the correct solution.
->> Because currently for other than 0 order allocation
->> we still consider high order free_cma pages as free pages in the for
->> loop which from the code looks incorrect.
->>
->> This can lead to situation when we have more high order free CMA pages
->> but very less unmovable pages, but zone_watermark returns
->> ok for unmovable page, thus leading to allocation failure every time
->> instead of recovering from this situation.
->>
->> But its better if experts comment on this.
->
-> I think that implementing free_area[].nr_cma_free is a correct long-term
-> solution and it should be done before the current patch gets applied.
+> I'm also very unhappy about the crazy different interpretation of the
+> return value depending on flags, which probably becomes more obvious if
+> you try to document it.
 
-Okay.
+The meaning of the return value doesn't change due to flags, it's always
+"the number of valid entries passed to userspace,"  not dependent on the
+mode (unlike the size of data for example.)
 
-> [ Tomasz is on holiday currently but he should be back tomorrow so he can
->   also take a look at the issue. ]
+The reason why I did this is skip hole mode, where fincore() could end scanning
+before filling up the userspace buffer. So then the caller wants to know where
+is the end point of valid data. I thought that the simplest way is to return
+it as the return value. It's also possible to to let userspace know it by doing
+like below:
+- a userspace application zeroes the whole range of the buffer before calling
+  fincore(FINCORE_SKIP_HOLE)
+- after the fincore() returns, it finds the first hole entry then the index
+  of the hole entry gives the number of valid entries.
 
-Okay.
+Yes, we can do it without the return value, but it takes some costs so I
+didn't like it.
 
-Thanks.
+> That being said I think fincore is useful, but why not stick to the
+> same simple interface as mincore?
+
+mincore() gives only 8-bit field for each page, so we can easily guess that
+in the future we will face the need of more information to be passed and we
+don't have enough room for it.
+
+Another reason is that currently we have some interfaces to expose page status
+information to userspace like /proc/kpageflags, /proc/kpagecount, and
+/proc/pid/pagemap. People (including me) tried to add a new interface when they
+need a new infomation, but this is not good direction in a long run (too many
+/proc/kpage* interfaces). I think fincore() provides a unified way to do it.
+One benefit of it is that we can get the data you want in a single call, no need
+to call (for example) /proc/pid/pagemap and then /proc/kpageflags separately,
+which results in less overhead.
+
+Thanks,
+Naoya Horiguchi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
