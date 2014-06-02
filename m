@@ -1,37 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f173.google.com (mail-ig0-f173.google.com [209.85.213.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 0ADE66B00A0
-	for <linux-mm@kvack.org>; Mon,  2 Jun 2014 19:48:49 -0400 (EDT)
-Received: by mail-ig0-f173.google.com with SMTP id hn18so4044114igb.0
-        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 16:48:48 -0700 (PDT)
-Received: from mail-ie0-x22d.google.com (mail-ie0-x22d.google.com [2607:f8b0:4001:c03::22d])
-        by mx.google.com with ESMTPS id rv8si23863225igb.32.2014.06.02.16.48.48
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 02 Jun 2014 16:48:48 -0700 (PDT)
-Received: by mail-ie0-f173.google.com with SMTP id lx4so5244913iec.32
-        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 16:48:48 -0700 (PDT)
-Date: Mon, 2 Jun 2014 16:48:46 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch] mm, memcg: periodically schedule when emptying page
- list
-In-Reply-To: <alpine.LSU.2.11.1406021637170.5627@eggly.anvils>
-Message-ID: <alpine.DEB.2.02.1406021648260.8495@chino.kir.corp.google.com>
-References: <alpine.DEB.2.02.1406021612550.6487@chino.kir.corp.google.com> <alpine.LSU.2.11.1406021637170.5627@eggly.anvils>
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id CEB6A6B00A2
+	for <linux-mm@kvack.org>; Mon,  2 Jun 2014 19:49:21 -0400 (EDT)
+Received: by mail-pa0-f54.google.com with SMTP id lf10so4467066pab.41
+        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 16:49:21 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTP id sg10si17605876pbb.249.2014.06.02.16.49.20
+        for <linux-mm@kvack.org>;
+        Mon, 02 Jun 2014 16:49:20 -0700 (PDT)
+Message-ID: <538D0D7E.6000405@intel.com>
+Date: Mon, 02 Jun 2014 16:49:18 -0700
+From: Dave Hansen <dave.hansen@intel.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Subject: Re: [PATCH 01/11] pagewalk: update page table walker core
+References: <1392068676-30627-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1392068676-30627-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+In-Reply-To: <1392068676-30627-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, Cliff Wickman <cpw@sgi.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@parallels.com>, Rik van Riel <riel@redhat.com>, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org
 
-On Mon, 2 Jun 2014, Hugh Dickins wrote:
+On 02/10/2014 01:44 PM, Naoya Horiguchi wrote:
+> When we try to use multiple callbacks in different levels, skip control is
+> also important. For example we have thp enabled in normal configuration, and
+> we are interested in doing some work for a thp. But sometimes we want to
+> split it and handle as normal pages, and in another time user would handle
+> both at pmd level and pte level.
+> What we need is that when we've done pmd_entry() we want to decide whether
+> to go down to pte level handling based on the pmd_entry()'s result. So this
+> patch introduces a skip control flag in mm_walk.
+> We can't use the returned value for this purpose, because we already
+> defined the meaning of whole range of returned values (>0 is to terminate
+> page table walk in caller's specific manner, =0 is to continue to walk,
+> and <0 is to abort the walk in the general manner.)
 
-> Why not just move that cond_resched() down below the if/else?
-> No need to test need_resched() separately, and this page is not busy.
-> 
+This seems a bit complicated for a case which doesn't exist in practice
+in the kernel today.  We don't even *have* a single ->pte_entry handler.
+ Everybody just sets ->pmd_entry and does the splitting and handling of
+individual pte entries in there.  The only reason it's needed is because
+of the later patches in the series, which is kinda goofy.
 
-Would you like to propose your version from our kernel instead?
+I'm biased, but I think the abstraction here is done in the wrong place.
+
+Naoya, could you take a looked at the new handler I proposed?  Would
+that help make this simpler?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
