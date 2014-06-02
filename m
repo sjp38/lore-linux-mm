@@ -1,71 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
-	by kanga.kvack.org (Postfix) with ESMTP id B27F26B0031
-	for <linux-mm@kvack.org>; Mon,  2 Jun 2014 16:31:09 -0400 (EDT)
-Received: by mail-pd0-f175.google.com with SMTP id z10so3782726pdj.34
-        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 13:31:09 -0700 (PDT)
-Received: from g2t2352.austin.hp.com (g2t2352.austin.hp.com. [15.217.128.51])
-        by mx.google.com with ESMTPS id qd5si17099702pbb.211.2014.06.02.13.31.08
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 02 Jun 2014 13:31:08 -0700 (PDT)
-Message-ID: <1401741061.5185.9.camel@buesod1.americas.hpqcorp.net>
-Subject: Re: [PATCH 0/5] mm: i_mmap_mutex to rwsem
-From: Davidlohr Bueso <davidlohr@hp.com>
-Date: Mon, 02 Jun 2014 13:31:01 -0700
-In-Reply-To: <20140602130832.9328cfef977b7ed837d59321@linux-foundation.org>
-References: <1400816006-3083-1-git-send-email-davidlohr@hp.com>
-	 <1401416415.2618.14.camel@buesod1.americas.hpqcorp.net>
-	 <20140602130832.9328cfef977b7ed837d59321@linux-foundation.org>
-Content-Type: text/plain; charset="UTF-8"
+Received: from mail-pb0-f42.google.com (mail-pb0-f42.google.com [209.85.160.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 115B66B0031
+	for <linux-mm@kvack.org>; Mon,  2 Jun 2014 17:17:01 -0400 (EDT)
+Received: by mail-pb0-f42.google.com with SMTP id md12so4646207pbc.29
+        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 14:17:00 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id ql2si17223821pbb.240.2014.06.02.14.16.59
+        for <linux-mm@kvack.org>;
+        Mon, 02 Jun 2014 14:16:59 -0700 (PDT)
+Date: Mon, 2 Jun 2014 14:16:57 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 1/3] replace PAGECACHE_TAG_* definition with enumeration
+Message-Id: <20140602141657.68f831156b45251b0684b441@linux-foundation.org>
+In-Reply-To: <538CA269.6010300@intel.com>
+References: <20140521193336.5df90456.akpm@linux-foundation.org>
+	<1401686699-9723-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+	<1401686699-9723-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+	<538CA269.6010300@intel.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: mingo@kernel.org, peterz@infradead.org, riel@redhat.com, mgorman@suse.de, aswin@hp.com, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, Arnaldo Carvalho de Melo <acme@redhat.com>, Borislav Petkov <bp@alien8.de>, "Kirill A. Shutemov" <kirill@shutemov.name>, Johannes Weiner <hannes@cmpxchg.org>, Rusty Russell <rusty@rustcorp.com.au>, David Miller <davem@davemloft.net>, Andres Freund <andres@2ndquadrant.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, 2014-06-02 at 13:08 -0700, Andrew Morton wrote:
-> On Thu, 29 May 2014 19:20:15 -0700 Davidlohr Bueso <davidlohr@hp.com> wrote:
+On Mon, 02 Jun 2014 09:12:25 -0700 Dave Hansen <dave.hansen@intel.com> wrote:
+
+> On 06/01/2014 10:24 PM, Naoya Horiguchi wrote:
+> > -#define PAGECACHE_TAG_DIRTY	0
+> > -#define PAGECACHE_TAG_WRITEBACK	1
+> > -#define PAGECACHE_TAG_TOWRITE	2
+> > +enum {
+> > +	PAGECACHE_TAG_DIRTY,
+> > +	PAGECACHE_TAG_WRITEBACK,
+> > +	PAGECACHE_TAG_TOWRITE,
+> > +	__NR_PAGECACHE_TAGS,
+> > +};
 > 
-> > On Thu, 2014-05-22 at 20:33 -0700, Davidlohr Bueso wrote:
-> > > This patchset extends the work started by Ingo Molnar in late 2012,
-> > > optimizing the anon-vma mutex lock, converting it from a exclusive mutex
-> > > to a rwsem, and sharing the lock for read-only paths when walking the
-> > > the vma-interval tree. More specifically commits 5a505085 and 4fc3f1d6.
-> > > 
-> > > The i_mmap_mutex has similar responsibilities with the anon-vma, protecting
-> > > file backed pages. Therefore we can use similar locking techniques: covert
-> > > the mutex to a rwsem and share the lock when possible.
-> > > 
-> > > With the new optimistic spinning property we have in rwsems, we no longer
-> > > take a hit in performance when using this lock, and we can therefore
-> > > safely do the conversion. Tests show no throughput regressions in aim7 or
-> > > pgbench runs, and we can see gains from sharing the lock, in disk workloads
-> > > ~+15% for over 1000 users on a 8-socket Westmere system.
-> > > 
-> > > This patchset applies on linux-next-20140522.
-> >
-> > ping? Andrew any chance of getting this in -next?
-> 
-> (top-posting repaired)
-> 
-> It was a bit late for 3.16 back on May 26, when you said "I will dig
-> deeper (probably for 3.17 now)".  So, please take another look at the
-> patch factoring and let's get this underway for -rc1.
+> Doesn't this end up exposing kernel-internal values out to a userspace
+> interface?  Wouldn't that lock these values in to the ABI?
 
-Ok, so I meant that I'd dig deeper for the additional sharing
-opportunities (which I've found a few as Hugh correctly suggested). So
-those eventual patches could come later. 
+Yes, we should be careful here.  We should not do anything which
+constrains future kernel code or which causes any form of
+compatibility/migration issues.
 
-But I see no reason for *this* patchset to be delayed, as even if it
-gets to be 3.17 material, I'd still very much want to have the same
-patch factoring I have now. I think its the correct way to handle lock
-transitioning for both correctness and bisectability.
+I wonder if we can do something smart with the interface.  For example
+when userspace calls sys_fincore() it must explicitly ask for
+PAGECACHE_TAG_DIRTY and if some future kernel doesn't implement
+PAGECACHE_TAG_DIRTY, it can return -EINVAL.
 
-Thanks,
-Davidlohr
+Or maybe it can succeed, but tells userspace "you didn't get
+PAGECACHE_TAG_DIRTY".
 
+<thinking out loud>
+
+So userspace sends a mask of bits which select what fields it wants. 
+The kernel returns a mask of bits which tell userspace what it actually
+received.
+
+Or something like that - you get the idea ;)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
