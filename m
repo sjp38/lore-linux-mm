@@ -1,141 +1,196 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ve0-f172.google.com (mail-ve0-f172.google.com [209.85.128.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 354A66B0031
-	for <linux-mm@kvack.org>; Mon,  2 Jun 2014 10:03:52 -0400 (EDT)
-Received: by mail-ve0-f172.google.com with SMTP id oz11so5219572veb.17
-        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 07:03:51 -0700 (PDT)
-Received: from mail-ve0-x235.google.com (mail-ve0-x235.google.com [2607:f8b0:400c:c01::235])
-        by mx.google.com with ESMTPS id yh7si7883758vdc.93.2014.06.02.07.03.51
+Received: from mail-ve0-f169.google.com (mail-ve0-f169.google.com [209.85.128.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D44F6B0031
+	for <linux-mm@kvack.org>; Mon,  2 Jun 2014 10:05:14 -0400 (EDT)
+Received: by mail-ve0-f169.google.com with SMTP id jx11so5311706veb.0
+        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 07:05:14 -0700 (PDT)
+Received: from mail-vc0-x236.google.com (mail-vc0-x236.google.com [2607:f8b0:400c:c03::236])
+        by mx.google.com with ESMTPS id t15si7913180vew.65.2014.06.02.07.05.13
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 02 Jun 2014 07:03:51 -0700 (PDT)
-Received: by mail-ve0-f181.google.com with SMTP id pa12so5231121veb.12
-        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 07:03:51 -0700 (PDT)
+        Mon, 02 Jun 2014 07:05:13 -0700 (PDT)
+Received: by mail-vc0-f182.google.com with SMTP id id10so5150250vcb.13
+        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 07:05:13 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20140602114741.GA1039@esperanza>
-References: <cover.1401457502.git.vdavydov@parallels.com>
-	<5d2fbc894a2c62597e7196bb1ebb8357b15529ab.1401457502.git.vdavydov@parallels.com>
-	<alpine.DEB.2.10.1405300955120.11943@gentwo.org>
-	<20140531110456.GC25076@esperanza>
-	<20140602042435.GA17964@js1304-P5Q-DELUXE>
-	<20140602114741.GA1039@esperanza>
-Date: Mon, 2 Jun 2014 23:03:51 +0900
-Message-ID: <CAAmzW4P=kUAJwozBPPos+uUewzSDnE43P6NcGYKNpBjjfv1EWA@mail.gmail.com>
-Subject: Re: [PATCH -mm 7/8] slub: make dead caches discard free slabs immediately
+In-Reply-To: <4424609.WQEPaWUrpH@amdc1032>
+References: <1401260672-28339-1-git-send-email-iamjoonsoo.kim@lge.com>
+	<CAAmzW4OKO0005+-MuTrENHnMZKkJjk9aOx2vBDNoXN8==TWTew@mail.gmail.com>
+	<CALk7dXo6M1op0q2xiEW=9dEwOm1pK8C+gSTadJiAL071xJycCQ@mail.gmail.com>
+	<4424609.WQEPaWUrpH@amdc1032>
+Date: Mon, 2 Jun 2014 23:05:13 +0900
+Message-ID: <CAAmzW4P1g2ZsPBjdqPOgsNLkzD5z16i5MjjHJcKc=U7eW9pMvw@mail.gmail.com>
+Subject: Re: [PATCH v2 3/3] CMA: always treat free cma pages as non-free on
+ watermark checking
 From: Joonsoo Kim <js1304@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Christoph Lameter <cl@gentwo.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, LKML <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>
+Cc: Ritesh Harjani <ritesh.list@gmail.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Heesub Shin <heesub.shin@samsung.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Nagachandra P <nagachandra@gmail.com>, Vinayak Menon <menon.vinayak@gmail.com>, Ritesh Harjani <ritesh.harjani@gmail.com>, t.stanislaws@samsung.com
 
-2014-06-02 20:47 GMT+09:00 Vladimir Davydov <vdavydov@parallels.com>:
-> Hi Joonsoo,
+2014-06-02 19:47 GMT+09:00 Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>:
 >
-> On Mon, Jun 02, 2014 at 01:24:36PM +0900, Joonsoo Kim wrote:
->> On Sat, May 31, 2014 at 03:04:58PM +0400, Vladimir Davydov wrote:
->> > On Fri, May 30, 2014 at 09:57:10AM -0500, Christoph Lameter wrote:
->> > > On Fri, 30 May 2014, Vladimir Davydov wrote:
->> > >
->> > > > (3) is a bit more difficult, because slabs are added to per-cpu partial
->> > > > lists lock-less. Fortunately, we only have to handle the __slab_free
->> > > > case, because, as there shouldn't be any allocation requests dispatched
->> > > > to a dead memcg cache, get_partial_node() should never be called. In
->> > > > __slab_free we use cmpxchg to modify kmem_cache_cpu->partial (see
->> > > > put_cpu_partial) so that setting ->partial to a special value, which
->> > > > will make put_cpu_partial bail out, will do the trick.
-> [...]
->> I think that we can do (3) easily.
->> If we check memcg_cache_dead() in the end of put_cpu_partial() rather
->> than in the begin of put_cpu_partial(), we can avoid the race you
->> mentioned. If someone do put_cpu_partial() before dead flag is set,
->> it can be zapped by who set dead flag. And if someone do
->> put_cpu_partial() after dead flag is set, it can be zapped by who
->> do put_cpu_partial().
+> Hi,
 >
-> After put_cpu_partial() adds a frozen slab to a per cpu partial list,
-> the slab becomes visible to other threads, which means it can be
-> unfrozen and freed. The latter can trigger cache destruction. Hence we
-> shouldn't touch the cache, in particular call memcg_cache_dead() on it,
-> after calling put_cpu_partial(), otherwise we can get use-after-free.
+> On Monday, June 02, 2014 09:37:49 AM Ritesh Harjani wrote:
+>> Hi Joonsoo,
+>>
+>> CC'ing the developer of the patch (Tomasz Stanislawski)
+>>
+>>
+>> On Fri, May 30, 2014 at 8:16 PM, Joonsoo Kim <js1304@gmail.com> wrote:
+>> > 2014-05-30 19:40 GMT+09:00 Ritesh Harjani <ritesh.list@gmail.com>:
+>> >> Hi Joonsoo,
+>> >>
+>> >> I think you will be loosing the benefit of below patch with your changes.
+>> >> I am no expert here so please bear with me. I tried explaining in the
+>> >> inline comments, let me know if I am wrong.
+>> >>
+>> >> commit 026b08147923142e925a7d0aaa39038055ae0156
+>> >> Author: Tomasz Stanislawski <t.stanislaws@samsung.com>
+>> >> Date:   Wed Jun 12 14:05:02 2013 -0700
+>> >
+>> > Hello, Ritesh.
+>> >
+>> > Thanks for notifying that.
+>> >
+>> >>
+>> >> On Wed, May 28, 2014 at 12:34 PM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+>> >>> commit d95ea5d1('cma: fix watermark checking') introduces ALLOC_CMA flag
 >
-> However, what you propose makes sense if we disable irqs before adding a
-> slab to a partial list and enable them only after checking if the cache
-> is dead and unfreezing all partials if so, i.e.
->
-> diff --git a/mm/slub.c b/mm/slub.c
-> index d96faa2464c3..14b9e9a8677c 100644
-> --- a/mm/slub.c
-> +++ b/mm/slub.c
-> @@ -2030,8 +2030,15 @@ static void put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
->         struct page *oldpage;
->         int pages;
->         int pobjects;
-> +       unsigned long flags;
-> +       int irq_saved = 0;
->
->         do {
-> +               if (irq_saved) {
-> +                       local_irq_restore(flags);
-> +                       irq_saved = 0;
-> +               }
-> +
->                 pages = 0;
->                 pobjects = 0;
->                 oldpage = this_cpu_read(s->cpu_slab->partial);
-> @@ -2062,8 +2069,16 @@ static void put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
->                 page->pobjects = pobjects;
->                 page->next = oldpage;
->
-> +               local_irq_save(flags);
-> +               irq_saved = 1;
-> +
->         } while (this_cpu_cmpxchg(s->cpu_slab->partial, oldpage, page)
->                                                                 != oldpage);
-> +
-> +       if (memcg_cache_dead(s))
-> +               unfreeze_partials(s, this_cpu_ptr(s->cpu_slab));
-> +
-> +       local_irq_restore(flags);
->  #endif
->  }
->
->
-> That would be safe against possible cache destruction, because to remove
-> a slab from a per cpu partial list we have to run on the cpu it was
-> frozen on. Disabling irqs makes it impossible.
+> It is a bit of shame that the author of commit d95ea5d1 (happens to be me :)
+> was not on cc:.
 
-Hmm... this is also a bit ugly.
-How about following change?
+Sorry about that.
+I will add you on cc in next spin. :)
+
+>> >>> for alloc flag and treats free cma pages as free pages if this flag is
+>> >>> passed to watermark checking. Intention of that patch is that movable page
+>> >>> allocation can be be handled from cma reserved region without starting
+>> >>> kswapd. Now, previous patch changes the behaviour of allocator that
+>> >>> movable allocation uses the page on cma reserved region aggressively,
+>> >>> so this watermark hack isn't needed anymore. Therefore remove it.
+>> >>>
+>> >>> Acked-by: Michal Nazarewicz <mina86@mina86.com>
+>> >>> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+>> >>>
+>> >>> diff --git a/mm/compaction.c b/mm/compaction.c
+>> >>> index 627dc2e..36e2fcd 100644
+>> >>> --- a/mm/compaction.c
+>> >>> +++ b/mm/compaction.c
+>> >>> @@ -1117,10 +1117,6 @@ unsigned long try_to_compact_pages(struct zonelist *zonelist,
+>> >>>
+>> >>>         count_compact_event(COMPACTSTALL);
+>> >>>
+>> >>> -#ifdef CONFIG_CMA
+>> >>> -       if (allocflags_to_migratetype(gfp_mask) == MIGRATE_MOVABLE)
+>> >>> -               alloc_flags |= ALLOC_CMA;
+>> >>> -#endif
+>> >>>         /* Compact each zone in the list */
+>> >>>         for_each_zone_zonelist_nodemask(zone, z, zonelist, high_zoneidx,
+>> >>>                                                                 nodemask) {
+>> >>> diff --git a/mm/internal.h b/mm/internal.h
+>> >>> index 07b6736..a121762 100644
+>> >>> --- a/mm/internal.h
+>> >>> +++ b/mm/internal.h
+>> >>> @@ -384,7 +384,6 @@ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
+>> >>>  #define ALLOC_HARDER           0x10 /* try to alloc harder */
+>> >>>  #define ALLOC_HIGH             0x20 /* __GFP_HIGH set */
+>> >>>  #define ALLOC_CPUSET           0x40 /* check for correct cpuset */
+>> >>> -#define ALLOC_CMA              0x80 /* allow allocations from CMA areas */
+>> >>> -#define ALLOC_FAIR             0x100 /* fair zone allocation */
+>> >>> +#define ALLOC_FAIR             0x80 /* fair zone allocation */
+>> >>>
+>> >>>  #endif /* __MM_INTERNAL_H */
+>> >>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>> >>> index ca678b6..83a8021 100644
+>> >>> --- a/mm/page_alloc.c
+>> >>> +++ b/mm/page_alloc.c
+>> >>> @@ -1764,20 +1764,22 @@ static bool __zone_watermark_ok(struct zone *z, int order, unsigned long mark,
+>> >>>         long min = mark;
+>> >>>         long lowmem_reserve = z->lowmem_reserve[classzone_idx];
+>> >>>         int o;
+>> >>> -       long free_cma = 0;
+>> >>>
+>> >>>         free_pages -= (1 << order) - 1;
+>> >>>         if (alloc_flags & ALLOC_HIGH)
+>> >>>                 min -= min / 2;
+>> >>>         if (alloc_flags & ALLOC_HARDER)
+>> >>>                 min -= min / 4;
+>> >>> -#ifdef CONFIG_CMA
+>> >>> -       /* If allocation can't use CMA areas don't use free CMA pages */
+>> >>> -       if (!(alloc_flags & ALLOC_CMA))
+>> >>> -               free_cma = zone_page_state(z, NR_FREE_CMA_PAGES);
+>> >>> -#endif
+>> >>> +       /*
+>> >>> +        * We don't want to regard the pages on CMA region as free
+>> >>> +        * on watermark checking, since they cannot be used for
+>> >>> +        * unmovable/reclaimable allocation and they can suddenly
+>> >>> +        * vanish through CMA allocation
+>> >>> +        */
+>> >>> +       if (IS_ENABLED(CONFIG_CMA) && z->managed_cma_pages)
+>> >>> +               free_pages -= zone_page_state(z, NR_FREE_CMA_PAGES);
+>> >>
+>> >> make this free_cma instead of free_pages.
+>> >>
+>> >>>
+>> >>> -       if (free_pages - free_cma <= min + lowmem_reserve)
+>> >>> +       if (free_pages <= min + lowmem_reserve)
+>> >> free_pages - free_cma <= min + lowmem_reserve
+>> >>
+>> >> Because in for loop you subtract nr_free which includes the CMA pages.
+>> >> So if you have subtracted NR_FREE_CMA_PAGES
+>> >> from free_pages above then you will be subtracting cma pages again in
+>> >> nr_free (below in for loop).
+>> >
+>> > Yes, I understand the problem you mentioned.
+>> >
+>> > I think that this is complicated issue.
+>> >
+>> > Comit '026b081' you mentioned makes watermark_ok() loose for high order
+>> > allocation compared to kernel that CMA isn't enabled, since free_pages includes
+>> > free_cma pages and most of high order allocation except THP would be
+>> > non-movable allocation. This non-movable allocation can't use cma pages,
+>> > so we shouldn't include free_cma pages.
+>> >
+>> > If most of free cma pages are 0 order, that commit works correctly. We subtract
+>> > nr of free cma pages at the first loop, so there is no problem. But,
+>> > if the system
+>> > have some free high-order cma pages, watermark checking allow high-order
+>> > allocation more easily.
+>> >
+>> > I think that loosing the watermark check is right solution so will takes your
+>> > comment on v2. But I want to know other developer's opinion.
+>>
+>> Thanks for giving this a thought for your v2 patch.
+>>
+>>
+>> > If needed, I can implement to track free_area[o].nr_cma_free and use it for
+>> > precise freepage calculation in watermark check.
+>> >
+>> I guess implementing nr_cma_free would be the correct solution.
+>> Because currently for other than 0 order allocation
+>> we still consider high order free_cma pages as free pages in the for
+>> loop which from the code looks incorrect.
+>>
+>> This can lead to situation when we have more high order free CMA pages
+>> but very less unmovable pages, but zone_watermark returns
+>> ok for unmovable page, thus leading to allocation failure every time
+>> instead of recovering from this situation.
+>>
+>> But its better if experts comment on this.
+>
+> I think that implementing free_area[].nr_cma_free is a correct long-term
+> solution and it should be done before the current patch gets applied.
+
+Okay.
+
+> [ Tomasz is on holiday currently but he should be back tomorrow so he can
+>   also take a look at the issue. ]
+
+Okay.
 
 Thanks.
-
-diff --git a/mm/slub.c b/mm/slub.c
-index 2b1ce69..6adab87 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -2058,6 +2058,21 @@ static void put_cpu_partial(struct kmem_cache
-*s, struct page *page, int drain)
-
-        } while (this_cpu_cmpxchg(s->cpu_slab->partial, oldpage, page)
-                                                                != oldpage);
-+
-+       if (memcg_cache_dead(s)) {
-+               bool done = false;
-+               unsigned long flags;
-+
-+               local_irq_save(flags);
-+               if (this_cpu_read(s->cpu_slab->partial) == page) {
-+                       done = true;
-+                       unfreeze_partials(s, this_cpu_ptr);
-+               }
-+               local_irq_restore(flags);
-+
-+               if (!done)
-+                       flush_all(s);
-+       }
- #endif
- }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
