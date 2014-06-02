@@ -1,115 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f52.google.com (mail-la0-f52.google.com [209.85.215.52])
-	by kanga.kvack.org (Postfix) with ESMTP id E8D966B0031
-	for <linux-mm@kvack.org>; Mon,  2 Jun 2014 07:48:02 -0400 (EDT)
-Received: by mail-la0-f52.google.com with SMTP id s18so521520lam.11
-        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 04:48:01 -0700 (PDT)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id m3si31619191lba.41.2014.06.02.04.48.00
+Received: from mail-pb0-f42.google.com (mail-pb0-f42.google.com [209.85.160.42])
+	by kanga.kvack.org (Postfix) with ESMTP id E60AD6B0031
+	for <linux-mm@kvack.org>; Mon,  2 Jun 2014 07:55:50 -0400 (EDT)
+Received: by mail-pb0-f42.google.com with SMTP id md12so4165101pbc.1
+        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 04:55:50 -0700 (PDT)
+Received: from mail-pb0-x22c.google.com (mail-pb0-x22c.google.com [2607:f8b0:400e:c01::22c])
+        by mx.google.com with ESMTPS id gg2si15402177pbb.253.2014.06.02.04.55.49
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 02 Jun 2014 04:48:01 -0700 (PDT)
-Date: Mon, 2 Jun 2014 15:47:46 +0400
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: Re: [PATCH -mm 7/8] slub: make dead caches discard free slabs
- immediately
-Message-ID: <20140602114741.GA1039@esperanza>
-References: <cover.1401457502.git.vdavydov@parallels.com>
- <5d2fbc894a2c62597e7196bb1ebb8357b15529ab.1401457502.git.vdavydov@parallels.com>
- <alpine.DEB.2.10.1405300955120.11943@gentwo.org>
- <20140531110456.GC25076@esperanza>
- <20140602042435.GA17964@js1304-P5Q-DELUXE>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <20140602042435.GA17964@js1304-P5Q-DELUXE>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 02 Jun 2014 04:55:49 -0700 (PDT)
+Received: by mail-pb0-f44.google.com with SMTP id rq2so4134882pbb.31
+        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 04:55:49 -0700 (PDT)
+From: Chen Yucong <slaoub@gmail.com>
+Subject: [PATCH] swap: Delete  the "last_in_cluster < scan_base" loop in the body of scan_swap_map()
+Date: Mon,  2 Jun 2014 19:54:13 +0800
+Message-Id: <1401710053-8460-1-git-send-email-slaoub@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Christoph Lameter <cl@gentwo.org>, akpm@linux-foundation.org, hannes@cmpxchg.org, mhocko@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: shli@kernel.org
+Cc: hughd@google.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Chen Yucong <slaoub@gmail.com>
 
-Hi Joonsoo,
+>From commit ebc2a1a69111, we can find that all SWP_SOLIDSTATE "seek is cheap"(SSD case) 
+has already gone to si->cluster_info scan_swap_map_try_ssd_cluster() route. So that the
+"last_in_cluster < scan_base" loop in the body of scan_swap_map() has already become a 
+dead code snippet, and it should have been deleted.
 
-On Mon, Jun 02, 2014 at 01:24:36PM +0900, Joonsoo Kim wrote:
-> On Sat, May 31, 2014 at 03:04:58PM +0400, Vladimir Davydov wrote:
-> > On Fri, May 30, 2014 at 09:57:10AM -0500, Christoph Lameter wrote:
-> > > On Fri, 30 May 2014, Vladimir Davydov wrote:
-> > > 
-> > > > (3) is a bit more difficult, because slabs are added to per-cpu partial
-> > > > lists lock-less. Fortunately, we only have to handle the __slab_free
-> > > > case, because, as there shouldn't be any allocation requests dispatched
-> > > > to a dead memcg cache, get_partial_node() should never be called. In
-> > > > __slab_free we use cmpxchg to modify kmem_cache_cpu->partial (see
-> > > > put_cpu_partial) so that setting ->partial to a special value, which
-> > > > will make put_cpu_partial bail out, will do the trick.
-[...]
-> I think that we can do (3) easily.
-> If we check memcg_cache_dead() in the end of put_cpu_partial() rather
-> than in the begin of put_cpu_partial(), we can avoid the race you 
-> mentioned. If someone do put_cpu_partial() before dead flag is set,
-> it can be zapped by who set dead flag. And if someone do
-> put_cpu_partial() after dead flag is set, it can be zapped by who
-> do put_cpu_partial().
+This patch is to delete the redundant loop as Hugh and Shaohua suggested.
 
-After put_cpu_partial() adds a frozen slab to a per cpu partial list,
-the slab becomes visible to other threads, which means it can be
-unfrozen and freed. The latter can trigger cache destruction. Hence we
-shouldn't touch the cache, in particular call memcg_cache_dead() on it,
-after calling put_cpu_partial(), otherwise we can get use-after-free.
+Signed-off-by: Chen Yucong <slaoub@gmail.com>
+---
+ mm/swapfile.c |   20 --------------------
+ 1 file changed, 20 deletions(-)
 
-However, what you propose makes sense if we disable irqs before adding a
-slab to a partial list and enable them only after checking if the cache
-is dead and unfreezing all partials if so, i.e.
-
-diff --git a/mm/slub.c b/mm/slub.c
-index d96faa2464c3..14b9e9a8677c 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -2030,8 +2030,15 @@ static void put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
- 	struct page *oldpage;
- 	int pages;
- 	int pobjects;
-+	unsigned long flags;
-+	int irq_saved = 0;
+diff --git a/mm/swapfile.c b/mm/swapfile.c
+index beeeef8..1b44bd9 100644
+--- a/mm/swapfile.c
++++ b/mm/swapfile.c
+@@ -549,26 +549,6 @@ static unsigned long scan_swap_map(struct swap_info_struct *si,
+ 			}
+ 		}
  
- 	do {
-+		if (irq_saved) {
-+			local_irq_restore(flags);
-+			irq_saved = 0;
-+		}
-+
- 		pages = 0;
- 		pobjects = 0;
- 		oldpage = this_cpu_read(s->cpu_slab->partial);
-@@ -2062,8 +2069,16 @@ static void put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
- 		page->pobjects = pobjects;
- 		page->next = oldpage;
- 
-+		local_irq_save(flags);
-+		irq_saved = 1;
-+
- 	} while (this_cpu_cmpxchg(s->cpu_slab->partial, oldpage, page)
- 								!= oldpage);
-+
-+	if (memcg_cache_dead(s))
-+		unfreeze_partials(s, this_cpu_ptr(s->cpu_slab));
-+
-+	local_irq_restore(flags);
- #endif
- }
- 
-
-That would be safe against possible cache destruction, because to remove
-a slab from a per cpu partial list we have to run on the cpu it was
-frozen on. Disabling irqs makes it impossible.
-
-Christoph,
-
-Does it look better to you? BTW, why can't we *always* disable irqs for
-the whole put_cpu_partial()? That way handling dead caches there would
-be trivial, and we wouldn't have to use this_cpu_cmpxchg().
-
-Thanks.
+-		offset = si->lowest_bit;
+-		last_in_cluster = offset + SWAPFILE_CLUSTER - 1;
+-
+-		/* Locate the first empty (unaligned) cluster */
+-		for (; last_in_cluster < scan_base; offset++) {
+-			if (si->swap_map[offset])
+-				last_in_cluster = offset + SWAPFILE_CLUSTER;
+-			else if (offset == last_in_cluster) {
+-				spin_lock(&si->lock);
+-				offset -= SWAPFILE_CLUSTER - 1;
+-				si->cluster_next = offset;
+-				si->cluster_nr = SWAPFILE_CLUSTER - 1;
+-				goto checks;
+-			}
+-			if (unlikely(--latency_ration < 0)) {
+-				cond_resched();
+-				latency_ration = LATENCY_LIMIT;
+-			}
+-		}
+-
+ 		offset = scan_base;
+ 		spin_lock(&si->lock);
+ 		si->cluster_nr = SWAPFILE_CLUSTER - 1;
+-- 
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
