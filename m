@@ -1,99 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D8B16B0055
-	for <linux-mm@kvack.org>; Mon,  2 Jun 2014 17:36:59 -0400 (EDT)
-Received: by mail-pd0-f172.google.com with SMTP id fp1so3823722pdb.31
-        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 14:36:58 -0700 (PDT)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTP id ub1si3789334pac.41.2014.06.02.14.36.58
+Received: from mail-qa0-f41.google.com (mail-qa0-f41.google.com [209.85.216.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 7BC3A6B0031
+	for <linux-mm@kvack.org>; Mon,  2 Jun 2014 17:52:30 -0400 (EDT)
+Received: by mail-qa0-f41.google.com with SMTP id dc16so3645516qab.28
+        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 14:52:30 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id a9si19998078qaj.70.2014.06.02.14.52.29
         for <linux-mm@kvack.org>;
-        Mon, 02 Jun 2014 14:36:58 -0700 (PDT)
-Subject: [PATCH 10/10] mm: pagewalk: use locked walker for /proc/pid/numa_maps
-From: Dave Hansen <dave@sr71.net>
-Date: Mon, 02 Jun 2014 14:36:57 -0700
-References: <20140602213644.925A26D0@viggo.jf.intel.com>
+        Mon, 02 Jun 2014 14:52:29 -0700 (PDT)
+Message-ID: <538cf21d.c945e00a.16e5.ffff85adSMTPIN_ADDED_BROKEN@mx.google.com>
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH 00/10] mm: pagewalk: huge page cleanups and VMA passing
+Date: Mon,  2 Jun 2014 17:52:06 -0400
 In-Reply-To: <20140602213644.925A26D0@viggo.jf.intel.com>
-Message-Id: <20140602213657.A393F169@viggo.jf.intel.com>
+References: <20140602213644.925A26D0@viggo.jf.intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, kirill.shutemov@linux.intel.com, Dave Hansen <dave@sr71.net>
+To: dave@sr71.net
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
+Hello Dave,
 
-From: Dave Hansen <dave.hansen@linux.intel.com>
+On Mon, Jun 02, 2014 at 02:36:44PM -0700, Dave Hansen wrote:
+> The hugetlbfs and THP support in the walk_page_range() code was
+> mostly an afterthought.
+> 
+> We also _tried_ to have the pagewalk code be concerned only with
+> page tables and *NOT* VMAs.  We lost that battle since 80% of
+> the page walkers just pass the VMA along anyway.
+> 
+> This does a few cleanups and adds a new flavor of walker which
+> can be stupid^Wsimple and not have to be explicitly taught about
+> THP.
 
-Same deal as the last one.  Lots of code savings using the new
-walker function.
+What version is this patchset based on?
+Recently I comprehensively rewrote page table walker (from the same motivation
+as yours) and the patchset is now in linux-mm. I guess most of your patchset
+(I've not read them yet) conflict with this patchset.
+So could you take a look on it?
 
-
-Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
----
-
- b/fs/proc/task_mmu.c |   39 ++++++++-------------------------------
- 1 file changed, 8 insertions(+), 31 deletions(-)
-
-diff -puN fs/proc/task_mmu.c~mm-pagewalk-use-locked-walker-numa_maps fs/proc/task_mmu.c
---- a/fs/proc/task_mmu.c~mm-pagewalk-use-locked-walker-numa_maps	2014-06-02 14:20:21.518907178 -0700
-+++ b/fs/proc/task_mmu.c	2014-06-02 14:20:21.522907359 -0700
-@@ -1280,41 +1280,18 @@ static struct page *can_gather_numa_stat
- 	return page;
- }
- 
--static int gather_pte_stats(pmd_t *pmd, unsigned long addr,
--		unsigned long end, struct mm_walk *walk)
-+static int gather_stats_locked(pte_t *pte, unsigned long addr,
-+		unsigned long size, struct mm_walk *walk)
- {
--	struct numa_maps *md;
--	spinlock_t *ptl;
--	pte_t *orig_pte;
--	pte_t *pte;
--
--	md = walk->private;
-+	struct numa_maps *md = walk->private;
-+	struct page *page = can_gather_numa_stats(*pte, walk->vma, addr);
- 
--	if (pmd_trans_huge_lock(pmd, walk->vma, &ptl) == 1) {
--		pte_t huge_pte = *(pte_t *)pmd;
--		struct page *page;
--
--		page = can_gather_numa_stats(huge_pte, walk->vma, addr);
--		if (page)
--			gather_stats(page, md, pte_dirty(huge_pte),
--				     HPAGE_PMD_SIZE/PAGE_SIZE);
--		spin_unlock(ptl);
--		return 0;
--	}
-+	if (page)
-+		gather_stats(page, md, pte_dirty(*pte), size/PAGE_SIZE);
- 
--	if (pmd_trans_unstable(pmd))
--		return 0;
--	orig_pte = pte = pte_offset_map_lock(walk->mm, pmd, addr, &ptl);
--	do {
--		struct page *page = can_gather_numa_stats(*pte, walk->vma, addr);
--		if (!page)
--			continue;
--		gather_stats(page, md, pte_dirty(*pte), 1);
--
--	} while (pte++, addr += PAGE_SIZE, addr != end);
--	pte_unmap_unlock(orig_pte, ptl);
- 	return 0;
- }
-+
- #ifdef CONFIG_HUGETLB_PAGE
- static int gather_hugetbl_stats(pte_t *pte, unsigned long hmask,
- 		unsigned long addr, unsigned long end, struct mm_walk *walk)
-@@ -1366,7 +1343,7 @@ static int show_numa_map(struct seq_file
- 	memset(md, 0, sizeof(*md));
- 
- 	walk.hugetlb_entry = gather_hugetbl_stats;
--	walk.pmd_entry = gather_pte_stats;
-+	walk.locked_single_entry = gather_stats_locked;
- 	walk.private = md;
- 	walk.mm = mm;
- 
-_
+Thanks,
+Naoya Horiguchi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
