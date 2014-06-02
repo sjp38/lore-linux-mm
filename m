@@ -1,71 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f47.google.com (mail-la0-f47.google.com [209.85.215.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 494DD6B0031
-	for <linux-mm@kvack.org>; Mon,  2 Jun 2014 10:20:31 -0400 (EDT)
-Received: by mail-la0-f47.google.com with SMTP id pn19so2629864lab.34
-        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 07:20:30 -0700 (PDT)
+Received: from mail-lb0-f182.google.com (mail-lb0-f182.google.com [209.85.217.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 0D12D6B0031
+	for <linux-mm@kvack.org>; Mon,  2 Jun 2014 10:22:26 -0400 (EDT)
+Received: by mail-lb0-f182.google.com with SMTP id z11so2536437lbi.41
+        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 07:22:26 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id et8si21772830wib.78.2014.06.02.07.20.24
+        by mx.google.com with ESMTP id b2si21829909wik.18.2014.06.02.07.22.24
         for <linux-mm@kvack.org>;
-        Mon, 02 Jun 2014 07:20:25 -0700 (PDT)
-Message-ID: <538c8829.e863b40a.0787.ffff96f4SMTPIN_ADDED_BROKEN@mx.google.com>
+        Mon, 02 Jun 2014 07:22:25 -0700 (PDT)
+Message-ID: <538c88a1.e225b40a.612b.ffff9109SMTPIN_ADDED_BROKEN@mx.google.com>
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 Subject: Re: [PATCH 2/3] mm: introduce fincore()
-Date: Mon,  2 Jun 2014 10:19:17 -0400
-In-Reply-To: <20140602064226.GA31675@infradead.org>
-References: <20140521193336.5df90456.akpm@linux-foundation.org> <1401686699-9723-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1401686699-9723-3-git-send-email-n-horiguchi@ah.jp.nec.com> <20140602064226.GA31675@infradead.org>
+Date: Mon,  2 Jun 2014 10:21:30 -0400
+In-Reply-To: <CAHO5Pa3iQXRZPXG89OyRCmD6jPKp0M8TCfJind6XD0wbyoguxg@mail.gmail.com>
+References: <20140521193336.5df90456.akpm@linux-foundation.org> <1401686699-9723-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1401686699-9723-3-git-send-email-n-horiguchi@ah.jp.nec.com> <CAHO5Pa3iQXRZPXG89OyRCmD6jPKp0M8TCfJind6XD0wbyoguxg@mail.gmail.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, Arnaldo Carvalho de Melo <acme@redhat.com>, Borislav Petkov <bp@alien8.de>, "Kirill A. Shutemov" <kirill@shutemov.name>, Johannes Weiner <hannes@cmpxchg.org>, Rusty Russell <rusty@rustcorp.com.au>, David Miller <davem@davemloft.net>, Andres Freund <andres@2ndquadrant.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-man@vger.kernel.org
+To: Michael Kerrisk <mtk.manpages@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, Arnaldo Carvalho de Melo <acme@redhat.com>, Borislav Petkov <bp@alien8.de>, "Kirill A. Shutemov" <kirill@shutemov.name>, Johannes Weiner <hannes@cmpxchg.org>, Rusty Russell <rusty@rustcorp.com.au>, David Miller <davem@davemloft.net>, Andres Freund <andres@2ndquadrant.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Christoph Hellwig <hch@infradead.org>, linux-api@vger.kernel.org
 
-On Sun, Jun 01, 2014 at 11:42:26PM -0700, Christoph Hellwig wrote:
-> Please also provide a man page for the system call.
+On Mon, Jun 02, 2014 at 09:06:34AM +0200, Michael Kerrisk wrote:
+> Hello Naoya,
+> 
+> As Christoph noted, it would be best to provide some good user
+> documentation for this proposed system call, to aid design review.
+> 
+> Also, as per Documentation/SubmitChecklist, patches that change the
+> kernel-userspace API/ABI should CC
+> linux-api@vger.kernel.org (see
+> https://www.kernel.org/doc/man-pages/linux-api-ml.html).
 
-Yes, I'll do it.
+OK, I didn't check it, so will do hereafter.
+Thank you!
 
-> I'm also very unhappy about the crazy different interpretation of the
-> return value depending on flags, which probably becomes more obvious if
-> you try to document it.
-
-The meaning of the return value doesn't change due to flags, it's always
-"the number of valid entries passed to userspace,"  not dependent on the
-mode (unlike the size of data for example.)
-
-The reason why I did this is skip hole mode, where fincore() could end scanning
-before filling up the userspace buffer. So then the caller wants to know where
-is the end point of valid data. I thought that the simplest way is to return
-it as the return value. It's also possible to to let userspace know it by doing
-like below:
-- a userspace application zeroes the whole range of the buffer before calling
-  fincore(FINCORE_SKIP_HOLE)
-- after the fincore() returns, it finds the first hole entry then the index
-  of the hole entry gives the number of valid entries.
-
-Yes, we can do it without the return value, but it takes some costs so I
-didn't like it.
-
-> That being said I think fincore is useful, but why not stick to the
-> same simple interface as mincore?
-
-mincore() gives only 8-bit field for each page, so we can easily guess that
-in the future we will face the need of more information to be passed and we
-don't have enough room for it.
-
-Another reason is that currently we have some interfaces to expose page status
-information to userspace like /proc/kpageflags, /proc/kpagecount, and
-/proc/pid/pagemap. People (including me) tried to add a new interface when they
-need a new infomation, but this is not good direction in a long run (too many
-/proc/kpage* interfaces). I think fincore() provides a unified way to do it.
-One benefit of it is that we can get the data you want in a single call, no need
-to call (for example) /proc/pid/pagemap and then /proc/kpageflags separately,
-which results in less overhead.
-
-Thanks,
 Naoya Horiguchi
 
 --
