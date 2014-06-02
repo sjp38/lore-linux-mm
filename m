@@ -1,52 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f49.google.com (mail-qg0-f49.google.com [209.85.192.49])
-	by kanga.kvack.org (Postfix) with ESMTP id A7AB76B0037
-	for <linux-mm@kvack.org>; Mon,  2 Jun 2014 14:48:56 -0400 (EDT)
-Received: by mail-qg0-f49.google.com with SMTP id a108so11207165qge.36
-        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 11:48:56 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id s49si18741954qgs.97.2014.06.02.11.48.55
+Received: from mail-pa0-f54.google.com (mail-pa0-f54.google.com [209.85.220.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 015966B0031
+	for <linux-mm@kvack.org>; Mon,  2 Jun 2014 16:08:35 -0400 (EDT)
+Received: by mail-pa0-f54.google.com with SMTP id lf10so4323228pab.13
+        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 13:08:35 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id cf5si17128739pbc.10.2014.06.02.13.08.34
         for <linux-mm@kvack.org>;
-        Mon, 02 Jun 2014 11:48:55 -0700 (PDT)
-Message-ID: <538cc717.34268c0a.125c.ffffbfdbSMTPIN_ADDED_BROKEN@mx.google.com>
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH 1/3] replace PAGECACHE_TAG_* definition with enumeration
-Date: Mon,  2 Jun 2014 14:48:19 -0400
-In-Reply-To: <538CC026.4030008@intel.com>
-References: <20140521193336.5df90456.akpm@linux-foundation.org> <1401686699-9723-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1401686699-9723-2-git-send-email-n-horiguchi@ah.jp.nec.com> <538CA269.6010300@intel.com> <1401727052-f7v7kykv@n-horiguchi@ah.jp.nec.com> <538CAA13.2080708@intel.com> <538cb12a.8518c20a.1a51.ffff9761SMTPIN_ADDED_BROKEN@mx.google.com> <538CC026.4030008@intel.com>
+        Mon, 02 Jun 2014 13:08:35 -0700 (PDT)
+Date: Mon, 2 Jun 2014 13:08:32 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH 0/5] mm: i_mmap_mutex to rwsem
+Message-Id: <20140602130832.9328cfef977b7ed837d59321@linux-foundation.org>
+In-Reply-To: <1401416415.2618.14.camel@buesod1.americas.hpqcorp.net>
+References: <1400816006-3083-1-git-send-email-davidlohr@hp.com>
+	<1401416415.2618.14.camel@buesod1.americas.hpqcorp.net>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Wu Fengguang <fengguang.wu@intel.com>, Arnaldo Carvalho de Melo <acme@redhat.com>, Borislav Petkov <bp@alien8.de>, "Kirill A. Shutemov" <kirill@shutemov.name>, Johannes Weiner <hannes@cmpxchg.org>, Rusty Russell <rusty@rustcorp.com.au>, David Miller <davem@davemloft.net>, Andres Freund <andres@2ndquadrant.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Davidlohr Bueso <davidlohr@hp.com>
+Cc: mingo@kernel.org, peterz@infradead.org, riel@redhat.com, mgorman@suse.de, aswin@hp.com, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Mon, Jun 02, 2014 at 11:19:18AM -0700, Dave Hansen wrote:
-> On 06/02/2014 10:14 AM, Naoya Horiguchi wrote:
-> > Yes, that's necessary to consider (but I haven't done, sorry),
-> > so I'm thinking of moving this definition to the new file
-> > include/uapi/linux/pagecache.h and let it be imported from the
-> > userspace programs. Is it fine?
-> 
-> Yep, although I'd probably also explicitly separate the definitions of
-> the user-exposed ones from the kernel-internal ones.  We want to make
-> this hard to screw up.
-> 
-> I can see why we might want to expose dirty and writeback out to
-> userspace, especially since we already expose the aggregate, system-wide
-> view in /proc/meminfo.  But, what about PAGECACHE_TAG_TOWRITE?  I really
-> can't think of a good reason why userspace would ever care about it or
-> consider it different from PAGECACHE_TAG_DIRTY.
+On Thu, 29 May 2014 19:20:15 -0700 Davidlohr Bueso <davidlohr@hp.com> wrote:
 
-I guess that TOWRITE tag might be useful to predict IO behavior
-("which pages are to be writeback next" type of information).
-But it's not clear to me how. I hope that DB developers have some
-idea about good usecases of this tag for userspace.
+> On Thu, 2014-05-22 at 20:33 -0700, Davidlohr Bueso wrote:
+> > This patchset extends the work started by Ingo Molnar in late 2012,
+> > optimizing the anon-vma mutex lock, converting it from a exclusive mutex
+> > to a rwsem, and sharing the lock for read-only paths when walking the
+> > the vma-interval tree. More specifically commits 5a505085 and 4fc3f1d6.
+> > 
+> > The i_mmap_mutex has similar responsibilities with the anon-vma, protecting
+> > file backed pages. Therefore we can use similar locking techniques: covert
+> > the mutex to a rwsem and share the lock when possible.
+> > 
+> > With the new optimistic spinning property we have in rwsems, we no longer
+> > take a hit in performance when using this lock, and we can therefore
+> > safely do the conversion. Tests show no throughput regressions in aim7 or
+> > pgbench runs, and we can see gains from sharing the lock, in disk workloads
+> > ~+15% for over 1000 users on a 8-socket Westmere system.
+> > 
+> > This patchset applies on linux-next-20140522.
+>
+> ping? Andrew any chance of getting this in -next?
 
-Thanks,
-Naoya Horiguchi
+(top-posting repaired)
+
+It was a bit late for 3.16 back on May 26, when you said "I will dig
+deeper (probably for 3.17 now)".  So, please take another look at the
+patch factoring and let's get this underway for -rc1.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
