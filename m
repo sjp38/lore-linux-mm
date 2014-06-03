@@ -1,113 +1,336 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vc0-f174.google.com (mail-vc0-f174.google.com [209.85.220.174])
-	by kanga.kvack.org (Postfix) with ESMTP id B064A6B0031
-	for <linux-mm@kvack.org>; Tue,  3 Jun 2014 10:01:21 -0400 (EDT)
-Received: by mail-vc0-f174.google.com with SMTP id ik5so6660607vcb.33
-        for <linux-mm@kvack.org>; Tue, 03 Jun 2014 07:01:21 -0700 (PDT)
-Received: from mail-ve0-x22f.google.com (mail-ve0-x22f.google.com [2607:f8b0:400c:c01::22f])
-        by mx.google.com with ESMTPS id gr1si7932926vdc.92.2014.06.03.07.01.20
+Received: from mail-we0-f177.google.com (mail-we0-f177.google.com [74.125.82.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 91BB16B0031
+	for <linux-mm@kvack.org>; Tue,  3 Jun 2014 10:11:54 -0400 (EDT)
+Received: by mail-we0-f177.google.com with SMTP id x48so6659678wes.8
+        for <linux-mm@kvack.org>; Tue, 03 Jun 2014 07:11:53 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id wr4si32621190wjc.107.2014.06.03.07.11.48
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 03 Jun 2014 07:01:21 -0700 (PDT)
-Received: by mail-ve0-f175.google.com with SMTP id jw12so6925768veb.20
-        for <linux-mm@kvack.org>; Tue, 03 Jun 2014 07:01:20 -0700 (PDT)
+        Tue, 03 Jun 2014 07:11:48 -0700 (PDT)
+Date: Tue, 3 Jun 2014 16:11:37 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch 06/10] mm: memcontrol: use root_mem_cgroup res_counter
+Message-ID: <20140603141137.GK1321@dhcp22.suse.cz>
+References: <1401380162-24121-1-git-send-email-hannes@cmpxchg.org>
+ <1401380162-24121-7-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
-In-Reply-To: <20140603110959.GE1321@dhcp22.suse.cz>
-References: <1398688005-26207-1-git-send-email-mhocko@suse.cz>
-	<20140528121023.GA10735@dhcp22.suse.cz>
-	<20140528134905.GF2878@cmpxchg.org>
-	<20140528142144.GL9895@dhcp22.suse.cz>
-	<20140528152854.GG2878@cmpxchg.org>
-	<xr93ioopyj1y.fsf@gthelen.mtv.corp.google.com>
-	<20140603110959.GE1321@dhcp22.suse.cz>
-Date: Tue, 3 Jun 2014 07:01:20 -0700
-Message-ID: <CAHH2K0YuEFdPRVrCfoxYwP5b0GK4cZzL5K3ByubW+087BKcsUg@mail.gmail.com>
-Subject: Re: [PATCH v2 0/4] memcg: Low-limit reclaim
-From: Greg Thelen <gthelen@google.com>
-Content-Type: multipart/alternative; boundary=20cf307d044c4791d304faeef263
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1401380162-24121-7-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Roman Gushchin <klamm@yandex-team.ru>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michel Lespinasse <walken@google.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>, Vladimir Davydov <vdavydov@parallels.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
---20cf307d044c4791d304faeef263
-Content-Type: text/plain; charset=UTF-8
+On Thu 29-05-14 12:15:58, Johannes Weiner wrote:
+> Due to an old optimization to keep expensive res_counter changes at a
+> minimum, the root_mem_cgroup res_counter is never charged; there is no
+> limit at that level anyway, and any statistics can be generated on
+> demand by summing up the counters of all other cgroups.
+> 
+> However, with per-cpu charge caches, res_counter operations do not
+> even show up in profiles anymore, so this optimization is no longer
+> necessary.
+> 
+> Remove it to simplify the code.
+> 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
-On Jun 3, 2014 4:10 AM, "Michal Hocko" <mhocko@suse.cz> wrote:
->
-> On Wed 28-05-14 09:17:13, Greg Thelen wrote:
-> [...]
-> > My 2c...  The following works for my use cases:
-> > 1) introduce memory.low_limit_in_bytes (default=0 thus no default change
-> >    from older kernels)
-> > 2) interested users will set low_limit_in_bytes to non-zero value.
-> >    Memory protected by low limit should be as migratable/reclaimable as
-> >    mlock memory.  If a zone full of mlock memory causes oom kills, then
-> >    so should the low limit.
->
-> Would fallback mode in overcommit or the corner case situation break
-> your usecase?
+OK, I like the resulting code much more.
 
-Yes.  Fallback mode would break my use cases.  What is the corner case
-situation?  NUMA conflicts?  Low limit is a substitute for users mlocking
-memory.  So if mlocked memory has the same NUMA conflicts, then I see no
-problem with low limit having the same behavior.
+Acked-by: Michal Hocko <mhocko@suse.com>
 
->From a user API perspective, I'm not clear on the difference between
-non-ooming (fallback) low limit and the existing soft limit interface.  If
-low limit is a "soft" (non ooming) limit then why not rework the existing
-soft limit interface and save the low limit for strict (ooming) behavior?
+> ---
+>  mm/memcontrol.c | 149 ++++++++++++++++----------------------------------------
+>  1 file changed, 43 insertions(+), 106 deletions(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 184e67cce4e4..84195a80068c 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -2573,9 +2573,8 @@ static int mem_cgroup_try_charge(struct mem_cgroup *memcg,
+>  	unsigned long nr_reclaimed;
+>  	unsigned long flags = 0;
+>  	unsigned long long size;
+> +	int ret = 0;
+>  
+> -	if (mem_cgroup_is_root(memcg))
+> -		goto done;
+>  retry:
+>  	if (consume_stock(memcg, nr_pages))
+>  		goto done;
+> @@ -2656,13 +2655,15 @@ nomem:
+>  	if (!(gfp_mask & __GFP_NOFAIL))
+>  		return -ENOMEM;
+>  bypass:
+> -	return -EINTR;
+> +	memcg = root_mem_cgroup;
+> +	ret = -EINTR;
+> +	goto retry;
+>  
+>  done_restock:
+>  	if (batch > nr_pages)
+>  		refill_stock(memcg, batch - nr_pages);
+>  done:
+> -	return 0;
+> +	return ret;
+>  }
+>  
+>  /**
+> @@ -2702,13 +2703,11 @@ static struct mem_cgroup *mem_cgroup_try_charge_mm(struct mm_struct *mm,
+>  static void __mem_cgroup_cancel_charge(struct mem_cgroup *memcg,
+>  				       unsigned int nr_pages)
+>  {
+> -	if (!mem_cgroup_is_root(memcg)) {
+> -		unsigned long bytes = nr_pages * PAGE_SIZE;
+> +	unsigned long bytes = nr_pages * PAGE_SIZE;
+>  
+> -		res_counter_uncharge(&memcg->res, bytes);
+> -		if (do_swap_account)
+> -			res_counter_uncharge(&memcg->memsw, bytes);
+> -	}
+> +	res_counter_uncharge(&memcg->res, bytes);
+> +	if (do_swap_account)
+> +		res_counter_uncharge(&memcg->memsw, bytes);
+>  }
+>  
+>  /*
+> @@ -2720,9 +2719,6 @@ static void __mem_cgroup_cancel_local_charge(struct mem_cgroup *memcg,
+>  {
+>  	unsigned long bytes = nr_pages * PAGE_SIZE;
+>  
+> -	if (mem_cgroup_is_root(memcg))
+> -		return;
+> -
+>  	res_counter_uncharge_until(&memcg->res, memcg->res.parent, bytes);
+>  	if (do_swap_account)
+>  		res_counter_uncharge_until(&memcg->memsw,
+> @@ -3997,7 +3993,7 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype,
+>  	 * replacement page, so leave it alone when phasing out the
+>  	 * page that is unused after the migration.
+>  	 */
+> -	if (!end_migration && !mem_cgroup_is_root(memcg))
+> +	if (!end_migration)
+>  		mem_cgroup_do_uncharge(memcg, nr_pages, ctype);
+>  
+>  	return memcg;
+> @@ -4130,8 +4126,7 @@ void mem_cgroup_uncharge_swap(swp_entry_t ent)
+>  		 * We uncharge this because swap is freed.  This memcg can
+>  		 * be obsolete one. We avoid calling css_tryget_online().
+>  		 */
+> -		if (!mem_cgroup_is_root(memcg))
+> -			res_counter_uncharge(&memcg->memsw, PAGE_SIZE);
+> +		res_counter_uncharge(&memcg->memsw, PAGE_SIZE);
+>  		mem_cgroup_swap_statistics(memcg, false);
+>  		css_put(&memcg->css);
+>  	}
+> @@ -4825,78 +4820,24 @@ out:
+>  	return retval;
+>  }
+>  
+> -
+> -static unsigned long mem_cgroup_recursive_stat(struct mem_cgroup *memcg,
+> -					       enum mem_cgroup_stat_index idx)
+> -{
+> -	struct mem_cgroup *iter;
+> -	long val = 0;
+> -
+> -	/* Per-cpu values can be negative, use a signed accumulator */
+> -	for_each_mem_cgroup_tree(iter, memcg)
+> -		val += mem_cgroup_read_stat(iter, idx);
+> -
+> -	if (val < 0) /* race ? */
+> -		val = 0;
+> -	return val;
+> -}
+> -
+> -static inline u64 mem_cgroup_usage(struct mem_cgroup *memcg, bool swap)
+> -{
+> -	u64 val;
+> -
+> -	if (!mem_cgroup_is_root(memcg)) {
+> -		if (!swap)
+> -			return res_counter_read_u64(&memcg->res, RES_USAGE);
+> -		else
+> -			return res_counter_read_u64(&memcg->memsw, RES_USAGE);
+> -	}
+> -
+> -	/*
+> -	 * Transparent hugepages are still accounted for in MEM_CGROUP_STAT_RSS
+> -	 * as well as in MEM_CGROUP_STAT_RSS_HUGE.
+> -	 */
+> -	val = mem_cgroup_recursive_stat(memcg, MEM_CGROUP_STAT_CACHE);
+> -	val += mem_cgroup_recursive_stat(memcg, MEM_CGROUP_STAT_RSS);
+> -
+> -	if (swap)
+> -		val += mem_cgroup_recursive_stat(memcg, MEM_CGROUP_STAT_SWAP);
+> -
+> -	return val << PAGE_SHIFT;
+> -}
+> -
+>  static u64 mem_cgroup_read_u64(struct cgroup_subsys_state *css,
+> -				   struct cftype *cft)
+> +			       struct cftype *cft)
+>  {
+>  	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
+> -	u64 val;
+> -	int name;
+> -	enum res_type type;
+> -
+> -	type = MEMFILE_TYPE(cft->private);
+> -	name = MEMFILE_ATTR(cft->private);
+> +	enum res_type type = MEMFILE_TYPE(cft->private);
+> +	int name = MEMFILE_ATTR(cft->private);
+>  
+>  	switch (type) {
+>  	case _MEM:
+> -		if (name == RES_USAGE)
+> -			val = mem_cgroup_usage(memcg, false);
+> -		else
+> -			val = res_counter_read_u64(&memcg->res, name);
+> -		break;
+> +		return res_counter_read_u64(&memcg->res, name);
+>  	case _MEMSWAP:
+> -		if (name == RES_USAGE)
+> -			val = mem_cgroup_usage(memcg, true);
+> -		else
+> -			val = res_counter_read_u64(&memcg->memsw, name);
+> -		break;
+> +		return res_counter_read_u64(&memcg->memsw, name);
+>  	case _KMEM:
+> -		val = res_counter_read_u64(&memcg->kmem, name);
+> +		return res_counter_read_u64(&memcg->kmem, name);
+>  		break;
+>  	default:
+>  		BUG();
+>  	}
+> -
+> -	return val;
+>  }
+>  
+>  #ifdef CONFIG_MEMCG_KMEM
+> @@ -5376,7 +5317,10 @@ static void __mem_cgroup_threshold(struct mem_cgroup *memcg, bool swap)
+>  	if (!t)
+>  		goto unlock;
+>  
+> -	usage = mem_cgroup_usage(memcg, swap);
+> +	if (!swap)
+> +		usage = res_counter_read_u64(&memcg->res, RES_USAGE);
+> +	else
+> +		usage = res_counter_read_u64(&memcg->memsw, RES_USAGE);
+>  
+>  	/*
+>  	 * current_threshold points to threshold just below or equal to usage.
+> @@ -5468,15 +5412,15 @@ static int __mem_cgroup_usage_register_event(struct mem_cgroup *memcg,
+>  
+>  	mutex_lock(&memcg->thresholds_lock);
+>  
+> -	if (type == _MEM)
+> +	if (type == _MEM) {
+>  		thresholds = &memcg->thresholds;
+> -	else if (type == _MEMSWAP)
+> +		usage = res_counter_read_u64(&memcg->res, RES_USAGE);
+> +	} else if (type == _MEMSWAP) {
+>  		thresholds = &memcg->memsw_thresholds;
+> -	else
+> +		usage = res_counter_read_u64(&memcg->memsw, RES_USAGE);
+> +	} else
+>  		BUG();
+>  
+> -	usage = mem_cgroup_usage(memcg, type == _MEMSWAP);
+> -
+>  	/* Check if a threshold crossed before adding a new one */
+>  	if (thresholds->primary)
+>  		__mem_cgroup_threshold(memcg, type == _MEMSWAP);
+> @@ -5556,18 +5500,19 @@ static void __mem_cgroup_usage_unregister_event(struct mem_cgroup *memcg,
+>  	int i, j, size;
+>  
+>  	mutex_lock(&memcg->thresholds_lock);
+> -	if (type == _MEM)
+> +
+> +	if (type == _MEM) {
+>  		thresholds = &memcg->thresholds;
+> -	else if (type == _MEMSWAP)
+> +		usage = res_counter_read_u64(&memcg->res, RES_USAGE);
+> +	} else if (type == _MEMSWAP) {
+>  		thresholds = &memcg->memsw_thresholds;
+> -	else
+> +		usage = res_counter_read_u64(&memcg->memsw, RES_USAGE);
+> +	} else
+>  		BUG();
+>  
+>  	if (!thresholds->primary)
+>  		goto unlock;
+>  
+> -	usage = mem_cgroup_usage(memcg, type == _MEMSWAP);
+> -
+>  	/* Check if a threshold crossed before removing */
+>  	__mem_cgroup_threshold(memcg, type == _MEMSWAP);
+>  
+> @@ -6329,9 +6274,9 @@ mem_cgroup_css_online(struct cgroup_subsys_state *css)
+>  		 * core guarantees its existence.
+>  		 */
+>  	} else {
+> -		res_counter_init(&memcg->res, NULL);
+> -		res_counter_init(&memcg->memsw, NULL);
+> -		res_counter_init(&memcg->kmem, NULL);
+> +		res_counter_init(&memcg->res, &root_mem_cgroup->res);
+> +		res_counter_init(&memcg->memsw, &root_mem_cgroup->memsw);
+> +		res_counter_init(&memcg->kmem, &root_mem_cgroup->kmem);
+>  		/*
+>  		 * Deeper hierachy with use_hierarchy == false doesn't make
+>  		 * much sense so let cgroup subsystem know about this
+> @@ -6449,11 +6394,6 @@ static int mem_cgroup_do_precharge(unsigned long count)
+>  	int batch_count = PRECHARGE_COUNT_AT_ONCE;
+>  	struct mem_cgroup *memcg = mc.to;
+>  
+> -	if (mem_cgroup_is_root(memcg)) {
+> -		mc.precharge += count;
+> -		/* we don't need css_get for root */
+> -		return ret;
+> -	}
+>  	/* try to charge at once */
+>  	if (count > 1) {
+>  		struct res_counter *dummy;
+> @@ -6769,21 +6709,18 @@ static void __mem_cgroup_clear_mc(void)
+>  	/* we must fixup refcnts and charges */
+>  	if (mc.moved_swap) {
+>  		/* uncharge swap account from the old cgroup */
+> -		if (!mem_cgroup_is_root(mc.from))
+> -			res_counter_uncharge(&mc.from->memsw,
+> -						PAGE_SIZE * mc.moved_swap);
+> +		res_counter_uncharge(&mc.from->memsw,
+> +				     PAGE_SIZE * mc.moved_swap);
+>  
+>  		for (i = 0; i < mc.moved_swap; i++)
+>  			css_put(&mc.from->css);
+>  
+> -		if (!mem_cgroup_is_root(mc.to)) {
+> -			/*
+> -			 * we charged both to->res and to->memsw, so we should
+> -			 * uncharge to->res.
+> -			 */
+> -			res_counter_uncharge(&mc.to->res,
+> -						PAGE_SIZE * mc.moved_swap);
+> -		}
+> +		/*
+> +		 * we charged both to->res and to->memsw, so we should
+> +		 * uncharge to->res.
+> +		 */
+> +		res_counter_uncharge(&mc.to->res,
+> +				     PAGE_SIZE * mc.moved_swap);
+>  		/* we've already done css_get(mc.to) */
+>  		mc.moved_swap = 0;
+>  	}
+> -- 
+> 1.9.3
+> 
 
-Of course, Google can continue to tweak the soft limit or new low limit to
-provide an ooming guarantee rather than violating the limit.
-
-PS: I currently have very limited connectivity so my responses will be
-delayed.
-
---20cf307d044c4791d304faeef263
-Content-Type: text/html; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
-
-<p dir=3D"ltr"><br>
-On Jun 3, 2014 4:10 AM, &quot;Michal Hocko&quot; &lt;<a href=3D"mailto:mhoc=
-ko@suse.cz">mhocko@suse.cz</a>&gt; wrote:<br>
-&gt;<br>
-&gt; On Wed 28-05-14 09:17:13, Greg Thelen wrote:<br>
-&gt; [...]<br>
-&gt; &gt; My 2c... =C2=A0The following works for my use cases:<br>
-&gt; &gt; 1) introduce memory.low_limit_in_bytes (default=3D0 thus no defau=
-lt change<br>
-&gt; &gt; =C2=A0 =C2=A0from older kernels)<br>
-&gt; &gt; 2) interested users will set low_limit_in_bytes to non-zero value=
-.<br>
-&gt; &gt; =C2=A0 =C2=A0Memory protected by low limit should be as migratabl=
-e/reclaimable as<br>
-&gt; &gt; =C2=A0 =C2=A0mlock memory. =C2=A0If a zone full of mlock memory c=
-auses oom kills, then<br>
-&gt; &gt; =C2=A0 =C2=A0so should the low limit.<br>
-&gt;<br>
-&gt; Would fallback mode in overcommit or the corner case situation break<b=
-r>
-&gt; your usecase?</p>
-<p dir=3D"ltr">Yes.=C2=A0 Fallback mode would break my use cases.=C2=A0 Wha=
-t is the corner case situation?=C2=A0 NUMA conflicts?=C2=A0 Low limit is a =
-substitute for users mlocking memory.=C2=A0 So if mlocked memory has the sa=
-me NUMA conflicts, then I see no problem with low limit having the same beh=
-avior.</p>
-
-<p dir=3D"ltr">From a user API perspective, I&#39;m not clear on the differ=
-ence between non-ooming (fallback) low limit and the existing soft limit in=
-terface.=C2=A0 If low limit is a &quot;soft&quot; (non ooming) limit then w=
-hy not rework the existing soft limit interface and save the low limit for =
-strict (ooming) behavior?=C2=A0=C2=A0 </p>
-
-<p dir=3D"ltr">Of course, Google can continue to tweak the soft limit or ne=
-w low limit to provide an ooming guarantee rather than violating the limit.=
-</p>
-<p dir=3D"ltr">PS: I currently have very limited connectivity so my respons=
-es will be delayed.</p>
-
---20cf307d044c4791d304faeef263--
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
