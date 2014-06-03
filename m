@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f45.google.com (mail-qg0-f45.google.com [209.85.192.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 0438C6B0031
-	for <linux-mm@kvack.org>; Tue,  3 Jun 2014 12:28:23 -0400 (EDT)
-Received: by mail-qg0-f45.google.com with SMTP id z60so13551169qgd.18
-        for <linux-mm@kvack.org>; Tue, 03 Jun 2014 09:28:23 -0700 (PDT)
-Received: from qmta03.emeryville.ca.mail.comcast.net (qmta03.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:32])
-        by mx.google.com with ESMTP id e10si22712727qcd.14.2014.06.03.09.28.23
+Received: from mail-vc0-f171.google.com (mail-vc0-f171.google.com [209.85.220.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 98ECE6B0031
+	for <linux-mm@kvack.org>; Tue,  3 Jun 2014 12:38:06 -0400 (EDT)
+Received: by mail-vc0-f171.google.com with SMTP id ij19so2601007vcb.16
+        for <linux-mm@kvack.org>; Tue, 03 Jun 2014 09:38:06 -0700 (PDT)
+Received: from qmta11.emeryville.ca.mail.comcast.net (qmta11.emeryville.ca.mail.comcast.net. [2001:558:fe2d:44:76:96:27:211])
+        by mx.google.com with ESMTP id za4si10238160vdb.43.2014.06.03.09.38.05
         for <linux-mm@kvack.org>;
-        Tue, 03 Jun 2014 09:28:23 -0700 (PDT)
-Date: Tue, 3 Jun 2014 11:28:18 -0500 (CDT)
+        Tue, 03 Jun 2014 09:38:05 -0700 (PDT)
+Date: Tue, 3 Jun 2014 11:38:02 -0500 (CDT)
 From: Christoph Lameter <cl@gentwo.org>
 Subject: Re: [PATCH] vmstat: on demand updates from differentials V7
 In-Reply-To: <20140603160953.GF23860@localhost.localdomain>
-Message-ID: <alpine.DEB.2.10.1406031127080.14380@gentwo.org>
+Message-ID: <alpine.DEB.2.10.1406031136390.14380@gentwo.org>
 References: <alpine.DEB.2.10.1405291453260.2899@gentwo.org> <20140603160953.GF23860@localhost.localdomain>
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -23,14 +23,10 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, Gilad Ben-Yossef <gilad@benyossef
 On Tue, 3 Jun 2014, Frederic Weisbecker wrote:
 
 > So after the cpumask_var_t conversion I have no other concern except
-> perhaps that the scan may bring some overhead on workloads that don't
-> care about isolation. You might want to make it optional. But I let you
-> check that.
 
-Testing so far indicates that typical loads have spurts of kernel usage
-which need vmstat but otherwise there are large segments of processing
-that do not need the vmstat worker. It seems that this change is generally
-helpful.
+Is there some way to observe which worker threads are queued on which
+processor? I see nothing in /sys/devices/virtual/workqueues (urg should be
+/sys/kernel/workqueues) that shows that?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
