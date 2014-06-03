@@ -1,437 +1,170 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f172.google.com (mail-ie0-f172.google.com [209.85.223.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 1DDD26B0036
-	for <linux-mm@kvack.org>; Tue,  3 Jun 2014 05:09:56 -0400 (EDT)
-Received: by mail-ie0-f172.google.com with SMTP id tp5so5654103ieb.17
-        for <linux-mm@kvack.org>; Tue, 03 Jun 2014 02:09:55 -0700 (PDT)
-Received: from mail-ig0-x233.google.com (mail-ig0-x233.google.com [2607:f8b0:4001:c05::233])
-        by mx.google.com with ESMTPS id y10si30151731icv.46.2014.06.03.02.09.55
+Received: from mail-ie0-f179.google.com (mail-ie0-f179.google.com [209.85.223.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A15B6B0038
+	for <linux-mm@kvack.org>; Tue,  3 Jun 2014 05:11:12 -0400 (EDT)
+Received: by mail-ie0-f179.google.com with SMTP id rd18so5714301iec.10
+        for <linux-mm@kvack.org>; Tue, 03 Jun 2014 02:11:12 -0700 (PDT)
+Received: from mail-ie0-x232.google.com (mail-ie0-x232.google.com [2607:f8b0:4001:c03::232])
+        by mx.google.com with ESMTPS id v13si30118277ico.86.2014.06.03.02.11.08
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 03 Jun 2014 02:09:55 -0700 (PDT)
-Received: by mail-ig0-f179.google.com with SMTP id hn18so4497962igb.6
-        for <linux-mm@kvack.org>; Tue, 03 Jun 2014 02:09:55 -0700 (PDT)
+        Tue, 03 Jun 2014 02:11:08 -0700 (PDT)
+Received: by mail-ie0-f178.google.com with SMTP id rl12so5673662iec.37
+        for <linux-mm@kvack.org>; Tue, 03 Jun 2014 02:11:08 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20140603082208.GA19887@bbox>
-References: <000001cf7be2$385f9fd0$a91edf70$%yang@samsung.com>
-	<20140602004338.GA26372@bbox>
-	<CAL1ERfNUaeu2SG=nUfpwt3MW6YZx0oDTk5+sSL1fPJ9Cr2NWSQ@mail.gmail.com>
-	<20140603082208.GA19887@bbox>
-Date: Tue, 3 Jun 2014 17:09:54 +0800
-Message-ID: <CAL1ERfMpMNA298b6JqK8jCQfei4RwtxzZ_6HHwRYS0_FNYmgHA@mail.gmail.com>
-Subject: Re: [PATCH v3] zram: remove global tb_lock with fine grain lock
-From: Weijie Yang <weijie.yang.kh@gmail.com>
+In-Reply-To: <20140603042121.GA27177@redhat.com>
+References: <20140603042121.GA27177@redhat.com>
+Date: Tue, 3 Jun 2014 13:11:08 +0400
+Message-ID: <CALYGNiNV951SnBKdr0PEkgLbLCxy+YB6HJpafRr6CynO+a1sdQ@mail.gmail.com>
+Subject: Re: 3.15-rc8 mm/filemap.c:202 BUG
+From: Konstantin Khlebnikov <koct9i@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Weijie Yang <weijie.yang@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, Nitin Gupta <ngupta@vflare.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Bob Liu <bob.liu@oracle.com>, Dan Streetman <ddstreet@ieee.org>, Heesub Shin <heesub.shin@samsung.com>, Davidlohr Bueso <davidlohr@hp.com>, Joonsoo Kim <js1304@gmail.com>, linux-kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
+To: Dave Jones <davej@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Sasha Levin <sasha.levin@oracle.com>
 
-On Tue, Jun 3, 2014 at 4:22 PM, Minchan Kim <minchan@kernel.org> wrote:
-> Hello,
+On Tue, Jun 3, 2014 at 8:21 AM, Dave Jones <davej@redhat.com> wrote:
+> I'm still seeing this one from time to time, though it takes me quite a while to hit it,
+> despite my attempts at trying to narrow down the set of syscalls that cause it.
 >
-> On Tue, Jun 03, 2014 at 03:59:06PM +0800, Weijie Yang wrote:
->> On Mon, Jun 2, 2014 at 8:43 AM, Minchan Kim <minchan@kernel.org> wrote:
->> > Hello Weijie,
->> >
->> > Thanks for resending.
->> > Below are mostly nitpicks.
->> >
->> > On Fri, May 30, 2014 at 04:34:44PM +0800, Weijie Yang wrote:
->> >> Currently, we use a rwlock tb_lock to protect concurrent access to
->> >> the whole zram meta table. However, according to the actual access model,
->> >> there is only a small chance for upper user to access the same table[index],
->> >> so the current lock granularity is too big.
->> >>
->> >> The idea of optimization is to change the lock granularity from whole
->> >> meta table to per table entry (table -> table[index]), so that we can
->> >> protect concurrent access to the same table[index], meanwhile allow
->> >> the maximum concurrency.
->> >> With this in mind, several kinds of locks which could be used as a
->> >> per-entry lock were tested and compared:
->> >>
->> >> Test environment:
->> >> x86-64 Intel Core2 Q8400, system memory 4GB, Ubuntu 12.04,
->> >> kernel v3.15.0-rc3 as base, zram with 4 max_comp_streams LZO.
->> >>
->> >> iozone test:
->> >> iozone -t 4 -R -r 16K -s 200M -I +Z
->> >> (1GB zram with ext4 filesystem, take the average of 10 tests, KB/s)
->> >>
->> >>       Test       base      CAS    spinlock    rwlock   bit_spinlock
->> >> -------------------------------------------------------------------
->> >>  Initial write  1381094   1425435   1422860   1423075   1421521
->> >>        Rewrite  1529479   1641199   1668762   1672855   1654910
->> >>           Read  8468009  11324979  11305569  11117273  10997202
->> >>        Re-read  8467476  11260914  11248059  11145336  10906486
->> >>   Reverse Read  6821393   8106334   8282174   8279195   8109186
->> >>    Stride read  7191093   8994306   9153982   8961224   9004434
->> >>    Random read  7156353   8957932   9167098   8980465   8940476
->> >> Mixed workload  4172747   5680814   5927825   5489578   5972253
->> >>   Random write  1483044   1605588   1594329   1600453   1596010
->> >>         Pwrite  1276644   1303108   1311612   1314228   1300960
->> >>          Pread  4324337   4632869   4618386   4457870   4500166
->> >>
->> >> To enhance the possibility of access the same table[index] concurrently,
->> >> set zram a small disksize(10MB) and let threads run with large loop count.
->> >>
->> >> fio test:
->> >> fio --bs=32k --randrepeat=1 --randseed=100 --refill_buffers
->> >> --scramble_buffers=1 --direct=1 --loops=3000 --numjobs=4
->> >> --filename=/dev/zram0 --name=seq-write --rw=write --stonewall
->> >> --name=seq-read --rw=read --stonewall --name=seq-readwrite
->> >> --rw=rw --stonewall --name=rand-readwrite --rw=randrw --stonewall
->> >> (10MB zram raw block device, take the average of 10 tests, KB/s)
->> >>
->> >>     Test     base     CAS    spinlock    rwlock  bit_spinlock
->> >> -------------------------------------------------------------
->> >> seq-write   933789   999357   1003298    995961   1001958
->> >>  seq-read  5634130  6577930   6380861   6243912   6230006
->> >>    seq-rw  1405687  1638117   1640256   1633903   1634459
->> >>   rand-rw  1386119  1614664   1617211   1609267   1612471
->> >>
->> >> All the optimization methods show a higher performance than the base,
->> >> however, it is hard to say which method is the most appropriate.
->> >>
->> >> On the other hand, zram is mostly used on small embedded system, so we
->> >> don't want to increase any memory footprint.
->> >>
->> >> This patch pick the bit_spinlock method, pack object size and page_flag
->> >> into an unsigned long table.value, so as to not increase any memory
->> >> overhead on both 32-bit and 64-bit system.
->> >>
->> >> On the third hand, even though different kinds of locks have different
->> >> performances, we can ignore this difference, because:
->> >> if zram is used as zram swapfile, the swap subsystem can prevent concurrent
->> >> access to the same swapslot;
->> >> if zram is used as zram-blk for set up filesystem on it, the upper filesystem
->> >> and the page cache also prevent concurrent access of the same block mostly.
->> >> So we can ignore the different performances among locks.
->> >
->> > Nice description. :)
->> >
->> >>
->> >> Changes since v1: https://lkml.org/lkml/2014/5/5/1
->> >>   - replace CAS method with bit_spinlock method
->> >>   - rename zram_test_flag() to zram_test_zero()
->> >>   - add some comments
->> >>
->> >> Changes since v2: https://lkml.org/lkml/2014/5/15/113
->> >>   - change size type from int to size_t in zram_set_obj_size()
->> >>   - refactor zram_set_obj_size() to make it readable
->> >>   - add comments
->> >>
->> >> Signed-off-by: Weijie Yang <weijie.yang@samsung.com>
->> >> ---
->> >>  drivers/block/zram/zram_drv.c |   89 ++++++++++++++++++++++++-----------------
->> >>  drivers/block/zram/zram_drv.h |   22 +++++++---
->> >>  2 files changed, 68 insertions(+), 43 deletions(-)
->> >>
->> >> diff --git a/drivers/block/zram/zram_drv.c b/drivers/block/zram/zram_drv.c
->> >> index 9849b52..166e882 100644
->> >> --- a/drivers/block/zram/zram_drv.c
->> >> +++ b/drivers/block/zram/zram_drv.c
->> >> @@ -179,23 +179,32 @@ static ssize_t comp_algorithm_store(struct device *dev,
->> >>       return len;
->> >>  }
->> >>
->> >> -/* flag operations needs meta->tb_lock */
->> >> -static int zram_test_flag(struct zram_meta *meta, u32 index,
->> >> -                     enum zram_pageflags flag)
->> >> +static int zram_test_zero(struct zram_meta *meta, u32 index)
->> >
->> > Why do you want to create specific function for zero?
->> > It would be one of usecase for various potential flags.
->> > Do you want to create new functions whenever we define new flag?
->> > Or something do you have a mind?
->> >
->>
->> As you see, this patch adds a new flag ZRAM_ACCESS, which is
->> accessed through different method from ZRAM_ZERO.
->> I think it is hard to use a general method to access all kinds of flags,
->> to eliminate some potential ambiguity or wrong usage, I use specific
->> function to access different flags.
+> kernel BUG at mm/filemap.c:202!
+> invalid opcode: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
+> CPU: 3 PID: 3013 Comm: trinity-c361 Not tainted 3.15.0-rc8+ #225
+> task: ffff88006c610000 ti: ffff880055960000 task.ti: ffff880055960000
+> RIP: 0010:[<ffffffffac158e28>]  [<ffffffffac158e28>] __delete_from_page_cache+0x318/0x360
+> RSP: 0018:ffff880055963b90  EFLAGS: 00010046
+> RAX: 0000000000000000 RBX: 0000000000000003 RCX: ffff880146f68388
+> RDX: 000000000000022a RSI: ffffffffaca8db38 RDI: ffffffffaca62b17
+> RBP: ffff880055963be0 R08: 0000000000000002 R09: ffff88000613d530
+> R10: ffff880055963ba8 R11: ffff880007f49a40 R12: ffffea0006795880
+> R13: ffff880143232ad0 R14: 0000000000000000 R15: ffff880143232ad8
+> FS:  00007f1e40673700(0000) GS:ffff88024d180000(0000) knlGS:0000000000000000
+> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> CR2: 00007f1e404e6000 CR3: 00000000603eb000 CR4: 00000000001407e0
+> DR0: 0000000001bb1000 DR1: 0000000002537000 DR2: 00000000016a5000
+> DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000600
+> Stack:
+>  ffff880143232ae8 0000000000000000 ffff88000613d530 ffff88000613d568
+>  0000000008828259 ffffea0006795880 ffff880143232ae8 0000000000000000
+>  0000000000000002 0000000000000002 ffff880055963c08 ffffffffac158eae
+> Call Trace:
+>  [<ffffffffac158eae>] delete_from_page_cache+0x3e/0x70
+>  [<ffffffffac16921b>] truncate_inode_page+0x5b/0x90
+>  [<ffffffffac174493>] shmem_undo_range+0x363/0x790
+>  [<ffffffffac1748d4>] shmem_truncate_range+0x14/0x30
+>  [<ffffffffac174bcf>] shmem_fallocate+0x9f/0x340
+>  [<ffffffffac324d40>] ? timerqueue_add+0x60/0xb0
+>  [<ffffffffac1c5ff6>] do_fallocate+0x116/0x1a0
+>  [<ffffffffac182260>] SyS_madvise+0x3c0/0x870
+>  [<ffffffffac346b33>] ? __this_cpu_preempt_check+0x13/0x20
+>  [<ffffffffac74c41f>] tracesys+0xdd/0xe2
+> Code: ff ff 01 41 f6 c6 01 48 8b 45 c8 75 16 4c 89 30 e9 70 fe ff ff 66 0f 1f 44 00 00 0f 0b 66 0f 1f 44 00 00 0f 0b 66 0f 1f 44 00 00 <0f> 0b 66 0f 1f 44 00 00  41 54 9d e8 78 9e fd ff e9 8c fe ff ff
+> RIP  [<ffffffffac158e28>] __delete_from_page_cache+0x318/0x360
 >
-> Although I am not against that, we can do it when it's really messy
-> as another patch in future. I don't want to bloat patch size without
-> the goal which is to enhance locking contention.
-
-OK, let's focus on this patch's goal. I will restore it.
-
->>
->> >
->> >>  {
->> >> -     return meta->table[index].flags & BIT(flag);
->> >> +     return meta->table[index].value & BIT(ZRAM_ZERO);
->> >>  }
->> >>
->> >> -static void zram_set_flag(struct zram_meta *meta, u32 index,
->> >> -                     enum zram_pageflags flag)
->> >> +static void zram_set_zero(struct zram_meta *meta, u32 index)
->> >>  {
->> >> -     meta->table[index].flags |= BIT(flag);
->> >> +     meta->table[index].value |= BIT(ZRAM_ZERO);
->> >>  }
->> >>
->> >> -static void zram_clear_flag(struct zram_meta *meta, u32 index,
->> >> -                     enum zram_pageflags flag)
->> >> +static void zram_clear_zero(struct zram_meta *meta, u32 index)
->> >>  {
->> >> -     meta->table[index].flags &= ~BIT(flag);
->> >> +     meta->table[index].value &= ~BIT(ZRAM_ZERO);
->> >> +}
->> >> +
->> >> +static size_t zram_get_obj_size(struct zram_meta *meta, u32 index)
->> >> +{
->> >> +     return meta->table[index].value & (BIT(ZRAM_FLAG_SHIFT) - 1);
->> >> +}
->> >> +
->> >> +static void zram_set_obj_size(struct zram_meta *meta,
->> >> +                                     u32 index, size_t size)
->> >> +{
->> >> +     unsigned long flags = meta->table[index].value >> ZRAM_FLAG_SHIFT;
->> >> +
->> >> +     meta->table[index].value = (flags << ZRAM_FLAG_SHIFT) | size;
->> >>  }
->> >>
->> >>  static inline int is_partial_io(struct bio_vec *bvec)
->> >> @@ -255,7 +264,6 @@ static struct zram_meta *zram_meta_alloc(u64 disksize)
->> >>               goto free_table;
->> >>       }
->> >>
->> >> -     rwlock_init(&meta->tb_lock);
->> >>       return meta;
->> >>
->> >>  free_table:
->> >> @@ -304,19 +312,24 @@ static void handle_zero_page(struct bio_vec *bvec)
->> >>       flush_dcache_page(page);
->> >>  }
->> >>
->> >> -/* NOTE: caller should hold meta->tb_lock with write-side */
->> >> +/*
->> >> + * To protect concurrent access to the same index entry,
->> >> + * caller should hold this table index entry's bit_spinlock to
->> >> + * indicate this index entry is accessing.
->> >> + */
->> >>  static void zram_free_page(struct zram *zram, size_t index)
->> >>  {
->> >>       struct zram_meta *meta = zram->meta;
->> >>       unsigned long handle = meta->table[index].handle;
->> >> +     size_t size;
->> >>
->> >>       if (unlikely(!handle)) {
->> >>               /*
->> >>                * No memory is allocated for zero filled pages.
->> >>                * Simply clear zero page flag.
->> >>                */
->> >> -             if (zram_test_flag(meta, index, ZRAM_ZERO)) {
->> >> -                     zram_clear_flag(meta, index, ZRAM_ZERO);
->> >> +             if (zram_test_zero(meta, index)) {
->> >> +                     zram_clear_zero(meta, index);
->> >>                       atomic64_dec(&zram->stats.zero_pages);
->> >>               }
->> >>               return;
->> >> @@ -324,27 +337,28 @@ static void zram_free_page(struct zram *zram, size_t index)
->> >>
->> >>       zs_free(meta->mem_pool, handle);
->> >>
->> >> -     atomic64_sub(meta->table[index].size, &zram->stats.compr_data_size);
->> >> +     size = zram_get_obj_size(meta, index);
->> >> +     atomic64_sub(size, &zram->stats.compr_data_size);
->> >>       atomic64_dec(&zram->stats.pages_stored);
->> >>
->> >>       meta->table[index].handle = 0;
->> >> -     meta->table[index].size = 0;
->> >> +     zram_set_obj_size(meta, index, 0);
->> >>  }
->> >>
->> >>  static int zram_decompress_page(struct zram *zram, char *mem, u32 index)
->> >>  {
->> >> -     int ret = 0;
->> >
->> > Unnecessary change.
->>
->> I want to compact the memory usage on stack, so I put ret and size variables
->> together. On 64-bit system, it will be helpful.
+> There was also another variant of the same BUG with a slighty different stack trace.
 >
-> Please, do it as another patchset if you think it's worthy.
-
-I will send a specific patch on this topic.
-
->>
->> >>       unsigned char *cmem;
->> >>       struct zram_meta *meta = zram->meta;
->> >>       unsigned long handle;
->> >> -     u16 size;
->> >
->> > I'm not sure it's good idea to use size_t instead of u16 because we apparently
->> > have a limitation to express range of size due to packing it into unsigned long
->> > so u16 is more clear to show the limiation and someone might find a problem
->> > more easily in future if we break something subtle.
->> >
->> >> +     size_t size;
->> >> +     int ret = 0;
->> >>
->> >> -     read_lock(&meta->tb_lock);
->> >> +     bit_spin_lock(ZRAM_ACCESS, &meta->table[index].value);
->> >>       handle = meta->table[index].handle;
->> >> -     size = meta->table[index].size;
->> >> +     size = zram_get_obj_size(meta, index);
->> >>
->> >> -     if (!handle || zram_test_flag(meta, index, ZRAM_ZERO)) {
->> >> -             read_unlock(&meta->tb_lock);
->> >> +     if (!handle || zram_test_zero(meta, index)) {
->> >> +             bit_spin_unlock(ZRAM_ACCESS, &meta->table[index].value);
->> >>               clear_page(mem);
->> >>               return 0;
->> >>       }
->> >> @@ -355,7 +369,7 @@ static int zram_decompress_page(struct zram *zram, char *mem, u32 index)
->> >>       else
->> >>               ret = zcomp_decompress(zram->comp, cmem, size, mem);
->> >>       zs_unmap_object(meta->mem_pool, handle);
->> >> -     read_unlock(&meta->tb_lock);
->> >> +     bit_spin_unlock(ZRAM_ACCESS, &meta->table[index].value);
->> >>
->> >>       /* Should NEVER happen. Return bio error if it does. */
->> >>       if (unlikely(ret)) {
->> >> @@ -376,14 +390,14 @@ static int zram_bvec_read(struct zram *zram, struct bio_vec *bvec,
->> >>       struct zram_meta *meta = zram->meta;
->> >>       page = bvec->bv_page;
->> >>
->> >> -     read_lock(&meta->tb_lock);
->> >> +     bit_spin_lock(ZRAM_ACCESS, &meta->table[index].value);
->> >>       if (unlikely(!meta->table[index].handle) ||
->> >> -                     zram_test_flag(meta, index, ZRAM_ZERO)) {
->> >> -             read_unlock(&meta->tb_lock);
->> >> +                     zram_test_zero(meta, index)) {
->> >> +             bit_spin_unlock(ZRAM_ACCESS, &meta->table[index].value);
->> >>               handle_zero_page(bvec);
->> >>               return 0;
->> >>       }
->> >> -     read_unlock(&meta->tb_lock);
->> >> +     bit_spin_unlock(ZRAM_ACCESS, &meta->table[index].value);
->> >>
->> >>       if (is_partial_io(bvec))
->> >>               /* Use  a temporary buffer to decompress the page */
->> >> @@ -461,10 +475,10 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
->> >>       if (page_zero_filled(uncmem)) {
->> >>               kunmap_atomic(user_mem);
->> >>               /* Free memory associated with this sector now. */
->> >> -             write_lock(&zram->meta->tb_lock);
->> >> +             bit_spin_lock(ZRAM_ACCESS, &meta->table[index].value);
->> >>               zram_free_page(zram, index);
->> >> -             zram_set_flag(meta, index, ZRAM_ZERO);
->> >> -             write_unlock(&zram->meta->tb_lock);
->> >> +             zram_set_zero(meta, index);
->> >> +             bit_spin_unlock(ZRAM_ACCESS, &meta->table[index].value);
->> >>
->> >>               atomic64_inc(&zram->stats.zero_pages);
->> >>               ret = 0;
->> >> @@ -514,12 +528,12 @@ static int zram_bvec_write(struct zram *zram, struct bio_vec *bvec, u32 index,
->> >>        * Free memory associated with this sector
->> >>        * before overwriting unused sectors.
->> >>        */
->> >> -     write_lock(&zram->meta->tb_lock);
->> >> +     bit_spin_lock(ZRAM_ACCESS, &meta->table[index].value);
->> >>       zram_free_page(zram, index);
->> >>
->> >>       meta->table[index].handle = handle;
->> >> -     meta->table[index].size = clen;
->> >> -     write_unlock(&zram->meta->tb_lock);
->> >> +     zram_set_obj_size(meta, index, clen);
->> >> +     bit_spin_unlock(ZRAM_ACCESS, &meta->table[index].value);
->> >>
->> >>       /* Update stats */
->> >>       atomic64_add(clen, &zram->stats.compr_data_size);
->> >> @@ -560,6 +574,7 @@ static void zram_bio_discard(struct zram *zram, u32 index,
->> >>                            int offset, struct bio *bio)
->> >>  {
->> >>       size_t n = bio->bi_iter.bi_size;
->> >> +     struct zram_meta *meta = zram->meta;
->> >>
->> >>       /*
->> >>        * zram manages data in physical block size units. Because logical block
->> >> @@ -584,9 +599,9 @@ static void zram_bio_discard(struct zram *zram, u32 index,
->> >>                * Discard request can be large so the lock hold times could be
->> >>                * lengthy.  So take the lock once per page.
->> >>                */
->> >> -             write_lock(&zram->meta->tb_lock);
->> >> +             bit_spin_lock(ZRAM_ACCESS, &meta->table[index].value);
->> >>               zram_free_page(zram, index);
->> >> -             write_unlock(&zram->meta->tb_lock);
->> >> +             bit_spin_unlock(ZRAM_ACCESS, &meta->table[index].value);
->> >>               index++;
->> >>               n -= PAGE_SIZE;
->> >>       }
->> >> @@ -804,9 +819,9 @@ static void zram_slot_free_notify(struct block_device *bdev,
->> >>       zram = bdev->bd_disk->private_data;
->> >>       meta = zram->meta;
->> >>
->> >> -     write_lock(&meta->tb_lock);
->> >> +     bit_spin_lock(ZRAM_ACCESS, &meta->table[index].value);
->> >>       zram_free_page(zram, index);
->> >> -     write_unlock(&meta->tb_lock);
->> >> +     bit_spin_unlock(ZRAM_ACCESS, &meta->table[index].value);
->> >>       atomic64_inc(&zram->stats.notify_free);
->> >>  }
->> >>
->> >> diff --git a/drivers/block/zram/zram_drv.h b/drivers/block/zram/zram_drv.h
->> >> index 7f21c14..71bc4ad 100644
->> >> --- a/drivers/block/zram/zram_drv.h
->> >> +++ b/drivers/block/zram/zram_drv.h
->> >> @@ -51,10 +51,22 @@ static const size_t max_zpage_size = PAGE_SIZE / 4 * 3;
->> >>  #define ZRAM_SECTOR_PER_LOGICAL_BLOCK        \
->> >>       (1 << (ZRAM_LOGICAL_BLOCK_SHIFT - SECTOR_SHIFT))
->> >>
->> >> -/* Flags for zram pages (table[page_no].flags) */
->> >> +/*
->> >> + * The lower ZRAM_FLAG_SHIFT bits of table.value is for
->> >> + * object size (excluding header), the higher bits is for
->> >> + * zram_pageflags. By this means, it won't increase any
->> >> + * memory overhead on both 32-bit and 64-bit system.
->> >
->> > Comment on "By this means, ~ 64 bit system" is unncessary because
->> > someone read this line but don't know history couldn't understand
->> > what's the old structure.
->>
->> I will remove it.
->>
->> >> + * zram is mostly used on small embedded system, so we
->> >> + * don't want to increase memory footprint. That is why
->> >> + * we pack size and flag into table.value.
->> >> + */
->> >
->> > IMHO, it would be more clear but not sure if native speakers look at. ;-)
->> >
->> > * zram is mainly used for memory efficiency so we want to keep memory
->> > * footprint small so we can squeeze size and flags into a field.
->> > * The lower ZRAM_FLAG_SHIFT bits is for object size (excluding header),
->> > * the higher bits is for zram_pageflags.
->> >
->>
->> That is a better comment.
->>
->> >> +#define ZRAM_FLAG_SHIFT 24
->> >
->> > Why is it 24? We have used for 16-bit for size.
->> > Do you think it's too small for size?
->>
->> The reason why I choose 24-bit and size_t is that when I checked the PAGE_SHIFT
->> on all kinds of architectures, I found on some architectures such as powerpc and
->> hexagon, PAGE_SHIFT would be 18 or 20, so I think 16-bit could be small to use.
+> kernel BUG at mm/filemap.c:202!
+> invalid opcode: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
+> CPU: 2 PID: 6928 Comm: trinity-c45 Not tainted 3.15.0-rc5+ #208
+> task: ffff88023669d0a0 ti: ffff880186146000 task.ti: ffff880186146000
+> RIP: 0010:[<ffffffff8415ba05>]  [<ffffffff8415ba05>] __delete_from_page_cache+0x315/0x320
+> RSP: 0018:ffff880186147b18  EFLAGS: 00010046
+> RAX: 0000000000000000 RBX: 0000000000000003 RCX: 0000000000000002
+> RDX: 000000000000012a RSI: ffffffff84a9a83c RDI: ffffffff84a6e0c0
+> RBP: ffff880186147b68 R08: 0000000000000002 R09: ffff88002669e668
+> R10: ffff880186147b30 R11: 0000000000000000 R12: ffffea0008b067c0
+> R13: ffff880025355670 R14: 0000000000000000 R15: ffff880025355678
+> FS:  00007fc10026f740(0000) GS:ffff880244400000(0000) knlGS:0000000000000000
+> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> CR2: 00002ab350f5c004 CR3: 000000018566c000 CR4: 00000000001407e0
+> DR0: 0000000001989000 DR1: 0000000000944000 DR2: 0000000002494000
+> DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000600
+> Stack:
+>  ffff880025355688 ffff8800253556a0 ffff88002669e668 ffff88002669e6a0
+>  000000008ea099ef ffffea0008b067c0 ffff880025355688 0000000000000000
+>  0000000000000000 0000000000000002 ffff880186147b90 ffffffff8415ba4d
+> Call Trace:
+>  [<ffffffff8415ba4d>] delete_from_page_cache+0x3d/0x70
+>  [<ffffffff8416b0ab>] truncate_inode_page+0x5b/0x90
+>  [<ffffffff84175f0b>] shmem_undo_range+0x30b/0x780
+>  [<ffffffff84176394>] shmem_truncate_range+0x14/0x30
+>  [<ffffffff8417647d>] shmem_evict_inode+0xcd/0x150
+>  [<ffffffff841e4b17>] evict+0xa7/0x170
+>  [<ffffffff841e5435>] iput+0xf5/0x180
+>  [<ffffffff841df8a0>] dentry_kill+0x260/0x2d0
+>  [<ffffffff841df97c>] dput+0x6c/0x110
+>  [<ffffffff841c92a9>] __fput+0x189/0x200
+>  [<ffffffff841c936e>] ____fput+0xe/0x10
+>  [<ffffffff84090484>] task_work_run+0xb4/0xe0
+>  [<ffffffff8406ee42>] do_exit+0x302/0xb80
+>  [<ffffffff84349e13>] ? __this_cpu_preempt_check+0x13/0x20
+>  [<ffffffff8407073c>] do_group_exit+0x4c/0xc0
+>  [<ffffffff840707c4>] SyS_exit_group+0x14/0x20
+>  [<ffffffff8475bf64>] tracesys+0xdd/0xe2
+> Code: 4c 89 30 e9 80 fe ff ff 48 8b 75 c0 4c 89 ff e8 82 8f 1c 00 84 c0 0f 85 6c fe ff ff e9 4f fe ff ff 0f 1f 44 00 00 e8 ae 95 5e 00 <0f> 0b e8 04 1c f1 ff 0f 0b 66 90 0f 1f 44 00 00 55 48 89 e5 41
 >
-> If it's a problem, could you do it as another patch? Because it's bug fix,
-> not related to this patchset.
-
-OK, I will send a specific patch on this.
-
-Thank you very much for your review and suggestion.
-
-> Thanks.
 >
 > --
-> Kind regards,
-> Minchan Kim
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+This might shine some light, CONFIG_DEBUG_VM should be =y.
+
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -199,7 +199,7 @@ void __delete_from_page_cache(struct page *page,
+void *shadow)
+        __dec_zone_page_state(page, NR_FILE_PAGES);
+        if (PageSwapBacked(page))
+                __dec_zone_page_state(page, NR_SHMEM);
+-       BUG_ON(page_mapped(page));
++       VM_BUG_ON_PAGE(page_mapped(page), page);
+
+        /*
+         * Some filesystems seem to re-dirty the page even after
+
+
+
+Hugh, As I see shmem truncate/punch hole might race with
+shmem_getpage_gfp() (when it converts
+swap-entries into normal pages) and leave pages in truncated area. Am I right?
+Currently I don't see how exactly this could lead to this problem, but
+this looks suspicious.
+I don't like the way in which truncate silently skips page entries
+when they are changing under it.
+Completely untested patch follows.
+
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -495,8 +495,9 @@ static void shmem_undo_range(struct inode *inode,
+loff_t lstart, loff_t lend,
+                        if (radix_tree_exceptional_entry(page)) {
+                                if (unfalloc)
+                                        continue;
+-                               nr_swaps_freed += !shmem_free_swap(mapping,
+-                                                               index, page);
++                               if (shmem_free_swap(mapping, index, page))
++                                       goto retry;
++                               nr_swaps_freed++;
+                                continue;
+                        }
+
+@@ -509,10 +510,11 @@ static void shmem_undo_range(struct inode
+*inode, loff_t lstart, loff_t lend,
+                        }
+                        unlock_page(page);
+                }
++               index++;
++retry:
+                pagevec_remove_exceptionals(&pvec);
+                pagevec_release(&pvec);
+                mem_cgroup_uncharge_end();
+-               index++;
+        }
+
+        spin_lock(&info->lock);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
