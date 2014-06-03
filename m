@@ -1,105 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F3E06B0031
-	for <linux-mm@kvack.org>; Tue,  3 Jun 2014 09:20:49 -0400 (EDT)
-Received: by mail-wi0-f171.google.com with SMTP id cc10so6526568wib.4
-        for <linux-mm@kvack.org>; Tue, 03 Jun 2014 06:20:48 -0700 (PDT)
+Received: from mail-we0-f180.google.com (mail-we0-f180.google.com [74.125.82.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 50AD46B0031
+	for <linux-mm@kvack.org>; Tue,  3 Jun 2014 09:22:59 -0400 (EDT)
+Received: by mail-we0-f180.google.com with SMTP id q58so6778393wes.39
+        for <linux-mm@kvack.org>; Tue, 03 Jun 2014 06:22:58 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id gr5si32317572wjc.118.2014.06.03.06.20.42
+        by mx.google.com with ESMTPS id wt5si32380843wjb.61.2014.06.03.06.22.57
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 03 Jun 2014 06:20:43 -0700 (PDT)
-Date: Tue, 3 Jun 2014 15:20:29 +0200
+        Tue, 03 Jun 2014 06:22:58 -0700 (PDT)
+Date: Tue, 3 Jun 2014 15:22:55 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [patch 03/10] mm: memcontrol: retry reclaim for oom-disabled and
- __GFP_NOFAIL charges
-Message-ID: <20140603132029.GI1321@dhcp22.suse.cz>
+Subject: Re: [patch 05/10] mm: memcontrol: catch root bypass in move precharge
+Message-ID: <20140603132255.GJ1321@dhcp22.suse.cz>
 References: <1401380162-24121-1-git-send-email-hannes@cmpxchg.org>
- <1401380162-24121-4-git-send-email-hannes@cmpxchg.org>
+ <1401380162-24121-6-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1401380162-24121-4-git-send-email-hannes@cmpxchg.org>
+In-Reply-To: <1401380162-24121-6-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Johannes Weiner <hannes@cmpxchg.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>, Vladimir Davydov <vdavydov@parallels.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu 29-05-14 12:15:55, Johannes Weiner wrote:
-> There is no reason why oom-disabled and __GFP_NOFAIL charges should
-> try to reclaim only once when every other charge tries several times
-> before giving up.  Make them all retry the same number of times.
-
-I have mentioned that already with the last iteration of the patch.
-This can make THP charges stall unnecessarily when the allocation could
-fall back to single page charges.
-MEM_CGROUP_RECLAIM_RETRIES * SWAP_CLUSTER_MAX + CHARGE_BATCH * CPUS
-reclaimed pages will not help for huge pages so multiple reclaims is
-just pointless waisting of time.
-
-I think you should just move the next patch in the series up and simply make
-the thp charge __GFP_NORETRY:
-
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index b3a6deed66d5..ba822c27a55b 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -3703,10 +3703,13 @@ int mem_cgroup_charge_anon(struct page *page,
- 		nr_pages <<= compound_order(page);
- 		VM_BUG_ON_PAGE(!PageTransHuge(page), page);
- 		/*
--		 * Never OOM-kill a process for a huge page.  The
--		 * fault handler will fall back to regular pages.
-+		 * Never OOM-kill a process for a huge page. Also do not
-+		 * reclaim memcg too much because it wouldn't help the
-+		 * huge page charge anyway.
-+		 * The fault handler will fall back to regular pages.
- 		 */
- 		oom = false;
-+		gfp_mask |= __GFP_NORETRY;
- 	}
- 
- 	memcg = mem_cgroup_try_charge_mm(mm, gfp_mask, nr_pages, oom);
-
-
+On Thu 29-05-14 12:15:57, Johannes Weiner wrote:
+> When mem_cgroup_try_charge() returns -EINTR, it bypassed the charge to
+> the root memcg.  But move precharging does not catch this and treats
+> this case as if no charge had happened, thus leaking a charge against
+> root.  Because of an old optimization, the root memcg's res_counter is
+> not actually charged right now, but it's still an imbalance and
+> subsequent patches will charge the root memcg again.
+> 
+> Catch those bypasses to the root memcg and properly cancel them before
+> giving up the move.
+> 
 > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+
+Acked-by: Michal Hocko <mhocko@suse.cz>
+
 > ---
->  mm/memcontrol.c | 8 ++++----
->  1 file changed, 4 insertions(+), 4 deletions(-)
+>  mm/memcontrol.c | 9 ++++++++-
+>  1 file changed, 8 insertions(+), 1 deletion(-)
 > 
 > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 46b3e37542ad..e8d5075c081f 100644
+> index 8957d6c945b8..184e67cce4e4 100644
 > --- a/mm/memcontrol.c
 > +++ b/mm/memcontrol.c
-> @@ -2567,7 +2567,7 @@ static int mem_cgroup_try_charge(struct mem_cgroup *memcg,
->  				 bool oom)
->  {
->  	unsigned int batch = max(CHARGE_BATCH, nr_pages);
-> -	int nr_oom_retries = MEM_CGROUP_RECLAIM_RETRIES;
-> +	int nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
->  	struct mem_cgroup *mem_over_limit;
->  	struct res_counter *fail_res;
->  	unsigned long nr_reclaimed;
-> @@ -2639,6 +2639,9 @@ retry:
->  	if (mem_cgroup_wait_acct_move(mem_over_limit))
->  		goto retry;
->  
-> +	if (nr_retries--)
-> +		goto retry;
-> +
->  	if (gfp_mask & __GFP_NOFAIL)
->  		goto bypass;
->  
-> @@ -2648,9 +2651,6 @@ retry:
->  	if (!oom)
->  		goto nomem;
->  
-> -	if (nr_oom_retries--)
-> -		goto retry;
-> -
->  	mem_cgroup_oom(mem_over_limit, gfp_mask, get_order(batch));
->  nomem:
->  	if (!(gfp_mask & __GFP_NOFAIL))
+> @@ -6485,8 +6485,15 @@ one_by_one:
+>  			cond_resched();
+>  		}
+>  		ret = mem_cgroup_try_charge(memcg, GFP_KERNEL, 1, false);
+> +		/*
+> +		 * In case of failure, any residual charges against
+> +		 * mc.to will be dropped by mem_cgroup_clear_mc()
+> +		 * later on.  However, cancel any charges that are
+> +		 * bypassed to root right away or they'll be lost.
+> +		 */
+> +		if (ret == -EINTR)
+> +			__mem_cgroup_cancel_charge(root_mem_cgroup, 1);
+>  		if (ret)
+> -			/* mem_cgroup_clear_mc() will do uncharge later */
+>  			return ret;
+>  		mc.precharge++;
+>  	}
 > -- 
 > 1.9.3
 > 
