@@ -1,72 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ve0-f171.google.com (mail-ve0-f171.google.com [209.85.128.171])
-	by kanga.kvack.org (Postfix) with ESMTP id EEBAE6B0031
-	for <linux-mm@kvack.org>; Tue,  3 Jun 2014 15:04:30 -0400 (EDT)
-Received: by mail-ve0-f171.google.com with SMTP id oz11so7484832veb.16
-        for <linux-mm@kvack.org>; Tue, 03 Jun 2014 12:04:30 -0700 (PDT)
-Received: from mail-vc0-x229.google.com (mail-vc0-x229.google.com [2607:f8b0:400c:c03::229])
-        by mx.google.com with ESMTPS id ek11si65279vdd.25.2014.06.03.12.04.30
+Received: from mail-ob0-f176.google.com (mail-ob0-f176.google.com [209.85.214.176])
+	by kanga.kvack.org (Postfix) with ESMTP id EBB376B0031
+	for <linux-mm@kvack.org>; Tue,  3 Jun 2014 15:26:05 -0400 (EDT)
+Received: by mail-ob0-f176.google.com with SMTP id wo20so6520156obc.7
+        for <linux-mm@kvack.org>; Tue, 03 Jun 2014 12:26:05 -0700 (PDT)
+Received: from g4t3426.houston.hp.com (g4t3426.houston.hp.com. [15.201.208.54])
+        by mx.google.com with ESMTPS id h1si276106obf.69.2014.06.03.12.26.05
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 03 Jun 2014 12:04:30 -0700 (PDT)
-Received: by mail-vc0-f169.google.com with SMTP id il7so3693240vcb.0
-        for <linux-mm@kvack.org>; Tue, 03 Jun 2014 12:04:30 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <87mwduqg09.fsf@rasmusvillemoes.dk>
-References: <1401260039-18189-1-git-send-email-minchan@kernel.org>
-	<1401260039-18189-2-git-send-email-minchan@kernel.org>
-	<CA+55aFxXdc22dirnE49UbQP_2s2vLQpjQFL+NptuyK7Xry6c=g@mail.gmail.com>
-	<20140528223142.GO8554@dastard>
-	<CA+55aFyRk6_v6COPGVvu6hvt=i2A8-dPcs1X3Ydn1g24AxbPkg@mail.gmail.com>
-	<20140529013007.GF6677@dastard>
-	<20140529015830.GG6677@dastard>
-	<20140529233638.GJ10092@bbox>
-	<20140530001558.GB14410@dastard>
-	<20140530021247.GR10092@bbox>
-	<87mwduqg09.fsf@rasmusvillemoes.dk>
-Date: Tue, 3 Jun 2014 12:04:29 -0700
-Message-ID: <CA+55aFyYQES1CbEfYzRkFas_aw=+YNSbDoLRJpjh2sDFxVV3vg@mail.gmail.com>
-Subject: Re: [RFC 2/2] x86_64: expand kernel stack to 16K
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 03 Jun 2014 12:26:05 -0700 (PDT)
+Message-ID: <1401823560.4911.2.camel@buesod1.americas.hpqcorp.net>
+Subject: Re: [PATCH 0/4] ipc/shm.c: increase the limits for SHMMAX, SHMALL
+From: Davidlohr Bueso <davidlohr@hp.com>
+Date: Tue, 03 Jun 2014 12:26:00 -0700
+In-Reply-To: <CAKgNAkjuU68hgyMOVGBVoBTOhhGdBytQh6H0ExiLoXfujKyP_w@mail.gmail.com>
+References: <1398090397-2397-1-git-send-email-manfred@colorfullife.com>
+	 <CAKgNAkjuU68hgyMOVGBVoBTOhhGdBytQh6H0ExiLoXfujKyP_w@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rasmus Villemoes <linux@rasmusvillemoes.dk>
-Cc: Minchan Kim <minchan@kernel.org>, Dave Chinner <david@fromorbit.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, "H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <a.p.zijlstra@chello.nl>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Rusty Russell <rusty@rustcorp.com.au>, "Michael S. Tsirkin" <mst@redhat.com>, Dave Hansen <dave.hansen@intel.com>, Steven Rostedt <rostedt@goodmis.org>
+To: mtk.manpages@gmail.com
+Cc: Manfred Spraul <manfred@colorfullife.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, aswin@hp.com, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Tue, Jun 3, 2014 at 6:28 AM, Rasmus Villemoes
-<linux@rasmusvillemoes.dk> wrote:
-> Possibly stupid question: Is it true that any given task can only be
-> using one wait_queue_t at a time?
+On Fri, 2014-05-02 at 15:16 +0200, Michael Kerrisk (man-pages) wrote:
+> Hi Manfred,
+> 
+> On Mon, Apr 21, 2014 at 4:26 PM, Manfred Spraul
+> <manfred@colorfullife.com> wrote:
+> > Hi all,
+> >
+> > the increase of SHMMAX/SHMALL is now a 4 patch series.
+> > I don't have ideas how to improve it further.
+> 
+> On the assumption that your patches are heading to mainline, could you
+> send me a man-pages patch for the changes?
 
-Nope.
+It seems we're still behind here and the 3.16 merge window is already
+opened. Please consider this, and again feel free to add/modify as
+necessary. I think adding a note as below is enough and was hesitant to
+add a lot of details... Thanks.
 
-Being on multiple different wait-queues is actually very common. The
-obvious case is select/poll, but there are others. The more subtle
-ones involve being on a wait-queue while doing something that can
-cause nested waiting (iow, it's technically not wrong to be on a
-wait-queue and then do a user space access, which obviously can end up
-doing IO).
+8<--------------------------------------------------
+From: Davidlohr Bueso <davidlohr@hp.com>
+Subject: [PATCH] shmget.2: document new limits for shmmax/shmall
 
-That said, the case of a single wait-queue entry is another common
-case, and it wouldn't necessarily be wrong to have one pre-initialized
-wait queue entry in the task structure for that special case, for when
-you know that there is no possible nesting. And even if it *does*
-nest, if it's the "leaf" entry it could be used for that innermost
-nesting without worrying about other wait queue users (who use stack
-allocations or actual explicit allocations like poll).
+These limits have been recently enlarged and
+modifying them is no longer really necessary.
+Update the manpage.
 
-So it might certainly be worth looking at. In fact, it might be worth
-it having multiple per-thread entries, so that we could get rid of the
-special on-stack allocation for poll too (and making one of them
-special and not available to poll, to handle the "leaf waiter" case).
+Signed-off-by: Davidlohr Bueso <davidlohr@hp.com>
+---
+ man2/shmget.2 | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
 
-So it's not necessarily a bad idea at all, even if the general case
-requires more than one (or a few) static per-thread allocations.
+diff --git a/man2/shmget.2 b/man2/shmget.2
+index f781048..77764ea 100644
+--- a/man2/shmget.2
++++ b/man2/shmget.2
+@@ -299,6 +299,11 @@ with 8kB page size, it yields 2^20 (1048576).
+ 
+ On Linux, this limit can be read and modified via
+ .IR /proc/sys/kernel/shmall .
++As of Linux 3.16, the default value for this limit is increased to
++.B ULONG_MAX - 2^24
++pages, which is as large as it can be without helping userspace overflow
++the values. Modifying this limit is therefore discouraged. This is suitable
++for both 32 and 64-bit systems.
+ .TP
+ .B SHMMAX
+ Maximum size in bytes for a shared memory segment.
+@@ -306,6 +311,12 @@ Since Linux 2.2, the default value of this limit is 0x2000000 (32MB).
+ 
+ On Linux, this limit can be read and modified via
+ .IR /proc/sys/kernel/shmmax .
++As of Linux 3.16, the default value for this limit is increased from 32Mb
++to
++.B ULONG_MAX - 2^24
++bytes, which is as large as it can be without helping userspace overflow
++the values. Modifying this limit is therefore discouraged. This is suitable
++for both 32 and 64-bit systems.
+ .TP
+ .B SHMMIN
+ Minimum size in bytes for a shared memory segment: implementation
+-- 
+1.8.1.4
 
-Anybody want to try to code it up?
 
-              Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
