@@ -1,64 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f171.google.com (mail-we0-f171.google.com [74.125.82.171])
-	by kanga.kvack.org (Postfix) with ESMTP id EC86C6B00B8
-	for <linux-mm@kvack.org>; Mon,  2 Jun 2014 21:12:29 -0400 (EDT)
-Received: by mail-we0-f171.google.com with SMTP id w62so6050169wes.16
-        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 18:12:29 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id co10si25057576wib.42.2014.06.02.18.12.27
-        for <linux-mm@kvack.org>;
-        Mon, 02 Jun 2014 18:12:28 -0700 (PDT)
-Message-ID: <538d20fc.ca5cb40a.130c.5848SMTPIN_ADDED_BROKEN@mx.google.com>
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH 1/3] memory-failure: Send right signal code to correct thread
-Date: Mon,  2 Jun 2014 21:12:08 -0400
-In-Reply-To: <20140602154431.2d77c066546354b9bd81e60b@linux-foundation.org>
-References: <53877e9c.8b2cdc0a.1604.ffffea43SMTPIN_ADDED_BROKEN@mx.google.com> <1401432670-24664-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1401432670-24664-2-git-send-email-n-horiguchi@ah.jp.nec.com> <20140602154431.2d77c066546354b9bd81e60b@linux-foundation.org>
-Mime-Version: 1.0
+Received: from mail-we0-f182.google.com (mail-we0-f182.google.com [74.125.82.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 24A836B00BA
+	for <linux-mm@kvack.org>; Mon,  2 Jun 2014 21:15:18 -0400 (EDT)
+Received: by mail-we0-f182.google.com with SMTP id t60so5875763wes.41
+        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 18:15:17 -0700 (PDT)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id g12si25059712wiv.37.2014.06.02.18.15.16
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Mon, 02 Jun 2014 18:15:16 -0700 (PDT)
+Date: Mon, 2 Jun 2014 21:15:10 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch v2] mm, memcg: periodically schedule when emptying page
+ list
+Message-ID: <20140603011510.GO2878@cmpxchg.org>
+References: <alpine.DEB.2.02.1406021612550.6487@chino.kir.corp.google.com>
+ <alpine.DEB.2.02.1406021749590.13910@chino.kir.corp.google.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.02.1406021749590.13910@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Tony Luck <tony.luck@intel.com>, Andi Kleen <andi@firstfloor.org>, Kamil Iskra <iskra@mcs.anl.gov>, Borislav Petkov <bp@suse.de>, Chen Gong <gong.chen@linux.jf.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
 
-On Mon, Jun 02, 2014 at 03:44:31PM -0700, Andrew Morton wrote:
-> On Fri, 30 May 2014 02:51:08 -0400 Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
+On Mon, Jun 02, 2014 at 05:51:25PM -0700, David Rientjes wrote:
+> From: Hugh Dickins <hughd@google.com>
 > 
-> > From: Tony Luck <tony.luck@intel.com>
-> > 
-> > When a thread in a multi-threaded application hits a machine
-> > check because of an uncorrectable error in memory - we want to
-> > send the SIGBUS with si.si_code = BUS_MCEERR_AR to that thread.
-> > Currently we fail to do that if the active thread is not the
-> > primary thread in the process. collect_procs() just finds primary
-> > threads and this test:
-> > 	if ((flags & MF_ACTION_REQUIRED) && t == current) {
-> > will see that the thread we found isn't the current thread
-> > and so send a si.si_code = BUS_MCEERR_AO to the primary
-> > (and nothing to the active thread at this time).
-> > 
-> > We can fix this by checking whether "current" shares the same
-> > mm with the process that collect_procs() said owned the page.
-> > If so, we send the SIGBUS to current (with code BUS_MCEERR_AR).
-> > 
-> > Reported-by: Otto Bruggeman <otto.g.bruggeman@intel.com>
-> > Signed-off-by: Tony Luck <tony.luck@intel.com>
-> > Cc: Andi Kleen <andi@firstfloor.org>
-> > Cc: Borislav Petkov <bp@suse.de>
-> > Cc: Chen Gong <gong.chen@linux.jf.intel.com>
-> > Acked-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> mem_cgroup_force_empty_list() can iterate a large number of pages on an lru and 
+> mem_cgroup_move_parent() doesn't return an errno unless certain criteria, none 
+> of which indicate that the iteration may be taking too long, is met.
 > 
-> You were on the patch delivery path, so it should have included your
-> signed-off-by.  Documentation/SubmittingPatches section 12 has the
-> details.
+> We have encountered the following stack trace many times indicating
+> "need_resched set for > 51000020 ns (51 ticks) without schedule", for example:
+> 
+> 	scheduler_tick()
+> 	<timer irq>
+> 	mem_cgroup_move_account+0x4d/0x1d5
+> 	mem_cgroup_move_parent+0x8d/0x109
+> 	mem_cgroup_reparent_charges+0x149/0x2ba
+> 	mem_cgroup_css_offline+0xeb/0x11b
+> 	cgroup_offline_fn+0x68/0x16b
+> 	process_one_work+0x129/0x350
+> 
+> If this iteration is taking too long, we still need to do cond_resched() even 
+> when an individual page is not busy.
+> 
+> [rientjes@google.com: changelog]
+> Signed-off-by: Hugh Dickins <hughd@google.com>
+> Signed-off-by: David Rientjes <rientjes@google.com>
 
-Sorry, I didn't know that.
-
-> I have made that change to my copies of patches 1 and 2.
-
-Thank you.
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
