@@ -1,93 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f176.google.com (mail-ob0-f176.google.com [209.85.214.176])
-	by kanga.kvack.org (Postfix) with ESMTP id EBB376B0031
-	for <linux-mm@kvack.org>; Tue,  3 Jun 2014 15:26:05 -0400 (EDT)
-Received: by mail-ob0-f176.google.com with SMTP id wo20so6520156obc.7
-        for <linux-mm@kvack.org>; Tue, 03 Jun 2014 12:26:05 -0700 (PDT)
-Received: from g4t3426.houston.hp.com (g4t3426.houston.hp.com. [15.201.208.54])
-        by mx.google.com with ESMTPS id h1si276106obf.69.2014.06.03.12.26.05
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 03 Jun 2014 12:26:05 -0700 (PDT)
-Message-ID: <1401823560.4911.2.camel@buesod1.americas.hpqcorp.net>
-Subject: Re: [PATCH 0/4] ipc/shm.c: increase the limits for SHMMAX, SHMALL
-From: Davidlohr Bueso <davidlohr@hp.com>
-Date: Tue, 03 Jun 2014 12:26:00 -0700
-In-Reply-To: <CAKgNAkjuU68hgyMOVGBVoBTOhhGdBytQh6H0ExiLoXfujKyP_w@mail.gmail.com>
-References: <1398090397-2397-1-git-send-email-manfred@colorfullife.com>
-	 <CAKgNAkjuU68hgyMOVGBVoBTOhhGdBytQh6H0ExiLoXfujKyP_w@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
+Received: from mail-qa0-f43.google.com (mail-qa0-f43.google.com [209.85.216.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B2616B0031
+	for <linux-mm@kvack.org>; Tue,  3 Jun 2014 16:01:28 -0400 (EDT)
+Received: by mail-qa0-f43.google.com with SMTP id m5so5702509qaj.2
+        for <linux-mm@kvack.org>; Tue, 03 Jun 2014 13:01:28 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id m13si369305qar.88.2014.06.03.13.01.26
+        for <linux-mm@kvack.org>;
+        Tue, 03 Jun 2014 13:01:26 -0700 (PDT)
+Message-ID: <538e2996.cd7ae00a.1e64.6067SMTPIN_ADDED_BROKEN@mx.google.com>
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH -mm] mincore: apply page table walker on do_mincore() (Re: [PATCH 00/10] mm: pagewalk: huge page cleanups and VMA passing)
+Date: Tue,  3 Jun 2014 16:01:17 -0400
+In-Reply-To: <538DEFD8.4050506@intel.com>
+References: <20140602213644.925A26D0@viggo.jf.intel.com> <1401745925-l651h3s9@n-horiguchi@ah.jp.nec.com> <538CF25E.8070905@sr71.net> <1401776292-dn0fof8e@n-horiguchi@ah.jp.nec.com> <538DEFD8.4050506@intel.com>
 Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mtk.manpages@gmail.com
-Cc: Manfred Spraul <manfred@colorfullife.com>, Davidlohr Bueso <davidlohr.bueso@hp.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, aswin@hp.com, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Fri, 2014-05-02 at 15:16 +0200, Michael Kerrisk (man-pages) wrote:
-> Hi Manfred,
+On Tue, Jun 03, 2014 at 08:55:04AM -0700, Dave Hansen wrote:
+> On 06/02/2014 11:18 PM, Naoya Horiguchi wrote:
+> > And for patch 8, 9, and 10, I don't think it's good idea to add a new callback
+> > which can handle both pmd and pte (because they are essentially differnt thing).
+> > But the underneath idea of doing pmd_trans_huge_lock() in the common code in
+> > walk_single_entry_locked() looks nice to me. So it would be great if we can do
+> > the same thing in walk_pmd_range() (of linux-mm) to reduce code in callbacks.
 > 
-> On Mon, Apr 21, 2014 at 4:26 PM, Manfred Spraul
-> <manfred@colorfullife.com> wrote:
-> > Hi all,
-> >
-> > the increase of SHMMAX/SHMALL is now a 4 patch series.
-> > I don't have ideas how to improve it further.
+> You think they are different, I think they're the same. :)
 > 
-> On the assumption that your patches are heading to mainline, could you
-> send me a man-pages patch for the changes?
+> What the walkers *really* care about is getting a leaf node in the page
+> tables.  They generally don't *care* whether it is a pmd or pte, they
+> just want to know what its value is and how large it is.
 
-It seems we're still behind here and the 3.16 merge window is already
-opened. Please consider this, and again feel free to add/modify as
-necessary. I think adding a note as below is enough and was hesitant to
-add a lot of details... Thanks.
+OK, I see your idea, so I think that we could go to the direction to
+unify all p(gd|ud|md|te)_entry() callbacks.
+And if we find the leaf entry in whatever level, we call the common entry
+handler on the entry, right?
+It would takes some time and effort to make all users to fit to this new
+scheme, so my suggestion is:
+ 1. move pmd locking to walk_pmd_range() (then, your locked_single_entry()
+    callback is equal to pmd_entry())
+ 2. let each existing user have its common entry handler, and connect it to
+    its pmd_entry() and/or pte_entry() to keep compatibility
+ 3. apply page table walker to potential users.
+    I'd like to keep pmd/pte_entry() until we complete phase 2.,
+    because we could find something which let us change core code,
+ 4. and finaly replace all p(gd|ud|md|te)_entry() with a unified callback.
 
-8<--------------------------------------------------
-From: Davidlohr Bueso <davidlohr@hp.com>
-Subject: [PATCH] shmget.2: document new limits for shmmax/shmall
+Could you let me have a few days to work on 1.?
+I think that it means your patch 8 is effectively merged on top of mine.
+So your current problem will be solved.
 
-These limits have been recently enlarged and
-modifying them is no longer really necessary.
-Update the manpage.
+> I'd argue that they don't really ever need to actually know at which
+> level they are in the page tables, just if they are at the bottom or
+> not.  Note that *NOBODY* sets a pud or pgd entry.  That's because the
+> walkers are 100% concerned about leaf nodes (pte's) at this point.
 
-Signed-off-by: Davidlohr Bueso <davidlohr@hp.com>
----
- man2/shmget.2 | 11 +++++++++++
- 1 file changed, 11 insertions(+)
+Yes. BTW do you think we should pud_entry() and pgd_entry() immediately?
+We can do it and it reduces some trivial evaluations, so it's optimized
+a little.
 
-diff --git a/man2/shmget.2 b/man2/shmget.2
-index f781048..77764ea 100644
---- a/man2/shmget.2
-+++ b/man2/shmget.2
-@@ -299,6 +299,11 @@ with 8kB page size, it yields 2^20 (1048576).
- 
- On Linux, this limit can be read and modified via
- .IR /proc/sys/kernel/shmall .
-+As of Linux 3.16, the default value for this limit is increased to
-+.B ULONG_MAX - 2^24
-+pages, which is as large as it can be without helping userspace overflow
-+the values. Modifying this limit is therefore discouraged. This is suitable
-+for both 32 and 64-bit systems.
- .TP
- .B SHMMAX
- Maximum size in bytes for a shared memory segment.
-@@ -306,6 +311,12 @@ Since Linux 2.2, the default value of this limit is 0x2000000 (32MB).
- 
- On Linux, this limit can be read and modified via
- .IR /proc/sys/kernel/shmmax .
-+As of Linux 3.16, the default value for this limit is increased from 32Mb
-+to
-+.B ULONG_MAX - 2^24
-+bytes, which is as large as it can be without helping userspace overflow
-+the values. Modifying this limit is therefore discouraged. This is suitable
-+for both 32 and 64-bit systems.
- .TP
- .B SHMMIN
- Minimum size in bytes for a shared memory segment: implementation
--- 
-1.8.1.4
+> Take a look at my version of gather_stats_locked():
+> 
+> >  static int gather_stats_locked(pte_t *pte, unsigned long addr,
+> >                 unsigned long size, struct mm_walk *walk)
+> >  {
+> >         struct numa_maps *md = walk->private;
+> >         struct page *page = can_gather_numa_stats(*pte, walk->vma, addr);
+> >  
+> >         if (page)
+> >                 gather_stats(page, md, pte_dirty(*pte), size/PAGE_SIZE);
+> >  
+> >         return 0;
+> >  }
+> 
+> The mmotm version looks _very_ similar to that, *BUT* the mmotm version
+> needs to have an entire *EXTRA* 22-line gather_pmd_stats() dealing with
+> THP locking, while mine doesn't.
 
+OK, my objection was just on adding a new callback because it introduces
+some duplication (3 callbacks for 2 types of entries.) But I agree to do
+pmd locking in the common code. It should make both of us happy :)
 
+Thanks,
+Naoya Horiguchi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
