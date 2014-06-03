@@ -1,121 +1,251 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f175.google.com (mail-ie0-f175.google.com [209.85.223.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 71C746B0031
-	for <linux-mm@kvack.org>; Tue,  3 Jun 2014 08:15:08 -0400 (EDT)
-Received: by mail-ie0-f175.google.com with SMTP id y20so5892043ier.34
-        for <linux-mm@kvack.org>; Tue, 03 Jun 2014 05:15:08 -0700 (PDT)
-Received: from icp-osb-irony-out6.external.iinet.net.au (icp-osb-irony-out6.external.iinet.net.au. [203.59.1.222])
-        by mx.google.com with ESMTP id m3si4939634igx.16.2014.06.03.05.15.02
-        for <linux-mm@kvack.org>;
-        Tue, 03 Jun 2014 05:15:03 -0700 (PDT)
-Message-ID: <538DBC3F.9060207@uclinux.org>
-Date: Tue, 03 Jun 2014 22:14:55 +1000
-From: Greg Ungerer <gerg@uclinux.org>
+Received: from mail-we0-f177.google.com (mail-we0-f177.google.com [74.125.82.177])
+	by kanga.kvack.org (Postfix) with ESMTP id ACADD6B0031
+	for <linux-mm@kvack.org>; Tue,  3 Jun 2014 08:39:09 -0400 (EDT)
+Received: by mail-we0-f177.google.com with SMTP id x48so6593582wes.22
+        for <linux-mm@kvack.org>; Tue, 03 Jun 2014 05:39:09 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id au6si32108157wjc.98.2014.06.03.05.38.56
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 03 Jun 2014 05:38:57 -0700 (PDT)
+Date: Tue, 3 Jun 2014 14:38:36 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch 01/10] mm: memcontrol: fold mem_cgroup_do_charge()
+Message-ID: <20140603123836.GF1321@dhcp22.suse.cz>
+References: <1401380162-24121-1-git-send-email-hannes@cmpxchg.org>
+ <1401380162-24121-2-git-send-email-hannes@cmpxchg.org>
 MIME-Version: 1.0
-Subject: Re: TASK_SIZE for !MMU
-References: <20140429100028.GH28564@pengutronix.de> <20140602085150.GA31147@pengutronix.de>
-In-Reply-To: <20140602085150.GA31147@pengutronix.de>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1401380162-24121-2-git-send-email-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?ISO-8859-1?Q?Uwe_Kleine-K=F6nig?= <u.kleine-koenig@pengutronix.de>, Rabin Vincent <rabin@rab.in>, Will Deacon <will.deacon@arm.com>, linux-arm-kernel@lists.infradead.org
-Cc: David Howells <dhowells@redhat.com>, uclinux-dist-devel@blackfin.uclinux.org, linux-m68k@lists.linux-m68k.org, linux-c6x-dev@linux-c6x.org, linux-m32r@ml.linux-m32r.org, microblaze-uclinux@itee.uq.edu.au, linux-xtensa@linux-xtensa.org, kernel@pengutronix.de, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Tejun Heo <tj@kernel.org>, Vladimir Davydov <vdavydov@parallels.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi Uwe,
+On Thu 29-05-14 12:15:53, Johannes Weiner wrote:
+> This function was split out because mem_cgroup_try_charge() got too
+> big.  But having essentially one sequence of operations arbitrarily
+> split in half is not good for reworking the code.  Fold it back in.
+> 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
 
-On 02/06/14 18:51, Uwe Kleine-Konig wrote:
-> Hello
->
-> [expand Cc: a bit]
->
-> On Tue, Apr 29, 2014 at 12:00:28PM +0200, Uwe Kleine-Konig wrote:
->> I grepped through the kernel (v3.15-rc1) for usages of TASK_SIZE to
->> check if/how it is used on !MMU ARM machines. Most open questions also
->> affect the other !MMU platforms, so I put the blackfin, c6x, frv and
->> m32r, m68k, microblaze and xtensa lists on Cc:. (Did I miss a platform
->> that cares for !MMU ?)
->>
->> Most occurences are fine, see the list at the end of this mail. However
->> some are not or are unclear to me. Here is the complete list[1] apart from
->> the definition of TASK_SIZE for !MMU in arch/arm/include/asm/memory.h:
->>
->>   - Probably this should be explict s/TASK_SIZE/CONFIG_DRAM_SIZE/. This
->>     is generic code however while CONFIG_DRAM_SIZE is ARM only.
->>          mm/nommu.c:     if (!rlen || rlen > TASK_SIZE)
->>
->>   - The issue the patch by Rabin is addressing (Subject: [PATCH] ARM: fix
->>     string functions on !MMU), alternatively make TASK_SIZE ~0UL.
->>          arch/arm/include/asm/uaccess.h:#define user_addr_max() \
->>          arch/arm/include/asm/uaccess.h: (segment_eq(get_fs(), USER_DS) ? TASK_SIZE : ~0UL)
-> [reference: http://www.spinics.net/lists/arm-kernel/msg324112.html ]
->
->>   - probably bearable if broken:
->>          drivers/misc/lkdtm.c:           if (user_addr >= TASK_SIZE) {
->>          lib/test_user_copy.c:   user_addr = vm_mmap(...)
->>          lib/test_user_copy.c:   if (user_addr >= (unsigned long)(TASK_SIZE)) {
->>          lib/test_user_copy.c:           pr_warn("Failed to allocate user memory\n");
->>          lib/test_user_copy.c:           return -ENOMEM;
->>
->>   - unclear to me:
->>          fs/exec.c:      current->mm->task_size = TASK_SIZE;
->>     - depends on PERF_EVENTS
->>          kernel/events/core.c:   if (!addr || addr >= TASK_SIZE)
->>          kernel/events/core.c:   return TASK_SIZE - addr;
->>          kernel/events/uprobes.c:                area->vaddr = get_unmapped_area(NULL, TASK_SIZE - PAGE_SIZE,
->>     - depends on (PERF_EVENTS && (CPU_V6 || CPU_V6K || CPU_V7)):
->>          arch/arm/kernel/hw_breakpoint.c:        return (va >= TASK_SIZE) && ((va + len - 1) >= TASK_SIZE);
->>     - seems to cope with big TASK_SIZE
->>          fs/namespace.c:        size = TASK_SIZE - (unsigned long)data;
->>          fs/namespace.c:        if (size > PAGE_SIZE)
->>          fs/namespace.c:                size = PAGE_SIZE;
->>     - depends on PLAT_S5P || ARCH_EXYNOS, this looks wrong
->>          drivers/media/platform/s5p-mfc/s5p_mfc_common.h:#define DST_QUEUE_OFF_BASE      (TASK_SIZE / 2)
->>     - used for prctl(PR_SET_MM, ...)
->>          kernel/sys.c:   if (addr >= TASK_SIZE || addr < mmap_min_addr)
->>
->> Any help to judge if these are OK is appreciated (even from Will :-)
->>
->> I think it would be OK to define TASK_SIZE to 0xffffffff for !MMU.
->> blackfin, frv and m68k also do this. c6x does define it to 0xFFFFF000 to
->> leave space for error codes.
+Acked-by: Michal Hocko <mhocko@suse.cz>
 
-I did that same change for m68k in commit cc24c40 ("m68knommu: remove
-size limit on non-MMU TASK_SIZE"). For similar reasons as you need to
-now.
+> ---
+>  mm/memcontrol.c | 166 ++++++++++++++++++++++----------------------------------
+>  1 file changed, 64 insertions(+), 102 deletions(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 4df733e13727..c3c10ab98355 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -2552,80 +2552,6 @@ static int memcg_cpu_hotplug_callback(struct notifier_block *nb,
+>  	return NOTIFY_OK;
+>  }
+>  
+> -
+> -/* See mem_cgroup_try_charge() for details */
+> -enum {
+> -	CHARGE_OK,		/* success */
+> -	CHARGE_RETRY,		/* need to retry but retry is not bad */
+> -	CHARGE_NOMEM,		/* we can't do more. return -ENOMEM */
+> -	CHARGE_WOULDBLOCK,	/* GFP_WAIT wasn't set and no enough res. */
+> -};
+> -
+> -static int mem_cgroup_do_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
+> -				unsigned int nr_pages, unsigned int min_pages,
+> -				bool invoke_oom)
+> -{
+> -	unsigned long csize = nr_pages * PAGE_SIZE;
+> -	struct mem_cgroup *mem_over_limit;
+> -	struct res_counter *fail_res;
+> -	unsigned long flags = 0;
+> -	int ret;
+> -
+> -	ret = res_counter_charge(&memcg->res, csize, &fail_res);
+> -
+> -	if (likely(!ret)) {
+> -		if (!do_swap_account)
+> -			return CHARGE_OK;
+> -		ret = res_counter_charge(&memcg->memsw, csize, &fail_res);
+> -		if (likely(!ret))
+> -			return CHARGE_OK;
+> -
+> -		res_counter_uncharge(&memcg->res, csize);
+> -		mem_over_limit = mem_cgroup_from_res_counter(fail_res, memsw);
+> -		flags |= MEM_CGROUP_RECLAIM_NOSWAP;
+> -	} else
+> -		mem_over_limit = mem_cgroup_from_res_counter(fail_res, res);
+> -	/*
+> -	 * Never reclaim on behalf of optional batching, retry with a
+> -	 * single page instead.
+> -	 */
+> -	if (nr_pages > min_pages)
+> -		return CHARGE_RETRY;
+> -
+> -	if (!(gfp_mask & __GFP_WAIT))
+> -		return CHARGE_WOULDBLOCK;
+> -
+> -	if (gfp_mask & __GFP_NORETRY)
+> -		return CHARGE_NOMEM;
+> -
+> -	ret = mem_cgroup_reclaim(mem_over_limit, gfp_mask, flags);
+> -	if (mem_cgroup_margin(mem_over_limit) >= nr_pages)
+> -		return CHARGE_RETRY;
+> -	/*
+> -	 * Even though the limit is exceeded at this point, reclaim
+> -	 * may have been able to free some pages.  Retry the charge
+> -	 * before killing the task.
+> -	 *
+> -	 * Only for regular pages, though: huge pages are rather
+> -	 * unlikely to succeed so close to the limit, and we fall back
+> -	 * to regular pages anyway in case of failure.
+> -	 */
+> -	if (nr_pages <= (1 << PAGE_ALLOC_COSTLY_ORDER) && ret)
+> -		return CHARGE_RETRY;
+> -
+> -	/*
+> -	 * At task move, charge accounts can be doubly counted. So, it's
+> -	 * better to wait until the end of task_move if something is going on.
+> -	 */
+> -	if (mem_cgroup_wait_acct_move(mem_over_limit))
+> -		return CHARGE_RETRY;
+> -
+> -	if (invoke_oom)
+> -		mem_cgroup_oom(mem_over_limit, gfp_mask, get_order(csize));
+> -
+> -	return CHARGE_NOMEM;
+> -}
+> -
+>  /**
+>   * mem_cgroup_try_charge - try charging a memcg
+>   * @memcg: memcg to charge
+> @@ -2642,7 +2568,11 @@ static int mem_cgroup_try_charge(struct mem_cgroup *memcg,
+>  {
+>  	unsigned int batch = max(CHARGE_BATCH, nr_pages);
+>  	int nr_oom_retries = MEM_CGROUP_RECLAIM_RETRIES;
+> -	int ret;
+> +	struct mem_cgroup *mem_over_limit;
+> +	struct res_counter *fail_res;
+> +	unsigned long nr_reclaimed;
+> +	unsigned long flags = 0;
+> +	unsigned long long size;
+>  
+>  	if (mem_cgroup_is_root(memcg))
+>  		goto done;
+> @@ -2662,44 +2592,76 @@ static int mem_cgroup_try_charge(struct mem_cgroup *memcg,
+>  
+>  	if (gfp_mask & __GFP_NOFAIL)
+>  		oom = false;
+> -again:
+> +retry:
+>  	if (consume_stock(memcg, nr_pages))
+>  		goto done;
+>  
+> -	do {
+> -		bool invoke_oom = oom && !nr_oom_retries;
+> +	size = batch * PAGE_SIZE;
+> +	if (!res_counter_charge(&memcg->res, size, &fail_res)) {
+> +		if (!do_swap_account)
+> +			goto done_restock;
+> +		if (!res_counter_charge(&memcg->memsw, size, &fail_res))
+> +			goto done_restock;
+> +		res_counter_uncharge(&memcg->res, size);
+> +		mem_over_limit = mem_cgroup_from_res_counter(fail_res, memsw);
+> +		flags |= MEM_CGROUP_RECLAIM_NOSWAP;
+> +	} else
+> +		mem_over_limit = mem_cgroup_from_res_counter(fail_res, res);
+>  
+> -		/* If killed, bypass charge */
+> -		if (fatal_signal_pending(current))
+> -			goto bypass;
+> +	if (batch > nr_pages) {
+> +		batch = nr_pages;
+> +		goto retry;
+> +	}
+>  
+> -		ret = mem_cgroup_do_charge(memcg, gfp_mask, batch,
+> -					   nr_pages, invoke_oom);
+> -		switch (ret) {
+> -		case CHARGE_OK:
+> -			break;
+> -		case CHARGE_RETRY: /* not in OOM situation but retry */
+> -			batch = nr_pages;
+> -			goto again;
+> -		case CHARGE_WOULDBLOCK: /* !__GFP_WAIT */
+> -			goto nomem;
+> -		case CHARGE_NOMEM: /* OOM routine works */
+> -			if (!oom || invoke_oom)
+> -				goto nomem;
+> -			nr_oom_retries--;
+> -			break;
+> -		}
+> -	} while (ret != CHARGE_OK);
+> +	if (!(gfp_mask & __GFP_WAIT))
+> +		goto nomem;
+>  
+> -	if (batch > nr_pages)
+> -		refill_stock(memcg, batch - nr_pages);
+> -done:
+> -	return 0;
+> +	if (gfp_mask & __GFP_NORETRY)
+> +		goto nomem;
+> +
+> +	nr_reclaimed = mem_cgroup_reclaim(mem_over_limit, gfp_mask, flags);
+> +
+> +	if (mem_cgroup_margin(mem_over_limit) >= batch)
+> +		goto retry;
+> +	/*
+> +	 * Even though the limit is exceeded at this point, reclaim
+> +	 * may have been able to free some pages.  Retry the charge
+> +	 * before killing the task.
+> +	 *
+> +	 * Only for regular pages, though: huge pages are rather
+> +	 * unlikely to succeed so close to the limit, and we fall back
+> +	 * to regular pages anyway in case of failure.
+> +	 */
+> +	if (nr_reclaimed && batch <= (1 << PAGE_ALLOC_COSTLY_ORDER))
+> +		goto retry;
+> +	/*
+> +	 * At task move, charge accounts can be doubly counted. So, it's
+> +	 * better to wait until the end of task_move if something is going on.
+> +	 */
+> +	if (mem_cgroup_wait_acct_move(mem_over_limit))
+> +		goto retry;
+> +
+> +	if (fatal_signal_pending(current))
+> +		goto bypass;
+> +
+> +	if (!oom)
+> +		goto nomem;
+> +
+> +	if (nr_oom_retries--)
+> +		goto retry;
+> +
+> +	mem_cgroup_oom(mem_over_limit, gfp_mask, get_order(batch));
+>  nomem:
+>  	if (!(gfp_mask & __GFP_NOFAIL))
+>  		return -ENOMEM;
+>  bypass:
+>  	return -EINTR;
+> +
+> +done_restock:
+> +	if (batch > nr_pages)
+> +		refill_stock(memcg, batch - nr_pages);
+> +done:
+> +	return 0;
+>  }
+>  
+>  /**
+> -- 
+> 1.9.3
+> 
 
-
->> Thoughts?
-> The problem is that current linus/master (and also next) doesn't boot on
-> my ARM-nommu machine because the user string functions (strnlen_user,
-> strncpy_from_user et al.) refuse to work on strings above TASK_SIZE
-> which in my case also includes the XIP kernel image.
-
-I seem to recall that we were not considering flash or anything else
-other than RAM when defining that original TASK_SIZE (back many, many
-years ago). Some of the address checks you list above made some sense
-if you had everything in RAM (though only upper bounds are checked).
-The thinking was some checking is better than none I suppose.
-
-Setting a hard coded memory size in CONFIG_DRAM_SIZE is not all that
-fantastic either...
-
-Regards
-Greg
-
-
-> Maybe someone of the mm people can bring light into the unclear points
-> above and the question what TASK_SIZE is supposed to be on no-MMU
-> machines?
->
-> Best regards
-> Uwe
->
->> [1] complete as in "skip everything below arch/ but arch/arm" :-)
->>
-> [removed the list, if you're interested, it's available at
-> http://mid.gmane.org/20140429100028.GH28564@pengutronix.de]
->
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
