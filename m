@@ -1,57 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f43.google.com (mail-qg0-f43.google.com [209.85.192.43])
-	by kanga.kvack.org (Postfix) with ESMTP id DC8976B0089
-	for <linux-mm@kvack.org>; Tue,  3 Jun 2014 02:18:25 -0400 (EDT)
-Received: by mail-qg0-f43.google.com with SMTP id 63so12459087qgz.2
-        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 23:18:25 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id s95si20709953qge.69.2014.06.02.23.18.24
-        for <linux-mm@kvack.org>;
-        Mon, 02 Jun 2014 23:18:25 -0700 (PDT)
-Message-ID: <538d68b1.e8648c0a.a45f.23f8SMTPIN_ADDED_BROKEN@mx.google.com>
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH -mm] mincore: apply page table walker on do_mincore() (Re: [PATCH 00/10] mm: pagewalk: huge page cleanups and VMA passing)
-Date: Tue,  3 Jun 2014 02:18:16 -0400
-In-Reply-To: <538CF25E.8070905@sr71.net>
-References: <20140602213644.925A26D0@viggo.jf.intel.com> <1401745925-l651h3s9@n-horiguchi@ah.jp.nec.com> <538CF25E.8070905@sr71.net>
-Mime-Version: 1.0
+Received: from mail-we0-f176.google.com (mail-we0-f176.google.com [74.125.82.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 542766B0089
+	for <linux-mm@kvack.org>; Tue,  3 Jun 2014 02:27:45 -0400 (EDT)
+Received: by mail-we0-f176.google.com with SMTP id q59so6065082wes.7
+        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 23:27:44 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id hv4si96732wib.3.2014.06.02.23.27.43
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 02 Jun 2014 23:27:43 -0700 (PDT)
+Date: Tue, 3 Jun 2014 08:27:42 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [patch v2] mm, memcg: periodically schedule when emptying page
+ list
+Message-ID: <20140603062742.GA1321@dhcp22.suse.cz>
+References: <alpine.DEB.2.02.1406021612550.6487@chino.kir.corp.google.com>
+ <alpine.DEB.2.02.1406021749590.13910@chino.kir.corp.google.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
 Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.02.1406021749590.13910@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: dave@sr71.net
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
 
-On Mon, Jun 02, 2014 at 02:53:34PM -0700, Dave Hansen wrote:
-> On 06/02/2014 02:52 PM, Naoya Horiguchi wrote:
-> > What version is this patchset based on?
-> > Recently I comprehensively rewrote page table walker (from the same motivation
-> > as yours) and the patchset is now in linux-mm. I guess most of your patchset
-> > (I've not read them yet) conflict with this patchset.
-> > So could you take a look on it?
+On Mon 02-06-14 17:51:25, David Rientjes wrote:
+> From: Hugh Dickins <hughd@google.com>
 > 
-> It's on top of a version of Linus's from the last week.  I'll take a
-> look at how it sits on top of -mm.
+> mem_cgroup_force_empty_list() can iterate a large number of pages on an lru and 
+> mem_cgroup_move_parent() doesn't return an errno unless certain criteria, none 
+> of which indicate that the iteration may be taking too long, is met.
+> 
+> We have encountered the following stack trace many times indicating
+> "need_resched set for > 51000020 ns (51 ticks) without schedule", for example:
+> 
+> 	scheduler_tick()
+> 	<timer irq>
+> 	mem_cgroup_move_account+0x4d/0x1d5
+> 	mem_cgroup_move_parent+0x8d/0x109
+> 	mem_cgroup_reparent_charges+0x149/0x2ba
+> 	mem_cgroup_css_offline+0xeb/0x11b
+> 	cgroup_offline_fn+0x68/0x16b
+> 	process_one_work+0x129/0x350
+> 
+> If this iteration is taking too long, we still need to do cond_resched() even 
+> when an individual page is not busy.
+> 
+> [rientjes@google.com: changelog]
+> Signed-off-by: Hugh Dickins <hughd@google.com>
+> Signed-off-by: David Rientjes <rientjes@google.com>
 
-I've looked over your series, but unfortunately most of works (patch 1, 2, 3,
-5, 6, 7) were already done or we don't have to do it in current linux-mm code.
-Problems you try to handle in these patches come from current code's poor
-design of page table walker, worst thing is that we do vma-loop inside pgd loop.
-I know you tried harder to make things better, but I don't think it make sense
-to maintain current bad base code for long.
+Acked-by: Michal Hocko <mhocko@suse.cz>
 
-As for patch 4, yes, we can apply page table walker do_mincore() and I have
-a patch applicable onto linux-mm code (attached). And for other potential
-page walk users, I'm investigating whether we can really apply page table
-walker (some caller doesn't hold mmap_sem, so can't simply apply it.)
+Thanks!
 
-And for patch 8, 9, and 10, I don't think it's good idea to add a new callback
-which can handle both pmd and pte (because they are essentially differnt thing).
-But the underneath idea of doing pmd_trans_huge_lock() in the common code in
-walk_single_entry_locked() looks nice to me. So it would be great if we can do
-the same thing in walk_pmd_range() (of linux-mm) to reduce code in callbacks.
+> ---
+>  v2: always reschedule if needed, "page" itself may not have a pc mismatch
+>      or been unable to isolate.
+> 
+>  mm/memcontrol.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -4784,9 +4784,9 @@ static void mem_cgroup_force_empty_list(struct mem_cgroup *memcg,
+>  		if (mem_cgroup_move_parent(page, pc, memcg)) {
+>  			/* found lock contention or "pc" is obsolete. */
+>  			busy = page;
+> -			cond_resched();
+>  		} else
+>  			busy = NULL;
+> +		cond_resched();
+>  	} while (!list_empty(list));
+>  }
+>  
 
-Thanks,
-Naoya Horiguchi
----
+-- 
+Michal Hocko
+SUSE Labs
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
