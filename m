@@ -1,140 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f169.google.com (mail-we0-f169.google.com [74.125.82.169])
-	by kanga.kvack.org (Postfix) with ESMTP id E4D786B00AE
-	for <linux-mm@kvack.org>; Mon,  2 Jun 2014 21:04:08 -0400 (EDT)
-Received: by mail-we0-f169.google.com with SMTP id u56so6058680wes.28
-        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 18:04:08 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id gt4si24997935wib.64.2014.06.02.18.04.06
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 1320C6B00B0
+	for <linux-mm@kvack.org>; Mon,  2 Jun 2014 21:08:43 -0400 (EDT)
+Received: by mail-pd0-f179.google.com with SMTP id fp1so3970271pdb.24
+        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 18:08:42 -0700 (PDT)
+Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
+        by mx.google.com with ESMTP id pn2si5169906pac.141.2014.06.02.18.08.40
         for <linux-mm@kvack.org>;
-        Mon, 02 Jun 2014 18:04:07 -0700 (PDT)
-Message-ID: <538d1f07.646ab40a.0e42.ffffc429SMTPIN_ADDED_BROKEN@mx.google.com>
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH 3/3] mm/memory-failure.c: support dedicated thread to handle SIGBUS(BUS_MCEERR_AO)
-Date: Mon,  2 Jun 2014 21:03:34 -0400
-In-Reply-To: <20140602154207.7e55a16c9038016cd080c176@linux-foundation.org>
-References: <53877e9c.8b2cdc0a.1604.ffffea43SMTPIN_ADDED_BROKEN@mx.google.com> <1401432670-24664-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1401432670-24664-4-git-send-email-n-horiguchi@ah.jp.nec.com> <20140602154207.7e55a16c9038016cd080c176@linux-foundation.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-Content-Disposition: inline
+        Mon, 02 Jun 2014 18:08:42 -0700 (PDT)
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: [RFC PATCH 0/3] CMA: generalize CMA reserved area management code
+Date: Tue,  3 Jun 2014 10:11:55 +0900
+Message-Id: <1401757919-30018-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Tony Luck <tony.luck@intel.com>, Andi Kleen <andi@firstfloor.org>, Kamil Iskra <iskra@mcs.anl.gov>, Borislav Petkov <bp@suse.de>, Chen Gong <gong.chen@linux.jf.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>
+Cc: Minchan Kim <minchan@kernel.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Paolo Bonzini <pbonzini@redhat.com>, Gleb Natapov <gleb@kernel.org>, Alexander Graf <agraf@suse.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, kvm@vger.kernel.org, kvm-ppc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Mon, Jun 02, 2014 at 03:42:07PM -0700, Andrew Morton wrote:
-> On Fri, 30 May 2014 02:51:10 -0400 Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
-> 
-> > Currently memory error handler handles action optional errors in the deferred
-> > manner by default. And if a recovery aware application wants to handle it
-> > immediately, it can do it by setting PF_MCE_EARLY flag. However, such signal
-> > can be sent only to the main thread, so it's problematic if the application
-> > wants to have a dedicated thread to handler such signals.
-> > 
-> > So this patch adds dedicated thread support to memory error handler. We have
-> > PF_MCE_EARLY flags for each thread separately, so with this patch AO signal
-> > is sent to the thread with PF_MCE_EARLY flag set, not the main thread. If
-> > you want to implement a dedicated thread, you call prctl() to set PF_MCE_EARLY
-> > on the thread.
-> > 
-> > Memory error handler collects processes to be killed, so this patch lets it
-> > check PF_MCE_EARLY flag on each thread in the collecting routines.
-> > 
-> > No behavioral change for all non-early kill cases.
-> > 
-> > ...
-> >
-> > --- mmotm-2014-05-21-16-57.orig/mm/memory-failure.c
-> > +++ mmotm-2014-05-21-16-57/mm/memory-failure.c
-> > @@ -380,15 +380,44 @@ static void kill_procs(struct list_head *to_kill, int forcekill, int trapno,
-> >  	}
-> >  }
-> >  
-> > -static int task_early_kill(struct task_struct *tsk, int force_early)
-> > +/*
-> > + * Find a dedicated thread which is supposed to handle SIGBUS(BUS_MCEERR_AO)
-> > + * on behalf of the thread group. Return task_struct of the (first found)
-> > + * dedicated thread if found, and return NULL otherwise.
-> > + */
-> > +static struct task_struct *find_early_kill_thread(struct task_struct *tsk)
-> > +{
-> > +	struct task_struct *t;
-> > +	rcu_read_lock();
-> > +	for_each_thread(tsk, t)
-> > +		if ((t->flags & PF_MCE_PROCESS) && (t->flags & PF_MCE_EARLY))
-> > +			goto found;
-> > +	t = NULL;
-> > +found:
-> > +	rcu_read_unlock();
-> > +	return t;
-> > +}
-> > +
-> > +/*
-> > + * Determine whether a given process is "early kill" process which expects
-> > + * to be signaled when some page under the process is hwpoisoned.
-> > + * Return task_struct of the dedicated thread (main thread unless explicitly
-> > + * specified) if the process is "early kill," and otherwise returns NULL.
-> > + */
-> > +static struct task_struct *task_early_kill(struct task_struct *tsk,
-> > +					   int force_early)
-> >  {
-> > +	struct task_struct *t;
-> >  	if (!tsk->mm)
-> > -		return 0;
-> > +		return NULL;
-> >  	if (force_early)
-> > -		return 1;
-> > -	if (tsk->flags & PF_MCE_PROCESS)
-> > -		return !!(tsk->flags & PF_MCE_EARLY);
-> > -	return sysctl_memory_failure_early_kill;
-> > +		return tsk;
-> > +	t = find_early_kill_thread(tsk);
-> > +	if (t)
-> > +		return t;
-> > +	if (sysctl_memory_failure_early_kill)
-> > +		return tsk;
-> > +	return NULL;
-> >  }
-> 
-> The above two functions are to be called under
-> read_lock(tasklist_lock), which is rather important...
-> 
-> Given this requirement, did find_early_kill_thread() need rcu_read_lock()?
+Currently, there are two users on CMA functionality, one is the DMA
+subsystem and the other is the kvm on powerpc. They have their own code
+to manage CMA reserved area even if they looks really similar.
+>From my guess, it is caused by some needs on bitmap management. Kvm side
+wants to maintain bitmap not for 1 page, but for more size. Eventually it
+use bitmap where one bit represents 64 pages.
 
-Right, we don't need this rcu_read_lock(). The following hunk should fix it.
+When I implement CMA related patches, I should change those two places
+to apply my change and it seem to be painful to me. I want to change
+this situation and reduce future code management overhead through
+this patch.
 
-Thanks,
-Naoya Horiguchi
+This change could also help developer who want to use CMA in their
+new feature development, since they can use CMA easily without
+copying & pasting this reserved area management code.
 
-diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-index b0f48e34dec5..6fdc9a2eeb2f 100644
---- a/mm/memory-failure.c
-+++ b/mm/memory-failure.c
-@@ -297,18 +297,17 @@ struct to_kill {
-  * Find a dedicated thread which is supposed to handle SIGBUS(BUS_MCEERR_AO)
-  * on behalf of the thread group. Return task_struct of the (first found)
-  * dedicated thread if found, and return NULL otherwise.
-+ *
-+ * We already hold read_lock(&tasklist_lock) in the caller, so we don't
-+ * have to call rcu_read_lock/unlock() in this function.
-  */
- static struct task_struct *find_early_kill_thread(struct task_struct *tsk)
- {
- 	struct task_struct *t;
--	rcu_read_lock();
- 	for_each_thread(tsk, t)
- 		if ((t->flags & PF_MCE_PROCESS) && (t->flags & PF_MCE_EARLY))
--			goto found;
--	t = NULL;
--found:
--	rcu_read_unlock();
--	return t;
-+			return t;
-+	return NULL;
- }
- 
- /*
+Now, we are in merge window, so this is not for merging. I'd like to
+listen opinion from people who related to this stuff before actually
+trying to merge this patchset. If all agree with this change, I will
+resend it after rc1.
+
+Thanks.
+
+Joonsoo Kim (3):
+  CMA: generalize CMA reserved area management functionality
+  DMA, CMA: use general CMA reserved area management framework
+  PPC, KVM, CMA: use general CMA reserved area management framework
+
+ arch/powerpc/kvm/book3s_hv_builtin.c |   17 +-
+ arch/powerpc/kvm/book3s_hv_cma.c     |  240 -------------------------
+ arch/powerpc/kvm/book3s_hv_cma.h     |   27 ---
+ drivers/base/Kconfig                 |   10 --
+ drivers/base/dma-contiguous.c        |  230 ++----------------------
+ include/linux/cma.h                  |   28 +++
+ include/linux/dma-contiguous.h       |    7 +-
+ mm/Kconfig                           |   11 ++
+ mm/Makefile                          |    1 +
+ mm/cma.c                             |  329 ++++++++++++++++++++++++++++++++++
+ 10 files changed, 396 insertions(+), 504 deletions(-)
+ delete mode 100644 arch/powerpc/kvm/book3s_hv_cma.c
+ delete mode 100644 arch/powerpc/kvm/book3s_hv_cma.h
+ create mode 100644 include/linux/cma.h
+ create mode 100644 mm/cma.c
+
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
