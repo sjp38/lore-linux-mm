@@ -1,44 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f171.google.com (mail-we0-f171.google.com [74.125.82.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 217E16B004D
-	for <linux-mm@kvack.org>; Tue,  3 Jun 2014 03:02:26 -0400 (EDT)
-Received: by mail-we0-f171.google.com with SMTP id w62so6320317wes.16
-        for <linux-mm@kvack.org>; Tue, 03 Jun 2014 00:02:25 -0700 (PDT)
-Received: from mail-wg0-x22b.google.com (mail-wg0-x22b.google.com [2a00:1450:400c:c00::22b])
-        by mx.google.com with ESMTPS id bf3si30386896wjc.6.2014.06.03.00.02.23
+Received: from mail-ie0-f171.google.com (mail-ie0-f171.google.com [209.85.223.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 356236B0069
+	for <linux-mm@kvack.org>; Tue,  3 Jun 2014 03:31:21 -0400 (EDT)
+Received: by mail-ie0-f171.google.com with SMTP id to1so5579862ieb.16
+        for <linux-mm@kvack.org>; Tue, 03 Jun 2014 00:31:20 -0700 (PDT)
+Received: from mail-pb0-x230.google.com (mail-pb0-x230.google.com [2607:f8b0:400e:c01::230])
+        by mx.google.com with ESMTPS id y7si29615311ici.21.2014.06.03.00.31.20
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 03 Jun 2014 00:02:24 -0700 (PDT)
-Received: by mail-wg0-f43.google.com with SMTP id l18so6257322wgh.14
-        for <linux-mm@kvack.org>; Tue, 03 Jun 2014 00:02:23 -0700 (PDT)
-From: Michal Nazarewicz <mina86@mina86.com>
-Subject: Re: [RFC PATCH 3/3] PPC, KVM, CMA: use general CMA reserved area management framework
-In-Reply-To: <1401757919-30018-4-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1401757919-30018-1-git-send-email-iamjoonsoo.kim@lge.com> <1401757919-30018-4-git-send-email-iamjoonsoo.kim@lge.com>
-Date: Tue, 03 Jun 2014 09:02:17 +0200
-Message-ID: <xa1ttx82jx1i.fsf@mina86.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+        Tue, 03 Jun 2014 00:31:20 -0700 (PDT)
+Received: by mail-pb0-f48.google.com with SMTP id rr13so5126837pbb.7
+        for <linux-mm@kvack.org>; Tue, 03 Jun 2014 00:31:19 -0700 (PDT)
+From: Chen Yucong <slaoub@gmail.com>
+Subject: [PATCH] HWPOISON: Fix the handling path of the victimized page frame that belong to non-LUR
+Date: Tue,  3 Jun 2014 15:29:42 +0800
+Message-Id: <1401780582-9477-1-git-send-email-slaoub@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: Minchan Kim <minchan@kernel.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Paolo Bonzini <pbonzini@redhat.com>, Gleb Natapov <gleb@kernel.org>, Alexander Graf <agraf@suse.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, kvm@vger.kernel.org, kvm-ppc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
+To: n-horiguchi@ah.jp.nec.com
+Cc: ak@linux.intel.com, fengguang.wu@intel.com, linux-mm@kvack.org, Chen Yucong <slaoub@gmail.com>
 
-On Tue, Jun 03 2014, Joonsoo Kim wrote:
-> Now, we have general CMA reserved area management framework,
-> so use it for future maintainabilty. There is no functional change.
->
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Until now, the kernel has the same policy to handle victimized page frames that
+belong to kernel-space(reserved/slab-subsystem) or non-LRU(unknown page state).
+In other word, the result of handling either of these victimized page frames is
+(IGNORED | FAILED), and the return value of memory_failure() is -EBUSY.
 
-Acked-by: Michal Nazarewicz <mina86@mina86.com>
+This patch is to avoid that memory_failure() returns very soon due to the "true"
+value of (!PageLRU(p)), and it also ensures that action_result() can report more
+precise information("reserved kernel",  "kernel slab", and "unknown page state")
+instead of "non LRU", especially for memory errors which are detected by memory-scrubbing.
 
---=20
-Best regards,                                         _     _
-.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
-..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz   =
- (o o)
-ooo +--<mpn@google.com>--<xmpp:mina86@jabber.org>--ooO--(_)--Ooo--
+Signed-off-by: Chen Yucong <slaoub@gmail.com>
+---
+ mm/memory-failure.c |    5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+index e3154d9..39daadc 100644
+--- a/mm/memory-failure.c
++++ b/mm/memory-failure.c
+@@ -862,7 +862,7 @@ static int hwpoison_user_mappings(struct page *p, unsigned long pfn,
+ 	struct page *hpage = *hpagep;
+ 	struct page *ppage;
+ 
+-	if (PageReserved(p) || PageSlab(p))
++	if (PageReserved(p) || PageSlab(p) || !PageLRU(p))
+ 		return SWAP_SUCCESS;
+ 
+ 	/*
+@@ -1126,9 +1126,6 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
+ 					action_result(pfn, "free buddy, 2nd try", DELAYED);
+ 				return 0;
+ 			}
+-			action_result(pfn, "non LRU", IGNORED);
+-			put_page(p);
+-			return -EBUSY;
+ 		}
+ 	}
+ 
+-- 
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
