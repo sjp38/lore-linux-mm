@@ -1,42 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f52.google.com (mail-qa0-f52.google.com [209.85.216.52])
-	by kanga.kvack.org (Postfix) with ESMTP id EA3226B0031
-	for <linux-mm@kvack.org>; Tue,  3 Jun 2014 16:08:14 -0400 (EDT)
-Received: by mail-qa0-f52.google.com with SMTP id cm18so5807083qab.11
-        for <linux-mm@kvack.org>; Tue, 03 Jun 2014 13:08:14 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id 110si446067qgv.9.2014.06.03.13.08.14
-        for <linux-mm@kvack.org>;
-        Tue, 03 Jun 2014 13:08:14 -0700 (PDT)
-Message-ID: <538e2b2e.f71a8c0a.39c7.ffffaa98SMTPIN_ADDED_BROKEN@mx.google.com>
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [PATCH -mm] mincore: apply page table walker on do_mincore() (Re: [PATCH 00/10] mm: pagewalk: huge page cleanups and VMA passing)
-Date: Tue,  3 Jun 2014 16:08:08 -0400
-In-Reply-To: <538e2996.cd7ae00a.1e64.6067SMTPIN_ADDED_BROKEN@mx.google.com>
-References: <20140602213644.925A26D0@viggo.jf.intel.com> <1401745925-l651h3s9@n-horiguchi@ah.jp.nec.com> <538CF25E.8070905@sr71.net> <1401776292-dn0fof8e@n-horiguchi@ah.jp.nec.com> <538DEFD8.4050506@intel.com> <538e2996.cd7ae00a.1e64.6067SMTPIN_ADDED_BROKEN@mx.google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Received: from mail-la0-f41.google.com (mail-la0-f41.google.com [209.85.215.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 883DA6B0031
+	for <linux-mm@kvack.org>; Tue,  3 Jun 2014 16:18:35 -0400 (EDT)
+Received: by mail-la0-f41.google.com with SMTP id e16so3869152lan.28
+        for <linux-mm@kvack.org>; Tue, 03 Jun 2014 13:18:34 -0700 (PDT)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id 8si368913laq.40.2014.06.03.13.18.32
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 03 Jun 2014 13:18:33 -0700 (PDT)
+Date: Wed, 4 Jun 2014 00:18:19 +0400
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: Re: [PATCH -mm 8/8] slab: reap dead memcg caches aggressively
+Message-ID: <20140603201817.GE6013@esperanza>
+References: <cover.1401457502.git.vdavydov@parallels.com>
+ <23a736c90a81e13a2252d35d9fc3dc04a9ed7d7c.1401457502.git.vdavydov@parallels.com>
+ <alpine.DEB.2.10.1405300957390.11943@gentwo.org>
+ <20140531111922.GD25076@esperanza>
+ <alpine.DEB.2.10.1406021019350.2987@gentwo.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.10.1406021019350.2987@gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Christoph Lameter <cl@gentwo.org>
+Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, mhocko@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Sorry, I've dropped one important word :(
-
-On Tue, Jun 03, 2014 at 04:01:17PM -0400, Naoya Horiguchi wrote:
-...
-> > I'd argue that they don't really ever need to actually know at which
-> > level they are in the page tables, just if they are at the bottom or
-> > not.  Note that *NOBODY* sets a pud or pgd entry.  That's because the
-> > walkers are 100% concerned about leaf nodes (pte's) at this point.
+On Mon, Jun 02, 2014 at 10:24:09AM -0500, Christoph Lameter wrote:
+> On Sat, 31 May 2014, Vladimir Davydov wrote:
 > 
-> Yes. BTW do you think we should pud_entry() and pgd_entry() immediately?
-                                 ^remove
+> > > You can use a similar approach than in SLUB. Reduce the size of the per
+> > > cpu array objects to zero. Then SLAB will always fall back to its slow
+> > > path in cache_flusharray() where you may be able to do something with less
+> > > of an impact on performace.
+> >
+> > In contrast to SLUB, for SLAB this will slow down kfree significantly.
+> 
+> But that is only when you want to destroy a cache. This is similar.
 
-> We can do it and it reduces some trivial evaluations, so it's optimized
-> a little.
+When we want to destroy a memcg cache, there can be really a lot of
+objects allocated from it, e.g. gigabytes of inodes and dentries. That's
+why I think we should avoid any performance degradations if possible.
+
+> 
+> > Fast path for SLAB is just putting an object to a per cpu array, while
+> > the slow path requires taking a per node lock, which is much slower even
+> > with no contention. There still can be lots of objects in a dead memcg
+> > cache (e.g. hundreds of megabytes of dcache), so such performance
+> > degradation is not acceptable, IMO.
+> 
+> I am not sure that there is such a stark difference to SLUB. SLUB also
+> takes the per node lock if necessary to handle freeing especially if you
+> zap the per cpu partial slab pages.
+
+Hmm, for SLUB we will only take the node lock for inserting a slab on
+the partial list, while for SLAB disabling per-cpu arrays will result in
+taking the lock on each object free. So if there are only several
+objects per slab, the difference won't be huge, otherwise the slow down
+will be noticeable for SLAB, but not for SLUB.
+
+I'm not that sure that we should prefer one way over another though. I
+just think that if we already have periodic reaping for SLAB, why not
+employ it for reaping dead memcg caches too, provided it won't obfuscate
+the code? Anyway, if you think that we can neglect possible performance
+degradation that will result from disabling per cpu caches for SLAB, I
+can give it a try.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
