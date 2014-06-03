@@ -1,85 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oa0-f46.google.com (mail-oa0-f46.google.com [209.85.219.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 1C2516B00A8
-	for <linux-mm@kvack.org>; Mon,  2 Jun 2014 20:27:25 -0400 (EDT)
-Received: by mail-oa0-f46.google.com with SMTP id g18so5427980oah.19
-        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 17:27:24 -0700 (PDT)
-Received: from mail-ob0-x231.google.com (mail-ob0-x231.google.com [2607:f8b0:4003:c01::231])
-        by mx.google.com with ESMTPS id s3si25694354obd.77.2014.06.02.17.27.24
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 02 Jun 2014 17:27:24 -0700 (PDT)
-Received: by mail-ob0-f177.google.com with SMTP id wp4so5107255obc.8
-        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 17:27:24 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20140424110321.GN26756@n2100.arm.linux.org.uk>
-References: <1397648803-15961-1-git-send-email-steve.capper@linaro.org>
-	<20140424102229.GA28014@linaro.org>
-	<20140424103639.GC19564@arm.com>
-	<20140424104232.GK26756@n2100.arm.linux.org.uk>
-	<CAPvkgC3P8iZp5nECiGHdeGzRwmdh=ouiAREqKwk1tYzZxHTWvg@mail.gmail.com>
-	<20140424110321.GN26756@n2100.arm.linux.org.uk>
-Date: Tue, 3 Jun 2014 03:27:24 +0300
-Message-ID: <CANOLnOODjN1+OjK+M3V3anWZUhaThs6YE_mOHK4uET8xGPJT8Q@mail.gmail.com>
-Subject: Re: [PATCH V2 0/5] Huge pages for short descriptors on ARM
-From: Grazvydas Ignotas <notasas@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Received: from mail-we0-f182.google.com (mail-we0-f182.google.com [74.125.82.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 96C0D6B00AA
+	for <linux-mm@kvack.org>; Mon,  2 Jun 2014 20:34:38 -0400 (EDT)
+Received: by mail-we0-f182.google.com with SMTP id t60so6058404wes.27
+        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 17:34:37 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id la3si28846318wjb.23.2014.06.02.17.34.35
+        for <linux-mm@kvack.org>;
+        Mon, 02 Jun 2014 17:34:36 -0700 (PDT)
+Message-ID: <538d181c.4378c20a.412d.ffffee3fSMTPIN_ADDED_BROKEN@mx.google.com>
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH 01/11] pagewalk: update page table walker core
+Date: Mon,  2 Jun 2014 20:29:22 -0400
+In-Reply-To: <538D0D7E.6000405@intel.com>
+References: <1392068676-30627-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1392068676-30627-2-git-send-email-n-horiguchi@ah.jp.nec.com> <538D0D7E.6000405@intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Russell King - ARM Linux <linux@arm.linux.org.uk>
-Cc: Steve Capper <steve.capper@linaro.org>, Catalin Marinas <Catalin.Marinas@arm.com>, Will Deacon <will.deacon@arm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "gerald.schaefer@de.ibm.com" <gerald.schaefer@de.ibm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Siarhei Siamashka <siarhei.siamashka@gmail.com>
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, Cliff Wickman <cpw@sgi.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Johannes Weiner <hannes@cmpxchg.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Michal Hocko <mhocko@suse.cz>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Pavel Emelyanov <xemul@parallels.com>, Rik van Riel <riel@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-kernel@vger.kernel.org
 
-On Thu, Apr 24, 2014 at 2:03 PM, Russell King - ARM Linux
-<linux@arm.linux.org.uk> wrote:
-> On Thu, Apr 24, 2014 at 11:55:56AM +0100, Steve Capper wrote:
->> On 24 April 2014 11:42, Russell King - ARM Linux <linux@arm.linux.org.uk=
-> wrote:
->> > On Thu, Apr 24, 2014 at 11:36:39AM +0100, Will Deacon wrote:
->> >> I guess I'm after some commitment that this is (a) useful to somebody=
- and
->> >> (b) going to be tested regularly, otherwise it will go the way of thi=
-ngs
->> >> like big-endian, where we end up carrying around code which is broken=
- more
->> >> often than not (although big-endian is more self-contained).
->> >
->> > It may be something worth considering adding to my nightly builder/boo=
-t
->> > testing, but I suspect that's impractical as it probably requires a BE
->> > userspace, which would then mean that the platform can't boot LE.
->> >
->> > I suspect that we will just have to rely on BE users staying around an=
-d
->> > reporting problems when they occur.
->>
->> The huge page support is for standard LE, I think Will was saying that
->> this will be like BE if no-one uses it.
->
-> We're not saying that.
->
-> What we're asking is this: *Who* is using hugepages today?
+On Mon, Jun 02, 2014 at 04:49:18PM -0700, Dave Hansen wrote:
+> On 02/10/2014 01:44 PM, Naoya Horiguchi wrote:
+> > When we try to use multiple callbacks in different levels, skip control is
+> > also important. For example we have thp enabled in normal configuration, and
+> > we are interested in doing some work for a thp. But sometimes we want to
+> > split it and handle as normal pages, and in another time user would handle
+> > both at pmd level and pte level.
+> > What we need is that when we've done pmd_entry() we want to decide whether
+> > to go down to pte level handling based on the pmd_entry()'s result. So this
+> > patch introduces a skip control flag in mm_walk.
+> > We can't use the returned value for this purpose, because we already
+> > defined the meaning of whole range of returned values (>0 is to terminate
+> > page table walk in caller's specific manner, =0 is to continue to walk,
+> > and <0 is to abort the walk in the general manner.)
+> 
+> This seems a bit complicated for a case which doesn't exist in practice
+> in the kernel today.  We don't even *have* a single ->pte_entry handler.
 
-We are using it on opanpandora handheld, it's really useful for doing
-graphics in software. Here are some benchmarks I did some time ago:
-http://lists.infradead.org/pipermail/linux-arm-kernel/2013-February/148835.=
-html
-For example Cortex-A8 only has 32 dTLB entries so they run out pretty
-fast while drawing vertical lines on linear images. And it's not so
-rare thing to do, like for drawing vertical scrollbars.
+Following users have their own pte_entry() by latter part of this patchset:
+- queue_pages_range()
+- mem_cgroup_count_precharge()
+- show_numa_map()
+- pagemap_read()
+- clear_refs_write()
+- show_smap()
+- or1k_dma_alloc()
+- or1k_dma_free()
+- subpage_mark_vma_nohuge
 
-Other people find use for it too, like to get more consistent results
-between benchmark runs:
-http://ssvb.github.io/2013/06/27/fullhd-x11-desktop-performance-of-the-allw=
-inner-a10.html
+>  Everybody just sets ->pmd_entry and does the splitting and handling of
+> individual pte entries in there.
 
-Yes in my case this is niche device and I can keep patching in the
-hugepage support, but mainline support would make life easier and
-would be very much appreciated.
+Walking over every pte entry under some pmd is common task, so if you don't
+have any good reason, we should do it in mm/pagewalk.c side, not in each
+pmd_entry() callback. (Callbacks should focus on their own task.)
 
+>  The only reason it's needed is because
+> of the later patches in the series, which is kinda goofy.
 
---=20
-Gra=C5=BEvydas
+Most of current users use pte_entry() in the latest linux-mm.
+Only few callers (mem_cgroup_move_charge() and force_swapin_readahead())
+make their pmd_entry() handle pte-level walk in their own way.
+
+BTW, we have some potential callers of page table walker which currently
+does page walk completely in their own way. Here's the list:
+- mincore()
+- copy_page_range()
+- remap_pfn_range()        
+- zap_page_range()         
+- free_pgtables()          
+- vmap_page_range_noflush()
+- change_protection_range()
+Yes, my work for cleanuping page table walker is still on the way.
+
+> I'm biased, but I think the abstraction here is done in the wrong place.
+> 
+> Naoya, could you take a looked at the new handler I proposed?  Would
+> that help make this simpler?
+
+I'll look through this series later and I'd like to add some of your
+patches on top of this patchset.
+
+Thanks,
+Naoya Horiguchi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
