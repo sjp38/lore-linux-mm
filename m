@@ -1,57 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f182.google.com (mail-we0-f182.google.com [74.125.82.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 24A836B00BA
-	for <linux-mm@kvack.org>; Mon,  2 Jun 2014 21:15:18 -0400 (EDT)
-Received: by mail-we0-f182.google.com with SMTP id t60so5875763wes.41
-        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 18:15:17 -0700 (PDT)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id g12si25059712wiv.37.2014.06.02.18.15.16
+Received: from mail-ie0-f171.google.com (mail-ie0-f171.google.com [209.85.223.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 636036B00BC
+	for <linux-mm@kvack.org>; Mon,  2 Jun 2014 21:35:05 -0400 (EDT)
+Received: by mail-ie0-f171.google.com with SMTP id to1so5315434ieb.16
+        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 18:35:05 -0700 (PDT)
+Received: from mail-ig0-x236.google.com (mail-ig0-x236.google.com [2607:f8b0:4001:c05::236])
+        by mx.google.com with ESMTPS id h4si28270165ict.19.2014.06.02.18.35.04
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 02 Jun 2014 18:15:16 -0700 (PDT)
-Date: Mon, 2 Jun 2014 21:15:10 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch v2] mm, memcg: periodically schedule when emptying page
- list
-Message-ID: <20140603011510.GO2878@cmpxchg.org>
-References: <alpine.DEB.2.02.1406021612550.6487@chino.kir.corp.google.com>
- <alpine.DEB.2.02.1406021749590.13910@chino.kir.corp.google.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 02 Jun 2014 18:35:04 -0700 (PDT)
+Received: by mail-ig0-f182.google.com with SMTP id uy17so4179133igb.9
+        for <linux-mm@kvack.org>; Mon, 02 Jun 2014 18:35:04 -0700 (PDT)
+Date: Mon, 2 Jun 2014 18:35:02 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH -mm] slab: delete cache from list after __kmem_cache_shutdown
+ succeeds
+In-Reply-To: <1400159291-5330-1-git-send-email-vdavydov@parallels.com>
+Message-ID: <alpine.DEB.2.02.1406021834500.13072@chino.kir.corp.google.com>
+References: <1400159291-5330-1-git-send-email-vdavydov@parallels.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.02.1406021749590.13910@chino.kir.corp.google.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Michal Hocko <mhocko@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Christoph Lameter <cl@linux-foundation.org>, Pekka Enberg <penberg@kernel.org>
 
-On Mon, Jun 02, 2014 at 05:51:25PM -0700, David Rientjes wrote:
-> From: Hugh Dickins <hughd@google.com>
-> 
-> mem_cgroup_force_empty_list() can iterate a large number of pages on an lru and 
-> mem_cgroup_move_parent() doesn't return an errno unless certain criteria, none 
-> of which indicate that the iteration may be taking too long, is met.
-> 
-> We have encountered the following stack trace many times indicating
-> "need_resched set for > 51000020 ns (51 ticks) without schedule", for example:
-> 
-> 	scheduler_tick()
-> 	<timer irq>
-> 	mem_cgroup_move_account+0x4d/0x1d5
-> 	mem_cgroup_move_parent+0x8d/0x109
-> 	mem_cgroup_reparent_charges+0x149/0x2ba
-> 	mem_cgroup_css_offline+0xeb/0x11b
-> 	cgroup_offline_fn+0x68/0x16b
-> 	process_one_work+0x129/0x350
-> 
-> If this iteration is taking too long, we still need to do cond_resched() even 
-> when an individual page is not busy.
-> 
-> [rientjes@google.com: changelog]
-> Signed-off-by: Hugh Dickins <hughd@google.com>
-> Signed-off-by: David Rientjes <rientjes@google.com>
+On Thu, 15 May 2014, Vladimir Davydov wrote:
 
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+> Currently, on kmem_cache_destroy we delete the cache from the slab_list
+> before __kmem_cache_shutdown, inserting it back to the list on failure.
+> Initially, this was done, because we could release the slab_mutex in
+> __kmem_cache_shutdown to delete sysfs slub entry, but since commit
+> 41a212859a4d ("slub: use sysfs'es release mechanism for kmem_cache") we
+> remove sysfs entry later in kmem_cache_destroy after dropping the
+> slab_mutex, so that no implementation of __kmem_cache_shutdown can ever
+> release the lock. Therefore we can simplify the code a bit by moving
+> list_del after __kmem_cache_shutdown.
+> 
+> Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
+
+Acked-by: David Rientjes <rientjes@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
