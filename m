@@ -1,87 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f171.google.com (mail-ie0-f171.google.com [209.85.223.171])
-	by kanga.kvack.org (Postfix) with ESMTP id B9C196B0036
-	for <linux-mm@kvack.org>; Tue,  3 Jun 2014 11:19:58 -0400 (EDT)
-Received: by mail-ie0-f171.google.com with SMTP id to1so6145111ieb.30
-        for <linux-mm@kvack.org>; Tue, 03 Jun 2014 08:19:58 -0700 (PDT)
-Received: from mail-ie0-x235.google.com (mail-ie0-x235.google.com [2607:f8b0:4001:c03::235])
-        by mx.google.com with ESMTPS id q9si1369787icv.107.2014.06.03.08.19.57
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 190606B0031
+	for <linux-mm@kvack.org>; Tue,  3 Jun 2014 11:43:49 -0400 (EDT)
+Received: by mail-wi0-f182.google.com with SMTP id r20so6715376wiv.15
+        for <linux-mm@kvack.org>; Tue, 03 Jun 2014 08:43:46 -0700 (PDT)
+Received: from mail-we0-x231.google.com (mail-we0-x231.google.com [2a00:1450:400c:c03::231])
+        by mx.google.com with ESMTPS id vr10si33149410wjc.65.2014.06.03.08.43.45
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 03 Jun 2014 08:19:57 -0700 (PDT)
-Received: by mail-ie0-f181.google.com with SMTP id rp18so6080745iec.40
-        for <linux-mm@kvack.org>; Tue, 03 Jun 2014 08:19:57 -0700 (PDT)
+        Tue, 03 Jun 2014 08:43:46 -0700 (PDT)
+Received: by mail-we0-f177.google.com with SMTP id x48so6898466wes.22
+        for <linux-mm@kvack.org>; Tue, 03 Jun 2014 08:43:45 -0700 (PDT)
+Date: Tue, 3 Jun 2014 17:43:42 +0200
+From: Frederic Weisbecker <fweisbec@gmail.com>
+Subject: Re: [PATCH] vmstat: on demand updates from differentials V7
+Message-ID: <20140603154339.GE23860@localhost.localdomain>
+References: <alpine.DEB.2.10.1405291453260.2899@gentwo.org>
+ <20140530000610.GB25555@localhost.localdomain>
+ <alpine.DEB.2.10.1405300851490.8240@gentwo.org>
 MIME-Version: 1.0
-In-Reply-To: <20140603141138.GH16741@pengutronix.de>
-References: <20140429100028.GH28564@pengutronix.de>
-	<20140602085150.GA31147@pengutronix.de>
-	<538DBC3F.9060207@uclinux.org>
-	<20140603141138.GH16741@pengutronix.de>
-Date: Tue, 3 Jun 2014 17:19:56 +0200
-Message-ID: <CAMuHMdXpOcWhsjMRaW6YVeK4g-QJN7WNkRHD+q4==GkBPp5=0w@mail.gmail.com>
-Subject: Re: TASK_SIZE for !MMU
-From: Geert Uytterhoeven <geert@linux-m68k.org>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.10.1405300851490.8240@gentwo.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?UTF-8?Q?Uwe_Kleine=2DK=C3=B6nig?= <u.kleine-koenig@pengutronix.de>
-Cc: Greg Ungerer <gerg@uclinux.org>, Rabin Vincent <rabin@rab.in>, Will Deacon <will.deacon@arm.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-xtensa@linux-xtensa.org" <linux-xtensa@linux-xtensa.org>, linux-m32r@ml.linux-m32r.org, linux-c6x-dev@linux-c6x.org, microblaze-uclinux@itee.uq.edu.au, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, David Howells <dhowells@redhat.com>, Linux MM <linux-mm@kvack.org>, linux-m68k <linux-m68k@lists.linux-m68k.org>, Sascha Hauer <kernel@pengutronix.de>, "uclinux-dist-devel@blackfin.uclinux.org" <uclinux-dist-devel@blackfin.uclinux.org>, Andrew Morton <akpm@linux-foundation.org>, panchaxari <panchaxari.prasannamurthy@linaro.org>, Linus Walleij <linus.walleij@linaro.org>
+To: Christoph Lameter <cl@gentwo.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Gilad Ben-Yossef <gilad@benyossef.com>, Thomas Gleixner <tglx@linutronix.de>, Tejun Heo <tj@kernel.org>, John Stultz <johnstul@us.ibm.com>, Hakan Akkan <hakanakkan@gmail.com>, Max Krasnyansky <maxk@qualcomm.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hughd@google.com, viresh.kumar@linaro.org, hpa@zytor.com, mingo@kernel.org, peterz@infradead.org, Mike Frysinger <vapier@gentoo.org>, Minchan Kim <minchan.kim@gmail.com>
 
-On Tue, Jun 3, 2014 at 4:11 PM, Uwe Kleine-K=C3=B6nig
-<u.kleine-koenig@pengutronix.de> wrote:
->> I did that same change for m68k in commit cc24c40 ("m68knommu: remove
->> size limit on non-MMU TASK_SIZE"). For similar reasons as you need to
->> now.
-> ok.
->
->> >>Thoughts?
->> >The problem is that current linus/master (and also next) doesn't boot o=
-n
->> >my ARM-nommu machine because the user string functions (strnlen_user,
->> >strncpy_from_user et al.) refuse to work on strings above TASK_SIZE
->> >which in my case also includes the XIP kernel image.
->>
->> I seem to recall that we were not considering flash or anything else
->> other than RAM when defining that original TASK_SIZE (back many, many
->> years ago). Some of the address checks you list above made some sense
->> if you had everything in RAM (though only upper bounds are checked).
->> The thinking was some checking is better than none I suppose.
-> What is the actual meaning of TASK_SIZE? The maximal value of a valid
-> userspace address?
+On Fri, May 30, 2014 at 08:52:42AM -0500, Christoph Lameter wrote:
+> On Fri, 30 May 2014, Frederic Weisbecker wrote:
+> 
+> > > +	cpu_stat_off = kmalloc(cpumask_size(), GFP_KERNEL);
+> > > +	cpumask_copy(cpu_stat_off, cpu_online_mask);
+> >
+> > Actually looks like you can as well remove that cpumask and use
+> > cpu_online_mask directly.
+> 
+> That would mean I would offline cpus that do not need the
+> vmstat worker?
 
-Yes
-
-$ git show cc24c40
-commit cc24c405949e3d4418a90014d10166679d78141a
-Author: Greg Ungerer <gerg@uclinux.org>
-Date:   Mon May 24 11:22:05 2010 +1000
-
-    m68knommu: remove size limit on non-MMU TASK_SIZE
-
-    The TASK_SIZE define is used in some places as a limit on the size of
-    the virtual address space of a process. On non-MMU systems those addres=
-ses
-    used in comparison will be physical addresses, and they could be anywhe=
-re
-    in the 32bit physical address space. So for !CONFIG_MMU systems set the
-    TASK_SIZE to the maximum physical address.
-
-    Signed-off-by: Greg Ungerer <gerg@uclinux.org>
-
-Gr{oetje,eeting}s,
-
-                        Geert
-
---
-Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k=
-.org
-
-In personal conversations with technical people, I call myself a hacker. Bu=
-t
-when I'm talking to journalists I just say "programmer" or something like t=
-hat.
-                                -- Linus Torvalds
+I missed that works adaptively set or clear cpus from the mask. Nevermind,
+just ignore what I said.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
