@@ -1,250 +1,182 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C97A6B0037
-	for <linux-mm@kvack.org>; Wed,  4 Jun 2014 10:47:03 -0400 (EDT)
-Received: by mail-wi0-f176.google.com with SMTP id n15so8703682wiw.3
-        for <linux-mm@kvack.org>; Wed, 04 Jun 2014 07:47:03 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i8si35130564wiv.41.2014.06.04.07.47.01
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 116F66B0037
+	for <linux-mm@kvack.org>; Wed,  4 Jun 2014 10:56:36 -0400 (EDT)
+Received: by mail-wi0-f182.google.com with SMTP id r20so1650284wiv.3
+        for <linux-mm@kvack.org>; Wed, 04 Jun 2014 07:56:35 -0700 (PDT)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id eu11si5136805wjc.119.2014.06.04.07.56.30
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 04 Jun 2014 07:47:01 -0700 (PDT)
-Date: Wed, 4 Jun 2014 16:46:58 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH v2 0/4] memcg: Low-limit reclaim
-Message-ID: <20140604144658.GB17612@dhcp22.suse.cz>
-References: <1398688005-26207-1-git-send-email-mhocko@suse.cz>
- <20140528121023.GA10735@dhcp22.suse.cz>
- <20140528134905.GF2878@cmpxchg.org>
- <20140528142144.GL9895@dhcp22.suse.cz>
- <20140528152854.GG2878@cmpxchg.org>
- <20140528155414.GN9895@dhcp22.suse.cz>
- <20140528163335.GI2878@cmpxchg.org>
- <20140603110743.GD1321@dhcp22.suse.cz>
- <20140603142249.GP2878@cmpxchg.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 04 Jun 2014 07:56:30 -0700 (PDT)
+Date: Wed, 4 Jun 2014 10:56:10 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] mm: page_alloc: Reset fair zone allocation policy only
+ when batch counts are expired
+Message-ID: <20140604145610.GS2878@cmpxchg.org>
+References: <20140529090432.GY23991@suse.de>
+ <20140529143832.GJ2878@cmpxchg.org>
+ <20140529171608.GB23991@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140603142249.GP2878@cmpxchg.org>
+In-Reply-To: <20140529171608.GB23991@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, Tejun Heo <tj@kernel.org>, Hugh Dickins <hughd@google.com>, Roman Gushchin <klamm@yandex-team.ru>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Hugh Dickins <hughd@google.com>, Rik van Riel <riel@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Linux-FSDevel <linux-fsdevel@vger.kernel.org>
 
-On Tue 03-06-14 10:22:49, Johannes Weiner wrote:
-> On Tue, Jun 03, 2014 at 01:07:43PM +0200, Michal Hocko wrote:
-[...]
-> > If we consider that memcg and its limits are not zone aware while the
-> > page allocator and reclaim are zone oriented then I can see a problem
-> > of unexpected reclaim failure although there is no over commit on the
-> > low_limit globally. And we do not have in-kernel effective measures to
-> > mitigate this inherent problem. At least not now and I am afraid it is
-> > a long route to have something that would work reasonably well in such
-> > cases.
-> 
-> Which "inherent problem"?
-
-zone unawareness of the limit vs. allocation/reclaim which are zone
-oriented.
- 
-> > So to me it sounds more responsible to promise only as much as we can
-> > handle. I think that fallback mode is not crippling the semantic of
-> > the knob as it triggers only for limit overcommit or strange corner
-> > cases. We have agreed that we do not care about the first one and
-> > handling the later one by potentially fatal action doesn't sounds very
-> > user friendly to me.
-> 
-> It *absolutely* cripples the semantics.  Think about the security use
-> cases of mlock for example, where certain memory may never hit the
-> platter.  This wouldn't be possible with your watered down guarantees.
-
-Is this really a use case? It sounds like a weak one to me. Because
-any sudden memory consumption above the limit can reclaim your
-to-protect-page it will hit the platter and you cannot do anything about
-this. So yeah, this is not mlock.
-
-> And it's the user who makes the promise, not us.  I'd rather have the
-> responsibility with the user.  Provide mechanism, not policy.
-
-And that user is the application writer, not its administrator. And
-memcg is more of an admin interface than a development API.
-
-> > For example, if we get back to the NUMA case then a graceful fallback
-> > allows to migrate offending tasks off the node and reduce reclaim on the
-> > protected group. This can be done simply by watching the breach counter
-> > and act upon it. On the other hand if the default policy is OOM then
-> > the possible actions are much more reduced (action would have to be
-> > pro-active with hopes that they are faster than OOM).
-> 
-> It's really frustrating that you just repeat arguments to which I
-> already responded.
-
-No you haven't responded. You are dismissing the issue in the first
-place. Can you guarantee that there is no OOM when low_limits do not
-overcommit the machine and node bound tasks live in a group which
-doesn't overcommit the node?
-
-> Again, how is this different from mlock?
-
-Sigh. The first thing is that this is not mlock. You are operating on
-per-group basis. You are running a load which can make its own decisions
-on the NUMA placement etc... With mlock you are explicit about which
-memory is locked (potentially even the placement). So the situation is
-very much different I would say.
-
-> And again, if this really is a problem (which I doubt), we should fix
-> it at the root and implement direct migration, rather than design an
-> interface around it.
-
-Why would we do something like that in the kernel when we have tools to
-migrate tasks from the userspace?
-
-> > > > > > > Stronger is the simpler definition, it's simpler code,
-> > > > > > 
-> > > > > > The code is not really that much simpler. The one you have posted will
-> > > > > > not work I am afraid. I haven't tested it yet but I remember I had to do
-> > > > > > some tweaks to the reclaim path to not end up in an endless loop in the
-> > > > > > direct reclaim (http://marc.info/?l=linux-mm&m=138677140828678&w=2 and
-> > > > > > http://marc.info/?l=linux-mm&m=138677141328682&w=2).
-> > > > > 
-> > > > > That's just a result of do_try_to_free_pages being stupid and using
-> > > > > its own zonelist loop to check reclaimability by duplicating all the
-> > > > > checks instead of properly using returned state of shrink_zones().
-> > > > > Something that would be worth fixing regardless of memcg guarantees.
-> > > > > 
-> > > > > Or maybe we could add the guaranteed lru pages to sc->nr_scanned.
-> > > > 
-> > > > Fixes might be different than what I was proposing previously. I was
-> > > > merely pointing out that removing the retry loop is not sufficient.
-> > > 
-> > > No, you were claiming that the hard limit implementation is not
-> > > simpler.  It is.
+On Thu, May 29, 2014 at 06:16:08PM +0100, Mel Gorman wrote:
+> On Thu, May 29, 2014 at 10:38:32AM -0400, Johannes Weiner wrote:
+> > Hi Mel!
 > > 
-> > Well, there are things you have to check anyway - short loops due to
-> > racing reclaimers and quick priority drop down or even pre-mature OOM
-> > in direct reclaim paths. kswapd shoudn't loop endlessly if it cannot
-> > balance the zone because all groups are withing limit on the node.
-> > So I fail to see it as that much simpler.
-> 
-> Could you please stop with the handwaving?  If there are bugs, we have
-> to fix them.  These pages are unreclaimable, plain and simple, like
-> anon without swap and mlocked pages.  None of this is new.
-
-There is no handwaving. The above two patches describe what I mean.
-You have just thrown a patch to remove retry loop claiming that the code
-is easier that way and I've tried to explain to you that it is not that
-simple. Full stop.
-
-> > Anyway, the complexity of the retry&ignore loop doesn't seem to be
-> > significant enough to dictate the default behavior. We should go with
-> > the one which makes the most sense for users.
-> 
-> The point is that you are adding complexity to weaken the semantics
-> and usefulness of this feature, with the only justification being
-> potential misconfigurations and a
-
-Which misconfiguration are you talking about?
-
-> fear of unearthing kernel bugs.
-
-This is not right! I didn't say I am afraid of bugs. I said that the
-code is complicated enough that seeing all the potential corner cases is
-really hard and so starting with weaker semantic makes some sense.
-
-> This makes little sense for users, and even less sense for us.
-> 
-> > > > > > > your usecases are fine with it,
-> > > > > > 
-> > > > > > my usecases do not overcommit low_limit on the available memory, so far
-> > > > > > so good, but once we hit a corner cases when limits are set properly but
-> > > > > > we end up not being able to reclaim anybody in a zone then OOM sounds
-> > > > > > too brutal.
-> > > > > 
-> > > > > What cornercases?
-> > > > 
-> > > > I have mentioned a case where NUMA placement and specific node bindings
-> > > > interfering with other allocators can end up in unreclaimable zones.
-> > > > While you might disagree about the setup I have seen different things
-> > > > done out there.
+> > On Thu, May 29, 2014 at 10:04:32AM +0100, Mel Gorman wrote:
+> > > The fair zone allocation policy round-robins allocations between zones on
+> > > a node to avoid age inversion problems during reclaim using a counter to
+> > > manage the round-robin. If the first allocation fails, the batch counts get
+> > > reset and the allocation is attempted again before going into the slow path.
+> > > There are at least two problems with this
 > > > 
-> > > If you have real usecases that might depend on weak guarantees, please
-> > > make a rational argument for them and don't just handwave. 
+> > > 1. If the eligible zones are below the low watermark we reset the counts
+> > >    even though the batches might be fine.
 > > 
-> > As I've said above. Usecases I am interested in do not overcommit on
-> > low_limit. The limit is used to protect group(s) from memory pressure
-> > from other loads which are running on the same machine. Primarily
-> > because the working set is quite expensive to build up. If we really
-> > hit a corner case and OOM would trigger then the whole state has to be
-> > rebuilt and that is much more expensive than ephemeral reclaim.
-> 
-> What corner cases?
-
-Seriously? Come on Johannes, try to be little bit constructive.
-
-> > > I know that there is every conceivable configuration out there, but
-> > > it's unreasonable to design new features around the requirement of
-> > > setups that are questionable to begin with.
+> > The idea behind setting the batches to high-low was that they should
+> > be roughly exhausted by the time the low watermark is hit.  And that
+> > misconception must be the crux of this patch, because if they *were*
+> > to exhaust together this patch wouldn't make a difference.
 > > 
-> > I do agree but on the other hand I think we shouldn't ignore inherent
-> > problems which might lead to problems mentioned above and provide an
-> > interface which doesn't cause an unexpected behavior.
+> > But once they diverge, we reset the batches prematurely, which means
+> > not everybody is getting their fair share, and that reverts us back to
+> > an imbalance in zone utilization.
+> > 
+> > So I think the changelog should include why this assumption was wrong.
+> > 
 > 
-> What inherent problems?
+> They won't exhaust together when there are multiple allocation requests
+> simply on the basis that there is no lock there and there is per-cpu
+> accounting drift for vmstats. You'd at least expect them to drift by the
+> per-cpu update threshold.
+
+Yeah, that's true.  I just didn't think it would make such a big
+difference, and the numbers I gathered on my local machines showed
+that allocation distribution was reliably proportional to zone size.
+But it might really depend on the machine, and definitely on the
+workload, which why I was curious about the allocation numbers.
+
+> > > When resetting batch counts, it was expected that the count would be <=
+> > > 0 but the bizarre side-effect is that we are resetting counters that were
+> > > initially postive so (high - low - batch) potentially sets a high positive
+> > > batch count to close to 0. This leads to a premature reset in the near
+> > > future, more overhead and more ... screwing around.
+> > 
+> > We're just adding the missing delta between the "should" and "is"
+> > value to the existing batch, so a high batch value means small delta,
+> > and we *add* a value close to 0, we don't *set* the batch close to 0.
+> > 
+> > I think this one is a red herring as well.
+> > 
 > 
-> > > > Besides that the reclaim logic is complex enough and history thought me
-> > > > that little buggers are hidden at places where you do not expect them.
+> There are still boundary issues that results in screwing around and
+> maybe I should have focused on this one instead. The situation I had in
+> mind started out as follows
+> 
+> high zone alloc batch	1000	low watermark not ok
+> low zone alloc batch	   0	low watermark     ok
+> 
+> during the fairness cycle, no action can take place. The higher zone is not
+> allowed to allcoate at below the low watermark and must always enter the
+> slow path. The lower zone also temporarily cannot be used. At this point, a
+> reset takes place and the system continues until the low watermark is reached
+> 
+> high zone alloc batch	1000	low watermark not ok
+> low zone allooc batch	 100	low watermark not ok
+> 
+> During this window, every ALLOC_FAIR is going to fail to due watermarks but
+> still do another zone batch reset and recycle every time before falling
+> into the slow path.  It ends up being more zonelist traversals which is
+> why I moved the reset check inside get_page_from_freelist to detect the
+> difference between ALLOC_FAIL failures and watermarks failures.
+> 
+> The differences in timing when watermarks are hit may also account for
+> some of the drift for when the alloc batches get depleted.
+
+That makes sense, especially in a highly concurrent workload where the
+batches might be reset over and over between the first allocator
+entering the slowpath and kswapd actually restoring any of the
+watermarks.
+
+> > > The user-visible effect depends on zone sizes and a host of other effects
+> > > the obvious one is that single-node machines with multiple zones will see
+> > > degraded performance for streaming readers at least. The effect is also
+> > > visible on NUMA machines but it may be harder to identify in the midst of
+> > > other noise.
 > > > 
-> > > So we introduce user interfaces designed around the fact that we don't
-> > > trust our own code anymore?
-> > 
-> > No, we are talking about inherent problems here. And my experience
-> > taught me to be careful and corner cases tend to show up in the real
-> > life situations.
-> 
-> I'm not willing to base an interface on this level of vagueness.
-> 
-> > > There is being prudent and then there is cargo cult programming.
+> > > Comparison is tiobench with data size 2*RAM on ext3 on a small single-node
+> > > machine and on an ext3 filesystem. Baseline kernel is mmotm with the
+> > > shrinker and proportional reclaim patches on top.
 > > > 
-> > > > So call me a chicken but I would sleep calmer if we start weaker and add
-> > > > an additional guarantees later when somebody really insists on rseeing
-> > > > an OOM rather than get reclaimed.
-> > > > The proposed counter can tell us more how good we are at not touching
-> > > > groups with the limit and we can eventually debug those corner cases
-> > > > without affecting the loads too much.
+> > >                                       3.15.0-rc5            3.15.0-rc5
+> > >                                   mmotm-20140528         fairzone-v1r1
+> > > Mean   SeqRead-MB/sec-1         120.95 (  0.00%)      133.59 ( 10.45%)
+> > > Mean   SeqRead-MB/sec-2         100.81 (  0.00%)      113.61 ( 12.70%)
+> > > Mean   SeqRead-MB/sec-4          93.75 (  0.00%)      104.75 ( 11.74%)
+> > > Mean   SeqRead-MB/sec-8          85.35 (  0.00%)       91.21 (  6.86%)
+> > > Mean   SeqRead-MB/sec-16         68.91 (  0.00%)       74.77 (  8.49%)
+> > > Mean   RandRead-MB/sec-1          1.08 (  0.00%)        1.07 ( -0.93%)
+> > > Mean   RandRead-MB/sec-2          1.28 (  0.00%)        1.25 ( -2.34%)
+> > > Mean   RandRead-MB/sec-4          1.54 (  0.00%)        1.51 ( -1.73%)
+> > > Mean   RandRead-MB/sec-8          1.67 (  0.00%)        1.70 (  2.20%)
+> > > Mean   RandRead-MB/sec-16         1.74 (  0.00%)        1.73 ( -0.19%)
+> > > Mean   SeqWrite-MB/sec-1        113.73 (  0.00%)      113.88 (  0.13%)
+> > > Mean   SeqWrite-MB/sec-2        103.76 (  0.00%)      104.13 (  0.36%)
+> > > Mean   SeqWrite-MB/sec-4         98.45 (  0.00%)       98.44 ( -0.01%)
+> > > Mean   SeqWrite-MB/sec-8         93.11 (  0.00%)       92.79 ( -0.34%)
+> > > Mean   SeqWrite-MB/sec-16        87.64 (  0.00%)       87.85 (  0.24%)
+> > > Mean   RandWrite-MB/sec-1         1.38 (  0.00%)        1.36 ( -1.21%)
+> > > Mean   RandWrite-MB/sec-2         1.35 (  0.00%)        1.35 (  0.25%)
+> > > Mean   RandWrite-MB/sec-4         1.33 (  0.00%)        1.35 (  1.00%)
+> > > Mean   RandWrite-MB/sec-8         1.31 (  0.00%)        1.29 ( -1.53%)
+> > > Mean   RandWrite-MB/sec-16        1.27 (  0.00%)        1.28 (  0.79%)
 > > > 
-> > > More realistically, potential bugs are never reported with a silent
-> > > counter, which further widens the gap between our assumptions on how
-> > > the VM behaves and what happens in production.
+> > > Streaming readers see a huge boost. Random random readers, sequential
+> > > writers and random writers are all in the noise.
 > > 
-> > OOM driven reports are arguably worse and without easy workaround on the
-> > other hand.
+> > Impressive, but I would really like to understand what's going on
+> > there.
+> > 
+> > Did you record the per-zone allocation numbers by any chance as well,
+> > so we can see the difference in zone utilization?
 > 
-> The workaround is obviously to lower the guarantees and/or fix the
-> NUMA bindings in such cases.
+> No, I didn't record per-zone usage because at the time when the low
+> watermarks are being hit, it would have been less useful anyway.
 
-How? Do not use low_limit on node bound loads? Use cumulative low_limit
-smaller than any node which has bindings? How is the feature still
-useful?
+I just meant the pgalloc_* numbers from /proc/vmstat before and after
+the workload to see if the distribution really runs out of whack and
+are not in proportion to the zone sizes over the course of the load.
 
-> I really don't think you have a point here, because there is not a
-> single concrete example backing up your arguments.
+> > > @@ -1960,11 +1982,13 @@ zonelist_scan:
+> > >  		 * time the page has in memory before being reclaimed.
+> > >  		 */
+> > >  		if (alloc_flags & ALLOC_FAIR) {
+> > > -			if (!zone_local(preferred_zone, zone))
+> > > -				continue;
+> > >  			if (zone_page_state(zone, NR_ALLOC_BATCH) <= 0)
+> > >  				continue;
+> > > +			batch_depleted = false;
+> > > +			if (!zone_local(preferred_zone, zone))
+> > > +				continue;
+> > 
+> > This only resets the local batches once the first non-local zone's
+> > batch is exhausted as well.  Which means that once we start spilling,
+> > the fairness pass will never consider local zones again until the
+> > first spill-over target is exhausted too. 
 > 
-> Please remove the fallback code from your changes.  They weaken the
-> feature and add more complexity without reasonable justification - at
-> least you didn't convince anybody else involved in the discussion.
+> Yes, you're right. The intent was that the reset would only task place
+> after all local zones had used their allocation batch but it got mucked
+> up along the way.
 
-OK, so you are simply ignoring the usecase I've provided to you and then
-claim the usefulness of the OOM default without providing any usecases
-(we are still talking about setups which do not overcommit low_limit).
-
-> Because this is user-visible ABI that we are stuck with once released,
-> the patches should not be merged until we agree on the behavior.
-
-In the other email I have suggested to add a knob with the configurable
-default. Would you be OK with that?
--- 
-Michal Hocko
-SUSE Labs
+I thought this might have been an intentional change as per the NUMA
+spilling behavior mentioned in the changelog.  Very well, then :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
