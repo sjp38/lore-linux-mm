@@ -1,108 +1,250 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f46.google.com (mail-pb0-f46.google.com [209.85.160.46])
-	by kanga.kvack.org (Postfix) with ESMTP id EDF236B0035
-	for <linux-mm@kvack.org>; Wed,  4 Jun 2014 10:46:38 -0400 (EDT)
-Received: by mail-pb0-f46.google.com with SMTP id rq2so7064908pbb.5
-        for <linux-mm@kvack.org>; Wed, 04 Jun 2014 07:46:38 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id oj8si6199596pbb.186.2014.06.04.07.46.36
+Received: from mail-wi0-f176.google.com (mail-wi0-f176.google.com [209.85.212.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C97A6B0037
+	for <linux-mm@kvack.org>; Wed,  4 Jun 2014 10:47:03 -0400 (EDT)
+Received: by mail-wi0-f176.google.com with SMTP id n15so8703682wiw.3
+        for <linux-mm@kvack.org>; Wed, 04 Jun 2014 07:47:03 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id i8si35130564wiv.41.2014.06.04.07.47.01
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 04 Jun 2014 07:46:38 -0700 (PDT)
-Message-ID: <538F3020.6000609@oracle.com>
-Date: Wed, 04 Jun 2014 10:41:36 -0400
-From: Sasha Levin <sasha.levin@oracle.com>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 04 Jun 2014 07:47:01 -0700 (PDT)
+Date: Wed, 4 Jun 2014 16:46:58 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH v2 0/4] memcg: Low-limit reclaim
+Message-ID: <20140604144658.GB17612@dhcp22.suse.cz>
+References: <1398688005-26207-1-git-send-email-mhocko@suse.cz>
+ <20140528121023.GA10735@dhcp22.suse.cz>
+ <20140528134905.GF2878@cmpxchg.org>
+ <20140528142144.GL9895@dhcp22.suse.cz>
+ <20140528152854.GG2878@cmpxchg.org>
+ <20140528155414.GN9895@dhcp22.suse.cz>
+ <20140528163335.GI2878@cmpxchg.org>
+ <20140603110743.GD1321@dhcp22.suse.cz>
+ <20140603142249.GP2878@cmpxchg.org>
 MIME-Version: 1.0
-Subject: mm: NULL ptr deref in anon_vma_fork
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140603142249.GP2878@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Hugh Dickins <hughd@google.com>, Dave Jones <davej@redhat.com>, LKML <linux-kernel@vger.kernel.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, Tejun Heo <tj@kernel.org>, Hugh Dickins <hughd@google.com>, Roman Gushchin <klamm@yandex-team.ru>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>
 
-Hi all,
+On Tue 03-06-14 10:22:49, Johannes Weiner wrote:
+> On Tue, Jun 03, 2014 at 01:07:43PM +0200, Michal Hocko wrote:
+[...]
+> > If we consider that memcg and its limits are not zone aware while the
+> > page allocator and reclaim are zone oriented then I can see a problem
+> > of unexpected reclaim failure although there is no over commit on the
+> > low_limit globally. And we do not have in-kernel effective measures to
+> > mitigate this inherent problem. At least not now and I am afraid it is
+> > a long route to have something that would work reasonably well in such
+> > cases.
+> 
+> Which "inherent problem"?
 
-While fuzzing with trinity inside a KVM tools guest running the latest -next
-kernel I've stumbled on the following spew:
+zone unawareness of the limit vs. allocation/reclaim which are zone
+oriented.
+ 
+> > So to me it sounds more responsible to promise only as much as we can
+> > handle. I think that fallback mode is not crippling the semantic of
+> > the knob as it triggers only for limit overcommit or strange corner
+> > cases. We have agreed that we do not care about the first one and
+> > handling the later one by potentially fatal action doesn't sounds very
+> > user friendly to me.
+> 
+> It *absolutely* cripples the semantics.  Think about the security use
+> cases of mlock for example, where certain memory may never hit the
+> platter.  This wouldn't be possible with your watered down guarantees.
 
-(Note that that what the RIP got translated to seems wrong to me, I'd ignore that
-and look at mm/rmap.c:285 .)
+Is this really a use case? It sounds like a weak one to me. Because
+any sudden memory consumption above the limit can reclaim your
+to-protect-page it will hit the platter and you cannot do anything about
+this. So yeah, this is not mlock.
 
-[11075.253201] BUG: unable to handle kernel NULL pointer dereference at           (null)
-[11075.254437] IP: anon_vma_clone (mm/rmap.c:1768)
-[11075.255384] PGD 7a9616067 PUD 7932e0067 PMD 0
-[11075.256150] Oops: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
-[11075.258315] Dumping ftrace buffer:
-[11075.260035]    (ftrace buffer empty)
-[11075.260035] Modules linked in:
-[11075.260035] CPU: 26 PID: 13162 Comm: timeout3 Tainted: G    B   W     3.15.0-rc8-next-20140603-sasha-00019-ge0df846-dirty #589
-[11075.260035] task: ffff8807a7b83000 ti: ffff8807931cc000 task.ti: ffff8807931cc000
-[11075.260035] RIP: anon_vma_clone (mm/rmap.c:1768)
-[11075.260035] RSP: 0018:ffff8807931cfcf0  EFLAGS: 00010282
-[11075.260035] RAX: ffff880da9d137c8 RBX: ffff8807a96a9200 RCX: 0000000000000200
-[11075.260035] RDX: 0000000000000001 RSI: 0000000000000050 RDI: ffff880da9d137c8
-[11075.260035] RBP: ffff8807931cfd30 R08: ffff880da9d10ff0 R09: 0000000000000000
-[11075.260035] R10: 0000000000000000 R11: 0000000000000000 R12: ffff8807aa9f8000
-[11075.260035] R13: ffff8807a96a9200 R14: ffff880da9d137c8 R15: 0000000000000000
-[11075.260035] FS:  00007f58eed93700(0000) GS:ffff880dabc00000(0000) knlGS:0000000000000000
-[11075.260035] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-[11075.260035] CR2: 0000000000000000 CR3: 00000007932dd000 CR4: 00000000000006a0
-[11075.260035] DR0: 00000000006d6000 DR1: 0000000000000000 DR2: 0000000000000000
-[11075.260035] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000600
-[11075.260035] Stack:
-[11075.260035]  ffff880da9958800 ffff8807a99b2c78 ffff8807931cfd60 ffff880daa5c3000
-[11075.260035]  ffff8807a99b2c00 ffff880da9958800 00007f58eed939d0 ffff8807a99b2c00
-[11075.260035]  ffff8807931cfd60 ffffffffa62cb318 ffff880daa5c3000 ffff880da9958800
-[11075.260035] Call Trace:
-[11075.260035] anon_vma_fork (mm/rmap.c:285)
-[11075.260035] copy_process (kernel/fork.c:410 kernel/fork.c:835 kernel/fork.c:898 kernel/fork.c:1346)
-[11075.260035] ? trace_hardirqs_off_caller (kernel/locking/lockdep.c:2619)
-[11075.260035] do_fork (kernel/fork.c:1607)
-[11075.260035] ? get_parent_ip (kernel/sched/core.c:2519)
-[11075.260035] ? context_tracking_user_exit (./arch/x86/include/asm/paravirt.h:809 (discriminator 2) kernel/context_tracking.c:182 (discriminator 2))
-[11075.260035] ? trace_hardirqs_on_caller (kernel/locking/lockdep.c:2564)
-[11075.260035] ? trace_hardirqs_on (kernel/locking/lockdep.c:2607)
-[11075.260035] SyS_clone (kernel/fork.c:1693)
-[11075.260035] stub_clone (arch/x86/kernel/entry_64.S:637)
-[11075.260035] ? tracesys (arch/x86/kernel/entry_64.S:542)
-[11075.260035] Code: b2 db 43 07 be d0 00 00 00 e8 18 48 02 00 48 85 c0 49 89 c6 0f 85 a7 00 00 00 e9 7f 00 00 00 0f 1f 80 00 00 00 00 4d 8b 7c 24 08 <49> 8b 1f 4c 39 eb 74 37 4d 85 ed 74 26 80 3d 7a 5b ec 05 00 75
-All code
-========
-   0:	b2 db                	mov    $0xdb,%dl
-   2:	43 07                	rex.XB (bad)
-   4:	be d0 00 00 00       	mov    $0xd0,%esi
-   9:	e8 18 48 02 00       	callq  0x24826
-   e:	48 85 c0             	test   %rax,%rax
-  11:	49 89 c6             	mov    %rax,%r14
-  14:	0f 85 a7 00 00 00    	jne    0xc1
-  1a:	e9 7f 00 00 00       	jmpq   0x9e
-  1f:	0f 1f 80 00 00 00 00 	nopl   0x0(%rax)
-  26:	4d 8b 7c 24 08       	mov    0x8(%r12),%r15
-  2b:*	49 8b 1f             	mov    (%r15),%rbx		<-- trapping instruction
-  2e:	4c 39 eb             	cmp    %r13,%rbx
-  31:	74 37                	je     0x6a
-  33:	4d 85 ed             	test   %r13,%r13
-  36:	74 26                	je     0x5e
-  38:	80 3d 7a 5b ec 05 00 	cmpb   $0x0,0x5ec5b7a(%rip)        # 0x5ec5bb9
-  3f:	75 00                	jne    0x41
+> And it's the user who makes the promise, not us.  I'd rather have the
+> responsibility with the user.  Provide mechanism, not policy.
 
-Code starting with the faulting instruction
-===========================================
-   0:	49 8b 1f             	mov    (%r15),%rbx
-   3:	4c 39 eb             	cmp    %r13,%rbx
-   6:	74 37                	je     0x3f
-   8:	4d 85 ed             	test   %r13,%r13
-   b:	74 26                	je     0x33
-   d:	80 3d 7a 5b ec 05 00 	cmpb   $0x0,0x5ec5b7a(%rip)        # 0x5ec5b8e
-  14:	75 00                	jne    0x16
-[11075.260035] RIP anon_vma_clone (mm/rmap.c:1768)
-[11075.260035]  RSP <ffff8807931cfcf0>
-[11075.260035] CR2: 0000000000000000
+And that user is the application writer, not its administrator. And
+memcg is more of an admin interface than a development API.
 
+> > For example, if we get back to the NUMA case then a graceful fallback
+> > allows to migrate offending tasks off the node and reduce reclaim on the
+> > protected group. This can be done simply by watching the breach counter
+> > and act upon it. On the other hand if the default policy is OOM then
+> > the possible actions are much more reduced (action would have to be
+> > pro-active with hopes that they are faster than OOM).
+> 
+> It's really frustrating that you just repeat arguments to which I
+> already responded.
 
-Thanks,
-Sasha
+No you haven't responded. You are dismissing the issue in the first
+place. Can you guarantee that there is no OOM when low_limits do not
+overcommit the machine and node bound tasks live in a group which
+doesn't overcommit the node?
+
+> Again, how is this different from mlock?
+
+Sigh. The first thing is that this is not mlock. You are operating on
+per-group basis. You are running a load which can make its own decisions
+on the NUMA placement etc... With mlock you are explicit about which
+memory is locked (potentially even the placement). So the situation is
+very much different I would say.
+
+> And again, if this really is a problem (which I doubt), we should fix
+> it at the root and implement direct migration, rather than design an
+> interface around it.
+
+Why would we do something like that in the kernel when we have tools to
+migrate tasks from the userspace?
+
+> > > > > > > Stronger is the simpler definition, it's simpler code,
+> > > > > > 
+> > > > > > The code is not really that much simpler. The one you have posted will
+> > > > > > not work I am afraid. I haven't tested it yet but I remember I had to do
+> > > > > > some tweaks to the reclaim path to not end up in an endless loop in the
+> > > > > > direct reclaim (http://marc.info/?l=linux-mm&m=138677140828678&w=2 and
+> > > > > > http://marc.info/?l=linux-mm&m=138677141328682&w=2).
+> > > > > 
+> > > > > That's just a result of do_try_to_free_pages being stupid and using
+> > > > > its own zonelist loop to check reclaimability by duplicating all the
+> > > > > checks instead of properly using returned state of shrink_zones().
+> > > > > Something that would be worth fixing regardless of memcg guarantees.
+> > > > > 
+> > > > > Or maybe we could add the guaranteed lru pages to sc->nr_scanned.
+> > > > 
+> > > > Fixes might be different than what I was proposing previously. I was
+> > > > merely pointing out that removing the retry loop is not sufficient.
+> > > 
+> > > No, you were claiming that the hard limit implementation is not
+> > > simpler.  It is.
+> > 
+> > Well, there are things you have to check anyway - short loops due to
+> > racing reclaimers and quick priority drop down or even pre-mature OOM
+> > in direct reclaim paths. kswapd shoudn't loop endlessly if it cannot
+> > balance the zone because all groups are withing limit on the node.
+> > So I fail to see it as that much simpler.
+> 
+> Could you please stop with the handwaving?  If there are bugs, we have
+> to fix them.  These pages are unreclaimable, plain and simple, like
+> anon without swap and mlocked pages.  None of this is new.
+
+There is no handwaving. The above two patches describe what I mean.
+You have just thrown a patch to remove retry loop claiming that the code
+is easier that way and I've tried to explain to you that it is not that
+simple. Full stop.
+
+> > Anyway, the complexity of the retry&ignore loop doesn't seem to be
+> > significant enough to dictate the default behavior. We should go with
+> > the one which makes the most sense for users.
+> 
+> The point is that you are adding complexity to weaken the semantics
+> and usefulness of this feature, with the only justification being
+> potential misconfigurations and a
+
+Which misconfiguration are you talking about?
+
+> fear of unearthing kernel bugs.
+
+This is not right! I didn't say I am afraid of bugs. I said that the
+code is complicated enough that seeing all the potential corner cases is
+really hard and so starting with weaker semantic makes some sense.
+
+> This makes little sense for users, and even less sense for us.
+> 
+> > > > > > > your usecases are fine with it,
+> > > > > > 
+> > > > > > my usecases do not overcommit low_limit on the available memory, so far
+> > > > > > so good, but once we hit a corner cases when limits are set properly but
+> > > > > > we end up not being able to reclaim anybody in a zone then OOM sounds
+> > > > > > too brutal.
+> > > > > 
+> > > > > What cornercases?
+> > > > 
+> > > > I have mentioned a case where NUMA placement and specific node bindings
+> > > > interfering with other allocators can end up in unreclaimable zones.
+> > > > While you might disagree about the setup I have seen different things
+> > > > done out there.
+> > > 
+> > > If you have real usecases that might depend on weak guarantees, please
+> > > make a rational argument for them and don't just handwave. 
+> > 
+> > As I've said above. Usecases I am interested in do not overcommit on
+> > low_limit. The limit is used to protect group(s) from memory pressure
+> > from other loads which are running on the same machine. Primarily
+> > because the working set is quite expensive to build up. If we really
+> > hit a corner case and OOM would trigger then the whole state has to be
+> > rebuilt and that is much more expensive than ephemeral reclaim.
+> 
+> What corner cases?
+
+Seriously? Come on Johannes, try to be little bit constructive.
+
+> > > I know that there is every conceivable configuration out there, but
+> > > it's unreasonable to design new features around the requirement of
+> > > setups that are questionable to begin with.
+> > 
+> > I do agree but on the other hand I think we shouldn't ignore inherent
+> > problems which might lead to problems mentioned above and provide an
+> > interface which doesn't cause an unexpected behavior.
+> 
+> What inherent problems?
+> 
+> > > > Besides that the reclaim logic is complex enough and history thought me
+> > > > that little buggers are hidden at places where you do not expect them.
+> > > 
+> > > So we introduce user interfaces designed around the fact that we don't
+> > > trust our own code anymore?
+> > 
+> > No, we are talking about inherent problems here. And my experience
+> > taught me to be careful and corner cases tend to show up in the real
+> > life situations.
+> 
+> I'm not willing to base an interface on this level of vagueness.
+> 
+> > > There is being prudent and then there is cargo cult programming.
+> > > 
+> > > > So call me a chicken but I would sleep calmer if we start weaker and add
+> > > > an additional guarantees later when somebody really insists on rseeing
+> > > > an OOM rather than get reclaimed.
+> > > > The proposed counter can tell us more how good we are at not touching
+> > > > groups with the limit and we can eventually debug those corner cases
+> > > > without affecting the loads too much.
+> > > 
+> > > More realistically, potential bugs are never reported with a silent
+> > > counter, which further widens the gap between our assumptions on how
+> > > the VM behaves and what happens in production.
+> > 
+> > OOM driven reports are arguably worse and without easy workaround on the
+> > other hand.
+> 
+> The workaround is obviously to lower the guarantees and/or fix the
+> NUMA bindings in such cases.
+
+How? Do not use low_limit on node bound loads? Use cumulative low_limit
+smaller than any node which has bindings? How is the feature still
+useful?
+
+> I really don't think you have a point here, because there is not a
+> single concrete example backing up your arguments.
+> 
+> Please remove the fallback code from your changes.  They weaken the
+> feature and add more complexity without reasonable justification - at
+> least you didn't convince anybody else involved in the discussion.
+
+OK, so you are simply ignoring the usecase I've provided to you and then
+claim the usefulness of the OOM default without providing any usecases
+(we are still talking about setups which do not overcommit low_limit).
+
+> Because this is user-visible ABI that we are stuck with once released,
+> the patches should not be merged until we agree on the behavior.
+
+In the other email I have suggested to add a knob with the configurable
+default. Would you be OK with that?
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
