@@ -1,49 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f42.google.com (mail-qg0-f42.google.com [209.85.192.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 0033D6B0080
-	for <linux-mm@kvack.org>; Wed,  4 Jun 2014 18:22:59 -0400 (EDT)
-Received: by mail-qg0-f42.google.com with SMTP id q107so274628qgd.15
-        for <linux-mm@kvack.org>; Wed, 04 Jun 2014 15:22:59 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id y89si5645618qgd.32.2014.06.04.15.22.58
-        for <linux-mm@kvack.org>;
-        Wed, 04 Jun 2014 15:22:58 -0700 (PDT)
-Date: Wed, 4 Jun 2014 18:22:50 -0400
-From: Dave Jones <davej@redhat.com>
-Subject: Re: Bad rss-counter is back on 3.14-stable
-Message-ID: <20140604222250.GA12927@redhat.com>
-References: <20140604182739.GA30340@kroah.com>
- <20140604191228.GB12375@redhat.com>
- <CAD2oYtOJbBLrjX9bnNQ5PQnWVdr7ggf=VZWVP3b_KPOPChjd9Q@mail.gmail.com>
+Received: from mail-ve0-f178.google.com (mail-ve0-f178.google.com [209.85.128.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 77C0B6B0082
+	for <linux-mm@kvack.org>; Wed,  4 Jun 2014 19:05:33 -0400 (EDT)
+Received: by mail-ve0-f178.google.com with SMTP id sa20so228350veb.37
+        for <linux-mm@kvack.org>; Wed, 04 Jun 2014 16:05:33 -0700 (PDT)
+Received: from mail-vc0-x236.google.com (mail-vc0-x236.google.com [2607:f8b0:400c:c03::236])
+        by mx.google.com with ESMTPS id kd4si2688254veb.67.2014.06.04.16.05.32
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 04 Jun 2014 16:05:32 -0700 (PDT)
+Received: by mail-vc0-f182.google.com with SMTP id il7so217940vcb.41
+        for <linux-mm@kvack.org>; Wed, 04 Jun 2014 16:05:31 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAD2oYtOJbBLrjX9bnNQ5PQnWVdr7ggf=VZWVP3b_KPOPChjd9Q@mail.gmail.com>
+In-Reply-To: <alpine.DEB.2.02.1406041337450.5786@chino.kir.corp.google.com>
+References: <alpine.DEB.2.10.1406041417290.14004@gentwo.org>
+	<alpine.DEB.2.02.1406041337450.5786@chino.kir.corp.google.com>
+Date: Thu, 5 Jun 2014 08:05:31 +0900
+Message-ID: <CAAmzW4OzRp0r+kfQSPHFRx0gPBv9hD85oammjh-=cqxvjom45g@mail.gmail.com>
+Subject: Re: [PATCH] SLAB Maintainer update
+From: Joonsoo Kim <js1304@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Brandon Philips <brandon.philips@coreos.com>
-Cc: Greg KH <gregkh@linuxfoundation.org>, linux-mm@kvack.org, Linux Kernel <linux-kernel@vger.kernel.org>
+To: David Rientjes <rientjes@google.com>
+Cc: Christoph Lameter <cl@gentwo.org>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Pekka Enberg <penberg@kernel.org>, Matt Mackall <mpm@selenic.com>
 
-On Wed, Jun 04, 2014 at 12:35:45PM -0700, Brandon Philips wrote:
- > On Wed, Jun 4, 2014 at 12:12 PM, Dave Jones <davej@redhat.com> wrote:
- > > Brandon, what kind of workload is that machine doing ? I wonder if I can
- > > add something to trinity to make it provoke it.
- > 
- > A really boring database workload (fsync() ~50ms) with a sloowww block
- > device with btrfs. There are occasional CPU spikes due to expensive
- > queries.
- > 
- > How can I be more helpful in my workload description?
+2014-06-05 5:37 GMT+09:00 David Rientjes <rientjes@google.com>:
+> On Wed, 4 Jun 2014, Christoph Lameter wrote:
+>
+>> As discussed in various threads on the side:
+>>
+>>
+>> Remove one inactive maintainer, add two new ones and update
+>> my email address. Plus add Andrew. And fix the glob to include
+>> files like mm/slab_common.c
+>>
+>> Signed-off-by: Christoph Lameter <cl@linux.com>
+>
+> Acked-by: David Rientjes <rientjes@google.com>
 
-I feared it would be something like a database. Trying to replicate
-things seen under those workloads always seems to be challenging,
-in part due to the system specific setups they seem to have.
+Acked-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-I wonder if any of the benchmarking apps we have do a realistic
-representation of what modern databases do. It might be a fun project
-to take something like that and extend it to do random queries.
-
-	Dave
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
