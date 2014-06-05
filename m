@@ -1,47 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 4417D6B0035
-	for <linux-mm@kvack.org>; Thu,  5 Jun 2014 11:00:49 -0400 (EDT)
-Received: by mail-wi0-f181.google.com with SMTP id n15so3665552wiw.14
-        for <linux-mm@kvack.org>; Thu, 05 Jun 2014 08:00:47 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e10si11741225wjf.73.2014.06.05.08.00.38
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 05 Jun 2014 08:00:38 -0700 (PDT)
-Date: Thu, 5 Jun 2014 17:00:26 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [RFC][PATCH] oom: Be less verbose if the oom_control event fd
- has listeners
-Message-ID: <20140605150025.GB15939@dhcp22.suse.cz>
-References: <1401976841-3899-1-git-send-email-richard@nod.at>
- <1401976841-3899-2-git-send-email-richard@nod.at>
+Received: from mail-qa0-f41.google.com (mail-qa0-f41.google.com [209.85.216.41])
+	by kanga.kvack.org (Postfix) with ESMTP id 58C1B6B0035
+	for <linux-mm@kvack.org>; Thu,  5 Jun 2014 11:30:25 -0400 (EDT)
+Received: by mail-qa0-f41.google.com with SMTP id dc16so1630055qab.0
+        for <linux-mm@kvack.org>; Thu, 05 Jun 2014 08:30:25 -0700 (PDT)
+Received: from cdptpa-oedge-vip.email.rr.com (cdptpa-outbound-snat.email.rr.com. [107.14.166.232])
+        by mx.google.com with ESMTP id y10si8785657qaj.18.2014.06.05.08.30.24
+        for <linux-mm@kvack.org>;
+        Thu, 05 Jun 2014 08:30:24 -0700 (PDT)
+Message-ID: <53908D10.7080809@ubuntu.com>
+Date: Thu, 05 Jun 2014 11:30:24 -0400
+From: Phillip Susi <psusi@ubuntu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1401976841-3899-2-git-send-email-richard@nod.at>
+Subject: Dump struct page array?
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Richard Weinberger <richard@nod.at>
-Cc: hannes@cmpxchg.org, bsingharora@gmail.com, kamezawa.hiroyu@jp.fujitsu.com, akpm@linux-foundation.org, vdavydov@parallels.com, tj@kernel.org, handai.szj@taobao.com, rientjes@google.com, oleg@redhat.com, rusty@rustcorp.com.au, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org
+To: linux-mm <linux-mm@kvack.org>
 
-On Thu 05-06-14 16:00:41, Richard Weinberger wrote:
-> Don't spam the kernel logs if the oom_control event fd has listeners.
-> In this case there is no need to print that much lines as user space
-> will anyway notice that the memory cgroup has reached its limit.
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA1
 
-But how do you debug why it is reaching the limit and why a particular
-process has been killed?
+Is there a way to dump the struct page array or perhaps even a tool to analyze it?  I would like to get a map of what pages are in use, or in particular, where all of the unmovable pages are.
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2.0.17 (MingW32)
+Comment: Using GnuPG with Thunderbird - http://www.enigmail.net/
 
-If we are printing too much then OK, let's remove those parts which are
-not that useful but hiding information which tells us more about the oom
-decision doesn't sound right to me.
-
-> Signed-off-by: Richard Weinberger <richard@nod.at>
-[...]
--- 
-Michal Hocko
-SUSE Labs
+iQEcBAEBAgAGBQJTkI0QAAoJEI5FoCIzSKrwcrcH/AiOUvh5osAFezgR2pGlp3Iy
+G+rvqzHdgFFef2RX057ehK+lj2nW8fNFyCy/zKR0aaueyH88yj4nFgoZw060cklo
+0P5Fcvim1BKhPMUpD+0J8XaFEP9WD95/Q5XPqmfSUf64VrwPQSLcppwUJPO+ec7D
+PBEctU9EvnXKPtrQRui44t6U0VRRvsN2OaRI8tZR7ou7V0FrOe86GdyXFRu8dsTN
+22hy9A0JqTldjM9ebbr8xCu5cRRQFkUZSFqBv2lnnox+V8/1M8N8ZwCbkayQiyMQ
+pW7DMTottjGsXrq/+l96UF2aWQv5PIof9NR4FJ3YSFdo1YvTfUozSLbX24KCQFI=
+=t4Q0
+-----END PGP SIGNATURE-----
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
