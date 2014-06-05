@@ -1,109 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f47.google.com (mail-qa0-f47.google.com [209.85.216.47])
-	by kanga.kvack.org (Postfix) with ESMTP id F41DE6B0035
-	for <linux-mm@kvack.org>; Thu,  5 Jun 2014 15:36:40 -0400 (EDT)
-Received: by mail-qa0-f47.google.com with SMTP id s7so2055881qap.20
-        for <linux-mm@kvack.org>; Thu, 05 Jun 2014 12:36:40 -0700 (PDT)
-Received: from mail-qg0-x233.google.com (mail-qg0-x233.google.com [2607:f8b0:400d:c04::233])
-        by mx.google.com with ESMTPS id v48si9544104qgv.15.2014.06.05.12.36.40
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 05 Jun 2014 12:36:40 -0700 (PDT)
-Received: by mail-qg0-f51.google.com with SMTP id q107so2375617qgd.38
-        for <linux-mm@kvack.org>; Thu, 05 Jun 2014 12:36:40 -0700 (PDT)
-Date: Thu, 5 Jun 2014 15:36:37 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH v2 0/4] memcg: Low-limit reclaim
-Message-ID: <20140605193637.GA31654@mtj.dyndns.org>
-References: <20140528134905.GF2878@cmpxchg.org>
- <20140528142144.GL9895@dhcp22.suse.cz>
- <20140528152854.GG2878@cmpxchg.org>
- <20140528155414.GN9895@dhcp22.suse.cz>
- <20140528163335.GI2878@cmpxchg.org>
- <20140603110743.GD1321@dhcp22.suse.cz>
- <20140603142249.GP2878@cmpxchg.org>
- <20140604144658.GB17612@dhcp22.suse.cz>
- <20140604154408.GT2878@cmpxchg.org>
- <alpine.LSU.2.11.1406041218080.9583@eggly.anvils>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LSU.2.11.1406041218080.9583@eggly.anvils>
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 046156B0035
+	for <linux-mm@kvack.org>; Thu,  5 Jun 2014 16:46:31 -0400 (EDT)
+Received: by mail-pd0-f179.google.com with SMTP id fp1so1582107pdb.38
+        for <linux-mm@kvack.org>; Thu, 05 Jun 2014 13:46:31 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id rl10si14934756pbc.161.2014.06.05.13.23.40
+        for <linux-mm@kvack.org>;
+        Thu, 05 Jun 2014 13:23:41 -0700 (PDT)
+Date: Thu, 5 Jun 2014 13:23:39 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm/mempolicy: fix sleeping function called from invalid
+ context
+Message-Id: <20140605132339.ddf6df4a0cf5c14d17eb8691@linux-foundation.org>
+In-Reply-To: <53902A44.50005@cn.fujitsu.com>
+References: <53902A44.50005@cn.fujitsu.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, Roman Gushchin <klamm@yandex-team.ru>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Rik van Riel <riel@redhat.com>
+To: Gu Zheng <guz.fnst@cn.fujitsu.com>
+Cc: linux-kernel <linux-kernel@vger.kernel.org>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, Cgroups <cgroups@vger.kernel.org>, stable@vger.kernel.org
 
-Hello, guys.
+On Thu, 5 Jun 2014 16:28:52 +0800 Gu Zheng <guz.fnst@cn.fujitsu.com> wrote:
 
-On Wed, Jun 04, 2014 at 12:18:59PM -0700, Hugh Dickins wrote:
-> that it is more comfortable with OOMing as the default.  Okay.  But I
-> would expect there to be many who want the attempt towards isolation that
-> low limit offers, without a collapse to OOM at the first misjudgement.
+> When running with the kernel(3.15-rc7+), the follow bug occurs:
+> [ 9969.258987] BUG: sleeping function called from invalid context at kernel/locking/mutex.c:586
+> [ 9969.359906] in_atomic(): 1, irqs_disabled(): 0, pid: 160655, name: python
+> [ 9969.441175] INFO: lockdep is turned off.
+> [ 9969.488184] CPU: 26 PID: 160655 Comm: python Tainted: G       A      3.15.0-rc7+ #85
+> [ 9969.581032] Hardware name: FUJITSU-SV PRIMEQUEST 1800E/SB, BIOS PRIMEQUEST 1000 Series BIOS Version 1.39 11/16/2012
+> [ 9969.706052]  ffffffff81a20e60 ffff8803e941fbd0 ffffffff8162f523 ffff8803e941fd18
+> [ 9969.795323]  ffff8803e941fbe0 ffffffff8109995a ffff8803e941fc58 ffffffff81633e6c
+> [ 9969.884710]  ffffffff811ba5dc ffff880405c6b480 ffff88041fdd90a0 0000000000002000
+> [ 9969.974071] Call Trace:
+> [ 9970.003403]  [<ffffffff8162f523>] dump_stack+0x4d/0x66
+> [ 9970.065074]  [<ffffffff8109995a>] __might_sleep+0xfa/0x130
+> [ 9970.130743]  [<ffffffff81633e6c>] mutex_lock_nested+0x3c/0x4f0
+> [ 9970.200638]  [<ffffffff811ba5dc>] ? kmem_cache_alloc+0x1bc/0x210
+> [ 9970.272610]  [<ffffffff81105807>] cpuset_mems_allowed+0x27/0x140
+> [ 9970.344584]  [<ffffffff811b1303>] ? __mpol_dup+0x63/0x150
+> [ 9970.409282]  [<ffffffff811b1385>] __mpol_dup+0xe5/0x150
+> [ 9970.471897]  [<ffffffff811b1303>] ? __mpol_dup+0x63/0x150
+> [ 9970.536585]  [<ffffffff81068c86>] ? copy_process.part.23+0x606/0x1d40
+> [ 9970.613763]  [<ffffffff810bf28d>] ? trace_hardirqs_on+0xd/0x10
+> [ 9970.683660]  [<ffffffff810ddddf>] ? monotonic_to_bootbased+0x2f/0x50
+> [ 9970.759795]  [<ffffffff81068cf0>] copy_process.part.23+0x670/0x1d40
+> [ 9970.834885]  [<ffffffff8106a598>] do_fork+0xd8/0x380
+> [ 9970.894375]  [<ffffffff81110e4c>] ? __audit_syscall_entry+0x9c/0xf0
+> [ 9970.969470]  [<ffffffff8106a8c6>] SyS_clone+0x16/0x20
+> [ 9971.030011]  [<ffffffff81642009>] stub_clone+0x69/0x90
+> [ 9971.091573]  [<ffffffff81641c29>] ? system_call_fastpath+0x16/0x1b
+> 
+> The cause is that cpuset_mems_allowed() try to take mutex_lock(&callback_mutex)
+> under the rcu_read_lock(which was hold in __mpol_dup()). And in cpuset_mems_allowed(),
+> the access to cpuset is under rcu_read_lock, so in __mpol_dup, we can reduce the
+> rcu_read_lock protection region to protect the access to cpuset only in
+> current_cpuset_is_being_rebound(). So that we can avoid this bug.
+>
+> ...
+>
+> --- a/kernel/cpuset.c
+> +++ b/kernel/cpuset.c
+> @@ -1188,7 +1188,13 @@ done:
+>  
+>  int current_cpuset_is_being_rebound(void)
+>  {
+> -	return task_cs(current) == cpuset_being_rebound;
+> +	int ret;
+> +
+> +	rcu_read_lock();
+> +	ret = task_cs(current) == cpuset_being_rebound;
+> +	rcu_read_unlock();
+> +
+> +	return ret;
+>  }
 
-Ignoring all the mm details about NUMA, zones, overcommit or whatnot,
-solely focusing on the core feature provided by the interface, which
-BTW is what should guide the interface design anyway, I'm curious
-about how this would end up.
+Looks fishy to me.  If the rcu_read_lock() stabilizes
+cpuset_being_rebound then cpuset_being_rebound can change immediately
+after rcu_read_unlock() and `ret' is now wrong.
 
-The first thing which strikes me is that it's not symmetric with the
-limits.  We have two of them - soft and hard limits.  A hard limit
-provides the absolute boundary which can't be exceeded while a soft
-limit, in principle, gives a guideline on memory usage of the group to
-the kernel so that its behavior can be better suited to the purpose of
-the system.
-
-We still seem to have a number of issues with the semantics of
-softlimit but its principle role makes sense to me.  It allows
-userland to provide additional information or hints on how resource
-allocation should be managed across different groups and as such can
-be used for rule-of-thumb, this-will-prolly-work kind of easy /
-automatic configuration, which is a very useful thing.  Can be a lot
-more widely useful than hard limits in the long term.
-
-It seems that the main suggested use case for soft guarantee is
-"reasonable" isolation, which seems symmetric to the role of soft
-limit; however, if I think about it more, I'm not sure whether such
-usage would make sense.
-
-The thing with softlimit is that it doesn't affect resource allocation
-until the limit is hit.  The system keeps memory distribution balanced
-and useful through reclaiming less useful stuff and that part isn't
-adversely affected by softlimit.  This means that softlimit
-configuration is relaxed in both directions.  It doesn't have to be
-completely accurate.  It can be good enough or "reasonable" and still
-useful without affecting the whole system adversely.
-
-However, soft guarantee isn't like that.  Because it disables reclaim
-completely until the guaranteed amount is reached which many workloads
-wouldn't have trouble filling up over time, the configuration isn't
-relaxed downwards.  Any configured value adversely affects the overall
-efficiency of the system, which in turn breaks the "reasonable"
-isolation use case because such usages require the configuration to be
-not punishing by default.
-
-So, that's where I think the symmetry breaks.  The direction of the
-pressure the guarantee exerts makes it punishing for the system by
-default, which means that it can't be a generally useful thing which
-can be widely configured with should-be-good-enough values.  It
-inherently is something which requires a lot more attention and thus a
-lot less useful (at least its usefulness is a lot narrower).
-
-As soft limit has been misused to provide guarantee, I think it's a
-healthy thing to separate it out and implement it properly and I
-probably am not very qualified to make calls on mm decisions; however,
-I strongly think that we should think through the actual use cases
-before deciding which features and interface we expose to userland.
-They better make sense and are actually useful.  I strongly believe
-that failure to do so had been one of the main reasons why we got
-burned so badly with cgroup in general.  Let's please not repeat that.
-If this is useful, let's find out why and how and crystailize the
-interface for those usages.
-
-Thanks.
-
--- 
-tejun
+Anyway.  Tejun, this one is yours please ;)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
