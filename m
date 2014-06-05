@@ -1,106 +1,255 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f51.google.com (mail-pb0-f51.google.com [209.85.160.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F4D66B005C
-	for <linux-mm@kvack.org>; Thu,  5 Jun 2014 04:39:37 -0400 (EDT)
-Received: by mail-pb0-f51.google.com with SMTP id ma3so797384pbc.38
-        for <linux-mm@kvack.org>; Thu, 05 Jun 2014 01:39:37 -0700 (PDT)
-Received: from heian.cn.fujitsu.com ([59.151.112.132])
-        by mx.google.com with ESMTP id il1si11468383pbb.73.2014.06.05.01.39.35
-        for <linux-mm@kvack.org>;
-        Thu, 05 Jun 2014 01:39:36 -0700 (PDT)
-Message-ID: <53902A44.50005@cn.fujitsu.com>
-Date: Thu, 5 Jun 2014 16:28:52 +0800
-From: Gu Zheng <guz.fnst@cn.fujitsu.com>
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 1325D6B0068
+	for <linux-mm@kvack.org>; Thu,  5 Jun 2014 05:05:21 -0400 (EDT)
+Received: by mail-wi0-f177.google.com with SMTP id f8so3023091wiw.10
+        for <linux-mm@kvack.org>; Thu, 05 Jun 2014 02:05:21 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id em6si14181933wib.48.2014.06.05.02.05.19
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 05 Jun 2014 02:05:20 -0700 (PDT)
+Message-ID: <539032CD.9070506@suse.cz>
+Date: Thu, 05 Jun 2014 11:05:17 +0200
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Subject: [PATCH] mm/mempolicy: fix sleeping function called from invalid context
-Content-Type: text/plain; charset="ISO-8859-1"
+Subject: Re: [RFC PATCH 1/6] mm, compaction: periodically drop lock and restore
+ IRQs in scanners
+References: <alpine.DEB.2.02.1405211954410.13243@chino.kir.corp.google.com> <1401898310-14525-1-git-send-email-vbabka@suse.cz> <alpine.DEB.2.02.1406041628100.18899@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.02.1406041628100.18899@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=ISO-8859-1; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel <linux-kernel@vger.kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, Cgroups <cgroups@vger.kernel.org>, stable@vger.kernel.org
+To: David Rientjes <rientjes@google.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>
 
-When running with the kernel(3.15-rc7+), the follow bug occurs:
-[ 9969.258987] BUG: sleeping function called from invalid context at kernel/locking/mutex.c:586
-[ 9969.359906] in_atomic(): 1, irqs_disabled(): 0, pid: 160655, name: python
-[ 9969.441175] INFO: lockdep is turned off.
-[ 9969.488184] CPU: 26 PID: 160655 Comm: python Tainted: G       A      3.15.0-rc7+ #85
-[ 9969.581032] Hardware name: FUJITSU-SV PRIMEQUEST 1800E/SB, BIOS PRIMEQUEST 1000 Series BIOS Version 1.39 11/16/2012
-[ 9969.706052]  ffffffff81a20e60 ffff8803e941fbd0 ffffffff8162f523 ffff8803e941fd18
-[ 9969.795323]  ffff8803e941fbe0 ffffffff8109995a ffff8803e941fc58 ffffffff81633e6c
-[ 9969.884710]  ffffffff811ba5dc ffff880405c6b480 ffff88041fdd90a0 0000000000002000
-[ 9969.974071] Call Trace:
-[ 9970.003403]  [<ffffffff8162f523>] dump_stack+0x4d/0x66
-[ 9970.065074]  [<ffffffff8109995a>] __might_sleep+0xfa/0x130
-[ 9970.130743]  [<ffffffff81633e6c>] mutex_lock_nested+0x3c/0x4f0
-[ 9970.200638]  [<ffffffff811ba5dc>] ? kmem_cache_alloc+0x1bc/0x210
-[ 9970.272610]  [<ffffffff81105807>] cpuset_mems_allowed+0x27/0x140
-[ 9970.344584]  [<ffffffff811b1303>] ? __mpol_dup+0x63/0x150
-[ 9970.409282]  [<ffffffff811b1385>] __mpol_dup+0xe5/0x150
-[ 9970.471897]  [<ffffffff811b1303>] ? __mpol_dup+0x63/0x150
-[ 9970.536585]  [<ffffffff81068c86>] ? copy_process.part.23+0x606/0x1d40
-[ 9970.613763]  [<ffffffff810bf28d>] ? trace_hardirqs_on+0xd/0x10
-[ 9970.683660]  [<ffffffff810ddddf>] ? monotonic_to_bootbased+0x2f/0x50
-[ 9970.759795]  [<ffffffff81068cf0>] copy_process.part.23+0x670/0x1d40
-[ 9970.834885]  [<ffffffff8106a598>] do_fork+0xd8/0x380
-[ 9970.894375]  [<ffffffff81110e4c>] ? __audit_syscall_entry+0x9c/0xf0
-[ 9970.969470]  [<ffffffff8106a8c6>] SyS_clone+0x16/0x20
-[ 9971.030011]  [<ffffffff81642009>] stub_clone+0x69/0x90
-[ 9971.091573]  [<ffffffff81641c29>] ? system_call_fastpath+0x16/0x1b
+On 06/05/2014 01:39 AM, David Rientjes wrote:
+> On Wed, 4 Jun 2014, Vlastimil Babka wrote:
+>
+>> diff --git a/mm/compaction.c b/mm/compaction.c
+>> index ed7102c..f0fd4b5 100644
+>> --- a/mm/compaction.c
+>> +++ b/mm/compaction.c
+>> @@ -185,47 +185,74 @@ static void update_pageblock_skip(struct compact_control *cc,
+>>   }
+>>   #endif /* CONFIG_COMPACTION */
+>>
+>> -static inline bool should_release_lock(spinlock_t *lock)
+>> +/*
+>> + * Compaction requires the taking of some coarse locks that are potentially
+>> + * very heavily contended. Check if the process needs to be scheduled or
+>> + * if the lock is contended. For async compaction, back out if the process
+>> + * needs to be scheduled, or the lock cannot be taken immediately. For sync
+>> + * compaction, schedule and spin on the lock if needed.
+>> + *
+>> + * Returns true if the lock is held
+>> + * Returns false if the lock is not held and compaction should abort
+>> + */
+>> +static inline bool compact_trylock_irqsave(spinlock_t *lock,
+>> +			unsigned long *flags, struct compact_control *cc)
+>
+> Hmm, what tree is this series based on?  It doesn't apply cleanly to
+> linux-next, I think you're missing
+> mm-compaction-properly-signal-and-act-upon-lock-and-need_sched-contention-fix.patch
+> in your tree.
 
-The cause is that cpuset_mems_allowed() try to take mutex_lock(&callback_mutex)
-under the rcu_read_lock(which was hold in __mpol_dup()). And in cpuset_mems_allowed(),
-the access to cpuset is under rcu_read_lock, so in __mpol_dup, we can reduce the
-rcu_read_lock protection region to protect the access to cpuset only in
-current_cpuset_is_being_rebound(). So that we can avoid this bug.
+It was 3.15-rc5 and all compaction stuff in -mm applied. I do have the 
+fix, but perhaps I forgot something else, or linux-next did not have the 
+fix yet (Andrew picked it up on tuesday I think).
+Anyway I saw the pending compaction stuff was just merged so things will 
+get easier the next round :)
 
-Signed-off-by: Gu Zheng <guz.fnst@cn.fujitsu.com>
----
- kernel/cpuset.c |    8 +++++++-
- mm/mempolicy.c  |    2 --
- 2 files changed, 7 insertions(+), 3 deletions(-)
+> Is there a performance benefit to doing the inlining here?
 
-diff --git a/kernel/cpuset.c b/kernel/cpuset.c
-index 3d54c41..a735402 100644
---- a/kernel/cpuset.c
-+++ b/kernel/cpuset.c
-@@ -1188,7 +1188,13 @@ done:
- 
- int current_cpuset_is_being_rebound(void)
- {
--	return task_cs(current) == cpuset_being_rebound;
-+	int ret;
-+
-+	rcu_read_lock();
-+	ret = task_cs(current) == cpuset_being_rebound;
-+	rcu_read_unlock();
-+
-+	return ret;
- }
- 
- static int update_relax_domain_level(struct cpuset *cs, s64 val)
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index 78e1472..b58a9d5 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -2138,7 +2138,6 @@ struct mempolicy *__mpol_dup(struct mempolicy *old)
- 	} else
- 		*new = *old;
- 
--	rcu_read_lock();
- 	if (current_cpuset_is_being_rebound()) {
- 		nodemask_t mems = cpuset_mems_allowed(current);
- 		if (new->flags & MPOL_F_REBINDING)
-@@ -2146,7 +2145,6 @@ struct mempolicy *__mpol_dup(struct mempolicy *old)
- 		else
- 			mpol_rebind_policy(new, &mems, MPOL_REBIND_ONCE);
- 	}
--	rcu_read_unlock();
- 	atomic_set(&new->refcnt, 1);
- 	return new;
- }
--- 
-1.7.7
+I admit I didn't check, I just thought it might make sense since there 
+are just two call sites. I'll reconsider but I doubt I will be able to 
+see any runtime difference in this path. Maybe just based on the object 
+size.
+
+>>   {
+>> -	return need_resched() || spin_is_contended(lock);
+>> +	if (cc->mode == MIGRATE_ASYNC) {
+>> +		if (need_resched() || !spin_trylock_irqsave(lock, *flags)) {
+>> +			cc->contended = true;
+>> +			return false;
+>> +		}
+>> +	} else {
+>> +		cond_resched();
+>
+> Why do we need this cond_resched() here if there is already a
+> cond_resched() in compact_unlock_should_abort() for non-async compaction?
+>
+> If this is trying to reschedule right before disabling irqs because
+> otherwise spinning on the lock causes irq starvation, then that's a very
+> delicate balance and I think we're going to get in trouble later.
+
+I wasn't thinking about real starvation. I guess it's already not so bad 
+if nobody noticed that the periodical unlock and IRQ enable was broken 
+for so long and the original patch was adding it based on profiles 
+looking better, not solving any particular problem encountered.
+So here I just thought it wouldn't be too costly to check before taking 
+the lock, since it might have been up to 32 iterations since the last 
+check. But it's true it might be pointless since when we hold the lock, 
+we check once per 32 iterations (with this patch) anyway.
+
+>> +		spin_lock_irqsave(lock, *flags);
+>> +	}
+>> +
+>> +	return true;
+>>   }
+>>
+>>   /*
+>>    * Compaction requires the taking of some coarse locks that are potentially
+>> - * very heavily contended. Check if the process needs to be scheduled or
+>> - * if the lock is contended. For async compaction, back out in the event
+>> - * if contention is severe. For sync compaction, schedule.
+>> + * very heavily contended. The lock should be periodically unlocked to avoid
+>> + * having disabled IRQs for a long time, even when there is nobody waiting on
+>> + * the lock. It might also be that allowing the IRQs will result in
+>> + * need_resched() becoming true. If scheduling is needed, or somebody else
+>> + * has taken the lock, async compaction aborts. Sync compaction schedules.
+>> + * Either compaction type will also abort if a fatal signal is pending.
+>> + * In either case if the lock was locked, it is dropped and not regained.
+>>    *
+>> - * Returns true if the lock is held.
+>> - * Returns false if the lock is released and compaction should abort
+>> + * Returns true if compaction should abort due to fatal signal pending, or
+>> + *		async compaction due to lock contention or need to schedule
+>> + * Returns false when compaction can continue (sync compaction might have
+>> + *		scheduled)
+>>    */
+>> -static bool compact_checklock_irqsave(spinlock_t *lock, unsigned long *flags,
+>> -				      bool locked, struct compact_control *cc)
+>> +static inline bool compact_unlock_should_abort(spinlock_t *lock,
+>> +		unsigned long flags, bool *locked, struct compact_control *cc)
+>
+> This inlining is also suspicious and I think keeping both of them
+> out-of-line for the freeing and migration scanners is going to be the best
+> route unless there's some measurable performance benefit I'm not seeing.
+
+OK.
+
+>>   {
+>> -	if (should_release_lock(lock)) {
+>> -		if (locked) {
+>> -			spin_unlock_irqrestore(lock, *flags);
+>> -			locked = false;
+>> -		}
+>> +	if (*locked) {
+>> +		spin_unlock_irqrestore(lock, flags);
+>> +		*locked = false;
+>> +	}
+>>
+>> -		/* async aborts if taking too long or contended */
+>> -		if (cc->mode == MIGRATE_ASYNC) {
+>> +	if (fatal_signal_pending(current))
+>> +		return true;
+>> +
+>> +	if (cc->mode == MIGRATE_ASYNC) {
+>> +		if (need_resched() || spin_is_locked(lock)) {
+>>   			cc->contended = true;
+>> -			return false;
+>> +			return true;
+>>   		}
+>> -
+>> +	} else {
+>>   		cond_resched();
+>>   	}
+>>
+>> -	if (!locked)
+>> -		spin_lock_irqsave(lock, *flags);
+>> -	return true;
+>> +	return false;
+>>   }
+>>
+>>   /*
+>> - * Aside from avoiding lock contention, compaction also periodically checks
+>> + * Aside from avoiding lock contention, compaction should also periodically checks
+>
+> Not sure what the purpose of this commentary change is, it's gramatically
+> incorrect now.
+>
+>>    * need_resched() and either schedules in sync compaction, or aborts async
+>> - * compaction. This is similar to compact_checklock_irqsave() does, but used
+>> + * compaction. This is similar to compact_unlock_should_abort() does, but used
+>
+> This was and still is gramatically incorrect :)
+
+Thanks, will fix.
+
+>
+>>    * where no lock is concerned.
+>>    *
+>>    * Returns false when no scheduling was needed, or sync compaction scheduled.
+>> @@ -285,6 +312,16 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
+>>   		int isolated, i;
+>>   		struct page *page = cursor;
+>>
+>> +		/*
+>> +		 * Periodically drop the lock (if held) regardless of its
+>> +		 * contention, to give chance to IRQs. Abort async compaction
+>> +		 * if contended.
+>> +		 */
+>> +		if (!(blockpfn % SWAP_CLUSTER_MAX)
+>> +		    && compact_unlock_should_abort(&cc->zone->lock, flags,
+>> +								&locked, cc))
+>> +			break;
+>> +
+>>   		nr_scanned++;
+>>   		if (!pfn_valid_within(blockpfn))
+>>   			goto isolate_fail;
+>> @@ -302,8 +339,9 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
+>>   		 * spin on the lock and we acquire the lock as late as
+>>   		 * possible.
+>>   		 */
+>> -		locked = compact_checklock_irqsave(&cc->zone->lock, &flags,
+>> -								locked, cc);
+>> +		if (!locked)
+>> +			locked = compact_trylock_irqsave(&cc->zone->lock,
+>> +								&flags, cc);
+>>   		if (!locked)
+>>   			break;
+>>
+>> @@ -523,13 +561,15 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
+>>
+>>   	/* Time to isolate some pages for migration */
+>>   	for (; low_pfn < end_pfn; low_pfn++) {
+>> -		/* give a chance to irqs before checking need_resched() */
+>> -		if (locked && !(low_pfn % SWAP_CLUSTER_MAX)) {
+>> -			if (should_release_lock(&zone->lru_lock)) {
+>> -				spin_unlock_irqrestore(&zone->lru_lock, flags);
+>> -				locked = false;
+>> -			}
+>> -		}
+>> +		/*
+>> +		 * Periodically drop the lock (if held) regardless of its
+>> +		 * contention, to give chance to IRQs. Abort async compaction
+>> +		 * if contended.
+>> +		 */
+>> +		if (!(low_pfn % SWAP_CLUSTER_MAX)
+>> +		    && compact_unlock_should_abort(&zone->lru_lock, flags,
+>> +								&locked, cc))
+>> +			break;
+>>
+>>   		/*
+>>   		 * migrate_pfn does not necessarily start aligned to a
+>> @@ -631,10 +671,11 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
+>>   		    page_count(page) > page_mapcount(page))
+>>   			continue;
+>>
+>> -		/* Check if it is ok to still hold the lock */
+>> -		locked = compact_checklock_irqsave(&zone->lru_lock, &flags,
+>> -								locked, cc);
+>> -		if (!locked || fatal_signal_pending(current))
+>> +		/* If the lock is not held, try to take it */
+>> +		if (!locked)
+>> +			locked = compact_trylock_irqsave(&zone->lru_lock,
+>> +								&flags, cc);
+>> +		if (!locked)
+>>   			break;
+>>
+>>   		/* Recheck PageLRU and PageTransHuge under lock */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
