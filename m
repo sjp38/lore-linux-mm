@@ -1,87 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 046156B0035
-	for <linux-mm@kvack.org>; Thu,  5 Jun 2014 16:46:31 -0400 (EDT)
-Received: by mail-pd0-f179.google.com with SMTP id fp1so1582107pdb.38
-        for <linux-mm@kvack.org>; Thu, 05 Jun 2014 13:46:31 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id rl10si14934756pbc.161.2014.06.05.13.23.40
-        for <linux-mm@kvack.org>;
-        Thu, 05 Jun 2014 13:23:41 -0700 (PDT)
-Date: Thu, 5 Jun 2014 13:23:39 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm/mempolicy: fix sleeping function called from invalid
- context
-Message-Id: <20140605132339.ddf6df4a0cf5c14d17eb8691@linux-foundation.org>
-In-Reply-To: <53902A44.50005@cn.fujitsu.com>
-References: <53902A44.50005@cn.fujitsu.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-ig0-f176.google.com (mail-ig0-f176.google.com [209.85.213.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D15F6B0037
+	for <linux-mm@kvack.org>; Thu,  5 Jun 2014 16:55:32 -0400 (EDT)
+Received: by mail-ig0-f176.google.com with SMTP id a13so3727306igq.15
+        for <linux-mm@kvack.org>; Thu, 05 Jun 2014 13:55:32 -0700 (PDT)
+Received: from mail-ie0-x235.google.com (mail-ie0-x235.google.com [2607:f8b0:4001:c03::235])
+        by mx.google.com with ESMTPS id t20si18867245igr.23.2014.06.05.13.55.31
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 05 Jun 2014 13:55:31 -0700 (PDT)
+Received: by mail-ie0-f181.google.com with SMTP id rp18so1363893iec.26
+        for <linux-mm@kvack.org>; Thu, 05 Jun 2014 13:55:31 -0700 (PDT)
+Date: Thu, 5 Jun 2014 13:55:28 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch v2] mm, pcp: allow restoring percpu_pagelist_fraction
+ default
+In-Reply-To: <FB428F94-91FA-4E4F-8DA3-060C3C41F261@linuxhacker.ru>
+Message-ID: <alpine.DEB.2.02.1406051354420.18119@chino.kir.corp.google.com>
+References: <1399166883-514-1-git-send-email-green@linuxhacker.ru> <alpine.DEB.2.02.1406021837490.13072@chino.kir.corp.google.com> <B549468A-10FC-4897-8720-7C9FEC6FD03A@linuxhacker.ru> <alpine.DEB.2.02.1406022056300.20536@chino.kir.corp.google.com>
+ <2C763027-307F-4BC0-8C0A-7E3D5957A4DA@linuxhacker.ru> <alpine.DEB.2.02.1406031819580.8682@chino.kir.corp.google.com> <85AFB547-D3A1-4818-AD82-FF90909775D2@linuxhacker.ru> <alpine.DEB.2.02.1406041734150.17045@chino.kir.corp.google.com>
+ <FB428F94-91FA-4E4F-8DA3-060C3C41F261@linuxhacker.ru>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gu Zheng <guz.fnst@cn.fujitsu.com>
-Cc: linux-kernel <linux-kernel@vger.kernel.org>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, Cgroups <cgroups@vger.kernel.org>, stable@vger.kernel.org
+To: Oleg Drokin <green@linuxhacker.ru>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Cody P Schafer <cody@linux.vnet.ibm.com>, Randy Dunlap <rdunlap@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-doc@vger.kernel.org, devel@driverdev.osuosl.org
 
-On Thu, 5 Jun 2014 16:28:52 +0800 Gu Zheng <guz.fnst@cn.fujitsu.com> wrote:
+On Wed, 4 Jun 2014, Oleg Drokin wrote:
 
-> When running with the kernel(3.15-rc7+), the follow bug occurs:
-> [ 9969.258987] BUG: sleeping function called from invalid context at kernel/locking/mutex.c:586
-> [ 9969.359906] in_atomic(): 1, irqs_disabled(): 0, pid: 160655, name: python
-> [ 9969.441175] INFO: lockdep is turned off.
-> [ 9969.488184] CPU: 26 PID: 160655 Comm: python Tainted: G       A      3.15.0-rc7+ #85
-> [ 9969.581032] Hardware name: FUJITSU-SV PRIMEQUEST 1800E/SB, BIOS PRIMEQUEST 1000 Series BIOS Version 1.39 11/16/2012
-> [ 9969.706052]  ffffffff81a20e60 ffff8803e941fbd0 ffffffff8162f523 ffff8803e941fd18
-> [ 9969.795323]  ffff8803e941fbe0 ffffffff8109995a ffff8803e941fc58 ffffffff81633e6c
-> [ 9969.884710]  ffffffff811ba5dc ffff880405c6b480 ffff88041fdd90a0 0000000000002000
-> [ 9969.974071] Call Trace:
-> [ 9970.003403]  [<ffffffff8162f523>] dump_stack+0x4d/0x66
-> [ 9970.065074]  [<ffffffff8109995a>] __might_sleep+0xfa/0x130
-> [ 9970.130743]  [<ffffffff81633e6c>] mutex_lock_nested+0x3c/0x4f0
-> [ 9970.200638]  [<ffffffff811ba5dc>] ? kmem_cache_alloc+0x1bc/0x210
-> [ 9970.272610]  [<ffffffff81105807>] cpuset_mems_allowed+0x27/0x140
-> [ 9970.344584]  [<ffffffff811b1303>] ? __mpol_dup+0x63/0x150
-> [ 9970.409282]  [<ffffffff811b1385>] __mpol_dup+0xe5/0x150
-> [ 9970.471897]  [<ffffffff811b1303>] ? __mpol_dup+0x63/0x150
-> [ 9970.536585]  [<ffffffff81068c86>] ? copy_process.part.23+0x606/0x1d40
-> [ 9970.613763]  [<ffffffff810bf28d>] ? trace_hardirqs_on+0xd/0x10
-> [ 9970.683660]  [<ffffffff810ddddf>] ? monotonic_to_bootbased+0x2f/0x50
-> [ 9970.759795]  [<ffffffff81068cf0>] copy_process.part.23+0x670/0x1d40
-> [ 9970.834885]  [<ffffffff8106a598>] do_fork+0xd8/0x380
-> [ 9970.894375]  [<ffffffff81110e4c>] ? __audit_syscall_entry+0x9c/0xf0
-> [ 9970.969470]  [<ffffffff8106a8c6>] SyS_clone+0x16/0x20
-> [ 9971.030011]  [<ffffffff81642009>] stub_clone+0x69/0x90
-> [ 9971.091573]  [<ffffffff81641c29>] ? system_call_fastpath+0x16/0x1b
+> Minor nitpick I guess, but ret cannot be anything but 0 here I think (until somebody changes the way proc_dointvec_minmax for write=true operates)?
 > 
-> The cause is that cpuset_mems_allowed() try to take mutex_lock(&callback_mutex)
-> under the rcu_read_lock(which was hold in __mpol_dup()). And in cpuset_mems_allowed(),
-> the access to cpuset is under rcu_read_lock, so in __mpol_dup, we can reduce the
-> rcu_read_lock protection region to protect the access to cpuset only in
-> current_cpuset_is_being_rebound(). So that we can avoid this bug.
->
-> ...
->
-> --- a/kernel/cpuset.c
-> +++ b/kernel/cpuset.c
-> @@ -1188,7 +1188,13 @@ done:
->  
->  int current_cpuset_is_being_rebound(void)
->  {
-> -	return task_cs(current) == cpuset_being_rebound;
-> +	int ret;
-> +
-> +	rcu_read_lock();
-> +	ret = task_cs(current) == cpuset_being_rebound;
-> +	rcu_read_unlock();
-> +
-> +	return ret;
->  }
 
-Looks fishy to me.  If the rcu_read_lock() stabilizes
-cpuset_being_rebound then cpuset_being_rebound can change immediately
-after rcu_read_unlock() and `ret' is now wrong.
-
-Anyway.  Tejun, this one is yours please ;)
+We need to return 0 regardless of whether proc_dointvec_minmax() changes 
+in the future, the patch is correct.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
