@@ -1,76 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f179.google.com (mail-ig0-f179.google.com [209.85.213.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 6BF406B0044
-	for <linux-mm@kvack.org>; Wed,  4 Jun 2014 20:09:04 -0400 (EDT)
-Received: by mail-ig0-f179.google.com with SMTP id hn18so1719626igb.0
-        for <linux-mm@kvack.org>; Wed, 04 Jun 2014 17:09:04 -0700 (PDT)
-Received: from mail-ie0-x232.google.com (mail-ie0-x232.google.com [2607:f8b0:4001:c03::232])
-        by mx.google.com with ESMTPS id bf2si24200578igb.9.2014.06.04.17.09.02
+Received: from mail-ie0-f180.google.com (mail-ie0-f180.google.com [209.85.223.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 556CA6B009B
+	for <linux-mm@kvack.org>; Wed,  4 Jun 2014 20:13:47 -0400 (EDT)
+Received: by mail-ie0-f180.google.com with SMTP id at20so39138iec.39
+        for <linux-mm@kvack.org>; Wed, 04 Jun 2014 17:13:47 -0700 (PDT)
+Received: from mail-ig0-x233.google.com (mail-ig0-x233.google.com [2607:f8b0:4001:c05::233])
+        by mx.google.com with ESMTPS id d7si8652768ico.17.2014.06.04.17.13.46
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 04 Jun 2014 17:09:02 -0700 (PDT)
-Received: by mail-ie0-f178.google.com with SMTP id rl12so238463iec.9
-        for <linux-mm@kvack.org>; Wed, 04 Jun 2014 17:09:02 -0700 (PDT)
-Date: Wed, 4 Jun 2014 17:08:59 -0700 (PDT)
+        Wed, 04 Jun 2014 17:13:46 -0700 (PDT)
+Received: by mail-ig0-f179.google.com with SMTP id hn18so1717902igb.6
+        for <linux-mm@kvack.org>; Wed, 04 Jun 2014 17:13:46 -0700 (PDT)
+Date: Wed, 4 Jun 2014 17:13:44 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [RFC PATCH 6/6] mm, compaction: don't migrate in blocks that
- cannot be fully compacted in async direct compaction
-In-Reply-To: <1401898310-14525-6-git-send-email-vbabka@suse.cz>
-Message-ID: <alpine.DEB.2.02.1406041705140.22536@chino.kir.corp.google.com>
-References: <alpine.DEB.2.02.1405211954410.13243@chino.kir.corp.google.com> <1401898310-14525-1-git-send-email-vbabka@suse.cz> <1401898310-14525-6-git-send-email-vbabka@suse.cz>
+Subject: Re: [RESEND PATCH] slub: search partial list on numa_mem_id(),
+ instead of numa_node_id()
+In-Reply-To: <1391674026-20092-1-git-send-email-iamjoonsoo.kim@lge.com>
+Message-ID: <alpine.DEB.2.02.1406041712350.23521@chino.kir.corp.google.com>
+References: <20140206020757.GC5433@linux.vnet.ibm.com> <1391674026-20092-1-git-send-email-iamjoonsoo.kim@lge.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Nishanth Aravamudan <nacc@linux.vnet.ibm.com>, Pekka Enberg <penberg@kernel.org>, Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <js1304@gmail.com>, Han Pingtian <hanpt@linux.vnet.ibm.com>, paulus@samba.org, Anton Blanchard <anton@samba.org>, mpm@selenic.com, linuxppc-dev@lists.ozlabs.org, Wanpeng Li <liwanp@linux.vnet.ibm.com>
 
-On Wed, 4 Jun 2014, Vlastimil Babka wrote:
+On Wed, 21 May 2014, Joonsoo Kim wrote:
 
-> In direct compaction, we want to allocate the high-order page as soon as
-> possible, so migrating from a block of pages that contains also unmigratable
-> pages just adds to allocation latency.
+> Currently, if allocation constraint to node is NUMA_NO_NODE, we search
+> a partial slab on numa_node_id() node. This doesn't work properly on the
+> system having memoryless node, since it can have no memory on that node and
+> there must be no partial slab on that node.
 > 
-
-The title of the patch in the subject line should probably be reworded 
-since it implies we never isolate from blocks that cannot become 
-completely free and what you're really doing is skipping cc->order aligned 
-pages.
-
-> This patch therefore makes the migration scanner skip to the next cc->order
-> aligned block of pages as soon as it cannot isolate a non-free page. Everything
-> isolated up to that point is put back.
+> On that node, page allocation always fallback to numa_mem_id() first. So
+> searching a partial slab on numa_node_id() in that case is proper solution
+> for memoryless node case.
 > 
-> In this mode, the nr_isolated limit to COMPACT_CLUSTER_MAX is not observed,
-> allowing the scanner to scan the whole block at once, instead of migrating
-> COMPACT_CLUSTER_MAX pages and then finding an unmigratable page in the next
-> call. This might however have some implications on too_many_isolated.
+> Acked-by: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
+> Acked-by: David Rientjes <rientjes@google.com>
+> Acked-by: Christoph Lameter <cl@linux.com>
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 > 
-> Also in this RFC PATCH, the "skipping mode" is tied to async migration mode,
-> which is not optimal. What we most probably want is skipping in direct
-> compactions, but not from kswapd and hugepaged.
-> 
-> In very preliminary tests, this has reduced migrate_scanned, isolations and
-> migrations by about 10%, while the success rate of stress-highalloc mmtests
-> actually improved a bit.
-> 
+> diff --git a/mm/slub.c b/mm/slub.c
+> index 545a170..cc1f995 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -1698,7 +1698,7 @@ static void *get_partial(struct kmem_cache *s, gfp_t flags, int node,
+>  		struct kmem_cache_cpu *c)
+>  {
+>  	void *object;
+> -	int searchnode = (node == NUMA_NO_NODE) ? numa_node_id() : node;
+> +	int searchnode = (node == NUMA_NO_NODE) ? numa_mem_id() : node;
+>  
+>  	object = get_partial_node(s, get_node(s, searchnode), c, flags);
+>  	if (object || node != NUMA_NO_NODE)
 
-Ok, so this obsoletes my patchseries that did something similar.  I hope 
-you can rebase this set on top of linux-next and then propose it formally 
-without the RFC tag.
-
-We also need to discuss the scheduling heuristics, the reliance on 
-need_resched(), to abort async compaction.  In testing, we actualy 
-sometimes see 2-3 pageblocks scanned before terminating and thp has a very 
-little chance of being allocated.  At the same time, if we try to fault 
-64MB of anon memory in and each of the 32 calls to compaction are 
-expensive but don't result in an order-9 page, we see very lengthy fault 
-latency.
-
-I think it would be interesting to consider doing async compaction 
-deferral up to 1 << COMPACT_MAX_DEFER_SHIFT after a sysctl-configurable 
-amount of memory is scanned, at least for thp, and remove the scheduling 
-heuristic entirely.
+Andrew, can you merge this please?  It's still not in linux-next.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
