@@ -1,42 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f178.google.com (mail-ie0-f178.google.com [209.85.223.178])
-	by kanga.kvack.org (Postfix) with ESMTP id D3FC06B0070
-	for <linux-mm@kvack.org>; Thu,  5 Jun 2014 06:01:23 -0400 (EDT)
-Received: by mail-ie0-f178.google.com with SMTP id rl12so668408iec.37
-        for <linux-mm@kvack.org>; Thu, 05 Jun 2014 03:01:23 -0700 (PDT)
-Received: from out1-smtp.messagingengine.com (out1-smtp.messagingengine.com. [66.111.4.25])
-        by mx.google.com with ESMTPS id yr8si15039796igb.45.2014.06.05.03.01.22
+Received: from mail-oa0-f45.google.com (mail-oa0-f45.google.com [209.85.219.45])
+	by kanga.kvack.org (Postfix) with ESMTP id 86C096B0073
+	for <linux-mm@kvack.org>; Thu,  5 Jun 2014 07:33:44 -0400 (EDT)
+Received: by mail-oa0-f45.google.com with SMTP id l6so939605oag.4
+        for <linux-mm@kvack.org>; Thu, 05 Jun 2014 04:33:44 -0700 (PDT)
+Received: from mail-oa0-x236.google.com (mail-oa0-x236.google.com [2607:f8b0:4003:c02::236])
+        by mx.google.com with ESMTPS id m10si9702426obe.66.2014.06.05.04.33.43
         for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 05 Jun 2014 03:01:23 -0700 (PDT)
-Received: from compute3.internal (compute3.nyi.mail.srv.osa [10.202.2.43])
-	by gateway1.nyi.mail.srv.osa (Postfix) with ESMTP id 7C0C321460
-	for <linux-mm@kvack.org>; Thu,  5 Jun 2014 06:01:19 -0400 (EDT)
-Message-ID: <53903FED.6020308@iki.fi>
-Date: Thu, 05 Jun 2014 13:01:17 +0300
-From: Pekka Enberg <penberg@iki.fi>
-MIME-Version: 1.0
-Subject: Re: [PATCH] SLAB Maintainer update
-References: <alpine.DEB.2.10.1406041417290.14004@gentwo.org>
-In-Reply-To: <alpine.DEB.2.10.1406041417290.14004@gentwo.org>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 05 Jun 2014 04:33:43 -0700 (PDT)
+Received: by mail-oa0-f54.google.com with SMTP id j17so937650oag.13
+        for <linux-mm@kvack.org>; Thu, 05 Jun 2014 04:33:43 -0700 (PDT)
+Date: Thu, 05 Jun 2014 06:33:40 -0500
+From: Felipe Contreras <felipe.contreras@gmail.com>
+Message-ID: <53905594d284f_71f12992fc6a@nysa.notmuch>
+Subject: Interactivity regression since v3.11 in mm/vmscan.c
+Mime-Version: 1.0
+Content-Type: text/plain;
+ charset=utf-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@gentwo.org>, akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Pekka Enberg <penberg@kernel.org>, mpm@selenic.com, David Rientjes <rientjes@google.com>, Joonsoo Kim <js1304@gmail.com>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>
 
-On 06/04/2014 10:20 PM, Christoph Lameter wrote:
-> As discussed in various threads on the side:
->
->
-> Remove one inactive maintainer, add two new ones and update
-> my email address. Plus add Andrew. And fix the glob to include
-> files like mm/slab_common.c
->
-> Signed-off-by: Christoph Lameter <cl@linux.com>
+Hi,
 
-Acked-by: Pekka Enberg <penberg@kernel.org>
+For a while I've noticed that my machine bogs down in certain
+situations, usually while doing heavy I/O operations, it is not just the
+I/O operations, but everything, including the graphical interface, even
+the mouse pointer.
+
+As far as I can recall this did not happen in the past.
+
+I noticed this specially on certain operations, for example updating a
+a game on Steam (to an exteranl USB 3.0 device), or copying TV episodes
+to a USB memory stick (probably flash-based).
+
+Today I decided to finally hunt down the problem, so I created a
+synthetic test that basically consists on copying a bunch of files from
+one drive to another (from an SSD to an external USB 3.0). This is
+pretty similar to what I noticed; the graphical interface slows down.
+
+Then I bisected the issue and it turns out that indeed it wasn't
+happening in the past, it started happening in v3.11, and it was
+triggered by this commit:
+
+  e2be15f (mm: vmscan: stall page reclaim and writeback pages based on
+  dirty/writepage pages encountered)
+
+Then I went back to the latest stable version (v3.14.5), and commented
+out the line I think is causing the slow down:
+
+  if (nr_unqueued_dirty == nr_taken || nr_immediate)
+	  congestion_wait(BLK_RW_ASYNC, HZ/10);
+
+After that I don't notice the slow down any more.
+
+Anybody has any ideas how to fix the issue properly?
+
+-- 
+Felipe Contreras
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
