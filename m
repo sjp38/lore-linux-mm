@@ -1,76 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 5EC906B0035
-	for <linux-mm@kvack.org>; Thu,  5 Jun 2014 11:57:50 -0400 (EDT)
-Received: by mail-wi0-f177.google.com with SMTP id f8so3743906wiw.16
-        for <linux-mm@kvack.org>; Thu, 05 Jun 2014 08:57:48 -0700 (PDT)
+Received: from mail-wg0-f47.google.com (mail-wg0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id DB5EE6B0035
+	for <linux-mm@kvack.org>; Thu,  5 Jun 2014 12:02:06 -0400 (EDT)
+Received: by mail-wg0-f47.google.com with SMTP id k14so441863wgh.6
+        for <linux-mm@kvack.org>; Thu, 05 Jun 2014 09:02:06 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id pg7si12112301wjb.56.2014.06.05.08.57.19
+        by mx.google.com with ESMTP id fo7si15869060wib.72.2014.06.05.09.01.36
         for <linux-mm@kvack.org>;
-        Thu, 05 Jun 2014 08:57:20 -0700 (PDT)
-Date: Thu, 5 Jun 2014 11:56:58 -0400
-From: Dave Jones <davej@redhat.com>
-Subject: Re: ima_mmap_file returning 0 to userspace as mmap result.
-Message-ID: <20140605155658.GA22673@redhat.com>
-References: <20140604233122.GA19838@redhat.com>
- <538FF4C4.5090300@gmail.com>
+        Thu, 05 Jun 2014 09:01:36 -0700 (PDT)
+Date: Thu, 5 Jun 2014 18:00:29 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+Subject: Re: [RFC][PATCH] oom: Be less verbose if the oom_control event fd
+	has listeners
+Message-ID: <20140605160029.GA28812@redhat.com>
+References: <1401976841-3899-1-git-send-email-richard@nod.at> <1401976841-3899-2-git-send-email-richard@nod.at> <20140605141841.GA23796@redhat.com> <539090F1.7090408@nod.at>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <538FF4C4.5090300@gmail.com>
+In-Reply-To: <539090F1.7090408@nod.at>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
-Cc: Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, zohar@linux.vnet.ibm.com
+To: Richard Weinberger <richard@nod.at>
+Cc: hannes@cmpxchg.org, mhocko@suse.cz, bsingharora@gmail.com, kamezawa.hiroyu@jp.fujitsu.com, akpm@linux-foundation.org, vdavydov@parallels.com, tj@kernel.org, handai.szj@taobao.com, rientjes@google.com, rusty@rustcorp.com.au, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, Jun 05, 2014 at 06:40:36AM +0200, Michael Kerrisk (man-pages) wrote:
- > On 06/05/2014 01:31 AM, Dave Jones wrote:
- > > I just noticed that trinity was freaking out in places when mmap was
- > > returning zero.  This surprised me, because I had the mmap_min_addr
- > > sysctl set to 64k, so it wasn't a MAP_FIXED mapping that did it.
- > > 
- > > There's no mention of this return value in the man page, so I dug
- > > into the kernel code, and it appears that we do..
- > > 
- > > sys_mmap
- > > vm_mmap_pgoff
- > > security_mmap_file
- > > ima_file_mmap <- returns 0 if not PROT_EXEC
- > > 
- > > and then the 0 gets propagated up as a retval all the way to userspace.
- > > 
- > > It smells to me like we might be violating a standard or two here, and
- > > instead of 0 ima should be returning -Esomething
- > > 
- > > thoughts?
- > 
- > Seems like either EACCESS or ENOTSUP is appropriate; here's the pieces 
- > from POSIX:
- > 
- >        EACCES The  fildes argument is not open for read, regardless of
- >               the protection specified, or  fildes  is  not  open  for
- >               write and PROT_WRITE was specified for a MAP_SHARED type
- >               mapping.
- > 
- >        ENOTSUP
- >                    The implementation does not support the combination
- >                    of accesses requested in the prot argument.
- > 
- > ENOTSUP seems to be more appropriate in my reading of the above, though
- > I'd somehow more have expected EACCES.
+On 06/05, Richard Weinberger wrote:
+>
+> Am 05.06.2014 16:18, schrieb Oleg Nesterov:
+> > On 06/05, Richard Weinberger wrote:
+> >>
+> >> +int mem_cgroup_has_listeners(struct mem_cgroup *memcg)
+> >> +{
+> >> +	int ret = 0;
+> >> +
+> >> +	if (!memcg)
+> >> +		goto out;
+> >> +
+> >> +	spin_lock(&memcg_oom_lock);
+> >> +	ret = !list_empty(&memcg->oom_notify);
+> >> +	spin_unlock(&memcg_oom_lock);
+> >> +
+> >> +out:
+> >> +	return ret;
+> >> +}
+> >
+> > Do we really need memcg_oom_lock to check list_empty() ? With or without
+> > this lock we can race with list_add/del anyway, and I guess we do not care.
+>
+> Hmm, in mm/memcontrol.c all list_dev/add are under memcg_oom_lock.
 
-I just realised that this affects even kernels with CONFIG_IMA unset,
-because there we just do 'return 0' unconditionally.
+And? How this lock can help to check list_empty() ?
 
-Also, it appears that kernels with CONFIG_SECURITY unset will also
-return a zero for the same reason.
+list_add/del can come right after mem_cgroup_has_listeners() and change
+the value of list_empty() anyway.
 
-This is kind of a mess, and has been that way for a long time.
-Fixing this will require user-visible breakage, but in this case
-I think it's justified as there's no way an app can do the right thing
-if it gets a 0 back.  Linus ?
+> What do I miss?
 
-	Dave
+Or me...
+
+Oleg.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
