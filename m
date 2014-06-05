@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f171.google.com (mail-ie0-f171.google.com [209.85.223.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 479FD6B0095
-	for <linux-mm@kvack.org>; Wed,  4 Jun 2014 20:02:14 -0400 (EDT)
-Received: by mail-ie0-f171.google.com with SMTP id to1so232834ieb.30
-        for <linux-mm@kvack.org>; Wed, 04 Jun 2014 17:02:14 -0700 (PDT)
-Received: from mail-ie0-x22c.google.com (mail-ie0-x22c.google.com [2607:f8b0:4001:c03::22c])
-        by mx.google.com with ESMTPS id w8si8556717icw.73.2014.06.04.17.02.13
+Received: from mail-ig0-f179.google.com (mail-ig0-f179.google.com [209.85.213.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 6BF406B0044
+	for <linux-mm@kvack.org>; Wed,  4 Jun 2014 20:09:04 -0400 (EDT)
+Received: by mail-ig0-f179.google.com with SMTP id hn18so1719626igb.0
+        for <linux-mm@kvack.org>; Wed, 04 Jun 2014 17:09:04 -0700 (PDT)
+Received: from mail-ie0-x232.google.com (mail-ie0-x232.google.com [2607:f8b0:4001:c03::232])
+        by mx.google.com with ESMTPS id bf2si24200578igb.9.2014.06.04.17.09.02
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 04 Jun 2014 17:02:13 -0700 (PDT)
-Received: by mail-ie0-f172.google.com with SMTP id at1so29536iec.3
-        for <linux-mm@kvack.org>; Wed, 04 Jun 2014 17:02:13 -0700 (PDT)
-Date: Wed, 4 Jun 2014 17:02:10 -0700 (PDT)
+        Wed, 04 Jun 2014 17:09:02 -0700 (PDT)
+Received: by mail-ie0-f178.google.com with SMTP id rl12so238463iec.9
+        for <linux-mm@kvack.org>; Wed, 04 Jun 2014 17:09:02 -0700 (PDT)
+Date: Wed, 4 Jun 2014 17:08:59 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [RFC PATCH 4/6] mm, compaction: skip buddy pages by their order
- in the migrate scanner
-In-Reply-To: <1401898310-14525-4-git-send-email-vbabka@suse.cz>
-Message-ID: <alpine.DEB.2.02.1406041656400.22536@chino.kir.corp.google.com>
-References: <alpine.DEB.2.02.1405211954410.13243@chino.kir.corp.google.com> <1401898310-14525-1-git-send-email-vbabka@suse.cz> <1401898310-14525-4-git-send-email-vbabka@suse.cz>
+Subject: Re: [RFC PATCH 6/6] mm, compaction: don't migrate in blocks that
+ cannot be fully compacted in async direct compaction
+In-Reply-To: <1401898310-14525-6-git-send-email-vbabka@suse.cz>
+Message-ID: <alpine.DEB.2.02.1406041705140.22536@chino.kir.corp.google.com>
+References: <alpine.DEB.2.02.1405211954410.13243@chino.kir.corp.google.com> <1401898310-14525-1-git-send-email-vbabka@suse.cz> <1401898310-14525-6-git-send-email-vbabka@suse.cz>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -27,102 +27,50 @@ Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-
 
 On Wed, 4 Jun 2014, Vlastimil Babka wrote:
 
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index ae7db5f..3dce5a7 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -640,11 +640,18 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
->  		}
->  
->  		/*
-> -		 * Skip if free. page_order cannot be used without zone->lock
-> -		 * as nothing prevents parallel allocations or buddy merging.
-> +		 * Skip if free. We read page order here without zone lock
-> +		 * which is generally unsafe, but the race window is small and
-> +		 * the worst thing that can happen is that we skip some
-> +		 * potential isolation targets.
+> In direct compaction, we want to allocate the high-order page as soon as
+> possible, so migrating from a block of pages that contains also unmigratable
+> pages just adds to allocation latency.
+> 
 
-Should we only be doing the low_pfn adjustment based on the order for 
-MIGRATE_ASYNC?  It seems like sync compaction, including compaction that 
-is triggered from the command line, would prefer to scan over the 
-following pages.
+The title of the patch in the subject line should probably be reworded 
+since it implies we never isolate from blocks that cannot become 
+completely free and what you're really doing is skipping cc->order aligned 
+pages.
 
->  		 */
-> -		if (PageBuddy(page))
-> +		if (PageBuddy(page)) {
-> +			unsigned long freepage_order = page_order_unsafe(page);
+> This patch therefore makes the migration scanner skip to the next cc->order
+> aligned block of pages as soon as it cannot isolate a non-free page. Everything
+> isolated up to that point is put back.
+> 
+> In this mode, the nr_isolated limit to COMPACT_CLUSTER_MAX is not observed,
+> allowing the scanner to scan the whole block at once, instead of migrating
+> COMPACT_CLUSTER_MAX pages and then finding an unmigratable page in the next
+> call. This might however have some implications on too_many_isolated.
+> 
+> Also in this RFC PATCH, the "skipping mode" is tied to async migration mode,
+> which is not optimal. What we most probably want is skipping in direct
+> compactions, but not from kswapd and hugepaged.
+> 
+> In very preliminary tests, this has reduced migrate_scanned, isolations and
+> migrations by about 10%, while the success rate of stress-highalloc mmtests
+> actually improved a bit.
+> 
 
-I don't assume that we want a smp_wmb() in set_page_order() for this 
-little race and to recheck PageBuddy() here after smp_rmb().
+Ok, so this obsoletes my patchseries that did something similar.  I hope 
+you can rebase this set on top of linux-next and then propose it formally 
+without the RFC tag.
 
-I think this is fine for MIGRATE_ASYNC.
+We also need to discuss the scheduling heuristics, the reliance on 
+need_resched(), to abort async compaction.  In testing, we actualy 
+sometimes see 2-3 pageblocks scanned before terminating and thp has a very 
+little chance of being allocated.  At the same time, if we try to fault 
+64MB of anon memory in and each of the 32 calls to compaction are 
+expensive but don't result in an order-9 page, we see very lengthy fault 
+latency.
 
-> +
-> +			if (freepage_order > 0 && freepage_order < MAX_ORDER)
-> +				low_pfn += (1UL << freepage_order) - 1;
->  			continue;
-> +		}
->  
->  		/*
->  		 * Check may be lockless but that's ok as we recheck later.
-> @@ -733,6 +740,13 @@ next_pageblock:
->  		low_pfn = ALIGN(low_pfn + 1, pageblock_nr_pages) - 1;
->  	}
->  
-> +	/*
-> +	 * The PageBuddy() check could have potentially brought us outside
-> +	 * the range to be scanned.
-> +	 */
-> +	if (unlikely(low_pfn > end_pfn))
-> +		end_pfn = low_pfn;
-> +
->  	acct_isolated(zone, locked, cc);
->  
->  	if (locked)
-> diff --git a/mm/internal.h b/mm/internal.h
-> index 1a8a0d4..6aa1f74 100644
-> --- a/mm/internal.h
-> +++ b/mm/internal.h
-> @@ -164,7 +164,8 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
->   * general, page_zone(page)->lock must be held by the caller to prevent the
->   * page from being allocated in parallel and returning garbage as the order.
->   * If a caller does not hold page_zone(page)->lock, it must guarantee that the
-> - * page cannot be allocated or merged in parallel.
-> + * page cannot be allocated or merged in parallel. Alternatively, it must
-> + * handle invalid values gracefully, and use page_order_unsafe() below.
->   */
->  static inline unsigned long page_order(struct page *page)
->  {
-> @@ -172,6 +173,23 @@ static inline unsigned long page_order(struct page *page)
->  	return page_private(page);
->  }
->  
-> +/*
-> + * Like page_order(), but for callers who cannot afford to hold the zone lock,
-> + * and handle invalid values gracefully. ACCESS_ONCE is used so that if the
-> + * caller assigns the result into a local variable and e.g. tests it for valid
-> + * range  before using, the compiler cannot decide to remove the variable and
-> + * inline the function multiple times, potentially observing different values
-> + * in the tests and the actual use of the result.
-> + */
-> +static inline unsigned long page_order_unsafe(struct page *page)
-> +{
-> +	/*
-> +	 * PageBuddy() should be checked by the caller to minimize race window,
-> +	 * and invalid values must be handled gracefully.
-> +	 */
-> +	return ACCESS_ONCE(page_private(page));
-> +}
-> +
->  /* mm/util.c */
->  void __vma_link_list(struct mm_struct *mm, struct vm_area_struct *vma,
->  		struct vm_area_struct *prev, struct rb_node *rb_parent);
-
-I don't like this change at all, I don't think we should have header 
-functions that imply the context in which the function will be called.  I 
-think it would make much more sense to just do 
-ACCESS_ONCE(page_order(page)) in the migration scanner with a comment.  
-These are __attribute__((pure)) semantics for page_order().
+I think it would be interesting to consider doing async compaction 
+deferral up to 1 << COMPACT_MAX_DEFER_SHIFT after a sysctl-configurable 
+amount of memory is scanned, at least for thp, and remove the scheduling 
+heuristic entirely.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
