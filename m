@@ -1,75 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f175.google.com (mail-wi0-f175.google.com [209.85.212.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 817596B0035
-	for <linux-mm@kvack.org>; Thu,  5 Jun 2014 17:58:58 -0400 (EDT)
-Received: by mail-wi0-f175.google.com with SMTP id f8so11205060wiw.8
-        for <linux-mm@kvack.org>; Thu, 05 Jun 2014 14:58:57 -0700 (PDT)
-Received: from radon.swed.at (a.ns.miles-group.at. [95.130.255.143])
-        by mx.google.com with ESMTPS id df5si14021485wjb.42.2014.06.05.14.58.57
+Received: from mail-yk0-f180.google.com (mail-yk0-f180.google.com [209.85.160.180])
+	by kanga.kvack.org (Postfix) with ESMTP id B45B46B0035
+	for <linux-mm@kvack.org>; Thu,  5 Jun 2014 18:47:37 -0400 (EDT)
+Received: by mail-yk0-f180.google.com with SMTP id q9so1273112ykb.11
+        for <linux-mm@kvack.org>; Thu, 05 Jun 2014 15:47:37 -0700 (PDT)
+Received: from g6t1524.atlanta.hp.com (g6t1524.atlanta.hp.com. [15.193.200.67])
+        by mx.google.com with ESMTPS id t12si13420305yhj.63.2014.06.05.15.47.36
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 05 Jun 2014 14:58:57 -0700 (PDT)
-Message-ID: <5390E819.2070709@nod.at>
-Date: Thu, 05 Jun 2014 23:58:49 +0200
-From: Richard Weinberger <richard@nod.at>
-MIME-Version: 1.0
-Subject: Re: [RFC][PATCH] oom: Be less verbose if the oom_control event fd
- has listeners
-References: <1401976841-3899-1-git-send-email-richard@nod.at> <1401976841-3899-2-git-send-email-richard@nod.at> <20140605150025.GB15939@dhcp22.suse.cz> <5390930A.8050504@nod.at> <20140605161807.GD15939@dhcp22.suse.cz>
-In-Reply-To: <20140605161807.GD15939@dhcp22.suse.cz>
-Content-Type: text/plain; charset=ISO-8859-1
+        Thu, 05 Jun 2014 15:47:36 -0700 (PDT)
+Message-ID: <1402007914.7963.8.camel@misato.fc.hp.com>
+Subject: Re: [PATCH v7 07/22] Replace the XIP page fault handler with the
+ DAX page fault handler
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Thu, 05 Jun 2014 16:38:34 -0600
+In-Reply-To: <1400704507.18128.23.camel@misato.fc.hp.com>
+References: <cover.1395591795.git.matthew.r.wilcox@intel.com>
+	 <c2e602f401a580c4fac54b9b8f4a6f8dd0ac1071.1395591795.git.matthew.r.wilcox@intel.com>
+	 <1400704507.18128.23.camel@misato.fc.hp.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: hannes@cmpxchg.org, bsingharora@gmail.com, kamezawa.hiroyu@jp.fujitsu.com, akpm@linux-foundation.org, vdavydov@parallels.com, tj@kernel.org, handai.szj@taobao.com, rientjes@google.com, oleg@redhat.com, rusty@rustcorp.com.au, kirill.shutemov@linux.intel.com, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, linux-mm@kvack.org
+To: Matthew Wilcox <matthew.r.wilcox@intel.com>
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, willy@linux.intel.com
 
-Am 05.06.2014 18:18, schrieb Michal Hocko:
-> On Thu 05-06-14 17:55:54, Richard Weinberger wrote:
->> Am 05.06.2014 17:00, schrieb Michal Hocko:
->>> On Thu 05-06-14 16:00:41, Richard Weinberger wrote:
->>>> Don't spam the kernel logs if the oom_control event fd has listeners.
->>>> In this case there is no need to print that much lines as user space
->>>> will anyway notice that the memory cgroup has reached its limit.
->>>
->>> But how do you debug why it is reaching the limit and why a particular
->>> process has been killed?
->>
->> In my case it's always because customer's Java application gone nuts.
->> So I don't really have to debug a lot. ;-)
->> But I can understand your point.
+On Wed, 2014-05-21 at 14:35 -0600, Toshi Kani wrote:
+> On Sun, 2014-03-23 at 15:08 -0400, Matthew Wilcox wrote:
+>  :
+> > +static int do_dax_fault(struct vm_area_struct *vma, struct vm_fault *vmf,
+> > +			get_block_t get_block)
+> > +{
+>  :
+> > +	error = dax_get_pfn(inode, &bh, &pfn);
+> > +	if (error > 0)
+> > +		error = vm_insert_mixed(vma, vaddr, pfn);
+> > +	mutex_unlock(&mapping->i_mmap_mutex);
+> > +
+> > +	if (page) {
+> > +		delete_from_page_cache(page);
+> > +		unmap_mapping_range(mapping, vmf->pgoff << PAGE_SHIFT,
+> > +							PAGE_CACHE_SIZE, 0);
+> > +		unlock_page(page);
+> > +		page_cache_release(page);
 > 
-> If you know that handling memcg-OOM condition is easy then maybe you can
-> not only listen for the OOM notifications but also handle OOM conditions
-> and kill the offender. This would mean that kernel doesn't try to kill
-> anything and so wouldn't dump anything to the log.
-
-Basically I don't care what customers run in their containers.
-But almost every OOM is because their Java apps consume too much memory.
-Mostly because they don't know exactly how much memory they need or
-because of completely broken JVM heap settings.
-
-All my OOM listener does is sending a mail a la "Your container ran out of memory, go figure...".
-
->>> If we are printing too much then OK, let's remove those parts which are
->>> not that useful but hiding information which tells us more about the oom
->>> decision doesn't sound right to me.
->>
->> What about adding a sysctl like "vm.oom_verbose"?
->> By default it would be 1.
->> If set to 0 the full OOM information is only printed out if nobody listens
->> to the event fd.
+> Hi Matthew,
 > 
-> If we have a knob then I guess it should be global and shared by memcg
-> as well. I can imagine that somebody might be interested only in the
-> tasks dump, while somebody would like to see LRU states and other memory
-> counters. So it would be ideally a bitmask of things to output. I do not
-> think that a memcg specific solution is good, though.
+> I am seeing a problem in this code path, where it deletes a page cache
+> page mapped to a hole. Sometimes, page->_mapcount is 0, not -1, which
+> leads __delete_from_page_cache(), called from delete_from_page_cache(),
+> to hit the following BUG_ON.
+> 
+>   BUG_ON(page_mapped(page))
+> 
+> I suppose such page has a shared mapping. Does this code need to take
+> care of replacing shared mappings in such case?
 
-I'm not sure if such a fine grained setting is really useful.
+Hi Matthew,
+
+The following change works in my environment.  What do you think? 
 
 Thanks,
-//richard
+-Toshi
+
+---
+ fs/dax.c |    3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/fs/dax.c b/fs/dax.c
+index 2d6b4bc..046c6d6 100644
+--- a/fs/dax.c
++++ b/fs/dax.c
+@@ -26,6 +26,7 @@
+ #include <linux/sched.h>
+ #include <linux/uio.h>
+ #include <linux/vmstat.h>
++#include <linux/rmap.h>
+ 
+ int dax_clear_blocks(struct inode *inode, sector_t block, long size)
+ {
+@@ -385,6 +386,8 @@ static int do_dax_fault(struct vm_area_struct *vma,
+struct vm_fault *vmf,
+ 	mutex_unlock(&mapping->i_mmap_mutex);
+ 
+ 	if (page) {
++		if (page_mapped(page))
++			try_to_unmap(page, TTU_UNMAP|TTU_IGNORE_ACCESS);
+ 		delete_from_page_cache(page);
+ 		unmap_mapping_range(mapping, vmf->pgoff << PAGE_SHIFT,
+ 							PAGE_CACHE_SIZE, 0);
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
