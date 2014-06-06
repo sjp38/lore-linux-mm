@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f170.google.com (mail-pd0-f170.google.com [209.85.192.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 729526B0036
-	for <linux-mm@kvack.org>; Thu,  5 Jun 2014 23:57:56 -0400 (EDT)
-Received: by mail-pd0-f170.google.com with SMTP id g10so2021619pdj.29
-        for <linux-mm@kvack.org>; Thu, 05 Jun 2014 20:57:56 -0700 (PDT)
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 719FD6B0037
+	for <linux-mm@kvack.org>; Thu,  5 Jun 2014 23:58:00 -0400 (EDT)
+Received: by mail-pd0-f179.google.com with SMTP id fp1so2020837pdb.38
+        for <linux-mm@kvack.org>; Thu, 05 Jun 2014 20:58:00 -0700 (PDT)
 Received: from heian.cn.fujitsu.com ([59.151.112.132])
-        by mx.google.com with ESMTP id bv2si16943763pbb.63.2014.06.05.20.57.53
+        by mx.google.com with ESMTP id yr4si16975040pbb.4.2014.06.05.20.57.56
         for <linux-mm@kvack.org>;
-        Thu, 05 Jun 2014 20:57:55 -0700 (PDT)
+        Thu, 05 Jun 2014 20:57:59 -0700 (PDT)
 From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH v2 1/2] mem-hotplug: Avoid illegal state prefixed with legal state when changing state of memory_block.
-Date: Fri, 6 Jun 2014 11:58:53 +0800
-Message-ID: <1402027134-14423-2-git-send-email-tangchen@cn.fujitsu.com>
+Subject: [PATCH v2 2/2] mem-hotplug: Introduce MMOP_OFFLINE to replace the hard coding -1.
+Date: Fri, 6 Jun 2014 11:58:54 +0800
+Message-ID: <1402027134-14423-3-git-send-email-tangchen@cn.fujitsu.com>
 In-Reply-To: <1402027134-14423-1-git-send-email-tangchen@cn.fujitsu.com>
 References: <1402027134-14423-1-git-send-email-tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
@@ -21,90 +21,126 @@ List-ID: <linux-mm.kvack.org>
 To: gregkh@linuxfoundation.org, akpm@linux-foundation.org, toshi.kani@hp.com, tj@kernel.org, hpa@zytor.com, mingo@elte.hu, laijs@cn.fujitsu.com
 Cc: isimatu.yasuaki@jp.fujitsu.com, hutao@cn.fujitsu.com, guz.fnst@cn.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-We use the following command to online a memory_block:
-
-echo online|online_kernel|online_movable > /sys/devices/system/memory/memoryXXX/state
-
-But, if we do the following:
-
-echo online_fhsjkghfkd > /sys/devices/system/memory/memoryXXX/state
-
-the block will also be onlined.
-
-This is because the following code in store_mem_state() does not compare the whole string,
-but only the prefix of the string.
-
-store_mem_state()
-{
-	......
- 328         if (!strncmp(buf, "online_kernel", min_t(int, count, 13)))
-
-Here, only compare the first 13 letters of the string. If we give "online_kernelXXXXXX",
-it will be recognized as online_kernel, which is incorrect.
-
- 329                 online_type = ONLINE_KERNEL;
- 330         else if (!strncmp(buf, "online_movable", min_t(int, count, 14)))
-
-We have the same problem here,
-
- 331                 online_type = ONLINE_MOVABLE;
- 332         else if (!strncmp(buf, "online", min_t(int, count, 6)))
-
-here,
-
-(Here is more problematic. If we give online_movalbe, which is a typo of online_movable,
- it will be recognized as online without noticing the author.)
-
- 333                 online_type = ONLINE_KEEP;
+In store_mem_state(), we have:
+......
  334         else if (!strncmp(buf, "offline", min_t(int, count, 7)))
-
-and here.
-
  335                 online_type = -1;
- 336         else {
- 337                 ret = -EINVAL;
- 338                 goto err;
- 339         }
-	......
-}
+......
+ 355         case -1:
+ 356                 ret = device_offline(&mem->dev);
+ 357                 break;
+......
 
-This patch fix this problem by using sysfs_streq() to compare the whole string.
+Here, "offline" is hard coded as -1.
 
-Reported-by: Hu Tao <hutao@cn.fujitsu.com>
+This patch does the following renaming:
+ ONLINE_KEEP     ->  MMOP_ONLINE_KEEP
+ ONLINE_KERNEL   ->  MMOP_ONLINE_KERNEL
+ ONLINE_MOVABLE  ->  MMOP_ONLINE_MOVABLE
+
+and introduce MMOP_OFFLINE = -1 to avoid hard coding.
+
 Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
 ---
-
-change log v1 -> v2:
-	Following Andrew's suggestion, use sysfs_streq() to compare the whole string
-	so that we can simplify the code.
-
----
----
- drivers/base/memory.c | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ drivers/base/memory.c          | 16 ++++++++--------
+ include/linux/memory_hotplug.h |  9 +++++----
+ mm/memory_hotplug.c            |  9 ++++++---
+ 3 files changed, 19 insertions(+), 15 deletions(-)
 
 diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-index bece691..fa664b9 100644
+index fa664b9..0f3fa8c 100644
 --- a/drivers/base/memory.c
 +++ b/drivers/base/memory.c
-@@ -325,13 +325,13 @@ store_mem_state(struct device *dev,
- 	if (ret)
+@@ -294,7 +294,7 @@ static int memory_subsys_online(struct device *dev)
+ 	 * attribute and need to set the online_type.
+ 	 */
+ 	if (mem->online_type < 0)
+-		mem->online_type = ONLINE_KEEP;
++		mem->online_type = MMOP_ONLINE_KEEP;
+ 
+ 	ret = memory_block_change_state(mem, MEM_ONLINE, MEM_OFFLINE);
+ 
+@@ -326,22 +326,22 @@ store_mem_state(struct device *dev,
  		return ret;
  
--	if (!strncmp(buf, "online_kernel", min_t(int, count, 13)))
-+	if (sysfs_streq(buf, "online_kernel"))
- 		online_type = ONLINE_KERNEL;
--	else if (!strncmp(buf, "online_movable", min_t(int, count, 14)))
-+	else if (sysfs_streq(buf, "online_movable"))
- 		online_type = ONLINE_MOVABLE;
--	else if (!strncmp(buf, "online", min_t(int, count, 6)))
-+	else if (sysfs_streq(buf, "online"))
- 		online_type = ONLINE_KEEP;
--	else if (!strncmp(buf, "offline", min_t(int, count, 7)))
-+	else if (sysfs_streq(buf, "offline"))
- 		online_type = -1;
+ 	if (sysfs_streq(buf, "online_kernel"))
+-		online_type = ONLINE_KERNEL;
++		online_type = MMOP_ONLINE_KERNEL;
+ 	else if (sysfs_streq(buf, "online_movable"))
+-		online_type = ONLINE_MOVABLE;
++		online_type = MMOP_ONLINE_MOVABLE;
+ 	else if (sysfs_streq(buf, "online"))
+-		online_type = ONLINE_KEEP;
++		online_type = MMOP_ONLINE_KEEP;
+ 	else if (sysfs_streq(buf, "offline"))
+-		online_type = -1;
++		online_type = MMOP_OFFLINE;
  	else {
  		ret = -EINVAL;
+ 		goto err;
+ 	}
+ 
+ 	switch (online_type) {
+-	case ONLINE_KERNEL:
+-	case ONLINE_MOVABLE:
+-	case ONLINE_KEEP:
++	case MMOP_ONLINE_KERNEL:
++	case MMOP_ONLINE_MOVABLE:
++	case MMOP_ONLINE_KEEP:
+ 		/*
+ 		 * mem->online_type is not protected so there can be a
+ 		 * race here.  However, when racing online, the first
+diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+index 4ca3d95..b4240cf 100644
+--- a/include/linux/memory_hotplug.h
++++ b/include/linux/memory_hotplug.h
+@@ -26,11 +26,12 @@ enum {
+ 	MEMORY_HOTPLUG_MAX_BOOTMEM_TYPE = NODE_INFO,
+ };
+ 
+-/* Types for control the zone type of onlined memory */
++/* Types for control the zone type of onlined and offlined memory */
+ enum {
+-	ONLINE_KEEP,
+-	ONLINE_KERNEL,
+-	ONLINE_MOVABLE,
++	MMOP_OFFLINE = -1,
++	MMOP_ONLINE_KEEP,
++	MMOP_ONLINE_KERNEL,
++	MMOP_ONLINE_MOVABLE,
+ };
+ 
+ /*
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index a650db2..6075f04 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -907,19 +907,22 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
+ 	 */
+ 	zone = page_zone(pfn_to_page(pfn));
+ 
+-	if ((zone_idx(zone) > ZONE_NORMAL || online_type == ONLINE_MOVABLE) &&
++	if ((zone_idx(zone) > ZONE_NORMAL ||
++	     online_type == MMOP_ONLINE_MOVABLE) &&
+ 	    !can_online_high_movable(zone)) {
+ 		unlock_memory_hotplug();
+ 		return -EINVAL;
+ 	}
+ 
+-	if (online_type == ONLINE_KERNEL && zone_idx(zone) == ZONE_MOVABLE) {
++	if (online_type == MMOP_ONLINE_KERNEL &&
++	    zone_idx(zone) == ZONE_MOVABLE) {
+ 		if (move_pfn_range_left(zone - 1, zone, pfn, pfn + nr_pages)) {
+ 			unlock_memory_hotplug();
+ 			return -EINVAL;
+ 		}
+ 	}
+-	if (online_type == ONLINE_MOVABLE && zone_idx(zone) == ZONE_MOVABLE - 1) {
++	if (online_type == MMOP_ONLINE_MOVABLE &&
++	    zone_idx(zone) == ZONE_MOVABLE - 1) {
+ 		if (move_pfn_range_right(zone, zone + 1, pfn, pfn + nr_pages)) {
+ 			unlock_memory_hotplug();
+ 			return -EINVAL;
 -- 
 1.8.3.1
 
