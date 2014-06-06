@@ -1,44 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f53.google.com (mail-qg0-f53.google.com [209.85.192.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 74FE06B0080
-	for <linux-mm@kvack.org>; Fri,  6 Jun 2014 10:52:21 -0400 (EDT)
-Received: by mail-qg0-f53.google.com with SMTP id f51so4697676qge.12
-        for <linux-mm@kvack.org>; Fri, 06 Jun 2014 07:52:21 -0700 (PDT)
-Received: from qmta02.emeryville.ca.mail.comcast.net (qmta02.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:24])
-        by mx.google.com with ESMTP id c1si13393990qag.106.2014.06.06.07.52.20
-        for <linux-mm@kvack.org>;
-        Fri, 06 Jun 2014 07:52:20 -0700 (PDT)
-Date: Fri, 6 Jun 2014 09:52:17 -0500 (CDT)
-From: Christoph Lameter <cl@gentwo.org>
-Subject: Re: [PATCH -mm v2 8/8] slab: make dead memcg caches discard free
- slabs immediately
-In-Reply-To: <27a202c6084d6bb19cc3e417793f05104b908ded.1402060096.git.vdavydov@parallels.com>
-Message-ID: <alpine.DEB.2.10.1406060949430.32229@gentwo.org>
-References: <cover.1402060096.git.vdavydov@parallels.com> <27a202c6084d6bb19cc3e417793f05104b908ded.1402060096.git.vdavydov@parallels.com>
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Received: from mail-ob0-f178.google.com (mail-ob0-f178.google.com [209.85.214.178])
+	by kanga.kvack.org (Postfix) with ESMTP id BD7416B0082
+	for <linux-mm@kvack.org>; Fri,  6 Jun 2014 11:14:27 -0400 (EDT)
+Received: by mail-ob0-f178.google.com with SMTP id va2so2905293obc.37
+        for <linux-mm@kvack.org>; Fri, 06 Jun 2014 08:14:27 -0700 (PDT)
+Received: from mailout3.w1.samsung.com (mailout3.w1.samsung.com. [210.118.77.13])
+        by mx.google.com with ESMTPS id zc3si20003194pbc.176.2014.06.06.08.14.26
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
+        Fri, 06 Jun 2014 08:14:27 -0700 (PDT)
+Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
+ by mailout3.w1.samsung.com
+ (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
+ 17 2011)) with ESMTP id <0N6R000VM6C0I310@mailout3.w1.samsung.com> for
+ linux-mm@kvack.org; Fri, 06 Jun 2014 16:14:24 +0100 (BST)
+From: Andrey Ryabinin <a.ryabinin@samsung.com>
+Subject: [PATCH v2] mm: rmap: fix use-after-free in __put_anon_vma
+Date: Fri, 06 Jun 2014 19:09:30 +0400
+Message-id: <1402067370-5773-1-git-send-email-a.ryabinin@samsung.com>
+In-reply-to: <20140606115620.GS3213@twins.programming.kicks-ass.net>
+References: <20140606115620.GS3213@twins.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: akpm@linux-foundation.org, iamjoonsoo.kim@lge.com, rientjes@google.com, penberg@kernel.org, hannes@cmpxchg.org, mhocko@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, koct9i@gmail.com, Andrey Ryabinin <a.ryabinin@samsung.com>, stable@vger.kernel.org
 
-On Fri, 6 Jun 2014, Vladimir Davydov wrote:
+While working address sanitizer for kernel I've discovered use-after-free
+bug in __put_anon_vma.
+For the last anon_vma, anon_vma->root freed before child anon_vma.
+Later in anon_vma_free(anon_vma) we are referencing to already freed anon_vma->root
+to check rwsem.
+This patch puts freeing of child anon_vma before freeing of anon_vma->root.
 
-> @@ -740,7 +740,8 @@ static void start_cpu_timer(int cpu)
->  	}
->  }
->
-> -static struct array_cache *alloc_arraycache(int node, int entries,
-> +static struct array_cache *alloc_arraycache(struct kmem_cache *cachep,
-> +					    int node, int entries,
->  					    int batchcount, gfp_t gfp)
->  {
->  	int memsize = sizeof(void *) * entries + sizeof(struct array_cache);
+Cc: <stable@vger.kernel.org> # v3.0+
+Signed-off-by: Andrey Ryabinin <a.ryabinin@samsung.com>
+---
 
-If you pass struct kmem_cache * into alloc_arraycache then we do not need
-to pass entries or batchcount because they are available in struct
-kmem_cache.
+Changes since v1:
+ - just made it more simple following Peter's suggestion
 
-Otherwise this patch looks a bit too large to me. Simplify a bit?
+ mm/rmap.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/mm/rmap.c b/mm/rmap.c
+index 9c3e773..cb5f70a 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -1564,10 +1564,10 @@ void __put_anon_vma(struct anon_vma *anon_vma)
+ {
+ 	struct anon_vma *root = anon_vma->root;
+ 
++	anon_vma_free(anon_vma);
++
+ 	if (root != anon_vma && atomic_dec_and_test(&root->refcount))
+ 		anon_vma_free(root);
+-
+-	anon_vma_free(anon_vma);
+ }
+ 
+ static struct anon_vma *rmap_walk_anon_lock(struct page *page,
+-- 
+1.8.5.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
