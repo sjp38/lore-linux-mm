@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-la0-f50.google.com (mail-la0-f50.google.com [209.85.215.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 350BB6B003C
+Received: from mail-lb0-f179.google.com (mail-lb0-f179.google.com [209.85.217.179])
+	by kanga.kvack.org (Postfix) with ESMTP id C474C6B003B
 	for <linux-mm@kvack.org>; Fri,  6 Jun 2014 09:22:54 -0400 (EDT)
-Received: by mail-la0-f50.google.com with SMTP id b8so1526562lan.9
-        for <linux-mm@kvack.org>; Fri, 06 Jun 2014 06:22:53 -0700 (PDT)
+Received: by mail-lb0-f179.google.com with SMTP id c11so1528799lbj.10
+        for <linux-mm@kvack.org>; Fri, 06 Jun 2014 06:22:54 -0700 (PDT)
 Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id u3si10705657laj.103.2014.06.06.06.22.51
+        by mx.google.com with ESMTPS id na5si21364404lbb.7.2014.06.06.06.22.52
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 06 Jun 2014 06:22:52 -0700 (PDT)
+        Fri, 06 Jun 2014 06:22:53 -0700 (PDT)
 From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH -mm v2 5/8] slub: make slab_free non-preemptable
-Date: Fri, 6 Jun 2014 17:22:42 +0400
-Message-ID: <7cd6784a36ed997cc6631615d98e11e02e811b1b.1402060096.git.vdavydov@parallels.com>
+Subject: [PATCH -mm v2 6/8] memcg: wait for kfree's to finish before destroying cache
+Date: Fri, 6 Jun 2014 17:22:43 +0400
+Message-ID: <07a2c0a9d898a68a7c8593c398d428aa16be9fd5.1402060096.git.vdavydov@parallels.com>
 In-Reply-To: <cover.1402060096.git.vdavydov@parallels.com>
 References: <cover.1402060096.git.vdavydov@parallels.com>
 MIME-Version: 1.0
@@ -22,67 +22,105 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
 Cc: cl@linux.com, iamjoonsoo.kim@lge.com, rientjes@google.com, penberg@kernel.org, hannes@cmpxchg.org, mhocko@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Since per memcg cache destruction is scheduled when the last slab is
-freed, to avoid use-after-free in kmem_cache_free we should either
-rearrange code in kmem_cache_free so that it won't dereference the cache
-ptr after freeing the object, or wait for all kmem_cache_free's to
-complete before proceeding to cache destruction.
+kmem_cache_free doesn't expect that the cache can be destroyed as soon
+as the object is freed, e.g. SLUB's implementation may want to update
+cache stats after putting the object to the free list.
 
-The former approach isn't a good option from the future development
-point of view, because every modifications to kmem_cache_free must be
-done with great care then. Hence we should provide a method to wait for
-all currently executing kmem_cache_free's to finish.
-
-This patch makes SLUB's implementation of kmem_cache_free
-non-preemptable. As a result, synchronize_sched() will work as a barrier
-against kmem_cache_free's in flight, so that issuing it before cache
-destruction will protect us against the use-after-free.
-
-This won't affect performance of kmem_cache_free, because we already
-disable preemption there, and this patch only moves preempt_enable to
-the end of the function. Neither should it affect the system latency,
-because kmem_cache_free is extremely short, even in its slow path.
-
-SLAB's version of kmem_cache_free already proceeds with irqs disabled,
-so nothing to be done there.
+Therefore we should wait for all kmem_cache_free's to finish before
+proceeding to cache destruction. Since both SLAB and SLUB versions of
+kmem_cache_free are non-preemptable, we wait for rcu-sched grace period
+to elapse.
 
 Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
 ---
- mm/slub.c |   10 ++--------
- 1 file changed, 2 insertions(+), 8 deletions(-)
+ include/linux/slab.h |    6 ++----
+ mm/memcontrol.c      |   34 ++++++++++++++++++++++++++++++++--
+ 2 files changed, 34 insertions(+), 6 deletions(-)
 
-diff --git a/mm/slub.c b/mm/slub.c
-index 35741592be8c..e46d6abe8a68 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -2673,18 +2673,11 @@ static __always_inline void slab_free(struct kmem_cache *s,
- 
- 	slab_free_hook(s, x);
- 
--redo:
--	/*
--	 * Determine the currently cpus per cpu slab.
--	 * The cpu may change afterward. However that does not matter since
--	 * data is retrieved via this pointer. If we are on the same cpu
--	 * during the cmpxchg then the free will succedd.
--	 */
- 	preempt_disable();
-+redo:
- 	c = this_cpu_ptr(s->cpu_slab);
- 
- 	tid = c->tid;
--	preempt_enable();
- 
- 	if (likely(page == c->page)) {
- 		set_freepointer(s, object, c->freelist);
-@@ -2701,6 +2694,7 @@ redo:
- 	} else
- 		__slab_free(s, page, x, addr);
- 
-+	preempt_enable();
+diff --git a/include/linux/slab.h b/include/linux/slab.h
+index d99d5212b815..68b1feaba9d6 100644
+--- a/include/linux/slab.h
++++ b/include/linux/slab.h
+@@ -532,11 +532,9 @@ static __always_inline void *kmalloc_node(size_t size, gfp_t flags, int node)
+  */
+ struct memcg_cache_params {
+ 	bool is_root_cache;
++	struct rcu_head rcu_head;
+ 	union {
+-		struct {
+-			struct rcu_head rcu_head;
+-			struct kmem_cache *memcg_caches[0];
+-		};
++		struct kmem_cache *memcg_caches[0];
+ 		struct {
+ 			struct mem_cgroup *memcg;
+ 			struct list_head list;
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index ed42fd1105a5..5b3543a9257e 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -3232,6 +3232,14 @@ static void memcg_unregister_cache_func(struct work_struct *work)
+ 	mutex_unlock(&memcg_slab_mutex);
  }
  
- void kmem_cache_free(struct kmem_cache *s, void *x)
++static void memcg_unregister_cache_rcu_func(struct rcu_head *rcu)
++{
++	struct memcg_cache_params *params =
++		container_of(rcu, struct memcg_cache_params, rcu_head);
++
++	schedule_work(&params->unregister_work);
++}
++
+ /*
+  * During the creation a new cache, we need to disable our accounting mechanism
+  * altogether. This is true even if we are not creating, but rather just
+@@ -3287,6 +3295,7 @@ static void memcg_unregister_all_caches(struct mem_cgroup *memcg)
+ {
+ 	struct kmem_cache *cachep;
+ 	struct memcg_cache_params *params, *tmp;
++	LIST_HEAD(empty_caches);
+ 
+ 	if (!memcg_kmem_is_active(memcg))
+ 		return;
+@@ -3297,7 +3306,26 @@ static void memcg_unregister_all_caches(struct mem_cgroup *memcg)
+ 		cachep->memcg_params->dead = true;
+ 		kmem_cache_shrink(cachep);
+ 		if (atomic_long_dec_and_test(&cachep->memcg_params->refcnt))
+-			memcg_unregister_cache(cachep);
++			list_move(&cachep->memcg_params->list, &empty_caches);
++	}
++
++	/*
++	 * kmem_cache_free doesn't expect that the cache can be destroyed as
++	 * soon as the object is freed, e.g. SLUB's implementation may want to
++	 * update cache stats after putting the object to the free list.
++	 *
++	 * Therefore we should wait for all kmem_cache_free's to finish before
++	 * proceeding to cache destruction. Since both SLAB and SLUB versions
++	 * of kmem_cache_free are non-preemptable, we wait for rcu-sched grace
++	 * period to elapse.
++	 */
++	synchronize_sched();
++
++	while (!list_empty(&empty_caches)) {
++		params = list_first_entry(&empty_caches,
++					  struct memcg_cache_params, list);
++		cachep = memcg_params_to_cache(params);
++		memcg_unregister_cache(cachep);
+ 	}
+ 	mutex_unlock(&memcg_slab_mutex);
+ }
+@@ -3379,7 +3407,9 @@ void __memcg_uncharge_slab(struct kmem_cache *cachep, int order)
+ 	memcg_uncharge_kmem(cachep->memcg_params->memcg, PAGE_SIZE << order);
+ 
+ 	if (unlikely(atomic_long_dec_and_test(&cachep->memcg_params->refcnt)))
+-		schedule_work(&cachep->memcg_params->unregister_work);
++		/* see memcg_unregister_all_caches */
++		call_rcu_sched(&cachep->memcg_params->rcu_head,
++			       memcg_unregister_cache_rcu_func);
+ }
+ 
+ /*
 -- 
 1.7.10.4
 
