@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f169.google.com (mail-lb0-f169.google.com [209.85.217.169])
-	by kanga.kvack.org (Postfix) with ESMTP id BB2B36B0037
-	for <linux-mm@kvack.org>; Fri,  6 Jun 2014 09:22:53 -0400 (EDT)
-Received: by mail-lb0-f169.google.com with SMTP id s7so1533302lbd.28
+Received: from mail-la0-f50.google.com (mail-la0-f50.google.com [209.85.215.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 350BB6B003C
+	for <linux-mm@kvack.org>; Fri,  6 Jun 2014 09:22:54 -0400 (EDT)
+Received: by mail-la0-f50.google.com with SMTP id b8so1526562lan.9
         for <linux-mm@kvack.org>; Fri, 06 Jun 2014 06:22:53 -0700 (PDT)
 Received: from relay.parallels.com (relay.parallels.com. [195.214.232.42])
-        by mx.google.com with ESMTPS id tl3si21355181lbb.14.2014.06.06.06.22.50
+        by mx.google.com with ESMTPS id u3si10705657laj.103.2014.06.06.06.22.51
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 06 Jun 2014 06:22:51 -0700 (PDT)
+        Fri, 06 Jun 2014 06:22:52 -0700 (PDT)
 From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: [PATCH -mm v2 4/8] slub: don't fail kmem_cache_shrink if slab placement optimization fails
-Date: Fri, 6 Jun 2014 17:22:41 +0400
-Message-ID: <c9aafeecd0a16f81f78f0d4549a48d0ecf98402f.1402060096.git.vdavydov@parallels.com>
+Subject: [PATCH -mm v2 5/8] slub: make slab_free non-preemptable
+Date: Fri, 6 Jun 2014 17:22:42 +0400
+Message-ID: <7cd6784a36ed997cc6631615d98e11e02e811b1b.1402060096.git.vdavydov@parallels.com>
 In-Reply-To: <cover.1402060096.git.vdavydov@parallels.com>
 References: <cover.1402060096.git.vdavydov@parallels.com>
 MIME-Version: 1.0
@@ -22,70 +22,67 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
 Cc: cl@linux.com, iamjoonsoo.kim@lge.com, rientjes@google.com, penberg@kernel.org, hannes@cmpxchg.org, mhocko@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-SLUB's kmem_cache_shrink not only removes empty slabs from the cache,
-but also sorts slabs by the number of objects in-use to cope with
-fragmentation. To achieve that, it tries to allocate a temporary array.
-If it fails, it will abort the whole procedure.
+Since per memcg cache destruction is scheduled when the last slab is
+freed, to avoid use-after-free in kmem_cache_free we should either
+rearrange code in kmem_cache_free so that it won't dereference the cache
+ptr after freeing the object, or wait for all kmem_cache_free's to
+complete before proceeding to cache destruction.
 
-This is unacceptable for kmemcg, where we want to be sure that all empty
-slabs are removed from the cache on memcg offline, so let's just skip
-the slab placement optimization step if the allocation fails, but still
-get rid of empty slabs.
+The former approach isn't a good option from the future development
+point of view, because every modifications to kmem_cache_free must be
+done with great care then. Hence we should provide a method to wait for
+all currently executing kmem_cache_free's to finish.
+
+This patch makes SLUB's implementation of kmem_cache_free
+non-preemptable. As a result, synchronize_sched() will work as a barrier
+against kmem_cache_free's in flight, so that issuing it before cache
+destruction will protect us against the use-after-free.
+
+This won't affect performance of kmem_cache_free, because we already
+disable preemption there, and this patch only moves preempt_enable to
+the end of the function. Neither should it affect the system latency,
+because kmem_cache_free is extremely short, even in its slow path.
+
+SLAB's version of kmem_cache_free already proceeds with irqs disabled,
+so nothing to be done there.
 
 Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
-Acked-by: Christoph Lameter <cl@linux.com>
 ---
- mm/slub.c |   19 +++++++++++++++----
- 1 file changed, 15 insertions(+), 4 deletions(-)
+ mm/slub.c |   10 ++--------
+ 1 file changed, 2 insertions(+), 8 deletions(-)
 
 diff --git a/mm/slub.c b/mm/slub.c
-index d96faa2464c3..35741592be8c 100644
+index 35741592be8c..e46d6abe8a68 100644
 --- a/mm/slub.c
 +++ b/mm/slub.c
-@@ -3404,12 +3404,20 @@ int __kmem_cache_shrink(struct kmem_cache *s)
- 	struct page *page;
- 	struct page *t;
- 	int objects = oo_objects(s->max);
-+	struct list_head empty_slabs;
- 	struct list_head *slabs_by_inuse =
- 		kmalloc(sizeof(struct list_head) * objects, GFP_KERNEL);
- 	unsigned long flags;
+@@ -2673,18 +2673,11 @@ static __always_inline void slab_free(struct kmem_cache *s,
  
--	if (!slabs_by_inuse)
--		return -ENOMEM;
-+	if (!slabs_by_inuse) {
-+		/*
-+		 * Do not fail shrinking empty slabs if allocation of the
-+		 * temporary array failed. Just skip the slab placement
-+		 * optimization then.
-+		 */
-+		slabs_by_inuse = &empty_slabs;
-+		objects = 1;
-+	}
+ 	slab_free_hook(s, x);
  
- 	flush_all(s);
- 	for_each_node_state(node, N_NORMAL_MEMORY) {
-@@ -3430,7 +3438,9 @@ int __kmem_cache_shrink(struct kmem_cache *s)
- 		 * list_lock. page->inuse here is the upper limit.
- 		 */
- 		list_for_each_entry_safe(page, t, &n->partial, lru) {
--			list_move(&page->lru, slabs_by_inuse + page->inuse);
-+			if (page->inuse < objects)
-+				list_move(&page->lru,
-+					  slabs_by_inuse + page->inuse);
- 			if (!page->inuse)
- 				n->nr_partial--;
- 		}
-@@ -3449,7 +3459,8 @@ int __kmem_cache_shrink(struct kmem_cache *s)
- 			discard_slab(s, page);
- 	}
+-redo:
+-	/*
+-	 * Determine the currently cpus per cpu slab.
+-	 * The cpu may change afterward. However that does not matter since
+-	 * data is retrieved via this pointer. If we are on the same cpu
+-	 * during the cmpxchg then the free will succedd.
+-	 */
+ 	preempt_disable();
++redo:
+ 	c = this_cpu_ptr(s->cpu_slab);
  
--	kfree(slabs_by_inuse);
-+	if (slabs_by_inuse != &empty_slabs)
-+		kfree(slabs_by_inuse);
- 	return 0;
+ 	tid = c->tid;
+-	preempt_enable();
+ 
+ 	if (likely(page == c->page)) {
+ 		set_freepointer(s, object, c->freelist);
+@@ -2701,6 +2694,7 @@ redo:
+ 	} else
+ 		__slab_free(s, page, x, addr);
+ 
++	preempt_enable();
  }
  
+ void kmem_cache_free(struct kmem_cache *s, void *x)
 -- 
 1.7.10.4
 
