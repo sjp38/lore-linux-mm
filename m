@@ -1,66 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f178.google.com (mail-ob0-f178.google.com [209.85.214.178])
-	by kanga.kvack.org (Postfix) with ESMTP id BD7416B0082
-	for <linux-mm@kvack.org>; Fri,  6 Jun 2014 11:14:27 -0400 (EDT)
-Received: by mail-ob0-f178.google.com with SMTP id va2so2905293obc.37
-        for <linux-mm@kvack.org>; Fri, 06 Jun 2014 08:14:27 -0700 (PDT)
-Received: from mailout3.w1.samsung.com (mailout3.w1.samsung.com. [210.118.77.13])
-        by mx.google.com with ESMTPS id zc3si20003194pbc.176.2014.06.06.08.14.26
+Received: from mail-qg0-f46.google.com (mail-qg0-f46.google.com [209.85.192.46])
+	by kanga.kvack.org (Postfix) with ESMTP id C1B846B0085
+	for <linux-mm@kvack.org>; Fri,  6 Jun 2014 11:29:18 -0400 (EDT)
+Received: by mail-qg0-f46.google.com with SMTP id q108so4630826qgd.5
+        for <linux-mm@kvack.org>; Fri, 06 Jun 2014 08:29:18 -0700 (PDT)
+Received: from mail-qg0-x22a.google.com (mail-qg0-x22a.google.com [2607:f8b0:400d:c04::22a])
+        by mx.google.com with ESMTPS id z19si13718407qaq.59.2014.06.06.08.29.18
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-MD5 bits=128/128);
-        Fri, 06 Jun 2014 08:14:27 -0700 (PDT)
-Received: from eucpsbgm1.samsung.com (unknown [203.254.199.244])
- by mailout3.w1.samsung.com
- (Oracle Communications Messaging Server 7u4-24.01(7.0.4.24.0) 64bit (built Nov
- 17 2011)) with ESMTP id <0N6R000VM6C0I310@mailout3.w1.samsung.com> for
- linux-mm@kvack.org; Fri, 06 Jun 2014 16:14:24 +0100 (BST)
-From: Andrey Ryabinin <a.ryabinin@samsung.com>
-Subject: [PATCH v2] mm: rmap: fix use-after-free in __put_anon_vma
-Date: Fri, 06 Jun 2014 19:09:30 +0400
-Message-id: <1402067370-5773-1-git-send-email-a.ryabinin@samsung.com>
-In-reply-to: <20140606115620.GS3213@twins.programming.kicks-ass.net>
-References: <20140606115620.GS3213@twins.programming.kicks-ass.net>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 06 Jun 2014 08:29:18 -0700 (PDT)
+Received: by mail-qg0-f42.google.com with SMTP id q107so4810562qgd.29
+        for <linux-mm@kvack.org>; Fri, 06 Jun 2014 08:29:17 -0700 (PDT)
+Date: Fri, 6 Jun 2014 11:29:14 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH 2/2] memcg: Allow hard guarantee mode for low limit
+ reclaim
+Message-ID: <20140606152914.GA14001@htj.dyndns.org>
+References: <20140606144421.GE26253@dhcp22.suse.cz>
+ <1402066010-25901-1-git-send-email-mhocko@suse.cz>
+ <1402066010-25901-2-git-send-email-mhocko@suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1402066010-25901-2-git-send-email-mhocko@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, koct9i@gmail.com, Andrey Ryabinin <a.ryabinin@samsung.com>, stable@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, Roman Gushchin <klamm@yandex-team.ru>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-While working address sanitizer for kernel I've discovered use-after-free
-bug in __put_anon_vma.
-For the last anon_vma, anon_vma->root freed before child anon_vma.
-Later in anon_vma_free(anon_vma) we are referencing to already freed anon_vma->root
-to check rwsem.
-This patch puts freeing of child anon_vma before freeing of anon_vma->root.
+Hello, Michal.
 
-Cc: <stable@vger.kernel.org> # v3.0+
-Signed-off-by: Andrey Ryabinin <a.ryabinin@samsung.com>
----
+On Fri, Jun 06, 2014 at 04:46:50PM +0200, Michal Hocko wrote:
+> +choice
+> +	prompt "Memory Resource Controller reclaim protection"
+> +	depends on MEMCG
+> +	help
 
-Changes since v1:
- - just made it more simple following Peter's suggestion
+Why is this necessary?
 
- mm/rmap.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+- This doesn't affect boot.
 
-diff --git a/mm/rmap.c b/mm/rmap.c
-index 9c3e773..cb5f70a 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -1564,10 +1564,10 @@ void __put_anon_vma(struct anon_vma *anon_vma)
- {
- 	struct anon_vma *root = anon_vma->root;
- 
-+	anon_vma_free(anon_vma);
-+
- 	if (root != anon_vma && atomic_dec_and_test(&root->refcount))
- 		anon_vma_free(root);
--
--	anon_vma_free(anon_vma);
- }
- 
- static struct anon_vma *rmap_walk_anon_lock(struct page *page,
+- memcg requires runtime config *anyway*.
+
+- The config is inherited from the parent, so the default flipping
+  isn't exactly difficult.
+
+Please drop the kconfig option.
+
+> +static int mem_cgroup_write_reclaim_strategy(struct cgroup_subsys_state *css, struct cftype *cft,
+> +			    char *buffer)
+> +{
+> +	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
+> +	int ret = 0;
+> +
+> +	if (!strncmp(buffer, "low_limit_guarantee",
+> +				sizeof("low_limit_guarantee"))) {
+> +		memcg->hard_low_limit = true;
+> +	} else if (!strncmp(buffer, "low_limit_best_effort",
+> +				sizeof("low_limit_best_effort"))) {
+> +		memcg->hard_low_limit = false;
+> +	} else
+> +		ret = -EINVAL;
+> +
+> +	return ret;
+> +}
+
+So, ummm, this raises a big red flag for me.  You're now implementing
+two behaviors in a mostly symmetric manner to soft/hard limits but
+choosing a completely different scheme in how they're configured
+without any rationale.
+
+* Are you sure soft and hard guarantees aren't useful when used in
+  combination?  If so, why would that be the case?
+
+* We have pressure monitoring interface which can be used for soft
+  limit pressure monitoring.  How should breaching soft guarantee be
+  factored into that?  There doesn't seem to be any way of notifying
+  that at the moment?  Wouldn't we want that to be integrated into the
+  same mechanism?
+
+What scares me the most is that you don't even seem to have noticed
+the asymmetry and are proposing userland-facing interface without
+actually thinking things through.  This is exactly how we've been
+getting into trouble.
+
+For now, for everything.
+
+ Nacked-by: Tejun Heo <tj@kernel.org>
+
+Thanks.
+
 -- 
-1.8.5.5
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
