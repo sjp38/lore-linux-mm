@@ -1,30 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f42.google.com (mail-pb0-f42.google.com [209.85.160.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 961B56B009A
-	for <linux-mm@kvack.org>; Fri,  6 Jun 2014 14:42:14 -0400 (EDT)
-Received: by mail-pb0-f42.google.com with SMTP id md12so2822315pbc.29
-        for <linux-mm@kvack.org>; Fri, 06 Jun 2014 11:42:14 -0700 (PDT)
-Received: from mail-pb0-x232.google.com (mail-pb0-x232.google.com [2607:f8b0:400e:c01::232])
-        by mx.google.com with ESMTPS id ns7si20944867pbb.248.2014.06.06.11.42.13
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 06 Jun 2014 11:42:13 -0700 (PDT)
-Received: by mail-pb0-f50.google.com with SMTP id ma3so2820769pbc.9
-        for <linux-mm@kvack.org>; Fri, 06 Jun 2014 11:42:13 -0700 (PDT)
-Date: Fri, 6 Jun 2014 11:40:50 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
+Received: from mail-wi0-f179.google.com (mail-wi0-f179.google.com [209.85.212.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 6BB6E6B009C
+	for <linux-mm@kvack.org>; Fri,  6 Jun 2014 14:49:33 -0400 (EDT)
+Received: by mail-wi0-f179.google.com with SMTP id bs8so1520954wib.0
+        for <linux-mm@kvack.org>; Fri, 06 Jun 2014 11:49:32 -0700 (PDT)
+Received: from jenni2.inet.fi (mta-out1.inet.fi. [62.71.2.230])
+        by mx.google.com with ESMTP id c9si18914120wja.128.2014.06.06.11.49.31
+        for <linux-mm@kvack.org>;
+        Fri, 06 Jun 2014 11:49:32 -0700 (PDT)
+Date: Fri, 6 Jun 2014 21:49:26 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
 Subject: Re: 3.15-rc8 oops in copy_page_rep after page fault.
-In-Reply-To: <CA+55aFxiOsceOsm7zYyvFAxDF3=gxUXj=_61Nce3VkELfJr7cg@mail.gmail.com>
-Message-ID: <alpine.LSU.2.11.1406061128480.15624@eggly.anvils>
-References: <20140606174317.GA1741@redhat.com> <CA+55aFxiOsceOsm7zYyvFAxDF3=gxUXj=_61Nce3VkELfJr7cg@mail.gmail.com>
+Message-ID: <20140606184926.GA16083@node.dhcp.inet.fi>
+References: <20140606174317.GA1741@redhat.com>
+ <CA+55aFxiOsceOsm7zYyvFAxDF3=gxUXj=_61Nce3VkELfJr7cg@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CA+55aFxiOsceOsm7zYyvFAxDF3=gxUXj=_61Nce3VkELfJr7cg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Dave Jones <davej@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>
+Cc: Dave Jones <davej@redhat.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, Sasha Levin <sasha.levin@oracle.com>, Hugh Dickins <hughd@google.com>
 
-On Fri, 6 Jun 2014, Linus Torvalds wrote:
+On Fri, Jun 06, 2014 at 11:26:14AM -0700, Linus Torvalds wrote:
 > On Fri, Jun 6, 2014 at 10:43 AM, Dave Jones <davej@redhat.com> wrote:
 > >
 > > RIP: 0010:[<ffffffff8b3287b5>]  [<ffffffff8b3287b5>] copy_page_rep+0x5/0x10
@@ -51,22 +50,19 @@ On Fri, 6 Jun 2014, Linus Torvalds wrote:
 > few more people explicitly to the cc in case anybody sees anything
 > (original email on lkml and linux-mm for context, guys).
 
-It's a familiar one, that Sasha first reported over a year ago:
-see https://lkml.org/lkml/2013/3/29/103
+Looks like a known false positive from DEBUG_PAGEALLOC:
 
-Somewhere in that thread I suggest that it's due to the source THPage
-being split, and a tail page freed, while copy is in progress; and
-not a problem without DEBUG_PAGEALLOC, since the pmd_same check
-will prevent a miscopy from being made visible.
+https://lkml.org/lkml/2013/3/29/103
 
-It's not a v3.15 regression, and it's no worry without DEBUG_PAGEALLOC.
+We huge copy page in do_huge_pmd_wp_page() without ptl taken and the page
+can be splitted and freed under us. Once page is copied we take ptl again
+and recheck that PMD is not changed. If changed, we don't use new page.
+Not a bug, never triggered with DEBUG_PAGEALLOC disabled.
 
-If it's becoming easier to trigger and thus interfering with trinity,
-then I guess we shall have to do something about it.  Kirill tried one
-approach that didn't work out, and we have so far both felt reluctant
-to make the code uglier just to satisfy DEBUG_PAGEALLOC.
+It would be nice to have a way to mark this kind of speculative access.
 
-Hugh
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
