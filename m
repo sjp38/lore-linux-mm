@@ -1,256 +1,193 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f44.google.com (mail-wg0-f44.google.com [74.125.82.44])
-	by kanga.kvack.org (Postfix) with ESMTP id C6CA66B009B
-	for <linux-mm@kvack.org>; Fri,  6 Jun 2014 18:59:05 -0400 (EDT)
-Received: by mail-wg0-f44.google.com with SMTP id x13so760290wgg.27
-        for <linux-mm@kvack.org>; Fri, 06 Jun 2014 15:59:05 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id js5si19792153wjc.105.2014.06.06.15.59.02
-        for <linux-mm@kvack.org>;
-        Fri, 06 Jun 2014 15:59:03 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH 6/7] mm/pagewalk: move pmd_trans_huge_lock() from callbacks to common code
-Date: Fri,  6 Jun 2014 18:58:39 -0400
-Message-Id: <1402095520-10109-7-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1402095520-10109-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-References: <1402095520-10109-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Received: from mail-pb0-f50.google.com (mail-pb0-f50.google.com [209.85.160.50])
+	by kanga.kvack.org (Postfix) with ESMTP id 4BDE26B00AC
+	for <linux-mm@kvack.org>; Fri,  6 Jun 2014 19:06:51 -0400 (EDT)
+Received: by mail-pb0-f50.google.com with SMTP id ma3so3046033pbc.23
+        for <linux-mm@kvack.org>; Fri, 06 Jun 2014 16:06:51 -0700 (PDT)
+Received: from mail-pb0-x233.google.com (mail-pb0-x233.google.com [2607:f8b0:400e:c01::233])
+        by mx.google.com with ESMTPS id ia5si22020906pbb.236.2014.06.06.16.06.50
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 06 Jun 2014 16:06:50 -0700 (PDT)
+Received: by mail-pb0-f51.google.com with SMTP id ma3so3059809pbc.38
+        for <linux-mm@kvack.org>; Fri, 06 Jun 2014 16:06:50 -0700 (PDT)
+Date: Fri, 6 Jun 2014 16:05:27 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: 3.15-rc8 mm/filemap.c:202 BUG
+In-Reply-To: <538F121E.9020100@oracle.com>
+Message-ID: <alpine.LSU.2.11.1406061549500.9818@eggly.anvils>
+References: <20140603042121.GA27177@redhat.com> <CALYGNiNV951SnBKdr0PEkgLbLCxy+YB6HJpafRr6CynO+a1sdQ@mail.gmail.com> <alpine.LSU.2.11.1406031524470.7878@eggly.anvils> <538F121E.9020100@oracle.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Dave Hansen <dave.hansen@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Dave Jones <davej@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 
-Now all of current users of page table walker are canonicalized, i.e.
-pmd_entry() handles only trans_pmd entry, and pte_entry() handles pte entry.
-So we can factorize common code more.
-This patch moves pmd_trans_huge_lock() in each pmd_entry() to pagewalk core.
+On Wed, 4 Jun 2014, Sasha Levin wrote:
+> On 06/03/2014 07:11 PM, Hugh Dickins wrote:
+> > On Tue, 3 Jun 2014, Konstantin Khlebnikov wrote:
+> >> > On Tue, Jun 3, 2014 at 8:21 AM, Dave Jones <davej@redhat.com> wrote:
+> >>> > > I'm still seeing this one from time to time, though it takes me quite a while to hit it,
+> >>> > > despite my attempts at trying to narrow down the set of syscalls that cause it.
+> >>> > >
+> >>> > > kernel BUG at mm/filemap.c:202!
+> >>> > > invalid opcode: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
+> >>> > > CPU: 3 PID: 3013 Comm: trinity-c361 Not tainted 3.15.0-rc8+ #225
+> >>> > > task: ffff88006c610000 ti: ffff880055960000 task.ti: ffff880055960000
+> >>> > > RIP: 0010:[<ffffffffac158e28>]  [<ffffffffac158e28>] __delete_from_page_cache+0x318/0x360
+> >>> > > RSP: 0018:ffff880055963b90  EFLAGS: 00010046
+> >>> > > RAX: 0000000000000000 RBX: 0000000000000003 RCX: ffff880146f68388
+> >>> > > RDX: 000000000000022a RSI: ffffffffaca8db38 RDI: ffffffffaca62b17
+> >>> > > RBP: ffff880055963be0 R08: 0000000000000002 R09: ffff88000613d530
+> >>> > > R10: ffff880055963ba8 R11: ffff880007f49a40 R12: ffffea0006795880
+> >>> > > R13: ffff880143232ad0 R14: 0000000000000000 R15: ffff880143232ad8
+> >>> > > FS:  00007f1e40673700(0000) GS:ffff88024d180000(0000) knlGS:0000000000000000
+> >>> > > CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> >>> > > CR2: 00007f1e404e6000 CR3: 00000000603eb000 CR4: 00000000001407e0
+> >>> > > DR0: 0000000001bb1000 DR1: 0000000002537000 DR2: 00000000016a5000
+> >>> > > DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000600
+> >>> > > Stack:
+> >>> > >  ffff880143232ae8 0000000000000000 ffff88000613d530 ffff88000613d568
+> >>> > >  0000000008828259 ffffea0006795880 ffff880143232ae8 0000000000000000
+> >>> > >  0000000000000002 0000000000000002 ffff880055963c08 ffffffffac158eae
+> >>> > > Call Trace:
+> >>> > >  [<ffffffffac158eae>] delete_from_page_cache+0x3e/0x70
+> >>> > >  [<ffffffffac16921b>] truncate_inode_page+0x5b/0x90
+> >>> > >  [<ffffffffac174493>] shmem_undo_range+0x363/0x790
+> >>> > >  [<ffffffffac1748d4>] shmem_truncate_range+0x14/0x30
+> >>> > >  [<ffffffffac174bcf>] shmem_fallocate+0x9f/0x340
+> >>> > >  [<ffffffffac324d40>] ? timerqueue_add+0x60/0xb0
+> >>> > >  [<ffffffffac1c5ff6>] do_fallocate+0x116/0x1a0
+> >>> > >  [<ffffffffac182260>] SyS_madvise+0x3c0/0x870
+> >>> > >  [<ffffffffac346b33>] ? __this_cpu_preempt_check+0x13/0x20
+> >>> > >  [<ffffffffac74c41f>] tracesys+0xdd/0xe2
+> >>> > > Code: ff ff 01 41 f6 c6 01 48 8b 45 c8 75 16 4c 89 30 e9 70 fe ff ff 66 0f 1f 44 00 00 0f 0b 66 0f 1f 44 00 00 0f 0b 66 0f 1f 44 00 00 <0f> 0b 66 0f 1f 44 00 00  41 54 9d e8 78 9e fd ff e9 8c fe ff ff
+> >>> > > RIP  [<ffffffffac158e28>] __delete_from_page_cache+0x318/0x360
+> >>> > >
+> >>> > > There was also another variant of the same BUG with a slighty different stack trace.
+> >>> > >
+> >>> > > kernel BUG at mm/filemap.c:202!
+> >>> > > invalid opcode: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
+> >>> > > CPU: 2 PID: 6928 Comm: trinity-c45 Not tainted 3.15.0-rc5+ #208
+> >>> > > task: ffff88023669d0a0 ti: ffff880186146000 task.ti: ffff880186146000
+> >>> > > RIP: 0010:[<ffffffff8415ba05>]  [<ffffffff8415ba05>] __delete_from_page_cache+0x315/0x320
+> >>> > > RSP: 0018:ffff880186147b18  EFLAGS: 00010046
+> >>> > > RAX: 0000000000000000 RBX: 0000000000000003 RCX: 0000000000000002
+> >>> > > RDX: 000000000000012a RSI: ffffffff84a9a83c RDI: ffffffff84a6e0c0
+> >>> > > RBP: ffff880186147b68 R08: 0000000000000002 R09: ffff88002669e668
+> >>> > > R10: ffff880186147b30 R11: 0000000000000000 R12: ffffea0008b067c0
+> >>> > > R13: ffff880025355670 R14: 0000000000000000 R15: ffff880025355678
+> >>> > > FS:  00007fc10026f740(0000) GS:ffff880244400000(0000) knlGS:0000000000000000
+> >>> > > CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> >>> > > CR2: 00002ab350f5c004 CR3: 000000018566c000 CR4: 00000000001407e0
+> >>> > > DR0: 0000000001989000 DR1: 0000000000944000 DR2: 0000000002494000
+> >>> > > DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000600
+> >>> > > Stack:
+> >>> > >  ffff880025355688 ffff8800253556a0 ffff88002669e668 ffff88002669e6a0
+> >>> > >  000000008ea099ef ffffea0008b067c0 ffff880025355688 0000000000000000
+> >>> > >  0000000000000000 0000000000000002 ffff880186147b90 ffffffff8415ba4d
+> >>> > > Call Trace:
+> >>> > >  [<ffffffff8415ba4d>] delete_from_page_cache+0x3d/0x70
+> >>> > >  [<ffffffff8416b0ab>] truncate_inode_page+0x5b/0x90
+> >>> > >  [<ffffffff84175f0b>] shmem_undo_range+0x30b/0x780
+> >>> > >  [<ffffffff84176394>] shmem_truncate_range+0x14/0x30
+> >>> > >  [<ffffffff8417647d>] shmem_evict_inode+0xcd/0x150
+> >>> > >  [<ffffffff841e4b17>] evict+0xa7/0x170
+> >>> > >  [<ffffffff841e5435>] iput+0xf5/0x180
+> >>> > >  [<ffffffff841df8a0>] dentry_kill+0x260/0x2d0
+> >>> > >  [<ffffffff841df97c>] dput+0x6c/0x110
+> >>> > >  [<ffffffff841c92a9>] __fput+0x189/0x200
+> >>> > >  [<ffffffff841c936e>] ____fput+0xe/0x10
+> >>> > >  [<ffffffff84090484>] task_work_run+0xb4/0xe0
+> >>> > >  [<ffffffff8406ee42>] do_exit+0x302/0xb80
+> >>> > >  [<ffffffff84349e13>] ? __this_cpu_preempt_check+0x13/0x20
+> >>> > >  [<ffffffff8407073c>] do_group_exit+0x4c/0xc0
+> >>> > >  [<ffffffff840707c4>] SyS_exit_group+0x14/0x20
+> >>> > >  [<ffffffff8475bf64>] tracesys+0xdd/0xe2
+> >>> > > Code: 4c 89 30 e9 80 fe ff ff 48 8b 75 c0 4c 89 ff e8 82 8f 1c 00 84 c0 0f 85 6c fe ff ff e9 4f fe ff ff 0f 1f 44 00 00 e8 ae 95 5e 00 <0f> 0b e8 04 1c f1 ff 0f 0b 66 90 0f 1f 44 00 00 55 48 89 e5 41
+> >>> > >
+> >>> > >
+> >>> > > --
+> >>> > > To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> >>> > > the body to majordomo@kvack.org.  For more info on Linux MM,
+> >>> > > see: http://www.linux-mm.org/ .
+> >>> > > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> >> > 
+> >> > This might shine some light, CONFIG_DEBUG_VM should be =y.
+> >> > 
+> >> > --- a/mm/filemap.c
+> >> > +++ b/mm/filemap.c
+> >> > @@ -199,7 +199,7 @@ void __delete_from_page_cache(struct page *page,
+> >> > void *shadow)
+> >> >         __dec_zone_page_state(page, NR_FILE_PAGES);
+> >> >         if (PageSwapBacked(page))
+> >> >                 __dec_zone_page_state(page, NR_SHMEM);
+> >> > -       BUG_ON(page_mapped(page));
+> >> > +       VM_BUG_ON_PAGE(page_mapped(page), page);
+> >> > 
+> >> >         /*
+> >> >          * Some filesystems seem to re-dirty the page even after
+> > Yes, there's a chance that will tell us more (but I don't have high
+> > hopes of it).  I'm still stumped by this issue, just as before.
+> > 
+> > Sasha (or Dave), any update on whether you see this without THP?
+> > and whether you see the remove_migration_pte oops without THP?
+> 
+> I'm pretty sure at this point that I only see both with THP enabled.
 
-Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Thanks for the hint, though I've made nothing of it.  Of course, some
+problems come from THP itself, and some from its pressure for migration.
+
+Though I'd wanted to see the remove_migration_pte oops as a key to the
+page_mapped bug, my guess is that they're actually independent.
+
+I might have a potential fix for the remove_migration_pte one, I just
+want to go back and look at my logic again, will reply in that thread
+if I'm still convinced.
+
+But a couple of hours ago had a thought on the page_mapped() bug,
+and would like to propose a patch which could be the answer to that -
+though frankly I remain pessimistic.  See below.
+
+> 
+> I've started seeing much less of them during fuzzing. Timing changes?
+
+Strange; I've no idea.  Anyway, here's today's thought...
+
+
+[PATCH] mm: entry = ACCESS_ONCE(*pte) in handle_pte_fault
+
+Use ACCESS_ONCE() in handle_pte_fault() when getting the entry or orig_pte
+upon which all subsequent decisions and pte_same() tests will be made.
+
+I have no evidence that its lack is responsible for the mm/filemap.c:202
+BUG_ON(page_mapped(page)) in __delete_from_page_cache() found by trinity,
+and I am not optimistic that it will fix it.  But I have found no other
+explanation, and ACCESS_ONCE() here will surely not hurt.
+
+If gcc does re-access the pte before passing it down, then that would be
+disastrous for correct page fault handling, and certainly could explain
+the page_mapped() BUGs seen (concurrent fault causing page to be mapped
+in a second time on top of itself: mapcount 2 for a single pte).
+
+Signed-off-by: Hugh Dickins <hughd@google.com>
 ---
- fs/proc/task_mmu.c | 65 ++++++++++++++++++------------------------------------
- mm/memcontrol.c    | 53 ++++++++++++++------------------------------
- mm/pagewalk.c      | 25 +++++++++++++++++----
- 3 files changed, 59 insertions(+), 84 deletions(-)
 
-diff --git v3.15-rc8-mmots-2014-06-03-16-28.orig/fs/proc/task_mmu.c v3.15-rc8-mmots-2014-06-03-16-28/fs/proc/task_mmu.c
-index 2864028ae2f8..0b45bb9f3351 100644
---- v3.15-rc8-mmots-2014-06-03-16-28.orig/fs/proc/task_mmu.c
-+++ v3.15-rc8-mmots-2014-06-03-16-28/fs/proc/task_mmu.c
-@@ -496,14 +496,8 @@ static int smaps_pmd(pmd_t *pmd, unsigned long addr, unsigned long end,
- 			struct mm_walk *walk)
- {
- 	struct mem_size_stats *mss = walk->private;
--	spinlock_t *ptl;
--
--	if (pmd_trans_huge_lock(pmd, walk->vma, &ptl) == 1) {
--		smaps_pte((pte_t *)pmd, addr, addr + HPAGE_PMD_SIZE, walk);
--		spin_unlock(ptl);
--		mss->anonymous_thp += HPAGE_PMD_SIZE;
--	} else
--		walk->control = PTWALK_DOWN;
-+	smaps_pte((pte_t *)pmd, addr, addr + HPAGE_PMD_SIZE, walk);
-+	mss->anonymous_thp += HPAGE_PMD_SIZE;
- 	return 0;
- }
+ mm/memory.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+--- 3.15-rc8/mm/memory.c	2014-04-27 23:55:53.608801152 -0700
++++ linux/mm/memory.c	2014-06-06 15:02:35.044320183 -0700
+@@ -3810,7 +3810,7 @@ static int handle_pte_fault(struct mm_st
+ 	pte_t entry;
+ 	spinlock_t *ptl;
  
-@@ -983,31 +977,22 @@ static int pagemap_pmd(pmd_t *pmd, unsigned long addr, unsigned long end,
- 	struct vm_area_struct *vma = walk->vma;
- 	struct pagemapread *pm = walk->private;
- 	pagemap_entry_t pme = make_pme(PM_NOT_PRESENT(pm->v2));
--	spinlock_t *ptl;
-+	int pmd_flags2;
- 
--	if (!vma)
--		return err;
--	if (pmd_trans_huge_lock(pmd, vma, &ptl) == 1) {
--		int pmd_flags2;
--
--		if ((vma->vm_flags & VM_SOFTDIRTY) || pmd_soft_dirty(*pmd))
--			pmd_flags2 = __PM_SOFT_DIRTY;
--		else
--			pmd_flags2 = 0;
-+	if ((vma->vm_flags & VM_SOFTDIRTY) || pmd_soft_dirty(*pmd))
-+		pmd_flags2 = __PM_SOFT_DIRTY;
-+	else
-+		pmd_flags2 = 0;
- 
--		for (; addr != end; addr += PAGE_SIZE) {
--			unsigned long offset;
-+	for (; addr != end; addr += PAGE_SIZE) {
-+		unsigned long offset;
- 
--			offset = (addr & ~PAGEMAP_WALK_MASK) >>
--					PAGE_SHIFT;
--			thp_pmd_to_pagemap_entry(&pme, pm, *pmd, offset, pmd_flags2);
--			err = add_to_pagemap(addr, &pme, pm);
--			if (err)
--				break;
--		}
--		spin_unlock(ptl);
--	} else
--		walk->control = PTWALK_DOWN;
-+		offset = (addr & ~PAGEMAP_WALK_MASK) >> PAGE_SHIFT;
-+		thp_pmd_to_pagemap_entry(&pme, pm, *pmd, offset, pmd_flags2);
-+		err = add_to_pagemap(addr, &pme, pm);
-+		if (err)
-+			break;
-+	}
- 	return err;
- }
- 
-@@ -1276,19 +1261,13 @@ static int gather_pmd_stats(pmd_t *pmd, unsigned long addr,
- {
- 	struct numa_maps *md = walk->private;
- 	struct vm_area_struct *vma = walk->vma;
--	spinlock_t *ptl;
--
--	if (pmd_trans_huge_lock(pmd, vma, &ptl) == 1) {
--		pte_t huge_pte = *(pte_t *)pmd;
--		struct page *page;
--
--		page = can_gather_numa_stats(huge_pte, vma, addr);
--		if (page)
--			gather_stats(page, md, pte_dirty(huge_pte),
--				     HPAGE_PMD_SIZE/PAGE_SIZE);
--		spin_unlock(ptl);
--	} else
--		walk->control = PTWALK_DOWN;
-+	pte_t huge_pte = *(pte_t *)pmd;
-+	struct page *page;
-+
-+	page = can_gather_numa_stats(huge_pte, vma, addr);
-+	if (page)
-+		gather_stats(page, md, pte_dirty(huge_pte),
-+			     HPAGE_PMD_SIZE/PAGE_SIZE);
- 	return 0;
- }
- #ifdef CONFIG_HUGETLB_PAGE
-diff --git v3.15-rc8-mmots-2014-06-03-16-28.orig/mm/memcontrol.c v3.15-rc8-mmots-2014-06-03-16-28/mm/memcontrol.c
-index 3b1692d2bca3..bb987cb9e043 100644
---- v3.15-rc8-mmots-2014-06-03-16-28.orig/mm/memcontrol.c
-+++ v3.15-rc8-mmots-2014-06-03-16-28/mm/memcontrol.c
-@@ -6723,14 +6723,9 @@ static int mem_cgroup_count_precharge_pmd(pmd_t *pmd,
- 					struct mm_walk *walk)
- {
- 	struct vm_area_struct *vma = walk->vma;
--	spinlock_t *ptl;
- 
--	if (pmd_trans_huge_lock(pmd, vma, &ptl) == 1) {
--		if (get_mctgt_type_thp(vma, addr, *pmd, NULL) == MC_TARGET_PAGE)
--			mc.precharge += HPAGE_PMD_NR;
--		spin_unlock(ptl);
--	} else
--		skip->control = PTWALK_DOWN;
-+	if (get_mctgt_type_thp(vma, addr, *pmd, NULL) == MC_TARGET_PAGE)
-+		mc.precharge += HPAGE_PMD_NR;
- 	return 0;
- }
- 
-@@ -6951,38 +6946,22 @@ static int mem_cgroup_move_charge_pmd(pmd_t *pmd,
- 	struct page *page;
- 	struct page_cgroup *pc;
- 
--	/*
--	 * We don't take compound_lock() here but no race with splitting thp
--	 * happens because:
--	 *  - if pmd_trans_huge_lock() returns 1, the relevant thp is not
--	 *    under splitting, which means there's no concurrent thp split,
--	 *  - if another thread runs into split_huge_page() just after we
--	 *    entered this if-block, the thread must wait for page table lock
--	 *    to be unlocked in __split_huge_page_splitting(), where the main
--	 *    part of thp split is not executed yet.
--	 */
--	if (pmd_trans_huge_lock(pmd, vma, &ptl) == 1) {
--		if (mc.precharge < HPAGE_PMD_NR) {
--			spin_unlock(ptl);
--			return 0;
--		}
--		target_type = get_mctgt_type_thp(vma, addr, *pmd, &target);
--		if (target_type == MC_TARGET_PAGE) {
--			page = target.page;
--			if (!isolate_lru_page(page)) {
--				pc = lookup_page_cgroup(page);
--				if (!mem_cgroup_move_account(page, HPAGE_PMD_NR,
--							pc, mc.from, mc.to)) {
--					mc.precharge -= HPAGE_PMD_NR;
--					mc.moved_charge += HPAGE_PMD_NR;
--				}
--				putback_lru_page(page);
-+	if (mc.precharge < HPAGE_PMD_NR)
-+		return 0;
-+	target_type = get_mctgt_type_thp(vma, addr, *pmd, &target);
-+	if (target_type == MC_TARGET_PAGE) {
-+		page = target.page;
-+		if (!isolate_lru_page(page)) {
-+			pc = lookup_page_cgroup(page);
-+			if (!mem_cgroup_move_account(page, HPAGE_PMD_NR,
-+						     pc, mc.from, mc.to)) {
-+				mc.precharge -= HPAGE_PMD_NR;
-+				mc.moved_charge += HPAGE_PMD_NR;
- 			}
--			put_page(page);
-+			putback_lru_page(page);
- 		}
--		spin_unlock(ptl);
--	} else
--		walk->control = PTWALK_DOWN;
-+		put_page(page);
-+	}
- 	return 0;
- }
- 
-diff --git v3.15-rc8-mmots-2014-06-03-16-28.orig/mm/pagewalk.c v3.15-rc8-mmots-2014-06-03-16-28/mm/pagewalk.c
-index 8d71e09a36ea..879cee00eb70 100644
---- v3.15-rc8-mmots-2014-06-03-16-28.orig/mm/pagewalk.c
-+++ v3.15-rc8-mmots-2014-06-03-16-28/mm/pagewalk.c
-@@ -61,6 +61,7 @@ static int walk_pmd_range(pud_t *pud, unsigned long addr,
- 	pmd_t *pmd;
- 	unsigned long next;
- 	int err = 0;
-+	spinlock_t *ptl;
- 
- 	pmd = pmd_offset(pud, addr);
- 	do {
-@@ -75,8 +76,22 @@ static int walk_pmd_range(pud_t *pud, unsigned long addr,
- 			continue;
- 		}
- 
-+		/*
-+		 * We don't take compound_lock() here but no race with splitting
-+		 * thp happens because:
-+		 *  - if pmd_trans_huge_lock() returns 1, the relevant thp is
-+		 *    not under splitting, which means there's no concurrent
-+		 *    thp split,
-+		 *  - if another thread runs into split_huge_page() just after
-+		 *    we entered this if-block, the thread must wait for page
-+		 *    table lock to be unlocked in __split_huge_page_splitting(),
-+		 *    where the main part of thp split is not executed yet.
-+		 */
- 		if (walk->pmd_entry) {
--			err = walk->pmd_entry(pmd, addr, next, walk);
-+			if (pmd_trans_huge_lock(pmd, walk->vma, &ptl) == 1) {
-+				err = walk->pmd_entry(pmd, addr, next, walk);
-+				spin_unlock(ptl);
-+			}
- 			if (err)
- 				break;
- 			switch (get_reset_walk_control(walk)) {
-@@ -286,9 +301,11 @@ static int __walk_page_range(unsigned long start, unsigned long end,
-  * outside a vma. If you want to access to some caller-specific data from
-  * callbacks, @walk->private should be helpful.
-  *
-- * The callers should hold @walk->mm->mmap_sem. Note that the lower level
-- * iterators can take page table lock in lowest level iteration and/or
-- * in split_huge_page_pmd().
-+ * Locking:
-+ *   Callers of walk_page_range() and walk_page_vma() should hold
-+ *   @walk->mm->mmap_sem, because these function traverse vma list and/or
-+ *   access to vma's data. And page table lock is held during running
-+ *   pmd_entry() and pte_entry().
-  */
- int walk_page_range(unsigned long start, unsigned long end,
- 		    struct mm_walk *walk)
--- 
-1.9.3
+-	entry = *pte;
++	entry = ACCESS_ONCE(*pte);
+ 	if (!pte_present(entry)) {
+ 		if (pte_none(entry)) {
+ 			if (vma->vm_ops) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
