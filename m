@@ -1,96 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oa0-f47.google.com (mail-oa0-f47.google.com [209.85.219.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 1ED4D6B0035
-	for <linux-mm@kvack.org>; Fri,  6 Jun 2014 05:45:15 -0400 (EDT)
-Received: by mail-oa0-f47.google.com with SMTP id i7so2486127oag.20
-        for <linux-mm@kvack.org>; Fri, 06 Jun 2014 02:45:14 -0700 (PDT)
-Received: from heian.cn.fujitsu.com ([59.151.112.132])
-        by mx.google.com with ESMTP id zk3si18438161pbb.155.2014.06.06.02.45.13
+Received: from mail-ob0-f178.google.com (mail-ob0-f178.google.com [209.85.214.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 7182D6B0035
+	for <linux-mm@kvack.org>; Fri,  6 Jun 2014 05:58:45 -0400 (EDT)
+Received: by mail-ob0-f178.google.com with SMTP id va2so2481179obc.37
+        for <linux-mm@kvack.org>; Fri, 06 Jun 2014 02:58:45 -0700 (PDT)
+Received: from smtp2911-210.mail.sina.com.cn ([60.28.2.160])
+        by mx.google.com with SMTP id ff2si18501786pbc.132.2014.06.06.02.58.43
         for <linux-mm@kvack.org>;
-        Fri, 06 Jun 2014 02:45:14 -0700 (PDT)
-Message-ID: <53918B25.5010703@cn.fujitsu.com>
-Date: Fri, 6 Jun 2014 17:34:29 +0800
-From: Gu Zheng <guz.fnst@cn.fujitsu.com>
+        Fri, 06 Jun 2014 02:58:44 -0700 (PDT)
+Date: Fri, 06 Jun 2014 17:58:36 +0800 
+Reply-To: zhdxzx@sina.com
+From: <zhdxzx@sina.com>
+Subject: Re: Interactivity regression since v3.11 in mm/vmscan.c
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm/mempolicy: fix sleeping function called from invalid
- context
-References: <53902A44.50005@cn.fujitsu.com> <20140605141833.GA26830@kroah.com>
-In-Reply-To: <20140605141833.GA26830@kroah.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=GBK
+Content-Transfer-Encoding: base64
+Message-Id: <20140606095836.65149718001@webmail.sinamail.sina.com.cn>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg KH <greg@kroah.com>
-Cc: linux-kernel <linux-kernel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, Cgroups <cgroups@vger.kernel.org>, stable@vger.kernel.org
+To: Michal Hocko <mhocko@suse.cz>, Felipe Contreras <felipe.contreras@gmail.com>
+Cc: linux-kernel <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, dhillf <dhillf@gmail.com>
 
-Hi Greg,
-On 06/05/2014 10:18 PM, Greg KH wrote:
 
-> On Thu, Jun 05, 2014 at 04:28:52PM +0800, Gu Zheng wrote:
->> When running with the kernel(3.15-rc7+), the follow bug occurs:
->> [ 9969.258987] BUG: sleeping function called from invalid context at kernel/locking/mutex.c:586
->> [ 9969.359906] in_atomic(): 1, irqs_disabled(): 0, pid: 160655, name: python
->> [ 9969.441175] INFO: lockdep is turned off.
->> [ 9969.488184] CPU: 26 PID: 160655 Comm: python Tainted: G       A      3.15.0-rc7+ #85
->> [ 9969.581032] Hardware name: FUJITSU-SV PRIMEQUEST 1800E/SB, BIOS PRIMEQUEST 1000 Series BIOS Version 1.39 11/16/2012
->> [ 9969.706052]  ffffffff81a20e60 ffff8803e941fbd0 ffffffff8162f523 ffff8803e941fd18
->> [ 9969.795323]  ffff8803e941fbe0 ffffffff8109995a ffff8803e941fc58 ffffffff81633e6c
->> [ 9969.884710]  ffffffff811ba5dc ffff880405c6b480 ffff88041fdd90a0 0000000000002000
->> [ 9969.974071] Call Trace:
->> [ 9970.003403]  [<ffffffff8162f523>] dump_stack+0x4d/0x66
->> [ 9970.065074]  [<ffffffff8109995a>] __might_sleep+0xfa/0x130
->> [ 9970.130743]  [<ffffffff81633e6c>] mutex_lock_nested+0x3c/0x4f0
->> [ 9970.200638]  [<ffffffff811ba5dc>] ? kmem_cache_alloc+0x1bc/0x210
->> [ 9970.272610]  [<ffffffff81105807>] cpuset_mems_allowed+0x27/0x140
->> [ 9970.344584]  [<ffffffff811b1303>] ? __mpol_dup+0x63/0x150
->> [ 9970.409282]  [<ffffffff811b1385>] __mpol_dup+0xe5/0x150
->> [ 9970.471897]  [<ffffffff811b1303>] ? __mpol_dup+0x63/0x150
->> [ 9970.536585]  [<ffffffff81068c86>] ? copy_process.part.23+0x606/0x1d40
->> [ 9970.613763]  [<ffffffff810bf28d>] ? trace_hardirqs_on+0xd/0x10
->> [ 9970.683660]  [<ffffffff810ddddf>] ? monotonic_to_bootbased+0x2f/0x50
->> [ 9970.759795]  [<ffffffff81068cf0>] copy_process.part.23+0x670/0x1d40
->> [ 9970.834885]  [<ffffffff8106a598>] do_fork+0xd8/0x380
->> [ 9970.894375]  [<ffffffff81110e4c>] ? __audit_syscall_entry+0x9c/0xf0
->> [ 9970.969470]  [<ffffffff8106a8c6>] SyS_clone+0x16/0x20
->> [ 9971.030011]  [<ffffffff81642009>] stub_clone+0x69/0x90
->> [ 9971.091573]  [<ffffffff81641c29>] ? system_call_fastpath+0x16/0x1b
->>
->> The cause is that cpuset_mems_allowed() try to take mutex_lock(&callback_mutex)
->> under the rcu_read_lock(which was hold in __mpol_dup()). And in cpuset_mems_allowed(),
->> the access to cpuset is under rcu_read_lock, so in __mpol_dup, we can reduce the
->> rcu_read_lock protection region to protect the access to cpuset only in
->> current_cpuset_is_being_rebound(). So that we can avoid this bug.
->>
->> Signed-off-by: Gu Zheng <guz.fnst@cn.fujitsu.com>
->> ---
->>  kernel/cpuset.c |    8 +++++++-
->>  mm/mempolicy.c  |    2 --
->>  2 files changed, 7 insertions(+), 3 deletions(-)
-> 
-> <formletter>
-> 
-> This is not the correct way to submit patches for inclusion in the
-> stable kernel tree.  Please read Documentation/stable_kernel_rules.txt
-> for how to do this properly.
-
-> 
-> </formletter>
-
-Thanks for your reminder.
-I'll follow the right rules.
-
-Regards,
-Gu
-
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> .
-> 
-
+LS0tLS0gT3JpZ2luYWwgTWVzc2FnZSAtLS0tLQ0KRnJvbTogTWljaGFsIEhvY2tvIDxtaG9ja29A
+c3VzZS5jej4NClRvOiBGZWxpcGUgQ29udHJlcmFzIDxmZWxpcGUuY29udHJlcmFzQGdtYWlsLmNv
+bT4NCkNjOiBMaW51eCBLZXJuZWwgTWFpbGluZyBMaXN0IDxsaW51eC1rZXJuZWxAdmdlci5rZXJu
+ZWwub3JnPiwgImxpbnV4LW1tQGt2YWNrLm9yZyIgPGxpbnV4LW1tQGt2YWNrLm9yZz4sIEFuZHJl
+dyBNb3J0b24gPGFrcG1AbGludXgtZm91bmRhdGlvbi5vcmc+LCBMaW51cyBUb3J2YWxkcyA8dG9y
+dmFsZHNAbGludXgtZm91bmRhdGlvbi5vcmc+LCBNZWwgR29ybWFuIDxtZ29ybWFuQHN1c2UuZGU+
+LCBLQU1FWkFXQSBIaXJveXVraSA8a2FtZXphd2EuaGlybw0KU3ViamVjdDogUmU6IEludGVyYWN0
+aXZpdHkgcmVncmVzc2lvbiBzaW5jZSB2My4xMSBpbiBtbS92bXNjYW4uYw0KRGF0ZTogMjAxNC0w
+Ni0wNiAxNzoxNg0KDQpPbiBUaHUgMDUtMDYtMTQgMDk6MDA6MTAsIEZlbGlwZSBDb250cmVyYXMg
+d3JvdGU6DQo+IE9uIFRodSwgSnVuIDUsIDIwMTQgYXQgODozNyBBTSwgTWljaGFsIEhvY2tvIDxt
+aG9ja29Ac3VzZS5jej4gd3JvdGU6DQo+ID4gT24gVGh1IDA1LTA2LTE0IDA2OjMzOjQwLCBGZWxp
+cGUgQ29udHJlcmFzIHdyb3RlOg0KPiANCj4gPj4gRm9yIGEgd2hpbGUgSSd2ZSBub3RpY2VkIHRo
+YXQgbXkgbWFjaGluZSBib2dzIGRvd24gaW4gY2VydGFpbg0KPiA+PiBzaXR1YXRpb25zLCB1c3Vh
+bGx5IHdoaWxlIGRvaW5nIGhlYXZ5IEkvTyBvcGVyYXRpb25zLCBpdCBpcyBub3QganVzdCB0aGUN
+Cj4gPj4gSS9PIG9wZXJhdGlvbnMsIGJ1dCBldmVyeXRoaW5nLCBpbmNsdWRpbmcgdGhlIGdyYXBo
+aWNhbCBpbnRlcmZhY2UsIGV2ZW4NCj4gPj4gdGhlIG1vdXNlIHBvaW50ZXIuDQo+ID4+DQo+ID4+
+IEFzIGZhciBhcyBJIGNhbiByZWNhbGwgdGhpcyBkaWQgbm90IGhhcHBlbiBpbiB0aGUgcGFzdC4N
+Cj4gPj4NCj4gPj4gSSBub3RpY2VkIHRoaXMgc3BlY2lhbGx5IG9uIGNlcnRhaW4gb3BlcmF0aW9u
+cywgZm9yIGV4YW1wbGUgdXBkYXRpbmcgYQ0KPiA+PiBhIGdhbWUgb24gU3RlYW0gKHRvIGFuIGV4
+dGVyYW5sIFVTQiAzLjAgZGV2aWNlKSwgb3IgY29weWluZyBUViBlcGlzb2Rlcw0KPiA+PiB0byBh
+IFVTQiBtZW1vcnkgc3RpY2sgKHByb2JhYmx5IGZsYXNoLWJhc2VkKS4NCj4gPg0KPiA+IFdlIGhh
+ZCBhIHNpbWlsYXIgcmVwb3J0IGZvciBvcGVuc3VzZS4gVGhlIGNvbW1vbiBwYXJ0IHdhcyB0aGF0
+IHRoZXJlIHdhcw0KPiA+IGFuIElPIHRvIGEgc2xvdyBVU0IgZGV2aWNlIGdvaW5nIG9uLg0KPiAN
+Cj4gV2VsbCwgaXQncyBhIFVTQiAzLjAgZGV2aWNlLCBJIGNhbiB3cml0ZSBhdCAyNTAgTUIvcywg
+c28gaXQncyBub3QNCj4gcmVhbGx5IHRoYXQgc2xvdy4NCj4gDQo+IEFuZCBpbiBmYWN0LCB3aGVu
+IEkgcmVhZCBhbmQgd3JpdGUgdG8gYW5kIGZyb20gdGhlIHNhbWUgVVNCIDMuMA0KPiBkZXZpY2Us
+IEkgZG9uJ3Qgc2VlIHRoZSBpc3N1ZS4NCj4gDQo+ID4+IFRoZW4gSSB3ZW50IGJhY2sgdG8gdGhl
+IGxhdGVzdCBzdGFibGUgdmVyc2lvbiAodjMuMTQuNSksIGFuZCBjb21tZW50ZWQNCj4gPj4gb3V0
+IHRoZSBsaW5lIEkgdGhpbmsgaXMgY2F1c2luZyB0aGUgc2xvdyBkb3duOg0KPiA+Pg0KPiA+PiAg
+IGlmIChucl91bnF1ZXVlZF9kaXJ0eSA9PSBucl90YWtlbiB8fCBucl9pbW1lZGlhdGUpDQo+ID4+
+ICAgICAgICAgY29uZ2VzdGlvbl93YWl0KEJMS19SV19BU1lOQywgSFovMTApOw0KPiA+DQo+ID4g
+WWVzLCBJIGNhbWUgdG8gdGhlIHNhbWUgY2hlY2suIEkgZGlkbid0IGhhdmUgYW55IGNvbmZpcm1h
+dGlvbiB5ZXQgc28NCj4gPiB0aGFua3MgZm9yIHlvdXIgY29uZmlybWF0aW9uLiBJJ3ZlIHN1Z2dl
+c3RlZCB0byByZWR1Y2UgdGhpcw0KPiA+IGNvbmdlc3Rpb25fd2FpdCBvbmx5IHRvIGtzd2FwZDoN
+Cj4gPiBkaWZmIC0tZ2l0IGEvbW0vdm1zY2FuLmMgYi9tbS92bXNjYW4uYw0KPiA+IGluZGV4IDMy
+YzY2MWQ2NmE0NS4uZWY2YTFjMGU3ODhjIDEwMDY0NA0KPiA+IC0tLSBhL21tL3Ztc2Nhbi5jDQo+
+ID4gKysrIGIvbW0vdm1zY2FuLmMNCj4gPiBAQCAtMTU2Niw3ICsxNTY2LDcgQEAgc2hyaW5rX2lu
+YWN0aXZlX2xpc3QodW5zaWduZWQgbG9uZyBucl90b19zY2FuLCBzdHJ1Y3QgbHJ1dmVjICpscnV2
+ZWMsDQo+ID4gICAgICAgICAgICAgICAgICAqIGltcGxpZXMgdGhhdCBwYWdlcyBhcmUgY3ljbGlu
+ZyB0aHJvdWdoIHRoZSBMUlUgZmFzdGVyIHRoYW4NCj4gPiAgICAgICAgICAgICAgICAgICogdGhl
+eSBhcmUgd3JpdHRlbiBzbyBhbHNvIGZvcmNpYmx5IHN0YWxsLg0KPiA+ICAgICAgICAgICAgICAg
+ICAgKi8NCj4gPiAtICAgICAgICAgICAgICAgaWYgKG5yX3VucXVldWVkX2RpcnR5ID09IG5yX3Rh
+a2VuIHx8IG5yX2ltbWVkaWF0ZSkNCj4gPiArICAgICAgICAgICAgICAgaWYgKChucl91bnF1ZXVl
+ZF9kaXJ0eSA9PSBucl90YWtlbiB8fCBucl9pbW1lZGlhdGUpICYmIGN1cnJlbnRfaXNfa3N3YXBk
+KCkpDQo+ID4gICAgICAgICAgICAgICAgICAgICAgICAgY29uZ2VzdGlvbl93YWl0KEJMS19SV19B
+U1lOQywgSFovMTApOw0KPiA+ICAgICAgICAgfQ0KPiANCj4gVW5mb3J0dW5hdGVseSB0aGF0IGRv
+ZXNuJ3QgZml4IHRoZSBpc3N1ZSBmb3IgbWUuDQo+VGhhdCBpcyByZWFsbHkgaW50ZXJlc3Rpbmcu
+IFNvIHJlbW92aW5nIHRoZSB0ZXN0IGNvbXBsZXRlbHkgaGVscHMgYnV0DQo+cmVkdWNpbmcgaXQg
+dG8ga3N3YXBkIGRvZXNuJ3QuIEkgd291bGQgZXhwZWN0IHN0YWxscyBjb21pbmcgZnJvbSBkaXJl
+Y3QNCj5yZWNsYWltZXJzIG5vdCB0aGUga3N3YXBkLg0KPk1lbCBoYXMgYSBuaWNlIHN5c3RlbXRh
+cCBzY3JpcHQgKGF0dGFjaGVkKSB0byB3YXRjaCBmb3Igc3RhbGxzLiBNYXliZQ0KPnlvdSBjYW4g
+Z2l2ZSBpdCBhIHRyeT8NCj4NCkFsdGVybmF0aXZlbHkgY2FuIHdlIHRyeSB3YWl0X2lmZl9jb25n
+ZXN0ZWQoem9uZSwgQkxLX1JXX0FTWU5DLCBIWi8xMCkgPw0KDQpIaWxsZg==
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
