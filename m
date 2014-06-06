@@ -1,61 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 08C816B0035
-	for <linux-mm@kvack.org>; Thu,  5 Jun 2014 21:56:21 -0400 (EDT)
-Received: by mail-wi0-f169.google.com with SMTP id ho1so117185wib.2
-        for <linux-mm@kvack.org>; Thu, 05 Jun 2014 18:56:21 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id d16si44804624wiv.38.2014.06.05.18.56.20
+Received: from mail-pb0-f52.google.com (mail-pb0-f52.google.com [209.85.160.52])
+	by kanga.kvack.org (Postfix) with ESMTP id A44CC6B0035
+	for <linux-mm@kvack.org>; Thu,  5 Jun 2014 23:57:54 -0400 (EDT)
+Received: by mail-pb0-f52.google.com with SMTP id rr13so2069959pbb.11
+        for <linux-mm@kvack.org>; Thu, 05 Jun 2014 20:57:54 -0700 (PDT)
+Received: from heian.cn.fujitsu.com ([59.151.112.132])
+        by mx.google.com with ESMTP id gj4si16910391pbb.112.2014.06.05.20.57.51
         for <linux-mm@kvack.org>;
-        Thu, 05 Jun 2014 18:56:20 -0700 (PDT)
-Date: Thu, 5 Jun 2014 21:56:10 -0400
-From: Dave Jones <davej@redhat.com>
-Subject: Re: ima_mmap_file returning 0 to userspace as mmap result.
-Message-ID: <20140606015610.GA23041@redhat.com>
-References: <20140604233122.GA19838@redhat.com>
- <538FF4C4.5090300@gmail.com>
- <20140605155658.GA22673@redhat.com>
- <20140605162045.GA25474@redhat.com>
- <1402019369.5458.55.camel@dhcp-9-2-203-236.watson.ibm.com>
+        Thu, 05 Jun 2014 20:57:53 -0700 (PDT)
+From: Tang Chen <tangchen@cn.fujitsu.com>
+Subject: [PATCH v2 0/2] Fix for memory online/offline.
+Date: Fri, 6 Jun 2014 11:58:52 +0800
+Message-ID: <1402027134-14423-1-git-send-email-tangchen@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1402019369.5458.55.camel@dhcp-9-2-203-236.watson.ibm.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mimi Zohar <zohar@linux.vnet.ibm.com>
-Cc: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>
+To: gregkh@linuxfoundation.org, akpm@linux-foundation.org, toshi.kani@hp.com, tj@kernel.org, hpa@zytor.com, mingo@elte.hu, laijs@cn.fujitsu.com
+Cc: isimatu.yasuaki@jp.fujitsu.com, hutao@cn.fujitsu.com, guz.fnst@cn.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, Jun 05, 2014 at 09:49:29PM -0400, Mimi Zohar wrote:
- 
- > >  >  > > There's no mention of this return value in the man page, so I dug
- > >  >  > > into the kernel code, and it appears that we do..
- > >  >  > > 
- > >  >  > > sys_mmap
- > >  >  > > vm_mmap_pgoff
- > >  >  > > security_mmap_file
- > >  >  > > ima_file_mmap <- returns 0 if not PROT_EXEC
- > >  >  > > 
- > >  >  > > and then the 0 gets propagated up as a retval all the way to userspace.
- > >  > 
- > >  > I just realised that this affects even kernels with CONFIG_IMA unset,
- > >  > because there we just do 'return 0' unconditionally.
- > >  > 
- > >  > Also, it appears that kernels with CONFIG_SECURITY unset will also
- > >  > return a zero for the same reason.
- > > 
- > > Hang on, I was misreading that whole security_mmap_file ret handling code.
- > > There's something else at work here.  I'll dig and get a reproducer.
- > 
- > According to security.h, it should return 0 if permission is granted.
- > If IMA is not enabled, it should also return 0.  What exactly is the
- > problem?
+These two patches does some fixes in memory online/offline process.
 
-Still digging. I managed to get this to reproduce constantly last night,
-but no luck today.  From re-reading the code though, I think IMA/lsm isn't
-the problem.
+Tang Chen (2):
+  mem-hotplug: Avoid illegal state prefixed with legal state when
+    changing state of memory_block.
+  mem-hotplug: Introduce MMOP_OFFLINE to replace the hard coding -1.
 
-	Dave
+ drivers/base/memory.c          | 24 ++++++++++++------------
+ include/linux/memory_hotplug.h |  9 +++++----
+ mm/memory_hotplug.c            |  9 ++++++---
+ 3 files changed, 23 insertions(+), 19 deletions(-)
+
+-- 
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
