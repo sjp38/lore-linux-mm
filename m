@@ -1,157 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f46.google.com (mail-pb0-f46.google.com [209.85.160.46])
-	by kanga.kvack.org (Postfix) with ESMTP id D8C8F6B0037
-	for <linux-mm@kvack.org>; Fri,  6 Jun 2014 01:32:46 -0400 (EDT)
-Received: by mail-pb0-f46.google.com with SMTP id rq2so2179845pbb.19
-        for <linux-mm@kvack.org>; Thu, 05 Jun 2014 22:32:46 -0700 (PDT)
-Received: from heian.cn.fujitsu.com ([59.151.112.132])
-        by mx.google.com with ESMTP id gn5si17223665pbb.200.2014.06.05.22.32.44
-        for <linux-mm@kvack.org>;
-        Thu, 05 Jun 2014 22:32:45 -0700 (PDT)
-From: Tang Chen <tangchen@cn.fujitsu.com>
-Subject: [PATCH v2 RESEND 2/2] mem-hotplug: Introduce MMOP_OFFLINE to replace the hard coding -1.
-Date: Fri, 6 Jun 2014 13:33:49 +0800
-Message-ID: <1402032829-18455-1-git-send-email-tangchen@cn.fujitsu.com>
-In-Reply-To: <20140606051535.GC4454@G08FNSTD100614.fnst.cn.fujitsu.com>
-References: <20140606051535.GC4454@G08FNSTD100614.fnst.cn.fujitsu.com>
+Received: from mail-we0-f173.google.com (mail-we0-f173.google.com [74.125.82.173])
+	by kanga.kvack.org (Postfix) with ESMTP id C4B5F6B0039
+	for <linux-mm@kvack.org>; Fri,  6 Jun 2014 02:04:25 -0400 (EDT)
+Received: by mail-we0-f173.google.com with SMTP id u57so2242701wes.4
+        for <linux-mm@kvack.org>; Thu, 05 Jun 2014 23:04:25 -0700 (PDT)
+Received: from mail-wi0-x232.google.com (mail-wi0-x232.google.com [2a00:1450:400c:c05::232])
+        by mx.google.com with ESMTPS id qb2si19265279wic.31.2014.06.05.23.04.23
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 05 Jun 2014 23:04:24 -0700 (PDT)
+Received: by mail-wi0-f178.google.com with SMTP id cc10so316757wib.5
+        for <linux-mm@kvack.org>; Thu, 05 Jun 2014 23:04:23 -0700 (PDT)
+Date: Fri, 6 Jun 2014 08:04:19 +0200
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH] SCHED: remove proliferation of wait_on_bit action
+ functions.
+Message-ID: <20140606060419.GA3737@gmail.com>
+References: <20140501123738.3e64b2d2@notabene.brown>
+ <20140522090502.GB30094@gmail.com>
+ <20140522195056.445f2dcb@notabene.brown>
+ <20140605124509.GA1975@gmail.com>
+ <20140606102303.09ef9fb3@notabene.brown>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140606102303.09ef9fb3@notabene.brown>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: hutao@cn.fujitsu.com
-Cc: tangchen@cn.fujitsu.com, gregkh@linuxfoundation.org, akpm@linux-foundation.org, toshi.kani@hp.com, tj@kernel.org, hpa@zytor.com, mingo@elte.hu, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, guz.fnst@cn.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: NeilBrown <neilb@suse.de>
+Cc: Peter Zijlstra <peterz@infradead.org>, Oleg Nesterov <oleg@redhat.com>, David Howells <dhowells@redhat.com>, Steven Whitehouse <swhiteho@redhat.com>, dm-devel@redhat.com, Chris Mason <clm@fb.com>, Josef Bacik <jbacik@fb.com>, Steve French <sfrench@samba.org>, Theodore Ts'o <tytso@mit.edu>, Trond Myklebust <trond.myklebust@primarydata.com>, Ingo Molnar <mingo@redhat.com>, Roland McGrath <roland@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-nfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>
 
-In store_mem_state(), we have:
-......
- 334         else if (!strncmp(buf, "offline", min_t(int, count, 7)))
- 335                 online_type = -1;
-......
- 355         case -1:
- 356                 ret = device_offline(&mem->dev);
- 357                 break;
-......
 
-Here, "offline" is hard coded as -1.
+* NeilBrown <neilb@suse.de> wrote:
 
-This patch does the following renaming:
- ONLINE_KEEP     ->  MMOP_ONLINE_KEEP
- ONLINE_KERNEL   ->  MMOP_ONLINE_KERNEL
- ONLINE_MOVABLE  ->  MMOP_ONLINE_MOVABLE
+> On Thu, 5 Jun 2014 14:45:09 +0200 Ingo Molnar <mingo@kernel.org> wrote:
+> 
+> > 
+> > * NeilBrown <neilb@suse.de> wrote:
+> > 
+> > > On Thu, 22 May 2014 11:05:02 +0200 Ingo Molnar <mingo@kernel.org> wrote:
+> > > 
+> > > > 
+> > > > * NeilBrown <neilb@suse.de> wrote:
+> > > > 
+> > > > > [[ get_maintainer.pl suggested 61 email address for this patch.
+> > > > >    I've trimmed that list somewhat.  Hope I didn't miss anyone
+> > > > >    important...
+> > > > >    I'm hoping it will go in through the scheduler tree, but would
+> > > > >    particularly like an Acked-by for the fscache parts.  Other acks
+> > > > >    welcome.
+> > > > > ]]
+> > > > > 
+> > > > > The current "wait_on_bit" interface requires an 'action' function
+> > > > > to be provided which does the actual waiting.
+> > > > > There are over 20 such functions, many of them identical.
+> > > > > Most cases can be satisfied by one of just two functions, one
+> > > > > which uses io_schedule() and one which just uses schedule().
+> > > > > 
+> > > > > So:
+> > > > >  Rename wait_on_bit and        wait_on_bit_lock to
+> > > > >         wait_on_bit_action and wait_on_bit_lock_action
+> > > > >  to make it explicit that they need an action function.
+> > > > > 
+> > > > >  Introduce new wait_on_bit{,_lock} and wait_on_bit{,_lock}_io
+> > > > >  which are *not* given an action function but implicitly use
+> > > > >  a standard one.
+> > > > >  The decision to error-out if a signal is pending is now made
+> > > > >  based on the 'mode' argument rather than being encoded in the action
+> > > > >  function.
+> > > > 
+> > > > this patch fails to build on x86-32 allyesconfigs.
+> > > 
+> > > Could you share the build errors?
+> > 
+> > Sure, find it attached below.
+> 
+> Thanks.
+> 
+> It looks like this is a wait_on_bit usage that was added after I created the
+> patch.
+> 
+> How about you drop my patch for now, we wait for -rc1 to come out, then I
+> submit a new version against -rc1 and we get that into -rc2.
+> That should minimise such conflicts.
+> 
+> Does that work for you?
 
-and introduce MMOP_OFFLINE = -1 to avoid hard coding.
+Sure, that sounds like a good approach, if Linus doesn't object.
 
-Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
----
- drivers/base/memory.c          | 18 +++++++++---------
- include/linux/memory_hotplug.h |  9 +++++----
- mm/memory_hotplug.c            |  9 ++++++---
- 3 files changed, 20 insertions(+), 16 deletions(-)
+Thanks,
 
-diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-index fa664b9..904442c 100644
---- a/drivers/base/memory.c
-+++ b/drivers/base/memory.c
-@@ -294,7 +294,7 @@ static int memory_subsys_online(struct device *dev)
- 	 * attribute and need to set the online_type.
- 	 */
- 	if (mem->online_type < 0)
--		mem->online_type = ONLINE_KEEP;
-+		mem->online_type = MMOP_ONLINE_KEEP;
- 
- 	ret = memory_block_change_state(mem, MEM_ONLINE, MEM_OFFLINE);
- 
-@@ -326,22 +326,22 @@ store_mem_state(struct device *dev,
- 		return ret;
- 
- 	if (sysfs_streq(buf, "online_kernel"))
--		online_type = ONLINE_KERNEL;
-+		online_type = MMOP_ONLINE_KERNEL;
- 	else if (sysfs_streq(buf, "online_movable"))
--		online_type = ONLINE_MOVABLE;
-+		online_type = MMOP_ONLINE_MOVABLE;
- 	else if (sysfs_streq(buf, "online"))
--		online_type = ONLINE_KEEP;
-+		online_type = MMOP_ONLINE_KEEP;
- 	else if (sysfs_streq(buf, "offline"))
--		online_type = -1;
-+		online_type = MMOP_OFFLINE;
- 	else {
- 		ret = -EINVAL;
- 		goto err;
- 	}
- 
- 	switch (online_type) {
--	case ONLINE_KERNEL:
--	case ONLINE_MOVABLE:
--	case ONLINE_KEEP:
-+	case MMOP_ONLINE_KERNEL:
-+	case MMOP_ONLINE_MOVABLE:
-+	case MMOP_ONLINE_KEEP:
- 		/*
- 		 * mem->online_type is not protected so there can be a
- 		 * race here.  However, when racing online, the first
-@@ -352,7 +352,7 @@ store_mem_state(struct device *dev,
- 		mem->online_type = online_type;
- 		ret = device_online(&mem->dev);
- 		break;
--	case -1:
-+	case MMOP_OFFLINE:
- 		ret = device_offline(&mem->dev);
- 		break;
- 	default:
-diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-index 4ca3d95..b4240cf 100644
---- a/include/linux/memory_hotplug.h
-+++ b/include/linux/memory_hotplug.h
-@@ -26,11 +26,12 @@ enum {
- 	MEMORY_HOTPLUG_MAX_BOOTMEM_TYPE = NODE_INFO,
- };
- 
--/* Types for control the zone type of onlined memory */
-+/* Types for control the zone type of onlined and offlined memory */
- enum {
--	ONLINE_KEEP,
--	ONLINE_KERNEL,
--	ONLINE_MOVABLE,
-+	MMOP_OFFLINE = -1,
-+	MMOP_ONLINE_KEEP,
-+	MMOP_ONLINE_KERNEL,
-+	MMOP_ONLINE_MOVABLE,
- };
- 
- /*
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index a650db2..6075f04 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -907,19 +907,22 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
- 	 */
- 	zone = page_zone(pfn_to_page(pfn));
- 
--	if ((zone_idx(zone) > ZONE_NORMAL || online_type == ONLINE_MOVABLE) &&
-+	if ((zone_idx(zone) > ZONE_NORMAL ||
-+	     online_type == MMOP_ONLINE_MOVABLE) &&
- 	    !can_online_high_movable(zone)) {
- 		unlock_memory_hotplug();
- 		return -EINVAL;
- 	}
- 
--	if (online_type == ONLINE_KERNEL && zone_idx(zone) == ZONE_MOVABLE) {
-+	if (online_type == MMOP_ONLINE_KERNEL &&
-+	    zone_idx(zone) == ZONE_MOVABLE) {
- 		if (move_pfn_range_left(zone - 1, zone, pfn, pfn + nr_pages)) {
- 			unlock_memory_hotplug();
- 			return -EINVAL;
- 		}
- 	}
--	if (online_type == ONLINE_MOVABLE && zone_idx(zone) == ZONE_MOVABLE - 1) {
-+	if (online_type == MMOP_ONLINE_MOVABLE &&
-+	    zone_idx(zone) == ZONE_MOVABLE - 1) {
- 		if (move_pfn_range_right(zone, zone + 1, pfn, pfn + nr_pages)) {
- 			unlock_memory_hotplug();
- 			return -EINVAL;
--- 
-1.8.3.1
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
