@@ -1,121 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f42.google.com (mail-wg0-f42.google.com [74.125.82.42])
-	by kanga.kvack.org (Postfix) with ESMTP id B1B7F6B0035
-	for <linux-mm@kvack.org>; Fri,  6 Jun 2014 03:34:03 -0400 (EDT)
-Received: by mail-wg0-f42.google.com with SMTP id y10so2308640wgg.13
-        for <linux-mm@kvack.org>; Fri, 06 Jun 2014 00:34:03 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id gq7si45782984wib.55.2014.06.06.00.34.01
+Received: from mail-ig0-f176.google.com (mail-ig0-f176.google.com [209.85.213.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 917ED6B0035
+	for <linux-mm@kvack.org>; Fri,  6 Jun 2014 04:56:15 -0400 (EDT)
+Received: by mail-ig0-f176.google.com with SMTP id a13so475268igq.9
+        for <linux-mm@kvack.org>; Fri, 06 Jun 2014 01:56:15 -0700 (PDT)
+Received: from mail-ig0-x229.google.com (mail-ig0-x229.google.com [2607:f8b0:4001:c05::229])
+        by mx.google.com with ESMTPS id g8si17063352icj.11.2014.06.06.01.56.14
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 06 Jun 2014 00:34:02 -0700 (PDT)
-Message-ID: <53916EE7.9000806@suse.cz>
-Date: Fri, 06 Jun 2014 09:33:59 +0200
-From: Vlastimil Babka <vbabka@suse.cz>
-MIME-Version: 1.0
-Subject: Re: [RFC PATCH 6/6] mm, compaction: don't migrate in blocks that
- cannot be fully compacted in async direct compaction
-References: <alpine.DEB.2.02.1405211954410.13243@chino.kir.corp.google.com> <1401898310-14525-1-git-send-email-vbabka@suse.cz> <1401898310-14525-6-git-send-email-vbabka@suse.cz> <alpine.DEB.2.02.1406041705140.22536@chino.kir.corp.google.com> <53908F10.4020603@suse.cz> <alpine.DEB.2.02.1406051431030.18119@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.02.1406051431030.18119@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+        Fri, 06 Jun 2014 01:56:14 -0700 (PDT)
+Received: by mail-ig0-f169.google.com with SMTP id a13so548633igq.4
+        for <linux-mm@kvack.org>; Fri, 06 Jun 2014 01:56:14 -0700 (PDT)
+From: Chen Yucong <slaoub@gmail.com>
+Subject: [PATCH] mm/vmscan.c: avoid scanning the whole targets[*] when scan_balance equals SCAN_FILE/SCAN_ANON
+Date: Fri,  6 Jun 2014 16:54:26 +0800
+Message-Id: <1402044866-15313-1-git-send-email-slaoub@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>
+To: mgorman@suse.de
+Cc: mhocko@suse.cz, hannes@cmpxchg.org, akpm@linux-foundation.org, linux-mm@kvack.org, Chen Yucong <slaoub@gmail.com>
 
-On 06/05/2014 11:38 PM, David Rientjes wrote:
-> On Thu, 5 Jun 2014, Vlastimil Babka wrote:
-> 
->> > Ok, so this obsoletes my patchseries that did something similar.  I hope
->> 
->> Your patches 1/3 and 2/3 would still make sense. Checking alloc flags is IMHO
->> better than checking async here. That way, hugepaged and kswapd would still
->> try to migrate stuff which is important as Mel described in the reply to your
->> 3/3.
->> 
-> 
-> Would you mind folding those two patches into your series since you'll be 
-> requiring the gfp_mask in struct compact_control and your pageblock skip 
-> is better than mine?
+If (scan_balance == SCAN_FILE) is true for shrink_lruvec, then  the value of
+targets[LRU_INACTIVE_ANON] and targets[LRU_ACTIVE_ANON] will be zero. As a result,
+the value of 'percentage' will also be  zero, and the *whole* targets[LRU_INACTIVE_FILE]
+and targets[LRU_ACTIVE_FILE] will be scanned.
 
-Sure!
+For (scan_balance == SCAN_ANON), there is the same conditions stated above.
 
->> > you can rebase this set on top of linux-next and then propose it formally
->> > without the RFC tag.
->> 
->> I posted this early to facilitate discussion, but if you want to test on
->> linux-next then sure.
->> 
-> 
-> I'd love to test these.
+But via https://lkml.org/lkml/2013/4/10/334, we can find that the kernel does not prefer
+reclaiming too many pages from the other LRU. So before recalculating the other LRU scan
+count based on its original scan targets and the percentage scanning already complete, we
+should need to check whether 'scan_balance' equals SCAN_FILE/SCAN_ANON.
 
-OK, I'll repost it based on -next.
+Signed-off-by: Chen Yucong <slaoub@gmail.com>
+---
+ mm/vmscan.c |    3 +++
+ 1 file changed, 3 insertions(+)
 
->> > We also need to discuss the scheduling heuristics, the reliance on
->> > need_resched(), to abort async compaction.  In testing, we actualy
->> > sometimes see 2-3 pageblocks scanned before terminating and thp has a very
->> > little chance of being allocated.  At the same time, if we try to fault
->> > 64MB of anon memory in and each of the 32 calls to compaction are
->> > expensive but don't result in an order-9 page, we see very lengthy fault
->> > latency.
->> 
->> Yes, I thought you were about to try the 1GB per call setting. I don't
->> currently have a test setup like you. My patch 1/6 still uses on
->> need_resched() but that could be replaced with a later patch.
->> 
-> 
-> Agreed.  I was thinking higher than 1GB would be possible once we have 
-> your series that does the pageblock skip for thp, I think the expense 
-> would be constant because we won't needlessly be migrating pages unless it 
-> has a good chance at succeeding.
-
-Looks like a counter of iterations actually done in scanners, maintained in
-compact_control, would work better than any memory size based limit? It could
-better reflect the actual work done and thus latency. Maybe increase the counter
-also for migrations, with a higher cost than for a scanner iteration.
-
-
-> I'm slightly concerned about the 
-> COMPACT_CLUSTER_MAX termination, though, before we find unmigratable 
-> memory but I think that will be very low probability.
-
-Well I have removed the COMPACT_CLUSTER_MAX termination for this case. But
-that could be perhaps an issue with compactors starving reclaimers through
-too_many_isolated().
-
->> > I think it would be interesting to consider doing async compaction
->> > deferral up to 1 << COMPACT_MAX_DEFER_SHIFT after a sysctl-configurable
->> > amount of memory is scanned, at least for thp, and remove the scheduling
->> > heuristic entirely.
->> 
->> That could work. How about the lock contention heuristic? Is it possible on a
->> large and/or busy system to compact anything substantional without hitting the
->> lock contention? Are your observations about too early abort based on
->> need_resched() or lock contention?
->> 
-> 
-> Eek, it's mostly need_resched() because we don't use zone->lru_lock, we 
-> have the memcg lruvec locks for lru locking.  We end up dropping and 
-> reacquiring different locks based on the memcg of the page being isolated 
-> quite a bit.
-
-Hm I will probably as a first thing remove setting cc->contended for need_resched()
-Looks like a bad decision, if there's no lock contention. cc->contended = true
-means that there is no second direct compaction attempt (sync for hugepaged) which
-is not good. And you basically say that this happens almost always. But it makes me
-wonder how much difference could your patch "mm, thp: avoid excessive compaction latency
-during fault" actually make? Because it makes the second attempt async instead of sync,
-but if the second attempt never happens...
-Ah, I get it, it was probably before I put cc->contended setting everywhere...
-
-> This does beg the question about parallel direct compactors, though, that 
-> will be contending on the same coarse zone->lru_lock locks and immediately 
-> aborting and falling back to PAGE_SIZE pages for thp faults that will be 
-> more likely if your patch to grab the high-order page and return it to the 
-> page allocator is merged.
-
-Hm can you explain how the page capturing makes this worse? I don't see it.
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index d51f7e0..ca3f5f1 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2120,6 +2120,9 @@ static void shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
+ 			percentage = nr_file * 100 / scan_target;
+ 		}
+ 
++		if (targets[lru] == 0 && targets[lru + LRU_ACTIVE] == 0)
++			break;
++
+ 		/* Stop scanning the smaller of the LRU */
+ 		nr[lru] = 0;
+ 		nr[lru + LRU_ACTIVE] = 0;
+-- 
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
