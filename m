@@ -1,96 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f173.google.com (mail-we0-f173.google.com [74.125.82.173])
-	by kanga.kvack.org (Postfix) with ESMTP id C4B5F6B0039
-	for <linux-mm@kvack.org>; Fri,  6 Jun 2014 02:04:25 -0400 (EDT)
-Received: by mail-we0-f173.google.com with SMTP id u57so2242701wes.4
-        for <linux-mm@kvack.org>; Thu, 05 Jun 2014 23:04:25 -0700 (PDT)
-Received: from mail-wi0-x232.google.com (mail-wi0-x232.google.com [2a00:1450:400c:c05::232])
-        by mx.google.com with ESMTPS id qb2si19265279wic.31.2014.06.05.23.04.23
+Received: from mail-we0-f171.google.com (mail-we0-f171.google.com [74.125.82.171])
+	by kanga.kvack.org (Postfix) with ESMTP id DB6E86B0035
+	for <linux-mm@kvack.org>; Fri,  6 Jun 2014 03:20:21 -0400 (EDT)
+Received: by mail-we0-f171.google.com with SMTP id w62so2352222wes.16
+        for <linux-mm@kvack.org>; Fri, 06 Jun 2014 00:20:21 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id qn1si15749696wjc.117.2014.06.06.00.20.20
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 05 Jun 2014 23:04:24 -0700 (PDT)
-Received: by mail-wi0-f178.google.com with SMTP id cc10so316757wib.5
-        for <linux-mm@kvack.org>; Thu, 05 Jun 2014 23:04:23 -0700 (PDT)
-Date: Fri, 6 Jun 2014 08:04:19 +0200
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH] SCHED: remove proliferation of wait_on_bit action
- functions.
-Message-ID: <20140606060419.GA3737@gmail.com>
-References: <20140501123738.3e64b2d2@notabene.brown>
- <20140522090502.GB30094@gmail.com>
- <20140522195056.445f2dcb@notabene.brown>
- <20140605124509.GA1975@gmail.com>
- <20140606102303.09ef9fb3@notabene.brown>
+        Fri, 06 Jun 2014 00:20:20 -0700 (PDT)
+Message-ID: <53916BB0.3070001@suse.cz>
+Date: Fri, 06 Jun 2014 09:20:16 +0200
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140606102303.09ef9fb3@notabene.brown>
+Subject: Re: [RFC PATCH 4/6] mm, compaction: skip buddy pages by their order
+ in the migrate scanner
+References: <alpine.DEB.2.02.1405211954410.13243@chino.kir.corp.google.com> <1401898310-14525-1-git-send-email-vbabka@suse.cz> <1401898310-14525-4-git-send-email-vbabka@suse.cz> <alpine.DEB.2.02.1406041656400.22536@chino.kir.corp.google.com> <5390374E.5080708@suse.cz> <alpine.DEB.2.02.1406051428360.18119@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.02.1406051428360.18119@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: NeilBrown <neilb@suse.de>
-Cc: Peter Zijlstra <peterz@infradead.org>, Oleg Nesterov <oleg@redhat.com>, David Howells <dhowells@redhat.com>, Steven Whitehouse <swhiteho@redhat.com>, dm-devel@redhat.com, Chris Mason <clm@fb.com>, Josef Bacik <jbacik@fb.com>, Steve French <sfrench@samba.org>, Theodore Ts'o <tytso@mit.edu>, Trond Myklebust <trond.myklebust@primarydata.com>, Ingo Molnar <mingo@redhat.com>, Roland McGrath <roland@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-nfs@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>
+To: David Rientjes <rientjes@google.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>
 
-
-* NeilBrown <neilb@suse.de> wrote:
-
-> On Thu, 5 Jun 2014 14:45:09 +0200 Ingo Molnar <mingo@kernel.org> wrote:
+On 06/05/2014 11:30 PM, David Rientjes wrote:
+> On Thu, 5 Jun 2014, Vlastimil Babka wrote:
 > 
-> > 
-> > * NeilBrown <neilb@suse.de> wrote:
-> > 
-> > > On Thu, 22 May 2014 11:05:02 +0200 Ingo Molnar <mingo@kernel.org> wrote:
-> > > 
-> > > > 
-> > > > * NeilBrown <neilb@suse.de> wrote:
-> > > > 
-> > > > > [[ get_maintainer.pl suggested 61 email address for this patch.
-> > > > >    I've trimmed that list somewhat.  Hope I didn't miss anyone
-> > > > >    important...
-> > > > >    I'm hoping it will go in through the scheduler tree, but would
-> > > > >    particularly like an Acked-by for the fscache parts.  Other acks
-> > > > >    welcome.
-> > > > > ]]
-> > > > > 
-> > > > > The current "wait_on_bit" interface requires an 'action' function
-> > > > > to be provided which does the actual waiting.
-> > > > > There are over 20 such functions, many of them identical.
-> > > > > Most cases can be satisfied by one of just two functions, one
-> > > > > which uses io_schedule() and one which just uses schedule().
-> > > > > 
-> > > > > So:
-> > > > >  Rename wait_on_bit and        wait_on_bit_lock to
-> > > > >         wait_on_bit_action and wait_on_bit_lock_action
-> > > > >  to make it explicit that they need an action function.
-> > > > > 
-> > > > >  Introduce new wait_on_bit{,_lock} and wait_on_bit{,_lock}_io
-> > > > >  which are *not* given an action function but implicitly use
-> > > > >  a standard one.
-> > > > >  The decision to error-out if a signal is pending is now made
-> > > > >  based on the 'mode' argument rather than being encoded in the action
-> > > > >  function.
-> > > > 
-> > > > this patch fails to build on x86-32 allyesconfigs.
-> > > 
-> > > Could you share the build errors?
-> > 
-> > Sure, find it attached below.
+>> > > diff --git a/mm/compaction.c b/mm/compaction.c
+>> > > index ae7db5f..3dce5a7 100644
+>> > > --- a/mm/compaction.c
+>> > > +++ b/mm/compaction.c
+>> > > @@ -640,11 +640,18 @@ isolate_migratepages_range(struct zone *zone, struct
+>> > > compact_control *cc,
+>> > >   		}
+>> > > 
+>> > >   		/*
+>> > > -		 * Skip if free. page_order cannot be used without zone->lock
+>> > > -		 * as nothing prevents parallel allocations or buddy merging.
+>> > > +		 * Skip if free. We read page order here without zone lock
+>> > > +		 * which is generally unsafe, but the race window is small and
+>> > > +		 * the worst thing that can happen is that we skip some
+>> > > +		 * potential isolation targets.
+>> > 
+>> > Should we only be doing the low_pfn adjustment based on the order for
+>> > MIGRATE_ASYNC?  It seems like sync compaction, including compaction that
+>> > is triggered from the command line, would prefer to scan over the
+>> > following pages.
+>> 
+>> I thought even sync compaction would benefit from the skipped iterations. I'd
+>> say the probability of this race is smaller than probability of somebody
+>> allocating what compaction just freed.
+>> 
 > 
-> Thanks.
+> Ok.
 > 
-> It looks like this is a wait_on_bit usage that was added after I created the
-> patch.
+>> > > diff --git a/mm/internal.h b/mm/internal.h
+>> > > index 1a8a0d4..6aa1f74 100644
+>> > > --- a/mm/internal.h
+>> > > +++ b/mm/internal.h
+>> > > @@ -164,7 +164,8 @@ isolate_migratepages_range(struct zone *zone, struct
+>> > > compact_control *cc,
+>> > >    * general, page_zone(page)->lock must be held by the caller to prevent
+>> > > the
+>> > >    * page from being allocated in parallel and returning garbage as the
+>> > > order.
+>> > >    * If a caller does not hold page_zone(page)->lock, it must guarantee
+>> > > that the
+>> > > - * page cannot be allocated or merged in parallel.
+>> > > + * page cannot be allocated or merged in parallel. Alternatively, it must
+>> > > + * handle invalid values gracefully, and use page_order_unsafe() below.
+>> > >    */
+>> > >   static inline unsigned long page_order(struct page *page)
+>> > >   {
+>> > > @@ -172,6 +173,23 @@ static inline unsigned long page_order(struct page
+>> > > *page)
+>> > >   	return page_private(page);
+>> > >   }
+>> > > 
+>> > > +/*
+>> > > + * Like page_order(), but for callers who cannot afford to hold the zone
+>> > > lock,
+>> > > + * and handle invalid values gracefully. ACCESS_ONCE is used so that if
+>> > > the
+>> > > + * caller assigns the result into a local variable and e.g. tests it for
+>> > > valid
+>> > > + * range  before using, the compiler cannot decide to remove the variable
+>> > > and
+>> > > + * inline the function multiple times, potentially observing different
+>> > > values
+>> > > + * in the tests and the actual use of the result.
+>> > > + */
+>> > > +static inline unsigned long page_order_unsafe(struct page *page)
+>> > > +{
+>> > > +	/*
+>> > > +	 * PageBuddy() should be checked by the caller to minimize race
+>> > > window,
+>> > > +	 * and invalid values must be handled gracefully.
+>> > > +	 */
+>> > > +	return ACCESS_ONCE(page_private(page));
+>> > > +}
+>> > > +
+>> > >   /* mm/util.c */
+>> > >   void __vma_link_list(struct mm_struct *mm, struct vm_area_struct *vma,
+>> > >   		struct vm_area_struct *prev, struct rb_node *rb_parent);
+>> > 
+>> > I don't like this change at all, I don't think we should have header
+>> > functions that imply the context in which the function will be called.  I
+>> > think it would make much more sense to just do
+>> > ACCESS_ONCE(page_order(page)) in the migration scanner with a comment.
+>> 
+>> But that won't compile. It would have to be converted to a #define, unless
+>> there's some trick I don't know. Sure I would hope this could be done cleaner
+>> somehow.
+>> 
 > 
-> How about you drop my patch for now, we wait for -rc1 to come out, then I
-> submit a new version against -rc1 and we get that into -rc2.
-> That should minimise such conflicts.
-> 
-> Does that work for you?
+> Sorry, I meant ACCESS_ONCE(page_private(page)) in the migration scanner 
 
-Sure, that sounds like a good approach, if Linus doesn't object.
+Hm but that's breaking the abstraction of page_order(). I don't know if it's
+worse to create a new variant of page_order() or to do this. BTW, seems like
+next_active_pageblock() in memory-hotplug.c should use this variant too.
 
-Thanks,
-
-	Ingo
+> with a comment about it being racy.  It also helps to understand why 
+> you're testing for order < MAX_ORDER before skipping low_pfn there which 
+> is a little subtle right now.
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
