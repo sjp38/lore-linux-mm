@@ -1,176 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f42.google.com (mail-qa0-f42.google.com [209.85.216.42])
-	by kanga.kvack.org (Postfix) with ESMTP id 75AA16B00A1
-	for <linux-mm@kvack.org>; Fri,  6 Jun 2014 15:48:11 -0400 (EDT)
-Received: by mail-qa0-f42.google.com with SMTP id j5so4716406qaq.1
-        for <linux-mm@kvack.org>; Fri, 06 Jun 2014 12:48:11 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id fs1si14228041qcb.32.2014.06.06.12.48.09
-        for <linux-mm@kvack.org>;
-        Fri, 06 Jun 2014 12:48:10 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH] hugetlb: fix copy_hugetlb_page_range() to handle migration/hwpoisoned entry
-Date: Fri,  6 Jun 2014 15:07:00 -0400
-Message-Id: <1402081620-1247-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Received: from mail-ob0-f173.google.com (mail-ob0-f173.google.com [209.85.214.173])
+	by kanga.kvack.org (Postfix) with ESMTP id 7784A6B00A4
+	for <linux-mm@kvack.org>; Fri,  6 Jun 2014 17:01:23 -0400 (EDT)
+Received: by mail-ob0-f173.google.com with SMTP id wm4so3376548obc.4
+        for <linux-mm@kvack.org>; Fri, 06 Jun 2014 14:01:23 -0700 (PDT)
+Received: from mail-ob0-x22f.google.com (mail-ob0-x22f.google.com [2607:f8b0:4003:c01::22f])
+        by mx.google.com with ESMTPS id ea3si17355866obb.81.2014.06.06.14.01.22
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 06 Jun 2014 14:01:22 -0700 (PDT)
+Received: by mail-ob0-f175.google.com with SMTP id wo20so3401173obc.6
+        for <linux-mm@kvack.org>; Fri, 06 Jun 2014 14:01:22 -0700 (PDT)
+Date: Fri, 6 Jun 2014 16:01:17 -0500
+From: Seth Jennings <sjennings@variantweb.net>
+Subject: Re: [PATCHv4 0/6] mm/zpool: add common api for zswap to use
+ zbud/zsmalloc
+Message-ID: <20140606210117.GA7983@cerebellum.variantweb.net>
+References: <1400958369-3588-1-git-send-email-ddstreet@ieee.org>
+ <1401747586-11861-1-git-send-email-ddstreet@ieee.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1401747586-11861-1-git-send-email-ddstreet@ieee.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Hugh Dickins <hughd@google.com>, Christoph Lameter <cl@linux.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Dan Streetman <ddstreet@ieee.org>
+Cc: Minchan Kim <minchan@kernel.org>, Weijie Yang <weijie.yang@samsung.com>, Nitin Gupta <ngupta@vflare.org>, Andrew Morton <akpm@linux-foundation.org>, Bob Liu <bob.liu@oracle.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 
-There's a race between fork() and hugepage migration, as a result we try to
-"dereference" a swap entry as a normal pte, causing kernel panic.
-The cause of the problem is that copy_hugetlb_page_range() can't handle "swap
-entry" family (migration entry and hwpoisoned entry,) so let's fix it.
+On Mon, Jun 02, 2014 at 06:19:40PM -0400, Dan Streetman wrote:
+> In order to allow zswap users to choose between zbud and zsmalloc for
+> the compressed storage pool, this patch set adds a new api "zpool" that
+> provides an interface to both zbud and zsmalloc.  Only minor changes
+> to zbud's interface were needed.  This does not include implementing
+> shrinking in zsmalloc, which will be sent separately.
+> 
+> I believe Seth originally was using zsmalloc for swap, but there were
+> concerns about how significant the impact of shrinking zsmalloc would
+> be when zswap had to start reclaiming pages.  That still may be an
+> issue, but this at least allows users to choose themselves whether
+> they want a lower-density or higher-density compressed storage medium.
+> At least for situations where zswap reclaim is never or rarely reached,
+> it probably makes sense to use the higher density of zsmalloc.
+> 
+> Note this patch set does not change zram to use zpool, although that
+> change should be possible as well.
 
-Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: stable@vger.kernel.org # v2.6.36+
----
- include/linux/mm.h |  6 +++++
- mm/hugetlb.c       | 72 ++++++++++++++++++++++++++++++++----------------------
- mm/memory.c        |  5 ----
- 3 files changed, 49 insertions(+), 34 deletions(-)
+This looks good!  Much better than when we first started :) Thanks Dan.
+I haven't had a chance to test it out yet so I'm going to wait to Ack it
+until then, which might be as late as 6/16 due to a vacation and a
+conference.
 
-diff --git v3.15-rc8.orig/include/linux/mm.h v3.15-rc8/include/linux/mm.h
-index d6777060449f..6b4fe9ec79ba 100644
---- v3.15-rc8.orig/include/linux/mm.h
-+++ v3.15-rc8/include/linux/mm.h
-@@ -1924,6 +1924,12 @@ static inline struct vm_area_struct *find_exact_vma(struct mm_struct *mm,
- 	return vma;
- }
- 
-+static inline bool is_cow_mapping(vm_flags_t flags)
-+{
-+	return (flags & (VM_SHARED | VM_MAYWRITE)) == VM_MAYWRITE;
-+}
-+
-+
- #ifdef CONFIG_MMU
- pgprot_t vm_get_page_prot(unsigned long vm_flags);
- #else
-diff --git v3.15-rc8.orig/mm/hugetlb.c v3.15-rc8/mm/hugetlb.c
-index c82290b9c1fc..47ae7db288f7 100644
---- v3.15-rc8.orig/mm/hugetlb.c
-+++ v3.15-rc8/mm/hugetlb.c
-@@ -2377,6 +2377,31 @@ static void set_huge_ptep_writable(struct vm_area_struct *vma,
- 		update_mmu_cache(vma, address, ptep);
- }
- 
-+static int is_hugetlb_entry_migration(pte_t pte)
-+{
-+	swp_entry_t swp;
-+
-+	if (huge_pte_none(pte) || pte_present(pte))
-+		return 0;
-+	swp = pte_to_swp_entry(pte);
-+	if (non_swap_entry(swp) && is_migration_entry(swp))
-+		return 1;
-+	else
-+		return 0;
-+}
-+
-+static int is_hugetlb_entry_hwpoisoned(pte_t pte)
-+{
-+	swp_entry_t swp;
-+
-+	if (huge_pte_none(pte) || pte_present(pte))
-+		return 0;
-+	swp = pte_to_swp_entry(pte);
-+	if (non_swap_entry(swp) && is_hwpoison_entry(swp))
-+		return 1;
-+	else
-+		return 0;
-+}
- 
- int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
- 			    struct vm_area_struct *vma)
-@@ -2391,7 +2416,7 @@ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
- 	unsigned long mmun_end;		/* For mmu_notifiers */
- 	int ret = 0;
- 
--	cow = (vma->vm_flags & (VM_SHARED | VM_MAYWRITE)) == VM_MAYWRITE;
-+	cow = is_cow_mapping(vma->vm_flags);
- 
- 	mmun_start = vma->vm_start;
- 	mmun_end = vma->vm_end;
-@@ -2416,10 +2441,25 @@ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
- 		dst_ptl = huge_pte_lock(h, dst, dst_pte);
- 		src_ptl = huge_pte_lockptr(h, src, src_pte);
- 		spin_lock_nested(src_ptl, SINGLE_DEPTH_NESTING);
--		if (!huge_pte_none(huge_ptep_get(src_pte))) {
-+		entry = huge_ptep_get(src_pte);
-+		if (huge_pte_none(entry)) { /* skip none entry */
-+			;
-+		} else if (unlikely(is_hugetlb_entry_migration(entry) ||
-+				    is_hugetlb_entry_hwpoisoned(entry))) {
-+			swp_entry_t swp_entry = pte_to_swp_entry(entry);
-+			if (is_write_migration_entry(swp_entry) && cow) {
-+				/*
-+				 * COW mappings require pages in both
-+				 * parent and child to be set to read.
-+				 */
-+				make_migration_entry_read(&swp_entry);
-+				entry = swp_entry_to_pte(swp_entry);
-+				set_pte_at(src, addr, src_pte, entry);
-+			}
-+			set_huge_pte_at(dst, addr, dst_pte, entry);
-+		} else {
- 			if (cow)
- 				huge_ptep_set_wrprotect(src, addr, src_pte);
--			entry = huge_ptep_get(src_pte);
- 			ptepage = pte_page(entry);
- 			get_page(ptepage);
- 			page_dup_rmap(ptepage);
-@@ -2435,32 +2475,6 @@ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
- 	return ret;
- }
- 
--static int is_hugetlb_entry_migration(pte_t pte)
--{
--	swp_entry_t swp;
--
--	if (huge_pte_none(pte) || pte_present(pte))
--		return 0;
--	swp = pte_to_swp_entry(pte);
--	if (non_swap_entry(swp) && is_migration_entry(swp))
--		return 1;
--	else
--		return 0;
--}
--
--static int is_hugetlb_entry_hwpoisoned(pte_t pte)
--{
--	swp_entry_t swp;
--
--	if (huge_pte_none(pte) || pte_present(pte))
--		return 0;
--	swp = pte_to_swp_entry(pte);
--	if (non_swap_entry(swp) && is_hwpoison_entry(swp))
--		return 1;
--	else
--		return 0;
--}
--
- void __unmap_hugepage_range(struct mmu_gather *tlb, struct vm_area_struct *vma,
- 			    unsigned long start, unsigned long end,
- 			    struct page *ref_page)
-diff --git v3.15-rc8.orig/mm/memory.c v3.15-rc8/mm/memory.c
-index 037b812a9531..efc66b128976 100644
---- v3.15-rc8.orig/mm/memory.c
-+++ v3.15-rc8/mm/memory.c
-@@ -698,11 +698,6 @@ static void print_bad_pte(struct vm_area_struct *vma, unsigned long addr,
- 	add_taint(TAINT_BAD_PAGE, LOCKDEP_NOW_UNRELIABLE);
- }
- 
--static inline bool is_cow_mapping(vm_flags_t flags)
--{
--	return (flags & (VM_SHARED | VM_MAYWRITE)) == VM_MAYWRITE;
--}
--
- /*
-  * vm_normal_page -- This function gets the "struct page" associated with a pte.
-  *
--- 
-1.9.3
+Thanks,
+Seth
+
+> 
+> ---
+> 
+> Changes since v3 : https://lkml.org/lkml/2014/5/24/130
+>   -In zpool_shrink() use # pages instead of # bytes
+>   -Add reclaimed param to zpool_shrink() to indicate to caller
+>    # pages actually reclaimed
+>   -move module usage counting to zpool, from zbud/zsmalloc
+>   -update zbud_zpool_shrink() to call zbud_reclaim_page() in a
+>    loop until requested # pages have been reclaimed (or error)
+> 
+> Changes since v2 : https://lkml.org/lkml/2014/5/7/927
+>   -Change zpool to use driver registration instead of hardcoding
+>    implementations
+>   -Add module use counting in zbud/zsmalloc
+> 
+> Changes since v1 https://lkml.org/lkml/2014/4/19/97
+>  -remove zsmalloc shrinking
+>  -change zbud size param type from unsigned int to size_t
+>  -remove zpool fallback creation
+>  -zswap manually falls back to zbud if specified type fails
+> 
+> 
+> Dan Streetman (6):
+>   mm/zbud: zbud_alloc() minor param change
+>   mm/zbud: change zbud_alloc size type to size_t
+>   mm/zpool: implement common zpool api to zbud/zsmalloc
+>   mm/zpool: zbud/zsmalloc implement zpool
+>   mm/zpool: update zswap to use zpool
+>   mm/zpool: prevent zbud/zsmalloc from unloading when used
+> 
+>  include/linux/zbud.h  |   2 +-
+>  include/linux/zpool.h | 224 ++++++++++++++++++++++++++++++++++++++++++++++++++
+>  mm/Kconfig            |  43 ++++++----
+>  mm/Makefile           |   1 +
+>  mm/zbud.c             | 123 +++++++++++++++++++++++----
+>  mm/zpool.c            | 206 ++++++++++++++++++++++++++++++++++++++++++++++
+>  mm/zsmalloc.c         |  83 +++++++++++++++++++
+>  mm/zswap.c            |  76 ++++++++++-------
+>  8 files changed, 694 insertions(+), 64 deletions(-)
+>  create mode 100644 include/linux/zpool.h
+>  create mode 100644 mm/zpool.c
+> 
+> -- 
+> 1.8.3.1
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
