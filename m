@@ -1,62 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f52.google.com (mail-qa0-f52.google.com [209.85.216.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B1436B00AE
-	for <linux-mm@kvack.org>; Fri,  6 Jun 2014 19:11:15 -0400 (EDT)
-Received: by mail-qa0-f52.google.com with SMTP id cm18so4960718qab.25
-        for <linux-mm@kvack.org>; Fri, 06 Jun 2014 16:11:15 -0700 (PDT)
-Received: from mail-qa0-x22c.google.com (mail-qa0-x22c.google.com [2607:f8b0:400d:c00::22c])
-        by mx.google.com with ESMTPS id dc7si14786634qcb.24.2014.06.06.16.11.14
+Received: from mail-ve0-f169.google.com (mail-ve0-f169.google.com [209.85.128.169])
+	by kanga.kvack.org (Postfix) with ESMTP id ADBD86B00B0
+	for <linux-mm@kvack.org>; Fri,  6 Jun 2014 19:16:56 -0400 (EDT)
+Received: by mail-ve0-f169.google.com with SMTP id jx11so4155881veb.28
+        for <linux-mm@kvack.org>; Fri, 06 Jun 2014 16:16:56 -0700 (PDT)
+Received: from mail-vc0-x236.google.com (mail-vc0-x236.google.com [2607:f8b0:400c:c03::236])
+        by mx.google.com with ESMTPS id em3si7659987veb.76.2014.06.06.16.16.55
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 06 Jun 2014 16:11:14 -0700 (PDT)
-Received: by mail-qa0-f44.google.com with SMTP id j7so4914465qaq.17
-        for <linux-mm@kvack.org>; Fri, 06 Jun 2014 16:11:14 -0700 (PDT)
+        Fri, 06 Jun 2014 16:16:56 -0700 (PDT)
+Received: by mail-vc0-f182.google.com with SMTP id il7so4021832vcb.27
+        for <linux-mm@kvack.org>; Fri, 06 Jun 2014 16:16:55 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <CAMP44s2K-kZ8yLC3NPbpO9Z9ykQeySXW+cRiZ_NpLUMzDuiq9g@mail.gmail.com>
-References: <53905594d284f_71f12992fc6a@nysa.notmuch>
-	<20140605133747.GB2942@dhcp22.suse.cz>
-	<CAMP44s1kk8PyMd603g0C9yvHuuUZXzwwNQHpM8Abghvc_Os-SQ@mail.gmail.com>
-	<20140606091620.GC26253@dhcp22.suse.cz>
-	<CAMP44s2K-kZ8yLC3NPbpO9Z9ykQeySXW+cRiZ_NpLUMzDuiq9g@mail.gmail.com>
-Date: Fri, 6 Jun 2014 18:11:14 -0500
-Message-ID: <CAMP44s0pyjRyBM4u5-irCt0DbR96yR=hok+VZgC1KS782edN3w@mail.gmail.com>
-Subject: Re: Interactivity regression since v3.11 in mm/vmscan.c
-From: Felipe Contreras <felipe.contreras@gmail.com>
+In-Reply-To: <alpine.LSU.2.11.1406061549500.9818@eggly.anvils>
+References: <20140603042121.GA27177@redhat.com>
+	<CALYGNiNV951SnBKdr0PEkgLbLCxy+YB6HJpafRr6CynO+a1sdQ@mail.gmail.com>
+	<alpine.LSU.2.11.1406031524470.7878@eggly.anvils>
+	<538F121E.9020100@oracle.com>
+	<alpine.LSU.2.11.1406061549500.9818@eggly.anvils>
+Date: Fri, 6 Jun 2014 16:16:55 -0700
+Message-ID: <CA+55aFy939whF-vo+GyOhkyqgOEUGqAt-cmAB2gSOFHKBeGCPA@mail.gmail.com>
+Subject: Re: 3.15-rc8 mm/filemap.c:202 BUG
+From: Linus Torvalds <torvalds@linux-foundation.org>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>
+To: Hugh Dickins <hughd@google.com>
+Cc: Sasha Levin <sasha.levin@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Dave Jones <davej@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 
-On Fri, Jun 6, 2014 at 5:33 AM, Felipe Contreras
-<felipe.contreras@gmail.com> wrote:
-> On Fri, Jun 6, 2014 at 4:16 AM, Michal Hocko <mhocko@suse.cz> wrote:
+On Fri, Jun 6, 2014 at 4:05 PM, Hugh Dickins <hughd@google.com> wrote:
 >
->> Mel has a nice systemtap script (attached) to watch for stalls. Maybe
->> you can give it a try?
+> [PATCH] mm: entry = ACCESS_ONCE(*pte) in handle_pte_fault
 >
-> Is there any special configurations I should enable?
+> Use ACCESS_ONCE() in handle_pte_fault() when getting the entry or orig_pte
+> upon which all subsequent decisions and pte_same() tests will be made.
 >
-> I get this:
-> semantic error: unresolved arity-1 global array name, missing global
-> declaration?: identifier 'name' at /tmp/stapd6pu9A:4:2
->         source: name[t]=execname()
->                 ^
->
-> Pass 2: analysis failed.  [man error::pass2]
-> Number of similar error messages suppressed: 71.
-> Rerun with -v to see them.
-> Unexpected exit of STAP script at
-> /home/felipec/Downloads/watch-dstate-new.pl line 320.
+> I have no evidence that its lack is responsible for the mm/filemap.c:202
+> BUG_ON(page_mapped(page)) in __delete_from_page_cache() found by trinity,
+> and I am not optimistic that it will fix it.  But I have found no other
+> explanation, and ACCESS_ONCE() here will surely not hurt.
 
-Actually I debugged the problem, and it's that the format of the
-script is DOS, not UNIX. After changing the format the script works.
+The patch looks obviously correct to me, although like you, I have no
+real reason to believe it really fixes anything. But we definitely
+should just load it once, since it's very much an optimistic load done
+before we take the real lock and re-compare.
 
-However, it's not returning anything. It's running, but doesn't seem
-to find any stalls.
+I'm somewhat dubious whether it actually would change code generation
+- it doesn't change anything with the test-configuration I tried with
+- but it's unquestionably a good patch. And hey, maybe some
+configurations have sufficiently different code generation that gcc
+actually _can_ sometimes do reloads, perhaps explaining why some
+people see problems. So it's certainly worth testing even if it
+doesn't make any change to code generation with *my* compiler and
+config..
 
--- 
-Felipe Contreras
+          Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
