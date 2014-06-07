@@ -1,54 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f48.google.com (mail-pb0-f48.google.com [209.85.160.48])
-	by kanga.kvack.org (Postfix) with ESMTP id 08A006B00B2
-	for <linux-mm@kvack.org>; Fri,  6 Jun 2014 19:28:13 -0400 (EDT)
-Received: by mail-pb0-f48.google.com with SMTP id rr13so3068787pbb.35
-        for <linux-mm@kvack.org>; Fri, 06 Jun 2014 16:28:13 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id cc2si22069105pbc.255.2014.06.06.16.28.12
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 06 Jun 2014 16:28:13 -0700 (PDT)
-Message-ID: <53924D10.4050305@oracle.com>
-Date: Fri, 06 Jun 2014 19:21:52 -0400
-From: Sasha Levin <sasha.levin@oracle.com>
-MIME-Version: 1.0
-Subject: Re: 3.15-rc8 mm/filemap.c:202 BUG
-References: <20140603042121.GA27177@redhat.com>	<CALYGNiNV951SnBKdr0PEkgLbLCxy+YB6HJpafRr6CynO+a1sdQ@mail.gmail.com>	<alpine.LSU.2.11.1406031524470.7878@eggly.anvils>	<538F121E.9020100@oracle.com>	<alpine.LSU.2.11.1406061549500.9818@eggly.anvils> <CA+55aFy939whF-vo+GyOhkyqgOEUGqAt-cmAB2gSOFHKBeGCPA@mail.gmail.com>
-In-Reply-To: <CA+55aFy939whF-vo+GyOhkyqgOEUGqAt-cmAB2gSOFHKBeGCPA@mail.gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 7202A6B0031
+	for <linux-mm@kvack.org>; Sat,  7 Jun 2014 07:09:35 -0400 (EDT)
+Received: by mail-wi0-f171.google.com with SMTP id cc10so2165252wib.16
+        for <linux-mm@kvack.org>; Sat, 07 Jun 2014 04:09:34 -0700 (PDT)
+Received: from mailrelay004.isp.belgacom.be (mailrelay004.isp.belgacom.be. [195.238.6.170])
+        by mx.google.com with ESMTP id go2si2179260wib.64.2014.06.07.04.09.33
+        for <linux-mm@kvack.org>;
+        Sat, 07 Jun 2014 04:09:34 -0700 (PDT)
+From: Fabian Frederick <fabf@skynet.be>
+Subject: [PATCH 1/1] mm/zswap.c: add __init to zswap_entry_cache_destroy
+Date: Sat,  7 Jun 2014 13:08:34 +0200
+Message-Id: <1402139314-5573-1-git-send-email-fabf@skynet.be>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hughd@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Konstantin Khlebnikov <koct9i@gmail.com>, Dave Jones <davej@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
+To: linux-kernel@vger.kernel.org
+Cc: Fabian Frederick <fabf@skynet.be>, Seth Jennings <sjennings@variantweb.net>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
-On 06/06/2014 07:16 PM, Linus Torvalds wrote:
->> I have no evidence that its lack is responsible for the mm/filemap.c:202
->> > BUG_ON(page_mapped(page)) in __delete_from_page_cache() found by trinity,
->> > and I am not optimistic that it will fix it.  But I have found no other
->> > explanation, and ACCESS_ONCE() here will surely not hurt.
-> The patch looks obviously correct to me, although like you, I have no
-> real reason to believe it really fixes anything. But we definitely
-> should just load it once, since it's very much an optimistic load done
-> before we take the real lock and re-compare.
-> 
-> I'm somewhat dubious whether it actually would change code generation
-> - it doesn't change anything with the test-configuration I tried with
-> - but it's unquestionably a good patch. And hey, maybe some
-> configurations have sufficiently different code generation that gcc
-> actually _can_ sometimes do reloads, perhaps explaining why some
-> people see problems. So it's certainly worth testing even if it
-> doesn't make any change to code generation with *my* compiler and
-> config..
+zswap_entry_cache_destroy is only called by __init init_zswap
 
-I'm seeing the same code generated here as well. I won't carry the
-patch unless Andrew/Linus take it so it won't hide possible bugs that
-trinity might stumble on.
+This patch also fixes function name
+zswap_entry_cache_ s/destory/destroy
 
+Cc: Seth Jennings <sjennings@variantweb.net>
+Cc: linux-mm@kvack.org
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Fabian Frederick <fabf@skynet.be>
+---
+ mm/zswap.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-Thanks,
-Sasha
+diff --git a/mm/zswap.c b/mm/zswap.c
+index aeaef0f..ab7fa0f 100644
+--- a/mm/zswap.c
++++ b/mm/zswap.c
+@@ -207,7 +207,7 @@ static int zswap_entry_cache_create(void)
+ 	return zswap_entry_cache == NULL;
+ }
+ 
+-static void zswap_entry_cache_destory(void)
++static void __init zswap_entry_cache_destroy(void)
+ {
+ 	kmem_cache_destroy(zswap_entry_cache);
+ }
+@@ -926,7 +926,7 @@ static int __init init_zswap(void)
+ pcpufail:
+ 	zswap_comp_exit();
+ compfail:
+-	zswap_entry_cache_destory();
++	zswap_entry_cache_destroy();
+ cachefail:
+ 	zbud_destroy_pool(zswap_pool);
+ error:
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
