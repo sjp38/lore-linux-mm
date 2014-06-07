@@ -1,55 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f49.google.com (mail-pb0-f49.google.com [209.85.160.49])
-	by kanga.kvack.org (Postfix) with ESMTP id E9CB56B0031
-	for <linux-mm@kvack.org>; Sat,  7 Jun 2014 08:35:27 -0400 (EDT)
-Received: by mail-pb0-f49.google.com with SMTP id jt11so3594880pbb.36
-        for <linux-mm@kvack.org>; Sat, 07 Jun 2014 05:35:27 -0700 (PDT)
-Received: from mail2-185.sinamail.sina.com.cn ([60.28.2.185])
-        by mx.google.com with ESMTP id el5si25051911pbc.217.2014.06.07.05.35.25
-        for <linux-mm@kvack.org>;
-        Sat, 07 Jun 2014 05:35:27 -0700 (PDT)
-Date: Sat, 07 Jun 2014 20:35:18 +0800 
-Reply-To: zhdxzx@sina.com
-From: <zhdxzx@sina.com>
-Subject: Re: Interactivity regression since v3.11 in mm/vmscan.c
+Received: from mail-ob0-f171.google.com (mail-ob0-f171.google.com [209.85.214.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 90A1C6B0031
+	for <linux-mm@kvack.org>; Sat,  7 Jun 2014 09:56:15 -0400 (EDT)
+Received: by mail-ob0-f171.google.com with SMTP id wn1so4029695obc.30
+        for <linux-mm@kvack.org>; Sat, 07 Jun 2014 06:56:15 -0700 (PDT)
+Received: from mail-oa0-x22f.google.com (mail-oa0-x22f.google.com [2607:f8b0:4003:c02::22f])
+        by mx.google.com with ESMTPS id g3si19983102obd.23.2014.06.07.06.56.14
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Sat, 07 Jun 2014 06:56:14 -0700 (PDT)
+Received: by mail-oa0-f47.google.com with SMTP id n16so46932oag.6
+        for <linux-mm@kvack.org>; Sat, 07 Jun 2014 06:56:14 -0700 (PDT)
+Message-ID: <539319fd.22abb60a.05d2.70c7@mx.google.com>
+Date: Sat, 07 Jun 2014 08:56:08 -0500
+Subject: Re: [PATCH 1/1] mm/zswap.c: add __init to zswap_entry_cache_destroy
+From: Seth Jennings <sjennings@variantweb.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=GBK
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: base64
-Message-Id: <20140607123518.88983301D2@webmail.sinamail.sina.com.cn>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Felipe Contreras <felipe.contreras@gmail.com>
-Cc: Michal Hocko <mhocko@suse.cz>, linux-kernel <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, dhillf <dhillf@gmail.com>, "hillf.zj" <hillf.zj@alibaba-inc.com>
+To: Fabian Frederick <fabf@skynet.be>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>
 
-LS0tLS0gT3JpZ2luYWwgTWVzc2FnZSAtLS0tLQ0KRnJvbTogRmVsaXBlIENvbnRyZXJhcyA8ZmVs
-aXBlLmNvbnRyZXJhc0BnbWFpbC5jb20+DQoNCj4+T24gRnJpLCBKdW4gNiwgMjAxNCBhdCA0OjU4
-IEFNLCAgPHpoZHh6eEBzaW5hLmNvbT4gd3JvdGU6DQo+PiBBbHRlcm5hdGl2ZWx5IGNhbiB3ZSB0
-cnkgd2FpdF9pZmZfY29uZ2VzdGVkKHpvbmUsIEJMS19SV19BU1lOQywgSFovMTApID8NCj4+DQo+
-IEkgc2VlIHRoZSBzYW1lIHByb2JsZW0gd2l0aCB0aGF0IGNvZGUuDQo+DQpUaGUgY29tbWVudHMg
-YXJvdW5kIHRoZSBjb25nZXN0aW9uX3dhaXQsDQpbMV0NCgkgKg0KCSAqIE9uY2UgYSB6b25lIGlz
-IGZsYWdnZWQgWk9ORV9XUklURUJBQ0ssIGtzd2FwZCB3aWxsIGNvdW50IHRoZSBudW1iZXINCgkg
-KiBvZiBwYWdlcyB1bmRlciBwYWdlcyBmbGFnZ2VkIGZvciBpbW1lZGlhdGUgcmVjbGFpbSBhbmQg
-c3RhbGwgaWYgYW55DQoJICogYXJlIGVuY291bnRlcmVkIGluIHRoZSBucl9pbW1lZGlhdGUgY2hl
-Y2sgYmVsb3cuDQoJICovDQoJaWYgKG5yX3dyaXRlYmFjayAmJiBucl93cml0ZWJhY2sgPT0gbnJf
-dGFrZW4pDQoJCXpvbmVfc2V0X2ZsYWcoem9uZSwgWk9ORV9XUklURUJBQ0spOw0KDQoNClsyXQ0K
-CQkvKg0KCQkgKiBJZiBkaXJ0eSBwYWdlcyBhcmUgc2Nhbm5lZCB0aGF0IGFyZSBub3QgcXVldWVk
-IGZvciBJTywgaXQNCgkJICogaW1wbGllcyB0aGF0IGZsdXNoZXJzIGFyZSBub3Qga2VlcGluZyB1
-cC4gSW4gdGhpcyBjYXNlLCBmbGFnDQoJCSAqIHRoZSB6b25lIFpPTkVfVEFJTF9MUlVfRElSVFkg
-YW5kIGtzd2FwZCB3aWxsIHN0YXJ0IHdyaXRpbmcNCgkJICogcGFnZXMgZnJvbSByZWNsYWltIGNv
-bnRleHQuIEl0IHdpbGwgZm9yY2libHkgc3RhbGwgaW4gdGhlDQoJCSAqIG5leHQgY2hlY2suDQoJ
-CSAqLw0KCQlpZiAobnJfdW5xdWV1ZWRfZGlydHkgPT0gbnJfdGFrZW4pDQoJCQl6b25lX3NldF9m
-bGFnKHpvbmUsIFpPTkVfVEFJTF9MUlVfRElSVFkpOw0KDQpUaGUgImZvcmNlIHN0YWxsIiBpbiBb
-Ml0gY29uZmxpY3RzIHdpdGggInN0YXJ0IHdyaXRpbmcgcGFnZXMiIGluIFsyXSwgYW5kDQpjb25m
-bGljdHMgd2l0aCAibnJfaW1tZWRpYXRlIGNoZWNrIGJlbG93IiBpbiBbMV0gYXMgd2VsbCwgSUlV
-Qy4NCg0KV291bGQgeW91IHBsZWFzZSB0cnkgYWdhaW4gYmFzZWQgb25seSBvbiBjb21tZW50IFsx
-XShiYXNlZCBvbiB2My4xNS1yYzgpPw0KdGhhbmtzDQpIaWxsZg0KDQotLS0gYS9tbS92bXNjYW4u
-YwlTYXQgSnVuICA3IDE4OjM4OjA4IDIwMTQNCisrKyBiL21tL3Ztc2Nhbi5jCVNhdCBKdW4gIDcg
-MjA6MDg6MzYgMjAxNA0KQEAgLTE1NjYsNyArMTU2Niw3IEBAIHNocmlua19pbmFjdGl2ZV9saXN0
-KHVuc2lnbmVkIGxvbmcgbnJfdG8NCiAJCSAqIGltcGxpZXMgdGhhdCBwYWdlcyBhcmUgY3ljbGlu
-ZyB0aHJvdWdoIHRoZSBMUlUgZmFzdGVyIHRoYW4NCiAJCSAqIHRoZXkgYXJlIHdyaXR0ZW4gc28g
-YWxzbyBmb3JjaWJseSBzdGFsbC4NCiAJCSAqLw0KLQkJaWYgKG5yX3VucXVldWVkX2RpcnR5ID09
-IG5yX3Rha2VuIHx8IG5yX2ltbWVkaWF0ZSkNCisJCWlmIChucl9pbW1lZGlhdGUpDQogCQkJY29u
-Z2VzdGlvbl93YWl0KEJMS19SV19BU1lOQywgSFovMTApOw0KIAl9DQogDQotLQ==
+Ck9uIEp1biA3LCAyMDE0IDY6MDggQU0sIEZhYmlhbiBGcmVkZXJpY2sgPGZhYmZAc2t5bmV0LmJl
+PiB3cm90ZToKPgo+IHpzd2FwX2VudHJ5X2NhY2hlX2Rlc3Ryb3kgaXMgb25seSBjYWxsZWQgYnkg
+X19pbml0IGluaXRfenN3YXAgCj4KPiBUaGlzIHBhdGNoIGFsc28gZml4ZXMgZnVuY3Rpb24gbmFt
+ZSAKPiB6c3dhcF9lbnRyeV9jYWNoZV8gcy9kZXN0b3J5L2Rlc3Ryb3kKClRoYW5rcyBmb3IgdGhl
+wqAgaW1wcm92ZW1lbnQg4pi6CgpBY2tlZC1ieSA8c2plbm5pbmdzQHZhcmlhbnR3ZWIubmV0PgoK
+Pgo+IENjOiBTZXRoIEplbm5pbmdzIDxzamVubmluZ3NAdmFyaWFudHdlYi5uZXQ+IAo+IENjOiBs
+aW51eC1tbUBrdmFjay5vcmcgCj4gQ2M6IEFuZHJldyBNb3J0b24gPGFrcG1AbGludXgtZm91bmRh
+dGlvbi5vcmc+IAo+IFNpZ25lZC1vZmYtYnk6IEZhYmlhbiBGcmVkZXJpY2sgPGZhYmZAc2t5bmV0
+LmJlPiAKPiAtLS0gCj4gbW0venN3YXAuYyB8IDQgKystLSAKPiAxIGZpbGUgY2hhbmdlZCwgMiBp
+bnNlcnRpb25zKCspLCAyIGRlbGV0aW9ucygtKSAKPgo+IGRpZmYgLS1naXQgYS9tbS96c3dhcC5j
+IGIvbW0venN3YXAuYyAKPiBpbmRleCBhZWFlZjBmLi5hYjdmYTBmIDEwMDY0NCAKPiAtLS0gYS9t
+bS96c3dhcC5jIAo+ICsrKyBiL21tL3pzd2FwLmMgCj4gQEAgLTIwNyw3ICsyMDcsNyBAQCBzdGF0
+aWMgaW50IHpzd2FwX2VudHJ5X2NhY2hlX2NyZWF0ZSh2b2lkKSAKPiByZXR1cm4genN3YXBfZW50
+cnlfY2FjaGUgPT0gTlVMTDsgCj4gfSAKPgo+IC1zdGF0aWMgdm9pZCB6c3dhcF9lbnRyeV9jYWNo
+ZV9kZXN0b3J5KHZvaWQpIAo+ICtzdGF0aWMgdm9pZCBfX2luaXQgenN3YXBfZW50cnlfY2FjaGVf
+ZGVzdHJveSh2b2lkKSAKPiB7IAo+IGttZW1fY2FjaGVfZGVzdHJveSh6c3dhcF9lbnRyeV9jYWNo
+ZSk7IAo+IH0gCj4gQEAgLTkyNiw3ICs5MjYsNyBAQCBzdGF0aWMgaW50IF9faW5pdCBpbml0X3pz
+d2FwKHZvaWQpIAo+IHBjcHVmYWlsOiAKPiB6c3dhcF9jb21wX2V4aXQoKTsgCj4gY29tcGZhaWw6
+IAo+IC0genN3YXBfZW50cnlfY2FjaGVfZGVzdG9yeSgpOyAKPiArIHpzd2FwX2VudHJ5X2NhY2hl
+X2Rlc3Ryb3koKTsgCj4gY2FjaGVmYWlsOiAKPiB6YnVkX2Rlc3Ryb3lfcG9vbCh6c3dhcF9wb29s
+KTsgCj4gZXJyb3I6IAo+IC0tIAo+IDEuOS4xIAo+Cg==
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
