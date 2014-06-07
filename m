@@ -1,59 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 7202A6B0031
-	for <linux-mm@kvack.org>; Sat,  7 Jun 2014 07:09:35 -0400 (EDT)
-Received: by mail-wi0-f171.google.com with SMTP id cc10so2165252wib.16
-        for <linux-mm@kvack.org>; Sat, 07 Jun 2014 04:09:34 -0700 (PDT)
-Received: from mailrelay004.isp.belgacom.be (mailrelay004.isp.belgacom.be. [195.238.6.170])
-        by mx.google.com with ESMTP id go2si2179260wib.64.2014.06.07.04.09.33
+Received: from mail-pb0-f49.google.com (mail-pb0-f49.google.com [209.85.160.49])
+	by kanga.kvack.org (Postfix) with ESMTP id E9CB56B0031
+	for <linux-mm@kvack.org>; Sat,  7 Jun 2014 08:35:27 -0400 (EDT)
+Received: by mail-pb0-f49.google.com with SMTP id jt11so3594880pbb.36
+        for <linux-mm@kvack.org>; Sat, 07 Jun 2014 05:35:27 -0700 (PDT)
+Received: from mail2-185.sinamail.sina.com.cn ([60.28.2.185])
+        by mx.google.com with ESMTP id el5si25051911pbc.217.2014.06.07.05.35.25
         for <linux-mm@kvack.org>;
-        Sat, 07 Jun 2014 04:09:34 -0700 (PDT)
-From: Fabian Frederick <fabf@skynet.be>
-Subject: [PATCH 1/1] mm/zswap.c: add __init to zswap_entry_cache_destroy
-Date: Sat,  7 Jun 2014 13:08:34 +0200
-Message-Id: <1402139314-5573-1-git-send-email-fabf@skynet.be>
+        Sat, 07 Jun 2014 05:35:27 -0700 (PDT)
+Date: Sat, 07 Jun 2014 20:35:18 +0800 
+Reply-To: zhdxzx@sina.com
+From: <zhdxzx@sina.com>
+Subject: Re: Interactivity regression since v3.11 in mm/vmscan.c
+MIME-Version: 1.0
+Content-Type: text/plain; charset=GBK
+Content-Transfer-Encoding: base64
+Message-Id: <20140607123518.88983301D2@webmail.sinamail.sina.com.cn>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Fabian Frederick <fabf@skynet.be>, Seth Jennings <sjennings@variantweb.net>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: Felipe Contreras <felipe.contreras@gmail.com>
+Cc: Michal Hocko <mhocko@suse.cz>, linux-kernel <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, dhillf <dhillf@gmail.com>, "hillf.zj" <hillf.zj@alibaba-inc.com>
 
-zswap_entry_cache_destroy is only called by __init init_zswap
-
-This patch also fixes function name
-zswap_entry_cache_ s/destory/destroy
-
-Cc: Seth Jennings <sjennings@variantweb.net>
-Cc: linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Signed-off-by: Fabian Frederick <fabf@skynet.be>
----
- mm/zswap.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
-
-diff --git a/mm/zswap.c b/mm/zswap.c
-index aeaef0f..ab7fa0f 100644
---- a/mm/zswap.c
-+++ b/mm/zswap.c
-@@ -207,7 +207,7 @@ static int zswap_entry_cache_create(void)
- 	return zswap_entry_cache == NULL;
- }
- 
--static void zswap_entry_cache_destory(void)
-+static void __init zswap_entry_cache_destroy(void)
- {
- 	kmem_cache_destroy(zswap_entry_cache);
- }
-@@ -926,7 +926,7 @@ static int __init init_zswap(void)
- pcpufail:
- 	zswap_comp_exit();
- compfail:
--	zswap_entry_cache_destory();
-+	zswap_entry_cache_destroy();
- cachefail:
- 	zbud_destroy_pool(zswap_pool);
- error:
--- 
-1.9.1
+LS0tLS0gT3JpZ2luYWwgTWVzc2FnZSAtLS0tLQ0KRnJvbTogRmVsaXBlIENvbnRyZXJhcyA8ZmVs
+aXBlLmNvbnRyZXJhc0BnbWFpbC5jb20+DQoNCj4+T24gRnJpLCBKdW4gNiwgMjAxNCBhdCA0OjU4
+IEFNLCAgPHpoZHh6eEBzaW5hLmNvbT4gd3JvdGU6DQo+PiBBbHRlcm5hdGl2ZWx5IGNhbiB3ZSB0
+cnkgd2FpdF9pZmZfY29uZ2VzdGVkKHpvbmUsIEJMS19SV19BU1lOQywgSFovMTApID8NCj4+DQo+
+IEkgc2VlIHRoZSBzYW1lIHByb2JsZW0gd2l0aCB0aGF0IGNvZGUuDQo+DQpUaGUgY29tbWVudHMg
+YXJvdW5kIHRoZSBjb25nZXN0aW9uX3dhaXQsDQpbMV0NCgkgKg0KCSAqIE9uY2UgYSB6b25lIGlz
+IGZsYWdnZWQgWk9ORV9XUklURUJBQ0ssIGtzd2FwZCB3aWxsIGNvdW50IHRoZSBudW1iZXINCgkg
+KiBvZiBwYWdlcyB1bmRlciBwYWdlcyBmbGFnZ2VkIGZvciBpbW1lZGlhdGUgcmVjbGFpbSBhbmQg
+c3RhbGwgaWYgYW55DQoJICogYXJlIGVuY291bnRlcmVkIGluIHRoZSBucl9pbW1lZGlhdGUgY2hl
+Y2sgYmVsb3cuDQoJICovDQoJaWYgKG5yX3dyaXRlYmFjayAmJiBucl93cml0ZWJhY2sgPT0gbnJf
+dGFrZW4pDQoJCXpvbmVfc2V0X2ZsYWcoem9uZSwgWk9ORV9XUklURUJBQ0spOw0KDQoNClsyXQ0K
+CQkvKg0KCQkgKiBJZiBkaXJ0eSBwYWdlcyBhcmUgc2Nhbm5lZCB0aGF0IGFyZSBub3QgcXVldWVk
+IGZvciBJTywgaXQNCgkJICogaW1wbGllcyB0aGF0IGZsdXNoZXJzIGFyZSBub3Qga2VlcGluZyB1
+cC4gSW4gdGhpcyBjYXNlLCBmbGFnDQoJCSAqIHRoZSB6b25lIFpPTkVfVEFJTF9MUlVfRElSVFkg
+YW5kIGtzd2FwZCB3aWxsIHN0YXJ0IHdyaXRpbmcNCgkJICogcGFnZXMgZnJvbSByZWNsYWltIGNv
+bnRleHQuIEl0IHdpbGwgZm9yY2libHkgc3RhbGwgaW4gdGhlDQoJCSAqIG5leHQgY2hlY2suDQoJ
+CSAqLw0KCQlpZiAobnJfdW5xdWV1ZWRfZGlydHkgPT0gbnJfdGFrZW4pDQoJCQl6b25lX3NldF9m
+bGFnKHpvbmUsIFpPTkVfVEFJTF9MUlVfRElSVFkpOw0KDQpUaGUgImZvcmNlIHN0YWxsIiBpbiBb
+Ml0gY29uZmxpY3RzIHdpdGggInN0YXJ0IHdyaXRpbmcgcGFnZXMiIGluIFsyXSwgYW5kDQpjb25m
+bGljdHMgd2l0aCAibnJfaW1tZWRpYXRlIGNoZWNrIGJlbG93IiBpbiBbMV0gYXMgd2VsbCwgSUlV
+Qy4NCg0KV291bGQgeW91IHBsZWFzZSB0cnkgYWdhaW4gYmFzZWQgb25seSBvbiBjb21tZW50IFsx
+XShiYXNlZCBvbiB2My4xNS1yYzgpPw0KdGhhbmtzDQpIaWxsZg0KDQotLS0gYS9tbS92bXNjYW4u
+YwlTYXQgSnVuICA3IDE4OjM4OjA4IDIwMTQNCisrKyBiL21tL3Ztc2Nhbi5jCVNhdCBKdW4gIDcg
+MjA6MDg6MzYgMjAxNA0KQEAgLTE1NjYsNyArMTU2Niw3IEBAIHNocmlua19pbmFjdGl2ZV9saXN0
+KHVuc2lnbmVkIGxvbmcgbnJfdG8NCiAJCSAqIGltcGxpZXMgdGhhdCBwYWdlcyBhcmUgY3ljbGlu
+ZyB0aHJvdWdoIHRoZSBMUlUgZmFzdGVyIHRoYW4NCiAJCSAqIHRoZXkgYXJlIHdyaXR0ZW4gc28g
+YWxzbyBmb3JjaWJseSBzdGFsbC4NCiAJCSAqLw0KLQkJaWYgKG5yX3VucXVldWVkX2RpcnR5ID09
+IG5yX3Rha2VuIHx8IG5yX2ltbWVkaWF0ZSkNCisJCWlmIChucl9pbW1lZGlhdGUpDQogCQkJY29u
+Z2VzdGlvbl93YWl0KEJMS19SV19BU1lOQywgSFovMTApOw0KIAl9DQogDQotLQ==
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
