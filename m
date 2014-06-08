@@ -1,44 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vc0-f173.google.com (mail-vc0-f173.google.com [209.85.220.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 782AB6B0031
-	for <linux-mm@kvack.org>; Sun,  8 Jun 2014 17:33:17 -0400 (EDT)
-Received: by mail-vc0-f173.google.com with SMTP id ik5so5456804vcb.18
-        for <linux-mm@kvack.org>; Sun, 08 Jun 2014 14:33:17 -0700 (PDT)
-Received: from mail-ve0-x22c.google.com (mail-ve0-x22c.google.com [2607:f8b0:400c:c01::22c])
-        by mx.google.com with ESMTPS id cl2si9846607vcb.98.2014.06.08.14.33.16
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sun, 08 Jun 2014 14:33:16 -0700 (PDT)
-Received: by mail-ve0-f172.google.com with SMTP id jz11so1523771veb.3
-        for <linux-mm@kvack.org>; Sun, 08 Jun 2014 14:33:16 -0700 (PDT)
+Received: from mail-wg0-f47.google.com (mail-wg0-f47.google.com [74.125.82.47])
+	by kanga.kvack.org (Postfix) with ESMTP id E5AD66B0036
+	for <linux-mm@kvack.org>; Sun,  8 Jun 2014 18:14:58 -0400 (EDT)
+Received: by mail-wg0-f47.google.com with SMTP id k14so4126795wgh.30
+        for <linux-mm@kvack.org>; Sun, 08 Jun 2014 15:14:58 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id s8si28566575wjq.101.2014.06.08.15.14.56
+        for <linux-mm@kvack.org>;
+        Sun, 08 Jun 2014 15:14:57 -0700 (PDT)
+Date: Sun, 8 Jun 2014 18:14:36 -0400
+From: Luiz Capitulino <lcapitulino@redhat.com>
+Subject: [PATCH] x86: numa: drop ZONE_ALIGN
+Message-ID: <20140608181436.17de69ac@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <CA+55aFzRWZNt2AqdVzQpCChB1UJh12oBAof8UiKsvNGSMUe9BA@mail.gmail.com>
-References: <20140607123518.88983301D2@webmail.sinamail.sina.com.cn>
-	<CA+55aFzRWZNt2AqdVzQpCChB1UJh12oBAof8UiKsvNGSMUe9BA@mail.gmail.com>
-Date: Sun, 8 Jun 2014 14:33:16 -0700
-Message-ID: <CA+55aFxu2agkdu1ixbUP_XGy0ckyyOP_jOQ=LyyMRiVfAgS_NA@mail.gmail.com>
-Subject: Re: Interactivity regression since v3.11 in mm/vmscan.c
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: zhdxzx@sina.com
-Cc: Felipe Contreras <felipe.contreras@gmail.com>, Michal Hocko <mhocko@suse.cz>, linux-kernel <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, dhillf <dhillf@gmail.com>, "hillf.zj" <hillf.zj@alibaba-inc.com>
+To: akpm@linux-foundation.org
+Cc: andi@firstfloor.org, riel@redhat.com, yinghai@kernel.org, isimatu.yasuaki@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org
 
-On Sat, Jun 7, 2014 at 11:24 AM, Linus Torvalds
-<torvalds@linux-foundation.org> wrote:
->
-> Comments? Mel, this code is mostly attributed to you, I'd like to hear
-> what you think in particular.
+In short, I believe this is just dead code for the upstream kernel but this
+causes a bug for 2.6.32 based kernels.
 
-In the meantime, I've removed the "nr_unqueued_dirty == nr_taken"
-check for congestion_wait(), since I can't see how it can possibly be
-sensible, and Felipe confirmed that it fixes his interactivity issue.
+The setup_node_data() function is used to initialize NODE_DATA() for a node.
+It gets a node id and a memory range. The start address for the memory range
+is rounded up to ZONE_ALIGN and then it's used to initialize
+NODE_DATA(nid)->node_start_pfn.
 
-Nobody commented on it, but let's see if we get reactions to the
-behavior changing..
+However, a few function calls later free_area_init_node() is called and it
+overwrites NODE_DATA()->node_start_pfn with the lowest PFN for the node.
+Here's the call callchain:
 
-             Linus
+setup_arch()
+  initmem_init()
+    x86_numa_init()
+      numa_init()
+        numa_register_memblks()
+          setup_node_data()        <-- initializes NODE_DATA()->node_start_pfn
+  ...
+  x86_init.paging.pagetable_init()
+    paging_init()
+      zone_sizes_init()
+        free_area_init_nodes()
+          free_area_init_node()    <-- overwrites NODE_DATA()->node_start_pfn
+
+This doesn't seem to cause any problems to the current kernel because the
+rounded up start address is not really used. However, I came accross this
+dead assignment while debugging a real issue on a 2.6.32 based kernel.
+
+The 2.6.32 kernel did use the rounded up range start to register a node's
+memory range with the bootmem interface by calling init_bootmem_node().
+A few steps later during bootmem initialization, the 2.6.32 kernel calls
+free_bootmem_with_active_regions() to initialize the bootmem bitmap. This
+function goes through all memory ranges read from the SRAT table and try
+to mark them as usable for bootmem usage. However, before marking a range
+as usable, mark_bootmem_node() asserts if the memory range start address
+(as read from the SRAT table) is less than the value registered with
+init_bootmem_node(). The assertion will trigger whenever the memory range
+start address is rounded up, as it will always be greater than what is
+reported in the SRAT table. This is true when the 2.6.32 kernel runs as a
+HyperV guest on Windows Server 2012. Dropping ZONE_ALIGN solves the
+problem there.
+
+Signed-off-by: Luiz Capitulino <lcapitulino@redhat.com>
+---
+ arch/x86/include/asm/numa.h | 1 -
+ arch/x86/mm/numa.c          | 2 --
+ 2 files changed, 3 deletions(-)
+
+diff --git a/arch/x86/include/asm/numa.h b/arch/x86/include/asm/numa.h
+index 4064aca..01b493e 100644
+--- a/arch/x86/include/asm/numa.h
++++ b/arch/x86/include/asm/numa.h
+@@ -9,7 +9,6 @@
+ #ifdef CONFIG_NUMA
+ 
+ #define NR_NODE_MEMBLKS		(MAX_NUMNODES*2)
+-#define ZONE_ALIGN (1UL << (MAX_ORDER+PAGE_SHIFT))
+ 
+ /*
+  * Too small node sizes may confuse the VM badly. Usually they
+diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
+index 1d045f9..69f6362 100644
+--- a/arch/x86/mm/numa.c
++++ b/arch/x86/mm/numa.c
+@@ -200,8 +200,6 @@ static void __init setup_node_data(int nid, u64 start, u64 end)
+ 	if (end && (end - start) < NODE_MIN_SIZE)
+ 		return;
+ 
+-	start = roundup(start, ZONE_ALIGN);
+-
+ 	printk(KERN_INFO "Initmem setup node %d [mem %#010Lx-%#010Lx]\n",
+ 	       nid, start, end - 1);
+ 
+-- 
+1.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
