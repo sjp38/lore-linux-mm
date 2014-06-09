@@ -1,114 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id D2C636B0036
-	for <linux-mm@kvack.org>; Mon,  9 Jun 2014 04:59:44 -0400 (EDT)
-Received: by mail-pa0-f46.google.com with SMTP id eu11so515274pac.5
-        for <linux-mm@kvack.org>; Mon, 09 Jun 2014 01:59:44 -0700 (PDT)
-Received: from heian.cn.fujitsu.com ([59.151.112.132])
-        by mx.google.com with ESMTP id g7si1622097pat.225.2014.06.09.01.59.42
-        for <linux-mm@kvack.org>;
-        Mon, 09 Jun 2014 01:59:43 -0700 (PDT)
-Message-ID: <539574F1.2060701@cn.fujitsu.com>
-Date: Mon, 9 Jun 2014 16:48:49 +0800
-From: Gu Zheng <guz.fnst@cn.fujitsu.com>
+Received: from mail-ie0-f170.google.com (mail-ie0-f170.google.com [209.85.223.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 18D336B0031
+	for <linux-mm@kvack.org>; Mon,  9 Jun 2014 05:06:21 -0400 (EDT)
+Received: by mail-ie0-f170.google.com with SMTP id tr6so616066ieb.29
+        for <linux-mm@kvack.org>; Mon, 09 Jun 2014 02:06:20 -0700 (PDT)
+Received: from mail-ig0-x232.google.com (mail-ig0-x232.google.com [2607:f8b0:4001:c05::232])
+        by mx.google.com with ESMTPS id bq3si32216631icc.41.2014.06.09.02.06.19
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 09 Jun 2014 02:06:20 -0700 (PDT)
+Received: by mail-ig0-f178.google.com with SMTP id hn18so1261571igb.11
+        for <linux-mm@kvack.org>; Mon, 09 Jun 2014 02:06:19 -0700 (PDT)
+Date: Mon, 9 Jun 2014 02:06:17 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [RFC PATCH 6/6] mm, compaction: don't migrate in blocks that
+ cannot be fully compacted in async direct compaction
+In-Reply-To: <53916EE7.9000806@suse.cz>
+Message-ID: <alpine.DEB.2.02.1406090156340.24247@chino.kir.corp.google.com>
+References: <alpine.DEB.2.02.1405211954410.13243@chino.kir.corp.google.com> <1401898310-14525-1-git-send-email-vbabka@suse.cz> <1401898310-14525-6-git-send-email-vbabka@suse.cz> <alpine.DEB.2.02.1406041705140.22536@chino.kir.corp.google.com> <53908F10.4020603@suse.cz>
+ <alpine.DEB.2.02.1406051431030.18119@chino.kir.corp.google.com> <53916EE7.9000806@suse.cz>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm/mempolicy: fix sleeping function called from invalid
- context
-References: <53902A44.50005@cn.fujitsu.com> <20140605132339.ddf6df4a0cf5c14d17eb8691@linux-foundation.org> <539192F1.7050308@cn.fujitsu.com> <alpine.DEB.2.02.1406081539140.21744@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.02.1406081539140.21744@chino.kir.corp.google.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, Cgroups <cgroups@vger.kernel.org>, stable@vger.kernel.org, Li Zefan <lizefan@huawei.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>
 
-Hi David,
+On Fri, 6 Jun 2014, Vlastimil Babka wrote:
 
-On 06/09/2014 06:47 AM, David Rientjes wrote:
-
-> On Fri, 6 Jun 2014, Gu Zheng wrote:
+> > Agreed.  I was thinking higher than 1GB would be possible once we have 
+> > your series that does the pageblock skip for thp, I think the expense 
+> > would be constant because we won't needlessly be migrating pages unless it 
+> > has a good chance at succeeding.
 > 
->>>> When running with the kernel(3.15-rc7+), the follow bug occurs:
->>>> [ 9969.258987] BUG: sleeping function called from invalid context at kernel/locking/mutex.c:586
->>>> [ 9969.359906] in_atomic(): 1, irqs_disabled(): 0, pid: 160655, name: python
->>>> [ 9969.441175] INFO: lockdep is turned off.
->>>> [ 9969.488184] CPU: 26 PID: 160655 Comm: python Tainted: G       A      3.15.0-rc7+ #85
->>>> [ 9969.581032] Hardware name: FUJITSU-SV PRIMEQUEST 1800E/SB, BIOS PRIMEQUEST 1000 Series BIOS Version 1.39 11/16/2012
->>>> [ 9969.706052]  ffffffff81a20e60 ffff8803e941fbd0 ffffffff8162f523 ffff8803e941fd18
->>>> [ 9969.795323]  ffff8803e941fbe0 ffffffff8109995a ffff8803e941fc58 ffffffff81633e6c
->>>> [ 9969.884710]  ffffffff811ba5dc ffff880405c6b480 ffff88041fdd90a0 0000000000002000
->>>> [ 9969.974071] Call Trace:
->>>> [ 9970.003403]  [<ffffffff8162f523>] dump_stack+0x4d/0x66
->>>> [ 9970.065074]  [<ffffffff8109995a>] __might_sleep+0xfa/0x130
->>>> [ 9970.130743]  [<ffffffff81633e6c>] mutex_lock_nested+0x3c/0x4f0
->>>> [ 9970.200638]  [<ffffffff811ba5dc>] ? kmem_cache_alloc+0x1bc/0x210
->>>> [ 9970.272610]  [<ffffffff81105807>] cpuset_mems_allowed+0x27/0x140
->>>> [ 9970.344584]  [<ffffffff811b1303>] ? __mpol_dup+0x63/0x150
->>>> [ 9970.409282]  [<ffffffff811b1385>] __mpol_dup+0xe5/0x150
->>>> [ 9970.471897]  [<ffffffff811b1303>] ? __mpol_dup+0x63/0x150
->>>> [ 9970.536585]  [<ffffffff81068c86>] ? copy_process.part.23+0x606/0x1d40
->>>> [ 9970.613763]  [<ffffffff810bf28d>] ? trace_hardirqs_on+0xd/0x10
->>>> [ 9970.683660]  [<ffffffff810ddddf>] ? monotonic_to_bootbased+0x2f/0x50
->>>> [ 9970.759795]  [<ffffffff81068cf0>] copy_process.part.23+0x670/0x1d40
->>>> [ 9970.834885]  [<ffffffff8106a598>] do_fork+0xd8/0x380
->>>> [ 9970.894375]  [<ffffffff81110e4c>] ? __audit_syscall_entry+0x9c/0xf0
->>>> [ 9970.969470]  [<ffffffff8106a8c6>] SyS_clone+0x16/0x20
->>>> [ 9971.030011]  [<ffffffff81642009>] stub_clone+0x69/0x90
->>>> [ 9971.091573]  [<ffffffff81641c29>] ? system_call_fastpath+0x16/0x1b
->>>>
->>>> The cause is that cpuset_mems_allowed() try to take mutex_lock(&callback_mutex)
->>>> under the rcu_read_lock(which was hold in __mpol_dup()). And in cpuset_mems_allowed(),
->>>> the access to cpuset is under rcu_read_lock, so in __mpol_dup, we can reduce the
->>>> rcu_read_lock protection region to protect the access to cpuset only in
->>>> current_cpuset_is_being_rebound(). So that we can avoid this bug.
->>>>
->>>> ...
->>>>
->>>> --- a/kernel/cpuset.c
->>>> +++ b/kernel/cpuset.c
->>>> @@ -1188,7 +1188,13 @@ done:
->>>>  
->>>>  int current_cpuset_is_being_rebound(void)
->>>>  {
->>>> -	return task_cs(current) == cpuset_being_rebound;
->>>> +	int ret;
->>>> +
->>>> +	rcu_read_lock();
->>>> +	ret = task_cs(current) == cpuset_being_rebound;
->>>> +	rcu_read_unlock();
->>>> +
->>>> +	return ret;
->>>>  }
->>>
->>> Looks fishy to me.  If the rcu_read_lock() stabilizes
->>> cpuset_being_rebound then cpuset_being_rebound can change immediately
->>> after rcu_read_unlock() and `ret' is now wrong.
->>
->> IMO, whether cpuset_being_rebound changed or not is immaterial here, we
->> just want to know whether the cpuset is being rebound at that point.
->>
-> 
-> I think your patch addresses the problem that you're reporting but misses 
-> the larger problem with cpuset.mems rebinding on fork().  When the 
-> forker's task_struct is duplicated (which includes ->mems_allowed) and it 
-> races with an update to cpuset_being_rebound in update_tasks_nodemask() 
-> then the task's mems_allowed doesn't get updated.
-
-Yes, you are right, this patch just wants to address the bug reported above.
-The race condition you mentioned above inherently exists there, but it is yet
-another issue, the rcu lock here makes no sense to it, and I think we need
-additional sync-mechanisms if want to fix it.
-But thinking more, though the current implementation has flaw, but I worry
-about the negative effect if we really want to fix it. Or maybe the fear
-is unnecessary.:) 
-
-Thanks,
-Gu 
-
-> .
+> Looks like a counter of iterations actually done in scanners, maintained in
+> compact_control, would work better than any memory size based limit? It could
+> better reflect the actual work done and thus latency. Maybe increase the counter
+> also for migrations, with a higher cost than for a scanner iteration.
 > 
 
+I'm not sure we can expose that to be configurable by userspace in any 
+meaningful way.  We'll want to be able to tune this depending on the size 
+of the machine if we are to truly remove the need_resched() heuristic and 
+give it a sane default.  I was thinking it would be similar to 
+khugepaged's pages_to_scan value that it uses on each wakeup.
+
+> > This does beg the question about parallel direct compactors, though, that 
+> > will be contending on the same coarse zone->lru_lock locks and immediately 
+> > aborting and falling back to PAGE_SIZE pages for thp faults that will be 
+> > more likely if your patch to grab the high-order page and return it to the 
+> > page allocator is merged.
+> 
+> Hm can you explain how the page capturing makes this worse? I don't see it.
+> 
+
+I was expecting that your patch to capture the high-order page made a 
+difference because the zone watermark check doesn't imply the high-order 
+page will be allocatable after we return to the page allocator to allocate 
+it.  In that case, we terminated compaction prematurely.  If that's true, 
+then it seems like no parallel thp allocator will be able to allocate 
+memory that another direct compactor has freed without entering compaction 
+itself on a fragmented machine, and thus an increase in zone->lru_lock 
+contention if there's migratable memory.
+
+Having 32 cpus fault thp memory and all entering compaction and contending 
+(and aborting because of contention, currently) on zone->lru_lock is a 
+really bad situation.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
