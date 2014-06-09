@@ -1,115 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f50.google.com (mail-pb0-f50.google.com [209.85.160.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E50A6B0087
-	for <linux-mm@kvack.org>; Mon,  9 Jun 2014 09:29:02 -0400 (EDT)
-Received: by mail-pb0-f50.google.com with SMTP id ma3so4900166pbc.37
-        for <linux-mm@kvack.org>; Mon, 09 Jun 2014 06:29:01 -0700 (PDT)
-Received: from mail-pa0-x230.google.com (mail-pa0-x230.google.com [2607:f8b0:400e:c03::230])
-        by mx.google.com with ESMTPS id nd4si30833995pbc.20.2014.06.09.06.29.00
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 09 Jun 2014 06:29:01 -0700 (PDT)
-Received: by mail-pa0-f48.google.com with SMTP id bj1so741952pad.21
-        for <linux-mm@kvack.org>; Mon, 09 Jun 2014 06:29:00 -0700 (PDT)
-From: Chen Yucong <slaoub@gmail.com>
-Subject: [PATCH] mm/vmscan.c: avoid recording the original scan targets in shrink_lruvec()
-Date: Mon,  9 Jun 2014 21:27:16 +0800
-Message-Id: <1402320436-22270-1-git-send-email-slaoub@gmail.com>
+Received: from mail-qg0-f50.google.com (mail-qg0-f50.google.com [209.85.192.50])
+	by kanga.kvack.org (Postfix) with ESMTP id A77ED6B0088
+	for <linux-mm@kvack.org>; Mon,  9 Jun 2014 09:52:28 -0400 (EDT)
+Received: by mail-qg0-f50.google.com with SMTP id z60so8735861qgd.23
+        for <linux-mm@kvack.org>; Mon, 09 Jun 2014 06:52:28 -0700 (PDT)
+Received: from qmta05.emeryville.ca.mail.comcast.net (qmta05.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:48])
+        by mx.google.com with ESMTP id a1si23712455qab.72.2014.06.09.06.52.27
+        for <linux-mm@kvack.org>;
+        Mon, 09 Jun 2014 06:52:27 -0700 (PDT)
+Date: Mon, 9 Jun 2014 08:52:24 -0500 (CDT)
+From: Christoph Lameter <cl@gentwo.org>
+Subject: Re: [PATCH -mm v2 5/8] slub: make slab_free non-preemptable
+In-Reply-To: <20140609125211.GA32192@esperanza>
+Message-ID: <alpine.DEB.2.10.1406090850070.22191@gentwo.org>
+References: <cover.1402060096.git.vdavydov@parallels.com> <7cd6784a36ed997cc6631615d98e11e02e811b1b.1402060096.git.vdavydov@parallels.com> <alpine.DEB.2.10.1406060942160.32229@gentwo.org> <20140609125211.GA32192@esperanza>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mgorman@suse.de
-Cc: mhocko@suse.cz, hannes@cmpxchg.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Chen Yucong <slaoub@gmail.com>
+To: Vladimir Davydov <vdavydov@parallels.com>
+Cc: akpm@linux-foundation.org, iamjoonsoo.kim@lge.com, rientjes@google.com, penberg@kernel.org, hannes@cmpxchg.org, mhocko@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Via https://lkml.org/lkml/2013/4/10/334 , we can find that recording the
-original scan targets introduces extra 40 bytes on the stack. This patch
-is able to avoid this situation and the call to memcpy(). At the same time,
-it does not change the relative design idea.
+On Mon, 9 Jun 2014, Vladimir Davydov wrote:
 
-ratio = original_nr_file / original_nr_anon;
+> The whole function (unfreeze_partials) is currently called with irqs
+> off, so this is effectively a no-op. I guess we can restore irqs here
+> though.
 
-If (nr_file > nr_anon), then ratio = (nr_file - x) / nr_anon.
- x = nr_file - ratio * nr_anon;
+We could move the local_irq_save from put_cpu_partial() into
+unfreeze_partials().
 
-if (nr_file <= nr_anon), then ratio = nr_file / (nr_anon - x).
- x = nr_anon - nr_file / ratio;
+> If we just freed the last slab of the cache and then get preempted
+> (suppose we restored irqs above), nothing will prevent the cache from
+> destruction, which may result in use-after-free below. We need to be
+> more cautious if we want to call for page allocator with preemption and
+> irqs on.
 
-Signed-off-by: Chen Yucong <slaoub@gmail.com>
----
- mm/vmscan.c |   28 +++++++++-------------------
- 1 file changed, 9 insertions(+), 19 deletions(-)
+Hmmm. Ok.
+>
+> However, I still don't understand what's the point in it. We *already*
+> call discard_slab with irqs disabled, which is harder, and it haven't
+> caused any problems AFAIK. Moreover, even if we enabled preemption/irqs,
+> it wouldn't guarantee that discard_slab would always be called with
+> preemption/irqs on, because the whole function - I mean kmem_cache_free
+> - can be called with preemption/irqs disabled.
+>
+> So my point it would only complicate the code.
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index a8ffe4e..daaf89c 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2057,8 +2057,7 @@ out:
- static void shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
- {
- 	unsigned long nr[NR_LRU_LISTS];
--	unsigned long targets[NR_LRU_LISTS];
--	unsigned long nr_to_scan;
-+	unsigned long nr_to_scan, ratio;
- 	enum lru_list lru;
- 	unsigned long nr_reclaimed = 0;
- 	unsigned long nr_to_reclaim = sc->nr_to_reclaim;
-@@ -2067,8 +2066,8 @@ static void shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
- 
- 	get_scan_count(lruvec, sc, nr);
- 
--	/* Record the original scan target for proportional adjustments later */
--	memcpy(targets, nr, sizeof(nr));
-+	ratio = (nr[LRU_INACTIVE_FILE] + nr[LRU_ACTIVE_FILE] + 1) /
-+			(nr[LRU_INACTIVE_ANON] + nr[LRU_ACTIVE_ANON] + 1);
- 
- 	/*
- 	 * Global reclaiming within direct reclaim at DEF_PRIORITY is a normal
-@@ -2088,7 +2087,6 @@ static void shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
- 	while (nr[LRU_INACTIVE_ANON] || nr[LRU_ACTIVE_FILE] ||
- 					nr[LRU_INACTIVE_FILE]) {
- 		unsigned long nr_anon, nr_file, percentage;
--		unsigned long nr_scanned;
- 
- 		for_each_evictable_lru(lru) {
- 			if (nr[lru]) {
-@@ -2123,15 +2121,13 @@ static void shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
- 			break;
- 
- 		if (nr_file > nr_anon) {
--			unsigned long scan_target = targets[LRU_INACTIVE_ANON] +
--						targets[LRU_ACTIVE_ANON] + 1;
-+			nr_to_scan = nr_file - ratio * nr_anon;
-+			percentage = nr[LRU_FILE] * 100 / nr_file;
- 			lru = LRU_BASE;
--			percentage = nr_anon * 100 / scan_target;
- 		} else {
--			unsigned long scan_target = targets[LRU_INACTIVE_FILE] +
--						targets[LRU_ACTIVE_FILE] + 1;
-+			nr_to_scan = nr_anon - nr_file / ratio;
-+			percentage = nr[LRU_BASE] * 100 / nr_anon;
- 			lru = LRU_FILE;
--			percentage = nr_file * 100 / scan_target;
- 		}
- 
- 		/* Stop scanning the smaller of the LRU */
-@@ -2143,14 +2139,8 @@ static void shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
- 		 * scan target and the percentage scanning already complete
- 		 */
- 		lru = (lru == LRU_FILE) ? LRU_BASE : LRU_FILE;
--		nr_scanned = targets[lru] - nr[lru];
--		nr[lru] = targets[lru] * (100 - percentage) / 100;
--		nr[lru] -= min(nr[lru], nr_scanned);
--
--		lru += LRU_ACTIVE;
--		nr_scanned = targets[lru] - nr[lru];
--		nr[lru] = targets[lru] * (100 - percentage) / 100;
--		nr[lru] -= min(nr[lru], nr_scanned);
-+		nr[lru] = nr_to_scan * percentage / 100;
-+		nr[lru + LRU_ACTIVE] = nr_to_scan - nr[lru];
- 
- 		scan_adjusted = true;
- 	}
--- 
-1.7.10.4
+Ok.
+
+Acked-by: Christoph Lameter <cl@linux.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
