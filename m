@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f171.google.com (mail-we0-f171.google.com [74.125.82.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B9216B003B
+Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id CD1406B003D
 	for <linux-mm@kvack.org>; Mon,  9 Jun 2014 05:26:37 -0400 (EDT)
-Received: by mail-we0-f171.google.com with SMTP id q58so1968775wes.30
+Received: by mail-wg0-f49.google.com with SMTP id m15so5525725wgh.20
         for <linux-mm@kvack.org>; Mon, 09 Jun 2014 02:26:37 -0700 (PDT)
 Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o11si29411631wjw.72.2014.06.09.02.26.34
+        by mx.google.com with ESMTPS id ex6si10577210wib.79.2014.06.09.02.26.34
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
         Mon, 09 Jun 2014 02:26:34 -0700 (PDT)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH 06/10] mm, compaction: skip buddy pages by their order in the migrate scanner
-Date: Mon,  9 Jun 2014 11:26:18 +0200
-Message-Id: <1402305982-6928-6-git-send-email-vbabka@suse.cz>
+Subject: [PATCH 07/10] mm: rename allocflags_to_migratetype for clarity
+Date: Mon,  9 Jun 2014 11:26:19 +0200
+Message-Id: <1402305982-6928-7-git-send-email-vbabka@suse.cz>
 In-Reply-To: <1402305982-6928-1-git-send-email-vbabka@suse.cz>
 References: <1402305982-6928-1-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,32 +20,15 @@ List-ID: <linux-mm.kvack.org>
 To: David Rientjes <rientjes@google.com>, linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Vlastimil Babka <vbabka@suse.cz>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>
 
-The migration scanner skips PageBuddy pages, but does not consider their order
-as checking page_order() is generally unsafe without holding the zone->lock,
-and acquiring the lock just for the check wouldn't be a good tradeoff.
+From: David Rientjes <rientjes@google.com>
 
-Still, this could avoid some iterations over the rest of the buddy page, and
-if we are careful, the race window between PageBuddy() check and page_order()
-is small, and the worst thing that can happen is that we skip too much and miss
-some isolation candidates. This is not that bad, as compaction can already fail
-for many other reasons like parallel allocations, and those have much larger
-race window.
+The page allocator has gfp flags (like __GFP_WAIT) and alloc flags (like
+ALLOC_CPUSET) that have separate semantics.
 
-This patch therefore makes the migration scanner obtain the buddy page order
-and use it to skip the whole buddy page, if the order appears to be in the
-valid range.
+The function allocflags_to_migratetype() actually takes gfp flags, not alloc
+flags, and returns a migratetype.  Rename it to gfpflags_to_migratetype().
 
-It's important that the page_order() is read only once, so that the value used
-in the checks and in the pfn calculation is the same. But in theory the
-compiler can replace the local variable by multiple inlines of page_order().
-Therefore, the patch introduces page_order_unsafe() that uses ACCESS_ONCE to
-prevent this.
-
-Preliminary results with stress-highalloc from mmtests show a 10% reduction in
-number of pages scanned by migration scanner. This change is also important to
-later allow detecting when a cc->order block of pages cannot be compacted, and
-the scanner should skip to the next block instead of wasting time.
-
+Signed-off-by: David Rientjes <rientjes@google.com>
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 Cc: Minchan Kim <minchan@kernel.org>
 Cc: Mel Gorman <mgorman@suse.de>
@@ -54,98 +37,78 @@ Cc: Michal Nazarewicz <mina86@mina86.com>
 Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 Cc: Christoph Lameter <cl@linux.com>
 Cc: Rik van Riel <riel@redhat.com>
-Cc: David Rientjes <rientjes@google.com>
 ---
-V2: fix low_pfn > end_pfn check; comments
-    kept page_order_unsafe() approach for now
+ include/linux/gfp.h | 2 +-
+ mm/compaction.c     | 4 ++--
+ mm/page_alloc.c     | 6 +++---
+ 3 files changed, 6 insertions(+), 6 deletions(-)
 
- mm/compaction.c | 25 ++++++++++++++++++++++---
- mm/internal.h   | 20 +++++++++++++++++++-
- 2 files changed, 41 insertions(+), 4 deletions(-)
-
+diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+index 6eb1fb3..ed9627e 100644
+--- a/include/linux/gfp.h
++++ b/include/linux/gfp.h
+@@ -156,7 +156,7 @@ struct vm_area_struct;
+ #define GFP_DMA32	__GFP_DMA32
+ 
+ /* Convert GFP flags to their corresponding migrate type */
+-static inline int allocflags_to_migratetype(gfp_t gfp_flags)
++static inline int gfpflags_to_migratetype(const gfp_t gfp_flags)
+ {
+ 	WARN_ON((gfp_flags & GFP_MOVABLE_MASK) == GFP_MOVABLE_MASK);
+ 
 diff --git a/mm/compaction.c b/mm/compaction.c
-index 58dfaaa..11c0926 100644
+index 11c0926..c339ccd 100644
 --- a/mm/compaction.c
 +++ b/mm/compaction.c
-@@ -626,11 +626,23 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
- 		}
+@@ -1178,7 +1178,7 @@ static unsigned long compact_zone_order(struct zone *zone, int order,
+ 		.nr_freepages = 0,
+ 		.nr_migratepages = 0,
+ 		.order = order,
+-		.migratetype = allocflags_to_migratetype(gfp_mask),
++		.migratetype = gfpflags_to_migratetype(gfp_mask),
+ 		.zone = zone,
+ 		.mode = mode,
+ 	};
+@@ -1228,7 +1228,7 @@ unsigned long try_to_compact_pages(struct zonelist *zonelist,
+ 	count_compact_event(COMPACTSTALL);
  
- 		/*
--		 * Skip if free. page_order cannot be used without zone->lock
--		 * as nothing prevents parallel allocations or buddy merging.
-+		 * Skip if free. We read page order here without zone lock
-+		 * which is generally unsafe, but the race window is small and
-+		 * the worst thing that can happen is that we skip some
-+		 * potential isolation targets.
- 		 */
--		if (PageBuddy(page))
-+		if (PageBuddy(page)) {
-+			unsigned long freepage_order = page_order_unsafe(page);
-+
-+			/*
-+			 * Without lock, we cannot be sure that what we got is
-+			 * a valid page order. Consider only values in the
-+			 * valid order range to prevent low_pfn overflow.
-+			 */
-+			if (freepage_order > 0 && freepage_order < MAX_ORDER)
-+				low_pfn += (1UL << freepage_order) - 1;
- 			continue;
-+		}
- 
- 		/*
- 		 * Check may be lockless but that's ok as we recheck later.
-@@ -718,6 +730,13 @@ next_pageblock:
- 		low_pfn = ALIGN(low_pfn + 1, pageblock_nr_pages) - 1;
+ #ifdef CONFIG_CMA
+-	if (allocflags_to_migratetype(gfp_mask) == MIGRATE_MOVABLE)
++	if (gfpflags_to_migratetype(gfp_mask) == MIGRATE_MOVABLE)
+ 		alloc_flags |= ALLOC_CMA;
+ #endif
+ 	/* Compact each zone in the list */
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 4f59fa2..cc0b687 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2473,7 +2473,7 @@ gfp_to_alloc_flags(gfp_t gfp_mask)
+ 			alloc_flags |= ALLOC_NO_WATERMARKS;
  	}
+ #ifdef CONFIG_CMA
+-	if (allocflags_to_migratetype(gfp_mask) == MIGRATE_MOVABLE)
++	if (gfpflags_to_migratetype(gfp_mask) == MIGRATE_MOVABLE)
+ 		alloc_flags |= ALLOC_CMA;
+ #endif
+ 	return alloc_flags;
+@@ -2716,7 +2716,7 @@ __alloc_pages_nodemask(gfp_t gfp_mask, unsigned int order,
+ 	struct zone *preferred_zone;
+ 	struct zoneref *preferred_zoneref;
+ 	struct page *page = NULL;
+-	int migratetype = allocflags_to_migratetype(gfp_mask);
++	int migratetype = gfpflags_to_migratetype(gfp_mask);
+ 	unsigned int cpuset_mems_cookie;
+ 	int alloc_flags = ALLOC_WMARK_LOW|ALLOC_CPUSET|ALLOC_FAIR;
+ 	int classzone_idx;
+@@ -2750,7 +2750,7 @@ retry_cpuset:
+ 	classzone_idx = zonelist_zone_idx(preferred_zoneref);
  
-+	/*
-+	 * The PageBuddy() check could have potentially brought us outside
-+	 * the range to be scanned.
-+	 */
-+	if (unlikely(low_pfn > end_pfn))
-+		low_pfn = end_pfn;
-+
- 	acct_isolated(zone, locked, cc);
- 
- 	if (locked)
-diff --git a/mm/internal.h b/mm/internal.h
-index 4659e8e..584d04f 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -171,7 +171,8 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
-  * general, page_zone(page)->lock must be held by the caller to prevent the
-  * page from being allocated in parallel and returning garbage as the order.
-  * If a caller does not hold page_zone(page)->lock, it must guarantee that the
-- * page cannot be allocated or merged in parallel.
-+ * page cannot be allocated or merged in parallel. Alternatively, it must
-+ * handle invalid values gracefully, and use page_order_unsafe() below.
-  */
- static inline unsigned long page_order(struct page *page)
- {
-@@ -179,6 +180,23 @@ static inline unsigned long page_order(struct page *page)
- 	return page_private(page);
- }
- 
-+/*
-+ * Like page_order(), but for callers who cannot afford to hold the zone lock,
-+ * and handle invalid values gracefully. ACCESS_ONCE is used so that if the
-+ * caller assigns the result into a local variable and e.g. tests it for valid
-+ * range  before using, the compiler cannot decide to remove the variable and
-+ * inline the function multiple times, potentially observing different values
-+ * in the tests and the actual use of the result.
-+ */
-+static inline unsigned long page_order_unsafe(struct page *page)
-+{
-+	/*
-+	 * PageBuddy() should be checked by the caller to minimize race window,
-+	 * and invalid values must be handled gracefully.
-+	 */
-+	return ACCESS_ONCE(page_private(page));
-+}
-+
- static inline bool is_cow_mapping(vm_flags_t flags)
- {
- 	return (flags & (VM_SHARED | VM_MAYWRITE)) == VM_MAYWRITE;
+ #ifdef CONFIG_CMA
+-	if (allocflags_to_migratetype(gfp_mask) == MIGRATE_MOVABLE)
++	if (gfpflags_to_migratetype(gfp_mask) == MIGRATE_MOVABLE)
+ 		alloc_flags |= ALLOC_CMA;
+ #endif
+ retry:
 -- 
 1.8.4.5
 
