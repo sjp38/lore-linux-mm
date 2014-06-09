@@ -1,68 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f175.google.com (mail-ie0-f175.google.com [209.85.223.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 24FD26B00B6
-	for <linux-mm@kvack.org>; Mon,  9 Jun 2014 18:13:42 -0400 (EDT)
-Received: by mail-ie0-f175.google.com with SMTP id tp5so4742873ieb.20
-        for <linux-mm@kvack.org>; Mon, 09 Jun 2014 15:13:42 -0700 (PDT)
-Received: from mail-ig0-x231.google.com (mail-ig0-x231.google.com [2607:f8b0:4001:c05::231])
-        by mx.google.com with ESMTPS id t8si39900770igs.11.2014.06.09.15.13.41
+Received: from mail-ie0-f176.google.com (mail-ie0-f176.google.com [209.85.223.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 0120C6B00B8
+	for <linux-mm@kvack.org>; Mon,  9 Jun 2014 18:25:17 -0400 (EDT)
+Received: by mail-ie0-f176.google.com with SMTP id rl12so6395318iec.21
+        for <linux-mm@kvack.org>; Mon, 09 Jun 2014 15:25:17 -0700 (PDT)
+Received: from mail-ie0-x22d.google.com (mail-ie0-x22d.google.com [2607:f8b0:4001:c03::22d])
+        by mx.google.com with ESMTPS id qo6si65065723igb.27.2014.06.09.15.25.17
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 09 Jun 2014 15:13:41 -0700 (PDT)
-Received: by mail-ig0-f177.google.com with SMTP id l13so4422552iga.16
-        for <linux-mm@kvack.org>; Mon, 09 Jun 2014 15:13:41 -0700 (PDT)
+        Mon, 09 Jun 2014 15:25:17 -0700 (PDT)
+Received: by mail-ie0-f173.google.com with SMTP id y20so4007798ier.32
+        for <linux-mm@kvack.org>; Mon, 09 Jun 2014 15:25:17 -0700 (PDT)
+Date: Mon, 9 Jun 2014 15:25:14 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [RFC PATCH 4/6] mm, compaction: skip buddy pages by their order
+ in the migrate scanner
+In-Reply-To: <53959C11.2000305@suse.cz>
+Message-ID: <alpine.DEB.2.02.1406091512540.5271@chino.kir.corp.google.com>
+References: <alpine.DEB.2.02.1405211954410.13243@chino.kir.corp.google.com> <1401898310-14525-1-git-send-email-vbabka@suse.cz> <1401898310-14525-4-git-send-email-vbabka@suse.cz> <alpine.DEB.2.02.1406041656400.22536@chino.kir.corp.google.com> <5390374E.5080708@suse.cz>
+ <alpine.DEB.2.02.1406051428360.18119@chino.kir.corp.google.com> <53916BB0.3070001@suse.cz> <alpine.DEB.2.02.1406090207300.24247@chino.kir.corp.google.com> <53959C11.2000305@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20140609150353.75eff02b@redhat.com>
-References: <20140608181436.17de69ac@redhat.com>
-	<CAE9FiQXpUbAOinEK-1PSFyGKqpC_FHN0sjP0xvD0ChrXR5GdAw@mail.gmail.com>
-	<20140609150353.75eff02b@redhat.com>
-Date: Mon, 9 Jun 2014 15:13:41 -0700
-Message-ID: <CAE9FiQUWZxvCS82cH=n-NF+nhTQ83J+7M3gHdXGu2S1Qk3xL_g@mail.gmail.com>
-Subject: Re: [PATCH] x86: numa: drop ZONE_ALIGN
-From: Yinghai Lu <yinghai@kernel.org>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Luiz Capitulino <lcapitulino@redhat.com>, Christoph Lameter <cl@linux-foundation.org>, Tejun Heo <tj@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Rik van Riel <riel@redhat.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "stable@vger.kernel.org" <stable@vger.kernel.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>
 
-On Mon, Jun 9, 2014 at 12:03 PM, Luiz Capitulino <lcapitulino@redhat.com> wrote:
-> On Sun, 8 Jun 2014 18:29:11 -0700
-> Yinghai Lu <yinghai@kernel.org> wrote:
->
->> On Sun, Jun 8, 2014 at 3:14 PM, Luiz Capitulino <lcapitulino@redhat.com> wrote:
-> [    0.000000] e820: BIOS-provided physical RAM map:
-> [    0.000000] BIOS-e820: [mem 0x0000000000000000-0x000000000009fbff] usable
-> [    0.000000] BIOS-e820: [mem 0x000000000009fc00-0x000000000009ffff] reserved
-> [    0.000000] BIOS-e820: [mem 0x00000000000e0000-0x00000000000fffff] reserved
-> [    0.000000] BIOS-e820: [mem 0x0000000000100000-0x000000003ffeffff] usable
-> [    0.000000] BIOS-e820: [mem 0x000000003fff0000-0x000000003fffefff] ACPI data
-> [    0.000000] BIOS-e820: [mem 0x000000003ffff000-0x000000003fffffff] ACPI NVS
-> [    0.000000] BIOS-e820: [mem 0x0000000040200000-0x00000000801fffff] usable
-...
-> [    0.000000] SRAT: PXM 0 -> APIC 0x00 -> Node 0
-> [    0.000000] SRAT: PXM 0 -> APIC 0x01 -> Node 0
-> [    0.000000] SRAT: PXM 1 -> APIC 0x02 -> Node 1
-> [    0.000000] SRAT: PXM 1 -> APIC 0x03 -> Node 1
-> [    0.000000] SRAT: Node 0 PXM 0 [mem 0x00000000-0x3fffffff]
-> [    0.000000] SRAT: Node 1 PXM 1 [mem 0x40200000-0x801fffff]
-> [    0.000000] Initmem setup node 0 [mem 0x00000000-0x3fffffff]
-> [    0.000000]   NODE_DATA [mem 0x3ffec000-0x3ffeffff]
-> [    0.000000] Initmem setup node 1 [mem 0x40800000-0x801fffff]
-> [    0.000000]   NODE_DATA [mem 0x801fb000-0x801fefff]
+On Mon, 9 Jun 2014, Vlastimil Babka wrote:
 
-so node1 start is aligned to 8M from 2M
+> > > > Sorry, I meant ACCESS_ONCE(page_private(page)) in the migration scanner
+> > > 
+> > > Hm but that's breaking the abstraction of page_order(). I don't know if
+> > > it's
+> > > worse to create a new variant of page_order() or to do this. BTW, seems
+> > > like
+> > > next_active_pageblock() in memory-hotplug.c should use this variant too.
+> > > 
+> > 
+> > The compiler seems free to disregard the access of a volatile object above
+> > because the return value of the inline function is unsigned long.  What's
+> > the difference between unsigned long order = page_order_unsafe(page) and
+> > unsigned long order = (unsigned long)ACCESS_ONCE(page_private(page)) and
+> 
+> I think there's none functionally, but one is abstraction layer violation and
+> the other imply the context of usage as you say (but is that so uncommon?).
+> 
+> > the compiler being able to reaccess page_private() because the result is
+> > no longer volatile qualified?
+> 
+> You think it will reaccess? That would defeat all current ACCESS_ONCE usages,
+> no?
+> 
 
-node0: [0, 1G)
-node1: [1G+2M, 2G+2M)
+I think the compiler is allowed to turn this into
 
-The zone should not cross the 8M boundary?
+	if (ACCESS_ONCE(page_private(page)) > 0 &&
+	    ACCESS_ONCE(page_private(page)) < MAX_ORDER)
+		low_pfn += (1UL << ACCESS_ONCE(page_private(page))) - 1;
 
-In the case should we trim the memblock for numa to be 8M alignment ?
+since the inline function has a return value of unsigned long but gcc may 
+not do this.  I think
 
-Thanks
+	/*
+	 * Big fat comment describing why we're using ACCESS_ONCE(), that 
+	 * we're ok to race, and that this is meaningful only because of
+	 * the previous PageBuddy() check.
+	 */
+	unsigned long pageblock_order = ACCESS_ONCE(page_private(page));
 
-Yinghai
+is better.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
