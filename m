@@ -1,131 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f50.google.com (mail-wg0-f50.google.com [74.125.82.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 532C96B0031
-	for <linux-mm@kvack.org>; Mon,  9 Jun 2014 04:30:46 -0400 (EDT)
-Received: by mail-wg0-f50.google.com with SMTP id x13so1508534wgg.9
-        for <linux-mm@kvack.org>; Mon, 09 Jun 2014 01:30:45 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id c9si30218045wja.128.2014.06.09.01.30.44
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 09 Jun 2014 01:30:44 -0700 (PDT)
-Date: Mon, 9 Jun 2014 10:30:42 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 2/2] memcg: Allow hard guarantee mode for low limit
- reclaim
-Message-ID: <20140609083042.GB7144@dhcp22.suse.cz>
-References: <20140606144421.GE26253@dhcp22.suse.cz>
- <1402066010-25901-1-git-send-email-mhocko@suse.cz>
- <1402066010-25901-2-git-send-email-mhocko@suse.cz>
- <20140606152914.GA14001@htj.dyndns.org>
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id D2C636B0036
+	for <linux-mm@kvack.org>; Mon,  9 Jun 2014 04:59:44 -0400 (EDT)
+Received: by mail-pa0-f46.google.com with SMTP id eu11so515274pac.5
+        for <linux-mm@kvack.org>; Mon, 09 Jun 2014 01:59:44 -0700 (PDT)
+Received: from heian.cn.fujitsu.com ([59.151.112.132])
+        by mx.google.com with ESMTP id g7si1622097pat.225.2014.06.09.01.59.42
+        for <linux-mm@kvack.org>;
+        Mon, 09 Jun 2014 01:59:43 -0700 (PDT)
+Message-ID: <539574F1.2060701@cn.fujitsu.com>
+Date: Mon, 9 Jun 2014 16:48:49 +0800
+From: Gu Zheng <guz.fnst@cn.fujitsu.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140606152914.GA14001@htj.dyndns.org>
+Subject: Re: [PATCH] mm/mempolicy: fix sleeping function called from invalid
+ context
+References: <53902A44.50005@cn.fujitsu.com> <20140605132339.ddf6df4a0cf5c14d17eb8691@linux-foundation.org> <539192F1.7050308@cn.fujitsu.com> <alpine.DEB.2.02.1406081539140.21744@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.02.1406081539140.21744@chino.kir.corp.google.com>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, Roman Gushchin <klamm@yandex-team.ru>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, Cgroups <cgroups@vger.kernel.org>, stable@vger.kernel.org, Li Zefan <lizefan@huawei.com>
 
-On Fri 06-06-14 11:29:14, Tejun Heo wrote:
-> Hello, Michal.
+Hi David,
+
+On 06/09/2014 06:47 AM, David Rientjes wrote:
+
+> On Fri, 6 Jun 2014, Gu Zheng wrote:
 > 
-> On Fri, Jun 06, 2014 at 04:46:50PM +0200, Michal Hocko wrote:
-> > +choice
-> > +	prompt "Memory Resource Controller reclaim protection"
-> > +	depends on MEMCG
-> > +	help
+>>>> When running with the kernel(3.15-rc7+), the follow bug occurs:
+>>>> [ 9969.258987] BUG: sleeping function called from invalid context at kernel/locking/mutex.c:586
+>>>> [ 9969.359906] in_atomic(): 1, irqs_disabled(): 0, pid: 160655, name: python
+>>>> [ 9969.441175] INFO: lockdep is turned off.
+>>>> [ 9969.488184] CPU: 26 PID: 160655 Comm: python Tainted: G       A      3.15.0-rc7+ #85
+>>>> [ 9969.581032] Hardware name: FUJITSU-SV PRIMEQUEST 1800E/SB, BIOS PRIMEQUEST 1000 Series BIOS Version 1.39 11/16/2012
+>>>> [ 9969.706052]  ffffffff81a20e60 ffff8803e941fbd0 ffffffff8162f523 ffff8803e941fd18
+>>>> [ 9969.795323]  ffff8803e941fbe0 ffffffff8109995a ffff8803e941fc58 ffffffff81633e6c
+>>>> [ 9969.884710]  ffffffff811ba5dc ffff880405c6b480 ffff88041fdd90a0 0000000000002000
+>>>> [ 9969.974071] Call Trace:
+>>>> [ 9970.003403]  [<ffffffff8162f523>] dump_stack+0x4d/0x66
+>>>> [ 9970.065074]  [<ffffffff8109995a>] __might_sleep+0xfa/0x130
+>>>> [ 9970.130743]  [<ffffffff81633e6c>] mutex_lock_nested+0x3c/0x4f0
+>>>> [ 9970.200638]  [<ffffffff811ba5dc>] ? kmem_cache_alloc+0x1bc/0x210
+>>>> [ 9970.272610]  [<ffffffff81105807>] cpuset_mems_allowed+0x27/0x140
+>>>> [ 9970.344584]  [<ffffffff811b1303>] ? __mpol_dup+0x63/0x150
+>>>> [ 9970.409282]  [<ffffffff811b1385>] __mpol_dup+0xe5/0x150
+>>>> [ 9970.471897]  [<ffffffff811b1303>] ? __mpol_dup+0x63/0x150
+>>>> [ 9970.536585]  [<ffffffff81068c86>] ? copy_process.part.23+0x606/0x1d40
+>>>> [ 9970.613763]  [<ffffffff810bf28d>] ? trace_hardirqs_on+0xd/0x10
+>>>> [ 9970.683660]  [<ffffffff810ddddf>] ? monotonic_to_bootbased+0x2f/0x50
+>>>> [ 9970.759795]  [<ffffffff81068cf0>] copy_process.part.23+0x670/0x1d40
+>>>> [ 9970.834885]  [<ffffffff8106a598>] do_fork+0xd8/0x380
+>>>> [ 9970.894375]  [<ffffffff81110e4c>] ? __audit_syscall_entry+0x9c/0xf0
+>>>> [ 9970.969470]  [<ffffffff8106a8c6>] SyS_clone+0x16/0x20
+>>>> [ 9971.030011]  [<ffffffff81642009>] stub_clone+0x69/0x90
+>>>> [ 9971.091573]  [<ffffffff81641c29>] ? system_call_fastpath+0x16/0x1b
+>>>>
+>>>> The cause is that cpuset_mems_allowed() try to take mutex_lock(&callback_mutex)
+>>>> under the rcu_read_lock(which was hold in __mpol_dup()). And in cpuset_mems_allowed(),
+>>>> the access to cpuset is under rcu_read_lock, so in __mpol_dup, we can reduce the
+>>>> rcu_read_lock protection region to protect the access to cpuset only in
+>>>> current_cpuset_is_being_rebound(). So that we can avoid this bug.
+>>>>
+>>>> ...
+>>>>
+>>>> --- a/kernel/cpuset.c
+>>>> +++ b/kernel/cpuset.c
+>>>> @@ -1188,7 +1188,13 @@ done:
+>>>>  
+>>>>  int current_cpuset_is_being_rebound(void)
+>>>>  {
+>>>> -	return task_cs(current) == cpuset_being_rebound;
+>>>> +	int ret;
+>>>> +
+>>>> +	rcu_read_lock();
+>>>> +	ret = task_cs(current) == cpuset_being_rebound;
+>>>> +	rcu_read_unlock();
+>>>> +
+>>>> +	return ret;
+>>>>  }
+>>>
+>>> Looks fishy to me.  If the rcu_read_lock() stabilizes
+>>> cpuset_being_rebound then cpuset_being_rebound can change immediately
+>>> after rcu_read_unlock() and `ret' is now wrong.
+>>
+>> IMO, whether cpuset_being_rebound changed or not is immaterial here, we
+>> just want to know whether the cpuset is being rebound at that point.
+>>
 > 
-> Why is this necessary?
+> I think your patch addresses the problem that you're reporting but misses 
+> the larger problem with cpuset.mems rebinding on fork().  When the 
+> forker's task_struct is duplicated (which includes ->mems_allowed) and it 
+> races with an update to cpuset_being_rebound in update_tasks_nodemask() 
+> then the task's mems_allowed doesn't get updated.
 
-It allows user/admin to set the default behavior.
+Yes, you are right, this patch just wants to address the bug reported above.
+The race condition you mentioned above inherently exists there, but it is yet
+another issue, the rcu lock here makes no sense to it, and I think we need
+additional sync-mechanisms if want to fix it.
+But thinking more, though the current implementation has flaw, but I worry
+about the negative effect if we really want to fix it. Or maybe the fear
+is unnecessary.:) 
 
-> - This doesn't affect boot.
+Thanks,
+Gu 
+
+> .
 > 
-> - memcg requires runtime config *anyway*.
-> 
-> - The config is inherited from the parent, so the default flipping
->   isn't exactly difficult.
-> 
-> Please drop the kconfig option.
 
-How do you propose to tell the default then? Only at the runtime?
-I really do not insist on the kconfig. I find it useful for a)
-documentation purpose b) easy way to configure the default.
-
-> > +static int mem_cgroup_write_reclaim_strategy(struct cgroup_subsys_state *css, struct cftype *cft,
-> > +			    char *buffer)
-> > +{
-> > +	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
-> > +	int ret = 0;
-> > +
-> > +	if (!strncmp(buffer, "low_limit_guarantee",
-> > +				sizeof("low_limit_guarantee"))) {
-> > +		memcg->hard_low_limit = true;
-> > +	} else if (!strncmp(buffer, "low_limit_best_effort",
-> > +				sizeof("low_limit_best_effort"))) {
-> > +		memcg->hard_low_limit = false;
-> > +	} else
-> > +		ret = -EINVAL;
-> > +
-> > +	return ret;
-> > +}
-> 
-> So, ummm, this raises a big red flag for me.  You're now implementing
-> two behaviors in a mostly symmetric manner to soft/hard limits but
-> choosing a completely different scheme in how they're configured
-> without any rationale.
-
-So what is your suggestion then? Using a global setting? Using a
-separate knob? Something completely different?
-
-> * Are you sure soft and hard guarantees aren't useful when used in
->   combination?  If so, why would that be the case?
-
-This was a call from Google to have per-memcg setup AFAIR. Using
-different reclaim protection on the global case vs. limit reclaim makes
-a lot of sense to me. If this is a major obstacle then I am OK to drop
-it and only have a global setting for now.
-
-> * We have pressure monitoring interface which can be used for soft
->   limit pressure monitoring. 
-
-Which one is that? I only know about oom_control triggered by the hard
-limit pressure.
-
->   How should breaching soft guarantee be
->   factored into that?  There doesn't seem to be any way of notifying
->   that at the moment?  Wouldn't we want that to be integrated into the
->   same mechanism?
-
-Yes, there is. We have a counter in memory.stat file which tells how
-many times the limit has been breached.
-
-> What scares me the most is that you don't even seem to have noticed
-> the asymmetry and are proposing userland-facing interface without
-> actually thinking things through.  This is exactly how we've been
-> getting into trouble.
-
-This has been discussed up and down for the last _two_ years. I have
-considered other options how to provide a very _useful_ feature users
-are calling for. There is even general consensus among developers that
-the feature is desirable and that the two modes (soft/hard) memory
-protection are needed. Yet I would _really_ like to hear any
-suggestion to get unstuck. It is far from useful to come and Nack this
-_again_ without providing any alternative suggestions.
-
-> For now, for everything.
-> 
->  Nacked-by: Tejun Heo <tj@kernel.org>
-> 
-> Thanks.
-> 
-> -- 
-> tejun
-
--- 
-Michal Hocko
-SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
