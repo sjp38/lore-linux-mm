@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f176.google.com (mail-pd0-f176.google.com [209.85.192.176])
-	by kanga.kvack.org (Postfix) with ESMTP id AB91D6B0099
-	for <linux-mm@kvack.org>; Mon,  9 Jun 2014 12:04:38 -0400 (EDT)
-Received: by mail-pd0-f176.google.com with SMTP id p10so4961044pdj.21
-        for <linux-mm@kvack.org>; Mon, 09 Jun 2014 09:04:38 -0700 (PDT)
-Received: from mga03.intel.com (mga03.intel.com. [143.182.124.21])
-        by mx.google.com with ESMTP id bc1si2806363pad.0.2014.06.09.09.04.37
+Received: from mail-pb0-f44.google.com (mail-pb0-f44.google.com [209.85.160.44])
+	by kanga.kvack.org (Postfix) with ESMTP id AA7186B009A
+	for <linux-mm@kvack.org>; Mon,  9 Jun 2014 12:04:41 -0400 (EDT)
+Received: by mail-pb0-f44.google.com with SMTP id rq2so5065654pbb.17
+        for <linux-mm@kvack.org>; Mon, 09 Jun 2014 09:04:41 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTP id tf8si31270497pbc.25.2014.06.09.09.04.40
         for <linux-mm@kvack.org>;
-        Mon, 09 Jun 2014 09:04:37 -0700 (PDT)
+        Mon, 09 Jun 2014 09:04:40 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH, RFC 08/10] x86, thp: remove remove infrastructure for handling splitting PMDs
-Date: Mon,  9 Jun 2014 19:04:19 +0300
-Message-Id: <1402329861-7037-9-git-send-email-kirill.shutemov@linux.intel.com>
+Subject: [PATCH, RFC 09/10] futex, thp: remove special case for THP in get_futex_key
+Date: Mon,  9 Jun 2014 19:04:20 +0300
+Message-Id: <1402329861-7037-10-git-send-email-kirill.shutemov@linux.intel.com>
 In-Reply-To: <1402329861-7037-1-git-send-email-kirill.shutemov@linux.intel.com>
 References: <1402329861-7037-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,113 +19,125 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
 Cc: Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-With new refcounting we don't need to mark PMDs splitting. Let's drop
-code to handle this.
+With new THP refcounting, we don't need tricks to stabilize huge page.
+If we've got reference to tail page, it can't split under us.
+
+This patch effectively reverts a5b338f2b0b1.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- arch/x86/include/asm/pgtable.h       |  9 ---------
- arch/x86/include/asm/pgtable_types.h |  2 --
- arch/x86/mm/gup.c                    | 13 +------------
- arch/x86/mm/pgtable.c                | 14 --------------
- 4 files changed, 1 insertion(+), 37 deletions(-)
+ kernel/futex.c | 62 ++++++++++++----------------------------------------------
+ 1 file changed, 13 insertions(+), 49 deletions(-)
 
-diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
-index 0ec056012618..1c60bfca6b65 100644
---- a/arch/x86/include/asm/pgtable.h
-+++ b/arch/x86/include/asm/pgtable.h
-@@ -158,11 +158,6 @@ static inline int pmd_large(pmd_t pte)
- }
- 
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
--static inline int pmd_trans_splitting(pmd_t pmd)
--{
--	return pmd_val(pmd) & _PAGE_SPLITTING;
--}
--
- static inline int pmd_trans_huge(pmd_t pmd)
+diff --git a/kernel/futex.c b/kernel/futex.c
+index b632b5f3f094..d13ad5e80ab9 100644
+--- a/kernel/futex.c
++++ b/kernel/futex.c
+@@ -391,7 +391,7 @@ get_futex_key(u32 __user *uaddr, int fshared, union futex_key *key, int rw)
  {
- 	return pmd_val(pmd) & _PAGE_PSE;
-@@ -799,10 +794,6 @@ extern int pmdp_clear_flush_young(struct vm_area_struct *vma,
- 				  unsigned long address, pmd_t *pmdp);
+ 	unsigned long address = (unsigned long)uaddr;
+ 	struct mm_struct *mm = current->mm;
+-	struct page *page, *page_head;
++	struct page *page;
+ 	int err, ro = 0;
  
+ 	/*
+@@ -434,46 +434,10 @@ again:
+ 	else
+ 		err = 0;
  
--#define __HAVE_ARCH_PMDP_SPLITTING_FLUSH
--extern void pmdp_splitting_flush(struct vm_area_struct *vma,
--				 unsigned long addr, pmd_t *pmdp);
--
- #define __HAVE_ARCH_PMD_WRITE
- static inline int pmd_write(pmd_t pmd)
- {
-diff --git a/arch/x86/include/asm/pgtable_types.h b/arch/x86/include/asm/pgtable_types.h
-index f216963760e5..7d8066d1d9c0 100644
---- a/arch/x86/include/asm/pgtable_types.h
-+++ b/arch/x86/include/asm/pgtable_types.h
-@@ -22,7 +22,6 @@
- #define _PAGE_BIT_PAT_LARGE	12	/* On 2MB or 1GB pages */
- #define _PAGE_BIT_SPECIAL	_PAGE_BIT_SOFTW1
- #define _PAGE_BIT_CPA_TEST	_PAGE_BIT_SOFTW1
--#define _PAGE_BIT_SPLITTING	_PAGE_BIT_SOFTW2 /* only valid on a PSE pmd */
- #define _PAGE_BIT_IOMAP		_PAGE_BIT_SOFTW2 /* flag used to indicate IO mapping */
- #define _PAGE_BIT_HIDDEN	_PAGE_BIT_SOFTW3 /* hidden by kmemcheck */
- #define _PAGE_BIT_SOFT_DIRTY	_PAGE_BIT_SOFTW3 /* software dirty tracking */
-@@ -57,7 +56,6 @@
- #define _PAGE_PAT_LARGE (_AT(pteval_t, 1) << _PAGE_BIT_PAT_LARGE)
- #define _PAGE_SPECIAL	(_AT(pteval_t, 1) << _PAGE_BIT_SPECIAL)
- #define _PAGE_CPA_TEST	(_AT(pteval_t, 1) << _PAGE_BIT_CPA_TEST)
--#define _PAGE_SPLITTING	(_AT(pteval_t, 1) << _PAGE_BIT_SPLITTING)
- #define __HAVE_ARCH_PTE_SPECIAL
- 
- #ifdef CONFIG_KMEMCHECK
-diff --git a/arch/x86/mm/gup.c b/arch/x86/mm/gup.c
-index 754bca23ec1b..b65b3fc4494a 100644
---- a/arch/x86/mm/gup.c
-+++ b/arch/x86/mm/gup.c
-@@ -157,18 +157,7 @@ static int gup_pmd_range(pud_t pud, unsigned long addr, unsigned long end,
- 		pmd_t pmd = *pmdp;
- 
- 		next = pmd_addr_end(addr, end);
--		/*
--		 * The pmd_trans_splitting() check below explains why
--		 * pmdp_splitting_flush has to flush the tlb, to stop
--		 * this gup-fast code from running while we set the
--		 * splitting bit in the pmd. Returning zero will take
--		 * the slow path that will call wait_split_huge_page()
--		 * if the pmd is still in splitting state. gup-fast
--		 * can't because it has irq disabled and
--		 * wait_split_huge_page() would never return as the
--		 * tlb flush IPI wouldn't run.
--		 */
--		if (pmd_none(pmd) || pmd_trans_splitting(pmd))
-+		if (pmd_none(pmd))
- 			return 0;
- 		if (unlikely(pmd_large(pmd))) {
- 			/*
-diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
-index 6fb6927f9e76..336847f5719e 100644
---- a/arch/x86/mm/pgtable.c
-+++ b/arch/x86/mm/pgtable.c
-@@ -429,20 +429,6 @@ int pmdp_clear_flush_young(struct vm_area_struct *vma,
- 
- 	return young;
- }
--
--void pmdp_splitting_flush(struct vm_area_struct *vma,
--			  unsigned long address, pmd_t *pmdp)
--{
--	int set;
--	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
--	set = !test_and_set_bit(_PAGE_BIT_SPLITTING,
--				(unsigned long *)pmdp);
--	if (set) {
--		pmd_update(vma->vm_mm, address, pmdp);
--		/* need tlb flush only to serialize against gup-fast */
--		flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
+-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+-	page_head = page;
+-	if (unlikely(PageTail(page))) {
+-		put_page(page);
+-		/* serialize against __split_huge_page_splitting() */
+-		local_irq_disable();
+-		if (likely(__get_user_pages_fast(address, 1, !ro, &page) == 1)) {
+-			page_head = compound_head(page);
+-			/*
+-			 * page_head is valid pointer but we must pin
+-			 * it before taking the PG_lock and/or
+-			 * PG_compound_lock. The moment we re-enable
+-			 * irqs __split_huge_page_splitting() can
+-			 * return and the head page can be freed from
+-			 * under us. We can't take the PG_lock and/or
+-			 * PG_compound_lock on a page that could be
+-			 * freed from under us.
+-			 */
+-			if (page != page_head) {
+-				get_page(page_head);
+-				put_page(page);
+-			}
+-			local_irq_enable();
+-		} else {
+-			local_irq_enable();
+-			goto again;
+-		}
 -	}
--}
- #endif
+-#else
+-	page_head = compound_head(page);
+-	if (page != page_head) {
+-		get_page(page_head);
+-		put_page(page);
+-	}
+-#endif
+-
+-	lock_page(page_head);
+-
++	page = compound_head(page);
++	lock_page(page);
+ 	/*
+-	 * If page_head->mapping is NULL, then it cannot be a PageAnon
++	 * If page->mapping is NULL, then it cannot be a PageAnon
+ 	 * page; but it might be the ZERO_PAGE or in the gate area or
+ 	 * in a special mapping (all cases which we are happy to fail);
+ 	 * or it may have been a good file page when get_user_pages_fast
+@@ -485,12 +449,12 @@ again:
+ 	 *
+ 	 * The case we do have to guard against is when memory pressure made
+ 	 * shmem_writepage move it from filecache to swapcache beneath us:
+-	 * an unlikely race, but we do need to retry for page_head->mapping.
++	 * an unlikely race, but we do need to retry for page->mapping.
+ 	 */
+-	if (!page_head->mapping) {
+-		int shmem_swizzled = PageSwapCache(page_head);
+-		unlock_page(page_head);
+-		put_page(page_head);
++	if (!page->mapping) {
++		int shmem_swizzled = PageSwapCache(page);
++		unlock_page(page);
++		put_page(page);
+ 		if (shmem_swizzled)
+ 			goto again;
+ 		return -EFAULT;
+@@ -503,7 +467,7 @@ again:
+ 	 * it's a read-only handle, it's expected that futexes attach to
+ 	 * the object not the particular process.
+ 	 */
+-	if (PageAnon(page_head)) {
++	if (PageAnon(page)) {
+ 		/*
+ 		 * A RO anonymous page will never change and thus doesn't make
+ 		 * sense for futex operations.
+@@ -518,15 +482,15 @@ again:
+ 		key->private.address = address;
+ 	} else {
+ 		key->both.offset |= FUT_OFF_INODE; /* inode-based key */
+-		key->shared.inode = page_head->mapping->host;
++		key->shared.inode = page->mapping->host;
+ 		key->shared.pgoff = basepage_index(page);
+ 	}
  
- /**
+ 	get_futex_key_refs(key); /* implies MB (B) */
+ 
+ out:
+-	unlock_page(page_head);
+-	put_page(page_head);
++	unlock_page(page);
++	put_page(page);
+ 	return err;
+ }
+ 
 -- 
 2.0.0.rc4
 
