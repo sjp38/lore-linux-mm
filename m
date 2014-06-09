@@ -1,97 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-ie0-f176.google.com (mail-ie0-f176.google.com [209.85.223.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A7EF6B0031
-	for <linux-mm@kvack.org>; Sun,  8 Jun 2014 18:47:05 -0400 (EDT)
-Received: by mail-ie0-f176.google.com with SMTP id rl12so5126538iec.35
-        for <linux-mm@kvack.org>; Sun, 08 Jun 2014 15:47:05 -0700 (PDT)
-Received: from mail-ig0-x22f.google.com (mail-ig0-x22f.google.com [2607:f8b0:4001:c05::22f])
-        by mx.google.com with ESMTPS id o8si30451321ick.58.2014.06.08.15.47.04
+	by kanga.kvack.org (Postfix) with ESMTP id D18A66B0031
+	for <linux-mm@kvack.org>; Sun,  8 Jun 2014 21:29:12 -0400 (EDT)
+Received: by mail-ie0-f176.google.com with SMTP id rl12so4983850iec.7
+        for <linux-mm@kvack.org>; Sun, 08 Jun 2014 18:29:12 -0700 (PDT)
+Received: from mail-ie0-x22d.google.com (mail-ie0-x22d.google.com [2607:f8b0:4001:c03::22d])
+        by mx.google.com with ESMTPS id r3si30744593icl.89.2014.06.08.18.29.11
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sun, 08 Jun 2014 15:47:04 -0700 (PDT)
-Received: by mail-ig0-f175.google.com with SMTP id uq10so3203950igb.14
-        for <linux-mm@kvack.org>; Sun, 08 Jun 2014 15:47:04 -0700 (PDT)
-Date: Sun, 8 Jun 2014 15:47:02 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] mm/mempolicy: fix sleeping function called from invalid
- context
-In-Reply-To: <539192F1.7050308@cn.fujitsu.com>
-Message-ID: <alpine.DEB.2.02.1406081539140.21744@chino.kir.corp.google.com>
-References: <53902A44.50005@cn.fujitsu.com> <20140605132339.ddf6df4a0cf5c14d17eb8691@linux-foundation.org> <539192F1.7050308@cn.fujitsu.com>
+        Sun, 08 Jun 2014 18:29:12 -0700 (PDT)
+Received: by mail-ie0-f173.google.com with SMTP id y20so2776305ier.32
+        for <linux-mm@kvack.org>; Sun, 08 Jun 2014 18:29:11 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20140608181436.17de69ac@redhat.com>
+References: <20140608181436.17de69ac@redhat.com>
+Date: Sun, 8 Jun 2014 18:29:11 -0700
+Message-ID: <CAE9FiQXpUbAOinEK-1PSFyGKqpC_FHN0sjP0xvD0ChrXR5GdAw@mail.gmail.com>
+Subject: Re: [PATCH] x86: numa: drop ZONE_ALIGN
+From: Yinghai Lu <yinghai@kernel.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gu Zheng <guz.fnst@cn.fujitsu.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, Cgroups <cgroups@vger.kernel.org>, stable@vger.kernel.org, Li Zefan <lizefan@huawei.com>
+To: Luiz Capitulino <lcapitulino@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Rik van Riel <riel@redhat.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "stable@vger.kernel.org" <stable@vger.kernel.org>
 
-On Fri, 6 Jun 2014, Gu Zheng wrote:
+On Sun, Jun 8, 2014 at 3:14 PM, Luiz Capitulino <lcapitulino@redhat.com> wrote:
+> In short, I believe this is just dead code for the upstream kernel but this
+> causes a bug for 2.6.32 based kernels.
+>
+> The setup_node_data() function is used to initialize NODE_DATA() for a node.
+> It gets a node id and a memory range. The start address for the memory range
+> is rounded up to ZONE_ALIGN and then it's used to initialize
+> NODE_DATA(nid)->node_start_pfn.
+> The 2.6.32 kernel did use the rounded up range start to register a node's
+> memory range with the bootmem interface by calling init_bootmem_node().
+> A few steps later during bootmem initialization, the 2.6.32 kernel calls
+> free_bootmem_with_active_regions() to initialize the bootmem bitmap. This
+> function goes through all memory ranges read from the SRAT table and try
+> to mark them as usable for bootmem usage. However, before marking a range
+> as usable, mark_bootmem_node() asserts if the memory range start address
+> (as read from the SRAT table) is less than the value registered with
+> init_bootmem_node(). The assertion will trigger whenever the memory range
+> start address is rounded up, as it will always be greater than what is
+> reported in the SRAT table. This is true when the 2.6.32 kernel runs as a
+> HyperV guest on Windows Server 2012. Dropping ZONE_ALIGN solves the
+> problem there.
 
-> >> When running with the kernel(3.15-rc7+), the follow bug occurs:
-> >> [ 9969.258987] BUG: sleeping function called from invalid context at kernel/locking/mutex.c:586
-> >> [ 9969.359906] in_atomic(): 1, irqs_disabled(): 0, pid: 160655, name: python
-> >> [ 9969.441175] INFO: lockdep is turned off.
-> >> [ 9969.488184] CPU: 26 PID: 160655 Comm: python Tainted: G       A      3.15.0-rc7+ #85
-> >> [ 9969.581032] Hardware name: FUJITSU-SV PRIMEQUEST 1800E/SB, BIOS PRIMEQUEST 1000 Series BIOS Version 1.39 11/16/2012
-> >> [ 9969.706052]  ffffffff81a20e60 ffff8803e941fbd0 ffffffff8162f523 ffff8803e941fd18
-> >> [ 9969.795323]  ffff8803e941fbe0 ffffffff8109995a ffff8803e941fc58 ffffffff81633e6c
-> >> [ 9969.884710]  ffffffff811ba5dc ffff880405c6b480 ffff88041fdd90a0 0000000000002000
-> >> [ 9969.974071] Call Trace:
-> >> [ 9970.003403]  [<ffffffff8162f523>] dump_stack+0x4d/0x66
-> >> [ 9970.065074]  [<ffffffff8109995a>] __might_sleep+0xfa/0x130
-> >> [ 9970.130743]  [<ffffffff81633e6c>] mutex_lock_nested+0x3c/0x4f0
-> >> [ 9970.200638]  [<ffffffff811ba5dc>] ? kmem_cache_alloc+0x1bc/0x210
-> >> [ 9970.272610]  [<ffffffff81105807>] cpuset_mems_allowed+0x27/0x140
-> >> [ 9970.344584]  [<ffffffff811b1303>] ? __mpol_dup+0x63/0x150
-> >> [ 9970.409282]  [<ffffffff811b1385>] __mpol_dup+0xe5/0x150
-> >> [ 9970.471897]  [<ffffffff811b1303>] ? __mpol_dup+0x63/0x150
-> >> [ 9970.536585]  [<ffffffff81068c86>] ? copy_process.part.23+0x606/0x1d40
-> >> [ 9970.613763]  [<ffffffff810bf28d>] ? trace_hardirqs_on+0xd/0x10
-> >> [ 9970.683660]  [<ffffffff810ddddf>] ? monotonic_to_bootbased+0x2f/0x50
-> >> [ 9970.759795]  [<ffffffff81068cf0>] copy_process.part.23+0x670/0x1d40
-> >> [ 9970.834885]  [<ffffffff8106a598>] do_fork+0xd8/0x380
-> >> [ 9970.894375]  [<ffffffff81110e4c>] ? __audit_syscall_entry+0x9c/0xf0
-> >> [ 9970.969470]  [<ffffffff8106a8c6>] SyS_clone+0x16/0x20
-> >> [ 9971.030011]  [<ffffffff81642009>] stub_clone+0x69/0x90
-> >> [ 9971.091573]  [<ffffffff81641c29>] ? system_call_fastpath+0x16/0x1b
-> >>
-> >> The cause is that cpuset_mems_allowed() try to take mutex_lock(&callback_mutex)
-> >> under the rcu_read_lock(which was hold in __mpol_dup()). And in cpuset_mems_allowed(),
-> >> the access to cpuset is under rcu_read_lock, so in __mpol_dup, we can reduce the
-> >> rcu_read_lock protection region to protect the access to cpuset only in
-> >> current_cpuset_is_being_rebound(). So that we can avoid this bug.
-> >>
-> >> ...
-> >>
-> >> --- a/kernel/cpuset.c
-> >> +++ b/kernel/cpuset.c
-> >> @@ -1188,7 +1188,13 @@ done:
-> >>  
-> >>  int current_cpuset_is_being_rebound(void)
-> >>  {
-> >> -	return task_cs(current) == cpuset_being_rebound;
-> >> +	int ret;
-> >> +
-> >> +	rcu_read_lock();
-> >> +	ret = task_cs(current) == cpuset_being_rebound;
-> >> +	rcu_read_unlock();
-> >> +
-> >> +	return ret;
-> >>  }
-> > 
-> > Looks fishy to me.  If the rcu_read_lock() stabilizes
-> > cpuset_being_rebound then cpuset_being_rebound can change immediately
-> > after rcu_read_unlock() and `ret' is now wrong.
-> 
-> IMO, whether cpuset_being_rebound changed or not is immaterial here, we
-> just want to know whether the cpuset is being rebound at that point.
-> 
+What is e820 memmap and srat from HyperV guest?
 
-I think your patch addresses the problem that you're reporting but misses 
-the larger problem with cpuset.mems rebinding on fork().  When the 
-forker's task_struct is duplicated (which includes ->mems_allowed) and it 
-races with an update to cpuset_being_rebound in update_tasks_nodemask() 
-then the task's mems_allowed doesn't get updated.
+Can you post bootlog first 200 lines?
+
+Thanks
+
+Yinghai
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
