@@ -1,79 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ob0-f178.google.com (mail-ob0-f178.google.com [209.85.214.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F5B36B0068
-	for <linux-mm@kvack.org>; Mon,  9 Jun 2014 06:02:41 -0400 (EDT)
-Received: by mail-ob0-f178.google.com with SMTP id wp4so1667145obc.9
-        for <linux-mm@kvack.org>; Mon, 09 Jun 2014 03:02:41 -0700 (PDT)
-Received: from mail-ob0-x235.google.com (mail-ob0-x235.google.com [2607:f8b0:4003:c01::235])
-        by mx.google.com with ESMTPS id cg3si26717775oec.44.2014.06.09.03.02.40
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 09 Jun 2014 03:02:40 -0700 (PDT)
-Received: by mail-ob0-f181.google.com with SMTP id wm4so5626521obc.40
-        for <linux-mm@kvack.org>; Mon, 09 Jun 2014 03:02:40 -0700 (PDT)
-Date: Mon, 09 Jun 2014 05:02:36 -0500
-From: Felipe Contreras <felipe.contreras@gmail.com>
-Message-ID: <5395863cbf23a_368f140f2f8cb@nysa.notmuch>
-In-Reply-To: <20140609075358.GA7144@dhcp22.suse.cz>
-References: <53905594d284f_71f12992fc6a@nysa.notmuch>
- <20140605133747.GB2942@dhcp22.suse.cz>
- <CAMP44s1kk8PyMd603g0C9yvHuuUZXzwwNQHpM8Abghvc_Os-SQ@mail.gmail.com>
- <20140606091620.GC26253@dhcp22.suse.cz>
- <CAMP44s2K-kZ8yLC3NPbpO9Z9ykQeySXW+cRiZ_NpLUMzDuiq9g@mail.gmail.com>
- <CAMP44s0pyjRyBM4u5-irCt0DbR96yR=hok+VZgC1KS782edN3w@mail.gmail.com>
- <20140609075358.GA7144@dhcp22.suse.cz>
-Subject: Re: Interactivity regression since v3.11 in mm/vmscan.c
-Mime-Version: 1.0
-Content-Type: text/plain;
- charset=utf-8
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id A1BFF6B006C
+	for <linux-mm@kvack.org>; Mon,  9 Jun 2014 06:09:05 -0400 (EDT)
+Received: by mail-pa0-f42.google.com with SMTP id lj1so609021pab.29
+        for <linux-mm@kvack.org>; Mon, 09 Jun 2014 03:09:05 -0700 (PDT)
+Received: from heian.cn.fujitsu.com ([59.151.112.132])
+        by mx.google.com with ESMTP id gc1si30266944pbb.94.2014.06.09.03.09.03
+        for <linux-mm@kvack.org>;
+        Mon, 09 Jun 2014 03:09:04 -0700 (PDT)
+Message-ID: <53958539.1070904@cn.fujitsu.com>
+Date: Mon, 9 Jun 2014 17:58:17 +0800
+From: Gu Zheng <guz.fnst@cn.fujitsu.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH] mm/mempolicy: fix sleeping function called from invalid
+ context
+References: <53902A44.50005@cn.fujitsu.com> <20140605132339.ddf6df4a0cf5c14d17eb8691@linux-foundation.org> <539192F1.7050308@cn.fujitsu.com> <alpine.DEB.2.02.1406081539140.21744@chino.kir.corp.google.com> <539574F1.2060701@cn.fujitsu.com> <alpine.DEB.2.02.1406090209460.24247@chino.kir.corp.google.com>
+In-Reply-To: <alpine.DEB.2.02.1406090209460.24247@chino.kir.corp.google.com>
+Content-Type: text/plain; charset="ISO-8859-1"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>, Felipe Contreras <felipe.contreras@gmail.com>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Rik van Riel <riel@redhat.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, Cgroups <cgroups@vger.kernel.org>, stable@vger.kernel.org, Li Zefan <lizefan@huawei.com>
 
-Michal Hocko wrote:
-> On Fri 06-06-14 18:11:14, Felipe Contreras wrote:
-> > On Fri, Jun 6, 2014 at 5:33 AM, Felipe Contreras
-> > <felipe.contreras@gmail.com> wrote:
-> > > On Fri, Jun 6, 2014 at 4:16 AM, Michal Hocko <mhocko@suse.cz> wrote:
-> > >
-> > >> Mel has a nice systemtap script (attached) to watch for stalls. Maybe
-> > >> you can give it a try?
-> > >
-> > > Is there any special configurations I should enable?
-> > >
-> > > I get this:
-> > > semantic error: unresolved arity-1 global array name, missing global
-> > > declaration?: identifier 'name' at /tmp/stapd6pu9A:4:2
-> > >         source: name[t]=execname()
-> > >                 ^
-> > >
-> > > Pass 2: analysis failed.  [man error::pass2]
-> > > Number of similar error messages suppressed: 71.
-> > > Rerun with -v to see them.
-> > > Unexpected exit of STAP script at
-> > > /home/felipec/Downloads/watch-dstate-new.pl line 320.
-> > 
-> > Actually I debugged the problem, and it's that the format of the
-> > script is DOS, not UNIX. After changing the format the script works.
-> 
-> Ups, I've downloaded it from our bugzilla so maybe it just did some
-> tricks with the script.
-> 
-> > However, it's not returning anything. It's running, but doesn't seem
-> > to find any stalls.
-> 
-> Intereting. It was quite good at pointing at stalls. How are you
-> measuring those stalls during your testing?
+Hi David,
 
-I'm not measuring them, I simply grab a GUI window and move it around
-while the big file is being copied, when the issue happens the window
-stops moving, and the mouse, everything hangs for a time, then it
-resumes, then hangs again... the interactivity is bad.
+On 06/09/2014 05:13 PM, David Rientjes wrote:
 
--- 
-Felipe Contreras
+> On Mon, 9 Jun 2014, Gu Zheng wrote:
+> 
+>>> I think your patch addresses the problem that you're reporting but misses 
+>>> the larger problem with cpuset.mems rebinding on fork().  When the 
+>>> forker's task_struct is duplicated (which includes ->mems_allowed) and it 
+>>> races with an update to cpuset_being_rebound in update_tasks_nodemask() 
+>>> then the task's mems_allowed doesn't get updated.
+>>
+>> Yes, you are right, this patch just wants to address the bug reported above.
+>> The race condition you mentioned above inherently exists there, but it is yet
+>> another issue, the rcu lock here makes no sense to it, and I think we need
+>> additional sync-mechanisms if want to fix it.
+> 
+> Yes, the rcu lock is not providing protection for any critical section 
+> here that requires (1) the forker's cpuset to be stored in 
+> cpuset_being_rebound or (2) the forked thread's cpuset to be rebound by 
+> the cpuset nodemask update, and no race involving the two.
+> 
+>> But thinking more, though the current implementation has flaw, but I worry
+>> about the negative effect if we really want to fix it. Or maybe the fear
+>> is unnecessary.:) 
+>>
+> 
+> It needs to be slightly rewritten to work properly without negatively 
+> impacting the latency of fork().  Do you have the cycles to do it?
+> 
+
+To be honest, I'm busy with other schedule. And if you(or other
+guys) have proper proposal, please go ahead.
+
+To Tejun, Li and Andrew:
+Any comment? Or could you apply this *bug fix* first?
+
+Regards,
+Gu
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
