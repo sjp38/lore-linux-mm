@@ -1,52 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id EDBA56B00B2
-	for <linux-mm@kvack.org>; Mon,  9 Jun 2014 17:51:10 -0400 (EDT)
-Received: by mail-pd0-f172.google.com with SMTP id fp1so5324061pdb.31
-        for <linux-mm@kvack.org>; Mon, 09 Jun 2014 14:51:10 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id em3si31990466pbb.194.2014.06.09.14.51.09
-        for <linux-mm@kvack.org>;
-        Mon, 09 Jun 2014 14:51:10 -0700 (PDT)
-Message-ID: <53962C4D.30600@intel.com>
-Date: Mon, 09 Jun 2014 14:51:09 -0700
-From: Dave Hansen <dave.hansen@intel.com>
+Received: from mail-ig0-f171.google.com (mail-ig0-f171.google.com [209.85.213.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 23B0F6B00B4
+	for <linux-mm@kvack.org>; Mon,  9 Jun 2014 17:57:19 -0400 (EDT)
+Received: by mail-ig0-f171.google.com with SMTP id h18so914644igc.10
+        for <linux-mm@kvack.org>; Mon, 09 Jun 2014 14:57:19 -0700 (PDT)
+Received: from mail-ie0-x230.google.com (mail-ie0-x230.google.com [2607:f8b0:4001:c03::230])
+        by mx.google.com with ESMTPS id h5si39807224igt.51.2014.06.09.14.57.18
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 09 Jun 2014 14:57:18 -0700 (PDT)
+Received: by mail-ie0-f176.google.com with SMTP id rl12so6369711iec.21
+        for <linux-mm@kvack.org>; Mon, 09 Jun 2014 14:57:18 -0700 (PDT)
+Date: Mon, 9 Jun 2014 14:57:16 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] x86: numa: drop ZONE_ALIGN
+In-Reply-To: <20140609144355.63a91968@redhat.com>
+Message-ID: <alpine.DEB.2.02.1406091453570.5271@chino.kir.corp.google.com>
+References: <20140608181436.17de69ac@redhat.com> <alpine.DEB.2.02.1406081524580.21744@chino.kir.corp.google.com> <20140609144355.63a91968@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH 2/7] mm/pagewalk: replace mm_walk->skip with more general
- mm_walk->control
-References: <1402095520-10109-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1402095520-10109-3-git-send-email-n-horiguchi@ah.jp.nec.com> <539612A8.8080303@intel.com> <1402349339-n9udlcv2@n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1402349339-n9udlcv2@n-horiguchi@ah.jp.nec.com>
-Content-Type: text/plain; charset=ISO-8859-1
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org
+To: Luiz Capitulino <lcapitulino@redhat.com>
+Cc: akpm@linux-foundation.org, andi@firstfloor.org, riel@redhat.com, yinghai@kernel.org, isimatu.yasuaki@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org
 
-On 06/09/2014 02:29 PM, Naoya Horiguchi wrote:
->   static int subpage_walk_pmd_entry(pmd_t *pmd, unsigned long addr,
->                                    unsigned long end, struct mm_walk *walk)
->   {
->          struct vm_area_struct *vma = walk->vma;
-> +        spin_unlock(walk->ptl);
->          split_huge_page_pmd(vma, addr, pmd);
-> +        spin_lock(walk->ptl);
->          return 0;
->   }
+On Mon, 9 Jun 2014, Luiz Capitulino wrote:
+
+> > > diff --git a/arch/x86/include/asm/numa.h b/arch/x86/include/asm/numa.h
+> > > index 4064aca..01b493e 100644
+> > > --- a/arch/x86/include/asm/numa.h
+> > > +++ b/arch/x86/include/asm/numa.h
+> > > @@ -9,7 +9,6 @@
+> > >  #ifdef CONFIG_NUMA
+> > >  
+> > >  #define NR_NODE_MEMBLKS		(MAX_NUMNODES*2)
+> > > -#define ZONE_ALIGN (1UL << (MAX_ORDER+PAGE_SHIFT))
+> > >  
+> > >  /*
+> > >   * Too small node sizes may confuse the VM badly. Usually they
+> > > diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
+> > > index 1d045f9..69f6362 100644
+> > > --- a/arch/x86/mm/numa.c
+> > > +++ b/arch/x86/mm/numa.c
+> > > @@ -200,8 +200,6 @@ static void __init setup_node_data(int nid, u64 start, u64 end)
+> > >  	if (end && (end - start) < NODE_MIN_SIZE)
+> > >  		return;
+> > >  
+> > > -	start = roundup(start, ZONE_ALIGN);
+> > > -
+> > >  	printk(KERN_INFO "Initmem setup node %d [mem %#010Lx-%#010Lx]\n",
+> > >  	       nid, start, end - 1);
+> > >  
+> > 
+> > What ensures this start address is page aligned from the BIOS?
 > 
-> I thought it's straightforward but dirty, but my workaround in this patch
-> was dirty too. So I'm fine to give up the control stuff and take this one.
+> To which start address do you refer to?
 
-I think there's essentially no way to fix this with the current
-handlers.  This needs the locks to not be held, and everything else
-needs them held so that they don't have to do it themselves.
-
-Instead of a flag to control the walk directly, we could have one that
-controls whether the locks are held, although that seems quite prone to
-breakage.
-
-I think this is rare-enough code that we can live with the hack that
-you've got above, although we need to run it by the ppc folks.
+The start address displayed in the dmesg is not page aligned anymore with 
+your change, correct?  acpi_parse_memory_affinity() does no 
+transformations on the table, the base address is coming strictly from the 
+SRAT and there is no page alignment requirement in the ACPI specification.  
+NODE_DATA(nid)->node_start_pfn will be correct because it does the shift 
+for you, but it still seems you want to at least align to PAGE_SIZE here. 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
