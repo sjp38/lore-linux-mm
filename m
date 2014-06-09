@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f170.google.com (mail-ie0-f170.google.com [209.85.223.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 18D336B0031
-	for <linux-mm@kvack.org>; Mon,  9 Jun 2014 05:06:21 -0400 (EDT)
-Received: by mail-ie0-f170.google.com with SMTP id tr6so616066ieb.29
-        for <linux-mm@kvack.org>; Mon, 09 Jun 2014 02:06:20 -0700 (PDT)
-Received: from mail-ig0-x232.google.com (mail-ig0-x232.google.com [2607:f8b0:4001:c05::232])
-        by mx.google.com with ESMTPS id bq3si32216631icc.41.2014.06.09.02.06.19
+Received: from mail-ie0-f179.google.com (mail-ie0-f179.google.com [209.85.223.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 2CA4B6B0031
+	for <linux-mm@kvack.org>; Mon,  9 Jun 2014 05:09:15 -0400 (EDT)
+Received: by mail-ie0-f179.google.com with SMTP id rd18so5550622iec.10
+        for <linux-mm@kvack.org>; Mon, 09 Jun 2014 02:09:15 -0700 (PDT)
+Received: from mail-ie0-x22b.google.com (mail-ie0-x22b.google.com [2607:f8b0:4001:c03::22b])
+        by mx.google.com with ESMTPS id mk5si15799291igb.35.2014.06.09.02.09.14
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 09 Jun 2014 02:06:20 -0700 (PDT)
-Received: by mail-ig0-f178.google.com with SMTP id hn18so1261571igb.11
-        for <linux-mm@kvack.org>; Mon, 09 Jun 2014 02:06:19 -0700 (PDT)
-Date: Mon, 9 Jun 2014 02:06:17 -0700 (PDT)
+        Mon, 09 Jun 2014 02:09:14 -0700 (PDT)
+Received: by mail-ie0-f171.google.com with SMTP id x19so275420ier.16
+        for <linux-mm@kvack.org>; Mon, 09 Jun 2014 02:09:14 -0700 (PDT)
+Date: Mon, 9 Jun 2014 02:09:10 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [RFC PATCH 6/6] mm, compaction: don't migrate in blocks that
- cannot be fully compacted in async direct compaction
-In-Reply-To: <53916EE7.9000806@suse.cz>
-Message-ID: <alpine.DEB.2.02.1406090156340.24247@chino.kir.corp.google.com>
-References: <alpine.DEB.2.02.1405211954410.13243@chino.kir.corp.google.com> <1401898310-14525-1-git-send-email-vbabka@suse.cz> <1401898310-14525-6-git-send-email-vbabka@suse.cz> <alpine.DEB.2.02.1406041705140.22536@chino.kir.corp.google.com> <53908F10.4020603@suse.cz>
- <alpine.DEB.2.02.1406051431030.18119@chino.kir.corp.google.com> <53916EE7.9000806@suse.cz>
+Subject: Re: [RFC PATCH 4/6] mm, compaction: skip buddy pages by their order
+ in the migrate scanner
+In-Reply-To: <53916BB0.3070001@suse.cz>
+Message-ID: <alpine.DEB.2.02.1406090207300.24247@chino.kir.corp.google.com>
+References: <alpine.DEB.2.02.1405211954410.13243@chino.kir.corp.google.com> <1401898310-14525-1-git-send-email-vbabka@suse.cz> <1401898310-14525-4-git-send-email-vbabka@suse.cz> <alpine.DEB.2.02.1406041656400.22536@chino.kir.corp.google.com> <5390374E.5080708@suse.cz>
+ <alpine.DEB.2.02.1406051428360.18119@chino.kir.corp.google.com> <53916BB0.3070001@suse.cz>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -28,44 +28,79 @@ Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-
 
 On Fri, 6 Jun 2014, Vlastimil Babka wrote:
 
-> > Agreed.  I was thinking higher than 1GB would be possible once we have 
-> > your series that does the pageblock skip for thp, I think the expense 
-> > would be constant because we won't needlessly be migrating pages unless it 
-> > has a good chance at succeeding.
+> >> > > diff --git a/mm/internal.h b/mm/internal.h
+> >> > > index 1a8a0d4..6aa1f74 100644
+> >> > > --- a/mm/internal.h
+> >> > > +++ b/mm/internal.h
+> >> > > @@ -164,7 +164,8 @@ isolate_migratepages_range(struct zone *zone, struct
+> >> > > compact_control *cc,
+> >> > >    * general, page_zone(page)->lock must be held by the caller to prevent
+> >> > > the
+> >> > >    * page from being allocated in parallel and returning garbage as the
+> >> > > order.
+> >> > >    * If a caller does not hold page_zone(page)->lock, it must guarantee
+> >> > > that the
+> >> > > - * page cannot be allocated or merged in parallel.
+> >> > > + * page cannot be allocated or merged in parallel. Alternatively, it must
+> >> > > + * handle invalid values gracefully, and use page_order_unsafe() below.
+> >> > >    */
+> >> > >   static inline unsigned long page_order(struct page *page)
+> >> > >   {
+> >> > > @@ -172,6 +173,23 @@ static inline unsigned long page_order(struct page
+> >> > > *page)
+> >> > >   	return page_private(page);
+> >> > >   }
+> >> > > 
+> >> > > +/*
+> >> > > + * Like page_order(), but for callers who cannot afford to hold the zone
+> >> > > lock,
+> >> > > + * and handle invalid values gracefully. ACCESS_ONCE is used so that if
+> >> > > the
+> >> > > + * caller assigns the result into a local variable and e.g. tests it for
+> >> > > valid
+> >> > > + * range  before using, the compiler cannot decide to remove the variable
+> >> > > and
+> >> > > + * inline the function multiple times, potentially observing different
+> >> > > values
+> >> > > + * in the tests and the actual use of the result.
+> >> > > + */
+> >> > > +static inline unsigned long page_order_unsafe(struct page *page)
+> >> > > +{
+> >> > > +	/*
+> >> > > +	 * PageBuddy() should be checked by the caller to minimize race
+> >> > > window,
+> >> > > +	 * and invalid values must be handled gracefully.
+> >> > > +	 */
+> >> > > +	return ACCESS_ONCE(page_private(page));
+> >> > > +}
+> >> > > +
+> >> > >   /* mm/util.c */
+> >> > >   void __vma_link_list(struct mm_struct *mm, struct vm_area_struct *vma,
+> >> > >   		struct vm_area_struct *prev, struct rb_node *rb_parent);
+> >> > 
+> >> > I don't like this change at all, I don't think we should have header
+> >> > functions that imply the context in which the function will be called.  I
+> >> > think it would make much more sense to just do
+> >> > ACCESS_ONCE(page_order(page)) in the migration scanner with a comment.
+> >> 
+> >> But that won't compile. It would have to be converted to a #define, unless
+> >> there's some trick I don't know. Sure I would hope this could be done cleaner
+> >> somehow.
+> >> 
+> > 
+> > Sorry, I meant ACCESS_ONCE(page_private(page)) in the migration scanner 
 > 
-> Looks like a counter of iterations actually done in scanners, maintained in
-> compact_control, would work better than any memory size based limit? It could
-> better reflect the actual work done and thus latency. Maybe increase the counter
-> also for migrations, with a higher cost than for a scanner iteration.
+> Hm but that's breaking the abstraction of page_order(). I don't know if it's
+> worse to create a new variant of page_order() or to do this. BTW, seems like
+> next_active_pageblock() in memory-hotplug.c should use this variant too.
 > 
 
-I'm not sure we can expose that to be configurable by userspace in any 
-meaningful way.  We'll want to be able to tune this depending on the size 
-of the machine if we are to truly remove the need_resched() heuristic and 
-give it a sane default.  I was thinking it would be similar to 
-khugepaged's pages_to_scan value that it uses on each wakeup.
-
-> > This does beg the question about parallel direct compactors, though, that 
-> > will be contending on the same coarse zone->lru_lock locks and immediately 
-> > aborting and falling back to PAGE_SIZE pages for thp faults that will be 
-> > more likely if your patch to grab the high-order page and return it to the 
-> > page allocator is merged.
-> 
-> Hm can you explain how the page capturing makes this worse? I don't see it.
-> 
-
-I was expecting that your patch to capture the high-order page made a 
-difference because the zone watermark check doesn't imply the high-order 
-page will be allocatable after we return to the page allocator to allocate 
-it.  In that case, we terminated compaction prematurely.  If that's true, 
-then it seems like no parallel thp allocator will be able to allocate 
-memory that another direct compactor has freed without entering compaction 
-itself on a fragmented machine, and thus an increase in zone->lru_lock 
-contention if there's migratable memory.
-
-Having 32 cpus fault thp memory and all entering compaction and contending 
-(and aborting because of contention, currently) on zone->lru_lock is a 
-really bad situation.
+The compiler seems free to disregard the access of a volatile object above 
+because the return value of the inline function is unsigned long.  What's 
+the difference between unsigned long order = page_order_unsafe(page) and
+unsigned long order = (unsigned long)ACCESS_ONCE(page_private(page)) and 
+the compiler being able to reaccess page_private() because the result is 
+no longer volatile qualified?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
