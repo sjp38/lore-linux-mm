@@ -1,126 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qg0-f41.google.com (mail-qg0-f41.google.com [209.85.192.41])
-	by kanga.kvack.org (Postfix) with ESMTP id E18A46B008A
-	for <linux-mm@kvack.org>; Mon,  9 Jun 2014 09:54:44 -0400 (EDT)
-Received: by mail-qg0-f41.google.com with SMTP id j5so8903553qga.14
-        for <linux-mm@kvack.org>; Mon, 09 Jun 2014 06:54:44 -0700 (PDT)
-Received: from mail-qc0-x22a.google.com (mail-qc0-x22a.google.com [2607:f8b0:400d:c01::22a])
-        by mx.google.com with ESMTPS id h7si23810556qan.34.2014.06.09.06.54.44
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 09 Jun 2014 06:54:44 -0700 (PDT)
-Received: by mail-qc0-f170.google.com with SMTP id l6so677452qcy.29
-        for <linux-mm@kvack.org>; Mon, 09 Jun 2014 06:54:44 -0700 (PDT)
-Date: Mon, 9 Jun 2014 09:54:41 -0400
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 2/2] memcg: Allow hard guarantee mode for low limit
- reclaim
-Message-ID: <20140609135441.GA22540@htj.dyndns.org>
-References: <20140606144421.GE26253@dhcp22.suse.cz>
- <1402066010-25901-1-git-send-email-mhocko@suse.cz>
- <1402066010-25901-2-git-send-email-mhocko@suse.cz>
- <20140606152914.GA14001@htj.dyndns.org>
- <20140609083042.GB7144@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140609083042.GB7144@dhcp22.suse.cz>
+Received: from mail-pa0-f42.google.com (mail-pa0-f42.google.com [209.85.220.42])
+	by kanga.kvack.org (Postfix) with ESMTP id BC0116B0092
+	for <linux-mm@kvack.org>; Mon,  9 Jun 2014 12:04:34 -0400 (EDT)
+Received: by mail-pa0-f42.google.com with SMTP id lf10so8368pab.15
+        for <linux-mm@kvack.org>; Mon, 09 Jun 2014 09:04:34 -0700 (PDT)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTP id ew3si31177133pbb.184.2014.06.09.09.04.33
+        for <linux-mm@kvack.org>;
+        Mon, 09 Jun 2014 09:04:33 -0700 (PDT)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCH, RFC 00/10] THP refcounting redesign
+Date: Mon,  9 Jun 2014 19:04:11 +0300
+Message-Id: <1402329861-7037-1-git-send-email-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, Roman Gushchin <klamm@yandex-team.ru>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
+Cc: Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Hello,
+Hello everybody,
 
-On Mon, Jun 09, 2014 at 10:30:42AM +0200, Michal Hocko wrote:
-> On Fri 06-06-14 11:29:14, Tejun Heo wrote:
-> > Why is this necessary?
-> 
-> It allows user/admin to set the default behavior.
+We've discussed few times that is would be nice to allow huge pages to be
+mapped with 4k pages too. Here's my first attempt to actually implement
+this. It's early prototype and not stabilized yet, but I want to share it
+to discuss any potential show stoppers early.
 
-By recomipling the kernel for something which can be trivially
-configured post-boot without any difference?  The only thing it'll
-achieve is confusing the hell out of people why different kernels show
-different behaviors without any userland differences while taxing the
-already constrained kernel configuration process more for no gain
-whatsoever.
+The main reason why we can't map THP with 4k is how refcounting on THP
+designed. It built around two requirements:
 
-> How do you propose to tell the default then? Only at the runtime?
-> I really do not insist on the kconfig. I find it useful for a)
-> documentation purpose b) easy way to configure the default.
+  - split of huge page should never fail;
+  - we can't change interface of get_user_page();
 
-Please don't ever add Kconfig options like this.  This is uttrely
-unnecessary and idiotic.  You don't add completely redundant Kconfig
-option for documentation purposes.
+To be able to split huge page at any point we have to track which tail
+page was pinned. It leads to tricky and expensive get_page() on tail pages
+and also occupy tail_page->_mapcount.
 
-> > * Are you sure soft and hard guarantees aren't useful when used in
-> >   combination?  If so, why would that be the case?
-> 
-> This was a call from Google to have per-memcg setup AFAIR. Using
-> different reclaim protection on the global case vs. limit reclaim makes
-> a lot of sense to me. If this is a major obstacle then I am OK to drop
-> it and only have a global setting for now.
+Most split_huge_page*() users want PMD to be split into table of PTEs and
+don't care whether compound page is going to be split or not.
 
-Isn't it obvious that what needs to be investigated is why we're
-trying to add an interface which is completely different for
-guarantees as compared to limits?  Why wouldn't they have a symmetric
-interface in the reverse direction as soft/hard limits?  If not, where
-does the asymmetry come from?  Thse are the *first* questions which
-should come to anyone's mind when [s]he is trying to add configs for a
-different type of threshholds and something which must be explicitly
-laid out as rationales for the design choices.
+The plan is:
 
-> > * We have pressure monitoring interface which can be used for soft
-> >   limit pressure monitoring. 
-> 
-> Which one is that? I only know about oom_control triggered by the hard
-> limit pressure.
+ - allow split_huge_page() to fail if the page is pinned. It's trivial to
+   split non-pinned page and it doesn't require tail page refcounting, so
+   tail_page->_mapcount is free to be reused.
 
-Weren't you guys planning to use vmpressre notification to find out
-about softlimit breach conditions?
+ - introduce new routine -- split_huge_pmd() -- to split PMD into table of
+   PTEs. It splits only one PMD, not touching other PMDs the page is
+   mapped with or underlying compound page. Unlike new split_huge_page(),
+   split_huge_pmd() never fails.
 
-> >   How should breaching soft guarantee be
-> >   factored into that?  There doesn't seem to be any way of notifying
-> >   that at the moment?  Wouldn't we want that to be integrated into the
-> >   same mechanism?
-> 
-> Yes, there is. We have a counter in memory.stat file which tells how
-> many times the limit has been breached.
+Fortunately, we have only few places where split_huge_page() is needed:
+swap out, memory failure, migration, KSM. And all of them can handle
+split_huge_page() fail.
 
-How does the userland find out?  By polling the file every frigging
-second?  Note that there actually is an actual asymmetry here which
-makes breaching soft guarantee a much more significant event than
-breaching soft limit - the former is violation of the configured
-objective, the latter is not.  You *need* a way to notify the event.
+In new scheme we use tail_page->_mapcount is used to account how many time
+the tail page is mapped. head_page->_mapcount is used for both PMD mapping
+of whole huge page and PTE mapping of the firt 4k page of the compound
+page. It seems work fine, except the fact that we don't have a cheap way
+to check whether the page mapped with PMDs or not.
 
-> > What scares me the most is that you don't even seem to have noticed
-> > the asymmetry and are proposing userland-facing interface without
-> > actually thinking things through.  This is exactly how we've been
-> > getting into trouble.
-> 
-> This has been discussed up and down for the last _two_ years. I have
-> considered other options how to provide a very _useful_ feature users
-> are calling for. There is even general consensus among developers that
+Introducing split_huge_pmd() effectively allows THP to be mapped with 4k.
+It can break some kernel expectations. I.e. VMA now can start and end in
+middle of compound page. IIUC, it will break compactation and probably
+something else (any hints?).
 
-AFAIR, there hasn't been much discussion about the details of the
-interface and the proposed one is almost laughable.  How is this
-acceptable as a userland visible API that we need to maintain for the
-future?  It's broken on delivery.
+Also munmap() on part of huge page will not split and free unmapped part
+immediately. We need to be careful here to keep memory footprint under
+control.
 
-> the feature is desirable and that the two modes (soft/hard) memory
-> protection are needed. Yet I would _really_ like to hear any
-> suggestion to get unstuck. It is far from useful to come and Nack this
-> _again_ without providing any alternative suggestions.
+As side effect we don't need to mark PMD splitting since we have
+split_huge_pmd(). get_page()/put_page() on tail of THP is cheaper (and
+cleaner) now.
 
-I've pointed out two major points where the proposed interface is
-evidently deficient and told you why they're so and it's not like the
-said deficiencies are anything subtle.  If you can't figure out what
-to do next from there on, I don't think I can help you.
+I will continue with stabilizing this. The patchset also available on
+git[1].
 
-Thanks.
+Any commemnt?
+
+[1] git://git.kernel.org/pub/scm/linux/kernel/git/kas/linux.git thp/refcounting/v1
+
+Kirill A. Shutemov (10):
+  mm, thp: drop FOLL_SPLIT
+  mm: change PageAnon() to work on tail pages
+  thp: rename split_huge_page_pmd() to split_huge_pmd()
+  thp: PMD splitting without splitting compound page
+  mm, vmstats: new THP splitting event
+  thp: implement new split_huge_page()
+  mm, thp: remove infrastructure for handling splitting PMDs
+  x86, thp: remove remove infrastructure for handling splitting PMDs
+  futex, thp: remove special case for THP in get_futex_key
+  thp: update documentation
+
+ Documentation/vm/transhuge.txt       |  95 ++++----
+ arch/mips/mm/gup.c                   |   4 -
+ arch/powerpc/mm/hugetlbpage.c        |  12 -
+ arch/powerpc/mm/subpage-prot.c       |   2 +-
+ arch/s390/mm/gup.c                   |  13 +-
+ arch/s390/mm/pgtable.c               |  17 +-
+ arch/sparc/mm/gup.c                  |  14 +-
+ arch/x86/include/asm/pgtable.h       |   9 -
+ arch/x86/include/asm/pgtable_types.h |   2 -
+ arch/x86/kernel/vm86_32.c            |   6 +-
+ arch/x86/mm/gup.c                    |  17 +-
+ arch/x86/mm/pgtable.c                |  14 --
+ fs/proc/task_mmu.c                   |   9 +-
+ include/asm-generic/pgtable.h        |   5 -
+ include/linux/huge_mm.h              |  48 +---
+ include/linux/hugetlb_inline.h       |   9 +-
+ include/linux/mm.h                   |  66 +-----
+ include/linux/vm_event_item.h        |   4 +-
+ kernel/futex.c                       |  62 ++----
+ mm/gup.c                             |  18 +-
+ mm/huge_memory.c                     | 412 ++++++++++-------------------------
+ mm/internal.h                        |  31 +--
+ mm/memcontrol.c                      |  16 +-
+ mm/memory.c                          |  20 +-
+ mm/migrate.c                         |   7 +-
+ mm/mprotect.c                        |   2 +-
+ mm/mremap.c                          |   2 +-
+ mm/pagewalk.c                        |   2 +-
+ mm/pgtable-generic.c                 |  14 --
+ mm/rmap.c                            |   4 +-
+ mm/swap.c                            | 285 +++++++-----------------
+ mm/vmstat.c                          |   4 +-
+ 32 files changed, 328 insertions(+), 897 deletions(-)
 
 -- 
-tejun
+2.0.0.rc4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
