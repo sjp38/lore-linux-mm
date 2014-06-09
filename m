@@ -1,84 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f176.google.com (mail-ie0-f176.google.com [209.85.223.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 93DE16B00BE
-	for <linux-mm@kvack.org>; Mon,  9 Jun 2014 19:09:41 -0400 (EDT)
-Received: by mail-ie0-f176.google.com with SMTP id rl12so6499306iec.35
-        for <linux-mm@kvack.org>; Mon, 09 Jun 2014 16:09:41 -0700 (PDT)
-Received: from mail-ig0-x236.google.com (mail-ig0-x236.google.com [2607:f8b0:4001:c05::236])
-        by mx.google.com with ESMTPS id c19si40018161igv.42.2014.06.09.16.09.40
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 09 Jun 2014 16:09:41 -0700 (PDT)
-Received: by mail-ig0-f182.google.com with SMTP id a13so4471301igq.9
-        for <linux-mm@kvack.org>; Mon, 09 Jun 2014 16:09:40 -0700 (PDT)
-Date: Mon, 9 Jun 2014 16:09:38 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: rb_erase oops.
-In-Reply-To: <20140609223028.GA13109@redhat.com>
-Message-ID: <alpine.DEB.2.02.1406091606080.5271@chino.kir.corp.google.com>
-References: <20140609223028.GA13109@redhat.com>
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 9A9A16B00C0
+	for <linux-mm@kvack.org>; Mon,  9 Jun 2014 19:24:59 -0400 (EDT)
+Received: by mail-pa0-f52.google.com with SMTP id eu11so8965pac.11
+        for <linux-mm@kvack.org>; Mon, 09 Jun 2014 16:24:59 -0700 (PDT)
+Received: from lgeamrelo02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
+        by mx.google.com with ESMTP id qz5si3642537pbb.179.2014.06.09.16.24.57
+        for <linux-mm@kvack.org>;
+        Mon, 09 Jun 2014 16:24:58 -0700 (PDT)
+Date: Tue, 10 Jun 2014 08:24:59 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH] mm/vmscan.c: avoid recording the original scan targets
+ in shrink_lruvec()
+Message-ID: <20140609232459.GA8171@bbox>
+References: <1402320436-22270-1-git-send-email-slaoub@gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1402320436-22270-1-git-send-email-slaoub@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Jones <davej@redhat.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Chen Yucong <slaoub@gmail.com>
+Cc: mgorman@suse.de, mhocko@suse.cz, hannes@cmpxchg.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, 9 Jun 2014, Dave Jones wrote:
+Hello,
 
-> Kernel based on v3.15-7257-g963649d735c8
+On Mon, Jun 09, 2014 at 09:27:16PM +0800, Chen Yucong wrote:
+> Via https://lkml.org/lkml/2013/4/10/334 , we can find that recording the
+> original scan targets introduces extra 40 bytes on the stack. This patch
+> is able to avoid this situation and the call to memcpy(). At the same time,
+> it does not change the relative design idea.
 > 
-> 	Dave
+> ratio = original_nr_file / original_nr_anon;
 > 
-> Oops: 0000 [#1] PREEMPT SMP 
-> Modules linked in: dlci 8021q garp snd_seq_dummy bnep llc2 af_key bridge stp fuse tun scsi_transport_iscsi ipt_ULOG nfnetlink rfcomm can_raw hidp can_bcm nfc caif_socket caif af_802154 ieee802154 phonet af_rxrpc can pppoe pppox ppp_generic slhc irda crc_ccitt rds rose x25 atm netrom appletalk ipx p8023 psnap p8022 llc ax25 coretemp cfg80211 hwmon x86_pkg_temp_thermal kvm_intel kvm snd_hda_codec_hdmi snd_hda_codec_realtek snd_hda_codec_generic btusb bluetooth snd_hda_intel xfs snd_hda_controller snd_hda_codec snd_hwdep snd_seq e1000e snd_seq_device crct10dif_pclmul crc32c_intel ghash_clmulni_intel snd_pcm snd_timer snd 6lowpan_iphc usb_debug rfkill libcrc32c ptp pps_core microcode shpchp pcspkr serio_raw soundcore
-> CPU: 3 PID: 2049 Comm: kworker/3:1 Not tainted 3.15.0+ #231
-> Workqueue: events free_work
-> task: ffff880100944260 ti: ffff88009ed9c000 task.ti: ffff88009ed9c000
-> RIP: 0010:[<ffffffff8a326619>]  [<ffffffff8a326619>] rb_erase+0xb9/0x380
-> RSP: 0000:ffff88009ed9fcc0  EFLAGS: 00010202
-> RAX: ffff8802396b0018 RBX: ffff88024176b008 RCX: 0000000000000000
-> RDX: ffffc90010fe1bf0 RSI: ffffffff8afb3178 RDI: 0000000000000001
-> RBP: ffff88009ed9fcc0 R08: ffff88023b122e58 R09: ffff88024176ae58
-> R10: 0000000000000000 R11: ffff880245801dc0 R12: ffff88024176b020
-> R13: ffff88009ed9fd80 R14: ffff88009ed9fd88 R15: ffff88024e397100
-> FS:  0000000000000000(0000) GS:ffff88024e380000(0000) knlGS:0000000000000000
-> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> CR2: 0000000000000001 CR3: 000000000ac10000 CR4: 00000000001407e0
-> DR0: 00000000024cc000 DR1: 00000000024c2000 DR2: 0000000000000000
-> DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000600
-> Stack:
->  ffff88009ed9fce0 ffffffff8a195674 ffff88024176ae40 ffffffff8ac64260
->  ffff88009ed9fd70 ffffffff8a19631d ffff88009ed9fd88 ffff88009ed9fd80
->  ffff88009ed9fd10 ffff880244b93750 0000000000000000 ffff880244b93750
-> Call Trace:
->  [<ffffffff8a195674>] __free_vmap_area+0x54/0xf0
->  [<ffffffff8a19631d>] __purge_vmap_area_lazy+0x15d/0x4a0
->  [<ffffffff8a1966e1>] free_vmap_area_noflush+0x81/0x90
->  [<ffffffff8a197dae>] remove_vm_area+0x5e/0x70
->  [<ffffffff8a197dee>] __vunmap+0x2e/0x100
->  [<ffffffff8a197eed>] free_work+0x2d/0x40
->  [<ffffffff8a08df11>] process_one_work+0x171/0x4d0
->  [<ffffffff8a08eeac>] worker_thread+0x12c/0x3d0
->  [<ffffffff8a0bc4b2>] ? complete+0x42/0x50
->  [<ffffffff8a08ed80>] ? manage_workers.isra.25+0x2d0/0x2d0
->  [<ffffffff8a095b3f>] kthread+0xff/0x120
->  [<ffffffff8a095a40>] ? kthread_create_on_node+0x1c0/0x1c0
->  [<ffffffff8a741eec>] ret_from_fork+0x7c/0xb0
->  [<ffffffff8a095a40>] ? kthread_create_on_node+0x1c0/0x1c0
-> Code: 85 d2 74 0e 48 83 c8 01 48 89 0a 49 89 02 5d c3 66 90 48 8b 3a 48 89 0a 83 e7 01 74 f1 31 c9 eb 40 90 48 8b 7a 08 48 85 ff 74 09 <f6> 07 01 0f 84 a3 01 00 00 48 8b 4a 10 48 85 c9 74 09 f6 01 01 
-> RIP  [<ffffffff8a326619>] rb_erase+0xb9/0x380
->  RSP <ffff88009ed9fcc0>
+> If (nr_file > nr_anon), then ratio = (nr_file - x) / nr_anon.
+>  x = nr_file - ratio * nr_anon;
 > 
+> if (nr_file <= nr_anon), then ratio = nr_file / (nr_anon - x).
+>  x = nr_anon - nr_file / ratio;
 
-Adding Joonsoo to the cc.
+Nice cleanup!
 
-I haven't looked very closely, and it may be unrelated, but perhaps this 
-is a race because of a failed radix_tree_preload() in new_vmap_block() and 
-this happens in low on memory conditions (and would be tough to reproduce 
-because of a race with the rcu-protected vmap_area_list iteration in
-__purge_vmap_area_lazy() and the actual freeing of the vmap_area under 
-vmap_area_lock).
+Below one nitpick.
+
+> 
+> Signed-off-by: Chen Yucong <slaoub@gmail.com>
+> ---
+>  mm/vmscan.c |   28 +++++++++-------------------
+>  1 file changed, 9 insertions(+), 19 deletions(-)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index a8ffe4e..daaf89c 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2057,8 +2057,7 @@ out:
+>  static void shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
+>  {
+>  	unsigned long nr[NR_LRU_LISTS];
+> -	unsigned long targets[NR_LRU_LISTS];
+> -	unsigned long nr_to_scan;
+> +	unsigned long nr_to_scan, ratio;
+>  	enum lru_list lru;
+>  	unsigned long nr_reclaimed = 0;
+>  	unsigned long nr_to_reclaim = sc->nr_to_reclaim;
+> @@ -2067,8 +2066,8 @@ static void shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
+>  
+>  	get_scan_count(lruvec, sc, nr);
+>  
+> -	/* Record the original scan target for proportional adjustments later */
+> -	memcpy(targets, nr, sizeof(nr));
+> +	ratio = (nr[LRU_INACTIVE_FILE] + nr[LRU_ACTIVE_FILE] + 1) /
+> +			(nr[LRU_INACTIVE_ANON] + nr[LRU_ACTIVE_ANON] + 1);
+>  
+>  	/*
+>  	 * Global reclaiming within direct reclaim at DEF_PRIORITY is a normal
+> @@ -2088,7 +2087,6 @@ static void shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
+>  	while (nr[LRU_INACTIVE_ANON] || nr[LRU_ACTIVE_FILE] ||
+>  					nr[LRU_INACTIVE_FILE]) {
+>  		unsigned long nr_anon, nr_file, percentage;
+> -		unsigned long nr_scanned;
+>  
+>  		for_each_evictable_lru(lru) {
+>  			if (nr[lru]) {
+> @@ -2123,15 +2121,13 @@ static void shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
+>  			break;
+>  
+>  		if (nr_file > nr_anon) {
+> -			unsigned long scan_target = targets[LRU_INACTIVE_ANON] +
+> -						targets[LRU_ACTIVE_ANON] + 1;
+> +			nr_to_scan = nr_file - ratio * nr_anon;
+> +			percentage = nr[LRU_FILE] * 100 / nr_file;
+>  			lru = LRU_BASE;
+> -			percentage = nr_anon * 100 / scan_target;
+>  		} else {
+> -			unsigned long scan_target = targets[LRU_INACTIVE_FILE] +
+> -						targets[LRU_ACTIVE_FILE] + 1;
+> +			nr_to_scan = nr_anon - nr_file / ratio;
+> +			percentage = nr[LRU_BASE] * 100 / nr_anon;
+
+If both nr_file and nr_anon are zero, then the nr_anon could be zero
+if HugePage are reclaimed so that it could pass the below check
+
+        if (nr_reclaimed < nr_to_reclaim || scan_adjusted)
+
+
+>  			lru = LRU_FILE;
+> -			percentage = nr_file * 100 / scan_target;
+>  		}
+>  
+>  		/* Stop scanning the smaller of the LRU */
+> @@ -2143,14 +2139,8 @@ static void shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
+>  		 * scan target and the percentage scanning already complete
+>  		 */
+>  		lru = (lru == LRU_FILE) ? LRU_BASE : LRU_FILE;
+> -		nr_scanned = targets[lru] - nr[lru];
+> -		nr[lru] = targets[lru] * (100 - percentage) / 100;
+> -		nr[lru] -= min(nr[lru], nr_scanned);
+> -
+> -		lru += LRU_ACTIVE;
+> -		nr_scanned = targets[lru] - nr[lru];
+> -		nr[lru] = targets[lru] * (100 - percentage) / 100;
+> -		nr[lru] -= min(nr[lru], nr_scanned);
+> +		nr[lru] = nr_to_scan * percentage / 100;
+> +		nr[lru + LRU_ACTIVE] = nr_to_scan - nr[lru];
+>  
+>  		scan_adjusted = true;
+>  	}
+> -- 
+> 1.7.10.4
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
