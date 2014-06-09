@@ -1,23 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f174.google.com (mail-ig0-f174.google.com [209.85.213.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 145136B00C6
-	for <linux-mm@kvack.org>; Mon,  9 Jun 2014 19:41:40 -0400 (EDT)
-Received: by mail-ig0-f174.google.com with SMTP id h3so4480634igd.1
-        for <linux-mm@kvack.org>; Mon, 09 Jun 2014 16:41:39 -0700 (PDT)
-Received: from mail-ie0-x234.google.com (mail-ie0-x234.google.com [2607:f8b0:4001:c03::234])
-        by mx.google.com with ESMTPS id dq1si9688519icb.23.2014.06.09.16.41.39
+Received: from mail-ie0-f169.google.com (mail-ie0-f169.google.com [209.85.223.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 270AF6B00C8
+	for <linux-mm@kvack.org>; Mon,  9 Jun 2014 19:50:22 -0400 (EDT)
+Received: by mail-ie0-f169.google.com with SMTP id at1so2936402iec.28
+        for <linux-mm@kvack.org>; Mon, 09 Jun 2014 16:50:22 -0700 (PDT)
+Received: from mail-ig0-x234.google.com (mail-ig0-x234.google.com [2607:f8b0:4001:c05::234])
+        by mx.google.com with ESMTPS id mq15si35739867icb.97.2014.06.09.16.50.21
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Mon, 09 Jun 2014 16:41:39 -0700 (PDT)
-Received: by mail-ie0-f180.google.com with SMTP id at20so6275653iec.39
-        for <linux-mm@kvack.org>; Mon, 09 Jun 2014 16:41:39 -0700 (PDT)
-Date: Mon, 9 Jun 2014 16:41:36 -0700 (PDT)
+        Mon, 09 Jun 2014 16:50:21 -0700 (PDT)
+Received: by mail-ig0-f180.google.com with SMTP id h18so1001324igc.13
+        for <linux-mm@kvack.org>; Mon, 09 Jun 2014 16:50:21 -0700 (PDT)
+Date: Mon, 9 Jun 2014 16:50:18 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH 01/10] mm, compaction: do not recheck suitable_migration_target
- under lock
-In-Reply-To: <1402305982-6928-1-git-send-email-vbabka@suse.cz>
-Message-ID: <alpine.DEB.2.02.1406091636190.17705@chino.kir.corp.google.com>
-References: <1402305982-6928-1-git-send-email-vbabka@suse.cz>
+Subject: Re: [PATCH 02/10] mm, compaction: report compaction as contended
+ only due to lock contention
+In-Reply-To: <1402305982-6928-2-git-send-email-vbabka@suse.cz>
+Message-ID: <alpine.DEB.2.02.1406091647140.17705@chino.kir.corp.google.com>
+References: <1402305982-6928-1-git-send-email-vbabka@suse.cz> <1402305982-6928-2-git-send-email-vbabka@suse.cz>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -27,18 +27,26 @@ Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-
 
 On Mon, 9 Jun 2014, Vlastimil Babka wrote:
 
-> isolate_freepages_block() rechecks if the pageblock is suitable to be a target
-> for migration after it has taken the zone->lock. However, the check has been
-> optimized to occur only once per pageblock, and compact_checklock_irqsave()
-> might be dropping and reacquiring lock, which means somebody else might have
-> changed the pageblock's migratetype meanwhile.
+> Async compaction aborts when it detects zone lock contention or need_resched()
+> is true. David Rientjes has reported that in practice, most direct async
+> compactions for THP allocation abort due to need_resched(). This means that a
+> second direct compaction is never attempted, which might be OK for a page
+> fault, but hugepaged is intended to attempt a sync compaction in such case and
+> in these cases it won't.
 > 
-> Furthermore, nothing prevents the migratetype to change right after
-> isolate_freepages_block() has finished isolating. Given how imperfect this is,
-> it's simpler to just rely on the check done in isolate_freepages() without
-> lock, and not pretend that the recheck under lock guarantees anything. It is
-> just a heuristic after all.
+> This patch replaces "bool contended" in compact_control with an enum that
+> distinguieshes between aborting due to need_resched() and aborting due to lock
+> contention. This allows propagating the abort through all compaction functions
+> as before, but declaring the direct compaction as contended only when lock
+> contantion has been detected.
 > 
+> As a result, hugepaged will proceed with second sync compaction as intended,
+> when the preceding async compaction aborted due to need_resched().
+> 
+
+s/hugepaged/khugepaged/ on the changelog.
+
+> Reported-by: David Rientjes <rientjes@google.com>
 > Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 > Cc: Minchan Kim <minchan@kernel.org>
 > Cc: Mel Gorman <mgorman@suse.de>
@@ -47,23 +55,116 @@ On Mon, 9 Jun 2014, Vlastimil Babka wrote:
 > Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 > Cc: Christoph Lameter <cl@linux.com>
 > Cc: Rik van Riel <riel@redhat.com>
-> Cc: David Rientjes <rientjes@google.com>
-
-Acked-by: David Rientjes <rientjes@google.com>
-
-We already do a preliminary check for suitable_migration_target() in 
-isolate_freepages() in a racy way to avoid unnecessary work (and 
-page_order() there is unprotected, I think you already mentioned this) so 
-this seems fine to abandon.
-
 > ---
-> I suggest folding mm-compactionc-isolate_freepages_block-small-tuneup.patch into this
+>  mm/compaction.c | 20 ++++++++++++++------
+>  mm/internal.h   | 15 +++++++++++----
+>  2 files changed, 25 insertions(+), 10 deletions(-)
 > 
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index b73b182..d37f4a8 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -185,9 +185,14 @@ static void update_pageblock_skip(struct compact_control *cc,
+>  }
+>  #endif /* CONFIG_COMPACTION */
+>  
+> -static inline bool should_release_lock(spinlock_t *lock)
+> +enum compact_contended should_release_lock(spinlock_t *lock)
+>  {
+> -	return need_resched() || spin_is_contended(lock);
+> +	if (need_resched())
+> +		return COMPACT_CONTENDED_SCHED;
+> +	else if (spin_is_contended(lock))
+> +		return COMPACT_CONTENDED_LOCK;
+> +	else
+> +		return COMPACT_CONTENDED_NONE;
+>  }
+>  
+>  /*
 
-Hmm, Andrew was just moving some code around in that patch, I'm not sure 
-that it makes sense to couple these two together and your patch here is 
-addressing an optimization rather than a cleanup (and you've documented it 
-well, no need to obscure it with unrelated changes).
+I think eventually we're going to remove the need_resched() heuristic 
+entirely and so enum compact_contended might be overkill, but do we need 
+to worry about spin_is_contended(lock) && need_resched() reporting 
+COMPACT_CONTENDED_SCHED here instead of COMPACT_CONTENDED_LOCK?
+
+> @@ -202,7 +207,9 @@ static inline bool should_release_lock(spinlock_t *lock)
+>  static bool compact_checklock_irqsave(spinlock_t *lock, unsigned long *flags,
+>  				      bool locked, struct compact_control *cc)
+>  {
+> -	if (should_release_lock(lock)) {
+> +	enum compact_contended contended = should_release_lock(lock);
+> +
+> +	if (contended) {
+>  		if (locked) {
+>  			spin_unlock_irqrestore(lock, *flags);
+>  			locked = false;
+> @@ -210,7 +217,7 @@ static bool compact_checklock_irqsave(spinlock_t *lock, unsigned long *flags,
+>  
+>  		/* async aborts if taking too long or contended */
+>  		if (cc->mode == MIGRATE_ASYNC) {
+> -			cc->contended = true;
+> +			cc->contended = contended;
+>  			return false;
+>  		}
+>  
+> @@ -236,7 +243,7 @@ static inline bool compact_should_abort(struct compact_control *cc)
+>  	/* async compaction aborts if contended */
+>  	if (need_resched()) {
+>  		if (cc->mode == MIGRATE_ASYNC) {
+> -			cc->contended = true;
+> +			cc->contended = COMPACT_CONTENDED_SCHED;
+>  			return true;
+>  		}
+>  
+> @@ -1095,7 +1102,8 @@ static unsigned long compact_zone_order(struct zone *zone, int order,
+>  	VM_BUG_ON(!list_empty(&cc.freepages));
+>  	VM_BUG_ON(!list_empty(&cc.migratepages));
+>  
+> -	*contended = cc.contended;
+> +	/* We only signal lock contention back to the allocator */
+> +	*contended = cc.contended == COMPACT_CONTENDED_LOCK;
+>  	return ret;
+>  }
+>  
+
+Hmm, since the only thing that matters for cc->contended is 
+COMPACT_CONTENDED_LOCK, it may make sense to just leave this as a bool 
+within struct compact_control instead of passing the actual reason around 
+when it doesn't matter.
+
+> diff --git a/mm/internal.h b/mm/internal.h
+> index 7f22a11f..4659e8e 100644
+> --- a/mm/internal.h
+> +++ b/mm/internal.h
+> @@ -117,6 +117,13 @@ extern int user_min_free_kbytes;
+>  
+>  #if defined CONFIG_COMPACTION || defined CONFIG_CMA
+>  
+> +/* Used to signal whether compaction detected need_sched() or lock contention */
+> +enum compact_contended {
+> +	COMPACT_CONTENDED_NONE = 0, /* no contention detected */
+> +	COMPACT_CONTENDED_SCHED,    /* need_sched() was true */
+> +	COMPACT_CONTENDED_LOCK,     /* zone lock or lru_lock was contended */
+> +};
+> +
+>  /*
+>   * in mm/compaction.c
+>   */
+> @@ -144,10 +151,10 @@ struct compact_control {
+>  	int order;			/* order a direct compactor needs */
+>  	int migratetype;		/* MOVABLE, RECLAIMABLE etc */
+>  	struct zone *zone;
+> -	bool contended;			/* True if a lock was contended, or
+> -					 * need_resched() true during async
+> -					 * compaction
+> -					 */
+> +	enum compact_contended contended; /* Signal need_sched() or lock
+> +					   * contention detected during
+> +					   * compaction
+> +					   */
+>  };
+>  
+>  unsigned long
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
