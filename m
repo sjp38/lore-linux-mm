@@ -1,24 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 2DF0C6B00EC
-	for <linux-mm@kvack.org>; Tue, 10 Jun 2014 04:20:19 -0400 (EDT)
-Received: by mail-pd0-f172.google.com with SMTP id fp1so5860668pdb.3
-        for <linux-mm@kvack.org>; Tue, 10 Jun 2014 01:20:18 -0700 (PDT)
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 49A656B00EE
+	for <linux-mm@kvack.org>; Tue, 10 Jun 2014 04:21:54 -0400 (EDT)
+Received: by mail-pd0-f175.google.com with SMTP id z10so5837088pdj.6
+        for <linux-mm@kvack.org>; Tue, 10 Jun 2014 01:21:54 -0700 (PDT)
 Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
-        by mx.google.com with ESMTPS id in9si33597023pbd.29.2014.06.10.01.20.18
+        by mx.google.com with ESMTPS id wc10si2091692pab.9.2014.06.10.01.21.53
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 10 Jun 2014 01:20:18 -0700 (PDT)
-Message-ID: <5396BFDF.3020703@nvidia.com>
-Date: Tue, 10 Jun 2014 13:50:47 +0530
+        Tue, 10 Jun 2014 01:21:53 -0700 (PDT)
+Message-ID: <5396C03D.6000806@nvidia.com>
+Date: Tue, 10 Jun 2014 13:52:21 +0530
 From: vsalve <vsalve@nvidia.com>
 MIME-Version: 1.0
 Subject: Patches for Contiguous Memory Allocator and	get_user_pages()
+References: <5396BFDF.3020703@nvidia.com>
+In-Reply-To: <5396BFDF.3020703@nvidia.com>
 Content-Type: text/plain; charset="ISO-8859-1"; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linaro-mm-sig@lists.linaro.org, m.szyprowski@kvack.org, at@kvack.org, samsung.com@kvack.org
+To: linaro-mm-sig@lists.linaro.org, m.szyprowski@samsung.com
 Cc: linux-mm@kvack.org
 
 Hi Marek,
@@ -32,7 +34,6 @@ Is there any latest patch-set for this feature and any updates whether
 these patches are to be pushed into main stream kernel sooner.
 
 Thanks!!!
-
 
 -----------------------------------------------------------------------------------
 This email message is for the sole use of the intended recipient(s) and may contain
