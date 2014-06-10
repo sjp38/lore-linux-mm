@@ -1,83 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f42.google.com (mail-pb0-f42.google.com [209.85.160.42])
-	by kanga.kvack.org (Postfix) with ESMTP id AF1E46B00E8
-	for <linux-mm@kvack.org>; Tue, 10 Jun 2014 04:05:47 -0400 (EDT)
-Received: by mail-pb0-f42.google.com with SMTP id md12so6014914pbc.1
-        for <linux-mm@kvack.org>; Tue, 10 Jun 2014 01:05:47 -0700 (PDT)
-Received: from lgeamrelo01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
-        by mx.google.com with ESMTP id cl5si2013100pad.108.2014.06.10.01.05.44
-        for <linux-mm@kvack.org>;
-        Tue, 10 Jun 2014 01:05:46 -0700 (PDT)
-Date: Tue, 10 Jun 2014 17:09:35 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH -mm v2 7/8] slub: make dead memcg caches discard free
- slabs immediately
-Message-ID: <20140610080935.GG19036@js1304-P5Q-DELUXE>
-References: <cover.1402060096.git.vdavydov@parallels.com>
- <3b53266b76556dd042bbf6147207c70473572a7e.1402060096.git.vdavydov@parallels.com>
+Received: from mail-we0-f177.google.com (mail-we0-f177.google.com [74.125.82.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F5376B00EA
+	for <linux-mm@kvack.org>; Tue, 10 Jun 2014 04:10:59 -0400 (EDT)
+Received: by mail-we0-f177.google.com with SMTP id u56so4731699wes.8
+        for <linux-mm@kvack.org>; Tue, 10 Jun 2014 01:10:59 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id xs6si35406147wjb.80.2014.06.10.01.10.58
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 10 Jun 2014 01:10:58 -0700 (PDT)
+Message-ID: <5396BD90.4060104@suse.cz>
+Date: Tue, 10 Jun 2014 10:10:56 +0200
+From: Vlastimil Babka <vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <3b53266b76556dd042bbf6147207c70473572a7e.1402060096.git.vdavydov@parallels.com>
+Subject: Re: [PATCH, RFC 00/10] THP refcounting redesign
+References: <1402329861-7037-1-git-send-email-kirill.shutemov@linux.intel.com>
+In-Reply-To: <1402329861-7037-1-git-send-email-kirill.shutemov@linux.intel.com>
+Content-Type: text/plain; charset=UTF-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: akpm@linux-foundation.org, cl@linux.com, rientjes@google.com, penberg@kernel.org, hannes@cmpxchg.org, mhocko@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>
+Cc: Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, Jun 06, 2014 at 05:22:44PM +0400, Vladimir Davydov wrote:
-> Since a dead memcg cache is destroyed only after the last slab allocated
-> to it is freed, we must disable caching of empty slabs for such caches,
-> otherwise they will be hanging around forever.
-> 
-> This patch makes SLUB discard dead memcg caches' slabs as soon as they
-> become empty. To achieve that, it disables per cpu partial lists for
-> dead caches (see put_cpu_partial) and forbids keeping empty slabs on per
-> node partial lists by setting cache's min_partial to 0 on
-> kmem_cache_shrink, which is always called on memcg offline (see
-> memcg_unregister_all_caches).
-> 
-> Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
-> Thanks-to: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> ---
->  mm/slub.c |   20 ++++++++++++++++++++
->  1 file changed, 20 insertions(+)
-> 
-> diff --git a/mm/slub.c b/mm/slub.c
-> index e46d6abe8a68..1dad7e2c586a 100644
-> --- a/mm/slub.c
-> +++ b/mm/slub.c
-> @@ -2015,6 +2015,8 @@ static void unfreeze_partials(struct kmem_cache *s,
->  #endif
->  }
->  
-> +static void flush_all(struct kmem_cache *s);
-> +
->  /*
->   * Put a page that was just frozen (in __slab_free) into a partial page
->   * slot if available. This is done without interrupts disabled and without
-> @@ -2064,6 +2066,21 @@ static void put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
->  
->  	} while (this_cpu_cmpxchg(s->cpu_slab->partial, oldpage, page)
->  								!= oldpage);
-> +
-> +	if (memcg_cache_dead(s)) {
-> +               bool done = false;
-> +               unsigned long flags;
-> +
-> +               local_irq_save(flags);
-> +               if (this_cpu_read(s->cpu_slab->partial) == page) {
-> +                       unfreeze_partials(s, this_cpu_ptr(s->cpu_slab));
-> +                       done = true;
-> +               }
-> +               local_irq_restore(flags);
-> +
-> +               if (!done)
-> +                       flush_all(s);
-> +	}
+On 06/09/2014 06:04 PM, Kirill A. Shutemov wrote:
+> Hello everybody,
+>
+> We've discussed few times that is would be nice to allow huge pages to be
+> mapped with 4k pages too. Here's my first attempt to actually implement
+> this. It's early prototype and not stabilized yet, but I want to share it
+> to discuss any potential show stoppers early.
+>
+> The main reason why we can't map THP with 4k is how refcounting on THP
+> designed. It built around two requirements:
+>
+>    - split of huge page should never fail;
+>    - we can't change interface of get_user_page();
+>
+> To be able to split huge page at any point we have to track which tail
+> page was pinned. It leads to tricky and expensive get_page() on tail pages
+> and also occupy tail_page->_mapcount.
+>
+> Most split_huge_page*() users want PMD to be split into table of PTEs and
+> don't care whether compound page is going to be split or not.
+>
+> The plan is:
+>
+>   - allow split_huge_page() to fail if the page is pinned. It's trivial to
+>     split non-pinned page and it doesn't require tail page refcounting, so
+>     tail_page->_mapcount is free to be reused.
+>
+>   - introduce new routine -- split_huge_pmd() -- to split PMD into table of
+>     PTEs. It splits only one PMD, not touching other PMDs the page is
+>     mapped with or underlying compound page. Unlike new split_huge_page(),
+>     split_huge_pmd() never fails.
+>
+> Fortunately, we have only few places where split_huge_page() is needed:
+> swap out, memory failure, migration, KSM. And all of them can handle
+> split_huge_page() fail.
+>
+> In new scheme we use tail_page->_mapcount is used to account how many time
+> the tail page is mapped. head_page->_mapcount is used for both PMD mapping
+> of whole huge page and PTE mapping of the firt 4k page of the compound
+> page. It seems work fine, except the fact that we don't have a cheap way
+> to check whether the page mapped with PMDs or not.
+>
+> Introducing split_huge_pmd() effectively allows THP to be mapped with 4k.
+> It can break some kernel expectations. I.e. VMA now can start and end in
+> middle of compound page. IIUC, it will break compactation and probably
+> something else (any hints?).
 
-Now, slab_free() is non-preemptable so flush_all() isn't needed.
+I don't think compaction cares at all about VMA's. Unless the underlying 
+page migration does. What will break is munlock due to 
+VM_BUG_ON(PageTail(page)) in the PageTransHuge() check.
 
-Thanks.
+> Also munmap() on part of huge page will not split and free unmapped part
+> immediately. We need to be careful here to keep memory footprint under
+> control.
+
+So who will take care of it, if it's not done immediately?
+
+> As side effect we don't need to mark PMD splitting since we have
+> split_huge_pmd(). get_page()/put_page() on tail of THP is cheaper (and
+> cleaner) now.
+
+But per patch 2, PageAnon() is more expensive. Also there are no side 
+effects to this change?
+
+> I will continue with stabilizing this. The patchset also available on
+> git[1].
+>
+> Any commemnt?
+>
+> [1] git://git.kernel.org/pub/scm/linux/kernel/git/kas/linux.git thp/refcounting/v1
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
