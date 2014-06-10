@@ -1,75 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f171.google.com (mail-ie0-f171.google.com [209.85.223.171])
-	by kanga.kvack.org (Postfix) with ESMTP id AAFC56B0109
-	for <linux-mm@kvack.org>; Tue, 10 Jun 2014 18:10:04 -0400 (EDT)
-Received: by mail-ie0-f171.google.com with SMTP id x19so2600906ier.2
-        for <linux-mm@kvack.org>; Tue, 10 Jun 2014 15:10:04 -0700 (PDT)
-Received: from mail-ie0-x234.google.com (mail-ie0-x234.google.com [2607:f8b0:4001:c03::234])
-        by mx.google.com with ESMTPS id q6si39669784ich.107.2014.06.10.15.10.03
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 10 Jun 2014 15:10:04 -0700 (PDT)
-Received: by mail-ie0-f180.google.com with SMTP id at20so7359830iec.25
-        for <linux-mm@kvack.org>; Tue, 10 Jun 2014 15:10:03 -0700 (PDT)
-Date: Tue, 10 Jun 2014 15:10:01 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] x86: numa: drop ZONE_ALIGN
-In-Reply-To: <20140609231920.08a1b0f9@redhat.com>
-Message-ID: <alpine.DEB.2.02.1406101506290.32203@chino.kir.corp.google.com>
-References: <20140608181436.17de69ac@redhat.com> <alpine.DEB.2.02.1406081524580.21744@chino.kir.corp.google.com> <20140609144355.63a91968@redhat.com> <alpine.DEB.2.02.1406091453570.5271@chino.kir.corp.google.com> <20140609231920.08a1b0f9@redhat.com>
+Received: from mail-we0-f181.google.com (mail-we0-f181.google.com [74.125.82.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 625BA6B010B
+	for <linux-mm@kvack.org>; Tue, 10 Jun 2014 18:14:40 -0400 (EDT)
+Received: by mail-we0-f181.google.com with SMTP id q59so2949396wes.12
+        for <linux-mm@kvack.org>; Tue, 10 Jun 2014 15:14:39 -0700 (PDT)
+Received: from kirsi1.inet.fi (mta-out1.inet.fi. [62.71.2.199])
+        by mx.google.com with ESMTP id da1si18913342wib.71.2014.06.10.15.14.38
+        for <linux-mm@kvack.org>;
+        Tue, 10 Jun 2014 15:14:39 -0700 (PDT)
+Date: Wed, 11 Jun 2014 01:14:31 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH, RFC 00/10] THP refcounting redesign
+Message-ID: <20140610221431.GA10634@node.dhcp.inet.fi>
+References: <1402329861-7037-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <alpine.DEB.2.10.1406101518510.19364@gentwo.org>
+ <20140610204640.GA9594@node.dhcp.inet.fi>
+ <20140610220451.GG19660@redhat.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140610220451.GG19660@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Luiz Capitulino <lcapitulino@redhat.com>
-Cc: akpm@linux-foundation.org, andi@firstfloor.org, riel@redhat.com, yinghai@kernel.org, isimatu.yasuaki@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Christoph Lameter <cl@gentwo.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, 9 Jun 2014, Luiz Capitulino wrote:
-
-> > > > > diff --git a/arch/x86/include/asm/numa.h b/arch/x86/include/asm/numa.h
-> > > > > index 4064aca..01b493e 100644
-> > > > > --- a/arch/x86/include/asm/numa.h
-> > > > > +++ b/arch/x86/include/asm/numa.h
-> > > > > @@ -9,7 +9,6 @@
-> > > > >  #ifdef CONFIG_NUMA
-> > > > >  
-> > > > >  #define NR_NODE_MEMBLKS		(MAX_NUMNODES*2)
-> > > > > -#define ZONE_ALIGN (1UL << (MAX_ORDER+PAGE_SHIFT))
-> > > > >  
-> > > > >  /*
-> > > > >   * Too small node sizes may confuse the VM badly. Usually they
-> > > > > diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
-> > > > > index 1d045f9..69f6362 100644
-> > > > > --- a/arch/x86/mm/numa.c
-> > > > > +++ b/arch/x86/mm/numa.c
-> > > > > @@ -200,8 +200,6 @@ static void __init setup_node_data(int nid, u64 start, u64 end)
-> > > > >  	if (end && (end - start) < NODE_MIN_SIZE)
-> > > > >  		return;
-> > > > >  
-> > > > > -	start = roundup(start, ZONE_ALIGN);
-> > > > > -
-> > > > >  	printk(KERN_INFO "Initmem setup node %d [mem %#010Lx-%#010Lx]\n",
-> > > > >  	       nid, start, end - 1);
-> > > > >  
-> > > > 
-> > > > What ensures this start address is page aligned from the BIOS?
-> > > 
-> > > To which start address do you refer to?
-> > 
-> > The start address displayed in the dmesg is not page aligned anymore with 
-> > your change, correct?  
+On Wed, Jun 11, 2014 at 12:04:51AM +0200, Andrea Arcangeli wrote:
+> On Tue, Jun 10, 2014 at 11:46:40PM +0300, Kirill A. Shutemov wrote:
+> > Agreed. The patchset drops tail page refcounting.
 > 
-> I have to check that but I don't expect this to happen because my
-> understanding of the code is that what's rounded up here is just discarded
-> in free_area_init_node(). Am I wrong?
-> 
+> Very possibly I misread something or a later patch fixes this up, I
+> just did a basic code review, but from the new code of split_huge_page
+> it looks like it returns -EBUSY after checking the individual tail
+> page refcounts, so it's not clear how that defines as "dropped".
 
-NODE_DATA(nid)->node_start_pfn needs to be accurate if 
-node_set_online(nid).  Since there is no guarantee about page alignment 
-from the ACPI spec, removing the roundup() entirely could cause the 
-address shift >> PAGE_SIZE to be off by one.  I, like you, do not see the 
-need for the ZONE_ALIGN above, but I think we agree that it should be 
-replaced with PAGE_SIZE instead.
+page_mapcount() here is really mapcount: how many times the page is
+mapped, not pins on tail pages as we have it now.
+
+> 
+> +       for (i = 0; i < HPAGE_PMD_NR; i++)
+> +               tail_count += page_mapcount(page + i);
+> +       if (tail_count != page_count(page) - 1) {
+> +               BUG_ON(tail_count > page_count(page) - 1);
+> +               compound_unlock(page);
+> +               spin_unlock_irq(&zone->lru_lock);
+> +               return -EBUSY;
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> Please read the FAQ at  http://www.tux.org/lkml/
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
