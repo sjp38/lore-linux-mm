@@ -1,58 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f181.google.com (mail-we0-f181.google.com [74.125.82.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 625BA6B010B
-	for <linux-mm@kvack.org>; Tue, 10 Jun 2014 18:14:40 -0400 (EDT)
-Received: by mail-we0-f181.google.com with SMTP id q59so2949396wes.12
-        for <linux-mm@kvack.org>; Tue, 10 Jun 2014 15:14:39 -0700 (PDT)
-Received: from kirsi1.inet.fi (mta-out1.inet.fi. [62.71.2.199])
-        by mx.google.com with ESMTP id da1si18913342wib.71.2014.06.10.15.14.38
-        for <linux-mm@kvack.org>;
-        Tue, 10 Jun 2014 15:14:39 -0700 (PDT)
-Date: Wed, 11 Jun 2014 01:14:31 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH, RFC 00/10] THP refcounting redesign
-Message-ID: <20140610221431.GA10634@node.dhcp.inet.fi>
-References: <1402329861-7037-1-git-send-email-kirill.shutemov@linux.intel.com>
- <alpine.DEB.2.10.1406101518510.19364@gentwo.org>
- <20140610204640.GA9594@node.dhcp.inet.fi>
- <20140610220451.GG19660@redhat.com>
+Received: from mail-ig0-f170.google.com (mail-ig0-f170.google.com [209.85.213.170])
+	by kanga.kvack.org (Postfix) with ESMTP id B488E6B010F
+	for <linux-mm@kvack.org>; Tue, 10 Jun 2014 18:16:13 -0400 (EDT)
+Received: by mail-ig0-f170.google.com with SMTP id h3so5593437igd.1
+        for <linux-mm@kvack.org>; Tue, 10 Jun 2014 15:16:13 -0700 (PDT)
+Received: from mail-ie0-x22e.google.com (mail-ie0-x22e.google.com [2607:f8b0:4001:c03::22e])
+        by mx.google.com with ESMTPS id d7si45303715igc.38.2014.06.10.15.16.12
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 10 Jun 2014 15:16:12 -0700 (PDT)
+Received: by mail-ie0-f174.google.com with SMTP id lx4so4605342iec.33
+        for <linux-mm@kvack.org>; Tue, 10 Jun 2014 15:16:12 -0700 (PDT)
+Date: Tue, 10 Jun 2014 15:16:10 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH] mm/mempolicy: fix sleeping function called from invalid
+ context
+In-Reply-To: <53967465.7070908@huawei.com>
+Message-ID: <alpine.DEB.2.02.1406101512340.32203@chino.kir.corp.google.com>
+References: <53902A44.50005@cn.fujitsu.com> <20140605132339.ddf6df4a0cf5c14d17eb8691@linux-foundation.org> <539192F1.7050308@cn.fujitsu.com> <alpine.DEB.2.02.1406081539140.21744@chino.kir.corp.google.com> <539574F1.2060701@cn.fujitsu.com>
+ <alpine.DEB.2.02.1406090209460.24247@chino.kir.corp.google.com> <53967465.7070908@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140610220451.GG19660@redhat.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Christoph Lameter <cl@gentwo.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Li Zefan <lizefan@huawei.com>
+Cc: Gu Zheng <guz.fnst@cn.fujitsu.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org, Cgroups <cgroups@vger.kernel.org>, stable@vger.kernel.org
 
-On Wed, Jun 11, 2014 at 12:04:51AM +0200, Andrea Arcangeli wrote:
-> On Tue, Jun 10, 2014 at 11:46:40PM +0300, Kirill A. Shutemov wrote:
-> > Agreed. The patchset drops tail page refcounting.
+On Tue, 10 Jun 2014, Li Zefan wrote:
+
+> > Yes, the rcu lock is not providing protection for any critical section 
+> > here that requires (1) the forker's cpuset to be stored in 
+> > cpuset_being_rebound or (2) the forked thread's cpuset to be rebound by 
+> > the cpuset nodemask update, and no race involving the two.
+> >
 > 
-> Very possibly I misread something or a later patch fixes this up, I
-> just did a basic code review, but from the new code of split_huge_page
-> it looks like it returns -EBUSY after checking the individual tail
-> page refcounts, so it's not clear how that defines as "dropped".
-
-page_mapcount() here is really mapcount: how many times the page is
-mapped, not pins on tail pages as we have it now.
-
+> Yes, this is a long-standing issue. Besides the race you described, the child
+> task's mems_allowed can be wrong if the cpuset's nodemask changes before the
+> child has been added to the cgroup's tasklist.
 > 
-> +       for (i = 0; i < HPAGE_PMD_NR; i++)
-> +               tail_count += page_mapcount(page + i);
-> +       if (tail_count != page_count(page) - 1) {
-> +               BUG_ON(tail_count > page_count(page) - 1);
-> +               compound_unlock(page);
-> +               spin_unlock_irq(&zone->lru_lock);
-> +               return -EBUSY;
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> Please read the FAQ at  http://www.tux.org/lkml/
+> I remember Tejun once said he wanted to disallow task migration between
+> cgroups during fork, and that should fix this problem.
+>  
 
--- 
- Kirill A. Shutemov
+Ok, I don't want to fix it in cpusets if cgroups will eventually prevent 
+it, so I need an understanding of the long term plan.  Will cgroups 
+continue to allow migration during fork(), Tejun?
+
+> > It needs to be slightly rewritten to work properly without negatively 
+> > impacting the latency of fork().  Do you have the cycles to do it?
+> > 
+> 
+> Sounds you have other idea?
+> 
+
+It wouldn't be too difficult with a cgroup post fork callback into the 
+cpuset code to rebind the nodemask if it has changed, but with my above 
+concern those might be yanked out eventually :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
