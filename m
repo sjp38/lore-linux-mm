@@ -1,50 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f175.google.com (mail-lb0-f175.google.com [209.85.217.175])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D0D86B00F0
-	for <linux-mm@kvack.org>; Tue, 10 Jun 2014 06:03:34 -0400 (EDT)
-Received: by mail-lb0-f175.google.com with SMTP id l4so3745485lbv.20
-        for <linux-mm@kvack.org>; Tue, 10 Jun 2014 03:03:33 -0700 (PDT)
+Received: from mail-lb0-f181.google.com (mail-lb0-f181.google.com [209.85.217.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 5BB446B00F2
+	for <linux-mm@kvack.org>; Tue, 10 Jun 2014 06:06:49 -0400 (EDT)
+Received: by mail-lb0-f181.google.com with SMTP id q8so3744195lbi.40
+        for <linux-mm@kvack.org>; Tue, 10 Jun 2014 03:06:48 -0700 (PDT)
 Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id ti10si41623708lbb.52.2014.06.10.03.03.32
+        by mx.google.com with ESMTPS id wy8si41674224lbb.21.2014.06.10.03.06.46
         for <linux-mm@kvack.org>
         (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 10 Jun 2014 03:03:32 -0700 (PDT)
-Date: Tue, 10 Jun 2014 14:03:15 +0400
+        Tue, 10 Jun 2014 03:06:47 -0700 (PDT)
+Date: Tue, 10 Jun 2014 14:06:31 +0400
 From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: Re: [PATCH -mm v2 8/8] slab: make dead memcg caches discard free
- slabs immediately
-Message-ID: <20140610100313.GA6293@esperanza>
+Subject: Re: [PATCH -mm v2 3/8] memcg: mark caches that belong to offline
+ memcgs as dead
+Message-ID: <20140610100629.GB6293@esperanza>
 References: <cover.1402060096.git.vdavydov@parallels.com>
- <27a202c6084d6bb19cc3e417793f05104b908ded.1402060096.git.vdavydov@parallels.com>
- <20140610074317.GE19036@js1304-P5Q-DELUXE>
+ <9e6537847c22a5050f84bd2bf5633f7c022fb801.1402060096.git.vdavydov@parallels.com>
+ <20140610074840.GF19036@js1304-P5Q-DELUXE>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <20140610074317.GE19036@js1304-P5Q-DELUXE>
+In-Reply-To: <20140610074840.GF19036@js1304-P5Q-DELUXE>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 Cc: akpm@linux-foundation.org, cl@linux.com, rientjes@google.com, penberg@kernel.org, hannes@cmpxchg.org, mhocko@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hi,
+On Tue, Jun 10, 2014 at 04:48:40PM +0900, Joonsoo Kim wrote:
+> On Fri, Jun 06, 2014 at 05:22:40PM +0400, Vladimir Davydov wrote:
+> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> > index 886b5b414958..ed42fd1105a5 100644
+> > --- a/mm/memcontrol.c
+> > +++ b/mm/memcontrol.c
+> > @@ -3294,6 +3294,7 @@ static void memcg_unregister_all_caches(struct mem_cgroup *memcg)
+> >  	mutex_lock(&memcg_slab_mutex);
+> >  	list_for_each_entry_safe(params, tmp, &memcg->memcg_slab_caches, list) {
+> >  		cachep = memcg_params_to_cache(params);
+> > +		cachep->memcg_params->dead = true;
+> 
+> I guess that this needs smp_wmb() and memcg_cache_dead() needs
+> smp_rmb(), since we could call memcg_cache_dead() without holding any locks.
 
-On Tue, Jun 10, 2014 at 04:43:17PM +0900, Joonsoo Kim wrote:
-> You mentioned that disabling per cpu arrays would degrade performance.
-> But, this patch is implemented to disable per cpu arrays. Is there any
-> reason to do like this? How about not disabling per cpu arrays and
-> others? Leaving it as is makes the patch less intrusive and has low
-> impact on performance. I guess that amount of reclaimed memory has no
-> big difference between both approaches.
-
-Frankly, I incline to shrinking dead SLAB caches periodically from
-cache_reap too, because it looks neater and less intrusive to me. Also
-it has zero performance impact, which is nice.
-
-However, Christoph proposed to disable per cpu arrays for dead caches,
-similarly to SLUB, and I decided to give it a try, just to see the end
-code we'd have with it.
-
-I'm still not quite sure which way we should choose though...
+Good catch! Actually, I thought we always call on_each_cpu, which works
+effectively as a full memory barrier, from kmem_cache_shrink, but that's
+not always true for SLUB, so we do need the barriers here. Will fix in
+the next iteration.
 
 Thanks.
 
