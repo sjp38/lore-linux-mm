@@ -1,108 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f181.google.com (mail-wi0-f181.google.com [209.85.212.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 800C56B00F1
-	for <linux-mm@kvack.org>; Tue, 10 Jun 2014 10:29:19 -0400 (EDT)
-Received: by mail-wi0-f181.google.com with SMTP id n3so3537066wiv.2
-        for <linux-mm@kvack.org>; Tue, 10 Jun 2014 07:29:16 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id i8si17092301wiv.41.2014.06.10.07.29.14
-        for <linux-mm@kvack.org>;
-        Tue, 10 Jun 2014 07:29:15 -0700 (PDT)
-Date: Tue, 10 Jun 2014 16:29:09 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH, RFC 00/10] THP refcounting redesign
-Message-ID: <20140610142909.GC19660@redhat.com>
-References: <1402329861-7037-1-git-send-email-kirill.shutemov@linux.intel.com>
- <5396BD90.4060104@suse.cz>
- <20140610135246.GA3728@node.dhcp.inet.fi>
+Received: from mail-qg0-f46.google.com (mail-qg0-f46.google.com [209.85.192.46])
+	by kanga.kvack.org (Postfix) with ESMTP id 6DF366B00F5
+	for <linux-mm@kvack.org>; Tue, 10 Jun 2014 10:42:22 -0400 (EDT)
+Received: by mail-qg0-f46.google.com with SMTP id q108so10377723qgd.33
+        for <linux-mm@kvack.org>; Tue, 10 Jun 2014 07:42:22 -0700 (PDT)
+Received: from mail.siteground.com (mail.siteground.com. [67.19.240.234])
+        by mx.google.com with ESMTPS id y9si27845435qat.45.2014.06.10.07.42.21
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 10 Jun 2014 07:42:21 -0700 (PDT)
+Message-ID: <5397194B.9010606@1h.com>
+Date: Tue, 10 Jun 2014 17:42:19 +0300
+From: Marian Marinov <mm@1h.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140610135246.GA3728@node.dhcp.inet.fi>
+Subject: Re: [RFC] oom, memcg: handle sysctl oom_kill_allocating_task while
+ memcg oom happening
+References: <5396ED66.7090401@1h.com> <20140610115254.GA25631@dhcp22.suse.cz>
+In-Reply-To: <20140610115254.GA25631@dhcp22.suse.cz>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Vlastimil Babka <vbabka@suse.cz>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@suse.cz>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org
 
-Hello,
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA1
 
-On Tue, Jun 10, 2014 at 04:52:46PM +0300, Kirill A. Shutemov wrote:
-> I mean the whole compound page will not be freed until the last part page
-> is unmapped. It can lead to excessive memory overhead for some workloads.
+On 06/10/2014 02:52 PM, Michal Hocko wrote:
+> [More people to CC] On Tue 10-06-14 14:35:02, Marian Marinov wrote:
+>> -----BEGIN PGP SIGNED MESSAGE----- Hash: SHA1
+>> 
+>> Hello,
+> 
+> Hi,
+> 
+>> a while back in 2012 there was a request for this functionality. oom, memcg: handle sysctl
+>> oom_kill_allocating_task while memcg oom happening
+>> 
+>> This is the thread: https://lkml.org/lkml/2012/10/16/168
+>> 
+>> Now we run a several machines with around 10k processes on each machine, using containers.
+>> 
+>> Regularly we see OOM from within a container that causes performance degradation.
+> 
+> What kind of performance degradation and which parts of the system are affected?
 
-That is why a refcounting design like this wouldn't have been feasible
-so far, as it's not entirely "transparent" anymore and we couldn't
-risk breaking apps... I mean the worst case this could lead to the
-anonymous real RSS of the app to be 512 times bigger than virtual size
-allocated by the app in vmas. Sounds very unlikely but still not safe
-to deploy such a thing on random apps, without quite some testing of a
-variety of apps.
+The responsiveness to SSH terminals and DB queries on the host machine is significantly slowed.
+I'm still unsure what exactly to measure.
 
-If I understand correctly, the memory footprint problem doesn't exist
-with swapping because swapping calls split_huge_page_to_list() and
-that works as long as there are no gup() pins? (-EBUSY is returned if
-there's a pin on any head or tail page)
+> 
+> memcg oom killer happens outside of any locks currently so the only bottleneck I can see is the per-cgroup
+> container which iterates all tasks in the group. Is this what is going on here?
 
-So if there are transient gup() pins swapping will try again to
-split_huge_page later (non transient gup pins should use mmu notifiers
-and not hold any pin in the first place).
+When the container has 1000s of processes it seams that there is a problem. But I'm not sure, and will be happy to put
+some diagnostic lines of code there.
 
-Even for swapping it increases the "pinned" region by a worst case of
-512 times, but if there's lots of direct-io in flight the virtual
-addresses pinned are usually contiguous and if there's a THP the
-physical side is also contiguous for 512 4k pages so it probably
-doesn't reduce the ability to swap in any significant way even if
-there's direct-io in flight.
+> 
+>> We are running 3.12.20 with the following OOM configuration and memcg oom enabled:
+>> 
+>> vm.oom_dump_tasks = 0 vm.oom_kill_allocating_task = 1 vm.panic_on_oom = 0
+>> 
+>> When OOM occurs we see very high numbers for the loadavg and the overall responsiveness of the machine degrades.
+> 
+> What is the system waiting for?
 
-> We can try to be smarter and call split_huge_page() instead of
-> split_huge_pmd() if see that the huge page is not mapped as 2M or
-> something. But we don't have a cheap way to check this...
+I don't know, since I was not the one to actually handle the case. However, my guys are instructed to collect iostat
+and vmstat information from the machines, the next time this happens.
 
-I wonder, why don't you still do the split_huge_page immediately
-inside split_huge_pmd, it would fail with -EBUSY if it's pinned.
+> 
+>> During these OOM states the load of the machine gradualy increases from 25 up to 120 in the interval of
+>> 10minutes.
+>> 
+>> Once we manually bring down the memory usage of a container(killing some tasks) the load drops down to 25 within
+>> 5 to 7 minutes.
+> 
+> So the OOM killer is not able to find a victim to kill?
 
-If split_huge_page fails because of transient gup pins, then you can
-defer the split_huge_page to khugepaged if it notices we're wasting
-memory during its scan, clearly it shall be speculative without
-freezing the refcounts with compound_lock, and only call the
-split_huge_page if it then notices it can free memory.
+It was constantly killing tasks. 245 oom invocations in less then 6min for that particular cgroup. With top 61 oom
+invocations in one minute.
 
-> be more common, since they can be mapped individually now. Acctually, I'm
-> not sure if these operation is cheap enough: we still use compound_lock
-> there to serialize against splitting.
+It was killing... In that particular case, the problem was a web server that was under attack. New php processes was
+spawned very often and instead of killing each newly created process(which is allocating memory) the kernel tries to
+find more suitable task. Which in this case was not desired.
 
-This is the main cons in my view, simplifying the get_page/put_page
-refcounting would be nice, but you're still taking the tail pins on
-the tail pages and so in my view it doesn't move the needle in terms
-of get_page/put_page, it's a bit faster but it still has all tail page
-pins accounting and it's not just a head page accounting like it was
-before THP was introduced and it needed to deal with gup on tail pages
-under splitting.
+> 
+>> I read the whole thread from 2012 but I do not see the expected behavior that is described by the people that
+>> commented the issue.
+> 
+> Why do you think that killing the allocating task would be helpful in your case?
 
-This patch allows split_huge_page to fail fail (currently it cannot
-fail), split_huge_pmd still cannot fail, so it'd be nice if we could
-remove all tail pins too if split_huge_page could fail.
+As mentioned above, the usual case with the hosting companies is that, the allocating task should not be allowed to
+run. So killing it is the proper solution there.
 
-Can't you just account all tail pins in the head like it was before
-with only hugetlbfs and return -EBUSY if the head_page->count doesn't
-match mapcount or something like that? What exactly the tail pins do
-in this model other than to allow you to return -EBUSY?
+Essentially we solved the issue by setting a process limit to that particular cgroup using the task-limit patches of
+Dwight Engen.
 
-The major reason we have to do the special tail pin refcounting with
-gup is that split_huge_page cannot fail now, so at any given time we
-must know which tail page was pinned, if we can fail split_huge_page
-there's no point to know anymore which exact tail page holds the gup
-pin, and we should only be able to say "yes we can" or "no we cannot
-split_huge_page" and just for that the tailpage refcounting doesn't
-look so critical to keep.
+> 
+>> In this case, with real usage for this patch, would it be considered for inclusion?
+> 
+> I would still prefer to fix the real issue which is not clear from your description yet.
 
-There would still be the risk of wasting memory with gup pins vs
-munmap (I don't see a way to fix it if split_huge_page can fail with
--EBUSY) but khugepaged can fixup that later and deal with the transient
-gup pins.
+I would love to have a better way to solve the issue.
 
-Thanks,
-Andrea
+Marian
+
+
+
+- -- 
+Marian Marinov
+Founder & CEO of 1H Ltd.
+Jabber/GTalk: hackman@jabber.org
+ICQ: 7556201
+Mobile: +359 886 660 270
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2.0.22 (GNU/Linux)
+
+iEYEARECAAYFAlOXGUsACgkQ4mt9JeIbjJR1YACgysnzxg9IPzcwQRmBZVVV6cp3
+N4YAoKygaqbqcuz6dkmtMfI/pu2Br5H/
+=3pZj
+-----END PGP SIGNATURE-----
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
