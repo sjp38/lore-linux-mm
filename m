@@ -1,72 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f47.google.com (mail-pa0-f47.google.com [209.85.220.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E74B6B00E6
-	for <linux-mm@kvack.org>; Tue, 10 Jun 2014 03:44:51 -0400 (EDT)
-Received: by mail-pa0-f47.google.com with SMTP id fa1so415505pad.6
-        for <linux-mm@kvack.org>; Tue, 10 Jun 2014 00:44:51 -0700 (PDT)
-Received: from lgeamrelo02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
-        by mx.google.com with ESMTP id zs3si33501792pbc.31.2014.06.10.00.44.49
+Received: from mail-pb0-f42.google.com (mail-pb0-f42.google.com [209.85.160.42])
+	by kanga.kvack.org (Postfix) with ESMTP id AF1E46B00E8
+	for <linux-mm@kvack.org>; Tue, 10 Jun 2014 04:05:47 -0400 (EDT)
+Received: by mail-pb0-f42.google.com with SMTP id md12so6014914pbc.1
+        for <linux-mm@kvack.org>; Tue, 10 Jun 2014 01:05:47 -0700 (PDT)
+Received: from lgeamrelo01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
+        by mx.google.com with ESMTP id cl5si2013100pad.108.2014.06.10.01.05.44
         for <linux-mm@kvack.org>;
-        Tue, 10 Jun 2014 00:44:50 -0700 (PDT)
-Date: Tue, 10 Jun 2014 16:48:40 +0900
+        Tue, 10 Jun 2014 01:05:46 -0700 (PDT)
+Date: Tue, 10 Jun 2014 17:09:35 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH -mm v2 3/8] memcg: mark caches that belong to offline
- memcgs as dead
-Message-ID: <20140610074840.GF19036@js1304-P5Q-DELUXE>
+Subject: Re: [PATCH -mm v2 7/8] slub: make dead memcg caches discard free
+ slabs immediately
+Message-ID: <20140610080935.GG19036@js1304-P5Q-DELUXE>
 References: <cover.1402060096.git.vdavydov@parallels.com>
- <9e6537847c22a5050f84bd2bf5633f7c022fb801.1402060096.git.vdavydov@parallels.com>
+ <3b53266b76556dd042bbf6147207c70473572a7e.1402060096.git.vdavydov@parallels.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <9e6537847c22a5050f84bd2bf5633f7c022fb801.1402060096.git.vdavydov@parallels.com>
+In-Reply-To: <3b53266b76556dd042bbf6147207c70473572a7e.1402060096.git.vdavydov@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Vladimir Davydov <vdavydov@parallels.com>
 Cc: akpm@linux-foundation.org, cl@linux.com, rientjes@google.com, penberg@kernel.org, hannes@cmpxchg.org, mhocko@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, Jun 06, 2014 at 05:22:40PM +0400, Vladimir Davydov wrote:
-> This will be used by the next patches.
+On Fri, Jun 06, 2014 at 05:22:44PM +0400, Vladimir Davydov wrote:
+> Since a dead memcg cache is destroyed only after the last slab allocated
+> to it is freed, we must disable caching of empty slabs for such caches,
+> otherwise they will be hanging around forever.
+> 
+> This patch makes SLUB discard dead memcg caches' slabs as soon as they
+> become empty. To achieve that, it disables per cpu partial lists for
+> dead caches (see put_cpu_partial) and forbids keeping empty slabs on per
+> node partial lists by setting cache's min_partial to 0 on
+> kmem_cache_shrink, which is always called on memcg offline (see
+> memcg_unregister_all_caches).
 > 
 > Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
-> Acked-by: Christoph Lameter <cl@linux.com>
+> Thanks-to: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 > ---
->  include/linux/slab.h |    2 ++
->  mm/memcontrol.c      |    1 +
->  mm/slab.h            |   10 ++++++++++
->  3 files changed, 13 insertions(+)
+>  mm/slub.c |   20 ++++++++++++++++++++
+>  1 file changed, 20 insertions(+)
 > 
-> diff --git a/include/linux/slab.h b/include/linux/slab.h
-> index d9716fdc8211..d99d5212b815 100644
-> --- a/include/linux/slab.h
-> +++ b/include/linux/slab.h
-> @@ -527,6 +527,7 @@ static __always_inline void *kmalloc_node(size_t size, gfp_t flags, int node)
->   * @list: list_head for the list of all caches in this memcg
->   * @root_cache: pointer to the global, root cache, this cache was derived from
->   * @refcnt: reference counter
-> + * @dead: set to true when owner memcg is turned offline
->   * @unregister_work: worker to destroy the cache
->   */
->  struct memcg_cache_params {
-> @@ -541,6 +542,7 @@ struct memcg_cache_params {
->  			struct list_head list;
->  			struct kmem_cache *root_cache;
->  			atomic_long_t refcnt;
-> +			bool dead;
->  			struct work_struct unregister_work;
->  		};
->  	};
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 886b5b414958..ed42fd1105a5 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -3294,6 +3294,7 @@ static void memcg_unregister_all_caches(struct mem_cgroup *memcg)
->  	mutex_lock(&memcg_slab_mutex);
->  	list_for_each_entry_safe(params, tmp, &memcg->memcg_slab_caches, list) {
->  		cachep = memcg_params_to_cache(params);
-> +		cachep->memcg_params->dead = true;
+> diff --git a/mm/slub.c b/mm/slub.c
+> index e46d6abe8a68..1dad7e2c586a 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -2015,6 +2015,8 @@ static void unfreeze_partials(struct kmem_cache *s,
+>  #endif
+>  }
+>  
+> +static void flush_all(struct kmem_cache *s);
+> +
+>  /*
+>   * Put a page that was just frozen (in __slab_free) into a partial page
+>   * slot if available. This is done without interrupts disabled and without
+> @@ -2064,6 +2066,21 @@ static void put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
+>  
+>  	} while (this_cpu_cmpxchg(s->cpu_slab->partial, oldpage, page)
+>  								!= oldpage);
+> +
+> +	if (memcg_cache_dead(s)) {
+> +               bool done = false;
+> +               unsigned long flags;
+> +
+> +               local_irq_save(flags);
+> +               if (this_cpu_read(s->cpu_slab->partial) == page) {
+> +                       unfreeze_partials(s, this_cpu_ptr(s->cpu_slab));
+> +                       done = true;
+> +               }
+> +               local_irq_restore(flags);
+> +
+> +               if (!done)
+> +                       flush_all(s);
+> +	}
 
-I guess that this needs smp_wmb() and memcg_cache_dead() needs
-smp_rmb(), since we could call memcg_cache_dead() without holding any locks.
+Now, slab_free() is non-preemptable so flush_all() isn't needed.
 
 Thanks.
 
