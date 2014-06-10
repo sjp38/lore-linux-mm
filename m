@@ -1,251 +1,279 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f53.google.com (mail-qa0-f53.google.com [209.85.216.53])
-	by kanga.kvack.org (Postfix) with ESMTP id CD65B6B00D6
-	for <linux-mm@kvack.org>; Mon,  9 Jun 2014 22:31:51 -0400 (EDT)
-Received: by mail-qa0-f53.google.com with SMTP id k15so8414573qaq.12
-        for <linux-mm@kvack.org>; Mon, 09 Jun 2014 19:31:51 -0700 (PDT)
-Received: from cdptpa-oedge-vip.email.rr.com (cdptpa-outbound-snat.email.rr.com. [107.14.166.226])
-        by mx.google.com with ESMTP id 107si25118623qgn.94.2014.06.09.19.31.50
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id C9C8F6B00D8
+	for <linux-mm@kvack.org>; Mon,  9 Jun 2014 22:38:11 -0400 (EDT)
+Received: by mail-pd0-f178.google.com with SMTP id v10so5544836pde.37
+        for <linux-mm@kvack.org>; Mon, 09 Jun 2014 19:38:11 -0700 (PDT)
+Received: from lgeamrelo02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
+        by mx.google.com with ESMTP id an4si1160499pad.149.2014.06.09.19.38.09
         for <linux-mm@kvack.org>;
-        Mon, 09 Jun 2014 19:31:51 -0700 (PDT)
-Message-ID: <53966E16.6010104@ubuntu.com>
-Date: Mon, 09 Jun 2014 22:31:50 -0400
-From: Phillip Susi <psusi@ubuntu.com>
+        Mon, 09 Jun 2014 19:38:10 -0700 (PDT)
+Date: Tue, 10 Jun 2014 11:41:57 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [RFC PATCH 1/3] CMA: generalize CMA reserved area management
+ functionality
+Message-ID: <20140610024157.GA19036@js1304-P5Q-DELUXE>
+References: <1401757919-30018-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1401757919-30018-2-git-send-email-iamjoonsoo.kim@lge.com>
+ <xa1tzjhujxbz.fsf@mina86.com>
 MIME-Version: 1.0
-Subject: kernelcore not working correctly
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <xa1tzjhujxbz.fsf@mina86.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Michal Nazarewicz <mina86@mina86.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Minchan Kim <minchan@kernel.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Paolo Bonzini <pbonzini@redhat.com>, Gleb Natapov <gleb@kernel.org>, Alexander Graf <agraf@suse.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, kvm@vger.kernel.org, kvm-ppc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
 
------BEGIN PGP SIGNED MESSAGE-----
-Hash: SHA512
+On Tue, Jun 03, 2014 at 08:56:00AM +0200, Michal Nazarewicz wrote:
+> On Tue, Jun 03 2014, Joonsoo Kim wrote:
+> > Currently, there are two users on CMA functionality, one is the DMA
+> > subsystem and the other is the kvm on powerpc. They have their own code
+> > to manage CMA reserved area even if they looks really similar.
+> > From my guess, it is caused by some needs on bitmap management. Kvm side
+> > wants to maintain bitmap not for 1 page, but for more size. Eventually it
+> > use bitmap where one bit represents 64 pages.
+> >
+> > When I implement CMA related patches, I should change those two places
+> > to apply my change and it seem to be painful to me. I want to change
+> > this situation and reduce future code management overhead through
+> > this patch.
+> >
+> > This change could also help developer who want to use CMA in their
+> > new feature development, since they can use CMA easily without
+> > copying & pasting this reserved area management code.
+> >
+> > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> 
+> Some small comments below, but in general
+> 
+> Acked-by: Michal Nazarewicz <mina86@mina86.com>
 
-I booted with kernelcore=1g and it appears that ZONE_MOVABLE is only using 760mb out of 4g and DMA32 is continuing to use much more than the specified 1g:
+Hello, Michal.
 
-root@faldara:~# cat /proc/zoneinfo
-Node 0, zone      DMA
-~  pages free     3356
-~        min      66
-~        low      82
-~        high     99
-~        scanned  0
-~        spanned  4095
-~        present  3996
-~        managed  3975
-~    nr_free_pages 3356
-~    nr_alloc_batch 17
-~    nr_inactive_anon 0
-~    nr_active_anon 0
-~    nr_inactive_file 1
-~    nr_active_file 1
-~    nr_unevictable 0
-~    nr_mlock     0
-~    nr_anon_pages 0
-~    nr_mapped    0
-~    nr_file_pages 2
-~    nr_dirty     0
-~    nr_writeback 0
-~    nr_slab_reclaimable 5
-~    nr_slab_unreclaimable 13
-~    nr_page_table_pages 8
-~    nr_kernel_stack 2
-~    nr_unstable  0
-~    nr_bounce    0
-~    nr_vmscan_write 0
-~    nr_vmscan_immediate_reclaim 0
-~    nr_writeback_temp 0
-~    nr_isolated_anon 0
-~    nr_isolated_file 0
-~    nr_shmem     0
-~    nr_dirtied   19
-~    nr_written   19
-~    numa_hit     215007
-~    numa_miss    0
-~    numa_foreign 0
-~    numa_interleave 0
-~    numa_local   215007
-~    numa_other   0
-~    nr_anon_transparent_hugepages 0
-~    nr_free_cma  0
-~        protection: (0, 3217, 3217, 3912)
-~  pagesets
-~    cpu: 0
-~              count: 0
-~              high:  0
-~              batch: 1
-~  vm stats threshold: 6
-~    cpu: 1
-~              count: 0
-~              high:  0
-~              batch: 1
-~  vm stats threshold: 6
-~    cpu: 2
-~              count: 0
-~              high:  0
-~              batch: 1
-~  vm stats threshold: 6
-~    cpu: 3
-~              count: 0
-~              high:  0
-~              batch: 1
-~  vm stats threshold: 6
-~  all_unreclaimable: 0
-~  start_pfn:         1
-~  inactive_ratio:    1
-Node 0, zone    DMA32
-~  pages free     110515
-~        min      13842
-~        low      17302
-~        high     20763
-~        scanned  0
-~        spanned  1044480
-~        present  844086
-~        managed  824348
-~    nr_free_pages 110515
-~    nr_alloc_batch 2969
-~    nr_inactive_anon 104044
-~    nr_active_anon 107653
-~    nr_inactive_file 164341
-~    nr_active_file 144652
-~    nr_unevictable 4
-~    nr_mlock     4
-~    nr_anon_pages 200317
-~    nr_mapped    17257
-~    nr_file_pages 326892
-~    nr_dirty     5
-~    nr_writeback 0
-~    nr_slab_reclaimable 11832
-~    nr_slab_unreclaimable 9053
-~    nr_page_table_pages 6865
-~    nr_kernel_stack 449
-~    nr_unstable  0
-~    nr_bounce    0
-~    nr_vmscan_write 127863
-~    nr_vmscan_immediate_reclaim 5648
-~    nr_writeback_temp 0
-~    nr_isolated_anon 0
-~    nr_isolated_file 0
-~    nr_shmem     1409
-~    nr_dirtied   10448485
-~    nr_written   10212199
-~    numa_hit     234775891
-~    numa_miss    0
-~    numa_foreign 0
-~    numa_interleave 0
-~    numa_local   234775891
-~    numa_other   0
-~    nr_anon_transparent_hugepages 47
-~    nr_free_cma  0
-~        protection: (0, 0, 0, 694)
-~  pagesets
-~    cpu: 0
-~              count: 80
-~              high:  186
-~              batch: 31
-~  vm stats threshold: 36
-~    cpu: 1
-~              count: 50
-~              high:  186
-~              batch: 31
-~  vm stats threshold: 36
-~    cpu: 2
-~              count: 34
-~              high:  186
-~              batch: 31
-~  vm stats threshold: 36
-~    cpu: 3
-~              count: 125
-~              high:  186
-~              batch: 31
-~  vm stats threshold: 36
-~  all_unreclaimable: 0
-~  start_pfn:         4096
-~  inactive_ratio:    5
-Node 0, zone  Movable
-~  pages free     7013
-~        min      2986
-~        low      3732
-~        high     4479
-~        scanned  0
-~        spanned  194560
-~        present  194560
-~        managed  177867
-~    nr_free_pages 7013
-~    nr_alloc_batch 456
-~    nr_inactive_anon 13942
-~    nr_active_anon 14578
-~    nr_inactive_file 23643
-~    nr_active_file 23600
-~    nr_unevictable 0
-~    nr_mlock     0
-~    nr_anon_pages 25538
-~    nr_mapped    3257
-~    nr_file_pages 50856
-~    nr_dirty     0
-~    nr_writeback 0
-~    nr_slab_reclaimable 0
-~    nr_slab_unreclaimable 0
-~    nr_page_table_pages 0
-~    nr_kernel_stack 0
-~    nr_unstable  0
-~    nr_bounce    0
-~    nr_vmscan_write 190596
-~    nr_vmscan_immediate_reclaim 3187
-~    nr_writeback_temp 0
-~    nr_isolated_anon 0
-~    nr_isolated_file 0
-~    nr_shmem     78
-~    nr_dirtied   1785494
-~    nr_written   1833870
-~    numa_hit     22890304
-~    numa_miss    0
-~    numa_foreign 0
-~    numa_interleave 0
-~    numa_local   22890304
-~    numa_other   0
-~    nr_anon_transparent_hugepages 10
-~    nr_free_cma  0
-~        protection: (0, 0, 0, 0)
-~  pagesets
-~    cpu: 0
-~              count: 22
-~              high:  186
-~              batch: 31
-~  vm stats threshold: 24
-~    cpu: 1
-~              count: 21
-~              high:  186
-~              batch: 31
-~  vm stats threshold: 24
-~    cpu: 2
-~              count: 130
-~              high:  186
-~              batch: 31
-~  vm stats threshold: 24
-~    cpu: 3
-~              count: 142
-~              high:  186
-~              batch: 31
-~  vm stats threshold: 24
-~  all_unreclaimable: 0
-~  start_pfn:         1048576
-~  inactive_ratio:    1
-root@faldara:~# cat /proc/cmdline
-BOOT_IMAGE=/boot/vmlinuz-3.13.0-29-generic root=/dev/mapper/faldara-trusty ro kernelcore=1g quiet splash nomdmonddf nomdmonisw vt.handoff=7
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1
-Comment: Using GnuPG with Thunderbird - http://www.enigmail.net/
+Thanks!
 
-iQEcBAEBCgAGBQJTlm4WAAoJEI5FoCIzSKrwJkMH/0eB4Xqi2kf5LrDQSnqJa8RP
-ONDl0O+vywvVwXS2GYZatz+WgYySrqwjKYAj8bLCvu9f5Oy9l1Sy9S9Cw5dmaxwV
-e7f+2DsJ4NWHDH/P8j4bzLauDyfBoKuifx5eoIc7LdPLCFSnLRUc612172OfNMHr
-0bRe+Rc3PeFi2DGy7DyN48Vm+PZwvwUbsXZFYO4LA1YPzfVstP3BL5wEIyS7za7x
-zeediEB1UizTa1pl4OD/EBcrOZ3He4SeOgz9msisOUMwRx9wNDJlTGp40tbscSs6
-716cpY69jMGuC81H7SkzNBqJPIJFz4D1ezvNfvdfU5y2vyI2nxwdtHEdRIiZjYM=
-=P4eq
------END PGP SIGNATURE-----
+> 
+> >
+> > diff --git a/include/linux/cma.h b/include/linux/cma.h
+> > new file mode 100644
+> > index 0000000..60ba06f
+> > --- /dev/null
+> > +++ b/include/linux/cma.h
+> > @@ -0,0 +1,28 @@
+> > +/*
+> > + * Contiguous Memory Allocator
+> > + *
+> > + * Copyright LG Electronics Inc., 2014
+> > + * Written by:
+> > + *	Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> > + *
+> > + * This program is free software; you can redistribute it and/or
+> > + * modify it under the terms of the GNU General Public License as
+> > + * published by the Free Software Foundation; either version 2 of the
+> > + * License or (at your optional) any later version of the license.
+> > + *
+> 
+> Superfluous empty comment line.
+> 
+> Also, I'm not certain whether this copyright notice is appropriate here,
+> but that's another story.
+
+Yeah, I will remove copyright notice in .h file.
+
+> 
+> > + */
+> > +
+> > +#ifndef __CMA_H__
+> > +#define __CMA_H__
+> > +
+> > +struct cma;
+> > +
+> > +extern struct page *cma_alloc(struct cma *cma, unsigned long count,
+> > +				unsigned long align);
+> > +extern bool cma_release(struct cma *cma, struct page *pages,
+> > +				unsigned long count);
+> > +extern int __init cma_declare_contiguous(phys_addr_t size, phys_addr_t base,
+> > +				phys_addr_t limit, phys_addr_t alignment,
+> > +				unsigned long bitmap_shift, bool fixed,
+> > +				struct cma **res_cma);
+> > +#endif
+> 
+> > diff --git a/mm/cma.c b/mm/cma.c
+> > new file mode 100644
+> > index 0000000..0dae88d
+> > --- /dev/null
+> > +++ b/mm/cma.c
+> > @@ -0,0 +1,329 @@
+> 
+> > +static int __init cma_activate_area(struct cma *cma)
+> > +{
+> > +	int max_bitmapno = cma_bitmap_max_no(cma);
+> > +	int bitmap_size = BITS_TO_LONGS(max_bitmapno) * sizeof(long);
+> > +	unsigned long base_pfn = cma->base_pfn, pfn = base_pfn;
+> > +	unsigned i = cma->count >> pageblock_order;
+> > +	struct zone *zone;
+> > +
+> > +	pr_debug("%s()\n", __func__);
+> > +	if (!cma->count)
+> > +		return 0;
+> 
+> Alternatively:
+> 
+> +	if (!i)
+> +		return 0;
+
+I prefer cma->count than i, since it represents what it does itself.
+
+> > +
+> > +	cma->bitmap = kzalloc(bitmap_size, GFP_KERNEL);
+> > +	if (!cma->bitmap)
+> > +		return -ENOMEM;
+> > +
+> > +	WARN_ON_ONCE(!pfn_valid(pfn));
+> > +	zone = page_zone(pfn_to_page(pfn));
+> > +
+> > +	do {
+> > +		unsigned j;
+> > +
+> > +		base_pfn = pfn;
+> > +		for (j = pageblock_nr_pages; j; --j, pfn++) {
+> > +			WARN_ON_ONCE(!pfn_valid(pfn));
+> > +			/*
+> > +			 * alloc_contig_range requires the pfn range
+> > +			 * specified to be in the same zone. Make this
+> > +			 * simple by forcing the entire CMA resv range
+> > +			 * to be in the same zone.
+> > +			 */
+> > +			if (page_zone(pfn_to_page(pfn)) != zone)
+> > +				goto err;
+> > +		}
+> > +		init_cma_reserved_pageblock(pfn_to_page(base_pfn));
+> > +	} while (--i);
+> > +
+> > +	mutex_init(&cma->lock);
+> > +	return 0;
+> > +
+> > +err:
+> > +	kfree(cma->bitmap);
+> > +	return -EINVAL;
+> > +}
+> 
+> > +static int __init cma_init_reserved_areas(void)
+> > +{
+> > +	int i;
+> > +
+> > +	for (i = 0; i < cma_area_count; i++) {
+> > +		int ret = cma_activate_area(&cma_areas[i]);
+> > +
+> > +		if (ret)
+> > +			return ret;
+> > +	}
+> > +
+> > +	return 0;
+> > +}
+> 
+> Or even:
+> 
+> static int __init cma_init_reserved_areas(void)
+> {
+> 	int i, ret = 0;
+> 	for (i = 0; !ret && i < cma_area_count; ++i)
+> 		ret = cma_activate_area(&cma_areas[i]);
+> 	return ret;
+> }
+
+I think that originial implementation is better, since it seems
+more readable to me.
+
+> > +int __init cma_declare_contiguous(phys_addr_t size, phys_addr_t base,
+> > +				phys_addr_t limit, phys_addr_t alignment,
+> > +				unsigned long bitmap_shift, bool fixed,
+> > +				struct cma **res_cma)
+> > +{
+> > +	struct cma *cma = &cma_areas[cma_area_count];
+> 
+> Perhaps it would make sense to move this initialisation to the far end
+> of this function?
+
+Yes, I will move it down.
+
+> > +	int ret = 0;
+> > +
+> > +	pr_debug("%s(size %lx, base %08lx, limit %08lx, alignment %08lx)\n",
+> > +			__func__, (unsigned long)size, (unsigned long)base,
+> > +			(unsigned long)limit, (unsigned long)alignment);
+> > +
+> > +	/* Sanity checks */
+> > +	if (cma_area_count == ARRAY_SIZE(cma_areas)) {
+> > +		pr_err("Not enough slots for CMA reserved regions!\n");
+> > +		return -ENOSPC;
+> > +	}
+> > +
+> > +	if (!size)
+> > +		return -EINVAL;
+> > +
+> > +	/*
+> > +	 * Sanitise input arguments.
+> > +	 * CMA area should be at least MAX_ORDER - 1 aligned. Otherwise,
+> > +	 * CMA area could be merged into other MIGRATE_TYPE by buddy mechanism
+> > +	 * and CMA property will be broken.
+> > +	 */
+> > +	alignment >>= PAGE_SHIFT;
+> > +	alignment = PAGE_SIZE << max3(MAX_ORDER - 1, pageblock_order,
+> > +						(int)alignment);
+> > +	base = ALIGN(base, alignment);
+> > +	size = ALIGN(size, alignment);
+> > +	limit &= ~(alignment - 1);
+> > +	/* size should be aligned with bitmap_shift */
+> > +	BUG_ON(!IS_ALIGNED(size >> PAGE_SHIFT, 1 << cma->bitmap_shift));
+> 
+> cma->bitmap_shift is not yet initialised thus the above line should be:
+> 
+> 	BUG_ON(!IS_ALIGNED(size >> PAGE_SHIFT, 1 << bitmap_shift));
+
+Yes, I will fix it.
+
+> > +
+> > +	/* Reserve memory */
+> > +	if (base && fixed) {
+> > +		if (memblock_is_region_reserved(base, size) ||
+> > +		    memblock_reserve(base, size) < 0) {
+> > +			ret = -EBUSY;
+> > +			goto err;
+> > +		}
+> > +	} else {
+> > +		phys_addr_t addr = memblock_alloc_range(size, alignment, base,
+> > +							limit);
+> > +		if (!addr) {
+> > +			ret = -ENOMEM;
+> > +			goto err;
+> > +		} else {
+> > +			base = addr;
+> > +		}
+> > +	}
+> > +
+> > +	/*
+> > +	 * Each reserved area must be initialised later, when more kernel
+> > +	 * subsystems (like slab allocator) are available.
+> > +	 */
+> > +	cma->base_pfn = PFN_DOWN(base);
+> > +	cma->count = size >> PAGE_SHIFT;
+> > +	cma->bitmap_shift = bitmap_shift;
+> > +	*res_cma = cma;
+> > +	cma_area_count++;
+> > +
+> > +	pr_info("CMA: reserved %ld MiB at %08lx\n", (unsigned long)size / SZ_1M,
+> > +		(unsigned long)base);
+> 
+> Doesn't this message end up being: a??cma: CMA: reserved a?|a??? pr_fmt adds
+> a??cma:a?? at the beginning, doesn't it?  So we should probably drop a??CMA:a??
+> here.
+
+Okay. Will do.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
