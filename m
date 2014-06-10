@@ -1,128 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f174.google.com (mail-we0-f174.google.com [74.125.82.174])
-	by kanga.kvack.org (Postfix) with ESMTP id C9F4B6B0104
-	for <linux-mm@kvack.org>; Tue, 10 Jun 2014 12:58:15 -0400 (EDT)
-Received: by mail-we0-f174.google.com with SMTP id k48so7908427wev.33
-        for <linux-mm@kvack.org>; Tue, 10 Jun 2014 09:58:15 -0700 (PDT)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id fo2si17753960wib.22.2014.06.10.09.58.14
+Received: from mail-ie0-f173.google.com (mail-ie0-f173.google.com [209.85.223.173])
+	by kanga.kvack.org (Postfix) with ESMTP id F3CCE6B0106
+	for <linux-mm@kvack.org>; Tue, 10 Jun 2014 15:17:53 -0400 (EDT)
+Received: by mail-ie0-f173.google.com with SMTP id y20so5157511ier.4
+        for <linux-mm@kvack.org>; Tue, 10 Jun 2014 12:17:53 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id d13si40319659icj.54.2014.06.10.12.17.52
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Tue, 10 Jun 2014 09:58:14 -0700 (PDT)
-Date: Tue, 10 Jun 2014 12:57:56 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 2/2] memcg: Allow hard guarantee mode for low limit
- reclaim
-Message-ID: <20140610165756.GG2878@cmpxchg.org>
-References: <20140606144421.GE26253@dhcp22.suse.cz>
- <1402066010-25901-1-git-send-email-mhocko@suse.cz>
- <1402066010-25901-2-git-send-email-mhocko@suse.cz>
- <xr934mzt4rwc.fsf@gthelen.mtv.corp.google.com>
+        Tue, 10 Jun 2014 12:17:53 -0700 (PDT)
+Date: Tue, 10 Jun 2014 15:17:41 -0400
+From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Subject: Re: [PATCH 3/5] gpu/drm/ttm: Use mutex_trylock() to avoid deadlock
+ inside shrinker functions.
+Message-ID: <20140610191741.GA28523@phenom.dumpdata.com>
+References: <201405290647.DHI69200.HSFVFMFOJOLOQt@I-love.SAKURA.ne.jp>
+ <201405292334.EAG00503.FLOOJFStHVQMFO@I-love.SAKURA.ne.jp>
+ <20140530160824.GD3621@localhost.localdomain>
+ <201405311158.DGE64002.QLOOHJSFFMVFOt@I-love.SAKURA.ne.jp>
+ <201405311159.CHG64048.SOFLQHVtFOMFJO@I-love.SAKURA.ne.jp>
+ <201405311200.III57894.MLFOOFStQVHJFO@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <xr934mzt4rwc.fsf@gthelen.mtv.corp.google.com>
+In-Reply-To: <201405311200.III57894.MLFOOFStQVHJFO@I-love.SAKURA.ne.jp>
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Thelen <gthelen@google.com>
-Cc: Michal Hocko <mhocko@suse.cz>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Michel Lespinasse <walken@google.com>, Tejun Heo <tj@kernel.org>, Roman Gushchin <klamm@yandex-team.ru>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: dchinner@redhat.com, airlied@linux.ie, glommer@openvz.org, mgorman@suse.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org, dri-devel@lists.freedesktop.org
 
-On Mon, Jun 09, 2014 at 03:52:51PM -0700, Greg Thelen wrote:
-> 
-> On Fri, Jun 06 2014, Michal Hocko <mhocko@suse.cz> wrote:
-> 
-> > Some users (e.g. Google) would like to have stronger semantic than low
-> > limit offers currently. The fallback mode is not desirable and they
-> > prefer hitting OOM killer rather than ignoring low limit for protected
-> > groups. There are other possible usecases which can benefit from hard
-> > guarantees. I can imagine workloads where setting low_limit to the same
-> > value as hard_limit to prevent from any reclaim at all makes a lot of
-> > sense because reclaim is much more disrupting than restart of the load.
-> >
-> > This patch adds a new per memcg memory.reclaim_strategy knob which
-> > tells what to do in a situation when memory reclaim cannot do any
-> > progress because all groups in the reclaimed hierarchy are within their
-> > low_limit. There are two options available:
-> > 	- low_limit_best_effort - the current mode when reclaim falls
-> > 	  back to the even reclaim of all groups in the reclaimed
-> > 	  hierarchy
-> > 	- low_limit_guarantee - groups within low_limit are never
-> > 	  reclaimed and OOM killer is triggered instead. OOM message
-> > 	  will mention the fact that the OOM was triggered due to
-> > 	  low_limit reclaim protection.
-> 
-> To (a) be consistent with existing hard and soft limits APIs and (b)
-> allow use of both best effort and guarantee memory limits, I wonder if
-> it's best to offer three per memcg limits, rather than two limits (hard,
-> low_limit) and a related reclaim_strategy knob.  The three limits I'm
-> thinking about are:
-> 
-> 1) hard_limit (aka the existing limit_in_bytes cgroupfs file).  No
->    change needed here.  This is an upper bound on a memcg hierarchy's
->    memory consumption (assuming use_hierarchy=1).
+On Sat, May 31, 2014 at 12:00:45PM +0900, Tetsuo Handa wrote:
+> >From 4e8d1a83629c5966bfd401c5f2187355624194f2 Mon Sep 17 00:00:00 2001
+> From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> Date: Sat, 31 May 2014 09:59:44 +0900
+> Subject: [PATCH 3/5] gpu/drm/ttm: Use mutex_trylock() to avoid deadlock=
+ inside shrinker functions.
+>=20
+> I can observe that RHEL7 environment stalls with 100% CPU usage when a
+> certain type of memory pressure is given. While the shrinker functions
+> are called by shrink_slab() before the OOM killer is triggered, the sta=
+ll
+> lasts for many minutes.
+>=20
+> One of reasons of this stall is that
+> ttm_dma_pool_shrink_count()/ttm_dma_pool_shrink_scan() are called and
+> are blocked at mutex_lock(&_manager->lock). GFP_KERNEL allocation with
+> _manager->lock held causes someone (including kswapd) to deadlock when
+> these functions are called due to memory pressure. This patch changes
+> "mutex_lock();" to "if (!mutex_trylock()) return ...;" in order to
+> avoid deadlock.
+>=20
+> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> Cc: stable <stable@kernel.org> [3.3+]
+> ---
+>  drivers/gpu/drm/ttm/ttm_page_alloc_dma.c |    6 ++++--
+>  1 files changed, 4 insertions(+), 2 deletions(-)
+>=20
+> diff --git a/drivers/gpu/drm/ttm/ttm_page_alloc_dma.c b/drivers/gpu/drm=
+/ttm/ttm_page_alloc_dma.c
+> index d8e59f7..620da39 100644
+> --- a/drivers/gpu/drm/ttm/ttm_page_alloc_dma.c
+> +++ b/drivers/gpu/drm/ttm/ttm_page_alloc_dma.c
+> @@ -1014,7 +1014,8 @@ ttm_dma_pool_shrink_scan(struct shrinker *shrink,=
+ struct shrink_control *sc)
+>  	if (list_empty(&_manager->pools))
+>  		return SHRINK_STOP;
+> =20
+> -	mutex_lock(&_manager->lock);
+> +	if (!mutex_lock(&_manager->lock))
+> +		return SHRINK_STOP;
 
-This creates internal pressure.  Outside reclaim is not affected by
-it, but internal charges can not exceed this limit.  This is set to
-hard limit the maximum memory consumption of a group (max).
+Hmm..
 
-> 2) best_effort_limit (aka desired working set).  This allow an
->    application or administrator to provide a hint to the kernel about
->    desired working set size.  Before oom'ing the kernel is allowed to
->    reclaim below this limit.  I think the current soft_limit_in_bytes
->    claims to provide this.  If we prefer to deprecate
->    soft_limit_in_bytes, then a new desired_working_set_in_bytes (or a
->    hopefully better named) API seems reasonable.
+/home/konrad/linux/drivers/gpu/drm/ttm/ttm_page_alloc_dma.c: In function =
+=E2=80=98ttm_dma_pool_shrink_scan=E2=80=99:
+/home/konrad/linux/drivers/gpu/drm/ttm/ttm_page_alloc_dma.c:1015:2: error=
+: invalid use of void expression
+  if (!mutex_lock(&_manager->lock))
 
-This controls how external pressure applies to the group.
+This is based on v3.15 with these patches.
 
-But it's conceivable that we'd like to have the equivalent of such a
-soft limit for *internal* pressure.  Set below the hard limit, this
-internal soft limit would have charges trigger direct reclaim in the
-memcg but allow them to continue to the hard limit.  This would create
-a situation wherein the allocating tasks are not killed, but throttled
-under reclaim, which gives the administrator a window to detect the
-situation with vmpressure and possibly intervene.  Because as it
-stands, once the current hard limit is hit things can go down pretty
-fast and the window for reacting to vmpressure readings is often too
-small.  This would offer a more gradual deterioration.  It would be
-set to the upper end of the working set size range (high).
-
-I think for many users such an internal soft limit would actually be
-preferred over the current hard limit, as they'd rather have some
-reclaim throttling than an OOM kill when the group reaches its upper
-bound.  The current hard limit would be reserved for more advanced or
-paid cases, where the admin would rather see a memcg get OOM killed
-than exceed a certain size.
-
-Then, as you proposed, we'd have the soft limit for external pressure,
-where the kernel only reclaims groups within that limit in order to
-avoid OOM kills.  It would be set to the estimated lower end of the
-working set size range (low).
-
-> 3) low_limit_guarantee which is a lower bound of memory usage.  A memcg
->    would prefer to be oom killed rather than operate below this
->    threshold.  Default value is zero to preserve compatibility with
->    existing apps.
-
-And this would be the external pressure hard limit, which would be set
-to the absolute minimum requirement of the group (min).
-
-Either because it would be hopelessly thrashing without it, or because
-this guaranteed memory is actually paid for.  Again, I would expect
-many users to not even set this minimum guarantee but solely use the
-external soft limit (low) instead.
-
-> Logically hard_limit >= best_effort_limit >= low_limit_guarantee.
-
-max >= high >= low >= min
-
-I think we should be able to express all desired usecases with these
-four limits, including the advanced configurations, while making it
-easy for many users to set up groups without being a) dead certain
-about their memory consumption or b) prepared for frequent OOM kills,
-while still allowing them to properly utilize their machines.
-
-What do you think?
+>  	if (!_manager->npools)
+>  		goto out;
+>  	pool_offset =3D ++start_pool % _manager->npools;
+> @@ -1047,7 +1048,8 @@ ttm_dma_pool_shrink_count(struct shrinker *shrink=
+, struct shrink_control *sc)
+>  	struct device_pools *p;
+>  	unsigned long count =3D 0;
+> =20
+> -	mutex_lock(&_manager->lock);
+> +	if (!mutex_trylock(&_manager->lock))
+> +		return 0;
+>  	list_for_each_entry(p, &_manager->pools, pools)
+>  		count +=3D p->pool->npages_free;
+>  	mutex_unlock(&_manager->lock);
+> --=20
+> 1.7.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
