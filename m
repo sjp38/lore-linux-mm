@@ -1,92 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B9F96B00FB
-	for <linux-mm@kvack.org>; Tue, 10 Jun 2014 07:52:58 -0400 (EDT)
-Received: by mail-wi0-f171.google.com with SMTP id n15so2944433wiw.10
-        for <linux-mm@kvack.org>; Tue, 10 Jun 2014 04:52:57 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t8si36262307wjf.134.2014.06.10.04.52.56
+Received: from mail-we0-f171.google.com (mail-we0-f171.google.com [74.125.82.171])
+	by kanga.kvack.org (Postfix) with ESMTP id AE1D66B00C5
+	for <linux-mm@kvack.org>; Tue, 10 Jun 2014 08:20:07 -0400 (EDT)
+Received: by mail-we0-f171.google.com with SMTP id q58so3697544wes.2
+        for <linux-mm@kvack.org>; Tue, 10 Jun 2014 05:20:07 -0700 (PDT)
+Received: from lon-b.elastichosts.com (old.lon-b.elastichosts.com. [84.45.121.3])
+        by mx.google.com with ESMTPS id g8si22047997wjr.97.2014.06.10.05.20.05
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 10 Jun 2014 04:52:56 -0700 (PDT)
-Date: Tue, 10 Jun 2014 13:52:54 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [RFC] oom, memcg: handle sysctl oom_kill_allocating_task while
- memcg oom happening
-Message-ID: <20140610115254.GA25631@dhcp22.suse.cz>
-References: <5396ED66.7090401@1h.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 10 Jun 2014 05:20:06 -0700 (PDT)
+Message-ID: <5396F77B.6040604@elastichosts.com>
+Date: Tue, 10 Jun 2014 13:18:03 +0100
+From: Alin Dobre <alin.dobre@elastichosts.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5396ED66.7090401@1h.com>
+Subject: Re: Protection against container fork bombs [WAS: Re: memcg with
+ kmem limit doesn't recover after disk i/o causes limit to be hit]
+References: <20140416154650.GA3034@alpha.arachsys.com> <20140418155939.GE4523@dhcp22.suse.cz> <5351679F.5040908@parallels.com> <20140420142830.GC22077@alpha.arachsys.com> <20140422143943.20609800@oracle.com> <20140422200531.GA19334@alpha.arachsys.com>
+In-Reply-To: <20140422200531.GA19334@alpha.arachsys.com>
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marian Marinov <mm@1h.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Tejun Heo <tj@kernel.org>, linux-mm@kvack.org
+To: Richard Davies <richard@arachsys.com>, Dwight Engen <dwight.engen@oracle.com>
+Cc: Vladimir Davydov <vdavydov@parallels.com>, Frederic Weisbecker <fweisbec@gmail.com>, David Rientjes <rientjes@google.com>, Glauber Costa <glommer@parallels.com>, Tejun Heo <tj@kernel.org>, Max Kellermann <mk@cm4all.com>, Johannes Weiner <hannes@cmpxchg.org>, William Dauchy <wdauchy@gmail.com>, Tim Hockin <thockin@hockin.org>, Michal Hocko <mhocko@suse.cz>, Daniel Walsh <dwalsh@redhat.com>, Daniel Berrange <berrange@redhat.com>, cgroups@vger.kernel.org, containers@lists.linux-foundation.org, linux-mm@kvack.org
 
-[More people to CC]
-On Tue 10-06-14 14:35:02, Marian Marinov wrote:
-> -----BEGIN PGP SIGNED MESSAGE-----
-> Hash: SHA1
+On 22/04/14 21:05, Richard Davies wrote:
+> Dwight Engen wrote:
+>> Richard Davies wrote:
+>>> Vladimir Davydov wrote:
+>>>> In short, kmem limiting for memory cgroups is currently broken. Do
+>>>> not use it. We are working on making it usable though.
+> ...
+>>> What is the best mechanism available today, until kmem limits mature?
+>>>
+>>> RLIMIT_NPROC exists but is per-user, not per-container.
+>>>
+>>> Perhaps there is an up-to-date task counter patchset or similar?
+>>
+>> I updated Frederic's task counter patches and included Max Kellermann's
+>> fork limiter here:
+>>
+>> http://thread.gmane.org/gmane.linux.kernel.containers/27212
+>>
+>> I can send you a more recent patchset (against 3.13.10) if you would
+>> find it useful.
 > 
-> Hello,
+> Yes please, I would be interested in that. Ideally even against 3.14.1 if
+> you have that too.
 
-Hi,
+Any chance for a 3.15 rebase, since the changes from cgroup_fork() makes
+the operation no longer trivial.
 
-> a while back in 2012 there was a request for this functionality.
->   oom, memcg: handle sysctl oom_kill_allocating_task while memcg oom
->   happening
->
-> This is the thread: https://lkml.org/lkml/2012/10/16/168
->
-> Now we run a several machines with around 10k processes on each
-> machine, using containers.
->
-> Regularly we see OOM from within a container that causes performance
-> degradation.
-
-What kind of performance degradation and which parts of the system are
-affected?
-
-memcg oom killer happens outside of any locks currently so the only
-bottleneck I can see is the per-cgroup container which iterates all
-tasks in the group. Is this what is going on here?
-
-> We are running 3.12.20 with the following OOM configuration and memcg
-> oom enabled:
-> 
-> vm.oom_dump_tasks = 0
-> vm.oom_kill_allocating_task = 1
-> vm.panic_on_oom = 0
-> 
-> When OOM occurs we see very high numbers for the loadavg and the
-> overall responsiveness of the machine degrades.
-
-What is the system waiting for?
-
-> During these OOM states the load of the machine gradualy increases
-> from 25 up to 120 in the interval of 10minutes.
->
-> Once we manually bring down the memory usage of a container(killing
-> some tasks) the load drops down to 25 within 5 to 7 minutes.
-
-So the OOM killer is not able to find a victim to kill?
-
-> I read the whole thread from 2012 but I do not see the expected
-> behavior that is described by the people that commented the issue.
-
-Why do you think that killing the allocating task would be helpful in
-your case?
-
-> In this case, with real usage for this patch, would it be considered
-> for inclusion?
-
-I would still prefer to fix the real issue which is not clear from your
-description yet.
-
--- 
-Michal Hocko
-SUSE Labs
+Cheers,
+Alin.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
