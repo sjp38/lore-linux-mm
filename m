@@ -1,75 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f169.google.com (mail-we0-f169.google.com [74.125.82.169])
-	by kanga.kvack.org (Postfix) with ESMTP id DC6BA6B0116
-	for <linux-mm@kvack.org>; Tue, 10 Jun 2014 18:37:43 -0400 (EDT)
-Received: by mail-we0-f169.google.com with SMTP id t60so2982482wes.0
-        for <linux-mm@kvack.org>; Tue, 10 Jun 2014 15:37:43 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id p3si38972123wjz.30.2014.06.10.15.37.41
-        for <linux-mm@kvack.org>;
-        Tue, 10 Jun 2014 15:37:42 -0700 (PDT)
-Date: Wed, 11 Jun 2014 00:37:34 +0200
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH, RFC 00/10] THP refcounting redesign
-Message-ID: <20140610223734.GH19660@redhat.com>
-References: <1402329861-7037-1-git-send-email-kirill.shutemov@linux.intel.com>
- <alpine.DEB.2.10.1406101518510.19364@gentwo.org>
- <20140610204640.GA9594@node.dhcp.inet.fi>
- <20140610220451.GG19660@redhat.com>
- <20140610221431.GA10634@node.dhcp.inet.fi>
+Received: from mail-yh0-f44.google.com (mail-yh0-f44.google.com [209.85.213.44])
+	by kanga.kvack.org (Postfix) with ESMTP id B079F6B0118
+	for <linux-mm@kvack.org>; Tue, 10 Jun 2014 19:31:15 -0400 (EDT)
+Received: by mail-yh0-f44.google.com with SMTP id f10so3053226yha.3
+        for <linux-mm@kvack.org>; Tue, 10 Jun 2014 16:31:15 -0700 (PDT)
+Received: from e37.co.us.ibm.com (e37.co.us.ibm.com. [32.97.110.158])
+        by mx.google.com with ESMTPS id h47si28612732yhd.116.2014.06.10.16.31.14
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Tue, 10 Jun 2014 16:31:15 -0700 (PDT)
+Received: from /spool/local
+	by e37.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <nacc@linux.vnet.ibm.com>;
+	Tue, 10 Jun 2014 17:31:13 -0600
+Received: from b03cxnp08026.gho.boulder.ibm.com (b03cxnp08026.gho.boulder.ibm.com [9.17.130.18])
+	by d03dlp01.boulder.ibm.com (Postfix) with ESMTP id 82AC71FF0046
+	for <linux-mm@kvack.org>; Tue, 10 Jun 2014 17:31:10 -0600 (MDT)
+Received: from d03av01.boulder.ibm.com (d03av01.boulder.ibm.com [9.17.195.167])
+	by b03cxnp08026.gho.boulder.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s5ANUARU62849210
+	for <linux-mm@kvack.org>; Wed, 11 Jun 2014 01:30:10 +0200
+Received: from d03av01.boulder.ibm.com (localhost [127.0.0.1])
+	by d03av01.boulder.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s5ANVAjb021371
+	for <linux-mm@kvack.org>; Tue, 10 Jun 2014 17:31:10 -0600
+Date: Tue, 10 Jun 2014 16:30:59 -0700
+From: Nishanth Aravamudan <nacc@linux.vnet.ibm.com>
+Subject: Re: NUMA topology question wrt. d4edc5b6
+Message-ID: <20140610233059.GA24463@linux.vnet.ibm.com>
+References: <20140521200451.GB5755@linux.vnet.ibm.com>
+ <537E6285.3050000@linux.vnet.ibm.com>
+ <alpine.DEB.2.02.1406091436090.5271@chino.kir.corp.google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140610221431.GA10634@node.dhcp.inet.fi>
+In-Reply-To: <alpine.DEB.2.02.1406091436090.5271@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Christoph Lameter <cl@gentwo.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: David Rientjes <rientjes@google.com>
+Cc: "Srivatsa S. Bhat" <srivatsa.bhat@linux.vnet.ibm.com>, benh@kernel.crashing.org, Srikar Dronamraju <srikar@linux.vnet.ibm.com>, nfont@linux.vnet.ibm.com, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Cody P Schafer <cody@linux.vnet.ibm.com>, Anton Blanchard <anton@samba.org>, Dave Hansen <dave@sr71.net>, "linuxppc-dev@lists.ozlabs.org list" <linuxppc-dev@lists.ozlabs.org>, Linux MM <linux-mm@kvack.org>
 
-On Wed, Jun 11, 2014 at 01:14:31AM +0300, Kirill A. Shutemov wrote:
-> On Wed, Jun 11, 2014 at 12:04:51AM +0200, Andrea Arcangeli wrote:
-> > On Tue, Jun 10, 2014 at 11:46:40PM +0300, Kirill A. Shutemov wrote:
-> > > Agreed. The patchset drops tail page refcounting.
-> > 
-> > Very possibly I misread something or a later patch fixes this up, I
-> > just did a basic code review, but from the new code of split_huge_page
-> > it looks like it returns -EBUSY after checking the individual tail
-> > page refcounts, so it's not clear how that defines as "dropped".
+On 09.06.2014 [14:38:26 -0700], David Rientjes wrote:
+> On Fri, 23 May 2014, Srivatsa S. Bhat wrote:
 > 
-> page_mapcount() here is really mapcount: how many times the page is
-> mapped, not pins on tail pages as we have it now.
-
-Ok then I may suggest to rename the variable from tail_count to
-tail_mapcount to make it more self explanatory... of course then it is
-compared to the head page count, which means the tail pins have to be
-in the head already, but calling it tail_mapcount would be more clear
-if you're used to the current semantics of mapcount on tail pages. I
-was confused myself what the benefits were... if it didn't drop the
-tail page refcounting.
-
-The other suggestions on doing split_huge_page inside split_huge_pmd
-(not required to succeed) and fix it up later in khugepaged so the
-leak of memory is not permanent, and the accounting issues it creates
-with malicious apps sounds like the two things left to address to make
-this design change an interesting tradeoff.
-
-> > 
-> > +       for (i = 0; i < HPAGE_PMD_NR; i++)
-> > +               tail_count += page_mapcount(page + i);
-> > +       if (tail_count != page_count(page) - 1) {
-> > +               BUG_ON(tail_count > page_count(page) - 1);
-> > +               compound_unlock(page);
-> > +               spin_unlock_irq(&zone->lru_lock);
-> > +               return -EBUSY;
-> > --
-> > To unsubscribe from this list: send the line "unsubscribe linux-kernel" in
-> > the body of a message to majordomo@vger.kernel.org
-> > More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> > Please read the FAQ at  http://www.tux.org/lkml/
+> > diff --git a/arch/powerpc/include/asm/topology.h b/arch/powerpc/include/asm/topology.h
+> > index c920215..58e6469 100644
+> > --- a/arch/powerpc/include/asm/topology.h
+> > +++ b/arch/powerpc/include/asm/topology.h
+> > @@ -18,6 +18,7 @@ struct device_node;
+> >   */
+> >  #define RECLAIM_DISTANCE 10
+> >  
+> > +#include <linux/nodemask.h>
+> >  #include <asm/mmzone.h>
+> >  
+> >  static inline int cpu_to_node(int cpu)
+> > @@ -30,7 +31,7 @@ static inline int cpu_to_node(int cpu)
+> >  	 * During early boot, the numa-cpu lookup table might not have been
+> >  	 * setup for all CPUs yet. In such cases, default to node 0.
+> >  	 */
+> > -	return (nid < 0) ? 0 : nid;
+> > +	return (nid < 0) ? first_online_node : nid;
+> >  }
+> >  
+> >  #define parent_node(node)	(node)
 > 
-> -- 
->  Kirill A. Shutemov
+> I wonder what would happen on ppc if we just returned NUMA_NO_NODE here 
+> for cpus that have not been mapped (they shouldn't even be possible).  
+
+Well, with my patch (Ben sent it to Linus in the last pull request, I
+think), powerpc uses the generic per-cpu stuff, so this function is
+gone. Dunno if it makes sense to initialize the per-cpu data to
+NUMA_NO_NODE (rather than 0?).
+
+For powerpc, it's a timing thing. We can call cpu_to_node() quite early,
+and we may not have set up the mapping information yet.
+
+> This would at least allow callers that do
+> kmalloc_node(..., cpu_to_node(cpu)) to be allocated on the local cpu 
+> rather than on a perhaps offline or remote node 0.
 > 
+> It would seem better to catch callers that do 
+> cpu_to_node(<not-possible-cpu>) rather than blindly return an online node.
+
+Agreed, but I've not seen such a case.
+
+Thanks,
+Nish
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
