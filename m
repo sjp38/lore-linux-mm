@@ -1,76 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f178.google.com (mail-ie0-f178.google.com [209.85.223.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 755216B0122
-	for <linux-mm@kvack.org>; Tue, 10 Jun 2014 19:54:39 -0400 (EDT)
-Received: by mail-ie0-f178.google.com with SMTP id rd18so956966iec.23
-        for <linux-mm@kvack.org>; Tue, 10 Jun 2014 16:54:39 -0700 (PDT)
-Received: from mail-ie0-x22c.google.com (mail-ie0-x22c.google.com [2607:f8b0:4001:c03::22c])
-        by mx.google.com with ESMTPS id fo13si41262416icb.28.2014.06.10.16.54.38
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Tue, 10 Jun 2014 16:54:38 -0700 (PDT)
-Received: by mail-ie0-f172.google.com with SMTP id lx4so4653941iec.31
-        for <linux-mm@kvack.org>; Tue, 10 Jun 2014 16:54:38 -0700 (PDT)
-Date: Tue, 10 Jun 2014 16:54:36 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [RFC PATCH 4/6] mm, compaction: skip buddy pages by their order
- in the migrate scanner
-In-Reply-To: <5396B31B.6080706@suse.cz>
-Message-ID: <alpine.DEB.2.02.1406101646540.32203@chino.kir.corp.google.com>
-References: <alpine.DEB.2.02.1405211954410.13243@chino.kir.corp.google.com> <1401898310-14525-1-git-send-email-vbabka@suse.cz> <1401898310-14525-4-git-send-email-vbabka@suse.cz> <alpine.DEB.2.02.1406041656400.22536@chino.kir.corp.google.com> <5390374E.5080708@suse.cz>
- <alpine.DEB.2.02.1406051428360.18119@chino.kir.corp.google.com> <53916BB0.3070001@suse.cz> <alpine.DEB.2.02.1406090207300.24247@chino.kir.corp.google.com> <53959C11.2000305@suse.cz> <alpine.DEB.2.02.1406091512540.5271@chino.kir.corp.google.com>
- <5396B31B.6080706@suse.cz>
+Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
+	by kanga.kvack.org (Postfix) with ESMTP id F0DD36B0124
+	for <linux-mm@kvack.org>; Tue, 10 Jun 2014 20:33:30 -0400 (EDT)
+Received: by mail-pa0-f50.google.com with SMTP id fb1so1262905pad.9
+        for <linux-mm@kvack.org>; Tue, 10 Jun 2014 17:33:30 -0700 (PDT)
+Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
+        by mx.google.com with ESMTP id xm4si36112576pbc.45.2014.06.10.17.33.28
+        for <linux-mm@kvack.org>;
+        Tue, 10 Jun 2014 17:33:29 -0700 (PDT)
+Date: Wed, 11 Jun 2014 09:33:23 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH 01/10] mm, compaction: do not recheck
+ suitable_migration_target under lock
+Message-ID: <20140611003322.GB15630@bbox>
+References: <1402305982-6928-1-git-send-email-vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1402305982-6928-1-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Vlastimil Babka <vbabka@suse.cz>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>
+Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>
 
-On Tue, 10 Jun 2014, Vlastimil Babka wrote:
-
-> > I think the compiler is allowed to turn this into
-> > 
-> > 	if (ACCESS_ONCE(page_private(page)) > 0 &&
-> > 	    ACCESS_ONCE(page_private(page)) < MAX_ORDER)
-> > 		low_pfn += (1UL << ACCESS_ONCE(page_private(page))) - 1;
-> > 
-> > since the inline function has a return value of unsigned long but gcc may
-> > not do this.  I think
-> > 
-> > 	/*
-> > 	 * Big fat comment describing why we're using ACCESS_ONCE(), that
-> > 	 * we're ok to race, and that this is meaningful only because of
-> > 	 * the previous PageBuddy() check.
-> > 	 */
-> > 	unsigned long pageblock_order = ACCESS_ONCE(page_private(page));
-> > 
-> > is better.
+On Mon, Jun 09, 2014 at 11:26:13AM +0200, Vlastimil Babka wrote:
+> isolate_freepages_block() rechecks if the pageblock is suitable to be a target
+> for migration after it has taken the zone->lock. However, the check has been
+> optimized to occur only once per pageblock, and compact_checklock_irqsave()
+> might be dropping and reacquiring lock, which means somebody else might have
+> changed the pageblock's migratetype meanwhile.
 > 
-> I've talked about it with a gcc guy and (although he didn't actually see the
-> code so it might be due to me not explaining it perfectly), the compiler will
-> inline page_order_unsafe() so that there's effectively.
+> Furthermore, nothing prevents the migratetype to change right after
+> isolate_freepages_block() has finished isolating. Given how imperfect this is,
+> it's simpler to just rely on the check done in isolate_freepages() without
+> lock, and not pretend that the recheck under lock guarantees anything. It is
+> just a heuristic after all.
 > 
-> unsigned long freepage_order = ACCESS_ONCE(page_private(page));
-> 
-> and now it cannot just replace all freepage_order occurences with new
-> page_private() accesses. So thanks to the inlining, the volatile qualification
-> propagates to where it matters. It makes sense to me, but if it's according to
-> standard or gcc specific, I don't know.
-> 
+> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+Acked-by: Minchan Kim <minchan@kernel.org>
 
-I hate to belabor this point, but I think gcc does treat it differently.  
-If you look at the assembly comparing your patch to if you do
-
-	unsigned long freepage_order = ACCESS_ONCE(page_private(page));
-
-instead, then if you enable annotation you'll see that gcc treats the 
-store as page_x->D.y.private in your patch vs. MEM[(volatile long unsigned 
-int *)page_x + 48B] with the above.
-
-I don't have the ability to prove that all versions of gcc optimization 
-will not choose to reaccess page_private(page) here, but it does show that 
-at least gcc 4.6.3 does not consider them to be equivalents.
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
