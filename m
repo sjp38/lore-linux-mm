@@ -1,64 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id DF5606B013F
-	for <linux-mm@kvack.org>; Wed, 11 Jun 2014 04:07:46 -0400 (EDT)
-Received: by mail-pd0-f182.google.com with SMTP id y13so1121178pdi.13
-        for <linux-mm@kvack.org>; Wed, 11 Jun 2014 01:07:46 -0700 (PDT)
-Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
-        by mx.google.com with ESMTP id qs8si37103202pbb.206.2014.06.11.01.07.44
+Received: from mail-pb0-f49.google.com (mail-pb0-f49.google.com [209.85.160.49])
+	by kanga.kvack.org (Postfix) with ESMTP id A14986B0143
+	for <linux-mm@kvack.org>; Wed, 11 Jun 2014 04:12:14 -0400 (EDT)
+Received: by mail-pb0-f49.google.com with SMTP id jt11so7143143pbb.22
+        for <linux-mm@kvack.org>; Wed, 11 Jun 2014 01:12:14 -0700 (PDT)
+Received: from lgeamrelo02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
+        by mx.google.com with ESMTP id bd8si37111881pbd.241.2014.06.11.01.12.12
         for <linux-mm@kvack.org>;
-        Wed, 11 Jun 2014 01:07:45 -0700 (PDT)
-Date: Wed, 11 Jun 2014 17:11:39 +0900
+        Wed, 11 Jun 2014 01:12:13 -0700 (PDT)
+Date: Wed, 11 Jun 2014 17:16:06 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH -mm v2 8/8] slab: make dead memcg caches discard free
- slabs immediately
-Message-ID: <20140611081139.GA28258@js1304-P5Q-DELUXE>
-References: <cover.1402060096.git.vdavydov@parallels.com>
- <27a202c6084d6bb19cc3e417793f05104b908ded.1402060096.git.vdavydov@parallels.com>
- <20140610074317.GE19036@js1304-P5Q-DELUXE>
- <20140610100313.GA6293@esperanza>
- <alpine.DEB.2.10.1406100925270.17142@gentwo.org>
- <20140610151830.GA8692@esperanza>
+Subject: Re: [PATCH 05/10] mm, compaction: remember position within pageblock
+ in free pages scanner
+Message-ID: <20140611081606.GB28258@js1304-P5Q-DELUXE>
+References: <1402305982-6928-1-git-send-email-vbabka@suse.cz>
+ <1402305982-6928-5-git-send-email-vbabka@suse.cz>
+ <20140611021213.GF15630@bbox>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140610151830.GA8692@esperanza>
+In-Reply-To: <20140611021213.GF15630@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: Christoph Lameter <cl@gentwo.org>, akpm@linux-foundation.org, rientjes@google.com, penberg@kernel.org, hannes@cmpxchg.org, mhocko@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Mel Gorman <mgorman@suse.de>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>
 
-On Tue, Jun 10, 2014 at 07:18:34PM +0400, Vladimir Davydov wrote:
-> On Tue, Jun 10, 2014 at 09:26:19AM -0500, Christoph Lameter wrote:
-> > On Tue, 10 Jun 2014, Vladimir Davydov wrote:
+On Wed, Jun 11, 2014 at 11:12:13AM +0900, Minchan Kim wrote:
+> On Mon, Jun 09, 2014 at 11:26:17AM +0200, Vlastimil Babka wrote:
+> > Unlike the migration scanner, the free scanner remembers the beginning of the
+> > last scanned pageblock in cc->free_pfn. It might be therefore rescanning pages
+> > uselessly when called several times during single compaction. This might have
+> > been useful when pages were returned to the buddy allocator after a failed
+> > migration, but this is no longer the case.
 > > 
-> > > Frankly, I incline to shrinking dead SLAB caches periodically from
-> > > cache_reap too, because it looks neater and less intrusive to me. Also
-> > > it has zero performance impact, which is nice.
-> > >
-> > > However, Christoph proposed to disable per cpu arrays for dead caches,
-> > > similarly to SLUB, and I decided to give it a try, just to see the end
-> > > code we'd have with it.
-> > >
-> > > I'm still not quite sure which way we should choose though...
+> > This patch changes the meaning of cc->free_pfn so that if it points to a
+> > middle of a pageblock, that pageblock is scanned only from cc->free_pfn to the
+> > end. isolate_freepages_block() will record the pfn of the last page it looked
+> > at, which is then used to update cc->free_pfn.
 > > 
-> > Which one is cleaner?
+> > In the mmtests stress-highalloc benchmark, this has resulted in lowering the
+> > ratio between pages scanned by both scanners, from 2.5 free pages per migrate
+> > page, to 2.25 free pages per migrate page, without affecting success rates.
+> > 
+> > Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+> Reviewed-by: Minchan Kim <minchan@kernel.org>
 > 
-> To shrink dead caches aggressively, we only need to modify cache_reap
-> (see https://lkml.org/lkml/2014/5/30/271).
+> Below is a nitpick.
 > 
-> To zap object arrays for dead caches (this is what this patch does), we
-> have to:
->  - set array_cache->limit to 0 for each per cpu, shared, and alien array
->    caches on kmem_cache_shrink;
->  - make cpu/node hotplug paths init new array cache sizes to 0;
->  - make free paths (__cache_free, cache_free_alien) handle zero array
->    cache size properly, because currently they doesn't.
+> > Cc: Minchan Kim <minchan@kernel.org>
+> > Cc: Mel Gorman <mgorman@suse.de>
+> > Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> > Cc: Michal Nazarewicz <mina86@mina86.com>
+> > Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> > Cc: Christoph Lameter <cl@linux.com>
+> > Cc: Rik van Riel <riel@redhat.com>
+> > Cc: David Rientjes <rientjes@google.com>
+> > ---
+> >  mm/compaction.c | 33 ++++++++++++++++++++++++++++-----
+> >  1 file changed, 28 insertions(+), 5 deletions(-)
+> > 
+> > diff --git a/mm/compaction.c b/mm/compaction.c
+> > index 83f72bd..58dfaaa 100644
+> > --- a/mm/compaction.c
+> > +++ b/mm/compaction.c
+> > @@ -297,7 +297,7 @@ static bool suitable_migration_target(struct page *page)
+> >   * (even though it may still end up isolating some pages).
+> >   */
+> >  static unsigned long isolate_freepages_block(struct compact_control *cc,
+> > -				unsigned long blockpfn,
+> > +				unsigned long *start_pfn,
+> >  				unsigned long end_pfn,
+> >  				struct list_head *freelist,
+> >  				bool strict)
+> > @@ -306,6 +306,7 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
+> >  	struct page *cursor, *valid_page = NULL;
+> >  	unsigned long flags;
+> >  	bool locked = false;
+> > +	unsigned long blockpfn = *start_pfn;
+> >  
+> >  	cursor = pfn_to_page(blockpfn);
+> >  
+> > @@ -314,6 +315,9 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
+> >  		int isolated, i;
+> >  		struct page *page = cursor;
+> >  
+> > +		/* Record how far we have got within the block */
+> > +		*start_pfn = blockpfn;
+> > +
 > 
-> So IMO the first one (reaping dead caches periodically) requires less
-> modifications and therefore is cleaner.
+> Couldn't we move this out of the loop for just one store?
 
-Yeah, I also like the first one.
+Hello, Vlastimil.
+
+Moreover, start_pfn can't be updated to end pfn with this approach.
+Is it okay?
 
 Thanks.
 
