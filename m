@@ -1,587 +1,407 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f43.google.com (mail-wg0-f43.google.com [74.125.82.43])
-	by kanga.kvack.org (Postfix) with ESMTP id ED85A6B0164
-	for <linux-mm@kvack.org>; Wed, 11 Jun 2014 10:56:54 -0400 (EDT)
-Received: by mail-wg0-f43.google.com with SMTP id b13so4320803wgh.2
-        for <linux-mm@kvack.org>; Wed, 11 Jun 2014 07:56:54 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id n9si15731527wiz.23.2014.06.11.07.56.52
+Received: from mail-we0-f174.google.com (mail-we0-f174.google.com [74.125.82.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 644D86B0098
+	for <linux-mm@kvack.org>; Wed, 11 Jun 2014 11:16:11 -0400 (EDT)
+Received: by mail-we0-f174.google.com with SMTP id u57so822822wes.33
+        for <linux-mm@kvack.org>; Wed, 11 Jun 2014 08:16:10 -0700 (PDT)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id gk4si22472314wic.6.2014.06.11.08.16.08
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 11 Jun 2014 07:56:53 -0700 (PDT)
-Message-ID: <53986E31.7090500@suse.cz>
-Date: Wed, 11 Jun 2014 16:56:49 +0200
-From: Vlastimil Babka <vbabka@suse.cz>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Wed, 11 Jun 2014 08:16:09 -0700 (PDT)
+Date: Wed, 11 Jun 2014 11:15:44 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 1/4] memcg, mm: introduce lowlimit reclaim
+Message-ID: <20140611151544.GA22516@cmpxchg.org>
+References: <1398688005-26207-1-git-send-email-mhocko@suse.cz>
+ <1398688005-26207-2-git-send-email-mhocko@suse.cz>
+ <20140430225550.GD26041@cmpxchg.org>
+ <20140502093628.GC3446@dhcp22.suse.cz>
+ <20140502155805.GO23420@cmpxchg.org>
+ <20140502164930.GP3446@dhcp22.suse.cz>
+ <20140502220056.GP23420@cmpxchg.org>
+ <20140505142100.GC32598@dhcp22.suse.cz>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 09/10] mm, compaction: try to capture the just-created
- high-order freepage
-References: <1402305982-6928-1-git-send-email-vbabka@suse.cz> <1402305982-6928-9-git-send-email-vbabka@suse.cz>
-In-Reply-To: <1402305982-6928-9-git-send-email-vbabka@suse.cz>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140505142100.GC32598@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>, linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, Tejun Heo <tj@kernel.org>, Hugh Dickins <hughd@google.com>, Roman Gushchin <klamm@yandex-team.ru>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On 06/09/2014 11:26 AM, Vlastimil Babka wrote:
-> Compaction uses watermark checking to determine if it succeeded in creating
-> a high-order free page. My testing has shown that this is quite racy and it
-> can happen that watermark checking in compaction succeeds, and moments later
-> the watermark checking in page allocation fails, even though the number of
-> free pages has increased meanwhile.
+On Mon, May 05, 2014 at 04:21:00PM +0200, Michal Hocko wrote:
+> On Fri 02-05-14 18:00:56, Johannes Weiner wrote:
+> > On Fri, May 02, 2014 at 06:49:30PM +0200, Michal Hocko wrote:
+> > > On Fri 02-05-14 11:58:05, Johannes Weiner wrote:
+> > > > On Fri, May 02, 2014 at 11:36:28AM +0200, Michal Hocko wrote:
+> > > > > On Wed 30-04-14 18:55:50, Johannes Weiner wrote:
+> > > > > > On Mon, Apr 28, 2014 at 02:26:42PM +0200, Michal Hocko wrote:
+> [...]
+> > > > > > > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > > > > > > index c1cd99a5074b..0f428158254e 100644
+> > > > > > > --- a/mm/vmscan.c
+> > > > > > > +++ b/mm/vmscan.c
+> > > > > [...]
+> > > > > > > +static void shrink_zone(struct zone *zone, struct scan_control *sc)
+> > > > > > > +{
+> > > > > > > +	if (!__shrink_zone(zone, sc, true)) {
+> > > > > > > +		/*
+> > > > > > > +		 * First round of reclaim didn't find anything to reclaim
+> > > > > > > +		 * because of low limit protection so try again and ignore
+> > > > > > > +		 * the low limit this time.
+> > > > > > > +		 */
+> > > > > > > +		__shrink_zone(zone, sc, false);
+> > > > > > > +	}
+> > > > 
+> > > > So I don't think this can work as it is, because we are not actually
+> > > > changing priority levels yet. 
+> > > 
+> > > __shrink_zone returns with 0 only if the whole hierarchy is is under low
+> > > limit. This means that they are over-committed and it doesn't make much
+> > > sense to play with priority. Low limit reclaimability is independent on
+> > > the priority.
+> > > 
+> > > > It will give up on the guarantees of bigger groups way before smaller
+> > > > groups are even seriously looked at.
+> > > 
+> > > How would that happen? Those (smaller) groups would get reclaimed and we
+> > > wouldn't fallback. Or am I missing your point?
+> > 
+> > Lol, I hadn't updated my brain to a394cb8ee632 ("memcg,vmscan: do not
+> > break out targeted reclaim without reclaimed pages") yet...  Yes, you
+> > are right.
 > 
-> It should be more reliable if direct compaction captured the high-order free
-> page as soon as it detects it, and pass it back to allocation. This would
-> also reduce the window for somebody else to allocate the free page.
+> You made me think about this more and you are right ;).
+> The code as is doesn't cope with many racing reclaimers when some
+> threads can fallback to ignore the lowlimit although there are groups to
+> scan in the hierarchy but they were visited by other reclaimers.
+> The patch bellow should help with that. What do you think?
+> I am also thinking we want to add a fallback counter in memory.stat?
+> ---
+> >From e997b8b4ac724aa29bdeff998d2186ee3c0a97d8 Mon Sep 17 00:00:00 2001
+> From: Michal Hocko <mhocko@suse.cz>
+> Date: Mon, 5 May 2014 15:12:18 +0200
+> Subject: [PATCH] vmscan: memcg: check whether the low limit should be ignored
 > 
-> This has been already implemented by 1fb3f8ca0e92 ("mm: compaction: capture a
-> suitable high-order page immediately when it is made available"), but later
-> reverted by 8fb74b9f ("mm: compaction: partially revert capture of suitable
-> high-order page") due to flaws.
+> Low-limit (aka guarantee) is ignored when there is no group scanned
+> during the first round of __shink_zone. This approach doesn't work when
+> multiple reclaimers race and reclaim the same hierarchy (e.g. kswapd
+> vs. direct reclaim or multiple tasks hitting the hard limit) because
+> memcg iterator makes sure that multiple reclaimers are interleaved
+> in the hierarchy. This means that some reclaimers can see 0 scanned
+> groups although there are groups which are above the low-limit and they
+> were reclaimed on behalf of other reclaimers. This leads to a premature
+> low-limit break.
 > 
-> This patch differs from the previous attempt in two aspects:
+> This patch adds mem_cgroup_all_within_guarantee() which will check
+> whether all the groups in the reclaimed hierarchy are within their low
+> limit and shrink_zone will allow the fallback reclaim only when that is
+> true. This alone is still not sufficient however because it would lead
+> to another problem. If a reclaimer constantly fails to scan anything
+> because it sees only groups within their guarantees while others do the
+> reclaim then the reclaim priority would drop down very quickly.
+> shrink_zone has to be careful to preserve scan at least one group
+> semantic so __shrink_zone has to be retried until at least one group
+> is scanned.
 > 
-> 1) The previous patch scanned free lists to capture the page. In this patch,
->     only the cc->order aligned block that the migration scanner just finished
->     is considered, but only if pages were actually isolated for migration in
->     that block. Tracking cc->order aligned blocks also has benefits for the
->     following patch that skips blocks where non-migratable pages were found.
+> Signed-off-by: Michal Hocko <mhocko@suse.cz>
+> ---
+>  include/linux/memcontrol.h |  5 +++++
+>  mm/memcontrol.c            | 13 +++++++++++++
+>  mm/vmscan.c                | 17 ++++++++++++-----
+>  3 files changed, 30 insertions(+), 5 deletions(-)
 > 
-> 2) In this patch, the isolated free page is allocated through extending
->     get_page_from_freelist() and buffered_rmqueue(). This ensures that it gets
->     all operations such as prep_new_page() and page->pfmemalloc setting that
->     was missing in the previous attempt, zone statistics are updated etc.
-> 
-> Evaluation is pending.
+> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> index c00ccc5f70b9..077a777bd9ff 100644
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+> @@ -94,6 +94,7 @@ bool task_in_mem_cgroup(struct task_struct *task,
+>  
+>  extern bool mem_cgroup_within_guarantee(struct mem_cgroup *memcg,
+>  		struct mem_cgroup *root);
+> +extern bool mem_cgroup_all_within_guarantee(struct mem_cgroup *root);
+>  
+>  extern struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page);
+>  extern struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p);
+> @@ -296,6 +297,10 @@ static inline bool mem_cgroup_within_guarantee(struct mem_cgroup *memcg,
+>  {
+>  	return false;
+>  }
+> +static inline bool mem_cgroup_all_within_guarantee(struct mem_cgroup *root)
+> +{
+> +	return false;
+> +}
+>  
+>  static inline struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page)
+>  {
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 58982d18f6ea..4fd4784d1548 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -2833,6 +2833,19 @@ bool mem_cgroup_within_guarantee(struct mem_cgroup *memcg,
+>  	return false;
+>  }
+>  
+> +bool mem_cgroup_all_within_guarantee(struct mem_cgroup *root)
+> +{
+> +	struct mem_cgroup *iter;
+> +
+> +	for_each_mem_cgroup_tree(iter, root)
+> +		if (!mem_cgroup_within_guarantee(iter, root)) {
+> +			mem_cgroup_iter_break(root, iter);
+> +			return false;
+> +		}
+> +
+> +	return true;
+> +}
+> +
+>  struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page)
+>  {
+>  	struct mem_cgroup *memcg = NULL;
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 5f923999bb79..2686e47f04cc 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2293,13 +2293,20 @@ static unsigned __shrink_zone(struct zone *zone, struct scan_control *sc,
+>  
+>  static void shrink_zone(struct zone *zone, struct scan_control *sc)
+>  {
+> -	if (!__shrink_zone(zone, sc, true)) {
+> +	bool honor_guarantee = true;
+> +
+> +	while (!__shrink_zone(zone, sc, honor_guarantee)) {
+>  		/*
+> -		 * First round of reclaim didn't find anything to reclaim
+> -		 * because of the memory guantees for all memcgs in the
+> -		 * reclaim target so try again and ignore guarantees this time.
+> +		 * The previous round of reclaim didn't find anything to scan
+> +		 * because
+> +		 * a) the whole reclaimed hierarchy is within guarantee so
+> +		 *    we fallback to ignore the guarantee because other option
+> +		 *    would be the OOM
+> +		 * b) multiple reclaimers are racing and so the first round
+> +		 *    should be retried
+>  		 */
+> -		__shrink_zone(zone, sc, false);
+> +		if (mem_cgroup_all_within_guarantee(sc->target_mem_cgroup))
+> +			honor_guarantee = false;
+>  	}
 
-Uh, so if anyone wants to test it, here's a fixed version, as initial evaluation
-showed it does not actually capture anything (which should not affect patch 10/10
-though) and debugging this took a while.
+I don't like that this adds a non-chalant `for each memcg' here, we
+can have a lot of memcgs.  Sooner or later we'll have to break up that
+full hierarchy iteration in shrink_zone() because of scalability, I
+want to avoid adding more of them.
 
-- for pageblock_order (i.e. THP), capture was never attempted, as the for cycle
-  in isolate_migratepages_range() has ended right before the
-  low_pfn == next_capture_pfn check
-- lru_add_drain() has to be done before pcplists drain. This made a big difference
-  (~50 successful captures -> ~1300 successful captures)
-  Note that __alloc_pages_direct_compact() is missing lru_add_drain() as well, and
-  all the existing watermark-based compaction termination decisions (which happen
-  before the drain in __alloc_pages_direct_compact()) don't do any draining at all.
-  
------8<-----
-From: Vlastimil Babka <vbabka@suse.cz>
-Date: Wed, 28 May 2014 17:05:18 +0200
-Subject: [PATCH fixed 09/10] mm, compaction: try to capture the just-created
- high-order freepage
+How about these changes on top of what we currently have?  Sure it's
+not as accurate, but it should be good start, and it's a *lot* less
+overhead.
 
-Compaction uses watermark checking to determine if it succeeded in creating
-a high-order free page. My testing has shown that this is quite racy and it
-can happen that watermark checking in compaction succeeds, and moments later
-the watermark checking in page allocation fails, even though the number of
-free pages has increased meanwhile.
+mem_cgroup_watermark() is also a more fitting name, given that this
+has nothing to do with a guarantee for now.
 
-It should be more reliable if direct compaction captured the high-order free
-page as soon as it detects it, and pass it back to allocation. This would
-also reduce the window for somebody else to allocate the free page.
+It can also be easily extended to support the MIN watermark while the
+code in vmscan.c remains readable.
 
-This has been already implemented by 1fb3f8ca0e92 ("mm: compaction: capture a
-suitable high-order page immediately when it is made available"), but later
-reverted by 8fb74b9f ("mm: compaction: partially revert capture of suitable
-high-order page") due to flaws.
-
-This patch differs from the previous attempt in two aspects:
-
-1) The previous patch scanned free lists to capture the page. In this patch,
-   only the cc->order aligned block that the migration scanner just finished
-   is considered, but only if pages were actually isolated for migration in
-   that block. Tracking cc->order aligned blocks also has benefits for the
-   following patch that skips blocks where non-migratable pages were found.
-
-2) In this patch, the isolated free page is allocated through extending
-   get_page_from_freelist() and buffered_rmqueue(). This ensures that it gets
-   all operations such as prep_new_page() and page->pfmemalloc setting that
-   was missing in the previous attempt, zone statistics are updated etc.
-
-Evaluation is pending.
-
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Michal Nazarewicz <mina86@mina86.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Christoph Lameter <cl@linux.com>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: David Rientjes <rientjes@google.com>
 ---
- include/linux/compaction.h |   5 ++-
- mm/compaction.c            | 103 +++++++++++++++++++++++++++++++++++++++++++--
- mm/internal.h              |   2 +
- mm/page_alloc.c            |  69 ++++++++++++++++++++++++------
- 4 files changed, 161 insertions(+), 18 deletions(-)
 
-diff --git a/include/linux/compaction.h b/include/linux/compaction.h
-index 01e3132..69579f5 100644
---- a/include/linux/compaction.h
-+++ b/include/linux/compaction.h
-@@ -10,6 +10,8 @@
- #define COMPACT_PARTIAL		2
- /* The full zone was compacted */
- #define COMPACT_COMPLETE	3
-+/* Captured a high-order free page in direct compaction */
-+#define COMPACT_CAPTURED	4
- 
- #ifdef CONFIG_COMPACTION
- extern int sysctl_compact_memory;
-@@ -22,7 +24,8 @@ extern int sysctl_extfrag_handler(struct ctl_table *table, int write,
- extern int fragmentation_index(struct zone *zone, unsigned int order);
- extern unsigned long try_to_compact_pages(struct zonelist *zonelist,
- 			int order, gfp_t gfp_mask, nodemask_t *mask,
--			enum migrate_mode mode, bool *contended);
-+			enum migrate_mode mode, bool *contended,
-+			struct page **captured_page);
- extern void compact_pgdat(pg_data_t *pgdat, int order);
- extern void reset_isolation_suitable(pg_data_t *pgdat);
- extern unsigned long compaction_suitable(struct zone *zone, int order);
-diff --git a/mm/compaction.c b/mm/compaction.c
-index d1e30ba..2988758 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -541,6 +541,16 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
- 	const isolate_mode_t mode = (cc->mode == MIGRATE_ASYNC ?
- 					ISOLATE_ASYNC_MIGRATE : 0) |
- 				    (unevictable ? ISOLATE_UNEVICTABLE : 0);
-+	unsigned long capture_pfn = 0;   /* current candidate for capturing */
-+	unsigned long next_capture_pfn = 0; /* next candidate for capturing */
-+
-+	if (cc->order > PAGE_ALLOC_COSTLY_ORDER
-+		&& gfpflags_to_migratetype(cc->gfp_mask) == MIGRATE_MOVABLE
-+			&& cc->order <= pageblock_order) {
-+		/* This may be outside the zone, but we check that later */
-+		capture_pfn = low_pfn & ~((1UL << cc->order) - 1);
-+		next_capture_pfn = ALIGN(low_pfn + 1, (1UL << cc->order));
-+	}
- 
- 	/*
- 	 * Ensure that there are not too many pages isolated from the LRU
-@@ -563,6 +573,19 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
- 
- 	/* Time to isolate some pages for migration */
- 	for (; low_pfn < end_pfn; low_pfn++) {
-+		if (low_pfn == next_capture_pfn) {
-+			/*
-+			 * We have a capture candidate if we isolated something
-+			 * during the last cc->order aligned block of pages.
-+			 */
-+			if (nr_isolated && capture_pfn >= zone->zone_start_pfn)
-+				break;
-+
-+			/* Prepare for a new capture candidate */
-+			capture_pfn = next_capture_pfn;
-+			next_capture_pfn += (1UL << cc->order);
-+		}
-+
- 		/*
- 		 * Periodically drop the lock (if held) regardless of its
- 		 * contention, to give chance to IRQs. Abort async compaction
-@@ -582,6 +605,8 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
- 		if ((low_pfn & (MAX_ORDER_NR_PAGES - 1)) == 0) {
- 			if (!pfn_valid(low_pfn)) {
- 				low_pfn += MAX_ORDER_NR_PAGES - 1;
-+				if (next_capture_pfn)
-+					next_capture_pfn = low_pfn + 1;
- 				continue;
- 			}
- 		}
-@@ -639,8 +664,12 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
- 			 * a valid page order. Consider only values in the
- 			 * valid order range to prevent low_pfn overflow.
- 			 */
--			if (freepage_order > 0 && freepage_order < MAX_ORDER)
-+			if (freepage_order > 0 && freepage_order < MAX_ORDER) {
- 				low_pfn += (1UL << freepage_order) - 1;
-+				if (next_capture_pfn)
-+					next_capture_pfn = ALIGN(low_pfn + 1,
-+							(1UL << cc->order));
-+			}
- 			continue;
- 		}
- 
-@@ -673,6 +702,9 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
- 			if (!locked)
- 				goto next_pageblock;
- 			low_pfn += (1 << compound_order(page)) - 1;
-+			if (next_capture_pfn)
-+				next_capture_pfn =
-+					ALIGN(low_pfn + 1, (1UL << cc->order));
- 			continue;
- 		}
- 
-@@ -697,6 +729,7 @@ isolate_migratepages_range(struct zone *zone, struct compact_control *cc,
- 				continue;
- 			if (PageTransHuge(page)) {
- 				low_pfn += (1 << compound_order(page)) - 1;
-+				next_capture_pfn = low_pfn + 1;
- 				continue;
- 			}
- 		}
-@@ -728,9 +761,20 @@ isolate_success:
- 
- next_pageblock:
- 		low_pfn = ALIGN(low_pfn + 1, pageblock_nr_pages) - 1;
-+		if (next_capture_pfn)
-+			next_capture_pfn = low_pfn + 1;
- 	}
- 
- 	/*
-+	 * For cases when next_capture_pfn == end_pfn, such as end of
-+	 * pageblock, we couldn't have determined capture candidate inside
-+	 * the for cycle, so we have to do it here.
-+	 */
-+	if (low_pfn == next_capture_pfn && nr_isolated
-+			&& capture_pfn >= zone->zone_start_pfn)
-+		cc->capture_page = pfn_to_page(capture_pfn);
-+
-+	/*
- 	 * The PageBuddy() check could have potentially brought us outside
- 	 * the range to be scanned.
- 	 */
-@@ -965,6 +1009,44 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
- 	return ISOLATE_SUCCESS;
- }
- 
-+/*
-+ * When called, cc->capture_page is just a candidate. This function will either
-+ * successfully capture the page, or reset it to NULL.
-+ */
-+static bool compact_capture_page(struct compact_control *cc)
-+{
-+	struct page *page = cc->capture_page;
-+	int cpu;
-+
-+	/* Unsafe check if it's worth to try acquiring the zone->lock at all */
-+	if (PageBuddy(page) && page_order_unsafe(page) >= cc->order)
-+		goto try_capture;
-+
-+	/*
-+	 * There's a good chance that we have just put free pages on this CPU's
-+	 * lru cache and pcplists after the page migrations. Drain them to
-+	 * allow merging.
-+	 */
-+	cpu = get_cpu();
-+	lru_add_drain_cpu(cpu);
-+	drain_local_pages(NULL);
-+	put_cpu();
-+
-+	/* Did the draining help? */
-+	if (PageBuddy(page) && page_order_unsafe(page) >= cc->order)
-+		goto try_capture;
-+
-+	goto fail;
-+
-+try_capture:
-+	if (capture_free_page(page, cc->order))
-+		return true;
-+
-+fail:
-+	cc->capture_page = NULL;
-+	return false;
-+}
-+
- static int compact_finished(struct zone *zone, struct compact_control *cc,
- 			    const int migratetype)
- {
-@@ -993,6 +1075,10 @@ static int compact_finished(struct zone *zone, struct compact_control *cc,
- 		return COMPACT_COMPLETE;
- 	}
- 
-+	/* Did we just finish a pageblock that was capture candidate? */
-+	if (cc->capture_page && compact_capture_page(cc))
-+		return COMPACT_CAPTURED;
-+
- 	/*
- 	 * order == -1 is expected when compacting via
- 	 * /proc/sys/vm/compact_memory
-@@ -1173,7 +1259,8 @@ out:
- }
- 
- static unsigned long compact_zone_order(struct zone *zone, int order,
--		gfp_t gfp_mask, enum migrate_mode mode, bool *contended)
-+		gfp_t gfp_mask, enum migrate_mode mode, bool *contended,
-+						struct page **captured_page)
- {
- 	unsigned long ret;
- 	struct compact_control cc = {
-@@ -1189,6 +1276,9 @@ static unsigned long compact_zone_order(struct zone *zone, int order,
- 
- 	ret = compact_zone(zone, &cc);
- 
-+	if (ret == COMPACT_CAPTURED)
-+		*captured_page = cc.capture_page;
-+
- 	VM_BUG_ON(!list_empty(&cc.freepages));
- 	VM_BUG_ON(!list_empty(&cc.migratepages));
- 
-@@ -1213,7 +1303,8 @@ int sysctl_extfrag_threshold = 500;
-  */
- unsigned long try_to_compact_pages(struct zonelist *zonelist,
- 			int order, gfp_t gfp_mask, nodemask_t *nodemask,
--			enum migrate_mode mode, bool *contended)
-+			enum migrate_mode mode, bool *contended,
-+			struct page **captured_page)
- {
- 	enum zone_type high_zoneidx = gfp_zone(gfp_mask);
- 	int may_enter_fs = gfp_mask & __GFP_FS;
-@@ -1239,9 +1330,13 @@ unsigned long try_to_compact_pages(struct zonelist *zonelist,
- 		int status;
- 
- 		status = compact_zone_order(zone, order, gfp_mask, mode,
--						contended);
-+						contended, captured_page);
- 		rc = max(status, rc);
- 
-+		/* If we captured a page, stop compacting */
-+		if (*captured_page)
-+			break;
-+
- 		/* If a normal allocation would succeed, stop compacting */
- 		if (zone_watermark_ok(zone, order, low_wmark_pages(zone), 0,
- 				      alloc_flags))
-diff --git a/mm/internal.h b/mm/internal.h
-index af15461..2b7e5de 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -110,6 +110,7 @@ extern pmd_t *mm_find_pmd(struct mm_struct *mm, unsigned long address);
-  */
- extern void __free_pages_bootmem(struct page *page, unsigned int order);
- extern void prep_compound_page(struct page *page, unsigned long order);
-+extern bool capture_free_page(struct page *page, unsigned int order);
- #ifdef CONFIG_MEMORY_FAILURE
- extern bool is_free_buddy_page(struct page *page);
- #endif
-@@ -155,6 +156,7 @@ struct compact_control {
- 					   * contention detected during
- 					   * compaction
- 					   */
-+	struct page *capture_page;	/* Free page captured by compaction */
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index a5cf853129ec..6167bed81d78 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -53,6 +53,11 @@ struct mem_cgroup_reclaim_cookie {
+ 	unsigned int generation;
  };
  
- unsigned long
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index a3acb83..6235cad 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -954,7 +954,6 @@ struct page *__rmqueue_smallest(struct zone *zone, unsigned int order,
- 	return NULL;
- }
- 
--
++enum memcg_watermark {
++	MEMCG_WMARK_NORMAL,
++	MEMCG_WMARK_LOW,
++};
++
+ #ifdef CONFIG_MEMCG
  /*
-  * This array describes the order lists are fallen back to when
-  * the free lists for the desirable migrate type are depleted
-@@ -1474,9 +1473,11 @@ static int __isolate_free_page(struct page *page, unsigned int order)
- {
- 	unsigned long watermark;
- 	struct zone *zone;
-+	struct free_area *area;
- 	int mt;
-+	unsigned int freepage_order = page_order(page);
+  * All "charge" functions with gfp_mask should use GFP_KERNEL or
+@@ -92,9 +97,8 @@ bool __mem_cgroup_same_or_subtree(const struct mem_cgroup *root_memcg,
+ bool task_in_mem_cgroup(struct task_struct *task,
+ 			const struct mem_cgroup *memcg);
  
--	BUG_ON(!PageBuddy(page));
-+	VM_BUG_ON_PAGE((!PageBuddy(page) || freepage_order < order), page);
+-extern bool mem_cgroup_within_guarantee(struct mem_cgroup *memcg,
+-		struct mem_cgroup *root);
+-extern bool mem_cgroup_all_within_guarantee(struct mem_cgroup *root);
++enum memcg_watermark mem_cgroup_watermark(struct mem_cgroup *root,
++					  struct mem_cgroup *memcg);
  
- 	zone = page_zone(page);
- 	mt = get_pageblock_migratetype(page);
-@@ -1491,9 +1492,12 @@ static int __isolate_free_page(struct page *page, unsigned int order)
- 	}
- 
- 	/* Remove page from free list */
-+	area = &zone->free_area[freepage_order];
- 	list_del(&page->lru);
--	zone->free_area[order].nr_free--;
-+	area->nr_free--;
- 	rmv_page_order(page);
-+	if (freepage_order != order)
-+		expand(zone, page, order, freepage_order, area, mt);
- 
- 	/* Set the pageblock if the isolated page is at least a pageblock */
- 	if (order >= pageblock_order - 1) {
-@@ -1536,6 +1540,26 @@ int split_free_page(struct page *page)
- 	return nr_pages;
+ extern struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page);
+ extern struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p);
+@@ -292,16 +296,6 @@ static inline struct lruvec *mem_cgroup_page_lruvec(struct page *page,
+ 	return &zone->lruvec;
  }
  
-+bool capture_free_page(struct page *page, unsigned int order)
+-static inline bool mem_cgroup_within_guarantee(struct mem_cgroup *memcg,
+-		struct mem_cgroup *root)
+-{
+-	return false;
+-}
+-static inline bool mem_cgroup_all_within_guarantee(struct mem_cgroup *root)
+-{
+-	return false;
+-}
+-
+ static inline struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page)
+ {
+ 	return NULL;
+@@ -319,6 +313,12 @@ static inline bool task_in_mem_cgroup(struct task_struct *task,
+ 	return true;
+ }
+ 
++static inline enum memcg_watermark
++mem_cgroup_watermark(struct mem_cgroup *root, struct mem_cgroup *memcg)
 +{
-+	struct zone *zone = page_zone(page);
-+	unsigned long flags;
-+	bool ret;
-+
-+	spin_lock_irqsave(&zone->lock, flags);
-+
-+	if (!PageBuddy(page) || page_order(page) < order) {
-+		ret = false;
-+		goto out;
-+	}
-+
-+	ret = __isolate_free_page(page, order);
-+
-+out:
-+	spin_unlock_irqrestore(&zone->lock, flags);
-+	return ret;
++	return MEMCG_WMARK_NORMAL;
 +}
 +
- /*
-  * Really, prep_compound_page() should be called from __rmqueue_bulk().  But
-  * we cheat by calling it from here, in the order > 0 path.  Saves a branch
-@@ -1544,7 +1568,8 @@ int split_free_page(struct page *page)
- static inline
- struct page *buffered_rmqueue(struct zone *preferred_zone,
- 			struct zone *zone, unsigned int order,
--			gfp_t gfp_flags, int migratetype)
-+			gfp_t gfp_flags, int migratetype,
-+			struct page *isolated_freepage)
+ static inline struct cgroup_subsys_state
+ 		*mem_cgroup_css(struct mem_cgroup *memcg)
  {
- 	unsigned long flags;
- 	struct page *page;
-@@ -1573,6 +1598,9 @@ again:
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 7ff5b8e297fd..8ee8786a286c 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2780,44 +2780,20 @@ static struct mem_cgroup *mem_cgroup_lookup(unsigned short id)
+ 	return mem_cgroup_from_id(id);
+ }
  
- 		list_del(&page->lru);
- 		pcp->count--;
-+	} else if (unlikely(isolated_freepage)) {
-+		page = isolated_freepage;
-+		local_irq_save(flags);
- 	} else {
- 		if (unlikely(gfp_flags & __GFP_NOFAIL)) {
- 			/*
-@@ -1588,7 +1616,9 @@ again:
- 			WARN_ON_ONCE(order > 1);
- 		}
- 		spin_lock_irqsave(&zone->lock, flags);
-+
- 		page = __rmqueue(zone, order, migratetype);
-+
- 		spin_unlock(&zone->lock);
- 		if (!page)
- 			goto failed;
-@@ -1916,7 +1946,8 @@ static bool zone_allows_reclaim(struct zone *local_zone, struct zone *zone)
- static struct page *
- get_page_from_freelist(gfp_t gfp_mask, nodemask_t *nodemask, unsigned int order,
- 		struct zonelist *zonelist, int high_zoneidx, int alloc_flags,
--		struct zone *preferred_zone, int classzone_idx, int migratetype)
-+		struct zone *preferred_zone, int classzone_idx, int migratetype,
-+		struct page *isolated_freepage)
+-/**
+- * mem_cgroup_within_guarantee - checks whether given memcg is within its
+- * memory guarantee
+- * @memcg: target memcg for the reclaim
+- * @root: root of the reclaim hierarchy (null for the global reclaim)
+- *
+- * The given group is within its reclaim gurantee if it is below its low limit
+- * or the same applies for any parent up the hierarchy until root (including).
+- * Such a group might be excluded from the reclaim.
+- */
+-bool mem_cgroup_within_guarantee(struct mem_cgroup *memcg,
+-		struct mem_cgroup *root)
++enum memcg_watermark mem_cgroup_watermark(struct mem_cgroup *root,
++					  struct mem_cgroup *memcg)
  {
- 	struct zoneref *z;
- 	struct page *page = NULL;
-@@ -1927,6 +1958,13 @@ get_page_from_freelist(gfp_t gfp_mask, nodemask_t *nodemask, unsigned int order,
- 	bool consider_zone_dirty = (alloc_flags & ALLOC_WMARK_LOW) &&
- 				(gfp_mask & __GFP_WRITE);
+ 	if (mem_cgroup_disabled())
+-		return false;
++		return MEMCG_WMARK_NORMAL;
  
-+	if (isolated_freepage) {
-+		zone = page_zone(isolated_freepage);
-+		page = buffered_rmqueue(preferred_zone, zone, order, gfp_mask,
-+						migratetype, isolated_freepage);
-+		goto got_page;
-+	}
-+
- zonelist_scan:
- 	/*
- 	 * Scan zonelist, looking for a zone with enough free.
-@@ -2051,7 +2089,7 @@ zonelist_scan:
- 
- try_this_zone:
- 		page = buffered_rmqueue(preferred_zone, zone, order,
--						gfp_mask, migratetype);
-+						gfp_mask, migratetype, NULL);
- 		if (page)
- 			break;
- this_zone_full:
-@@ -2065,6 +2103,7 @@ this_zone_full:
- 		goto zonelist_scan;
- 	}
- 
-+got_page:
- 	if (page)
- 		/*
- 		 * page->pfmemalloc is set when ALLOC_NO_WATERMARKS was
-@@ -2202,7 +2241,7 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
- 	page = get_page_from_freelist(gfp_mask|__GFP_HARDWALL, nodemask,
- 		order, zonelist, high_zoneidx,
- 		ALLOC_WMARK_HIGH|ALLOC_CPUSET,
--		preferred_zone, classzone_idx, migratetype);
-+		preferred_zone, classzone_idx, migratetype, NULL);
- 	if (page)
- 		goto out;
- 
-@@ -2241,6 +2280,8 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
- 	bool *contended_compaction, bool *deferred_compaction,
- 	unsigned long *did_some_progress)
- {
-+	struct page *captured_page;
-+
- 	if (!order)
- 		return NULL;
- 
-@@ -2252,7 +2293,8 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
- 	current->flags |= PF_MEMALLOC;
- 	*did_some_progress = try_to_compact_pages(zonelist, order, gfp_mask,
- 						nodemask, mode,
--						contended_compaction);
-+						contended_compaction,
-+						&captured_page);
- 	current->flags &= ~PF_MEMALLOC;
- 
- 	if (*did_some_progress != COMPACT_SKIPPED) {
-@@ -2265,7 +2307,8 @@ __alloc_pages_direct_compact(gfp_t gfp_mask, unsigned int order,
- 		page = get_page_from_freelist(gfp_mask, nodemask,
- 				order, zonelist, high_zoneidx,
- 				alloc_flags & ~ALLOC_NO_WATERMARKS,
--				preferred_zone, classzone_idx, migratetype);
-+				preferred_zone, classzone_idx, migratetype,
-+				captured_page);
- 		if (page) {
- 			preferred_zone->compact_blockskip_flush = false;
- 			compaction_defer_reset(preferred_zone, order, true);
-@@ -2357,7 +2400,7 @@ retry:
- 					zonelist, high_zoneidx,
- 					alloc_flags & ~ALLOC_NO_WATERMARKS,
- 					preferred_zone, classzone_idx,
--					migratetype);
-+					migratetype, NULL);
- 
- 	/*
- 	 * If an allocation failed after direct reclaim, it could be because
-@@ -2387,7 +2430,7 @@ __alloc_pages_high_priority(gfp_t gfp_mask, unsigned int order,
  	do {
- 		page = get_page_from_freelist(gfp_mask, nodemask, order,
- 			zonelist, high_zoneidx, ALLOC_NO_WATERMARKS,
--			preferred_zone, classzone_idx, migratetype);
-+			preferred_zone, classzone_idx, migratetype, NULL);
+ 		if (!res_counter_low_limit_excess(&memcg->res))
+-			return true;
++			return MEMCG_WMARK_LOW;
+ 		if (memcg == root)
+ 			break;
+-
+ 	} while ((memcg = parent_mem_cgroup(memcg)));
  
- 		if (!page && gfp_mask & __GFP_NOFAIL)
- 			wait_iff_congested(preferred_zone, BLK_RW_ASYNC, HZ/50);
-@@ -2548,7 +2591,7 @@ rebalance:
- 	/* This is the last chance, in general, before the goto nopage. */
- 	page = get_page_from_freelist(gfp_mask, nodemask, order, zonelist,
- 			high_zoneidx, alloc_flags & ~ALLOC_NO_WATERMARKS,
--			preferred_zone, classzone_idx, migratetype);
-+			preferred_zone, classzone_idx, migratetype, NULL);
- 	if (page)
- 		goto got_pg;
+-	return false;
+-}
+-
+-bool mem_cgroup_all_within_guarantee(struct mem_cgroup *root)
+-{
+-	struct mem_cgroup *iter;
+-
+-	for_each_mem_cgroup_tree(iter, root)
+-		if (!mem_cgroup_within_guarantee(iter, root)) {
+-			mem_cgroup_iter_break(root, iter);
+-			return false;
+-		}
+-
+-	return true;
++	return MEMCG_WMARK_NORMAL;
+ }
  
-@@ -2757,7 +2800,7 @@ retry:
- 	/* First allocation attempt */
- 	page = get_page_from_freelist(gfp_mask|__GFP_HARDWALL, nodemask, order,
- 			zonelist, high_zoneidx, alloc_flags,
--			preferred_zone, classzone_idx, migratetype);
-+			preferred_zone, classzone_idx, migratetype, NULL);
- 	if (unlikely(!page)) {
- 		/*
- 		 * The first pass makes sure allocations are spread
--- 
-1.8.4.5
-
-
+ struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page)
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index b19ebb3a666b..687076b7a1a6 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2231,21 +2231,9 @@ static inline bool should_continue_reclaim(struct zone *zone,
+ 	}
+ }
+ 
+-/**
+- * __shrink_zone - shrinks a given zone
+- *
+- * @zone: zone to shrink
+- * @sc: scan control with additional reclaim parameters
+- * @honor_memcg_guarantee: do not reclaim memcgs which are within their memory
+- * guarantee
+- *
+- * Returns the number of reclaimed memcgs.
+- */
+-static unsigned __shrink_zone(struct zone *zone, struct scan_control *sc,
+-		bool honor_memcg_guarantee)
++static void shrink_zone(struct zone *zone, struct scan_control *sc)
+ {
+ 	unsigned long nr_reclaimed, nr_scanned;
+-	unsigned nr_scanned_groups = 0;
+ 
+ 	do {
+ 		struct mem_cgroup *root = sc->target_mem_cgroup;
+@@ -2262,20 +2250,22 @@ static unsigned __shrink_zone(struct zone *zone, struct scan_control *sc,
+ 		do {
+ 			struct lruvec *lruvec;
+ 
+-			/* Memcg might be protected from the reclaim */
+-			if (honor_memcg_guarantee &&
+-					mem_cgroup_within_guarantee(memcg, root)) {
++			switch (mem_cgroup_watermark(root, memcg)) {
++			case MEMCG_WMARK_LOW:
+ 				/*
+-				 * It would be more optimal to skip the memcg
+-				 * subtree now but we do not have a memcg iter
+-				 * helper for that. Anyone?
++				 * Memcg within the configured low
++				 * watermark: try to avoid reclaim
++				 * until the reclaimer struggles.
+ 				 */
++				if (priority < DEF_PRIORITY - 2)
++					break;
++
++				/* XXX: skip the whole subtree */
+ 				memcg = mem_cgroup_iter(root, memcg, &reclaim);
+ 				continue;
+ 			}
+ 
+ 			lruvec = mem_cgroup_zone_lruvec(zone, memcg);
+-			nr_scanned_groups++;
+ 
+ 			sc->swappiness = mem_cgroup_swappiness(memcg);
+ 			shrink_lruvec(lruvec, sc);
+@@ -2304,27 +2294,6 @@ static unsigned __shrink_zone(struct zone *zone, struct scan_control *sc,
+ 
+ 	} while (should_continue_reclaim(zone, sc->nr_reclaimed - nr_reclaimed,
+ 					 sc->nr_scanned - nr_scanned, sc));
+-
+-	return nr_scanned_groups;
+-}
+-
+-static void shrink_zone(struct zone *zone, struct scan_control *sc)
+-{
+-	bool honor_guarantee = true;
+-
+-	while (!__shrink_zone(zone, sc, honor_guarantee)) {
+-		/*
+-		 * The previous round of reclaim didn't find anything to scan
+-		 * because
+-		 * a) the whole reclaimed hierarchy is within guarantee so
+-		 *    we fallback to ignore the guarantee because other option
+-		 *    would be the OOM
+-		 * b) multiple reclaimers are racing and so the first round
+-		 *    should be retried
+-		 */
+-		if (mem_cgroup_all_within_guarantee(sc->target_mem_cgroup))
+-			honor_guarantee = false;
+-	}
+ }
+ 
+ /* Returns true if compaction should go ahead for a high-order request */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
