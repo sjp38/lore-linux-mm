@@ -1,85 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f182.google.com (mail-we0-f182.google.com [74.125.82.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B81D6B0136
-	for <linux-mm@kvack.org>; Tue, 10 Jun 2014 22:21:52 -0400 (EDT)
-Received: by mail-we0-f182.google.com with SMTP id q59so3022174wes.41
-        for <linux-mm@kvack.org>; Tue, 10 Jun 2014 19:21:51 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id p6si19544784wiz.43.2014.06.10.19.21.50
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 9803B6B0138
+	for <linux-mm@kvack.org>; Tue, 10 Jun 2014 22:41:05 -0400 (EDT)
+Received: by mail-pd0-f175.google.com with SMTP id z10so6708965pdj.6
+        for <linux-mm@kvack.org>; Tue, 10 Jun 2014 19:41:05 -0700 (PDT)
+Received: from lgeamrelo02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
+        by mx.google.com with ESMTP id c8si4925697pat.56.2014.06.10.19.41.03
         for <linux-mm@kvack.org>;
-        Tue, 10 Jun 2014 19:21:51 -0700 (PDT)
-Date: Tue, 10 Jun 2014 22:21:29 -0400
-From: Luiz Capitulino <lcapitulino@redhat.com>
-Subject: Re: [PATCH] x86: numa: drop ZONE_ALIGN
-Message-ID: <20140610222129.1cf459e0@redhat.com>
-In-Reply-To: <alpine.DEB.2.02.1406101506290.32203@chino.kir.corp.google.com>
-References: <20140608181436.17de69ac@redhat.com>
-	<alpine.DEB.2.02.1406081524580.21744@chino.kir.corp.google.com>
-	<20140609144355.63a91968@redhat.com>
-	<alpine.DEB.2.02.1406091453570.5271@chino.kir.corp.google.com>
-	<20140609231920.08a1b0f9@redhat.com>
-	<alpine.DEB.2.02.1406101506290.32203@chino.kir.corp.google.com>
+        Tue, 10 Jun 2014 19:41:04 -0700 (PDT)
+Date: Wed, 11 Jun 2014 11:41:09 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH 07/10] mm: rename allocflags_to_migratetype for clarity
+Message-ID: <20140611024109.GG15630@bbox>
+References: <1402305982-6928-1-git-send-email-vbabka@suse.cz>
+ <1402305982-6928-7-git-send-email-vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1402305982-6928-7-git-send-email-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: akpm@linux-foundation.org, andi@firstfloor.org, riel@redhat.com, yinghai@kernel.org, isimatu.yasuaki@jp.fujitsu.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>
 
-On Tue, 10 Jun 2014 15:10:01 -0700 (PDT)
-David Rientjes <rientjes@google.com> wrote:
-
-> On Mon, 9 Jun 2014, Luiz Capitulino wrote:
+On Mon, Jun 09, 2014 at 11:26:19AM +0200, Vlastimil Babka wrote:
+> From: David Rientjes <rientjes@google.com>
 > 
-> > > > > > diff --git a/arch/x86/include/asm/numa.h b/arch/x86/include/asm/numa.h
-> > > > > > index 4064aca..01b493e 100644
-> > > > > > --- a/arch/x86/include/asm/numa.h
-> > > > > > +++ b/arch/x86/include/asm/numa.h
-> > > > > > @@ -9,7 +9,6 @@
-> > > > > >  #ifdef CONFIG_NUMA
-> > > > > >  
-> > > > > >  #define NR_NODE_MEMBLKS		(MAX_NUMNODES*2)
-> > > > > > -#define ZONE_ALIGN (1UL << (MAX_ORDER+PAGE_SHIFT))
-> > > > > >  
-> > > > > >  /*
-> > > > > >   * Too small node sizes may confuse the VM badly. Usually they
-> > > > > > diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
-> > > > > > index 1d045f9..69f6362 100644
-> > > > > > --- a/arch/x86/mm/numa.c
-> > > > > > +++ b/arch/x86/mm/numa.c
-> > > > > > @@ -200,8 +200,6 @@ static void __init setup_node_data(int nid, u64 start, u64 end)
-> > > > > >  	if (end && (end - start) < NODE_MIN_SIZE)
-> > > > > >  		return;
-> > > > > >  
-> > > > > > -	start = roundup(start, ZONE_ALIGN);
-> > > > > > -
-> > > > > >  	printk(KERN_INFO "Initmem setup node %d [mem %#010Lx-%#010Lx]\n",
-> > > > > >  	       nid, start, end - 1);
-> > > > > >  
-> > > > > 
-> > > > > What ensures this start address is page aligned from the BIOS?
-> > > > 
-> > > > To which start address do you refer to?
-> > > 
-> > > The start address displayed in the dmesg is not page aligned anymore with 
-> > > your change, correct?  
-> > 
-> > I have to check that but I don't expect this to happen because my
-> > understanding of the code is that what's rounded up here is just discarded
-> > in free_area_init_node(). Am I wrong?
-> > 
+> The page allocator has gfp flags (like __GFP_WAIT) and alloc flags (like
+> ALLOC_CPUSET) that have separate semantics.
 > 
-> NODE_DATA(nid)->node_start_pfn needs to be accurate if 
-> node_set_online(nid).  Since there is no guarantee about page alignment 
-> from the ACPI spec, removing the roundup() entirely could cause the 
-> address shift >> PAGE_SIZE to be off by one.  I, like you, do not see the 
-> need for the ZONE_ALIGN above, but I think we agree that it should be 
-> replaced with PAGE_SIZE instead.
+> The function allocflags_to_migratetype() actually takes gfp flags, not alloc
+> flags, and returns a migratetype.  Rename it to gfpflags_to_migratetype().
+> 
+> Signed-off-by: David Rientjes <rientjes@google.com>
+> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 
-Agreed. I'm just not completely sure setup_node_data() is the best place
-for it, shouldn't we do it in acpi_numa_memory_affinity_init(), which is
-when the ranges are read off the SRAT table?
+I was one of person who got confused sometime.
+
+Acked-by: Minchan Kim <minchan@kernel.org>
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
