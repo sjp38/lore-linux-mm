@@ -1,45 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f46.google.com (mail-wg0-f46.google.com [74.125.82.46])
-	by kanga.kvack.org (Postfix) with ESMTP id BAE286B0168
-	for <linux-mm@kvack.org>; Wed, 11 Jun 2014 13:38:59 -0400 (EDT)
-Received: by mail-wg0-f46.google.com with SMTP id y10so76604wgg.17
-        for <linux-mm@kvack.org>; Wed, 11 Jun 2014 10:38:59 -0700 (PDT)
-Received: from mail-wi0-x235.google.com (mail-wi0-x235.google.com [2a00:1450:400c:c05::235])
-        by mx.google.com with ESMTPS id ys3si43071892wjc.16.2014.06.11.10.38.57
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 11 Jun 2014 10:38:58 -0700 (PDT)
-Received: by mail-wi0-f181.google.com with SMTP id n3so1587998wiv.14
-        for <linux-mm@kvack.org>; Wed, 11 Jun 2014 10:38:57 -0700 (PDT)
-Date: Wed, 11 Jun 2014 18:38:51 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: kmemleak: Unable to handle kernel paging request
-Message-ID: <20140611173851.GA5556@MacBook-Pro.local>
-References: <CAOJe8K3fy3XFxDdVc3y1hiMAqUCPmkUhECU7j5TT=E=gxwBqHg@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAOJe8K3fy3XFxDdVc3y1hiMAqUCPmkUhECU7j5TT=E=gxwBqHg@mail.gmail.com>
+Received: from mail-qc0-f179.google.com (mail-qc0-f179.google.com [209.85.216.179])
+	by kanga.kvack.org (Postfix) with ESMTP id 9EB3F6B016A
+	for <linux-mm@kvack.org>; Wed, 11 Jun 2014 15:15:22 -0400 (EDT)
+Received: by mail-qc0-f179.google.com with SMTP id r5so340301qcx.10
+        for <linux-mm@kvack.org>; Wed, 11 Jun 2014 12:15:22 -0700 (PDT)
+Received: from qmta09.emeryville.ca.mail.comcast.net (qmta09.emeryville.ca.mail.comcast.net. [2001:558:fe2d:43:76:96:30:96])
+        by mx.google.com with ESMTP id v7si32658426qay.21.2014.06.11.12.15.21
+        for <linux-mm@kvack.org>;
+        Wed, 11 Jun 2014 12:15:21 -0700 (PDT)
+Message-Id: <20140611191510.082006044@linux.com>
+Date: Wed, 11 Jun 2014 14:15:10 -0500
+From: Christoph Lameter <cl@linux.com>
+Subject: [PATCH 0/3] slab: common kmem_cache_cpu functions V2
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Denis Kirjanov <kda@linux-powerpc.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Pekka Enberg <penberg@kernel.org>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On Wed, Jun 11, 2014 at 04:13:07PM +0400, Denis Kirjanov wrote:
-> I got a trace while running 3.15.0-08556-gdfb9454:
-> 
-> [  104.534026] Unable to handle kernel paging request for data at
-> address 0xc00000007f000000
+V1->V2
+- Add some comments
+- Use the new functions in more places to simplify code
 
-Were there any kmemleak messages prior to this, like "kmemleak
-disabled"? There could be a race when kmemleak is disabled because of
-some fatal (for kmemleak) error while the scanning is taking place
-(which needs some more thinking to fix properly).
+The patchset provides two new functions in mm/slab.h and modifies SLAB and
+SLUB to use these. The kmem_cache_node structure is shared between both
+allocators and the use of common accessors will allow us to move more code
+into slab_common.c in the future.
 
-Thanks.
-
--- 
-Catalin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
