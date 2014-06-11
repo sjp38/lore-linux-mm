@@ -1,96 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f43.google.com (mail-wg0-f43.google.com [74.125.82.43])
-	by kanga.kvack.org (Postfix) with ESMTP id E51056B0161
-	for <linux-mm@kvack.org>; Wed, 11 Jun 2014 12:08:19 -0400 (EDT)
-Received: by mail-wg0-f43.google.com with SMTP id b13so4397389wgh.26
-        for <linux-mm@kvack.org>; Wed, 11 Jun 2014 09:08:19 -0700 (PDT)
-Received: from mail-wi0-x232.google.com (mail-wi0-x232.google.com [2a00:1450:400c:c05::232])
-        by mx.google.com with ESMTPS id bu8si42686389wjc.35.2014.06.11.09.08.12
+Received: from mail-we0-f176.google.com (mail-we0-f176.google.com [74.125.82.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 078906B0163
+	for <linux-mm@kvack.org>; Wed, 11 Jun 2014 12:14:31 -0400 (EDT)
+Received: by mail-we0-f176.google.com with SMTP id u56so4787588wes.21
+        for <linux-mm@kvack.org>; Wed, 11 Jun 2014 09:14:31 -0700 (PDT)
+Received: from mail-wg0-x22e.google.com (mail-wg0-x22e.google.com [2a00:1450:400c:c00::22e])
+        by mx.google.com with ESMTPS id dy5si22687821wib.52.2014.06.11.09.14.29
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 11 Jun 2014 09:08:12 -0700 (PDT)
-Received: by mail-wi0-f178.google.com with SMTP id n15so1426588wiw.5
-        for <linux-mm@kvack.org>; Wed, 11 Jun 2014 09:08:09 -0700 (PDT)
-Date: Wed, 11 Jun 2014 18:08:05 +0200
+        Wed, 11 Jun 2014 09:14:30 -0700 (PDT)
+Received: by mail-wg0-f46.google.com with SMTP id y10so5341486wgg.29
+        for <linux-mm@kvack.org>; Wed, 11 Jun 2014 09:14:29 -0700 (PDT)
+Date: Wed, 11 Jun 2014 18:14:25 +0200
 From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 1/4] memcg, mm: introduce lowlimit reclaim
-Message-ID: <20140611160805.GB23343@dhcp22.suse.cz>
-References: <1398688005-26207-1-git-send-email-mhocko@suse.cz>
- <1398688005-26207-2-git-send-email-mhocko@suse.cz>
- <20140430225550.GD26041@cmpxchg.org>
- <20140502093628.GC3446@dhcp22.suse.cz>
- <20140502155805.GO23420@cmpxchg.org>
- <20140502164930.GP3446@dhcp22.suse.cz>
- <20140502220056.GP23420@cmpxchg.org>
- <20140505142100.GC32598@dhcp22.suse.cz>
- <20140611151544.GA22516@cmpxchg.org>
+Subject: Re: [PATCH 1/2] mm, memcg: allow OOM if no memcg is eligible during
+ direct reclaim
+Message-ID: <20140611161425.GC23343@dhcp22.suse.cz>
+References: <20140611075729.GA4520@dhcp22.suse.cz>
+ <1402473624-13827-1-git-send-email-mhocko@suse.cz>
+ <20140611152030.GB22516@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140611151544.GA22516@cmpxchg.org>
+In-Reply-To: <20140611152030.GB22516@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Greg Thelen <gthelen@google.com>, Michel Lespinasse <walken@google.com>, Tejun Heo <tj@kernel.org>, Hugh Dickins <hughd@google.com>, Roman Gushchin <klamm@yandex-team.ru>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+Cc: Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Michel Lespinasse <walken@google.com>, Tejun Heo <tj@kernel.org>, Roman Gushchin <klamm@yandex-team.ru>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Wed 11-06-14 11:15:44, Johannes Weiner wrote:
-> On Mon, May 05, 2014 at 04:21:00PM +0200, Michal Hocko wrote:
-[...]
+On Wed 11-06-14 11:20:30, Johannes Weiner wrote:
+> On Wed, Jun 11, 2014 at 10:00:23AM +0200, Michal Hocko wrote:
+> > If there is no memcg eligible for reclaim because all groups under the
+> > reclaimed hierarchy are within their guarantee then the global direct
+> > reclaim would end up in the endless loop because zones in the zonelists
+> > are not considered unreclaimable (as per all_unreclaimable) and so the
+> > OOM killer would never fire and direct reclaim would be triggered
+> > without no chance to reclaim anything.
+> > 
+> > This is not possible yet because reclaim falls back to ignore low_limit
+> > when nobody is eligible for reclaim. Following patch will allow to set
+> > the fallback mode to hard guarantee, though, so this is a preparatory
+> > patch.
+> > 
+> > Memcg reclaim doesn't suffer from this because the OOM killer is
+> > triggered after few unsuccessful attempts of the reclaim.
+> > 
+> > Fix this by checking the number of scanned pages which is obviously 0 if
+> > nobody is eligible and also check that the whole tree hierarchy is not
+> > eligible and tell OOM it can go ahead.
+> > 
+> > Signed-off-by: Michal Hocko <mhocko@suse.cz>
+> > ---
+> >  mm/vmscan.c | 7 +++++++
+> >  1 file changed, 7 insertions(+)
+> > 
+> > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > index 8041b0667673..99137aecd95f 100644
 > > --- a/mm/vmscan.c
 > > +++ b/mm/vmscan.c
-> > @@ -2293,13 +2293,20 @@ static unsigned __shrink_zone(struct zone *zone, struct scan_control *sc,
+> > @@ -2570,6 +2570,13 @@ out:
+> >  	if (aborted_reclaim)
+> >  		return 1;
 > >  
-> >  static void shrink_zone(struct zone *zone, struct scan_control *sc)
-> >  {
-> > -	if (!__shrink_zone(zone, sc, true)) {
-> > +	bool honor_guarantee = true;
-> > +
-> > +	while (!__shrink_zone(zone, sc, honor_guarantee)) {
-> >  		/*
-> > -		 * First round of reclaim didn't find anything to reclaim
-> > -		 * because of the memory guantees for all memcgs in the
-> > -		 * reclaim target so try again and ignore guarantees this time.
-> > +		 * The previous round of reclaim didn't find anything to scan
-> > +		 * because
-> > +		 * a) the whole reclaimed hierarchy is within guarantee so
-> > +		 *    we fallback to ignore the guarantee because other option
-> > +		 *    would be the OOM
-> > +		 * b) multiple reclaimers are racing and so the first round
-> > +		 *    should be retried
-> >  		 */
-> > -		__shrink_zone(zone, sc, false);
-> > +		if (mem_cgroup_all_within_guarantee(sc->target_mem_cgroup))
-> > +			honor_guarantee = false;
-> >  	}
+> > +	/*
+> > +	 * If the target memcg is not eligible for reclaim then we have no option
+> > +	 * but OOM
+> > +	 */
+> > +	if (!sc->nr_scanned && mem_cgroup_all_within_guarantee(sc->target_mem_cgroup))
+> > +		return 0;
 > 
-> I don't like that this adds a non-chalant `for each memcg' here, we
-> can have a lot of memcgs.  Sooner or later we'll have to break up that
-> full hierarchy iteration in shrink_zone() because of scalability, I
-> want to avoid adding more of them.
+> We can't just sprinkle `for each memcg in hierarchy` loops like this,
+> they can get really expensive.
 
-mem_cgroup_all_within_guarantee can be simply optimized to exclude whole
-subtrees of each memcg which is mem_cgroup_within_guarantee. cgroups
-iterator are easy and quite optimal to skip the whole subtree AFAIR so I
-do not see this as a bottleneck here.
+Yeah, I know. This one gets called only when nothing was scanned which
+shoudln't happen without the hard guarantee. And as said in other email
+we can optimize mem_cgroup_all_within_guarantee to skip all subtrees
+that are within their guarantee.
 
-> How about these changes on top of what we currently have?
+> It's pretty stupid to not have a return value on shrink_zone(), which
+> could easily indicate whether a zone was reclaimable, and instead have
+> another iteration over the same zonelist and the same memcg hierarchy
+> afterwards to figure out if shrink_zone() was successful or not.
 
-I really do not like how you got back to priority based break out.
-We were discussing that 2 or so years ago and the main objection was
-that this is really not useful. You do not want to scan/reclaim so far
-"priviledged" memcgs at high priority all of the sudden.
+I know it is stupid but this is the easiest way right now. We can/should
+refactor shrink_zones to forward that information. I was playing with
+sticking that infortmation into scan_control but that was even uglier.
 
-> Sure it's not as accurate, but it should be good start, and it's a
-> *lot* less overhead.
-> 
-> mem_cgroup_watermark() is also a more fitting name, given that this
-> has nothing to do with a guarantee for now.
-
-mem_cgroup_watermark sounds like a better name indeed.
-
-> It can also be easily extended to support the MIN watermark while the
-> code in vmscan.c remains readable.
- 
 -- 
 Michal Hocko
 SUSE Labs
