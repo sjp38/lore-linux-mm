@@ -1,44 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f180.google.com (mail-ie0-f180.google.com [209.85.223.180])
-	by kanga.kvack.org (Postfix) with ESMTP id BC7096B0183
-	for <linux-mm@kvack.org>; Wed, 11 Jun 2014 18:54:05 -0400 (EDT)
-Received: by mail-ie0-f180.google.com with SMTP id rl12so411482iec.25
-        for <linux-mm@kvack.org>; Wed, 11 Jun 2014 15:54:05 -0700 (PDT)
-Received: from mail-ie0-x22a.google.com (mail-ie0-x22a.google.com [2607:f8b0:4001:c03::22a])
-        by mx.google.com with ESMTPS id ol6si35272808icb.74.2014.06.11.15.54.05
+Received: from mail-ie0-f182.google.com (mail-ie0-f182.google.com [209.85.223.182])
+	by kanga.kvack.org (Postfix) with ESMTP id C3B666B0185
+	for <linux-mm@kvack.org>; Wed, 11 Jun 2014 19:07:22 -0400 (EDT)
+Received: by mail-ie0-f182.google.com with SMTP id rp18so442591iec.13
+        for <linux-mm@kvack.org>; Wed, 11 Jun 2014 16:07:22 -0700 (PDT)
+Received: from mail-ig0-x22b.google.com (mail-ig0-x22b.google.com [2607:f8b0:4001:c05::22b])
+        by mx.google.com with ESMTPS id ad4si398872igd.13.2014.06.11.16.07.21
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 11 Jun 2014 15:54:05 -0700 (PDT)
-Received: by mail-ie0-f170.google.com with SMTP id tr6so430621ieb.15
-        for <linux-mm@kvack.org>; Wed, 11 Jun 2014 15:54:05 -0700 (PDT)
-Date: Wed, 11 Jun 2014 15:54:02 -0700 (PDT)
+        Wed, 11 Jun 2014 16:07:22 -0700 (PDT)
+Received: by mail-ig0-f171.google.com with SMTP id h18so3534831igc.4
+        for <linux-mm@kvack.org>; Wed, 11 Jun 2014 16:07:21 -0700 (PDT)
+Date: Wed, 11 Jun 2014 16:07:20 -0700 (PDT)
 From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH] x86: numa: drop ZONE_ALIGN
-In-Reply-To: <alpine.DEB.2.10.1406110852280.7977@gentwo.org>
-Message-ID: <alpine.DEB.2.02.1406111553430.27885@chino.kir.corp.google.com>
-References: <20140608181436.17de69ac@redhat.com> <CAE9FiQXpUbAOinEK-1PSFyGKqpC_FHN0sjP0xvD0ChrXR5GdAw@mail.gmail.com> <20140609150353.75eff02b@redhat.com> <CAE9FiQUWZxvCS82cH=n-NF+nhTQ83J+7M3gHdXGu2S1Qk3xL_g@mail.gmail.com> <20140611092337.35794bc0@redhat.com>
- <alpine.DEB.2.10.1406110852280.7977@gentwo.org>
+Subject: Re: [PATCH 1/3] slab common: Add functions for kmem_cache_node
+ access
+In-Reply-To: <20140611191518.964245135@linux.com>
+Message-ID: <alpine.DEB.2.02.1406111607090.27885@chino.kir.corp.google.com>
+References: <20140611191510.082006044@linux.com> <20140611191518.964245135@linux.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@gentwo.org>
-Cc: Luiz Capitulino <lcapitulino@redhat.com>, Yinghai Lu <yinghai@kernel.org>, Tejun Heo <tj@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <andi@firstfloor.org>, Rik van Riel <riel@redhat.com>, Yasuaki Ishimatsu <isimatu.yasuaki@jp.fujitsu.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "stable@vger.kernel.org" <stable@vger.kernel.org>
+To: Christoph Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 
 On Wed, 11 Jun 2014, Christoph Lameter wrote:
 
-> > > The zone should not cross the 8M boundary?
-> >
-> > Yes, but the question is: why?
+> These functions allow to eliminate repeatedly used code in both
+> SLAB and SLUB and also allow for the insertion of debugging code
+> that may be needed in the development process.
 > 
-> zones need to be aligned so that the huge pages order and other page
-> orders allocated from the page allocator are at their "natural alignment".
-> Otherwise huge pages cannot be mapped properly and various I/O devices
-> may encounter issues if they rely on the natural alignment.
-> 
+> Signed-off-by: Christoph Lameter <cl@linux.com>
 
-Any reason not to align to HUGETLB_PAGE_ORDER on x86 instead of 
-ZONE_ALIGN?
+Acked-by: David Rientjes <rientjes@google.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
