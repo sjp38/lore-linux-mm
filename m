@@ -1,47 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 82BC16B012C
-	for <linux-mm@kvack.org>; Tue, 10 Jun 2014 21:50:17 -0400 (EDT)
-Received: by mail-pd0-f179.google.com with SMTP id fp1so6715159pdb.38
-        for <linux-mm@kvack.org>; Tue, 10 Jun 2014 18:50:17 -0700 (PDT)
-Received: from lgeamrelo02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
-        by mx.google.com with ESMTP id nu1si36155992pbb.216.2014.06.10.18.50.15
-        for <linux-mm@kvack.org>;
-        Tue, 10 Jun 2014 18:50:16 -0700 (PDT)
-Date: Wed, 11 Jun 2014 10:50:20 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 04/10] mm, compaction: skip rechecks when lock was
- already held
-Message-ID: <20140611015020.GE15630@bbox>
-References: <1402305982-6928-1-git-send-email-vbabka@suse.cz>
- <1402305982-6928-4-git-send-email-vbabka@suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1402305982-6928-4-git-send-email-vbabka@suse.cz>
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id BAF746B012E
+	for <linux-mm@kvack.org>; Tue, 10 Jun 2014 22:10:13 -0400 (EDT)
+Received: by mail-pd0-f172.google.com with SMTP id fp1so6716348pdb.3
+        for <linux-mm@kvack.org>; Tue, 10 Jun 2014 19:10:13 -0700 (PDT)
+Received: from mail-pb0-x233.google.com (mail-pb0-x233.google.com [2607:f8b0:400e:c01::233])
+        by mx.google.com with ESMTPS id rq4si4849407pac.66.2014.06.10.19.10.12
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Tue, 10 Jun 2014 19:10:12 -0700 (PDT)
+Received: by mail-pb0-f51.google.com with SMTP id rp16so1447005pbb.38
+        for <linux-mm@kvack.org>; Tue, 10 Jun 2014 19:10:12 -0700 (PDT)
+Message-ID: <1402452521.28433.26.camel@debian>
+Subject: Re: [PATCH] mm/vmscan.c: avoid recording the original scan targets
+ in shrink_lruvec()
+From: Chen Yucong <slaoub@gmail.com>
+Date: Wed, 11 Jun 2014 10:08:41 +0800
+In-Reply-To: <20140610163338.5b463c5884c4c7e3f1b948e2@linux-foundation.org>
+References: <1402320436-22270-1-git-send-email-slaoub@gmail.com>
+	 <20140610163338.5b463c5884c4c7e3f1b948e2@linux-foundation.org>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Mel Gorman <mgorman@suse.de>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: mgorman@suse.de, mhocko@suse.cz, hannes@cmpxchg.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Jun 09, 2014 at 11:26:16AM +0200, Vlastimil Babka wrote:
-> Compaction scanners try to lock zone locks as late as possible by checking
-> many page or pageblock properties opportunistically without lock and skipping
-> them if not unsuitable. For pages that pass the initial checks, some properties
-> have to be checked again safely under lock. However, if the lock was already
-> held from a previous iteration in the initial checks, the rechecks are
-> unnecessary.
+On Tue, 2014-06-10 at 16:33 -0700, Andrew Morton wrote:
+> On Mon,  9 Jun 2014 21:27:16 +0800 Chen Yucong <slaoub@gmail.com> wrote:
 > 
-> This patch therefore skips the rechecks when the lock was already held. This is
-> now possible to do, since we don't (potentially) drop and reacquire the lock
-> between the initial checks and the safe rechecks anymore.
+> > Via https://lkml.org/lkml/2013/4/10/334 , we can find that recording the
+> > original scan targets introduces extra 40 bytes on the stack. This patch
+> > is able to avoid this situation and the call to memcpy(). At the same time,
+> > it does not change the relative design idea.
+> > 
+> > ratio = original_nr_file / original_nr_anon;
+> > 
+> > If (nr_file > nr_anon), then ratio = (nr_file - x) / nr_anon.
+> >  x = nr_file - ratio * nr_anon;
+> > 
+> > if (nr_file <= nr_anon), then ratio = nr_file / (nr_anon - x).
+> >  x = nr_anon - nr_file / ratio;
+> > 
+> > ...
+> >
 > 
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-Acked-by: Minchan Kim <minchan@kernel.org>
+> Are you sure this is an equivalent-to-before change?  If so, then I
+> can't immediately see why :(
+> 
+The relative design idea is to keep
 
--- 
-Kind regards,
-Minchan Kim
+   ratio
+	== scan_target[anon] : scan_target[file]
+              == really_scanned_num[anon] : really_scanned_num[file]
+
+The original implementation is 
+   ratio 
+        == (scan_target[anon] * percentage_anon) / 
+           (scan_target[file] * percentage_file) 
+
+To keep the original ratio, percentage_anon should equal to
+percentage_file. In other word, we need to calculate the difference
+value between percentage_anon and percentage_file, we also have to
+record the original scan targets for this.
+
+Instead, we can calculate the *ratio* at the beginning of
+shrink_lruvec(). As a result, this can avoid introducing the extra 40
+bytes.
+
+In short, we have the same goal: keep the same *ratio* from beginning to
+end.
+
+thx!
+cyc
+ 
+       
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
