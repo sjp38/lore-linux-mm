@@ -1,101 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f49.google.com (mail-pb0-f49.google.com [209.85.160.49])
-	by kanga.kvack.org (Postfix) with ESMTP id A14986B0143
-	for <linux-mm@kvack.org>; Wed, 11 Jun 2014 04:12:14 -0400 (EDT)
-Received: by mail-pb0-f49.google.com with SMTP id jt11so7143143pbb.22
-        for <linux-mm@kvack.org>; Wed, 11 Jun 2014 01:12:14 -0700 (PDT)
-Received: from lgeamrelo02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
-        by mx.google.com with ESMTP id bd8si37111881pbd.241.2014.06.11.01.12.12
-        for <linux-mm@kvack.org>;
-        Wed, 11 Jun 2014 01:12:13 -0700 (PDT)
-Date: Wed, 11 Jun 2014 17:16:06 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 05/10] mm, compaction: remember position within pageblock
- in free pages scanner
-Message-ID: <20140611081606.GB28258@js1304-P5Q-DELUXE>
-References: <1402305982-6928-1-git-send-email-vbabka@suse.cz>
- <1402305982-6928-5-git-send-email-vbabka@suse.cz>
- <20140611021213.GF15630@bbox>
+Received: from mail-wg0-f43.google.com (mail-wg0-f43.google.com [74.125.82.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E0BB6B0147
+	for <linux-mm@kvack.org>; Wed, 11 Jun 2014 04:25:00 -0400 (EDT)
+Received: by mail-wg0-f43.google.com with SMTP id b13so3882846wgh.14
+        for <linux-mm@kvack.org>; Wed, 11 Jun 2014 01:24:59 -0700 (PDT)
+Received: from mail-we0-x236.google.com (mail-we0-x236.google.com [2a00:1450:400c:c03::236])
+        by mx.google.com with ESMTPS id a5si734282wiy.31.2014.06.11.01.24.58
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 11 Jun 2014 01:24:59 -0700 (PDT)
+Received: by mail-we0-f182.google.com with SMTP id q59so3455001wes.13
+        for <linux-mm@kvack.org>; Wed, 11 Jun 2014 01:24:58 -0700 (PDT)
+From: Michal Nazarewicz <mina86@mina86.com>
+Subject: Re: [RFC PATCH 2/3] DMA, CMA: use general CMA reserved area management framework
+In-Reply-To: <20140610024910.GB19036@js1304-P5Q-DELUXE>
+References: <1401757919-30018-1-git-send-email-iamjoonsoo.kim@lge.com> <1401757919-30018-3-git-send-email-iamjoonsoo.kim@lge.com> <xa1twqcyjx3z.fsf@mina86.com> <20140610024910.GB19036@js1304-P5Q-DELUXE>
+Date: Wed, 11 Jun 2014 10:24:55 +0200
+Message-ID: <xa1t38fb3lbc.fsf@mina86.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140611021213.GF15630@bbox>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Mel Gorman <mgorman@suse.de>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Minchan Kim <minchan@kernel.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Paolo Bonzini <pbonzini@redhat.com>, Gleb Natapov <gleb@kernel.org>, Alexander Graf <agraf@suse.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, kvm@vger.kernel.org, kvm-ppc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
 
-On Wed, Jun 11, 2014 at 11:12:13AM +0900, Minchan Kim wrote:
-> On Mon, Jun 09, 2014 at 11:26:17AM +0200, Vlastimil Babka wrote:
-> > Unlike the migration scanner, the free scanner remembers the beginning of the
-> > last scanned pageblock in cc->free_pfn. It might be therefore rescanning pages
-> > uselessly when called several times during single compaction. This might have
-> > been useful when pages were returned to the buddy allocator after a failed
-> > migration, but this is no longer the case.
-> > 
-> > This patch changes the meaning of cc->free_pfn so that if it points to a
-> > middle of a pageblock, that pageblock is scanned only from cc->free_pfn to the
-> > end. isolate_freepages_block() will record the pfn of the last page it looked
-> > at, which is then used to update cc->free_pfn.
-> > 
-> > In the mmtests stress-highalloc benchmark, this has resulted in lowering the
-> > ratio between pages scanned by both scanners, from 2.5 free pages per migrate
-> > page, to 2.25 free pages per migrate page, without affecting success rates.
-> > 
-> > Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-> Reviewed-by: Minchan Kim <minchan@kernel.org>
-> 
-> Below is a nitpick.
-> 
-> > Cc: Minchan Kim <minchan@kernel.org>
-> > Cc: Mel Gorman <mgorman@suse.de>
-> > Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> > Cc: Michal Nazarewicz <mina86@mina86.com>
-> > Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> > Cc: Christoph Lameter <cl@linux.com>
-> > Cc: Rik van Riel <riel@redhat.com>
-> > Cc: David Rientjes <rientjes@google.com>
-> > ---
-> >  mm/compaction.c | 33 ++++++++++++++++++++++++++++-----
-> >  1 file changed, 28 insertions(+), 5 deletions(-)
-> > 
-> > diff --git a/mm/compaction.c b/mm/compaction.c
-> > index 83f72bd..58dfaaa 100644
-> > --- a/mm/compaction.c
-> > +++ b/mm/compaction.c
-> > @@ -297,7 +297,7 @@ static bool suitable_migration_target(struct page *page)
-> >   * (even though it may still end up isolating some pages).
-> >   */
-> >  static unsigned long isolate_freepages_block(struct compact_control *cc,
-> > -				unsigned long blockpfn,
-> > +				unsigned long *start_pfn,
-> >  				unsigned long end_pfn,
-> >  				struct list_head *freelist,
-> >  				bool strict)
-> > @@ -306,6 +306,7 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
-> >  	struct page *cursor, *valid_page = NULL;
-> >  	unsigned long flags;
-> >  	bool locked = false;
-> > +	unsigned long blockpfn = *start_pfn;
-> >  
-> >  	cursor = pfn_to_page(blockpfn);
-> >  
-> > @@ -314,6 +315,9 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
-> >  		int isolated, i;
-> >  		struct page *page = cursor;
-> >  
-> > +		/* Record how far we have got within the block */
-> > +		*start_pfn = blockpfn;
-> > +
-> 
-> Couldn't we move this out of the loop for just one store?
+On Tue, Jun 10 2014, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+> Without including device.h, build failure occurs.
+> In dma-contiguous.h, we try to access to dev->cma_area, so we need
+> device.h. In the past, we included it luckily by swap.h in
+> drivers/base/dma-contiguous.c. Swap.h includes node.h and then node.h
+> includes device.h, so we were happy. But, in this patch, I remove
+> 'include <linux/swap.h>' so we need to include device.h explicitly.
 
-Hello, Vlastimil.
+Ack.
 
-Moreover, start_pfn can't be updated to end pfn with this approach.
-Is it okay?
-
-Thanks.
+--=20
+Best regards,                                         _     _
+.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
+..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz   =
+ (o o)
+ooo +--<mpn@google.com>--<xmpp:mina86@jabber.org>--ooO--(_)--Ooo--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
