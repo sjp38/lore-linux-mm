@@ -1,38 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f50.google.com (mail-qa0-f50.google.com [209.85.216.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B8C76B0166
-	for <linux-mm@kvack.org>; Wed, 11 Jun 2014 12:43:38 -0400 (EDT)
-Received: by mail-qa0-f50.google.com with SMTP id m5so1697808qaj.37
-        for <linux-mm@kvack.org>; Wed, 11 Jun 2014 09:43:37 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id b13si30816429qah.54.2014.06.11.09.43.36
-        for <linux-mm@kvack.org>;
-        Wed, 11 Jun 2014 09:43:37 -0700 (PDT)
-Message-ID: <5398872C.4080607@redhat.com>
-Date: Wed, 11 Jun 2014 12:43:24 -0400
-From: Rik van Riel <riel@redhat.com>
+Received: from mail-wg0-f46.google.com (mail-wg0-f46.google.com [74.125.82.46])
+	by kanga.kvack.org (Postfix) with ESMTP id BAE286B0168
+	for <linux-mm@kvack.org>; Wed, 11 Jun 2014 13:38:59 -0400 (EDT)
+Received: by mail-wg0-f46.google.com with SMTP id y10so76604wgg.17
+        for <linux-mm@kvack.org>; Wed, 11 Jun 2014 10:38:59 -0700 (PDT)
+Received: from mail-wi0-x235.google.com (mail-wi0-x235.google.com [2a00:1450:400c:c05::235])
+        by mx.google.com with ESMTPS id ys3si43071892wjc.16.2014.06.11.10.38.57
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 11 Jun 2014 10:38:58 -0700 (PDT)
+Received: by mail-wi0-f181.google.com with SMTP id n3so1587998wiv.14
+        for <linux-mm@kvack.org>; Wed, 11 Jun 2014 10:38:57 -0700 (PDT)
+Date: Wed, 11 Jun 2014 18:38:51 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: kmemleak: Unable to handle kernel paging request
+Message-ID: <20140611173851.GA5556@MacBook-Pro.local>
+References: <CAOJe8K3fy3XFxDdVc3y1hiMAqUCPmkUhECU7j5TT=E=gxwBqHg@mail.gmail.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH] mm: nommu: per-thread vma cache fix
-References: <1402396130-22368-1-git-send-email-realmz6@gmail.com>
-In-Reply-To: <1402396130-22368-1-git-send-email-realmz6@gmail.com>
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAOJe8K3fy3XFxDdVc3y1hiMAqUCPmkUhECU7j5TT=E=gxwBqHg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Steven Miao (Steven Miao)" <realmz6@gmail.com>, linux-mm@kvack.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michel Lespinasse <walken@google.com>, Jerome Marchand <jmarchan@redhat.com>, Jiang Liu <liuj97@gmail.com>, Al Viro <viro@zeniv.linux.org.uk>, Davidlohr Bueso <davidlohr@hp.com>, Choi Gi-yong <yong@gnoy.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Chen Gang <gang.chen@asianux.com>, Mitchel Humpherys <mitchelh@codeaurora.org>, linux-kernel@vger.kernel.org
+To: Denis Kirjanov <kda@linux-powerpc.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 06/10/2014 06:28 AM, Steven Miao (Steven Miao) wrote:
-> From: Steven Miao <realmz6@gmail.com>
+On Wed, Jun 11, 2014 at 04:13:07PM +0400, Denis Kirjanov wrote:
+> I got a trace while running 3.15.0-08556-gdfb9454:
 > 
-> mm could be removed from current task struct, using previous vma->vm_mm
+> [  104.534026] Unable to handle kernel paging request for data at
+> address 0xc00000007f000000
 
-> Signed-off-by: Steven Miao <realmz6@gmail.com>
+Were there any kmemleak messages prior to this, like "kmemleak
+disabled"? There could be a race when kmemleak is disabled because of
+some fatal (for kmemleak) error while the scanning is taking place
+(which needs some more thinking to fix properly).
 
-Reviewed-by: Rik van Riel <riel@redhat.com>
+Thanks.
 
 -- 
-All rights reversed
+Catalin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
