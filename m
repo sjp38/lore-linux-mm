@@ -1,72 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lb0-f177.google.com (mail-lb0-f177.google.com [209.85.217.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 959846B0174
-	for <linux-mm@kvack.org>; Wed, 11 Jun 2014 17:24:56 -0400 (EDT)
-Received: by mail-lb0-f177.google.com with SMTP id u10so192634lbd.36
-        for <linux-mm@kvack.org>; Wed, 11 Jun 2014 14:24:55 -0700 (PDT)
-Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
-        by mx.google.com with ESMTPS id e2si25480401lab.50.2014.06.11.14.24.54
-        for <linux-mm@kvack.org>
-        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 11 Jun 2014 14:24:55 -0700 (PDT)
-Date: Thu, 12 Jun 2014 01:24:34 +0400
-From: Vladimir Davydov <vdavydov@parallels.com>
-Subject: Re: [PATCH -mm v2 8/8] slab: make dead memcg caches discard free
- slabs immediately
-Message-ID: <20140611212431.GA16589@esperanza>
-References: <cover.1402060096.git.vdavydov@parallels.com>
- <27a202c6084d6bb19cc3e417793f05104b908ded.1402060096.git.vdavydov@parallels.com>
- <20140610074317.GE19036@js1304-P5Q-DELUXE>
- <20140610100313.GA6293@esperanza>
- <alpine.DEB.2.10.1406100925270.17142@gentwo.org>
- <20140610151830.GA8692@esperanza>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <20140610151830.GA8692@esperanza>
+Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com [209.85.160.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 25FEA6B0177
+	for <linux-mm@kvack.org>; Wed, 11 Jun 2014 17:56:48 -0400 (EDT)
+Received: by mail-pb0-f54.google.com with SMTP id jt11so251172pbb.13
+        for <linux-mm@kvack.org>; Wed, 11 Jun 2014 14:56:47 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTP id g7si7950095pat.225.2014.06.11.14.56.46
+        for <linux-mm@kvack.org>;
+        Wed, 11 Jun 2014 14:56:47 -0700 (PDT)
+Date: Wed, 11 Jun 2014 14:56:45 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v2] vmalloc: use rcu list iterator to reduce
+ vmap_area_lock contention
+Message-Id: <20140611145645.35da1237f28a787acbcac9b1@linux-foundation.org>
+In-Reply-To: <20140611043404.GA14728@js1304-P5Q-DELUXE>
+References: <1402453146-10057-1-git-send-email-iamjoonsoo.kim@lge.com>
+	<5397CDC3.1050809@hurleysoftware.com>
+	<20140611043404.GA14728@js1304-P5Q-DELUXE>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@gentwo.org>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, akpm@linux-foundation.org, rientjes@google.com, penberg@kernel.org, hannes@cmpxchg.org, mhocko@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Peter Hurley <peter@hurleysoftware.com>, Zhang Yanfei <zhangyanfei.yes@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Richard Yao <ryao@gentoo.org>, Eric Dumazet <eric.dumazet@gmail.com>
 
-On Tue, Jun 10, 2014 at 07:18:34PM +0400, Vladimir Davydov wrote:
-> On Tue, Jun 10, 2014 at 09:26:19AM -0500, Christoph Lameter wrote:
-> > On Tue, 10 Jun 2014, Vladimir Davydov wrote:
-> > 
-> > > Frankly, I incline to shrinking dead SLAB caches periodically from
-> > > cache_reap too, because it looks neater and less intrusive to me. Also
-> > > it has zero performance impact, which is nice.
-> > >
-> > > However, Christoph proposed to disable per cpu arrays for dead caches,
-> > > similarly to SLUB, and I decided to give it a try, just to see the end
-> > > code we'd have with it.
-> > >
-> > > I'm still not quite sure which way we should choose though...
-> > 
-> > Which one is cleaner?
-> 
-> To shrink dead caches aggressively, we only need to modify cache_reap
-> (see https://lkml.org/lkml/2014/5/30/271).
+On Wed, 11 Jun 2014 13:34:04 +0900 Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
 
-Hmm, reap_alien, which is called from cache_reap to shrink per node
-alien object arrays, only processes one node at a time. That means with
-the patch I gave a link to above it will take up to
-(REAPTIMEOUT_AC*nr_online_nodes) seconds to destroy a virtually empty
-dead cache, which may be quite long on large machines. Of course, we can
-make reap_alien walk over all alien caches of the current node, but that
-will probably hurt performance...
+> > While rcu list traversal over the vmap_area_list is safe, this may
+> > arrive at different results than the spinlocked version. The rcu list
+> > traversal version will not be a 'snapshot' of a single, valid instant
+> > of the entire vmap_area_list, but rather a potential amalgam of
+> > different list states.
+> 
+> Hello,
+> 
+> Yes, you are right, but I don't think that we should be strict here.
+> Meminfo is already not a 'snapshot' at specific time. While we try to
+> get certain stats, the other stats can change.
+> And, although we may arrive at different results than the spinlocked
+> version, the difference would not be large and would not make serious
+> side-effect.
 
-> 
-> To zap object arrays for dead caches (this is what this patch does), we
-> have to:
->  - set array_cache->limit to 0 for each per cpu, shared, and alien array
->    caches on kmem_cache_shrink;
->  - make cpu/node hotplug paths init new array cache sizes to 0;
->  - make free paths (__cache_free, cache_free_alien) handle zero array
->    cache size properly, because currently they doesn't.
-> 
-> So IMO the first one (reaping dead caches periodically) requires less
-> modifications and therefore is cleaner.
+mm, well...  The spinlocked version will at least report a number which
+*used* to be true.  The new improved racy version could for example see
+a bunch of new allocations but fail to see the bunch of frees which
+preceded those new allocations.  Net result: it reports allocation
+totals which exceed anything which this kernel has ever sustained.
+
+But hey, it's only /proc/meminfo:VmallocFoo.  I'll eat my hat if anyone
+cares about it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
