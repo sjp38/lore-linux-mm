@@ -1,52 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 7A2436B0179
-	for <linux-mm@kvack.org>; Wed, 11 Jun 2014 18:00:24 -0400 (EDT)
-Received: by mail-wi0-f182.google.com with SMTP id bs8so1948030wib.15
-        for <linux-mm@kvack.org>; Wed, 11 Jun 2014 15:00:23 -0700 (PDT)
-Received: from mail-wg0-x233.google.com (mail-wg0-x233.google.com [2a00:1450:400c:c00::233])
-        by mx.google.com with ESMTPS id jp7si44006311wjc.62.2014.06.11.15.00.22
+Received: from mail-ie0-f178.google.com (mail-ie0-f178.google.com [209.85.223.178])
+	by kanga.kvack.org (Postfix) with ESMTP id D826F6B017B
+	for <linux-mm@kvack.org>; Wed, 11 Jun 2014 18:08:42 -0400 (EDT)
+Received: by mail-ie0-f178.google.com with SMTP id rd18so390801iec.9
+        for <linux-mm@kvack.org>; Wed, 11 Jun 2014 15:08:42 -0700 (PDT)
+Received: from mail-ie0-x22f.google.com (mail-ie0-x22f.google.com [2607:f8b0:4001:c03::22f])
+        by mx.google.com with ESMTPS id le20si25138745icc.96.2014.06.11.15.08.41
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Wed, 11 Jun 2014 15:00:23 -0700 (PDT)
-Received: by mail-wg0-f51.google.com with SMTP id x12so376122wgg.22
-        for <linux-mm@kvack.org>; Wed, 11 Jun 2014 15:00:22 -0700 (PDT)
-Subject: Re: kmemleak: Unable to handle kernel paging request
-Mime-Version: 1.0 (Mac OS X Mail 7.3 \(1878.2\))
-Content-Type: text/plain; charset=windows-1252
-From: Catalin Marinas <catalin.marinas@arm.com>
-In-Reply-To: <CAOJe8K1TgTDX5=LdE9r6c0ami7TRa7zr0hL_uu6YpiWrsePAgQ@mail.gmail.com>
-Date: Wed, 11 Jun 2014 23:00:18 +0100
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <B01EB0A1-992B-49F4-93AE-71E4BA707795@arm.com>
-References: <CAOJe8K3fy3XFxDdVc3y1hiMAqUCPmkUhECU7j5TT=E=gxwBqHg@mail.gmail.com> <20140611173851.GA5556@MacBook-Pro.local> <CAOJe8K1TgTDX5=LdE9r6c0ami7TRa7zr0hL_uu6YpiWrsePAgQ@mail.gmail.com>
+        Wed, 11 Jun 2014 15:08:42 -0700 (PDT)
+Received: by mail-ie0-f175.google.com with SMTP id tp5so388557ieb.34
+        for <linux-mm@kvack.org>; Wed, 11 Jun 2014 15:08:41 -0700 (PDT)
+Date: Wed, 11 Jun 2014 15:08:39 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: Proposal to realize hot-add *several sections one time*
+In-Reply-To: <53981D81.5060708@huawei.com>
+Message-ID: <alpine.DEB.2.02.1406111503050.27885@chino.kir.corp.google.com>
+References: <53981D81.5060708@huawei.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Denis Kirjanov <kda@linux-powerpc.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Zhang Zhen <zhenzhang.zhang@huawei.com>
+Cc: gregkh@linuxfoundation.org, laijs@cn.fujitsu.com, sjenning@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Wang Nan <wangnan0@huawei.com>
 
-On 11 Jun 2014, at 21:04, Denis Kirjanov <kda@linux-powerpc.org> wrote:
-> On 6/11/14, Catalin Marinas <catalin.marinas@arm.com> wrote:
->> On Wed, Jun 11, 2014 at 04:13:07PM +0400, Denis Kirjanov wrote:
->>> I got a trace while running 3.15.0-08556-gdfb9454:
->>>=20
->>> [  104.534026] Unable to handle kernel paging request for data at
->>> address 0xc00000007f000000
->>=20
->> Were there any kmemleak messages prior to this, like "kmemleak
->> disabled"? There could be a race when kmemleak is disabled because of
->> some fatal (for kmemleak) error while the scanning is taking place
->> (which needs some more thinking to fix properly).
->=20
-> No. I checked for the similar problem and didn't find anything =
-relevant.
-> I'll try to bisect it.
+On Wed, 11 Jun 2014, Zhang Zhen wrote:
 
-Does this happen soon after boot? I guess it=92s the first scan
-(scheduled at around 1min after boot). Something seems to be telling
-kmemleak that there is a valid memory block at 0xc00000007f000000.
+> Hi,
+> 
+> Now we can hot-add memory by
+> 
+> % echo start_address_of_new_memory > /sys/devices/system/memory/probe
+> 
+> Then, [start_address_of_new_memory, start_address_of_new_memory +
+> memory_block_size] memory range is hot-added.
+> 
+> But we can only hot-add *one section one time* by this way.
+> Whether we can add an argument on behalf of the count of the sections to add ?
+> So we can can hot-add *several sections one time*. Just like:
+> 
 
-Catalin=
+Not necessarily true, it depends on sections_per_block.  Don't believe 
+Documentation/memory-hotplug.txt that suggests this is only for powerpc, 
+x86 and sh allow this interface as well.
+
+> % echo start_address_of_new_memory count_of_sections > /sys/devices/system/memory/probe
+> 
+> Then, [start_address_of_new_memory, start_address_of_new_memory +
+> count_of_sections * memory_block_size] memory range is hot-added.
+> 
+> If this proposal is reasonable, i will send a patch to realize it.
+> 
+
+The problem is knowing how much memory is being onlined so that you can 
+definitively determine what count_of_sections should be.  The number of 
+pages per memory section depends on PAGE_SIZE and SECTION_SIZE_BITS which 
+differ depending on the architectures that support this interface.  So if 
+you support count_of_sections, it would return errno even though you have 
+onlined some sections.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
