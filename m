@@ -1,55 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com [209.85.160.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 25FEA6B0177
-	for <linux-mm@kvack.org>; Wed, 11 Jun 2014 17:56:48 -0400 (EDT)
-Received: by mail-pb0-f54.google.com with SMTP id jt11so251172pbb.13
-        for <linux-mm@kvack.org>; Wed, 11 Jun 2014 14:56:47 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id g7si7950095pat.225.2014.06.11.14.56.46
-        for <linux-mm@kvack.org>;
-        Wed, 11 Jun 2014 14:56:47 -0700 (PDT)
-Date: Wed, 11 Jun 2014 14:56:45 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2] vmalloc: use rcu list iterator to reduce
- vmap_area_lock contention
-Message-Id: <20140611145645.35da1237f28a787acbcac9b1@linux-foundation.org>
-In-Reply-To: <20140611043404.GA14728@js1304-P5Q-DELUXE>
-References: <1402453146-10057-1-git-send-email-iamjoonsoo.kim@lge.com>
-	<5397CDC3.1050809@hurleysoftware.com>
-	<20140611043404.GA14728@js1304-P5Q-DELUXE>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A2436B0179
+	for <linux-mm@kvack.org>; Wed, 11 Jun 2014 18:00:24 -0400 (EDT)
+Received: by mail-wi0-f182.google.com with SMTP id bs8so1948030wib.15
+        for <linux-mm@kvack.org>; Wed, 11 Jun 2014 15:00:23 -0700 (PDT)
+Received: from mail-wg0-x233.google.com (mail-wg0-x233.google.com [2a00:1450:400c:c00::233])
+        by mx.google.com with ESMTPS id jp7si44006311wjc.62.2014.06.11.15.00.22
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 11 Jun 2014 15:00:23 -0700 (PDT)
+Received: by mail-wg0-f51.google.com with SMTP id x12so376122wgg.22
+        for <linux-mm@kvack.org>; Wed, 11 Jun 2014 15:00:22 -0700 (PDT)
+Subject: Re: kmemleak: Unable to handle kernel paging request
+Mime-Version: 1.0 (Mac OS X Mail 7.3 \(1878.2\))
+Content-Type: text/plain; charset=windows-1252
+From: Catalin Marinas <catalin.marinas@arm.com>
+In-Reply-To: <CAOJe8K1TgTDX5=LdE9r6c0ami7TRa7zr0hL_uu6YpiWrsePAgQ@mail.gmail.com>
+Date: Wed, 11 Jun 2014 23:00:18 +0100
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <B01EB0A1-992B-49F4-93AE-71E4BA707795@arm.com>
+References: <CAOJe8K3fy3XFxDdVc3y1hiMAqUCPmkUhECU7j5TT=E=gxwBqHg@mail.gmail.com> <20140611173851.GA5556@MacBook-Pro.local> <CAOJe8K1TgTDX5=LdE9r6c0ami7TRa7zr0hL_uu6YpiWrsePAgQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Peter Hurley <peter@hurleysoftware.com>, Zhang Yanfei <zhangyanfei.yes@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Andi Kleen <andi@firstfloor.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Richard Yao <ryao@gentoo.org>, Eric Dumazet <eric.dumazet@gmail.com>
+To: Denis Kirjanov <kda@linux-powerpc.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Wed, 11 Jun 2014 13:34:04 +0900 Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+On 11 Jun 2014, at 21:04, Denis Kirjanov <kda@linux-powerpc.org> wrote:
+> On 6/11/14, Catalin Marinas <catalin.marinas@arm.com> wrote:
+>> On Wed, Jun 11, 2014 at 04:13:07PM +0400, Denis Kirjanov wrote:
+>>> I got a trace while running 3.15.0-08556-gdfb9454:
+>>>=20
+>>> [  104.534026] Unable to handle kernel paging request for data at
+>>> address 0xc00000007f000000
+>>=20
+>> Were there any kmemleak messages prior to this, like "kmemleak
+>> disabled"? There could be a race when kmemleak is disabled because of
+>> some fatal (for kmemleak) error while the scanning is taking place
+>> (which needs some more thinking to fix properly).
+>=20
+> No. I checked for the similar problem and didn't find anything =
+relevant.
+> I'll try to bisect it.
 
-> > While rcu list traversal over the vmap_area_list is safe, this may
-> > arrive at different results than the spinlocked version. The rcu list
-> > traversal version will not be a 'snapshot' of a single, valid instant
-> > of the entire vmap_area_list, but rather a potential amalgam of
-> > different list states.
-> 
-> Hello,
-> 
-> Yes, you are right, but I don't think that we should be strict here.
-> Meminfo is already not a 'snapshot' at specific time. While we try to
-> get certain stats, the other stats can change.
-> And, although we may arrive at different results than the spinlocked
-> version, the difference would not be large and would not make serious
-> side-effect.
+Does this happen soon after boot? I guess it=92s the first scan
+(scheduled at around 1min after boot). Something seems to be telling
+kmemleak that there is a valid memory block at 0xc00000007f000000.
 
-mm, well...  The spinlocked version will at least report a number which
-*used* to be true.  The new improved racy version could for example see
-a bunch of new allocations but fail to see the bunch of frees which
-preceded those new allocations.  Net result: it reports allocation
-totals which exceed anything which this kernel has ever sustained.
-
-But hey, it's only /proc/meminfo:VmallocFoo.  I'll eat my hat if anyone
-cares about it.
+Catalin=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
