@@ -1,167 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E83A6B0075
-	for <linux-mm@kvack.org>; Thu, 12 Jun 2014 16:00:19 -0400 (EDT)
-Received: by mail-pd0-f172.google.com with SMTP id fp1so1296144pdb.31
-        for <linux-mm@kvack.org>; Thu, 12 Jun 2014 13:00:19 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id sm10si2169551pab.134.2014.06.12.13.00.18
-        for <linux-mm@kvack.org>;
-        Thu, 12 Jun 2014 13:00:18 -0700 (PDT)
-Date: Thu, 12 Jun 2014 13:00:17 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm/vmscan.c: wrap five parameters into arg_container in
- shrink_page_list()
-Message-Id: <20140612130017.865034e4e606d53499508226@linux-foundation.org>
-In-Reply-To: <1402565795-706-1-git-send-email-slaoub@gmail.com>
-References: <1402565795-706-1-git-send-email-slaoub@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-lb0-f182.google.com (mail-lb0-f182.google.com [209.85.217.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A8FD6B0099
+	for <linux-mm@kvack.org>; Thu, 12 Jun 2014 16:38:38 -0400 (EDT)
+Received: by mail-lb0-f182.google.com with SMTP id z11so1062905lbi.27
+        for <linux-mm@kvack.org>; Thu, 12 Jun 2014 13:38:37 -0700 (PDT)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id jj7si55736595lbc.38.2014.06.12.13.38.35
+        for <linux-mm@kvack.org>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 12 Jun 2014 13:38:36 -0700 (PDT)
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: [PATCH -mm v3 0/8] memcg/slab: reintroduce dead cache self-destruction
+Date: Fri, 13 Jun 2014 00:38:14 +0400
+Message-ID: <cover.1402602126.git.vdavydov@parallels.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chen Yucong <slaoub@gmail.com>
-Cc: mgorman@suse.de, hannes@cmpxchg.org, mhocko@suse.cz, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: akpm@linux-foundation.org
+Cc: cl@linux.com, iamjoonsoo.kim@lge.com, rientjes@google.com, penberg@kernel.org, hannes@cmpxchg.org, mhocko@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, 12 Jun 2014 17:36:35 +0800 Chen Yucong <slaoub@gmail.com> wrote:
+Hi,
 
-> shrink_page_list() has too many arguments that have already reached ten.
-> Some of those arguments and temporary variables introduces extra 80 bytes
-> on the stack.
-> 
-> This patch wraps five parameters into arg_container and removes some temporary
-> variables, thus making shrink_page_list() to consume fewer stack space.
-> 
-> Before mm/vmscan.c is modified:
->    text	   data	    bss	    dec	    hex	filename
-> 6876698	 957224	 966656	8800578	 864942	vmlinux-3.15
-> 
-> After mm/vmscan.c is changed:
->    text	   data	    bss	    dec	    hex	filename
-> 6876506	 957224	 966656	8800386	 864882	vmlinux-3.15
+When a memcg is turned offline, some of its kmem caches can still have
+active objects and therefore cannot be destroyed immediately. Currently,
+we simply leak such caches along with the owner memcg, which is bad and
+should be resolved.
 
-Code size reduction is a good sign.
+It would be perfect if we could move all slab pages of such dead caches
+to the root/parent cache on memcg offline. However, when I tried to
+implement such re-parenting, I was pointed out by Christoph that the
+overhead of this would be unacceptable, at least for SLUB (see
+https://lkml.org/lkml/2014/5/13/446)
 
->  1 file changed, 29 insertions(+), 35 deletions(-)
+The problem with re-parenting of individual slabs is that it requires
+tracking of all slabs allocated to a cache, but SLUB doesn't track full
+slabs if !debug. Changing this behavior would result in significant
+performance degradation of regular alloc/free paths, because it would
+make alloc/free take per node list locks more often.
 
-We can look at the frame pointer alterations.  Requires
-CONFIG_FRAME_POINTER.  There's also scripts/checkstack.pl.
+After pondering about this problem for some time, I think we should
+return to dead caches self-destruction, i.e. scheduling cache
+destruction work when the last slab page is freed.
 
-Without:
+This is the behavior we had before commit 5bd93da9917f ("memcg, slab:
+simplify synchronization scheme"). The reason why it was removed was that
+it simply didn't work, because SL[AU]B are implemented in such a way
+that they don't discard empty slabs immediately, but prefer keeping them
+cached for indefinite time to speed up further allocations.
 
-shrink_page_list:
-	pushq	%rbp	#
-	movq	%rsp, %rbp	#,
-	pushq	%r15	#
-	pushq	%r14	#
-	pushq	%r13	#
-	pushq	%r12	#
-	pushq	%rbx	#
-	subq	$184, %rsp	#,
+However, we can change this w/o noticeable performance impact for both
+SLAB and SLUB by making them drop free slabs as soon as they become
+empty. Since dead caches should never be allocated from, removing empty
+slabs from them shouldn't result in noticeable performance degradation.
 
-With:
+So, this patch set reintroduces dead cache self-destruction and adds
+some tweaks to SL[AU]B to prevent dead caches from hanging around
+indefinitely. It is organized as follows:
 
-shrink_page_list:
-	pushq	%rbp	#
-	movq	%rsp, %rbp	#,
-	pushq	%r15	#
-	pushq	%r14	#
-	pushq	%r13	#
-	pushq	%r12	#
-	pushq	%rbx	#
-	subq	$136, %rsp	#,
+ - patches 1-3 reintroduce dead memcg cache self-destruction;
+ - patch 4 makes SLUB's version of kmem_cache_shrink always drop empty
+   slabs, even if it fails to allocate a temporary array;
+ - patches 5 and 6 fix possible use-after-free connected with
+   asynchronous cache destruction;
+ - patches 7 and 8 disable caching of empty slabs for dead memcg caches
+   for SLUB and SLAB respectively.
 
-So we've saved approx 184-136=48 bytes of stack in shrink_page_list(). 
-shrink_inactive_list() stack space is unchanged.
+Note, this doesn't resolve the problem of memcgs pinned by dead kmem
+caches. I'm planning to solve this by re-parenting dead kmem caches to
+the parent memcg.
 
-Please do this sort of analysis yourself and include it in the changelogs.
+v3:
 
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -790,6 +790,14 @@ static void page_check_dirty_writeback(struct page *page,
->  		mapping->a_ops->is_dirty_writeback(page, dirty, writeback);
->  }
->  
-> +struct arg_container {
-> +	unsigned long nr_dirty;
-> +	unsigned long nr_unqueued_dirty;
-> +	unsigned long nr_congested;
-> +	unsigned long nr_writeback;
-> +	unsigned long nr_immediate;
-> +};
+ - add smp barrier to memcg_cache_dead (Joonsoo);
+ - add comment explaining why kfree has to be non-preemptable (Joonsoo);
+ - do not call flush_all from put_cpu_partial (SLUB), because slab_free
+   is now non-preemptable (Joonsoo);
+ - simplify the patch disabling free slabs/objects caching for dead SLAB
+   caches.
 
-This name is dreadful.  Let's give it a nice, meaningful name and
-document it appropriately.  So it all looks like a part of the vmscan
-code and not some hack which was bolted onto the side to save a bit of
-stack.
+v2: https://lkml.org/lkml/2014/6/6/366
 
-Something like
+ - fix use-after-free connected with asynchronous cache destruction;
+ - less intrusive version of SLUB's kmem_cache_shrink fix;
+ - simplify disabling of free slabs caching for SLUB (Joonsoo);
+ - disable free slabs caching instead of using cache_reap for SLAB
+   (Christoph).
 
-/*
- * Callers pass a prezeroed shrink_result into the shrink functions to gather
- * statistics about how many pages of particular states were processed
- */
-struct shrink_result {
-	...
+v1: https://lkml.org/lkml/2014/5/30/264
 
+Thanks,
 
->  /*
->   * shrink_page_list() returns the number of reclaimed pages
->   */
->
-> ...
->
-> @@ -1148,7 +1142,8 @@ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
->  		.priority = DEF_PRIORITY,
->  		.may_unmap = 1,
->  	};
-> -	unsigned long ret, dummy1, dummy2, dummy3, dummy4, dummy5;
-> +	unsigned long ret;
-> +	struct arg_container dummy;
+Vladimir Davydov (8):
+  memcg: cleanup memcg_cache_params refcnt usage
+  memcg: destroy kmem caches when last slab is freed
+  memcg: mark caches that belong to offline memcgs as dead
+  slub: don't fail kmem_cache_shrink if slab placement optimization
+    fails
+  slub: make slab_free non-preemptable
+  memcg: wait for kfree's to finish before destroying cache
+  slub: make dead memcg caches discard free slabs immediately
+  slab: do not keep free objects/slabs on dead memcg caches
 
-If we're not going to use this then we can make it static and save more
-stack.  That will have some runtime cost as different CPUs fight over
-ownership of cachelines but I doubt if it will be significant.
+ include/linux/slab.h |   14 +++++++-----
+ mm/memcontrol.c      |   59 ++++++++++++++++++++++++++++++++++++++++++++++----
+ mm/slab.c            |   37 ++++++++++++++++++++++++++++++-
+ mm/slab.h            |   25 +++++++++++++++++++++
+ mm/slub.c            |   42 ++++++++++++++++++++++++++---------
+ 5 files changed, 156 insertions(+), 21 deletions(-)
 
-If we leave it on the stack then this code will send kmemcheck berzerk
-with all the used-uninitialized errors.  Presumably that it already the
-case.  Perhaps `dummy' should be initialized if kmemcheck is in
-operation, dunno.
-
-
->  	struct page *page, *next;
->  	LIST_HEAD(clean_pages);
->  
->
-> ...
->
-> @@ -1469,11 +1463,13 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
->  	unsigned long nr_scanned;
->  	unsigned long nr_reclaimed = 0;
->  	unsigned long nr_taken;
-> -	unsigned long nr_dirty = 0;
-> -	unsigned long nr_congested = 0;
-> -	unsigned long nr_unqueued_dirty = 0;
-> -	unsigned long nr_writeback = 0;
-> -	unsigned long nr_immediate = 0;
-> +	struct arg_container ac = {
-> +		.nr_dirty = 0,
-> +		.nr_congested = 0,
-> +		.nr_unqueued_dirty = 0,
-> +		.nr_writeback = 0,
-> +		.nr_immediate = 0,
-> +	};
-
-This:
-
-	struct arg_container ac = { };
-
->  	isolate_mode_t isolate_mode = 0;
->  	int file = is_file_lru(lru);
->  	struct zone *zone = lruvec_zone(lruvec);
->
-> ...
->
+-- 
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
