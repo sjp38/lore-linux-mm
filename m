@@ -1,126 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
-	by kanga.kvack.org (Postfix) with ESMTP id 10CC16B00F0
-	for <linux-mm@kvack.org>; Thu, 12 Jun 2014 09:29:36 -0400 (EDT)
-Received: by mail-wi0-f178.google.com with SMTP id n15so2956846wiw.5
-        for <linux-mm@kvack.org>; Thu, 12 Jun 2014 06:29:36 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id s1si27060063wiw.15.2014.06.12.06.29.34
-        for <linux-mm@kvack.org>;
-        Thu, 12 Jun 2014 06:29:35 -0700 (PDT)
-Message-ID: <5399ab3f.814db40a.0ca2.ffffc952SMTPIN_ADDED_BROKEN@mx.google.com>
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: kmemleak: Unable to handle kernel paging request
-Date: Thu, 12 Jun 2014 09:29:15 -0400
-In-Reply-To: <CAOJe8K2WaJUP9_buwgKw89fxGe56mGP1Mn8rDUO9W48KZzmybA@mail.gmail.com>
-References: <CAOJe8K3fy3XFxDdVc3y1hiMAqUCPmkUhECU7j5TT=E=gxwBqHg@mail.gmail.com> <20140611173851.GA5556@MacBook-Pro.local> <CAOJe8K1TgTDX5=LdE9r6c0ami7TRa7zr0hL_uu6YpiWrsePAgQ@mail.gmail.com> <B01EB0A1-992B-49F4-93AE-71E4BA707795@arm.com> <CAOJe8K3LDhhPWbtdaWt23mY+2vnw5p05+eyk2D8fovOxC10cgA@mail.gmail.com> <CAOJe8K2WaJUP9_buwgKw89fxGe56mGP1Mn8rDUO9W48KZzmybA@mail.gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 82AAE6B00F3
+	for <linux-mm@kvack.org>; Thu, 12 Jun 2014 09:56:17 -0400 (EDT)
+Received: by mail-wi0-f170.google.com with SMTP id cc10so779655wib.3
+        for <linux-mm@kvack.org>; Thu, 12 Jun 2014 06:56:16 -0700 (PDT)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id p14si13562786wiv.81.2014.06.12.06.56.15
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 12 Jun 2014 06:56:15 -0700 (PDT)
+Date: Thu, 12 Jun 2014 09:56:00 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 2/2] memcg: Allow guarantee reclaim
+Message-ID: <20140612135600.GI2878@cmpxchg.org>
+References: <20140611075729.GA4520@dhcp22.suse.cz>
+ <1402473624-13827-1-git-send-email-mhocko@suse.cz>
+ <1402473624-13827-2-git-send-email-mhocko@suse.cz>
+ <20140611153631.GH2878@cmpxchg.org>
+ <20140612132207.GA32720@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20140612132207.GA32720@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Denis Kirjanov <kda@linux-powerpc.org>
-Cc: Catalin Marinas <catalin.marinas@arm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Michel Lespinasse <walken@google.com>, Tejun Heo <tj@kernel.org>, Roman Gushchin <klamm@yandex-team.ru>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-Hi Denis,
+On Thu, Jun 12, 2014 at 03:22:07PM +0200, Michal Hocko wrote:
+> On Wed 11-06-14 11:36:31, Johannes Weiner wrote:
+> [...]
+> > This code is truly dreadful.
+> > 
+> > Don't call it guarantee when it doesn't guarantee anything.  I thought
+> > we agreed that min, low, high, max, is reasonable nomenclature, please
+> > use it consistently.
+> 
+> I can certainly change the internal naming. I will use your wmark naming
+> suggestion.
 
-On Thu, Jun 12, 2014 at 04:00:57PM +0400, Denis Kirjanov wrote:
-> On 6/12/14, Denis Kirjanov <kda@linux-powerpc.org> wrote:
-> > On 6/12/14, Catalin Marinas <catalin.marinas@arm.com> wrote:
-> >> On 11 Jun 2014, at 21:04, Denis Kirjanov <kda@linux-powerpc.org> wro=
-te:
-> >>> On 6/11/14, Catalin Marinas <catalin.marinas@arm.com> wrote:
-> >>>> On Wed, Jun 11, 2014 at 04:13:07PM +0400, Denis Kirjanov wrote:
-> >>>>> I got a trace while running 3.15.0-08556-gdfb9454:
-> >>>>>
-> >>>>> [  104.534026] Unable to handle kernel paging request for data at=
+Cool, thanks.
 
-> >>>>> address 0xc00000007f000000
-> >>>>
-> >>>> Were there any kmemleak messages prior to this, like "kmemleak
-> >>>> disabled"? There could be a race when kmemleak is disabled because=
- of
-> >>>> some fatal (for kmemleak) error while the scanning is taking place=
+> > With my proposed cleanups and scalability fixes in the other mail, the
+> > vmscan.c changes to support the min watermark would be something like
+> > the following.
+> 
+> The semantic is, however, much different as pointed out in the other email.
+> The following on top of you cleanup will lead to the same deadlock
+> described in 1st patch (mm, memcg: allow OOM if no memcg is eligible
+> during direct reclaim).
 
-> >>>> (which needs some more thinking to fix properly).
-> >>>
-> >>> No. I checked for the similar problem and didn't find anything rele=
-vant.
-> >>> I'll try to bisect it.
-> >>
-> >> Does this happen soon after boot? I guess it=E2=80=99s the first sca=
-n
-> >> (scheduled at around 1min after boot). Something seems to be telling=
+I'm currently reworking shrink_zones() and getting rid of
+all_unreclaimable() etc. to remove the code duplication.
 
-> >> kmemleak that there is a valid memory block at 0xc00000007f000000.
-> >
-> > Yeah, it happens after a while with a booted system so that's the
-> > first kmemleak scan.
-> >
-> >> Catalin
-> >
-> =
+> Anyway, the situation now is pretty chaotic. I plan to gather all the
+> patchse posted so far and repost for the future discussion. I just need
+> to finish some internal tasks and will post it soon.
 
-> I've bisected to this commit: d4c54919ed86302094c0ca7d48a8cbd4ee753e92
-> "mm: add !pte_present() check on existing hugetlb_entry callbacks".
-> Reverting the commit fixes the issue
+That would be great, thanks, it's really hard to follow this stuff
+halfway in and halfway outside of -mm.
 
-Thanks for the effort of bisecting.
-I guess that this bug happens because pte_none() check was gone in this
-commit, so could you try to find if the following patch fixes the problem=
-?
+Now that we roughly figured out what knobs and semantics we want, it
+would be great to figure out the merging logistics.
 
-I don't know much about kmemleak's details, so I'm not sure how this bug
-affected kmemleak. So I'm appreciated if you would add some comment in
-patch description.
+I would prefer if we could introduce max, high, low, min in unified
+hierarchy, and *only* in there, so that we never have to worry about
+it coexisting and interacting with the existing hard and soft limit.
 
-Thanks,
-Naoya Horiguchi
----
-Date: Thu, 12 Jun 2014 08:56:27 -0400
-Subject: [PATCH] mm: revoke pte_none() check for hugetlb_entry() callback=
-s
+It would also be beneficial to introduce them all close to each other,
+develop them together, possibly submit them in the same patch series,
+so that we know the requirements and how the code should look like in
+the big picture and can offer a fully consistent and documented usage
+model in the unified hierarchy.
 
-commit: d4c54919ed86302094c0ca7d48a8cbd4ee753e92 ("mm: add !pte_present()=
-
-check on existing hugetlb_entry callbacks") removed pte_none() check in
-a ->hugetlb_entry() handler, which unexpectedly broke other features like=
-
-kmemleak.
-
-pte_none() check should be done in common page walk code, because we do
-so for normal pages and page walk might want to handle holes with
-->pte_hole() callback.
-
-Reported-by: Denis Kirjanov <kda@linux-powerpc.org>
-Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
----
- mm/pagewalk.c | 7 +++++++
- 1 file changed, 7 insertions(+)
-
-diff --git a/mm/pagewalk.c b/mm/pagewalk.c
-index 2beeabf502c5..0618657285c4 100644
---- a/mm/pagewalk.c
-+++ b/mm/pagewalk.c
-@@ -118,6 +118,13 @@ static int walk_hugetlb_range(struct vm_area_struct =
-*vma,
- 	do {
- 		next =3D hugetlb_entry_end(h, addr, end);
- 		pte =3D huge_pte_offset(walk->mm, addr & hmask);
-+		if (huge_pte_none(*pte)) {
-+			if (walk->pte_hole)
-+				err =3D walk->pte_hole(addr, next, walk);
-+			if (err)
-+				break;
-+			continue;
-+		}
- 		if (pte && walk->hugetlb_entry)
- 			err =3D walk->hugetlb_entry(pte, hmask, addr, next, walk);
- 		if (err)
--- =
-
-1.9.3
+Does that make sense?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
