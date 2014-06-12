@@ -1,97 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f45.google.com (mail-wg0-f45.google.com [74.125.82.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A7ED6B00DB
-	for <linux-mm@kvack.org>; Thu, 12 Jun 2014 06:02:44 -0400 (EDT)
-Received: by mail-wg0-f45.google.com with SMTP id l18so1002550wgh.16
-        for <linux-mm@kvack.org>; Thu, 12 Jun 2014 03:02:43 -0700 (PDT)
-Received: from mail-we0-x22a.google.com (mail-we0-x22a.google.com [2a00:1450:400c:c03::22a])
-        by mx.google.com with ESMTPS id dl5si26154157wib.12.2014.06.12.03.02.42
+Received: from mail-lb0-f178.google.com (mail-lb0-f178.google.com [209.85.217.178])
+	by kanga.kvack.org (Postfix) with ESMTP id EBF736B00E1
+	for <linux-mm@kvack.org>; Thu, 12 Jun 2014 06:02:53 -0400 (EDT)
+Received: by mail-lb0-f178.google.com with SMTP id w7so554675lbi.9
+        for <linux-mm@kvack.org>; Thu, 12 Jun 2014 03:02:52 -0700 (PDT)
+Received: from mx2.parallels.com (mx2.parallels.com. [199.115.105.18])
+        by mx.google.com with ESMTPS id x1si26622942laa.24.2014.06.12.03.02.51
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 12 Jun 2014 03:02:42 -0700 (PDT)
-Received: by mail-we0-f170.google.com with SMTP id w61so1012116wes.29
-        for <linux-mm@kvack.org>; Thu, 12 Jun 2014 03:02:42 -0700 (PDT)
-From: Michal Nazarewicz <mina86@mina86.com>
-Subject: Re: [PATCH v2 04/10] DMA, CMA: support alignment constraint on cma region
-In-Reply-To: <1402543307-29800-5-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1402543307-29800-1-git-send-email-iamjoonsoo.kim@lge.com> <1402543307-29800-5-git-send-email-iamjoonsoo.kim@lge.com>
-Date: Thu, 12 Jun 2014 12:02:38 +0200
-Message-ID: <xa1t8up2jvi9.fsf@mina86.com>
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 12 Jun 2014 03:02:52 -0700 (PDT)
+Date: Thu, 12 Jun 2014 14:02:32 +0400
+From: Vladimir Davydov <vdavydov@parallels.com>
+Subject: Re: [PATCH -mm v2 8/8] slab: make dead memcg caches discard free
+ slabs immediately
+Message-ID: <20140612100231.GA19221@esperanza>
+References: <cover.1402060096.git.vdavydov@parallels.com>
+ <27a202c6084d6bb19cc3e417793f05104b908ded.1402060096.git.vdavydov@parallels.com>
+ <20140610074317.GE19036@js1304-P5Q-DELUXE>
+ <20140610100313.GA6293@esperanza>
+ <alpine.DEB.2.10.1406100925270.17142@gentwo.org>
+ <20140610151830.GA8692@esperanza>
+ <20140611212431.GA16589@esperanza>
+ <20140612065345.GD19918@js1304-P5Q-DELUXE>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20140612065345.GD19918@js1304-P5Q-DELUXE>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Marek Szyprowski <m.szyprowski@samsung.com>
-Cc: Minchan Kim <minchan@kernel.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Paolo Bonzini <pbonzini@redhat.com>, Gleb Natapov <gleb@kernel.org>, Alexander Graf <agraf@suse.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, kvm@vger.kernel.org, kvm-ppc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Christoph Lameter <cl@gentwo.org>, akpm@linux-foundation.org, rientjes@google.com, penberg@kernel.org, hannes@cmpxchg.org, mhocko@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, Jun 12 2014, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
-> ppc kvm's cma area management needs alignment constraint on
+On Thu, Jun 12, 2014 at 03:53:45PM +0900, Joonsoo Kim wrote:
+> On Thu, Jun 12, 2014 at 01:24:34AM +0400, Vladimir Davydov wrote:
+> > On Tue, Jun 10, 2014 at 07:18:34PM +0400, Vladimir Davydov wrote:
+> > > On Tue, Jun 10, 2014 at 09:26:19AM -0500, Christoph Lameter wrote:
+> > > > On Tue, 10 Jun 2014, Vladimir Davydov wrote:
+> > > > 
+> > > > > Frankly, I incline to shrinking dead SLAB caches periodically from
+> > > > > cache_reap too, because it looks neater and less intrusive to me. Also
+> > > > > it has zero performance impact, which is nice.
+> > > > >
+> > > > > However, Christoph proposed to disable per cpu arrays for dead caches,
+> > > > > similarly to SLUB, and I decided to give it a try, just to see the end
+> > > > > code we'd have with it.
+> > > > >
+> > > > > I'm still not quite sure which way we should choose though...
+> > > > 
+> > > > Which one is cleaner?
+> > > 
+> > > To shrink dead caches aggressively, we only need to modify cache_reap
+> > > (see https://lkml.org/lkml/2014/5/30/271).
+> > 
+> > Hmm, reap_alien, which is called from cache_reap to shrink per node
+> > alien object arrays, only processes one node at a time. That means with
+> > the patch I gave a link to above it will take up to
+> > (REAPTIMEOUT_AC*nr_online_nodes) seconds to destroy a virtually empty
+> > dead cache, which may be quite long on large machines. Of course, we can
+> > make reap_alien walk over all alien caches of the current node, but that
+> > will probably hurt performance...
+> 
+> Hmm, maybe we have a few of objects on other node, doesn't it?
 
-I've noticed it earlier and cannot seem to get to terms with this.  It
-should IMO be PPC, KVM and CMA since those are acronyms.  But if you
-have strong feelings, it's not a big issue.
+I think so, but those few objects will prevent the cache from
+destruction until they are reaped, which may take long.
 
-> cma region. So support it to prepare generalization of cma area
-> management functionality.
->
-> Additionally, add some comments which tell us why alignment
-> constraint is needed on cma region.
->
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> BTW, I have a question about cache_reap(). If there are many kmemcg
+> users, we would have a lot of slab caches and just to traverse slab
+> cache list could take some times. Is it no problem?
 
-Acked-by: Michal Nazarewicz <mina86@mina86.com>
+This may be a problem. Since a cache will stay alive while it has at
+least one active object, there may be throngs of dead caches on the
+list, actually their number won't even be limited by the number of
+memcgs. This can slow down cache reaping and result in noticeable memory
+pressure. Also, it will delay destruction of dead caches, making the
+situation even worse. And we can't even delete dead caches from the
+list, because they won't be reaped then...
 
-> diff --git a/drivers/base/dma-contiguous.c b/drivers/base/dma-contiguous.c
-> index 8a44c82..bc4c171 100644
-> --- a/drivers/base/dma-contiguous.c
-> +++ b/drivers/base/dma-contiguous.c
-> @@ -219,6 +220,7 @@ core_initcall(cma_init_reserved_areas);
->   * @size: Size of the reserved area (in bytes),
->   * @base: Base address of the reserved area optional, use 0 for any
->   * @limit: End address of the reserved memory (optional, 0 for any).
-> + * @alignment: Alignment for the contiguous memory area, should be
->  	power of 2
+OTOH, if we disable per cpu arrays for dead caches, we won't have to
+reap them and therefore can remove them from the slab_caches list. Then
+the number of caches on the list will be bound by the number of memcgs
+multiplied by a constant. Although it still may be quite large, this
+will be predictable at least - the more kmem-active memcgs you have, the
+more memory you need, which sounds reasonable to me.
 
-=E2=80=9Cmust be power of 2 or zero=E2=80=9D.
+Regarding the slowdown introduced by disabling of per cpu arrays, I
+guess it shouldn't be critical, because, as dead caches are never
+allocated from, the number of kfree's left after death is quite limited.
 
->   * @res_cma: Pointer to store the created cma region.
->   * @fixed: hint about where to place the reserved area
->   *
-> @@ -233,15 +235,15 @@ core_initcall(cma_init_reserved_areas);
->   */
->  static int __init __dma_contiguous_reserve_area(phys_addr_t size,
->  				phys_addr_t base, phys_addr_t limit,
-> +				phys_addr_t alignment,
->  				struct cma **res_cma, bool fixed)
->  {
->  	struct cma *cma =3D &cma_areas[cma_area_count];
-> -	phys_addr_t alignment;
->  	int ret =3D 0;
->=20=20
-> -	pr_debug("%s(size %lx, base %08lx, limit %08lx)\n", __func__,
-> -		 (unsigned long)size, (unsigned long)base,
-> -		 (unsigned long)limit);
-> +	pr_debug("%s(size %lx, base %08lx, limit %08lx align_order %08lx)\n",
-> +		__func__, (unsigned long)size, (unsigned long)base,
-> +		(unsigned long)limit, (unsigned long)alignment);
+So, everything isn't that straightforward yet...
 
-Nit: Align with the rest of the arguments, i.e.:
+I think I'll try to simplify the patch that disables per cpu arrays for
+dead caches and send implementations of both approaches with their pros
+and cons outlined in the next iteration, so that we can compare them
+side by side.
 
-+	pr_debug("%s(size %lx, base %08lx, limit %08lx align_order %08lx)\n",
-+		 __func__, (unsigned long)size, (unsigned long)base,
-+		 (unsigned long)limit, (unsigned long)alignment);
-
->=20=20
->  	/* Sanity checks */
->  	if (cma_area_count =3D=3D ARRAY_SIZE(cma_areas)) {
-
---=20
-Best regards,                                         _     _
-.o. | Liege of Serenely Enlightened Majesty of      o' \,=3D./ `o
-..o | Computer Science,  Micha=C5=82 =E2=80=9Cmina86=E2=80=9D Nazarewicz   =
- (o o)
-ooo +--<mpn@google.com>--<xmpp:mina86@jabber.org>--ooO--(_)--Ooo--
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
