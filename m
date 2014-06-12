@@ -1,67 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
-	by kanga.kvack.org (Postfix) with ESMTP id 51AFB900002
-	for <linux-mm@kvack.org>; Thu, 12 Jun 2014 02:49:58 -0400 (EDT)
-Received: by mail-pd0-f182.google.com with SMTP id y13so653310pdi.13
-        for <linux-mm@kvack.org>; Wed, 11 Jun 2014 23:49:57 -0700 (PDT)
-Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
-        by mx.google.com with ESMTP id tf3si101423pac.14.2014.06.11.23.49.55
+Received: from mail-pd0-f175.google.com (mail-pd0-f175.google.com [209.85.192.175])
+	by kanga.kvack.org (Postfix) with ESMTP id 6836F900002
+	for <linux-mm@kvack.org>; Thu, 12 Jun 2014 02:54:46 -0400 (EDT)
+Received: by mail-pd0-f175.google.com with SMTP id z10so652050pdj.20
+        for <linux-mm@kvack.org>; Wed, 11 Jun 2014 23:54:46 -0700 (PDT)
+Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
+        by mx.google.com with ESMTP id zc3si40521128pbc.176.2014.06.11.23.54.44
         for <linux-mm@kvack.org>;
-        Wed, 11 Jun 2014 23:49:57 -0700 (PDT)
-Date: Thu, 12 Jun 2014 15:53:45 +0900
+        Wed, 11 Jun 2014 23:54:45 -0700 (PDT)
+Date: Thu, 12 Jun 2014 15:58:42 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH -mm v2 8/8] slab: make dead memcg caches discard free
- slabs immediately
-Message-ID: <20140612065345.GD19918@js1304-P5Q-DELUXE>
+Subject: Re: [PATCH -mm v2 5/8] slub: make slab_free non-preemptable
+Message-ID: <20140612065842.GE19918@js1304-P5Q-DELUXE>
 References: <cover.1402060096.git.vdavydov@parallels.com>
- <27a202c6084d6bb19cc3e417793f05104b908ded.1402060096.git.vdavydov@parallels.com>
- <20140610074317.GE19036@js1304-P5Q-DELUXE>
- <20140610100313.GA6293@esperanza>
- <alpine.DEB.2.10.1406100925270.17142@gentwo.org>
- <20140610151830.GA8692@esperanza>
- <20140611212431.GA16589@esperanza>
+ <7cd6784a36ed997cc6631615d98e11e02e811b1b.1402060096.git.vdavydov@parallels.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20140611212431.GA16589@esperanza>
+In-Reply-To: <7cd6784a36ed997cc6631615d98e11e02e811b1b.1402060096.git.vdavydov@parallels.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Vladimir Davydov <vdavydov@parallels.com>
-Cc: Christoph Lameter <cl@gentwo.org>, akpm@linux-foundation.org, rientjes@google.com, penberg@kernel.org, hannes@cmpxchg.org, mhocko@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, cl@linux.com, rientjes@google.com, penberg@kernel.org, hannes@cmpxchg.org, mhocko@suse.cz, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, Jun 12, 2014 at 01:24:34AM +0400, Vladimir Davydov wrote:
-> On Tue, Jun 10, 2014 at 07:18:34PM +0400, Vladimir Davydov wrote:
-> > On Tue, Jun 10, 2014 at 09:26:19AM -0500, Christoph Lameter wrote:
-> > > On Tue, 10 Jun 2014, Vladimir Davydov wrote:
-> > > 
-> > > > Frankly, I incline to shrinking dead SLAB caches periodically from
-> > > > cache_reap too, because it looks neater and less intrusive to me. Also
-> > > > it has zero performance impact, which is nice.
-> > > >
-> > > > However, Christoph proposed to disable per cpu arrays for dead caches,
-> > > > similarly to SLUB, and I decided to give it a try, just to see the end
-> > > > code we'd have with it.
-> > > >
-> > > > I'm still not quite sure which way we should choose though...
-> > > 
-> > > Which one is cleaner?
-> > 
-> > To shrink dead caches aggressively, we only need to modify cache_reap
-> > (see https://lkml.org/lkml/2014/5/30/271).
+On Fri, Jun 06, 2014 at 05:22:42PM +0400, Vladimir Davydov wrote:
+> Since per memcg cache destruction is scheduled when the last slab is
+> freed, to avoid use-after-free in kmem_cache_free we should either
+> rearrange code in kmem_cache_free so that it won't dereference the cache
+> ptr after freeing the object, or wait for all kmem_cache_free's to
+> complete before proceeding to cache destruction.
 > 
-> Hmm, reap_alien, which is called from cache_reap to shrink per node
-> alien object arrays, only processes one node at a time. That means with
-> the patch I gave a link to above it will take up to
-> (REAPTIMEOUT_AC*nr_online_nodes) seconds to destroy a virtually empty
-> dead cache, which may be quite long on large machines. Of course, we can
-> make reap_alien walk over all alien caches of the current node, but that
-> will probably hurt performance...
+> The former approach isn't a good option from the future development
+> point of view, because every modifications to kmem_cache_free must be
+> done with great care then. Hence we should provide a method to wait for
+> all currently executing kmem_cache_free's to finish.
+> 
+> This patch makes SLUB's implementation of kmem_cache_free
+> non-preemptable. As a result, synchronize_sched() will work as a barrier
+> against kmem_cache_free's in flight, so that issuing it before cache
+> destruction will protect us against the use-after-free.
+> 
+> This won't affect performance of kmem_cache_free, because we already
+> disable preemption there, and this patch only moves preempt_enable to
+> the end of the function. Neither should it affect the system latency,
+> because kmem_cache_free is extremely short, even in its slow path.
+> 
+> SLAB's version of kmem_cache_free already proceeds with irqs disabled,
+> so nothing to be done there.
+> 
+> Signed-off-by: Vladimir Davydov <vdavydov@parallels.com>
+> ---
+>  mm/slub.c |   10 ++--------
+>  1 file changed, 2 insertions(+), 8 deletions(-)
+> 
+> diff --git a/mm/slub.c b/mm/slub.c
+> index 35741592be8c..e46d6abe8a68 100644
+> --- a/mm/slub.c
+> +++ b/mm/slub.c
+> @@ -2673,18 +2673,11 @@ static __always_inline void slab_free(struct kmem_cache *s,
+>  
+>  	slab_free_hook(s, x);
+>  
+> -redo:
+> -	/*
+> -	 * Determine the currently cpus per cpu slab.
+> -	 * The cpu may change afterward. However that does not matter since
+> -	 * data is retrieved via this pointer. If we are on the same cpu
+> -	 * during the cmpxchg then the free will succedd.
+> -	 */
+>  	preempt_disable();
 
-Hmm, maybe we have a few of objects on other node, doesn't it?
+Hello,
 
-BTW, I have a question about cache_reap(). If there are many kmemcg
-users, we would have a lot of slab caches and just to traverse slab
-cache list could take some times. Is it no problem?
+Could you add some code comment why this preempt_disable/enable() is
+needed? We don't have any clue that kmemcg depends on these things
+on code, so someone cannot understand why it is here.
+
+If possible, please add similar code comment on slab_alloc in mm/slab.c.
 
 Thanks.
 
