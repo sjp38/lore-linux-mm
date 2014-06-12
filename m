@@ -1,171 +1,170 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 60A846B01F0
-	for <linux-mm@kvack.org>; Thu, 12 Jun 2014 01:37:36 -0400 (EDT)
-Received: by mail-pd0-f169.google.com with SMTP id w10so599706pde.0
-        for <linux-mm@kvack.org>; Wed, 11 Jun 2014 22:37:36 -0700 (PDT)
-Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
-        by mx.google.com with ESMTP id yu2si8988220pac.156.2014.06.11.22.37.34
-        for <linux-mm@kvack.org>;
-        Wed, 11 Jun 2014 22:37:35 -0700 (PDT)
-Date: Thu, 12 Jun 2014 14:37:43 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v2 03/10] DMA, CMA: separate core cma management codes
- from DMA APIs
-Message-ID: <20140612053743.GF12415@bbox>
-References: <1402543307-29800-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1402543307-29800-4-git-send-email-iamjoonsoo.kim@lge.com>
+Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
+	by kanga.kvack.org (Postfix) with ESMTP id BF86E900002
+	for <linux-mm@kvack.org>; Thu, 12 Jun 2014 01:49:06 -0400 (EDT)
+Received: by mail-wi0-f178.google.com with SMTP id n15so2264528wiw.5
+        for <linux-mm@kvack.org>; Wed, 11 Jun 2014 22:49:06 -0700 (PDT)
+Received: from mail-wi0-x231.google.com (mail-wi0-x231.google.com [2a00:1450:400c:c05::231])
+        by mx.google.com with ESMTPS id fq10si1358323wib.45.2014.06.11.22.49.04
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Wed, 11 Jun 2014 22:49:05 -0700 (PDT)
+Received: by mail-wi0-f177.google.com with SMTP id r20so914185wiv.10
+        for <linux-mm@kvack.org>; Wed, 11 Jun 2014 22:49:04 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1402543307-29800-4-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <1399552888-11024-2-git-send-email-kirill.shutemov@linux.intel.com>
+References: <1399552888-11024-1-git-send-email-kirill.shutemov@linux.intel.com>
+ <1399552888-11024-2-git-send-email-kirill.shutemov@linux.intel.com>
+From: Michael Kerrisk <mtk.manpages@gmail.com>
+Date: Thu, 12 Jun 2014 07:48:44 +0200
+Message-ID: <CAHO5Pa31WVrtG+2hU1grbLHiEPjkM_eB4JgSStskX8AvDjQRKA@mail.gmail.com>
+Subject: Re: [PATCH 1/2] mm: mark remap_file_pages() syscall as deprecated
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, kvm@vger.kernel.org, linux-mm@kvack.org, Gleb Natapov <gleb@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Alexander Graf <agraf@suse.de>, kvm-ppc@vger.kernel.org, linux-kernel@vger.kernel.org, Paul Mackerras <paulus@samba.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paolo Bonzini <pbonzini@redhat.com>, linuxppc-dev@lists.ozlabs.org, linux-arm-kernel@lists.infradead.org
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>, Linux API <linux-api@vger.kernel.org>, Michael Kerrisk-manpages <mtk.manpages@gmail.com>
 
-On Thu, Jun 12, 2014 at 12:21:40PM +0900, Joonsoo Kim wrote:
-> To prepare future generalization work on cma area management code,
-> we need to separate core cma management codes from DMA APIs.
-> We will extend these core functions to cover requirements of
-> ppc kvm's cma area management functionality in following patches.
-> This separation helps us not to touch DMA APIs while extending
-> core functions.
-> 
-> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> 
-> diff --git a/drivers/base/dma-contiguous.c b/drivers/base/dma-contiguous.c
-> index fb0cdce..8a44c82 100644
-> --- a/drivers/base/dma-contiguous.c
-> +++ b/drivers/base/dma-contiguous.c
-> @@ -231,9 +231,9 @@ core_initcall(cma_init_reserved_areas);
->   * If @fixed is true, reserve contiguous area at exactly @base.  If false,
->   * reserve in range from @base to @limit.
->   */
-> -int __init dma_contiguous_reserve_area(phys_addr_t size, phys_addr_t base,
-> -				       phys_addr_t limit, struct cma **res_cma,
-> -				       bool fixed)
-> +static int __init __dma_contiguous_reserve_area(phys_addr_t size,
-> +				phys_addr_t base, phys_addr_t limit,
-> +				struct cma **res_cma, bool fixed)
->  {
->  	struct cma *cma = &cma_areas[cma_area_count];
->  	phys_addr_t alignment;
-> @@ -288,16 +288,30 @@ int __init dma_contiguous_reserve_area(phys_addr_t size, phys_addr_t base,
->  
->  	pr_info("%s(): reserved %ld MiB at %08lx\n",
->  		__func__, (unsigned long)size / SZ_1M, (unsigned long)base);
-> -
-> -	/* Architecture specific contiguous memory fixup. */
-> -	dma_contiguous_early_fixup(base, size);
->  	return 0;
-> +
->  err:
->  	pr_err("%s(): failed to reserve %ld MiB\n",
->  		__func__, (unsigned long)size / SZ_1M);
->  	return ret;
->  }
->  
-> +int __init dma_contiguous_reserve_area(phys_addr_t size, phys_addr_t base,
-> +				       phys_addr_t limit, struct cma **res_cma,
-> +				       bool fixed)
-> +{
-> +	int ret;
-> +
-> +	ret = __dma_contiguous_reserve_area(size, base, limit, res_cma, fixed);
-> +	if (ret)
-> +		return ret;
-> +
-> +	/* Architecture specific contiguous memory fixup. */
-> +	dma_contiguous_early_fixup(base, size);
+Hi Kirill,
 
-In old, base and size are aligned with alignment and passed into arch fixup
-but your patch is changing it.
-I didn't look at what kinds of side effect it makes but just want to confirm.
+On Thu, May 8, 2014 at 2:41 PM, Kirill A. Shutemov
+<kirill.shutemov@linux.intel.com> wrote:
+> The remap_file_pages() system call is used to create a nonlinear mapping,
+> that is, a mapping in which the pages of the file are mapped into a
+> nonsequential order in memory. The advantage of using remap_file_pages()
+> over using repeated calls to mmap(2) is that the former approach does not
+> require the kernel to create additional VMA (Virtual Memory Area) data
+> structures.
+>
+> Supporting of nonlinear mapping requires significant amount of non-trivia=
+l
+> code in kernel virtual memory subsystem including hot paths. Also to get
+> nonlinear mapping work kernel need a way to distinguish normal page table
+> entries from entries with file offset (pte_file). Kernel reserves flag in
+> PTE for this purpose. PTE flags are scarce resource especially on some CP=
+U
+> architectures. It would be nice to free up the flag for other usage.
+>
+> Fortunately, there are not many users of remap_file_pages() in the wild.
+> It's only known that one enterprise RDBMS implementation uses the syscall
+> on 32-bit systems to map files bigger than can linearly fit into 32-bit
+> virtual address space. This use-case is not critical anymore since 64-bit
+> systems are widely available.
+>
+> The plan is to deprecate the syscall and replace it with an emulation.
+> The emulation will create new VMAs instead of nonlinear mappings. It's
+> going to work slower for rare users of remap_file_pages() but ABI is
+> preserved.
+>
+> One side effect of emulation (apart from performance) is that user can hi=
+t
+> vm.max_map_count limit more easily due to additional VMAs. See comment fo=
+r
+> DEFAULT_MAX_MAP_COUNT for more details on the limit.
 
-> +
-> +	return 0;
-> +}
-> +
->  static void clear_cma_bitmap(struct cma *cma, unsigned long pfn, int count)
->  {
->  	mutex_lock(&cma->lock);
-> @@ -316,20 +330,16 @@ static void clear_cma_bitmap(struct cma *cma, unsigned long pfn, int count)
->   * global one. Requires architecture specific dev_get_cma_area() helper
->   * function.
->   */
-> -struct page *dma_alloc_from_contiguous(struct device *dev, int count,
-> +static struct page *__dma_alloc_from_contiguous(struct cma *cma, int count,
->  				       unsigned int align)
->  {
->  	unsigned long mask, pfn, pageno, start = 0;
-> -	struct cma *cma = dev_get_cma_area(dev);
->  	struct page *page = NULL;
->  	int ret;
->  
->  	if (!cma || !cma->count)
->  		return NULL;
->  
-> -	if (align > CONFIG_CMA_ALIGNMENT)
-> -		align = CONFIG_CMA_ALIGNMENT;
-> -
->  	pr_debug("%s(cma %p, count %d, align %d)\n", __func__, (void *)cma,
->  		 count, align);
->  
-> @@ -377,6 +387,17 @@ struct page *dma_alloc_from_contiguous(struct device *dev, int count,
->  	return page;
->  }
->  
+Best to CC linux-api@
+(https://www.kernel.org/doc/man-pages/linux-api-ml.html) on patches
+like this, as well as the man-pages maintainer, so that something goes
+into the man page. I added the following into the man page:
 
-Please move the description in __dma_alloc_from_contiguous to here exported API.
+       Note:  this  system  call  is (since Linux 3.16) deprecated and
+       will eventually be replaced by a  slower  in-kernel  emulation.
+       Those  few  applications  that use this system call should con=E2=80=
+=90
+       sider migrating to alternatives.
 
-> +struct page *dma_alloc_from_contiguous(struct device *dev, int count,
-> +				       unsigned int align)
-> +{
-> +	struct cma *cma = dev_get_cma_area(dev);
-> +
-> +	if (align > CONFIG_CMA_ALIGNMENT)
-> +		align = CONFIG_CMA_ALIGNMENT;
-> +
-> +	return __dma_alloc_from_contiguous(cma, count, align);
-> +}
-> +
->  /**
->   * dma_release_from_contiguous() - release allocated pages
->   * @dev:   Pointer to device for which the pages were allocated.
-> @@ -387,10 +408,9 @@ struct page *dma_alloc_from_contiguous(struct device *dev, int count,
->   * It returns false when provided pages do not belong to contiguous area and
->   * true otherwise.
->   */
-> -bool dma_release_from_contiguous(struct device *dev, struct page *pages,
-> +static bool __dma_release_from_contiguous(struct cma *cma, struct page *pages,
->  				 int count)
->  {
-> -	struct cma *cma = dev_get_cma_area(dev);
->  	unsigned long pfn;
->  
->  	if (!cma || !pages)
-> @@ -410,3 +430,11 @@ bool dma_release_from_contiguous(struct device *dev, struct page *pages,
->  
->  	return true;
->  }
-> +
+Okay?
 
-Ditto.
+Cheers,
 
-> +bool dma_release_from_contiguous(struct device *dev, struct page *pages,
-> +				 int count)
-> +{
-> +	struct cma *cma = dev_get_cma_area(dev);
+Michael
+
+
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> ---
+>  Documentation/vm/remap_file_pages.txt | 28 ++++++++++++++++++++++++++++
+>  mm/fremap.c                           |  4 ++++
+>  2 files changed, 32 insertions(+)
+>  create mode 100644 Documentation/vm/remap_file_pages.txt
+>
+> diff --git a/Documentation/vm/remap_file_pages.txt b/Documentation/vm/rem=
+ap_file_pages.txt
+> new file mode 100644
+> index 000000000000..560e4363a55d
+> --- /dev/null
+> +++ b/Documentation/vm/remap_file_pages.txt
+> @@ -0,0 +1,28 @@
+> +The remap_file_pages() system call is used to create a nonlinear mapping=
+,
+> +that is, a mapping in which the pages of the file are mapped into a
+> +nonsequential order in memory. The advantage of using remap_file_pages()
+> +over using repeated calls to mmap(2) is that the former approach does no=
+t
+> +require the kernel to create additional VMA (Virtual Memory Area) data
+> +structures.
 > +
-> +	return __dma_release_from_contiguous(cma, pages, count);
-> +}
-> -- 
-> 1.7.9.5
+> +Supporting of nonlinear mapping requires significant amount of non-trivi=
+al
+> +code in kernel virtual memory subsystem including hot paths. Also to get
+> +nonlinear mapping work kernel need a way to distinguish normal page tabl=
+e
+> +entries from entries with file offset (pte_file). Kernel reserves flag i=
+n
+> +PTE for this purpose. PTE flags are scarce resource especially on some C=
+PU
+> +architectures. It would be nice to free up the flag for other usage.
+> +
+> +Fortunately, there are not many users of remap_file_pages() in the wild.
+> +It's only known that one enterprise RDBMS implementation uses the syscal=
+l
+> +on 32-bit systems to map files bigger than can linearly fit into 32-bit
+> +virtual address space. This use-case is not critical anymore since 64-bi=
+t
+> +systems are widely available.
+> +
+> +The plan is to deprecate the syscall and replace it with an emulation.
+> +The emulation will create new VMAs instead of nonlinear mappings. It's
+> +going to work slower for rare users of remap_file_pages() but ABI is
+> +preserved.
+> +
+> +One side effect of emulation (apart from performance) is that user can h=
+it
+> +vm.max_map_count limit more easily due to additional VMAs. See comment f=
+or
+> +DEFAULT_MAX_MAP_COUNT for more details on the limit.
+> diff --git a/mm/fremap.c b/mm/fremap.c
+> index 34feba60a17e..12c3bb63b7f9 100644
+> --- a/mm/fremap.c
+> +++ b/mm/fremap.c
+> @@ -152,6 +152,10 @@ SYSCALL_DEFINE5(remap_file_pages, unsigned long, sta=
+rt, unsigned long, size,
+>         int has_write_lock =3D 0;
+>         vm_flags_t vm_flags =3D 0;
+>
+> +       pr_warn_once("%s (%d) uses depricated remap_file_pages() syscall.=
+ "
+> +                       "See Documentation/vm/remap_file_pages.txt.\n",
+> +                       current->comm, current->pid);
+> +
+>         if (prot)
+>                 return err;
+>         /*
+> --
+> 2.0.0.rc2
+>
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
 
--- 
-Kind regards,
-Minchan Kim
+
+
+--=20
+Michael Kerrisk Linux man-pages maintainer;
+http://www.kernel.org/doc/man-pages/
+Author of "The Linux Programming Interface", http://blog.man7.org/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
