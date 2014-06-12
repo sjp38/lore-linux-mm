@@ -1,138 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
-	by kanga.kvack.org (Postfix) with ESMTP id BD5246B0070
-	for <linux-mm@kvack.org>; Thu, 12 Jun 2014 17:48:43 -0400 (EDT)
-Received: by mail-wi0-f171.google.com with SMTP id n15so7744387wiw.16
+Received: from mail-ie0-f178.google.com (mail-ie0-f178.google.com [209.85.223.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D9226B0071
+	for <linux-mm@kvack.org>; Thu, 12 Jun 2014 17:48:44 -0400 (EDT)
+Received: by mail-ie0-f178.google.com with SMTP id rd18so1706257iec.37
         for <linux-mm@kvack.org>; Thu, 12 Jun 2014 14:48:43 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id n9si5157907wiz.23.2014.06.12.14.48.41
-        for <linux-mm@kvack.org>;
-        Thu, 12 Jun 2014 14:48:42 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH -mm v2 10/11] fs/proc/task_mmu.c: clean up gather_*_stats()
-Date: Thu, 12 Jun 2014 17:48:10 -0400
-Message-Id: <1402609691-13950-11-git-send-email-n-horiguchi@ah.jp.nec.com>
-In-Reply-To: <1402609691-13950-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-References: <1402609691-13950-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Received: from mail-ig0-x22f.google.com (mail-ig0-x22f.google.com [2607:f8b0:4001:c05::22f])
+        by mx.google.com with ESMTPS id gb3si5341044igd.36.2014.06.12.14.48.43
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 12 Jun 2014 14:48:43 -0700 (PDT)
+Received: by mail-ig0-f175.google.com with SMTP id uq10so8198962igb.8
+        for <linux-mm@kvack.org>; Thu, 12 Jun 2014 14:48:43 -0700 (PDT)
+Date: Thu, 12 Jun 2014 14:48:41 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [RFC PATCH 4/6] mm, compaction: skip buddy pages by their order
+ in the migrate scanner
+In-Reply-To: <53999563.9060105@suse.cz>
+Message-ID: <alpine.DEB.2.02.1406121446070.12437@chino.kir.corp.google.com>
+References: <alpine.DEB.2.02.1405211954410.13243@chino.kir.corp.google.com> <1401898310-14525-1-git-send-email-vbabka@suse.cz> <1401898310-14525-4-git-send-email-vbabka@suse.cz> <alpine.DEB.2.02.1406041656400.22536@chino.kir.corp.google.com> <5390374E.5080708@suse.cz>
+ <alpine.DEB.2.02.1406051428360.18119@chino.kir.corp.google.com> <53916BB0.3070001@suse.cz> <alpine.DEB.2.02.1406090207300.24247@chino.kir.corp.google.com> <53959C11.2000305@suse.cz> <alpine.DEB.2.02.1406091512540.5271@chino.kir.corp.google.com>
+ <5396B31B.6080706@suse.cz> <alpine.DEB.2.02.1406101646540.32203@chino.kir.corp.google.com> <5398492E.3070406@suse.cz> <alpine.DEB.2.02.1406111720370.11536@chino.kir.corp.google.com> <53999563.9060105@suse.cz>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Dave Hansen <dave.hansen@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>
 
-Most code of gather_(pte|pmd|hugetlb)_stats() are duplicate, so let's clean
-them up with a single function.
+On Thu, 12 Jun 2014, Vlastimil Babka wrote:
 
-vm_normal_page() doesn't calculate pgoff correctly for hugetlbfs, so this
-patch also fixes it.
+> > Ok, and I won't continue to push the point.
+> 
+> I'd rather know I'm correct and not just persistent enough :) If you confirm
+> that your compiler behaves differently, then maybe making page_order_unsafe a
+> #define instead of inline function would prevent this issue?
+> 
 
-Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
----
- fs/proc/task_mmu.c | 58 ++++++------------------------------------------------
- mm/memory.c        |  5 ++---
- 2 files changed, 8 insertions(+), 55 deletions(-)
+The reason I was hesitatnt is because there's no way I can prove under all 
+possible circumstances in which page_order_unsafe() could be used that gcc 
+won't make the decision to reaccess.  I personally didn't think that doing
 
-diff --git mmotm-2014-05-21-16-57.orig/fs/proc/task_mmu.c mmotm-2014-05-21-16-57/fs/proc/task_mmu.c
-index 1f2eab58ae14..27ad736c6b30 100644
---- mmotm-2014-05-21-16-57.orig/fs/proc/task_mmu.c
-+++ mmotm-2014-05-21-16-57/fs/proc/task_mmu.c
-@@ -1243,63 +1243,17 @@ static struct page *can_gather_numa_stats(pte_t pte, struct vm_area_struct *vma,
- 	return page;
- }
- 
--static int gather_pte_stats(void *entry, unsigned long addr,
-+static int gather_stats_entry(void *entry, unsigned long addr,
- 		unsigned long end, struct mm_walk *walk)
- {
- 	pte_t *pte = entry;
- 	struct numa_maps *md = walk->private;
--
- 	struct page *page = can_gather_numa_stats(*pte, walk->vma, addr);
--	if (!page)
--		return 0;
--	gather_stats(page, md, pte_dirty(*pte), 1);
--	return 0;
--}
--
--static int gather_pmd_stats(void *entry, unsigned long addr,
--		unsigned long end, struct mm_walk *walk)
--{
--	struct numa_maps *md = walk->private;
--	struct vm_area_struct *vma = walk->vma;
--	pte_t huge_pte = *(pte_t *)entry;
--	struct page *page;
--
--	page = can_gather_numa_stats(huge_pte, vma, addr);
- 	if (page)
--		gather_stats(page, md, pte_dirty(huge_pte),
--			     HPAGE_PMD_SIZE/PAGE_SIZE);
-+		gather_stats(page, md, pte_dirty(*pte),
-+			     walk->size >> PAGE_SHIFT);
- 	return 0;
- }
--#ifdef CONFIG_HUGETLB_PAGE
--static int gather_hugetlb_stats(void *entry, unsigned long addr,
--				unsigned long end, struct mm_walk *walk)
--{
--	pte_t *pte = entry;
--	struct numa_maps *md;
--	struct page *page;
--
--	if (pte_none(*pte))
--		return 0;
--
--	if (!pte_present(*pte))
--		return 0;
--
--	page = pte_page(*pte);
--	if (!page)
--		return 0;
--
--	md = walk->private;
--	gather_stats(page, md, pte_dirty(*pte), 1);
--	return 0;
--}
--
--#else
--static int gather_hugetlb_stats(void *entry, unsigned long addr,
--				unsigned long end, struct mm_walk *walk)
--{
--	return 0;
--}
--#endif
- 
- /*
-  * Display pages allocated per node and memory policy via /proc.
-@@ -1324,9 +1278,9 @@ static int show_numa_map(struct seq_file *m, void *v, int is_pid)
- 	/* Ensure we start with an empty set of numa_maps statistics. */
- 	memset(md, 0, sizeof(*md));
- 
--	walk.hugetlb_entry = gather_hugetlb_stats;
--	walk.pmd_entry = gather_pmd_stats;
--	walk.pte_entry = gather_pte_stats;
-+	walk.hugetlb_entry = gather_stats_entry;
-+	walk.pmd_entry = gather_stats_entry;
-+	walk.pte_entry = gather_stats_entry;
- 	walk.private = md;
- 	walk.mm = mm;
- 	walk.vma = vma;
-diff --git mmotm-2014-05-21-16-57.orig/mm/memory.c mmotm-2014-05-21-16-57/mm/memory.c
-index fd16b767dd68..7389dd04370f 100644
---- mmotm-2014-05-21-16-57.orig/mm/memory.c
-+++ mmotm-2014-05-21-16-57/mm/memory.c
-@@ -768,9 +768,8 @@ struct page *vm_normal_page(struct vm_area_struct *vma, unsigned long addr,
- 				return NULL;
- 			goto out;
- 		} else {
--			unsigned long off;
--			off = (addr - vma->vm_start) >> PAGE_SHIFT;
--			if (pfn == vma->vm_pgoff + off)
-+			unsigned long off = linear_page_index(vma, addr);
-+			if (pfn == off)
- 				return NULL;
- 			if (!is_cow_mapping(vma->vm_flags))
- 				return NULL;
--- 
-1.9.3
+	if (PageBuddy(page)) {
+		/*
+		 * Racy check since we know PageBuddy() is true and we do
+		 * some sanity checking on this scan to ensure it is an
+		 * appropriate order.
+		 */
+		unsigned long order = ACCESS_ONCE(page_private(page));
+		...
+	}
+
+was too much of a problem and actually put the ACCESS_ONCE() in the 
+context in which it matters rather than hiding behind an inline function.
+
+> > I think the lockless
+> > suitable_migration_target() call that looks at page_order() is fine in the
+> > free scanner since we use it as a racy check, but it might benefit from
+> > either a comment describing the behavior or a sanity check for
+> > page_order(page) <= MAX_ORDER as you've done before.
+> 
+> OK, I'll add that.
+> 
+
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
