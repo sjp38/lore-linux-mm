@@ -1,22 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f173.google.com (mail-we0-f173.google.com [74.125.82.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B65B6B00E8
-	for <linux-mm@kvack.org>; Thu, 12 Jun 2014 06:20:00 -0400 (EDT)
-Received: by mail-we0-f173.google.com with SMTP id t60so1025695wes.4
-        for <linux-mm@kvack.org>; Thu, 12 Jun 2014 03:19:59 -0700 (PDT)
-Received: from mail-wi0-x22b.google.com (mail-wi0-x22b.google.com [2a00:1450:400c:c05::22b])
-        by mx.google.com with ESMTPS id e17si26237705wiw.8.2014.06.12.03.19.58
+Received: from mail-wi0-f172.google.com (mail-wi0-f172.google.com [209.85.212.172])
+	by kanga.kvack.org (Postfix) with ESMTP id E63B66B00D4
+	for <linux-mm@kvack.org>; Thu, 12 Jun 2014 07:34:32 -0400 (EDT)
+Received: by mail-wi0-f172.google.com with SMTP id hi2so7429020wib.5
+        for <linux-mm@kvack.org>; Thu, 12 Jun 2014 04:34:32 -0700 (PDT)
+Received: from mail-wi0-x230.google.com (mail-wi0-x230.google.com [2a00:1450:400c:c05::230])
+        by mx.google.com with ESMTPS id fu7si26517799wib.85.2014.06.12.04.34.30
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 12 Jun 2014 03:19:58 -0700 (PDT)
-Received: by mail-wi0-f171.google.com with SMTP id n15so6503249wiw.4
-        for <linux-mm@kvack.org>; Thu, 12 Jun 2014 03:19:58 -0700 (PDT)
+        Thu, 12 Jun 2014 04:34:31 -0700 (PDT)
+Received: by mail-wi0-f176.google.com with SMTP id n3so7178776wiv.3
+        for <linux-mm@kvack.org>; Thu, 12 Jun 2014 04:34:30 -0700 (PDT)
 From: Michal Nazarewicz <mina86@mina86.com>
-Subject: Re: [PATCH v2 05/10] DMA, CMA: support arbitrary bitmap granularity
-In-Reply-To: <1402543307-29800-6-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1402543307-29800-1-git-send-email-iamjoonsoo.kim@lge.com> <1402543307-29800-6-git-send-email-iamjoonsoo.kim@lge.com>
-Date: Thu, 12 Jun 2014 12:19:54 +0200
-Message-ID: <xa1t61k6juph.fsf@mina86.com>
+Subject: Re: [PATCH v2 08/10] mm, cma: clean-up cma allocation error path
+In-Reply-To: <1402543307-29800-9-git-send-email-iamjoonsoo.kim@lge.com>
+References: <1402543307-29800-1-git-send-email-iamjoonsoo.kim@lge.com> <1402543307-29800-9-git-send-email-iamjoonsoo.kim@lge.com>
+Date: Thu, 12 Jun 2014 13:34:27 +0200
+Message-ID: <xa1tzjhiicos.fsf@mina86.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: quoted-printable
@@ -26,65 +26,34 @@ To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.o
 Cc: Minchan Kim <minchan@kernel.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Paolo Bonzini <pbonzini@redhat.com>, Gleb Natapov <gleb@kernel.org>, Alexander Graf <agraf@suse.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, kvm@vger.kernel.org, kvm-ppc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
 
 On Thu, Jun 12 2014, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
-> ppc kvm's cma region management requires arbitrary bitmap granularity,
-> since they want to reserve very large memory and manage this region
-> with bitmap that one bit for several pages to reduce management overheads.
-> So support arbitrary bitmap granularity for following generalization.
+> We can remove one call sites for clear_cma_bitmap() if we first
+> call it before checking error number.
 >
 > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Acked-by: Michal Nazarewicz <mina86@mina86.com>
+Reviewed-by: Michal Nazarewicz <mina86@mina86.com>
 
-> diff --git a/drivers/base/dma-contiguous.c b/drivers/base/dma-contiguous.c
-> index bc4c171..9bc9340 100644
-> --- a/drivers/base/dma-contiguous.c
-> +++ b/drivers/base/dma-contiguous.c
-> @@ -38,6 +38,7 @@ struct cma {
->  	unsigned long	base_pfn;
->  	unsigned long	count;
-
-Have you considered replacing count with maxno?
-
->  	unsigned long	*bitmap;
-> +	int order_per_bit; /* Order of pages represented by one bit */
-
-I'd make it unsigned.
-
->  	struct mutex	lock;
->  };
->=20=20
-> +static void clear_cma_bitmap(struct cma *cma, unsigned long pfn, int
-> count)
-
-For consistency cma_clear_bitmap would make more sense I think.  On the
-other hand, you're just moving stuff around so perhaps renaming the
-function at this point is not worth it any more.
-
-> +{
-> +	unsigned long bitmapno, nr_bits;
+> diff --git a/mm/cma.c b/mm/cma.c
+> index 1e1b017..01a0713 100644
+> --- a/mm/cma.c
+> +++ b/mm/cma.c
+> @@ -282,11 +282,12 @@ struct page *cma_alloc(struct cma *cma, int count, =
+unsigned int align)
+>  		if (ret =3D=3D 0) {
+>  			page =3D pfn_to_page(pfn);
+>  			break;
+> -		} else if (ret !=3D -EBUSY) {
+> -			clear_cma_bitmap(cma, pfn, count);
+> -			break;
+>  		}
 > +
-> +	bitmapno =3D (pfn - cma->base_pfn) >> cma->order_per_bit;
-> +	nr_bits =3D cma_bitmap_pages_to_bits(cma, count);
+>  		clear_cma_bitmap(cma, pfn, count);
+> +		if (ret !=3D -EBUSY)
+> +			break;
 > +
-> +	mutex_lock(&cma->lock);
-> +	bitmap_clear(cma->bitmap, bitmapno, nr_bits);
-> +	mutex_unlock(&cma->lock);
-> +}
-> +
->  static int __init cma_activate_area(struct cma *cma)
->  {
-> -	int bitmap_size =3D BITS_TO_LONGS(cma->count) * sizeof(long);
-> +	int bitmap_maxno =3D cma_bitmap_maxno(cma);
-> +	int bitmap_size =3D BITS_TO_LONGS(bitmap_maxno) * sizeof(long);
->  	unsigned long base_pfn =3D cma->base_pfn, pfn =3D base_pfn;
->  	unsigned i =3D cma->count >> pageblock_order;
->  	struct zone *zone;
-
-bitmap_maxno is never used again, perhaps:
-
-+	int bitmap_size =3D BITS_TO_LONGS(cma_bitmap_maxno(cma)) * sizeof(long);
-
-instead? Up to you.
+>  		pr_debug("%s(): memory range at %p is busy, retrying\n",
+>  			 __func__, pfn_to_page(pfn));
+>  		/* try again with a bit different memory target */
 
 --=20
 Best regards,                                         _     _
