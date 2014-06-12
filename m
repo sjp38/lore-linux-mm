@@ -1,80 +1,165 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f54.google.com (mail-pb0-f54.google.com [209.85.160.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 007AF6B01B1
-	for <linux-mm@kvack.org>; Thu, 12 Jun 2014 01:25:35 -0400 (EDT)
-Received: by mail-pb0-f54.google.com with SMTP id jt11so596133pbb.41
-        for <linux-mm@kvack.org>; Wed, 11 Jun 2014 22:25:35 -0700 (PDT)
-Received: from lgemrelse6q.lge.com (LGEMRELSE6Q.lge.com. [156.147.1.121])
-        by mx.google.com with ESMTP id pc5si40319571pbc.169.2014.06.11.22.25.33
+Received: from mail-pd0-f169.google.com (mail-pd0-f169.google.com [209.85.192.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 60A846B01F0
+	for <linux-mm@kvack.org>; Thu, 12 Jun 2014 01:37:36 -0400 (EDT)
+Received: by mail-pd0-f169.google.com with SMTP id w10so599706pde.0
+        for <linux-mm@kvack.org>; Wed, 11 Jun 2014 22:37:36 -0700 (PDT)
+Received: from lgemrelse7q.lge.com (LGEMRELSE7Q.lge.com. [156.147.1.151])
+        by mx.google.com with ESMTP id yu2si8988220pac.156.2014.06.11.22.37.34
         for <linux-mm@kvack.org>;
-        Wed, 11 Jun 2014 22:25:35 -0700 (PDT)
-Date: Thu, 12 Jun 2014 14:25:43 +0900
+        Wed, 11 Jun 2014 22:37:35 -0700 (PDT)
+Date: Thu, 12 Jun 2014 14:37:43 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v2 02/10] DMA, CMA: fix possible memory leak
-Message-ID: <20140612052543.GE12415@bbox>
+Subject: Re: [PATCH v2 03/10] DMA, CMA: separate core cma management codes
+ from DMA APIs
+Message-ID: <20140612053743.GF12415@bbox>
 References: <1402543307-29800-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1402543307-29800-3-git-send-email-iamjoonsoo.kim@lge.com>
+ <1402543307-29800-4-git-send-email-iamjoonsoo.kim@lge.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1402543307-29800-3-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <1402543307-29800-4-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, kvm@vger.kernel.org, linux-mm@kvack.org, Gleb Natapov <gleb@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Alexander Graf <agraf@suse.de>, kvm-ppc@vger.kernel.org, linux-kernel@vger.kernel.org, Paul Mackerras <paulus@samba.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paolo Bonzini <pbonzini@redhat.com>, linuxppc-dev@lists.ozlabs.org, linux-arm-kernel@lists.infradead.org
 
-On Thu, Jun 12, 2014 at 12:21:39PM +0900, Joonsoo Kim wrote:
-> We should free memory for bitmap when we find zone mis-match,
-> otherwise this memory will leak.
-
-Then, -stable stuff?
-
-> 
-> Additionally, I copy code comment from ppc kvm's cma code to notify
-> why we need to check zone mis-match.
+On Thu, Jun 12, 2014 at 12:21:40PM +0900, Joonsoo Kim wrote:
+> To prepare future generalization work on cma area management code,
+> we need to separate core cma management codes from DMA APIs.
+> We will extend these core functions to cover requirements of
+> ppc kvm's cma area management functionality in following patches.
+> This separation helps us not to touch DMA APIs while extending
+> core functions.
 > 
 > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 > 
 > diff --git a/drivers/base/dma-contiguous.c b/drivers/base/dma-contiguous.c
-> index bd0bb81..fb0cdce 100644
+> index fb0cdce..8a44c82 100644
 > --- a/drivers/base/dma-contiguous.c
 > +++ b/drivers/base/dma-contiguous.c
-> @@ -177,14 +177,24 @@ static int __init cma_activate_area(struct cma *cma)
->  		base_pfn = pfn;
->  		for (j = pageblock_nr_pages; j; --j, pfn++) {
->  			WARN_ON_ONCE(!pfn_valid(pfn));
-> +			/*
-> +			 * alloc_contig_range requires the pfn range
-> +			 * specified to be in the same zone. Make this
-> +			 * simple by forcing the entire CMA resv range
-> +			 * to be in the same zone.
-> +			 */
->  			if (page_zone(pfn_to_page(pfn)) != zone)
-> -				return -EINVAL;
-> +				goto err;
-
-At a first glance, I thought it would be better to handle such error
-before activating.
-So when I see the registration code(ie, dma_contiguous_revere_area),
-I realized it is impossible because we didn't set up zone yet. :(
-
-If so, when we detect to fail here, it would be better to report more
-meaningful error message like what was successful zone and what is
-new zone and failed pfn number?
-
->  		}
->  		init_cma_reserved_pageblock(pfn_to_page(base_pfn));
->  	} while (--i);
+> @@ -231,9 +231,9 @@ core_initcall(cma_init_reserved_areas);
+>   * If @fixed is true, reserve contiguous area at exactly @base.  If false,
+>   * reserve in range from @base to @limit.
+>   */
+> -int __init dma_contiguous_reserve_area(phys_addr_t size, phys_addr_t base,
+> -				       phys_addr_t limit, struct cma **res_cma,
+> -				       bool fixed)
+> +static int __init __dma_contiguous_reserve_area(phys_addr_t size,
+> +				phys_addr_t base, phys_addr_t limit,
+> +				struct cma **res_cma, bool fixed)
+>  {
+>  	struct cma *cma = &cma_areas[cma_area_count];
+>  	phys_addr_t alignment;
+> @@ -288,16 +288,30 @@ int __init dma_contiguous_reserve_area(phys_addr_t size, phys_addr_t base,
 >  
->  	mutex_init(&cma->lock);
+>  	pr_info("%s(): reserved %ld MiB at %08lx\n",
+>  		__func__, (unsigned long)size / SZ_1M, (unsigned long)base);
+> -
+> -	/* Architecture specific contiguous memory fixup. */
+> -	dma_contiguous_early_fixup(base, size);
 >  	return 0;
 > +
-> +err:
-> +	kfree(cma->bitmap);
-> +	return -EINVAL;
+>  err:
+>  	pr_err("%s(): failed to reserve %ld MiB\n",
+>  		__func__, (unsigned long)size / SZ_1M);
+>  	return ret;
 >  }
 >  
->  static struct cma cma_areas[MAX_CMA_AREAS];
+> +int __init dma_contiguous_reserve_area(phys_addr_t size, phys_addr_t base,
+> +				       phys_addr_t limit, struct cma **res_cma,
+> +				       bool fixed)
+> +{
+> +	int ret;
+> +
+> +	ret = __dma_contiguous_reserve_area(size, base, limit, res_cma, fixed);
+> +	if (ret)
+> +		return ret;
+> +
+> +	/* Architecture specific contiguous memory fixup. */
+> +	dma_contiguous_early_fixup(base, size);
+
+In old, base and size are aligned with alignment and passed into arch fixup
+but your patch is changing it.
+I didn't look at what kinds of side effect it makes but just want to confirm.
+
+> +
+> +	return 0;
+> +}
+> +
+>  static void clear_cma_bitmap(struct cma *cma, unsigned long pfn, int count)
+>  {
+>  	mutex_lock(&cma->lock);
+> @@ -316,20 +330,16 @@ static void clear_cma_bitmap(struct cma *cma, unsigned long pfn, int count)
+>   * global one. Requires architecture specific dev_get_cma_area() helper
+>   * function.
+>   */
+> -struct page *dma_alloc_from_contiguous(struct device *dev, int count,
+> +static struct page *__dma_alloc_from_contiguous(struct cma *cma, int count,
+>  				       unsigned int align)
+>  {
+>  	unsigned long mask, pfn, pageno, start = 0;
+> -	struct cma *cma = dev_get_cma_area(dev);
+>  	struct page *page = NULL;
+>  	int ret;
+>  
+>  	if (!cma || !cma->count)
+>  		return NULL;
+>  
+> -	if (align > CONFIG_CMA_ALIGNMENT)
+> -		align = CONFIG_CMA_ALIGNMENT;
+> -
+>  	pr_debug("%s(cma %p, count %d, align %d)\n", __func__, (void *)cma,
+>  		 count, align);
+>  
+> @@ -377,6 +387,17 @@ struct page *dma_alloc_from_contiguous(struct device *dev, int count,
+>  	return page;
+>  }
+>  
+
+Please move the description in __dma_alloc_from_contiguous to here exported API.
+
+> +struct page *dma_alloc_from_contiguous(struct device *dev, int count,
+> +				       unsigned int align)
+> +{
+> +	struct cma *cma = dev_get_cma_area(dev);
+> +
+> +	if (align > CONFIG_CMA_ALIGNMENT)
+> +		align = CONFIG_CMA_ALIGNMENT;
+> +
+> +	return __dma_alloc_from_contiguous(cma, count, align);
+> +}
+> +
+>  /**
+>   * dma_release_from_contiguous() - release allocated pages
+>   * @dev:   Pointer to device for which the pages were allocated.
+> @@ -387,10 +408,9 @@ struct page *dma_alloc_from_contiguous(struct device *dev, int count,
+>   * It returns false when provided pages do not belong to contiguous area and
+>   * true otherwise.
+>   */
+> -bool dma_release_from_contiguous(struct device *dev, struct page *pages,
+> +static bool __dma_release_from_contiguous(struct cma *cma, struct page *pages,
+>  				 int count)
+>  {
+> -	struct cma *cma = dev_get_cma_area(dev);
+>  	unsigned long pfn;
+>  
+>  	if (!cma || !pages)
+> @@ -410,3 +430,11 @@ bool dma_release_from_contiguous(struct device *dev, struct page *pages,
+>  
+>  	return true;
+>  }
+> +
+
+Ditto.
+
+> +bool dma_release_from_contiguous(struct device *dev, struct page *pages,
+> +				 int count)
+> +{
+> +	struct cma *cma = dev_get_cma_area(dev);
+> +
+> +	return __dma_release_from_contiguous(cma, pages, count);
+> +}
 > -- 
 > 1.7.9.5
 
