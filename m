@@ -1,76 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f54.google.com (mail-qa0-f54.google.com [209.85.216.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 9773F6B00FB
-	for <linux-mm@kvack.org>; Thu, 12 Jun 2014 10:39:30 -0400 (EDT)
-Received: by mail-qa0-f54.google.com with SMTP id v10so1775349qac.27
-        for <linux-mm@kvack.org>; Thu, 12 Jun 2014 07:39:30 -0700 (PDT)
-Received: from collaborate-mta1.arm.com (fw-tnat.austin.arm.com. [217.140.110.23])
-        by mx.google.com with ESMTP id w8si1298409qaw.115.2014.06.12.07.39.29
-        for <linux-mm@kvack.org>;
-        Thu, 12 Jun 2014 07:39:29 -0700 (PDT)
-Date: Thu, 12 Jun 2014 15:39:16 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-Subject: Re: kmemleak: Unable to handle kernel paging request
-Message-ID: <20140612143916.GB8970@arm.com>
-References: <CAOJe8K3fy3XFxDdVc3y1hiMAqUCPmkUhECU7j5TT=E=gxwBqHg@mail.gmail.com>
- <20140611173851.GA5556@MacBook-Pro.local>
- <CAOJe8K1TgTDX5=LdE9r6c0ami7TRa7zr0hL_uu6YpiWrsePAgQ@mail.gmail.com>
- <B01EB0A1-992B-49F4-93AE-71E4BA707795@arm.com>
- <CAOJe8K3LDhhPWbtdaWt23mY+2vnw5p05+eyk2D8fovOxC10cgA@mail.gmail.com>
- <CAOJe8K2WaJUP9_buwgKw89fxGe56mGP1Mn8rDUO9W48KZzmybA@mail.gmail.com>
+Received: from mail-qa0-f43.google.com (mail-qa0-f43.google.com [209.85.216.43])
+	by kanga.kvack.org (Postfix) with ESMTP id ADF426B00FD
+	for <linux-mm@kvack.org>; Thu, 12 Jun 2014 12:17:37 -0400 (EDT)
+Received: by mail-qa0-f43.google.com with SMTP id k15so1988263qaq.30
+        for <linux-mm@kvack.org>; Thu, 12 Jun 2014 09:17:37 -0700 (PDT)
+Received: from mail-qc0-x236.google.com (mail-qc0-x236.google.com [2607:f8b0:400d:c01::236])
+        by mx.google.com with ESMTPS id i9si1644772qaf.55.2014.06.12.09.17.37
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 12 Jun 2014 09:17:37 -0700 (PDT)
+Received: by mail-qc0-f182.google.com with SMTP id m20so2324650qcx.13
+        for <linux-mm@kvack.org>; Thu, 12 Jun 2014 09:17:37 -0700 (PDT)
+Date: Thu, 12 Jun 2014 12:17:33 -0400
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH 2/2] memcg: Allow guarantee reclaim
+Message-ID: <20140612161733.GC23606@htj.dyndns.org>
+References: <20140611075729.GA4520@dhcp22.suse.cz>
+ <1402473624-13827-1-git-send-email-mhocko@suse.cz>
+ <1402473624-13827-2-git-send-email-mhocko@suse.cz>
+ <20140611153631.GH2878@cmpxchg.org>
+ <20140612132207.GA32720@dhcp22.suse.cz>
+ <20140612135600.GI2878@cmpxchg.org>
+ <20140612142237.GB32720@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CAOJe8K2WaJUP9_buwgKw89fxGe56mGP1Mn8rDUO9W48KZzmybA@mail.gmail.com>
+In-Reply-To: <20140612142237.GB32720@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Denis Kirjanov <kda@linux-powerpc.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+To: Michal Hocko <mhocko@suse.cz>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Michel Lespinasse <walken@google.com>, Roman Gushchin <klamm@yandex-team.ru>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Li Zefan <lizefan@huawei.com>
 
-On Thu, Jun 12, 2014 at 01:00:57PM +0100, Denis Kirjanov wrote:
-> On 6/12/14, Denis Kirjanov <kda@linux-powerpc.org> wrote:
-> > On 6/12/14, Catalin Marinas <catalin.marinas@arm.com> wrote:
-> >> On 11 Jun 2014, at 21:04, Denis Kirjanov <kda@linux-powerpc.org> wrote:
-> >>> On 6/11/14, Catalin Marinas <catalin.marinas@arm.com> wrote:
-> >>>> On Wed, Jun 11, 2014 at 04:13:07PM +0400, Denis Kirjanov wrote:
-> >>>>> I got a trace while running 3.15.0-08556-gdfb9454:
-> >>>>>
-> >>>>> [  104.534026] Unable to handle kernel paging request for data at
-> >>>>> address 0xc00000007f000000
-> >>>>
-> >>>> Were there any kmemleak messages prior to this, like "kmemleak
-> >>>> disabled"? There could be a race when kmemleak is disabled because of
-> >>>> some fatal (for kmemleak) error while the scanning is taking place
-> >>>> (which needs some more thinking to fix properly).
-> >>>
-> >>> No. I checked for the similar problem and didn't find anything relevant.
-> >>> I'll try to bisect it.
-> >>
-> >> Does this happen soon after boot? I guess ita??s the first scan
-> >> (scheduled at around 1min after boot). Something seems to be telling
-> >> kmemleak that there is a valid memory block at 0xc00000007f000000.
-> >
-> > Yeah, it happens after a while with a booted system so that's the
-> > first kmemleak scan.
-> >
-> 
-> I've bisected to this commit: d4c54919ed86302094c0ca7d48a8cbd4ee753e92
-> "mm: add !pte_present() check on existing hugetlb_entry callbacks".
-> Reverting the commit fixes the issue
+Hello, Michal.
 
-I can't figure how this causes the problem but I have more questions. Is
-0xc00000007f000000 address always the same in all crashes? If yes, you
-could comment out start_scan_thread() in kmemleak_late_init() to avoid
-the scanning thread starting. Once booted, you can run:
+On Thu, Jun 12, 2014 at 04:22:37PM +0200, Michal Hocko wrote:
+> The primary question would be, whether this is is the best transition
+> strategy. I do not know how many users apart from developers are really
+> using unified hierarchy. I would be worried that we merge a feature which
+> will not be used for a long time.
 
-  echo dump=0xc00000007f000000 > /sys/kernel/debug/kmemleak
+I'm planning to drop __DEVEL__ mask from the unified hierarchy in a
+cycle, at most two.  The biggest hold up at the moment is
+straightening out the interfaces and interaction between memcg and
+blkcg because I think it'd be silly to have to go through another
+round of interface versioning effort right after transitioning to
+unified hierarchy.  I'm not too confident whether it'd be possible to
+get blkcg completely in shape by that time, but, if that takes too
+long, I'll just leave blkcg behind temporarily.  So, at least from
+kernel side, it's not gonna be too long.
 
-and check the dmesg for what kmemleak knows about that address, when it
-was allocated and whether it should be mapped or not.
+There sure is a question of how fast userland will move to the new
+interface.  Some are already playing with unified hierarchy and
+planning to migrate as soon as possible but there sure will be others
+who will take more time.  Can't tell for sure, but the thing is that
+migration to min/low/high/max scheme is a signficant migration effort
+too, so I'm not sure how much we'd gain by doing that separately.
+It'd be an extra transition step for userland (optional but still),
+more combinations of configration to handle for memcg, and it's not
+like unified hierarchy is that difficult to transition to.
+
+> Moreover, if somebody wants to transition from soft limit then it would
+> be really hard because switching to unified hierarchy might be a no-go.
+
+Why would that be a no-go?  Its usage is mostly similar with
+tranditional hierarchies and can be used with other hierarchies, so
+while it'd take some adaptation, in most cases gradual transition
+shouldn't be a big problem.
+
+> I think that it is clear that we should deprecate soft_limit ASAP. I
+> also think it wont't hurt to have min, low, high in both old and unified
+> API and strongly warn if somebody tries to use soft_limit along with any
+> of the new APIs in the first step. Later we can even forbid any
+> combination by a hard failure.
+
+I don't quite understand how you plan to deprecate it.  Sure you can
+fail with -EINVAL or whatnot when the wrong combination is used but I
+don't think there's any chance of removing the knob.  There's a reason
+why we're introducing a new version of the whole cgroup interface
+which can co-exist with the existing one after all.  If you wanna
+version memcg interface separately, maybe that'd work but it sounds
+like a lot of extra hassle for not much gain.
+
+Thanks.
 
 -- 
-Catalin
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
