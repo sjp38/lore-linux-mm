@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qc0-f173.google.com (mail-qc0-f173.google.com [209.85.216.173])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D2E06B005C
+Received: from mail-wg0-f42.google.com (mail-wg0-f42.google.com [74.125.82.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 52DFF6B0062
 	for <linux-mm@kvack.org>; Thu, 12 Jun 2014 17:48:36 -0400 (EDT)
-Received: by mail-qc0-f173.google.com with SMTP id l6so2985595qcy.32
-        for <linux-mm@kvack.org>; Thu, 12 Jun 2014 14:48:36 -0700 (PDT)
+Received: by mail-wg0-f42.google.com with SMTP id z12so1864422wgg.25
+        for <linux-mm@kvack.org>; Thu, 12 Jun 2014 14:48:35 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id e10si2587111qai.96.2014.06.12.14.48.35
+        by mx.google.com with ESMTP id sh2si28987530wic.40.2014.06.12.14.48.34
         for <linux-mm@kvack.org>;
         Thu, 12 Jun 2014 14:48:35 -0700 (PDT)
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH -mm v2 05/11] pagewalk: remove mm_walk->skip
-Date: Thu, 12 Jun 2014 17:48:05 -0400
-Message-Id: <1402609691-13950-6-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH -mm v2 04/11] pagewalk: move pmd_trans_huge_lock() from callbacks to common code
+Date: Thu, 12 Jun 2014 17:48:04 -0400
+Message-Id: <1402609691-13950-5-git-send-email-n-horiguchi@ah.jp.nec.com>
 In-Reply-To: <1402609691-13950-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 References: <1402609691-13950-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,172 +19,235 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Dave Hansen <dave.hansen@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org
 
-Due to the relocation of pmd locking, mm_walk->skip becomes less important
-because only walk_page_test() and walk->test_walk() use it. None of these
-functions uses a positive value as a return value, so we can define it to
-determine whether we skip the current vma or not.
-Thus this patch removes mm_walk->skip.
+Now all of current users of page table walker are canonicalized, i.e.
+pmd_entry() handles only trans_pmd entry, and pte_entry() handles pte entry.
+So we can factorize common code more.
+This patch moves pmd_trans_huge_lock() in each pmd_entry() to pagewalk core.
+
+ChangeLog v2:
+- add null check walk->vma in walk_pmd_range()
+- move comment update into a separate patch
 
 Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 ---
- fs/proc/task_mmu.c |  4 ++--
- include/linux/mm.h |  3 ---
- mm/mempolicy.c     |  9 ++++-----
- mm/pagewalk.c      | 36 ++++++++----------------------------
- 4 files changed, 14 insertions(+), 38 deletions(-)
+ arch/powerpc/mm/subpage-prot.c |  2 ++
+ fs/proc/task_mmu.c             | 66 ++++++++++++++----------------------------
+ mm/memcontrol.c                | 55 ++++++++++-------------------------
+ mm/pagewalk.c                  | 18 ++++++++++--
+ 4 files changed, 55 insertions(+), 86 deletions(-)
 
-diff --git mmotm-2014-05-21-16-57.orig/fs/proc/task_mmu.c mmotm-2014-05-21-16-57/fs/proc/task_mmu.c
-index 059206ea3c6b..8211f6c8236d 100644
---- mmotm-2014-05-21-16-57.orig/fs/proc/task_mmu.c
-+++ mmotm-2014-05-21-16-57/fs/proc/task_mmu.c
-@@ -755,9 +755,9 @@ static int clear_refs_test_walk(unsigned long start, unsigned long end,
- 	 * Writing 4 to /proc/pid/clear_refs affects all pages.
- 	 */
- 	if (cp->type == CLEAR_REFS_ANON && vma->vm_file)
--		walk->skip = 1;
-+		return 1;
- 	if (cp->type == CLEAR_REFS_MAPPED && !vma->vm_file)
--		walk->skip = 1;
-+		return 1;
- 	if (cp->type == CLEAR_REFS_SOFT_DIRTY) {
- 		if (vma->vm_flags & VM_SOFTDIRTY)
- 			vma->vm_flags &= ~VM_SOFTDIRTY;
-diff --git mmotm-2014-05-21-16-57.orig/include/linux/mm.h mmotm-2014-05-21-16-57/include/linux/mm.h
-index aa832161a1ff..0a20674c84e2 100644
---- mmotm-2014-05-21-16-57.orig/include/linux/mm.h
-+++ mmotm-2014-05-21-16-57/include/linux/mm.h
-@@ -1106,8 +1106,6 @@ void unmap_vmas(struct mmu_gather *tlb, struct vm_area_struct *start_vma,
-  *             right now." 0 means "skip the current vma."
-  * @mm:        mm_struct representing the target process of page table walk
-  * @vma:       vma currently walked
-- * @skip:      internal control flag which is set when we skip the lower
-- *             level entries.
-  * @pmd:       current pmd entry
-  * @ptl:       page table lock associated with current entry
-  * @private:   private data for callbacks' use
-@@ -1127,7 +1125,6 @@ struct mm_walk {
- 			struct mm_walk *walk);
- 	struct mm_struct *mm;
- 	struct vm_area_struct *vma;
--	int skip;
- 	pmd_t *pmd;
- 	spinlock_t *ptl;
- 	void *private;
-diff --git mmotm-2014-05-21-16-57.orig/mm/mempolicy.c mmotm-2014-05-21-16-57/mm/mempolicy.c
-index cf3b995b21d0..b8267f753748 100644
---- mmotm-2014-05-21-16-57.orig/mm/mempolicy.c
-+++ mmotm-2014-05-21-16-57/mm/mempolicy.c
-@@ -596,22 +596,21 @@ static int queue_pages_test_walk(unsigned long start, unsigned long end,
- 	}
- 
- 	qp->prev = vma;
--	walk->skip = 1;
- 
- 	if (vma->vm_flags & VM_PFNMAP)
--		return 0;
-+		return 1;
- 
- 	if (flags & MPOL_MF_LAZY) {
- 		change_prot_numa(vma, start, endvma);
--		return 0;
-+		return 1;
- 	}
- 
- 	if ((flags & MPOL_MF_STRICT) ||
- 	    ((flags & (MPOL_MF_MOVE | MPOL_MF_MOVE_ALL)) &&
- 	     vma_migratable(vma)))
- 		/* queue pages from current vma */
--		walk->skip = 0;
--	return 0;
-+		return 0;
-+	return 1;
- }
- 
- /*
-diff --git mmotm-2014-05-21-16-57.orig/mm/pagewalk.c mmotm-2014-05-21-16-57/mm/pagewalk.c
-index f1a3417d0b51..61d6bd9545d6 100644
---- mmotm-2014-05-21-16-57.orig/mm/pagewalk.c
-+++ mmotm-2014-05-21-16-57/mm/pagewalk.c
-@@ -3,24 +3,6 @@
- #include <linux/sched.h>
- #include <linux/hugetlb.h>
- 
--/*
-- * Check the current skip status of page table walker.
-- *
-- * Here what I mean by skip is to skip lower level walking, and that was
-- * determined for each entry independently. For example, when walk_pmd_range
-- * handles a pmd_trans_huge we don't have to walk over ptes under that pmd,
-- * and the skipping does not affect the walking over ptes under other pmds.
-- * That's why we reset @walk->skip after tested.
-- */
--static bool skip_lower_level_walking(struct mm_walk *walk)
--{
--	if (walk->skip) {
--		walk->skip = 0;
--		return true;
--	}
--	return false;
--}
--
- static int walk_pte_range(pmd_t *pmd, unsigned long addr,
- 				unsigned long end, struct mm_walk *walk)
+diff --git mmotm-2014-05-21-16-57.orig/arch/powerpc/mm/subpage-prot.c mmotm-2014-05-21-16-57/arch/powerpc/mm/subpage-prot.c
+index fa9fb5b4c66c..d0d94ac606f3 100644
+--- mmotm-2014-05-21-16-57.orig/arch/powerpc/mm/subpage-prot.c
++++ mmotm-2014-05-21-16-57/arch/powerpc/mm/subpage-prot.c
+@@ -135,7 +135,9 @@ static int subpage_walk_pmd_entry(pmd_t *pmd, unsigned long addr,
+ 				  unsigned long end, struct mm_walk *walk)
  {
-@@ -89,8 +71,6 @@ static int walk_pmd_range(pud_t *pud, unsigned long addr,
- 				err = walk->pmd_entry(pmd, addr, next, walk);
- 				spin_unlock(walk->ptl);
- 			}
--			if (skip_lower_level_walking(walk))
--				continue;
- 			if (err)
- 				break;
- 		}
-@@ -225,9 +205,9 @@ static inline int walk_hugetlb_range(unsigned long addr, unsigned long end,
- 
- /*
-  * Decide whether we really walk over the current vma on [@start, @end)
-- * or skip it. When we skip it, we set @walk->skip to 1.
-- * The return value is used to control the page table walking to
-- * continue (for zero) or not (for non-zero).
-+ * or skip it via the returned value. Return 0 if we do walk over the
-+ * current vma, and return 1 if we skip the vma. Negative values means
-+ * error, where we abort the current walk.
-  *
-  * Default check (only VM_PFNMAP check for now) is used when the caller
-  * doesn't define test_walk() callback.
-@@ -245,7 +225,7 @@ static int walk_page_test(unsigned long start, unsigned long end,
- 	 * page backing a VM_PFNMAP range. See also commit a9ff785e4437.
- 	 */
- 	if (vma->vm_flags & VM_PFNMAP)
--		walk->skip = 1;
-+		return 1;
+ 	struct vm_area_struct *vma = walk->vma;
++	spin_unlock(walk->ptl);
+ 	split_huge_page_pmd(vma, addr, pmd);
++	spin_lock(walk->ptl);
  	return 0;
  }
  
-@@ -330,9 +310,9 @@ int walk_page_range(unsigned long start, unsigned long end,
- 			next = min(end, vma->vm_end);
- 
- 			err = walk_page_test(start, next, walk);
--			if (skip_lower_level_walking(walk))
-+			if (err == 1)
- 				continue;
--			if (err)
-+			if (err < 0)
- 				break;
- 		}
- 		err = __walk_page_range(start, next, walk);
-@@ -353,9 +333,9 @@ int walk_page_vma(struct vm_area_struct *vma, struct mm_walk *walk)
- 	VM_BUG_ON(!vma);
- 	walk->vma = vma;
- 	err = walk_page_test(vma->vm_start, vma->vm_end, walk);
--	if (skip_lower_level_walking(walk))
-+	if (err == 1)
- 		return 0;
--	if (err)
-+	if (err < 0)
- 		return err;
- 	return __walk_page_range(vma->vm_start, vma->vm_end, walk);
+diff --git mmotm-2014-05-21-16-57.orig/fs/proc/task_mmu.c mmotm-2014-05-21-16-57/fs/proc/task_mmu.c
+index fa6d6a4e85b3..059206ea3c6b 100644
+--- mmotm-2014-05-21-16-57.orig/fs/proc/task_mmu.c
++++ mmotm-2014-05-21-16-57/fs/proc/task_mmu.c
+@@ -496,15 +496,8 @@ static int smaps_pmd(pmd_t *pmd, unsigned long addr, unsigned long end,
+ 			struct mm_walk *walk)
+ {
+ 	struct mem_size_stats *mss = walk->private;
+-	spinlock_t *ptl;
+-
+-	if (pmd_trans_huge_lock(pmd, walk->vma, &ptl) == 1) {
+-		smaps_pte((pte_t *)pmd, addr, addr + HPAGE_PMD_SIZE, walk);
+-		spin_unlock(ptl);
+-		mss->anonymous_thp += HPAGE_PMD_SIZE;
+-		/* don't call smaps_pte() */
+-		walk->skip = 1;
+-	}
++	smaps_pte((pte_t *)pmd, addr, addr + HPAGE_PMD_SIZE, walk);
++	mss->anonymous_thp += HPAGE_PMD_SIZE;
+ 	return 0;
  }
+ 
+@@ -983,31 +976,21 @@ static int pagemap_pmd(pmd_t *pmd, unsigned long addr, unsigned long end,
+ 	struct vm_area_struct *vma = walk->vma;
+ 	struct pagemapread *pm = walk->private;
+ 	pagemap_entry_t pme = make_pme(PM_NOT_PRESENT(pm->v2));
+-	spinlock_t *ptl;
+-
+-	if (!vma)
+-		return err;
+-	if (pmd_trans_huge_lock(pmd, vma, &ptl) == 1) {
+-		int pmd_flags2;
++	int pmd_flags2;
+ 
+-		if ((vma->vm_flags & VM_SOFTDIRTY) || pmd_soft_dirty(*pmd))
+-			pmd_flags2 = __PM_SOFT_DIRTY;
+-		else
+-			pmd_flags2 = 0;
++	if ((vma->vm_flags & VM_SOFTDIRTY) || pmd_soft_dirty(*pmd))
++		pmd_flags2 = __PM_SOFT_DIRTY;
++	else
++		pmd_flags2 = 0;
+ 
+-		for (; addr != end; addr += PAGE_SIZE) {
+-			unsigned long offset;
++	for (; addr != end; addr += PAGE_SIZE) {
++		unsigned long offset;
+ 
+-			offset = (addr & ~PAGEMAP_WALK_MASK) >>
+-					PAGE_SHIFT;
+-			thp_pmd_to_pagemap_entry(&pme, pm, *pmd, offset, pmd_flags2);
+-			err = add_to_pagemap(addr, &pme, pm);
+-			if (err)
+-				break;
+-		}
+-		spin_unlock(ptl);
+-		/* don't call pagemap_pte() */
+-		walk->skip = 1;
++		offset = (addr & ~PAGEMAP_WALK_MASK) >> PAGE_SHIFT;
++		thp_pmd_to_pagemap_entry(&pme, pm, *pmd, offset, pmd_flags2);
++		err = add_to_pagemap(addr, &pme, pm);
++		if (err)
++			break;
+ 	}
+ 	return err;
+ }
+@@ -1277,20 +1260,13 @@ static int gather_pmd_stats(pmd_t *pmd, unsigned long addr,
+ {
+ 	struct numa_maps *md = walk->private;
+ 	struct vm_area_struct *vma = walk->vma;
+-	spinlock_t *ptl;
+-
+-	if (pmd_trans_huge_lock(pmd, vma, &ptl) == 1) {
+-		pte_t huge_pte = *(pte_t *)pmd;
+-		struct page *page;
+-
+-		page = can_gather_numa_stats(huge_pte, vma, addr);
+-		if (page)
+-			gather_stats(page, md, pte_dirty(huge_pte),
+-				     HPAGE_PMD_SIZE/PAGE_SIZE);
+-		spin_unlock(ptl);
+-		/* don't call gather_pte_stats() */
+-		walk->skip = 1;
+-	}
++	pte_t huge_pte = *(pte_t *)pmd;
++	struct page *page;
++
++	page = can_gather_numa_stats(huge_pte, vma, addr);
++	if (page)
++		gather_stats(page, md, pte_dirty(huge_pte),
++			     HPAGE_PMD_SIZE/PAGE_SIZE);
+ 	return 0;
+ }
+ #ifdef CONFIG_HUGETLB_PAGE
+diff --git mmotm-2014-05-21-16-57.orig/mm/memcontrol.c mmotm-2014-05-21-16-57/mm/memcontrol.c
+index 01a66a208769..bb987cb9e043 100644
+--- mmotm-2014-05-21-16-57.orig/mm/memcontrol.c
++++ mmotm-2014-05-21-16-57/mm/memcontrol.c
+@@ -6723,15 +6723,9 @@ static int mem_cgroup_count_precharge_pmd(pmd_t *pmd,
+ 					struct mm_walk *walk)
+ {
+ 	struct vm_area_struct *vma = walk->vma;
+-	spinlock_t *ptl;
+-
+-	if (pmd_trans_huge_lock(pmd, vma, &ptl) == 1) {
+-		if (get_mctgt_type_thp(vma, addr, *pmd, NULL) == MC_TARGET_PAGE)
+-			mc.precharge += HPAGE_PMD_NR;
+-		spin_unlock(ptl);
+-		/* don't call mem_cgroup_count_precharge_pte() */
+-		walk->skip = 1;
+-	}
++
++	if (get_mctgt_type_thp(vma, addr, *pmd, NULL) == MC_TARGET_PAGE)
++		mc.precharge += HPAGE_PMD_NR;
+ 	return 0;
+ }
+ 
+@@ -6952,38 +6946,21 @@ static int mem_cgroup_move_charge_pmd(pmd_t *pmd,
+ 	struct page *page;
+ 	struct page_cgroup *pc;
+ 
+-	/*
+-	 * We don't take compound_lock() here but no race with splitting thp
+-	 * happens because:
+-	 *  - if pmd_trans_huge_lock() returns 1, the relevant thp is not
+-	 *    under splitting, which means there's no concurrent thp split,
+-	 *  - if another thread runs into split_huge_page() just after we
+-	 *    entered this if-block, the thread must wait for page table lock
+-	 *    to be unlocked in __split_huge_page_splitting(), where the main
+-	 *    part of thp split is not executed yet.
+-	 */
+-	if (pmd_trans_huge_lock(pmd, vma, &ptl) == 1) {
+-		if (mc.precharge < HPAGE_PMD_NR) {
+-			spin_unlock(ptl);
+-			return 0;
+-		}
+-		target_type = get_mctgt_type_thp(vma, addr, *pmd, &target);
+-		if (target_type == MC_TARGET_PAGE) {
+-			page = target.page;
+-			if (!isolate_lru_page(page)) {
+-				pc = lookup_page_cgroup(page);
+-				if (!mem_cgroup_move_account(page, HPAGE_PMD_NR,
+-							pc, mc.from, mc.to)) {
+-					mc.precharge -= HPAGE_PMD_NR;
+-					mc.moved_charge += HPAGE_PMD_NR;
+-				}
+-				putback_lru_page(page);
++	if (mc.precharge < HPAGE_PMD_NR)
++		return 0;
++	target_type = get_mctgt_type_thp(vma, addr, *pmd, &target);
++	if (target_type == MC_TARGET_PAGE) {
++		page = target.page;
++		if (!isolate_lru_page(page)) {
++			pc = lookup_page_cgroup(page);
++			if (!mem_cgroup_move_account(page, HPAGE_PMD_NR,
++						     pc, mc.from, mc.to)) {
++				mc.precharge -= HPAGE_PMD_NR;
++				mc.moved_charge += HPAGE_PMD_NR;
+ 			}
+-			put_page(page);
++			putback_lru_page(page);
+ 		}
+-		spin_unlock(ptl);
+-		/* don't call mem_cgroup_move_charge_pte() */
+-		walk->skip = 1;
++		put_page(page);
+ 	}
+ 	return 0;
+ }
+diff --git mmotm-2014-05-21-16-57.orig/mm/pagewalk.c mmotm-2014-05-21-16-57/mm/pagewalk.c
+index 24311d6f5c20..f1a3417d0b51 100644
+--- mmotm-2014-05-21-16-57.orig/mm/pagewalk.c
++++ mmotm-2014-05-21-16-57/mm/pagewalk.c
+@@ -73,8 +73,22 @@ static int walk_pmd_range(pud_t *pud, unsigned long addr,
+ 			continue;
+ 		}
+ 
+-		if (walk->pmd_entry) {
+-			err = walk->pmd_entry(pmd, addr, next, walk);
++		/*
++		 * We don't take compound_lock() here but no race with splitting
++		 * thp happens because:
++		 *  - if pmd_trans_huge_lock() returns 1, the relevant thp is
++		 *    not under splitting, which means there's no concurrent
++		 *    thp split,
++		 *  - if another thread runs into split_huge_page() just after
++		 *    we entered this if-block, the thread must wait for page
++		 *    table lock to be unlocked in __split_huge_page_splitting(),
++		 *    where the main part of thp split is not executed yet.
++		 */
++		if (walk->pmd_entry && walk->vma) {
++			if (pmd_trans_huge_lock(pmd, walk->vma, &walk->ptl) == 1) {
++				err = walk->pmd_entry(pmd, addr, next, walk);
++				spin_unlock(walk->ptl);
++			}
+ 			if (skip_lower_level_walking(walk))
+ 				continue;
+ 			if (err)
 -- 
 1.9.3
 
