@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f180.google.com (mail-we0-f180.google.com [74.125.82.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C0496B005A
+Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
+	by kanga.kvack.org (Postfix) with ESMTP id 78AA76B003C
 	for <linux-mm@kvack.org>; Thu, 12 Jun 2014 17:48:34 -0400 (EDT)
-Received: by mail-we0-f180.google.com with SMTP id x48so1899267wes.25
-        for <linux-mm@kvack.org>; Thu, 12 Jun 2014 14:48:33 -0700 (PDT)
+Received: by mail-wi0-f171.google.com with SMTP id n15so7744236wiw.16
+        for <linux-mm@kvack.org>; Thu, 12 Jun 2014 14:48:34 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id eu5si12618559wic.47.2014.06.12.14.48.31
+        by mx.google.com with ESMTP id by5si3694979wjc.114.2014.06.12.14.48.31
         for <linux-mm@kvack.org>;
         Thu, 12 Jun 2014 14:48:32 -0700 (PDT)
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH -mm v2 02/11] madvise: cleanup swapin_walk_pmd_entry()
-Date: Thu, 12 Jun 2014 17:48:02 -0400
-Message-Id: <1402609691-13950-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH -mm v2 03/11] memcg: separate mem_cgroup_move_charge_pte_range()
+Date: Thu, 12 Jun 2014 17:48:03 -0400
+Message-Id: <1402609691-13950-4-git-send-email-n-horiguchi@ah.jp.nec.com>
 In-Reply-To: <1402609691-13950-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 References: <1402609691-13950-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,174 +19,175 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Dave Hansen <dave.hansen@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org
 
-With the recent update on page table walker, we can use common code for
-the walking more. Unlike many other users, this swapin_walk expects to
-handle swap entries. As a result we should be careful about ptl locking.
-Swapin operation, read_swap_cache_async(), could cause page reclaim, so
-we can't keep holding ptl throughout this pte loop.
-In order to properly handle ptl in pte_entry(), this patch adds two new
-members on struct mm_walk.
-
-This cleanup is necessary to get to the final form of page table walker,
-where we should do all caller's specific work on leaf entries (IOW, all
-pmd_entry() should be used for trans_pmd.)
+mem_cgroup_move_charge_pte_range() handles both pte and pmd, which is not
+standardized, so let's cleanup it. One tricky part is the retry, which is
+performed when we detect !mc.precharge. In such case we retry the same entry,
+so we don't have to go outside the pte loop. With rewriting this retry in
+the pte loop, we can separate pmd_entry() and pte_entry(), which is what
+we need.
 
 Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Hugh Dickins <hughd@google.com>
 ---
- include/linux/mm.h |  4 ++++
- mm/madvise.c       | 54 +++++++++++++++++++++++-------------------------------
- mm/pagewalk.c      | 11 +++++------
- 3 files changed, 32 insertions(+), 37 deletions(-)
+ mm/memcontrol.c | 127 +++++++++++++++++++++++++++++---------------------------
+ 1 file changed, 66 insertions(+), 61 deletions(-)
 
-diff --git mmotm-2014-05-21-16-57.orig/include/linux/mm.h mmotm-2014-05-21-16-57/include/linux/mm.h
-index b4aa6579f2b1..aa832161a1ff 100644
---- mmotm-2014-05-21-16-57.orig/include/linux/mm.h
-+++ mmotm-2014-05-21-16-57/include/linux/mm.h
-@@ -1108,6 +1108,8 @@ void unmap_vmas(struct mmu_gather *tlb, struct vm_area_struct *start_vma,
-  * @vma:       vma currently walked
-  * @skip:      internal control flag which is set when we skip the lower
-  *             level entries.
-+ * @pmd:       current pmd entry
-+ * @ptl:       page table lock associated with current entry
-  * @private:   private data for callbacks' use
-  *
-  * (see the comment on walk_page_range() for more details)
-@@ -1126,6 +1128,8 @@ struct mm_walk {
- 	struct mm_struct *mm;
- 	struct vm_area_struct *vma;
- 	int skip;
-+	pmd_t *pmd;
-+	spinlock_t *ptl;
- 	void *private;
- };
- 
-diff --git mmotm-2014-05-21-16-57.orig/mm/madvise.c mmotm-2014-05-21-16-57/mm/madvise.c
-index a402f8fdc68e..06b390a6fbbd 100644
---- mmotm-2014-05-21-16-57.orig/mm/madvise.c
-+++ mmotm-2014-05-21-16-57/mm/madvise.c
-@@ -135,38 +135,31 @@ static long madvise_behavior(struct vm_area_struct *vma,
+diff --git mmotm-2014-05-21-16-57.orig/mm/memcontrol.c mmotm-2014-05-21-16-57/mm/memcontrol.c
+index 6970857ba0c8..01a66a208769 100644
+--- mmotm-2014-05-21-16-57.orig/mm/memcontrol.c
++++ mmotm-2014-05-21-16-57/mm/memcontrol.c
+@@ -6881,14 +6881,72 @@ static void mem_cgroup_cancel_attach(struct cgroup_subsys_state *css,
+ 	mem_cgroup_clear_mc();
  }
  
- #ifdef CONFIG_SWAP
--static int swapin_walk_pmd_entry(pmd_t *pmd, unsigned long start,
-+/*
-+ * Assuming that page table walker holds page table lock.
-+ */
-+static int swapin_walk_pte_entry(pte_t *pte, unsigned long start,
- 	unsigned long end, struct mm_walk *walk)
+-static int mem_cgroup_move_charge_pte_range(pmd_t *pmd,
++static int mem_cgroup_move_charge_pte(pte_t *pte,
+ 				unsigned long addr, unsigned long end,
+ 				struct mm_walk *walk)
  {
--	pte_t *orig_pte;
--	struct vm_area_struct *vma = walk->private;
--	unsigned long index;
--
--	if (pmd_none_or_trans_huge_or_clear_bad(pmd))
--		return 0;
--
--	for (index = start; index != end; index += PAGE_SIZE) {
--		pte_t pte;
--		swp_entry_t entry;
--		struct page *page;
--		spinlock_t *ptl;
--
--		orig_pte = pte_offset_map_lock(vma->vm_mm, pmd, start, &ptl);
--		pte = *(orig_pte + ((index - start) / PAGE_SIZE));
--		pte_unmap_unlock(orig_pte, ptl);
--
--		if (pte_present(pte) || pte_none(pte) || pte_file(pte))
--			continue;
--		entry = pte_to_swp_entry(pte);
--		if (unlikely(non_swap_entry(entry)))
--			continue;
--
--		page = read_swap_cache_async(entry, GFP_HIGHUSER_MOVABLE,
--								vma, index);
--		if (page)
--			page_cache_release(page);
--	}
-+	pte_t ptent;
-+	pte_t *orig_pte = pte - ((start & (PMD_SIZE - 1)) >> PAGE_SHIFT);
-+	swp_entry_t entry;
+ 	int ret = 0;
+ 	struct vm_area_struct *vma = walk->vma;
+-	pte_t *pte;
+-	spinlock_t *ptl;
++	union mc_target target;
 +	struct page *page;
- 
-+	ptent = *pte;
-+	pte_unmap_unlock(orig_pte, walk->ptl);
-+	if (pte_present(ptent) || pte_none(ptent) || pte_file(ptent))
-+		goto lock;
-+	entry = pte_to_swp_entry(ptent);
-+	if (unlikely(non_swap_entry(entry)))
-+		goto lock;
-+	page = read_swap_cache_async(entry, GFP_HIGHUSER_MOVABLE,
-+				     walk->vma, start);
-+	if (page)
-+		page_cache_release(page);
-+lock:
-+	pte_offset_map(walk->pmd, start & PMD_MASK);
-+	spin_lock(walk->ptl);
- 	return 0;
++	struct page_cgroup *pc;
++	swp_entry_t ent;
++
++retry:
++	if (!mc.precharge) {
++		pte_t *orig_pte = pte - ((addr & (PMD_SIZE - 1)) >> PAGE_SHIFT);
++		pte_unmap_unlock(orig_pte, walk->ptl);
++		cond_resched();
++		/*
++		 * We have consumed all precharges we got in can_attach().
++		 * We try charge one by one, but don't do any additional
++		 * charges to mc.to if we have failed in charge once in attach()
++		 * phase.
++		 */
++		ret = mem_cgroup_do_precharge(1);
++		pte_offset_map(walk->pmd, addr & PMD_MASK);
++		spin_lock(walk->ptl);
++		if (!ret)
++			goto retry;
++		return ret;
++	}
++
++	switch (get_mctgt_type(vma, addr, *pte, &target)) {
++	case MC_TARGET_PAGE:
++		page = target.page;
++		if (isolate_lru_page(page))
++			goto put;
++		pc = lookup_page_cgroup(page);
++		if (!mem_cgroup_move_account(page, 1, pc,
++					     mc.from, mc.to)) {
++			mc.precharge--;
++			/* we uncharge from mc.from later. */
++			mc.moved_charge++;
++		}
++		putback_lru_page(page);
++put:		/* get_mctgt_type() gets the page */
++		put_page(page);
++		break;
++	case MC_TARGET_SWAP:
++		ent = target.ent;
++		if (!mem_cgroup_move_swap_account(ent, mc.from, mc.to)) {
++			mc.precharge--;
++			/* we fixup refcnts and charges later. */
++			mc.moved_swap++;
++		}
++		break;
++	default:
++		break;
++	}
++
++	return 0;
++}
++
++static int mem_cgroup_move_charge_pmd(pmd_t *pmd,
++				unsigned long addr, unsigned long end,
++				struct mm_walk *walk)
++{
++	struct vm_area_struct *vma = walk->vma;
+ 	enum mc_target_type target_type;
+ 	union mc_target target;
+ 	struct page *page;
+@@ -6924,71 +6982,18 @@ static int mem_cgroup_move_charge_pte_range(pmd_t *pmd,
+ 			put_page(page);
+ 		}
+ 		spin_unlock(ptl);
+-		return 0;
+-	}
+-
+-	if (pmd_trans_unstable(pmd))
+-		return 0;
+-retry:
+-	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
+-	for (; addr != end; addr += PAGE_SIZE) {
+-		pte_t ptent = *(pte++);
+-		swp_entry_t ent;
+-
+-		if (!mc.precharge)
+-			break;
+-
+-		switch (get_mctgt_type(vma, addr, ptent, &target)) {
+-		case MC_TARGET_PAGE:
+-			page = target.page;
+-			if (isolate_lru_page(page))
+-				goto put;
+-			pc = lookup_page_cgroup(page);
+-			if (!mem_cgroup_move_account(page, 1, pc,
+-						     mc.from, mc.to)) {
+-				mc.precharge--;
+-				/* we uncharge from mc.from later. */
+-				mc.moved_charge++;
+-			}
+-			putback_lru_page(page);
+-put:			/* get_mctgt_type() gets the page */
+-			put_page(page);
+-			break;
+-		case MC_TARGET_SWAP:
+-			ent = target.ent;
+-			if (!mem_cgroup_move_swap_account(ent, mc.from, mc.to)) {
+-				mc.precharge--;
+-				/* we fixup refcnts and charges later. */
+-				mc.moved_swap++;
+-			}
+-			break;
+-		default:
+-			break;
+-		}
+-	}
+-	pte_unmap_unlock(pte - 1, ptl);
+-	cond_resched();
+-
+-	if (addr != end) {
+-		/*
+-		 * We have consumed all precharges we got in can_attach().
+-		 * We try charge one by one, but don't do any additional
+-		 * charges to mc.to if we have failed in charge once in attach()
+-		 * phase.
+-		 */
+-		ret = mem_cgroup_do_precharge(1);
+-		if (!ret)
+-			goto retry;
++		/* don't call mem_cgroup_move_charge_pte() */
++		walk->skip = 1;
+ 	}
+-
+-	return ret;
++	return 0;
  }
  
-@@ -175,8 +168,7 @@ static void force_swapin_readahead(struct vm_area_struct *vma,
+ static void mem_cgroup_move_charge(struct mm_struct *mm)
  {
- 	struct mm_walk walk = {
- 		.mm = vma->vm_mm,
--		.pmd_entry = swapin_walk_pmd_entry,
--		.private = vma,
-+		.pte_entry = swapin_walk_pte_entry,
+ 	struct vm_area_struct *vma;
+ 	struct mm_walk mem_cgroup_move_charge_walk = {
+-		.pmd_entry = mem_cgroup_move_charge_pte_range,
++		.pmd_entry = mem_cgroup_move_charge_pmd,
++		.pte_entry = mem_cgroup_move_charge_pte,
+ 		.mm = mm,
  	};
  
- 	walk_page_range(start, end, &walk);
-diff --git mmotm-2014-05-21-16-57.orig/mm/pagewalk.c mmotm-2014-05-21-16-57/mm/pagewalk.c
-index e734f63276c2..24311d6f5c20 100644
---- mmotm-2014-05-21-16-57.orig/mm/pagewalk.c
-+++ mmotm-2014-05-21-16-57/mm/pagewalk.c
-@@ -27,10 +27,10 @@ static int walk_pte_range(pmd_t *pmd, unsigned long addr,
- 	struct mm_struct *mm = walk->mm;
- 	pte_t *pte;
- 	pte_t *orig_pte;
--	spinlock_t *ptl;
- 	int err = 0;
- 
--	orig_pte = pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
-+	walk->pmd = pmd;
-+	orig_pte = pte = pte_offset_map_lock(mm, pmd, addr, &walk->ptl);
- 	do {
- 		if (pte_none(*pte)) {
- 			if (walk->pte_hole)
-@@ -48,7 +48,7 @@ static int walk_pte_range(pmd_t *pmd, unsigned long addr,
- 		if (err)
- 		       break;
- 	} while (pte++, addr += PAGE_SIZE, addr < end);
--	pte_unmap_unlock(orig_pte, ptl);
-+	pte_unmap_unlock(orig_pte, walk->ptl);
- 	cond_resched();
- 	return addr == end ? 0 : err;
- }
-@@ -172,7 +172,6 @@ static int walk_hugetlb_range(unsigned long addr, unsigned long end,
- 	unsigned long hmask = huge_page_mask(h);
- 	pte_t *pte;
- 	int err = 0;
--	spinlock_t *ptl;
- 
- 	do {
- 		next = hugetlb_entry_end(h, addr, end);
-@@ -186,14 +185,14 @@ static int walk_hugetlb_range(unsigned long addr, unsigned long end,
- 				break;
- 			continue;
- 		}
--		ptl = huge_pte_lock(h, mm, pte);
-+		walk->ptl = huge_pte_lock(h, mm, pte);
- 		/*
- 		 * Callers should have their own way to handle swap entries
- 		 * in walk->hugetlb_entry().
- 		 */
- 		if (walk->hugetlb_entry)
- 			err = walk->hugetlb_entry(pte, addr, next, walk);
--		spin_unlock(ptl);
-+		spin_unlock(walk->ptl);
- 		if (err)
- 			break;
- 	} while (addr = next, addr != end);
 -- 
 1.9.3
 
