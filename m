@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f174.google.com (mail-we0-f174.google.com [74.125.82.174])
-	by kanga.kvack.org (Postfix) with ESMTP id B31D66B003A
-	for <linux-mm@kvack.org>; Thu, 12 Jun 2014 17:48:33 -0400 (EDT)
-Received: by mail-we0-f174.google.com with SMTP id u57so1895671wes.19
+Received: from mail-we0-f180.google.com (mail-we0-f180.google.com [74.125.82.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 3C0496B005A
+	for <linux-mm@kvack.org>; Thu, 12 Jun 2014 17:48:34 -0400 (EDT)
+Received: by mail-we0-f180.google.com with SMTP id x48so1899267wes.25
         for <linux-mm@kvack.org>; Thu, 12 Jun 2014 14:48:33 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id bu8si3738236wjc.35.2014.06.12.14.48.30
+        by mx.google.com with ESMTP id eu5si12618559wic.47.2014.06.12.14.48.31
         for <linux-mm@kvack.org>;
-        Thu, 12 Jun 2014 14:48:31 -0700 (PDT)
+        Thu, 12 Jun 2014 14:48:32 -0700 (PDT)
 From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: [PATCH -mm v2 01/11] pagewalk: remove pgd_entry() and pud_entry()
-Date: Thu, 12 Jun 2014 17:48:01 -0400
-Message-Id: <1402609691-13950-2-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: [PATCH -mm v2 02/11] madvise: cleanup swapin_walk_pmd_entry()
+Date: Thu, 12 Jun 2014 17:48:02 -0400
+Message-Id: <1402609691-13950-3-git-send-email-n-horiguchi@ah.jp.nec.com>
 In-Reply-To: <1402609691-13950-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 References: <1402609691-13950-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,76 +19,174 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Dave Hansen <dave.hansen@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org
 
-Currently no user of page table walker sets ->pgd_entry() or ->pud_entry(),
-so checking their existence in each loop is just wasting CPU cycle.
-So let's remove it to reduce overhead.
+With the recent update on page table walker, we can use common code for
+the walking more. Unlike many other users, this swapin_walk expects to
+handle swap entries. As a result we should be careful about ptl locking.
+Swapin operation, read_swap_cache_async(), could cause page reclaim, so
+we can't keep holding ptl throughout this pte loop.
+In order to properly handle ptl in pte_entry(), this patch adds two new
+members on struct mm_walk.
+
+This cleanup is necessary to get to the final form of page table walker,
+where we should do all caller's specific work on leaf entries (IOW, all
+pmd_entry() should be used for trans_pmd.)
 
 Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Hugh Dickins <hughd@google.com>
 ---
- include/linux/mm.h |  6 ------
- mm/pagewalk.c      | 18 +-----------------
- 2 files changed, 1 insertion(+), 23 deletions(-)
+ include/linux/mm.h |  4 ++++
+ mm/madvise.c       | 54 +++++++++++++++++++++++-------------------------------
+ mm/pagewalk.c      | 11 +++++------
+ 3 files changed, 32 insertions(+), 37 deletions(-)
 
 diff --git mmotm-2014-05-21-16-57.orig/include/linux/mm.h mmotm-2014-05-21-16-57/include/linux/mm.h
-index 563c79ea07bd..b4aa6579f2b1 100644
+index b4aa6579f2b1..aa832161a1ff 100644
 --- mmotm-2014-05-21-16-57.orig/include/linux/mm.h
 +++ mmotm-2014-05-21-16-57/include/linux/mm.h
-@@ -1092,8 +1092,6 @@ void unmap_vmas(struct mmu_gather *tlb, struct vm_area_struct *start_vma,
- 
- /**
-  * mm_walk - callbacks for walk_page_range
-- * @pgd_entry: if set, called for each non-empty PGD (top-level) entry
-- * @pud_entry: if set, called for each non-empty PUD (2nd-level) entry
-  * @pmd_entry: if set, called for each non-empty PMD (3rd-level) entry
-  *	       this handler is required to be able to handle
-  *	       pmd_trans_huge() pmds.  They may simply choose to
-@@ -1115,10 +1113,6 @@ void unmap_vmas(struct mmu_gather *tlb, struct vm_area_struct *start_vma,
+@@ -1108,6 +1108,8 @@ void unmap_vmas(struct mmu_gather *tlb, struct vm_area_struct *start_vma,
+  * @vma:       vma currently walked
+  * @skip:      internal control flag which is set when we skip the lower
+  *             level entries.
++ * @pmd:       current pmd entry
++ * @ptl:       page table lock associated with current entry
+  * @private:   private data for callbacks' use
+  *
   * (see the comment on walk_page_range() for more details)
-  */
- struct mm_walk {
--	int (*pgd_entry)(pgd_t *pgd, unsigned long addr,
--			 unsigned long next, struct mm_walk *walk);
--	int (*pud_entry)(pud_t *pud, unsigned long addr,
--	                 unsigned long next, struct mm_walk *walk);
- 	int (*pmd_entry)(pmd_t *pmd, unsigned long addr,
- 			 unsigned long next, struct mm_walk *walk);
- 	int (*pte_entry)(pte_t *pte, unsigned long addr,
+@@ -1126,6 +1128,8 @@ struct mm_walk {
+ 	struct mm_struct *mm;
+ 	struct vm_area_struct *vma;
+ 	int skip;
++	pmd_t *pmd;
++	spinlock_t *ptl;
+ 	void *private;
+ };
+ 
+diff --git mmotm-2014-05-21-16-57.orig/mm/madvise.c mmotm-2014-05-21-16-57/mm/madvise.c
+index a402f8fdc68e..06b390a6fbbd 100644
+--- mmotm-2014-05-21-16-57.orig/mm/madvise.c
++++ mmotm-2014-05-21-16-57/mm/madvise.c
+@@ -135,38 +135,31 @@ static long madvise_behavior(struct vm_area_struct *vma,
+ }
+ 
+ #ifdef CONFIG_SWAP
+-static int swapin_walk_pmd_entry(pmd_t *pmd, unsigned long start,
++/*
++ * Assuming that page table walker holds page table lock.
++ */
++static int swapin_walk_pte_entry(pte_t *pte, unsigned long start,
+ 	unsigned long end, struct mm_walk *walk)
+ {
+-	pte_t *orig_pte;
+-	struct vm_area_struct *vma = walk->private;
+-	unsigned long index;
+-
+-	if (pmd_none_or_trans_huge_or_clear_bad(pmd))
+-		return 0;
+-
+-	for (index = start; index != end; index += PAGE_SIZE) {
+-		pte_t pte;
+-		swp_entry_t entry;
+-		struct page *page;
+-		spinlock_t *ptl;
+-
+-		orig_pte = pte_offset_map_lock(vma->vm_mm, pmd, start, &ptl);
+-		pte = *(orig_pte + ((index - start) / PAGE_SIZE));
+-		pte_unmap_unlock(orig_pte, ptl);
+-
+-		if (pte_present(pte) || pte_none(pte) || pte_file(pte))
+-			continue;
+-		entry = pte_to_swp_entry(pte);
+-		if (unlikely(non_swap_entry(entry)))
+-			continue;
+-
+-		page = read_swap_cache_async(entry, GFP_HIGHUSER_MOVABLE,
+-								vma, index);
+-		if (page)
+-			page_cache_release(page);
+-	}
++	pte_t ptent;
++	pte_t *orig_pte = pte - ((start & (PMD_SIZE - 1)) >> PAGE_SHIFT);
++	swp_entry_t entry;
++	struct page *page;
+ 
++	ptent = *pte;
++	pte_unmap_unlock(orig_pte, walk->ptl);
++	if (pte_present(ptent) || pte_none(ptent) || pte_file(ptent))
++		goto lock;
++	entry = pte_to_swp_entry(ptent);
++	if (unlikely(non_swap_entry(entry)))
++		goto lock;
++	page = read_swap_cache_async(entry, GFP_HIGHUSER_MOVABLE,
++				     walk->vma, start);
++	if (page)
++		page_cache_release(page);
++lock:
++	pte_offset_map(walk->pmd, start & PMD_MASK);
++	spin_lock(walk->ptl);
+ 	return 0;
+ }
+ 
+@@ -175,8 +168,7 @@ static void force_swapin_readahead(struct vm_area_struct *vma,
+ {
+ 	struct mm_walk walk = {
+ 		.mm = vma->vm_mm,
+-		.pmd_entry = swapin_walk_pmd_entry,
+-		.private = vma,
++		.pte_entry = swapin_walk_pte_entry,
+ 	};
+ 
+ 	walk_page_range(start, end, &walk);
 diff --git mmotm-2014-05-21-16-57.orig/mm/pagewalk.c mmotm-2014-05-21-16-57/mm/pagewalk.c
-index 2eda3dbe0b52..e734f63276c2 100644
+index e734f63276c2..24311d6f5c20 100644
 --- mmotm-2014-05-21-16-57.orig/mm/pagewalk.c
 +++ mmotm-2014-05-21-16-57/mm/pagewalk.c
-@@ -115,14 +115,6 @@ static int walk_pud_range(pgd_t *pgd, unsigned long addr,
- 			continue;
- 		}
+@@ -27,10 +27,10 @@ static int walk_pte_range(pmd_t *pmd, unsigned long addr,
+ 	struct mm_struct *mm = walk->mm;
+ 	pte_t *pte;
+ 	pte_t *orig_pte;
+-	spinlock_t *ptl;
+ 	int err = 0;
  
--		if (walk->pud_entry) {
--			err = walk->pud_entry(pud, addr, next, walk);
--			if (skip_lower_level_walking(walk))
--				continue;
--			if (err)
--				break;
--		}
--
- 		if (walk->pmd_entry || walk->pte_entry) {
- 			err = walk_pmd_range(pud, addr, next, walk);
- 			if (err)
-@@ -152,15 +144,7 @@ static int walk_pgd_range(unsigned long addr, unsigned long end,
- 			continue;
- 		}
+-	orig_pte = pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
++	walk->pmd = pmd;
++	orig_pte = pte = pte_offset_map_lock(mm, pmd, addr, &walk->ptl);
+ 	do {
+ 		if (pte_none(*pte)) {
+ 			if (walk->pte_hole)
+@@ -48,7 +48,7 @@ static int walk_pte_range(pmd_t *pmd, unsigned long addr,
+ 		if (err)
+ 		       break;
+ 	} while (pte++, addr += PAGE_SIZE, addr < end);
+-	pte_unmap_unlock(orig_pte, ptl);
++	pte_unmap_unlock(orig_pte, walk->ptl);
+ 	cond_resched();
+ 	return addr == end ? 0 : err;
+ }
+@@ -172,7 +172,6 @@ static int walk_hugetlb_range(unsigned long addr, unsigned long end,
+ 	unsigned long hmask = huge_page_mask(h);
+ 	pte_t *pte;
+ 	int err = 0;
+-	spinlock_t *ptl;
  
--		if (walk->pgd_entry) {
--			err = walk->pgd_entry(pgd, addr, next, walk);
--			if (skip_lower_level_walking(walk))
--				continue;
--			if (err)
--				break;
--		}
--
--		if (walk->pud_entry || walk->pmd_entry || walk->pte_entry) {
-+		if (walk->pmd_entry || walk->pte_entry) {
- 			err = walk_pud_range(pgd, addr, next, walk);
- 			if (err)
+ 	do {
+ 		next = hugetlb_entry_end(h, addr, end);
+@@ -186,14 +185,14 @@ static int walk_hugetlb_range(unsigned long addr, unsigned long end,
  				break;
+ 			continue;
+ 		}
+-		ptl = huge_pte_lock(h, mm, pte);
++		walk->ptl = huge_pte_lock(h, mm, pte);
+ 		/*
+ 		 * Callers should have their own way to handle swap entries
+ 		 * in walk->hugetlb_entry().
+ 		 */
+ 		if (walk->hugetlb_entry)
+ 			err = walk->hugetlb_entry(pte, addr, next, walk);
+-		spin_unlock(ptl);
++		spin_unlock(walk->ptl);
+ 		if (err)
+ 			break;
+ 	} while (addr = next, addr != end);
 -- 
 1.9.3
 
