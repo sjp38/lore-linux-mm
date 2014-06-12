@@ -1,73 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f176.google.com (mail-we0-f176.google.com [74.125.82.176])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C9306B00EB
-	for <linux-mm@kvack.org>; Thu, 12 Jun 2014 09:22:11 -0400 (EDT)
-Received: by mail-we0-f176.google.com with SMTP id u56so1251312wes.7
-        for <linux-mm@kvack.org>; Thu, 12 Jun 2014 06:22:10 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id hl6si1742646wjb.55.2014.06.12.06.22.08
+Received: from mail-pb0-f43.google.com (mail-pb0-f43.google.com [209.85.160.43])
+	by kanga.kvack.org (Postfix) with ESMTP id 0E6A26B00EE
+	for <linux-mm@kvack.org>; Thu, 12 Jun 2014 09:27:06 -0400 (EDT)
+Received: by mail-pb0-f43.google.com with SMTP id up15so1002931pbc.16
+        for <linux-mm@kvack.org>; Thu, 12 Jun 2014 06:27:06 -0700 (PDT)
+Received: from mail-pd0-x22b.google.com (mail-pd0-x22b.google.com [2607:f8b0:400e:c02::22b])
+        by mx.google.com with ESMTPS id vq10si1115036pab.121.2014.06.12.06.27.05
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 12 Jun 2014 06:22:09 -0700 (PDT)
-Date: Thu, 12 Jun 2014 15:22:07 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 2/2] memcg: Allow guarantee reclaim
-Message-ID: <20140612132207.GA32720@dhcp22.suse.cz>
-References: <20140611075729.GA4520@dhcp22.suse.cz>
- <1402473624-13827-1-git-send-email-mhocko@suse.cz>
- <1402473624-13827-2-git-send-email-mhocko@suse.cz>
- <20140611153631.GH2878@cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20140611153631.GH2878@cmpxchg.org>
+        Thu, 12 Jun 2014 06:27:06 -0700 (PDT)
+Received: by mail-pd0-f171.google.com with SMTP id ft15so970477pdb.2
+        for <linux-mm@kvack.org>; Thu, 12 Jun 2014 06:27:05 -0700 (PDT)
+Message-ID: <1402579513.1106.13.camel@debian>
+Subject: Re: [PATCH] mm/vmscan.c: wrap five parameters into arg_container
+ in shrink_page_list()
+From: Chen Yucong <slaoub@gmail.com>
+In-Reply-To: <5399A0F3.8040106@redhat.com>
+References: <1402565795-706-1-git-send-email-slaoub@gmail.com>
+	 <5399A0F3.8040106@redhat.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Thu, 12 Jun 2014 21:25:13 +0800
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Michel Lespinasse <walken@google.com>, Tejun Heo <tj@kernel.org>, Roman Gushchin <klamm@yandex-team.ru>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Rik van Riel <riel@redhat.com>
+Cc: akpm@linux-foundation.org, mgorman@suse.de, hannes@cmpxchg.org, mhocko@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed 11-06-14 11:36:31, Johannes Weiner wrote:
-[...]
-> This code is truly dreadful.
+On Thu, 2014-06-12 at 08:45 -0400, Rik van Riel wrote:
+> > shrink_page_list() has too many arguments that have already reached
+> ten.
+> > Some of those arguments and temporary variables introduces extra 80
+> bytes
+> > on the stack.
+> > 
+> > This patch wraps five parameters into arg_container and removes some
+> temporary
+> > variables, thus making shrink_page_list() to consume fewer stack
+> space.
 > 
-> Don't call it guarantee when it doesn't guarantee anything.  I thought
-> we agreed that min, low, high, max, is reasonable nomenclature, please
-> use it consistently.
-
-I can certainly change the internal naming. I will use your wmark naming
-suggestion.
- 
-> With my proposed cleanups and scalability fixes in the other mail, the
-> vmscan.c changes to support the min watermark would be something like
-> the following.
-
-The semantic is, however, much different as pointed out in the other email.
-The following on top of you cleanup will lead to the same deadlock
-described in 1st patch (mm, memcg: allow OOM if no memcg is eligible
-during direct reclaim).
-
-Anyway, the situation now is pretty chaotic. I plan to gather all the
-patchse posted so far and repost for the future discussion. I just need
-to finish some internal tasks and will post it soon.
-
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 687076b7a1a6..cee19b6d04dc 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -2259,7 +2259,7 @@ static void shrink_zone(struct zone *zone, struct scan_control *sc)
->  				 */
->  				if (priority < DEF_PRIORITY - 2)
->  					break;
-> -
-> +			case MEMCG_WMARK_MIN:
->  				/* XXX: skip the whole subtree */
->  				memcg = mem_cgroup_iter(root, memcg, &reclaim);
->  				continue;
+> Won't the container with those arguments now live on the stack,
+> using up the same space that the variables used to take?
 > 
+Of course, the container with those arguments live on the stack.
 
--- 
-Michal Hocko
-SUSE Labs
+One of the key reason for introducing this patch is to avoid passing
+five pointer arguments to shrink_page_list().
+
+The arg_container also uses up the same space that the variables used to
+take.
+If the those arguments is wrapped to arg_container, we just need to pass
+one pointer to shrink_page_list instead of five.
+
+thx!
+cyc  
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
