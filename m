@@ -1,81 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f53.google.com (mail-pa0-f53.google.com [209.85.220.53])
-	by kanga.kvack.org (Postfix) with ESMTP id 7EA706B003A
-	for <linux-mm@kvack.org>; Thu, 12 Jun 2014 17:56:19 -0400 (EDT)
-Received: by mail-pa0-f53.google.com with SMTP id kx10so1386092pab.40
-        for <linux-mm@kvack.org>; Thu, 12 Jun 2014 14:56:19 -0700 (PDT)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTP id kc2si42869613pbc.148.2014.06.12.14.56.18
-        for <linux-mm@kvack.org>;
-        Thu, 12 Jun 2014 14:56:18 -0700 (PDT)
-Date: Thu, 12 Jun 2014 14:56:17 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH -mm v2 00/11] pagewalk: standardize current users, move
- pmd locking, apply to mincore
-Message-Id: <20140612145617.5debf04bd1a2978be4a1fb88@linux-foundation.org>
-In-Reply-To: <1402609691-13950-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-References: <1402609691-13950-1-git-send-email-n-horiguchi@ah.jp.nec.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-we0-f176.google.com (mail-we0-f176.google.com [74.125.82.176])
+	by kanga.kvack.org (Postfix) with ESMTP id 461F96B0062
+	for <linux-mm@kvack.org>; Thu, 12 Jun 2014 18:02:12 -0400 (EDT)
+Received: by mail-we0-f176.google.com with SMTP id u56so1883880wes.21
+        for <linux-mm@kvack.org>; Thu, 12 Jun 2014 15:02:11 -0700 (PDT)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id w1si3768191wjz.45.2014.06.12.15.02.10
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 12 Jun 2014 15:02:10 -0700 (PDT)
+Date: Thu, 12 Jun 2014 18:02:00 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [Bug 75101] New: [bisected] s2disk / hibernate blocks on "Saving
+ 506031 image data pages () ..."
+Message-ID: <20140612220200.GA25344@cmpxchg.org>
+References: <20140505233358.GC19914@cmpxchg.org>
+ <5368227D.7060302@intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5368227D.7060302@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: linux-mm@kvack.org, Dave Hansen <dave.hansen@intel.com>, Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org
+To: "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>
+Cc: Oliver Winker <oliverml1@oli1170.net>, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, Maxim Patlasov <mpatlasov@parallels.com>, Fengguang Wu <fengguang.wu@intel.com>, Tejun Heo <tj@kernel.org>
 
-On Thu, 12 Jun 2014 17:48:00 -0400 Naoya Horiguchi <n-horiguchi@ah.jp.nec.com> wrote:
+On Tue, May 06, 2014 at 01:45:01AM +0200, Rafael J. Wysocki wrote:
+> On 5/6/2014 1:33 AM, Johannes Weiner wrote:
+> >Hi Oliver,
+> >
+> >On Mon, May 05, 2014 at 11:00:13PM +0200, Oliver Winker wrote:
+> >>Hello,
+> >>
+> >>1) Attached a full function-trace log + other SysRq outputs, see [1]
+> >>attached.
+> >>
+> >>I saw bdi_...() calls in the s2disk paths, but didn't check in detail
+> >>Probably more efficient when one of you guys looks directly.
+> >Thanks, this looks interesting.  balance_dirty_pages() wakes up the
+> >bdi_wq workqueue as it should:
+> >
+> >[  249.148009]   s2disk-3327    2.... 48550413us : global_dirty_limits <-balance_dirty_pages_ratelimited
+> >[  249.148009]   s2disk-3327    2.... 48550414us : global_dirtyable_memory <-global_dirty_limits
+> >[  249.148009]   s2disk-3327    2.... 48550414us : writeback_in_progress <-balance_dirty_pages_ratelimited
+> >[  249.148009]   s2disk-3327    2.... 48550414us : bdi_start_background_writeback <-balance_dirty_pages_ratelimited
+> >[  249.148009]   s2disk-3327    2.... 48550414us : mod_delayed_work_on <-balance_dirty_pages_ratelimited
 
-> This is ver.2 of page table walker patchset.
+> >but the worker wakeup doesn't actually do anything:
+
+> >[  249.148009] kworker/-3466    2d... 48550431us : finish_task_switch <-__schedule
+> >[  249.148009] kworker/-3466    2.... 48550431us : _raw_spin_lock_irq <-worker_thread
+> >[  249.148009] kworker/-3466    2d... 48550431us : need_to_create_worker <-worker_thread
+> >[  249.148009] kworker/-3466    2d... 48550432us : worker_enter_idle <-worker_thread
+> >[  249.148009] kworker/-3466    2d... 48550432us : too_many_workers <-worker_enter_idle
+> >[  249.148009] kworker/-3466    2.... 48550432us : schedule <-worker_thread
+> >[  249.148009] kworker/-3466    2.... 48550432us : __schedule <-worker_thread
+> >
+> >My suspicion is that this fails because the bdi_wq is frozen at this
+> >point and so the flush work never runs until resume, whereas before my
+> >patch the effective dirty limit was high enough so that image could be
+> >written in one go without being throttled; followed by an fsync() that
+> >then writes the pages in the context of the unfrozen s2disk.
+> >
+> >Does this make sense?  Rafael?  Tejun?
 > 
-> I move forward on this cleanup work, and added some improvement from the
-> previous version. Major changes are:
->  - removed walk->skip which becomes removable due to refactoring existing
->    users
->  - commonalized the argments of entry handlers (pte|pmd|hugetlb)_entry()
->    which allows us to use the same function as multiple handlers.
-> 
+> Well, it does seem to make sense to me.
 
-Are you sure you didn't miss anything?
+>From what I see, this is a deadlock in the userspace suspend model and
+just happened to work by chance in the past.
 
-mm-hugetlbfs-fix-rmapping-for-anonymous-hugepages-with-page_pgoff.patch
-mm-hugetlbfs-fix-rmapping-for-anonymous-hugepages-with-page_pgoff-v2.patch
-mm-hugetlbfs-fix-rmapping-for-anonymous-hugepages-with-page_pgoff-v3.patch
-mm-hugetlbfs-fix-rmapping-for-anonymous-hugepages-with-page_pgoff-v3-fix.patch
-pagewalk-update-page-table-walker-core.patch
-pagewalk-update-page-table-walker-core-fix-end-address-calculation-in-walk_page_range.patch
-pagewalk-update-page-table-walker-core-fix-end-address-calculation-in-walk_page_range-fix.patch
-pagewalk-update-page-table-walker-core-fix.patch
-pagewalk-add-walk_page_vma.patch
-smaps-redefine-callback-functions-for-page-table-walker.patch
-clear_refs-redefine-callback-functions-for-page-table-walker.patch
-pagemap-redefine-callback-functions-for-page-table-walker.patch
-pagemap-redefine-callback-functions-for-page-table-walker-fix.patch
-numa_maps-redefine-callback-functions-for-page-table-walker.patch
-memcg-redefine-callback-functions-for-page-table-walker.patch
-arch-powerpc-mm-subpage-protc-use-walk_page_vma-instead-of-walk_page_range.patch
-pagewalk-remove-argument-hmask-from-hugetlb_entry.patch
-pagewalk-remove-argument-hmask-from-hugetlb_entry-fix.patch
-pagewalk-remove-argument-hmask-from-hugetlb_entry-fix-fix.patch
-mempolicy-apply-page-table-walker-on-queue_pages_range.patch
-mm-pagewalkc-move-pte-null-check.patch
-mm-prom-pid-clear_refs-avoid-split_huge_page.patch
-#
-mm-pagewalk-remove-pgd_entry-and-pud_entry.patch
-mm-pagewalk-replace-mm_walk-skip-with-more-general-mm_walk-control.patch
-madvise-cleanup-swapin_walk_pmd_entry.patch
-memcg-separate-mem_cgroup_move_charge_pte_range.patch
-memcg-separate-mem_cgroup_move_charge_pte_range-checkpatch-fixes.patch
-arch-powerpc-mm-subpage-protc-cleanup-subpage_walk_pmd_entry.patch
-mm-pagewalk-move-pmd_trans_huge_lock-from-callbacks-to-common-code.patch
-mm-pagewalk-move-pmd_trans_huge_lock-from-callbacks-to-common-code-checkpatch-fixes.patch
-mincore-apply-page-table-walker-on-do_mincore.patch
+Can we patch suspend-utils as follows?  Alternatively, suspend-utils
+could clear the dirty limits before it starts writing and restore them
+post-resume.
 
-
-mm-hugetlbfs-fix-rmapping-for-anonymous-hugepages-with-page_pgoff.patch
-apepars to have disappeared, I didn't check the rest.
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+---
