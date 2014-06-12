@@ -1,101 +1,238 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f169.google.com (mail-wi0-f169.google.com [209.85.212.169])
-	by kanga.kvack.org (Postfix) with ESMTP id 3DEAD6B00D7
-	for <linux-mm@kvack.org>; Thu, 12 Jun 2014 08:18:17 -0400 (EDT)
-Received: by mail-wi0-f169.google.com with SMTP id hi2so617649wib.4
-        for <linux-mm@kvack.org>; Thu, 12 Jun 2014 05:18:16 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id fu7si26711099wib.85.2014.06.12.05.18.14
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 12 Jun 2014 05:18:15 -0700 (PDT)
-Message-ID: <53999A84.7010105@suse.cz>
-Date: Thu, 12 Jun 2014 14:18:12 +0200
-From: Vlastimil Babka <vbabka@suse.cz>
+Received: from mail-lb0-f181.google.com (mail-lb0-f181.google.com [209.85.217.181])
+	by kanga.kvack.org (Postfix) with ESMTP id D36496B00E5
+	for <linux-mm@kvack.org>; Thu, 12 Jun 2014 08:45:52 -0400 (EDT)
+Received: by mail-lb0-f181.google.com with SMTP id q8so651660lbi.12
+        for <linux-mm@kvack.org>; Thu, 12 Jun 2014 05:45:52 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id lh2si1531638wjc.142.2014.06.12.05.45.49
+        for <linux-mm@kvack.org>;
+        Thu, 12 Jun 2014 05:45:51 -0700 (PDT)
+Message-ID: <5399A0F3.8040106@redhat.com>
+Date: Thu, 12 Jun 2014 08:45:39 -0400
+From: Rik van Riel <riel@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [RFC PATCH 6/6] mm, compaction: don't migrate in blocks that
- cannot be fully compacted in async direct compaction
-References: <alpine.DEB.2.02.1405211954410.13243@chino.kir.corp.google.com> <1401898310-14525-1-git-send-email-vbabka@suse.cz> <1401898310-14525-6-git-send-email-vbabka@suse.cz> <alpine.DEB.2.02.1406041705140.22536@chino.kir.corp.google.com> <53908F10.4020603@suse.cz> <alpine.DEB.2.02.1406051431030.18119@chino.kir.corp.google.com> <53916EE7.9000806@suse.cz> <alpine.DEB.2.02.1406090156340.24247@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.02.1406090156340.24247@chino.kir.corp.google.com>
-Content-Type: text/plain; charset=ISO-8859-1; format=flowed
+Subject: Re: [PATCH] mm/vmscan.c: wrap five parameters into arg_container
+ in shrink_page_list()
+References: <1402565795-706-1-git-send-email-slaoub@gmail.com>
+In-Reply-To: <1402565795-706-1-git-send-email-slaoub@gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Minchan Kim <minchan@kernel.org>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>
+To: Chen Yucong <slaoub@gmail.com>, akpm@linux-foundation.org
+Cc: mgorman@suse.de, hannes@cmpxchg.org, mhocko@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 06/09/2014 11:06 AM, David Rientjes wrote:
-> On Fri, 6 Jun 2014, Vlastimil Babka wrote:
->
->>> Agreed.  I was thinking higher than 1GB would be possible once we have
->>> your series that does the pageblock skip for thp, I think the expense
->>> would be constant because we won't needlessly be migrating pages unless it
->>> has a good chance at succeeding.
->>
->> Looks like a counter of iterations actually done in scanners, maintained in
->> compact_control, would work better than any memory size based limit? It could
->> better reflect the actual work done and thus latency. Maybe increase the counter
->> also for migrations, with a higher cost than for a scanner iteration.
->>
->
-> I'm not sure we can expose that to be configurable by userspace in any
-> meaningful way.  We'll want to be able to tune this depending on the size
-> of the machine if we are to truly remove the need_resched() heuristic and
-> give it a sane default.  I was thinking it would be similar to
-> khugepaged's pages_to_scan value that it uses on each wakeup.
+On 06/12/2014 05:36 AM, Chen Yucong wrote:
+> shrink_page_list() has too many arguments that have already reached ten.
+> Some of those arguments and temporary variables introduces extra 80 bytes
+> on the stack.
+> 
+> This patch wraps five parameters into arg_container and removes some temporary
+> variables, thus making shrink_page_list() to consume fewer stack space.
 
-Perhaps userspace can see the value in memory size unit, which would be 
-translated to pages_to_scan assuming the worst case, i.e. scanning each 
-page? Which would be used to limit the iterations, so if we end up 
-skipping blocks of pages instead of single pages for whatever reasons, 
-we can effectively scan a bigger memory size with the same effort?
+Won't the container with those arguments now live on the stack,
+using up the same space that the variables used to take?
 
->>> This does beg the question about parallel direct compactors, though, that
->>> will be contending on the same coarse zone->lru_lock locks and immediately
->>> aborting and falling back to PAGE_SIZE pages for thp faults that will be
->>> more likely if your patch to grab the high-order page and return it to the
->>> page allocator is merged.
->>
->> Hm can you explain how the page capturing makes this worse? I don't see it.
->>
->
-> I was expecting that your patch to capture the high-order page made a
-> difference because the zone watermark check doesn't imply the high-order
-> page will be allocatable after we return to the page allocator to allocate
-> it.  In that case, we terminated compaction prematurely.
+> Before mm/vmscan.c is modified:
+>    text	   data	    bss	    dec	    hex	filename
+> 6876698	 957224	 966656	8800578	 864942	vmlinux-3.15
+> 
+> After mm/vmscan.c is changed:
+>    text	   data	    bss	    dec	    hex	filename
+> 6876506	 957224	 966656	8800386	 864882	vmlinux-3.15
+> 
+> Signed-off-by: Chen Yucong <slaoub@gmail.com>
+> ---
+>  mm/vmscan.c |   64 +++++++++++++++++++++++++++--------------------------------
+>  1 file changed, 29 insertions(+), 35 deletions(-)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index a8ffe4e..538cdcf 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -790,6 +790,14 @@ static void page_check_dirty_writeback(struct page *page,
+>  		mapping->a_ops->is_dirty_writeback(page, dirty, writeback);
+>  }
+>  
+> +struct arg_container {
+> +	unsigned long nr_dirty;
+> +	unsigned long nr_unqueued_dirty;
+> +	unsigned long nr_congested;
+> +	unsigned long nr_writeback;
+> +	unsigned long nr_immediate;
+> +};
+> +
+>  /*
+>   * shrink_page_list() returns the number of reclaimed pages
+>   */
+> @@ -797,22 +805,13 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+>  				      struct zone *zone,
+>  				      struct scan_control *sc,
+>  				      enum ttu_flags ttu_flags,
+> -				      unsigned long *ret_nr_dirty,
+> -				      unsigned long *ret_nr_unqueued_dirty,
+> -				      unsigned long *ret_nr_congested,
+> -				      unsigned long *ret_nr_writeback,
+> -				      unsigned long *ret_nr_immediate,
+> +				      struct arg_container *ac,
+>  				      bool force_reclaim)
+>  {
+>  	LIST_HEAD(ret_pages);
+>  	LIST_HEAD(free_pages);
+>  	int pgactivate = 0;
+> -	unsigned long nr_unqueued_dirty = 0;
+> -	unsigned long nr_dirty = 0;
+> -	unsigned long nr_congested = 0;
+>  	unsigned long nr_reclaimed = 0;
+> -	unsigned long nr_writeback = 0;
+> -	unsigned long nr_immediate = 0;
+>  
+>  	cond_resched();
+>  
+> @@ -858,10 +857,10 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+>  		 */
+>  		page_check_dirty_writeback(page, &dirty, &writeback);
+>  		if (dirty || writeback)
+> -			nr_dirty++;
+> +			ac->nr_dirty++;
+>  
+>  		if (dirty && !writeback)
+> -			nr_unqueued_dirty++;
+> +			ac->nr_unqueued_dirty++;
+>  
+>  		/*
+>  		 * Treat this page as congested if the underlying BDI is or if
+> @@ -872,7 +871,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+>  		mapping = page_mapping(page);
+>  		if ((mapping && bdi_write_congested(mapping->backing_dev_info)) ||
+>  		    (writeback && PageReclaim(page)))
+> -			nr_congested++;
+> +			ac->nr_congested++;
+>  
+>  		/*
+>  		 * If a page at the tail of the LRU is under writeback, there
+> @@ -916,7 +915,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+>  			if (current_is_kswapd() &&
+>  			    PageReclaim(page) &&
+>  			    zone_is_reclaim_writeback(zone)) {
+> -				nr_immediate++;
+> +				ac->nr_immediate++;
+>  				goto keep_locked;
+>  
+>  			/* Case 2 above */
+> @@ -934,7 +933,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+>  				 * and it's also appropriate in global reclaim.
+>  				 */
+>  				SetPageReclaim(page);
+> -				nr_writeback++;
+> +				ac->nr_writeback++;
+>  
+>  				goto keep_locked;
+>  
+> @@ -1132,11 +1131,6 @@ keep:
+>  	list_splice(&ret_pages, page_list);
+>  	count_vm_events(PGACTIVATE, pgactivate);
+>  	mem_cgroup_uncharge_end();
+> -	*ret_nr_dirty += nr_dirty;
+> -	*ret_nr_congested += nr_congested;
+> -	*ret_nr_unqueued_dirty += nr_unqueued_dirty;
+> -	*ret_nr_writeback += nr_writeback;
+> -	*ret_nr_immediate += nr_immediate;
+>  	return nr_reclaimed;
+>  }
+>  
+> @@ -1148,7 +1142,8 @@ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
+>  		.priority = DEF_PRIORITY,
+>  		.may_unmap = 1,
+>  	};
+> -	unsigned long ret, dummy1, dummy2, dummy3, dummy4, dummy5;
+> +	unsigned long ret;
+> +	struct arg_container dummy;
+>  	struct page *page, *next;
+>  	LIST_HEAD(clean_pages);
+>  
+> @@ -1161,8 +1156,7 @@ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
+>  	}
+>  
+>  	ret = shrink_page_list(&clean_pages, zone, &sc,
+> -			TTU_UNMAP|TTU_IGNORE_ACCESS,
+> -			&dummy1, &dummy2, &dummy3, &dummy4, &dummy5, true);
+> +			TTU_UNMAP|TTU_IGNORE_ACCESS, &dummy, true);
+>  	list_splice(&clean_pages, page_list);
+>  	mod_zone_page_state(zone, NR_ISOLATED_FILE, -ret);
+>  	return ret;
+> @@ -1469,11 +1463,13 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
+>  	unsigned long nr_scanned;
+>  	unsigned long nr_reclaimed = 0;
+>  	unsigned long nr_taken;
+> -	unsigned long nr_dirty = 0;
+> -	unsigned long nr_congested = 0;
+> -	unsigned long nr_unqueued_dirty = 0;
+> -	unsigned long nr_writeback = 0;
+> -	unsigned long nr_immediate = 0;
+> +	struct arg_container ac = {
+> +		.nr_dirty = 0,
+> +		.nr_congested = 0,
+> +		.nr_unqueued_dirty = 0,
+> +		.nr_writeback = 0,
+> +		.nr_immediate = 0,
+> +	};
+>  	isolate_mode_t isolate_mode = 0;
+>  	int file = is_file_lru(lru);
+>  	struct zone *zone = lruvec_zone(lruvec);
+> @@ -1515,9 +1511,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
+>  		return 0;
+>  
+>  	nr_reclaimed = shrink_page_list(&page_list, zone, sc, TTU_UNMAP,
+> -				&nr_dirty, &nr_unqueued_dirty, &nr_congested,
+> -				&nr_writeback, &nr_immediate,
+> -				false);
+> +					&ac, false);
+>  
+>  	spin_lock_irq(&zone->lru_lock);
+>  
+> @@ -1554,7 +1548,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
+>  	 * of pages under pages flagged for immediate reclaim and stall if any
+>  	 * are encountered in the nr_immediate check below.
+>  	 */
+> -	if (nr_writeback && nr_writeback == nr_taken)
+> +	if (ac.nr_writeback && ac.nr_writeback == nr_taken)
+>  		zone_set_flag(zone, ZONE_WRITEBACK);
+>  
+>  	/*
+> @@ -1566,7 +1560,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
+>  		 * Tag a zone as congested if all the dirty pages scanned were
+>  		 * backed by a congested BDI and wait_iff_congested will stall.
+>  		 */
+> -		if (nr_dirty && nr_dirty == nr_congested)
+> +		if (ac.nr_dirty && ac.nr_dirty == ac.nr_congested)
+>  			zone_set_flag(zone, ZONE_CONGESTED);
+>  
+>  		/*
+> @@ -1576,7 +1570,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
+>  		 * pages from reclaim context. It will forcibly stall in the
+>  		 * next check.
+>  		 */
+> -		if (nr_unqueued_dirty == nr_taken)
+> +		if (ac.nr_unqueued_dirty == nr_taken)
+>  			zone_set_flag(zone, ZONE_TAIL_LRU_DIRTY);
+>  
+>  		/*
+> @@ -1585,7 +1579,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
+>  		 * implies that pages are cycling through the LRU faster than
+>  		 * they are written so also forcibly stall.
+>  		 */
+> -		if ((nr_unqueued_dirty == nr_taken || nr_immediate) &&
+> +		if ((ac.nr_unqueued_dirty == nr_taken || ac.nr_immediate) &&
+>  		    current_may_throttle())
+>  			congestion_wait(BLK_RW_ASYNC, HZ/10);
+>  	}
+> 
 
-In fact compact_finished() uses both a watermark check and then a 
-free_list check. Only if both pass, it exits. But page allocation then 
-does another watermark check which may fail (due to its raciness and 
-drift) even though the page is still available on the free_list.
 
-> If that's true,
-> then it seems like no parallel thp allocator will be able to allocate
-> memory that another direct compactor has freed without entering compaction
-> itself on a fragmented machine, and thus an increase in zone->lru_lock
-> contention if there's migratable memory.
-
-I think it's only fair if someone who did the compaction work can 
-allocate the page. Another compaction then has to do its own work, so in 
-the end it's 2 units of work for 2 allocations (assuming success). 
-Without the fairness, it might be 2 units of work by single allocator, 
-for 2 successful allocations of two allocators. Or, as you seem to 
-imply, 1 unit of work for 1 successful allocation, because the one doing 
-the work will terminate prematurely and end up without allocation.
-If we really rely on this premature termination as a contention 
-prevention, then it seems quite unfair and fragile to me.
-
-> Having 32 cpus fault thp memory and all entering compaction and contending
-> (and aborting because of contention, currently) on zone->lru_lock is a
-> really bad situation.
-
-I'm not sure if the premature termination could prevent this reliably. I 
-rather doubt that. The lock contention checks should work just fine in 
-this case. And also I don't think it's that bad if they abort due to 
-contention, if it happens quickly. It means that in such situation, it's 
-simply a better performance tradeoff to give up on THP and fallback to 
-4k allocation. Also you say "currently" but we are not going to change 
-that for lock contention, are we?
+-- 
+All rights reversed
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
