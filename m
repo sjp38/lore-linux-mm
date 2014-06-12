@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
-	by kanga.kvack.org (Postfix) with ESMTP id DBEF16B0192
-	for <linux-mm@kvack.org>; Wed, 11 Jun 2014 23:17:53 -0400 (EDT)
-Received: by mail-pa0-f46.google.com with SMTP id eu11so501606pac.33
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 576F66B0193
+	for <linux-mm@kvack.org>; Wed, 11 Jun 2014 23:17:54 -0400 (EDT)
+Received: by mail-pa0-f51.google.com with SMTP id ey11so507852pad.10
         for <linux-mm@kvack.org>; Wed, 11 Jun 2014 20:17:53 -0700 (PDT)
 Received: from lgeamrelo01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
-        by mx.google.com with ESMTP id rq3si40108386pbb.81.2014.06.11.20.17.51
+        by mx.google.com with ESMTP id yl3si40061092pbb.96.2014.06.11.20.17.51
         for <linux-mm@kvack.org>;
         Wed, 11 Jun 2014 20:17:52 -0700 (PDT)
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: [PATCH v2 04/10] DMA, CMA: support alignment constraint on cma region
-Date: Thu, 12 Jun 2014 12:21:41 +0900
-Message-Id: <1402543307-29800-5-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH v2 05/10] DMA, CMA: support arbitrary bitmap granularity
+Date: Thu, 12 Jun 2014 12:21:42 +0900
+Message-Id: <1402543307-29800-6-git-send-email-iamjoonsoo.kim@lge.com>
 In-Reply-To: <1402543307-29800-1-git-send-email-iamjoonsoo.kim@lge.com>
 References: <1402543307-29800-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,85 +19,176 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>
 Cc: Minchan Kim <minchan@kernel.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Paolo Bonzini <pbonzini@redhat.com>, Gleb Natapov <gleb@kernel.org>, Alexander Graf <agraf@suse.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, kvm@vger.kernel.org, kvm-ppc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-ppc kvm's cma area management needs alignment constraint on
-cma region. So support it to prepare generalization of cma area
-management functionality.
-
-Additionally, add some comments which tell us why alignment
-constraint is needed on cma region.
+ppc kvm's cma region management requires arbitrary bitmap granularity,
+since they want to reserve very large memory and manage this region
+with bitmap that one bit for several pages to reduce management overheads.
+So support arbitrary bitmap granularity for following generalization.
 
 Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
 diff --git a/drivers/base/dma-contiguous.c b/drivers/base/dma-contiguous.c
-index 8a44c82..bc4c171 100644
+index bc4c171..9bc9340 100644
 --- a/drivers/base/dma-contiguous.c
 +++ b/drivers/base/dma-contiguous.c
-@@ -32,6 +32,7 @@
- #include <linux/swap.h>
- #include <linux/mm_types.h>
- #include <linux/dma-contiguous.h>
-+#include <linux/log2.h>
- 
- struct cma {
+@@ -38,6 +38,7 @@ struct cma {
  	unsigned long	base_pfn;
-@@ -219,6 +220,7 @@ core_initcall(cma_init_reserved_areas);
-  * @size: Size of the reserved area (in bytes),
+ 	unsigned long	count;
+ 	unsigned long	*bitmap;
++	int order_per_bit; /* Order of pages represented by one bit */
+ 	struct mutex	lock;
+ };
+ 
+@@ -157,9 +158,38 @@ void __init dma_contiguous_reserve(phys_addr_t limit)
+ 
+ static DEFINE_MUTEX(cma_mutex);
+ 
++static unsigned long cma_bitmap_aligned_mask(struct cma *cma, int align_order)
++{
++	return (1 << (align_order >> cma->order_per_bit)) - 1;
++}
++
++static unsigned long cma_bitmap_maxno(struct cma *cma)
++{
++	return cma->count >> cma->order_per_bit;
++}
++
++static unsigned long cma_bitmap_pages_to_bits(struct cma *cma,
++						unsigned long pages)
++{
++	return ALIGN(pages, 1 << cma->order_per_bit) >> cma->order_per_bit;
++}
++
++static void clear_cma_bitmap(struct cma *cma, unsigned long pfn, int count)
++{
++	unsigned long bitmapno, nr_bits;
++
++	bitmapno = (pfn - cma->base_pfn) >> cma->order_per_bit;
++	nr_bits = cma_bitmap_pages_to_bits(cma, count);
++
++	mutex_lock(&cma->lock);
++	bitmap_clear(cma->bitmap, bitmapno, nr_bits);
++	mutex_unlock(&cma->lock);
++}
++
+ static int __init cma_activate_area(struct cma *cma)
+ {
+-	int bitmap_size = BITS_TO_LONGS(cma->count) * sizeof(long);
++	int bitmap_maxno = cma_bitmap_maxno(cma);
++	int bitmap_size = BITS_TO_LONGS(bitmap_maxno) * sizeof(long);
+ 	unsigned long base_pfn = cma->base_pfn, pfn = base_pfn;
+ 	unsigned i = cma->count >> pageblock_order;
+ 	struct zone *zone;
+@@ -221,6 +251,7 @@ core_initcall(cma_init_reserved_areas);
   * @base: Base address of the reserved area optional, use 0 for any
   * @limit: End address of the reserved memory (optional, 0 for any).
-+ * @alignment: Alignment for the contiguous memory area, should be power of 2
+  * @alignment: Alignment for the contiguous memory area, should be power of 2
++ * @order_per_bit: Order of pages represented by one bit on bitmap.
   * @res_cma: Pointer to store the created cma region.
   * @fixed: hint about where to place the reserved area
   *
-@@ -233,15 +235,15 @@ core_initcall(cma_init_reserved_areas);
+@@ -235,7 +266,7 @@ core_initcall(cma_init_reserved_areas);
   */
  static int __init __dma_contiguous_reserve_area(phys_addr_t size,
  				phys_addr_t base, phys_addr_t limit,
-+				phys_addr_t alignment,
+-				phys_addr_t alignment,
++				phys_addr_t alignment, int order_per_bit,
  				struct cma **res_cma, bool fixed)
  {
  	struct cma *cma = &cma_areas[cma_area_count];
--	phys_addr_t alignment;
- 	int ret = 0;
- 
--	pr_debug("%s(size %lx, base %08lx, limit %08lx)\n", __func__,
--		 (unsigned long)size, (unsigned long)base,
--		 (unsigned long)limit);
-+	pr_debug("%s(size %lx, base %08lx, limit %08lx align_order %08lx)\n",
-+		__func__, (unsigned long)size, (unsigned long)base,
-+		(unsigned long)limit, (unsigned long)alignment);
- 
- 	/* Sanity checks */
- 	if (cma_area_count == ARRAY_SIZE(cma_areas)) {
-@@ -253,8 +255,17 @@ static int __init __dma_contiguous_reserve_area(phys_addr_t size,
- 	if (!size)
- 		return -EINVAL;
- 
--	/* Sanitise input arguments */
--	alignment = PAGE_SIZE << max(MAX_ORDER - 1, pageblock_order);
-+	if (alignment && !is_power_of_2(alignment))
-+		return -EINVAL;
-+
-+	/*
-+	 * Sanitise input arguments.
-+	 * CMA area should be at least MAX_ORDER - 1 aligned. Otherwise,
-+	 * CMA area could be merged into other MIGRATE_TYPE by buddy mechanism
-+	 * and CMA property will be broken.
-+	 */
-+	alignment = max(alignment,
-+		(phys_addr_t)PAGE_SIZE << max(MAX_ORDER - 1, pageblock_order));
+@@ -269,6 +300,8 @@ static int __init __dma_contiguous_reserve_area(phys_addr_t size,
  	base = ALIGN(base, alignment);
  	size = ALIGN(size, alignment);
  	limit &= ~(alignment - 1);
-@@ -302,7 +313,8 @@ int __init dma_contiguous_reserve_area(phys_addr_t size, phys_addr_t base,
++	/* size should be aligned with order_per_bit */
++	BUG_ON(!IS_ALIGNED(size >> PAGE_SHIFT, 1 << order_per_bit));
+ 
+ 	/* Reserve memory */
+ 	if (base && fixed) {
+@@ -294,6 +327,7 @@ static int __init __dma_contiguous_reserve_area(phys_addr_t size,
+ 	 */
+ 	cma->base_pfn = PFN_DOWN(base);
+ 	cma->count = size >> PAGE_SHIFT;
++	cma->order_per_bit = order_per_bit;
+ 	*res_cma = cma;
+ 	cma_area_count++;
+ 
+@@ -313,7 +347,7 @@ int __init dma_contiguous_reserve_area(phys_addr_t size, phys_addr_t base,
  {
  	int ret;
  
--	ret = __dma_contiguous_reserve_area(size, base, limit, res_cma, fixed);
-+	ret = __dma_contiguous_reserve_area(size, base, limit, 0,
-+						res_cma, fixed);
+-	ret = __dma_contiguous_reserve_area(size, base, limit, 0,
++	ret = __dma_contiguous_reserve_area(size, base, limit, 0, 0,
+ 						res_cma, fixed);
  	if (ret)
  		return ret;
+@@ -324,13 +358,6 @@ int __init dma_contiguous_reserve_area(phys_addr_t size, phys_addr_t base,
+ 	return 0;
+ }
  
+-static void clear_cma_bitmap(struct cma *cma, unsigned long pfn, int count)
+-{
+-	mutex_lock(&cma->lock);
+-	bitmap_clear(cma->bitmap, pfn - cma->base_pfn, count);
+-	mutex_unlock(&cma->lock);
+-}
+-
+ /**
+  * dma_alloc_from_contiguous() - allocate pages from contiguous area
+  * @dev:   Pointer to device for which the allocation is performed.
+@@ -345,7 +372,8 @@ static void clear_cma_bitmap(struct cma *cma, unsigned long pfn, int count)
+ static struct page *__dma_alloc_from_contiguous(struct cma *cma, int count,
+ 				       unsigned int align)
+ {
+-	unsigned long mask, pfn, pageno, start = 0;
++	unsigned long mask, pfn, start = 0;
++	unsigned long bitmap_maxno, bitmapno, nr_bits;
+ 	struct page *page = NULL;
+ 	int ret;
+ 
+@@ -358,18 +386,19 @@ static struct page *__dma_alloc_from_contiguous(struct cma *cma, int count,
+ 	if (!count)
+ 		return NULL;
+ 
+-	mask = (1 << align) - 1;
+-
++	mask = cma_bitmap_aligned_mask(cma, align);
++	bitmap_maxno = cma_bitmap_maxno(cma);
++	nr_bits = cma_bitmap_pages_to_bits(cma, count);
+ 
+ 	for (;;) {
+ 		mutex_lock(&cma->lock);
+-		pageno = bitmap_find_next_zero_area(cma->bitmap, cma->count,
+-						    start, count, mask);
+-		if (pageno >= cma->count) {
++		bitmapno = bitmap_find_next_zero_area(cma->bitmap,
++					bitmap_maxno, start, nr_bits, mask);
++		if (bitmapno >= bitmap_maxno) {
+ 			mutex_unlock(&cma->lock);
+ 			break;
+ 		}
+-		bitmap_set(cma->bitmap, pageno, count);
++		bitmap_set(cma->bitmap, bitmapno, nr_bits);
+ 		/*
+ 		 * It's safe to drop the lock here. We've marked this region for
+ 		 * our exclusive use. If the migration fails we will take the
+@@ -377,7 +406,7 @@ static struct page *__dma_alloc_from_contiguous(struct cma *cma, int count,
+ 		 */
+ 		mutex_unlock(&cma->lock);
+ 
+-		pfn = cma->base_pfn + pageno;
++		pfn = cma->base_pfn + (bitmapno << cma->order_per_bit);
+ 		mutex_lock(&cma_mutex);
+ 		ret = alloc_contig_range(pfn, pfn + count, MIGRATE_CMA);
+ 		mutex_unlock(&cma_mutex);
+@@ -392,7 +421,7 @@ static struct page *__dma_alloc_from_contiguous(struct cma *cma, int count,
+ 		pr_debug("%s(): memory range at %p is busy, retrying\n",
+ 			 __func__, pfn_to_page(pfn));
+ 		/* try again with a bit different memory target */
+-		start = pageno + mask + 1;
++		start = bitmapno + mask + 1;
+ 	}
+ 
+ 	pr_debug("%s(): returned %p\n", __func__, page);
 -- 
 1.7.9.5
 
