@@ -1,85 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oa0-f51.google.com (mail-oa0-f51.google.com [209.85.219.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 9EEDD6B018A
-	for <linux-mm@kvack.org>; Wed, 11 Jun 2014 22:41:40 -0400 (EDT)
-Received: by mail-oa0-f51.google.com with SMTP id j17so693213oag.38
-        for <linux-mm@kvack.org>; Wed, 11 Jun 2014 19:41:40 -0700 (PDT)
-Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [119.145.14.66])
-        by mx.google.com with ESMTPS id sz9si38048644obc.33.2014.06.11.19.41.38
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Wed, 11 Jun 2014 19:41:40 -0700 (PDT)
-Message-ID: <53991353.5040607@huawei.com>
-Date: Thu, 12 Jun 2014 10:41:23 +0800
-From: Zhang Zhen <zhenzhang.zhang@huawei.com>
-MIME-Version: 1.0
-Subject: Re: Proposal to realize hot-add *several sections one time*
-References: <53981D81.5060708@huawei.com> <alpine.DEB.2.02.1406111503050.27885@chino.kir.corp.google.com>
-In-Reply-To: <alpine.DEB.2.02.1406111503050.27885@chino.kir.corp.google.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Received: from mail-pb0-f51.google.com (mail-pb0-f51.google.com [209.85.160.51])
+	by kanga.kvack.org (Postfix) with ESMTP id D569A6B018C
+	for <linux-mm@kvack.org>; Wed, 11 Jun 2014 23:17:52 -0400 (EDT)
+Received: by mail-pb0-f51.google.com with SMTP id rp16so492968pbb.38
+        for <linux-mm@kvack.org>; Wed, 11 Jun 2014 20:17:52 -0700 (PDT)
+Received: from lgeamrelo01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
+        by mx.google.com with ESMTP id xp2si40132196pbc.57.2014.06.11.20.17.50
+        for <linux-mm@kvack.org>;
+        Wed, 11 Jun 2014 20:17:51 -0700 (PDT)
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: [PATCH v2 01/10] DMA, CMA: clean-up log message
+Date: Thu, 12 Jun 2014 12:21:38 +0900
+Message-Id: <1402543307-29800-2-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <1402543307-29800-1-git-send-email-iamjoonsoo.kim@lge.com>
+References: <1402543307-29800-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: gregkh@linuxfoundation.org, laijs@cn.fujitsu.com, sjenning@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Wang Nan <wangnan0@huawei.com>
+To: Andrew Morton <akpm@linux-foundation.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>
+Cc: Minchan Kim <minchan@kernel.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Paolo Bonzini <pbonzini@redhat.com>, Gleb Natapov <gleb@kernel.org>, Alexander Graf <agraf@suse.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, kvm@vger.kernel.org, kvm-ppc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On 2014/6/12 6:08, David Rientjes wrote:
-> On Wed, 11 Jun 2014, Zhang Zhen wrote:
-> 
->> Hi,
->>
->> Now we can hot-add memory by
->>
->> % echo start_address_of_new_memory > /sys/devices/system/memory/probe
->>
->> Then, [start_address_of_new_memory, start_address_of_new_memory +
->> memory_block_size] memory range is hot-added.
->>
->> But we can only hot-add *one section one time* by this way.
->> Whether we can add an argument on behalf of the count of the sections to add ?
->> So we can can hot-add *several sections one time*. Just like:
->>
-> 
-> Not necessarily true, it depends on sections_per_block.  Don't believe 
-> Documentation/memory-hotplug.txt that suggests this is only for powerpc, 
-> x86 and sh allow this interface as well.
-> 
->> % echo start_address_of_new_memory count_of_sections > /sys/devices/system/memory/probe
->>
->> Then, [start_address_of_new_memory, start_address_of_new_memory +
->> count_of_sections * memory_block_size] memory range is hot-added.
->>
->> If this proposal is reasonable, i will send a patch to realize it.
->>
-> 
-> The problem is knowing how much memory is being onlined so that you can 
-> definitively determine what count_of_sections should be.  The number of 
-> pages per memory section depends on PAGE_SIZE and SECTION_SIZE_BITS which 
-> differ depending on the architectures that support this interface.  So if 
-> you support count_of_sections, it would return errno even though you have 
-> onlined some sections.
-> 
-Hum, sorry.
-My expression is not right. The count of sections one time hot-added
-depends on sections_per_block.
+We don't need explicit 'CMA:' prefix, since we already define prefix
+'cma:' in pr_fmt. So remove it.
 
-Now we are porting the memory-hotplug to arm.
-But we can only hot-add *fixed number of sections one time* on particular architecture.
+And, some logs print function name and others doesn't. This looks
+bad to me, so I unify log format to print function name consistently.
 
-Whether we can add an argument on behalf of the count of the blocks to add ?
+Lastly, I add one more debug log on cma_activate_area().
 
-% echo start_address_of_new_memory count_of_blocks > /sys/devices/system/memory/probe
+Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Then, [start_address_of_new_memory, start_address_of_new_memory + count_of_blocks * memory_block_size]
-memory range is hot-added.
-
-So user don't need execute several times of echo when they want to hot add multi-block size memory.
-
-Any comments are welcome.
-
-Best regards!
-> 
-
+diff --git a/drivers/base/dma-contiguous.c b/drivers/base/dma-contiguous.c
+index 83969f8..bd0bb81 100644
+--- a/drivers/base/dma-contiguous.c
++++ b/drivers/base/dma-contiguous.c
+@@ -144,7 +144,7 @@ void __init dma_contiguous_reserve(phys_addr_t limit)
+ 	}
+ 
+ 	if (selected_size && !dma_contiguous_default_area) {
+-		pr_debug("%s: reserving %ld MiB for global area\n", __func__,
++		pr_debug("%s(): reserving %ld MiB for global area\n", __func__,
+ 			 (unsigned long)selected_size / SZ_1M);
+ 
+ 		dma_contiguous_reserve_area(selected_size, selected_base,
+@@ -163,8 +163,9 @@ static int __init cma_activate_area(struct cma *cma)
+ 	unsigned i = cma->count >> pageblock_order;
+ 	struct zone *zone;
+ 
+-	cma->bitmap = kzalloc(bitmap_size, GFP_KERNEL);
++	pr_debug("%s()\n", __func__);
+ 
++	cma->bitmap = kzalloc(bitmap_size, GFP_KERNEL);
+ 	if (!cma->bitmap)
+ 		return -ENOMEM;
+ 
+@@ -234,7 +235,8 @@ int __init dma_contiguous_reserve_area(phys_addr_t size, phys_addr_t base,
+ 
+ 	/* Sanity checks */
+ 	if (cma_area_count == ARRAY_SIZE(cma_areas)) {
+-		pr_err("Not enough slots for CMA reserved regions!\n");
++		pr_err("%s(): Not enough slots for CMA reserved regions!\n",
++			__func__);
+ 		return -ENOSPC;
+ 	}
+ 
+@@ -274,14 +276,15 @@ int __init dma_contiguous_reserve_area(phys_addr_t size, phys_addr_t base,
+ 	*res_cma = cma;
+ 	cma_area_count++;
+ 
+-	pr_info("CMA: reserved %ld MiB at %08lx\n", (unsigned long)size / SZ_1M,
+-		(unsigned long)base);
++	pr_info("%s(): reserved %ld MiB at %08lx\n",
++		__func__, (unsigned long)size / SZ_1M, (unsigned long)base);
+ 
+ 	/* Architecture specific contiguous memory fixup. */
+ 	dma_contiguous_early_fixup(base, size);
+ 	return 0;
+ err:
+-	pr_err("CMA: failed to reserve %ld MiB\n", (unsigned long)size / SZ_1M);
++	pr_err("%s(): failed to reserve %ld MiB\n",
++		__func__, (unsigned long)size / SZ_1M);
+ 	return ret;
+ }
+ 
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
