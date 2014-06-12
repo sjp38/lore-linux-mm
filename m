@@ -1,84 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wi0-f171.google.com (mail-wi0-f171.google.com [209.85.212.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 65E906B00F5
-	for <linux-mm@kvack.org>; Thu, 12 Jun 2014 10:22:44 -0400 (EDT)
-Received: by mail-wi0-f171.google.com with SMTP id n15so6924352wiw.4
-        for <linux-mm@kvack.org>; Thu, 12 Jun 2014 07:22:43 -0700 (PDT)
-Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id ek1si3422887wib.66.2014.06.12.07.22.41
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 12 Jun 2014 07:22:42 -0700 (PDT)
-Date: Thu, 12 Jun 2014 16:22:37 +0200
-From: Michal Hocko <mhocko@suse.cz>
-Subject: Re: [PATCH 2/2] memcg: Allow guarantee reclaim
-Message-ID: <20140612142237.GB32720@dhcp22.suse.cz>
-References: <20140611075729.GA4520@dhcp22.suse.cz>
- <1402473624-13827-1-git-send-email-mhocko@suse.cz>
- <1402473624-13827-2-git-send-email-mhocko@suse.cz>
- <20140611153631.GH2878@cmpxchg.org>
- <20140612132207.GA32720@dhcp22.suse.cz>
- <20140612135600.GI2878@cmpxchg.org>
+Received: from mail-qa0-f54.google.com (mail-qa0-f54.google.com [209.85.216.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 9773F6B00FB
+	for <linux-mm@kvack.org>; Thu, 12 Jun 2014 10:39:30 -0400 (EDT)
+Received: by mail-qa0-f54.google.com with SMTP id v10so1775349qac.27
+        for <linux-mm@kvack.org>; Thu, 12 Jun 2014 07:39:30 -0700 (PDT)
+Received: from collaborate-mta1.arm.com (fw-tnat.austin.arm.com. [217.140.110.23])
+        by mx.google.com with ESMTP id w8si1298409qaw.115.2014.06.12.07.39.29
+        for <linux-mm@kvack.org>;
+        Thu, 12 Jun 2014 07:39:29 -0700 (PDT)
+Date: Thu, 12 Jun 2014 15:39:16 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+Subject: Re: kmemleak: Unable to handle kernel paging request
+Message-ID: <20140612143916.GB8970@arm.com>
+References: <CAOJe8K3fy3XFxDdVc3y1hiMAqUCPmkUhECU7j5TT=E=gxwBqHg@mail.gmail.com>
+ <20140611173851.GA5556@MacBook-Pro.local>
+ <CAOJe8K1TgTDX5=LdE9r6c0ami7TRa7zr0hL_uu6YpiWrsePAgQ@mail.gmail.com>
+ <B01EB0A1-992B-49F4-93AE-71E4BA707795@arm.com>
+ <CAOJe8K3LDhhPWbtdaWt23mY+2vnw5p05+eyk2D8fovOxC10cgA@mail.gmail.com>
+ <CAOJe8K2WaJUP9_buwgKw89fxGe56mGP1Mn8rDUO9W48KZzmybA@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20140612135600.GI2878@cmpxchg.org>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CAOJe8K2WaJUP9_buwgKw89fxGe56mGP1Mn8rDUO9W48KZzmybA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, KOSAKI Motohiro <kosaki.motohiro@jp.fujitsu.com>, Michel Lespinasse <walken@google.com>, Tejun Heo <tj@kernel.org>, Roman Gushchin <klamm@yandex-team.ru>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Denis Kirjanov <kda@linux-powerpc.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
 
-On Thu 12-06-14 09:56:00, Johannes Weiner wrote:
-> On Thu, Jun 12, 2014 at 03:22:07PM +0200, Michal Hocko wrote:
-[...]
-> > Anyway, the situation now is pretty chaotic. I plan to gather all the
-> > patchse posted so far and repost for the future discussion. I just need
-> > to finish some internal tasks and will post it soon.
+On Thu, Jun 12, 2014 at 01:00:57PM +0100, Denis Kirjanov wrote:
+> On 6/12/14, Denis Kirjanov <kda@linux-powerpc.org> wrote:
+> > On 6/12/14, Catalin Marinas <catalin.marinas@arm.com> wrote:
+> >> On 11 Jun 2014, at 21:04, Denis Kirjanov <kda@linux-powerpc.org> wrote:
+> >>> On 6/11/14, Catalin Marinas <catalin.marinas@arm.com> wrote:
+> >>>> On Wed, Jun 11, 2014 at 04:13:07PM +0400, Denis Kirjanov wrote:
+> >>>>> I got a trace while running 3.15.0-08556-gdfb9454:
+> >>>>>
+> >>>>> [  104.534026] Unable to handle kernel paging request for data at
+> >>>>> address 0xc00000007f000000
+> >>>>
+> >>>> Were there any kmemleak messages prior to this, like "kmemleak
+> >>>> disabled"? There could be a race when kmemleak is disabled because of
+> >>>> some fatal (for kmemleak) error while the scanning is taking place
+> >>>> (which needs some more thinking to fix properly).
+> >>>
+> >>> No. I checked for the similar problem and didn't find anything relevant.
+> >>> I'll try to bisect it.
+> >>
+> >> Does this happen soon after boot? I guess ita??s the first scan
+> >> (scheduled at around 1min after boot). Something seems to be telling
+> >> kmemleak that there is a valid memory block at 0xc00000007f000000.
+> >
+> > Yeah, it happens after a while with a booted system so that's the
+> > first kmemleak scan.
+> >
 > 
-> That would be great, thanks, it's really hard to follow this stuff
-> halfway in and halfway outside of -mm.
-> 
-> Now that we roughly figured out what knobs and semantics we want, it
-> would be great to figure out the merging logistics.
-> 
-> I would prefer if we could introduce max, high, low, min in unified
-> hierarchy, and *only* in there, so that we never have to worry about
-> it coexisting and interacting with the existing hard and soft limit.
+> I've bisected to this commit: d4c54919ed86302094c0ca7d48a8cbd4ee753e92
+> "mm: add !pte_present() check on existing hugetlb_entry callbacks".
+> Reverting the commit fixes the issue
 
-The primary question would be, whether this is is the best transition
-strategy. I do not know how many users apart from developers are really
-using unified hierarchy. I would be worried that we merge a feature which
-will not be used for a long time.
+I can't figure how this causes the problem but I have more questions. Is
+0xc00000007f000000 address always the same in all crashes? If yes, you
+could comment out start_scan_thread() in kmemleak_late_init() to avoid
+the scanning thread starting. Once booted, you can run:
 
-Moreover, if somebody wants to transition from soft limit then it would
-be really hard because switching to unified hierarchy might be a no-go.
+  echo dump=0xc00000007f000000 > /sys/kernel/debug/kmemleak
 
-I think that it is clear that we should deprecate soft_limit ASAP. I
-also think it wont't hurt to have min, low, high in both old and unified
-API and strongly warn if somebody tries to use soft_limit along with any
-of the new APIs in the first step. Later we can even forbid any
-combination by a hard failure.
-
-> It would also be beneficial to introduce them all close to each other,
-> develop them together, possibly submit them in the same patch series,
-> so that we know the requirements and how the code should look like in
-> the big picture and can offer a fully consistent and documented usage
-> model in the unified hierarchy.
-
-Min and Low should definitely go together. High sounds like an
-orthogonal problem (pro-active reclaim vs reclaim protection) so I think
-it can go its own way and pace. We still have to discuss its semantic
-and I feel it would be a bit disturbing to have everything in one
-bundle. 
-I do understand your point about the global picture, though. Do you
-think that there is a risk that formulating semantic for High limit
-might change the way how Min and Low would be defined?
-
-> Does that make sense?
+and check the dmesg for what kmemleak knows about that address, when it
+was allocated and whether it should be mapped or not.
 
 -- 
-Michal Hocko
-SUSE Labs
+Catalin
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
