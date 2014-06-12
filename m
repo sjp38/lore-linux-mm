@@ -1,80 +1,214 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f171.google.com (mail-ig0-f171.google.com [209.85.213.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 1FC2D900002
-	for <linux-mm@kvack.org>; Thu, 12 Jun 2014 03:07:31 -0400 (EDT)
-Received: by mail-ig0-f171.google.com with SMTP id h18so3857218igc.10
-        for <linux-mm@kvack.org>; Thu, 12 Jun 2014 00:07:30 -0700 (PDT)
-Received: from mail-ig0-x232.google.com (mail-ig0-x232.google.com [2607:f8b0:4001:c05::232])
-        by mx.google.com with ESMTPS id p4si1777354igx.8.2014.06.12.00.07.30
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 12 Jun 2014 00:07:30 -0700 (PDT)
-Received: by mail-ig0-f178.google.com with SMTP id hn18so1699327igb.17
-        for <linux-mm@kvack.org>; Thu, 12 Jun 2014 00:07:30 -0700 (PDT)
-Date: Thu, 12 Jun 2014 00:07:28 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: Proposal to realize hot-add *several sections one time*
-In-Reply-To: <53991353.5040607@huawei.com>
-Message-ID: <alpine.DEB.2.02.1406120002410.23724@chino.kir.corp.google.com>
-References: <53981D81.5060708@huawei.com> <alpine.DEB.2.02.1406111503050.27885@chino.kir.corp.google.com> <53991353.5040607@huawei.com>
+Received: from mail-pa0-f46.google.com (mail-pa0-f46.google.com [209.85.220.46])
+	by kanga.kvack.org (Postfix) with ESMTP id A41AE900002
+	for <linux-mm@kvack.org>; Thu, 12 Jun 2014 03:08:03 -0400 (EDT)
+Received: by mail-pa0-f46.google.com with SMTP id eu11so691440pac.19
+        for <linux-mm@kvack.org>; Thu, 12 Jun 2014 00:08:03 -0700 (PDT)
+Received: from lgeamrelo04.lge.com (lgeamrelo04.lge.com. [156.147.1.127])
+        by mx.google.com with ESMTP id qy4si79258pab.235.2014.06.12.00.08.01
+        for <linux-mm@kvack.org>;
+        Thu, 12 Jun 2014 00:08:02 -0700 (PDT)
+Date: Thu, 12 Jun 2014 16:08:11 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH v2 05/10] DMA, CMA: support arbitrary bitmap granularity
+Message-ID: <20140612070811.GI12415@bbox>
+References: <1402543307-29800-1-git-send-email-iamjoonsoo.kim@lge.com>
+ <1402543307-29800-6-git-send-email-iamjoonsoo.kim@lge.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1402543307-29800-6-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhang Zhen <zhenzhang.zhang@huawei.com>
-Cc: gregkh@linuxfoundation.org, laijs@cn.fujitsu.com, sjenning@linux.vnet.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Wang Nan <wangnan0@huawei.com>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Russell King - ARM Linux <linux@arm.linux.org.uk>, kvm@vger.kernel.org, linux-mm@kvack.org, Gleb Natapov <gleb@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Alexander Graf <agraf@suse.de>, kvm-ppc@vger.kernel.org, linux-kernel@vger.kernel.org, Paul Mackerras <paulus@samba.org>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paolo Bonzini <pbonzini@redhat.com>, linuxppc-dev@lists.ozlabs.org, linux-arm-kernel@lists.infradead.org
 
-On Thu, 12 Jun 2014, Zhang Zhen wrote:
-
-> >> % echo start_address_of_new_memory count_of_sections > /sys/devices/system/memory/probe
-> >>
-> >> Then, [start_address_of_new_memory, start_address_of_new_memory +
-> >> count_of_sections * memory_block_size] memory range is hot-added.
-> >>
-> >> If this proposal is reasonable, i will send a patch to realize it.
-> >>
-> > 
-> > The problem is knowing how much memory is being onlined so that you can 
-> > definitively determine what count_of_sections should be.  The number of 
-> > pages per memory section depends on PAGE_SIZE and SECTION_SIZE_BITS which 
-> > differ depending on the architectures that support this interface.  So if 
-> > you support count_of_sections, it would return errno even though you have 
-> > onlined some sections.
-> > 
-> Hum, sorry.
-> My expression is not right. The count of sections one time hot-added
-> depends on sections_per_block.
+On Thu, Jun 12, 2014 at 12:21:42PM +0900, Joonsoo Kim wrote:
+> ppc kvm's cma region management requires arbitrary bitmap granularity,
+> since they want to reserve very large memory and manage this region
+> with bitmap that one bit for several pages to reduce management overheads.
+> So support arbitrary bitmap granularity for following generalization.
 > 
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Acked-by: Minchan Kim <minchan@kernel.org>
 
-Ok, so you know specifically what sections_per_block is for your platform 
-so you know exactly how many sections need to be added.
+Just a nit below.
 
-> Now we are porting the memory-hotplug to arm.
-> But we can only hot-add *fixed number of sections one time* on particular architecture.
 > 
-> Whether we can add an argument on behalf of the count of the blocks to add ?
-> 
-> % echo start_address_of_new_memory count_of_blocks > /sys/devices/system/memory/probe
-> 
-> Then, [start_address_of_new_memory, start_address_of_new_memory + count_of_blocks * memory_block_size]
-> memory range is hot-added.
-> 
+> diff --git a/drivers/base/dma-contiguous.c b/drivers/base/dma-contiguous.c
+> index bc4c171..9bc9340 100644
+> --- a/drivers/base/dma-contiguous.c
+> +++ b/drivers/base/dma-contiguous.c
+> @@ -38,6 +38,7 @@ struct cma {
+>  	unsigned long	base_pfn;
+>  	unsigned long	count;
+>  	unsigned long	*bitmap;
+> +	int order_per_bit; /* Order of pages represented by one bit */
+>  	struct mutex	lock;
+>  };
+>  
+> @@ -157,9 +158,38 @@ void __init dma_contiguous_reserve(phys_addr_t limit)
+>  
+>  static DEFINE_MUTEX(cma_mutex);
+>  
+> +static unsigned long cma_bitmap_aligned_mask(struct cma *cma, int align_order)
+> +{
+> +	return (1 << (align_order >> cma->order_per_bit)) - 1;
+> +}
+> +
+> +static unsigned long cma_bitmap_maxno(struct cma *cma)
+> +{
+> +	return cma->count >> cma->order_per_bit;
+> +}
+> +
+> +static unsigned long cma_bitmap_pages_to_bits(struct cma *cma,
+> +						unsigned long pages)
+> +{
+> +	return ALIGN(pages, 1 << cma->order_per_bit) >> cma->order_per_bit;
+> +}
+> +
+> +static void clear_cma_bitmap(struct cma *cma, unsigned long pfn, int count)
+> +{
+> +	unsigned long bitmapno, nr_bits;
+> +
+> +	bitmapno = (pfn - cma->base_pfn) >> cma->order_per_bit;
+> +	nr_bits = cma_bitmap_pages_to_bits(cma, count);
+> +
+> +	mutex_lock(&cma->lock);
+> +	bitmap_clear(cma->bitmap, bitmapno, nr_bits);
+> +	mutex_unlock(&cma->lock);
+> +}
+> +
+>  static int __init cma_activate_area(struct cma *cma)
+>  {
+> -	int bitmap_size = BITS_TO_LONGS(cma->count) * sizeof(long);
+> +	int bitmap_maxno = cma_bitmap_maxno(cma);
+> +	int bitmap_size = BITS_TO_LONGS(bitmap_maxno) * sizeof(long);
+>  	unsigned long base_pfn = cma->base_pfn, pfn = base_pfn;
+>  	unsigned i = cma->count >> pageblock_order;
+>  	struct zone *zone;
+> @@ -221,6 +251,7 @@ core_initcall(cma_init_reserved_areas);
+>   * @base: Base address of the reserved area optional, use 0 for any
+>   * @limit: End address of the reserved memory (optional, 0 for any).
+>   * @alignment: Alignment for the contiguous memory area, should be power of 2
+> + * @order_per_bit: Order of pages represented by one bit on bitmap.
+>   * @res_cma: Pointer to store the created cma region.
+>   * @fixed: hint about where to place the reserved area
+>   *
+> @@ -235,7 +266,7 @@ core_initcall(cma_init_reserved_areas);
+>   */
+>  static int __init __dma_contiguous_reserve_area(phys_addr_t size,
+>  				phys_addr_t base, phys_addr_t limit,
+> -				phys_addr_t alignment,
+> +				phys_addr_t alignment, int order_per_bit,
+>  				struct cma **res_cma, bool fixed)
+>  {
+>  	struct cma *cma = &cma_areas[cma_area_count];
+> @@ -269,6 +300,8 @@ static int __init __dma_contiguous_reserve_area(phys_addr_t size,
+>  	base = ALIGN(base, alignment);
+>  	size = ALIGN(size, alignment);
+>  	limit &= ~(alignment - 1);
+> +	/* size should be aligned with order_per_bit */
+> +	BUG_ON(!IS_ALIGNED(size >> PAGE_SHIFT, 1 << order_per_bit));
+>  
+>  	/* Reserve memory */
+>  	if (base && fixed) {
+> @@ -294,6 +327,7 @@ static int __init __dma_contiguous_reserve_area(phys_addr_t size,
+>  	 */
+>  	cma->base_pfn = PFN_DOWN(base);
+>  	cma->count = size >> PAGE_SHIFT;
+> +	cma->order_per_bit = order_per_bit;
+>  	*res_cma = cma;
+>  	cma_area_count++;
+>  
+> @@ -313,7 +347,7 @@ int __init dma_contiguous_reserve_area(phys_addr_t size, phys_addr_t base,
+>  {
+>  	int ret;
+>  
+> -	ret = __dma_contiguous_reserve_area(size, base, limit, 0,
+> +	ret = __dma_contiguous_reserve_area(size, base, limit, 0, 0,
+>  						res_cma, fixed);
+>  	if (ret)
+>  		return ret;
+> @@ -324,13 +358,6 @@ int __init dma_contiguous_reserve_area(phys_addr_t size, phys_addr_t base,
+>  	return 0;
+>  }
+>  
+> -static void clear_cma_bitmap(struct cma *cma, unsigned long pfn, int count)
+> -{
+> -	mutex_lock(&cma->lock);
+> -	bitmap_clear(cma->bitmap, pfn - cma->base_pfn, count);
+> -	mutex_unlock(&cma->lock);
+> -}
+> -
+>  /**
+>   * dma_alloc_from_contiguous() - allocate pages from contiguous area
+>   * @dev:   Pointer to device for which the allocation is performed.
+> @@ -345,7 +372,8 @@ static void clear_cma_bitmap(struct cma *cma, unsigned long pfn, int count)
+>  static struct page *__dma_alloc_from_contiguous(struct cma *cma, int count,
+>  				       unsigned int align)
+>  {
+> -	unsigned long mask, pfn, pageno, start = 0;
+> +	unsigned long mask, pfn, start = 0;
+> +	unsigned long bitmap_maxno, bitmapno, nr_bits;
 
-As I said, if the above returns errno at some point, it still can result 
-in some sections being onlined.  To be clear: if
-"echo 0x10000000 > /sys/devices/system/memory/probe" fails, the section 
-starting at address 0x10000000 failed to be onlined for the reason 
-specified by errno.  If we follow your suggestion to specify how many 
-sections to online, if
-"echo '0x10000000 16' > /sys/devices/system/memory/probe" fails, eight 
-sections could have been successfully onlined at address 0x10000000 and 
-then we encountered a failure (perhaps because the next sections were 
-already onlined, we get an -EEXIST).  We don't know what we successfully 
-onlined.
+Just Nit: bitmap_maxno, bitmap_no or something consistent.
+I know you love consistent when I read description in first patch
+in this patchset. ;-)
 
-This could be mitigated, but there would have to be a convincing reason 
-that this is better than using the currently functionally in a loop and 
-properly handling your error codes.
+>  	struct page *page = NULL;
+>  	int ret;
+>  
+> @@ -358,18 +386,19 @@ static struct page *__dma_alloc_from_contiguous(struct cma *cma, int count,
+>  	if (!count)
+>  		return NULL;
+>  
+> -	mask = (1 << align) - 1;
+> -
+> +	mask = cma_bitmap_aligned_mask(cma, align);
+> +	bitmap_maxno = cma_bitmap_maxno(cma);
+> +	nr_bits = cma_bitmap_pages_to_bits(cma, count);
+>  
+>  	for (;;) {
+>  		mutex_lock(&cma->lock);
+> -		pageno = bitmap_find_next_zero_area(cma->bitmap, cma->count,
+> -						    start, count, mask);
+> -		if (pageno >= cma->count) {
+> +		bitmapno = bitmap_find_next_zero_area(cma->bitmap,
+> +					bitmap_maxno, start, nr_bits, mask);
+> +		if (bitmapno >= bitmap_maxno) {
+>  			mutex_unlock(&cma->lock);
+>  			break;
+>  		}
+> -		bitmap_set(cma->bitmap, pageno, count);
+> +		bitmap_set(cma->bitmap, bitmapno, nr_bits);
+>  		/*
+>  		 * It's safe to drop the lock here. We've marked this region for
+>  		 * our exclusive use. If the migration fails we will take the
+> @@ -377,7 +406,7 @@ static struct page *__dma_alloc_from_contiguous(struct cma *cma, int count,
+>  		 */
+>  		mutex_unlock(&cma->lock);
+>  
+> -		pfn = cma->base_pfn + pageno;
+> +		pfn = cma->base_pfn + (bitmapno << cma->order_per_bit);
+>  		mutex_lock(&cma_mutex);
+>  		ret = alloc_contig_range(pfn, pfn + count, MIGRATE_CMA);
+>  		mutex_unlock(&cma_mutex);
+> @@ -392,7 +421,7 @@ static struct page *__dma_alloc_from_contiguous(struct cma *cma, int count,
+>  		pr_debug("%s(): memory range at %p is busy, retrying\n",
+>  			 __func__, pfn_to_page(pfn));
+>  		/* try again with a bit different memory target */
+> -		start = pageno + mask + 1;
+> +		start = bitmapno + mask + 1;
+>  	}
+>  
+>  	pr_debug("%s(): returned %p\n", __func__, page);
+> -- 
+> 1.7.9.5
+
+-- 
+Kind regards,
+Minchan Kim
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
