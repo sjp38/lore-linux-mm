@@ -1,236 +1,258 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f44.google.com (mail-pb0-f44.google.com [209.85.160.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A1226B0070
-	for <linux-mm@kvack.org>; Fri, 13 Jun 2014 00:24:19 -0400 (EDT)
-Received: by mail-pb0-f44.google.com with SMTP id md12so905494pbc.31
-        for <linux-mm@kvack.org>; Thu, 12 Jun 2014 21:24:19 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id ey3si712180pbc.244.2014.06.12.21.24.18
-        for <linux-mm@kvack.org>;
-        Thu, 12 Jun 2014 21:24:18 -0700 (PDT)
-Date: Fri, 13 Jun 2014 12:23:50 +0800
-From: kbuild test robot <fengguang.wu@intel.com>
-Subject: [mmotm:master 80/178] mm/memcontrol.c:6847:184: warning: value
- computed is not used
-Message-ID: <539a7cd6.ZRstAxZfZ55n3DRv%fengguang.wu@intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Received: from mail-pd0-f181.google.com (mail-pd0-f181.google.com [209.85.192.181])
+	by kanga.kvack.org (Postfix) with ESMTP id ACE186B0072
+	for <linux-mm@kvack.org>; Fri, 13 Jun 2014 00:38:09 -0400 (EDT)
+Received: by mail-pd0-f181.google.com with SMTP id v10so807149pde.26
+        for <linux-mm@kvack.org>; Thu, 12 Jun 2014 21:38:09 -0700 (PDT)
+Received: from mail-pd0-x229.google.com (mail-pd0-x229.google.com [2607:f8b0:400e:c02::229])
+        by mx.google.com with ESMTPS id yv3si3366399pac.77.2014.06.12.21.38.08
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 12 Jun 2014 21:38:08 -0700 (PDT)
+Received: by mail-pd0-f169.google.com with SMTP id w10so1703748pde.28
+        for <linux-mm@kvack.org>; Thu, 12 Jun 2014 21:38:07 -0700 (PDT)
+From: Chen Yucong <slaoub@gmail.com>
+Subject: [PATCH v2] mm/vmscan.c: wrap five parameters into shrink_result for reducing the stack consumption
+Date: Fri, 13 Jun 2014 12:36:31 +0800
+Message-Id: <1402634191-3442-1-git-send-email-slaoub@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, kbuild-all@01.org
+To: akpm@linux-foundation.org
+Cc: mgorman@suse.de, hannes@cmpxchg.org, mhocko@suse.cz, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Chen Yucong <slaoub@gmail.com>
 
-tree:   git://git.cmpxchg.org/linux-mmotm.git master
-head:   a621774e0e7bbd9e8a024230af4704cc489bd40e
-commit: 5e2db44974d6ea928e257ac99031b5c5bf2ddaa4 [80/178] memcg: separate mem_cgroup_move_charge_pte_range()
-config: make ARCH=i386 allmodconfig
+shrink_page_list() has too many arguments that have already reached ten.
+Some of those arguments and temporary variables introduces extra 80 bytes
+on the stack. This patch wraps five parameters into shrink_result and removes
+some temporary variables, thus making the relative functions to consume fewer
+stack space.
 
-All warnings:
+Before mm/vmscan.c is changed:
+   text    data     bss     dec     hex filename
+6876698  957224  966656 8800578  864942 vmlinux-3.15
 
-   mm/memcontrol.c: In function 'mem_cgroup_count_precharge_pmd':
-   mm/memcontrol.c:6674:3: error: 'skip' undeclared (first use in this function)
-      skip->control = PTWALK_DOWN;
-      ^
-   mm/memcontrol.c:6674:3: note: each undeclared identifier is reported only once for each function it appears in
-   mm/memcontrol.c: In function 'mem_cgroup_move_charge_pte':
->> mm/memcontrol.c:6847:184: warning: value computed is not used [-Wunused-value]
-      pte_offset_map(walk->pmd, addr & PMD_MASK);
-                                                                                                                                                                                           ^
-   mm/memcontrol.c: In function 'mem_cgroup_move_charge_pmd':
-   mm/memcontrol.c:6905:37: error: 'ptl' undeclared (first use in this function)
-     if (pmd_trans_huge_lock(pmd, vma, &ptl) == 1) {
-                                        ^
+After mm/vmscan.c is changed:
+   text    data     bss     dec     hex filename
+6876506  957224  966656 8800386  864882 vmlinux-3.15
 
-vim +6847 mm/memcontrol.c
 
-  6668	
-  6669		if (pmd_trans_huge_lock(pmd, vma, &ptl) == 1) {
-  6670			if (get_mctgt_type_thp(vma, addr, *pmd, NULL) == MC_TARGET_PAGE)
-  6671				mc.precharge += HPAGE_PMD_NR;
-  6672			spin_unlock(ptl);
-  6673		} else
-> 6674			skip->control = PTWALK_DOWN;
-  6675		return 0;
-  6676	}
-  6677	
-  6678	static unsigned long mem_cgroup_count_precharge(struct mm_struct *mm)
-  6679	{
-  6680		unsigned long precharge;
-  6681		struct vm_area_struct *vma;
-  6682	
-  6683		struct mm_walk mem_cgroup_count_precharge_walk = {
-  6684			.pmd_entry = mem_cgroup_count_precharge_pmd,
-  6685			.pte_entry = mem_cgroup_count_precharge_pte,
-  6686			.mm = mm,
-  6687		};
-  6688		down_read(&mm->mmap_sem);
-  6689		for (vma = mm->mmap; vma; vma = vma->vm_next)
-  6690			walk_page_vma(vma, &mem_cgroup_count_precharge_walk);
-  6691		up_read(&mm->mmap_sem);
-  6692	
-  6693		precharge = mc.precharge;
-  6694		mc.precharge = 0;
-  6695	
-  6696		return precharge;
-  6697	}
-  6698	
-  6699	static int mem_cgroup_precharge_mc(struct mm_struct *mm)
-  6700	{
-  6701		unsigned long precharge = mem_cgroup_count_precharge(mm);
-  6702	
-  6703		VM_BUG_ON(mc.moving_task);
-  6704		mc.moving_task = current;
-  6705		return mem_cgroup_do_precharge(precharge);
-  6706	}
-  6707	
-  6708	/* cancels all extra charges on mc.from and mc.to, and wakes up all waiters. */
-  6709	static void __mem_cgroup_clear_mc(void)
-  6710	{
-  6711		struct mem_cgroup *from = mc.from;
-  6712		struct mem_cgroup *to = mc.to;
-  6713		int i;
-  6714	
-  6715		/* we must uncharge all the leftover precharges from mc.to */
-  6716		if (mc.precharge) {
-  6717			__mem_cgroup_cancel_charge(mc.to, mc.precharge);
-  6718			mc.precharge = 0;
-  6719		}
-  6720		/*
-  6721		 * we didn't uncharge from mc.from at mem_cgroup_move_account(), so
-  6722		 * we must uncharge here.
-  6723		 */
-  6724		if (mc.moved_charge) {
-  6725			__mem_cgroup_cancel_charge(mc.from, mc.moved_charge);
-  6726			mc.moved_charge = 0;
-  6727		}
-  6728		/* we must fixup refcnts and charges */
-  6729		if (mc.moved_swap) {
-  6730			/* uncharge swap account from the old cgroup */
-  6731			if (!mem_cgroup_is_root(mc.from))
-  6732				res_counter_uncharge(&mc.from->memsw,
-  6733							PAGE_SIZE * mc.moved_swap);
-  6734	
-  6735			for (i = 0; i < mc.moved_swap; i++)
-  6736				css_put(&mc.from->css);
-  6737	
-  6738			if (!mem_cgroup_is_root(mc.to)) {
-  6739				/*
-  6740				 * we charged both to->res and to->memsw, so we should
-  6741				 * uncharge to->res.
-  6742				 */
-  6743				res_counter_uncharge(&mc.to->res,
-  6744							PAGE_SIZE * mc.moved_swap);
-  6745			}
-  6746			/* we've already done css_get(mc.to) */
-  6747			mc.moved_swap = 0;
-  6748		}
-  6749		memcg_oom_recover(from);
-  6750		memcg_oom_recover(to);
-  6751		wake_up_all(&mc.waitq);
-  6752	}
-  6753	
-  6754	static void mem_cgroup_clear_mc(void)
-  6755	{
-  6756		struct mem_cgroup *from = mc.from;
-  6757	
-  6758		/*
-  6759		 * we must clear moving_task before waking up waiters at the end of
-  6760		 * task migration.
-  6761		 */
-  6762		mc.moving_task = NULL;
-  6763		__mem_cgroup_clear_mc();
-  6764		spin_lock(&mc.lock);
-  6765		mc.from = NULL;
-  6766		mc.to = NULL;
-  6767		spin_unlock(&mc.lock);
-  6768		mem_cgroup_end_move(from);
-  6769	}
-  6770	
-  6771	static int mem_cgroup_can_attach(struct cgroup_subsys_state *css,
-  6772					 struct cgroup_taskset *tset)
-  6773	{
-  6774		struct task_struct *p = cgroup_taskset_first(tset);
-  6775		int ret = 0;
-  6776		struct mem_cgroup *memcg = mem_cgroup_from_css(css);
-  6777		unsigned long move_charge_at_immigrate;
-  6778	
-  6779		/*
-  6780		 * We are now commited to this value whatever it is. Changes in this
-  6781		 * tunable will only affect upcoming migrations, not the current one.
-  6782		 * So we need to save it, and keep it going.
-  6783		 */
-  6784		move_charge_at_immigrate  = memcg->move_charge_at_immigrate;
-  6785		if (move_charge_at_immigrate) {
-  6786			struct mm_struct *mm;
-  6787			struct mem_cgroup *from = mem_cgroup_from_task(p);
-  6788	
-  6789			VM_BUG_ON(from == memcg);
-  6790	
-  6791			mm = get_task_mm(p);
-  6792			if (!mm)
-  6793				return 0;
-  6794			/* We move charges only when we move a owner of the mm */
-  6795			if (mm->owner == p) {
-  6796				VM_BUG_ON(mc.from);
-  6797				VM_BUG_ON(mc.to);
-  6798				VM_BUG_ON(mc.precharge);
-  6799				VM_BUG_ON(mc.moved_charge);
-  6800				VM_BUG_ON(mc.moved_swap);
-  6801				mem_cgroup_start_move(from);
-  6802				spin_lock(&mc.lock);
-  6803				mc.from = from;
-  6804				mc.to = memcg;
-  6805				mc.immigrate_flags = move_charge_at_immigrate;
-  6806				spin_unlock(&mc.lock);
-  6807				/* We set mc.moving_task later */
-  6808	
-  6809				ret = mem_cgroup_precharge_mc(mm);
-  6810				if (ret)
-  6811					mem_cgroup_clear_mc();
-  6812			}
-  6813			mmput(mm);
-  6814		}
-  6815		return ret;
-  6816	}
-  6817	
-  6818	static void mem_cgroup_cancel_attach(struct cgroup_subsys_state *css,
-  6819					     struct cgroup_taskset *tset)
-  6820	{
-  6821		mem_cgroup_clear_mc();
-  6822	}
-  6823	
-  6824	static int mem_cgroup_move_charge_pte(pte_t *pte,
-  6825					unsigned long addr, unsigned long end,
-  6826					struct mm_walk *walk)
-  6827	{
-  6828		int ret = 0;
-  6829		struct vm_area_struct *vma = walk->vma;
-  6830		union mc_target target;
-  6831		struct page *page;
-  6832		struct page_cgroup *pc;
-  6833		swp_entry_t ent;
-  6834	
-  6835	retry:
-  6836		if (!mc.precharge) {
-  6837			pte_t *orig_pte = pte - ((addr & (PMD_SIZE - 1)) >> PAGE_SHIFT);
-  6838			pte_unmap_unlock(orig_pte, walk->ptl);
-  6839			cond_resched();
-  6840			/*
-  6841			 * We have consumed all precharges we got in can_attach().
-  6842			 * We try charge one by one, but don't do any additional
-  6843			 * charges to mc.to if we have failed in charge once in attach()
-  6844			 * phase.
-  6845			 */
-  6846			ret = mem_cgroup_do_precharge(1);
-> 6847			pte_offset_map(walk->pmd, addr & PMD_MASK);
-  6848			spin_lock(walk->ptl);
-  6849			if (!ret)
-  6850				goto retry;
+scripts/checkstack.pl can be used for checking the change of the target function stack.
 
+Before mm/vmscan.c is changed:
+
+0xffffffff810af103 shrink_inactive_list []:		152
+0xffffffff810af43d shrink_inactive_list []:		152
+-------------------------------------------------------------
+0xffffffff810aede8 reclaim_clean_pages_from_list []:	184
+0xffffffff810aeef8 reclaim_clean_pages_from_list []:	184
+-------------------------------------------------------------
+0xffffffff810ae582 shrink_page_list []:			232
+0xffffffff810aedb5 shrink_page_list []:			232
+
+After mm/vmscan.c is changed::
+
+0xffffffff810af078 shrink_inactive_list []:		120
+0xffffffff810af36d shrink_inactive_list []:		120
+-------------------------------------------------------------
+0xffffffff810aed6c reclaim_clean_pages_from_list []:	152
+0xffffffff810aee68 reclaim_clean_pages_from_list []:	152
+--------------------------------------------------------------------------------------
+0xffffffff810ae586 shrink_page_list []:			184   ---> sub    $0xb8,%rsp
+0xffffffff810aed36 shrink_page_list []:			184   ---> add    $0xb8,%rsp
+
+Via the above figures, we can find that the difference value of the stack is 32 for
+shrink_inactive_list and reclaim_clean_pages_from_list, and this value is 48(232-184)
+for shrink_page_list. From the hierarchy of functions called, the total difference
+value is 80(32+48) for this change.
+
+Changes since v1: https://lkml.org/lkml/2014/6/12/159
+     * Rename arg_container to shrink_result
+     * Change the the way of initializing shrink_result object.
+
+Signed-off-by: Chen Yucong <slaoub@gmail.com>
 ---
-0-DAY kernel build testing backend              Open Source Technology Center
-http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporation
+ mm/vmscan.c |   62 ++++++++++++++++++++++++++---------------------------------
+ 1 file changed, 27 insertions(+), 35 deletions(-)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index a8ffe4e..3f28e39 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -791,28 +791,31 @@ static void page_check_dirty_writeback(struct page *page,
+ }
+ 
+ /*
++ * Callers pass a prezeroed shrink_result into the shrink functions to gather
++ * statistics about how many pages of particular states were processed
++ */
++struct shrink_result {
++	unsigned long nr_dirty;
++	unsigned long nr_unqueued_dirty;
++	unsigned long nr_congested;
++	unsigned long nr_writeback;
++	unsigned long nr_immediate;
++};
++
++/*
+  * shrink_page_list() returns the number of reclaimed pages
+  */
+ static unsigned long shrink_page_list(struct list_head *page_list,
+ 				      struct zone *zone,
+ 				      struct scan_control *sc,
+ 				      enum ttu_flags ttu_flags,
+-				      unsigned long *ret_nr_dirty,
+-				      unsigned long *ret_nr_unqueued_dirty,
+-				      unsigned long *ret_nr_congested,
+-				      unsigned long *ret_nr_writeback,
+-				      unsigned long *ret_nr_immediate,
++				      struct shrink_result *sr,
+ 				      bool force_reclaim)
+ {
+ 	LIST_HEAD(ret_pages);
+ 	LIST_HEAD(free_pages);
+ 	int pgactivate = 0;
+-	unsigned long nr_unqueued_dirty = 0;
+-	unsigned long nr_dirty = 0;
+-	unsigned long nr_congested = 0;
+ 	unsigned long nr_reclaimed = 0;
+-	unsigned long nr_writeback = 0;
+-	unsigned long nr_immediate = 0;
+ 
+ 	cond_resched();
+ 
+@@ -858,10 +861,10 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ 		 */
+ 		page_check_dirty_writeback(page, &dirty, &writeback);
+ 		if (dirty || writeback)
+-			nr_dirty++;
++			sr->nr_dirty++;
+ 
+ 		if (dirty && !writeback)
+-			nr_unqueued_dirty++;
++			sr->nr_unqueued_dirty++;
+ 
+ 		/*
+ 		 * Treat this page as congested if the underlying BDI is or if
+@@ -872,7 +875,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ 		mapping = page_mapping(page);
+ 		if ((mapping && bdi_write_congested(mapping->backing_dev_info)) ||
+ 		    (writeback && PageReclaim(page)))
+-			nr_congested++;
++			sr->nr_congested++;
+ 
+ 		/*
+ 		 * If a page at the tail of the LRU is under writeback, there
+@@ -916,7 +919,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ 			if (current_is_kswapd() &&
+ 			    PageReclaim(page) &&
+ 			    zone_is_reclaim_writeback(zone)) {
+-				nr_immediate++;
++				sr->nr_immediate++;
+ 				goto keep_locked;
+ 
+ 			/* Case 2 above */
+@@ -934,7 +937,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
+ 				 * and it's also appropriate in global reclaim.
+ 				 */
+ 				SetPageReclaim(page);
+-				nr_writeback++;
++				sr->nr_writeback++;
+ 
+ 				goto keep_locked;
+ 
+@@ -1132,11 +1135,6 @@ keep:
+ 	list_splice(&ret_pages, page_list);
+ 	count_vm_events(PGACTIVATE, pgactivate);
+ 	mem_cgroup_uncharge_end();
+-	*ret_nr_dirty += nr_dirty;
+-	*ret_nr_congested += nr_congested;
+-	*ret_nr_unqueued_dirty += nr_unqueued_dirty;
+-	*ret_nr_writeback += nr_writeback;
+-	*ret_nr_immediate += nr_immediate;
+ 	return nr_reclaimed;
+ }
+ 
+@@ -1148,7 +1146,8 @@ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
+ 		.priority = DEF_PRIORITY,
+ 		.may_unmap = 1,
+ 	};
+-	unsigned long ret, dummy1, dummy2, dummy3, dummy4, dummy5;
++	unsigned long ret;
++	struct shrink_result dummy = { };
+ 	struct page *page, *next;
+ 	LIST_HEAD(clean_pages);
+ 
+@@ -1161,8 +1160,7 @@ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
+ 	}
+ 
+ 	ret = shrink_page_list(&clean_pages, zone, &sc,
+-			TTU_UNMAP|TTU_IGNORE_ACCESS,
+-			&dummy1, &dummy2, &dummy3, &dummy4, &dummy5, true);
++			TTU_UNMAP|TTU_IGNORE_ACCESS, &dummy, true);
+ 	list_splice(&clean_pages, page_list);
+ 	mod_zone_page_state(zone, NR_ISOLATED_FILE, -ret);
+ 	return ret;
+@@ -1469,11 +1467,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
+ 	unsigned long nr_scanned;
+ 	unsigned long nr_reclaimed = 0;
+ 	unsigned long nr_taken;
+-	unsigned long nr_dirty = 0;
+-	unsigned long nr_congested = 0;
+-	unsigned long nr_unqueued_dirty = 0;
+-	unsigned long nr_writeback = 0;
+-	unsigned long nr_immediate = 0;
++	struct shrink_result sr = { };
+ 	isolate_mode_t isolate_mode = 0;
+ 	int file = is_file_lru(lru);
+ 	struct zone *zone = lruvec_zone(lruvec);
+@@ -1515,9 +1509,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
+ 		return 0;
+ 
+ 	nr_reclaimed = shrink_page_list(&page_list, zone, sc, TTU_UNMAP,
+-				&nr_dirty, &nr_unqueued_dirty, &nr_congested,
+-				&nr_writeback, &nr_immediate,
+-				false);
++					&sr, false);
+ 
+ 	spin_lock_irq(&zone->lru_lock);
+ 
+@@ -1554,7 +1546,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
+ 	 * of pages under pages flagged for immediate reclaim and stall if any
+ 	 * are encountered in the nr_immediate check below.
+ 	 */
+-	if (nr_writeback && nr_writeback == nr_taken)
++	if (sr.nr_writeback && sr.nr_writeback == nr_taken)
+ 		zone_set_flag(zone, ZONE_WRITEBACK);
+ 
+ 	/*
+@@ -1566,7 +1558,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
+ 		 * Tag a zone as congested if all the dirty pages scanned were
+ 		 * backed by a congested BDI and wait_iff_congested will stall.
+ 		 */
+-		if (nr_dirty && nr_dirty == nr_congested)
++		if (sr.nr_dirty && sr.nr_dirty == sr.nr_congested)
+ 			zone_set_flag(zone, ZONE_CONGESTED);
+ 
+ 		/*
+@@ -1576,7 +1568,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
+ 		 * pages from reclaim context. It will forcibly stall in the
+ 		 * next check.
+ 		 */
+-		if (nr_unqueued_dirty == nr_taken)
++		if (sr.nr_unqueued_dirty == nr_taken)
+ 			zone_set_flag(zone, ZONE_TAIL_LRU_DIRTY);
+ 
+ 		/*
+@@ -1585,7 +1577,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
+ 		 * implies that pages are cycling through the LRU faster than
+ 		 * they are written so also forcibly stall.
+ 		 */
+-		if ((nr_unqueued_dirty == nr_taken || nr_immediate) &&
++		if ((sr.nr_unqueued_dirty == nr_taken || sr.nr_immediate) &&
+ 		    current_may_throttle())
+ 			congestion_wait(BLK_RW_ASYNC, HZ/10);
+ 	}
+-- 
+1.7.10.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
