@@ -1,43 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f181.google.com (mail-ig0-f181.google.com [209.85.213.181])
-	by kanga.kvack.org (Postfix) with ESMTP id 75E696B00C3
-	for <linux-mm@kvack.org>; Fri, 13 Jun 2014 09:29:46 -0400 (EDT)
-Received: by mail-ig0-f181.google.com with SMTP id h3so524484igd.14
-        for <linux-mm@kvack.org>; Fri, 13 Jun 2014 06:29:46 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id g10si6824192icm.99.2014.06.13.06.29.45
+Received: from mail-pd0-f179.google.com (mail-pd0-f179.google.com [209.85.192.179])
+	by kanga.kvack.org (Postfix) with ESMTP id AA7896B00C5
+	for <linux-mm@kvack.org>; Fri, 13 Jun 2014 09:49:26 -0400 (EDT)
+Received: by mail-pd0-f179.google.com with SMTP id fp1so2155718pdb.38
+        for <linux-mm@kvack.org>; Fri, 13 Jun 2014 06:49:26 -0700 (PDT)
+Received: from mail-pb0-x22a.google.com (mail-pb0-x22a.google.com [2607:f8b0:400e:c01::22a])
+        by mx.google.com with ESMTPS id ct4si2215421pbb.189.2014.06.13.06.49.25
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 13 Jun 2014 06:29:45 -0700 (PDT)
-Message-ID: <539AFCBF.1040505@oracle.com>
-Date: Fri, 13 Jun 2014 09:29:35 -0400
-From: Sasha Levin <sasha.levin@oracle.com>
-MIME-Version: 1.0
-Subject: Re: mm/fs: gpf when shrinking slab
-References: <539AF460.4000400@oracle.com> <539AF4A6.9060707@oracle.com> <20140613130026.GF18016@ZenIV.linux.org.uk>
-In-Reply-To: <20140613130026.GF18016@ZenIV.linux.org.uk>
-Content-Type: text/plain; charset=ISO-8859-1
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Fri, 13 Jun 2014 06:49:25 -0700 (PDT)
+Received: by mail-pb0-f42.google.com with SMTP id ma3so1916053pbc.29
+        for <linux-mm@kvack.org>; Fri, 13 Jun 2014 06:49:25 -0700 (PDT)
+Message-ID: <1402667259.6072.20.camel@debian>
+Subject: Re: [RESEND PATCH v2] mm/vmscan.c: wrap five parameters into
+ writeback_stats for reducing the stack consumption
+From: Chen Yucong <slaoub@gmail.com>
+In-Reply-To: <1402639088-4845-1-git-send-email-slaoub@gmail.com>
+References: <1402639088-4845-1-git-send-email-slaoub@gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Date: Fri, 13 Jun 2014 21:47:39 +0800
+Mime-Version: 1.0
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Al Viro <viro@ZenIV.linux.org.uk>
-Cc: Christoph Lameter <cl@gentwo.org>, Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dave Jones <davej@redhat.com>
+To: akpm@linux-foundation.org
+Cc: mgorman@suse.de, hannes@cmpxchg.org, mhocko@suse.cz, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 06/13/2014 09:00 AM, Al Viro wrote:
-> On Fri, Jun 13, 2014 at 08:55:02AM -0400, Sasha Levin wrote:
->> Hand too fast on the trigger... sorry.
->>
->> It happened while fuzzing inside a KVM tools guest on the latest -next kernel. Seems
->> to be pretty difficult to reproduce.
+Hi all,
+
+On Fri, 2014-06-13 at 13:58 +0800, Chen Yucong wrote:
+> shrink_page_list() has too many arguments that have already reached ten.
+> Some of those arguments and temporary variables introduces extra 80 bytes
+> on the stack. This patch wraps five parameters into writeback_stats and removes
+> some temporary variables, thus making the relative functions to consume fewer
+> stack space.
 > 
-> Does that kernel contain c2338f?
-> 
+I this message, I have renamed shrink_result to writeback_stats
+according to Johannes Weiner's reply. Think carefully, this change is
+too hasty. Although it now just contains statistics on the writeback
+states of the scanned pages, it may also be used for gathering other
+information at some point in the future. So I think shrink_result is a
+little bit better!
 
-Nope, it didn't.
+thx!
+cyc
 
-
-Thanks,
-Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
