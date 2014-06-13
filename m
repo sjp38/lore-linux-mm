@@ -1,78 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f173.google.com (mail-we0-f173.google.com [74.125.82.173])
-	by kanga.kvack.org (Postfix) with ESMTP id B55406B0035
-	for <linux-mm@kvack.org>; Fri, 13 Jun 2014 12:34:59 -0400 (EDT)
-Received: by mail-we0-f173.google.com with SMTP id t60so3075073wes.32
-        for <linux-mm@kvack.org>; Fri, 13 Jun 2014 09:34:59 -0700 (PDT)
-Received: from fireflyinternet.com (mail.fireflyinternet.com. [87.106.93.118])
-        by mx.google.com with ESMTP id gg4si7471611wjd.15.2014.06.13.09.34.57
+Received: from mail-wi0-f170.google.com (mail-wi0-f170.google.com [209.85.212.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 00FC26B0031
+	for <linux-mm@kvack.org>; Fri, 13 Jun 2014 12:52:03 -0400 (EDT)
+Received: by mail-wi0-f170.google.com with SMTP id cc10so2618003wib.5
+        for <linux-mm@kvack.org>; Fri, 13 Jun 2014 09:52:03 -0700 (PDT)
+Received: from mailrelay008.isp.belgacom.be (mailrelay008.isp.belgacom.be. [195.238.6.174])
+        by mx.google.com with ESMTP id t7si2563609wiy.24.2014.06.13.09.52.02
         for <linux-mm@kvack.org>;
-        Fri, 13 Jun 2014 09:34:58 -0700 (PDT)
-Date: Fri, 13 Jun 2014 17:34:54 +0100
-From: Chris Wilson <chris@chris-wilson.co.uk>
-Subject: Re: [PATCH 1/2] mm: Report attempts to overwrite PTE from
- remap_pfn_range()
-Message-ID: <20140613163454.GM6451@nuc-i3427.alporthouse.com>
-References: <1402676778-27174-1-git-send-email-chris@chris-wilson.co.uk>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1402676778-27174-1-git-send-email-chris@chris-wilson.co.uk>
+        Fri, 13 Jun 2014 09:52:02 -0700 (PDT)
+Date: Fri, 13 Jun 2014 18:50:47 +0200
+From: Fabian Frederick <fabf@skynet.be>
+Subject: Re: [mmotm:master 44/178] Warning(mm/page_alloc.c:2954): cannot
+ understand function prototype: 'void * __meminit alloc_pages_exact_nid(int
+ nid, size_t size, gfp_t gfp_mask) '
+Message-Id: <20140613185047.c4af8711d0277c45587623c5@skynet.be>
+In-Reply-To: <539a7429.Y+jT5tXL/lOF3DeD%fengguang.wu@intel.com>
+References: <539a7429.Y+jT5tXL/lOF3DeD%fengguang.wu@intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: intel-gfx@lists.freedesktop.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>, Cyrill Gorcunov <gorcunov@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org
+To: kbuild test robot <fengguang.wu@intel.com>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, kbuild-all@01.org
 
-On Fri, Jun 13, 2014 at 05:26:17PM +0100, Chris Wilson wrote:
-> When using remap_pfn_range() from a fault handler, we are exposed to
-> races between concurrent faults. Rather than hitting a BUG, report the
-> error back to the caller, like vm_insert_pfn().
+On Fri, 13 Jun 2014 11:46:49 +0800
+kbuild test robot <fengguang.wu@intel.com> wrote:
+
+> tree:   git://git.cmpxchg.org/linux-mmotm.git master
+> head:   a621774e0e7bbd9e8a024230af4704cc489bd40e
+> commit: 4a35989d122d3ed0ead4132ed01e2fd2d8de74d7 [44/178] mm/page_alloc.c: add __meminit to alloc_pages_exact_nid()
+> reproduce: make htmldocs
 > 
-> Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> Cc: Peter Zijlstra <peterz@infradead.org>
-> Cc: Rik van Riel <riel@redhat.com>
-> Cc: Mel Gorman <mgorman@suse.de>
-> Cc: Cyrill Gorcunov <gorcunov@gmail.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: linux-mm@kvack.org
+> All warnings:
+> 
+>    Warning(lib/crc32.c:217): No description found for parameter 'tab)[256]'
+>    Warning(lib/crc32.c:217): Excess function parameter 'tab' description in 'crc32_le_generic'
+>    Warning(lib/crc32.c:300): No description found for parameter 'tab)[256]'
+>    Warning(lib/crc32.c:300): Excess function parameter 'tab' description in 'crc32_be_generic'
+>    Warning(lib/crc32.c): no structured comments found
+>    Warning(mm/filemap.c:1054): No description found for parameter 'cache_gfp_mask'
+>    Warning(mm/filemap.c:1054): No description found for parameter 'radix_gfp_mask'
+>    Warning(mm/filemap.c:1054): Excess function parameter 'gfp_mask' description in 'pagecache_get_page'
+> >> Warning(mm/page_alloc.c:2954): cannot understand function prototype: 'void * __meminit alloc_pages_exact_nid(int nid, size_t size, gfp_t gfp_mask) '
+
+Hello Fengguang,
+
+   There's no more htmldocs warning with 
+
+void __meminit *alloc_pages_exact_nid()
+
+but :
+
+fgrep -re "__init *" | wc -l
+79
+
+fgrep -re "* __init" | wc -l
+393
+
+Looks more like a problem with make htmldocs or do I have to use another
+ format ?
+
+Regards,
+Fabian
+
+>    Warning(mm/page_alloc.c:6062): No description found for parameter 'pfn'
+>    Warning(mm/page_alloc.c:6062): No description found for parameter 'mask'
+>    Warning(mm/page_alloc.c:6062): Excess function parameter 'start_bitidx' description in 'get_pfnblock_flags_mask'
+>    Warning(mm/page_alloc.c:6090): No description found for parameter 'pfn'
+>    Warning(mm/page_alloc.c:6090): No description found for parameter 'mask'
+>    Warning(mm/page_alloc.c:6090): Excess function parameter 'start_bitidx' description in 'set_pfnblock_flags_mask'
+> 
 > ---
->  mm/memory.c | 8 ++++++--
->  1 file changed, 6 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/memory.c b/mm/memory.c
-> index 037b812a9531..6603a9e6a731 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -2306,19 +2306,23 @@ static int remap_pte_range(struct mm_struct *mm, pmd_t *pmd,
->  {
->  	pte_t *pte;
->  	spinlock_t *ptl;
-> +	int ret = 0;
->  
->  	pte = pte_alloc_map_lock(mm, pmd, addr, &ptl);
->  	if (!pte)
->  		return -ENOMEM;
->  	arch_enter_lazy_mmu_mode();
->  	do {
-> -		BUG_ON(!pte_none(*pte));
-> +		if (!pte_none(*pte)) {
-> +			ret = -EBUSY;
-> +			break;
-> +		}
->  		set_pte_at(mm, addr, pte, pte_mkspecial(pfn_pte(pfn, prot)));
->  		pfn++;
->  	} while (pte++, addr += PAGE_SIZE, addr != end);
->  	arch_leave_lazy_mmu_mode();
->  	pte_unmap_unlock(pte - 1, ptl);
-
-Oh. That will want the EBUSY path to increment pte or we will try to
-unmap the wrong page.
--Chris
-
--- 
-Chris Wilson, Intel Open Source Technology Centre
+> 0-DAY kernel build testing backend              Open Source Technology Center
+> http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
