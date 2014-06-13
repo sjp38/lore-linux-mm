@@ -1,84 +1,91 @@
-From: Sasha Levin <sasha.levin@oracle.com>
-Subject: mm/fs: gpf when shrinking slab
-Date: Fri, 13 Jun 2014 08:53:52 -0400
-Message-ID: <539AF460.4000400@oracle.com>
+From: Chris Wilson <chris@chris-wilson.co.uk>
+Subject: [PATCH 2/2] drm/i915: Use remap_pfn_range() to prefault
+	all PTE in a single pass
+Date: Fri, 13 Jun 2014 17:26:18 +0100
+Message-ID: <1402676778-27174-2-git-send-email-chris@chris-wilson.co.uk>
+References: <1402676778-27174-1-git-send-email-chris@chris-wilson.co.uk>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-1
+Content-Type: text/plain; charset="us-ascii"
 Content-Transfer-Encoding: 7bit
-Return-path: <linux-fsdevel-owner@vger.kernel.org>
-Sender: linux-fsdevel-owner@vger.kernel.org
-To: Christoph Lameter <cl@gentwo.org>, Pekka Enberg <penberg@kernel.org>, Al Viro <viro@ZenIV.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Matt Mackall <mpm@selenic.com>
-Cc: linux-fsdevel <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dave Jones <davej@redhat.com>
+Return-path: <intel-gfx-bounces@lists.freedesktop.org>
+In-Reply-To: <1402676778-27174-1-git-send-email-chris@chris-wilson.co.uk>
+List-Unsubscribe: <http://lists.freedesktop.org/mailman/options/intel-gfx>,
+ <mailto:intel-gfx-request@lists.freedesktop.org?subject=unsubscribe>
+List-Archive: <http://lists.freedesktop.org/archives/intel-gfx>
+List-Post: <mailto:intel-gfx@lists.freedesktop.org>
+List-Help: <mailto:intel-gfx-request@lists.freedesktop.org?subject=help>
+List-Subscribe: <http://lists.freedesktop.org/mailman/listinfo/intel-gfx>,
+ <mailto:intel-gfx-request@lists.freedesktop.org?subject=subscribe>
+Errors-To: intel-gfx-bounces@lists.freedesktop.org
+Sender: "Intel-gfx" <intel-gfx-bounces@lists.freedesktop.org>
+To: intel-gfx@lists.freedesktop.org
+Cc: linux-mm@kvack.org
 List-Id: linux-mm.kvack.org
 
-[ 7193.961785] general protection fault: 0000 [#1] PREEMPT SMP DEBUG_PAGEALLOC
-[ 7193.961785] Dumping ftrace buffer:
-[ 7193.961785]    (ftrace buffer empty)
-[ 7193.961785] Modules linked in:
-[ 7193.961785] CPU: 2 PID: 4011 Comm: kswapd2 Not tainted 3.15.0-next-20140612-sasha-00022-g5e4db85-dirty #645
-[ 7193.961785] task: ffff880035563000 ti: ffff88003557c000 task.ti: ffff88003557c000
-[ 7193.961785] RIP: __lock_acquire (./arch/x86/include/asm/atomic.h:92 kernel/locking/lockdep.c:3082)
-[ 7193.961785] RSP: 0000:ffff88003557f848  EFLAGS: 00010002
-[ 7193.961785] RAX: 0000000000000000 RBX: 6b6b6b6b6b6b6b6b RCX: 0000000000000000
-[ 7193.961785] RDX: 0000000000000000 RSI: 0000000000000000 RDI: ffff8800761fbae0
-[ 7193.961785] RBP: ffff88003557f938 R08: 0000000000000001 R09: 0000000000000000
-[ 7193.961785] R10: ffff8800761fbae0 R11: 0000000000000000 R12: ffff880035563000
-[ 7193.961785] R13: 0000000000000000 R14: 0000000000000001 R15: 0000000000000000
-[ 7193.961785] FS:  0000000000000000(0000) GS:ffff8800a6e00000(0000) knlGS:0000000000000000
-[ 7193.961785] CS:  0010 DS: 0000 ES: 0000 CR0: 000000008005003b
-[ 7193.961785] CR2: 0000000005aabfc8 CR3: 00000006d5276000 CR4: 00000000000006a0
-[ 7193.961785] DR0: 00000000006df000 DR1: 0000000000000000 DR2: 0000000000000000
-[ 7193.961785] DR3: 0000000000000000 DR6: 00000000ffff0ff0 DR7: 0000000000000600
-[ 7193.961785] Stack:
-[ 7193.961785]  ffff88003557f948 ffffffff891cbe79 ffffffff908c1c38 ffffffff908c1c30
-[ 7193.961785]  ffff880000000001 ffffffff8919ff21 0000000000000000 ffff8800a6fd8340
-[ 7193.961785]  0000000000000000 ffff8800a6fd8340 ffff8800a6fd8350 0000000000000282
-[ 7193.961785] Call Trace:
-[ 7193.961785] lock_acquire (./arch/x86/include/asm/current.h:14 kernel/locking/lockdep.c:3602)
-[ 7193.961785] ? shrink_dentry_list (fs/dcache.c:550 fs/dcache.c:781)
-[ 7193.961785] _raw_spin_lock (include/linux/spinlock_api_smp.h:143 kernel/locking/spinlock.c:151)
-[ 7193.961785] ? shrink_dentry_list (fs/dcache.c:550 fs/dcache.c:781)
-[ 7193.961785] ? rcu_read_lock (include/linux/rcupdate.h:870 (discriminator 2))
-[ 7193.961785] shrink_dentry_list (fs/dcache.c:550 fs/dcache.c:781)
-[ 7193.961785] prune_dcache_sb (fs/dcache.c:934)
-[ 7193.961785] super_cache_scan (fs/super.c:94)
-[ 7193.961785] shrink_slab_node (mm/vmscan.c:312)
-[ 7193.961785] ? mem_cgroup_iter (mm/memcontrol.c:1258)
-[ 7193.961785] ? mem_cgroup_iter (include/linux/rcupdate.h:867 mm/memcontrol.c:1222)
-[ 7193.961785] shrink_slab (mm/vmscan.c:387)
-[ 7193.961785] kswapd_shrink_zone (mm/vmscan.c:3028)
-[ 7193.961785] balance_pgdat (mm/vmscan.c:3209)
-[ 7193.961785] kswapd (mm/vmscan.c:3415)
-[ 7193.961785] ? bit_waitqueue (kernel/sched/wait.c:291)
-[ 7193.961785] ? balance_pgdat (mm/vmscan.c:3332)
-[ 7193.961785] kthread (kernel/kthread.c:210)
-[ 7193.961785] ? kthread_create_on_node (kernel/kthread.c:176)
-[ 7193.961785] ret_from_fork (arch/x86/kernel/entry_64.S:349)
-[ 7193.961785] ? kthread_create_on_node (kernel/kthread.c:176)
-[ 7193.961785] Code: 48 c7 c2 a7 0f 6f 8d 31 c0 be 3b 03 00 00 48 c7 c7 33 67 6f 8d e8 e1 51 f9 ff e9 94 04 00 00 48 85 db 0f 84 8b 04 00 00 0f 1f 00 <f0> ff 83 98 01 00 00 8b 05 2b 51 49 07 45 8b bc 24 f0 0c 00 00
-All code
-========
-   0:	48 c7 c2 a7 0f 6f 8d 	mov    $0xffffffff8d6f0fa7,%rdx
-   7:	31 c0                	xor    %eax,%eax
-   9:	be 3b 03 00 00       	mov    $0x33b,%esi
-   e:	48 c7 c7 33 67 6f 8d 	mov    $0xffffffff8d6f6733,%rdi
-  15:	e8 e1 51 f9 ff       	callq  0xfffffffffff951fb
-  1a:	e9 94 04 00 00       	jmpq   0x4b3
-  1f:	48 85 db             	test   %rbx,%rbx
-  22:	0f 84 8b 04 00 00    	je     0x4b3
-  28:	0f 1f 00             	nopl   (%rax)
-  2b:*	f0 ff 83 98 01 00 00 	lock incl 0x198(%rbx)		<-- trapping instruction
-  32:	8b 05 2b 51 49 07    	mov    0x749512b(%rip),%eax        # 0x7495163
-  38:	45 8b bc 24 f0 0c 00 	mov    0xcf0(%r12),%r15d
-  3f:	00
-	...
+On an Ivybridge i7-3720qm with 1600MHz DDR3, with 32 fences,
+Upload rate for 2 linear surfaces:  8134MiB/s -> 8154MiB/s
+Upload rate for 2 tiled surfaces:   8625MiB/s -> 8632MiB/s
+Upload rate for 4 linear surfaces:  8127MiB/s -> 8134MiB/s
+Upload rate for 4 tiled surfaces:   8602MiB/s -> 8629MiB/s
+Upload rate for 8 linear surfaces:  8124MiB/s -> 8137MiB/s
+Upload rate for 8 tiled surfaces:   8603MiB/s -> 8624MiB/s
+Upload rate for 16 linear surfaces: 8123MiB/s -> 8128MiB/s
+Upload rate for 16 tiled surfaces:  8606MiB/s -> 8618MiB/s
+Upload rate for 32 linear surfaces: 8121MiB/s -> 8128MiB/s
+Upload rate for 32 tiled surfaces:  8605MiB/s -> 8614MiB/s
+Upload rate for 64 linear surfaces: 8121MiB/s -> 8127MiB/s
+Upload rate for 64 tiled surfaces:  3017MiB/s -> 5127MiB/s
 
-Code starting with the faulting instruction
-===========================================
-   0:	f0 ff 83 98 01 00 00 	lock incl 0x198(%rbx)
-   7:	8b 05 2b 51 49 07    	mov    0x749512b(%rip),%eax        # 0x7495138
-   d:	45 8b bc 24 f0 0c 00 	mov    0xcf0(%r12),%r15d
-  14:	00
-	...
-[ 7193.961785] RIP __lock_acquire (./arch/x86/include/asm/atomic.h:92 kernel/locking/lockdep.c:3082)
-[ 7193.961785]  RSP <ffff88003557f848>
+Signed-off-by: Chris Wilson <chris@chris-wilson.co.uk>
+Testcase: igt/gem_fence_upload/performance
+Testcase: igt/gem_mmap_gtt
+Reviewed-by: Brad Volkin <bradley.d.volkin@intel.com>
+Cc: linux-mm@kvack.org
+---
+ drivers/gpu/drm/i915/i915_gem.c | 29 +++++++++++++++--------------
+ 1 file changed, 15 insertions(+), 14 deletions(-)
+
+diff --git a/drivers/gpu/drm/i915/i915_gem.c b/drivers/gpu/drm/i915/i915_gem.c
+index c313cb2b641b..e6246634b419 100644
+--- a/drivers/gpu/drm/i915/i915_gem.c
++++ b/drivers/gpu/drm/i915/i915_gem.c
+@@ -1565,22 +1565,23 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
+ 	pfn = dev_priv->gtt.mappable_base + i915_gem_obj_ggtt_offset(obj);
+ 	pfn >>= PAGE_SHIFT;
+ 
+-	if (!obj->fault_mappable) {
+-		int i;
++	ret = remap_pfn_range(vma, vma->vm_start,
++			      pfn, vma->vm_end - vma->vm_start,
++			      vma->vm_page_prot);
++	if (ret) {
++		/* After passing the sanity checks on remap_pfn_range(), we may
++		 * abort whilst updating the pagetables due to ENOMEM and leave
++		 * the tables in an inconsistent state. Reset them all now.
++		 * However, we do not want to undo the work of another thread
++		 * that beat us to prefaulting the PTEs.
++		 */
++		if (ret != -EBUSY)
++			zap_vma_ptes(vma, vma->vm_start, vma->vm_end - vma->vm_start);
++		goto unpin;
++	}
+ 
+-		for (i = 0; i < obj->base.size >> PAGE_SHIFT; i++) {
+-			ret = vm_insert_pfn(vma,
+-					    (unsigned long)vma->vm_start + i * PAGE_SIZE,
+-					    pfn + i);
+-			if (ret)
+-				break;
+-		}
++	obj->fault_mappable = true;
+ 
+-		obj->fault_mappable = true;
+-	} else
+-		ret = vm_insert_pfn(vma,
+-				    (unsigned long)vmf->virtual_address,
+-				    pfn + page_offset);
+ unpin:
+ 	i915_gem_object_ggtt_unpin(obj);
+ unlock:
+-- 
+2.0.0
