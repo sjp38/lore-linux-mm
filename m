@@ -1,269 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f47.google.com (mail-pb0-f47.google.com [209.85.160.47])
-	by kanga.kvack.org (Postfix) with ESMTP id 609826B00C7
-	for <linux-mm@kvack.org>; Fri, 13 Jun 2014 09:54:31 -0400 (EDT)
-Received: by mail-pb0-f47.google.com with SMTP id un15so2146072pbc.6
-        for <linux-mm@kvack.org>; Fri, 13 Jun 2014 06:54:31 -0700 (PDT)
-Received: from mail-pa0-x234.google.com (mail-pa0-x234.google.com [2607:f8b0:400e:c03::234])
-        by mx.google.com with ESMTPS id ry7si4829325pab.188.2014.06.13.06.54.30
+Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
+	by kanga.kvack.org (Postfix) with ESMTP id 129F76B00C8
+	for <linux-mm@kvack.org>; Fri, 13 Jun 2014 09:56:25 -0400 (EDT)
+Received: by mail-wg0-f49.google.com with SMTP id y10so2798244wgg.20
+        for <linux-mm@kvack.org>; Fri, 13 Jun 2014 06:56:25 -0700 (PDT)
+Received: from ZenIV.linux.org.uk (zeniv.linux.org.uk. [2002:c35c:fd02::1])
+        by mx.google.com with ESMTPS id ht3si6766109wjb.144.2014.06.13.06.56.24
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 13 Jun 2014 06:54:30 -0700 (PDT)
-Received: by mail-pa0-f52.google.com with SMTP id eu11so2190250pac.11
-        for <linux-mm@kvack.org>; Fri, 13 Jun 2014 06:54:30 -0700 (PDT)
-Message-ID: <1402667588.6162.4.camel@debian>
-Subject: [RESEND PATCH v2] mm/vmscan.c: wrap five parameters into
- shrink_result for reducing the stack consumption
-From: Chen Yucong <slaoub@gmail.com>
-Date: Fri, 13 Jun 2014 21:53:08 +0800
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 13 Jun 2014 06:56:24 -0700 (PDT)
+Date: Fri, 13 Jun 2014 14:56:15 +0100
+From: Al Viro <viro@ZenIV.linux.org.uk>
+Subject: Re: mm/fs: gpf when shrinking slab
+Message-ID: <20140613135615.GG18016@ZenIV.linux.org.uk>
+References: <539AF460.4000400@oracle.com>
+ <539AF4A6.9060707@oracle.com>
+ <20140613130026.GF18016@ZenIV.linux.org.uk>
+ <539AFCBF.1040505@oracle.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <539AFCBF.1040505@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: mgorman@suse.de, hannes@cmpxchg.org, mhocko@suse.cz, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Chen Yucong <slaoub@gmail.com>
+To: Sasha Levin <sasha.levin@oracle.com>
+Cc: Christoph Lameter <cl@gentwo.org>, Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dave Jones <davej@redhat.com>
 
-shrink_page_list() has too many arguments that have already reached ten.
-Some of those arguments and temporary variables introduces extra 80 bytes
-on the stack. This patch wraps five parameters into shrink_result and removes
-some temporary variables, thus making the relative functions to consume fewer
-stack space.
+On Fri, Jun 13, 2014 at 09:29:35AM -0400, Sasha Levin wrote:
+> On 06/13/2014 09:00 AM, Al Viro wrote:
+> > On Fri, Jun 13, 2014 at 08:55:02AM -0400, Sasha Levin wrote:
+> >> Hand too fast on the trigger... sorry.
+> >>
+> >> It happened while fuzzing inside a KVM tools guest on the latest -next kernel. Seems
+> >> to be pretty difficult to reproduce.
+> > 
+> > Does that kernel contain c2338f?
+> > 
+> 
+> Nope, it didn't.
 
-Before mm/vmscan.c is changed:
-   text    data     bss     dec     hex filename
-6876698  957224  966656 8800578  864942 vmlinux-3.15
-
-After mm/vmscan.c is changed:
-   text    data     bss     dec     hex filename
-6876506  957224  966656 8800386  864882 vmlinux-3.15
-
-
-scripts/checkstack.pl can be used for checking the change of the target function stack.
-
-Before mm/vmscan.c is changed:
-
-0xffffffff810af103 shrink_inactive_list []:		152
-0xffffffff810af43d shrink_inactive_list []:		152
--------------------------------------------------------------
-0xffffffff810aede8 reclaim_clean_pages_from_list []:	184
-0xffffffff810aeef8 reclaim_clean_pages_from_list []:	184
--------------------------------------------------------------
-0xffffffff810ae582 shrink_page_list []:			232
-0xffffffff810aedb5 shrink_page_list []:			232
-
-After mm/vmscan.c is changed::
-
-0xffffffff810af078 shrink_inactive_list []:		120
-0xffffffff810af36d shrink_inactive_list []:		120
--------------------------------------------------------------
-With: struct shrink_result dummy = {};
-0xffffffff810aed6c reclaim_clean_pages_from_list []:    152
-0xffffffff810aee68 reclaim_clean_pages_from_list []:    152
--------------------------------------------------------------
-With: static struct shrink_result dummy ={};
-0xffffffff810aed69 reclaim_clean_pages_from_list []:    120
-0xffffffff810aee4d reclaim_clean_pages_from_list []:    120
---------------------------------------------------------------------------------------
-0xffffffff810ae586 shrink_page_list []:			184   ---> sub    $0xb8,%rsp
-0xffffffff810aed36 shrink_page_list []:			184   ---> add    $0xb8,%rsp
-
-Via the above figures, we can find that the difference value of the stack is 32 for
-shrink_inactive_list and reclaim_clean_pages_from_list, and this value is 48(232-184)
-for shrink_page_list. From the hierarchy of functions called, the total difference
-value is 80(32+48) for this change.
-
-Changes since v1: https://lkml.org/lkml/2014/6/12/159
-     * Rename arg_container to shrink_result
-     * Change the the way of initializing shrink_result object.
-
-Signed-off-by: Chen Yucong <slaoub@gmail.com>
----
- mm/vmscan.c |   62 ++++++++++++++++++++++++++---------------------------------
- 1 file changed, 27 insertions(+), 35 deletions(-)
-
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index a8ffe4e..3f28e39 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -791,28 +791,31 @@ static void page_check_dirty_writeback(struct page *page,
- }
- 
- /*
-+ * Callers pass a prezeroed shrink_result into the shrink functions to gather
-+ * statistics about how many pages of particular states were processed
-+ */
-+struct shrink_result {
-+	unsigned long nr_dirty;
-+	unsigned long nr_unqueued_dirty;
-+	unsigned long nr_congested;
-+	unsigned long nr_writeback;
-+	unsigned long nr_immediate;
-+};
-+
-+/*
-  * shrink_page_list() returns the number of reclaimed pages
-  */
- static unsigned long shrink_page_list(struct list_head *page_list,
- 				      struct zone *zone,
- 				      struct scan_control *sc,
- 				      enum ttu_flags ttu_flags,
--				      unsigned long *ret_nr_dirty,
--				      unsigned long *ret_nr_unqueued_dirty,
--				      unsigned long *ret_nr_congested,
--				      unsigned long *ret_nr_writeback,
--				      unsigned long *ret_nr_immediate,
-+				      struct shrink_result *sr,
- 				      bool force_reclaim)
- {
- 	LIST_HEAD(ret_pages);
- 	LIST_HEAD(free_pages);
- 	int pgactivate = 0;
--	unsigned long nr_unqueued_dirty = 0;
--	unsigned long nr_dirty = 0;
--	unsigned long nr_congested = 0;
- 	unsigned long nr_reclaimed = 0;
--	unsigned long nr_writeback = 0;
--	unsigned long nr_immediate = 0;
- 
- 	cond_resched();
- 
-@@ -858,10 +861,10 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 		 */
- 		page_check_dirty_writeback(page, &dirty, &writeback);
- 		if (dirty || writeback)
--			nr_dirty++;
-+			sr->nr_dirty++;
- 
- 		if (dirty && !writeback)
--			nr_unqueued_dirty++;
-+			sr->nr_unqueued_dirty++;
- 
- 		/*
- 		 * Treat this page as congested if the underlying BDI is or if
-@@ -872,7 +875,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 		mapping = page_mapping(page);
- 		if ((mapping && bdi_write_congested(mapping->backing_dev_info)) ||
- 		    (writeback && PageReclaim(page)))
--			nr_congested++;
-+			sr->nr_congested++;
- 
- 		/*
- 		 * If a page at the tail of the LRU is under writeback, there
-@@ -916,7 +919,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 			if (current_is_kswapd() &&
- 			    PageReclaim(page) &&
- 			    zone_is_reclaim_writeback(zone)) {
--				nr_immediate++;
-+				sr->nr_immediate++;
- 				goto keep_locked;
- 
- 			/* Case 2 above */
-@@ -934,7 +937,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 				 * and it's also appropriate in global reclaim.
- 				 */
- 				SetPageReclaim(page);
--				nr_writeback++;
-+				sr->nr_writeback++;
- 
- 				goto keep_locked;
- 
-@@ -1132,11 +1135,6 @@ keep:
- 	list_splice(&ret_pages, page_list);
- 	count_vm_events(PGACTIVATE, pgactivate);
- 	mem_cgroup_uncharge_end();
--	*ret_nr_dirty += nr_dirty;
--	*ret_nr_congested += nr_congested;
--	*ret_nr_unqueued_dirty += nr_unqueued_dirty;
--	*ret_nr_writeback += nr_writeback;
--	*ret_nr_immediate += nr_immediate;
- 	return nr_reclaimed;
- }
- 
-@@ -1148,7 +1146,8 @@ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
- 		.priority = DEF_PRIORITY,
- 		.may_unmap = 1,
- 	};
--	unsigned long ret, dummy1, dummy2, dummy3, dummy4, dummy5;
-+	unsigned long ret;
-+	static struct shrink_result dummy = { };
- 	struct page *page, *next;
- 	LIST_HEAD(clean_pages);
- 
-@@ -1161,8 +1160,7 @@ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
- 	}
- 
- 	ret = shrink_page_list(&clean_pages, zone, &sc,
--			TTU_UNMAP|TTU_IGNORE_ACCESS,
--			&dummy1, &dummy2, &dummy3, &dummy4, &dummy5, true);
-+			TTU_UNMAP|TTU_IGNORE_ACCESS, &dummy, true);
- 	list_splice(&clean_pages, page_list);
- 	mod_zone_page_state(zone, NR_ISOLATED_FILE, -ret);
- 	return ret;
-@@ -1469,11 +1467,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
- 	unsigned long nr_scanned;
- 	unsigned long nr_reclaimed = 0;
- 	unsigned long nr_taken;
--	unsigned long nr_dirty = 0;
--	unsigned long nr_congested = 0;
--	unsigned long nr_unqueued_dirty = 0;
--	unsigned long nr_writeback = 0;
--	unsigned long nr_immediate = 0;
-+	struct shrink_result sr = { };
- 	isolate_mode_t isolate_mode = 0;
- 	int file = is_file_lru(lru);
- 	struct zone *zone = lruvec_zone(lruvec);
-@@ -1515,9 +1509,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
- 		return 0;
- 
- 	nr_reclaimed = shrink_page_list(&page_list, zone, sc, TTU_UNMAP,
--				&nr_dirty, &nr_unqueued_dirty, &nr_congested,
--				&nr_writeback, &nr_immediate,
--				false);
-+					&sr, false);
- 
- 	spin_lock_irq(&zone->lru_lock);
- 
-@@ -1554,7 +1546,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
- 	 * of pages under pages flagged for immediate reclaim and stall if any
- 	 * are encountered in the nr_immediate check below.
- 	 */
--	if (nr_writeback && nr_writeback == nr_taken)
-+	if (sr.nr_writeback && sr.nr_writeback == nr_taken)
- 		zone_set_flag(zone, ZONE_WRITEBACK);
- 
- 	/*
-@@ -1566,7 +1558,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
- 		 * Tag a zone as congested if all the dirty pages scanned were
- 		 * backed by a congested BDI and wait_iff_congested will stall.
- 		 */
--		if (nr_dirty && nr_dirty == nr_congested)
-+		if (sr.nr_dirty && sr.nr_dirty == sr.nr_congested)
- 			zone_set_flag(zone, ZONE_CONGESTED);
- 
- 		/*
-@@ -1576,7 +1568,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
- 		 * pages from reclaim context. It will forcibly stall in the
- 		 * next check.
- 		 */
--		if (nr_unqueued_dirty == nr_taken)
-+		if (sr.nr_unqueued_dirty == nr_taken)
- 			zone_set_flag(zone, ZONE_TAIL_LRU_DIRTY);
- 
- 		/*
-@@ -1585,7 +1577,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
- 		 * implies that pages are cycling through the LRU faster than
- 		 * they are written so also forcibly stall.
- 		 */
--		if ((nr_unqueued_dirty == nr_taken || nr_immediate) &&
-+		if ((sr.nr_unqueued_dirty == nr_taken || sr.nr_immediate) &&
- 		    current_may_throttle())
- 			congestion_wait(BLK_RW_ASYNC, HZ/10);
- 	}
--- 
-1.7.10.4
-
-
+Try to reproduce with it, please...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
