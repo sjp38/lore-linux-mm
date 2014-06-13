@@ -1,69 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 3029D6B005C
-	for <linux-mm@kvack.org>; Thu, 12 Jun 2014 23:59:17 -0400 (EDT)
-Received: by mail-pd0-f171.google.com with SMTP id ft15so1667051pdb.30
-        for <linux-mm@kvack.org>; Thu, 12 Jun 2014 20:59:16 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTP id xm4si703318pbc.45.2014.06.12.20.59.15
-        for <linux-mm@kvack.org>;
-        Thu, 12 Jun 2014 20:59:16 -0700 (PDT)
-Date: Fri, 13 Jun 2014 11:58:49 +0800
-From: kbuild test robot <fengguang.wu@intel.com>
-Subject: [mmotm:master 78/178] mm/madvise.c:161:190: warning: value
- computed is not used
-Message-ID: <539a76f9.TdKRGJVN9ctnWHnE%fengguang.wu@intel.com>
+Received: from mail-ie0-f178.google.com (mail-ie0-f178.google.com [209.85.223.178])
+	by kanga.kvack.org (Postfix) with ESMTP id D03806B0068
+	for <linux-mm@kvack.org>; Fri, 13 Jun 2014 00:02:14 -0400 (EDT)
+Received: by mail-ie0-f178.google.com with SMTP id rd18so1980921iec.37
+        for <linux-mm@kvack.org>; Thu, 12 Jun 2014 21:02:14 -0700 (PDT)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id pl4si4740423icb.33.2014.06.12.21.02.14
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 12 Jun 2014 21:02:14 -0700 (PDT)
+Message-ID: <539A77A1.60700@oracle.com>
+Date: Fri, 13 Jun 2014 00:01:37 -0400
+From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Subject: Re: mm/sched/net: BUG when running simple code
+References: <539A6850.4090408@oracle.com> <20140613032754.GA20729@gmail.com>
+In-Reply-To: <20140613032754.GA20729@gmail.com>
+Content-Type: text/plain; charset=ISO-8859-1
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, kbuild-all@01.org
+To: Dan Aloni <dan@kernelim.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, LKML <linux-kernel@vger.kernel.org>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, Dave Jones <davej@redhat.com>
 
-tree:   git://git.cmpxchg.org/linux-mmotm.git master
-head:   a621774e0e7bbd9e8a024230af4704cc489bd40e
-commit: ef99d21ea4a246e56b9a55de5740655d30735f33 [78/178] madvise: cleanup swapin_walk_pmd_entry()
-config: make ARCH=i386 defconfig
+On 06/12/2014 11:27 PM, Dan Aloni wrote:
+> On Thu, Jun 12, 2014 at 10:56:16PM -0400, Sasha Levin wrote:
+>> > Hi all,
+>> > 
+>> > Okay, I'm really lost. I got the following when fuzzing, and can't really explain what's
+>> > going on. It seems that we get a "unable to handle kernel paging request" when running
+>> > rather simple code, and I can't figure out how it would cause it.
+> [..]
+>> > Which agrees with the trace I got:
+>> > 
+>> > [  516.309720] BUG: unable to handle kernel paging request at ffffffffa0f12560
+>> > [  516.309720] IP: netlink_getsockopt (net/netlink/af_netlink.c:2271)
+> [..]
+>> > [  516.309720] RIP netlink_getsockopt (net/netlink/af_netlink.c:2271)
+>> > [  516.309720]  RSP <ffff8803fc85fed8>
+>> > [  516.309720] CR2: ffffffffa0f12560
+>> > 
+>> > They only theory I had so far is that netlink is a module, and has gone away while the code
+>> > was executing, but netlink isn't a module on my kernel.
+> The RIP - 0xffffffffa0f12560 is in the range (from Documentation/x86/x86_64/mm.txt):
+> 
+>     ffffffffa0000000 - ffffffffff5fffff (=1525 MB) module mapping space
+> 
+> So seems it was in a module.
 
-All warnings:
+Yup, that's why that theory came up, but when I checked my config:
 
-   mm/madvise.c: In function 'swapin_walk_pte_entry':
->> mm/madvise.c:161:190: warning: value computed is not used [-Wunused-value]
-     pte_offset_map(walk->pmd, start & PMD_MASK);
-                                                                                                                                                                                                 ^
+$ cat .config | grep NETLINK
+CONFIG_COMPAT_NETLINK_MESSAGES=y
+CONFIG_NETFILTER_NETLINK=y
+CONFIG_NETFILTER_NETLINK_ACCT=y
+CONFIG_NETFILTER_NETLINK_QUEUE=y
+CONFIG_NETFILTER_NETLINK_LOG=y
+CONFIG_NF_CT_NETLINK=y
+CONFIG_NF_CT_NETLINK_TIMEOUT=y
+CONFIG_NF_CT_NETLINK_HELPER=y
+CONFIG_NETFILTER_NETLINK_QUEUE_CT=y
+CONFIG_NETLINK_MMAP=y
+CONFIG_NETLINK_DIAG=y
+CONFIG_SCSI_NETLINK=y
+CONFIG_QUOTA_NETLINK_INTERFACE=y
 
-vim +161 mm/madvise.c
+that theory went away. (also confirmed by not finding a netlink module.)
 
-   145		pte_t *orig_pte = pte - ((start & (PMD_SIZE - 1)) >> PAGE_SHIFT);
-   146		swp_entry_t entry;
-   147		struct page *page;
-   148	
-   149		ptent = *pte;
-   150		pte_unmap_unlock(orig_pte, walk->ptl);
-   151		if (pte_present(ptent) || pte_none(ptent) || pte_file(ptent))
-   152			goto lock;
-   153		entry = pte_to_swp_entry(ptent);
-   154		if (unlikely(non_swap_entry(entry)))
-   155			goto lock;
-   156		page = read_swap_cache_async(entry, GFP_HIGHUSER_MOVABLE,
-   157					     walk->vma, start);
-   158		if (page)
-   159			page_cache_release(page);
-   160	lock:
- > 161		pte_offset_map(walk->pmd, start & PMD_MASK);
-   162		spin_lock(walk->ptl);
-   163		return 0;
-   164	}
-   165	
-   166	static void force_swapin_readahead(struct vm_area_struct *vma,
-   167			unsigned long start, unsigned long end)
-   168	{
-   169		struct mm_walk walk = {
+What about the kernel .text overflowing into the modules space? The loader
+checks for that, but can something like that happen after everything is
+up and running? I'll look into that tomorrow.
 
----
-0-DAY kernel build testing backend              Open Source Technology Center
-http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporation
+
+Thanks,
+Sasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
