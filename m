@@ -1,79 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ie0-f175.google.com (mail-ie0-f175.google.com [209.85.223.175])
-	by kanga.kvack.org (Postfix) with ESMTP id D900E6B00A8
-	for <linux-mm@kvack.org>; Fri, 13 Jun 2014 06:42:48 -0400 (EDT)
-Received: by mail-ie0-f175.google.com with SMTP id tp5so2266026ieb.34
-        for <linux-mm@kvack.org>; Fri, 13 Jun 2014 03:42:48 -0700 (PDT)
-Received: from mail-ie0-x22a.google.com (mail-ie0-x22a.google.com [2607:f8b0:4001:c03::22a])
-        by mx.google.com with ESMTPS id m3si1491228igx.16.2014.06.13.03.42.48
+Received: from mail-wi0-f178.google.com (mail-wi0-f178.google.com [209.85.212.178])
+	by kanga.kvack.org (Postfix) with ESMTP id B74446B00AB
+	for <linux-mm@kvack.org>; Fri, 13 Jun 2014 06:45:14 -0400 (EDT)
+Received: by mail-wi0-f178.google.com with SMTP id n15so630000wiw.11
+        for <linux-mm@kvack.org>; Fri, 13 Jun 2014 03:45:14 -0700 (PDT)
+Received: from mail-wg0-x22d.google.com (mail-wg0-x22d.google.com [2a00:1450:400c:c00::22d])
+        by mx.google.com with ESMTPS id mz5si1299538wic.67.2014.06.13.03.45.12
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 13 Jun 2014 03:42:48 -0700 (PDT)
-Received: by mail-ie0-f170.google.com with SMTP id tr6so2270919ieb.15
-        for <linux-mm@kvack.org>; Fri, 13 Jun 2014 03:42:48 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <alpine.LSU.2.11.1406020331100.1259@eggly.anvils>
-References: <1397587118-1214-1-git-send-email-dh.herrmann@gmail.com>
-	<1397587118-1214-3-git-send-email-dh.herrmann@gmail.com>
-	<alpine.LSU.2.11.1405191916300.2970@eggly.anvils>
-	<CANq1E4TORuZU7frtR167P-GNPzEuvbjXXEfi9KdvTwGojqGruA@mail.gmail.com>
-	<alpine.LSU.2.11.1406020331100.1259@eggly.anvils>
-Date: Fri, 13 Jun 2014 12:42:47 +0200
-Message-ID: <CANq1E4RcmyUwmhySqvvVaiVJoiKjgpm=Sh+aKQcxbdkJFS80tQ@mail.gmail.com>
-Subject: Re: [PATCH v2 2/3] shm: add memfd_create() syscall
+        Fri, 13 Jun 2014 03:45:13 -0700 (PDT)
+Received: by mail-wg0-f45.google.com with SMTP id l18so2573896wgh.16
+        for <linux-mm@kvack.org>; Fri, 13 Jun 2014 03:45:12 -0700 (PDT)
 From: David Herrmann <dh.herrmann@gmail.com>
-Content-Type: text/plain; charset=UTF-8
+Subject: [PATCH v3 0/7] File Sealing & memfd_create()
+Date: Fri, 13 Jun 2014 12:36:52 +0200
+Message-Id: <1402655819-14325-1-git-send-email-dh.herrmann@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Tony Battersby <tonyb@cybernetics.com>, Andy Lutomirsky <luto@amacapital.net>, Al Viro <viro@zeniv.linux.org.uk>, Jan Kara <jack@suse.cz>, Michael Kerrisk <mtk.manpages@gmail.com>, Ryan Lortie <desrt@desrt.ca>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-kernel <linux-kernel@vger.kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Greg Kroah-Hartman <greg@kroah.com>, John Stultz <john.stultz@linaro.org>, Kristian Hogsberg <krh@bitplanet.net>, Lennart Poettering <lennart@poettering.net>, Daniel Mack <zonque@gmail.com>, Kay Sievers <kay@vrfy.org>
+To: linux-kernel@vger.kernel.org
+Cc: Michael Kerrisk <mtk.manpages@gmail.com>, Ryan Lortie <desrt@desrt.ca>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-api@vger.kernel.org, Greg Kroah-Hartman <greg@kroah.com>, john.stultz@linaro.org, Lennart Poettering <lennart@poettering.net>, Daniel Mack <zonque@gmail.com>, Kay Sievers <kay@vrfy.org>, Hugh Dickins <hughd@google.com>, Tony Battersby <tonyb@cybernetics.com>, Andy Lutomirski <luto@amacapital.net>, David Herrmann <dh.herrmann@gmail.com>
 
 Hi
 
-On Mon, Jun 2, 2014 at 12:59 PM, Hugh Dickins <hughd@google.com> wrote:
-> On Fri, 23 May 2014, David Herrmann wrote:
->> On Tue, May 20, 2014 at 4:20 AM, Hugh Dickins <hughd@google.com> wrote:
->> > But this does highlight how the "size" arg to memfd_create() is
->> > perhaps redundant.  Why give a size there, when size can be changed
->> > afterwards?  I expect your answer is that many callers want to choose
->> > the size at the beginning, and would prefer to avoid the extra call.
->> > I'm not sure if that's a good enough reason for a redundant argument.
->>
->> At one point in time we might be required to support atomic-sealing.
->> So a memfd_create() call takes the initial seals as upper 32bits in
->> "flags" and sets them before returning the object. If these seals
->> contain SEAL_GROW/SHRINK, we must pass the size during setup (think
->> CLOEXEC with fork()).
->
-> That does sound like over-design to me.  You stop short of passing
-> in an optional buffer of the data it's to contain, good.
->
-> I think it would be a clearer interface without the size, but really
-> that's an issue for the linux-api people you'll be Cc'ing next time.
->
-> You say "think CLOEXEC with fork()": you have thought about this, I
-> have not, please spell out for me what the atomic size guards against.
-> Do you want an fd that's not shared across fork?
+This is v3 of the File-Sealing and memfd_create() patches. You can find v1 with
+a longer introduction at gmane:
+  http://thread.gmane.org/gmane.comp.video.dri.devel/102241
+An LWN article about memfd+sealing is available, too:
+  https://lwn.net/Articles/593918/
+v2 with some more discussions can be found here:
+  http://thread.gmane.org/gmane.linux.kernel.mm/115713
 
-My thinking was:
-Imagine a seal called SEAL_OPEN that prevents against open()
-(specifically on /proc/self/fd/). That seal obviously has to be set
-before creating the object, otherwise there's a race. Therefore, I'd
-need a "seals" argument for memfd_create(). Now imagine there's a
-similar seal that has such a race but prevents any following resize.
-Then I'd have to set the size during initialization, too.
+This series introduces two new APIs:
+  memfd_create(): Think of this syscall as malloc() but it returns a
+                  file-descriptor instead of a pointer. That file-descriptor is
+                  backed by anon-memory and can be memory-mapped for access.
+  sealing: The sealing API can be used to prevent a specific set of operations
+           on a file-descriptor. You 'seal' the file and give thus the
+           guarantee, that it cannot be modified in the specific ways.
 
-However, in my opinion SEAL_OPEN does not protect against any real
-attack (it only protects you from yourself). Therefore, I never added
-it. Furthermore, I couldn't think of any similar situation, so I now
-removed the "size" argument and made "flags" just an "unsigned int".
-It was just a precaution, but I'm fine with dropping it as we cannot
-come up with a real possible race.
+A short high-level introduction is also available here:
+  http://dvdhrm.wordpress.com/2014/06/10/memfd_create2/
 
-Sorry for the confusion. I'll send v3 in a minute.
+
+Changed in v3:
+ - fcntl() now returns EINVAL if the FD does not support sealing. We used to
+   return EBADF like pipe_fcntl() does, but that is really weird and I don't
+   like repeating that.
+ - seals are now saved as "unsigned int" instead of "u32".
+ - i_mmap_writable is now an atomic so we can deny writable mappings just like
+   i_writecount does.
+ - SHMEM_ALLOW_SEALING is dropped. We initialize all objects with F_SEAL_SEAL
+   and only unset it for memfds that shall support sealing.
+ - memfd_create() no longer has a size argument. It was redundant, use
+   ftruncate() or fallocate().
+ - memfd_create() flags are "unsigned int" now, instead of "u64".
+ - NAME_MAX off-by-one fix
+ - several cosmetic changes
+ - Added AIO/Direct-IO page-pinning protection
+
+The last point is the most important change in this version: We now bail out if
+any page-refcount is elevated while setting SEAL_WRITE. This prevents parallel
+GUP users from writing to sealed files _after_ they were sealed. There is also a
+new FUSE-based test-case to trigger such situations.
+
+The last 2 patches try to improve the page-pinning handling. I included both in
+this series, but obviously only one of them is needed (or we could stack them):
+ - 6/7: This waits for up to 150ms for pages to be unpinned
+ - 7/7: This isolates pinned pages and replaces them with a fresh copy
+
+Hugh, patch 6 is basically your code. In case that gets merged, can I put your
+Signed-off-by on it?
+
+I hope I didn't miss anything. Further comments welcome!
 
 Thanks
 David
+
+David Herrmann (7):
+  mm: allow drivers to prevent new writable mappings
+  shm: add sealing API
+  shm: add memfd_create() syscall
+  selftests: add memfd_create() + sealing tests
+  selftests: add memfd/sealing page-pinning tests
+  shm: wait for pins to be released when sealing
+  shm: isolate pinned pages when sealing files
+
+ arch/x86/syscalls/syscall_32.tbl               |   1 +
+ arch/x86/syscalls/syscall_64.tbl               |   1 +
+ fs/fcntl.c                                     |   5 +
+ fs/inode.c                                     |   1 +
+ include/linux/fs.h                             |  29 +-
+ include/linux/shmem_fs.h                       |  17 +
+ include/linux/syscalls.h                       |   1 +
+ include/uapi/linux/fcntl.h                     |  15 +
+ include/uapi/linux/memfd.h                     |   8 +
+ kernel/fork.c                                  |   2 +-
+ kernel/sys_ni.c                                |   1 +
+ mm/mmap.c                                      |  24 +-
+ mm/shmem.c                                     | 320 ++++++++-
+ mm/swap_state.c                                |   1 +
+ tools/testing/selftests/Makefile               |   1 +
+ tools/testing/selftests/memfd/.gitignore       |   4 +
+ tools/testing/selftests/memfd/Makefile         |  40 ++
+ tools/testing/selftests/memfd/fuse_mnt.c       | 110 +++
+ tools/testing/selftests/memfd/fuse_test.c      | 311 +++++++++
+ tools/testing/selftests/memfd/memfd_test.c     | 913 +++++++++++++++++++++++++
+ tools/testing/selftests/memfd/run_fuse_test.sh |  14 +
+ 21 files changed, 1807 insertions(+), 12 deletions(-)
+ create mode 100644 include/uapi/linux/memfd.h
+ create mode 100644 tools/testing/selftests/memfd/.gitignore
+ create mode 100644 tools/testing/selftests/memfd/Makefile
+ create mode 100755 tools/testing/selftests/memfd/fuse_mnt.c
+ create mode 100644 tools/testing/selftests/memfd/fuse_test.c
+ create mode 100644 tools/testing/selftests/memfd/memfd_test.c
+ create mode 100755 tools/testing/selftests/memfd/run_fuse_test.sh
+
+-- 
+2.0.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
