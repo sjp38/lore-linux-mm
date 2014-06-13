@@ -1,109 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f174.google.com (mail-we0-f174.google.com [74.125.82.174])
-	by kanga.kvack.org (Postfix) with ESMTP id B029D6B007D
-	for <linux-mm@kvack.org>; Fri, 13 Jun 2014 00:56:01 -0400 (EDT)
-Received: by mail-we0-f174.google.com with SMTP id u57so2159252wes.5
-        for <linux-mm@kvack.org>; Thu, 12 Jun 2014 21:56:01 -0700 (PDT)
-Received: from mail-wg0-f47.google.com (mail-wg0-f47.google.com [74.125.82.47])
-        by mx.google.com with ESMTPS id dr2si208285wid.14.2014.06.12.21.55.59
+Received: from mail-we0-f180.google.com (mail-we0-f180.google.com [74.125.82.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 985816B0080
+	for <linux-mm@kvack.org>; Fri, 13 Jun 2014 00:56:11 -0400 (EDT)
+Received: by mail-we0-f180.google.com with SMTP id x48so2170949wes.25
+        for <linux-mm@kvack.org>; Thu, 12 Jun 2014 21:56:11 -0700 (PDT)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id kq9si4723375wjc.136.2014.06.12.21.56.09
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 12 Jun 2014 21:56:00 -0700 (PDT)
-Received: by mail-wg0-f47.google.com with SMTP id k14so2127249wgh.6
-        for <linux-mm@kvack.org>; Thu, 12 Jun 2014 21:55:59 -0700 (PDT)
-Date: Fri, 13 Jun 2014 07:55:55 +0300
-From: Dan Aloni <dan@kernelim.com>
-Subject: Re: mm/sched/net: BUG when running simple code
-Message-ID: <20140613045555.GB20729@gmail.com>
-References: <539A6850.4090408@oracle.com>
- <20140613032754.GA20729@gmail.com>
- <539A77A1.60700@oracle.com>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 12 Jun 2014 21:56:10 -0700 (PDT)
+Date: Fri, 13 Jun 2014 00:55:57 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [Bug 75101] New: [bisected] s2disk / hibernate blocks on "Saving
+ 506031 image data pages () ..."
+Message-ID: <20140613045557.GL2878@cmpxchg.org>
+References: <20140505233358.GC19914@cmpxchg.org>
+ <5368227D.7060302@intel.com>
+ <20140612220200.GA25344@cmpxchg.org>
+ <539A3CD7.6080100@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <539A77A1.60700@oracle.com>
+In-Reply-To: <539A3CD7.6080100@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, LKML <linux-kernel@vger.kernel.org>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, Dave Jones <davej@redhat.com>
+To: "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>
+Cc: =?iso-8859-1?Q?=22Rodolfo_Garc=EDa_Pe=F1as_=28kix=29=22?= <kix@kix.es>, Oliver Winker <oliverml1@oli1170.net>, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, Maxim Patlasov <mpatlasov@parallels.com>, Fengguang Wu <fengguang.wu@intel.com>, Tejun Heo <tj@kernel.org>
 
-On Fri, Jun 13, 2014 at 12:01:37AM -0400, Sasha Levin wrote:
-> On 06/12/2014 11:27 PM, Dan Aloni wrote:
-> > On Thu, Jun 12, 2014 at 10:56:16PM -0400, Sasha Levin wrote:
-> >> > Hi all,
-> >> > 
-> >> > Okay, I'm really lost. I got the following when fuzzing, and can't really explain what's
-> >> > going on. It seems that we get a "unable to handle kernel paging request" when running
-> >> > rather simple code, and I can't figure out how it would cause it.
-> > [..]
-> >> > Which agrees with the trace I got:
-> >> > 
-> >> > [  516.309720] BUG: unable to handle kernel paging request at ffffffffa0f12560
-> >> > [  516.309720] IP: netlink_getsockopt (net/netlink/af_netlink.c:2271)
-> > [..]
-> >> > [  516.309720] RIP netlink_getsockopt (net/netlink/af_netlink.c:2271)
-> >> > [  516.309720]  RSP <ffff8803fc85fed8>
-> >> > [  516.309720] CR2: ffffffffa0f12560
-> >> > 
-> >> > They only theory I had so far is that netlink is a module, and has gone away while the code
-> >> > was executing, but netlink isn't a module on my kernel.
-> > The RIP - 0xffffffffa0f12560 is in the range (from Documentation/x86/x86_64/mm.txt):
-> > 
-> >     ffffffffa0000000 - ffffffffff5fffff (=1525 MB) module mapping space
-> > 
-> > So seems it was in a module.
+On Fri, Jun 13, 2014 at 01:50:47AM +0200, Rafael J. Wysocki wrote:
+> On 6/13/2014 12:02 AM, Johannes Weiner wrote:
+> >On Tue, May 06, 2014 at 01:45:01AM +0200, Rafael J. Wysocki wrote:
+> >>On 5/6/2014 1:33 AM, Johannes Weiner wrote:
+> >>>Hi Oliver,
+> >>>
+> >>>On Mon, May 05, 2014 at 11:00:13PM +0200, Oliver Winker wrote:
+> >>>>Hello,
+> >>>>
+> >>>>1) Attached a full function-trace log + other SysRq outputs, see [1]
+> >>>>attached.
+> >>>>
+> >>>>I saw bdi_...() calls in the s2disk paths, but didn't check in detail
+> >>>>Probably more efficient when one of you guys looks directly.
+> >>>Thanks, this looks interesting.  balance_dirty_pages() wakes up the
+> >>>bdi_wq workqueue as it should:
+> >>>
+> >>>[  249.148009]   s2disk-3327    2.... 48550413us : global_dirty_limits <-balance_dirty_pages_ratelimited
+> >>>[  249.148009]   s2disk-3327    2.... 48550414us : global_dirtyable_memory <-global_dirty_limits
+> >>>[  249.148009]   s2disk-3327    2.... 48550414us : writeback_in_progress <-balance_dirty_pages_ratelimited
+> >>>[  249.148009]   s2disk-3327    2.... 48550414us : bdi_start_background_writeback <-balance_dirty_pages_ratelimited
+> >>>[  249.148009]   s2disk-3327    2.... 48550414us : mod_delayed_work_on <-balance_dirty_pages_ratelimited
+> >>>but the worker wakeup doesn't actually do anything:
+> >>>[  249.148009] kworker/-3466    2d... 48550431us : finish_task_switch <-__schedule
+> >>>[  249.148009] kworker/-3466    2.... 48550431us : _raw_spin_lock_irq <-worker_thread
+> >>>[  249.148009] kworker/-3466    2d... 48550431us : need_to_create_worker <-worker_thread
+> >>>[  249.148009] kworker/-3466    2d... 48550432us : worker_enter_idle <-worker_thread
+> >>>[  249.148009] kworker/-3466    2d... 48550432us : too_many_workers <-worker_enter_idle
+> >>>[  249.148009] kworker/-3466    2.... 48550432us : schedule <-worker_thread
+> >>>[  249.148009] kworker/-3466    2.... 48550432us : __schedule <-worker_thread
+> >>>
+> >>>My suspicion is that this fails because the bdi_wq is frozen at this
+> >>>point and so the flush work never runs until resume, whereas before my
+> >>>patch the effective dirty limit was high enough so that image could be
+> >>>written in one go without being throttled; followed by an fsync() that
+> >>>then writes the pages in the context of the unfrozen s2disk.
+> >>>
+> >>>Does this make sense?  Rafael?  Tejun?
+> >>Well, it does seem to make sense to me.
+> > From what I see, this is a deadlock in the userspace suspend model and
+> >just happened to work by chance in the past.
 > 
-> Yup, that's why that theory came up, but when I checked my config:
+> Well, it had been working for quite a while, so it was a rather large
+> opportunity
+> window it seems. :-)
+
+No doubt about that, and I feel bad that it broke.  But it's still a
+deadlock that can't reasonably be accommodated from dirty throttling.
+
+It can't just put the flushers to sleep and then issue a large amount
+of buffered IO, hoping it doesn't hit the dirty limits.  Don't shoot
+the messenger, this bug needs to be addressed, not get papered over.
+
+> >Can we patch suspend-utils as follows?
 > 
-> $ cat .config | grep NETLINK
-> CONFIG_COMPAT_NETLINK_MESSAGES=y
-> CONFIG_NETFILTER_NETLINK=y
-> CONFIG_NETFILTER_NETLINK_ACCT=y
-> CONFIG_NETFILTER_NETLINK_QUEUE=y
-> CONFIG_NETFILTER_NETLINK_LOG=y
-> CONFIG_NF_CT_NETLINK=y
-> CONFIG_NF_CT_NETLINK_TIMEOUT=y
-> CONFIG_NF_CT_NETLINK_HELPER=y
-> CONFIG_NETFILTER_NETLINK_QUEUE_CT=y
-> CONFIG_NETLINK_MMAP=y
-> CONFIG_NETLINK_DIAG=y
-> CONFIG_SCSI_NETLINK=y
-> CONFIG_QUOTA_NETLINK_INTERFACE=y
+> Perhaps we can.  Let's ask the new maintainer.
 > 
-> that theory went away. (also confirmed by not finding a netlink module.)
+> Rodolfo, do you think you can apply the patch below to suspend-utils?
 > 
-> What about the kernel .text overflowing into the modules space? The loader
-> checks for that, but can something like that happen after everything is
-> up and running? I'll look into that tomorrow.
+> >Alternatively, suspend-utils
+> >could clear the dirty limits before it starts writing and restore them
+> >post-resume.
+> 
+> That (and the patch too) doesn't seem to address the problem with existing
+> suspend-utils
+> binaries, however.
 
-The kernel .text needs to be more than 512MB for the overlap to happen. 
-
-    ffffffff80000000 - ffffffffa0000000 (=512 MB)  kernel text mapping, from phys 0
-
-Also, it is bizarre that symbol resolution resolved ffffffffa0f12560 to 
-a symbol that is in module space where af_netlink.o is surely not because of 
-"obj-y := af_netlink.o" in the Makefile. 
-
-What does your /proc/kallsyms show when sorted with regards to the symbols
-in question?
-
-Also curious are the addresses you have on the stack:
-
-> [  516.309720] Stack:
-> [  516.309720]  ffff8803fc85ff18 ffff8803fc85ff18 ffff8803fc85fef8 8900200549908020
-> [  516.309720]  ffff8803fc85ff18 ffffffff9ff66470 ffff8803fc85ff18 0000000000000037
-> [  516.309720]  ffff8803fc85ff78 ffffffff9ff69d26 0000000000000037 0000000000000004
-
-0xffffffff9ff69d26 is just a small space before the beginning of the module 
-mapping space, at the end of the kernel text mapping. Unless there are 
-some tricks on those mappings, they should be unused, or perhaps 
-CONFIG_DEBUG_PAGEALLOC is at play here?
-
-And also, the Oops code of 0003 (PF_WRITE and PF_USER) might hint at
-what Dave wrote.
-
--- 
-Dan Aloni
+It's userspace that freezes the system before issuing buffered IO, so
+my conclusion was that the bug is in there.  This is arguable.  I also
+wouldn't be opposed to a patch that sets the dirty limits to infinity
+from the ioctl that freezes the system or creates the image.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
