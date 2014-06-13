@@ -1,45 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 129F76B00C8
-	for <linux-mm@kvack.org>; Fri, 13 Jun 2014 09:56:25 -0400 (EDT)
-Received: by mail-wg0-f49.google.com with SMTP id y10so2798244wgg.20
-        for <linux-mm@kvack.org>; Fri, 13 Jun 2014 06:56:25 -0700 (PDT)
-Received: from ZenIV.linux.org.uk (zeniv.linux.org.uk. [2002:c35c:fd02::1])
-        by mx.google.com with ESMTPS id ht3si6766109wjb.144.2014.06.13.06.56.24
+	by kanga.kvack.org (Postfix) with ESMTP id C45B66B00CA
+	for <linux-mm@kvack.org>; Fri, 13 Jun 2014 10:17:11 -0400 (EDT)
+Received: by mail-wg0-f49.google.com with SMTP id y10so2858048wgg.32
+        for <linux-mm@kvack.org>; Fri, 13 Jun 2014 07:17:11 -0700 (PDT)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id pg7si6906161wjb.56.2014.06.13.07.17.09
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 13 Jun 2014 06:56:24 -0700 (PDT)
-Date: Fri, 13 Jun 2014 14:56:15 +0100
-From: Al Viro <viro@ZenIV.linux.org.uk>
-Subject: Re: mm/fs: gpf when shrinking slab
-Message-ID: <20140613135615.GG18016@ZenIV.linux.org.uk>
-References: <539AF460.4000400@oracle.com>
- <539AF4A6.9060707@oracle.com>
- <20140613130026.GF18016@ZenIV.linux.org.uk>
- <539AFCBF.1040505@oracle.com>
+        Fri, 13 Jun 2014 07:17:09 -0700 (PDT)
+Date: Fri, 13 Jun 2014 10:17:00 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [RESEND PATCH v2] mm/vmscan.c: wrap five parameters into
+ writeback_stats for reducing the stack consumption
+Message-ID: <20140613141700.GO2878@cmpxchg.org>
+References: <1402639088-4845-1-git-send-email-slaoub@gmail.com>
+ <1402667259.6072.20.camel@debian>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <539AFCBF.1040505@oracle.com>
+In-Reply-To: <1402667259.6072.20.camel@debian>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: Christoph Lameter <cl@gentwo.org>, Pekka Enberg <penberg@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Dave Jones <davej@redhat.com>
+To: Chen Yucong <slaoub@gmail.com>
+Cc: akpm@linux-foundation.org, mgorman@suse.de, mhocko@suse.cz, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Jun 13, 2014 at 09:29:35AM -0400, Sasha Levin wrote:
-> On 06/13/2014 09:00 AM, Al Viro wrote:
-> > On Fri, Jun 13, 2014 at 08:55:02AM -0400, Sasha Levin wrote:
-> >> Hand too fast on the trigger... sorry.
-> >>
-> >> It happened while fuzzing inside a KVM tools guest on the latest -next kernel. Seems
-> >> to be pretty difficult to reproduce.
-> > 
-> > Does that kernel contain c2338f?
-> > 
+On Fri, Jun 13, 2014 at 09:47:39PM +0800, Chen Yucong wrote:
+> Hi all,
 > 
-> Nope, it didn't.
+> On Fri, 2014-06-13 at 13:58 +0800, Chen Yucong wrote:
+> > shrink_page_list() has too many arguments that have already reached ten.
+> > Some of those arguments and temporary variables introduces extra 80 bytes
+> > on the stack. This patch wraps five parameters into writeback_stats and removes
+> > some temporary variables, thus making the relative functions to consume fewer
+> > stack space.
+> > 
+> I this message, I have renamed shrink_result to writeback_stats
+> according to Johannes Weiner's reply. Think carefully, this change is
+> too hasty. Although it now just contains statistics on the writeback
+> states of the scanned pages, it may also be used for gathering other
+> information at some point in the future. So I think shrink_result is a
+> little bit better!
 
-Try to reproduce with it, please...
+Then we can always rename it "at some point in the future", the name
+is not set in stone.  At this time, it only contains writeback stats,
+and I think it should be named accordingly.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
