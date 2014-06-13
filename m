@@ -1,57 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vc0-f170.google.com (mail-vc0-f170.google.com [209.85.220.170])
-	by kanga.kvack.org (Postfix) with ESMTP id 67C9D6B0036
-	for <linux-mm@kvack.org>; Fri, 13 Jun 2014 11:06:52 -0400 (EDT)
-Received: by mail-vc0-f170.google.com with SMTP id hy10so2443169vcb.1
-        for <linux-mm@kvack.org>; Fri, 13 Jun 2014 08:06:52 -0700 (PDT)
-Received: from mail-ve0-f171.google.com (mail-ve0-f171.google.com [209.85.128.171])
-        by mx.google.com with ESMTPS id sp1si1495701vec.83.2014.06.13.08.06.51
+Received: from mail-yk0-f169.google.com (mail-yk0-f169.google.com [209.85.160.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 6093B6B0038
+	for <linux-mm@kvack.org>; Fri, 13 Jun 2014 11:09:08 -0400 (EDT)
+Received: by mail-yk0-f169.google.com with SMTP id q200so2142109ykb.14
+        for <linux-mm@kvack.org>; Fri, 13 Jun 2014 08:09:08 -0700 (PDT)
+Received: from g5t1626.atlanta.hp.com (g5t1626.atlanta.hp.com. [15.192.137.9])
+        by mx.google.com with ESMTPS id j3si6165116yhc.175.2014.06.13.08.09.07
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 13 Jun 2014 08:06:51 -0700 (PDT)
-Received: by mail-ve0-f171.google.com with SMTP id jz11so3488603veb.16
-        for <linux-mm@kvack.org>; Fri, 13 Jun 2014 08:06:51 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <1402655819-14325-8-git-send-email-dh.herrmann@gmail.com>
-References: <1402655819-14325-1-git-send-email-dh.herrmann@gmail.com> <1402655819-14325-8-git-send-email-dh.herrmann@gmail.com>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Fri, 13 Jun 2014 08:06:31 -0700
-Message-ID: <CALCETrWaUsq_D2Z1PwbbwQQWKrnsWTLOdUR6bqPuedi8ZHgvEQ@mail.gmail.com>
-Subject: Re: [RFC v3 7/7] shm: isolate pinned pages when sealing files
-Content-Type: text/plain; charset=UTF-8
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 13 Jun 2014 08:09:07 -0700 (PDT)
+Message-ID: <1402671597.7963.15.camel@misato.fc.hp.com>
+Subject: Re: [PATCH v2 1/2] mem-hotplug: Avoid illegal state prefixed with
+ legal state when changing state of memory_block.
+From: Toshi Kani <toshi.kani@hp.com>
+Date: Fri, 13 Jun 2014 08:59:57 -0600
+In-Reply-To: <1402027134-14423-2-git-send-email-tangchen@cn.fujitsu.com>
+References: <1402027134-14423-1-git-send-email-tangchen@cn.fujitsu.com>
+	 <1402027134-14423-2-git-send-email-tangchen@cn.fujitsu.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Herrmann <dh.herrmann@gmail.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Michael Kerrisk <mtk.manpages@gmail.com>, Ryan Lortie <desrt@desrt.ca>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, Greg Kroah-Hartman <greg@kroah.com>, John Stultz <john.stultz@linaro.org>, Lennart Poettering <lennart@poettering.net>, Daniel Mack <zonque@gmail.com>, Kay Sievers <kay@vrfy.org>, Hugh Dickins <hughd@google.com>, Tony Battersby <tonyb@cybernetics.com>
+To: Tang Chen <tangchen@cn.fujitsu.com>
+Cc: gregkh@linuxfoundation.org, akpm@linux-foundation.org, tj@kernel.org, hpa@zytor.com, mingo@elte.hu, laijs@cn.fujitsu.com, isimatu.yasuaki@jp.fujitsu.com, hutao@cn.fujitsu.com, guz.fnst@cn.fujitsu.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, Jun 13, 2014 at 3:36 AM, David Herrmann <dh.herrmann@gmail.com> wrote:
-> When setting SEAL_WRITE, we must make sure nobody has a writable reference
-> to the pages (via GUP or similar). We currently check references and wait
-> some time for them to be dropped. This, however, might fail for several
-> reasons, including:
->  - the page is pinned for longer than we wait
->  - while we wait, someone takes an already pinned page for read-access
->
-> Therefore, this patch introduces page-isolation. When sealing a file with
-> SEAL_WRITE, we copy all pages that have an elevated ref-count. The newpage
-> is put in place atomically, the old page is detached and left alone. It
-> will get reclaimed once the last external user dropped it.
->
-> Signed-off-by: David Herrmann <dh.herrmann@gmail.com>
+On Fri, 2014-06-06 at 11:58 +0800, Tang Chen wrote:
+> We use the following command to online a memory_block:
+> 
+> echo online|online_kernel|online_movable > /sys/devices/system/memory/memoryXXX/state
+> 
+> But, if we do the following:
+> 
+> echo online_fhsjkghfkd > /sys/devices/system/memory/memoryXXX/state
+> 
+> the block will also be onlined.
+> 
+> This is because the following code in store_mem_state() does not compare the whole string,
+> but only the prefix of the string.
+> 
+> store_mem_state()
+> {
+> 	......
+>  328         if (!strncmp(buf, "online_kernel", min_t(int, count, 13)))
+> 
+> Here, only compare the first 13 letters of the string. If we give "online_kernelXXXXXX",
+> it will be recognized as online_kernel, which is incorrect.
+> 
+>  329                 online_type = ONLINE_KERNEL;
+>  330         else if (!strncmp(buf, "online_movable", min_t(int, count, 14)))
+> 
+> We have the same problem here,
+> 
+>  331                 online_type = ONLINE_MOVABLE;
+>  332         else if (!strncmp(buf, "online", min_t(int, count, 6)))
+> 
+> here,
+> 
+> (Here is more problematic. If we give online_movalbe, which is a typo of online_movable,
+>  it will be recognized as online without noticing the author.)
+> 
+>  333                 online_type = ONLINE_KEEP;
+>  334         else if (!strncmp(buf, "offline", min_t(int, count, 7)))
+> 
+> and here.
+> 
+>  335                 online_type = -1;
+>  336         else {
+>  337                 ret = -EINVAL;
+>  338                 goto err;
+>  339         }
+> 	......
+> }
+> 
+> This patch fix this problem by using sysfs_streq() to compare the whole string.
+> 
+> Reported-by: Hu Tao <hutao@cn.fujitsu.com>
+> Signed-off-by: Tang Chen <tangchen@cn.fujitsu.com>
 
-Won't this have unexpected effects?
+Acked-by: Toshi Kani <toshi.kani@hp.com>
 
-Thread 1:  start read into mapping backed by fd
+Thanks,
+-Toshi
 
-Thread 2:  SEAL_WRITE
-
-Thread 1: read finishes.  now the page doesn't match the sealed page
-
-Is this okay?  Or am I missing something?
-
-Are there really things that keep unnecessary writable pins around?
-
---Andy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
