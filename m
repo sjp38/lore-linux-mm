@@ -1,128 +1,144 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
-	by kanga.kvack.org (Postfix) with ESMTP id 7058D6B0031
-	for <linux-mm@kvack.org>; Thu, 12 Jun 2014 22:40:17 -0400 (EDT)
-Received: by mail-pd0-f172.google.com with SMTP id fp1so1612022pdb.3
-        for <linux-mm@kvack.org>; Thu, 12 Jun 2014 19:40:17 -0700 (PDT)
-Received: from mail-pb0-x233.google.com (mail-pb0-x233.google.com [2607:f8b0:400e:c01::233])
-        by mx.google.com with ESMTPS id kw2si3064500pab.141.2014.06.12.19.40.16
+Received: from mail-ie0-f174.google.com (mail-ie0-f174.google.com [209.85.223.174])
+	by kanga.kvack.org (Postfix) with ESMTP id 390BD6B0036
+	for <linux-mm@kvack.org>; Thu, 12 Jun 2014 22:56:50 -0400 (EDT)
+Received: by mail-ie0-f174.google.com with SMTP id lx4so1946560iec.33
+        for <linux-mm@kvack.org>; Thu, 12 Jun 2014 19:56:50 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id qd10si81746872igc.46.2014.06.12.19.56.49
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 12 Jun 2014 19:40:16 -0700 (PDT)
-Received: by mail-pb0-f51.google.com with SMTP id rp16so1661012pbb.38
-        for <linux-mm@kvack.org>; Thu, 12 Jun 2014 19:40:15 -0700 (PDT)
-Date: Fri, 13 Jun 2014 11:40:05 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 02/10] mm, compaction: report compaction as contended
- only due to lock contention
-Message-ID: <20140613024005.GA8704@gmail.com>
-References: <1402305982-6928-1-git-send-email-vbabka@suse.cz>
- <1402305982-6928-2-git-send-email-vbabka@suse.cz>
- <20140611011019.GC15630@bbox>
- <53984A06.6020607@suse.cz>
- <20140611234944.GA12415@bbox>
- <5399B2DC.2040004@suse.cz>
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Thu, 12 Jun 2014 19:56:49 -0700 (PDT)
+Message-ID: <539A6850.4090408@oracle.com>
+Date: Thu, 12 Jun 2014 22:56:16 -0400
+From: Sasha Levin <sasha.levin@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5399B2DC.2040004@suse.cz>
+Subject: mm/sched/net: BUG when running simple code
+Content-Type: text/plain; charset=ISO-8859-1
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>, LKML <linux-kernel@vger.kernel.org>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, Dave Jones <davej@redhat.com>
 
-On Thu, Jun 12, 2014 at 04:02:04PM +0200, Vlastimil Babka wrote:
-> On 06/12/2014 01:49 AM, Minchan Kim wrote:
-> >On Wed, Jun 11, 2014 at 02:22:30PM +0200, Vlastimil Babka wrote:
-> >>On 06/11/2014 03:10 AM, Minchan Kim wrote:
-> >>>On Mon, Jun 09, 2014 at 11:26:14AM +0200, Vlastimil Babka wrote:
-> >>>>Async compaction aborts when it detects zone lock contention or need_resched()
-> >>>>is true. David Rientjes has reported that in practice, most direct async
-> >>>>compactions for THP allocation abort due to need_resched(). This means that a
-> >>>>second direct compaction is never attempted, which might be OK for a page
-> >>>>fault, but hugepaged is intended to attempt a sync compaction in such case and
-> >>>>in these cases it won't.
-> >>>>
-> >>>>This patch replaces "bool contended" in compact_control with an enum that
-> >>>>distinguieshes between aborting due to need_resched() and aborting due to lock
-> >>>>contention. This allows propagating the abort through all compaction functions
-> >>>>as before, but declaring the direct compaction as contended only when lock
-> >>>>contantion has been detected.
-> >>>>
-> >>>>As a result, hugepaged will proceed with second sync compaction as intended,
-> >>>>when the preceding async compaction aborted due to need_resched().
-> >>>
-> >>>You said "second direct compaction is never attempted, which might be OK
-> >>>for a page fault" and said "hugepagd is intented to attempt a sync compaction"
-> >>>so I feel you want to handle khugepaged so special unlike other direct compact
-> >>>(ex, page fault).
-> >>
-> >>Well khugepaged is my primary concern, but I imagine there are other
-> >>direct compaction users besides THP page fault and khugepaged.
-> >>
-> >>>By this patch, direct compaction take care only lock contention, not rescheduling
-> >>>so that pop questions.
-> >>>
-> >>>Is it okay not to consider need_resched in direct compaction really?
-> >>
-> >>It still considers need_resched() to back of from async compaction.
-> >>It's only about signaling contended_compaction back to
-> >>__alloc_pages_slowpath(). There's this code executed after the
-> >>first, async compaction fails:
-> >>
-> >>/*
-> >>  * It can become very expensive to allocate transparent hugepages at
-> >>  * fault, so use asynchronous memory compaction for THP unless it is
-> >>  * khugepaged trying to collapse.
-> >>  */
-> >>if (!(gfp_mask & __GFP_NO_KSWAPD) || (current->flags & PF_KTHREAD))
-> >>         migration_mode = MIGRATE_SYNC_LIGHT;
-> >>
-> >>/*
-> >>  * If compaction is deferred for high-order allocations, it is because
-> >>  * sync compaction recently failed. In this is the case and the caller
-> >>  * requested a movable allocation that does not heavily disrupt the
-> >>  * system then fail the allocation instead of entering direct reclaim.
-> >>  */
-> >>if ((deferred_compaction || contended_compaction) &&
-> >>                                         (gfp_mask & __GFP_NO_KSWAPD))
-> >>         goto nopage;
-> >>
-> >>Both THP page fault and khugepaged use __GFP_NO_KSWAPD. The first
-> >>if() decides whether the second attempt will be sync (for
-> >>khugepaged) or async (page fault). The second if() decides that if
-> >>compaction was contended, then there won't be any second attempt
-> >>(and reclaim) at all. Counting need_resched() as contended in this
-> >>case is bad for khugepaged. Even for page fault it means no direct
-> >
-> >I agree khugepaged shouldn't count on need_resched, even lock contention
-> >because it was a result from admin's decision.
-> >If it hurts system performance, he should adjust knobs for khugepaged.
-> >
-> >>reclaim and a second async compaction. David says need_resched()
-> >>occurs so often then it is a poor heuristic to decide this.
-> >
-> >But page fault is a bit different. Inherently, high-order allocation
-> >(ie, above PAGE_ALLOC_COSTLY_ORDER) is fragile so all of the caller
-> >shoud keep in mind that and prepare second plan(ex, 4K allocation)
-> >so direct reclaim/compaction should take care of latency rather than
-> >success ratio.
-> 
-> Yes it's a rather delicate balance. But the plan is now to try
-> balance this differently than using need_resched.
-> 
-> >If need_resched in second attempt(ie, synchronous compaction) is almost
-> >true, it means the process consumed his timeslice so it shouldn't be
-> >greedy and gives a CPU resource to others.
-> 
-> Synchronous compaction uses cond_resched() so that's fine I think?
+Hi all,
 
-Sorry for being not clear. I post for the clarification before taking
-a rest in holiday. :)
+Okay, I'm really lost. I got the following when fuzzing, and can't really explain what's
+going on. It seems that we get a "unable to handle kernel paging request" when running
+rather simple code, and I can't figure out how it would cause it.
 
-When THP page fault occurs and found rescheduling while doing async
-direct compaction, it goes "nopage" and fall-backed to 4K page.
-It's good to me.
+The code in question is (in net/netlink/af_netlink.c):
 
-Another topic: I couldn't find any cond_resched. Anyway, it could be
-another patch.
+static int netlink_getsockopt(struct socket *sock, int level, int optname,
+                              char __user *optval, int __user *optlen)
+{
+        struct sock *sk = sock->sk;
+        struct netlink_sock *nlk = nlk_sk(sk);
+        int len, val, err;
+
+        if (level != SOL_NETLINK)
+                return -ENOPROTOOPT;
+
+        if (get_user(len, optlen))
+                return -EFAULT;
+        if (len < 0)  <==== THIS
+                return -EINVAL;
+
+The disassembly I got shows:
+
+        if (get_user(len, optlen))
+     b1f:       e8 00 00 00 00          callq  b24 <netlink_getsockopt+0x44>
+                        b20: R_X86_64_PC32      might_fault-0x4
+     b24:       4c 89 e0                mov    %r12,%rax
+     b27:       e8 00 00 00 00          callq  b2c <netlink_getsockopt+0x4c>
+                        b28: R_X86_64_PC32      __get_user_4-0x4
+     b2c:       85 c0                   test   %eax,%eax
+     b2e:       74 10                   je     b40 <netlink_getsockopt+0x60>
+                return -EFAULT;
+     b30:       bb f2 ff ff ff          mov    $0xfffffff2,%ebx
+     b35:       e9 06 01 00 00          jmpq   c40 <netlink_getsockopt+0x160>
+     b3a:       66 0f 1f 44 00 00       nopw   0x0(%rax,%rax,1)
+        if (len < 0)
+     b40:       85 d2                   test   %edx,%edx
+     b42:       0f 88 f0 00 00 00       js     c38 <netlink_getsockopt+0x158>
+                return -EINVAL;
+
+Which agrees with the trace I got:
+
+[  516.309720] BUG: unable to handle kernel paging request at ffffffffa0f12560
+[  516.309720] IP: netlink_getsockopt (net/netlink/af_netlink.c:2271)
+[  516.309720] PGD 22031067 PUD 22032063 PMD 8000000020e001e1
+[  516.309720] Oops: 0003 [#1] PREEMPT SMP DEBUG_PAGEALLOC
+[  516.309720] Dumping ftrace buffer:
+[  516.309720]    (ftrace buffer empty)
+[  516.309720] Modules linked in:
+[  516.309720] CPU: 11 PID: 9212 Comm: trinity-c11 Tainted: G        W     3.15.0-next-20140612-sasha-00022-g5e4db85-dirty #645
+[  516.309720] task: ffff8803fc860000 ti: ffff8803fc85c000 task.ti: ffff8803fc85c000
+[  516.309720] RIP: netlink_getsockopt (net/netlink/af_netlink.c:2271)
+[  516.309720] RSP: 0018:ffff8803fc85fed8  EFLAGS: 00010216
+[  516.309720] RAX: ffffffffa0f12560 RBX: 00000000ffffffa4 RCX: 0000000000000003
+[  516.309720] RDX: 00000000ffff9002 RSI: 0000000049908020 RDI: ffff88025c16a100
+[  516.309720] RBP: ffff8803fc85ff18 R08: 0000000000000001 R09: c900000000fd37ff
+[  516.309720] R10: 0000000000000001 R11: 0000000000000000 R12: ffffffffffff9002
+[  516.309720] R13: ffff88025c16a100 R14: 0000000000000001 R15: ffff88025bfa9bd8
+[  516.309720] FS:  00007f54be0a7700(0000) GS:ffff8802c8e00000(0000) knlGS:0000000000000000
+[  516.309720] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[  516.309720] CR2: ffffffffa0f12560 CR3: 000000040b1fb000 CR4: 00000000000006a0
+[  516.309720] Stack:
+[  516.309720]  ffff8803fc85ff18 ffff8803fc85ff18 ffff8803fc85fef8 8900200549908020
+[  516.309720]  ffff8803fc85ff18 ffffffff9ff66470 ffff8803fc85ff18 0000000000000037
+[  516.309720]  ffff8803fc85ff78 ffffffff9ff69d26 0000000000000037 0000000000000004
+[  516.309720] Call Trace:
+[  516.309720] ? sockfd_lookup_light (net/socket.c:457)
+[  516.309720] SyS_getsockopt (net/socket.c:1945 net/socket.c:1929)
+[  516.309720] tracesys (arch/x86/kernel/entry_64.S:542)
+[ 516.309720] Code: b2 fd 85 c0 74 10 bb f2 ff ff ff e9 06 01 00 00 66 0f 1f 44 00 00 85 d2 0f 88 f0 00 00 00 41 83 fd 04 74 42 41 83 fd 05 0f 84 88 <00> 00 00 41 83 fd 03 0f 85 de 00 00 00 83 fa 03 bb ea ff ff ff
+All code
+========
+   0:	b2 fd                	mov    $0xfd,%dl
+   2:	85 c0                	test   %eax,%eax
+   4:	74 10                	je     0x16
+   6:	bb f2 ff ff ff       	mov    $0xfffffff2,%ebx
+   b:	e9 06 01 00 00       	jmpq   0x116
+  10:	66 0f 1f 44 00 00    	nopw   0x0(%rax,%rax,1)
+  16:	85 d2                	test   %edx,%edx
+  18:*	0f 88 f0 00 00 00    	js     0x10e		<-- trapping instruction
+  1e:	41 83 fd 04          	cmp    $0x4,%r13d
+  22:	74 42                	je     0x66
+  24:	41 83 fd 05          	cmp    $0x5,%r13d
+  28:	0f 84 88 00 00 00    	je     0xb6
+  2e:	41 83 fd 03          	cmp    $0x3,%r13d
+  32:	0f 85 de 00 00 00    	jne    0x116
+  38:	83 fa 03             	cmp    $0x3,%edx
+  3b:	bb ea ff ff ff       	mov    $0xffffffea,%ebx
+	...
+
+Code starting with the faulting instruction
+===========================================
+   0:	00 00                	add    %al,(%rax)
+   2:	00 41 83             	add    %al,-0x7d(%rcx)
+   5:	fd                   	std
+   6:	03 0f                	add    (%rdi),%ecx
+   8:	85 de                	test   %ebx,%esi
+   a:	00 00                	add    %al,(%rax)
+   c:	00 83 fa 03 bb ea    	add    %al,-0x1544fc06(%rbx)
+  12:	ff                   	(bad)
+  13:	ff                   	(bad)
+  14:	ff 00                	incl   (%rax)
+[  516.309720] RIP netlink_getsockopt (net/netlink/af_netlink.c:2271)
+[  516.309720]  RSP <ffff8803fc85fed8>
+[  516.309720] CR2: ffffffffa0f12560
+
+They only theory I had so far is that netlink is a module, and has gone away while the code
+was executing, but netlink isn't a module on my kernel.
+
+
+
+Thanks,
+Sasha
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
