@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f41.google.com (mail-wg0-f41.google.com [74.125.82.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 0AD206B00AC
-	for <linux-mm@kvack.org>; Fri, 13 Jun 2014 06:45:16 -0400 (EDT)
-Received: by mail-wg0-f41.google.com with SMTP id a1so2559710wgh.24
-        for <linux-mm@kvack.org>; Fri, 13 Jun 2014 03:45:16 -0700 (PDT)
-Received: from mail-we0-x234.google.com (mail-we0-x234.google.com [2a00:1450:400c:c03::234])
-        by mx.google.com with ESMTPS id fm4si1300124wib.68.2014.06.13.03.45.15
+Received: from mail-we0-f181.google.com (mail-we0-f181.google.com [74.125.82.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 4F6EB6B00AF
+	for <linux-mm@kvack.org>; Fri, 13 Jun 2014 06:45:20 -0400 (EDT)
+Received: by mail-we0-f181.google.com with SMTP id q59so2543659wes.40
+        for <linux-mm@kvack.org>; Fri, 13 Jun 2014 03:45:19 -0700 (PDT)
+Received: from mail-wg0-x234.google.com (mail-wg0-x234.google.com [2a00:1450:400c:c00::234])
+        by mx.google.com with ESMTPS id fu4si1309058wib.47.2014.06.13.03.45.18
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 13 Jun 2014 03:45:15 -0700 (PDT)
-Received: by mail-we0-f180.google.com with SMTP id x48so2551463wes.39
-        for <linux-mm@kvack.org>; Fri, 13 Jun 2014 03:45:15 -0700 (PDT)
+        Fri, 13 Jun 2014 03:45:19 -0700 (PDT)
+Received: by mail-wg0-f52.google.com with SMTP id b13so2462579wgh.23
+        for <linux-mm@kvack.org>; Fri, 13 Jun 2014 03:45:18 -0700 (PDT)
 From: David Herrmann <dh.herrmann@gmail.com>
-Subject: [PATCH v3 1/7] mm: allow drivers to prevent new writable mappings
-Date: Fri, 13 Jun 2014 12:36:53 +0200
-Message-Id: <1402655819-14325-2-git-send-email-dh.herrmann@gmail.com>
+Subject: [PATCH v3 2/7] shm: add sealing API
+Date: Fri, 13 Jun 2014 12:36:54 +0200
+Message-Id: <1402655819-14325-3-git-send-email-dh.herrmann@gmail.com>
 In-Reply-To: <1402655819-14325-1-git-send-email-dh.herrmann@gmail.com>
 References: <1402655819-14325-1-git-send-email-dh.herrmann@gmail.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,184 +22,439 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: Michael Kerrisk <mtk.manpages@gmail.com>, Ryan Lortie <desrt@desrt.ca>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-api@vger.kernel.org, Greg Kroah-Hartman <greg@kroah.com>, john.stultz@linaro.org, Lennart Poettering <lennart@poettering.net>, Daniel Mack <zonque@gmail.com>, Kay Sievers <kay@vrfy.org>, Hugh Dickins <hughd@google.com>, Tony Battersby <tonyb@cybernetics.com>, Andy Lutomirski <luto@amacapital.net>, David Herrmann <dh.herrmann@gmail.com>
 
-The i_mmap_writable field counts existing writable mappings of an
-address_space. To allow drivers to prevent new writable mappings, make
-this counter signed and prevent new writable mappings if it is negative.
-This is modelled after i_writecount and DENYWRITE.
+If two processes share a common memory region, they usually want some
+guarantees to allow safe access. This often includes:
+  - one side cannot overwrite data while the other reads it
+  - one side cannot shrink the buffer while the other accesses it
+  - one side cannot grow the buffer beyond previously set boundaries
 
-This will be required by the shmem-sealing infrastructure to prevent any
-new writable mappings after the WRITE seal has been set. In case there
-exists a writable mapping, this operation will fail with EBUSY.
+If there is a trust-relationship between both parties, there is no need
+for policy enforcement. However, if there's no trust relationship (eg.,
+for general-purpose IPC) sharing memory-regions is highly fragile and
+often not possible without local copies. Look at the following two
+use-cases:
+  1) A graphics client wants to share its rendering-buffer with a
+     graphics-server. The memory-region is allocated by the client for
+     read/write access and a second FD is passed to the server. While
+     scanning out from the memory region, the server has no guarantee that
+     the client doesn't shrink the buffer at any time, requiring rather
+     cumbersome SIGBUS handling.
+  2) A process wants to perform an RPC on another process. To avoid huge
+     bandwidth consumption, zero-copy is preferred. After a message is
+     assembled in-memory and a FD is passed to the remote side, both sides
+     want to be sure that neither modifies this shared copy, anymore. The
+     source may have put sensible data into the message without a separate
+     copy and the target may want to parse the message inline, to avoid a
+     local copy.
 
-Note that we rely on the fact that iff you already own a writable mapping,
-you can increase the counter without using the helpers. This is the same
-that we do for i_writecount.
+While SIGBUS handling, POSIX mandatory locking and MAP_DENYWRITE provide
+ways to achieve most of this, the first one is unproportionally ugly to
+use in libraries and the latter two are broken/racy or even disabled due
+to denial of service attacks.
+
+This patch introduces the concept of SEALING. If you seal a file, a
+specific set of operations is blocked on that file forever.
+Unlike locks, seals can only be set, never removed. Hence, once you
+verified a specific set of seals is set, you're guaranteed that no-one can
+perform the blocked operations on this file, anymore.
+
+An initial set of SEALS is introduced by this patch:
+  - SHRINK: If SEAL_SHRINK is set, the file in question cannot be reduced
+            in size. This affects ftruncate() and open(O_TRUNC).
+  - GROW: If SEAL_GROW is set, the file in question cannot be increased
+          in size. This affects ftruncate(), fallocate() and write().
+  - WRITE: If SEAL_WRITE is set, no write operations (besides resizing)
+           are possible. This affects fallocate(PUNCH_HOLE), mmap() and
+           write().
+  - SEAL: If SEAL_SEAL is set, no further seals can be added to a file.
+          This basically prevents the F_ADD_SEAL operation on a file and
+          can be set to prevent others from adding further seals that you
+          don't want.
+
+The described use-cases can easily use these seals to provide safe use
+without any trust-relationship:
+  1) The graphics server can verify that a passed file-descriptor has
+     SEAL_SHRINK set. This allows safe scanout, while the client is
+     allowed to increase buffer size for window-resizing on-the-fly.
+     Concurrent writes are explicitly allowed.
+  2) For general-purpose IPC, both processes can verify that SEAL_SHRINK,
+     SEAL_GROW and SEAL_WRITE are set. This guarantees that neither
+     process can modify the data while the other side parses it.
+     Furthermore, it guarantees that even with writable FDs passed to the
+     peer, it cannot increase the size to hit memory-limits of the source
+     process (in case the file-storage is accounted to the source).
+
+The new API is an extension to fcntl(), adding two new commands:
+  F_GET_SEALS: Return a bitset describing the seals on the file. This
+               can be called on any FD if the underlying file supports
+               sealing.
+  F_ADD_SEALS: Change the seals of a given file. This requires WRITE
+               access to the file and F_SEAL_SEAL may not already be set.
+               Furthermore, the underlying file must support sealing and
+               there may not be any existing shared mapping of that file.
+               Otherwise, EBADF/EPERM is returned.
+               The given seals are _added_ to the existing set of seals
+               on the file. You cannot remove seals again.
+
+The fcntl() handler is currently specific to shmem and disabled on all
+files. A file needs to explicitly support sealing for this interface to
+work. A separate syscall is added in a follow-up, which creates files that
+support sealing. There is no intention to support this on other
+file-systems. Semantics are unclear for non-volatile files and we lack any
+use-case right now. Therefore, the implementation is specific to shmem.
 
 Signed-off-by: David Herrmann <dh.herrmann@gmail.com>
 ---
- fs/inode.c         |  1 +
- include/linux/fs.h | 29 +++++++++++++++++++++++++++--
- kernel/fork.c      |  2 +-
- mm/mmap.c          | 24 ++++++++++++++++++------
- mm/swap_state.c    |  1 +
- 5 files changed, 48 insertions(+), 9 deletions(-)
+ fs/fcntl.c                 |   5 ++
+ include/linux/shmem_fs.h   |  17 ++++
+ include/uapi/linux/fcntl.h |  15 ++++
+ mm/shmem.c                 | 189 ++++++++++++++++++++++++++++++++++++++++++++-
+ 4 files changed, 223 insertions(+), 3 deletions(-)
 
-diff --git a/fs/inode.c b/fs/inode.c
-index 6eecb7f..9945b11 100644
---- a/fs/inode.c
-+++ b/fs/inode.c
-@@ -165,6 +165,7 @@ int inode_init_always(struct super_block *sb, struct inode *inode)
- 	mapping->a_ops = &empty_aops;
- 	mapping->host = inode;
- 	mapping->flags = 0;
-+	atomic_set(&mapping->i_mmap_writable, 0);
- 	mapping_set_gfp_mask(mapping, GFP_HIGHUSER_MOVABLE);
- 	mapping->private_data = NULL;
- 	mapping->backing_dev_info = &default_backing_dev_info;
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index 338e6f7..71d17c9 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -387,7 +387,7 @@ struct address_space {
- 	struct inode		*host;		/* owner: inode, block_device */
- 	struct radix_tree_root	page_tree;	/* radix tree of all pages */
- 	spinlock_t		tree_lock;	/* and lock protecting it */
--	unsigned int		i_mmap_writable;/* count VM_SHARED mappings */
-+	atomic_t		i_mmap_writable;/* count VM_SHARED mappings */
- 	struct rb_root		i_mmap;		/* tree of private and shared mappings */
- 	struct list_head	i_mmap_nonlinear;/*list VM_NONLINEAR mappings */
- 	struct mutex		i_mmap_mutex;	/* protect tree, count, list */
-@@ -470,10 +470,35 @@ static inline int mapping_mapped(struct address_space *mapping)
-  * Note that i_mmap_writable counts all VM_SHARED vmas: do_mmap_pgoff
-  * marks vma as VM_SHARED if it is shared, and the file was opened for
-  * writing i.e. vma may be mprotected writable even if now readonly.
-+ *
-+ * If i_mmap_writable is negative, no new writable mappings are allowed. You
-+ * can only deny writable mappings, if none exists right now.
-  */
- static inline int mapping_writably_mapped(struct address_space *mapping)
- {
--	return mapping->i_mmap_writable != 0;
-+	return atomic_read(&mapping->i_mmap_writable) > 0;
-+}
-+
-+static inline int mapping_map_writable(struct address_space *mapping)
-+{
-+	return atomic_inc_unless_negative(&mapping->i_mmap_writable) ?
-+		0 : -EPERM;
-+}
-+
-+static inline void mapping_unmap_writable(struct address_space *mapping)
-+{
-+	return atomic_dec(&mapping->i_mmap_writable);
-+}
-+
-+static inline int mapping_deny_writable(struct address_space *mapping)
-+{
-+	return atomic_dec_unless_positive(&mapping->i_mmap_writable) ?
-+		0 : -EBUSY;
-+}
-+
-+static inline void mapping_allow_writable(struct address_space *mapping)
-+{
-+	atomic_inc(&mapping->i_mmap_writable);
+diff --git a/fs/fcntl.c b/fs/fcntl.c
+index 72c82f6..22d1c3d 100644
+--- a/fs/fcntl.c
++++ b/fs/fcntl.c
+@@ -21,6 +21,7 @@
+ #include <linux/rcupdate.h>
+ #include <linux/pid_namespace.h>
+ #include <linux/user_namespace.h>
++#include <linux/shmem_fs.h>
+ 
+ #include <asm/poll.h>
+ #include <asm/siginfo.h>
+@@ -336,6 +337,10 @@ static long do_fcntl(int fd, unsigned int cmd, unsigned long arg,
+ 	case F_GETPIPE_SZ:
+ 		err = pipe_fcntl(filp, cmd, arg);
+ 		break;
++	case F_ADD_SEALS:
++	case F_GET_SEALS:
++		err = shmem_fcntl(filp, cmd, arg);
++		break;
+ 	default:
+ 		break;
+ 	}
+diff --git a/include/linux/shmem_fs.h b/include/linux/shmem_fs.h
+index 4d1771c..50777b5 100644
+--- a/include/linux/shmem_fs.h
++++ b/include/linux/shmem_fs.h
+@@ -1,6 +1,7 @@
+ #ifndef __SHMEM_FS_H
+ #define __SHMEM_FS_H
+ 
++#include <linux/file.h>
+ #include <linux/swap.h>
+ #include <linux/mempolicy.h>
+ #include <linux/pagemap.h>
+@@ -11,6 +12,7 @@
+ 
+ struct shmem_inode_info {
+ 	spinlock_t		lock;
++	unsigned int		seals;		/* shmem seals */
+ 	unsigned long		flags;
+ 	unsigned long		alloced;	/* data pages alloced to file */
+ 	union {
+@@ -65,4 +67,19 @@ static inline struct page *shmem_read_mapping_page(
+ 					mapping_gfp_mask(mapping));
  }
  
++#ifdef CONFIG_TMPFS
++
++extern int shmem_add_seals(struct file *file, unsigned int seals);
++extern int shmem_get_seals(struct file *file);
++extern long shmem_fcntl(struct file *file, unsigned int cmd, unsigned long arg);
++
++#else
++
++static inline long shmem_fcntl(struct file *f, unsigned int c, unsigned long a)
++{
++	return -EINVAL;
++}
++
++#endif
++
+ #endif
+diff --git a/include/uapi/linux/fcntl.h b/include/uapi/linux/fcntl.h
+index 074b886..beed138 100644
+--- a/include/uapi/linux/fcntl.h
++++ b/include/uapi/linux/fcntl.h
+@@ -28,6 +28,21 @@
+ #define F_GETPIPE_SZ	(F_LINUX_SPECIFIC_BASE + 8)
+ 
  /*
-diff --git a/kernel/fork.c b/kernel/fork.c
-index d2799d1..f1f127e 100644
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -421,7 +421,7 @@ static int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
- 				atomic_dec(&inode->i_writecount);
- 			mutex_lock(&mapping->i_mmap_mutex);
- 			if (tmp->vm_flags & VM_SHARED)
--				mapping->i_mmap_writable++;
-+				atomic_inc(&mapping->i_mmap_writable);
- 			flush_dcache_mmap_lock(mapping);
- 			/* insert tmp into the share list, just after mpnt */
- 			if (unlikely(tmp->vm_flags & VM_NONLINEAR))
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 129b847..19b6562 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -216,7 +216,7 @@ static void __remove_shared_vm_struct(struct vm_area_struct *vma,
- 	if (vma->vm_flags & VM_DENYWRITE)
- 		atomic_inc(&file_inode(file)->i_writecount);
- 	if (vma->vm_flags & VM_SHARED)
--		mapping->i_mmap_writable--;
-+		mapping_unmap_writable(mapping);
++ * Set/Get seals
++ */
++#define F_ADD_SEALS	(F_LINUX_SPECIFIC_BASE + 9)
++#define F_GET_SEALS	(F_LINUX_SPECIFIC_BASE + 10)
++
++/*
++ * Types of seals
++ */
++#define F_SEAL_SEAL	0x0001	/* prevent further seals from being set */
++#define F_SEAL_SHRINK	0x0002	/* prevent file from shrinking */
++#define F_SEAL_GROW	0x0004	/* prevent file from growing */
++#define F_SEAL_WRITE	0x0008	/* prevent writes */
++/* (1U << 31) is reserved for signed error codes */
++
++/*
+  * Types of directory notifications that may be requested.
+  */
+ #define DN_ACCESS	0x00000001	/* File accessed */
+diff --git a/mm/shmem.c b/mm/shmem.c
+index f484c27..1438b3e 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -66,6 +66,7 @@ static struct vfsmount *shm_mnt;
+ #include <linux/highmem.h>
+ #include <linux/seq_file.h>
+ #include <linux/magic.h>
++#include <linux/fcntl.h>
  
- 	flush_dcache_mmap_lock(mapping);
- 	if (unlikely(vma->vm_flags & VM_NONLINEAR))
-@@ -617,7 +617,7 @@ static void __vma_link_file(struct vm_area_struct *vma)
- 		if (vma->vm_flags & VM_DENYWRITE)
- 			atomic_dec(&file_inode(file)->i_writecount);
- 		if (vma->vm_flags & VM_SHARED)
--			mapping->i_mmap_writable++;
-+			atomic_inc(&mapping->i_mmap_writable);
+ #include <asm/uaccess.h>
+ #include <asm/pgtable.h>
+@@ -531,16 +532,23 @@ EXPORT_SYMBOL_GPL(shmem_truncate_range);
+ static int shmem_setattr(struct dentry *dentry, struct iattr *attr)
+ {
+ 	struct inode *inode = dentry->d_inode;
++	struct shmem_inode_info *info = SHMEM_I(inode);
++	loff_t oldsize = inode->i_size;
++	loff_t newsize = attr->ia_size;
+ 	int error;
  
- 		flush_dcache_mmap_lock(mapping);
- 		if (unlikely(vma->vm_flags & VM_NONLINEAR))
-@@ -1572,6 +1572,11 @@ munmap_back:
- 			if (error)
- 				goto free_vma;
- 		}
-+		if (vm_flags & VM_SHARED) {
-+			error = mapping_map_writable(file->f_mapping);
-+			if (error)
-+				goto allow_write_and_free_vma;
-+		}
- 		vma->vm_file = get_file(file);
- 		error = file->f_op->mmap(file, vma);
- 		if (error)
-@@ -1611,8 +1616,12 @@ munmap_back:
+ 	error = inode_change_ok(inode, attr);
+ 	if (error)
+ 		return error;
  
- 	vma_link(mm, vma, prev, rb_link, rb_parent);
- 	/* Once vma denies write, undo our temporary denial count */
--	if (vm_flags & VM_DENYWRITE)
--		allow_write_access(file);
-+	if (file) {
-+		if (vm_flags & VM_SHARED)
-+			mapping_unmap_writable(file->f_mapping);
-+		if (vm_flags & VM_DENYWRITE)
-+			allow_write_access(file);
+-	if (S_ISREG(inode->i_mode) && (attr->ia_valid & ATTR_SIZE)) {
+-		loff_t oldsize = inode->i_size;
+-		loff_t newsize = attr->ia_size;
++	/* protected by i_mutex */
++	if (attr->ia_valid & ATTR_SIZE) {
++		if ((newsize < oldsize && (info->seals & F_SEAL_SHRINK)) ||
++		    (newsize > oldsize && (info->seals & F_SEAL_GROW)))
++			return -EPERM;
 +	}
- 	file = vma->vm_file;
- out:
- 	perf_event_mmap(vma);
-@@ -1641,14 +1650,17 @@ out:
- 	return addr;
  
- unmap_and_free_vma:
--	if (vm_flags & VM_DENYWRITE)
--		allow_write_access(file);
- 	vma->vm_file = NULL;
- 	fput(file);
++	if (S_ISREG(inode->i_mode) && (attr->ia_valid & ATTR_SIZE)) {
+ 		if (newsize != oldsize) {
+ 			i_size_write(inode, newsize);
+ 			inode->i_ctime = inode->i_mtime = CURRENT_TIME;
+@@ -1315,6 +1323,7 @@ static struct inode *shmem_get_inode(struct super_block *sb, const struct inode
+ 		info = SHMEM_I(inode);
+ 		memset(info, 0, (char *)inode - (char *)info);
+ 		spin_lock_init(&info->lock);
++		info->seals = F_SEAL_SEAL;
+ 		info->flags = flags & VM_NORESERVE;
+ 		INIT_LIST_HEAD(&info->swaplist);
+ 		simple_xattrs_init(&info->xattrs);
+@@ -1374,7 +1383,15 @@ shmem_write_begin(struct file *file, struct address_space *mapping,
+ {
+ 	int ret;
+ 	struct inode *inode = mapping->host;
++	struct shmem_inode_info *info = SHMEM_I(inode);
+ 	pgoff_t index = pos >> PAGE_CACHE_SHIFT;
++
++	/* i_mutex is held by caller */
++	if (info->seals & F_SEAL_WRITE)
++		return -EPERM;
++	if ((info->seals & F_SEAL_GROW) && pos + len > inode->i_size)
++		return -EPERM;
++
+ 	ret = shmem_getpage(inode, index, pagep, SGP_WRITE, NULL);
+ 	if (ret == 0 && *pagep)
+ 		init_page_accessed(*pagep);
+@@ -1715,11 +1732,166 @@ static loff_t shmem_file_llseek(struct file *file, loff_t offset, int whence)
+ 	return offset;
+ }
  
- 	/* Undo any partial mapping done by a device driver. */
- 	unmap_region(mm, vma, prev, vma->vm_start, vma->vm_end);
- 	charged = 0;
-+	if (vm_flags & VM_SHARED)
-+		mapping_unmap_writable(file->f_mapping);
-+allow_write_and_free_vma:
-+	if (vm_flags & VM_DENYWRITE)
-+		allow_write_access(file);
- free_vma:
- 	kmem_cache_free(vm_area_cachep, vma);
- unacct_error:
-diff --git a/mm/swap_state.c b/mm/swap_state.c
-index 2972eee..31321fa 100644
---- a/mm/swap_state.c
-+++ b/mm/swap_state.c
-@@ -39,6 +39,7 @@ static struct backing_dev_info swap_backing_dev_info = {
- struct address_space swapper_spaces[MAX_SWAPFILES] = {
- 	[0 ... MAX_SWAPFILES - 1] = {
- 		.page_tree	= RADIX_TREE_INIT(GFP_ATOMIC|__GFP_NOWARN),
-+		.i_mmap_writable = ATOMIC_INIT(0),
- 		.a_ops		= &swap_aops,
- 		.backing_dev_info = &swap_backing_dev_info,
- 	}
++/*
++ * Setting SEAL_WRITE requires us to verify there's no pending writer. However,
++ * via get_user_pages(), drivers might have some pending I/O without any active
++ * user-space mappings (eg., direct-IO, AIO). Therefore, we look at all pages
++ * and see whether it has an elevated ref-count. If so, we abort.
++ * The caller must guarantee that no new user will acquire writable references
++ * to those pages to avoid races.
++ */
++static int shmem_test_for_pins(struct address_space *mapping)
++{
++	struct radix_tree_iter iter;
++	void **slot;
++	pgoff_t start;
++	struct page *page;
++	int error;
++
++	/* flush additional refs in lru_add early */
++	lru_add_drain_all();
++
++	error = 0;
++	start = 0;
++	rcu_read_lock();
++
++restart:
++	radix_tree_for_each_slot(slot, &mapping->page_tree, &iter, start) {
++		page = radix_tree_deref_slot(slot);
++		if (!page || radix_tree_exception(page)) {
++			if (radix_tree_deref_retry(page))
++				goto restart;
++		} else if (page_count(page) - page_mapcount(page) > 1) {
++			error = -EBUSY;
++			break;
++		}
++
++		if (need_resched()) {
++			cond_resched_rcu();
++			start = iter.index + 1;
++			goto restart;
++		}
++	}
++	rcu_read_unlock();
++
++	return error;
++}
++
++#define F_ALL_SEALS (F_SEAL_SEAL | \
++		     F_SEAL_SHRINK | \
++		     F_SEAL_GROW | \
++		     F_SEAL_WRITE)
++
++int shmem_add_seals(struct file *file, unsigned int seals)
++{
++	struct dentry *dentry = file->f_path.dentry;
++	struct inode *inode = dentry->d_inode;
++	struct shmem_inode_info *info = SHMEM_I(inode);
++	int error;
++
++	/*
++	 * SEALING
++	 * Sealing allows multiple parties to share a shmem-file but restrict
++	 * access to a specific subset of file operations. Seals can only be
++	 * added, but never removed. This way, mutually untrusted parties can
++	 * share common memory regions with a well-defined policy. A malicious
++	 * peer can thus never perform unwanted operations on a shared object.
++	 *
++	 * Seals are only supported on special shmem-files and always affect
++	 * the whole underlying inode. Once a seal is set, it may prevent some
++	 * kinds of access to the file. Currently, the following seals are
++	 * defined:
++	 *   SEAL_SEAL: Prevent further seals from being set on this file
++	 *   SEAL_SHRINK: Prevent the file from shrinking
++	 *   SEAL_GROW: Prevent the file from growing
++	 *   SEAL_WRITE: Prevent write access to the file
++	 *
++	 * As we don't require any trust relationship between two parties, we
++	 * must prevent seals from being removed. Therefore, sealing a file
++	 * only adds a given set of seals to the file, it never touches
++	 * existing seals. Furthermore, the "setting seals"-operation can be
++	 * sealed itself, which basically prevents any further seal from being
++	 * added.
++	 *
++	 * Semantics of sealing are only defined on volatile files. Only
++	 * anonymous shmem files support sealing. More importantly, seals are
++	 * never written to disk. Therefore, there's no plan to support it on
++	 * other file types.
++	 */
++
++	if (file->f_op != &shmem_file_operations)
++		return -EINVAL;
++	if (!(file->f_mode & FMODE_WRITE))
++		return -EINVAL;
++	if (seals & ~(unsigned int)F_ALL_SEALS)
++		return -EINVAL;
++
++	mutex_lock(&inode->i_mutex);
++
++	if (info->seals & F_SEAL_SEAL) {
++		error = -EPERM;
++		goto unlock;
++	}
++
++	if ((seals & F_SEAL_WRITE) && !(info->seals & F_SEAL_WRITE)) {
++		error = mapping_deny_writable(file->f_mapping);
++		if (error)
++			goto unlock;
++
++		error = shmem_test_for_pins(file->f_mapping);
++		if (error) {
++			mapping_allow_writable(file->f_mapping);
++			goto unlock;
++		}
++	}
++
++	info->seals |= seals;
++	error = 0;
++
++unlock:
++	mutex_unlock(&inode->i_mutex);
++	return error;
++}
++EXPORT_SYMBOL_GPL(shmem_add_seals);
++
++int shmem_get_seals(struct file *file)
++{
++	if (file->f_op != &shmem_file_operations)
++		return -EINVAL;
++
++	return SHMEM_I(file_inode(file))->seals & F_ALL_SEALS;
++}
++EXPORT_SYMBOL_GPL(shmem_get_seals);
++
++long shmem_fcntl(struct file *file, unsigned int cmd, unsigned long arg)
++{
++	long error;
++
++	switch (cmd) {
++	case F_ADD_SEALS:
++		/* disallow upper 32bit */
++		if (arg >> 32)
++			return -EINVAL;
++
++		error = shmem_add_seals(file, arg);
++		break;
++	case F_GET_SEALS:
++		error = shmem_get_seals(file);
++		break;
++	default:
++		error = -EINVAL;
++		break;
++	}
++
++	return error;
++}
++
+ static long shmem_fallocate(struct file *file, int mode, loff_t offset,
+ 							 loff_t len)
+ {
+ 	struct inode *inode = file_inode(file);
+ 	struct shmem_sb_info *sbinfo = SHMEM_SB(inode->i_sb);
++	struct shmem_inode_info *info = SHMEM_I(inode);
+ 	struct shmem_falloc shmem_falloc;
+ 	pgoff_t start, index, end;
+ 	int error;
+@@ -1731,6 +1903,12 @@ static long shmem_fallocate(struct file *file, int mode, loff_t offset,
+ 		loff_t unmap_start = round_up(offset, PAGE_SIZE);
+ 		loff_t unmap_end = round_down(offset + len, PAGE_SIZE) - 1;
+ 
++		/* protected by i_mutex */
++		if (info->seals & F_SEAL_WRITE) {
++			error = -EPERM;
++			goto out;
++		}
++
+ 		if ((u64)unmap_end > (u64)unmap_start)
+ 			unmap_mapping_range(mapping, unmap_start,
+ 					    1 + unmap_end - unmap_start, 0);
+@@ -1745,6 +1923,11 @@ static long shmem_fallocate(struct file *file, int mode, loff_t offset,
+ 	if (error)
+ 		goto out;
+ 
++	if ((info->seals & F_SEAL_GROW) && offset + len > inode->i_size) {
++		error = -EPERM;
++		goto out;
++	}
++
+ 	start = offset >> PAGE_CACHE_SHIFT;
+ 	end = (offset + len + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
+ 	/* Try to avoid a swapstorm if len is impossible to satisfy */
 -- 
 2.0.0
 
