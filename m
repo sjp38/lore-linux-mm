@@ -1,24 +1,25 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ig0-f179.google.com (mail-ig0-f179.google.com [209.85.213.179])
-	by kanga.kvack.org (Postfix) with ESMTP id BF2DA6B0031
-	for <linux-mm@kvack.org>; Fri, 13 Jun 2014 11:27:15 -0400 (EDT)
-Received: by mail-ig0-f179.google.com with SMTP id r2so661326igi.12
-        for <linux-mm@kvack.org>; Fri, 13 Jun 2014 08:27:15 -0700 (PDT)
-Received: from mail-ie0-x231.google.com (mail-ie0-x231.google.com [2607:f8b0:4001:c03::231])
-        by mx.google.com with ESMTPS id 5si2719970igt.43.2014.06.13.08.27.15
+Received: from mail-ig0-f170.google.com (mail-ig0-f170.google.com [209.85.213.170])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C1766B0031
+	for <linux-mm@kvack.org>; Fri, 13 Jun 2014 11:33:57 -0400 (EDT)
+Received: by mail-ig0-f170.google.com with SMTP id h3so1677496igd.3
+        for <linux-mm@kvack.org>; Fri, 13 Jun 2014 08:33:57 -0700 (PDT)
+Received: from mail-ig0-x22b.google.com (mail-ig0-x22b.google.com [2607:f8b0:4001:c05::22b])
+        by mx.google.com with ESMTPS id bt6si7370612icb.98.2014.06.13.08.33.56
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 13 Jun 2014 08:27:15 -0700 (PDT)
-Received: by mail-ie0-f177.google.com with SMTP id tp5so2608948ieb.36
-        for <linux-mm@kvack.org>; Fri, 13 Jun 2014 08:27:14 -0700 (PDT)
+        Fri, 13 Jun 2014 08:33:56 -0700 (PDT)
+Received: by mail-ig0-f171.google.com with SMTP id h18so660862igc.10
+        for <linux-mm@kvack.org>; Fri, 13 Jun 2014 08:33:56 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <CALCETrWaUsq_D2Z1PwbbwQQWKrnsWTLOdUR6bqPuedi8ZHgvEQ@mail.gmail.com>
+In-Reply-To: <CALCETrU8N9EbnJ3=oQ1WQCG9Vunn3nR9Ba=J48wJm0SuH0YB4A@mail.gmail.com>
 References: <1402655819-14325-1-git-send-email-dh.herrmann@gmail.com>
-	<1402655819-14325-8-git-send-email-dh.herrmann@gmail.com>
-	<CALCETrWaUsq_D2Z1PwbbwQQWKrnsWTLOdUR6bqPuedi8ZHgvEQ@mail.gmail.com>
-Date: Fri, 13 Jun 2014 17:27:14 +0200
-Message-ID: <CANq1E4TQXKD8jaBcOJsL3h3ZPRXq176fz8Z9yevFbS3P0q1FQg@mail.gmail.com>
-Subject: Re: [RFC v3 7/7] shm: isolate pinned pages when sealing files
+	<CALCETrVoE+JO2rLsBUHAOJdvescEEjxikj8iQ339Nxfopfc7pw@mail.gmail.com>
+	<CANq1E4SaWLD=hNEc-CDJbNnrGfXE_PkxZFBhpW4tbK7wor7xPA@mail.gmail.com>
+	<CALCETrU8N9EbnJ3=oQ1WQCG9Vunn3nR9Ba=J48wJm0SuH0YB4A@mail.gmail.com>
+Date: Fri, 13 Jun 2014 17:33:56 +0200
+Message-ID: <CANq1E4QQUKHabheq18AzkVZk3WDtAeC-6W66tVNB+EKgYOx1Vg@mail.gmail.com>
+Subject: Re: [PATCH v3 0/7] File Sealing & memfd_create()
 From: David Herrmann <dh.herrmann@gmail.com>
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
@@ -28,61 +29,64 @@ Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Michael Kerri
 
 Hi
 
-On Fri, Jun 13, 2014 at 5:06 PM, Andy Lutomirski <luto@amacapital.net> wrote:
-> On Fri, Jun 13, 2014 at 3:36 AM, David Herrmann <dh.herrmann@gmail.com> wrote:
->> When setting SEAL_WRITE, we must make sure nobody has a writable reference
->> to the pages (via GUP or similar). We currently check references and wait
->> some time for them to be dropped. This, however, might fail for several
->> reasons, including:
->>  - the page is pinned for longer than we wait
->>  - while we wait, someone takes an already pinned page for read-access
+On Fri, Jun 13, 2014 at 5:17 PM, Andy Lutomirski <luto@amacapital.net> wrote:
+> On Fri, Jun 13, 2014 at 8:15 AM, David Herrmann <dh.herrmann@gmail.com> wrote:
+>> Hi
 >>
->> Therefore, this patch introduces page-isolation. When sealing a file with
->> SEAL_WRITE, we copy all pages that have an elevated ref-count. The newpage
->> is put in place atomically, the old page is detached and left alone. It
->> will get reclaimed once the last external user dropped it.
+>> On Fri, Jun 13, 2014 at 5:10 PM, Andy Lutomirski <luto@amacapital.net> wrote:
+>>> On Fri, Jun 13, 2014 at 3:36 AM, David Herrmann <dh.herrmann@gmail.com> wrote:
+>>>> Hi
+>>>>
+>>>> This is v3 of the File-Sealing and memfd_create() patches. You can find v1 with
+>>>> a longer introduction at gmane:
+>>>>   http://thread.gmane.org/gmane.comp.video.dri.devel/102241
+>>>> An LWN article about memfd+sealing is available, too:
+>>>>   https://lwn.net/Articles/593918/
+>>>> v2 with some more discussions can be found here:
+>>>>   http://thread.gmane.org/gmane.linux.kernel.mm/115713
+>>>>
+>>>> This series introduces two new APIs:
+>>>>   memfd_create(): Think of this syscall as malloc() but it returns a
+>>>>                   file-descriptor instead of a pointer. That file-descriptor is
+>>>>                   backed by anon-memory and can be memory-mapped for access.
+>>>>   sealing: The sealing API can be used to prevent a specific set of operations
+>>>>            on a file-descriptor. You 'seal' the file and give thus the
+>>>>            guarantee, that it cannot be modified in the specific ways.
+>>>>
+>>>> A short high-level introduction is also available here:
+>>>>   http://dvdhrm.wordpress.com/2014/06/10/memfd_create2/
+>>>
+>>> Potentially silly question: is it guaranteed that mmapping and reading
+>>> a SEAL_SHRINKed fd within size bounds will not SIGBUS?  If so, should
+>>> this be documented?  (The particular issue here would be reading
+>>> holes.  It should work by using the zero page, but, if so, we should
+>>> probably make it a real documented guarantee.)
 >>
->> Signed-off-by: David Herrmann <dh.herrmann@gmail.com>
+>> No, this is not guaranteed. See the previous discussion in v2 on Patch
+>> 2/4 between Hugh and me.
+>>
+>> Summary is: If you want mmap-reads to not fail, use mlock(). There are
+>> many situations where a fault might fail (think: OOM) and sealing is
+>> not meant to protect against that. Btw., holes are automatically
+>> filled with fresh pages by shmem. So a read only fails in OOM
+>> situations (or memcg limits, etc.).
+>>
 >
-> Won't this have unexpected effects?
->
-> Thread 1:  start read into mapping backed by fd
->
-> Thread 2:  SEAL_WRITE
->
-> Thread 1: read finishes.  now the page doesn't match the sealed page
+> Isn't the point of SEAL_SHRINK to allow servers to mmap and read
+> safely without worrying about SIGBUS?
 
-Just to be clear: you're talking about read() calls that write into
-the memfd? (like my FUSE example does) Your language might be
-ambiguous to others as "read into" actually implies a write.
+No, I don't think so.
+The point of SEAL_SHRINK is to prevent a file from shrinking. SIGBUS
+is an effect, not a cause. It's only a coincidence that "OOM during
+reads" and "reading beyond file-boundaries" has the same effect:
+SIGBUS.
+We only protect against reading beyond file-boundaries due to
+shrinking. Therefore, OOM-SIGBUS is unrelated to SEAL_SHRINK.
 
-No, this does not have unexpected effects. But yes, your conclusion is
-right. To be clear, this behavior would be part of the API. Any
-asynchronous write might be cut off by SEAL_WRITE _iff_ you unmap your
-buffer before the write finishes. But you actually have to extend your
-example:
+Anyone dealing with mmap() _has_ to use mlock() to protect against
+OOM-SIGBUS. Making SEAL_SHRINK protect against OOM-SIGBUS would be
+redundant, because you can achieve the same with SEAL_SHRINK+mlock().
 
-Thread 1: p = mmap(memfd, SIZE);
-Thread 1: h = async_read(some_fd, p, SIZE);
-Thread 1: munmap(p, SIZE);
-Thread 2: SEAL_WRITE
-Thread 1: async_wait(h);
-
-If you don't do the unmap(), then SEAL_WRITE will fail due to an
-elevated i_mmap_writable. I think this is fine. In fact, I remember
-reading that async-IO is not required to resolve user-space addresses
-at the time of the syscall, but might delay it to the time of the
-actual write. But you're right, it would be misleading that the AIO
-operation returns success. This would be part of the memfd-API,
-though. And if you mess with your address space while running an
-async-IO operation on it, you're screwed anyway.
-
-Btw., your sealing use-case is really odd. No-one guarantees that the
-SEAL_WRITE happens _after_ you schedule your async-read. In case you
-have some synchronization there, you just have to move it after
-waiting for your async-io to finish.
-
-Does that clear things up?
 Thanks
 David
 
