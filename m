@@ -1,112 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f50.google.com (mail-pa0-f50.google.com [209.85.220.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 896B16B0031
-	for <linux-mm@kvack.org>; Thu, 12 Jun 2014 22:02:30 -0400 (EDT)
-Received: by mail-pa0-f50.google.com with SMTP id fb1so1573090pad.37
-        for <linux-mm@kvack.org>; Thu, 12 Jun 2014 19:02:30 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTP id wg10si431056pbc.23.2014.06.12.19.02.28
-        for <linux-mm@kvack.org>;
-        Thu, 12 Jun 2014 19:02:29 -0700 (PDT)
-Date: Fri, 13 Jun 2014 10:02:03 +0800
-From: kbuild test robot <fengguang.wu@intel.com>
-Subject: [mmotm:master 148/178] mm/memcontrol.c:6961:21: error: call to
- '__compiletime_assert_6961' declared with attribute error: BUILD_BUG failed
-Message-ID: <539a5b9b.KeRIMtUWy5rRR18V%fengguang.wu@intel.com>
+Received: from mail-pd0-f172.google.com (mail-pd0-f172.google.com [209.85.192.172])
+	by kanga.kvack.org (Postfix) with ESMTP id 7058D6B0031
+	for <linux-mm@kvack.org>; Thu, 12 Jun 2014 22:40:17 -0400 (EDT)
+Received: by mail-pd0-f172.google.com with SMTP id fp1so1612022pdb.3
+        for <linux-mm@kvack.org>; Thu, 12 Jun 2014 19:40:17 -0700 (PDT)
+Received: from mail-pb0-x233.google.com (mail-pb0-x233.google.com [2607:f8b0:400e:c01::233])
+        by mx.google.com with ESMTPS id kw2si3064500pab.141.2014.06.12.19.40.16
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Thu, 12 Jun 2014 19:40:16 -0700 (PDT)
+Received: by mail-pb0-f51.google.com with SMTP id rp16so1661012pbb.38
+        for <linux-mm@kvack.org>; Thu, 12 Jun 2014 19:40:15 -0700 (PDT)
+Date: Fri, 13 Jun 2014 11:40:05 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH 02/10] mm, compaction: report compaction as contended
+ only due to lock contention
+Message-ID: <20140613024005.GA8704@gmail.com>
+References: <1402305982-6928-1-git-send-email-vbabka@suse.cz>
+ <1402305982-6928-2-git-send-email-vbabka@suse.cz>
+ <20140611011019.GC15630@bbox>
+ <53984A06.6020607@suse.cz>
+ <20140611234944.GA12415@bbox>
+ <5399B2DC.2040004@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+In-Reply-To: <5399B2DC.2040004@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.cz>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, kbuild-all@01.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: David Rientjes <rientjes@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Nazarewicz <mina86@mina86.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Christoph Lameter <cl@linux.com>, Rik van Riel <riel@redhat.com>
 
-tree:   git://git.cmpxchg.org/linux-mmotm.git master
-head:   a621774e0e7bbd9e8a024230af4704cc489bd40e
-commit: e6b81384e2275775b2ae090b97043077dea26c11 [148/178] memcg: deprecate memory.force_empty knob
-config: make ARCH=ia64 allmodconfig
+On Thu, Jun 12, 2014 at 04:02:04PM +0200, Vlastimil Babka wrote:
+> On 06/12/2014 01:49 AM, Minchan Kim wrote:
+> >On Wed, Jun 11, 2014 at 02:22:30PM +0200, Vlastimil Babka wrote:
+> >>On 06/11/2014 03:10 AM, Minchan Kim wrote:
+> >>>On Mon, Jun 09, 2014 at 11:26:14AM +0200, Vlastimil Babka wrote:
+> >>>>Async compaction aborts when it detects zone lock contention or need_resched()
+> >>>>is true. David Rientjes has reported that in practice, most direct async
+> >>>>compactions for THP allocation abort due to need_resched(). This means that a
+> >>>>second direct compaction is never attempted, which might be OK for a page
+> >>>>fault, but hugepaged is intended to attempt a sync compaction in such case and
+> >>>>in these cases it won't.
+> >>>>
+> >>>>This patch replaces "bool contended" in compact_control with an enum that
+> >>>>distinguieshes between aborting due to need_resched() and aborting due to lock
+> >>>>contention. This allows propagating the abort through all compaction functions
+> >>>>as before, but declaring the direct compaction as contended only when lock
+> >>>>contantion has been detected.
+> >>>>
+> >>>>As a result, hugepaged will proceed with second sync compaction as intended,
+> >>>>when the preceding async compaction aborted due to need_resched().
+> >>>
+> >>>You said "second direct compaction is never attempted, which might be OK
+> >>>for a page fault" and said "hugepagd is intented to attempt a sync compaction"
+> >>>so I feel you want to handle khugepaged so special unlike other direct compact
+> >>>(ex, page fault).
+> >>
+> >>Well khugepaged is my primary concern, but I imagine there are other
+> >>direct compaction users besides THP page fault and khugepaged.
+> >>
+> >>>By this patch, direct compaction take care only lock contention, not rescheduling
+> >>>so that pop questions.
+> >>>
+> >>>Is it okay not to consider need_resched in direct compaction really?
+> >>
+> >>It still considers need_resched() to back of from async compaction.
+> >>It's only about signaling contended_compaction back to
+> >>__alloc_pages_slowpath(). There's this code executed after the
+> >>first, async compaction fails:
+> >>
+> >>/*
+> >>  * It can become very expensive to allocate transparent hugepages at
+> >>  * fault, so use asynchronous memory compaction for THP unless it is
+> >>  * khugepaged trying to collapse.
+> >>  */
+> >>if (!(gfp_mask & __GFP_NO_KSWAPD) || (current->flags & PF_KTHREAD))
+> >>         migration_mode = MIGRATE_SYNC_LIGHT;
+> >>
+> >>/*
+> >>  * If compaction is deferred for high-order allocations, it is because
+> >>  * sync compaction recently failed. In this is the case and the caller
+> >>  * requested a movable allocation that does not heavily disrupt the
+> >>  * system then fail the allocation instead of entering direct reclaim.
+> >>  */
+> >>if ((deferred_compaction || contended_compaction) &&
+> >>                                         (gfp_mask & __GFP_NO_KSWAPD))
+> >>         goto nopage;
+> >>
+> >>Both THP page fault and khugepaged use __GFP_NO_KSWAPD. The first
+> >>if() decides whether the second attempt will be sync (for
+> >>khugepaged) or async (page fault). The second if() decides that if
+> >>compaction was contended, then there won't be any second attempt
+> >>(and reclaim) at all. Counting need_resched() as contended in this
+> >>case is bad for khugepaged. Even for page fault it means no direct
+> >
+> >I agree khugepaged shouldn't count on need_resched, even lock contention
+> >because it was a result from admin's decision.
+> >If it hurts system performance, he should adjust knobs for khugepaged.
+> >
+> >>reclaim and a second async compaction. David says need_resched()
+> >>occurs so often then it is a poor heuristic to decide this.
+> >
+> >But page fault is a bit different. Inherently, high-order allocation
+> >(ie, above PAGE_ALLOC_COSTLY_ORDER) is fragile so all of the caller
+> >shoud keep in mind that and prepare second plan(ex, 4K allocation)
+> >so direct reclaim/compaction should take care of latency rather than
+> >success ratio.
+> 
+> Yes it's a rather delicate balance. But the plan is now to try
+> balance this differently than using need_resched.
+> 
+> >If need_resched in second attempt(ie, synchronous compaction) is almost
+> >true, it means the process consumed his timeslice so it shouldn't be
+> >greedy and gives a CPU resource to others.
+> 
+> Synchronous compaction uses cond_resched() so that's fine I think?
 
-All error/warnings:
+Sorry for being not clear. I post for the clarification before taking
+a rest in holiday. :)
 
-   mm/memcontrol.c: In function 'mem_cgroup_move_charge_pte':
-   mm/memcontrol.c:6913:3: warning: value computed is not used [-Wunused-value]
-   mm/memcontrol.c:6902:10: warning: unused variable 'orig_pte' [-Wunused-variable]
-   mm/memcontrol.c: In function 'mem_cgroup_move_charge_pmd':
->> mm/memcontrol.c:6961:21: error: call to '__compiletime_assert_6961' declared with attribute error: BUILD_BUG failed
+When THP page fault occurs and found rescheduling while doing async
+direct compaction, it goes "nopage" and fall-backed to 4K page.
+It's good to me.
 
-vim +/__compiletime_assert_6961 +6961 mm/memcontrol.c
-
-5e2db449 Naoya Horiguchi   2014-06-13  6907  		 * We have consumed all precharges we got in can_attach().
-5e2db449 Naoya Horiguchi   2014-06-13  6908  		 * We try charge one by one, but don't do any additional
-5e2db449 Naoya Horiguchi   2014-06-13  6909  		 * charges to mc.to if we have failed in charge once in attach()
-5e2db449 Naoya Horiguchi   2014-06-13  6910  		 * phase.
-5e2db449 Naoya Horiguchi   2014-06-13  6911  		 */
-5e2db449 Naoya Horiguchi   2014-06-13  6912  		ret = mem_cgroup_do_precharge(1);
-5e2db449 Naoya Horiguchi   2014-06-13 @6913  		pte_offset_map(walk->pmd, addr & PMD_MASK);
-5e2db449 Naoya Horiguchi   2014-06-13  6914  		spin_lock(walk->ptl);
-5e2db449 Naoya Horiguchi   2014-06-13  6915  		if (!ret)
-5e2db449 Naoya Horiguchi   2014-06-13  6916  			goto retry;
-5e2db449 Naoya Horiguchi   2014-06-13  6917  		return ret;
-5e2db449 Naoya Horiguchi   2014-06-13  6918  	}
-5e2db449 Naoya Horiguchi   2014-06-13  6919  
-5e2db449 Naoya Horiguchi   2014-06-13  6920  	switch (get_mctgt_type(vma, addr, *pte, &target)) {
-5e2db449 Naoya Horiguchi   2014-06-13  6921  	case MC_TARGET_PAGE:
-5e2db449 Naoya Horiguchi   2014-06-13  6922  		page = target.page;
-5e2db449 Naoya Horiguchi   2014-06-13  6923  		if (isolate_lru_page(page))
-5e2db449 Naoya Horiguchi   2014-06-13  6924  			goto put;
-5e2db449 Naoya Horiguchi   2014-06-13  6925  		pc = lookup_page_cgroup(page);
-5e2db449 Naoya Horiguchi   2014-06-13  6926  		if (!mem_cgroup_move_account(page, 1, pc,
-5e2db449 Naoya Horiguchi   2014-06-13  6927  					     mc.from, mc.to)) {
-5e2db449 Naoya Horiguchi   2014-06-13  6928  			mc.precharge--;
-5e2db449 Naoya Horiguchi   2014-06-13  6929  			/* we uncharge from mc.from later. */
-5e2db449 Naoya Horiguchi   2014-06-13  6930  			mc.moved_charge++;
-5e2db449 Naoya Horiguchi   2014-06-13  6931  		}
-5e2db449 Naoya Horiguchi   2014-06-13  6932  		putback_lru_page(page);
-5e2db449 Naoya Horiguchi   2014-06-13  6933  put:		/* get_mctgt_type() gets the page */
-5e2db449 Naoya Horiguchi   2014-06-13  6934  		put_page(page);
-5e2db449 Naoya Horiguchi   2014-06-13  6935  		break;
-5e2db449 Naoya Horiguchi   2014-06-13  6936  	case MC_TARGET_SWAP:
-5e2db449 Naoya Horiguchi   2014-06-13  6937  		ent = target.ent;
-5e2db449 Naoya Horiguchi   2014-06-13  6938  		if (!mem_cgroup_move_swap_account(ent, mc.from, mc.to)) {
-5e2db449 Naoya Horiguchi   2014-06-13  6939  			mc.precharge--;
-5e2db449 Naoya Horiguchi   2014-06-13  6940  			/* we fixup refcnts and charges later. */
-5e2db449 Naoya Horiguchi   2014-06-13  6941  			mc.moved_swap++;
-5e2db449 Naoya Horiguchi   2014-06-13  6942  		}
-5e2db449 Naoya Horiguchi   2014-06-13  6943  		break;
-5e2db449 Naoya Horiguchi   2014-06-13  6944  	default:
-5e2db449 Naoya Horiguchi   2014-06-13  6945  		break;
-5e2db449 Naoya Horiguchi   2014-06-13  6946  	}
-5e2db449 Naoya Horiguchi   2014-06-13  6947  
-5e2db449 Naoya Horiguchi   2014-06-13  6948  	return 0;
-5e2db449 Naoya Horiguchi   2014-06-13  6949  }
-5e2db449 Naoya Horiguchi   2014-06-13  6950  
-5e2db449 Naoya Horiguchi   2014-06-13  6951  static int mem_cgroup_move_charge_pmd(pmd_t *pmd,
-5e2db449 Naoya Horiguchi   2014-06-13  6952  				unsigned long addr, unsigned long end,
-5e2db449 Naoya Horiguchi   2014-06-13  6953  				struct mm_walk *walk)
-5e2db449 Naoya Horiguchi   2014-06-13  6954  {
-5e2db449 Naoya Horiguchi   2014-06-13  6955  	struct vm_area_struct *vma = walk->vma;
-12724850 Naoya Horiguchi   2012-03-21  6956  	enum mc_target_type target_type;
-12724850 Naoya Horiguchi   2012-03-21  6957  	union mc_target target;
-12724850 Naoya Horiguchi   2012-03-21  6958  	struct page *page;
-12724850 Naoya Horiguchi   2012-03-21  6959  	struct page_cgroup *pc;
-4ffef5fe Daisuke Nishimura 2010-03-10  6960  
-d6dc1086 Naoya Horiguchi   2014-06-13 @6961  	if (mc.precharge < HPAGE_PMD_NR)
-d6dc1086 Naoya Horiguchi   2014-06-13  6962  		return 0;
-d6dc1086 Naoya Horiguchi   2014-06-13  6963  	target_type = get_mctgt_type_thp(vma, addr, *pmd, &target);
-d6dc1086 Naoya Horiguchi   2014-06-13  6964  	if (target_type == MC_TARGET_PAGE) {
-
-:::::: The code at line 6961 was first introduced by commit
-:::::: d6dc10868bc1439159231b2353dbbfc635a0c104 mm/pagewalk: move pmd_trans_huge_lock() from callbacks to common code
-
-:::::: TO: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-:::::: CC: Johannes Weiner <hannes@cmpxchg.org>
-
----
-0-DAY kernel build testing backend              Open Source Technology Center
-http://lists.01.org/mailman/listinfo/kbuild                 Intel Corporation
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Another topic: I couldn't find any cond_resched. Anyway, it could be
+another patch.
