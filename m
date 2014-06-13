@@ -1,103 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f180.google.com (mail-we0-f180.google.com [74.125.82.180])
-	by kanga.kvack.org (Postfix) with ESMTP id 985816B0080
-	for <linux-mm@kvack.org>; Fri, 13 Jun 2014 00:56:11 -0400 (EDT)
-Received: by mail-we0-f180.google.com with SMTP id x48so2170949wes.25
-        for <linux-mm@kvack.org>; Thu, 12 Jun 2014 21:56:11 -0700 (PDT)
+Received: from mail-wi0-f182.google.com (mail-wi0-f182.google.com [209.85.212.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 9609A6B0083
+	for <linux-mm@kvack.org>; Fri, 13 Jun 2014 01:10:43 -0400 (EDT)
+Received: by mail-wi0-f182.google.com with SMTP id bs8so210213wib.15
+        for <linux-mm@kvack.org>; Thu, 12 Jun 2014 22:10:42 -0700 (PDT)
 Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id kq9si4723375wjc.136.2014.06.12.21.56.09
+        by mx.google.com with ESMTPS id eg1si222668wib.76.2014.06.12.22.10.41
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Thu, 12 Jun 2014 21:56:10 -0700 (PDT)
-Date: Fri, 13 Jun 2014 00:55:57 -0400
+        Thu, 12 Jun 2014 22:10:41 -0700 (PDT)
+Date: Fri, 13 Jun 2014 01:10:33 -0400
 From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [Bug 75101] New: [bisected] s2disk / hibernate blocks on "Saving
- 506031 image data pages () ..."
-Message-ID: <20140613045557.GL2878@cmpxchg.org>
-References: <20140505233358.GC19914@cmpxchg.org>
- <5368227D.7060302@intel.com>
- <20140612220200.GA25344@cmpxchg.org>
- <539A3CD7.6080100@intel.com>
+Subject: Re: [PATCH v2] mm/vmscan.c: wrap five parameters into shrink_result
+ for reducing the stack consumption
+Message-ID: <20140613051033.GM2878@cmpxchg.org>
+References: <1402634191-3442-1-git-send-email-slaoub@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <539A3CD7.6080100@intel.com>
+In-Reply-To: <1402634191-3442-1-git-send-email-slaoub@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>
-Cc: =?iso-8859-1?Q?=22Rodolfo_Garc=EDa_Pe=F1as_=28kix=29=22?= <kix@kix.es>, Oliver Winker <oliverml1@oli1170.net>, Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, bugzilla-daemon@bugzilla.kernel.org, linux-mm@kvack.org, Maxim Patlasov <mpatlasov@parallels.com>, Fengguang Wu <fengguang.wu@intel.com>, Tejun Heo <tj@kernel.org>
+To: Chen Yucong <slaoub@gmail.com>
+Cc: akpm@linux-foundation.org, mgorman@suse.de, mhocko@suse.cz, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Jun 13, 2014 at 01:50:47AM +0200, Rafael J. Wysocki wrote:
-> On 6/13/2014 12:02 AM, Johannes Weiner wrote:
-> >On Tue, May 06, 2014 at 01:45:01AM +0200, Rafael J. Wysocki wrote:
-> >>On 5/6/2014 1:33 AM, Johannes Weiner wrote:
-> >>>Hi Oliver,
-> >>>
-> >>>On Mon, May 05, 2014 at 11:00:13PM +0200, Oliver Winker wrote:
-> >>>>Hello,
-> >>>>
-> >>>>1) Attached a full function-trace log + other SysRq outputs, see [1]
-> >>>>attached.
-> >>>>
-> >>>>I saw bdi_...() calls in the s2disk paths, but didn't check in detail
-> >>>>Probably more efficient when one of you guys looks directly.
-> >>>Thanks, this looks interesting.  balance_dirty_pages() wakes up the
-> >>>bdi_wq workqueue as it should:
-> >>>
-> >>>[  249.148009]   s2disk-3327    2.... 48550413us : global_dirty_limits <-balance_dirty_pages_ratelimited
-> >>>[  249.148009]   s2disk-3327    2.... 48550414us : global_dirtyable_memory <-global_dirty_limits
-> >>>[  249.148009]   s2disk-3327    2.... 48550414us : writeback_in_progress <-balance_dirty_pages_ratelimited
-> >>>[  249.148009]   s2disk-3327    2.... 48550414us : bdi_start_background_writeback <-balance_dirty_pages_ratelimited
-> >>>[  249.148009]   s2disk-3327    2.... 48550414us : mod_delayed_work_on <-balance_dirty_pages_ratelimited
-> >>>but the worker wakeup doesn't actually do anything:
-> >>>[  249.148009] kworker/-3466    2d... 48550431us : finish_task_switch <-__schedule
-> >>>[  249.148009] kworker/-3466    2.... 48550431us : _raw_spin_lock_irq <-worker_thread
-> >>>[  249.148009] kworker/-3466    2d... 48550431us : need_to_create_worker <-worker_thread
-> >>>[  249.148009] kworker/-3466    2d... 48550432us : worker_enter_idle <-worker_thread
-> >>>[  249.148009] kworker/-3466    2d... 48550432us : too_many_workers <-worker_enter_idle
-> >>>[  249.148009] kworker/-3466    2.... 48550432us : schedule <-worker_thread
-> >>>[  249.148009] kworker/-3466    2.... 48550432us : __schedule <-worker_thread
-> >>>
-> >>>My suspicion is that this fails because the bdi_wq is frozen at this
-> >>>point and so the flush work never runs until resume, whereas before my
-> >>>patch the effective dirty limit was high enough so that image could be
-> >>>written in one go without being throttled; followed by an fsync() that
-> >>>then writes the pages in the context of the unfrozen s2disk.
-> >>>
-> >>>Does this make sense?  Rafael?  Tejun?
-> >>Well, it does seem to make sense to me.
-> > From what I see, this is a deadlock in the userspace suspend model and
-> >just happened to work by chance in the past.
+On Fri, Jun 13, 2014 at 12:36:31PM +0800, Chen Yucong wrote:
+> shrink_page_list() has too many arguments that have already reached ten.
+> Some of those arguments and temporary variables introduces extra 80 bytes
+> on the stack. This patch wraps five parameters into shrink_result and removes
+> some temporary variables, thus making the relative functions to consume fewer
+> stack space.
 > 
-> Well, it had been working for quite a while, so it was a rather large
-> opportunity
-> window it seems. :-)
+> Before mm/vmscan.c is changed:
+>    text    data     bss     dec     hex filename
+> 6876698  957224  966656 8800578  864942 vmlinux-3.15
+> 
+> After mm/vmscan.c is changed:
+>    text    data     bss     dec     hex filename
+> 6876506  957224  966656 8800386  864882 vmlinux-3.15
+> 
+> 
+> scripts/checkstack.pl can be used for checking the change of the target function stack.
+> 
+> Before mm/vmscan.c is changed:
+> 
+> 0xffffffff810af103 shrink_inactive_list []:		152
+> 0xffffffff810af43d shrink_inactive_list []:		152
+> -------------------------------------------------------------
+> 0xffffffff810aede8 reclaim_clean_pages_from_list []:	184
+> 0xffffffff810aeef8 reclaim_clean_pages_from_list []:	184
+> -------------------------------------------------------------
+> 0xffffffff810ae582 shrink_page_list []:			232
+> 0xffffffff810aedb5 shrink_page_list []:			232
+> 
+> After mm/vmscan.c is changed::
+> 
+> 0xffffffff810af078 shrink_inactive_list []:		120
+> 0xffffffff810af36d shrink_inactive_list []:		120
+> -------------------------------------------------------------
+> 0xffffffff810aed6c reclaim_clean_pages_from_list []:	152
+> 0xffffffff810aee68 reclaim_clean_pages_from_list []:	152
+> --------------------------------------------------------------------------------------
+> 0xffffffff810ae586 shrink_page_list []:			184   ---> sub    $0xb8,%rsp
+> 0xffffffff810aed36 shrink_page_list []:			184   ---> add    $0xb8,%rsp
+> 
+> Via the above figures, we can find that the difference value of the stack is 32 for
+> shrink_inactive_list and reclaim_clean_pages_from_list, and this value is 48(232-184)
+> for shrink_page_list. From the hierarchy of functions called, the total difference
+> value is 80(32+48) for this change.
 
-No doubt about that, and I feel bad that it broke.  But it's still a
-deadlock that can't reasonably be accommodated from dirty throttling.
+We just increased the stack size by 8k.  I'm not saying that we
+shouldn't work on our stack footprint, but is this really worth it?
+It doesn't make that code easier to follow exactly.
 
-It can't just put the flushers to sleep and then issue a large amount
-of buffered IO, hoping it doesn't hit the dirty limits.  Don't shoot
-the messenger, this bug needs to be addressed, not get papered over.
+> Changes since v1: https://lkml.org/lkml/2014/6/12/159
+>      * Rename arg_container to shrink_result
+>      * Change the the way of initializing shrink_result object.
+> 
+> Signed-off-by: Chen Yucong <slaoub@gmail.com>
+> ---
+>  mm/vmscan.c |   62 ++++++++++++++++++++++++++---------------------------------
+>  1 file changed, 27 insertions(+), 35 deletions(-)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index a8ffe4e..3f28e39 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -791,28 +791,31 @@ static void page_check_dirty_writeback(struct page *page,
+>  }
+>  
+>  /*
+> + * Callers pass a prezeroed shrink_result into the shrink functions to gather
+> + * statistics about how many pages of particular states were processed
+> + */
+> +struct shrink_result {
+> +	unsigned long nr_dirty;
+> +	unsigned long nr_unqueued_dirty;
+> +	unsigned long nr_congested;
+> +	unsigned long nr_writeback;
+> +	unsigned long nr_immediate;
+> +};
 
-> >Can we patch suspend-utils as follows?
-> 
-> Perhaps we can.  Let's ask the new maintainer.
-> 
-> Rodolfo, do you think you can apply the patch below to suspend-utils?
-> 
-> >Alternatively, suspend-utils
-> >could clear the dirty limits before it starts writing and restore them
-> >post-resume.
-> 
-> That (and the patch too) doesn't seem to address the problem with existing
-> suspend-utils
-> binaries, however.
-
-It's userspace that freezes the system before issuing buffered IO, so
-my conclusion was that the bug is in there.  This is arguable.  I also
-wouldn't be opposed to a patch that sets the dirty limits to infinity
-from the ioctl that freezes the system or creates the image.
+This exclusively contains statistics on the writeback states of the
+scanned pages.  struct writeback_stats?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
