@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f44.google.com (mail-pb0-f44.google.com [209.85.160.44])
-	by kanga.kvack.org (Postfix) with ESMTP id 981E66B0031
-	for <linux-mm@kvack.org>; Thu, 12 Jun 2014 21:44:17 -0400 (EDT)
-Received: by mail-pb0-f44.google.com with SMTP id md12so775072pbc.31
-        for <linux-mm@kvack.org>; Thu, 12 Jun 2014 18:44:17 -0700 (PDT)
+Received: from mail-pb0-f42.google.com (mail-pb0-f42.google.com [209.85.160.42])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C06A6B0035
+	for <linux-mm@kvack.org>; Thu, 12 Jun 2014 21:45:17 -0400 (EDT)
+Received: by mail-pb0-f42.google.com with SMTP id ma3so1369202pbc.1
+        for <linux-mm@kvack.org>; Thu, 12 Jun 2014 18:45:17 -0700 (PDT)
 Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTP id qf4si345253pbb.185.2014.06.12.18.44.16
+        by mx.google.com with ESMTP id cw3si365614pbc.117.2014.06.12.18.45.16
         for <linux-mm@kvack.org>;
-        Thu, 12 Jun 2014 18:44:16 -0700 (PDT)
-Date: Fri, 13 Jun 2014 09:43:37 +0800
+        Thu, 12 Jun 2014 18:45:16 -0700 (PDT)
+Date: Fri, 13 Jun 2014 09:45:09 +0800
 From: kbuild test robot <fengguang.wu@intel.com>
-Subject: [mmotm:master 78/178] mm/madvise.c:161: warning: statement with
- no effect
-Message-ID: <539a5749.4XUyZ+7arvrYaHsj%fengguang.wu@intel.com>
+Subject: [mmotm:master 83/178] fs/proc/task_mmu.c:1330:9: error: call to
+ '__compiletime_assert_1330' declared with attribute error: BUILD_BUG failed
+Message-ID: <539a57a5.ZwFFTH050wXkgXku%fengguang.wu@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
@@ -23,43 +23,29 @@ Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux
 
 tree:   git://git.cmpxchg.org/linux-mmotm.git master
 head:   a621774e0e7bbd9e8a024230af4704cc489bd40e
-commit: ef99d21ea4a246e56b9a55de5740655d30735f33 [78/178] madvise: cleanup swapin_walk_pmd_entry()
-config: make ARCH=avr32 atngw100_defconfig
+commit: d6dc10868bc1439159231b2353dbbfc635a0c104 [83/178] mm/pagewalk: move pmd_trans_huge_lock() from callbacks to common code
+config: make ARCH=ia64 allmodconfig
 
-All warnings:
+All error/warnings:
 
-   mm/madvise.c: In function 'swapin_walk_pte_entry':
->> mm/madvise.c:161: warning: statement with no effect
->> mm/madvise.c:145: warning: unused variable 'orig_pte'
+   fs/proc/task_mmu.c: In function 'gather_pmd_stats':
+>> fs/proc/task_mmu.c:1330:9: error: call to '__compiletime_assert_1330' declared with attribute error: BUILD_BUG failed
+   fs/proc/task_mmu.c: In function 'smaps_pmd':
+   fs/proc/task_mmu.c:505:39: error: call to '__compiletime_assert_505' declared with attribute error: BUILD_BUG failed
+   fs/proc/task_mmu.c:506:24: error: call to '__compiletime_assert_506' declared with attribute error: BUILD_BUG failed
 
-vim +161 mm/madvise.c
+vim +/__compiletime_assert_1330 +1330 fs/proc/task_mmu.c
 
-   139	 * Assuming that page table walker holds page table lock.
-   140	 */
-   141	static int swapin_walk_pte_entry(pte_t *pte, unsigned long start,
-   142		unsigned long end, struct mm_walk *walk)
-   143	{
-   144		pte_t ptent;
- > 145		pte_t *orig_pte = pte - ((start & (PMD_SIZE - 1)) >> PAGE_SHIFT);
-   146		swp_entry_t entry;
-   147		struct page *page;
-   148	
-   149		ptent = *pte;
-   150		pte_unmap_unlock(orig_pte, walk->ptl);
-   151		if (pte_present(ptent) || pte_none(ptent) || pte_file(ptent))
-   152			goto lock;
-   153		entry = pte_to_swp_entry(ptent);
-   154		if (unlikely(non_swap_entry(entry)))
-   155			goto lock;
-   156		page = read_swap_cache_async(entry, GFP_HIGHUSER_MOVABLE,
-   157					     walk->vma, start);
-   158		if (page)
-   159			page_cache_release(page);
-   160	lock:
- > 161		pte_offset_map(walk->pmd, start & PMD_MASK);
-   162		spin_lock(walk->ptl);
-   163		return 0;
-   164	}
+  1324		pte_t huge_pte = *(pte_t *)pmd;
+  1325		struct page *page;
+  1326	
+  1327		page = can_gather_numa_stats(huge_pte, vma, addr);
+  1328		if (page)
+  1329			gather_stats(page, md, pte_dirty(huge_pte),
+> 1330				     HPAGE_PMD_SIZE/PAGE_SIZE);
+  1331		return 0;
+  1332	}
+  1333	#ifdef CONFIG_HUGETLB_PAGE
 
 ---
 0-DAY kernel build testing backend              Open Source Technology Center
