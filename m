@@ -1,72 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vc0-f174.google.com (mail-vc0-f174.google.com [209.85.220.174])
-	by kanga.kvack.org (Postfix) with ESMTP id 700C16B0031
-	for <linux-mm@kvack.org>; Fri, 13 Jun 2014 12:20:23 -0400 (EDT)
-Received: by mail-vc0-f174.google.com with SMTP id hy4so2533366vcb.33
-        for <linux-mm@kvack.org>; Fri, 13 Jun 2014 09:20:23 -0700 (PDT)
-Received: from mail-vc0-f180.google.com (mail-vc0-f180.google.com [209.85.220.180])
-        by mx.google.com with ESMTPS id cx7si1559962vcb.57.2014.06.13.09.20.22
+Received: from mail-we0-f180.google.com (mail-we0-f180.google.com [74.125.82.180])
+	by kanga.kvack.org (Postfix) with ESMTP id D41776B0031
+	for <linux-mm@kvack.org>; Fri, 13 Jun 2014 12:28:15 -0400 (EDT)
+Received: by mail-we0-f180.google.com with SMTP id x48so3046037wes.11
+        for <linux-mm@kvack.org>; Fri, 13 Jun 2014 09:28:15 -0700 (PDT)
+Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
+        by mx.google.com with ESMTPS id hs6si2466052wib.75.2014.06.13.09.28.14
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 13 Jun 2014 09:20:22 -0700 (PDT)
-Received: by mail-vc0-f180.google.com with SMTP id im17so2493563vcb.39
-        for <linux-mm@kvack.org>; Fri, 13 Jun 2014 09:20:22 -0700 (PDT)
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Fri, 13 Jun 2014 09:28:14 -0700 (PDT)
+Date: Fri, 13 Jun 2014 12:28:07 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH v2] mm/vmscan.c: wrap five parameters into shrink_result
+ for reducing the stack consumption
+Message-ID: <20140613162807.GP2878@cmpxchg.org>
+References: <1402634191-3442-1-git-send-email-slaoub@gmail.com>
+ <20140612214016.1beda952.akpm@linux-foundation.org>
+ <1402636875.1232.13.camel@debian>
 MIME-Version: 1.0
-In-Reply-To: <CAKgNAkgMA39AfoSoA5Pe1r9N+ZzfYQNvNPvcRN7tOvRb8+v06Q@mail.gmail.com>
-References: <1402655819-14325-1-git-send-email-dh.herrmann@gmail.com>
-	<1402655819-14325-4-git-send-email-dh.herrmann@gmail.com>
-	<CAKgNAkgnnWjrbE+2KAETsmiyrnrMQu0h7-MrYLvkiwj--_nxcQ@mail.gmail.com>
-	<CANq1E4R2K+eq9AxtFewp4YUL2cujg+dg+sN19Anvf-zWuvgyWw@mail.gmail.com>
-	<CAKgNAkgMA39AfoSoA5Pe1r9N+ZzfYQNvNPvcRN7tOvRb8+v06Q@mail.gmail.com>
-Date: Fri, 13 Jun 2014 09:20:22 -0700
-Message-ID: <CALAqxLUDDYhDbU-fa50ZHVe+yOmv0m3aOO3WmGpRrk-cPzsMAg@mail.gmail.com>
-Subject: Re: [PATCH v3 3/7] shm: add memfd_create() syscall
-From: John Stultz <john.stultz@linaro.org>
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1402636875.1232.13.camel@debian>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michael Kerrisk <mtk.manpages@gmail.com>
-Cc: David Herrmann <dh.herrmann@gmail.com>, lkml <linux-kernel@vger.kernel.org>, Ryan Lortie <desrt@desrt.ca>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, Greg Kroah-Hartman <greg@kroah.com>, Lennart Poettering <lennart@poettering.net>, Daniel Mack <zonque@gmail.com>, Kay Sievers <kay@vrfy.org>, Hugh Dickins <hughd@google.com>, Tony Battersby <tonyb@cybernetics.com>, Andy Lutomirski <luto@amacapital.net>
+To: Chen Yucong <slaoub@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, mgorman@suse.de, mhocko@suse.cz, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Jun 13, 2014 at 7:20 AM, Michael Kerrisk (man-pages)
-<mtk.manpages@gmail.com> wrote:
->
-> The general notion these days is that a (comprehensive) manual page
-> _should_ come *with* the system call, rather than after the fact. And
-> there's a lot of value in that. I've found no end of bugs and design
-> errors while writing (comprehensive) man pages after the fact (by
-> which time it's too late to fix the design errors), and also found
-> quite a few of those issues when I've managed to work with folk at the
-> same time as they write the syscall. Bottom line: you really should
-> write formal documentation now, as part of the process of code
-> submission. It improves the chance of finding implementation and
-> design bugs, and may well widen your circle of reviewers.
+On Fri, Jun 13, 2014 at 01:21:15PM +0800, Chen Yucong wrote:
+> On Thu, 2014-06-12 at 21:40 -0700, Andrew Morton wrote:
+> > On Fri, 13 Jun 2014 12:36:31 +0800 Chen Yucong <slaoub@gmail.com> wrote:
+> > 
+> > > @@ -1148,7 +1146,8 @@ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
+> > >  		.priority = DEF_PRIORITY,
+> > >  		.may_unmap = 1,
+> > >  	};
+> > > -	unsigned long ret, dummy1, dummy2, dummy3, dummy4, dummy5;
+> > > +	unsigned long ret;
+> > > +	struct shrink_result dummy = { };
+> > 
+> > You didn't like the idea of making this static?
+> Sorry! It's my negligence.
+> If we make dummy static, it can help us save more stack.
+> 
+> without change:  
+> 0xffffffff810aede8 reclaim_clean_pages_from_list []:	184
+> 0xffffffff810aeef8 reclaim_clean_pages_from_list []:	184
+> 
+> with change: struct shrink_result dummy = {};
+> 0xffffffff810aed6c reclaim_clean_pages_from_list []:	152
+> 0xffffffff810aee68 reclaim_clean_pages_from_list []:	152
+> 
+> with change: static struct shrink_result dummy ={};
+> 0xffffffff810aed69 reclaim_clean_pages_from_list []:	120
+> 0xffffffff810aee4d reclaim_clean_pages_from_list []:	120
 
-I very much agree here. One practical issue I've noticed is that
-having separate targets for both the code changes and the manpages can
-be an extra barrier for folks getting changes correctly documented as
-the change is being submitted. Reviewers may say "be sure to send
-updates to the man pages" but its not always easy to remember to
-follow up and make sure the submitter got the changes (which match the
-merged patches) to you as well.
+FWIW, I copied bloat-o-meter and hacked up a quick comparison tool
+that you can feed two outputs of checkstack.pl for a whole vmlinux and
+it shows you the delta.
 
-I've been thinking it might be nice to have the kernel syscall man
-pages included in the kernel source tree, then have them
-copied/imported over to the man-pages project (similar to how glibc
-imports uapi kernel headers).  They could even be kept in the
-include/uapi directory, and checkpatch could ensure that changes that
-touch include/uapi also have modifications to something in the
-manpages directory. This way folks would be able to include the man
-page change with the code change, making it easier for developers to
-do the right thing, making it easier for reviewers to ensure its
-correct, and making it easier for maintainers to ensure man page
-documentation is properly in sync.
+The output for your patch (with the static dummy) looks like this:
 
-Or is this something that has been hashed over already? I do admit
-this would disrupt your process a bit.
++0/-240 -240
+shrink_inactive_list                         136     112     -24
+shrink_page_list                             208     160     -48
+reclaim_clean_pages_from_list                168       -    -168
 
-thanks
--john
+(The stack footprint for reclaim_clean_pages_from_list is actually 96
+after your patch, but checkstack.pl skips frames under 100)
+
+---
+#!/usr/bin/python
+#
+# Based on bloat-o-meter 
+
+import sys
+import re
+
+if len(sys.argv) != 3:
+   print("usage: %s file1 file2" % sys.argv[0])
+   sys.exit(1)
+
+def getsizes(filename):
+   sym = {}
+   for line in open(filename):
+      x = re.split('(0x.*) (.*) (.*):[ \t]*(.*)', line)
+      try:
+         foo, addr, name, src, size, bar = x
+      except:
+         print(x)
+         raise Exception
+      try:
+         sym[name] = int(size)
+      except:
+         continue
+   return sym
+
+old = getsizes(sys.argv[1])
+new = getsizes(sys.argv[2])
+
+inc = 0
+dec = 0
+delta = []
+common = {}
+
+for a in old:
+   if a in new:
+      common[a] = 1
+
+for name in old:
+   if name not in common:
+      dec += old[name]
+      delta.append((-old[name], name))
+
+for name in new:
+   if name not in common:
+      inc += new[name]
+      delta.append((new[name], name))
+
+for name in common:
+   d = new.get(name, 0) - old.get(name, 0)
+   if d > 0: inc += d
+   if d < 0: dec -= d
+   delta.append((d, name))
+
+delta.sort()
+delta.reverse()
+
+print("+%d/-%d %+d" % (inc, dec, inc - dec))
+for d, name in delta:
+   if d:
+      print("%-40s %7s %7s %+7d" % (name, old.get(name, "-"), new.get(name, "-"), d))
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
