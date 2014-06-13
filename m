@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f177.google.com (mail-we0-f177.google.com [74.125.82.177])
-	by kanga.kvack.org (Postfix) with ESMTP id AEC566B00B4
-	for <linux-mm@kvack.org>; Fri, 13 Jun 2014 06:45:28 -0400 (EDT)
-Received: by mail-we0-f177.google.com with SMTP id u56so2546173wes.22
-        for <linux-mm@kvack.org>; Fri, 13 Jun 2014 03:45:28 -0700 (PDT)
-Received: from mail-we0-x236.google.com (mail-we0-x236.google.com [2a00:1450:400c:c03::236])
-        by mx.google.com with ESMTPS id by5si5981817wjc.114.2014.06.13.03.45.26
+Received: from mail-wi0-f180.google.com (mail-wi0-f180.google.com [209.85.212.180])
+	by kanga.kvack.org (Postfix) with ESMTP id 18B806B00B6
+	for <linux-mm@kvack.org>; Fri, 13 Jun 2014 06:45:31 -0400 (EDT)
+Received: by mail-wi0-f180.google.com with SMTP id hi2so634987wib.1
+        for <linux-mm@kvack.org>; Fri, 13 Jun 2014 03:45:30 -0700 (PDT)
+Received: from mail-wi0-x22b.google.com (mail-wi0-x22b.google.com [2a00:1450:400c:c05::22b])
+        by mx.google.com with ESMTPS id ck8si6040157wjc.8.2014.06.13.03.45.29
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 13 Jun 2014 03:45:27 -0700 (PDT)
-Received: by mail-we0-f182.google.com with SMTP id q59so2534870wes.41
-        for <linux-mm@kvack.org>; Fri, 13 Jun 2014 03:45:26 -0700 (PDT)
+        Fri, 13 Jun 2014 03:45:29 -0700 (PDT)
+Received: by mail-wi0-f171.google.com with SMTP id n15so629124wiw.10
+        for <linux-mm@kvack.org>; Fri, 13 Jun 2014 03:45:29 -0700 (PDT)
 From: David Herrmann <dh.herrmann@gmail.com>
-Subject: [PATCH v3 5/7] selftests: add memfd/sealing page-pinning tests
-Date: Fri, 13 Jun 2014 12:36:57 +0200
-Message-Id: <1402655819-14325-6-git-send-email-dh.herrmann@gmail.com>
+Subject: [RFC v3 6/7] shm: wait for pins to be released when sealing
+Date: Fri, 13 Jun 2014 12:36:58 +0200
+Message-Id: <1402655819-14325-7-git-send-email-dh.herrmann@gmail.com>
 In-Reply-To: <1402655819-14325-1-git-send-email-dh.herrmann@gmail.com>
 References: <1402655819-14325-1-git-send-email-dh.herrmann@gmail.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,508 +22,153 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: Michael Kerrisk <mtk.manpages@gmail.com>, Ryan Lortie <desrt@desrt.ca>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-api@vger.kernel.org, Greg Kroah-Hartman <greg@kroah.com>, john.stultz@linaro.org, Lennart Poettering <lennart@poettering.net>, Daniel Mack <zonque@gmail.com>, Kay Sievers <kay@vrfy.org>, Hugh Dickins <hughd@google.com>, Tony Battersby <tonyb@cybernetics.com>, Andy Lutomirski <luto@amacapital.net>, David Herrmann <dh.herrmann@gmail.com>
 
-Setting SEAL_WRITE is not possible if there're pending GUP users. This
-commit adds selftests for memfd+sealing that use FUSE to create pending
-page-references. FUSE is very helpful here in that it allows us to delay
-direct-IO operations for an arbitrary amount of time. This way, we can
-force the kernel to pin pages and then run our normal selftests.
+We currently fail setting SEAL_WRITE in case there're pending page
+references. This patch extends the pin-tests to wait up to 150ms for all
+references to be dropped. This is still not perfect in that it doesn't
+account for harmless read-only pins, but it's much better than a hard
+failure.
 
 Signed-off-by: David Herrmann <dh.herrmann@gmail.com>
 ---
- tools/testing/selftests/memfd/.gitignore       |   2 +
- tools/testing/selftests/memfd/Makefile         |  13 +-
- tools/testing/selftests/memfd/fuse_mnt.c       | 110 +++++++++
- tools/testing/selftests/memfd/fuse_test.c      | 311 +++++++++++++++++++++++++
- tools/testing/selftests/memfd/run_fuse_test.sh |  14 ++
- 5 files changed, 449 insertions(+), 1 deletion(-)
- create mode 100755 tools/testing/selftests/memfd/fuse_mnt.c
- create mode 100644 tools/testing/selftests/memfd/fuse_test.c
- create mode 100755 tools/testing/selftests/memfd/run_fuse_test.sh
+ mm/shmem.c | 97 ++++++++++++++++++++++++++++++++++++++++++++++++++++----------
+ 1 file changed, 82 insertions(+), 15 deletions(-)
 
-diff --git a/tools/testing/selftests/memfd/.gitignore b/tools/testing/selftests/memfd/.gitignore
-index bcc8ee2..afe87c4 100644
---- a/tools/testing/selftests/memfd/.gitignore
-+++ b/tools/testing/selftests/memfd/.gitignore
-@@ -1,2 +1,4 @@
-+fuse_mnt
-+fuse_test
- memfd_test
- memfd-test-file
-diff --git a/tools/testing/selftests/memfd/Makefile b/tools/testing/selftests/memfd/Makefile
-index 36653b9..77816620 100644
---- a/tools/testing/selftests/memfd/Makefile
-+++ b/tools/testing/selftests/memfd/Makefile
-@@ -25,5 +25,16 @@ ifeq ($(ARCH),X86)
- endif
- 	@./memfd_test || echo "memfd_test: [FAIL]"
+diff --git a/mm/shmem.c b/mm/shmem.c
+index e7c5fe1..ddc3998 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -1735,25 +1735,19 @@ static loff_t shmem_file_llseek(struct file *file, loff_t offset, int whence)
+ }
  
-+build_fuse:
-+ifeq ($(ARCH),X86)
-+	gcc $(CFLAGS) fuse_mnt.c `pkg-config fuse --cflags --libs` -o fuse_mnt
-+	gcc $(CFLAGS) fuse_test.c -o fuse_test
-+else
-+	echo "Not an x86 target, can't build memfd selftest"
-+endif
+ /*
+- * Setting SEAL_WRITE requires us to verify there's no pending writer. However,
+- * via get_user_pages(), drivers might have some pending I/O without any active
+- * user-space mappings (eg., direct-IO, AIO). Therefore, we look at all pages
+- * and see whether it has an elevated ref-count. If so, we abort.
+- * The caller must guarantee that no new user will acquire writable references
+- * to those pages to avoid races.
++ * We need a tag: a new tag would expand every radix_tree_node by 8 bytes,
++ * so reuse a tag which we firmly believe is never set or cleared on shmem.
+  */
+-static int shmem_test_for_pins(struct address_space *mapping)
++#define SHMEM_TAG_PINNED        PAGECACHE_TAG_TOWRITE
++#define LAST_SCAN               4       /* about 150ms max */
 +
-+run_fuse: build_fuse
-+	@./run_fuse_test.sh || echo "fuse_test: [FAIL]"
++static void shmem_tag_pins(struct address_space *mapping)
+ {
+ 	struct radix_tree_iter iter;
+ 	void **slot;
+ 	pgoff_t start;
+ 	struct page *page;
+-	int error;
+-
+-	/* flush additional refs in lru_add early */
+-	lru_add_drain_all();
+ 
+-	error = 0;
+ 	start = 0;
+ 	rcu_read_lock();
+ 
+@@ -1764,8 +1758,10 @@ restart:
+ 			if (radix_tree_deref_retry(page))
+ 				goto restart;
+ 		} else if (page_count(page) - page_mapcount(page) > 1) {
+-			error = -EBUSY;
+-			break;
++			spin_lock_irq(&mapping->tree_lock);
++			radix_tree_tag_set(&mapping->page_tree, iter.index,
++					   SHMEM_TAG_PINNED);
++			spin_unlock_irq(&mapping->tree_lock);
+ 		}
+ 
+ 		if (need_resched()) {
+@@ -1775,6 +1771,77 @@ restart:
+ 		}
+ 	}
+ 	rcu_read_unlock();
++}
 +
- clean:
--	$(RM) memfd_test
-+	$(RM) memfd_test fuse_test
-diff --git a/tools/testing/selftests/memfd/fuse_mnt.c b/tools/testing/selftests/memfd/fuse_mnt.c
-new file mode 100755
-index 0000000..feacf12
---- /dev/null
-+++ b/tools/testing/selftests/memfd/fuse_mnt.c
-@@ -0,0 +1,110 @@
 +/*
-+ * memfd test file-system
-+ * This file uses FUSE to create a dummy file-system with only one file /memfd.
-+ * This file is read-only and takes 1s per read.
-+ *
-+ * This file-system is used by the memfd test-cases to force the kernel to pin
-+ * pages during reads(). Due to the 1s delay of this file-system, this is a
-+ * nice way to test race-conditions against get_user_pages() in the kernel.
-+ *
-+ * We use direct_io==1 to force the kernel to use direct-IO for this
-+ * file-system.
++ * Setting SEAL_WRITE requires us to verify there's no pending writer. However,
++ * via get_user_pages(), drivers might have some pending I/O without any active
++ * user-space mappings (eg., direct-IO, AIO). Therefore, we look at all pages
++ * and see whether it has an elevated ref-count. If so, we tag them and wait for
++ * them to be dropped.
++ * The caller must guarantee that no new user will acquire writable references
++ * to those pages to avoid races.
 + */
-+
-+#define FUSE_USE_VERSION 26
-+
-+#include <fuse.h>
-+#include <stdio.h>
-+#include <string.h>
-+#include <errno.h>
-+#include <fcntl.h>
-+#include <unistd.h>
-+
-+static const char memfd_content[] = "memfd-example-content";
-+static const char memfd_path[] = "/memfd";
-+
-+static int memfd_getattr(const char *path, struct stat *st)
++static int shmem_wait_for_pins(struct address_space *mapping)
 +{
-+	memset(st, 0, sizeof(*st));
++	struct radix_tree_iter iter;
++	void **slot;
++	pgoff_t start;
++	struct page *page;
++	int error, scan;
 +
-+	if (!strcmp(path, "/")) {
-+		st->st_mode = S_IFDIR | 0755;
-+		st->st_nlink = 2;
-+	} else if (!strcmp(path, memfd_path)) {
-+		st->st_mode = S_IFREG | 0444;
-+		st->st_nlink = 1;
-+		st->st_size = strlen(memfd_content);
-+	} else {
-+		return -ENOENT;
++	shmem_tag_pins(mapping);
++
++	error = 0;
++	for (scan = 0; scan <= LAST_SCAN; scan++) {
++		if (!radix_tree_tagged(&mapping->page_tree, SHMEM_TAG_PINNED))
++			break;
++
++		if (!scan)
++			lru_add_drain_all();
++		else if (schedule_timeout_killable((HZ << scan) / 200))
++			scan = LAST_SCAN;
++
++		start = 0;
++		rcu_read_lock();
++restart:
++		radix_tree_for_each_tagged(slot, &mapping->page_tree, &iter,
++					   start, SHMEM_TAG_PINNED) {
++
++			page = radix_tree_deref_slot(slot);
++			if (radix_tree_exception(page)) {
++				if (radix_tree_deref_retry(page))
++					goto restart;
++
++				page = NULL;
++			}
++
++			if (page &&
++			    page_count(page) - page_mapcount(page) != 1) {
++				if (scan < LAST_SCAN)
++					goto continue_resched;
++
++				/*
++				 * On the last scan, we clean up all those tags
++				 * we inserted; but make a note that we still
++				 * found pages pinned.
++				 */
++				error = -EBUSY;
++			}
++
++			spin_lock_irq(&mapping->tree_lock);
++			radix_tree_tag_clear(&mapping->page_tree,
++					     iter.index, SHMEM_TAG_PINNED);
++			spin_unlock_irq(&mapping->tree_lock);
++continue_resched:
++			if (need_resched()) {
++				cond_resched_rcu();
++				start = iter.index + 1;
++				goto restart;
++			}
++		}
++		rcu_read_unlock();
 +	}
-+
-+	return 0;
-+}
-+
-+static int memfd_readdir(const char *path,
-+			 void *buf,
-+			 fuse_fill_dir_t filler,
-+			 off_t offset,
-+			 struct fuse_file_info *fi)
-+{
-+	if (strcmp(path, "/"))
-+		return -ENOENT;
-+
-+	filler(buf, ".", NULL, 0);
-+	filler(buf, "..", NULL, 0);
-+	filler(buf, memfd_path + 1, NULL, 0);
-+
-+	return 0;
-+}
-+
-+static int memfd_open(const char *path, struct fuse_file_info *fi)
-+{
-+	if (strcmp(path, memfd_path))
-+		return -ENOENT;
-+
-+	if ((fi->flags & 3) != O_RDONLY)
-+		return -EACCES;
-+
-+	/* force direct-IO */
-+	fi->direct_io = 1;
-+
-+	return 0;
-+}
-+
-+static int memfd_read(const char *path,
-+		      char *buf,
-+		      size_t size,
-+		      off_t offset,
-+		      struct fuse_file_info *fi)
-+{
-+	size_t len;
-+
-+	if (strcmp(path, memfd_path) != 0)
-+		return -ENOENT;
-+
-+	sleep(1);
-+
-+	len = strlen(memfd_content);
-+	if (offset < len) {
-+		if (offset + size > len)
-+			size = len - offset;
-+
-+		memcpy(buf, memfd_content + offset, size);
-+	} else {
-+		size = 0;
-+	}
-+
-+	return size;
-+}
-+
-+static struct fuse_operations memfd_ops = {
-+	.getattr	= memfd_getattr,
-+	.readdir	= memfd_readdir,
-+	.open		= memfd_open,
-+	.read		= memfd_read,
-+};
-+
-+int main(int argc, char *argv[])
-+{
-+	return fuse_main(argc, argv, &memfd_ops, NULL);
-+}
-diff --git a/tools/testing/selftests/memfd/fuse_test.c b/tools/testing/selftests/memfd/fuse_test.c
-new file mode 100644
-index 0000000..67908b1
---- /dev/null
-+++ b/tools/testing/selftests/memfd/fuse_test.c
-@@ -0,0 +1,311 @@
-+/*
-+ * memfd GUP test-case
-+ * This tests memfd interactions with get_user_pages(). We require the
-+ * fuse_mnt.c program to provide a fake direct-IO FUSE mount-point for us. This
-+ * file-system delays _all_ reads by 1s and forces direct-IO. This means, any
-+ * read() on files in that file-system will pin the receive-buffer pages for at
-+ * least 1s via get_user_pages().
-+ *
-+ * We use this trick to race ADD_SEALS against a write on a memfd object. The
-+ * ADD_SEALS must fail if the memfd pages are still pinned. Note that we use
-+ * the read() syscall with our memory-mapped memfd object as receive buffer to
-+ * force the kernel to write into our memfd object.
-+ */
-+
-+#define _GNU_SOURCE
-+#define __EXPORTED_HEADERS__
-+
-+#include <errno.h>
-+#include <inttypes.h>
-+#include <limits.h>
-+#include <linux/falloc.h>
-+#include <linux/fcntl.h>
-+#include <linux/memfd.h>
-+#include <sched.h>
-+#include <stdio.h>
-+#include <stdlib.h>
-+#include <signal.h>
-+#include <string.h>
-+#include <sys/mman.h>
-+#include <sys/stat.h>
-+#include <sys/syscall.h>
-+#include <sys/wait.h>
-+#include <unistd.h>
-+
-+#define MFD_DEF_SIZE 8192
-+#define STACK_SIZE 65535
-+
-+static int sys_memfd_create(const char *name,
-+			    unsigned int flags)
-+{
-+	return syscall(__NR_memfd_create, name, flags);
-+}
-+
-+static int mfd_assert_new(const char *name, loff_t sz, unsigned int flags)
-+{
-+	int r, fd;
-+
-+	fd = sys_memfd_create(name, flags);
-+	if (fd < 0) {
-+		printf("memfd_create(\"%s\", %u) failed: %m\n",
-+		       name, flags);
-+		abort();
-+	}
-+
-+	r = ftruncate(fd, sz);
-+	if (r < 0) {
-+		printf("ftruncate(%llu) failed: %m\n", (unsigned long long)sz);
-+		abort();
-+	}
-+
-+	return fd;
-+}
-+
-+static __u64 mfd_assert_get_seals(int fd)
-+{
-+	long r;
-+
-+	r = fcntl(fd, F_GET_SEALS);
-+	if (r < 0) {
-+		printf("GET_SEALS(%d) failed: %m\n", fd);
-+		abort();
-+	}
-+
-+	return r;
-+}
-+
-+static void mfd_assert_has_seals(int fd, __u64 seals)
-+{
-+	__u64 s;
-+
-+	s = mfd_assert_get_seals(fd);
-+	if (s != seals) {
-+		printf("%llu != %llu = GET_SEALS(%d)\n",
-+		       (unsigned long long)seals, (unsigned long long)s, fd);
-+		abort();
-+	}
-+}
-+
-+static void mfd_assert_add_seals(int fd, __u64 seals)
-+{
-+	long r;
-+	__u64 s;
-+
-+	s = mfd_assert_get_seals(fd);
-+	r = fcntl(fd, F_ADD_SEALS, seals);
-+	if (r < 0) {
-+		printf("ADD_SEALS(%d, %llu -> %llu) failed: %m\n",
-+		       fd, (unsigned long long)s, (unsigned long long)seals);
-+		abort();
-+	}
-+}
-+
-+static int mfd_busy_add_seals(int fd, __u64 seals)
-+{
-+	long r;
-+	__u64 s;
-+
-+	r = fcntl(fd, F_GET_SEALS);
-+	if (r < 0)
-+		s = 0;
-+	else
-+		s = r;
-+
-+	r = fcntl(fd, F_ADD_SEALS, seals);
-+	if (r < 0 && errno != EBUSY) {
-+		printf("ADD_SEALS(%d, %llu -> %llu) didn't fail as expected with EBUSY: %m\n",
-+		       fd, (unsigned long long)s, (unsigned long long)seals);
-+		abort();
-+	}
-+
-+	return r;
-+}
-+
-+static void *mfd_assert_mmap_shared(int fd)
-+{
-+	void *p;
-+
-+	p = mmap(NULL,
-+		 MFD_DEF_SIZE,
-+		 PROT_READ | PROT_WRITE,
-+		 MAP_SHARED,
-+		 fd,
-+		 0);
-+	if (p == MAP_FAILED) {
-+		printf("mmap() failed: %m\n");
-+		abort();
-+	}
-+
-+	return p;
-+}
-+
-+static void *mfd_assert_mmap_private(int fd)
-+{
-+	void *p;
-+
-+	p = mmap(NULL,
-+		 MFD_DEF_SIZE,
-+		 PROT_READ | PROT_WRITE,
-+		 MAP_PRIVATE,
-+		 fd,
-+		 0);
-+	if (p == MAP_FAILED) {
-+		printf("mmap() failed: %m\n");
-+		abort();
-+	}
-+
-+	return p;
-+}
-+
-+static int global_mfd = -1;
-+static void *global_p = NULL;
-+
-+static int sealing_thread_fn(void *arg)
-+{
-+	int sig, r;
-+
-+	/*
-+	 * This thread first waits 200ms so any pending operation in the parent
-+	 * is correctly started. After that, it tries to seal @global_mfd as
-+	 * SEAL_WRITE. This _must_ fail as the parent thread has a read() into
-+	 * that memory mapped object still ongoing.
-+	 * We then wait one more second and try sealing again. This time it
-+	 * must succeed as there shouldn't be anyone else pinning the pages.
-+	 */
-+
-+	/* wait 200ms for FUSE-request to be active */
-+	usleep(200000);
-+
-+	/* unmount mapping before sealing to avoid i_mmap_writable failures */
-+	munmap(global_p, MFD_DEF_SIZE);
-+
-+	/* Try sealing the global file; expect EBUSY or success. Current
-+	 * kernels will never succeed, but in the future, kernels might
-+	 * implement page-replacements or other fancy ways to avoid racing
-+	 * writes. */
-+	r = mfd_busy_add_seals(global_mfd, F_SEAL_WRITE);
-+	if (r >= 0) {
-+		printf("HURRAY! This kernel fixed GUP races!\n");
-+	} else {
-+		/* wait 1s more so the FUSE-request is done */
-+		sleep(1);
-+
-+		/* try sealing the global file again */
-+		mfd_assert_add_seals(global_mfd, F_SEAL_WRITE);
-+	}
-+
-+	return 0;
-+}
-+
-+static pid_t spawn_sealing_thread(void)
-+{
-+	uint8_t *stack;
-+	pid_t pid;
-+
-+	stack = malloc(STACK_SIZE);
-+	if (!stack) {
-+		printf("malloc(STACK_SIZE) failed: %m\n");
-+		abort();
-+	}
-+
-+	pid = clone(sealing_thread_fn,
-+		    stack + STACK_SIZE,
-+		    SIGCHLD | CLONE_FILES | CLONE_FS | CLONE_VM,
-+		    NULL);
-+	if (pid < 0) {
-+		printf("clone() failed: %m\n");
-+		abort();
-+	}
-+
-+	return pid;
-+}
-+
-+static void join_sealing_thread(pid_t pid)
-+{
-+	waitpid(pid, NULL, 0);
-+}
-+
-+int main(int argc, char **argv)
-+{
-+	static const char zero[MFD_DEF_SIZE];
-+	int fd, mfd, r;
-+	void *p;
-+	int was_sealed;
-+	pid_t pid;
-+
-+	if (argc < 2) {
-+		printf("error: please pass path to file in fuse_mnt mount-point\n");
-+		abort();
-+	}
-+
-+	/* open FUSE memfd file for GUP testing */
-+	printf("opening: %s\n", argv[1]);
-+	fd = open(argv[1], O_RDONLY | O_CLOEXEC);
-+	if (fd < 0) {
-+		printf("cannot open(\"%s\"): %m\n", argv[1]);
-+		abort();
-+	}
-+
-+	/* create new memfd-object */
-+	mfd = mfd_assert_new("kern_memfd_fuse",
-+			     MFD_DEF_SIZE,
-+			     MFD_CLOEXEC | MFD_ALLOW_SEALING);
-+
-+	/* mmap memfd-object for writing */
-+	p = mfd_assert_mmap_shared(mfd);
-+
-+	/* pass mfd+mapping to a separate sealing-thread which tries to seal
-+	 * the memfd objects with SEAL_WRITE while we write into it */
-+	global_mfd = mfd;
-+	global_p = p;
-+	pid = spawn_sealing_thread();
-+
-+	/* Use read() on the FUSE file to read into our memory-mapped memfd
-+	 * object. This races the other thread which tries to seal the
-+	 * memfd-object.
-+	 * If @fd is on the memfd-fake-FUSE-FS, the read() is delayed by 1s.
-+	 * This guarantees that the receive-buffer is pinned for 1s until the
-+	 * data is written into it. The racing ADD_SEALS should thus fail as
-+	 * the pages are still pinned. */
-+	r = read(fd, p, MFD_DEF_SIZE);
-+	if (r < 0) {
-+		printf("read() failed: %m\n");
-+		abort();
-+	} else if (!r) {
-+		printf("unexpected EOF on read()\n");
-+		abort();
-+	}
-+
-+	was_sealed = mfd_assert_get_seals(mfd) & F_SEAL_WRITE;
-+
-+	/* Wait for sealing-thread to finish and verify that it
-+	 * successfully sealed the file after the second try. */
-+	join_sealing_thread(pid);
-+	mfd_assert_has_seals(mfd, F_SEAL_WRITE);
-+
-+	/* *IF* the memfd-object was sealed at the time our read() returned,
-+	 * then the kernel did a page-replacement or canceled the read() (or
-+	 * whatever magic it did..). In that case, the memfd object is still
-+	 * all zero.
-+	 * In case the memfd-object was *not* sealed, the read() was successfull
-+	 * and the memfd object must *not* be all zero.
-+	 * Note that in real scenarios, there might be a mixture of both, but
-+	 * in this test-cases, we have explicit 200ms delays which should be
-+	 * enough to avoid any in-flight writes. */
-+
-+	p = mfd_assert_mmap_private(mfd);
-+	if (was_sealed && memcmp(p, zero, MFD_DEF_SIZE)) {
-+		printf("memfd sealed during read() but data not discarded\n");
-+		abort();
-+	} else if (!was_sealed && !memcmp(p, zero, MFD_DEF_SIZE)) {
-+		printf("memfd sealed after read() but data discarded\n");
-+		abort();
-+	}
-+
-+	close(mfd);
-+	close(fd);
-+
-+	printf("fuse: DONE\n");
-+
-+	return 0;
-+}
-diff --git a/tools/testing/selftests/memfd/run_fuse_test.sh b/tools/testing/selftests/memfd/run_fuse_test.sh
-new file mode 100755
-index 0000000..69b930e
---- /dev/null
-+++ b/tools/testing/selftests/memfd/run_fuse_test.sh
-@@ -0,0 +1,14 @@
-+#!/bin/sh
-+
-+if test -d "./mnt" ; then
-+	fusermount -u ./mnt
-+	rmdir ./mnt
-+fi
-+
-+set -e
-+
-+mkdir mnt
-+./fuse_mnt ./mnt
-+./fuse_test ./mnt/memfd
-+fusermount -u ./mnt
-+rmdir ./mnt
+ 
+ 	return error;
+ }
+@@ -1840,7 +1907,7 @@ int shmem_add_seals(struct file *file, unsigned int seals)
+ 		if (error)
+ 			goto unlock;
+ 
+-		error = shmem_test_for_pins(file->f_mapping);
++		error = shmem_wait_for_pins(file->f_mapping);
+ 		if (error) {
+ 			mapping_allow_writable(file->f_mapping);
+ 			goto unlock;
 -- 
 2.0.0
 
