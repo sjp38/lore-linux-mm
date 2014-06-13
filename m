@@ -1,263 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f52.google.com (mail-pb0-f52.google.com [209.85.160.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D7CD6B0095
-	for <linux-mm@kvack.org>; Fri, 13 Jun 2014 01:59:49 -0400 (EDT)
-Received: by mail-pb0-f52.google.com with SMTP id rr13so1828542pbb.11
-        for <linux-mm@kvack.org>; Thu, 12 Jun 2014 22:59:48 -0700 (PDT)
-Received: from mail-pb0-x22d.google.com (mail-pb0-x22d.google.com [2607:f8b0:400e:c01::22d])
-        by mx.google.com with ESMTPS id pz4si3558643pac.88.2014.06.12.22.59.47
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Thu, 12 Jun 2014 22:59:48 -0700 (PDT)
-Received: by mail-pb0-f45.google.com with SMTP id um1so1811057pbc.18
-        for <linux-mm@kvack.org>; Thu, 12 Jun 2014 22:59:47 -0700 (PDT)
-From: Chen Yucong <slaoub@gmail.com>
-Subject: [RESEND PATCH v2] mm/vmscan.c: wrap five parameters into writeback_stats for reducing the stack consumption
-Date: Fri, 13 Jun 2014 13:58:08 +0800
-Message-Id: <1402639088-4845-1-git-send-email-slaoub@gmail.com>
+Received: from mail-pd0-f171.google.com (mail-pd0-f171.google.com [209.85.192.171])
+	by kanga.kvack.org (Postfix) with ESMTP id E8E756B0098
+	for <linux-mm@kvack.org>; Fri, 13 Jun 2014 02:27:01 -0400 (EDT)
+Received: by mail-pd0-f171.google.com with SMTP id ft15so1776510pdb.2
+        for <linux-mm@kvack.org>; Thu, 12 Jun 2014 23:27:01 -0700 (PDT)
+Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [2001:44b8:8060:ff02:300:1:2:7])
+        by mx.google.com with ESMTP id eb4si1039451pbb.113.2014.06.12.23.26.59
+        for <linux-mm@kvack.org>;
+        Thu, 12 Jun 2014 23:27:00 -0700 (PDT)
+Date: Fri, 13 Jun 2014 16:26:45 +1000
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: XFS WARN_ON in xfs_vm_writepage
+Message-ID: <20140613062645.GZ9508@dastard>
+References: <20140613051631.GA9394@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20140613051631.GA9394@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: mgorman@suse.de, hannes@cmpxchg.org, mhocko@suse.cz, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Chen Yucong <slaoub@gmail.com>
+To: Dave Jones <davej@redhat.com>, xfs@oss.sgi.com, Linux Kernel <linux-kernel@vger.kernel.org>
+Cc: linux-mm@kvack.org
 
-shrink_page_list() has too many arguments that have already reached ten.
-Some of those arguments and temporary variables introduces extra 80 bytes
-on the stack. This patch wraps five parameters into writeback_stats and removes
-some temporary variables, thus making the relative functions to consume fewer
-stack space.
+[cc linux-mm]
 
-Before mm/vmscan.c is changed:
-   text    data     bss     dec     hex filename
-6876698  957224  966656 8800578  864942 vmlinux-3.15
+On Fri, Jun 13, 2014 at 01:16:31AM -0400, Dave Jones wrote:
+> Just hit this on Linus' tree from earlier this afternoon..
+> 
+> WARNING: CPU: 3 PID: 19721 at fs/xfs/xfs_aops.c:971 xfs_vm_writepage+0x5ce/0x630 [xfs]()
+> CPU: 3 PID: 19721 Comm: trinity-c61 Not tainted 3.15.0+ #3
+>  0000000000000009 000000004f70ab82 ffff8801d5ebf578 ffffffff8373215c
+>  0000000000000000 ffff8801d5ebf5b0 ffffffff8306f7cd ffff88023dd543e0
+>  ffffea000254a3c0 ffff8801d5ebf820 ffffea000254a3e0 ffff8801d5ebf728
+> Call Trace:
+>  [<ffffffff8373215c>] dump_stack+0x4e/0x7a
+>  [<ffffffff8306f7cd>] warn_slowpath_common+0x7d/0xa0
+>  [<ffffffff8306f8fa>] warn_slowpath_null+0x1a/0x20
+>  [<ffffffffc023068e>] xfs_vm_writepage+0x5ce/0x630 [xfs]
+>  [<ffffffff8373f1ab>] ? preempt_count_sub+0xab/0x100
+>  [<ffffffff83347315>] ? __percpu_counter_add+0x85/0xc0
+>  [<ffffffff8316f759>] shrink_page_list+0x8f9/0xb90
+>  [<ffffffff83170123>] shrink_inactive_list+0x253/0x510
+>  [<ffffffff83170c93>] shrink_lruvec+0x563/0x6c0
+>  [<ffffffff83170e2b>] shrink_zone+0x3b/0x100
+>  [<ffffffff831710e1>] shrink_zones+0x1f1/0x3c0
+>  [<ffffffff83171414>] try_to_free_pages+0x164/0x380
+>  [<ffffffff83163e52>] __alloc_pages_nodemask+0x822/0xc90
+>  [<ffffffff83169eb2>] ? pagevec_lru_move_fn+0x122/0x140
+>  [<ffffffff831abeff>] alloc_pages_vma+0xaf/0x1c0
+>  [<ffffffff8318a931>] handle_mm_fault+0xa31/0xc50
+>  [<ffffffff831845c0>] ? follow_page_mask+0x1f0/0x320
+>  [<ffffffff8318491b>] __get_user_pages+0x22b/0x660
+>  [<ffffffff831b5093>] ? kmem_cache_alloc+0x183/0x210
+>  [<ffffffff8318ce7e>] __mlock_vma_pages_range+0x9e/0xd0
+>  [<ffffffff8318d6ba>] __mm_populate+0xca/0x180
+>  [<ffffffff83179033>] vm_mmap_pgoff+0xd3/0xe0
+>  [<ffffffff8318fbd6>] SyS_mmap_pgoff+0x116/0x2c0
+>  [<ffffffff83011ced>] ? syscall_trace_enter+0x14d/0x2a0
+>  [<ffffffff830084c2>] SyS_mmap+0x22/0x30
+>  [<ffffffff837436ef>] tracesys+0xdd/0xe2
+> 
+> 
+>  970         if (WARN_ON_ONCE((current->flags & (PF_MEMALLOC|PF_KSWAPD)) ==
+>  971                         PF_MEMALLOC))
 
-After mm/vmscan.c is changed:
-   text    data     bss     dec     hex filename
-6876506  957224  966656 8800386  864882 vmlinux-3.15
+What were you running at the time? The XFS warning is there to
+indicate that memory reclaim is doing something it shouldn't (i.e.
+dirty page writeback from direct reclaim), so this is one for the mm
+folk to work out...
 
+Cheers,
 
-scripts/checkstack.pl can be used for checking the change of the target function stack.
-
-Before mm/vmscan.c is changed:
-
-0xffffffff810af103 shrink_inactive_list []:		152
-0xffffffff810af43d shrink_inactive_list []:		152
--------------------------------------------------------------
-0xffffffff810aede8 reclaim_clean_pages_from_list []:	184
-0xffffffff810aeef8 reclaim_clean_pages_from_list []:	184
--------------------------------------------------------------
-0xffffffff810ae582 shrink_page_list []:			232
-0xffffffff810aedb5 shrink_page_list []:			232
-
-After mm/vmscan.c is changed::
-
-0xffffffff810af078 shrink_inactive_list []:		120
-0xffffffff810af36d shrink_inactive_list []:		120
--------------------------------------------------------------
-With: struct writeback_stats dummy = {};
-0xffffffff810aed6c reclaim_clean_pages_from_list []:    152
-0xffffffff810aee68 reclaim_clean_pages_from_list []:    152
--------------------------------------------------------------
-With: static struct writeback_stats dummy ={};
-0xffffffff810aed69 reclaim_clean_pages_from_list []:    120
-0xffffffff810aee4d reclaim_clean_pages_from_list []:    120
---------------------------------------------------------------------------------------
-0xffffffff810ae586 shrink_page_list []:			184   ---> sub    $0xb8,%rsp
-0xffffffff810aed36 shrink_page_list []:			184   ---> add    $0xb8,%rsp
-
-Via the above figures, we can find that the difference value of the stack is 32 for
-shrink_inactive_list and reclaim_clean_pages_from_list, and this value is 48(232-184)
-for shrink_page_list. From the hierarchy of functions called, the total difference
-value is 80(32+48) for this change.
-
-Changes since v1: https://lkml.org/lkml/2014/6/12/159
-     * Rename arg_container to writeback_stats
-     * Change the the way of initializing writeback_stats object.
-
-Signed-off-by: Chen Yucong <slaoub@gmail.com>
----
- mm/vmscan.c |   62 ++++++++++++++++++++++++++---------------------------------
- 1 file changed, 27 insertions(+), 35 deletions(-)
-
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index a8ffe4e..3f28e39 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -791,28 +791,31 @@ static void page_check_dirty_writeback(struct page *page,
- }
- 
- /*
-+ * Callers pass a prezeroed writeback_stats into the shrink functions to gather
-+ * statistics about how many pages of particular states were processed
-+ */
-+struct writeback_stats {
-+	unsigned long nr_dirty;
-+	unsigned long nr_unqueued_dirty;
-+	unsigned long nr_congested;
-+	unsigned long nr_writeback;
-+	unsigned long nr_immediate;
-+};
-+
-+/*
-  * shrink_page_list() returns the number of reclaimed pages
-  */
- static unsigned long shrink_page_list(struct list_head *page_list,
- 				      struct zone *zone,
- 				      struct scan_control *sc,
- 				      enum ttu_flags ttu_flags,
--				      unsigned long *ret_nr_dirty,
--				      unsigned long *ret_nr_unqueued_dirty,
--				      unsigned long *ret_nr_congested,
--				      unsigned long *ret_nr_writeback,
--				      unsigned long *ret_nr_immediate,
-+				      struct writeback_stats *ws,
- 				      bool force_reclaim)
- {
- 	LIST_HEAD(ret_pages);
- 	LIST_HEAD(free_pages);
- 	int pgactivate = 0;
--	unsigned long nr_unqueued_dirty = 0;
--	unsigned long nr_dirty = 0;
--	unsigned long nr_congested = 0;
- 	unsigned long nr_reclaimed = 0;
--	unsigned long nr_writeback = 0;
--	unsigned long nr_immediate = 0;
- 
- 	cond_resched();
- 
-@@ -858,10 +861,10 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 		 */
- 		page_check_dirty_writeback(page, &dirty, &writeback);
- 		if (dirty || writeback)
--			nr_dirty++;
-+			ws->nr_dirty++;
- 
- 		if (dirty && !writeback)
--			nr_unqueued_dirty++;
-+			ws->nr_unqueued_dirty++;
- 
- 		/*
- 		 * Treat this page as congested if the underlying BDI is or if
-@@ -872,7 +875,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 		mapping = page_mapping(page);
- 		if ((mapping && bdi_write_congested(mapping->backing_dev_info)) ||
- 		    (writeback && PageReclaim(page)))
--			nr_congested++;
-+			ws->nr_congested++;
- 
- 		/*
- 		 * If a page at the tail of the LRU is under writeback, there
-@@ -916,7 +919,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 			if (current_is_kswapd() &&
- 			    PageReclaim(page) &&
- 			    zone_is_reclaim_writeback(zone)) {
--				nr_immediate++;
-+				ws->nr_immediate++;
- 				goto keep_locked;
- 
- 			/* Case 2 above */
-@@ -934,7 +937,7 @@ static unsigned long shrink_page_list(struct list_head *page_list,
- 				 * and it's also appropriate in global reclaim.
- 				 */
- 				SetPageReclaim(page);
--				nr_writeback++;
-+				ws->nr_writeback++;
- 
- 				goto keep_locked;
- 
-@@ -1132,11 +1135,6 @@ keep:
- 	list_splice(&ret_pages, page_list);
- 	count_vm_events(PGACTIVATE, pgactivate);
- 	mem_cgroup_uncharge_end();
--	*ret_nr_dirty += nr_dirty;
--	*ret_nr_congested += nr_congested;
--	*ret_nr_unqueued_dirty += nr_unqueued_dirty;
--	*ret_nr_writeback += nr_writeback;
--	*ret_nr_immediate += nr_immediate;
- 	return nr_reclaimed;
- }
- 
-@@ -1148,7 +1146,8 @@ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
- 		.priority = DEF_PRIORITY,
- 		.may_unmap = 1,
- 	};
--	unsigned long ret, dummy1, dummy2, dummy3, dummy4, dummy5;
-+	unsigned long ret;
-+	static struct writeback_stats dummy = { };
- 	struct page *page, *next;
- 	LIST_HEAD(clean_pages);
- 
-@@ -1161,8 +1160,7 @@ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
- 	}
- 
- 	ret = shrink_page_list(&clean_pages, zone, &sc,
--			TTU_UNMAP|TTU_IGNORE_ACCESS,
--			&dummy1, &dummy2, &dummy3, &dummy4, &dummy5, true);
-+			TTU_UNMAP|TTU_IGNORE_ACCESS, &dummy, true);
- 	list_splice(&clean_pages, page_list);
- 	mod_zone_page_state(zone, NR_ISOLATED_FILE, -ret);
- 	return ret;
-@@ -1469,11 +1467,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
- 	unsigned long nr_scanned;
- 	unsigned long nr_reclaimed = 0;
- 	unsigned long nr_taken;
--	unsigned long nr_dirty = 0;
--	unsigned long nr_congested = 0;
--	unsigned long nr_unqueued_dirty = 0;
--	unsigned long nr_writeback = 0;
--	unsigned long nr_immediate = 0;
-+	struct writeback_stats ws = { };
- 	isolate_mode_t isolate_mode = 0;
- 	int file = is_file_lru(lru);
- 	struct zone *zone = lruvec_zone(lruvec);
-@@ -1515,9 +1509,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
- 		return 0;
- 
- 	nr_reclaimed = shrink_page_list(&page_list, zone, sc, TTU_UNMAP,
--				&nr_dirty, &nr_unqueued_dirty, &nr_congested,
--				&nr_writeback, &nr_immediate,
--				false);
-+					&ws, false);
- 
- 	spin_lock_irq(&zone->lru_lock);
- 
-@@ -1554,7 +1546,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
- 	 * of pages under pages flagged for immediate reclaim and stall if any
- 	 * are encountered in the nr_immediate check below.
- 	 */
--	if (nr_writeback && nr_writeback == nr_taken)
-+	if (ws.nr_writeback && ws.nr_writeback == nr_taken)
- 		zone_set_flag(zone, ZONE_WRITEBACK);
- 
- 	/*
-@@ -1566,7 +1558,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
- 		 * Tag a zone as congested if all the dirty pages scanned were
- 		 * backed by a congested BDI and wait_iff_congested will stall.
- 		 */
--		if (nr_dirty && nr_dirty == nr_congested)
-+		if (ws.nr_dirty && ws.nr_dirty == ws.nr_congested)
- 			zone_set_flag(zone, ZONE_CONGESTED);
- 
- 		/*
-@@ -1576,7 +1568,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
- 		 * pages from reclaim context. It will forcibly stall in the
- 		 * next check.
- 		 */
--		if (nr_unqueued_dirty == nr_taken)
-+		if (ws.nr_unqueued_dirty == nr_taken)
- 			zone_set_flag(zone, ZONE_TAIL_LRU_DIRTY);
- 
- 		/*
-@@ -1585,7 +1577,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
- 		 * implies that pages are cycling through the LRU faster than
- 		 * they are written so also forcibly stall.
- 		 */
--		if ((nr_unqueued_dirty == nr_taken || nr_immediate) &&
-+		if ((ws.nr_unqueued_dirty == nr_taken || ws.nr_immediate) &&
- 		    current_may_throttle())
- 			congestion_wait(BLK_RW_ASYNC, HZ/10);
- 	}
+Dave.
 -- 
-1.7.10.4
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
