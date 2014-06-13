@@ -1,50 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wg0-f49.google.com (mail-wg0-f49.google.com [74.125.82.49])
-	by kanga.kvack.org (Postfix) with ESMTP id C45B66B00CA
-	for <linux-mm@kvack.org>; Fri, 13 Jun 2014 10:17:11 -0400 (EDT)
-Received: by mail-wg0-f49.google.com with SMTP id y10so2858048wgg.32
-        for <linux-mm@kvack.org>; Fri, 13 Jun 2014 07:17:11 -0700 (PDT)
-Received: from zene.cmpxchg.org (zene.cmpxchg.org. [2a01:238:4224:fa00:ca1f:9ef3:caee:a2bd])
-        by mx.google.com with ESMTPS id pg7si6906161wjb.56.2014.06.13.07.17.09
-        for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Fri, 13 Jun 2014 07:17:09 -0700 (PDT)
-Date: Fri, 13 Jun 2014 10:17:00 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [RESEND PATCH v2] mm/vmscan.c: wrap five parameters into
- writeback_stats for reducing the stack consumption
-Message-ID: <20140613141700.GO2878@cmpxchg.org>
-References: <1402639088-4845-1-git-send-email-slaoub@gmail.com>
- <1402667259.6072.20.camel@debian>
+Received: from mail-qa0-f52.google.com (mail-qa0-f52.google.com [209.85.216.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 1EB9D6B00CA
+	for <linux-mm@kvack.org>; Fri, 13 Jun 2014 10:19:41 -0400 (EDT)
+Received: by mail-qa0-f52.google.com with SMTP id w8so3593895qac.39
+        for <linux-mm@kvack.org>; Fri, 13 Jun 2014 07:19:40 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTP id c18si4760718qaq.0.2014.06.13.07.19.40
+        for <linux-mm@kvack.org>;
+        Fri, 13 Jun 2014 07:19:40 -0700 (PDT)
+Date: Fri, 13 Jun 2014 10:19:25 -0400
+From: Dave Jones <davej@redhat.com>
+Subject: Re: XFS WARN_ON in xfs_vm_writepage
+Message-ID: <20140613141925.GA24199@redhat.com>
+References: <20140613051631.GA9394@redhat.com>
+ <20140613062645.GZ9508@dastard>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1402667259.6072.20.camel@debian>
+In-Reply-To: <20140613062645.GZ9508@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Chen Yucong <slaoub@gmail.com>
-Cc: akpm@linux-foundation.org, mgorman@suse.de, mhocko@suse.cz, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dave Chinner <david@fromorbit.com>
+Cc: xfs@oss.sgi.com, Linux Kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
 
-On Fri, Jun 13, 2014 at 09:47:39PM +0800, Chen Yucong wrote:
-> Hi all,
-> 
-> On Fri, 2014-06-13 at 13:58 +0800, Chen Yucong wrote:
-> > shrink_page_list() has too many arguments that have already reached ten.
-> > Some of those arguments and temporary variables introduces extra 80 bytes
-> > on the stack. This patch wraps five parameters into writeback_stats and removes
-> > some temporary variables, thus making the relative functions to consume fewer
-> > stack space.
-> > 
-> I this message, I have renamed shrink_result to writeback_stats
-> according to Johannes Weiner's reply. Think carefully, this change is
-> too hasty. Although it now just contains statistics on the writeback
-> states of the scanned pages, it may also be used for gathering other
-> information at some point in the future. So I think shrink_result is a
-> little bit better!
+On Fri, Jun 13, 2014 at 04:26:45PM +1000, Dave Chinner wrote:
 
-Then we can always rename it "at some point in the future", the name
-is not set in stone.  At this time, it only contains writeback stats,
-and I think it should be named accordingly.
+> >  970         if (WARN_ON_ONCE((current->flags & (PF_MEMALLOC|PF_KSWAPD)) ==
+> >  971                         PF_MEMALLOC))
+>
+> What were you running at the time? The XFS warning is there to
+> indicate that memory reclaim is doing something it shouldn't (i.e.
+> dirty page writeback from direct reclaim), so this is one for the mm
+> folk to work out...
+
+Trinity had driven the machine deeply into swap, and the oom killer was
+kicking in pretty often. Then this happened.
+
+	Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
