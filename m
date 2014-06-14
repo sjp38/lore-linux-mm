@@ -1,97 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ve0-f179.google.com (mail-ve0-f179.google.com [209.85.128.179])
-	by kanga.kvack.org (Postfix) with ESMTP id 8F63C6B0031
-	for <linux-mm@kvack.org>; Fri, 13 Jun 2014 13:23:45 -0400 (EDT)
-Received: by mail-ve0-f179.google.com with SMTP id sa20so1777439veb.24
-        for <linux-mm@kvack.org>; Fri, 13 Jun 2014 10:23:45 -0700 (PDT)
-Received: from mail-ve0-f180.google.com (mail-ve0-f180.google.com [209.85.128.180])
-        by mx.google.com with ESMTPS id x4si1611060ved.52.2014.06.13.10.23.44
+Received: from mail-qc0-f178.google.com (mail-qc0-f178.google.com [209.85.216.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 78E146B0031
+	for <linux-mm@kvack.org>; Fri, 13 Jun 2014 20:48:59 -0400 (EDT)
+Received: by mail-qc0-f178.google.com with SMTP id c9so5119317qcz.9
+        for <linux-mm@kvack.org>; Fri, 13 Jun 2014 17:48:59 -0700 (PDT)
+Received: from mail-qa0-x22d.google.com (mail-qa0-x22d.google.com [2607:f8b0:400d:c00::22d])
+        by mx.google.com with ESMTPS id f9si6261037qag.75.2014.06.13.17.48.58
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 13 Jun 2014 10:23:44 -0700 (PDT)
-Received: by mail-ve0-f180.google.com with SMTP id jw12so3569444veb.25
-        for <linux-mm@kvack.org>; Fri, 13 Jun 2014 10:23:44 -0700 (PDT)
+        Fri, 13 Jun 2014 17:48:58 -0700 (PDT)
+Received: by mail-qa0-f45.google.com with SMTP id v10so4608602qac.18
+        for <linux-mm@kvack.org>; Fri, 13 Jun 2014 17:48:58 -0700 (PDT)
+From: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <j.glisse@gmail.com>
+Subject: HMM (Heterogeneous Memory Management) v3
+Date: Fri, 13 Jun 2014 20:48:28 -0400
+Message-Id: <1402706913-7432-1-git-send-email-j.glisse@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <CANq1E4TQXKD8jaBcOJsL3h3ZPRXq176fz8Z9yevFbS3P0q1FQg@mail.gmail.com>
-References: <1402655819-14325-1-git-send-email-dh.herrmann@gmail.com>
- <1402655819-14325-8-git-send-email-dh.herrmann@gmail.com> <CALCETrWaUsq_D2Z1PwbbwQQWKrnsWTLOdUR6bqPuedi8ZHgvEQ@mail.gmail.com>
- <CANq1E4TQXKD8jaBcOJsL3h3ZPRXq176fz8Z9yevFbS3P0q1FQg@mail.gmail.com>
-From: Andy Lutomirski <luto@amacapital.net>
-Date: Fri, 13 Jun 2014 10:23:23 -0700
-Message-ID: <CALCETrWsRQpuu2u9W5mcDTZKT9KVZn6TJHiMP7VWpR=6Zc_7Rw@mail.gmail.com>
-Subject: Re: [RFC v3 7/7] shm: isolate pinned pages when sealing files
 Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Herrmann <dh.herrmann@gmail.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Michael Kerrisk <mtk.manpages@gmail.com>, Ryan Lortie <desrt@desrt.ca>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux FS Devel <linux-fsdevel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, Greg Kroah-Hartman <greg@kroah.com>, John Stultz <john.stultz@linaro.org>, Lennart Poettering <lennart@poettering.net>, Daniel Mack <zonque@gmail.com>, Kay Sievers <kay@vrfy.org>, Hugh Dickins <hughd@google.com>, Tony Battersby <tonyb@cybernetics.com>
+To: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: mgorman@suse.de, hpa@zytor.com, peterz@infraread.org, torvalds@linux-foundation.org, aarcange@redhat.com, riel@redhat.com, jweiner@redhat.com
 
-On Fri, Jun 13, 2014 at 8:27 AM, David Herrmann <dh.herrmann@gmail.com> wrote:
-> Hi
->
-> On Fri, Jun 13, 2014 at 5:06 PM, Andy Lutomirski <luto@amacapital.net> wrote:
->> On Fri, Jun 13, 2014 at 3:36 AM, David Herrmann <dh.herrmann@gmail.com> wrote:
->>> When setting SEAL_WRITE, we must make sure nobody has a writable reference
->>> to the pages (via GUP or similar). We currently check references and wait
->>> some time for them to be dropped. This, however, might fail for several
->>> reasons, including:
->>>  - the page is pinned for longer than we wait
->>>  - while we wait, someone takes an already pinned page for read-access
->>>
->>> Therefore, this patch introduces page-isolation. When sealing a file with
->>> SEAL_WRITE, we copy all pages that have an elevated ref-count. The newpage
->>> is put in place atomically, the old page is detached and left alone. It
->>> will get reclaimed once the last external user dropped it.
->>>
->>> Signed-off-by: David Herrmann <dh.herrmann@gmail.com>
->>
->> Won't this have unexpected effects?
->>
->> Thread 1:  start read into mapping backed by fd
->>
->> Thread 2:  SEAL_WRITE
->>
->> Thread 1: read finishes.  now the page doesn't match the sealed page
->
-> Just to be clear: you're talking about read() calls that write into
-> the memfd? (like my FUSE example does) Your language might be
-> ambiguous to others as "read into" actually implies a write.
->
-> No, this does not have unexpected effects. But yes, your conclusion is
-> right. To be clear, this behavior would be part of the API. Any
-> asynchronous write might be cut off by SEAL_WRITE _iff_ you unmap your
-> buffer before the write finishes. But you actually have to extend your
-> example:
->
-> Thread 1: p = mmap(memfd, SIZE);
-> Thread 1: h = async_read(some_fd, p, SIZE);
-> Thread 1: munmap(p, SIZE);
-> Thread 2: SEAL_WRITE
-> Thread 1: async_wait(h);
->
-> If you don't do the unmap(), then SEAL_WRITE will fail due to an
-> elevated i_mmap_writable. I think this is fine. In fact, I remember
-> reading that async-IO is not required to resolve user-space addresses
-> at the time of the syscall, but might delay it to the time of the
-> actual write. But you're right, it would be misleading that the AIO
-> operation returns success. This would be part of the memfd-API,
-> though. And if you mess with your address space while running an
-> async-IO operation on it, you're screwed anyway.
+This v3 of HMM patchset previous discussion can be found at :
+http://comments.gmane.org/gmane.linux.kernel.mm/116584
 
-Ok, I missed the part where you had to munmap to trigger the oddity.
-That seems fine to me.
+We would like to see this included especialy all preparatory patches are
+they are cumberstone to rebase. They do not change any behavior except a
+slightly increased stack consumption by adding new argument to mmu notifier
+callback. I believe that those added argument might be of value not only
+to HMM but also to other user of the mmu_notifier API.
 
->
-> Btw., your sealing use-case is really odd. No-one guarantees that the
-> SEAL_WRITE happens _after_ you schedule your async-read. In case you
-> have some synchronization there, you just have to move it after
-> waiting for your async-io to finish.
->
-> Does that clear things up?
+I hide the HMM core function behind staging so people understand this is
+not production ready but a base onto which we want to build support for all
+HMM features.
 
-I think so.
+In nutshell HMM is an API to simplify mirroring a process address space on
+a secondary MMU that has its own page table (and most likely a different
+page table format incompatible with the architecture page table). To ensure
+that at all time CPU and mirroring device use the same page for the same
+address for a process the use of the mmu notifier API is the only sane way.
+This is because each CPU page table update is preceded or followed by a call
+to the mmu notifier.
 
---Andy
+Andrew if you fear this feature will not be use by anyone i can ask NVidia
+and/or AMD to public state their interest in it. So far HMM have been
+developed in a close collaboration with NVidia but at Red Hat (and NVidia
+is on board here) we want to make this as usefull as possible to other
+consumer too and not only for GPU. So any one who has hardware with its
+own MMU and its own page table and who wish to mirror a process address
+space is welcome to join the discussion and to ask for features or to
+discuss the API we expose to the device driver.
+
+Like i said in v2, i stripped the remote memory support from this patchset
+in order to make it easier to get the foundation in so that the remote
+memory support is easier and less painfull to work on.
+
+Changed since v2:
+  - Hide core hmm behind staging
+  - Fixed up all checkpatch.pl issues
+  - Rebase on top of lastest linux-next
+
+Note that the dummy driver is not necesarily to be included i added it
+here so people can see an example driver. I however intend to grow the
+functionalities of the hmm dummy driver in order to make a test and
+regression suite for the core hmm.
+
+Cheers,
+JA(C)rA'me Glisse
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
