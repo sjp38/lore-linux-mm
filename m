@@ -1,103 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pd0-f177.google.com (mail-pd0-f177.google.com [209.85.192.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B9986B0031
-	for <linux-mm@kvack.org>; Fri, 13 Jun 2014 23:06:29 -0400 (EDT)
-Received: by mail-pd0-f177.google.com with SMTP id y10so1198955pdj.8
-        for <linux-mm@kvack.org>; Fri, 13 Jun 2014 20:06:28 -0700 (PDT)
-Received: from mail-pa0-x233.google.com (mail-pa0-x233.google.com [2607:f8b0:400e:c03::233])
-        by mx.google.com with ESMTPS id oq8si2930963pab.231.2014.06.13.20.06.26
+Received: from mail-pb0-f43.google.com (mail-pb0-f43.google.com [209.85.160.43])
+	by kanga.kvack.org (Postfix) with ESMTP id C365F6B0031
+	for <linux-mm@kvack.org>; Sat, 14 Jun 2014 03:18:41 -0400 (EDT)
+Received: by mail-pb0-f43.google.com with SMTP id um1so238898pbc.30
+        for <linux-mm@kvack.org>; Sat, 14 Jun 2014 00:18:41 -0700 (PDT)
+Received: from e28smtp09.in.ibm.com (e28smtp09.in.ibm.com. [122.248.162.9])
+        by mx.google.com with ESMTPS id zd5si7164415pac.39.2014.06.14.00.18.39
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 13 Jun 2014 20:06:27 -0700 (PDT)
-Received: by mail-pa0-f51.google.com with SMTP id ey11so2717450pad.24
-        for <linux-mm@kvack.org>; Fri, 13 Jun 2014 20:06:26 -0700 (PDT)
-Message-ID: <1402715082.750.13.camel@debian>
-Subject: Re: [PATCH v2] mm/vmscan.c: wrap five parameters into shrink_result
- for reducing the stack consumption
-From: Chen Yucong <slaoub@gmail.com>
-Date: Sat, 14 Jun 2014 11:04:42 +0800
-In-Reply-To: <20140613162807.GP2878@cmpxchg.org>
-References: <1402634191-3442-1-git-send-email-slaoub@gmail.com>
-	 <20140612214016.1beda952.akpm@linux-foundation.org>
-	 <1402636875.1232.13.camel@debian> <20140613162807.GP2878@cmpxchg.org>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        (version=TLSv1 cipher=RC4-SHA bits=128/128);
+        Sat, 14 Jun 2014 00:18:40 -0700 (PDT)
+Received: from /spool/local
+	by e28smtp09.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Sat, 14 Jun 2014 12:48:36 +0530
+Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
+	by d28dlp02.in.ibm.com (Postfix) with ESMTP id A02613940049
+	for <linux-mm@kvack.org>; Sat, 14 Jun 2014 12:48:32 +0530 (IST)
+Received: from d28av03.in.ibm.com (d28av03.in.ibm.com [9.184.220.65])
+	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s5E7IkWw11272510
+	for <linux-mm@kvack.org>; Sat, 14 Jun 2014 12:48:47 +0530
+Received: from d28av03.in.ibm.com (localhost [127.0.0.1])
+	by d28av03.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s5E7IVW7010766
+	for <linux-mm@kvack.org>; Sat, 14 Jun 2014 12:48:31 +0530
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCH v2 08/10] mm, cma: clean-up cma allocation error path
+In-Reply-To: <1402543307-29800-9-git-send-email-iamjoonsoo.kim@lge.com>
+References: <1402543307-29800-1-git-send-email-iamjoonsoo.kim@lge.com> <1402543307-29800-9-git-send-email-iamjoonsoo.kim@lge.com>
+Date: Sat, 14 Jun 2014 12:48:30 +0530
+Message-ID: <87y4x0ez7d.fsf@linux.vnet.ibm.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, mgorman@suse.de, mhocko@suse.cz, riel@redhat.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>
+Cc: Minchan Kim <minchan@kernel.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Paolo Bonzini <pbonzini@redhat.com>, Gleb Natapov <gleb@kernel.org>, Alexander Graf <agraf@suse.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, kvm@vger.kernel.org, kvm-ppc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
 
-On Fri, 2014-06-13 at 12:28 -0400, Johannes Weiner wrote:
-> On Fri, Jun 13, 2014 at 01:21:15PM +0800, Chen Yucong wrote:
-> > On Thu, 2014-06-12 at 21:40 -0700, Andrew Morton wrote:
-> > > On Fri, 13 Jun 2014 12:36:31 +0800 Chen Yucong <slaoub@gmail.com> wrote:
-> > > 
-> > > > @@ -1148,7 +1146,8 @@ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
-> > > >  		.priority = DEF_PRIORITY,
-> > > >  		.may_unmap = 1,
-> > > >  	};
-> > > > -	unsigned long ret, dummy1, dummy2, dummy3, dummy4, dummy5;
-> > > > +	unsigned long ret;
-> > > > +	struct shrink_result dummy = { };
-> > > 
-> > > You didn't like the idea of making this static?
-> > Sorry! It's my negligence.
-> > If we make dummy static, it can help us save more stack.
-> > 
-> > without change:  
-> > 0xffffffff810aede8 reclaim_clean_pages_from_list []:	184
-> > 0xffffffff810aeef8 reclaim_clean_pages_from_list []:	184
-> > 
-> > with change: struct shrink_result dummy = {};
-> > 0xffffffff810aed6c reclaim_clean_pages_from_list []:	152
-> > 0xffffffff810aee68 reclaim_clean_pages_from_list []:	152
-> > 
-> > with change: static struct shrink_result dummy ={};
-> > 0xffffffff810aed69 reclaim_clean_pages_from_list []:	120
-> > 0xffffffff810aee4d reclaim_clean_pages_from_list []:	120
-> 
-> FWIW, I copied bloat-o-meter and hacked up a quick comparison tool
-> that you can feed two outputs of checkstack.pl for a whole vmlinux and
-> it shows you the delta.
-> 
-> The output for your patch (with the static dummy) looks like this:
-> 
-> +0/-240 -240
-> shrink_inactive_list                         136     112     -24
-> shrink_page_list                             208     160     -48
-> reclaim_clean_pages_from_list                168       -    -168
-> 
-> (The stack footprint for reclaim_clean_pages_from_list is actually 96
-> after your patch, but checkstack.pl skips frames under 100)
-> 
-Thanks very much for your comparison tool. Its output is more concise.
+Joonsoo Kim <iamjoonsoo.kim@lge.com> writes:
 
-thx!
-cyc
+> We can remove one call sites for clear_cma_bitmap() if we first
+> call it before checking error number.
+>
+> Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-gcc version 4.7.3 (Gentoo 4.7.3-r1 p1.4, pie-0.5.5)
-kernel version 3.15(stable)
-Intel(R) Core(TM)2 Duo CPU     T5670  @ 1.80GHz
+Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
 
-The output for this patch (with the static dummy) is:
-
-+0/-144 -144
-shrink_inactive_list                         152     120     -32
-shrink_page_list                             232     184     -48
-reclaim_clean_pages_from_list                184     120     -64
-
--------
-gcc version 4.7.2 (Debian 4.7.2-5)
-kernel version 3.15(stable)
-Intel(R) Core(TM) i5-2320 CPU @ 3.00GHz
-
-The output for this patch (with the static dummy) is:
-
-shrink_inactive_list                         136     120     -16
-shrink_page_list                             216     168     -48
-reclaim_clean_pages_from_list                184     120     -64
-
+>
+> diff --git a/mm/cma.c b/mm/cma.c
+> index 1e1b017..01a0713 100644
+> --- a/mm/cma.c
+> +++ b/mm/cma.c
+> @@ -282,11 +282,12 @@ struct page *cma_alloc(struct cma *cma, int count, unsigned int align)
+>  		if (ret == 0) {
+>  			page = pfn_to_page(pfn);
+>  			break;
+> -		} else if (ret != -EBUSY) {
+> -			clear_cma_bitmap(cma, pfn, count);
+> -			break;
+>  		}
+> +
+>  		clear_cma_bitmap(cma, pfn, count);
+> +		if (ret != -EBUSY)
+> +			break;
+> +
+>  		pr_debug("%s(): memory range at %p is busy, retrying\n",
+>  			 __func__, pfn_to_page(pfn));
+>  		/* try again with a bit different memory target */
+> -- 
+> 1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
