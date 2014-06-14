@@ -1,629 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f46.google.com (mail-qa0-f46.google.com [209.85.216.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 968A06B0038
-	for <linux-mm@kvack.org>; Fri, 13 Jun 2014 20:49:08 -0400 (EDT)
-Received: by mail-qa0-f46.google.com with SMTP id i13so4624764qae.33
-        for <linux-mm@kvack.org>; Fri, 13 Jun 2014 17:49:08 -0700 (PDT)
-Received: from mail-qc0-x233.google.com (mail-qc0-x233.google.com [2607:f8b0:400d:c01::233])
-        by mx.google.com with ESMTPS id g2si6263889qaf.76.2014.06.13.17.49.07
+Received: from mail-qa0-f52.google.com (mail-qa0-f52.google.com [209.85.216.52])
+	by kanga.kvack.org (Postfix) with ESMTP id 9207A6B0039
+	for <linux-mm@kvack.org>; Fri, 13 Jun 2014 20:49:10 -0400 (EDT)
+Received: by mail-qa0-f52.google.com with SMTP id w8so4588275qac.25
+        for <linux-mm@kvack.org>; Fri, 13 Jun 2014 17:49:10 -0700 (PDT)
+Received: from mail-qc0-x230.google.com (mail-qc0-x230.google.com [2607:f8b0:400d:c01::230])
+        by mx.google.com with ESMTPS id p6si6245756qak.129.2014.06.13.17.49.09
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Fri, 13 Jun 2014 17:49:07 -0700 (PDT)
-Received: by mail-qc0-f179.google.com with SMTP id x3so3809672qcv.24
-        for <linux-mm@kvack.org>; Fri, 13 Jun 2014 17:49:07 -0700 (PDT)
+        Fri, 13 Jun 2014 17:49:09 -0700 (PDT)
+Received: by mail-qc0-f176.google.com with SMTP id w7so3877082qcr.35
+        for <linux-mm@kvack.org>; Fri, 13 Jun 2014 17:49:09 -0700 (PDT)
 From: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <j.glisse@gmail.com>
-Subject: [PATCH 4/5] hmm: heterogeneous memory management v3
-Date: Fri, 13 Jun 2014 20:48:32 -0400
-Message-Id: <1402706913-7432-5-git-send-email-j.glisse@gmail.com>
-In-Reply-To: <1402706913-7432-4-git-send-email-j.glisse@gmail.com>
+Subject: [PATCH 5/5] hmm/dummy: dummy driver to showcase the hmm api v2
+Date: Fri, 13 Jun 2014 20:48:33 -0400
+Message-Id: <1402706913-7432-6-git-send-email-j.glisse@gmail.com>
+In-Reply-To: <1402706913-7432-5-git-send-email-j.glisse@gmail.com>
 References: <1402706913-7432-1-git-send-email-j.glisse@gmail.com>
  <1402706913-7432-2-git-send-email-j.glisse@gmail.com>
  <1402706913-7432-3-git-send-email-j.glisse@gmail.com>
  <1402706913-7432-4-git-send-email-j.glisse@gmail.com>
+ <1402706913-7432-5-git-send-email-j.glisse@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: mgorman@suse.de, hpa@zytor.com, peterz@infraread.org, torvalds@linux-foundation.org, aarcange@redhat.com, riel@redhat.com, jweiner@redhat.com, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Sherry Cheung <SCheung@nvidia.com>, Subhash Gutti <sgutti@nvidia.com>, Mark Hairgrove <mhairgrove@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Jatin Kumar <jakumar@nvidia.com>
+Cc: mgorman@suse.de, hpa@zytor.com, peterz@infraread.org, torvalds@linux-foundation.org, aarcange@redhat.com, riel@redhat.com, jweiner@redhat.com, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
 
 From: JA(C)rA'me Glisse <jglisse@redhat.com>
 
-Motivation:
+This is a dummy driver which full fill two purposes :
+  - showcase the hmm api and gives references on how to use it.
+  - provide an extensive user space api to stress test hmm.
 
-Heterogeneous memory management is intended to allow a device to transparently
-access a process address space without having to lock pages of the process or
-take references on them. In other word mirroring a process address space while
-allowing the regular memory management event such as page reclamation or page
-migration, to happen seamlessly.
-
-Recent years have seen a surge into the number of specialized devices that are
-part of a computer platform (from desktop to phone). So far each of those
-devices have operated on there own private address space that is not link or
-expose to the process address space that is using them. This separation often
-leads to multiple memory copy happening between the device owned memory and the
-process memory. This of course is both a waste of cpu cycle and memory.
-
-Over the last few years most of those devices have gained a full mmu allowing
-them to support multiple page table, page fault and other features that are
-found inside cpu mmu. There is now a strong incentive to start leveraging
-capabilities of such devices and to start sharing process address to avoid
-any unnecessary memory copy as well as simplifying the programming model of
-those devices by sharing an unique and common address space with the process
-that use them.
-
-The aim of the heterogeneous memory management is to provide a common API that
-can be use by any such devices in order to mirror process address. The hmm code
-provide an unique entry point and interface itself with the core mm code of the
-linux kernel avoiding duplicate implementation and shielding device driver code
-from core mm code.
-
-Moreover, hmm also intend to provide support for migrating memory to device
-private memory, allowing device to work on its own fast local memory. The hmm
-code would be responsible to intercept cpu page fault on migrated range of and
-to migrate it back to system memory allowing cpu to resume its access to the
-memory.
-
-Another feature hmm intend to provide is support for atomic operation for the
-device even if the bus linking the device and the cpu do not have any such
-capabilities.
-
-We expect that graphic processing unit and network interface to be among the
-first users of such api.
-
-Hardware requirement:
-
-Because hmm is intended to be use by device driver there are minimum features
-requirement for the hardware mmu :
-  - hardware have its own page table per process (can be share btw != devices)
-  - hardware mmu support page fault and suspend execution until the page fault
-    is serviced by hmm code. The page fault must also trigger some form of
-    interrupt so that hmm code can be call by the device driver.
-  - hardware must support at least read only mapping (otherwise it can not
-    access read only range of the process address space).
-
-For better memory management it is highly recommanded that the device also
-support the following features :
-  - hardware mmu set access bit in its page table on memory access (like cpu).
-  - hardware page table can be updated from cpu or through a fast path.
-  - hardware provide advanced statistic over which range of memory it access
-    the most.
-  - hardware differentiate atomic memory access from regular access allowing
-    to support atomic operation even on platform that do not have atomic
-    support with there bus link with the device.
-
-Implementation:
-
-The hmm layer provide a simple API to the device driver. Each device driver
-have to register and hmm device that holds pointer to all the callback the hmm
-code will make to synchronize the device page table with the cpu page table of
-a given process.
-
-For each process it wants to mirror the device driver must register a mirror
-hmm structure that holds all the informations specific to the process being
-mirrored. Each hmm mirror uniquely link an hmm device with a process address
-space (the mm struct).
-
-This design allow several different device driver to mirror concurrently the
-same process. The hmm layer will dispatch approprietly to each device driver
-modification that are happening to the process address space.
-
-The hmm layer rely on the mmu notifier api to monitor change to the process
-address space. Because update to device page table can have unbound completion
-time, the hmm layer need the capability to sleep during mmu notifier callback.
-
-This patch only implement the core of the hmm layer and do not support feature
-such as migration to device memory.
+This is a particularly dangerous module as it allow to access a
+mirror of a process address space through its device file. Hence
+it should not be enabled by default and only people actively
+developing for hmm should use it.
 
 Changed since v1:
-  - convert fence to refcounted object
-  - change the api to provide pte value directly avoiding useless temporary
-    special hmm pfn value
-  - cleanups & fixes ...
-
-Changed since v2:
-  - fixed checkpatch.pl warnings & errors
-  - converted to a staging feature
+  - Fixed all checkpatch.pl issue (ignoreing some over 80 characters).
 
 Signed-off-by: JA(C)rA'me Glisse <jglisse@redhat.com>
-Signed-off-by: Sherry Cheung <SCheung@nvidia.com>
-Signed-off-by: Subhash Gutti <sgutti@nvidia.com>
-Signed-off-by: Mark Hairgrove <mhairgrove@nvidia.com>
-Signed-off-by: John Hubbard <jhubbard@nvidia.com>
-Signed-off-by: Jatin Kumar <jakumar@nvidia.com>
 ---
- include/linux/hmm.h      |  351 +++++++++++++++
- include/linux/mm.h       |   13 +
- include/linux/mm_types.h |   14 +
- kernel/fork.c            |    6 +
- mm/Kconfig               |   14 +
- mm/Makefile              |    1 +
- mm/hmm.c                 | 1127 ++++++++++++++++++++++++++++++++++++++++++++++
- 7 files changed, 1526 insertions(+)
- create mode 100644 include/linux/hmm.h
- create mode 100644 mm/hmm.c
+ drivers/char/Kconfig           |    9 +
+ drivers/char/Makefile          |    1 +
+ drivers/char/hmm_dummy.c       | 1075 ++++++++++++++++++++++++++++++++++++++++
+ include/uapi/linux/hmm_dummy.h |   30 ++
+ 4 files changed, 1115 insertions(+)
+ create mode 100644 drivers/char/hmm_dummy.c
+ create mode 100644 include/uapi/linux/hmm_dummy.h
 
-diff --git a/include/linux/hmm.h b/include/linux/hmm.h
-new file mode 100644
-index 0000000..81a5009
---- /dev/null
-+++ b/include/linux/hmm.h
-@@ -0,0 +1,351 @@
-+/*
-+ * Copyright 2013 Red Hat Inc.
-+ *
-+ * This program is free software; you can redistribute it and/or modify
-+ * it under the terms of the GNU General Public License as published by
-+ * the Free Software Foundation; either version 2 of the License, or
-+ * (at your option) any later version.
-+ *
-+ * This program is distributed in the hope that it will be useful,
-+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
-+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-+ * GNU General Public License for more details.
-+ *
-+ * Authors: JA(C)rA'me Glisse <jglisse@redhat.com>
-+ */
-+/* This is a heterogeneous memory management (hmm). In a nutshell this provide
-+ * an API to mirror a process address on a device which has its own mmu and its
-+ * own page table for the process. It supports everything except special/mixed
-+ * vma.
-+ *
-+ * To use this the hardware must have :
-+ *   - mmu with pagetable
-+ *   - pagetable must support read only (supporting dirtyness accounting is
-+ *     preferable but is not mandatory).
-+ *   - support pagefault ie hardware thread should stop on fault and resume
-+ *     once hmm has provided valid memory to use.
-+ *   - some way to report fault.
-+ *
-+ * The hmm code handle all the interfacing with the core kernel mm code and
-+ * provide a simple API. It does support migrating system memory to device
-+ * memory and handle migration back to system memory on cpu page fault.
-+ *
-+ * Migrated memory is considered as swaped from cpu and core mm code point of
-+ * view.
-+ */
-+#ifndef _HMM_H
-+#define _HMM_H
-+
-+#ifdef CONFIG_HMM
-+
-+#include <linux/list.h>
-+#include <linux/rwsem.h>
-+#include <linux/spinlock.h>
-+#include <linux/atomic.h>
-+#include <linux/mm_types.h>
-+#include <linux/mmu_notifier.h>
-+#include <linux/swap.h>
-+#include <linux/kref.h>
-+#include <linux/swapops.h>
-+#include <linux/mman.h>
-+
-+
-+struct hmm_device;
-+struct hmm_device_ops;
-+struct hmm_mirror;
-+struct hmm_event;
-+struct hmm;
-+
-+
-+/* hmm_fence - device driver fence to wait for device driver operations.
-+ *
-+ * In order to concurrently update several different devices mmu the hmm rely
-+ * on device driver fence to wait for operation hmm schedules to complete on
-+ * devices. It is strongly recommanded to implement fences and have the hmm
-+ * callback do as little as possible (just scheduling the update and returning
-+ * a fence). Moreover the hmm code will reschedule for i/o the current process
-+ * if necessary once it has scheduled all updates on all devices.
-+ *
-+ * Each fence is created as a result of either an update to range of memory or
-+ * for remote memory to/from local memory dma.
-+ *
-+ * Update to range of memory correspond to a specific event type. For instance
-+ * range of memory is unmap for page reclamation, or range of memory is unmap
-+ * from process address space as result of munmap syscall (HMM_MUNMAP), or a
-+ * memory protection change on the range. There is one hmm_etype for each of
-+ * those event allowing the device driver to take appropriate action like for
-+ * instance freeing device page table on HMM_MUNMAP but keeping it when it is
-+ * just an access protection change or temporary unmap.
-+ */
-+enum hmm_etype {
-+	HMM_NONE = 0,
-+	HMM_UNREGISTER,
-+	HMM_MPROT_RONLY,
-+	HMM_MPROT_NONE,
-+	HMM_COW,
-+	HMM_MUNMAP,
-+	HMM_RFAULT,
-+	HMM_WFAULT,
-+};
-+
-+struct hmm_fence {
-+	struct kref		kref;
-+	struct hmm_mirror	*mirror;
-+	struct list_head	list;
-+};
-+
-+/* struct hmm_event - used to serialize change to overlapping range of address.
-+ *
-+ * @list:       List of pending|in progress event.
-+ * @faddr:      First address (inclusive) for the range this event affect.
-+ * @laddr:      Last address (exclusive) for the range this event affect.
-+ * @iaddr:      First invalid address.
-+ * @fences:     List of device fences associated with this event.
-+ * @etype:      Event type (munmap, migrate, truncate, ...).
-+ * @backoff:    Should this event backoff ie a new event render it obsolete.
-+ */
-+struct hmm_event {
-+	struct list_head	list;
-+	unsigned long		faddr;
-+	unsigned long		laddr;
-+	unsigned long		iaddr;
-+	struct list_head	fences;
-+	enum hmm_etype		etype;
-+	bool			backoff;
-+};
-+
-+
-+
-+
-+/* hmm_device - Each device driver must register one and only one hmm_device.
-+ *
-+ * The hmm_device is the link btw hmm and each device driver.
-+ */
-+
-+/* struct hmm_device_operations - hmm device operation callback
-+ */
-+struct hmm_device_ops {
-+	/* device_destroy - free hmm_device (call when refcount drop to 0).
-+	 *
-+	 * @device: The device hmm specific structure.
-+	 */
-+	void (*device_destroy)(struct hmm_device *device);
-+
-+	/* mirror_release() - device must stop using the address space.
-+	 *
-+	 * @mirror: The mirror that link process address space with the device.
-+	 *
-+	 * Called when as result of hmm_mirror_unregister or when mm is being
-+	 * destroy.
-+	 *
-+	 * It's illegal for the device to call any hmm helper function after
-+	 * this call back. The device driver must kill any pending device
-+	 * thread and wait for completion of all of them.
-+	 *
-+	 * Note that even after this callback returns the device driver might
-+	 * get call back from hmm. Callback will stop only once mirror_destroy
-+	 * is call.
-+	 */
-+	void (*mirror_release)(struct hmm_mirror *hmm_mirror);
-+
-+	/* mirror_destroy - free hmm_mirror (call when refcount drop to 0).
-+	 *
-+	 * @mirror: The mirror that link process address space with the device.
-+	 */
-+	void (*mirror_destroy)(struct hmm_mirror *mirror);
-+
-+	/* fence_wait() - to wait on device driver fence.
-+	 *
-+	 * @fence:      The device driver fence struct.
-+	 * Returns:     0 on success,-EIO on error, -EAGAIN to wait again.
-+	 *
-+	 * Called when hmm want to wait for all operations associated with a
-+	 * fence to complete (including device cache flush if the event mandate
-+	 * it).
-+	 *
-+	 * Device driver must free fence and associated resources if it returns
-+	 * something else thant -EAGAIN. On -EAGAIN the fence must not be free
-+	 * as hmm will call back again.
-+	 *
-+	 * Return error if scheduled operation failed or if need to wait again.
-+	 * -EIO    Some input/output error with the device.
-+	 * -EAGAIN The fence not yet signaled, hmm reschedule waiting thread.
-+	 *
-+	 * All other return value trigger warning and are transformed to -EIO.
-+	 */
-+	int (*fence_wait)(struct hmm_fence *fence);
-+
-+	/* fence_destroy() - destroy fence structure.
-+	 *
-+	 * @fence:  Fence structure to destroy.
-+	 *
-+	 * Called when all reference on a fence are gone.
-+	 */
-+	void (*fence_destroy)(struct hmm_fence *fence);
-+
-+	/* update() - update device mmu for a range of address.
-+	 *
-+	 * @mirror: The mirror that link process address space with the device.
-+	 * @vma:    The vma into which the update is taking place.
-+	 * @faddr:  First address in range (inclusive).
-+	 * @laddr:  Last address in range (exclusive).
-+	 * @etype:  The type of memory event (unmap, read only, ...).
-+	 * Returns: Valid fence ptr or NULL on success otherwise ERR_PTR.
-+	 *
-+	 * Called to update device mmu permission/usage for a range of address.
-+	 * The event type provide the nature of the update :
-+	 *   - range is no longer valid (munmap).
-+	 *   - range protection changes (mprotect, COW, ...).
-+	 *   - range is unmapped (swap, reclaim, page migration, ...).
-+	 *   - ...
-+	 *
-+	 * Any event that block further write to the memory must also trigger a
-+	 * device cache flush and everything has to be flush to local memory by
-+	 * the time the wait callback return (if this callback returned a fence
-+	 * otherwise everything must be flush by the time the callback return).
-+	 *
-+	 * Device must properly call set_page_dirty on any page the device did
-+	 * write to since last call to update.
-+	 *
-+	 * The driver should return a fence pointer or NULL on success. Device
-+	 * driver should return fence and delay wait for the operation to the
-+	 * febce wait callback. Returning a fence allow hmm to batch update to
-+	 * several devices and delay wait on those once they all have scheduled
-+	 * the update.
-+	 *
-+	 * Device driver must not fail lightly, any failure result in device
-+	 * process being kill.
-+	 *
-+	 * Return fence or NULL on success, error value otherwise :
-+	 * -ENOMEM Not enough memory for performing the operation.
-+	 * -EIO    Some input/output error with the device.
-+	 *
-+	 * All other return value trigger warning and are transformed to -EIO.
-+	 */
-+	struct hmm_fence *(*update)(struct hmm_mirror *mirror,
-+				    struct vm_area_struct *vma,
-+				    unsigned long faddr,
-+				    unsigned long laddr,
-+				    enum hmm_etype etype);
-+
-+	/* fault() - fault range of address on the device mmu.
-+	 *
-+	 * @mirror: The mirror that link process address space with the device.
-+	 * @faddr:  First address in range (inclusive).
-+	 * @laddr:  Last address in range (exclusive).
-+	 * @pfns:   Array of pfn for the range (each of the pfn is valid).
-+	 * @fault:  The fault structure provided by device driver.
-+	 * Returns: 0 on success, error value otherwise.
-+	 *
-+	 * Called to give the device driver each of the pfn backing a range of
-+	 * address. It is only call as a result of a call to hmm_mirror_fault.
-+	 *
-+	 * Note that the pfns array content is only valid for the duration of
-+	 * the callback. Once the device driver callback return further memory
-+	 * activities might invalidate the value of the pfns array. The device
-+	 * driver will be inform of such changes through the update callback.
-+	 *
-+	 * Allowed return value are :
-+	 * -ENOMEM Not enough memory for performing the operation.
-+	 * -EIO    Some input/output error with the device.
-+	 *
-+	 * Device driver must not fail lightly, any failure result in device
-+	 * process being kill.
-+	 *
-+	 * Return error if scheduled operation failed. Valid value :
-+	 * -ENOMEM Not enough memory for performing the operation.
-+	 * -EIO    Some input/output error with the device.
-+	 *
-+	 * All other return value trigger warning and are transformed to -EIO.
-+	 */
-+	int (*fault)(struct hmm_mirror *mirror,
-+		     unsigned long faddr,
-+		     unsigned long laddr,
-+		     pte_t *ptep,
-+		     struct hmm_event *event);
-+};
-+
-+
-+
-+
-+/* struct hmm_device - per device hmm structure
-+ *
-+ * @kref:       Reference count.
-+ * @mirrors:    List of all active mirrors for the device.
-+ * @mutex:      Mutex protecting mirrors list.
-+ * @name:       Device name (uniquely identify the device on the system).
-+ * @ops:        The hmm operations callback.
-+ * @fuid:       First uid assigned to this device (inclusive).
-+ * @luid:       Last uid assigned to this device (exclusive).
-+ * @rpages:     Array of rpage.
-+ * @wait_queue: Wait queue for remote memory operations.
-+ *
-+ * Each device that want to mirror an address space must register one of this
-+ * struct (only once).
-+ */
-+struct hmm_device {
-+	struct kref			kref;
-+	struct list_head		mirrors;
-+	struct mutex			mutex;
-+	const char			*name;
-+	const struct hmm_device_ops	*ops;
-+	wait_queue_head_t		wait_queue;
-+};
-+
-+int hmm_device_register(struct hmm_device *device,
-+			const char *name);
-+struct hmm_device *hmm_device_ref(struct hmm_device *device);
-+struct hmm_device *hmm_device_unref(struct hmm_device *device);
-+
-+
-+
-+
-+/* hmm_mirror - device specific mirroring functions.
-+ *
-+ * Each device that mirror a process has a uniq hmm_mirror struct associating
-+ * the process address space with the device. A process can be mirrored by
-+ * several different devices at the same time.
-+ */
-+
-+/* struct hmm_mirror - per device and per mm hmm structure
-+ *
-+ * @kref:       Reference count.
-+ * @dlist:      List of all hmm_mirror for same device.
-+ * @mlist:      List of all hmm_mirror for same mm.
-+ * @device:     The hmm_device struct this hmm_mirror is associated to.
-+ * @hmm:        The hmm struct this hmm_mirror is associated to.
-+ * @dead:       The hmm_mirror is dead and should no longer be use.
-+ *
-+ * Each device that want to mirror an address space must register one of this
-+ * struct for each of the address space it wants to mirror. Same device can
-+ * mirror several different address space. As well same address space can be
-+ * mirror by different devices.
-+ */
-+struct hmm_mirror {
-+	struct kref		kref;
-+	struct list_head	dlist;
-+	struct list_head	mlist;
-+	struct hmm_device	*device;
-+	struct hmm		*hmm;
-+	bool			dead;
-+};
-+
-+int hmm_mirror_register(struct hmm_mirror *mirror,
-+			struct hmm_device *device,
-+			struct mm_struct *mm);
-+void hmm_mirror_unregister(struct hmm_mirror *mirror);
-+int hmm_mirror_fault(struct hmm_mirror *mirror,
-+		     struct hmm_event *event);
-+struct hmm_mirror *hmm_mirror_ref(struct hmm_mirror *mirror);
-+struct hmm_mirror *hmm_mirror_unref(struct hmm_mirror *mirror);
-+
-+static inline struct page *hmm_pte_to_page(pte_t pte, bool *write)
-+{
-+	if (pte_none(pte) || !pte_present(pte))
-+		return NULL;
-+	*write = pte_write(pte);
-+	return pfn_to_page(pte_pfn(pte));
-+}
-+
-+#endif /* CONFIG_HMM */
-+#endif
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index e03dd29..fd0a1ad 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -2113,5 +2113,18 @@ void __init setup_nr_node_ids(void);
- static inline void setup_nr_node_ids(void) {}
- #endif
+diff --git a/drivers/char/Kconfig b/drivers/char/Kconfig
+index 6e9f74a..199e111 100644
+--- a/drivers/char/Kconfig
++++ b/drivers/char/Kconfig
+@@ -600,5 +600,14 @@ config TILE_SROM
+ 	  device appear much like a simple EEPROM, and knows
+ 	  how to partition a single ROM for multiple purposes.
  
-+#ifdef CONFIG_HMM
-+void __hmm_destroy(struct mm_struct *mm);
-+static inline void hmm_destroy(struct mm_struct *mm)
-+{
-+	if (mm->hmm)
-+		__hmm_destroy(mm);
-+}
-+#else /* !CONFIG_HMM */
-+static inline void hmm_destroy(struct mm_struct *mm)
-+{
-+}
-+#endif /* !CONFIG_HMM */
-+
- #endif /* __KERNEL__ */
- #endif /* _LINUX_MM_H */
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index 96c5750..37eb293 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -16,6 +16,10 @@
- #include <asm/page.h>
- #include <asm/mmu.h>
- 
-+#ifdef CONFIG_HMM
-+struct hmm;
-+#endif
-+
- #ifndef AT_VECTOR_SIZE_ARCH
- #define AT_VECTOR_SIZE_ARCH 0
- #endif
-@@ -425,6 +429,16 @@ struct mm_struct {
- #ifdef CONFIG_MMU_NOTIFIER
- 	struct mmu_notifier_mm *mmu_notifier_mm;
- #endif
-+#ifdef CONFIG_HMM
-+	/*
-+	 * hmm always register an mmu_notifier we rely on mmu notifier to keep
-+	 * refcount on mm struct as well as forbiding registering hmm on a
-+	 * dying mm
-+	 *
-+	 * This field is set with mmap_sem old in write mode.
-+	 */
-+	struct hmm *hmm;
-+#endif
- #if defined(CONFIG_TRANSPARENT_HUGEPAGE) && !USE_SPLIT_PMD_PTLOCKS
- 	pgtable_t pmd_huge_pte; /* protected by page_table_lock */
- #endif
-diff --git a/kernel/fork.c b/kernel/fork.c
-index d2799d1..9463eeb 100644
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -27,6 +27,7 @@
- #include <linux/binfmts.h>
- #include <linux/mman.h>
- #include <linux/mmu_notifier.h>
-+#include <linux/hmm.h>
- #include <linux/fs.h>
- #include <linux/mm.h>
- #include <linux/vmacache.h>
-@@ -602,6 +603,8 @@ void __mmdrop(struct mm_struct *mm)
- 	mm_free_pgd(mm);
- 	destroy_context(mm);
- 	mmu_notifier_mm_destroy(mm);
-+	/* hmm_destroy needs to be call after mmu_notifier_mm_destroy */
-+	hmm_destroy(mm);
- 	check_mm(mm);
- 	free_mm(mm);
- }
-@@ -820,6 +823,9 @@ static struct mm_struct *dup_mm(struct task_struct *tsk)
- 
- 	memcpy(mm, oldmm, sizeof(*mm));
- 	mm_init_cpumask(mm);
-+#ifdef CONFIG_HMM
-+	mm->hmm = NULL;
-+#endif
- 
- #if defined(CONFIG_TRANSPARENT_HUGEPAGE) && !USE_SPLIT_PMD_PTLOCKS
- 	mm->pmd_huge_pte = NULL;
-diff --git a/mm/Kconfig b/mm/Kconfig
-index 3e9977a..d333725 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -592,3 +592,17 @@ config MAX_STACK_SIZE_MB
- 	  changed to a smaller value in which case that is used.
- 
- 	  A sane initial value is 80 MB.
-+
-+if STAGING
-+config HMM
-+	bool "Enable heterogeneous memory management (HMM)"
-+	depends on MMU
-+	select MMU_NOTIFIER
++config HMM_DUMMY
++	tristate "hmm dummy driver to test hmm."
++	depends on HMM
 +	default n
 +	help
-+	  Heterogeneous memory management provide infrastructure for a device
-+	  to mirror a process address space into an hardware mmu or into any
-+	  things supporting pagefault like event.
++	  Say Y here if you want to build the hmm dummy driver that allow you
++	  to test the hmm infrastructure by mapping a process address space
++	  in hmm dummy driver device file. When in doubt, say "N".
 +
-+	  If unsure, say N to disable hmm.
-+endif # STAGING
-diff --git a/mm/Makefile b/mm/Makefile
-index 4064f3e..6a8b45e 100644
---- a/mm/Makefile
-+++ b/mm/Makefile
-@@ -62,3 +62,4 @@ obj-$(CONFIG_MEMORY_ISOLATION) += page_isolation.o
- obj-$(CONFIG_ZBUD)	+= zbud.o
- obj-$(CONFIG_ZSMALLOC)	+= zsmalloc.o
- obj-$(CONFIG_GENERIC_EARLY_IOREMAP) += early_ioremap.o
-+obj-$(CONFIG_HMM) += hmm.o
-diff --git a/mm/hmm.c b/mm/hmm.c
+ endmenu
+ 
+diff --git a/drivers/char/Makefile b/drivers/char/Makefile
+index a324f93..83d89b8 100644
+--- a/drivers/char/Makefile
++++ b/drivers/char/Makefile
+@@ -61,3 +61,4 @@ obj-$(CONFIG_JS_RTC)		+= js-rtc.o
+ js-rtc-y = rtc.o
+ 
+ obj-$(CONFIG_TILE_SROM)		+= tile-srom.o
++obj-$(CONFIG_HMM_DUMMY)		+= hmm_dummy.o
+diff --git a/drivers/char/hmm_dummy.c b/drivers/char/hmm_dummy.c
 new file mode 100644
-index 0000000..884d02a
+index 0000000..e5431a7
 --- /dev/null
-+++ b/mm/hmm.c
-@@ -0,0 +1,1127 @@
++++ b/drivers/char/hmm_dummy.c
+@@ -0,0 +1,1075 @@
 +/*
 + * Copyright 2013 Red Hat Inc.
 + *
@@ -639,1118 +102,1102 @@ index 0000000..884d02a
 + *
 + * Authors: JA(C)rA'me Glisse <jglisse@redhat.com>
 + */
-+/* This is the core code for heterogeneous memory management (HMM). HMM intend
-+ * to provide helper for mirroring a process address space on a device as well
-+ * as allowing migration of data between local memory and device memory.
++/* This is a dummy driver made to exercice the HMM (hardware memory management)
++ * API of the kernel. It allow an userspace program to map its whole address
++ * space through the hmm dummy driver file.
 + *
-+ * Refer to include/linux/hmm.h for further informations on general design.
++ * In here mirror address are address in the process address space that is
++ * being mirrored. While virtual address are the address in the current
++ * process that has the hmm dummy dev file mapped (address of the file
++ * mapping).
++ *
++ * You must be carefull to not mix one and another.
 + */
-+/* Locking :
-+ *
-+ *   To synchronize with various mm event there is a simple serialization of
-+ *   event touching overlapping range of address. Each mm event is associated
-+ *   with an hmm_event structure which store the address range of the event.
-+ *
-+ *   When a new mm event call in hmm (most call comes through the mmu_notifier
-+ *   call backs) hmm allocate an hmm_event structure and wait for all pending
-+ *   event that overlap with the new event.
-+ *
-+ *   To avoid deadlock with mmap_sem the rules it to always allocate new hmm
-+ *   event after taking the mmap_sem lock. In case of mmu_notifier call we do
-+ *   not take the mmap_sem lock as if it was needed it would have been taken
-+ *   by the caller of the mmu_notifier API.
-+ *
-+ *   Hence hmm only need to make sure to allocate new hmm event after taking
-+ *   the mmap_sem.
-+ */
-+#include <linux/export.h>
-+#include <linux/bitmap.h>
-+#include <linux/srcu.h>
-+#include <linux/rculist.h>
-+#include <linux/slab.h>
-+#include <linux/mmu_notifier.h>
-+#include <linux/mm.h>
-+#include <linux/hugetlb.h>
++#include <linux/init.h>
 +#include <linux/fs.h>
-+#include <linux/file.h>
-+#include <linux/ksm.h>
-+#include <linux/rmap.h>
-+#include <linux/swap.h>
-+#include <linux/swapops.h>
-+#include <linux/mmu_context.h>
-+#include <linux/memcontrol.h>
-+#include <linux/hmm.h>
-+#include <linux/wait.h>
-+#include <linux/mman.h>
-+#include <asm/tlb.h>
-+#include <asm/tlbflush.h>
++#include <linux/mm.h>
++#include <linux/module.h>
++#include <linux/kernel.h>
++#include <linux/major.h>
++#include <linux/cdev.h>
++#include <linux/device.h>
++#include <linux/mutex.h>
++#include <linux/rwsem.h>
++#include <linux/sched.h>
++#include <linux/slab.h>
++#include <linux/highmem.h>
 +#include <linux/delay.h>
++#include <linux/hmm.h>
 +
-+#include "internal.h"
++#include <uapi/linux/hmm_dummy.h>
 +
-+#define HMM_MAX_EVENTS		16
++#define HMM_DUMMY_DEVICE_NAME	"hmm_dummy_device"
++#define HMM_DUMMY_MAX_DEVICES	4
 +
-+/* global SRCU for all MMs */
-+static struct srcu_struct srcu;
++struct hmm_dummy_device;
 +
-+
-+
-+
-+/* struct hmm - per mm_struct hmm structure
-+ *
-+ * @mm:             The mm struct.
-+ * @kref:           Reference counter
-+ * @lock:           Serialize the mirror list modifications.
-+ * @pending:        List of pending event (hmm_event).
-+ * @mirrors:        List of all mirror for this mm (one per device).
-+ * @mmu_notifier:   The mmu_notifier of this mm.
-+ * @wait_queue:     Wait queue for event synchronization.
-+ * @events:         Preallocated array of hmm_event for mmu_notifier.
-+ * @nevents:        Number of preallocated event currently in use.
-+ * @dead:           The mm is being destroy.
-+ *
-+ * For each process address space (mm_struct) there is one and only one hmm
-+ * struct. hmm functions will redispatch to each devices the change into the
-+ * process address space.
-+ */
-+struct hmm {
++struct hmm_dummy_mirror {
++	struct file		*filp;
++	struct hmm_dummy_device	*ddevice;
++	struct hmm_mirror	mirror;
++	unsigned		minor;
++	pid_t			pid;
 +	struct mm_struct	*mm;
-+	struct kref		kref;
-+	spinlock_t		lock;
-+	struct list_head	pending;
-+	struct list_head	mirrors;
-+	struct mmu_notifier	mmu_notifier;
-+	wait_queue_head_t	wait_queue;
-+	struct hmm_event	events[HMM_MAX_EVENTS];
-+	int			nevents;
-+	bool			dead;
++	unsigned long		*pgdp;
++	struct mutex		mutex;
++	bool			stop;
 +};
 +
-+static struct mmu_notifier_ops hmm_notifier_ops;
++struct hmm_dummy_device {
++	struct cdev		cdev;
++	struct hmm_device	device;
++	dev_t			dev;
++	int			major;
++	struct mutex		mutex;
++	char			name[32];
++	/* device file mapping tracking (keep track of all vma) */
++	struct hmm_dummy_mirror	*dmirrors[HMM_DUMMY_MAX_DEVICES];
++	struct address_space	*fmapping[HMM_DUMMY_MAX_DEVICES];
++};
 +
-+static inline struct hmm *hmm_ref(struct hmm *hmm);
-+static inline struct hmm *hmm_unref(struct hmm *hmm);
-+
-+static void hmm_mirror_cleanup(struct hmm_mirror *mirror);
-+
-+static int hmm_device_fence_wait(struct hmm_device *device,
-+				 struct hmm_fence *fence);
-+
-+
-+
-+
-+/* hmm_event - use to synchronize various mm events with each others.
-+ *
-+ * During life time of process various mm events will happen, hmm serialize
-+ * event that affect overlapping range of address. The hmm_event are use for
-+ * that purpose.
++/* We only create 2 device to show the inter device rmem sharing/migration
++ * capabilities.
 + */
-+
-+static inline bool hmm_event_overlap(struct hmm_event *a, struct hmm_event *b)
-+{
-+	return !((a->laddr <= b->faddr) || (a->faddr >= b->laddr));
-+}
-+
-+static inline unsigned long hmm_event_size(struct hmm_event *event)
-+{
-+	return (event->laddr - event->faddr);
-+}
-+
-+struct hmm_fence *hmm_fence_ref(struct hmm_fence *fence)
-+{
-+	if (fence) {
-+		kref_get(&fence->kref);
-+		return fence;
-+	}
-+	return NULL;
-+}
-+
-+static void hmm_fence_destroy(struct kref *kref)
-+{
-+	struct hmm_device *device;
-+	struct hmm_fence *fence;
-+
-+	fence = container_of(kref, struct hmm_fence, kref);
-+	device = fence->mirror->device;
-+	device->ops->fence_destroy(fence);
-+}
-+
-+struct hmm_fence *hmm_fence_unref(struct hmm_fence *fence)
-+{
-+	if (fence)
-+		kref_put(&fence->kref, hmm_fence_destroy);
-+	return NULL;
-+}
++static struct hmm_dummy_device ddevices[2];
 +
 +
-+
-+
-+/* hmm - core hmm functions.
++/* hmm_dummy_pt - dummy page table, the dummy device fake its own page table.
 + *
-+ * Core hmm functions that deal with all the process mm activities and use
-+ * event for synchronization. Those function are use mostly as result of cpu
-+ * mm event.
++ * Helper function to manage the dummy device page table.
 + */
++#define HMM_DUMMY_PTE_VALID		(1UL << 0UL)
++#define HMM_DUMMY_PTE_READ		(1UL << 1UL)
++#define HMM_DUMMY_PTE_WRITE		(1UL << 2UL)
++#define HMM_DUMMY_PTE_DIRTY		(1UL << 3UL)
++#define HMM_DUMMY_PFN_SHIFT		(PAGE_SHIFT)
 +
-+static int hmm_init(struct hmm *hmm, struct mm_struct *mm)
++#define ARCH_PAGE_SIZE			((unsigned long)PAGE_SIZE)
++#define ARCH_PAGE_SHIFT			((unsigned long)PAGE_SHIFT)
++
++#define HMM_DUMMY_PTRS_PER_LEVEL	(ARCH_PAGE_SIZE / sizeof(long))
++#ifdef CONFIG_64BIT
++#define HMM_DUMMY_BITS_PER_LEVEL	(ARCH_PAGE_SHIFT - 3UL)
++#else
++#define HMM_DUMMY_BITS_PER_LEVEL	(ARCH_PAGE_SHIFT - 2UL)
++#endif
++#define HMM_DUMMY_PLD_SHIFT		(ARCH_PAGE_SHIFT)
++#define HMM_DUMMY_PMD_SHIFT		(HMM_DUMMY_PLD_SHIFT + HMM_DUMMY_BITS_PER_LEVEL)
++#define HMM_DUMMY_PUD_SHIFT		(HMM_DUMMY_PMD_SHIFT + HMM_DUMMY_BITS_PER_LEVEL)
++#define HMM_DUMMY_PGD_SHIFT		(HMM_DUMMY_PUD_SHIFT + HMM_DUMMY_BITS_PER_LEVEL)
++#define HMM_DUMMY_PGD_NPTRS		(1UL << HMM_DUMMY_BITS_PER_LEVEL)
++#define HMM_DUMMY_PMD_NPTRS		(1UL << HMM_DUMMY_BITS_PER_LEVEL)
++#define HMM_DUMMY_PUD_NPTRS		(1UL << HMM_DUMMY_BITS_PER_LEVEL)
++#define HMM_DUMMY_PLD_NPTRS		(1UL << HMM_DUMMY_BITS_PER_LEVEL)
++#define HMM_DUMMY_PLD_SIZE		(1UL << (HMM_DUMMY_PLD_SHIFT + HMM_DUMMY_BITS_PER_LEVEL))
++#define HMM_DUMMY_PMD_SIZE		(1UL << (HMM_DUMMY_PMD_SHIFT + HMM_DUMMY_BITS_PER_LEVEL))
++#define HMM_DUMMY_PUD_SIZE		(1UL << (HMM_DUMMY_PUD_SHIFT + HMM_DUMMY_BITS_PER_LEVEL))
++#define HMM_DUMMY_PGD_SIZE		(1UL << (HMM_DUMMY_PGD_SHIFT + HMM_DUMMY_BITS_PER_LEVEL))
++#define HMM_DUMMY_PLD_MASK		(~(HMM_DUMMY_PLD_SIZE - 1UL))
++#define HMM_DUMMY_PMD_MASK		(~(HMM_DUMMY_PMD_SIZE - 1UL))
++#define HMM_DUMMY_PUD_MASK		(~(HMM_DUMMY_PUD_SIZE - 1UL))
++#define HMM_DUMMY_PGD_MASK		(~(HMM_DUMMY_PGD_SIZE - 1UL))
++#define HMM_DUMMY_MAX_ADDR		(1UL << (HMM_DUMMY_PGD_SHIFT + HMM_DUMMY_BITS_PER_LEVEL))
++
++static inline unsigned long hmm_dummy_pld_index(unsigned long addr)
 +{
-+	int i, ret;
++	return (addr >> HMM_DUMMY_PLD_SHIFT) & (HMM_DUMMY_PLD_NPTRS - 1UL);
++}
 +
-+	hmm->mm = mm;
-+	kref_init(&hmm->kref);
-+	INIT_LIST_HEAD(&hmm->mirrors);
-+	INIT_LIST_HEAD(&hmm->pending);
-+	spin_lock_init(&hmm->lock);
-+	init_waitqueue_head(&hmm->wait_queue);
++static inline unsigned long hmm_dummy_pmd_index(unsigned long addr)
++{
++	return (addr >> HMM_DUMMY_PMD_SHIFT) & (HMM_DUMMY_PMD_NPTRS - 1UL);
++}
 +
-+	for (i = 0; i < HMM_MAX_EVENTS; ++i) {
-+		hmm->events[i].etype = HMM_NONE;
-+		INIT_LIST_HEAD(&hmm->events[i].fences);
++static inline unsigned long hmm_dummy_pud_index(unsigned long addr)
++{
++	return (addr >> HMM_DUMMY_PUD_SHIFT) & (HMM_DUMMY_PUD_NPTRS - 1UL);
++}
++
++static inline unsigned long hmm_dummy_pgd_index(unsigned long addr)
++{
++	return (addr >> HMM_DUMMY_PGD_SHIFT) & (HMM_DUMMY_PGD_NPTRS - 1UL);
++}
++
++static inline unsigned long hmm_dummy_pld_base(unsigned long addr)
++{
++	return (addr & HMM_DUMMY_PLD_MASK);
++}
++
++static inline unsigned long hmm_dummy_pmd_base(unsigned long addr)
++{
++	return (addr & HMM_DUMMY_PMD_MASK);
++}
++
++static inline unsigned long hmm_dummy_pud_base(unsigned long addr)
++{
++	return (addr & HMM_DUMMY_PUD_MASK);
++}
++
++static inline unsigned long hmm_dummy_pgd_base(unsigned long addr)
++{
++	return (addr & HMM_DUMMY_PGD_MASK);
++}
++
++static inline unsigned long hmm_dummy_pld_next(unsigned long addr)
++{
++	return (addr & HMM_DUMMY_PLD_MASK) + HMM_DUMMY_PLD_SIZE;
++}
++
++static inline unsigned long hmm_dummy_pmd_next(unsigned long addr)
++{
++	return (addr & HMM_DUMMY_PMD_MASK) + HMM_DUMMY_PMD_SIZE;
++}
++
++static inline unsigned long hmm_dummy_pud_next(unsigned long addr)
++{
++	return (addr & HMM_DUMMY_PUD_MASK) + HMM_DUMMY_PUD_SIZE;
++}
++
++static inline unsigned long hmm_dummy_pgd_next(unsigned long addr)
++{
++	return (addr & HMM_DUMMY_PGD_MASK) + HMM_DUMMY_PGD_SIZE;
++}
++
++static inline struct page *hmm_dummy_pte_to_page(unsigned long pte)
++{
++	if (!(pte & HMM_DUMMY_PTE_VALID))
++		return NULL;
++	return pfn_to_page((pte >> HMM_DUMMY_PFN_SHIFT));
++}
++
++struct hmm_dummy_pt_map {
++	struct hmm_dummy_mirror	*dmirror;
++	struct page		*pud_page;
++	struct page		*pmd_page;
++	struct page		*pld_page;
++	unsigned long		pgd_idx;
++	unsigned long		pud_idx;
++	unsigned long		pmd_idx;
++	unsigned long		*pudp;
++	unsigned long		*pmdp;
++	unsigned long		*pldp;
++};
++
++static inline unsigned long *hmm_dummy_pt_pud_map(struct hmm_dummy_pt_map *pt_map,
++						  unsigned long addr)
++{
++	struct hmm_dummy_mirror *dmirror = pt_map->dmirror;
++	unsigned long *pdep;
++
++	if (!dmirror->pgdp)
++		return NULL;
++
++	if (!pt_map->pud_page || pt_map->pgd_idx != hmm_dummy_pgd_index(addr)) {
++		if (pt_map->pud_page) {
++			kunmap(pt_map->pud_page);
++			pt_map->pud_page = NULL;
++			pt_map->pudp = NULL;
++		}
++		pt_map->pgd_idx = hmm_dummy_pgd_index(addr);
++		pdep = &dmirror->pgdp[pt_map->pgd_idx];
++		if (!((*pdep) & HMM_DUMMY_PTE_VALID))
++			return NULL;
++		pt_map->pud_page = pfn_to_page((*pdep) >> HMM_DUMMY_PFN_SHIFT);
++		pt_map->pudp = kmap(pt_map->pud_page);
++	}
++	return pt_map->pudp;
++}
++
++static inline unsigned long *hmm_dummy_pt_pmd_map(struct hmm_dummy_pt_map *pt_map,
++						  unsigned long addr)
++{
++	unsigned long *pdep;
++
++	if (!hmm_dummy_pt_pud_map(pt_map, addr))
++		return NULL;
++
++	if (!pt_map->pmd_page || pt_map->pud_idx != hmm_dummy_pud_index(addr)) {
++		if (pt_map->pmd_page) {
++			kunmap(pt_map->pmd_page);
++			pt_map->pmd_page = NULL;
++			pt_map->pmdp = NULL;
++		}
++		pt_map->pud_idx = hmm_dummy_pud_index(addr);
++		pdep = &pt_map->pudp[pt_map->pud_idx];
++		if (!((*pdep) & HMM_DUMMY_PTE_VALID))
++			return NULL;
++		pt_map->pmd_page = pfn_to_page((*pdep) >> HMM_DUMMY_PFN_SHIFT);
++		pt_map->pmdp = kmap(pt_map->pmd_page);
++	}
++	return pt_map->pmdp;
++}
++
++static inline unsigned long *hmm_dummy_pt_pld_map(struct hmm_dummy_pt_map *pt_map,
++						  unsigned long addr)
++{
++	unsigned long *pdep;
++
++	if (!hmm_dummy_pt_pmd_map(pt_map, addr))
++		return NULL;
++
++	if (!pt_map->pld_page || pt_map->pmd_idx != hmm_dummy_pmd_index(addr)) {
++		if (pt_map->pld_page) {
++			kunmap(pt_map->pld_page);
++			pt_map->pld_page = NULL;
++			pt_map->pldp = NULL;
++		}
++		pt_map->pmd_idx = hmm_dummy_pmd_index(addr);
++		pdep = &pt_map->pmdp[pt_map->pmd_idx];
++		if (!((*pdep) & HMM_DUMMY_PTE_VALID))
++			return NULL;
++		pt_map->pld_page = pfn_to_page((*pdep) >> HMM_DUMMY_PFN_SHIFT);
++		pt_map->pldp = kmap(pt_map->pld_page);
++	}
++	return pt_map->pldp;
++}
++
++static inline void hmm_dummy_pt_pld_unmap(struct hmm_dummy_pt_map *pt_map)
++{
++	if (pt_map->pld_page) {
++		kunmap(pt_map->pld_page);
++		pt_map->pld_page = NULL;
++		pt_map->pldp = NULL;
++	}
++}
++
++static inline void hmm_dummy_pt_pmd_unmap(struct hmm_dummy_pt_map *pt_map)
++{
++	hmm_dummy_pt_pld_unmap(pt_map);
++	if (pt_map->pmd_page) {
++		kunmap(pt_map->pmd_page);
++		pt_map->pmd_page = NULL;
++		pt_map->pmdp = NULL;
++	}
++}
++
++static inline void hmm_dummy_pt_pud_unmap(struct hmm_dummy_pt_map *pt_map)
++{
++	hmm_dummy_pt_pmd_unmap(pt_map);
++	if (pt_map->pud_page) {
++		kunmap(pt_map->pud_page);
++		pt_map->pud_page = NULL;
++		pt_map->pudp = NULL;
++	}
++}
++
++static inline void hmm_dummy_pt_unmap(struct hmm_dummy_pt_map *pt_map)
++{
++	hmm_dummy_pt_pud_unmap(pt_map);
++}
++
++static int hmm_dummy_pt_alloc(struct hmm_dummy_mirror *dmirror,
++			      unsigned long faddr,
++			      unsigned long laddr)
++{
++	unsigned long *pgdp, *pudp, *pmdp;
++
++	if (dmirror->stop)
++		return -EINVAL;
++
++	if (dmirror->pgdp == NULL) {
++		dmirror->pgdp = kzalloc(PAGE_SIZE, GFP_KERNEL);
++		if (dmirror->pgdp == NULL)
++			return -ENOMEM;
 +	}
 +
-+	/* register notifier */
-+	hmm->mmu_notifier.ops = &hmm_notifier_ops;
-+	ret = __mmu_notifier_register(&hmm->mmu_notifier, mm);
-+	return ret;
-+}
++	for (; faddr < laddr; faddr = hmm_dummy_pld_next(faddr)) {
++		struct page *pud_page, *pmd_page;
 +
-+static enum hmm_etype hmm_event_mmu(enum mmu_action action)
-+{
-+	switch (action) {
-+	case MMU_MPROT_RONLY:
-+		return HMM_MPROT_RONLY;
-+	case MMU_COW:
-+		return HMM_COW;
-+	case MMU_MPROT_WONLY:
-+	case MMU_MPROT_NONE:
-+	case MMU_KSM:
-+	case MMU_KSM_RONLY:
-+	case MMU_UNMAP:
-+	case MMU_VMSCAN:
-+	case MMU_MIGRATE:
-+	case MMU_FILE_WB:
-+	case MMU_FAULT_WP:
-+	case MMU_THP_SPLIT:
-+	case MMU_THP_FAULT_WP:
-+		return HMM_MPROT_NONE;
-+	case MMU_POISON:
-+	case MMU_MREMAP:
-+	case MMU_MUNMAP:
-+		return HMM_MUNMAP;
-+	case MMU_SOFT_DIRTY:
-+	case MMU_MUNLOCK:
-+	default:
-+		return HMM_NONE;
++		pgdp = &dmirror->pgdp[hmm_dummy_pgd_index(faddr)];
++		if (!((*pgdp) & HMM_DUMMY_PTE_VALID)) {
++			pud_page = alloc_page(GFP_KERNEL | __GFP_ZERO);
++			if (!pud_page)
++				return -ENOMEM;
++			*pgdp  = (page_to_pfn(pud_page)<<HMM_DUMMY_PFN_SHIFT);
++			*pgdp |= HMM_DUMMY_PTE_VALID;
++		}
++
++		pud_page = pfn_to_page((*pgdp) >> HMM_DUMMY_PFN_SHIFT);
++		pudp = kmap(pud_page);
++		pudp = &pudp[hmm_dummy_pud_index(faddr)];
++		if (!((*pudp) & HMM_DUMMY_PTE_VALID)) {
++			pmd_page = alloc_page(GFP_KERNEL | __GFP_ZERO);
++			if (!pmd_page) {
++				kunmap(pud_page);
++				return -ENOMEM;
++			}
++			*pudp  = (page_to_pfn(pmd_page)<<HMM_DUMMY_PFN_SHIFT);
++			*pudp |= HMM_DUMMY_PTE_VALID;
++		}
++
++		pmd_page = pfn_to_page((*pudp) >> HMM_DUMMY_PFN_SHIFT);
++		pmdp = kmap(pmd_page);
++		pmdp = &pmdp[hmm_dummy_pmd_index(faddr)];
++		if (!((*pmdp) & HMM_DUMMY_PTE_VALID)) {
++			struct page *page;
++
++			page = alloc_page(GFP_KERNEL | __GFP_ZERO);
++			if (!page) {
++				kunmap(pmd_page);
++				kunmap(pud_page);
++				return -ENOMEM;
++			}
++			*pmdp  = (page_to_pfn(page) << HMM_DUMMY_PFN_SHIFT);
++			*pmdp |= HMM_DUMMY_PTE_VALID;
++		}
++
++		kunmap(pmd_page);
++		kunmap(pud_page);
 +	}
++
++	return 0;
 +}
 +
-+static void hmm_event_unqueue_and_release_locked(struct hmm *hmm,
-+						 struct hmm_event *event)
++static void hmm_dummy_pt_free_pmd(struct hmm_dummy_pt_map *pt_map,
++				  unsigned long faddr,
++				  unsigned long laddr)
 +{
-+	list_del_init(&event->list);
-+	event->etype = HMM_NONE;
-+	hmm->nevents--;
-+}
++	for (; faddr < laddr; faddr = hmm_dummy_pld_next(faddr)) {
++		unsigned long pfn, *pmdp, next;
++		struct page *page;
 +
-+static void hmm_event_unqueue_and_release(struct hmm *hmm,
-+					  struct hmm_event *event)
-+{
-+	spin_lock(&hmm->lock);
-+	list_del_init(&event->list);
-+	event->etype = HMM_NONE;
-+	hmm->nevents--;
-+	spin_unlock(&hmm->lock);
-+}
-+
-+static void hmm_event_unqueue(struct hmm *hmm,
-+			      struct hmm_event *event)
-+{
-+	spin_lock(&hmm->lock);
-+	list_del_init(&event->list);
-+	spin_unlock(&hmm->lock);
-+}
-+
-+static void hmm_event_wait_queue(struct hmm *hmm,
-+				 struct hmm_event *event)
-+{
-+	struct hmm_event *wait;
-+
-+again:
-+	wait = event;
-+	list_for_each_entry_continue_reverse(wait, &hmm->pending, list) {
-+		enum hmm_etype wait_type;
-+
-+		if (!hmm_event_overlap(event, wait))
++		next = min(hmm_dummy_pld_next(faddr), laddr);
++		if (faddr > hmm_dummy_pld_base(faddr) || laddr < next)
 +			continue;
-+		wait_type = wait->etype;
-+		spin_unlock(&hmm->lock);
-+		wait_event(hmm->wait_queue, wait->etype != wait_type);
-+		spin_lock(&hmm->lock);
-+		goto again;
++		pmdp = hmm_dummy_pt_pmd_map(pt_map, faddr);
++		if (!pmdp)
++			continue;
++		if (!(pmdp[hmm_dummy_pmd_index(faddr)] & HMM_DUMMY_PTE_VALID))
++			continue;
++		pfn = pmdp[hmm_dummy_pmd_index(faddr)] >> HMM_DUMMY_PFN_SHIFT;
++		page = pfn_to_page(pfn);
++		pmdp[hmm_dummy_pmd_index(faddr)] = 0;
++		__free_page(page);
 +	}
 +}
 +
-+static void hmm_event_queue(struct hmm *hmm, struct hmm_event *event)
++static void hmm_dummy_pt_free_pud(struct hmm_dummy_pt_map *pt_map,
++				  unsigned long faddr,
++				  unsigned long laddr)
 +{
-+	spin_lock(&hmm->lock);
-+	list_add_tail(&event->list, &hmm->pending);
-+	hmm_event_wait_queue(hmm, event);
-+	spin_unlock(&hmm->lock);
-+}
++	for (; faddr < laddr; faddr = hmm_dummy_pmd_next(faddr)) {
++		unsigned long pfn, *pudp, next;
++		struct page *page;
 +
-+static void hmm_destroy_kref(struct kref *kref)
-+{
-+	struct hmm *hmm;
-+	struct mm_struct *mm;
-+
-+	hmm = container_of(kref, struct hmm, kref);
-+	mm = hmm->mm;
-+	mm->hmm = NULL;
-+	mmu_notifier_unregister(&hmm->mmu_notifier, mm);
-+
-+	if (!list_empty(&hmm->mirrors)) {
-+		BUG();
-+		pr_err("destroying an hmm with still active mirror\n"
-+		       "Leaking memory instead to avoid something worst.\n");
-+		return;
++		next = min(hmm_dummy_pmd_next(faddr), laddr);
++		hmm_dummy_pt_free_pmd(pt_map, faddr, next);
++		hmm_dummy_pt_pmd_unmap(pt_map);
++		if (faddr > hmm_dummy_pmd_base(faddr) || laddr < next)
++			continue;
++		pudp = hmm_dummy_pt_pud_map(pt_map, faddr);
++		if (!pudp)
++			continue;
++		if (!(pudp[hmm_dummy_pud_index(faddr)] & HMM_DUMMY_PTE_VALID))
++			continue;
++		pfn = pudp[hmm_dummy_pud_index(faddr)] >> HMM_DUMMY_PFN_SHIFT;
++		page = pfn_to_page(pfn);
++		pudp[hmm_dummy_pud_index(faddr)] = 0;
++		__free_page(page);
 +	}
-+	kfree(hmm);
 +}
 +
-+static inline struct hmm *hmm_ref(struct hmm *hmm)
++static void hmm_dummy_pt_free(struct hmm_dummy_mirror *dmirror,
++			      unsigned long faddr,
++			      unsigned long laddr)
 +{
-+	if (hmm) {
-+		kref_get(&hmm->kref);
-+		return hmm;
-+	}
-+	return NULL;
-+}
++	struct hmm_dummy_pt_map pt_map = {0};
 +
-+static inline struct hmm *hmm_unref(struct hmm *hmm)
-+{
-+	if (hmm)
-+		kref_put(&hmm->kref, hmm_destroy_kref);
-+	return NULL;
-+}
-+
-+static struct hmm_event *hmm_event_get(struct hmm *hmm,
-+				       unsigned long faddr,
-+				       unsigned long laddr,
-+				       enum hmm_etype etype)
-+{
-+	struct hmm_event *event;
-+	unsigned id;
-+
-+	do {
-+		spin_lock(&hmm->lock);
-+		for (id = 0; id < HMM_MAX_EVENTS; ++id) {
-+			if (hmm->events[id].etype == HMM_NONE) {
-+				event = &hmm->events[id];
-+				goto out;
-+			}
-+		}
-+		spin_unlock(&hmm->lock);
-+		wait_event(hmm->wait_queue, hmm->nevents < HMM_MAX_EVENTS);
-+	} while (1);
-+
-+out:
-+	event->etype = etype;
-+	event->faddr = faddr;
-+	event->laddr = laddr;
-+	event->backoff = false;
-+	INIT_LIST_HEAD(&event->fences);
-+	hmm->nevents++;
-+	list_add_tail(&event->list, &hmm->pending);
-+	hmm_event_wait_queue(hmm, event);
-+	spin_unlock(&hmm->lock);
-+
-+	return event;
-+}
-+
-+static void hmm_update_mirrors(struct hmm *hmm,
-+			       struct vm_area_struct *vma,
-+			       struct hmm_event *event)
-+{
-+	struct hmm_mirror *mirror;
-+	struct hmm_fence *fence = NULL, *tmp;
-+	int ticket;
-+
-+retry:
-+	ticket = srcu_read_lock(&srcu);
-+	/* Because of retry we might already have scheduled some mirror
-+	 * skip those.
-+	 */
-+	mirror = list_first_entry(&hmm->mirrors,
-+				  struct hmm_mirror,
-+				  mlist);
-+	mirror = fence ? fence->mirror : mirror;
-+	list_for_each_entry_continue(mirror, &hmm->mirrors, mlist) {
-+		struct hmm_device *device = mirror->device;
-+
-+		fence = device->ops->update(mirror, vma, event->faddr,
-+					    event->laddr, event->etype);
-+		if (fence) {
-+			if (IS_ERR(fence)) {
-+				srcu_read_unlock(&srcu, ticket);
-+				hmm_mirror_cleanup(mirror);
-+				goto retry;
-+			}
-+			kref_init(&fence->kref);
-+			fence->mirror = mirror;
-+			list_add_tail(&fence->list, &event->fences);
-+		}
-+	}
-+	srcu_read_unlock(&srcu, ticket);
-+
-+	if (!fence)
-+		/* Nothing to wait for. */
++	if (!dmirror->pgdp || (laddr - faddr) < HMM_DUMMY_PLD_SIZE)
 +		return;
 +
-+	io_schedule();
-+	list_for_each_entry_safe(fence, tmp, &event->fences, list) {
-+		struct hmm_device *device;
-+		int r;
++	pt_map.dmirror = dmirror;
 +
-+		mirror = fence->mirror;
-+		device = mirror->device;
++	for (; faddr < laddr; faddr = hmm_dummy_pud_next(faddr)) {
++		unsigned long pfn, *pgdp, next;
++		struct page *page;
 +
-+		r = hmm_device_fence_wait(device, fence);
-+		if (r)
-+			hmm_mirror_cleanup(mirror);
++		next = min(hmm_dummy_pud_next(faddr), laddr);
++		pgdp = dmirror->pgdp;
++		hmm_dummy_pt_free_pud(&pt_map, faddr, next);
++		hmm_dummy_pt_pud_unmap(&pt_map);
++		if (faddr > hmm_dummy_pud_base(faddr) || laddr < next)
++			continue;
++		if (!(pgdp[hmm_dummy_pgd_index(faddr)] & HMM_DUMMY_PTE_VALID))
++			continue;
++		pfn = pgdp[hmm_dummy_pgd_index(faddr)] >> HMM_DUMMY_PFN_SHIFT;
++		page = pfn_to_page(pfn);
++		pgdp[hmm_dummy_pgd_index(faddr)] = 0;
++		__free_page(page);
 +	}
++	hmm_dummy_pt_unmap(&pt_map);
 +}
 +
 +
 +
 +
-+/* hmm_notifier - mmu_notifier hmm funcs tracking change to process mm.
++/* hmm_ops - hmm callback for the hmm dummy driver.
 + *
-+ * Callbacks for mmu notifier. We use use mmu notifier to track change made to
-+ * process address space.
-+ *
-+ * Note that none of this callback needs to take a reference, as we sure that
-+ * mm won't be destroy thus hmm won't be destroy either and it's fine if some
-+ * hmm_mirror/hmm_device are destroy during those callbacks because this is
-+ * serialize through either the hmm lock or the device lock.
++ * Below are the various callback that the hmm api require for a device. The
++ * implementation of the dummy device driver is necessarily simpler that what
++ * a real device driver would do. We do not have interrupt nor any kind of
++ * command buffer on to which schedule memory invalidation and updates.
 + */
-+
-+static void hmm_notifier_release(struct mmu_notifier *mn, struct mm_struct *mm)
++static void hmm_dummy_device_destroy(struct hmm_device *device)
 +{
-+	struct hmm *hmm;
++	/* No-op for the dummy driver. */
++}
 +
-+	hmm = hmm_ref(mm->hmm);
-+	if (!hmm || hmm->dead) {
-+		/* Already clean. */
-+		hmm_unref(hmm);
-+		return;
++static void hmm_dummy_mirror_release(struct hmm_mirror *mirror)
++{
++	struct hmm_dummy_mirror *dmirror;
++
++	dmirror = container_of(mirror, struct hmm_dummy_mirror, mirror);
++	dmirror->stop = true;
++	mutex_lock(&dmirror->mutex);
++	hmm_dummy_pt_free(dmirror, 0, HMM_DUMMY_MAX_ADDR);
++	kfree(dmirror->pgdp);
++	dmirror->pgdp = NULL;
++	mutex_unlock(&dmirror->mutex);
++}
++
++static void hmm_dummy_mirror_destroy(struct hmm_mirror *mirror)
++{
++	/* No-op for the dummy driver. */
++}
++
++static int hmm_dummy_fence_wait(struct hmm_fence *fence)
++{
++	/* FIXME add fake fence to showcase api */
++	return 0;
++}
++
++static void hmm_dummy_fence_destroy(struct hmm_fence *fence)
++{
++	/* We never allocate fence so how could we have to free one ? */
++	BUG();
++}
++
++static struct hmm_fence *hmm_dummy_update(struct hmm_mirror *mirror,
++					  struct vm_area_struct *vma,
++					  unsigned long faddr,
++					  unsigned long laddr,
++					  enum hmm_etype etype)
++{
++	struct hmm_dummy_mirror *dmirror;
++	struct hmm_dummy_pt_map pt_map = {0};
++	unsigned long addr, i, mask;
++
++	dmirror = container_of(mirror, struct hmm_dummy_mirror, mirror);
++	pt_map.dmirror = dmirror;
++
++	/* Debugging hmm real device driver do not have to do that. */
++	switch (etype) {
++	case HMM_UNREGISTER:
++	case HMM_MUNMAP:
++	case HMM_MPROT_NONE:
++		mask = 0;
++		break;
++	case HMM_MPROT_RONLY:
++		mask = ~HMM_DUMMY_PTE_WRITE;
++		break;
++	default:
++		return ERR_PTR(-EIO);
 +	}
 +
-+	hmm->dead = true;
++	mutex_lock(&dmirror->mutex);
++	for (i = 0, addr = faddr; addr < laddr; ++i, addr += PAGE_SIZE) {
++		unsigned long *pldp;
 +
-+	/*
-+	 * hmm->lock allow synchronization with hmm_mirror_unregister() an
-+	 * hmm_mirror can be removed only once.
-+	 */
-+	spin_lock(&hmm->lock);
-+	while (unlikely(!list_empty(&hmm->mirrors))) {
-+		struct hmm_mirror *mirror;
-+		struct hmm_device *device;
++		pldp = hmm_dummy_pt_pld_map(&pt_map, addr);
++		if (!pldp)
++			continue;
++		if (((*pldp) & HMM_DUMMY_PTE_DIRTY)) {
++			struct page *page;
 +
-+		mirror = list_first_entry(&hmm->mirrors,
-+					  struct hmm_mirror,
-+					  mlist);
-+		device = mirror->device;
-+		if (!mirror->dead) {
-+			/* Update mirror as being dead and remove it from the
-+			 * mirror list before freeing up any of its resources.
-+			 */
-+			mirror->dead = true;
-+			list_del_init(&mirror->mlist);
-+			spin_unlock(&hmm->lock);
-+
-+			synchronize_srcu(&srcu);
-+
-+			device->ops->mirror_release(mirror);
-+			hmm_mirror_cleanup(mirror);
-+			spin_lock(&hmm->lock);
++			page = hmm_dummy_pte_to_page(*pldp);
++			if (page)
++				set_page_dirty(page);
 +		}
++		*pldp &= ~HMM_DUMMY_PTE_DIRTY;
++		*pldp &= mask;
 +	}
-+	spin_unlock(&hmm->lock);
-+	hmm_unref(hmm);
-+}
++	hmm_dummy_pt_unmap(&pt_map);
 +
-+static void hmm_notifier_invalidate_range_start(struct mmu_notifier *mn,
-+						struct mm_struct *mm,
-+						struct vm_area_struct *vma,
-+						unsigned long faddr,
-+						unsigned long laddr,
-+						enum mmu_action action)
-+{
-+	struct hmm_event *event;
-+	enum hmm_etype etype;
-+	struct hmm *hmm;
-+
-+	hmm = hmm_ref(mm->hmm);
-+	if (!hmm)
-+		return;
-+
-+	etype = hmm_event_mmu(action);
 +	switch (etype) {
-+	case HMM_NONE:
-+		hmm_unref(hmm);
-+		return;
++	case HMM_UNREGISTER:
++	case HMM_MUNMAP:
++		hmm_dummy_pt_free(dmirror, faddr, laddr);
++		break;
 +	default:
 +		break;
 +	}
-+
-+	faddr = faddr & PAGE_MASK;
-+	laddr = PAGE_ALIGN(laddr);
-+
-+	event = hmm_event_get(hmm, faddr, laddr, etype);
-+	hmm_update_mirrors(hmm, vma, event);
-+	/* Do not drop hmm reference here but in the range_end instead. */
++	mutex_unlock(&dmirror->mutex);
++	return NULL;
 +}
 +
-+static void hmm_notifier_invalidate_range_end(struct mmu_notifier *mn,
-+					      struct mm_struct *mm,
-+					      struct vm_area_struct *vma,
-+					      unsigned long faddr,
-+					      unsigned long laddr,
-+					      enum mmu_action action)
++static int hmm_dummy_fault(struct hmm_mirror *mirror,
++			   unsigned long faddr,
++			   unsigned long laddr,
++			   pte_t *ptep,
++			   struct hmm_event *event)
 +{
-+	struct hmm_event *event = NULL;
-+	enum hmm_etype etype;
-+	struct hmm *hmm;
-+	int i;
++	struct hmm_dummy_mirror *dmirror;
++	struct hmm_dummy_pt_map pt_map = {0};
++	unsigned long i;
++	int ret = 0;
 +
-+	if (!mm->hmm)
-+		return;
-+	hmm = mm->hmm;
++	dmirror = container_of(mirror, struct hmm_dummy_mirror, mirror);
++	pt_map.dmirror = dmirror;
 +
-+	etype = hmm_event_mmu(action);
-+	switch (etype) {
-+	case HMM_NONE:
-+		return;
-+	default:
-+		break;
-+	}
++	mutex_lock(&dmirror->mutex);
++	for (i = 0; faddr < laddr; ++i, ++ptep, faddr += PAGE_SIZE) {
++		unsigned long *pldp, pld_idx;
++		struct page *page;
++		bool write;
 +
-+	faddr = faddr & PAGE_MASK;
-+	laddr = PAGE_ALIGN(laddr);
-+
-+	spin_lock(&hmm->lock);
-+	for (i = 0; i < HMM_MAX_EVENTS; ++i, event = NULL) {
-+		event = &hmm->events[i];
-+		if (event->etype == etype &&
-+		    event->faddr == faddr &&
-+		    event->laddr == laddr &&
-+		    !list_empty(&event->list)) {
-+			hmm_event_unqueue_and_release_locked(hmm, event);
++		event->iaddr = faddr;
++		pldp = hmm_dummy_pt_pld_map(&pt_map, faddr);
++		if (!pldp) {
++			ret = -ENOMEM;
 +			break;
 +		}
-+	}
-+	spin_unlock(&hmm->lock);
 +
-+	/* Drop reference from invalidate_range_start. */
-+	hmm_unref(hmm);
++		page = hmm_pte_to_page(*ptep, &write);
++		if (!page) {
++			ret = -ENOENT;
++			break;
++		}
++		if (event->etype == HMM_WFAULT && !write) {
++			ret = -EACCES;
++			break;
++		}
++
++		pld_idx = hmm_dummy_pld_index(faddr);
++		pldp[pld_idx]  = (page_to_pfn(page) << HMM_DUMMY_PFN_SHIFT);
++		pldp[pld_idx] |= write ? HMM_DUMMY_PTE_WRITE : 0;
++		pldp[pld_idx] |= HMM_DUMMY_PTE_VALID | HMM_DUMMY_PTE_READ;
++	}
++	hmm_dummy_pt_unmap(&pt_map);
++	mutex_unlock(&dmirror->mutex);
++	return ret;
 +}
 +
-+static void hmm_notifier_invalidate_page(struct mmu_notifier *mn,
-+					 struct mm_struct *mm,
-+					 struct vm_area_struct *vma,
-+					 unsigned long faddr,
-+					 enum mmu_action action)
-+{
-+	unsigned long laddr;
-+	struct hmm_event *event;
-+	enum hmm_etype etype;
-+	struct hmm *hmm;
-+
-+	hmm = hmm_ref(mm->hmm);
-+	if (!hmm)
-+		return;
-+
-+	etype = hmm_event_mmu(action);
-+	switch (etype) {
-+	case HMM_NONE:
-+		return;
-+	default:
-+		break;
-+	}
-+
-+	faddr = faddr & PAGE_MASK;
-+	laddr = faddr + PAGE_SIZE;
-+
-+	event = hmm_event_get(hmm, faddr, laddr, etype);
-+	hmm_update_mirrors(hmm, vma, event);
-+	hmm_event_unqueue_and_release(hmm, event);
-+	hmm_unref(hmm);
-+}
-+
-+static struct mmu_notifier_ops hmm_notifier_ops = {
-+	.release		= hmm_notifier_release,
-+	/* .clear_flush_young FIXME we probably want to do something. */
-+	/* .test_young FIXME we probably want to do something. */
-+	/* WARNING .change_pte must always bracketed by range_start/end there
-+	 * was patches to remove that behavior we must make sure that those
-+	 * patches are not included as alternative solution to issue they are
-+	 * trying to solve can be use.
-+	 *
-+	 * While hmm can not use the change_pte callback as non sleeping lock
-+	 * are held during change_pte callback.
-+	 */
-+	.change_pte		= NULL,
-+	.invalidate_page	= hmm_notifier_invalidate_page,
-+	.invalidate_range_start	= hmm_notifier_invalidate_range_start,
-+	.invalidate_range_end	= hmm_notifier_invalidate_range_end,
++static const struct hmm_device_ops hmm_dummy_ops = {
++	.device_destroy		= &hmm_dummy_device_destroy,
++	.mirror_release		= &hmm_dummy_mirror_release,
++	.mirror_destroy		= &hmm_dummy_mirror_destroy,
++	.fence_wait		= &hmm_dummy_fence_wait,
++	.fence_destroy		= &hmm_dummy_fence_destroy,
++	.update			= &hmm_dummy_update,
++	.fault			= &hmm_dummy_fault,
 +};
 +
 +
-+
-+
-+/* hmm_mirror - per device mirroring functions.
++/* hmm_dummy_mmap - hmm dummy device file mmap operations.
 + *
-+ * Each device that mirror a process has a uniq hmm_mirror struct. A process
-+ * can be mirror by several devices at the same time.
-+ *
-+ * Below are all the functions and there helpers use by device driver to mirror
-+ * the process address space. Those functions either deals with updating the
-+ * device page table (through hmm callback). Or provide helper functions use by
-+ * the device driver to fault in range of memory in the device page table.
++ * The hmm dummy driver does not allow mmap of its device file. The main reason
++ * is because the kernel lack the ability to insert page with specific custom
++ * protections inside a vma.
 + */
-+
-+static void hmm_mirror_cleanup(struct hmm_mirror *mirror)
++static int hmm_dummy_mmap_fault(struct vm_area_struct *vma,
++				struct vm_fault *vmf)
 +{
-+	struct vm_area_struct *vma;
-+	struct hmm_device *device = mirror->device;
++	return VM_FAULT_SIGBUS;
++}
++
++static void hmm_dummy_mmap_open(struct vm_area_struct *vma)
++{
++	/* nop */
++}
++
++static void hmm_dummy_mmap_close(struct vm_area_struct *vma)
++{
++	/* nop */
++}
++
++static const struct vm_operations_struct mmap_mem_ops = {
++	.fault			= hmm_dummy_mmap_fault,
++	.open			= hmm_dummy_mmap_open,
++	.close			= hmm_dummy_mmap_close,
++};
++
++
++/* hmm_dummy_fops - hmm dummy device file operations.
++ *
++ * The hmm dummy driver allow to read/write to the mirrored process through
++ * the device file. Below are the read and write and others device file
++ * callback that implement access to the mirrored address space.
++ */
++static int hmm_dummy_mirror_fault(struct hmm_dummy_mirror *dmirror,
++				  unsigned long addr,
++				  bool write)
++{
++	struct hmm_mirror *mirror = &dmirror->mirror;
 +	struct hmm_event event;
-+	struct hmm *hmm = mirror->hmm;
-+
-+	spin_lock(&hmm->lock);
-+	if (mirror->dead) {
-+		spin_unlock(&hmm->lock);
-+		return;
-+	}
-+	mirror->dead = true;
-+	list_del(&mirror->mlist);
-+	spin_unlock(&hmm->lock);
-+	synchronize_srcu(&srcu);
-+	INIT_LIST_HEAD(&mirror->mlist);
-+
-+	event.etype = HMM_UNREGISTER;
-+	event.faddr = 0UL;
-+	event.laddr = -1L;
-+	vma = find_vma_intersection(hmm->mm, event.faddr, event.laddr);
-+	for (; vma; vma = vma->vm_next) {
-+		struct hmm_fence *fence;
-+
-+		fence = device->ops->update(mirror, vma, vma->vm_start,
-+					    vma->vm_end, event.etype);
-+		if (fence && !IS_ERR(fence)) {
-+			kref_init(&fence->kref);
-+			fence->mirror = mirror;
-+			INIT_LIST_HEAD(&fence->list);
-+			hmm_device_fence_wait(device, fence);
-+		}
-+	}
-+
-+	mutex_lock(&device->mutex);
-+	list_del_init(&mirror->dlist);
-+	mutex_unlock(&device->mutex);
-+
-+	mirror->hmm = hmm_unref(hmm);
-+	hmm_mirror_unref(mirror);
-+}
-+
-+static void hmm_mirror_destroy(struct kref *kref)
-+{
-+	struct hmm_mirror *mirror;
-+	struct hmm_device *device;
-+
-+	mirror = container_of(kref, struct hmm_mirror, kref);
-+	device = mirror->device;
-+
-+	BUG_ON(!list_empty(&mirror->mlist));
-+	BUG_ON(!list_empty(&mirror->dlist));
-+
-+	device->ops->mirror_destroy(mirror);
-+	hmm_device_unref(device);
-+}
-+
-+struct hmm_mirror *hmm_mirror_ref(struct hmm_mirror *mirror)
-+{
-+	if (mirror) {
-+		kref_get(&mirror->kref);
-+		return mirror;
-+	}
-+	return NULL;
-+}
-+EXPORT_SYMBOL(hmm_mirror_ref);
-+
-+struct hmm_mirror *hmm_mirror_unref(struct hmm_mirror *mirror)
-+{
-+	if (mirror)
-+		kref_put(&mirror->kref, hmm_mirror_destroy);
-+	return NULL;
-+}
-+EXPORT_SYMBOL(hmm_mirror_unref);
-+
-+/* hmm_mirror_register() - register a device mirror against an mm struct
-+ *
-+ * @mirror: The mirror that link process address space with the device.
-+ * @device: The device struct to associate this mirror with.
-+ * @mm:     The mm struct of the process.
-+ * Returns: 0 success, -ENOMEM, -EBUSY or -EINVAL if process already mirrored.
-+ *
-+ * Call when device driver want to start mirroring a process address space. The
-+ * hmm shim will register mmu_notifier and start monitoring process address
-+ * space changes. Hence callback to device driver might happen even before this
-+ * function return.
-+ *
-+ * The mm pin must also be hold (either task is current or using get_task_mm).
-+ *
-+ * Only one mirror per mm and hmm_device can be created, it will return -EINVAL
-+ * if the hmm_device already has an hmm_mirror for the the mm.
-+ *
-+ * If the mm or previous hmm is in transient state then this will return -EBUSY
-+ * and device driver must retry the call after unpinning the mm and checking
-+ * again that the mm is valid.
-+ *
-+ * On success the mirror is returned with one reference for the caller, thus to
-+ * release mirror call hmm_mirror_unref.
-+ */
-+int hmm_mirror_register(struct hmm_mirror *mirror,
-+			struct hmm_device *device,
-+			struct mm_struct *mm)
-+{
-+	struct hmm *hmm = NULL;
-+	int ret = 0;
-+
-+	/* Sanity checks. */
-+	BUG_ON(!mirror);
-+	BUG_ON(!device);
-+	BUG_ON(!mm);
-+
-+	/* Take reference on device only on success. */
-+	kref_init(&mirror->kref);
-+	mirror->device = device;
-+	mirror->dead = false;
-+	INIT_LIST_HEAD(&mirror->mlist);
-+	INIT_LIST_HEAD(&mirror->dlist);
-+
-+	down_write(&mm->mmap_sem);
-+	if (mm->hmm == NULL) {
-+		/* no hmm registered yet so register one */
-+		hmm = kzalloc(sizeof(*mm->hmm), GFP_KERNEL);
-+		if (hmm == NULL) {
-+			ret = -ENOMEM;
-+			goto out_cleanup;
-+		}
-+
-+		ret = hmm_init(hmm, mm);
-+		if (ret) {
-+			kfree(hmm);
-+			hmm = NULL;
-+			goto out_cleanup;
-+		}
-+
-+		/* set hmm, make sure no mmu notifer callback might be call */
-+		ret = mm_take_all_locks(mm);
-+		if (unlikely(ret))
-+			goto out_cleanup;
-+		mm->hmm = hmm;
-+		mirror->hmm = hmm;
-+		hmm = NULL;
-+	} else {
-+		struct hmm_mirror *tmp;
-+		int id;
-+
-+		id = srcu_read_lock(&srcu);
-+		list_for_each_entry(tmp, &mm->hmm->mirrors, mlist) {
-+			if (tmp->device == mirror->device) {
-+				/* A process can be mirrored only once by same
-+				 * device.
-+				 */
-+				srcu_read_unlock(&srcu, id);
-+				ret = -EINVAL;
-+				goto out_cleanup;
-+			}
-+		}
-+		srcu_read_unlock(&srcu, id);
-+
-+		ret = mm_take_all_locks(mm);
-+		if (unlikely(ret))
-+			goto out_cleanup;
-+		mirror->hmm = hmm_ref(mm->hmm);
-+	}
-+
-+	/*
-+	 * A side note: hmm_notifier_release() can't run concurrently with
-+	 * us because we hold the mm_users pin (either implicitly as
-+	 * current->mm or explicitly with get_task_mm() or similar).
-+	 *
-+	 * We can't race against any other mmu notifier method either
-+	 * thanks to mm_take_all_locks().
-+	 */
-+	spin_lock(&mm->hmm->lock);
-+	list_add_rcu(&mirror->mlist, &mm->hmm->mirrors);
-+	spin_unlock(&mm->hmm->lock);
-+	mm_drop_all_locks(mm);
-+
-+out_cleanup:
-+	if (hmm) {
-+		mmu_notifier_unregister(&hmm->mmu_notifier, mm);
-+		kfree(hmm);
-+	}
-+	up_write(&mm->mmap_sem);
-+
-+	if (!ret) {
-+		struct hmm_device *device = mirror->device;
-+
-+		hmm_device_ref(device);
-+		mutex_lock(&device->mutex);
-+		list_add(&mirror->dlist, &device->mirrors);
-+		mutex_unlock(&device->mutex);
-+	}
-+	return ret;
-+}
-+EXPORT_SYMBOL(hmm_mirror_register);
-+
-+/* hmm_mirror_unregister() - unregister an hmm_mirror.
-+ *
-+ * @mirror: The mirror that link process address space with the device.
-+ *
-+ * Call when device driver want to stop mirroring a process address space.
-+ */
-+void hmm_mirror_unregister(struct hmm_mirror *mirror)
-+{
-+	struct hmm *hmm;
-+
-+	if (!mirror)
-+		return;
-+	hmm = hmm_ref(mirror->hmm);
-+	if (!hmm)
-+		return;
-+
-+	down_read(&hmm->mm->mmap_sem);
-+	hmm_mirror_cleanup(mirror);
-+	up_read(&hmm->mm->mmap_sem);
-+	hmm_unref(hmm);
-+}
-+EXPORT_SYMBOL(hmm_mirror_unregister);
-+
-+struct hmm_mirror_fault {
-+	struct hmm_mirror	*mirror;
-+	struct hmm_event	*event;
-+	struct vm_area_struct	*vma;
-+	struct mmu_gather	tlb;
-+	int			flush;
-+};
-+
-+static int hmm_mirror_fault_pmd(pmd_t *pmdp,
-+				unsigned long faddr,
-+				unsigned long laddr,
-+				struct mm_walk *walk)
-+{
-+	struct hmm_mirror_fault *mirror_fault = walk->private;
-+	struct hmm_mirror *mirror = mirror_fault->mirror;
-+	struct hmm_device *device = mirror->device;
-+	struct hmm_event *event = mirror_fault->event;
-+	pte_t *ptep;
++	unsigned long faddr, laddr, npages = 4;
 +	int ret;
 +
-+	event->iaddr = faddr;
++	/* Showcase hmm api fault a 64k range centered on the address. */
++	event.faddr = faddr = addr > (npages << 8) ? addr - (npages << 8) : 0;
++	event.laddr = laddr = faddr + (npages << 10);
++	event.etype = write ? HMM_WFAULT : HMM_RFAULT;
 +
-+	if (pmd_none(*pmdp))
-+		return -ENOENT;
-+
-+	if (pmd_trans_huge(*pmdp))
-+		/* FIXME */
-+		return -EINVAL;
-+
-+	if (pmd_none_or_trans_huge_or_clear_bad(pmdp))
-+		return -EFAULT;
-+
-+	ptep = pte_offset_map(pmdp, faddr);
-+	ret = device->ops->fault(mirror, faddr, laddr, ptep, event);
-+	pte_unmap(ptep);
-+	return ret;
-+}
-+
-+static int hmm_fault_mm(struct hmm *hmm,
-+			struct vm_area_struct *vma,
-+			unsigned long faddr,
-+			unsigned long laddr,
-+			bool write)
-+{
-+	int r;
-+
-+	if (laddr <= faddr)
-+		return -EINVAL;
-+
-+	for (; faddr < laddr; faddr += PAGE_SIZE) {
-+		unsigned flags = 0;
-+
-+		flags |= write ? FAULT_FLAG_WRITE : 0;
-+		flags |= FAULT_FLAG_ALLOW_RETRY;
-+		do {
-+			r = handle_mm_fault(hmm->mm, vma, faddr, flags);
-+			if (!(r & VM_FAULT_RETRY) && (r & VM_FAULT_ERROR)) {
-+				if (r & VM_FAULT_OOM)
-+					return -ENOMEM;
-+				/* Same error code for all other cases. */
-+				return -EFAULT;
-+			}
-+			flags &= ~FAULT_FLAG_ALLOW_RETRY;
-+		} while (r & VM_FAULT_RETRY);
-+	}
-+
-+	return 0;
-+}
-+
-+/* hmm_mirror_fault() - call by the device driver on device memory fault.
-+ *
-+ * @mirror:     Mirror linking process address space with the device.
-+ * @event:      Event describing the fault.
-+ *
-+ * Device driver call this function either if it needs to fill its page table
-+ * for a range of address or if it needs to migrate memory between system and
-+ * remote memory.
-+ *
-+ * This function perform vma lookup and access permission check on behalf of
-+ * the device. If device ask for range [A; D] but there is only a valid vma
-+ * starting at B with B > A then callback will return -EFAULT and update range
-+ * to [A; B] so device driver can either report an issue back or recall again
-+ * the hmm_mirror_fault with updated range to [B; D].
-+ *
-+ * This allows device driver to optimistically fault range of address without
-+ * having to know about valid vma range. Device driver can then take proper
-+ * action if a real memory access happen inside an invalid address range.
-+ *
-+ * Also the fault will clamp the requested range to valid vma range (unless the
-+ * vma into which event->faddr falls to, can grow). So in previous example if D
-+ * D is not cover by any vma then hmm_mirror_fault will stop a C with C < D and
-+ * C being the last address of a valid vma.
-+ *
-+ * All error must be handled by device driver and most likely result in the
-+ * process device tasks to be kill by the device driver.
-+ *
-+ * Returns:
-+ * > 0 Number of pages faulted.
-+ * -EINVAL if invalid argument.
-+ * -ENOMEM if failing to allocate memory.
-+ * -EACCES if trying to write to read only address.
-+ * -EFAULT if trying to access an invalid address.
-+ * -ENODEV if mirror is in process of being destroy.
-+ */
-+int hmm_mirror_fault(struct hmm_mirror *mirror,
-+		     struct hmm_event *event)
-+{
-+	struct vm_area_struct *vma;
-+	struct hmm_mirror_fault mirror_fault;
-+	struct hmm_device *device;
-+	struct mm_walk walk = {0};
-+	unsigned long npages;
-+	struct hmm *hmm;
-+	int ret = 0;
-+
-+	if (!mirror || !event || event->faddr >= event->laddr)
-+		return -EINVAL;
-+	if (mirror->dead)
-+		return -ENODEV;
-+	device = mirror->device;
-+	hmm = mirror->hmm;
-+
-+	event->faddr = event->faddr & PAGE_MASK;
-+	event->laddr = PAGE_ALIGN(event->laddr);
-+	event->iaddr = event->faddr;
-+	npages = (event->laddr - event->faddr) >> PAGE_SHIFT;
-+
-+retry:
-+	down_read(&hmm->mm->mmap_sem);
-+	hmm_event_queue(hmm, event);
-+
-+	vma = find_extend_vma(hmm->mm, event->faddr);
-+	if (!vma) {
-+		if (event->iaddr > event->faddr) {
-+			/* Fault succeed up to iaddr. */
-+			event->laddr = event->iaddr;
-+			goto out;
-+		}
-+		/* Allow device driver to learn about first valid address in
-+		 * the range it was trying to fault in so it can restart the
-+		 * fault at this address.
-+		 */
-+		vma = find_vma_intersection(hmm->mm,
-+					    event->faddr,
-+					    event->laddr);
-+		if (vma)
-+			event->laddr = vma->vm_start;
-+		ret = -EFAULT;
-+		goto out;
-+	}
-+
-+	if ((vma->vm_flags & (VM_IO | VM_PFNMAP | VM_MIXEDMAP | VM_HUGETLB))) {
-+		event->laddr = min(event->laddr, vma->vm_end);
-+		ret = -EFAULT;
-+		goto out;
-+	}
-+
-+	event->laddr = min(event->laddr, vma->vm_end);
-+	mirror_fault.vma = vma;
-+	mirror_fault.flush = 0;
-+	mirror_fault.event = event;
-+	mirror_fault.mirror = mirror;
-+	walk.mm = hmm->mm;
-+	walk.private = &mirror_fault;
-+
-+	switch (event->etype) {
-+	case HMM_RFAULT:
-+	case HMM_WFAULT:
-+		walk.pmd_entry = hmm_mirror_fault_pmd;
-+		ret = walk_page_range(event->faddr, event->laddr, &walk);
-+		break;
-+	default:
-+		ret = -EINVAL;
-+		break;
-+	}
-+
-+out:
-+	hmm_event_unqueue(hmm, event);
-+	if (!event->backoff && (ret == -ENOENT || ret == -EACCES)) {
-+		bool write = (event->etype == HMM_WFAULT);
-+
-+		ret = hmm_fault_mm(hmm, vma, event->iaddr, event->laddr, write);
-+		if (!ret)
-+			ret = -EAGAIN;
-+	}
-+	up_read(&hmm->mm->mmap_sem);
-+	wake_up(&device->wait_queue);
-+	wake_up(&hmm->wait_queue);
-+	if (mirror->dead || hmm->dead)
-+		return -ENODEV;
-+	if (event->backoff || ret == -EAGAIN) {
-+		event->backoff = false;
-+		goto retry;
-+	}
-+	return ret;
-+}
-+EXPORT_SYMBOL(hmm_mirror_fault);
-+
-+
-+
-+
-+/* hmm_device - Each device driver must register one and only one hmm_device
-+ *
-+ * The hmm_device is the link btw hmm and each device driver.
-+ */
-+
-+static void hmm_device_destroy(struct kref *kref)
-+{
-+	struct hmm_device *device;
-+
-+	device = container_of(kref, struct hmm_device, kref);
-+	BUG_ON(!list_empty(&device->mirrors));
-+
-+	device->ops->device_destroy(device);
-+}
-+
-+struct hmm_device *hmm_device_ref(struct hmm_device *device)
-+{
-+	if (device) {
-+		kref_get(&device->kref);
-+		return device;
-+	}
-+	return NULL;
-+}
-+EXPORT_SYMBOL(hmm_device_ref);
-+
-+struct hmm_device *hmm_device_unref(struct hmm_device *device)
-+{
-+	if (device)
-+		kref_put(&device->kref, hmm_device_destroy);
-+	return NULL;
-+}
-+EXPORT_SYMBOL(hmm_device_unref);
-+
-+/* hmm_device_register() - register a device with hmm.
-+ *
-+ * @device: The hmm_device struct.
-+ * @name:   Unique name string for the device (use in error messages).
-+ * Returns: 0 on success, -EINVAL otherwise.
-+ *
-+ * Call when device driver want to register itself with hmm. Device driver can
-+ * only register once. It will return a reference on the device thus to release
-+ * a device the driver must unreference the device.
-+ */
-+int hmm_device_register(struct hmm_device *device,
-+			const char *name)
-+{
-+	/* sanity check */
-+	BUG_ON(!device);
-+	BUG_ON(!device->ops);
-+	BUG_ON(!device->ops->device_destroy);
-+	BUG_ON(!device->ops->mirror_release);
-+	BUG_ON(!device->ops->mirror_destroy);
-+	BUG_ON(!device->ops->fence_wait);
-+	BUG_ON(!device->ops->fence_destroy);
-+	BUG_ON(!device->ops->update);
-+	BUG_ON(!device->ops->fault);
-+
-+	kref_init(&device->kref);
-+	device->name = name;
-+	mutex_init(&device->mutex);
-+	INIT_LIST_HEAD(&device->mirrors);
-+	init_waitqueue_head(&device->wait_queue);
-+
-+	return 0;
-+}
-+EXPORT_SYMBOL(hmm_device_register);
-+
-+static int hmm_device_fence_wait(struct hmm_device *device,
-+				 struct hmm_fence *fence)
-+{
-+	int ret;
-+
-+	if (fence == NULL)
-+		return 0;
-+
-+	list_del_init(&fence->list);
-+	do {
-+		io_schedule();
-+		ret = device->ops->fence_wait(fence);
-+	} while (ret == -EAGAIN);
-+
-+	hmm_fence_unref(fence);
-+
-+	return ret;
-+}
-+
-+
-+
-+
-+/* This is called after the last hmm_notifier_release() returned */
-+void __hmm_destroy(struct mm_struct *mm)
-+{
-+	kref_put(&mm->hmm->kref, hmm_destroy_kref);
-+}
-+
-+static int __init hmm_module_init(void)
-+{
-+	int ret;
-+
-+	ret = init_srcu_struct(&srcu);
++	/* Pre-allocate device page table. */
++	mutex_lock(&dmirror->mutex);
++	ret = hmm_dummy_pt_alloc(dmirror, faddr, laddr);
++	mutex_unlock(&dmirror->mutex);
 +	if (ret)
 +		return ret;
++
++	for (; faddr < laddr; faddr = event.faddr) {
++		ret = hmm_mirror_fault(mirror, &event);
++		/* Ignore any error that do not concern the fault address. */
++		if (addr >= event.laddr) {
++			event.faddr = event.laddr;
++			event.laddr = laddr;
++			continue;
++		}
++		if (addr < event.laddr) {
++			/* The address was faulted successfully ignore error
++			 * for address above the one we were interested in.
++			 */
++			ret = 0;
++		}
++		break;
++	}
++
++	return ret;
++}
++
++static ssize_t hmm_dummy_fops_read(struct file *filp,
++				   char __user *buf,
++				   size_t count,
++				   loff_t *ppos)
++{
++	struct hmm_dummy_device *ddevice;
++	struct hmm_dummy_mirror *dmirror;
++	struct hmm_dummy_pt_map pt_map = {0};
++	unsigned long faddr, laddr, offset;
++	unsigned minor;
++	ssize_t retval = 0;
++	void *tmp;
++	long r;
++
++	tmp = kmalloc(PAGE_SIZE, GFP_KERNEL);
++	if (!tmp)
++		return -ENOMEM;
++
++	/* Check if we are mirroring anything */
++	minor = iminor(file_inode(filp));
++	ddevice = filp->private_data;
++	mutex_lock(&ddevice->mutex);
++	if (ddevice->dmirrors[minor] == NULL) {
++		mutex_unlock(&ddevice->mutex);
++		kfree(tmp);
++		return 0;
++	}
++	dmirror = ddevice->dmirrors[minor];
++	mutex_unlock(&ddevice->mutex);
++	if (dmirror->stop) {
++		kfree(tmp);
++		return 0;
++	}
++
++	/* The range of address to lookup. */
++	faddr = (*ppos) & PAGE_MASK;
++	offset = (*ppos) - faddr;
++	laddr = PAGE_ALIGN(faddr + count);
++	BUG_ON(faddr == laddr);
++	pt_map.dmirror = dmirror;
++
++	for (; count; faddr += PAGE_SIZE, offset = 0) {
++		unsigned long *pldp, pld_idx;
++		unsigned long size = min(PAGE_SIZE - offset, count);
++		struct page *page;
++		char *ptr;
++
++		mutex_lock(&dmirror->mutex);
++		pldp = hmm_dummy_pt_pld_map(&pt_map, faddr);
++		pld_idx = hmm_dummy_pld_index(faddr);
++		if (!pldp || !(pldp[pld_idx] & HMM_DUMMY_PTE_VALID)) {
++			hmm_dummy_pt_unmap(&pt_map);
++			mutex_unlock(&dmirror->mutex);
++			goto fault;
++		}
++		page = hmm_dummy_pte_to_page(pldp[pld_idx]);
++		if (!page) {
++			mutex_unlock(&dmirror->mutex);
++			BUG();
++			kfree(tmp);
++			return -EFAULT;
++		}
++		ptr = kmap(page);
++		memcpy(tmp, ptr + offset, size);
++		kunmap(page);
++		hmm_dummy_pt_unmap(&pt_map);
++		mutex_unlock(&dmirror->mutex);
++
++		r = copy_to_user(buf, tmp, size);
++		if (r) {
++			kfree(tmp);
++			return -EFAULT;
++		}
++		retval += size;
++		*ppos += size;
++		count -= size;
++		buf += size;
++	}
++
++	return retval;
++
++fault:
++	kfree(tmp);
++	r = hmm_dummy_mirror_fault(dmirror, faddr, false);
++	if (r)
++		return r;
++
++	/* Force userspace to retry read if nothing was read. */
++	return retval ? retval : -EINTR;
++}
++
++static ssize_t hmm_dummy_fops_write(struct file *filp,
++				    const char __user *buf,
++				    size_t count,
++				    loff_t *ppos)
++{
++	struct hmm_dummy_device *ddevice;
++	struct hmm_dummy_mirror *dmirror;
++	struct hmm_dummy_pt_map pt_map = {0};
++	unsigned long faddr, laddr, offset;
++	unsigned minor;
++	ssize_t retval = 0;
++	void *tmp;
++	long r;
++
++	tmp = kmalloc(PAGE_SIZE, GFP_KERNEL);
++	if (!tmp)
++		return -ENOMEM;
++
++	/* Check if we are mirroring anything */
++	minor = iminor(file_inode(filp));
++	ddevice = filp->private_data;
++	mutex_lock(&ddevice->mutex);
++	if (ddevice->dmirrors[minor] == NULL) {
++		mutex_unlock(&ddevice->mutex);
++		kfree(tmp);
++		return 0;
++	}
++	dmirror = ddevice->dmirrors[minor];
++	mutex_unlock(&ddevice->mutex);
++	if (dmirror->stop) {
++		kfree(tmp);
++		return 0;
++	}
++
++	/* The range of address to lookup. */
++	faddr = (*ppos) & PAGE_MASK;
++	offset = (*ppos) - faddr;
++	laddr = PAGE_ALIGN(faddr + count);
++	BUG_ON(faddr == laddr);
++	pt_map.dmirror = dmirror;
++
++	for (; count; faddr += PAGE_SIZE, offset = 0) {
++		unsigned long *pldp, pld_idx;
++		unsigned long size = min(PAGE_SIZE - offset, count);
++		struct page *page;
++		char *ptr;
++
++		r = copy_from_user(tmp, buf, size);
++		if (r) {
++			kfree(tmp);
++			return -EFAULT;
++		}
++
++		mutex_lock(&dmirror->mutex);
++
++		pldp = hmm_dummy_pt_pld_map(&pt_map, faddr);
++		pld_idx = hmm_dummy_pld_index(faddr);
++		if (!pldp || !(pldp[pld_idx] & HMM_DUMMY_PTE_VALID)) {
++			hmm_dummy_pt_unmap(&pt_map);
++			mutex_unlock(&dmirror->mutex);
++			goto fault;
++		}
++		if (!(pldp[pld_idx] & HMM_DUMMY_PTE_WRITE)) {
++			hmm_dummy_pt_unmap(&pt_map);
++			mutex_unlock(&dmirror->mutex);
++			goto fault;
++		}
++		pldp[pld_idx] |= HMM_DUMMY_PTE_DIRTY;
++		page = hmm_dummy_pte_to_page(pldp[pld_idx]);
++		if (!page) {
++			mutex_unlock(&dmirror->mutex);
++			BUG();
++			kfree(tmp);
++			return -EFAULT;
++		}
++		ptr = kmap(page);
++		memcpy(ptr + offset, tmp, size);
++		kunmap(page);
++		hmm_dummy_pt_unmap(&pt_map);
++		mutex_unlock(&dmirror->mutex);
++
++		retval += size;
++		*ppos += size;
++		count -= size;
++		buf += size;
++	}
++
++	kfree(tmp);
++	return retval;
++
++fault:
++	kfree(tmp);
++	r = hmm_dummy_mirror_fault(dmirror, faddr, true);
++	if (r)
++		return r;
++
++	/* Force userspace to retry write if nothing was writen. */
++	return retval ? retval : -EINTR;
++}
++
++static int hmm_dummy_fops_mmap(struct file *filp, struct vm_area_struct *vma)
++{
++	return -EINVAL;
++}
++
++static int hmm_dummy_fops_open(struct inode *inode, struct file *filp)
++{
++	struct hmm_dummy_device *ddevice;
++	struct cdev *cdev = inode->i_cdev;
++	const int minor = iminor(inode);
++
++	/* No exclusive opens */
++	if (filp->f_flags & O_EXCL)
++		return -EINVAL;
++
++	ddevice = container_of(cdev, struct hmm_dummy_device, cdev);
++	filp->private_data = ddevice;
++	ddevice->fmapping[minor] = &inode->i_data;
++
 +	return 0;
 +}
-+module_init(hmm_module_init);
 +
-+static void __exit hmm_module_exit(void)
++static int hmm_dummy_fops_release(struct inode *inode,
++				  struct file *filp)
 +{
-+	cleanup_srcu_struct(&srcu);
++	struct hmm_dummy_device *ddevice;
++	struct hmm_dummy_mirror *dmirror;
++	struct cdev *cdev = inode->i_cdev;
++	const int minor = iminor(inode);
++
++	ddevice = container_of(cdev, struct hmm_dummy_device, cdev);
++	dmirror = ddevice->dmirrors[minor];
++	if (dmirror && dmirror->filp == filp) {
++		if (!dmirror->stop)
++			hmm_mirror_unregister(&dmirror->mirror);
++		ddevice->dmirrors[minor] = NULL;
++		kfree(dmirror);
++	}
++
++	return 0;
 +}
-+module_exit(hmm_module_exit);
++
++static long hmm_dummy_fops_unlocked_ioctl(struct file *filp,
++					  unsigned int command,
++					  unsigned long arg)
++{
++	struct hmm_dummy_device *ddevice;
++	struct hmm_dummy_mirror *dmirror;
++	unsigned minor;
++	int ret;
++
++	minor = iminor(file_inode(filp));
++	ddevice = filp->private_data;
++	switch (command) {
++	case HMM_DUMMY_EXPOSE_MM:
++		mutex_lock(&ddevice->mutex);
++		dmirror = ddevice->dmirrors[minor];
++		if (dmirror) {
++			mutex_unlock(&ddevice->mutex);
++			return -EBUSY;
++		}
++		/* Mirror this process address space */
++		dmirror = kzalloc(sizeof(*dmirror), GFP_KERNEL);
++		if (dmirror == NULL) {
++			mutex_unlock(&ddevice->mutex);
++			return -ENOMEM;
++		}
++		dmirror->mm = NULL;
++		dmirror->stop = false;
++		dmirror->pid = task_pid_nr(current);
++		dmirror->ddevice = ddevice;
++		dmirror->minor = minor;
++		dmirror->filp = filp;
++		dmirror->pgdp = NULL;
++		mutex_init(&dmirror->mutex);
++		ddevice->dmirrors[minor] = dmirror;
++		mutex_unlock(&ddevice->mutex);
++
++		ret = hmm_mirror_register(&dmirror->mirror,
++					  &ddevice->device,
++					  current->mm);
++		if (ret) {
++			mutex_lock(&ddevice->mutex);
++			ddevice->dmirrors[minor] = NULL;
++			mutex_unlock(&ddevice->mutex);
++			kfree(dmirror);
++			return ret;
++		}
++		/* Success. */
++		pr_info("mirroring address space of %d\n", dmirror->pid);
++		return 0;
++	default:
++		return -EINVAL;
++	}
++	return 0;
++}
++
++static const struct file_operations hmm_dummy_fops = {
++	.read		= hmm_dummy_fops_read,
++	.write		= hmm_dummy_fops_write,
++	.mmap		= hmm_dummy_fops_mmap,
++	.open		= hmm_dummy_fops_open,
++	.release	= hmm_dummy_fops_release,
++	.unlocked_ioctl = hmm_dummy_fops_unlocked_ioctl,
++	.llseek		= default_llseek,
++	.owner		= THIS_MODULE,
++};
++
++
++/*
++ * char device driver
++ */
++static int hmm_dummy_device_init(struct hmm_dummy_device *ddevice)
++{
++	int ret, i;
++
++	ret = alloc_chrdev_region(&ddevice->dev, 0,
++				  HMM_DUMMY_MAX_DEVICES,
++				  ddevice->name);
++	if (ret < 0)
++		goto error;
++	ddevice->major = MAJOR(ddevice->dev);
++
++	cdev_init(&ddevice->cdev, &hmm_dummy_fops);
++	ret = cdev_add(&ddevice->cdev, ddevice->dev, HMM_DUMMY_MAX_DEVICES);
++	if (ret) {
++		unregister_chrdev_region(ddevice->dev, HMM_DUMMY_MAX_DEVICES);
++		goto error;
++	}
++
++	/* Register the hmm device. */
++	for (i = 0; i < HMM_DUMMY_MAX_DEVICES; i++)
++		ddevice->dmirrors[i] = NULL;
++	mutex_init(&ddevice->mutex);
++	ddevice->device.ops = &hmm_dummy_ops;
++
++	ret = hmm_device_register(&ddevice->device,
++				  ddevice->name);
++	if (ret) {
++		cdev_del(&ddevice->cdev);
++		unregister_chrdev_region(ddevice->dev, HMM_DUMMY_MAX_DEVICES);
++		goto error;
++	}
++
++	return 0;
++
++error:
++	return ret;
++}
++
++static void hmm_dummy_device_fini(struct hmm_dummy_device *ddevice)
++{
++	unsigned i;
++
++	/* First finish hmm. */
++	for (i = 0; i < HMM_DUMMY_MAX_DEVICES; i++) {
++		struct hmm_dummy_mirror *dmirror;
++
++		dmirror = ddevices->dmirrors[i];
++		if (!dmirror)
++			continue;
++		hmm_mirror_unregister(&dmirror->mirror);
++		kfree(dmirror);
++	}
++	hmm_device_unref(&ddevice->device);
++
++	cdev_del(&ddevice->cdev);
++	unregister_chrdev_region(ddevice->dev,
++				 HMM_DUMMY_MAX_DEVICES);
++}
++
++static int __init hmm_dummy_init(void)
++{
++	int ret;
++
++	snprintf(ddevices[0].name, sizeof(ddevices[0].name),
++		 "%s%d", HMM_DUMMY_DEVICE_NAME, 0);
++	ret = hmm_dummy_device_init(&ddevices[0]);
++	if (ret)
++		return ret;
++
++	snprintf(ddevices[1].name, sizeof(ddevices[1].name),
++		 "%s%d", HMM_DUMMY_DEVICE_NAME, 1);
++	ret = hmm_dummy_device_init(&ddevices[1]);
++	if (ret) {
++		hmm_dummy_device_fini(&ddevices[0]);
++		return ret;
++	}
++
++	pr_info("hmm_dummy loaded THIS IS A DANGEROUS MODULE !!!\n");
++	return 0;
++}
++
++static void __exit hmm_dummy_exit(void)
++{
++	hmm_dummy_device_fini(&ddevices[1]);
++	hmm_dummy_device_fini(&ddevices[0]);
++}
++
++module_init(hmm_dummy_init);
++module_exit(hmm_dummy_exit);
++MODULE_LICENSE("GPL");
+diff --git a/include/uapi/linux/hmm_dummy.h b/include/uapi/linux/hmm_dummy.h
+new file mode 100644
+index 0000000..20eb98f
+--- /dev/null
++++ b/include/uapi/linux/hmm_dummy.h
+@@ -0,0 +1,30 @@
++/*
++ * Copyright 2013 Red Hat Inc.
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * Authors: JA(C)rA'me Glisse <jglisse@redhat.com>
++ */
++/* This is a dummy driver made to exercice the HMM (hardware memory management)
++ * API of the kernel. It allow an userspace program to map its whole address
++ * space through the hmm dummy driver file.
++ */
++#ifndef _UAPI_LINUX_HMM_DUMMY_H
++#define _UAPI_LINUX_HMM_DUMMY_H
++
++#include <linux/types.h>
++#include <linux/ioctl.h>
++#include <linux/irqnr.h>
++
++/* Expose the address space of the calling process through hmm dummy dev file */
++#define HMM_DUMMY_EXPOSE_MM	_IO('R', 0x00)
++
++#endif /* _UAPI_LINUX_RANDOM_H */
 -- 
 1.9.0
 
