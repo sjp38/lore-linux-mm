@@ -1,71 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f41.google.com (mail-pa0-f41.google.com [209.85.220.41])
-	by kanga.kvack.org (Postfix) with ESMTP id 9BEB46B0031
-	for <linux-mm@kvack.org>; Sat, 14 Jun 2014 03:25:51 -0400 (EDT)
-Received: by mail-pa0-f41.google.com with SMTP id fb1so404435pad.28
-        for <linux-mm@kvack.org>; Sat, 14 Jun 2014 00:25:51 -0700 (PDT)
-Received: from e23smtp07.au.ibm.com (e23smtp07.au.ibm.com. [202.81.31.140])
-        by mx.google.com with ESMTPS id eh8si7145417pac.153.2014.06.14.00.25.49
+Received: from mail-yk0-f169.google.com (mail-yk0-f169.google.com [209.85.160.169])
+	by kanga.kvack.org (Postfix) with ESMTP id 496B26B0031
+	for <linux-mm@kvack.org>; Sat, 14 Jun 2014 03:44:43 -0400 (EDT)
+Received: by mail-yk0-f169.google.com with SMTP id q200so2800486ykb.28
+        for <linux-mm@kvack.org>; Sat, 14 Jun 2014 00:44:43 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id n42si8864562yho.131.2014.06.14.00.44.42
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sat, 14 Jun 2014 00:25:50 -0700 (PDT)
-Received: from /spool/local
-	by e23smtp07.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Sat, 14 Jun 2014 17:25:48 +1000
-Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
-	by d23dlp03.au.ibm.com (Postfix) with ESMTP id 2C96E3578047
-	for <linux-mm@kvack.org>; Sat, 14 Jun 2014 17:25:46 +1000 (EST)
-Received: from d23av04.au.ibm.com (d23av04.au.ibm.com [9.190.235.139])
-	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s5E79bwh38207560
-	for <linux-mm@kvack.org>; Sat, 14 Jun 2014 17:09:37 +1000
-Received: from d23av04.au.ibm.com (localhost [127.0.0.1])
-	by d23av04.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s5E7PjCr017520
-	for <linux-mm@kvack.org>; Sat, 14 Jun 2014 17:25:45 +1000
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH v2 00/10] CMA: generalize CMA reserved area management code
-In-Reply-To: <1402543307-29800-1-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1402543307-29800-1-git-send-email-iamjoonsoo.kim@lge.com>
-Date: Sat, 14 Jun 2014 12:55:39 +0530
-Message-ID: <87r42seyvg.fsf@linux.vnet.ibm.com>
+        Sat, 14 Jun 2014 00:44:42 -0700 (PDT)
+Message-ID: <539BFD5E.4060907@oracle.com>
+Date: Sat, 14 Jun 2014 15:44:30 +0800
+From: Jeff Liu <jeff.liu@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Subject: Re: [PATCH] slub: correct return errno on slab_sysfs_init failure
+References: <5399A360.3060309@oracle.com> <CAOJsxLFyNZ9dc5T7282eqsg6gPtST75_h-5iGLX=t6OsWAPSCw@mail.gmail.com>
+In-Reply-To: <CAOJsxLFyNZ9dc5T7282eqsg6gPtST75_h-5iGLX=t6OsWAPSCw@mail.gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>
-Cc: Minchan Kim <minchan@kernel.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Paolo Bonzini <pbonzini@redhat.com>, Gleb Natapov <gleb@kernel.org>, Alexander Graf <agraf@suse.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, kvm@vger.kernel.org, kvm-ppc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
-
-Joonsoo Kim <iamjoonsoo.kim@lge.com> writes:
-
-> Currently, there are two users on CMA functionality, one is the DMA
-> subsystem and the other is the kvm on powerpc. They have their own code
-> to manage CMA reserved area even if they looks really similar.
-> From my guess, it is caused by some needs on bitmap management. Kvm side
-> wants to maintain bitmap not for 1 page, but for more size. Eventually it
-> use bitmap where one bit represents 64 pages.
->
-> When I implement CMA related patches, I should change those two places
-> to apply my change and it seem to be painful to me. I want to change
-> this situation and reduce future code management overhead through
-> this patch.
->
-> This change could also help developer who want to use CMA in their
-> new feature development, since they can use CMA easily without
-> copying & pasting this reserved area management code.
->
-> v2:
->   Although this patchset looks very different with v1, the end result,
->   that is, mm/cma.c is same with v1's one. So I carry Ack to patch 6-7.
->
-> Patch 1-5 prepare some features to cover ppc kvm's requirements.
-> Patch 6-7 generalize CMA reserved area management code and change users
-> to use it.
-> Patch 8-10 clean-up minor things.
+To: Pekka Enberg <penberg@kernel.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Christoph Lameter <cl@linux-foundation.org>, Matt Mackall <mpm@selenic.com>, Andrew Morton <akpm@linux-foundation.org>
 
 
-I wanted to test the ppc changes and found that the patch series doesn't apply
-against v3.15 . Do you have a kernel tree which I can clone to test this
-series ?
+On 06/13/2014 14:57 PM, Pekka Enberg wrote:
+> On Thu, Jun 12, 2014 at 3:56 PM, Jeff Liu <jeff.liu@oracle.com> wrote:
+>> From: Jie Liu <jeff.liu@oracle.com>
+>>
+>> Return ENOMEM instead of ENOSYS if slab_sysfs_init() failed
+>>
+>> Signed-off-by: Jie Liu <jeff.liu@oracle.com>
+>> ---
+>>  mm/slub.c | 2 +-
+>>  1 file changed, 1 insertion(+), 1 deletion(-)
+>>
+>> diff --git a/mm/slub.c b/mm/slub.c
+>> index 2b1ce69..75ca109 100644
+>> --- a/mm/slub.c
+>> +++ b/mm/slub.c
+>> @@ -5304,7 +5304,7 @@ static int __init slab_sysfs_init(void)
+>>         if (!slab_kset) {
+>>                 mutex_unlock(&slab_mutex);
+>>                 printk(KERN_ERR "Cannot register slab subsystem.\n");
+>> -               return -ENOSYS;
+>> +               return -ENOMEM;
+> 
+> What is the motivation for this change? AFAICT, kset_create_and_add()
+> can fail for other reasons than ENOMEM, no?
+
+Originally I'd like to make it consistent to most other subsystems which are
+return ENOMEM in case of sysfs init failed, but yes, kset_register() can fail
+due to different reaons...
+
+
+Cheers,
+-Jeff
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
