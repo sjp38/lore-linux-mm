@@ -1,33 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pb0-f51.google.com (mail-pb0-f51.google.com [209.85.160.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 6477E6B0031
-	for <linux-mm@kvack.org>; Sat, 14 Jun 2014 06:08:28 -0400 (EDT)
-Received: by mail-pb0-f51.google.com with SMTP id rp16so2894333pbb.24
-        for <linux-mm@kvack.org>; Sat, 14 Jun 2014 03:08:28 -0700 (PDT)
-Received: from e28smtp08.in.ibm.com (e28smtp08.in.ibm.com. [122.248.162.8])
-        by mx.google.com with ESMTPS id yf3si4870413pbb.78.2014.06.14.03.08.26
+Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
+	by kanga.kvack.org (Postfix) with ESMTP id 6885F6B0035
+	for <linux-mm@kvack.org>; Sat, 14 Jun 2014 06:09:11 -0400 (EDT)
+Received: by mail-pa0-f51.google.com with SMTP id ey11so2950714pad.10
+        for <linux-mm@kvack.org>; Sat, 14 Jun 2014 03:09:11 -0700 (PDT)
+Received: from e23smtp02.au.ibm.com (e23smtp02.au.ibm.com. [202.81.31.144])
+        by mx.google.com with ESMTPS id qz5si4849535pbb.179.2014.06.14.03.09.09
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Sat, 14 Jun 2014 03:08:27 -0700 (PDT)
+        Sat, 14 Jun 2014 03:09:10 -0700 (PDT)
 Received: from /spool/local
-	by e28smtp08.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	by e23smtp02.au.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
 	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Sat, 14 Jun 2014 15:38:24 +0530
-Received: from d28relay05.in.ibm.com (d28relay05.in.ibm.com [9.184.220.62])
-	by d28dlp02.in.ibm.com (Postfix) with ESMTP id BC1DB3940048
-	for <linux-mm@kvack.org>; Sat, 14 Jun 2014 15:38:22 +0530 (IST)
-Received: from d28av02.in.ibm.com (d28av02.in.ibm.com [9.184.220.64])
-	by d28relay05.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s5EA8b2Y9568574
-	for <linux-mm@kvack.org>; Sat, 14 Jun 2014 15:38:37 +0530
-Received: from d28av02.in.ibm.com (localhost [127.0.0.1])
-	by d28av02.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s5EA8MCY013898
-	for <linux-mm@kvack.org>; Sat, 14 Jun 2014 15:38:22 +0530
+	Sat, 14 Jun 2014 20:09:07 +1000
+Received: from d23relay04.au.ibm.com (d23relay04.au.ibm.com [9.190.234.120])
+	by d23dlp01.au.ibm.com (Postfix) with ESMTP id A3D052CE8050
+	for <linux-mm@kvack.org>; Sat, 14 Jun 2014 20:09:03 +1000 (EST)
+Received: from d23av01.au.ibm.com (d23av01.au.ibm.com [9.190.234.96])
+	by d23relay04.au.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s5E9qsJm40173742
+	for <linux-mm@kvack.org>; Sat, 14 Jun 2014 19:52:54 +1000
+Received: from d23av01.au.ibm.com (localhost [127.0.0.1])
+	by d23av01.au.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s5EA92Jt029458
+	for <linux-mm@kvack.org>; Sat, 14 Jun 2014 20:09:02 +1000
 From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 Subject: Re: [PATCH v2 06/10] CMA: generalize CMA reserved area management functionality
 In-Reply-To: <1402543307-29800-7-git-send-email-iamjoonsoo.kim@lge.com>
 References: <1402543307-29800-1-git-send-email-iamjoonsoo.kim@lge.com> <1402543307-29800-7-git-send-email-iamjoonsoo.kim@lge.com>
-Date: Sat, 14 Jun 2014 15:38:13 +0530
-Message-ID: <87fvj7g5wy.fsf@linux.vnet.ibm.com>
+Date: Sat, 14 Jun 2014 15:36:44 +0530
+Message-ID: <87ha3ng5zf.fsf@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
