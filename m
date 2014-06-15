@@ -1,64 +1,225 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-we0-f172.google.com (mail-we0-f172.google.com [74.125.82.172])
-	by kanga.kvack.org (Postfix) with ESMTP id D2AC16B0031
-	for <linux-mm@kvack.org>; Sat, 14 Jun 2014 08:05:25 -0400 (EDT)
-Received: by mail-we0-f172.google.com with SMTP id u57so3887215wes.31
-        for <linux-mm@kvack.org>; Sat, 14 Jun 2014 05:05:25 -0700 (PDT)
-Received: from mail-we0-x22b.google.com (mail-we0-x22b.google.com [2a00:1450:400c:c03::22b])
-        by mx.google.com with ESMTPS id j15si10748253wjn.21.2014.06.14.05.05.23
+Received: from mail-pb0-f47.google.com (mail-pb0-f47.google.com [209.85.160.47])
+	by kanga.kvack.org (Postfix) with ESMTP id A06A96B0031
+	for <linux-mm@kvack.org>; Sun, 15 Jun 2014 16:25:52 -0400 (EDT)
+Received: by mail-pb0-f47.google.com with SMTP id up15so745671pbc.6
+        for <linux-mm@kvack.org>; Sun, 15 Jun 2014 13:25:52 -0700 (PDT)
+Received: from mail-pa0-x233.google.com (mail-pa0-x233.google.com [2607:f8b0:400e:c03::233])
+        by mx.google.com with ESMTPS id ja1si8643085pbb.218.2014.06.15.13.25.51
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sat, 14 Jun 2014 05:05:24 -0700 (PDT)
-Received: by mail-we0-f171.google.com with SMTP id q58so3879188wes.16
-        for <linux-mm@kvack.org>; Sat, 14 Jun 2014 05:05:23 -0700 (PDT)
-Subject: Re: kmemleak: Unable to handle kernel paging request
-Mime-Version: 1.0 (Mac OS X Mail 7.3 \(1878.2\))
-Content-Type: text/plain; charset=windows-1252
-From: Catalin Marinas <catalin.marinas@arm.com>
-In-Reply-To: <1402695853.20360.17.camel@pasglop>
-Date: Sat, 14 Jun 2014 13:05:18 +0100
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <D9560F26-D206-4423-ACA4-31342A73B5F9@arm.com>
-References: <CAOJe8K3fy3XFxDdVc3y1hiMAqUCPmkUhECU7j5TT=E=gxwBqHg@mail.gmail.com> <20140611173851.GA5556@MacBook-Pro.local> <CAOJe8K1TgTDX5=LdE9r6c0ami7TRa7zr0hL_uu6YpiWrsePAgQ@mail.gmail.com> <B01EB0A1-992B-49F4-93AE-71E4BA707795@arm.com> <CAOJe8K3LDhhPWbtdaWt23mY+2vnw5p05+eyk2D8fovOxC10cgA@mail.gmail.com> <CAOJe8K2WaJUP9_buwgKw89fxGe56mGP1Mn8rDUO9W48KZzmybA@mail.gmail.com> <20140612143916.GB8970@arm.com> <CAOJe8K3zN+fFWumKaGx3Tmv5JRZu10_FZ6R3Tjjc+nc-KVB0hg@mail.gmail.com> <20140613085640.GA21018@arm.com> <1402695853.20360.17.camel@pasglop>
+        Sun, 15 Jun 2014 13:25:51 -0700 (PDT)
+Received: by mail-pa0-f51.google.com with SMTP id hz1so568828pad.38
+        for <linux-mm@kvack.org>; Sun, 15 Jun 2014 13:25:51 -0700 (PDT)
+Date: Sun, 15 Jun 2014 13:24:30 -0700 (PDT)
+From: Hugh Dickins <hughd@google.com>
+Subject: Re: [PATCH -mm v2 02/11] madvise: cleanup swapin_walk_pmd_entry()
+In-Reply-To: <1402609691-13950-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+Message-ID: <alpine.LSU.2.11.1406151252400.1241@eggly.anvils>
+References: <1402609691-13950-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1402609691-13950-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Denis Kirjanov <kda@linux-powerpc.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, Paul Mackerras <paulus@samba.org>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: linux-mm@kvack.org, Dave Hansen <dave.hansen@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org
 
-On 13 Jun 2014, at 22:44, Benjamin Herrenschmidt =
-<benh@kernel.crashing.org> wrote:
-> On Fri, 2014-06-13 at 09:56 +0100, Catalin Marinas wrote:
->=20
->> OK, so that's the DART table allocated via alloc_dart_table(). Is
->> dart_tablebase removed from the kernel linear mapping after =
-allocation?
->=20
-> Yes.
->=20
->> If that's the case, we need to tell kmemleak to ignore this block =
-(see
->> patch below, untested). But I still can't explain how commit
->> d4c54919ed863020 causes this issue.
->>=20
->> (also cc'ing the powerpc list and maintainers)
->=20
-> We remove the DART from the linear mapping because it has to be mapped
-> non-cachable and having it in the linear mapping would cause cache
-> paradoxes. We also can't just change the caching attributes in the
-> linear mapping because we use 16M pages for it and 970 CPUs don't
-> support cache-inhibited 16M pages :-( And due to the MMU segmentation
-> model, we also can't mix & match page sizes in that area.
->=20
-> So we just unmap it, and ioremap it elsewhere.
+On Thu, 12 Jun 2014, Naoya Horiguchi wrote:
 
-OK, thanks for the explanation. So the kmemleak annotation makes sense.
+> With the recent update on page table walker, we can use common code for
+> the walking more. Unlike many other users, this swapin_walk expects to
+> handle swap entries. As a result we should be careful about ptl locking.
+> Swapin operation, read_swap_cache_async(), could cause page reclaim, so
+> we can't keep holding ptl throughout this pte loop.
+> In order to properly handle ptl in pte_entry(), this patch adds two new
+> members on struct mm_walk.
+> 
+> This cleanup is necessary to get to the final form of page table walker,
+> where we should do all caller's specific work on leaf entries (IOW, all
+> pmd_entry() should be used for trans_pmd.)
+> 
+> Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Cc: Hugh Dickins <hughd@google.com>
 
-Would you please take the I patch earlier (I guess with Denis=92 tested-
-by). I can send it separately if more convenient.
+Sorry, I believe this (and probably several other of your conversions)
+is badly flawed.
 
-Thanks,
+You have a pattern of doing pte_offset_map_lock() inside the page walker,
+then dropping and regetting map and lock inside your pte handler.
 
-Catalin=
+But on, say, x86_32 with CONFIG_HIGHMEM, CONFIG_SMP and CONFIG_PREEMPT,
+you may be preempted then run on a different cpu while atomic kmap and
+lock are dropped: so that the pte pointer then used on return to
+walk_pte_range() will no longer correspond to the right mapping.
+
+Presumably that can be fixed by keeping the pte pointer in the mm_walk
+structure; but I'm not at all sure that's the right thing to do.
+
+I am not nearly so keen as you to reduce all these to per-pte callouts,
+which seem inefficient to me.  It can be argued both ways on the less
+important functions (like this madvise one); but I hope you don't try
+to make this kind of conversion to fast paths like those in memory.c.
+
+Hugh
+
+> ---
+>  include/linux/mm.h |  4 ++++
+>  mm/madvise.c       | 54 +++++++++++++++++++++++-------------------------------
+>  mm/pagewalk.c      | 11 +++++------
+>  3 files changed, 32 insertions(+), 37 deletions(-)
+> 
+> diff --git mmotm-2014-05-21-16-57.orig/include/linux/mm.h mmotm-2014-05-21-16-57/include/linux/mm.h
+> index b4aa6579f2b1..aa832161a1ff 100644
+> --- mmotm-2014-05-21-16-57.orig/include/linux/mm.h
+> +++ mmotm-2014-05-21-16-57/include/linux/mm.h
+> @@ -1108,6 +1108,8 @@ void unmap_vmas(struct mmu_gather *tlb, struct vm_area_struct *start_vma,
+>   * @vma:       vma currently walked
+>   * @skip:      internal control flag which is set when we skip the lower
+>   *             level entries.
+> + * @pmd:       current pmd entry
+> + * @ptl:       page table lock associated with current entry
+>   * @private:   private data for callbacks' use
+>   *
+>   * (see the comment on walk_page_range() for more details)
+> @@ -1126,6 +1128,8 @@ struct mm_walk {
+>  	struct mm_struct *mm;
+>  	struct vm_area_struct *vma;
+>  	int skip;
+> +	pmd_t *pmd;
+> +	spinlock_t *ptl;
+>  	void *private;
+>  };
+>  
+> diff --git mmotm-2014-05-21-16-57.orig/mm/madvise.c mmotm-2014-05-21-16-57/mm/madvise.c
+> index a402f8fdc68e..06b390a6fbbd 100644
+> --- mmotm-2014-05-21-16-57.orig/mm/madvise.c
+> +++ mmotm-2014-05-21-16-57/mm/madvise.c
+> @@ -135,38 +135,31 @@ static long madvise_behavior(struct vm_area_struct *vma,
+>  }
+>  
+>  #ifdef CONFIG_SWAP
+> -static int swapin_walk_pmd_entry(pmd_t *pmd, unsigned long start,
+> +/*
+> + * Assuming that page table walker holds page table lock.
+> + */
+> +static int swapin_walk_pte_entry(pte_t *pte, unsigned long start,
+>  	unsigned long end, struct mm_walk *walk)
+>  {
+> -	pte_t *orig_pte;
+> -	struct vm_area_struct *vma = walk->private;
+> -	unsigned long index;
+> -
+> -	if (pmd_none_or_trans_huge_or_clear_bad(pmd))
+> -		return 0;
+> -
+> -	for (index = start; index != end; index += PAGE_SIZE) {
+> -		pte_t pte;
+> -		swp_entry_t entry;
+> -		struct page *page;
+> -		spinlock_t *ptl;
+> -
+> -		orig_pte = pte_offset_map_lock(vma->vm_mm, pmd, start, &ptl);
+> -		pte = *(orig_pte + ((index - start) / PAGE_SIZE));
+> -		pte_unmap_unlock(orig_pte, ptl);
+> -
+> -		if (pte_present(pte) || pte_none(pte) || pte_file(pte))
+> -			continue;
+> -		entry = pte_to_swp_entry(pte);
+> -		if (unlikely(non_swap_entry(entry)))
+> -			continue;
+> -
+> -		page = read_swap_cache_async(entry, GFP_HIGHUSER_MOVABLE,
+> -								vma, index);
+> -		if (page)
+> -			page_cache_release(page);
+> -	}
+> +	pte_t ptent;
+> +	pte_t *orig_pte = pte - ((start & (PMD_SIZE - 1)) >> PAGE_SHIFT);
+> +	swp_entry_t entry;
+> +	struct page *page;
+>  
+> +	ptent = *pte;
+> +	pte_unmap_unlock(orig_pte, walk->ptl);
+> +	if (pte_present(ptent) || pte_none(ptent) || pte_file(ptent))
+> +		goto lock;
+> +	entry = pte_to_swp_entry(ptent);
+> +	if (unlikely(non_swap_entry(entry)))
+> +		goto lock;
+> +	page = read_swap_cache_async(entry, GFP_HIGHUSER_MOVABLE,
+> +				     walk->vma, start);
+> +	if (page)
+> +		page_cache_release(page);
+> +lock:
+> +	pte_offset_map(walk->pmd, start & PMD_MASK);
+> +	spin_lock(walk->ptl);
+>  	return 0;
+>  }
+>  
+> @@ -175,8 +168,7 @@ static void force_swapin_readahead(struct vm_area_struct *vma,
+>  {
+>  	struct mm_walk walk = {
+>  		.mm = vma->vm_mm,
+> -		.pmd_entry = swapin_walk_pmd_entry,
+> -		.private = vma,
+> +		.pte_entry = swapin_walk_pte_entry,
+>  	};
+>  
+>  	walk_page_range(start, end, &walk);
+> diff --git mmotm-2014-05-21-16-57.orig/mm/pagewalk.c mmotm-2014-05-21-16-57/mm/pagewalk.c
+> index e734f63276c2..24311d6f5c20 100644
+> --- mmotm-2014-05-21-16-57.orig/mm/pagewalk.c
+> +++ mmotm-2014-05-21-16-57/mm/pagewalk.c
+> @@ -27,10 +27,10 @@ static int walk_pte_range(pmd_t *pmd, unsigned long addr,
+>  	struct mm_struct *mm = walk->mm;
+>  	pte_t *pte;
+>  	pte_t *orig_pte;
+> -	spinlock_t *ptl;
+>  	int err = 0;
+>  
+> -	orig_pte = pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
+> +	walk->pmd = pmd;
+> +	orig_pte = pte = pte_offset_map_lock(mm, pmd, addr, &walk->ptl);
+>  	do {
+>  		if (pte_none(*pte)) {
+>  			if (walk->pte_hole)
+> @@ -48,7 +48,7 @@ static int walk_pte_range(pmd_t *pmd, unsigned long addr,
+>  		if (err)
+>  		       break;
+>  	} while (pte++, addr += PAGE_SIZE, addr < end);
+> -	pte_unmap_unlock(orig_pte, ptl);
+> +	pte_unmap_unlock(orig_pte, walk->ptl);
+>  	cond_resched();
+>  	return addr == end ? 0 : err;
+>  }
+> @@ -172,7 +172,6 @@ static int walk_hugetlb_range(unsigned long addr, unsigned long end,
+>  	unsigned long hmask = huge_page_mask(h);
+>  	pte_t *pte;
+>  	int err = 0;
+> -	spinlock_t *ptl;
+>  
+>  	do {
+>  		next = hugetlb_entry_end(h, addr, end);
+> @@ -186,14 +185,14 @@ static int walk_hugetlb_range(unsigned long addr, unsigned long end,
+>  				break;
+>  			continue;
+>  		}
+> -		ptl = huge_pte_lock(h, mm, pte);
+> +		walk->ptl = huge_pte_lock(h, mm, pte);
+>  		/*
+>  		 * Callers should have their own way to handle swap entries
+>  		 * in walk->hugetlb_entry().
+>  		 */
+>  		if (walk->hugetlb_entry)
+>  			err = walk->hugetlb_entry(pte, addr, next, walk);
+> -		spin_unlock(ptl);
+> +		spin_unlock(walk->ptl);
+>  		if (err)
+>  			break;
+>  	} while (addr = next, addr != end);
+> -- 
+> 1.9.3
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
