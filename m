@@ -1,221 +1,232 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pb0-f47.google.com (mail-pb0-f47.google.com [209.85.160.47])
-	by kanga.kvack.org (Postfix) with ESMTP id A06A96B0031
-	for <linux-mm@kvack.org>; Sun, 15 Jun 2014 16:25:52 -0400 (EDT)
-Received: by mail-pb0-f47.google.com with SMTP id up15so745671pbc.6
-        for <linux-mm@kvack.org>; Sun, 15 Jun 2014 13:25:52 -0700 (PDT)
-Received: from mail-pa0-x233.google.com (mail-pa0-x233.google.com [2607:f8b0:400e:c03::233])
-        by mx.google.com with ESMTPS id ja1si8643085pbb.218.2014.06.15.13.25.51
+	by kanga.kvack.org (Postfix) with ESMTP id 4C4AC6B0031
+	for <linux-mm@kvack.org>; Sun, 15 Jun 2014 20:20:53 -0400 (EDT)
+Received: by mail-pb0-f47.google.com with SMTP id up15so849576pbc.20
+        for <linux-mm@kvack.org>; Sun, 15 Jun 2014 17:20:52 -0700 (PDT)
+Received: from mail-pd0-x22c.google.com (mail-pd0-x22c.google.com [2607:f8b0:400e:c02::22c])
+        by mx.google.com with ESMTPS id iy1si9050082pbb.115.2014.06.15.17.20.51
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sun, 15 Jun 2014 13:25:51 -0700 (PDT)
-Received: by mail-pa0-f51.google.com with SMTP id hz1so568828pad.38
-        for <linux-mm@kvack.org>; Sun, 15 Jun 2014 13:25:51 -0700 (PDT)
-Date: Sun, 15 Jun 2014 13:24:30 -0700 (PDT)
+        Sun, 15 Jun 2014 17:20:52 -0700 (PDT)
+Received: by mail-pd0-f172.google.com with SMTP id w10so1181431pde.17
+        for <linux-mm@kvack.org>; Sun, 15 Jun 2014 17:20:51 -0700 (PDT)
+Date: Sun, 15 Jun 2014 17:19:29 -0700 (PDT)
 From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH -mm v2 02/11] madvise: cleanup swapin_walk_pmd_entry()
-In-Reply-To: <1402609691-13950-3-git-send-email-n-horiguchi@ah.jp.nec.com>
-Message-ID: <alpine.LSU.2.11.1406151252400.1241@eggly.anvils>
-References: <1402609691-13950-1-git-send-email-n-horiguchi@ah.jp.nec.com> <1402609691-13950-3-git-send-email-n-horiguchi@ah.jp.nec.com>
+Subject: Re: [PATCH] hugetlb: fix copy_hugetlb_page_range() to handle
+ migration/hwpoisoned entry
+In-Reply-To: <1402081620-1247-1-git-send-email-n-horiguchi@ah.jp.nec.com>
+Message-ID: <alpine.LSU.2.11.1406151642020.25482@eggly.anvils>
+References: <1402081620-1247-1-git-send-email-n-horiguchi@ah.jp.nec.com>
 MIME-Version: 1.0
 Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: linux-mm@kvack.org, Dave Hansen <dave.hansen@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Hugh Dickins <hughd@google.com>, Christoph Lameter <cl@linux.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, 12 Jun 2014, Naoya Horiguchi wrote:
+On Fri, 6 Jun 2014, Naoya Horiguchi wrote:
 
-> With the recent update on page table walker, we can use common code for
-> the walking more. Unlike many other users, this swapin_walk expects to
-> handle swap entries. As a result we should be careful about ptl locking.
-> Swapin operation, read_swap_cache_async(), could cause page reclaim, so
-> we can't keep holding ptl throughout this pte loop.
-> In order to properly handle ptl in pte_entry(), this patch adds two new
-> members on struct mm_walk.
-> 
-> This cleanup is necessary to get to the final form of page table walker,
-> where we should do all caller's specific work on leaf entries (IOW, all
-> pmd_entry() should be used for trans_pmd.)
+> There's a race between fork() and hugepage migration, as a result we try to
+> "dereference" a swap entry as a normal pte, causing kernel panic.
+> The cause of the problem is that copy_hugetlb_page_range() can't handle "swap
+> entry" family (migration entry and hwpoisoned entry,) so let's fix it.
 > 
 > Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Cc: Hugh Dickins <hughd@google.com>
+> Cc: stable@vger.kernel.org # v2.6.36+
 
-Sorry, I believe this (and probably several other of your conversions)
-is badly flawed.
-
-You have a pattern of doing pte_offset_map_lock() inside the page walker,
-then dropping and regetting map and lock inside your pte handler.
-
-But on, say, x86_32 with CONFIG_HIGHMEM, CONFIG_SMP and CONFIG_PREEMPT,
-you may be preempted then run on a different cpu while atomic kmap and
-lock are dropped: so that the pte pointer then used on return to
-walk_pte_range() will no longer correspond to the right mapping.
-
-Presumably that can be fixed by keeping the pte pointer in the mm_walk
-structure; but I'm not at all sure that's the right thing to do.
-
-I am not nearly so keen as you to reduce all these to per-pte callouts,
-which seem inefficient to me.  It can be argued both ways on the less
-important functions (like this madvise one); but I hope you don't try
-to make this kind of conversion to fast paths like those in memory.c.
-
-Hugh
+Seems a good catch.  But a few reservations...
 
 > ---
->  include/linux/mm.h |  4 ++++
->  mm/madvise.c       | 54 +++++++++++++++++++++++-------------------------------
->  mm/pagewalk.c      | 11 +++++------
->  3 files changed, 32 insertions(+), 37 deletions(-)
+>  include/linux/mm.h |  6 +++++
+>  mm/hugetlb.c       | 72 ++++++++++++++++++++++++++++++++----------------------
+>  mm/memory.c        |  5 ----
+>  3 files changed, 49 insertions(+), 34 deletions(-)
 > 
-> diff --git mmotm-2014-05-21-16-57.orig/include/linux/mm.h mmotm-2014-05-21-16-57/include/linux/mm.h
-> index b4aa6579f2b1..aa832161a1ff 100644
-> --- mmotm-2014-05-21-16-57.orig/include/linux/mm.h
-> +++ mmotm-2014-05-21-16-57/include/linux/mm.h
-> @@ -1108,6 +1108,8 @@ void unmap_vmas(struct mmu_gather *tlb, struct vm_area_struct *start_vma,
->   * @vma:       vma currently walked
->   * @skip:      internal control flag which is set when we skip the lower
->   *             level entries.
-> + * @pmd:       current pmd entry
-> + * @ptl:       page table lock associated with current entry
->   * @private:   private data for callbacks' use
->   *
->   * (see the comment on walk_page_range() for more details)
-> @@ -1126,6 +1128,8 @@ struct mm_walk {
->  	struct mm_struct *mm;
->  	struct vm_area_struct *vma;
->  	int skip;
-> +	pmd_t *pmd;
-> +	spinlock_t *ptl;
->  	void *private;
->  };
->  
-> diff --git mmotm-2014-05-21-16-57.orig/mm/madvise.c mmotm-2014-05-21-16-57/mm/madvise.c
-> index a402f8fdc68e..06b390a6fbbd 100644
-> --- mmotm-2014-05-21-16-57.orig/mm/madvise.c
-> +++ mmotm-2014-05-21-16-57/mm/madvise.c
-> @@ -135,38 +135,31 @@ static long madvise_behavior(struct vm_area_struct *vma,
+> diff --git v3.15-rc8.orig/include/linux/mm.h v3.15-rc8/include/linux/mm.h
+> index d6777060449f..6b4fe9ec79ba 100644
+> --- v3.15-rc8.orig/include/linux/mm.h
+> +++ v3.15-rc8/include/linux/mm.h
+> @@ -1924,6 +1924,12 @@ static inline struct vm_area_struct *find_exact_vma(struct mm_struct *mm,
+>  	return vma;
 >  }
 >  
->  #ifdef CONFIG_SWAP
-> -static int swapin_walk_pmd_entry(pmd_t *pmd, unsigned long start,
-> +/*
-> + * Assuming that page table walker holds page table lock.
-> + */
-> +static int swapin_walk_pte_entry(pte_t *pte, unsigned long start,
->  	unsigned long end, struct mm_walk *walk)
->  {
-> -	pte_t *orig_pte;
-> -	struct vm_area_struct *vma = walk->private;
-> -	unsigned long index;
+> +static inline bool is_cow_mapping(vm_flags_t flags)
+> +{
+> +	return (flags & (VM_SHARED | VM_MAYWRITE)) == VM_MAYWRITE;
+> +}
+> +
+> +
+
+This is an unrelated cleanup, which makes the patch unnecessarily larger,
+needlessly touching include/linux/mm.h and mm/memory.c, making it more
+likely not to apply to all the old releases you're asking for in the
+stable line.
+
+And 3.16-rc moves is_cow_mapping() to mm/internal.h not include/linux/mm.h.
+
+>  #ifdef CONFIG_MMU
+>  pgprot_t vm_get_page_prot(unsigned long vm_flags);
+>  #else
+> diff --git v3.15-rc8.orig/mm/hugetlb.c v3.15-rc8/mm/hugetlb.c
+> index c82290b9c1fc..47ae7db288f7 100644
+> --- v3.15-rc8.orig/mm/hugetlb.c
+> +++ v3.15-rc8/mm/hugetlb.c
+> @@ -2377,6 +2377,31 @@ static void set_huge_ptep_writable(struct vm_area_struct *vma,
+>  		update_mmu_cache(vma, address, ptep);
+>  }
+>  
+> +static int is_hugetlb_entry_migration(pte_t pte)
+> +{
+> +	swp_entry_t swp;
+> +
+> +	if (huge_pte_none(pte) || pte_present(pte))
+> +		return 0;
+> +	swp = pte_to_swp_entry(pte);
+> +	if (non_swap_entry(swp) && is_migration_entry(swp))
+> +		return 1;
+> +	else
+> +		return 0;
+> +}
+> +
+> +static int is_hugetlb_entry_hwpoisoned(pte_t pte)
+> +{
+> +	swp_entry_t swp;
+> +
+> +	if (huge_pte_none(pte) || pte_present(pte))
+> +		return 0;
+> +	swp = pte_to_swp_entry(pte);
+> +	if (non_swap_entry(swp) && is_hwpoison_entry(swp))
+> +		return 1;
+> +	else
+> +		return 0;
+> +}
+>  
+>  int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
+>  			    struct vm_area_struct *vma)
+> @@ -2391,7 +2416,7 @@ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
+>  	unsigned long mmun_end;		/* For mmu_notifiers */
+>  	int ret = 0;
+>  
+> -	cow = (vma->vm_flags & (VM_SHARED | VM_MAYWRITE)) == VM_MAYWRITE;
+> +	cow = is_cow_mapping(vma->vm_flags);
+
+So, just leave this out and it all becomes easier, no?
+
+>  
+>  	mmun_start = vma->vm_start;
+>  	mmun_end = vma->vm_end;
+> @@ -2416,10 +2441,25 @@ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
+>  		dst_ptl = huge_pte_lock(h, dst, dst_pte);
+>  		src_ptl = huge_pte_lockptr(h, src, src_pte);
+>  		spin_lock_nested(src_ptl, SINGLE_DEPTH_NESTING);
+> -		if (!huge_pte_none(huge_ptep_get(src_pte))) {
+> +		entry = huge_ptep_get(src_pte);
+> +		if (huge_pte_none(entry)) { /* skip none entry */
+> +			;
+
+Not very pretty, but I would probably have made the same choice.
+
+> +		} else if (unlikely(is_hugetlb_entry_migration(entry) ||
+> +				    is_hugetlb_entry_hwpoisoned(entry))) {
+> +			swp_entry_t swp_entry = pte_to_swp_entry(entry);
+> +			if (is_write_migration_entry(swp_entry) && cow) {
+> +				/*
+> +				 * COW mappings require pages in both
+> +				 * parent and child to be set to read.
+> +				 */
+> +				make_migration_entry_read(&swp_entry);
+> +				entry = swp_entry_to_pte(swp_entry);
+> +				set_pte_at(src, addr, src_pte, entry);
+> +			}
+> +			set_huge_pte_at(dst, addr, dst_pte, entry);
+
+It's odd to see set_pte_at(src, addr, src_pte, entry)
+followed by     set_huge_pte_at(dst, addr, dst_pte, entry).
+
+Probably they should both say set_huge_pte_at().  But have you
+consulted the relevant architectures to check whether set_huge_pte_at()
+actually works on a migration or poisoned entry, rather than corrupting it?
+
+My quick reading is that only s390 and sparc provide a set_huge_pte_at()
+which differs from set_pte_at(), and that sparc does not have the
+pmd_huge_support() needed for hugepage_migration_support(); but s390's
+set_huge_pte_at() looks as if it would mess up the migration entry.
+
+Ah, but you have recently restricted hugepage migration to x86_64 only,
+to fix the follow_page problems, so this should be okay for now - though
+you appear to be leaving a dangerous landmine for s390 in future.
+
+Hold on, that restriction of hugepage migration was marked for stable
+3.12+, whereas this is marked for stable 2.6.36+ (a glance at my old
+trees suggests 2.6.37+, but you may know better - perhaps hugepage
+migration got backported to 2.6.36-stable, though hardly seems
+stable material).
+
+Perhaps you marked the disablement as 3.12+ because its patch wouldn't
+apply cleanly earlier? but it really should be disabled as far back as
+needed.  Or was there some other subtlety, so that hugepage migration
+never actually happened before 3.12?
+
+Confused.
+Hugh
+
+> +		} else {
+>  			if (cow)
+>  				huge_ptep_set_wrprotect(src, addr, src_pte);
+> -			entry = huge_ptep_get(src_pte);
+>  			ptepage = pte_page(entry);
+>  			get_page(ptepage);
+>  			page_dup_rmap(ptepage);
+> @@ -2435,32 +2475,6 @@ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
+>  	return ret;
+>  }
+>  
+> -static int is_hugetlb_entry_migration(pte_t pte)
+> -{
+> -	swp_entry_t swp;
 > -
-> -	if (pmd_none_or_trans_huge_or_clear_bad(pmd))
+> -	if (huge_pte_none(pte) || pte_present(pte))
 > -		return 0;
+> -	swp = pte_to_swp_entry(pte);
+> -	if (non_swap_entry(swp) && is_migration_entry(swp))
+> -		return 1;
+> -	else
+> -		return 0;
+> -}
 > -
-> -	for (index = start; index != end; index += PAGE_SIZE) {
-> -		pte_t pte;
-> -		swp_entry_t entry;
-> -		struct page *page;
-> -		spinlock_t *ptl;
+> -static int is_hugetlb_entry_hwpoisoned(pte_t pte)
+> -{
+> -	swp_entry_t swp;
 > -
-> -		orig_pte = pte_offset_map_lock(vma->vm_mm, pmd, start, &ptl);
-> -		pte = *(orig_pte + ((index - start) / PAGE_SIZE));
-> -		pte_unmap_unlock(orig_pte, ptl);
+> -	if (huge_pte_none(pte) || pte_present(pte))
+> -		return 0;
+> -	swp = pte_to_swp_entry(pte);
+> -	if (non_swap_entry(swp) && is_hwpoison_entry(swp))
+> -		return 1;
+> -	else
+> -		return 0;
+> -}
 > -
-> -		if (pte_present(pte) || pte_none(pte) || pte_file(pte))
-> -			continue;
-> -		entry = pte_to_swp_entry(pte);
-> -		if (unlikely(non_swap_entry(entry)))
-> -			continue;
-> -
-> -		page = read_swap_cache_async(entry, GFP_HIGHUSER_MOVABLE,
-> -								vma, index);
-> -		if (page)
-> -			page_cache_release(page);
-> -	}
-> +	pte_t ptent;
-> +	pte_t *orig_pte = pte - ((start & (PMD_SIZE - 1)) >> PAGE_SHIFT);
-> +	swp_entry_t entry;
-> +	struct page *page;
->  
-> +	ptent = *pte;
-> +	pte_unmap_unlock(orig_pte, walk->ptl);
-> +	if (pte_present(ptent) || pte_none(ptent) || pte_file(ptent))
-> +		goto lock;
-> +	entry = pte_to_swp_entry(ptent);
-> +	if (unlikely(non_swap_entry(entry)))
-> +		goto lock;
-> +	page = read_swap_cache_async(entry, GFP_HIGHUSER_MOVABLE,
-> +				     walk->vma, start);
-> +	if (page)
-> +		page_cache_release(page);
-> +lock:
-> +	pte_offset_map(walk->pmd, start & PMD_MASK);
-> +	spin_lock(walk->ptl);
->  	return 0;
+>  void __unmap_hugepage_range(struct mmu_gather *tlb, struct vm_area_struct *vma,
+>  			    unsigned long start, unsigned long end,
+>  			    struct page *ref_page)
+> diff --git v3.15-rc8.orig/mm/memory.c v3.15-rc8/mm/memory.c
+> index 037b812a9531..efc66b128976 100644
+> --- v3.15-rc8.orig/mm/memory.c
+> +++ v3.15-rc8/mm/memory.c
+> @@ -698,11 +698,6 @@ static void print_bad_pte(struct vm_area_struct *vma, unsigned long addr,
+>  	add_taint(TAINT_BAD_PAGE, LOCKDEP_NOW_UNRELIABLE);
 >  }
 >  
-> @@ -175,8 +168,7 @@ static void force_swapin_readahead(struct vm_area_struct *vma,
->  {
->  	struct mm_walk walk = {
->  		.mm = vma->vm_mm,
-> -		.pmd_entry = swapin_walk_pmd_entry,
-> -		.private = vma,
-> +		.pte_entry = swapin_walk_pte_entry,
->  	};
->  
->  	walk_page_range(start, end, &walk);
-> diff --git mmotm-2014-05-21-16-57.orig/mm/pagewalk.c mmotm-2014-05-21-16-57/mm/pagewalk.c
-> index e734f63276c2..24311d6f5c20 100644
-> --- mmotm-2014-05-21-16-57.orig/mm/pagewalk.c
-> +++ mmotm-2014-05-21-16-57/mm/pagewalk.c
-> @@ -27,10 +27,10 @@ static int walk_pte_range(pmd_t *pmd, unsigned long addr,
->  	struct mm_struct *mm = walk->mm;
->  	pte_t *pte;
->  	pte_t *orig_pte;
-> -	spinlock_t *ptl;
->  	int err = 0;
->  
-> -	orig_pte = pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
-> +	walk->pmd = pmd;
-> +	orig_pte = pte = pte_offset_map_lock(mm, pmd, addr, &walk->ptl);
->  	do {
->  		if (pte_none(*pte)) {
->  			if (walk->pte_hole)
-> @@ -48,7 +48,7 @@ static int walk_pte_range(pmd_t *pmd, unsigned long addr,
->  		if (err)
->  		       break;
->  	} while (pte++, addr += PAGE_SIZE, addr < end);
-> -	pte_unmap_unlock(orig_pte, ptl);
-> +	pte_unmap_unlock(orig_pte, walk->ptl);
->  	cond_resched();
->  	return addr == end ? 0 : err;
->  }
-> @@ -172,7 +172,6 @@ static int walk_hugetlb_range(unsigned long addr, unsigned long end,
->  	unsigned long hmask = huge_page_mask(h);
->  	pte_t *pte;
->  	int err = 0;
-> -	spinlock_t *ptl;
->  
->  	do {
->  		next = hugetlb_entry_end(h, addr, end);
-> @@ -186,14 +185,14 @@ static int walk_hugetlb_range(unsigned long addr, unsigned long end,
->  				break;
->  			continue;
->  		}
-> -		ptl = huge_pte_lock(h, mm, pte);
-> +		walk->ptl = huge_pte_lock(h, mm, pte);
->  		/*
->  		 * Callers should have their own way to handle swap entries
->  		 * in walk->hugetlb_entry().
->  		 */
->  		if (walk->hugetlb_entry)
->  			err = walk->hugetlb_entry(pte, addr, next, walk);
-> -		spin_unlock(ptl);
-> +		spin_unlock(walk->ptl);
->  		if (err)
->  			break;
->  	} while (addr = next, addr != end);
+> -static inline bool is_cow_mapping(vm_flags_t flags)
+> -{
+> -	return (flags & (VM_SHARED | VM_MAYWRITE)) == VM_MAYWRITE;
+> -}
+> -
+>  /*
+>   * vm_normal_page -- This function gets the "struct page" associated with a pte.
+>   *
 > -- 
 > 1.9.3
 > 
