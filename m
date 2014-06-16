@@ -1,176 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f51.google.com (mail-pa0-f51.google.com [209.85.220.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 1ACE76B0031
-	for <linux-mm@kvack.org>; Sun, 15 Jun 2014 22:31:15 -0400 (EDT)
-Received: by mail-pa0-f51.google.com with SMTP id hz1so763644pad.38
-        for <linux-mm@kvack.org>; Sun, 15 Jun 2014 19:31:14 -0700 (PDT)
-Received: from mail-pb0-x229.google.com (mail-pb0-x229.google.com [2607:f8b0:400e:c01::229])
-        by mx.google.com with ESMTPS id fg5si12027999pad.120.2014.06.15.19.31.13
+Received: from mail-pd0-f178.google.com (mail-pd0-f178.google.com [209.85.192.178])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C4676B0031
+	for <linux-mm@kvack.org>; Sun, 15 Jun 2014 22:40:12 -0400 (EDT)
+Received: by mail-pd0-f178.google.com with SMTP id r10so3941115pdi.9
+        for <linux-mm@kvack.org>; Sun, 15 Jun 2014 19:40:12 -0700 (PDT)
+Received: from ozlabs.org (ozlabs.org. [2401:3900:2:1::2])
+        by mx.google.com with ESMTPS id gq8si9341532pbc.50.2014.06.15.19.40.09
         for <linux-mm@kvack.org>
-        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
-        Sun, 15 Jun 2014 19:31:14 -0700 (PDT)
-Received: by mail-pb0-f41.google.com with SMTP id ma3so3955447pbc.28
-        for <linux-mm@kvack.org>; Sun, 15 Jun 2014 19:31:13 -0700 (PDT)
-Date: Sun, 15 Jun 2014 19:29:53 -0700 (PDT)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: mm: shm: hang in shmem_fallocate
-In-Reply-To: <539A0FC8.8090504@oracle.com>
-Message-ID: <alpine.LSU.2.11.1406151921070.2850@eggly.anvils>
-References: <52AE7B10.2080201@oracle.com> <52F6898A.50101@oracle.com> <alpine.LSU.2.11.1402081841160.26825@eggly.anvils> <52F82E62.2010709@oracle.com> <539A0FC8.8090504@oracle.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 15 Jun 2014 19:40:09 -0700 (PDT)
+Message-ID: <1402886406.25275.1.camel@concordia>
+Subject: Re: kmemleak: Unable to handle kernel paging request
+From: Michael Ellerman <mpe@ellerman.id.au>
+Date: Mon, 16 Jun 2014 12:40:06 +1000
+In-Reply-To: <CAOJe8K1VJ5RFWSB9i4PMdYq5X2vEgv0opGwU39ZRhYdfwj-kPw@mail.gmail.com>
+References: 
+	<CAOJe8K3fy3XFxDdVc3y1hiMAqUCPmkUhECU7j5TT=E=gxwBqHg@mail.gmail.com>
+	 <20140611173851.GA5556@MacBook-Pro.local>
+	 <CAOJe8K1TgTDX5=LdE9r6c0ami7TRa7zr0hL_uu6YpiWrsePAgQ@mail.gmail.com>
+	 <B01EB0A1-992B-49F4-93AE-71E4BA707795@arm.com>
+	 <CAOJe8K3LDhhPWbtdaWt23mY+2vnw5p05+eyk2D8fovOxC10cgA@mail.gmail.com>
+	 <CAOJe8K2WaJUP9_buwgKw89fxGe56mGP1Mn8rDUO9W48KZzmybA@mail.gmail.com>
+	 <20140612143916.GB8970@arm.com>
+	 <CAOJe8K3zN+fFWumKaGx3Tmv5JRZu10_FZ6R3Tjjc+nc-KVB0hg@mail.gmail.com>
+	 <20140613085640.GA21018@arm.com>
+	 <CAOJe8K1VJ5RFWSB9i4PMdYq5X2vEgv0opGwU39ZRhYdfwj-kPw@mail.gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sasha Levin <sasha.levin@oracle.com>
-Cc: Hugh Dickins <hughd@google.com>, Dave Jones <davej@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+To: Denis Kirjanov <kda@linux-powerpc.org>
+Cc: Catalin Marinas <catalin.marinas@arm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Paul Mackerras <paulus@samba.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linuxppc-dev@lists.ozlabs.org
 
-On Thu, 12 Jun 2014, Sasha Levin wrote:
-> On 02/09/2014 08:41 PM, Sasha Levin wrote:
-> > On 02/08/2014 10:25 PM, Hugh Dickins wrote:
-> >> Would trinity be likely to have a thread or process repeatedly faulting
-> >> in pages from the hole while it is being punched?
-> > 
-> > I can see how trinity would do that, but just to be certain - Cc davej.
-> > 
-> > On 02/08/2014 10:25 PM, Hugh Dickins wrote:
-> >> Does this happen with other holepunch filesystems?  If it does not,
-> >> I'd suppose it's because the tmpfs fault-in-newly-created-page path
-> >> is lighter than a consistent disk-based filesystem's has to be.
-> >> But we don't want to make the tmpfs path heavier to match them.
-> > 
-> > No, this is strictly limited to tmpfs, and AFAIK trinity tests hole
-> > punching in other filesystems and I make sure to get a bunch of those
-> > mounted before starting testing.
+On Fri, 2014-06-13 at 14:26 +0400, Denis Kirjanov wrote:
+> On 6/13/14, Catalin Marinas <catalin.marinas@arm.com> wrote:
+> > On Fri, Jun 13, 2014 at 08:12:08AM +0100, Denis Kirjanov wrote:
+> >> On 6/12/14, Catalin Marinas <catalin.marinas@arm.com> wrote:
+> >> > On Thu, Jun 12, 2014 at 01:00:57PM +0100, Denis Kirjanov wrote:
+> >> >> On 6/12/14, Denis Kirjanov <kda@linux-powerpc.org> wrote:
+> >> >> > On 6/12/14, Catalin Marinas <catalin.marinas@arm.com> wrote:
+> >> >> >> On 11 Jun 2014, at 21:04, Denis Kirjanov <kda@linux-powerpc.org>
+> >> >> >> wrote:
+> >> >> >>> On 6/11/14, Catalin Marinas <catalin.marinas@arm.com> wrote:
+> >> >> >>>> On Wed, Jun 11, 2014 at 04:13:07PM +0400, Denis Kirjanov wrote:
+> >> >> >>>>> I got a trace while running 3.15.0-08556-gdfb9454:
+> >> >> >>>>>
+> >> >> >>>>> [  104.534026] Unable to handle kernel paging request for data
+> >> >> >>>>> at
+> >> >> >>>>> address 0xc00000007f000000
+> >> >> >>>>
+> >> >> >>>> Were there any kmemleak messages prior to this, like "kmemleak
+> >> >> >>>> disabled"? There could be a race when kmemleak is disabled
+> >> >> >>>> because
+> >> >> >>>> of
+> >> >> >>>> some fatal (for kmemleak) error while the scanning is taking
+> >> >> >>>> place
+> >> >> >>>> (which needs some more thinking to fix properly).
+> >> >> >>>
+> >> >> >>> No. I checked for the similar problem and didn't find anything
+> >> >> >>> relevant.
+> >> >> >>> I'll try to bisect it.
+> >> >> >>
+> >> >> >> Does this happen soon after boot? I guess ita??s the first scan
+> >> >> >> (scheduled at around 1min after boot). Something seems to be
+> >> >> >> telling
+> >> >> >> kmemleak that there is a valid memory block at 0xc00000007f000000.
+> >> >> >
+> >> >> > Yeah, it happens after a while with a booted system so that's the
+> >> >> > first kmemleak scan.
+> >> >>
+> >> >> I've bisected to this commit: d4c54919ed86302094c0ca7d48a8cbd4ee753e92
+> >> >> "mm: add !pte_present() check on existing hugetlb_entry callbacks".
+> >> >> Reverting the commit fixes the issue
+> >> >
+> >> > I can't figure how this causes the problem but I have more questions.
+> >> > Is
+> >> > 0xc00000007f000000 address always the same in all crashes? If yes, you
+> >> > could comment out start_scan_thread() in kmemleak_late_init() to avoid
+> >> > the scanning thread starting. Once booted, you can run:
+> >> >
+> >> >   echo dump=0xc00000007f000000 > /sys/kernel/debug/kmemleak
+> >> >
+> >> > and check the dmesg for what kmemleak knows about that address, when it
+> >> > was allocated and whether it should be mapped or not.
+> >>
+> >> The address is always the same.
+> >>
+> >> [  179.466239] kmemleak: Object 0xc00000007f000000 (size 16777216):
+> >> [  179.466503] kmemleak:   comm "swapper/0", pid 0, jiffies 4294892300
+> >> [  179.466508] kmemleak:   min_count = 0
+> >> [  179.466512] kmemleak:   count = 0
+> >> [  179.466517] kmemleak:   flags = 0x1
+> >> [  179.466522] kmemleak:   checksum = 0
+> >> [  179.466526] kmemleak:   backtrace:
+> >> [  179.466531]      [<c000000000afc3dc>]
+> >> .memblock_alloc_range_nid+0x68/0x88
+> >> [  179.466544]      [<c000000000afc444>] .memblock_alloc_base+0x20/0x58
+> >> [  179.466553]      [<c000000000ae96cc>] .alloc_dart_table+0x5c/0xb0
+> >> [  179.466561]      [<c000000000aea300>] .pmac_probe+0x38/0xa0
+> >> [  179.466569]      [<000000000002166c>] 0x2166c
+> >> [  179.466579]      [<0000000000ae0e68>] 0xae0e68
+> >> [  179.466587]      [<0000000000009bc4>] 0x9bc4
+> >
+> > OK, so that's the DART table allocated via alloc_dart_table(). Is
+> > dart_tablebase removed from the kernel linear mapping after allocation?
+> > If that's the case, we need to tell kmemleak to ignore this block (see
+> > patch below, untested). But I still can't explain how commit
+> > d4c54919ed863020 causes this issue.
+> >
+> > (also cc'ing the powerpc list and maintainers)
 > 
-> Just pinging this one again. I still see hangs in -next where the hang
-> location looks same as before:
+> Ok, your path fixes the oops.
 > 
+> Ben, can you shed some light on this issue?
 
-Please give this patch a try.  It fixes what I can reproduce, but given
-your unexplained page_mapped() BUG in this area, we know there's more
-yet to be understood, so perhaps this patch won't do enough for you.
+(I'm not Ben)
 
+Yes, the memory for dart_tablebase is removed from the linear mapping. In fact
+it's never mapped, see htab_initialize().
 
-[PATCH] shmem: fix faulting into a hole while it's punched
+I don't easily see how commit d4c54919ed8, could have exposed this, but I don't
+know enough of the kmemleak internals to say for sure.
 
-Trinity finds that mmap access to a hole while it's punched from shmem
-can prevent the madvise(MADV_REMOVE) or fallocate(FALLOC_FL_PUNCH_HOLE)
-from completing, until the reader chooses to stop; with the puncher's
-hold on i_mutex locking out all other writers until it can complete.
+cheers
 
-It appears that the tmpfs fault path is too light in comparison with
-its hole-punching path, lacking an i_data_sem to obstruct it; but we
-don't want to slow down the common case.
-
-Extend shmem_fallocate()'s existing range notification mechanism, so
-shmem_fault() can refrain from faulting pages into the hole while it's
-punched, waiting instead on i_mutex (when safe to sleep; or repeatedly
-faulting when not).
-
-Signed-off-by: Hugh Dickins <hughd@google.com>
----
-
- mm/shmem.c |   55 +++++++++++++++++++++++++++++++++++++++++++++++----
- 1 file changed, 51 insertions(+), 4 deletions(-)
-
---- 3.16-rc1/mm/shmem.c	2014-06-12 11:20:43.200001098 -0700
-+++ linux/mm/shmem.c	2014-06-15 18:32:00.049039969 -0700
-@@ -80,11 +80,12 @@ static struct vfsmount *shm_mnt;
- #define SHORT_SYMLINK_LEN 128
- 
- /*
-- * shmem_fallocate and shmem_writepage communicate via inode->i_private
-- * (with i_mutex making sure that it has only one user at a time):
-- * we would prefer not to enlarge the shmem inode just for that.
-+ * shmem_fallocate communicates with shmem_fault or shmem_writepage via
-+ * inode->i_private (with i_mutex making sure that it has only one user at
-+ * a time): we would prefer not to enlarge the shmem inode just for that.
-  */
- struct shmem_falloc {
-+	int	mode;		/* FALLOC_FL mode currently operating */
- 	pgoff_t start;		/* start of range currently being fallocated */
- 	pgoff_t next;		/* the next page offset to be fallocated */
- 	pgoff_t nr_falloced;	/* how many new pages have been fallocated */
-@@ -759,6 +760,7 @@ static int shmem_writepage(struct page *
- 			spin_lock(&inode->i_lock);
- 			shmem_falloc = inode->i_private;
- 			if (shmem_falloc &&
-+			    !shmem_falloc->mode &&
- 			    index >= shmem_falloc->start &&
- 			    index < shmem_falloc->next)
- 				shmem_falloc->nr_unswapped++;
-@@ -1233,6 +1235,43 @@ static int shmem_fault(struct vm_area_st
- 	int error;
- 	int ret = VM_FAULT_LOCKED;
- 
-+	/*
-+	 * Trinity finds that probing a hole which tmpfs is punching can
-+	 * prevent the hole-punch from ever completing: which in turn
-+	 * locks writers out with its hold on i_mutex.  So refrain from
-+	 * faulting pages into the hole while it's being punched, and
-+	 * wait on i_mutex to be released if vmf->flags permits, 
-+	 */
-+	if (unlikely(inode->i_private)) {
-+		struct shmem_falloc *shmem_falloc;
-+		spin_lock(&inode->i_lock);
-+		shmem_falloc = inode->i_private;
-+		if (!shmem_falloc ||
-+		    shmem_falloc->mode != FALLOC_FL_PUNCH_HOLE ||
-+		    vmf->pgoff < shmem_falloc->start ||
-+		    vmf->pgoff >= shmem_falloc->next)
-+			shmem_falloc = NULL;
-+		spin_unlock(&inode->i_lock);
-+		/*
-+		 * i_lock has protected us from taking shmem_falloc seriously
-+		 * once return from shmem_fallocate() went back up that stack.
-+		 * i_lock does not serialize with i_mutex at all, but it does
-+		 * not matter if sometimes we wait unnecessarily, or sometimes
-+		 * miss out on waiting: we just need to make those cases rare.
-+		 */
-+		if (shmem_falloc) {
-+			if ((vmf->flags & FAULT_FLAG_ALLOW_RETRY) &&
-+			   !(vmf->flags & FAULT_FLAG_RETRY_NOWAIT)) {
-+				up_read(&vma->vm_mm->mmap_sem);
-+				mutex_lock(&inode->i_mutex);
-+				mutex_unlock(&inode->i_mutex);
-+				return VM_FAULT_RETRY;
-+			}
-+			/* cond_resched? Leave that to GUP or return to user */
-+			return VM_FAULT_NOPAGE;
-+		}
-+	}
-+
- 	error = shmem_getpage(inode, vmf->pgoff, &vmf->page, SGP_CACHE, &ret);
- 	if (error)
- 		return ((error == -ENOMEM) ? VM_FAULT_OOM : VM_FAULT_SIGBUS);
-@@ -1726,18 +1765,26 @@ static long shmem_fallocate(struct file
- 
- 	mutex_lock(&inode->i_mutex);
- 
-+	shmem_falloc.mode = mode & ~FALLOC_FL_KEEP_SIZE;
-+
- 	if (mode & FALLOC_FL_PUNCH_HOLE) {
- 		struct address_space *mapping = file->f_mapping;
- 		loff_t unmap_start = round_up(offset, PAGE_SIZE);
- 		loff_t unmap_end = round_down(offset + len, PAGE_SIZE) - 1;
- 
-+		shmem_falloc.start = unmap_start >> PAGE_SHIFT;
-+		shmem_falloc.next = (unmap_end + 1) >> PAGE_SHIFT;
-+		spin_lock(&inode->i_lock);
-+		inode->i_private = &shmem_falloc;
-+		spin_unlock(&inode->i_lock);
-+
- 		if ((u64)unmap_end > (u64)unmap_start)
- 			unmap_mapping_range(mapping, unmap_start,
- 					    1 + unmap_end - unmap_start, 0);
- 		shmem_truncate_range(inode, offset, offset + len - 1);
- 		/* No need to unmap again: hole-punching leaves COWed pages */
- 		error = 0;
--		goto out;
-+		goto undone;
- 	}
- 
- 	/* We need to check rlimit even when FALLOC_FL_KEEP_SIZE */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
