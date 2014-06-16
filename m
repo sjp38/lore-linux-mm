@@ -1,86 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
-	by kanga.kvack.org (Postfix) with ESMTP id 38C8E6B0031
-	for <linux-mm@kvack.org>; Mon, 16 Jun 2014 03:04:48 -0400 (EDT)
-Received: by mail-pa0-f52.google.com with SMTP id eu11so4197769pac.11
-        for <linux-mm@kvack.org>; Mon, 16 Jun 2014 00:04:47 -0700 (PDT)
-Received: from e28smtp05.in.ibm.com (e28smtp05.in.ibm.com. [122.248.162.5])
-        by mx.google.com with ESMTPS id rt15si12663863pab.21.2014.06.16.00.04.46
+Received: from mail-pd0-f182.google.com (mail-pd0-f182.google.com [209.85.192.182])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C0586B0031
+	for <linux-mm@kvack.org>; Mon, 16 Jun 2014 03:12:17 -0400 (EDT)
+Received: by mail-pd0-f182.google.com with SMTP id y13so4150613pdi.27
+        for <linux-mm@kvack.org>; Mon, 16 Jun 2014 00:12:17 -0700 (PDT)
+Received: from relay1.mentorg.com (relay1.mentorg.com. [192.94.38.131])
+        by mx.google.com with ESMTPS id gj4si9931518pbb.112.2014.06.16.00.12.16
         for <linux-mm@kvack.org>
         (version=TLSv1 cipher=RC4-SHA bits=128/128);
-        Mon, 16 Jun 2014 00:04:47 -0700 (PDT)
-Received: from /spool/local
-	by e28smtp05.in.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Mon, 16 Jun 2014 12:34:43 +0530
-Received: from d28relay04.in.ibm.com (d28relay04.in.ibm.com [9.184.220.61])
-	by d28dlp02.in.ibm.com (Postfix) with ESMTP id 797C7394005E
-	for <linux-mm@kvack.org>; Mon, 16 Jun 2014 12:34:39 +0530 (IST)
-Received: from d28av04.in.ibm.com (d28av04.in.ibm.com [9.184.220.66])
-	by d28relay04.in.ibm.com (8.13.8/8.13.8/NCO v10.0) with ESMTP id s5G74qnv57475134
-	for <linux-mm@kvack.org>; Mon, 16 Jun 2014 12:34:52 +0530
-Received: from d28av04.in.ibm.com (localhost [127.0.0.1])
-	by d28av04.in.ibm.com (8.14.4/8.14.4/NCO v10.0 AVout) with ESMTP id s5G74bEo026894
-	for <linux-mm@kvack.org>; Mon, 16 Jun 2014 12:34:38 +0530
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: [PATCH v2 00/10] CMA: generalize CMA reserved area management code
-In-Reply-To: <20140616053209.GG23210@js1304-P5Q-DELUXE>
-References: <1402543307-29800-1-git-send-email-iamjoonsoo.kim@lge.com> <87r42seyvg.fsf@linux.vnet.ibm.com> <20140616053209.GG23210@js1304-P5Q-DELUXE>
-Date: Mon, 16 Jun 2014 12:34:14 +0530
-Message-ID: <87tx7lcp3l.fsf@linux.vnet.ibm.com>
+        Mon, 16 Jun 2014 00:12:16 -0700 (PDT)
+From: Thomas Schwinge <thomas@codesourcery.com>
+Subject: Re: radeon: screen garbled after page allocator change, was: Re: [patch v2 3/3] mm: page_alloc: fair zone allocator policy
+In-Reply-To: <87ppk1q3iq.fsf@schwinge.name>
+References: <1375457846-21521-1-git-send-email-hannes@cmpxchg.org> <1375457846-21521-4-git-send-email-hannes@cmpxchg.org> <87r45fajun.fsf@schwinge.name> <20140424133722.GD4107@cmpxchg.org> <20140427033110.GA15091@gmail.com> <20140427195527.GC9315@gmail.com> <87ppk1q3iq.fsf@schwinge.name>
+Date: Mon, 16 Jun 2014 09:11:52 +0200
+Message-ID: <87vbs1z5tz.fsf@schwinge.name>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: multipart/signed; boundary="=-=-="; micalg=pgp-sha1;
+	protocol="application/pgp-signature"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Paolo Bonzini <pbonzini@redhat.com>, Gleb Natapov <gleb@kernel.org>, Alexander Graf <agraf@suse.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, kvm@vger.kernel.org, kvm-ppc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
+To: Jerome Glisse <j.glisse@gmail.com>
+Cc: Bjorn Helgaas <bhelgaas@google.com>, linux-pci@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Rik van Riel <riel@surriel.com>, Andrea Arcangeli <aarcange@redhat.com>, Zlatko Calusic <zcalusic@bitsync.net>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Alex Deucher <alexander.deucher@amd.com>, Christian =?utf-8?Q?K=C3=B6nig?= <christian.koenig@amd.com>, dri-devel@lists.freedesktop.org
 
-Joonsoo Kim <iamjoonsoo.kim@lge.com> writes:
+--=-=-=
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 
-> On Sat, Jun 14, 2014 at 12:55:39PM +0530, Aneesh Kumar K.V wrote:
->> Joonsoo Kim <iamjoonsoo.kim@lge.com> writes:
->> 
->> > Currently, there are two users on CMA functionality, one is the DMA
->> > subsystem and the other is the kvm on powerpc. They have their own code
->> > to manage CMA reserved area even if they looks really similar.
->> > From my guess, it is caused by some needs on bitmap management. Kvm side
->> > wants to maintain bitmap not for 1 page, but for more size. Eventually it
->> > use bitmap where one bit represents 64 pages.
->> >
->> > When I implement CMA related patches, I should change those two places
->> > to apply my change and it seem to be painful to me. I want to change
->> > this situation and reduce future code management overhead through
->> > this patch.
->> >
->> > This change could also help developer who want to use CMA in their
->> > new feature development, since they can use CMA easily without
->> > copying & pasting this reserved area management code.
->> >
->> > v2:
->> >   Although this patchset looks very different with v1, the end result,
->> >   that is, mm/cma.c is same with v1's one. So I carry Ack to patch 6-7.
->> >
->> > Patch 1-5 prepare some features to cover ppc kvm's requirements.
->> > Patch 6-7 generalize CMA reserved area management code and change users
->> > to use it.
->> > Patch 8-10 clean-up minor things.
->> 
->> 
->> I wanted to test the ppc changes and found that the patch series doesn't apply
->> against v3.15 . Do you have a kernel tree which I can clone to test this
->> series ?
->
-> This is based on linux-next -next-20140610.
-> And my tree is on following link.
->
-> https://github.com/JoonsooKim/linux/tree/cma-general-v2.0-next-20140610
->
-> But, I think I'm late, because you have already added a Tested-by tag.
+Hi!
 
-linux-next kexec is broken on ppc64, hence I hand picked few of
-dependent patches for dma CMA on top of 3.15 and used that for testing.
+On Mon, 28 Apr 2014 10:09:17 +0200, I wrote:
+> On Sun, 27 Apr 2014 15:55:29 -0400, Jerome Glisse <j.glisse@gmail.com> wr=
+ote:
+> > If my ugly patch works does this quirk also work ?
+>=20
+> Unfortunately they both don't; see my other email,
+> <http://news.gmane.org/find-root.php?message_id=3D%3C87sioxq3rx.fsf%40sch=
+winge.name%3E>.
 
--aneesh
+> [...] hacked around as follows: [...]
+
+> If needed, I can try to capture more data, but someone who has knowledge
+> of PCI bus architecture and Linux kernel code (so, not me), might
+> probably already see what's wrong.
+
+The problem "solved itself": the machine recently died of hardware
+failure.  ;-|
+
+
+Gr=C3=BC=C3=9Fe,
+ Thomas
+
+--=-=-=
+Content-Type: application/pgp-signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
+
+iQEcBAEBAgAGBQJTnpi4AAoJENuKOtuXzphJSy4H/iVeV8s9nQDKTRe0H+6VuyOa
+joqGgQkfanZ35xocDxEStKDD/HP5szeCE87m0dseuHqZusIH5Npeb5dNH8Ss5cZA
+4htw5IFTqDSOw5Dv2zfuAagPf0uCLAtqJv55FHlpI4kwWmeKISAkb9OAyUK/f1oA
+Wu1KbriIm9D2nFL1R1yTfvC9NYLuGDOvL4sis+4IqTRRIpeTZMAMDwwE/cBygPDE
+4+No5wYStNsqgu8uxQTU5arNtPFK8uDK/9+lKYkXU4TyFhpOEJEKQNStLRSNtq6s
+//0748KW1HdE2/9yfXbfDfrGtXNpWMFarvOXkOT4/iCvzfQ2nf1+9N1pF0VxnQg=
+=wH4w
+-----END PGP SIGNATURE-----
+--=-=-=--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
