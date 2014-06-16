@@ -1,83 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qa0-f46.google.com (mail-qa0-f46.google.com [209.85.216.46])
-	by kanga.kvack.org (Postfix) with ESMTP id CDFBB6B0036
-	for <linux-mm@kvack.org>; Mon, 16 Jun 2014 06:57:41 -0400 (EDT)
-Received: by mail-qa0-f46.google.com with SMTP id i13so7146721qae.33
-        for <linux-mm@kvack.org>; Mon, 16 Jun 2014 03:57:41 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTP id f77si6789595qge.35.2014.06.16.03.57.40
-        for <linux-mm@kvack.org>;
-        Mon, 16 Jun 2014 03:57:40 -0700 (PDT)
-Date: Mon, 16 Jun 2014 11:57:34 +0100
-From: "Bryn M. Reeves" <bmr@redhat.com>
-Subject: Re: [linux-lvm] copying file results in out of memory, kills other
- processes, makes system unavailable
-Message-ID: <20140616105733.GB2241@localhost.localdomain>
-References: <539C275B.4010003@davidnewall.com>
+Received: from mail-wi0-f177.google.com (mail-wi0-f177.google.com [209.85.212.177])
+	by kanga.kvack.org (Postfix) with ESMTP id EABBF6B0039
+	for <linux-mm@kvack.org>; Mon, 16 Jun 2014 07:14:25 -0400 (EDT)
+Received: by mail-wi0-f177.google.com with SMTP id r20so3846605wiv.16
+        for <linux-mm@kvack.org>; Mon, 16 Jun 2014 04:14:25 -0700 (PDT)
+Received: from mx2.suse.de (cantor2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id na16si8045021wic.50.2014.06.16.04.14.23
+        for <linux-mm@kvack.org>
+        (version=TLSv1 cipher=ECDHE-RSA-RC4-SHA bits=128/128);
+        Mon, 16 Jun 2014 04:14:24 -0700 (PDT)
+Date: Mon, 16 Jun 2014 13:14:22 +0200
+From: Michal Hocko <mhocko@suse.cz>
+Subject: Re: [PATCH 0/8] mm: add page cache limit and reclaim feature
+Message-ID: <20140616111422.GA16915@dhcp22.suse.cz>
+References: <539EB7D6.8070401@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <539C275B.4010003@davidnewall.com>
+In-Reply-To: <539EB7D6.8070401@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: LVM general discussion and development <linux-lvm@redhat.com>
-Cc: linux-mm <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Xishi Qiu <qiuxishi@huawei.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Wanpeng Li <liwanp@linux.vnet.ibm.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, aquini@redhat.com, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Li Zefan <lizefan@huawei.com>
 
-On Sat, Jun 14, 2014 at 08:13:39PM +0930, David Newall wrote:
-> I'm running a qemu virtual machine, 2 x i686 with 2GB RAM.  VM's disks are
-> managed via LVM2.  Most disk activity is on one LV, formatted as ext4.
-> Backups are taken using snapshots, and at the time of the problem that I am
-> about to describe, there were ten of them, or so.  OS is Ubuntu 12.04 with
+On Mon 16-06-14 17:24:38, Xishi Qiu wrote:
+> When system(e.g. smart phone) running for a long time, the cache often takes
+> a large memory, maybe the free memory is less than 50M, then OOM will happen
+> if APP allocate a large order pages suddenly and memory reclaim too slowly. 
 
-You don't mention what type of snapshots you're using but by the sound
-of it these are legacy LVM2 snapshots using the snapshot target. For
-applications where you want to have this number of snapshots present
-simultaneously you really want to be using the new snapshot
-implementation ('thin snapshots').
+Have you ever seen this to happen? Page cache should be easy to reclaim and
+if there is too mach dirty memory then you should be able to tune the
+amount by dirty_bytes/ratio knob. If the page allocator falls back to
+OOM and there is a lot of page cache then I would call it a bug. I do
+not think that limiting the amount of the page cache globally makes
+sense. There are Unix systems which offer this feature but I think it is
+a bad interface which only papers over the reclaim inefficiency or lack
+of other isolations between loads.
 
-Take a look at the RHEL docs for creating and managing these (the
-commands work the same whay on Ubuntu):
-
-  http://tinyurl.com/pjdovee  [access.redhat.com]
-
-The problem with traditional snapshots is that they will issue separate
-IO for each active snapshot so for one snap a write to the origin (that
-triggers a CoW exception) will cause a read and a write of that block in
-the snapshot table. With ten active snapshots you're writing that
-changed block separately to the ten active CoW areas.
-
-It doesn't take a large number of snapshots before this scheme becomes
-unworkable as you've discovered. There are many threads on this topic in
-the list archives, e.g.:
-
-  https://www.redhat.com/archives/linux-lvm/2013-July/msg00044.html
-
-> Let me be clear: Process A requests memory; processes B & C are killed;
-> where B & C later become D, E & F!
+> Use "echo 3 > /proc/sys/vm/drop_caches" will drop the whole cache, this will
+> affect the performance, so it is used for debugging only. 
 > 
-> I feel that over-committing memory is a foolish and odious practice, and
-> makes problem determination very much harder than it need be. When a process
-> requests memory, if that cannot be satisfied the system should return an
-> error and that be the end of it.
+> suse has this feature, I tested it before, but it can not limit the page cache
+> actually. So I rewrite the feature and add some parameters.
 
-You can disable memory over-commit by setting mode 3 in ('don't
-overcommit') in vm.overcommit-memory but see:
+The feature is there for historic reasons and I _really_ think the
+interface is not appropriate. If there is a big pagecache usage which
+affects other loads then Memory cgroup controller can be used to help
+from interference.
 
-  Documentation/vm/overcommit-accounting
+> Christoph Lameter has written a patch "Limit the size of the pagecache"
+> http://marc.info/?l=linux-mm&m=116959990228182&w=2
+> It changes in zone fallback, this is not a good way.
+> 
+> The patchset is based on v3.15, it introduces two features, page cache limit
+> and page cache reclaim in circles.
+> 
+> Add four parameters in /proc/sys/vm
+> 
+> 1) cache_limit_mbytes
+> This is used to limit page cache amount.
+> The input unit is MB, value range is from 0 to totalram_pages.
+> If this is set to 0, it will not limit page cache.
+> When written to the file, cache_limit_ratio will be updated too.
+> The default value is 0.
+> 
+> 2) cache_limit_ratio
+> This is used to limit page cache amount.
+> The input unit is percent, value range is from 0 to 100.
+> If this is set to 0, it will not limit page cache.
+> When written to the file, cache_limit_mbytes will be updated too.
+> The default value is 0.
+> 
+> 3) cache_reclaim_s
+> This is used to reclaim page cache in circles.
+> The input unit is second, the minimum value is 0.
+> If this is set to 0, it will disable the feature.
+> The default value is 0.
+> 
+> 4) cache_reclaim_weight
+> This is used to speed up page cache reclaim.
+> It depend on enabling cache_limit_mbytes/cache_limit_ratio or cache_reclaim_s.
+> Value range is from 1(slow) to 100(fast).
+> The default value is 1.
+> 
+> I tested the two features on my system(x86_64), it seems to work right.
+> However, as it changes the hot path "add_to_page_cache_lru()", I don't know
+> how much it will the affect the performance, maybe there are some errors
+> in the patches too, RFC.
 
-As well as the documentation for the per-process OOM controls (oom_adj,
-oom_score_adj, oom_score). These are discussed in:
-
-  Documentation/filesystems/proc.txt
- 
-> Actual use of snapshots seems to beg denial of service.
-
-Keeping that number of legacy snapshots present is certainly going to
-cause you performance problems like this. Try using thin snapshots or
-reducing the number that you keep active.
-
-Regards,
-Bryn.
+I haven't looked at patches yet but you would need to explain why the
+feature is needed much better and why the existing features are not
+sufficient.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
