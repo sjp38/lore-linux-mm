@@ -1,86 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pa0-f45.google.com (mail-pa0-f45.google.com [209.85.220.45])
-	by kanga.kvack.org (Postfix) with ESMTP id 1574D6B0038
-	for <linux-mm@kvack.org>; Mon, 16 Jun 2014 01:29:59 -0400 (EDT)
-Received: by mail-pa0-f45.google.com with SMTP id rd3so3514091pab.32
-        for <linux-mm@kvack.org>; Sun, 15 Jun 2014 22:29:58 -0700 (PDT)
-Received: from lgeamrelo02.lge.com (lgeamrelo02.lge.com. [156.147.1.126])
-        by mx.google.com with ESMTP id lf13si12383146pab.199.2014.06.15.22.29.56
+Received: from mail-pa0-f52.google.com (mail-pa0-f52.google.com [209.85.220.52])
+	by kanga.kvack.org (Postfix) with ESMTP id EE7F06B0038
+	for <linux-mm@kvack.org>; Mon, 16 Jun 2014 01:36:42 -0400 (EDT)
+Received: by mail-pa0-f52.google.com with SMTP id eu11so4075342pac.25
+        for <linux-mm@kvack.org>; Sun, 15 Jun 2014 22:36:42 -0700 (PDT)
+Received: from lgeamrelo01.lge.com (lgeamrelo01.lge.com. [156.147.1.125])
+        by mx.google.com with ESMTP id pt4si9688953pbc.159.2014.06.15.22.36.41
         for <linux-mm@kvack.org>;
-        Sun, 15 Jun 2014 22:29:58 -0700 (PDT)
-Date: Mon, 16 Jun 2014 14:34:08 +0900
+        Sun, 15 Jun 2014 22:36:42 -0700 (PDT)
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v2 07/10] PPC, KVM, CMA: use general CMA reserved area
- management framework
-Message-ID: <20140616053408.GH23210@js1304-P5Q-DELUXE>
-References: <1402543307-29800-1-git-send-email-iamjoonsoo.kim@lge.com>
- <1402543307-29800-8-git-send-email-iamjoonsoo.kim@lge.com>
- <87mwdfg9co.fsf@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <87mwdfg9co.fsf@linux.vnet.ibm.com>
+Subject: [PATCH v3 -next 1/9] DMA, CMA: fix possible memory leak
+Date: Mon, 16 Jun 2014 14:40:43 +0900
+Message-Id: <1402897251-23639-2-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <1402897251-23639-1-git-send-email-iamjoonsoo.kim@lge.com>
+References: <1402897251-23639-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, Minchan Kim <minchan@kernel.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Paolo Bonzini <pbonzini@redhat.com>, Gleb Natapov <gleb@kernel.org>, Alexander Graf <agraf@suse.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, kvm@vger.kernel.org, kvm-ppc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
+To: Andrew Morton <akpm@linux-foundation.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>
+Cc: Minchan Kim <minchan@kernel.org>, Russell King - ARM Linux <linux@arm.linux.org.uk>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Paolo Bonzini <pbonzini@redhat.com>, Gleb Natapov <gleb@kernel.org>, Alexander Graf <agraf@suse.de>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, kvm@vger.kernel.org, kvm-ppc@vger.kernel.org, linuxppc-dev@lists.ozlabs.org, Zhang Yanfei <zhangyanfei@cn.fujitsu.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Sat, Jun 14, 2014 at 02:23:59PM +0530, Aneesh Kumar K.V wrote:
-> Joonsoo Kim <iamjoonsoo.kim@lge.com> writes:
-> 
-> > Now, we have general CMA reserved area management framework,
-> > so use it for future maintainabilty. There is no functional change.
-> >
-> > Acked-by: Michal Nazarewicz <mina86@mina86.com>
-> > Acked-by: Paolo Bonzini <pbonzini@redhat.com>
-> > Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> 
-> Need this. We may want to keep the VM_BUG_ON by moving
-> KVM_CMA_CHUNK_ORDER around.
-> 
-> diff --git a/arch/powerpc/kvm/book3s_64_mmu_hv.c b/arch/powerpc/kvm/book3s_64_mmu_hv.c
-> index 8056107..1932e0e 100644
-> --- a/arch/powerpc/kvm/book3s_64_mmu_hv.c
-> +++ b/arch/powerpc/kvm/book3s_64_mmu_hv.c
-> @@ -37,8 +37,6 @@
->  #include <asm/ppc-opcode.h>
->  #include <asm/cputable.h>
->  
-> -#include "book3s_hv_cma.h"
-> -
->  /* POWER7 has 10-bit LPIDs, PPC970 has 6-bit LPIDs */
->  #define MAX_LPID_970   63
->  
-> @@ -64,7 +62,6 @@ long kvmppc_alloc_hpt(struct kvm *kvm, u32 *htab_orderp)
->         }
->  
->         kvm->arch.hpt_cma_alloc = 0;
-> -       VM_BUG_ON(order < KVM_CMA_CHUNK_ORDER);
->         page = kvm_alloc_hpt(1 << (order - PAGE_SHIFT));
->         if (page) {
->                 hpt = (unsigned long)pfn_to_kaddr(page_to_pfn(page));
-> 
-> 
-> 
-> -aneesh
+We should free memory for bitmap when we find zone mis-match,
+otherwise this memory will leak.
 
-Okay.
-So do you also want this?
+Additionally, I copy code comment from PPC KVM's CMA code to inform
+why we need to check zone mis-match.
 
-@@ -131,16 +135,18 @@ struct page *kvm_alloc_hpt(unsigned long nr_pages)
- {
-        unsigned long align_pages = HPT_ALIGN_PAGES;
+* Note
+Minchan suggested to add a tag for the stable, but, I don't do it,
+because I found this possibility during code-review and, IMO,
+this patch isn't suitable for stable tree.
+
+Acked-by: Zhang Yanfei <zhangyanfei@cn.fujitsu.com>
+Reviewed-by: Michal Nazarewicz <mina86@mina86.com>
+Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+
+diff --git a/drivers/base/dma-contiguous.c b/drivers/base/dma-contiguous.c
+index 83969f8..6467c91 100644
+--- a/drivers/base/dma-contiguous.c
++++ b/drivers/base/dma-contiguous.c
+@@ -176,14 +176,24 @@ static int __init cma_activate_area(struct cma *cma)
+ 		base_pfn = pfn;
+ 		for (j = pageblock_nr_pages; j; --j, pfn++) {
+ 			WARN_ON_ONCE(!pfn_valid(pfn));
++			/*
++			 * alloc_contig_range requires the pfn range
++			 * specified to be in the same zone. Make this
++			 * simple by forcing the entire CMA resv range
++			 * to be in the same zone.
++			 */
+ 			if (page_zone(pfn_to_page(pfn)) != zone)
+-				return -EINVAL;
++				goto err;
+ 		}
+ 		init_cma_reserved_pageblock(pfn_to_page(base_pfn));
+ 	} while (--i);
  
-+       VM_BUG_ON(get_order(nr_pages) < KVM_CMA_CHUNK_ORDER - PAGE_SHIFT);
+ 	mutex_init(&cma->lock);
+ 	return 0;
 +
-        /* Old CPUs require HPT aligned on a multiple of its size */
-        if (!cpu_has_feature(CPU_FTR_ARCH_206))
-                align_pages = nr_pages;
--       return kvm_alloc_cma(nr_pages, align_pages);
-+       return cma_alloc(kvm_cma, nr_pages, get_order(align_pages));
++err:
++	kfree(cma->bitmap);
++	return -EINVAL;
  }
-
-Thanks.
+ 
+ static struct cma cma_areas[MAX_CMA_AREAS];
+-- 
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
